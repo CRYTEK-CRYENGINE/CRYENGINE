@@ -6,11 +6,11 @@
 // *INDENT-OFF* - <hard to read code and declarations due to inconsistent indentation>
 
 // make the global Serialize() functions available for use in yasli serialization
-using uqs::core::Serialize;
+using UQS::Core::Serialize;
 
-namespace uqs
+namespace UQS
 {
-	namespace core
+	namespace Core
 	{
 
 		static IRenderAuxGeom* GetRenderAuxGeom()
@@ -139,9 +139,9 @@ namespace uqs
 			, m_color(color)
 		{}
 
-		void CDebugRenderPrimitive_Sphere::Draw(bool bHighlight) const
+		void CDebugRenderPrimitive_Sphere::Draw(bool bHighlight, const ColorF* pOptionalColorToOverrideWith) const
 		{
-			Draw(m_pos, m_radius, m_color, bHighlight);
+			Draw(m_pos, m_radius, pOptionalColorToOverrideWith ? *pOptionalColorToOverrideWith : m_color, bHighlight);
 		}
 
 		size_t CDebugRenderPrimitive_Sphere::GetRoughMemoryUsage() const
@@ -175,22 +175,24 @@ namespace uqs
 		//===================================================================================
 
 		CDebugRenderPrimitive_Direction::CDebugRenderPrimitive_Direction()
-			: m_pos(ZERO)
-			, m_radius(0.0f)
-			, m_dir(0, 0, 1)
+			: m_from(ZERO)
+			, m_to(ZERO)
+			, m_coneRadius(0.0f)
+			, m_coneHeight(0.0f)
 			, m_color(Col_Black)
 		{}
 
-		CDebugRenderPrimitive_Direction::CDebugRenderPrimitive_Direction(const Vec3& pos, float radius, const Vec3& dir, const ColorF& color)
-			: m_pos(pos)
-			, m_radius(radius)
-			, m_dir(dir)
+		CDebugRenderPrimitive_Direction::CDebugRenderPrimitive_Direction(const Vec3& from, const Vec3& to, float coneRadius, float coneHeight, const ColorF& color)
+			: m_from(from)
+			, m_to(to)
+			, m_coneRadius(coneRadius)
+			, m_coneHeight(coneHeight)
 			, m_color(color)
 		{}
 
-		void CDebugRenderPrimitive_Direction::Draw(bool bHighlight) const
+		void CDebugRenderPrimitive_Direction::Draw(bool bHighlight, const ColorF* pOptionalColorToOverrideWith) const
 		{
-			Draw(m_pos, m_radius, m_dir, m_color, bHighlight);
+			Draw(m_from, m_to, m_coneRadius, m_coneHeight, pOptionalColorToOverrideWith ? *pOptionalColorToOverrideWith : m_color, bHighlight);
 		}
 
 		size_t CDebugRenderPrimitive_Direction::GetRoughMemoryUsage() const
@@ -200,13 +202,14 @@ namespace uqs
 
 		void CDebugRenderPrimitive_Direction::Serialize(Serialization::IArchive& ar)
 		{
-			ar(m_pos, "m_pos");
-			ar(m_radius, "m_radius");
-			ar(m_dir, "m_dir");
+			ar(m_from, "m_from");
+			ar(m_to, "m_to");
+			ar(m_coneRadius, "m_coneRadius");
+			ar(m_coneHeight, "m_coneHeight");
 			ar(m_color, "m_color");
 		}
 
-		void CDebugRenderPrimitive_Direction::Draw(const Vec3& pos, float radius, const Vec3& dir, const ColorF& color, bool bHighlight)
+		void CDebugRenderPrimitive_Direction::Draw(const Vec3& from, const Vec3& to, float coneRadius, float coneHeight, const ColorF& color, bool bHighlight)
 		{
 			const bool bVisible = bHighlight ? (Pulsate() > 1.5f) : true;
 
@@ -214,8 +217,8 @@ namespace uqs
 			if (bVisible && pAux)
 			{
 				pAux->SetRenderFlags(GetFlags3D());
-				pAux->DrawLine(pos - dir * radius, color, pos + dir * radius, color, SCvars::debugDrawLineThickness);
-				pAux->DrawCone(pos + dir * radius, dir, 0.1f * radius, 0.3f * radius, color);
+				pAux->DrawLine(from, color, to, color, SCvars::debugDrawLineThickness);
+				pAux->DrawCone(to, (to - from).GetNormalizedSafe(), coneRadius, coneHeight, color);
 			}
 		}
 
@@ -237,9 +240,9 @@ namespace uqs
 			, m_color(color)
 		{}
 
-		void CDebugRenderPrimitive_Line::Draw(bool bHighlight) const
+		void CDebugRenderPrimitive_Line::Draw(bool bHighlight, const ColorF* pOptionalColorToOverrideWith) const
 		{
-			Draw(m_pos1, m_pos2, m_color, bHighlight);
+			Draw(m_pos1, m_pos2, pOptionalColorToOverrideWith ? *pOptionalColorToOverrideWith : m_color, bHighlight);
 		}
 
 		size_t CDebugRenderPrimitive_Line::GetRoughMemoryUsage() const
@@ -288,9 +291,9 @@ namespace uqs
 			, m_color(color)
 		{}
 
-		void CDebugRenderPrimitive_Cone::Draw(bool bHighlight) const
+		void CDebugRenderPrimitive_Cone::Draw(bool bHighlight, const ColorF* pOptionalColorToOverrideWith) const
 		{
-			Draw(m_pos, m_dir, m_baseRadius, m_height, m_color, bHighlight);
+			Draw(m_pos, m_dir, m_baseRadius, m_height, pOptionalColorToOverrideWith ? *pOptionalColorToOverrideWith : m_color, bHighlight);
 		}
 
 		size_t CDebugRenderPrimitive_Cone::GetRoughMemoryUsage() const
@@ -341,9 +344,9 @@ namespace uqs
 			, m_color(color)
 		{}
 
-		void CDebugRenderPrimitive_Cylinder::Draw(bool bHighlight) const
+		void CDebugRenderPrimitive_Cylinder::Draw(bool bHighlight, const ColorF* pOptionalColorToOverrideWith) const
 		{
-			Draw(m_pos, m_dir, m_radius, m_height, m_color, bHighlight);
+			Draw(m_pos, m_dir, m_radius, m_height, pOptionalColorToOverrideWith ? *pOptionalColorToOverrideWith : m_color, bHighlight);
 		}
 
 		size_t CDebugRenderPrimitive_Cylinder::GetRoughMemoryUsage() const
@@ -385,16 +388,16 @@ namespace uqs
 			, m_color(Col_Black)
 		{}
 
-		CDebugRenderPrimitive_Text::CDebugRenderPrimitive_Text(const Vec3& pos, float size, const char* text, const ColorF& color)
+		CDebugRenderPrimitive_Text::CDebugRenderPrimitive_Text(const Vec3& pos, float size, const char* szText, const ColorF& color)
 			: m_pos(pos)
 			, m_size(size)
-			, m_text(text)
+			, m_text(szText)
 			, m_color(color)
 		{}
 
-		void CDebugRenderPrimitive_Text::Draw(bool bHighlight) const
+		void CDebugRenderPrimitive_Text::Draw(bool bHighlight, const ColorF* pOptionalColorToOverrideWith) const
 		{
-			Draw(m_pos, m_size, m_text.c_str(), m_color, bHighlight);
+			Draw(m_pos, m_size, m_text.c_str(), pOptionalColorToOverrideWith ? *pOptionalColorToOverrideWith : m_color, bHighlight);
 		}
 
 		size_t CDebugRenderPrimitive_Text::GetRoughMemoryUsage() const
@@ -411,7 +414,7 @@ namespace uqs
 			ar(m_color, "m_color");
 		}
 
-		void CDebugRenderPrimitive_Text::Draw(const Vec3& pos, float size, const char* text, const ColorF& color, bool bHighlight)
+		void CDebugRenderPrimitive_Text::Draw(const Vec3& pos, float size, const char* szText, const ColorF& color, bool bHighlight)
 		{
 			const bool bVisible = bHighlight ? (Pulsate() > 1.5f) : true;
 
@@ -429,7 +432,7 @@ namespace uqs
 				ti.color[1] = color.g;
 				ti.color[2] = color.b;
 				ti.color[3] = color.a;
-				pAux->RenderTextQueued(pos, ti, text);
+				pAux->RenderTextQueued(pos, ti, szText);
 			}
 		}
 
@@ -453,9 +456,9 @@ namespace uqs
 			, m_color(color)
 		{}
 
-		void CDebugRenderPrimitive_Quat::Draw(bool bHighlight) const
+		void CDebugRenderPrimitive_Quat::Draw(bool bHighlight, const ColorF* pOptionalColorToOverrideWith) const
 		{
-			Draw(m_pos, m_quat, m_radius, m_color, bHighlight);
+			Draw(m_pos, m_quat, m_radius, pOptionalColorToOverrideWith ? *pOptionalColorToOverrideWith : m_color, bHighlight);
 		}
 
 		size_t CDebugRenderPrimitive_Quat::GetRoughMemoryUsage() const
@@ -507,9 +510,9 @@ namespace uqs
 			, m_color(color)
 		{}
 
-		void CDebugRenderPrimitive_AABB::Draw(bool bHighlight) const
+		void CDebugRenderPrimitive_AABB::Draw(bool bHighlight, const ColorF* pOptionalColorToOverrideWith) const
 		{
-			Draw(m_aabb, m_color, bHighlight);
+			Draw(m_aabb, pOptionalColorToOverrideWith ? *pOptionalColorToOverrideWith : m_color, bHighlight);
 		}
 
 		size_t CDebugRenderPrimitive_AABB::GetRoughMemoryUsage() const
@@ -544,9 +547,9 @@ namespace uqs
 			, m_color(color)
 		{}
 
-		void CDebugRenderPrimitive_OBB::Draw(bool bHighlight) const
+		void CDebugRenderPrimitive_OBB::Draw(bool bHighlight, const ColorF* pOptionalColorToOverrideWith) const
 		{
-			Draw(m_obb, m_color, bHighlight);
+			Draw(m_obb, pOptionalColorToOverrideWith ? *pOptionalColorToOverrideWith : m_color, bHighlight);
 		}
 
 		size_t CDebugRenderPrimitive_OBB::GetRoughMemoryUsage() const

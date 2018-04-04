@@ -1,6 +1,6 @@
 <Material MtlFlags="0" Shader="Helper" GenMask="0" SurfaceType="" Diffuse="1,1,1" Specular="0,0,0" Emissive="0,0,0" Shininess="10" Opacity="1">
  <Textures>
-  <Texture Map="Diffuse" File="editor/objects/gradf.tif">
+  <Texture Map="Diffuse" File="%EDITOR%/objects/gradf.tif">
    <TexMod />
   </Texture>
  </Textures>

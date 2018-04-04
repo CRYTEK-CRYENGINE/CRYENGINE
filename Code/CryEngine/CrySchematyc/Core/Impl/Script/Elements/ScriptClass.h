@@ -1,10 +1,10 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #pragma once
 
-#include <Schematyc/Env/Elements/IEnvClass.h>
-#include <Schematyc/SerializationUtils/MultiPassSerializer.h>
-#include <Schematyc/Script/Elements/IScriptClass.h>
+#include <CrySchematyc/Env/Elements/IEnvClass.h>
+#include <CrySchematyc/SerializationUtils/MultiPassSerializer.h>
+#include <CrySchematyc/Script/Elements/IScriptClass.h>
 
 #include "Script/ScriptElementBase.h"
 #include "Script/ScriptUserDocumentation.h"
@@ -16,7 +16,7 @@ class CScriptClass : public CScriptElementBase<IScriptClass>, public CMultiPassS
 public:
 
 	CScriptClass();
-	CScriptClass(const SGUID& guid, const char* szName);
+	CScriptClass(const CryGUID& guid, const char* szName);
 
 	// IScriptElement
 	virtual void EnumerateDependencies(const ScriptDependencyEnumerator& enumerator, EScriptDependencyType type) const override;

@@ -23,7 +23,7 @@ struct a2v
   float3 inDir	   : TEXCOORD1; // ray direction in object space
   
   float4 tangent   : TANGENT;
-  float4 biNorm	   : BINORMAL;
+  float4 biNorm	   : BITANGENT;
 };
 
 struct v2f
@@ -90,60 +90,43 @@ pixout_mb MeshBakerComplex_PS(v2f IN)
   float alongEdge=saturate(dot(TRI_POS[2]-TRI_POS[1], onEdge-TRI_POS[1])*IN.edgeLength.y);
   
   // Run through shader
-  float2 realCoord=lerp(TRI_UV[0], lerp(TRI_UV[1], TRI_UV[2], alongEdge), alongFace);
+  float4 realCoord=float4(lerp(TRI_UV[0], lerp(TRI_UV[1], TRI_UV[2], alongEdge), alongFace), 0, 0);
   float4 biNorm=lerp(TRI_BINORM[0], lerp(TRI_BINORM[1], TRI_BINORM[2], alongEdge), alongFace);
   float4 tangent=lerp(TRI_TANGENT[0], lerp(TRI_TANGENT[1], TRI_TANGENT[2], alongEdge), alongFace);
   biNorm.xyz=normalize(biNorm.xyz);
   tangent.xyz=normalize(tangent.xyz);
-  
-  vert2FragGeneral v2fFull=(vert2FragGeneral)0;
-  v2fFull.baseTC=half4(realCoord, 0.0f, 1.0f);
-  v2fFull.screenProj=IN.uvMapPos;
-#if %_RT_FOG || %ANISO_SPECULAR || %IRIS_PARALAX_MAPPING || %OFFSET_BUMP_MAPPING || %PARALLAX_OCCLUSION_MAPPING || %SILHOUETTE_PARALLAX_OCCLUSION_MAPPING
-  v2fFull.vTangent=half4(tangent);
-  v2fFull.vBinormal=half4(biNorm);
+	
+	// Gather surface material attributes
+	MaterialAttribsCommon commonAttribs;
+	half3x3 mTangentToWS = half3x3(tangent.xyz, biNorm.xyz, cross(tangent.xyz, biNorm.xyz) * tangent.w);
+	half4 vertexColor = 0;
+#if %VERTCOLORS || %BLENDLAYER || %DIRTLAYER
+	vertexColor = lerp(TRI_COLOR[0], lerp(TRI_COLOR[1], TRI_COLOR[2], alongEdge), alongFace);
 #endif
-#if %VERTCOLORS || %DIRTLAYER || %BLENDLAYER
-  v2fFull.Color = lerp(TRI_COLOR[0], lerp(TRI_COLOR[1], TRI_COLOR[2], alongEdge), alongFace);
-#endif
-  v2fFull.vView=float4(IN.dir,1);
-#if %_RT_FOG && !%_RT_DECAL_TEXGEN_2D
-  v2fFull.AvgFogVolumeContrib=float4(0,0,0,1);
-#endif
-#if %_RT_FOG || %_RT_DECAL_TEXGEN_2D || %DECAL
-  v2fFull.Ambient=float4(1.0,1.0,1.0,1.0);
-#endif
-  
-  fragPass pPass=(fragPass)0;
-  frag_unify(pPass, v2fFull);
-  pPass.bHemisphereLighting = false;
-	pPass.bSkipDirectLighting = true;
-  half4 cFinal=frag_shared_output(pPass);
-	OUT.Color.xyz=pPass.cDiffuseMap.rgb;
-	OUT.Color.w=cFinal.w;
-
-	OUT.Color.rgb = LinearToSRGB(OUT.Color.rgb);
+	GatherMaterialAttribs(mTangentToWS, realCoord, vertexColor, commonAttribs);
+	
+	OUT.Color.xyz = LinearToSRGB(commonAttribs.Albedo);
+	OUT.Color.w = GatherAlpha(realCoord, vertexColor.w);
 
   if (ZOFFSET.z>1.0f)
   {
-    OUT.Color.xyz = pPass.cSpecularMap.xyz;
-		OUT.Color.rgb = LinearToSRGB(OUT.Color.rgb);
+    OUT.Color.xyz = LinearToSRGB(commonAttribs.Reflectance);
   }
   else if (ZOFFSET.z>0.0f)
   {
     float3 normalMap;
-    
-    normalMap.x = dot(pPass.vNormal.xyz, IN.tangent.xyz);
-    normalMap.y = dot(pPass.vNormal.xyz, IN.biNorm.xyz);
-    normalMap.z = dot(pPass.vNormal.xyz, IN.normal.xyz);
+    normalMap.x = dot(commonAttribs.NormalWorld.xyz, IN.tangent.xyz);
+    normalMap.y = dot(commonAttribs.NormalWorld.xyz, IN.biNorm.xyz);
+    normalMap.z = dot(commonAttribs.NormalWorld.xyz, IN.normal.xyz);
     normalMap.xyz = 0.5f * normalize(normalMap.xyz) + 0.5f;
 
     OUT.Color.xyz = normalMap;
-    OUT.Color.w = pPass.fGloss;
+    OUT.Color.w = commonAttribs.Smoothness;
   }
 
 #if %_RT_ALPHATEST
-  clip(pPass.cDiffuseMap.a - AlphaTest.w);
+  half diffuseMapAlpha = GetAlphaTex(diffuseTex, realCoord);
+	clip(diffuseMapAlpha - Get_MaterialAlphaTest());
 #endif
   
   OUT.Depth = dt * (1.0f / ZOFFSET.x);

@@ -17,11 +17,10 @@ public:
 
 	virtual void TriggerEvent(const char* szEventName, UserAnalytics::Attributes* attributes) override;
 
+	void         Initialize();
 	void         RegisterCVars();
 
 private:
-	void         Initialize();
-
 	virtual void OnPluginEvent(const CryClassID& pluginClassId, IPluginEventListener::EPluginEvent event) override;
 
 	ICryUserAnalyticsPlugin* m_pUserAnalyticsPlugin;
@@ -37,8 +36,9 @@ public:
 	CUserAnalyticsSystem() {};
 	~CUserAnalyticsSystem() {};
 
-	virtual void TriggerEvent(const char* szEventName, UserAnalytics::Attributes* attributes) override {};
+	virtual void TriggerEvent(const char* szEventName, UserAnalytics::Attributes* attributes) override {}
 
-	void         RegisterCVars()                                                                       {};
+	void         Initialize()                                                                          {}
+	void         RegisterCVars()                                                                       {}
 };
 #endif

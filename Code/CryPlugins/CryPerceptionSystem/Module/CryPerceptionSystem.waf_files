@@ -1,0 +1,30 @@
+{
+	"CryPerceptionSystem_uber_0.cpp" :
+	{
+		"Interface" :
+		[
+			"../Interface/ICryPerceptionSystemPlugin.h",
+			"../Interface/IPerceptionManager.h"
+		],
+		"Module" :
+		[
+			"CryPerceptionSystemPluginDLL.cpp",
+			"PerceptionManager.cpp",
+			"PerceptionManager.h",
+			"PerceptionActor.cpp",
+			"PerceptionActor.h",
+			"PerceptionFlowNodes.cpp",
+			"PerceptionFlowNodes.h",
+			"ScriptBind_PerceptionManager.cpp",
+			"ScriptBind_PerceptionManager.h"
+		]
+	},
+	"NoUberFile" :
+	{
+		"Module" :
+		[
+			"StdAfx.cpp",
+			"StdAfx.h"
+		]
+	}
+}

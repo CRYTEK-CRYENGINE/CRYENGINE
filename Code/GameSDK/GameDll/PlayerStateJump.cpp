@@ -38,6 +38,8 @@
 #include "MovementAction.h"
 #include "PersistantStats.h"
 
+#include <IPerceptionManager.h>
+
 using namespace crymath;
 
 CPlayerStateJump::CPlayerStateJump()
@@ -450,7 +452,7 @@ void CPlayerStateJump::Landed(CPlayer& player, const bool isHeavyWeapon, float f
 		CCCPOINT(PlayerMovement_LocalPlayerLanded);
 	}
 
-	if (gEnv->pAISystem)
+	if (IPerceptionManager::GetInstance())
 	{
 		// Notify AI
 		//If silent feet active, ignore here
@@ -458,7 +460,7 @@ void CPlayerStateJump::Landed(CPlayer& player, const bool isHeavyWeapon, float f
 		const float fAISoundRadius = (g_pGameCVars->ai_perception.landed_baseRadius + (g_pGameCVars->ai_perception.landed_speedMultiplier * fallSpeed)) * (1.0f - noiseSupression);
 		SAIStimulus stim(AISTIM_SOUND, AISOUND_MOVEMENT_LOUD, player.GetEntityId(), 0,
 		                 player.GetEntity()->GetWorldPos() + player.GetEyeOffset(), ZERO, fAISoundRadius);
-		gEnv->pAISystem->RegisterStimulus(stim);
+		IPerceptionManager::GetInstance()->RegisterStimulus(stim);
 	}
 
 	// Record 'Land' telemetry stats.

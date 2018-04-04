@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #pragma once
 
@@ -38,10 +38,12 @@ public:
 
 	virtual _smart_ptr<IParticleComponentRuntime>
 	CreateParticleComponentRuntime(
-	  pfx2::IParticleComponent* pComponent,
-	  const pfx2::SRuntimeInitializationParameters& params) override;
+		IParticleEmitter* pEmitter,
+		pfx2::IParticleComponent* pComponent,
+		const pfx2::SRuntimeInitializationParameters& params) override;
 
 	void RenderThreadUpdate();
+	void RenderThreadPreUpdate();
 	void RenderThreadPostUpdate();
 
 	// gets initialized the first time it is called and will allocate buffers

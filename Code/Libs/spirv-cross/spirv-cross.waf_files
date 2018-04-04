@@ -1,0 +1,13 @@
+{
+	"NoUberFile": 
+	{
+		"Root":
+		[
+			"../../SDKs/spirv-cross/GLSL.std.450.h",
+			"../../SDKs/spirv-cross/spirv_common.hpp",
+			"../../SDKs/spirv-cross/spirv.hpp",
+			"../../SDKs/spirv-cross/spirv_cross.hpp",
+			"../../SDKs/spirv-cross/spirv_cross.cpp"
+		]
+	}
+}

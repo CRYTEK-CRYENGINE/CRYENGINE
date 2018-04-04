@@ -50,7 +50,7 @@ protected:
 	bool m_bTurretTurning;
 	float m_turretTurnSpeed;
 	float m_lastTurretTurnSpeed;
-	AudioControlId m_turretTurnRtpcId;
+	CryAudio::ControlId m_turretTurnRtpcId;
 
 	typedef std::vector<IVehiclePart*> TTreadParts;
 	TTreadParts m_treadParts;    

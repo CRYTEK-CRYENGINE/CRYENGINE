@@ -1,10 +1,10 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+
+#pragma once
 
 #include "DeviceObjects.h"
-#if !defined (__DEVICE_COMMAND_LIST_INL__)
-#define __DEVICE_COMMAND_LIST_INL__
 
-#if defined(CRY_USE_GNM_RENDERER)
+#if defined(CRY_RENDERER_GNM)
 #include "GNM/DeviceCommandList_GNM.inl"
 #endif
 
@@ -23,6 +23,11 @@ inline CDeviceComputeCommandInterface* CDeviceCommandList::GetComputeInterface()
 inline CDeviceNvidiaCommandInterface* CDeviceCommandList::GetNvidiaCommandInterface()
 {
 	return reinterpret_cast<CDeviceNvidiaCommandInterface*>(GetNvidiaCommandInterfaceImpl());
+}
+
+inline CDeviceCopyCommandInterface* CDeviceCommandList::GetCopyInterface()
+{
+	return reinterpret_cast<CDeviceCopyCommandInterface*>(GetCopyInterfaceImpl());
 }
 
 inline void CDeviceCommandList::Reset()
@@ -69,19 +74,29 @@ inline const SProfilingStats& CDeviceCommandList::EndProfilingSection()
 
 ////////////////////////////////////////////////////////////////////////////
 
-inline void CDeviceGraphicsCommandInterface::PrepareUAVsForUse(uint32 viewCount, CGpuBuffer** pViews) const
+inline void CDeviceGraphicsCommandInterface::ClearState(bool bOutputMergerOnly) const
 {
-	PrepareUAVsForUseImpl(viewCount, pViews);
+	ClearStateImpl(bOutputMergerOnly);
 }
 
-inline void CDeviceGraphicsCommandInterface::PrepareRenderTargetsForUse(uint32 targetCount, CTexture** pTargets, SDepthTexture* pDepthTarget, const SResourceView::KeyType* pRenderTargetViews /*= nullptr*/) const
+inline void CDeviceGraphicsCommandInterface::PrepareUAVsForUse(uint32 viewCount, CGpuBuffer** pViews, bool bCompute) const
 {
-	PrepareRenderTargetsForUseImpl(targetCount, pTargets, pDepthTarget, pRenderTargetViews);
+	PrepareUAVsForUseImpl(viewCount, pViews, bCompute);
 }
 
-inline void CDeviceGraphicsCommandInterface::PrepareResourcesForUse(uint32 bindSlot, CDeviceResourceSet* pResources, ::EShaderStage srvUsage) const
+inline void CDeviceGraphicsCommandInterface::PrepareRenderPassForUse(CDeviceRenderPass& renderPass) const
 {
-	PrepareResourcesForUseImpl(bindSlot, pResources, srvUsage);
+	PrepareRenderPassForUseImpl(renderPass);
+}
+
+inline void CDeviceGraphicsCommandInterface::PrepareResourceForUse(uint32 bindSlot, CTexture* pTexture, const ResourceViewHandle TextureView, ::EShaderStage srvUsage) const
+{
+	PrepareResourceForUseImpl(bindSlot, pTexture, TextureView, srvUsage);
+}
+
+inline void CDeviceGraphicsCommandInterface::PrepareResourcesForUse(uint32 bindSlot, CDeviceResourceSet* pResources) const
+{
+	PrepareResourcesForUseImpl(bindSlot, pResources);
 }
 
 inline void CDeviceGraphicsCommandInterface::PrepareInlineConstantBufferForUse(uint32 bindSlot, CConstantBuffer* pBuffer, EConstantBufferShaderSlot shaderSlot, EHWShaderClass shaderClass) const
@@ -109,11 +124,15 @@ inline void CDeviceGraphicsCommandInterface::BeginResourceTransitions(uint32 num
 	BeginResourceTransitionsImpl(numTextures, pTextures, type);
 }
 
-inline void CDeviceGraphicsCommandInterface::SetRenderTargets(uint32 targetCount, CTexture* const* pTargets, const SDepthTexture* pDepthTarget, const SResourceView::KeyType* pRenderTargetViews /*=nullptr*/)
+inline void CDeviceGraphicsCommandInterface::BeginRenderPass(const CDeviceRenderPass& renderPass, const D3DRectangle& renderArea)
 {
-	SetRenderTargetsImpl(targetCount, pTargets, pDepthTarget, pRenderTargetViews);
+	BeginRenderPassImpl(renderPass, renderArea);
 }
 
+inline void CDeviceGraphicsCommandInterface::EndRenderPass(const CDeviceRenderPass& renderPass)
+{
+	EndRenderPassImpl(renderPass);
+}
 inline void CDeviceGraphicsCommandInterface::SetViewports(uint32 vpCount, const D3DViewPort* pViewports)
 {
 	SetViewportsImpl(vpCount, pViewports);
@@ -156,14 +175,14 @@ inline void CDeviceGraphicsCommandInterface::SetResourceLayout(const CDeviceReso
 	}
 }
 
-inline void CDeviceGraphicsCommandInterface::SetResources(uint32 bindSlot, const CDeviceResourceSet* pResources, ::EShaderStage srvUsage)
+inline void CDeviceGraphicsCommandInterface::SetResources(uint32 bindSlot, const CDeviceResourceSet* pResources)
 {
 	CRY_ASSERT(bindSlot <= EResourceLayoutSlot_Max);
 	if (m_graphicsState.pResources[bindSlot].Set(pResources))
 	{
 		m_graphicsState.validResourceBindings[bindSlot] = pResources->IsValid();
 
-		SetResourcesImpl(bindSlot, pResources, srvUsage);
+		SetResourcesImpl(bindSlot, pResources);
 
 #if defined(ENABLE_PROFILING_CODE)
 		++m_profilingStats.numResourceSetSwitches;
@@ -352,6 +371,16 @@ inline void CDeviceGraphicsCommandInterface::ClearSurface(D3DDepthSurface* pView
 	ClearSurfaceImpl(pView, clearFlags, depth, stencil, numRects, pRects);
 }
 
+inline void CDeviceGraphicsCommandInterface::BeginOcclusionQuery(D3DOcclusionQuery* pQuery)
+{
+	BeginOcclusionQueryImpl(pQuery);
+}
+
+inline void CDeviceGraphicsCommandInterface::EndOcclusionQuery(D3DOcclusionQuery* pQuery)
+{
+	EndOcclusionQueryImpl(pQuery);
+}
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 inline void CDeviceComputeCommandInterface::PrepareUAVsForUse(uint32 viewCount, CGpuBuffer** pViews) const
@@ -359,14 +388,14 @@ inline void CDeviceComputeCommandInterface::PrepareUAVsForUse(uint32 viewCount, 
 	PrepareUAVsForUseImpl(viewCount, pViews);
 }
 
-inline void CDeviceComputeCommandInterface::PrepareResourcesForUse(uint32 bindSlot, CDeviceResourceSet* pResources, ::EShaderStage srvUsage) const
+inline void CDeviceComputeCommandInterface::PrepareResourcesForUse(uint32 bindSlot, CDeviceResourceSet* pResources) const
 {
-	PrepareResourcesForUseImpl(bindSlot, pResources, srvUsage);
+	PrepareResourcesForUseImpl(bindSlot, pResources);
 }
 
-inline void CDeviceComputeCommandInterface::PrepareInlineConstantBufferForUse(uint32 bindSlot, CConstantBuffer* pBuffer, EConstantBufferShaderSlot shaderSlot) const
+inline void CDeviceComputeCommandInterface::PrepareInlineConstantBufferForUse(uint32 bindSlot, CConstantBuffer* pBuffer, EConstantBufferShaderSlot shaderSlot, ::EShaderStage shaderStages) const
 {
-	PrepareInlineConstantBufferForUseImpl(bindSlot, pBuffer, shaderSlot);
+	PrepareInlineConstantBufferForUseImpl(bindSlot, pBuffer, shaderSlot, shaderStages);
 }
 
 inline void CDeviceComputeCommandInterface::SetPipelineState(const CDeviceComputePSO* pDevicePSO)
@@ -400,14 +429,14 @@ inline void CDeviceComputeCommandInterface::SetResourceLayout(const CDeviceResou
 	}
 }
 
-inline void CDeviceComputeCommandInterface::SetResources(uint32 bindSlot, const CDeviceResourceSet* pResources, ::EShaderStage srvUsage)
+inline void CDeviceComputeCommandInterface::SetResources(uint32 bindSlot, const CDeviceResourceSet* pResources)
 {
 	CRY_ASSERT(bindSlot <= EResourceLayoutSlot_Max);
 	if (m_computeState.pResources[bindSlot].Set(pResources))
 	{
 		m_computeState.validResourceBindings[bindSlot] = pResources->IsValid();
 
-		SetResourcesImpl(bindSlot, pResources, srvUsage);
+		SetResourcesImpl(bindSlot, pResources);
 
 #if defined(ENABLE_PROFILING_CODE)
 		++m_profilingStats.numResourceSetSwitches;
@@ -442,13 +471,118 @@ inline void CDeviceComputeCommandInterface::ClearUAV(D3DUAV* pView, const UINT V
 	ClearUAVImpl(pView, Values, NumRects, pRects);
 }
 
-inline void CDeviceNvidiaCommandInterface::SetModifiedWMode(bool enabled, uint32 numViewports, const float* pA, const float* pB)
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+inline void CDeviceCopyCommandInterface::Copy(CDeviceBuffer* pSrc, CDeviceBuffer* pDst)
 {
-#if defined(CRY_PLATFORM_CONSOLE) || defined(CRY_USE_DX12)
-	CRY_ASSERT_MESSAGE(false, "Only supported on DirectX11, PC");
-#else
-	SetModifiedWModeImpl(enabled, numViewports, pA, pB);
-#endif
+	CopyImpl(pSrc, pDst);
 }
 
+inline void CDeviceCopyCommandInterface::Copy(D3DBuffer* pSrc, D3DBuffer* pDst)
+{
+	CopyImpl(pSrc, pDst);
+}
+
+inline void CDeviceCopyCommandInterface::Copy(CDeviceTexture* pSrc, CDeviceTexture* pDst)
+{
+	CopyImpl(pSrc, pDst);
+}
+
+inline void CDeviceCopyCommandInterface::Copy(CDeviceTexture* pSrc, D3DTexture* pDst)
+{
+	CopyImpl(pSrc, pDst);
+}
+
+inline void CDeviceCopyCommandInterface::Copy(D3DTexture* pSrc, D3DTexture* pDst)
+{
+	CopyImpl(pSrc, pDst);
+}
+
+inline void CDeviceCopyCommandInterface::Copy(D3DTexture* pSrc, CDeviceTexture* pDst)
+{
+	CopyImpl(pSrc, pDst);
+}
+
+inline void CDeviceCopyCommandInterface::Copy(CDeviceBuffer* pSrc, CDeviceBuffer* pDst, const SResourceRegionMapping& regionMapping)
+{
+	CopyImpl(pSrc, pDst, regionMapping);
+}
+
+inline void CDeviceCopyCommandInterface::Copy(D3DBuffer* pSrc, D3DBuffer* pDst, const SResourceRegionMapping& regionMapping)
+{
+	CopyImpl(pSrc, pDst, regionMapping);
+}
+
+inline void CDeviceCopyCommandInterface::Copy(CDeviceTexture* pSrc, CDeviceTexture* pDst, const SResourceRegionMapping& regionMapping)
+{
+	CopyImpl(pSrc, pDst, regionMapping);
+}
+
+inline void CDeviceCopyCommandInterface::Copy(D3DTexture* pSrc, CDeviceTexture* pDst, const SResourceRegionMapping& regionMapping)
+{
+	CopyImpl(pSrc, pDst, regionMapping);
+}
+
+inline void CDeviceCopyCommandInterface::Copy(const void* pSrc, CConstantBuffer* pDst, const SResourceMemoryAlignment& memoryLayout)
+{
+	CopyImpl(pSrc, pDst, memoryLayout);
+}
+
+inline void CDeviceCopyCommandInterface::Copy(const void* pSrc, CDeviceBuffer* pDst, const SResourceMemoryAlignment& memoryLayout)
+{
+	CopyImpl(pSrc, pDst, memoryLayout);
+}
+
+inline void CDeviceCopyCommandInterface::Copy(const void* pSrc, CDeviceTexture* pDst, const SResourceMemoryAlignment& memoryLayout)
+{
+	CopyImpl(pSrc, pDst, memoryLayout);
+}
+
+inline void CDeviceCopyCommandInterface::Copy(const void* pSrc, CConstantBuffer* pDst, const SResourceMemoryMapping& memoryMapping)
+{
+	CopyImpl(pSrc, pDst, memoryMapping);
+}
+
+inline void CDeviceCopyCommandInterface::Copy(const void* pSrc, CDeviceBuffer* pDst, const SResourceMemoryMapping& memoryMapping)
+{
+	CopyImpl(pSrc, pDst, memoryMapping);
+}
+
+inline void CDeviceCopyCommandInterface::Copy(const void* pSrc, CDeviceTexture* pDst, const SResourceMemoryMapping& memoryMapping)
+{
+	CopyImpl(pSrc, pDst, memoryMapping);
+}
+
+inline void CDeviceCopyCommandInterface::Copy(CDeviceBuffer* pSrc, void* pDst, const SResourceMemoryAlignment& memoryLayout)
+{
+	CopyImpl(pSrc, pDst, memoryLayout);
+}
+
+inline void CDeviceCopyCommandInterface::Copy(CDeviceTexture* pSrc, void* pDst, const SResourceMemoryAlignment& memoryLayout)
+{
+	CopyImpl(pSrc, pDst, memoryLayout);
+}
+
+inline void CDeviceCopyCommandInterface::Copy(CDeviceBuffer* pSrc, void* pDst, const SResourceMemoryMapping& memoryMapping)
+{
+	CopyImpl(pSrc, pDst, memoryMapping);
+}
+
+inline void CDeviceCopyCommandInterface::Copy(CDeviceTexture* pSrc, void* pDst, const SResourceMemoryMapping& memoryMapping)
+{
+	CopyImpl(pSrc, pDst, memoryMapping);
+}
+
+#if CRY_RENDERER_GNM
+	#include "GNM/DeviceCommandList_GNM.inl"
 #endif
+
+
+inline void CDeviceNvidiaCommandInterface::SetModifiedWMode(bool enabled, uint32 numViewports, const float* pA, const float* pB)
+{
+#if defined(USE_NV_API) && (CRY_RENDERER_DIRECT3D >= 110) && (CRY_RENDERER_DIRECT3D < 120)
+	SetModifiedWModeImpl(enabled, numViewports, pA, pB);
+#else
+	CRY_ASSERT_MESSAGE(false, "Only supported on DirectX11, PC");
+#endif
+}

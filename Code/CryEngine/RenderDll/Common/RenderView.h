@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #pragma once
 
@@ -17,19 +17,43 @@ struct SGraphicsPipelinePassContext;
 class CRenderPolygonDataPool;
 class CREClientPoly;
 
+class CRenderOutput
+{
+public:
+	CRenderOutput() = default;
+	~CRenderOutput();
+
+	CRenderOutput(const SEnvTexture& envTex, const SHRenderTarget& renderTarget);
+	CRenderOutput(CTexture* pHDRTargetTex, int32 width, int32 height, bool bClear, ColorF clearColor);
+
+	CRenderOutput(const CRenderOutput&) = default;
+	CRenderOutput& operator=(const CRenderOutput&) = default;
+
+	void           BeginRendering();
+	void           EndRendering();
+
+	CTexture*      GetHDRTargetTexture() const;
+
+	CTexture*      GetDepthTexture() const;
+
+private:
+	SDynTexture*   m_pOutputDynTexture = nullptr;
+	CTexture*      m_pHDRTargetTexture = nullptr;
+	CTexture*      m_pDepthTexture = nullptr;
+	int32          m_width = -1;
+	int32          m_height = -1;
+	uint32         m_clearTargetFlag = 0;
+	ColorF         m_clearColor = {};
+	float          m_clearDepth = 0.0f;
+	bool           m_bUseTempDepthBuffer = false;
+};
+
 // This class encapsulate all information required to render a camera view.
 // It stores list of render items added by 3D engine
 class CRenderView : public IRenderView
 {
 public:
 	typedef TRange<int> ItemsRange;
-
-	enum EViewType
-	{
-		eViewType_Default,
-		eViewType_Recursive,
-		eViewType_Shadow,
-	};
 
 	enum eShadowFrustumRenderType
 	{
@@ -92,6 +116,9 @@ public:
 	const CCamera&       GetPreviousCamera(CCamera::EEye eye) const { CRY_ASSERT(eye == CCamera::eEye_Left || eye == CCamera::eEye_Right); return m_previousCamera[eye]; }
 	const CRenderCamera& GetRenderCamera(CCamera::EEye eye)   const { CRY_ASSERT(eye == CCamera::eEye_Left || eye == CCamera::eEye_Right); return m_renderCamera[eye]; }
 
+	void                 SetRenderOutput(const CRenderOutput* pRenderOutput);
+	const CRenderOutput* GetRenderOutput() const { return m_bRenderOutput ? &m_renderOutput : nullptr; }
+
 	RenderItems&         GetRenderItems(int nRenderList);
 	uint32               GetBatchFlags(int nRenderList) const;
 
@@ -103,11 +130,11 @@ public:
 	ItemsRange GetItemsRange(ERenderListID renderList);
 
 	// Find render item index in the sorted list, after when object flag changes.
-	int        FindRenderListSplit(ERenderListID list, uint32 objFlag);
+	int FindRenderListSplit(ERenderListID list, uint32 objFlag);
 
 	// Find render item index in the sorted list according to arbitrary criteria.
-	template <typename T>
-	int        FindRenderListSplit(T predicate, ERenderListID list, int first, int last)
+	template<typename T>
+	int FindRenderListSplit(T predicate, ERenderListID list, int first, int last)
 	{
 		FUNCTION_PROFILER_RENDERER
 
@@ -135,9 +162,10 @@ public:
 
 	void       PrepareForWriting();
 
-	bool       IsRecursive() const     { return m_viewType == eViewType_Recursive; }
-	bool       IsShadowGenView() const { return m_viewType == eViewType_Shadow; }
-	EUsageMode GetUsageMode() const    { return m_usageMode; }
+	bool       IsRecursive() const        { return m_viewType == eViewType_Recursive; }
+	bool       IsShadowGenView() const    { return m_viewType == eViewType_Shadow; }
+	bool       IsBillboardGenView() const { return m_viewType == eViewType_BillboardGen; }
+	EUsageMode GetUsageMode() const       { return m_usageMode; }
 	//////////////////////////////////////////////////////////////////////////
 	// Shadows related
 	void AddShadowFrustumToRender(const SShadowFrustumToRender& frustum);
@@ -224,6 +252,7 @@ public:
 private:
 	void                   Job_PostWrite();
 	void                   Job_SortRenderItemsInList(ERenderListID list);
+	void                   SortLights();
 	void                   ExpandPermanentRenderObjects();
 	void                   CompileModifiedRenderObjects();
 	void                   UpdateModifiedShaderItems();
@@ -329,6 +358,9 @@ private:
 	CryCriticalSectionNonRecursive m_lock_PostWrite;
 
 	volatile int                   m_bPostWriteExecuted;
+
+	CRenderOutput                  m_renderOutput; // Output render target (currently used for recursive pass and secondary viewport)
+	bool                           m_bRenderOutput;
 
 	struct SShadows
 	{

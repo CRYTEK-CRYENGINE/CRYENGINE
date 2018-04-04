@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 // -------------------------------------------------------------------------
 //  File name:   terrain_node.cpp
@@ -293,7 +293,7 @@ bool CTerrainNode::CheckVis(bool bAllInside, bool bAllowRenderIntoCBuffer, const
 	}
 	else
 	{
-		if (GetCVars()->e_StatObjBufferRenderTasks == 1 && passInfo.IsGeneralPass() && JobManager::InvokeAsJob("CheckOcclusion"))
+		if (Get3DEngine()->IsStatObjBufferRenderTasksAllowed() && GetCVars()->e_StatObjBufferRenderTasks == 1 && passInfo.IsGeneralPass() && JobManager::InvokeAsJob("CheckOcclusion"))
 		{
 			GetObjManager()->PushIntoCullQueue(SCheckOcclusionJobData::CreateTerrainJobData(this, GetBBox(), m_arrfDistance[passInfo.GetRecursiveLevel()]));
 		}
@@ -368,6 +368,7 @@ void CTerrainNode::Init(int x1, int y1, int nNodeSize, CTerrainNode* pParent, bo
 	//m_nNodeRenderLastFrameId=0;
 	m_nNodeTextureLastUsedSec4 = (~0);
 	m_boxHeigtmapLocal.Reset();
+	m_fBBoxExtentionByObjectsIntegration = 0;
 	m_pParent = NULL;
 	//m_nSetupTexGensFrameId=0;
 
@@ -452,6 +453,8 @@ void CTerrainNode::Init(int x1, int y1, int nNodeSize, CTerrainNode* pParent, bo
 
 CTerrainNode::~CTerrainNode()
 {
+	Get3DEngine()->FreeRenderNodeState(this);
+
 	if (GetTerrain()->m_pTerrainUpdateDispatcher)
 		GetTerrain()->m_pTerrainUpdateDispatcher->RemoveJob(this);
 

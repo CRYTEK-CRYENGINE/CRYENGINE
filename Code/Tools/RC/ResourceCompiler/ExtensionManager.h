@@ -18,9 +18,9 @@
 #pragma once
 
 // forward declarations.
-struct IConvertor;
+struct IConverter;
 
-/** Manages mapping between file extensions and convertors.
+/** Manages mapping between file extensions and converters.
 */
 class ExtensionManager
 {
@@ -28,22 +28,22 @@ public:
 	ExtensionManager();
 	~ExtensionManager();
 
-	//! Register new convertor with extension manager.
+	//! Register new converter with extension manager.
 	//!  \param conv must not be 0
 	//!  \param rc must not be 0
-	void RegisterConvertor(const char* name, IConvertor* conv, IResourceCompiler* rc);
-	//! Unregister all convertors.
+	void RegisterConverter(const char* name, IConverter* conv, IResourceCompiler* rc);
+	//! Unregister all converters.
 	void UnregisterAll();
 
-	//! Find convertor that matches given platform and extension.
-	IConvertor* FindConvertor(const char* filename) const;
+	//! Find converter that matches given platform and extension.
+	IConverter* FindConverter(const char* filename) const;
 
 private:
-	// Links extensions and convertors.
-	typedef std::vector<std::pair<string, IConvertor*> > ExtVector;
+	// Links extensions and converters.
+	typedef std::vector<std::pair<string, IConverter*> > ExtVector;
 	ExtVector m_extVector;
 
-	std::vector<IConvertor*> m_convertors;
+	std::vector<IConverter*> m_converters;
 };
 
 #endif // __extensionmanager_h__

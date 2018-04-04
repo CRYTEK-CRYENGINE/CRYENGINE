@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #include "StdAfx.h"
 #include "DecalRenderNode.h"
@@ -12,6 +12,7 @@ int CDecalRenderNode::m_nFillBigDecalIndicesCounter = 0;
 CDecalRenderNode::CDecalRenderNode()
 	: m_pos(0, 0, 0)
 	, m_localBounds(Vec3(-1, -1, -1), Vec3(1, 1, 1))
+	, m_pOverrideMaterial(NULL)
 	, m_pMaterial(NULL)
 	, m_updateRequested(false)
 	, m_decalProperties()
@@ -91,7 +92,7 @@ void CDecalRenderNode::CreateDecalOnStaticObjects()
 	for (int nRecId(0); nRecId < decalReceivers.Count(); ++nRecId)
 	{
 		EERType eType = decalReceivers[nRecId].pNode->GetRenderNodeType();
-		if (eType != eERType_Brush && eType != eERType_RenderProxy)
+		if (eType != eERType_Brush && eType != eERType_MovableBrush)
 		{
 			decalReceivers.DeleteFastUnsorted(nRecId);
 			nRecId--;
@@ -537,6 +538,7 @@ IRenderNode* CDecalRenderNode::Clone() const
 	pDestDecal->m_pos = m_pos;
 	pDestDecal->m_localBounds = m_localBounds;
 	pDestDecal->m_pMaterial = m_pMaterial;
+	pDestDecal->m_pOverrideMaterial = m_pOverrideMaterial;
 	pDestDecal->m_updateRequested = true;
 	pDestDecal->m_decalProperties = m_decalProperties;
 	pDestDecal->m_WSBBox = m_WSBBox;
@@ -601,7 +603,7 @@ void CDecalRenderNode::Render(const SRendParams& rParam, const SRenderingPassInf
 
 		SDeferredDecal newItem;
 		newItem.fAlpha = fDistFading;
-		newItem.pMaterial = m_pMaterial;
+		newItem.pMaterial = m_pOverrideMaterial ? m_pOverrideMaterial : m_pMaterial;
 		newItem.projMatrix = m_Matrix;
 		newItem.nSortOrder = m_decalProperties.m_sortPrio;
 		newItem.nFlags = DECAL_STATIC;
@@ -649,14 +651,14 @@ void CDecalRenderNode::SetPhysics(IPhysicalEntity*)
 
 void CDecalRenderNode::SetMaterial(IMaterial* pMat)
 {
+	m_pOverrideMaterial = pMat;
+
 	for (size_t i(0); i < m_decals.size(); ++i)
 	{
 		CDecal* pDecal(m_decals[i]);
 		if (pDecal)
-			pDecal->m_pMaterial = pMat;
+			pDecal->m_pMaterial = m_pOverrideMaterial ? m_pOverrideMaterial : m_pMaterial;
 	}
-
-	m_pMaterial = pMat;
 
 	//special check for def decals forcing
 	if (GetCVars()->e_DecalsForceDeferred)
@@ -724,5 +726,5 @@ Vec3 CDecalRenderNode::GetPos(bool bWorldOnly) const
 
 IMaterial* CDecalRenderNode::GetMaterial(Vec3* pHitPos) const
 {
-	return m_pMaterial;
+	return m_pOverrideMaterial ? m_pOverrideMaterial : m_pMaterial;
 }

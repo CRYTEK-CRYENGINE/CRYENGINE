@@ -11,4 +11,4 @@ IAudioSystemControl_sdlmixer::IAudioSystemControl_sdlmixer(const string& name, C
 	: IAudioSystemItem(name, id, type)
 {
 }
-}
+} // namespace ACE

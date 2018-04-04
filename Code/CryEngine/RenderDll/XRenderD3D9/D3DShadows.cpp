@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 /*=============================================================================
    D3DShadows.cpp : shadows support.
@@ -617,17 +617,7 @@ void CD3D9Renderer::ConfigShadowTexgen(int Num, ShadowMapFrustum* pFr, int nFrus
 				m_cEF.m_TempVecs[1][Num] = pFr->fDepthTestBias;
 			}
 
-			//fOneDivFarDist param
-			if ((pFr->m_Flags & DLF_DIRECTIONAL) || (!(pFr->bUseHWShadowMap) && !(pFr->bHWPCFCompare)))
-			{
-				//linearized shadows are used for any kind of directional lights and for non-hw point lights
-				m_cEF.m_TempVecs[2][Num] = 1.f / (pFr->fFarDist);
-			}
-			else
-			{
-				//hw point lights sources have non-linear depth for now
-				m_cEF.m_TempVecs[2][Num] = 1.f / (pFr->fFarDist);
-			}
+			m_cEF.m_TempVecs[2][Num] = 1.f / (pFr->fFarDist);
 
 			//vInvShadowMapWH param
 			m_cEF.m_TempVecs[9][Num] = 1.f / pFr->nTexSize;

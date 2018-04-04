@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #pragma once
 
@@ -407,7 +407,6 @@ public:
 	CFrameProfiler*        m_pFrameProfiler;
 	CFrameProfilerSection* m_pParent;
 	CBootProfilerRecord*   m_pRecord;
-	unsigned int           m_sesseionIndex;
 #if ALLOW_BROFILER
 	::Profiler::EventData * m_brofilerEventData;
 #endif
@@ -418,12 +417,11 @@ public:
 		, m_pFrameProfiler(nullptr)
 		, m_pParent(nullptr)
 		, m_pRecord(nullptr)
-		, m_sesseionIndex(0)
 #if ALLOW_BROFILER
 		, m_brofilerEventData(nullptr)
 #endif
 	{
-		m_pRecord = (gEnv->bBootProfilerEnabledFrames) ? gEnv->pSystem->StartBootSectionProfiler(sectionName, instanceArguments, m_sesseionIndex) : nullptr;
+		m_pRecord = (gEnv->bBootProfilerEnabledFrames) ? gEnv->pSystem->StartBootSectionProfiler(sectionName, instanceArguments) : nullptr;
 		if (gEnv->bDeepProfiling || profileDescription == EProfileDescription::REGION)
 		{
 			m_pFrameProfiler = profiler;
@@ -439,7 +437,7 @@ public:
 		}
 		if (m_pRecord)
 		{
-			gEnv->pSystem->StopBootSectionProfiler(m_pRecord, m_sesseionIndex);
+			gEnv->pSystem->StopBootSectionProfiler(m_pRecord);
 		}
 	}
 };

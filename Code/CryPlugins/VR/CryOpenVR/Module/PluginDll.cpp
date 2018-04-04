@@ -19,6 +19,8 @@ namespace OpenVR {
 
 CPlugin_OpenVR::~CPlugin_OpenVR()
 {
+	gEnv->pSystem->GetHmdManager()->UnregisterDevice(GetName());
+
 	CryVR::OpenVR::Resources::Shutdown();
 
 	if (IConsole* const pConsole = gEnv->pConsole)
@@ -33,7 +35,7 @@ CPlugin_OpenVR::~CPlugin_OpenVR()
 
 bool CPlugin_OpenVR::Initialize(SSystemGlobalEnvironment& env, const SSystemInitParams& initParams)
 {
-	GetISystem()->GetISystemEventDispatcher()->RegisterListener(this);
+	GetISystem()->GetISystemEventDispatcher()->RegisterListener(this,"CPlugin_OpenVR");
 
 	REGISTER_CVAR2("hmd_quad_distance", &s_hmd_quad_distance, s_hmd_quad_distance, VF_NULL, "Distance between eyes and UI quad");
 

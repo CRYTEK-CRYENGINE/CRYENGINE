@@ -1,18 +1,18 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #include "StdAfx.h"
 #include "Script/Graph/Nodes/ScriptGraphExpandSignalNode.h"
 
 #include <CrySerialization/Decorators/ActionButton.h>
-#include <Schematyc/IObject.h>
-#include <Schematyc/Compiler/CompilerContext.h>
-#include <Schematyc/Compiler/IGraphNodeCompiler.h>
-#include <Schematyc/Env/IEnvRegistry.h>
-#include <Schematyc/Env/Elements/IEnvSignal.h>
-#include <Schematyc/Script/IScriptRegistry.h>
-#include <Schematyc/Utils/Any.h>
-#include <Schematyc/Utils/IGUIDRemapper.h>
-#include <Schematyc/Utils/StackString.h>
+#include <CrySchematyc/IObject.h>
+#include <CrySchematyc/Compiler/CompilerContext.h>
+#include <CrySchematyc/Compiler/IGraphNodeCompiler.h>
+#include <CrySchematyc/Env/IEnvRegistry.h>
+#include <CrySchematyc/Env/Elements/IEnvSignal.h>
+#include <CrySchematyc/Script/IScriptRegistry.h>
+#include <CrySchematyc/Utils/Any.h>
+#include <CrySchematyc/Utils/IGUIDRemapper.h>
+#include <CrySchematyc/Utils/StackString.h>
 
 #include "Runtime/RuntimeClass.h"
 #include "Script/ScriptView.h"
@@ -22,13 +22,14 @@
 
 namespace Schematyc
 {
+
 CScriptGraphExpandSignalNode::CScriptGraphExpandSignalNode() {}
 
 CScriptGraphExpandSignalNode::CScriptGraphExpandSignalNode(const SElementId& typeId)
 	: m_typeId(typeId)
 {}
 
-SGUID CScriptGraphExpandSignalNode::GetTypeGUID() const
+CryGUID CScriptGraphExpandSignalNode::GetTypeGUID() const
 {
 	return ms_typeGUID;
 }
@@ -50,15 +51,17 @@ void CScriptGraphExpandSignalNode::CreateLayout(CScriptGraphNodeLayout& layout)
 					szSubject = pEnvSignal->GetName();
 
 					layout.AddInput("In", m_typeId.guid, EScriptGraphPortFlags::Signal);
-					layout.AddOutput("Out", SGUID(), { EScriptGraphPortFlags::Flow, EScriptGraphPortFlags::Begin });
+					layout.AddOutput("Out", CryGUID(), { EScriptGraphPortFlags::Flow, EScriptGraphPortFlags::Begin });
 
-					for (uint32 signalInputIdx = 0, signalInputCount = pEnvSignal->GetInputCount(); signalInputIdx < signalInputCount; ++signalInputIdx)
+					const CClassDesc& signalDesc = pEnvSignal->GetDesc();
+					for (const CClassMemberDesc& signalMemberDesc : signalDesc.GetMembers())
 					{
-						CAnyConstPtr pData = pEnvSignal->GetInputData(signalInputIdx);
-						SCHEMATYC_CORE_ASSERT(pData);
-						if (pData)
+						const void* pDefaultValue = signalMemberDesc.GetDefaultValue();
+						SCHEMATYC_CORE_ASSERT(pDefaultValue);
+						if (pDefaultValue)
 						{
-							layout.AddOutputWithData(CGraphPortId::FromUniqueId(pEnvSignal->GetInputId(signalInputIdx)), pEnvSignal->GetInputName(signalInputIdx), pData->GetTypeInfo().GetGUID(), { EScriptGraphPortFlags::Data, EScriptGraphPortFlags::MultiLink }, *pData);
+							const CCommonTypeDesc& signalMemberTypeDesc = signalMemberDesc.GetTypeDesc();
+							layout.AddOutputWithData(CUniqueId::FromUInt32(signalMemberDesc.GetId()), signalMemberDesc.GetLabel(), signalMemberTypeDesc.GetGUID(), { EScriptGraphPortFlags::Data, EScriptGraphPortFlags::MultiLink }, CAnyConstRef(signalMemberTypeDesc, pDefaultValue));
 						}
 					}
 				}
@@ -183,12 +186,12 @@ void CScriptGraphExpandSignalNode::Register(CScriptGraphNodeFactory& factory)
 
 		// IScriptGraphNodeCreator
 
-		virtual SGUID GetTypeGUID() const override
+		virtual CryGUID GetTypeGUID() const override
 		{
 			return CScriptGraphExpandSignalNode::ms_typeGUID;
 		}
 
-		virtual IScriptGraphNodePtr CreateNode(const SGUID& guid) override
+		virtual IScriptGraphNodePtr CreateNode(const CryGUID& guid) override
 		{
 			return std::make_shared<CScriptGraphNode>(guid, stl::make_unique<CScriptGraphExpandSignalNode>());
 		}
@@ -206,7 +209,7 @@ void CScriptGraphExpandSignalNode::Register(CScriptGraphNodeFactory& factory)
 						nodeCreationMenu.AddCommand(std::make_shared<CCreationCommand>(subject.c_str(), SElementId(EDomain::Env, envSignal.GetGUID())));
 						return EVisitStatus::Continue;
 					};
-					scriptView.VisitEnvSignals(EnvSignalConstVisitor::FromLambda(visitEnvSignal));
+					scriptView.VisitEnvSignals(visitEnvSignal);
 					break;
 				}
 			}
@@ -229,7 +232,7 @@ SRuntimeResult CScriptGraphExpandSignalNode::Execute(SRuntimeContext& context, c
 	{
 		if (context.node.IsDataOutput(outputIdx))
 		{
-			CAnyConstPtr pSrcData = context.params.GetInput(context.node.GetOutputId(outputIdx).AsUniqueId());
+			CAnyConstPtr pSrcData = context.params.GetInput(context.node.GetOutputId(outputIdx));
 			if (pSrcData)
 			{
 				Any::CopyAssign(*context.node.GetOutputData(outputIdx), *pSrcData);
@@ -244,7 +247,8 @@ SRuntimeResult CScriptGraphExpandSignalNode::Execute(SRuntimeContext& context, c
 	return SRuntimeResult(ERuntimeStatus::Continue, EOutputIdx::Out);
 }
 
-const SGUID CScriptGraphExpandSignalNode::ms_typeGUID = "f4b52ef8-18ec-4f82-bf61-42429b85ebf6"_schematyc_guid;
+const CryGUID CScriptGraphExpandSignalNode::ms_typeGUID = "f4b52ef8-18ec-4f82-bf61-42429b85ebf6"_cry_guid;
+
 } // Schematyc
 
 SCHEMATYC_REGISTER_SCRIPT_GRAPH_NODE(Schematyc::CScriptGraphExpandSignalNode::Register)

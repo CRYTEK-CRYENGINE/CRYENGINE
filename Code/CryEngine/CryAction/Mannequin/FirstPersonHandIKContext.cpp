@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 //
 ////////////////////////////////////////////////////////////////////////////
@@ -41,7 +41,7 @@ void CFirstPersonHandIKContext::Initialize(ICharacterInstance* pCharacterInstanc
 		return;
 
 	m_pCharacterInstance = pCharacterInstance;
-	CryCreateClassInstance("AnimationPoseModifier_OperatorQueue", m_pPoseModifier);
+	CryCreateClassInstanceForInterface(cryiidof<IAnimationOperatorQueue>(), m_pPoseModifier);
 	m_params = SParams(&m_pCharacterInstance->GetIDefaultSkeleton());
 }
 

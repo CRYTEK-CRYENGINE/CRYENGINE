@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #ifndef TEXTURESTREAMPOOL_H
 #define TEXTURESTREAMPOOL_H
@@ -35,12 +35,12 @@ struct STexPoolItem : STexPoolItemHdr
 	STexPool* const       m_pOwner;
 	CTexture*             m_pTex;
 	CDeviceTexture* const m_pDevTexture;
-	size_t const          m_nDeviceTexSize;
+	size_t const          m_nDevTextureSize;
 
 	uint32                m_nFreeTick;
 	uint8                 m_nActiveLod;
 
-	STexPoolItem(STexPool* pOwner, CDeviceTexture* pDevTexture, size_t devSize);
+	STexPoolItem(STexPool* pOwner, CDeviceTexture* pDevTexture, size_t devTextureSize);
 	~STexPoolItem();
 
 	bool IsFree() const { return m_NextFree != NULL; }
@@ -64,7 +64,7 @@ struct STexPool
 	uint16          m_Height;
 	uint16          m_nArraySize;
 	D3DFormat       m_eFormat;
-	size_t          m_Size;
+	size_t          m_nDevTextureSize;
 	STexPoolItemHdr m_ItemsList;
 	ETEX_Type       m_eTT;
 	uint8           m_nMips;
@@ -89,8 +89,8 @@ struct STexPool
 
 	uint32 GetNumSlices() const
 	{
-		uint32 b = (m_eTT == eTT_Cube) ? 6 : 1;
-		return b * m_nArraySize;
+		assert((m_eTT != eTT_Cube && m_eTT != eTT_CubeArray) || !(m_nArraySize % 6));
+		return m_nArraySize;
 	}
 
 	void GetMemoryUsage(ICrySizer* pSizer) const
@@ -160,9 +160,9 @@ public:
 	}
 #endif
 
-	STexPool*     GetPool(int nWidth, int nHeight, int nMips, int nArraySize, ETEX_Format eTF, bool bIsSRGB, ETEX_Type eTT);
+	STexPool*     GetPool(const STextureLayout& pLayout);
+	STexPoolItem* GetItem(const STextureLayout& pLayout, bool bShouldBeCreated, const char* sName, const STexturePayload* pPayload = nullptr, bool bCanCreate = true, bool bWaitForIdle = true);
 
-	STexPoolItem* GetPoolItem(int nWidth, int nHeight, int nMips, int nArraySize, ETEX_Format eTF, bool bIsSRGB, ETEX_Type eTT, bool bShouldBeCreated, const char* sName, STextureInfo* pTI = NULL, bool bCanCreate = true, bool bWaitForIdle = true);
 	void          ReleaseItem(STexPoolItem* pItem);
 	void          GarbageCollect(size_t* nCurTexPoolSize, size_t nLowerPoolLimit, int nMaxItemsToFree);
 
@@ -217,7 +217,7 @@ private:
 	typedef VectorMap<TexturePoolKey, STexPool*> TexturePoolMap;
 
 private:
-	STexPool* CreatePool(int nWidth, int nHeight, int nMips, int nArraySize, D3DFormat eTF, ETEX_Type eTT);
+	STexPool* GetOrCreatePool(int nWidth, int nHeight, int nMips, int nArraySize, D3DFormat eTF, ETEX_Type eTT);
 	void      FlushFree();
 
 private:

@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 // -------------------------------------------------------------------------
 //  File name:   Vegetation.cpp
@@ -157,9 +157,17 @@ CLodValue CVegetation::ComputeLod(int wantedLod, const SRenderingPassInfo& passI
 
 		int minUsableLod = pStatObj->GetMinUsableLod();
 		int maxUsableLod = (int)pStatObj->m_nMaxUsableLod;
+		if (pStatObj->GetBillboardMaterial() && vegetGroup.bUseSprites && GetCVars()->e_VegetationBillboards)
+			maxUsableLod++;
+
 		nLodA = CLAMP(wantedLod, minUsableLod, maxUsableLod);
 		if (!(pStatObj->m_nFlags & STATIC_OBJECT_COMPOUND))
-			nLodA = pStatObj->FindNearesLoadedLOD(nLodA);
+		{
+			if (pStatObj->GetBillboardMaterial() && nLodA == maxUsableLod && vegetGroup.bUseSprites && GetCVars()->e_VegetationBillboards)
+				nLodA = maxUsableLod;
+			else
+				nLodA = pStatObj->FindNearesLoadedLOD(nLodA);
+		}
 
 		if (passInfo.IsGeneralPass())
 		{
@@ -409,9 +417,53 @@ void CVegetation::Render(const SRenderingPassInfo& passInfo, const CLodValue& lo
 	}
 	else
 		pRenderObject->m_ObjFlags &= ~FOB_ALLOW_TESSELLATION;
-	pStatObj->RenderInternal(pRenderObject, 0, lodValue, passInfo);
 
-	if (m_pDeformable) m_pDeformable->RenderInternalDeform(pRenderObject, lodValue.LodA(), GetBBox(), passInfo);
+	if (lodValue.LodA() > pStatObj->GetMaxUsableLod() && vegetGroup.bUseSprites && GetCVars()->e_VegetationBillboards)
+	{
+		pRenderObject->m_pCurrMaterial = pStatObj->GetBillboardMaterial();
+		
+		if (pStatObj->GetBillboardMaterial())
+		{
+			float fZAngle = GetZAngle();
+
+			Matrix34A matRotZ;
+			if (fZAngle != 0.0f)
+			{
+				// snap to possible sprite orientations
+				fZAngle /= g_PI2;
+				fZAngle = floor(fZAngle * FAR_TEX_COUNT) / FAR_TEX_COUNT;
+				fZAngle *= g_PI2;
+
+				matRotZ.SetRotationZ(fZAngle);
+			}
+			else
+			{
+				matRotZ.SetIdentity();
+			}
+
+			// set sprite scale
+			pRenderObject->m_II.m_Matrix.SetScale(Vec3(pStatObj->GetRadiusVert() * 2.f * GetScale()));
+
+			// set instance size
+			pRenderObject->m_II.m_Matrix = matRotZ * pRenderObject->m_II.m_Matrix;
+
+			// set sprite translation
+			pRenderObject->m_II.m_Matrix.SetTranslation(m_vPos + matRotZ * pStatObj->GetVegCenter() * GetScale());
+
+			// disable selection on sprites
+			pRenderObject->m_editorSelectionID = 0;
+
+			// render billboard quad
+			GetObjManager()->GetBillboardRenderMesh(pRenderObject->m_pCurrMaterial)->Render(pRenderObject, passInfo);
+		}
+	}
+	else
+	{
+		pStatObj->RenderInternal(pRenderObject, 0, lodValue, passInfo);
+
+		if (m_pDeformable) 
+			m_pDeformable->RenderInternalDeform(pRenderObject, lodValue.LodA(), GetBBox(), passInfo);
+	}
 
 	if (GetCVars()->e_BBoxes)
 		GetObjManager()->RenderObjectDebugInfo((IRenderNode*)this, pRenderObject->m_fDistance, passInfo);
@@ -724,7 +776,7 @@ float CVegetation::GetZAngle() const
 	return BYTE2RAD(m_ucAngle);
 }
 
-void CVegetation::OnRenderNodeBecomeVisible(const SRenderingPassInfo& passInfo)
+void CVegetation::OnRenderNodeBecomeVisibleAsync(const SRenderingPassInfo& passInfo)
 {
 	assert(m_pTempData);
 	SRenderNodeTempData::SUserData& userData = m_pTempData->userData;
@@ -944,11 +996,8 @@ float CVegetation::GetMaxViewDist()
 	return 0;
 }
 
-IStatObj* CVegetation::GetEntityStatObj(unsigned int nPartId, unsigned int nSubPartId, Matrix34A* pMatrix, bool bReturnOnlyVisible)
+IStatObj* CVegetation::GetEntityStatObj(unsigned int nSubPartId, Matrix34A* pMatrix, bool bReturnOnlyVisible)
 {
-	if (nPartId != 0)
-		return 0;
-
 	if (pMatrix)
 	{
 		if (m_pTempData)

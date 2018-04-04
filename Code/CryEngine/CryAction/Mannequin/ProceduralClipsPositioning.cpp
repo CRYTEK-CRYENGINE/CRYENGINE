@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 //
 ////////////////////////////////////////////////////////////////////////////
@@ -181,7 +181,7 @@ private:
 	virtual ~CProceduralContext_AdjustPos() {}
 
 public:
-	PROCEDURAL_CONTEXT(CProceduralContext_AdjustPos, "AdjustPosContext", 0xC6C0871214214854, 0xADC56AB6422834BD);
+	PROCEDURAL_CONTEXT(CProceduralContext_AdjustPos, "AdjustPosContext", "c6c08712-1421-4854-adc5-6ab6422834bd"_cry_guid);
 
 	virtual void Update(float timePassed) override
 	{
@@ -409,7 +409,7 @@ private:
 					{
 						if (IEntity* pSlaveEntity = &(pActionController->GetEntity()))
 						{
-							if (CProceduralContext_AdjustPos* pSlaveContext = static_cast<CProceduralContext_AdjustPos*>(pActionController->FindProceduralContext("AdjustPosContext")))
+							if (CProceduralContext_AdjustPos* pSlaveContext = static_cast<CProceduralContext_AdjustPos*>(pActionController->FindProceduralContext(CProceduralContext_AdjustPos::GetCID())))
 							{
 								slaveProceduralContexts.push_back(pSlaveContext);
 

@@ -11,33 +11,17 @@ struct HS_CONTROL_POINT_OUTPUT_VEGETATION
 {
 	hsControlPointShared controlPoint;
 
-	float4 screenProj : TEXCOORDN;
+	float4 screenProj     : TEXCOORDN;
+	float4 terrainParams  : TEXCOORDN;
 
 #if !%GRASS
-	float4 Pos : TEXCOORDN;
-	#if %_RT_FOG
-		float4 tangVec : TEXCOORDN;
-		float4 binormVec : TEXCOORDN;
-	#endif
-#endif
-
-#if %LEAVES || %GRASS || %_RT_BLEND_WITH_TERRAIN_COLOR
-	float4 backLight : TEXCOORDN;
-#endif
-
-#if %GRASS || (!%_RT_QUALITY && !%_RT_QUALITY1)
-	float4 frontLight : TEXCOORDN;
+	float4 tangVec : TEXCOORDN;
+	float4 binormVec : TEXCOORDN;
 #endif
 
 #if %_RT_FOG
 	float4 AvgFogVolumeContrib : TEXCOORDN;
 #endif
-
-#if %_RT_NOZPASS && %_RT_ALPHATEST
-	float4 AlphaTest : TEXCOORDN;
-#endif
-
-	float4 Color0 : COLOR0;
 };
 
 HS_CONSTANT_DATA_OUTPUT VegetationConstantsHS(InputPatch<vtxOutVegetation, 3> p, uint PatchID : SV_PrimitiveID)
@@ -58,39 +42,22 @@ HS_CONSTANT_DATA_OUTPUT VegetationConstantsHS(InputPatch<vtxOutVegetation, 3> p,
 [maxtessfactor(MAX_TESS_FACTOR)]
 HS_CONTROL_POINT_OUTPUT_VEGETATION VegetationHS(InputPatch<vtxOutVegetation, 3> inputPatch, uint uCPID : SV_OutputControlPointID)
 {
-	HS_CONTROL_POINT_OUTPUT_VEGETATION	output = (HS_CONTROL_POINT_OUTPUT_VEGETATION)0;
+	HS_CONTROL_POINT_OUTPUT_VEGETATION output = (HS_CONTROL_POINT_OUTPUT_VEGETATION)0;
 
 	output.controlPoint.vView       = inputPatch[uCPID].vView;
 	output.controlPoint.vNormal     = inputPatch[uCPID].vNormal;
 	output.controlPoint.vBaseTC     = inputPatch[uCPID].baseTC;
 
-	output.screenProj   = inputPatch[uCPID].screenProj;
+	output.screenProj    = inputPatch[uCPID].screenProj;
+	output.terrainParams  = inputPatch[uCPID].terrainParams;
 
 #if !%GRASS
-  output.Pos = inputPatch[uCPID].Pos;
-
-  #if %_RT_FOG
-    output.tangVec = inputPatch[uCPID].tangVec;
-    output.binormVec = inputPatch[uCPID].binormVec;
-  #endif
+	output.tangVec = inputPatch[uCPID].tangVec;
+	output.binormVec = inputPatch[uCPID].binormVec;
 #endif
 
-#if %LEAVES || %GRASS || %_RT_BLEND_WITH_TERRAIN_COLOR
-  output.backLight = inputPatch[uCPID].backLight;
-#endif
-
-#if %GRASS || (!%_RT_QUALITY && !%_RT_QUALITY1)
-  output.frontLight = inputPatch[uCPID].frontLight;
-#endif
-
-  output.Color0 = inputPatch[uCPID].Color0;
-  
 #if %_RT_FOG
-  output.AvgFogVolumeContrib = inputPatch[uCPID].AvgFogVolumeContrib;
-#endif
-
-#if %_RT_NOZPASS && %_RT_ALPHATEST
-  output.AlphaTest = inputPatch[uCPID].AlphaTest;
+	output.AvgFogVolumeContrib = inputPatch[uCPID].AvgFogVolumeContrib;
 #endif
 
 	return output;
@@ -104,46 +71,33 @@ void FillEvalInput_Vegetation(const OutputPatch<HS_CONTROL_POINT_OUTPUT_VEGETATI
 	evalInput.vBaryCoords = vBaryCoords;
 	FillEvalInputControlPoint(triPatch[0].controlPoint, triPatch[1].controlPoint, triPatch[2].controlPoint, hsConstData, evalInput);
 	evalInput.bRelativePos = true;
-#if !%GRASS && %_RT_FOG
+#if !%GRASS
 	FillEvalInputTangentBinormal(triPatch[0].tangVec, triPatch[1].tangVec, triPatch[2].tangVec, triPatch[0].binormVec, triPatch[1].binormVec, triPatch[2].binormVec, evalInput);
 #endif
-	FillEvalInputColor(triPatch[0].Color0, triPatch[1].Color0, triPatch[2].Color0, evalInput);
 	evalInput.vViewPos = g_VS_WorldViewPos.xyz;
 }
 
 void ProcessEvalOutput_Vegetation(in CommonEvaluationOutputDS evalOutput, inout vtxOutVegetation dsOutput)
 {
 	dsOutput.baseTC = evalOutput.vBaseTC;
-#if !%GRASS && %_RT_FOG
+#if !%GRASS
 	dsOutput.tangVec = evalOutput.vTangent;
 	dsOutput.binormVec = evalOutput.vBinormal;
 #endif
-	dsOutput.Color0 = evalOutput.vColor;
 
 	dsOutput.HPosition = mul(g_VS_ViewProjZeroMatr, float4(evalOutput.vPos.xyz, 1));
 }
 
 void EvaluateVegetationSpecific(inout vtxOutVegetation output, in HS_CONTROL_POINT_OUTPUT_VEGETATION triPatch[3],
-																in float3 vBaryCoords, in CommonEvaluationOutputDS evalOutput)
+                                in float3 vBaryCoords, in CommonEvaluationOutputDS evalOutput)
 {
 	output.screenProj = HPosToScreenTC(output.HPosition);
 	output.screenProj.z = EvalVec(triPatch[0].screenProj.z, triPatch[1].screenProj.z, triPatch[2].screenProj.z, vBaryCoords);
-#if !%GRASS
-	output.Pos.xyz = evalOutput.vPos.xyz;
-	output.Pos.w = EvalVec(triPatch[0].Pos.w, triPatch[1].Pos.w, triPatch[2].Pos.w, vBaryCoords);
-#endif
-#if %LEAVES || %GRASS || %_RT_BLEND_WITH_TERRAIN_COLOR
-	output.backLight = EvalVec(triPatch[0].backLight, triPatch[1].backLight, triPatch[2].backLight, vBaryCoords);
-#endif
 
-#if %GRASS || (!%_RT_QUALITY && !%_RT_QUALITY1)
-	output.frontLight = EvalVec(triPatch[0].frontLight, triPatch[1].frontLight, triPatch[2].frontLight, vBaryCoords);
-#endif
+	output.terrainParams = EvalVec(triPatch[0].terrainParams, triPatch[1].terrainParams, triPatch[2].terrainParams, vBaryCoords);
+
 #if %_RT_FOG
-  output.AvgFogVolumeContrib = EvalVec(triPatch[0].AvgFogVolumeContrib, triPatch[1].AvgFogVolumeContrib, triPatch[2].AvgFogVolumeContrib, vBaryCoords);
-#endif
-#if %_RT_NOZPASS && %_RT_ALPHATEST
-  output.AlphaTest = EvalVec(triPatch[0].AlphaTest, triPatch[1].AlphaTest, triPatch[2].AlphaTest, vBaryCoords);
+	output.AvgFogVolumeContrib = EvalVec(triPatch[0].AvgFogVolumeContrib, triPatch[1].AvgFogVolumeContrib, triPatch[2].AvgFogVolumeContrib, vBaryCoords);
 #endif
 }
 

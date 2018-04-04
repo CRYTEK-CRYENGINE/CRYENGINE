@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #include "StdAfx.h"
 
@@ -1592,7 +1592,7 @@ int CTriMesh::RegisterIntersection(primitive *pprim1,primitive *pprim2, geometry
   int *piFeature[2];
   piFeature[0] = piFeature[1] = &iFeature_dummy;
 	int idx_prim[2] = { ((indexed_triangle*)pprim1)->idx, -1 };
-	int bNoUnprojection=0,bSurfaceSurfaceContact,bSurfaceEdgeContact,bUseLSNormal=0;
+	int bNoUnprojection=0,bSurfaceSurfaceContact=0,bSurfaceEdgeContact=0,bUseLSNormal=0;
 	int i,j,res=0,ipt,ibest,jbest,iop,nprims1,nprims2,nSmallSteps;
 	int indexed_triangle::*pidxoffs=0;
 	const int iCaller = pGTest1->iCaller;
@@ -2536,7 +2536,7 @@ void CTriMesh::PrepareForRayTest(float raylen)
 
 		iPlane = isneg(bbox.size.y*bbox.size.z-bbox.size.x*bbox.size.z); // initially set iPlane correspond to the bbox axis w/ max. face area
 		iPlane |= isneg(bbox.size[inc_mod3[iPlane]]*bbox.size[dec_mod3[iPlane]]-bbox.size.x*bbox.size.y)<<1; iPlane&=~(iPlane>>1);
-		b2Planes = isneg(raylen-szOrg[iPlane]*2);
+		b2Planes = isneg((raylen>0 ? raylen*0.5f : (szOrg.x+szOrg.y+szOrg.z)*0.2f)-szOrg[iPlane]);
 		for(i=0; i<1+b2Planes; i++,iPlane=inc_mod3[iPlane]) {
 			hashplane.n = bbox.Basis.GetRow(iPlane);
 			hashplane.axes[0] = bbox.Basis.GetRow(inc_mod3[iPlane]);
@@ -3749,7 +3749,6 @@ float CroppedRectArea(const Vec2 &center, const Vec2 &dx,const Vec2 &dy, const V
 		area += (pt[i].x-pt[i+1].x)*(pt[i].y+pt[i+1].y);
 	return fabs_tpl(area)*0.5f;
 }
-ILINE bool NumberValid(const Vec3& x) { return true; } // fixes Vec3_tpl<Vec> compiling
 
 
 int CTriMesh::Boxify(primitives::box *pboxes,int nMaxBoxes, const SBoxificationParams &params)

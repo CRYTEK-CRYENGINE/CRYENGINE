@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #include "stdafx.h"
 #include "ModelMesh.h"
@@ -211,7 +211,6 @@ void CModelMesh::DrawDebugInfo(CDefaultSkeleton* pCSkel, int nLOD, const Matrix3
 
 	int32 numLODs = 1;
 	int index = 0;
-	Vec3 trans = rRenderMat34.GetTranslation();
 	float color[4] = { 1, 1, 1, 1 };
 
 	int nTris = m_pIRenderMesh->GetVerticesCount();
@@ -221,6 +220,14 @@ void CModelMesh::DrawDebugInfo(CDefaultSkeleton* pCSkel, int nLOD, const Matrix3
 	string shortName = PathUtil::GetFile(pCSkel->GetModelFilePath());
 
 	IRenderAuxGeom* pAuxGeom = g_pIRenderer->GetIRenderAuxGeom();
+
+	// Convert "camera space" to "world space"
+	Matrix34 tm = rRenderMat34;	
+	if (pObj->m_ObjFlags & FOB_NEAREST)
+	{
+		tm.AddTranslation(gEnv->pRenderer->GetCamera().GetPosition());
+	}
+	Vec3 trans = tm.GetTranslation();
 
 	if (nMats)
 	{
@@ -234,9 +241,11 @@ void CModelMesh::DrawDebugInfo(CDefaultSkeleton* pCSkel, int nLOD, const Matrix3
 
 	switch (DebugMode)
 	{
-	case 1:
-		IRenderAuxText::DrawLabelExF(trans, 1.3f, color, true, true, "%s\n%d LOD(%i\\%i)", shortName.c_str(), nTris, nLOD + 1, numLODs);
-		pAuxGeom->DrawAABB(pCSkel->m_ModelAABB, rRenderMat34, false, ColorB(0, 255, 255, 128), eBBD_Faceted);
+		case 1:
+		{
+			IRenderAuxText::DrawLabelExF(trans, 1.3f, color, true, true, "%s\n%d LOD(%i\\%i)", shortName.c_str(), nTris, nLOD + 1, numLODs);
+			pAuxGeom->DrawAABB(pCSkel->m_ModelAABB, rRenderMat34, false, ColorB(0, 255, 255, 128), eBBD_Faceted);
+		}
 		break;
 	case 2:
 		{

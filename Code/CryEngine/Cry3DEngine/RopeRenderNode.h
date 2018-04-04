@@ -1,7 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
-
-#ifndef _ROPE_RENDERNODE_
-#define _ROPE_RENDERNODE_
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #pragma once
 
@@ -12,61 +9,62 @@ class CRopeRenderNode : public IRopeRenderNode, public Cry3DEngineBase
 {
 public:
 	static void StaticReset();
+	static int  OnPhysStateChange(EventPhys const* pEvent);
 
 public:
 	//////////////////////////////////////////////////////////////////////////
 	// implements IRenderNode
-	virtual void             GetLocalBounds(AABB& bbox);
-	virtual void             SetMatrix(const Matrix34& mat);
+	virtual void             GetLocalBounds(AABB& bbox) override;
+	virtual void             SetMatrix(const Matrix34& mat) override;
 
-	virtual EERType          GetRenderNodeType();
-	virtual const char*      GetEntityClassName() const;
-	virtual const char*      GetName() const;
-	virtual Vec3             GetPos(bool bWorldOnly = true) const;
-	virtual void             Render(const SRendParams& rParam, const SRenderingPassInfo& passInfo);
-	virtual IPhysicalEntity* GetPhysics() const;
-	virtual void             SetPhysics(IPhysicalEntity*);
-	virtual void             Physicalize(bool bInstant = false);
-	virtual void             Dephysicalize(bool bKeepIfReferenced = false);
-	virtual void             SetMaterial(IMaterial* pMat);
-	virtual IMaterial*       GetMaterial(Vec3* pHitPos = 0) const;
-	virtual IMaterial*       GetMaterialOverride() { return m_pMaterial; }
-	virtual float            GetMaxViewDist();
-	virtual void             Precache();
-	virtual void             GetMemoryUsage(ICrySizer* pSizer) const;
-	virtual void             LinkEndPoints();
-	virtual const AABB       GetBBox() const             { return m_WSBBox; }
-	virtual void             SetBBox(const AABB& WSBBox) { m_WSBBox = WSBBox; m_bNeedToReRegister = true; }
-	virtual void             FillBBox(AABB& aabb);
-	virtual void             OffsetPosition(const Vec3& delta);
+	virtual EERType          GetRenderNodeType() override;
+	virtual const char*      GetEntityClassName() const override;
+	virtual const char*      GetName() const override;
+	virtual Vec3             GetPos(bool bWorldOnly = true) const override;
+	virtual void             Render(const SRendParams& rParam, const SRenderingPassInfo& passInfo) override;
+	virtual IPhysicalEntity* GetPhysics() const override;
+	virtual void             SetPhysics(IPhysicalEntity*) override;
+	virtual void             Physicalize(bool bInstant = false) override;
+	virtual void             Dephysicalize(bool bKeepIfReferenced = false) override;
+	virtual void             SetMaterial(IMaterial* pMat) override;
+	virtual IMaterial*       GetMaterial(Vec3* pHitPos = 0) const override;
+	virtual IMaterial*       GetMaterialOverride() override { return m_pMaterial; }
+	virtual float            GetMaxViewDist() override;
+	virtual void             Precache() override;
+	virtual void             GetMemoryUsage(ICrySizer* pSizer) const override;
+	virtual void             LinkEndPoints() override;
+	virtual const AABB       GetBBox() const override             { return m_WSBBox; }
+	virtual void             SetBBox(const AABB& WSBBox) override { m_WSBBox = WSBBox; m_bNeedToReRegister = true; }
+	virtual void             FillBBox(AABB& aabb) override;
+	virtual void             OffsetPosition(const Vec3& delta) override;
 
-	virtual void             SetEntityOwner(uint32 nEntityId) { m_nEntityOwnerId = nEntityId; }
-	virtual uint32           GetEntityOwner() const           { return m_nEntityOwnerId; }
+	// Set a new owner entity
+	virtual void             SetOwnerEntity(IEntity* pEntity) final { m_pEntity = pEntity; }
+	// Retrieve a pointer to the entity who owns this render node.
+	virtual IEntity*         GetOwnerEntity() const final { return m_pEntity; }
 	//////////////////////////////////////////////////////////////////////////
 
 	//////////////////////////////////////////////////////////////////////////
 	// IRopeRenderNode implementation
 	//////////////////////////////////////////////////////////////////////////
-	virtual void                                SetName(const char* sNodeName);
-	virtual void                                SetParams(const SRopeParams& params);
-	virtual const IRopeRenderNode::SRopeParams& GetParams() const;
+	virtual void                                SetName(const char* sNodeName) override;
+	virtual void                                SetParams(const SRopeParams& params) override;
+	virtual const IRopeRenderNode::SRopeParams& GetParams() const override;
 
-	virtual void                                SetPoints(const Vec3* pPoints, int nCount);
-	virtual int                                 GetPointsCount() const;
-	virtual const Vec3*                         GetPoints() const;
+	virtual void                                SetPoints(const Vec3* pPoints, int nCount) override;
+	virtual int                                 GetPointsCount() const override;
+	virtual const Vec3*                         GetPoints() const override;
 
-	virtual uint32                              GetLinkedEndsMask() { return m_nLinkedEndsMask; };
-	virtual void                                OnPhysicsPostStep();
+	virtual uint32                              GetLinkedEndsMask() override { return m_nLinkedEndsMask; };
+	virtual void                                OnPhysicsPostStep() override;
 
-	virtual void                                ResetPoints();
+	virtual void                                ResetPoints() override;
 
-	virtual void                                LinkEndEntities(IPhysicalEntity* pStartEntity, IPhysicalEntity* pEndEntity);
-	virtual void                                GetEndPointLinks(SEndPointLink* links);
+	virtual void                                LinkEndEntities(IPhysicalEntity* pStartEntity, IPhysicalEntity* pEndEntity) override;
+	virtual void                                GetEndPointLinks(SEndPointLink* links) override;
 
-	// Sound related
-	virtual void SetRopeSound(char const* const pcSoundName, int unsigned const nSegmentToAttachTo, float const fOffset);
-	virtual void StopRopeSound();
-	virtual void ResetRopeSound();
+	virtual void                                DisableAudio() override;
+	virtual void                                SetAudioParams(SRopeAudioParams const& audioParams) override;
 	//////////////////////////////////////////////////////////////////////////
 
 public:
@@ -81,9 +79,11 @@ public:
 private:
 	~CRopeRenderNode();
 
+	void UpdateAudio();
+
 private:
 	string                  m_sName;
-	uint32                  m_nEntityOwnerId;
+	IEntity*                m_pEntity = nullptr;
 	Vec3                    m_pos;
 	AABB                    m_localBounds;
 	Matrix34                m_worldTM;
@@ -106,23 +106,10 @@ private:
 	SRopeParams       m_params;
 
 	typedef spline::CatmullRomSpline<Vec3> SplineType;
-	SplineType m_spline;
+	SplineType         m_spline;
 
-	AABB       m_WSBBox;
+	AABB               m_WSBBox;
 
-	// Sound related
-	void UpdateSound();
-
-	struct SRopeSoundData
-	{
-		SRopeSoundData()
-			: //nSoundID(INVALID_SOUNDID), //DEPREC: [RopeRenderNode.h]
-			nSegementToAttachTo(1),
-			fOffset(0.0f){}
-		//tSoundID nSoundID;  //DEPREC: [RopeRenderNode.h]
-		int   nSegementToAttachTo;
-		float fOffset;
-	} m_ropeSoundData;
+	CryAudio::IObject* m_pIAudioObject;
+	SRopeAudioParams   m_audioParams;
 };
-
-#endif // _ROPE_RENDERNODE_

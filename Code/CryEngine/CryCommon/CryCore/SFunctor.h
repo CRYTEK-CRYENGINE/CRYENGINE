@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 // -------------------------------------------------------------------------
 //  File name:   IFunctor.h
@@ -15,26 +15,31 @@
 
 #pragma once
 
-#include "FunctorBaseFunction.h"
-#include "FunctorBaseMember.h"
-
-// Needed for CryFont to compile.
-// Maybe for others too.
-#include "smartptr.h"
+#include <functional>
 
 struct SFunctor
 {
 public:
+	SFunctor() {}
+	SFunctor(const SFunctor &f)
+	{
+		m_callback = f.m_callback;
+	}
+	explicit SFunctor( const std::function<void(void)> &callback )
+	{
+		m_callback = callback;
+	}
+
 	//! Calls the functor method.
 	//! \return true if a functor is registered, false otherwise.
 	bool Call()
 	{
-		if (!m_pFunctor)
+		if (!m_callback)
 		{
 			return false;
 		}
 
-		m_pFunctor->Call();
+		m_callback();
 
 		return true;
 	}
@@ -44,8 +49,7 @@ public:
 	template<typename tCallback>
 	void Set(tCallback pCallback)
 	{
-		typedef TFunctor<tCallback> TType;
-		m_pFunctor = new TType(pCallback);
+		m_callback = [=]{ pCallback(); };
 	}
 
 	//! Sets a new functor, common function, void return type, 1 argument.
@@ -54,8 +58,7 @@ public:
 	template<typename tCallback, typename tArgument1>
 	void Set(tCallback pCallback, const tArgument1& Argument1)
 	{
-		typedef TFunctor<tCallback> TType;
-		m_pFunctor = new TType(pCallback, Argument1);
+		m_callback = [=]{ pCallback( Argument1 ); };
 	}
 
 	//! Sets a new functor, common function, void return type, 2 arguments.
@@ -65,8 +68,7 @@ public:
 	template<typename tCallback, typename tArgument1, typename tArgument2>
 	void Set(tCallback pCallback, const tArgument1& Argument1, const tArgument2& Argument2)
 	{
-		typedef TFunctor<tCallback> TType;
-		m_pFunctor = new TType(pCallback, Argument1, Argument2);
+		m_callback = [=]{ pCallback( Argument1,Argument2); };
 	}
 
 	//! Sets a new functor, common function, void return type, no arguments.
@@ -74,8 +76,7 @@ public:
 	template<typename tCallee>
 	void Set(tCallee* pCallee, void (tCallee::* pCallback)())
 	{
-		typedef TFunctor<void (tCallee::*)()> TType;
-		m_pFunctor = new TType(pCallee, pCallback);
+		m_callback = [=]{ (pCallee->*pCallback)(); };
 	}
 
 	//! Sets a new functor, common function, void return type, 1 argument.
@@ -83,8 +84,7 @@ public:
 	template<typename tCallee, typename tArgument1>
 	void Set(tCallee* pCallee, void (tCallee::* pCallback)(tArgument1), const tArgument1& Argument1)
 	{
-		typedef TFunctor<void (tCallee::*)(tArgument1)> TType;
-		m_pFunctor = new TType(pCallee, pCallback, Argument1);
+		m_callback = [=]{ (pCallee->*pCallback)(Argument1); };
 	}
 
 	//! Sets a new functor, common function, void return type, 2 arguments.
@@ -92,23 +92,11 @@ public:
 	template<typename tCallee, typename tArgument1, typename tArgument2>
 	void Set(tCallee* pCallee, void (tCallee::* pCallback)(tArgument1, tArgument2), const tArgument1& Argument1, const tArgument2& Argument2)
 	{
-		typedef TFunctor<void (tCallee::*)(tArgument1, tArgument2)> TType;
-		m_pFunctor = new TType(pCallee, pCallback, Argument1, Argument2);
+		m_callback = [=]{ (pCallee->*pCallback)(Argument1,Argument2); };
 	}
 
-	//! Used to compare equality of two IFunctors.
-	bool operator==(const SFunctor& rOther) const
-	{
-		return m_pFunctor == rOther.m_pFunctor;
-	}
-
-	//! Used to order IFunctors (needed for some containers, like map).
-	bool operator<(const SFunctor& rOther) const
-	{
-		return m_pFunctor < rOther.m_pFunctor;
-	}
 protected:
-	_smart_ptr<IFunctorBase> m_pFunctor;
+	std::function<void(void)> m_callback;
 };
 
 #endif //_IFUNCTOR_H_

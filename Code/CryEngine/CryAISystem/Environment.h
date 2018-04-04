@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 // -------------------------------------------------------------------------
 //  File name:   AIEnvironment.h
@@ -16,11 +16,11 @@
 
 #pragma once
 
+#include <CryAISystem/IAISystem.h>
+
 #include "Configuration.h"
 #include "AIConsoleVariables.h"
 #include "AISignalCRCs.h"
-#include <CryPhysics/RayCastQueue.h>
-#include <CryPhysics/IntersectionTestQueue.h>
 
 //////////////////////////////////////////////////////////////////////////
 // AI system environment.
@@ -51,7 +51,6 @@ class CSmartObjectManager;
 class CPerceptionManager;
 class CCommunicationManager;
 class CCoverSystem;
-class CSelectionTreeManager;
 namespace BehaviorTree
 {
 class BehaviorTreeManager;
@@ -104,12 +103,9 @@ struct SAIEnvironment
 	CAIActionManager*                    pAIActionManager;
 	CSmartObjectManager*                 pSmartObjectManager;
 
-	CPerceptionManager*                  pPerceptionManager;
-
 	CCommunicationManager*               pCommunicationManager;
 	CCoverSystem*                        pCoverSystem;
 	NavigationSystem*                    pNavigationSystem;
-	CSelectionTreeManager*               pSelectionTreeManager;
 	BehaviorTree::BehaviorTreeManager*   pBehaviorTreeManager;
 	BehaviorTree::GraftManager*          pGraftManager;
 	CVisionMap*                          pVisionMap;
@@ -124,11 +120,8 @@ struct SAIEnvironment
 	IAIBubblesSystem* pBubblesSystem;
 #endif
 
-	typedef RayCastQueue<41> GlobalRayCaster;
-	GlobalRayCaster* pRayCaster;
-
-	typedef IntersectionTestQueue<43> GlobalIntersectionTester;
-	GlobalIntersectionTester* pIntersectionTester;
+	IAISystem::GlobalRayCaster*          pRayCaster;
+	IAISystem::GlobalIntersectionTester* pIntersectionTester;
 
 	//more cache friendly
 	IPhysicalWorld* pWorld;//TODO use this more, or eliminate it.

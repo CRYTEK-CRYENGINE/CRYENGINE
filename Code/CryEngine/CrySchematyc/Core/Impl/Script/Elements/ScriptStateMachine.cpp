@@ -1,20 +1,20 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #include "StdAfx.h"
 #include "Script/Elements/ScriptStateMachine.h"
 
 #include <CrySerialization/IArchiveHost.h>
-#include <Schematyc/Script/IScriptGraph.h>
-#include <Schematyc/SerializationUtils/ISerializationContext.h>
-#include <Schematyc/Utils/Assert.h>
-#include <Schematyc/Utils/IGUIDRemapper.h>
+#include <CrySchematyc/Script/IScriptGraph.h>
+#include <CrySchematyc/SerializationUtils/ISerializationContext.h>
+#include <CrySchematyc/Utils/Assert.h>
+#include <CrySchematyc/Utils/IGUIDRemapper.h>
 
 #include "Script/ScriptView.h"
 #include "Script/Graph/ScriptGraph.h"
 #include "Script/Graph/ScriptGraphNode.h"
 #include "Script/Graph/Nodes/ScriptGraphBeginNode.h"
 
-SERIALIZATION_ENUM_BEGIN_NESTED(Schematyc, EScriptStateMachineLifetime, "Schematyc Script State Machine Lifetime")
+SERIALIZATION_ENUM_BEGIN_NESTED(Schematyc, EScriptStateMachineLifetime, "CrySchematyc Script State Machine Lifetime")
 SERIALIZATION_ENUM(Schematyc::EScriptStateMachineLifetime::Persistent, "persistent", "Persistent")
 SERIALIZATION_ENUM(Schematyc::EScriptStateMachineLifetime::Task, "task", "Task")
 SERIALIZATION_ENUM_END()
@@ -28,7 +28,7 @@ CScriptStateMachine::CScriptStateMachine()
 	CreateTransitionGraph();
 }
 
-CScriptStateMachine::CScriptStateMachine(const SGUID& guid, const char* szName, EScriptStateMachineLifetime lifetime, const SGUID& contextGUID, const SGUID& partnerGUID)
+CScriptStateMachine::CScriptStateMachine(const CryGUID& guid, const char* szName, EScriptStateMachineLifetime lifetime, const CryGUID& contextGUID, const CryGUID& partnerGUID)
 	: CScriptElementBase(guid, szName, EScriptElementFlags::CanOwnScript)
 	, m_lifetime(lifetime)
 	, m_contextGUID(contextGUID)
@@ -52,12 +52,17 @@ void CScriptStateMachine::ProcessEvent(const SScriptEvent& event)
 	{
 	case EScriptEventId::EditorAdd:
 		{
+			// TODO: This should happen in editor!
 			IScriptGraph* pGraph = static_cast<IScriptGraph*>(CScriptElementBase::GetExtensions().QueryExtension(EScriptExtensionType::Graph));
 			SCHEMATYC_CORE_ASSERT(pGraph);
 			if (pGraph)
 			{
-				pGraph->AddNode(std::make_shared<CScriptGraphNode>(gEnv->pSchematyc->CreateGUID(), stl::make_unique<CScriptGraphBeginNode>())); // #SchematycTODO : Shouldn't we be using CScriptGraphNodeFactory::CreateNode() instead of instantiating the node directly?!?
+				// TODO : Shouldn't we be using CScriptGraphNodeFactory::CreateNode() instead of instantiating the node directly?!?
+				pGraph->AddNode(std::make_shared<CScriptGraphNode>(gEnv->pSchematyc->CreateGUID(), stl::make_unique<CScriptGraphBeginNode>()));
+				// ~TODO
 			}
+			// ~TODO
+
 			break;
 		}
 	case EScriptEventId::EditorFixUp:
@@ -84,12 +89,12 @@ EScriptStateMachineLifetime CScriptStateMachine::GetLifetime() const
 	return m_lifetime;
 }
 
-SGUID CScriptStateMachine::GetContextGUID() const
+CryGUID CScriptStateMachine::GetContextGUID() const
 {
 	return m_contextGUID;
 }
 
-SGUID CScriptStateMachine::GetPartnerGUID() const
+CryGUID CScriptStateMachine::GetPartnerGUID() const
 {
 	return m_partnerGUID;
 }
@@ -114,13 +119,13 @@ void CScriptStateMachine::Save(Serialization::IArchive& archive, const ISerializ
 void CScriptStateMachine::Edit(Serialization::IArchive& archive, const ISerializationContext& context)
 {
 	/*
-	   typedef std::vector<SGUID> GUIDs;
+	   typedef std::vector<CryGUID> GUIDs;
 
 	   GUIDs partnerGUIDs;
 	   Serialization::StringList partnerNames;
 	   partnerGUIDs.reserve(16);
 	   partnerNames.reserve(16);
-	   partnerGUIDs.push_back(SGUID());
+	   partnerGUIDs.push_back(CryGUID());
 	   partnerNames.push_back("None");
 
 	   CScriptView scriptView(GetParent()->GetGUID());
@@ -129,7 +134,7 @@ void CScriptStateMachine::Edit(Serialization::IArchive& archive, const ISerializ
 	   {
 	   if (stateMachine.GetLifetime() == EScriptStateMachineLifetime::Persistent)
 	   {
-	    const SGUID stateMachineGUID = stateMachine.GetGUID();
+	    const CryGUID stateMachineGUID = stateMachine.GetGUID();
 	    if (stateMachineGUID != CScriptElementBase::GetGUID())
 	    {
 	      partnerGUIDs.push_back(stateMachineGUID);
@@ -138,7 +143,7 @@ void CScriptStateMachine::Edit(Serialization::IArchive& archive, const ISerializ
 	   }
 	   return EVisitStatus::Continue;
 	   };
-	   scriptView.VisitScriptStateMachines(ScriptStateMachineConstVisitor::FromLambda(visitStateMachine), EDomainScope::Local);
+	   scriptView.VisitScriptStateMachines(visitStateMachine, EDomainScope::Local);
 
 	   GUIDs::const_iterator itPartnerGUID = std::find(partnerGUIDs.begin(), partnerGUIDs.end(), m_partnerGUID);
 	   const int partnerIdx = itPartnerGUID != partnerGUIDs.end() ? static_cast<int>(itPartnerGUID - partnerGUIDs.begin()) : 0;
@@ -163,14 +168,14 @@ void CScriptStateMachine::RefreshTransitionGraph()
 		/*IScriptFile& file = CScriptElementBase::GetFile();
 		   if(!file.IsDummyFile() && (!m_transitionGraphGUID || !file.GetGraph(m_transitionGraphGUID)))
 		   {
-		   IDocGraph* pTransitionGraph = file.AddGraph(SScriptGraphParams(CScriptElementBase::GetGUID(), "Transitions", EScriptGraphType::Transition_DEPRECATED, SGUID()));
+		   IDocGraph* pTransitionGraph = file.AddGraph(SScriptGraphParams(CScriptElementBase::GetGUID(), "Transitions", EScriptGraphType::Transition_DEPRECATED, CryGUID()));
 		   SCHEMATYC_CORE_ASSERT(pTransitionGraph);
 		   if(pTransitionGraph)
 		   {
-		    IScriptGraphNode* pBeginNode = pTransitionGraph->AddNode(EScriptGraphNodeType::BeginState, SGUID(), SGUID(), Vec2(0.0f, 0.0f));
+		    IScriptGraphNode* pBeginNode = pTransitionGraph->AddNode(EScriptGraphNodeType::BeginState, CryGUID(), CryGUID(), Vec2(0.0f, 0.0f));
 		    if(m_lifetime == EScriptStateMachineLifetime::Task)
 		    {
-		      IScriptGraphNode* pEndNode = pTransitionGraph->AddNode(EScriptGraphNodeType::EndState, SGUID(), SGUID(), Vec2(200.0f, 0.0f));
+		      IScriptGraphNode* pEndNode = pTransitionGraph->AddNode(EScriptGraphNodeType::EndState, CryGUID(), CryGUID(), Vec2(200.0f, 0.0f));
 		      pTransitionGraph->AddLink(pBeginNode->GetGUID(), pBeginNode->GetOutputName(0), pEndNode->GetGUID(), pEndNode->GetInputName(0));
 		    }
 		    m_transitionGraphGUID = pTransitionGraph->GetGUID();

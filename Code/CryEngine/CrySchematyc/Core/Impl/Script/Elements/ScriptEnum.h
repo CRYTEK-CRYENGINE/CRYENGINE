@@ -1,8 +1,8 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #pragma once
 
-#include <Schematyc/Script/Elements/IScriptEnum.h>
+#include <CrySchematyc/Script/Elements/IScriptEnum.h>
 
 #include "Script/ScriptElementBase.h"
 #include "Script/ScriptUserDocumentation.h"
@@ -23,7 +23,7 @@ private:
 public:
 
 	CScriptEnum();
-	CScriptEnum(const SGUID& guid, const char* szName);
+	CScriptEnum(const CryGUID& guid, const char* szName);
 
 	// IScriptElement
 	virtual void EnumerateDependencies(const ScriptDependencyEnumerator& enumerator, EScriptDependencyType type) const override;

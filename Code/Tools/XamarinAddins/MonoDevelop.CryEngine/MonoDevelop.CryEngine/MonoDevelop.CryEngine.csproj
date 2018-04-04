@@ -1,0 +1,145 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <Import Project="..\packages\MonoDevelop.Addins.0.3.10\build\net40\MonoDevelop.Addins.props" Condition="Exists('..\packages\MonoDevelop.Addins.0.3.10\build\net40\MonoDevelop.Addins.props')" />
+  <PropertyGroup>
+    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
+    <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
+    <ProjectGuid>{76316AEE-48B7-4A0A-976A-48CA32DD9143}</ProjectGuid>
+    <ProjectTypeGuids>{86F6BF2A-E449-4B3E-813B-9ACC37E5545F};{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}</ProjectTypeGuids>
+    <OutputType>Library</OutputType>
+    <RootNamespace>MonoDevelop.CryEngine</RootNamespace>
+    <AssemblyName>MonoDevelop.CryEngine</AssemblyName>
+    <TargetFrameworkVersion>v4.5</TargetFrameworkVersion>
+    <UseMSBuildEngine>false</UseMSBuildEngine>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
+    <DebugSymbols>true</DebugSymbols>
+    <DebugType>full</DebugType>
+    <Optimize>false</Optimize>
+    <OutputPath>..\..\bin\Debug\MonoDevelop.CryEngine</OutputPath>
+    <DefineConstants>DEBUG;</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
+    <Optimize>true</Optimize>
+    <OutputPath>..\..\bin\Release\MonoDevelop.CryEngine</OutputPath>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="Properties\AddinInfo.cs" />
+    <Compile Include="Execution\CryEngineGameExecutionCommand.cs" />
+    <Compile Include="Execution\CryEngineParameters.cs" />
+    <Compile Include="SoftDebugger\CryEngineSoftDebuggerEngine.cs" />
+    <Compile Include="SoftDebugger\CryEngineSoftDebuggerSession.cs" />
+    <Compile Include="SoftDebugger\CryEngineSoftDebuggerStartInfo.cs" />
+    <Compile Include="Projects\CryEngineGameProjectExtension.cs" />
+    <Compile Include="Execution\CryEngineGameExecutionHandler.cs" />
+    <Compile Include="ProjectPad\CryEngineGameProjectNodeBuilderExtension.cs" />
+    <Compile Include="Execution\CryEngineOptionsPanel.cs" />
+    <Compile Include="Execution\CryEngineOptionsPanelWidget.cs" />
+    <Compile Include="Projects\CryEngineGameProjectTemplateWizard.cs" />
+    <Compile Include="Projects\CryEngineGameProjectTemplateWizardPage.cs" />
+    <Compile Include="Projects\CryEngineGameProjectTemplateWizardPageWidget.cs" />
+    <Compile Include="ProjectPad\CryEngineGameProjectNodeCommandHandler.cs" />
+    <Compile Include="Commands.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="Properties\Manifest.addin.xml">
+    </EmbeddedResource>
+    <EmbeddedResource Include="Icons\platform-cry-16.png" />
+    <EmbeddedResource Include="Icons\platform-cry-32.png" />
+    <EmbeddedResource Include="Icons\platform-cry-gray-16.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <Folder Include="Icons\" />
+    <Folder Include="Execution\" />
+    <Folder Include="Templates\" />
+    <Folder Include="Templates\Projects\" />
+    <Folder Include="SoftDebugger\" />
+    <Folder Include="Projects\" />
+    <Folder Include="ProjectPad\" />
+  </ItemGroup>
+  <ItemGroup>
+    <AddinReference Include="MonoDevelop.Debugger" />
+    <AddinReference Include="MonoDevelop.Debugger.Soft" />
+  </ItemGroup>
+  <ItemGroup>
+    <AddinFile Include="Templates\Projects\CryEngineGame.xpt.xml">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </AddinFile>
+    <AddinFile Include="Templates\Projects\EmptyProject.xpt.xml">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </AddinFile>
+  </ItemGroup>
+  <ItemGroup>
+    <Reference Include="Mono.Addins">
+      <HintPath>..\..\References\Mono.Addins.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="MonoDevelop.Core">
+      <HintPath>..\..\References\MonoDevelop.Core.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="System.Xml" />
+    <Reference Include="Mono.Debugging">
+      <HintPath>..\..\References\Mono.Debugging.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="MonoDevelop.Debugger">
+      <HintPath>..\..\References\MonoDevelop.Debugger.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="System.Net" />
+    <Reference Include="Mono.Debugger.Soft">
+      <HintPath>..\..\References\Mono.Debugger.Soft.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="Mono.Debugging.Soft">
+      <HintPath>..\..\References\Mono.Debugging.Soft.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="MonoDevelop.Ide">
+      <HintPath>..\..\References\MonoDevelop.Ide.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="gtk-sharp, Version=2.12.0.0, Culture=neutral, PublicKeyToken=35e10195dab3c99f">
+      <Package>gtk-sharp-2.0</Package>
+    </Reference>
+    <Reference Include="gdk-sharp, Version=2.12.0.0, Culture=neutral, PublicKeyToken=35e10195dab3c99f">
+      <Package>gtk-sharp-2.0</Package>
+    </Reference>
+    <Reference Include="atk-sharp, Version=2.12.0.0, Culture=neutral, PublicKeyToken=35e10195dab3c99f">
+      <Package>gtk-sharp-2.0</Package>
+    </Reference>
+    <Reference Include="glib-sharp">
+      <HintPath>..\..\..\..\..\bin\common\Mono\lib\glib\glib-sharp.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="System" />
+    <Reference Include="Xwt">
+      <HintPath>..\..\References\Xwt.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="Newtonsoft.Json">
+      <HintPath>..\..\References\Newtonsoft.Json.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="packages.config" />
+  </ItemGroup>
+  <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
+  <ProjectExtensions>
+    <MonoDevelop>
+      <Properties>
+        <Policies>
+          <DotNetNamingPolicy DirectoryNamespaceAssociation="PrefixedHierarchical" ResourceNamePolicy="FileFormatDefault" />
+        </Policies>
+      </Properties>
+    </MonoDevelop>
+  </ProjectExtensions>
+  <Import Project="..\packages\MonoDevelop.Addins.0.3.10\build\net40\MonoDevelop.Addins.targets" Condition="Exists('..\packages\MonoDevelop.Addins.0.3.10\build\net40\MonoDevelop.Addins.targets')" />
+</Project>

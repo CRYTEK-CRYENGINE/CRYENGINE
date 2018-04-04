@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #include "StdAfx.h"
 
@@ -225,7 +225,7 @@ void RootOpticsElement::RenderPreview(SLensFlareRenderParam* pParam, const Vec3&
 
 	const bool bIgnoreOcclusionQueries = pParam->passInfo.IsAuxWindow();
 
-	if (CTexture* pDstRT = gcpRendD3D->GetBackBufferTexture())
+	if (CTexture* pDstRT = gcpRendD3D->GetCurrentBackBuffer(gcpRendD3D->GetActiveDisplayContext()))
 	{
 		gcpRendD3D->GetGraphicsPipeline().SwitchFromLegacyPipeline();
 
@@ -244,7 +244,7 @@ void RootOpticsElement::RenderPreview(SLensFlareRenderParam* pParam, const Vec3&
 		CPrimitiveRenderPass previewPass;
 		previewPass.SetRenderTarget(0, pDstRT);
 		previewPass.SetViewport(viewport);
-		previewPass.ClearPrimitives();
+		previewPass.BeginAddingPrimitives();
 
 		if (ProcessAll(previewPass, prePasses, light, viewInfo, viewInfoCount, true, false))
 			previewPass.Execute();

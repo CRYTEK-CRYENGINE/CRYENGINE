@@ -1,12 +1,12 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #pragma once
 
-#include <Schematyc/Script/IScript.h>
-#include <Schematyc/Script/IScriptElement.h>
-#include <Schematyc/SerializationUtils/ISerializationContext.h>
-#include <Schematyc/Utils/Assert.h>
-#include <Schematyc/Utils/IGUIDRemapper.h>
+#include <CrySchematyc/Script/IScript.h>
+#include <CrySchematyc/Script/IScriptElement.h>
+#include <CrySchematyc/SerializationUtils/ISerializationContext.h>
+#include <CrySchematyc/Utils/Assert.h>
+#include <CrySchematyc/Utils/IGUIDRemapper.h>
 
 #include "Script/ScriptExtensionMap.h"
 
@@ -26,7 +26,7 @@ public:
 		, m_pNextSibling(nullptr)
 	{}
 
-	inline CScriptElementBase(const SGUID& guid, const char* szName, const ScriptElementFlags& flags = EScriptElementFlags::None)
+	inline CScriptElementBase(const CryGUID& guid, const char* szName, const ScriptElementFlags& flags = EScriptElementFlags::None)
 		: m_guid(guid)
 		, m_name(szName)
 		, m_flags(flags)
@@ -62,7 +62,7 @@ public:
 
 	// IScriptElement
 
-	virtual SGUID GetGUID() const override
+	virtual CryGUID GetGUID() const override
 	{
 		return m_guid;
 	}
@@ -81,7 +81,7 @@ public:
 	{
 		for (const IScriptElement* pParent = m_pParent; pParent; pParent = pParent->GetParent())
 		{
-			switch (pParent->GetElementType())
+			switch (pParent->GetType())
 			{
 			case EScriptElementType::Class:
 			case EScriptElementType::State:
@@ -93,12 +93,12 @@ public:
 		return EScriptElementAccessor::Public;
 	}
 
-	virtual void SetElementFlags(const ScriptElementFlags& flags) override
+	virtual void SetFlags(const ScriptElementFlags& flags) override
 	{
 		m_flags = flags;
 	}
 
-	virtual ScriptElementFlags GetElementFlags() const override
+	virtual ScriptElementFlags GetFlags() const override
 	{
 		return m_flags;
 	}
@@ -244,8 +244,8 @@ public:
 
 	virtual EVisitStatus VisitChildren(const ScriptElementVisitor& visitor) override
 	{
-		SCHEMATYC_CORE_ASSERT(!visitor.IsEmpty());
-		if (!visitor.IsEmpty())
+		SCHEMATYC_CORE_ASSERT(visitor);
+		if (visitor)
 		{
 			for (IScriptElement* pChild = m_pFirstChild; pChild; pChild = pChild->GetNextSibling())
 			{
@@ -266,8 +266,8 @@ public:
 
 	virtual EVisitStatus VisitChildren(const ScriptElementConstVisitor& visitor) const override
 	{
-		SCHEMATYC_CORE_ASSERT(!visitor.IsEmpty());
-		if (!visitor.IsEmpty())
+		SCHEMATYC_CORE_ASSERT(visitor);
+		if (visitor)
 		{
 			for (const IScriptElement* pChild = m_pFirstChild; pChild; pChild = pChild->GetNextSibling())
 			{
@@ -319,7 +319,7 @@ public:
 
 		if (archive.isOutput())
 		{
-			EScriptElementType elementType = static_cast<const INTERFACE*>(this)->GetElementType();
+			EScriptElementType elementType = static_cast<const INTERFACE*>(this)->GetType();
 			archive(elementType, "elementType");
 		}
 
@@ -351,7 +351,7 @@ protected:
 
 private:
 
-	SGUID               m_guid;
+	CryGUID               m_guid;
 	string              m_name;
 	ScriptElementFlags  m_flags;
 	IScript*            m_pScript;

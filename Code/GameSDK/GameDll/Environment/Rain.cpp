@@ -35,7 +35,7 @@ void CRain::PreloadTextures()
 {
 	uint32 nDefaultFlags = FT_DONT_STREAM;
 
-	XmlNodeRef root = GetISystem()->LoadXmlFromFile("EngineAssets/raintextures.xml");
+	XmlNodeRef root = GetISystem()->LoadXmlFromFile("%ENGINE%/EngineAssets/raintextures.xml");
 	if (root)
 	{
 		for (int i = 0; i < root->getChildCount(); i++)
@@ -173,11 +173,6 @@ void CRain::ProcessEvent(SEntityEvent& event)
 		}
 		break;
 	}
-}
-
-//------------------------------------------------------------------------
-void CRain::SetAuthority(bool auth)
-{
 }
 
 //------------------------------------------------------------------------

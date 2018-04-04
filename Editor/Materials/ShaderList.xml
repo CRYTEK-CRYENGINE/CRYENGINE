@@ -1,28 +1,19 @@
 <ShaderList>
-	<Shader name="CloakLayer" />
-	<Shader name="Common.Cloud" />
 	<Shader name="DistanceClouds" />
 	<Shader name="Eye" />
-	<Shader name="GeometryBeam" />
 	<Shader name="Glass" />
 	<Shader name="Hair" />
 	<Shader name="HumanSkin" />
 	<Shader name="Illum" />
-	<Shader name="LightBeam.LightBeam" />
-	<Shader name="Monitor" />
 	<Shader name="NoDraw" />
 	<Shader name="Particleimposter" />
 	<Shader name="Particles" />
-	<Shader name="Ping" />
 	<Shader name="ReferenceImage" />
-	<Shader name="Scopes" />
 	<Shader name="Sky" />
 	<Shader name="SkyHDR" />
 	<Shader name="TemplBeamProc" />
 	<Shader name="Terrain.Layer" />
 	<Shader name="Vegetation" />
-	<Shader name="VolumeObject" />
 	<Shader name="Water" />
-	<Shader name="Waterfall" />
 	<Shader name="WaterVolume" />
 </ShaderList>

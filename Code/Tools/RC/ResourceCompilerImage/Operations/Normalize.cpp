@@ -1,4 +1,5 @@
 // Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved.
+
 #include "StdAfx.h"
 #include <assert.h>                         // assert()
 
@@ -77,7 +78,7 @@ void ImageObject::NormalizeImageRange(EColorNormalization eColorNorm, EAlphaNorm
 		dwWidth  = GetWidth (dwMip);
 		for (uint32 dwY = 0; dwY < dwHeight; ++dwY)
 		{				
-			const Vec4* pSrcPix = (Vec4*)&pSrcMem[dwY * dwSrcPitch];
+			const Vec4f* pSrcPix = (Vec4f*)&pSrcMem[dwY * dwSrcPitch];
 			for (uint32 dwX = 0; dwX < dwWidth; ++dwX)
 			{		
 				cMinColor.x = Util::getMin(cMinColor.x, pSrcPix->x);
@@ -199,12 +200,14 @@ void ImageObject::NormalizeImageRange(EColorNormalization eColorNorm, EAlphaNorm
 		dwWidth  = GetWidth (dwMip);
 		for(uint32 dwY = 0; dwY < dwHeight; ++dwY)
 		{				
-			Vec4* pSrcPix = (Vec4*)&pSrcMem[dwY * dwSrcPitch];
+			Vec4f* pSrcPix = (Vec4f*)&pSrcMem[dwY * dwSrcPitch];
 			for (uint32 dwX = 0; dwX < dwWidth; ++dwX)
 			{
-				*pSrcPix = *pSrcPix - cMinColor;
-				*pSrcPix = *pSrcPix / cScale;
-				*pSrcPix = *pSrcPix * cUprValue;
+				Vec4 color(*pSrcPix);
+				color = color - cMinColor;
+				color = color / cScale;
+				color = color * cUprValue;
+				*pSrcPix = color;
 
 				pSrcPix++;
 			}
@@ -270,12 +273,14 @@ void ImageObject::ExpandImageRange(EColorNormalization eColorMode, EAlphaNormali
 		dwWidth  = GetWidth (dwMip);
 		for (uint32 dwY = 0; dwY < dwHeight; ++dwY)
 		{				
-			Vec4* pSrcPix = (Vec4*)&pSrcMem[dwY * dwSrcPitch];
+			Vec4f* pSrcPix = (Vec4f*)&pSrcMem[dwY * dwSrcPitch];
 			for (uint32 dwX = 0; dwX < dwWidth; ++dwX)
 			{
-				*pSrcPix = *pSrcPix / cUprValue;
-				*pSrcPix = *pSrcPix * cScale;
-				*pSrcPix = *pSrcPix + cMinColor;
+				Vec4 color(*pSrcPix);
+				color = color / cUprValue;
+				color = color * cScale;
+				color = color + cMinColor;
+				*pSrcPix = color;
 
 				pSrcPix++;
 			}

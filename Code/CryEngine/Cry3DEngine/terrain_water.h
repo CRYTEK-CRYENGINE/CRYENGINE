@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 // -------------------------------------------------------------------------
 //  File name:   terrain_water.h
@@ -63,12 +63,9 @@ private:
 	// Ocean data
 	IMaterial*                m_pMaterial;
 
-	PodArray<SVF_P3F_C4B_T2F> m_pMeshVerts;
-	PodArray<vtx_idx>         m_pMeshIndices;
-
 	int32                     m_nPrevGridDim;
-	int32                     m_nVertsCount;
-	int32                     m_nIndicesCount;
+	uint32                    m_nVertsCount;
+	uint32                    m_nIndicesCount;
 
 	int32                     m_nTessellationType;
 	int32                     m_nTessellationTiles;

@@ -1,15 +1,16 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #include "StdAfx.h"
 #include "Script/Graph/Nodes/ScriptGraphGetNode.h"
 
-#include <Schematyc/Compiler/CompilerContext.h>
-#include <Schematyc/Compiler/IGraphNodeCompiler.h>
-#include <Schematyc/Script/Elements/IScriptVariable.h>
-#include <Schematyc/Utils/Any.h>
-#include <Schematyc/Utils/AnyArray.h>
-#include <Schematyc/Utils/IGUIDRemapper.h>
-#include <Schematyc/Utils/StackString.h>
+#include <CrySchematyc/Compiler/CompilerContext.h>
+#include <CrySchematyc/Compiler/IGraphNodeCompiler.h>
+#include <CrySchematyc/Script/Elements/IScriptVariable.h>
+#include <CrySchematyc/Script/Elements/IScriptComponentInstance.h>
+#include <CrySchematyc/Utils/Any.h>
+#include <CrySchematyc/Utils/AnyArray.h>
+#include <CrySchematyc/Utils/IGUIDRemapper.h>
+#include <CrySchematyc/Utils/StackString.h>
 
 #include "Object.h"
 #include "Runtime/RuntimeClass.h"
@@ -17,6 +18,8 @@
 #include "Script/Graph/ScriptGraphNode.h"
 #include "Script/Graph/ScriptGraphNodeFactory.h"
 #include "SerializationUtils/SerializationContext.h"
+
+#include <CryEntitySystem/IEntityComponent.h>
 
 namespace Schematyc
 {
@@ -28,18 +31,19 @@ CScriptGraphGetNode::SRuntimeData::SRuntimeData(const SRuntimeData& rhs)
 	: pos(rhs.pos)
 {}
 
-SGUID CScriptGraphGetNode::SRuntimeData::ReflectSchematycType(CTypeInfo<CScriptGraphGetNode::SRuntimeData>& typeInfo)
+void CScriptGraphGetNode::SRuntimeData::ReflectType(CTypeDesc<CScriptGraphGetNode::SRuntimeData>& desc)
 {
-	return "be778830-e855-42d3-a87f-424161017339"_schematyc_guid;
+	desc.SetGUID("be778830-e855-42d3-a87f-424161017339"_cry_guid);
 }
 
 CScriptGraphGetNode::CScriptGraphGetNode() {}
 
-CScriptGraphGetNode::CScriptGraphGetNode(const SGUID& referenceGUID)
+CScriptGraphGetNode::CScriptGraphGetNode(const CryGUID& referenceGUID,uint32 componentMemberId)
 	: m_referenceGUID(referenceGUID)
+	, m_componentMemberId(componentMemberId)
 {}
 
-SGUID CScriptGraphGetNode::GetTypeGUID() const
+CryGUID CScriptGraphGetNode::GetTypeGUID() const
 {
 	return ms_typeGUID;
 }
@@ -48,14 +52,14 @@ void CScriptGraphGetNode::CreateLayout(CScriptGraphNodeLayout& layout)
 {
 	layout.SetStyleId("Core::Data");
 
-	const char* szSubject = nullptr;
+	CStackString subject;
 	if (!GUID::IsEmpty(m_referenceGUID))
 	{
 		CScriptView scriptView(CScriptGraphNodeModel::GetNode().GetGraph().GetElement().GetGUID());
 		const IScriptElement* pReferenceElement = scriptView.GetScriptElement(m_referenceGUID);
 		if (pReferenceElement)
 		{
-			switch (pReferenceElement->GetElementType())
+			switch (pReferenceElement->GetType())
 			{
 			case EScriptElementType::Variable:
 				{
@@ -63,7 +67,7 @@ void CScriptGraphGetNode::CreateLayout(CScriptGraphNodeLayout& layout)
 					CAnyConstPtr pData = variable.GetData();
 					if (pData)
 					{
-						szSubject = variable.GetName();
+						subject = variable.GetName();
 
 						if (!variable.IsArray())
 						{
@@ -76,10 +80,38 @@ void CScriptGraphGetNode::CreateLayout(CScriptGraphNodeLayout& layout)
 					}
 					break;
 				}
+			case EScriptElementType::ComponentInstance:
+				{
+					const IScriptComponentInstance& scriptComponentInstance = DynamicCast<IScriptComponentInstance>(*pReferenceElement);
+					if (scriptComponentInstance.GetProperties().GetTypeDesc())
+					{
+						const CClassMemberDesc* pMember = scriptComponentInstance.GetProperties().GetTypeDesc()->FindMemberById(m_componentMemberId);
+						if (pMember)
+						{
+							CAnyConstPtr pData(pMember->GetTypeDesc(), pMember->GetDefaultValue());
+							if (pData)
+							{
+								subject = scriptComponentInstance.GetName();
+								subject += ".";
+								subject += pMember->GetLabel();
+
+								//if (!variable.IsArray())
+								//{
+								layout.AddOutputWithData("Value", pData->GetTypeDesc().GetGUID(), { EScriptGraphPortFlags::Data, EScriptGraphPortFlags::MultiLink, EScriptGraphPortFlags::Pull }, *pData);
+								//}
+								//else
+								{
+									//layout.AddOutputWithData("Value", pData->GetTypeDesc().GetGUID(), { EScriptGraphPortFlags::Data, EScriptGraphPortFlags::MultiLink, EScriptGraphPortFlags::Array, EScriptGraphPortFlags::Pull }, CAnyArrayPtr());
+								}
+							}
+						}
+					}
+					break;
+				}
 			}
 		}
 	}
-	layout.SetName("Get", szSubject);
+	layout.SetName("Get", subject.c_str());
 }
 
 void CScriptGraphGetNode::Compile(SCompilerContext& context, IGraphNodeCompiler& compiler) const
@@ -90,7 +122,7 @@ void CScriptGraphGetNode::Compile(SCompilerContext& context, IGraphNodeCompiler&
 		const IScriptElement* pReferenceElement = scriptView.GetScriptElement(m_referenceGUID);
 		if (pReferenceElement)
 		{
-			switch (pReferenceElement->GetElementType())
+			switch (pReferenceElement->GetType())
 			{
 			case EScriptElementType::Variable:
 				{
@@ -114,6 +146,23 @@ void CScriptGraphGetNode::Compile(SCompilerContext& context, IGraphNodeCompiler&
 					}
 					break;
 				}
+			case EScriptElementType::ComponentInstance:
+				{
+					const IScriptComponentInstance& scriptComponentInstance = DynamicCast<IScriptComponentInstance>(*pReferenceElement);
+					const CRuntimeClass* pClass = context.interfaces.Query<const CRuntimeClass>();
+					if (pClass && scriptComponentInstance.GetProperties().GetTypeDesc())
+					{
+						SComponentPropertyRuntimeData runtimeData;
+						runtimeData.componentMemberIndex = scriptComponentInstance.GetProperties().GetTypeDesc()->FindMemberIndexById(m_componentMemberId);
+						runtimeData.componentIdx = pClass->FindComponentInstance(m_referenceGUID);
+						if (runtimeData.componentIdx != InvalidIdx && runtimeData.componentMemberIndex != InvalidIdx)
+						{
+							compiler.BindCallback(&ExecuteGetComponentProperty);
+							compiler.BindData(runtimeData);
+						}
+					}
+					break;
+				}
 			}
 		}
 	}
@@ -122,11 +171,13 @@ void CScriptGraphGetNode::Compile(SCompilerContext& context, IGraphNodeCompiler&
 void CScriptGraphGetNode::LoadDependencies(Serialization::IArchive& archive, const ISerializationContext& context)
 {
 	archive(m_referenceGUID, "referenceGUID");
+	archive(m_componentMemberId,"memberId");
 }
 
 void CScriptGraphGetNode::Save(Serialization::IArchive& archive, const ISerializationContext& context)
 {
 	archive(m_referenceGUID, "referenceGUID");
+	archive(m_componentMemberId,"memberId");
 }
 
 void CScriptGraphGetNode::Validate(Serialization::IArchive& archive, const ISerializationContext& context)
@@ -157,9 +208,10 @@ void CScriptGraphGetNode::Register(CScriptGraphNodeFactory& factory)
 		{
 		public:
 
-			CCreationCommand(const char* szSubject, const SGUID& referenceGUID)
+			CCreationCommand(const char* szSubject, const CryGUID& referenceGUID,uint32 componentMemberId=0)
 				: m_subject(szSubject)
 				, m_referenceGUID(referenceGUID)
+				, m_componentMemberId(componentMemberId)
 			{}
 
 			// IScriptGraphNodeCreationCommand
@@ -176,6 +228,8 @@ void CScriptGraphGetNode::Register(CScriptGraphNodeFactory& factory)
 
 			virtual const char* GetDescription() const override
 			{
+				if (m_componentMemberId)
+					return "Get value of the component property";
 				return "Get value of variable";
 			}
 
@@ -186,7 +240,7 @@ void CScriptGraphGetNode::Register(CScriptGraphNodeFactory& factory)
 
 			virtual IScriptGraphNodePtr Execute(const Vec2& pos) override
 			{
-				return std::make_shared<CScriptGraphNode>(gEnv->pSchematyc->CreateGUID(), stl::make_unique<CScriptGraphGetNode>(m_referenceGUID), pos);
+				return std::make_shared<CScriptGraphNode>(gEnv->pSchematyc->CreateGUID(), stl::make_unique<CScriptGraphGetNode>(m_referenceGUID,m_componentMemberId), pos);
 			}
 
 			// ~IScriptGraphNodeCreationCommand
@@ -194,19 +248,20 @@ void CScriptGraphGetNode::Register(CScriptGraphNodeFactory& factory)
 		private:
 
 			string m_subject;
-			SGUID  m_referenceGUID;
+			CryGUID  m_referenceGUID;
+			uint32   m_componentMemberId;
 		};
 
 	public:
 
 		// IScriptGraphNodeCreator
 
-		virtual SGUID GetTypeGUID() const override
+		virtual CryGUID GetTypeGUID() const override
 		{
 			return CScriptGraphGetNode::ms_typeGUID;
 		}
 
-		virtual IScriptGraphNodePtr CreateNode(const SGUID& guid) override
+		virtual IScriptGraphNodePtr CreateNode(const CryGUID& guid) override
 		{
 			return std::make_shared<CScriptGraphNode>(guid, stl::make_unique<CScriptGraphGetNode>());
 		}
@@ -218,9 +273,48 @@ void CScriptGraphGetNode::Register(CScriptGraphNodeFactory& factory)
 				CStackString subject;
 				scriptView.QualifyName(variable, EDomainQualifier::Global, subject);
 				nodeCreationMenu.AddCommand(std::make_shared<CCreationCommand>(subject.c_str(), variable.GetGUID()));
+
 				return EVisitStatus::Continue;
 			};
-			scriptView.VisitScriptVariables(ScriptVariableConstVisitor::FromLambda(visitScriptVariable), EDomainScope::Derived);
+			scriptView.VisitScriptVariables(visitScriptVariable, EDomainScope::Derived);
+
+			// Library variables
+			// TODO: Not yet supported.
+			/*CScriptView gloablView(gEnv->pSchematyc->GetScriptRegistry().GetRootElement().GetGUID());
+			   auto visitLibraries = [&nodeCreationMenu](const IScriptVariable& scriptVariable) -> EVisitStatus
+			   {
+			   CStackString subject;
+			   QualifyScriptElementName(gEnv->pSchematyc->GetScriptRegistry().GetRootElement(), scriptVariable, EDomainQualifier::Global, subject);
+			   nodeCreationMenu.AddCommand(std::make_shared<CCreationCommand>(subject.c_str(), scriptVariable.GetGUID()));
+
+			   return EVisitStatus::Continue;
+			   };
+			   gloablView.VisitScriptModuleVariables(visitLibraries);*/
+			// ~TODO
+
+			// Populate component properties
+			auto visitScriptComponentInstance = [&nodeCreationMenu,&scriptView](const IScriptComponentInstance& scriptComponentInstance) -> EVisitStatus
+			{
+				CStackString baseName;
+				baseName = "Components::";
+				baseName += scriptComponentInstance.GetName();
+				baseName += "::";
+
+				const CClassDesc* classDesc = scriptComponentInstance.GetProperties().GetTypeDesc();
+				if (!classDesc)
+					return EVisitStatus::Continue;
+
+				const CClassMemberDescArray &members = classDesc->GetMembers();
+				for (const CClassMemberDesc& member : members)
+				{
+					CStackString name(baseName);
+					name += member.GetLabel();
+					uint32 memberId = member.GetId();
+					nodeCreationMenu.AddCommand(std::make_shared<CCreationCommand>(name.c_str(), scriptComponentInstance.GetGUID(),memberId));
+				}
+				return EVisitStatus::Continue;
+			};
+			scriptView.VisitScriptComponentInstances(visitScriptComponentInstance, EDomainScope::All);
 		}
 
 		// ~IScriptGraphNodeCreator
@@ -247,7 +341,32 @@ SRuntimeResult CScriptGraphGetNode::ExecuteArray(SRuntimeContext& context, const
 	return SRuntimeResult(ERuntimeStatus::Continue);
 }
 
-const SGUID CScriptGraphGetNode::ms_typeGUID = "a15c2533-d004-4266-b121-68404aa5e02f"_schematyc_guid;
+Schematyc::SRuntimeResult CScriptGraphGetNode::ExecuteGetComponentProperty(SRuntimeContext& context, const SRuntimeActivationParams& activationParams)
+{
+	const SComponentPropertyRuntimeData& runtimeData = DynamicCast<SComponentPropertyRuntimeData>(*context.node.GetData());
+	
+	IEntityComponent* pComponent = static_cast<CObject*>(context.pObject)->GetComponent(runtimeData.componentIdx);
+	if (pComponent)
+	{
+		const CClassMemberDescArray &members = pComponent->GetClassDesc().GetMembers();
+		assert(runtimeData.componentMemberIndex < members.size());
+		if (runtimeData.componentMemberIndex < members.size())
+		{
+			const CClassMemberDesc& member = members[runtimeData.componentMemberIndex];
+			
+			// Pointer to the member of the component
+			CAnyConstRef memberAny(member.GetTypeDesc(), (const void*)(reinterpret_cast<uint8*>(pComponent) + member.GetOffset()));
+
+			// Assign component member to the Graph data output
+			Any::CopyAssign(*context.node.GetOutputData(EOutputIdx::Value), memberAny);
+		}
+	}
+
+	return SRuntimeResult(ERuntimeStatus::Continue);
+}
+
+const CryGUID CScriptGraphGetNode::ms_typeGUID = "a15c2533-d004-4266-b121-68404aa5e02f"_cry_guid;
+
 } // Schematyc
 
 SCHEMATYC_REGISTER_SCRIPT_GRAPH_NODE(Schematyc::CScriptGraphGetNode::Register)

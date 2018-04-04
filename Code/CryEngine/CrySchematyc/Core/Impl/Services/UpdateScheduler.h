@@ -1,8 +1,8 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #pragma once
 
-#include <Schematyc/Services/IUpdateScheduler.h>
+#include <CrySchematyc/Services/IUpdateScheduler.h>
 
 namespace Schematyc
 {
@@ -55,7 +55,8 @@ private:
 	{
 		inline bool operator()(const SObserver& lhs, const SObserver& rhs) const
 		{
-			return (lhs.currentPriority > rhs.currentPriority) || ((lhs.currentPriority == rhs.currentPriority) && (lhs.callback < rhs.callback));
+			//return (lhs.currentPriority > rhs.currentPriority) || ((lhs.currentPriority == rhs.currentPriority) && (lhs.callback < rhs.callback));
+			return (lhs.currentPriority > rhs.currentPriority);
 		}
 	};
 

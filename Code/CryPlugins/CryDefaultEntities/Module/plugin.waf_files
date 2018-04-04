@@ -53,11 +53,6 @@
 			"Particles/ParticleEntity.cpp",
 			"Particles/ParticleEntity.h"
 		],
-		"Clouds" :
-		[
-			"Clouds/CloudEntity.cpp",
-			"Clouds/CloudEntity.h"
-		],
 		"Geometry" :
 		[
 			"Geometry/GeomEntity.cpp",
@@ -70,7 +65,9 @@
 		],
 		"Physics" :
 		[
-			"Physics/RopeEntity.cpp"
+			"Physics/RopeEntity.cpp",
+			"Physics/LocalGrid.cpp",
+			"Physics/LocalGrid.h"
 		],
 		"Triggers" :
 		[

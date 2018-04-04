@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #ifndef CRYLIBRARY_H__
 #define CRYLIBRARY_H__
@@ -119,10 +119,7 @@ static HMODULE CryLoadLibrary(const char* libName, bool bLazy = false, bool bInM
 	#define CryGetProcAddress(libHandle, procName) NULL
 	#define CryFreeLibrary(libHandle)
 	#define GetModuleHandle(x)                     0
-
-	#ifdef CRY_PLATFORM_ORBIS
-		#define CryGetCurrentModule() ::dlopen(NULL, RTLD_LAZY)
-	#endif
+	#define CryGetCurrentModule()                  NULL
 
 #endif
 

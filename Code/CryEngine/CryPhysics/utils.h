@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #ifndef utils_h
 #define utils_h
@@ -637,13 +637,6 @@ int ascii2bin(const unsigned char *pin,int sz, unsigned char *pout);
 
 template<class T> ILINE T *_align16(T *ptr) { return (T*)(((INT_PTR)ptr-1&~15)+16); }
 
-ILINE bool is_valid(float op) { return op*op>=0 && op*op<1E30f; }
-ILINE bool is_valid(int op) { return true; }
-ILINE bool is_valid(unsigned int op) { return true; }
-ILINE bool is_valid(const Quat& op) { return is_valid(op|op); }
-
-template<class dtype> bool is_valid(const dtype &op) { return is_valid(op.x*op.x + op.y*op.y + op.z*op.z); }
-
 void WritePacked(CStream &stm, int num);
 void WritePacked(CStream &stm, uint64 num);
 void ReadPacked(CStream &stm,int &num);
@@ -964,57 +957,6 @@ public:
     return 0; 
   }
 };
-
-
-
-// uncomment the following block to effectively disable validations
-/*#define VALIDATOR_LOG(pLog,str)
-#define VALIDATORS_START
-#define VALIDATOR(member)
-#define VALIDATOR_NORM(member)
-#define VALIDATOR_RANGE(member,minval,maxval)
-#define VALIDATOR_RANGE2(member,minval,maxval)
-#define VALIDATORS_END
-#define ENTITY_VALIDATE(strSource,pStructure)*/
-#if (CRY_PLATFORM_WINDOWS && CRY_PLATFORM_64BIT) || (CRY_PLATFORM_LINUX && CRY_PLATFORM_64BIT)
-#define DoBreak {__debugbreak();}
-#else
-#define DoBreak { __debugbreak(); }
-#endif
-
-#define VALIDATOR_LOG(pLog,str) if (pLog) pLog->Log("%s", str) //OutputDebugString(str)
-#define VALIDATORS_START bool validate( const char *strSource, ILog *pLog, const Vec3 &pt,\
-	IPhysRenderer *pStreamer, void *param0, int param1, int param2 ) { bool res=true; char errmsg[1024];
-#define VALIDATOR(member) if (!is_unused(member) && !is_valid(member)) { \
-	res=false; cry_sprintf(errmsg,"%s: (%.50s @ %.1f,%.1f,%.1f) Validation Error: %s is invalid",strSource,\
-	pStreamer?pStreamer->GetForeignName(param0,param1,param2):"",pt.x,pt.y,pt.z,#member); \
-	VALIDATOR_LOG(pLog,errmsg); } 
-#define VALIDATOR_NORM(member) if (!is_unused(member) && !(is_valid(member) && fabs_tpl((member|member)-1.0f)<0.01f)) { \
-	res=false; cry_sprintf(errmsg,"%s: (%.50s @ %.1f,%.1f,%.1f) Validation Error: %s is invalid or unnormalized",\
-	strSource,pStreamer?pStreamer->GetForeignName(param0,param1,param2):"",pt.x,pt.y,pt.z,#member); VALIDATOR_LOG(pLog,errmsg); }
-#define VALIDATOR_NORM_MSG(member,msg,member1) if (!is_unused(member) && !(is_valid(member) && fabs_tpl((member|member)-1.0f)<0.01f)) { \
-	PREFAST_SUPPRESS_WARNING(6053) \
-	res=false; cry_sprintf(errmsg,"%s: (%.50s @ %.1f,%.1f,%.1f) Validation Error: %s is invalid or unnormalized %s",\
-	strSource,pStreamer?pStreamer->GetForeignName(param0,param1,param2):"",pt.x,pt.y,pt.z,#member,msg); \
-	PREFAST_SUPPRESS_WARNING(6053) \
-	if (!is_unused(member1)) { cry_sprintf(errmsg+strlen(errmsg),sizeof errmsg - strlen(errmsg)," "#member1": %.1f,%.1f,%.1f",member1.x,member1.y,member1.z);} \
-	VALIDATOR_LOG(pLog,errmsg); }
-#define VALIDATOR_RANGE(member,minval,maxval) if (!is_unused(member) && !(is_valid(member) && member>=minval && member<=maxval)) { \
-	res=false; cry_sprintf(errmsg,"%s: (%.50s @ %.1f,%.1f,%.1f) Validation Error: %s is invalid or out of range",\
-	strSource,pStreamer?pStreamer->GetForeignName(param0,param1,param2):"",pt.x,pt.y,pt.z,#member); VALIDATOR_LOG(pLog,errmsg); }
-#define VALIDATOR_RANGE2(member,minval,maxval) if (!is_unused(member) && !(is_valid(member) && member*member>=minval*minval && \
-		member*member<=maxval*maxval)) { \
-	res=false; cry_sprintf(errmsg,"%s: (%.50s @ %.1f,%.1f,%.1f) Validation Error: %s is invalid or out of range",\
-	strSource,pStreamer?pStreamer->GetForeignName(param0,param1,param2):"",pt.x,pt.y,pt.z,#member); VALIDATOR_LOG(pLog,errmsg); }
-#define VALIDATORS_END return res; }
-
-#define ENTITY_VALIDATE(strSource,pStructure) if (!pStructure->validate(strSource,m_pWorld->m_pLog,m_pos,\
-	m_pWorld->m_pRenderer,m_pForeignData,m_iForeignData,m_iForeignFlags)) { \
-	if (m_pWorld->m_vars.bBreakOnValidation) DoBreak return 0; }
-#define ENTITY_VALIDATE_ERRCODE(strSource,pStructure,iErrCode) if (!pStructure->validate(strSource,m_pWorld->m_pLog,m_pos, \
-	m_pWorld->m_pRenderer,m_pForeignData,m_iForeignData,m_iForeignFlags)) { \
-	if (m_pWorld->m_vars.bBreakOnValidation) DoBreak return iErrCode; }
-
 
 //////////////////////////////////////////////////////////////////////////
 // Return tag name combined with number, ex: Name_1, Name_2

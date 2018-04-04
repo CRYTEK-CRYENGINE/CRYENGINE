@@ -1,9 +1,9 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #pragma once
 
 #include <IAudioImpl.h>
-#include <STLSoundAllocator.h>
+#include <PoolObject.h>
 
 namespace CryAudio
 {
@@ -11,176 +11,182 @@ namespace Impl
 {
 namespace SDL_mixer
 {
-typedef uint                                     SampleId;
-typedef uint                                     ListenerId;
-typedef std::vector<int, STLSoundAllocator<int>> ChannelList;
+using SampleId = uint;
+using ListenerId = uint;
+using ChannelList = std::vector<int>;
 
-struct SAudioTrigger final : public IAudioTrigger
+class CTrigger final : public ITrigger
 {
-	SAudioTrigger() = default;
-	virtual ~SAudioTrigger() override = default;
+public:
 
-	SAudioTrigger(SAudioTrigger const&) = delete;
-	SAudioTrigger(SAudioTrigger&&) = delete;
-	SAudioTrigger& operator=(SAudioTrigger const&) = delete;
-	SAudioTrigger& operator=(SAudioTrigger&&) = delete;
+	CTrigger() = default;
+	CTrigger(CTrigger const&) = delete;
+	CTrigger(CTrigger&&) = delete;
+	CTrigger& operator=(CTrigger const&) = delete;
+	CTrigger& operator=(CTrigger&&) = delete;
 
-	SampleId sampleId = 0;
-	float    attenuationMinDistance = 0.0f;
-	float    attenuationMaxDistance = 100.0f;
-	int      volume = 128;
-	int      loopCount = 1;
-	bool     bPanningEnabled = true;
-	bool     bStartEvent = true;
+	// CryAudio::Impl::ITrigger
+	virtual ERequestStatus Load() const override                             { return ERequestStatus::Success; }
+	virtual ERequestStatus Unload() const override                           { return ERequestStatus::Success; }
+	virtual ERequestStatus LoadAsync(IEvent* const pIEvent) const override   { return ERequestStatus::Success; }
+	virtual ERequestStatus UnloadAsync(IEvent* const pIEvent) const override { return ERequestStatus::Success; }
+	// ~CryAudio::Impl::ITrigger
+
+	SampleId m_sampleId = 0;
+	float    m_attenuationMinDistance = 0.0f;
+	float    m_attenuationMaxDistance = 100.0f;
+	int      m_volume = 128;
+	int      m_numLoops = 1;
+	bool     m_bPanningEnabled = true;
+	bool     m_bStartEvent = true;
 };
 
-struct SAudioParameter final : public IAudioRtpc
+struct SParameter final : public IParameter
 {
 	// Empty implementation so that the engine has something
-	// to refer to since RTPCs are not currently supported by
+	// to refer to since parameters are not currently supported by
 	// the SDL Mixer implementation
-	SAudioParameter() = default;
-	virtual ~SAudioParameter() override = default;
-
-	SAudioParameter(SAudioParameter const&) = delete;
-	SAudioParameter(SAudioParameter&&) = delete;
-	SAudioParameter& operator=(SAudioParameter const&) = delete;
-	SAudioParameter& operator=(SAudioParameter&&) = delete;
+	SParameter() = default;
+	SParameter(SParameter const&) = delete;
+	SParameter(SParameter&&) = delete;
+	SParameter& operator=(SParameter const&) = delete;
+	SParameter& operator=(SParameter&&) = delete;
 };
 
-struct SAudioSwitchState final : public IAudioSwitchState
+struct SSwitchState final : public ISwitchState
 {
 	// Empty implementation so that the engine has something
 	// to refer to since switches are not currently supported by
 	// the SDL Mixer implementation
-	SAudioSwitchState() = default;
-	virtual ~SAudioSwitchState() override = default;
-
-	SAudioSwitchState(SAudioSwitchState const&) = delete;
-	SAudioSwitchState(SAudioSwitchState&&) = delete;
-	SAudioSwitchState& operator=(SAudioSwitchState const&) = delete;
-	SAudioSwitchState& operator=(SAudioSwitchState&&) = delete;
+	SSwitchState() = default;
+	SSwitchState(SSwitchState const&) = delete;
+	SSwitchState(SSwitchState&&) = delete;
+	SSwitchState& operator=(SSwitchState const&) = delete;
+	SSwitchState& operator=(SSwitchState&&) = delete;
 };
 
-struct SAudioEnvironment final : public IAudioEnvironment
+struct SEnvironment final : public IEnvironment
 {
 	// Empty implementation so that the engine has something
 	// to refer to since environments are not currently supported by
 	// the SDL Mixer implementation
-	SAudioEnvironment() = default;
-	virtual ~SAudioEnvironment() override = default;
-
-	SAudioEnvironment(SAudioEnvironment const&) = delete;
-	SAudioEnvironment(SAudioEnvironment&&) = delete;
-	SAudioEnvironment& operator=(SAudioEnvironment const&) = delete;
-	SAudioEnvironment& operator=(SAudioEnvironment&&) = delete;
+	SEnvironment() = default;
+	SEnvironment(SEnvironment const&) = delete;
+	SEnvironment(SEnvironment&&) = delete;
+	SEnvironment& operator=(SEnvironment const&) = delete;
+	SEnvironment& operator=(SEnvironment&&) = delete;
 };
 
-struct SAudioEvent final : public IAudioEvent
-{
-	explicit SAudioEvent(AudioEventId const passedId)
-		: eventId(passedId)
-		, pStaticData(nullptr)
-	{}
-
-	virtual ~SAudioEvent() override = default;
-
-	SAudioEvent(SAudioEvent const&) = delete;
-	SAudioEvent(SAudioEvent&&) = delete;
-	SAudioEvent& operator=(SAudioEvent const&) = delete;
-	SAudioEvent& operator=(SAudioEvent&&) = delete;
-
-	void         Reset()
-	{
-		channels.clear();
-		pStaticData = nullptr;
-	}
-
-	const AudioEventId   eventId;
-	ChannelList          channels;
-	const SAudioTrigger* pStaticData;
-};
-
-class CAudioStandaloneFile final : public IAudioStandaloneFile
+class CEvent final : public IEvent, public CPoolObject<CEvent, stl::PSyncNone>
 {
 public:
 
-	CAudioStandaloneFile() = default;
-	virtual ~CAudioStandaloneFile() override = default;
-
-	CAudioStandaloneFile(CAudioStandaloneFile const&) = delete;
-	CAudioStandaloneFile(CAudioStandaloneFile&&) = delete;
-	CAudioStandaloneFile& operator=(CAudioStandaloneFile const&) = delete;
-	CAudioStandaloneFile& operator=(CAudioStandaloneFile&&) = delete;
-
-	void                  Reset()
-	{
-		fileId = INVALID_AUDIO_STANDALONE_FILE_ID;
-		fileInstanceId = INVALID_AUDIO_STANDALONE_FILE_ID;
-		channels.clear();
-		fileName.clear();
-	}
-
-	AudioStandaloneFileId                       fileId = INVALID_AUDIO_STANDALONE_FILE_ID;               // ID unique to the file, only needed for the 'finished' request
-	AudioStandaloneFileId                       fileInstanceId = INVALID_AUDIO_STANDALONE_FILE_ID;       // ID unique to the file instance, only needed for the 'finished' request
-	CryFixedStringT<MAX_AUDIO_FILE_PATH_LENGTH> fileName;
-	ChannelList channels;
-};
-
-typedef std::vector<SAudioEvent*, STLSoundAllocator<SAudioEvent*>>                   EventInstanceList;
-typedef std::vector<CAudioStandaloneFile*, STLSoundAllocator<CAudioStandaloneFile*>> StandAloneFileInstanceList;
-
-struct SAudioObject final : public IAudioObject
-{
-	explicit SAudioObject(uint32 id, bool bIsGlobal)
-		: audioObjectId(id)
-		, bGlobal(bIsGlobal)
-		, bPositionChanged(false)
+	explicit CEvent(CATLEvent& event)
+		: m_event(event)
 	{}
 
-	virtual ~SAudioObject() override = default;
+	CEvent(CEvent const&) = delete;
+	CEvent(CEvent&&) = delete;
+	CEvent& operator=(CEvent const&) = delete;
+	CEvent& operator=(CEvent&&) = delete;
 
-	SAudioObject(SAudioObject const&) = delete;
-	SAudioObject(SAudioObject&&) = delete;
-	SAudioObject& operator=(SAudioObject const&) = delete;
-	SAudioObject& operator=(SAudioObject&&) = delete;
+	// CryAudio::Impl::IEvent
+	virtual ERequestStatus Stop() override;
+	// ~CryAudio::Impl::IEvent
 
-	const uint32               audioObjectId;
-	CAudioObjectTransformation position;
-	EventInstanceList          events;
-	StandAloneFileInstanceList standaloneFiles;
-	bool                       bGlobal;
-	bool                       bPositionChanged;
+	CATLEvent&      m_event;
+	ChannelList     m_channels;
+	CTrigger const* m_pTrigger = nullptr;
 };
 
-struct SAudioListener final : public IAudioListener
+class CStandaloneFile final : public IStandaloneFile
 {
-	explicit SAudioListener(const ListenerId id)
-		: listenerId(id)
+public:
+
+	CStandaloneFile(char const* const szName, CATLStandaloneFile& atlStandaloneFile)
+		: m_atlFile(atlStandaloneFile)
+		, m_name(szName)
 	{}
 
-	virtual ~SAudioListener() override = default;
+	CStandaloneFile(CStandaloneFile const&) = delete;
+	CStandaloneFile(CStandaloneFile&&) = delete;
+	CStandaloneFile& operator=(CStandaloneFile const&) = delete;
+	CStandaloneFile& operator=(CStandaloneFile&&) = delete;
 
-	SAudioListener(SAudioListener const&) = delete;
-	SAudioListener(SAudioListener&&) = delete;
-	SAudioListener& operator=(SAudioListener const&) = delete;
-	SAudioListener& operator=(SAudioListener&&) = delete;
-
-	const ListenerId listenerId;
+	CATLStandaloneFile&                m_atlFile;
+	SampleId                           m_sampleId = 0; // ID unique to the file, only needed for the 'finished' request
+	CryFixedStringT<MaxFilePathLength> m_name;
+	ChannelList                        m_channels;
 };
 
-struct SAudioFileEntry final : public IAudioFileEntry
-{
-	SAudioFileEntry() = default;
-	virtual ~SAudioFileEntry() override = default;
+using EventInstanceList = std::vector<CEvent*>;
+using StandAloneFileInstanceList = std::vector<CStandaloneFile*>;
 
-	SAudioFileEntry(SAudioFileEntry const&) = delete;
-	SAudioFileEntry(SAudioFileEntry&&) = delete;
-	SAudioFileEntry& operator=(SAudioFileEntry const&) = delete;
-	SAudioFileEntry& operator=(SAudioFileEntry&&) = delete;
+class CObject final : public IObject, public CPoolObject<CObject, stl::PSyncNone>
+{
+public:
+
+	explicit CObject(uint32 const id)
+		: m_id(id)
+		, m_bPositionChanged(false)
+	{}
+
+	CObject(CObject const&) = delete;
+	CObject(CObject&&) = delete;
+	CObject& operator=(CObject const&) = delete;
+	CObject& operator=(CObject&&) = delete;
+
+	// CryAudio::Impl::IObject
+	virtual ERequestStatus Update() override;
+	virtual ERequestStatus Set3DAttributes(SObject3DAttributes const& attributes) override;
+	virtual ERequestStatus SetEnvironment(IEnvironment const* const pIEnvironment, float const amount) override;
+	virtual ERequestStatus SetParameter(IParameter const* const pIParameter, float const value) override;
+	virtual ERequestStatus SetSwitchState(ISwitchState const* const pISwitchState) override;
+	virtual ERequestStatus SetObstructionOcclusion(float const obstruction, float const occlusion) override;
+	virtual ERequestStatus ExecuteTrigger(ITrigger const* const pITrigger, IEvent* const pIEvent) override;
+	virtual ERequestStatus StopAllTriggers() override;
+	virtual ERequestStatus PlayFile(IStandaloneFile* const pIStandaloneFile) override;
+	virtual ERequestStatus StopFile(IStandaloneFile* const pIStandaloneFile) override;
+	virtual ERequestStatus SetName(char const* const szName) override;
+	// ~CryAudio::Impl::IObject
+
+	const uint32               m_id;
+	CObjectTransformation      m_transformation;
+	EventInstanceList          m_events;
+	StandAloneFileInstanceList m_standaloneFiles;
+	bool                       m_bPositionChanged;
+};
+
+class CListener final : public IListener
+{
+public:
+
+	explicit CListener(const ListenerId id)
+		: m_id(id)
+	{}
+
+	CListener(CListener const&) = delete;
+	CListener(CListener&&) = delete;
+	CListener& operator=(CListener const&) = delete;
+	CListener& operator=(CListener&&) = delete;
+
+	// CryAudio::Impl::IListener
+	virtual ERequestStatus Set3DAttributes(SObject3DAttributes const& attributes) override;
+	// ~CryAudio::Impl::IListener
+
+	const ListenerId m_id;
+};
+
+struct SFile final : public IFile
+{
+	SFile() = default;
+	SFile(SFile const&) = delete;
+	SFile(SFile&&) = delete;
+	SFile& operator=(SFile const&) = delete;
+	SFile& operator=(SFile&&) = delete;
 
 	SampleId sampleId;
 };
-}
-}
-}
+} // namespace SDL_mixer
+} // namespace Impl
+} // namespace CryAudio

@@ -6,14 +6,27 @@
 
 // *INDENT-OFF* - <hard to read code and declarations due to inconsistent indentation>
 
-namespace uqs
+namespace UQS
 {
-	namespace stdlib
+	namespace StdLib
 	{
 
 		void CStdLibRegistration::InstantiateDeferredEvaluatorFactoriesForRegistration()
 		{
-			static const client::CDeferredEvaluatorFactory<CDeferredEvaluator_TestRaycast> deferredEvaluatorFactory_TestRaycast("std::TestRaycast");
+			{
+				Client::CDeferredEvaluatorFactory<CDeferredEvaluator_TestRaycast>::SCtorParams ctorParams;
+
+				ctorParams.szName = "std::TestRaycast";
+				ctorParams.guid = "e8d294e5-ab1f-40ce-abc1-9b6fc687c990"_cry_guid;
+				ctorParams.szDescription =
+					"Tests a raycast between 2 given positions.\n"
+					"Whether success or failure of the raycast counts as overall success or failure of the evaluator can be specified by a parameter.\n"
+					"NOTICE: The underlying raycaster uses the *renderer* to limit the number of raycasts per frame!\n"
+					"As such, it will not work on a dedicated server as there is no renderer (!) (Read: a null-pointer crash would occur!)\n"
+					"You should rather consider this evaluator as a reference for your own implementation.";
+
+				static const Client::CDeferredEvaluatorFactory<CDeferredEvaluator_TestRaycast> deferredEvaluatorFactory_TestRaycast(ctorParams);
+			}
 		}
 
 		//===================================================================================
@@ -55,7 +68,7 @@ namespace uqs
 			// nothing
 		}
 
-		client::IDeferredEvaluator::EUpdateStatus CDeferredEvaluator_TestRaycast::Update(const SUpdateContext& updateContext)
+		Client::IDeferredEvaluator::EUpdateStatus CDeferredEvaluator_TestRaycast::Update(const SUpdateContext& updateContext)
 		{
 			if (s_regulator.RequestRaycast())
 			{
@@ -72,8 +85,8 @@ namespace uqs
 				ray_hit singleHit;
 
 				IPhysicalWorld::SRWIParams params;
-				params.org = m_params.from;
-				params.dir = m_params.to - m_params.from;
+				params.org = m_params.from.value;
+				params.dir = m_params.to.value - m_params.from.value;
 				params.objtypes = objectTypesToTestAgainst;
 				params.flags = blockingHardColliders | blockingSoftColliders;
 				params.hits = &singleHit;
@@ -86,19 +99,19 @@ namespace uqs
 				updateContext.evaluationResult.bDiscardItem = (bHitSomething == m_params.raycastShallSucceed);
 
 				// persistent debug drawing of the ray
-				IF_UNLIKELY(updateContext.blackboard.pDebugRenderWorld)
+				IF_UNLIKELY(updateContext.blackboard.pDebugRenderWorldPersistent)
 				{
 					if (bHitSomething)
 					{
 						// yellow line: start pos -> impact
 						// red line:    impact -> end pos
-						updateContext.blackboard.pDebugRenderWorld->AddLine(m_params.from, singleHit.pt, Col_Yellow);
-						updateContext.blackboard.pDebugRenderWorld->AddLine(singleHit.pt, m_params.to, Col_Red);
+						updateContext.blackboard.pDebugRenderWorldPersistent->AddLine(m_params.from.value, singleHit.pt, Col_Yellow);
+						updateContext.blackboard.pDebugRenderWorldPersistent->AddLine(singleHit.pt, m_params.to.value, Col_Red);
 					}
 					else
 					{
 						// green line: start pos -> end pos
-						updateContext.blackboard.pDebugRenderWorld->AddLine(m_params.from, m_params.to, Col_Green);
+						updateContext.blackboard.pDebugRenderWorldPersistent->AddLine(m_params.from.value, m_params.to.value, Col_Green);
 					}
 				}
 
@@ -111,9 +124,9 @@ namespace uqs
 				//
 
 				// draw a white line to indicate that we're still waiting to start the raycast
-				IF_UNLIKELY(updateContext.blackboard.pDebugRenderWorld)
+				IF_UNLIKELY(updateContext.blackboard.pDebugRenderWorldImmediate)
 				{
-					updateContext.blackboard.pDebugRenderWorld->DrawLine(m_params.from, m_params.to, Col_White);
+					updateContext.blackboard.pDebugRenderWorldImmediate->DrawLine(m_params.from.value, m_params.to.value, Col_White);
 				}
 
 				return EUpdateStatus::BusyButBlockedDueToResourceShortage;

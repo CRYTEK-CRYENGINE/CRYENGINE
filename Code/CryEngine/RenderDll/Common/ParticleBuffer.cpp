@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #include "StdAfx.h"
 #include "ParticleBuffer.h"
@@ -11,12 +11,23 @@
 	#define PFX_16BIT_IB
 #endif
 
+namespace
+{
+
+	bool IsStream(uint flags)
+	{
+		return (flags & CDeviceObjectFactory::BIND_VERTEX_BUFFER) || (flags & CDeviceObjectFactory::BIND_INDEX_BUFFER);
+	}
+
+}
+
 CParticleSubBuffer::CParticleSubBuffer()
 	: m_pLockedData(nullptr)
 	, m_elemCount(0)
 	, m_stride(0)
 	, m_flags(0)
 	, m_buffer(1)
+	, m_handle(0)
 {
 }
 
@@ -30,13 +41,35 @@ void CParticleSubBuffer::Create(uint elemsCount, uint stride, DXGI_FORMAT format
 	m_elemCount = elemsCount;
 	m_stride = stride;
 	m_flags = flags;
-	m_buffer.Create(elemsCount, stride, format, flags, nullptr);
+	if (IsStream(flags))
+	{
+		const bool useMemoryPool = false;
+		const uint size = elemsCount * stride;
+		SStreamInfo streamInfo;
+		m_handle = gRenDev->m_DevBufMan.Create(
+			(flags & CDeviceObjectFactory::BIND_VERTEX_BUFFER) ? BBT_VERTEX_BUFFER : BBT_INDEX_BUFFER,
+			BU_DYNAMIC, size, useMemoryPool);
+		streamInfo.hStream = m_handle;
+		streamInfo.nStride = (flags & CDeviceObjectFactory::BIND_VERTEX_BUFFER) ? stride : format;
+		streamInfo.nSlot = 0;
+		if (flags & CDeviceObjectFactory::BIND_VERTEX_BUFFER)
+			m_stream = GetDeviceObjectFactory().CreateVertexStreamSet(1, &streamInfo);
+		else
+			m_stream = GetDeviceObjectFactory().CreateIndexStreamSet(&streamInfo);
+	}
+	else
+	{
+		m_buffer.Create(elemsCount, stride, format, flags, nullptr);
+	}
 }
 
 void CParticleSubBuffer::Release()
 {
 	Unlock(0);
 	m_buffer.Release();
+	if (m_handle)
+		gRenDev->m_DevBufMan.Destroy(m_handle);
+	m_handle = 0;
 	m_elemCount = 0;
 	m_stride = 0;
 	m_flags = 0;
@@ -47,48 +80,33 @@ byte* CParticleSubBuffer::Lock()
 	if (m_pLockedData)
 		return m_pLockedData;
 
-	if (m_buffer.GetBuffer())
+	if (IsStream(m_flags))
+	{
+		m_pLockedData = reinterpret_cast<byte*>(gRenDev->m_DevBufMan.BeginWrite(m_handle));
+	}
+	else if (m_buffer.GetDevBuffer())
+	{
 		m_pLockedData = reinterpret_cast<byte*>(m_buffer.Lock());
+	}
 
 	return m_pLockedData;
 }
 
 void CParticleSubBuffer::Unlock(uint32 size)
 {
-	if (m_pLockedData && m_buffer.GetBuffer())
+	if (m_pLockedData)
 	{
-		m_buffer.Unlock(size);
-		// (1074511) !RB durango: removed usage of D3D11_GRAPHICS_MEMORY_ACCESS_CPU_CACHE_NONCOHERENT from all created buffers as advised by microsoft. All dynamic buffers now use onion (D3D11_GRAPHICS_MEMORY_ACCESS_CPU_CACHE_COHERENT) and all static buffers use garlic now (D3D11_GRAPHICS_MEMORY_ACCESS_CPU_WRITECOMBINE_NONCOHERENT)
-#if !CRY_PLATFORM_DURANGO
-		CDeviceManager::InvalidateCpuCache(m_pLockedData, 0, m_elemCount * m_stride);
-		CDeviceManager::InvalidateGpuCache(m_buffer.GetBuffer(), m_pLockedData, 0, m_elemCount * m_stride);
-#endif
+		if (IsStream(m_flags))
+		{
+			gRenDev->m_DevBufMan.EndReadWrite(m_handle);
+		}
+		else if (m_buffer.GetDevBuffer())
+		{
+			m_buffer.Unlock(size);
+		}
+
 		m_pLockedData = nullptr;
 	}
-}
-
-HRESULT CParticleSubBuffer::BindVB(uint streamNumber, int bytesOffset, int stride)
-{
-	assert((m_flags & DX11BUF_BIND_VERTEX_BUFFER) != 0);
-	HRESULT h = gcpRendD3D->FX_SetVStream(
-		streamNumber, m_buffer.GetBuffer(), bytesOffset,
-		(stride == 0 ? m_stride : stride));
-	CHECK_HRESULT(h);
-	return h;
-}
-
-HRESULT CParticleSubBuffer::BindIB(uint offset)
-{
-	assert((m_flags & DX11BUF_BIND_INDEX_BUFFER) != 0);
-	return gcpRendD3D->FX_SetIStream(
-		m_buffer.GetBuffer(), offset, (m_stride == 2 ? Index16 : Index32));
-}
-
-void CParticleSubBuffer::BindSRV(CDeviceManager::SHADER_TYPE shaderType, uint slot)
-{
-	assert(m_buffer.GetSRV() != 0);
-	auto pSRV = m_buffer.GetSRV();
-	gcpRendD3D->m_DevMan.BindSRV(shaderType, &pSRV, slot, 1);
 }
 
 CParticleBufferSet::CParticleBufferSet()
@@ -111,26 +129,26 @@ void CParticleBufferSet::Create(uint poolSize)
 {
 	for (auto& fence : m_fences)
 	{
-		gRenDev->m_DevMan.CreateFence(fence);
+		GetDeviceObjectFactory().CreateFence(fence);
 	}
 
 	CreateSubBuffer(
-	  EBT_Vertices, poolSize, sizeof(SVF_P3F_C4B_T4B_N3F2), DXGI_FORMAT_UNKNOWN,
-	  DX11BUF_BIND_VERTEX_BUFFER | DX11BUF_DYNAMIC);
+		EBT_Vertices, poolSize, sizeof(SVF_P3F_C4B_T4B_N3F2), DXGI_FORMAT_UNKNOWN,
+		CDeviceObjectFactory::BIND_VERTEX_BUFFER | CDeviceObjectFactory::USAGE_CPU_WRITE);
 
 	CreateSubBuffer(
-	  EBT_Indices, poolSize * 3, sizeof(uint16), DXGI_FORMAT_R16_UINT,
-	  DX11BUF_BIND_INDEX_BUFFER | DX11BUF_DYNAMIC);
+		EBT_Indices, poolSize * 3, sizeof(uint16), DXGI_FORMAT_R16_UINT,
+		CDeviceObjectFactory::BIND_INDEX_BUFFER | CDeviceObjectFactory::USAGE_CPU_WRITE);
 
 	CreateSubBuffer(
-	  EBT_PositionsSRV, poolSize, sizeof(Vec3), DXGI_FORMAT_R32G32B32_FLOAT,
-	  DX11BUF_BIND_SRV | DX11BUF_DYNAMIC);
+		EBT_PositionsSRV, poolSize, sizeof(Vec3), DXGI_FORMAT_UNKNOWN,
+		CDeviceObjectFactory::BIND_SHADER_RESOURCE | CDeviceObjectFactory::USAGE_CPU_WRITE | CDeviceObjectFactory::USAGE_STRUCTURED);
 	CreateSubBuffer(
-	  EBT_AxesSRV, poolSize, sizeof(SParticleAxes), DXGI_FORMAT_UNKNOWN,
-	  DX11BUF_BIND_SRV | DX11BUF_DYNAMIC | DX11BUF_STRUCTURED);
+		EBT_AxesSRV, poolSize, sizeof(SParticleAxes), DXGI_FORMAT_UNKNOWN,
+		CDeviceObjectFactory::BIND_SHADER_RESOURCE | CDeviceObjectFactory::USAGE_CPU_WRITE | CDeviceObjectFactory::USAGE_STRUCTURED);
 	CreateSubBuffer(
-	  EBT_ColorSTsSRV, poolSize, sizeof(SParticleColorST), DXGI_FORMAT_UNKNOWN,
-	  DX11BUF_BIND_SRV | DX11BUF_DYNAMIC | DX11BUF_STRUCTURED);
+		EBT_ColorSTsSRV, poolSize, sizeof(SParticleColorST), DXGI_FORMAT_UNKNOWN,
+		CDeviceObjectFactory::BIND_SHADER_RESOURCE | CDeviceObjectFactory::USAGE_CPU_WRITE | CDeviceObjectFactory::USAGE_STRUCTURED);
 
 	CreateSpriteBuffer(poolSize);
 
@@ -176,10 +194,18 @@ void CParticleBufferSet::CreateSpriteBuffer(uint poolSize)
 		for (uint i = 0; i < 6; ++i)
 			spriteIndices[baseIndexIdx + i] = idxFormat(baseVertIdx + quadTessIdx[i]);
 	}
-	m_spriteIndexBuffer.Create(
-	  spriteIndices.size(), sizeof(idxFormat), format,
-	  DX11BUF_BIND_INDEX_BUFFER,
-	  spriteIndices.data());
+
+	m_spriteIndexBufferHandle = gRenDev->m_DevBufMan.Create(
+		BBT_INDEX_BUFFER, BU_STATIC,
+		spriteIndices.size() * sizeof(idxFormat));
+	gRenDev->m_DevBufMan.UpdateBuffer(
+		m_spriteIndexBufferHandle, spriteIndices.data(),
+		spriteIndices.size() * sizeof(idxFormat));
+	SStreamInfo streamInfo;
+	streamInfo.hStream = m_spriteIndexBufferHandle;
+	streamInfo.nStride = RenderIndexType::Index32;
+	streamInfo.nSlot = 0;
+	m_spriteIndexBufferStream = GetDeviceObjectFactory().CreateIndexStreamSet(&streamInfo);
 }
 
 void CParticleBufferSet::Release()
@@ -188,7 +214,7 @@ void CParticleBufferSet::Release()
 	{
 		if (fence != 0)
 		{
-			gRenDev->m_DevMan.ReleaseFence(fence);
+			GetDeviceObjectFactory().ReleaseFence(fence);
 			fence = 0;
 		}
 	}
@@ -205,7 +231,9 @@ void CParticleBufferSet::Release()
 		}
 	}
 
-	m_spriteIndexBuffer.Release();
+	if (m_spriteIndexBufferHandle)
+		gRenDev->m_DevBufMan.Destroy(m_spriteIndexBufferHandle);
+	m_spriteIndexBufferHandle = 0;
 
 	m_maxSpriteCount = 0;
 	m_valid = false;
@@ -268,7 +296,7 @@ void CParticleBufferSet::SetFence()
 	const uint processId = gRenDev->m_RP.m_nProcessThreadID;
 	const uint bindId = m_ids[processId];
 
-	gRenDev->m_DevMan.IssueFence(m_fences[bindId]);
+	GetDeviceObjectFactory().IssueFence(m_fences[bindId]);
 #endif
 }
 
@@ -280,7 +308,7 @@ void CParticleBufferSet::WaitForFence()
 	const uint fillId = gRenDev->m_RP.m_nFillThreadID;
 	const uint cvId = m_ids[fillId];
 
-	gRenDev->m_DevMan.SyncFence(m_fences[cvId], true, false);
+	GetDeviceObjectFactory().SyncFence(m_fences[cvId], true, false);
 #endif
 }
 
@@ -310,8 +338,7 @@ void CParticleBufferSet::Alloc(uint index, EBufferTypes type, uint numElems, SAl
 		offset = *(volatile LONG*)&subBuffer.m_offset[index];
 		if (numElems * stride > (subBuffer.m_availableMemory - offset))
 			numElems = (subBuffer.m_availableMemory - offset) / stride;
-	}
-	while (CryInterlockedCompareExchange((volatile LONG*)&subBuffer.m_offset[index], offset + numElems * stride, offset) != offset);
+	} while (CryInterlockedCompareExchange((volatile LONG*)&subBuffer.m_offset[index], offset + numElems * stride, offset) != offset);
 
 	pAllocOut->m_pBase = subBuffer.m_pMemoryBase[index];
 	pAllocOut->m_firstElem = offset / stride;
@@ -341,47 +368,49 @@ void CParticleBufferSet::Alloc(uint index, uint numElems, SAllocStreams* pAllocO
 	pAllocOut->m_numElemns = numElems;
 }
 
-void CParticleBufferSet::BindVB()
+const CGpuBuffer& CParticleBufferSet::GetPositionStream() const
+{
+	return GetGpuBuffer(EBT_PositionsSRV);
+}
+
+const CGpuBuffer& CParticleBufferSet::GetAxesStream() const
+{
+	return GetGpuBuffer(EBT_AxesSRV);
+}
+
+const CGpuBuffer& CParticleBufferSet::GetColorSTsStream() const
+{
+	return GetGpuBuffer(EBT_ColorSTsSRV);
+}
+
+const CDeviceInputStream* CParticleBufferSet::GetVertexStream() const
+{
+	return GetStreamBuffer(EBT_Vertices);
+}
+
+const CDeviceInputStream* CParticleBufferSet::GetIndexStream() const
+{
+	return GetStreamBuffer(EBT_Indices);
+}
+
+ILINE const CGpuBuffer& CParticleBufferSet::GetGpuBuffer(uint index) const
 {
 	const uint processId = gRenDev->m_RP.m_nProcessThreadID;
 	const uint bindId = m_ids[processId];
-
-	SubBuffer& subBuffer = m_subBuffers[EBT_Vertices];
-	CRY_ASSERT_MESSAGE(subBuffer.m_pMemoryBase[bindId] == nullptr, "Cannot bind buffer that wasn't unlocked.");
-	subBuffer.m_buffers[bindId].BindVB(0, 0, sizeof(SVF_P3F_C4B_T4B_N3F2));
+	CRY_ASSERT_MESSAGE(
+		m_subBuffers[index].m_pMemoryBase[bindId] == nullptr,
+		"Cannot use buffer that wasn't unlocked.");
+	return m_subBuffers[index].m_buffers[bindId].GetBuffer();
 }
 
-void CParticleBufferSet::BindIB()
+ILINE const CDeviceInputStream* CParticleBufferSet::GetStreamBuffer(uint index) const
 {
 	const uint processId = gRenDev->m_RP.m_nProcessThreadID;
 	const uint bindId = m_ids[processId];
-
-	SubBuffer& subBuffer = m_subBuffers[EBT_Indices];
-	CRY_ASSERT_MESSAGE(subBuffer.m_pMemoryBase[bindId] == nullptr, "Cannot bind buffer that wasn't unlocked.");
-	subBuffer.m_buffers[bindId].BindIB(0);
-}
-
-void CParticleBufferSet::BindSRVs()
-{
-	const uint processId = gRenDev->m_RP.m_nProcessThreadID;
-	const uint bindId = m_ids[processId];
-
-	CRY_ASSERT_MESSAGE(m_subBuffers[EBT_PositionsSRV].m_pMemoryBase[bindId] == nullptr, "Cannot bind buffer that wasn't unlocked.");
-	CRY_ASSERT_MESSAGE(m_subBuffers[EBT_AxesSRV].m_pMemoryBase[bindId] == nullptr, "Cannot bind buffer that wasn't unlocked.");
-	CRY_ASSERT_MESSAGE(m_subBuffers[EBT_ColorSTsSRV].m_pMemoryBase[bindId] == nullptr, "Cannot bind buffer that wasn't unlocked.");
-
-	m_subBuffers[EBT_PositionsSRV].m_buffers[bindId].BindSRV(CDeviceManager::TYPE_VS, 7);
-	m_subBuffers[EBT_AxesSRV].m_buffers[bindId].BindSRV(CDeviceManager::TYPE_VS, 8);
-	m_subBuffers[EBT_ColorSTsSRV].m_buffers[bindId].BindSRV(CDeviceManager::TYPE_VS, 9);
-}
-
-void CParticleBufferSet::BindSpriteIB()
-{
-#if defined(PFX_16BIT_IB)
-	gcpRendD3D.FX_SetIStream(m_spriteIndexBuffer.GetBuffer(), 0, Index16);
-#elif defined(PFX_32BIT_IB)
-	gcpRendD3D.FX_SetIStream(m_spriteIndexBuffer.GetBuffer(), 0, Index32);
-#endif
+	CRY_ASSERT_MESSAGE(
+		m_subBuffers[index].m_pMemoryBase[bindId] == nullptr,
+		"Cannot use stream that wasn't unlocked.");
+	return m_subBuffers[index].m_buffers[bindId].GetStream();
 }
 
 bool CParticleBufferSet::IsValid() const

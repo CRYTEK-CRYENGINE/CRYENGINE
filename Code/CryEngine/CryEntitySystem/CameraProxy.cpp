@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 // -------------------------------------------------------------------------
 //  File name:   CameraProxy.h
@@ -16,6 +16,13 @@
 #include <CryNetwork/ISerialize.h>
 
 CRYREGISTER_CLASS(CEntityComponentCamera);
+
+//////////////////////////////////////////////////////////////////////////
+CEntityComponentCamera::CEntityComponentCamera()
+{
+	m_componentFlags.Add(EEntityComponentFlags::Legacy);
+	m_componentFlags.Add(EEntityComponentFlags::NoSave);
+}
 
 //////////////////////////////////////////////////////////////////////////
 void CEntityComponentCamera::Initialize()

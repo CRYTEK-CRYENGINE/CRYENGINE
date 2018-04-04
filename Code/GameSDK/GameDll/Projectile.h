@@ -163,7 +163,6 @@ public:
 	virtual void HandleEvent( const SGameObjectEvent &);
 	virtual void ProcessEvent(SEntityEvent &);
 	virtual void SetChannelId(uint16 id) {};
-	virtual void SetAuthority(bool auth);
 	virtual void GetMemoryUsage(ICrySizer *pSizer) const;
 	virtual int  GetMemorySize() { return sizeof(*this); };
 	//~IGameObjectExtension
@@ -337,8 +336,8 @@ protected:
 	float			m_mpDestructionDelay;
 	
 	EntityEffects::TAttachedEffectId	m_trailEffectId;
-	AudioControlId m_whizTriggerID;
-	AudioControlId m_ricochetTriggerID;
+	CryAudio::ControlId m_whizTriggerID;
+	CryAudio::ControlId m_ricochetTriggerID;
 	//int				m_trailSoundId;
 	int				m_damage;
 	int				m_hitTypeId;

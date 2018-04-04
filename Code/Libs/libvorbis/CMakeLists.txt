@@ -83,7 +83,7 @@ end_sources()
 
 ################# libvorbis_static ##################
 CryEngineStaticModule(libvorbis_static SOLUTION_FOLDER "Libs/Audio")
-target_include_directories(${THIS_PROJECT} PUBLIC ${SDK_DIR}/libvorbis/include)
+target_include_directories(${THIS_PROJECT} PUBLIC "${SDK_DIR}/libvorbis/include")
 target_link_libraries(${THIS_PROJECT} PRIVATE libogg_static)
 set_property(TARGET ${THIS_PROJECT} PROPERTY OUTPUT_NAME "vorbis")
 
@@ -91,14 +91,14 @@ if(WIN32 OR WIN64)
 	target_compile_options(${THIS_PROJECT} PRIVATE /W0)
 elseif(LINUX OR ANDROID)
 	target_compile_options(${THIS_PROJECT} PRIVATE -w)
-	target_include_directories(${THIS_PROJECT} PUBLIC ${SDK_DIR}/libvorbis/lib)
+	target_include_directories(${THIS_PROJECT} PUBLIC "${SDK_DIR}/libvorbis/lib")
 endif()
 
 
 
 ################### libvorbisfile ###################
 CryEngineStaticModule(libvorbisfile SOLUTION_FOLDER "Libs/Audio")
-target_include_directories(${THIS_PROJECT} PUBLIC ${SDK_DIR}/libvorbis/include)
+target_include_directories(${THIS_PROJECT} PUBLIC "${SDK_DIR}/libvorbis/include")
 target_link_libraries(${THIS_PROJECT} PRIVATE libogg_static libvorbis_static)
 set_property(TARGET ${THIS_PROJECT} PROPERTY OUTPUT_NAME "vorbisfile")
 
@@ -106,5 +106,5 @@ if(WIN32 OR WIN64)
 	target_compile_options(${THIS_PROJECT} PRIVATE /W0)
 elseif(LINUX OR ANDROID)
 	target_compile_options(${THIS_PROJECT} PRIVATE -w)
-	target_include_directories(${THIS_PROJECT} PUBLIC ${SDK_DIR}/libvorbis/lib)
+	target_include_directories(${THIS_PROJECT} PUBLIC "${SDK_DIR}/libvorbis/lib")
 endif()

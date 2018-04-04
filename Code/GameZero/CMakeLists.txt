@@ -1,5 +1,5 @@
-option(OPTION_GAMEZERO "Build GameZero sample project" OFF)
-if (NOT OPTION_GAMEZERO)
+option(PROJECT_CRYENGINE_GAMEZERO "Build GameZero sample project" OFF)
+if (NOT PROJECT_CRYENGINE_GAMEZERO)
 	return()
 endif()
 

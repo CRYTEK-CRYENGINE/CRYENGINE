@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #ifndef livingentity_h
 #define livingentity_h
@@ -9,7 +9,7 @@ const int SZ_HISTORY = 128;
 
 struct le_history_item {
 	Vec3 pos;
-	quaternionf q;
+	Quat q;
 	Vec3 v;
 	int bFlying;
 	Vec3 nslope;
@@ -44,7 +44,7 @@ struct CRY_ALIGN(16) le_tmp_contact {
 
 struct CRY_ALIGN(16) le_precomp_part { 
 	Vec3 BBox[2]; 
-	quaternion partrot; 
+	Quat partrot; 
 	Vec3 partoff;
 	float partscale; 
 	int partflags; 
@@ -123,13 +123,6 @@ public:
 	virtual void GetMemoryStatistics(ICrySizer *pSizer) const;
 
 	virtual float GetMassInv() { return m_massinv; }
-	virtual void GetContactMatrix(const Vec3 &pt, int ipart, Matrix33 &K) {
-		/*if (ipart>=0 && m_pBody)
-			m_pBody->GetContactMatrix(pt-m_pos-m_qrot*m_parts[0].pos,K);
-		else*/ {
-			K(0,0)+=m_massinv; K(1,1)+=m_massinv; K(2,2)+=m_massinv;
-		}
-	}
 	virtual void GetSpatialContactMatrix(const Vec3 &pt, int ipart, float Ibuf[][6]) {
 		Ibuf[3][0]+=m_massinv; Ibuf[4][1]+=m_massinv; Ibuf[5][2]+=m_massinv;
 	}
@@ -147,7 +140,6 @@ public:
 
 	//void AllocateExtendedHistory();
 
-	void ComputeBBoxLE(const Vec3 &pos, Vec3 *BBox, coord_block_BBox *partCoord);
 	void UpdatePosition(const Vec3 &pos, const Vec3 *BBox, int bGridLocked);
 	void Step_HandleFlying(Vec3 &vel, const Vec3& velGround, int bWasFlying, const Vec3& heightAdj, const float kInertia, const float time_interval);
 	void Step_HandleWasFlying(Vec3& vel, int& bFlying, const Vec3& axis, const int bGroundContact);

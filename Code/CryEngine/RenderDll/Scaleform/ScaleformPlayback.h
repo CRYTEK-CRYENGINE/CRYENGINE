@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #ifndef _GRENDERER_XRENDER_H_
 #define _GRENDERER_XRENDER_H_
@@ -11,6 +11,7 @@
 #include <vector>
 
 #include "../XRenderD3D9/GraphicsPipeline/Common/PrimitiveRenderPass.h"
+#include "../XRenderD3D9/GraphicsPipeline/Common/UtilityPasses.h"
 
 #define ENABLE_FLASH_FILTERS
 
@@ -168,13 +169,14 @@ struct SSF_GlobalDrawParams
 
 		// Backups for GraphicsPipeline = 0
 		CTexture* pRenderTarget;
-		SDepthTexture* pStencilTarget;
+		CTexture* pStencilTarget;
 		Matrix44 oldViewMat;
 		int oldViewportWidth;
 		int oldViewportHeight;
 
 		// Pass for GraphicsPipeline > 0
 		CPrimitiveRenderPass renderPass;
+		mutable CClearRegionPass clearPass;
 
 		// Handling clears
 		mutable bool bRenderTargetClear;
@@ -312,7 +314,7 @@ public:
 
 	virtual void SetPerspective3D(const Matrix44& projMatIn) override;
 	virtual void SetView3D(const Matrix44& viewMatIn) override;
-	virtual void SetWorld3D(const Matrix44* pWorldMatIn) override;
+	virtual void SetWorld3D(const Matrix44f* pWorldMatIn) override;
 
 	virtual void SetVertexData(const DeviceData* pVertices) override;
 	virtual void SetIndexData(const DeviceData* pIndices) override;
@@ -429,7 +431,7 @@ private:
 
 	Matrix23 m_mat;
 
-	const Matrix44* m_pMatWorld3D;
+	const Matrix44f* m_pMatWorld3D;
 	Matrix44 m_matView3D;
 	Matrix44 m_matProj3D;
 
@@ -508,7 +510,7 @@ public:
 
 	virtual void SetPerspective3D(const Matrix44&) override {}
 	virtual void SetView3D(const Matrix44&) override {}
-	virtual void SetWorld3D(const Matrix44*) override {}
+	virtual void SetWorld3D(const Matrix44f*) override {}
 
 	virtual void SetVertexData(const DeviceData*) override {}
 	virtual void SetIndexData(const DeviceData*) override {}
@@ -676,19 +678,19 @@ void SF_Playback(T* pRenderer, GRendererCommandBufferReadOnly* pBuffer)
 				}
 				case GRCBA_SetPerspective3D:
 				{
-					const Matrix44& projMatIn = pBuffer->ReadRef<Matrix44>();
+					Matrix44 projMatIn = pBuffer->ReadRef<Matrix44f>();
 					pRenderer->T::SetPerspective3D(projMatIn);
 					break;
 				}
 				case GRCBA_SetView3D:
 				{
-					const Matrix44& viewMatIn = pBuffer->ReadRef<Matrix44>();
+					Matrix44 viewMatIn = pBuffer->ReadRef<Matrix44f>();
 					pRenderer->T::SetView3D(viewMatIn);
 					break;
 				}
 				case GRCBA_SetWorld3D:
 				{
-					const Matrix44& worldMatIn = pBuffer->ReadRef<Matrix44>();
+					const Matrix44f& worldMatIn = pBuffer->ReadRef<Matrix44f>();
 					pRenderer->T::SetWorld3D(&worldMatIn);
 					break;
 				}

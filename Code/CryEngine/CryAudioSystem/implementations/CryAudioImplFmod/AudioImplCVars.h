@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #pragma once
 
@@ -8,20 +8,19 @@ namespace Impl
 {
 namespace Fmod
 {
-class CAudioImplCVars final
+class CCVars final
 {
 public:
 
-	CAudioImplCVars() = default;
-	CAudioImplCVars(CAudioImplCVars const&) = delete;
-	CAudioImplCVars(CAudioImplCVars&&) = delete;
-	CAudioImplCVars& operator=(CAudioImplCVars const&) = delete;
-	CAudioImplCVars& operator=(CAudioImplCVars&&) = delete;
+	CCVars() = default;
+	CCVars(CCVars const&) = delete;
+	CCVars(CCVars&&) = delete;
+	CCVars& operator=(CCVars const&) = delete;
+	CCVars& operator=(CCVars&&) = delete;
 
-	void             RegisterVariables();
-	void             UnregisterVariables();
+	void    RegisterVariables();
+	void    UnregisterVariables();
 
-	int   m_primaryMemoryPoolSize = 0;
 	int   m_maxChannels = 0;
 	int   m_enableLiveUpdate = 0;
 	int   m_enableSynchronousUpdate = 1;
@@ -39,7 +38,7 @@ public:
 #endif  // INCLUDE_FMOD_IMPL_PRODUCTION_CODE
 };
 
-extern CAudioImplCVars g_audioImplCVars;
-}
-}
-}
+extern CCVars g_cvars;
+} // namespace Fmod
+} // namespace Impl
+} // namespace CryAudio

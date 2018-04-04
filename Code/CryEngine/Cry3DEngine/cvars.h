@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 // -------------------------------------------------------------------------
 //  File name:   cvars.h
@@ -180,6 +180,7 @@ struct CVars : public Cry3DEngineBase
 	int   e_StreamPredictionMaxVisAreaRecursion;
 	float e_StreamPredictionBoxRadius;
 	int   e_Clouds;
+	int   e_VegetationBillboards;
 	int   e_VegetationUseTerrainColor;
 	float e_VegetationUseTerrainColorDistance;
 	int   e_BrushUseTerrainColor;
@@ -232,6 +233,8 @@ struct CVars : public Cry3DEngineBase
 	DeclareConstIntCVar(e_Fog, 1);
 	float e_TimeOfDay;
 	int   e_Terrain;
+	int   e_TerrainIntegrateObjectsMaxVertices;
+	int   e_TerrainIntegrateObjectsMaxHeight;
 	DeclareConstIntCVar(e_SkyBox, 1);
 	float e_CoverageBufferAABBExpand;
 	int   e_CoverageBufferEarlyOut;
@@ -517,6 +520,7 @@ struct CVars : public Cry3DEngineBase
 	float  e_MergedMeshesBulletScale;
 	float  e_MergedMeshesBulletLifetime;
 	int    e_MergedMeshesOutdoorOnly;
+	int    e_MergedMeshesMaxTriangles;
 	int    e_CheckOctreeObjectsBoxSize;
 	DeclareConstIntCVar(e_GeomCaches, 1);
 	int    e_GeomCacheBufferSize;

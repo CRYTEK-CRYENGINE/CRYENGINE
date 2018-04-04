@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #ifndef __CommunicationHandler_h__
 #define __CommunicationHandler_h__
@@ -34,7 +34,7 @@ public:
 	virtual bool                IsPlayingAnimation() const override;
 	virtual bool                IsPlayingSound() const override;
 
-	virtual void                OnSoundTriggerFinishedToPlay(const AudioControlId nTriggerID) override;
+	virtual void                OnSoundTriggerFinishedToPlay(CryAudio::ControlId const triggerId) override;
 	//~IAICommunicationHandler
 
 	// IAnimationgGraphStateListener
@@ -46,7 +46,7 @@ public:
 	void        Reset();
 	void        OnReused(IEntity* entity);
 
-	static void TriggerFinishedCallback(SAudioRequestInfo const* const pAudioRequestInfo);
+	static void TriggerFinishedCallback(CryAudio::SRequestInfo const* const pAudioRequestInfo);
 
 private:
 	enum ESoundType
@@ -68,7 +68,7 @@ private:
 			: listener(0)
 			, type(Sound)
 			, playID(0)
-			, correspondingStopControlId(INVALID_AUDIO_CONTROL_ID)
+			, correspondingStopControlId(CryAudio::InvalidControlId)
 		{
 		}
 
@@ -76,7 +76,7 @@ private:
 		IAICommunicationHandler::IEventListener* listener;
 		//Index used to reference this event in listener. Set when sound event started
 		CommPlayID                               playID;
-		AudioControlId                           correspondingStopControlId;
+		CryAudio::ControlId                      correspondingStopControlId;
 	};
 
 	struct PlayingAnimation
@@ -102,7 +102,7 @@ private:
 	TAnimationGraphQueryID m_currentQueryID;  // because animation graph can send query result during SetInput,
 	bool                   m_currentPlaying;  // before we had chance to insert in the map
 
-	typedef std::map<AudioControlId, PlayingSound> PlayingSounds;
+	typedef std::map<CryAudio::ControlId, PlayingSound> PlayingSounds;
 	PlayingSounds         m_playingSounds;
 
 	AnimationGraphInputID m_signalInputID;

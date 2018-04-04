@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 // -------------------------------------------------------------------------
 //  Created:     06/02/2015 by Filipe amim
@@ -22,6 +22,8 @@ CRY_PFX2_DBG
 
 namespace pfx2
 {
+
+#if !defined(_RELEASE)
 
 namespace
 {
@@ -55,8 +57,8 @@ void DebugDrawEffect(CParticleEffect* pEffect, size_t effectBarIdx)
 	{
 		AABB box;
 		box.min = pos;
-		box.max.x = box.min.x + MAX(emitterSz.x, pixSz.x);
-		box.max.y = box.min.y + MAX(emitterSz.y - pixSz.y, pixSz.y);
+		box.max.x = box.min.x + std::max(emitterSz.x, pixSz.x);
+		box.max.y = box.min.y + std::max(emitterSz.y - pixSz.y, pixSz.y);
 		ColorB color = pEffect->GetEmitter(i).m_active ? red : darkRed;
 		pRenderAux->DrawAABB(box, true, color, eBBD_Faceted);
 		pos.y += emitterSz.y;
@@ -103,8 +105,8 @@ void DebugDrawComponentRuntime(CParticleComponentRuntime* pRuntime, size_t emitt
 		{
 			AABB box;
 			box.min = pos;
-			box.max.x = box.min.x + MAX(instSz.x, pixSz.x);
-			box.max.y = box.min.y + MAX(instSz.y - pixSz.y, pixSz.y);
+			box.max.x = box.min.x + std::max(instSz.x, pixSz.x);
+			box.max.y = box.min.y + std::max(instSz.y - pixSz.y, pixSz.y);
 			ColorF color = ColorF(0.0f, 0.5f, 1.0f);
 			pRenderAux->DrawAABB(box, true, ColorB(color), eBBD_Faceted);
 			pos.y += instSz.y;
@@ -119,8 +121,8 @@ void DebugDrawComponentRuntime(CParticleComponentRuntime* pRuntime, size_t emitt
 		// box.min = pos;
 		box.min.x = contLoc.x;
 		box.min.y = contLoc.y + partSz.y * particleId;
-		box.max.x = box.min.x + MAX(partSz.x, pixSz.x);
-		box.max.y = box.min.y + MAX(partSz.y - pixSz.y, pixSz.y);
+		box.max.x = box.min.x + std::max(partSz.x, pixSz.x);
+		box.max.y = box.min.y + std::max(partSz.y - pixSz.y, pixSz.y);
 		ColorB color = black;
 		const uint8 state = states.Load(particleId);
 		const float age = normAges.Load(particleId);
@@ -178,10 +180,13 @@ void DebugDrawComponentCollisions(CParticleComponentRuntime* pRuntime)
 	{
 		SContactPoint contact = contactPoints.Load(particleId);
 
+		if (contact.m_totalCollisions == 0)
+			continue;
+
 		ColorB color = ColorB(0, 0, 0);
-		if (contact.m_flags & uint(EContactPointsFlags::Ignore))
+		if (contact.m_state.ignore)
 			color = ColorB(128, 128, 128);
-		else if (contact.m_flags & uint(EContactPointsFlags::Sliding))
+		else if (contact.m_state.sliding)
 			color = ColorB(255, 128, 64);
 		else
 			color = ColorB(64, 128, 255);
@@ -304,10 +309,11 @@ void DebugParticleSystem(const std::vector<_smart_ptr<CParticleEmitter>>& active
 	DebugOptSpline();
 
 	CVars* pCVars = static_cast<C3DEngine*>(gEnv->p3DEngine)->GetCVars();
-	const bool debugContainers = (pCVars->e_ParticlesDebug & AlphaBit('b')) != 0;
-	const bool debugCollisions = (pCVars->e_ParticlesDebug & AlphaBit('c')) != 0;
+	const bool internalDebug = (pCVars->e_ParticlesDebug & AlphaBit('t')) != 0;
+	static volatile uint debugContainers = 0;
+	static volatile uint debugCollisions = 1;
 
-	if (debugContainers || debugCollisions)
+	if (internalDebug)
 	{
 		IRenderer* pRender = gEnv->pRenderer;
 		IRenderAuxGeom* pRenderAux = gEnv->pRenderer->GetIRenderAuxGeom();
@@ -334,5 +340,11 @@ void DebugParticleSystem(const std::vector<_smart_ptr<CParticleEmitter>>& active
 		}
 	}
 }
+
+#else
+
+void DebugParticleSystem(const std::vector<_smart_ptr<CParticleEmitter>>& activeEmitters) {}
+
+#endif
 
 }

@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 /*************************************************************************
    -------------------------------------------------------------------------
@@ -451,10 +451,7 @@ void CUIDraw::InternalDrawText(IFFont* pFont,
 	fSizeX = m_pRenderer->ScaleCoordY(fSizeX);
 	fSizeY = m_pRenderer->ScaleCoordY(fSizeY);
 
-	STextDrawContext ctx;
-	ctx.SetSizeIn800x600(false);
-	ctx.SetSize(Vec2(fSizeX, fSizeY));
-	ctx.SetColor(ColorF(fRed, fGreen, fBlue, fAlpha));
+	int flags = eDrawText_2D | eDrawText_FixedSize;
 
 	// Note: First ScaleCoordY is not a mistake
 
@@ -482,38 +479,43 @@ void CUIDraw::InternalDrawText(IFFont* pFont,
 	string wrappedStr;
 	if (bWrapText)
 	{
+		STextDrawContext ctx;
+		ctx.SetSizeIn800x600(false);
+		ctx.SetSize(Vec2(fSizeX, fSizeY));
+		ctx.SetColor(ColorF(fRed, fGreen, fBlue, fAlpha));
+
 		pFont->WrapText(wrappedStr, fMaxWidth, strText, ctx);
 		strText = wrappedStr.c_str();
 	}
 
-	Vec2 vDim = pFont->GetTextSize(strText, true, ctx);
-	int flags = 0;
-
 	if (UIDRAWHORIZONTAL_CENTER == eUIDrawHorizontal)
 	{
-		fTextX -= vDim.x * 0.5f;
 		flags |= eDrawText_Center;
 	}
 	else if (UIDRAWHORIZONTAL_RIGHT == eUIDrawHorizontal)
 	{
-		fTextX -= vDim.x;
 		flags |= eDrawText_Right;
 	}
 
 	if (UIDRAWVERTICAL_CENTER == eUIDrawVertical)
 	{
-		fTextY -= vDim.y * 0.5f;
 		flags |= eDrawText_CenterV;
 	}
 	else if (UIDRAWVERTICAL_BOTTOM == eUIDrawVertical)
 	{
-		fTextY -= vDim.y;
 		flags |= eDrawText_Bottom;
 	}
 
-	ctx.SetFlags(flags);
+	SDrawTextInfo ti;
+	ti.flags = flags;
+	ti.color[0] = fRed;
+	ti.color[1] = fGreen;
+	ti.color[2] = fBlue;
+	ti.color[3] = fAlpha;
+	ti.pFont = pFont;
+	ti.scale = Vec2(fSizeX, fSizeY) / UIDRAW_TEXTSIZEFACTOR;
 
-	pFont->DrawString(fTextX, fTextY, strText, true, ctx);
+ 	IRenderAuxText::DrawText(Vec3(fTextX, fTextY, 1.0f), ti, strText);
 }
 
 //-----------------------------------------------------------------------------------------------------

@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 // -------------------------------------------------------------------------
 //  File name:   TimeOfDay.h
@@ -119,7 +119,7 @@ private:
 	ITimer*             m_pTimer;
 	float               m_fHDRMultiplier;
 	ICVar*              m_pTimeOfDaySpeedCVar;
-	AudioControlId      m_timeOfDayRtpcId;
+	CryAudio::ControlId m_timeOfDayRtpcId;
 };
 
 #endif //__TimeOfDay_h__

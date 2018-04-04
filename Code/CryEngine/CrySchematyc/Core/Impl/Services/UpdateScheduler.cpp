@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #include "StdAfx.h"
 #include "UpdateScheduler.h"
@@ -100,7 +100,7 @@ void CUpdateScheduler::CBucket::Update(const SUpdateContext(&frequencyUpdateCont
 		}
 		else if (observer.currentPriority <= beginPriority)
 		{
-			if (!observer.callback.IsEmpty() && (observer.filter.IsEmpty() || observer.filter()))
+			if (observer.callback && (!observer.filter || observer.filter()))
 			{
 				observer.callback(frequencyUpdateContexts[observer.frequency]);
 			}
@@ -192,7 +192,7 @@ bool CUpdateScheduler::Connect(const SUpdateParams& params)
 		}
 		// Connect to slot and to appropriate buckets.
 		m_slots.push_back(SSlot(static_cast<uint32>(firstBucketIdx), params.frequency, params.priority));
-		m_slots.back().connection.Connect(params.scope, Delegate::Make(*this, &CUpdateScheduler::Disconnect));
+		m_slots.back().connection.Connect(params.scope, SCHEMATYC_MEMBER_DELEGATE(&CUpdateScheduler::Disconnect, *this));
 		for (CBucket* pBucket = m_buckets + firstBucketIdx, * pEndBucket = m_buckets + BucketCount; pBucket < pEndBucket; pBucket += bucketStride)
 		{
 			pBucket->Connect(params.scope, params.callback, params.frequency, params.priority, params.filter);

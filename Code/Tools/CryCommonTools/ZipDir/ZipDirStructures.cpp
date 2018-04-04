@@ -1,12 +1,11 @@
 // Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
-#include <CryCore/smartptr.h>
 #include <zlib.h>
 #include "ZipFileFormat.h"
 #include "ZipDirStructures.h"
 #include <time.h>
-#include <CrySystem/ISystem.h>
+#include <CryString/CryStringUtils.h>
 
 using namespace ZipFile;
 

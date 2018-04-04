@@ -3,10 +3,8 @@
 #pragma once
 
 #include <QWidget>
-#include <QObject.h>
-#include <QScrollableBox.h>
+#include <QObject>
 #include <QViewportSettings.h>
-#include <QWidget.h>
 #include "Gizmos/ITransformManipulator.h"
 
 // Forward declare interfaces.
@@ -29,7 +27,7 @@ struct IScriptClass;
 // Forward declare classes.
 class CPreviewWidget;
 
-class CPreviewSettingsWidget : public QScrollableBox
+class CPreviewSettingsWidget : public QWidget
 {
 	Q_OBJECT
 
@@ -117,8 +115,8 @@ private:
 
 	SViewportSettings                  m_viewportSettings;
 
-	SGUID                              m_classGUID;
-	SGUID                              m_componentInstanceGUID;
+	CryGUID                            m_classGUID;
+	CryGUID                            m_componentInstanceGUID;
 
 	IObjectPreviewer*                  m_pObjectPreviewer = nullptr;
 	ObjectId                           m_objectId = ObjectId::Invalid;

@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 // -------------------------------------------------------------------------
 //  File name:   3dengine.cpp
@@ -23,6 +23,7 @@ extern CSvoEnv* gSvoEnv;
 
 void CSvoManager::CheckAllocateGlobalCloud()
 {
+	LOADING_TIME_PROFILE_SECTION;
 	if (!gSvoEnv && Cry3DEngineBase::GetCVars()->e_svoEnabled)
 	{
 		float fMapSize = (float)Cry3DEngineBase::Get3DEngine()->GetTerrainSize();
@@ -164,6 +165,7 @@ void CSvoManager::Release()
 
 void CSvoManager::Render()
 {
+	LOADING_TIME_PROFILE_SECTION;
 	if (GetCVars()->e_svoTI_Apply && (!m_bLevelLoadingInProgress || gEnv->IsEditor()) && !GetCVars()->e_svoTI_Active)
 	{
 		GetCVars()->e_svoTI_Active = 1;
@@ -180,6 +182,7 @@ void CSvoManager::Render()
 
 	if (GetCVars()->e_svoLoadTree)
 	{
+		LOADING_TIME_PROFILE_SECTION_NAMED("SVO Load Tree");
 		SAFE_DELETE(gSvoEnv);
 
 		GetCVars()->e_svoEnabled = 1;
@@ -194,6 +197,8 @@ void CSvoManager::Render()
 
 	if (GetCVars()->e_svoEnabled && GetCVars()->e_svoRender)
 	{
+		LOADING_TIME_PROFILE_SECTION_NAMED("SVO Render");
+
 		CheckAllocateGlobalCloud();
 
 		if (gSvoEnv)

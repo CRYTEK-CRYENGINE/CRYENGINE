@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #include "StdAfx.h"
 
@@ -155,7 +155,7 @@ void CFFont::DrawString(float x, float y, float z, const char* pStr, const bool 
 {
 	IF(!pStr, 0) return;
 
-	IRenderAuxText::DrawString(this, x, y, 1.0f, pStr, asciiMultiLine, ctx);
+	IRenderAuxText::DrawStringRT(this, x, y, 1.0f, pStr, asciiMultiLine, ctx);
 }
 
 ILINE DWORD COLCONV(DWORD clr)
@@ -188,8 +188,6 @@ void CFFont::RenderCallback(float x, float y, float z, const char* pStr, const b
 	IRenderer* pRenderer = gEnv->pRenderer;
 	assert(pRenderer);
 
-	pRenderer->FontSetTexture(m_texID, FILTER_TRILINEAR);
-	pRenderer->FontSetRenderingState(0, 0);
 
 	Vec2 size = ctx.m_size; // in pixel
 	if (ctx.m_sizeIn800x600)
@@ -275,10 +273,6 @@ void CFFont::RenderCallback(float x, float y, float z, const char* pStr, const b
 		ColorB color = passColor;
 
 		bool drawFrame = ctx.m_framed && i == numPasses - 1;
-
-		pRenderer->FontSetBlending(pPass->m_blendSrc, pPass->m_blendDest);
-		//pVertex = (SVF_P3F_C4B_T2F*) pRenderer->GetDynVBPtr(textLength * 6 + (drawFrame ? 6 : 0), vertexOffset, 0); //vertex buffer size: text length + additional vertices for the frame when necessary
-		//assert(pVertex);
 
 		SVF_P3F_C4B_T2F* pVertex = m_pDrawVB;
 
@@ -568,24 +562,16 @@ void CFFont::RenderCallback(float x, float y, float z, const char* pStr, const b
 
 			IF (vbOffset == MaxDrawVBQuads * 6, 0)
 			{
-				pRenderer->DrawDynVB(m_pDrawVB, 0, vbOffset, 0, prtTriangleList);
+				pRenderer->GetIRenderAuxGeom()->DrawBufferRT(m_pDrawVB, vbOffset, pPass->m_blendSrc | pPass->m_blendDest, nullptr, m_texID);
 				vbOffset = 0;
 			}
-
-			//if (vbLen >= 682)
-			//	break;
-
-			//++vbLen;
 
 			charX += advance;
 		}
 
 		IF (vbOffset, 1)
-			pRenderer->DrawDynVB(m_pDrawVB, 0, vbOffset, 0, prtTriangleList);
+			pRenderer->GetIRenderAuxGeom()->DrawBufferRT(m_pDrawVB, vbOffset, pPass->m_blendSrc | pPass->m_blendDest, nullptr, m_texID);
 	}
-
-	// restore the old states
-	pRenderer->FontRestoreRenderingState();
 }
 
 Vec2 CFFont::GetTextSize(const char* pStr, const bool asciiMultiLine, const STextDrawContext& ctx)

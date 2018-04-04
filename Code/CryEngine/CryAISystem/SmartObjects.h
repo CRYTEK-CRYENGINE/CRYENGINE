@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 /********************************************************************
    -------------------------------------------------------------------------
@@ -163,7 +163,7 @@ public:
 
 		if (!model.empty())
 		{
-			m_pStatObj = gEnv->p3DEngine->LoadStatObj("Editor/Objects/" + model, NULL, NULL, false);
+			m_pStatObj = gEnv->p3DEngine->LoadStatObj("%EDITOR%/Objects/" + model, NULL, NULL, false);
 			if (m_pStatObj)
 			{
 				m_pStatObj->AddRef();
@@ -179,7 +179,7 @@ public:
 	static IMaterial* GetHelperMaterial()
 	{
 		if (!m_pHelperMtl)
-			m_pHelperMtl = gEnv->p3DEngine->GetMaterialManager()->LoadMaterial("Editor/Objects/Helper");
+			m_pHelperMtl = gEnv->p3DEngine->GetMaterialManager()->LoadMaterial("%EDITOR%/Objects/Helper");
 		return m_pHelperMtl;
 	};
 };

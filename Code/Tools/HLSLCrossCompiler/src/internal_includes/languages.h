@@ -43,8 +43,12 @@ static int HaveOverloadedTextureFuncs(const GLLang eLang)
 
 //Only enable for ES.
 //Not present in 120, ignored in other desktop languages.
-static int HavePrecisionQualifers(const GLLang eLang)
+static int HavePrecisionQualifers(const GLLang eLang, unsigned int flags)
 {
+	if(eLang >= LANG_400 && (flags & HLSLCC_FLAG_FORCE_PRECISION_QUALIFIERS)) // GLSL4.0 added precision
+	{
+		return 1;
+	}
 	if(eLang >= LANG_ES_100 && eLang <= LANG_ES_310)
 	{
 		return 1;
@@ -53,16 +57,20 @@ static int HavePrecisionQualifers(const GLLang eLang)
 }
 
 //Only on vertex inputs and pixel outputs.
-static int HaveLimitedInOutLocationQualifier(const GLLang eLang)
+static int HaveLimitedInOutLocationQualifier(const GLLang eLang, SHADER_TYPE type, unsigned int where, unsigned int flags)
 {
+	if (flags & HLSLCC_FLAG_DISABLE_EXPLICIT_LOCATIONS)
+	{
+		return 0;
+	}
 	if(eLang >= LANG_330 || eLang == LANG_ES_300 || eLang == LANG_ES_310)
 	{
-		return 1;
+		return ((type == VERTEX_SHADER) && (where & 1)) || ((type == PIXEL_SHADER) && (where & 2)) ? 1 : 0;
 	}
 	return 0;
 }
 
-static int HaveInOutLocationQualifier(const GLLang eLang,const struct GlExtensions *extensions)
+static int HaveInOutLocationQualifier(const GLLang eLang, const struct GlExtensions *extensions, unsigned int flags)
 {
 	if(eLang >= LANG_410 || eLang == LANG_ES_310 || (extensions && ((GlExtensions*)extensions)->ARB_explicit_attrib_location))
 	{
@@ -73,9 +81,13 @@ static int HaveInOutLocationQualifier(const GLLang eLang,const struct GlExtensio
 
 //layout(binding = X) uniform {uniformA; uniformB;}
 //layout(location = X) uniform uniform_name;
-static int HaveUniformBindingsAndLocations(const GLLang eLang,const struct GlExtensions *extensions)
+static int HaveUniformBindingsAndLocations(const GLLang eLang, const struct GlExtensions *extensions, unsigned int flags)
 {
-	if(eLang >= LANG_430 || eLang == LANG_ES_310 || (extensions && ((GlExtensions*)extensions)->ARB_explicit_uniform_location))
+	if (flags & HLSLCC_FLAG_DISABLE_EXPLICIT_LOCATIONS)
+	{
+		return 0;
+	}
+	if (eLang >= LANG_430 || eLang == LANG_ES_310 || (extensions && ((GlExtensions*)extensions)->ARB_explicit_uniform_location && ((GlExtensions*)extensions)->ARB_shading_language_420pack))
 	{
 		return 1;
 	}
@@ -143,6 +155,14 @@ static int HaveGatherNonConstOffset(const GLLang eLang)
 	return 0;
 }
 
+static int HaveGatherCompareComponent(const GLLang eLang)
+{
+	if(eLang >= LANG_400)
+	{
+		return 1;
+	}
+	return 0;
+}
 
 static int HaveQueryLod(const GLLang eLang)
 {
@@ -198,7 +218,6 @@ static int HaveImageLoadStore(const GLLang eLang)
 	}
 	return 0;
 }
-
 static int EmulateDepthClamp(const GLLang eLang)
 {
 	if (eLang >= LANG_ES_300 && eLang < LANG_120) //Requires gl_FragDepth available in fragment shader

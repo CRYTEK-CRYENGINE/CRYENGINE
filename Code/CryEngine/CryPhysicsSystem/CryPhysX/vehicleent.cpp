@@ -154,6 +154,7 @@ bool PhysXVehicle::SetupPxVehicle()
 		return false;
 	if (m_vehicle)
 		return true;
+
 	int nwheels=m_wheels.size(), driveMask=0;
 	m_vehicle = PxVehicleDrive4W::allocate(nwheels);
 	PxVehicleWheelsSimData *wsd = PxVehicleWheelsSimData::allocate(nwheels);

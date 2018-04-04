@@ -184,7 +184,8 @@ void CHommingSwarmProjectile::HandleEvent(const SGameObjectEvent &event)
 			IEntity* pTarget = pCollision->iForeignData[1]==PHYS_FOREIGN_ID_ENTITY ? (IEntity*)pCollision->pForeignData[1] : 0;
 			CProjectile::SExplodeDesc explodeDesc(true);
 			explodeDesc.impact = false;
-			explodeDesc.normal = -pCollision->n,pCollision->vloc[0];
+			explodeDesc.normal = -pCollision->n;
+			explodeDesc.vel = pCollision->vloc[0];
 			explodeDesc.targetId = pTarget ? pTarget->GetId() : 0;
 			Explode(explodeDesc);
 		}

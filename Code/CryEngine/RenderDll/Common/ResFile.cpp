@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #include "StdAfx.h"
 #include "ResFile.h"
@@ -110,7 +110,7 @@ bool CResFile::mfActivate(bool bFirstTime)
 		}
 
 		LOADING_TIME_PROFILE_SECTION(iSystem);
-		CDebugAllowFileAccess dafa;
+		SCOPED_ALLOW_FILE_ACCESS_FROM_THIS_THREAD();
 
 		int nFlags = !m_pLookupDataMan || m_pLookupDataMan->IsReadOnly() ? 0 : ICryPak::FLAGS_NEVER_IN_PAK | ICryPak::FLAGS_PATH_REAL | ICryPak::FOPEN_ONDISK;
 

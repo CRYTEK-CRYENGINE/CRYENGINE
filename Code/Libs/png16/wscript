@@ -17,6 +17,6 @@ def build(bld):
 		durango_cxxflags = ['/w'],
 	
 		module_provides = dict(
-			includes = [ Path('Code/SDKs/png16'), ],
+			includes = [ Path('Code/SDKs/png16'), Path('Code/Libs/png16') ],
 		),
 	)

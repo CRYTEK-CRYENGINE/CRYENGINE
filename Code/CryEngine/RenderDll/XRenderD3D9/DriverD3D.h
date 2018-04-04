@@ -1,20 +1,19 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 # pragma once 
 
+#include <CryCore/Containers/intrusive_list.hpp>
 #include <CryMath/Cry_XOptimise.h>
 #include <CrySystem/IWindowMessageHandler.h>
 #include <CryInput/IHardwareMouse.h>
 
 #include <CrySystem/Profilers/FrameProfiler/FrameProfiler_JobSystem.h>  // to be removed
 
-# if !defined(_RELEASE)
+#if defined(_DEBUG)
+# define ENABLE_CONTEXT_THREAD_CHECKING 1
+#else
 # define ENABLE_CONTEXT_THREAD_CHECKING 0
-# endif
-
-# if !defined(ENABLE_CONTEXT_THREAD_CHECKING)
-# define ENABLE_CONTEXT_THREAD_CHECKING 0
-# endif
+#endif
 
 /*
 ===========================================
@@ -26,23 +25,32 @@ inline int _VertBufferSize(D3DVertexBuffer *pVB)
 {
   if (!pVB)
     return 0;
+#if CRY_RENDERER_GNM
+  return pVB->GnmGetTotalSize();
+#else
   D3D11_BUFFER_DESC Desc;
   pVB->GetDesc(&Desc);
   return Desc.ByteWidth;
+#endif
 }
 inline int _IndexBufferSize(D3DIndexBuffer *pIB)
 {
   if (!pIB)
     return 0;
+#if CRY_RENDERER_GNM
+  return pIB->GnmGetTotalSize();
+#else
   D3D11_BUFFER_DESC Desc;
   pIB->GetDesc(&Desc);
   return Desc.ByteWidth;
+#endif
 }
 
-#define VERSION_D3D 2.0
+#define VERSION_D3D 3.0
 
 struct SPixFormat;
 struct SGraphicsPipelinePassContext;
+class  CStandardGraphicsPipeline;
 
 #include "D3DRenderAuxGeom.h"
 #include "D3DColorGradingController.h"
@@ -53,10 +61,15 @@ struct SGraphicsPipelinePassContext;
 #include "D3DDeferredShading.h"
 #include "D3DTiledShading.h"
 #include "PipelineProfiler.h"
-#include "D3DDebug.h"
+#if defined(DX11_ALLOW_D3D_DEBUG_RUNTIME)
+	#include "D3DDebug.h"
+#endif
 #include "DeviceInfo.h"
 #include <memory>
 #include "Common/RenderView.h"
+#include "Common/OcclQuery.h"               // COcclusionQuery
+#include "Common/DeferredRenderUtils.h"     // t_arrDeferredMeshIndBuff
+#include "Common/Textures/Texture.h"        // CTexture
 
 #if RENDERER_SUPPORT_SCALEFORM
 #include "../Scaleform/ScaleformPlayback.h"
@@ -82,31 +95,49 @@ struct STexFiller;
 
 #define BUFFERED_VERTS 256
 
-struct SD3DContext
+struct SDisplayContext
 {
-  HWND m_hWnd;
-  int m_X;
-  int m_Y;
+	HWND m_hWnd;
+
+	int m_X;
+	int m_Y;
+
 	// Real offscreen target width for rendering
-  int m_Width;
+	int m_Width;
+
 	// Real offscreen target height for rendering
-  int m_Height;
+	int m_Height;
+
 	// Swap-chain and it's back-buffers
-	DXGISwapChain*                      m_pSwapChain;
-	std::vector<_smart_ptr<D3DSurface> > m_pBackBuffers;
+	DXGISwapChain* m_pSwapChain;
+	std::vector<CTexture*>  m_pBackBuffers;
+	CTexture* m_pBackBufferPresented;
+
+	//	std::vector<_smart_ptr<D3DSurface> > m_pBackBuffers;
 	// Currently active back-buffer
-	D3DSurface*  m_pBackBuffer;
-	unsigned int m_pCurrentBackBufferIndex;
+	//	D3DSurface*  m_pBackBuffer;
+	//	unsigned int m_pCurrentBackBufferIndex;
+
 	// Width of viewport on screen to display rendered content in
 	int m_nViewportWidth;
+
 	// Height of viewport on screen to display rendered content in
 	int m_nViewportHeight;
+
 	// Number of samples per output (real offscreen) pixel used in X
 	int m_nSSSamplesX;
+
 	// Number of samples per output (real offscreen) pixel used in Y
 	int m_nSSSamplesY;
+
+	// Unique id to identify each context
+	uint32 m_uniqueId;
+
 	// Denotes if context refers to main viewport
 	bool m_bMainViewport;
+
+	// HDR render target texture used for secondary viewport rendering.
+	CTexture* m_pHDRTargetTex;
 };
 
 #define D3DAPPERR_NODIRECT3D          0x82000001
@@ -259,13 +290,6 @@ struct CRY_ALIGN(16) SStateDepth
 #define MAXFRAMECAPTURECALLBACK 1
 
 //======================================================================
-// Options for clearing
-
-#define CLEAR_ZBUFFER           0x00000001l  /* Clear target z buffer, equals D3D11_CLEAR_DEPTH */
-#define CLEAR_STENCIL           0x00000002l  /* Clear stencil planes, equals D3D11_CLEAR_STENCIL */
-#define CLEAR_RTARGET           0x00000004l  /* Clear target surface */
-
-//======================================================================
 /// Forward declared classes
 
 struct IStatoscopeDataGroup;
@@ -379,10 +403,19 @@ public:
 
 	const SRenderTileInfo& GetRenderTileInfo() const { return m_RenderTileInfo; }
 
-	static unsigned int GetNumBackBufferIndices(const DXGI_SWAP_CHAIN_DESC& scDesc);
-	static unsigned int GetCurrentBackBufferIndex(IDXGISwapChain* pSwapChain);
-	void                ReleaseBackBuffers();
-	CTexture*              GetBackBufferTexture() { return m_pBackBufferTexture; }
+//	static unsigned int GetNumBackBufferIndices(const DXGI_SWAP_CHAIN_DESC& scDesc);
+//	static unsigned int GetCurrentBackBufferIndex(SDisplayContext* pContext);
+	CTexture*        GetLastBackBuffer(SDisplayContext* pContext);
+	CTexture*        GetCurrentBackBuffer(SDisplayContext* pContext);
+	void             ObtainBackBuffers(SDisplayContext* pContext);
+	void             ObtainDepthBuffer(SDisplayContext* pContext);
+	void             ReleaseBackBuffers(SDisplayContext* pContext);
+	void             ResizeBackBuffers(SDisplayContext* pContext);
+	SDisplayContext* GetActiveDisplayContext() { return m_pActiveContext ? m_pActiveContext : &m_BaseContext; }
+	SDisplayContext* GetBaseDisplayContext() { return &m_BaseContext; }
+	CTexture*        GetCurrentTargetOutput();
+	CTexture*        GetCurrentDepthOutput();
+
 	uint32        GetOrCreateBlendState(const D3D11_BLEND_DESC& desc);
 	bool          SetBlendState(const SStateBlend* pNewState);
 	uint32        GetOrCreateRasterState(const D3D11_RASTERIZER_DESC& rasterizerDec, const bool bAllowMSAA = true);
@@ -393,8 +426,8 @@ public:
 	virtual void LockParticleVideoMemory() override;
 	virtual void UnLockParticleVideoMemory() override;
 	virtual void ActivateLayer(const char* pLayerName, bool activate) override;
-	SDepthTexture FX_ReplaceMSAADepthBuffer(CTexture* pDepthBufferRT, bool bMSAA, D3DShaderResource*& pZTargetOrigSRV);
-	void          FX_RestoreMSAADepthBuffer(SDepthTexture sBackup, CTexture* pDepthBufferRT, bool bMSAA, D3DShaderResource*& pZTargetOrigSRV);
+	SDepthTexture FX_ReplaceMainDepthBuffer(CTexture* pDepthBufferRT, bool bMSAA);
+	void FX_RestoreMSAADepthBuffer(SDepthTexture sBackup, CTexture* pDepthBufferRT, bool bMSAA);
   void SetDefaultTexParams(bool bUseMips, bool bRepeat, bool bLoad);
 
 public:
@@ -411,7 +444,7 @@ public:
 	ILINE CCryDeviceContextWrapper& GetDeviceContext_Unsynchronized() { return m_DeviceContextWrapper; }
 	ILINE CCryDeviceContextWrapper&            GetDeviceContext_ForMapAndUnmap()
 	{
-#if	defined(CRY_USE_DX12)
+#if	(CRY_RENDERER_DIRECT3D >= 120)
 		// "ID3D12Resource::Map": Map and Unmap can be called by multiple threads safely.
 		return GetDeviceContext_Unsynchronized();
 #else
@@ -481,14 +514,11 @@ public:
 	DeviceInfo& DevInfo() { return m_devInfo; }
 #endif
 
-	uint32 GetCurrentFrameCounter()   const { return m_frameFenceCounter; }
-	uint32 GetCompletedFrameCounter() const { return m_completedFrameFenceCounter; }
-
 private:
 	void DebugShowRenderTarget();
 
   bool SetWindow(int width, int height, bool fullscreen, WIN_HWND hWnd);
-  bool SetRes();
+  bool SetBaseResolution();
   void UnSetRes();
 	void DisplaySplash(); //!< Load a bitmap from a file, blit it to the windowdc and free it
 
@@ -504,7 +534,6 @@ private:
 	static HRESULT CALLBACK OnD3D11CreateDevice(D3DDevice* pd3dDevice);
 
   void PostDeviceReset();
-	void IssueFrameFences();
 
 public:  
 	static HRESULT CALLBACK OnD3D11PostCreateDevice(D3DDevice* pd3dDevice);
@@ -581,11 +610,11 @@ public:
 	virtual bool CreateContext(WIN_HWND hWnd, bool bMainViewport, int SSX=1, int SSY=1) override;
 	virtual bool DeleteContext(WIN_HWND hWnd) override;
 	virtual void MakeMainContextActive() override;
-	virtual WIN_HWND GetCurrentContextHWND() override { return m_CurrContext ? m_CurrContext->m_hWnd : m_hWnd; }
-	virtual bool IsCurrentContextMainVP() override { return m_CurrContext ? m_CurrContext->m_bMainViewport : true; }
+	virtual WIN_HWND GetCurrentContextHWND() override { return m_pActiveContext ? m_pActiveContext->m_hWnd : m_hWnd; }
+	virtual bool IsCurrentContextMainVP() override { return m_pActiveContext ? m_pActiveContext->m_bMainViewport : true; }
 
-	virtual	int GetCurrentContextViewportWidth() const override { return (m_bDeviceLost ? -1 : m_CurrContext->m_nViewportWidth); }
-	virtual	int GetCurrentContextViewportHeight() const override { return (m_bDeviceLost ? -1 : m_CurrContext->m_nViewportHeight); }
+	virtual	int GetCurrentContextViewportWidth() const override { return (m_bDeviceLost ? -1 : m_pActiveContext->m_nViewportWidth); }
+	virtual	int GetCurrentContextViewportHeight() const override { return (m_bDeviceLost ? -1 : m_pActiveContext->m_nViewportHeight); }
 	/////////////////////////////////////////////////////////////////////////////////
 
 	virtual int  CreateRenderTarget(int nWidth, int nHeight, const ColorF& cClear, ETEX_Format eTF = eTF_R8G8B8A8) override;
@@ -597,6 +626,7 @@ public:
 	virtual int	 EnumDisplayFormats(SDispFormat *formats) override;
   //! Return all supported by video card video AA formats
   virtual int EnumAAFormats(SAAFormat *formats) override;
+  virtual bool IsTextureFormatSupported(ETEX_Format eTF) final { return m_hwTexFormatSupport.IsFormatSupported(eTF); }
 
   //! Changes resolution of the window/device (doen't require to reload the level
   virtual bool	ChangeResolution(int nNewWidth, int nNewHeight, int nNewColDepth, int nNewRefreshHZ, bool bFullScreen, bool bForceReset) override;
@@ -636,7 +666,7 @@ public:
 	                         float r=1,float g=1,float b=1,float a=1,float z=1, float stereoDepth=0) override;
 	virtual void PushUITexture(int srcId, int dstId, float x0, float y0, float w, float h, float u0, float v0, float u1, float v1, float r, float g, float b, float a) override;
   	bool RayIntersectMesh(IRenderMesh* pMesh, const Ray& ray, Vec3& hitpos, Vec3 &p0, Vec3 &p1, Vec3 &p2, Vec2 &uv0, Vec2 &uv1, Vec2 &uv2);
-	virtual int RayToUV(const Vec3& vOrigin, const Vec3& vDirection, float* pUOut, float* pVOut) override;
+	virtual int GetDetailedRayHitInfo(IPhysicalEntity* pCollider, const Vec3& vOrigin, const Vec3& vDirection, const float maxRayDist, float* pUOut, float* pVOut) override;
 	virtual Vec3 UnprojectFromScreen(int x, int y) override;
 
 	virtual void Draw2dImageStretchMode(bool bStretch) override;
@@ -718,11 +748,6 @@ public:
 	virtual void ClearTargetsImmediately(uint32 nFlags, const ColorF& Colors, float fDepth) override;
 	virtual void ClearTargetsImmediately(uint32 nFlags, const ColorF& Colors) override;
 	virtual void ClearTargetsImmediately(uint32 nFlags, float fDepth) override;
-
-	virtual void ClearTargetsLater(uint32 nFlags) override;
-	virtual void ClearTargetsLater(uint32 nFlags, const ColorF& Colors, float fDepth) override;
-	virtual void ClearTargetsLater(uint32 nFlags, const ColorF& Colors) override;
-	virtual void ClearTargetsLater(uint32 nFlags, float fDepth) override;
 
   virtual void ReadFrameBuffer(unsigned char * pRGB, int nImageX, int nSizeX, int nSizeY, ERB_Type eRBType, bool bRGBA, int nScaledX=-1, int nScaledY=-1) override;
 	virtual void ReadFrameBufferFast(uint32* pDstARGBA8, int dstWidth, int dstHeight) override;
@@ -903,7 +928,8 @@ public:
 	bool BakeMesh(const SMeshBakingInputParams *pInputParams, SMeshBakingOutput *pReturnValues) override;
 #endif
 
-	virtual int GetOcclusionBuffer(uint16* pOutOcclBuffer, int32 nSizeX, int32 nSizeY, Matrix44* pmViewProj , Matrix44* pmCamBuffer) override;
+	virtual float* PinOcclusionBuffer(Matrix44A &camera) override;
+	virtual void   UnpinOcclusionBuffer() override;
 
 	virtual void WaitForParticleBuffer() override;
 	void InsertParticleVideoDataFence();
@@ -911,8 +937,6 @@ public:
   void FX_StencilTestCurRef(bool bEnable, bool bNoStencilClear=true, bool bStFuncEqual = true);
   void FX_StencilCullPass(int nStencilID, int nNumVers, int nNumInds);
 	void FX_StencilFrustumCull(int nStencilID, const SRenderLight* pLight, ShadowMapFrustum* pFrustum, int nAxis);
-
-  void FX_ZTargetReadBack();
 
 	void FX_UpdateCharCBs();
 	virtual void* FX_AllocateCharInstCB(SSkinningData*, uint32) override;
@@ -929,7 +953,6 @@ public:
 	void FX_SetDeferredShadows();
 
   void FX_DrawEffectLayerPasses();
-  void FX_DrawDebugPasses();
 
   void FX_DrawMultiLayers( );  
 
@@ -937,19 +960,12 @@ public:
 
 	void FX_RefractionPartialResolve();
 
-  bool FX_HDRScene(bool bEnable, bool bClear = true);
-	void FX_HDRRangeAdaptUpdate();
+  bool FX_HDRScene(bool bEnable, int32 shaderRenderingFlags, bool bClear = true);
 
   void FX_RenderForwardOpaque(void (*RenderFunc)(), const bool bLighting, const bool bAllowDeferred);
 
   bool FX_ZScene(bool bEnable, bool bUseHDR, bool bClearZBuffer, bool bRenderNormalsOnly = false, bool bZPrePass = false);  
   bool FX_FogScene();
-	bool FX_DeferredRainOcclusionMap(const N3DEngineCommon::ArrOccluders & arrOccluders, const SRainParams & rainVolParams);
-	bool FX_DeferredRainOcclusion();
-	bool FX_DeferredRainPreprocess();
-	bool FX_DeferredRainGBuffer();
-	bool FX_DeferredSnowLayer();
-	bool FX_DeferredSnowDisplacement();
   bool FX_DisplayFogScene();  
   bool FX_MotionVectorGeneration(bool bEnable);  
   bool FX_CustomRenderScene(bool bEnable);  
@@ -977,6 +993,7 @@ public:
   //=======================================================================
   virtual void FX_PipelineShutdown(bool bFastShutdown = false) override;
 	virtual void RT_GraphicsPipelineShutdown() override;
+	virtual void RT_ResetDeviceObjectFactory() override;
 
 	virtual void EF_ClearTargetsImmediately(uint32 nFlags) override;
 	virtual void EF_ClearTargetsImmediately(uint32 nFlags, const ColorF& Colors, float fDepth, uint8 nStencil) override;
@@ -1002,7 +1019,6 @@ public:
 	void SetLogFuncs(bool bEnable);
 	void MemReplayWrapD3DDevice();
 
-  bool CreateMSAADepthBuffer();
   void PostMeasureOverdraw();
 	void DrawTexelsPerMeterInfo();
   virtual bool CheckDeviceLost() override;
@@ -1015,23 +1031,20 @@ public:
 	void EF_SetGlobalColor(float r, float g, float b, float a);
 	void EF_SetVertColor();
 
-  //================================================================================
-#if defined(FEATURE_PER_SHADER_INPUT_LAYOUT_CACHE)
-	static uint32 FX_GetInputLayoutCacheId(int StreamMask, EVertexFormat eVF);
-#endif
-
-  HRESULT FX_SetVertexDeclaration(int StreamMask, EVertexFormat eVF);
+	//================================================================================
+	HRESULT FX_SetVertexDeclaration(int StreamMask, InputLayoutHandle eVF);
 	bool    FX_SetStreamFlags(SShaderPass* pPass);
 
 #if CRY_PLATFORM_DURANGO
 	virtual void RT_SuspendDevice() override;
 	virtual void RT_ResumeDevice() override;
 #endif
-  void FX_FlushSkinVSParams(CHWShader_D3D *pVS, int nFirst, int nBones, int nOffsVS, int numBonesPerChunk, int nSlot, DualQuat* pSkinQuats, DualQuat* pMBSkinQuats);
-  void FX_DrawBatch(CShader *pSh, SShaderPass *pPass);
-  void FX_DrawBatchSkinned(CShader *pSh, SShaderPass *pPass, SSkinningData *pSkinningData);
 
-  //========================================================================================
+	void FX_FlushSkinVSParams(CHWShader_D3D *pVS, int nFirst, int nBones, int nOffsVS, int numBonesPerChunk, int nSlot, DualQuat* pSkinQuats, DualQuat* pMBSkinQuats);
+	void FX_DrawBatch(CShader *pSh, SShaderPass *pPass);
+	void FX_DrawBatchSkinned(CShader *pSh, SShaderPass *pPass, SSkinningData *pSkinningData);
+
+	//========================================================================================
 
 	void FX_SetActiveRenderTargets();
 
@@ -1105,8 +1118,6 @@ public:
 
   void EF_SetColorOp(byte eCo, byte eAo, byte eCa, byte eAa);
 
-  void FX_HDRPostProcessing();
-
   void FX_PreRender(int Stage);
   void FX_PostRender();
 
@@ -1126,9 +1137,6 @@ private:
 
 	// Get pointers to current D3D11 shaders, set tessellation related RT flags and return true if tessellation is enabled for current object
 	bool FX_SetTessellationShaders(CHWShader_D3D*& pCurHS, CHWShader_D3D*& pCurDS, const SShaderPass* pPass);
-#ifdef TESSELLATION_RENDERER
-	inline void FX_SetAdjacencyOffsetBuffer();
-#endif
 
 public:
   static void FX_DrawWire();
@@ -1138,7 +1146,7 @@ public:
   static void FX_FlushShader_General();
   static void FX_FlushShader_ZPass();
 
-	static bool FX_UpdateAnimatedShaderResources(const CShaderResources* shaderResources);
+	static bool FX_UpdateAnimatedShaderResources(CShaderResources* shaderResources);
 	static bool FX_UpdateDynamicShaderResources(const CShaderResources* shaderResources, uint32 batchFilter, uint32 flags2);
 
   static void FX_SelectTechnique(CShader *pShader, SShaderTechnique *pTech);
@@ -1168,8 +1176,6 @@ public:
   int  EF_Preprocess(SRendItem *ri, uint32 nums, uint32 nume, RenderFunc pRenderFunc, const SRenderingPassInfo &passInfo);
 
   void FX_StartBatching();
-
-	void DrawRenderItems(const SGraphicsPipelinePassContext& passContext);
 
 	void FX_ProcessRenderStates(int nums, int nume, const SGraphicsPipelinePassContext& passContext);
   void FX_ProcessZPassRenderLists();
@@ -1203,6 +1209,8 @@ public:
 
   virtual void SetColorOp(byte eCo, byte eAo, byte eCa, byte eAa) override;
 
+	virtual bool StoreGBufferToAtlas(const RectI& rcDst, int nSrcWidth, int nSrcHeight, int nDstWidth, int nDstHeight, ITexture *pDataD, ITexture *pDataN) override;
+
 //////////////////////////////////////////////////////////////////////////
 public:
 	bool IsDeviceLost() { return( m_bDeviceLost!=0 ); }
@@ -1213,7 +1221,7 @@ public:
 	virtual ISvoRenderer* GetISvoRenderer() override;
 #endif
 
-	virtual IRenderAuxGeom* GetIRenderAuxGeom(void* jobID = 0) override;
+	virtual IRenderAuxGeom* GetIRenderAuxGeom(EViewportType viewport = eViewportType_Default) override;
 
 	virtual IColorGradingController* GetIColorGradingController() override;
 
@@ -1288,10 +1296,7 @@ public:
 	IStatoscopeDataGroup* m_pPerformanceOverviewDG;
 #endif
 
-	TArray<COcclusionQuery> m_OcclQueries;
-	uint32 m_OcclQueriesUsed;
-
-#if defined(SUPPORT_D3D_DEBUG_RUNTIME)
+#if defined(DX11_ALLOW_D3D_DEBUG_RUNTIME)
 	CD3DDebug m_d3dDebug;
 	bool m_bUpdateD3DDebug;
 #endif
@@ -1301,12 +1306,13 @@ public:
 
 	ID3D11InputLayout* m_pLastVDeclaration;
 
-#if CRY_PLATFORM_DURANGO
+#if CRY_PLATFORM_DURANGO && (CRY_RENDERER_DIRECT3D >= 110) && (CRY_RENDERER_DIRECT3D < 120)
+	ID3DXboxPerformanceDevice* m_pPerformanceDevice;
 	ID3DXboxPerformanceContext* m_pPerformanceDeviceContext;
 #endif
 
 	DXGI_SURFACE_DESC m_d3dsdBackBuffer;  // Surface desc of the BackBuffer
-	DXGI_FORMAT m_ZFormat;
+	ETEX_Format m_preferredDepthFormat;
 	D3D11_PRIMITIVE_TOPOLOGY m_CurTopology;
 
 	TArray<SStateBlend>  m_StatesBL;
@@ -1321,8 +1327,9 @@ public:
 	ID3DUserDefinedAnnotation* m_pPixPerf;
 #endif
 	SDepthTexture m_DepthBufferOrig;
-	SDepthTexture m_DepthBufferOrigMSAA;
 	SDepthTexture m_DepthBufferNative;
+	CTexture*     m_pZTexture;
+	CTexture*     m_pNativeZTexture;
 
 	// x = average luminance, y = max luminance, z = min luminance,
 	Vec4 m_vSceneLuminanceInfo;
@@ -1331,21 +1338,10 @@ public:
 	float m_fAdaptedSceneScale;
 	float m_fAdaptedSceneScaleLBuffer;
 
-	ETEX_Format m_HDR_FloatFormat_Scalar;
-	ETEX_Format m_HDR_FloatFormat;
 	int m_MaxAnisotropyLevel;
-	int m_nMaterialAnisoHighSampler;
-	int m_nMaterialAnisoLowSampler;
-	int m_nMaterialAnisoSamplerBorder;
-	int m_nPointWrapSampler;
-	int m_nPointClampSampler;
-	int m_nLinearClampComparisonSampler;
-	int m_nBilinearWrapSampler;
-	int m_nBilinearClampSampler;
-	int m_nBilinearBorderSampler;
-	int m_nTrilinearWrapSampler;
-	int m_nTrilinearClampSampler;
-	int m_nTrilinearBorderSampler;
+	SamplerStateHandle m_nMaterialAnisoHighSampler;
+	SamplerStateHandle m_nMaterialAnisoLowSampler;
+	SamplerStateHandle m_nMaterialAnisoSamplerBorder;
 
 	CCryNameR m_nmInstancingParams;
 	CCryNameR m_nmInstancingData;
@@ -1375,11 +1371,6 @@ public:
 
 	CRenderPipelineProfiler* m_pPipelineProfiler;
 
-#if CRY_PLATFORM_DURANGO
-	CryCriticalSection m_dma1Lock;
-	ID3D11DmaEngineContextX* m_pDMA1;
-#endif
-
 #ifdef SHADER_ASYNC_COMPILATION
 	std::vector<CAsyncShaderTask*> m_AsyncShaderTasks;
 #endif
@@ -1391,8 +1382,9 @@ public:
 	string m_Description;
 	bool m_bFullScreen;
 
-	TArray<SD3DContext*> m_RContexts;
-	SD3DContext* m_CurrContext;
+	uint32 m_uniqueRContextId = 0;
+	TArray<SDisplayContext*> m_RContexts;
+	SDisplayContext* m_pActiveContext;
 
 	TArray<CTexture*> m_RTargets;
 
@@ -1400,7 +1392,7 @@ public:
 
 	static const int MAX_RT_STACK = 8;
 
-#if CRY_PLATFORM_WINDOWS || defined(OPENGL)
+#if CRY_PLATFORM_WINDOWS || CRY_RENDERER_OPENGL
 	static const int RT_STACK_WIDTH = D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT;
 #else
 	static const int RT_STACK_WIDTH = 4;
@@ -1438,54 +1430,14 @@ private:
 	string m_iconPath;             // Path to the icon currently loaded
 #endif
 
-	uint32 m_frameFenceCounter;
-	uint32 m_completedFrameFenceCounter;
-	DeviceFenceHandle m_frameFences[MAX_FRAMES_IN_FLIGHT];
-
 	int m_bDraw2dImageStretchMode;
-	int m_nPointState;
 	uint32 m_uLastBlendFlagsPassGroup;
-
-	DWORD m_FenceOcclusionReady;
-	DWORD m_PrevFenceOcclusionReady;
-	int m_numOcclusionDownsampleStages;
-	uint16 m_occlusionDownsampleSizeX;
-	uint16 m_occlusionDownsampleSizeY;
-	uint16 m_occlusionRequestedSizeX;
-	uint16 m_occlusionRequestedSizeY;
-	uint16 m_occlusionSourceSizeX;
-	uint16 m_occlusionSourceSizeY;
-	std::vector<float> m_occlusionZBuffer;
-	Matrix44A m_occlusionViewProjBuffer[4];
-	Matrix44  m_occlusionLastProj;
-	float m_occlusionLastZNear;
-	float m_occlusionLastZFar;
-	Matrix44A m_occlusionViewProj;
-	size_t m_occlusionBuffer;
-
-#if CRY_PLATFORM_DURANGO // members used for reprojection on durango
-	int m_occlusionDataPitch;
-	float m_occlusionZNear[2];
-	float m_occlusionZFar[2];
-	DeviceFenceHandle m_occlusionFence[2];
-	void* m_occlusionGPUData[2];
-	D3DTexture* m_occlusionReadBackTexture[2];
-#endif
-
-	bool m_bOcclusionTexturesValid;
 
 	CStandardGraphicsPipeline* m_pGraphicsPipeline;
 	CTiledShading* m_pTiledShading;
 	CD3DStereoRenderer* m_pStereoRenderer;
 
-	std::vector<_smart_ptr<D3DSurface> > m_pBackBuffers;
-	D3DSurface*  m_pBackBuffer;
-	unsigned int m_pCurrentBackBufferIndex;
-
-	CTexture*                           m_pBackBufferTexture;
-	CTexture*                           m_pZTexture;
-	CTexture*                           m_pZTextureMSAA;
-	CTexture*                           m_pNativeZTexture;
+	SDisplayContext m_BaseContext;
 
 	volatile int m_lockCharCB;
 	util::list<SCharacterInstanceCB> m_CharCBFreeList;
@@ -1493,7 +1445,6 @@ private:
 	volatile int m_CharCBFrameRequired[3];
 	volatile int m_CharCBAllocated;
 
-	DXGISwapChain*   m_pSwapChain;
 	enum PresentStatus
 	{
 		epsOccluded     = 1 << 0,
@@ -1505,7 +1456,7 @@ private:
 	DWORD m_dwWindowStyle;      // Saved window style for mode switches
 	char  m_strDeviceStats[90]; // String to hold D3D device stats
 
-	int m_SceneRecurseCount;
+	int m_SceneRecurseCount = 0;
 
 	SRenderTileInfo m_RenderTileInfo;
 
@@ -1519,9 +1470,7 @@ private:
 #endif
 
 #if defined(ENABLE_PROFILING_CODE)
-#	if CRY_PLATFORM_WINDOWS || CRY_PLATFORM_DURANGO || CRY_PLATFORM_ORBIS || defined(OPENGL)
 	CTexture* m_pSaveTexture[2];
-#	endif
 
 	// Surfaces used to capture the current screen
 	unsigned int m_captureFlipFlop;
@@ -1731,7 +1680,4 @@ extern CD3D9Renderer gcpRendD3D;
 //=========================================================================================
 
 void HDR_DrawDebug();
-
-#define STREAMED_TEXTURE_USAGE (CDeviceManager::USAGE_STREAMING)
-
 void EnableCloseButton(void* hWnd, bool enabled);

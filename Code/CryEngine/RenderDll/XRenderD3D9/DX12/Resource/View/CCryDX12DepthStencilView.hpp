@@ -1,19 +1,8 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
-// -------------------------------------------------------------------------
-//  File name:
-//  Version:     v1.00
-//  Created:     03/02/2015 by Jan Pinter
-//  Description:
-// -------------------------------------------------------------------------
-//  History:
-//
-////////////////////////////////////////////////////////////////////////////
 #pragma once
-#ifndef __CCRYDX12DEPTHSTENCILVIEW__
-	#define __CCRYDX12DEPTHSTENCILVIEW__
 
-	#include "DX12/Resource/CCryDX12View.hpp"
+#include "DX12/Resource/CCryDX12View.hpp"
 
 class CCryDX12DepthStencilView : public CCryDX12View<ID3D11DepthStencilViewToImplement>
 {
@@ -22,12 +11,10 @@ public:
 
 	static CCryDX12DepthStencilView* Create(CCryDX12Device* pDevice, ID3D11Resource* pResource, const D3D11_DEPTH_STENCIL_VIEW_DESC* pDesc);
 
-	virtual ~CCryDX12DepthStencilView();
-
 	#pragma region /* ID3D11DepthStencilView implementation */
 
-	virtual void STDMETHODCALLTYPE GetDesc(
-	  _Out_ D3D11_DEPTH_STENCIL_VIEW_DESC* pDesc) final;
+	VIRTUALGFX void STDMETHODCALLTYPE GetDesc(
+	  _Out_ D3D11_DEPTH_STENCIL_VIEW_DESC* pDesc) FINALGFX;
 
 	#pragma endregion
 
@@ -51,5 +38,3 @@ protected:
 private:
 	D3D11_DEPTH_STENCIL_VIEW_DESC m_Desc11;
 };
-
-#endif // __CCRYDX12DEPTHSTENCILVIEW__

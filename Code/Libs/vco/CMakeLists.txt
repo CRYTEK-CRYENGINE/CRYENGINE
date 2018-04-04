@@ -13,8 +13,8 @@ add_sources("NoUberFile"
 end_sources()
 #END-FILE-LIST
 
-set(orbis_vco_include $ENV{SCE_ORBIS_SDK_DIR}/host_tools/graphics/include/vertex-cache-optimizer)
-if(EXISTS ${orbis_vco_include} AND EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/vco_orbis.ini)
+set(orbis_vco_include "$ENV{SCE_ORBIS_SDK_DIR}/host_tools/graphics/include/vertex-cache-optimizer")
+if(EXISTS "${orbis_vco_include}" AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/vco_orbis.ini")
 	set(has_vco TRUE)
 endif()
 
@@ -22,6 +22,6 @@ CryEngineStaticModule(vco SOLUTION_FOLDER "Libs")
 target_include_directories(${THIS_PROJECT} INTERFACE .)
 if (has_vco)
 	target_compile_definitions(${THIS_PROJECT} PRIVATE -DHAS_VCO)
-	target_include_directories(${THIS_PROJECT} PRIVATE ${orbis_vco_include})
+	target_include_directories(${THIS_PROJECT} PRIVATE "${orbis_vco_include}")
 endif()
 

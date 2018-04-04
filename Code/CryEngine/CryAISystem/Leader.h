@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 /********************************************************************
    -------------------------------------------------------------------------
@@ -66,7 +66,7 @@ public:
 	// SYSTEM/AI SYSTEM RELATED FUNCTIONS
 	////////////////////////////////////////////////////////////////////////////////////////////////
 
-	void         Update(EObjectUpdate type);
+	void         Update(EUpdateType type);
 	void         Reset(EObjectResetType type);
 	void         OnObjectRemoved(CAIObject* pObject);
 	void         Serialize(TSerialize ser);

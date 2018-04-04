@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 // -------------------------------------------------------------------------
 //  File name:   terrain_light.cpp
@@ -146,7 +146,7 @@ _smart_ptr<IRenderMesh> CTerrain::MakeAreaRenderMesh(const Vec3& vPos, float fRa
 	}
 
 	_smart_ptr<IRenderMesh> pMesh = GetRenderer()->CreateRenderMeshInitialized(
-	  vertBuffer.GetElements(), vertBuffer.Count(), eVF_P3S_C4B_T2S,
+	  vertBuffer.GetElements(), vertBuffer.Count(), EDefaultInputLayouts::P3S_C4B_T2S,
 	  lstIndices.GetElements(), lstIndices.Count(), prtTriangleList,
 	  szLSourceName, szLSourceName, eRMT_Static, 1, 0, NULL, NULL, false, true, tangBasises.GetElements());
 

@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 /********************************************************************
    CryGame Source File.
@@ -261,16 +261,7 @@ void CAIHandler::Init()
 	if (!SetCommonTables())
 		return;
 
-	if (IAIObject* aiObject = m_pEntity->GetAI())
-	{
-		if (IAIActorProxy* proxy = aiObject->GetProxy())
-		{
-			const char* behaviorSelectionTree = proxy->GetBehaviorSelectionTreeName();
-
-			if (!behaviorSelectionTree || *behaviorSelectionTree == '\0')
-				SetInitialBehaviorAndCharacter();
-		}
-	}
+	SetInitialBehaviorAndCharacter();
 
 	m_pPreviousBehavior = 0;
 	m_CurrentAlertness = 0;
@@ -445,17 +436,7 @@ void CAIHandler::Reset(EObjectResetType type)
 	else
 	{
 		SetCommonTables();
-
-		if (IAIObject* aiObject = m_pEntity->GetAI())
-		{
-			if (IAIActorProxy* proxy = aiObject->GetProxy())
-			{
-				const char* behaviorSelectionTree = proxy->GetBehaviorSelectionTreeName();
-
-				if (!behaviorSelectionTree || *behaviorSelectionTree == '\0')
-					SetInitialBehaviorAndCharacter();
-			}
-		}
+		SetInitialBehaviorAndCharacter();
 	}
 
 	m_pPreviousBehavior = 0;

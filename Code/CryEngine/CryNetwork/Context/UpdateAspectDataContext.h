@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #ifndef __UPDATEASPECTDATACONTEXT_H__
 #define __UPDATEASPECTDATACONTEXT_H__
@@ -37,9 +37,6 @@ private:
 	NetworkAspectType m_allowedAspects;
 	NetworkAspectType m_fetchAspects;
 	NetworkAspectType m_takenAspects;
-#if ENABLE_ASPECT_HASHING
-	NetworkAspectType m_hashAspects;
-#endif
 	TMemHdl           m_oldHdls[NumAspects];
 
 	bool TakeChange(NetworkAspectID i, NetworkAspectType aspectBit, CByteOutputStream& stm, CMementoStreamAllocator& streamAllocatorForNewState);

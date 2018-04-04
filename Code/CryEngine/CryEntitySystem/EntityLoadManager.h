@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 /*************************************************************************
    -------------------------------------------------------------------------
@@ -31,8 +31,6 @@ public:
 	bool CreateEntity(SEntityLoadParams& loadParams, EntityId& outUsingId, bool bIsLoadingLevellFile);
 	void OnBatchCreationCompleted();
 
-	EntityId FindEntityByEditorGuid(const char* pGuid) const;
-
 	void     GetMemoryStatistics(ICrySizer* pSizer) const
 	{
 		pSizer->Add(*this);
@@ -55,11 +53,9 @@ private:
 	bool ExtractEntityLoadParams(XmlNodeRef& entityNode, SEntityLoadParams& outLoadParams, const Vec3& segmentOffset, bool bWarningMsg) const;
 
 	// Batch creation helpers
-	void AddQueuedAttachment(EntityId nParent, EntityGUID nParentGuid, EntityId nChild, const Vec3& pos, const Quat& rot, const Vec3& scale, bool guid, const int flags, const char* target);
+	void AddQueuedAttachment(EntityId nParent, EntityGUID parentGuid, EntityId nChild, const Vec3& pos, const Quat& rot, const Vec3& scale, const int flags, const char* target);
 	void AddQueuedFlowgraph(IEntity* pEntity, XmlNodeRef& pNode);
 	void AddQueuedEntityLink(IEntity* pEntity, XmlNodeRef& pNode);
-
-	void ResolveLinks();
 
 	// Attachment queue for post Entity batch creation
 	typedef std::vector<SEntityAttachment> TQueuedAttachments;
@@ -77,8 +73,6 @@ private:
 	TQueuedFlowgraphs m_queuedFlowgraphs;
 
 	TQueuedFlowgraphs m_queuedEntityLinks;
-	typedef std::map<uint32, EntityId> TGuidToId;
-	TGuidToId         m_guidToId;
 
 	CEntitySystem*    m_pEntitySystem;
 	bool              m_bSWLoading;

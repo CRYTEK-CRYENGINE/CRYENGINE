@@ -15,17 +15,31 @@
 #include "GraphViewWidget.h"
 #include "GraphViewModel.h"
 #include "VariablesWidget.h"
+#include "GraphNodeItem.h"
 
-#include <Schematyc/Compiler/ICompiler.h>
-#include <Schematyc/SerializationUtils/SerializationToString.h>
-#include <Schematyc/Script/Elements/IScriptComponentInstance.h>
+#include "LibraryAssetType.h"
+#include "EntityAssetType.h"
+
+#include <AssetSystem/Asset.h>
+#include <AssetSystem/AssetType.h>
+#include <IUndoManager.h>
+
+#include <CrySchematyc/Compiler/ICompiler.h>
+#include <CrySchematyc/SerializationUtils/SerializationToString.h>
+#include <CrySchematyc/Script/Elements/IScriptComponentInstance.h>
+#include <CrySchematyc/Script/IScript.h>
+#include <CrySchematyc/Script/Elements/IScriptClass.h>
+#include <CrySchematyc/Script/Elements/IScriptModule.h>
 
 #include <CrySystem/File/ICryPak.h>
 #include <Serialization/Qt.h>
 #include <CryIcon.h>
 #include <EditorFramework/Inspector.h>
+#include <QtUtil.h>
 #include <Controls/QuestionDialog.h>
+#include <QtUtil.h>
 
+#include <QCollapsibleFrame.h>
 #include <QAction>
 #include <QMenu>
 #include <QToolbar>
@@ -37,32 +51,6 @@
 #include <QApplication>
 
 namespace CrySchematycEditor {
-
-namespace CVars
-{
-static int sc_EditorAdvanced = 0;
-
-namespace Private
-{
-static uint32 g_referenceCount = 0;
-}   // Private
-
-inline void Register()
-{
-	if (Private::g_referenceCount++ == 0)
-	{
-		REGISTER_CVAR(sc_EditorAdvanced, sc_EditorAdvanced, VF_INVISIBLE, "Schematyc - Show/hide advanced options in editor");
-	}
-}
-
-inline void Unregister()
-{
-	if (--Private::g_referenceCount == 0)
-	{
-		gEnv->pConsole->UnregisterVariable("sc_EditorAdvanced");
-	}
-}
-} //CVars
 
 static const char* g_szSaveIcon = "icons:General/File_Save.ico";
 static const char* g_szSettingsFolder = "schematyc";
@@ -93,25 +81,28 @@ inline void FormatDetailHeader(Schematyc::CStackString& detailHeader, const Sche
 		detailHeader.append(" [");
 		{
 			Schematyc::CStackString elementType;
-			Schematyc::SerializationUtils::ToString(elementType, pScriptElement->GetElementType());
+			Schematyc::SerializationUtils::ToString(elementType, pScriptElement->GetType());
 			detailHeader.append(elementType.c_str());
 		}
 		detailHeader.append("]");
 	}
 }
 
-REGISTER_VIEWPANE_FACTORY(CMainWindow, "Schematyc", "Tools", true)
+REGISTER_VIEWPANE_FACTORY(CMainWindow, "Schematyc Editor", "Tools", false)
 
 CMainWindow::CMainWindow()
-	: m_pCompileAllMenuAction(nullptr)
+	: CAssetEditor(QStringList { "SchematycEntity", "SchematycLibrary" })
+	, m_pAsset(nullptr)
+	, m_pCompileAllMenuAction(nullptr)
 	, m_pRefreshEnvironmentMenuAction(nullptr)
 	, m_pGraphView(nullptr)
 	, m_pLog(nullptr)
-	, m_pCompilerLog(nullptr)
 	, m_pPreview(nullptr)
+	, m_pInspector(nullptr)
+	, m_pScript(nullptr)
+	, m_pScriptBrowser(nullptr)
+	, m_pModel(nullptr)
 {
-	CVars::Register();
-
 	setAttribute(Qt::WA_DeleteOnClose);
 	setObjectName(GetEditorName());
 
@@ -122,78 +113,18 @@ CMainWindow::CMainWindow()
 	InitMenu();
 	InitToolbar(pWindowLayout);
 
-	QSplitter* pVMainContentLayout = new QSplitter(Qt::Vertical);
-	QSplitter* pHMainContentLayout = new QSplitter(Qt::Horizontal);
-	pHMainContentLayout->setContentsMargins(0, 0, 0, 0);
-	pVMainContentLayout->addWidget(pHMainContentLayout);
-
-	//////////////////////////////////////////////////////////////////////////
-
-	// Script Browsers
-	m_pScriptBrowser = new Schematyc::CScriptBrowserWidget(this);
-	m_pScriptBrowser->InitLayout();
-	pHMainContentLayout->addWidget(m_pScriptBrowser);
-
-	// View
-	QTabWidget* pViewTabs = new QTabWidget();
-	pViewTabs->setTabPosition(QTabWidget::South);
-	pHMainContentLayout->addWidget(pViewTabs);
-
-	m_pGraphView = new CNodeGraphView();
-	pViewTabs->addTab(m_pGraphView, "Graph");
-
-	if (CreatePreview())
-		pViewTabs->addTab(m_pPreview, "Preview");
-
-	// Inspector
-	m_pInspector = new CInspector(this);
-	pHMainContentLayout->addWidget(m_pInspector);
-
-	pWindowLayout->addWidget(pVMainContentLayout);
-
-	// Logs
-	ConfigureLogs();
-
-	QTabWidget* pLogTabs = new QTabWidget();
-	pLogTabs->setTabPosition(QTabWidget::South);
-
-	if (CreateLog())
-		pLogTabs->addTab(m_pLog, "Log");
-	if (CVars::sc_EditorAdvanced)
-	{
-		if (CreateCompilerLog())
-			pLogTabs->addTab(m_pCompilerLog, "Compiler Log");
-	}
-
-	pVMainContentLayout->addWidget(pLogTabs);
-
-	pVMainContentLayout->setSizes(QList<int> { 850, 200 });
-	pHMainContentLayout->setSizes(QList<int> { 300, 1300, 300 });
-
-	m_pScriptBrowser->GetSelectionSignalSlots().Connect(Schematyc::Delegate::Make(*this, &CMainWindow::OnScriptBrowserSelection), m_connectionScope);
+	RegisterWidgets();
 
 	GetIEditor()->RegisterNotifyListener(this);
-
-	//LoadSettings();
 }
 
 CMainWindow::~CMainWindow()
 {
-	if (m_pScriptBrowser->HasUnsavedScriptElements())
-	{
-		CQuestionDialog saveDialog;
-		saveDialog.SetupQuestion("Schematyc", "Save changes?");
-		if (saveDialog.exec())
-		{
-			OnSave();
-		}
-	}
+	delete m_pModel;
 
 	SaveSettings();
 
 	GetIEditor()->UnregisterNotifyListener(this);
-
-	CVars::Unregister();
 }
 
 void CMainWindow::OnEditorNotifyEvent(EEditorNotifyEvent event)
@@ -202,7 +133,8 @@ void CMainWindow::OnEditorNotifyEvent(EEditorNotifyEvent event)
 	{
 	case eNotify_OnIdleUpdate:
 		{
-			m_pPreview->Update();
+			if (m_pPreview)
+				m_pPreview->Update();
 			break;
 		}
 	}
@@ -230,39 +162,272 @@ void CMainWindow::Serialize(Serialization::IArchive& archive)
 	//archive(*m_pPreview, "preview");
 }
 
-void CMainWindow::Show(const Schematyc::SGUID& elementGUID, const Schematyc::SGUID& detailGUID)
+void CMainWindow::Show(const CryGUID& elementGUID, const CryGUID& detailGUID)
 {
-	m_pScriptBrowser->SelectItem(elementGUID);   // #SchematycTODO : What do we do with detail guid?
+	if (m_pScriptBrowser)
+	{
+		m_pScriptBrowser->SelectItem(elementGUID);   // #SchematycTODO : What do we do with detail guid?
+	}
+}
+
+bool CMainWindow::SaveUndo(XmlNodeRef& output) const
+{
+	return gEnv->pSchematyc->GetScriptRegistry().SaveUndo(output, *m_pModel->GetRootElement());
+}
+
+bool CMainWindow::RestoreUndo(const XmlNodeRef& input)
+{
+	CryGUID seletedItem;
+	if (m_pScriptBrowser)
+	{
+		seletedItem = m_pScriptBrowser->GetSelectedItemGUID();
+		m_pScriptBrowser->SetModel(nullptr);
+	}
+
+	if (m_pPreview)
+	{
+		m_pPreview->SetClass(nullptr);
+		m_pPreview->SetComponentInstance(nullptr);
+	}
+
+	QPoint graphPos;
+	CryGraphEditor::GraphItemIds selectedItemIds;
+	if (m_pGraphView)
+	{
+		graphPos = m_pGraphView->GetPosition();
+		for (CryGraphEditor::CAbstractNodeGraphViewModelItem* pItem : m_pGraphView->GetSelectedItems())
+		{
+			if (CNodeItem* pNodeItem = pItem->Cast<CNodeItem>())
+				selectedItemIds.emplace_back(pNodeItem->GetId());
+		}
+		m_pGraphView->SetModel(nullptr);
+	}
+
+	gEnv->pSchematyc->GetScriptRegistry().RestoreUndo(input, m_pModel->GetRootElement());
+	m_pModel = new Schematyc::CScriptBrowserModel(*this, *m_pAsset, m_pScript->GetRoot()->GetGUID());
+	if (m_pScriptBrowser)
+	{
+		m_pScriptBrowser->SetModel(m_pModel);
+		if (seletedItem != CryGUID::Null())
+			m_pScriptBrowser->SelectItem(seletedItem);
+	}
+
+	if (m_pGraphView)
+	{
+		m_pGraphView->SetPosition(graphPos);
+		m_pGraphView->SelectItems(selectedItemIds);
+	}
+
+	if (m_pPreview && m_pScript->GetRoot()->GetType() == Schematyc::EScriptElementType::Class)
+	{
+		m_pPreview->SetClass(static_cast<const Schematyc::IScriptClass*>(m_pScript->GetRoot()));
+	}
+
+	return true;
+}
+
+void CMainWindow::CreateDefaultLayout(CDockableContainer* pSender)
+{
+	CRY_ASSERT(pSender);
+
+	QWidget* pScriptBrowserWidget = pSender->SpawnWidget("Script Browser");
+	pSender->SpawnWidget("Graph View", QToolWindowAreaReference::VSplitRight);
+
+	QWidget* pPreviewWidget = pSender->SpawnWidget("Preview", QToolWindowAreaReference::VSplitRight);
+
+	pSender->SpawnWidget("Log", pPreviewWidget, QToolWindowAreaReference::HSplitBottom);
+	pSender->SpawnWidget("Properties", pScriptBrowserWidget, QToolWindowAreaReference::HSplitBottom);
+}
+
+bool CMainWindow::OnOpenAsset(CAsset* pAsset)
+{
+	ICrySchematycCore* pSchematycCore = gEnv->pSchematyc;
+	Schematyc::IScriptRegistry& scriptRegistry = pSchematycCore->GetScriptRegistry();
+
+	const size_t fileCount = pAsset->GetFilesCount();
+	CRY_ASSERT_MESSAGE(fileCount > 0, "Schematyc Editor: Asset '%s' has no files.", pAsset->GetName());
+
+	const stack_string szFile = PathUtil::GetGameFolder() + "/" + string(pAsset->GetFile(0));
+
+	m_pScript = scriptRegistry.GetScriptByFileName(szFile);
+	if (m_pScript)
+	{
+		m_pAsset = pAsset;
+		m_pModel = new Schematyc::CScriptBrowserModel(*this, *pAsset, m_pScript->GetRoot()->GetGUID());
+
+		if (m_pScriptBrowser)
+		{
+			m_pScriptBrowser->SetModel(m_pModel);
+		}
+
+		if (m_pPreview && m_pScript->GetRoot()->GetType() == Schematyc::EScriptElementType::Class)
+		{
+			m_pPreview->SetClass(static_cast<const Schematyc::IScriptClass*>(m_pScript->GetRoot()));
+		}
+
+		return true;
+	}
+
+	return false;
+}
+
+bool CMainWindow::OnSaveAsset(CEditableAsset& editAsset)
+{
+	if (m_pScript)
+	{
+		if (m_pAsset == &editAsset.GetAsset())
+		{
+			ICrySchematycCore* pSchematycCore = gEnv->pSchematyc;
+			Schematyc::IScriptRegistry& scriptRegistry = pSchematycCore->GetScriptRegistry();
+
+			scriptRegistry.SaveScript(*m_pScript);
+			return true;
+		}
+	}
+
+	return false;
+}
+
+bool CMainWindow::OnAboutToCloseAsset(string& reason) const
+{
+	if (m_pScriptBrowser && m_pScript && m_pScriptBrowser->HasScriptUnsavedChanges())
+	{
+		CRY_ASSERT(GetAssetBeingEdited());
+		reason = QtUtil::ToString(tr("Asset '%1' has unsaved modifications.").arg(GetAssetBeingEdited()->GetName()));
+		return false;
+	}
+	return true;
+}
+
+void CMainWindow::OnCloseAsset()
+{
+	if (CBroadcastManager* pBroadcastManager = CBroadcastManager::Get(this))
+	{
+		PopulateInspectorEvent popEvent([](CInspector& inspector) {});
+		pBroadcastManager->Broadcast(popEvent);
+	}
+
+	if (m_pGraphView)
+	{
+		m_pGraphView->SetModel(nullptr);
+	}
+
+	if (m_pPreview)
+	{
+		m_pPreview->SetClass(nullptr);
+		m_pPreview->SetComponentInstance(nullptr);
+	}
+
+	if (m_pScriptBrowser)
+	{
+		// Revert changes.
+		if (m_pScript && m_pScriptBrowser->HasScriptUnsavedChanges())
+		{
+			ICrySchematycCore* pSchematycCore = gEnv->pSchematyc;
+			Schematyc::IScriptRegistry& scriptRegistry = pSchematycCore->GetScriptRegistry();
+
+			const stack_string scriptFile = m_pScript->GetFilePath();
+			if (Schematyc::IScript* pReloadedScript = scriptRegistry.LoadScript(scriptFile.c_str()))
+			{
+				// TODO: Recompilation should not happen in editor code t all!
+				gEnv->pSchematyc->GetCompiler().CompileDependencies(pReloadedScript->GetRoot()->GetGUID());
+				gEnv->pSchematyc->GetCompiler().CompileAll();
+				// ~TODO
+			}
+		}
+
+		m_pScriptBrowser->SetModel(nullptr);
+	}
+
+	delete m_pModel;
+	m_pModel = nullptr;
+
+	m_pAsset = nullptr;
+}
+
+void CMainWindow::closeEvent(QCloseEvent* pEvent)
+{
+	CAssetEditor::closeEvent(pEvent);
+}
+
+void CMainWindow::RegisterWidgets()
+{
+	EnableDockingSystem();
+
+	// Scripts
+	auto createScriptBrowserWidget = [this]()
+	{
+		Schematyc::CScriptBrowserWidget* const pWidget = CreateScriptBrowserWidget();
+		if (pWidget)
+		{
+			pWidget->setWindowTitle("Scripts");
+		}
+		return pWidget;
+	};
+	RegisterWidget("Script Browser", createScriptBrowserWidget, true, false);
+
+	// Graph View
+	auto createGraphViewWidget = [this]()
+	{
+		CGraphViewWidget* const pWidget = CreateGraphViewWidget();
+		if (pWidget)
+		{
+			pWidget->setWindowTitle("Graph View");
+		}
+		return pWidget;
+	};
+	RegisterWidget("Graph View", createGraphViewWidget, true, false);
+
+	// Preview
+	{
+		auto createPreviewWidget = [this]()
+		{
+			Schematyc::CPreviewWidget* const pWidget = CreatePreviewWidget();
+			if (pWidget)
+			{
+				pWidget->setWindowTitle("Preview");
+			}
+			return pWidget;
+		};
+		RegisterWidget("Preview", createPreviewWidget, true, false);
+	}
+
+	// Log
+	{
+		auto createLogWidget = [this]()
+		{
+			Schematyc::CLogWidget* const pWidget = CreateLogWidget();
+			if (pWidget)
+			{
+				pWidget->setWindowTitle("Log");
+			}
+			return pWidget;
+		};
+		RegisterWidget("Log", createLogWidget, true, false);
+	}
+
+	// Inspector
+	auto createInspectorWidget = [this]()
+	{
+		CInspector* const pWidget = CreateInspectorWidget();
+		if (pWidget)
+			pWidget->setWindowTitle("Properties");
+		return pWidget;
+	};
+	RegisterWidget("Properties", createInspectorWidget, true, false);
 }
 
 void CMainWindow::InitMenu()
 {
+	// TODO: Delete is not working atm. As soon as we have a mechanism to know what was last
+	//			 focused we can bring it back.
 	const CEditor::MenuItems items[] = {
-		CEditor::MenuItems::FileMenu,                                                       /*CEditor::MenuItems::New,*/ CEditor::MenuItems::Save,
-		CEditor::MenuItems::EditMenu,                                                       /*CEditor::MenuItems::Undo,  CEditor::MenuItems::Redo,*/
-		CEditor::MenuItems::Copy,                                                           CEditor::MenuItems::Paste, CEditor::MenuItems::Delete
+		CEditor::MenuItems::FileMenu, CEditor::MenuItems::Save,
+		CEditor::MenuItems::EditMenu, CEditor::MenuItems::Undo,CEditor::MenuItems::Redo,
+		CEditor::MenuItems::Copy,     CEditor::MenuItems::Paste,/*CEditor::MenuItems::Delete*/
 	};
+	// ~TODO
 	AddToMenu(items, sizeof(items) / sizeof(CEditor::MenuItems));
-
-	if (CVars::sc_EditorAdvanced) // TODO: Add entry to preference page so these entries can be hidden..
-	{
-		QMenu* pAdvancedenu = CEditor::AddMenu("Advanced");
-		{
-			pAdvancedenu->addSeparator();
-
-			m_pCompileAllMenuAction = pAdvancedenu->addAction(tr("Compile All"));
-			QObject::connect(m_pCompileAllMenuAction, &QAction::triggered, this, &CMainWindow::OnCompileAll);
-
-			m_pRefreshEnvironmentMenuAction = pAdvancedenu->addAction(tr("Refresh Environment"));
-			QObject::connect(m_pRefreshEnvironmentMenuAction, &QAction::triggered, this, &CMainWindow::OnRefreshEnv);
-		}
-	}
-
-	QMenu* pViewMenu = GetMenu("View");
-	QObject::connect(pViewMenu, &QMenu::aboutToShow, [pViewMenu, this]()
-		{
-			pViewMenu->clear();
-	  });
 }
 
 void CMainWindow::InitToolbar(QVBoxLayout* pWindowLayout)
@@ -282,37 +447,10 @@ void CMainWindow::InitToolbar(QVBoxLayout* pWindowLayout)
 		}
 
 		{
-			QAction* pToogleScope = pToolBar->addAction(CryIcon("icons:schematyc/toolbar_toggle_scope.ico"), QString());
-			pToogleScope->setToolTip("Toggles scope in the browser to/from current object.");
-			pToogleScope->setCheckable(true);
-			QObject::connect(pToogleScope, &QAction::triggered, [this, pToogleScope](bool isChecked)
-				{
-					static bool ignoreChanges = false;
-					if (!ignoreChanges && m_pScriptBrowser)
-					{
-					  if (!m_pScriptBrowser->SetScope(isChecked))
-					  {
-					    ignoreChanges = true;
-					    pToogleScope->setChecked(false);
-					    ignoreChanges = false;
-					  }
-					}
-			  });
-		}
-
-		{
 			m_pClearLogToolbarAction = pToolBar->addAction(CryIcon("icons:schematyc/toolbar_clear_log.ico"), QString());
 			m_pClearLogToolbarAction->setToolTip("Clears log output.");
 			m_pClearLogToolbarAction->setEnabled(false);
 			QObject::connect(m_pClearLogToolbarAction, &QAction::triggered, this, &CMainWindow::ClearLog);
-		}
-
-		if (CVars::sc_EditorAdvanced)
-		{
-			m_pClearCompilerLogToolbarAction = pToolBar->addAction(CryIcon("icons:schematyc/toolbar_clear_compiler_log.ico"), QString());
-			m_pClearCompilerLogToolbarAction->setToolTip("Clears compiler log output.");
-			m_pClearCompilerLogToolbarAction->setEnabled(false);
-			QObject::connect(m_pClearCompilerLogToolbarAction, &QAction::triggered, this, &CMainWindow::ClearCompilerLog);
 		}
 
 		{
@@ -335,39 +473,24 @@ void CMainWindow::InitToolbar(QVBoxLayout* pWindowLayout)
 	pWindowLayout->addLayout(pToolBarsLayout);
 }
 
-bool CMainWindow::OnNew()
-{
-	// TODO: Not yet implemented in graph view.
-	return true;
-}
-
-bool CMainWindow::OnSave()
-{
-	// TODO: This should just save the current opened object later.
-
-	// TODO: Move settings to into a preference page.
-	gEnv->pSchematyc->GetSettingsManager().SaveAllSettings();
-	// ~TODO
-	gEnv->pSchematyc->GetScriptRegistry().Save();
-
-	return true;
-}
-
 bool CMainWindow::OnUndo()
 {
-	// TODO: Not yet implemented in graph view.
+	GetIEditor()->GetIUndoManager()->Undo();
 	return true;
 }
 
 bool CMainWindow::OnRedo()
 {
-	// TODO: Not yet implemented in graph view.
+	GetIEditor()->GetIUndoManager()->Redo();
 	return true;
 }
 
 bool CMainWindow::OnCopy()
 {
-	// TODO: Not yet implemented in graph view.
+	if (m_pGraphView && m_pGraphView->OnCopyEvent())
+	{
+		return true;
+	}
 	return true;
 }
 
@@ -379,14 +502,21 @@ bool CMainWindow::OnCut()
 
 bool CMainWindow::OnPaste()
 {
-	// TODO: Not yet implemented in graph view.
-	return true;
+	if (m_pGraphView && m_pGraphView->OnPasteEvent())
+	{
+		return true;
+	}
+	return false;
 }
 
 bool CMainWindow::OnDelete()
 {
-	// TODO: Not yet implemented in script browser.
-	if (QApplication::focusWidget() == m_pScriptBrowser)
+	QWidget* pFocusWidget = focusWidget();
+	if (m_pGraphView && pFocusWidget == m_pGraphView)
+	{
+		m_pGraphView->OnDeleteEvent();
+	}
+	else if (m_pScriptBrowser && pFocusWidget == m_pScriptBrowser)
 	{
 		m_pScriptBrowser->OnRemoveItem();
 	}
@@ -415,6 +545,53 @@ void CMainWindow::OnRefreshEnv()
 	gEnv->pSchematyc->RefreshEnv();
 }
 
+void CMainWindow::OnLogWidgetDestruction(QObject* pObject)
+{
+	Schematyc::CLogWidget* pWidget = static_cast<Schematyc::CLogWidget*>(pObject);
+	if (m_pLog == pWidget)
+	{
+		m_pLog = nullptr;
+	}
+}
+
+void CMainWindow::OnPreviewWidgetDestruction(QObject* pObject)
+{
+	Schematyc::CPreviewWidget* pWidget = static_cast<Schematyc::CPreviewWidget*>(pObject);
+	if (m_pPreview == pWidget)
+	{
+		m_pPreview = nullptr;
+	}
+}
+
+void CMainWindow::OnScriptBrowserWidgetDestruction(QObject* pObject)
+{
+	Schematyc::CScriptBrowserWidget* pWidget = static_cast<Schematyc::CScriptBrowserWidget*>(pObject);
+	if (m_pScriptBrowser == pWidget)
+	{
+		m_pScriptBrowser = nullptr;
+	}
+
+	pWidget->GetSelectionSignalSlots().Disconnect(m_connectionScope);
+}
+
+void CMainWindow::OnInspectorWidgetDestruction(QObject* pObject)
+{
+	CInspector* pWidget = static_cast<CInspector*>(pObject);
+	if (m_pInspector == pWidget)
+	{
+		m_pInspector = nullptr;
+	}
+}
+
+void CMainWindow::OnGraphViewWidgetDestruction(QObject* pObject)
+{
+	CGraphViewWidget* pWidget = static_cast<CGraphViewWidget*>(pObject);
+	if (m_pGraphView == pWidget)
+	{
+		m_pGraphView = nullptr;
+	}
+}
+
 void CMainWindow::ConfigureLogs()
 {
 	Schematyc::ILog& log = gEnv->pSchematyc->GetLog();
@@ -424,9 +601,7 @@ void CMainWindow::ConfigureLogs()
 	m_logSettings.streams.push_back(log.GetStreamName(Schematyc::LogStreamId::Core));
 	m_logSettings.streams.push_back(log.GetStreamName(Schematyc::LogStreamId::Editor));
 	m_logSettings.streams.push_back(log.GetStreamName(Schematyc::LogStreamId::Env));
-
-	// Compiler Log
-	m_compilerLogSettings.streams.push_back(log.GetStreamName(Schematyc::LogStreamId::Compiler));
+	m_logSettings.streams.push_back(log.GetStreamName(Schematyc::LogStreamId::Compiler));
 }
 
 void CMainWindow::LoadSettings()
@@ -437,14 +612,14 @@ void CMainWindow::LoadSettings()
 
 void CMainWindow::SaveSettings()
 {
-	{
-		const Schematyc::CStackString szSettingsFolder = GetSettingsFolder();
-		gEnv->pCryPak->MakeDir(szSettingsFolder.c_str());
-	}
-	{
-		const Schematyc::CStackString settingsFileName = GetSettingsFileName();
-		Serialization::SaveJsonFile(settingsFileName.c_str(), *this);
-	}
+	/*{
+	   const Schematyc::CStackString szSettingsFolder = GetSettingsFolder();
+	   gEnv->pCryPak->MakeDir(szSettingsFolder.c_str());
+	   }
+	   {
+	   const Schematyc::CStackString settingsFileName = GetSettingsFileName();
+	   Serialization::SaveJsonFile(settingsFileName.c_str(), *this);
+	   }*/
 }
 
 void CMainWindow::OnScriptBrowserSelection(const Schematyc::SScriptBrowserSelection& selection)
@@ -487,32 +662,38 @@ void CMainWindow::OnScriptBrowserSelection(const Schematyc::SScriptBrowserSelect
 		if (CBroadcastManager* pBroadcastManager = CBroadcastManager::Get(this))
 		{
 			IDetailItem* pDetailItem = new CScriptElementDetailItem(selection.pScriptElement);
-			CPropertiesWidget* pPropertiesWidget = new CPropertiesWidget(*pDetailItem, m_pPreview);
+			CPropertiesWidget* pPropertiesWidget = new CPropertiesWidget(*pDetailItem, this, m_pPreview);
+			Schematyc::IScriptElement* pScriptElement = selection.pScriptElement;
 
-			auto populateInspector = [pPropertiesWidget](const PopulateInspectorEvent&)
-			{
-				return pPropertiesWidget;
-			};
-			PopulateInspectorEvent populateEvent(populateInspector, "Properties");
-			pBroadcastManager->Broadcast(populateEvent);
+			PopulateInspectorEvent popEvent([pPropertiesWidget, pScriptElement](CInspector& inspector)
+				{
+					QCollapsibleFrame* pInspectorWidget = new QCollapsibleFrame(pScriptElement->GetName());
+					pInspectorWidget->SetWidget(pPropertiesWidget);
+					inspector.AddWidget(pInspectorWidget);
+			  });
+
+			pBroadcastManager->Broadcast(popEvent);
 		}
 
 		// Attach to preview.
-		const Schematyc::IScriptElement* pScriptClass = selection.pScriptElement;
-		for (; pScriptClass && (pScriptClass->GetElementType() != Schematyc::EScriptElementType::Class); pScriptClass = pScriptClass->GetParent())
+		if (m_pPreview)
 		{
-		}
-		if (pScriptClass)
-		{
-			m_pPreview->SetClass(static_cast<const Schematyc::IScriptClass*>(pScriptClass));
-		}
-		if (selection.pScriptElement->GetElementType() == Schematyc::EScriptElementType::ComponentInstance)
-		{
-			m_pPreview->SetComponentInstance(static_cast<const Schematyc::IScriptComponentInstance*>(selection.pScriptElement));
-		}
-		else
-		{
-			m_pPreview->SetComponentInstance(nullptr);
+			const Schematyc::IScriptElement* pScriptClass = selection.pScriptElement;
+			for (; pScriptClass && (pScriptClass->GetType() != Schematyc::EScriptElementType::Class); pScriptClass = pScriptClass->GetParent())
+			{
+			}
+			if (pScriptClass)
+			{
+				m_pPreview->SetClass(static_cast<const Schematyc::IScriptClass*>(pScriptClass));
+			}
+			if (selection.pScriptElement->GetType() == Schematyc::EScriptElementType::ComponentInstance)
+			{
+				m_pPreview->SetComponentInstance(static_cast<const Schematyc::IScriptComponentInstance*>(selection.pScriptElement));
+			}
+			else
+			{
+				m_pPreview->SetComponentInstance(nullptr);
+			}
 		}
 	}
 	else
@@ -529,8 +710,11 @@ void CMainWindow::OnScriptBrowserSelection(const Schematyc::SScriptBrowserSelect
 			delete pModel;
 		}
 
-		m_pPreview->SetClass(nullptr);
-		m_pPreview->SetComponentInstance(nullptr);
+		if (m_pPreview)
+		{
+			m_pPreview->SetClass(nullptr);
+			m_pPreview->SetComponentInstance(nullptr);
+		}
 	}
 }
 
@@ -542,89 +726,134 @@ void CMainWindow::ClearLog()
 	}
 }
 
-void CMainWindow::ClearCompilerLog()
-{
-	if (m_pCompilerLog)
-	{
-		m_pCompilerLog->Clear();
-	}
-}
-
 void CMainWindow::ShowLogSettings()
 {
-	CRY_ASSERT(m_pLog);
 	if (m_pLog)
 	{
 		if (CBroadcastManager* pBroadcastManager = CBroadcastManager::Get(this))
 		{
-			auto populateInspector = [this](const PopulateInspectorEvent&)
-			{
-				return new Schematyc::CLogSettingsWidget(m_logSettings);
-			};
-			PopulateInspectorEvent populateEvent(populateInspector, "Log Settings");
-			pBroadcastManager->Broadcast(populateEvent);
+			PopulateInspectorEvent popEvent([this](CInspector& inspector)
+				{
+					QCollapsibleFrame* pInspectorWidget = new QCollapsibleFrame("Log Settings");
+					pInspectorWidget->SetWidget(new Schematyc::CLogSettingsWidget(m_logSettings));
+					inspector.AddWidget(pInspectorWidget);
+			  });
+
+			pBroadcastManager->Broadcast(popEvent);
 		}
 	}
 }
 
 void CMainWindow::ShowPreviewSettings()
 {
-	CRY_ASSERT(m_pPreview);
 	if (m_pPreview)
 	{
 		if (CBroadcastManager* pBroadcastManager = CBroadcastManager::Get(this))
 		{
-			auto populateInspector = [this](const PopulateInspectorEvent&)
-			{
-				return new Schematyc::CPreviewSettingsWidget(*m_pPreview);
-			};
-			PopulateInspectorEvent populateEvent(populateInspector, "Preview Settings");
-			pBroadcastManager->Broadcast(populateEvent);
+			PopulateInspectorEvent popEvent([this](CInspector& inspector)
+				{
+					QCollapsibleFrame* pInspectorWidget = new QCollapsibleFrame("Preview Settings");
+					pInspectorWidget->SetWidget(new Schematyc::CPreviewSettingsWidget(*m_pPreview));
+					inspector.AddWidget(pInspectorWidget);
+			  });
+
+			pBroadcastManager->Broadcast(popEvent);
 		}
 	}
 }
 
-Schematyc::CLogWidget* CMainWindow::CreateLog()
+Schematyc::CLogWidget* CMainWindow::CreateLogWidget()
 {
+	Schematyc::CLogWidget* pLogWidget = new Schematyc::CLogWidget(m_logSettings);
+	pLogWidget->InitLayout();
+
+	m_pClearLogToolbarAction->setEnabled(true);
+	m_pShowLogSettingsToolbarAction->setEnabled(true);
+
 	if (m_pLog == nullptr)
 	{
-		m_pLog = new Schematyc::CLogWidget(m_logSettings);
-		m_pLog->InitLayout();
-
-		m_pClearLogToolbarAction->setEnabled(true);
-		m_pShowLogSettingsToolbarAction->setEnabled(true);
-
-		return m_pLog;
+		m_pLog = pLogWidget;
 	}
-	return nullptr;
+
+	QObject::connect(pLogWidget, &QObject::destroyed, this, &CMainWindow::OnLogWidgetDestruction);
+	return pLogWidget;
 }
 
-Schematyc::CLogWidget* CMainWindow::CreateCompilerLog()
+Schematyc::CPreviewWidget* CMainWindow::CreatePreviewWidget()
 {
-	if (m_pCompilerLog == nullptr)
-	{
-		m_pCompilerLog = new Schematyc::CLogWidget(m_compilerLogSettings);
-		m_pCompilerLog->InitLayout();
+	Schematyc::CPreviewWidget* pPreviewWidget = new Schematyc::CPreviewWidget(this);
+	pPreviewWidget->InitLayout();
 
-		m_pClearCompilerLogToolbarAction->setEnabled(true);
+	m_pShowPreviewSettingsToolbarAction->setEnabled(true);
 
-		return m_pCompilerLog;
-	}
-	return nullptr;
-}
-
-Schematyc::CPreviewWidget* CMainWindow::CreatePreview()
-{
 	if (m_pPreview == nullptr)
 	{
-		m_pPreview = new Schematyc::CPreviewWidget(this);
-		m_pPreview->InitLayout();
-
-		m_pShowPreviewSettingsToolbarAction->setEnabled(true);
-
-		return m_pPreview;
+		m_pPreview = pPreviewWidget;
 	}
-	return nullptr;
+
+	QObject::connect(pPreviewWidget, &QObject::destroyed, this, &CMainWindow::OnPreviewWidgetDestruction);
+	return pPreviewWidget;
+}
+
+CInspector* CMainWindow::CreateInspectorWidget()
+{
+	CInspector* pInspectorWidget = new CInspector(this);
+	if (m_pInspector == nullptr)
+	{
+		m_pInspector = pInspectorWidget;
+	}
+
+	QObject::connect(pInspectorWidget, &QObject::destroyed, this, &CMainWindow::OnInspectorWidgetDestruction);
+	return pInspectorWidget;
+}
+
+CGraphViewWidget* CMainWindow::CreateGraphViewWidget()
+{
+	CGraphViewWidget* pGraphViewWidget = new CGraphViewWidget(*this);
+	if (m_pGraphView == nullptr)
+	{
+		m_pGraphView = pGraphViewWidget;
+	}
+
+	QObject::connect(pGraphViewWidget, &QObject::destroyed, this, &CMainWindow::OnGraphViewWidgetDestruction);
+	return pGraphViewWidget;
+}
+
+Schematyc::CScriptBrowserWidget* CMainWindow::CreateScriptBrowserWidget()
+{
+	Schematyc::CScriptBrowserWidget* pScriptBrowser = new Schematyc::CScriptBrowserWidget(*this);
+	pScriptBrowser->InitLayout();
+	pScriptBrowser->GetSelectionSignalSlots().Connect(SCHEMATYC_MEMBER_DELEGATE(&CMainWindow::OnScriptBrowserSelection, *this), m_connectionScope);
+
+	QObject::connect(pScriptBrowser, &Schematyc::CScriptBrowserWidget::OnScriptElementRemoved, [this](Schematyc::IScriptElement& scriptElement)
+		{
+			if (m_pGraphView)
+			{
+			  CNodeGraphViewModel* pModel = static_cast<CNodeGraphViewModel*>(m_pGraphView->GetModel());
+			  if (pModel)
+			  {
+			    Schematyc::IScriptGraph* pScriptGraph = scriptElement.GetExtensions().QueryExtension<Schematyc::IScriptGraph>();
+			    if (pScriptGraph && &pModel->GetScriptGraph() == pScriptGraph)
+			    {
+			      m_pGraphView->SetModel(nullptr);
+			    }
+			  }
+			}
+
+	  });
+
+	if (m_pModel)
+	{
+		pScriptBrowser->SetModel(m_pModel);
+	}
+
+	if (m_pScriptBrowser == nullptr)
+	{
+		m_pScriptBrowser = pScriptBrowser;
+	}
+
+	QObject::connect(pScriptBrowser, &QObject::destroyed, this, &CMainWindow::OnScriptBrowserWidgetDestruction);
+	return pScriptBrowser;
 }
 
 } // Schematyc

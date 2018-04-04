@@ -2,7 +2,7 @@
 
 #include "stdafx.h"
 
-#include <QPropertyTree/QPropertyTree.h>
+#include <Serialization/QPropertyTree/QPropertyTree.h>
 #include "Expected.h"
 #include "Serialization.h"
 #include "DisplayParametersPanel.h"
@@ -51,10 +51,7 @@ DisplayParametersPanel::~DisplayParametersPanel()
 
 void DisplayParametersPanel::Serialize(Serialization::IArchive& ar)
 {
-	if (ar.filter(SERIALIZE_STATE))
-	{
-		ar(*m_propertyTree, "propertyTree");
-	}
+	ar(*m_propertyTree, "propertyTree");
 }
 
 void DisplayParametersPanel::OnDisplayOptionsUpdated()

@@ -1,19 +1,8 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
-// -------------------------------------------------------------------------
-//  File name:
-//  Version:     v1.00
-//  Created:     08/05/2015 by Jan Pinter
-//  Description:
-// -------------------------------------------------------------------------
-//  History:
-//
-////////////////////////////////////////////////////////////////////////////
 #pragma once
-#ifndef __DX12PSO__
-	#define __DX12PSO__
 
-	#include "DX12RootSignature.hpp"
+#include "DX12RootSignature.hpp"
 
 namespace NCryDX12
 {
@@ -137,5 +126,3 @@ private:
 };
 
 }
-
-#endif // __DX12PSO__

@@ -94,7 +94,7 @@ bool SCryPSNWorld::Clone(CCryLobby* pLobby, SceNpMatching2World& world)
 	return true;
 }
 
-bool SCryPSNRoomMemberDataInternal::Clone(CCryLobby* pLobby, SceNpMatching2RoomMemberDataInternal& member)
+bool SCryPSNRoomMemberDataInternal::Clone(CCryLobby* pLobby, SceNpMatching2RoomMemberDataInternalA& member)
 {
 	memcpy((void*)&m_npId, &member.npId, sizeof(SceNpId));
 
@@ -122,7 +122,7 @@ void SCryPSNRoomMemberDataInternal::Release(CCryLobby* pLobby)
 	}
 }
 
-bool SCryPSNRoomDataExternal::Clone(CCryLobby* pLobby, SceNpMatching2RoomDataExternal& roomDataExternal)
+bool SCryPSNRoomDataExternal::Clone(CCryLobby* pLobby, SceNpMatching2RoomDataExternalA& roomDataExternal)
 {
 	m_serverId = roomDataExternal.serverId;
 	m_worldId = roomDataExternal.worldId;
@@ -219,7 +219,7 @@ void SCryPSNRoomDataInternal::Release(CCryLobby* pLobby)
 	}
 }
 
-bool SCryPSNRoomMemberDataInternalList::Clone(CCryLobby* pLobby, SceNpMatching2RoomMemberDataInternalList& memberList)
+bool SCryPSNRoomMemberDataInternalList::Clone(CCryLobby* pLobby, SceNpMatching2RoomMemberDataInternalListA& memberList)
 {
 	m_numRoomMembers = memberList.membersNum;
 	m_memHdl = TMemInvalidHdl;
@@ -236,7 +236,7 @@ bool SCryPSNRoomMemberDataInternalList::Clone(CCryLobby* pLobby, SceNpMatching2R
 			m_pRoomMembers = (SCryPSNRoomMemberDataInternal*)pLobby->MemGetPtr(m_memHdl);
 			memset(m_pRoomMembers, 0, nAllocSize);
 
-			SceNpMatching2RoomMemberDataInternal* pMember = memberList.members;
+			SceNpMatching2RoomMemberDataInternalA* pMember = memberList.members;
 
 			for (uint16 i = 0; i < m_numRoomMembers; i++)
 			{
@@ -317,7 +317,7 @@ void SCryPSNGetWorldInfoListResponse::Release(CCryLobby* pLobby)
 	}
 }
 
-bool SCryPSNCreateJoinRoomResponse::Clone(CCryLobby* pLobby, SceNpMatching2CreateJoinRoomResponse* pResponse)
+bool SCryPSNCreateJoinRoomResponse::Clone(CCryLobby* pLobby, SceNpMatching2CreateJoinRoomResponseA* pResponse)
 {
 	if (m_roomInfo.Clone(pLobby, *(pResponse->roomDataInternal)))
 	{
@@ -337,7 +337,7 @@ void SCryPSNCreateJoinRoomResponse::Release(CCryLobby* pLobby)
 	m_roomMembers.Release(pLobby);
 }
 
-bool SCryPSNJoinRoomResponse::Clone(CCryLobby* pLobby, SceNpMatching2JoinRoomResponse* pResponse)
+bool SCryPSNJoinRoomResponse::Clone(CCryLobby* pLobby, SceNpMatching2JoinRoomResponseA* pResponse)
 {
 	if (m_roomInfo.Clone(pLobby, *(pResponse->roomDataInternal)))
 	{
@@ -357,13 +357,13 @@ void SCryPSNJoinRoomResponse::Release(CCryLobby* pLobby)
 	m_roomMembers.Release(pLobby);
 }
 
-bool SCryPSNSearchRoomResponse::Clone(CCryLobby* pLobby, SceNpMatching2SearchRoomResponse* pResponse)
+bool SCryPSNSearchRoomResponse::Clone(CCryLobby* pLobby, SceNpMatching2SearchRoomResponseA* pResponse)
 {
 	m_numRooms = 0;
 	m_memHdl = TMemInvalidHdl;
 	m_pRooms = NULL;
 
-	SceNpMatching2RoomDataExternal* pRoom = pResponse->roomDataExternal;
+	SceNpMatching2RoomDataExternalA* pRoom = pResponse->roomDataExternal;
 	while (pRoom)
 	{
 		m_numRooms++;
@@ -401,7 +401,7 @@ bool SCryPSNSearchRoomResponse::Clone(CCryLobby* pLobby, SceNpMatching2SearchRoo
 	return false;
 }
 
-bool SCryPSNSearchRoomResponse::Clone(CCryLobby* pLobby, SceNpMatching2GetRoomDataExternalListResponse* pResponse)
+bool SCryPSNSearchRoomResponse::Clone(CCryLobby* pLobby, SceNpMatching2GetRoomDataExternalListResponseA* pResponse)
 {
 	m_numRooms = pResponse->roomDataExternalNum;
 	m_memHdl = TMemInvalidHdl;
@@ -420,7 +420,7 @@ bool SCryPSNSearchRoomResponse::Clone(CCryLobby* pLobby, SceNpMatching2GetRoomDa
 			m_pRooms = (SCryPSNRoomDataExternal*)pLobby->MemGetPtr(m_memHdl);
 			memset(m_pRooms, 0, nAllocSize);
 
-			SceNpMatching2RoomDataExternal* pRoom = pResponse->roomDataExternal;
+			SceNpMatching2RoomDataExternalA* pRoom = pResponse->roomDataExternal;
 
 			for (uint16 i = 0; i < m_numRooms; i++)
 			{
@@ -460,9 +460,9 @@ bool SCryPSNSignalingGetPingInfoResponse::Clone(CCryLobby* pLobby, SceNpMatching
 	return true;
 }
 
-bool SCryPSNRoomMemberUpdateInfoResponse::Clone(CCryLobby* pLobby, SceNpMatching2RoomMemberUpdateInfo* pResponse)
+bool SCryPSNRoomMemberUpdateInfoResponse::Clone(CCryLobby* pLobby, SceNpMatching2RoomMemberUpdateInfoA* pResponse)
 {
-	SceNpMatching2RoomMemberDataInternal* pMember = (SceNpMatching2RoomMemberDataInternal*)pResponse->roomMemberDataInternal;
+	SceNpMatching2RoomMemberDataInternalA* pMember = (SceNpMatching2RoomMemberDataInternalA*)pResponse->roomMemberDataInternal;
 
 	if (!m_member.Clone(pLobby, *pMember))
 	{
@@ -474,9 +474,9 @@ bool SCryPSNRoomMemberUpdateInfoResponse::Clone(CCryLobby* pLobby, SceNpMatching
 	return true;
 }
 
-bool SCryPSNRoomMemberUpdateInfoResponse::Clone(CCryLobby* pLobby, SceNpMatching2RoomMemberDataInternalUpdateInfo* pResponse)
+bool SCryPSNRoomMemberUpdateInfoResponse::Clone(CCryLobby* pLobby, SceNpMatching2RoomMemberDataInternalUpdateInfoA* pResponse)
 {
-	SceNpMatching2RoomMemberDataInternal* pMember = (SceNpMatching2RoomMemberDataInternal*)pResponse->newRoomMemberDataInternal;
+	SceNpMatching2RoomMemberDataInternalA* pMember = (SceNpMatching2RoomMemberDataInternalA*)pResponse->newRoomMemberDataInternal;
 
 	if (!m_member.Clone(pLobby, *pMember))
 	{
@@ -536,7 +536,7 @@ TMemHdl CCryPSNSupport::CloneResponse(SceNpMatching2Event eventType, const void*
 				if (memHdl)
 				{
 					SCryPSNSearchRoomResponse* pResponse = (SCryPSNSearchRoomResponse*)pLobby->MemGetPtr(memHdl);
-					if (pResponse->Clone(pLobby, (SceNpMatching2SearchRoomResponse*)pData))
+					if (pResponse->Clone(pLobby, (SceNpMatching2SearchRoomResponseA*)pData))
 					{
 						*pReturnMemSize = sizeof(SCryPSNSearchRoomResponse);
 					}
@@ -554,7 +554,7 @@ TMemHdl CCryPSNSupport::CloneResponse(SceNpMatching2Event eventType, const void*
 				if (memHdl)
 				{
 					SCryPSNJoinRoomResponse* pResponse = (SCryPSNJoinRoomResponse*)pLobby->MemGetPtr(memHdl);
-					if (pResponse->Clone(pLobby, (SceNpMatching2JoinRoomResponse*)pData))
+					if (pResponse->Clone(pLobby, (SceNpMatching2JoinRoomResponseA*)pData))
 					{
 						*pReturnMemSize = sizeof(SCryPSNJoinRoomResponse);
 					}
@@ -572,7 +572,7 @@ TMemHdl CCryPSNSupport::CloneResponse(SceNpMatching2Event eventType, const void*
 				if (memHdl)
 				{
 					SCryPSNCreateJoinRoomResponse* pResponse = (SCryPSNCreateJoinRoomResponse*)pLobby->MemGetPtr(memHdl);
-					if (pResponse->Clone(pLobby, (SceNpMatching2CreateJoinRoomResponse*)pData))
+					if (pResponse->Clone(pLobby, (SceNpMatching2CreateJoinRoomResponseA*)pData))
 					{
 						*pReturnMemSize = sizeof(SCryPSNCreateJoinRoomResponse);
 					}
@@ -611,7 +611,7 @@ TMemHdl CCryPSNSupport::CloneResponse(SceNpMatching2Event eventType, const void*
 				if (memHdl)
 				{
 					SCryPSNSearchRoomResponse* pResponse = (SCryPSNSearchRoomResponse*)pLobby->MemGetPtr(memHdl);
-					if (pResponse->Clone(pLobby, (SceNpMatching2GetRoomDataExternalListResponse*)pData))
+					if (pResponse->Clone(pLobby, (SceNpMatching2GetRoomDataExternalListResponseA*)pData))
 					{
 						*pReturnMemSize = sizeof(SCryPSNSearchRoomResponse);
 					}
@@ -648,7 +648,7 @@ TMemHdl CCryPSNSupport::CloneResponse(SceNpMatching2Event eventType, const void*
 				if (memHdl)
 				{
 					SCryPSNRoomMemberUpdateInfoResponse* pResponse = (SCryPSNRoomMemberUpdateInfoResponse*)pLobby->MemGetPtr(memHdl);
-					if (pResponse->Clone(pLobby, (SceNpMatching2RoomMemberUpdateInfo*)pData))
+					if (pResponse->Clone(pLobby, (SceNpMatching2RoomMemberUpdateInfoA*)pData))
 					{
 						*pReturnMemSize = sizeof(SCryPSNRoomMemberUpdateInfoResponse);
 					}
@@ -666,7 +666,7 @@ TMemHdl CCryPSNSupport::CloneResponse(SceNpMatching2Event eventType, const void*
 				if (memHdl)
 				{
 					SCryPSNRoomMemberUpdateInfoResponse* pResponse = (SCryPSNRoomMemberUpdateInfoResponse*)pLobby->MemGetPtr(memHdl);
-					if (pResponse->Clone(pLobby, (SceNpMatching2RoomMemberUpdateInfo*)pData))
+					if (pResponse->Clone(pLobby, (SceNpMatching2RoomMemberUpdateInfoA*)pData))
 					{
 						*pReturnMemSize = sizeof(SCryPSNRoomMemberUpdateInfoResponse);
 					}
@@ -703,7 +703,7 @@ TMemHdl CCryPSNSupport::CloneResponse(SceNpMatching2Event eventType, const void*
 				if (memHdl)
 				{
 					SCryPSNRoomMemberUpdateInfoResponse* pResponse = (SCryPSNRoomMemberUpdateInfoResponse*)pLobby->MemGetPtr(memHdl);
-					if (pResponse->Clone(pLobby, (SceNpMatching2RoomMemberDataInternalUpdateInfo*)pData))
+					if (pResponse->Clone(pLobby, (SceNpMatching2RoomMemberDataInternalUpdateInfoA*)pData))
 					{
 						*pReturnMemSize = sizeof(SCryPSNRoomMemberUpdateInfoResponse);
 					}

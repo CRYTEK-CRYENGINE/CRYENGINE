@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #include "StdAfx.h"
 #include "Script/Elements/ScriptInterfaceImpl.h"
@@ -6,22 +6,22 @@
 #include <CrySerialization/BlackBox.h>
 #include <CrySerialization/IArchiveHost.h>
 #include <CrySerialization/STL.h>
-#include <Schematyc/Env/IEnvRegistry.h>
-#include <Schematyc/Env/Elements/IEnvInterface.h>
-#include <Schematyc/Script/IScriptGraph.h>
-#include <Schematyc/Script/Elements/IScriptInterface.h>
-#include <Schematyc/Script/Elements/IScriptInterfaceFunction.h>
-#include <Schematyc/Script/Elements/IScriptInterfaceTask.h>
-#include <Schematyc/SerializationUtils/ISerializationContext.h>
-#include <Schematyc/SerializationUtils/SerializationUtils.h>
-#include <Schematyc/Utils/Assert.h>
-#include <Schematyc/Utils/IGUIDRemapper.h>
+#include <CrySchematyc/Env/IEnvRegistry.h>
+#include <CrySchematyc/Env/Elements/IEnvInterface.h>
+#include <CrySchematyc/Script/IScriptGraph.h>
+#include <CrySchematyc/Script/Elements/IScriptInterface.h>
+#include <CrySchematyc/Script/Elements/IScriptInterfaceFunction.h>
+#include <CrySchematyc/Script/Elements/IScriptInterfaceTask.h>
+#include <CrySchematyc/SerializationUtils/ISerializationContext.h>
+#include <CrySchematyc/SerializationUtils/SerializationUtils.h>
+#include <CrySchematyc/Utils/Assert.h>
+#include <CrySchematyc/Utils/IGUIDRemapper.h>
 
 namespace Schematyc
 {
 CScriptInterfaceImpl::CScriptInterfaceImpl() {}
 
-CScriptInterfaceImpl::CScriptInterfaceImpl(const SGUID& guid, EDomain domain, const SGUID& refGUID)
+CScriptInterfaceImpl::CScriptInterfaceImpl(const CryGUID& guid, EDomain domain, const CryGUID& refGUID)
 	: CScriptElementBase(guid, nullptr, EScriptElementFlags::FixedName)
 	, m_domain(domain)
 	, m_refGUID(refGUID)
@@ -29,8 +29,8 @@ CScriptInterfaceImpl::CScriptInterfaceImpl(const SGUID& guid, EDomain domain, co
 
 void CScriptInterfaceImpl::EnumerateDependencies(const ScriptDependencyEnumerator& enumerator, EScriptDependencyType type) const
 {
-	SCHEMATYC_CORE_ASSERT(!enumerator.IsEmpty());
-	if (!enumerator.IsEmpty())
+	SCHEMATYC_CORE_ASSERT(enumerator);
+	if (enumerator)
 	{
 		if (m_domain == EDomain::Script)
 		{
@@ -88,7 +88,7 @@ EDomain CScriptInterfaceImpl::GetDomain() const
 	return m_domain;
 }
 
-SGUID CScriptInterfaceImpl::GetRefGUID() const
+CryGUID CScriptInterfaceImpl::GetRefGUID() const
 {
 	return m_refGUID;
 }
@@ -138,16 +138,16 @@ void CScriptInterfaceImpl::RefreshEnvInterfaceFunctions(const IEnvInterface& env
 	/*
 	   // Collect graphs.
 	   IScriptFile&    file = CScriptElementBase::GetFile();
-	   const SGUID     guid = CScriptElementBase::GetGUID();
+	   const CryGUID     guid = CScriptElementBase::GetGUID();
 	   TDocGraphVector graphs;
 	   DocUtils::CollectGraphs(file, guid, false, graphs);
 	   // Iterate through all functions in interface and create corresponding graphs (if they don't already exist).
 	   for(const IEnvElement* pEnvInterfaceChild = envInterface.GetFirstChild(); pEnvInterfaceChild; pEnvInterfaceChild = pEnvInterfaceChild->GetNextSibling())
 	   {
-	   if(pEnvInterfaceChild->GetElementType() == EEnvElementType::InterfaceFunction)
+	   if(pEnvInterfaceChild->GetType() == EEnvElementType::InterfaceFunction)
 	   {
 	    const IEnvInterfaceFunction& envInterfaceFunction = EnvElement::Cast<const IEnvInterfaceFunction>(*pEnvInterfaceChild);
-	    const SGUID                  functionGUID = envInterfaceFunction.GetGUID();
+	    const CryGUID                  functionGUID = envInterfaceFunction.GetGUID();
 	    bool                         bGraphExists = false;
 	    for(const IDocGraph* pGraph : graphs)
 	    {
@@ -163,7 +163,7 @@ void CScriptInterfaceImpl::RefreshEnvInterfaceFunctions(const IEnvInterface& env
 	      CRY_ASSERT(pGraph);
 	      if(pGraph)
 	      {
-	        pGraph->AddNode(EScriptGraphNodeType::Begin, SGUID(), SGUID(), Vec2(0.0f, 0.0f));	// #SchematycTODO : This should be handled by the graph itself!!!
+	        pGraph->AddNode(EScriptGraphNodeType::Begin, CryGUID(), CryGUID(), Vec2(0.0f, 0.0f));	// #SchematycTODO : This should be handled by the graph itself!!!
 	        graphs.push_back(pGraph);
 	      }
 	    }
@@ -174,7 +174,7 @@ void CScriptInterfaceImpl::RefreshEnvInterfaceFunctions(const IEnvInterface& env
 
 /*void CScriptInterfaceImpl::RefreshScriptInterfaceFunctions(const IScriptFile& interfaceFile)
    {
-   typedef std::map<SGUID, IDocGraph*> FunctionGraphs;
+   typedef std::map<CryGUID, IDocGraph*> FunctionGraphs;
 
    IScriptFile&   file = CScriptElementBase::GetFile();
    FunctionGraphs functionGraphs;
@@ -187,11 +187,11 @@ void CScriptInterfaceImpl::RefreshEnvInterfaceFunctions(const IEnvInterface& env
     }
     return EVisitStatus::Continue;
    };
-   file.VisitGraphs(DocGraphVisitor::FromLambda(visitGraph), CScriptElementBase::GetGUID(), false);
+   file.VisitGraphs(visitGraph, CScriptElementBase::GetGUID(), false);
 
    auto visitInterfaceFunction = [this, &file, &functionGraphs] (const IScriptInterfaceFunction& function) -> EVisitStatus
    {
-    const SGUID              functionGUID = function.GetGUID();
+    const CryGUID              functionGUID = function.GetGUID();
     FunctionGraphs::iterator itFunctionGraph = functionGraphs.find(functionGUID);
     if(itFunctionGraph == functionGraphs.end())
     {
@@ -199,7 +199,7 @@ void CScriptInterfaceImpl::RefreshEnvInterfaceFunctions(const IEnvInterface& env
       CRY_ASSERT(pGraph);
       if(pGraph)
       {
-        pGraph->AddNode(EScriptGraphNodeType::Begin, SGUID(), SGUID(), Vec2(0.0f, 0.0f)); // #SchematycTODO : This should be handled by the graph itself!!!
+        pGraph->AddNode(EScriptGraphNodeType::Begin, CryGUID(), CryGUID(), Vec2(0.0f, 0.0f)); // #SchematycTODO : This should be handled by the graph itself!!!
       }
     }
     else
@@ -208,17 +208,17 @@ void CScriptInterfaceImpl::RefreshEnvInterfaceFunctions(const IEnvInterface& env
     }
     return EVisitStatus::Continue;
    };
-   interfaceFile.VisitInterfaceFunctions(ScriptInterfaceFunctionConstVisitor::FromLambda(visitInterfaceFunction), m_refGUID, false);
+   interfaceFile.VisitInterfaceFunctions(visitInterfaceFunction, m_refGUID, false);
 
    for(FunctionGraphs::value_type& functionGraph : functionGraphs)
    {
-    functionGraph.second->SetElementFlags(EScriptElementFlags::Discard);
+    functionGraph.second->SetFlags(EScriptElementFlags::Discard);
    }
    }*/
 
 /*void CScriptInterfaceImpl::RefreshScriptInterfaceTasks(const IScriptFile& interfaceFile)
    {
-   typedef std::unordered_map<SGUID, IScriptStateMachine*> TaskStateMachines;
+   typedef std::unordered_map<CryGUID, IScriptStateMachine*> TaskStateMachines;
 
    IScriptFile&      file = CScriptElementBase::GetFile();
    TaskStateMachines taskStateMachines;
@@ -231,15 +231,15 @@ void CScriptInterfaceImpl::RefreshEnvInterfaceFunctions(const IEnvInterface& env
     }
     return EVisitStatus::Continue;
    };
-   file.VisitStateMachines(ScriptStateMachineVisitor::FromLambda(visitStateMachine), CScriptElementBase::GetGUID(), false);
+   file.VisitStateMachines(visitStateMachine, CScriptElementBase::GetGUID(), false);
 
    auto visitInterfaceTask = [this, &interfaceFile, &file, &taskStateMachines] (const IScriptInterfaceTask& task) -> EVisitStatus
    {
-    const SGUID                 taskGUID = task.GetGUID();
+    const CryGUID                 taskGUID = task.GetGUID();
     TaskStateMachines::iterator itTaskStateMachine = taskStateMachines.find(taskGUID);
     if(itTaskStateMachine == taskStateMachines.end())
     {
-      file.AddStateMachine(CScriptElementBase::GetGUID(), task.GetName(), EScriptStateMachineLifetime::Task, taskGUID, SGUID());
+      file.AddStateMachine(CScriptElementBase::GetGUID(), task.GetName(), EScriptStateMachineLifetime::Task, taskGUID, CryGUID());
     }
     else
     {
@@ -248,15 +248,16 @@ void CScriptInterfaceImpl::RefreshEnvInterfaceFunctions(const IEnvInterface& env
     RefreshScriptInterfaceTaskPropertiess(interfaceFile, taskGUID);
     return EVisitStatus::Continue;
    };
-   interfaceFile.VisitInterfaceTasks(ScriptInterfaceTaskConstVisitor::FromLambda(visitInterfaceTask), m_refGUID, false);
+   interfaceFile.VisitInterfaceTasks(visitInterfaceTask, m_refGUID, false);
 
    for(TaskStateMachines::value_type& taskStateMachine : taskStateMachines)
    {
-    taskStateMachine.second->SetElementFlags(EScriptElementFlags::Discard);
+    taskStateMachine.second->SetFlags(EScriptElementFlags::Discard);
    }
    }*/
 
-/*void CScriptInterfaceImpl::RefreshScriptInterfaceTaskPropertiess(const IScriptFile& interfaceFile, const SGUID& taskGUID)
+/*void CScriptInterfaceImpl::RefreshScriptInterfaceTaskPropertiess(const IScriptFile& interfaceFile, const CryGUID& taskGUID)
    {
    }*/
+
 } // Schematyc

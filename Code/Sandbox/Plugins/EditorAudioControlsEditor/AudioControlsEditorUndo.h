@@ -2,9 +2,9 @@
 
 #pragma once
 
-#include "AudioControl.h"
-#include "Undo/IUndoObject.h"
-#include "QATLControlsTreeModel.h"
+#include "AudioAssets.h"
+#include "IUndoObject.h"
+#include "AudioAssetsExplorerModel.h"
 
 #include <QAbstractItemModel>
 #include <QString>
@@ -24,9 +24,9 @@ protected:
 	void AddStoredControl();
 	void RemoveStoredControl();
 
-	TPath                        m_path;
-	CID                          m_id;
-	std::shared_ptr<CATLControl> m_pStoredControl;
+	TPath                          m_path;
+	CID                            m_id;
+	std::shared_ptr<CAudioControl> m_pStoredControl;
 };
 
 class CUndoControlAdd : public IUndoControlOperation
@@ -44,7 +44,7 @@ protected:
 class CUndoControlRemove : public IUndoControlOperation
 {
 public:
-	explicit CUndoControlRemove(std::shared_ptr<CATLControl>& pControl);
+	explicit CUndoControlRemove(std::shared_ptr<CAudioControl>& pControl);
 protected:
 	virtual int         GetSize() override        { return sizeof(*this); };
 	virtual const char* GetDescription() override { return "Undo Control Remove"; };
@@ -57,7 +57,7 @@ protected:
 class IUndoFolderOperation : public IUndoObject
 {
 protected:
-	explicit IUndoFolderOperation(QStandardItem* pItem);
+	//explicit IUndoFolderOperation(QStandardItem* pItem);
 	void AddFolderItem();
 	void RemoveItem();
 
@@ -68,7 +68,7 @@ protected:
 class CUndoFolderRemove : public IUndoFolderOperation
 {
 public:
-	explicit CUndoFolderRemove(QStandardItem* pItem);
+	//explicit CUndoFolderRemove(QStandardItem* pItem);
 protected:
 	virtual int         GetSize() override        { return sizeof(*this); };
 	virtual const char* GetDescription() override { return "Undo Folder Remove"; };
@@ -80,7 +80,7 @@ protected:
 class CUndoFolderAdd : public IUndoFolderOperation
 {
 public:
-	explicit CUndoFolderAdd(QStandardItem* pItem);
+	//explicit CUndoFolderAdd(QStandardItem* pItem);
 protected:
 	virtual int         GetSize() override        { return sizeof(*this); };
 	virtual const char* GetDescription() override { return "Undo Folder Add"; };
@@ -121,11 +121,11 @@ protected:
 
 	virtual void        Undo(bool bUndo) override;
 	virtual void        Redo() override;
-	void                Copy(QStandardItem* pSource, QStandardItem* pDest);
+	//void                Copy(QStandardItem* pSource, QStandardItem* pDest);
 
-	QATLTreeModel m_original;
-	QATLTreeModel m_modified;
+	/*QATLTreeModel m_original;
+	   QATLTreeModel m_modified;*/
 
-	bool          bModifiedInitialised;
+	bool bModifiedInitialised;
 };
 }

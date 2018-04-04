@@ -15,10 +15,7 @@ float Script : STANDARDSGLOBAL
 				"ForceDrawLast;"
 >;
 
-half4 AmbientOpPB        : PB_AmbientOpacity;
-
-vert2FragGeneral
-DebugLightVS( app2vertGeneral IN )
+vert2FragGeneral ReferenceImageVS(app2vertGeneral IN)
 {
   vert2FragGeneral OUT = (vert2FragGeneral) 0;
 
@@ -28,15 +25,12 @@ DebugLightVS( app2vertGeneral IN )
   return OUT;
 }
 
-float4
-DebugLightPS( in vert2FragGeneral IN ) : COLOR
+float4 ReferenceImagePS(in vert2FragGeneral IN) : COLOR
 { 
-  float4 cColor = GetDiffuseTex( diffuseTex, IN.baseTC );
+  float4 cColor = GetDiffuseTex(diffuseTex, IN.baseTC);
 
-	// Note: put on current final gamma 2.2 curve (we only do linear correct rendering during hdr rendering passes) - when tone mapper changes, update this
-	cColor.rgb = pow(cColor.rgb, 1.0 / 2.2 );
-
-  cColor.w *= AmbientOpPB.w;
+	cColor.xyz = (cColor.xyz < 0.0031308) ? 12.92h * cColor.xyz : 1.055h * pow(cColor.xyz, 1.0h / 2.4h) - half3(0.055h, 0.055h, 0.055h);
+  cColor.w *= MatDifColor.w;
 
 	return cColor;
 }
@@ -45,8 +39,8 @@ technique General
 {
   pass p0
   {     
-    VertexShader = DebugLightVS();
-    PixelShader = DebugLightPS();
+    VertexShader = ReferenceImageVS();
+    PixelShader = ReferenceImagePS();
   }
 }
 

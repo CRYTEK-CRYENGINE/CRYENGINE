@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #include "stdafx.h"
 #include "SkeletonPhysics.h"
@@ -334,7 +334,7 @@ void CSkeletonPhysics::BuildPhysicalEntity(
 {
 	const Skeleton::CPoseData& poseData = GetPoseData();
 	CDefaultSkeleton& rDefaultSkeleton = *m_pInstance->m_pDefaultSkeleton;
-	partid0 = partid0 < 0 ? 0 : AllocPartIdRange(partid0, PARTID_MAX_SLOTS);
+	partid0 = partid0 < 0 ? 0 : EntityPhysicsUtils::AllocPartIdRange(partid0, EntityPhysicsUtils::PARTID_MAX_SLOTS);
 
 	float scaleOrg = mtxloc.GetColumn(0).GetLength();
 	float scale = scaleOrg / m_pInstance->m_location.s;
@@ -1618,8 +1618,13 @@ void CSkeletonPhysics::SynchronizeWithPhysicalEntity(IPhysicalEntity* pent, cons
 	Skeleton::CPoseData& poseDataWriteable = GetPoseDataForceWriteable();
 
 	SetLocation(IDENTITY);
+	uint mode = m_pInstance->m_CharEditMode;
+	m_pInstance->m_CharEditMode |= CA_CharacterTool; // force synchronization
 	Job_SynchronizeWithPhysicsPrepare(*CharacterInstanceProcessing::GetMemoryPool());
-	SynchronizeWithPhysicalEntity(poseDataWriteable, pent, posMaster, qMaster, QuatT(IDENTITY));
+	if (pent)
+		SynchronizeWithPhysicalEntity(poseDataWriteable, pent, posMaster, qMaster, QuatT(IDENTITY));
+	Job_Physics_SynchronizeFromAux(poseDataWriteable);
+	m_pInstance->m_CharEditMode = mode;
 	//	UpdateBBox(1);
 }
 

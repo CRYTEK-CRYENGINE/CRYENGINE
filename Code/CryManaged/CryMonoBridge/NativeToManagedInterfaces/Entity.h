@@ -1,6 +1,6 @@
 #pragma once
 
-#include <CryMono/IMonoNativeToManagedInterface.h>
+#include <NativeToManagedInterfaces/IMonoNativeToManagedInterface.h>
 
 class CManagedEntityInterface final : public IMonoNativeToManagedInterface
 {

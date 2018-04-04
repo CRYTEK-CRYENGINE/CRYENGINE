@@ -13,7 +13,7 @@
 #include "CharacterDocument.h"
 #include "Expected.h"
 #include <CryIcon.h>
-#include <QPropertyTree/QPropertyTree.h>
+#include <Serialization/QPropertyTree/QPropertyTree.h>
 #include "../EditorCommon/QPropertyTree/ContextList.h"
 #include "Explorer/ExplorerFileList.h"
 #include <CryAnimation/ICryAnimation.h>
@@ -756,7 +756,10 @@ void PropertiesPanel::Serialize(Serialization::IArchive& ar)
 
 void PropertiesPanel::OnCharacterLoaded()
 {
-	m_propertyTree->revert();
+	// Detach the property tree and clear location cache, since m_propertyTree may still be attached to a soon-to-be-expired object here.
+	// These will both be restored in a subsequent OnExplorerSelectionChanged() handler, which is guaranteed to follow.
+	m_location = InspectorLocation(); 
+	m_propertyTree->detach();
 }
 
 void PropertiesPanel::OnExplorerAction(const ExplorerAction& action)

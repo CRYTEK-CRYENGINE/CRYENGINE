@@ -5,7 +5,7 @@ start_sources()
 # -- crydynamicresponsesystem.waf_files --
 sources_platform(ALL)
 add_sources("CryDRS_Uber_0.cpp"
-	SOURCE_GROUP "Response Actions\\\\Impl"
+	SOURCE_GROUP "Response Actions"
 		"ActionCancelSignal.h"
 		"ActionCancelSignal.cpp"
 		"ActionExecuteResponse.h"
@@ -24,12 +24,13 @@ add_sources("CryDRS_Uber_0.cpp"
 		"ActionSpeakLine.cpp"
 		"ActionWait.h"
 		"ActionWait.cpp"
+		"ActionCopyVariable.h"
+		"ActionCopyVariable.cpp"
 		"DelayActionAction.h"
 		"DelayActionAction.cpp"
 	SOURCE_GROUP "Response Conditions"
 		"ConditionsCollection.cpp"
 		"ConditionsCollection.h"
-	SOURCE_GROUP "Response Conditions\\\\Impl"
 		"ConditionImpl.cpp"
 		"SpecialConditionsImpl.cpp"
 		"ConditionImpl.h"
@@ -63,6 +64,8 @@ add_sources("CryDRS_Uber_0.cpp"
 		"SpeakerManager.cpp"
 		"DialogLineDatabase.h"
 		"DialogLineDatabase.cpp"
+		"SchematycEntityDrsComponent.h"
+		"SchematycEntityDrsComponent.cpp"
 )
 
 add_sources("NoUberFile"
@@ -75,3 +78,10 @@ end_sources()
 #END-FILE-LIST
 
 CryEngineModule(CryDynamicResponseSystem PCH "stdafx.cpp" SOLUTION_FOLDER "CryEngine")
+
+target_include_directories(${THIS_PROJECT}
+PRIVATE 
+	"${CRYENGINE_DIR}/Code/CryEngine/CryCommon"
+	"${CRYENGINE_DIR}/Code/CryEngine/CrySchematyc/Core/Interface"
+	"${CRYENGINE_DIR}/Code/CryEngine/CrySchematyc/STDEnv/Interface"
+)

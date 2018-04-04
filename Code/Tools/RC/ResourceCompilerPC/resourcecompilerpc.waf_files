@@ -1,5 +1,5 @@
 {
-	"ResourceCompilerPC_uber_0.cpp":
+	"NoUberFile":
 	{
 		"AnimationCompiler":
 		[
@@ -28,10 +28,7 @@
 			"CGA/TrackStorage.h",
 			"SkeletonInfo.cpp",
 			"SkeletonInfo.h"
-		]
-	},
-	"ResourceCompilerPC_uber_1.cpp":
-	{
+		],
 		"AnimationCompiler/Controllers":
 		[
 			"CGA/CompressionController.cpp",
@@ -49,10 +46,7 @@
 		"AnimationCompiler/CryAnimation":
 		[
 			"../../../CryEngine/CryAnimation/ControllerOpt.h"
-		]
-	},
-	"ResourceCompilerPC_uber_2.cpp":
-	{
+		],
 		"AnimationCompiler/EditorAnimation/Shared (EditorAnimation)": 
 		[
 			 "../../../Sandbox/Plugins/EditorAnimation/Shared/AnimSettings.cpp",
@@ -65,10 +59,7 @@
 			 "../../../Sandbox/Plugins/EditorAnimation/Shared/DBATable.h",
 			 "../../../Sandbox/Plugins/EditorAnimation/Shared/Serialization.cpp",
 			 "../../../Sandbox/Plugins/EditorAnimation/Shared/Serialization.h"
-		]
-	},
-	"ResourceCompilerPC_uber_3.cpp":
-	{
+		],
 		"CGF":
 		[
 			 "CGF/AnimSaver.cpp",
@@ -108,12 +99,9 @@
 		],
 		"MetadataCompiler":
 		[
-      "Metadata/MetadataCompiler.cpp",
-      "Metadata/MetadataCompiler.h"
-		]
-	},
-	"ResourceCompilerPC_uber_4.cpp":
-	{
+			"Metadata/MetadataCompiler.cpp",
+			"Metadata/MetadataCompiler.h"
+		],
 		"CryCommonTools":
 		[         
 			"../../CryCommonTools/FileUtil.cpp",
@@ -131,15 +119,8 @@
 			"../../CryCommonTools/XMLWriter.cpp",
 			"../../CryCommonTools/XMLWriter.h",
 			"../../CryCommonTools/Metadata/Metadata.cpp",
-			"../../CryCommonTools/Metadata/Metadata.h",
-			"../../CryCommonTools/Metadata/MetadataHelpers.cpp",
-			"../../CryCommonTools/Metadata/MetadataHelpers.h",
-			"../../CryCommonTools/CryGUIDHelper.cpp",
-			"../../CryCommonTools/CryGUIDHelper.h"
-		]
-	},
-	"NoUberFile":
-	{
+			"../../CryCommonTools/Metadata/Metadata.h"
+		],
 		"LuaCompiler":
 		[
 			"LuaCompiler.cpp",
@@ -181,10 +162,7 @@
 			"LodGenerator/VisualChangeCalculatorView.h",
 			"LodGenerator/VisualChangeCalculatorViewJob.h",
 			"LodGenerator/VisualChangeCalculatorViewThread.h"
-		]
-	},
-	"ResourceCompilerPC_uber_6.cpp":
-	{
+		],
 		"MeshCompiler (Cry3DEngine)":
 		[
 			"../../../CryEngine/Cry3DEngine/MeshCompiler/MeshCompiler.cpp",
@@ -216,10 +194,7 @@
 			"../../../CryEngine/Cry3DEngine/CGF/ChunkFileWriters.h",
 			"../../../CryEngine/Cry3DEngine/CGF/ChunkFileReaders.h",
 			"../../../CryEngine/Cry3DEngine/CGF/CGFSaver.h"
-		]
-	},
-	"ResourceCompilerPC_uber_7.cpp":
-	{
+		],
 		"StaticCompiler":
 		[
 			"StatCGFCompiler.cpp",

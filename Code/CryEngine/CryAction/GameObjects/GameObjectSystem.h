@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #ifndef __GAMEOBJECTSYSTEM_H__
 #define __GAMEOBJECTSYSTEM_H__
@@ -14,14 +14,6 @@
 #include <vector>
 #include <map>
 
-struct SEntitySchedulingProfiles
-{
-	uint32 normal;
-	uint32 owned;
-
-	void   GetMemoryUsage(ICrySizer* pSizer) const { /*nothing*/ }
-};
-
 class CGameObjectSystem : public IGameObjectSystem
 {
 public:
@@ -30,7 +22,7 @@ public:
 	IGameObjectSystem::ExtensionID                     GetID(const char* name) override;
 	const char*                                        GetName(IGameObjectSystem::ExtensionID id) override;
 	uint32                                             GetExtensionSerializationPriority(IGameObjectSystem::ExtensionID id) override;
-	IGameObjectExtension*                            Instantiate(IGameObjectSystem::ExtensionID id, IGameObject* pObject, TSerialize* pSpawnSerializer) override;
+	IGameObjectExtension*                            Instantiate(IGameObjectSystem::ExtensionID id, IGameObject* pObject) override;
 	virtual void                                       RegisterExtension(const char* szName, IGameObjectExtensionCreatorBase* pCreator, IEntityClassRegistry::SEntityClassDesc* pClsDesc) override;
 	virtual void                                       RegisterSchedulingProfile(const char* szEntityClassName, const char* szNormalPolicy, const char* szOwnedPolicy) override;
 	virtual void                                       DefineProtocol(bool server, IProtocolBuilder* pBuilder) override;
@@ -55,6 +47,9 @@ public:
 	IEntity*                                           CreatePlayerProximityTrigger();
 	ILINE IEntityClass*                                GetPlayerProximityTriggerClass() { return m_pClassPlayerProximityTrigger; }
 	ILINE std::vector<IGameObjectSystem::ExtensionID>* GetActivatedExtensionsTop()      { return &m_activatedExtensions_top; }
+
+	virtual void                                       SetSpawnSerializerForEntity(const EntityId entityId, TSerialize* pSerializer) override;
+	virtual void                                       ClearSpawnSerializerForEntity(const EntityId entityId) override;
 
 	void                                               GetMemoryUsage(ICrySizer* s) const;
 
@@ -86,6 +81,30 @@ private:
 
 	std::vector<IGameObject*> m_postUpdateObjects;
 	IEntityClass*             m_pClassPlayerProximityTrigger;
+
+	struct SSpawnSerializer
+	{
+		SSpawnSerializer(const EntityId _entityId, TSerialize* _pSerializer)
+			: entityId(_entityId)
+			, pSerializer(_pSerializer)
+		{
+		}
+
+		bool operator==(const SSpawnSerializer& otherSerializer) const
+		{
+			return (entityId == otherSerializer.entityId);
+		};
+
+		bool operator==(const EntityId& otherEntityId) const
+		{
+			return (entityId == otherEntityId);
+		}
+
+		EntityId    entityId;
+		TSerialize* pSerializer;
+	};
+	typedef std::vector<SSpawnSerializer> TSpawnSerializers;
+	TSpawnSerializers m_spawnSerializers;
 
 	typedef std::map<string, SEntitySchedulingProfiles> TSchedulingProfiles;
 	TSchedulingProfiles       m_schedulingParams;

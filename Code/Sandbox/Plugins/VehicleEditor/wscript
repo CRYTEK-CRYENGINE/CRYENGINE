@@ -1,0 +1,11 @@
+# Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+def build(bld):	
+	
+	bld.CryPlugin(
+		target      = 'VehicleEditorPlugin',
+		vs_filter	= 'Sandbox/Plugins',
+		file_list   = 'VehicleEditorPlugin.waf_files',
+		pch			= 'StdAfx.cpp',
+		use			= [ 'MFCToolsPlugin' ],
+		includes	= [ Path('Code/Sandbox/Plugins/MFCToolsPlugin')	]
+	)

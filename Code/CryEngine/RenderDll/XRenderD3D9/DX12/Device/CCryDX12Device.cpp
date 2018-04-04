@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #include "StdAfx.h"
 #include "CCryDX12Device.hpp"
@@ -26,9 +26,9 @@
 #include "DX12/Resource/View/CCryDX12ShaderResourceView.hpp"
 #include "DX12/Resource/View/CCryDX12UnorderedAccessView.hpp"
 
-CCryDX12Device* CCryDX12Device::Create(IDXGIAdapter* pAdapter, D3D_FEATURE_LEVEL* pFeatureLevel)
+CCryDX12Device* CCryDX12Device::Create(CCryDX12GIAdapter* pAdapter, D3D_FEATURE_LEVEL* pFeatureLevel)
 {
-	DX12_PTR(NCryDX12::CDevice) device = NCryDX12::CDevice::Create(pAdapter ? static_cast<CCryDX12GIAdapter*>(pAdapter)->GetDXGIAdapter() : nullptr, pFeatureLevel);
+	DX12_PTR(NCryDX12::CDevice) device = NCryDX12::CDevice::Create(pAdapter, pFeatureLevel);
 
 	if (!device)
 	{
@@ -47,7 +47,7 @@ CCryDX12Device::CCryDX12Device(NCryDX12::CDevice* device)
 {
 	DX12_FUNC_LOG
 		
-#ifdef CRY_USE_DX12_MULTIADAPTER
+#ifdef DX12_LINKEDADAPTER
 	// TODO: CVar ...
 	if (CRenderer::CV_r_StereoEnableMgpu)
 	{
@@ -76,12 +76,6 @@ CCryDX12Device::CCryDX12Device(NCryDX12::CDevice* device)
 	}
 	//report the node count used
 	gRenDev->m_adapterInfo.nNodeCount = m_numNodes;
-}
-
-CCryDX12Device::~CCryDX12Device()
-{
-	DX12_FUNC_LOG
-
 }
 
 #pragma region /* ID3D11Device implementation */
@@ -745,12 +739,4 @@ HRESULT STDMETHODCALLTYPE CCryDX12Device::ReleaseStagingResource(
 
 	pStagingResource->Release();
 	return S_OK;
-}
-
-void CCryDX12Device::FlushAndWaitForGPU()
-{
-	// Submit pending command-lists in case there are left-overs, make sure it's flushed to and executed on the hardware
-	GetDeviceContext()->Flush();
-	GetDeviceContext()->GetCoreGraphicsCommandListPool().GetAsyncCommandQueue().Flush();
-	GetDeviceContext()->GetCoreGraphicsCommandListPool().WaitForFenceOnCPU();
 }

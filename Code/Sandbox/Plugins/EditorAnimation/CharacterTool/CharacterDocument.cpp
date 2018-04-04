@@ -43,6 +43,9 @@
 #include <shellapi.h>
 #undef IEntity
 
+namespace Private_CharacterDocument
+{
+
 static void DrawSkeletonBoundingBox(IRenderAuxGeom* pAuxGeom, const ICharacterInstance* pCharacter, const QuatT& location)
 {
 	if (!pCharacter)
@@ -304,6 +307,8 @@ static void DrawSkeleton(IRenderAuxGeom* pAuxGeom, IDefaultSkeleton* pDefaultSke
 	}
 }
 
+}
+
 namespace CharacterTool {
 
 ViewportOptions::ViewportOptions()
@@ -368,24 +373,39 @@ static MotionParameters QueryMotionParametersFromCharacterInstance(const ICharac
 
 	MotionParameters motionParameters;
 
-	const CAnimation& animation = character->GetISkeletonAnim()->GetAnimFromFIFO(layer, 0);
-	const SParametricSampler* sampler = animation.GetParametricSampler();
-	if (sampler)
+	const auto animationsCount = character->GetISkeletonAnim()->GetNumAnimsInFIFO(layer);
+	if (animationsCount > 0)
 	{
-		for (size_t i = 0; i < sampler->m_numDimensions; ++i)
+		const CAnimation& animation = character->GetISkeletonAnim()->GetAnimFromFIFO(layer, animationsCount - 1);
+		const SParametricSampler* sampler = animation.GetParametricSampler();
+		if (sampler)
 		{
-			const auto parameterId = sampler->m_MotionParameterID[i];
-			if (parameterId < eMotionParamID_COUNT)
+			for (size_t i = 0; i < sampler->m_numDimensions; ++i)
 			{
-				motionParameters.enabled[parameterId] = true;
-				motionParameters.rangeMin[parameterId] = 0.0f;
-				motionParameters.rangeMax[parameterId] = 1.0f;
-				character->GetIAnimationSet()->GetMotionParameterRange(animation.GetAnimationId(), EMotionParamID(parameterId), motionParameters.rangeMin[parameterId], motionParameters.rangeMax[parameterId]);
+				const auto parameterId = sampler->m_MotionParameterID[i];
+				if (parameterId < eMotionParamID_COUNT)
+				{
+					motionParameters.enabled[parameterId] = true;
+					motionParameters.rangeMin[parameterId] = 0.0f;
+					motionParameters.rangeMax[parameterId] = 1.0f;
+					character->GetIAnimationSet()->GetMotionParameterRange(animation.GetAnimationId(), EMotionParamID(parameterId), motionParameters.rangeMin[parameterId], motionParameters.rangeMax[parameterId]);
+				}
 			}
 		}
 	}
 
 	return motionParameters;
+}
+
+void TransferMotionParametersValues(const MotionParameters& from, MotionParameters& to)
+{
+	for (size_t i = 0; i < eMotionParamID_COUNT; ++i)
+	{
+		if (to.enabled[i])
+		{
+			to.values[i] = clamp_tpl(from.values[i], to.rangeMin[i], to.rangeMax[i]);
+		}
+	}
 }
 
 // ---------------------------------------------------------------------------
@@ -780,7 +800,7 @@ void CharacterDocument::LoadCharacter(const char* filename)
 
 		if (!m_groundAlignment)
 		{
-			::CryCreateClassInstance<IAnimationGroundAlignment>("AnimationPoseModifier_GroundAlignment", m_groundAlignment);
+			::CryCreateClassInstanceForInterface<IAnimationGroundAlignment>(cryiidof<IAnimationGroundAlignment>(), m_groundAlignment);
 		}
 
 		CreateShaderParamCallbacks();
@@ -873,14 +893,14 @@ void CharacterDocument::LoadCharacter(const char* filename)
 
 	ExplorerEntries selectedEntries;
 	GetSelectedExplorerEntries(&selectedEntries);
-	if (activeCharacterEntry && (selectedEntries.empty() ||
-	                             (selectedEntries.size() == 1 && m_system->characterList->OwnsAssetEntry(selectedEntries[0]))))
+	if (activeCharacterEntry && (selectedEntries.empty() || (selectedEntries.size() == 1 && m_system->characterList->OwnsAssetEntry(selectedEntries[0]))))
+	{
 		SetSelectedExplorerEntries(ExplorerEntries(1, activeCharacterEntry), 0);
+	}
 	else
+	{
 		SetSelectedExplorerEntries(ExplorerEntries(), 0);
-
-	TriggerAnimationPreview(0);
-
+	}
 }
 
 void CharacterDocument::ReleaseObject()
@@ -942,22 +962,15 @@ void CharacterDocument::OnSceneNewLayerActivated()
 
 void CharacterDocument::Serialize(IArchive& ar)
 {
-	if (ar.filter(SERIALIZE_STATE))
-	{
-		// Disable loading of the last character for now as it
-		// significantly increases time to open CharacterTool
-		//if (!ar.Filter(SERIALIZE_LAYOUT))
-		//	ar(m_currentCharacter, "currentCharacter");
-		ar(m_playbackOptions, "playbackOptions");
-		ar(*m_displayOptions, "displayOptions");
-		ar(m_playbackTime, "playbackTime");
+	ar(m_playbackOptions, "playbackOptions");
+	ar(*m_displayOptions, "displayOptions");
+	ar(m_playbackTime, "playbackTime");
 
-		if (ar.isInput())
-		{
-			SignalPlaybackOptionsChanged();
-			SignalDisplayOptionsChanged(*m_displayOptions);
-			UpdateBlendShapeParameterList();
-		}
+	if (ar.isInput())
+	{
+		SignalPlaybackOptionsChanged();
+		SignalDisplayOptionsChanged(*m_displayOptions);
+		UpdateBlendShapeParameterList();
 	}
 }
 
@@ -1130,7 +1143,12 @@ void CharacterDocument::OnExplorerEntryModified(ExplorerEntryModifyEvent& ev)
 		animation->content.ApplyToCharacter(&triggerPreview, m_compressedCharacter, animationPathConsideringCompression, false);
 
 		if (triggerPreview)
+		{
+			// these 2 lines are necessary for Scene Parameters panel to updated view immediately after a change
+			m_system->scene->PlaybackLayersChanged(false);
+			m_system->scene->SignalChanged(false);
 			TriggerAnimationPreview(0);
+		}
 	}
 	if (m_system->skeletonList->OwnsAssetEntry(ev.entry))
 	{
@@ -1241,10 +1259,14 @@ void CharacterDocument::TriggerAnimationPreview(int previewFlags)
 		m_NormalizedTimeRate = 0.0f;
 		m_NormalizedTimeSmooth = 0.0f;
 		SignalPlaybackTimeChanged();
+		PreviewAnimationEntry(forceRecompile);
+		IdleUpdate();
 		Play();
 	}
-
-	PreviewAnimationEntry(forceRecompile);
+	else
+	{
+		PreviewAnimationEntry(forceRecompile);
+	}
 }
 
 void CharacterDocument::SetSelectedExplorerEntries(const ExplorerEntries& entries, int selectOptions)
@@ -1355,7 +1377,9 @@ void CharacterDocument::IdleUpdate()
 	{
 		PlaybackState playbackState;
 		if (!m_compressionMachine->IsPlaying() || m_bindPoseEnabled)
+		{
 			playbackState = PLAYBACK_UNAVAILABLE;
+		}
 		else
 		{
 			if (m_bPaused)
@@ -1375,7 +1399,9 @@ void CharacterDocument::IdleUpdate()
 					m_playbackBlockReason = "Playback Unavailable";
 			}
 			else
+			{
 				m_playbackBlockReason = "";
+			}
 			SignalPlaybackStateChanged();
 		}
 	}
@@ -1572,7 +1598,7 @@ void CharacterDocument::PreRender(const SRenderContext& context)
 		pInstanceBase->GetISkeletonPose()->SetForceSkeletonUpdate(1);
 
 		uint32 flags = m_compressedCharacter->GetCharEditMode() & ~CA_DrawSocketLocation;
-		if (m_displayOptions->attachmentAndPoseModifierGizmos)
+		if (m_displayOptions->attachmentGizmos || m_displayOptions->poseModifierGizmos)
 			flags |= CA_DrawSocketLocation;
 		m_compressedCharacter->SetCharEditMode(flags);
 
@@ -1641,27 +1667,18 @@ void CharacterDocument::PreRender(const SRenderContext& context)
 		// get relative movement
 		QuatT relMove = skeletonAnim.GetRelMovement();
 
-		const int layerId = m_system->scene->layers.activeLayer;
-		const uint32 animationCount = skeletonAnim.GetNumAnimsInFIFO(layerId);
-		if (animationCount == 1)
+		// Determine normalizedTime/relativeMovement by actual selected (active) layer
+		const int activeLayerId = m_system->scene->layers.activeLayer;
+		const uint32 activeLayerAnimationCount = skeletonAnim.GetNumAnimsInFIFO(activeLayerId);
+		if (activeLayerAnimationCount == 1)
 		{
-			const f32 fSmoothTime = m_bPaused && m_playbackOptions.smoothTimelineSlider ? 0.2f : 0.0f;
-			SmoothCD(m_NormalizedTimeSmooth, m_NormalizedTimeRate, FrameTime, m_NormalizedTime, fSmoothTime);
-			CAnimation* pAnimation = &skeletonAnim.GetAnimFromFIFO(layerId, 0);
+			CAnimation* pAnimation = &skeletonAnim.GetAnimFromFIFO(activeLayerId, 0);
 			if (pAnimation)
 			{
 				if (m_bPaused)
 				{
 					//At this point the animation pose was already fully updated by StartAnimationProcessing(params)
 					relMove = m_lastCalculateRelativeMovement;  //if we set a new time with 'scrubbing' then we have to work with one frame delay (or we will see foot-sliding at low framerate)
-					//Set a new animation-time. We will see the effect one frame later.
-					skeletonAnim.SetAnimationNormalizedTime(pAnimation, m_NormalizedTimeSmooth, 1);
-					if (uncompressedCharacterUsed)
-					{
-						CAnimation* pUncompressedAnimation = &m_uncompressedCharacter->GetISkeletonAnim()->GetAnimFromFIFO(layerId, 0);
-						if (pUncompressedAnimation)
-							m_uncompressedCharacter->GetISkeletonAnim()->SetAnimationNormalizedTime(pUncompressedAnimation, m_NormalizedTimeSmooth, 1);
-					}
 					//Read back the new 'locator movement' immediately and use it next frame.
 					m_lastCalculateRelativeMovement = skeletonAnim.CalculateRelativeMovement(-1.0f); //there is no "delta-time" in scrub-mode
 				}
@@ -1669,6 +1686,30 @@ void CharacterDocument::PreRender(const SRenderContext& context)
 				{
 					m_NormalizedTime = skeletonAnim.GetAnimationNormalizedTime(pAnimation);
 				}
+			}
+		}
+
+		// In case of scrubbing [paused animation]: set normalized time on all layers 
+		if (m_bPaused)
+		{
+			const f32 fSmoothTime = m_playbackOptions.smoothTimelineSlider ? 0.2f : 0.0f;
+			SmoothCD(m_NormalizedTimeSmooth, m_NormalizedTimeRate, FrameTime, m_NormalizedTime, fSmoothTime);
+			for (auto& it : m_system->scene->layers.layers)
+			{
+				const int& layerId = it.layerId;
+				const uint32 animationCount = skeletonAnim.GetNumAnimsInFIFO(layerId);
+				if (animationCount != 1) continue;
+
+				CAnimation* pAnimation = &skeletonAnim.GetAnimFromFIFO(layerId, 0);
+				if (!pAnimation) continue;
+
+				// Set a new animation-time. We will see the effect one frame later.
+				skeletonAnim.SetAnimationNormalizedTime(pAnimation, m_NormalizedTimeSmooth, 1);
+
+				if (!uncompressedCharacterUsed) continue;
+				CAnimation* pUncompressedAnimation = &m_uncompressedCharacter->GetISkeletonAnim()->GetAnimFromFIFO(layerId, 0);
+				if (!pUncompressedAnimation) continue;
+				m_uncompressedCharacter->GetISkeletonAnim()->SetAnimationNormalizedTime(pUncompressedAnimation, m_NormalizedTimeSmooth, 1);
 			}
 		}
 
@@ -1905,6 +1946,7 @@ void CharacterDocument::RenderOriginal(const SRenderContext& context)
 
 void CharacterDocument::DrawCharacter(ICharacterInstance* pInstanceBase, const SRenderContext& context)
 {
+	using namespace Private_CharacterDocument;
 	FUNCTION_PROFILER(GetIEditor()->GetSystem(), PROFILE_EDITOR);
 
 	IRenderAuxGeom* pAuxGeom = gEnv->pRenderer->GetIRenderAuxGeom();
@@ -2328,7 +2370,7 @@ void CharacterDocument::EnableMotionParameters()
 	const int numLayers = m_system->scene->layers.layers.size();
 	for (int layer = 0; layer < numLayers; ++layer)
 	{
-		const MotionParameters& currentMotionParameters = QueryMotionParametersFromCharacterInstance(CompressedCharacter(), layer);
+		MotionParameters currentMotionParameters = QueryMotionParametersFromCharacterInstance(CompressedCharacter(), layer);
 		MotionParameters& storedMotionParameters = m_system->scene->layers.layers[layer].motionParameters;
 
 		for (size_t i = 0; i < eMotionParamID_COUNT; ++i)
@@ -2337,6 +2379,7 @@ void CharacterDocument::EnableMotionParameters()
 			    || currentMotionParameters.rangeMin[i] != storedMotionParameters.rangeMin[i]
 			    || currentMotionParameters.rangeMax[i] != storedMotionParameters.rangeMax[i])
 			{
+				TransferMotionParametersValues(storedMotionParameters, currentMotionParameters);
 				storedMotionParameters = currentMotionParameters;
 				playbackLayersChanged = true;
 				break;

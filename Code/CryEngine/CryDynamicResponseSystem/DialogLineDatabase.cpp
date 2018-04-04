@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #include "stdafx.h"
 #include "DialogLineDatabase.h"
@@ -64,6 +64,8 @@ bool CDialogLineDatabase::InitFromFiles(const char* szFilePath)
 //--------------------------------------------------------------------------------------------------
 bool CDialogLineDatabase::Save(const char* szFilePath)
 {
+	GetISystem()->GetIPak()->MakeDir(szFilePath);
+
 	string filepath = PathUtil::AddSlash(szFilePath);
 	filepath += s_szFilename;
 	if (m_drsDialogBinaryFileFormatCVar != 0)
@@ -124,37 +126,33 @@ CDialogLineSet* CDialogLineDatabase::GetLineSetById(const CHashedString& lineID)
 }
 
 //--------------------------------------------------------------------------------------------------
-const DRS::IDialogLineSet* CDialogLineDatabase::GetLineSetById(const CHashedString& lineID) const
-{
-	for (const CDialogLineSet& currentLineSet : m_lineSets)
-	{
-		if (currentLineSet.GetLineId() == lineID)
-		{
-			return &currentLineSet;
-		}
-	}
-	return nullptr;
-}
-
-//--------------------------------------------------------------------------------------------------
 IDialogLineSet* CDialogLineDatabase::InsertLineSet(uint32 index)
 {
 	CDialogLineSet newSet;
 	newSet.SetLineId(GenerateUniqueId("NEW_LINE"));
+
+	if (index == (uint32)-1)
+	{
+		m_lineSets.push_back(newSet);
+		return &m_lineSets.back();
+	}
+
 	return &(*m_lineSets.insert(m_lineSets.begin() + index, newSet));
 }
 
 //--------------------------------------------------------------------------------------------------
-void CDialogLineDatabase::RemoveLineSet(uint32 index)
+bool CDialogLineDatabase::RemoveLineSet(uint32 index)
 {
 	if (index < m_lineSets.size())
 	{
 		m_lineSets.erase(m_lineSets.begin() + index);
+		return true;
 	}
+	return false;
 }
 
 //--------------------------------------------------------------------------------------------------
-CHashedString CDialogLineDatabase::GenerateUniqueId(const string& root) const
+CHashedString CDialogLineDatabase::GenerateUniqueId(const string& root)
 {
 	int num = 0;
 	CHashedString hash(root);
@@ -266,7 +264,7 @@ CDialogLineSet::CDialogLineSet()
 	, m_lastPickedLine(0)
 	, m_maxQueuingDuration(-1.0f) //negative values do mean 'default' which maps to the value set in CSpeakerManager via cvar 'drs_dialogsDefaultMaxQueueTime'
 {
-	m_lines.push_back(CDialogLine());
+	//m_lines.push_back(CDialogLine());
 }
 
 //--------------------------------------------------------------------------------------------------
@@ -414,16 +412,23 @@ IDialogLine* CDialogLineSet::GetLineByIndex(uint32 index)
 //--------------------------------------------------------------------------------------------------
 IDialogLine* CDialogLineSet::InsertLine(uint32 index)
 {
+	if (index == (uint32)-1)
+	{
+		m_lines.emplace_back(CDialogLine());
+		return &m_lines.back();
+	}
 	return &(*m_lines.insert(m_lines.begin() + index, CDialogLine()));
 }
 
 //--------------------------------------------------------------------------------------------------
-void CDialogLineSet::RemoveLine(uint32 index)
+bool CDialogLineSet::RemoveLine(uint32 index)
 {
 	if (index < m_lines.size())
 	{
 		m_lines.erase(m_lines.begin() + index);
+		return true;
 	}
+	return false;
 }
 
 //--------------------------------------------------------------------------------------------------

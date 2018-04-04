@@ -19,14 +19,14 @@ class CAudioSystemPanel : public QFrame
 
 public:
 	CAudioSystemPanel();
-	void SetAllowedControls(EACEControlType type, bool bAllowed);
+	void SetAllowedControls(EItemType type, bool bAllowed);
 	void Reset();
 
 signals:
 	void ImplementationSettingsChanged();
 
 private:
-	bool                          m_allowedATLTypes[EACEControlType::eACEControlType_NumTypes];
+	bool                          m_allowedATLTypes[EItemType::eItemType_NumTypes];
 	QAudioSystemModelProxyFilter* m_pModelProxy;
 	QAudioSystemModel*            m_pModel;
 	QLabel*                       m_pImplNameLabel;

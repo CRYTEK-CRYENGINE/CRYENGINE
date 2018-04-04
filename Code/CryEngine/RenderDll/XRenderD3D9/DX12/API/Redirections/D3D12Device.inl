@@ -1,11 +1,11 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #include <array>
 #include <d3d12.h>
 
 // ==============================================================================
 // Always give out unique handles
-#include "../../Includes/concqueue.hpp"
+#include <concqueue/concqueue.hpp>
 
 #define DX12_MULTIGPU_VAR_HANDLE          true
 #define DX12_MULTIGPU_NUM_DESCRIPTORHEAPS (1 << 10)
@@ -329,7 +329,7 @@ public:
 	  REFIID riid,
 	  _COM_Outptr_ void** ppvRootSignature) final
 	{
-#if CRY_USE_DX12_MULTIADAPTER_SIMULATION
+#if DX12_LINKEDADAPTER_SIMULATION
 		// Always create on the first GPU, if running simulation
 		if (CRenderer::CV_r_StereoEnableMgpu < 0)
 			nodeMask = 1;
@@ -558,7 +558,7 @@ public:
 	  _In_ UINT nodeMask,
 	  D3D12_HEAP_TYPE heapType) final
 	{
-#if CRY_USE_DX12_MULTIADAPTER_SIMULATION
+#if DX12_LINKEDADAPTER_SIMULATION
 		// Always create on the first GPU, if running simulation
 		if (CRenderer::CV_r_StereoEnableMgpu < 0)
 			nodeMask = 1;

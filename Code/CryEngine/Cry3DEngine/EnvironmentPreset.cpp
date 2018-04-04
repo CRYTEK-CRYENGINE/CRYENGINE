@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #include "StdAfx.h"
 
@@ -296,7 +296,7 @@ void CEnvironmentPreset::ResetVariables()
 	AddVar("Volumetric fog", "Global density", "Volumetric fog 2: Global fog density", ITimeOfDay::PARAM_VOLFOG2_GLOBAL_DENSITY, ITimeOfDay::TYPE_FLOAT, 0.1f, 0.0f, 100.0f);
 	AddVar("Volumetric fog", "Ramp start", "Volumetric fog 2: Ramp start", ITimeOfDay::PARAM_VOLFOG2_RAMP_START, ITimeOfDay::TYPE_FLOAT, 0.0f, 0.0f, 30000.0f);
 	AddVar("Volumetric fog", "Ramp end", "Volumetric fog 2: Ramp end", ITimeOfDay::PARAM_VOLFOG2_RAMP_END, ITimeOfDay::TYPE_FLOAT, 0.0f, 0.0f, 30000.0f);
-	AddVar("Volumetric fog", "Color (atmosphere)", "Volumetric fog 2: Fog albedo color (atmosphere)", ITimeOfDay::PARAM_VOLFOG2_COLOR1, ITimeOfDay::TYPE_COLOR, 1.0f, 1.0f, 1.0f);
+	AddVar("Volumetric fog", "Color (atmosphere)", "Volumetric fog 2: Fog albedo color (atmosphere)", ITimeOfDay::PARAM_VOLFOG2_COLOR1, ITimeOfDay::TYPE_COLOR, 0.244f, 0.446f, 1.0f);
 	AddVar("Volumetric fog", "Anisotropy (atmosphere)", "Volumetric fog 2: Anisotropy factor (atmosphere)", ITimeOfDay::PARAM_VOLFOG2_ANISOTROPIC1, ITimeOfDay::TYPE_FLOAT, 0.2f, -1.0f, 1.0f);
 	AddVar("Volumetric fog", "Color (sun radial)", "Volumetric fog 2: Fog albedo color (sun radial)", ITimeOfDay::PARAM_VOLFOG2_COLOR2, ITimeOfDay::TYPE_COLOR, 1.0f, 1.0f, 1.0f);
 	AddVar("Volumetric fog", "Anisotropy (sun radial)", "Volumetric fog 2: Anisotropy factor (sun radial)", ITimeOfDay::PARAM_VOLFOG2_ANISOTROPIC2, ITimeOfDay::TYPE_FLOAT, 0.95f, -1.0f, 1.0f);
@@ -304,7 +304,7 @@ void CEnvironmentPreset::ResetVariables()
 	AddVar("Volumetric fog", "Radial blend mode", "Volumetric fog 2: Blend mode for sun scattering", ITimeOfDay::PARAM_VOLFOG2_BLEND_MODE, ITimeOfDay::TYPE_FLOAT, 0.0f, 0.0f, 1.0f);
 	AddVar("Volumetric fog", "Range", "Volumetric fog 2: Maximum range of ray-marching", ITimeOfDay::PARAM_VOLFOG2_RANGE, ITimeOfDay::TYPE_FLOAT, 64.0f, 0.0f, 8192.0f);
 	AddVar("Volumetric fog", "In-scattering", "Volumetric fog 2: In-scattering factor", ITimeOfDay::PARAM_VOLFOG2_INSCATTER, ITimeOfDay::TYPE_FLOAT, 1.0f, 0.0f, 100.0f);
-	AddVar("Volumetric fog", "Extinction", "Volumetric fog 2: Extinction factor", ITimeOfDay::PARAM_VOLFOG2_EXTINCTION, ITimeOfDay::TYPE_FLOAT, 0.3f, 0.0f, 100.0f);
+	AddVar("Volumetric fog", "Extinction", "Volumetric fog 2: Extinction factor", ITimeOfDay::PARAM_VOLFOG2_EXTINCTION, ITimeOfDay::TYPE_FLOAT, 1.0f, 0.0f, 100.0f);
 	AddVar("Volumetric fog", "Color (entities)", "Volumetric fog 2: Fog albedo color (entities)", ITimeOfDay::PARAM_VOLFOG2_COLOR, ITimeOfDay::TYPE_COLOR, 1.0f, 1.0f, 1.0f);
 	AddVar("Volumetric fog", "Anisotropy (entities)", "Volumetric fog 2: Anisotropy factor (entities)", ITimeOfDay::PARAM_VOLFOG2_ANISOTROPIC, ITimeOfDay::TYPE_FLOAT, 0.6f, -1.0f, 1.0f);
 	AddVar("Volumetric fog", "Analytical fog visibility", "Volumetric fog 2: Analytical volumetric fog visibility", ITimeOfDay::PARAM_VOLFOG2_GLOBAL_FOG_VISIBILITY, ITimeOfDay::TYPE_FLOAT, 0.5f, 0.0f, 1.0f);

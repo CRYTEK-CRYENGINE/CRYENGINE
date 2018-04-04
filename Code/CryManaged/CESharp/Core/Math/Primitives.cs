@@ -1,30 +1,74 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
+﻿using System;
 
 namespace CryEngine
 {
-    /// <summary>
-    /// Rectangle representation.
-    /// </summary>
-    public class Rect
+	/// <summary>
+	/// Rectangle representation.
+	/// </summary>
+	public struct Rect
     {
         public float x;
         public float y;
         public float w;
-        public float h;
+		public float h;
 
-        public Rect()
-        {
-        }
+		/// <summary>
+		/// The width of the rectangle.
+		/// </summary>
+		/// <value>The width.</value>
+		public float Width
+		{
+			get
+			{
+				return w;
+			}
+			set
+			{
+				w = value;
+			}
+		}
 
-        public Rect(float _x, float _y, float _w, float _h)
+		/// <summary>
+		/// The height of the rectangle.
+		/// </summary>
+		/// <value>The height.</value>
+		public float Height
+		{
+			get
+			{
+				return h;
+			}
+			set
+			{
+				h = value;
+			}
+		}
+
+		/// <summary>
+		/// The square size of the rectangle.
+		/// </summary>
+		/// <value>The size.</value>
+		public float Size
+		{
+			get
+			{
+				return w * h;
+			}
+		}
+
+		/// <summary>
+		/// Creates a new rectangle 
+		/// </summary>
+		/// <param name="x">X.</param>
+		/// <param name="y">Y.</param>
+		/// <param name="width">W.</param>
+		/// <param name="height">H.</param>
+		public Rect(float x, float y, float width, float height)
         {
-            x = _x;
-            y = _y;
-            w = _w;
-            h = _h;
+            this.x = x;
+			this.y = y;
+			w = width;
+			h = height;
         }
 
         /// <summary>
@@ -62,8 +106,6 @@ namespace CryEngine
         /// <param name="s">Second Rect to be included.</param>
         public static Rect operator &(Rect r, Rect s)
         {
-            if (s == null)
-                return null;
             var x1 = Math.Max(r.x, s.x);
             var y1 = Math.Max(r.y, s.y);
             var x2 = Math.Max(0, Math.Min(r.x + r.w, s.x + s.w));
@@ -71,11 +113,11 @@ namespace CryEngine
             return new Rect(x1, y1, x2 - x1, y2 - y1);
         }
 
-        /// <summary>
-        /// Returns a <see cref="System.String"/> that represents the current <see cref="CryEngine.Rect"/>.
-        /// </summary>
-        /// <returns>A <see cref="System.String"/> that represents the current <see cref="CryEngine.Rect"/>.</returns>
-        public override string ToString()
+		/// <summary>
+		/// Returns a <see cref="string"/> that represents the current <see cref="Rect"/>.
+		/// </summary>
+		/// <returns>A <see cref="string"/> that represents the current <see cref="Rect"/>.</returns>
+		public override string ToString()
         {
             return x.ToString("0") + "," + y.ToString("0") + "," + w.ToString("0") + "," + h.ToString("0");
         }
@@ -103,11 +145,11 @@ namespace CryEngine
             return new Point(u.x + v.x, u.y + v.y);
         }
 
-        /// <summary>
-        /// Returns a <see cref="System.String"/> that represents the current <see cref="CryEngine.Point"/>.
-        /// </summary>
-        /// <returns>A <see cref="System.String"/> that represents the current <see cref="CryEngine.Point"/>.</returns>
-        public override string ToString()
+		/// <summary>
+		/// Returns a <see cref="string"/> that represents the current <see cref="Point"/>.
+		/// </summary>
+		/// <returns>A <see cref="string"/> that represents the current <see cref="Point"/>.</returns>
+		public override string ToString()
         {
             return x.ToString("0") + "," + y.ToString("0");
         }

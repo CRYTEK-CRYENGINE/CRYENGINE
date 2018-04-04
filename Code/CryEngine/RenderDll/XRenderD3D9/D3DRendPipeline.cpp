@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #include "StdAfx.h"
 #include "DriverD3D.h"
@@ -28,12 +28,12 @@
 #include "GraphicsPipeline/Common/GraphicsPipelineStage.h"
 #include "GraphicsPipeline/Common/SceneRenderPass.h"
 #include "GraphicsPipeline/ComputeSkinning.h"
+#include "GraphicsPipeline/SceneGBuffer.h"
+#include "GraphicsPipeline/DepthReadback.h"
 #include "Common/RenderView.h"
 #include "CompiledRenderObject.h"
 
 #pragma warning(disable: 4244)
-
-extern SHWOccZBuffer HWZBuffer;
 
 //============================================================================================
 // Shaders rendering
@@ -52,292 +52,6 @@ void SRenderPipeline::InitWaveTables()
 
 		m_tSinTable[i] = sin_tpl(f * (360.0f / (float)sSinTableCount) * (float)M_PI / 180.0f);
 	}
-}
-
-// build vertex declarations on demand (for programmable pipeline)
-void SRenderPipeline::OnDemandVertexDeclaration(SOnDemandD3DVertexDeclaration& out,
-  const int nStreamMask, const int vertexformat, const bool bMorph, const bool bInstanced)
-{
-	//	iLog->Log("OnDemandVertexDeclaration %d %d %d (DEBUG test - shouldn't log too often)",nStreamMask,vertexformat,bMorph?1:0);
-
-	if (!m_D3DVertexDeclaration[vertexformat].m_Declaration.Num())
-		return;
-
-	uint32 j;
-
-	if (bInstanced)
-	{
-		// Create instanced vertex declaration
-		for (j = 0; j < m_D3DVertexDeclaration[vertexformat].m_Declaration.Num(); j++)
-		{
-			D3D11_INPUT_ELEMENT_DESC elem = m_D3DVertexDeclaration[vertexformat].m_Declaration[j];
-			elem.InputSlotClass       = D3D11_INPUT_PER_INSTANCE_DATA;
-			elem.InstanceDataStepRate = 1;
-			out.m_Declaration.AddElem(elem);
-		}
-	}
-	else
-	{
-		for (j = 0; j < m_D3DVertexDeclaration[vertexformat].m_Declaration.Num(); j++)
-		{
-			out.m_Declaration.AddElem(m_D3DVertexDeclaration[vertexformat].m_Declaration[j]);
-		}
-	}
-
-	for (j = 1; j < VSF_NUM; j++)
-	{
-		if (!(nStreamMask & (1 << (j - 1))))
-			continue;
-		int n;
-		for (n = 0; n < m_D3DStreamProperties[j].m_nNumElements; n++)
-		{
-			out.m_Declaration.AddElem(m_D3DStreamProperties[j].m_pElements[n]);
-		}
-	}
-
-	if (bMorph)
-	{
-		uint32 dwNumWithoutMorph = out.m_Declaration.Num();
-
-		for (j = 0; j < dwNumWithoutMorph; j++)
-		{
-			D3D11_INPUT_ELEMENT_DESC El = out.m_Declaration[j];
-			El.InputSlot     += VSF_MORPHBUDDY;
-			El.SemanticIndex += 8;
-			out.m_Declaration.AddElem(El);
-		}
-		D3D11_INPUT_ELEMENT_DESC El = {"BLENDWEIGHT", 1, DXGI_FORMAT_R32G32_FLOAT, VSF_MORPHBUDDY_WEIGHTS, 0, D3D11_INPUT_PER_VERTEX_DATA, 0};         // BlendWeight
-		out.m_Declaration.AddElem(El);
-	}
-}
-
-EVertexFormat SRenderPipeline::AddD3DVertexDeclaration(size_t numDescs, const D3D11_INPUT_ELEMENT_DESC* inputLayout)
-{
-	EVertexFormat newVF = MaxD3DVertexDeclaration();
-
-	m_D3DVertexDeclaration.GrowReset(1);
-	{
-		TArray<D3D11_INPUT_ELEMENT_DESC>& decl = m_D3DVertexDeclaration[newVF].m_Declaration;
-
-		for (int n = 0; n < numDescs; ++n)
-			decl.AddElem(inputLayout[n]);
-	}
-
-	for (int n = 0; n < 1 << VSF_NUM; ++n)
-	{
-		m_D3DVertexDeclarationCache[n][0].GrowReset(1);
-		m_D3DVertexDeclarationCache[n][1].GrowReset(1);
-	}
-
-	return newVF;
-}
-
-void SRenderPipeline::InitD3DVertexDeclarations()
-{
-	SBufInfoTable* pOffs;
-	int nFormat = 0;
-
-	//========================================================================================
-	// base stream declarations (stream 0)
-	D3D11_INPUT_ELEMENT_DESC elemPosHalf = {"POSITION", 0, DXGI_FORMAT_R16G16B16A16_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0};
-	D3D11_INPUT_ELEMENT_DESC elemTCHalf  = {"TEXCOORD", 0, DXGI_FORMAT_R16G16_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0};
-
-	D3D11_INPUT_ELEMENT_DESC elemPos      = {"POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0};
-	D3D11_INPUT_ELEMENT_DESC elemPos2     = {"POSITION", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0};
-	D3D11_INPUT_ELEMENT_DESC elemPosTR    = {"POSITION", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0};           // position
-	D3D11_INPUT_ELEMENT_DESC elemPos2Half = {"POSITION", 0, DXGI_FORMAT_R16G16_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0};
-
-	D3D11_INPUT_ELEMENT_DESC elemNormalB = {"NORMAL", 0, DXGI_FORMAT_R8G8B8A8_UNORM, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0};
-	D3D11_INPUT_ELEMENT_DESC elemTan     = {"TEXCOORD", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0};               // axis/size
-	D3D11_INPUT_ELEMENT_DESC elemBitan   = {"TEXCOORD", 1, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0};               // axis/size
-	D3D11_INPUT_ELEMENT_DESC elemColor   = {"COLOR", 0, DXGI_FORMAT_R8G8B8A8_UNORM, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0};                   // diffuse
-	D3D11_INPUT_ELEMENT_DESC elemColorF  = {"COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0};               // general color
-	D3D11_INPUT_ELEMENT_DESC elemTC0     = {"TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0};                  // texture
-	D3D11_INPUT_ELEMENT_DESC elemTC1     = {"TEXCOORD", 1, DXGI_FORMAT_R32G32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0};                  // texture
-	D3D11_INPUT_ELEMENT_DESC elemTC1_3   = {"TEXCOORD", 1, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0};               // texture
-	D3D11_INPUT_ELEMENT_DESC elemTC0_4   = {"TEXCOORD", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0};            // texture
-	D3D11_INPUT_ELEMENT_DESC elemTC0_1   = {"TEXCOORD", 0, DXGI_FORMAT_R32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0};                     // texture
-
-	m_D3DVertexDeclaration.Reserve(eVF_PreAllocated);
-	for (nFormat = 0; nFormat < eVF_PreAllocated; ++nFormat)
-	{
-		TArray<D3D11_INPUT_ELEMENT_DESC>& decl = m_D3DVertexDeclaration[nFormat].m_Declaration;
-		decl.Free();
-
-		pOffs = &CRenderMesh::m_cBufInfoTable[nFormat];
-		// Position
-		if (nFormat == eVF_TP3F_C4B_T2F || nFormat == eVF_TP3F_T2F_T3F || nFormat == eVF_P3F)
-			decl.AddElem(elemPosTR);
-		else if (nFormat == eVF_P3S_C4B_T2S || nFormat == eVF_P3S_N4B_C4B_T2S)
-			decl.AddElem(elemPosHalf);
-		else if (nFormat == eVF_P2S_N4B_C4B_T1F)
-			decl.AddElem(elemPos2Half);
-		else if (nFormat != eVF_C4B_T2S)
-			decl.AddElem(elemPos);
-
-		// Normal
-		if (pOffs->OffsNorm >= 0)
-		{
-			elemNormalB.AlignedByteOffset = pOffs->OffsNorm;
-			decl.AddElem(elemNormalB);
-		}
-
-		if (nFormat == eVF_P3S_N4B_C4B_T2S)
-		{
-			elemNormalB.AlignedByteOffset = sizeof(Vec3f16);
-			decl.AddElem(elemNormalB);
-		}
-#ifdef PARTICLE_MOTION_BLUR
-		if (nFormat == eVF_P3F_C4B_T4B_N3F2)
-		{
-			elemTC0_4.AlignedByteOffset = (int)offsetof(SVF_P3F_C4B_T4B_N3F2, prevXaxis);
-			elemTC0_4.SemanticIndex     = 0;
-			decl.AddElem(elemTC0_4);
-		}
-#endif
-		if (pOffs->OffsColor >= 0 || nFormat == eVF_C4B_T2S)
-		{
-			elemColor.AlignedByteOffset = pOffs->OffsColor;
-			elemColor.SemanticIndex     = 0;
-			decl.AddElem(elemColor);
-		}
-		if (nFormat == eVF_P3F_C4B_T4B_N3F2)
-		{
-#ifdef PARTICLE_MOTION_BLUR
-			elemTC1_3.AlignedByteOffset = (int)offsetof(SVF_P3F_C4B_T4B_N3F2, prevPos);
-			elemTC1_3.SemanticIndex     = 1;
-			decl.AddElem(elemTC1_3);
-#endif
-			elemColor.AlignedByteOffset = (int)offsetof(SVF_P3F_C4B_T4B_N3F2, st);
-			elemColor.SemanticIndex     = 1;
-			decl.AddElem(elemColor);
-
-			elemTan.AlignedByteOffset = (int)offsetof(SVF_P3F_C4B_T4B_N3F2, xaxis);
-			decl.AddElem(elemTan);
-
-			elemBitan.AlignedByteOffset = (int)offsetof(SVF_P3F_C4B_T4B_N3F2, yaxis);
-			decl.AddElem(elemBitan);
-		}
-
-		if (nFormat == eVF_P2F_T4F_C4F)
-		{
-			decl.ClearArr();
-			decl.AddElem(elemPos2);
-
-			elemTC0_4.AlignedByteOffset = (int)offsetof(SVF_P2F_T4F_C4F, st);
-			elemTC0_4.SemanticIndex     = 0;
-			decl.AddElem(elemTC0_4);
-
-			elemColorF.AlignedByteOffset = (int)offsetof(SVF_P2F_T4F_C4F, color);
-			elemColorF.SemanticIndex     = 0;
-			decl.AddElem(elemColorF);
-		}
-
-		if (pOffs->OffsTC >= 0)
-		{
-			elemTC0.AlignedByteOffset = pOffs->OffsTC;
-			elemTC0.SemanticIndex     = 0;
-
-			if (nFormat == eVF_P3S_C4B_T2S || nFormat == eVF_P3S_N4B_C4B_T2S || nFormat == eVF_C4B_T2S || nFormat == eVF_P3F_C4B_T2S)
-			{
-				elemTCHalf.AlignedByteOffset = pOffs->OffsTC;
-				elemTCHalf.SemanticIndex     = 0;
-				decl.AddElem(elemTCHalf);
-			}
-			else if (nFormat == eVF_P3F_T3F)
-			{
-				elemTC1_3.AlignedByteOffset = pOffs->OffsTC;
-				elemTC1_3.SemanticIndex     = 0;
-				decl.AddElem(elemTC1_3);
-			}
-			else if (nFormat == eVF_P2S_N4B_C4B_T1F)
-			{
-				elemTC0_1.AlignedByteOffset = pOffs->OffsTC;
-				elemTC0_1.SemanticIndex     = 0;
-				decl.AddElem(elemTC0_1);
-			}
-			else
-			{
-				decl.AddElem(elemTC0);
-			}
-			if (nFormat == eVF_TP3F_T2F_T3F || nFormat == eVF_P3F_T2F_T3F)
-			{
-				elemTC1_3.AlignedByteOffset = pOffs->OffsTC + 8;
-				elemTC1_3.SemanticIndex     = 1;
-				decl.AddElem(elemTC1_3);
-			}
-		}
-		decl.Shrink();
-	}
-
-	for (int n = 0; n < 1 << VSF_NUM; ++n)
-	{
-		m_D3DVertexDeclarationCache[n][0].Reserve(eVF_PreAllocated);
-		m_D3DVertexDeclarationCache[n][1].Reserve(eVF_PreAllocated);
-	}
-
-	//=============================================================================
-	// Additional streams declarations:
-
-	// Tangents stream
-	static D3D11_INPUT_ELEMENT_DESC VElemTangents[] =
-	{
-#ifdef TANG_FLOATS
-		{"TANGENT",  0,  DXGI_FORMAT_R32G32B32A32_FLOAT,  VSF_TANGENTS, 0,  D3D11_INPUT_PER_VERTEX_DATA,  0 },  // Binormal
-		{"BINORMAL", 0,  DXGI_FORMAT_R32G32B32A32_FLOAT,  VSF_TANGENTS, 16, D3D11_INPUT_PER_VERTEX_DATA,  0 },        // Tangent
-#else
-		{"TANGENT",  0,  DXGI_FORMAT_R16G16B16A16_SNORM,  VSF_TANGENTS, 0,  D3D11_INPUT_PER_VERTEX_DATA,  0 },  // Binormal
-		{"BINORMAL", 0,  DXGI_FORMAT_R16G16B16A16_SNORM,  VSF_TANGENTS, 8,  D3D11_INPUT_PER_VERTEX_DATA,  0 },  // Tangent
-#endif
-	};
-	// Tangents stream
-	static D3D11_INPUT_ELEMENT_DESC VElemQTangents[] =
-	{
-#ifdef TANG_FLOATS
-		{"TANGENT", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, VSF_QTANGENTS, 0, D3D11_INPUT_PER_VERTEX_DATA, 0},             // Binormal
-#else
-		{"TANGENT", 0, DXGI_FORMAT_R16G16B16A16_SNORM, VSF_QTANGENTS, 0, D3D11_INPUT_PER_VERTEX_DATA, 0},             // Binormal
-#endif
-	};
-
-	//HW Skin stream
-	static D3D11_INPUT_ELEMENT_DESC VElemHWSkin[] =
-	{
-		{"BLENDWEIGHT",  0,  DXGI_FORMAT_R8G8B8A8_UNORM,     VSF_HWSKIN_INFO,    0,    D3D11_INPUT_PER_VERTEX_DATA,   0}, // BlendWeight
-		{"BLENDINDICES", 0,  DXGI_FORMAT_R16G16B16A16_SINT,  VSF_HWSKIN_INFO,    4,    D3D11_INPUT_PER_VERTEX_DATA,   0}, // BlendIndices
-	};
-
-#if ENABLE_NORMALSTREAM_SUPPORT
-	static D3D11_INPUT_ELEMENT_DESC VElemNormals[] =
-	{
-		{"NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, VSF_NORMALS, 0, D3D11_INPUT_PER_VERTEX_DATA, 0},
-	};
-#endif
-
-	static D3D11_INPUT_ELEMENT_DESC VElemVelocity[] =
-	{
-		{"POSITION", 3, DXGI_FORMAT_R32G32B32_FLOAT, VSF_VERTEX_VELOCITY, 0, D3D11_INPUT_PER_VERTEX_DATA, 0},         // Velocity
-	};
-
-	// stream 1 (Tangent basis vectors)
-	// stream 2 (QTangents info)
-	// stream 3 (HW skin info)
-	// stream 4 (Velocity)
-	// stream 5 (Normals)
-	m_D3DStreamProperties[VSF_GENERAL].m_pElements            = NULL;
-	m_D3DStreamProperties[VSF_GENERAL].m_nNumElements         = 0;
-	m_D3DStreamProperties[VSF_TANGENTS].m_pElements           = VElemTangents;
-	m_D3DStreamProperties[VSF_TANGENTS].m_nNumElements        = sizeof(VElemTangents) / sizeof(D3D11_INPUT_ELEMENT_DESC);
-	m_D3DStreamProperties[VSF_QTANGENTS].m_pElements          = VElemQTangents;
-	m_D3DStreamProperties[VSF_QTANGENTS].m_nNumElements       = sizeof(VElemQTangents) / sizeof(D3D11_INPUT_ELEMENT_DESC);
-	m_D3DStreamProperties[VSF_HWSKIN_INFO].m_pElements        = VElemHWSkin;
-	m_D3DStreamProperties[VSF_HWSKIN_INFO].m_nNumElements     = sizeof(VElemHWSkin) / sizeof(D3D11_INPUT_ELEMENT_DESC);
-	m_D3DStreamProperties[VSF_VERTEX_VELOCITY].m_pElements    = VElemVelocity;
-	m_D3DStreamProperties[VSF_VERTEX_VELOCITY].m_nNumElements = sizeof(VElemVelocity) / sizeof(D3D11_INPUT_ELEMENT_DESC);
-#if ENABLE_NORMALSTREAM_SUPPORT
-	m_D3DStreamProperties[VSF_NORMALS].m_pElements    = VElemNormals;
-	m_D3DStreamProperties[VSF_NORMALS].m_nNumElements = sizeof(VElemNormals) / sizeof(D3D11_INPUT_ELEMENT_DESC);
-#endif
 }
 
 inline static void* sAlign0x20(byte* vrts)
@@ -375,9 +89,9 @@ void CD3D9Renderer::EF_Init()
 
 	int n = 0;
 
-	int nSizeV = sizeof(SVF_P3F_C4B_T4B_N3F2);
-	for (int i = 0; i < eVF_MaxRenderMesh; i++)
-		nSizeV = max(nSizeV, CRenderMesh::m_cSizeVF[i]);
+	size_t nSizeV = sizeof(SVF_P3F_C4B_T4B_N3F2);
+	for (InputLayoutHandle nFormat = EDefaultInputLayouts::Empty; nFormat < EDefaultInputLayouts::PreAllocated; nFormat = InputLayoutHandle::ValueType(uint16(nFormat) + 1U))
+		nSizeV = max(nSizeV, size_t(CDeviceObjectFactory::LookupInputLayout(nFormat).first.m_Stride));
 
 	n += nSizeV * m_RP.m_MaxVerts + 32;
 
@@ -411,7 +125,6 @@ void CD3D9Renderer::EF_Init()
 	EF_Restore();
 
 	m_RP.InitWaveTables();
-	m_RP.InitD3DVertexDeclarations();
 	CHWShader_D3D::mfInit();
 
 	m_CurVertBufferSize = 0;
@@ -462,13 +175,11 @@ void CD3D9Renderer::EF_Init()
 		CPermanentRenderObject::SetStaticPools(m_RP.m_renderObjectsPools.get());
 	}
 
-	// create hdr element
-	m_RP.m_pREHDR = (CREHDRProcess*)EF_CreateRE(eDATA_HDRProcess);
 	// create deferred shading element
-	m_RP.m_pREDeferredShading = (CREDeferredShading*)EF_CreateRE(eDATA_DeferredShading);
-
-	// Create post process render element
-	m_RP.m_pREPostProcess = (CREPostProcess*)EF_CreateRE(eDATA_PostProcess);
+	if (!m_RP.m_pREDeferredShading)
+	{
+		m_RP.m_pREDeferredShading = (CREDeferredShading*)EF_CreateRE(eDATA_DeferredShading);
+	}
 
 	// Initialize posteffects manager
 	if (!m_pPostProcessMgr)
@@ -492,21 +203,9 @@ void CD3D9Renderer::EF_Init()
 
 	m_RP.m_nSPIUpdateFrameID = -1;
 
-	m_nPointState                 = CTexture::GetTexState(STexState(FILTER_POINT, true));
-	m_nMaterialAnisoHighSampler   = CTexture::GetTexState(STexState(FILTER_ANISO16X, false));
-	m_nMaterialAnisoLowSampler    = CTexture::GetTexState(STexState(FILTER_ANISO4X, false));
-	m_nMaterialAnisoSamplerBorder = CTexture::GetTexState(STexState(FILTER_ANISO16X, TADDR_BORDER, TADDR_BORDER, TADDR_BORDER, 0x0));
-	m_nPointClampSampler          = CTexture::GetTexState(STexState(FILTER_POINT, TADDR_CLAMP, TADDR_CLAMP, TADDR_CLAMP, 0x0));
-	m_nPointWrapSampler           = CTexture::GetTexState(STexState(FILTER_POINT, TADDR_WRAP, TADDR_WRAP, TADDR_WRAP, 0x0));
-	STexState texState(FILTER_LINEAR, TADDR_CLAMP, TADDR_CLAMP, TADDR_CLAMP, 0x0);
-	texState.SetComparisonFilter(true);
-	m_nLinearClampComparisonSampler = CTexture::GetTexState(texState);
-	m_nBilinearWrapSampler = CTexture::GetTexState(STexState(FILTER_BILINEAR, TADDR_WRAP, TADDR_WRAP, TADDR_WRAP, 0x0));
-	m_nBilinearClampSampler = CTexture::GetTexState(STexState(FILTER_BILINEAR, TADDR_CLAMP, TADDR_CLAMP, TADDR_CLAMP, 0x0));
-	m_nBilinearBorderSampler = CTexture::GetTexState(STexState(FILTER_BILINEAR, TADDR_BORDER, TADDR_BORDER, TADDR_BORDER, 0x0));
-	m_nTrilinearWrapSampler = CTexture::GetTexState(STexState(FILTER_TRILINEAR, TADDR_WRAP, TADDR_WRAP, TADDR_WRAP, 0x0));
-	m_nTrilinearClampSampler = CTexture::GetTexState(STexState(FILTER_TRILINEAR, TADDR_CLAMP, TADDR_CLAMP, TADDR_CLAMP, 0x0));
-	m_nTrilinearBorderSampler = CTexture::GetTexState(STexState(FILTER_TRILINEAR, TADDR_BORDER, TADDR_BORDER, TADDR_BORDER, 0x0));
+	m_nMaterialAnisoHighSampler   = CDeviceObjectFactory::GetOrCreateSamplerStateHandle(SSamplerState(FILTER_ANISO16X, false));
+	m_nMaterialAnisoLowSampler    = CDeviceObjectFactory::GetOrCreateSamplerStateHandle(SSamplerState(FILTER_ANISO4X, false));
+	m_nMaterialAnisoSamplerBorder = CDeviceObjectFactory::GetOrCreateSamplerStateHandle(SSamplerState(FILTER_ANISO16X, eSamplerAddressMode_Border, eSamplerAddressMode_Border, eSamplerAddressMode_Border, 0x0));
 
 	CDeferredShading::CreateDeferredShading();
 
@@ -515,13 +214,6 @@ void CD3D9Renderer::EF_Init()
 		m_pStereoRenderer->CreateResources();
 		m_pStereoRenderer->Update();
 	}
-
-	assert(m_pBackBuffer == m_pBackBuffers[CD3D9Renderer::GetCurrentBackBufferIndex(m_pSwapChain)]);
-	if (m_pBackBuffer != m_pBackBuffers[CD3D9Renderer::GetCurrentBackBufferIndex(m_pSwapChain)])
-		abort();
-
-	D3DSurface* pBackbufferView = m_pBackBuffer;
-	GetDeviceContext().OMSetRenderTargets(1, &pBackbufferView, m_DepthBufferNative.pSurface);
 
 	ResetToDefault();
 #ifdef ENABLE_BENCHMARK_SENSOR
@@ -589,40 +281,13 @@ void CD3D9Renderer::FX_PipelineShutdown(bool bFastShutdown)
 	FX_Invalidate();
 
 	SAFE_DELETE_ARRAY(m_RP.m_SysArray);
-	const uint32 n = m_RP.MaxD3DVertexDeclaration();
 
-	for (uint32 j = 0; j < n; j++)
-	{
-		m_RP.m_D3DVertexDeclaration[j].m_Declaration.Free();
-	}
-
-	for (uint32 i = 0; i < (1U << VSF_NUM); i++)
-	{
-		for (uint32 j = 0; j < n; j++)
-		{
-			SAFE_RELEASE(m_RP.m_D3DVertexDeclarationCache[i][0][j].m_pDeclaration);
-			SAFE_RELEASE(m_RP.m_D3DVertexDeclarationCache[i][1][j].m_pDeclaration);
-		}
-
-		m_RP.m_D3DVertexDeclarationCache[i][0].Free();
-		m_RP.m_D3DVertexDeclarationCache[i][1].Free();
-	}
-
-	m_RP.m_D3DVertexDeclaration.Free();
-
-	SAFE_RELEASE(m_RP.m_pREHDR);
 	SAFE_RELEASE(m_RP.m_pREDeferredShading);
-	SAFE_RELEASE(m_RP.m_pREPostProcess);
 	SAFE_DELETE(m_pPostProcessMgr);
 	SAFE_DELETE(m_pWaterSimMgr);
 
 	//if (m_pStereoRenderer)
 	//	m_pStereoRenderer->ReleaseResources();
-
-#if defined(ENABLE_RENDER_AUX_GEOM)
-	if (m_pRenderAuxGeomD3D)
-		m_pRenderAuxGeomD3D->ReleaseShader();
-#endif
 
 	if (!bFastShutdown)
 		CHWShader_D3D::ShutDown();
@@ -661,9 +326,6 @@ void CD3D9Renderer::FX_PipelineShutdown(bool bFastShutdown)
 
 	CDeferredShading::DestroyDeferredShading();
 
-	for (unsigned int a = 0; a < m_OcclQueries.size(); a++)
-		m_OcclQueries[a].Release();
-
 #ifdef ENABLE_BENCHMARK_SENSOR
 	SAFE_DELETE(m_benchmarkRendererSensor);
 #endif
@@ -671,13 +333,22 @@ void CD3D9Renderer::FX_PipelineShutdown(bool bFastShutdown)
 
 void CD3D9Renderer::RT_GraphicsPipelineShutdown()
 {
-	SAFE_DELETE(CTexture::s_pMipperWaterVolumeDDN);
-	SAFE_DELETE(CTexture::s_pMipperWaterVolumeRefl[0]);
-	SAFE_DELETE(CTexture::s_pMipperWaterVolumeRefl[1]);
-	SAFE_DELETE(CTexture::s_pMipperWaterRipplesDDN);
-	
+	CREParticle::ResetPool();
+
+	CStretchRegionPass::Shutdown();
+
+	if(m_pStereoRenderer)
+		m_pStereoRenderer->ReleaseBuffers();
+
+	if (m_pRenderAuxGeomD3D)
+		m_pRenderAuxGeomD3D->ReleaseResources();
+
 	SAFE_DELETE(m_pGraphicsPipeline);
-	CCryDeviceWrapper::GetObjectFactory().ReleaseResources();
+}
+
+void CD3D9Renderer::RT_ResetDeviceObjectFactory()
+{
+	CDeviceObjectFactory::ResetInstance();
 }
 
 void CD3D9Renderer::FX_ResetPipe()
@@ -871,30 +542,33 @@ void CD3D9Renderer::CopyFramebufferDX11(CTexture* pDst, D3DResource* pSrcResourc
 	svDesc.ViewDimension             = D3D11_SRV_DIMENSION_TEXTURE2D;
 	svDesc.Texture2D.MipLevels       = 1;
 	svDesc.Texture2D.MostDetailedMip = 0;
+
+#ifdef RENDERER_ENABLE_LEGACY_PIPELINE
 	HRESULT hr;
 	if (!SUCCEEDED(hr = GetDevice().CreateShaderResourceView(pBackBufferTex, &svDesc, &shaderResView)))
 		iLog->LogError("Creating shader resource view has failed.  Code: %d", hr);
+#else
+	shaderResView = nullptr;
+#endif
 
 	// render
 	uint32 nPasses = 0;
 	pShader->FXBegin(&nPasses, FEF_DONTSETTEXTURES);
 	FX_PushRenderTarget(0, pDst, NULL);
 	FX_SetActiveRenderTargets();
-	D3DSurface* pNullRTV = NULL;
-	GetDeviceContext().OMSetRenderTargets(1, &pNullRTV, NULL);
+	GetDeviceObjectFactory().GetCoreCommandList().GetGraphicsInterface()->ClearState(true);
 	pShader->FXBeginPass(0);
 
 	// Set shader resource
-	m_DevMan.BindSRV(CDeviceManager::TYPE_PS, shaderResView, 0);
+	m_DevMan.BindSRV(CSubmissionQueue_DX11::TYPE_PS, shaderResView, 0);
 
 	// Set sampler state:
-	int tsIdx = CTexture::GetTexState(STexState(FILTER_LINEAR, true));                            // get the sampler state cache line index
-	ID3D11SamplerState* linearSampler = static_cast<ID3D11SamplerState*> (CTexture::s_TexStates[tsIdx].m_pDeviceState);
-	m_DevMan.BindSampler(CDeviceManager::TYPE_PS, &linearSampler, 0, 1);
+	ID3D11SamplerState* linearSampler = static_cast<ID3D11SamplerState*> (CDeviceObjectFactory::LookupSamplerState(EDefaultSamplerStates::LinearClamp).second);
+	m_DevMan.BindSampler(CSubmissionQueue_DX11::TYPE_PS, &linearSampler, 0, 1);
 	SPostEffectsUtils::DrawFullScreenTri(pDst->GetWidth(), pDst->GetHeight());
 	// unbind backbuffer:
 	D3DShaderResource* pNullSTV = NULL;
-	m_DevMan.BindSRV(CDeviceManager::TYPE_PS, pNullSTV, 0);
+	m_DevMan.BindSRV(CSubmissionQueue_DX11::TYPE_PS, pNullSTV, 0);
 	CTexture::s_TexStages[0].m_DevTexture = NULL;
 
 	pShader->FXEndPass();
@@ -923,37 +597,40 @@ void CD3D9Renderer::FX_ScreenStretchRect(CTexture* pDst, CTexture* pHDRSrc)
 		{
 			// update scene target before using it for water rendering
 			CDeviceTexture* pDstResource = pDst->GetDevTexture();
-			D3DSurface*  pOrigRT         = m_pNewTarget[0]->m_pTarget;
-			D3DResource* pSrcResource;
+			CTexture*    pSrc            = m_pNewTarget[0]->m_pTex;    // = GetCurrentTargetOutput();
+			D3DSurface*  pOrigRT         = m_pNewTarget[0]->m_pTarget; // = pSrc->GetDevTexture()->LookupRTV(EDefaultResourceViews::RenderTarget);
 
 			// This is a subrect to subrect copy with no resolving or stretching
-			D3D11_BOX box;
-			ZeroStruct(box);
-			box.right  = pDst->GetWidth();
-			box.bottom = pDst->GetHeight();
-			box.back   = 1;
+			SResourceRegionMapping region =
+			{
+				{ 0, 0, 0, 0 },
+				{ 0, 0, 0, 0 },
+				{ pDst->GetWidth(), pDst->GetHeight(), 1, 1 }
+			};
 
 			//Allow for scissoring to happen
 			int sX, sY, sWdt, sHgt;
 			if (EF_GetScissorState(sX, sY, sWdt, sHgt))
 			{
-				box.left   = sX;
-				box.right  = sX + sWdt;
-				box.top    = sY;
-				box.bottom = sY + sHgt;
-
 				// Align the RECT boundaries to GPU memory layout
-				box.left   = box.left & 0xfffffff8;
-				box.top    = box.top & 0xfffffff8;
-				box.right  = (box.right + 8) & 0xfffffff8;
-				box.bottom = (box.bottom + 8) & 0xfffffff8;
+				// Lower part rounds down, upper part rounds up
+				region.SourceOffset.Left = ((sX +        0) & (~7));
+				region.SourceOffset.Top  = ((sY +        0) & (~7));
+				region.Extent.Width      = ((sX + sWdt + 7) & (~7)) - region.SourceOffset.Left;
+				region.Extent.Height     = ((sY + sHgt + 7) & (~7)) - region.SourceOffset.Top;
 			}
 
-			D3D11_RENDER_TARGET_VIEW_DESC backbufferDesc;
+			CRY_ASSERT(region.SourceOffset.Left + region.Extent.Width <= pDst->GetWidth());
+			CRY_ASSERT(region.SourceOffset.Top + region.Extent.Height <= pDst->GetHeight());
+
 			if (pOrigRT)
 			{
+				D3DResource* pSrcResource = nullptr;
+#if !CRY_RENDERER_GNM
+				D3D11_RENDER_TARGET_VIEW_DESC backbufferDesc;
 				pOrigRT->GetResource(&pSrcResource);
 				pOrigRT->GetDesc(&backbufferDesc);
+
 				if (backbufferDesc.ViewDimension == D3D11_RTV_DIMENSION_TEXTURE2DMS || pHDRSrc)
 				{
 					// No API side for ResolveSubresourceRegion from MS target to non-ms. Need to perform custom resolve step
@@ -975,7 +652,7 @@ void CD3D9Renderer::FX_ScreenStretchRect(CTexture* pDst, CTexture* pHDRSrc)
 						SPostEffectsUtils::ShBeginPass(CShaderMan::s_shPostEffects, pTechName, FEF_DONTSETTEXTURES | FEF_DONTSETSTATES);
 						FX_SetState(GS_NODEPTHTEST);
 
-						pHDRTarget->Apply(0, CTexture::GetTexState(STexState(FILTER_POINT, true)), EFTT_UNKNOWN, -1, m_RP.m_MSAAData.Type ? SResourceView::DefaultViewMS : SResourceView::DefaultView);
+						pHDRTarget->Apply(0, EDefaultSamplerStates::PointClamp, EFTT_UNKNOWN, -1, EDefaultResourceViews::Default, !!m_RP.m_MSAAData.Type);
 
 						SPostEffectsUtils::DrawFullScreenTri(pDst->GetWidth(), pDst->GetHeight());
 						SPostEffectsUtils::ShEndPass();
@@ -988,41 +665,23 @@ void CD3D9Renderer::FX_ScreenStretchRect(CTexture* pDst, CTexture* pHDRSrc)
 					}
 					else
 					{
+#ifdef RENDERER_ENABLE_LEGACY_PIPELINE
 						GetDeviceContext().ResolveSubresource(pDstResource->Get2DTexture(), 0, pSrcResource, 0, backbufferDesc.Format);
+#endif
 					}
 				}
 				else
+#endif
 				{
 #if CRY_PLATFORM_ORBIS
-					GetDeviceContext().CopySubresourceRegion(pDstResource->Get2DTexture(), 0, box.left, box.top, 0, pSrcResource, 0, &box);
+					GetDeviceObjectFactory().GetCoreCommandList().GetCopyInterface()->Copy(pSrc->GetDevTexture(), pDst->GetDevTexture(), region);
 #else
 					// Check if the format match (or the copysubregionresource call would fail)
-					const D3DFormat dstFmt = CTexture::DeviceFormatFromTexFormat(pDst->GetDstFormat());
+					const D3DFormat dstFmt = DeviceFormats::ConvertFromTexFormat(pDst->GetDstFormat());
 					const D3DFormat srcFmt = backbufferDesc.Format;
 					if (dstFmt == srcFmt)
 					{
-#if !defined(_RELEASE)
-						D3D11_RESOURCE_DIMENSION type;
-						pSrcResource->GetType(&type);
-						if (type != D3D11_RESOURCE_DIMENSION_TEXTURE2D)
-							__debugbreak();
-#endif
-						D3DTexture* pSrcTex2D = (D3DTexture*) pSrcResource;
-						D3D11_TEXTURE2D_DESC srcTex2desc;
-						pSrcTex2D->GetDesc(&srcTex2desc);
-
-						box.left   = min(box.left, srcTex2desc.Width);
-						box.right  = min(box.right, srcTex2desc.Width);
-						box.top    = min(box.top, srcTex2desc.Height);
-						box.bottom = min(box.bottom, srcTex2desc.Height);
-
-						// guard against a TDR
-						if (box.left < box.right && box.top < box.bottom)
-							GetDeviceContext().CopySubresourceRegion(pDstResource->Get2DTexture(), 0, box.left, box.top, 0, pSrcResource, 0, &box);
-#if !defined(_RELEASE)
-						else
-							__debugbreak();
-#endif
+						GetDeviceObjectFactory().GetCoreCommandList().GetCopyInterface()->Copy(pSrc->GetDevTexture(), pDst->GetDevTexture(), region);
 					}
 					else
 					{
@@ -1033,12 +692,7 @@ void CD3D9Renderer::FX_ScreenStretchRect(CTexture* pDst, CTexture* pHDRSrc)
 					}
 #endif
 				}
-#if CRY_PLATFORM_ORBIS
-				D3DTexture* pSrcResourceTex2D = (D3DTexture*)pSrcResource;
-				SAFE_RELEASE(pSrcResourceTex2D);
-#else
 				SAFE_RELEASE(pSrcResource);
-#endif
 			}
 		}
 
@@ -1163,9 +817,7 @@ void CD3D9Renderer::FX_ProcessEyeOverlayRenderLists(int nList, void (* RenderFun
 
 		PROFILE_LABEL_SCOPE("EYE_OVERLAY");
 
-		SDepthTexture* pCurrDepthBuffer = (gRenDev->m_RP.m_MSAAData.Type) ? &gcpRendD3D->m_DepthBufferOrigMSAA : &gcpRendD3D->m_DepthBufferOrig;
-
-		FX_PushRenderTarget(0, CTexture::s_ptexSceneDiffuse, pCurrDepthBuffer);
+		FX_PushRenderTarget(0, CTexture::s_ptexSceneDiffuse, &gcpRendD3D->m_DepthBufferOrig);
 
 		FX_ProcessRenderList(nList, RenderFunc, bLighting);
 
@@ -1292,7 +944,6 @@ void CD3D9Renderer::FX_MSAACustomResolve()
 	// Resolve pass outputs minZ/corresponding normal reusing samples to tag depth discontinuities for MSAA  (this can also be adapted for different resolve schemes)
 	m_cEF.mfRefreshSystemShader("DeferredShading", CShaderMan::s_shDeferredShading);
 
-	const int32 nTexStatePoint = CTexture::GetTexState(STexState(FILTER_POINT, true));
 	const int32 nWidth         = CTexture::s_ptexZTarget->GetWidth();
 	const int32 nHeight        = CTexture::s_ptexZTarget->GetHeight();
 	const bool  bReverseDepth  = !!(m_RP.m_TI[m_RP.m_nProcessThreadID].m_PersFlags & RBPF_REVERSE_DEPTH);
@@ -1305,21 +956,17 @@ void CD3D9Renderer::FX_MSAACustomResolve()
 	CTexture::s_ptexZTarget->SetResolved(true);
 	CTexture::s_ptexZTarget->SetUseMultisampledRTV(false);
 
-	const SResourceView::KeyType nResourceViewID = SResourceView::DefaultViewMS;
-	CTexture::s_ptexZTarget->Apply(0, nTexStatePoint, EFTT_UNKNOWN, -1, nResourceViewID);
-	CTexture::s_ptexSceneNormalsMap->Apply(1, nTexStatePoint, EFTT_UNKNOWN, -1, nResourceViewID);
+	CTexture::s_ptexZTarget->Apply(0, EDefaultSamplerStates::PointClamp, EFTT_UNKNOWN, -1, EDefaultResourceViews::Default, true);
+	CTexture::s_ptexSceneNormalsMap->Apply(1, EDefaultSamplerStates::PointClamp, EFTT_UNKNOWN, -1, EDefaultResourceViews::Default, true);
 
 	CTexture::s_ptexSceneDiffuse->SetResolved(true);
 	CTexture::s_ptexSceneDiffuse->SetUseMultisampledRTV(false);
-	CTexture::s_ptexSceneDiffuse->Apply(2, nTexStatePoint, EFTT_UNKNOWN, -1, nResourceViewID);
+	CTexture::s_ptexSceneDiffuse->Apply(2, EDefaultSamplerStates::PointClamp, EFTT_UNKNOWN, -1, EDefaultResourceViews::Default, true);
 	CTexture::s_ptexSceneSpecular->SetResolved(true);
 	CTexture::s_ptexSceneSpecular->SetUseMultisampledRTV(false);
-	CTexture::s_ptexSceneSpecular->Apply(3, nTexStatePoint, EFTT_UNKNOWN, -1, nResourceViewID);
+	CTexture::s_ptexSceneSpecular->Apply(3, EDefaultSamplerStates::PointClamp, EFTT_UNKNOWN, -1, EDefaultResourceViews::Default, true);
 
-	CTexture* pDepthBufferRT           = CTexture::s_ptexZTarget;
-	D3DShaderResource* pZTargetOrigSRV = pDepthBufferRT->GetShaderResourceView(SResourceView::DefaultViewMS);
-	pDepthBufferRT->SetShaderResourceView(gcpRendD3D->m_DepthBufferOrigMSAA.pTexture->GetDeviceDepthReadOnlySRV(0, -1, true), true);  // override shader resource view with device depth
-	pDepthBufferRT->Apply(4, nTexStatePoint, EFTT_UNKNOWN, -1, nResourceViewID);
+	CTexture::s_ptexZTarget->Apply(4, EDefaultSamplerStates::PointClamp, EFTT_UNKNOWN, -1, EDefaultResourceViews::Default, true);
 
 	// Stencil initialized to 1 - 0 is reserved for MSAAed samples
 	FX_ClearTarget(&m_DepthBufferOrig, CLEAR_ZBUFFER | CLEAR_STENCIL, Clr_FarPlane_R.r, 1);
@@ -1359,7 +1006,6 @@ void CD3D9Renderer::FX_MSAACustomResolve()
 	CTexture::s_ptexSceneSpecular->SetUseMultisampledRTV(true);
 	CTexture::s_ptexSceneSpecular->SetResolved(true);
 
-	pDepthBufferRT->SetShaderResourceView(pZTargetOrigSRV, true);  // restore shader resource view
 	CTexture::s_ptexZTarget->SetUseMultisampledRTV(true);
 	CTexture::s_ptexSceneNormalsMap->SetUseMultisampledRTV(true);
 	CTexture::s_ptexZTarget->SetResolved(true);
@@ -1449,7 +1095,7 @@ void CD3D9Renderer::FX_MSAASampleFreqStencilSetup(const uint32 nMSAAFlags, const
 		FX_SetStencilState(nStState, nStRef, 0xFF, nStWriteMask);
 		FX_SetState(GS_STENCIL | GS_NODEPTHTEST | GS_COLMASK_NONE);
 
-		CTexture::s_ptexBackBuffer->Apply(0, CTexture::GetTexState(STexState(FILTER_POINT, true)));
+		CTexture::s_ptexBackBuffer->Apply(0, EDefaultSamplerStates::PointClamp);
 		GetUtils().DrawQuadFS(CShaderMan::s_shDeferredShading, false, nWidth, nHeight);
 		GetUtils().ShEndPass();
 
@@ -1492,7 +1138,7 @@ bool CD3D9Renderer::FX_ZScene(bool bEnable, bool bUseHDR, bool bClearZBuffer, bo
 
 		int nStates = GS_DEPTHWRITE;
 
-		FX_PushRenderTarget(0, CTexture::s_ptexSceneNormalsMap, &m_DepthBufferOrigMSAA, -1, true);
+		FX_PushRenderTarget(0, CTexture::s_ptexSceneNormalsMap, &m_DepthBufferOrig, -1, true);
 
 		if (!bZPrePass)
 		{
@@ -1607,6 +1253,7 @@ void CD3D9Renderer::FX_RenderForwardOpaque(void (* RenderFunc)(), const bool bLi
 
 		GetTiledShading().BindForwardShadingResources(NULL);
 
+		FX_ProcessRenderList(EFSLIST_FORWARD_OPAQUE_NEAREST, RenderFunc, bLighting);
 		FX_ProcessRenderList(EFSLIST_FORWARD_OPAQUE, RenderFunc, bLighting);
 
 		GetTiledShading().UnbindForwardShadingResources();
@@ -1616,6 +1263,7 @@ void CD3D9Renderer::FX_RenderForwardOpaque(void (* RenderFunc)(), const bool bLi
 		{
 			PROFILE_LABEL_SCOPE("FORWARD_OPAQUE_SAMPLE_FREQ_PASSES");
 			FX_MSAASampleFreqStencilSetup(MSAA_STENCILCULL | MSAA_SAMPLEFREQ_PASS);   // sample freq
+			FX_ProcessRenderList(EFSLIST_FORWARD_OPAQUE_NEAREST, RenderFunc, bLighting);
 			FX_ProcessRenderList(EFSLIST_FORWARD_OPAQUE, RenderFunc, bLighting);
 			FX_MSAASampleFreqStencilSetup(MSAA_STENCILCULL);                        // pixel freq
 		}
@@ -1693,13 +1341,11 @@ void CD3D9Renderer::FX_LinearizeDepth()
 
 	FX_SetState(GS_NODEPTHTEST);
 
-	D3DShaderResource* depthReadOnlySRV = gcpRendD3D->m_DepthBufferOrigMSAA.pTexture->GetDeviceDepthReadOnlySRV(0, -1, false);
+	D3DShaderResource* depthReadOnlySRV = gcpRendD3D->m_DepthBufferOrig.pTexture->GetDevTexture(/*bMSAA*/)->LookupSRV(EDefaultResourceViews::DepthOnly);
 
-
-	gcpRendD3D->m_DepthBufferOrigMSAA.pTexture->ApplyTexture(0);
+	gcpRendD3D->m_DepthBufferOrig.pTexture->ApplyTexture(0);
 #if defined(OPENGL_ES)
-	auto ts = CTexture::GetTexState(STexState(FILTER_POINT, true));
-	gcpRendD3D->m_DepthBufferOrigMSAA.pTexture->ApplySamplerState(0, eHWSC_Pixel, ts);
+	gcpRendD3D->m_DepthBufferOrig.pTexture->ApplySampler(0, eHWSC_Pixel, EDefaultSamplerStates::PointClamp);
 #endif
 	static CCryNameR pParamName0("NearProjection");
 
@@ -1723,7 +1369,7 @@ void CD3D9Renderer::FX_LinearizeDepth()
 	PostProcessUtils().DrawFullScreenTri(CTexture::s_ptexZTarget->GetWidth(), CTexture::s_ptexZTarget->GetHeight());
 
 	D3DShaderResource* pNullSRV[1] = { NULL };
-	m_DevMan.BindSRV(CDeviceManager::TYPE_PS, pNullSRV, 16, 1);
+	m_DevMan.BindSRV(CSubmissionQueue_DX11::TYPE_PS, pNullSRV, 16, 1);
 
 	PostProcessUtils().ShEndPass();
 
@@ -1756,7 +1402,7 @@ void CD3D9Renderer::FX_DepthFixupMerge()
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-bool CD3D9Renderer::FX_HDRScene(bool bEnableHDR, bool bClear)
+bool CD3D9Renderer::FX_HDRScene(bool bEnableHDR, int32 shaderRenderingFlags, bool bClear)
 {
 	SThreadInfo* const pShaderThreadInfo = &(m_RP.m_TI[m_RP.m_nProcessThreadID]);
 
@@ -1765,22 +1411,30 @@ bool CD3D9Renderer::FX_HDRScene(bool bEnableHDR, bool bClear)
 		if (m_LogFile)
 			Logv(" +++ Start HDR scene +++ \n");
 
-		if (!CTexture::s_ptexHDRTarget || CTexture::s_ptexHDRTarget->IsMSAAChanged() || CTexture::s_ptexHDRTarget->GetWidth() != GetWidth() || CTexture::s_ptexHDRTarget->GetHeight() != GetHeight())
+		const bool bDeferredShading = (shaderRenderingFlags & SHDF_ZPASS) != 0;
+		if (!CTexture::s_ptexHDRTarget
+			|| (bDeferredShading
+				&& (CTexture::s_ptexHDRTarget->GetDevTexture()->IsMSAAChanged()
+					|| CTexture::s_ptexHDRTarget->GetWidth() != GetWidth()
+					|| CTexture::s_ptexHDRTarget->GetHeight() != GetHeight())))
 			CTexture::GenerateHDRMaps();
 
-		bool bEmpty = SRendItem::IsListEmpty(EFSLIST_HDRPOSTPROCESS);
-		if (bEmpty)
+		if (!bDeferredShading || CV_r_measureoverdraw || (shaderRenderingFlags & SHDF_BILLBOARDS))
+		{
+			// HDR post process isn't used.
 			return false;
-
-		FX_HDRRangeAdaptUpdate();
+		}
 
 		if (bClear || (pShaderThreadInfo->m_PersFlags & RBPF_MIRRORCULL) || (m_RP.m_nRendFlags & SHDF_CUBEMAPGEN))
 		{
 			FX_ClearTarget(CTexture::s_ptexHDRTarget);
-			FX_ClearTarget(&m_DepthBufferOrigMSAA);
+			FX_ClearTarget(&m_DepthBufferOrig);
 		}
 
-		FX_PushRenderTarget(0, CTexture::s_ptexHDRTarget, &m_DepthBufferOrigMSAA, -1, true);
+#if defined(RENDERER_ENABLE_LEGACY_PIPELINE)
+		if ((shaderRenderingFlags & SHDF_ALLOWHDR) && (shaderRenderingFlags & SHDF_ALLOWPOSTPROCESS))
+			FX_PushRenderTarget(0, CTexture::s_ptexHDRTarget, &m_DepthBufferOrig, -1, true);
+#endif
 
 		pShaderThreadInfo->m_PersFlags |= RBPF_HDR;
 	}
@@ -1880,7 +1534,7 @@ void CD3D9Renderer::FX_DrawNormals()
 
 		if (verts && (normals || tangents))
 		{
-			gcpRendD3D->FX_SetVertexDeclaration(0, eVF_P3F_C4B_T2F);
+			gcpRendD3D->FX_SetVertexDeclaration(0, EDefaultInputLayouts::P3F_C4B_T2F);
 			gcpRendD3D->EF_SetColorOp(eCO_REPLACE, eCO_REPLACE, (eCA_Diffuse | (eCA_Diffuse << 3)), (eCA_Diffuse | (eCA_Diffuse << 3)));
 			gcpRendD3D->FX_SetFPMode();
 			CTexture::s_ptexWhite->Apply(0);
@@ -1994,7 +1648,7 @@ void CD3D9Renderer::FX_DrawTangents()
 			gcpRendD3D->FX_SetState(nStateFlags);
 			gcpRendD3D->D3DSetCull(eCULL_None);
 			gcpRendD3D->FX_SetFPMode();
-			gcpRendD3D->FX_SetVertexDeclaration(0, eVF_P3F_C4B_T2F);
+			gcpRendD3D->FX_SetVertexDeclaration(0, EDefaultInputLayouts::P3F_C4B_T2F);
 
 			// We must limit number of vertices, because TempDynVB (see code below)
 			// uses transient pool that has *limited* size. See DevBuffer.cpp for details.
@@ -2248,8 +1902,6 @@ int CD3D9Renderer::EF_Preprocess(SRendItem* ri, uint32 nums, uint32 nume, Render
 				}
 			}
 			break;
-		case SPRID_GENCLOUDS:
-			break;
 
 		default:
 			assert(0);
@@ -2345,9 +1997,7 @@ static char* sDescList[] =
 	"WaterVolume",
 	"Transparent",
 	"Water",
-	"HDRPostProcess",
 	"AfterHDRPostProcess",
-	"PostProcess",
 	"AfterPostProcess",
 	"ShadowPass",
 	"DeferredPreprocess",
@@ -2360,7 +2010,10 @@ static char* sDescList[] =
 	"FogVolume",
 	"Nearest",
 	"ForwardOpaque",
+	"ForwardOpaqueNearest",
 	"Custom",
+	"Highlight",
+	"DebugHelper",
 };
 
 static char* sBatchList[] =
@@ -2665,7 +2318,6 @@ void CRenderer::FX_Start(CShader* ef, int nTech, CShaderResources* Res, CRenderE
 	m_RP.m_FlagsShader_MD      = 0;
 	m_RP.m_FlagsShader_MDV     = 0;
 
-	const uint64 hdrMode = g_HWSR_MaskBit[HWSR_HDR_MODE];
 	const uint64 sample0 = g_HWSR_MaskBit[HWSR_SAMPLE0];
 	const uint64 sample1 = g_HWSR_MaskBit[HWSR_SAMPLE1];
 	const uint64 sample4 = g_HWSR_MaskBit[HWSR_SAMPLE4];
@@ -2676,8 +2328,6 @@ void CRenderer::FX_Start(CShader* ef, int nTech, CShaderResources* Res, CRenderE
 	FX_SetMSAAFlagsRT();
 
 	const uint32 nPersFlags2 = m_RP.m_PersFlags2;
-	if ((nPersFlags2 & RBPF2_HDR_FP16) && !(m_RP.m_nBatchFilter & (FB_Z)))
-		m_RP.m_FlagsShader_RT |= hdrMode;   // deprecated: redundant flag, will be dropped (rendering always HDR)
 
 	static const uint32 nPFlags2Mask = (RBPF2_THERMAL_RENDERMODE_PASS | RBPF2_SKIN);
 	if (nPersFlags2 & nPFlags2Mask)
@@ -2851,23 +2501,6 @@ void CD3D9Renderer::OldPipeline_ProcessBatchesList(CRenderView::RenderItems& ren
 #endif
 }
 
-void CD3D9Renderer::DrawRenderItems(const SGraphicsPipelinePassContext& passContext)
-{
-	PROFILE_FRAME(DrawRenderItems);
-
-	if (CRenderer::CV_r_NoDraw == 1)
-	{
-		// Skip drawing objects
-		return;
-	}
-
-	if (passContext.rendItems.IsEmpty())
-		return;
-
-	// This can be multi-threaded
-	passContext.pRenderView->DrawCompiledRenderItems(passContext);
-}
-
 void CD3D9Renderer::OldPipeline_ProcessRenderList(CRenderView::RenderItems& renderItems, int nums, int nume, int nList, void (* RenderFunc)(), bool bLighting, uint32 nBatchFilter, uint32 nBatchExcludeFilter)
 {
 	if (nums < 0 && nume < 0)
@@ -2987,7 +2620,7 @@ void CD3D9Renderer::FX_ProcessZPassRenderLists()
 		const int nHeight = m_MainViewport.nHeight;
 		RECT rect         = { 0, 0, nWidth, nHeight };
 		if (!CTexture::s_ptexZTarget
-		  || CTexture::s_ptexZTarget->IsMSAAChanged()
+		  || CTexture::s_ptexZTarget->GetDevTexture()->IsMSAAChanged()
 		  || CTexture::s_ptexZTarget->GetDstFormat() != CTexture::s_eTFZ
 		  || CTexture::s_ptexZTarget->GetWidth() != nWidth
 		  || CTexture::s_ptexZTarget->GetHeight() != nHeight)
@@ -2999,7 +2632,7 @@ void CD3D9Renderer::FX_ProcessZPassRenderLists()
 		const float depthClearValue   = (gRenDev->m_RP.m_TI[gRenDev->m_RP.m_nProcessThreadID].m_PersFlags & RBPF_REVERSE_DEPTH) ? 0.f : 1.f;
 		const uint  stencilClearValue = 1;
 		// Stencil initialized to 1 - 0 is reserved for MSAAed samples
-		FX_ClearTarget(&m_DepthBufferOrigMSAA, CLEAR_ZBUFFER | CLEAR_STENCIL, depthClearValue, stencilClearValue, 1, &rect, true);
+		FX_ClearTarget(&m_DepthBufferOrig, CLEAR_ZBUFFER | CLEAR_STENCIL, depthClearValue, stencilClearValue, 1, &rect, true);
 		m_nStencilMaskRef = 1;
 
 		if (CV_r_MotionVectors && CV_r_MotionBlurGBufferVelocity)
@@ -3098,7 +2731,8 @@ void CD3D9Renderer::FX_ProcessZPassRenderLists()
 
 		FX_ZScene(false, m_RP.m_bUseHDR, false, true);
 
-		FX_ZTargetReadBack();
+		// Unconditionally removed, this function should be removed also!
+		// FX_ZTargetReadBack();
 
 		m_RP.m_pRenderFunc = FX_FlushShader_General;
 
@@ -3204,367 +2838,14 @@ void CD3D9Renderer::FX_ApplyThreadState(SThreadInfo& TI, SThreadInfo* pOldTI)
 	m_RP.m_TI[m_RP.m_nProcessThreadID] = TI;
 }
 
-int CD3D9Renderer::GetOcclusionBuffer(uint16* pOutOcclBuffer, int32 nSizeX, int32 nSizeY, Matrix44* pmViewProj, Matrix44* pmCamBuffer)
+float* CD3D9Renderer::PinOcclusionBuffer(Matrix44A &camera)
 {
-	m_occlusionRequestedSizeX = nSizeX;
-	m_occlusionRequestedSizeY = nSizeY;
-	if (nSizeX != m_occlusionDownsampleSizeX || nSizeY != m_occlusionDownsampleSizeY)
-		return 0;//not ready
-
-	if (m_occlusionBuffer < 4)
-		return 0;
-
-	const bool bUseNativeDepth = CRenderer::CV_r_CBufferUseNativeDepth && !gEnv->IsEditor();
-#if CRY_PLATFORM_DURANGO
-	if (CV_r_ReadZBufferDirectlyFromVMEM != 0)
-	{
-		// sync fence and read directly from GPU memory
-		gRenDev->m_DevMan.SyncFence(m_occlusionFence[m_RP.m_nFillThreadID], true);
-		float* pData = reinterpret_cast<float*>(m_occlusionGPUData[m_RP.m_nFillThreadID]);
-		if (pData == NULL)
-			return 0;
-		int nPitch = m_occlusionDataPitch;
-		const float zn = m_occlusionZNear[m_RP.m_nFillThreadID];
-		const float zf = m_occlusionZFar[m_RP.m_nFillThreadID];
-		int nCameraID = -1;
-		const float ProjRatioX = zf / (zf - zn);
-		const float ProjRatioY = zn / (zn - zf);
-
-		uint32 nBufferSize = m_occlusionDownsampleSizeY * m_occlusionDownsampleSizeX;
-		if (bUseNativeDepth)
-		{
-			float x = floorf(pData[0] * 0.5f);      // Decode the ID from the first pixel
-			m_occlusionZBuffer[0] = pData[0] - (x * 2.0f);
-			nCameraID             = (int)(x);
-
-			for (uint32 x = 1; x < nBufferSize; x++)
-			{
-				reinterpret_cast<float*>(pOutOcclBuffer)[x] = max(pData[x], FLT_EPSILON);
-			}
-		}
-		else
-		{
-			for (uint32 x = 0; x < nBufferSize; x++)
-			{
-				reinterpret_cast<float*>(pOutOcclBuffer)[x] = max(ProjRatioY / max(pData[x], FLT_EPSILON) + ProjRatioX, FLT_EPSILON);
-			}
-		}
-
-		if (bUseNativeDepth)
-		{
-			nCameraID           = max((int)0, min(nCameraID, (int)(CULLER_MAX_CAMS - 1)));
-			m_occlusionViewProj = m_RP.m_OcclusionCameraBuffer[nCameraID];
-		}
-		*pmCamBuffer = m_occlusionViewProjBuffer[m_RP.m_nFillThreadID];
-	}
-	else
-#endif
-	{
-		// use the data prepared by the renderthread (with 1 frame latency)
-		for (size_t a = 0, S = nSizeX * nSizeY; a < S; a++)
-			reinterpret_cast<float*>(pOutOcclBuffer)[a] = m_occlusionZBuffer[a];
-
-		*pmCamBuffer = m_occlusionViewProj;
-	}
-
-	*pmViewProj = m_RP.m_newOcclusionCameraView * m_RP.m_newOcclusionCameraProj;
-	return 1;
+	return m_pGraphicsPipeline->GetDepthReadbackStage()->PinOcclusionBuffer(camera);
 }
 
-void CD3D9Renderer::FX_ZTargetReadBack()
+void CD3D9Renderer::UnpinOcclusionBuffer()
 {
-	PROFILE_LABEL_SCOPE("DEPTH READBACK");
-	PROFILE_FRAME(FX_ZTargetReadBack);
-
-	static ICVar* pCVCheckOcclusion           = gEnv->pConsole->GetCVar("e_CheckOcclusion");
-	static ICVar* pCVStatObjBufferRenderTasks = gEnv->pConsole->GetCVar("e_StatObjBufferRenderTasks");
-	static ICVar* pCVCoverageBufferReproj     = gEnv->pConsole->GetCVar("e_CoverageBufferReproj");
-	if ((pCVCheckOcclusion && pCVCheckOcclusion->GetIVal() == 0) ||
-	  (pCVStatObjBufferRenderTasks && pCVStatObjBufferRenderTasks->GetIVal() == 0) ||
-	  (pCVCoverageBufferReproj && pCVCoverageBufferReproj->GetIVal() == 4))
-	{
-		return;
-	}
-
-	const bool bUseNativeDepth = (CRenderer::CV_r_CBufferUseNativeDepth || CVrProjectionManager::IsMultiResEnabledStatic()) && !gEnv->IsEditor();
-	const bool bReverseDepth   = (m_RP.m_TI[m_RP.m_nProcessThreadID].m_PersFlags & RBPF_REVERSE_DEPTH) != 0;
-
-	bool bDownSampleUpdate = false;
-
-	int sourceWidth  = CTexture::s_ptexZTarget->GetWidth();
-	int sourceHeight = CTexture::s_ptexZTarget->GetHeight();
-
-	if ((m_occlusionDownsampleSizeX && m_occlusionDownsampleSizeY) &&
-	  (sourceWidth != m_occlusionSourceSizeX || sourceHeight != m_occlusionSourceSizeY))
-	{
-		bDownSampleUpdate = true;
-	}
-
-	if (m_occlusionRequestedSizeX != m_occlusionDownsampleSizeX ||
-	  m_occlusionRequestedSizeY != m_occlusionDownsampleSizeY ||
-	  bDownSampleUpdate ||
-	  m_occlusionRequestedSizeX * m_occlusionRequestedSizeY != m_occlusionZBuffer.size() ||
-	  !CTexture::s_ptexZTargetReadBack[0])
-	{
-		m_bOcclusionTexturesValid = true;
-
-		m_occlusionZBuffer.resize(m_occlusionRequestedSizeX * m_occlusionRequestedSizeY);
-
-		for (size_t y = 0; y < m_occlusionDownsampleSizeY; y++)      // Clear CPU-side buffer
-			for (size_t x = 0; x < m_occlusionDownsampleSizeX; x++)
-				m_occlusionZBuffer[x + y * m_occlusionDownsampleSizeX] = 1.0f;
-
-		m_occlusionDownsampleSizeX = m_occlusionRequestedSizeX;
-		m_occlusionDownsampleSizeY = m_occlusionRequestedSizeY;
-		const uint32 nFlags = FT_DONT_STREAM | FT_DONT_RELEASE | FT_STAGE_READBACK;
-
-		for (size_t a = 0; a < 4; a++)
-		{
-			if (CTexture::s_ptexZTargetReadBack[a])
-			{
-				CTexture::s_ptexZTargetReadBack[a]->m_nFlags = nFlags;
-				CTexture::s_ptexZTargetReadBack[a]->SetWidth(m_occlusionDownsampleSizeX);
-				CTexture::s_ptexZTargetReadBack[a]->SetHeight(m_occlusionDownsampleSizeY);
-
-				CTexture::s_ptexZTargetReadBack[a]->CreateRenderTarget(CTexture::s_eTFZ, Clr_FarPlane_R);
-				CTexture::s_ptexZTargetReadBack[a]->Clear();
-			}
-			else
-			{
-				CTexture::s_ptexZTargetReadBack[a] = CTexture::CreateRenderTarget("$ZTargetReadBack", gcpRendD3D->m_occlusionDownsampleSizeX, gcpRendD3D->m_occlusionDownsampleSizeY, Clr_FarPlane_R, eTT_2D, nFlags, CTexture::s_eTFZ);
-				CTexture::s_ptexZTargetReadBack[a]->Clear();
-			}
-
-			//			gcpRendD3D->FX_ClearTarget(CTexture::s_ptexZTargetReadBack[a]);
-		}
-
-		m_occlusionSourceSizeX = sourceWidth;
-		m_occlusionSourceSizeY = sourceHeight;
-
-		int downSampleX = max(0, 1 + IntegerLog2((uint16)((m_occlusionSourceSizeX * m_RP.m_CurDownscaleFactor.x) / m_occlusionDownsampleSizeX)));
-		int downSampleY = max(0, 1 + IntegerLog2((uint16)((m_occlusionSourceSizeY * m_RP.m_CurDownscaleFactor.y) / m_occlusionDownsampleSizeY)));
-		m_numOcclusionDownsampleStages = min(4, max(downSampleX, downSampleY));
-
-		for (int a = 0; a < m_numOcclusionDownsampleStages; a++)
-		{
-			int width  = m_occlusionDownsampleSizeX << (m_numOcclusionDownsampleStages - a - 1);
-			int height = m_occlusionDownsampleSizeY << (m_numOcclusionDownsampleStages - a - 1);
-
-			if (CTexture::s_ptexZTargetDownSample[a])
-			{
-				CTexture::s_ptexZTargetDownSample[a]->m_nFlags = nFlags;
-				CTexture::s_ptexZTargetDownSample[a]->SetWidth(width);
-				CTexture::s_ptexZTargetDownSample[a]->SetHeight(height);
-
-				CTexture::s_ptexZTargetDownSample[a]->CreateRenderTarget(CTexture::s_eTFZ, Clr_FarPlane_R);
-			}
-			else
-			{
-				assert(CTexture::s_ptexZTargetDownSample[a]);
-			}
-		}
-	}
-
-	if ((!m_occlusionDownsampleSizeX || !m_occlusionDownsampleSizeY) || !m_bOcclusionTexturesValid)
-		return;
-
-	++m_occlusionBuffer;
-	const size_t Idx           = m_RP.m_nProcessThreadID;
-	Matrix44 occlusionViewProj = m_occlusionViewProjBuffer[Idx];
-	Matrix44 mCurView, mCurProj;
-	mCurView.SetIdentity();
-	mCurProj.SetIdentity();
-	GetModelViewMatrix(reinterpret_cast<f32*>(&mCurView));
-	GetProjectionMatrix(reinterpret_cast<f32*>(&mCurProj));
-
-	if (bReverseDepth)
-		mCurProj = ReverseDepthHelper::Convert(mCurProj);
-
-	m_occlusionViewProjBuffer[Idx] = mCurView * mCurProj;
-
-	m_RP.m_nZOcclusionBufferID = ((m_RP.m_nZOcclusionBufferID + 1) < CULLER_MAX_CAMS) ? (m_RP.m_nZOcclusionBufferID + 1) : 0;
-
-	m_RP.m_OcclusionCameraBuffer[m_RP.m_nZOcclusionBufferID] = mCurView * mCurProj;
-
-	int nCameraID = -1;
-
-	if (!CTexture::s_ptexZTargetReadBack[Idx] || !CTexture::s_ptexZTargetReadBack[Idx]->GetDevTexture())
-		return;
-
-#if CRY_PLATFORM_DURANGO
-	bool bReadZBufferDirectlyFromVMEM = (CRenderer::CV_r_ReadZBufferDirectlyFromVMEM == 1);
-#else
-	bool bReadZBufferDirectlyFromVMEM = false;
-#endif
-
-	// Read data from previous frame
-	// There is a slight chance of a race condition when the main thread reads from the occlusion buffer during the following update
-	if (bReadZBufferDirectlyFromVMEM == false)
-	{
-		CTexture::s_ptexZTargetReadBack[Idx]->GetDevTexture()->AccessCurrStagingResource(0, false, [ =, &mCurProj, &nCameraID](void* pData, uint32 rowPitch, uint32 slicePitch)
-		{
-			float* pDepths = reinterpret_cast<float*>(pData);
-			const CRenderCamera& rc = GetRCamera();
-			const float zn = rc.fNear;
-			const float zf = rc.fFar;
-			const float ProjRatioX = zf / (zf - zn);
-			const float ProjRatioY = zn / (zn - zf);
-
-			uint32 nBufferSize = m_occlusionDownsampleSizeY * m_occlusionDownsampleSizeX;
-
-			if (bUseNativeDepth)
-			{
-				float x = floorf(pDepths[0] * 0.5f);      // Decode the ID from the first pixel
-				m_occlusionZBuffer[0] = pDepths[0] - (x * 2.0f);
-				nCameraID = (int)(x);
-
-				for (uint32 x = 1; x < nBufferSize; x++)
-				{
-					const float fDepthVal = bReverseDepth ? 1.0f - pDepths[x] : pDepths[x];
-					m_occlusionZBuffer[x] = max(fDepthVal, FLT_EPSILON);
-				}
-			}
-			else
-			{
-				for (uint32 x = 0; x < nBufferSize; x++)
-				{
-					m_occlusionZBuffer[x] = max(ProjRatioY / max(pDepths[x], FLT_EPSILON) + ProjRatioX, FLT_EPSILON);
-				}
-			}
-
-			m_occlusionViewProj = occlusionViewProj;
-
-			return true;
-		});
-	}
-	m_occlusionViewProjBuffer[Idx] = mCurView * mCurProj;
-
-	if (bUseNativeDepth)
-	{
-		nCameraID           = max((int)0, min(nCameraID, (int)(CULLER_MAX_CAMS - 1)));
-		m_occlusionViewProj = m_RP.m_OcclusionCameraBuffer[nCameraID];
-	}
-
-	// downsample on GPU
-	RECT srcRect;
-	srcRect.top    = srcRect.left = 0;
-	srcRect.right  = LONG(CTexture::s_ptexZTargetDownSample[0]->GetWidth() * m_RP.m_CurDownscaleFactor.x);
-	srcRect.bottom = LONG(CTexture::s_ptexZTargetDownSample[0]->GetHeight() * m_RP.m_CurDownscaleFactor.y);
-
-	RECT* srcRegion = &srcRect;
-
-	bool bMSAA = m_RP.m_MSAAData.Type ? true : false;
-
-	D3DShaderResource* pZTargetOrigSRV = CTexture::s_ptexZTarget->GetShaderResourceView(bMSAA ? SResourceView::DefaultViewMS : SResourceView::DefaultView);
-	if (bUseNativeDepth)
-	{
-		// Read native depth, rather than linear. TODO: Check me, this may be slow on ATI MSAA
-		CTexture::s_ptexZTarget->SetShaderResourceView(gcpRendD3D->m_DepthBufferOrigMSAA.pTexture->GetDeviceDepthReadOnlySRV(0, -1, bMSAA), bMSAA);
-
-		int vpX, vpY, vpWidth, vpHeight;
-		GetViewport(&vpX, &vpY, &vpWidth, &vpHeight);
-
-		srcRect.right  = LONG(srcRect.right * vpWidth / float(m_width));
-		srcRect.bottom = LONG(srcRect.bottom * vpHeight / float(m_height));
-	}
-	else
-	{
-		bMSAA = false;
-	}
-
-	CTexture* pSrc = CTexture::s_ptexZTarget;
-	CTexture* pDst = CTexture::s_ptexZTarget;
-
-	if (CVrProjectionManager::IsMultiResEnabledStatic())
-		pSrc = CVrProjectionManager::Instance()->GetZTargetFlattened();
-
-	bool bUseMSAA = bMSAA;
-	const SPostEffectsUtils::EDepthDownsample downsampleMode = (bUseNativeDepth && bReverseDepth)
-	  ? SPostEffectsUtils::eDepthDownsample_Min
-	  : SPostEffectsUtils::eDepthDownsample_Max;
-
-	for (int i = 0; i < m_numOcclusionDownsampleStages; i++)
-	{
-		pDst = CTexture::s_ptexZTargetDownSample[i];
-		GetUtils().StretchRect(pSrc, pDst, false, false, false, false, downsampleMode, false, srcRegion);
-		pSrc      = pDst;
-		srcRegion = NULL;
-		bUseMSAA  = false;
-	}
-
-	pSrc = pDst;
-	pDst = CTexture::s_ptexZTargetReadBack[Idx];
-	PostProcessUtils().StretchRect(pSrc, pDst, false, false, false, false, downsampleMode);
-
-	//  Blend ID into top left pixel of readback buffer
-	gcpRendD3D->FX_PushRenderTarget(0, pDst, NULL);
-	gcpRendD3D->RT_SetViewport(0, 0, 1, 1);
-
-	CShader* pSH     = CShaderMan::s_ShaderCommon;
-	uint32   nPasses = 0;
-	pSH->FXSetTechnique("ClearUniform");
-	pSH->FXBegin(&nPasses, FEF_DONTSETTEXTURES | FEF_DONTSETSTATES);
-	pSH->FXBeginPass(0);
-
-	static CCryNameR pClearParams("vClearParam");
-	Vec4 vFrameID = Vec4((float)(m_RP.m_nZOcclusionBufferID * 2.0f), 0, 0, 0);
-	pSH->FXSetPSFloat(pClearParams, &vFrameID, 1);
-
-	FX_SetState(GS_NODEPTHTEST | GS_BLSRC_ONE | GS_BLDST_ONE);
-	D3DSetCull(eCULL_None);
-	float fX = (float)m_CurViewport.nWidth;
-	float fY = (float)m_CurViewport.nHeight;
-	ColorF col = Col_Black;
-	DrawQuad(-0.5f, -0.5f, fX - 0.5f, fY - 0.5f, col, 1.0f, fX, fY, fX, fY);
-
-	gcpRendD3D->FX_PopRenderTarget(0);
-	gcpRendD3D->RT_SetViewport(0, 0, GetWidth(), GetHeight());
-
-	// Copy to CPU accessible memory
-	if (bReadZBufferDirectlyFromVMEM == false)
-	{
-		CTexture::s_ptexZTargetReadBack[Idx]->GetDevTexture()->DownloadToStagingResource(0);
-	}
-
-	if (bUseNativeDepth)
-	{
-		CTexture::s_ptexZTarget->SetShaderResourceView(pZTargetOrigSRV, bMSAA);
-	}
-
-#if CRY_PLATFORM_DURANGO && defined(DEVICE_SUPPORTS_PERFORMANCE_DEVICE)
-	if (bReadZBufferDirectlyFromVMEM == true)
-	{
-		// get camera settings for reprojection
-		const CRenderCamera& rc = GetRCamera();
-		m_occlusionZNear[m_RP.m_nProcessThreadID] = rc.fNear;
-		m_occlusionZFar[m_RP.m_nProcessThreadID]  = rc.fFar;
-
-		// create resources if needed, we allocate direclty in VMEM for reading
-		// but we need to create a texture on this data to that the GPU can copy the data into it
-		if (m_occlusionGPUData[m_RP.m_nProcessThreadID] == NULL)
-		{
-			gRenDev->m_DevMan.CreateFence(m_occlusionFence[m_RP.m_nProcessThreadID]);
-
-			D3D11_TEXTURE2D_DESC subResDesc;
-			CTexture::s_ptexZTargetReadBack[m_RP.m_nProcessThreadID]->GetDevTexture()->Get2DTexture()->GetDesc(&subResDesc);
-
-			HRESULT hr = D3DAllocateGraphicsMemory(subResDesc.Width * subResDesc.Height * sizeof(float), 0, 0, D3D11_GRAPHICS_MEMORY_ACCESS_CPU_CACHE_NONCOHERENT_GPU_READONLY, &m_occlusionGPUData[m_RP.m_nProcessThreadID]);
-			CHECK_HRESULT(hr);
-
-			hr = gcpRendD3D->GetPerformanceDevice().CreatePlacementTexture2D(&subResDesc, XG_TILE_MODE_LINEAR, 0, m_occlusionGPUData[m_RP.m_nProcessThreadID], &m_occlusionReadBackTexture[m_RP.m_nProcessThreadID]);
-			CHECK_HRESULT(hr);
-
-			m_occlusionDataPitch = subResDesc.Width;
-		}
-
-		// copy data from last downsampling state to our read buffer
-		// afterwards add a GPU flush and a fence for synchronization
-		CTexture* pLastDownSampleLevel = CTexture::s_ptexZTargetDownSample[m_numOcclusionDownsampleStages - 1];
-		gcpRendD3D->GetDeviceContext().CopyResource(m_occlusionReadBackTexture[m_RP.m_nProcessThreadID], pLastDownSampleLevel->GetDevTexture()->Get2DTexture());
-		gcpRendD3D->GetPerformanceDeviceContext().FlushGpuCaches(m_occlusionReadBackTexture[m_RP.m_nProcessThreadID]);
-		gRenDev->m_DevMan.IssueFence(m_occlusionFence[m_RP.m_nProcessThreadID]);
-	}
-#endif
+	m_pGraphicsPipeline->GetDepthReadbackStage()->UnpinOcclusionBuffer();
 }
 
 void CD3D9Renderer::FX_UpdateCharCBs()
@@ -3626,7 +2907,7 @@ void* CD3D9Renderer::FX_AllocateCharInstCB(SSkinningData* pSkinningData, uint32 
 	{
 		cb           = new SCharacterInstanceCB();
 		cb->boneTransformsBuffer = gcpRendD3D->m_DevBufMan.CreateConstantBuffer(768*sizeof(DualQuat), true, true);
-		cb->activeMorphsBuffer.Create(768, sizeof(compute_skinning::SActiveMorphs), DXGI_FORMAT_UNKNOWN, DX11BUF_DYNAMIC | DX11BUF_STRUCTURED | DX11BUF_BIND_SRV, NULL);
+		cb->activeMorphsBuffer.Create(768, sizeof(compute_skinning::SActiveMorphs), DXGI_FORMAT_UNKNOWN, CDeviceObjectFactory::USAGE_CPU_WRITE | CDeviceObjectFactory::USAGE_STRUCTURED | CDeviceObjectFactory::BIND_SHADER_RESOURCE, NULL);
 		CryInterlockedIncrement(&m_CharCBAllocated);
 	}
 	cb->updated = false;
@@ -3653,14 +2934,6 @@ void CD3D9Renderer::RT_RenderScene(CRenderView* pRenderView, int nFlags, SThread
 {
 	PROFILE_LABEL_SCOPE(pRenderView->IsRecursive() ? "SCENE_REC" : "SCENE");
 
-	if (GetS3DRend().IsStereoEnabled())
-	{
-		// Use current stereo eye target as backbuffer
-		assert(m_nRTStackLevel[0] == 0);
-		FX_SetRenderTarget(0, GetS3DRend().GetEyeTarget((nFlags & SHDF_STEREO_LEFT_EYE) ? LEFT_EYE : RIGHT_EYE), &m_DepthBufferOrig, false);
-		GetS3DRend().SkipEyeTargetClears();
-	}
-	
 	gcpRendD3D->SetCurDownscaleFactor(gcpRendD3D->m_CurViewportScale);
 
 	// Skip scene rendering when device is lost
@@ -3683,10 +2956,43 @@ void CD3D9Renderer::RT_RenderScene(CRenderView* pRenderView, int nFlags, SThread
 	int nRecurse = pRenderView->IsRecursive() ? 1 : 0;
 	FX_ApplyThreadState(TI, &m_RP.m_OldTI[nRecurse]);
 
+	// Allocate actual HDR target texture for secondary viewport.
+	const SDisplayContext* pDisplayContext = GetActiveDisplayContext();
+	const bool bSecondaryViewport = (nFlags & SHDF_SECONDARY_VIEWPORT) != 0;
+	if (pDisplayContext
+		&& pDisplayContext->m_pHDRTargetTex
+		&& bSecondaryViewport)
+	{
+		CRY_ASSERT(pRenderView->GetRenderOutput() == nullptr);
+		CRY_ASSERT(nFlags & SHDF_ALLOWHDR);
+
+		// Clear color is in sRGB color space so it needs to be converted to linear color space to clear HDR render target.
+		// NOTE: Secondary viewport used to be rendered in LDR and sRGB color space.
+		ColorF clearColor = m_cClearColor;
+		clearColor.srgb2rgb();
+
+		CRenderOutput renderOutput(pDisplayContext->m_pHDRTargetTex, pDisplayContext->m_Width, pDisplayContext->m_Height, true, clearColor);
+		pRenderView->SetRenderOutput(&renderOutput);
+	}
+
 	////////////////////////////////////////////////
 	{
 		PROFILE_FRAME(WaitForRenderView);
 		pRenderView->SwitchUsageMode(CRenderView::eUsageModeReading);
+	}
+
+	{
+		PROFILE_FRAME(CompileModifiedShaderItems)
+		for (auto pShaderResources : CShader::s_ShaderResources_known)
+		{
+			// TODO: Check why s_ShaderResources_known can contain null pointers
+			if (pShaderResources && pShaderResources->HasChanges())
+			{
+				// NOTE: unconditionally clear dirty flag here, as there is no point in trying to update the resource set again
+				// in case of failure. any change to the resources will set the dirty flag again. 
+				pShaderResources->RT_UpdateResourceSet();
+			}
+		}
 	}
 
 	CFlashTextureSourceSharedRT::SetupSharedRenderTargetRT();
@@ -3694,14 +3000,17 @@ void CD3D9Renderer::RT_RenderScene(CRenderView* pRenderView, int nFlags, SThread
 
 	CTimeValue Time = iTimer->GetAsyncTime();
 
+	if (pRenderView->IsBillboardGenView())
+	  pRenderView->GetCamera(CCamera::eEye_Left).GetViewPort(m_MainViewport.nX, m_MainViewport.nY, m_MainViewport.nWidth, m_MainViewport.nHeight);
+	else
 	if (!nRecurse)
 	{
 		m_MainViewport.nX      = 0;
 		m_MainViewport.nY      = 0;
 		m_MainViewport.nWidth  = m_width;
 		m_MainViewport.nHeight = m_height;
-
 	}
+
 
 	if (!nRecurse)
 	{
@@ -3750,7 +3059,9 @@ void CD3D9Renderer::RT_RenderScene(CRenderView* pRenderView, int nFlags, SThread
 	m_RP.m_nRendFlags = nFlags;
 
 	const bool bHDRRendering = (nFlags & SHDF_ALLOWHDR) && IsHDRModeEnabled() && !(pShaderThreadInfo->m_PersFlags & RBPF_MAKESPRITE);
-	const bool bNewGraphicsPipeline = m_nGraphicsPipeline >= 1 && !pRenderView->IsRecursive() && (nFlags & SHDF_ALLOWPOSTPROCESS) && !(pShaderThreadInfo->m_PersFlags & RBPF_MAKESPRITE);
+	const bool bNewGraphicsPipelineGeneral = m_nGraphicsPipeline >= 1 && !pRenderView->IsRecursive() && !(pShaderThreadInfo->m_PersFlags & RBPF_MAKESPRITE);
+	const bool bNewGraphicsPipelineRecursive = m_nGraphicsPipeline >= 3 && pRenderView->IsRecursive() && !(pShaderThreadInfo->m_PersFlags & RBPF_MAKESPRITE);
+	const bool bNewGraphicsPipeline = bNewGraphicsPipelineGeneral || bNewGraphicsPipelineRecursive;
 
 	if (!IsHDRModeEnabled())
 	{
@@ -3761,21 +3072,21 @@ void CD3D9Renderer::RT_RenderScene(CRenderView* pRenderView, int nFlags, SThread
 	if (!nRecurse && bHDRRendering)
 	{
 		m_RP.m_bUseHDR = true;
-		if (FX_HDRScene(m_RP.m_bUseHDR, false))
+		if (FX_HDRScene(m_RP.m_bUseHDR, nFlags, false))
 			m_RP.m_PersFlags2 |= RBPF2_HDR_FP16;
 	}
 	else
 	{
 		m_RP.m_bUseHDR = false;
-		FX_HDRScene(false);
+		FX_HDRScene(false, nFlags);
 
 		if ((pShaderThreadInfo->m_PersFlags & RBPF_DRAWTOTEXTURE) && bHDRRendering)
 			m_RP.m_PersFlags2 |= RBPF2_HDR_FP16;
 		else
 			m_RP.m_PersFlags2 &= ~RBPF2_HDR_FP16;
 
-		if (bNewGraphicsPipeline) // new graphics pipeline assumes hdr target is on bottom of stack
-			FX_PushRenderTarget(0, CTexture::s_ptexHDRTarget, &m_DepthBufferOrigMSAA, -1, true);
+		if (bNewGraphicsPipelineGeneral && (nFlags & SHDF_ALLOWHDR) && (nFlags & SHDF_ALLOWPOSTPROCESS)) // new graphics pipeline assumes hdr target is on bottom of stack
+			FX_PushRenderTarget(0, CTexture::s_ptexHDRTarget, &m_DepthBufferOrig, -1, true);
 	}
 
 	// Prepare post processing
@@ -3834,10 +3145,16 @@ void CD3D9Renderer::RT_RenderScene(CRenderView* pRenderView, int nFlags, SThread
 			Vec2(0.0f / 3.0f,  1.0f / 3.0f)
 		};
 
-		static const Vec2 vSSAA4x[4] =
+		static const Vec2 vSSAA4x_regular[4] =
 		{
-			Vec2(-0.125, -0.375), Vec2(0.375,  -0.125),
-			Vec2(-0.375, 0.125),  Vec2(0.125,  0.375)
+			Vec2(-0.25f, -0.25f), Vec2(-0.25f,  0.25f),
+			Vec2( 0.25f, -0.25f), Vec2( 0.25f,  0.25f)
+		};
+
+		static const Vec2 vSSAA4x_rotated[4] =
+		{
+			Vec2(-0.125, -0.375), Vec2(0.375, -0.125),
+			Vec2(-0.375, 0.125),  Vec2(0.125, 0.375)
 		};
 
 		static const Vec2 vSMAA4x[2] =
@@ -3862,35 +3179,50 @@ void CD3D9Renderer::RT_RenderScene(CRenderView* pRenderView, int nFlags, SThread
 			Vec2(5.0f / 7.0f, 6.0f / 7.0f) - Vec2(0.5f, 0.5f), Vec2(1.0f / 7.0f, 7.0f / 7.0f) - Vec2(0.5f, 0.5f)
 		};
 
+		int jitterPattern = CRenderer::CV_r_AntialiasingTAAPattern;
+		if (jitterPattern == 1)
+		{
+			if (FX_GetAntialiasingType() & eAT_SMAA_2TX_MASK)  jitterPattern = 2;
+			else if (FX_GetAntialiasingType() & eAT_TSAA_MASK) jitterPattern = 5;
+			else                                               jitterPattern = 0;
+		}
+		
 		const int nSampleID = SPostEffectsUtils::m_iFrameCounter;
 		Vec2 vCurrSubSample = Vec2(0, 0);
-		switch (CRenderer::CV_r_AntialiasingTAAPattern)
+		switch (jitterPattern)
 		{
-		case 1:
+		case 2:
 			vCurrSubSample = vSSAA2x[nSampleID % 2];
 			break;
-		case 2:
+		case 3:
 			vCurrSubSample = vSSAA3x[nSampleID % 3];
 			break;
-		case 3:
-			vCurrSubSample = vSSAA4x[nSampleID % 4];
-			break;
 		case 4:
-			vCurrSubSample = vSSAA8x[nSampleID % 8];
+			vCurrSubSample = vSSAA4x_regular[nSampleID % 4];
 			break;
 		case 5:
-			vCurrSubSample = vSGSSAA8x8[nSampleID % 8];
+			vCurrSubSample = vSSAA4x_rotated[nSampleID % 4];
 			break;
 		case 6:
-			vCurrSubSample = Vec2(SPostEffectsUtils::srandf(), SPostEffectsUtils::srandf()) * 0.5f;
+			vCurrSubSample = vSSAA8x[nSampleID % 8];
 			break;
 		case 7:
-			vCurrSubSample = Vec2(SPostEffectsUtils::HaltonSequence(SPostEffectsUtils::m_iFrameCounter % 8, 2) - 0.5f,
-				SPostEffectsUtils::HaltonSequence(SPostEffectsUtils::m_iFrameCounter % 8, 3) - 0.5f);
+			vCurrSubSample = vSGSSAA8x8[nSampleID % 8];
 			break;
 		case 8:
+			vCurrSubSample = Vec2(SPostEffectsUtils::srandf(), SPostEffectsUtils::srandf()) * 0.5f;
+			break;
+		case 9:
+			vCurrSubSample = Vec2(SPostEffectsUtils::HaltonSequence(SPostEffectsUtils::m_iFrameCounter % 8, 2) - 0.5f,
+			                      SPostEffectsUtils::HaltonSequence(SPostEffectsUtils::m_iFrameCounter % 8, 3) - 0.5f);
+			break;
+		case 10:
+			vCurrSubSample = Vec2(SPostEffectsUtils::HaltonSequence(SPostEffectsUtils::m_iFrameCounter % 16, 2) - 0.5f,
+			                      SPostEffectsUtils::HaltonSequence(SPostEffectsUtils::m_iFrameCounter % 16, 3) - 0.5f);
+			break;
+		case 11:
 			vCurrSubSample = Vec2(SPostEffectsUtils::HaltonSequence(SPostEffectsUtils::m_iFrameCounter % 1024, 2) - 0.5f,
-				SPostEffectsUtils::HaltonSequence(SPostEffectsUtils::m_iFrameCounter % 1024, 3) - 0.5f);
+			                      SPostEffectsUtils::HaltonSequence(SPostEffectsUtils::m_iFrameCounter % 1024, 3) - 0.5f);
 			break;
 		}
 
@@ -3913,7 +3245,7 @@ void CD3D9Renderer::RT_RenderScene(CRenderView* pRenderView, int nFlags, SThread
 	{
 		if (!nRecurse && (nFlags & SHDF_ALLOWHDR) && !(pShaderThreadInfo->m_PersFlags & RBPF_MAKESPRITE))
 		{
-			ETEX_Format eTF = (m_RP.m_bUseHDR && m_nHDRType == 1) ? eTF_R16G16B16A16F : eTF_R8G8B8A8;
+			ETEX_Format eTF = eTF_R16G16B16A16F;
 			int nW          = gcpRendD3D->GetWidth();  //m_d3dsdBackBuffem.Width;
 			int nH          = gcpRendD3D->GetHeight(); //m_d3dsdBackBuffem.Height;
 			if (!CTexture::s_ptexSceneTarget || CTexture::s_ptexSceneTarget->GetDstFormat() != eTF || CTexture::s_ptexSceneTarget->GetWidth() != nW || CTexture::s_ptexSceneTarget->GetHeight() != nH)
@@ -3923,13 +3255,37 @@ void CD3D9Renderer::RT_RenderScene(CRenderView* pRenderView, int nFlags, SThread
 
 	if (bNewGraphicsPipeline)
 	{
+		CRY_ASSERT(nFlags & SHDF_ALLOWHDR);
+
 		GetGraphicsPipeline().Prepare(pRenderView, EShaderRenderingFlags(nFlags));
-		GetGraphicsPipeline().Execute();
+
+		if (pRenderView->IsBillboardGenView())
+		{
+			GetGraphicsPipeline().ExecuteBillboards();
+		}
+		else if (pRenderView->IsRecursive())
+		{
+			GetGraphicsPipeline().ExecuteMinimumForwardShading();
+		}
+		else
+		{
+			if ((nFlags & SHDF_ZPASS) && (nFlags & SHDF_ALLOWPOSTPROCESS))
+			{
+				GetGraphicsPipeline().Execute();
+			}
+			else
+			{
+				CRY_ASSERT((nFlags & SHDF_ZPASS) == 0);
+				CRY_ASSERT((nFlags & SHDF_ALLOWPOSTPROCESS) == 0);
+				GetGraphicsPipeline().ExecuteMinimumForwardShading();
+			}
+		}
 	}
 	else
 	{
-		if ((nFlags & SHDF_ALLOWPOSTPROCESS) && !nRecurse && !(pShaderThreadInfo->m_PersFlags & RBPF_MAKESPRITE))
-			FX_DeferredRainPreprocess();
+		CRY_ASSERT(m_nGraphicsPipeline < 1);
+
+		GetGraphicsPipeline().UpdateMainViewConstantBuffer();
 
 		static ICVar* cvar_gd = gEnv->pConsole->GetCVar("r_ComputeSkinning");
 		if (cvar_gd && cvar_gd->GetIVal())
@@ -3941,9 +3297,6 @@ void CD3D9Renderer::RT_RenderScene(CRenderView* pRenderView, int nFlags, SThread
 			if ((nFlags & (SHDF_ALLOWHDR | SHDF_ALLOWPOSTPROCESS)) && !nRecurse && CV_r_usezpass)
 			{
 				FX_ProcessZPassRenderLists();
-
-				FX_DeferredRainGBuffer();
-				FX_DeferredSnowLayer();
 			}
 
 #if defined(FEATURE_SVO_GI)
@@ -4021,16 +3374,11 @@ void CD3D9Renderer::RT_RenderScene(CRenderView* pRenderView, int nFlags, SThread
 			// insert fence which is used on consoles to prevent overwriting VideoMemory
 			InsertParticleVideoDataFence();
 
-			if (bAllowDeferred && !nRecurse)
-				FX_DeferredSnowDisplacement();
-
 			if (!nRecurse)
 			{
 				gcpRendD3D->m_RP.m_PersFlags1 &= ~RBPF1_SKIP_AFTER_POST_PROCESS;
 
-				FX_ProcessRenderList(EFSLIST_HDRPOSTPROCESS, RenderFunc, false);         // Sorted list without preprocess of all fog passes and screen shaders
 				FX_ProcessRenderList(EFSLIST_AFTER_HDRPOSTPROCESS, RenderFunc, false);   // for specific cases where rendering after tone mapping is needed
-				FX_ProcessRenderList(EFSLIST_POSTPROCESS, RenderFunc, false);            // Sorted list without preprocess of all fog passes and screen shaders
 
 				bool bDrawAfterPostProcess = !(gcpRendD3D->m_RP.m_PersFlags1 & RBPF1_SKIP_AFTER_POST_PROCESS);
 
@@ -4084,6 +3432,11 @@ void CD3D9Renderer::RT_RenderScene(CRenderView* pRenderView, int nFlags, SThread
 	CV_r_watercaustics         = nSaveDrawCaustics;
 	CV_r_texturesstreamingsync = nSaveStreamSync;
 
+	if (!pRenderView->IsRecursive())
+	{
+		gRenDev->GetIRenderAuxGeom()->Flush();
+	}
+
 	////////////////////////////////////////////////
 	// Lists still needed for right eye when stereo is active
 	if (!GetS3DRend().RequiresSequentialSubmission() || !(nFlags & SHDF_STEREO_LEFT_EYE))
@@ -4099,14 +3452,11 @@ void CD3D9Renderer::RT_RenderScene(CRenderView* pRenderView, int nFlags, SThread
 		pRenderView->Clear();
 		m_RP.m_pSunLight = nullptr;
 	}
+
 	m_RP.m_pCurrentRenderView = nullptr;
 
-	if (GetS3DRend().IsStereoEnabled())
-	{
-		// Restore backbuffer
-		assert(m_nRTStackLevel[0] == 0);
-		FX_SetRenderTarget(0, m_pBackBuffer, &m_DepthBufferNative, false);
-}
+	// Don't keep resource-binds cached across rendering-boundaries (e.g. because of resize or chain-loading)
+	gRenDev->RT_UnbindResources();
 }
 
 void CD3D9Renderer::RT_DrawUITextureInternal(S2DImage& img)
@@ -4135,7 +3485,7 @@ void CD3D9Renderer::RT_DrawUITextureInternal(S2DImage& img)
 	pScreenQuad[2].st  = Vec2(img.s1, 1 - img.t0);
 	pScreenQuad[3].st  = Vec2(img.s1, 1 - img.t1);
 
-	CVertexBuffer strip(pScreenQuad, eVF_P3F_C4B_T2F);
+	CVertexBuffer strip(pScreenQuad, EDefaultInputLayouts::P3F_C4B_T2F);
 	gRenDev->DrawPrimitivesInternal(&strip, 4, eptTriangleStrip);
 }
 
@@ -4181,7 +3531,7 @@ void CD3D9Renderer::RT_RenderUITextures()
 		  (f32)(img.col % 256) / 256.0f, (f32)(img.col >> 24) / 256.0f);
 		pShader->FXSetPSFloat(pParam0Name, &vParam0, 1);
 
-		img.pTex->Apply(0, CTexture::GetTexState(STexState(FILTER_LINEAR, true)), EFTT_UNKNOWN, -1, SResourceView::DefaultView);
+		img.pTex->Apply(0, EDefaultSamplerStates::LinearClamp, EFTT_UNKNOWN, -1, EDefaultResourceViews::Default);
 		RT_DrawUITextureInternal(img);
 		pShader->FXEndPass();
 		pShader->FXEnd();
@@ -4273,6 +3623,17 @@ void CD3D9Renderer::EF_EndEf3D(const int nFlags, const int nPrecacheUpdateIdSlow
 		return;
 	}
 
+	const bool bSecondaryViewport = (nFlags & SHDF_SECONDARY_VIEWPORT) != 0;
+	if (bSecondaryViewport)
+	{
+		CRenderView* pRenderView = passInfo.GetRenderView();
+		CRY_ASSERT(pRenderView);
+
+		const CCamera& cam = passInfo.GetCamera();
+		pRenderView->SetCameras(&cam, 1);
+		pRenderView->SetPreviousFrameCameras(&cam, 1);
+	}
+
 	int nAsyncShaders = CV_r_shadersasynccompiling;
 	int nTexStr       = CV_r_texturesstreamingsync;
 	if (nFlags & SHDF_NOASYNC)
@@ -4326,38 +3687,36 @@ void CD3D9Renderer::EF_Scene3D(SViewport& VP, int nFlags, const SRenderingPassIn
 				EF_AddEf(m_RP.m_pREDeferredShading, shItem, pObj, passInfoDeferredSort, EFSLIST_DEFERRED_PREPROCESS, 0);
 			}
 		}
-
-		if ((nFlags & SHDF_ALLOWHDR) && IsHDRModeEnabled())
-		{
-			SShaderItem shItem(CShaderMan::s_shHDRPostProcess);
-			CRenderObject* pObj = EF_GetObject_Temp(passInfo.ThreadID());
-			if (pObj)
-			{
-				pObj->m_II.m_Matrix.SetIdentity();
-				EF_AddEf(m_RP.m_pREHDR, shItem, pObj, passInfo, EFSLIST_HDRPOSTPROCESS, 0);
-			}
-		}
-
-		bool bAllowPostProcess = (nFlags & SHDF_ALLOWPOSTPROCESS) && (CV_r_PostProcess);
-		bAllowPostProcess &= (m_RP.m_TI[nThreadID].m_PersFlags & RBPF_MIRRORCULL) == 0;
-		if (bAllowPostProcess)
-		{
-			SShaderItem shItem(CShaderMan::s_shPostEffects);
-			CRenderObject* pObj = EF_GetObject_Temp(passInfo.ThreadID());
-			if (pObj)
-			{
-				pObj->m_II.m_Matrix.SetIdentity();
-				EF_AddEf(m_RP.m_pREPostProcess, shItem, pObj, passInfo, EFSLIST_POSTPROCESS, 0);
-			}
-		}
 	}
 
 	// Update per-frame params
-	UpdateConstParamsPF(passInfo);
+	const bool bSecondaryViewport = (nFlags & SHDF_SECONDARY_VIEWPORT) != 0;
+	UpdateConstParamsPF(passInfo, bSecondaryViewport);
 
+	// EF_RenderScene leaves no active render-output set
 	EF_RenderScene(nFlags, VP, passInfo);
+}
 
-	if (!passInfo.IsRecursivePass()) gRenDev->GetIRenderAuxGeom()->Flush();
+bool CD3D9Renderer::StoreGBufferToAtlas(const RectI& rcDst, int nSrcWidth, int nSrcHeight, int nDstWidth, int nDstHeight, ITexture *pDataD, ITexture *pDataN)
+{
+	bool bRes = true;
+
+	CTexture *pGBuffD = CTexture::s_ptexSceneDiffuse;
+	CTexture *pGBuffN = CTexture::s_ptexSceneNormalsMap;
+
+	CTexture *pDstD = (CTexture *)pDataD;
+	CTexture *pDstN = (CTexture *)pDataN;
+
+	RECT SrcBox, DstBox;
+	SrcBox.left = 0; SrcBox.top = 0; SrcBox.right = nSrcWidth; SrcBox.bottom = nSrcHeight;
+	DstBox.left = rcDst.x; DstBox.top = rcDst.y; DstBox.right = rcDst.x + nDstWidth; DstBox.bottom = rcDst.y + nDstHeight;
+
+	CStretchRegionPass::GetPass().Execute(pGBuffD, pDstD, &SrcBox, &DstBox);
+
+	CStretchRegionPass::GetPass().Execute(pGBuffN, pDstN, &SrcBox, &DstBox);
+
+
+	return bRes;
 }
 
 void CD3D9Renderer::RT_PrepareStereo(int mode, int output)
@@ -4387,9 +3746,9 @@ void CD3D9Renderer::LogShaderImportMiss(const CShader* pShader)
 	shaderList = "ShaderList_Durango.txt";
 #elif CRY_PLATFORM_ORBIS
 	shaderList = "ShaderList_Orbis.txt";
-#elif defined(OPENGL_ES) && DXGL_INPUT_GLSL
+#elif CRY_RENDERER_OPENGLES && DXGL_INPUT_GLSL
 	shaderList = "ShaderList_GLES3.txt";
-#elif defined(OPENGL) && DXGL_INPUT_GLSL
+#elif CRY_RENDERER_OPENGL && DXGL_INPUT_GLSL
 	shaderList = "ShaderList_GL4.txt";
 #else
 	shaderList = "ShaderList_PC.txt";

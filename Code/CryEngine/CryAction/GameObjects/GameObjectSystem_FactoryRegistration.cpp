@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #include "StdAfx.h"
 #include "GameObjectSystem.h"
@@ -7,6 +7,7 @@
 #include "Interactor.h"
 #include "GameVolumes/GameVolume_Water.h"
 #include "GameObjects/MannequinObject.h"
+#include "EntityContainers/EntityContainerObject.h"
 
 #include <CryGame/IGameVolumes.h>
 #include <CryGame/IGameFramework.h>
@@ -22,7 +23,7 @@
     {                                                                                             \
       IGameObjectExtension* Create(IEntity *pEntity)                                            \
       {                                                                                           \
-        return pEntity->CreateComponentClass<C ## extensionClassName>();                          \
+        return pEntity->GetOrCreateComponentClass<C ## extensionClassName>();                          \
       }                                                                                           \
       void GetGameObjectExtensionRMIData(void** ppRMI, size_t * nCount)                           \
       {                                                                                           \
@@ -49,12 +50,45 @@
 
 void CGameObjectSystem::RegisterFactories(IGameFramework* pFrameWork)
 {
+	LOADING_TIME_PROFILE_SECTION;
 	REGISTER_FACTORY(pFrameWork, "WorldQuery", CWorldQuery, false);
 	REGISTER_FACTORY(pFrameWork, "Interactor", CInteractor, false);
 
-	REGISTER_GAME_OBJECT_EXTENSION(pFrameWork, "WaterVolume", GameVolume_Water, "Scripts/Entities/Environment/WaterVolume.lua");
-	RegisterEntityWithDefaultComponent<CMannequinObject>("MannequinEntity", "Animation", "User.bmp");
+	CCryFile file;
+	if (file.Open("Scripts/Entities/Environment/WaterVolume.lua", "r"))
+	{
+		file.Close();
+		REGISTER_GAME_OBJECT_EXTENSION(pFrameWork, "WaterVolume", GameVolume_Water, "Scripts/Entities/Environment/WaterVolume.lua");
 
-	HIDE_FROM_EDITOR("WaterVolume");
-	REGISTER_EDITOR_VOLUME_CLASS(pFrameWork, "WaterVolume");
+		HIDE_FROM_EDITOR("WaterVolume");
+		REGISTER_EDITOR_VOLUME_CLASS(pFrameWork, "WaterVolume");
+	}
+
+	IEntityClassRegistry::SEntityClassDesc clsDesc;
+	clsDesc.sName = "MannequinEntity";
+
+	clsDesc.editorClassInfo.sCategory = "Animation";
+	clsDesc.editorClassInfo.sIcon = "User.bmp";
+	clsDesc.editorClassInfo.bIconOnTop = true;
+
+	// If we load a legacy project we still want to expose the legacy entity.
+	if(gEnv->pGameFramework->GetIGame() == nullptr)
+		clsDesc.flags |= ECLF_INVISIBLE;
+
+	struct CObjectCreator
+	{
+		static IEntityComponent* Create(IEntity* pEntity, SEntitySpawnParams& params, void* pUserData)
+		{
+			return pEntity->GetOrCreateComponentClass<CMannequinObject>();
+		}
+	};
+	clsDesc.pUserProxyCreateFunc = &CObjectCreator::Create;
+	gEnv->pEntitySystem->GetClassRegistry()->RegisterStdClass(clsDesc);
+
+	// Special case since entity container is Hunt specific, skip entity registration if no script is available
+	if (file.Open("Scripts/Entities/Containers/EntityContainerObject.lua", "r"))
+	{
+		file.Close();
+		REGISTER_GAME_OBJECT_EXTENSION(pFrameWork, "EntityContainerObject", EntityContainerObject, "Scripts/Entities/Containers/EntityContainerObject.lua");
+	}
 }

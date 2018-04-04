@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #include "StdAfx.h"
 
@@ -119,9 +119,9 @@ void GSysAllocCryMem::GetMemoryUsage(ICrySizer* pSizer) const
 	pSizer->AddObject(this, sizeof(*this) + m_stats.Allocated);
 }
 
-GSysAllocBase* GSysAllocCryMem::GetSysAllocImpl()
+GSysAllocBase* GSysAllocCryMem::GetSysAllocImpl() const
 {
-	return this;
+	return (GSysAllocBase*)this;
 }
 
 GFxMemoryArenaWrapper& GSysAllocCryMem::GetMemoryArenas()
@@ -201,7 +201,7 @@ void GSysAllocStaticCryMem::GetMemoryUsage(ICrySizer* pSizer) const
 	pSizer->AddObject(m_pMem, m_size);
 }
 
-GSysAllocBase* GSysAllocStaticCryMem::GetSysAllocImpl()
+GSysAllocBase* GSysAllocStaticCryMem::GetSysAllocImpl() const
 {
 	assert(m_pStaticAlloc);
 	return m_pStaticAlloc;

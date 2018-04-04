@@ -40,7 +40,7 @@ IFramework* CryLinkService::CreateFramework(IGameFramework* pGameFramework)
 class CryLinkFrameworkCreator : public IGameFrameworkExtensionCreator
 {
 	CRYINTERFACE_SIMPLE(IGameFrameworkExtensionCreator)
-	CRYGENERATE_SINGLETONCLASS(CryLinkFrameworkCreator, CRY_LINK_EXTENSION_CREATOR, 0x89f52cbfdc2f4ad6, 0xb5735b7cdcc6cc7f)
+	CRYGENERATE_SINGLETONCLASS_GUID(CryLinkFrameworkCreator, CRY_LINK_EXTENSION_CREATOR, "89f52cbf-dc2f-4ad6-b573-5b7cdcc6cc7f"_cry_guid)
 
 	virtual ~CryLinkFrameworkCreator() {}
 

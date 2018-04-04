@@ -2,9 +2,6 @@
 
 using System;
 
-/// <summary>
-/// Assembly of useful supportive classes and functions.
-/// </summary>
 namespace CryEngine
 {
 	/// <summary>

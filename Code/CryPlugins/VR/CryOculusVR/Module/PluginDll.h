@@ -14,7 +14,7 @@ class CPlugin_OculusVR : public IOculusVRPlugin, public ISystemEventListener
 	CRYINTERFACE_ADD(ICryPlugin)
 	CRYINTERFACE_END()
 
-	CRYGENERATE_SINGLETONCLASS(CPlugin_OculusVR, "Plugin_OculusVR", 0x4DF8241E2BC24EC7, 0xB237EE5DB27265B3)
+	CRYGENERATE_SINGLETONCLASS_GUID(CPlugin_OculusVR, "Plugin_OculusVR", "4df8241e-2bc2-4ec7-b237-ee5db27265b3"_cry_guid)
 
 	virtual ~CPlugin_OculusVR();
 

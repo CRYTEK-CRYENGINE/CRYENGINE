@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #pragma once
 
@@ -9,8 +9,6 @@
 #include <CryFlowGraph/IFlowSystem.h>
 #include <CryString/CryName.h>
 #include <CryCore/functor.h>
-
-#define IFlashUIExtensionName "FlashUI"
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////// UI variant data /////////////////////////////////////////
@@ -36,7 +34,7 @@ struct SUIConversion
 		return true;
 	}
 };
-namespace detail
+namespace cry_variant
 {
 	template<class To, size_t I = 0>
 	ILINE bool ConvertVariant(const TUIDataVariant& from, To& to)
@@ -96,7 +94,7 @@ struct SUIConversion<TUIDataVariant, To>
 {
 	static ILINE bool ConvertValue(const TUIDataVariant& from, To& to)
 	{
-		return detail::ConvertVariant(from, to);
+		return cry_variant::ConvertVariant(from, to);
 	}
 };
 template<>
@@ -104,7 +102,7 @@ struct SUIConversion<TUIDataVariant, bool>
 {
 	static ILINE bool ConvertValue(const TUIDataVariant& from, bool& to)
 	{
-		return detail::ConvertVariant(from, to);
+		return cry_variant::ConvertVariant(from, to);
 	}
 };
 template<>
@@ -112,7 +110,7 @@ struct SUIConversion<TUIDataVariant, Vec3>
 {
 	static ILINE bool ConvertValue(const TUIDataVariant& from, Vec3& to)
 	{
-		return detail::ConvertVariant(from, to);
+		return cry_variant::ConvertVariant(from, to);
 	}
 };
 
@@ -365,13 +363,13 @@ struct SUIConversion<wstring, string>
 enum EUIDataTypes
 {
 	eUIDT_Any      = -1,
-	eUIDT_Bool     = detail::get_index<bool, TUIDataVariant>::value,
-	eUIDT_Int      = detail::get_index<int, TUIDataVariant>::value,
-	eUIDT_Float    = detail::get_index<float, TUIDataVariant>::value,
-	eUIDT_EntityId = detail::get_index<EntityId, TUIDataVariant>::value,
-	eUIDT_Vec3     = detail::get_index<Vec3, TUIDataVariant>::value,
-	eUIDT_String   = detail::get_index<string, TUIDataVariant>::value,
-	eUIDT_WString  = detail::get_index<wstring, TUIDataVariant>::value,
+	eUIDT_Bool     = cry_variant::get_index<bool, TUIDataVariant>::value,
+	eUIDT_Int      = cry_variant::get_index<int, TUIDataVariant>::value,
+	eUIDT_Float    = cry_variant::get_index<float, TUIDataVariant>::value,
+	eUIDT_EntityId = cry_variant::get_index<EntityId, TUIDataVariant>::value,
+	eUIDT_Vec3     = cry_variant::get_index<Vec3, TUIDataVariant>::value,
+	eUIDT_String   = cry_variant::get_index<string, TUIDataVariant>::value,
+	eUIDT_WString  = cry_variant::get_index<wstring, TUIDataVariant>::value,
 };
 
 class TUIData
@@ -994,7 +992,7 @@ struct SUIParameterDesc;
 struct SUIMovieClipDesc;
 struct SUIEventDesc;
 
-#if defined(_LIB) && !defined(IS_EAAS)
+#if defined(_LIB)
 template<class Base> struct SUIItemLookupSet : public SUIItemLookupSet_Impl<Base> {};
 #else
 struct SUIItemLookupSetFactory
@@ -1698,7 +1696,7 @@ struct IUIModule
 
 struct IFlashUI : public ICryUnknown
 {
-	CRYINTERFACE_DECLARE(IFlashUI, 0xE1161004DA5B4F04, 0x9DFF8FC0EACE3BD4);
+	CRYINTERFACE_DECLARE_GUID(IFlashUI, "e1161004-da5b-4f04-9dff-8fc0eace3bd4"_cry_guid);
 
 public:
 	//! Init the Flash UI system.
@@ -1803,14 +1801,14 @@ public:
 	virtual void SetEditorUILogEventCallback(TEditorUILogEventCallback& cb) = 0;
 	virtual void RemoveEditorUILogEventCallback() = 0;
 
-#if !defined(_LIB) || defined(IS_EAAS)
+#if !defined(_LIB)
 	virtual SUIItemLookupSet_Impl<SUIParameterDesc>* CreateLookupParameter() = 0;
 	virtual SUIItemLookupSet_Impl<SUIMovieClipDesc>* CreateLookupMovieClip() = 0;
 	virtual SUIItemLookupSet_Impl<SUIEventDesc>*     CreateLookupEvent() = 0;
 #endif
 };
 
-#if !defined(_LIB) || defined(IS_EAAS)
+#if !defined(_LIB)
 inline SUIItemLookupSet_Impl<SUIParameterDesc>* SUIItemLookupSetFactory::CreateLookupParameter() { assert(gEnv->pFlashUI); return gEnv->pFlashUI->CreateLookupParameter(); }
 inline SUIItemLookupSet_Impl<SUIMovieClipDesc>* SUIItemLookupSetFactory::CreateLookupMovieClip() { assert(gEnv->pFlashUI); return gEnv->pFlashUI->CreateLookupMovieClip(); }
 inline SUIItemLookupSet_Impl<SUIEventDesc>*     SUIItemLookupSetFactory::CreateLookupEvent()     { assert(gEnv->pFlashUI); return gEnv->pFlashUI->CreateLookupEvent(); }
@@ -1822,7 +1820,7 @@ static IFlashUIPtr GetIFlashUIPtr()
 {
 	IFlashUIPtr pFlashUI;
 	if (gEnv && gEnv->pSystem)
-		CryCreateClassInstance(IFlashUIExtensionName, pFlashUI);
+		CryCreateClassInstanceForInterface<IFlashUI>(cryiidof<IFlashUI>(), pFlashUI);
 	return pFlashUI;
 }
 

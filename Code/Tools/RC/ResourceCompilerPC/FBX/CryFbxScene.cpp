@@ -24,6 +24,9 @@
 #endif
 #include "fbxsdk.h"
 
+namespace 
+{
+
 Vec3 GetVec3FromFbxVector4(const FbxVector4& v)
 {
 	return Vec3((float)v[0], (float)v[1], (float)v[2]);
@@ -79,8 +82,64 @@ FbxAMatrix GetGeometryOffset(const FbxNode* pFbxNode)
 	return offset;
 }
 
-namespace
+static void GenerateTextureCoordinates(float* const res_s, float* const res_t, const float x, const float y, const float z)
 {
+	const float ax = ::fabs(x);
+	const float ay = ::fabs(y);
+	const float az = ::fabs(z);
+
+	float s = 0.0f;
+	float t = 0.0f;
+
+	if (ax > 1e-3f || ay > 1e-3f || az > 1e-3f)
+	{
+		if (ax > ay)
+		{
+			if (ax > az)
+			{
+				// X rules
+				s = y / ax;
+				t = z / ax;
+			}
+			else
+			{
+				// Z rules
+				s = x / az;
+				t = y / az;
+			}
+		}
+		else
+		{
+			// ax <= ay
+			if (ay > az)
+			{
+				// Y rules
+				s = x / ay;
+				t = z / ay;
+			}
+			else
+			{
+				// Z rules
+				s = x / az;
+				t = y / az;
+			}
+		}
+	}
+
+	// Now the texture coordinates are in the range [-1,1].
+	// We want normalized [0,1] texture coordinates.
+	s = (s + 1) * 0.5f;
+	t = (t + 1) * 0.5f;
+
+	if (res_s)
+	{
+		*res_s = s;
+	}
+	if (res_t)
+	{
+		*res_t = t;
+	}
+}
 
 class CryFbxMesh
 {
@@ -91,15 +150,17 @@ public:
 	MeshUtils::Mesh* m_pMesh;
 	bool m_bLinksReady;
 	Scene::SLinksInfo* m_pLinks;
+	const bool m_bGenerateTextureCoordinates;
 
 public:
-	CryFbxMesh()
+	CryFbxMesh(bool bGenerateTextureCoordinates)
 		: m_pFbxMesh(nullptr)
 		, m_pFbxNode(nullptr)
 		, m_bMeshReady(false)
 		, m_pMesh(nullptr)
 		, m_bLinksReady(false)
 		, m_pLinks(nullptr)
+		, m_bGenerateTextureCoordinates(bGenerateTextureCoordinates)
 	{
 	}
 
@@ -125,7 +186,7 @@ public:
 
 		if (m_pFbxMesh)
 		{
-			m_pMesh = CreateMesh(m_pFbxMesh, m_pFbxNode, mapFbxMatToGlobalIndex);
+			m_pMesh = CreateMesh(m_pFbxMesh, m_pFbxNode, mapFbxMatToGlobalIndex, m_bGenerateTextureCoordinates);
 
 			if (m_pMesh && !mapFbxNodesToBoneIndex.empty())
 			{
@@ -140,7 +201,8 @@ private:
 	static MeshUtils::Mesh* CreateMesh(
 		const FbxMesh* pFbxMesh,
 		const FbxNode* pFbxNode,
-		const std::map<const FbxSurfaceMaterial*, int>& mapFbxMatToGlobalIndex)
+		const std::map<const FbxSurfaceMaterial*, int>& mapFbxMatToGlobalIndex,
+		const bool bGenerateTextureCoordinates)
 	{
 		if (!pFbxMesh || !pFbxNode)
 		{
@@ -234,9 +296,17 @@ private:
 					pFbxMesh->GetPolygonVertexNormal(polygonIndex, i, nor);
 
 					FbxVector2 texCoord(0, 0);
-					if (pElementUV)
+					if (pElementUV && !bGenerateTextureCoordinates)
 					{
 						GetGeometryElement(texCoord, pElementUV, polygonIndex, polygonVertexIndex, controlPointIndex);
+						texCoord[1] = 1.0f - texCoord[1];
+					}
+					else
+					{
+						float u, v;
+						GenerateTextureCoordinates(&u, &v, float(pos[0]), float(pos[1]), float(pos[2]));
+						texCoord[0] = u;
+						texCoord[1] = v;
 					}
 
 					FbxColor color(1, 1, 1, 1);
@@ -254,7 +324,7 @@ private:
 					mesh.m_normals.push_back(Vec3(float(nor[0]), float(nor[1]), float(nor[2])));
 
 					// Texture coordinates
-					mesh.m_texCoords.push_back(Vec2(float(texCoord[0]), 1.0f - float(texCoord[1])));
+					mesh.m_texCoords.push_back(Vec2(float(texCoord[0]), float(texCoord[1])));
 
 					// Color & alpha
 					if (pElementVertexColor)
@@ -873,9 +943,9 @@ void CryFbxScene::Reset()
 	m_pImpl->Reset();
 }
 
-bool CryFbxScene::LoadScene(const char * fbxFilename, bool bVerboseLog, bool bCollectSkinningInfo)
+bool CryFbxScene::LoadScene(const char * fbxFilename, bool bVerboseLog, bool bCollectSkinningInfo, bool bGenerateTextureCoordinates)
 {
-	if (!LoadScene_StaticMesh(fbxFilename, bVerboseLog) || (bCollectSkinningInfo && !m_pImpl->PrepareBones()))
+	if (!LoadScene_StaticMesh(fbxFilename, bVerboseLog, bGenerateTextureCoordinates) || (bCollectSkinningInfo && !m_pImpl->PrepareBones()))
 	{
 		return false;
 	}
@@ -1037,7 +1107,7 @@ bool CryFbxScene::SetCurrentAnimationStack(int idx)
 }
 
 
-bool CryFbxScene::LoadScene_StaticMesh(const char* fbxFilename, bool bVerboseLog)
+bool CryFbxScene::LoadScene_StaticMesh(const char* fbxFilename, bool bVerboseLog, bool bGenerateTextureCoordinates)
 {
 	Reset();
 
@@ -1210,7 +1280,7 @@ bool CryFbxScene::LoadScene_StaticMesh(const char* fbxFilename, bool bVerboseLog
 					const Scene::SNode::Attribute attr(Scene::SNode::eAttributeType_Mesh, (int)m_pImpl->m_meshes.size());
 					node.m_node.attributes.push_back(attr);
 
-					CryFbxMesh mesh;
+					CryFbxMesh mesh(bGenerateTextureCoordinates);
 					mesh.m_pFbxMesh = static_cast<FbxMesh*>(pAttribute);
 					mesh.m_pFbxNode = pFbxNode;
 					m_pImpl->m_meshes.push_back(mesh);

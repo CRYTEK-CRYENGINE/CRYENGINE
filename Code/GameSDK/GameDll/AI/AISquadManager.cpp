@@ -438,7 +438,7 @@ void AISquadManager::RequestSquadsUpdate()
 			const EntityId id = it->first;
 			IEntity* pEntity = gEnv->pEntitySystem->GetEntity(id);
 			assert(pEntity);
-			if(pEntity && pEntity->IsActive())
+			if(pEntity && pEntity->IsActivatedForUpdates())
 			{
 				pRequest->SetNewPointInRequest(id, pEntity->GetPos());
 			} 

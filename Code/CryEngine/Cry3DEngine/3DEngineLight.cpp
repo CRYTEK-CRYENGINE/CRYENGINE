@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 // -------------------------------------------------------------------------
 //  File name:   3denginelight.cpp
@@ -126,9 +126,6 @@ void C3DEngine::FindPotentialLightSources(const SRenderingPassInfo& passInfo)
 #ifndef _RELEASE
 	static ICVar* pCV_r_wireframe = GetConsole()->GetCVar("r_wireframe");
 	if (pCV_r_wireframe && pCV_r_wireframe->GetIVal() == R_WIREFRAME_MODE)
-		return;
-	static ICVar* pCV_e_sketch_mode = gEnv->pConsole->GetCVar("e_SketchMode");
-	if (pCV_e_sketch_mode && pCV_e_sketch_mode->GetIVal() == 4) // 4 is set by setting CV_r_TexelsPerMeter ration to != 0
 		return;
 #endif
 	const Vec3 vCamPos = passInfo.GetCamera().GetPosition();
@@ -1037,15 +1034,11 @@ void C3DEngine::SetupLightScissors(CDLight* pLight, const SRenderingPassInfo& pa
 
 		Vec4 vScreenPoint = Vec4(pBRectVertices[i], 1.0) * mProj;
 
-		//projection space clamping
+		// convert to NDC
 		vScreenPoint.w = max(vScreenPoint.w, 0.00000000000001f);
-		vScreenPoint.x = max(vScreenPoint.x, -(vScreenPoint.w));
-		vScreenPoint.x = min(vScreenPoint.x, vScreenPoint.w);
-		vScreenPoint.y = max(vScreenPoint.y, -(vScreenPoint.w));
-		vScreenPoint.y = min(vScreenPoint.y, vScreenPoint.w);
-
-		//NDC
 		vScreenPoint /= vScreenPoint.w;
+		vScreenPoint.x = max(-1.0f, min(1.0f, vScreenPoint.x));
+		vScreenPoint.y = max(-1.0f, min(1.0f, vScreenPoint.y));
 
 		//output coords
 		//generate viewport (x=0,y=0,height=1,width=1)

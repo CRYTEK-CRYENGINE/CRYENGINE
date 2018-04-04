@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 // -------------------------------------------------------------------------
 //  File name:   EntityNodeProxy.cpp
@@ -18,6 +18,11 @@
 #include <CryAnimation/ICryAnimation.h>
 
 CRYREGISTER_CLASS(CEntityComponentTrackViewNode);
+
+CEntityComponentTrackViewNode::CEntityComponentTrackViewNode()
+{
+	m_componentFlags.Add(EEntityComponentFlags::NoSave);
+}
 
 void CEntityComponentTrackViewNode::Initialize()
 {

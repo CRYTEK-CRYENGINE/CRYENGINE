@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #include "StdAfx.h"
 
@@ -31,8 +31,9 @@ float CAABBTree::Build(CGeometry *pMeshIn)
 	m_pNodes[0].ntris = m_pNodes[min(m_nNodesAlloc-1,1)].ntris = 0;
 
 	Vec3 (*bbtri)[3] = (Vec3(*)[3]) new Vec3[nTris*3];
-	Vec3 ptmin,ptmax,pt;
-	ptmin = ptmax = m_Basis*pMesh->m_pVertices[pMesh->m_pIndices[0]];
+	Vec3 ptmin(ZERO),ptmax(ZERO),pt;
+	if (nTris)
+		ptmin = ptmax = m_Basis*pMesh->m_pVertices[pMesh->m_pIndices[0]];
 	int i;
 	
 	// Calculate an aabb for each tri, upfront, including the basis transformation

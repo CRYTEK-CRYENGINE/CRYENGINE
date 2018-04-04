@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #pragma once
 
@@ -63,6 +63,7 @@ enum CHRLOADINGFLAGS
 	CA_SkipSkelRecreation       = BIT(4),
 	CA_DisableLogWarnings       = BIT(5),
 	CA_SkipBoneRemapping        = BIT(6),
+	CA_ImmediateMode            = BIT(7)
 };
 
 enum EReloadCAFResult
@@ -135,12 +136,17 @@ class CLodValue;
 struct IAnimationSerializable :
 	public ICryUnknown
 {
-	CRYINTERFACE_DECLARE(IAnimationSerializable, 0x69b4f3ae61974bee, 0xba70d361b7975e69);
+	CRYINTERFACE_DECLARE_GUID(IAnimationSerializable, "69b4f3ae-6197-4bee-ba70-d361b7975e69"_cry_guid);
 
 	virtual void Serialize(Serialization::IArchive& ar) = 0;
 };
 
 DECLARE_SHARED_POINTERS(IAnimationSerializable);
+
+struct IAnimationEngineModule : public Cry::IDefaultModule
+{
+	CRYINTERFACE_DECLARE_GUID(IAnimationEngineModule, "ea8faa6f-4ec9-48fb-935d-b54c09823b86"_cry_guid);
+};
 
 //! This class is the main access point for any character animation required for a program which uses CRYENGINE.
 struct ICharacterManager
@@ -298,6 +304,9 @@ struct ICharacterManager
 	virtual void                     PostInit() = 0;
 
 	virtual const IAttachmentMerger& GetIAttachmentMerger() const = 0;
+	
+	//! Extends the default skeleton of a character instance with skin attachments
+	virtual void ExtendDefaultSkeletonWithSkinAttachments(ICharacterInstance* pCharInstance, const char* szFilepathSKEL, const char** szSkinAttachments, const uint32 skinCount, const uint32 nLoadingFlags) = 0;
 	// </interfuscator:shuffle>
 
 #if BLENDSPACE_VISUALIZATION
@@ -307,8 +316,8 @@ struct ICharacterManager
 	virtual void RenderBlendSpace(const SRenderingPassInfo& passInfo, ICharacterInstance* character, float fCharacterScale, unsigned int debugFlags) = 0;
 	virtual bool HasDebugInstancesCreated(const char* szFilename) const = 0;
 #endif
-#ifdef EDITOR_PCDEBUGCODE
 	virtual void GetMotionParameterDetails(SMotionParameterDetails& outDetails, EMotionParamID paramId) const = 0;
+#ifdef EDITOR_PCDEBUGCODE
 	virtual bool InjectCDF(const char* pathname, const char* content, size_t contentLength) = 0;
 	virtual void ClearCDFCache() = 0;
 	virtual void ClearAllKeepInMemFlags() = 0;

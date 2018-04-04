@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 /*=============================================================================
    D3DCGPShader.h : Direct3D9 CG pixel shaders interface declaration.
@@ -10,6 +10,9 @@
 
 #ifndef __D3DHWSHADER_H__
 #define __D3DHWSHADER_H__
+
+#include "Common/Shaders/ShaderComponents.h"                 // SCGBind, SCGParam, etc.
+#include "DeviceManager/D3D11/DeviceSubmissionQueue_D3D11.h" // CSubmissionQueue_DX11
 
 #if CRY_PLATFORM_ORBIS && defined(USE_SCUE)
 //#define USE_PER_FRAME_CONSTANT_BUFFER_UPDATES // TODO: Restore this
@@ -37,42 +40,26 @@
 
 #define INST_PARAM_SIZE   sizeof(Vec4)
 
-#if CRY_PLATFORM_SSE2
-typedef __m128 VECTOR_TYPE;
-	#define VECTOR_CONST(x, y, z, w) { x, y, z, w }  //{ w, z, y, x }
-	#define VECTOR_ZERO()            _mm_setzero_ps()
-	#define VECTOR_XOR(a, b)         _mm_xor_ps(a, b)
-#else
-union USoftVector
-{
-	struct
-	{
-		float x, y, z, w;
-	};
-	uint32 u[4];
-};
-typedef CRY_ALIGN (16) USoftVector VECTOR_TYPE;
-	#define VECTOR_CONST(x, y, z, w) { \
-	  { x, y, z, w }                   \
-}
-const VECTOR_TYPE g_VectorZero = VECTOR_CONST(0.f, 0.f, 0.f, 0.f);
-	#define VECTOR_ZERO()            (g_VectorZero)
-inline VECTOR_TYPE VECTOR_XOR(const VECTOR_TYPE& a, const VECTOR_TYPE& b)
-{
-	VECTOR_TYPE r;
-	r.u[0] = a.u[0] ^ b.u[0];
-	r.u[1] = a.u[1] ^ b.u[1];
-	r.u[2] = a.u[2] ^ b.u[2];
-	r.u[3] = a.u[3] ^ b.u[3];
-	return r;
-}
-#endif
-
-union UFloat4
+union CRY_ALIGN (16) UFloat4
 {
 	float       f[4];
 	uint        ui[4];
-	VECTOR_TYPE m128;
+#ifdef CRY_TYPE_SIMD4
+	f32v4       v;
+
+	ILINE void Load(const float* src)
+	{
+		v = *(f32v4*)src;
+	}
+#else
+	ILINE void Load(const float* src)
+	{
+		f[0] = src[0];
+		f[1] = src[1];
+		f[2] = src[2];
+		f[3] = src[3];
+	}
+#endif
 };
 
 class CConstantBuffer;
@@ -266,7 +253,7 @@ struct SShaderAsyncInfo
 	}
 	static void FlushPendingShaders();
 
-#if CRY_PLATFORM_DURANGO //|| defined(OPENGL)
+#if CRY_PLATFORM_DURANGO //|| CRY_RENDERER_OPENGL
 	#define LPD3DXBUFFER    D3DBlob *
 	#define ID3DXBuffer     D3DBlob
 #endif
@@ -281,8 +268,8 @@ struct SShaderAsyncInfo
 	class CHWShader_D3D* m_pShader;
 	CShader*             m_pFXShader;
 
-	LPD3D10BLOB          m_pDevShader;
-	LPD3D10BLOB          m_pErrors;
+	D3DBlob*             m_pDevShader;
+	D3DBlob*             m_pErrors;
 	void*                m_pConstants;
 	string               m_Name;
 	string               m_Text;
@@ -418,6 +405,7 @@ private:
 
 class CHWShader_D3D : public CHWShader
 {
+	// TODO: remove all of these friends (via public access)
 	friend class CCompiledRenderObject;
 	friend class CD3D9Renderer;
 	friend class CAsyncShaderTask;
@@ -433,6 +421,10 @@ class CHWShader_D3D : public CHWShader
 	friend class CDeviceGraphicsPSO;
 	friend class CDeviceGraphicsPSO_DX11;
 	friend class CDeviceGraphicsPSO_DX12;
+	friend class CGnmGraphicsPipelineState;
+	friend class CDeviceObjectFactory;
+	friend struct SInputLayout;
+	friend class CDeviceGraphicsPSO_Vulkan;
 
 	SShaderDevCache* m_pDevCache;
 
@@ -444,6 +436,8 @@ class CHWShader_D3D : public CHWShader
 	struct SHWSInstance
 	{
 		friend struct SShaderAsyncInfo;
+
+		SShaderBlob                m_Shader;
 
 		SShaderCombIdent           m_Ident;
 
@@ -460,7 +454,6 @@ class CHWShader_D3D : public CHWShader
 		int                        m_nUsed;
 		int                        m_nUsedFrame;
 		int                        m_nFrameSubmit;
-		void*                      m_pShaderData;
 		int                        m_nMaxVecs[3];
 		short                      m_nInstMatrixID;
 		short                      m_nInstIndex;
@@ -475,17 +468,15 @@ class CHWShader_D3D : public CHWShader
 		byte                       m_bFallback        : 1;
 		byte                       m_bAsyncActivating : 1;
 		byte                       m_bHasSendRequest  : 1;
-		byte                       m_nVertexFormat;
+		InputLayoutHandle          m_nVertexFormat;
 		byte                       m_nNumInstAttributes;
 
-		int                        m_nDataSize;
 		int                        m_DeviceObjectID;
-#if defined(FEATURE_PER_SHADER_INPUT_LAYOUT_CACHE)
-		enum { NUM_CACHE = 2 };
-		ID3D11InputLayout* m_pInputLayout[NUM_CACHE];
-		uint32             m_cacheID[NUM_CACHE];
-#endif
 		SShaderAsyncInfo*  m_pAsync;
+
+#if CRY_RENDERER_VULKAN
+		std::vector<SVertexInputStream>  m_VSInputStreams;
+#endif
 
 		SHWSInstance()
 			: m_Ident()
@@ -496,7 +487,6 @@ class CHWShader_D3D : public CHWShader
 			, m_nUsed(0)
 			, m_nUsedFrame(0)
 			, m_nFrameSubmit(0)
-			, m_pShaderData(nullptr)
 			, m_nInstMatrixID(1)
 			, m_nInstIndex(-1)
 			, m_nInstructions(0)
@@ -510,9 +500,8 @@ class CHWShader_D3D : public CHWShader
 			, m_bFallback(false)
 			, m_bAsyncActivating(false)
 			, m_bHasSendRequest(false)
-			, m_nVertexFormat(1)
+			, m_nVertexFormat(EDefaultInputLayouts::P3F_C4B_T2F)
 			, m_nNumInstAttributes(0)
-			, m_nDataSize(0)
 			, m_DeviceObjectID(-1)
 			, m_pAsync(nullptr)
 		{
@@ -522,61 +511,10 @@ class CHWShader_D3D : public CHWShader
 			m_nMaxVecs[1] = 0;
 			m_nMaxVecs[2] = 0;
 
-#if defined(FEATURE_PER_SHADER_INPUT_LAYOUT_CACHE)
-			for (int i = 0; i < NUM_CACHE; ++i)
-			{
-				m_pInputLayout[i] = nullptr;
-				m_cacheID[i] = 0;
-			}
-#endif
+			m_Shader.m_nDataSize = 0;
+			m_Shader.m_pShaderData = nullptr;
 		}
 
-#if defined(FEATURE_PER_SHADER_INPUT_LAYOUT_CACHE)
-		~SHWSInstance()
-		{
-			for (uint i = 0; i < NUM_CACHE; ++i)
-			{
-				SAFE_RELEASE(m_pInputLayout[i]);
-			}
-		}
-		ID3D11InputLayout* GetCachedInputLayout(uint32 cacheID)
-		{
-			for (uint i = 0; i < NUM_CACHE; ++i)
-			{
-				if (cacheID == m_cacheID[i])
-				{
-					return m_pInputLayout[i];
-				}
-			}
-			return NULL;
-		}
-		void SetCachedInputLayout(ID3D11InputLayout* pInputLayout, uint32 cacheID)
-		{
-			// First try empy slot
-			for (uint i = 0; i < NUM_CACHE; ++i)
-			{
-				if (m_pInputLayout[i] == NULL)
-				{
-					m_pInputLayout[i] = pInputLayout;
-					m_cacheID[i] = cacheID;
-					return;
-				}
-			}
-			// Cache is full - look for matching InputLayout
-			for (uint i = 0; i < NUM_CACHE; ++i)
-			{
-				if (m_pInputLayout[i] == pInputLayout)
-				{
-					m_cacheID[i] = cacheID;
-					return;
-				}
-			}
-			// Replace first entry (cache is thrashing)
-			SAFE_RELEASE(m_pInputLayout[0]);
-			m_pInputLayout[0] = pInputLayout;
-			m_cacheID[0] = cacheID;
-		}
-#endif
 		void Release(SShaderDevCache* pCache = NULL, bool bReleaseData = true);
 		void GetInstancingAttribInfo(uint8 Attributes[32], int32 & nUsedAttr, int& nInstAttrMask);
 
@@ -594,7 +532,7 @@ class CHWShader_D3D : public CHWShader
 			pSizer->AddObject(m_Handle);
 			pSizer->AddObject(m_pSamplers);
 			pSizer->AddObject(m_pBindVars);
-			pSizer->AddObject(m_pShaderData, m_nDataSize);
+			pSizer->AddObject(m_Shader.m_pShaderData, m_Shader.m_nDataSize);
 		}
 
 		bool IsAsyncCompiling()
@@ -717,17 +655,17 @@ public:
 
 	void        mfSaveCGFile(const char* scr, const char* path);
 	void        mfOutputCompilerError(string& strErr, const char* szSrc);
-	static bool mfCreateShaderEnv(int nThread, SHWSInstance* pInst, LPD3D10BLOB pShader, void* pConstantTable, LPD3D10BLOB pErrorMsgs, std::vector<SCGBind>& InstBindVars, CHWShader_D3D* pSH, bool bShaderThread, CShader* pFXShader, int nCombination, const char* src = NULL);
+	static bool mfCreateShaderEnv(int nThread, SHWSInstance* pInst, D3DBlob* pShader, void*& pConstantTable, D3DBlob*& pErrorMsgs, std::vector<SCGBind>& InstBindVars, CHWShader_D3D* pSH, bool bShaderThread, CShader* pFXShader, int nCombination, const char* src = NULL);
 	void        mfPrintCompileInfo(SHWSInstance* pInst);
-	bool        mfCompileHLSL_Int(CShader* pSH, char* prog_text, LPD3D10BLOB* ppShader, void** ppConstantTable, LPD3D10BLOB* ppErrorMsgs, string& strErr, std::vector<SCGBind>& InstBindVars);
+	bool        mfCompileHLSL_Int(CShader* pSH, char* prog_text, D3DBlob** ppShader, void** ppConstantTable, D3DBlob** ppErrorMsgs, string& strErr, std::vector<SCGBind>& InstBindVars);
 
 	int         mfAsyncCompileReady(SHWSInstance* pInst);
 	bool        mfRequestAsync(CShader* pSH, SHWSInstance* pInst, std::vector<SCGBind>& InstBindVars, const char* prog_text, const char* szProfile, const char* szEntry);
 
 	void        mfSubmitRequestLine(SHWSInstance* pInst, string* pRequestLine = NULL);
-	LPD3D10BLOB mfCompileHLSL(CShader* pSH, char* prog_text, void** ppConstantTable, LPD3D10BLOB* ppErrorMsgs, uint32 nFlags, std::vector<SCGBind>& InstBindVars);
+	D3DBlob*    mfCompileHLSL(CShader* pSH, char* prog_text, void** ppConstantTable, D3DBlob** ppErrorMsgs, uint32 nFlags, std::vector<SCGBind>& InstBindVars);
 	bool        mfUploadHW(SHWSInstance* pInst, byte* pBuf, uint32 nSize, CShader* pSH, uint32 nFlags);
-	bool        mfUploadHW(LPD3D10BLOB pShader, SHWSInstance* pInst, CShader* pSH, uint32 nFlags);
+	bool        mfUploadHW(D3DBlob* pShader, SHWSInstance* pInst, CShader* pSH, uint32 nFlags);
 
 	ED3DShError mfIsValid_Int(SHWSInstance*& pInst, bool bFinalise);
 
@@ -789,17 +727,17 @@ public:
 					m_pCurInst->m_nUsed++;
 				}
 				if (m_eSHClass == eHWSC_Pixel)
-					gcpRendD3D->m_DevMan.BindShader(CDeviceManager::TYPE_PS, (D3DResource*)m_pCurInst->m_Handle.m_pShader->m_pHandle);
+					gcpRendD3D->m_DevMan.BindShader(CSubmissionQueue_DX11::TYPE_PS, (D3DResource*)m_pCurInst->m_Handle.m_pShader->m_pHandle);
 				else if (m_eSHClass == eHWSC_Vertex)
-					gcpRendD3D->m_DevMan.BindShader(CDeviceManager::TYPE_VS, (D3DResource*)m_pCurInst->m_Handle.m_pShader->m_pHandle);
+					gcpRendD3D->m_DevMan.BindShader(CSubmissionQueue_DX11::TYPE_VS, (D3DResource*)m_pCurInst->m_Handle.m_pShader->m_pHandle);
 				else if (m_eSHClass == eHWSC_Geometry)
-					gcpRendD3D->m_DevMan.BindShader(CDeviceManager::TYPE_GS, (D3DResource*)m_pCurInst->m_Handle.m_pShader->m_pHandle);
+					gcpRendD3D->m_DevMan.BindShader(CSubmissionQueue_DX11::TYPE_GS, (D3DResource*)m_pCurInst->m_Handle.m_pShader->m_pHandle);
 				else if (m_eSHClass == eHWSC_Hull)
-					gcpRendD3D->m_DevMan.BindShader(CDeviceManager::TYPE_HS, (D3DResource*)m_pCurInst->m_Handle.m_pShader->m_pHandle);
+					gcpRendD3D->m_DevMan.BindShader(CSubmissionQueue_DX11::TYPE_HS, (D3DResource*)m_pCurInst->m_Handle.m_pShader->m_pHandle);
 				else if (m_eSHClass == eHWSC_Domain)
-					gcpRendD3D->m_DevMan.BindShader(CDeviceManager::TYPE_GS, (D3DResource*)m_pCurInst->m_Handle.m_pShader->m_pHandle);
+					gcpRendD3D->m_DevMan.BindShader(CSubmissionQueue_DX11::TYPE_GS, (D3DResource*)m_pCurInst->m_Handle.m_pShader->m_pHandle);
 				else if (m_eSHClass == eHWSC_Compute)
-					gcpRendD3D->m_DevMan.BindShader(CDeviceManager::TYPE_CS, (D3DResource*)m_pCurInst->m_Handle.m_pShader->m_pHandle);
+					gcpRendD3D->m_DevMan.BindShader(CSubmissionQueue_DX11::TYPE_CS, (D3DResource*)m_pCurInst->m_Handle.m_pShader->m_pHandle);
 			}
 		}
 		assert(SUCCEEDED(hr));
@@ -817,7 +755,9 @@ public:
 #if !defined(_RELEASE) || defined(ENABLE_STATOSCOPE_RELEASE)
 			gcpRendD3D->m_RP.m_PS[gcpRendD3D->m_RP.m_nProcessThreadID].m_NumGShadChanges++;
 #endif
+#ifdef RENDERER_ENABLE_LEGACY_PIPELINE
 			gcpRendD3D->GetDeviceContext().GSSetShader((ID3D11GeometryShader*)pHandle, NULL, 0);
+#endif
 		}
 		if (!s_pCurGS)
 		{
@@ -833,7 +773,9 @@ public:
 #if !defined(_RELEASE) || defined(ENABLE_STATOSCOPE_RELEASE)
 			gcpRendD3D->m_RP.m_PS[gcpRendD3D->m_RP.m_nProcessThreadID].m_NumDShadChanges++;
 #endif
+#ifdef RENDERER_ENABLE_LEGACY_PIPELINE
 			gcpRendD3D->GetDeviceContext().DSSetShader((ID3D11DomainShader*)pHandle, NULL, 0);
+#endif
 		}
 		if (!s_pCurDS)
 		{
@@ -849,7 +791,9 @@ public:
 #if !defined(_RELEASE) || defined(ENABLE_STATOSCOPE_RELEASE)
 			gcpRendD3D->m_RP.m_PS[gcpRendD3D->m_RP.m_nProcessThreadID].m_NumHShadChanges++;
 #endif
+#ifdef RENDERER_ENABLE_LEGACY_PIPELINE
 			gcpRendD3D->GetDeviceContext().HSSetShader((ID3D11HullShader*)pHandle, NULL, 0);
+#endif
 		}
 		if (!s_pCurHS)
 		{
@@ -865,7 +809,9 @@ public:
 #if !defined(_RELEASE) || defined(ENABLE_STATOSCOPE_RELEASE)
 			gcpRendD3D->m_RP.m_PS[gcpRendD3D->m_RP.m_nProcessThreadID].m_NumCShadChanges++;
 #endif
+#ifdef RENDERER_ENABLE_LEGACY_PIPELINE
 			gcpRendD3D->GetDeviceContext().CSSetShader((ID3D11ComputeShader*)pHandle, NULL, 0);
+#endif
 		}
 		if (!s_pCurCS)
 		{
@@ -889,22 +835,22 @@ public:
 		switch (eClass)
 		{
 		case eHWSC_Vertex:
-			gcpRendD3D->m_DevMan.BindConstantBuffer(CDeviceManager::TYPE_VS, pBuffer, nSlot);
+			gcpRendD3D->m_DevMan.BindConstantBuffer(CSubmissionQueue_DX11::TYPE_VS, pBuffer, nSlot);
 			break;
 		case eHWSC_Pixel:
-			gcpRendD3D->m_DevMan.BindConstantBuffer(CDeviceManager::TYPE_PS, pBuffer, nSlot);
+			gcpRendD3D->m_DevMan.BindConstantBuffer(CSubmissionQueue_DX11::TYPE_PS, pBuffer, nSlot);
 			break;
 		case eHWSC_Geometry:
-			gcpRendD3D->m_DevMan.BindConstantBuffer(CDeviceManager::TYPE_GS, pBuffer, nSlot);
+			gcpRendD3D->m_DevMan.BindConstantBuffer(CSubmissionQueue_DX11::TYPE_GS, pBuffer, nSlot);
 			break;
 		case eHWSC_Domain:
-			gcpRendD3D->m_DevMan.BindConstantBuffer(CDeviceManager::TYPE_DS, pBuffer, nSlot);
+			gcpRendD3D->m_DevMan.BindConstantBuffer(CSubmissionQueue_DX11::TYPE_DS, pBuffer, nSlot);
 			break;
 		case eHWSC_Hull:
-			gcpRendD3D->m_DevMan.BindConstantBuffer(CDeviceManager::TYPE_HS, pBuffer, nSlot);
+			gcpRendD3D->m_DevMan.BindConstantBuffer(CSubmissionQueue_DX11::TYPE_HS, pBuffer, nSlot);
 			break;
 		case eHWSC_Compute:
-			gcpRendD3D->m_DevMan.BindConstantBuffer(CDeviceManager::TYPE_CS, pBuffer, nSlot);
+			gcpRendD3D->m_DevMan.BindConstantBuffer(CSubmissionQueue_DX11::TYPE_CS, pBuffer, nSlot);
 			break;
 		}
 	}
@@ -924,22 +870,22 @@ public:
 			switch (eClass)
 			{
 			case eHWSC_Vertex:
-				gcpRendD3D->m_DevMan.BindConstantBuffer(CDeviceManager::TYPE_VS, pBuffer, nSlot);
+				gcpRendD3D->m_DevMan.BindConstantBuffer(CSubmissionQueue_DX11::TYPE_VS, pBuffer, nSlot);
 				break;
 			case eHWSC_Pixel:
-				gcpRendD3D->m_DevMan.BindConstantBuffer(CDeviceManager::TYPE_PS, pBuffer, nSlot);
+				gcpRendD3D->m_DevMan.BindConstantBuffer(CSubmissionQueue_DX11::TYPE_PS, pBuffer, nSlot);
 				break;
 			case eHWSC_Geometry:
-				gcpRendD3D->m_DevMan.BindConstantBuffer(CDeviceManager::TYPE_GS, pBuffer, nSlot);
+				gcpRendD3D->m_DevMan.BindConstantBuffer(CSubmissionQueue_DX11::TYPE_GS, pBuffer, nSlot);
 				break;
 			case eHWSC_Domain:
-				gcpRendD3D->m_DevMan.BindConstantBuffer(CDeviceManager::TYPE_DS, pBuffer, nSlot);
+				gcpRendD3D->m_DevMan.BindConstantBuffer(CSubmissionQueue_DX11::TYPE_DS, pBuffer, nSlot);
 				break;
 			case eHWSC_Hull:
-				gcpRendD3D->m_DevMan.BindConstantBuffer(CDeviceManager::TYPE_HS, pBuffer, nSlot);
+				gcpRendD3D->m_DevMan.BindConstantBuffer(CSubmissionQueue_DX11::TYPE_HS, pBuffer, nSlot);
 				break;
 			case eHWSC_Compute:
-				gcpRendD3D->m_DevMan.BindConstantBuffer(CDeviceManager::TYPE_CS, pBuffer, nSlot);
+				gcpRendD3D->m_DevMan.BindConstantBuffer(CSubmissionQueue_DX11::TYPE_CS, pBuffer, nSlot);
 				break;
 			}
 		}
@@ -985,7 +931,7 @@ public:
 		if ((TRUNCATE_PTR)s_pDataCB[eSHData][nCBufSlot] != 1)
 		{
 #ifdef USE_PER_FRAME_CONSTANT_BUFFER_UPDATES
-			CDeviceManager::Unmap(s_pCurReqCB[eSHData][nCBufSlot], 0, 0, nMaxVecs * sizeof(Vec4), D3D11_MAP_WRITE_PER_FRAME);
+			CDeviceObjectFactory::Unmap(s_pCurReqCB[eSHData][nCBufSlot], 0, 0, nMaxVecs * sizeof(Vec4), D3D11_MAP_WRITE_PER_FRAME);
 #else
 			s_pCurReqCB[eSHData][nCBufSlot]->EndWrite();
 #endif
@@ -1004,7 +950,7 @@ public:
 		if ((INT_PTR)s_pDataCB[eSHData][nCBufSlot] != 1)
 		{
 #ifdef USE_PER_FRAME_CONSTANT_BUFFER_UPDATES
-			CDeviceManager::Unmap(s_pCurReqCB[eSHData][nCBufSlot], 0, 0, nMaxVecs * sizeof(Vec4), D3D11_MAP_WRITE_PER_FRAME);
+			CDeviceObjectFactory::Unmap(s_pCurReqCB[eSHData][nCBufSlot], 0, 0, nMaxVecs * sizeof(Vec4), D3D11_MAP_WRITE_PER_FRAME);
 #else
 			s_pCurReqCB[eSHData][nCBufSlot]->EndWrite();
 #endif
@@ -1036,13 +982,7 @@ public:
 				if (!s_pCB[eSH][nCBufSlot][nMaxVecs] && nMaxVecs)
 				{
 #ifdef USE_PER_FRAME_CONSTANT_BUFFER_UPDATES
-					D3D11_BUFFER_DESC desc;
-					desc.Usage = D3D11_USAGE_DYNAMIC;
-					desc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
-					desc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
-					desc.ByteWidth = nMaxVecs * sizeof(Vec4);
-					desc.StructureByteStride = sizeof(Vec4);
-					gcpRendD3D->GetDevice().CreateBuffer(&desc, NULL, &s_pCB[eSH][nCBufSlot][nMaxVecs]);
+					GetDeviceObjectFactory().CreateBuffer(nMaxVecs, sizeof(Vec4), CDeviceObjectFactory::HEAP_DYNAMIC | CDeviceObjectFactory::USAGE_CPU_WRITE, CDeviceObjectFactory::BIND_CONSTANT_BUFFER, &s_pCB[eSH][nCBufSlot][nMaxVecs]);
 #else
 					s_pCB[eSH][nCBufSlot][nMaxVecs] = gcpRendD3D->m_DevBufMan.CreateConstantBufferRaw(nMaxVecs * sizeof(Vec4));
 #endif
@@ -1060,7 +1000,7 @@ public:
 					s_pCurReqCB[eSH][nCBufSlot] = s_pCB[eSH][nCBufSlot][nMaxVecs];
 					STALL_PROFILER("set const_buffer");
 #ifdef USE_PER_FRAME_CONSTANT_BUFFER_UPDATES
-					s_pDataCB[eSH][nCBufSlot] = (Vec4*)CDeviceManager::Map(s_pCurReqCB[eSH][nCBufSlot], 0, 0, 0, D3D11_MAP_WRITE_PER_FRAME);
+					s_pDataCB[eSH][nCBufSlot] = (Vec4*)CDeviceObjectFactory::Map(s_pCurReqCB[eSH][nCBufSlot], 0, 0, 0, D3D11_MAP_WRITE_PER_FRAME);
 #else
 					s_pDataCB[eSH][nCBufSlot] = (Vec4*)s_pCurReqCB[eSH][nCBufSlot]->BeginWrite();
 #endif
@@ -1259,11 +1199,9 @@ public:
 	}
 
 	static float* mfSetParametersPI(SCGParam* pParams, const int nParams, float* pDst, EHWShaderClass eSH, int nMaxRegs);                                     // handles only PI and SI parameters
-	static void   mfSetParameters(SCGParam* pParams, const int nParams, EHWShaderClass eSH, int nMaxRegs, float* pOutBuffer = 0, uint32* pOutBufferSize = 0); // handles all the parameter except PI and SI ones
+	static void   mfSetParameters(SCGParam* pParams, const int nParams, EHWShaderClass eSH, int nMaxRegs, Vec4* pOutBuffer = 0, uint32 outBufferSize = 0);   // handles all the parameter except PI and SI ones
 	static void   mfSetGeneralParametersPI(SCGParam* pParams, const int nParams, EHWShaderClass eSH, int nMaxRegs);                                           // handles only PI and SI parameters
 	static void   mfSetGeneralParameters(SCGParam* pParams, const int nParams, EHWShaderClass eSH, int nMaxRegs);                                             // handles all the parameter except PI and SI ones
-
-	void          GetReflectedShaderParameters(CRenderObject* pForRenderObject, const SShaderItem& shaderItem, SHWSInstance* pShaderInstance, uint8* pOutputBuffer, uint32& nOutputSize);
 
 	//============================================================================
 
@@ -1374,6 +1312,7 @@ public:
 	static void   mfGenName(SHWSInstance* pInst, char* dstname, int nSize, byte bType);
 	void          CorrectScriptEnums(CParserBin& Parser, SHWSInstance* pInst, std::vector<SCGBind>& InstBindVars, FXShaderToken* Table);
 	bool          ConvertBinScriptToASCII(CParserBin& Parser, SHWSInstance* pInst, std::vector<SCGBind>& InstBindVars, FXShaderToken* Table, TArray<char>& Scr);
+	bool          AddResourceLayoutToScript(SHWSInstance* pInst, const char* szProfile, const char* pFunCCryName, TArray<char>& Scr);
 	void          RemoveUnaffectedParameters_D3D10(CParserBin& Parser, SHWSInstance* pInst, std::vector<SCGBind>& InstBindVars);
 	bool          mfStoreCacheTokenMap(FXShaderToken*& Table, TArray<uint32>*& pSHData, const char* szName);
 	void          mfGetTokenMap(CResFile* pRes, SDirEntry* pDE, FXShaderToken*& Table, TArray<uint32>*& pSHData);
@@ -1443,8 +1382,8 @@ public:
 	virtual bool        mfPrecache(SShaderCombination& cmb, bool bForce, bool bFallback, CShader* pSH, CShaderResources* pRes);
 
 	// Vertex shader specific functions
-	virtual EVertexFormat mfVertexFormat(bool& bUseTangents, bool& bUseLM, bool& bUseHWSkin);
-	static EVertexFormat  mfVertexFormat(SHWSInstance* pInst, CHWShader_D3D* pSH, LPD3D10BLOB pBuffer);
+	virtual InputLayoutHandle mfVertexFormat(bool& bUseTangents, bool& bUseLM, bool& bUseHWSkin);
+	static InputLayoutHandle  mfVertexFormat(SHWSInstance* pInst, CHWShader_D3D* pSH, D3DBlob* pBuffer, void* pConstantTable);
 	virtual void          mfUpdatePreprocessFlags(SShaderTechnique* pTech);
 
 	virtual const char*   mfGetActivatedCombinations(bool bForLevel);
@@ -1456,8 +1395,6 @@ public:
 	static bool           mfAddGlobalTexture(SCGTexture& Texture);
 	static bool           mfAddGlobalSampler(STexSamplerRT& Sampler);
 
-	static void*          GetVSDataForDecl(const D3D11_INPUT_ELEMENT_DESC* pDecl, int nCount, int& nDataSize);
-
 	static uint16         GetDeclaredVertexStreamMask(void* pHwInstance)
 	{
 		CRY_ASSERT(pHwInstance && reinterpret_cast<SHWSInstance*>(pHwInstance)->m_eClass == eHWSC_Vertex);
@@ -1466,11 +1403,11 @@ public:
 
 	static void ShutDown();
 
-	static Vec4 GetVolumetricFogParams();
+	static Vec4 GetVolumetricFogParams(const CRenderCamera& rcam);
 	static Vec4 GetVolumetricFogRampParams();
-	static Vec4 GetVolumetricFogSunDir();
+	static Vec4 GetVolumetricFogSunDir(const Vec3& sunDir);
 	static void GetFogColorGradientConstants(Vec4& fogColGradColBase, Vec4& fogColGradColDelta);
-	static Vec4 GetFogColorGradientRadial();
+	static Vec4 GetFogColorGradientRadial(const CRenderCamera& rcam);
 
 	// Import/Export
 	bool ExportSamplers(SCHWShader& SHW, SShaderSerializeContext& SC);

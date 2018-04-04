@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #pragma once
 
@@ -48,7 +48,6 @@ private:
 	std::vector<SpritePoint> m_OrbsList;
 	CRenderPrimitive         m_GlowPrimitive;
 	CRenderPrimitive         m_CameraLensPrimitive;
-	int                      m_samplerPointClamp;
 	float                    m_spriteAspectRatio;
 
 	static const int         MAX_ORBS_NUMBER = 10000;

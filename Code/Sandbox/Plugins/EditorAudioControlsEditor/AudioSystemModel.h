@@ -3,13 +3,18 @@
 #pragma once
 
 #include <QAbstractItemModel>
-#include "ProxyModels/DeepFilterProxyModel.h"
+#include <ProxyModels/DeepFilterProxyModel.h>
 
 namespace ACE
 {
 
 class IAudioSystemEditor;
 class IAudioSystemItem;
+
+namespace AudioModelUtils
+{
+void DecodeImplMimeData(const QMimeData* pData, std::vector<IAudioSystemItem*>& outItems);
+}
 
 class QAudioSystemModel : public QAbstractItemModel
 {

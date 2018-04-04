@@ -333,6 +333,11 @@ add_sources("CrySystem_uber_5.cpp"
 	SOURCE_GROUP "UserAnalytics"
 		"UserAnalytics/UserAnalyticsSystem.cpp"
 		"UserAnalytics/UserAnalyticsSystem.h"
+	SOURCE_GROUP "Interprocess"
+		"Interprocess/StatsAgent.cpp"
+		"Interprocess/StatsAgent.h"
+		"Interprocess/StatsAgentPipe.cpp"
+		"Interprocess/StatsAgentPipe.h"
 )
 
 add_sources("CrySystem_uber_6.cpp"
@@ -515,7 +520,7 @@ end_sources()
 
 CryEngineModule(CrySystem PCH "StdAfx.cpp" SOLUTION_FOLDER "CryEngine")
 
-target_link_libraries( ${THIS_PROJECT} PRIVATE zlib expat lz4 md5 yasli tomcrypt jsmn )
+target_link_libraries( ${THIS_PROJECT} PRIVATE zlib expat lz4 md5 tomcrypt )
 use_scaleform()
 if (WIN32)
 	set_target_properties(${THIS_PROJECT} PROPERTIES LINK_FLAGS "/NODEFAULTLIB:libcmt.lib /NODEFAULTLIB:libcpmt.lib")
@@ -531,12 +536,16 @@ elseif(DURANGO)
 	set_property(TARGET ${THIS_PROJECT} APPEND PROPERTY COMPILE_FLAGS "\"/AI${DURANGO_PLATFORM_SDK}/ExtensionSDKs/Xbox Services API/8.0/References/CommonConfiguration/neutral\"")	
 	target_link_libraries( ${THIS_PROJECT} PRIVATE uuid acphal )
 elseif(ANDROID)
-	target_include_directories( ${THIS_PROJECT} PRIVATE ${SDK_DIR}/SDL2/include/linux ${SDK_DIR}/SDL2/include/SDL )
-	target_link_libraries( ${THIS_PROJECT} PRIVATE m CryAnimation)
+	target_include_directories( ${THIS_PROJECT} PRIVATE "${SDK_DIR}/SDL2/include/linux" "${SDK_DIR}/SDL2/include/SDL" )
 endif()
 
 if (OPTION_ENABLE_CRASHRPT)
-	add_subdirectory( ${CRY_LIBS_DIR}/crashrpt ${CMAKE_CURRENT_BINARY_DIR}/crashrpt)
+	add_subdirectory( "${CRY_LIBS_DIR}/crashrpt" "${CMAKE_CURRENT_BINARY_DIR}/crashrpt")
 	target_compile_definitions(${THIS_PROJECT} PRIVATE CRY_USE_CRASHRPT=1)
 	target_link_libraries( ${THIS_PROJECT} PRIVATE crashrpt )
+endif()
+
+if (ANDROID)
+	#Force comping "CryDLMalloc.c" as C++
+	set_source_files_properties("CryDLMalloc.c" PROPERTIES LANGUAGE CXX)
 endif()

@@ -1,11 +1,11 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #include "StdAfx.h"
 #include "Script/Graph/Nodes/ScriptGraphReturnNode.h"
 
-#include <Schematyc/Compiler/IGraphNodeCompiler.h>
-#include <Schematyc/Script/Elements/IScriptFunction.h>
-#include <Schematyc/Utils/Any.h>
+#include <CrySchematyc/Compiler/IGraphNodeCompiler.h>
+#include <CrySchematyc/Script/Elements/IScriptFunction.h>
+#include <CrySchematyc/Utils/Any.h>
 
 #include "Script/Graph/ScriptGraphNode.h"
 #include "Script/Graph/ScriptGraphNodeFactory.h"
@@ -13,9 +13,10 @@
 
 namespace Schematyc
 {
+
 CScriptGraphReturnNode::CScriptGraphReturnNode() {}
 
-SGUID CScriptGraphReturnNode::GetTypeGUID() const
+CryGUID CScriptGraphReturnNode::GetTypeGUID() const
 {
 	return ms_typeGUID;
 }
@@ -25,10 +26,10 @@ void CScriptGraphReturnNode::CreateLayout(CScriptGraphNodeLayout& layout)
 	layout.SetName("Return");
 	layout.SetStyleId("Core::FlowControl::End");
 
-	layout.AddInput("In", SGUID(), { EScriptGraphPortFlags::Flow, EScriptGraphPortFlags::MultiLink, EScriptGraphPortFlags::End });
+	layout.AddInput("In", CryGUID(), { EScriptGraphPortFlags::Flow, EScriptGraphPortFlags::MultiLink, EScriptGraphPortFlags::End });
 
 	const IScriptElement& scriptElement = CScriptGraphNodeModel::GetNode().GetGraph().GetElement();
-	switch (scriptElement.GetElementType())
+	switch (scriptElement.GetType())
 	{
 	case EScriptElementType::Function:
 		{
@@ -38,7 +39,7 @@ void CScriptGraphReturnNode::CreateLayout(CScriptGraphNodeLayout& layout)
 				CAnyConstPtr pData = scriptFunction.GetOutputData(functionOutputIdx);
 				if (pData)
 				{
-					layout.AddInputWithData(scriptFunction.GetOutputName(functionOutputIdx), scriptFunction.GetOutputTypeId(functionOutputIdx).guid, { EScriptGraphPortFlags::Data, EScriptGraphPortFlags::MultiLink, EScriptGraphPortFlags::Persistent, EScriptGraphPortFlags::Editable }, *pData);
+					layout.AddInputWithData(CUniqueId::FromGUID(scriptFunction.GetOutputGUID(functionOutputIdx)), scriptFunction.GetOutputName(functionOutputIdx), scriptFunction.GetOutputTypeId(functionOutputIdx).guid, { EScriptGraphPortFlags::Data, EScriptGraphPortFlags::MultiLink, EScriptGraphPortFlags::Persistent, EScriptGraphPortFlags::Editable }, *pData);
 				}
 			}
 			break;
@@ -95,12 +96,12 @@ void CScriptGraphReturnNode::Register(CScriptGraphNodeFactory& factory)
 
 		// IScriptGraphNodeCreator
 
-		virtual SGUID GetTypeGUID() const override
+		virtual CryGUID GetTypeGUID() const override
 		{
 			return CScriptGraphReturnNode::ms_typeGUID;
 		}
 
-		virtual IScriptGraphNodePtr CreateNode(const SGUID& guid) override
+		virtual IScriptGraphNodePtr CreateNode(const CryGUID& guid) override
 		{
 			return std::make_shared<CScriptGraphNode>(guid, stl::make_unique<CScriptGraphReturnNode>());
 		}
@@ -129,14 +130,15 @@ SRuntimeResult CScriptGraphReturnNode::Execute(SRuntimeContext& context, const S
 	{
 		if (context.node.IsDataInput(inputIdx))
 		{
-			context.params.SetOutput(inputIdx - EInputIdx::FirstParam, *context.node.GetInputData(inputIdx));
+			context.params.SetOutput(context.node.GetInputId(inputIdx), *context.node.GetInputData(inputIdx));
 		}
 	}
 
 	return SRuntimeResult(ERuntimeStatus::Return);
 }
 
-const SGUID CScriptGraphReturnNode::ms_typeGUID = "f898c51c-717b-408d-aca0-75129b2ec4cf"_schematyc_guid;
+const CryGUID CScriptGraphReturnNode::ms_typeGUID = "f898c51c-717b-408d-aca0-75129b2ec4cf"_cry_guid;
+
 } // Schematyc
 
 SCHEMATYC_REGISTER_SCRIPT_GRAPH_NODE(Schematyc::CScriptGraphReturnNode::Register)

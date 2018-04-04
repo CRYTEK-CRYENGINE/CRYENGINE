@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #include "StdAfx.h"
 #include "SequenceFlowNodes.h"
@@ -9,39 +9,6 @@
 #include "GoalOps/TeleportOp.h"
 #include <CryAISystem/IAgent.h>
 #include <CryGame/IGameFramework.h>
-
-#ifndef _LIB
-CAutoRegFlowNodeBase* CAutoRegFlowNodeBase::m_pFirst = nullptr;
-CAutoRegFlowNodeBase* CAutoRegFlowNodeBase::m_pLast = nullptr;
-
-void AIFlowBaseNode::RegisterFlowNodes()
-{
-	IFlowSystem* pFlowSystem = gEnv->pGameFramework->GetIFlowSystem();
-	if (pFlowSystem)
-	{
-		CAutoRegFlowNodeBase* pFactory = CAutoRegFlowNodeBase::m_pFirst;
-		while (pFactory)
-		{
-			pFlowSystem->RegisterType(pFactory->m_sClassName, pFactory);
-			pFactory = pFactory->m_pNext;
-		}
-	}
-}
-
-void AIFlowBaseNode::UnregisterFlowNodes()
-{
-	IFlowSystem* pFlowSystem = gEnv->pGameFramework->GetIFlowSystem();
-	if (pFlowSystem)
-	{
-		CAutoRegFlowNodeBase* pFactory = CAutoRegFlowNodeBase::m_pFirst;
-		while (pFactory)
-		{
-			pFlowSystem->UnregisterType(pFactory->m_sClassName);
-			pFactory = pFactory->m_pNext;
-		}
-	}
-}
-#endif
 
 namespace AIActionSequence
 {

@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 //
 ////////////////////////////////////////////////////////////////////////////
@@ -68,21 +68,20 @@ struct SAnimationEntry
 	uint8    weightList;
 };
 
-#define IProceduralParamsComparerDefaultName "ProceduralParamsComparerDefault"
 struct IProceduralParamsComparer;
 typedef std::shared_ptr<IProceduralParamsComparer> IProceduralParamsComparerPtr;
 
 struct IProceduralParamsComparer
 	: public ICryUnknown
 {
-	CRYINTERFACE_DECLARE(IProceduralParamsComparer, 0xdde3edc3dca84794, 0xb71ee1c21047c654);
+	CRYINTERFACE_DECLARE_GUID(IProceduralParamsComparer, "dde3edc3-dca8-4794-b71e-e1c21047c654"_cry_guid);
 
 	virtual bool                        Equal(const IProceduralParams& lhs, const IProceduralParams& rhs) const = 0;
 
 	static IProceduralParamsComparerPtr CreateDefaultProceduralParamsComparer()
 	{
 		IProceduralParamsComparerPtr pProceduralParamsComparer;
-		::CryCreateClassInstance(IProceduralParamsComparerDefaultName, pProceduralParamsComparer);
+		CryCreateClassInstanceForInterface<IProceduralParamsComparer>(cryiidof<IProceduralParamsComparer>(), pProceduralParamsComparer);
 		return pProceduralParamsComparer;
 	}
 };
@@ -496,9 +495,7 @@ struct SFragmentBlendUid
 private:
 	static uint32 GenerateUid()
 	{
-		static uint32 lastId = INVALID_UID;
-		static const uint32 bitsNeededToEncodeModule = CompileTimeIntegerLog2_RoundUp<eCryM_Num>::result;
-		return (((uint32)eCryModule) << (32 - bitsNeededToEncodeModule)) + ++lastId;
+		return gEnv->pSystem->GetRandomGenerator().GenerateUint32();
 	}
 
 private:
@@ -1265,10 +1262,10 @@ public:
 	virtual void                            RegisterListener(IMannequinListener* listener) = 0;
 	virtual void                            UnregisterListener(IMannequinListener* listener) = 0;
 
-	virtual class IProceduralContext*       FindOrCreateProceduralContext(const char* contextName) = 0;
-	virtual const class IProceduralContext* FindProceduralContext(const char* contextName) const = 0;
-	virtual class IProceduralContext*       FindProceduralContext(const char* contextName) = 0;
-	virtual class IProceduralContext*       CreateProceduralContext(const char* contextName) = 0;
+	virtual class IProceduralContext*       FindOrCreateProceduralContext(const CryClassID& contextId) = 0;
+	virtual const class IProceduralContext* FindProceduralContext(const CryClassID& contextId) const = 0;
+	virtual class IProceduralContext*       FindProceduralContext(const CryClassID& contextId) = 0;
+	virtual class IProceduralContext*       CreateProceduralContext(const CryClassID& contextId) = 0;
 
 	virtual QuatT                           ExtractLocalAnimLocation(FragmentID fragID, TagState fragTags, uint32 scopeID, uint32 optionIdx) = 0;
 
@@ -1968,7 +1965,11 @@ public:
 	virtual void        OnFail() {}
 	virtual void        OnExit(float blendTime) = 0;
 	virtual void        Update(float timePassed) = 0;
-	virtual const char* GetContextName() const                            { return NULL; }
+	virtual const CryClassID GetContextID() const                           
+	{
+		static CryClassID null = CryClassID::Null(); 
+		return null;
+	}
 	virtual void        SetContext(class IProceduralContext* procContext) { CRY_ASSERT(0); }
 
 protected:
@@ -2016,13 +2017,11 @@ private:
 	IActionPtr m_action;
 };
 
-#define PROCEDURAL_CONTEXT(className, name, uid1, uid2) \
-  CRYINTERFACE_BEGIN()                                  \
-  CRYINTERFACE_ADD(IProceduralContext)                  \
-  CRYINTERFACE_END()                                    \
-  CRYGENERATE_CLASS(className, name, uid1, uid2)        \
-public:                                                 \
-  static const char* GetContextName() { return name; }
+#define PROCEDURAL_CONTEXT(className, name, guid) \
+  CRYINTERFACE_BEGIN()                            \
+  CRYINTERFACE_ADD(IProceduralContext)            \
+  CRYINTERFACE_END()                              \
+  CRYGENERATE_CLASS_GUID(className, name, guid)
 
 class IProceduralContext : public ICryUnknown
 {
@@ -2034,7 +2033,7 @@ public:
 	{
 	}
 
-	CRYINTERFACE_DECLARE(IProceduralContext, 0xCC61BC284B5243E0, 0xAAE3950B2A7F7DCB);
+	CRYINTERFACE_DECLARE_GUID(IProceduralContext, "cc61bc28-4b52-43e0-aae3-950b2a7f7dcb"_cry_guid);
 
 	virtual void Initialise(IEntity& entity, IActionController& actionController)
 	{
@@ -2078,9 +2077,9 @@ class TProceduralContextualClip : public TProceduralClip<PARAMS>
 {
 public:
 
-	virtual const char* GetContextName() const
+	virtual const CryClassID GetContextID() const
 	{
-		return CONTEXT::GetContextName();
+		return CONTEXT::GetCID();
 	}
 	virtual void SetContext(class IProceduralContext* procContext)
 	{

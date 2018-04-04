@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #ifndef __RayCastQueue_h__
 #define __RayCastQueue_h__
@@ -6,6 +6,7 @@
 #pragma once
 
 #include "DeferredActionQueue.h"
+#include <CryPhysics/physinterface.h>
 
 struct RayCastResult
 {

@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #include "stdafx.h"
 
@@ -13,6 +13,7 @@ CEntityComponentClipVolume::CEntityComponentClipVolume()
 	, m_pBspTree(NULL)
 	, m_nFlags(IClipVolume::eClipVolumeAffectedBySun)
 {
+	m_componentFlags.Add(EEntityComponentFlags::Legacy);
 }
 
 CEntityComponentClipVolume::~CEntityComponentClipVolume()

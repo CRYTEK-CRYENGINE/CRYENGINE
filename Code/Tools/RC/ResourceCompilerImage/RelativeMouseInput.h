@@ -1,4 +1,6 @@
 // Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved.
+
+// RelativeMouseInput.h: interface for the CRelativeMouseInput class.
 //
 //////////////////////////////////////////////////////////////////////
 

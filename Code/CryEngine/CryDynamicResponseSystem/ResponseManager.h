@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 /************************************************************************
 
@@ -35,7 +35,7 @@ typedef std::shared_ptr<CResponse> ResponsePtr;
 class CResponseManager final : public DRS::IResponseManager
 {
 public:
-	static string s_currentSignal;
+	static string s_currentSignal;  //only needed during serialization
 
 	enum EUsedFileFormat
 	{
@@ -57,7 +57,7 @@ public:
 	typedef std::vector<std::pair<DRS::IResponseManager::IListener*, DRS::SignalInstanceId>> ListenerList;
 
 	CResponseManager();
-	~CResponseManager();
+	virtual ~CResponseManager() override;
 
 	//////////////////////////////////////////////////////////
 	// IResponseManager implementation
@@ -82,6 +82,7 @@ public:
 
 	ResponsePtr        GetResponse(const CHashedString& signalName);
 	bool			   HasMappingForSignal(const CHashedString& signalName);
+	void			   OnActorRemoved(const CResponseActor* pActor);
 
 	void               QueueSignal(const SSignal& signal);
 	bool               CancelSignalProcessing(const SSignal& signal);
@@ -93,7 +94,7 @@ public:
 
 	CResponseInstance* CreateInstance(SSignal& signal, CResponse* pResponse);
 	void               ReleaseInstance(CResponseInstance* pInstance, bool removeFromRunningInstances = true);
-	void               Reset(bool bResetExecutionCounter);
+	void               Reset(bool bResetExecutionCounter, bool bClearAllResponseMappings = false);
 	void               Serialize(Serialization::IArchive& ar);
 
 private:
@@ -108,7 +109,7 @@ private:
 
 	ResponseInstanceList m_runningResponses;
 
-	ListenerList         m_Listener;
+	ListenerList         m_listeners;
 
 	SignalList           m_currentlyQueuedSignals;
 };

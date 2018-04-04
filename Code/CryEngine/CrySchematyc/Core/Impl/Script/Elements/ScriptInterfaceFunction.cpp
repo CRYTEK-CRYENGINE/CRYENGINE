@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #include "StdAfx.h"
 #include "Script/Elements/ScriptInterfaceFunction.h"
@@ -6,13 +6,13 @@
 #include <CrySerialization/BlackBox.h>
 #include <CrySerialization/IArchiveHost.h>
 #include <CrySerialization/STL.h>
-#include <Schematyc/Env/IEnvRegistry.h>
-#include <Schematyc/Script/IScriptView.h>
-#include <Schematyc/SerializationUtils/ISerializationContext.h>
-#include <Schematyc/SerializationUtils/SerializationUtils.h>
-#include <Schematyc/Utils/Any.h>
-#include <Schematyc/Utils/Assert.h>
-#include <Schematyc/Utils/IGUIDRemapper.h>
+#include <CrySchematyc/Env/IEnvRegistry.h>
+#include <CrySchematyc/Script/IScriptView.h>
+#include <CrySchematyc/SerializationUtils/ISerializationContext.h>
+#include <CrySchematyc/SerializationUtils/SerializationUtils.h>
+#include <CrySchematyc/Utils/Any.h>
+#include <CrySchematyc/Utils/Assert.h>
+#include <CrySchematyc/Utils/IGUIDRemapper.h>
 
 namespace Schematyc
 {
@@ -20,7 +20,7 @@ CScriptInterfaceFunction::CScriptInterfaceFunction()
 	: CScriptElementBase()
 {}
 
-CScriptInterfaceFunction::CScriptInterfaceFunction(const SGUID& guid, const char* szName)
+CScriptInterfaceFunction::CScriptInterfaceFunction(const CryGUID& guid, const char* szName)
 	: CScriptElementBase(guid, szName)
 {}
 
@@ -123,7 +123,7 @@ void CScriptInterfaceFunction::Edit(Serialization::IArchive& archive, const ISer
 	{
 		ScriptVariableData::CScopedSerializationConfig serializationConfig(archive);
 
-		const SGUID guid = GetGUID();
+		const CryGUID guid = GetGUID();
 		serializationConfig.DeclareEnvDataTypes(guid);
 		serializationConfig.DeclareScriptEnums(guid);
 		serializationConfig.DeclareScriptStructs(guid);

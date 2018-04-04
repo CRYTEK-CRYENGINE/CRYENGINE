@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #ifdef CVAR_CPP
 
@@ -36,6 +36,7 @@ REGISTER_CVAR_AUTO(int, e_svoMaxBrickUpdates, 8, VF_NULL, "Limits the number of 
 REGISTER_CVAR_AUTO(int, e_svoMaxStreamRequests, 256, VF_NULL, "Limits the number of brick streaming or building requests per frame");
 REGISTER_CVAR_AUTO(float, e_svoMaxNodeSize, 32, VF_NULL, "Maximum SVO node size for voxelization (bigger nodes stays empty)");
 REGISTER_CVAR_AUTO(float, e_svoMaxAreaSize, 32, VF_NULL, "Maximum SVO node size for detailed voxelization");
+REGISTER_CVAR_AUTO(int, e_svoMaxAreaMeshSizeKB, 8000, VF_NULL, "Maximum number of KB per area allowed to allocate for voxelization mesh");
 REGISTER_CVAR_AUTO(int, e_svoRender, 1, VF_NULL, "Enables CPU side (every frame) SVO traversing and update");
 REGISTER_CVAR_AUTO(int, e_svoTI_ResScaleBase, 2, VF_NULL, "Defines resolution of GI cone-tracing targets; 2=half res");
 REGISTER_CVAR_AUTO(int, e_svoTI_ResScaleAir, 4, VF_NULL, "Defines resolution of GI cone-tracing targets; 2=half res");
@@ -228,8 +229,10 @@ REGISTER_CVAR_AUTO(float, e_svoVoxDistRatio, 14.f, VF_NULL, "Limits the distance
 REGISTER_CVAR_AUTO(int, e_svoVoxGenRes, 512, VF_NULL, "GPU voxelization dummy render target resolution");
 REGISTER_CVAR_AUTO(float, e_svoVoxNodeRatio, 4.f, VF_NULL, "Limits the real-time GPU voxelization only to leaf SVO nodes");
 REGISTER_CVAR_AUTO(int, e_svoTI_GsmCascadeLod, 2, VF_NULL, "Sun shadow cascade LOD for RSM GI");
-REGISTER_CVAR_AUTO(float, e_svoTI_TemporalFilteringBase, .35f, VF_NULL, "Controls amount of temporal smoothing\n0 = less noise and aliasing, 1 = less ghosting");
+REGISTER_CVAR_AUTO(float, e_svoTI_TemporalFilteringBase, .25f, VF_NULL, "Controls amount of temporal smoothing\n0 = less noise and aliasing, 1 = less ghosting");
 REGISTER_CVAR_AUTO(float, e_svoTI_HighGlossOcclusion, 0.f, VF_NULL, "Normally specular contribution of env probes is corrected by diffuse GI\nThis parameter controls amount of correction (usually darkening) for very glossy and reflective surfaces");
 REGISTER_CVAR_AUTO(int, e_svoTI_VoxelizeUnderTerrain, 0, VF_NULL, "0 = Skip underground triangles during voxelization");
 REGISTER_CVAR_AUTO(int, e_svoTI_VoxelizeHiddenObjects, 0, VF_NULL, "0 = Skip hidden objects during voxelization");
 REGISTER_CVAR_AUTO(int, e_svoTI_AsyncCompute, 0, VF_NULL, "Use asynchronous compute for SVO updates");
+REGISTER_CVAR_AUTO(int, e_svoTI_ThreadAffinity0, -1, VF_NULL, "Set CPU core allowed to be used for voxelization thread, -1 = use any CPU core");
+REGISTER_CVAR_AUTO(int, e_svoTI_ThreadAffinity1, -1, VF_NULL, "Set CPU core allowed to be used for voxelization thread, -1 = use any CPU core");

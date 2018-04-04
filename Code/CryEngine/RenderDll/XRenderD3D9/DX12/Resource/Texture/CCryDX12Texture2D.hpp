@@ -1,19 +1,8 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
-// -------------------------------------------------------------------------
-//  File name:
-//  Version:     v1.00
-//  Created:     03/02/2015 by Jan Pinter
-//  Description:
-// -------------------------------------------------------------------------
-//  History:
-//
-////////////////////////////////////////////////////////////////////////////
 #pragma once
-#ifndef __CCRYDX12TEXTURE2D__
-	#define __CCRYDX12TEXTURE2D__
 
-	#include "DX12/Resource/CCryDX12Resource.hpp"
+#include "DX12/Resource/CCryDX12Resource.hpp"
 
 class CCryDX12SwapChain;
 
@@ -25,8 +14,6 @@ public:
 	static CCryDX12Texture2D* Create(CCryDX12Device* pDevice);
 	static CCryDX12Texture2D* Create(CCryDX12Device* pDevice, CCryDX12SwapChain* pSwapChain, ID3D12Resource* pResource);
 	static CCryDX12Texture2D* Create(CCryDX12Device* pDevice, const FLOAT cClearValue[4], const D3D11_TEXTURE2D_DESC* pDesc, const D3D11_SUBRESOURCE_DATA* pInitialData);
-
-	virtual ~CCryDX12Texture2D();
 
 	#pragma region /* ICryDX12Resource implementation */
 
@@ -47,8 +34,8 @@ public:
 
 	#pragma region /* ID3D11Texture2D implementation */
 
-	virtual void STDMETHODCALLTYPE GetDesc(
-	  _Out_ D3D11_TEXTURE2D_DESC* pDesc) final
+	VIRTUALGFX void STDMETHODCALLTYPE GetDesc(
+	  _Out_ D3D11_TEXTURE2D_DESC* pDesc) FINALGFX
 	{
 		if (pDesc)
 		{
@@ -64,5 +51,3 @@ protected:
 private:
 	D3D11_TEXTURE2D_DESC m_Desc11;
 };
-
-#endif // __CCRYDX12TEXTURE2D__

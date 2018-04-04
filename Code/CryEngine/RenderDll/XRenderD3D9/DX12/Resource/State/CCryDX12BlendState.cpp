@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #include "StdAfx.h"
 #include "CCryDX12BlendState.hpp"
@@ -37,11 +37,6 @@ CCryDX12BlendState::CCryDX12BlendState(const D3D11_BLEND_DESC& desc11, const D3D
 	: Super(nullptr, nullptr)
 	, m_Desc11(desc11)
 	, m_Desc12(desc12)
-{
-
-}
-
-CCryDX12BlendState::~CCryDX12BlendState()
 {
 
 }

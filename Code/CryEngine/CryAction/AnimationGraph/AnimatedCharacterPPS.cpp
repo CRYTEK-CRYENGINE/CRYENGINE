@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #include "StdAfx.h"
 #include <CryExtension/CryCreateClassInstance.h>
@@ -388,7 +388,7 @@ void CAnimatedCharacter::PostProcessingUpdate()
 
 	if (!m_pPoseAligner)
 		return;
-	if (!m_pPoseAligner->Initialize(*pEntity))
+	if (!m_pPoseAligner->Initialize(*pEntity, m_pCharacter))
 		return;
 
 	float poseBlendWeight = clamp_tpl(1.0f - m_fJumpSmooth, 0.0f, 1.0f);
@@ -493,7 +493,7 @@ void CAnimatedCharacter::PostProcessingUpdate()
 
 	m_pPoseAligner->SetRootOffsetEnable(m_groundAlignmentParams.IsFlag(eGA_PoseAlignerUseRootOffset));
 	m_pPoseAligner->SetBlendWeight(poseBlendWeight);
-	m_pPoseAligner->Update(m_entLocation, (float)m_curFrameTime);
+	m_pPoseAligner->Update(m_pCharacter, m_entLocation, (float)m_curFrameTime);
 }
 
 //--------------------------------------------------------------------------------

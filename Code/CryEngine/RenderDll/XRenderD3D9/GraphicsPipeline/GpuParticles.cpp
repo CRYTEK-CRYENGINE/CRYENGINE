@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #include "StdAfx.h"
 #include "Gpu/Particles/GpuParticleManager.h"
@@ -6,6 +6,7 @@
 
 CGpuParticlesStage::CGpuParticlesStage()
 	: m_oldFrameIdExecute(-1)
+	, m_oldFrameIdPreDraw(-1)
 	, m_oldFrameIdPostDraw(-1)
 {
 }
@@ -36,6 +37,15 @@ void CGpuParticlesStage::Execute(CRenderView* pRenderView)
 	}
 }
 
+void CGpuParticlesStage::PreDraw(CRenderView* pRenderView)
+{
+	int CurrentFrameID = gcpRendD3D.GetFrameID(false);
+	if (CurrentFrameID != m_oldFrameIdPreDraw)
+	{
+		m_pGpuParticleManager->RenderThreadPreUpdate();
+		m_oldFrameIdPreDraw = CurrentFrameID;
+	}
+}
 
 void CGpuParticlesStage::PostDraw(CRenderView* pRenderView)
 {

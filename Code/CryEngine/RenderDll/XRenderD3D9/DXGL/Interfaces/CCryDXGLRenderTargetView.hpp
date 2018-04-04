@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 // -------------------------------------------------------------------------
 //  File name:   CCryDXGLRenderTargetView.hpp
@@ -31,7 +31,7 @@ public:
 
 	bool Initialize(NCryOpenGL::CContext* pContext);
 
-#if CRY_OPENGL_SINGLE_CONTEXT
+#if OGL_SINGLE_CONTEXT
 	NCryOpenGL::SOutputMergerView* GetGLView(NCryOpenGL::CContext* pContext);
 #else
 	NCryOpenGL::SOutputMergerView* GetGLView();

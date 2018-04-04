@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #include "StdAfx.h"
 #include "ResFileLookupDataMan.h"
@@ -264,7 +264,7 @@ void CResFileLookupDataMan::SaveData(
 {
 	// ignore invalid file access for lookupdata because it shouldn't be written
 	// when shaders no compile is set anyway
-	CDebugAllowFileAccess ignoreInvalidFileAccess;
+	SCOPED_ALLOW_FILE_ACCESS_FROM_THIS_THREAD();
 
 	FILE* handle = gEnv->pCryPak->FOpen(acFilename, "w+b");
 	if (handle == 0)

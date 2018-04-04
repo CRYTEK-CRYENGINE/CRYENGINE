@@ -23,7 +23,6 @@ void CLightningArc::SerializeSpawnInfo(TSerialize ser) {}
 ISerializableInfoPtr CLightningArc::GetSpawnInfo() {return ISerializableInfoPtr();}
 void CLightningArc::HandleEvent( const SGameObjectEvent& event ) {}
 void CLightningArc::SetChannelId(uint16 id) {}
-void CLightningArc::SetAuthority(bool auth ) {}
 const void* CLightningArc::GetRMIBase() const {return 0;}
 void CLightningArc::PostUpdate(float frameTime) {}
 void CLightningArc::PostRemoteSpawn() {}

@@ -23,7 +23,8 @@ History:
 #include "WeaponSystem.h"
 #include <CryAnimation/ICryAnimation.h>
 #include <CryAISystem/IAIObject.h>
-#include "AI/GameAIEnv.h"
+
+#include <IPerceptionManager.h>
 
 struct SPhysicsRayWrapper
 {
@@ -330,7 +331,8 @@ void CBullet::HandleEvent(const SGameObjectEvent &event)
 			//====================================~ Process Hit ======================================
 
 			//==================================== Notify AI    ======================================
-			if (gEnv->pAISystem)
+			IPerceptionManager* perceptionManager = IPerceptionManager::GetInstance();
+			if (perceptionManager)
 			{
 				if (gEnv->pEntitySystem->GetEntity(m_ownerId))
 				{
@@ -340,10 +342,10 @@ void CBullet::HandleEvent(const SGameObjectEvent &event)
 					const float soundRadius = pParams ? pParams->fImpactSoundRadius : 20.0f;
 
 					SAIStimulus stim(AISTIM_BULLET_HIT, 0, m_ownerId, pTarget ? pTarget->GetId() : 0, pCollision->pt, pCollision->vloc[0].GetNormalizedSafe(ZERO), radius);
-					gEnv->pAISystem->RegisterStimulus(stim);
+					perceptionManager->RegisterStimulus(stim);
 
 					SAIStimulus stimSound(AISTIM_SOUND, AISTIM_BULLET_HIT, m_ownerId, 0, pCollision->pt, ZERO, soundRadius);
-					gEnv->pAISystem->RegisterStimulus(stimSound);
+					perceptionManager->RegisterStimulus(stimSound);
 				}
 			}
 			//=========================================~ Notify AI ===============================

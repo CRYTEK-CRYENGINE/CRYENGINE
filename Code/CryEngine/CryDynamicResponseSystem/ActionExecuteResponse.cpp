@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #include "stdafx.h"
 #include "ActionExecuteResponse.h"
@@ -76,5 +76,3 @@ void CryDRS::CActionExecuteResponseInstance::OnSignalProcessingStarted(SSignalIn
 {
 	m_pStartedResponse = static_cast<CResponseInstance*>(pStartedResponse);
 }
-
-REGISTER_DRS_ACTION(CActionExecuteResponse, "ExecuteResponse", DEFAULT_DRS_ACTION_COLOR);

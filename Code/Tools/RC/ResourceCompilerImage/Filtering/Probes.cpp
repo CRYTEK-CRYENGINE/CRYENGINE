@@ -1,4 +1,5 @@
 // Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved.
+
 #include "StdAfx.h"
 #include <assert.h>                         // assert()
 
@@ -44,30 +45,37 @@ static void FilterCubeSample(
 		int32 dwSrcV1 = int32(floor(dwSrcX));
 		int32 dwSrcH1 = int32(floor(dwSrcY));
 
-		int32 dwSrcV2 = int32(ceil(dwSrcX));
-		int32 dwSrcH2 = int32(ceil(dwSrcY));
+		const int32 dwSrcV2 = int32(ceil(dwSrcX));
+		const int32 dwSrcH2 = int32(ceil(dwSrcY));
 
-		float blendV = 1.0f - (dwSrcX - dwSrcV1);
-		float blendH = 1.0f - (dwSrcY - dwSrcH1);
+		const float blendV = 1.0f - (dwSrcX - dwSrcV1);
+		const float blendH = 1.0f - (dwSrcY - dwSrcH1);
 
-		if (dwSrcV1 < 0) dwSrcV1 += dwSrcWidth;
-		if (dwSrcH1 < 0) dwSrcH1 += dwSrcHeight;
+		if (dwSrcV1 < 0)
+		{
+			dwSrcV1 += dwSrcWidth;
+		}
 
-		char* pDst  = pDstMem + dwDstY  * dwDstStride + dwDstX  * dwBPP;
-		char* pSrc1 = pSrcMem + dwSrcH1 * dwSrcStride + dwSrcV1 * dwBPP;
-		char* pSrc2 = pSrcMem + dwSrcH1 * dwSrcStride + dwSrcV2 * dwBPP;
-		char* pSrc3 = pSrcMem + dwSrcH2 * dwSrcStride + dwSrcV1 * dwBPP;
-		char* pSrc4 = pSrcMem + dwSrcH2 * dwSrcStride + dwSrcV2 * dwBPP;
+		if (dwSrcH1 < 0)
+		{
+			dwSrcH1 += dwSrcHeight;
+		}
 
-		Vec4 vV1 = *((Vec4*)pSrc1);
-		Vec4 vV2 = *((Vec4*)pSrc2);
-		Vec4 vV3 = *((Vec4*)pSrc3);
-		Vec4 vV4 = *((Vec4*)pSrc4);
+		char* const pDst = pDstMem + dwDstY  * dwDstStride + dwDstX  * dwBPP;
+		const char* const pSrc1 = pSrcMem + dwSrcH1 * dwSrcStride + dwSrcV1 * dwBPP;
+		const char* const pSrc2 = pSrcMem + dwSrcH1 * dwSrcStride + dwSrcV2 * dwBPP;
+		const char* const pSrc3 = pSrcMem + dwSrcH2 * dwSrcStride + dwSrcV1 * dwBPP;
+		const char* const pSrc4 = pSrcMem + dwSrcH2 * dwSrcStride + dwSrcV2 * dwBPP;
 
-		Vec4 vH1 = vV1 * blendV + vV2 * (1.0f - blendV);
-		Vec4 vH2 = vV3 * blendV + vV4 * (1.0f - blendV);
+		const Vec4 vV1 = *((Vec4f*)pSrc1);
+		const Vec4 vV2 = *((Vec4f*)pSrc2);
+		const Vec4 vV3 = *((Vec4f*)pSrc3);
+		const Vec4 vV4 = *((Vec4f*)pSrc4);
 
-		*((Vec4*)pDst) = vH1 * blendH + vH2 * (1.0f - blendH);
+		const Vec4 vH1 = vV1 * blendV + vV2 * (1.0f - blendV);
+		const Vec4 vH2 = vV3 * blendV + vV4 * (1.0f - blendV);
+
+		*((Vec4f*)pDst) = vH1 * blendH + vH2 * (1.0f - blendH);
 	}
 }
 

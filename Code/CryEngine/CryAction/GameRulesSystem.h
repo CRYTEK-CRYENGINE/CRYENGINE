@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 /*************************************************************************
    -------------------------------------------------------------------------
@@ -23,7 +23,9 @@
 
 class CGameServerNub;
 
-class CGameRulesSystem : public IGameRulesSystem
+class CGameRulesSystem
+	: public IGameRulesSystem
+	  , public INetworkedClientListener
 {
 	typedef struct SGameRulesDef
 	{
@@ -44,22 +46,35 @@ public:
 	CGameRulesSystem(ISystem* pSystem, IGameFramework* pGameFW);
 	~CGameRulesSystem();
 
-	void                Release() { delete this; };
+	void Release() { delete this; };
 
-	virtual bool        RegisterGameRules(const char* rulesName, const char* extensionName, bool bUseScript);
-	virtual bool        CreateGameRules(const char* rulesName);
-	virtual bool        DestroyGameRules();
-	virtual bool        HaveGameRules(const char* rulesName);
+	// IGameRulesSystem
+	virtual bool        RegisterGameRules(const char* rulesName, const char* extensionName, bool bUseScript) override;
+	virtual bool        CreateGameRules(const char* rulesName) override;
+	virtual bool        DestroyGameRules() override;
 
-	virtual void        AddGameRulesAlias(const char* gamerules, const char* alias);
-	virtual void        AddGameRulesLevelLocation(const char* gamerules, const char* mapLocation);
-	virtual const char* GetGameRulesLevelLocation(const char* gamerules, int i);
+	virtual void        AddGameRulesAlias(const char* gamerules, const char* alias) override;
+	virtual void        AddGameRulesLevelLocation(const char* gamerules, const char* mapLocation) override;
+	virtual const char* GetGameRulesLevelLocation(const char* gamerules, int i) override;
 
-	virtual void        SetCurrentGameRules(IGameRules* pGameRules);
-	virtual IGameRules* GetCurrentGameRules() const;
-	const char*         GetGameRulesName(const char* alias) const;
+	virtual const char* GetGameRulesName(const char* alias) const override;
 
-	void                GetMemoryStatistics(ICrySizer* s);
+	virtual bool        HaveGameRules(const char* rulesName) override;
+
+	virtual void        SetCurrentGameRules(IGameRules* pGameRules) override;
+	virtual IGameRules* GetCurrentGameRules() const override;
+	// ~IGameRulesSystem
+
+	// INetworkedClientListener
+	virtual void OnLocalClientDisconnected(EDisconnectionCause cause, const char* description) override;
+
+	virtual bool OnClientConnectionReceived(int channelId, bool bIsReset) override;
+	virtual bool OnClientReadyForGameplay(int channelId, bool bIsReset) override;
+	virtual void OnClientDisconnected(int channelId, EDisconnectionCause cause, const char* description, bool bKeepClient) override;
+	virtual bool OnClientTimingOut(int channelId, EDisconnectionCause cause, const char* description) override;
+	// ~INetworkedClientListener
+
+	void        GetMemoryStatistics(ICrySizer* s);
 
 private:
 	SGameRulesDef*           GetGameRulesDef(const char* name);

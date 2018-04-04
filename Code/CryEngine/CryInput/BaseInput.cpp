@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 /*************************************************************************
    -------------------------------------------------------------------------
@@ -48,7 +48,7 @@ CBaseInput::CBaseInput()
 	, m_pNaturalPointInput(0)
 	, m_touchListeners(1)
 {
-	GetISystem()->GetISystemEventDispatcher()->RegisterListener(this);
+	GetISystem()->GetISystemEventDispatcher()->RegisterListener(this, "CBaseInput");
 
 	g_pInputCVars = m_pCVars;
 

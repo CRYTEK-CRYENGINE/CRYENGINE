@@ -1,8 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<Project ToolsVersion="14.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
-  <PropertyGroup>
-    <LocalDebuggerCommand>@CryEngine_DIR@\bin\win_x64\GameLauncher.exe</LocalDebuggerCommand>
-    <LocalDebuggerCommandArguments>-project "@PROJECT_FILE@"</LocalDebuggerCommandArguments>
-    <DebuggerFlavor>WindowsLocalDebugger</DebuggerFlavor>
-  </PropertyGroup>
-</Project>

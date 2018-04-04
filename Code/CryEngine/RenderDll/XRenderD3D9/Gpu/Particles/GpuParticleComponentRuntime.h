@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #pragma once
 
@@ -6,13 +6,14 @@
 
 #include "Gpu/Physics/GpuPhysicsParticleFluid.h"
 #include "Gpu/GpuMergeSort.h"
-#include "CREGpuParticle.h"
 #include "GpuParticleFeatureBase.h"
 #include "GraphicsPipeline/Common/ComputeRenderPass.h"
 
 namespace gpu_pfx2
 {
-class CREGpuParticle;
+
+template<typename T> using TConstArray = Array<const T, uint>;
+
 
 static const float kBoundsScale = 100.f;
 static const uint32 kCalcBoundsBlocks = 16u;
@@ -133,11 +134,6 @@ struct SParticleInitializationParameters
 	int octaves;
 };
 
-struct SVertexShaderParameters
-{
-	float axisScale;
-};
-
 class CParticleComponentRuntime;
 
 // context passed to functions during update phase
@@ -152,6 +148,13 @@ struct SUpdateContext
 
 class CParticleComponentRuntime : public IParticleComponentRuntime
 {
+private:
+	struct SSpawnEntry
+	{
+		uint32 m_count;
+		int32  m_instanceId;
+	};
+
 public:
 	static const int kThreadsInBlock;
 
@@ -166,21 +169,21 @@ public:
 
 	std::vector<_smart_ptr<gpu_pfx2::CFeature>> m_gpuUpdateLists[eGpuUpdateList_COUNT];
 
-	typedef std::vector<uint> TInstances;
+	typedef DynArray<TParticleId, uint> TInstances;
 
 	CParticleComponentRuntime(
+	  IParticleEmitter* pEmitter,
 	  pfx2::IParticleComponent* pComponent,
 	  const pfx2::SRuntimeInitializationParameters& params);
 
 	virtual ~CParticleComponentRuntime()
 	{
 	}
-	virtual void        SetEmitterData(::IParticleEmitter* pEmitter) override;
+	virtual void        UpdateEmitterData() override;
 	virtual EState      GetState() const override       { return m_state; };
 	virtual bool        IsActive() const override       { return m_active; }
 	virtual void        SetActive(bool active) override { m_active = active; }
-	virtual void        MainPreUpdate() override        {}
-	virtual bool        IsSecondGen() override          { return m_isSecondGen; }
+	virtual bool        IsSecondGen() const override    { return m_isSecondGen; }
 
 	virtual bool        IsValidRuntimeForInitializationParameters(const pfx2::SRuntimeInitializationParameters& parameters) override;
 	virtual void        SetEnvironmentParameters(const SEnvironmentParameters& params) override { m_envParams = params; }
@@ -189,6 +192,11 @@ public:
 	virtual void        AccumCounts(SParticleCounts& counts) override;
 	virtual bool        HasParticles() override { return m_parameters->numParticles != 0; }
 
+	virtual void        AddSubInstances(TConstArray<SInstance> instances) override;
+	virtual void        RemoveAllSubInstances() override;
+	virtual void        ReparentParticles(TConstArray<TParticleId> swapIds) override;
+
+	IParticleEmitter*   GetEmitter() const { return m_pEmitter; }
 	void                Initialize();
 	void                Reset();
 
@@ -210,9 +218,6 @@ public:
 
 	void SpawnParticles(int instanceID, uint32 count);
 
-	// this comes from the main thread
-	virtual void                       Render(CRenderObject* pRenderObject, const SRenderingPassInfo& passInfo, const SRendParams& rParams) override;
-
 	CParticleContainer*                GetContainer() { return &m_container; }
 
 	void                               SetUpdateTexture(EFeatureUpdateSrvSlot slot, CTexture* pTexture);
@@ -224,10 +229,7 @@ public:
 	void                               SetInitializationSRV(EFeatureInitializationSrvSlot slot, CGpuBuffer* pSRV);
 	void                               SetInitializationFlags(uint64 flags);
 
-	virtual void                       AddSubInstances(SInstance* pInstances, size_t count) override;
 	void                               RemoveSubInstance(size_t instanceId);
-	void                               RemoveAllSubInstances() override;
-	virtual void                       ReparentParticles(const uint* swapIds, const uint numSwapIds) override;
 	size_t                             GetNumInstances() const       { return m_subInstancesRenderThread.size(); }
 	const uint&                        GetInstance(size_t idx) const { return m_subInstancesRenderThread[idx]; }
 
@@ -241,27 +243,9 @@ public:
 	void FluidCollisions(CDeviceCommandListRef RESTRICT_REFERENCE commandList);
 	void EvolveParticles(CDeviceCommandListRef RESTRICT_REFERENCE commandList);
 
-	bool                                   BindVertexShaderResources()
-	{
-		if (IsActive() && m_parameters->numParticles)
-		{
-			ID3D11ShaderResourceView* ppSRVs[] = { GetContainer()->GetDefaultParticleDataBuffer().GetSRV() };
-			gcpRendD3D->m_DevMan.BindSRV(CDeviceManager::TYPE_VS, ppSRVs, 7, 1);
-			gcpRendD3D->m_DevMan.BindConstantBuffer(CDeviceManager::TYPE_VS, m_vertexShaderParams.GetDeviceConstantBuffer(), 4);
-			return true;
-		}
-		return false;
-	}
-
 	SSpawnData& GetSpawnData(size_t idx) { return m_spawnData[idx]; }
+
 private:
-
-	struct SSpawnEntry
-	{
-		uint32 m_count;
-		int32  m_instanceId;
-	};
-
 	void AddRemoveParticles(const SUpdateContext& context);
 	void UpdateNewBorns(const SUpdateContext& context, CDeviceCommandListRef RESTRICT_REFERENCE commandList);
 	void FillKillList(const SUpdateContext& context, CDeviceCommandListRef RESTRICT_REFERENCE commandList);
@@ -273,10 +257,10 @@ private:
 	// update passes with varying material flags
 	void UpdatePasses();
 
+	IParticleEmitter*                                   m_pEmitter;
 	gpu::CTypedConstantBuffer<SParticleParameters>      m_parameters;
 
 	CParticleContainer                                  m_container;
-	std::unique_ptr<CREGpuParticle>                     m_pRendElement;
 
 	gpu::CTypedResource<int, gpu::BufferFlagsReadWrite> m_blockSums;
 	gpu::CTypedResource<int, gpu::BufferFlagsReadWrite> m_killList;
@@ -304,45 +288,45 @@ private:
 	bool                      m_isSecondGen;
 
 	// Compute Passes
-	CComputeRenderPass m_passCalcBounds;
-	CComputeRenderPass m_passFeatureInitialization;
-	CComputeRenderPass m_passFillKillList;
-	CComputeRenderPass m_passFeatureUpdate;
-	CComputeRenderPass m_passPrepareSort;
-	CComputeRenderPass m_passReorderParticles;
-	CComputeRenderPass m_passSwapToEnd;
 
-	CGpuBuffer*        m_updateSrvSlots[eFeatureUpdateSrvSlot_COUNT];
-	CTexture*          m_updateTextureSlots[eFeatureUpdateSrvSlot_COUNT];
-	CConstantBufferPtr m_updateConstantBuffers[eConstantBufferSlot_COUNT];
-	uint64             m_updateShaderFlags;
-
-	CGpuBuffer*        m_initializationSrvSlots[eFeatureInitializationSrvSlot_COUNT];
-	uint64             m_initializationShaderFlags;
-
-	uint64             m_previousInitializationShaderFlags;
-	uint64             m_previousUpdateShaderShaderFlags;
-
+	// these pointers must be declared before the ComputeRenderPasses, for proper destruction order.
 	gpu::CTypedConstantBuffer<SParticleInitializationParameters> m_particleInitializationParameters;
 
-	EState                                                 m_state;
-
-	CryCriticalSection                                     m_cs;
-
-	SEnvironmentParameters                                 m_envParams;
-
-	int                                                    m_texSampler;
-	int                                                    m_texPointSampler;
 	std::unique_ptr<gpu_physics::CParticleFluidSimulation> m_pFluidSimulation;
 	std::unique_ptr<gpu::CMergeSort>                       m_pMergeSort;
 
-	// set only during initialization
-	const int                                          m_maxParticles;
-	const int                                          m_maxNewBorns;
-	const pfx2::EGpuSortMode                           m_sortMode;
-	const uint32                                       m_facingMode;
-	const float                                        m_axisScale;
+	_smart_ptr<CShader>      m_pShader;
+	_smart_ptr<CShader>      m_pInitShader;
+	_smart_ptr<CShader>      m_pUpdateShader;
 
-	gpu::CTypedConstantBuffer<SVertexShaderParameters> m_vertexShaderParams;
+	CGpuBuffer*              m_updateSrvSlots[eFeatureUpdateSrvSlot_COUNT];
+	CTexture*                m_updateTextureSlots[eFeatureUpdateSrvSlot_COUNT];
+	CConstantBufferPtr       m_updateConstantBuffers[eConstantBufferSlot_COUNT];
+	uint64                   m_updateShaderFlags;
+
+	CGpuBuffer*              m_initializationSrvSlots[eFeatureInitializationSrvSlot_COUNT];
+
+	CComputeRenderPass       m_passCalcBounds;
+	CComputeRenderPass       m_passFeatureInitialization;
+	CComputeRenderPass       m_passFillKillList;
+	CComputeRenderPass       m_passFeatureUpdate;
+	CComputeRenderPass       m_passPrepareSort;
+	CComputeRenderPass       m_passReorderParticles;
+	CComputeRenderPass       m_passSwapToEnd;
+
+	uint64                   m_initializationShaderFlags;
+	uint64                   m_previousInitializationShaderFlags;
+	uint64                   m_previousUpdateShaderShaderFlags;
+	EState                   m_state;
+
+	CryCriticalSection       m_cs;
+
+	SEnvironmentParameters   m_envParams;
+
+	// set only during initialization
+	const int                m_maxParticles;
+	const int                m_maxNewBorns;
+	const pfx2::EGpuSortMode m_sortMode;
+	const uint32             m_facingMode;
 };
 }

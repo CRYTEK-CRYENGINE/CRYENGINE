@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 // -------------------------------------------------------------------------
 //  File name:   MiniGUI.h
@@ -136,7 +136,7 @@ public:
 	CRYINTERFACE_BEGIN()
 	CRYINTERFACE_ADD(IMiniGUI)
 	CRYINTERFACE_END()
-	CRYGENERATE_SINGLETONCLASS(CMiniGUI, "MiniGUI", 0x1a049b879a4e4b58, 0xac14026e17e6255e)
+	CRYGENERATE_SINGLETONCLASS_GUID(CMiniGUI, "MiniGUI", "1a049b87-9a4e-4b58-ac14-026e17e6255e"_cry_guid)
 
 	CMiniGUI();
 	virtual ~CMiniGUI() {}

@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 /*************************************************************************
    -------------------------------------------------------------------------
@@ -26,7 +26,7 @@ void CryAssertTrace(const char* szFormat, ...)
 
 	if (!gEnv->bIgnoreAllAsserts || gEnv->bTesting)
 	{
-		if (szFormat == NULL)
+		if (szFormat == NULL || szFormat[0] == '\0')
 		{
 			gs_szMessage[0] = '\0';
 		}

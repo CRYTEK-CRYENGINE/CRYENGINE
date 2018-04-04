@@ -4,7 +4,7 @@
 
 #include "ModeCharacter.h"
 #include "ManipScene.h"
-#include <QPropertyTree/QPropertyTree.h>
+#include <Serialization/QPropertyTree/QPropertyTree.h>
 #include <QToolBar>
 #include <QAction>
 #include "Expected.h"
@@ -159,16 +159,16 @@ void ModeCharacter::OnBindPoseModeChanged()
 
 void ModeCharacter::OnDisplayOptionsChanged()
 {
-	int characterFlag = (1 << GIZMO_LAYER_CHARACTER);
-	int animationFlag = (1 << GIZMO_LAYER_ANIMATION);
-	int visibilityMask = 0xfffffffff & ~characterFlag & ~animationFlag;
+	DisplayOptions* displayOptions = m_system->document->GetDisplayOptions().get();
+	m_scene->SetShowAttachementGizmos(displayOptions->attachmentGizmos);
+	m_scene->SetShowPoseModifierGizmos(displayOptions->poseModifierGizmos);
 
-	if (m_system->document->GetDisplayOptions()->attachmentAndPoseModifierGizmos)
-		visibilityMask |= characterFlag;
+	constexpr int animationFlag = (1 << GIZMO_LAYER_ANIMATION);
+
 	if (m_system->document->GetDisplayOptions()->animation.animationEventGizmos)
-		visibilityMask |= animationFlag;
-
-	m_scene->SetVisibleLayerMask(visibilityMask);
+		m_scene->SetVisibleLayerMask(0xffffffff);
+	else
+		m_scene->SetVisibleLayerMask(0xffffffff & ~animationFlag);
 }
 
 void ModeCharacter::OnSceneSelectionChanged()

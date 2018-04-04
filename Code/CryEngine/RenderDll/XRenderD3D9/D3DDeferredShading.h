@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 /*=============================================================================
    DeferredShading.h : Deferred shading pipeline
@@ -7,6 +7,10 @@
 
 #ifndef _DEFERREDSHADING_H_
 #define _DEFERREDSHADING_H_
+
+#include "Common/RenderPipeline.h" // EShapeMeshType
+#include "Common/Textures/Texture.h" // CTexture
+#include "Common/Textures/PowerOf2BlockPacker.h" // CPowerOf2BlockPacker
 
 struct IVisArea;
 
@@ -75,13 +79,7 @@ public:
 	void        LightPass(const SRenderLight* const __restrict pDL, bool bForceStencilDisable = false);
 	void        DeferredCubemaps(const RenderLightsArray& rCubemaps, const uint32 nStartIndex = 0);
 	void        DeferredCubemapPass(const SRenderLight* const __restrict pDL);
-	void        ScreenSpaceReflectionPass();
-	void        ApplySSReflections();
-	void        DirectionalOcclusionPass();
-	void        HeightMapOcclusionPass(ShadowMapFrustum*& pHeightMapFrustum, CTexture*& pHeightMapAOScreenDepth, CTexture*& pHeightmapAO);
 	void        DeferredLights(RenderLightsArray& rLights, bool bCastShadows);
-
-	void        DeferredSubsurfaceScattering(CTexture* tmpTex);
 	void        DeferredShadingPass();
 
 	void        CreateDeferredMaps();
@@ -203,7 +201,6 @@ private:
 		, m_nRenderState(GS_BLSRC_ONE | GS_BLDST_ONE)
 		, m_nThreadID(0)
 		, m_nRecurseLevel(0)
-		, m_nBindResourceMsaa(-1)
 		, m_blockPack(0, 0)
 	{
 
@@ -213,9 +210,6 @@ private:
 		{
 			m_prevViewProj[i].SetIdentity();
 		}
-
-		m_nTexStateLinear = CTexture::GetTexState(STexState(FILTER_LINEAR, true));
-		m_nTexStatePoint = CTexture::GetTexState(STexState(FILTER_POINT, true));
 
 		for (int i = 0; i < RT_COMMAND_BUF_COUNT; ++i)
 		{
@@ -307,11 +301,6 @@ private:
 
 	int                      m_nRenderState;
 	uint32                   m_nLightsProcessedCount;
-
-	uint32                   m_nTexStateLinear;
-	uint32                   m_nTexStatePoint;
-
-	SResourceView::KeyType   m_nBindResourceMsaa;
 
 	uint32                   m_nThreadID;
 	int32                    m_nRecurseLevel;

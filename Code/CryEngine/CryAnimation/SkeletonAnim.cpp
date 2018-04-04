@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #include "stdafx.h"
 #include "SkeletonAnim.h"
@@ -81,7 +81,7 @@ void CSkeletonAnim::FinishAnimationComputations()
 	}
 }
 
-CryGUID GUID_AnimationPoseModifier_TransformationPin = CryGUID::Construct(0xcc34ddea972e47daULL, 0x93f9cdcb98c28c8eULL);
+constexpr CryGUID GUID_AnimationPoseModifier_TransformationPin = "cc34ddea-972e-47da-93f9-cdcb98c28c8e"_cry_guid;
 bool CSkeletonAnim::PushPoseModifier(uint32 layer, IAnimationPoseModifierPtr poseModifier, const char* name)
 {
 	if (poseModifier)

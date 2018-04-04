@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #include "StdAfx.h"
 #include "TimeSource.h"
@@ -57,7 +57,8 @@ void CTimeSource::SerializeInplace(Serialization::IArchive& ar)
 	case ETimeSource::Speed:
 		if (m_sourceOwner == ETimeSourceOwner::_None)
 			m_sourceOwner = ETimeSourceOwner::Self;
-		ar(m_sourceOwner, "Owner", "Owner");
+		if (context.GetDomain() == EMD_PerParticle)
+			ar(m_sourceOwner, "Owner", "Owner");
 		break;
 	case ETimeSource::Attribute:
 		ar(m_attributeName, "AttributeName", "Attribute Name");
@@ -66,7 +67,6 @@ void CTimeSource::SerializeInplace(Serialization::IArchive& ar)
 	case ETimeSource::LevelTime:
 		m_sourceOwner = ETimeSourceOwner::_None;
 		break;
-
 	case ETimeSource::_ParentTime:
 		m_timeSource = ETimeSource::Age;
 		m_sourceOwner = ETimeSourceOwner::Parent;
@@ -86,7 +86,7 @@ void CTimeSource::SerializeInplace(Serialization::IArchive& ar)
 		break;
 	}
 
-	if (ar.isInput() && GetVersion(ar) < 7)
+	if (ar.isInput() && GetVersion(ar) <= 8)
 	{
 		ar(m_timeScale, "Scale", "Scale");
 		ar(m_timeBias, "Bias", "Bias");
@@ -99,7 +99,7 @@ void CTimeSource::SerializeInplace(Serialization::IArchive& ar)
 
 	if (!context.HasUpdate() || m_timeSource == ETimeSource::Random)
 		m_spawnOnly = true;
-	else if (context.GetDomain() == EMD_PerParticle && m_timeSource == ETimeSource::Age && m_sourceOwner == ETimeSourceOwner::Self || m_timeSource == ETimeSource::ViewAngle)
+	else if (context.GetDomain() == EMD_PerParticle && m_timeSource == ETimeSource::Age && m_sourceOwner == ETimeSourceOwner::Self || m_timeSource == ETimeSource::ViewAngle || m_timeSource == ETimeSource::CameraDistance)
 		m_spawnOnly = false;
 	else
 		ar(m_spawnOnly, "SpawnOnly", "Spawn Only");

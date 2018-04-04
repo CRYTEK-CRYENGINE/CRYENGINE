@@ -1,14 +1,11 @@
-# Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+# Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 import os
 from waflib.TaskGen import after_method, feature
 from waflib import Logs
 
-import os
-from waflib import Logs
 
 def build(bld):
-	gnm_compiler_version = '"ORBIS/V031"' # Must be quoted
-	additional_defines = [ 'CRY_GNM_SHADER_COMPILER_VERSION=' + gnm_compiler_version ]
+	additional_defines = []
 
 	if not os.path.isdir(Path('Code/SDKs/NVIDIA/NVAPI_r386')):
 		Logs.warn('[WARNING] NVAPI SDK v.386 not found, excluding from the build.')
@@ -21,24 +18,26 @@ def build(bld):
 	bld.CryEngineModule(
 		target      = 'CryRenderD3D11',
 		vs_filter   = 'CryEngine',
-
-		file_list   = 'core_renderer.waf_files',
+		
+		file_list   = [ 'core_renderer.waf_files' ],
 		pch         = '../StdAfx.cpp',
 		includes    = [ '..', Path('Code/SDKs/squish-ccr') ],
-		defines     = [ 'DO_RENDERSTATS', '_RENDERER' ] + additional_defines,
 		use_module  = [ 'lzma', 'lzss', 'lz4', 'zlib' ],
 		features    = [ 'copy_d3d_compiler' ],
 
 		win_features    = [ 'copy_d3d_compiler' ],
-		win_file_list   = 'mesh_baker.waf_files',
-		win_lib         = [ 'dxguid', 'd3d11', 'd3d10', 'd3dcompiler', 'Ole32', 'Gdi32', 'wininet', 'Shell32' ],			
+		win_file_list   = [ 'dx11_renderer.waf_files', 'mesh_baker.waf_files' ],
+		win_defines     = [ 'CRY_RENDERER_DIRECT3D=110', 'DO_RENDERSTATS', '_RENDERER' ] + additional_defines,
+		win_lib         = [ 'dxguid', 'd3d11', 'd3d10', 'd3dcompiler', 'Ole32', 'Gdi32', 'wininet', 'Shell32' ],
 		win_linkflags   = [ '/NODEFAULTLIB:libcmt.lib' ], ## AMD AGS static lib references this
+		win_use_module  = [ 'png16' ],
 
 		durango_file_list  = [ 'durango_renderer.waf_files', 'mesh_baker.waf_files' ],
+		durango_defines    = [ 'CRY_RENDERER_DIRECT3D=111', 'DO_RENDERSTATS', '_RENDERER' ] + additional_defines,
 		durango_lib        = [ 'ws2_32', 'SmartGlassInterop', 'd3dcompiler', 'dxguid', 'xg_x', 'uuid', 'kernelx' ],
 
-		orbis_file_list    = 'orbis_renderer.waf_files',
-		orbis_defines      = 'CRY_USE_GNM',
+		orbis_file_list    = [ 'orbis_renderer.waf_files' ],
+		orbis_defines      = [ 'CRY_RENDERER_DIRECT3D=111', 'DO_RENDERSTATS', '_RENDERER' ] + additional_defines,
 		orbis_lib          = [ 'SceSystemService_stub_weak', 'SceGnmDriver_stub_weak' ],
 		orbis_includes     = [ '../../..' ],
 
@@ -51,12 +50,6 @@ def build(bld):
 		orbis_release_lib = [ 'SceGnm_lto', 'SceGnmx_lto' ],
 	)
 
-	#androidDefines = [ 'GLEW_MX', 'DXGL_ANDROID_GL' ]
-	#androidFilelist = ['mesh_baker.waf_files', 'opengl_loader_gl.waf_files', 'opengl_loader_egl.waf_files']
-	
-	androidFilelist = ['mesh_baker.waf_files', 'opengl_loader_gles2.waf_files', 'opengl_loader_egl.waf_files']
-	androidDefines = [ 'GLEW_MX', 'OPENGL_ES' ]
-
 	bld.CryEngineModule(
 		target      = 'CryRenderOpenGL',
 		vs_filter   = 'CryEngine',
@@ -64,37 +57,41 @@ def build(bld):
 		file_list   = [ 'core_renderer.waf_files', 'opengl_renderer.waf_files' ],
 		pch         = '../StdAfx.cpp',
 		includes    = [ '..', Path('Code/SDKs/squish-ccr') ],
-		defines     = [ 'OPENGL', 'DO_RENDERSTATS', '_RENDERER' ] + additional_defines,
+		defines     = [ 'CRY_RENDERER_DIRECT3D=110', 'DO_RENDERSTATS', '_RENDERER' ] + additional_defines,
 		use_module  = [ 'lzma', 'lzss', 'lz4', 'zlib' ],
 		module_extensions = [ 'sdl2', 'sdl2_ext' ],
 		
 
-		win_file_list    = ['mesh_baker.waf_files', 'opengl_loader_gl.waf_files', 'opengl_loader_wgl.waf_files'],
+		win_file_list    = ['mesh_baker.waf_files', 'opengl_loader_gl.waf_files', 'opengl_loader_wgl.waf_files' ],
 		win_includes     = [ Path('Code/SDKs/squish-ccr'), Path('Code/Tools/LibTIFF'), Path('Code/Tools/HLSLCrossCompiler/include') ],
-		win_lib          = [ 'opengl32', 'winmm', 'Ole32', 'Gdi32', 'wininet', 'Shell32', 'libHLSLcc'  ],
+		win_lib          = ['opengl32', 'winmm', 'Ole32', 'Gdi32', 'wininet', 'Shell32', 'libHLSLcc'  ],
 		win_libpath      = [ Path('Code/Tools/HLSLCrossCompiler/lib/win64') ],
 		win_linkflags    = [ '/NODEFAULTLIB:libcmt.lib' ], ## AMD AGS static lib references this
+		win_use_module   = [ 'png16' ],
+		win_defines      = ['CRY_RENDERER_OPENGL=440'],
 		
-		darwin_file_list = 'mesh_baker.waf_files',
+		darwin_file_list = ['mesh_baker.waf_files' ],
 		darwin_includes  = [ Path('Code/SDKs/SDL2/include/SDL'), Path('Code/SDKs/SDL2/include/mac'), Path('Code/Tools/HLSLCrossCompiler/include') ],
-		darwin_lib       = [ 'HLSLcc' ],
+		darwin_lib       = ['HLSLcc' ],
 		darwin_libpath   = [ Path('Code/Tools/HLSLCrossCompiler/lib/mac') ],
-		darwin_framework = [ 'OpenGL', 'ApplicationServices', 'IOKit' ],
+		darwin_framework = ['OpenGL', 'ApplicationServices', 'IOKit' ],
+		darwin_defines   = ['CRY_RENDERER_OPENGL=440'],
 
-		linux_file_list    = ['mesh_baker.waf_files', 'opengl_loader_gl.waf_files', 'opengl_loader_glx.waf_files'],
-		linux_lib          = [ 'HLSLcc' ],
+		linux_file_list    = ['mesh_baker.waf_files', 'opengl_loader_gl.waf_files', 'opengl_loader_glx.waf_files' ],
+		linux_lib          = ['HLSLcc' ],
 		linux_includes     = [ Path('Code/Tools/HLSLCrossCompiler/include') ],
 		linux_x64_libpath  = [ Path('Code/Tools/HLSLCrossCompiler/lib/linux')],
+		linux_defines      = ['CRY_RENDERER_OPENGL=440'],
 				
-		android_file_list  = androidFilelist,
+		android_file_list  = ['mesh_baker.waf_files', 'opengl_loader_gles2.waf_files', 'opengl_loader_egl.waf_files' ],
 		android_includes   = [ Path('Code/Tools/HLSLCrossCompiler/include') ],
-		android_defines    = androidDefines,
-		android_lib        = ['EGL', 'GLESv1_CM', 'GLESv2', 'GLESv3'],
+		android_defines    = ['GLEW_MX', 'OPENGL_ES', 'CRY_RENDERER_OPENGLES=310'],
+		android_lib        = ['EGL', 'GLESv1_CM', 'GLESv2', 'GLESv3']
 	)
 
 	# CryRenderD3D12 can only be built using VS 2015.
 	min_msvc_version = '14.0'
-	min_winsdk_version = '10.0.10586.0'
+	min_winsdk_version = '10.0.14393.0'
 	
 	build_d3d12_msvc_check = bld.env and bld.env['MSVC_VERSION'] and (bld.ToVersionNumbers(bld.env['MSVC_VERSION']) >= bld.ToVersionNumbers(min_msvc_version))
 	build_d3d12_winsdk_check = bld.env and bld.env['WINSDK_VERSION'] and (bld.ToVersionNumbers(bld.env['WINSDK_VERSION']) >= bld.ToVersionNumbers(min_winsdk_version))
@@ -105,19 +102,23 @@ def build(bld):
 			target      = 'CryRenderD3D12',
 			vs_filter   = 'CryEngine',
 			
-			file_list   = [ 'core_renderer.waf_files' ],
+			file_list   = [ 'core_renderer.waf_files', 'dx12_renderer.waf_files' ],
 			pch        = '../StdAfx.cpp',
 			includes    = [ '..', Path('Code/SDKs'), Path('Code/SDKs/squish-ccr') ],
-			defines     = [ 'DIRECT3D10', 'CRY_USE_DX12', 'XRENDERD3D10_EXPORTS', 'DO_RENDERSTATS', '_RENDERER' ] + additional_defines,
 			use_module  = [ 'lzma', 'lzss', 'lz4', 'zlib' ],
 
-			# , 'd3d11'
-			win_features     = [ 'copy_d3d_compiler' ],
-			win_file_list    = [ 'mesh_baker.waf_files', 'dx12_renderer.waf_files' ],
+			win_features     = ['copy_d3d_compiler' ],
+			win_file_list    = ['mesh_baker.waf_files' ],
+			win_defines      = ['CRY_RENDERER_DIRECT3D=120', 'DO_RENDERSTATS', '_RENDERER' ] + additional_defines,
 			win_includes     = [ Path('Code/Tools/LibTIFF'), Path('Code/CryEngine/RenderDll/XRenderD3D9/DX12/Includes') ],
 			win_lib          = [ 'dxguid', 'd3d12', 'dxgi', 'd3dcompiler', 'Ole32', 'Gdi32', 'wininet', 'Shell32' ],
 			win_linkflags    = [ '/NODEFAULTLIB:libcmt.lib' ], ## AMD AGS static lib references this
+			win_use_module   = [ 'png16' ],
 			
+			durango_file_list  = [ 'durango_renderer.waf_files' ],
+			durango_defines    = [ 'CRY_RENDERER_DIRECT3D=120', 'DO_RENDERSTATS', '_RENDERER' ] + additional_defines,
+			durango_lib        = [ 'ws2_32', 'SmartGlassInterop', 'd3dcompiler', 'dxguid', 'xg_x', 'uuid', 'kernelx' ],
+
 			# additional_settings = Settings( files = '../Common/lzss.cpp', disable_pch = True )
 		)
 	else:
@@ -129,15 +130,12 @@ def build(bld):
 
 	# GNM backend may not be available, so check here
 	if os.path.isdir(Path('Code/SDKs/Orbis')) and os.path.isdir(Path('Code/CryEngine/RenderDll/XRenderD3D9/GNM')):
-		rsc_output_folder = 'Tools/RemoteShaderCompiler'
-
-		# GNM render backend
 		bld.CryEngineModule(
 			target      = 'CryRenderGNM',
 			vs_filter   = 'CryEngine',
 			file_list   = [ 'core_renderer.waf_files', 'GNM/GnmRenderer.waf_files' ],
 			pch        = '../StdAfx.cpp',
-			defines     = [ '_RENDERER', 'DO_RENDERSTATS', 'CRY_USE_GNM', 'CRY_USE_GNM_RENDERER' ] + additional_defines,
+			defines     = [ 'CRY_RENDERER_GNM=40', '_RENDERER', 'DO_RENDERSTATS' ] + additional_defines,
 			lib         = [ 'SceSystemService_stub_weak', 'SceGnmDriver_stub_weak' ],
 			includes    = [ '..' ],
 			use_module  = [ 'lzma', 'lzss', 'lz4', 'zlib' ],
@@ -149,42 +147,26 @@ def build(bld):
 			performance_lib      = [ 'SceGnm_lto', 'SceGnmx_lto' ],
 			release_lib          = [ 'SceGnm_lto', 'SceGnmx_lto' ],
 		)
-
-		# GNM shader compiler
-		bld.CryConsoleApplication(
-			target            = 'GnmShaderCompiler',
-			vs_filter         = 'Tools',
-			file_list         = 'GNM/GnmShaderCompiler.waf_files',
-			defines           = [ '_CRT_SECURE_NO_WARNINGS' ],
-			cxxflags          = [ '/EHsc', '/GR' ],
-			includes          = Path('Code/SDKs/Orbis/target/include_common'),
-			libpath           = Path('Code/SDKs/Orbis/host_tools/lib'),
-			lib               = 'libSceShaderWavePsslc',
-			features          = 'copy_psslc',
-
-			output_sub_folder = Path(os.path.join(rsc_output_folder, 'Compiler', gnm_compiler_version[1:-1])),
-			force_static_crt  = True,
-		)
-
-
-@feature('copy_psslc')
-@after_method('apply_link')
-def feature_copy_psslc(self):
-	bld = self.bld
-	platform = bld.env['PLATFORM']
-	configuration = bld.env['CONFIGURATION']
-
-	if platform  == 'project_generator':
-		return
-
-	output_folder = bld.get_output_folders(platform, configuration)[0]
 	
-	if hasattr(self, 'output_sub_folder'):
-		if os.path.isabs(self.output_sub_folder):
-			output_node = bld.root.make_node(self.output_sub_folder)
-		else:
-			output_node = output_folder.make_node(self.output_sub_folder)
+	bld.CryEngineModule(
+		target      = 'CryRenderVulkan',
+		vs_filter   = 'CryEngine',
 
-	psslc_dir = Path('Code/SDKs/Orbis/host_tools/bin')
-	psslc_dll = 'libSceShaderWavePsslc.dll'
-	self.create_task('copy_outputs', bld.root.make_node(os.path.join(psslc_dir, psslc_dll)), output_node.make_node(psslc_dll))
+		file_list   = ['core_renderer.waf_files', 'Vulkan/vulkan_renderer.waf_files'],
+		pch         = '../StdAfx.cpp',
+		includes    = [ '..', Path('Code/SDKs/squish-ccr'), Path('Code/SDKs/VulkanSDK/Include') ],
+		defines     = [ 'CRY_RENDERER_VULKAN=10', 'DO_RENDERSTATS', '_RENDERER' ] ,
+		use_module  = [ 'lzma', 'lzss', 'lz4', 'zlib', 'spirv-cross' ],
+		module_extensions = [ 'sdl2', 'sdl2_ext' ],
+		
+		android_cxxflags = ['-fms-extensions', '-D_MSC_EXTENSIONS=1'],
+
+		win_file_list     = ['mesh_baker.waf_files'],
+		win_lib           = ['Ole32', 'Gdi32', 'wininet', 'Shell32', 'dxguid', 'vulkan-1' ], 
+		win_linkflags     = ['/NODEFAULTLIB:libcmt.lib' ], ## AMD AGS static lib references this
+		win_libpath       = [ Path('Code/SDKs/VulkanSDK/Lib') ],
+		win_use_module    = [ 'png16' ],
+
+		android_file_list = ['mesh_baker.waf_files']
+	)
+

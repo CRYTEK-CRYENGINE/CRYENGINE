@@ -7,7 +7,7 @@
 
 #include <CryEntitySystem/IEntity.h>
 #include <CryAISystem/IVisionMap.h>
-#include <CryAISystem/AISystemListener.h>
+#include <CryAISystem/IAISystemComponent.h>
 
 class Agent;
 
@@ -76,12 +76,12 @@ namespace GameAI
 	// When an agent dies, this manager gets notified. It then gathers
 	// the necessary information about the situation and dispatches
 	// this to the group so it can react accordingly.
-	class DeathManager : public IAISystemListener
+	class DeathManager : public IAISystemComponent
 	{
 	public:
 		DeathManager();
 		virtual ~DeathManager();
-		void Update();
+		void GameUpdate();
 		void OnAgentGrabbedByPlayer(const EntityId agentID);
 
 	private:
@@ -97,11 +97,12 @@ namespace GameAI
 		void DestroyDeadBody(DeadBody& deadBody);
 		void PotentialWitnessRayComplete(const QueuedRayID& rayID, const RayCastResult& result);
 		void InjectDeadGroupMemberDataIntoScriptTable(IScriptTable* scriptTable, const EntityId victimID, const EntityId killerID, const Vec3& victimPosition);
+		void OnAgentDeath(EntityId deadEntityID, EntityId killerID);
 
-		// IAISystemListener
-		virtual void OnAgentDeath(EntityId deadEntityID, EntityId killerID) override;
-		virtual void OnAgentUpdate(EntityId entityID) override;
-		// ~IAISystemListener
+		// IAISystemComponent
+		virtual void OnActorUpdate(IAIObject* pAIObject, IAIObject::EUpdateType type, float frameDelta);
+		virtual bool WantActorUpdates(IAIObject::EUpdateType type) override { return type == IAIObject::Full; }
+		// ~IAISystemComponent
 
 	private:
 		typedef std::vector<DeferredDeathReaction> DeferredDeathReactions;

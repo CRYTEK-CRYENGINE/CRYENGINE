@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 // -------------------------------------------------------------------------
 //  File name:   ParticleContainer.h
@@ -147,6 +147,7 @@ public:
 	void  RenderGeometry(const SRendParams& RenParams, const SRenderingPassInfo& passInfo);
 	void  RenderDecals(const SRenderingPassInfo& passInfo);
 	void  RenderLights(const SRendParams& RenParams, const SRenderingPassInfo& passInfo);
+	void  ResetRenderObjects();
 
 	// Bounds functions.
 	void   UpdateState();
@@ -326,7 +327,6 @@ private:
 	void  SetScreenBounds(const CCamera& cam, uint8 aScreenBounds[4]);
 
 	CRenderObject* CreateRenderObject(uint64 nObjFlags);
-	void           ResetRenderObjects();
 };
 
 #endif // __particlecontainer_h__

@@ -1,6 +1,6 @@
 <Material MtlFlags="524326" Shader="Illum" GenMask="0" StringGenMask="" SurfaceType="" MatTemplate="" Diffuse="1,1,1" Specular="0,0,0" Emissive="1,1,1" Shininess="10" Opacity="0.99" AlphaTest="0.2">
  <Textures>
-  <Texture Map="Diffuse" File="Editor/Materials/voxel_editor.dds" Filter="1" IsTileU="0" IsTileV="0">
+  <Texture Map="Diffuse" File="%EDITOR%/Materials/voxel_editor.dds" Filter="1" IsTileU="0" IsTileV="0">
    <TexMod TileU="0.89999998" TileV="0.89999998" OffsetU="0.5" OffsetV="0.5" TexMod_UOscillatorType="5" TexMod_VOscillatorType="5" TexMod_UOscillatorRate="1" TexMod_VOscillatorRate="1" TexMod_UOscillatorAmplitude="0.025" TexMod_VOscillatorAmplitude="0.025"/>
   </Texture>
  </Textures>

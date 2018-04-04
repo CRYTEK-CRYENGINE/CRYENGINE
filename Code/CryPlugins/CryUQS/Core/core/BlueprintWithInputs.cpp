@@ -5,9 +5,9 @@
 
 // *INDENT-OFF* - <hard to read code and declarations due to inconsistent indentation>
 
-namespace uqs
+namespace UQS
 {
-	namespace core
+	namespace Core
 	{
 
 		CBlueprintWithInputs::~CBlueprintWithInputs()
@@ -18,7 +18,7 @@ namespace uqs
 			}
 		}
 
-		bool CBlueprintWithInputs::InstantiateFunctionCallHierarchy(CFunctionCallHierarchy& out, const SQueryBlackboard& blackboard, shared::CUqsString& error) const
+		bool CBlueprintWithInputs::InstantiateFunctionCallHierarchy(CFunctionCallHierarchy& out, const SQueryBlackboard& blackboard, Shared::CUqsString& error) const
 		{
 			for (size_t i = 0; i < m_resolvedInputs.size(); ++i)
 			{
@@ -34,16 +34,16 @@ namespace uqs
 
 		void CBlueprintWithInputs::ResolveInputs(const CInputBlueprint& rootOfInputs)
 		{
-			for(size_t i = 0; i < rootOfInputs.GetChildCount(); ++i)
+			for (size_t i = 0; i < rootOfInputs.GetChildCount(); ++i)
 			{
 				const CInputBlueprint& input = rootOfInputs.GetChild(i);
-				client::IFunctionFactory* pFunctionFactory = input.GetFunctionFactory();
+				Client::IFunctionFactory* pFunctionFactory = input.GetFunctionFactory();
 				assert(pFunctionFactory);
-				const char* returnValueForLeafFunction = input.GetFunctionReturnValueLiteral();
+				const CLeafFunctionReturnValue& returnValueInCaseOfLeafFunction = input.GetLeafFunctionReturnValue();
 				bool bAddReturnValueToDebugRenderWorldUponExecution = input.GetAddReturnValueToDebugRenderWorldUponExecution();
-				CFunctionBlueprint* bp = new CFunctionBlueprint(*pFunctionFactory, returnValueForLeafFunction, bAddReturnValueToDebugRenderWorldUponExecution);
-				m_resolvedInputs.push_back(bp);
-				bp->ResolveInputs(input);
+				CFunctionBlueprint* pFunctionBlueprint = new CFunctionBlueprint(*pFunctionFactory, returnValueInCaseOfLeafFunction, bAddReturnValueToDebugRenderWorldUponExecution);
+				m_resolvedInputs.push_back(pFunctionBlueprint);
+				pFunctionBlueprint->ResolveInputs(input);
 			}
 		}
 

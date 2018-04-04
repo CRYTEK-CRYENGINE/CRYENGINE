@@ -1,4 +1,5 @@
 // Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved.
+
 #include "StdAfx.h"
 #include <assert.h>                         // assert()
 
@@ -44,10 +45,10 @@ void ImageToProcess::BumpToNormalMap(
 
 	for (int iY = 0; iY < (int)dwHeight; ++iY)
 	{
-		Vec4* const dest = (Vec4*)&pOutputMem[((iY + 0) % dwHeight) * dwInputPitch];
-		const Vec4* const src0 = (const Vec4*)&pInputMem[((iY - 1) % dwHeight) * dwOutputPitch];
-		const Vec4* const src1 = (const Vec4*)&pInputMem[((iY + 0) % dwHeight) * dwOutputPitch];
-		const Vec4* const src2 = (const Vec4*)&pInputMem[((iY + 1) % dwHeight) * dwOutputPitch];
+		Vec4f* const dest = (Vec4f*)&pOutputMem[((iY + 0) % dwHeight) * dwInputPitch];
+		const Vec4f* const src0 = (const Vec4f*)&pInputMem[((iY - 1) % dwHeight) * dwOutputPitch];
+		const Vec4f* const src1 = (const Vec4f*)&pInputMem[((iY + 0) % dwHeight) * dwOutputPitch];
+		const Vec4f* const src2 = (const Vec4f*)&pInputMem[((iY + 1) % dwHeight) * dwOutputPitch];
 
 		for (int iX = 0; iX < (int)dwWidth; ++iX)
 		{
@@ -66,7 +67,7 @@ void ImageToProcess::BumpToNormalMap(
 			vNormal.NormalizeSafe(Vec3(0.0f, 0.0f, 1.0f));
 
 			// restore alpha channel
-			dest[iX] = Vec4(vNormal, dest[iX][3]);
+			dest[iX] = Vec4f(vNormal, dest[iX][3]);
 		}
 	}
 

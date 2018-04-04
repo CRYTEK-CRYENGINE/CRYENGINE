@@ -4,9 +4,9 @@
 
 // *INDENT-OFF* - <hard to read code and declarations due to inconsistent indentation>
 
-namespace uqs
+namespace UQS
 {
-	namespace core
+	namespace Core
 	{
 
 		//===================================================================================
@@ -76,16 +76,17 @@ namespace uqs
 			explicit                                                   CQueryManager(CQueryHistoryManager& queryHistoryManager);
 
 			// IQueryManager
-			virtual CQueryID                                           StartQuery(const client::SQueryRequest& request, shared::IUqsString& errorMessage) override;
+			virtual CQueryID                                           StartQuery(const Client::SQueryRequest& request, Shared::IUqsString& errorMessage) override;
 			virtual void                                               CancelQuery(const CQueryID& idOfQueryToCancel) override;
-			virtual void                                               AddItemMonitorToQuery(const CQueryID& queryID, client::ItemMonitorUniquePtr&& pItemMonitorToInstall) override;
+			virtual void                                               AddItemMonitorToQuery(const CQueryID& queryID, Client::ItemMonitorUniquePtr&& pItemMonitorToInstall) override;
 			// ~IQueryManager
 
-			CQueryID                                                   StartQueryInternal(const CQueryID& parentQueryID, std::shared_ptr<const CQueryBlueprint> qbp, const shared::IVariantDict& runtimeParams, const char* querierName, Functor1<const core::SQueryResult&> callback, std::unique_ptr<CItemList>& potentialResultingItemsFromPreviousQuery, shared::IUqsString& errorMessage);
+			CQueryID                                                   StartQueryInternal(const CQueryID& parentQueryID, std::shared_ptr<const CQueryBlueprint> pQueryBlueprint, const Shared::IVariantDict& runtimeParams, const char* szQuerierName, Functor1<const Core::SQueryResult&> callback, std::unique_ptr<CItemList>& pPotentialResultingItemsFromPreviousQuery, Shared::IUqsString& errorMessage);
 			CQueryBase*                                                FindQueryByQueryID(const CQueryID& queryID);
 			void                                                       Update();
 			void                                                       DebugDrawRunningQueriesStatistics2D() const;
 			void                                                       PrintRunningQueriesToConsole(CLogger& logger) const;
+			void                                                       CancelAllRunningQueriesDueToUpcomingTearDownOfHub();
 
 		private:
 			                                                           UQS_NON_COPYABLE(CQueryManager);

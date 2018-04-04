@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 //
 //	File:Log.cpp
@@ -288,7 +288,7 @@ void CLog::CloseLogFile(bool forceClose)
 //////////////////////////////////////////////////////////////////////////
 FILE* CLog::OpenLogFile(const char* filename, const char* mode)
 {
-	CDebugAllowFileAccess ignoreInvalidFileAccess;
+	SCOPED_ALLOW_FILE_ACCESS_FROM_THIS_THREAD();
 
 #if CRY_PLATFORM_IOS
 	char buffer[1024];
@@ -1016,7 +1016,7 @@ void CLog::LogStringToFile(const char* szString, bool bAdd, bool bError)
 
 	if (logToFile)
 	{
-		CDebugAllowFileAccess dafa;
+		SCOPED_ALLOW_FILE_ACCESS_FROM_THIS_THREAD();
 
 	#if KEEP_LOG_FILE_OPEN
 		if (!m_pLogFile)

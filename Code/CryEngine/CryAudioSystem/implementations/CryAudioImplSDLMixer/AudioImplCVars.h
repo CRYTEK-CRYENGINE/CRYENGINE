@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #pragma once
 
@@ -8,23 +8,21 @@ namespace Impl
 {
 namespace SDL_mixer
 {
-class CAudioImplCVars final
+class CCVars final
 {
 public:
 
-	CAudioImplCVars() = default;
-	CAudioImplCVars(CAudioImplCVars const&) = delete;
-	CAudioImplCVars(CAudioImplCVars&&) = delete;
-	CAudioImplCVars& operator=(CAudioImplCVars const&) = delete;
-	CAudioImplCVars& operator=(CAudioImplCVars&&) = delete;
+	CCVars() = default;
+	CCVars(CCVars const&) = delete;
+	CCVars(CCVars&&) = delete;
+	CCVars& operator=(CCVars const&) = delete;
+	CCVars& operator=(CCVars&&) = delete;
 
-	void RegisterVariables();
-	void UnregisterVariables();
-
-	int m_primaryMemoryPoolSize = 0;
+	void    RegisterVariables();
+	void    UnregisterVariables();
 };
 
-extern CAudioImplCVars g_audioImplCVars;
-}
-}
-}
+extern CCVars g_cvars;
+} // namespace SDL_mixer
+} // namespace Impl
+} // namespace CryAudio

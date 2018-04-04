@@ -1,29 +1,32 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #pragma once
 
 #include "ATLEntities.h"
 #include <CryAudio/IAudioInterfacesCommonData.h>
 
+namespace CryAudio
+{
 class CATLAudioObject;
 class CAudioEventManager;
 class CAudioStandaloneFileManager;
+class CAudioListenerManager;
 
-namespace CryAudio
-{
 namespace Impl
 {
-struct SAudioObject3DAttributes;
-}
+struct SObject3DAttributes;
 }
 
 class CAudioObjectManager final
 {
 public:
 
-	using RegisteredObjects = std::list<CATLAudioObject*>;
+	using ConstructedAudioObjectsList = std::list<CATLAudioObject*>;
 
-	explicit CAudioObjectManager(CAudioEventManager& audioEventMgr, CAudioStandaloneFileManager& audioStandaloneFileMgr);
+	explicit CAudioObjectManager(
+	  CAudioEventManager& audioEventMgr,
+	  CAudioStandaloneFileManager& audioStandaloneFileMgr,
+	  CAudioListenerManager const& listenerManager);
 	~CAudioObjectManager();
 
 	CAudioObjectManager(CAudioObjectManager const&) = delete;
@@ -31,53 +34,47 @@ public:
 	CAudioObjectManager& operator=(CAudioObjectManager const&) = delete;
 	CAudioObjectManager& operator=(CAudioObjectManager&&) = delete;
 
-	void                 Init(CryAudio::Impl::IAudioImpl* const pImpl);
+	void                 Init(Impl::IImpl* const pIImpl);
 	void                 Release();
-	void                 Update(float const deltaTime, CryAudio::Impl::SAudioObject3DAttributes const& listenerAttributes);
-	bool                 ReserveAudioObject(CATLAudioObject*& outAudioObject);
-	bool                 ReleaseAudioObject(CATLAudioObject* const pAudioObject);
+	void                 Update(float const deltaTime, Impl::SObject3DAttributes const& listenerAttributes);
+	void                 RegisterObject(CATLAudioObject* const pObject);
 
 	void                 ReportStartedEvent(CATLEvent* const pEvent);
 	void                 ReportFinishedEvent(CATLEvent* const pEvent, bool const bSuccess);
-	void                 GetStartedStandaloneFileRequestData(CATLStandaloneFile* const pStandaloneFile, CAudioRequestInternal& request);
+	void                 GetStartedStandaloneFileRequestData(CATLStandaloneFile* const pStandaloneFile, CAudioRequest& request);
 	void                 ReportFinishedStandaloneFile(CATLStandaloneFile* const pStandaloneFile);
 	void                 ReleasePendingRays();
 	bool                 IsActive(CATLAudioObject const* const pAudioObject) const;
 
 #if defined(INCLUDE_AUDIO_PRODUCTION_CODE)
-
-	bool                     ReserveAudioObject(CATLAudioObject*& outAudioObject, char const* const szAudioObjectName);
-	size_t                   GetNumAudioObjects() const;
-	size_t                   GetNumActiveAudioObjects() const;
-	RegisteredObjects const& GetRegisteredAudioObjects() const { return m_registeredAudioObjects; }
-	void                     DrawPerObjectDebugInfo(
+	size_t                             GetNumAudioObjects() const;
+	size_t                             GetNumActiveAudioObjects() const;
+	ConstructedAudioObjectsList const& GetAudioObjects() const { return m_constructedAudioObjects; }
+	void                               DrawPerObjectDebugInfo(
 	  IRenderAuxGeom& auxGeom,
 	  Vec3 const& listenerPos,
 	  AudioTriggerLookup const& triggers,
-	  AudioRtpcLookup const& parameters,
+	  AudioParameterLookup const& parameters,
 	  AudioSwitchLookup const& switches,
 	  AudioPreloadRequestLookup const& preloadRequests,
-	  AudioEnvironmentLookup const& environments,
-	  AudioStandaloneFileLookup const& audioStandaloneFiles) const;
+	  AudioEnvironmentLookup const& environments) const;
 	void DrawDebugInfo(IRenderAuxGeom& auxGeom, float posX, float posY) const;
 
-#endif //INCLUDE_AUDIO_PRODUCTION_CODE
+#endif // INCLUDE_AUDIO_PRODUCTION_CODE
 
 private:
 
 	static float s_controlsUpdateInterval;
 
-	CATLAudioObject* GetInstance();
-	bool             ReleaseInstance(CATLAudioObject* const pOldObject);
-	bool             HasActiveData(CATLAudioObject const* const pAudioObject) const;
+	bool HasActiveData(CATLAudioObject const* const pAudioObject) const;
 
-	RegisteredObjects m_registeredAudioObjects;
+	ConstructedAudioObjectsList  m_constructedAudioObjects;
 
-	typedef CInstanceManager<CATLAudioObject, AudioIdType> TAudioObjectPool;
-	TAudioObjectPool             m_audioObjectPool;
-	CryAudio::Impl::IAudioImpl*  m_pImpl;
+	Impl::IImpl*                 m_pIImpl;
 	float                        m_timeSinceLastControlsUpdate;
 
 	CAudioEventManager&          m_audioEventMgr;
 	CAudioStandaloneFileManager& m_audioStandaloneFileMgr;
+	CAudioListenerManager const& m_listenerManager;
 };
+} // namespace CryAudio

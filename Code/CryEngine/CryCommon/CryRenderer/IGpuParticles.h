@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #pragma once
 
@@ -63,19 +63,12 @@ public:
 	};
 
 	virtual gpu_pfx2::IParticleComponentRuntime* GetGpuRuntime() override { return this; }
-	virtual void                                 SetEmitterData(::IParticleEmitter* pEmitter) = 0;
+	virtual void                                 UpdateEmitterData() = 0;
 
 	virtual EState                               GetState() const = 0;
-	virtual void                                 SetActive(bool active) = 0;
-	virtual bool                                 IsSecondGen() = 0;
 	virtual bool                                 HasParticles() = 0;
 
-	virtual void                                 RemoveAllSubInstances() = 0;
-
 	virtual void                                 SetEnvironmentParameters(const SEnvironmentParameters& params) = 0;
-
-	// called from 3dengine::Renderscene
-	virtual void Render(CRenderObject* pRenderObject, const SRenderingPassInfo& passInfo, const SRendParams& renderParams) = 0;
 };
 
 enum class ESpawnRateMode
@@ -276,8 +269,9 @@ public:
 
 	virtual _smart_ptr<IParticleComponentRuntime>
 	CreateParticleComponentRuntime(
-	  pfx2::IParticleComponent* pComponent,
-	  const pfx2::SRuntimeInitializationParameters& params) = 0;
+		IParticleEmitter* pEmitter,
+		pfx2::IParticleComponent* pComponent,
+		const pfx2::SRuntimeInitializationParameters& params) = 0;
 
 	virtual _smart_ptr<IParticleFeatureGpuInterface>
 	CreateParticleFeatureGpuInterface(EGpuFeatureType) = 0;

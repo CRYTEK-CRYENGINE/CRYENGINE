@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 /*=============================================================================
    ShaderScript.cpp : loading/reloading/hashing of shader scipts.
@@ -128,7 +128,7 @@ bool CShaderMan::mfReloadAllShaders(int nFlags, uint32 nFlagsHW)
 		gRenDev->FlushRTCommands(true, true, true);
 	}
 
-	CDebugAllowFileAccess ignoreInvalidFileAccess;
+	SCOPED_ALLOW_FILE_ACCESS_FROM_THIS_THREAD();
 
 	// Check include changing
 	if (m_ShadersPath && !CRenderer::CV_r_shadersignoreincludeschanging)
@@ -192,7 +192,15 @@ bool CShaderMan::mfReloadAllShaders(int nFlags, uint32 nFlagsHW)
 	gRenDev->FlushRTCommands(true, true, true);
 	CHWShader::mfFlushPendedShadersWait(-1);
 
-	CCryDeviceWrapper::GetObjectFactory().ReloadPipelineStates();
+	for (auto pShaderResources : CShader::s_ShaderResources_known)
+	{
+		if (pShaderResources)
+		{
+			pShaderResources->ClearPipelineStateCache();
+		}
+	}
+
+	GetDeviceObjectFactory().ReloadPipelineStates();
 
 	return bState;
 }
@@ -488,7 +496,7 @@ bool CShaderMan::mfModifyGenFlags(CShader* efGen, const CShaderResources* pRes, 
 			{
 				// during shader cache gen, disable the special features in non D3D11 mode, and just accept
 				// the lines as they come in D3D11 mode
-				if (CParserBin::m_nPlatform != SF_D3D11 && CParserBin::m_nPlatform != SF_DURANGO && CParserBin::m_nPlatform != SF_GL4)
+				if ((CParserBin::m_nPlatform & (SF_D3D11 | SF_DURANGO | SF_GL4 | SF_VULKAN)) == 0)
 				{
 					if (pBit->m_nDependencySet & SHGD_HW_WATER_TESSELLATION)
 						nAndMaskHW &= ~pBit->m_Mask;
@@ -651,6 +659,8 @@ CShader* CShaderMan::mfForName(const char* nameSh, int flags, const CShaderResou
 		strcat(nameRes, "(O)");
 	else if (CParserBin::m_nPlatform == SF_DURANGO)
 		cry_strcat(nameRes, "(D)");
+	else if (CParserBin::m_nPlatform == SF_VULKAN)
+		cry_strcat(nameRes, "(VK)");
 
 	CShader* efGen = nullptr;
 
@@ -813,7 +823,7 @@ void CShaderMan::RT_ParseShader(CShader* pSH, uint64 nMaskGen, uint32 flags, CSh
 {
 	MEMSTAT_CONTEXT(EMemStatContextTypes::MSC_Other, 0, "ParseShader");
 
-	CDebugAllowFileAccess ignoreInvalidFileAccess;
+	SCOPED_ALLOW_FILE_ACCESS_FROM_THIS_THREAD();
 
 	bool bSuccess = false;
 #ifdef SHADERS_SERIALIZING

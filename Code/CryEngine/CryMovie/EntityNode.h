@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #pragma once
 
@@ -111,7 +111,7 @@ protected:
 
 	void                 ReleaseSounds();
 	void                 ApplyEventKey(class CEventTrack* track, int keyIndex, SEventKey& key);
-	void                 ApplyAudioTriggerKey(AudioControlId audioTriggerId, bool const bPlay = true);
+	void                 ApplyAudioTriggerKey(CryAudio::ControlId audioTriggerId, bool const bPlay = true);
 	Vec3                 Adjust3DSoundOffset(bool bVoice, IEntity* pEntity, Vec3& oSoundPos) const;
 	void                 AnimateCharacterTrack(class CCharacterTrack* track, SAnimContext& animContext, int layer, int trackIndex, SAnimState& animState, IEntity* pEntity, ICharacterInstance* pCharacter);
 	bool                 CheckTimeJumpingOrOtherChanges(const SAnimContext& animContext, int32 activeKeys[], int32 numActiveKeys, ICharacterInstance* pCharacter, int layer, int trackIndex, SAnimState& animState);

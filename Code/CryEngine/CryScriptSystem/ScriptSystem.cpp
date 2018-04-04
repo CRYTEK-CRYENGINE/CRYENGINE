@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #include "StdAfx.h"
 
@@ -733,7 +733,7 @@ bool CScriptSystem::Init(ISystem* pSystem, bool bStdLibs, int nStackSize)
 	m_pSystem = pSystem;
 	m_pScriptTimerMgr = new CScriptTimerMgr(this);
 
-	m_pSystem->GetISystemEventDispatcher()->RegisterListener(this);
+	m_pSystem->GetISystemEventDispatcher()->RegisterListener(this, "CScriptSystem");
 
 	//L = lua_open();
 	L = lua_newstate(custom_lua_alloc, NULL);

@@ -6,22 +6,25 @@
 #include "PropertiesWidget.h"
 #include "GraphViewModel.h"
 
+#include <QtUtil.h>
+
 namespace CrySchematycEditor {
 
-CNodeGraphView::CNodeGraphView()
+CGraphViewWidget::CGraphViewWidget(CMainWindow& editor)
 	: CryGraphEditor::CNodeGraphView()
+	, m_editor(editor)
 {
 
 }
 
-CNodeGraphView::~CNodeGraphView()
+CGraphViewWidget::~CGraphViewWidget()
 {
 
 }
 
-QWidget* CNodeGraphView::CreatePropertiesWidget(CryGraphEditor::GraphItemSet& selectedItems)
+QWidget* CGraphViewWidget::CreatePropertiesWidget(CryGraphEditor::GraphItemSet& selectedItems)
 {
-	CPropertiesWidget* pPropertiesWidget = new CPropertiesWidget(selectedItems);
+	CPropertiesWidget* pPropertiesWidget = new CPropertiesWidget(selectedItems, &m_editor);
 
 	if (CNodeGraphViewModel* pModel = static_cast<CNodeGraphViewModel*>(GetModel()))
 	{

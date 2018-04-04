@@ -71,7 +71,8 @@ public:
 	//////////////////////////////////////////////////////////
 
 public slots:
-
+	void                OnExportAnimationLayers();
+	void                OnImportAnimationLayers();
 	void                OnFileSaveAll();
 	void                OnFileRecent();
 	void                OnFileRecentAboutToShow(QMenu* menu);
@@ -97,6 +98,7 @@ public slots:
 	void                OnDockWidgetsChanged();
 	void                OnCharacterLoaded();
 	void                OnPanelDestroyed(QObject* obj);
+	void				OnFocusChanged(QWidget *old, QWidget *now);
 
 	void                OnAnimEventPresetPanelPutEvent();
 
@@ -109,20 +111,20 @@ protected:
 	void                closeEvent(QCloseEvent* ev);
 	bool                eventFilter(QObject* sender, QEvent* ev) override;
 private:
+
+	virtual QRect       GetPaneRect() override;
+
 	ExplorerPanel*      CreateExplorerPanel();
-	void                SaveState(const char* filename, bool layoutOnly);
-	void                LoadState(const char* filename, bool layoutOnly);
-	void                LoadLayout(const char* name);
-	void                SaveLayout(const char* name);
-	void                RemoveLayout(const char* name);
+	void                SerializeLayout(Serialization::IArchive& ar);
+	void                SaveLayoutToFile(const char* filename);
+	void                LoadLayoutFromFile(const char* filename);
 	void                ResetLayout();
 	void                Initialize();
 	void                UpdateLayoutMenu();
 	void                UpdatePanesMenu();
 	void                UpdateViewportMode(ExplorerEntry* newEntry);
 	void                InstallMode(IViewportMode* mode, ExplorerEntry* modeEntry);
-	std::vector<string> FindLayoutNames();
-	void                CreateDefaultDockWidgets();
+	void                ResetDockWidgetsToDefault();
 	void                ReadViewportOptions(const ViewportOptions& options, const DisplayAnimationOptions& animationOptions);
 	void                LeaveMode();
 	void                OnMainFrameAboutToQuit(BroadcastEvent& event);
@@ -165,7 +167,10 @@ private:
 	QAction*                                   m_actionLayoutLoadState;
 	QAction*                                   m_actionLayoutSaveState;
 
+	std::vector<char>                          m_defaultLayoutSnapshot;
+
 	bool                                       m_closed;
+	bool									   m_bHasFocus;
 };
 
 void ShowCharacterToolForm();

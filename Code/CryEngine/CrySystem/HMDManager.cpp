@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #include "StdAfx.h"
 #include "HMDManager.h"
@@ -18,19 +18,16 @@ CHmdManager::~CHmdManager()
 }
 
 // ------------------------------------------------------------------------
-void CHmdManager::RegisterDevice(const char* name, IHmdDevice& device)
+void CHmdManager::RegisterDevice(const char* szDeviceName, IHmdDevice& device)
 {
 	// Reference counting will be handled inside the vector
-	m_availableDeviceMap.insert(TDeviceMap::value_type(name, &device));
+	m_availableDeviceMap.insert(TDeviceMap::value_type(szDeviceName, &device));
+}
 
-	if (gEnv->pConsole)
-	{
-		ICVar* const pVrSupportVar = gEnv->pConsole->GetCVar("sys_vr_support");
-		if (pVrSupportVar)
-		{
-			pVrSupportVar->Set(1);
-		}
-	}
+// ------------------------------------------------------------------------
+void CHmdManager::UnregisterDevice(const char* szDeviceName)
+{
+	m_availableDeviceMap.erase(szDeviceName);
 }
 
 // ------------------------------------------------------------------------

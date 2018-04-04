@@ -4,9 +4,9 @@
 
 // *INDENT-OFF* - <hard to read code and declarations due to inconsistent indentation>
 
-namespace uqs
+namespace UQS
 {
-	namespace core
+	namespace Core
 	{
 
 		//===================================================================================
@@ -33,10 +33,9 @@ namespace uqs
 
 			struct SPhaseUpdateContext
 			{
-				explicit                                          SPhaseUpdateContext(const CTimeValue& _timeLimit, shared::CUqsString& _error);
+				explicit                                          SPhaseUpdateContext(Shared::CUqsString& _error);
 
-				CTimeValue                                        timeLimit;                        // future timestamp until the phase can do its work before it should interrupt itself
-				shared::CUqsString&                               error;                            // output error message for when EPhaseStatus::Exception is returned
+				Shared::CUqsString&                               error;                            // output error message for when EPhaseStatus::ExceptionOccurred is returned
 			};
 
 			//===================================================================================
@@ -100,14 +99,15 @@ namespace uqs
 
 			struct SInstantEvaluatorWithIndex
 			{
-				explicit                                          SInstantEvaluatorWithIndex(client::InstantEvaluatorUniquePtr _pInstantEvaluator, client::ParamsHolderUniquePtr _pParamsHolder, const client::IInputParameterRegistry* _pInputParameterRegistry, size_t _originalIndexInQueryBlueprint);
+				explicit                                          SInstantEvaluatorWithIndex(Client::InstantEvaluatorUniquePtr _pInstantEvaluator, Client::ParamsHolderUniquePtr _pParamsHolder, const Client::IInputParameterRegistry* _pInputParameterRegistry, const CEvaluationResultTransform& _evaluationResultTransform, size_t _originalIndexInQueryBlueprint);
 				explicit                                          SInstantEvaluatorWithIndex(SInstantEvaluatorWithIndex&& other);
 				SInstantEvaluatorWithIndex&                       operator=(SInstantEvaluatorWithIndex&& other);
 
-				client::InstantEvaluatorUniquePtr                 pInstantEvaluator;                    // instantiated exactly once for all items; gets re-used as it's stateless
-				client::ParamsHolderUniquePtr                     pParamsHolder;                        // also instantiated exactly once; gets refreshed to on each item iteration before passing it into the instant-evaluator
-				const client::IInputParameterRegistry*            pInputParameterRegistry;              // points back into the instant-evaluator factory (who owns it); used when making function calls to get the offsets of all parameters in memory so that each function knows where to write its return value to
-				size_t                                            originalIndexInQueryBlueprint;        // the original position among the instant-evaluator blueprints in the query blueprint as it was loaded from the datasource
+				Client::InstantEvaluatorUniquePtr                 pInstantEvaluator;                    // instantiated exactly once for all items; gets re-used as it's stateless
+				Client::ParamsHolderUniquePtr                     pParamsHolder;                        // also instantiated exactly once; gets refreshed to on each item iteration before passing it into the instant-evaluator
+				const Client::IInputParameterRegistry*            pInputParameterRegistry;              // points back into the instant-evaluator factory (who owns it); used when making function calls to get the offsets of all parameters in memory so that each function knows where to write its return value to
+				CEvaluationResultTransform                        evaluationResultTransform;            // copy of the evaluation-result-transform that resides in the instant-evaluator-blueprint (we use a copy for cache-friendliness)
+				size_t                                            originalIndexInQueryBlueprint;        // the original position among the instant-evaluator blueprints in the query blueprint (*after* it was loaded from the datasource)
 			};
 
 			//===================================================================================
@@ -122,11 +122,12 @@ namespace uqs
 
 			struct SDeferredEvaluatorWithIndex
 			{
-				explicit                                          SDeferredEvaluatorWithIndex(client::DeferredEvaluatorUniquePtr _pDeferredEvaluator, size_t _originalIndexInQueryBlueprint);
+				explicit                                          SDeferredEvaluatorWithIndex(Client::DeferredEvaluatorUniquePtr _pDeferredEvaluator, const CEvaluationResultTransform& _evaluationResultTransform, size_t _originalIndexInQueryBlueprint);
 				explicit                                          SDeferredEvaluatorWithIndex(SDeferredEvaluatorWithIndex&& other);
 				SDeferredEvaluatorWithIndex&                      operator=(SDeferredEvaluatorWithIndex&& other);
 
-				client::DeferredEvaluatorUniquePtr                pDeferredEvaluator;                   // instantiated exactly once for all items; gets re-used as it's stateless
+				Client::DeferredEvaluatorUniquePtr                pDeferredEvaluator;                   // instantiated exactly once for all items; gets re-used as it's stateless
+				CEvaluationResultTransform                        evaluationResultTransform;            // copy of the evaluation-result-transform that resides in the deferred-evaluator-blueprint (we use a copy for cache-friendliness)
 				size_t                                            originalIndexInQueryBlueprint;        // the original position among the deferred-evaluator blueprints in the query blueprint as it was loaded from the datasource
 			};
 
@@ -165,8 +166,8 @@ namespace uqs
 			                                                      UQS_NON_COPYABLE(CQuery_Regular);
 
 			// CQueryBase
-			virtual bool                                          OnInstantiateFromQueryBlueprint(const shared::IVariantDict& runtimeParams, shared::CUqsString& error) override;
-			virtual EUpdateState                                  OnUpdate(const CTimeValue& timeBudget, shared::CUqsString& error) override;
+			virtual bool                                          OnInstantiateFromQueryBlueprint(const Shared::IVariantDict& runtimeParams, Shared::CUqsString& error) override;
+			virtual EUpdateState                                  OnUpdate(Shared::CUqsString& error) override;
 			virtual void                                          OnCancel() override;
 			virtual void                                          OnGetStatistics(SStatistics& out) const override;
 			// ~CQueryBase
@@ -182,12 +183,12 @@ namespace uqs
 			void                                                  RunInstantEvaluator(const SInstantEvaluatorWithIndex& instantEvaluatorToRun, SItemWorkingData& workingDataToWriteResultTo);
 			void                                                  UpdateDeferredTasks();
 			void                                                  UpdateDeferredTask(SDeferredTask& taskToUpdate);
-			void                                                  AbortDeferredTask(SDeferredTask& taskToAbort, const char* reasonForAbort);
+			void                                                  AbortDeferredTask(SDeferredTask& taskToAbort, const char* szReasonForAbort);
 			bool                                                  CanItemStillBeatTheWorstCandidate(const SItemWorkingData& itemToCheck) const;
 			void                                                  AddItemToResultSetOrDisqualifyIt(SItemWorkingData& itemThatJustFinishedAndSurvivedAllEvaluators);
 			void                                                  FinalizeItemAfterDeferredEvaluation(SItemWorkingData& itemToFinalize);
 			void                                                  StartMoreEvaluatorsOnRemainingItems(const SPhaseUpdateContext& phaseUpdateContext);
-			SDeferredTask*                                        StartDeferredTask(SItemWorkingData* workingDataToInspectNext);
+			SDeferredTask*                                        StartDeferredTask(SItemWorkingData* pWorkingDataToInspectNext);
 
 		private:
 
@@ -205,7 +206,7 @@ namespace uqs
 			std::vector<SItemWorkingData*>                        m_candidates;                                            // candidates for the final result set; these ultimately point into m_itemWorkingData; this list grows as items survive all evaluators; once the desired result set size has been reached, the worst item might get kicked out by better ones
 
 			// phase 1
-			client::GeneratorUniquePtr                            m_pGenerator;                                            // generates items into m_generatedItems in phase 2
+			Client::GeneratorUniquePtr                            m_pGenerator;                                            // generates items into m_generatedItems in phase 2
 
 			// phase 2
 			CItemList                                             m_generatedItems;                                        // all the items that are being evaluated; this is kind of a read-only storage after they have been generated

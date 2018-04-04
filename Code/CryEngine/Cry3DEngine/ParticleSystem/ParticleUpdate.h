@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 // -------------------------------------------------------------------------
 //  Created:     25/03/2015 by Filipe amim
@@ -11,6 +11,8 @@
 #define PARTICLEUPDATE_H
 
 #pragma once
+
+#include "ParticleContainer.h"
 
 namespace pfx2
 {
@@ -35,32 +37,33 @@ struct SUpdateContext
 	mutable SChaosKeyV         m_spawnRngv;
 	mutable SChaosKey          m_updateRng;
 	mutable SChaosKeyV         m_updateRngv;
+
+	SUpdateRange GetUpdateRange() const      { return m_updateRange; }
+	SGroupRange GetUpdateGroupRange() const  { return SGroupRange(m_updateRange); }
+	SUpdateRange GetSpawnedRange() const     { return m_container.GetSpawnedRange(); }
+	SGroupRange GetSpawnedGroupRange() const { return SGroupRange(m_container.GetSpawnedRange()); }
 };
 
 #define CRY_PFX2_FOR_RANGE_PARTICLES(updateRange) \
-  {                                               \
-    { for (TParticleId particleId = updateRange.m_firstParticleId; particleId < updateRange.m_lastParticleId; ++particleId) {
+  for (auto particleId : updateRange) {
 
-#define CRY_PFX2_FOR_RANGE_PARTICLESGROUP(updateRange)                                                                                          \
-  {                                                                                                                                             \
-    { const TParticleGroupId lastParticleId = CRY_PFX2_PARTICLESGROUP_LOWER(updateRange.m_lastParticleId + CRY_PFX2_PARTICLESGROUP_STRIDE - 1); \
-      for (TParticleGroupId particleGroupId = updateRange.m_firstParticleId; particleGroupId < lastParticleId; particleGroupId += CRY_PFX2_PARTICLESGROUP_STRIDE) {
+#define CRY_PFX2_FOR_RANGE_PARTICLESGROUP(updateRange) \
+  for (auto particleGroupId : SGroupRange(updateRange)) {
 
 #define CRY_PFX2_FOR_ACTIVE_PARTICLES(updateContext) \
-  CRY_PFX2_FOR_RANGE_PARTICLES((updateContext).m_updateRange)
+  for (auto particleId : (updateContext).GetUpdateRange()) {
 
 #define CRY_PFX2_FOR_ACTIVE_PARTICLESGROUP(updateContext) \
-  CRY_PFX2_FOR_RANGE_PARTICLESGROUP((updateContext).m_updateRange)
+  for (auto particleGroupId : (updateContext).GetUpdateGroupRange()) {
 
 #define CRY_PFX2_FOR_SPAWNED_PARTICLES(updateContext) \
-  CRY_PFX2_FOR_RANGE_PARTICLES(SUpdateRange((updateContext).m_container.GetFirstSpawnParticleId(), (updateContext).m_container.GetLastParticleId()))
+  for (auto particleId : (updateContext).GetSpawnedRange()) {
 
 #define CRY_PFX2_FOR_SPAWNED_PARTICLEGROUP(updateContext) \
-  CRY_PFX2_FOR_RANGE_PARTICLESGROUP(SUpdateRange((updateContext).m_container.GetFirstSpawnParticleId(), (updateContext).m_container.GetLastParticleId()))
+  for (auto particleGroupId : (updateContext).GetSpawnedGroupRange()) {
 
-#define CRY_PFX2_FOR_END } \
-  }                        \
-  }
+#define CRY_PFX2_FOR_END }
+
 
 }
 

@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #include "StdAfx.h"
 #include "UDPDatagramSocket.h"
@@ -693,7 +693,7 @@ void CUDPDatagramSocket::SendFragmented(const uint8* pBuffer, size_t nLength, co
 
 	while (nLength)
 	{
-		int blkSize = MIN(nLength, FRAG_MAX_MTU_SIZE - fho_FragHeaderSize);
+		int blkSize = std::min(nLength, (size_t) FRAG_MAX_MTU_SIZE - fho_FragHeaderSize);
 
 		m_pUDPFragBuffer[fho_HeaderID] = Frame_IDToHeader[eH_Fragmentation];
 		memcpy(&m_pUDPFragBuffer[fho_PacketID], &m_RollingIndex, sizeof(m_RollingIndex));

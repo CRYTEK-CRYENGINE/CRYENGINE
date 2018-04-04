@@ -1,15 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
-
-// -------------------------------------------------------------------------
-//  File name:   EntityCVars.h
-//  Version:     v1.00
-//  Created:     18/5/2004 by Timur.
-//  Compilers:   Visual Studio.NET 2003
-//  Description:
-// -------------------------------------------------------------------------
-//  History:
-//
-////////////////////////////////////////////////////////////////////////////
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #include "stdafx.h"
 #include "EntityCVars.h"
@@ -17,6 +6,7 @@
 #include "AreaManager.h"
 #include <CryAnimation/ICryAnimation.h>
 #include <CryEntitySystem/IEntityComponent.h>
+#include <CryAISystem/IAISystem.h>
 
 ICVar* CVar::pDebug = NULL;
 ICVar* CVar::pCharacterIK = NULL;
@@ -52,13 +42,12 @@ ICVar* CVar::pNotSeenTimeout = NULL;
 ICVar* CVar::pDebugNotSeenTimeout = NULL;
 ICVar* CVar::pDrawAreas = NULL;
 ICVar* CVar::pDrawAreaGrid = NULL;
+ICVar* CVar::pDrawAreaGridCells = NULL;
 ICVar* CVar::pDrawAreaDebug = NULL;
 ICVar* CVar::pDrawAudioProxyZRay = NULL;
 
 ICVar* CVar::pMotionBlur = NULL;
 ICVar* CVar::pSysSpecLight = NULL;
-
-Matrix34 CVar::audioListenerOffset = Matrix34(ZERO);
 
 int CVar::es_DebugTimers = 0;
 int CVar::es_DebugFindEntity = 0;
@@ -74,6 +63,7 @@ int CVar::es_DisableTriggers = 0;
 int CVar::es_DrawProximityTriggers = 0;
 int CVar::es_DebugEntityUsage = 0;
 const char* CVar::es_DebugEntityUsageFilter = "";
+int CVar::es_DebugEntityUsageSortMode = 0;
 int CVar::es_LayerSaveLoadSerialization = 0;
 int CVar::es_LayerDebugInfo = 0;
 int CVar::es_SaveLoadUseLUANoSaveFlag = 1;
@@ -157,7 +147,7 @@ const char* SEntityWithCharacterInstanceAutoComplete::GetValue(int index) const
 static SEntityWithCharacterInstanceAutoComplete s_entityWithCharacterInstanceAutoComplete;
 
 //////////////////////////////////////////////////////////////////////////
-void CVar::Init(struct IConsole* pConsole)
+void CVar::Init()
 {
 	assert(gEnv->pConsole);
 	PREFAST_ASSUME(gEnv->pConsole);
@@ -165,9 +155,6 @@ void CVar::Init(struct IConsole* pConsole)
 	REGISTER_COMMAND("es_dump_entities", (ConsoleCommandFunc)DumpEntities, 0, "Dumps current entities and their states!");
 	REGISTER_COMMAND("es_dump_entity_classes_in_use", (ConsoleCommandFunc)DumpEntityClassesInUse, 0, "Dumps all used entity classes");
 	REGISTER_COMMAND("es_compile_area_grid", (ConsoleCommandFunc)CompileAreaGrid, 0, "Trigger a recompile of the area grid");
-	REGISTER_COMMAND("es_AudioListenerOffset", (ConsoleCommandFunc)SetAudioListenerOffsets, 0,
-	                 "Sets by how much the audio listener offsets its position and rotation in regards to its entity.\n"
-	                 "Usage: es_AudioListenerOffset PosX PosY PosZ RotX RotY RotZ\n");
 
 	REGISTER_CVAR(es_SortUpdatesByClass, 0, 0, "Sort entity updates by class (possible optimization)");
 	pDebug = REGISTER_INT("es_debug", 0, VF_CHEAT,
@@ -276,6 +263,7 @@ void CVar::Init(struct IConsole* pConsole)
 	              "\nUsage: es_DebugEntityUsage update_rate"
 	              "\nupdate_rate - Time in ms to refresh memory usage calculation or 0 to disable");
 	REGISTER_CVAR(es_DebugEntityUsageFilter, "", 0, "Filter entity usage debugging to classes which have this string in their name");
+	REGISTER_CVAR(es_DebugEntityUsageSortMode, 0, 0, "Determines how es_DebugEntityUsage sorts the visual output\n0 = unsorted\n1 = sort by number of active instances\n2 = sort by memory usage");
 
 	REGISTER_CVAR(es_LayerSaveLoadSerialization, 0, VF_CHEAT,
 	              "Switches layer entity serialization: \n"
@@ -292,6 +280,7 @@ void CVar::Init(struct IConsole* pConsole)
 
 	pDrawAreas = REGISTER_INT("es_DrawAreas", 0, VF_CHEAT, "Enables drawing of Areas");
 	pDrawAreaGrid = REGISTER_INT("es_DrawAreaGrid", 0, VF_CHEAT, "Enables drawing of Area Grid");
+	pDrawAreaGridCells = REGISTER_INT("es_DrawAreaGridCells", 0, VF_CHEAT, "Enables drawing of Area Grid Cells' number and coordinates. Requires \"es_DrawAreaGrid\" to be enabled!");
 	pDrawAreaDebug = REGISTER_INT("es_DrawAreaDebug", 0, VF_CHEAT, "Enables debug drawing of Areas, set 2 for log details");
 	pDrawAudioProxyZRay = REGISTER_INT("es_DrawAudioProxyZRay", 0, VF_CHEAT, "Enables drawing of Z ray on check for Z visibility");
 
@@ -316,6 +305,8 @@ void CVar::Init(struct IConsole* pConsole)
 
 	REGISTER_COMMAND("es_debugAnim", (ConsoleCommandFunc)EnableDebugAnimText, 0, "Debug entity animation (toggle on off)");
 	gEnv->pConsole->RegisterAutoComplete("es_debugAnim", &s_entityWithCharacterInstanceAutoComplete);
+
+	REGISTER_COMMAND("es_togglelayer", &ConsoleCommandToggleLayer, VF_DEV_ONLY, "Toggles a layer (on/off)\n Usage: es_togglelayer LAYER_NAME\nPlease bear in mind that layer names are case-sensitive");
 
 	REGISTER_CVAR(es_EntityUpdatePosDelta, 0.1f, 0,
 	              "Indicates the position delta by which an entity must move before the AreaManager updates position relevant data.\n"
@@ -418,55 +409,22 @@ void CVar::EnableDebugAnimText(IConsoleCmdArgs* args)
 	}
 }
 
-//////////////////////////////////////////////////////////////////////////
-void CVar::SetAudioListenerOffsets(IConsoleCmdArgs* pArgs)
+void CVar::ConsoleCommandToggleLayer(IConsoleCmdArgs* pArgs)
 {
-	char const* const szPositionOffsetX = pArgs->GetArg(1);
-	char const* const szPositionOffsetY = pArgs->GetArg(2);
-	char const* const szPositionOffsetZ = pArgs->GetArg(3);
-	char const* const szRotationOffsetX = pArgs->GetArg(4);
-	char const* const szRotationOffsetY = pArgs->GetArg(5);
-	char const* const szRotationOffsetZ = pArgs->GetArg(6);
-
-	float fPositionOffsetX = 0.0f;
-	float fPositionOffsetY = 0.0f;
-	float fPositionOffsetZ = 0.0f;
-	float fRotationOffsetX = 0.0f;
-	float fRotationOffsetY = 0.0f;
-	float fRotationOffsetZ = 0.0f;
-
-	if (szPositionOffsetX != NULL)
+	// Note: based on Flow Node Engine:LayerSwitch
+	if (pArgs && pArgs->GetArgCount() > 1 && gEnv->pEntitySystem)
 	{
-		fPositionOffsetX = static_cast<float>(atof(szPositionOffsetX));
+		const char* szLayerName = pArgs->GetArg(1);
+		const bool bSerialize = false;
+		const bool bShouldBeEnabled = !gEnv->pEntitySystem->IsLayerEnabled(szLayerName, false);
+		
+		CryLogAlways("[Info][Layers] Toggling EntitySystemLayer %s to: %s", szLayerName, bShouldBeEnabled ? "Enabled" : "Disabled");
+		gEnv->pEntitySystem->EnableLayer(szLayerName, bShouldBeEnabled, bSerialize);
+		
+		if (bShouldBeEnabled && gEnv->pAISystem)
+		{
+			CryLogAlways("[Info][Layers] Toggling AISystemLayer %s to: %s", szLayerName, bShouldBeEnabled ? "Enabled" : "Disabled");
+			gEnv->pAISystem->LayerEnabled(szLayerName, bShouldBeEnabled, bSerialize);
+		}
 	}
-
-	if (szPositionOffsetY != NULL)
-	{
-		fPositionOffsetY = static_cast<float>(atof(szPositionOffsetY));
-	}
-
-	if (szPositionOffsetZ != NULL)
-	{
-		fPositionOffsetZ = static_cast<float>(atof(szPositionOffsetZ));
-	}
-
-	if (szRotationOffsetX != NULL)
-	{
-		fRotationOffsetX = static_cast<float>(atof(szRotationOffsetX));
-	}
-
-	if (szRotationOffsetY != NULL)
-	{
-		fRotationOffsetY = static_cast<float>(atof(szRotationOffsetY));
-	}
-
-	if (szRotationOffsetZ != NULL)
-	{
-		fRotationOffsetZ = static_cast<float>(atof(szRotationOffsetZ));
-	}
-
-	audioListenerOffset.Set(
-	  Vec3(ZERO),
-	  Quat::CreateRotationXYZ(Ang3(fRotationOffsetX, fRotationOffsetY, fRotationOffsetZ)),
-	  Vec3(fPositionOffsetX, fPositionOffsetY, fPositionOffsetZ));
 }

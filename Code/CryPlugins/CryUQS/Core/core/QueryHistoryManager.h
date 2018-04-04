@@ -4,9 +4,9 @@
 
 // *INDENT-OFF* - <hard to read code and declarations due to inconsistent indentation>
 
-namespace uqs
+namespace UQS
 {
-	namespace core
+	namespace Core
 	{
 
 		//===================================================================================
@@ -24,11 +24,12 @@ namespace uqs
 			virtual void                       RegisterQueryHistoryListener(IQueryHistoryListener* pListener) override;
 			virtual void                       UnregisterQueryHistoryListener(IQueryHistoryListener* pListener) override;
 			virtual void                       UpdateDebugRendering3D(const SDebugCameraView& view, const SEvaluatorDrawMasks& evaluatorDrawMasks) override;
-			virtual bool                       SerializeLiveQueryHistory(const char* xmlFilePath, shared::IUqsString& error) override;
-			virtual bool                       DeserializeQueryHistory(const char* xmlFilePath, shared::IUqsString& error) override;
+			virtual bool                       SerializeLiveQueryHistory(const char* szXmlFilePath, Shared::IUqsString& error) override;
+			virtual bool                       DeserializeQueryHistory(const char* szXmlFilePath, Shared::IUqsString& error) override;
 			virtual void                       MakeQueryHistoryCurrent(EHistoryOrigin whichHistory) override;
 			virtual EHistoryOrigin             GetCurrentQueryHistory() const override;
 			virtual void                       ClearQueryHistory(EHistoryOrigin whichHistory) override;
+			virtual void                       EnumerateSingleHistoricQuery(EHistoryOrigin whichHistory, const CQueryID& queryIDToEnumerate, IQueryHistoryConsumer& receiver) const override;
 			virtual void                       EnumerateHistoricQueries(EHistoryOrigin whichHistory, IQueryHistoryConsumer& receiver) const override;
 			virtual void                       MakeHistoricQueryCurrentForInWorldRendering(EHistoryOrigin whichHistory, const CQueryID& queryIDToMakeCurrent) override;
 			virtual void                       EnumerateInstantEvaluatorNames(EHistoryOrigin fromWhichHistory, const CQueryID& idOfQueryUsingTheseEvaluators, IQueryHistoryConsumer& receiver) override;
@@ -38,15 +39,18 @@ namespace uqs
 			virtual void                       GetDetailsOfFocusedItem(IQueryHistoryConsumer& receiver) const override;
 			virtual size_t                     GetRoughMemoryUsageOfQueryHistory(EHistoryOrigin whichHistory) const override;
 			virtual size_t                     GetHistoricQueriesCount(EHistoryOrigin whichHistory) const override;
+			virtual SDebugCameraView           GetIdealDebugCameraView(EHistoryOrigin whichHistory, const CQueryID& queryID, const SDebugCameraView& currentCameraView) const override;
 			// ~IQueryHistoryManager
 
-			HistoricQuerySharedPtr             AddNewLiveHistoricQuery(const CQueryID& queryID, const char* querierName, const CQueryID& parentQueryID);
+			HistoricQuerySharedPtr             AddNewLiveHistoricQuery(const CQueryID& queryID, const char* szQuerierName, const CQueryID& parentQueryID);
+			void                               UnderlyingQueryJustGotCreated(const CQueryID& queryID);
 			void                               UnderlyingQueryIsGettingDestroyed(const CQueryID& queryID);
 
 		private:
 			                                   UQS_NON_COPYABLE(CQueryHistoryManager);
 
-			void                               NotifyListeners(IQueryHistoryListener::EEvent ev) const;
+			void                               NotifyListeners(IQueryHistoryListener::EEventType eventType) const;
+			void                               NotifyListeners(IQueryHistoryListener::EEventType eventType, const CQueryID& relatedQueryID) const;
 
 		private:
 			CQueryHistory                      m_queryHistories[2];                  // "live" and "deserialized" query history; the live one gets filled by ongoing queries from the CQueryManager

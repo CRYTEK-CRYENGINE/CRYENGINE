@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #ifndef physicalentity_h
 #define physicalentity_h
@@ -190,6 +190,7 @@ public:
 	explicit CPhysicalEntity(CPhysicalWorld *pworld, IGeneralMemoryHeap* pHeap = NULL);
 	virtual ~CPhysicalEntity();
 	virtual pe_type GetType() const { return PE_STATIC; }
+	virtual bool IsPlaceholder() const { return false; }
 
 	virtual void Delete();
 
@@ -212,7 +213,7 @@ public:
 	virtual float GetMaxTimeStep(float time_interval) { return time_interval; }
 	virtual float GetLastTimeStep(float time_interval) { return time_interval; }
 	virtual int Step(float time_interval) { return 1; }
-	virtual int DoStep(float time_interval, int iCaller=0) { return 1; }
+	virtual int DoStep(float time_interval, int iCaller=0) { return Step(time_interval); }
 	virtual void StepBack(float time_interval) {} 
 	virtual int GetContactCount(int nMaxPlaneContacts) { return 0; }
 	virtual int RegisterContacts(float time_interval,int nMaxPlaneContacts) { return 0; }
@@ -247,21 +248,15 @@ public:
 
 	virtual class RigidBody *GetRigidBody(int ipart=-1,int bWillModify=0);
 	virtual class RigidBody *GetRigidBodyData(RigidBody *pbody, int ipart=-1) { return GetRigidBody(ipart); }
+	inline class RigidBody *GetRigidBodyTrans(RigidBody *pbody, int ipart, CPhysicalEntity *trg, int type=0, bool needIinv=false);
 	virtual float GetMass(int ipart) { return m_parts[ipart].mass; }
-	virtual void GetContactMatrix(const Vec3 &pt, int ipart, Matrix33 &K) {}
 	virtual void GetSpatialContactMatrix(const Vec3 &pt, int ipart, float Ibuf[][6]) {}
 	virtual float GetMassInv() { return 0; }
-	virtual int IsPointInside(Vec3 pt) const;
-	virtual void GetLocTransform(int ipart, Vec3 &offs, quaternionf &q, float &scale) {
-		if ((unsigned int)ipart<(unsigned int)m_nParts) {
-			q = m_qrot*m_parts[ipart].q;
-			offs = m_qrot*m_parts[ipart].pos + m_pos;
-			scale = m_parts[ipart].scale;
-		} else {
-			q.SetIdentity(); offs.zero(); scale=1.0f;
-		}
-	}
-	virtual void GetLocTransformLerped(int ipart, Vec3 &offs, quaternionf &q, float &scale, float timeBack) {	GetLocTransform(ipart,offs,q,scale); }
+	virtual int IsPointInside(Vec3 pt) const;																						
+	template<typename Rot> void GetPartTransform(int ipart, Vec3 &offs, Rot &R, float &scale, const CPhysicalPlaceholder *trg) const;
+	template<typename CTrg> Vec3* GetPartBBox(int ipart, Vec3* BBox, const CTrg *trg) const;
+	virtual void GetLocTransform(int ipart, Vec3 &offs, quaternionf &q, float &scale, const CPhysicalPlaceholder *trg) const;
+	virtual void GetLocTransformLerped(int ipart, Vec3 &offs, quaternionf &q, float &scale, float timeBack, const CPhysicalPlaceholder *trg) const { GetLocTransform(ipart,offs,q,scale,trg); }
 	virtual void DetachPartContacts(int ipart,int iop0, CPhysicalEntity *pent,int iop1, int bCheckIfEmpty=1) {}
 	int TouchesSphere(const Vec3 &center, float r);
 
@@ -361,7 +356,6 @@ public:
 	mutable volatile int m_lockColliders;
 
 	CPhysicalEntity *m_pOuterEntity;
-	CGeometry *m_pBoundingGeometry;
 	int m_bProcessed_aux;
 
 	SCollisionClass m_collisionClass;
@@ -384,6 +378,10 @@ public:
 
 	int (*m_pUsedParts)[16];
 	volatile unsigned int m_nUsedParts;
+
+	CPhysicalPlaceholder *m_pLastPortal = nullptr;
+	CPhysicalPlaceholder *GetLastPortal() const { return m_pLastPortal; }
+	void SetLastPortal(CPhysicalPlaceholder *portal) { m_pLastPortal = portal; }
 
 	SStructureInfo *m_pStructure;
 	static SPartHelper *g_parts;

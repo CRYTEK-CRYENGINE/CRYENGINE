@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #include "StdAfx.h"
 
@@ -91,10 +91,10 @@ bool CD3DOpenVRRenderer::Initialize()
 	for (int i = 0; i < RenderLayer::eQuadLayers_Total; i++)
 	{
 		m_pOpenVRDevice->OnSetupOverlay(i,
-			CryVR::OpenVR::ERenderAPI::eRenderAPI_DirectX,
-			CryVR::OpenVR::ERenderColorSpace::eRenderColorSpace_Auto,
+	  CryVR::OpenVR::ERenderAPI::eRenderAPI_DirectX,
+	  CryVR::OpenVR::ERenderColorSpace::eRenderColorSpace_Auto,
 			m_quadLayerRenderData[i].texture->GetDevTexture()->Get2DTexture()
-		);
+	  );
 	}
 
 	// Mirror texture
@@ -103,7 +103,7 @@ bool CD3DOpenVRRenderer::Initialize()
 	{
 		// Request the resource-view from openVR
 		m_pOpenVRDevice->GetMirrorImageView(static_cast<EEyeType>(eye), m_mirrorTextures[eye]->GetDevTexture()->Get2DTexture(), &srv);
-		m_mirrorTextures[eye]->SetShaderResourceView(static_cast<D3DShaderResource*>(srv), false);
+		m_mirrorTextures[eye]->SetDefaultShaderResourceView(static_cast<D3DShaderResource*>(srv), false);
 	}
 
 	return true;
@@ -126,8 +126,7 @@ bool CD3DOpenVRRenderer::InitializeEyeTarget(D3DDevice* d3d11Device, EEyeType ey
 	ID3D11Texture2D* texture;
 	d3d11Device->CreateTexture2D(&textureDesc, nullptr, &texture);
 
-	ETEX_Format format = CTexture::TexFormatFromDeviceFormat((DXGI_FORMAT)desc.format);
-	m_scene3DRenderData[eye].texture = m_pStereoRenderer->WrapD3DRenderTarget(static_cast<D3DTexture*>(texture), desc.width, desc.height, format, name, true);
+	m_scene3DRenderData[eye].texture = m_pStereoRenderer->WrapD3DRenderTarget(static_cast<D3DTexture*>(texture), desc.width, desc.height, (DXGI_FORMAT)desc.format, name, true);
 
 	return true;
 }
@@ -152,8 +151,7 @@ bool CD3DOpenVRRenderer::InitializeQuadLayer(D3DDevice* d3d11Device, RenderLayer
 	char textureName[16];
 	cry_sprintf(textureName, name, quadLayer);
 
-	ETEX_Format format = CTexture::TexFormatFromDeviceFormat((DXGI_FORMAT)desc.format);
-	m_quadLayerRenderData[quadLayer].texture = m_pStereoRenderer->WrapD3DRenderTarget(static_cast<D3DTexture*>(texture), desc.width, desc.height, format, textureName, true);
+	m_quadLayerRenderData[quadLayer].texture = m_pStereoRenderer->WrapD3DRenderTarget(static_cast<D3DTexture*>(texture), desc.width, desc.height, (DXGI_FORMAT)desc.format, textureName, true);
 
 	return true;
 }
@@ -176,9 +174,8 @@ bool CD3DOpenVRRenderer::InitializeMirrorTexture(D3DDevice* d3d11Device, EEyeTyp
 	ID3D11Texture2D* texture;
 	d3d11Device->CreateTexture2D(&textureDesc, nullptr, &texture);
 
-	ETEX_Format format = CTexture::TexFormatFromDeviceFormat((DXGI_FORMAT)desc.format);
-	m_mirrorTextures[eye] = m_pStereoRenderer->WrapD3DRenderTarget(static_cast<D3DTexture*>(texture), desc.width, desc.height, format, name, false);
-
+	m_mirrorTextures[eye] = m_pStereoRenderer->WrapD3DRenderTarget(static_cast<D3DTexture*>(texture), desc.width, desc.height, (DXGI_FORMAT)desc.format, name, false);
+	
 	return true;
 }
 
@@ -210,7 +207,7 @@ void CD3DOpenVRRenderer::Shutdown()
 			m_mirrorTextures[eye] = nullptr;
 		}
 	}
-
+	
 	ReleaseBuffers();
 }
 
@@ -242,7 +239,7 @@ void CD3DOpenVRRenderer::SubmitFrame()
 {
 	#ifdef ENABLE_BENCHMARK_SENSOR
 	gcpRendD3D->m_benchmarkRendererSensor->PreStereoFrameSubmit(m_scene3DRenderData[0].texture, m_scene3DRenderData[1].texture);
-#endif
+	#endif
 
 	// Quad layers
 	for (uint32 i = 0; i < RenderLayer::eQuadLayers_Total; ++i)
@@ -267,7 +264,7 @@ void CD3DOpenVRRenderer::SubmitFrame()
 
 void CD3DOpenVRRenderer::RenderSocialScreen()
 {
-	CTexture* pBackbufferTexture = gcpRendD3D->GetBackBufferTexture();
+	CTexture* pBackbufferTexture = gcpRendD3D->GetCurrentBackBuffer(gcpRendD3D->GetActiveDisplayContext());
 	
 	if (const IHmdManager* pHmdManager = gEnv->pSystem->GetHmdManager())
 	{
@@ -279,7 +276,7 @@ void CD3DOpenVRRenderer::RenderSocialScreen()
 			{
 			case EHmdSocialScreen::Off:
 				// TODO: Clear backbuffer texture? Show a selected wallpaper?
-				GetUtils().ClearScreen(0.1f, 0.1f, 0.1f, 1.0f); // we don't want true black, to distinguish between rendering error and no-social-screen. NOTE: THE CONSOLE WILL NOT BE DISPLAYED!!!
+					GetUtils().ClearScreen(0.1f, 0.1f, 0.1f, 1.0f); // we don't want true black, to distinguish between rendering error and no-social-screen. NOTE: THE CONSOLE WILL NOT BE DISPLAYED!!!
 				break;
 			// intentional fall through
 			case EHmdSocialScreen::UndistortedLeftEye:
@@ -317,16 +314,16 @@ void CD3DOpenVRRenderer::RenderSocialScreen()
 					{
 						if (CTexture* pSrcTex = m_mirrorTextures[eye])
 						{
-							// Set rendering and shader flags
+					// Set rendering and shader flags
 							if (eye == LEFT_EYE)
-								gcpRendD3D->RT_SetViewport(0, 0, pBackbufferTexture->GetWidth() >> 1, pBackbufferTexture->GetHeight()); // Set viewport (left half of backbuffer)
+					gcpRendD3D->RT_SetViewport(0, 0, pBackbufferTexture->GetWidth() >> 1, pBackbufferTexture->GetHeight()); // Set viewport (left half of backbuffer)
 							else if (eye == RIGHT_EYE)
 								gcpRendD3D->RT_SetViewport(pBackbufferTexture->GetWidth() >> 1, 0, pBackbufferTexture->GetWidth() >> 1, pBackbufferTexture->GetHeight()); // set viewport (right half of backbuffer)
 
 							GetUtils().ShBeginPass(CShaderMan::s_shPostEffects, m_textureToTexture, FEF_DONTSETTEXTURES | FEF_DONTSETSTATES);
 
 							gcpRendD3D->FX_SetState(GS_NODEPTHTEST);
-							pSrcTex->Apply(0, CTexture::GetTexState(STexState(FILTER_LINEAR, true))); // Bind left-eye texture for rendering
+							pSrcTex->Apply(0, EDefaultSamplerStates::LinearClamp); // Bind left-eye texture for rendering
 
 							GetUtils().DrawFullScreenTri(0, 0);
 							GetUtils().ShEndPass();

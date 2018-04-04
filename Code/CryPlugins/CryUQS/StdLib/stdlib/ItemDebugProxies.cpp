@@ -5,12 +5,12 @@
 
 // *INDENT-OFF* - <hard to read code and declarations due to inconsistent indentation>
 
-namespace uqs
+namespace UQS
 {
-	namespace stdlib
+	namespace StdLib
 	{
 
-		void EntityId_CreateItemDebugProxyForItem(const EntityIdWrapper& item, core::IItemDebugProxyFactory& itemDebugProxyFactory)
+		void EntityId_CreateItemDebugProxyForItem(const EntityIdWrapper& item, Core::IItemDebugProxyFactory& itemDebugProxyFactory)
 		{
 			if (IEntity* pEntity = gEnv->pEntitySystem->GetEntity(item.value))
 			{
@@ -28,15 +28,15 @@ namespace uqs
 
 				entityBounds.Move(worldPos);
 
-				uqs::core::IItemDebugProxy_AABB& aabb = itemDebugProxyFactory.CreateAABB();
+				UQS::Core::IItemDebugProxy_AABB& aabb = itemDebugProxyFactory.CreateAABB();
 				aabb.SetAABB(entityBounds);
 			}
 		}
 
-		void Vec3_CreateItemDebugProxyForItem(const Vec3& item, core::IItemDebugProxyFactory& itemDebugProxyFactory)
+		void Pos3_CreateItemDebugProxyForItem(const Pos3& item, Core::IItemDebugProxyFactory& itemDebugProxyFactory)
 		{
-			core::IItemDebugProxy_Sphere& sphere = itemDebugProxyFactory.CreateSphere();
-			sphere.SetPosAndRadius(item, 0.2f);  // let's assume that a radius of 20cm is "just fine for all purposes"
+			Core::IItemDebugProxy_Sphere& sphere = itemDebugProxyFactory.CreateSphere();
+			sphere.SetPosAndRadius(item.value, 0.2f);  // let's assume that a radius of 20cm is "just fine for all purposes"
 		}
 
 	}

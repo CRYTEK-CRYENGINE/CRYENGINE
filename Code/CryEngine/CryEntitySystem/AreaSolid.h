@@ -1,25 +1,14 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
-// -------------------------------------------------------------------------
-//  File name:   AreaSolid.h
-//  Version:     v1.00
-//  Created:     21/Nov/2011 by Jaesik.
-//  Compilers:   Visual Studio 2010
-//  Description:
-//	The AreaSolid has most general functions for an area object.
-////////////////////////////////////////////////////////////////////////////
-
-#ifndef __AREASOLID_H_
-#define __AREASOLID_H_
+#pragma once
 
 #include "AreaUtil.h"
 
 class CBSPTree3D;
 class CSegmentSet;
 
-class CAreaSolid
+class CAreaSolid final
 {
-
 public:
 
 	enum ESegmentType
@@ -36,8 +25,6 @@ public:
 
 		eSegmentQueryFlag_UsingReverseSegment = 0x0010
 	};
-
-public:
 
 	CAreaSolid();
 	~CAreaSolid()
@@ -94,7 +81,4 @@ private:
 	std::vector<CSegmentSet*> m_SegmentSets;
 	AABB                      m_BoundBox;
 	int                       m_nRefCount;
-
 };
-
-#endif // __AREASOLID_H_

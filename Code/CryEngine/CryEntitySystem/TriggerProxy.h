@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 // -------------------------------------------------------------------------
 //  File name:   TriggerProxy.h
@@ -26,7 +26,7 @@ struct SProximityElement;
 //////////////////////////////////////////////////////////////////////////
 class CEntityComponentTriggerBounds : public IEntityTriggerComponent
 {
-	CRY_ENTITY_COMPONENT_CLASS(CEntityComponentTriggerBounds,IEntityTriggerComponent,"CEntityComponentTriggerBounds",0x1C58115AA18E446E,0x8E82B3B4C6DD6F55);
+	CRY_ENTITY_COMPONENT_CLASS_GUID(CEntityComponentTriggerBounds, IEntityTriggerComponent, "CEntityComponentTriggerBounds", "1c58115a-a18e-446e-8e82-b3b4c6dd6f55"_cry_guid);
 
 	CEntityComponentTriggerBounds();
 	virtual ~CEntityComponentTriggerBounds();

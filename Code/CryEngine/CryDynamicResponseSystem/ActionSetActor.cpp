@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #include "stdafx.h"
 #include "ActionSetActor.h"
@@ -101,5 +101,3 @@ void CActionSetActorByVariable::Serialize(Serialization::IArchive& ar)
 
 //--------------------------------------------------------------------------------------------------
 
-REGISTER_DRS_ACTION(CActionSetActor, "SetActor", DEFAULT_DRS_ACTION_COLOR);
-REGISTER_DRS_ACTION(CActionSetActorByVariable, "SetActorFromVariable", DEFAULT_DRS_ACTION_COLOR);

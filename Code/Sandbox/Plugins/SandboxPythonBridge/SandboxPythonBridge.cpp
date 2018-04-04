@@ -67,6 +67,8 @@ PythonWidget InstantiateWidgetFromPython(PyObject* pWidgetType)
 
 class PythonViewPaneWidget : public IPane
 {
+	friend class PythonViewPaneClass;
+
 public:
 	PythonViewPaneWidget(PyObject* pWidgetType, const char* name) : IPane()
 		, name(name)
@@ -126,7 +128,17 @@ public:
 	virtual CRuntimeClass* GetRuntimeClass() override { return 0; }
 	virtual const char* GetPaneTitle() override { return name.c_str(); }
 	virtual bool SinglePane() override { return unique; }
-	virtual IPane* CreatePane() const override { return new PythonViewPaneWidget(pWidgetType, name.c_str()); }
+	virtual IPane* CreatePane() const override
+	{ 
+		PythonViewPaneWidget* paneWidget = new PythonViewPaneWidget(pWidgetType, name.c_str());
+		if (!paneWidget->pythonWidget.pQtWidget || !paneWidget->pythonWidget.pShibokenWrapper)
+		{
+			delete paneWidget;
+			return nullptr;
+		}
+
+		return paneWidget;
+	}
 };
 
 static PyObject* RegisterWindow(PyObject *dummy, PyObject *args)

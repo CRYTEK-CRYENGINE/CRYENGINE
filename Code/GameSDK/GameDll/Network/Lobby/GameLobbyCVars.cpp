@@ -78,7 +78,7 @@ CGameLobbyCVars::CGameLobbyCVars()
 
 #ifdef USE_SESSION_SEARCH_SIMULATOR
 	REGISTER_CVAR(gl_searchSimulatorEnabled, 0, 0, "Enable/Disable the Session Search Simulator for testing Matchmaking");
-	gEnv->pConsole->RegisterString("gl_searchSimulatorFilepath", NULL, 0, "Set the source XML file for the Session Search Simulator");
+	REGISTER_STRING("gl_searchSimulatorFilepath", NULL, 0, "Set the source XML file for the Session Search Simulator");
 #endif
 
 	REGISTER_CVAR(gl_skip, 0, 0, "Skips the game lobby");

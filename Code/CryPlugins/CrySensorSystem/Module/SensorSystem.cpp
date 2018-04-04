@@ -17,7 +17,7 @@ CSensorSystem::CSensorSystem()
 	CRY_ASSERT(!ms_pInstance);
 	ms_pInstance = this;
 
-	gEnv->pSystem->GetISystemEventDispatcher()->RegisterListener(this);
+	gEnv->pSystem->GetISystemEventDispatcher()->RegisterListener(this,"CSensorSystem");
 
 	m_pTagLibrary.reset(new CSensorTagLibrary());
 
@@ -52,6 +52,11 @@ CSensorSystem::CSensorSystem()
 
 CSensorSystem::~CSensorSystem()
 {
+	if (gEnv->pSchematyc != nullptr)
+	{
+		gEnv->pSchematyc->GetEnvRegistry().DeregisterPackage(GetSchematycPackageGUID());
+	}
+
 	if (gEnv->pConsole)
 	{
 		gEnv->pConsole->UnregisterVariable("sensor_Debug");
@@ -83,14 +88,15 @@ void CSensorSystem::OnSystemEvent(ESystemEvent event, UINT_PTR wparam, UINT_PTR 
 	{
 	case ESYSTEM_EVENT_REGISTER_SCHEMATYC_ENV:
 		{
-			const Schematyc::SGUID guid = "e5f633a6-472d-470c-a78d-86bd2383092d"_schematyc_guid;
 			const char* szName = "SensorSystem";
-			Schematyc::EnvPackageCallback callback = Schematyc::Delegate::Make(*this, &CSensorSystem::RegisterSchematycEnvPackage);
-			gEnv->pSchematyc->GetEnvRegistry().RegisterPackage(SCHEMATYC_MAKE_ENV_PACKAGE(guid, szName, callback));
+			const char* szDescription = "Sensor system";
+			Schematyc::EnvPackageCallback callback = SCHEMATYC_MEMBER_DELEGATE(&CSensorSystem::RegisterSchematycEnvPackage, *this);
+			gEnv->pSchematyc->GetEnvRegistry().RegisterPackage(SCHEMATYC_MAKE_ENV_PACKAGE(GetSchematycPackageGUID(), szName, Schematyc::g_szCrytek, szDescription, callback));
 			break;
 		}
 	case ESYSTEM_EVENT_LEVEL_LOAD_END:
 		{
+			LOADING_TIME_PROFILE_SECTION_NAMED("CSensorSystem::OnSystemEvent() ESYSTEM_EVENT_LEVEL_LOAD_END");
 			const float terrainSize = static_cast<float>(gEnv->p3DEngine->GetTerrainSize());
 			const AABB worldBounds(Vec3(0.0f, 0.0f, -200.0f), Vec3(terrainSize, terrainSize, 200.0f));
 			m_pMap->SetOctreeBounds(worldBounds);

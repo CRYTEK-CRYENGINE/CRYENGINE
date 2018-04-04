@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 /*=============================================================================
    PostProcess.cpp : Post process main interface
@@ -20,7 +20,7 @@ void CParamBool::SetParam(float fParam, bool bForceValue)
 	pThreadSafeData->bSetThisFrame = true;
 }
 
-float CParamBool::GetParam()
+float CParamBool::GetParam() const
 {
 	const int threadID = gRenDev->m_pRT ? gRenDev->m_pRT->GetThreadList() : 0;
 	return static_cast<float>(m_threadSafeData[threadID].bParam);
@@ -60,7 +60,7 @@ void CParamInt::SetParam(float fParam, bool bForceValue)
 	pThreadSafeData->bSetThisFrame = true;
 }
 
-float CParamInt::GetParam()
+float CParamInt::GetParam() const
 {
 	const int threadID = gRenDev->m_pRT ? gRenDev->m_pRT->GetThreadList() : 0;
 	return static_cast<float>(m_threadSafeData[threadID].nParam);
@@ -127,7 +127,7 @@ void CParamFloat::SetParam(float fParam, bool bForceValue)
 	}
 }
 
-float CParamFloat::GetParam()
+float CParamFloat::GetParam() const
 {
 	const int threadID = gRenDev->m_pRT ? gRenDev->m_pRT->GetThreadList() : 0;
 	return m_threadSafeData[threadID].fParam;
@@ -231,7 +231,7 @@ void CParamVec4::SetParamVec4(const Vec4& vParam, bool bForceValue)
 	}
 }
 
-Vec4 CParamVec4::GetParamVec4()
+Vec4 CParamVec4::GetParamVec4() const
 {
 	const int threadID = gRenDev->m_pRT ? gRenDev->m_pRT->GetThreadList() : 0;
 	return m_threadSafeData[threadID].vParam;
@@ -393,8 +393,6 @@ int CPostEffectsMgr::Init()
 	AddParamFloat("Global_User_ColorHue", m_pUserColorHue, 0.0f);  // image hue rotation
 
 	// Register all post processes
-	AddEffect(CSceneSnow);
-	AddEffect(CSceneRain);
 	AddEffect(CSunShafts);
 	AddEffect(CDepthOfField);
 	AddEffect(CMotionBlur);
@@ -414,7 +412,6 @@ int CPostEffectsMgr::Init()
 	AddEffect(CSonarVision);
 	AddEffect(CThermalVision);
 	AddEffect(CImageGhosting);
-	AddEffect(CWaterVolume);
 	AddEffect(CPostAA);
 	AddEffect(CPostStereo);
 	AddEffect(C3DHud);

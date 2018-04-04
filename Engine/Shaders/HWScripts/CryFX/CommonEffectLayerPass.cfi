@@ -16,7 +16,7 @@ Texture2D effectColorTex : register(t10)                    = TM_CustomSecondary
 
 sampler2D effectAnimFunctionSampler = sampler_state
 {
-  Texture = EngineAssets/Shading/layer_effect_anim_function.tif;
+  Texture = %ENGINE%/EngineAssets/Shading/layer_effect_anim_function.tif;
   MinFilter = LINEAR;
   MagFilter = LINEAR;
   MipFilter = NONE;

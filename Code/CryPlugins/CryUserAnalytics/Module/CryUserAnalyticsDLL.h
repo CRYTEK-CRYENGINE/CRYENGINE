@@ -13,7 +13,7 @@ class CPlugin_CryUserAnalytics : public ICryUserAnalyticsPlugin
 	CRYINTERFACE_ADD(ICryPlugin)
 	CRYINTERFACE_END()
 
-	CRYGENERATE_SINGLETONCLASS(CPlugin_CryUserAnalytics, "Plugin_CryUserAnalytics", 0x2284d2bf677c4e72, 0x8ace10f924bdd068)
+	CRYGENERATE_SINGLETONCLASS_GUID(CPlugin_CryUserAnalytics, "Plugin_CryUserAnalytics", "2284d2bf-677c-4e72-8ace-10f924bdd068"_cry_guid)
 
 	CPlugin_CryUserAnalytics();
 	virtual ~CPlugin_CryUserAnalytics();

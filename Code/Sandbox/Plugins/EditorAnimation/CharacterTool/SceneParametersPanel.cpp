@@ -2,8 +2,8 @@
 
 #include "stdafx.h"
 
-#include "../EditorCommon/QPropertyTree/ContextList.h"
-#include <QPropertyTree/QPropertyTree.h>
+#include "QPropertyTree/ContextList.h"
+#include <Serialization/QPropertyTree/QPropertyTree.h>
 #include "CharacterDocument.h"
 #include "Expected.h"
 #include "PlaybackLayers.h"

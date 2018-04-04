@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #include "stdafx.h"
 #include "FileIOHandler.h"
@@ -6,14 +6,18 @@
 #include <CrySystem/File/ICryPak.h>
 #include <AK/Tools/Common/AkPlatformFuncs.h>
 
-using namespace CryAudio::Impl::Wwise;
-
 #define MAX_NUMBER_STRING_SIZE   (10)       // 4G
 #define ID_TO_STRING_FORMAT_BANK AKTEXT("%u.bnk")
 #define ID_TO_STRING_FORMAT_WEM  AKTEXT("%u.wem")
 #define MAX_EXTENSION_SIZE       (4)                                               // .xxx
 #define MAX_FILETITLE_SIZE       (MAX_NUMBER_STRING_SIZE + MAX_EXTENSION_SIZE + 1) // null-terminated
 
+namespace CryAudio
+{
+namespace Impl
+{
+namespace Wwise
+{
 //////////////////////////////////////////////////////////////////////////
 AkFileHandle GetFileHandle(FILE* const pFile)
 {
@@ -299,3 +303,6 @@ void CFileIOHandler::SetLanguageFolder(AkOSChar const* const sLanguageFolder)
 {
 	AKPLATFORM::SafeStrCpy(m_sLanguageFolder, sLanguageFolder, AK_MAX_PATH);
 }
+} // namespace Wwise
+} // namespace Impl
+} // namespace CryAudio

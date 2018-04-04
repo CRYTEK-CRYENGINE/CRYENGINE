@@ -7,6 +7,7 @@
 #include <QLabel>
 #include <QPushButton>
 #include <QGridLayout>
+#include <QPointer>
 
 #include "QToolWindowManagerCommon.h"
 #include "QToolWindowTabBar.h"
@@ -24,11 +25,14 @@ public:
 	QWidget* contents() { return m_contents; }
 	void setContents(QWidget*);
 
+	void setCloseButtonVisible(bool bVisible);
+
 private slots:
 	void closeWidget();
 private:
 	virtual void closeEvent(QCloseEvent* e) Q_DECL_OVERRIDE;
 	virtual void changeEvent(QEvent *ev) Q_DECL_OVERRIDE;
+	QIcon getCloseButtonIcon() const;
 	QGridLayout* m_layout;
 	QToolWindowManager* m_manager;
 	QPushButton* m_closeButton;
@@ -83,11 +87,11 @@ public:
 	void setCurrentWidget(QWidget* w) Q_DECL_OVERRIDE;
 
 	//QTabBar wrappers
-	QPoint mapTabBarFromGlobal(const QPoint & pos) const Q_DECL_OVERRIDE {return tabBar()->mapFromGlobal(pos);}
-	QRect tabBarRect() const Q_DECL_OVERRIDE;
-	QRect tabRect(int index) const Q_DECL_OVERRIDE {return tabBar()->tabRect(index);}
-	int tabBarAt(const QPoint& pos) const Q_DECL_OVERRIDE {return tabBar()->tabAt(pos);}
-
+	QPoint mapCombineDropAreaFromGlobal(const QPoint & pos) const Q_DECL_OVERRIDE {return tabBar()->mapFromGlobal(pos);}
+	QRect combineAreaRect() const Q_DECL_OVERRIDE;
+	QRect combineSubWidgetRect(int index) const Q_DECL_OVERRIDE {return tabBar()->tabRect(index);}
+	int subWidgetAt(const QPoint& pos) const Q_DECL_OVERRIDE {return tabBar()->tabAt(pos);}
+	virtual QTWMWrapperAreaType areaType() const Q_DECL_OVERRIDE { return QTWMWrapperAreaType::watTabs; };
 protected:
 	virtual bool eventFilter(QObject *o, QEvent *ev) Q_DECL_OVERRIDE;
 
@@ -95,11 +99,13 @@ protected Q_SLOTS:
 	void tabCloseButtonClicked();
 	void closeTab(int index);
 	void showContextMenu(const QPoint &point);
+	void swapToRollup();
 
 private:
 	QPushButton* createCloseButton();
 	bool shouldShowSingleTabFrame();
-	QToolWindowManager* m_manager;
+	virtual void mouseReleaseEvent(QMouseEvent * e);
+	QPointer<QToolWindowManager> m_manager;
 	bool m_tabDragCanStart;
 	bool m_areaDragCanStart;
 	QToolWindowSingleTabAreaFrame* m_tabFrame;

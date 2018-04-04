@@ -1,19 +1,18 @@
 // Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
 
 /*************************************************************************
--------------------------------------------------------------------------
-History:
-- 08:04:2010   Created by Will Wilson
+   -------------------------------------------------------------------------
+   History:
+   - 08:04:2010   Created by Will Wilson
 *************************************************************************/
 
-#ifndef __FEATURETESTMGR_H__
-#define __FEATURETESTMGR_H__
+#pragma once
 
 // in sync with ENABLE_FEATURE_TESTER
 #if defined(_RELEASE) && !defined(PERFORMANCE_BUILD)
-	#define ENABLE_FEATURE_TESTER_MGR            0
+	#define ENABLE_FEATURE_TESTER_MGR 0
 #else
-	#define ENABLE_FEATURE_TESTER_MGR            1
+	#define ENABLE_FEATURE_TESTER_MGR 1
 #endif
 
 // Forward decl.
@@ -48,10 +47,10 @@ public:
 
 enum EFTState
 {
-	eFTS_Disabled = 0,		/// Not set to run during this test
-	eFTS_Scheduled,				/// Scheduled to run once dependencies are met
-	eFTS_Running,					/// This is the currently running test
-	eFTS_Finished,				/// Test finished
+	eFTS_Disabled = 0,    /// Not set to run during this test
+	eFTS_Scheduled,       /// Scheduled to run once dependencies are met
+	eFTS_Running,         /// This is the currently running test
+	eFTS_Finished,        /// Test finished
 };
 
 // Simple manager for handling map feature testing
@@ -78,7 +77,7 @@ public:
 	/// Updates testing state
 	void Update(float deltaTime);
 
-	bool IsRunning() const { return m_running || m_pendingRunAll || m_waiting; }
+	bool IsRunning() const { return m_bRunning || m_bPendingRunAll || m_bWaiting; }
 
 	/// Called when a test run is done with its results.
 	void OnTestResults(const char* testName, const char* testDesc, const char* failureMsg, float duration, const char* owners = NULL);
@@ -98,10 +97,10 @@ public:
 	// Workaround to allow run all command to wait until the level has successfully loaded
 	void ScheduleRunAll(bool reloadLevel, bool quickload, float timeoutScheduled)
 	{
-		m_pendingLevelReload = reloadLevel;
-		m_pendingQuickload = quickload;
+		m_bPendingLevelReload = reloadLevel;
+		m_bPendingQuickload = quickload;
 		m_timeoutScheduled = timeoutScheduled;
-		m_pendingRunAll = true;
+		m_bPendingRunAll = true;
 	}
 
 protected:
@@ -118,21 +117,21 @@ protected:
 	void QuickloadReportResults();
 
 	// Console commands
-	static void CmdMapRunAll(IConsoleCmdArgs *pArgs);
-	static void CmdMapForceRun(IConsoleCmdArgs *pArgs);
+	static void CmdMapRunAll(IConsoleCmdArgs* pArgs);
+	static void CmdMapForceRun(IConsoleCmdArgs* pArgs);
 
 private:
 	struct FeatureTestState
 	{
 		FeatureTestState(IFeatureTest* pFT = NULL)
 			: m_pTest(pFT),
-				m_state(eFTS_Disabled)
+			m_state(eFTS_Disabled)
 		{}
 
 		bool operator==(const FeatureTestState& other) const { return m_pTest == other.m_pTest; }
 
 		IFeatureTest* m_pTest;
-		EFTState m_state;
+		EFTState      m_state;
 	};
 
 	//Private method to check if the manager is waiting for scheduled tests to become ready
@@ -140,21 +139,19 @@ private:
 
 	typedef std::vector<FeatureTestState> TFeatureTestVec;
 
-	TFeatureTestVec		m_featureTests;				/// All registered tests (elements not owned by this)
-	size_t						m_runningTestIndex;		/// Current index into m_featureTests for the running test
-	IFeatureTest*			m_pRunningTest;				/// Current test case in progress
-	float					m_timeoutScheduled;			/// Timeout to wait for on scheduled tests
-	float					m_timeWaitedForScheduled;	/// Time waited for scheduled tests that have not yet met start criteria
-	CAutoTester*			m_pAutoTester;				/// Auto-test used to output results
-	bool							m_running;
-	bool							m_waiting;			/// Tracks if scheduled tests are still waiting for start conditions
-	bool							m_pendingRunAll;			/// Workaround: Indicates a ft_map_runAll is pending (allows waiting for level load to complete)
-	bool							m_pendingQuickload;		/// Perform a quickload before performing any tests
-	bool							m_pendingLevelReload; /// Reload the level before performing any tests
-	bool							m_hasQuickloaded;
-	bool							m_testManifestWritten;
+	TFeatureTestVec m_featureTests;           /// All registered tests (elements not owned by this)
+	size_t          m_runningTestIndex;       /// Current index into m_featureTests for the running test
+	IFeatureTest*   m_pRunningTest;           /// Current test case in progress
+	float           m_timeoutScheduled;       /// Timeout to wait for on scheduled tests
+	float           m_timeWaitedForScheduled; /// Time waited for scheduled tests that have not yet met start criteria
+	CAutoTester*    m_pAutoTester;            /// Auto-test used to output results
+	bool            m_bRunning;
+	bool            m_bWaiting;               /// Tracks if scheduled tests are still waiting for start conditions
+	bool            m_bPendingRunAll;         /// Workaround: Indicates a ft_map_runAll is pending (allows waiting for level load to complete)
+	bool            m_bPendingQuickload;      /// Perform a quickload before performing any tests
+	bool            m_bPendingLevelReload;    /// Reload the level before performing any tests
+	bool            m_bHasQuickloaded;
+	bool            m_bTestManifestWritten;
 };
 
 #endif //__FEATURETESTMGR_H__
-
-#endif // ENABLE_FEATURE_TESTER_MGR

@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #include "StdAfx.h"
 #include "Script/Elements/ScriptRoot.h"
@@ -6,7 +6,7 @@
 namespace Schematyc
 {
 CScriptRoot::CScriptRoot()
-	: CScriptElementBase(SGUID(), "Root", EScriptElementFlags::FixedName)
+	: CScriptElementBase(CryGUID(), "Root", EScriptElementFlags::FixedName)
 {}
 
 void CScriptRoot::EnumerateDependencies(const ScriptDependencyEnumerator& enumerator, EScriptDependencyType type) const {}

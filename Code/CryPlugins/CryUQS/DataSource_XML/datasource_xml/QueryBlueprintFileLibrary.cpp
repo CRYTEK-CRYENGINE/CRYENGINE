@@ -10,11 +10,11 @@
 //#pragma optimize("", off)
 //#pragma inline_depth(0)
 
-namespace uqs
+namespace UQS
 {
-	namespace datasource_xml
+	namespace DataSource_XML
 	{
-		CQueryBlueprintFileLibrary::CQueryBlueprintFileLibrary(const SLibraryConfig& config, core::IQueryBlueprintLibrary& blueprintLibrary)
+		CQueryBlueprintFileLibrary::CQueryBlueprintFileLibrary(const SLibraryConfig& config, Core::IQueryBlueprintLibrary& blueprintLibrary)
 			: m_config(config)
 			, m_blueprintLibrary(blueprintLibrary)
 		{
@@ -171,7 +171,7 @@ namespace uqs
 			return true;
 		}
 
-		void CQueryBlueprintFileLibrary::LoadRecord(const char* szName, SQueryRecord& record, core::IQueryBlueprintLibrary& outLibrary)
+		void CQueryBlueprintFileLibrary::LoadRecord(const char* szName, SQueryRecord& record, Core::IQueryBlueprintLibrary& outLibrary)
 		{
 			// clear errors from a previous call
 			record.errors.clear();
@@ -179,22 +179,22 @@ namespace uqs
 			// Load query
 			std::shared_ptr<CXMLDataErrorCollector> dataErrorCollector(new CXMLDataErrorCollector);
 			CQueryBlueprintLoader_XML loader(szName, record.filePath.c_str(), dataErrorCollector);
-			shared::CUqsString error;
+			Shared::CUqsString error;
 
-			const core::IQueryBlueprintLibrary::ELoadAndStoreOverwriteBehavior overwriteBehavior =
-				core::IQueryBlueprintLibrary::ELoadAndStoreOverwriteBehavior::OverwriteExisting;
-			const core::IQueryBlueprintLibrary::ELoadAndStoreResult result =
+			const Core::IQueryBlueprintLibrary::ELoadAndStoreOverwriteBehavior overwriteBehavior =
+				Core::IQueryBlueprintLibrary::ELoadAndStoreOverwriteBehavior::OverwriteExisting;
+			const Core::IQueryBlueprintLibrary::ELoadAndStoreResult result =
 				outLibrary.LoadAndStoreQueryBlueprint(overwriteBehavior, loader, error);
 
 			switch (result)
 			{
-			case core::IQueryBlueprintLibrary::ELoadAndStoreResult::StoredFromScratch:
-			case core::IQueryBlueprintLibrary::ELoadAndStoreResult::OverwrittenExistingOne:
-			case core::IQueryBlueprintLibrary::ELoadAndStoreResult::PreservedExistingOne:
+			case Core::IQueryBlueprintLibrary::ELoadAndStoreResult::StoredFromScratch:
+			case Core::IQueryBlueprintLibrary::ELoadAndStoreResult::OverwrittenExistingOne:
+			case Core::IQueryBlueprintLibrary::ELoadAndStoreResult::PreservedExistingOne:
 				record.bLoaded = true;
 				break;
 
-			case core::IQueryBlueprintLibrary::ELoadAndStoreResult::ExceptionOccurred:
+			case Core::IQueryBlueprintLibrary::ELoadAndStoreResult::ExceptionOccurred:
 				record.errors.push_back(error.c_str());
 				for (size_t i = 0, numXMLErrors = dataErrorCollector->GetErrorCount(); i < numXMLErrors; ++i)
 				{
@@ -216,7 +216,7 @@ namespace uqs
 			}
 		}
 
-		bool CQueryBlueprintFileLibrary::LoadTextualQueryBlueprint(const char* szQueryName, core::ITextualQueryBlueprint& outBlueprint, shared::IUqsString& error)
+		bool CQueryBlueprintFileLibrary::LoadTextualQueryBlueprint(const char* szQueryName, Core::ITextualQueryBlueprint& outBlueprint, Shared::IUqsString& error)
 		{
 			auto iter = m_queriesMap.find(szQueryName);
 			if (iter == m_queriesMap.end())
@@ -232,7 +232,7 @@ namespace uqs
 			return loader.LoadTextualQueryBlueprint(outBlueprint, error);
 		}
 
-		bool CQueryBlueprintFileLibrary::SaveTextualQueryBlueprint(const char* szQueryName, const core::ITextualQueryBlueprint& blueprintToSave, shared::IUqsString& error)
+		bool CQueryBlueprintFileLibrary::SaveTextualQueryBlueprint(const char* szQueryName, const Core::ITextualQueryBlueprint& blueprintToSave, Shared::IUqsString& error)
 		{
 			auto iter = m_queriesMap.find(szQueryName);
 			if (iter == m_queriesMap.end())
@@ -256,7 +256,7 @@ namespace uqs
 			return bResult;
 		}
 
-		bool CQueryBlueprintFileLibrary::CreateNewTextualQueryBlueprint(const char* szQueryName, core::ITextualQueryBlueprint& outBlueprint, shared::IUqsString& error)
+		bool CQueryBlueprintFileLibrary::CreateNewTextualQueryBlueprint(const char* szQueryName, Core::ITextualQueryBlueprint& outBlueprint, Shared::IUqsString& error)
 		{
 			stack_string name(szQueryName);
 			SanitizeQueryName(name);
@@ -288,7 +288,7 @@ namespace uqs
 			return true;
 		}
 
-		bool CQueryBlueprintFileLibrary::RemoveQueryBlueprint(const char* szQueryName, shared::IUqsString& error)
+		bool CQueryBlueprintFileLibrary::RemoveQueryBlueprint(const char* szQueryName, Shared::IUqsString& error)
 		{
 			auto iter = m_queriesMap.find(szQueryName);
 			if (iter == m_queriesMap.end())
@@ -302,7 +302,7 @@ namespace uqs
 			// TODO pavloi 2016.07.04: remove blueprint only if it was loaded into m_blueprintLibrary.
 			// queryRecord.bLoaded is not enough, because it is set to false after reloading error.
 			{
-				shared::CUqsString err;
+				Shared::CUqsString err;
 				if (m_blueprintLibrary.RemoveStoredQueryBlueprint(szQueryName, err))
 				{
 					CryLog("[UQS] CQueryBlueprintFileLibrary: removed query blueprint '%s' from core blueprints library", szQueryName);
@@ -333,5 +333,5 @@ namespace uqs
 			return true;
 		}
 
-	} // namespace datasource_xml
-} // namespace uqs
+	} // namespace DataSource_XML
+} // namespace UQS

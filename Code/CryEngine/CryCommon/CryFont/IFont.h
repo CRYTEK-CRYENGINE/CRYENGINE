@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #ifndef CRYFONT_ICRYFONT_H
 #define CRYFONT_ICRYFONT_H
@@ -8,6 +8,7 @@
 #include <CryMath/Cry_Math.h>
 #include <CryMath/Cry_Color.h>
 #include <CryString/CryString.h>
+#include <CrySystem/IEngineModule.h>
 
 struct ISystem;
 class ICrySizer;
@@ -26,6 +27,11 @@ DLL_IMPORT
 ICryFont * CreateCryFontInterface(ISystem * pSystem);
 
 typedef ICryFont*(* PFNCREATECRYFONTINTERFACE)(ISystem* pSystem);
+
+struct IFontEngineModule : public Cry::IDefaultModule
+{
+	CRYINTERFACE_DECLARE_GUID(IFontEngineModule, "cddd1b3c-a105-4612-ada4-ea7e6f919df1"_cry_guid);
+};
 
 //////////////////////////////////////////////////////////////////////////////////////////////
 struct ICryFont

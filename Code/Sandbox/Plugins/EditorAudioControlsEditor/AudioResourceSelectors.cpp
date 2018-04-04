@@ -14,10 +14,10 @@ using namespace ACE;
 
 namespace
 {
-dll_string ShowSelectDialog(const SResourceSelectorContext& context, const char* szPreviousValue, const EACEControlType controlType)
+dll_string ShowSelectDialog(const SResourceSelectorContext& context, const char* szPreviousValue, const EItemType controlType)
 {
-	CATLControlsModel* pModel = CAudioControlsEditorPlugin::GetATLModel();
-	assert(pModel);
+	CAudioAssetsManager* pAssetsManager = CAudioControlsEditorPlugin::GetAssetsManager();
+	assert(pAssetsManager);
 
 	QParentWndWidget parent(context.parentWindow);
 	parent.center();
@@ -27,38 +27,38 @@ dll_string ShowSelectDialog(const SResourceSelectorContext& context, const char*
 
 	char* szLevelName;
 	gEnv->pGameFramework->GetEditorLevel(&szLevelName, nullptr);
-	dialog.SetScope(pModel->GetScope(szLevelName));
+	dialog.SetScope(pAssetsManager->GetScope(szLevelName));
 	return dialog.ChooseItem(szPreviousValue);
 }
 
 dll_string AudioTriggerSelector(const SResourceSelectorContext& context, const char* szPreviousValue)
 {
-	return ShowSelectDialog(context, szPreviousValue, eACEControlType_Trigger);
+	return ShowSelectDialog(context, szPreviousValue, eItemType_Trigger);
 }
 
 dll_string AudioSwitchSelector(const SResourceSelectorContext& context, const char* szPreviousValue)
 {
-	return ShowSelectDialog(context, szPreviousValue, eACEControlType_Switch);
+	return ShowSelectDialog(context, szPreviousValue, eItemType_Switch);
 }
 
 dll_string AudioSwitchStateSelector(const SResourceSelectorContext& context, const char* szPreviousValue)
 {
-	return ShowSelectDialog(context, szPreviousValue, eACEControlType_State);
+	return ShowSelectDialog(context, szPreviousValue, eItemType_State);
 }
 
 dll_string AudioRTPCSelector(const SResourceSelectorContext& context, const char* szPreviousValue)
 {
-	return ShowSelectDialog(context, szPreviousValue, eACEControlType_RTPC);
+	return ShowSelectDialog(context, szPreviousValue, eItemType_RTPC);
 }
 
 dll_string AudioEnvironmentSelector(const SResourceSelectorContext& context, const char* szPreviousValue)
 {
-	return ShowSelectDialog(context, szPreviousValue, eACEControlType_Environment);
+	return ShowSelectDialog(context, szPreviousValue, eItemType_Environment);
 }
 
 dll_string AudioPreloadRequestSelector(const SResourceSelectorContext& context, const char* szPreviousValue)
 {
-	return ShowSelectDialog(context, szPreviousValue, eACEControlType_Preload);
+	return ShowSelectDialog(context, szPreviousValue, eItemType_Preload);
 }
 
 REGISTER_RESOURCE_SELECTOR("AudioTrigger", AudioTriggerSelector, "")

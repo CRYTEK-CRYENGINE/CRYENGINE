@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #include "StdAfx.h"
 #include "System.h"
@@ -42,10 +42,10 @@
 #include <CryDynamicResponseSystem/IDynamicResponseSystem.h>
 #include <Cry3DEngine/ITimeOfDay.h>
 #include <CryMono/IMonoRuntime.h>
+#include <CrySchematyc/ICore.h>
 
 #include "CryPak.h"
 #include "XConsole.h"
-#include "Log.h"
 #include "CrySizerStats.h"
 #include "CrySizerImpl.h"
 #include "NotificationNetwork.h"
@@ -111,6 +111,7 @@ WATERMARKDATA(_m);
 #include <../CryAction/IViewSystem.h>
 
 #include <CryCore/CrtDebugStats.h>
+#include "Interprocess/StatsAgent.h"
 
 // Define global cvars.
 SSystemCVars g_cvars;
@@ -219,7 +220,7 @@ CSystem::CSystem(const SSystemInitParams& startupParams)
 
 	if (m_pSystemEventDispatcher)
 	{
-		m_pSystemEventDispatcher->RegisterListener(this);
+		m_pSystemEventDispatcher->RegisterListener(this, "CSystem");
 	}
 
 #if CRY_PLATFORM_WINDOWS
@@ -350,13 +351,11 @@ CSystem::CSystem(const SSystemInitParams& startupParams)
 	//	m_sys_filecache = NULL;
 	m_gpu_particle_physics = NULL;
 	m_pCpu = NULL;
-	m_sys_game_folder = NULL;
 
 	m_bQuit = false;
 	m_bShaderCacheGenMode = false;
 	m_bRelaunch = false;
 	m_iLoadingMode = 0;
-	m_bTestMode = false;
 	m_bEditor = false;
 	m_bPreviewMode = false;
 	m_bIgnoreUpdates = false;
@@ -400,7 +399,9 @@ CSystem::CSystem(const SSystemInitParams& startupParams)
 
 	m_pXMLUtils = new CXmlUtils(this);
 	m_pArchiveHost = Serialization::CreateArchiveHost();
-	m_pTestSystem = new CTestSystemLegacy;
+
+	m_pTestSystem = stl::make_unique<CTestSystemLegacy>(this);
+
 	m_pMemoryManager = CryGetIMemoryManager();
 	m_pResourceManager = new CResourceManager;
 	m_pTextModeConsole = NULL;
@@ -415,6 +416,8 @@ CSystem::CSystem(const SSystemInitParams& startupParams)
 #endif
 
 	InitThreadSystem();
+
+	LOADING_TIME_PROFILE_SECTION_NAMED("CSystem Boot");
 
 	m_pMiniGUI = NULL;
 	m_pPerfHUD = NULL;
@@ -488,6 +491,8 @@ CSystem::~CSystem()
 
 	SAFE_DELETE(g_pPakHeap);
 
+	m_pTestSystem.reset();
+
 	m_env.pSystem = 0;
 #if !defined(SYS_ENV_AS_STRUCT)
 	gEnv = 0;
@@ -555,7 +560,7 @@ void LvlRes_export(IConsoleCmdArgs* pParams);
 ///////////////////////////////////////////////////
 void CSystem::ShutDown()
 {
-	CryLogAlways("System Shutdown");  
+	CryLogAlways("System Shutdown");
 
 	m_FrameProfileSystem.Enable(false, false);
 
@@ -563,12 +568,24 @@ void CSystem::ShutDown()
 	CLoadingProfilerSystem::ShutDown();
 #endif
 
+	if (m_pSystemEventDispatcher)
+	{
+		m_pSystemEventDispatcher->RemoveListener(this);
+	}
+
 	if (m_pUserCallback)
 		m_pUserCallback->OnShutdown();
 
 	GetIRemoteConsole()->Stop();
 
 	SAFE_DELETE(m_pTextModeConsole);
+
+	//////////////////////////////////////////////////////////////////////////
+	// Interprocess Communication
+	//////////////////////////////////////////////////////////////////////////
+#if defined(ENABLE_STATS_AGENT)
+	CStatsAgent::ClosePipe();
+#endif
 
 	KillPhysicsThread();
 
@@ -654,11 +671,19 @@ void CSystem::ShutDown()
 		m_env.pPhysicalWorld->SetPhysicsEventClient(0);
 	}
 
+	UnloadEngineModule("CryFlowGraph");
 	SAFE_DELETE(m_pPluginManager);
 
-	SAFE_DELETE(gEnv->pMonoRuntime);
+	if (gEnv->pMonoRuntime != nullptr)
+	{
+		gEnv->pMonoRuntime->Shutdown();
+	}
 
 	SAFE_DELETE(m_pUserAnalyticsSystem);
+	if (m_sys_dll_response_system != nullptr)
+	{
+		UnloadEngineModule(m_sys_dll_response_system->GetString());
+	}
 
 #if defined(INCLUDE_SCALEFORM_SDK) || defined(CRY_FEATURE_SCALEFORM_HELPER)
 	if (m_env.pRenderer)
@@ -684,23 +709,34 @@ void CSystem::ShutDown()
 	SAFE_DELETE(m_env.pLiveCreateHost);
 	SAFE_DELETE(m_env.pLiveCreateManager);
 	SAFE_RELEASE(m_env.pHardwareMouse);
-	SAFE_RELEASE(m_env.pMovieSystem);
+	UnloadEngineModule("CryMovie");
 	SAFE_DELETE(m_env.pServiceNetwork);
-	SAFE_RELEASE(m_env.pAISystem);
-	SAFE_RELEASE(m_env.pCryFont);
-	SAFE_RELEASE(m_env.pNetwork);
-	SAFE_DELETE(m_env.pLobby);
+	UnloadEngineModule("CryAISystem");
+	UnloadEngineModule("CryFont");
+	UnloadEngineModule("CryNetwork");
+	UnloadEngineModule("CryLobby");
 	//	SAFE_RELEASE(m_env.pCharacterManager);
-	SAFE_RELEASE(m_env.p3DEngine); // depends on EntitySystem
-	SAFE_RELEASE(m_env.pEntitySystem);
-	SAFE_RELEASE(m_env.pPhysicalWorld);
+	UnloadEngineModule("CryAnimation");
+	UnloadEngineModule("Cry3DEngine"); // depends on EntitySystem
+	UnloadEngineModule("CrySchematyc");
+	UnloadEngineModule("CryEntitySystem");
+
+	SAFE_DELETE(m_pPhysRenderer); // Must be destroyed before unloading CryPhysics as it holds memory that was allocated by that module
+	UnloadEngineModule("CryPhysics");
 	if (m_env.pConsole)
 		((CXConsole*)m_env.pConsole)->FreeRenderResources();
 	SAFE_RELEASE(m_pIZLibCompressor);
 	SAFE_RELEASE(m_pIZLibDecompressor);
 	SAFE_RELEASE(m_pILZ4Decompressor);
 	SAFE_RELEASE(m_pIBudgetingSystem);
+
 	SAFE_RELEASE(m_env.pRenderer);
+
+	if (ICVar* pDriverCVar = m_env.pConsole->GetCVar("r_driver"))
+	{
+		const char* szRenderDriver = pDriverCVar->GetString();
+		CloseRenderLibrary(szRenderDriver);
+	}
 
 	SAFE_RELEASE(m_env.pCodeCheckpointMgr);
 
@@ -755,14 +791,13 @@ void CSystem::ShutDown()
 		m_env.pInput->ShutDown();
 		m_env.pInput = NULL;
 	}
+	UnloadEngineModule("CryInput");
 
 	SAFE_RELEASE(m_pNotificationNetwork);
-	SAFE_RELEASE(m_env.pScriptSystem);
+	UnloadEngineModule("CryScriptSystem");
 
 	SAFE_DELETE(m_pMemStats);
 	SAFE_DELETE(m_pSizer);
-
-	SAFE_DELETE(m_pPhysRenderer);
 
 	SAFE_DELETE(m_env.pOverloadSceneManager);
 
@@ -787,11 +822,11 @@ void CSystem::ShutDown()
 
 	SAFE_DELETE(m_pCpu);
 
-	delete m_pCmdLine;
-	m_pCmdLine = 0;
+	SAFE_DELETE(m_pCmdLine);
 
 	// Shut down audio as late as possible but before the streaming system and console get released!
 	SAFE_RELEASE(m_env.pAudioSystem);
+	UnloadEngineModule("CryAudioSystem");
 
 	SAFE_DELETE(m_pProjectManager);
 
@@ -839,7 +874,7 @@ void CSystem::Quit()
 	if (GetIRenderer())
 		GetIRenderer()->RestoreGamma();
 
-	if ((m_pCVarQuit && m_pCVarQuit->GetIVal() != 0) || m_bTestMode)
+	if (m_pCVarQuit && m_pCVarQuit->GetIVal() != 0)
 	{
 		// Dispatch the fast-shutdown event so other systems can do any last minute processing.
 		if (m_pSystemEventDispatcher != NULL)
@@ -902,6 +937,8 @@ void CSystem::Quit()
 #if CAPTURE_REPLAY_LOG
 		CryGetIMemReplay()->Stop();
 #endif
+
+		GetIRemoteConsole()->Stop();
 
 		//////////////////////////////////////////////////////////////////////////
 		// [marco] in test mode, kill the process and quit without performing full C libs cleanup
@@ -1306,7 +1343,8 @@ void CSystem::SleepIfNeeded()
 			currentTime = pTimer->GetAsyncTime().GetMicroSecondsAsInt64();
 		}
 
-		sTimeLast = pTimer->GetAsyncTime().GetMicroSecondsAsInt64() + safeMarginMS;
+		m_lastTickTime = pTimer->GetAsyncTime();
+		sTimeLast = m_lastTickTime.GetMicroSecondsAsInt64() + safeMarginMS;
 	}
 }
 
@@ -1426,6 +1464,11 @@ void CSystem::PrePhysicsUpdate()
 	//update entity system
 	if (m_env.pEntitySystem && g_cvars.sys_entitysystem)
 	{
+		if (gEnv->pSchematyc != nullptr)
+		{
+			gEnv->pSchematyc->PrePhysicsUpdate();
+		}
+
 		m_env.pEntitySystem->PrePhysicsUpdate();
 	}
 }
@@ -1743,28 +1786,14 @@ bool CSystem::Update(int updateFlags, int nPauseMode)
 		m_pNotificationNetwork->Update();
 	}
 #endif //EXCLUDE_UPDATE_ON_CONSOLE
-	//////////////////////////////////////////////////////////////////////
-	//update sound system Part 1 if in Editor / in Game Mode Viewsystem updates the Listeners
+
+	// When in Editor and outside of Game Mode we will need to update the listeners here.
+	// But when in Editor and in Game Mode the ViewSystem will update the listeners.
 	if (!m_env.IsEditorGameMode())
 	{
 		if ((updateFlags & ESYSUPDATE_EDITOR) != 0 && !bNoUpdate && nPauseMode != 1)
 		{
-			// updating the Listener Position in a first separate step.
-			// Updating all views here is a bit of a workaround, since we need
-			//	to ensure that sound listeners owned by inactive views are also
-			//	marked as inactive. Ideally that should happen when exiting game mode.
-
-			gEnv->pGameFramework->GetIViewSystem()->UpdateSoundListeners();
-
-			/*if (IView* const pActiveView = pIGameFramework->GetIViewSystem()->GetActiveView())
-			   {
-			   EntityId const nListenerID = pActiveView->GetSoundListenerID();
-
-			   if (nListenerID != INVALID_ENTITYID)
-			   {
-			    pIGameFramework->GetIViewSystem()->UpdateSoundListeners();
-			   }
-			   }*/
+			gEnv->pGameFramework->GetIViewSystem()->UpdateAudioListeners();
 		}
 	}
 
@@ -2068,7 +2097,18 @@ bool CSystem::Update(int updateFlags, int nPauseMode)
 	}
 #endif
 
+	//////////////////////////////////////////////////////////////////////////
+	//update stats agent
+#ifdef ENABLE_STATS_AGENT
+	CStatsAgent::Update();
+#endif // #ifdef ENABLE_STATS_AGENT
+
 	m_pSystemEventDispatcher->Update();
+
+	if (gEnv->pSchematyc != nullptr)
+	{
+		gEnv->pSchematyc->Update();
+	}
 
 	if (m_pPluginManager)
 	{
@@ -2606,11 +2646,8 @@ void CSystem::debug_GetCallStackRaw(void** callstack, uint32& callstackLength)
 void CSystem::ApplicationTest(const char* szParam)
 {
 	assert(szParam);
-
-	if (!m_pTestSystem)
-		m_pTestSystem = new CTestSystemLegacy;
-
-	m_pTestSystem->ApplicationTest(szParam);
+	if (m_pTestSystem)
+		m_pTestSystem->ApplicationTest(szParam);
 }
 
 void CSystem::ExecuteCommandLine()
@@ -2954,11 +2991,7 @@ void CSystem::OnLanguageAudioCVarChanged(ICVar* const pLanguageAudio)
 
 			if (gEnv->pAudioSystem != nullptr)
 			{
-				SAudioRequest audioRequest;
-				audioRequest.flags = eAudioRequestFlags_PriorityHigh | eAudioRequestFlags_ExecuteBlocking;
-				SAudioManagerRequestData<eAudioManagerRequestType_ChangeLanguage> requestData;
-				audioRequest.pData = &requestData;
-				gEnv->pAudioSystem->PushRequest(audioRequest);
+				gEnv->pAudioSystem->OnLanguageChanged();
 			}
 		}
 	}

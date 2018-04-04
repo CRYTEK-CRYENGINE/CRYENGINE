@@ -1,27 +1,16 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
-// -------------------------------------------------------------------------
-//  File name:
-//  Version:     v1.00
-//  Created:     08/05/2015 by Jan Pinter
-//  Description:
-// -------------------------------------------------------------------------
-//  History:
-//
-////////////////////////////////////////////////////////////////////////////
 #pragma once
-#ifndef __DX12DEVICE__
-	#define __DX12DEVICE__
 
-	#include "DX12CommandList.hpp"
-	#include "DX12DataStreamer.hpp"
+#include "DX12CommandList.hpp"
+#include "DX12CommandScheduler.hpp"
 
 namespace NCryDX12 {
 
 class CDevice : public CRefCounted
 {
 public:
-	static CDevice*                  Create(IDXGIAdapter* adapter, D3D_FEATURE_LEVEL* pFeatureLevel);
+	static CDevice*                  Create(CCryDX12GIAdapter* adapter, D3D_FEATURE_LEVEL* pFeatureLevel);
 
 	ILINE ID3D12Device*              GetD3D12Device() const        { return /*PassAddRef*/ (m_pDevice); }
 
@@ -31,33 +20,19 @@ public:
 	ILINE CRootSignatureCache&       GetRootSignatureCache()       { return m_RootSignatureCache; }
 	ILINE const CRootSignatureCache& GetRootSignatureCache() const { return m_RootSignatureCache; }
 
-	ILINE CDataStreamer&             GetDataStreamer()             { return m_DataStreamer; }
-	ILINE const CDataStreamer&       GetDataStreamer() const       { return m_DataStreamer; }
-
 	// TODO: Move this outside
 	void RequestUploadHeapMemory(UINT64 size, DX12_PTR(ID3D12Resource) & result);
 
-	CDescriptorBlock GetGlobalDescriptorBlock(D3D12_DESCRIPTOR_HEAP_TYPE eType, UINT size);
-
-	#ifdef CRY_USE_DX12_MULTIADAPTER
+	#ifdef DX12_LINKEDADAPTER
 	bool                      IsMultiAdapter() const;
 
 	ID3D12CommandQueue*       GetNativeObject(ID3D12CommandQueue* pQueue, UINT node) const;
 	ID3D12Resource*           CreateBroadcastObject(ID3D12Resource** pResources) const;
 
 	bool                      WaitForCompletion(ID3D12Fence* pFence, UINT64 fenceValue) const;
-
-	HRESULT STDMETHODCALLTYPE DuplicateNativeCommittedResource(
-	  _In_ UINT creationMask,
-	  _In_ UINT visibilityMask,
-	  _In_ ID3D12Resource* pInputResource,
-	  _Out_ ID3D12Resource** ppOutputResource);
 	#endif
 
-	HRESULT STDMETHODCALLTYPE DuplicateCommittedResource(
-		_In_ ID3D12Resource* pInputResource,
-		_In_ D3D12_RESOURCE_STATES OutputState,
-		_Out_ ID3D12Resource** ppOutputResource);
+	CDescriptorBlock GetGlobalDescriptorBlock(D3D12_DESCRIPTOR_HEAP_TYPE eType, UINT size);
 
 protected:
 	CDevice(ID3D12Device* d3d12Device, D3D_FEATURE_LEVEL featureLevel, UINT nodeCount, UINT nodeMask);
@@ -66,18 +41,20 @@ protected:
 
 private:
 	DX12_PTR(ID3D12Device) m_pDevice;
-	D3D_FEATURE_LEVEL   m_featureLevel;
-	UINT                m_nodeCount;
-	UINT                m_nodeMask;
+	D3D_FEATURE_LEVEL      m_featureLevel;
+	UINT                   m_nodeCount;
+	UINT                   m_nodeMask;
 
-	CPSOCache           m_PSOCache;
-	CRootSignatureCache m_RootSignatureCache;
-	CDataStreamer       m_DataStreamer;
+	CPSOCache              m_PSOCache;
+	CRootSignatureCache    m_RootSignatureCache;
 
 public:
+	HRESULT                     CheckFeatureSupport(D3D12_FEATURE Feature, void *pFeatureSupportData, UINT FeatureSupportDataSize) { m_pDevice->CheckFeatureSupport(Feature, pFeatureSupportData, FeatureSupportDataSize); }
 	D3D_FEATURE_LEVEL           GetFeatureLevel() const { return m_featureLevel; }
 	UINT                        GetNodeCount() const    { return m_nodeCount; }
 	UINT                        GetNodeMask() const     { return m_nodeMask; }
+
+	CCommandScheduler&          GetScheduler() { return m_Scheduler; }
 
 	D3D12_CPU_DESCRIPTOR_HANDLE CacheSampler(const D3D12_SAMPLER_DESC* pDesc) threadsafe;
 	D3D12_CPU_DESCRIPTOR_HANDLE CacheShaderResourceView(const D3D12_SHADER_RESOURCE_VIEW_DESC* pDesc, ID3D12Resource* pResource) threadsafe;
@@ -97,30 +74,50 @@ public:
 	void                        InvalidateDepthStencilView(const D3D12_DEPTH_STENCIL_VIEW_DESC* pDesc, ID3D12Resource* pResource) threadsafe;
 	void                        InvalidateRenderTargetView(const D3D12_RENDER_TARGET_VIEW_DESC* pDesc, ID3D12Resource* pResource) threadsafe;
 
-	const CDescriptorHeap&    GetSamplerCacheHeap() threadsafe_const         { return m_SamplerCache; }
-	const CDescriptorHeap&    GetShaderResourceCacheHeap() threadsafe_const  { return m_ShaderResourceDescriptorCache; }
-	const CDescriptorHeap&    GetUnorderedAccessCacheHeap() threadsafe_const { return m_UnorderedAccessDescriptorCache; }
-	const CDescriptorHeap&    GetDepthStencilCacheHeap() threadsafe_const    { return m_DepthStencilDescriptorCache; }
-	const CDescriptorHeap&    GetRenderTargetCacheHeap() threadsafe_const    { return m_RenderTargetDescriptorCache; }
+	const CDescriptorHeap&      GetSamplerCacheHeap() threadsafe_const         { return m_SamplerCache; }
+	const CDescriptorHeap&      GetShaderResourceCacheHeap() threadsafe_const  { return m_ShaderResourceDescriptorCache; }
+	const CDescriptorHeap&      GetUnorderedAccessCacheHeap() threadsafe_const { return m_UnorderedAccessDescriptorCache; }
+	const CDescriptorHeap&      GetDepthStencilCacheHeap() threadsafe_const    { return m_DepthStencilDescriptorCache; }
+	const CDescriptorHeap&      GetRenderTargetCacheHeap() threadsafe_const    { return m_RenderTargetDescriptorCache; }
 
-	CDescriptorBlock          GetResourceDescriptorScratchSpace()            { return CDescriptorBlock(&m_ResourceDescriptorScratchSpace, 0, m_ResourceDescriptorScratchSpace.GetCapacity()); }
+	CDescriptorBlock            GetResourceDescriptorScratchSpace()            { return CDescriptorBlock(&m_ResourceDescriptorScratchSpace, 0, m_ResourceDescriptorScratchSpace.GetCapacity()); }
+
+#ifdef DX12_LINKEDADAPTER
+	HRESULT STDMETHODCALLTYPE DuplicateNativeCommittedResource(
+		_In_ UINT creationMask,
+		_In_ UINT visibilityMask,
+		_In_ ID3D12Resource* pInputResource,
+		_Out_ ID3D12Resource** ppOutputResource);
+#endif
+
+	HRESULT STDMETHODCALLTYPE DuplicateCommittedResource(
+		_In_ ID3D12Resource* pInputResource,
+		_In_ D3D12_RESOURCE_STATES OutputState,
+		_Out_ ID3D12Resource** ppOutputResource) threadsafe;
+
+	HRESULT STDMETHODCALLTYPE SubstituteUsedCommittedResource(
+		_In_ const FVAL64(&fenceValues)[CMDQUEUE_NUM],
+		_In_ D3D12_RESOURCE_STATES OutputState,
+		_Inout_ ID3D12Resource** ppSubstituteResource) threadsafe;
 
 	HRESULT STDMETHODCALLTYPE CreateOrReuseStagingResource(
-	  _In_ ID3D12Resource* pInputResource,
-	  _Out_ ID3D12Resource** ppStagingResource,
-	  _In_ BOOL Upload);
+		_In_ ID3D12Resource* pInputResource,
+		_Out_ ID3D12Resource** ppStagingResource,
+		_In_ BOOL Upload) threadsafe;
 
 	HRESULT STDMETHODCALLTYPE CreateOrReuseCommittedResource(
-	  _In_ const D3D12_HEAP_PROPERTIES* pHeapProperties,
-	  D3D12_HEAP_FLAGS HeapFlags,
-	  _In_ const D3D12_RESOURCE_DESC* pResourceDesc,
-	  D3D12_RESOURCE_STATES InitialResourceState,
-	  _In_opt_ const D3D12_CLEAR_VALUE* pOptimizedClearValue,
-	  REFIID riidResource,
-	  _COM_Outptr_opt_ void** ppvResource);
+		_In_ const D3D12_HEAP_PROPERTIES* pHeapProperties,
+		_In_ D3D12_HEAP_FLAGS HeapFlags,
+		_In_ const D3D12_RESOURCE_DESC* pResourceDesc,
+		_In_ D3D12_RESOURCE_STATES InitialResourceState,
+		_In_opt_ const D3D12_CLEAR_VALUE* pOptimizedClearValue,
+		_In_ REFIID riidResource,
+		_COM_Outptr_opt_ void** ppvResource) threadsafe;
 
-	void FlushReleaseHeap(const UINT64 (&completedFenceValues)[CMDQUEUE_NUM], const UINT64 (&pruneFenceValues)[CMDQUEUE_NUM]);
-	void ReleaseLater(const FVAL64 (&fenceValues)[CMDQUEUE_NUM], ID3D12Resource* pObject, bool bReusable = true);
+	void FlushReleaseHeap(const UINT64 (&completedFenceValues)[CMDQUEUE_NUM], const UINT64 (&pruneFenceValues)[CMDQUEUE_NUM]) threadsafe;
+	void ReleaseLater(const FVAL64 (&fenceValues)[CMDQUEUE_NUM], ID3D12Resource* pObject, bool bReusable = true) threadsafe;
+
+	void FlushAndWaitForGPU();
 
 private:
 	CDescriptorHeap m_SamplerCache;
@@ -156,6 +153,9 @@ private:
 	static CryCriticalSectionNonRecursive                  m_DescriptorAllocatorTheadSafeScope;
 
 	// Objects that should be released when they are not in use anymore
+	static CryCriticalSectionNonRecursive                  m_ReleaseHeapTheadSafeScope;
+	static CryCriticalSectionNonRecursive                  m_RecycleHeapTheadSafeScope;
+
 	struct ReleaseInfo
 	{
 		THash  hHash;
@@ -163,19 +163,19 @@ private:
 		UINT64 fenceValues[CMDQUEUE_NUM];
 	};
 
-	struct ReuseInfo
+	struct RecycleInfo
 	{
 		ID3D12Resource* pObject;
 		UINT64          fenceValues[CMDQUEUE_NUM];
 	};
 
 	typedef std::unordered_map<ID3D12Resource*, ReleaseInfo> TReleaseHeap;
-	typedef std::unordered_multimap<THash, ReuseInfo>        TReuseHeap;
+	typedef std::unordered_multimap<THash, RecycleInfo>      TRecycleHeap;
 
 	TReleaseHeap m_ReleaseHeap;
-	TReuseHeap   m_ReuseHeap;
+	TRecycleHeap m_RecycleHeap;
+
+	CCommandScheduler m_Scheduler;
 };
 
 }
-
-#endif // __DX12DEVICE__

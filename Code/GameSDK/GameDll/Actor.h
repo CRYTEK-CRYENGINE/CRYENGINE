@@ -522,7 +522,7 @@ public:
 	// IEntityEvent
 	virtual uint64 GetEventMask() const override { return (~0); } // Actors receive all entity events
 	virtual	void ProcessEvent( SEntityEvent &event ) override;
-	virtual IEntityComponent::ComponentEventPriority GetEventPriority( const int eventID ) const override;
+	virtual IEntityComponent::ComponentEventPriority GetEventPriority() const override;
 	// ~IEntityEvent
 
 	// IActor

@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 // ------------------------------------------------------------------------
 //  File name:   GeomCacheRenderNode.cpp
@@ -276,13 +276,13 @@ void CGeomCacheRenderNode::Render(const struct SRendParams& rendParams, const SR
 										{
 											uint8 hashableData[] =
 											{
-												0,                                                                 0,          0, 0, 0, 0, 0, 0,
+												0, 0, 0, 0, 0, 0, 0, 0,  //this part will be filled with the address of pCREGeomCache
 												(uint8)std::distance(pCREGeomCache->GetMeshFillDataPtr()->begin(), &meshData),
 												(uint8)std::distance(meshData.m_pRenderMesh->GetChunks().begin(),  &chunk),
 												(uint8)std::distance(meshData.m_instances.begin(),                 &instance)
 											};
 
-											memcpy(hashableData, pCREGeomCache, sizeof(pCREGeomCache));
+											memcpy(hashableData, &pCREGeomCache, sizeof(CREGeomCache*)); //copy the address of the pCREGeomCache into our hash-data-object
 											pRenderObjData->m_uniqueObjectId = static_cast<uintptr_t>(XXH64(hashableData, sizeof(hashableData), 0)) + reinterpret_cast<uintptr_t>(this);
 
 											pCREGeomCache->SetupMotionBlur(pInstanceRenderObject, passInfo);
@@ -972,7 +972,7 @@ _smart_ptr<IRenderMesh> CGeomCacheRenderNode::SetupDynamicRenderMesh(SGeomCacheR
 	}
 
 	_smart_ptr<IRenderMesh> pRenderMesh = gEnv->pRenderer->CreateRenderMeshInitialized(NULL, meshData.m_numVertices,
-	                                                                                   eVF_P3F_C4B_T2F, NULL, numIndices, prtTriangleList,
+	                                                                                   EDefaultInputLayouts::P3F_C4B_T2F, NULL, numIndices, prtTriangleList,
 	                                                                                   "GeomCacheDynamicMesh", m_pGeomCache->GetFilePath(), eRMT_Dynamic);
 
 	pRenderMesh->LockForThreadAccess();

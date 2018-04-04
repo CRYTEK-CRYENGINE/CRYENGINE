@@ -67,12 +67,6 @@ void CChickenFlock::CreateBoids( SBoidsCreateContext &ctx )
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CChickenFlock::OnAIEvent(EAIStimulusType type, const Vec3& pos, float radius, float threat, EntityId sender)
-{
-	CFlock::OnAIEvent(type,pos,radius,threat,sender);
-}
-
-//////////////////////////////////////////////////////////////////////////
 CChickenBoid::CChickenBoid(SBoidContext &bc)
 	: CBoidBird(bc)
 	, m_lastRayCastFrame(0)

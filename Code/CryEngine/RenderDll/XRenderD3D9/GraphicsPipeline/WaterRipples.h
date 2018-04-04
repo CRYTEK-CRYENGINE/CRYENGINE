@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #pragma once
 
@@ -22,6 +22,8 @@ public:
 		return m_lookupParam;
 	}
 
+	CTexture* GetWaterRippleTex() const;
+
 	bool IsVisible(CRenderView* pRenderView) const;
 
 private:
@@ -30,10 +32,11 @@ private:
 	void UpdateAndDrawDebugInfo(CRenderView* pRenderView);
 
 private:
-	static const int32         sVertexCount = 4;
-	static const int32         sTotalVertexCount = sVertexCount * SWaterRippleInfo::MaxWaterRipplesInScene;
-	static const EVertexFormat sVertexFormat = eVF_P3F_C4B_T2F;
-	static const size_t        sVertexStride = sizeof(SVF_P3F_C4B_T2F);
+	static const int32                         sVertexCount = 4;
+	static const int32                         sTotalVertexCount = sVertexCount * SWaterRippleInfo::MaxWaterRipplesInScene;
+	static const EDefaultInputLayouts::PreDefs sVertexFormat = EDefaultInputLayouts::P3F_C4B_T2F;
+	static const size_t                        sVertexStride = sizeof(SVF_P3F_C4B_T2F);
+
 	typedef SVF_P3F_C4B_T2F SVertex;
 
 	struct SWaterRippleRecord
@@ -48,7 +51,11 @@ private:
 	};
 
 private:
+	_smart_ptr<CTexture>          m_pTexWaterRipplesDDN; // xy: wave propagation normals, z: frame t-2, w: frame t-1
+	_smart_ptr<CTexture>          m_pTempTexture;
+
 	CFullscreenPass               m_passSnapToCenter;
+	CStretchRectPass              m_passCopy;
 	CFullscreenPass               m_passWaterWavePropagation;
 	CPrimitiveRenderPass          m_passAddWaterRipples;
 	CMipmapGenPass                m_passMipmapGen;
@@ -56,16 +63,16 @@ private:
 	CRenderPrimitive              m_ripplePrimitive[SWaterRippleInfo::MaxWaterRipplesInScene];
 	buffer_handle_t               m_vertexBuffer; // stored all ripples' vertices.
 
-	CTexture*                     m_pTempTexture;
+	SResourceRegionMapping        m_TempCopyParams;
 
 	ICVar*                        m_pCVarWaterRipplesDebug;
 
 	CCryNameTSCRC                 m_ripplesGenTechName;
 	CCryNameTSCRC                 m_ripplesHitTechName;
 	CCryNameR                     m_ripplesParamName;
+	CCryNameR                     m_ripplesTransformParamName;
 
 	int32                         m_frameID;
-	int32                         m_samplerLinearClamp;
 
 	float                         m_lastSpawnTime;
 	float                         m_lastUpdateTime;

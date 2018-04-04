@@ -4,11 +4,11 @@
 
 // *INDENT-OFF* - <hard to read code and declarations due to inconsistent indentation>
 
-namespace uqs
+namespace UQS
 {
-	namespace client
+	namespace Client
 	{
-		namespace internal
+		namespace Internal
 		{
 
 			//===================================================================================
@@ -35,45 +35,32 @@ namespace uqs
 				virtual bool             ValidateDynamic(const SValidationContext& validationContext) const override;
 
 			private:
-				string                   m_literalAsString;       // for validation error message
 				TLiteral                 m_literal;
-				bool                     m_parsedSuccessfully;
 			};
 
 			template <class TLiteral>
 			CFunc_Literal<TLiteral>::CFunc_Literal(const SCtorContext& ctorContext)
 				: BaseClass(ctorContext)
-				, m_literalAsString(ctorContext.optionalReturnValueForLeafFunctions)
-				, m_parsedSuccessfully(false)
 			{
-				const IItemFactory* pItemFactory = BaseClass::GetItemFactoryOfReturnType(); // need "BaseClass::" (or "this->") to make it a dependant expression, otherwise gcc/orbis will complain about use of undeclared identifier
-				assert(pItemFactory != nullptr);
-				if (pItemFactory != nullptr)
-				{
-					core::IItemSerializationSupport& itemSerializationSupport = core::IHubPlugin::GetHub().GetItemSerializationSupport();
-					shared::IUqsString* pErrorMessage = nullptr;
-					m_parsedSuccessfully = itemSerializationSupport.DeserializeItemFromCStringLiteral(&m_literal, *pItemFactory, m_literalAsString.c_str(), pErrorMessage);
-				}
+				assert(ctorContext.pOptionalReturnValueInCaseOfLeafFunction);
+
+				const Core::ILeafFunctionReturnValue::SLiteralInfo literalInfo = ctorContext.pOptionalReturnValueInCaseOfLeafFunction->GetLiteral(ctorContext.blackboard);
+
+				// if this fails then something might have gone wrong in CInputBlueprint::Resolve()
+				assert(literalInfo.type == Shared::SDataTypeHelper<TLiteral>::GetTypeInfo());
+
+				m_literal = *static_cast<const TLiteral*>(literalInfo.pValue);
 			}
 
 			template <class TLiteral>
 			bool CFunc_Literal<TLiteral>::ValidateDynamic(const SValidationContext& validationContext) const
 			{
-				if (m_parsedSuccessfully)
-				{
-					return true;
-				}
-				else
-				{
-					validationContext.error.Format("%s: could not parse '%s' into a %s", validationContext.nameOfFunctionBeingValidated, m_literalAsString.c_str(), shared::SDataTypeHelper<TLiteral>::GetTypeInfo().name());
-					return false;
-				}
+				return true;
 			}
 
 			template <class TLiteral>
 			TLiteral CFunc_Literal<TLiteral>::DoExecute(const SExecuteContext& executeContext) const
 			{
-				assert(m_parsedSuccessfully);
 				return m_literal;
 			}
 

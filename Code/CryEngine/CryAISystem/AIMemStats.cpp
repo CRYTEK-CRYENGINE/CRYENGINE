@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #include "StdAfx.h"
 #include <CryMemory/CrySizer.h>
@@ -10,7 +10,6 @@
 #include "GoalOp.h"
 #include "AStarSolver.h"
 #include "WorldOctree.h"
-#include "PerceptionManager.h"
 #include "ObjectContainer.h"
 #include "Navigation/NavigationSystem/NavigationSystem.h"
 
@@ -105,11 +104,6 @@ void CAISystem::GetMemoryStatistics(ICrySizer* pSizer)
 			size += (gItr->second)->MemStats() + sizeof(*(gItr->second));
 		}
 		pSizer->AddObject(&m_PipeManager.m_mapGoals, size);
-	}
-
-	{
-		SIZER_SUBCOMPONENT_NAME(pSizer, "PerceptionManager");
-		pSizer->AddObject(gAIEnv.pPerceptionManager, sizeof(*gAIEnv.pPerceptionManager));
 	}
 
 	{

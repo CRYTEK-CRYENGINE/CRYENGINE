@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 /********************************************************************
    -------------------------------------------------------------------------
@@ -53,13 +53,13 @@ void CCodeCoverageGUI::Reset(IAISystem::EResetReason reason)
 
 		SAFE_RELEASE(m_pTex);
 		CDebugDrawContext dc;
-		m_pTex = dc->LoadTexture("EngineAssets/CodeCoverage/pbar.dds", 0);
+		m_pTex = dc->LoadTexture("%ENGINE%/EngineAssets/CodeCoverage/pbar.dds", 0);
 
 		SAFE_RELEASE(m_pTexHit);
-		m_pTexHit = dc->LoadTexture("EngineAssets/CodeCoverage/hit.dds", 0);
+		m_pTexHit = dc->LoadTexture("%ENGINE%/EngineAssets/CodeCoverage/hit.dds", 0);
 
 		SAFE_RELEASE(m_pTexUnexpected);
-		m_pTexUnexpected = dc->LoadTexture("EngineAssets/CodeCoverage/unexpected.dds", 0);
+		m_pTexUnexpected = dc->LoadTexture("%ENGINE%/EngineAssets/CodeCoverage/unexpected.dds", 0);
 	}
 	else if ((reason == IAISystem::RESET_EXIT_GAME) || (reason == IAISystem::RESET_UNLOAD_LEVEL))
 	{

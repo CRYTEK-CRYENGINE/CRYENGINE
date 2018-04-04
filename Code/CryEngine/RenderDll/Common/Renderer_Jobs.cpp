@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 //
 //	File:Renderer.cpp
@@ -259,6 +259,7 @@ void CRenderer::EF_AddEf_NotVirtual(CRenderElement* re, SShaderItem& SH, CRender
 	nList = (nBatchFlags & FB_SKIN) ? EFSLIST_SKIN : nList;
 	nList = (nBatchFlags & FB_EYE_OVERLAY) ? EFSLIST_EYE_OVERLAY : nList;
 
+	const EShaderDrawType shaderDrawType = pSH->m_eSHDType;
 	const uint32 nShaderFlags2 = pSH->m_Flags2;
 	const uint64 ObjDecalFlag = obj->m_ObjFlags & FOB_DECAL;
 
@@ -274,6 +275,7 @@ void CRenderer::EF_AddEf_NotVirtual(CRenderElement* re, SShaderItem& SH, CRender
 
 		//SShaderTechnique *pTech = SH.GetTechnique();
 		//if (pTech && pTech->m_nTechnique[TTYPE_Z] > 0 && ((nShaderFlags2 & EF2_FORCE_ZPASS) || CV_r_deferredshading)) // deferred shading always enabled
+		if (nShaderFlags & EF_SUPPORTSDEFERREDSHADING_FULL)
 		{
 			nBatchFlags |= FB_Z;
 		}
@@ -366,9 +368,11 @@ void CRenderer::EF_AddEf_NotVirtual(CRenderElement* re, SShaderItem& SH, CRender
 	// No need to sort opaque passes by water/after water. Ensure always on same list for more coherent sorting
 	nAW |= nz2one((nList == EFSLIST_GENERAL) | (nList == EFSLIST_TERRAINLAYER) | (nList == EFSLIST_DECAL));
 
+#ifndef _RELEASE
+	nList = (shaderDrawType == eSHDT_DebugHelper) ? EFSLIST_DEBUG_HELPER : nList;
+#endif
+
 	passInfo.GetRenderView()->AddRenderItem(re, obj, SH, nList, nBatchFlags, passInfo.GetRendItemSorter(), false, passInfo.IsAuxWindow());
-
-
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -421,7 +425,7 @@ uint32 CRenderer::EF_BatchFlags(SShaderItem& SH, CRenderObject* pObj, CRenderEle
 	CShader* const __restrict pS = (CShader*)SH.m_pShader;
 
 	float fAlpha = pObj->m_fAlpha;
-	uint32 uTransparent = (bool)(fAlpha < 1.0f);
+	uint32 uTransparent = 0; //(bool)(fAlpha < 1.0f); Not supported in new rendering pipeline 
 	const uint64 ObjFlags = pObj->m_ObjFlags;
 
 	if (!passInfo.IsRecursivePass() && pTech)

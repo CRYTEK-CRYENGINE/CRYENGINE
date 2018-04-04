@@ -40,16 +40,12 @@ public:
 
 	uint64 HasPhysProxies(const FbxTool::SNode* pFbxNode) const;
 
-	void WriteAutoGenProxies(const QString& cgfName);
-
 	CCrySignal<void(SPhysProxies*)> signalPhysProxiesCreated;
 	CCrySignal<void(SPhysProxies*, phys_geometry*)> signalPhysGeometryCreated;
 	CCrySignal<void(phys_geometry* pOld, phys_geometry* pNew)> signalPhysGeometryAboutToBeReused;
 	CCrySignal<void(SPhysProxies*)> signalPhysProxiesAboutToBeRemoved;
 	CCrySignal<void(phys_geometry*)> signalPhysGeometryAboutToBeRemoved;
 private:
-	IStatObj* SaveProxies(IStatObj* pStatObj, const FbxTool::SNode* pFbxNode, int& nProxies, int slotParent = 0);
-
 	const FbxTool::CScene* m_pFbxScene;
 
 	std::vector<std::unique_ptr<SPhysProxies>> m_physProxies;

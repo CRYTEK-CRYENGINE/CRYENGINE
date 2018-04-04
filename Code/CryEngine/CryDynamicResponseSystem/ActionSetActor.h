@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 /************************************************************************
 
@@ -22,7 +22,6 @@ class CActionSetActor final : public DRS::IResponseAction
 public:
 	CActionSetActor() : m_newResponderName() {}
 	CActionSetActor(const CHashedString& responderName, CVariableCollection* pUsedCollection) : m_newResponderName(responderName) {}
-	virtual ~CActionSetActor() {}
 
 	//////////////////////////////////////////////////////////
 	// IResponseAction implementation

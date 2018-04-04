@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #include "stdafx.h"
 
@@ -589,7 +589,7 @@ _smart_ptr<IRenderMesh> CAttachmentVCLOTH::CreateVertexAnimationRenderMesh(uint 
 	m_pRenderMeshsSW[id] = g_pIRenderer->CreateRenderMeshInitialized(
 		NULL
 		, pIStaticRenderMesh->GetVerticesCount()
-		, eVF_P3F_C4B_T2F
+		, EDefaultInputLayouts::P3F_C4B_T2F
 		, NULL
 		, pIStaticRenderMesh->GetIndicesCount()
 		, prtTriangleList

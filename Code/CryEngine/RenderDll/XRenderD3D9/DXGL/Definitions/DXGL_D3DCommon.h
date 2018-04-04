@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 // -------------------------------------------------------------------------
 //  File name:   DXGL_D3DCommon.h
@@ -33,7 +33,10 @@ typedef
 	D3D_FEATURE_LEVEL_9_3  = 0x9300,
 	D3D_FEATURE_LEVEL_10_0 = 0xa000,
 	D3D_FEATURE_LEVEL_10_1 = 0xa100,
-	D3D_FEATURE_LEVEL_11_0 = 0xb000
+	D3D_FEATURE_LEVEL_11_0 = 0xb000,
+	D3D_FEATURE_LEVEL_11_1 = 0xb100,
+	D3D_FEATURE_LEVEL_12_0 = 0xc000,
+	D3D_FEATURE_LEVEL_12_1 = 0xc100
 }   D3D_FEATURE_LEVEL;
 
 typedef

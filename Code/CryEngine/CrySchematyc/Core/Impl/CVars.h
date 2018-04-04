@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #pragma once
 
@@ -18,6 +18,8 @@ struct CVars
 
 	static int    sc_RunUnitTests;
 	static ICVar* sc_ExperimentalFeatures;
+
+	static int sc_allowFlowGraphNodes;
 
 	static void               Register();
 	static void               Unregister();

@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 // -------------------------------------------------------------------------
 //  File name:   GLPlatform.hpp
@@ -28,7 +28,7 @@ enum ELogSeverity
 
 #define CUSTOM_SCOPED_PROFILE(_Name)
 
-#if defined(OPENGL)
+#if 1 // CRY_RENDERER_OPENGL
 	#include "GLCryPlatform.hpp"
 #elif CRY_PLATFORM_WINDOWS
 	#include "../Standalone/GLWinPlatform.hpp"

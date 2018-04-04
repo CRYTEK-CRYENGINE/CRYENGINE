@@ -5,9 +5,9 @@
 
 // *INDENT-OFF* - <hard to read code and declarations due to inconsistent indentation>
 
-namespace uqs
+namespace UQS
 {
-	namespace shared
+	namespace Shared
 	{
 
 		CVariantDict::SDataEntry::SDataEntry()
@@ -27,53 +27,65 @@ namespace uqs
 			Clear();
 		}
 
-		void CVariantDict::__AddOrReplace(const char* key, client::IItemFactory& itemFactory, void* pObject)
+		void CVariantDict::AddOrReplace(const char* szKey, Client::IItemFactory& itemFactory, const void* pItemToClone)
 		{
-			SDataEntry& entry = m_dataItems[key];
+			assert(pItemToClone);
+
+			SDataEntry& entry = m_dataItems[szKey];
 
 			assert((entry.pItemFactory && entry.pObject) || (!entry.pItemFactory && !entry.pObject));
 
-			if(entry.pItemFactory)
+			// same item-factory as before? -> just change the object's value
+			if (entry.pItemFactory && entry.pItemFactory == &itemFactory)
 			{
-				entry.pItemFactory->DestroyItems(entry.pObject);
+				entry.pItemFactory->CopyItem(entry.pObject, pItemToClone);
 			}
+			else
+			{
+				// we're about to get a different item-factory, so get rid of the old potential object beforehand
+				if (entry.pItemFactory)
+				{
+					entry.pItemFactory->DestroyItems(entry.pObject);
+				}
 
-			entry.pItemFactory = &itemFactory;
-			entry.pObject = pObject;
+				entry.pObject = itemFactory.CloneItem(pItemToClone);
+				entry.pItemFactory = &itemFactory;
+			}
 		}
 
 		void CVariantDict::AddSelfToOtherAndReplace(IVariantDict& out) const
 		{
+			assert(this != &out);
+
 			for (const auto& pair : m_dataItems)
 			{
-				const char* key = pair.first.c_str();
+				const char* szKey = pair.first.c_str();
 				const SDataEntry& entry = pair.second;
 
 				assert(entry.pItemFactory && entry.pObject);
 
-				void* clonedSingleObject = entry.pItemFactory->CloneItem(entry.pObject);
-				out.__AddOrReplace(key, *entry.pItemFactory, clonedSingleObject);
+				out.AddOrReplace(szKey, *entry.pItemFactory, entry.pObject);
 			}
 		}
 
-		bool CVariantDict::Exists(const char* key) const
+		bool CVariantDict::Exists(const char* szKey) const
 		{
-			return (m_dataItems.find(key) != m_dataItems.cend());
+			return (m_dataItems.find(szKey) != m_dataItems.cend());
 		}
 
-		client::IItemFactory* CVariantDict::FindItemFactory(const char* key) const
+		Client::IItemFactory* CVariantDict::FindItemFactory(const char* szKey) const
 		{
-			auto it = m_dataItems.find(key);
+			auto it = m_dataItems.find(szKey);
 			return (it == m_dataItems.cend()) ? nullptr : it->second.pItemFactory;
 		}
 
-		bool CVariantDict::FindItemFactoryAndObject(const char* key, client::IItemFactory* &outItemItemFactory, void* &outObject) const
+		bool CVariantDict::FindItemFactoryAndObject(const char* szKey, Client::IItemFactory* &pOutItemItemFactory, void* &pOutObject) const
 		{
-			auto it = m_dataItems.find(key);
+			auto it = m_dataItems.find(szKey);
 			if (it != m_dataItems.cend())
 			{
-				outItemItemFactory = it->second.pItemFactory;
-				outObject = it->second.pObject;
+				pOutItemItemFactory = it->second.pItemFactory;
+				pOutObject = it->second.pObject;
 				return true;
 			}
 			else

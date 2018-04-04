@@ -699,6 +699,11 @@ public:
 		return m_materials[i];
 	}
 
+	const CMaterialCGF* GetMaterial(int i) const
+	{
+		return m_materials[i];
+	}
+
 	void ClearMaterials()
 	{
 		m_materials.clear();

@@ -36,7 +36,7 @@ HS_CONTROL_POINT_OUTPUT_ILLUM SkinHS(InputPatch<vert2FragGeneral, 3> inputPatch,
 #if %_RT_FOG ||%_RT_DECAL_TEXGEN_2D
 	output.Ambient                 = inputPatch[uCPID].Ambient;
 #endif
-#if %_RT_FOG
+#if %_RT_FOG || %_RT_PER_INSTANCE_CB_TEMP
 	output.vTangent                = inputPatch[uCPID].vTangent;
 	output.vBinormal               = inputPatch[uCPID].vBinormal;
 #endif
@@ -57,7 +57,7 @@ void FillEvalInput(in const OutputPatch<HS_CONTROL_POINT_OUTPUT_ILLUM, 3> triPat
 	evalInput.vBaryCoords = vBaryCoords;
 	FillEvalInputControlPoint(triPatch[0].controlPoint, triPatch[1].controlPoint, triPatch[2].controlPoint, hsConstData, evalInput);
 	evalInput.bRelativePos = true;
-#if %_RT_FOG
+#if %_RT_FOG || %_RT_PER_INSTANCE_CB_TEMP
 	FillEvalInputTangentBinormal(triPatch[0].vTangent, triPatch[1].vTangent, triPatch[2].vTangent, triPatch[0].vBinormal, triPatch[1].vBinormal, triPatch[2].vBinormal, evalInput);
 #endif
 	evalInput.vViewPos = vWorldViewPos;
@@ -65,7 +65,7 @@ void FillEvalInput(in const OutputPatch<HS_CONTROL_POINT_OUTPUT_ILLUM, 3> triPat
 
 void ProcessEvalOutput(in CommonEvaluationOutputDS evalOutput, inout vert2FragGeneral dsOutput)
 {
-#if %_RT_FOG
+#if %_RT_FOG || %_RT_PER_INSTANCE_CB_TEMP
 	dsOutput.vTangent = evalOutput.vTangent;
 	dsOutput.vBinormal = evalOutput.vBinormal;
 #endif

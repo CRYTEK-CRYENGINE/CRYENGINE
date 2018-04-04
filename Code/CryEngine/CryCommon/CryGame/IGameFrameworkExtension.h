@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #pragma once
 
@@ -8,7 +8,7 @@ struct IGameFramework;
 
 struct IGameFrameworkExtensionCreator : public ICryUnknown
 {
-	CRYINTERFACE_DECLARE(IGameFrameworkExtensionCreator, 0x86197E35AD024DA8, 0xA8D483A98F424FFD);
+	CRYINTERFACE_DECLARE_GUID(IGameFrameworkExtensionCreator, "86197e35-ad02-4da8-a8d4-83a98f424ffd"_cry_guid);
 
 	//! Creates an extension and returns the interface to it (extension interface must derivate for ICryUnknown).
 	//! \param pIGameFramework Pointer to game framework interface, so the new extension can be registered against it.

@@ -1,10 +1,10 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #include "StdAfx.h"
 #include "Script/Elements/ScriptConstructor.h"
 
-#include <Schematyc/SerializationUtils/ISerializationContext.h>
-#include <Schematyc/Utils/IGUIDRemapper.h>
+#include <CrySchematyc/SerializationUtils/ISerializationContext.h>
+#include <CrySchematyc/Utils/IGUIDRemapper.h>
 
 #include "Script/Graph/ScriptGraph.h"
 #include "Script/Graph/ScriptGraphNode.h"
@@ -18,7 +18,7 @@ CScriptConstructor::CScriptConstructor()
 	CreateGraph();
 }
 
-CScriptConstructor::CScriptConstructor(const SGUID& guid, const char* szName)
+CScriptConstructor::CScriptConstructor(const CryGUID& guid, const char* szName)
 	: CScriptElementBase(guid, szName, { EScriptElementFlags::CanOwnScript, EScriptElementFlags::FixedName })
 {
 	CreateGraph();
@@ -39,14 +39,19 @@ void CScriptConstructor::ProcessEvent(const SScriptEvent& event)
 	{
 	case EScriptEventId::EditorAdd:
 		{
+			// TODO: This should happen in editor!
 			IScriptGraph* pGraph = static_cast<IScriptGraph*>(CScriptElementBase::GetExtensions().QueryExtension(EScriptExtensionType::Graph));
 			SCHEMATYC_CORE_ASSERT(pGraph);
 			if (pGraph)
 			{
-				pGraph->AddNode(std::make_shared<CScriptGraphNode>(gEnv->pSchematyc->CreateGUID(), stl::make_unique<CScriptGraphBeginNode>())); // #SchematycTODO : Shouldn't we be using CScriptGraphNodeFactory::CreateNode() instead of instantiating the node directly?!?
+				// TODO : Shouldn't we be using CScriptGraphNodeFactory::CreateNode() instead of instantiating the node directly?!?
+				pGraph->AddNode(std::make_shared<CScriptGraphNode>(gEnv->pSchematyc->CreateGUID(), stl::make_unique<CScriptGraphBeginNode>()));
+				// ~TODO
 			}
 
 			m_userDocumentation.SetCurrentUserAsAuthor();
+			// ~TODO
+
 			break;
 		}
 	case EScriptEventId::EditorPaste:

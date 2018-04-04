@@ -3,7 +3,7 @@
 #include "StdAfx.h"
 #include "ModelProperties.h"
 
-#include <QPropertyTree/QPropertyTree.h>
+#include <Serialization/QPropertyTree/QPropertyTree.h>
 
 #include <QAbstractItemView>
 

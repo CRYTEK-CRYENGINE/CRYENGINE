@@ -1,8 +1,9 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #pragma once
 
 #include <type_traits>
+#include <CryCore/CryEndian.h>
 
 template<class dtype>
 class strided_pointer
@@ -53,9 +54,6 @@ private:
 	template<typename dtype1>
 	ILINE void set(dtype1* pdata, int32 stride)
 	{
-#if !defined(eLittleEndian)
-	#error eLittleEndian is not defined, please include CryEndian.h.
-#endif
 		static_assert(std::is_const<dtype>::value || !std::is_const<dtype1>::value, "Invalid const modifiers!");
 		// note: we allow xint32 -> xint16 converting
 		static_assert(

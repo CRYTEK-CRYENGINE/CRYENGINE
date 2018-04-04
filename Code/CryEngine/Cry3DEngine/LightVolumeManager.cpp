@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #include "StdAfx.h"
 #include "LightVolumeManager.h"
@@ -70,7 +70,7 @@ uint16 CLightVolumesMgr::RegisterVolume(const Vec3& vPos, f32 fRadius, uint8 nCl
 
 void CLightVolumesMgr::RegisterLight(const CDLight& pDL, uint32 nLightID, const SRenderingPassInfo& passInfo)
 {
-	IF ((m_bUpdateLightVolumes & !(pDL.m_Flags & LV_DLF_LIGHTVOLUMES_MASK)), 1)
+	IF (nLightID < LV_MAX_LIGHTS && (m_bUpdateLightVolumes & !(pDL.m_Flags & LV_DLF_LIGHTVOLUMES_MASK)), 1)
 	{
 		FUNCTION_PROFILER_3DENGINE;
 
@@ -91,7 +91,7 @@ void CLightVolumesMgr::RegisterLight(const CDLight& pDL, uint32 nLightID, const 
 					SLightCell& lightCell = m_pWorldLightCells[GetWorldHashBucketKey(x, y, 1, LV_LIGHTS_WORLD_BUCKET_SIZE)];
 					CryPrefetch(&lightCell);
 					lightCell.nLightID[lightCell.nLightCount] = nLightID;
-					lightCell.nLightCount = (lightCell.nLightCount + 1) & (LV_LIGHTS_MAX_COUNT - 1);
+					lightCell.nLightCount = (lightCell.nLightCount + 1) & (LV_CELL_MAX_LIGHTS - 1);
 				}
 			}
 		}
@@ -166,8 +166,7 @@ void CLightVolumesMgr::Update(const SRenderingPassInfo& passInfo)
 		return;
 	}
 
-	uint64 _nLightProcessed[128] = { 0 };
-	uint8* nLightProcessed = (uint8*)&_nLightProcessed[0];
+	uint8 nLightProcessed[LV_MAX_LIGHTS] = { 0 };
 
 	for (uint32 v = 0; v < nLightVols; ++v)
 	{

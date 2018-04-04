@@ -5,9 +5,9 @@
 
 // *INDENT-OFF* - <hard to read code and declarations due to inconsistent indentation>
 
-namespace uqs
+namespace UQS
 {
-	namespace shared
+	namespace Shared
 	{
 
 		//===================================================================================
@@ -16,16 +16,28 @@ namespace uqs
 		//
 		//===================================================================================
 
+		CUqsString::CUqsString()
+			: m_message()
+		{
+			// nothing
+		}
+
+		CUqsString::CUqsString(const char* szString)
+			: m_message(szString)
+		{
+			// nothing
+		}
+
 		void CUqsString::Set(const char* szString)
 		{
 			m_message = szString;
 		}
 
-		void CUqsString::Format(const char* fmt, ...)
+		void CUqsString::Format(const char* szFormat, ...)
 		{
 			va_list ap;
-			va_start(ap, fmt);
-			m_message.FormatV(fmt, ap);
+			va_start(ap, szFormat);
+			m_message.FormatV(szFormat, ap);
 			va_end(ap);
 		}
 

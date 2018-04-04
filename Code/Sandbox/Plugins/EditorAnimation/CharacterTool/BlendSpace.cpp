@@ -2,13 +2,214 @@
 
 #include "stdafx.h"
 
+#include <type_traits>
+
 #include "BlendSpace.h"
 #include <CryAnimation/ICryAnimation.h>
 #include <CrySerialization/StringList.h>
 
 
+namespace Serialization
+{
+	template<typename T, typename TContainer>
+	struct CListSelectorDecorator
+	{
+		CListSelectorDecorator(T& value, const TContainer& items, const StringList& labels, const T fallback)
+			: m_value(value)
+			, m_items(items)
+			, m_labels(labels)
+			, m_fallback(fallback)
+		{
+		}
+
+		T& m_value;
+		const TContainer& m_items;
+		const StringList& m_labels;
+		const T m_fallback;
+	};
+
+	template<typename T, typename TContainer>
+	struct CAutoLabeledListSelectorDecorator : public CListSelectorDecorator<T, TContainer>
+	{
+		CAutoLabeledListSelectorDecorator(T& value, const TContainer& items, const T fallback)
+			: CListSelectorDecorator(value, items, m_autoLabels, std::move(fallback))
+			, m_autoLabels()
+		{
+			m_autoLabels.reserve(std::distance(std::begin(items), std::end(items)));
+			std::transform(std::begin(items), std::end(items), std::back_inserter(m_autoLabels), [](const T& x) { return string(std::to_string(x).c_str()); });
+		}
+
+		StringList m_autoLabels;
+	};
+
+	template<typename T, typename TContainer>
+	inline bool Serialize(Serialization::IArchive& ar, CListSelectorDecorator<T, TContainer>& value, const char* name, const char* label)
+	{
+		if (ar.isEdit())
+		{
+			if (ar.isInput())
+			{
+				StringListValue selectedLabel(value.m_labels, StringList::npos);
+				if (!ar(selectedLabel, "", label))
+				{
+					return false;
+				}
+
+				if (selectedLabel.index() >= 0)
+				{
+					value.m_value = *std::next(std::begin(value.m_items), selectedLabel.index());
+				}
+				else
+				{
+					value.m_value = value.m_fallback;
+				}
+
+				return true;
+			}
+			else
+			{
+				CRY_ASSERT(ar.isOutput());
+
+				Serialization::StringListValue selectedLabel;
+
+				const auto itSearch = std::find_if(std::begin(value.m_items), std::end(value.m_items), [&value](const auto& x) { return x == value.m_value; });
+				if (itSearch != std::end(value.m_items))
+				{
+					selectedLabel = Serialization::StringListValue(value.m_labels, std::distance(std::begin(value.m_items), itSearch));
+				}
+				else
+				{
+					selectedLabel = Serialization::StringListValue(value.m_labels, StringList::npos);
+					value.m_value = value.m_fallback;
+				}
+
+				return (ar(selectedLabel, "", label) && ar(value.m_value, name));
+			}
+		}
+		else
+		{
+			return ar(value.m_value, name, label);
+		}
+	}
+
+	//! Decorates given serializable value with a drop-down list selector.
+	//! \param value Reference to the serialized value.
+	//! \param items Forward-iterable container of items to choose from. Must provide values of the same type as "value".
+	//! \param labels StringList containing user-readable labels to represent entires in the GUI. Sizes of "labels" and "items" must match.
+	//! \param fallback Fallback value to be used when chosen entry cannot be found in the items container.
+	template<typename T, typename TContainer>
+	inline auto ListSelector(T& value, const TContainer& items, const StringList& labels, const T fallback) -> CListSelectorDecorator<T, TContainer>
+	{
+		using TContainerValue = std::remove_reference_t<decltype(*std::begin(std::declval<TContainer&>()))>;
+		static_assert(std::is_same<TContainerValue, T>::value, "TContainer is expected to hold values of type T");
+
+		CRY_ASSERT(labels.size() == std::distance(std::begin(items), std::end(items)));
+
+		return CListSelectorDecorator<T, TContainer>(value, items, labels, std::move(fallback));
+	}
+
+	//! Decorates given serializable value with a drop-down list selector. This overloads generates item labels automatically by invoking std::to_string on the list of values.
+	//! \param value Reference to the serialized value.
+	//! \param items Forward-iterable container of items to choose from. Must provide values of the same type as "value".
+	//! \param fallback Fallback value to be used when chosen entry cannot be found in the items container.
+	template<typename T, typename TContainer>
+	inline auto ListSelector(T& value, const TContainer& items, const T fallback) -> CAutoLabeledListSelectorDecorator<T, TContainer>
+	{
+		using TContainerValue = std::remove_reference_t<decltype(*std::begin(std::declval<TContainer&>()))>;
+		static_assert(std::is_same<TContainerValue, T>::value, "TContainer is expected to hold values of type T");
+
+		return CAutoLabeledListSelectorDecorator<T, TContainer>(value, items, std::move(fallback));
+	}
+}
+
 namespace CharacterTool
 {
+
+static bool SerializeParameterName(string* str, IArchive& ar, const char* name, const char* label)
+{
+	static std::vector<string> parameterValues;
+	static Serialization::StringList parameterLabels;
+	if (parameterLabels.empty())
+	{
+		parameterValues.reserve(eMotionParamID_COUNT);
+		parameterLabels.reserve(eMotionParamID_COUNT);
+		for (int i = 0; i < eMotionParamID_COUNT; ++i)
+		{
+			SMotionParameterDetails details;
+			gEnv->pCharacterManager->GetMotionParameterDetails(details, EMotionParamID(i));
+			parameterValues.push_back(details.name);
+			parameterLabels.push_back(details.humanReadableName);
+		}
+	}
+
+	return ar(Serialization::ListSelector(*str, parameterValues, parameterLabels, parameterValues[0]), name, label);
+}
+
+static EMotionParamID ParameterIdByName(const char* name, bool additionalExtraction)
+{
+	for (int32 i = 0; i < eMotionParamID_COUNT; ++i)
+	{
+		SMotionParameterDetails details;
+		gEnv->pCharacterManager->GetMotionParameterDetails(details, EMotionParamID(i));
+
+		if (additionalExtraction && !(details.flags & SMotionParameterDetails::ADDITIONAL_EXTRACTION))
+		{
+			continue;
+		}
+
+		if (strcmp(details.name, name) == 0)
+		{
+			return EMotionParamID(i);
+		}
+	}
+	return eMotionParamID_INVALID;
+}
+
+void BlendSpaceAnnotation::Serialize(IArchive& ar)
+{
+	static const size_t allowedSizes[] = { 2, 3, 4, 5, 6, 7, 8 };
+
+	std::vector<CryGUID> exampleList;
+	Serialization::StringList exampleLabels;
+	if (ar.isEdit())
+	{
+		CRY_ASSERT(ar.context<BlendSpace>());
+		const auto& blendSpace = *ar.context<BlendSpace>();
+
+		size_t entryIndex = 0;
+		size_t pseudoIndex = 0;
+
+		for (const auto& example : blendSpace.m_examples)
+		{
+			const auto& label = std::to_string(entryIndex++) + " (" + example.animation.c_str() + ")";
+			exampleList.push_back(example.runtimeGuid);
+			exampleLabels.push_back(label.c_str());
+		}
+		for (const auto& example : blendSpace.m_pseudoExamples)
+		{
+			const auto& label = std::to_string(entryIndex++) + " (Pseudo Example " + std::to_string(pseudoIndex++) + ")";
+			exampleList.push_back(example.runtimeGuid);
+			exampleLabels.push_back(label.c_str());
+		}
+	}
+
+	size_t exampleCount = exampleGuids.size();
+	ar(Serialization::ListSelector(exampleCount, allowedSizes, allowedSizes[0]), "size", "^>");
+	exampleGuids.resize(exampleCount);
+
+	for (auto& guid : exampleGuids)
+	{
+		ar(Serialization::ListSelector(guid, exampleList, exampleLabels, CryGUID::Null()), "", "<");
+
+		// Remove selected item from the list, to make sure subsequent entries don't duplicate it.
+		const auto itSelected = std::find(exampleList.begin(), exampleList.end(), guid);
+		if (itSelected != exampleList.end())
+		{
+			exampleLabels.erase(std::next(exampleLabels.begin(), std::distance(exampleList.begin(), itSelected)));
+			exampleList.erase(itSelected);
+		}
+	}
+}
 
 void BlendSpaceExample::Serialize(IArchive& ar)
 {
@@ -47,68 +248,52 @@ void BlendSpaceExample::Serialize(IArchive& ar)
 		}
 	}
 
-	BlendSpace* bspace = 0;
-	if (ar.isEdit())
-		bspace = ar.context<BlendSpace>();
-	if (bspace && ar.isEdit())
+	CRY_ASSERT(ar.context<BlendSpace>());
+	const auto& dimensions = ar.context<BlendSpace>()->m_dimensions;
+
+	for (int32 iParam = 0; iParam < eMotionParamID_COUNT; ++iParam)
 	{
-		size_t numDimensions = bspace->m_dimensions.size();
+		if (ar.isEdit() && std::none_of(dimensions.begin(), dimensions.end(), [iParam](const auto& dimension) { return dimension.parameterId == iParam; }))
 		{
-			ar(specified[0], "s0", ">^");
-			ar(parameters.x, "p0", specified[0] ? ">^" : "!>^");
+			continue;
 		}
-		if (numDimensions > 1)
+
+		SMotionParameterDetails details;
+		gEnv->pCharacterManager->GetMotionParameterDetails(details, EMotionParamID(iParam));
+
+		if (ar.openBlock(details.name, details.humanReadableName))
 		{
-			ar(specified[1], "s1", ">^");
-			ar(parameters.y, "p1", specified[1] ? ">^" : "!>^");
-		}
-		if (numDimensions > 2)
-		{
-			ar(specified[2], "s2", ">^");
-			ar(parameters.z, "p2", specified[2] ? ">^" : "!>^");
-		}
-		if (numDimensions > 3)
-		{
-			ar(specified[3], "s3", ">^");
-			ar(parameters.w, "p3", specified[3] ? ">^" : "!>^");
+			ar(parameters[iParam].userDefined, "", "^");
+			ar(parameters[iParam].value, "", parameters[iParam].userDefined ? "^" : "!^");
+			ar.closeBlock();
 		}
 	}
-	else
-	{
-		ar(parameters, "parameters");
-		ar(specified, "specified");
-	}
+
 	ar(playbackScale, "playbackScale", "Playback Scale");
 }
 // ---------------------------------------------------------------------------
 
-bool SerializeParameterName(string* str, IArchive& ar, const char* name, const char* label)
+void BlendSpaceAdditionalExtraction::Serialize(IArchive& ar)
 {
-	static Serialization::StringList parameters;
-	if (parameters.empty())
+	static std::vector<int32> parameterValues;
+	static Serialization::StringList parameterLabels;
+	if (parameterValues.empty())
 	{
-		parameters.push_back("");
+		parameterValues.reserve(eMotionParamID_COUNT);
+		parameterLabels.reserve(eMotionParamID_COUNT);
 		for (int i = 0; i < eMotionParamID_COUNT; ++i)
 		{
 			SMotionParameterDetails details;
 			gEnv->pCharacterManager->GetMotionParameterDetails(details, EMotionParamID(i));
-			if ((details.flags & details.OBSOLETE) == 0)
-				parameters.push_back(details.name);
+			if (details.flags & SMotionParameterDetails::ADDITIONAL_EXTRACTION)
+			{
+				parameterValues.push_back(EMotionParamID(i));
+				parameterLabels.push_back(details.humanReadableName);
+			}
 		}
 	}
-	int index = parameters.find(str->c_str());
-	Serialization::StringListValue value(parameters, index == -1 ? 0 : index);
 
-	if (!ar(value, name, label))
-		return false;
-
-	*str = value.c_str();
-	return true;
-}
-
-bool Serialize(IArchive& ar, BlendSpaceAdditionalExtraction& value, const char* name, const char* label)
-{
-	return SerializeParameterName(&value.parameterName, ar, name, label);
+	ar(Serialization::ListSelector(parameterId, parameterValues, parameterLabels, parameterValues[0]), "parameterId", "^");
 }
 
 bool Serialize(IArchive& ar, BlendSpaceReference& ref, const char* name, const char* label)
@@ -116,74 +301,26 @@ bool Serialize(IArchive& ar, BlendSpaceReference& ref, const char* name, const c
 	return ar(AnimationPath(ref.path), name, label);
 }
 
-void SerializeExampleIndex(int* index, float* weight, IArchive& ar, const char* name, const char* label)
-{
-	if (ar.openBlock(name, label))
-	{
-		if (BlendSpace* blendSpace = ar.context<BlendSpace>())
-		{
-			Serialization::StringList stringList;
-			stringList.push_back("<empty>");
-			for (size_t i = 0; i < blendSpace->m_examples.size(); ++i)
-				stringList.push_back(blendSpace->m_examples[i].animation);
-			const int stringListIndex = clamp_tpl<int>(*index + 1, 0, int(stringList.size()) - 1);
-			Serialization::StringListValue exampleName(stringList, stringListIndex);
-			ar(exampleName, "exampleName", "^");
-
-			// Serialize index as a number as well, so we can handle the case where the referenced
-			// example is not present anymore. (for example when replacing an example)
-			int exampleIndex = *index;
-			ar(exampleIndex, "exampleIndex");
-
-			if (ar.isInput())
-			{
-				// user chose a name, look it up in the list
-				const int candidateExampleIndex = stringList.find(exampleName.c_str()) - 1;
-				if (candidateExampleIndex >= 0)
-				{
-					// example still exists, so we can use that example's index
-					*index = candidateExampleIndex;
-				}
-				else
-				{
-					if (candidateExampleIndex == -1)
-					{
-						// user explicitly selected the <empty> entry
-						*index = -1;
-					}
-					else
-					{
-						// example doesn't exist anymore, reuse the old index if still valid
-						*index = (exampleIndex < blendSpace->m_examples.size()) ? exampleIndex : -1;
-					}
-				}
-			}
-
-			ar(*weight, "weight", ">^");
-
-			if (*index < 0)
-			{
-				ar.warning(*weight, "Empty example name"); // (workaround: I'm passing *weight here as passing exampleIndex doesn't show the warning)
-			}
-		}
-		ar.closeBlock();
-	}
-}
-
 void BlendSpacePseudoExample::Serialize(IArchive& ar)
 {
+	std::vector<CryGUID> exampleList;
+	Serialization::StringList exampleLabels;
 	if (ar.isEdit())
 	{
-		SerializeExampleIndex(&i0, &w0, ar, "i0", "^<");
-		SerializeExampleIndex(&i1, &w1, ar, "i1", "^<");
+		CRY_ASSERT(ar.context<BlendSpace>());
+		const auto& blendSpace = *ar.context<BlendSpace>();
+
+		for (const auto& example : blendSpace.m_examples)
+		{
+			exampleList.push_back(example.runtimeGuid);
+			exampleLabels.push_back(example.animation);
+		}
 	}
-	else
-	{
-		ar(i0, "i0");
-		ar(i1, "i1");
-		ar(w0, "w0");
-		ar(w1, "w1");
-	}
+
+	ar(Serialization::ListSelector(guid0, exampleList, exampleLabels, CryGUID::Null()), "guid0", "^<");
+	ar(weight0, "weight0", ">^");
+	ar(Serialization::ListSelector(guid1, exampleList, exampleLabels, CryGUID::Null()), "guid1", "^<");
+	ar(weight1, "weight1", ">^");
 }
 
 // ---------------------------------------------------------------------------{
@@ -191,6 +328,7 @@ void BlendSpacePseudoExample::Serialize(IArchive& ar)
 void BlendSpaceDimension::Serialize(IArchive& ar)
 {
 	SerializeParameterName(&parameterName, ar, "parameterName", "<^");
+	parameterId = ParameterIdByName(parameterName.c_str(), false);
 	ar(minimal, "min", "^>Min");
 	ar(maximal, "max", "^>Max");
 	ar(cellCount, "cellCount", "Cell Count");
@@ -198,20 +336,6 @@ void BlendSpaceDimension::Serialize(IArchive& ar)
 }
 
 // ---------------------------------------------------------------------------
-
-static int ParameterIdByName(const char* name, bool additionalExtraction)
-{
-	for (size_t i = 0; i < eMotionParamID_COUNT; ++i)
-	{
-		SMotionParameterDetails details;
-		gEnv->pCharacterManager->GetMotionParameterDetails(details, EMotionParamID(i));
-		if (additionalExtraction && !((details.flags & details.ADDITIONAL_EXTRACTION) == 0))
-			continue;
-		if (strcmp(details.name, name) == 0)
-			return i;
-	}
-	return -1;
-}
 
 bool BlendSpace::LoadFromXml(string& errorMessage, XmlNodeRef root, IAnimationSet* pAnimationSet)
 {
@@ -321,8 +445,6 @@ bool BlendSpace::LoadFromXml(string& errorMessage, XmlNodeRef root, IAnimationSe
 					nodeExample->getAttr("scale", m_dimensions[d].debugVisualScale);   //just for visual-debugging
 					m_dimensions[d].debugVisualScale = max(0.01f, m_dimensions[d].debugVisualScale);
 
-					//from which joint do we wnat to extract the parameters to initialize the patameter-space??
-					m_dimensions[d].jointName = nodeExample->getAttr("JointName");
 					nodeExample->getAttr("skey", m_dimensions[d].startKey);
 					nodeExample->getAttr("ekey", m_dimensions[d].endKey);
 
@@ -352,13 +474,13 @@ bool BlendSpace::LoadFromXml(string& errorMessage, XmlNodeRef root, IAnimationSe
 				const char* ExampleTag = nodeExample->getTag();
 				if (strcmp(ExampleTag, "Param") == 0)
 				{
-					//each dimension must have a parameter-name
-					m_additionalExtraction[d].parameterName = nodeExample->getAttr("name");
-					//check if the parameter-name is supported by the system
-					m_additionalExtraction[d].parameterId = ParameterIdByName(m_additionalExtraction[d].parameterName.c_str(), true);
-					if (m_additionalExtraction[d].parameterId < 0)
+					const string parameterName = nodeExample->getAttr("name");
+					m_additionalExtraction[d].parameterId = ParameterIdByName(parameterName.c_str(), true);
+
+					// Check if the parameter-name is supported by the system
+					if (m_additionalExtraction[d].parameterId == eMotionParamID_INVALID)
 					{
-						((errorMessage += "Error: The parameter '") += m_additionalExtraction[d].parameterName.c_str()) += "' is currently not supported\n";
+						((errorMessage += "Error: The parameter '") += parameterName.c_str()) += "' is currently not supported\n";
 						result = false;
 					}
 				}
@@ -389,33 +511,17 @@ bool BlendSpace::LoadFromXml(string& errorMessage, XmlNodeRef root, IAnimationSe
 
 					nodeExample->getAttr("PlaybackScale", m_examples[i].playbackScale);
 
-					//Pre-initialized parameters should be an exception. Only use them if real extraction is impossible
-					m_examples[i].specified[0] = nodeExample->getAttr("SetPara0", m_examples[i].parameters.x);
-					m_examples[i].specified[1] = nodeExample->getAttr("SetPara1", m_examples[i].parameters.y);
-					if (m_examples[i].specified[1] && m_dimensions.size() < 2)
+					// Pre-initialized parameters should be an exception. Only use them if real extraction is impossible
+					for (size_t p = 0; p < m_dimensions.size(); ++p)
 					{
-						errorMessage += "Error: SetPara1 is not allowed on BSpaces with less than 2 m_dimensions\n";
-						result = false;
-					}
+						auto& parameter = m_examples[i].parameters[m_dimensions[p].parameterId];
 
-					m_examples[i].specified[2] = nodeExample->getAttr("SetPara2", m_examples[i].parameters.z);
-					if (m_examples[i].specified[2] && m_dimensions.size() < 3)
-					{
-						errorMessage += "Error: SetPara2 is not allowed on BSpaces with less than 3 m_dimensions\n";
-						result = false;
-					}
+						const auto valueNode = "SetPara" + std::to_string(p);
+						parameter.userDefined = nodeExample->getAttr(valueNode.c_str(), parameter.value);
 
-					m_examples[i].specified[3] = nodeExample->getAttr("SetPara3", m_examples[i].parameters.w);
-					if (m_examples[i].specified[3] && m_dimensions.size() < 4)
-					{
-						errorMessage += "Error: SetPara3 is not allowed on BSpaces with less than 4 m_dimensions\n";
-						result = false;
+						const auto deltaMotionNode = "UseDirectlyForDeltaMotion" + std::to_string(p);
+						nodeExample->getAttr(deltaMotionNode.c_str(), parameter.useDirectlyForDeltaMotion);
 					}
-
-					nodeExample->getAttr("UseDirectlyForDeltaMotion0", m_examples[i].useDirectlyForDeltaMotion[0]);
-					nodeExample->getAttr("UseDirectlyForDeltaMotion1", m_examples[i].useDirectlyForDeltaMotion[1]);
-					nodeExample->getAttr("UseDirectlyForDeltaMotion2", m_examples[i].useDirectlyForDeltaMotion[2]);
-					nodeExample->getAttr("UseDirectlyForDeltaMotion3", m_examples[i].useDirectlyForDeltaMotion[3]);
 				}
 			}
 			continue;
@@ -434,9 +540,9 @@ bool BlendSpace::LoadFromXml(string& errorMessage, XmlNodeRef root, IAnimationSe
 				const char* ExampleTag = nodeExample->getTag();
 				if (strcmp(ExampleTag, "Pseudo") == 0)
 				{
-					uint32 i0 = -1;
+					int32 i0 = -1;
 					f32 w0 = 1.0f;
-					uint32 i1 = -1;
+					int32 i1 = -1;
 					f32 w1 = 1.0f;
 
 					nodeExample->getAttr("p0", i0);
@@ -444,14 +550,14 @@ bool BlendSpace::LoadFromXml(string& errorMessage, XmlNodeRef root, IAnimationSe
 					nodeExample->getAttr("w0", w0);
 					nodeExample->getAttr("w1", w1);
 
-					if (i0 >= numExamples)
+					if (i0 < 0 || uint32(i0) >= numExamples)
 					{
 						stack_string message;
 						errorMessage += message.Format("Error: Pseudo example %d contains a reference to non-existing example with index %d.\n", i, i0).c_str();
 						result = false;
 					}
 
-					if (i1 >= numExamples)
+					if (i1 < 0 || uint32(i1) >= numExamples)
 					{
 						stack_string message;
 						errorMessage += message.Format("Error: Pseudo example %d contains a reference to non-existing example with index %d.\n", i, i1).c_str();
@@ -470,10 +576,15 @@ bool BlendSpace::LoadFromXml(string& errorMessage, XmlNodeRef root, IAnimationSe
 						w1 = 0.5f;
 					}
 
-					m_pseudoExamples[i].i0 = i0;
-					m_pseudoExamples[i].w0 = w0;
-					m_pseudoExamples[i].i1 = i1;
-					m_pseudoExamples[i].w1 = w1;
+					const auto exampleIndex2Guid = [&](int32 index) -> CryGUID
+					{
+						return (index >= 0 && size_t(index) < m_examples.size()) ? m_examples[index].runtimeGuid : CryGUID::Null();
+					};
+
+					m_pseudoExamples[i].guid0 = exampleIndex2Guid(i0);
+					m_pseudoExamples[i].weight0 = w0;
+					m_pseudoExamples[i].guid1 = exampleIndex2Guid(i1);
+					m_pseudoExamples[i].weight1 = w1;
 				}
 			}
 			continue;
@@ -484,23 +595,40 @@ bool BlendSpace::LoadFromXml(string& errorMessage, XmlNodeRef root, IAnimationSe
 		//-----------------------------------------------------------
 		if (strcmp(ListTag, "Blendable") == 0)
 		{
-			uint32 num = nodeList->getChildCount();
-			m_annotations.clear();
-			m_annotations.reserve(num);
-			const char* facePointNames[8] = { "p0", "p1", "p2", "p3", "p4", "p5", "p6", "p7" };
-			for (uint32 i = 0; i < num; i++)
+			const auto exampleIndex2Guid = [&](int32 index) -> CryGUID
 			{
-				XmlNodeRef nodeExample = nodeList->getChild(i);
-				const char* ExampleTag = nodeExample->getTag();
-				if (strcmp(ExampleTag, "Face") == 0)
+				if (index >= 0 && size_t(index) < m_examples.size())
+				{
+					return m_examples[index].runtimeGuid;
+				}
+
+				if (index >= 0 && size_t(index) < (m_examples.size() + m_pseudoExamples.size()))
+				{
+					return m_pseudoExamples[size_t(index) - m_examples.size()].runtimeGuid;
+				}
+				
+				return CryGUID::Null();
+			};
+
+			const char* facePointNames[] = { "p0", "p1", "p2", "p3", "p4", "p5", "p6", "p7" };
+
+			const uint32 annotationCount = nodeList->getChildCount();
+			m_annotations.clear();
+			m_annotations.reserve(annotationCount);
+			for (uint32 i = 0; i < annotationCount; i++)
+			{
+				XmlNodeRef nodeAnnotation = nodeList->getChild(i);
+				if (strcmp(nodeAnnotation->getTag(), "Face") == 0)
 				{
 					BlendSpaceAnnotation face;
-
-					uint8 index;
-					for (size_t i = 0; i < sizeof(facePointNames) / sizeof(facePointNames[0]); ++i)
-						if (nodeExample->getAttr(facePointNames[i], index))
-							face.indices.push_back(index);
-
+					for (size_t i = 0; i < CRY_ARRAY_COUNT(facePointNames); ++i)
+					{
+						int32 exampleIndex;
+						if (nodeAnnotation->getAttr(facePointNames[i], exampleIndex))
+						{
+							face.exampleGuids.push_back(exampleIndex2Guid(exampleIndex));
+						}
+					}
 					m_annotations.push_back(face);
 				}
 			}
@@ -696,8 +824,11 @@ XmlNodeRef BlendSpace::SaveToXml() const
 		nodeList = root->newChild("AdditionalExtraction");
 		for (uint32 d = 0; d < numExtractionParams; d++)
 		{
+			SMotionParameterDetails details;
+			gEnv->pCharacterManager->GetMotionParameterDetails(details, EMotionParamID(m_additionalExtraction[d].parameterId));
+
 			XmlNodeRef nodeExample = nodeList->newChild("Param");
-			nodeExample->setAttr("name", m_additionalExtraction[d].parameterName.c_str());
+			nodeExample->setAttr("name", details.name ? details.name : "");
 		}
 	}
 
@@ -708,18 +839,28 @@ XmlNodeRef BlendSpace::SaveToXml() const
 		const auto& e = m_examples[i];
 		XmlNodeRef nodeExample = nodeList->newChild("Example");
 
-		if (e.specified[0]) nodeExample->setAttr("SetPara0", e.parameters.x);
-		if (e.specified[1]) nodeExample->setAttr("SetPara1", e.parameters.y);
-		if (e.specified[2]) nodeExample->setAttr("SetPara2", e.parameters.z);
-		if (e.specified[3]) nodeExample->setAttr("SetPara3", e.parameters.w);
+		for (size_t p = 0; p < m_dimensions.size(); ++p)
+		{
+			const auto& parameter = m_examples[i].parameters[m_dimensions[p].parameterId];
+
+			if (parameter.userDefined)
+			{
+				const auto valueNode = "SetPara" + std::to_string(p);
+				nodeExample->setAttr(valueNode.c_str(), parameter.value);
+			}
+
+			if (parameter.useDirectlyForDeltaMotion)
+			{
+				const auto deltaMotionNode = "UseDirectlyForDeltaMotion" + std::to_string(p);
+				nodeExample->setAttr(deltaMotionNode.c_str(), true);
+			}
+		}
 
 		nodeExample->setAttr("AName", e.animation.c_str());
-		if (e.playbackScale != 1.0f) nodeExample->setAttr("PlaybackScale", e.playbackScale);
-
-		if (e.useDirectlyForDeltaMotion[0]) nodeExample->setAttr("UseDirectlyForDeltaMotion0", e.useDirectlyForDeltaMotion[0]);
-		if (e.useDirectlyForDeltaMotion[1]) nodeExample->setAttr("UseDirectlyForDeltaMotion1", e.useDirectlyForDeltaMotion[1]);
-		if (e.useDirectlyForDeltaMotion[2]) nodeExample->setAttr("UseDirectlyForDeltaMotion2", e.useDirectlyForDeltaMotion[2]);
-		if (e.useDirectlyForDeltaMotion[3]) nodeExample->setAttr("UseDirectlyForDeltaMotion3", e.useDirectlyForDeltaMotion[3]);
+		if (e.playbackScale != 1.0f)
+		{
+			nodeExample->setAttr("PlaybackScale", e.playbackScale);
+		}
 	}
 
 	if (uint32 pseudoCount = m_pseudoExamples.size())
@@ -727,27 +868,52 @@ XmlNodeRef BlendSpace::SaveToXml() const
 		nodeList = root->newChild("ExamplePseudo");
 		for (uint32 i = 0; i < pseudoCount; ++i)
 		{
+			const auto exampleGuid2Index = [&](const CryGUID& guid) -> int32
+			{
+				const auto itSearch = std::find_if(m_examples.begin(), m_examples.end(), [&](const auto& example) { return example.runtimeGuid == guid; });
+				return (itSearch != m_examples.end()) ? int32(std::distance(m_examples.begin(), itSearch)) : int32(-1);
+			};
+
 			XmlNodeRef nodeExample = nodeList->newChild("Pseudo");
-			nodeExample->setAttr("p0", m_pseudoExamples[i].i0);
-			nodeExample->setAttr("p1", m_pseudoExamples[i].i1);
-			nodeExample->setAttr("w0", m_pseudoExamples[i].w0);
-			nodeExample->setAttr("w1", m_pseudoExamples[i].w1);
+			nodeExample->setAttr("p0", exampleGuid2Index(m_pseudoExamples[i].guid0));
+			nodeExample->setAttr("p1", exampleGuid2Index(m_pseudoExamples[i].guid1));
+			nodeExample->setAttr("w0", m_pseudoExamples[i].weight0);
+			nodeExample->setAttr("w1", m_pseudoExamples[i].weight1);
 		}
 	}
 
-	if (uint32 annotationCount = m_annotations.size())
+	if (const uint32 annotationCount = m_annotations.size())
 	{
+		const auto exampleGuid2Index = [&](const CryGUID& guid) -> int32
+		{
+			const auto itSearch = std::find_if(m_examples.begin(), m_examples.end(), [&](const auto& example) { return example.runtimeGuid == guid; });
+			if (itSearch != m_examples.end())
+			{
+				return int32(std::distance(m_examples.begin(), itSearch));
+			}
+
+			const auto itSearchPseudo = std::find_if(m_pseudoExamples.begin(), m_pseudoExamples.end(), [&](const auto& pseudoExample) { return pseudoExample.runtimeGuid == guid; });
+			if (itSearchPseudo != m_pseudoExamples.end())
+			{
+				return int32(m_examples.size() + std::distance(m_pseudoExamples.begin(), itSearchPseudo));
+			}
+
+			return int32(-1);
+		};
+
+		const char* facePointNames[] = { "p0", "p1", "p2", "p3", "p4", "p5", "p6", "p7" };
+
 		nodeList = root->newChild("Blendable");
-		const char* facePointNames[8] = { "p0", "p1", "p2", "p3", "p4", "p5", "p6", "p7" };
 		for (uint32 i = 0; i < annotationCount; ++i)
 		{
 			XmlNodeRef nodeFace = nodeList->newChild("Face");
 			const BlendSpaceAnnotation& face = m_annotations[i];
-			uint32 pointCount = face.indices.size();
-			if (pointCount > 8)
-				pointCount = 8;
-			for (uint32 j = 0; j < pointCount; ++j)
-				nodeFace->setAttr(facePointNames[j], face.indices[j]);
+
+			CRY_ASSERT(face.exampleGuids.size() <= CRY_ARRAY_COUNT(facePointNames));
+			for (uint32 k = 0, pointCount = face.exampleGuids.size(); k < pointCount; ++k)
+			{
+				nodeFace->setAttr(facePointNames[k], exampleGuid2Index(face.exampleGuids[k]));
+			}
 		}
 	}
 
@@ -860,17 +1026,6 @@ void BlendSpace::Serialize(Serialization::IArchive& ar)
 	ar(m_joints, "joints", "Joints");
 	ar(m_annotations, "annotations", "Annotations");
 
-	if (ar.isEdit() && ar.isInput())
-	{
-		int maxExampleIndex = int(m_examples.size() + m_pseudoExamples.size()) - 1;
-		for (size_t i = 0; i < m_annotations.size(); ++i)
-		{
-			BlendSpaceAnnotation& annotation = m_annotations[i];
-			for (size_t j = 0; j < annotation.indices.size(); ++j)
-				annotation.indices[j] = clamp_tpl<int>(annotation.indices[j], 0, maxExampleIndex);
-		}
-	}
-
 	if (!ar.isEdit())
 	{
 		ar(m_virtualExamples1d, "virtualExamples1d", "Virtual Examples (1D)");
@@ -884,6 +1039,7 @@ void BlendSpace::Serialize(Serialization::IArchive& ar)
 void CombinedBlendSpaceDimension::Serialize(IArchive& ar)
 {
 	SerializeParameterName(&parameterName, ar, "parameterName", "<^");
+	parameterId = ParameterIdByName(parameterName.c_str(), false);
 	ar(locked, "locked", "^Locked");
 	ar(chooseBlendSpace, "chooseBlendSpace", "^Selects BSpace");
 	ar(parameterScale, "parameterScale", ">^ x");
@@ -978,13 +1134,13 @@ bool CombinedBlendSpace::LoadFromXml(string& errorMessage, XmlNodeRef root, IAni
 				const char* ExampleTag = nodeExample->getTag();
 				if (strcmp(ExampleTag, "Param") == 0)
 				{
-					//each dimension must have a parameter-name
-					m_additionalExtraction[d].parameterName = nodeExample->getAttr("name");
-					//check if the parameter-name is supported by the system
-					m_additionalExtraction[d].parameterId = ParameterIdByName(m_additionalExtraction[d].parameterName.c_str(), true);
-					if (m_additionalExtraction[d].parameterId < 0)
+					const string parameterName = nodeExample->getAttr("name");
+					m_additionalExtraction[d].parameterId = ParameterIdByName(parameterName.c_str(), true);
+
+					// Check if the parameter-name is supported by the system
+					if (m_additionalExtraction[d].parameterId == eMotionParamID_INVALID)
 					{
-						((errorMessage += "Error: The parameter '") += m_additionalExtraction[d].parameterName.c_str()) += "' is currently not supported\n";
+						((errorMessage += "Error: The parameter '") += parameterName.c_str()) += "' is currently not supported\n";
 						result = false;
 					}
 				}
@@ -1097,8 +1253,11 @@ XmlNodeRef CombinedBlendSpace::SaveToXml() const
 		XmlNodeRef nodeList = root->newChild("AdditionalExtraction");
 		for (uint32 d = 0; d < num; ++d)
 		{
-			XmlNodeRef node = nodeList->newChild("Param");
-			node->setAttr("Name", m_additionalExtraction[d].parameterName.c_str());
+			SMotionParameterDetails details;
+			gEnv->pCharacterManager->GetMotionParameterDetails(details, EMotionParamID(m_additionalExtraction[d].parameterId));
+
+			XmlNodeRef nodeExample = nodeList->newChild("Param");
+			nodeExample->setAttr("Name", details.name ? details.name : "");
 		}
 	}
 

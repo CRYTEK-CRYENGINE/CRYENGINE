@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 // -------------------------------------------------------------------------
 //  File name:   statobjman.cpp
@@ -66,8 +66,7 @@ void CObjManager::UnloadVegetationModels(bool bDeleteAll)
 			for (int j = 0; j < FAR_TEX_COUNT; ++j)
 			{
 				SVegetationSpriteLightInfo& rLightInfo = rGroup.m_arrSSpriteLightInfo[j];
-				if (rLightInfo.m_pDynTexture)
-					SAFE_RELEASE(rLightInfo.m_pDynTexture);
+				SAFE_RELEASE(rLightInfo.m_pDynTexture);
 			}
 		}
 
@@ -377,6 +376,12 @@ CStatObj* CObjManager::LoadStatObj(const char* __szFileName
 			m_pDefaultCGF = new CStatObj();
 		}
 		m_pDefaultCGF->m_bDefaultObject = true;
+	}
+
+	if (CryStringUtils::stristr(__szFileName, "_lod"))
+	{
+		Warning("Failed to load cgf: %s, '_lod' meshes can be loaded only internally as part of multi-lod CGF loading", __szFileName);
+		return m_pDefaultCGF;
 	}
 
 	LOADING_TIME_PROFILE_SECTION_ARGS(__szFileName);
@@ -693,7 +698,7 @@ void CObjManager::MakeUnitCube()
 	m_pRMBox = GetRenderer()->CreateRenderMeshInitialized(
 	  arrVerts,
 	  CRY_ARRAY_COUNT(arrVerts),
-	  eVF_P3F_C4B_T2F,
+	  EDefaultInputLayouts::P3F_C4B_T2F,
 	  arrIndices,
 	  CRY_ARRAY_COUNT(arrIndices),
 	  prtTriangleList,
@@ -1242,4 +1247,49 @@ uint32 CObjManager::GetResourcesModificationChecksum(IRenderNode* pOwnerNode) co
 		nModificationId += ((CTerrainNode*)pOwnerNode)->GetMaterialsModificationId();
 
 	return nModificationId;
+}
+
+IRenderMesh* CObjManager::GetBillboardRenderMesh(IMaterial* pMaterial)
+{
+	if(!m_pBillboardMesh)
+	{
+		PodArray<SVF_P3F_C4B_T2F> arrVertices;
+		PodArray<SPipTangents> arrTangents;
+		PodArray<vtx_idx> arrIndices;
+
+		SVF_P3F_C4B_T2F vert;
+		ZeroStruct(vert);
+		vert.st = Vec2(0.0f, 0.0f);
+		vert.color.dcolor = -1;
+
+		// verts
+		vert.xyz.Set(+.5, 0, -.5); vert.st = Vec2(1, 1); arrVertices.Add(vert);
+		vert.xyz.Set(-.5, 0, -.5); vert.st = Vec2(0, 1); arrVertices.Add(vert);
+		vert.xyz.Set(+.5, 0, +.5); vert.st = Vec2(1, 0); arrVertices.Add(vert);
+		vert.xyz.Set(-.5, 0, +.5); vert.st = Vec2(0, 0); arrVertices.Add(vert);
+
+		// tangents
+		arrTangents.Add(SPipTangents(Vec3(1, 0, 0), Vec3(0, 0, 1), 1));
+		arrTangents.Add(SPipTangents(Vec3(1, 0, 0), Vec3(0, 0, 1), 1));
+		arrTangents.Add(SPipTangents(Vec3(1, 0, 0), Vec3(0, 0, 1), 1));
+		arrTangents.Add(SPipTangents(Vec3(1, 0, 0), Vec3(0, 0, 1), 1));
+
+		// indices
+		arrIndices.Add(0);
+		arrIndices.Add(1);
+		arrIndices.Add(2);
+		arrIndices.Add(1);
+		arrIndices.Add(3);
+		arrIndices.Add(2);
+
+		m_pBillboardMesh = Cry3DEngineBase::GetRenderer()->CreateRenderMeshInitialized(
+			arrVertices.GetElements(), arrVertices.Count(), EDefaultInputLayouts::P3F_C4B_T2F,
+			arrIndices.GetElements(), arrIndices.Count(), prtTriangleList,
+			"Billboard", "Billboard", eRMT_Static, 1, 0, NULL, NULL, false, true,
+			arrTangents.GetElements());
+
+		m_pBillboardMesh->SetChunk(pMaterial, 0, arrVertices.Count(), 0, arrIndices.Count(), 1);
+	}
+
+	return m_pBillboardMesh;
 }

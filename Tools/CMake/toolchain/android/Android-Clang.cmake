@@ -1,5 +1,6 @@
 set(ANDROID TRUE)
-set(OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/bin/android")
+
+set(OUTPUT_DIRECTORY_NAME "android")
 
 set(CMAKE_CONFIGURATION_TYPES Debug Profile Release)
 set(CMAKE_CONFIGURATION_TYPES "${CMAKE_CONFIGURATION_TYPES}" CACHE STRING "Reset the configurations to what we need" FORCE)
@@ -7,6 +8,7 @@ set(CMAKE_CONFIGURATION_TYPES "${CMAKE_CONFIGURATION_TYPES}" CACHE STRING "Reset
 set(CMAKE_SYSTEM_NAME "Android")
 set(CMAKE_SYSTEM_VERSION 23)
 set(CMAKE_ANDROID_API ${CMAKE_SYSTEM_VERSION})
+set(CMAKE_ANDROID_NDK_TOOLCHAIN_VERSION clang)
 set(CMAKE_FIND_ROOT_PATH_MODE_PROGRAM NEVER)
 set(CMAKE_FIND_ROOT_PATH_MODE_LIBRARY ONLY)
 set(CMAKE_FIND_ROOT_PATH_MODE_INCLUDE ONLY)
@@ -19,15 +21,15 @@ set(NDKROOT $ENV{NDKROOT})
 file(TO_CMAKE_PATH "${NDKROOT}" NDKROOT)
 string(REPLACE "\\" "/" NDKROOT ${NDKROOT})
 
-set(TOOLCHAIN_COMPILER_BIN ${NDKROOT}/toolchains/llvm/prebuilt/windows-x86_64/bin)
-set(TOOLCHAIN_LINKER_BIN ${NDKROOT}/toolchains/arm-linux-androideabi-4.9/prebuilt/windows-x86_64)
+set(TOOLCHAIN_COMPILER_BIN "${NDKROOT}/toolchains/llvm/prebuilt/windows-x86_64/bin")
+set(TOOLCHAIN_LINKER_BIN "${NDKROOT}/toolchains/arm-linux-androideabi-4.9/prebuilt/windows-x86_64")
 
-set(CMAKE_C_COMPILER   ${TOOLCHAIN_COMPILER_BIN}/clang.exe CACHE INTERNAL "C compiler" FORCE)
-set(CMAKE_CXX_COMPILER ${TOOLCHAIN_COMPILER_BIN}/clang++.exe CACHE INTERNAL "C++ compiler" FORCE)
-set(CMAKE_ASM_COMPILER ${TOOLCHAIN_COMPILER_BIN}/clang.exe CACHE INTERNAL "Assembler" FORCE)
-set(CMAKE_AR           ${TOOLCHAIN_LINKER_BIN}/bin/arm-linux-androideabi-gcc-ar.exe CACHE INTERNAL "Archiver" FORCE)
-set(CMAKE_RANLIB       ${TOOLCHAIN_LINKER_BIN}/bin/arm-linux-androideabi-ranlib.exe CACHE INTERNAL "Ranlib" FORCE)
-set(CMAKE_LINKER       ${TOOLCHAIN_LINKER_BIN}/bin/arm-linux-androideabi-ld.exe CACHE INTERNAL "Linker" FORCE)
+set(CMAKE_C_COMPILER   "${TOOLCHAIN_COMPILER_BIN}/clang.exe" CACHE INTERNAL "C compiler" FORCE)
+set(CMAKE_CXX_COMPILER "${TOOLCHAIN_COMPILER_BIN}/clang++.exe" CACHE INTERNAL "C++ compiler" FORCE)
+set(CMAKE_ASM_COMPILER "${TOOLCHAIN_COMPILER_BIN}/clang.exe" CACHE INTERNAL "Assembler" FORCE)
+set(CMAKE_AR           "${TOOLCHAIN_LINKER_BIN}/bin/arm-linux-androideabi-gcc-ar.exe" CACHE INTERNAL "Archiver" FORCE)
+set(CMAKE_RANLIB       "${TOOLCHAIN_LINKER_BIN}/bin/arm-linux-androideabi-ranlib.exe" CACHE INTERNAL "Ranlib" FORCE)
+set(CMAKE_LINKER       "${TOOLCHAIN_LINKER_BIN}/bin/arm-linux-androideabi-ld.exe" CACHE INTERNAL "Linker" FORCE)
 
 set(CMAKE_C_COMPILER_ID_RUN TRUE)
 set(CMAKE_CXX_COMPILER_ID_RUN TRUE)
@@ -35,18 +37,18 @@ set(CMAKE_C_COMPILER_ID Clang)
 set(CMAKE_CXX_COMPILER_ID Clang)
 set(CMAKE_C_COMPILER_TARGET armv7-none-linux-androideabi)
 set(CMAKE_CXX_COMPILER_TARGET armv7-none-linux-androideabi)
-set(CMAKE_C_COMPILER_EXTERNAL_TOOLCHAIN ${TOOLCHAIN_LINKER_BIN})
-set(CMAKE_CXX_COMPILER_EXTERNAL_TOOLCHAIN ${TOOLCHAIN_LINKER_BIN})
+set(CMAKE_C_COMPILER_EXTERNAL_TOOLCHAIN "${TOOLCHAIN_LINKER_BIN}")
+set(CMAKE_CXX_COMPILER_EXTERNAL_TOOLCHAIN "${TOOLCHAIN_LINKER_BIN}")
 
 # required for CMake to generate valid response files
 set(CMAKE_C_SIMULATE_ID GNU)
 set(CMAKE_CXX_SIMULATE_ID GNU)
 
-set(CMAKE_SYSROOT ${NDKROOT}/platforms/android-${CMAKE_SYSTEM_VERSION}/arch-arm)
-include_directories(${NDKROOT}/sources/cxx-stl/llvm-libc++/include)
-include_directories(${NDKROOT}/sources/android/support/include)
-include_directories(${NDKROOT}/sources/cxx-stl/llvm-libc++abi/include)
-include_directories(${NDKROOT}/sources/android/native_app_glue)
+set(CMAKE_SYSROOT "${NDKROOT}/platforms/android-${CMAKE_SYSTEM_VERSION}/arch-arm")
+include_directories("${NDKROOT}/sources/cxx-stl/llvm-libc++/include")
+include_directories("${NDKROOT}/sources/android/support/include")
+include_directories("${NDKROOT}/sources/cxx-stl/llvm-libc++abi/include")
+include_directories("${NDKROOT}/sources/android/native_app_glue")
 
 # The static stl has to be linked to the shared object
 set(STL_PATH "${NDKROOT}/sources/cxx-stl/llvm-libc++/libs/armeabi-v7a")
@@ -56,7 +58,7 @@ set(STL_LIBS "\"${STL_PATH}/libc++_static.a\" \"${STL_PATH}/libc++abi.a\" \"${ST
 set(CMAKE_CXX_CREATE_SHARED_LIBRARY "<CMAKE_CXX_COMPILER> <CMAKE_SHARED_LIBRARY_CXX_FLAGS> <LANGUAGE_COMPILE_FLAGS> <LINK_FLAGS> <CMAKE_SHARED_LIBRARY_CREATE_CXX_FLAGS> <CMAKE_SHARED_LIBRARY_SONAME_CXX_FLAG><TARGET_SONAME> -o <TARGET> <OBJECTS> <LINK_LIBRARIES> ${STL_LIBS}" )
 set(CMAKE_CXX_CREATE_SHARED_MODULE  "<CMAKE_CXX_COMPILER> <CMAKE_SHARED_LIBRARY_CXX_FLAGS> <LANGUAGE_COMPILE_FLAGS> <LINK_FLAGS> <CMAKE_SHARED_LIBRARY_CREATE_CXX_FLAGS> <CMAKE_SHARED_LIBRARY_SONAME_CXX_FLAG><TARGET_SONAME> -o <TARGET> <OBJECTS> <LINK_LIBRARIES> ${STL_LIBS}" )
 
-include (${CMAKE_MODULE_PATH}/../CRYENGINE-CLANG.cmake)
+include ("${CMAKE_CURRENT_LIST_DIR}/../../CRYENGINE-CLANG.cmake")
 
 set(ANDROID_FLAGS "-DANDROID -DLINUX -DDISABLE_IMPORTGL -DHAS_STPCPY -march=armv7-a -mfpu=neon -marm -mfloat-abi=softfp")
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${ANDROID_FLAGS}")
@@ -70,19 +72,19 @@ macro(configure_android_build)
 	cmake_parse_arguments(ANDROID "${options}" "${oneValueArgs}" "${multiValueArgs}" ${ARGN})
 	string(TOLOWER "${ANDROID_DEBUGGABLE}" ANDROID_DEBUGGABLE) 
 	
-	set(apk_folder "${CMAKE_BINARY_DIR}/${THIS_PROJECT}Launcher/apk_data")
-	file(REMOVE_RECURSE ${apk_folder})
-	file(MAKE_DIRECTORY ${apk_folder}/src)
-	file(MAKE_DIRECTORY ${apk_folder}/lib/armeabi-v7a)
-	file(MAKE_DIRECTORY ${apk_folder}/gen)
-	file(MAKE_DIRECTORY ${apk_folder}/bin)
-	file(MAKE_DIRECTORY ${apk_folder}/build)
+	set(apk_folder "${CMAKE_BINARY_DIR}/AndroidLauncher/apk_data")
+	file(REMOVE_RECURSE "${apk_folder}")
+	file(MAKE_DIRECTORY "${apk_folder}/src")
+	file(MAKE_DIRECTORY "${apk_folder}/lib/armeabi-v7a")
+	file(MAKE_DIRECTORY "${apk_folder}/gen")
+	file(MAKE_DIRECTORY "${apk_folder}/bin")
+	file(MAKE_DIRECTORY "${apk_folder}/build")
 
 		
 	# TODO: implement process_android_java_files from waf compile rules
 
 	#Generate APK manifest
-	file(WRITE ${apk_folder}/AndroidManifest.xml 
+	file(WRITE "${apk_folder}/AndroidManifest.xml" 
 		"<?xml version=\"1.0\" encoding=\"utf-8\"?>\n"
 		"	<!-- BEGIN_INCLUDE(manifest) -->\n"
 		"	<manifest xmlns:android=\"http://schemas.android.com/apk/res/android\"\n"
@@ -103,11 +105,11 @@ macro(configure_android_build)
 		"\n"
 		"		<!-- Required permissions -->\n")
 	foreach(permission ${ANDROID_PERMISSIONS})
-		file(APPEND ${apk_folder}/AndroidManifest.xml 
+		file(APPEND "${apk_folder}/AndroidManifest.xml" 
 			"		<uses-permission android:name=\"android.permission.${permission}\" /> \n"
 		)
 	endforeach()
-	file(APPEND ${apk_folder}/AndroidManifest.xml 
+	file(APPEND "${apk_folder}/AndroidManifest.xml" 
 		"\n"
 		"		<application android:label=\"@string/app_name\">\n"
 		"			<!-- Our activity loads the generated bootstrapping class in order\n"
@@ -132,8 +134,8 @@ macro(configure_android_build)
 	)
 
 	#Generate resources
-	file(MAKE_DIRECTORY ${apk_folder}/res/values)
-	file(WRITE ${apk_folder}/res/values/string.xml
+	file(MAKE_DIRECTORY "${apk_folder}/res/values")
+	file(WRITE "${apk_folder}/res/values/string.xml"
 		"<?xml version=\"1.0\" encoding=\"utf-8\"?>\n"
 		"<resources>\n"
 		"	<string name=\"app_name\">${ANDROID_APP_NAME}</string>\n"
@@ -141,12 +143,12 @@ macro(configure_android_build)
 	)
 
 	#Generate gdb.setup
-	file(WRITE ${OUTPUT_DIRECTORY}/gdb.setup "set solib-search-path ${OUTPUT_DIRECTORY}/lib_debug/armeabi-v7a")
+	file(WRITE "${OUTPUT_DIRECTORY}/gdb.setup" "set solib-search-path \"${OUTPUT_DIRECTORY}/lib_debug/armeabi-v7a\"")
 	
 	#Generate ANT files
-	file(WRITE ${apk_folder}/build.xml
+	file(WRITE "${apk_folder}/build.xml"
 		"<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
-		"	<project name=\"${THIS_PROJECT}Launcher\" default=\"help\">\n"
+		"	<project name=\"AndroidLauncher\" default=\"help\">\n"
 		"\n"
 		"		<property file=\"build.properties\" />\n"
 		"\n"
@@ -192,7 +194,7 @@ macro(configure_android_build)
 
 	file(TO_CMAKE_PATH "$ENV{ANDROID_HOME}" ANDROID_SDK_DIR)
 
-	file(WRITE ${apk_folder}/build.properties 
+	file(WRITE "${apk_folder}/build.properties"
 		"# This file is automatically generated by Android Tools.\n"
 		"# Do not modify this file -- YOUR CHANGES WILL BE ERASED!\n"
 		"\n"
@@ -213,14 +215,14 @@ macro(configure_android_launcher name)
 	#Copy sources
 	foreach(source_file ${SOURCES})
 		if (${source_file} MATCHES ".*\\.\\java$")
-			file(COPY ${source_file} DESTINATION ${apk_folder}/src)
+			file(COPY "${source_file}" DESTINATION "${apk_folder}/src")
 		endif()
 	endforeach()
 
 	#Copy external libs
-	file(COPY ${NDKROOT}/prebuilt/android-arm/gdbserver/gdbserver DESTINATION ${apk_folder}/lib/armeabi-v7a)
-	file(COPY ${CMAKE_SOURCE_DIR}/Code/Tools/SDLExtension/lib/android-armeabi-v7a/libSDL2Ext.so DESTINATION ${apk_folder}/lib/armeabi-v7a)
-	file(COPY ${SDK_DIR}/SDL2/lib/android-armeabi-v7a/libSDL2.so DESTINATION ${apk_folder}/lib/armeabi-v7a)
+	file(COPY "${NDKROOT}/prebuilt/android-arm/gdbserver/gdbserver" DESTINATION "${apk_folder}/lib/armeabi-v7a")
+	file(COPY "${CMAKE_SOURCE_DIR}/Code/Tools/SDLExtension/lib/android-armeabi-v7a/libSDL2Ext.so" DESTINATION "${apk_folder}/lib/armeabi-v7a")
+	file(COPY "${SDK_DIR}/SDL2/lib/android-armeabi-v7a/libSDL2.so" DESTINATION "${apk_folder}/lib/armeabi-v7a")
 
 	#Make ANT run
 	file(TO_NATIVE_PATH "${OUTPUT_DIRECTORY}" NATIVE_OUTDIR)
@@ -229,15 +231,15 @@ macro(configure_android_launcher name)
 	set(shared_copy)
 	if(NOT OPTION_STATIC_LINKING)
 		foreach(mod ${SHARED_MODULES})
-			set(shared_copy ${shared_copy} COMMAND copy ${NATIVE_OUTDIR}\\lib${mod}.so ${apk_folder_native}\\lib\\armeabi-v7a )
+			set(shared_copy ${shared_copy} COMMAND copy "${NATIVE_OUTDIR}\\lib${mod}.so" "${apk_folder_native}\\lib\\armeabi-v7a" )
 		endforeach()
 	endif()
 
-	add_custom_command(TARGET ${THIS_PROJECT} POST_BUILD
-		COMMAND copy /Y ${NATIVE_OUTDIR}\\lib${THIS_PROJECT}.so ${apk_folder_native}\\lib\\armeabi-v7a\\libAndroidLauncher.so
+	add_custom_command(TARGET AndroidLauncher POST_BUILD
+		COMMAND copy /Y "${NATIVE_OUTDIR}\\libAndroidLauncher.so" "${apk_folder_native}\\lib\\armeabi-v7a\\libAndroidLauncher.so"
 		${shared_copy}
-		COMMAND copy ${NATIVE_OUTDIR}\\lib${name}.so ${so_paths} ${apk_folder_native}\\lib\\armeabi-v7a\\
-		COMMAND call $ENV{ANT_HOME}/bin/ant clean
-		COMMAND call $ENV{ANT_HOME}/bin/ant debug
-		COMMAND copy ${apk_folder_native}\\bin\\${name}-debug.apk ${NATIVE_OUTDIR}\\${name}.apk WORKING_DIRECTORY ${apk_folder})	
+		COMMAND copy "${NATIVE_OUTDIR}\\lib${name}.so" ${so_paths} "${apk_folder_native}\\lib\\armeabi-v7a\\"
+		COMMAND call "$ENV{ANT_HOME}/bin/ant" clean
+		COMMAND call "$ENV{ANT_HOME}/bin/ant" debug
+		COMMAND copy "${apk_folder_native}\\bin\\${name}-debug.apk" "${NATIVE_OUTDIR}\\${name}.apk" WORKING_DIRECTORY "${apk_folder}")	
 endmacro()

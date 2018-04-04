@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 /********************************************************************
    -------------------------------------------------------------------------
@@ -19,32 +19,24 @@
 	#pragma once
 #endif // _MSC_VER > 1000
 
-#include <CryAISystem/IAIActor.h>
-#include <CryAISystem/IAgent.h>
 #include "AIObject.h"
 #include "BlackBoard.h"
-
-#include "ValueHistory.h"
-#include <CryAISystem/INavigationSystem.h>
-
 #include "PersonalLog.h"
+
+#include <CryAISystem/IAIActor.h>
+#include <CryAISystem/IAgent.h>
+
+#include <CryAISystem/ValueHistory.h>
+#include <CryAISystem/INavigationSystem.h>
 
 struct IPerceptionHandlerModifier;
 struct SShape;
-
-class SelectionTree;
 
 namespace BehaviorTree
 {
 struct INode;
 class TimestampCollection;
 }
-
-enum EObjectUpdate
-{
-	AIUPDATE_FULL,
-	AIUPDATE_DRY,
-};
 
 // Structure reflecting the physical entity parts.
 // When choosing the target location to hit, the AI chooses amongst one of these.
@@ -74,6 +66,8 @@ public:
 	CAIActor();
 	virtual ~CAIActor();
 
+	virtual const IAIObject*  CastToIAIObject() const override { return this; }
+	virtual IAIObject*        CastToIAIObject() override { return this; }
 	virtual const IAIActor*   CastToIAIActor() const override { return this; }
 	virtual IAIActor*         CastToIAIActor() override       { return this; }
 
@@ -82,24 +76,13 @@ public:
 
 	virtual IPhysicalEntity*  GetPhysics(bool bWantCharacterPhysics = false) const override;
 
+	virtual bool              HasThrown(EntityId entity) const override { return false; }
+
 	void                      SetBehaviorVariable(const char* variableName, bool value) override;
 	bool                      GetBehaviorVariable(const char* variableName) const;
 
-	class SelectionTree*      GetBehaviorSelectionTree() const;
-	class SelectionVariables* GetBehaviorSelectionVariables() const;
-
-	void                      ResetBehaviorSelectionTree(EObjectResetType type);
-	bool                      ProcessBehaviorSelectionTreeSignal(const char* signalName, uint32 signalCRC);
-	bool                      UpdateBehaviorSelectionTree();
-
-	void                      ResetModularBehaviorTree(EObjectResetType type);
+	void                      ResetModularBehaviorTree(EObjectResetType type) override;
 	virtual void              SetModularBehaviorTree(const char* szTreeName) override { m_modularBehaviorTreeName = szTreeName; ResetModularBehaviorTree(AIOBJRESET_INIT); }
-
-#if defined(CRYAISYSTEM_DEBUG)
-
-	void DebugDrawBehaviorSelectionTree();
-
-#endif
 
 	const SAIBodyInfo& QueryBodyInfo();
 	const SAIBodyInfo& GetBodyInfo() const;
@@ -152,13 +135,13 @@ public:
 	virtual void                SetSignal(int nSignalID, const char* szText, IEntity* pSender = 0, IAISignalExtraData* pData = NULL, uint32 crcCode = 0) override;
 	virtual void                OnAIHandlerSentSignal(const char* szText, uint32 crcCode) override;
 	virtual void                Serialize(TSerialize ser) override;
-	virtual void                Update(EObjectUpdate type);
-	virtual void                UpdateProxy(EObjectUpdate type);
-	virtual void                UpdateDisabled(EObjectUpdate type); // when AI object is disabled still may need to send some signals
+	virtual void                Update(EUpdateType type);
+	virtual void                UpdateProxy(EUpdateType type);
+	virtual void                UpdateDisabled(EUpdateType type); // when AI object is disabled still may need to send some signals
 	virtual void                SetProxy(IAIActorProxy* proxy) override;
 	virtual IAIActorProxy*      GetProxy() const override;
 	virtual bool                CanAcquireTarget(IAIObject* pOther) const override;
-	virtual void                ResetPerception() override;
+	virtual void                ResetPerception() override {}
 	virtual bool                IsHostile(const IAIObject* pOther, bool bUsingAIIgnorePlayer = true) const override;
 	virtual void                ParseParameters(const AIObjectParams& params, bool bParseMovementParams = true);
 	virtual void                Event(unsigned short eType, SAIEVENT* pAIEvent) override;
@@ -260,14 +243,6 @@ public:
 	CValueHistory<float>* m_healthHistory;
 #endif
 
-	std::vector<CAIObject*> m_probableTargets;
-
-	void                           AddProbableTarget(CAIObject* pTarget);
-	void                           ClearProbableTargets();
-
-	virtual void                   EnablePerception(bool enable) override;
-	virtual bool                   IsPerceptionEnabled() const override;
-
 	virtual bool                   IsActive() const override            { return m_bEnabled; }
 	virtual bool                   IsAgent() const override             { return true; }
 
@@ -294,13 +269,6 @@ public:
 
 	virtual Vec3                   GetFloorPosition(const Vec3& pos) override;
 
-	// check if enemy is close enough and send OnCloseContact if so
-	virtual void       CheckCloseContact(IAIObject* pTarget, float distSq);
-	inline bool        CloseContactEnabled() { return !m_bCloseContact; }
-	void               SetCloseContact(bool bCloseContact);
-
-	EFieldOfViewResult IsObjectInFOV(CAIObject* pTarget, float fDistanceScale = 1.f) const;
-
 	void               AddPersonallyHostile(tAIObjectID hostileID);
 	void               RemovePersonallyHostile(tAIObjectID hostileID);
 	void               ResetPersonallyHostiles();
@@ -322,23 +290,13 @@ public:
 	void                       GetMovementSpeedRange(float fUrgency, bool bSlowForStrafe, float& normalSpeed, float& minSpeed, float& maxSpeed) const;
 
 	virtual EFieldOfViewResult IsPointInFOV(const Vec3& pos, float distanceScale = 1.f) const override;
+	virtual EFieldOfViewResult IsObjectInFOV(const IAIObject* pTarget, float distanceStale = 1.f) const override;
 
 	enum ENavInteraction { NI_IGNORE, NI_STEER, NI_SLOW };
 	// indicates the way that two objects should negotiate each other
 	static ENavInteraction GetNavInteraction(const CAIObject* navigator, const CAIObject* obstacle);
 
 	virtual void           CancelRequestedPath(bool actorRemoved);
-
-	enum BehaviorTreeEvaluationMode
-	{
-		EvaluateWhenVariablesChange,
-		EvaluationBlockedUntilBehaviorUnlocks,
-
-		BehaviorTreeEvaluationModeCount,
-		FirstBehaviorTreeEvaluationMode = 0
-	};
-
-	void SetBehaviorTreeEvaluationMode(const BehaviorTreeEvaluationMode mode) { m_behaviorTreeEvaluationMode = mode; }
 
 #ifdef AI_COMPILE_WITH_PERSONAL_LOG
 	PersonalLog& GetPersonalLog() { return m_personalLog; }
@@ -384,7 +342,6 @@ protected:
 
 	EAILightLevel                     m_lightLevel;
 	bool                              m_usingCombatLight;
-	int8                              m_perceptionDisabled;
 
 	float                             m_cachedWaterOcclusionValue;
 
@@ -399,16 +356,9 @@ protected:
 	typedef std::set<IActorBehaviorListener*> BehaviorListeners;
 	BehaviorListeners                   m_behaviorListeners;
 
-	BehaviorTreeEvaluationMode          m_behaviorTreeEvaluationMode;
-	std::unique_ptr<SelectionTree>      m_behaviorSelectionTree;
-	std::unique_ptr<SelectionVariables> m_behaviorSelectionVariables;
-
 	// (MATT) Note: this is a different attention target to the classic. Nasty OO hack {2009/02/03}
 	// [4/20/2010 evgeny] Moved here from CPipeUser and CAIPlayer
 	CWeakRef<CAIObject> m_refAttentionTarget;
-
-	CTimeValue          m_CloseContactTime; // timeout for close contact
-	bool                m_bCloseContact;    // used to prevent the signal OnCloseContact being sent repeatedly to same object
 
 	string              m_territoryShapeName;
 	SShape*             m_territoryShape;

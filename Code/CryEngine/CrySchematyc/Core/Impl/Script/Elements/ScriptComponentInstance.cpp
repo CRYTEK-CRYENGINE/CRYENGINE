@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #include "StdAfx.h"
 #include "Script/Elements/ScriptComponentInstance.h"
@@ -6,15 +6,14 @@
 #include <CrySerialization/BlackBox.h>
 #include <CrySerialization/IArchiveHost.h>
 #include <CrySerialization/STL.h>
-#include <Schematyc/Env/IEnvRegistry.h>
-#include <Schematyc/Env/Elements/IEnvComponent.h>
-#include <Schematyc/Env/Elements/IEnvInterface.h>
-#include <Schematyc/SerializationUtils/ISerializationContext.h>
-#include <Schematyc/SerializationUtils/SerializationUtils.h>
-#include <Schematyc/Utils/Any.h>
-#include <Schematyc/Utils/Assert.h>
-#include <Schematyc/Utils/IGUIDRemapper.h>
-#include <Schematyc/Utils/IProperties.h>
+#include <CrySchematyc/Env/IEnvRegistry.h>
+#include <CrySchematyc/Env/Elements/IEnvComponent.h>
+#include <CrySchematyc/Env/Elements/IEnvInterface.h>
+#include <CrySchematyc/SerializationUtils/ISerializationContext.h>
+#include <CrySchematyc/SerializationUtils/SerializationUtils.h>
+#include <CrySchematyc/Utils/Any.h>
+#include <CrySchematyc/Utils/Assert.h>
+#include <CrySchematyc/Utils/IGUIDRemapper.h>
 
 #include "CVars.h"
 #include "Script/Graph/ScriptGraph.h"
@@ -22,21 +21,22 @@
 #include "Script/Graph/Nodes/ScriptGraphBeginNode.h"
 #include "SerializationUtils/SerializationContext.h"
 
-SERIALIZATION_ENUM_BEGIN_NESTED(Schematyc, EScriptComponentInstanceFlags, "Schematyc Script Component Instance Flags")
+SERIALIZATION_ENUM_BEGIN_NESTED(Schematyc, EScriptComponentInstanceFlags, "CrySchematyc Script Component Instance Flags")
 SERIALIZATION_ENUM(Schematyc::EScriptComponentInstanceFlags::EnvClass, "envClass", "Environment Class")
 SERIALIZATION_ENUM_END()
 
 namespace Schematyc
 {
+
 CScriptComponentInstance::CScriptComponentInstance()
 	: CScriptElementBase(EScriptElementFlags::None)
 {}
 
-CScriptComponentInstance::CScriptComponentInstance(const SGUID& guid, const char* szName, const SGUID& typeGUID)
+CScriptComponentInstance::CScriptComponentInstance(const CryGUID& guid, const char* szName, const CryGUID& typeGUID)
 	: CScriptElementBase(guid, szName, EScriptElementFlags::None)
 	, m_typeGUID(typeGUID)
 {
-	ApplyComponent();   // #SchematycTODO : Do this on EScriptEventId::Add?
+	ApplyComponent(); // #SchematycTODO : Do this on EScriptEventId::Add?
 }
 
 EScriptElementAccessor CScriptComponentInstance::GetAccessor() const
@@ -64,12 +64,12 @@ void CScriptComponentInstance::Serialize(Serialization::IArchive& archive)
 	CScriptElementBase::SerializeExtensions(archive);
 }
 
-SGUID CScriptComponentInstance::GetTypeGUID() const
+CryGUID CScriptComponentInstance::GetTypeGUID() const
 {
 	return m_typeGUID;
 }
 
-ScriptComponentInstanceFlags CScriptComponentInstance::GetFlags() const
+ScriptComponentInstanceFlags CScriptComponentInstance::GetComponentInstanceFlags() const
 {
 	return m_flags;
 }
@@ -79,19 +79,19 @@ bool CScriptComponentInstance::HasTransform() const
 	return m_bHasTransform;
 }
 
-void CScriptComponentInstance::SetTransform(const CTransform& transform)
+void CScriptComponentInstance::SetTransform(const CTransformPtr& transform)
 {
-	m_transform = transform;
+	m_pTransform = transform;
 }
 
-const CTransform& CScriptComponentInstance::GetTransform() const
+const CTransformPtr& CScriptComponentInstance::GetTransform() const
 {
-	return m_transform;
+	return m_pTransform;
 }
 
-const IProperties* CScriptComponentInstance::GetProperties() const
+const CClassProperties& CScriptComponentInstance::GetProperties() const
 {
-	return m_pProperties.get();
+	return m_properties;
 }
 
 void CScriptComponentInstance::LoadDependencies(Serialization::IArchive& archive, const ISerializationContext& context)
@@ -103,27 +103,27 @@ void CScriptComponentInstance::Load(Serialization::IArchive& archive, const ISer
 {
 	ApplyComponent();
 	archive(m_accessor, "accessor");
-	archive(m_transform, "transform");
-	if (m_pProperties)
+	if (m_bHasTransform && m_pTransform)
 	{
-		archive(*m_pProperties, "properties");
+		archive(*m_pTransform, "transform");
 	}
+	archive(m_properties, "properties", "Properties");
 }
 
 void CScriptComponentInstance::Save(Serialization::IArchive& archive, const ISerializationContext& context)
 {
 	archive(m_accessor, "accessor");
 	archive(m_typeGUID, "typeGUID");
-	archive(m_transform, "transform");
-	if (m_pProperties)
+	if (m_bHasTransform && m_pTransform)
 	{
-		archive(*m_pProperties, "properties");
+		archive(*m_pTransform, "transform");
 	}
+	archive(m_properties, "properties", "Properties");
 }
 
 void CScriptComponentInstance::Edit(Serialization::IArchive& archive, const ISerializationContext& context)
 {
-	if (m_pProperties)
+	if (!m_properties.IsEmpty())
 	{
 		bool bPublic = m_accessor == EScriptElementAccessor::Public;
 		archive(bPublic, "bPublic", "Public");
@@ -132,13 +132,13 @@ void CScriptComponentInstance::Edit(Serialization::IArchive& archive, const ISer
 			m_accessor = bPublic ? EScriptElementAccessor::Public : EScriptElementAccessor::Private;
 		}
 	}
-	if (m_bHasTransform)
+	if (m_bHasTransform && m_pTransform)
 	{
-		archive(m_transform, "transform", "Transform");
+		archive(*m_pTransform, "transform", "Transform");
 	}
-	if (m_pProperties)
+	if(!m_properties.IsEmpty())
 	{
-		archive(*m_pProperties, "properties", "Properties");
+		archive(m_properties, "properties", "Properties");
 	}
 }
 
@@ -162,13 +162,14 @@ void CScriptComponentInstance::ApplyComponent()
 	const IEnvComponent* pEnvComponent = gEnv->pSchematyc->GetEnvRegistry().GetComponent(m_typeGUID);
 	if (pEnvComponent)
 	{
-		m_bHasTransform = pEnvComponent->GetFlags().Check(EEnvComponentFlags::Transform);
-
-		const IProperties* pEnvComponentProperties = pEnvComponent->GetProperties();
-		if (pEnvComponentProperties)
+		const CEntityComponentClassDesc& componentDesc = pEnvComponent->GetDesc();
+		m_bHasTransform = componentDesc.GetComponentFlags().Check(IEntityComponent::EFlags::Transform);
+		if (m_bHasTransform && !m_pTransform)
 		{
-			m_pProperties = pEnvComponentProperties->Clone();
+			m_pTransform = std::make_shared<CTransform>();
 		}
+		m_properties.Set(componentDesc);
 	}
 }
+
 } // Schematyc

@@ -23,18 +23,10 @@ namespace Private_DialogCommon
 {
 
 static const QString s_initialFilePropertyName = QStringLiteral("initialFile");
-static const char* const s_szFilenameTemplate = "mesh_import_tmp_%1";
-
-int GetSuffixForTemporary()
-{
-	static int id = 0;
-	return ++id;
-}
 
 QString CopyToDir(QString filePath, const QString& dirPath)
 {
 	const QString newFilePath = QDir(dirPath).absoluteFilePath(QFileInfo(filePath).fileName());
-	LogPrintf("Copying file %s to %s.", QtUtil::ToString(filePath).c_str(), QtUtil::ToString(newFilePath).c_str());
 	QFile::copy(filePath, newFilePath);
 	return newFilePath;
 }
@@ -54,11 +46,6 @@ uint64 GetTimestamp()
 {
 	static uint64 clock = 0;
 	return ++clock;
-}
-
-void ShowCriticalError(const QString& title, const QString& message)
-{
-	CQuestionDialog::SCritical(title, message);
 }
 
 } // namespace Private_DialogCommon
@@ -196,10 +183,6 @@ void CSceneManager::OnSceneImported(CAsyncImportSceneTask* pTask)
 			return;
 		}
 
-		LogPrintf("%s: Assigning scene. File path is %s. Original file path is %s", __FUNCTION__,
-		          QtUtil::ToString(pPayload->pImportFile->GetFilePath()).c_str(),
-		          QtUtil::ToString(pPayload->pImportFile->GetOriginalFilePath()).c_str());
-
 		UnloadScene();
 
 		m_pDisplayScene = std::make_shared<SDisplayScene>();
@@ -214,13 +197,6 @@ void CSceneManager::OnSceneImported(CAsyncImportSceneTask* pTask)
 				callback(pPayload->pUserData.get());
 			}
 		}
-	}
-	else
-	{
-		const char* const szFileName = QtUtil::ToString(pTask->GetFilePath()).c_str();
-		const QString message = QObject::tr("The specified file could not be imported:\n%1\n\nThe file may be in use; of an unsupported format; or of an unsupported version.\nTry re-exporting the file with the latest FBX plug-in for your DCC package.").arg(QtUtil::ToQStringSafe(szFileName));
-		const QString title = QObject::tr("File import failed");
-		ShowCriticalError(title, message);
 	}
 }
 

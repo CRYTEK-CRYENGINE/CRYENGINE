@@ -2,25 +2,27 @@
 
 #include "StdAfx.h"
 #include "InspectorPanel.h"
-#include "QtUtil.h"
-#include "QAudioControlEditorIcons.h"
-#include <ACETypes.h>
-#include <IEditor.h>
-#include "QConnectionsWidget.h"
 
 #include <QVBoxLayout>
-#include <QPropertyTree/QPropertyTree.h>
 #include <QLabel>
+#include <Serialization/QPropertyTree/QPropertyTree.h>
+#include <ACETypes.h>
+#include <IEditor.h>
+#include <QtUtil.h>
+#include <QString>
+
+#include "QAudioControlEditorIcons.h"
+#include "QConnectionsWidget.h"
+#include "AudioAssetsManager.h"
 
 using namespace QtUtil;
 
 namespace ACE
 {
-CInspectorPanel::CInspectorPanel(CATLControlsModel* pATLModel)
-	: m_pATLModel(pATLModel)
-	, m_bSupressUpdates(false)
+CInspectorPanel::CInspectorPanel(CAudioAssetsManager* pAssetsManager)
+	: m_pAssetsManager(pAssetsManager)
 {
-	assert(m_pATLModel);
+	assert(m_pAssetsManager);
 	resize(300, 490);
 	setWindowTitle(tr("Inspector Panel"));
 	setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
@@ -33,16 +35,28 @@ CInspectorPanel::CInspectorPanel(CATLControlsModel* pATLModel)
 
 	pMainLayout->addWidget(m_pPropertyTree);
 
-	m_pConnectionsLabel = new QLabel(tr("Connections"));
+	m_pUsageHint.reset(new QString(tr("Select an audio control from the left pane to see its properties!")));
+
+	m_pConnectionsLabel = new QLabel(*m_pUsageHint);
 	m_pConnectionsLabel->setObjectName("ConnectionsTitle");
+	m_pConnectionsLabel->setAlignment(Qt::AlignCenter);
+	m_pConnectionsLabel->setWordWrap(true);
 	pMainLayout->addWidget(m_pConnectionsLabel);
 
-	m_pConnectionList = new QConnectionsWidget(this);
+	m_pConnectionList = new QConnectionsWidget();
 	pMainLayout->addWidget(m_pConnectionList);
 
-	pMainLayout->setAlignment(Qt::AlignTop);
+	auto revertFunction = [&]()
+	{
+		if (!m_bSupressUpdates)
+		{
+			m_pPropertyTree->revert();
+		}
+	};
+	pAssetsManager->signalItemAdded.Connect(revertFunction, reinterpret_cast<uintptr_t>(this));
+	pAssetsManager->signalItemRemoved.Connect(revertFunction, reinterpret_cast<uintptr_t>(this));
+	pAssetsManager->signalControlModified.Connect(revertFunction, reinterpret_cast<uintptr_t>(this));
 
-	m_pATLModel->AddListener(this);
 	m_pConnectionList->Init();
 
 	Reload();
@@ -60,7 +74,9 @@ CInspectorPanel::CInspectorPanel(CATLControlsModel* pATLModel)
 
 CInspectorPanel::~CInspectorPanel()
 {
-	m_pATLModel->RemoveListener(this);
+	m_pAssetsManager->signalItemAdded.DisconnectById(reinterpret_cast<uintptr_t>(this));
+	m_pAssetsManager->signalItemRemoved.DisconnectById(reinterpret_cast<uintptr_t>(this));
+	m_pAssetsManager->signalControlModified.DisconnectById(reinterpret_cast<uintptr_t>(this));
 }
 
 void CInspectorPanel::Reload()
@@ -68,64 +84,45 @@ void CInspectorPanel::Reload()
 	m_pConnectionList->Reload();
 }
 
-void CInspectorPanel::SetSelectedControls(const ControlList& selectedControls)
+//////////////////////////////////////////////////////////////////////////
+void CInspectorPanel::SetSelectedControls(const std::vector<CAudioControl*>& selectedControls)
 {
 	// Update property tree
 	m_pPropertyTree->detach();
 	Serialization::SStructs serializers;
-	for (auto id : selectedControls)
+
+	for (auto const pControl : selectedControls)
 	{
-		CATLControl* pControl = m_pATLModel->GetControlByID(id);
-		if (pControl)
-		{
-			serializers.push_back(Serialization::SStruct(*pControl));
-		}
+		CRY_ASSERT(pControl != nullptr);
+		serializers.emplace_back(*pControl);
 	}
+
 	m_pPropertyTree->attach(serializers);
 
-	//Update connections
+	// Update connections
 	if (selectedControls.size() == 1)
 	{
-		CATLControl* pControl = m_pATLModel->GetControlByID(selectedControls[0]);
-		if (pControl && pControl->GetType() != eACEControlType_Switch)
+		CAudioControl* pControl = selectedControls[0];
+		if (pControl->GetType() != eItemType_Switch)
 		{
 			m_pConnectionList->SetControl(pControl);
 			m_pConnectionList->setHidden(false);
+			m_pConnectionsLabel->setAlignment(Qt::AlignLeft);
+			m_pConnectionsLabel->setText(tr("Connections"));
 		}
 		else
 		{
 			m_pConnectionList->setHidden(true);
+			m_pConnectionsLabel->setAlignment(Qt::AlignCenter);
+			m_pConnectionsLabel->setText(tr("Select a switch state to see its properties!"));
 		}
 	}
 	else
 	{
 		m_pConnectionList->setHidden(true);
 		m_pConnectionList->SetControl(nullptr);
+		m_pConnectionsLabel->setAlignment(Qt::AlignCenter);
+		m_pConnectionsLabel->setText(*m_pUsageHint);
 	}
 }
-
-void CInspectorPanel::OnControlModified(ACE::CATLControl* pControl)
-{
-	if (!m_bSupressUpdates)
-	{
-		m_pPropertyTree->revert();
-	}
-}
-
-void CInspectorPanel::OnConnectionAdded(CATLControl* pControl, IAudioSystemItem* pMiddlewareControl)
-{
-	if (!m_bSupressUpdates)
-	{
-		m_pPropertyTree->revert();
-	}
-}
-
-void CInspectorPanel::OnConnectionRemoved(CATLControl* pControl, IAudioSystemItem* pMiddlewareControl)
-{
-	if (!m_bSupressUpdates)
-	{
-		m_pPropertyTree->revert();
-	}
-}
-
-}
+} // namespace ACE

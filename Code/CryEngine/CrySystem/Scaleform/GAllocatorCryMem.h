@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #ifndef _GALLOCATOR_CRYMEM_H_
 #define _GALLOCATOR_CRYMEM_H_
@@ -65,7 +65,7 @@ public:
 public:
 	virtual Stats                  GetStats() const = 0;
 	virtual void                   GetMemoryUsage(ICrySizer* pSizer) const = 0;
-	virtual GSysAllocBase*         GetSysAllocImpl() = 0;
+	virtual GSysAllocBase*         GetSysAllocImpl() const = 0;
 	virtual GFxMemoryArenaWrapper& GetMemoryArenas() = 0;
 	virtual float                  GetFlashHeapFragmentation() const = 0;
 
@@ -84,7 +84,7 @@ public:
 	// CryGFxMemInterface interface
 	virtual Stats                  GetStats() const;
 	virtual void                   GetMemoryUsage(ICrySizer* pSizer) const;
-	virtual GSysAllocBase*         GetSysAllocImpl();
+	virtual GSysAllocBase*         GetSysAllocImpl() const;
 	virtual GFxMemoryArenaWrapper& GetMemoryArenas();
 	virtual float                  GetFlashHeapFragmentation() const;
 
@@ -112,7 +112,7 @@ public:
 	// CryGFxMemInterface interface
 	virtual Stats                  GetStats() const;
 	virtual void                   GetMemoryUsage(ICrySizer* pSizer) const;
-	virtual GSysAllocBase*         GetSysAllocImpl();
+	virtual GSysAllocBase*         GetSysAllocImpl() const;
 	virtual GFxMemoryArenaWrapper& GetMemoryArenas();
 	virtual float                  GetFlashHeapFragmentation() const;
 

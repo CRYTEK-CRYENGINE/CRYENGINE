@@ -1,4 +1,5 @@
 // Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved.
+
 #ifndef STAT_CGF_COMPILER
 #define STAT_CGF_COMPILER
 
@@ -28,7 +29,7 @@ public:
 	CStatCGFCompiler();
 	~CStatCGFCompiler();
 
-	// IConvertor methods.
+	// IConverter methods.
 	virtual const char* GetExt(int index) const
 	{
 		switch (index)

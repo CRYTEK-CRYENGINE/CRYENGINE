@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 /*=============================================================================
    PostEffects.cpp : Post processing effects implementation
@@ -25,7 +25,7 @@ int CMotionBlur::Initialize()
 int CMotionBlur::CreateResources()
 {
 	SAFE_RELEASE(m_pBokehShape);
-	m_pBokehShape = CTexture::ForName("EngineAssets/ScreenSpace/bokeh_pentagon.dds", FT_DONT_STREAM, eTF_Unknown);
+	m_pBokehShape = CTexture::ForName("%ENGINE%/EngineAssets/ScreenSpace/bokeh_pentagon.dds", FT_DONT_STREAM, eTF_Unknown);
 
 	return 1;
 }
@@ -62,7 +62,7 @@ int CDepthOfField::CreateResources()
 {
 	SAFE_RELEASE(m_pNoise);
 
-	m_pNoise = CTexture::ForName("EngineAssets/Textures/vector_noise.dds", FT_DONT_STREAM, eTF_Unknown);
+	m_pNoise = CTexture::ForName("%ENGINE%/EngineAssets/Textures/vector_noise.dds", FT_DONT_STREAM, eTF_Unknown);
 
 	return true;
 }
@@ -201,6 +201,8 @@ void CFilterBlurring::Reset(bool bOnSpecChange)
 
 bool CUberGamePostProcess::Preprocess()
 {
+	m_nCurrPostEffectsMask = 0;
+
 	const float fParamThreshold = 1.0f / 255.0f;
 	const Vec4 vWhite = Vec4(1.0f, 1.0f, 1.0f, 1.0f);
 
@@ -416,32 +418,6 @@ void CWaterFlow::Reset(bool bOnSpecChange)
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-bool CWaterVolume::Preprocess()
-{
-	if(gRenDev->m_nGraphicsPipeline > 0)
-	{
-		return false;
-	}
-
-	if (!gRenDev->m_RP.m_eQuality)
-		return false;
-
-	if (m_pAmount->GetParam() > 0.005f)
-	{
-		return true;
-	}
-
-	return false;
-}
-
-void CWaterVolume::Reset(bool bOnSpecChange)
-{
-	m_pAmount->ResetParam(0.0f);
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
 bool CScreenFrost::Preprocess()
 {
 	bool bQualityCheck = CPostEffectsMgr::CheckPostProcessQuality(eRQ_Medium, eSQ_Medium);
@@ -527,8 +503,8 @@ int CNightVision::CreateResources()
 	SAFE_RELEASE(m_pGradient);
 	SAFE_RELEASE(m_pNoise);
 
-	m_pGradient = CTexture::ForName("EngineAssets/Textures/nightvis_grad.dds", FT_DONT_STREAM, eTF_Unknown);
-	m_pNoise = CTexture::ForName("EngineAssets/Textures/vector_noise.dds", FT_DONT_STREAM, eTF_Unknown);
+	m_pGradient = CTexture::ForName("%ENGINE%/EngineAssets/Textures/nightvis_grad.dds", FT_DONT_STREAM, eTF_Unknown);
+	m_pNoise = CTexture::ForName("%ENGINE%/EngineAssets/Textures/vector_noise.dds", FT_DONT_STREAM, eTF_Unknown);
 
 	return true;
 }
@@ -562,8 +538,8 @@ int CSonarVision::CreateResources()
 	SAFE_RELEASE(m_pGradient);
 	SAFE_RELEASE(m_pNoise);
 
-	m_pGradient = CTexture::ForName("EngineAssets/Shading/SonarVisionGradient.tif", FT_DONT_STREAM, eTF_Unknown);
-	m_pNoise = CTexture::ForName("EngineAssets/Textures/vector_noise.dds", FT_DONT_STREAM, eTF_Unknown);
+	m_pGradient = CTexture::ForName("%ENGINE%/EngineAssets/Shading/SonarVisionGradient.tif", FT_DONT_STREAM, eTF_Unknown);
+	m_pNoise = CTexture::ForName("%ENGINE%/EngineAssets/Textures/vector_noise.dds", FT_DONT_STREAM, eTF_Unknown);
 
 	return true;
 }
@@ -593,8 +569,8 @@ int CThermalVision::CreateResources()
 {
 	Release();
 
-	m_pGradient = CTexture::ForName("EngineAssets/Shading/ThermalVisionGradient.tif", FT_DONT_STREAM, eTF_Unknown);
-	m_pNoise = CTexture::ForName("EngineAssets/Textures/vector_noise.dds", FT_DONT_STREAM, eTF_Unknown);
+	m_pGradient = CTexture::ForName("%ENGINE%/EngineAssets/Shading/ThermalVisionGradient.tif", FT_DONT_STREAM, eTF_Unknown);
+	m_pNoise = CTexture::ForName("%ENGINE%/EngineAssets/Textures/vector_noise.dds", FT_DONT_STREAM, eTF_Unknown);
 
 	return true;
 }
@@ -670,7 +646,6 @@ void CFlashBang::Reset(bool bOnSpecChange)
 	m_pTime->ResetParam(2.0f);
 	m_pDifractionAmount->ResetParam(1.0f);
 	m_pBlindAmount->ResetParam(0.5f);
-	m_fBlindAmount = 1.0f;
 	m_fSpawnTime = 0.0f;
 }
 
@@ -689,8 +664,8 @@ int CPostAA::CreateResources()
 	SAFE_RELEASE(m_pAreaSMAA);
 	SAFE_RELEASE(m_pSearchSMAA);
 
-	m_pAreaSMAA = CTexture::ForName("EngineAssets/ScreenSpace/AreaTex.dds", FT_DONT_STREAM, eTF_Unknown);
-	m_pSearchSMAA = CTexture::ForName("EngineAssets/ScreenSpace/SearchTex.dds", FT_DONT_STREAM, eTF_Unknown);
+	m_pAreaSMAA = CTexture::ForName("%ENGINE%/EngineAssets/ScreenSpace/AreaTex.dds", FT_DONT_STREAM, eTF_Unknown);
+	m_pSearchSMAA = CTexture::ForName("%ENGINE%/EngineAssets/ScreenSpace/SearchTex.dds", FT_DONT_STREAM, eTF_Unknown);
 
 	return 1;
 }
@@ -770,6 +745,10 @@ bool CFilterKillCamera::Preprocess()
 			m_lastMode = mode;
 		}
 
+		// Update time
+		float frameTime = gEnv->pTimer->GetFrameTime();
+		m_blindTimer += frameTime;
+
 		return true;
 	}
 
@@ -789,10 +768,10 @@ void CFilterKillCamera::Reset(bool bOnSpecChange)
 int CNanoGlass::CreateResources()
 {
 	Release();
-	m_pHexOutline = CTexture::ForName("EngineAssets/Textures/hex.dds", FT_DONT_STREAM, eTF_Unknown);
-	m_pHexRand = CTexture::ForName("EngineAssets/Textures/hex_rand.dds", FT_DONT_STREAM, eTF_Unknown);
-	m_pHexGrad = CTexture::ForName("EngineAssets/Textures/hex_grad.dds", FT_DONT_STREAM, eTF_Unknown);
-	m_pNoise = CTexture::ForName("EngineAssets/Textures/perlinNoise_sum_small.dds", FT_DONT_STREAM, eTF_Unknown);
+	m_pHexOutline = CTexture::ForName("%ENGINE%/EngineAssets/Textures/hex.dds", FT_DONT_STREAM, eTF_Unknown);
+	m_pHexRand = CTexture::ForName("%ENGINE%/EngineAssets/Textures/hex_rand.dds", FT_DONT_STREAM, eTF_Unknown);
+	m_pHexGrad = CTexture::ForName("%ENGINE%/EngineAssets/Textures/hex_grad.dds", FT_DONT_STREAM, eTF_Unknown);
+	m_pNoise = CTexture::ForName("%ENGINE%/EngineAssets/Textures/perlinNoise_sum_small.dds", FT_DONT_STREAM, eTF_Unknown);
 	return 1;
 }
 

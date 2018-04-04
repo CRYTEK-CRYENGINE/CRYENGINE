@@ -358,10 +358,10 @@ SShadowSamplingParams GetShadowSamplingParams()
 //////////////////////////////////////////////////////////////////////////
 // per instance textures for water volume
 
-Texture2D FlowOffTex : register(t14) = "EngineAssets/Textures/perlinNoise2d.tif";
+Texture2D FlowOffTex : register(t14) = "%ENGINE%/EngineAssets/Textures/perlinNoise2d.tif";
 
 // volumetric fog shadow
-Texture2D interleaveSampleTex : register(t15) = "EngineAssets/Textures/FogVolShadowJitter.tif";
+Texture2D interleaveSampleTex : register(t15) = "%ENGINE%/EngineAssets/Textures/FogVolShadowJitter.tif";
 
 //////////////////////////////////////////////////////////////////////////
 // per instance textures for water ocean
@@ -375,12 +375,12 @@ Texture2D oceanReflectionTex : register(t15);
 // per pass textures
 
 // water ocean gloss
-Texture2D waterGlossTex : register(t16) = "EngineAssets/Textures/water_gloss.tif";
+Texture2D waterGlossTex : register(t16) = "%ENGINE%/EngineAssets/Textures/water_gloss.tif";
 
-Texture2D FoamTex : register(t17) = "EngineAssets/Shading/WaterFoam.tif";
+Texture2D FoamTex : register(t17) = "%ENGINE%/EngineAssets/Shading/WaterFoam.tif";
 
 // eTF_BC5S
-Texture2D RainRipplesTex : register(t18) = "EngineAssets/Textures/Rain/Ripple/ripple#01_24_ddn.tif";
+Texture2D RainRipplesTex : register(t18) = "%ENGINE%/EngineAssets/Textures/Rain/Ripple/ripple#01_24_ddn.tif";
 
 // forward sun shadow
 Texture2D<float4> shadowMapTex0 : register(t19) = TS_Shadow0;
@@ -396,7 +396,7 @@ Texture3D<float4> volFogSamplingTex : register(t24) = TS_VolumetricFog;
 TextureCube<float4> volFogGlobalEnvProbeTex0 : register(t25) = TS_VolumetricFogGlobalEnvProbe0;
 TextureCube<float4> volFogGlobalEnvProbeTex1 : register(t26) = TS_VolumetricFogGlobalEnvProbe1;
 
-Texture2D WaterDynRipplesTex : register(t27) = TS_WaterRipplesDDN;
+Texture2D WaterDynRipplesTex : register(t27);
 Texture2D WaterNormalTex : register(t28) = TS_WaterVolumeDDN;
 
 Texture2D sceneDepthTex : register(t29) = TS_ZTarget;

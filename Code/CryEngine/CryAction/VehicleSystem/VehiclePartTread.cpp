@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 /*************************************************************************
    -------------------------------------------------------------------------
@@ -41,7 +41,7 @@ CVehiclePartTread::CVehiclePartTread()
 
 	m_pShaderResources = NULL;
 	m_pMaterial = NULL;
-	CryCreateClassInstance("AnimationPoseModifier_OperatorQueue", m_operatorQueue);
+	CryCreateClassInstanceForInterface(cryiidof<IAnimationOperatorQueue>(), m_operatorQueue);
 }
 
 //------------------------------------------------------------------------

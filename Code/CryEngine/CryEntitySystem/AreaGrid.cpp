@@ -1,25 +1,23 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #include "stdafx.h"
 #include "AreaGrid.h"
 #include "Area.h"
 #include <CryRenderer/IRenderAuxGeom.h>
 
-const uint32 CAreaGrid::GRID_CELL_SIZE = 4;
-const float CAreaGrid::GRID_CELL_SIZE_R = 1.0f / CAreaGrid::GRID_CELL_SIZE;
+static constexpr int GridCellSize = 4;
+static constexpr float GridCellSizeR = 1.0f / GridCellSize;
 
 //////////////////////////////////////////////////////////////////////////
 CAreaGrid::CAreaGrid()
-	: m_pEntitySystem(nullptr)
-	, m_pbitFieldX(nullptr)
+	: m_pbitFieldX(nullptr)
 	, m_pbitFieldY(nullptr)
 	, m_pAreaBounds(nullptr)
 	, m_pAreas(nullptr)
 	, m_bitFieldSizeU32(0)
 	, m_maxNumAreas(0)
-	, m_numCells(0)
-{
-}
+	, m_numCellsPerAxis(0)
+{}
 
 //////////////////////////////////////////////////////////////////////////
 CAreaGrid::~CAreaGrid()
@@ -28,11 +26,9 @@ CAreaGrid::~CAreaGrid()
 }
 
 //////////////////////////////////////////////////////////////////////////
-TAreaPointers const& CAreaGrid::GetAreas(uint32 const x, uint32 const y)
+bool CAreaGrid::GetAreas(uint32 const x, uint32 const y, TAreaPointers& outAreas)
 {
-	// Must be empty, don't clear here for performance reasons!
-	CRY_ASSERT(m_areasTmp.empty());
-	CRY_ASSERT(x < m_numCells && y < m_numCells);
+	CRY_ASSERT(x < m_numCellsPerAxis && y < m_numCellsPerAxis);
 
 	uint32 const* const pBitsLHS = m_pbitFieldX + (m_bitFieldSizeU32 * x);
 	uint32 const* const pBitsRHS = m_pbitFieldY + (m_bitFieldSizeU32 * y);
@@ -45,12 +41,12 @@ TAreaPointers const& CAreaGrid::GetAreas(uint32 const x, uint32 const y)
 		{
 			if (currentBitField & 1)
 			{
-				m_areasTmp.push_back(m_pAreas->at(offset + j));
+				outAreas.push_back(m_pAreas->at(offset + j));
 			}
 		}
 	}
 
-	return m_areasTmp;
+	return !outAreas.empty();
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -82,7 +78,7 @@ bool CAreaGrid::GetAreaIndex(CArea const* const pArea, size_t& outIndex)
 //////////////////////////////////////////////////////////////////////////
 void CAreaGrid::AddAreaBit(const Vec2i& start, const Vec2i& end, uint32 areaIndex)
 {
-	CRY_ASSERT(start.x >= 0 && start.y >= 0 && end.x < (int)m_numCells && end.y < (int)m_numCells);
+	CRY_ASSERT(start.x >= 0 && start.y >= 0 && end.x < (int)m_numCellsPerAxis && end.y < (int)m_numCellsPerAxis);
 	CRY_ASSERT(start.x <= end.x && start.y <= end.y);
 
 	uint32* pBits;
@@ -114,7 +110,7 @@ void CAreaGrid::RemoveAreaBit(uint32 areaIndex)
 		return; // Hasn't been added yet
 	}
 
-	CRY_ASSERT(start.x >= 0 && start.y >= 0 && end.x < (int)m_numCells && end.y < (int)m_numCells);
+	CRY_ASSERT(start.x >= 0 && start.y >= 0 && end.x < (int)m_numCellsPerAxis && end.y < (int)m_numCellsPerAxis);
 	CRY_ASSERT(start.x <= end.x && start.y <= end.y);
 
 	uint32* pBits;
@@ -138,8 +134,8 @@ void CAreaGrid::RemoveAreaBit(uint32 areaIndex)
 //////////////////////////////////////////////////////////////////////////
 void CAreaGrid::ClearAllBits()
 {
-	memset(m_pbitFieldX, 0, m_bitFieldSizeU32 * m_numCells * sizeof(m_pbitFieldX[0]));
-	memset(m_pbitFieldY, 0, m_bitFieldSizeU32 * m_numCells * sizeof(m_pbitFieldY[0]));
+	memset(m_pbitFieldX, 0, m_bitFieldSizeU32 * m_numCellsPerAxis * sizeof(m_pbitFieldX[0]));
+	memset(m_pbitFieldY, 0, m_bitFieldSizeU32 * m_numCellsPerAxis * sizeof(m_pbitFieldY[0]));
 	memset(m_pAreaBounds, -1, sizeof(m_pAreaBounds[0]) * m_maxNumAreas);
 }
 
@@ -155,7 +151,7 @@ bool CAreaGrid::ResetArea(CArea* pArea)
 		uint32 index = 0;
 		TAreaPointers::const_iterator iter(m_pAreas->begin());
 		TAreaPointers::const_iterator const iterEnd(m_pAreas->end());
-		uint32 const numAreas = std::min<uint32>((uint32)m_maxNumAreas, (uint32)m_pAreas->size());
+		uint32 const numAreas = std::min<uint32>(m_maxNumAreas, static_cast<uint32>(m_pAreas->size()));
 
 		for (; iter != iterEnd && index < numAreas; ++iter, ++index)
 		{
@@ -174,7 +170,7 @@ bool CAreaGrid::ResetArea(CArea* pArea)
 //////////////////////////////////////////////////////////////////////////
 void CAreaGrid::AddArea(CArea* pArea, uint32 areaIndex)
 {
-	// Calculate a loose bounding box (ie one that covers all the region we will have to check this
+	// Calculate a loose bounding box (i.e. one that covers all the region we will have to check this
 	// shape for, including fade area).
 	Vec2 vBBCentre(0.0f, 0.0f);
 	Vec2 vBBExtent(0.0f, 0.0f);
@@ -219,80 +215,72 @@ void CAreaGrid::AddArea(CArea* pArea, uint32 areaIndex)
 			pArea->GetSolidBoundBox(boundbox);
 			Matrix34 tm;
 			pArea->GetMatrix(tm);
-			static const float sqrt2 = 1.42f;
 			float const greatestFadeDistance = pArea->GetGreatestFadeDistance();
-			Vec3 const boxMinWorld(tm.TransformPoint(boundbox.min));
-			Vec3 const boxMaxWorld(tm.TransformPoint(boundbox.max));
-			vBBExtent = Vec2(abs(boxMaxWorld.x - boxMinWorld.x), abs(boxMaxWorld.y - boxMinWorld.y)) * sqrt2 * 0.5f;
+
+			boundbox.SetTransformedAABB(tm, boundbox);
+			vBBExtent = Vec2(std::abs(boundbox.max.x - boundbox.min.x), std::abs(boundbox.max.y - boundbox.min.y)) * 0.5f;
 			vBBExtent += Vec2(greatestFadeDistance, greatestFadeDistance);
-			vBBCentre = Vec2(boxMinWorld.x + boxMaxWorld.x, boxMinWorld.y + boxMaxWorld.y) * 0.5f;
+			vBBCentre = Vec2(boundbox.min.x + boundbox.max.x, boundbox.min.y + boundbox.max.y) * 0.5f;
 		}
 		break;
 	}
 
-	//Covert BB pos into grid coords
-	Vec2i start((int)((vBBCentre.x - vBBExtent.x) * GRID_CELL_SIZE_R), (int)((vBBCentre.y - vBBExtent.y) * GRID_CELL_SIZE_R));
-	Vec2i end((int)((vBBCentre.x + vBBExtent.x) * GRID_CELL_SIZE_R), (int)((vBBCentre.y + vBBExtent.y) * GRID_CELL_SIZE_R));
+	// Convert BB pos into grid coordinates
+	Vec2i start((int)((vBBCentre.x - vBBExtent.x) * GridCellSizeR), (int)((vBBCentre.y - vBBExtent.y) * GridCellSizeR));
+	Vec2i end((int)((vBBCentre.x + vBBExtent.x) * GridCellSizeR), (int)((vBBCentre.y + vBBExtent.y) * GridCellSizeR));
 
-	if ((end.x | end.y) < 0 || start.x >= (int)m_numCells || start.y > (int)m_numCells)
+	if ((end.x | end.y) < 0 || start.x >= (int)m_numCellsPerAxis || start.y > (int)m_numCellsPerAxis)
 		return;
 
 	start.x = std::max<int>(start.x, 0);
 	start.y = std::max<int>(start.y, 0);
-	end.x = std::min<int>(end.x, (int)m_numCells - 1);
-	end.y = std::min<int>(end.y, (int)m_numCells - 1);
+	end.x = std::min<int>(end.x, (int)m_numCellsPerAxis - 1);
+	end.y = std::min<int>(end.y, (int)m_numCellsPerAxis - 1);
 
 	AddAreaBit(start, end, areaIndex);
 
-#ifndef _RELEASE
-	//query bb extents to see if they are correctly added to the grid
+#if defined(INCLUDE_ENTITYSYSTEM_PRODUCTION_CODE)
+	//query BB extents to see if they are correctly added to the grid
 	//Debug_CheckBB(vBBCentre, vBBExtent, pArea);
-#endif
+#endif // INCLUDE_ENTITYSYSTEM_PRODUCTION_CODE
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CAreaGrid::Compile(CEntitySystem* pEntitySystem, TAreaPointers const& areas)
+void CAreaGrid::Compile(TAreaPointers const& areas)
 {
 	FUNCTION_PROFILER(GetISystem(), PROFILE_ENTITY);
 
-	uint32 oldNumCells = m_numCells;
-	uint32 terrainSize = gEnv->p3DEngine->GetTerrainSize();
-	uint32 numCells = terrainSize / GRID_CELL_SIZE;
-	numCells = std::max<uint32>(numCells, 2048);
+	int const terrainSize = gEnv->p3DEngine->GetTerrainSize();
+	uint32 const numCellsPerAxis = static_cast<uint32>(terrainSize / GridCellSize);
 
 	// No point creating an area grid if there are no areas.
-	if (areas.empty() || numCells == 0)
+	if (areas.empty() || numCellsPerAxis == 0)
 	{
 		Reset();
 		return;
 	}
 
+	uint32 const oldNumCellsPerAxis = m_numCellsPerAxis;
 	uint32 const numAreas = static_cast<uint32>(areas.size());
-	uint32 bitFieldSizeU32 = ((numAreas + 31) >> 5);
+	uint32 const bitFieldSizeU32 = ((numAreas + 31) >> 5);
 
-	if (numCells != oldNumCells || numAreas > m_maxNumAreas || m_bitFieldSizeU32 != bitFieldSizeU32)
+	if (numCellsPerAxis != oldNumCellsPerAxis || numAreas > m_maxNumAreas || m_bitFieldSizeU32 != bitFieldSizeU32)
 	{
 		// Full reset and reallocate bit-fields
 		Reset();
-		m_numCells = numCells;
-
+		m_numCellsPerAxis = numCellsPerAxis;
 		m_bitFieldSizeU32 = bitFieldSizeU32;
 		m_maxNumAreas = numAreas;
 
-		CRY_ASSERT(m_pbitFieldX == nullptr && m_areasTmp.empty());
+		CRY_ASSERT(m_pbitFieldX == nullptr);
 
-		m_pbitFieldX = new uint32[m_bitFieldSizeU32 * m_numCells];
-		m_pbitFieldY = new uint32[m_bitFieldSizeU32 * m_numCells];
-
-		m_areasTmp.reserve(m_maxNumAreas);
-
+		m_pbitFieldX = new uint32[m_bitFieldSizeU32 * m_numCellsPerAxis];
+		m_pbitFieldY = new uint32[m_bitFieldSizeU32 * m_numCellsPerAxis];
 		m_pAreaBounds = new Vec2i[m_maxNumAreas][2];
 	}
 
 	m_pAreas = &areas;
 	ClearAllBits();
-
-	m_pEntitySystem = pEntitySystem;
 	uint32 areaIndex = 0;
 
 	for (auto const pArea : areas)
@@ -307,169 +295,182 @@ void CAreaGrid::Reset()
 	SAFE_DELETE_ARRAY(m_pbitFieldX);
 	SAFE_DELETE_ARRAY(m_pbitFieldY);
 	SAFE_DELETE_ARRAY(m_pAreaBounds);
-	stl::free_container(m_areasTmp);
-	m_pAreas = nullptr;
 	m_bitFieldSizeU32 = 0;
 	m_maxNumAreas = 0;
-	m_numCells = 0;
+	m_numCellsPerAxis = 0;
+	m_pAreas = nullptr;
 }
 
 //////////////////////////////////////////////////////////////////////////
-TAreaPointers const& CAreaGrid::GetAreas(Vec3 const& position)
+bool CAreaGrid::GetAreas(Vec3 const& position, TAreaPointers& outAreas)
 {
-	// Clear this once before the call to GetAreas!
-	ClearTmpAreas();
-
 	if (m_pbitFieldX != nullptr)
 	{
-		uint32 const gridX = static_cast<uint32>(position.x * GRID_CELL_SIZE_R);
-		uint32 const gridY = static_cast<uint32>(position.y * GRID_CELL_SIZE_R);
+		uint32 const gridX = static_cast<uint32>(position.x * GridCellSizeR);
+		uint32 const gridY = static_cast<uint32>(position.y * GridCellSizeR);
 
-		if (gridX < m_numCells && gridY < m_numCells)
+		if (gridX < m_numCellsPerAxis && gridY < m_numCellsPerAxis)
 		{
-			return GetAreas(gridX, gridY);
-		}
-		else
-		{
-			//printf("Trying to index outside of grid\n");
+			return GetAreas(gridX, gridY, outAreas);
 		}
 	}
 
-	return m_areasTmp;
+	return false;
 }
 
 //////////////////////////////////////////////////////////////////////////
 void CAreaGrid::Draw()
 {
-#ifndef _RELEASE
-	if (GetNumAreas() == 0)
-		return;
-
-	// Clear this once before the call to GetAreas!
-	ClearTmpAreas();
-
-	I3DEngine* p3DEngine = gEnv->p3DEngine;
-	IRenderAuxGeom* pRC = gEnv->pRenderer->GetIRenderAuxGeom();
-	pRC->SetRenderFlags(e_Def3DPublicRenderflags);
-
-	ColorF const colorsArray[] = {
-		ColorF(1.0f, 0.0f, 0.0f, 1.0f),
-		ColorF(0.0f, 1.0f, 0.0f, 1.0f),
-		ColorF(0.0f, 0.0f, 1.0f, 1.0f),
-		ColorF(1.0f, 1.0f, 0.0f, 1.0f),
-		ColorF(1.0f, 0.0f, 1.0f, 1.0f),
-		ColorF(0.0f, 1.0f, 1.0f, 1.0f),
-		ColorF(1.0f, 1.0f, 1.0f, 1.0f),
-	};
-
-	for (uint32 gridX = 0; gridX < m_numCells; gridX++)
+#if defined(INCLUDE_ENTITYSYSTEM_PRODUCTION_CODE)
+	if (m_pAreas != nullptr && !m_pAreas->empty())
 	{
-		for (uint32 gridY = 0; gridY < m_numCells; gridY++)
+		static TAreaPointers s_tempAreas;
+
+		static ColorF const colorsArray[] = {
+			ColorF(1.0f, 0.0f, 0.0f, 1.0f),
+			ColorF(0.0f, 1.0f, 0.0f, 1.0f),
+			ColorF(0.0f, 0.0f, 1.0f, 1.0f),
+			ColorF(1.0f, 1.0f, 0.0f, 1.0f),
+			ColorF(1.0f, 0.0f, 1.0f, 1.0f),
+			ColorF(0.0f, 1.0f, 1.0f, 1.0f),
+			ColorF(1.0f, 1.0f, 1.0f, 1.0f),
+		};
+
+		static float const color[4] = { 1.0f, 1.0f, 1.0f, 1.0f };
+		static Vec3 const
+		p1(-GridCellSize * 0.5f, -GridCellSize * 0.5f, 0.0f),
+		p2(+GridCellSize * 0.5f, -GridCellSize * 0.5f, 0.0f),
+		p3(+GridCellSize * 0.5f, +GridCellSize * 0.5f, 0.0f),
+		p4(-GridCellSize * 0.5f, +GridCellSize * 0.5f, 0.0f);
+
+		I3DEngine* const p3DEngine = gEnv->p3DEngine;
+		IRenderAuxGeom* const pRC = gEnv->pRenderer->GetIRenderAuxGeom();
+		pRC->SetRenderFlags(e_Def3DPublicRenderflags);
+		Vec3 const& camPos(gEnv->pSystem->GetViewCamera().GetPosition());
+		uint32 cell = 0;
+
+		for (uint32 gridX = 0; gridX < m_numCellsPerAxis; gridX++)
 		{
-			TAreaPointers const& rAreas = GetAreas(gridX, gridY);
+			float const cellX = (static_cast<float>(gridX) + 0.5f) * GridCellSize;
 
-			if (!rAreas.empty())
+			for (uint32 gridY = 0; gridY < m_numCellsPerAxis; gridY++)
 			{
-				Vec3 const vGridCentre = Vec3((float(gridX) + 0.5f) * GRID_CELL_SIZE, (float(gridY) + 0.5f) * GRID_CELL_SIZE, 0.0f);
-
-				ColorF colour(0.0f, 0.0f, 0.0f, 0.0f);
-				float divisor = 0.0f;
-				TAreaPointers::const_iterator Iter(rAreas.begin());
-				TAreaPointers::const_iterator const IterEnd(rAreas.end());
-
-				for (; Iter != IterEnd; ++Iter)
+				if (GetAreas(gridX, gridY, s_tempAreas))
 				{
-					// Pick a random color from the array.
-					size_t nAreaIndex = 0;
+					Vec3 const gridCenter = Vec3((float(gridX) + 0.5f) * GridCellSize, (float(gridY) + 0.5f) * GridCellSize, 0.0f);
 
-					if (GetAreaIndex(*Iter, nAreaIndex))
-					{
-						ColorF const areaColour = colorsArray[nAreaIndex % (sizeof(colorsArray) / sizeof(ColorF))];
-						colour += areaColour;
-						++divisor;
-					}
-					else
-					{
-						// Areas must be known!
-						CRY_ASSERT(false);
+					ColorF colour(0.0f, 0.0f, 0.0f, 0.0f);
+					float divisor = 0.0f;
 
-						if (divisor == 0.0f)
+					for (auto const pArea : s_tempAreas)
+					{
+						// Pick a random color from the array.
+						size_t areaIndex = 0;
+
+						if (GetAreaIndex(pArea, areaIndex))
 						{
-							divisor = 0.1f;
+							ColorF const areaColour = colorsArray[areaIndex % (sizeof(colorsArray) / sizeof(ColorF))];
+							colour += areaColour;
+							++divisor;
+						}
+						else
+						{
+							// Areas must be known!
+							CRY_ASSERT(false);
+
+							if (divisor == 0.0f)
+							{
+								divisor = 0.1f;
+							}
 						}
 					}
+
+					// Immediately clear the array to prevent it from re-entering this loop and messing up drawing of the grid.
+					s_tempAreas.clear();
+
+					// "divisor" won't be 0!
+					colour /= divisor;
+
+					ColorB const colourB = colour;
+					Vec3 points[4] = { gridCenter + p1, gridCenter + p2, gridCenter + p3, gridCenter + p4 };
+
+					for (auto& point : points)
+					{
+						point.z = p3DEngine->GetTerrainElevation(point.x, point.y);
+					}
+
+					pRC->DrawTriangle(points[0], colourB, points[1], colourB, points[2], colourB);
+					pRC->DrawTriangle(points[2], colourB, points[3], colourB, points[0], colourB);
 				}
 
-				// Immediately clear the array to prevent it from re-entering this loop and messing up drawing of the grid.
-				ClearTmpAreas();
-
-				// "divisor" won't be 0!
-				colour /= divisor;
-
-				ColorB const colourB = colour;
-
-				int const gridCellSize = GRID_CELL_SIZE;
-
-				Vec3 points[] = {
-					vGridCentre + Vec3(-gridCellSize * 0.5f, -gridCellSize * 0.5f, 0.0f),
-					vGridCentre + Vec3(+gridCellSize * 0.5f, -gridCellSize * 0.5f, 0.0f),
-					vGridCentre + Vec3(+gridCellSize * 0.5f, +gridCellSize * 0.5f, 0.0f),
-					vGridCentre + Vec3(-gridCellSize * 0.5f, +gridCellSize * 0.5f, 0.0f)
-				};
-
-				enum {NUM_POINTS = CRY_ARRAY_COUNT(points)};
-
-				for (int i = 0; i < NUM_POINTS; ++i)
+				if (CVar::pDrawAreaGridCells->GetIVal() != 0)
 				{
-					points[i].z = p3DEngine->GetTerrainElevation(points[i].x, points[i].y);
-				}
+					++cell;
+					float const cellY = (static_cast<float>(gridY) + 0.5f) * GridCellSize;
+					float const cellZ = p3DEngine->GetTerrainElevation(cellX, cellY);
+					Vec3 const cellCenter(cellX, cellY, cellZ);
 
-				pRC->DrawTriangle(points[0], colourB, points[1], colourB, points[2], colourB);
-				pRC->DrawTriangle(points[2], colourB, points[3], colourB, points[0], colourB);
+					Vec3 screenPos(ZERO);
+					gEnv->pRenderer->ProjectToScreen(cellCenter.x, cellCenter.y, cellCenter.z, &screenPos.x, &screenPos.y, &screenPos.z);
+
+					screenPos.x = screenPos.x * 0.01f * gEnv->pRenderer->GetWidth();
+					screenPos.y = screenPos.y * 0.01f * gEnv->pRenderer->GetHeight();
+
+					if (
+					  (screenPos.x >= 0.0f) && (screenPos.y >= 0.0f) &&
+					  (screenPos.z >= 0.0f) && (screenPos.z <= 1.0f) &&
+					  cellCenter.GetSquaredDistance(camPos) < 625.0f)
+					{
+						pRC->SetRenderFlags(e_Def2DPublicRenderflags);
+						IRenderAuxText::Draw2dLabel(
+						  screenPos.x,
+						  screenPos.y,
+						  1.35f,
+						  color,
+						  false,
+						  "Cell: %u X: %u Y: %u\n",
+						  cell,
+						  gridX,
+						  gridY);
+						pRC->SetRenderFlags(e_Def3DPublicRenderflags);
+					}
+				}
 			}
 		}
+
+		float const greenColor[4] = { 0.0f, 1.0f, 0.0f, 0.7f };
+		IRenderAuxText::Draw2dLabel(400.0f, 10.0f, 1.5f, greenColor, false, "Area Grid Mem Use: num cells: %d, memAlloced: %.2fk",
+		                            m_numCellsPerAxis, (4 * m_bitFieldSizeU32 * m_numCellsPerAxis * 2) / 1024.f);
 	}
-
-	float const yPos = 300.0f;
-	float const fColor[4] = { 1.0f, 1.0f, 1.0f, 1.0f };
-
-	IRenderAuxText::Draw2dLabel(30, yPos, 1.35f, fColor, false, "Area Grid Mem Use: num cells: %d, memAlloced: %.2fk",
-	                             m_numCells, (4 * m_bitFieldSizeU32 * m_numCells * 2) / 1024.f);
-#endif // _RELEASE
+#endif // INCLUDE_ENTITYSYSTEM_PRODUCTION_CODE
 }
 
-#ifndef _RELEASE
+#if defined(INCLUDE_ENTITYSYSTEM_PRODUCTION_CODE)
 //////////////////////////////////////////////////////////////////////////
 void CAreaGrid::Debug_CheckBB(Vec2 const& vBBCentre, Vec2 const& vBBExtent, CArea const* const pArea)
 {
-	uint32 nAreas = 0;
-
-	Vec2 minPos(vBBCentre.x - vBBExtent.x, vBBCentre.y - vBBExtent.y);
-	TAreaPointers const& rAreasAtMinPos = GetAreas(minPos);
+	Vec2 const minPos(vBBCentre.x - vBBExtent.x, vBBCentre.y - vBBExtent.y);
+	TAreaPointers tempAreas(16);
+	GetAreas(minPos, tempAreas);
 	bool bFoundMin = false;
 
-	TAreaPointers::const_iterator IterMin(rAreasAtMinPos.begin());
-	TAreaPointers::const_iterator const IterMinEnd(rAreasAtMinPos.end());
-
-	for (; IterMin != IterMinEnd; ++IterMin)
+	for (auto const pTempArea : tempAreas)
 	{
-		if (*IterMin == pArea)
+		if (pTempArea == pArea)
 		{
 			bFoundMin = true;
 			break;
 		}
 	}
 
-	Vec2 maxPos(vBBCentre.x + vBBExtent.x, vBBCentre.y + vBBExtent.y);
-	TAreaPointers const& rAreasAtMaxPos = GetAreas(maxPos);
+	Vec2 const maxPos(vBBCentre.x + vBBExtent.x, vBBCentre.y + vBBExtent.y);
+	tempAreas.clear();
+	GetAreas(maxPos, tempAreas);
 	bool bFoundMax = false;
 
-	TAreaPointers::const_iterator IterMax(rAreasAtMaxPos.begin());
-	TAreaPointers::const_iterator const IterMaxEnd(rAreasAtMaxPos.end());
-
-	for (; IterMax != IterMaxEnd; ++IterMax)
+	for (auto const pTempArea : tempAreas)
 	{
-		if (*IterMax == pArea)
+		if (pTempArea == pArea)
 		{
 			bFoundMax = true;
 			break;
@@ -482,4 +483,4 @@ void CAreaGrid::Debug_CheckBB(Vec2 const& vBBCentre, Vec2 const& vBBExtent, CAre
 		CryLogAlways("Error: AABB extent was not found in grid\n");
 	}
 }
-#endif
+#endif // INCLUDE_ENTITYSYSTEM_PRODUCTION_CODE

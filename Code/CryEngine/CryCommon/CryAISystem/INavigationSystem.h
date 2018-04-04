@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #ifndef __INavigationSystem_h__
 #define __INavigationSystem_h__
@@ -11,6 +11,7 @@
 
 struct IAIPathAgent;
 struct IOffMeshNavigationManager;
+struct INavigationUpdatesManager;
 
 #ifdef SW_NAVMESH_USE_GUID
 typedef uint64 NavigationMeshGUID;
@@ -118,6 +119,8 @@ struct INavigationSystem
 	virtual NavigationMeshID CreateMesh(const char* name, NavigationAgentTypeID agentTypeID, const CreateMeshParams& params) = 0;
 	virtual NavigationMeshID CreateMesh(const char* name, NavigationAgentTypeID agentTypeID, const CreateMeshParams& params, NavigationMeshID requestedID) = 0;
 #endif
+	virtual NavigationMeshID CreateMeshForVolumeAndUpdate(const char* name, NavigationAgentTypeID agentTypeID, const CreateMeshParams& params, const NavigationVolumeID volumeID) = 0;
+
 	virtual void             DestroyMesh(NavigationMeshID meshID) = 0;
 
 	virtual void SetMeshEntityCallback(NavigationAgentTypeID agentTypeID, const NavigationMeshEntityCallback& callback) = 0;
@@ -154,14 +157,19 @@ struct INavigationSystem
 	virtual void             SetMeshName(NavigationMeshID meshID, const char* name) = 0;
 
 	virtual WorkingState     GetState() const = 0;
-	virtual WorkingState     Update(bool blocking = false) = 0;
-	virtual void             PauseNavigationUpdate() = 0;
-	virtual void             RestartNavigationUpdate() = 0;
 
-	virtual size_t           QueueMeshUpdate(NavigationMeshID meshID, const AABB& aabb) = 0;
-	virtual void             ProcessQueuedMeshUpdates() = 0;
+	// MNM regeneration tasks are queued up, but not executed
+	virtual void					PauseNavigationUpdate() = 0;
+	virtual void					RestartNavigationUpdate() = 0;
+	virtual WorkingState     		Update(bool blocking = false) = 0;
+	virtual uint32                  GetWorkingQueueSize() const = 0;
 
-	virtual void             Clear() = 0;
+	//! deprecated - RequestQueueMeshUpdate(meshID, aabb) should be used instead
+	virtual size_t					 QueueMeshUpdate(NavigationMeshID meshID, const AABB& aabb) = 0;
+
+	virtual void					 ProcessQueuedMeshUpdates() = 0;
+
+	virtual void					 Clear() = 0;
 
 	//! ClearAndNotify is used when the listeners need to be notified about the performed clear operation.
 	virtual void                  ClearAndNotify() = 0;
@@ -170,7 +178,8 @@ struct INavigationSystem
 	virtual void                  DebugDraw() = 0;
 	virtual void                  Reset() = 0;
 
-	virtual void                  WorldChanged(const AABB& aabb) = 0;
+	
+	virtual INavigationUpdatesManager* GetUpdateManager() = 0;
 
 	virtual void                  SetDebugDisplayAgentType(NavigationAgentTypeID agentTypeID) = 0;
 	virtual NavigationAgentTypeID GetDebugDisplayAgentType() const = 0;
@@ -241,6 +250,7 @@ struct INavigationSystem
 
 	virtual TileGeneratorExtensionID         RegisterTileGeneratorExtension(MNM::TileGenerator::IExtension& extension) = 0;
 	virtual bool                             UnRegisterTileGeneratorExtension(const TileGeneratorExtensionID extensionId) = 0;
+
 	// </interfuscator:shuffle>
 };
 

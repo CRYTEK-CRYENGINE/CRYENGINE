@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 // -------------------------------------------------------------------------
 //  File name:   ParticleRender.cpp
@@ -630,8 +630,7 @@ void CParticle::AddLight(const SRendParams& RenParams, const SRenderingPassInfo&
 		const float fMinRadiusThreshold = GetFloatCVar(e_ParticlesLightMinRadiusThreshold);
 
 		const ColorF& cColor = dl.m_Color;
-		const Vec4* vLight = (Vec4*) &dl.m_Origin.x;
-		if ((cColor.r + cColor.g + cColor.b) > fMinColorThreshold && vLight->w > fMinRadiusThreshold)
+		if ((cColor.r + cColor.g + cColor.b) > fMinColorThreshold && dl.m_fRadius > fMinRadiusThreshold)
 		{
 			Get3DEngine()->SetupLightScissors(&dl, passInfo);
 			dl.m_n3DEngineUpdateFrameID = passInfo.GetMainFrameID();

@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 // -------------------------------------------------------------------------
 //  File name:   PartitionGrid.cpp
@@ -47,8 +47,7 @@ void CPartitionGrid::DeallocateGrid()
 {
 	if (m_pSectorGroups)
 	{
-		if (m_pSectorGroups)
-			delete[] m_pSectorGroups;
+		delete[] m_pSectorGroups;
 	}
 	m_pSectorGroups = NULL;
 

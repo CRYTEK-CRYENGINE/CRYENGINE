@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 /*=============================================================================
    OcclQuery.h : Occlusion queries unified interface
@@ -45,7 +45,7 @@ private:
 	int      m_nCheckFrame;
 	int      m_nDrawFrame;
 
-	UINT_PTR m_nOcclusionID; // this will carry a pointer D3DQuery, so it needs to be 64-bit on Windows 64
+	UINT_PTR m_nOcclusionID; // This will carry a pointer D3DOcclusionQuery, so it needs to be 64-bit on Windows 64
 };
 
 #endif

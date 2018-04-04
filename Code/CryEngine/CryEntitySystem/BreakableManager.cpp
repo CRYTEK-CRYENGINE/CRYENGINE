@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 // -------------------------------------------------------------------------
 //  File name:   BreakableManager.cpp
@@ -1608,7 +1608,7 @@ void CBreakableManager::ApplyPartBreakToClonedObjectFromEvent(const SRenderNodeC
 
 class CTimeoutKillComponent : public IEntityComponent
 {
-	CRY_ENTITY_COMPONENT_INTERFACE_AND_CLASS(CTimeoutKillComponent,"CTimeoutKillComponent",0xB55E276D1CA5AA14,0x87FBCA961E102DFF)
+	CRY_ENTITY_COMPONENT_INTERFACE_AND_CLASS_GUID(CTimeoutKillComponent, "CTimeoutKillComponent", "b55e276d-1ca5-aa14-87fb-ca961e102dff"_cry_guid)
 
 public:
 	virtual void ProcessEvent(SEntityEvent& event) final
@@ -1661,7 +1661,7 @@ void SetEntityLifetime(IEntity* pEntity, const char* props, bool visible)
 	}
 	if (timeout > 0 || timeoutInvis >= 0)
 	{
-		auto pTimeout = pEntity->CreateComponent<CTimeoutKillComponent>();
+		auto pTimeout = pEntity->GetOrCreateComponent<CTimeoutKillComponent>();
 		pTimeout->SetTimeout( static_cast<int>(1000*std::max(timeout,timeoutInvis)) );
 	}
 }
@@ -1690,7 +1690,7 @@ void CBreakableManager::HandlePhysicsCreateEntityPartEvent(const EventPhysCreate
 	if (pCreateEvent->pEntity->GetType() == PE_ROPE && iForeignData == PHYS_FOREIGN_ID_ROPE && pForeignData)
 	{
 		IRopeRenderNode* pRope = (IRopeRenderNode*)pForeignData;
-		pSrcEntity = g_pIEntitySystem->GetEntityFromID(pRope->GetEntityOwner());
+		pSrcEntity = static_cast<CEntity*>(pRope->GetOwnerEntity());
 		SEntitySpawnParams params;
 		params.pClass = m_pEntitySystem->GetClassRegistry()->FindClass("RopeEntity");
 		params.nFlags = ENTITY_FLAG_CLIENT_ONLY | ENTITY_FLAG_CASTSHADOW | ENTITY_FLAG_SPAWNED;
@@ -1746,16 +1746,16 @@ void CBreakableManager::HandlePhysicsCreateEntityPartEvent(const EventPhysCreate
 		pNewEntity = (CEntity*)pCreateEvent->pEntNew->GetForeignData(PHYS_FOREIGN_ID_ENTITY);
 
 		int nLevels, nBits;
-		ParsePartId(pCreateEvent->partidSrc, nLevels, nBits);
+		EntityPhysicsUtils::ParsePartId(pCreateEvent->partidSrc, nLevels, nBits);
 		if (nLevels == 2)
-			if (ICharacterInstance* pCharInstance = pSrcEntity->GetCharacter(GetSlotIdx(pCreateEvent->partidSrc)))
+			if (ICharacterInstance* pCharInstance = pSrcEntity->GetCharacter(EntityPhysicsUtils::GetSlotIdx(pCreateEvent->partidSrc)))
 			{
 				if (ISkeletonPose* pSkelPose = pCharInstance->GetISkeletonPose())
-					pSkelPose->SetPhysEntOnJoint(GetSlotIdx(pCreateEvent->partidSrc, 1), pCreateEvent->pEntNew);
+					pSkelPose->SetPhysEntOnJoint(EntityPhysicsUtils::GetSlotIdx(pCreateEvent->partidSrc, 1), pCreateEvent->pEntNew);
 				return;
 			}
 
-		if (pCreateEvent->partidSrc >= PARTID_LINKED)
+		if (pCreateEvent->partidSrc >= EntityPhysicsUtils::PARTID_LINKED)
 			pSrcEntity = (CEntity*)pSrcEntity->UnmapAttachedChild(partidSrc);
 
 		//////////////////////////////////////////////////////////////////////////
@@ -1785,7 +1785,7 @@ void CBreakableManager::HandlePhysicsCreateEntityPartEvent(const EventPhysCreate
 
 		pSrcRenderNode = pSrcEntity->GetRenderNode(i);
 		//createParams.nMatLayers = pSrcRenderProxy->GetMaterialLayersMask();
-		createParams.nRenderNodeFlags = pSrcRenderNode->GetRndFlags();
+		createParams.nRenderNodeFlags = pSrcRenderNode ? pSrcRenderNode->GetRndFlags() : (ERF_CASTSHADOWMAPS | ERF_MOVES_EVERY_FRAME);
 		createParams.pCustomMtl = pSrcEntity->GetMaterial();
 		createParams.fScale = pSrcEntity->GetScale().x;
 		createParams.pName = pSrcEntity->GetName();
@@ -1812,7 +1812,7 @@ void CBreakableManager::HandlePhysicsCreateEntityPartEvent(const EventPhysCreate
 			createParams.pSrcStaticRenderNode = pSrcRenderNode;
 
 			Matrix34A nodeTM;
-			pSrcStatObj = pSrcRenderNode->GetEntityStatObj(0, 0, &nodeTM);
+			pSrcStatObj = pSrcRenderNode->GetEntityStatObj(0, &nodeTM);
 			createParams.fScale = nodeTM.GetColumn(0).len();
 
 			createParams.nSlotIndex = pCreateEvent->partidNew;
@@ -1964,7 +1964,7 @@ void CBreakableManager::HandlePhysicsCreateEntityPartEvent(const EventPhysCreate
 			bNewEntity = pNewEntity != pPrevNewEntity;
 
 			if (pCreateEvent->nTotParts == 1)
-				SetEntityLifetime(pNewEntity, pNewStatObj->GetProperties(), !pSrcRenderNode->m_pTempData || pSrcRenderNode->GetDrawFrame() + 10 > gEnv->pRenderer->GetFrameID());
+				SetEntityLifetime(pNewEntity, pNewStatObj->GetProperties(), pSrcRenderNode && (!pSrcRenderNode->m_pTempData || pSrcRenderNode->GetDrawFrame() + 10 > gEnv->pRenderer->GetFrameID()));
 		}
 	}
 
@@ -2082,7 +2082,7 @@ void CBreakableManager::HandlePhysicsRevealSubPartEvent(const EventPhysRevealEnt
 	if (iForeignData == PHYS_FOREIGN_ID_ENTITY)
 	{
 		pEntity = (CEntity*)pForeignData;
-		if (pEntity && id >= PARTID_LINKED)
+		if (pEntity && id >= EntityPhysicsUtils::PARTID_LINKED)
 			pEntity = (CEntity*)pEntity->UnmapAttachedChild(id);
 		if (pEntity)
 		{
@@ -2093,7 +2093,7 @@ void CBreakableManager::HandlePhysicsRevealSubPartEvent(const EventPhysRevealEnt
 		}
 	}
 	else if (iForeignData == PHYS_FOREIGN_ID_STATIC)
-		if (pStatObj = (pRenderNode = (IRenderNode*)pForeignData)->GetEntityStatObj(0, 0, &nodeTM))
+		if (pStatObj = (pRenderNode = (IRenderNode*)pForeignData)->GetEntityStatObj(0, &nodeTM))
 		{
 			nSubObjHideMask = pStatObj->GetInitialHideMask();
 			bNewObject = true;
@@ -2177,7 +2177,7 @@ void CBreakableManager::HandlePhysicsRemoveSubPartsEvent(const EventPhysRemoveEn
 	{
 		//CryLogAlways( "* RemoveEvent Entity" );
 		pEntity = (CEntity*)pForeignData;
-		if (pEntity && pRemoveEvent->idOffs >= PARTID_LINKED)
+		if (pEntity && pRemoveEvent->idOffs >= EntityPhysicsUtils::PARTID_LINKED)
 			pEntity = (CEntity*)pEntity->UnmapAttachedChild(idOffs);
 		if (pEntity)
 			pStatObj = pEntity->GetStatObj(ENTITY_SLOT_ACTUAL);
@@ -2205,7 +2205,7 @@ void CBreakableManager::HandlePhysicsRemoveSubPartsEvent(const EventPhysRemoveEn
 	{
 		//CryLogAlways( "* RemoveEvent Entity Static" );
 		pRenderNode = (IRenderNode*)pForeignData;
-		pStatObj = pRenderNode->GetEntityStatObj(0, 0, &nodeTM);
+		pStatObj = pRenderNode->GetEntityStatObj(0, &nodeTM);
 		bNewObject = true;
 	}
 
@@ -2350,7 +2350,7 @@ int CBreakableManager::HandlePhysics_UpdateMeshEvent(const EventPhysUpdateMesh* 
 		IRopeRenderNode::SRopeParams params = pRope->GetParams();
 		pe_params_rope pr;
 		pUpdateEvent->pEntity->GetParams(&pr);
-		IEntity* pSrcEntity = g_pIEntitySystem->GetEntityFromID(pRope->GetEntityOwner());
+		IEntity* pSrcEntity = pRope->GetOwnerEntity();
 		CEntityComponentRope* pRopeProxy = (CEntityComponentRope*)pSrcEntity->GetProxy(ENTITY_PROXY_ROPE);
 		pRopeProxy->PreserveParams();
 		params.nNumSegments = FtoI(pr.nSegments * params.nNumSegments / (float)params.nPhysSegments);
@@ -2359,6 +2359,53 @@ int CBreakableManager::HandlePhysics_UpdateMeshEvent(const EventPhysUpdateMesh* 
 		pRope->SetParams(params);
 		return 1;
 	}
+
+	bool bNewEntity = false;
+
+	if (iForeignData == PHYS_FOREIGN_ID_ENTITY)
+	{
+		pCEntity = (CEntity*)pForeignData;
+		if (!pCEntity || !pCEntity->GetPhysicalProxy())
+			return 1;
+	}
+	else if (iForeignData == PHYS_FOREIGN_ID_STATIC)
+	{
+		IBreakableManager::SCreateParams createParams;
+
+		CBreakableManager* pBreakMgr = (CBreakableManager*)GetIEntitySystem()->GetBreakableManager();
+
+		IRenderNode* pRenderNode = (IRenderNode*)pUpdateEvent->pForeignData;
+		IStatObj* pStatObj = pRenderNode->GetEntityStatObj(0, &mtx);
+
+		PhysicsVars* pVars = gEnv->pPhysicalWorld->GetPhysVars();
+		if (pVars->lastTimeStep + 1 - pVars->bLogStructureChanges == 0)
+		{
+			// undo if physics not running and not loading (bLogStructureChanges is 0 during loading)
+			pRenderNode->Physicalize(true);
+			return 1;
+		}
+
+		createParams.fScale = mtx.GetColumn(0).len();
+		createParams.pSrcStaticRenderNode = pRenderNode;
+		createParams.worldTM = mtx;
+		createParams.nMatLayers = pRenderNode->GetMaterialLayers();
+		createParams.pCustomMtl = pRenderNode->GetMaterial();
+		createParams.nRenderNodeFlags = pRenderNode->GetRndFlags();
+		createParams.pName = pRenderNode->GetName();
+		pSrcFoliage = pRenderNode->GetFoliage();
+		if (pSrcFoliage)
+			pSrcFoliage->AddRef();
+
+		if (pStatObj)
+		{
+			pCEntity = static_cast<CEntity*>(pBreakMgr->CreateObjectAsEntity(pStatObj, pUpdateEvent->pEntity, pUpdateEvent->pEntity, createParams, true));
+			bNewEntity = true;
+			if (pUpdateEvent->iReason == EventPhysUpdateMesh::ReasonDeform)
+				pCEntity->SetFlags(pCEntity->GetFlags() | ENTITY_FLAG_NO_SAVE);
+		}
+	}
+	else
+		return 1;
 
 	bop_meshupdate* pmu = (bop_meshupdate*)pUpdateEvent->pMesh->GetForeignData(DATA_MESHUPDATE);
 	IStatObj* pSrcStatObj = (IStatObj*)pUpdateEvent->pMesh->GetForeignData();
@@ -2392,57 +2439,10 @@ int CBreakableManager::HandlePhysics_UpdateMeshEvent(const EventPhysUpdateMesh* 
 				}
 			if (nTris > 0)
 				center /= (float)(nTris * 3), normal.normalize();
-			if (normal.len2() > 0)
+			if (normal.len2() > 0 && pCEntity)
 				pEffect->Spawn(true, pCEntity->GetSlotWorldTM(pUpdateEvent->partid) * Matrix34(Vec3(1), Quat::CreateRotationV0V1(Vec3(0, 1, 0), normal), center));
 		}
 	}
-
-	bool bNewEntity = false;
-
-	if (iForeignData == PHYS_FOREIGN_ID_ENTITY)
-	{
-		pCEntity = (CEntity*)pForeignData;
-		if (!pCEntity || !pCEntity->GetPhysicalProxy())
-			return 1;
-	}
-	else if (iForeignData == PHYS_FOREIGN_ID_STATIC)
-	{
-		IBreakableManager::SCreateParams createParams;
-
-		CBreakableManager* pBreakMgr = (CBreakableManager*)GetIEntitySystem()->GetBreakableManager();
-
-		IRenderNode* pRenderNode = (IRenderNode*)pUpdateEvent->pForeignData;
-		IStatObj* pStatObj = pRenderNode->GetEntityStatObj(0, 0, &mtx);
-
-		PhysicsVars* pVars = gEnv->pPhysicalWorld->GetPhysVars();
-		if (pVars->lastTimeStep + 1 - pVars->bLogStructureChanges == 0)
-		{
-			// undo if physics not running and not loading (bLogStructureChanges is 0 during loading)
-			pRenderNode->Physicalize(true);
-			return 1;
-		}
-
-		createParams.fScale = mtx.GetColumn(0).len();
-		createParams.pSrcStaticRenderNode = pRenderNode;
-		createParams.worldTM = mtx;
-		createParams.nMatLayers = pRenderNode->GetMaterialLayers();
-		createParams.pCustomMtl = pRenderNode->GetMaterial();
-		createParams.nRenderNodeFlags = pRenderNode->GetRndFlags();
-		createParams.pName = pRenderNode->GetName();
-		pSrcFoliage = pRenderNode->GetFoliage();
-		if (pSrcFoliage)
-			pSrcFoliage->AddRef();
-
-		if (pStatObj)
-		{
-			pCEntity = static_cast<CEntity*>(pBreakMgr->CreateObjectAsEntity(pStatObj, pUpdateEvent->pEntity, pUpdateEvent->pEntity, createParams, true));
-			bNewEntity = true;
-			if (pUpdateEvent->iReason == EventPhysUpdateMesh::ReasonDeform)
-				pCEntity->SetFlags(pCEntity->GetFlags() | ENTITY_FLAG_NO_SAVE);
-		}
-	}
-	else
-		return 1;
 
 	//if (pUpdateEvent->iReason==EventPhysUpdateMesh::ReasonExplosion)
 	//	pCEntity->AddFlags(ENTITY_FLAG_MODIFIED_BY_PHYSICS);

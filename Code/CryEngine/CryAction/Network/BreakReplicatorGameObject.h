@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #ifndef __BREAK_REP_GAME_OBJECT__H__
 #define __BREAK_REP_GAME_OBJECT__H__
@@ -31,7 +31,6 @@ public:
 	virtual inline void                 ProcessEvent(SEntityEvent& event)                                               {}
 	virtual uint64                      GetEventMask() const final { return 0; };
 	virtual inline void                 SetChannelId(uint16 id)                                                         {}
-	virtual inline void                 SetAuthority(bool auth)                                                         {}
 	virtual inline void                 PostUpdate(float frameTime)                                                     {}
 	virtual inline void                 PostRemoteSpawn()                                                               {}
 	virtual inline void                 GetMemoryUsage(ICrySizer* s) const                                              { s->Add(*this); }

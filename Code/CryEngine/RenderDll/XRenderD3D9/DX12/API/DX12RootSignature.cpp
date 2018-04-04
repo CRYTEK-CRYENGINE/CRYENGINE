@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #include "StdAfx.h"
 #include "DX12RootSignature.hpp"
@@ -429,7 +429,7 @@ bool CRootSignature::Serialize(bool bGfx, UINT nodeMask)
 			return false;
 		}
 
-		if (S_OK != GetDevice()->GetD3D12Device()->CreateRootSignature(m_nodeMask = nodeMask, pOutBlob->GetBufferPointer(), pOutBlob->GetBufferSize(), IID_PPV_ARGS(&rootSign)))
+		if (S_OK != GetDevice()->GetD3D12Device()->CreateRootSignature(m_nodeMask = nodeMask, pOutBlob->GetBufferPointer(), pOutBlob->GetBufferSize(), IID_GFX_ARGS(&rootSign)))
 		{
 			DX12_ERROR("Could not create root signature!");
 			return false;

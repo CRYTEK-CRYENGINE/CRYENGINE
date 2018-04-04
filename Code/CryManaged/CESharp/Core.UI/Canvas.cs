@@ -1,12 +1,10 @@
 // Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
 
-using CryEngine.Rendering;
+using System;
 using CryEngine.Common;
-using CryEngine.EntitySystem;
+using CryEngine.Rendering;
 using CryEngine.Resources;
 using CryEngine.UI.Components;
-using System;
-using System.Runtime.Serialization;
 
 namespace CryEngine.UI
 {
@@ -14,86 +12,108 @@ namespace CryEngine.UI
 	/// A Canvas element functions as the root element for an UI entity. There is no restriction to the amount of UI entities.
 	/// The Canvas Element processes input and delegates it to the element in focus. Drawing of the UI to screen or render textures is handled by the Canvas.
 	/// </summary>
-	[DataContract]
 	public class Canvas : UIElement
 	{
 		UIComponent _cmpUnderMouse;
 		UIComponent _currentFocus;
 		DateTime _mouseMovePickTime = DateTime.MinValue;
-		UITexture _targetTexture;
+		Graphic _targetTexture;
 		Entity _targetEntity;
 		bool _targetInFocus;
+		IMaterial _targetMaterial;
+		IMaterial _originalMaterial;
 
+		/// <summary>
+		/// True if the entity which is currently in focus is targetet by the mouse cursor.
+		/// </summary>
+		/// <value><c>true</c> if target in focus; otherwise, <c>false</c>.</value>
 		public bool TargetInFocus
 		{
-			private set
-			{
-				if (_targetInFocus != value)
-				{
-					if (!value)
-						OnWindowLeave(-1, -1);
-				}
-				_targetInFocus = value;
-			}
 			get
 			{
 				return _targetInFocus;
 			}
-		} ///< True if the entity which is currently in focus is targetet by the mouse cursor.
+			private set
+			{
+				if(_targetInFocus != value)
+				{
+					if(!value)
+					{
+						OnWindowLeave(-1, -1);
+					}
+				}
+				_targetInFocus = value;
+			}
+		}
 
-		public UIComponent ComponentUnderMouse { get { return _cmpUnderMouse; } } ///< Last UIComponent in hierarchy which is hit by the current cursor position. 
+		/// <summary>
+		/// Last UIComponent in hierarchy which is hit by the current cursor position. 
+		/// </summary>
+		/// <value>The component under mouse.</value>
+		public UIComponent ComponentUnderMouse { get { return _cmpUnderMouse; } }
 
+		/// <summary>
+		/// UIComponent which is currently in focus.
+		/// </summary>
+		/// <value>The current focus.</value>
 		public UIComponent CurrentFocus
 		{
-			set
-			{
-				if (_currentFocus == value)
-					return;
-				if (_currentFocus != null)
-					_currentFocus.InvokeOnLeaveFocus();
-				_currentFocus = value;
-				if (_currentFocus != null)
-					_currentFocus.InvokeOnEnterFocus();
-			}
-
 			get
 			{
 				return _currentFocus;
 			}
-		} ///< UIComponent which is currently in focus.
+			set
+			{
+				if(_currentFocus == value)
+				{
+					return;
+				}
 
-		public UITexture TargetTexture
+				_currentFocus?.InvokeOnLeaveFocus();
+				_currentFocus = value;
+				_currentFocus?.InvokeOnEnterFocus();
+			}
+		}
+
+		/// <summary>
+		/// Texture for all child elements to be drawn to. elements are drawn to screen otherwise.
+		/// </summary>
+		/// <value>The target texture.</value>
+		public Graphic TargetTexture
 		{
 			get
 			{
 				return _targetTexture;
 			}
-
-			set
+			private set
 			{
 				_targetTexture = value;
-				if (value != null)
+				if(value != null)
 				{
 					RectTransform.Width = _targetTexture.Width;
 					RectTransform.Height = _targetTexture.Height;
 				}
 			}
-		} ///< Texture for all child elements to be drawn to. elements are drawn to screen otherwise.
+		}
 
+		/// <summary>
+		/// Entity which is supposed to provide UV info for cursor interaction on the Canvas' UI. Must only be used in conjunction with TargetTexture.
+		/// </summary>
+		/// <value>The target entity.</value>
 		public Entity TargetEntity
 		{
-			set
-			{
-				_targetEntity = value;
-			}
 			get
 			{
 				return _targetEntity;
 			}
-		} ///< Entity which is supposed to provide UV info for cursor interaction on the Canvas' UI. Must only be used in conjunction with TargetTexture.
+			private set
+			{
+				_targetEntity = value;
+			}
+		}
 
 		/// <summary>
-		/// Initializes a new instance of the <see cref="CryEngine.UI.Canvas"/> class.
+		/// Initializes a new instance of the <see cref="Canvas"/> class.
 		/// </summary>
 		public Canvas()
 		{
@@ -114,7 +134,7 @@ namespace CryEngine.UI
 		/// </summary>
 		public void PushTexturePart(float x, float y, float w, float h, int id, float u0, float v0, float u1, float v1, float a, Color c)
 		{
-			if (TargetTexture == null)
+			if(TargetTexture == null)
 			{
 				var ix = 800.0f / Global.gEnv.pRenderer.GetWidth();
 				var iy = 600.0f / Global.gEnv.pRenderer.GetHeight();
@@ -133,7 +153,7 @@ namespace CryEngine.UI
 		/// </summary>
 		public override void OnUpdate()
 		{
-			if (TargetTexture != null)
+			if(TargetTexture != null)
 			{
 				/*var img2 = Resource.ImageFromFile (Application.UIPath + "orion1K.png");
 				Global.gEnv.pRenderer.PushUITexture (img2.Texture.ID, TargetTexture.ID, 0.1f, 0.1f, 0.8f, 0.8f, 0, 0, 1, 1, 1,1,1,1);*/
@@ -147,7 +167,7 @@ namespace CryEngine.UI
 		/// <param name="h">The new Height.</param>
 		void ResolutionChanged(int w, int h)
 		{
-			if (TargetTexture == null)
+			if(TargetTexture == null)
 			{
 				RectTransform.Width = w;
 				RectTransform.Height = h;
@@ -155,24 +175,104 @@ namespace CryEngine.UI
 		}
 
 		/// <summary>
-		/// Expects an existing entity to be placed upon in 3D.
+		/// Set this Canvas up to draw the UI onto another Entity.
 		/// </summary>
+		/// <returns><c>true</c>, if target entity was setup correctly, <c>false</c> otherwise.</returns>
+		/// <param name="target">Target.</param>
+		/// <param name="targetTexture">Target texture.</param>
+		internal bool SetupTargetEntity(Entity target, Graphic targetTexture)
+		{
+			if(target == null || targetTexture == null)
+			{
+				return false;
+			}
+
+			if(TargetTexture != null)
+			{
+				TargetTexture.Destroy();
+			}
+
+			TargetTexture = targetTexture;
+
+			return SetupRenderMaterial(target);
+		}
+
+		/// <summary>
+		/// Set this Canvas up to draw the UI onto another Entity.
+		/// </summary>
+		/// <returns><c>true</c>, if target entity was setup correctly, <c>false</c> otherwise.</returns>
 		/// <param name="target">Target Entity.</param>
 		/// <param name="resolution">Resolution of UI texture in 3D space.</param>
 		public bool SetupTargetEntity(Entity target, int resolution = 768)
 		{
+			if(target == null)
+			{
+				return false;
+			}
+
 			byte[] data = new byte[resolution * resolution * 4];
-			TargetTexture = new UITexture(resolution, resolution, data, true, false, true);
-			target.Material.SetTexture(TargetTexture.ID);
+
+			if(TargetTexture != null)
+			{
+				TargetTexture.UpdateData(resolution, resolution, data);
+			}
+			else
+			{
+				TargetTexture = new Graphic(resolution, resolution, data, true, false, true);
+			}
+
+			return SetupRenderMaterial(target);
+		}
+
+		private bool SetupRenderMaterial(Entity target)
+		{
+			// If this Canvas was already rendering to an Entity previously, 
+			// remove the material from that entity and apply the original material to it again.
+			if(_targetMaterial != null)
+			{
+				if(TargetEntity != null && _originalMaterial != null)
+				{
+					TargetEntity.Material = _originalMaterial;
+				}
+
+				_targetMaterial.Release();
+				_targetMaterial.Dispose();
+			}
+
+			// In case the material is used on multiple entities it is duplicated here.
+			// This prevents conflicts with entities with the same materials and/or textures.
+			_originalMaterial = target.Material;
+			var material = CopyMaterial(_originalMaterial);
+			_targetMaterial = material;
+
+			material.SetTexture(TargetTexture.ID);
+			target.Material = material;
+
 			TargetEntity = target;
 			return true;
 		}
 
+		private IMaterial CopyMaterial(IMaterial source)
+		{
+			var materialManager = Global.gEnv.p3DEngine.GetMaterialManager();
+
+			//Assign a material first, and use clone to get a new instance. Also set a new name to prevent problems in the lookup.
+			var target = materialManager.CloneMaterial(source);
+			target.SetName(string.Format("{0}_copy", source.GetName()));
+
+			//Copy the values over to the destination material. This prevents the shader-resources error.
+			materialManager.CopyMaterial(source, target, EMaterialCopyFlags.MTL_COPY_DEFAULT);
+
+			target.AddRef();
+
+			return target;
+		}
+
 		void TryAdaptMouseInput(ref int x, ref int y)
 		{
-			if (TargetEntity != null)
+			if(TargetEntity != null)
 			{
-				if (TargetEntity.Id == Mouse.HitEntityId)
+				if(TargetEntity.Id == Mouse.HitEntityId)
 				{
 					x = (int)(Mouse.HitEntityUV.x * RectTransform.Width);
 					y = (int)(Mouse.HitEntityUV.y * RectTransform.Height);
@@ -193,8 +293,10 @@ namespace CryEngine.UI
 		/// <param name="e">UIElement to be tested against.</param>
 		public bool CursorInside(UIElement e)
 		{
-			if (TargetEntity == null)
+			if(TargetEntity == null)
+			{
 				return e.IsCursorInside;
+			}
 
 			int u = (int)Mouse.CursorPosition.x, v = (int)Mouse.CursorPosition.y;
 			TryAdaptMouseInput(ref u, ref v);
@@ -205,14 +307,18 @@ namespace CryEngine.UI
 		{
 			TryAdaptMouseInput(ref x, ref y);
 			CurrentFocus = HitTestFocusable(x, y);
-			if (CurrentFocus != null)
+			if(CurrentFocus != null)
+			{
 				CurrentFocus.InvokeOnLeftMouseDown(x, y);
+			}
 		}
 
 		void OnWindowLeave(int x, int y)
 		{
-			if (_cmpUnderMouse != null)
+			if(_cmpUnderMouse != null)
+			{
 				_cmpUnderMouse.InvokeOnMouseLeave(x, y);
+			}
 			_cmpUnderMouse = null;
 		}
 
@@ -220,28 +326,39 @@ namespace CryEngine.UI
 		{
 			TryAdaptMouseInput(ref x, ref y);
 			var cmpUnderMouse = HitTestFocusable(x, y);
-			if (CurrentFocus != null)
+			if(CurrentFocus != null)
+			{
 				CurrentFocus.InvokeOnLeftMouseUp(x, y, cmpUnderMouse == CurrentFocus);
+			}
 		}
 
 		void OnMouseMove(int x, int y)
 		{
 			TryAdaptMouseInput(ref x, ref y);
-			if (CurrentFocus != null)
+			if(CurrentFocus != null)
+			{
 				CurrentFocus.InvokeOnMouseMove(x, y);
+			}
 
-			if (_mouseMovePickTime > DateTime.Now)
+			if(_mouseMovePickTime > DateTime.Now)
+			{
 				return;
+			}
 			_mouseMovePickTime = DateTime.Now.AddSeconds(0.2f);
 
 			var lastUnder = _cmpUnderMouse;
 			_cmpUnderMouse = HitTestFocusable(x, y);
-			if (lastUnder != _cmpUnderMouse)
+			if(lastUnder != _cmpUnderMouse)
 			{
-				if (lastUnder != null)
+				if(lastUnder != null)
+				{
 					lastUnder.InvokeOnMouseLeave(x, y);
-				if (_cmpUnderMouse != null)
+				}
+
+				if(_cmpUnderMouse != null)
+				{
 					_cmpUnderMouse.InvokeOnMouseEnter(x, y);
+				}
 			}
 		}
 
@@ -249,11 +366,13 @@ namespace CryEngine.UI
 		{
 			UIComponent result = null;
 			ForEachComponentReverse(c =>
+			{
+				if(c.IsFocusable && c.Enabled && c.HitTest(x, y))
 				{
-					if (c.IsFocusable && c.Enabled && c.HitTest(x, y))
-						result = c;
-					return result != null;
-				});
+					result = c;
+				}
+				return result != null;
+			});
 			return result;
 		}
 
@@ -262,20 +381,30 @@ namespace CryEngine.UI
 			UIComponent result = null;
 			bool currentFound = false;
 			ForEachComponent(c =>
+			{
+				if(!c.IsFocusable || !c.Enabled)
 				{
-					if (!c.IsFocusable || !c.Enabled)
-						return false;
-					if (result == null)
-						result = c;
-					if (CurrentFocus == null || currentFound)
-					{
-						result = c;
-						return true;
-					}
-					if (CurrentFocus == c)
-						currentFound = true;
 					return false;
-				});
+				}
+
+				if(result == null)
+				{
+					result = c;
+				}
+
+				if(CurrentFocus == null || currentFound)
+				{
+					result = c;
+					return true;
+				}
+
+				if(CurrentFocus == c)
+				{
+					currentFound = true;
+				}
+
+				return false;
+			});
 			CurrentFocus = result;
 		}
 
@@ -284,37 +413,49 @@ namespace CryEngine.UI
 			UIComponent result = null;
 			UIComponent prevComponent = null;
 			ForEachComponent(c =>
+			{
+				if(!c.IsFocusable || !c.Enabled)
 				{
-					if (!c.IsFocusable || !c.Enabled)
-						return false;
-					result = c;
-					if (CurrentFocus == null)
-						return true;
-					if (CurrentFocus == c && prevComponent != null)
-					{
-						result = prevComponent;
-						return true;
-					}
-					prevComponent = c;
 					return false;
-				});
+				}
+				result = c;
+				if(CurrentFocus == null)
+				{
+					return true;
+				}
+				if(CurrentFocus == c && prevComponent != null)
+				{
+					result = prevComponent;
+					return true;
+				}
+				prevComponent = c;
+				return false;
+			});
 			CurrentFocus = result;
 		}
 
 		/// <summary>
 		/// Called by framework. Do not call directly.
 		/// </summary>
-		public void OnKey(SInputEvent e)
+		public void OnKey(InputEvent e)
 		{
-			if (!Active)
+			if(!Active)
+			{
 				return;
+			}
 
-			if ((e.KeyPressed(EKeyId.eKI_Tab) && Input.ShiftDown) || e.KeyPressed(EKeyId.eKI_XI_DPadUp) || e.KeyPressed(EKeyId.eKI_XI_DPadLeft))
+			if((e.KeyPressed(KeyId.Tab) && Input.ShiftDown) || e.KeyPressed(KeyId.XI_DPadUp) || e.KeyPressed(KeyId.XI_DPadLeft))
+			{
 				FocusPreviousComponent();
-			else if (e.KeyPressed(EKeyId.eKI_Tab) || e.KeyPressed(EKeyId.eKI_XI_DPadDown) || e.KeyPressed(EKeyId.eKI_XI_DPadRight))
+			}
+			else if(e.KeyPressed(KeyId.Tab) || e.KeyPressed(KeyId.XI_DPadDown) || e.KeyPressed(KeyId.XI_DPadRight))
+			{
 				FocusNextComponent();
-			else if (CurrentFocus != null)
+			}
+			else if(CurrentFocus != null)
+			{
 				CurrentFocus.InvokeOnKey(e);
+			}
 		}
 
 		/// <summary>
@@ -327,6 +468,22 @@ namespace CryEngine.UI
 			Mouse.OnWindowLeave -= OnWindowLeave;
 			Mouse.OnMove -= OnMouseMove;
 			Input.OnKey -= OnKey;
+
+			if(_targetMaterial != null)
+			{
+				if(TargetEntity != null && TargetEntity.Exists && _originalMaterial != null)
+				{
+					TargetEntity.Material = _originalMaterial;
+				}
+
+				_targetMaterial.Release();
+				_targetMaterial.Dispose();
+			}
+
+			if(TargetTexture != null)
+			{
+				TargetTexture.Destroy();
+			}
 		}
 	}
 }

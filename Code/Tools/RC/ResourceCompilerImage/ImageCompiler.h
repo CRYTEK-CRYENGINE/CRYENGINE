@@ -1,8 +1,9 @@
 // Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved.
+
 #pragma once
 
-#include "IConvertor.h"             // IConvertor
-#include "ImageConvertor.h"         // ImageConvertor::PresetAliases
+#include "IConverter.h"             // IConverter
+#include "ImageConverter.h"         // ImageConverter::PresetAliases
 #include "ImageProperties.h"        // CImageProperties
 #include "Filtering/CubeMapGen-1.4-Source/CCubeMapProcessor.h"
 #include "ResourceCompiler.h"
@@ -25,7 +26,7 @@ class CImageCompiler
 
 public:
 
-	explicit CImageCompiler(const CImageConvertor::PresetAliases& presetAliases);
+	explicit CImageCompiler(const CImageConverter::PresetAliases& presetAliases);
 	virtual ~CImageCompiler();
 
 	// Arguments:
@@ -140,7 +141,7 @@ private:
 	bool InitDialogSystem();
 	void ReleaseDialogSystem();
 
-	static uint32 _CalcTextureMemory(const EPixelFormat pixelFormat, const uint32 dwWidth, const uint32 dwHeight, const bool bCubemap, const bool bMips);
+	static uint32 _CalcTextureMemory(const EPixelFormat pixelFormat, const uint32 dwWidth, const uint32 dwHeight, const bool bCubemap, const bool bMips, const uint32 compressedBlockWidth, const uint32 compressedBlockHeight);
 
 public:  // ------------------------------------------------------------------
 	CImageProperties          m_Props;                          // user settings
@@ -152,7 +153,7 @@ public:  // ------------------------------------------------------------------
 
 private: // ------------------------------------------------------------------
 
-	const CImageConvertor::PresetAliases& m_presetAliases;
+	const CImageConverter::PresetAliases& m_presetAliases;
 
 	ImageObject*              m_pInputImage;                    // input image
 	ImageObject*              m_pFinalImage;                    // changed destination image

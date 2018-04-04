@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #include "stdafx.h"
 #include "Area.h"
@@ -29,10 +29,6 @@ CArea::CArea(CAreaManager* pManager)
 	, m_sphereCenter(0)
 	, m_sphereRadius(0)
 	, m_sphereRadius2(0)
-	, m_bIsActive(false)
-	, m_bObstructRoof(false)
-	, m_bObstructFloor(false)
-	, m_bEntityIdsResolved(false)
 	, m_bAllObstructed(0)
 	, m_numObstructed(0)
 	, m_pAreaSolid(nullptr)
@@ -41,20 +37,18 @@ CArea::CArea(CAreaManager* pManager)
 	m_areaType = ENTITY_AREA_TYPE_SHAPE;
 	m_invMatrix.SetIdentity();
 	m_worldTM.SetIdentity();
-	m_bInitialized = false;
-	m_bAttachedSoundTested = false;
 	m_mapEntityCachedAreaData.reserve(256);
 
 	// All sides not obstructed by default
 	memset(&m_boxSideObstruction, 0, 6);
 
 	m_bbox_holder = s_areaBoxes.size();
-	s_areaBoxes.push_back(SBoxHolder());
+	s_areaBoxes.emplace_back();
 	s_areaBoxes[m_bbox_holder].area = this;
 }
 
 //////////////////////////////////////////////////////////////////////////
-CArea::~CArea(void)
+CArea::~CArea()
 {
 	RemoveEntities();
 	m_pAreaManager->Unregister(this);
@@ -81,17 +75,22 @@ void CArea::SetSoundObstructionOnAreaFace(size_t const index, bool const bObstru
 	case ENTITY_AREA_TYPE_BOX:
 		{
 			m_boxSideObstruction[index].bObstructed = bObstructs ? 1 : 0;
-
 			m_numObstructed = 0;
-			for (unsigned int i = 0; i < 6; ++i)
+
+			for (auto const& i : m_boxSideObstruction)
 			{
-				if (m_boxSideObstruction[i].bObstructed)
+				if (i.bObstructed)
+				{
 					++m_numObstructed;
+				}
 			}
 
 			m_bAllObstructed = 0;
+
 			if (m_numObstructed == 6)
+			{
 				m_bAllObstructed = 1;
+			}
 		}
 		break;
 	case ENTITY_AREA_TYPE_SHAPE:
@@ -111,12 +110,26 @@ void CArea::SetSoundObstructionOnAreaFace(size_t const index, bool const bObstru
 					if (index == numSegments)
 					{
 						// The user wants to set roof sound obstruction
-						m_bObstructRoof = bObstructs;
+						if (bObstructs)
+						{
+							m_state |= Cry::AreaManager::EAreaState::ObstructRoof;
+						}
+						else
+						{
+							m_state &= ~Cry::AreaManager::EAreaState::ObstructRoof;
+						}
 					}
 					else if (index == numSegments + 1)
 					{
 						// The user wants to set floor sound obstruction
-						m_bObstructFloor = bObstructs;
+						if (bObstructs)
+						{
+							m_state |= Cry::AreaManager::EAreaState::ObstructFloor;
+						}
+						else
+						{
+							m_state &= ~Cry::AreaManager::EAreaState::ObstructFloor;
+						}
 					}
 				}
 			}
@@ -154,7 +167,7 @@ void CArea::ClearPoints()
 		m_areaSegments.clear();
 	}
 
-	m_bInitialized = false;
+	m_state &= ~Cry::AreaManager::EAreaState::Initialized;
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -233,7 +246,7 @@ void CArea::UpdateSegment(a2DSegment& segment, a2DPoint const& p0, a2DPoint cons
 float CArea::CalcDistToPoint(a2DPoint const& point) const
 {
 	FUNCTION_PROFILER(GetISystem(), PROFILE_ENTITY);
-	if (!m_bInitialized)
+	if ((m_state & Cry::AreaManager::EAreaState::Initialized) == 0)
 		return -1;
 
 	if (m_proximity == 0.0f)
@@ -248,51 +261,51 @@ float CArea::CalcDistToPoint(a2DPoint const& point) const
 	proximityBox.min.x = point.x - m_proximity;
 	proximityBox.min.y = point.y - m_proximity;
 
-	for (unsigned int sIdx = 0; sIdx < m_areaSegments.size(); sIdx++)
+	for (auto const pAreaSegment : m_areaSegments)
 	{
-		if (!m_areaSegments[sIdx]->bbox.BBoxOutBBox2D(proximityBox))
+		if (!pAreaSegment->bbox.BBoxOutBBox2D(proximityBox))
 		{
-			if (m_areaSegments[sIdx]->isHorizontal)
+			if (pAreaSegment->isHorizontal)
 			{
-				if (point.x < m_areaSegments[sIdx]->bbox.min.x)
-					curDist = m_areaSegments[sIdx]->bbox.min.DistSqr(point);
-				else if (point.x > m_areaSegments[sIdx]->bbox.max.x)
-					curDist = m_areaSegments[sIdx]->bbox.max.DistSqr(point);
+				if (point.x < pAreaSegment->bbox.min.x)
+					curDist = pAreaSegment->bbox.min.DistSqr(point);
+				else if (point.x > pAreaSegment->bbox.max.x)
+					curDist = pAreaSegment->bbox.max.DistSqr(point);
 				else
-					curDist = fabsf(point.y - m_areaSegments[sIdx]->bbox.max.y);
+					curDist = fabsf(point.y - pAreaSegment->bbox.max.y);
 				curDist *= curDist;
 			}
 			else
 			{
-				if (m_areaSegments[sIdx]->k == 0.0f)
+				if (pAreaSegment->k == 0.0f)
 				{
-					if (point.y < m_areaSegments[sIdx]->bbox.min.y)
-						curDist = m_areaSegments[sIdx]->bbox.min.DistSqr(point);
-					else if (point.y > m_areaSegments[sIdx]->bbox.max.y)
-						curDist = m_areaSegments[sIdx]->bbox.max.DistSqr(point);
+					if (point.y < pAreaSegment->bbox.min.y)
+						curDist = pAreaSegment->bbox.min.DistSqr(point);
+					else if (point.y > pAreaSegment->bbox.max.y)
+						curDist = pAreaSegment->bbox.max.DistSqr(point);
 					else
-						curDist = fabsf(point.x - m_areaSegments[sIdx]->b);
+						curDist = fabsf(point.x - pAreaSegment->b);
 					curDist *= curDist;
 				}
 				else
 				{
 					a2DPoint intersection;
 					float b2, k2;
-					k2 = -1.0f / m_areaSegments[sIdx]->k;
+					k2 = -1.0f / pAreaSegment->k;
 					b2 = point.y - k2 * point.x;
-					intersection.x = (b2 - m_areaSegments[sIdx]->b) / (m_areaSegments[sIdx]->k - k2);
+					intersection.x = (b2 - pAreaSegment->b) / (pAreaSegment->k - k2);
 					intersection.y = k2 * intersection.x + b2;
 
-					if (intersection.x < m_areaSegments[sIdx]->bbox.min.x)
-						if (m_areaSegments[sIdx]->k < 0)
-							curDist = point.DistSqr(m_areaSegments[sIdx]->bbox.min.x, m_areaSegments[sIdx]->bbox.max.y);
+					if (intersection.x < pAreaSegment->bbox.min.x)
+						if (pAreaSegment->k < 0)
+							curDist = point.DistSqr(pAreaSegment->bbox.min.x, pAreaSegment->bbox.max.y);
 						else
-							curDist = point.DistSqr(m_areaSegments[sIdx]->bbox.min);
-					else if (intersection.x > m_areaSegments[sIdx]->bbox.max.x)
-						if (m_areaSegments[sIdx]->k < 0)
-							curDist = point.DistSqr(m_areaSegments[sIdx]->bbox.max.x, m_areaSegments[sIdx]->bbox.min.y);
+							curDist = point.DistSqr(pAreaSegment->bbox.min);
+					else if (intersection.x > pAreaSegment->bbox.max.x)
+						if (pAreaSegment->k < 0)
+							curDist = point.DistSqr(pAreaSegment->bbox.max.x, pAreaSegment->bbox.min.y);
 						else
-							curDist = point.DistSqr(m_areaSegments[sIdx]->bbox.max);
+							curDist = point.DistSqr(pAreaSegment->bbox.max);
 					else
 						curDist = intersection.DistSqr(point);
 				}
@@ -314,7 +327,7 @@ bool CArea::CalcPointWithin(EntityId const nEntityID, Vec3 const& point3d, bool 
 	FUNCTION_PROFILER(GetISystem(), PROFILE_ENTITY);
 	bool bResult = false;
 
-	if (m_bInitialized)
+	if ((m_state & Cry::AreaManager::EAreaState::Initialized) != 0)
 	{
 		SCachedAreaData* pCachedData = nullptr;
 
@@ -462,7 +475,7 @@ float CArea::CalcPointWithinDist(EntityId const nEntityID, Vec3 const& point3d, 
 	FUNCTION_PROFILER(GetISystem(), PROFILE_ENTITY);
 	float fMinDist = -1.0f;
 
-	if (m_bInitialized)
+	if ((m_state & Cry::AreaManager::EAreaState::Initialized) != 0)
 	{
 		float fDistanceWithinSq = 0.0f;
 		SCachedAreaData* pCachedData = nullptr;
@@ -570,11 +583,15 @@ float CArea::CalcPointWithinDist(EntityId const nEntityID, Vec3 const& point3d, 
 							float fDistToRoof = fMinDist + 1.0f;
 							float fDistToFloor = fMinDist + 1.0f;
 
-							if (!m_bObstructFloor)
+							if ((m_state & Cry::AreaManager::EAreaState::ObstructFloor) == 0)
+							{
 								fDistToFloor = point3d.z - m_origin;
+							}
 
-							if (!m_bObstructRoof)
+							if ((m_state & Cry::AreaManager::EAreaState::ObstructRoof) == 0)
+							{
 								fDistToRoof = m_origin + m_height - point3d.z;
+							}
 
 							float fZDist = min(fDistToFloor, fDistToRoof);
 							fMinDist = min(fMinDist, fZDist);
@@ -619,7 +636,7 @@ float CArea::ClosestPointOnHullDistSq(EntityId const nEntityID, Vec3 const& Poin
 	FUNCTION_PROFILER(GetISystem(), PROFILE_ENTITY);
 	float fClosestDistance = -1.0f;
 
-	if (m_bInitialized)
+	if ((m_state & Cry::AreaManager::EAreaState::Initialized) != 0)
 	{
 		SCachedAreaData* pCachedData = nullptr;
 
@@ -672,7 +689,7 @@ float CArea::ClosestPointOnHullDistSq(EntityId const nEntityID, Vec3 const& Poin
 							if (fabsf(fDistToFloor) < fabsf(fDistToRoof))
 							{
 								// below
-								if (m_bObstructFloor)
+								if ((m_state & Cry::AreaManager::EAreaState::ObstructFloor) != 0)
 								{
 									fDistToFloor = 0.0f;
 									fZDistTemp = fDistToRoof;
@@ -686,7 +703,7 @@ float CArea::ClosestPointOnHullDistSq(EntityId const nEntityID, Vec3 const& Poin
 							else
 							{
 								// above
-								if (m_bObstructRoof)
+								if ((m_state & Cry::AreaManager::EAreaState::ObstructRoof) != 0)
 								{
 									fDistToRoof = 0.0f;
 									fZDistTemp = fDistToFloor;
@@ -897,7 +914,7 @@ float CArea::CalcPointNearDistSq(EntityId const nEntityID, Vec3 const& Point3d, 
 	FUNCTION_PROFILER(GetISystem(), PROFILE_ENTITY);
 	float fClosestDistance = -1.0f;
 
-	if (m_bInitialized)
+	if ((m_state & Cry::AreaManager::EAreaState::Initialized) != 0)
 	{
 		SCachedAreaData* pCachedData = nullptr;
 
@@ -992,7 +1009,7 @@ float CArea::CalcPointNearDistSq(EntityId const nEntityID, Vec3 const& Point3d, 
 								if ((Point3d.z < m_origin + m_height && Point3d.z > m_origin))
 								{
 									// Point is inside z-boundary
-									if (!m_bObstructRoof && (fZRoofSq < fXDistSq) && (fZRoofSq < fZFloorSq))
+									if (((m_state & Cry::AreaManager::EAreaState::ObstructRoof) == 0) && (fZRoofSq < fXDistSq) && (fZRoofSq < fZFloorSq))
 									{
 										// roof is closer than side
 										fZDistSq = fZRoofSq;
@@ -1000,7 +1017,7 @@ float CArea::CalcPointNearDistSq(EntityId const nEntityID, Vec3 const& Point3d, 
 										fXDistSq = 0.0f;
 									}
 
-									if (!m_bObstructFloor && (fZFloorSq < fXDistSq) && (fZFloorSq < fZRoofSq))
+									if (((m_state & Cry::AreaManager::EAreaState::ObstructFloor) == 0) && (fZFloorSq < fXDistSq) && (fZFloorSq < fZRoofSq))
 									{
 										// floor is closer than side
 										fZDistSq = fZFloorSq;
@@ -1020,7 +1037,7 @@ float CArea::CalcPointNearDistSq(EntityId const nEntityID, Vec3 const& Point3d, 
 									if (fabsf(fDistToRoof) < fabsf(fDistToFloor))
 									{
 										// being above
-										if (!m_bObstructRoof)
+										if ((m_state & Cry::AreaManager::EAreaState::ObstructRoof) == 0)
 										{
 											// perpendicular point to Roof
 											fXDistSq = 0.0f;
@@ -1033,7 +1050,7 @@ float CArea::CalcPointNearDistSq(EntityId const nEntityID, Vec3 const& Point3d, 
 									else
 									{
 										// being below
-										if (!m_bObstructFloor)
+										if ((m_state & Cry::AreaManager::EAreaState::ObstructFloor) == 0)
 										{
 											// perpendicular point to Floor
 											fXDistSq = 0.0f;
@@ -1222,7 +1239,7 @@ float CArea::CalcPointNearDistSq(EntityId const nEntityID, Vec3 const& Point3d, 
 	FUNCTION_PROFILER(GetISystem(), PROFILE_ENTITY);
 	float fClosestDistance = -1.0f;
 
-	if (m_bInitialized)
+	if ((m_state & Cry::AreaManager::EAreaState::Initialized) != 0)
 	{
 		SCachedAreaData* pCachedData = nullptr;
 
@@ -1306,14 +1323,14 @@ float CArea::CalcPointNearDistSq(EntityId const nEntityID, Vec3 const& Point3d, 
 								if ((Point3d.z < m_origin + m_height && Point3d.z > m_origin))
 								{
 									// Point is inside z-boundary
-									if (!m_bObstructRoof && (fZRoofSq < fXDistSq) && (fZRoofSq < fZFloorSq))
+									if (((m_state & Cry::AreaManager::EAreaState::ObstructRoof) == 0) && (fZRoofSq < fXDistSq) && (fZRoofSq < fZFloorSq))
 									{
 										// roof is closer than side
 										fZDistSq = fZRoofSq;
 										fXDistSq = 0.0f;
 									}
 
-									if (!m_bObstructFloor && (fZFloorSq < fXDistSq) && (fZFloorSq < fZRoofSq))
+									if (((m_state & Cry::AreaManager::EAreaState::ObstructFloor) == 0) && (fZFloorSq < fXDistSq) && (fZFloorSq < fZRoofSq))
 									{
 										// floor is closer than side
 										fZDistSq = fZFloorSq;
@@ -1328,7 +1345,7 @@ float CArea::CalcPointNearDistSq(EntityId const nEntityID, Vec3 const& Point3d, 
 										// being above
 										fZDistSq = fZRoofSq;
 
-										if (!m_bObstructRoof)
+										if ((m_state & Cry::AreaManager::EAreaState::ObstructRoof) == 0)
 										{
 											// perpendicular point to Roof
 											fXDistSq = 0.0f;
@@ -1339,7 +1356,7 @@ float CArea::CalcPointNearDistSq(EntityId const nEntityID, Vec3 const& Point3d, 
 										// being below
 										fZDistSq = fZFloorSq;
 
-										if (!m_bObstructFloor)
+										if ((m_state & Cry::AreaManager::EAreaState::ObstructFloor) == 0)
 										{
 											// perpendicular point to Floor
 											fXDistSq = 0.0f;
@@ -1542,7 +1559,7 @@ EAreaPosType CArea::CalcPosType(EntityId const nEntityID, Vec3 const& rPos, bool
 	FUNCTION_PROFILER(GetISystem(), PROFILE_ENTITY);
 	EAreaPosType eTempPosType = AREA_POS_TYPE_COUNT;
 
-	if (m_bInitialized)
+	if ((m_state & Cry::AreaManager::EAreaState::Initialized) != 0)
 	{
 		SCachedAreaData* pCachedData = nullptr;
 
@@ -1742,14 +1759,14 @@ void CArea::CalcClosestPointToObstructedShape(EntityId const nEntityID, Vec3& ou
 		// Find the closest point
 		// First of all check if we're either right above a non-obstructing roof or below a non-obstructing floor
 		// if so, just use this data since we have the shortest distance right there
-		if (ePosType == AREA_POS_TYPE_2DINSIDE_ZABOVE && !m_bObstructRoof)
+		if (ePosType == AREA_POS_TYPE_2DINSIDE_ZABOVE && ((m_state & Cry::AreaManager::EAreaState::ObstructRoof) == 0))
 		{
 			closestDistSq = (sourcePos.z - fRoofWorldPosZ) * (sourcePos.z - fRoofWorldPosZ);
 			closest.x = sourcePos.x;
 			closest.y = sourcePos.y;
 			closest.z = fRoofWorldPosZ;
 		}
-		else if (ePosType == AREA_POS_TYPE_2DINSIDE_ZBELOW && !m_bObstructFloor)
+		else if (ePosType == AREA_POS_TYPE_2DINSIDE_ZBELOW && ((m_state & Cry::AreaManager::EAreaState::ObstructFloor) == 0))
 		{
 			closestDistSq = (m_origin - sourcePos.z) * (m_origin - sourcePos.z);
 			closest.x = sourcePos.x;
@@ -1805,7 +1822,7 @@ void CArea::CalcClosestPointToObstructedShape(EntityId const nEntityID, Vec3& ou
 					if (ePosType != AREA_POS_TYPE_2DINSIDE_ZINSIDE)
 					{
 						// Roof
-						if (!m_bObstructRoof)
+						if ((m_state & Cry::AreaManager::EAreaState::ObstructRoof) == 0)
 						{
 							oLine.start = Vec3(fCurrSegStart[0], fCurrSegStart[1], fRoofWorldPosZ);
 							oLine.end = Vec3(fCurrSegEnd[0], fCurrSegEnd[1], fRoofWorldPosZ);
@@ -1820,7 +1837,7 @@ void CArea::CalcClosestPointToObstructedShape(EntityId const nEntityID, Vec3& ou
 						}
 
 						// Floor
-						if (!m_bObstructFloor)
+						if ((m_state & Cry::AreaManager::EAreaState::ObstructFloor) == 0)
 						{
 							oLine.start = Vec3(fCurrSegStart[0], fCurrSegStart[1], m_origin);
 							oLine.end = Vec3(fCurrSegEnd[0], fCurrSegEnd[1], m_origin);
@@ -1844,7 +1861,7 @@ void CArea::CalcClosestPointToObstructedShape(EntityId const nEntityID, Vec3& ou
 		if (ePosType == AREA_POS_TYPE_2DINSIDE_ZINSIDE)
 		{
 			// Roof
-			if (!m_bObstructRoof)
+			if ((m_state & Cry::AreaManager::EAreaState::ObstructRoof) == 0)
 			{
 				float const fTempDistToLineSq = (sourcePos.z - fRoofWorldPosZ) * (sourcePos.z - fRoofWorldPosZ);
 
@@ -1858,7 +1875,7 @@ void CArea::CalcClosestPointToObstructedShape(EntityId const nEntityID, Vec3& ou
 			}
 
 			// Floor
-			if (!m_bObstructFloor)
+			if ((m_state & Cry::AreaManager::EAreaState::ObstructFloor) == 0)
 			{
 				float const fTempDistToLineSq = (m_origin - sourcePos.z) * (m_origin - sourcePos.z);
 
@@ -2266,7 +2283,7 @@ void CArea::SetPoints(Vec3 const* const pPoints, bool const* const pSoundObstruc
 			}
 		}
 
-		m_bInitialized = true;
+		m_state |= Cry::AreaManager::EAreaState::Initialized;
 		m_pAreaManager->SetAreaDirty(this);
 	}
 }
@@ -2312,7 +2329,7 @@ void CArea::SetBox(const Vec3& min, const Vec3& max, const Matrix34& tm)
 	ReleaseAreaData();
 
 	m_areaType = ENTITY_AREA_TYPE_BOX;
-	m_bInitialized = true;
+	m_state |= Cry::AreaManager::EAreaState::Initialized;
 	m_boxMin = min;
 	m_boxMax = max;
 	m_worldTM = tm;
@@ -2327,7 +2344,7 @@ void CArea::BeginSettingSolid(const Matrix34& worldTM)
 	ReleaseAreaData();
 
 	m_areaType = ENTITY_AREA_TYPE_SOLID;
-	m_bInitialized = true;
+	m_state |= Cry::AreaManager::EAreaState::Initialized;
 	m_worldTM = worldTM;
 	m_invMatrix = m_worldTM.GetInverted();
 	m_pAreaSolid = new CAreaSolid;
@@ -2429,7 +2446,7 @@ void CArea::SetSphere(const Vec3& center, float fRadius)
 {
 	ReleaseAreaData();
 
-	m_bInitialized = true;
+	m_state |= Cry::AreaManager::EAreaState::Initialized;
 	m_areaType = ENTITY_AREA_TYPE_SPHERE;
 	m_sphereCenter = center;
 	m_sphereRadius = fRadius;
@@ -2465,16 +2482,17 @@ void CArea::CalcBBox()
 //////////////////////////////////////////////////////////////////////////
 void CArea::ResolveEntityIds()
 {
-	if (m_bEntityIdsResolved)
-		return;
-
-	for (unsigned int i = 0; i < m_entityGuids.size(); i++)
+	if ((m_state & Cry::AreaManager::EAreaState::EntityIdsResolved) == 0)
 	{
-		EntityId entId = GetEntitySystem()->FindEntityByGuid(m_entityGuids[i]);
-		m_entityIds[i] = entId;
-	}
+		size_t index = 0;
 
-	m_bEntityIdsResolved = true;
+		for (auto const& guid : m_entityGuids)
+		{
+			m_entityIds[index++] = GetEntitySystem()->FindEntityByGuid(guid);
+		}
+
+		m_state |= Cry::AreaManager::EAreaState::EntityIdsResolved;
+	}
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -2600,7 +2618,6 @@ void CArea::AddEntity(const EntityId entId)
 {
 	if (entId != INVALID_ENTITYID)
 	{
-		m_bAttachedSoundTested = false;
 		m_fadeDistance = -1.0f;
 		m_greatestFadeDistance = -1.0f;
 
@@ -2658,7 +2675,6 @@ void CArea::RemoveEntity(EntityId const entId)
 {
 	if (entId != INVALID_ENTITYID)
 	{
-		m_bAttachedSoundTested = false;
 		m_fadeDistance = -1.0f;
 		m_greatestFadeDistance = -1.0f;
 
@@ -2702,6 +2718,7 @@ void CArea::RemoveEntity(EntityGUID const entGuid)
 //////////////////////////////////////////////////////////////////////////
 void CArea::RemoveEntities()
 {
+	LOADING_TIME_PROFILE_SECTION
 	// Inform all attached entities that they have been disconnected to prevent lost entities.
 	EntityIdVector const tmpVec(std::move(m_entityIds));
 	EntityIdVector::const_iterator Iter(tmpVec.begin());
@@ -2750,7 +2767,7 @@ void CArea::SendCachedEventsFor(EntityId const nEntityID)
 	FUNCTION_PROFILER(GetISystem(), PROFILE_ENTITY);
 	size_t const nCountCachedEvents = m_cachedEvents.size();
 
-	if (m_bInitialized && nCountCachedEvents > 0)
+	if (((m_state & Cry::AreaManager::EAreaState::Initialized) != 0) && nCountCachedEvents > 0)
 	{
 		for (size_t i = 0; i < nCountCachedEvents; ++i)
 		{
@@ -2813,7 +2830,8 @@ void CArea::SendEvent(SEntityEvent& newEvent, bool bClearCachedEvents /* = true 
 void CArea::EnterArea(EntityId const entityId)
 {
 	FUNCTION_PROFILER(GetISystem(), PROFILE_ENTITY);
-	if (m_bInitialized)
+
+	if ((m_state & Cry::AreaManager::EAreaState::Initialized) != 0)
 	{
 		TEntityCachedAreaDataMap::iterator Iter(m_mapEntityCachedAreaData.find(entityId));
 
@@ -2822,8 +2840,6 @@ void CArea::EnterArea(EntityId const entityId)
 			// If we get here it means "OnAddedToAreaCache" did not get called, the entity was probably spawned within this area.
 			m_mapEntityCachedAreaData.insert(std::make_pair(entityId, SCachedAreaData())).first;
 		}
-
-		m_bIsActive = true;
 
 		if (CVar::pDrawAreaDebug->GetIVal() == 2)
 		{
@@ -2846,7 +2862,8 @@ void CArea::EnterArea(EntityId const entityId)
 void CArea::LeaveArea(EntityId const entityId)
 {
 	FUNCTION_PROFILER(GetISystem(), PROFILE_ENTITY);
-	if (m_bInitialized)
+
+	if ((m_state & Cry::AreaManager::EAreaState::Initialized) != 0)
 	{
 		if (CVar::pDrawAreaDebug->GetIVal() == 2)
 		{
@@ -2867,12 +2884,13 @@ void CArea::LeaveArea(EntityId const entityId)
 // calls entity OnEnterNearArea which calls script OnEnterNearArea( entity(player), AreaID )
 //////////////////////////////////////////////////////////////////////////
 void CArea::EnterNearArea(
-	EntityId const entityId,
-	Vec3 const& closestPointToArea,
-	float const distance)
+  EntityId const entityId,
+  Vec3 const& closestPointToArea,
+  float const distance)
 {
 	FUNCTION_PROFILER(GetISystem(), PROFILE_ENTITY);
-	if (m_bInitialized)
+
+	if ((m_state & Cry::AreaManager::EAreaState::Initialized) != 0)
 	{
 		TEntityCachedAreaDataMap::iterator Iter(m_mapEntityCachedAreaData.find(entityId));
 
@@ -2899,7 +2917,8 @@ void CArea::EnterNearArea(
 void CArea::LeaveNearArea(EntityId const entityId)
 {
 	FUNCTION_PROFILER(GetISystem(), PROFILE_ENTITY);
-	if (m_bInitialized)
+
+	if ((m_state & Cry::AreaManager::EAreaState::Initialized) != 0)
 	{
 		if (CVar::pDrawAreaDebug->GetIVal() == 2)
 		{
@@ -2911,14 +2930,7 @@ void CArea::LeaveNearArea(EntityId const entityId)
 		event.nParam[0] = entityId;
 		event.nParam[1] = m_areaId;
 		event.nParam[2] = m_entityId;
-
 		SendEvent(event);
-
-		// If the entity currently leaving is the last one in the area, set the area as inactive
-		if (m_pAreaManager->GetNumberOfPlayersNearOrInArea(this) <= 1)
-		{
-			m_bIsActive = false;
-		}
 	}
 }
 
@@ -2926,7 +2938,8 @@ void CArea::LeaveNearArea(EntityId const entityId)
 void CArea::OnAddedToAreaCache(EntityId const entityId)
 {
 	FUNCTION_PROFILER(GetISystem(), PROFILE_ENTITY);
-	if (m_bInitialized)
+
+	if ((m_state & Cry::AreaManager::EAreaState::Initialized) != 0)
 	{
 		TEntityCachedAreaDataMap::iterator Iter(m_mapEntityCachedAreaData.find(entityId));
 
@@ -2952,12 +2965,13 @@ void CArea::OnRemovedFromAreaCache(EntityId const entityId)
 // pEntity moves in an area, which is controlled by an area with a higher priority
 //////////////////////////////////////////////////////////////////////////
 void CArea::ExclusiveUpdateAreaInside(
-	EntityId const entityId,
-	EntityId const higherAreaId,
-	float const fade)
+  EntityId const entityId,
+  EntityId const higherAreaId,
+  float const fade)
 {
 	FUNCTION_PROFILER(GetISystem(), PROFILE_ENTITY);
-	if (m_bInitialized)
+
+	if ((m_state & Cry::AreaManager::EAreaState::Initialized) != 0)
 	{
 		if (CVar::pDrawAreaDebug->GetIVal() == 2)
 		{
@@ -2988,13 +3002,14 @@ void CArea::ExclusiveUpdateAreaInside(
 // pEntity moves near an area, which is controlled by an area with a higher priority
 //////////////////////////////////////////////////////////////////////////
 void CArea::ExclusiveUpdateAreaNear(
-	EntityId const entityId,
-	EntityId const higherAreaId,
-	float const distance,
-	Vec3 const& position)
+  EntityId const entityId,
+  EntityId const higherAreaId,
+  float const distance,
+  Vec3 const& position)
 {
 	FUNCTION_PROFILER(GetISystem(), PROFILE_ENTITY);
-	if (m_bInitialized)
+
+	if ((m_state & Cry::AreaManager::EAreaState::Initialized) != 0)
 	{
 		if (CVar::pDrawAreaDebug->GetIVal() == 2)
 		{
@@ -3030,7 +3045,7 @@ float CArea::CalculateFade(const Vec3& pos3D)
 	FUNCTION_PROFILER(GetISystem(), PROFILE_ENTITY);
 	float fadeCoeff = 0.0f;
 
-	if (m_bInitialized)
+	if ((m_state & Cry::AreaManager::EAreaState::Initialized) != 0)
 	{
 		a2DPoint const pos = CArea::a2DPoint(pos3D);
 
@@ -3104,29 +3119,6 @@ float CArea::CalculateFade(const Vec3& pos3D)
 	}
 
 	return fadeCoeff;
-}
-
-//////////////////////////////////////////////////////////////////////////
-void CArea::OnAreaCrossing(EntityId const entityId)
-{
-	FUNCTION_PROFILER(GetISystem(), PROFILE_ENTITY);
-	if (m_bInitialized)
-	{
-		IEntity* pAreaAttachedEntity = nullptr;
-
-		for (auto const attachedEntityId : m_entityIds)
-		{
-			pAreaAttachedEntity = GetEntitySystem()->GetEntity(attachedEntityId);
-
-			if (pAreaAttachedEntity != nullptr)
-			{
-				SEntityEvent event;
-				event.event = ENTITY_EVENT_CROSS_AREA;
-				event.nParam[0] = entityId;
-				pAreaAttachedEntity->SendEvent(event);
-			}
-		}
-	}
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -3276,9 +3268,9 @@ void CArea::GetMemoryUsage(ICrySizer* pSizer) const
 		m_pAreaSolid->GetMemoryUsage(pSizer);
 	}
 
-	for (size_t i = 0, numSegments(m_areaSegments.size()); i < numSegments; ++i)
+	for (auto const pAreaSegment : m_areaSegments)
 	{
-		pSizer->AddObject(m_areaSegments[i], sizeof(*m_areaSegments[i]));
+		pSizer->AddObject(pAreaSegment, sizeof(*pAreaSegment));
 	}
 
 	pSizer->AddObject(this, sizeof(*this));

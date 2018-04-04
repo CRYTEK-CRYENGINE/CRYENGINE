@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 /*=============================================================================
    ShaderComponents.cpp : FX Shaders semantic components implementation.
@@ -642,7 +642,7 @@ bool CShaderMan::mfParseFXSampler(SShaderFXParams& FXParams, SFXSampler* pr, con
 	CGpr.m_nStateHandle = pr->m_nTexState;
 	if (pr->m_Semantic.empty() && pr->m_Values.empty())
 	{
-		if (CGpr.m_nStateHandle >= 0)
+		if (CGpr.m_nStateHandle != EDefaultSamplerStates::Unspecified)
 		{
 			pParams->push_back(CGpr);
 			return true;
@@ -740,7 +740,6 @@ static STextureDB sTextures[] =
 	STextureDB(PARAM(TS_VolumetricFogShadow1,         ECGT_VolumetricFogShadow1),         0),
 
 	STextureDB(PARAM(TS_WaterOceanMap,                ECGT_WaterOceanMap),                0),
-	STextureDB(PARAM(TS_WaterRipplesDDN,              ECGT_WaterRipplesDDN),              0),
 	STextureDB(PARAM(TS_WaterVolumeDDN,               ECGT_WaterVolumeDDN),               0),
 	STextureDB(PARAM(TS_WaterVolumeCaustics,          ECGT_WaterVolumeCaustics),          0),
 	STextureDB(PARAM(TS_WaterVolumeRefl,              ECGT_WaterVolumeRefl),              0),

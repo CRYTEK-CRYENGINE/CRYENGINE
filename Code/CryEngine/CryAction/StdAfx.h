@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 /*************************************************************************
    CryGame Source File.
@@ -24,7 +24,7 @@
 #endif // _MSC_VER > 1000
 
 #include <CryCore/Project/CryModuleDefs.h>
-#define eCryModule   eCryM_Action
+#define eCryModule  eCryM_Action
 #define RWI_NAME_TAG "RayWorldIntersection(Action)"
 #define PWI_NAME_TAG "PrimitiveWorldIntersection(Action)"
 
@@ -44,6 +44,7 @@ inline void GameWarning(const char*, ...) PRINTF_PARAMS(1, 2);
 #include <CryCore/StlUtils.h>
 #include <CryMath/Cry_Math.h>
 #include <CryMath/Cry_Camera.h>
+#include <CryMath/Random.h>
 #include <CrySystem/ISystem.h>
 #include <CryNetwork/INetwork.h>
 #include <CryInput/IInput.h>
@@ -120,19 +121,6 @@ inline bool IsClientActor(EntityId id)
 	if (pActor && pActor->GetEntity()->GetId() == id)
 		return true;
 	return false;
-}
-
-//////////////////////////////////////////////////////////////////////////
-// Get a proxy or make it if not found
-inline IEntityComponent* GetOrMakeProxy(IEntity* pEntity, EEntityProxy proxyType)
-{
-	IEntityComponent* pProxy = pEntity->GetProxy(proxyType);
-	if (!pProxy)
-	{
-		if (pEntity->CreateProxy(proxyType))
-			pProxy = pEntity->GetProxy(proxyType);
-	}
-	return pProxy;
 }
 
 template<typename T> bool inline GetAttr(const XmlNodeRef& node, const char* key, T& val)

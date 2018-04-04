@@ -42,7 +42,7 @@ end_sources()
 
 if (WIN32 OR WIN64)
 	CryEngineStaticModule(strophe SOLUTION_FOLDER "Libs")
-	target_include_directories(${THIS_PROJECT} PUBLIC ${SDK_DIR}/libstrophe)
+	target_include_directories(${THIS_PROJECT} PUBLIC "${SDK_DIR}/libstrophe")
 	target_compile_options(${THIS_PROJECT} PRIVATE /W0)
 	target_link_libraries(${THIS_PROJECT} PRIVATE expat)
 else()

@@ -1,4 +1,5 @@
 // Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved.
+
 #include "stdafx.h"
 #include "XMLConverter.h"
 #include "IRCLog.h"
@@ -18,7 +19,7 @@ XMLCompiler::XMLCompiler(
 	ICryXML* pCryXML,
 	const std::vector<XMLFilterElement>& filter,
 	const std::vector<string>& tableFilemasks,
-	const NameConvertor& nameConverter)
+	const NameConverter& nameConverter)
 	: m_refCount(1)
 	, m_pCryXML(pCryXML)
 	, m_pFilter(&filter)
@@ -55,12 +56,12 @@ void XMLConverter::Release()
 	}
 }
 
-void XMLConverter::Init(const ConvertorInitContext& context)
+void XMLConverter::Init(const ConverterInitContext& context)
 {
 	m_filter.clear();
 	m_tableFilemasks.clear();
 
-	if (!m_nameConvertor.SetRules(context.config->GetAsString("targetnameformat", "", "")))
+	if (!m_nameConverter.SetRules(context.config->GetAsString("targetnameformat", "", "")))
 	{
 		return;
 	}
@@ -689,7 +690,7 @@ const char* XMLConverter::GetExt(int index) const
 
 ICompiler* XMLConverter::CreateCompiler()
 {
-	return new XMLCompiler(m_pCryXML, m_filter, m_tableFilemasks, m_nameConvertor);
+	return new XMLCompiler(m_pCryXML, m_filter, m_tableFilemasks, m_nameConverter);
 }
 
 bool XMLConverter::SupportsMultithreading() const

@@ -1,7 +1,11 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #include "StdAfx.h"
 #include "DefragAllocator.h"
+
+#ifdef CDBA_MORE_DEBUG
+	#pragma optimize("",off)
+#endif
 
 CDefragAllocatorWalker::CDefragAllocatorWalker(CDefragAllocator& alloc)
 {
@@ -141,6 +145,10 @@ void CDefragAllocator::Init(UINT_PTR capacity, UINT_PTR minAlignment, const Poli
 
 	m_segments.reserve(policy.maxSegments);
 	m_segments.push_back(seg);
+
+#ifdef CDBA_MORE_DEBUG
+	m_nLastCheckedChunk = 0;
+#endif
 }
 
 #ifndef _RELEASE
@@ -397,6 +405,7 @@ IDefragAllocator::Hdl CDefragAllocator::Allocate(size_t sz, const char* source, 
 IDefragAllocator::Hdl CDefragAllocator::AllocateAligned(size_t sz, size_t alignment, const char* source, void* pContext)
 {
 	alignment = max((size_t)m_minAlignment, alignment);
+	sz = Align(sz, m_minAlignment);
 
 	// Just to check the alignment can be stored
 	CDBA_ASSERT((IntegerLog2(alignment) - m_logMinAlignment) < (1u << SDefragAllocChunk::AlignBitCount));
@@ -411,6 +420,27 @@ IDefragAllocator::AllocatePinnedResult CDefragAllocator::AllocatePinned(size_t s
 	CryOptionalAutoLock<CryCriticalSection> lock(m_lock, m_isThreadSafe);
 	AllocatePinnedResult apr = { 0 };
 	apr.hdl = Allocate_Locked(sz, m_minAlignment, source, pContext);
+	if (apr.hdl != InvalidHdl)
+	{
+		apr.offs = Pin(apr.hdl);
+		apr.usableSize = CDefragAllocator::UsableSize(apr.hdl);
+	}
+
+	return apr;
+}
+
+IDefragAllocator::AllocatePinnedResult CDefragAllocator::AllocateAlignedPinned(size_t sz, size_t alignment, const char* source, void* pContext)
+{
+	alignment = max((size_t)m_minAlignment, alignment);
+	sz = Align(sz, m_minAlignment);
+
+	// Just to check the alignment and size can be stored
+	CDBA_ASSERT((IntegerLog2(alignment) - m_logMinAlignment) < (1u << SDefragAllocChunk::AlignBitCount));
+	CDBA_ASSERT((IntegerLog2(NextPower2(sz)) - m_logMinAlignment) < (1u << SDefragAllocChunkAttr::SizeWidth));
+
+	CryOptionalAutoLock<CryCriticalSection> lock(m_lock, m_isThreadSafe);
+	AllocatePinnedResult apr = {0};
+	apr.hdl = Allocate_Locked(sz, alignment, source, pContext);
 	if (apr.hdl != InvalidHdl)
 	{
 		apr.offs = Pin(apr.hdl);
@@ -460,6 +490,17 @@ void CDefragAllocator::ChangeContext(Hdl hdl, void* pNewContext)
 	SDefragAllocChunk& chunk = m_chunks[hdlIdx];
 	CDBA_ASSERT(chunk.attr.IsBusy());
 	chunk.pContext = pNewContext;
+}
+
+void* CDefragAllocator::GetContext(Hdl hdl)
+{
+	CryOptionalAutoLock<CryCriticalSection> lock(m_lock, m_isThreadSafe);
+	CDBA_ASSERT(hdl != InvalidHdl);
+
+	Index hdlIdx = ChunkIdxFromHdl(hdl);
+	SDefragAllocChunk& chunk = m_chunks[hdlIdx];
+	CDBA_ASSERT(chunk.attr.IsBusy());
+	return chunk.pContext;
 }
 
 IDefragAllocatorStats CDefragAllocator::GetStats()
@@ -523,6 +564,10 @@ size_t CDefragAllocator::DefragmentTick(size_t maxMoves, size_t maxAmount, bool 
 	}
 
 	Defrag_CompletePendingMoves();
+
+#ifdef CDBA_MORE_DEBUG
+	Tick_Validation_Locked();
+#endif
 
 	maxMoves = min(maxMoves, (size_t)MaxPendingMoves);
 	maxMoves = min(maxMoves, m_unusedChunks.size());    // Assume that each move requires a split
@@ -591,6 +636,9 @@ CDefragAllocator::Index CDefragAllocator::AllocateChunk()
 		chunk.pContext = NULL;
 #ifndef _RELEASE
 		chunk.source = "";
+#endif
+#ifdef CDBA_MORE_DEBUG
+		chunk.hash = 0;
 #endif
 	}
 
@@ -880,6 +928,52 @@ void CDefragAllocator::Defrag_ValidateFreeBlockIteration()
 			}
 			while (numFreeLists > 0);
 		}
+	}
+}
+
+void CDefragAllocator::Tick_Validation_Locked()
+{
+	if (m_policy.pDefragPolicy)
+	{
+		uint32 nFirstChunk = m_nLastCheckedChunk;
+		uint32 nTest = 64;
+		do
+		{
+			SDefragAllocChunk& chunk = m_chunks[m_nLastCheckedChunk];
+
+			if (chunk.attr.IsBusy() && !chunk.attr.IsMoving() && chunk.attr.GetSize() > 0)
+			{
+				// Mark the chunk as moving before starting the crc - this will force
+				// any users that may want to pin to sync on the allocator lock
+				MarkAsMoving(chunk);
+
+				if (!chunk.attr.IsPinned())
+				{
+					uint32 hash = m_policy.pDefragPolicy->Hash(chunk.ptr << m_logMinAlignment, chunk.attr.GetSize() << m_logMinAlignment);
+
+					if (!chunk.attr.IsInvalid())
+					{
+						if (hash && chunk.hash && (hash != chunk.hash))
+							__debugbreak();
+					}
+
+					chunk.hash = hash;
+
+					// Release the "move"
+					MarkAsNotMovingValid(chunk);
+				}
+				else
+				{
+					// Release the "move"
+					MarkAsNotMoving(chunk);
+				}
+
+				-- nTest;
+			}
+
+			m_nLastCheckedChunk = (m_nLastCheckedChunk + 1) == m_chunks.size() ? 0 : (m_nLastCheckedChunk + 1);
+		}
+		while (nTest > 0 && m_nLastCheckedChunk != nFirstChunk);
 	}
 }
 #endif

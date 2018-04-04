@@ -14,7 +14,8 @@
 			"AudioImplCVars.cpp",
 			"Common.cpp",
 			"CryAudioImpl.cpp",
-			"FileIOHandler.cpp"
+			"FileIOHandler.cpp",
+			"ATLEntities.cpp"
 		],
 		"Header Files":
 		[

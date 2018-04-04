@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 // -------------------------------------------------------------------------
 //  File name:   GLResource.hpp
@@ -17,7 +17,7 @@
 #include "GLFormat.hpp"
 
 #define DXGL_USE_PBO_FOR_STAGING_TEXTURES  !DXGL_FULL_EMULATION
-#define DXGL_SHARED_OBJECT_SYNCHRONIZATION !CRY_OPENGL_SINGLE_CONTEXT
+#define DXGL_SHARED_OBJECT_SYNCHRONIZATION !OGL_SINGLE_CONTEXT
 #define DXGL_STREAMING_CONSTANT_BUFFERS    1
 
 namespace NCryOpenGL
@@ -48,11 +48,11 @@ DXGL_DECLARE_PTR(struct, SQuery);
 #if DXGL_STREAMING_CONSTANT_BUFFERS
 DXGL_DECLARE_PTR(struct, SContextFrame)
 #endif //DXGL_STREAMING_CONSTANT_BUFFERS
-#if CRY_OPENGL_SINGLE_CONTEXT
+#if OGL_SINGLE_CONTEXT
 DXGL_DECLARE_PTR(struct, SInitialDataCopy);
 #endif
 
-#if CRY_OPENGL_SINGLE_CONTEXT
+#if OGL_SINGLE_CONTEXT
 enum { MAX_NUM_CONTEXT_PER_DEVICE = 1 };
 #else
 enum { MAX_NUM_CONTEXT_PER_DEVICE = 32 };
@@ -91,7 +91,7 @@ struct SSharingFence
 
 struct SResourceNamePool;
 
-#if CRY_OPENGL_SINGLE_CONTEXT
+#if OGL_SINGLE_CONTEXT
 typedef uint32 TResourceNameRefCount;
 ILINE uint32 IncrementResourceNameRefCount(TResourceNameRefCount& uRefCount) { return ++uRefCount; }
 ILINE uint32 DecrementResourceNameRefCount(TResourceNameRefCount& uRefCount) { return --uRefCount; }
@@ -507,7 +507,7 @@ struct SBuffer : SResource
 		uint32           m_uStreamOffset;
 	};
 	DXGL_TODO("Evaluate if it is worth to have multiple possible bindings cached - eventually add another dimension and keep items sorted by slot for binary search");
-	#if CRY_OPENGL_SINGLE_CONTEXT
+	#if OGL_SINGLE_CONTEXT
 	bool          m_bContextCacheValid;
 	SContextCache m_kContextCache;
 	#else
@@ -627,7 +627,7 @@ struct SDefaultFrameBufferTexture : STexture
 #endif //DXGL_FULL_EMULATION
 };
 
-#if CRY_OPENGL_SINGLE_CONTEXT
+#if OGL_SINGLE_CONTEXT
 
 DXGL_DECLARE_REF_COUNTED(struct, SInitialDataCopy)
 {

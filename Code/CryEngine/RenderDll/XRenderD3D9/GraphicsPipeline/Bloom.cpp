@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #include "StdAfx.h"
 #include "Bloom.h"
@@ -6,8 +6,6 @@
 
 void CBloomStage::Init()
 {
-	m_samplerPoint = CTexture::GetTexState(STexState(FILTER_POINT, true));
-	m_samplerLinear = CTexture::GetTexState(STexState(FILTER_LINEAR, true));
 }
 
 void CBloomStage::Execute()
@@ -34,18 +32,17 @@ void CBloomStage::Execute()
 	float scaleW = ((float)width / 400.0f) / (float)width;
 	float scaleH = ((float)height / 225.0f) / (float)height;
 
-	int texStateLinear = CTexture::GetTexState(STexState(FILTER_LINEAR, true));
-	int texStatePoint = CTexture::GetTexState(STexState(FILTER_POINT, true));
-	int samplerBloom = (CTexture::s_ptexHDRFinalBloom->GetWidth() == 400 && CTexture::s_ptexHDRFinalBloom->GetHeight() == 225) ? m_samplerPoint : m_samplerLinear;
+	SamplerStateHandle samplerBloom = (CTexture::s_ptexHDRFinalBloom->GetWidth() == 400 && CTexture::s_ptexHDRFinalBloom->GetHeight() == 225) ? EDefaultSamplerStates::PointClamp : EDefaultSamplerStates::LinearClamp;
 
 	// Pass 1 Horizontal
 	if (m_pass1H.InputChanged())
 	{
+		m_pass1H.SetPrimitiveFlags(CRenderPrimitive::eFlags_ReflectShaderConstants_PS);
 		m_pass1H.SetTechnique(CShaderMan::s_shHDRPostProcess, techBloomGaussian, 0);
 		m_pass1H.SetRenderTarget(0, CTexture::s_ptexHDRTempBloom[1]);
 		m_pass1H.SetState(GS_NODEPTHTEST);
 		m_pass1H.SetTextureSamplerPair(0, CTexture::s_ptexHDRTargetScaled[1], samplerBloom);
-		m_pass1H.SetTextureSamplerPair(2, CTexture::s_ptexHDRToneMaps[0], m_samplerPoint);
+		m_pass1H.SetTextureSamplerPair(2, CTexture::s_ptexHDRToneMaps[0], EDefaultSamplerStates::PointClamp);
 	}
 
 	m_pass1H.BeginConstantUpdate();
@@ -55,11 +52,12 @@ void CBloomStage::Execute()
 	// Pass 1 Vertical
 	if (m_pass1V.InputChanged())
 	{
+		m_pass1V.SetPrimitiveFlags(CRenderPrimitive::eFlags_ReflectShaderConstants_PS);
 		m_pass1V.SetTechnique(CShaderMan::s_shHDRPostProcess, techBloomGaussian, 0);
 		m_pass1V.SetRenderTarget(0, CTexture::s_ptexHDRTempBloom[0]);
 		m_pass1V.SetState(GS_NODEPTHTEST);
 		m_pass1V.SetTextureSamplerPair(0, CTexture::s_ptexHDRTempBloom[1], samplerBloom);
-		m_pass1V.SetTextureSamplerPair(2, CTexture::s_ptexHDRToneMaps[0], m_samplerPoint);
+		m_pass1V.SetTextureSamplerPair(2, CTexture::s_ptexHDRToneMaps[0], EDefaultSamplerStates::PointClamp);
 	}
 
 	m_pass1V.BeginConstantUpdate();
@@ -69,11 +67,12 @@ void CBloomStage::Execute()
 	// Pass 2 Horizontal
 	if (m_pass2H.InputChanged())
 	{
+		m_pass2H.SetPrimitiveFlags(CRenderPrimitive::eFlags_ReflectShaderConstants_PS);
 		m_pass2H.SetTechnique(CShaderMan::s_shHDRPostProcess, techBloomGaussian, 0);
 		m_pass2H.SetRenderTarget(0, CTexture::s_ptexHDRTempBloom[1]);
 		m_pass2H.SetState(GS_NODEPTHTEST);
 		m_pass2H.SetTextureSamplerPair(0, CTexture::s_ptexHDRTempBloom[0], samplerBloom);
-		m_pass2H.SetTextureSamplerPair(2, CTexture::s_ptexHDRToneMaps[0], m_samplerPoint);
+		m_pass2H.SetTextureSamplerPair(2, CTexture::s_ptexHDRToneMaps[0], EDefaultSamplerStates::PointClamp);
 	}
 
 	m_pass2H.BeginConstantUpdate();
@@ -83,15 +82,16 @@ void CBloomStage::Execute()
 	// Pass 2 Vertical
 	if (m_pass2V.InputChanged())
 	{
+		m_pass2V.SetPrimitiveFlags(CRenderPrimitive::eFlags_ReflectShaderConstants_PS);
 		m_pass2V.SetTechnique(CShaderMan::s_shHDRPostProcess, techBloomGaussian, g_HWSR_MaskBit[HWSR_SAMPLE0]);
 		m_pass2V.SetRenderTarget(0, CTexture::s_ptexHDRFinalBloom);
 		m_pass2V.SetState(GS_NODEPTHTEST);
 		m_pass2V.SetTextureSamplerPair(0, CTexture::s_ptexHDRTempBloom[1], samplerBloom);
 		m_pass2V.SetTextureSamplerPair(1, CTexture::s_ptexHDRTempBloom[0], samplerBloom);
-		m_pass2V.SetTextureSamplerPair(2, CTexture::s_ptexHDRToneMaps[0], m_samplerPoint);
+		m_pass2V.SetTextureSamplerPair(2, CTexture::s_ptexHDRToneMaps[0], EDefaultSamplerStates::PointClamp);
 	}
 
 	m_pass2V.BeginConstantUpdate();
-	m_pass2H.SetConstant(hdrParams0Name, Vec4(0, (sigma2 / sigma1) * scaleH, 0, 0), eHWSC_Pixel);
+	m_pass2V.SetConstant(hdrParams0Name, Vec4(0, (sigma2 / sigma1) * scaleH, 0, 0), eHWSC_Pixel);
 	m_pass2V.Execute();
 }

@@ -1,6 +1,7 @@
 # References:
 #   - https://software.intel.com/en-us/articles/c0x-features-supported-by-intel-c-compiler
 #   - https://software.intel.com/en-us/articles/c14-features-supported-by-intel-c-compiler
+#   - http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2016/p0096r3.html
 
 # FIXME: Intel C++ feature detection works only when simulating the GNU compiler.
 # When simulating MSVC, Intel always sets __cplusplus to 199711L.
@@ -8,9 +9,8 @@ if("x${CMAKE_CXX_SIMULATE_ID}" STREQUAL "xMSVC")
   return()
 endif()
 
-# these are not implemented in any version at time of writing
-#set(_cmake_feature_test_cxx_variable_templates "${Intel15_CXX14}")
-#set(_cmake_feature_test_cxx_relaxed_constexpr "${Intel15_CXX14}")
+set(_cmake_feature_test_cxx_variable_templates "__cpp_variable_templates >= 201304")
+set(_cmake_feature_test_cxx_relaxed_constexpr "__cpp_constexpr >= 201304")
 
 set(_cmake_oldestSupported "__INTEL_COMPILER >= 1210")
 set(DETECT_CXX11 "((__cplusplus >= 201103L) || defined(__INTEL_CXX11_MODE__) || defined(__GXX_EXPERIMENTAL_CXX0X__))")

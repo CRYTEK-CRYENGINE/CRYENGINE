@@ -49,7 +49,9 @@ private:
 	QString           m_resultingString;
 };
 
-class CMainEditorWindow : public CDockableWindow, public IEditorNotifyListener
+class CMainEditorWindow 
+	: public CDockableWindow
+	, public IEditorNotifyListener
 {
 	Q_OBJECT
 
@@ -81,6 +83,8 @@ private:
 	void                     OnMenuActionViewUseSelectionHelpers(bool checked);
 	void                     OnMenuActionViewShowInputParamTypes(bool checked);
 	void                     OnMenuActionViewFilterInputsByType(bool checked);
+
+	void                     OnMenuActionHelpOnlineDocumentation();
 
 	void                     OnLibraryExplorerSelectionChanged();
 	void                     OnLibraryExplorerActivated(const Explorer::ExplorerEntry* pExplorerEntry);

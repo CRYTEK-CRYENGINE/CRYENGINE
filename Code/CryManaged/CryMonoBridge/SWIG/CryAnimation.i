@@ -10,6 +10,7 @@
 #include <CryAnimation/IFacialAnimation.h>
 %}
 
+%ignore IAnimationEngineModule;
 %ignore IAnimationSerializable;
 %ignore CreateCharManager;
 %include "../../../../CryEngine/CryCommon/CryAnimation/ICryAnimation.h"

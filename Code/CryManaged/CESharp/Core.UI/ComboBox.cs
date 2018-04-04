@@ -15,37 +15,44 @@ namespace CryEngine.UI
 		Button _button;
 		Panel _frame;
 
-		public Panel BgPanel; ///< Holds Background image for the drop down area.
-		public ComboBoxCtrl Ctrl; ///< Contains the element's controller.
+		/// <summary>
+		/// Holds Background image for the drop down area.
+		/// </summary>
+		public Panel BgPanel;
+
+		/// <summary>
+		/// Contains the element's controller.
+		/// </summary>
+		public ComboBoxCtrl Ctrl;
 
         /// <summary>
         /// Called by framework. Do not call directly.
         /// </summary>
         public override void OnAwake()
 		{
-			BgPanel = SceneObject.Instantiate<Panel>(this);
-			BgPanel.Background.Source = ResourceManager.ImageFromFile(Path.Combine(UIElement.DataDirectory, "button.png"), false);
+			BgPanel = Instantiate<Panel>(this);
+			BgPanel.Background.Source = ResourceManager.ImageFromFile(Path.Combine(DataDirectory, "button.png"), false);
 			BgPanel.Background.SliceType = SliceType.Nine;
 			BgPanel.Background.Color = Color.Gray.WithAlpha(0.75f);
 			BgPanel.RectTransform.Alignment = Alignment.Stretch;
-			BgPanel.RectTransform.Spacing = new Rect() { w = 20 };
+			BgPanel.RectTransform.Spacing = new Rect { w = 20 };
 			BgPanel.RectTransform.ClampMode = ClampMode.Full;
 			Ctrl = AddComponent<ComboBoxCtrl>();
 
-			_button = SceneObject.Instantiate<Button>(this);
+			_button = Instantiate<Button>(this);
 			_button.RectTransform.Alignment = Alignment.Right;
 			_button.RectTransform.Size = new Point(25, 22);
 			_button.RectTransform.Padding = new Padding(-13, 0);
-			_button.RectTransform.Spacing = new Rect() { x = 6 };
+			_button.RectTransform.Spacing = new Rect { x = 6 };
 			_button.RectTransform.ClampMode = ClampMode.Full;
-			_button.Image = ResourceManager.ImageFromFile(Path.Combine(UIElement.DataDirectory, "arrow_dn.png"));
+			_button.Image = ResourceManager.ImageFromFile(Path.Combine(DataDirectory, "arrow_dn.png"));
 
 			RectTransform.Alignment = Alignment.TopHStretch;
 			RectTransform.Size = new Point(0, 22);
 			RectTransform.ClampMode = ClampMode.Full;
 
-			_frame = SceneObject.Instantiate<Panel>(this);
-			_frame.Background.Source = ResourceManager.ImageFromFile(Path.Combine(UIElement.DataDirectory, "frame.png"), false);
+			_frame = Instantiate<Panel>(this);
+			_frame.Background.Source = ResourceManager.ImageFromFile(Path.Combine(DataDirectory, "frame.png"), false);
 			_frame.Background.SliceType = SliceType.Nine;
 			_frame.Background.Color = Color.SkyBlue;
 			_frame.RectTransform.Alignment = Alignment.Stretch;
@@ -64,7 +71,7 @@ namespace CryEngine.UI
 		void EnterFocus()
 		{
 			_frame.Active = true;
-			BgPanel.Background.Source = ResourceManager.ImageFromFile(Path.Combine(UIElement.DataDirectory, "button_inv.png"), false);
+			BgPanel.Background.Source = ResourceManager.ImageFromFile(Path.Combine(DataDirectory, "button_inv.png"), false);
 			_button.Ctrl.OnEnterFocus();
 		}
 
@@ -74,7 +81,7 @@ namespace CryEngine.UI
 		void LeaveFocus()
 		{
 			_frame.Active = false;
-			BgPanel.Background.Source = ResourceManager.ImageFromFile(Path.Combine(UIElement.DataDirectory, "button.png"), false);
+			BgPanel.Background.Source = ResourceManager.ImageFromFile(Path.Combine(DataDirectory, "button.png"), false);
 			_button.Ctrl.OnLeaveFocus();
 		}
 	}

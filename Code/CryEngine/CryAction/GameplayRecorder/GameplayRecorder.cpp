@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 /*************************************************************************
    -------------------------------------------------------------------------
@@ -65,9 +65,6 @@ void CGameplayRecorder::Update(float frameTime)
 //------------------------------------------------------------------------
 void CGameplayRecorder::Release()
 {
-
-	SAFE_RELEASE(m_pGameStateRecorder);
-
 	delete this;
 }
 
@@ -130,7 +127,7 @@ void CGameplayRecorder::CExampleMetadataListener::RecordGameData()
 	while (!it->IsEnd())
 	{
 		IEntity* pEntity = it->Next();
-		if (!pEntity->IsActive())
+		if (!pEntity->IsActivatedForUpdates())
 			continue;
 
 		if (IActor* pActor = pActorSystem->GetActor(pEntity->GetId()))

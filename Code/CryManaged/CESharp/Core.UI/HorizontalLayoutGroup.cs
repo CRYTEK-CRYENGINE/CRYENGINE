@@ -1,10 +1,17 @@
-using CryEngine.UI.Components;
+﻿using CryEngine.UI.Components;
 using System.Collections.Generic;
 
 namespace CryEngine.UI
 {
+	/// <summary>
+	/// A LayoutGroup that creates a horizontal layout.
+	/// </summary>
 	public class HorizontalLayoutGroup : LayoutGroup
 	{
+		/// <summary>
+		/// Called when the layout needs to be updated.
+		/// </summary>
+		/// <param name="items">Items.</param>
 		protected override void OnUpdateLayout(List<UIElement> items)
 		{
 			RectTransform.Width = Spacing;

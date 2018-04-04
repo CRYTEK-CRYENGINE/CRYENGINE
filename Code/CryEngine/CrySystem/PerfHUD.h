@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 // -------------------------------------------------------------------------
 //  File name:   PerfHUD.h
@@ -57,7 +57,7 @@ public:
 	CRYINTERFACE_BEGIN()
 	CRYINTERFACE_ADD(ICryPerfHUD)
 	CRYINTERFACE_END()
-	CRYGENERATE_SINGLETONCLASS(CPerfHUD, "PerfHUD", 0x006945f9985e4ce2, 0x872120bfdec09ca5)
+	CRYGENERATE_SINGLETONCLASS_GUID(CPerfHUD, "PerfHUD", "006945f9-985e-4ce2-8721-20bfdec09ca5"_cry_guid)
 
 	CPerfHUD();
 	virtual ~CPerfHUD() {}

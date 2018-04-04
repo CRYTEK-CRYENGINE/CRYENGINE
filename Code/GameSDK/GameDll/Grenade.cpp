@@ -15,12 +15,14 @@ History:
 #include "Grenade.h"
 #include <IVehicleSystem.h>
 #include "GameRules.h"
-#include <CryAISystem/IAIObject.h>
 #include "UI/UIManager.h"
 #include "UI/UICVars.h"
 #include "SmokeManager.h"
 #include "PersistantStats.h"
 #include "GameRules.h"
+
+#include <CryAISystem/IAIObject.h>
+#include <IPerceptionManager.h>
 
 //------------------------------------------------------------------------
 CGrenade::CGrenade() : m_detonationFailed(false)
@@ -56,10 +58,10 @@ void CGrenade::HandleEvent(const SGameObjectEvent &event)
 		IEntity* pTargetEntity = NULL;
 
 		// Notify AI system about grenades.
-		if (gEnv->pAISystem)
+		if (IPerceptionManager::GetInstance())
 		{
-			IAIObject* pAI = 0;
-			if ((pAI = GetEntity()->GetAI()) != NULL && pAI->GetAIType() == AIOBJECT_GRENADE)
+			IAIObject* pAI = GetEntity()->GetAI();
+			if(pAI && pAI->GetAIType() == AIOBJECT_GRENADE)
 			{
 				// Associate event with vehicle if the shooter is in a vehicle (tank cannon shot, etc)
 				EntityId ownerId = m_ownerId;
@@ -69,7 +71,7 @@ void CGrenade::HandleEvent(const SGameObjectEvent &event)
 
 				SAIStimulus stim(AISTIM_GRENADE, AIGRENADE_COLLISION, ownerId, GetEntityId(),
 					GetEntity()->GetWorldPos(), ZERO, 12.0f);
-				gEnv->pAISystem->RegisterStimulus(stim);
+				IPerceptionManager::GetInstance()->RegisterStimulus(stim);
 			}
 		}
 
@@ -141,10 +143,10 @@ void CGrenade::Launch(const Vec3 &pos, const Vec3 &dir, const Vec3 &velocity, fl
 
 	m_detonationFailed = false;
 
-	if(!gEnv->bMultiplayer)
+	if(!gEnv->bMultiplayer && IPerceptionManager::GetInstance())
 	{
-		IAIObject* pAI = 0;
-		if ((pAI = GetEntity()->GetAI()) != NULL && pAI->GetAIType() == AIOBJECT_GRENADE)
+		IAIObject* pAI = GetEntity()->GetAI();
+		if (pAI && pAI->GetAIType() == AIOBJECT_GRENADE)
 		{
 			IEntity *pOwnerEntity = gEnv->pEntitySystem->GetEntity(m_ownerId);
 			pe_status_dynamics dyn;
@@ -171,7 +173,7 @@ void CGrenade::Launch(const Vec3 &pos, const Vec3 &dir, const Vec3 &velocity, fl
 
 				SAIStimulus stim(AISTIM_GRENADE, AIGRENADE_THROWN, ownerId, GetEntityId(),
 														predictedPos, ZERO, 20.0f);
-				gEnv->pAISystem->RegisterStimulus(stim);
+				IPerceptionManager::GetInstance()->RegisterStimulus(stim);
 			}
 		}
 	}

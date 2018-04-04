@@ -29,6 +29,13 @@ class CStateMachineItem;
 class CInterfaceImplItem;
 class CVariableItem;
 
+enum EResourceType
+{
+	Unknown = 0,
+	Object,
+	Library,
+};
+
 class CObjectModel :
 	public CAbstractComponentsModel,
 	public CAbstractObjectStructureModel,
@@ -41,13 +48,15 @@ class CObjectModel :
 	typedef std::vector<CVariableItem*>      Variables;
 
 public:
-	CObjectModel(Schematyc::IScriptView& scriptView);
+	CObjectModel(Schematyc::IScriptView& scriptView, EResourceType resourceType);
 	~CObjectModel();
+
+	EResourceType GetType() const { return m_resourceType; }
 
 	// CAbstractComponentsModel
 	virtual uint32                     GetComponentItemCount() const override { return m_components.size(); }
 	virtual CComponentItem*            GetComponentItemByIndex(uint32 index) const override;
-	virtual CComponentItem*            CreateComponent(Schematyc::SGUID typeId, const char* szName) override;
+	virtual CComponentItem*            CreateComponent(CryGUID typeId, const char* szName) override;
 	virtual bool                       RemoveComponent(CComponentItem& component) override;
 
 	virtual CAbstractDictionary*       GetAvailableComponentsDictionary() { return static_cast<CAbstractDictionary*>(&m_componentsDictionary); };
@@ -89,6 +98,7 @@ protected:
 	void LoadFromScriptElement();
 
 private:
+	const EResourceType             m_resourceType;
 	Schematyc::IScriptView&         m_scriptView;
 	Schematyc::IScriptRegistry&     m_scriptRegistry;
 	Schematyc::IScriptElement&      m_scriptElement;

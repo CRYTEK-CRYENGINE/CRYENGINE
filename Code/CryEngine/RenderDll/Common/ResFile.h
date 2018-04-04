@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #ifndef __RESFILE_H__
 #define __RESFILE_H__
@@ -21,7 +21,9 @@
 #define RF_RES_$TOKENS 0x20
 #define RF_RES_$ (RF_RES_$TOKENS)
 
+class  CResFileLookupDataMan;
 struct SResFileLookupData;
+struct SResStreamInfo;
 
 // Resource header
 struct SFileResHeader

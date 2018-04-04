@@ -6,9 +6,7 @@
 #include "GraphViewModel.h"
 #include "GraphNodeItem.h"
 
-#include <Schematyc/SerializationUtils/SerializationUtils.h>
-
-#pragma optimize("", off)
+#include <CrySchematyc/SerializationUtils/SerializationUtils.h>
 
 namespace CrySchematycEditor {
 
@@ -35,16 +33,12 @@ CryGraphEditor::CAbstractNodeItem* CNodeGraphClipboard::RestoreNodeFromXml(Seria
 		Schematyc::CStackString typeGuidString;
 		archive(typeGuidString, "typeGUID");
 
-		const Schematyc::SGUID typeGuid = Schematyc::GUID::FromString(typeGuidString.c_str());
+		const CryGUID typeGuid = CryGUID::FromString(typeGuidString.c_str());
 		CNodeItem* pNodeItem = pModel->CreateNode(typeGuid);
 		if (pNodeItem)
 		{
 			Schematyc::IScriptGraphNode& scriptGraphNode = pNodeItem->GetScriptElement();
 			archive(PasteSerialize(scriptGraphNode), "dataBlob");
-			// TODO: We should not have to do this here!
-			scriptGraphNode.ProcessEvent(Schematyc::SScriptEvent(Schematyc::EScriptEventId::EditorPaste));
-			// ~TODO
-
 			pNodeItem->Refresh(true);
 			return pNodeItem;
 		}

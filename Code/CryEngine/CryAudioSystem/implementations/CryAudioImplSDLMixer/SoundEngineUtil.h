@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #pragma once
 
@@ -18,7 +18,12 @@ inline const SampleId GetIDFromString(const string& name)
 	return CCrc32::ComputeLowercase(name.c_str());
 }
 
-inline void GetDistanceAngleToObject(const CAudioObjectTransformation& listener, const CAudioObjectTransformation& object, float& out_distance, float& out_angle)
+inline const SampleId GetIDFromString(char const* const szName)
+{
+	return CCrc32::ComputeLowercase(szName);
+}
+
+inline void GetDistanceAngleToObject(const CObjectTransformation& listener, const CObjectTransformation& object, float& out_distance, float& out_angle)
 {
 	const Vec3 listenerToObject = object.GetPosition() - listener.GetPosition();
 
@@ -34,6 +39,6 @@ inline void GetDistanceAngleToObject(const CAudioObjectTransformation& listener,
 	const Vec3 listenerDir = listener.GetForward().GetNormalizedFast();
 	out_angle = RAD2DEG(asin_tpl(objectDir.Cross(listenerDir).Dot(n)));
 }
-}
-}
-}
+} // namespace SDL_mixer
+} // namespace Impl
+} // namespace CryAudio

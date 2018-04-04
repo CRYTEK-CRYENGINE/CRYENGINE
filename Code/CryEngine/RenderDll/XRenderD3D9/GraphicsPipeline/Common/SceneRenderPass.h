@@ -1,11 +1,15 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #pragma once
 
+#include "RenderPassBase.h"
+
 struct VrProjectionInfo;
 
-class CSceneRenderPass
+class CSceneRenderPass : public CRenderPassBase
 {
+	friend class CRenderPassScheduler;
+
 public:
 	enum EPassFlags
 	{
@@ -21,16 +25,16 @@ public:
 
 	void SetupPassContext(uint32 stageID, uint32 stagePassID, EShaderTechniqueID technique, uint32 filter, ERenderListID renderList = EFSLIST_GENERAL, uint32 excludeFilter = 0, bool drawCompiledRenderObject = true);
 	void SetPassResources(CDeviceResourceLayoutPtr pResourceLayout, CDeviceResourceSetPtr pPerPassResources);
-	void SetRenderTargets(SDepthTexture* pDepthTarget, CTexture* pColorTarget0, CTexture* pColorTarget1 = NULL, CTexture* pColorTarget2 = NULL, CTexture* pColorTarget3 = NULL);
-	void ExchangeRenderTarget(uint32 slot, CTexture* pNewColorTarget);
-	void SetLabel(const char* label) { m_szLabel = label; }
+	void SetRenderTargets(CTexture* pDepthTarget, CTexture* pColorTarget0, CTexture* pColorTarget1 = NULL, CTexture* pColorTarget2 = NULL, CTexture* pColorTarget3 = NULL);
+	void ExchangeRenderTarget(uint32 slot, CTexture* pNewColorTarget, ResourceViewHandle hRenderTargetView = EDefaultResourceViews::RenderTarget);
+	void ExchangeDepthTarget(CTexture* pNewDepthTarget, ResourceViewHandle hDepthStencilView = EDefaultResourceViews::DepthStencil);
 	void SetFlags(EPassFlags flags)  { m_passFlags = flags; }
 	void SetViewport(const D3DViewPort& viewport);
 	void SetDepthBias(float constBias, float slopeBias, float biasClamp);
 
 	void BeginExecution();
-	void ExtractRenderTargetFormats(CDeviceGraphicsPSODesc& psoDesc);
 	void EndExecution();
+	void Execute();
 
 	void DrawRenderItems(CRenderView* pRenderView, ERenderListID list, int listStart = -1, int listEnd = -1, int profilingListID = -1);
 
@@ -45,18 +49,20 @@ public:
 	EPassFlags          GetFlags()               const { return m_passFlags; }
 	const D3DViewPort&  GetViewport(bool n)      const { return m_viewPort[n]; }
 	const D3DRectangle& GetScissorRect()         const { return m_scissorRect; }
+	
+	CDeviceResourceLayoutPtr   GetResourceLayout() const { return m_pResourceLayout; }
+	const CDeviceRenderPassPtr GetRenderPass()     const { return m_pRenderPass; }
 
 protected:
-	void DrawRenderItems_GP2(SGraphicsPipelinePassContext& passContext);
+	static bool OnResourceInvalidated(void* pThis, SResourceBindPoint bindPoint, UResourceReference pResource, uint32 flags) threadsafe;
 
 protected:
-	SDepthTexture*           m_pDepthTarget;
-	CTexture*                m_pColorTargets[4];
+	CDeviceRenderPassDesc    m_renderPassDesc;
+	CDeviceRenderPassPtr     m_pRenderPass;
 	D3DViewPort              m_viewPort[2];
 	D3DRectangle             m_scissorRect;
 	CDeviceResourceLayoutPtr m_pResourceLayout;
-	CDeviceResourceSetPtr    m_pPerPassResources;
-	const char*              m_szLabel;
+	CDeviceResourceSetPtr    m_pPerPassResourceSet;
 
 	EShaderTechniqueID       m_technique;
 	uint32                   m_stageID : 16;
@@ -72,6 +78,8 @@ protected:
 	float                    m_depthConstBias;
 	float                    m_depthSlopeBias;
 	float                    m_depthBiasClamp;
+
+	std::vector<SGraphicsPipelinePassContext> m_passContexts;
 
 protected:
 	static int               s_recursionCounter;  // For asserting Begin/EndExecution get called on pass

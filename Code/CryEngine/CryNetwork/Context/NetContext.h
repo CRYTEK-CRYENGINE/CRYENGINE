@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 /*************************************************************************
    -------------------------------------------------------------------------
@@ -139,7 +139,6 @@ public:
 	virtual NetworkAspectType ServerControllerOnlyAspects() const { return m_serverControllerOnlyAspects; }
 	virtual NetworkAspectType DelegatableAspects() const          { return m_delegatableAspects; }
 	NetworkAspectType         ServerManagedProfileAspects() const { return m_serverManagedProfileAspects; }
-	NetworkAspectType         HashedAspects() const               { return m_hashAspects; }
 	NetworkAspectType         DeclaredAspects() const             { return m_declaredAspects; }
 	NetworkAspectType         TimestampedAspects() const          { return m_timestampedAspects; }
 	NetworkAspectType         DisabledCompressionAspects() const  { return m_disabledCompressionAspects; }
@@ -202,7 +201,6 @@ private:
 	NetworkAspectType m_serverControllerOnlyAspects;
 	NetworkAspectType m_delegatableAspects;
 	NetworkAspectType m_regularlyUpdatedAspects;
-	NetworkAspectType m_hashAspects;
 	NetworkAspectType m_declaredAspects;
 	NetworkAspectType m_serverManagedProfileAspects;
 	NetworkAspectType m_timestampedAspects;

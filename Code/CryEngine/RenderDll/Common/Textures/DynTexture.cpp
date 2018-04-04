@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 /*=============================================================================
    DynTexture.cpp : Common dynamic texture manager implementation.
@@ -150,13 +150,15 @@ SDynTexture::SDynTexture(const char* szSource)
 
 SDynTexture::SDynTexture(int nWidth, int nHeight, ETEX_Format eTF, ETEX_Type eTT, int nTexFlags, const char* szSource)
 {
+	CRY_ASSERT(nTexFlags & (FT_USAGE_DEPTHSTENCIL | FT_USAGE_RENDERTARGET));
 	m_nWidth = nWidth;
 	m_nHeight = nHeight;
 	m_nReqWidth = m_nWidth;
 	m_nReqHeight = m_nHeight;
+	m_pTexture = NULL;
 	m_eTF = eTF;
 	m_eTT = eTT;
-	m_nTexFlags = nTexFlags | FT_USAGE_RENDERTARGET;
+	m_nTexFlags = nTexFlags;
 	cry_strcpy(m_sSource, szSource);
 	m_bLocked = false;
 	m_nUpdateMask = 0;
@@ -164,7 +166,6 @@ SDynTexture::SDynTexture(int nWidth, int nHeight, ETEX_Format eTF, ETEX_Type eTT
 	if (gRenDev)
 		m_nFrameReset = gRenDev->m_nFrameReset;
 
-	m_pTexture = NULL;
 	m_Next = NULL;
 	m_Prev = NULL;
 	if (!s_Root.m_Next)
@@ -173,7 +174,6 @@ SDynTexture::SDynTexture(int nWidth, int nHeight, ETEX_Format eTF, ETEX_Type eTT
 		s_Root.m_Prev = &s_Root;
 	}
 	Link();
-
 	AdjustRealSize();
 }
 
@@ -286,9 +286,7 @@ bool SDynTexture::RT_Update(int nNewWidth, int nNewHeight)
 
 	if (!m_pTexture)
 	{
-		int nNeedSpace = CTexture::TextureDataSize(m_nWidth, m_nHeight, 1, 1, 1, m_eTF);
-		if (m_eTT == eTT_Cube)
-			nNeedSpace *= 6;
+		int nNeedSpace = CTexture::TextureDataSize(m_nWidth, m_nHeight, 1, 1, m_eTT == eTT_Cube ? 6 : 1, m_eTF);
 		SDynTexture* pTX = SDynTexture::s_Root.m_Prev;
 		if (nNeedSpace + s_nMemoryOccupied > (int)SDynTexture::s_CurDynTexMaxSize * 1024 * 1024)
 		{
@@ -356,7 +354,7 @@ void SDynTexture::GetImageRect(uint32& nX, uint32& nY, uint32& nWidth, uint32& n
 	nHeight = m_nHeight;
 }
 
-void SDynTexture::Apply(int nTUnit, int nTS)
+void SDynTexture::Apply(int nTUnit, SamplerStateHandle nTS)
 {
 	if (!m_pTexture)
 		Update(m_nWidth, m_nHeight);
@@ -788,31 +786,36 @@ CTexture* SDynTexture::CreateDynamicRT()
 
 	PREFAST_ASSUME(pSet);
 
-	TextureSetItor subset = pSet->find(m_nWidth);
-	if (subset != pSet->end())
+	CTexture* pNewTexture = nullptr;
+	if (m_nTexFlags & FT_USAGE_DEPTHSTENCIL)
 	{
-		CTexture* pNewTexture = CTexture::CreateRenderTarget(name, m_nWidth, m_nHeight, Clr_Unknown, m_eTT, m_nTexFlags, m_eTF);
-		pSubset->insert(TextureSubset::value_type(pNewTexture->GetID(), pNewTexture));
-		s_nMemoryOccupied += pNewTexture->GetDataSize();
-		s_iNumTextureBytesCheckedOut += pNewTexture->GetDataSize();
+		pNewTexture = CTexture::GetOrCreateDepthStencil(name, m_nWidth, m_nHeight, Clr_Unknown, m_eTT, m_nTexFlags, m_eTF);
 
-		assert(s_iNumTextureBytesCheckedOut + s_iNumTextureBytesCheckedIn == s_nMemoryOccupied);
-
-		return pNewTexture;
+		CDeviceCommandListRef commandList = GetDeviceObjectFactory().GetCoreCommandList();
+		commandList.GetGraphicsInterface()->ClearSurface(pNewTexture->GetDevTexture()->LookupDSV(EDefaultResourceViews::DepthStencil), CLEAR_ZBUFFER | CLEAR_STENCIL, 0.0f, 1);
 	}
 	else
 	{
+		pNewTexture = CTexture::GetOrCreateRenderTarget(name, m_nWidth, m_nHeight, Clr_Unknown, m_eTT, m_nTexFlags, m_eTF);
+
+		CDeviceCommandListRef commandList = GetDeviceObjectFactory().GetCoreCommandList();
+		commandList.GetGraphicsInterface()->ClearSurface(pNewTexture->GetDevTexture()->LookupRTV(EDefaultResourceViews::RasterizerTarget), Clr_Transparent);
+	}
+
+	TextureSetItor subset = pSet->find(m_nWidth);
+	if (subset == pSet->end())
+	{
 		TextureSubset* pSSet = new TextureSubset;
 		pSet->insert(TextureSet::value_type(m_nWidth, pSSet));
-		CTexture* pNewTexture = CTexture::CreateRenderTarget(name, m_nWidth, m_nHeight, Clr_Unknown, m_eTT, m_nTexFlags, m_eTF);
-		pSubset->insert(TextureSubset::value_type(pNewTexture->GetID(), pNewTexture));
-		s_nMemoryOccupied += pNewTexture->GetDataSize();
-		s_iNumTextureBytesCheckedOut += pNewTexture->GetDataSize();
-
-		assert(s_iNumTextureBytesCheckedOut + s_iNumTextureBytesCheckedIn == s_nMemoryOccupied);
-
-		return pNewTexture;
 	}
+
+	pSubset->insert(TextureSubset::value_type(pNewTexture->GetID(), pNewTexture));
+	s_nMemoryOccupied += pNewTexture->GetDataSize();
+	s_iNumTextureBytesCheckedOut += pNewTexture->GetDataSize();
+	assert(s_iNumTextureBytesCheckedOut + s_iNumTextureBytesCheckedIn == s_nMemoryOccupied);
+
+	return pNewTexture;
+
 }
 
 void SDynTexture::ResetUpdateMask()
@@ -1020,7 +1023,7 @@ SDynTexture_Shadow* SDynTexture_Shadow::GetForFrustum(const ShadowMapFrustum* pF
 
 	for (SDynTexture_Shadow* pTX = SDynTexture_Shadow::s_RootShadow.m_NextShadow; pTX != &SDynTexture_Shadow::s_RootShadow; pTX = pTX->m_NextShadow)
 	{
-		if (pTX->m_pFrustumOwner == pFrustum->pFrustumOwner)
+		if (pTX->m_pFrustumOwner == pFrustum->pFrustumOwner || pTX->m_pFrustumOwner == nullptr)
 		{
 			pDynTX = pTX;
 			break;
@@ -1077,7 +1080,7 @@ SDynTextureArray::SDynTextureArray(int nWidth, int nHeight, int nArraySize, ETEX
 	else
 		m_nUniqueID = 0;
 
-	m_pTexture = CTexture::CreateTextureArray(m_sSource, eTT_2D, m_nWidth, m_nHeight, m_nArraySize, 1, m_nTexFlags, m_eTF, -1);
+	m_pTexture = CTexture::GetOrCreateTextureArray(m_sSource, m_nWidth, m_nHeight, m_nArraySize, 1, eTT_2D, m_nTexFlags, m_eTF, -1);
 
 }
 
@@ -1330,7 +1333,7 @@ bool SDynTexture2::UpdateAtlasSize(int nNewWidth, int nNewHeight)
 
 		char name[256];
 		cry_sprintf(name, "$Dyn_2D_%s_%s_%d", CTexture::NameForTextureFormat(m_pOwner->m_eTF), GetPoolName(m_eTexPool), gRenDev->m_TexGenID++);
-		m_pAllocator->m_pTexture = CTexture::CreateRenderTarget(name, nNewWidth, nNewHeight, Clr_Transparent, m_pOwner->m_eTT, m_pOwner->m_nTexFlags, m_pOwner->m_eTF);
+		m_pAllocator->m_pTexture = CTexture::GetOrCreateRenderTarget(name, nNewWidth, nNewHeight, Clr_Transparent, m_pOwner->m_eTT, m_pOwner->m_nTexFlags, m_pOwner->m_eTF);
 		s_nMemoryOccupied[m_eTexPool] += CTexture::TextureDataSize(nNewWidth, nNewHeight, 1, 1, 1, m_pOwner->m_eTF);
 		m_pTexture = m_pAllocator->m_pTexture;
 	}
@@ -1545,7 +1548,7 @@ bool SDynTexture2::Update(int nNewWidth, int nNewHeight)
 				nID = pPack->AddBlock(LogBaseTwo(nBlockW), LogBaseTwo(nBlockH));
 				char name[256];
 				cry_sprintf(name, "$Dyn_2D_%s_%s_%d", CTexture::NameForTextureFormat(m_pOwner->m_eTF), GetPoolName(m_eTexPool), gRenDev->m_TexGenID++);
-				pPack->m_pTexture = CTexture::CreateRenderTarget(name, nSize, nSize, Clr_Transparent, m_pOwner->m_eTT, m_pOwner->m_nTexFlags, m_pOwner->m_eTF);
+				pPack->m_pTexture = CTexture::GetOrCreateRenderTarget(name, nSize, nSize, Clr_Transparent, m_pOwner->m_eTT, m_pOwner->m_nTexFlags, m_pOwner->m_eTF);
 				s_nMemoryOccupied[m_eTexPool] += nNeedSpace;
 				if (nID == -1)
 				{
@@ -1595,7 +1598,7 @@ bool SDynTexture2::Remove()
 	return true;
 }
 
-void SDynTexture2::Apply(int nTUnit, int nTS)
+void SDynTexture2::Apply(int nTUnit, SamplerStateHandle nTS)
 {
 	if (!m_pAllocator)
 		return;

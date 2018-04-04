@@ -7,8 +7,8 @@
 #include "AnimationFilter.h"
 #include "DBATable.h"
 #include "Serialization.h"
-#include <yasli/JSONIArchive.h>
-#include <yasli/JSONOArchive.h>
+#include <CrySerialization/yasli/JSONIArchive.h>
+#include <CrySerialization/yasli/JSONOArchive.h>
 
 void SCompressionPresetEntry::Serialize(Serialization::IArchive& ar)
 {

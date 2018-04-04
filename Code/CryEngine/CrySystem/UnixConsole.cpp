@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 /*************************************************************************
    -------------------------------------------------------------------------
@@ -133,34 +133,36 @@ class CUNIXConsoleSignalHandler
 };
 
 CUNIXConsole::CUNIXConsole()
-	: m_HistoryIndex(-1),
-	m_PromptResponse(0),
-	m_pSystem(NULL),
-	m_pConsole(NULL),
-	m_pTimer(NULL),
-	m_OnUpdateCalled(false),
-	m_LastUpdateTime(0.0f),
-	m_svMap(NULL),
-	m_svGameRules(NULL),
-	m_Width(~0), m_Height(~0),
-	m_HeaderHeight(1),
-	m_StatusHeight(1),
-	m_CmdHeight(2),
-	m_Color(DEFAULT_COLOR),
-	m_DefaultColorPair(-1),
-	m_EnableColor(true),
-	m_WindowResized(false),
-	m_OnShutdownCalled(false),
-	m_Initialized(false),
-	m_RequireDedicatedServer(false),
-	m_ScrollUp(0),
-	m_pInputThread(NULL),
-	m_CursorPosition(0),
-	m_ScrollPosition(0),
-	m_fsMode(false),
-	m_bShowConsole(true)
-{
-}
+	: m_HistoryIndex(-1)
+	, m_PromptResponseChars{0}
+	, m_PromptResponse(0)
+	, m_pSystem(NULL)
+	, m_pConsole(NULL)
+	, m_pTimer(NULL)
+	, m_OnUpdateCalled(false)
+	, m_LastUpdateTime(0.0f)
+	, m_svMap(NULL)
+	, m_svGameRules(NULL)
+	, m_Width(~0)
+	, m_Height(~0)
+	, m_HeaderHeight(1)
+	, m_StatusHeight(1)
+	, m_CmdHeight(2)
+	, m_Color(DEFAULT_COLOR)
+	, m_DefaultColorPair(-1)
+	, m_EnableColor(true)
+	, m_WindowResized(false)
+	, m_OnShutdownCalled(false)
+	, m_Initialized(false)
+	, m_RequireDedicatedServer(false)
+	, m_ScrollUp(0)
+	, m_ColorPair{0}
+	, m_pInputThread(NULL)
+	, m_CursorPosition(0)
+	, m_ScrollPosition(0)
+	, m_fsMode(false)
+	, m_bShowConsole(true)
+{}
 
 CUNIXConsole::~CUNIXConsole()
 {
@@ -1128,7 +1130,7 @@ static char* GetSpaces(int n)
 
 	if (n > spaceBufferSz)
 	{
-		spaceBufferSz = MAX(spaceBufferSz * 2, n);
+		spaceBufferSz = std::max(spaceBufferSz * 2, n);
 		delete[] spaceBuffer;
 		spaceBuffer = new char[spaceBufferSz];
 		memset(spaceBuffer, ' ', spaceBufferSz);

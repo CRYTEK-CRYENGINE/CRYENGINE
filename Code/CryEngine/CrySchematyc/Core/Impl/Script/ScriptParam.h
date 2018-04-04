@@ -1,10 +1,10 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #pragma once
 
-#include <Schematyc/SerializationUtils/MultiPassSerializer.h>
-#include <Schematyc/Script/ScriptDependencyEnumerator.h>
-#include <Schematyc/Utils/GUID.h>
+#include <CrySchematyc/SerializationUtils/MultiPassSerializer.h>
+#include <CrySchematyc/Script/ScriptDependencyEnumerator.h>
+#include <CrySchematyc/Utils/GUID.h>
 
 #include "Script/ScriptVariableData.h"
 
@@ -22,7 +22,7 @@ struct SScriptParam : public CMultiPassSerializer
 	virtual void Edit(Serialization::IArchive& archive, const ISerializationContext& context) override;
 	// ~CMultiPassSerializer
 
-	SGUID               guid;
+	CryGUID               guid;
 	string              name;
 	CScriptVariableData data;
 };

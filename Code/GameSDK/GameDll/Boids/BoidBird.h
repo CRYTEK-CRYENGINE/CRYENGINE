@@ -63,6 +63,8 @@ protected:
 	void ThinkWalk( float dt,SBoidContext &bc );
 	void UpdateOnGroundAction(float dt, SBoidContext& bc);
 	virtual void ClampSpeed(SBoidContext& bc,float dt);
+	void LoadParticleEffects();
+	void ReleaseParticleEffects();
 
 protected:
 	static float m_TakeOffAnimLength;
@@ -90,6 +92,9 @@ protected:
 	unsigned m_spawnFromPt : 1;		//! True if bird is spawned from point
 	unsigned m_landDecelerating : 1;
 	unsigned m_playingTakeOffAnim : 1;
+
+	bool m_loadedParticleEffects;
+	IParticleEffect* m_pDestroyParticleEffect;
 };
 
 

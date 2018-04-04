@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 // -------------------------------------------------------------------------
 //  File name:   EntityNodeProxy.h
@@ -22,8 +22,9 @@ class CEntityComponentTrackViewNode :
 	public IEntityComponent
 {
 public:
-	CRY_ENTITY_COMPONENT_INTERFACE_AND_CLASS(CEntityComponentTrackViewNode,"CEntityComponentTrackViewNode",0x60F18291C2A146F7,0xBA7F02F390C85BB2);
+	CRY_ENTITY_COMPONENT_INTERFACE_AND_CLASS_GUID(CEntityComponentTrackViewNode, "CEntityComponentTrackViewNode", "60f18291-c2a1-46f7-ba7f-02f390c85bb2"_cry_guid);
 	
+	CEntityComponentTrackViewNode();
 	virtual ~CEntityComponentTrackViewNode() {}
 
 	//////////////////////////////////////////////////////////////////////////

@@ -32,15 +32,15 @@ end_sources()
 
 CryResourceCompilerModule(ResourceCompilerXML PCH "StdAfx.cpp" SOLUTION_FOLDER "RC")
 target_include_directories(${THIS_PROJECT} PRIVATE 
-	${CMAKE_SOURCE_DIR}/ResourceCompiler 
-	${CRYENGINE_SOURCE_DIR}/Code/Tools 
-	${CRYENGINE_SOURCE_DIR}/Code/Tools/CryXML
-	${CRYENGINE_SOURCE_DIR}/Code/Tools/CryCommonTools
-	${CRYENGINE_SOURCE_DIR}/Code/CryEngine/CrySystem/XML)
+	"${CMAKE_SOURCE_DIR}/ResourceCompiler" 
+	"${CRYENGINE_SOURCE_DIR}/Code/Tools" 
+	"${CRYENGINE_SOURCE_DIR}/Code/Tools/CryXML"
+	"${CRYENGINE_SOURCE_DIR}/Code/Tools/CryCommonTools"
+	"${CRYENGINE_SOURCE_DIR}/Code/CryEngine/CrySystem/XML")
 target_compile_options(${THIS_PROJECT} PRIVATE /EHsc)
 set_target_properties(${THIS_PROJECT} PROPERTIES LINK_FLAGS "/DEF:ResourceCompilerPlugin.def")
 
 ADD_CUSTOM_COMMAND(TARGET ${THIS_PROJECT} POST_BUILD
-	COMMAND ${CMAKE_COMMAND} -E copy "${CRYENGINE_SOURCE_DIR}/Code/Tools/RC/ResourceCompilerXML/xmlfilter.txt" 
-	"${CRYENGINE_SOURCE_DIR}/Tools/rc"
+	COMMAND "${CMAKE_COMMAND}" -E copy "\"${CRYENGINE_SOURCE_DIR}/Code/Tools/RC/ResourceCompilerXML/xmlfilter.txt\"" 
+	"\"${CRYENGINE_SOURCE_DIR}/Tools/rc\""
 	COMMENT "Copy xmlfilter.txt into output folder.")

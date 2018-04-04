@@ -1,0 +1,137 @@
+{
+  "Name": "trail",
+  "Features": [
+    {
+      "RenderRibbon": {
+        "TextureFrequency": 1.0,
+        "RibbonMode": "Camera",
+        "ConnectToOrigin": false,
+        "SortBias": 0.0,
+        "Offset": 0.0,
+        "StreamSource": "Age"
+      }
+    },
+    {
+      "SpawnDistance": {
+        "Delay": {
+          "modifiers": [ ],
+          "value": 0.0
+        },
+        "Duration": {
+          "State": false,
+          "Value": {
+            "modifiers": [ ],
+            "value": 0.0
+          }
+        },
+        "Amount": {
+          "modifiers": [ ],
+          "value": 8.0
+        },
+        "Mode": "ParticlesPerMeter"
+      }
+    },
+    {
+      "SpawnRate": {
+        "Delay": {
+          "modifiers": [ ],
+          "value": 0.0
+        },
+        "Duration": {
+          "State": false,
+          "Value": {
+            "modifiers": [ ],
+            "value": 0.0
+          }
+        },
+        "Amount": {
+          "modifiers": [ ],
+          "value": 8.0
+        },
+        "Enabled": false,
+        "Mode": "ParticlesPerSecond"
+      }
+    },
+    {
+      "LifeTime": {
+        "LifeTime": {
+          "modifiers": [ ],
+          "value": 1.0
+        }
+      }
+    },
+    {
+      "FieldSize": {
+        "value": {
+          "modifiers": [
+            { "Inherit": { "SpawnOnly": false } },
+            {
+              "Curve": {
+                "Owner": "Self",
+                "TimeBias": 0.0,
+                "Curve": "0,0,8,,0;0.22633334,1,9,0,0;1,0,1,0",
+                "TimeScale": 1.0,
+                "TimeSource": "Age"
+              }
+            }
+          ],
+          "value": 0.1
+        }
+      }
+    },
+    {
+      "FieldOpacity": {
+        "AlphaScale": [ 0.0, 1.0 ],
+        "ClipRange": [ 1.0, 1.0 ],
+        "ClipLow": [ 0.0, 0.0 ],
+        "value": {
+          "modifiers": [
+            {
+              "Curve": {
+                "Owner": "Self",
+                "TimeBias": 0.0,
+                "Curve": "0,0,8,,0;0.23866667,1,9,0,0;1,0,1,0",
+                "TimeScale": 1.0,
+                "TimeSource": "Age"
+              }
+            }
+          ],
+          "value": 1.0
+        }
+      }
+    },
+    {
+      "AppearanceLighting": {
+        "AffectedByFog": true,
+        "Emissive": 0.0,
+        "Curvature": 0.5,
+        "ReceiveShadows": false,
+        "Albedo": 100.0,
+        "BackLight": 0.5
+      }
+    },
+    {
+      "AppearanceMaterial": {
+        "Material": "",
+        "Texture": ""
+      }
+    },
+    {
+      "MotionPhysics": {
+        "AngularDragMultiplier": 0.0,
+        "UniformAcceleration": [ 0.0, 0.0, 0.0 ],
+        "UniformWind": [ 0.0, 0.0, 0.0 ],
+        "gravity": {
+          "modifiers": [ ],
+          "value": 0.0
+        },
+        "drag": {
+          "modifiers": [ ],
+          "value": 0.0
+        },
+        "windMultiplier": 1.0,
+        "localEffectors": [ ]
+      }
+    }
+  ]
+}

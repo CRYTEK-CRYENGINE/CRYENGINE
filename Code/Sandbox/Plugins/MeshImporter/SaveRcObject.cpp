@@ -17,34 +17,44 @@
 
 void LogPrintf(const char* szFormat, ...);
 
-void SaveRcObject(
+void CaptureRcObjectSaveState(
 	const std::shared_ptr<QTemporaryDir>& pTempDir,
 	const FbxMetaData::SMetaData& metaData,
-	const string& targetFilePath,
-	const FinalizeSave& finalize)
-{
-	const string filename = PathUtil::GetFileName(targetFilePath);
+	SRcObjectSaveState& outSaveState)
+{	
+	outSaveState.sourceFilePath = metaData.sourceFilename;
+	outSaveState.ext = metaData.outputFileExt;
+	outSaveState.pTempDir = pTempDir; // Keep this directory alive.
+	outSaveState.b32BitVertexPositions = metaData.bVertexPositionFormatF32;
 
-	const string sourceFilePath = metaData.sourceFilename;
-
+	// When saving an asset, the CGF references the source by filename only, since both the CGF and
+	// the FBX file are supposed to be in the same directory.
 	FbxMetaData::SMetaData metaDataCopy(metaData);
 	metaDataCopy.sourceFilename = PathUtil::GetFile(metaDataCopy.sourceFilename);
-	
-	auto pTempFile = WriteTemporaryFile(pTempDir->path(), metaDataCopy.ToJson(), QtUtil::ToQString(filename));
+
+	outSaveState.metaData = metaDataCopy.ToJson();
+}
+
+void SaveRcObjectAsync(const SRcObjectSaveState& saveState, const string& targetFilePath, const FinalizeSave& finalize)
+{	
+	const string filename = PathUtil::GetFileName(targetFilePath);
+	auto pTempFile = WriteTemporaryFile(saveState.pTempDir->path(), saveState.metaData, QtUtil::ToQString(filename));
 	if (!pTempFile)
 	{
 		finalize(false, targetFilePath);
 		return;
 	}
 
-	const string filePath = QtUtil::ToString(pTempFile->fileName());
-
-	ThreadingUtils::Async([filePath, finalize, targetFilePath, sourceFilePath, pTempDir, pTempFile = std::move(pTempFile), metaDataCopy]()
+	ThreadingUtils::Async([finalize, targetFilePath, pTempFile = std::move(pTempFile), saveState]()
 	{
+		const string filePath = QtUtil::ToString(pTempFile->fileName());
 		CRcCaller rcCaller;
-		const string options = string().Format("%s /overwritesourcefile=\"%s\"",
+
+		const string options = string().Format("%s /overwritesourcefile=\"%s\" %s",
 			CRcCaller::OptionOverwriteExtension("fbx"),
-			sourceFilePath.c_str());
+			saveState.sourceFilePath.c_str(),
+			CRcCaller::OptionVertexPositionFormat(saveState.b32BitVertexPositions));
+
 		rcCaller.SetAdditionalOptions(options);
 		const bool bSuccess = rcCaller.Call(filePath);
 		if (!bSuccess)
@@ -53,9 +63,9 @@ void SaveRcObject(
 		}
 		else
 		{
-			ThreadingUtils::PostOnMainThread([filePath, targetFilePath, metaDataCopy, pTempDir /* keep temp dir alive */]()
+			ThreadingUtils::PostOnMainThread([filePath, targetFilePath, saveState]()
 			{
-				const string cgfFile = PathUtil::ReplaceExtension(filePath, metaDataCopy.outputFileExt.c_str());
+				const string cgfFile = PathUtil::ReplaceExtension(filePath, saveState.ext);
 				MeshImporter::RenameAllowOverwrite(cgfFile, targetFilePath);
 				MeshImporter::RenameAllowOverwrite(cgfFile + ".cryasset", targetFilePath + ".cryasset");
 			});

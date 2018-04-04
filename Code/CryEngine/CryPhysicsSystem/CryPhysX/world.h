@@ -33,7 +33,8 @@ public:
 	virtual IGeomManager* GetGeomManager() { return this; }
 	virtual IPhysUtils*   GetPhysUtils() { return this; }
 
-	virtual void SetupEntityGrid(int axisz, Vec3 org, int nx, int ny, float stepx, float stepy, int log2PODscale = 0, int bCyclic = 0);
+	virtual IPhysicalEntity* SetupEntityGrid(int axisz, Vec3 org, int nx,int ny, float stepx,float stepy, int log2PODscale=0, int bCyclic=0, 
+		IPhysicalEntity* pHost=nullptr, const QuatT& posInHost=QuatT(IDENTITY));
 	virtual void Cleanup() {}
 	virtual void RegisterBBoxInPODGrid(const Vec3* BBox) {}
 	virtual void UnregisterBBoxInPODGrid(const Vec3* BBox) {}
@@ -185,6 +186,7 @@ public:
 	int m_idStep = 0;
 	volatile int m_updated=0;
 	double m_time = 0;
+	std::vector<char> m_scratchBuf;
 
 	PxBatchQuery *m_batchQuery[2];
 	int m_nqRWItouches=0;
@@ -231,7 +233,7 @@ public:
 
 namespace cpx { 
 	namespace Helper {
-		inline int MatId(const physx::PxMaterial *mtl) { return (int)(INT_PTR)mtl->userData & 0xffff; }
+		inline int MatId(const physx::PxMaterial *mtl) { return mtl ? ((int)(INT_PTR)mtl->userData & 0xffff) : 0; }
 	}
 }
 

@@ -5,6 +5,7 @@
 #include "MainDialog.h"
 #include "DialogCHR/DialogCHR.h"
 #include "DialogCAF.h"
+#include "ImporterUtil.h"
 
 // REMOVEME
 #include <CryAnimation/ICryAnimation.h>
@@ -112,27 +113,17 @@ REGISTER_PYTHON_COMMAND_WITH_EXAMPLE(PyReimport, meshimporter, reimport, "Reimpo
 REGISTER_PYTHON_COMMAND_WITH_EXAMPLE(PyGenerateCharacter, meshimporter, generate_character, "Generate...", "meshimporter.generate_character filepath");
 REGISTER_EDITOR_COMMAND_TEXT(meshimporter, import, "Import");
 
-QStringList ToStringList(const std::vector<string>& v)
-{
-	QStringList l;
-	for (const auto& s : v)
-	{
-		l << QtUtil::ToQString(s);
-	}
-	return l;
-}
-
 CEditorAdapter::CEditorAdapter(std::unique_ptr<MeshImporter::CBaseDialog> pDialog, QWidget* pParent)
 	: CAssetEditor(ToStringList(MeshImporter::GetAssetTypesFromFileFormatFlags(pDialog->GetOpenFileFormatFlags())), pParent)
 	, m_pDialog(std::move(pDialog))
 {
 	// Create file menu.
-	AddMenu("File");
+	AddToMenu(CEditor::MenuItems::FileMenu);
 
-	AddToMenu("File", "general.open");
+	AddToMenu(CEditor::MenuItems::Open);
+	AddToMenu(CEditor::MenuItems::Save);
+	AddToMenu(CEditor::MenuItems::SaveAs);
 	AddToMenu("File", "meshimporter.import");
-	AddToMenu("File", "general.save");
-	AddToMenu("File", "general.save_as");
 
 	m_pDialog->CreateMenu(this);
 
@@ -170,17 +161,12 @@ CEditorAdapter::CEditorAdapter(std::unique_ptr<MeshImporter::CBaseDialog> pDialo
 
 void CEditorAdapter::Host_AddMenu(const char* menu)
 {
-	AddMenu(menu);
+	GetMenu()->CreateMenu(menu);
 }
 
 void CEditorAdapter::Host_AddToMenu(const char* menu, const char* command)
 {
 	AddToMenu(menu, command);
-}
-
-bool CEditorAdapter::CanQuit(std::vector<string>& unsavedChanges)
-{
-	return m_pDialog->CanQuit(unsavedChanges);
 }
 
 IViewPaneClass::EDockingDirection CEditorAdapter::GetDockingDirection() const
@@ -211,13 +197,14 @@ void CEditorAdapter::customEvent(QEvent* pEvent)
 	}
 }
 
-void CEditorAdapter::closeEvent(QCloseEvent* pEvent)
+bool CEditorAdapter::OnAboutToCloseAsset(string& reason) const
 {
-	QApplication::sendEvent(m_pDialog.get(), pEvent);
-	if (pEvent->isAccepted() && GetAssetBeingEdited())
+	if (GetAssetBeingEdited() && !m_pDialog->MayUnloadScene())
 	{
-		signalAssetClosed(GetAssetBeingEdited());
+		reason = QtUtil::ToString(tr("Asset '%1' has unsaved modifications.").arg(GetAssetBeingEdited()->GetName()));
+		return false;
 	}
+	return true;
 }
 
 bool CEditorAdapter::OnOpenAsset(CAsset* pAsset)
@@ -235,10 +222,10 @@ bool CEditorAdapter::OnOpenAsset(CAsset* pAsset)
 	return bOpen;
 }
 
-bool CEditorAdapter::OnSaveAsset(CAsset* pAsset)
+bool CEditorAdapter::OnSaveAsset(CEditableAsset&)
 {
 	m_pDialog->OnSave();
-	return true;
+	return false;
 }
 
 bool CEditorAdapter::OnSaveAs()
@@ -247,11 +234,7 @@ bool CEditorAdapter::OnSaveAs()
 	return true;
 }
 
-bool CEditorAdapter::OnCloseAsset()
+void CEditorAdapter::OnCloseAsset()
 {
-	if (GetAssetBeingEdited())
-	{
-		signalAssetClosed(GetAssetBeingEdited());
-	}
-	return false;
+	m_pDialog->OnCloseAsset();
 }

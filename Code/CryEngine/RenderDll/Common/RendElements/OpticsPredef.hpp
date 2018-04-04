@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #pragma once
 
@@ -19,7 +19,7 @@ public:
 private:
 	void InitPredef()
 	{
-		static CTexture* s_pCenterFlare = CTexture::ForName("EngineAssets/Textures/flares/lens_flare1-wide.tif", FT_DONT_RELEASE | FT_DONT_STREAM, eTF_Unknown);
+		static CTexture* s_pCenterFlare = CTexture::ForName("%ENGINE%/EngineAssets/Textures/flares/lens_flare1-wide.tif", FT_DONT_RELEASE | FT_DONT_STREAM, eTF_Unknown);
 
 		PREDEF_MULTIGLASS_GHOST.SetName("[Multi-glass Reflection]");
 

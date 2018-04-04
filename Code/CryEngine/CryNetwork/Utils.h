@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #ifndef __UTILS_H__
 #define __UTILS_H__
@@ -58,6 +58,8 @@ private:
 };
 
 #if ENABLE_DEBUG_KIT
+#include <CryMath/MTPseudoRandom.h>
+
 class CAutoCorruptAndRestore
 {
 public:

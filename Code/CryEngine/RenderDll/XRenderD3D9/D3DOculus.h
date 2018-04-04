@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #pragma once
 
@@ -72,7 +72,7 @@ private:
 
 	static RenderLayer::EQuadLayers CalculateQuadLayerId(ESwapChainArray swapChainIndex);
 
-	#if defined(CRY_USE_DX12) && defined(CRY_USE_DX12_MULTIADAPTER)
+	#if (CRY_RENDERER_DIRECT3D >= 120) && defined(DX12_LINKEDADAPTER)
 	void                            CopyMultiGPUFrameData();
 	void CopyMultiGPUMirrorData(CTexture* pBackbufferTexture);
 	#endif
@@ -108,6 +108,8 @@ private:
 	CryVR::Oculus::IOculusDevice* m_pOculusDevice;
 	CD3D9Renderer*                m_pRenderer;
 	CD3DStereoRenderer*           m_pStereoRenderer;
+
+	CStretchRectPass*             m_pStrechRectPass;
 };
 
 #endif //defined(INCLUDE_VR_RENDERING)

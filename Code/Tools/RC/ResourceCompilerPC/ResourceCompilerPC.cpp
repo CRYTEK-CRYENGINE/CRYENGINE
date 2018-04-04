@@ -1,4 +1,6 @@
 // Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved.
+
+// ResourceCompilerPC.cpp : Defines the entry point for the DLL application.
 //
 
 #include "stdafx.h"
@@ -66,21 +68,21 @@ ICryXML* LoadICryXML()
 }
 
 // This is an example of an exported function.
-void __stdcall RegisterConvertors(IResourceCompiler* const pRC)
+void __stdcall RegisterConverters(IResourceCompiler* const pRC)
 {
 	SetRCLog(pRC->GetIRCLog());
 
-	pRC->RegisterConvertor("StatCGFCompiler", new CStatCGFCompiler());
+	pRC->RegisterConverter("StatCGFCompiler", new CStatCGFCompiler());
 
-	pRC->RegisterConvertor("ChunkCompiler", new CChunkCompiler());
+	pRC->RegisterConverter("ChunkCompiler", new CChunkCompiler());
 
-	pRC->RegisterConvertor("LuaCompiler", new LuaCompiler());
+	pRC->RegisterConverter("LuaCompiler", new LuaCompiler());
 
 #ifdef TOOLS_ENABLE_FBX_SDK
-	pRC->RegisterConvertor("FbxConverter", new CFbxConverter());
+	pRC->RegisterConverter("FbxConverter", new CFbxConverter());
 #endif // TOOLS_ENABLE_FBX_SDK	
 
-	pRC->RegisterConvertor("MetadataCompiler", new CMetadataCompiler(pRC));
+	pRC->RegisterConverter("MetadataCompiler", new CMetadataCompiler(pRC));
 
 	ICryXML* const pCryXML = LoadICryXML();
 
@@ -90,9 +92,9 @@ void __stdcall RegisterConvertors(IResourceCompiler* const pRC)
 	}
 	else
 	{
-		pRC->RegisterConvertor("CharacterCompiler", new CharacterCompiler(pCryXML));
-		pRC->RegisterConvertor("AnimationConvertor", new CAnimationConvertor(pCryXML, pRC->GetPakSystem(), pRC));
-		pRC->RegisterConvertor("ColladaCompiler", new ColladaCompiler(pCryXML, pRC->GetPakSystem()));
+		pRC->RegisterConverter("CharacterCompiler", new CharacterCompiler(pCryXML));
+		pRC->RegisterConverter("AnimationConverter", new CAnimationConverter(pCryXML, pRC->GetPakSystem(), pRC));
+		pRC->RegisterConverter("ColladaCompiler", new ColladaCompiler(pCryXML, pRC->GetPakSystem()));
 	}
 
 	pRC->RegisterKey("createmtl","[DAE] 0=don't create .mtl files (default), 1=create .mtl files");
@@ -166,7 +168,6 @@ void __stdcall RegisterConvertors(IResourceCompiler* const pRC)
 		"Allowed keys:\n"
 		"source : asset source filename\n"
 		"Example: /cryasset=source,mytexture.tif");
-
 }
 
 #include <CryCore/Common_TypeInfo.h>

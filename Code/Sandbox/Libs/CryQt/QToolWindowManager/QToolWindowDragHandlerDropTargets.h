@@ -6,19 +6,19 @@
 
 #include <QMap>
 
-class QToolWindowDropTarget : public QWidget
+class QTOOLWINDOWMANAGER_EXPORT QToolWindowDropTarget : public QWidget
 {
 public:
-	QToolWindowDropTarget(QString imagePath, QToolWindowManager::AreaReference areaReference);
+	QToolWindowDropTarget(QString imagePath, QToolWindowAreaReference areaReference);
 	virtual ~QToolWindowDropTarget();
-	QToolWindowManager::AreaReference target() { return m_areaReference; }
+	QToolWindowAreaReference target() { return m_areaReference; }
 
 protected:
 	virtual void paintEvent(QPaintEvent *paintEvent) Q_DECL_OVERRIDE;
 
 private:
 	QPixmap* m_pixmap;
-	QToolWindowManager::AreaReference m_areaReference;
+	QToolWindowAreaReference m_areaReference;
 };
 
 class QTOOLWINDOWMANAGER_EXPORT QToolWindowDragHandlerDropTargets :
@@ -29,9 +29,9 @@ public:
 	~QToolWindowDragHandlerDropTargets();
 	void startDrag() Q_DECL_OVERRIDE;
 	void switchedArea(IToolWindowArea* lastArea, IToolWindowArea* newArea) Q_DECL_OVERRIDE;
-	QToolWindowManager::AreaTarget getTargetFromPosition(IToolWindowArea* area) const Q_DECL_OVERRIDE;
+	QToolWindowAreaTarget getTargetFromPosition(IToolWindowArea* area) const Q_DECL_OVERRIDE;
 	bool isHandlerWidget(QWidget* widget) const Q_DECL_OVERRIDE;
-	QToolWindowManager::AreaTarget finishDrag(QList<QWidget*> toolWindows, IToolWindowArea* source, IToolWindowArea* destination) Q_DECL_OVERRIDE;
+	QToolWindowAreaTarget finishDrag(QList<QWidget*> toolWindows, IToolWindowArea* source, IToolWindowArea* destination) Q_DECL_OVERRIDE;
 	IToolWindowDragHandler::SplitSizes getSplitSizes(int originalSize) const Q_DECL_OVERRIDE;
 
 private:

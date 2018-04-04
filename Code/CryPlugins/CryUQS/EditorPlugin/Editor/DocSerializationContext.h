@@ -11,11 +11,11 @@ struct SDocumentSettings;
 struct SItemTypeName;
 class CUqsDatabaseSerializationCache;
 
-namespace uqseditor
+namespace UQSEditor
 {
 class CParametersListContext;
 class CSelectedGeneratorContext;
-} // namespace uqseditor
+} // namespace UQSEditor
 
 class CUqsDocSerializationContext
 {
@@ -27,41 +27,28 @@ public:
 		, m_selectedGeneratorContextStack()
 	{}
 
-	uqs::client::IItemFactory*              GetItemFactoryByName(const SItemTypeName& typeName) const;
-	uqs::client::IGeneratorFactory*         GetGeneratorFactoryByName(const char* szName) const;
-	uqs::client::IFunctionFactory*          GetFunctionFactoryByName(const char* szName) const;
-	uqs::client::IInstantEvaluatorFactory*  GetInstantEvaluatorFactoryByName(const char* szName) const;
-	uqs::client::IDeferredEvaluatorFactory* GetDeferredEvaluatorFactoryByName(const char* szName) const;
-	uqs::core::IQueryFactory*               GetQueryFactoryByName(const char* szName) const;
-
-	const Serialization::StringList&        GetQueryFactoryNamesList() const;
-	const Serialization::StringList&        GetItemTypeNamesList() const;
-	const Serialization::StringList&        GetGeneratorNamesList() const;
-	const Serialization::StringList&        GetFunctionNamesList(const SItemTypeName& typeToFilter) const;
-	const Serialization::StringList&        GetEvaluatorNamesList() const;
-
-	SItemTypeName                           GetItemTypeNameFromType(const uqs::shared::CTypeInfo& typeInfo) const;
+	SItemTypeName                           GetItemTypeNameFromType(const UQS::Shared::CTypeInfo& typeInfo) const;
 
 	const SDocumentSettings&              GetSettings() const;
 
 	bool                                  ShouldForceSelectionHelpersEvaluation() const;
 	void                                  SetShouldForceSelectionHelpersEvaluation(const bool value) { m_bForceSelectionHelpersEvaluation = value; }
 
-	uqseditor::CParametersListContext*    GetParametersListContext() const;
-	uqseditor::CSelectedGeneratorContext* GetSelectedGeneratorContext() const;
+	UQSEditor::CParametersListContext*    GetParametersListContext() const;
+	UQSEditor::CSelectedGeneratorContext* GetSelectedGeneratorContext() const;
 
 private:
-	friend class uqseditor::CParametersListContext;
-	void PushParametersListContext(uqseditor::CParametersListContext* pContext);
-	void PopParametersListContext(uqseditor::CParametersListContext* pContext);
+	friend class UQSEditor::CParametersListContext;
+	void PushParametersListContext(UQSEditor::CParametersListContext* pContext);
+	void PopParametersListContext(UQSEditor::CParametersListContext* pContext);
 
-	friend class uqseditor::CSelectedGeneratorContext;
-	void PushSelectedGeneratorContext(uqseditor::CSelectedGeneratorContext* pContext);
-	void PopSelectedGeneratorContext(uqseditor::CSelectedGeneratorContext* pContext);
+	friend class UQSEditor::CSelectedGeneratorContext;
+	void PushSelectedGeneratorContext(UQSEditor::CSelectedGeneratorContext* pContext);
+	void PopSelectedGeneratorContext(UQSEditor::CSelectedGeneratorContext* pContext);
 
 private:
 	const CUqsEditorContext&                          m_editorContext;
 	bool                                              m_bForceSelectionHelpersEvaluation;
-	std::stack<uqseditor::CParametersListContext*>    m_paramListContextStack;
-	std::stack<uqseditor::CSelectedGeneratorContext*> m_selectedGeneratorContextStack;
+	std::stack<UQSEditor::CParametersListContext*>    m_paramListContextStack;
+	std::stack<UQSEditor::CSelectedGeneratorContext*> m_selectedGeneratorContextStack;
 };

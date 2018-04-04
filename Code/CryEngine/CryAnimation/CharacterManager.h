@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #pragma once
 
@@ -339,6 +339,7 @@ private:
 	void              UpdateStreaming_SKEL(std::vector<CDefaultSkeletonReferences>& skels, uint32 nRenderFrameId, const uint32* nRoundIds);
 	void              UpdateStreaming_SKIN(std::vector<CDefaultSkinningReferences>& skins, uint32 nRenderFrameId, const uint32* nRoundIds);
 
+	virtual void      ExtendDefaultSkeletonWithSkinAttachments(ICharacterInstance* pCharInstance, const char* szFilepathSKEL, const char** szSkinAttachments, const uint32 skinsCount, const uint32 nLoadingFlags);
 	virtual bool      LoadAndLockResources(const char* szFilePath, uint32 nLoadingFlags);
 	virtual void      StreamKeepCharacterResourcesResident(const char* szFilePath, int nLod, bool bKeep, bool bUrgent = false);
 	virtual bool      StreamHasCharacterResources(const char* szFilePath, int nLod);
@@ -347,6 +348,7 @@ private:
 	virtual void      ReloadAllCHRPARAMS();
 	virtual void      PreloadLevelModels();
 
+	void              TryLoadModelSkin(const char* szFilePath, uint32 nLoadingFlags, bool bKeep);
 	void              GetModelCacheSize() const;
 	void              DebugModelCache(uint32 printtxt, std::vector<CDefaultSkeletonReferences>& parrModelCache, std::vector<CDefaultSkinningReferences>& parrModelCacheSKIN);
 	virtual void      ClearResources(bool bForceCleanup);      //! Cleans up all resources - currently deletes all bodies and characters (even if there are references on them)
@@ -366,8 +368,8 @@ private:
 	bool HasDebugInstancesCreated(const char* szCharacterFileName) const;
 	DynArray<DebugInstances> m_arrCharacterBase;
 #endif
-#ifdef EDITOR_PCDEBUGCODE
 	virtual void GetMotionParameterDetails(SMotionParameterDetails& outDetails, EMotionParamID paramId) const;
+#ifdef EDITOR_PCDEBUGCODE
 	virtual bool InjectCDF(const char* pathname, const char* content, size_t contentLength);
 	virtual void ClearCDFCache() { m_arrCacheForCDF.clear(); }  //deactivate the cache in Editor-Mode, or we can't load the same CDF after we changed & saved it
 	virtual void InjectCHRPARAMS(const char* pathname, const char* content, size_t contentLength);

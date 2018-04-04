@@ -1,104 +1,98 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
-// -------------------------------------------------------------------------
-//  File name:   UnitTestSystem.h
-//  Created:     19/03/2008 by Timur.
-//  Description: Implementation of the CryEngine Unit Testing framework
-// -------------------------------------------------------------------------
-//  History:
-//		22-1-2009 Fran	Made legacy. CryUnit is the new unit testing
-//						framework
-//
-////////////////////////////////////////////////////////////////////////////
+//! Implementation of the CryEngine Unit Testing framework
 
-#ifndef __UnitTestSystem_h__
-#define __UnitTestSystem_h__
 #pragma once
 
 #include <CrySystem/CryUnitTest.h>
+#include <CrySystem/ILog.h>
+#include <CryString/CryString.h>
 
 struct SAutoTestsContext;
 
 namespace CryUnitTest
 {
 
-class CUnitTest : public IUnitTest
+class CUnitTest final : public IUnitTest
 {
 public:
-	CUnitTest(const UnitTestInfo& info) : m_info(info) {}
-	virtual void GetInfo(UnitTestInfo& info) { info = m_info; };
-	virtual void GetAutoTestInfo(AutoTestInfo& info)
+	CUnitTest(CUnitTestInfo info) : m_info(std::move(info)) {}
+	virtual const CUnitTestInfo& GetInfo() const override { return m_info; };
+	virtual const SAutoTestInfo& GetAutoTestInfo() const override
 	{
-		if (m_info.pTestImpl)
-			info = m_info.pTestImpl->m_autoTestInfo;
+		return m_info.GetTest().m_autoTestInfo;
 	}
-	virtual void Run(UnitTestRunContext& context)
+	virtual void Init() override
 	{
-		if (m_info.pTestImpl)
-			m_info.pTestImpl->Run();
+		m_info.GetTest().Init();
 	};
-	virtual void Init()
+	virtual void Run() override
 	{
-		if (m_info.pTestImpl)
-			m_info.pTestImpl->Init();
+		m_info.GetTest().Run();
 	};
-	virtual void Done()
+	virtual void Done() override
 	{
-		if (m_info.pTestImpl)
-			m_info.pTestImpl->Done();
+		m_info.GetTest().Done();
 	};
 
-	UnitTestInfo m_info;
+	CUnitTestInfo m_info;
 };
 
-struct CLogUnitTestReporter : public IUnitTestReporter
+class CLogUnitTestReporter : public IUnitTestReporter
 {
-	virtual void OnStartTesting(UnitTestRunContext& context);
-	virtual void OnFinishTesting(UnitTestRunContext& context);
-	virtual void OnTestStart(IUnitTest* pTest);
-	virtual void OnTestFinish(IUnitTest* pTest, float fRunTimeInMs, bool bSuccess, char const* failureDescription);
-};
-
-struct CMinimalLogUnitTestReporter : public IUnitTestReporter
-{
-	virtual void OnStartTesting(UnitTestRunContext& context);
-	virtual void OnFinishTesting(UnitTestRunContext& context);
-	virtual void OnTestStart(IUnitTest* pTest);
-	virtual void OnTestFinish(IUnitTest* pTest, float fRunTimeInMs, bool bSuccess, char const* failureDescription);
+public:
+	CLogUnitTestReporter(ILog& log) : m_log(log) {}
 private:
-	int   m_nRunTests;
-	int   m_nSucceededTests;
-	int   m_nFailedTests;
-	float m_fTimeTaken;
+	ILog& m_log;
+private:
+	virtual void OnStartTesting(const SUnitTestRunContext& context) override;
+	virtual void OnFinishTesting(const SUnitTestRunContext& context) override;
+	virtual void OnSingleTestStart(const IUnitTest& test) override;
+	virtual void OnSingleTestFinish(const IUnitTest& test, float fRunTimeInMs, bool bSuccess, char const* szFailureDescription) override;
+};
+
+class CMinimalLogUnitTestReporter : public IUnitTestReporter
+{
+public:
+	CMinimalLogUnitTestReporter(ILog& log) : m_log(log) {}
+private:
+	ILog& m_log;
+	int   m_nRunTests = 0;
+	int   m_nSucceededTests = 0;
+	int   m_nFailedTests = 0;
+	float m_fTimeTaken = 0.f;
+
+private:
+	virtual void OnStartTesting(const SUnitTestRunContext& context) override;
+	virtual void OnFinishTesting(const SUnitTestRunContext& context) override;
+	virtual void OnSingleTestStart(const IUnitTest& test) override {}
+	virtual void OnSingleTestFinish(const IUnitTest& test, float fRunTimeInMs, bool bSuccess, char const* szFailureDescription) override;
 };
 
 class CUnitTestManager : public IUnitTestManager
 {
 public:
-	CUnitTestManager();
+	CUnitTestManager(ILog& logToUse);
 	virtual ~CUnitTestManager();
 
 public:
-	virtual IUnitTest* CreateTest(const UnitTestInfo& info);
-	virtual int        RunAllTests(CryUnitTest::TReporterToUse);
-	virtual void       RunMatchingTests(const char* sName, UnitTestRunContext& context);
-	virtual void       RunAutoTests(const char* sSuiteName, const char* sTestName);
-	virtual void       Update();
-	virtual void       RemoveTests();
+	virtual IUnitTest* GetTestInstance(const CUnitTestInfo& info) override;
+	virtual int        RunAllTests(EReporterType reporterType) override;
+	virtual void       RunAutoTests(const char* szSuiteName, const char* szTestName) override; //!< Currently not in use
+	virtual void       Update() override;                                                      //!< Currently not in use
 
-	virtual void       SetExceptionCause(const char* expression, const char* file, int line);
+	virtual void       SetExceptionCause(const char* szExpression, const char* szFile, int line) override;
 private:
-	void               StartTesting(UnitTestRunContext& context, CryUnitTest::TReporterToUse reporterToUse);
-	void               EndTesting(UnitTestRunContext& context);
-	void               RunTest(IUnitTest* pTest, UnitTestRunContext& context);
-	bool               IsTestMatch(CUnitTest* pTest, const string& sSuiteName, const string& sTestName);
+	void               StartTesting(SUnitTestRunContext& context, EReporterType reporterToUse);
+	void               EndTesting(SUnitTestRunContext& context);
+	void               RunTest(CUnitTest& test, SUnitTestRunContext& context);
+	bool               IsTestMatch(const CUnitTest& Test, const string& sSuiteName, const string& sTestName) const;
 
 private:
-	std::vector<CUnitTest*> m_tests;
-	char                    m_failureMsg[256];
-	SAutoTestsContext*      m_pAutoTestsContext;
-	IUnitTest*              m_pCurrentTest;
+	ILog&                                   m_log;
+	std::vector<std::unique_ptr<CUnitTest>> m_tests;
+	string                                  m_failureMsg;
+	std::unique_ptr<SAutoTestsContext>      m_pAutoTestsContext;
+	bool m_bRunningTest = false;
 };
-};
-
-#endif //__UnitTestSystem_h__
+} // namespace CryUnitTest

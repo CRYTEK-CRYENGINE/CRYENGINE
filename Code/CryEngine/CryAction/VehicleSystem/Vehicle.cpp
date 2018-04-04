@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 /*************************************************************************
    -------------------------------------------------------------------------
@@ -406,7 +406,7 @@ bool CVehicle::Init(IGameObject* pGameObject)
 			s_vehicleDestructionTypeId = pGR->GetHitTypeId("vehicleDestruction");
 
 			assert(s_repairHitTypeId && s_disableCollisionsHitTypeId && s_collisionHitTypeId
-				&& s_normalHitTypeId && s_fireHitTypeId && s_punishHitTypeId);
+			       && s_normalHitTypeId && s_fireHitTypeId && s_punishHitTypeId);
 		}
 		CRY_ASSERT_MESSAGE(pGR, "No valid game rules set!");
 	}
@@ -735,7 +735,7 @@ bool CVehicle::Init(IGameObject* pGameObject)
 			}
 		}
 	}
-	
+
 	InitPaint(vehicleParams);
 	InitActions(vehicleParams);
 
@@ -1231,6 +1231,10 @@ void CVehicle::ProcessEvent(SEntityEvent& entityEvent)
 {
 	switch (entityEvent.event)
 	{
+	case ENTITY_EVENT_START_GAME:
+		Reset(true);
+		break;
+
 	case ENTITY_EVENT_RESET:
 		Reset(entityEvent.nParam[0] == 1 ? true : false);
 		break;
@@ -1287,6 +1291,20 @@ void CVehicle::ProcessEvent(SEntityEvent& entityEvent)
 			}
 		}
 		break;
+	case ENTITY_EVENT_SET_AUTHORITY:
+		{
+			m_hasAuthority = entityEvent.nParam[0] ? true : false;
+			if (m_pMovement)
+			{
+				m_pMovement->SetAuthority(m_hasAuthority);
+			}
+			if (m_hasAuthority)
+			{
+				m_clientSmoothedPosition.t = GetEntity()->GetPos();
+				m_clientSmoothedPosition.q = GetEntity()->GetRotation();
+			}
+		}
+		break;
 	}
 
 	if (m_pMovement)
@@ -1295,15 +1313,17 @@ void CVehicle::ProcessEvent(SEntityEvent& entityEvent)
 
 uint64 CVehicle::GetEventMask() const
 {
-	return 
-		BIT64(ENTITY_EVENT_RESET) |
-		BIT64(ENTITY_EVENT_DONE) |
-		BIT64(ENTITY_EVENT_TIMER) |
-		BIT64(ENTITY_EVENT_MATERIAL_LAYER) |
-		BIT64(ENTITY_EVENT_HIDE) |
-		BIT64(ENTITY_EVENT_UNHIDE) |
-		BIT64(ENTITY_EVENT_ANIM_EVENT) |
-		BIT64(ENTITY_EVENT_PREPHYSICSUPDATE);
+	return
+	  BIT64(ENTITY_EVENT_RESET) |
+	  BIT64(ENTITY_EVENT_DONE) |
+	  BIT64(ENTITY_EVENT_TIMER) |
+	  BIT64(ENTITY_EVENT_MATERIAL_LAYER) |
+	  BIT64(ENTITY_EVENT_HIDE) |
+	  BIT64(ENTITY_EVENT_UNHIDE) |
+	  BIT64(ENTITY_EVENT_ANIM_EVENT) |
+	  BIT64(ENTITY_EVENT_START_GAME) |
+	  BIT64(ENTITY_EVENT_SET_AUTHORITY) |
+	  BIT64(ENTITY_EVENT_PREPHYSICSUPDATE);
 }
 
 //------------------------------------------------------------------------
@@ -1330,7 +1350,7 @@ void CVehicle::OnMaterialLayerChanged(const SEntityEvent& event)
 		{
 			IEntity* pChild = GetEntity()->GetChild(i);
 			IEntityRender* pIEntityRender = pChild->GetRenderInterface();
-			
+
 			{
 				if (IActor* pActor = CCryAction::GetCryAction()->GetIActorSystem()->GetActor(pChild->GetId()))
 					if (pActor->IsPlayer()) // don't freeze players inside vehicles
@@ -1486,11 +1506,8 @@ void CVehicle::Reset(bool enterGame)
 		NeedsUpdate(eVUF_AwakePhysics);
 
 		// Temp Code, testing only
-		AudioControlId engineAudioTriggerId;
-		if (gEnv->pAudioSystem->GetAudioTriggerId("ENGINE_ON", engineAudioTriggerId))
-		{
-			m_pIEntityAudioComponent->ExecuteTrigger(engineAudioTriggerId);
-		}
+		CryAudio::ControlId const triggerId = CryAudio::StringToId("ENGINE_ON");
+		m_pIEntityAudioComponent->ExecuteTrigger(triggerId);
 	}
 	else
 	{
@@ -1503,11 +1520,8 @@ void CVehicle::Reset(bool enterGame)
 		}
 
 		// Temp Code, testing only
-		AudioControlId engineAudioTriggerId;
-		if (gEnv->pAudioSystem->GetAudioTriggerId("ENGINE_OFF", engineAudioTriggerId))
-		{
-			m_pIEntityAudioComponent->ExecuteTrigger(engineAudioTriggerId);
-		}
+		CryAudio::ControlId const triggerId = CryAudio::StringToId("ENGINE_OFF");
+		m_pIEntityAudioComponent->ExecuteTrigger(triggerId);
 	}
 
 	m_collisionDisabledTime = 0.0f;
@@ -2512,21 +2526,6 @@ IFireController* CVehicle::GetFireController(uint32 controllerNum)
 }
 
 //------------------------------------------------------------------------
-void CVehicle::SetAuthority(bool auth)
-{
-	m_hasAuthority = auth;
-	if (m_pMovement)
-	{
-		m_pMovement->SetAuthority(auth);
-	}
-	if (auth)
-	{
-		m_clientSmoothedPosition.t = GetEntity()->GetPos();
-		m_clientSmoothedPosition.q = GetEntity()->GetRotation();
-	}
-}
-
-//------------------------------------------------------------------------
 bool CVehicle::NetSerialize(TSerialize ser, EEntityAspects aspect, uint8 profile, int flags)
 {
 	if (m_pMovement)
@@ -3505,7 +3504,7 @@ void CVehicle::OnPhysPostStep(const EventPhys* pEvent, bool logged)
 			IEntity* pEntity = GetEntity();
 			{
 				// Potential optimisation: Should stop CEntityPhysics::OnPhysicsPostStep from also calling SetPosRotScale as it gets overridden here anyway
-				pEntity->SetPosRotScale(renderPos, renderRot, Vec3(1.0f, 1.0f, 1.0f),ENTITY_XFORM_IGNORE_PHYSICS);
+				pEntity->SetPosRotScale(renderPos, renderRot, Vec3(1.0f, 1.0f, 1.0f), ENTITY_XFORM_IGNORE_PHYSICS);
 			}
 		}
 	}
@@ -4759,7 +4758,7 @@ void CVehicle::StopSound(TVehicleSoundEventId eventId)
 	    pSound->Stop();
 	   }*/
 
-	pInfo->soundId = INVALID_AUDIO_CONTROL_ID;
+	pInfo->soundId = CryAudio::InvalidControlId;
 }
 
 //------------------------------------------------------------------------
@@ -5162,14 +5161,14 @@ int CVehicle::GetNextPhysicsSlot(bool high) const
 {
 	// use the last 9 partids of the current id range for parts without slot geometry
 	// their partid must not mix up with other entity slots
-	int idMax = (high) ? PARTID_MAX_SLOTS - 10 : -1;
+	int idMax = (high) ? EntityPhysicsUtils::PARTID_MAX_SLOTS - 10 : -1;
 
 	// get next physid not belonging to CGA range
 	for (TVehiclePartVector::const_iterator ite = m_parts.begin(); ite != m_parts.end(); ++ite)
 	{
 		int physId = ite->second->GetPhysId();
 
-		if (physId > idMax && physId < PARTID_MAX_SLOTS && physId > PARTID_MAX_SLOTS - 10)
+		if (physId > idMax && physId < EntityPhysicsUtils::PARTID_MAX_SLOTS && physId > EntityPhysicsUtils::PARTID_MAX_SLOTS - 10)
 			idMax = physId;
 	}
 
@@ -5892,14 +5891,9 @@ const char* CVehicle::GetModification() const
 	return m_modifications.c_str();
 }
 
-IEntityComponent::ComponentEventPriority CVehicle::GetEventPriority(const int eventID) const
+IEntityComponent::ComponentEventPriority CVehicle::GetEventPriority() const
 {
-	switch (eventID)
-	{
-	case ENTITY_EVENT_PREPHYSICSUPDATE:
-		return ENTITY_PROXY_USER + EEntityEventPriority_Vehicle;
-	}
-	return IGameObjectExtension::GetEventPriority(eventID);
+	return ENTITY_PROXY_USER + EEntityEventPriority_Vehicle;
 }
 
 #if ENABLE_VEHICLE_DEBUG

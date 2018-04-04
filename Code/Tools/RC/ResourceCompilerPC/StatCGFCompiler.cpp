@@ -15,9 +15,9 @@
 
 #include "StdAfx.h"
 #include "ConvertContext.h"
-#include "iconfig.h"
+#include "IConfig.h"
+#include "IAssetManager.h"
 #include "StatCGFCompiler.h"
-#include "Metadata/MetadataHelpers.h"
 #include "CGF/CGFSaver.h"
 #include "../CryEngine/Cry3DEngine/CGF/CGFLoader.h"
 #include <Cry3DEngine/CGF/CryHeaders.h>  // MAX_STATOBJ_LODS_NUM
@@ -1043,7 +1043,8 @@ bool CStatCGFCompiler::Process()
 			}
 		}
 
-		if (!AssetManager::SaveAsset(m_CC.pRC, m_CC.config, m_CC.GetSourcePath(), outputFiles))
+		// NOTE: do not treat intermediate mesh file as a source.
+		if (!m_CC.pRC->GetAssetManager()->SaveCryasset(m_CC.config, /*m_CC.GetSourcePath()*/ string(), outputFiles))
 		{
 			return false;
 		}

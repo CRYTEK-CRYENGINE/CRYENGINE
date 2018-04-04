@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 /*************************************************************************
    -------------------------------------------------------------------------
@@ -444,121 +444,6 @@ void CContextView::CRMIMessage_UserDef::DeleteThis()
 {
 	CRMIMessageAllocator::Delete(this);
 }
-
-#if ENABLE_ASPECT_HASHING
-class CContextView::CHashMessage : public INetSendable
-{
-public:
-	CHashMessage(CContextViewPtr pView, SNetObjectID id, NetworkAspectType aspect, const SNetMessageDef* pDef) :
-		INetSendable(pDef->parallelFlags, pDef->reliability),
-		m_pDef(pDef), m_pView(pView), m_id(id), m_aspect(aspect)
-	{
-		SetGroup('hash');
-	}
-
-	const char* GetDescription()
-	{
-		if (m_description.empty())
-		{
-			//const SContextObject * pObj = m_pView->ContextState()->GetContextObject(m_id);
-			SContextObjectRef obj = m_pView->ContextState()->GetContextObject(m_id);
-			if (!obj.main)
-				m_description.Format("Hash Illegal Object %s:%s", m_id.GetText(), m_pView->Context()->GetAspectName(m_aspect));
-			else
-				m_description.Format("Hash %s:%s", obj.main->GetName(), m_pView->Context()->GetAspectName(m_aspect));
-		}
-		NET_ASSERT(!m_description.empty());
-		return m_description.c_str();
-	}
-
-	void GetPositionInfo(SMessagePositionInfo& pos)
-	{
-	#if FULL_ON_SCHEDULING
-		if (m_pView->IsDead())
-			return;
-		CNetContextState* pCtx = m_pView->ContextState();
-		NET_ASSERT(pCtx);
-		//const SContextObject * pObj = pCtx->GetContextObject( pCtx->GetNetID(m_id) );
-		SContextObjectRef obj = pCtx->GetContextObject(m_id);
-		if (obj.main)
-		{
-			pos.havePosition = obj.xtra->hasPosition;
-			pos.position = obj.xtra->position;
-			pos.haveDrawDistance = obj.xtra->hasDrawDistance;
-			pos.drawDistance = obj.xtra->drawDistance;
-		}
-	#endif
-	}
-
-	EMessageSendResult Send(INetSender* pSender)
-	{
-		//const SContextObject * pObj = m_pView->ContextState()->GetContextObject(m_id);
-		SContextObjectRef obj = m_pView->ContextState()->GetContextObject(m_id);
-		if (!obj.main)
-			return eMSR_FailedMessage;
-		uint32 hash = obj.xtra->hash[m_aspect];
-		if (!hash)
-			return eMSR_NotReady;
-		pSender->BeginMessage(m_pDef);
-		pSender->ser.Value("obj", m_id, 'eid');
-		CCommOutputStream& stm = GetNetSerializeImplFromSerialize<CNetOutputSerializeImpl>(pSender->ser)->GetOutput();
-		if (m_pView->Context()->IsMultiplayer())
-		{
-			uint32& hashSent = m_pView->m_objectsEx[m_id.id].hashSent[m_aspect];
-			bool same = (hashSent == hash);
-			pSender->ser.Value("same", same);
-			if (!same)
-			{
-				pSender->ser.Value("hash", hash);
-				hashSent = hash;
-			}
-		}
-		return eMSR_SentOk;
-	}
-
-	void UpdateState(uint32 nFromSeq, ENetSendableStateUpdate update)
-	{
-		NET_ASSERT(update != eNSSU_Requeue);
-		if (m_pView->IsDead() || m_pView->m_flushUpdates || !m_pView->Parent())
-			return;
-		if (!m_pView->IsPastOrInState(eCVS_InGame))
-			return;
-		if (!m_pView->IsObjectEnabled(m_id))
-			return;
-		if (m_pView->Context()->IsMultiplayer() && 0 == (m_pView->m_objectsEx[m_id.id].hashedAspects & (1 << m_aspect)))
-			return;
-		if (!m_pView->IsContextCurrent())
-			return;
-		// auto resend
-		if (m_pView->Context()->IsMultiplayer())
-			m_pView->Parent()->NetAddSendable(this, 0, NULL, &m_pView->m_objectsEx[m_id.id].hashMsgHandles[m_aspect]);
-	}
-
-	size_t GetSize()
-	{
-		return sizeof(*this);
-	}
-
-	// Adding this to fix the compilation. The whole hashing is legacy and
-	// will be removed subsequently.
-	virtual SMessageTag GetMessageTag(INetSender* pSender, IMessageMapper* mapper)
-	{
-		SMessageTag mTag;
-		mTag.messageId = mapper->GetMsgId(m_pDef);
-		mTag.varying1 = 0;    // Assuming a 1-1 correspondence with data rates for now
-		mTag.varying2 = 0;    // Assuming a 1-1 correspondence with data rates for now
-
-		return mTag;
-	}
-
-private:
-	const SNetMessageDef* m_pDef;
-	CContextViewPtr       m_pView;
-	SNetObjectID          m_id;
-	NetworkAspectType     m_aspect;
-	string                m_description;
-};
-#endif
 
 class CContextView::CNotifyPartialUpdateMessage : public INetSendable
 {
@@ -1199,8 +1084,7 @@ void CContextView::CompleteInitialization()
 	ContextState()->ChangeSubscription(this, FilterEventMask(ContextViewEvents[eCVS_Initial], eCVS_Initial) & m_eventMask);
 
 #if ENABLE_SESSION_IDS
-	const size_t typeIdx = boost::mpl::find<TNetAddressTypes, TLocalNetAddress>::type::pos::value;
-	if (m_pParent->GetIP().which() != typeIdx)
+	if (!stl::holds_alternative<TLocalNetAddress>(m_pParent->GetIP()))
 		m_pContext->EnableSessionDebugging();
 #endif
 
@@ -1733,9 +1617,6 @@ void CContextView::CancelUpdates()
 			if (Context()->IsMultiplayer())
 				for (int j = 0; j < NumAspects; j++)
 				{
-#if ENABLE_ASPECT_HASHING
-					Parent()->NetRemoveSendable(m_objectsEx[i].hashMsgHandles[j]);
-#endif
 					Parent()->NetRemoveSendable(m_objectsEx[i].notifyPartialUpdateHandle[j]);
 				}
 		}
@@ -1847,37 +1728,6 @@ void CContextView::UpdateSchedulerState(SNetObjectID id)
 	SContextViewObject* pVwObj = &m_objects[id.id];
 	SContextViewObjectEx* pVwObjEx = &m_objectsEx[id.id];
 
-#if ENABLE_ASPECT_HASHING
-	NetworkAspectType hashedAspects = (~GetSentAspects(id, true, eGSAA_DefaultAuthority)) & Context()->HashedAspects();
-	hashedAspects &= ContextState()->GetContextObject(id).xtra->nAspectsEnabled;
-	if (IsLocal())
-		hashedAspects = 0;
-
-	pVwObjEx->hashedAspects = hashedAspects;
-
-	// clear things out if we're not in game yet
-	if (!IsPastOrInState(eCVS_InGame))
-		hashedAspects = 0;
-
-	for (int i = 0; i < NumAspects; i++)
-	{
-		if (hashedAspects & (1 << i))
-		{
-			if (!pVwObjEx->hashMsgHandles[i] && m_config.pHashAspectMsgs[i])
-			{
-				Parent()->NetAddSendable(new CHashMessage(this, id, i, m_config.pHashAspectMsgs[i]), 0, NULL, &pVwObjEx->hashMsgHandles[i]);
-			}
-		}
-		else
-		{
-			if (pVwObjEx->hashMsgHandles[i])
-			{
-				Parent()->NetRemoveSendable(pVwObjEx->hashMsgHandles[i]);
-			}
-		}
-	}
-#endif
-
 	// figure what priority class to have
 	if (pVwObj->msgHandle)
 	{
@@ -1971,15 +1821,6 @@ bool CContextView::DoUnbindObject(SNetObjectID netID, bool clearSendables)
 	if (clearSendables)
 	{
 		Parent()->RemoveSendable(m_objects[netID.id].msgHandle);
-#if ENABLE_ASPECT_HASHING
-		if (Context()->IsMultiplayer())
-		{
-			SContextViewObjectEx& oex = m_objectsEx[netID.id];
-			for (int i = 0; i < NumAspects; i++)
-				if (oex.hashMsgHandles[i])
-					Parent()->RemoveSendable(oex.hashMsgHandles[i]);
-		}
-#endif
 
 		for (int i = 0; i < 2; ++i)
 		{
@@ -2224,51 +2065,6 @@ void CContextView::ReconfiguredObject(SNetObjectID netID)
 	UpdateSchedulerState(netID);
 	ChangedObject(netID, 0, NET_ASPECT_ALL);
 }
-
-#if ENABLE_ASPECT_HASHING
-bool CContextView::HashAspect(NetworkAspectID aspectIdx, TSerialize ser, uint32, uint32, uint32)
-{
-	if (!Context()->IsMultiplayer())
-	{
-		NET_ASSERT(false);
-		return true; // TODO: make sure the logic here is correct - Lin
-	}
-
-	SNetObjectID id;
-	ser.Value("obj", id, 'eid');
-
-	bool same;
-	ser.Value("same", same);
-	uint32 hash;
-	if (!same)
-		ser.Value("hash", hash);
-	//const SContextObject * pObj = ContextState()->GetContextObject(id);
-	if (!IsObjectBound(id))
-	{
-		if (CVARS.LogLevel >= 3)
-			NetWarning("CContextView::HashAspect: unknown object %s on %s (trying to hash %s)", id.GetText(), m_pParent->GetName(), Context()->GetAspectName(aspectIdx));
-		return true;
-	}
-	SContextObjectRef obj = ContextState()->GetContextObject(id);
-	if (!obj.main)
-		return true;
-	NET_ASSERT(m_objects.size() > id.id);
-	NET_ASSERT(m_objects[id.id].salt = id.salt);
-	uint32& hashReceived = m_objectsEx[id.id].hashReceived[aspectIdx];
-	if (!same)
-		hashReceived = hash;
-	else
-		hash = hashReceived;
-	if ((obj.xtra->nAspectsEnabled & (1 << aspectIdx)) == 0)
-		return true;
-
-	if (obj.xtra->hash[aspectIdx] && hash && hash != obj.xtra->hash[aspectIdx])
-	{
-		PolluteObjectAspect(id, aspectIdx);
-	}
-	return true;
-}
-#endif
 
 void CContextView::PolluteObjectAspect(SNetObjectID id, NetworkAspectID aspectIdx)
 {

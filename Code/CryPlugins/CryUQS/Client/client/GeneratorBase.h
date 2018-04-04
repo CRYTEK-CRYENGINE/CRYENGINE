@@ -4,9 +4,9 @@
 
 // *INDENT-OFF* - <hard to read code and declarations due to inconsistent indentation>
 
-namespace uqs
+namespace UQS
 {
-	namespace client
+	namespace Client
 	{
 
 		//===================================================================================
@@ -23,7 +23,7 @@ namespace uqs
 
 		public:
 			virtual IItemFactory&     GetItemFactory() const override final;
-			virtual EUpdateStatus     Update(const SUpdateContext& updateContext, core::IItemList& itemListToPopulate) override final;
+			virtual EUpdateStatus     Update(const SUpdateContext& updateContext, Core::IItemList& itemListToPopulate) override final;
 
 		protected:
 			explicit                  CGeneratorBase();
@@ -37,8 +37,8 @@ namespace uqs
 			: m_pItemFactory(nullptr)
 		{
 			// find the ItemFactory by the type of items that this generator generates
-			const shared::CTypeInfo& itemTypeToGenerate = shared::SDataTypeHelper<TItem>::GetTypeInfo();
-			m_pItemFactory = uqs::core::IHubPlugin::GetHub().GetUtils().FindItemFactoryByType(itemTypeToGenerate);
+			const Shared::CTypeInfo& itemTypeToGenerate = Shared::SDataTypeHelper<TItem>::GetTypeInfo();
+			m_pItemFactory = UQS::Core::IHubPlugin::GetHub().GetUtils().FindItemFactoryByType(itemTypeToGenerate);
 
 			// if this fails, then no such item factory was registered by the client code (in fact, this error must have been detected by StartupConsistencyChecker already)
 			assert(m_pItemFactory);
@@ -52,10 +52,10 @@ namespace uqs
 		}
 
 		template <class TGenerator, class TItem>
-		IGenerator::EUpdateStatus CGeneratorBase<TGenerator, TItem>::Update(const SUpdateContext& updateContext, core::IItemList& itemListToPopulate)
+		IGenerator::EUpdateStatus CGeneratorBase<TGenerator, TItem>::Update(const SUpdateContext& updateContext, Core::IItemList& itemListToPopulate)
 		{
 			// if this assert() fails, then something must have gone wrong in InitItemListWithProperItemFactory()
-			assert(itemListToPopulate.GetItemFactory().GetItemType() == shared::SDataTypeHelper<TItem>::GetTypeInfo());
+			assert(itemListToPopulate.GetItemFactory().GetItemType() == Shared::SDataTypeHelper<TItem>::GetTypeInfo());
 			CItemListProxy_Writable<TItem> actualItemListToPopulate(itemListToPopulate);
 			TGenerator* pActualGenerator = static_cast<TGenerator*>(this);
 			return pActualGenerator->DoUpdate(updateContext, actualItemListToPopulate);

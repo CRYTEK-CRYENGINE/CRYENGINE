@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 // Includes
 #include "StdAfx.h"
@@ -286,7 +286,7 @@ void CREBreakableGlass::UpdateImpactShaderConstants()
 	Vec2 invUnitDecalScale = m_invUVRange * invImpactScale;
 
 	// Hard-coded decal atlas offsets
-	// - Must be kept in sync with "EngineAssets\Textures\glass_decalatlas_*.tif"
+	// - Must be kept in sync with "%ENGINE%\EngineAssets\Textures\glass_decalatlas_*.tif"
 	const Vec4 impactAtlasOffset(0.5f, 1.0f, 0.0f, 0.0f);
 	const Vec4 bulletAtlasOffset(0.5f, 1.0f, 0.5f, 0.0f);
 

@@ -1,14 +1,15 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #pragma once
 
 #include <ATLEntityData.h>
 #include <portaudio.h>
 #include <atomic>
+#include <PoolObject.h>
 
 // Forward declare C struct
 struct SNDFILE_tag;
-typedef struct SNDFILE_tag SNDFILE;
+using SNDFILE = struct SNDFILE_tag;
 
 namespace CryAudio
 {
@@ -16,40 +17,42 @@ namespace Impl
 {
 namespace PortAudio
 {
-class CAudioObject;
+class CObject;
 
-class CAudioEvent final : public IAudioEvent
+class CEvent final : public IEvent, public CPoolObject<CEvent, stl::PSyncNone>
 {
 public:
 
-	explicit CAudioEvent(AudioEventId const _audioEventId);
-	virtual ~CAudioEvent() override;
+	explicit CEvent(CATLEvent& event_);
+	virtual ~CEvent() override;
 
-	CAudioEvent(CAudioEvent const&) = delete;
-	CAudioEvent(CAudioEvent&&) = delete;
-	CAudioEvent& operator=(CAudioEvent const&) = delete;
-	CAudioEvent& operator=(CAudioEvent&&) = delete;
+	CEvent(CEvent const&) = delete;
+	CEvent(CEvent&&) = delete;
+	CEvent& operator=(CEvent const&) = delete;
+	CEvent& operator=(CEvent&&) = delete;
 
-	bool         Execute(
+	bool    Execute(
 	  int const numLoops,
 	  double const sampleRate,
-	  CryFixedStringT<512> const& filePath,
+	  CryFixedStringT<MaxFilePathLength> const& filePath,
 	  PaStreamParameters const& streamParameters);
-	void Stop();
-	void Reset();
 	void Update();
 
-	SNDFILE*           pSndFile;
-	PaStream*          pStream;
-	void*              pData;
-	CAudioObject*      pPAAudioObject;
-	int                numChannels;
-	int                remainingLoops;
-	AudioEventId const audioEventId;
-	uint32             pathId;
-	PaSampleFormat     sampleFormat;
-	std::atomic<bool>  bDone;
+	// CryAudio::Impl::IEvent
+	virtual ERequestStatus Stop() override;
+	// ~CryAudio::Impl::IEvent
+
+	SNDFILE*          pSndFile;
+	PaStream*         pStream;
+	void*             pData;
+	CObject*          pObject;
+	int               numChannels;
+	int               remainingLoops;
+	CATLEvent&        event;
+	uint32            pathId;
+	PaSampleFormat    sampleFormat;
+	std::atomic<bool> bDone;
 };
-}
-}
-}
+} // namespace PortAudio
+} // namespace Impl
+} // namespace CryAudio

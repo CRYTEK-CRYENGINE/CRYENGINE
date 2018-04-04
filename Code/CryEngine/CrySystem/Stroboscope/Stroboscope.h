@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 // -------------------------------------------------------------------------
 //  File name:   Stroboscope.h
@@ -93,6 +93,15 @@ struct SStrobosopeResult
 	};
 	typedef std::vector<SThreadInfo> TThreadInfo;
 	typedef std::map<int, float>     TFrameTime;
+
+	SStrobosopeResult()
+		: Valid(false)
+		, Duration(0.0f)
+		, Samples(0)
+		, TotalCounts(0.0f)
+		, StartFrame(0)
+		, EndFrame(0)
+	{}
 
 	bool           Valid;
 	float          Duration;

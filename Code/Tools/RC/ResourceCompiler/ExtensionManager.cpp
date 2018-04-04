@@ -16,7 +16,7 @@
 #include "StdAfx.h"
 #include <time.h>
 #include "ExtensionManager.h"
-#include "IConvertor.h"
+#include "IConverter.h"
 #include "IResCompiler.h"       // IResourceCompiler
 #include "IRCLog.h"             // IRCLog
 #include "StringHelpers.h"
@@ -33,7 +33,7 @@ ExtensionManager::~ExtensionManager()
 }
 
 //////////////////////////////////////////////////////////////////////////
-IConvertor* ExtensionManager::FindConvertor( const char *filename )  const
+IConverter* ExtensionManager::FindConverter( const char *filename )  const
 {
 	string const strFilename = StringHelpers::MakeLowerCase(string(filename));
 
@@ -49,12 +49,12 @@ IConvertor* ExtensionManager::FindConvertor( const char *filename )  const
 }
 
 //////////////////////////////////////////////////////////////////////////
-void ExtensionManager::RegisterConvertor(const char* name, IConvertor* conv, IResourceCompiler* rc)
+void ExtensionManager::RegisterConverter(const char* name, IConverter* conv, IResourceCompiler* rc)
 {
 	assert(conv);
 	assert(rc);
 
-	m_convertors.push_back(conv);
+	m_converters.push_back(conv);
 
 	string strExt;
 	for (int i = 0; ; ++i)
@@ -89,12 +89,12 @@ void ExtensionManager::RegisterConvertor(const char* name, IConvertor* conv, IRe
 //////////////////////////////////////////////////////////////////////////
 void ExtensionManager::UnregisterAll()
 {
-	for (size_t i = 0; i < m_convertors.size(); ++i)
+	for (size_t i = 0; i < m_converters.size(); ++i)
 	{
-		IConvertor *conv = m_convertors[i];
+		IConverter *conv = m_converters[i];
 		conv->Release();
 	}
-	m_convertors.clear();
+	m_converters.clear();
 
 	m_extVector.clear();
 }

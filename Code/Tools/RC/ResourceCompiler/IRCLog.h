@@ -8,7 +8,7 @@
 #include <stdarg.h>
 
 
-// This interface is used by RC and convertors to log events 
+// This interface is used by RC and converters to log events 
 struct IRCLog
 {
 	enum EType

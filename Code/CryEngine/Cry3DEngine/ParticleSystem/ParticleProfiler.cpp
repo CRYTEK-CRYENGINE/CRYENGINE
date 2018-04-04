@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #include "StdAfx.h"
 #include <CryEntitySystem/IEntity.h>
@@ -6,6 +6,7 @@
 #include "ParticleProfiler.h"
 #include "ParticleComponentRuntime.h"
 #include "ParticleEmitter.h"
+#include "ParticleSystem.h"
 
 CRY_PFX2_DBG
 
@@ -71,7 +72,7 @@ public:
 		CParticleComponent* pComponent = pRuntime->GetComponent();
 		CParticleEmitter* pEmitter = pRuntime->GetEmitter();
 		CParticleEffect* pEffect = pEmitter->GetCEffect();
-		IEntity* pEntity = gEnv->pEntitySystem->GetEntity(pEmitter->GetEntityId());
+		IEntity* pEntity = pEmitter->GetOwnerEntity();
 		cstr effectName = pEffect->GetFullName();
 		cstr componentName = pComponent->GetName();
 		cstr entityName = pEntity ? pEntity->GetName() : gDefaultEntityName;
@@ -200,7 +201,7 @@ void CParticleProfiler::Display()
 	CRY_PROFILE_FUNCTION(PROFILE_PARTICLE);
 
 	CVars* pCVars = static_cast<C3DEngine*>(gEnv->p3DEngine)->GetCVars();
-	const int anyProfilerFlags = 1 | AlphaBits('f');
+	const int anyProfilerFlags = 3 | AlphaBits('f');
 	if (pCVars->e_ParticlesProfiler & anyProfilerFlags)
 	{
 		SortEntries();
@@ -212,7 +213,9 @@ void CParticleProfiler::Display()
 				SaveToFile();
 #endif
 			if (pCVars->e_ParticlesProfiler & 1)
-				DrawStats();
+				DrawPerfomanceStats();
+			else if (pCVars->e_ParticlesProfiler & 2)
+				DrawMemoryStats();
 		}
 	}
 	for (auto& entries : m_entries)
@@ -284,7 +287,7 @@ void CParticleProfiler::WriteEntries(CCSVFileOutput& output) const
 	output.WriteStatistics(pCurrentRuntime, runtimeStats);
 }
 
-void CParticleProfiler::DrawStats()
+void CParticleProfiler::DrawPerfomanceStats()
 {
 	CVars* pCVars = static_cast<C3DEngine*>(gEnv->p3DEngine)->GetCVars();
 	const uint countsBudget = pCVars->e_ParticlesProfilerCountBudget;
@@ -407,7 +410,7 @@ void CParticleProfiler::DrawStats(CStatisticsDisplay& output, Vec2 pos, EProfile
 		CParticleComponentRuntime* pRuntime = statEntries[i].pRuntime;
 		CParticleComponent* pComponent = pRuntime->GetComponent();
 		CParticleEmitter* pEmitter = pRuntime->GetEmitter();
-		IEntity* pEntity = gEnv->pEntitySystem->GetEntity(pEmitter->GetEntityId());
+		IEntity* pEntity = pEmitter->GetOwnerEntity();
 
 		const ColorF color = pEmitter->GetProfilerColor();
 		const uint value = statEntries[i].value;
@@ -430,6 +433,83 @@ void CParticleProfiler::DrawStats(CStatisticsDisplay& output, Vec2 pos, EProfile
 	}
 
 	output.DrawBudgetBar(barPosition, maxValue, budget);
+}
+
+void CParticleProfiler::DrawMemoryStats()
+{	
+	IRenderAuxGeom* pRenderAux = gEnv->pRenderer->GetIRenderAuxGeom();
+	CStatisticsDisplay output;
+
+	const Vec2 pixSz = Vec2(1.0f / gEnv->pRenderer->GetWidth(), 1.0f / gEnv->pRenderer->GetHeight());
+	const Vec2 offset = Vec2(0.25, 0.025f);
+	const float widthPerByte = 1.0f / float(1 << 15);
+	const float height = 1.0f / 64.0f;
+
+	int totalBytes = 0;
+	uint usedBytes = 0;
+	for (CParticleEmitter* pEmitter : GetPSystem()->GetActiveEmitters())
+	{
+		CParticleEffect* pEffect = pEmitter->GetCEffect();
+		TComponentId lastComponentIt = pEffect->GetNumComponents();
+		for (TComponentId componentId = 0; componentId < lastComponentIt; ++componentId)
+		{
+			const CParticleComponentRuntime* pRuntime = pEmitter->GetRuntimes()[componentId].pRuntime->GetCpuRuntime();
+			if (!pRuntime)
+				continue;
+			const CParticleContainer& container = pRuntime->GetContainer();
+			const uint totalNumParticles = container.GetMaxParticles();
+			const uint usedNumParticles = container.GetNumParticles();
+			for (auto type : EParticleDataType::indices())
+			{
+				if (!container.HasData(type))
+					continue;
+				const size_t stride = type.info().typeSize();
+				totalBytes += totalNumParticles * stride;
+				usedBytes += usedNumParticles * stride;
+			}
+		}
+	}
+
+	output.DrawText(
+		Vec2(0.015f, offset.y), ColorF(1.0f, 1.0f, 1.0f),
+		"Memory Allocated(kB): %-5d Memory in use(kB): %-5d Utilization: %2d%%",
+		totalBytes / 1024, usedBytes / 1024, usedBytes * 100 / totalBytes);
+
+	size_t barIdx = 0;
+	for (CParticleEmitter* pEmitter : GetPSystem()->GetActiveEmitters())
+	{
+		CParticleEffect* pEffect = pEmitter->GetCEffect();
+		TComponentId lastComponentIt = pEffect->GetNumComponents();
+		for (TComponentId componentId = 0; componentId < lastComponentIt; ++componentId)
+		{
+			const CParticleComponentRuntime* pRuntime = pEmitter->GetRuntimes()[componentId].pRuntime->GetCpuRuntime();
+			if (!pRuntime)
+				continue;
+
+			const CParticleContainer& container = pRuntime->GetContainer();
+			const uint totalNumParticles = container.GetMaxParticles();
+			const uint usedNumParticles = container.GetNumParticles();
+
+			const ColorB darkRed = ColorB(128, 32, 0);
+			const ColorB blue = ColorB(0, 128, 255);
+
+			string name = string(pEffect->GetName()) + " : " + pRuntime->GetComponent()->GetName();
+			output.DrawText(
+				Vec2(0.015f, offset.y + barIdx * height + height),
+				pEmitter->GetProfilerColor(), name.c_str());
+
+			AABB box;
+			box.min = box.max = offset + Vec2(0.0f, height * barIdx + height);
+			box.max.y += height - pixSz.y;
+			box.max.x += totalNumParticles * widthPerByte;
+			pRenderAux->DrawAABB(box, true, darkRed, eBBD_Faceted);
+
+			box.max.x = box.min.x + usedNumParticles * widthPerByte;
+			pRenderAux->DrawAABB(box, true, blue, eBBD_Faceted);
+
+			++barIdx;
+		}
+	}
 }
 
 }

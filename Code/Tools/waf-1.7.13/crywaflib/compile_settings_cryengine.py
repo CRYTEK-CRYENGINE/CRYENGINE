@@ -86,9 +86,8 @@ def set_editor_module_flags(self, kw):
 		self.CreateRootRelativePath('Code/Sandbox/EditorInterface'),
 		self.CreateRootRelativePath('Code/Sandbox/Plugins/EditorCommon'),
 		self.CreateRootRelativePath('Code/CryEngine/CryCommon') ,
-		self.CreateRootRelativePath('Code/SDKs/boost'),
-		self.CreateRootRelativePath('Code/SDKs/yasli'),
-		self.CreateRootRelativePath('Code/Libs/yasli'),
+        self.CreateRootRelativePath('Code/CryEngine/CryCommon/3rdParty') ,
+		self.CreateRootRelativePath('Code/SDKs/boost')
 		]
 	
 	if 'priority_includes' in kw:
@@ -103,7 +102,6 @@ def set_editor_module_flags(self, kw):
 		]
 	
 	kw['features'] += ['qt']
-	kw['use_module'] += [ 'yasli' ]
 	kw['module_extensions'] += [ 'python27' ]
 
 	kw['use'] += ['CryQt']
@@ -129,9 +127,8 @@ def set_rc_flags(self, kw):
 	kw['includes'] = [
 		'.',
 		self.CreateRootRelativePath('Code/CryEngine/CryCommon'),
+        self.CreateRootRelativePath('Code/CryEngine/CryCommon/3rdParty') ,
 		self.CreateRootRelativePath('Code/SDKs/boost'),
-		self.CreateRootRelativePath('Code/SDKs/yasli'),
-		self.CreateRootRelativePath('Code/Libs/yasli'),
 		self.CreateRootRelativePath('Code/Sandbox/Plugins/EditorCommon'),
 	] + kw['includes']
 
@@ -142,15 +139,14 @@ def set_rc_flags(self, kw):
 			'NOT_USE_CRY_MEMORY_MANAGER',
 			]
 
-	kw['use_module'] += [ 'yasli' ]
-
 ###############################################################################
 @conf	
 def set_pipeline_flags(self, kw):
 
 	kw['includes'] = [
 		'.',
-		self.CreateRootRelativePath('Code/CryEngine/CryCommon')
+		self.CreateRootRelativePath('Code/CryEngine/CryCommon'),
+        self.CreateRootRelativePath('Code/CryEngine/CryCommon/3rdParty') 
 	] + kw['includes']
 
 	kw['defines'] += [

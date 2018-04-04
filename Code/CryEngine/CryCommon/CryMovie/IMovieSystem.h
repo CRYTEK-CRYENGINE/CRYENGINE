@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #pragma once
 
@@ -83,70 +83,70 @@ enum ENodeExportType
 enum EAnimParamType
 {
 	//! Parameter is specified by string. See CAnimParamType.
-	eAnimParamType_ByString        = 8,
+	eAnimParamType_ByString            = 8,
 
-	eAnimParamType_FOV             = 0,
-	eAnimParamType_Position        = 1,
-	eAnimParamType_Rotation        = 2,
-	eAnimParamType_Scale           = 3,
-	eAnimParamType_Event           = 4,
-	eAnimParamType_Visibility      = 5,
-	eAnimParamType_Camera          = 6,
-	eAnimParamType_Animation       = 7,
-	eAnimParamType_AudioSwitch     = 9,
-	eAnimParamType_AudioTrigger    = 10,
-	eAnimParamType_AudioFile       = 11,
-	eAnimParamType_AudioParameter  = 12,
-	eAnimParamType_Sequence        = 13,
-	eAnimParamType_Expression      = 14,
-	eAnimParamType_Console         = 17,
-	eAnimParamType_Float           = 19,
-	eAnimParamType_FaceSequence    = 20,
-	eAnimParamType_LookAt          = 21,
-	eAnimParamType_TrackEvent      = 22,
+	eAnimParamType_FOV                 = 0,
+	eAnimParamType_Position            = 1,
+	eAnimParamType_Rotation            = 2,
+	eAnimParamType_Scale               = 3,
+	eAnimParamType_Event               = 4,
+	eAnimParamType_Visibility          = 5,
+	eAnimParamType_Camera              = 6,
+	eAnimParamType_Animation           = 7,
+	eAnimParamType_AudioSwitch         = 9,
+	eAnimParamType_AudioTrigger        = 10,
+	eAnimParamType_AudioFile           = 11,
+	eAnimParamType_AudioParameter      = 12,
+	eAnimParamType_Sequence            = 13,
+	eAnimParamType_Expression          = 14,
+	eAnimParamType_Console             = 17,
+	eAnimParamType_Float               = 19,
+	eAnimParamType_FaceSequence        = 20,
+	eAnimParamType_LookAt              = 21,
+	eAnimParamType_TrackEvent          = 22,
 
-	eAnimParamType_ShakeAmplitudeA = 23,
-	eAnimParamType_ShakeAmplitudeB = 24,
-	eAnimParamType_ShakeFrequencyA = 25,
-	eAnimParamType_ShakeFrequencyB = 26,
-	eAnimParamType_ShakeMultiplier = 27,
-	eAnimParamType_ShakeNoise      = 28,
-	eAnimParamType_ShakeWorking    = 29,
-	eAnimParamType_ShakeAmpAMult   = 61,
-	eAnimParamType_ShakeAmpBMult   = 62,
-	eAnimParamType_ShakeFreqAMult  = 63,
-	eAnimParamType_ShakeFreqBMult  = 64,
+	eAnimParamType_ShakeAmplitudeA     = 23,
+	eAnimParamType_ShakeAmplitudeB     = 24,
+	eAnimParamType_ShakeFrequencyA     = 25,
+	eAnimParamType_ShakeFrequencyB     = 26,
+	eAnimParamType_ShakeMultiplier     = 27,
+	eAnimParamType_ShakeNoise          = 28,
+	eAnimParamType_ShakeWorking        = 29,
+	eAnimParamType_ShakeAmpAMult       = 61,
+	eAnimParamType_ShakeAmpBMult       = 62,
+	eAnimParamType_ShakeFreqAMult      = 63,
+	eAnimParamType_ShakeFreqBMult      = 64,
 
-	eAnimParamType_DepthOfField    = 30,
-	eAnimParamType_FocusDistance   = 31,
-	eAnimParamType_FocusRange      = 32,
-	eAnimParamType_BlurAmount      = 33,
+	eAnimParamType_DepthOfField        = 30,
+	eAnimParamType_FocusDistance       = 31,
+	eAnimParamType_FocusRange          = 32,
+	eAnimParamType_BlurAmount          = 33,
 
-	eAnimParamType_Capture         = 34,
-	eAnimParamType_TransformNoise  = 35,
-	eAnimParamType_TimeWarp        = 36,
-	eAnimParamType_FixedTimeStep   = 37,
-	eAnimParamType_NearZ           = 38,
-	eAnimParamType_Goto            = 39,
+	eAnimParamType_Capture             = 34,
+	eAnimParamType_TransformNoise      = 35,
+	eAnimParamType_TimeWarp            = 36,
+	eAnimParamType_FixedTimeStep       = 37,
+	eAnimParamType_NearZ               = 38,
+	eAnimParamType_Goto                = 39,
 
-	eAnimParamType_PositionX       = 51,
-	eAnimParamType_PositionY       = 52,
-	eAnimParamType_PositionZ       = 53,
+	eAnimParamType_PositionX           = 51,
+	eAnimParamType_PositionY           = 52,
+	eAnimParamType_PositionZ           = 53,
 
-	eAnimParamType_RotationX       = 54,
-	eAnimParamType_RotationY       = 55,
-	eAnimParamType_RotationZ       = 56,
+	eAnimParamType_RotationX           = 54,
+	eAnimParamType_RotationY           = 55,
+	eAnimParamType_RotationZ           = 56,
 
-	eAnimParamType_ScaleX          = 57,
-	eAnimParamType_ScaleY          = 58,
-	eAnimParamType_ScaleZ          = 59,
+	eAnimParamType_ScaleX              = 57,
+	eAnimParamType_ScaleY              = 58,
+	eAnimParamType_ScaleZ              = 59,
 
-	eAnimParamType_ColorR          = 82,
-	eAnimParamType_ColorG          = 83,
-	eAnimParamType_ColorB          = 84,
+	eAnimParamType_ColorR              = 82,
+	eAnimParamType_ColorG              = 83,
+	eAnimParamType_ColorB              = 84,
 
-	eAnimParamType_CommentText     = 70,
-	eAnimParamType_ScreenFader     = 71,
+	eAnimParamType_CommentText         = 70,
+	eAnimParamType_ScreenFader         = 71,
 
 	eAnimParamType_LightDiffuse        = 81,
 	eAnimParamType_LightRadius         = 85,
@@ -328,7 +328,7 @@ struct SAnimContext
 	SAnimTime      dt;           //!< Delta of time from previous animation frame in seconds.
 	bool           bSingleFrame; //!< This is not a playing animation, more a single-frame update
 	bool           bForcePlay;   //!< Set when force playing animation
-	bool           bResetting;   //!< Set when animation sequence is resetted.
+	bool           bResetting;   //!< Set when animation sequence is reset.
 
 	IAnimSequence* pSequence;            //!< Sequence in which animation performed.
 	EntityId       m_activeCameraEntity; //!< Used for editor to pass viewport camera to CryMovie.
@@ -370,21 +370,21 @@ inline bool operator==(const SMovieSystemVoid&, const SMovieSystemVoid&)
 struct SSequenceAudioTrigger
 {
 	SSequenceAudioTrigger()
-		: m_onStopTrigger(INVALID_AUDIO_CONTROL_ID)
-		, m_onPauseTrigger(INVALID_AUDIO_CONTROL_ID)
-		, m_onResumeTrigger(INVALID_AUDIO_CONTROL_ID)
+		: m_onStopTrigger(CryAudio::InvalidControlId)
+		, m_onPauseTrigger(CryAudio::InvalidControlId)
+		, m_onResumeTrigger(CryAudio::InvalidControlId)
 	{}
 
 	void Serialize(XmlNodeRef xmlNode, bool bLoading);
 	void Serialize(Serialization::IArchive& ar);
 
-	AudioControlId m_onStopTrigger;
-	AudioControlId m_onPauseTrigger;
-	AudioControlId m_onResumeTrigger;
+	CryAudio::ControlId m_onStopTrigger;
+	CryAudio::ControlId m_onPauseTrigger;
+	CryAudio::ControlId m_onResumeTrigger;
 
-	string         m_onStopTriggerName;
-	string         m_onPauseTriggerName;
-	string         m_onResumeTriggerName;
+	string              m_onStopTriggerName;
+	string              m_onPauseTriggerName;
+	string              m_onResumeTriggerName;
 };
 
 typedef CryVariant<
@@ -398,12 +398,12 @@ typedef CryVariant<
 
 enum EMovieTrackDataTypes
 {
-	eTDT_Void  = detail::get_index<SMovieSystemVoid, TMovieSystemValue>::value,
-	eTDT_Float = detail::get_index<float, TMovieSystemValue>::value,
-	eTDT_Vec3  = detail::get_index<Vec3, TMovieSystemValue>::value,
-	eTDT_Vec4  = detail::get_index<Vec4, TMovieSystemValue>::value,
-	eTDT_Quat  = detail::get_index<Quat, TMovieSystemValue>::value,
-	eTDT_Bool  = detail::get_index<bool, TMovieSystemValue>::value,
+	eTDT_Void  = cry_variant::get_index<SMovieSystemVoid, TMovieSystemValue>::value,
+	eTDT_Float = cry_variant::get_index<float, TMovieSystemValue>::value,
+	eTDT_Vec3  = cry_variant::get_index<Vec3, TMovieSystemValue>::value,
+	eTDT_Vec4  = cry_variant::get_index<Vec4, TMovieSystemValue>::value,
+	eTDT_Quat  = cry_variant::get_index<Quat, TMovieSystemValue>::value,
+	eTDT_Bool  = cry_variant::get_index<bool, TMovieSystemValue>::value,
 };
 
 //! Interface for movie-system implemented by user for advanced function-support
@@ -967,6 +967,11 @@ struct IMovieListener
 	// </interfuscator:shuffle>
 };
 
+struct IMovieEngineModule : public Cry::IDefaultModule
+{
+	CRYINTERFACE_DECLARE_GUID(IMovieEngineModule, "271a9f97-7e6d-4cfa-b3ae-2a5c3227d302"_cry_guid);
+};
+
 //! Movie System interface.
 //! Main entrance point to engine movie capability.
 //! Enumerate available movies, update all movies, create animation nodes and tracks.
@@ -1151,11 +1156,11 @@ struct IMovieSystem
 	virtual IMovieSystem::ESequenceStopBehavior GetSequenceStopBehavior() = 0;
 
 	//! These are used to disable 'Ragdollize' events in the editor when the 'AI/Physics' is off.
-	virtual bool IsPhysicsEventsEnabled() const = 0;
-	virtual void EnablePhysicsEvents(bool enable) = 0;
+	virtual bool               IsPhysicsEventsEnabled() const = 0;
+	virtual void               EnablePhysicsEvents(bool enable) = 0;
 
-	virtual void EnableBatchRenderMode(bool bOn) = 0;
-	virtual bool IsInBatchRenderMode() const = 0;
+	virtual void               EnableBatchRenderMode(bool bOn) = 0;
+	virtual bool               IsInBatchRenderMode() const = 0;
 
 	virtual ILightAnimWrapper* CreateLightAnimWrapper(const char* szName) const = 0;
 
@@ -1232,31 +1237,31 @@ inline void SSequenceAudioTrigger::Serialize(XmlNodeRef xmlNode, bool bLoading)
 		if (xmlNode->getAttr("onStopAudioTrigger"))
 		{
 			m_onStopTriggerName = xmlNode->getAttr("onStopAudioTrigger");
-			gEnv->pAudioSystem->GetAudioTriggerId(m_onStopTriggerName.c_str(), m_onStopTrigger);
+			m_onStopTrigger = CryAudio::StringToId(m_onStopTriggerName.c_str());
 		}
 		if (xmlNode->getAttr("onPauseAudioTrigger"))
 		{
 			m_onPauseTriggerName = xmlNode->getAttr("onPauseAudioTrigger");
-			gEnv->pAudioSystem->GetAudioTriggerId(m_onPauseTriggerName.c_str(), m_onPauseTrigger);
+			m_onPauseTrigger = CryAudio::StringToId(m_onPauseTriggerName.c_str());
 		}
 		if (xmlNode->getAttr("onResumeAudioTrigger"))
 		{
 			m_onResumeTriggerName = xmlNode->getAttr("onResumeAudioTrigger");
-			gEnv->pAudioSystem->GetAudioTriggerId(m_onResumeTriggerName.c_str(), m_onResumeTrigger);
+			m_onResumeTrigger = CryAudio::StringToId(m_onResumeTriggerName.c_str());
 		}
 
 	}
 	else
 	{
-		if (m_onStopTrigger != INVALID_AUDIO_CONTROL_ID)
+		if (m_onStopTrigger != CryAudio::InvalidControlId)
 		{
 			xmlNode->setAttr("onStopAudioTrigger", m_onStopTriggerName.c_str());
 		}
-		if (m_onPauseTrigger != INVALID_AUDIO_CONTROL_ID)
+		if (m_onPauseTrigger != CryAudio::InvalidControlId)
 		{
 			xmlNode->setAttr("onPauseAudioTrigger", m_onPauseTriggerName.c_str());
 		}
-		if (m_onResumeTrigger != INVALID_AUDIO_CONTROL_ID)
+		if (m_onResumeTrigger != CryAudio::InvalidControlId)
 		{
 			xmlNode->setAttr("onResumeAudioTrigger", m_onResumeTriggerName.c_str());
 		}
@@ -1271,21 +1276,21 @@ inline void SSequenceAudioTrigger::Serialize(Serialization::IArchive& ar)
 		ar(Serialization::AudioTrigger<string>(stopTriggerName), "onStopAudioTrigger", "onStop");
 		if (!stopTriggerName.empty())
 		{
-			gEnv->pAudioSystem->GetAudioTriggerId(stopTriggerName.c_str(), m_onStopTrigger);
+			m_onStopTrigger = CryAudio::StringToId(stopTriggerName.c_str());
 		}
 
 		string pauseTriggerName;
 		ar(Serialization::AudioTrigger<string>(pauseTriggerName), "onPauseAudioTrigger", "onPause");
 		if (!pauseTriggerName.empty())
 		{
-			gEnv->pAudioSystem->GetAudioTriggerId(pauseTriggerName.c_str(), m_onPauseTrigger);
+			m_onPauseTrigger = CryAudio::StringToId(pauseTriggerName.c_str());
 		}
 
 		string resumeTriggerName;
 		ar(Serialization::AudioTrigger<string>(resumeTriggerName), "onResumeAudioTrigger", "onResume");
 		if (!resumeTriggerName.empty())
 		{
-			gEnv->pAudioSystem->GetAudioTriggerId(resumeTriggerName.c_str(), m_onResumeTrigger);
+			m_onResumeTrigger = CryAudio::StringToId(resumeTriggerName.c_str());
 		}
 	}
 	else

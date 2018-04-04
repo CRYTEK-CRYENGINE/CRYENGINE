@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 // -------------------------------------------------------------------------
 //  File name:   ScriptBind_Physics.cpp
@@ -253,10 +253,11 @@ int CScriptBind_Physics::RayTraceCheck(IFunctionHandler* pH, Vec3 src, Vec3 dst,
 
 int CScriptBind_Physics::SamplePhysEnvironment(IFunctionHandler* pH)
 {
-	int nEnts, i, nHits = 0, objtypes = ent_static | ent_rigid | ent_sleeping_rigid | ent_sort_by_mass;
+	int nEnts, i, nHits = 0, objtypes = ent_static | ent_rigid | ent_sleeping_rigid | ent_sort_by_mass | ent_allocate_list | ent_addref_results;
+	IPhysicalEntity* ents[128];
 	pe_status_nparts snp;
 	pe_status_pos sp;
-	IPhysicalEntity** pEnts;
+	IPhysicalEntity** pEnts = ents;
 	geom_world_data gwd;
 	IGeometry* pSphere;
 	primitives::sphere sph;
@@ -274,8 +275,8 @@ int CScriptBind_Physics::SamplePhysEnvironment(IFunctionHandler* pH)
 		pH->GetParam(3, objtypes);
 	pSphere = pWorld->GetGeomManager()->CreatePrimitive(primitives::sphere::type, &sph);
 
-	nEnts = pWorld->GetEntitiesInBox(sph.center - Vec3(sph.r), sph.center + Vec3(sph.r), pEnts, objtypes);
-	for (i = 0; i < nEnts; i++)
+	nEnts = pWorld->GetEntitiesInBox(sph.center - Vec3(sph.r), sph.center + Vec3(sph.r), pEnts, objtypes, CRY_ARRAY_COUNT(ents));
+	for (i = 0; i < nEnts; pEnts[i++]->Release())
 		for (sp.ipart = pEnts[i]->GetStatus(&snp) - 1; sp.ipart >= 0; sp.ipart--)
 		{
 			sp.partid = -1;
@@ -298,6 +299,8 @@ int CScriptBind_Physics::SamplePhysEnvironment(IFunctionHandler* pH)
 			}
 		}
 	pSphere->Release();
+	if (pEnts != ents)
+		gEnv->pPhysicalWorld->GetPhysUtils()->DeletePointer(pEnts);
 
 	return pH->EndFunction(*pObj);
 }

@@ -3,36 +3,34 @@
 #include "StdAfx.h"
 #include "SandboxPythonBridgePlugin.h"
 
+#include <CryCore/Platform/platform_impl.inl>
+
+REGISTER_PLUGIN(SandboxPythonBridgePlugin)
+
+SandboxPythonBridgePlugin* g_pPlugin = nullptr;
+
+SandboxPythonBridgePlugin* GetSandboxPythonBridge()
+{
+	return g_pPlugin;
+}
+
 namespace PluginInfo
 {
 	const char* kName = "Sandbox Python Bridge";
-	const char* kGUID = "{33C4B150-679F-49A2-81C1-0C594AE37A86}";
+	const char* kDesc = "Enables usage of Python plugins";
 	const int kVersion = 0;
 }
 
 SandboxPythonBridgePlugin::SandboxPythonBridgePlugin()
 {
-	RegisterPlugin();
 }
 
 
-void SandboxPythonBridgePlugin::Release()
+SandboxPythonBridgePlugin::~SandboxPythonBridgePlugin()
 {
-	UnregisterPlugin();
-	delete this;
 }
 
-void SandboxPythonBridgePlugin::ShowAbout()
-{
-
-}
-
-const char* SandboxPythonBridgePlugin::GetPluginGUID()
-{
-	return PluginInfo::kGUID;
-}
-
-DWORD SandboxPythonBridgePlugin::GetPluginVersion()
+int32 SandboxPythonBridgePlugin::GetPluginVersion()
 {
 	return PluginInfo::kVersion;
 }
@@ -42,12 +40,8 @@ const char* SandboxPythonBridgePlugin::GetPluginName()
 	return PluginInfo::kName;
 }
 
-bool SandboxPythonBridgePlugin::CanExitNow()
+const char* SandboxPythonBridgePlugin::GetPluginDescription()
 {
-	return true;
+	return PluginInfo::kDesc;
 }
 
-void SandboxPythonBridgePlugin::OnEditorNotify(EEditorNotifyEvent aEventId)
-{
-
-}

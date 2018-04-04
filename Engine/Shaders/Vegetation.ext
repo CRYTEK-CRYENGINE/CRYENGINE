@@ -96,6 +96,14 @@ Property
 
 Property
 {
+  Name = %VEGETATION_EXT_BENDING
+  Mask = 0x800000
+  Property    (Extended Bending)
+  Description (Extended bending, valid for trunks, leaves and grass. Make sure to paint required vertex colors also)
+}
+
+Property
+{
   Name = %TEMP_VEGETATION
   Mask = 0x8000000
   DependencySet = $UserEnabled

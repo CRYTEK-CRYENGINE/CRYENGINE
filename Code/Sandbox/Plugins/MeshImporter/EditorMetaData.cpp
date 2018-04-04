@@ -1,8 +1,8 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+
 #include "StdAfx.h"
 #include "EditorMetaData.h"
 #include "SceneUserData.h"
-#include "GlobalImportSettings.h"
 
 #include <CrySerialization/Enum.h>
 #include <CrySerialization/Color.h>
@@ -157,13 +157,17 @@ void ReadMaterialMetaData(const std::vector<SMaterialMeta>& materialMeta, CScene
 } // namespace FbxTool
 
 SEditorMetaData::SEditorMetaData()
-	: pEditorGlobalImportSettings(new CGlobalImportSettings())
 {
 }
 
 void SEditorMetaData::Serialize(yasli::Archive& ar)
 {
-	ar(*pEditorGlobalImportSettings, "globalSettings");
+	ar(editorGlobalImportSettings, "globalSettings");
 	ar(editorNodeMeta, "editorNodeMeta");
 	ar(editorMaterialMeta, "editorMaterialMeta");
+}
+
+std::unique_ptr<FbxMetaData::IEditorMetaData> SEditorMetaData::Clone() const
+{
+	return std::make_unique<SEditorMetaData>(*this);
 }

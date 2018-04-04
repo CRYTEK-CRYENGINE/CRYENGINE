@@ -26,8 +26,8 @@ CIKTorsoAim_Helper::CIKTorsoAim_Helper()
 , m_blendFactor(0.0f)
 , m_blendFactorPosition(0.0f)
 {
-	CryCreateClassInstance<CIKTorsoAim>("AnimationPoseModifier_IKTorsoAim", m_ikTorsoAim); 
-	CryCreateClassInstance<ITransformationPinning>("AnimationPoseModifier_TransformationPin", m_transformationPin); 
+	CryCreateClassInstanceForInterface(cryiidof<IAnimationPoseModifierTorsoAim>(), m_ikTorsoAim);
+	CryCreateClassInstanceForInterface(cryiidof<ITransformationPinning>(), m_transformationPin);
 }
 
 void CIKTorsoAim_Helper::Update( CIKTorsoAim_Helper::SIKTorsoParams& ikTorsoParams )

@@ -8,12 +8,14 @@
 
 #include "NodeGraphClipboard.h"
 
-#include <Schematyc/Script/IScriptGraph.h>
-#include <Schematyc/Script/IScriptRegistry.h>
+#include <NodeGraph/NodeGraphUndo.h>
+
+#include <CrySchematyc/Script/IScriptGraph.h>
+#include <CrySchematyc/Script/IScriptRegistry.h>
 
 namespace CrySchematycEditor {
 
-CNodeGraphViewModel::CNodeGraphViewModel(Schematyc::IScriptGraph& scriptGraph /*, CrySchematyc::CNodeGraphRuntimeContext& context*/)
+CNodeGraphViewModel::CNodeGraphViewModel(Schematyc::IScriptGraph& scriptGraph /*, Schematyc::CNodeGraphRuntimeContext& context*/)
 	: m_scriptGraph(scriptGraph)
 	, m_runtimeContext(scriptGraph)
 {
@@ -26,7 +28,7 @@ CNodeGraphViewModel::CNodeGraphViewModel(Schematyc::IScriptGraph& scriptGraph /*
 
 			return Schematyc::EVisitStatus::Continue;
 		};
-		scriptGraph.VisitNodes(Schematyc::ScriptGraphNodeVisitor::FromLambda(visitor));
+		scriptGraph.VisitNodes(visitor);
 	}
 
 	{
@@ -52,13 +54,21 @@ CNodeGraphViewModel::CNodeGraphViewModel(Schematyc::IScriptGraph& scriptGraph /*
 
 			return Schematyc::EVisitStatus::Continue;
 		};
-		scriptGraph.VisitLinks(Schematyc::ScriptGraphLinkVisitor::FromLambda(visitor));
+		scriptGraph.VisitLinks(visitor);
 	}
 }
 
 CNodeGraphViewModel::~CNodeGraphViewModel()
 {
+	for (CConnectionItem* pConnectionitem : m_connectionsByIndex)
+	{
+		delete pConnectionitem;
+	}
 
+	for (CNodeItem* pNodeItem : m_nodesByIndex)
+	{
+		delete pNodeItem;
+	}
 }
 
 uint32 CNodeGraphViewModel::GetNodeItemCount() const
@@ -77,7 +87,7 @@ CryGraphEditor::CAbstractNodeItem* CNodeGraphViewModel::GetNodeItemByIndex(uint3
 
 CryGraphEditor::CAbstractNodeItem* CNodeGraphViewModel::GetNodeItemById(QVariant id) const
 {
-	const Schematyc::SGUID guid = id.value<Schematyc::SGUID>();
+	const CryGUID guid = id.value<CryGUID>();
 	for (CNodeItem* pNodeItem : m_nodesByIndex)
 	{
 		if (pNodeItem->GetGUID() == guid)
@@ -102,7 +112,24 @@ CryGraphEditor::CAbstractNodeItem* CNodeGraphViewModel::CreateNode(QVariant type
 			CNodeItem* pNodeItem = new CNodeItem(*pScriptNode, *this);
 			m_nodesByIndex.push_back(pNodeItem);
 
+			// TODO: Move this into a CNodeGraphViewModel method that gets called from here.
 			SignalCreateNode(*pNodeItem);
+
+			if (GetIEditor()->GetIUndoManager()->IsUndoRecording())
+			{
+				CUndo::Record(new CryGraphEditor::CUndoNodeCreate(*pNodeItem));
+			}
+			// ~TODO
+
+			return pNodeItem;
+		}
+	}
+	else
+	{
+		CryGraphEditor::CAbstractNodeItem* pNodeItem = CreateNode(typeId.value<Schematyc::CryGUID>());
+		if (pNodeItem)
+		{
+			pNodeItem->SetPosition(position);
 			return pNodeItem;
 		}
 	}
@@ -113,27 +140,48 @@ CryGraphEditor::CAbstractNodeItem* CNodeGraphViewModel::CreateNode(QVariant type
 bool CNodeGraphViewModel::RemoveNode(CryGraphEditor::CAbstractNodeItem& node)
 {
 	CNodeItem* pNodeItem = static_cast<CNodeItem*>(&node);
-	for (CryGraphEditor::CAbstractPinItem* pPin : pNodeItem->GetPinItems())
+	if (!pNodeItem->IsRemovable())
+		return false;
+
+	// TODO: Move this to NodeGraphView.
+	const CryGraphEditor::PinItemArray pins(pNodeItem->GetPinItems());
+	for (CryGraphEditor::CAbstractPinItem* pPin : pins)
 	{
-		for (CryGraphEditor::CAbstractConnectionItem* pConnection : pPin->GetConnectionItems())
+		CRY_ASSERT_MESSAGE(pPin, "Value of pPin must be not null.");
+		if (pPin)
 		{
-			RemoveConnection(*pConnection);
+			const CryGraphEditor::ConnectionItemSet& connections = pPin->GetConnectionItems();
+			for (auto itr = connections.begin(); itr != connections.end(); ++itr)
+			{
+				CryGraphEditor::CAbstractConnectionItem* pConnection = *itr;
+				RemoveConnection(*pConnection);
+			}
 		}
 	}
+	// ~TODO
 
 	NodesByIndex::iterator result = std::find(m_nodesByIndex.begin(), m_nodesByIndex.end(), pNodeItem);
 	if (result != m_nodesByIndex.end())
 	{
+		// TODO: Move this into a CNodeGraphViewModel method that gets called from here.
+		if (GetIEditor()->GetIUndoManager()->IsUndoRecording())
+		{
+			CUndo::Record(new CryGraphEditor::CUndoNodeRemove(node));
+		}
+
 		SignalRemoveNode(*pNodeItem);
+		// ~TODO
 		m_nodesByIndex.erase(result);
 		m_scriptGraph.RemoveNode(pNodeItem->GetGUID());
 
 		delete pNodeItem;
 
+		gEnv->pSchematyc->GetScriptRegistry().ElementModified(m_scriptGraph.GetElement());
 		return true;
 	}
 
 	m_scriptGraph.RemoveNode(pNodeItem->GetGUID());
+	gEnv->pSchematyc->GetScriptRegistry().ElementModified(m_scriptGraph.GetElement());
 	return false;
 }
 
@@ -153,7 +201,15 @@ CryGraphEditor::CAbstractConnectionItem* CNodeGraphViewModel::GetConnectionItemB
 
 CryGraphEditor::CAbstractConnectionItem* CNodeGraphViewModel::GetConnectionItemById(QVariant id) const
 {
-	return reinterpret_cast<CryGraphEditor::CAbstractConnectionItem*>(id.value<quintptr>());
+	const Schematyc::IScriptGraphLink* pGraphLink = reinterpret_cast<Schematyc::IScriptGraphLink*>(id.value<quintptr>());
+	for (CConnectionItem* pConnection : m_connectionsByIndex)
+	{
+		if (&pConnection->GetScriptLink() == pGraphLink)
+		{
+			return pConnection;
+		}
+	}
+	return nullptr;
 }
 
 CryGraphEditor::CAbstractConnectionItem* CNodeGraphViewModel::CreateConnection(CryGraphEditor::CAbstractPinItem& sourcePin, CryGraphEditor::CAbstractPinItem& targetPin)
@@ -174,7 +230,14 @@ CryGraphEditor::CAbstractConnectionItem* CNodeGraphViewModel::CreateConnection(C
 
 			gEnv->pSchematyc->GetScriptRegistry().ElementModified(m_scriptGraph.GetElement());
 
+			// TODO: Move this into a CNodeGraphViewModel method that gets called from here.
 			SignalCreateConnection(*pConnectionItem);
+
+			if (GetIEditor()->GetIUndoManager()->IsUndoRecording())
+			{
+				CUndo::Record(new CryGraphEditor::CUndoConnectionCreate(*pConnectionItem));
+			}
+			// ~TODO
 
 			return pConnectionItem;
 		}
@@ -194,24 +257,31 @@ bool CNodeGraphViewModel::RemoveConnection(CryGraphEditor::CAbstractConnectionIt
 	CNodeItem& targetNode = static_cast<CNodeItem&>(targetPinItem.GetNodeItem());
 
 	const uint32 linkIndex = m_scriptGraph.FindLink(sourceNode.GetGUID(), sourcePinItem.GetPortId(), targetNode.GetGUID(), targetPinItem.GetPortId());
+	CRY_ASSERT_MESSAGE(linkIndex != Schematyc::InvalidIdx, "View model and backend are out of sync!");
 	if (linkIndex != Schematyc::InvalidIdx)
 	{
-		const ConnectionsByIndex::iterator result = std::find(m_connectionsByIndex.begin(), m_connectionsByIndex.end(), &connection);
-		if (result != m_connectionsByIndex.end())
-		{
-			SignalRemoveConnection(connection);
-			m_connectionsByIndex.erase(result);
-			m_scriptGraph.RemoveLink(linkIndex);
-
-			delete pConnectionItem;
-
-			return true;
-		}
-
 		m_scriptGraph.RemoveLink(linkIndex);
+		gEnv->pSchematyc->GetScriptRegistry().ElementModified(m_scriptGraph.GetElement());
 	}
 
-	return false;
+	const ConnectionsByIndex::iterator result = std::find(m_connectionsByIndex.begin(), m_connectionsByIndex.end(), &connection);
+	CRY_ASSERT_MESSAGE(result != m_connectionsByIndex.end(), "Connection not found in model");
+	if (result != m_connectionsByIndex.end())
+	{
+		// TODO: Move this into a CNodeGraphViewModel method that gets called from here.
+		if (GetIEditor()->GetIUndoManager()->IsUndoRecording())
+		{
+			CUndo::Record(new CryGraphEditor::CUndoConnectionRemove(connection));
+		}
+
+		SignalRemoveConnection(connection);
+		// ~TODO
+
+		m_connectionsByIndex.erase(result);
+		delete pConnectionItem;
+	}
+
+	return true;
 }
 
 CryGraphEditor::CItemCollection* CNodeGraphViewModel::CreateClipboardItemsCollection()
@@ -219,19 +289,26 @@ CryGraphEditor::CItemCollection* CNodeGraphViewModel::CreateClipboardItemsCollec
 	return new CNodeGraphClipboard(*this);
 }
 
-CNodeItem* CNodeGraphViewModel::CreateNode(Schematyc::SGUID typeGuid)
+CNodeItem* CNodeGraphViewModel::CreateNode(CryGUID typeGuid)
 {
 	Schematyc::IScriptGraphNodePtr pScriptNode = m_scriptGraph.AddNode(typeGuid);
 	if (pScriptNode)
 	{
-		// TODO: We shouldn't need to do this here.
+		// TODO: This should happen in backend!
 		pScriptNode->ProcessEvent(Schematyc::SScriptEvent(Schematyc::EScriptEventId::EditorAdd));
 		// ~TODO
 
 		CNodeItem* pNodeItem = new CNodeItem(*pScriptNode, *this);
 		m_nodesByIndex.push_back(pNodeItem);
 
+		// TODO: Move this into a CNodeGraphViewModel method that gets called from here.
 		SignalCreateNode(*pNodeItem);
+
+		if (GetIEditor()->GetIUndoManager()->IsUndoRecording())
+		{
+			CUndo::Record(new CryGraphEditor::CUndoNodeCreate(*pNodeItem));
+		}
+		// ~TODO
 		return pNodeItem;
 	}
 	return nullptr;

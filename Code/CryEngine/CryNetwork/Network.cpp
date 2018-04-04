@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #include "StdAfx.h"
 #include "Network.h"
@@ -542,7 +542,7 @@ bool CNetwork::Init(int ncpu)
 	m_cpuCount = ncpu;
 
 	m_gameTime = gEnv->pTimer->GetFrameStartTime();
-	m_pMessageQueueConfig = CMessageQueue::LoadConfig("Config/DefaultScripts/Scheduler.xml");
+	m_pMessageQueueConfig = CMessageQueue::LoadConfig("%engine%/Config/DefaultScripts/Scheduler.xml");
 	CRY_ASSERT(m_pMessageQueueConfig != nullptr);
 
 	const char* gameOverrideXml = "Scripts/Network/Scheduler.xml";

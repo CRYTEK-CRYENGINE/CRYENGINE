@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #include "stdafx.h"
 #include "ActionCancelSignal.h"
@@ -66,8 +66,6 @@ void CActionCancelSignal::Serialize(Serialization::IArchive& ar)
 	}
 #endif
 }
-
-REGISTER_DRS_ACTION(CActionCancelSignal, "CancelSignal", DEFAULT_DRS_ACTION_COLOR);
 
 //--------------------------------------------------------------------------------------------------
 DRS::IResponseActionInstance::eCurrentState CryDRS::CActionCancelSignalInstance::Update()

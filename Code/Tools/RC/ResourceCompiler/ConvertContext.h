@@ -27,7 +27,7 @@ class IConfig;
 // IConvertContext is a description of what and how should be processed by compiler
 struct IConvertContext
 {
-	virtual void SetConvertorExtension(const char* convertorExtension) = 0;
+	virtual void SetConverterExtension(const char* converterExtension) = 0;
 
 	virtual void SetSourceFolder(const char* sourceFolder) = 0;
 	virtual void SetSourceFileNameOnly(const char* sourceFileNameOnly) = 0;
@@ -45,9 +45,9 @@ struct ConvertContext
 	//////////////////////////////////////////////////////////////////////////
 	// Interface IConvertContext
 
-	virtual void SetConvertorExtension(const char* convertorExtension)
+	virtual void SetConverterExtension(const char* converterExtension)
 	{
-		this->convertorExtension = convertorExtension;
+		this->converterExtension = converterExtension;
 	}
 
 	virtual void SetSourceFolder(const char* sourceFolder)
@@ -104,9 +104,9 @@ struct ConvertContext
 	}
 
 public:
-	// Convertor will assume that the source file has content matching this extension
+	// Converter will assume that the source file has content matching this extension
 	// (the sourceFileNameOnly can have a different extension, say 'tmp').
-	string convertorExtension;
+	string converterExtension;
 
 	// Source file's folder.
 	string sourceFolder;

@@ -4,9 +4,9 @@
 
 // *INDENT-OFF* - <hard to read code and declarations due to inconsistent indentation>
 
-namespace uqs
+namespace UQS
 {
-	namespace core
+	namespace Core
 	{
 
 		float CGeomUtil::Distance_Lineseg_AABB(const Lineseg& lineseg, const AABB& aabb)

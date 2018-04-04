@@ -4,9 +4,9 @@
 
 // *INDENT-OFF* - <hard to read code and declarations due to inconsistent indentation>
 
-namespace uqs
+namespace UQS
 {
-	namespace core
+	namespace Core
 	{
 
 		//===================================================================================
@@ -29,7 +29,14 @@ namespace uqs
 			const char*             GetError(size_t index) const;
 
 		private:
-			void                    CheckInputParametersConsistency(const client::IInputParameterRegistry& registry, const char* errorMessagePrefix);
+			template <class TFactoryDB>
+			void                    CheckFactoryDatabaseConsistency(const TFactoryDB& factoryDB, const char* szFactoryDatabaseNameForErrorMessages);
+
+			void                    CheckInputParametersConsistency(const Client::IInputParameterRegistry& registry, const char* szErrorMessagePrefix);
+
+#if UQS_SCHEMATYC_SUPPORT
+			void                    CheckItemConvertersConsistency(const Client::IItemConverterCollection& itemConverters, const char* szItemFactoryNameForErrorMessages, std::set<CryGUID>& guidsInUse);
+#endif
 
 		private:
 			std::vector<string>     m_errors;

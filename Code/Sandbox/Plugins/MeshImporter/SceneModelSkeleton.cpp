@@ -156,14 +156,14 @@ void CSkeleton::SetCallback(const Callback& callback)
 
 int CSceneModelSkeleton::columnCount(const QModelIndex& index) const
 {
-	return 1;
+	return eColumnType_COUNT;
 }
 
 QVariant CSceneModelSkeleton::data(const QModelIndex& index, int role) const
 {
 	using namespace Private_SceneModelSkeleton;
 
-	CRY_ASSERT(index.isValid() && index.column() == 0);
+	CRY_ASSERT(index.isValid());
 
 	if (!GetScene())
 	{
@@ -172,25 +172,54 @@ QVariant CSceneModelSkeleton::data(const QModelIndex& index, int role) const
 
 	CSceneElementCommon* const pSceneElement = GetSceneElementFromModelIndex(index);
 
+	const FbxTool::SNode* const pFbxNode = pSceneElement->GetType() == ESceneElementType::SourceNode ? ((CSceneElementSourceNode*)pSceneElement)->GetNode() : nullptr;
+
 	if (role == Qt::DisplayRole)
 	{
-		return QtUtil::ToQString(pSceneElement->GetName());
+		switch (index.column())
+		{
+		case eColumnType_Name:
+			return QtUtil::ToQString(pSceneElement->GetName());
+		case eColumnType_SourceNodeAttribute:
+			if (pFbxNode && !pFbxNode->namedAttributes.empty())
+			{
+				return QtUtil::ToQString(pFbxNode->namedAttributes[0]);
+			}
+			break;
+		default:
+			break;
+		}
 	}
-	else if (role == Qt::CheckStateRole && pSceneElement->GetType() == ESceneElementType::SourceNode)
+	else if (role == Qt::CheckStateRole && pFbxNode && index.column() == eColumnType_Name)
 	{
-		const FbxTool::SNode* const pNode = ((CSceneElementSourceNode*)pSceneElement)->GetNode();
-		return GetCheckStateRole(pNode, m_pNodeSkeleton->GetNodesInclusion());
+		return GetCheckStateRole(pFbxNode, m_pNodeSkeleton->GetNodesInclusion());
 	}
-	return QVariant();
+	return CSceneModelCommon::data(index, role);
 }
 
 QVariant CSceneModelSkeleton::headerData(int column, Qt::Orientation orientation, int role) const
 {
-	CRY_ASSERT(column == 0);
 	if (role == Qt::DisplayRole)
 	{
-		return QString("Node name");
+		switch (column)
+		{
+		case eColumnType_Name:
+			return QString("Node name");
+		case eColumnType_SourceNodeAttribute:
+			return QString("Attribute");
+		}
 	}
+
+	// Attributes.
+	if (role == Attributes::s_getAttributeRole)
+	{
+		CItemModelAttribute* const pAttribute = GetColumnAttribute(column);
+		if (pAttribute)
+		{
+			return QVariant::fromValue(pAttribute);
+		}
+	}
+
 	return QVariant();
 }
 
@@ -226,4 +255,17 @@ bool CSceneModelSkeleton::setData(const QModelIndex& modelIndex, const QVariant&
 	}
 
 	return false;
+}
+
+CItemModelAttribute* CSceneModelSkeleton::GetColumnAttribute(int col) const
+{
+	switch (col)
+	{
+	case eColumnType_Name:
+		return &Attributes::s_nameAttribute;
+	case eColumnType_SourceNodeAttribute:
+		return GetSourceNodeAttributeAttribute();
+	default:
+		return nullptr;
+	};
 }

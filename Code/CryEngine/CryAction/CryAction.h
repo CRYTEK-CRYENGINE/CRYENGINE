@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 /*************************************************************************
    -------------------------------------------------------------------------
@@ -27,7 +27,6 @@
 #include <CryGame/IGameFramework.h>
 #include <CrySystem/File/ICryPak.h>
 #include "ISaveGame.h"
-#include <CrySystem/ITestSystem.h>
 
 struct IFlowSystem;
 struct IGameTokenSystem;
@@ -108,6 +107,8 @@ class CSegmentedWorld;
 
 class CNetMessageDistpatcher;
 class CManualFrameStepController;
+class CEntityContainerMgr;
+class CEntityAttachmentExNodeRegistry;
 
 class CCryAction :
 	public IGameFramework
@@ -115,6 +116,7 @@ class CCryAction :
 
 public:
 	CCryAction();
+	~CCryAction();
 
 	// IGameFramework
 	void                                  ClearTimers();
@@ -150,7 +152,7 @@ public:
 	virtual bool                          IsInTimeDemo();        // Check if time demo is in progress (either playing or recording);
 	virtual bool                          IsTimeDemoRecording(); // Check if time demo is recording;
 
-	virtual ISystem*                      GetISystem()           { return m_pSystem; };
+	virtual ISystem*                      GetISystem()           { return m_pSystem; }
 	virtual ILanQueryListener*            GetILanQueryListener() { return m_pLanQueryListener; }
 	virtual IUIDraw*                      GetIUIDraw();
 	virtual IMannequin&                   GetMannequinInterface();
@@ -198,6 +200,7 @@ public:
 	virtual void                          FlushBreakableObjects();   // defined in ActionGame.cpp
 	void                                  ClearBreakHistory();
 
+	IGameToEditorInterface*               GetIGameToEditor() { return m_pGameToEditor; }
 	virtual void                          InitEditor(IGameToEditorInterface* pGameToEditor);
 	virtual void                          SetEditorLevel(const char* levelName, const char* levelFolder);
 	virtual void                          GetEditorLevel(char** levelName, char** levelFolder);
@@ -213,13 +216,13 @@ public:
 	virtual CTimeValue                    GetServerTime();
 	virtual uint16                        GetGameChannelId(INetChannel* pNetChannel);
 	virtual INetChannel*                  GetNetChannel(uint16 channelId);
+	virtual void                          SetServerChannelPlayerId(uint16 channelId, EntityId id);
+	virtual const SEntitySchedulingProfiles* GetEntitySchedulerProfiles(IEntity* pEnt);
 	virtual bool                          IsChannelOnHold(uint16 channelId);
 	virtual IGameObject*                  GetGameObject(EntityId id);
 	virtual bool                          GetNetworkSafeClassId(uint16& id, const char* className);
 	virtual bool                          GetNetworkSafeClassName(char* className, size_t classNameSizeInBytes, uint16 id);
 	virtual IGameObjectExtension*         QueryGameObjectExtension(EntityId id, const char* name);
-
-	virtual void                          DelegateAuthority(EntityId entityId, uint16 channelId);
 
 	virtual INetContext*                  GetNetContext();
 
@@ -227,7 +230,7 @@ public:
 	virtual ELoadGameResult               LoadGame(const char* path, bool quick = false, bool ignoreDelay = false);
 	virtual TSaveGameName                 CreateSaveGameName();
 
-	virtual void                          ScheduleEndLevel(const char* nextLevel = "");
+	virtual void                          ScheduleEndLevel(const char* nextLevel);
 	virtual void                          ScheduleEndLevelNow(const char* nextLevel);
 
 	virtual void                          OnEditorSetGameMode(int iMode);
@@ -278,6 +281,13 @@ public:
 
 	virtual void                  RegisterExtension(ICryUnknownPtr pExtension);
 	virtual void                  ReleaseExtensions();
+
+	virtual void AddNetworkedClientListener(INetworkedClientListener& listener) { stl::push_back_unique(m_networkClientListeners, &listener); }
+	virtual void RemoveNetworkedClientListener(INetworkedClientListener& listener) { stl::find_and_erase(m_networkClientListeners, &listener); }
+
+	void DefineProtocolRMI(IProtocolBuilder* pBuilder);
+	virtual void DoInvokeRMI(_smart_ptr<IRMIMessageBody> pBody, unsigned where, int channel, const bool isGameObjectRmi);
+
 protected:
 	virtual ICryUnknownPtr        QueryExtensionInterfaceById(const CryInterfaceID& interfaceID) const;
 	// ~IGameFramework
@@ -285,8 +295,6 @@ protected:
 public:
 
 	static CCryAction*          GetCryAction() { return m_pThis; }
-
-	bool                        ControlsEntity(EntityId id) const;
 
 	virtual CGameServerNub*     GetGameServerNub();
 	CGameClientNub*             GetGameClientNub();
@@ -321,6 +329,8 @@ public:
 
 	CNetMessageDistpatcher*     GetNetMessageDispatcher()      { return m_pNetMsgDispatcher; }
 	CManualFrameStepController* GetManualFrameStepController() { return m_pManualFrameStepController; }
+	CEntityContainerMgr&         GetEntityContainerMgr()       { return *m_pEntityContainerMgr; }
+	CEntityAttachmentExNodeRegistry& GetEntityAttachmentExNodeRegistry() { return *m_pEntityAttachmentExNodeRegistry; }
 
 	//	INetQueryListener* GetLanQueryListener() {return m_pLanQueryListener;}
 	bool                          LoadingScreenEnabled() const;
@@ -369,6 +379,8 @@ public:
 	int                     Update(bool haveFocus, unsigned int updateFlags);
 	void                    PostUpdate(bool haveFocus, unsigned int updateFlags);
 
+	const std::vector<INetworkedClientListener*>& GetNetworkClientListeners() const { return m_networkClientListeners; }
+
 private:
 	void InitScriptBinds();
 	void ReleaseScriptBinds();
@@ -376,7 +388,7 @@ private:
 	bool InitGame(SSystemInitParams& startupParams);
 	bool ShutdownGame();
 
-	int  Run(const char* szAutoStartLevelName);
+	void Run(const char* szAutoStartLevelName);
 
 	void InitForceFeedbackSystem();
 	void InitGameVolumesManager();
@@ -385,9 +397,6 @@ private:
 	void ReleaseCVars();
 
 	void InitCommands();
-
-	// TODO: remove
-	static void FlowTest(IConsoleCmdArgs*);
 
 	// console commands provided by CryAction
 	static void DumpMapsCmd(IConsoleCmdArgs* args);
@@ -490,6 +499,7 @@ private:
 	ITimer*                       m_pTimer;
 	ILog*                         m_pLog;
 	void*                         m_systemDll;
+	IGameToEditorInterface*       m_pGameToEditor;
 
 	_smart_ptr<CActionGame>       m_pGame;
 
@@ -506,7 +516,7 @@ private:
 	CViewSystem*                  m_pViewSystem;
 	CGameplayRecorder*            m_pGameplayRecorder;
 	CGameRulesSystem*             m_pGameRulesSystem;
-	CFlowSystem*                  m_pFlowSystem;
+
 	CGameObjectSystem*            m_pGameObjectSystem;
 	CUIDraw*                      m_pUIDraw;
 	CScriptRMI*                   m_pScriptRMI;
@@ -517,7 +527,7 @@ private:
 	CPlayerProfileManager*        m_pPlayerProfileManager;
 	CDialogSystem*                m_pDialogSystem;
 	CSubtitleManager*             m_pSubtitleManager;
-	IGameTokenSystem*             m_pGameTokenSystem;
+
 	IEffectSystem*                m_pEffectSystem;
 	CGameSerialize*               m_pGameSerialize;
 	CallbackTimer*                m_pCallbackTimer;
@@ -666,18 +676,24 @@ private:
 	} m_connectRepeatedly;
 #endif
 
-	float                       m_lastSaveLoad;
-	float                       m_lastFrameTimeUI;
+	float  m_lastSaveLoad;
+	float  m_lastFrameTimeUI;
 
-	bool                        m_pbSvEnabled;
-	bool                        m_pbClEnabled;
-	uint32                      m_PreUpdateTicks;
+	bool   m_pbSvEnabled;
+	bool   m_pbClEnabled;
+	uint32 m_PreUpdateTicks;
 
-	CNetMessageDistpatcher*     m_pNetMsgDispatcher;
-	CManualFrameStepController* m_pManualFrameStepController;
-	SExternalGameLibrary        m_externalGameLibrary;
 
-	CTimeValue                  m_levelStartTime;
+	SExternalGameLibrary                   m_externalGameLibrary;
+
+	CNetMessageDistpatcher*                m_pNetMsgDispatcher;
+	CManualFrameStepController*            m_pManualFrameStepController;
+	CEntityContainerMgr*                   m_pEntityContainerMgr;
+	CEntityAttachmentExNodeRegistry*       m_pEntityAttachmentExNodeRegistry;
+
+	CTimeValue                             m_levelStartTime;
+
+	std::vector<INetworkedClientListener*> m_networkClientListeners;
 };
 
 #endif //__CRYACTION_H__

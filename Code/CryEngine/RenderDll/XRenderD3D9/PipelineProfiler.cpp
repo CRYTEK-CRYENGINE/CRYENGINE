@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #include "StdAfx.h"
 #include "PipelineProfiler.h"
@@ -128,6 +128,10 @@ uint32 CRenderPipelineProfiler::InsertSection(const char* name, uint32 profileSe
 	}
 	else
 	{
+	#if defined(ENABLE_PROFILING_CODE)
+		section.numDIPs = 0;
+		section.numPolys = 0;
+	#endif
 		section.startTimeCPU.SetValue(0);
 		section.endTimeCPU.SetValue(0);
 		section.startTimestamp = ~0u;
@@ -544,8 +548,9 @@ void CRenderPipelineProfiler::DisplayDetailedPassStats(uint32 frameDataIndex)
 		return;
 	
 	CD3D9Renderer* rd = gcpRendD3D;
+	SDisplayContext* pDC = rd->GetActiveDisplayContext();
 	SFrameData& frameData = m_frameData[frameDataIndex];
-	uint32 elemsPerColumn = (gcpRendD3D->GetBackbufferHeight() - 60) / 16;
+	uint32 elemsPerColumn = (pDC->m_Height - 60) / 16;
 
 	// Dim background to make text more readable
 	rd->SetState(GS_NODEPTHTEST | GS_BLSRC_SRCALPHA | GS_BLDST_ONEMINUSSRCALPHA);
@@ -659,7 +664,8 @@ const float columnHeight = 0.027f;
 
 void DrawText(float x, float y, float size, ColorF color, const char* text)
 {
-	float aspect = (float)gcpRendD3D->GetBackbufferWidth() / (float)gcpRendD3D->GetBackbufferHeight();
+	SDisplayContext* pDC = gcpRendD3D->GetActiveDisplayContext();
+	float aspect = (float)pDC->m_Width / (float)pDC->m_Height;
 	float sx = VIRTUAL_SCREEN_WIDTH / aspect;
 	float sy = VIRTUAL_SCREEN_HEIGHT;
 
@@ -677,7 +683,8 @@ void DrawText(float x, float y, float size, ColorF color, const char* format, va
 void DrawBox(float x, float y, float width, float height, ColorF color)
 {
 	CD3D9Renderer* rd = gcpRendD3D;
-	float aspect = (float)rd->GetBackbufferWidth() / (float)rd->GetBackbufferHeight();
+	SDisplayContext* pDC = rd->GetActiveDisplayContext();
+	float aspect = (float)pDC->m_Width / (float)pDC->m_Height;
 	float sx = VIRTUAL_SCREEN_WIDTH / aspect;
 	float sy = VIRTUAL_SCREEN_HEIGHT;
 	const Vec2 overscanOffset = Vec2(rd->s_overscanBorders.x * VIRTUAL_SCREEN_WIDTH, rd->s_overscanBorders.y * VIRTUAL_SCREEN_HEIGHT);

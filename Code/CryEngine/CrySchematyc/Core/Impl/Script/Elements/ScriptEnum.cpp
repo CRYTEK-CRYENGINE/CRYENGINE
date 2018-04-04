@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #include "StdAfx.h"
 #include "Script/Elements/ScriptEnum.h"
@@ -6,11 +6,11 @@
 #include <CrySerialization/BlackBox.h>
 #include <CrySerialization/IArchiveHost.h>
 #include <CrySerialization/STL.h>
-#include <Schematyc/Env/IEnvRegistry.h>
-#include <Schematyc/SerializationUtils/ISerializationContext.h>
-#include <Schematyc/SerializationUtils/SerializationUtils.h>
-#include <Schematyc/Utils/Assert.h>
-#include <Schematyc/Utils/IGUIDRemapper.h>
+#include <CrySchematyc/Env/IEnvRegistry.h>
+#include <CrySchematyc/SerializationUtils/ISerializationContext.h>
+#include <CrySchematyc/SerializationUtils/SerializationUtils.h>
+#include <CrySchematyc/Utils/Assert.h>
+#include <CrySchematyc/Utils/IGUIDRemapper.h>
 
 namespace Schematyc
 {
@@ -18,7 +18,7 @@ CScriptEnum::CScriptEnum()
 	: CScriptElementBase(EScriptElementFlags::CanOwnScript)
 {}
 
-CScriptEnum::CScriptEnum(const SGUID& guid, const char* szName)
+CScriptEnum::CScriptEnum(const CryGUID& guid, const char* szName)
 	: CScriptElementBase(guid, szName, EScriptElementFlags::CanOwnScript)
 {}
 

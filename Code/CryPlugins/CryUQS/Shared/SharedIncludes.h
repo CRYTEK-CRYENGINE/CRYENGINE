@@ -6,3 +6,4 @@
 
 #include "shared/UqsString.h"
 #include "shared/VariantDict.h"
+#include "shared/FactoryBase.h"

@@ -36,9 +36,12 @@
 #include "AloneDetectorModule.h"
 #include "HazardModule/HazardModule.h"
 #include "RadioChatter/RadioChatterModule.h"
+
 #include <CryAISystem/BehaviorTree/IBehaviorTree.h>
 #include "BehaviorTree/BehaviorTreeNodes_Game.h"
+
 #include "GameAIEnv.h"
+
 #include <CryAISystem/IAISystem.h>
 #include <algorithm>
 
@@ -88,8 +91,8 @@ private:
 
 CGameAISystem::CGameAISystem()
 	: m_state(Idle)
-	, m_pDeathManager(NULL)
-	, m_pCorpsesManager(NULL)
+	, m_pDeathManager(nullptr)
+	, m_pCorpsesManager(nullptr)
 {
 	const int modulesReserveSize = 7;
 
@@ -315,7 +318,10 @@ void CGameAISystem::UpdateModules(float frameTime)
 void CGameAISystem::UpdateSubSystems(float frameTime)
 {
 	if (m_pDeathManager)
-		m_pDeathManager->Update();
+	{
+		m_pDeathManager->GameUpdate();
+	}	
+	
 	m_visibleObjectsHelper.Update();
 	m_AIAwarenessToPlayerHelper.Update(frameTime);
 	m_AICounters.Update(frameTime);

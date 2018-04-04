@@ -6,39 +6,76 @@ using CryEngine.Common;
 
 namespace CryEngine
 {
+	/// <summary>
+	/// ActionHandler is the C# wrapper for the ActionMaps. 
+	/// Using this you can have a config-file that defines your input instead of all the input being hard coded.
+	/// </summary>
 	public class ActionHandler : IActionListener
 	{
-		private Dictionary<string, Action<string, int, float>> _handlers = new Dictionary<string, Action<string, int, float>>();
-		private string _actionMap;
+		private readonly Dictionary<string, Action<string, InputState, float>> _handlers = new Dictionary<string, Action<string, InputState, float>>();
+		private string _actionMapName;
 
-		public ActionHandler(string actionMap)
+		/// <summary>
+		/// Create a new ActionHandler that can receive the input as described in the config-file at actionMapPath.
+		/// This ActionHandler will use the ActionMap specified by actionMapName.
+		/// </summary>
+		/// <param name="actionMapPath"></param>
+		/// <param name="actionMapName"></param>
+		public ActionHandler(string actionMapPath, string actionMapName)
 		{
-			_actionMap = actionMap;
-			Global.gEnv.pGameFramework.GetIActionMapManager().AddExtraActionListener(this, _actionMap);
-		}
-
-		public override void AfterAction() { }
-
-		public override void OnAction(CCryName action, int activationMode, float value)
-		{
-			string actionName = action.c_str();
-			if(_handlers.ContainsKey(actionName))
+			_actionMapName = actionMapName;
+			var actionMapManager = Global.gEnv.pGameFramework.GetIActionMapManager();
+			if(!actionMapManager.InitActionMaps(actionMapPath))
 			{
-				_handlers[actionName](actionName, activationMode, value);
+				throw new ArgumentException(string.Format("Unable to create ActionHandler for action-map {0}", actionMapPath), nameof(actionMapPath));
+			}
+
+			actionMapManager.Enable(true);
+			actionMapManager.EnableActionMap(actionMapName, true);
+
+			if (!actionMapManager.AddExtraActionListener(this, actionMapName))
+			{
+				throw new ArgumentException(string.Format("Unable to get ActionMap {0} from {1}", actionMapName, actionMapPath), nameof(actionMapName));
 			}
 		}
 
+		//TODO The AfterAction and OnAction are now exposed to the user. It would make more sense if these were private or internal.
+		public override void AfterAction() { }
+		public override void OnAction(CCryName action, int activationMode, float value)
+		{
+			var actionName = action.c_str();
+			var state = (InputState)activationMode;
+			if(_handlers.ContainsKey(actionName))
+			{
+				_handlers[actionName](actionName, state, value);
+			}
+		}
+
+		/// <summary>
+		/// Clear the handlers and dispose of this instance.
+		/// </summary>
 		public override void Dispose()
 		{
-			Global.gEnv.pGameFramework.GetIActionMapManager().RemoveExtraActionListener(this, _actionMap);
+			_handlers.Clear();
+			var actionMapManager = Global.gEnv.pGameFramework.GetIActionMapManager();
+			actionMapManager?.RemoveExtraActionListener(this, _actionMapName);
 			base.Dispose();
 		}
 
-		public void AddHandler(string action, Action<string, int, float> handler)
+		/// <summary>
+		/// Add a handler for an action to this ActionHandler.
+		/// </summary>
+		/// <param name="action"></param>
+		/// <param name="handler"></param>
+		public void AddHandler(string action, Action<string, InputState, float> handler)
 		{
 			_handlers.Add(action, handler);
 		}
 
+		/// <summary>
+		/// Remove a handler from this ActionHandler.
+		/// </summary>
+		/// <param name="action"></param>
 		public void RemoveHandler(string action)
 		{
 			_handlers.Remove(action);

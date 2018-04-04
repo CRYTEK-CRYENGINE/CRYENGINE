@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 // -------------------------------------------------------------------------
 //  File name:   LocalizedStringManager.h
@@ -215,7 +215,7 @@ CLocalizedStringsManager::CLocalizedStringsManager(ISystem* pSystem)
 	, m_availableLocalizations(0)
 {
 	m_pSystem = pSystem;
-	m_pSystem->GetISystemEventDispatcher()->RegisterListener(this);
+	m_pSystem->GetISystemEventDispatcher()->RegisterListener(this, "CLocalizedStringsManager");
 
 	m_languages.reserve(4);
 	m_pLanguage = 0;
@@ -1623,8 +1623,21 @@ bool CLocalizedStringsManager::LocalizeStringInternal(const char* pStr, size_t l
 		}
 
 		// find the end of the label
-		const char* pLabelEnd = strchr(pLabel, ' ');
-		if (!pLabelEnd) pLabelEnd = pEnd;
+		const char* pFirstAngleBracket = strchr(pLabel, '<');
+		const char* pFirstSpace = strchr(pLabel, ' ');
+		const char* pLabelEnd = pEnd;
+		if (pFirstAngleBracket && pFirstSpace)
+		{
+			pLabelEnd = min(pFirstSpace, pFirstAngleBracket);
+		}
+		else if (pFirstAngleBracket)
+		{
+			pLabelEnd = pFirstAngleBracket;
+		}
+		else if (pFirstSpace)
+		{
+			pLabelEnd = pFirstSpace;
+		}
 
 		// localize token
 		string token(pLabel, pLabelEnd);

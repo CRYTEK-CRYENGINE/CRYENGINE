@@ -8,72 +8,111 @@
 
 #include "AppDomain.h"
 
-#include <CryMono/IMonoAssembly.h>
-
-CMonoObject::CMonoObject(MonoObject* pObject, std::shared_ptr<IMonoClass> pClass)
+CMonoObject::CMonoObject(MonoInternals::MonoObject* pObject, std::shared_ptr<CMonoClass> pClass)
 	: m_pClass(pClass)
 	, m_pObject(pObject)
 {
-	m_gcHandle = mono_gchandle_new(m_pObject, true);
+	CRY_ASSERT_MESSAGE(m_pClass.get() != nullptr, "SetWeakPointer must be called if no class is available!");
+
+	m_gcHandle = MonoInternals::mono_gchandle_new(m_pObject, true);
+}
+
+CMonoObject::CMonoObject(MonoInternals::MonoObject* pObject)
+	: m_pObject(pObject)
+{
+	m_gcHandle = MonoInternals::mono_gchandle_new(m_pObject, true);
 }
 
 CMonoObject::~CMonoObject()
 {
-	mono_gchandle_free(m_gcHandle);
+	ReleaseGCHandle();
 }
 
-std::shared_ptr<IMonoObject> CMonoObject::InvokeMethod(const char *methodName, void **pParams, int numParams) const
+void CMonoObject::ReleaseGCHandle()
 {
-	return m_pClass->InvokeMethod(methodName, this, pParams, numParams);
+	if (m_gcHandle != 0)
+	{
+		MonoInternals::mono_gchandle_free(m_gcHandle);
+		m_gcHandle = 0;
+	}
 }
 
-std::shared_ptr<IMonoObject> CMonoObject::InvokeMethodWithDesc(const char* methodDesc, void** pParams) const
+std::shared_ptr<CMonoString> CMonoObject::ToString() const
 {
-	return m_pClass->InvokeMethodWithDesc(methodDesc, this, pParams);
-}
+	MonoInternals::MonoObject* pException = nullptr;
 
-const char* CMonoObject::ToString() const
-{
-	MonoObject* pException = nullptr;
-
-	MonoString* pStr = mono_object_to_string(m_pObject, &pException);
+	MonoInternals::MonoString* pStr = MonoInternals::mono_object_to_string(m_pObject, &pException);
 	if (pException != nullptr)
 	{
-		static_cast<CMonoRuntime*>(gEnv->pMonoRuntime)->HandleException(pException);
+		GetMonoRuntime()->HandleException((MonoInternals::MonoException*)pException);
 		return nullptr;
 	}
 
-	if (!pStr)
+	if (pStr == nullptr)
 	{
 		return nullptr;
 	}
 
-	return mono_string_to_utf8(pStr);
+	return CMonoDomain::CreateString(pStr);
 }
 
 size_t CMonoObject::GetArraySize() const
 {
-	return mono_array_length((MonoArray*)m_pObject);
+	return MonoInternals::mono_array_length((MonoInternals::MonoArray*)m_pObject);
 }
 
 char* CMonoObject::GetArrayAddress(size_t elementSize, size_t index) const
 {
-	return mono_array_addr_with_size((MonoArray*)m_pObject, elementSize, index);
+	return MonoInternals::mono_array_addr_with_size((MonoInternals::MonoArray*)m_pObject, elementSize, index);
 }
 
-void CMonoObject::Serialize()
+void CMonoObject::AssignObject(MonoInternals::MonoObject* pObject)
 {
-	auto* pDomain = static_cast<CAppDomain*>(m_pClass->GetAssembly()->GetDomain());
-
-	pDomain->Serialize(m_pObject, false);
+	m_pObject = pObject;
+	m_gcHandle = MonoInternals::mono_gchandle_new(m_pObject, true);
 }
 
-void CMonoObject::Deserialize()
+CMonoClass* CMonoObject::GetClass()
 {
-	auto* pDomain = static_cast<CAppDomain*>(m_pClass->GetAssembly()->GetDomain());
+	if (m_pClass == nullptr)
+	{
+		MonoInternals::MonoClass* pClass = MonoInternals::mono_object_get_class(m_pObject);
+		MonoInternals::MonoImage* pImage = MonoInternals::mono_class_get_image(pClass);
+		MonoInternals::MonoAssembly* pAssembly = MonoInternals::mono_image_get_assembly(pImage);
 
-	auto pDeserializedObject = pDomain->Deserialize(false);
-	
-	m_pObject = (MonoObject*)pDeserializedObject->GetHandle();
-	m_gcHandle = mono_gchandle_new(m_pObject, true);
+		CMonoLibrary* pLibrary = GetMonoRuntime()->GetActiveDomain()->GetLibraryFromMonoAssembly(pAssembly);
+
+		m_pClass = pLibrary->GetClassFromMonoClass(pClass);
+	}
+
+	return m_pClass.get();
+}
+
+void CMonoObject::CopyFrom(const CMonoObject& source)
+{
+	CopyFrom(source.GetManagedObject());
+}
+
+void CMonoObject::CopyFrom(MonoInternals::MonoObject* pSource)
+{
+	if (GetClass()->IsValueType())
+	{
+		MonoInternals::mono_gc_wbarrier_object_copy(m_pObject, pSource);
+	}
+	else
+	{
+		MonoInternals::mono_gc_wbarrier_generic_store(&m_pObject, pSource);
+	}
+}
+
+std::shared_ptr<CMonoObject> CMonoObject::Clone()
+{
+	std::shared_ptr<CMonoObject> pNewObject = GetClass()->CreateUninitializedInstance();
+	pNewObject->CopyFrom(*this);
+	return pNewObject;
+}
+
+void* CMonoObject::UnboxObject()
+{
+	return mono_object_unbox(m_pObject);
 }

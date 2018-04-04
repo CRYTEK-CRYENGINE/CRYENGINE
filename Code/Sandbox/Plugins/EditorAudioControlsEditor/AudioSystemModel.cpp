@@ -92,7 +92,7 @@ QVariant QAudioSystemModel::data(const QModelIndex& index, int role) const
 						{
 							return QColor(36, 180, 245);
 						}
-						else if (!pItem->IsConnected() && m_pAudioSystem->ImplTypeToATLType(pItem->GetType()) != eACEControlType_NumTypes)
+						else if (!pItem->IsConnected() && m_pAudioSystem->ImplTypeToATLType(pItem->GetType()) != eItemType_Invalid)
 						{
 							// Tint non connected controls that can actually be connected to something (ie. exclude folders)
 							return QColor(255, 143, 0);
@@ -140,7 +140,7 @@ Qt::ItemFlags QAudioSystemModel::flags(const QModelIndex& index) const
 	if (index.isValid() && m_pAudioSystem)
 	{
 		IAudioSystemItem* pItem = ItemFromIndex(index);
-		if (pItem && !pItem->IsPlaceholder() && m_pAudioSystem->ImplTypeToATLType(pItem->GetType()) != eACEControlType_NumTypes)
+		if (pItem && !pItem->IsPlaceholder() && m_pAudioSystem->ImplTypeToATLType(pItem->GetType()) != eItemType_NumTypes)
 		{
 			flag |= Qt::ItemIsDragEnabled;
 		}
@@ -283,7 +283,7 @@ bool QAudioSystemModelProxyFilter::rowMatchesFilter(int source_row, const QModel
 					return false;
 				}
 			}
-			return sourceModel()->data(index, QAudioSystemModel::eAudioSystemAttributes_Type).toInt() & m_allowedControlsMask;
+			return true;
 		}
 	}
 	return false;
@@ -320,6 +320,29 @@ bool QAudioSystemModelProxyFilter::lessThan(const QModelIndex& left, const QMode
 		}
 	}
 	return QSortFilterProxyModel::lessThan(left, right);
+}
+
+namespace AudioModelUtils
+{
+void DecodeImplMimeData(const QMimeData* pData, std::vector<IAudioSystemItem*>& outItems)
+{
+	ACE::IAudioSystemEditor* pAudioSystemEditorImpl = CAudioControlsEditorPlugin::GetAudioSystemEditorImpl();
+	QByteArray encoded = pData->data(QAudioSystemModel::ms_szMimeType);
+	QDataStream stream(&encoded, QIODevice::ReadOnly);
+	while (!stream.atEnd())
+	{
+		CID id;
+		stream >> id;
+		if (id != ACE_INVALID_ID)
+		{
+			IAudioSystemItem* pAudioSystemControl = pAudioSystemEditorImpl->GetControl(id);
+			if (pAudioSystemControl)
+			{
+				outItems.push_back(pAudioSystemControl);
+			}
+		}
+	}
+}
 }
 
 }

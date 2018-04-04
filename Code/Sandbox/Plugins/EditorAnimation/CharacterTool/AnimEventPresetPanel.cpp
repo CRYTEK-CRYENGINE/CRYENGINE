@@ -8,7 +8,7 @@
 #include "BlockPaletteContent.h"
 #include <QBoxLayout>
 #include <QDir>
-#include <QPropertyTree/QPropertyTree.h>
+#include <Serialization/QPropertyTree/QPropertyTree.h>
 #include "../EditorCommon/QPropertyTree/ContextList.h"
 #include "Serialization.h"
 #include "Expected.h"

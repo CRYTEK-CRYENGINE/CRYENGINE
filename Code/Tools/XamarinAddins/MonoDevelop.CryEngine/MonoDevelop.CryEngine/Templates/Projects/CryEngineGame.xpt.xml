@@ -1,0 +1,53 @@
+﻿<?xml version="1.0"?>
+<Template	originator="Crytek"
+			created="2015/06/01"
+			lastModified="2015/22/11">
+
+	<!-- Template Header -->
+	<TemplateConfiguration>
+		<_Name>CryEngine Game Project</_Name>
+		<Category>cry/cry/general</Category>
+		<!--<Icon>md-project-cry</Icon>-->
+		<LanguageName>C#</LanguageName>
+		<_Description>Creates a CryEngine Game project.</_Description>
+		<Wizard>CryEngineGameWizard</Wizard>
+	</TemplateConfiguration>
+
+	<!-- Actions -->
+	<Actions>
+		<Open filename="Launcher.cs"/>
+	</Actions>
+
+	<!-- Template Content -->
+	<Combine name = "${ProjectName}" directory = ".">
+		<Options>
+			<StartupProject>${ProjectName}</StartupProject>
+		</Options>
+
+		<Project name = "${ProjectName}" directory = "." type = "CryEngineGame">
+			<Options />
+			<References>
+				<Reference type="Package" refto="System"/>
+			</References>
+			<Files>
+				<File name="Launcher.cs">
+<![CDATA[using System;
+
+namespace CryEngine.Game
+{
+		public class Launcher
+		{
+				public static void Initialize()
+				{
+				}
+				
+				public static void Shutdown()
+				{
+				}
+		}
+}]]>
+				</File>
+			</Files>
+		</Project>
+	</Combine>
+</Template>

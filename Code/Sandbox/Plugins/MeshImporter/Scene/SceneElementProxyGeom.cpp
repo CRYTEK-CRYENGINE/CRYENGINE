@@ -10,7 +10,7 @@
 #include <CrySerialization/Enum.h>
 #include <CrySerialization/Math.h>
 
-#include <yasli/decorators/Range.h>
+#include <CrySerialization/yasli/decorators/Range.h>
 
 enum EPhysProxyType
 {

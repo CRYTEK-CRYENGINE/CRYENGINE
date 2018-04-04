@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 // -------------------------------------------------------------------------
 //  Created:     27/10/2014 by Filipe amim
@@ -36,7 +36,7 @@ public:
 
 	uint VariantCount() const
 	{
-		return m_tileCount / m_anim.m_frameCount;
+		return m_tileCount / max(1u, uint(m_anim.m_frameCount));
 	}
 
 	virtual void AddToComponent(CParticleComponent* pComponent, SComponentParams* pParams) override
@@ -55,7 +55,6 @@ public:
 			pComponent->AddParticleData(EPDT_Tile);
 			if (m_variantMode == EVariantMode::Ordered)
 				pComponent->AddParticleData(EPDT_SpawnId);
-			pComponent->AddParticleData(EPDT_Tile);
 			pComponent->AddToUpdateList(EUL_InitUpdate, this);
 		}
 	}
@@ -142,6 +141,17 @@ public:
 		ar(TextureFilename(m_textureName), "Texture", "Texture");
 	}
 
+	virtual uint GetNumResources() const override 
+	{ 
+		return !m_materialName.empty() || !m_textureName.empty() ? 1 : 0; 
+	}
+
+	virtual const char* GetResourceName(uint resourceId) const override
+	{ 
+		// Material has priority over the texture.
+		return !m_materialName.empty() ? m_materialName.c_str() : m_textureName.c_str();
+	}
+
 private:
 	string m_materialName;
 	string m_textureName;
@@ -149,18 +159,22 @@ private:
 
 CRY_PFX2_IMPLEMENT_FEATURE(CParticleFeature, CFeatureAppearanceMaterial, "Appearance", "Material", colorAppearance);
 
+static const float kiloScale = 1000.0f;
+static const float toLightUnitScale = kiloScale / RENDERER_LIGHT_UNIT_SCALE;
+
 class CFeatureAppearanceLighting : public CParticleFeature
 {
 public:
 	CRY_PFX2_DECLARE_FEATURE
 
 	CFeatureAppearanceLighting()
-		: m_albedo(100.0f)
+		: m_diffuse(1.0f)
 		, m_backLight(0.0f)
 		, m_emissive(0.0f)
 		, m_curvature(0.0f)
 		, m_receiveShadows(false)
 		, m_affectedByFog(true)
+		, m_environmentLighting(true)
 		, CParticleFeature(gpu_pfx2::eGpuFeatureType_Dummy) {}
 
 	virtual void AddToComponent(CParticleComponent* pComponent, SComponentParams* pParams) override
@@ -169,31 +183,32 @@ public:
 		//	L = max(0, cos(a)*(1-y)+y)
 		//	cos(a) = dot(l, n)
 		//	y = back lighting
-		const float y = m_backLight.Get();
+		const float y = m_backLight;
 		const float energyNorm = (y < 0.5) ? (1 - y) : (1.0f / (4.0f * y));
-		const float kiloScale = 1000.0f;
-		const float toLightUnitScale = kiloScale / RENDERER_LIGHT_UNIT_SCALE;
-		pParams->m_shaderData.m_diffuseLighting = (m_albedo * energyNorm) / 100.0f;
+		pParams->m_shaderData.m_diffuseLighting = m_diffuse * energyNorm;
 		pParams->m_shaderData.m_backLighting = m_backLight;
 		pParams->m_shaderData.m_emissiveLighting = m_emissive * toLightUnitScale;
 		pParams->m_shaderData.m_curvature = m_curvature;
-		if (m_albedo >= FLT_EPSILON)
+		if (m_diffuse >= FLT_EPSILON)
 			pParams->m_renderObjectFlags |= FOB_LIGHTVOLUME;
 		if (m_receiveShadows)
 			pParams->m_renderObjectFlags |= FOB_INSHADOW;
 		if (!m_affectedByFog)
 			pParams->m_renderObjectFlags |= FOB_NO_FOG;
+		if (m_environmentLighting)
+			pParams->m_renderStateFlags |= OS_ENVIRONMENT_CUBEMAP;
 	}
 
 	virtual void Serialize(Serialization::IArchive& ar) override
 	{
 		CParticleFeature::Serialize(ar);
-		ar(m_albedo, "Albedo", "Albedo (%)");
+		ar(m_diffuse, "Diffuse", "Diffuse");
 		ar(m_backLight, "BackLight", "Back Light");
 		ar(m_emissive, "Emissive", "Emissive (kcd/m2)");
 		ar(m_curvature, "Curvature", "Curvature");
 		ar(m_receiveShadows, "ReceiveShadows", "Receive Shadows");
 		ar(m_affectedByFog, "AffectedByFog", "Affected by Fog");
+		ar(m_environmentLighting, "EnvironmentLighting", "Environment Lighting");
 		if (ar.isInput())
 			VersionFix(ar);
 	}
@@ -201,25 +216,25 @@ public:
 private:
 	void VersionFix(Serialization::IArchive& ar)
 	{
-		const float kiloScale = 1000.0f;
-		const float toPhysicalScale = 1.0f / (kiloScale / RENDERER_LIGHT_UNIT_SCALE);
-		float diffuse;
-		switch (GetVersion(ar))
+		uint version = GetVersion(ar);
+		if (version == 1)
 		{
-		case 1:
-			ar(diffuse, "Diffuse");
-			m_albedo.Set(diffuse * 100.0f);
-			m_emissive.Set(m_emissive * toPhysicalScale);
-			break;
+			m_emissive.Set(m_emissive / toLightUnitScale);
+		}
+		else if (version < 10)
+		{
+			if (ar(m_diffuse, "Albedo"))
+				m_diffuse.Set(m_diffuse * 0.01f);
 		}
 	}
 
-	UFloat100  m_albedo;
+	UFloat     m_diffuse;
 	UUnitFloat m_backLight;
 	UFloat10   m_emissive;
 	UUnitFloat m_curvature;
 	bool       m_receiveShadows;
 	bool       m_affectedByFog;
+	bool       m_environmentLighting;
 };
 
 CRY_PFX2_IMPLEMENT_FEATURE(CParticleFeature, CFeatureAppearanceLighting, "Appearance", "Lighting", colorAppearance);
@@ -299,7 +314,7 @@ public:
 
 	virtual void AddToComponent(CParticleComponent* pComponent, SComponentParams* pParams) override
 	{
-		pParams->m_visibility = static_cast<const SVisibilityParams&>(*this);
+		pParams->m_visibility.Combine(*this);
 		if (m_drawNear)
 			pParams->m_renderObjectFlags |= FOB_NEAREST;
 		if (m_drawOnTop)

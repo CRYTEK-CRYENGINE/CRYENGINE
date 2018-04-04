@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 /********************************************************************
    -------------------------------------------------------------------------
@@ -34,12 +34,10 @@
 #include <CryNetwork/ISerialize.h>
 #include <CryAISystem/IAgent.h>
 #include <CryCore/Containers/VectorSet.h>
-#include <CryAISystem/AISystemListener.h>
 
 #include "CAISystem.h"
 #include "CryAISystem.h"
 #include "AILog.h"
-#include "CTriangulator.h"
 #include "Free2DNavRegion.h"
 #include "Graph.h"
 #include "AStarSolver.h"
@@ -60,7 +58,6 @@
 #include "StatsManager.h"
 #include "TacticalPointSystem/TacticalPointSystem.h"
 #include "Communication/CommunicationManager.h"
-#include "SelectionTree/SelectionTreeManager.h"
 #include "Walkability/WalkabilityCacheManager.h"
 #include "Navigation/NavigationSystem/NavigationSystem.h"
 
@@ -720,9 +717,9 @@ void CAISystem::SingleDryUpdate(CAIActor* pAIActor)
 {
 	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_AI);
 	if (pAIActor->IsEnabled())
-		pAIActor->Update(AIUPDATE_DRY);
+		pAIActor->Update(IAIObject::EUpdateType::Dry);
 	else
-		pAIActor->UpdateDisabled(AIUPDATE_DRY);
+		pAIActor->UpdateDisabled(IAIObject::EUpdateType::Dry);
 }
 
 //

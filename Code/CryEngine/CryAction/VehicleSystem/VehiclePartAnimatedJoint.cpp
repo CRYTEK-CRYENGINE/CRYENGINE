@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 /*************************************************************************
    -------------------------------------------------------------------------
@@ -271,7 +271,7 @@ void CVehiclePartAnimatedJoint::SetMoveable(bool allowTranslationMovement)
 	m_isMoveable = true;
 	m_isTransMoveable = allowTranslationMovement;
 
-	CryCreateClassInstance("AnimationPoseModifier_OperatorQueue", m_operatorQueue);
+	CryCreateClassInstanceForInterface(cryiidof<IAnimationOperatorQueue>(), m_operatorQueue);
 	m_pVehicle->SetObjectUpdate(this, IVehicle::eVOU_PassengerUpdate);
 }
 

@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 // -------------------------------------------------------------------------
 //  Created:     25/03/2015 by Filipe amim
@@ -120,9 +120,7 @@ void CParamMod<TParamModContext, T >::InitParticles(const SUpdateContext& contex
 
 	CRY_PFX2_ASSERT(dataStream.IsValid());
 
-	SUpdateRange spawnRange;
-	spawnRange.m_firstParticleId = context.m_container.GetFirstSpawnParticleId();
-	spawnRange.m_lastParticleId = context.m_container.GetLastParticleId();
+	SUpdateRange spawnRange = container.GetSpawnedRange();
 	const floatv baseValue = ToFloatv(m_baseValue);
 
 	CRY_PFX2_FOR_SPAWNED_PARTICLEGROUP(context)
@@ -206,7 +204,7 @@ TRange<typename T::TType> CParamMod<TParamModContext, T >::GetValues(const SUpda
 }
 
 template<typename TParamModContext, typename T>
-TRange<typename T::TType> CParamMod<TParamModContext, T >::GetValues(const SUpdateContext& context, Array<TType, uint> data, EModDomain domain, bool updating) const
+TRange<typename T::TType> CParamMod<TParamModContext, T >::GetValues(const SUpdateContext& context, TVarArray<TType> data, EModDomain domain, bool updating) const
 {
 	return GetValues(context, data.data(), SUpdateRange(0, data.size()), domain, updating);
 }

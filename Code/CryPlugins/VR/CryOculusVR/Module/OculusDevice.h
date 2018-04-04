@@ -43,12 +43,11 @@ public:
 	// ~IHMDDevice interface
 
 	// IOculusDevice interface
-	virtual bool CreateSwapTextureSetD3D11(IUnknown* d3d11Device, TextureDesc desc, STextureSwapChain* set) final;
-	virtual bool CreateMirrorTextureD3D11(IUnknown* d3d11Device, TextureDesc desc, STexture* texture) final;
-
+	// TODO: move into CRenderer, each implementation does it's own apropriate creation
 	virtual bool CreateSwapTextureSetD3D12(IUnknown* d3d12CommandQueue, TextureDesc desc, STextureSwapChain* set) final;
 	virtual bool CreateMirrorTextureD3D12(IUnknown* d3d12CommandQueue, TextureDesc desc, STexture* texture) final;
-	// TODO: move into CRenderer, each implementation does it's own apropriate creation
+	virtual bool CreateSwapTextureSetD3D11(IUnknown* d3d11Device, TextureDesc desc, STextureSwapChain* set) final;
+	virtual bool CreateMirrorTextureD3D11(IUnknown* d3d11Device, TextureDesc desc, STexture* texture) final;
 
 	virtual void DestroySwapTextureSet(STextureSwapChain* set) override;
 	virtual void DestroyMirrorTexture(STexture* texture) override;

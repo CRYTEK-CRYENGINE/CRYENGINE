@@ -1,4 +1,6 @@
 // Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved.
+
+// ResourceCompilerImage.cpp : Defines the entry point for the DLL application.
 //
 
 #include "stdafx.h"
@@ -10,7 +12,7 @@
 #include <assert.h>
 #include "ResourceCompilerImage.h"
 #include "IResCompiler.h"
-#include "ImageConvertor.h"             // CImageConvertor
+#include "ImageConverter.h"             // CImageConverter
 #include "Streaming/TextureSplitter.h"  // CTextureSplitter
 #include "PixelFormats.h"               // CPixelFormats
 #include "ImageProperties.h"            // EImageCompressor
@@ -25,13 +27,13 @@
 extern "C" IMAGE_DOS_HEADER __ImageBase;
 HINSTANCE g_hInst = (HINSTANCE)&__ImageBase;
 
-void __stdcall RegisterConvertors(IResourceCompiler* pRC)
+void __stdcall RegisterConverters(IResourceCompiler* pRC)
 {
 	SetRCLog(pRC->GetIRCLog());
 
 	// image formats
 	{
-		pRC->RegisterConvertor("ImageConvertor", new CImageConvertor(pRC));
+		pRC->RegisterConverter("ImageConverter", new CImageConverter(pRC));
 
 		pRC->RegisterKey("streaming","[TIF] Split final output files for streaming");
 		pRC->RegisterKey("userdialog","[TIF] 0/1 to show the dialog for the ResourceCompilerImage");
@@ -224,21 +226,29 @@ void __stdcall RegisterConvertors(IResourceCompiler* pRC)
 			"      fast		- fast mode with less quality\n"
 			"      normal	- default\n"
 			"      slow		- slow mode with superb quality");
+		pRC->RegisterKey("blocksize",
+			"[TIF] ASTC texture compression block size. Valid sizes:\n"
+			"      4x4   - 8    bit per pixel, 125% larger than next one (default)\n"
+			"      5x4   - 6.4  bit per pixel, 125% larger than next one \n"
+			"      5x5   - 5.12 bit per pixel, 120% larger than next one \n"
+			"      6x5   - 4.27 bit per pixel, 120% larger than next one \n"
+			"      6x6   - 3.56 bit per pixel, 114% larger than next one \n"
+			"      8x5   - 3.2  bit per pixel, 120% larger than next one \n"
+			"      8x6   - 2.67 bit per pixel, 105% larger than next one \n"
+			"      10x5  - 2.56 bit per pixel, 120% larger than next one \n"
+			"      10x6  - 2.13 bit per pixel, 107% larger than next one \n"
+			"      8x8   - 2    bit per pixel, 125% larger than next one \n"
+			"      10x8  - 1.6  bit per pixel, 125% larger than next one \n"
+			"      10x10 - 1.28 bit per pixel, 120% larger than next one \n"
+			"      12x10 - 1.07 bit per pixel, 120% larger than next one \n"
+			"      12x12 - 0.89 bit per pixel");
 	}
 
 	// Texture splitter
 	{
-		pRC->RegisterConvertor("TextureSplitter", new CTextureSplitter());
-
+		pRC->RegisterConverter("TextureSplitter", new CTextureSplitter());
+		pRC->RegisterKey("decompress", "[DDS] 0/1 to decompress dds to tif");
 		pRC->RegisterKey("dont_split","[DDS] don't split the file for streaming layout");	
 		pRC->RegisterKey("numstreamablemips", "[DDS] Number of mips that should be available for streaming - defaults to all");
-	}
-}
-
-namespace AssetManager
-{
-	std::vector<std::pair<string, string>> CollectMetadataDetails(const char* szFilename)
-	{
-		return{};
 	}
 }

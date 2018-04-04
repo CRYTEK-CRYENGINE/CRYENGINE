@@ -22,11 +22,13 @@
 #include <QToolBar>
 #include <QToolButton>
 #include <QTreeView>
-#include <QPropertyTree/QPropertyTree.h>
+#include <Serialization/QPropertyTree/QPropertyTree.h>
 #include "QViewport.h"
-#include "../EditorCommon/DockTitleBarWidget.h"
-#include "../EditorCommon/UnsavedChangesDialog.h"
-#include "../EditorCommon/FileDialogs/EngineFileDialog.h"
+#include "DockTitleBarWidget.h"
+#include "UnsavedChangesDialog.h"
+#include "FileDialogs/EngineFileDialog.h"
+#include "FileDialogs/SystemFileDialog.h"
+#include "FilePathUtil.h"
 #include "SplitViewport.h"
 #include "CharacterDocument.h"
 #include "AnimationList.h"
@@ -39,8 +41,8 @@
 
 #include "Expected.h"
 #include "Serialization.h"
-#include <yasli/JSONOArchive.h>
-#include <yasli/JSONIArchive.h>
+#include <CrySerialization/yasli/JSONOArchive.h>
+#include <CrySerialization/yasli/JSONIArchive.h>
 
 #include "CleanCompiledAnimationsTool.h"
 #include "ResaveAnimSettingsTool.h"
@@ -67,6 +69,7 @@
 #include <CryIcon.h>
 #include "Controls/QuestionDialog.h"
 #include <ICommandManager.h>
+#include "Preferences/ViewportPreferences.h"
 
 extern CharacterTool::System* g_pCharacterToolSystem;
 
@@ -120,7 +123,7 @@ struct CharacterToolForm::SPrivate : IEditorNotifyListener
 		}
 		else if (event == eNotify_OnQuit)
 		{
-			form->SaveState(GetStateFilename(), false);
+			form->SaveLayoutToFile(GetStateFilename());
 		}
 	}
 
@@ -137,6 +140,7 @@ CharacterToolForm::CharacterToolForm(QWidget* parent)
 	, m_dockWidgetManager(new DockWidgetManager(this))
 	, m_menuView()
 	, m_closed(false)
+	, m_bHasFocus(true)
 {
 	m_displayParametersSplitterWidths[0] = 400;
 	m_displayParametersSplitterWidths[1] = 200;
@@ -195,37 +199,9 @@ void CharacterToolForm::UpdatePanesMenu()
 	menuBar()->insertMenu(menuBar()->actions()[1], m_menuView);
 }
 
-void CharacterToolForm::UpdateLayoutMenu()
-{
-	m_menuLayout->clear();
-
-	ActionCreator addToLayout(m_menuLayout, this, false);
-	vector<string> layouts = FindLayoutNames();
-	for (size_t i = 0; i < layouts.size(); ++i)
-	{
-		QAction* action = addToLayout(layouts[i].c_str(), SLOT(OnLayoutSet()), QVariant(layouts[i].c_str()));
-	}
-	if (!layouts.empty())
-		m_menuLayout->addSeparator();
-	m_actionLayoutSaveState = addToLayout("Save Layout...", SLOT(OnLayoutSave()));
-	QMenu* removeMenu = m_menuLayout->addMenu("Remove");
-	if (layouts.empty())
-		removeMenu->setEnabled(false);
-	else
-	{
-		for (size_t i = 0; i < layouts.size(); ++i)
-		{
-			QAction* action = removeMenu->addAction(layouts[i].c_str());
-			action->setData(QVariant(QString(layouts[i].c_str())));
-			connect(action, SIGNAL(triggered()), this, SLOT(OnLayoutRemove()));
-		}
-	}
-	m_menuLayout->addSeparator();
-	m_actionLayoutReset = addToLayout("&Reset to Default", SLOT(OnLayoutReset()));
-}
-
 void CharacterToolForm::Initialize()
 {
+	LOADING_TIME_PROFILE_SECTION;
 	m_private.reset(new SPrivate(this, m_system->document.get()));
 
 	m_modeCharacter.reset(new ModeCharacter());
@@ -235,6 +211,7 @@ void CharacterToolForm::Initialize()
 	EXPECTED(connect(m_system->document.get(), SIGNAL(SignalExplorerSelectionChanged()), this, SLOT(OnExplorerSelectionChanged())));
 	EXPECTED(connect(m_system->document.get(), SIGNAL(SignalCharacterLoaded()), this, SLOT(OnCharacterLoaded())));
 	EXPECTED(connect(m_system->document.get(), SIGNAL(SignalDisplayOptionsChanged(const DisplayOptions &)), this, SLOT(OnDisplayOptionsChanged(const DisplayOptions &))));
+	EXPECTED(connect(QApplication::instance(), SIGNAL(focusChanged(QWidget*, QWidget*)), this, SLOT(OnFocusChanged(QWidget*, QWidget*))));
 
 	QWidget* centralWidget = new QWidget();
 	setCentralWidget(centralWidget);
@@ -308,11 +285,14 @@ void CharacterToolForm::Initialize()
 	QObject::connect(menuFileRecent, &QMenu::aboutToShow, this, [=]() { OnFileRecentAboutToShow(menuFileRecent); });
 	EXPECTED(connect(fileMenu->addAction("&Save All"), SIGNAL(triggered()), this, SLOT(OnFileSaveAll())));
 	fileMenu->addSeparator();
+	EXPECTED(connect(fileMenu->addAction("Import Animation Layers"), &QAction::triggered, this, &CharacterToolForm::OnImportAnimationLayers));
+	EXPECTED(connect(fileMenu->addAction("Export Animation Layers"), &QAction::triggered, this, &CharacterToolForm::OnExportAnimationLayers));
+	fileMenu->addSeparator();
 	EXPECTED(connect(fileMenu->addAction("&Clean Compiled Animations..."), SIGNAL(triggered()), this, SLOT(OnFileCleanAnimations())));
 	EXPECTED(connect(fileMenu->addAction("Resave &AnimSettings..."), SIGNAL(triggered()), this, SLOT(OnFileResaveAnimSettings())));
 
 	QMenu* const importMenu = fileMenu->addMenu(tr("Import FBX"));
-	EXPECTED(connect(importMenu->addAction("Skin"), &QAction::triggered, []() { GetIEditor()->OpenView("Skin"); }));
+	EXPECTED(connect(importMenu->addAction("Skin"), &QAction::triggered, []() { GetIEditor()->OpenView("Mesh"); }));
 	EXPECTED(connect(importMenu->addAction("Animation"), &QAction::triggered, []() { GetIEditor()->OpenView("Animation"); }));
 	EXPECTED(connect(importMenu->addAction("Skeleton"), &QAction::triggered, []() { GetIEditor()->OpenView("Skeleton"); }));
 
@@ -337,7 +317,7 @@ void CharacterToolForm::Initialize()
 	EXPECTED(connect(m_dockWidgetManager.get(), SIGNAL(SignalChanged()), SLOT(OnDockWidgetsChanged())));
 	m_dockWidgetManager->AddDockWidgetType<ExplorerPanel>(this, &CharacterToolForm::CreateExplorerPanel, "Explorer", Qt::LeftDockWidgetArea);
 
-	ResetLayout();
+	ResetDockWidgetsToDefault();
 
 	ReadViewportOptions(m_system->document->GetViewportOptions(), m_system->document->GetDisplayOptions()->animation);
 
@@ -349,7 +329,18 @@ void CharacterToolForm::Initialize()
 
 	m_system->document->EnableAudio(true);
 
-	LoadState(GetStateFilename(), false);
+	{
+		MemoryOArchive oa;
+		SerializeLayout(oa);
+		m_defaultLayoutSnapshot.assign(oa.buffer(), oa.buffer() + oa.length());
+	}
+
+	LoadLayoutFromFile(GetStateFilename());
+}
+
+QRect CharacterToolForm::GetPaneRect()
+{
+	return QRect(pos(), size());
 }
 
 ExplorerPanel* CharacterToolForm::CreateExplorerPanel()
@@ -378,6 +369,17 @@ void CharacterToolForm::OnPanelDestroyed(QObject* obj)
 	}
 }
 
+void CharacterToolForm::OnFocusChanged(QWidget *old, QWidget *now)
+{
+	m_bHasFocus = false;
+	QWidget* parent = parentWidget();
+	if (parent)
+	{
+		while (parent->parentWidget()) parent = parent->parentWidget();
+		m_bHasFocus = parent->isAncestorOf(now);
+	}
+}
+
 void CharacterToolForm::ResetLayout()
 {
 	m_system->document->ScrubTime(0.0f, false);
@@ -388,24 +390,13 @@ void CharacterToolForm::ResetLayout()
 	m_splitViewport->CompressedViewport()->ResetCamera();
 	m_splitViewport->OriginalViewport()->ResetCamera();
 
-	m_dockWidgetManager->ResetToDefault();
+	ResetDockWidgetsToDefault();
 
-	CreateDefaultDockWidgets();
-}
-
-vector<string> CharacterToolForm::FindLayoutNames()
-{
-	vector<string> result;
-	QDir dir(QString(GetIEditor()->GetUserFolder()) + "\\CharacterTool\\Layouts");
-	QStringList layouts = dir.entryList(QDir::Files, QDir::Name);
-	for (size_t i = 0; i < layouts.size(); ++i)
+	MemoryIArchive ia;
+	if (ia.open(m_defaultLayoutSnapshot.data(), m_defaultLayoutSnapshot.size()))
 	{
-		QString name = layouts[i];
-		name.replace(QRegExp("\\.layout$"), "");
-		result.push_back(name.toLocal8Bit().data());
+		SerializeLayout(ia);
 	}
-
-	return result;
 }
 
 static QDockWidget* CreateDockWidget(std::vector<QDockWidget*>* dockWidgets, const char* title, const QString& name, QWidget* widget, Qt::DockWidgetArea area, CharacterToolForm* window)
@@ -420,11 +411,12 @@ static QDockWidget* CreateDockWidget(std::vector<QDockWidget*>* dockWidgets, con
 	return dock;
 }
 
-void CharacterToolForm::CreateDefaultDockWidgets()
+void CharacterToolForm::ResetDockWidgetsToDefault()
 {
-	for (size_t i = 0; i < m_dockWidgets.size(); ++i)
+	m_dockWidgetManager->ResetToDefault();
+
+	for (QDockWidget* widget : m_dockWidgets)
 	{
-		QDockWidget* widget = m_dockWidgets[i];
 		widget->setParent(0);
 		removeDockWidget(widget);
 		widget->deleteLater();
@@ -442,59 +434,66 @@ void CharacterToolForm::CreateDefaultDockWidgets()
 
 void CharacterToolForm::Serialize(Serialization::IArchive& ar)
 {
-	if (ar.filter(SERIALIZE_STATE))
+	ar(*m_system, "system");
+
+	ar(*m_dockWidgetManager, "dockWidgetManager");
+
+	ar(*m_displayParametersPanel, "displayPanel");
+
+	if (ar.isOutput() && m_displayParametersPanel->isVisible())
 	{
-		ar(*m_system, "system");
+		m_displayParametersSplitterWidths[0] = m_displayParametersSplitter->sizes()[0];
+		m_displayParametersSplitterWidths[1] = m_displayParametersSplitter->sizes()[1];
+	}
+	ar(m_displayParametersSplitterWidths, "displayParameterSplittersWidths");
+	bool displayOptionsVisible = !m_displayParametersPanel->isHidden();
+	ar(displayOptionsVisible, "displayOptionsVisible");
+	if (ar.isInput())
+	{
+		m_displayParametersPanel->setVisible(displayOptionsVisible);
+		QList<int> widths;
+		widths.push_back(m_displayParametersSplitterWidths[0]);
+		widths.push_back(m_displayParametersSplitterWidths[1]);
+		m_displayParametersSplitter->setSizes(widths);
+		m_displayParametersButton->setChecked(displayOptionsVisible);
+	}
 
-		ar(*m_dockWidgetManager, "dockWidgetManager");
+	if (m_playbackPanel)
+		ar(*m_playbackPanel, "playbackPanel");
+	if (m_propertiesPanel)
+		ar(*m_propertiesPanel, "propertiesPanel");
+	if (m_blendSpacePreview)
+		ar(*m_blendSpacePreview, "blendSpacePreview");
+	if (m_animEventPresetPanel)
+		ar(*m_animEventPresetPanel, "animEventPresetPanel");
 
-		int windowStateVersion = 0;
-		QByteArray windowState;
-		if (ar.isOutput())
-			windowState = saveState(windowStateVersion);
-		ar(windowState, "windowState");
-		if (ar.isInput() && !windowState.isEmpty())
-			restoreState(windowState, windowStateVersion);
+	ar(m_recentCharacters, "recentCharacters");
 
-		ar(*m_displayParametersPanel, "displayPanel");
+	QByteArray windowGeometry;
+	QByteArray windowState;
+	if (ar.isOutput())
+	{
+		windowGeometry = saveGeometry();
+		windowState = saveState();
+	}
+	ar(windowGeometry, "windowGeometry");
+	ar(windowState, "windowState");
+	if (ar.isInput())
+	{
+		restoreGeometry(windowGeometry);
+		restoreState(windowState);
+	}
 
-		if (ar.isOutput() && m_displayParametersPanel->isVisible())
-		{
-			m_displayParametersSplitterWidths[0] = m_displayParametersSplitter->sizes()[0];
-			m_displayParametersSplitterWidths[1] = m_displayParametersSplitter->sizes()[1];
-		}
-		ar(m_displayParametersSplitterWidths, "displayParameterSplittersWidths");
-		bool displayOptionsVisible = !m_displayParametersPanel->isHidden();
-		ar(displayOptionsVisible, "displayOptionsVisible");
-		if (ar.isInput())
-		{
-			m_displayParametersPanel->setVisible(displayOptionsVisible);
-			QList<int> widths;
-			widths.push_back(m_displayParametersSplitterWidths[0]);
-			widths.push_back(m_displayParametersSplitterWidths[1]);
-			m_displayParametersSplitter->setSizes(widths);
-			m_displayParametersButton->setChecked(displayOptionsVisible);
-		}
-
-		if (m_playbackPanel)
-			ar(*m_playbackPanel, "playbackPanel");
-		if (m_propertiesPanel)
-			ar(*m_propertiesPanel, "propertiesPanel");
-		if (m_blendSpacePreview)
-			ar(*m_blendSpacePreview, "blendSpacePreview");
-		if (m_animEventPresetPanel)
-			ar(*m_animEventPresetPanel, "animEventPresetPanel");
-
-		ar(m_recentCharacters, "recentCharacters");
-		if (ar.isInput())
-		{
-			UpdatePanesMenu();
-		}
+	if (ar.isInput())
+	{
+		UpdatePanesMenu();
 	}
 }
 
 void CharacterToolForm::OnIdleUpdate()
 {
+	if (gViewportPreferences.toolsRenderUpdateMutualExclusive && !m_bHasFocus) return;
+
 	if (m_splitViewport)
 	{
 		m_splitViewport->OriginalViewport()->Update();
@@ -507,13 +506,67 @@ void CharacterToolForm::OnIdleUpdate()
 		m_blendSpacePreview->IdleUpdate();
 }
 
+static QString GetDirectoryFromPath(const QString& path)
+{
+	string driveLetter;
+	string directory;
+	string originalFilename;
+	string extension;
+	PathUtil::SplitPath(path.toStdString().c_str(), driveLetter, directory, originalFilename, extension);
+	return (driveLetter + directory).c_str();
+}
+
+void CharacterToolForm::OnExportAnimationLayers()
+{
+	static QString prevDir;
+
+	CSystemFileDialog::RunParams runParams;
+	runParams.title = QObject::tr("Export Animation Layers Setup");
+	runParams.initialDir = prevDir;
+	runParams.extensionFilters << CExtensionFilter(QObject::tr("XML Files (xml)"), "xml");
+	runParams.extensionFilters << CExtensionFilter(QObject::tr("All files (*.*)"), "*");
+	const QString fileName(CSystemFileDialog::RunExportFile(runParams, this));
+	if (!fileName.isNull())
+	{
+		prevDir = GetDirectoryFromPath(fileName);
+		GetIEditor()->GetSystem()->GetArchiveHost()->SaveXmlFile(
+			fileName.toStdString().c_str(),
+			Serialization::SStruct(m_system->scene->layers),
+			"AnimationLayers");
+	}
+}
+
+void CharacterToolForm::OnImportAnimationLayers()
+{
+	static QString prevDir;
+
+	CSystemFileDialog::RunParams runParams;
+	runParams.title = QObject::tr("Import Animation Layers Setup");
+	runParams.initialDir = prevDir;
+	runParams.extensionFilters << CExtensionFilter(QObject::tr("XML Files (xml)"), "xml");
+	runParams.extensionFilters << CExtensionFilter(QObject::tr("All files (*.*)"), "*");
+	const QString fileName(CSystemFileDialog::RunImportFile(runParams, this));
+	if (!fileName.isNull())
+	{
+		prevDir = GetDirectoryFromPath(fileName);
+		GetIEditor()->GetSystem()->GetArchiveHost()->LoadXmlFile(
+			Serialization::SStruct(m_system->scene->layers),
+			fileName.toStdString().c_str());
+		m_system->scene->PlaybackLayersChanged(false);
+		m_system->scene->SignalChanged(false);
+		// fire the signal twice, because CharacterDocument::OnScenePlaybackLayersChanged
+		// first selects an animation in the explorer ...
+		m_system->scene->PlaybackLayersChanged(false);
+	}
+}
+
 void CharacterToolForm::OnFileSaveAll()
 {
 	ActionOutput output;
 
 	m_system->explorerData->SaveAll(&output);
 
-	SaveState(GetStateFilename(), false);
+	SaveLayoutToFile(GetStateFilename());
 
 	m_animEventPresetPanel->SavePresets();
 
@@ -569,6 +622,51 @@ void CharacterToolForm::OnLayoutReset()
 	ResetLayout();
 }
 
+static string GetUserLayoutDirectoryPath()
+{
+	return string(GetIEditor()->GetUserFolder()) + "\\CharacterTool\\Layouts\\";
+}
+
+static string GetFilePathForUserLayout(const QString& layoutName)
+{
+	string filename = GetUserLayoutDirectoryPath();
+	filename += layoutName.toLocal8Bit().data();
+	filename += ".layout";
+
+	return filename;
+}
+
+static std::vector<string> FindLayoutNames()
+{
+	vector<string> result;
+	QDir dir(GetUserLayoutDirectoryPath().c_str());
+	QStringList layouts = dir.entryList(QDir::Files, QDir::Name);
+	for (size_t i = 0; i < layouts.size(); ++i)
+	{
+		QString name = layouts[i];
+		name.replace(QRegExp("\\.layout$"), "");
+		result.push_back(name.toLocal8Bit().data());
+	}
+
+	return result;
+}
+
+void CharacterToolForm::OnLayoutSave()
+{
+	QString name = QInputDialog::getText(this, "Save Layout...", "Layout Name:");
+	name = name.replace('.', "_");
+	name = name.replace(':', "_");
+	name = name.replace('\\', "_");
+	name = name.replace('/', "_");
+	name = name.replace('?', "_");
+	name = name.replace('*', "_");
+	if (!name.isEmpty())
+	{
+		SaveLayoutToFile(GetFilePathForUserLayout(name).c_str());
+		UpdateLayoutMenu();
+	}
+}
+
 void CharacterToolForm::OnLayoutSet()
 {
 	QAction* action = qobject_cast<QAction*>(sender());
@@ -576,7 +674,9 @@ void CharacterToolForm::OnLayoutSet()
 	{
 		QString name = action->data().toString();
 		if (!name.isEmpty())
-			LoadLayout(name.toLocal8Bit().data());
+		{
+			LoadLayoutFromFile(GetFilePathForUserLayout(name).c_str());
+		}
 	}
 }
 
@@ -587,8 +687,40 @@ void CharacterToolForm::OnLayoutRemove()
 	{
 		QString name = action->data().toString();
 		if (!name.isEmpty())
-			RemoveLayout(name.toLocal8Bit().data());
+		{
+			QFile::remove(GetFilePathForUserLayout(name).c_str());
+			UpdateLayoutMenu();
+		}
 	}
+}
+
+void CharacterToolForm::UpdateLayoutMenu()
+{
+	m_menuLayout->clear();
+
+	ActionCreator addToLayout(m_menuLayout, this, false);
+	vector<string> layouts = FindLayoutNames();
+	for (size_t i = 0; i < layouts.size(); ++i)
+	{
+		QAction* action = addToLayout(layouts[i].c_str(), SLOT(OnLayoutSet()), QVariant(layouts[i].c_str()));
+	}
+	if (!layouts.empty())
+		m_menuLayout->addSeparator();
+	m_actionLayoutSaveState = addToLayout("Save Layout...", SLOT(OnLayoutSave()));
+	QMenu* removeMenu = m_menuLayout->addMenu("Remove");
+	if (layouts.empty())
+		removeMenu->setEnabled(false);
+	else
+	{
+		for (size_t i = 0; i < layouts.size(); ++i)
+		{
+			QAction* action = removeMenu->addAction(layouts[i].c_str());
+			action->setData(QVariant(QString(layouts[i].c_str())));
+			connect(action, SIGNAL(triggered()), this, SLOT(OnLayoutRemove()));
+		}
+	}
+	m_menuLayout->addSeparator();
+	m_actionLayoutReset = addToLayout("&Reset to Default", SLOT(OnLayoutReset()));
 }
 
 void CharacterToolForm::ReadViewportOptions(const ViewportOptions& options, const DisplayAnimationOptions& animationOptions)
@@ -704,7 +836,7 @@ void CharacterToolForm::OnCharacterLoaded()
 	m_recentCharacters.insert(m_recentCharacters.begin(), filename);
 	if (m_recentCharacters.size() > NUM_RECENT_FILES)
 		m_recentCharacters.resize(NUM_RECENT_FILES);
-	SaveState(GetStateFilename(), false);
+	SaveLayoutToFile(GetStateFilename());
 
 	ExplorerEntries entries;
 	if (ExplorerEntry* charEntry = m_system->document->GetActiveCharacterEntry())
@@ -830,64 +962,31 @@ bool CharacterToolForm::event(QEvent* ev)
 	return __super::event(ev);
 }
 
-void CharacterToolForm::SaveState(const char* filename, bool layoutOnly)
+void CharacterToolForm::SerializeLayout(Serialization::IArchive& ar)
 {
-	QDir().mkdir((string(GetIEditor()->GetUserFolder()) + "\\CharacterTool").c_str());
-
-	yasli::JSONOArchive oa;
-	Serialization::SContext formContext(oa, this);
-	if (layoutOnly)
-		oa.setFilter(SERIALIZE_STATE | SERIALIZE_LAYOUT);
-	else
-		oa.setFilter(SERIALIZE_STATE);
-	oa(*this, "state");
-	oa.save(filename);
+	Serialization::SContext formContext(ar, this);
+	ar(*this, "state");
 }
 
-void CharacterToolForm::LoadState(const char* filename, bool layoutOnly)
+void CharacterToolForm::SaveLayoutToFile(const char* szFilePath)
+{
+	yasli::JSONOArchive oa;
+	SerializeLayout(oa);
+
+	QDir().mkpath(QFileInfo(szFilePath).absolutePath());
+	oa.save(szFilePath);
+}
+
+void CharacterToolForm::LoadLayoutFromFile(const char* szFilePath)
 {
 	yasli::JSONIArchive ia;
-	if (layoutOnly)
-		ia.setFilter(SERIALIZE_STATE | SERIALIZE_LAYOUT);
-	else
-		ia.setFilter(SERIALIZE_STATE);
-	Serialization::SContext formContext(ia, this);
-	if (!ia.load(filename))
-		return;
-	ia(*this, "state");
+	if (ia.load(szFilePath))
+	{
+		SerializeLayout(ia);
 
-	OnViewportOptionsChanged();
-	UpdatePanesMenu();
-}
-
-static string GetLayoutFilename(const char* name)
-{
-	string filename = string(GetIEditor()->GetUserFolder());
-	filename += "\\CharacterTool\\Layouts\\";
-	filename += name;
-	filename += ".layout";
-
-	return filename;
-}
-
-void CharacterToolForm::LoadLayout(const char* name)
-{
-	string filename = GetLayoutFilename(name);
-
-	LoadState(filename.c_str(), true);
-}
-
-void CharacterToolForm::SaveLayout(const char* name)
-{
-	string filename = string(GetIEditor()->GetUserFolder());
-	filename += "\\CharacterTool\\Layouts\\";
-	QDir().mkdir(filename.c_str());
-
-	filename += name;
-	filename += ".layout";
-
-	SaveState(filename.c_str(), true);
-	UpdateLayoutMenu();
+		OnViewportOptionsChanged();
+		UpdatePanesMenu();
+	}
 }
 
 void CharacterToolForm::OnFileRecentAboutToShow(QMenu* recentMenu)
@@ -919,28 +1018,6 @@ void CharacterToolForm::OnFileRecentAboutToShow(QMenu* recentMenu)
 	}
 }
 
-void CharacterToolForm::RemoveLayout(const char* name)
-{
-	string filename = GetLayoutFilename(name);
-
-	QFile::remove(filename.c_str());
-	UpdateLayoutMenu();
-}
-
-void CharacterToolForm::OnLayoutSave()
-{
-	QString name = QInputDialog::getText(this, "Save Layout...", "Layout Name:");
-	name = name.replace('.', "_");
-	name = name.replace(':', "_");
-	name = name.replace('\\', "_");
-	name = name.replace('/', "_");
-	name = name.replace('?', "_");
-	name = name.replace('*', "_");
-	if (!name.isEmpty())
-		SaveLayout(name.toLocal8Bit().data());
-	UpdateLayoutMenu();
-}
-
 CharacterToolForm::~CharacterToolForm()
 {
 	GetIEditor()->GetGlobalBroadcastManager()->DisconnectObject(this);
@@ -969,29 +1046,29 @@ void CharacterToolForm::closeEvent(QCloseEvent* ev)
 
 	if (!GetIEditor()->IsMainFrameClosing() && !unsavedEntries.empty())
 	{
-		DynArray<string> filenames;
-		for (UnsavedFilenameToEntries::iterator it = unsavedFilenameToEntries.begin(); it != unsavedFilenameToEntries.end(); ++it)
-			filenames.push_back(it->first);
-
 		DynArray<string> filenamesToSave;
-		if (!UnsavedChangesDialog(this, &filenamesToSave, filenames))
 		{
-			ev->ignore();
-			return;
+			DynArray<string> filenames;
+			filenames.reserve(unsavedFilenameToEntries.size());
+			std::transform(unsavedFilenameToEntries.begin(), unsavedFilenameToEntries.end(), std::back_inserter(filenames), [](const auto& it) { return it.first; });
+			if (!UnsavedChangesDialog(this, &filenamesToSave, filenames))
+			{
+				ev->ignore();
+				return;
+			}
 		}
 
 		ActionOutput saveOutput;
-
-		for (size_t i = 0; i < filenamesToSave.size(); ++i)
+		for (const auto& it : unsavedFilenameToEntries)
 		{
-			UnsavedFilenameToEntries::iterator it = unsavedFilenameToEntries.find(filenamesToSave[i]);
-			if (it == unsavedFilenameToEntries.end())
-				continue;
-			for (size_t j = 0; j < it->second.size(); ++j)
-			{
-				ExplorerEntry* entry = it->second[j];
-				m_system->explorerData->SaveEntry(&saveOutput, entry);
-			}
+			const auto& filename = it.first;
+			const auto& entries = it.second;
+
+			const auto& handler = std::find(filenamesToSave.begin(), filenamesToSave.end(), filename) != filenamesToSave.end()
+				? std::function<void(ExplorerEntry*)>([&](ExplorerEntry* entry) { m_system->explorerData->SaveEntry(&saveOutput, entry); })
+				: std::function<void(ExplorerEntry*)>([&](ExplorerEntry* entry) { m_system->explorerData->Revert(entry); });
+
+			std::for_each(entries.begin(), entries.end(), handler);
 		}
 
 		if (saveOutput.errorCount > 0)
@@ -1004,7 +1081,7 @@ void CharacterToolForm::closeEvent(QCloseEvent* ev)
 
 	m_closed = true;
 
-	SaveState(GetStateFilename(), false);
+	SaveLayoutToFile(GetStateFilename());
 	m_animEventPresetPanel->SavePresets();
 }
 

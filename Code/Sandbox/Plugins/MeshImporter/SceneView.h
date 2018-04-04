@@ -7,7 +7,7 @@ class CSceneModel;
 class CComboBoxDelegate;
 
 class QAttributeFilterProxyModel;
-class QSearchBox;
+class QFilteringPanel;
 
 class CSceneViewContainer;
 
@@ -42,10 +42,9 @@ public:
 	QAbstractItemModel*               GetModel();
 	QAbstractItemView*                GetView();
 
-	void SetSearchText(const QString& query);
 private:
 	std::unique_ptr<QAttributeFilterProxyModel> m_pFilterModel;
 	QAbstractItemModel*					m_pModel;
 	QTreeView*                          m_pView;
-	QSearchBox* m_pSearchBox;
+	QFilteringPanel* m_pFilteringPanel;
 };

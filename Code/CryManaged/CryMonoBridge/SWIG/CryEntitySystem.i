@@ -6,8 +6,12 @@
 %import "CryScriptSystem.i"
 %import "CryPhysics.i"
 %import "CryRender.i"
+%import "CryAnimation.i"
 
 %{
+#include <CryEntitySystem/IEntityBasicTypes.h>
+
+#include <CryAnimation/ICryAnimation.h>
 #include <CryNetwork/INetwork.h>
 
 #include <CryEntitySystem/IEntity.h>
@@ -21,12 +25,11 @@
 #include <CryExtension/CryTypeID.h>
 #include <CryExtension/ICryFactoryRegistry.h>
 #include <CryExtension/ICryFactory.h>
-#include <CryExtension/ICryUnknown.h>
-
-#include <IGameObjectSystem.h>
-#include <IGameObject.h>
 %}
 
+%ignore IEntitySystemEngineModule;
+
+%include "../../../CryEngine/CryCommon/CryEntitySystem/IEntityBasicTypes.h"
 %import "../../../../CryEngine/CryCommon/CryNetwork/INetwork.h"
 
 %csconstvalue("0xFFFFFFFF") eEA_All;
@@ -41,91 +44,12 @@
 %include "../../../CryEngine/CryCommon/CryExtension/CryGUID.h"
 %include "../../../CryEngine/CryCommon/CryExtension/CryTypeID.h"
 %include "../../../CryEngine/CryCommon/CryExtension/ICryFactoryRegistry.h"
-%include "../../../CryEngine/CryCommon/CryExtension/ICryFactory.h"
-%include "../../../CryEngine/CryCommon/CryExtension/ICryUnknown.h"
 
 %feature("director") IEntityComponent;
 %feature("director") IEntityAudioProxy;
 %include "../../../../CryEngine/CryCommon/CryEntitySystem/IEntityComponent.h"
 
-%feature("director") IGameObjectExtension;
-%feature("director") IGameObjectExtensionCreatorBase;
-
 %include <std_shared_ptr.i>
-%include "../../../CryEngine/CryAction/IGameObject.h"
-
-// bugging out on that - no idea why - *cry* . . . worked with 3.7
-%feature("director") GameObjectExtensionCreatorHelper;
-struct SRMIData
-{
-	SRMIData() :
-		m_nMessages(0),
-		m_extensionId(-1)
-	{}
-	size_t m_nMessages;
-	SGameObjectExtensionRMI m_vMessages[64];
-	IGameObjectSystem::ExtensionID m_extensionId;
-};
-class GameObjectExtensionCreatorHelper
-{
-public:
-	virtual IGameObjectExtension* Instantiate(IEntity* pEntity) = 0;
-};
-class GameObjectExtensionCreatorBase : public IGameObjectExtensionCreatorBase
-{
-public:
-	GameObjectExtensionCreatorBase(GameObjectExtensionCreatorHelper* helper) : m_pHelper(helper) {}
-
-	IGameObjectExtension* Create(IEntity* pEntity)
-	{
-		return m_pHelper->Instantiate(pEntity);
-	}
-
-	void GetGameObjectExtensionRMIData(void ** ppRMI, size_t * nCount)
-	{
-		*ppRMI = m_RMIdata.m_vMessages;
-		*nCount = m_RMIdata.m_nMessages;
-	}
-protected:
-	SRMIData							m_RMIdata;
-	GameObjectExtensionCreatorHelper*	m_pHelper;
-};
-%{
-struct SRMIData
-{
-	SRMIData() :
-		m_nMessages(0),
-		m_extensionId(-1)
-	{}
-	size_t m_nMessages;
-	SGameObjectExtensionRMI m_vMessages[64];
-	IGameObjectSystem::ExtensionID m_extensionId;
-};
-class GameObjectExtensionCreatorHelper
-{
-public:
-	virtual IGameObjectExtension* Instantiate(IEntity* pEntity) = 0;
-};
-class GameObjectExtensionCreatorBase : public IGameObjectExtensionCreatorBase
-{
-public:
-	GameObjectExtensionCreatorBase(GameObjectExtensionCreatorHelper* helper) : m_pHelper(helper) {}
-
-	IGameObjectExtension* Create(IEntity* pEntity)
-	{
-		return m_pHelper->Instantiate(pEntity);
-	}
-
-	void GetGameObjectExtensionRMIData(void ** ppRMI, size_t * nCount)
-	{
-		*ppRMI = m_RMIdata.m_vMessages;
-		*nCount = m_RMIdata.m_nMessages;
-	}
-protected:
-	SRMIData							m_RMIdata;
-	GameObjectExtensionCreatorHelper*	m_pHelper;
-};
-%}
 
 // ~TEMPORARY
 %feature("director") IEntityScriptProxy;

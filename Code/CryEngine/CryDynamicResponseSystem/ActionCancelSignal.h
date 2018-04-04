@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 /************************************************************************
 
@@ -20,7 +20,6 @@ class CActionCancelSignal final : public DRS::IResponseAction
 public:
 	CActionCancelSignal() : m_bOnAllActors(true) {}
 	CActionCancelSignal(const CHashedString& signalName) : m_signalName(signalName), m_bOnAllActors(true) {}
-	virtual ~CActionCancelSignal() {}
 
 	//////////////////////////////////////////////////////////
 	// IResponseAction implementation

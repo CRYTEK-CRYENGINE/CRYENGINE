@@ -80,6 +80,11 @@
 		[
 			"DynamicResponseProxy.cpp",
 			"DynamicResponseProxy.h"
+		],
+		"Proxy/NetEntity":
+		[
+			"NetEntity.cpp",
+			"NetEntity.h"
 		]
 	},
 	"CryEntitySystem_uber_0.cpp":

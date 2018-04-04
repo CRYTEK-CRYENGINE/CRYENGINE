@@ -189,6 +189,12 @@
 			"attribute"      : "out_folder_android",
 			"default_value"  : "bin/android_arm",
 			"description"    : "Absolute or relative Android build output path"
+		},
+		{
+			"long_form"      : "--output-folder-android64",
+			"attribute"      : "out_folder_android64",
+			"default_value"  : "bin/android_arm64",
+			"description"    : "Absolute or relative Android64 build output path"
 		}
 	],
 	"Misc Options" :
@@ -223,7 +229,7 @@
 		{
 			"long_form"      : "--specs-to-include-in-project-generation",
 			"attribute"      : "specs_to_include_in_project_generation",
-			"default_value"  : "gamezero,gamezero_and_tools",
+			"default_value"  : "gamezero,gamezero_and_tools_qt",
 			"description"    : "List of specs to include in solution generation"
 		}
 	],

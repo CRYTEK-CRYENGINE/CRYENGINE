@@ -558,7 +558,7 @@ all_msvc_platforms = [ ('x64', 'amd64', 'amd64', ''), ('x64', 'x86', 'x86_amd64'
 
 # List of known versions (compiler version, expected Windows SDK), ordered from most preferred to least preferred (order used by auto-detect)
 # Note: The expected Windows SDK is the one that's installed with that version by default, and the one we prefer to use for that compiler if we can
-all_versions = [('14.0', '10.0.10586.0'), ('14.0', '10.0.10240.0'), ('12.0', '8.1'), ('11.0', '8.0')]
+all_versions = [('14.0', '10.0.14393.0'), ('14.0', '10.0.10586.0'), ('14.0', '10.0.10240.0'), ('12.0', '8.1'), ('11.0', '8.0')]
 
 # Look up the default Windows SDK version to use for the given MSVC version
 def get_winsdk_for_msvc_version(version):

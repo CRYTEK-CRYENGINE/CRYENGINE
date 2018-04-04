@@ -165,7 +165,7 @@ add_sources("Uber_Widgets.cpp"
 end_sources()
 #END-FILE-LIST
 
-CryPlugin(EditorAnimation PCH "stdafx.cpp" SOLUTION_FOLDER "Sandbox/Plugins")
+CryEditorPlugin(EditorAnimation PCH "stdafx.cpp" SOLUTION_FOLDER "Sandbox/Plugins")
 target_include_directories(${THIS_PROJECT} PRIVATE ..)
 target_include_directories(${THIS_PROJECT} PRIVATE ../../EditorQt)	
 target_include_directories(${THIS_PROJECT} PRIVATE ../../EditorQt/Include)

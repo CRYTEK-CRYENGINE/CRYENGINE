@@ -32,7 +32,8 @@
 			"stdlib/ItemStringConversions.cpp",
 			"stdlib/ItemStringConversions.h",
 			"stdlib/ItemMonitors.h",
-			"stdlib/ItemMonitors.cpp"
+			"stdlib/ItemMonitors.cpp",
+			"stdlib/SchematycSupport.cpp"
 		]
 	}
 }

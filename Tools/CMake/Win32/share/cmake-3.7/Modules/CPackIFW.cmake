@@ -433,11 +433,15 @@
 
 # Default path
 
-set(_CPACK_IFW_PATHS
-  "${QTIFWDIR}"
-  "$ENV{QTIFWDIR}"
-  "${QTDIR}"
-  "$ENV{QTIFWDIR}")
+foreach(_CPACK_IFW_PATH_VAR "QTIFWDIR" "QTDIR")
+  if(DEFINED ${_CPACK_IFW_PATH_VAR}
+    AND NOT "${${_CPACK_IFW_PATH_VAR}}" STREQUAL "")
+    list(APPEND _CPACK_IFW_PATHS "${${_CPACK_IFW_PATH_VAR}}")
+  endif()
+  if(NOT "$ENV{${_CPACK_IFW_PATH_VAR}}" STREQUAL "")
+    list(APPEND _CPACK_IFW_PATHS "$ENV{${_CPACK_IFW_PATH_VAR}}")
+  endif()
+endforeach()
 if(WIN32)
   list(APPEND _CPACK_IFW_PATHS
     "$ENV{HOMEDRIVE}/Qt"
@@ -447,22 +451,44 @@ else()
     "$ENV{HOME}/Qt"
     "/opt/Qt")
 endif()
+list(REMOVE_DUPLICATES _CPACK_IFW_PATHS)
 
-set(_CPACK_IFW_SUFFIXES
-# Common
-  "bin"
-# Second branch
-  "QtIFW2.3.0/bin"
-  "QtIFW2.2.0/bin"
-  "QtIFW2.1.0/bin"
-  "QtIFW2.0.3/bin"
-  "QtIFW2.0.1/bin"
-  "QtIFW2.0.0/bin"
-# First branch
-  "QtIFW-1.6.0/bin"
-  "QtIFW-1.5.0/bin"
-  "QtIFW-1.4.0/bin"
-  "QtIFW-1.3.0/bin")
+set(_CPACK_IFW_PREFIXES
+  # QtSDK
+  "Tools/QtInstallerFramework/"
+  # Second branch
+  "QtIFW"
+  # First branch
+  "QtIFW-")
+
+set(_CPACK_IFW_VERSIONS
+  "2.3"
+  "2.3.0"
+  "2.2"
+  "2.2.0"
+  "2.1"
+  "2.1.0"
+  "2.0"
+  "2.0.3"
+  "2.0.2"
+  "2.0.1"
+  "2.0.0"
+  "1.6"
+  "1.6.0"
+  "1.5"
+  "1.5.0"
+  "1.4"
+  "1.4.0"
+  "1.3"
+  "1.3.0")
+
+set(_CPACK_IFW_SUFFIXES "bin")
+foreach(_CPACK_IFW_PREFIX ${_CPACK_IFW_PREFIXES})
+  foreach(_CPACK_IFW_VERSION ${_CPACK_IFW_VERSIONS})
+    list(APPEND
+      _CPACK_IFW_SUFFIXES "${_CPACK_IFW_PREFIX}${_CPACK_IFW_VERSION}/bin")
+  endforeach()
+endforeach()
 
 # Look for 'binarycreator'
 

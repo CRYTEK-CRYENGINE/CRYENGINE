@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #ifndef _3DENGINE_BRUSH_H_
 #define _3DENGINE_BRUSH_H_
@@ -29,11 +29,11 @@ public:
 	virtual CLodValue           ComputeLod(int wantedLod, const SRenderingPassInfo& passInfo) final;
 	void                        Render(const CLodValue& lodValue, const SRenderingPassInfo& passInfo, SSectorTextureSet* pTerrainTexInfo, PodArray<CDLight*>* pAffectingLights);
 
-	virtual struct IStatObj*    GetEntityStatObj(unsigned int nPartId = 0, unsigned int nSubPartId = 0, Matrix34A* pMatrix = NULL, bool bReturnOnlyVisible = false) final;
+	virtual struct IStatObj*    GetEntityStatObj(unsigned int nSubPartId = 0, Matrix34A* pMatrix = NULL, bool bReturnOnlyVisible = false) final;
 
 	virtual bool                GetLodDistances(const SFrameLodInfo& frameLodInfo, float* distances) const final;
 
-	virtual void                SetEntityStatObj(unsigned int nSlot, IStatObj* pStatObj, const Matrix34A* pMatrix = NULL) final;
+	virtual void                SetEntityStatObj(IStatObj* pStatObj, const Matrix34A* pMatrix = NULL) final;
 
 	virtual IRenderNode*        Clone() const final;
 
@@ -61,7 +61,7 @@ public:
 
 	virtual float      GetMaxViewDist() final;
 
-	virtual EERType    GetRenderNodeType() final;
+	virtual EERType    GetRenderNodeType();
 
 	void               SetStatObj(IStatObj* pStatObj);
 
@@ -90,8 +90,7 @@ public:
 	void CalcBBox();
 	void UpdatePhysicalMaterials(int bThreadSafe = 0);
 
-	void OnRenderNodeBecomeVisible(const SRenderingPassInfo& passInfo) final;
-	void OnRenderNodeBecomeInvisible() final;
+	virtual void OnRenderNodeBecomeVisibleAsync(const SRenderingPassInfo& passInfo) final;
 
 	bool HasDeformableData() const { return m_pDeform != NULL; }
 
@@ -139,5 +138,18 @@ inline const AABB CBrush::GetBBox() const
 {
 	return m_WSBBox;
 }
+
+///////////////////////////////////////////////////////////////////////////////
+class CMovableBrush : public CBrush
+{
+	virtual void     SetOwnerEntity(struct IEntity* pEntity) final { m_pOwnerEntity = pEntity; }
+	virtual IEntity* GetOwnerEntity() const final                  { return m_pOwnerEntity; }
+	virtual EERType  GetRenderNodeType() final                     { return eERType_MovableBrush; }
+	virtual bool     IsAllocatedOutsideOf3DEngineDLL()             { return GetOwnerEntity() != nullptr; }
+
+private:
+	// When render node is created by the entity, pointer to the owner entity.
+	IEntity* m_pOwnerEntity = 0;
+};
 
 #endif // _3DENGINE_BRUSH_H_

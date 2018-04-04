@@ -1,6 +1,6 @@
 <Material MtlFlags="524288" Shader="Illum" GenMask="0" StringGenMask="" SurfaceType="mat_concrete" MatTemplate="" Diffuse="0,0,0" Specular="0,0,0" Emittance="0,0,0.45078582,25" Shininess="10" Opacity="0.5" VoxelCoverage="0">
  <Textures>
-  <Texture Map="Diffuse" File="Editor/Materials/areasolid.dds"/>
+  <Texture Map="Diffuse" File="%EDITOR%/Materials/areasolid.dds"/>
  </Textures>
  <PublicParams FresnelPower="4" GlossFromDiffuseContrast="1" FresnelScale="1" GlossFromDiffuseOffset="0" FresnelBias="1" GlossFromDiffuseAmount="0" GlossFromDiffuseBrightness="0.333" IndirectColor="0.25,0.25,0.25"/>
 </Material>

@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Reflection;
 using CryEngine.Common;
 using CryEngine.Common.BehaviorTree;
 
@@ -10,8 +9,8 @@ namespace CryEngine
 	public class GenericNodeCreator : IManagedNodeCreator
 	{
 		#region Fields
-		private static List<Node> s_nodes = new List<Node>();
-		private Type _nodeType;
+		private static readonly List<Node> _nodes = new List<Node>();
+		private readonly Type _nodeType;
 		#endregion
 
 		#region Properties
@@ -28,51 +27,47 @@ namespace CryEngine
 		#region Methods
 		public override Node Create()
 		{
-			Node node = (Node)Activator.CreateInstance(_nodeType);
-			s_nodes.Add(node); // keep a reference to the node to prevent it from being garbage collected.
+			var node = (Node)Activator.CreateInstance(_nodeType);
+			_nodes.Add(node); // keep a reference to the node to prevent it from being garbage collected.
 			return node;
-		} 
+		}
 
-		
+
 		#endregion
 	}
 
-	public class BehaviorTreeNodeFactory
+	public static class BehaviorTreeNodeFactory
 	{
-		private static Dictionary<string, GenericNodeCreator> s_registry = new Dictionary<string, GenericNodeCreator>();
-		
+		private static readonly Dictionary<string, GenericNodeCreator> _registry = new Dictionary<string, GenericNodeCreator>();
+
 		public static void TryRegister(Type type)
 		{
-			if(!typeof(BehaviorTreeNodeBase).IsAssignableFrom(type) || type.IsAbstract)
-			{
-				return;
-			}
-
 			string name = type.Name;
-			BehaviorTreeNodeAttribute behaviorNodeAttribute = (BehaviorTreeNodeAttribute)type.GetCustomAttributes(typeof(BehaviorTreeNodeAttribute), true).FirstOrDefault();
+			var behaviorNodeAttribute = (BehaviorTreeNodeAttribute)type.GetCustomAttributes(typeof(BehaviorTreeNodeAttribute), true).FirstOrDefault();
 			if(behaviorNodeAttribute != null)
 			{
 				if(!behaviorNodeAttribute.Register)
 				{
 					return;
 				}
-				else if(!String.IsNullOrEmpty(behaviorNodeAttribute.Name))
+
+				if(!string.IsNullOrEmpty(behaviorNodeAttribute.Name))
 				{
 					name = behaviorNodeAttribute.Name;
 				}
 			}
 
-			if (s_registry.ContainsKey(name))
+			if(_registry.ContainsKey(name))
 			{
 				return;
 			}
-			if(s_registry.Values.Any(x => x.NodeType == type))
+			if(_registry.Values.Any(x => x.NodeType == type))
 			{
 				return;
 			}
 
-			GenericNodeCreator creator = new GenericNodeCreator(type);
-			s_registry.Add(name, creator);
+			var creator = new GenericNodeCreator(type);
+			_registry.Add(name, creator);
 			Global.gEnv.pMonoRuntime.RegisterManagedNodeCreator(name, creator);
 		}
 	}

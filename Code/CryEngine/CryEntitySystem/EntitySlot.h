@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 // -------------------------------------------------------------------------
 //  File name:   EntitySlot.h
@@ -131,7 +131,7 @@ public:
 	bool IsRendered() const;
 
 	//! Render this slot fo previewing in Editor.
-	void PreviewRender(IEntity::SPreviewRenderParams &params);
+	void PreviewRender(SEntityPreviewContext &context);
 
 	void SetNeedSerialize( bool bNeedSerialize ) { m_bNeedSerialize = bNeedSerialize; };
 	bool NeedSerialize() const { return m_bNeedSerialize; }
@@ -187,7 +187,7 @@ private:
 };
 
 //////////////////////////////////////////////////////////////////////////
-extern stl::PoolAllocatorNoMT<sizeof(CEntitySlot), 8>* g_Alloc_EntitySlot;
+extern stl::PoolAllocatorNoMT<sizeof(CEntitySlot), 16>* g_Alloc_EntitySlot;
 
 //////////////////////////////////////////////////////////////////////////
 // Custom new/delete.

@@ -5,7 +5,7 @@
 
 %{
 #include <CryEntitySystem/IEntity.h>
-#include <CryAISystem/AISystemListener.h>
+#include <CryAISystem/IAISystemComponent.h>
 #include <CryAISystem/IAISystem.h>
 #include <CryAISystem/IAgent.h>
 #include <CryAISystem/IAIAction.h>
@@ -25,7 +25,6 @@
 #include <CryAISystem/ICommunicationManager.h>
 #include <CryAISystem/IVisionMap.h>
 #include <CryAISystem/IFactionMap.h>
-#include <CryAISystem/ISelectionTreeManager.h>
 #include <CryAISystem/IGoalPipe.h>
 #include <CryAISystem/ITacticalPointSystem.h>
 #include <CryAISystem/INavigation.h>
@@ -42,13 +41,15 @@
 using namespace BehaviorTree;
 %}
 
+%ignore IAIEngineModule;
+
 %include "../../../../CryEngine/CryCommon/CryAISystem/NavigationSystem/NavigationIdTypes.h"
 %template(NavigationMeshID) TNavigationID<MeshIDTag>;
 %template(NavigationAgentTypeID) TNavigationID<AgentTypeIDTag>;
 %template(NavigationVolumeID) TNavigationID<VolumeIDTag>;
 %template(TileGeneratorExtensionID) TNavigationID<TileGeneratorExtensionIDTag>;
-%feature("director") IAISystemListener;
-%include "../../../../CryEngine/CryCommon/CryAISystem/AISystemListener.h"
+%feature("director") IAISystemComponent;
+%include "../../../../CryEngine/CryCommon/CryAISystem/IAISystemComponent.h"
 %feature("director") IAIEventListener;
 %feature("director") IAIGlobalPerceptionListener;
 %ignore EAICollisionEntities;
@@ -85,7 +86,6 @@ using namespace BehaviorTree;
 %typemap(csbase) EChangeHint "uint"
 %include "../../../../CryEngine/CryCommon/CryAISystem/IVisionMap.h"
 %include "../../../../CryEngine/CryCommon/CryAISystem/IFactionMap.h"
-%include "../../../../CryEngine/CryCommon/CryAISystem/ISelectionTreeManager.h"
 %include "../../../../CryEngine/CryCommon/CryAISystem/IGoalPipe.h"
 %include "../../../../CryEngine/CryCommon/CryAISystem/ITacticalPointSystem.h"
 %template(TPSQueryID) STicket<1>;

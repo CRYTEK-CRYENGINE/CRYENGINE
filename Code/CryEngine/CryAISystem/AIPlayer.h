@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 /********************************************************************
    -------------------------------------------------------------------------
@@ -49,8 +49,8 @@ public:
 
 	void                       UpdateAttentionTarget(CWeakRef<CAIObject> refTarget);
 	virtual EFieldOfViewResult IsPointInFOV(const Vec3& pos, float distanceScale = 1.0f) const override;
-	void                       Update(EObjectUpdate type) override;
-	virtual void               UpdateProxy(EObjectUpdate type) override {}
+	void                       Update(EUpdateType type) override;
+	virtual void               UpdateProxy(EUpdateType type) override {}
 	virtual void               Serialize(TSerialize ser) override;
 	virtual void               OnObjectRemoved(CAIObject* pObject) override;
 	virtual bool               IsLowHealthPauseActive() const override;
@@ -73,6 +73,7 @@ public:
 
 	virtual float             AdjustTargetVisibleRange(const CAIActor& observer, float fVisibleRange) const override;
 	virtual bool              IsAffectedByLight() const override;
+	virtual bool              HasThrown(EntityId entity) const override { return IsThrownByPlayer(entity); }
 
 	bool                      IsThrownByPlayer(EntityId ent) const;
 	bool                      IsPlayerStuntAffectingTheDeathOf(CAIActor* pDeadActor) const;

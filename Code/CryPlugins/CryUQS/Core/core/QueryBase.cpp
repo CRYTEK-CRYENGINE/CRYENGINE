@@ -5,11 +5,11 @@
 // *INDENT-OFF* - <hard to read code and declarations due to inconsistent indentation>
 
 // make the global Serialize() functions available for use in yasli serialization
-using uqs::core::Serialize;
+using UQS::Core::Serialize;
 
-namespace uqs
+namespace UQS
 {
-	namespace core
+	namespace Core
 	{
 
 		//===================================================================================
@@ -18,11 +18,11 @@ namespace uqs
 		//
 		//===================================================================================
 
-		CQueryBase::SCtorContext::SCtorContext(const CQueryID& _queryID, const char* _querierName, const HistoricQuerySharedPtr& _pOptionalHistoryToWriteTo, std::unique_ptr<CItemList>& _optionalResultingItemsFromPreviousChainedQuery)
+		CQueryBase::SCtorContext::SCtorContext(const CQueryID& _queryID, const char* _szQuerierName, const HistoricQuerySharedPtr& _pOptionalHistoryToWriteTo, std::unique_ptr<CItemList>& _pOptionalResultingItemsFromPreviousChainedQuery)
 			: queryID(_queryID)
-			, querierName(_querierName)
+			, szQuerierName(_szQuerierName)
 			, pOptionalHistoryToWriteTo(_pOptionalHistoryToWriteTo)
-			, optionalResultingItemsFromPreviousChainedQuery(_optionalResultingItemsFromPreviousChainedQuery)
+			, optionalResultingItemsFromPreviousChainedQuery(_pOptionalResultingItemsFromPreviousChainedQuery)
 		{}
 
 		//===================================================================================
@@ -100,14 +100,16 @@ namespace uqs
 		//
 		//===================================================================================
 
+		const CDebugRenderWorldImmediate CQueryBase::s_debugRenderWorldImmediate;
+
 		CQueryBase::CQueryBase(const SCtorContext& ctorContext, bool bRequiresSomeTimeBudgetForExecution)
-			: m_querierName(ctorContext.querierName)
+			: m_querierName(ctorContext.szQuerierName)
 			, m_pHistory(ctorContext.pOptionalHistoryToWriteTo)
 			, m_queryID(ctorContext.queryID)
 			, m_totalElapsedFrames(0)
 			, m_bRequiresSomeTimeBudgetForExecution(bRequiresSomeTimeBudgetForExecution)
 			, m_pOptionalShuttledItems(std::move(ctorContext.optionalResultingItemsFromPreviousChainedQuery))
-			, m_blackboard(m_globalParams, m_pOptionalShuttledItems.get(), ctorContext.pOptionalHistoryToWriteTo ? &ctorContext.pOptionalHistoryToWriteTo->GetDebugRenderWorld() : nullptr)
+			, m_blackboard(m_globalParams, m_pOptionalShuttledItems.get(), m_timeBudgetForCurrentUpdate, ctorContext.pOptionalHistoryToWriteTo ? &ctorContext.pOptionalHistoryToWriteTo->GetDebugRenderWorldPersistent() : nullptr)
 		{
 			if (m_pHistory)
 			{
@@ -128,15 +130,15 @@ namespace uqs
 			return m_bRequiresSomeTimeBudgetForExecution;
 		}
 
-		bool CQueryBase::InstantiateFromQueryBlueprint(const std::shared_ptr<const CQueryBlueprint>& queryBlueprint, const shared::IVariantDict& runtimeParams, shared::CUqsString& error)
+		bool CQueryBase::InstantiateFromQueryBlueprint(const std::shared_ptr<const CQueryBlueprint>& pQueryBlueprint, const Shared::IVariantDict& runtimeParams, Shared::CUqsString& error)
 		{
-			assert(!m_queryBlueprint);	// we don't support recycling the query
+			assert(!m_pQueryBlueprint);	// we don't support recycling the query
 
-			m_queryBlueprint = queryBlueprint;
+			m_pQueryBlueprint = pQueryBlueprint;
 
 			if (m_pHistory)
 			{
-				m_pHistory->OnQueryBlueprintInstantiationStarted(queryBlueprint->GetName());
+				m_pHistory->OnQueryBlueprintInstantiationStarted(pQueryBlueprint->GetName());
 			}
 
 			//
@@ -144,19 +146,31 @@ namespace uqs
 			//
 
 			{
-				const size_t numInstantEvaluators = m_queryBlueprint->GetInstantEvaluatorBlueprints().size();
+				const size_t numInstantEvaluators = m_pQueryBlueprint->GetInstantEvaluatorBlueprints().size();
 				if (numInstantEvaluators > UQS_MAX_EVALUATORS)
 				{
 					error.Format("Exceeded the maximum number of instant-evaluators in the query blueprint (max %i supported, %i present in the blueprint)", UQS_MAX_EVALUATORS, (int)numInstantEvaluators);
+					if (m_pHistory)
+					{
+						SStatistics stats;
+						GetStatistics(stats);
+						m_pHistory->OnExceptionOccurred(error.c_str(), stats);
+					}
 					return false;
 				}
 			}
 
 			{
-				const size_t numDeferredEvaluators = m_queryBlueprint->GetDeferredEvaluatorBlueprints().size();
+				const size_t numDeferredEvaluators = m_pQueryBlueprint->GetDeferredEvaluatorBlueprints().size();
 				if (numDeferredEvaluators > UQS_MAX_EVALUATORS)
 				{
 					error.Format("Exceeded the maximum number of deferred-evaluators in the query blueprint (max %i supported, %i present in the blueprint)", UQS_MAX_EVALUATORS, (int)numDeferredEvaluators);
+					if (m_pHistory)
+					{
+						SStatistics stats;
+						GetStatistics(stats);
+						m_pHistory->OnExceptionOccurred(error.c_str(), stats);
+					}
 					return false;
 				}
 			}
@@ -166,10 +180,16 @@ namespace uqs
 			// - note: we need to do this only for top-level queries (child queries will get recursively checked when their parent is about to start)
 			//
 
-			if (!m_queryBlueprint->GetParent())
+			if (!m_pQueryBlueprint->GetParent())
 			{
-				if (!m_queryBlueprint->CheckPresenceAndTypeOfGlobalRuntimeParamsRecursively(runtimeParams, error))
+				if (!m_pQueryBlueprint->CheckPresenceAndTypeOfGlobalRuntimeParamsRecursively(runtimeParams, error))
 				{
+					if (m_pHistory)
+					{
+						SStatistics stats;
+						GetStatistics(stats);
+						m_pHistory->OnExceptionOccurred(error.c_str(), stats);
+					}
 					return false;
 				}
 			}
@@ -178,18 +198,34 @@ namespace uqs
 			// merge constant-params and runtime-params into global params
 			//
 
-			const shared::CVariantDict& constantParams = m_queryBlueprint->GetGlobalConstantParamsBlueprint().GetParams();
-			constantParams.AddSelfToOtherAndReplace(m_globalParams);
+			const CGlobalConstantParamsBlueprint& constantParamsBlueprint = m_pQueryBlueprint->GetGlobalConstantParamsBlueprint();
+			constantParamsBlueprint.AddSelfToDictAndReplace(m_globalParams); // TODO: don't duplicate the already present constant parameters, but then again, we need to both, constant- and runtime-params, to reside in the m_globalParams container
 			runtimeParams.AddSelfToOtherAndReplace(m_globalParams);
+
+			//
+			// debug-draw all global parameters that want to be shown
+			//
+
+			AddItemsFromGlobalParametersToDebugRenderWorld();
 
 			//
 			// allow the derived class to do further custom instantiation
 			//
 
-			return OnInstantiateFromQueryBlueprint(runtimeParams, error);
+			const bool bFurtherInstantiationInDerivedClassSucceeded = OnInstantiateFromQueryBlueprint(runtimeParams, error);
+
+			if (!bFurtherInstantiationInDerivedClassSucceeded && m_pHistory)
+			{
+				SStatistics stats;
+				GetStatistics(stats);
+				m_pHistory->OnExceptionOccurred(error.c_str(), stats);
+			}
+
+			return bFurtherInstantiationInDerivedClassSucceeded;
+
 		}
 
-		void CQueryBase::AddItemMonitor(client::ItemMonitorUniquePtr&& pItemMonitor)
+		void CQueryBase::AddItemMonitor(Client::ItemMonitorUniquePtr&& pItemMonitor)
 		{
 			assert(pItemMonitor);
 			m_itemMonitors.push_back(std::move(pItemMonitor));
@@ -199,7 +235,7 @@ namespace uqs
 		{
 			if (!m_itemMonitors.empty())
 			{
-				for (client::ItemMonitorUniquePtr& pItemMonitor : m_itemMonitors)
+				for (Client::ItemMonitorUniquePtr& pItemMonitor : m_itemMonitors)
 				{
 					receiver.m_itemMonitors.push_back(std::move(pItemMonitor));
 				}
@@ -207,9 +243,20 @@ namespace uqs
 			}
 		}
 
-		CQueryBase::EUpdateState CQueryBase::Update(const CTimeValue& timeBudget, shared::CUqsString& error)
+		CQueryBase::EUpdateState CQueryBase::Update(const CTimeValue& amountOfGrantedTime, Shared::CUqsString& error)
 		{
 			++m_totalElapsedFrames;
+
+			// immediate debug-rendering ON/OFF
+			if (SCvars::debugDraw)
+			{
+				m_blackboard.pDebugRenderWorldImmediate = &s_debugRenderWorldImmediate;
+			}
+			else
+			{
+				m_blackboard.pDebugRenderWorldImmediate = nullptr;
+			}
+
 			const CTimeValue startTime = gEnv->pTimer->GetAsyncTime();
 
 			bool bCorruptionOccurred = false;
@@ -220,13 +267,13 @@ namespace uqs
 
 			if (!m_itemMonitors.empty())
 			{
-				for (const client::ItemMonitorUniquePtr& pItemMonitor : m_itemMonitors)
+				for (const Client::ItemMonitorUniquePtr& pItemMonitor : m_itemMonitors)
 				{
 					assert(pItemMonitor);
 
-					const client::IItemMonitor::EHealthState healthState = pItemMonitor->UpdateAndCheckForCorruption(error);
+					const Client::IItemMonitor::EHealthState healthState = pItemMonitor->UpdateAndCheckForCorruption(error);
 
-					if (healthState == client::IItemMonitor::EHealthState::CorruptionOccurred)
+					if (healthState == Client::IItemMonitor::EHealthState::CorruptionOccurred)
 					{
 						bCorruptionOccurred = true;
 						break;
@@ -238,7 +285,8 @@ namespace uqs
 			// allow the derived class to update itself if no item corruption has occurred yet
 			//
 
-			const EUpdateState state = bCorruptionOccurred ? EUpdateState::ExceptionOccurred : OnUpdate(timeBudget, error);
+			m_timeBudgetForCurrentUpdate.Restart(amountOfGrantedTime);
+			const EUpdateState state = bCorruptionOccurred ? EUpdateState::ExceptionOccurred : OnUpdate(error);
 
 			//
 			// finish timings
@@ -246,7 +294,7 @@ namespace uqs
 
 			const CTimeValue timeSpent = gEnv->pTimer->GetAsyncTime() - startTime;
 			m_totalConsumedTime += timeSpent;
-			m_grantedAndUsedTimePerFrame.emplace_back(timeBudget, timeSpent);
+			m_grantedAndUsedTimePerFrame.emplace_back(amountOfGrantedTime, timeSpent);
 
 			//
 			// track a possible exception
@@ -293,8 +341,8 @@ namespace uqs
 		{
 			out.querierName = m_querierName;
 
-			if (m_queryBlueprint)
-				out.queryBlueprintName = m_queryBlueprint->GetName();
+			if (m_pQueryBlueprint)
+				out.queryBlueprintName = m_pQueryBlueprint->GetName();
 
 			out.totalElapsedFrames = m_totalElapsedFrames;
 			out.totalConsumedTime = m_totalConsumedTime;
@@ -310,6 +358,58 @@ namespace uqs
 		QueryResultSetUniquePtr CQueryBase::ClaimResultSet()
 		{
 			return std::move(m_pResultSet);
+		}
+
+		void CQueryBase::AddItemsFromGlobalParametersToDebugRenderWorld() const
+		{
+			if (m_pHistory)
+			{
+				CDebugRenderWorldPersistent& debugRW = m_pHistory->GetDebugRenderWorldPersistent();
+				const std::map<string, Shared::CVariantDict::SDataEntry>& globalParamsAsMap = m_globalParams.GetEntries();
+
+				//
+				// add all items from the global constant-parameters to the debug-render-world that want to be shown
+				//
+
+				{
+					const std::map<string, CGlobalConstantParamsBlueprint::SParamInfo>& constantParamsBlueprint = m_pQueryBlueprint->GetGlobalConstantParamsBlueprint().GetParams();
+
+					for (const auto& pair : constantParamsBlueprint)
+					{
+						if (pair.second.bAddToDebugRenderWorld)
+						{
+							const string& paramName = pair.first;
+							auto it = globalParamsAsMap.find(paramName);
+							assert(it != globalParamsAsMap.cend());
+
+							const Shared::CVariantDict::SDataEntry& entry = it->second;
+							entry.pItemFactory->AddItemToDebugRenderWorld(entry.pObject, debugRW);
+						}
+					}
+				}
+
+				//
+				// add all items from the global runtime-parameters to the debug-render-world that want to be shown
+				//
+
+				{
+					const std::map<string, CGlobalRuntimeParamsBlueprint::SParamInfo>& runtimeParamsBlueprint = m_pQueryBlueprint->GetGlobalRuntimeParamsBlueprint().GetParams();
+
+					for (const auto& pair : runtimeParamsBlueprint)
+					{
+						if (pair.second.bAddToDebugRenderWorld)
+						{
+							const string& paramName = pair.first;
+							auto it = globalParamsAsMap.find(paramName);
+							assert(it != globalParamsAsMap.cend());
+
+							const Shared::CVariantDict::SDataEntry& entry = it->second;
+							entry.pItemFactory->AddItemToDebugRenderWorld(entry.pObject, debugRW);
+						}
+					}
+				}
+
+			}
 		}
 
 	}

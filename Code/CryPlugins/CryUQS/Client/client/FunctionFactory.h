@@ -4,11 +4,11 @@
 
 // *INDENT-OFF* - <hard to read code and declarations due to inconsistent indentation>
 
-namespace uqs
+namespace UQS
 {
-	namespace client
+	namespace Client
 	{
-		namespace internal
+		namespace Internal
 		{
 
 			//===================================================================================
@@ -17,36 +17,50 @@ namespace uqs
 			//
 			//===================================================================================
 
-			class CFunctionFactoryBase : public IFunctionFactory, public CFactoryBase<CFunctionFactoryBase>
+			class CFunctionFactoryBase : public IFunctionFactory, public Shared::CFactoryBase<CFunctionFactoryBase>
 			{
 			public:
 				// IFunctionFactory
 				virtual const char*                       GetName() const override final;
+				virtual const CryGUID&                    GetGUID() const override final;
+				virtual const char*                       GetDescription() const override final;
 				virtual const IInputParameterRegistry&    GetInputParameterRegistry() const override final;
 				// ~IFunctionFactory
 
 				// IFunctionFactory: forward to derived class
-				virtual const shared::CTypeInfo&          GetReturnType() const override = 0;
-				virtual const shared::CTypeInfo*          GetContainedType() const override = 0;
+				virtual const Shared::CTypeInfo&          GetReturnType() const override = 0;
+				virtual const Shared::CTypeInfo*          GetContainedType() const override = 0;
 				virtual ELeafFunctionKind                 GetLeafFunctionKind() const override = 0;
 				virtual FunctionUniquePtr                 CreateFunction(const IFunction::SCtorContext& ctorContext) override = 0;
 				virtual void                              DestroyFunction(IFunction* pFunctionToDestroy) override = 0;
 				// ~IFunctionFactory
 
 			protected:
-				explicit                                  CFunctionFactoryBase(const char* functionName);
+				explicit                                  CFunctionFactoryBase(const char* szFunctionName, const CryGUID& guid, const char* szDescription);
 
 			protected:
+				string                                    m_description;
 				CInputParameterRegistry                   m_inputParameterRegistry;
 			};
 
-			inline CFunctionFactoryBase::CFunctionFactoryBase(const char* functionName)
-				: CFactoryBase(functionName)
+			inline CFunctionFactoryBase::CFunctionFactoryBase(const char* szFunctionName, const CryGUID& guid, const char* szDescription)
+				: CFactoryBase(szFunctionName, guid)
+				, m_description(szDescription)
 			{}
 
 			inline const char* CFunctionFactoryBase::GetName() const
 			{
 				return CFactoryBase::GetName();
+			}
+
+			inline const CryGUID& CFunctionFactoryBase::GetGUID() const
+			{
+				return CFactoryBase::GetGUID();
+			}
+
+			inline const char* CFunctionFactoryBase::GetDescription() const
+			{
+				return m_description.c_str();
 			}
 
 			inline const IInputParameterRegistry& CFunctionFactoryBase::GetInputParameterRegistry() const
@@ -89,7 +103,7 @@ namespace uqs
 				}
 			};
 
-		} // namespace internal
+		} // namespace Internal
 
 		//===================================================================================
 		//
@@ -98,14 +112,24 @@ namespace uqs
 		//===================================================================================
 
 		template <class TFunction>
-		class CFunctionFactory : public internal::CFunctionFactoryBase
+		class CFunctionFactory : public Internal::CFunctionFactoryBase
 		{
 		public:
-			explicit                            CFunctionFactory(const char* functionName);
+
+			struct SCtorParams
+			{
+				const char*                     szName = "";
+				CryGUID                         guid = CryGUID::Null();
+				const char*                     szDescription = "";
+			};
+
+		public:
+
+			explicit                            CFunctionFactory(const SCtorParams& ctorParams);
 
 			// IFunctionFactory
-			virtual const shared::CTypeInfo&    GetReturnType() const override final;
-			virtual const shared::CTypeInfo*    GetContainedType() const override final;
+			virtual const Shared::CTypeInfo&    GetReturnType() const override final;
+			virtual const Shared::CTypeInfo*    GetContainedType() const override final;
 			virtual ELeafFunctionKind           GetLeafFunctionKind() const override final;
 			virtual FunctionUniquePtr           CreateFunction(const IFunction::SCtorContext& ctorContext) override final;
 			virtual void                        DestroyFunction(IFunction* pFunctionToDestroy) override final;
@@ -113,23 +137,23 @@ namespace uqs
 		};
 
 		template <class TFunction>
-		inline CFunctionFactory<TFunction>::CFunctionFactory(const char* functionName)
-			: CFunctionFactoryBase(functionName)
+		inline CFunctionFactory<TFunction>::CFunctionFactory(const SCtorParams& ctorParams)
+			: CFunctionFactoryBase(ctorParams.szName, ctorParams.guid, ctorParams.szDescription)
 		{
 			const bool bIsLeafFunction = TFunction::kLeafFunctionKind != ELeafFunctionKind::None;
-			internal::SFunctionParamsExpositionHelper<TFunction, bIsLeafFunction>::Expose(m_inputParameterRegistry);
+			Internal::SFunctionParamsExpositionHelper<TFunction, bIsLeafFunction>::Expose(m_inputParameterRegistry);
 		}
 
 		template <class TFunction>
-		const shared::CTypeInfo& CFunctionFactory<TFunction>::GetReturnType() const
+		const Shared::CTypeInfo& CFunctionFactory<TFunction>::GetReturnType() const
 		{
-			return shared::SDataTypeHelper<typename TFunction::ReturnType>::GetTypeInfo();
+			return Shared::SDataTypeHelper<typename TFunction::ReturnType>::GetTypeInfo();
 		}
 
 		template <class TFunction>
-		const shared::CTypeInfo* CFunctionFactory<TFunction>::GetContainedType() const
+		const Shared::CTypeInfo* CFunctionFactory<TFunction>::GetContainedType() const
 		{
-			return internal::SContainedTypeRetriever<typename TFunction::ReturnType>::GetTypeInfo();
+			return Internal::SContainedTypeRetriever<typename TFunction::ReturnType>::GetTypeInfo();
 		}
 
 		template <class TFunction>
@@ -147,7 +171,7 @@ namespace uqs
 			// notice: we assign the instantiated function to its base class pointer to ensure that the function type itself (and not accidentally another function type) was injected at its class definition
 			CFunctionBase<TFunction, typename TFunction::ReturnType, TFunction::kLeafFunctionKind>* pFunction = new TFunction(ctorContext);
 #endif
-			internal::CFunctionDeleter deleter(*this);
+			Internal::CFunctionDeleter deleter(*this);
 			return FunctionUniquePtr(pFunction, deleter);
 		}
 

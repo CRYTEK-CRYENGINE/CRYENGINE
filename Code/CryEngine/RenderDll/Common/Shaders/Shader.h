@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 /*=============================================================================
    Shader.h : Shaders declarations.
@@ -15,11 +15,11 @@
 
 #include <CryString/CryName.h>
 #include <CryRenderer/IShader.h>
-#include "ShaderResources.h"
+#include "../CommonRender.h" // CBaseResource
 
 // bump this value up if you want to invalidate shader cache (e.g. changed some code or .ext file)
 // #### VIP NOTE ####: DON'T USE MORE THAN ONE DECIMAL PLACE!!!! else it doesn't work...
-#define FX_CACHE_VER     9.8
+#define FX_CACHE_VER     9.9
 #define FX_SER_CACHE_VER 1.0    // Shader serialization version (FX_CACHE_VER + FX_SER_CACHE_VER)
 
 // Maximum 1 digit here
@@ -72,6 +72,7 @@ struct SCGParam;
 struct SSFXParam;
 struct SSFXSampler;
 struct SSFXTexture;
+class CShaderResources;
 
 enum eCompareFunc
 {
@@ -110,10 +111,10 @@ struct SFXSampler
 	CCryNameR           m_Values;      // Parameter values (after '=')
 	byte                m_eType;       // ESamplerType
 	short               m_nRegister[eHWSC_Num];
-	int                 m_nTexState;
+	SamplerStateHandle  m_nTexState;
 	SFXSampler()
 	{
-		m_nTexState = -1;
+		m_nTexState = EDefaultSamplerStates::Unspecified;
 		m_nArray = 0;
 		m_nFlags = 0;
 		for (int i = 0; i < eHWSC_Num; i++)
@@ -563,8 +564,6 @@ enum EHWSRMaskBit
 {
 	HWSR_FOG = 0,
 
-	HWSR_AMBIENT,
-
 	HWSR_ALPHATEST,
 	HWSR_ALPHABLEND,
 
@@ -572,10 +571,7 @@ enum EHWSRMaskBit
 	HWSR_MSAA_QUALITY1,
 	HWSR_MSAA_SAMPLEFREQ_PASS,
 
-	HWSR_HDR_MODE,      // deprecated: this flag is redundant and can be dropped, since rendering always HDR since CE3
-	HWSR_HDR_ENCODE,
-
-	HWSR_INSTANCING_ATTR,
+	HWSR_SECONDARY_VIEW,
 
 	HWSR_VERTEX_VELOCITY,
 	HWSR_SKELETON_SSD,
@@ -583,9 +579,7 @@ enum EHWSRMaskBit
 	HWSR_COMPUTE_SKINNING,
 
 	HWSR_OBJ_IDENTITY,
-	HWSR_DETAIL_OVERLAY,
 	HWSR_NEAREST,
-	HWSR_NOZPASS,
 	HWSR_DISSOLVE,
 	HWSR_NO_TESSELLATION,
 	HWSR_PER_INSTANCE_CB_TEMP,
@@ -621,7 +615,6 @@ enum EHWSRMaskBit
 	HWSR_PARTICLE_SHADOW,
 	HWSR_SOFT_PARTICLE,
 	HWSR_OCEAN_PARTICLE,
-	HWSR_GLOBAL_ILLUMINATION_, // unused
 	HWSR_ANIM_BLEND,
 	HWSR_ENVIRONMENT_CUBEMAP,
 	HWSR_MOTION_BLUR,
@@ -770,7 +763,7 @@ public:
 	static CHWShader*   Import(SShaderSerializeContext& SC, int nOffs, uint32 CRC32, CShader* pSH);
 
 	// Vertex shader specific functions
-	virtual EVertexFormat mfVertexFormat(bool& bUseTangents, bool& bUseLM, bool& bUseHWSkin) = 0;
+	virtual InputLayoutHandle mfVertexFormat(bool& bUseTangents, bool& bUseLM, bool& bUseHWSkin) = 0;
 
 	virtual const char*   mfGetActivatedCombinations(bool bForLevel) = 0;
 
@@ -1029,7 +1022,6 @@ private:
 #define FHF_PUBLIC              0x400
 #define FHF_NOLIGHTS            0x800
 #define FHF_POSITION_INVARIANT  0x1000
-#define FHF_RE_CLOUD            0x20000
 #define FHF_TRANSPARENT         0x40000
 #define FHF_WASZWRITE           0x80000
 #define FHF_USE_GEOMETRY_SHADER 0x100000
@@ -1149,7 +1141,8 @@ enum EShaderDrawType
 	eSHDT_Fur,
 	eSHDT_NoDraw,
 	eSHDT_CustomDraw,
-	eSHDT_Sky
+	eSHDT_Sky,
+	eSHDT_DebugHelper,
 };
 
 // General Shader structure
@@ -1166,7 +1159,7 @@ public:
 	uint32                    m_nMDV;   // Vertex modificator flags
 	uint32                    m_NameShaderICRC;
 
-	EVertexFormat             m_eVertexFormat; // Base vertex format for the shader (see VertexFormats.h)
+	InputLayoutHandle         m_eVertexFormat; // Base vertex format for the shader (see VertexFormats.h)
 	ECull                     m_eCull;         // Global culling type
 
 	TArray<SShaderTechnique*> m_HWTechniques;    // Hardware techniques
@@ -1196,7 +1189,7 @@ public:
 		, m_Flags2(0)
 		, m_nMDV(0)
 		, m_NameShaderICRC(0)
-		, m_eVertexFormat(eVF_P3F_C4B_T2F)
+		, m_eVertexFormat(EDefaultInputLayouts::P3F_C4B_T2F)
 		, m_eCull((ECull) - 1)
 		, m_nMaskCB(0)
 		, m_eShaderType(eST_General)
@@ -1290,7 +1283,7 @@ public:
 	}
 	virtual int           GetTexId();
 	virtual unsigned int  GetUsedTextureTypes(void);
-	virtual EVertexFormat GetVertexFormat(void) { return m_eVertexFormat; }
+	virtual InputLayoutHandle GetVertexFormat(void) { return m_eVertexFormat; }
 	virtual uint64        GetGenerationMask()   { return m_nMaskGenFX; }
 	virtual ECull         GetCull(void)
 	{

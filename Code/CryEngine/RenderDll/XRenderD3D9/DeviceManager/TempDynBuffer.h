@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #ifndef _TEMPDYNBUFFER_H_
 #define _TEMPDYNBUFFER_H_
@@ -71,7 +71,7 @@ protected:
 	TempDynBufferBase() : m_handle(invalidHandle), m_numElements(0), m_DevBufMan(&gcpRendD3D->m_DevBufMan), m_validator() {}
 	~TempDynBufferBase() { m_validator.Check(Default); }
 
-	void Allocate(size_t numElements) { AllocateInternal(numElements, sizeof(T)); }
+	void Allocate(buffer_size_t numElements) { AllocateInternal(numElements, sizeof(T)); }
 	bool IsAllocated() const          { return m_handle != invalidHandle; }
 	void Release();
 
@@ -80,18 +80,18 @@ protected:
 	void Unlock();
 
 protected:
-	void AllocateInternal(size_t numElements, size_t elementSize);
-	void UpdateInternal(const void* pData, size_t elementSize);
+	void AllocateInternal(buffer_size_t numElements, buffer_size_t elementSize);
+	void UpdateInternal(const void* pData, buffer_size_t elementSize);
 
 protected:
 	buffer_handle_t             m_handle;
-	size_t                      m_numElements;
+	buffer_size_t               m_numElements;
 	CGuardedDeviceBufferManager m_DevBufMan;
 	Validator                   m_validator;
 };
 
 template<typename T, BUFFER_BIND_TYPE bindType, class Validator>
-void TempDynBufferBase<T, bindType, Validator >::AllocateInternal(size_t numElements, size_t elementSize)
+void TempDynBufferBase<T, bindType, Validator >::AllocateInternal(buffer_size_t numElements, buffer_size_t elementSize)
 {
 	m_validator.Check(Default);
 	BUFFER_USAGE usageType = gRenDev->m_pRT->m_eVideoThreadMode != SRenderThread::eVTM_Disabled
@@ -119,7 +119,7 @@ void TempDynBufferBase<T, bindType, Validator >::Release()
 }
 
 template<typename T, BUFFER_BIND_TYPE bindType, class Validator>
-void TempDynBufferBase<T, bindType, Validator >::UpdateInternal(const void* pData, size_t elementSize)
+void TempDynBufferBase<T, bindType, Validator >::UpdateInternal(const void* pData, buffer_size_t elementSize)
 {
 	m_validator.Check(Allocated);
 	m_DevBufMan.UpdateBuffer(m_handle, pData, CGuardedDeviceBufferManager::AlignBufferSizeForStreaming(m_numElements * elementSize));
@@ -162,7 +162,7 @@ protected:
 	TempDynVBBase() {}
 	~TempDynVBBase() {}
 
-	void BindInternal(uint32 streamID, size_t stride);
+	void BindInternal(uint32 streamID, buffer_size_t stride);
 
 protected:
 	using Base::m_handle;
@@ -170,10 +170,10 @@ protected:
 };
 
 template<typename T, class Validator>
-void TempDynVBBase<T, Validator >::BindInternal(uint32 streamID, size_t stride)
+void TempDynVBBase<T, Validator >::BindInternal(uint32 streamID, buffer_size_t stride)
 {
 	m_validator.Check(Filled);
-	size_t bufferOffset = ~0;
+	buffer_size_t bufferOffset = ~0;
 	D3DVertexBuffer* pVB = this->m_DevBufMan.GetD3DVB(m_handle, &bufferOffset);
 	gcpRendD3D->FX_SetVStream(streamID, pVB, bufferOffset, stride);
 }
@@ -188,7 +188,7 @@ public:
 	typedef TempDynVBBase<T, Validator> Base;
 
 public:
-	static void CreateFillAndBind(const T* pData, size_t numElements, uint32 streamID) { CreateFillAndBindInternal(pData, numElements, streamID, sizeof(T)); }
+	static void CreateFillAndBind(const T* pData, buffer_size_t numElements, uint32 streamID) { CreateFillAndBindInternal(pData, numElements, streamID, sizeof(T)); }
 
 public:
 	TempDynVB() {}
@@ -197,7 +197,7 @@ public:
 	void Bind(uint32 streamID) { BindInternal(streamID, sizeof(T)); }
 
 protected:
-	static void CreateFillAndBindInternal(const void* pData, size_t numElements, uint32 streamID, size_t stride);
+	static void CreateFillAndBindInternal(const void* pData, buffer_size_t numElements, uint32 streamID, buffer_size_t stride);
 
 protected:
 	using Base::BindInternal;
@@ -208,7 +208,7 @@ protected:
 };
 
 template<typename T, class Validator>
-void TempDynVB<T, Validator >::CreateFillAndBindInternal(const void* pData, size_t numElements, uint32 streamID, size_t stride)
+void TempDynVB<T, Validator >::CreateFillAndBindInternal(const void* pData, buffer_size_t numElements, uint32 streamID, buffer_size_t stride)
 {
 	TempDynVB<T, Validator> vb;
 	vb.AllocateInternal(numElements, stride);
@@ -227,8 +227,8 @@ public:
 public:
 	TempDynInstVB() {}
 
-	void Allocate(size_t numElements, size_t elementSize) { AllocateInternal(numElements, elementSize); }
-	void Bind(uint32 streamID, uint32 stride)             { BindInternal(streamID, stride); }
+	void Allocate(buffer_size_t numElements, buffer_size_t elementSize) { AllocateInternal(numElements, elementSize); }
+	void Bind(uint32 streamID, buffer_size_t stride)                    { BindInternal(streamID, stride); }
 
 protected:
 	using Base::AllocateInternal;
@@ -243,7 +243,7 @@ protected:
 class TempDynVBAny
 {
 public:
-	static void CreateFillAndBind(const void* pData, size_t numElements, uint32 streamID, size_t stride) { TempDynVB<void>::CreateFillAndBindInternal(pData, numElements, streamID, stride); }
+	static void CreateFillAndBind(const void* pData, buffer_size_t numElements, uint32 streamID, buffer_size_t stride) { TempDynVB<void>::CreateFillAndBindInternal(pData, numElements, streamID, stride); }
 
 private:
 	TempDynVBAny();
@@ -275,12 +275,12 @@ public:
 	typedef TempDynBufferBase<IndexDataType, BBT_INDEX_BUFFER, Validator> Base;
 
 public:
-	static void CreateFillAndBind(const IndexDataType* pData, size_t numElements);
+	static void CreateFillAndBind(const IndexDataType* pData, buffer_size_t numElements);
 
 public:
 	TempDynIB() {}
 
-	void Allocate(size_t numElements);
+	void Allocate(buffer_size_t numElements);
 	using Base::IsAllocated;
 	using Base::Release;
 
@@ -300,7 +300,7 @@ protected:
 };
 
 template<RenderIndexType idxType, class Validator>
-void TempDynIB<idxType, Validator >::Allocate(size_t numElements)
+void TempDynIB<idxType, Validator >::Allocate(buffer_size_t numElements)
 {
 	Base::Allocate(numElements);
 }
@@ -309,13 +309,13 @@ template<RenderIndexType idxType, class Validator>
 void TempDynIB<idxType, Validator >::Bind()
 {
 	m_validator.Check(Filled);
-	size_t bufferOffset = ~0;
+	buffer_size_t bufferOffset = ~0;
 	D3DIndexBuffer* pIB = this->m_DevBufMan.GetD3DIB(m_handle, &bufferOffset);
 	gcpRendD3D->FX_SetIStream(pIB, bufferOffset, idxType);
 }
 
 template<RenderIndexType idxType, class Validator>
-void TempDynIB<idxType, Validator >::CreateFillAndBind(const IndexDataType* pData, size_t numElements)
+void TempDynIB<idxType, Validator >::CreateFillAndBind(const IndexDataType* pData, buffer_size_t numElements)
 {
 	TempDynIB<idxType, Validator> ib;
 	ib.Allocate(numElements);

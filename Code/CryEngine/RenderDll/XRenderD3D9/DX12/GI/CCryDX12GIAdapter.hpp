@@ -1,52 +1,39 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
-// -------------------------------------------------------------------------
-//  File name:
-//  Version:     v1.00
-//  Created:     03/02/2015 by Jan Pinter
-//  Description:
-// -------------------------------------------------------------------------
-//  History:
-//
-////////////////////////////////////////////////////////////////////////////
 #pragma once
-#ifndef __CCRYDX12GIADAPTER__
-	#define __CCRYDX12GIADAPTER__
 
-	#include "DX12/CCryDX12Object.hpp"
-	#include "CCryDX12GIFactory.hpp"
+#include "DX12/CCryDX12Object.hpp"
+#include "CCryDX12GIFactory.hpp"
 
-class CCryDX12GIAdapter : public CCryDX12GIObject<IDXGIAdapter3>
+class CCryDX12GIAdapter : public CCryDX12GIObject<IDXGIAdapter3ToImplement>
 {
 public:
-	DX12_OBJECT(CCryDX12GIAdapter, CCryDX12GIObject<IDXGIAdapter3> );
+	DX12_OBJECT(CCryDX12GIAdapter, CCryDX12GIObject<IDXGIAdapter3ToImplement>);
 
 	static CCryDX12GIAdapter* Create(CCryDX12GIFactory* factory, UINT Adapter);
 
-	virtual ~CCryDX12GIAdapter();
-
-	ILINE CCryDX12GIFactory* GetFactory() const     { return m_pFactory; }
-	ILINE IDXGIAdapter3*     GetDXGIAdapter() const { return m_pDXGIAdapter3; }
+	ILINE CCryDX12GIFactory*   GetFactory    () const { return m_pFactory; }
+	ILINE IDXGIAdapter3ToCall* GetDXGIAdapter() const { return m_pDXGIAdapter3; }
 
 	#pragma region /* IDXGIAdapter implementation */
 
-	virtual HRESULT STDMETHODCALLTYPE EnumOutputs(
+	VIRTUALGFX HRESULT STDMETHODCALLTYPE EnumOutputs(
 	  /* [in] */ UINT Output,
 	  /* [annotation][out][in] */
-	  _COM_Outptr_ IDXGIOutput** ppOutput) final;
+	  _COM_Outptr_ IDXGIOutput** ppOutput) FINALGFX;
 
-	virtual HRESULT STDMETHODCALLTYPE GetDesc(
+	VIRTUALGFX HRESULT STDMETHODCALLTYPE GetDesc(
 	  /* [annotation][out] */
-	  _Out_ DXGI_ADAPTER_DESC* pDesc) final
+	  _Out_ DXGI_ADAPTER_DESC* pDesc) FINALGFX
 	{
 		return m_pDXGIAdapter3->GetDesc(pDesc);
 	}
 
-	virtual HRESULT STDMETHODCALLTYPE CheckInterfaceSupport(
+	VIRTUALGFX HRESULT STDMETHODCALLTYPE CheckInterfaceSupport(
 	  /* [annotation][in] */
 	  _In_ REFGUID InterfaceName,
 	  /* [annotation][out] */
-	  _Out_ LARGE_INTEGER* pUMDVersion) final
+	  _Out_ LARGE_INTEGER* pUMDVersion) FINALGFX
 	{
 		return m_pDXGIAdapter3->CheckInterfaceSupport(InterfaceName, pUMDVersion);
 	}
@@ -55,8 +42,8 @@ public:
 
 	#pragma region /* IDXGIAdapter1 implementation */
 
-	virtual HRESULT STDMETHODCALLTYPE GetDesc1(
-	  _Out_ DXGI_ADAPTER_DESC1* pDesc) final
+	VIRTUALGFX HRESULT STDMETHODCALLTYPE GetDesc1(
+	  _Out_ DXGI_ADAPTER_DESC1* pDesc) FINALGFX
 	{
 		return m_pDXGIAdapter3->GetDesc1(pDesc);
 	}
@@ -64,81 +51,82 @@ public:
 	#pragma endregion
 
 	#pragma region /* IDXGIAdapter2 implementation */
+	#if defined(__dxgi1_2_h__) || defined(__d3d11_x_h__)
 
-	virtual HRESULT STDMETHODCALLTYPE GetDesc2(
+	VIRTUALGFX HRESULT STDMETHODCALLTYPE GetDesc2(
 	  /* [annotation][out] */
-	  _Out_ DXGI_ADAPTER_DESC2* pDesc) final
+	  _Out_ DXGI_ADAPTER_DESC2* pDesc) FINALGFX
 	{
 		return m_pDXGIAdapter3->GetDesc2(pDesc);
 	}
 
+	#endif
 	#pragma endregion
 
 	#pragma region /* IDXGIAdapter3 implementation */
+	#ifdef __dxgi1_4_h__
 
-	virtual HRESULT STDMETHODCALLTYPE RegisterHardwareContentProtectionTeardownStatusEvent(
+	VIRTUALGFX HRESULT STDMETHODCALLTYPE RegisterHardwareContentProtectionTeardownStatusEvent(
 	  /* [annotation][in] */
 	  _In_ HANDLE hEvent,
 	  /* [annotation][out] */
-	  _Out_ DWORD* pdwCookie) final
+	  _Out_ DWORD* pdwCookie) FINALGFX
 	{
 		return m_pDXGIAdapter3->RegisterHardwareContentProtectionTeardownStatusEvent(hEvent, pdwCookie);
 	}
 
-	virtual void STDMETHODCALLTYPE UnregisterHardwareContentProtectionTeardownStatus(
+	VIRTUALGFX void STDMETHODCALLTYPE UnregisterHardwareContentProtectionTeardownStatus(
 	  /* [annotation][in] */
-	  _In_ DWORD dwCookie) final
+	  _In_ DWORD dwCookie) FINALGFX
 	{
 		return m_pDXGIAdapter3->UnregisterHardwareContentProtectionTeardownStatus(dwCookie);
 	}
 
-	virtual HRESULT STDMETHODCALLTYPE QueryVideoMemoryInfo(
+	VIRTUALGFX HRESULT STDMETHODCALLTYPE QueryVideoMemoryInfo(
 	  /* [annotation][in] */
 	  _In_ UINT NodeIndex,
 	  /* [annotation][in] */
 	  _In_ DXGI_MEMORY_SEGMENT_GROUP MemorySegmentGroup,
 	  /* [annotation][out] */
-	  _Out_ DXGI_QUERY_VIDEO_MEMORY_INFO* pVideoMemoryInfo) final
+	  _Out_ DXGI_QUERY_VIDEO_MEMORY_INFO* pVideoMemoryInfo) FINALGFX
 	{
 		return m_pDXGIAdapter3->QueryVideoMemoryInfo(NodeIndex, MemorySegmentGroup, pVideoMemoryInfo);
 	}
 
-	virtual HRESULT STDMETHODCALLTYPE SetVideoMemoryReservation(
+	VIRTUALGFX HRESULT STDMETHODCALLTYPE SetVideoMemoryReservation(
 	  /* [annotation][in] */
 	  _In_ UINT NodeIndex,
 	  /* [annotation][in] */
 	  _In_ DXGI_MEMORY_SEGMENT_GROUP MemorySegmentGroup,
 	  /* [annotation][in] */
-	  _In_ UINT64 Reservation) final
+	  _In_ UINT64 Reservation) FINALGFX
 	{
 		return m_pDXGIAdapter3->SetVideoMemoryReservation(NodeIndex, MemorySegmentGroup, Reservation);
 	}
 
-	virtual HRESULT STDMETHODCALLTYPE RegisterVideoMemoryBudgetChangeNotificationEvent(
+	VIRTUALGFX HRESULT STDMETHODCALLTYPE RegisterVideoMemoryBudgetChangeNotificationEvent(
 	  /* [annotation][in] */
 	  _In_ HANDLE hEvent,
 	  /* [annotation][out] */
-	  _Out_ DWORD* pdwCookie) final
+	  _Out_ DWORD* pdwCookie) FINALGFX
 	{
 		return m_pDXGIAdapter3->RegisterVideoMemoryBudgetChangeNotificationEvent(hEvent, pdwCookie);
 	}
 
-	virtual void STDMETHODCALLTYPE UnregisterVideoMemoryBudgetChangeNotification(
+	VIRTUALGFX void STDMETHODCALLTYPE UnregisterVideoMemoryBudgetChangeNotification(
 	  /* [annotation][in] */
-	  _In_ DWORD dwCookie) final
+	  _In_ DWORD dwCookie) FINALGFX
 	{
 		return m_pDXGIAdapter3->UnregisterVideoMemoryBudgetChangeNotification(dwCookie);
 	}
 
+	#endif
 	#pragma endregion
 
 protected:
-	CCryDX12GIAdapter(CCryDX12GIFactory* pFactory, IDXGIAdapter3* pAdapter);
+	CCryDX12GIAdapter(CCryDX12GIFactory* pFactory, IDXGIAdapter3ToCall* pAdapter);
 
 private:
-	CCryDX12GIFactory* m_pFactory;
-
-	IDXGIAdapter3*     m_pDXGIAdapter3;
+	CCryDX12GIFactory*   m_pFactory;
+	IDXGIAdapter3ToCall* m_pDXGIAdapter3;
 };
-
-#endif // __CCRYDX12GIADAPTER__

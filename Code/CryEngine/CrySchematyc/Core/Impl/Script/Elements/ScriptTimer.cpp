@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #include "StdAfx.h"
 #include "Script/Elements/ScriptTimer.h"
@@ -6,11 +6,11 @@
 #include <CrySerialization/BlackBox.h>
 #include <CrySerialization/IArchiveHost.h>
 #include <CrySerialization/STL.h>
-#include <Schematyc/Env/IEnvRegistry.h>
-#include <Schematyc/Env/Elements/IEnvInterface.h>
-#include <Schematyc/SerializationUtils/ISerializationContext.h>
-#include <Schematyc/SerializationUtils/SerializationUtils.h>
-#include <Schematyc/Utils/IGUIDRemapper.h>
+#include <CrySchematyc/Env/IEnvRegistry.h>
+#include <CrySchematyc/Env/Elements/IEnvInterface.h>
+#include <CrySchematyc/SerializationUtils/ISerializationContext.h>
+#include <CrySchematyc/SerializationUtils/SerializationUtils.h>
+#include <CrySchematyc/Utils/IGUIDRemapper.h>
 
 namespace Schematyc
 {
@@ -19,7 +19,7 @@ CScriptTimer::CScriptTimer()
 	, m_params(STimerDuration(1.0f), ETimerFlags::AutoStart)
 {}
 
-CScriptTimer::CScriptTimer(const SGUID& guid, const char* szName)
+CScriptTimer::CScriptTimer(const CryGUID& guid, const char* szName)
 	: CScriptElementBase(guid, szName, EScriptElementFlags::None)
 	, m_params(STimerDuration(1.0f), ETimerFlags::AutoStart)
 {}
@@ -122,7 +122,7 @@ void CScriptTimer::SerializeParams(Serialization::IArchive& archive)
 				m_params.duration = STimerDuration(1.0f, 1.0f);
 			}
 			archive(m_params.duration.range.min, "min", "Minimum");
-			archive(m_params.duration.range.max, "max", "^Maximum");
+			archive(m_params.duration.range.max, "max", "Maximum");
 			break;
 		}
 	}

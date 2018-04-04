@@ -6,9 +6,10 @@ using CryEngine.Common;
 
 namespace CryEngine
 {
-	public struct Quaternion
+	public struct Quaternion : IEquatable<Quaternion>
+
 	{
-		public static readonly Quaternion Identity = new Quaternion(1, new Vec3(0, 0, 0));
+		public static readonly Quaternion Identity = new Quaternion(1, new Vector3(0, 0, 0));
 
 		private Vector3 _v;
 		private float _w;
@@ -45,51 +46,25 @@ namespace CryEngine
 			_w = scalar;
 		}
 
+		public Quaternion(Matrix3x3 matrix)
+		{
+			_v = new Vector3();
+			_w = 0.0f;
+			SetFromMatrix(matrix.m00, matrix.m01, matrix.m02, matrix.m10, matrix.m11, matrix.m12, matrix.m20, matrix.m21, matrix.m22);
+		}
+
 		public Quaternion(Matrix3x4 matrix)
 		{
-			float s, p, tr = matrix.m00 + matrix.m11 + matrix.m22;
+			_v = new Vector3();
+			_w = 0.0f;
+			SetFromMatrix(matrix.m00, matrix.m01, matrix.m02, matrix.m10, matrix.m11, matrix.m12, matrix.m20, matrix.m21, matrix.m22);
+		}
 
-			if(tr > 0)
-			{
-				s = (float)Math.Sqrt(tr + 1.0f);
-				p = 0.5f / s;
-				_w = s * 0.5f;
-				_v = new Vector3((matrix.m21 - matrix.m12) * p,
-								 (matrix.m02 - matrix.m20) * p,
-								 (matrix.m10 - matrix.m01) * p);
-			}
-			else if((matrix.m00 >= matrix.m11) && (matrix.m00 >= matrix.m22))
-			{
-				s = (float)Math.Sqrt(matrix.m00 - matrix.m11 - matrix.m22 + 1.0f);
-				p = 0.5f / s;
-				_w = (matrix.m21 - matrix.m12) * p;
-				_v = new Vector3(s * 0.5f,
-								(matrix.m10 + matrix.m01) * p,
-								(matrix.m20 + matrix.m02) * p);
-			}
-			else if((matrix.m11 >= matrix.m00) && (matrix.m11 >= matrix.m22))
-			{
-				s = (float)Math.Sqrt(matrix.m11 - matrix.m22 - matrix.m00 + 1.0f);
-				p = 0.5f / s;
-				_w = (matrix.m02 - matrix.m20) * p;
-				_v = new Vector3((matrix.m01 + matrix.m10) * p,
-								  s * 0.5f,
-								 (matrix.m21 + matrix.m12) * p);
-			}
-			else if((matrix.m22 >= matrix.m00) && (matrix.m22 >= matrix.m11))
-			{
-				s = (float)Math.Sqrt(matrix.m22 - matrix.m00 - matrix.m11 + 1.0f);
-				p = 0.5f / s;
-				_w = (matrix.m10 - matrix.m01) * p;
-				_v = new Vector3((matrix.m02 + matrix.m20) * p,
-								(matrix.m12 + matrix.m21) * p,
-								s * 0.5f);
-			}
-			else
-			{
-				_w = 1;
-				_v = new Vector3();
-			}
+		public Quaternion(Matrix4x4 matrix)
+		{
+			_v = new Vector3();
+			_w = 0.0f;
+			SetFromMatrix(matrix.m00, matrix.m01, matrix.m02, matrix.m10, matrix.m11, matrix.m12, matrix.m20, matrix.m21, matrix.m22);
 		}
 
 		public Quaternion(Vector3 forwardDirection)
@@ -97,13 +72,13 @@ namespace CryEngine
 			//set default initialization for up-vector
 			_w = 0.70710676908493042f;
 			_v = new Vector3(forwardDirection.z * 0.70710676908493042f, 0, 0);
-			float l = (float)Math.Sqrt(forwardDirection.x * forwardDirection.x + forwardDirection.y * forwardDirection.y);
+			var l = (float)Math.Sqrt(forwardDirection.x * forwardDirection.x + forwardDirection.y * forwardDirection.y);
 			if(l > 0.00001f)
 			{
 				//calculate LookAt quaternion
 				var hv = new Vector3(forwardDirection.x / l, forwardDirection.y / l + 1.0f, l + 1.0f);
-				float r = (float)Math.Sqrt(hv.x * hv.x + hv.y * hv.y);
-				float s = (float)Math.Sqrt(hv.z * hv.z + forwardDirection.z * forwardDirection.z);
+				var r = (float)Math.Sqrt(hv.x * hv.x + hv.y * hv.y);
+				var s = (float)Math.Sqrt(hv.z * hv.z + forwardDirection.z * forwardDirection.z);
 				//generate the half-angle sine&cosine
 				float hacos0 = 0.0f;
 				float hasin0 = -1.0f;
@@ -132,6 +107,7 @@ namespace CryEngine
 							sz * cy * cx - cz * sy * sx);
 		}
 
+		[Obsolete("Please use Quaternion(Vector3, Vector3, Vector3)")]
 		public Quaternion(Vec3 right, Vec3 forward, Vec3 up)
 		{
 			float s, p, tr = right.x + forward.y + up.z;
@@ -177,6 +153,51 @@ namespace CryEngine
 			}
 		}
 
+		public Quaternion(Vector3 right, Vector3 forward, Vector3 up)
+		{
+			float s, p, tr = right.x + forward.y + up.z;
+
+			_w = 1;
+			_v = new Vector3();
+
+			if (tr > 0)
+			{
+				s = (float)Math.Sqrt(tr + 1.0f);
+				p = 0.5f / s;
+				_w = s * 0.5f;
+				_v.x = (forward.z - up.y) * p;
+				_v.y = (up.x - right.z) * p;
+				_v.z = (right.y - forward.x) * p;
+			}
+			else if ((right.x >= forward.y) && (right.x >= up.z))
+			{
+				s = (float)Math.Sqrt(right.x - forward.y - up.z + 1.0f);
+				p = 0.5f / s;
+				_w = (forward.z - up.y) * p;
+				_v.x = s * 0.5f;
+				_v.y = (right.y + forward.x) * p;
+				_v.z = (right.z + up.x) * p;
+			}
+			else if ((forward.y >= right.x) && (forward.y >= up.z))
+			{
+				s = (float)Math.Sqrt(forward.y - up.z - right.x + 1.0f);
+				p = 0.5f / s;
+				_w = (up.x - right.z) * p;
+				_v.x = (forward.x + right.y) * p;
+				_v.y = s * 0.5f;
+				_v.z = (forward.z + up.y) * p;
+			}
+			else if ((up.z >= right.x) && (up.z >= forward.y))
+			{
+				s = (float)Math.Sqrt(up.z - right.x - forward.y + 1.0f);
+				p = 0.5f / s;
+				_w = (right.y - forward.x) * p;
+				_v.x = (up.x + right.z) * p;
+				_v.y = (up.y + forward.z) * p;
+				_v.z = s * 0.5f;
+			}
+		}
+
 		#region Overrides
 		public override int GetHashCode()
 		{
@@ -184,10 +205,12 @@ namespace CryEngine
 			{
 				int hash = 17;
 
-				hash = hash * 23 + X.GetHashCode();
-				hash = hash * 23 + Y.GetHashCode();
-				hash = hash * 23 + Z.GetHashCode();
-				hash = hash * 23 + W.GetHashCode();
+#pragma warning disable RECS0025 // Non-readonly field referenced in 'GetHashCode()'
+				hash = hash * 23 + _v.x.GetHashCode();
+				hash = hash * 23 + _v.y.GetHashCode();
+				hash = hash * 23 + _v.z.GetHashCode();
+				hash = hash * 23 + _w.GetHashCode();
+#pragma warning restore RECS0025 // Non-readonly field referenced in 'GetHashCode()'
 
 				return hash;
 			}
@@ -198,15 +221,20 @@ namespace CryEngine
 			if(obj == null)
 				return false;
 
-			if(obj is Quaternion || obj is Quat)
-				return this == (Quaternion)obj;
+			if(!(obj is Quaternion || obj is Quat))
+				return false;
 
-			return false;
+			return Equals((Quaternion)obj);
+		}
+
+		public bool Equals(Quaternion other)
+		{
+			return MathHelpers.Approximately(_v.x, other.x) && MathHelpers.Approximately(_v.y, other.y) && MathHelpers.Approximately(_v.z, other.z) && MathHelpers.Approximately(_w, other.w);
 		}
 
 		public override string ToString()
 		{
-			return string.Format(CultureInfo.CurrentCulture, "{0},{1},{2},{3}", X, Y, Z, W);
+			return string.Format(CultureInfo.CurrentCulture, "{0},{1},{2},{3}", _v.x, _v.y, _v.z, _w);
 		}
 		#endregion
 
@@ -220,7 +248,7 @@ namespace CryEngine
 		{
 			if(nativeQuat == null)
 			{
-				return Quaternion.Identity;
+				return Identity;
 			}
 
 			return new Quaternion(nativeQuat.v, nativeQuat.w);
@@ -304,10 +332,7 @@ namespace CryEngine
 
 		public static bool operator ==(Quaternion left, Quaternion right)
 		{
-			if((object)right == null)
-				return (object)left == null;
-
-			return ((left.X == right.X) && (left.Y == right.Y) && (left.Z == right.Z) && (left.W == right.W));
+			return left.Equals(right);
 		}
 
 		public static bool operator !=(Quaternion left, Quaternion right)
@@ -316,19 +341,22 @@ namespace CryEngine
 		}
 		#endregion
 
-		#region Functions
+		#region Methods
 		public void Normalize()
 		{
-			float inverseLength = MathHelpers.ISqrt(X * X + Y * Y + Z * Z + W * W);
-			X *= inverseLength;
-			Y *= inverseLength;
-			Z *= inverseLength;
-			W *= inverseLength;
+			if (!IsValid())
+			{
+				_w = 0;
+				_v = new Vector3(0f, 0f, 0f);
+			}
+			var inverseLength = MathHelpers.ISqrt(_v.x * _v.x + _v.y * _v.y + _v.z * _v.z + _w * _w);
+			_v *= inverseLength;
+			_w *= inverseLength;
 		}
 
 		public float Dot(Quaternion other)
 		{
-			return (V.X * V.X + V.Y * other.V.Y + V.Z * other.V.Z + W * other.W);
+			return (_v.X * _v.X + _v.Y * other.V.Y + _v.Z * other.V.Z + _w * other.W);
 		}
 
 		public Quaternion Difference(Quaternion other)
@@ -338,8 +366,27 @@ namespace CryEngine
 
 		public void SetLookOrientation(Vector3 forward, Vector3 up)
 		{
-			var right = forward.Cross(up);
-			CreateFromVectors(right, forward, up);
+			Vector3 xAxis;
+			Vector3 yAxis;
+			Vector3 zAxis;
+			Vector3 upVector = up.Normalized;
+			if(forward.IsNearlyZero())
+			{
+				Matrix3x3 managedMatrix = Matrix3x3.Identity;
+				this = new Quaternion(managedMatrix);
+				return;
+			}
+			yAxis = forward.Normalized;
+			if(MathHelpers.Approximately(0f, yAxis.x) && MathHelpers.Approximately(0f, yAxis.y) && (up == Vector3.Up))
+			{
+				upVector = new Vector3(-yAxis.z, 0f, 0f);
+			}
+
+			xAxis = (yAxis.Cross(upVector)).Normalized;
+			zAxis = (xAxis.Cross(yAxis)).Normalized;
+
+			var matrix = new Matrix3x3(xAxis, yAxis, zAxis);
+			this = new Quaternion(matrix);
 		}
 
 		public static Quaternion CreateFromVectors(Vector3 right, Vector3 forward, Vector3 up)
@@ -352,22 +399,69 @@ namespace CryEngine
 			float dot = fromDirection.x * toDirection.x + fromDirection.y * toDirection.y + fromDirection.z * toDirection.z + 1.0f;
 			if(dot > 0.0001f)
 			{
-				float vx = fromDirection.y * toDirection.z - fromDirection.z * toDirection.y;
-				float vy = fromDirection.z * toDirection.x - fromDirection.x * toDirection.z;
-				float vz = fromDirection.x * toDirection.y - fromDirection.y * toDirection.x;
-				float d = MathHelpers.ISqrt(dot * dot + vx * vx + vy * vy + vz * vz);
+				var vx = fromDirection.y * toDirection.z - fromDirection.z * toDirection.y;
+				var vy = fromDirection.z * toDirection.x - fromDirection.x * toDirection.z;
+				var vz = fromDirection.x * toDirection.y - fromDirection.y * toDirection.x;
+				var d = MathHelpers.ISqrt(dot * dot + vx * vx + vy * vy + vz * vz);
 				_w = dot * d;
 				_v.x = vx * d;
 				_v.y = vy * d;
 				_v.z = vz * d;
 				return;
 			}
-			w = 0;
-			v = fromDirection.Orthogonal.Normalized;
+			_w = 0;
+			_v = fromDirection.Orthogonal.Normalized;
+		}
+
+		private void SetFromMatrix(float m00, float m01, float m02, float m10, float m11, float m12, float m20, float m21, float m22)
+		{
+			float s, p, tr = m00 + m11 + m22;
+
+			if(tr > 0)
+			{
+				s = (float)Math.Sqrt(tr + 1.0f);
+				p = 0.5f / s;
+				_w = s * 0.5f;
+				_v = new Vector3((m21 - m12) * p,
+								 (m02 - m20) * p,
+								 (m10 - m01) * p);
+			}
+			else if((m00 >= m11) && (m00 >= m22))
+			{
+				s = (float)Math.Sqrt(m00 - m11 - m22 + 1.0f);
+				p = 0.5f / s;
+				_w = (m21 - m12) * p;
+				_v = new Vector3(s * 0.5f,
+								(m10 + m01) * p,
+								(m20 + m02) * p);
+			}
+			else if((m11 >= m00) && (m11 >= m22))
+			{
+				s = (float)Math.Sqrt(m11 - m22 - m00 + 1.0f);
+				p = 0.5f / s;
+				_w = (m02 - m20) * p;
+				_v = new Vector3((m01 + m10) * p,
+								  s * 0.5f,
+								 (m21 + m12) * p);
+			}
+			else if((m22 >= m00) && (m22 >= m11))
+			{
+				s = (float)Math.Sqrt(m22 - m00 - m11 + 1.0f);
+				p = 0.5f / s;
+				_w = (m10 - m01) * p;
+				_v = new Vector3((m02 + m20) * p,
+								(m12 + m21) * p,
+								s * 0.5f);
+			}
+			else
+			{
+				_w = 1;
+				_v = new Vector3();
+			}
 		}
 		#endregion
 
-		#region Static functions
+		#region Functions
 		public static Quaternion CreateRotationX(float radians)
 		{
 			var quat = new Quaternion();
@@ -415,6 +509,12 @@ namespace CryEngine
 			return new Quaternion(angles);
 		}
 
+		public bool IsValid()
+		{
+			if (_v.IsNearlyZero() && Math.Abs(_w) <= MathHelpers.Epsilon) return false;
+			return true;
+		}
+
 		/// <summary>
 		/// Spherical-Interpolation between unit quaternions.
 		/// </summary>
@@ -428,7 +528,7 @@ namespace CryEngine
 			var q = end;
 			var q2 = new Quaternion();
 
-			float cosine = p.Dot(q);
+			var cosine = p.Dot(q);
 			if(cosine < 0.0f) { cosine = -cosine; q = -q; } //take shortest arc
 			if(cosine > 0.9999f)
 			{
@@ -439,7 +539,7 @@ namespace CryEngine
 			q2._v.x = q.v.x - p.v.x * cosine;
 			q2._v.y = q.v.y - p.v.y * cosine;
 			q2._v.z = q.v.z - p.v.z * cosine;
-			float sine = (float)Math.Sqrt(q2.Dot(q2));
+			var sine = (float)Math.Sqrt(q2.Dot(q2));
 
 			float s, c;
 			MathHelpers.SinCos((float)Math.Atan2(sine, cosine) * timeRatio, out s, out c);
@@ -480,9 +580,9 @@ namespace CryEngine
 		#endregion
 
 		#region Properties
-		public Vector3 Right { get { return new Vector3(2 * (v.x * v.x + w * w) - 1, 2 * (v.y * v.x + v.z * w), 2 * (v.z * v.x - v.y * w)); } }
-		public Vector3 Forward { get { return new Vector3(2 * (v.x * v.y - v.z * w), 2 * (v.y * v.y + w * w) - 1, 2 * (v.z * v.y + v.x * w)); } }
-		public Vector3 Up { get { return new Vector3(2 * (v.x * v.z + v.y * w), 2 * (v.y * v.z - v.x * w), 2 * (v.z * v.z + w * w) - 1); } }
+		public Vector3 Right { get { return new Vector3(2 * (_v.x * _v.x + _w * _w) - 1, 2 * (_v.y * _v.x + _v.z * _w), 2 * (_v.z * _v.x - _v.y * _w)); } }
+		public Vector3 Forward { get { return new Vector3(2 * (_v.x * _v.y - _v.z * _w), 2 * (_v.y * _v.y + _w * _w) - 1, 2 * (_v.z * _v.y + _v.x * _w)); } }
+		public Vector3 Up { get { return new Vector3(2 * (_v.x * _v.z + _v.y * _w), 2 * (_v.y * _v.z - _v.x * _w), 2 * (_v.z * _v.z + _w * _w) - 1); } }
 
 		public Angles3 EulerAngles { get { return new Angles3(this); } }
 
@@ -498,23 +598,48 @@ namespace CryEngine
 			}
 		}
 
-		public float Length { get { return (float)Math.Sqrt(W * W + X * X + Y * Y + Z * Z); } }
+		public float Length
+		{
+			get
+			{
+				if (!IsValid()) return 0;
+				return (float)Math.Sqrt(_w * _w + _v.x * _v.x + _v.y * _v.y + _v.z * _v.z);
+			}
+		}
 
 		public float Magnitude { get { return Length; } }
 
-		public float LengthSquared { get { return W * W + X * X + Y * Y + Z * Z; } }
+		public float LengthSquared { get { return _w * _w + _v.x * _v.x + _v.y * _v.y + _v.z * _v.z; } }
 
-		public bool IsIdentity { get { return w == 1 && x == 0 && y == 0 && z == 0; } }
+		public bool IsIdentity { get { return Math.Abs(_w - 1.0f) < MathHelpers.Epsilon && _v == Vector3.Zero; } }
 
+		/// <summary>
+		/// The yaw, pitch and roll of this Quaternion.
+		/// x-YAW
+		/// y-PITCH (negative=looking down / positive=looking up)
+		/// z-ROLL
+		/// 
+		/// COORDINATE-SYSTEM
+		/// z-axis
+		///  ^
+		///  |
+		///  |  y-axis
+		///  |  /
+		///  | /
+		///  |/
+		///  +--------------->   x-axis
+		/// Note: If we are looking along the z-axis, its not possible to specify the x and z-angle.
+		/// </summary>
+		/// <value>The yaw pitch roll.</value>
 		public Angles3 YawPitchRoll
 		{
 			get
 			{
-				return CCamera.CreateAnglesYPR(new Matrix33(this));
+				return CCamera.CreateAnglesYPR(new Matrix3x3(this));
 			}
 			set
 			{
-				this = new Quat(CCamera.CreateOrientationYPR(value));
+				this = new Quaternion(CCamera.CreateOrientationYPR(value));
 			}
 		}
 		#endregion

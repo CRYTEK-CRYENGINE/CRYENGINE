@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 /*************************************************************************
    -------------------------------------------------------------------------
@@ -56,12 +56,7 @@ struct SServerPublicAddress
 	}
 };
 
-#if ENABLE_ASPECT_HASHING
-	#define CCV_NUM_EXTRA_MESSAGES (NUM_ASPECTS * 4)
-#else
-	#define CCV_NUM_EXTRA_MESSAGES (NUM_ASPECTS * 3)
-#endif
-
+#define CCV_NUM_EXTRA_MESSAGES (NUM_ASPECTS * 3)
 #define CLIENTVIEW_MIN_NUM_MESSAGES 31
 
 // implements CContextView in a way that acts like a client
@@ -96,16 +91,6 @@ public:
 			"CClientContextView:SetAspectProfile", AspectNum);
 		}
 	};
-
-#if ENABLE_ASPECT_HASHING
-	template<int AspectNum>
-	struct msgHashAspect {
-		static SNetMessageDef* fun() { return Helper_AddAspectMessage(
-			TrampolineAspect<AspectNum, CContextView, &CClientContextView::HashAspect>,
-			"CClientContextView:HashAspect", AspectNum, eMPF_BlocksStateChange);
-		}
-	};
-#endif
 
 #if ENABLE_SESSION_IDS
 	NET_DECLARE_IMMEDIATE_MESSAGE(InitSessionData);

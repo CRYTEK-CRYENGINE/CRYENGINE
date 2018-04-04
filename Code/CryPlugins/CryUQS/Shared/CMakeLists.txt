@@ -18,6 +18,7 @@ add_sources("UQS_uber_shared.cpp"
 		"shared/UqsString.cpp"
 		"shared/VariantDict.h"
 		"shared/VariantDict.cpp"
+		"shared/FactoryBase.h"
 )
 
 end_sources()
@@ -27,11 +28,16 @@ CryEngineStaticModule(CryUQS_Shared PCH "shared/StdAfx.cpp" SOLUTION_FOLDER "Cry
 if(WIN32 OR WIN64)
 	target_compile_definitions(${THIS_PROJECT} PRIVATE NOT_USE_CRY_MEMORY_MANAGER)
 endif()
-target_link_libraries (${THIS_PROJECT} PRIVATE
-	yasli
-)
 
 target_include_directories(${THIS_PROJECT} 
+	PRIVATE shared
 	PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}"
 	INTERFACE "${CMAKE_CURRENT_SOURCE_DIR}/../.."
 )
+
+if(OPTION_UQS_SCHEMATYC_SUPPORT)
+	target_include_directories(${THIS_PROJECT}
+		PRIVATE "${CRYENGINE_DIR}/Code/CryEngine/CrySchematyc/Core/Interface"
+		PRIVATE "${CRYENGINE_DIR}/Code/CryEngine/CrySchematyc/STDEnv/Interface"
+	)
+endif()

@@ -6,8 +6,8 @@ namespace CryEngine
 	public sealed class BehaviorTreeNodeAttribute : Attribute
 	{
 		#region Fields
-		private string _name;
-		private bool _register; 
+		private readonly string _name;
+		private readonly bool _register;
 		#endregion
 
 		#region Properties

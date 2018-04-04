@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 // -------------------------------------------------------------------------
 //  Created:     25/03/2015 by Filipe amim
@@ -608,7 +608,7 @@ public:
 		{
 			const TParticleIdv parentId = parentIds.Load(particleGroupId);
 			const floatv input = stream.Load(particleGroupId);
-			const floatv parent = parentStream.Load(parentId, 0.0f);
+			const floatv parent = parentStream.Load(parentId);
 			const floatv output = Mul(input, parent);
 			stream.Store(particleGroupId, output);
 		}
@@ -755,11 +755,9 @@ public:
 	{
 		CRY_PFX2_PROFILE_DETAIL;
 
-		CVars* pCVars = static_cast<C3DEngine*>(gEnv->p3DEngine)->GetCVars();
-		const ESystemConfigSpec configSpec = gEnv->pSystem->GetConfigSpec();
-		const uint particleSpec = pCVars->e_ParticlesQuality != 0 ? pCVars->e_ParticlesQuality : configSpec;
-
+		const uint particleSpec = context.m_runtime.GetEmitter()->GetParticleSpec();
 		floatv multiplier = ToFloatv(1.0f);
+
 		for (uint i = 0; i < gNumConfigSpecs; ++i)
 		{
 			if (gConfigSpecs[i].m_index == particleSpec)
@@ -792,5 +790,72 @@ private:
 };
 
 SERIALIZATION_CLASS_NAME(IModifier, CModConfigSpec, "ConfigSpec", "Config Spec");
+
+//////////////////////////////////////////////////////////////////////////
+// CModAttribute
+
+class CModAttribute : public IModifier
+{
+public:
+	CModAttribute()
+		: m_scale(1.0f)
+		, m_bias(0.0f)
+		, m_spawnOnly(false) {}
+
+	virtual void AddToParam(CParticleComponent* pComponent, IParamMod* pParam) override
+	{
+		if (m_spawnOnly)
+			pParam->AddToInitParticles(this);
+		else
+			pParam->AddToUpdate(this);
+	}
+
+	virtual EModDomain GetDomain() const override
+	{
+		return EMD_PerParticle;
+	}
+
+	virtual void Serialize(Serialization::IArchive& ar) override
+	{
+		IModifier::Serialize(ar);
+		ar(m_name, "Name", "Attribute Name");
+		ar(m_scale, "Scale", "Scale");
+		ar(m_bias, "Bias", "Bias");
+		ar(m_spawnOnly, "SpawnOnly", "Spawn Only");
+	}
+
+	virtual void Modify(const SUpdateContext& context, const SUpdateRange& range, IOFStream stream, EParticleDataType streamType, EModDomain domain) const override
+	{
+		CRY_PFX2_PROFILE_DETAIL;
+
+		CParticleContainer& container = context.m_container;
+		const CAttributeInstance& attributes = context.m_runtime.GetEmitter()->GetAttributeInstance();
+		const auto attributeId = attributes.FindAttributeIdByName(m_name.c_str());
+		const float attribute = attributes.GetAsFloat(attributeId, 1.0f);
+		const floatv value = ToFloatv(attribute * m_scale + m_bias);
+
+		CRY_PFX2_FOR_RANGE_PARTICLESGROUP(range)
+		{
+			const floatv inValue = stream.Load(particleGroupId);
+			const floatv outvalue = inValue * value;
+			stream.Store(particleGroupId, outvalue);
+		}
+		CRY_PFX2_FOR_END;
+	}
+
+	virtual Range GetMinMax() const override
+	{
+		// PFX2_TODO: Wrong! Depends on attribute value
+		return Range(0.0f, 1.0f);
+	}
+
+private:
+	string m_name;
+	SFloat m_scale;
+	SFloat m_bias;
+	bool   m_spawnOnly;
+};
+
+SERIALIZATION_CLASS_NAME(IModifier, CModAttribute, "Attribute", "Attribute");
 
 }

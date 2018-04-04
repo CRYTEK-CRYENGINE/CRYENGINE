@@ -10,7 +10,7 @@
 
 #pragma once
 
-#include "IConvertor.h"
+#include "IConverter.h"
 #include "GeomCache.h"
 #include "ThreadUtils.h"
 #include "StealingThreadPool.h"

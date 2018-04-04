@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 // -------------------------------------------------------------------------
 //  File name:   terrain_det_tex.cpp
@@ -66,7 +66,7 @@ void CTerrain::LoadSurfaceTypesFromXML(XmlNodeRef pDetTexTagList, int nSID)
 		XmlNodeRef pDetLayer = pDetTexTagList->getChild(nId);
 		IMaterialManager* pMatMan = Get3DEngine()->GetMaterialManager();
 		const char* pMatName = pDetLayer->getAttr("DetailMaterial");
-		IMaterial* pMat = pMatName[0] ? pMatMan->LoadMaterial(pMatName) : NULL;
+		_smart_ptr<IMaterial> pMat = pMatName[0] ? pMatMan->LoadMaterial(pMatName) : NULL;
 
 		float fScaleX = 1.f;
 		pDetLayer->getAttr("DetailScaleX", fScaleX);
@@ -80,7 +80,7 @@ void CTerrain::LoadSurfaceTypesFromXML(XmlNodeRef pDetTexTagList, int nSID)
 			pMat = pMatMan->GetDefaultTerrainLayerMaterial();
 		}
 
-		if (CMatInfo* pMatInfo = (CMatInfo*)pMat)
+		if (CMatInfo* pMatInfo = static_cast<CMatInfo*>(pMat.get()))
 		{
 			pMatInfo->m_fDefautMappingScale = fScaleX;
 			Get3DEngine()->InitMaterialDefautMappingAxis(pMatInfo);

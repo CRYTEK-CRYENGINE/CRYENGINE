@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 // -------------------------------------------------------------------------
 //  Created:     29/01/2015 by Filipe amim
@@ -94,9 +94,9 @@ SERIALIZATION_ENUM_DEFINE(EWaterVisibility, ,
 struct SVisibilityParams
 {
 	UFloat m_viewDistanceMultiple;         // Multiply standard view distance calculated from max particle size and e_ParticlesMinDrawPixels
-	UFloat m_maxScreenSize;                // Override cvar e_ParticlesMaxDrawScreen, fade out near camera
+	UFloatInf m_maxScreenSize;             // Override cvar e_ParticlesMaxDrawScreen, fade out near camera
 	UFloat m_minCameraDistance;
-	UFloat m_maxCameraDistance;
+	UFloatInf m_maxCameraDistance;
 	EIndoorVisibility m_indoorVisibility;
 	EWaterVisibility  m_waterVisibility;
 
@@ -106,6 +106,17 @@ struct SVisibilityParams
 		, m_indoorVisibility(EIndoorVisibility::Both)
 		, m_waterVisibility(EWaterVisibility::Both)
 	{}
+	void Combine(const SVisibilityParams& o)  // Combination from multiple features chooses most restrictive values
+	{
+		m_viewDistanceMultiple = m_viewDistanceMultiple * o.m_viewDistanceMultiple;
+		m_maxScreenSize = min(m_maxScreenSize, o.m_maxScreenSize);
+		m_minCameraDistance = max(m_minCameraDistance, o.m_minCameraDistance);
+		m_maxCameraDistance = min(m_maxCameraDistance, o.m_maxCameraDistance);
+		if (m_indoorVisibility == EIndoorVisibility::Both)
+			m_indoorVisibility = o.m_indoorVisibility;
+		if (m_waterVisibility == EWaterVisibility::Both)
+			m_waterVisibility = o.m_waterVisibility;
+	}
 };
 
 struct SComponentParams
@@ -117,10 +128,10 @@ struct SComponentParams
 
 	void  Reset();
 	void  Validate(CParticleComponent* pComponent, Serialization::IArchive* ar = 0);
-	float GetPrimeTime() const;
 	bool  IsValid() const     { return m_isValid; }
 	bool  HasChildren() const { return !m_subComponentIds.empty(); }
 	bool  IsSecondGen() const { return m_parentId != gInvalidId; }
+	bool  IsImmortal() const  { return !std::isfinite(m_emitterLifeTime.end + m_maxParticleLifeTime); }
 	void  MakeMaterial(CParticleComponent* pComponent);
 
 	// PFX2_TODO : Reorder from larger to smaller
@@ -128,12 +139,14 @@ struct SComponentParams
 	SParticleShaderData       m_shaderData;
 	_smart_ptr<IMaterial>     m_pMaterial;
 	_smart_ptr<IMeshObj>      m_pMesh;
+	EShaderType               m_requiredShaderType;
 	string                    m_diffuseMap;
 	uint64                    m_renderObjectFlags;
 	size_t                    m_instanceDataStride;
 	STextureAnimation         m_textureAnimation;
 	float                     m_scaleParticleCount;
-	float                     m_baseParticleLifeTime;
+	Range                     m_emitterLifeTime;
+	float                     m_maxParticleLifeTime;
 	float                     m_maxParticleSize;
 	float                     m_renderObjectSortBias;
 	SVisibilityParams         m_visibility;
@@ -194,8 +207,9 @@ public:
 	const SComponentParams& GetComponentParams() const                    { return m_componentParams; }
 	bool                    UseParticleData(EParticleDataType type) const { return m_useParticleData[type]; }
 
-	bool                    SetSecondGeneration(CParticleComponent* pParentComponent);
+	bool                    SetSecondGeneration(CParticleComponent* pParentComponent, bool delayed);
 	CParticleComponent*     GetParentComponent() const;
+	float                   GetEquilibriumTime(Range parentLife = Range()) const;
 
 	void                    PrepareRenderObjects(CParticleEmitter* pEmitter);
 	void                    ResetRenderObjects(CParticleEmitter* pEmitter);

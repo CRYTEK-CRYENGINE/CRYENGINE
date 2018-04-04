@@ -4,14 +4,14 @@
 
 #include "ItemSerializationSupport.h"
 
-#include <yasli/JSONIArchive.h>
-#include <yasli/JSONOArchive.h>
+#include <CrySerialization/yasli/JSONIArchive.h>
+#include <CrySerialization/yasli/JSONOArchive.h>
 
 // *INDENT-OFF* - <hard to read code and declarations due to inconsistent indentation>
 
-namespace uqs
+namespace UQS
 {
-	namespace core
+	namespace Core
 	{
 
 		class CUqsJsonIArchive : public yasli::JSONIArchive
@@ -42,7 +42,7 @@ namespace uqs
 
 
 
-		bool CItemSerializationSupport::DeserializeItemFromCStringLiteral(void* pOutItem, const client::IItemFactory& itemFactory, const char* szItemLiteral, shared::IUqsString* pErrorMessage) const
+		bool CItemSerializationSupport::DeserializeItemFromCStringLiteral(void* pOutItem, const Client::IItemFactory& itemFactory, const char* szItemLiteral, Shared::IUqsString* pErrorMessage) const
 		{
 			const bool bValidate = (pErrorMessage != nullptr);
 			const int archiveFlags = bValidate ? CUqsJsonIArchive::VALIDATION : 0;
@@ -62,7 +62,7 @@ namespace uqs
 			return bResult;
 		}
 
-		bool CItemSerializationSupport::DeserializeItemIntoDictFromCStringLiteral(shared::IVariantDict& out, const char* szKey, client::IItemFactory& itemFactory, const char* szItemLiteral, shared::IUqsString* pErrorMessage) const
+		bool CItemSerializationSupport::DeserializeItemIntoDictFromCStringLiteral(Shared::IVariantDict& out, const char* szKey, Client::IItemFactory& itemFactory, const char* szItemLiteral, Shared::IUqsString* pErrorMessage) const
 		{
 			const bool bValidate = (pErrorMessage != nullptr);
 			const int archiveFlags = bValidate ? CUqsJsonIArchive::VALIDATION : 0;
@@ -82,7 +82,7 @@ namespace uqs
 			return bResult;
 		}
 
-		bool CItemSerializationSupport::SerializeItemToStringLiteral(const void* pItem, const client::IItemFactory& itemFactory, shared::IUqsString& outString) const
+		bool CItemSerializationSupport::SerializeItemToStringLiteral(const void* pItem, const Client::IItemFactory& itemFactory, Shared::IUqsString& outString) const
 		{
 			yasli::JSONOArchive archive;
 

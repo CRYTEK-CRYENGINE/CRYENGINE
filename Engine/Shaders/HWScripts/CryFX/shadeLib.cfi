@@ -25,30 +25,7 @@ SCENE_SPECULARACC_MAP
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-Texture2DMS sceneNormalsTexMS     : TS_SceneNormalsMapMS  < float4; >;
-Texture2DMS sceneDiffuseAccTexMS  : TS_SceneDiffuseAccMS  < float4; >;
-Texture2DMS sceneSpecularAccTexMS : TS_SceneSpecularAccMS < float4; >;
 Texture2DMS sceneDepthTexMS       : TS_ZTargetMS          < float4; >;
-
-half4 GetSceneDiffuseAccMS( float2 baseTC, int NumSamples, int nCurrSample ) 
-{
-#if %_RT_MSAA_QUALITY || %_RT_MSAA_QUALITY1
-	int3 vPixCoord = int3( baseTC * PS_ScreenSize.xy, 0);
-  return sceneDiffuseAccTexMS.Load(vPixCoord, nCurrSample);
-#else
-	return 0;
-#endif
-}
-
-half4 GetSceneSpecularAccMS( float2 baseTC, int NumSamples, int nCurrSample ) 
-{
-#if %_RT_MSAA_QUALITY || %_RT_MSAA_QUALITY1
-	int3 vPixCoord = int3( baseTC * PS_ScreenSize.xy, 0);
-	return sceneSpecularAccTexMS.Load(vPixCoord, nCurrSample);
-#else
-	return 0;
-#endif
-}
 
 half4 GetDecodedSceneDepthMS( float2 baseTC, int NumSamples, int nCurrSample ) 
 {
@@ -62,142 +39,25 @@ half4 GetDecodedSceneDepthMS( float2 baseTC, int NumSamples, int nCurrSample )
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-#define REFLECT_OFF    0
-#define REFLECT_CUBE   1
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-float4 miscCamFront : PB_CameraFront;
-
-// Shared fragment-shading pass structure ////////////////////////////
-
-struct fragInput
+struct ForwardShadingAttribs
 {
-  // input attribute data
-  float4 baseTC;
-  float4 basesectorTC;
-  float4 bumpTC;
-  float4 terrainDetailTC;
-  
-  half4 vTangent;
-  half4 vBinormal;
-  half4 vNormal;
-  half4 vView;
-  
-  float4 screenProj;
-  float4 projTC;
-  
-  half4 Color;
-  half4 Color1;
-  float4 VisTerrainCol;
-  float4 SunRefl;
-  half4 Ambient;
-
-  half4 AlphaTest;
-  
-  float3 DistAtten;
-  float4 AvgFogVolumeContrib;
-  
-  float4 OutdoorAOInfo;
-
-	uint uSample;
+	float2  screenUV;
+	float3  worldPos;
+	float3  normal;
+	float3  normalSpecProbe;
+	float3  reflectance;
+	float3  albedo;
+	float   smoothness;
+	
+	CustomForwardShadingAttribs  custom;
 };
 
-struct fragPass
+struct ForwardLightParams
 {
-  fragInput IN;
-
-  // Usage flags fo shared stuff  
-  bool bCustomComposition;      // dont use shared final shading composition
-  bool bRenormalizeNormal;
-	bool bForceRenormalizeNormal;
-  bool bDontUseBump;
-  bool bDetailBumpMapping;
-  bool bDetailBumpMappingMasking;
-  bool bVertexColors;      // apply vertex color to final result
-  bool bHemisphereLighting;
-  bool bRefractionMap; 
-	bool bSkinIrradiancePass; 
-  bool bDisableInShadowShading;  
-  bool bDisableAlphaTestD3D11; 
-  bool bDeferredSpecularShading;
-	bool bSkipDirectLighting;
-  int  nReflectionMapping; // reflection mapping type (0: off, 1: cube map, 2: spherical)
-
-  int  nMicroDetailQuality;
-  half fBumpHeightScale;
-  half fHeightBias;
-  half fSelfShadowStrength;
-
-  half2 vDetailBumpTilling; // detail diffuse_bump mapping tilling
-	half2 vDetailBlendAmount; // detail diffuse and gloss blend scale
-  half fDetailBumpScale; 	  // detail mapping scale
-  
-  half fLod;		 					 // lod scale: 1 max, 0 disabled
-
-  half blendFac;          // per-pixel layer blending factor
-
-  // shared fields
-  int nQuality;           // shader quality level
-  
-  half3x3 mTangentToWS;  // tangent to world space transformation matrix - might be required for some vectors
-  half3 vView;           // eye vector, fFogFrac
-  half3 vNormal;         // normal vector
-  half3 vNormalDiffuse;  // diffuse normal vector
-  half3 vReflVec;        // reflection vector
-          
-  half3 cBumpMap;        // tangent space normal map
-  half4 cDiffuseMap;     // diffuse map
-  half4 cSpecularMap;    // specular map
-  half3 cEnvironment;    // environment map
-  half4 cShadowOcclMap;  // shadow map
-
-  half fNdotE;           // per pass constant NdotE
-  half fGloss;           // gloss/roughness
-  half fAlpha;           // opacity   
-  half fAlphaTestRef;    // instanced alpha test value
-
-  // Deferred rendering RTs (multisampling friendly - check frag_get_deferred_buffers in fraglib.cfi for example usage in your custom shader)
-  half4 cNormalMapRT;
-  half4 cDiffuseAccRT;
-  half4 cSpecularAccRT;
-  half fSceneDepthRT;
-
-  // Note: parser bug, assumes fReflectionAmount, fFresnelBias, etc, are same as tweakable parameters, therefore the _ was added
-  
-  half fFresnel_Bias;     // fresnel biasing
-  half fFresnel_Scale;    // fresnel scale
-  half fFresnel;					// final fresnel term
-  
-  // Shading accumulation
-  
-  half3 cAmbientAcc;
-  half3 cDiffuseAcc;
-	half3 cBackDiffuseAcc;
-  half3 cSpecularAcc;
-
-  // Custom per pass data   
-  fragPassCustom pCustom;
+	int     type;
+	float3  lightVec;
+	float3  illuminance;
 };
-  
-struct fragLightPass
-{
-  int nType;          // light type
-  half3 cDiffuse;    // light diffuse color
-  half3 cSpecular;   // light specular color
-  half3 cFilter;     // light filter color
-  half3 vLight;      // light vector
-  half3 vLightWS;	 // light position
-    
-  half fNdotL;       // normal dot light
-  half fFallOff;     // light attenuation  
-  half fOcclShadow;  // light shadow term
-  
-  half3 cOut;        // light final contribution  
-
-  // ... Custom per light data ...
-  fragLightPassCustom pCustom;
-}; 
 
 
 //////////////////////////////// Common shading utilities ////////////////

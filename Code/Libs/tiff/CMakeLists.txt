@@ -53,9 +53,9 @@ add_sources("NoUberFile"
 end_sources()
 #END-FILE-LIST
 
-if(WIN64)
+if(WIN32 OR WIN64)
 	CryEngineStaticModule(tiff SOLUTION_FOLDER "Libs")
-	target_include_directories(${THIS_PROJECT} PUBLIC ${SDK_DIR}/tiff-4.0.4/libtiff INTERFACE ${CRY_LIBS_DIR}/tiff)
+	target_include_directories(${THIS_PROJECT} PUBLIC "${SDK_DIR}/tiff-4.0.4/libtiff" INTERFACE "${CRY_LIBS_DIR}/tiff")
 	target_link_libraries(${THIS_PROJECT} PRIVATE zlib)
 else()
 	CryFileContainer(tiff SOLUTION_FOLDER "Libs")

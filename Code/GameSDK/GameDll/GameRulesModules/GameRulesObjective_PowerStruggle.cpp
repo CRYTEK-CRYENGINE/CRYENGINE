@@ -837,18 +837,6 @@ void CGameRulesObjective_PowerStruggle::Server_ActivateAllNodes()
 	}
 }
 
-	
-void CGameRulesObjective_PowerStruggle::Common_FixNodeRenderGlitch(SNodeInfo *pNodeInfo)
-{
-	IEntity* pNodeEntity = gEnv->pEntitySystem->GetEntity(pNodeInfo->m_id);
-	
-	// fix the 1 frame glitch of the spear fully emerged by forcing it to update whilst emerging, whether its rendered or not
-	if (pNodeEntity && (pNodeInfo->m_state == ENS_hidden || pNodeInfo->m_state == ENS_emerging)) 
-	{
-		pNodeEntity->Activate(true); 
-	}
-}
-
 void CGameRulesObjective_PowerStruggle::Common_UpdateNode( SNodeInfo *pNodeInfo, float frameTime, bool &bAspectChanged)
 {
 	if (pNodeInfo->m_state >= ENS_emerging && pNodeInfo->m_state <= ENS_capturing_from_capture)
@@ -983,12 +971,6 @@ void CGameRulesObjective_PowerStruggle::Common_UpdateDebug(float frameTime)
 //------------------------------------------------------------------------
 void CGameRulesObjective_PowerStruggle::Update( float frameTime )
 {
-	for (int i = 0; i < MAX_NODES; ++ i)
-	{
-		SNodeInfo *pNodeInfo = &m_nodes[i];
-		Common_FixNodeRenderGlitch(pNodeInfo);
-	}
-
 	// for PC pre-game handling do nothing till we're actually in game 
 	if (!m_pGameRules->HasGameActuallyStarted() /*&& !m_pGameRules->IsPrematchCountDown()*/)
 	{

@@ -1,5 +1,5 @@
 <Material MtlFlags="524288" Shader="Illum" GenMask="0" StringGenMask="" SurfaceType="mat_default" MatTemplate="" Diffuse="1,1,1" Specular="0,0,0" Emissive="0,0,0" Shininess="10" Opacity="1">
  <Textures>
-  <Texture Map="Diffuse" File="engineassets/texturemsg/replaceme.tif"/>
+  <Texture Map="Diffuse" File="%ENGINE%/EngineAssets/texturemsg/replaceme.tif"/>
  </Textures>
 </Material>

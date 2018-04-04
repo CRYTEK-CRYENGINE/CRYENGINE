@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 /*************************************************************************
    -------------------------------------------------------------------------
@@ -85,8 +85,6 @@ public:
 	bool                CheckBanned(INetChannel* pNetChannel);
 	void                BannedStatus();
 	void                UnbanPlayer(int profileId);
-
-	bool                ControlsEntity(EntityId id) const;
 
 private:
 	TServerChannelMap    m_channels;

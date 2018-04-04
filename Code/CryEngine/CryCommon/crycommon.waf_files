@@ -78,8 +78,7 @@
       {
         "Assert":[
           "CryCore/Assert/CryAssert_impl.h",
-          "CryCore/Assert/CryAssert.h",
-          "CryCore/Assert/CompileTimeUtils.h"
+          "CryCore/Assert/CryAssert.h"
         ]
       },
       {
@@ -284,11 +283,18 @@
       }
     ],
     "CryMath":[
+      "CryMath/NumberVector.h",
+      "CryMath/Cry_Vector2.h",
+      "CryMath/Cry_Vector3.h",
+      "CryMath/Cry_Vector4.h",
+      "CryMath/Cry_Vector4H.h",
+      "CryMath/Cry_Quat.h",
       "CryMath/Cry_Matrix33.h",
       "CryMath/Cry_Matrix34.h",
+      "CryMath/Cry_Matrix34H.h",
       "CryMath/Cry_Matrix44.h",
+      "CryMath/Cry_Matrix44H.h",
       "CryMath/Cry_MatrixDiag.h",
-      "CryMath/Cry_Vector4.h",
       "CryMath/AABBSV.h",
       "CryMath/Cry_Camera.h",
       "CryMath/Cry_Color.h",
@@ -298,10 +304,7 @@
       "CryMath/Cry_GeoOverlap.h",
       "CryMath/Cry_Math.h",
 		  "CryMath/Cry_Math_SSE.h",
-      "CryMath/Cry_Quat.h",
       "CryMath/Cry_ValidNumber.h",
-      "CryMath/Cry_Vector2.h",
-      "CryMath/Cry_Vector3.h",
       "CryMath/Cry_XOptimise.h",
       "CryMath/CryHalf_info.h",
       "CryMath/GeomQuery.h",
@@ -357,6 +360,7 @@
 	  "CryMono/IMonoNativeToManagedInterface.h"
     ],
     "CryAISystem":[
+	  "CryAISystem/IActorLookUp.h",
       "CryAISystem/IAIMannequin.h",
       "CryAISystem/IClusterDetector.h",
       "CryAISystem/INavigationSystem.h",
@@ -386,7 +390,7 @@
       "CryAISystem/AgentParams.h",
       "CryAISystem/IAIActionSequence.h",
       "CryAISystem/AIFormationDescriptor.h",
-      "CryAISystem/AISystemListener.h",
+      "CryAISystem/IAISystemComponent.h",
       "CryAISystem/IMovementSystem.h",
       "CryAISystem/MovementRequestID.h",
       "CryAISystem/MovementUpdateContext.h",
@@ -399,10 +403,10 @@
       "CryAISystem/IGoalPipe.h",
       "CryAISystem/IInterestSystem.h",
       "CryAISystem/ITacticalPointSystem.h",
-      "CryAISystem/ISelectionTreeManager.h",
       "CryAISystem/VisionMapTypes.h",
       "CryAISystem/MovementStyle.h",
       "CryAISystem/IAIBubblesSystem.h",
+	  "CryAISystem/ValueHistory.h",
       {
         "BehaviorTree":[
           "CryAISystem/BehaviorTree/IBehaviorTree.h",
@@ -420,7 +424,8 @@
       },
       {
         "NavigationSystem": [
-          "CryAISystem/NavigationSystem/MNMBaseTypes.h",
+          "CryAISystem/NavigationSystem/INavigationUpdatesManager.h",
+		  "CryAISystem/NavigationSystem/MNMBaseTypes.h",
           "CryAISystem/NavigationSystem/MNMFixedAABB.h",
           "CryAISystem/NavigationSystem/MNMFixedVec2.h",
           "CryAISystem/NavigationSystem/MNMFixedVec3.h",
@@ -432,17 +437,18 @@
         ]
       }
     ],
-    "CryAudio":[
-      "CryAudio/IAudioInterfacesCommonData.h",
-      "CryAudio/IAudioSystem.h",
-      "CryAudio/IAudioSystem.h",
-      "CryAudio/IAudioInterfacesCommonData.h",
-      {
-        "Dialog":[
-          "CryAudio/Dialog/IDialogSystem.h"
-        ]
-      }
-    ],
+			"CryAudio": [
+				"CryAudio/IAudioInterfacesCommonData.h",
+				"CryAudio/IAudioSystem.h",
+				"CryAudio/IListener.h",
+				"CryAudio/IObject.h",
+				"CryAudio/IProfileData.h",
+				{
+					"Dialog": [
+						"CryAudio/Dialog/IDialogSystem.h"
+					]
+				}
+			],
     "CryAnimation":[
       "CryAnimation/ICryAnimation.h",
       "CryAnimation/IAnimationPoseModifier.h",
@@ -516,17 +522,13 @@
           "CryRenderer/RenderElements/CREBreakableGlass.h",
           "CryRenderer/RenderElements/CREBreakableGlassConfig.h",
           "CryRenderer/RenderElements/CREBreakableGlassHelpers.h",
-          "CryRenderer/RenderElements/CREBaseCloud.h",
           "CryRenderer/RenderElements/CREFarTreeSprites.h",
           "CryRenderer/RenderElements/CREFogVolume.h",
           "CryRenderer/RenderElements/CREGameEffect.h",
-          "CryRenderer/RenderElements/CREImposter.h",
           "CryRenderer/RenderElements/CREMesh.h",
           "CryRenderer/RenderElements/CREOcclusionQuery.h",
           "CryRenderer/RenderElements/CREParticle.h",
-          "CryRenderer/RenderElements/CREPostProcess.h",
           "CryRenderer/RenderElements/CRESky.h",
-          "CryRenderer/RenderElements/CREVolumeObject.h",
           "CryRenderer/RenderElements/CREWaterOcean.h",
           "CryRenderer/RenderElements/CREWaterVolume.h",
           "CryRenderer/RenderElements/RendElement.h"
@@ -579,6 +581,7 @@
       "CryNetwork/SerializeBuffer.h",
       "CryNetwork/SerializeFwd.h",
       "CryNetwork/SimpleSerialize.h",
+      "CryNetwork/INetEntity.h",
       "CryNetwork/INetwork.h",
       "CryNetwork/INetworkService.h",
       "CryNetwork/INotificationNetwork.h",
@@ -621,7 +624,6 @@
     ],
     "CrySerialization":[
       "CrySerialization/BlackBox.h",
-      "CrySerialization/SharedPtr.h",
       "CrySerialization/CRCRef.h",
       "CrySerialization/CRCRefImpl.h",
       "CrySerialization/ClassFactory.h",
@@ -634,9 +636,8 @@
       "CrySerialization/CryStrings.h",
       "CrySerialization/CryStringsImpl.h",
       "CrySerialization/DynArray.h",
-      "CrySerialization/DynArrayImpl.h",
       "CrySerialization/Enum.h",
-		  "CrySerialization/Gap.h",
+      "CrySerialization/Gap.h",
       "CrySerialization/IArchive.h",
       "CrySerialization/IArchiveHost.h",
       "CrySerialization/IClassFactory.h",
@@ -654,31 +655,90 @@
       "CrySerialization/TypeInfoImpl.h",
       "CrySerialization/Callback.h",
       "CrySerialization/Forward.h",
-      {
-        "Decorators":[
-          "CrySerialization/Decorators/ActionButton.h",
-          "CrySerialization/Decorators/BitFlags.h",
-          "CrySerialization/Decorators/BitFlagsImpl.h",
-          "CrySerialization/Decorators/JointName.h",
-          "CrySerialization/Decorators/JointNameImpl.h",
-          "CrySerialization/Decorators/LocalFrame.h",
-          "CrySerialization/Decorators/LocalFrameImpl.h",
-          "CrySerialization/Decorators/OutputFilePath.h",
-          "CrySerialization/Decorators/OutputFilePathImpl.h",
-          "CrySerialization/Decorators/Range.h",
-          "CrySerialization/Decorators/ResourceFilePath.h",
-          "CrySerialization/Decorators/ResourceFilePathImpl.h",
-          "CrySerialization/Decorators/ResourceFolderPath.h",
-          "CrySerialization/Decorators/ResourceFolderPathImpl.h",
-          "CrySerialization/Decorators/ResourceSelector.h",
-          "CrySerialization/Decorators/Resources.h",
-          "CrySerialization/Decorators/ResourcesAudio.h",
-          "CrySerialization/Decorators/Slider.h",
-          "CrySerialization/Decorators/SliderImpl.h",
-          "CrySerialization/Decorators/TagList.h",
-          "CrySerialization/Decorators/TagListImpl.h"
-        ]
-      }
+		{
+			"Decorators": [
+				"CrySerialization/Decorators/ActionButton.h",
+				"CrySerialization/Decorators/BitFlags.h",
+				"CrySerialization/Decorators/BitFlagsImpl.h",
+				"CrySerialization/Decorators/JointName.h",
+				"CrySerialization/Decorators/JointNameImpl.h",
+				"CrySerialization/Decorators/LocalFrame.h",
+				"CrySerialization/Decorators/LocalFrameImpl.h",
+				"CrySerialization/Decorators/OutputFilePath.h",
+				"CrySerialization/Decorators/OutputFilePathImpl.h",
+				"CrySerialization/Decorators/Range.h",
+				"CrySerialization/Decorators/ResourceFilePath.h",
+				"CrySerialization/Decorators/ResourceFilePathImpl.h",
+				"CrySerialization/Decorators/ResourceFolderPath.h",
+				"CrySerialization/Decorators/ResourceFolderPathImpl.h",
+				"CrySerialization/Decorators/ResourceSelector.h",
+				"CrySerialization/Decorators/Resources.h",
+				"CrySerialization/Decorators/ResourcesAudio.h",
+				"CrySerialization/Decorators/Slider.h",
+				"CrySerialization/Decorators/SliderImpl.h",
+				"CrySerialization/Decorators/TagList.h",
+				"CrySerialization/Decorators/TagListImpl.h"
+			]
+		},
+		{
+		"yasli":
+		[
+			"CrySerialization/yasli/Archive.h",
+			"CrySerialization/yasli/Assert.h",
+			"CrySerialization/yasli/AssertImpl.h",
+			"CrySerialization/yasli/BinArchiveImpl.h",
+			"CrySerialization/yasli/BinArchive.h",
+			"CrySerialization/yasli/BitVector.h",
+			"CrySerialization/yasli/BitVectorImpl.h",
+			"CrySerialization/yasli/BlackBox.h",
+			"CrySerialization/yasli/Callback.h",
+			"CrySerialization/yasli/ClassFactory.h",
+			"CrySerialization/yasli/ClassFactoryImpl.h",
+			"CrySerialization/yasli/ClassFactoryBase.h",
+			"CrySerialization/yasli/Config.h",
+			"CrySerialization/yasli/ConfigLocal.h",
+			"CrySerialization/yasli/Enum.h",
+			"CrySerialization/yasli/EnumImpl.h",
+			"CrySerialization/yasli/Helpers.h",
+			"CrySerialization/yasli/JSONIArchiveImpl.h",
+			"CrySerialization/yasli/JSONIArchive.h",
+			"CrySerialization/yasli/JSONOArchiveImpl.h",
+			"CrySerialization/yasli/JSONOArchive.h",
+			"CrySerialization/yasli/KeyValue.h",
+			"CrySerialization/yasli/MemoryReaderImpl.h",
+			"CrySerialization/yasli/MemoryReader.h",
+			"CrySerialization/yasli/MemoryWriterImpl.h",
+			"CrySerialization/yasli/MemoryWriter.h",
+			"CrySerialization/yasli/Object.h",
+			"CrySerialization/yasli/Pointers.h",
+			"CrySerialization/yasli/PointersImpl.h",
+			"CrySerialization/yasli/Serializer.h",
+			"CrySerialization/yasli/SerializerImpl.h",
+			"CrySerialization/yasli/STL.h",
+			"CrySerialization/yasli/STLImpl.h",
+			"CrySerialization/yasli/StringList.h",
+			"CrySerialization/yasli/StringListImpl.h",
+			"CrySerialization/yasli/TextIArchiveImpl.h",
+			"CrySerialization/yasli/TextIArchive.h",
+			"CrySerialization/yasli/TextOArchiveImpl.h",
+			"CrySerialization/yasli/TextOArchive.h",
+			"CrySerialization/yasli/Token.h",
+			"CrySerialization/yasli/TypeID.h"
+		],
+		"yasli/decorators":
+		[
+			"CrySerialization/yasli/decorators/BitFlags.h",
+			"CrySerialization/yasli/decorators/BitFlagsImpl.h",
+			"CrySerialization/yasli/decorators/Button.h",
+			"CrySerialization/yasli/decorators/FileOpen.h",
+			"CrySerialization/yasli/decorators/FileOpenImpl.h",
+			"CrySerialization/yasli/decorators/FileSave.h",
+			"CrySerialization/yasli/decorators/FileSaveImpl.h",
+			"CrySerialization/yasli/decorators/HorizontalLine.h",
+			"CrySerialization/yasli/decorators/IconXPM.h",
+			"CrySerialization/yasli/decorators/Range.h"
+		]
+		}
     ],
     "CrySandbox":[
       "CrySandbox/ScopedVariableSetter.h",

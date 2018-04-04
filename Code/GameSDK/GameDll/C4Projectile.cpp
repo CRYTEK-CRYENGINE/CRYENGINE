@@ -17,8 +17,10 @@ History:
 #include "WeaponSystem.h"
 #include "UI/HUD/HUDEventDispatcher.h"
 #include "C4.h"
-#include <IVehicleSystem.h>
 #include "PersistantStats.h"
+
+#include <IVehicleSystem.h>
+#include <IPerceptionManager.h>
 
 CC4Projectile::CC4Projectile():
 m_armed(false),
@@ -127,7 +129,8 @@ void CC4Projectile::HandleEvent(const SGameObjectEvent &event)
 			}
 
 			// Notify AI system about the C4.
-			if (gEnv->pAISystem)
+			IPerceptionManager* perceptionManager = IPerceptionManager::GetInstance();
+			if (perceptionManager)
 			{
 				// Associate event with vehicle if the shooter is in a vehicle (tank cannon shot, etc)
 				EntityId ownerId = m_ownerId;
@@ -137,11 +140,11 @@ void CC4Projectile::HandleEvent(const SGameObjectEvent &event)
 
 				SAIStimulus stim(AISTIM_EXPLOSION, 0, ownerId, GetEntityId(),
 					GetEntity()->GetWorldPos(), ZERO, 12.0f, AISTIMPROC_ONLY_IF_VISIBLE);
-				gEnv->pAISystem->RegisterStimulus(stim);
+				perceptionManager->RegisterStimulus(stim);
 
 				SAIStimulus soundStim(AISTIM_SOUND, AISOUND_COLLISION, ownerId, GetEntityId(),
 					GetEntity()->GetWorldPos(), ZERO, 8.0f);
-				gEnv->pAISystem->RegisterStimulus(soundStim);
+				perceptionManager->RegisterStimulus(soundStim);
 			}
 		}
 

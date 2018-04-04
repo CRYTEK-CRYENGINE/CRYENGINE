@@ -56,7 +56,6 @@ public:
 	virtual void HandleEvent(const SGameObjectEvent& event);
 	virtual void ProcessEvent(SEntityEvent& event);	
 	virtual void SetChannelId(uint16 id);
-	virtual void SetAuthority(bool auth );
 	virtual const void * GetRMIBase() const;
 	virtual void PostUpdate(float frameTime);
 	virtual void PostRemoteSpawn();

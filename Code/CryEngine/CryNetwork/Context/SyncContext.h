@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #ifndef __SYNCCONTEXT_H__
 #define __SYNCCONTEXT_H__
@@ -144,13 +144,6 @@ struct SContextViewObjectEx
 	// handles to our hash messages
 	SSendableHandle notifyPartialUpdateHandle[NumAspects];
 
-#if ENABLE_ASPECT_HASHING
-	NetworkAspectType hashedAspects;              //xtra
-	SSendableHandle   hashMsgHandles[NumAspects]; //xtra
-	uint32            hashReceived[NumAspects];   //xtra
-	uint32            hashSent[NumAspects];       //xtra
-#endif
-
 #ifndef OLD_VOICE_SYSTEM_DEPRECATED
 	CTimeValue          voiceTransmitTime; //xtra
 	CTimeValue          voiceReceiptTime;  //xtra
@@ -165,9 +158,6 @@ struct SContextViewObjectEx
 
 	void                Reset()
 	{
-#if ENABLE_ASPECT_HASHING
-		hashedAspects = 0;
-#endif
 #ifndef OLD_VOICE_SYSTEM_DEPRECATED
 		voiceReceiptTime = 0.0f;
 		voiceTransmitTime = 0.0f;
@@ -180,10 +170,6 @@ struct SContextViewObjectEx
 			partialUpdatesRemaining[i] = 0;
 			notifyPartialUpdateHandle[i] = SSendableHandle();
 			ackedAspectVersions[i] = ~uint32(0);
-#if ENABLE_ASPECT_HASHING
-			hashMsgHandles[i] = SSendableHandle();
-			hashReceived[i] = hashSent[i] = 0;
-#endif
 		}
 		for (int i = 0; i < eHSS_NUM_SLOTS; i++)
 		{

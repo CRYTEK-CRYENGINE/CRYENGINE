@@ -1,16 +1,15 @@
 {
-    "content": {
-        "assets": [
-            "Assets"
-        ],
-		"code": [
-            "Code"
-        ]
-    },
+    "version": 1,
+    "type": "",
     "info": {
         "name": "Plugin Template"
     },
+    "content": {
+        "code": [
+            "Code"
+        ]
+    },
     "require": {
-        "engine": "engine-5.3"
+        "engine": "engine-5.4"
     }
 }

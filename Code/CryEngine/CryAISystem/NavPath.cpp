@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 /********************************************************************
    -------------------------------------------------------------------------
@@ -1344,21 +1344,6 @@ bool CNavPath::CheckPath(const TPathPoints& pathList, float radius) const
 			}
 		}
 	}
-	else
-	{
-		Vec3 closestPoint;
-		for (TPathPoints::const_iterator it = pathList.begin(); it != pathList.end(); ++it)
-		{
-			TPathPoints::const_iterator itNext = it;
-			if (++itNext == pathList.end())
-				return true;
-			Vec3 from = it->vPos;
-			Vec3 to = itNext->vPos;
-			if (gAIEnv.pNavigation->IntersectsForbidden(from, to, closestPoint))
-				return false;
-		}
-	}
-
 	return true;
 }
 

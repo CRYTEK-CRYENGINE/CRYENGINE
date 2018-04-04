@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 // -------------------------------------------------------------------------
 //  Created:     02/10/2015 by Benjamin Block
@@ -14,10 +14,15 @@
 namespace gpu_pfx2
 {
 
+class CParticleComponentRuntime;
+
 class CFeatureSpawnBase : public CFeatureWithParameterStruct<SFeatureParametersSpawn>
 {
 public:
 	virtual void InitSubInstance(IParticleComponentRuntime* pRuntime, SSpawnData* pInstances, size_t count) override;
+
+protected:
+	bool CanSpawnParticles(CParticleComponentRuntime* pRuntime) const;
 };
 
 class CFeatureSpawnCount : public CFeatureSpawnBase

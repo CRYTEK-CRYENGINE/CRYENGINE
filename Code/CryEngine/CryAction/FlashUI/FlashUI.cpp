@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #include "StdAfx.h"
 #include "FlashUI.h"
@@ -192,7 +192,7 @@ void CFlashUI::RegisterListeners()
 	CRY_ASSERT_MESSAGE(gEnv->pSystem, "Unable to register as system listener!");
 	if (gEnv->pSystem)
 	{
-		gEnv->pSystem->GetISystemEventDispatcher()->RegisterListener(this);
+		gEnv->pSystem->GetISystemEventDispatcher()->RegisterListener(this, "CFlashUI");
 	}
 }
 
@@ -1007,7 +1007,7 @@ template<EUIObjectType T> bool IsTemplate()                     { return false; 
 template<> bool                IsTemplate<eUOT_MovieClipTmpl>() { return true; }
 
 template<EUIObjectType Type, class Item>
-void CreateMCFunctionNodes(CFlashUI::TUIFlowNodes& nodelist, IUIElement* pElement, Item* pItem, const string& path, bool fill = false)
+static void CreateMCFunctionNodes(std::vector<CFlashUiFlowNodeFactory*>& nodelist, IUIElement* pElement, Item* pItem, const string& path, bool fill = false)
 {
 	// prevent to fill "first row"
 	if (fill)
@@ -1022,7 +1022,7 @@ void CreateMCFunctionNodes(CFlashUI::TUIFlowNodes& nodelist, IUIElement* pElemen
 			category += pDesc->sDisplayName;
 
 			CFlashUIFunctionNode* pNode = new CFlashUIFunctionNode(pElement, category, pDesc, IsTemplate<Type>());
-			CAutoRegUIFlowNode* pFlowNode = new CAutoRegUIFlowNode(pNode->GetCategory(), pNode);
+			CFlashUiFlowNodeFactory* pFlowNode = new CFlashUiFlowNodeFactory(pNode->GetCategory(), pNode);
 			nodelist.push_back(pFlowNode);
 		}
 	}
@@ -1052,14 +1052,14 @@ void CFlashUI::CreateNodes()
 		while (const SUIEventDesc* pDesc = (*iter)->GetEventDesc(i++))
 		{
 			CFlashUIEventNode* pNode = new CFlashUIEventNode(*iter, CreateDisplayName("UI:Events:%s:%s", (*iter)->GetName(), pDesc->sDisplayName), pDesc);
-			CAutoRegUIFlowNode* pFlowNode = new CAutoRegUIFlowNode(pNode->GetCategory(), pNode);
+			CFlashUiFlowNodeFactory* pFlowNode = new CFlashUiFlowNodeFactory(pNode->GetCategory(), pNode);
 			m_UINodes.push_back(pFlowNode);
 		}
 		i = 0;
 		while (const SUIEventDesc* pDesc = (*iter)->GetFunctionDesc(i++))
 		{
 			CFlashUIFunctionNode* pNode = new CFlashUIFunctionNode(*iter, CreateDisplayName("UI:Functions:%s:%s", (*iter)->GetName(), pDesc->sDisplayName), pDesc, false);
-			CAutoRegUIFlowNode* pFlowNode = new CAutoRegUIFlowNode(pNode->GetCategory(), pNode);
+			CFlashUiFlowNodeFactory* pFlowNode = new CFlashUiFlowNodeFactory(pNode->GetCategory(), pNode);
 			m_UINodes.push_back(pFlowNode);
 		}
 
@@ -1076,7 +1076,7 @@ void CFlashUI::CreateNodes()
 		while (const SUIEventDesc* pDesc = pEventSystem->GetEventDesc(i++))
 		{
 			CFlashUIBaseNodeCategory* pNode = new CFlashUIEventSystemEventNode(pEventSystem, CreateDisplayName("UI:Events:%s:%s", name.c_str(), pDesc->sDisplayName), pDesc);
-			CAutoRegUIFlowNode* pFlowNode = new CAutoRegUIFlowNode(pNode->GetCategory(), pNode);
+			CFlashUiFlowNodeFactory* pFlowNode = new CFlashUiFlowNodeFactory(pNode->GetCategory(), pNode);
 			m_UINodes.push_back(pFlowNode);
 		}
 	}
@@ -1089,9 +1089,15 @@ void CFlashUI::CreateNodes()
 		while (const SUIEventDesc* pDesc = pEventSystem->GetEventDesc(i++))
 		{
 			CFlashUIBaseNodeCategory* pNode = new CFlashUIEventSystemFunctionNode(pEventSystem, CreateDisplayName("UI:Functions:%s:%s", name.c_str(), pDesc->sDisplayName), pDesc);
-			CAutoRegUIFlowNode* pFlowNode = new CAutoRegUIFlowNode(pNode->GetCategory(), pNode);
+			CFlashUiFlowNodeFactory* pFlowNode = new CFlashUiFlowNodeFactory(pNode->GetCategory(), pNode);
 			m_UINodes.push_back(pFlowNode);
 		}
+	}
+
+	// Do nodes registration with flow graph system
+	for (auto pNodeFactory : m_UINodes)
+	{
+		gEnv->pFlowSystem->RegisterType(pNodeFactory->GetNodeTypeName(),pNodeFactory);
 	}
 }
 
@@ -1252,8 +1258,10 @@ void CFlashUI::ReloadScripts()
 //-------------------------------------------------------------------
 void CFlashUI::ClearNodes()
 {
-	for (TUIFlowNodes::iterator iter = m_UINodes.begin(); iter != m_UINodes.end(); ++iter)
-		SAFE_RELEASE(*iter);
+	for (auto pNodeFactory : m_UINodes)
+	{
+		gEnv->pFlowSystem->UnregisterType(pNodeFactory->GetNodeTypeName());
+	}
 
 	m_UINodes.clear();
 }

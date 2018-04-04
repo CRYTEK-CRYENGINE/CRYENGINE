@@ -5,9 +5,9 @@
 
 // *INDENT-OFF* - <hard to read code and declarations due to inconsistent indentation>
 
-namespace uqs
+namespace UQS
 {
-	namespace stdlib
+	namespace StdLib
 	{
 
 		//===================================================================================
@@ -41,7 +41,7 @@ namespace uqs
 			}
 		}
 
-		client::IItemMonitor::EHealthState CItemMonitor_NavMeshChangesInAABB::UpdateAndCheckForCorruption(shared::IUqsString& outExplanationInCaseOfCorruption)
+		Client::IItemMonitor::EHealthState CItemMonitor_NavMeshChangesInAABB::UpdateAndCheckForCorruption(Shared::IUqsString& outExplanationInCaseOfCorruption)
 		{
 			if (m_bCorruptionOccurred)
 			{

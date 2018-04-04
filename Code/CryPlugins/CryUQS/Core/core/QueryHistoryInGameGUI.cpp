@@ -4,9 +4,9 @@
 
 // *INDENT-OFF* - <hard to read code and declarations due to inconsistent indentation>
 
-namespace uqs
+namespace UQS
 {
-	namespace core
+	namespace Core
 	{
 
 		//===================================================================================
@@ -70,11 +70,11 @@ namespace uqs
 			}
 		}
 
-		void CQueryHistoryInGameGUI::OnQueryHistoryEvent(EEvent ev)
+		void CQueryHistoryInGameGUI::OnQueryHistoryEvent(const IQueryHistoryListener::SEvent& ev)
 		{
-			switch (ev)
+			switch (ev.type)
 			{
-			case EEvent::QueryHistoryDeserialized:
+			case IQueryHistoryListener::EEventType::QueryHistoryDeserialized:
 				if (m_queryHistoryManager.GetCurrentQueryHistory() == IQueryHistoryManager::EHistoryOrigin::Deserialized)
 				{
 					RefreshListOfHistoricQueries();
@@ -83,14 +83,14 @@ namespace uqs
 				}
 				break;
 
-			case EEvent::HistoricQueryJustFinishedInLiveQueryHistory:
+			case IQueryHistoryListener::EEventType::HistoricQueryJustFinishedInLiveQueryHistory:
 				if (m_queryHistoryManager.GetCurrentQueryHistory() == IQueryHistoryManager::EHistoryOrigin::Live)
 				{
 					RefreshListOfHistoricQueries();
 				}
 				break;
 
-			case EEvent::LiveQueryHistoryCleared:
+			case IQueryHistoryListener::EEventType::LiveQueryHistoryCleared:
 				if (m_queryHistoryManager.GetCurrentQueryHistory() == IQueryHistoryManager::EHistoryOrigin::Live)
 				{
 					RefreshListOfHistoricQueries();
@@ -99,7 +99,7 @@ namespace uqs
 				}
 				break;
 
-			case EEvent::DeserializedQueryHistoryCleared:
+			case IQueryHistoryListener::EEventType::DeserializedQueryHistoryCleared:
 				if (m_queryHistoryManager.GetCurrentQueryHistory() == IQueryHistoryManager::EHistoryOrigin::Deserialized)
 				{
 					RefreshListOfHistoricQueries();
@@ -108,54 +108,54 @@ namespace uqs
 				}
 				break;
 
-			case EEvent::CurrentQueryHistorySwitched:
+			case IQueryHistoryListener::EEventType::CurrentQueryHistorySwitched:
 				RefreshListOfHistoricQueries();
 				RefreshDetailedInfoAboutCurrentHistoricQuery();
 				RefreshDetailedInfoAboutFocusedItem();
 				break;
 
-			case EEvent::DifferentHistoricQuerySelected:
+			case IQueryHistoryListener::EEventType::DifferentHistoricQuerySelected:
 				RefreshListOfHistoricQueries();	// little hack to get the color of the currently selected historic query also updated
 				RefreshDetailedInfoAboutCurrentHistoricQuery();
 				RefreshDetailedInfoAboutFocusedItem();
 				break;
 
-			case EEvent::FocusedItemChanged:
+			case IQueryHistoryListener::EEventType::FocusedItemChanged:
 				RefreshDetailedInfoAboutFocusedItem();
 				break;
 			}
 		}
 
-		void CQueryHistoryInGameGUI::AddHistoricQuery(const SHistoricQueryOverview& overview)
+		void CQueryHistoryInGameGUI::AddOrUpdateHistoricQuery(const SHistoricQueryOverview& overview)
 		{
-			shared::CUqsString queryIdAsString;
+			Shared::CUqsString queryIdAsString;
 			overview.queryID.ToString(queryIdAsString);
 
 			string shortInfo;
-			shortInfo.Format("#%s: '%s' / '%s' (%i / %i items) [%.2f ms]", queryIdAsString.c_str(), overview.querierName, overview.queryBlueprintName, (int)overview.numResultingItems, (int)overview.numGeneratedItems, overview.timeElapsedUntilResult.GetMilliSeconds());
+			shortInfo.Format("#%s: '%s' / '%s' (%i / %i items) [%.2f ms]", queryIdAsString.c_str(), overview.szQuerierName, overview.szQueryBlueprintName, (int)overview.numResultingItems, (int)overview.numGeneratedItems, overview.timeElapsedUntilResult.GetMilliSeconds());
 
 			m_historicQueries.emplace_back(overview.color, overview.queryID, overview.parentQueryID, std::move(shortInfo));
 		}
 
-		void CQueryHistoryInGameGUI::AddTextLineToCurrentHistoricQuery(const ColorF& color, const char* fmt, ...)
+		void CQueryHistoryInGameGUI::AddTextLineToCurrentHistoricQuery(const ColorF& color, const char* szFormat, ...)
 		{
 			string textLine;
 
 			va_list args;
-			va_start(args, fmt);
-			textLine.FormatV(fmt, args);
+			va_start(args, szFormat);
+			textLine.FormatV(szFormat, args);
 			va_end(args);
 
 			m_textLinesOfCurrentHistoricQuery.emplace_back(color, std::move(textLine));
 		}
 
-		void CQueryHistoryInGameGUI::AddTextLineToFocusedItem(const ColorF& color, const char* fmt, ...)
+		void CQueryHistoryInGameGUI::AddTextLineToFocusedItem(const ColorF& color, const char* szFormat, ...)
 		{
 			string textLine;
 
 			va_list args;
-			va_start(args, fmt);
-			textLine.FormatV(fmt, args);
+			va_start(args, szFormat);
+			textLine.FormatV(szFormat, args);
 			va_end(args);
 
 			m_textLinesOfFocusedItem.emplace_back(color, std::move(textLine));
@@ -318,37 +318,37 @@ namespace uqs
 			}
 		}
 
-		int CQueryHistoryInGameGUI::DrawQueryHistoryOverview(IQueryHistoryManager::EHistoryOrigin whichHistory, const char* descriptiveHistoryName, float xPos, int row) const
+		int CQueryHistoryInGameGUI::DrawQueryHistoryOverview(IQueryHistoryManager::EHistoryOrigin whichHistory, const char* szDescriptiveHistoryName, float xPos, int row) const
 		{
 			static const ColorF colorOfSelectedQueryHistory = Col_Cyan;
 			static const ColorF colorOfNonSelectedQueryHistory = Col_White;
 
-			static const char* markerOfSelectedQueryHistory = "*";
-			static const char* markerOfNonSelectedQueryHistory = " ";
+			static const char* szMarkerOfSelectedQueryHistory = "*";
+			static const char* szMarkerOfNonSelectedQueryHistory = " ";
 
 			ColorF color;
-			const char* marker;
-			const char* helpTextForKeyboardControl = "";
+			const char* szMarker;
+			const char* szHelpTextForKeyboardControl = "";
 
 			if (m_queryHistoryManager.GetCurrentQueryHistory() == whichHistory)
 			{
 				color = colorOfSelectedQueryHistory;
-				marker = markerOfSelectedQueryHistory;
-				helpTextForKeyboardControl = " - press 'PGUP'/'PGDN'";
+				szMarker = szMarkerOfSelectedQueryHistory;
+				szHelpTextForKeyboardControl = " - press 'PGUP'/'PGDN'";
 			}
 			else
 			{
 				color = colorOfNonSelectedQueryHistory;
-				marker = markerOfNonSelectedQueryHistory;
-				helpTextForKeyboardControl = " - press 'END'";
+				szMarker = szMarkerOfNonSelectedQueryHistory;
+				szHelpTextForKeyboardControl = " - press 'END'";
 			}
 
 			CDrawUtil2d::DrawLabel(xPos, row, color, "=== %s %i UQS queries in %s history log (%i KB)%s ===",
-				marker,
+				szMarker,
 				(int)m_queryHistoryManager.GetHistoricQueriesCount(whichHistory),
-				descriptiveHistoryName,
+				szDescriptiveHistoryName,
 				(int)m_queryHistoryManager.GetRoughMemoryUsageOfQueryHistory(whichHistory) / 1024,
-				helpTextForKeyboardControl);
+				szHelpTextForKeyboardControl);
 			++row;
 			return row;
 		}
@@ -388,8 +388,8 @@ namespace uqs
 				const bool bIsCurrentlySelectedHistoryEntry = ((size_t)i == m_scrollIndexInHistoricQueries);
 				const SHistoricQueryShortInfo& queryInfo = m_historicQueries[i];
 				const float indentSize = CDrawUtil2d::GetIndentSize() * (float)ComputeIndentationLevelOfHistoricQuery(queryInfo.queryID);
-				const char* formatString = bIsCurrentlySelectedHistoryEntry ? "* %s" : "  %s";
-				CDrawUtil2d::DrawLabel(xPos + indentSize, row, queryInfo.color, formatString, queryInfo.shortInfo.c_str());
+				const char* szFormatString = bIsCurrentlySelectedHistoryEntry ? "* %s" : "  %s";
+				CDrawUtil2d::DrawLabel(xPos + indentSize, row, queryInfo.color, szFormatString, queryInfo.shortInfo.c_str());
 			}
 
 			return row;

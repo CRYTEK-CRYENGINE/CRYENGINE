@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 // -------------------------------------------------------------------------
 //  File name:   ExcelExport.cpp
@@ -228,11 +228,11 @@ void CExcelExportBase::SetCellFlags(XmlNodeRef cell, int flags)
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CExcelExportBase::SaveToFile(const char* filename)
+bool CExcelExportBase::SaveToFile(const char* filename)
 {
 	string xml = GetXmlHeader();
 
-	string sDir = PathUtil::GetParentDirectory(CONST_TEMP_STRING(filename));
+	string sDir = PathUtil::GetParentDirectory(filename);
 	gEnv->pCryPak->MakeDir(sDir.c_str());
 
 	FILE* file = fxopen(filename, "wb");
@@ -241,5 +241,7 @@ void CExcelExportBase::SaveToFile(const char* filename)
 		fprintf(file, "%s", xml.c_str());
 		m_Workbook->saveToFile(filename, 8 * 1024 /*chunksize*/, file);
 		fclose(file);
+		return true;
 	}
+	return false;
 }

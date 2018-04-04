@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #include "StdAfx.h"
 
@@ -145,7 +145,7 @@ int CParticleEntity::SetParams(pe_params *_params, int bThreadSafe)
 			if (m_ig[0].x==NO_GRID_REG)
 				m_ig[0].x=m_ig[1].x=m_ig[0].y=m_ig[1].y = GRID_REG_PENDING;
 			if (m_pos.len2()>0)
-				AtomicAdd(&m_pWorld->m_lockGrid,-m_pWorld->RepositionEntity(this,1));
+				m_pWorld->RepositionEntity(this,1|8);
 		}	else {
 			if (m_ig[0].x!=NO_GRID_REG) {
         WriteLock __lock(m_pWorld->m_lockGrid);
@@ -518,8 +518,10 @@ int CParticleEntity::DoStep(float time_interval, int iCaller)
 	quaternionf qrot = m_qrot;
 	int i,j,nhits,bHit,flags,bHasIgnore=(m_pColliderToIgnore!=0);
 	IPhysicalWorld::SRWIParams rp;
+	IPhysicalEntity *portals[16];
 	EventPhysCollision event;
 	event.penetration=event.radius = 0;
+	portals[0] = nullptr;
 
 	if (m_depth<0) {
 		gravity = m_waterGravity*min(1.0f,-m_depth*m_rdim); kAirResistance = m_kWaterResistance;
@@ -626,6 +628,7 @@ int CParticleEntity::DoStep(float time_interval, int iCaller)
 		if (iCaller<MAX_PHYS_THREADS && m_pWorld->m_bWorldStep==2 && m_iPierceability<=sf_max_pierceable) {
 			CPhysicalEntity **pentlist;
 			pe_status_pos sp; sp.timeBack = 1;//time_interval;
+			sp.pGridRefEnt = this;
 			Vec3 posFixed;
 			int nents = m_pWorld->GetEntitiesAround(pos0-Vec3(m_dim,m_dim,m_dim),pos0+Vec3(m_dim,m_dim,m_dim),pentlist,ent_rigid,0,0,iCaller);
 
@@ -659,7 +662,7 @@ int CParticleEntity::DoStep(float time_interval, int iCaller)
 				rp.Init(pos0,pos-pos0+heading0*m_dim, m_collTypes|ent_water,
 					m_iPierceability|(geom_colltype_ray|geom_colltype13)<<rwi_colltype_bit|rwi_colltype_any|
 					rwi_force_pierceable_noncoll|rwi_ignore_solid_back_faces, m_collisionClass, hits,8, 
-					pIgnoredColliders+1-bHasIgnore,1+bHasIgnore),
+					pIgnoredColliders+1-bHasIgnore,1+bHasIgnore, 0,0,0, portals,CRY_ARRAY_COUNT(portals)-1),
 				"RayWorldIntersection(PhysParticles)", iCaller);
 			bHit = isneg(-nhits) & (isneg(hits[0].dist+0.5f)^1);
 			/*if (bHit && hits[0].n*(pos-pos0)>0)	{
@@ -680,7 +683,7 @@ int CParticleEntity::DoStep(float time_interval, int iCaller)
 				event.pEntity[1] = hits[j].pCollider;
 				event.pForeignData[1] = pCollider->m_pForeignData; 
 				event.iForeignData[1] = pCollider->m_iForeignData;
-				RigidBody *pbody = pCollider->GetRigidBody(hits[j].ipart);
+				RigidBody body(false), *pbody = pCollider->GetRigidBodyTrans(&body,hits[j].ipart,this);
 				event.vloc[1] = pbody->v+(pbody->w^event.pt-pbody->pos);
 				event.mass[1] = pbody->M;
 				event.idCollider = m_pWorld->GetPhysicalEntityId(hits[j].pCollider);
@@ -817,14 +820,40 @@ int CParticleEntity::DoStep(float time_interval, int iCaller)
 			bGridLocked = m_pWorld->RepositionEntity(this,1,BBox);
 		{ WriteLock lock(m_lockUpdate);
 			m_pos=pos; m_qrot=qrot; m_BBox[0]=BBox[0]; m_BBox[1]=BBox[1];
-			JobAtomicAdd(&m_pWorld->m_lockGrid,-bGridLocked);
+			m_pWorld->UnlockGrid(this,-bGridLocked);
 		}
 		{ WriteLock lock(m_lockParticle);
 			m_vel=vel; m_slide_normal=slide_normal; m_heading=heading;
 		}
+
 /*if (CheckPointInside(m_pos) && g_retest) {
 m_pos=postest; m_vel=veltest; m_heading=headingtest; m_slide_normal=slidingnormaltest; m_bSliding=bslidingtest;
 goto doretest; }*/
+
+		if (iCaller<MAX_PHYS_THREADS) {
+			IPhysicalEntity *gridRefNew[2] = { nullptr,nullptr };
+			for(i=0; portals[i]; i++)	{
+				pe_params_outer_entity poe;
+				IPhysicalEntity *insideWhat = portals[i]->GetParams(&poe) && poe.pOuterEntity ? poe.pOuterEntity : portals[i];
+				pe_status_contains_point scp;
+				scp.pt = m_pWorld->GetGrid(insideWhat)->m_transW.GetInverted() * (m_pWorld->GetGrid(this)->m_transW * m_pos);
+				int isExit = 1-isneg(-(((CPhysicalPlaceholder*)portals[i])->m_iForeignFlags & TRIGGER_PORTAL_INV));
+				int inside = insideWhat->GetStatus(&scp);
+				if (inside ^ isExit)
+					gridRefNew[isExit] = ((CPhysicalPlaceholder*)portals[i])->m_pEntBuddy;
+			}
+			if (!gridRefNew[0])
+				gridRefNew[0] = gridRefNew[1];
+			if (gridRefNew[0] && m_pWorld->GetGrid(this)!=m_pWorld->GetGrid(gridRefNew[0])) {
+				pe_params_pos pp;
+				pp.pGridRefEnt = gridRefNew[0];
+				SetParams(&pp);
+			}
+
+			EventPhysPostStep epps;	InitEvent(&epps,this);
+			epps.dt=time_interval; epps.pos=m_pos; epps.q=m_qrot; epps.idStep=m_pWorld->m_idStep;
+			m_pWorld->OnEvent(m_flags,&epps);
+		}
 
 		if ((m_nStepCount|(int)(char)m_areaCheckPeriod>>31)==0) {
 			pe_params_buoyancy pb[4];
@@ -845,12 +874,6 @@ goto doretest; }*/
 		}
 		m_nStepCount -= 1+((int)(char)m_nStepCount>>31);
 
-		if (iCaller<MAX_PHYS_THREADS) {
-			EventPhysPostStep epps;
-			epps.pEntity=this; epps.pForeignData=m_pForeignData; epps.iForeignData=m_iForeignData;
-			epps.dt=time_interval; epps.pos=m_pos; epps.q=m_qrot; epps.idStep=m_pWorld->m_idStep;
-			m_pWorld->OnEvent(m_flags,&epps);
-		}
 		g_pCurParticle[iCaller] = 0;
 	} else
 		m_sleepTime += time_interval;

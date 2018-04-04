@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #include "StdAfx.h"
 #include "ScreenSpaceReflections.h"
@@ -8,10 +8,6 @@
 
 void CScreenSpaceReflectionsStage::Init()
 {
-	m_samplerPoint = CTexture::GetTexState(STexState(FILTER_POINT, true));
-	m_samplerLinear = CTexture::GetTexState(STexState(FILTER_LINEAR, true));
-	m_samplerLinearBorder = CTexture::GetTexState(STexState(FILTER_LINEAR, TADDR_BORDER, TADDR_BORDER, TADDR_BORDER, 0));
-
 	for (uint i = 0; i < MAX_GPU_NUM; i++)
 		m_prevViewProj[i] = IDENTITY;
 }
@@ -20,7 +16,7 @@ void CScreenSpaceReflectionsStage::Execute()
 {
 	CD3D9Renderer* const __restrict rd = gcpRendD3D;
 
-	if (!CRenderer::CV_r_SSReflections || !CTexture::s_ptexHDRTarget)  // Sketch mode disables HDR rendering
+	if (!CRenderer::CV_r_SSReflections)
 		return;
 
 	PROFILE_LABEL_SCOPE("SS_REFLECTIONS");
@@ -29,13 +25,6 @@ void CScreenSpaceReflectionsStage::Execute()
 	const uint32 prevPersFlags = rd->m_RP.m_TI[rd->m_RP.m_nProcessThreadID].m_PersFlags;
 
 	Matrix44 mViewProj = rd->m_ViewMatrix * rd->m_ProjMatrix;
-
-	if (rd->m_RP.m_TI[rd->m_RP.m_nProcessThreadID].m_PersFlags & RBPF_REVERSE_DEPTH)
-	{
-		mViewProj = ReverseDepthHelper::Convert(mViewProj);
-		rd->m_RP.m_TI[rd->m_RP.m_nProcessThreadID].m_PersFlags &= ~RBPF_REVERSE_DEPTH;
-		rd->GetGraphicsPipeline().UpdatePerViewConstantBuffer();
-	}
 
 	const int frameID = SPostEffectsUtils::m_iFrameCounter;
 	Matrix44 mViewport(0.5f, 0, 0, 0,
@@ -58,23 +47,21 @@ void CScreenSpaceReflectionsStage::Execute()
 			m_passRaytracing.SetTechnique(pShader, techRaytrace, 0);
 			m_passRaytracing.SetRenderTarget(0, destRT);
 			m_passRaytracing.SetState(GS_NODEPTHTEST);
-			m_passRaytracing.SetTextureSamplerPair(0, CTexture::s_ptexZTarget, m_samplerPoint);
-			m_passRaytracing.SetTextureSamplerPair(1, CTexture::s_ptexSceneNormalsMap, m_samplerLinear);
-			m_passRaytracing.SetTextureSamplerPair(2, CTexture::s_ptexSceneSpecular, m_samplerLinear);
-			m_passRaytracing.SetTextureSamplerPair(3, CTexture::s_ptexZTargetScaled, m_samplerPoint);
-			m_passRaytracing.SetTextureSamplerPair(4, CTexture::s_ptexHDRTargetPrev, m_samplerLinearBorder);
-			m_passRaytracing.SetTextureSamplerPair(5, CTexture::s_ptexHDRMeasuredLuminance[rd->RT_GetCurrGpuID()], m_samplerPoint);
+			m_passRaytracing.SetTextureSamplerPair(0, CTexture::s_ptexZTarget, EDefaultSamplerStates::PointClamp);
+			m_passRaytracing.SetTextureSamplerPair(1, CTexture::s_ptexSceneNormalsMap, EDefaultSamplerStates::LinearClamp);
+			m_passRaytracing.SetTextureSamplerPair(2, CTexture::s_ptexSceneSpecular, EDefaultSamplerStates::LinearClamp);
+			m_passRaytracing.SetTextureSamplerPair(3, CTexture::s_ptexZTargetScaled, EDefaultSamplerStates::PointClamp);
+			m_passRaytracing.SetTextureSamplerPair(4, CTexture::s_ptexHDRTargetPrev, EDefaultSamplerStates::LinearBorder_Black);
+			m_passRaytracing.SetTextureSamplerPair(5, CTexture::s_ptexHDRMeasuredLuminance[rd->RT_GetCurrGpuID()], EDefaultSamplerStates::PointClamp);
 			m_passRaytracing.SetRequireWorldPos(true);
 			m_passRaytracing.SetRequirePerViewConstantBuffer(true);
 			m_passRaytracing.SetFlags(CPrimitiveRenderPass::ePassFlags_VrProjectionPass);
 		}
 
-		static CCryNameR viewProjName("g_mViewProj");
 		static CCryNameR viewProjprevName("g_mViewProjPrev");
 
 		m_passRaytracing.BeginConstantUpdate();
-		pShader->FXSetPSFloat(viewProjName, (Vec4*)mViewProj.GetData(), 4);
-		pShader->FXSetPSFloat(viewProjprevName, (Vec4*)mViewProjPrev.GetData(), 4);
+		m_passRaytracing.SetConstantArray(viewProjprevName, (Vec4*)mViewProjPrev.GetData(), 4, eHWSC_Pixel);
 		m_passRaytracing.Execute();
 	}
 
@@ -102,14 +89,16 @@ void CScreenSpaceReflectionsStage::Execute()
 		if (m_passComposition.InputChanged())
 		{
 			static CCryNameTSCRC techComposition("SSReflection_Comp");
+			m_passComposition.SetPrimitiveFlags(CRenderPrimitive::eFlags_ReflectShaderConstants_VS);
 			m_passComposition.SetTechnique(pShader, techComposition, 0);
 			m_passComposition.SetRenderTarget(0, destTex);
 			m_passComposition.SetState(GS_NODEPTHTEST);
-			m_passComposition.SetTextureSamplerPair(0, CTexture::s_ptexSceneSpecular, m_samplerLinear);
-			m_passComposition.SetTextureSamplerPair(1, CTexture::s_ptexHDRTargetScaled[0], m_samplerLinear);
-			m_passComposition.SetTextureSamplerPair(2, CTexture::s_ptexHDRTargetScaled[1], m_samplerLinear);
-			m_passComposition.SetTextureSamplerPair(3, CTexture::s_ptexHDRTargetScaled[2], m_samplerLinear);
-			m_passComposition.SetTextureSamplerPair(4, CTexture::s_ptexHDRTargetScaled[3], m_samplerLinear);
+			m_passComposition.SetTextureSamplerPair(0, CTexture::s_ptexSceneSpecular, EDefaultSamplerStates::LinearClamp);
+			m_passComposition.SetTextureSamplerPair(1, CTexture::s_ptexHDRTargetScaled[0], EDefaultSamplerStates::LinearClamp);
+			m_passComposition.SetTextureSamplerPair(2, CTexture::s_ptexHDRTargetScaled[1], EDefaultSamplerStates::LinearClamp);
+			m_passComposition.SetTextureSamplerPair(3, CTexture::s_ptexHDRTargetScaled[2], EDefaultSamplerStates::LinearClamp);
+			m_passComposition.SetTextureSamplerPair(4, CTexture::s_ptexHDRTargetScaled[3], EDefaultSamplerStates::LinearClamp);
+
 			m_passComposition.SetFlags(CPrimitiveRenderPass::ePassFlags_VrProjectionPass);
 		}
 
@@ -126,6 +115,5 @@ void CScreenSpaceReflectionsStage::Execute()
 	{
 		uint32 depthState = ReverseDepthHelper::ConvertDepthFunc(rd->m_RP.m_CurState);
 		rd->FX_SetState(rd->m_RP.m_CurState, rd->m_RP.m_CurAlphaRef, depthState);
-		rd->GetGraphicsPipeline().UpdatePerViewConstantBuffer();
 	}
 }

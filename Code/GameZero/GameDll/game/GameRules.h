@@ -26,7 +26,6 @@ public:
 	virtual void                 HandleEvent(const SGameObjectEvent&) override                                            {}
 	virtual void                 ProcessEvent(SEntityEvent&) override                                                     {}
 	virtual void                 SetChannelId(uint16 id) override                                                         {}
-	virtual void                 SetAuthority(bool auth) override                                                         {}
 	virtual void                 PostUpdate(float frameTime) override                                                     {}
 	virtual void                 PostRemoteSpawn() override                                                               {}
 	virtual void                 GetMemoryUsage(ICrySizer* s) const override;
@@ -37,7 +36,6 @@ public:
 	virtual void        PrecacheLevel() override                                                                                                                                                                            {}
 	virtual void        PrecacheLevelResource(const char* resourceName, EGameResourceType resourceType) override                                                                                                            {}
 	virtual XmlNodeRef  FindPrecachedXmlFile(const char* sFilename) override                                                                                                                                                { return 0; }
-	virtual void        OnConnect(struct INetChannel* pNetChannel) override                                                                                                                                                 {}
 	virtual void        OnDisconnect(EDisconnectionCause cause, const char* desc) override                                                                                                                                  {}
 	virtual bool        OnClientConnect(int channelId, bool isReset) override;
 	virtual void        OnClientDisconnect(int channelId, EDisconnectionCause cause, const char* desc, bool keepClient) override                                                                                            {}

@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #ifndef ISTREAMENGINEDEFS_H
 #define ISTREAMENGINEDEFS_H
@@ -12,7 +12,7 @@
 	#define STREAMENGINE_SUPPORT_DECRYPT
 #endif
 
-enum
+enum : uint32
 {
 	ERROR_UNKNOWN_ERROR          = 0xF0000000,
 	ERROR_UNEXPECTED_DESTRUCTION = 0xF0000001,

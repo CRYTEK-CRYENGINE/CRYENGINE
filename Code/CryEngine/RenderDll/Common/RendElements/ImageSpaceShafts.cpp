@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #include "StdAfx.h"
 #include "ImageSpaceShafts.h"
@@ -30,8 +30,6 @@ ImageSpaceShafts::ImageSpaceShafts(const char* name)
 {
 	m_Color.a = 1.f;
 	SetSize(0.7f);
-
-	m_samplerStateBilinearClamp = CTexture::GetTexState(STexState(FILTER_BILINEAR, true));
 
 	// share one constant buffer between both primitives
 	CConstantBufferPtr pSharedCB = gcpRendD3D->m_DevBufMan.CreateConstantBuffer(sizeof(SShaderParams));
@@ -94,16 +92,16 @@ void ImageSpaceShafts::InitTextures()
 	int w = gcpRendD3D->GetWidth();
 	int h = gcpRendD3D->GetHeight();
 	int flag = FT_DONT_RELEASE | FT_DONT_STREAM;
-	m_pOccBuffer = CTexture::CreateRenderTarget("$ImageSpaceShaftsOccBuffer", (int)(w * occBufRatio), (int)(h * occBufRatio), ColorF(0.0f, 0.0f, 0.0f, 1.0f), eTT_2D, flag, eTF_R8G8B8A8);
+	m_pOccBuffer = CTexture::GetOrCreateRenderTarget("$ImageSpaceShaftsOccBuffer", (int)(w * occBufRatio), (int)(h * occBufRatio), ColorF(0.0f, 0.0f, 0.0f, 1.0f), eTT_2D, flag, eTF_R8G8B8A8);
 
 	ETEX_Format draftTexFormat(eTF_R16G16B16A16);
 
-	m_pDraftBuffer = CTexture::CreateRenderTarget("$ImageSpaceShaftsDraftBuffer", (int)(w * occDraftRatio), (int)(h * occDraftRatio), ColorF(0.0f, 0.0f, 0.0f, 1.0f), eTT_2D, flag, draftTexFormat);
+	m_pDraftBuffer = CTexture::GetOrCreateRenderTarget("$ImageSpaceShaftsDraftBuffer", (int)(w * occDraftRatio), (int)(h * occDraftRatio), ColorF(0.0f, 0.0f, 0.0f, 1.0f), eTT_2D, flag, draftTexFormat);
 
 	m_bTexDirty = false;
 }
 
-bool ImageSpaceShafts::PrepareOcclusion(CTexture* pDestRT, CTexture* pGoboTex, int samplerState)
+bool ImageSpaceShafts::PrepareOcclusion(CTexture* pDestRT, CTexture* pGoboTex, SamplerStateHandle samplerState)
 {
 	// prepare pass
 	D3DViewPort viewport;
@@ -113,13 +111,12 @@ bool ImageSpaceShafts::PrepareOcclusion(CTexture* pDestRT, CTexture* pGoboTex, i
 	viewport.MinDepth = 0.0f;
 	viewport.MaxDepth = 1.0f;
 
-	m_occlusionPass.ClearPrimitives();
 	m_occlusionPass.SetRenderTarget(0, m_pOccBuffer);
 	m_occlusionPass.SetViewport(viewport);
+	m_occlusionPass.BeginAddingPrimitives();
 
 	// prepare primitive
 	static CCryNameTSCRC occlusionTech("ImageSpaceShaftsOcclusion");
-
 	uint64 rtFlags = 0;
 	ApplyGeneralFlags(rtFlags);
 
@@ -129,15 +126,16 @@ bool ImageSpaceShafts::PrepareOcclusion(CTexture* pDestRT, CTexture* pGoboTex, i
 	m_occlusionPrimitive.SetTexture(0, pGoboTex ? pGoboTex : CTexture::s_ptexBlack);
 	m_occlusionPrimitive.SetTexture(1, CTexture::s_ptexZTargetScaled);
 	m_occlusionPrimitive.SetSampler(0, samplerState);
+	m_occlusionPrimitive.Compile(m_occlusionPass);
 
-	CCryDeviceWrapper::GetObjectFactory().GetCoreCommandList()->GetGraphicsInterface()->ClearSurface(pDestRT->GetSurface(0, 0), Clr_Empty);
+	GetDeviceObjectFactory().GetCoreCommandList().GetGraphicsInterface()->ClearSurface(pDestRT->GetSurface(0, 0), Clr_Empty);
 
 	m_occlusionPass.AddPrimitive(&m_occlusionPrimitive);
 
 	return true;
 }
 
-bool ImageSpaceShafts::PrepareShaftGen(CTexture* pDestRT, CTexture* pOcclTex, int samplerState)
+bool ImageSpaceShafts::PrepareShaftGen(CTexture* pDestRT, CTexture* pOcclTex, SamplerStateHandle samplerState)
 {
 	// prepare pass
 	D3DViewPort viewport;
@@ -147,9 +145,9 @@ bool ImageSpaceShafts::PrepareShaftGen(CTexture* pDestRT, CTexture* pOcclTex, in
 	viewport.MinDepth = 0.0f;
 	viewport.MaxDepth = 1.0f;
 
-	m_shaftGenPass.ClearPrimitives();
 	m_shaftGenPass.SetRenderTarget(0, pDestRT);
 	m_shaftGenPass.SetViewport(viewport);
+	m_shaftGenPass.BeginAddingPrimitives();
 
 	// prepare primitive
 	static CCryNameTSCRC occlusionTech("ImageSpaceShaftsGen");
@@ -162,8 +160,9 @@ bool ImageSpaceShafts::PrepareShaftGen(CTexture* pDestRT, CTexture* pOcclTex, in
 	m_shaftGenPrimitive.SetPrimitiveType(CRenderPrimitive::ePrim_FullscreenQuadCentered);
 	m_shaftGenPrimitive.SetTexture(0, pOcclTex);
 	m_shaftGenPrimitive.SetSampler(0, samplerState);
+	m_shaftGenPrimitive.Compile(m_shaftGenPass);
 
-	CCryDeviceWrapper::GetObjectFactory().GetCoreCommandList()->GetGraphicsInterface()->ClearSurface(pDestRT->GetSurface(0, 0), Clr_Empty);
+	GetDeviceObjectFactory().GetCoreCommandList().GetGraphicsInterface()->ClearSurface(pDestRT->GetSurface(0, 0), Clr_Empty);
 
 	m_shaftGenPass.AddPrimitive(&m_shaftGenPrimitive);
 
@@ -209,10 +208,10 @@ bool ImageSpaceShafts::PreparePrimitives(const SPreparePrimitivesContext& contex
 
 	// prepare occlusion and shaft gen prepasses first
 	{
-		if (PrepareOcclusion(m_pOccBuffer, m_pGoboTex.get(), m_samplerStateBilinearClamp))
+		if (PrepareOcclusion(m_pOccBuffer, m_pGoboTex.get(), EDefaultSamplerStates::BilinearClamp))
 			context.prePasses.push_back(&m_occlusionPass);
 
-		if (PrepareShaftGen(m_pDraftBuffer, m_pOccBuffer, m_samplerStateBilinearClamp))
+		if (PrepareShaftGen(m_pDraftBuffer, m_pOccBuffer, EDefaultSamplerStates::BilinearClamp))
 			context.prePasses.push_back(&m_shaftGenPass);
 	}
 
@@ -224,7 +223,8 @@ bool ImageSpaceShafts::PreparePrimitives(const SPreparePrimitivesContext& contex
 		m_blendPrimitive.SetRenderState(GS_NODEPTHTEST | GS_BLSRC_ONE | GS_BLDST_ONE);
 		m_blendPrimitive.SetPrimitiveType(CRenderPrimitive::ePrim_FullscreenQuadCentered);
 		m_blendPrimitive.SetTexture(0, m_pDraftBuffer);
-		m_blendPrimitive.SetSampler(0, m_samplerStateBilinearClamp);
+		m_blendPrimitive.SetSampler(0, EDefaultSamplerStates::BilinearClamp);
+		m_blendPrimitive.Compile(context.pass);
 
 		context.pass.AddPrimitive(&m_blendPrimitive);
 	}

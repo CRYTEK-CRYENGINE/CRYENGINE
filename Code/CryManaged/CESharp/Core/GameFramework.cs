@@ -1,5 +1,7 @@
-using System.Collections.Generic;
+// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
 
+using System;
+using System.Collections.Generic;
 using CryEngine.Common;
 
 namespace CryEngine
@@ -19,9 +21,17 @@ namespace CryEngine
 	/// </summary>
 	public class GameFramework : IGameFrameworkListener
 	{
+		private class DestroyAction
+		{
+			public bool UpdateDone { get; set; }
+			public bool RenderDone { get; set; }
+			public Action Action { get; set; }
+		}
+
 		internal static GameFramework Instance { get; set; }
-		static List<IGameUpdateReceiver> _updateReceivers = new List<IGameUpdateReceiver>();
-		static List<IGameRenderReceiver> _renderReceivers = new List<IGameRenderReceiver>();
+		private static List<DestroyAction> _destroyActions = new List<DestroyAction>();
+		private static List<IGameUpdateReceiver> _updateReceivers = new List<IGameUpdateReceiver>();
+		private static List<IGameRenderReceiver> _renderReceivers = new List<IGameRenderReceiver>();
 
 		public override void OnSaveGame(ISaveGame pSaveGame)
 		{
@@ -80,6 +90,15 @@ namespace CryEngine
 			_renderReceivers.Remove(obj);
 		}
 
+		internal static void AddDestroyAction(Action destroyAction)
+		{
+			var action = new DestroyAction
+			{
+				Action = destroyAction
+			};
+			_destroyActions.Add(action);
+		}
+
 		/// <summary>
 		/// Called by CryEngine. Do not call directly.
 		/// </summary>
@@ -95,9 +114,27 @@ namespace CryEngine
 			// Calculate time used to render last frame.
 			FrameTime.Delta = fDeltaTime;
 
+			if(_destroyActions.Count > 0)
+			{
+				var count = _destroyActions.Count;
+				for(int i = count - 1; i >= 0; i--)
+				{
+					var action = _destroyActions[i];
+					if(action.RenderDone && action.UpdateDone)
+					{
+						action.Action?.Invoke();
+						_destroyActions.RemoveAt(i);
+					}
+
+					action.UpdateDone = true;
+				}
+			}
+
 			var updateReceivers = new List<IGameUpdateReceiver>(_updateReceivers);
 			foreach (IGameUpdateReceiver obj in updateReceivers)
+			{
 				obj.OnUpdate();
+			}
 		}
 
 		/// <summary>
@@ -105,9 +142,21 @@ namespace CryEngine
 		/// </summary>
 		public override void OnPreRender()
 		{
+			if(_destroyActions.Count > 0)
+			{
+				var count = _destroyActions.Count;
+				for(int i = count - 1; i >= 0; i--)
+				{
+					var action = _destroyActions[i];
+					action.RenderDone = true;
+				}
+			}
+			
 			var renderReceivers = new List<IGameRenderReceiver>(_renderReceivers);
 			foreach (IGameRenderReceiver obj in renderReceivers)
+			{
 				obj.OnRender();
+			}
 		}
 
 		internal GameFramework()
@@ -125,6 +174,8 @@ namespace CryEngine
 		public override void Dispose()
 		{
 			Engine.GameFramework.UnregisterListener(this);
+			_updateReceivers.Clear();
+			_renderReceivers.Clear();
 
 			base.Dispose();
 		}

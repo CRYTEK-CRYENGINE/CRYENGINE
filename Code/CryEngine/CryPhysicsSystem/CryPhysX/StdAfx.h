@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #if !defined(AFX_STDAFX_H__4AA14050_1A79_4A11_9G24_4E229BF87E2C__INCLUDED_)
 #define AFX_STDAFX_H__4AA14050_1A79_4A11_9G24_4E229BF87E2C__INCLUDED_
@@ -20,6 +20,9 @@
 #elif CRY_COMPILER_GCC
 #pragma GCC diagnostic ignored "-Wdeprecated-declarations"     // MSVC equivalent C4996
 #endif
+
+// C6246: Local declaration of <variable> hides declaration of same name in outer scope.
+#define LOCAL_NAME_OVERRIDE_OK PREFAST_SUPPRESS_WARNING(6246)
 
 #include <vector>
 #include <map>

@@ -1,4 +1,5 @@
 // Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved.
+
 #ifndef __ChunkCompiler_h__
 #define __ChunkCompiler_h__
 
@@ -30,7 +31,7 @@ public:
 	virtual void EndProcessing() { }
 	virtual bool Process();
 
-	// IConvertor methods.
+	// IConverter methods.
 	virtual const char* GetExt(int index) const;
 
 private:

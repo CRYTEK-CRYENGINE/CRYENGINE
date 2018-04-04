@@ -4,6 +4,9 @@
 	<Tool Filename="cl" AllowRemote="true" AllowIntercept="false" DeriveCaptionFrom="lastparam" AllowRestartOnLocal="false" VCCompiler="true"/>
 	<Tool Filename="link" AllowRemote="false" AllowIntercept="false" DeriveCaptionFrom="lastparam" AllowRestartOnLocal="false" VCCompiler="false"/>		
 	
+	<Tool Filename="clang" AllowRemoteIf="-c,/c" AllowIntercept="false" DeriveCaptionFrom="lastparam" AllowRestartOnLocal="false"/>		
+	<Tool Filename="clang++" AllowRemoteIf="-c,/c" AllowIntercept="false" DeriveCaptionFrom="lastparam" AllowRestartOnLocal="false"/>	
+	
 	<Tool Filename="orbis-clang" AllowRemoteIf="-c,/c" AllowIntercept="false" DeriveCaptionFrom="lastparam" AllowRestartOnLocal="false"/>		
 	<Tool Filename="orbis-clang++" AllowRemoteIf="-c,/c" AllowIntercept="false" DeriveCaptionFrom="lastparam" AllowRestartOnLocal="false"/>		
 	

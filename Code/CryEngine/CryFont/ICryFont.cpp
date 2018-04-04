@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #include "StdAfx.h"
 // Included only once per DLL module.
@@ -16,8 +16,6 @@
 ///////////////////////////////////////////////
 extern "C" ICryFont * CreateCryFontInterface(ISystem * pSystem)
 {
-	ModuleInitISystem(pSystem, "CryFont");
-
 	if (gEnv->IsDedicated())
 	{
 #if defined(USE_NULLFONT)
@@ -40,16 +38,23 @@ extern "C" ICryFont * CreateCryFontInterface(ISystem * pSystem)
 }
 
 //////////////////////////////////////////////////////////////////////////
-class CEngineModule_CryFont : public IEngineModule
+class CEngineModule_CryFont : public IFontEngineModule
 {
-	CRYINTERFACE_SIMPLE(IEngineModule)
-	CRYGENERATE_SINGLETONCLASS(CEngineModule_CryFont, "EngineModule_CryFont", 0x6758643f43214957, 0x9b920d898d31f434)
+	CRYINTERFACE_BEGIN()
+		CRYINTERFACE_ADD(Cry::IDefaultModule)
+		CRYINTERFACE_ADD(IFontEngineModule)
+	CRYINTERFACE_END()
 
-	virtual ~CEngineModule_CryFont() {}
+	CRYGENERATE_SINGLETONCLASS_GUID(CEngineModule_CryFont, "EngineModule_CryFont", "6758643f-4321-4957-9b92-0d898d31f434"_cry_guid)
+
+	virtual ~CEngineModule_CryFont()
+	{
+		SAFE_RELEASE(gEnv->pCryFont);
+	}
 
 	//////////////////////////////////////////////////////////////////////////
-	virtual const char* GetName() override { return "CryFont"; };
-	virtual const char* GetCategory() override { return "CryEngine"; };
+	virtual const char* GetName() const override { return "CryFont"; };
+	virtual const char* GetCategory() const override { return "CryEngine"; };
 
 	//////////////////////////////////////////////////////////////////////////
 	virtual bool Initialize(SSystemGlobalEnvironment& env, const SSystemInitParams& initParams) override

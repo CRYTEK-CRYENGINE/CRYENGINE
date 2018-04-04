@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #ifndef __IINPUT_H__
 #define __IINPUT_H__
@@ -11,6 +11,8 @@
 
 #include <CryCore/Platform/platform.h>
 #include <CryString/CryName.h>
+
+#include <CrySystem/IEngineModule.h>
 
 struct ISystem;
 
@@ -112,7 +114,7 @@ inline bool   operator>(const char* str, const TKeyName& n)  { return n > str; }
 #define KI_EYETRACKER_BASE 4096
 #define KI_SYS_BASE        8192
 
-enum EKeyId
+enum EKeyId : uint32
 {
 	eKI_Escape = KI_KEYBOARD_BASE,
 	eKI_1,
@@ -694,7 +696,7 @@ enum KIN_SKELETON_POSITION_INDEX
 
 #define KIN_IDENTITY_MAX_ENROLLMENT_COUNT 8
 
-enum KIN_IDENTITY_ENROLLMENT
+enum KIN_IDENTITY_ENROLLMENT : uint32
 {
 	KIN_IDENTITY_ENROLLMENT_INDEX_CALL_IDENTIFY = 0xFFFFFFFF,
 	KIN_IDENTITY_ENROLLMENT_INDEX_UNKNOWN       = 0xFFFFFFFE,
@@ -1181,6 +1183,11 @@ struct IInputDevice
 	virtual void SetDeadZone(float fThreshold) = 0;
 	virtual void RestoreDefaultDeadZone() = 0;
 	// </interfuscator:shuffle>
+};
+
+struct IInputEngineModule : public Cry::IDefaultModule
+{
+	CRYINTERFACE_DECLARE_GUID(IInputEngineModule, "2c8744b1-6794-4fe0-8003-8fc3ade9076a"_cry_guid);
 };
 
 //! Interface to the Input system.

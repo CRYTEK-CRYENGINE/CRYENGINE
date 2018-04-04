@@ -1,44 +1,45 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #pragma once
 
-#include <Schematyc/Script/IScriptGraph.h>
+#include <CrySchematyc/Script/IScriptGraph.h>
 
 #include "Script/ScriptElementBase.h"
 
 namespace Schematyc
 {
+
 class CScriptGraphLink : public IScriptGraphLink
 {
 public:
 
 	CScriptGraphLink();
-	CScriptGraphLink(const SGUID& srcNodeGUID, const CGraphPortId& srcOutputId, const SGUID& dstNodeGUID, const CGraphPortId& dstInputId);
-	CScriptGraphLink(const SGUID& srcNodeGUID, const char* szSrcOutputName, const SGUID& dstNodeGUID, const char* szDstInputName);
+	CScriptGraphLink(const CryGUID& srcNodeGUID, const CUniqueId& srcOutputId, const CryGUID& dstNodeGUID, const CUniqueId& dstInputId);
+	CScriptGraphLink(const CryGUID& srcNodeGUID, const char* szSrcOutputName, const CryGUID& dstNodeGUID, const char* szDstInputName);
 
 	// IScriptGraphLink
-	virtual void         SetSrcNodeGUID(const SGUID& guid) override;
-	virtual SGUID        GetSrcNodeGUID() const override;
-	virtual CGraphPortId GetSrcOutputId() const override;
-	virtual void         SetDstNodeGUID(const SGUID& guid) override;
-	virtual SGUID        GetDstNodeGUID() const override;
-	virtual CGraphPortId GetDstInputId() const override;
-	virtual void         Serialize(Serialization::IArchive& archive) override;
+	virtual void      SetSrcNodeGUID(const CryGUID& guid) override;
+	virtual CryGUID   GetSrcNodeGUID() const override;
+	virtual CUniqueId GetSrcOutputId() const override;
+	virtual void      SetDstNodeGUID(const CryGUID& guid) override;
+	virtual CryGUID   GetDstNodeGUID() const override;
+	virtual CUniqueId GetDstInputId() const override;
+	virtual void      Serialize(Serialization::IArchive& archive) override;
 	// ~IScriptGraphLink
 
-	void        SetSrcOutputId(const CGraphPortId& id);
+	void        SetSrcOutputId(const CUniqueId& id);
 	const char* GetSrcOutputName() const;
-	void        SetDstInputId(const CGraphPortId& id);
+	void        SetDstInputId(const CUniqueId& id);
 	const char* GetDstInputName() const;
 
 private:
 
-	SGUID        m_srcNodeGUID;
-	CGraphPortId m_srcOutputId;
-	string       m_srcOutputName;
-	SGUID        m_dstNodeGUID;
-	CGraphPortId m_dstInputId;
-	string       m_dstInputName;
+	CryGUID   m_srcNodeGUID;
+	CUniqueId m_srcOutputId;
+	string    m_srcOutputName;
+	CryGUID   m_dstNodeGUID;
+	CUniqueId m_dstInputId;
+	string    m_dstInputName;
 };
 
 DECLARE_SHARED_POINTERS(CScriptGraphLink)
@@ -47,8 +48,8 @@ class CScriptGraph : public IScriptGraph
 {
 private:
 
-	typedef std::map<SGUID, IScriptGraphNodePtr> Nodes;
-	typedef std::vector<CScriptGraphLinkPtr>     Links;
+	typedef std::map<CryGUID, IScriptGraphNodePtr> Nodes;
+	typedef std::vector<CScriptGraphLinkPtr>       Links;
 
 	struct SSignals
 	{
@@ -76,28 +77,28 @@ public:
 
 	virtual void                                 PopulateNodeCreationMenu(IScriptGraphNodeCreationMenu& nodeCreationMenu) override;
 	virtual bool                                 AddNode(const IScriptGraphNodePtr& pNode) override;
-	virtual IScriptGraphNodePtr                  AddNode(const SGUID& typeGUID) override;
-	virtual void                                 RemoveNode(const SGUID& guid) override;
+	virtual IScriptGraphNodePtr                  AddNode(const CryGUID& typeGUID) override;
+	virtual void                                 RemoveNode(const CryGUID& guid) override;
 	virtual uint32                               GetNodeCount() const override;
-	virtual IScriptGraphNode*                    GetNode(const SGUID& guid) override;
-	virtual const IScriptGraphNode*              GetNode(const SGUID& guid) const override;
+	virtual IScriptGraphNode*                    GetNode(const CryGUID& guid) override;
+	virtual const IScriptGraphNode*              GetNode(const CryGUID& guid) const override;
 	virtual void                                 VisitNodes(const ScriptGraphNodeVisitor& visitor) override;
 	virtual void                                 VisitNodes(const ScriptGraphNodeConstVisitor& visitor) const override;
 
-	virtual bool                                 CanAddLink(const SGUID& srcNodeGUID, const CGraphPortId& srcOutputId, const SGUID& dstNodeGUID, const CGraphPortId& dstInputId) const override;
-	virtual IScriptGraphLink*                    AddLink(const SGUID& srcNodeGUID, const CGraphPortId& srcOutputId, const SGUID& dstNodeGUID, const CGraphPortId& dstInputId) override;
+	virtual bool                                 CanAddLink(const CryGUID& srcNodeGUID, const CUniqueId& srcOutputId, const CryGUID& dstNodeGUID, const CUniqueId& dstInputId) const override;
+	virtual IScriptGraphLink*                    AddLink(const CryGUID& srcNodeGUID, const CUniqueId& srcOutputId, const CryGUID& dstNodeGUID, const CUniqueId& dstInputId) override;
 	virtual void                                 RemoveLink(uint32 linkIdx) override;
-	virtual void                                 RemoveLinks(const SGUID& nodeGUID) override;
+	virtual void                                 RemoveLinks(const CryGUID& nodeGUID) override;
 	virtual uint32                               GetLinkCount() const override;
 	virtual IScriptGraphLink*                    GetLink(uint32 linkIdx) override;
 	virtual const IScriptGraphLink*              GetLink(uint32 linkIdx) const override;
-	virtual uint32                               FindLink(const SGUID& srcNodeGUID, const CGraphPortId& srcOutputId, const SGUID& dstNodeGUID, const CGraphPortId& dstInputId) const override;
+	virtual uint32                               FindLink(const CryGUID& srcNodeGUID, const CUniqueId& srcOutputId, const CryGUID& dstNodeGUID, const CUniqueId& dstInputId) const override;
 	virtual EVisitResult                         VisitLinks(const ScriptGraphLinkVisitor& visitor) override;
 	virtual EVisitResult                         VisitLinks(const ScriptGraphLinkConstVisitor& visitor) const override;
-	virtual EVisitResult                         VisitInputLinks(const ScriptGraphLinkVisitor& visitor, const SGUID& dstNodeGUID, const CGraphPortId& dstInputId) override;
-	virtual EVisitResult                         VisitInputLinks(const ScriptGraphLinkConstVisitor& visitor, const SGUID& dstNodeGUID, const CGraphPortId& dstInputId) const override;
-	virtual EVisitResult                         VisitOutputLinks(const ScriptGraphLinkVisitor& visitor, const SGUID& srcNodeGUID, const CGraphPortId& srcOutputId) override;
-	virtual EVisitResult                         VisitOutputLinks(const ScriptGraphLinkConstVisitor& visitor, const SGUID& srcNodeGUID, const CGraphPortId& srcOutputId) const override;
+	virtual EVisitResult                         VisitInputLinks(const ScriptGraphLinkVisitor& visitor, const CryGUID& dstNodeGUID, const CUniqueId& dstInputId) override;
+	virtual EVisitResult                         VisitInputLinks(const ScriptGraphLinkConstVisitor& visitor, const CryGUID& dstNodeGUID, const CUniqueId& dstInputId) const override;
+	virtual EVisitResult                         VisitOutputLinks(const ScriptGraphLinkVisitor& visitor, const CryGUID& srcNodeGUID, const CUniqueId& srcOutputId) override;
+	virtual EVisitResult                         VisitOutputLinks(const ScriptGraphLinkConstVisitor& visitor, const CryGUID& srcNodeGUID, const CUniqueId& srcOutputId) const override;
 	virtual bool                                 GetLinkSrc(const IScriptGraphLink& link, IScriptGraphNode*& pNode, uint32& outputIdx) override;
 	virtual bool                                 GetLinkSrc(const IScriptGraphLink& link, const IScriptGraphNode*& pNode, uint32& outputIdx) const override;
 	virtual bool                                 GetLinkDst(const IScriptGraphLink& link, IScriptGraphNode*& pNode, uint32& inputIdx) override;
@@ -106,6 +107,7 @@ public:
 	virtual void                                 RemoveBrokenLinks() override;
 	virtual ScriptGraphLinkRemovedSignal::Slots& GetLinkRemovedSignalSlots() override;
 
+	virtual void                                 FixMapping(IScriptGraphNode& node) override;
 	// ~IScriptGraph
 
 private:
@@ -141,4 +143,5 @@ private:
 };
 
 DECLARE_SHARED_POINTERS(CScriptGraph)
+
 } // Schematyc

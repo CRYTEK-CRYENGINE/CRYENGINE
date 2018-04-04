@@ -1,27 +1,36 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
-
-#ifndef _CREFOGVOLUME_
-#define _CREFOGVOLUME_
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #pragma once
 
-#include <CryRenderer/VertexFormats.h>
-
 struct IFogVolumeRenderNode;
+class CDeviceCommandList;
+namespace render_element
+{
+namespace fogvolume
+{
+struct SCompiledFogVolume;
+}
+}
 
 class CREFogVolume : public CRenderElement
 {
 public:
 	CREFogVolume();
-
 	virtual ~CREFogVolume();
-	virtual void mfPrepare(bool bCheckOverflow);
-	virtual bool mfDraw(CShader* ef, SShaderPass* sfm);
 
-	virtual void GetMemoryUsage(ICrySizer* pSizer) const
+	virtual void mfPrepare(bool bCheckOverflow) override;
+	virtual bool mfDraw(CShader* ef, SShaderPass* sfm) override;
+
+	virtual void GetMemoryUsage(ICrySizer* pSizer) const override
 	{
 		pSizer->AddObject(this, sizeof(*this));
 	}
+
+	virtual bool Compile(CRenderObject* pObj) override;
+	virtual void DrawToCommandList(CRenderObject* pObj, const struct SGraphicsPipelinePassContext& ctx) override;
+
+public:
+	std::unique_ptr<render_element::fogvolume::SCompiledFogVolume> m_pCompiledObject;
 
 	Vec3     m_center;
 	uint32   m_viewerInsideVolume  : 1;
@@ -47,6 +56,15 @@ public:
 	float    m_noiseOffset;
 	float    m_noiseElapsedTime;
 	Vec3     m_emission;
-};
 
-#endif // #ifndef _CREFOGVOLUME_
+private:
+	void PrepareForUse(render_element::fogvolume::SCompiledFogVolume& RESTRICT_REFERENCE compiledObj, bool bInstanceOnly, CDeviceCommandList& RESTRICT_REFERENCE commandList) const;
+	void UpdatePerInstanceCB(render_element::fogvolume::SCompiledFogVolume& RESTRICT_REFERENCE compiledObj, const CRenderObject& renderObj) const;
+	bool UpdateVertex(render_element::fogvolume::SCompiledFogVolume& RESTRICT_REFERENCE compiledObj);
+
+private:
+	stream_handle_t m_handleVertexBuffer;
+	stream_handle_t m_handleIndexBuffer;
+	AABB            m_cachedLocalAABB;
+
+};

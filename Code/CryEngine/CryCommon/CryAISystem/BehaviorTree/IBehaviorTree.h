@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #pragma once
 
@@ -34,7 +34,6 @@
 
 #ifdef USING_BEHAVIOR_TREE_SERIALIZATION
 
-	#include <CrySerialization/SharedPtr.h>
 	#include <CrySerialization/IClassFactory.h>
 	#include <CrySerialization/Forward.h>
 
@@ -970,32 +969,3 @@ private:
 #endif
 
 }
-
-#ifdef USING_BEHAVIOR_TREE_SERIALIZATION
-
-namespace BehaviorTree
-{
-struct NodePointerSerializer : StdSharedPtrSerializer<INode>
-{
-	NodePointerSerializer(std::shared_ptr<INode>& ptr)
-		: StdSharedPtrSerializer(ptr)
-	{
-	}
-
-	Serialization::ClassFactory<INode>& factoryOverride() const override
-	{
-		return gEnv->pAISystem->GetIBehaviorTreeManager()->GetNodeSerializationFactory();
-	}
-};
-}
-
-namespace std
-{
-inline bool Serialize(Serialization::IArchive& ar, BehaviorTree::INodePtr& ptr, const char* name, const char* label)
-{
-	BehaviorTree::NodePointerSerializer serializer(ptr);
-	return ar(static_cast<Serialization::IPointer&>(serializer), name, label);
-}
-}
-
-#endif

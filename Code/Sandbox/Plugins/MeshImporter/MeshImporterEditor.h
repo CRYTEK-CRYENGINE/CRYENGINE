@@ -30,20 +30,18 @@ public:
 
 	// CDockableEditor implementation.
 
-	virtual bool CanQuit(std::vector<string>& unsavedChanges) override;
-
 	virtual IViewPaneClass::EDockingDirection GetDockingDirection() const override;
 
 protected:
-	virtual void                              customEvent(QEvent* pEvent) override;
-	virtual void closeEvent(QCloseEvent* pEvent) override;
 
 	// CAssetEditor implementation.
 	virtual bool OnOpenAsset(CAsset* pAsset) override;
-	virtual bool OnSaveAsset(CAsset* pAsset) override;
-	virtual bool OnCloseAsset() override;
-
+	virtual bool OnSaveAsset(CEditableAsset& editAsset) override;
 	virtual bool OnSaveAs() override;
+	virtual bool OnAboutToCloseAsset(string& reason) const override;
+	virtual void OnCloseAsset() override;
+
+	virtual void customEvent(QEvent* pEvent) override;
 private:
 	std::unique_ptr<MeshImporter::CBaseDialog> m_pDialog;
 };

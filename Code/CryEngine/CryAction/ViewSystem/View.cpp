@@ -1,49 +1,39 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
-/*************************************************************************
-   -------------------------------------------------------------------------
-   $Id$
-   $DateTime$
-
-   -------------------------------------------------------------------------
-   History:
-   - 20:9:2004     : Created by Filippo De Luca
-   - September 2010: Jens Schöbel created a smooth extended camera shake
-
-*************************************************************************/
 #include "StdAfx.h"
-
+#include "View.h"
 #include <CryMath/Cry_Camera.h>
 #include <CrySystem/VR/IHMDDevice.h>
 #include <CrySystem/VR/IHMDManager.h>
 #include <ITimeDemoRecorder.h>
-#include "View.h"
 #include "GameObjects/GameObject.h"
 #include "IGameSessionHandler.h"
-
 #include "ViewSystem.h"
+#include <DefaultComponents/Audio/ListenerComponent.h>
 
-namespace
+namespace Cry
 {
-static ICVar* pCamShakeMult = 0;
-static ICVar* pHmdTrackingOrigin = 0;
+static ICVar* pCamShakeMult = nullptr;
+static ICVar* pHmdTrackingOrigin = nullptr;
 }
 //------------------------------------------------------------------------
 CView::CView(ISystem* const pSystem)
 	: m_pSystem(pSystem)
-	, m_linkedTo(0)
+	, m_linkedTo(INVALID_ENTITYID)
+	, m_linkedEntityCallback(nullptr)
 	, m_frameAdditiveAngles(0.0f, 0.0f, 0.0f)
 	, m_scale(1.0f)
 	, m_zoomedScale(1.0f)
-	, m_pAudioListener(nullptr)
+	, m_pAudioListenerComponent(nullptr)
+	, m_pAudioListenerEntity(nullptr)
 {
-	if (!pCamShakeMult)
+	if (!Cry::pCamShakeMult)
 	{
-		pCamShakeMult = gEnv->pConsole->GetCVar("c_shakeMult");
+		Cry::pCamShakeMult = gEnv->pConsole->GetCVar("c_shakeMult");
 	}
-	if (!pHmdTrackingOrigin)
+	if (!Cry::pHmdTrackingOrigin)
 	{
-		pHmdTrackingOrigin = gEnv->pConsole->GetCVar("hmd_tracking_origin");
+		Cry::pHmdTrackingOrigin = gEnv->pConsole->GetCVar("hmd_tracking_origin");
 	}
 
 	CreateAudioListener();
@@ -52,11 +42,12 @@ CView::CView(ISystem* const pSystem)
 //------------------------------------------------------------------------
 CView::~CView()
 {
-	if (m_pAudioListener != nullptr)
+	if (m_pAudioListenerEntity != nullptr)
 	{
-		gEnv->pEntitySystem->RemoveEntityEventListener(m_pAudioListener->GetId(), ENTITY_EVENT_DONE, this);
-		gEnv->pEntitySystem->RemoveEntity(m_pAudioListener->GetId(), true);
-		m_pAudioListener = nullptr;
+		gEnv->pEntitySystem->RemoveEntityEventListener(m_pAudioListenerEntity->GetId(), ENTITY_EVENT_DONE, this);
+		gEnv->pEntitySystem->RemoveEntity(m_pAudioListenerEntity->GetId(), true);
+		m_pAudioListenerEntity = nullptr;
+		m_pAudioListenerComponent = nullptr;
 	}
 }
 
@@ -76,7 +67,7 @@ void CView::Update(float frameTime, bool isActive)
 	CGameObject* pLinkedTo = GetLinkedGameObject();
 	if (pLinkedTo && !pLinkedTo->CanUpdateView())
 		pLinkedTo = nullptr;
-	IEntity* pEntity = pLinkedTo ? 0 : GetLinkedEntity();
+	IEntity* pEntity = pLinkedTo ? nullptr : GetLinkedEntity();
 
 	if (pLinkedTo || pEntity)
 	{
@@ -92,9 +83,13 @@ void CView::Update(float frameTime, bool isActive)
 
 		m_viewParams.frameTime = frameTime;
 		//update view position/rotation
-		if (pLinkedTo)
+		if (pLinkedTo || m_linkedEntityCallback)
 		{
-			pLinkedTo->UpdateView(m_viewParams);
+			if (pLinkedTo)
+				pLinkedTo->UpdateView(m_viewParams);
+			else
+				m_linkedEntityCallback->UpdateView(m_viewParams);
+
 			if (!m_viewParams.position.IsValid())
 			{
 				m_viewParams.position = m_viewParams.GetPositionLast();
@@ -144,7 +139,6 @@ void CView::Update(float frameTime, bool isActive)
 					bHmdTrackingEnabled = true;
 				}
 			}
-
 
 			if (pHmdManager->IsStereoSetupOk())
 			{
@@ -228,7 +222,7 @@ void CView::Update(float frameTime, bool isActive)
 		else if (bHmdTrackingEnabled)
 		{
 			pHmdDevice->SetAsynCameraCallback(this);
-			if (pHmdTrackingOrigin && pHmdTrackingOrigin->GetIVal() == (int)EHmdTrackingOrigin::Floor)
+			if (Cry::pHmdTrackingOrigin && Cry::pHmdTrackingOrigin->GetIVal() == (int)EHmdTrackingOrigin::Floor)
 			{
 				const IEntity* pEnt = GetLinkedEntity();
 				if (const IActor* pActor = gEnv->pGameFramework->GetClientActor())
@@ -249,10 +243,11 @@ void CView::Update(float frameTime, bool isActive)
 		Matrix34 viewMtx(q);
 		viewMtx.SetTranslation(pos + p);
 		m_camera.SetMatrix(viewMtx);
+		UpdateAudioListener(viewMtx);
 	}
 	else
 	{
-		m_linkedTo = 0;
+		m_linkedTo = INVALID_ENTITYID;
 
 		CCryAction* pCryAction = CCryAction::GetCryAction();
 		if (!pCryAction->IsGameSessionMigrating())    // If we're host migrating, leave the camera where it was
@@ -279,7 +274,7 @@ bool CView::OnAsyncCameraCallback(const HmdTrackingState& sensorState, IHmdDevic
 	Vec3 pos = m_viewParams.position;
 	Vec3 p = Vec3(ZERO);
 
-	if (pHmdTrackingOrigin && pHmdTrackingOrigin->GetIVal() == (int)EHmdTrackingOrigin::Floor)
+	if (Cry::pHmdTrackingOrigin && Cry::pHmdTrackingOrigin->GetIVal() == (int)EHmdTrackingOrigin::Floor)
 	{
 		const IEntity* pEnt = GetLinkedEntity();
 		if (const IActor* pActor = gEnv->pGameFramework->GetClientActor())
@@ -356,7 +351,7 @@ void CView::SetViewShakeEx(const SShakeParams& params)
 
 	if (!pSetShake)
 	{
-		m_shakes.push_back(SShake(params.shakeID));
+		m_shakes.emplace_back(params.shakeID);
 		pSetShake = &m_shakes.back();
 	}
 
@@ -406,7 +401,7 @@ void CView::SetZoomedScale(const float scale)
 //------------------------------------------------------------------------
 const float CView::GetScale()
 {
-	float shakeMult(pCamShakeMult->GetFVal());
+	float shakeMult(Cry::pCamShakeMult->GetFVal());
 	return m_scale * shakeMult * m_zoomedScale;
 }
 
@@ -734,11 +729,12 @@ void CView::LinkTo(IGameObject* follow)
 }
 
 //------------------------------------------------------------------------
-void CView::LinkTo(IEntity* follow)
+void CView::LinkTo(IEntity* follow, IGameObjectView* callback)
 {
 	CRY_ASSERT(follow);
 	m_linkedTo = follow->GetId();
 	m_viewParams.targetPos = follow->GetWorldPos();
+	m_linkedEntityCallback = callback;
 }
 
 //------------------------------------------------------------------------
@@ -786,71 +782,60 @@ void CView::PostSerialize()
 }
 
 //////////////////////////////////////////////////////////////////////////
+void CView::UpdateAudioListener(Matrix34 const& worldTM)
+{
+	if (m_pAudioListenerEntity != nullptr)
+	{
+		m_pAudioListenerEntity->SetWorldTM(worldTM);
+	}
+}
+
+//////////////////////////////////////////////////////////////////////////
 void CView::OnEntityEvent(IEntity* pEntity, SEntityEvent& event)
 {
 	switch (event.event)
 	{
 	case ENTITY_EVENT_DONE:
+		// In case something destroys our listener entity before we had the chance to remove it.
+		if ((m_pAudioListenerEntity != nullptr) && (pEntity->GetId() == m_pAudioListenerEntity->GetId()))
 		{
-			// In case something destroys our listener entity before we had the chance to remove it.
-			if ((m_pAudioListener != nullptr) && (pEntity->GetId() == m_pAudioListener->GetId()))
-			{
-				gEnv->pEntitySystem->RemoveEntityEventListener(m_pAudioListener->GetId(), ENTITY_EVENT_DONE, this);
-				m_pAudioListener = nullptr;
-			}
-
-			break;
+			gEnv->pEntitySystem->RemoveEntityEventListener(m_pAudioListenerEntity->GetId(), ENTITY_EVENT_DONE, this);
+			m_pAudioListenerEntity = nullptr;
+			m_pAudioListenerComponent = nullptr;
 		}
-	default:
-		{
-			break;
-		}
+		break;
 	}
 }
 
 //////////////////////////////////////////////////////////////////////////
 void CView::CreateAudioListener()
 {
-	if (m_pAudioListener == nullptr)
+	IEntity* const pIEntity = GetLinkedEntity();
+
+	if (m_pAudioListenerEntity == nullptr && pIEntity != nullptr)
 	{
-		SEntitySpawnParams oEntitySpawnParams;
-		oEntitySpawnParams.sName = "AudioListener";
-		oEntitySpawnParams.pClass = gEnv->pEntitySystem->GetClassRegistry()->FindClass("AudioListener");
+		SEntitySpawnParams spawnParams;
+		spawnParams.pClass = gEnv->pEntitySystem->GetClassRegistry()->GetDefaultClass();
 
 		// We don't want the audio listener to serialize as the entity gets completely removed and recreated during save/load!
 		// NOTE: If we set ENTITY_FLAG_NO_SAVE *after* we spawn the entity, it will make it to m_dynamicEntities in GameSerialize.cpp
 		// (via CGameSerialize::OnSpawn) and GameSerialize will attempt to serialize it despite the flag with current (5.2.2) implementation
-		oEntitySpawnParams.nFlags = ENTITY_FLAG_TRIGGER_AREAS | ENTITY_FLAG_NO_SAVE;
-		oEntitySpawnParams.nFlagsExtended = ENTITY_FLAG_EXTENDED_AUDIO_LISTENER;
-		m_pAudioListener = gEnv->pEntitySystem->SpawnEntity(oEntitySpawnParams, true);
-		if (m_pAudioListener != nullptr)
-		{
-			gEnv->pEntitySystem->AddEntityEventListener(m_pAudioListener->GetId(), ENTITY_EVENT_DONE, this);
-			CryFixedStringT<64> sTemp;
-			sTemp.Format("AudioListener(%d)", static_cast<int>(m_pAudioListener->GetId()));
-			m_pAudioListener->SetName(sTemp.c_str());
+		spawnParams.nFlags = ENTITY_FLAG_NO_SAVE;
+		m_pAudioListenerEntity = gEnv->pEntitySystem->SpawnEntity(spawnParams, true);
 
-			IEntityAudioComponent* pIEntityAudioComponent = m_pAudioListener->GetOrCreateComponent<IEntityAudioComponent>();
-			CRY_ASSERT(pIEntityAudioComponent);
+		if (m_pAudioListenerEntity != nullptr)
+		{
+			gEnv->pEntitySystem->AddEntityEventListener(m_pAudioListenerEntity->GetId(), ENTITY_EVENT_DONE, this);
+			m_pAudioListenerEntity->SetName(pIEntity->GetName());
+
+			m_pAudioListenerComponent = m_pAudioListenerEntity->GetOrCreateComponent<Cry::Audio::DefaultComponents::CListenerComponent>();
+			CRY_ASSERT(m_pAudioListenerComponent != nullptr);
+			m_pAudioListenerComponent->SetComponentFlags(m_pAudioListenerComponent->GetComponentFlags() | IEntityComponent::EFlags::UserAdded);
 		}
 		else
 		{
-			CryFatalError("<Audio>: Audio listener creation failed in CView::CreateAudioListener!");
+			CryFatalError("<Audio>: AudioListenerEntity creation failed in CView::CreateAudioListener!");
 		}
-	}
-	else
-	{
-		m_pAudioListener->SetFlagsExtended(m_pAudioListener->GetFlagsExtended() | ENTITY_FLAG_EXTENDED_AUDIO_LISTENER);
-		m_pAudioListener->InvalidateTM(ENTITY_XFORM_POS);
-	}
-}
-
-//////////////////////////////////////////////////////////////////////////
-void CView::UpdateAudioListener(Matrix34 const& rMatrix)
-{
-	if (m_pAudioListener != nullptr)
-	{
-		m_pAudioListener->SetWorldTM(rMatrix);
 	}
 }
 
@@ -862,9 +847,9 @@ void CView::SetActive(bool const bActive)
 		// Make sure we have a valid audio listener entity on an active view!
 		CreateAudioListener();
 	}
-	else if (m_pAudioListener != nullptr && (m_pAudioListener->GetFlags() & ENTITY_FLAG_TRIGGER_AREAS) != 0)
+
+	if (m_pAudioListenerComponent != nullptr)
 	{
-		gEnv->pEntitySystem->GetAreaManager()->ExitAllAreas(m_pAudioListener->GetId());
-		m_pAudioListener->SetFlagsExtended(m_pAudioListener->GetFlagsExtended() & ~ENTITY_FLAG_EXTENDED_AUDIO_LISTENER);
+		m_pAudioListenerComponent->SetActive(bActive);
 	}
 }

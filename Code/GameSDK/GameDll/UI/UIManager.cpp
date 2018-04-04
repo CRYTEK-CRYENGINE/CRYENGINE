@@ -105,7 +105,7 @@ void CUIManager::Init()
 
 	InitSound();
 
-	gEnv->pSystem->GetISystemEventDispatcher()->RegisterListener( this );
+	gEnv->pSystem->GetISystemEventDispatcher()->RegisterListener( this, "CUIManager");
 	g_pGame->GetIGameFramework()->RegisterListener(this, "CUIManager", FRAMEWORKLISTENERPRIORITY_HUD);
 	m_bRegistered = true;
 }

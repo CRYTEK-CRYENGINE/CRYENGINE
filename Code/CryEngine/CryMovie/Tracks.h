@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #pragma once
 
@@ -102,8 +102,8 @@ public:
 		{
 			key.m_startTriggerName = keyNode->getAttr("startTrigger");
 			key.m_stopTriggerName = keyNode->getAttr("stopTrigger");
-			gEnv->pAudioSystem->GetAudioTriggerId(key.m_startTriggerName, key.m_startTriggerId);
-			gEnv->pAudioSystem->GetAudioTriggerId(key.m_stopTriggerName, key.m_stopTriggerId);
+			key.m_startTriggerId = CryAudio::StringToId(key.m_startTriggerName.c_str());
+			key.m_stopTriggerId = CryAudio::StringToId(key.m_stopTriggerName.c_str());
 
 			int32 durationTicks;
 			if (!keyNode->getAttr("durationTicks", durationTicks))
@@ -174,9 +174,9 @@ public:
 			int pathLength = key.m_audioFile.find(PathUtil::GetGameFolder());
 			const string tempFilePath = (pathLength == -1) ? PathUtil::GetGameFolder() + CRY_NATIVE_PATH_SEPSTR + key.m_audioFile : key.m_audioFile;
 
-			SAudioFileData audioData;
-			gEnv->pAudioSystem->GetAudioFileData(tempFilePath.c_str(), audioData);
-			key.m_duration = audioData.duration;
+			CryAudio::SFileData fileData;
+			gEnv->pAudioSystem->GetFileData(tempFilePath.c_str(), fileData);
+			key.m_duration = fileData.duration;
 		}
 	}
 };
@@ -192,8 +192,8 @@ public:
 		{
 			key.m_audioSwitchName = keyNode->getAttr("switch_name");
 			key.m_audioSwitchStateName = keyNode->getAttr("switch_state");
-			gEnv->pAudioSystem->GetAudioSwitchId(key.m_audioSwitchName, key.m_audioSwitchId);
-			gEnv->pAudioSystem->GetAudioSwitchStateId(key.m_audioSwitchId, key.m_audioSwitchStateName, key.m_audioSwitchStateId);
+			key.m_audioSwitchId = CryAudio::StringToId(key.m_audioSwitchName.c_str());
+			key.m_audioSwitchStateId = CryAudio::StringToId(key.m_audioSwitchStateName.c_str());
 		}
 		else
 		{
@@ -207,19 +207,19 @@ class CAudioParameterTrack final : public CAnimSplineTrack
 {
 public:
 	CAudioParameterTrack()
-	: CAnimSplineTrack(eAnimParamType_Float)
-	, m_audioParameterId(INVALID_AUDIO_CONTROL_ID)
+		: CAnimSplineTrack(eAnimParamType_Float)
+		, m_audioParameterId(CryAudio::InvalidControlId)
 	{}
 
 	virtual CAnimParamType GetParameterType() const override { return eAnimParamType_AudioParameter; }
 
-	virtual void Serialize(Serialization::IArchive& ar) override
+	virtual void           Serialize(Serialization::IArchive& ar) override
 	{
 		ar(Serialization::AudioRTPC(m_audioParameterName), "AudioParameterName", "Parameter Name");
 
 		if (ar.isInput())
 		{
-			gEnv->pAudioSystem->GetAudioRtpcId(m_audioParameterName.c_str(), m_audioParameterId);
+			m_audioParameterId = CryAudio::StringToId(m_audioParameterName.c_str());
 		}
 	}
 
@@ -230,7 +230,7 @@ public:
 		if (bLoading)
 		{
 			m_audioParameterName = xmlNode->getAttr("AudioParameterName");
-			gEnv->pAudioSystem->GetAudioRtpcId(m_audioParameterName, m_audioParameterId);
+			m_audioParameterId = CryAudio::StringToId(m_audioParameterName.c_str());
 		}
 		else
 		{
@@ -240,8 +240,8 @@ public:
 		return bResult;
 	}
 
-	string m_audioParameterName;
-	AudioControlId m_audioParameterId;
+	string              m_audioParameterName;
+	CryAudio::ControlId m_audioParameterId;
 };
 
 class CDynamicResponseSignalTrack final : public TAnimTrack<SDynamicResponseSignalKey>

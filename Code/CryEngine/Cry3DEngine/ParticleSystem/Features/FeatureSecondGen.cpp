@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 // -------------------------------------------------------------------------
 //  Created:     18/12/2014 by Filipe amim
@@ -24,6 +24,9 @@ SERIALIZATION_DECLARE_ENUM(ESecondGenMode,
                            Random
                            )
 
+
+typedef THeapArray<CParticleComponentRuntime::SInstance> TInstanceArray;
+
 class CFeatureSecondGenBase : public CParticleFeature
 {
 public:
@@ -48,7 +51,7 @@ public:
 				if (isUnique)
 				{
 					CParticleComponent* pSubComp = pEffect->GetCComponent(componentId);
-					if (pSubComp->SetSecondGeneration(pComponent))
+					if (pSubComp->SetSecondGeneration(pComponent, IsDelayed()))
 						m_componentIds.push_back(componentId);
 				}
 			}
@@ -91,78 +94,38 @@ public:
 			m_componentNames.erase(it);
 	}
 
+	virtual bool IsDelayed() const { return false; }
+
 protected:
-	ILINE void TriggerParticles(const SUpdateContext& context, const TParticleId* pParticleIdTriggers, uint triggerCount)
+
+	void TriggerParticles(const SUpdateContext& context, const TInstanceArray& triggers)
 	{
-		if (m_mode == ESecondGenMode::All)
-			TriggerAll(context, pParticleIdTriggers, triggerCount);
-		else
-			TriggerRandom(context, pParticleIdTriggers, triggerCount);
+		CParticleContainer& container = context.m_container;
+		TInstanceArray newInstances(*context.m_pMemHeap);
+		newInstances.reserve(triggers.size());
+
+		const uint numEntries = m_componentIds.size();
+		for (uint i = 0; i < numEntries; ++i)
+		{
+			const TComponentId componentId = m_componentIds[i];
+			ICommonParticleComponentRuntime* pChildComponentRuntime =
+			  context.m_runtime.GetEmitter()->GetRuntimes()[componentId].pRuntime;
+			SChaosKey chaosKey = context.m_spawnRng;
+
+			for (const auto& trigger : triggers)
+			{
+				if (chaosKey.RandUNorm() <= m_probability)
+				{
+					if (m_mode == ESecondGenMode::All || chaosKey.Rand(numEntries) == i)
+						newInstances.emplace_back(container.GetRealId(trigger.m_parentId), trigger.m_startDelay);
+				}
+			}
+			pChildComponentRuntime->AddSubInstances(newInstances);
+			newInstances.clear();
+		}
 	}
 
 private:
-	ILINE void TriggerAll(const SUpdateContext& context, const TParticleId* pParticleIdTriggers, uint triggerCount)
-	{
-		CParticleContainer& container = context.m_container;
-		TParticleHeap::Array<CParticleComponentRuntime::SInstance> newInstances(*context.m_pMemHeap);
-		newInstances.reserve(triggerCount);
-		const uint numEntries = m_componentIds.size();
-
-		for (uint i = 0; i < numEntries; ++i)
-		{
-			const TComponentId componentId = m_componentIds[i];
-			ICommonParticleComponentRuntime* pChildComponentRuntime =
-			  context.m_runtime.GetEmitter()->GetRuntimes()[componentId].pRuntime;
-			SChaosKey chaosKey = context.m_spawnRng;
-
-			for (uint j = 0; j < triggerCount; ++j)
-			{
-				const TParticleId particleId = pParticleIdTriggers[j];
-				const bool trigger = (chaosKey.RandUNorm() <= m_probability);
-				if (trigger)
-				{
-					CParticleComponentRuntime::SInstance instance;
-					instance.m_parentId = container.GetRealId(particleId);
-					newInstances.push_back(instance);
-				}
-			}
-			pChildComponentRuntime->AddSubInstances(newInstances.data(), newInstances.size());
-			newInstances.clear();
-		}
-	}
-
-	ILINE void TriggerRandom(const SUpdateContext& context, const TParticleId* pParticleIdTriggers, uint triggerCount)
-	{
-		CParticleContainer& container = context.m_container;
-		TParticleHeap::Array<CParticleComponentRuntime::SInstance> newInstances(*context.m_pMemHeap);
-		newInstances.reserve(triggerCount);
-		const uint numEntries = m_componentIds.size();
-
-		for (uint i = 0; i < numEntries; ++i)
-		{
-			const TComponentId componentId = m_componentIds[i];
-			ICommonParticleComponentRuntime* pChildComponentRuntime =
-			  context.m_runtime.GetEmitter()->GetRuntimes()[componentId].pRuntime;
-			SChaosKey chaosKey = context.m_spawnRng;
-
-			for (uint j = 0; j < triggerCount; ++j)
-			{
-				const TParticleId particleId = pParticleIdTriggers[j];
-				const float u = chaosKey.RandUNorm();
-				const float v = chaosKey.RandUNorm() * numEntries;
-				const bool trigger = (u <= m_probability);
-				const bool inRange = v >= float(i) && v < (float(i) + 1.0f);
-				if (trigger && inRange)
-				{
-					CParticleComponentRuntime::SInstance instance;
-					instance.m_parentId = container.GetRealId(particleId);
-					newInstances.push_back(instance);
-				}
-			}
-			pChildComponentRuntime->AddSubInstances(newInstances.data(), newInstances.size());
-			newInstances.clear();
-		}
-	}
 
 	std::vector<string>::iterator FindComponentName(const char* pOther)
 	{
@@ -234,14 +197,20 @@ public:
 	{
 		CRY_PFX2_PROFILE_DETAIL;
 
-		TParticleHeap::Array<TParticleId> triggers(*context.m_pMemHeap);
-		triggers.reserve(context.m_container.GetNumSpawnedParticles());
+		CParticleContainer& container = context.m_container;
+		TInstanceArray triggers(*context.m_pMemHeap);
+		triggers.reserve(container.GetNumSpawnedParticles());
+
+		IFStream normAges = container.GetIFStream(EPDT_NormalAge);
+
 		CRY_PFX2_FOR_SPAWNED_PARTICLES(context)
 		{
-			triggers.push_back(particleId);
+			const float delay = (1.0f + normAges.Load(particleId)) * context.m_deltaTime;
+			triggers.emplace_back(particleId, delay);
 		}
 		CRY_PFX2_FOR_END;
-		TriggerParticles(context, triggers.data(), triggers.size());
+
+		TriggerParticles(context, triggers);
 	}
 };
 
@@ -261,10 +230,28 @@ public:
 			pComponent->AddToUpdateList(EUL_KillUpdate, this);
 	}
 
-	void KillParticles(const SUpdateContext& context, TParticleId* pParticles, size_t count) override
+	void KillParticles(const SUpdateContext& context, TConstArray<TParticleId> particleIds) override
 	{
-		TriggerParticles(context, pParticles, count);
+		CRY_PFX2_PROFILE_DETAIL;
+
+		CParticleContainer& container = context.m_container;
+		TInstanceArray triggers(*context.m_pMemHeap);
+		triggers.reserve(particleIds.size());
+		
+		IFStream normAges = container.GetIFStream(EPDT_NormalAge);
+		IFStream lifeTimes = container.GetIFStream(EPDT_LifeTime);
+
+		for (auto parentId : particleIds)
+		{
+			const float overAge = (normAges.Load(parentId) - 1.0f) * lifeTimes.Load(parentId);
+			const float delay = context.m_deltaTime - overAge;
+			triggers.emplace_back(parentId, delay);
+		}
+
+		TriggerParticles(context, triggers);
 	}
+
+	virtual bool IsDelayed() const override { return true; }
 };
 
 CRY_PFX2_IMPLEMENT_FEATURE_WITH_CONNECTOR(CParticleFeature, CFeatureSecondGenOnDeath, "SecondGen", "OnDeath", colorSecondGen);
@@ -288,20 +275,25 @@ public:
 		CRY_PFX2_PROFILE_DETAIL;
 
 		CParticleContainer& container = context.m_container;
+		if (!container.HasData(EPDT_ContactPoint))
+			return;
+
 		const TIStream<SContactPoint> contactPoints = container.GetTIStream<SContactPoint>(EPDT_ContactPoint);
-		TParticleHeap::Array<TParticleId> triggers(*context.m_pMemHeap);
+		TInstanceArray triggers(*context.m_pMemHeap);
 		triggers.reserve(container.GetLastParticleId());
 
 		CRY_PFX2_FOR_ACTIVE_PARTICLES(context)
 		{
 			const SContactPoint contact = contactPoints.Load(particleId);
-			if (contact.m_flags & uint(EContactPointsFlags::Collided))
-				triggers.push_back(particleId);
+			if (contact.m_state.collided)
+				triggers.emplace_back(particleId, contact.m_time);
 		}
 		CRY_PFX2_FOR_END;
 
-		TriggerParticles(context, triggers.data(), triggers.size());
+		TriggerParticles(context, triggers);
 	}
+
+	virtual bool IsDelayed() const override { return true; }
 };
 
 CRY_PFX2_IMPLEMENT_FEATURE_WITH_CONNECTOR(CParticleFeature, CFeatureSecondGenOnCollide, "SecondGen", "OnCollide", colorSecondGen);

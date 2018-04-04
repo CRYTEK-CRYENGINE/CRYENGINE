@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 /************************************************************************
 
@@ -20,7 +20,7 @@ struct IVariableCollection;
 
 struct IResponseCondition : public IEditorObject
 {
-	virtual ~IResponseCondition() {}
+	virtual ~IResponseCondition() = default;
 
 	typedef uint32 ConditionIdentifierHash;
 	/**

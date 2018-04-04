@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #include "StdAfx.h"
 #include "Ghost.h"
@@ -51,7 +51,7 @@ CTexture* CLensGhost::GetTexture()
 {
 	if (!m_pTex)
 	{
-		m_pTex = std::move(CTexture::ForName("EngineAssets/Textures/flares/default-flare.tif", FT_DONT_RELEASE | FT_DONT_STREAM, eTF_Unknown));
+		m_pTex = std::move(CTexture::ForName("%ENGINE%/EngineAssets/Textures/flares/default-flare.tif", FT_DONT_RELEASE | FT_DONT_STREAM, eTF_Unknown));
 	}
 
 	return m_pTex;
@@ -73,7 +73,7 @@ bool CLensGhost::PreparePrimitives(const SPreparePrimitivesContext& context)
 	m_primitive.SetRenderState(GS_NODEPTHTEST | GS_BLSRC_ONE | GS_BLDST_ONE);
 	m_primitive.SetPrimitiveType(CRenderPrimitive::ePrim_FullscreenQuadCentered);
 	m_primitive.SetTexture(0, pGhostTex);
-	m_primitive.SetSampler(0, m_samplerBilinearBorderBlack);
+	m_primitive.SetSampler(0, EDefaultSamplerStates::LinearBorder_Black);
 
 	// update constants
 	{
@@ -108,7 +108,8 @@ bool CLensGhost::PreparePrimitives(const SPreparePrimitivesContext& context)
 
 		m_primitive.GetConstantManager().EndTypedConstantUpdate(constants);
 	}
-
+	
+	m_primitive.Compile(context.pass);
 	context.pass.AddPrimitive(&m_primitive);
 
 	return true;

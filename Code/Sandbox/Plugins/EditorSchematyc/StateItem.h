@@ -20,7 +20,7 @@ namespace CrySchematycEditor {
 
 class CVariableItem;
 
-class CStateItem : public CAbstractObjectStructureModelItem, public CAbstractVariablesModel
+class CStateItem : public CAbstractObjectStructureModelItem
 {
 public:
 	CStateItem(Schematyc::IScriptState& scriptState, CAbstractObjectStructureModel& model);
@@ -29,7 +29,7 @@ public:
 	// CAbstractObjectStructureModelItem
 	virtual void                               SetName(QString name) override;
 	virtual int32                              GetType() const override       { return eObjectItemType_State; }
-	virtual const CryIcon*                       GetIcon() const override       { return &s_icon; }
+	virtual const CryIcon*                     GetIcon() const override;
 	virtual CAbstractObjectStructureModelItem* GetParentItem() const override { return m_pParentItem; }
 
 	virtual uint32                             GetNumChildItems() const override;
@@ -53,26 +53,12 @@ public:
 	//CSignalItem* CreateSignal();
 	//bool         RemoveState(CSignalItem& stateItem);
 
-	// CAbstractVariablesViewModel
-	virtual uint32                       GetNumVariables() const override { return m_variables.size(); }
-	virtual CAbstractVariablesModelItem* GetVariableItemByIndex(uint32 index) override;
-	virtual uint32                       GetVariableItemIndex(const CAbstractVariablesModelItem& variableItem) const;
-	virtual CAbstractVariablesModelItem* CreateVariable() override;
-	virtual bool                         RemoveVariable(CAbstractVariablesModelItem& variableItem) override;
-	// ~CAbstractVariablesViewModel
-
-	// CAbstractSignalsModel
-	// TODO:!
-	// ~CAbstractSignalsModel
-
-	Schematyc::SGUID GetGUID() const;
+	CryGUID GetGUID() const;
 
 protected:
 	void LoadFromScriptElement();
 
 private:
-	static CryIcon                       s_icon;
-
 	CAbstractObjectStructureModelItem* m_pParentItem;
 	Schematyc::IScriptState&           m_scriptState;
 

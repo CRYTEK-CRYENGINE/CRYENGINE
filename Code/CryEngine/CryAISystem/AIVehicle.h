@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #ifndef _AI_VEHICLE_
 #define _AI_VEHICLE_
@@ -16,8 +16,8 @@ public:
 	CAIVehicle();
 	~CAIVehicle(void);
 
-	virtual void     Update(EObjectUpdate type) override;
-	virtual void     UpdateDisabled(EObjectUpdate type) override;
+	virtual void     Update(EUpdateType type) override;
+	virtual void     UpdateDisabled(EUpdateType type) override;
 	void             Navigate(CAIObject* pTarget);
 	virtual void     Event(unsigned short eType, SAIEVENT* pEvent) override;
 

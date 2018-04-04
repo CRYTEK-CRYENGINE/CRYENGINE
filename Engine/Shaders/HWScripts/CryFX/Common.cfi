@@ -6,8 +6,6 @@
 //	 - only add when really necessary, this will propagate to ALL shaders
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-#define INST_STREAM_CUSTOM   \
-
 #define PI 3.1415
 #define PI_X2 6.2831
 #define PI_X4 12.5663
@@ -97,6 +95,7 @@ half2 GetXYNormalMap(sampler2D bumpMap, float2 bumpTC)                          
 half2 GetXYNormalMap(Texture2D bumpTex, float2 bumpTC)                                           { return GetTexture2D(bumpTex, ssMaterialAnisoHigh, bumpTC).yx; }
 half2 GetXYNormalMap(Texture2D bumpTex, SamplerState samplerState, float2 bumpTC)                { return GetTexture2D(bumpTex, samplerState, bumpTC).yx; }
 half2 GetXYNormalMapLod(sampler2D bumpMap, float4 bumpTC)                                        { return GetTexture2DLod(bumpMap, bumpTC).yx; }
+half2 GetXYNormalMapLod(Texture2D bumpTex, SamplerState samplerState, float4 bumpTC)             { return GetTexture2DLod(bumpTex, samplerState, bumpTC).yx; }
 half2 GetXYNormalMapGrad(Texture2D bumpTex, float2 bumpTC, float2 ddx_bumpTC, float2 ddy_bumpTC) { return GetTexture2DGrad(bumpTex, ssMaterialAnisoHigh, bumpTC, ddx_bumpTC, ddy_bumpTC).yx; }
 
 half3 GetNormalMap(sampler2D bumpMap, float2 bumpTC)
@@ -119,11 +118,31 @@ half3 GetNormalMap(Texture2D bumpTex, float2 bumpTC)
   return bumpNormal;
 }
 
+half3 GetNormalMap(Texture2D bumpTex, SamplerState samplerState, float2 bumpTC)
+{
+  half3 bumpNormal;
+
+  bumpNormal.xy = GetXYNormalMap(bumpTex, samplerState, bumpTC.xy);
+  bumpNormal.z = sqrt(saturate(1.h + dot(bumpNormal.xy, -bumpNormal.xy)));
+
+  return bumpNormal;
+}
+
 half3 GetNormalMapLod(sampler2D bumpMap, float4 bumpTC)
 {
   half3 bumpNormal;
 
   bumpNormal.xy = GetXYNormalMapLod(bumpMap, bumpTC);
+  bumpNormal.z = sqrt(saturate(1.h + dot(bumpNormal.xy, -bumpNormal.xy)));
+
+  return bumpNormal;
+}
+
+half3 GetNormalMapLod(Texture2D bumpTex, SamplerState samplerState, float4 bumpTC)
+{
+  half3 bumpNormal;
+
+  bumpNormal.xy = GetXYNormalMapLod(bumpTex, samplerState, bumpTC);
   bumpNormal.z = sqrt(saturate(1.h + dot(bumpNormal.xy, -bumpNormal.xy)));
 
   return bumpNormal;
@@ -177,6 +196,7 @@ half4 GetSceneTex(Texture2D tex, float2 texTC)                                  
 half4 GetSceneTexProj(Texture2D tex, float4 texTC)                                                  { return GetTexture2DProj(tex, ssPointClamp, texTC.xyzw); } // TODO: convert to load
 half4 GetDissolveTex(Texture2D tex, float2 texTC)                                                   { return GetTexture2D(tex, ssPointWrap, texTC.xy); }
 half4 GetDissolveTexLod(Texture2D tex, float4 texTC)                                                { return GetTexture2DLod(tex, ssPointWrap, texTC.xyzw); }
+half4 GetPerlinNoiseTexLod(Texture2D tex, float4 texTC)                                             { return GetTexture2DLod(tex, ssMaterialTrilinear, texTC.xyzw); }
 half4 GetTerrainTex(Texture2D tex, float2 terrainTC)                                                { return GetTexture2D(tex, ssMaterialBilinearClamp, terrainTC) * g_PS_TerrainInfo.x; }
 half3 GetTerrainNormal(Texture2D tex, float2 terrainTC) 
 { 
@@ -243,11 +263,16 @@ float GetLinearDepth(sampler2D depthSampler, float2 ScreenTC, bool bScaled = fal
 	return GetLinearDepth(fDepth, bScaled);
 }
 
+float GetLinearDepth(Texture2D depthTexture, int2 vPixCoord, bool bScaled = false)
+{
+	float fDepth = depthTexture.Load(int3(vPixCoord, 0)).x;
+	return GetLinearDepth(fDepth, bScaled);
+}
+
 float GetLinearDepth(Texture2D depthTexture, float2 ScreenTC, bool bScaled = false)
 {
-	int3 vPixCoord = int3(ScreenTC * PS_ScreenSize.xy, 0);
-	float fDepth = depthTexture.Load(vPixCoord).x;
-	return GetLinearDepth(fDepth, bScaled);
+	int2 vPixCoord = int2(ScreenTC * PS_ScreenSize.xy);
+	return GetLinearDepth(depthTexture, vPixCoord, bScaled);
 }
 
 float GetLinearDepthUnclamped(Texture2D depthTexture, float2 ScreenTC, bool bScaled = false)
@@ -471,6 +496,11 @@ MaterialAttribsCommon MaterialAttribsDefault()
 	return attribs;
 }
 
+half GetLuminance( half3 color )
+{
+	return dot( color, half3( 0.2126h, 0.7152h, 0.0722h ) );
+}
+
 half3 EncodeColorYCC( half3 col )
 {
 	half3 encodedCol;
@@ -533,6 +563,18 @@ void EncodeGBuffer( MaterialAttribsCommon attribs, out half4 bufferA, out half4 
 	}
 	
 	bufferA.w = ((float)attribs.LightingModel + (bufferA.w * MAX_FRACTIONAL_8_BIT)) / TWO_BITS_EXTRACTION_FACTOR;
+}
+
+void EncodeMicroGBuffer(MaterialAttribsCommon attribs, inout half4 bufferA, int2 WPos)
+{
+	float3 normalView = mul((float3x3)CV_ViewMatr, attribs.NormalWorld);
+	float2 normalEnc = normalView.xy * rsqrt(8 * normalView.z + 8) + 0.5;
+	
+	bool bChecker0 = (WPos.x & 1) == (WPos.y & 1);
+	float3 baseColorYCC = EncodeColorYCC(attribs.Albedo);
+	bufferA.xy = bChecker0 ? baseColorYCC.xy : baseColorYCC.xz;
+	bufferA.z = bChecker0 ? attribs.Smoothness : normalEnc.x;
+	bufferA.w = bChecker0 ? GetLuminance(attribs.Reflectance) : normalEnc.y;
 }
 
 void SetGBufferBlending( inout half4 bufferA, inout half4 bufferB, inout half4 bufferC,
@@ -795,11 +837,6 @@ float4 tex2D_rgb10a2f( sampler2D s, float2 vTexCoord )
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
-
-half GetLuminance( half3 color )
-{
-	return dot( color, half3( 0.2126h, 0.7152h, 0.0722h ) );
-}
 
 // Checks normalized sun light direction from level and applies it to the UV for the Cloud Shadows.
 float2 ComputeCloudShadowMapUV(in float3 worldPos, in float3 sunDirNormalized)

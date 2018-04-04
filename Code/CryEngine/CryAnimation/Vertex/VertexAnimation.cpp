@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #include "stdafx.h"
 #include "VertexAnimation.h"
@@ -287,7 +287,7 @@ void CVertexAnimation::CreateFrameStates(const CSoftwareVertexFrames& vertexFram
 	for (uint32 i = 0, limit = vertexFrames.GetCount(); i < limit; ++i)
 	{
 		const auto& vertexFrame = vertexFrames.GetFrames()[i];
-		const auto& expectedControllerName = stack_string(vertexFrame.name) + MORPH_TARGET_CONTROLLER_SUFFIX;
+		const auto& expectedControllerName = stack_string(vertexFrame.name.c_str() + 1) + MORPH_TARGET_CONTROLLER_SUFFIX;
 
 		m_frameStates.push_back();
 		m_frameStates.back().pFrame = &vertexFrame;

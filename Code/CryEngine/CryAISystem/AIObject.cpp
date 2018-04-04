@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #include "StdAfx.h"
 #include "AIObject.h"
@@ -752,11 +752,6 @@ const Vec3 CAIObject::GetPosInNavigationMesh(const uint32 agentTypeID) const
 	return outputLocation;
 }
 
-IAIObject::EFieldOfViewResult CAIObject::IsPointInFOV(const Vec3& pos, float distanceScale /*= 1.0f*/) const
-{
-	return eFOV_Outside;
-}
-
 const VisionID& CAIObject::GetVisionID() const
 {
 	return m_visionID;
@@ -765,6 +760,16 @@ const VisionID& CAIObject::GetVisionID() const
 void CAIObject::SetVisionID(const VisionID& visionID)
 {
 	m_visionID = visionID;
+}
+
+IAIObject::EFieldOfViewResult CAIObject::IsPointInFOV(const Vec3& pos, float distanceScale /*= 1.0f*/) const
+{
+	return eFOV_Outside;
+}
+
+IAIObject::EFieldOfViewResult CAIObject::IsObjectInFOV(const IAIObject* pTarget, float distanceScale /*= 1.0f*/) const
+{
+	return eFOV_Outside;
 }
 
 void CAIObject::SetObservable(bool observable)

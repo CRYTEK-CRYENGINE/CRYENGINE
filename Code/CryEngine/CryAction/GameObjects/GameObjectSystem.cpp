@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #include "StdAfx.h"
 #include "GameObjects/GameObject.h"
@@ -81,6 +81,8 @@ bool CGameObjectSystem::Init()
 			}
 		}
 	}
+
+	m_spawnSerializers.reserve(8);
 
 	LoadSerializationOrderFile();
 
@@ -326,7 +328,7 @@ IGameObject* CGameObjectSystem::CreateGameObjectForEntity(EntityId entityId)
 	IEntity* pEntity = gEnv->pEntitySystem->GetEntity(entityId);
 	if (pEntity)
 	{
-		auto pGameObject = pEntity->CreateComponentClass<CGameObject>();
+		auto pGameObject = pEntity->GetOrCreateComponentClass<CGameObject>();
 
 		// call sink
 		for (SinkList::iterator si = m_lstSinks.begin(); si != m_lstSinks.end(); ++si)
@@ -342,7 +344,7 @@ IGameObject* CGameObjectSystem::CreateGameObjectForEntity(EntityId entityId)
 
 IEntityComponent* CGameObjectSystem::CreateGameObjectEntityProxy(IEntity& entity, IGameObject** ppGameObject)
 {
-	auto pGameObject = entity.CreateComponentClass<CGameObject>();
+	auto pGameObject = entity.GetOrCreateComponentClass<CGameObject>();
 	if (ppGameObject)
 	{
 		*ppGameObject = pGameObject;
@@ -350,7 +352,7 @@ IEntityComponent* CGameObjectSystem::CreateGameObjectEntityProxy(IEntity& entity
 	return pGameObject;
 }
 
-IGameObjectExtension* CGameObjectSystem::Instantiate(ExtensionID id, IGameObject* pObject, TSerialize* pSpawnSerializer)
+IGameObjectExtension* CGameObjectSystem::Instantiate(ExtensionID id, IGameObject* pObject)
 {
 	if (id > m_extensionInfo.size())
 		return nullptr;
@@ -360,6 +362,7 @@ IGameObjectExtension* CGameObjectSystem::Instantiate(ExtensionID id, IGameObject
 	if (!pExt)
 		return nullptr;
 
+	TSerialize* pSpawnSerializer = GetSpawnSerializerForEntity(pEntity->GetId());
 	if (pSpawnSerializer)
 		pExt->SerializeSpawnInfo(*pSpawnSerializer);
 
@@ -374,7 +377,7 @@ IGameObjectExtension* CGameObjectSystem::Instantiate(ExtensionID id, IGameObject
 /* static */
 IEntityComponent* CGameObjectSystem::CreateGameObjectWithPreactivatedExtension(IEntity* pEntity, SEntitySpawnParams& params, void* pUserData)
 {
-	auto pGameObject = pEntity->CreateComponentClass<CGameObject>();
+	auto pGameObject = pEntity->GetOrCreateComponentClass<CGameObject>();
 	if (!pGameObject->ActivateExtension(params.pClass->GetName()))
 	{
 		pEntity->RemoveComponent(pGameObject);
@@ -436,6 +439,33 @@ const SEntitySchedulingProfiles* CGameObjectSystem::GetEntitySchedulerProfiles(I
 
 //////////////////////////////////////////////////////////////////////////
 
+void CGameObjectSystem::SetSpawnSerializerForEntity(const EntityId entityId, TSerialize* pSerializer)
+{
+	CRY_ASSERT(GetSpawnSerializerForEntity(entityId) == NULL);
+	if (GetSpawnSerializerForEntity(entityId) != NULL)
+	{
+		__debugbreak();
+	}
+
+	m_spawnSerializers.push_back(SSpawnSerializer(entityId, pSerializer));
+}
+
+void CGameObjectSystem::ClearSpawnSerializerForEntity(const EntityId entityId)
+{
+	stl::find_and_erase(m_spawnSerializers, entityId);
+}
+
+//////////////////////////////////////////////////////////////////////////
+
+TSerialize* CGameObjectSystem::GetSpawnSerializerForEntity(const EntityId entityId) const
+{
+	TSpawnSerializers::const_iterator it = std::find(m_spawnSerializers.begin(), m_spawnSerializers.end(), entityId);
+
+	return (it != m_spawnSerializers.end()) ? (*it).pSerializer : NULL;
+}
+
+//////////////////////////////////////////////////////////////////////////
+
 void CGameObjectSystem::GetMemoryUsage(ICrySizer* s) const
 {
 	SIZER_SUBCOMPONENT_NAME(s, "GameObjectSystem");
@@ -445,7 +475,6 @@ void CGameObjectSystem::GetMemoryUsage(ICrySizer* s) const
 	s->AddObject(m_extensionInfo);
 	s->AddObject(m_dispatch);
 	s->AddObject(m_postUpdateObjects);
-	s->AddObject(m_schedulingParams);
 
 	IEntityItPtr pIt = gEnv->pEntitySystem->GetEntityIterator();
 	while (IEntity* pEnt = pIt->Next())

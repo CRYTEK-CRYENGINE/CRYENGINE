@@ -19,7 +19,6 @@
 #endif
 
 #include <CryScriptSystem/IScriptSystem.h>
-#include <CryAISystem/IAISystem.h>
 #include "BoidObject.h"
 
 #define MAX_ATTRACT_DISTANCE 20
@@ -37,7 +36,7 @@ enum EFlockType
 	EFLOCK_TURTLES,
 };
 
-
+struct SAIStimulusParams;
 
 /*!	This is flock creation context passed to flock Init method.
 */
@@ -66,7 +65,7 @@ struct SFlockHit {
 /*!
  *	Define flock of boids, where every boid share common properties and recognize each other.
  */
-class CFlock : public IAIEventListener
+class CFlock
 {
 public:
 	CFlock( IEntity *pEntity,EFlockType flockType );
@@ -143,14 +142,10 @@ public:
 	//////////////////////////////////////////////////////////////////////////
 
 
-	//////////////////////////////////////////////////////////////////////////
-	// IAIEventListener implementation
-	//////////////////////////////////////////////////////////////////////////
-	virtual void OnAIEvent(EAIStimulusType type, const Vec3& pos, float radius, float threat, EntityId sender);
-	//////////////////////////////////////////////////////////////////////////
-
 	void OnBoidHit( EntityId nBoidId,SmartScriptTable &hit );
 	void RegisterAIEventListener( bool bEnable );
+
+	virtual void OnStimulusReceived(const SAIStimulusParams& params);
 
 	virtual void GetMemoryUsage(ICrySizer *pSizer )const;
 	

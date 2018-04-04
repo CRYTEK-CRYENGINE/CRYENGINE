@@ -6,15 +6,15 @@
 #include <CryExtension/ClassWeaver.h>
 #include <CryExtension/CryCreateClassInstance.h>
 
-// In order to be found by the Character Tool, the class name must match the value of the 'sys_game_name' CVar
-// (replace spaces with underscores in the class name).
-class AnimEventPlayer_CRYENGINE_SDK : public IAnimEventPlayer
+// Automatically found by the character tool due to implementing IAnimEventPlayerGame and usign CRYREGISTER_CLASS
+class AnimEventPlayer_CRYENGINE_SDK : public IAnimEventPlayerGame
 {
 public:
 	CRYINTERFACE_BEGIN()
 		CRYINTERFACE_ADD(IAnimEventPlayer)
+		CRYINTERFACE_ADD(IAnimEventPlayerGame)
 	CRYINTERFACE_END()
-	CRYGENERATE_CLASS(AnimEventPlayer_CRYENGINE_SDK, "AnimEventPlayer_CRYENGINE_SDK", 0x7cb241402ca9e311, 0x058e7ce6b77865e4)
+	CRYGENERATE_CLASS_GUID(AnimEventPlayer_CRYENGINE_SDK, "AnimEventPlayer_CRYENGINE_SDK", "7cb24140-2ca9-e311-058e-7ce6b77865e4"_cry_guid)
 
 	virtual ~AnimEventPlayer_CRYENGINE_SDK() {}
 

@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #include "StdAfx.h"
 
@@ -20,6 +20,7 @@
 #include "D3DPostProcess.h"
 #include "StatoscopeRenderStats.h"
 #include "GraphicsPipeline/VolumetricFog.h"
+#include "GraphicsPipeline/Common/UtilityPasses.h"
 
 #include <CryMovie/AnimKey.h>
 #include <CryAISystem/IAISystem.h>
@@ -38,118 +39,8 @@
 
 #pragma warning(disable: 4244)
 
-#if CRY_PLATFORM_WINDOWS && !defined(OPENGL)
+#if CRY_PLATFORM_WINDOWS && !CRY_RENDERER_OPENGL && !CRY_RENDERER_VULKAN
 	#include <D3Dcompiler.h>
-#endif
-
-#if CRY_PLATFORM_MOBILE
-	#include <SDL.h>
-#endif
-
-#if RENDERER_ENABLE_BREAK_ON_ERROR
-namespace detail
-{
-const char* ToString(long const hr)
-{
-	#if !CRY_PLATFORM_DURANGO
-	switch (hr)
-	{
-	case D3DOK_NOAUTOGEN:
-		return "D3DOK_NOAUTOGEN This is a success code. However, the autogeneration of mipmaps is not supported for this format. This means that resource creation will succeed but the mipmap levels will not be automatically generated";
-	case D3DERR_CONFLICTINGRENDERSTATE:
-		return "D3DERR_CONFLICTINGRENDERSTATE The currently set render states cannot be used together";
-	case D3DERR_CONFLICTINGTEXTUREFILTER:
-		return "D3DERR_CONFLICTINGTEXTUREFILTER The current texture filters cannot be used together";
-	case D3DERR_CONFLICTINGTEXTUREPALETTE:
-		return "D3DERR_CONFLICTINGTEXTUREPALETTE The current textures cannot be used simultaneously.";
-	case D3DERR_DEVICEHUNG:
-		return "D3DERR_DEVICEHUNG The device that returned this code caused the hardware adapter to be reset by the OS. Most applications should destroy the device and quit. Applications that must continue should destroy all video memory objects (surfaces, textures, state blocks etc) and call Reset() to put the device in a default state. If the application then continues rendering in the same way, the device will return to this state";
-
-	case D3DERR_DEVICELOST:
-		return "D3DERR_DEVICELOST The device has been lost but cannot be reset at this time. Therefore, rendering is not possible.A Direct 3D device object other than the one that returned this code caused the hardware adapter to be reset by the OS. Delete all video memory objects (surfaces, textures, state blocks) and call Reset() to return the device to a default state. If the application continues rendering without a reset, the rendering calls will succeed.";
-	case D3DERR_DEVICENOTRESET:
-		return "D3DERR_DEVICENOTRESET The device has been lost but can be reset at this time.";
-	case D3DERR_DEVICEREMOVED:
-		return "D3DERR_DEVICEREMOVED The hardware adapter has been removed. Application must destroy the device, do enumeration of adapters and create another Direct3D device. If application continues rendering without calling Reset, the rendering calls will succeed";
-
-	case D3DERR_DRIVERINTERNALERROR:
-		return "D3DERR_DRIVERINTERNALERROR Internal driver error. Applications should destroy and recreate the device when receiving this error. For hints on debugging this error, see Driver Internal Errors (Direct3D 9).";
-	case D3DERR_DRIVERINVALIDCALL:
-		return "D3DERR_DRIVERINVALIDCALL Not used.";
-	case D3DERR_INVALIDCALL:
-		return "D3DERR_INVALIDCALL The method call is invalid. For example, a method's parameter may not be a valid pointer.";
-	case D3DERR_INVALIDDEVICE:
-		return "D3DERR_INVALIDDEVICE The requested device type is not valid.";
-	case D3DERR_MOREDATA:
-		return "D3DERR_MOREDATA There is more data available than the specified buffer size can hold.";
-	case D3DERR_NOTAVAILABLE:
-		return "D3DERR_NOTAVAILABLE This device does not support the queried technique.";
-	case D3DERR_NOTFOUND:
-		return "D3DERR_NOTFOUND The requested item was not found.";
-	case D3D_OK:
-		return "D3D_OK No error occurred.";
-	case D3DERR_OUTOFVIDEOMEMORY:
-		return "D3DERR_OUTOFVIDEOMEMORY Direct3D does not have enough display memory to perform the operation. The device is using more resources in a single scene than can fit simultaneously into video memory. Present, PresentEx, or CheckDeviceState can return this error. Recovery is similar to D3DERR_DEVICEHUNG, though the application may want to reduce its per-frame memory usage as well to avoid having the error recur.";
-	case D3DERR_TOOMANYOPERATIONS:
-		return "D3DERR_TOOMANYOPERATIONS The application is requesting more texture-filtering operations than the device supports.";
-	case D3DERR_UNSUPPORTEDALPHAARG:
-		return "D3DERR_UNSUPPORTEDALPHAARG The device does not support a specified texture-blending argument for the alpha channel.";
-	case D3DERR_UNSUPPORTEDALPHAOPERATION:
-		return "D3DERR_UNSUPPORTEDALPHAOPERATION The device does not support a specified texture-blending operation for the alpha channel.";
-	case D3DERR_UNSUPPORTEDCOLORARG:
-		return "D3DERR_UNSUPPORTEDCOLORARG The device does not support a specified texture-blending argument for color values.";
-	case D3DERR_UNSUPPORTEDCOLOROPERATION:
-		return "D3DERR_UNSUPPORTEDCOLOROPERATION The device does not support a specified texture-blending operation for color values.";
-	case D3DERR_UNSUPPORTEDFACTORVALUE:
-		return "D3DERR_UNSUPPORTEDFACTORVALUE The device does not support the specified texture factor value. Not used; provided only to support older drivers.";
-	case D3DERR_UNSUPPORTEDTEXTUREFILTER:
-		return "D3DERR_UNSUPPORTEDTEXTUREFILTER The device does not support the specified texture filter.";
-	case D3DERR_WASSTILLDRAWING:
-		return "D3DERR_WASSTILLDRAWING The previous blit operation that is transferring information to or from this surface is incomplete.";
-	case D3DERR_WRONGTEXTUREFORMAT:
-		return "D3DERR_WRONGTEXTUREFORMAT The pixel format of the texture surface is not valid.";
-	case E_FAIL:
-		return "E_FAIL An undetermined error occurred inside the Direct3D subsystem.";
-	case E_INVALIDARG:
-		return "E_INVALIDARG An invalid parameter was passed to the returning function.";
-	case E_NOINTERFACE:
-		return "E_NOINTERFACE No object interface is available.";
-	case E_NOTIMPL:
-		return "E_NOTIMPL Not implemented.";
-	case E_OUTOFMEMORY:
-		return "E_OUTOFMEMORY Direct3D could not allocate sufficient memory to complete the call.";
-
-	case D3DERR_UNSUPPORTEDOVERLAY:
-		return "D3DERR_UNSUPPORTEDOVERLAY The device does not support overlay for the specified size or display mode.";
-	case D3DERR_UNSUPPORTEDOVERLAYFORMAT:
-		return "D3DERR_UNSUPPORTEDOVERLAYFORMAT The device does not support overlay for the specified surface format.";
-	case D3DERR_CANNOTPROTECTCONTENT:
-		return "D3DERR_CANNOTPROTECTCONTENT The specified content cannot be protected";
-	case D3DERR_UNSUPPORTEDCRYPTO:
-		return "D3DERR_UNSUPPORTEDCRYPTO The specified cryptographic algorithm is not supported.";
-	default:
-		break;
-	}
-	#endif
-	return "Unknown HRESULT CODE!";
-}
-bool CheckHResult(long const hr
-                  , bool breakOnError
-                  , const char* file
-                  , const int line)
-{
-	IF (hr == S_OK, 1)
-	{
-		return true;
-	}
-	CryLogAlways("[%s:%d] d3d error: '%s'", file, line, ToString(hr));
-	IF (breakOnError, 0)
-	{
-		__debugbreak();
-	}
-	return false;
-}
-}
 #endif
 
 void CD3D9Renderer::LimitFramerate(const int maxFPS, const bool bUseSleep)
@@ -198,42 +89,250 @@ bool QueryIsFullscreen()
 	return gcpRendD3D->IsFullscreen();
 }
 
-unsigned int CD3D9Renderer::GetNumBackBufferIndices(const DXGI_SWAP_CHAIN_DESC& scDesc)
-{
-	unsigned indices = 1;
-
-#ifdef CRY_USE_DX12
-	indices = scDesc.BufferCount;
-#endif
-
-	return indices;
-}
-
-unsigned int CD3D9Renderer::GetCurrentBackBufferIndex(IDXGISwapChain* pSwapChain)
+CTexture* CD3D9Renderer::GetCurrentBackBuffer(SDisplayContext* pContext)
 {
 	unsigned index = 0;
 
-#ifdef CRY_USE_DX12
-	IDXGISwapChain3* spSwapChain3;
-	pSwapChain->QueryInterface(&spSwapChain3);
-	if (spSwapChain3)
+#if (CRY_RENDERER_DIRECT3D >= 120) && defined(__dxgi1_4_h__) // Otherwise index front-buffer only
+	IDXGISwapChain3* pSwapChain3;
+	pContext->m_pSwapChain->QueryInterface(IID_GFX_ARGS(&pSwapChain3));
+	if (pSwapChain3)
 	{
-		index = spSwapChain3->GetCurrentBackBufferIndex();
-		spSwapChain3->Release();
+		index = pSwapChain3->GetCurrentBackBufferIndex();
+		pSwapChain3->Release();
 	}
 #endif
+#if (CRY_RENDERER_VULKAN >= 10)
+	index = pContext->m_pSwapChain->GetCurrentBackBufferIndex();
+#endif
+#if (CRY_RENDERER_GNM)
+	// The GNM renderer uses the GPU to drive scan-out, so a command-list is required here.
+	auto* pCommandList = GnmCommandList(GetDeviceObjectFactory().GetCoreCommandList().GetGraphicsInterfaceImpl());
+	index = pContext->m_pSwapChain->GnmGetCurrentBackBufferIndex(pCommandList);
+#endif
 
-	return index;
+	return pContext->m_pBackBuffers[index];
 }
 
-void CD3D9Renderer::ReleaseBackBuffers()
+CTexture* CD3D9Renderer::GetLastBackBuffer(SDisplayContext* pContext)
 {
-	m_pBackBuffer = nullptr;
-	std::fill(m_pBackBuffers.begin(), m_pBackBuffers.end(), nullptr);
+	return pContext->m_pBackBufferPresented;
+}
 
-	if (!gEnv->IsEditor())
+void CD3D9Renderer::ObtainBackBuffers(SDisplayContext* pContext)
+{
+	unsigned indices = 1;
+#if (CRY_RENDERER_DIRECT3D >= 120) || (CRY_RENDERER_VULKAN >= 10)
+	DXGI_SWAP_CHAIN_DESC scDesc;
+	pContext->m_pSwapChain->GetDesc(&scDesc);
+	indices = scDesc.BufferCount;
+#elif CRY_RENDERER_GNM
+	CGnmSwapChain::SDesc desc = pContext->m_pSwapChain->GnmGetDesc();
+	indices = desc.numBuffers;
+#endif
+
+	pContext->m_pBackBuffers.resize(indices, nullptr);
+	pContext->m_pBackBufferPresented = nullptr;
+
+	for (int i = 0, n = indices; i < n; ++i)
 	{
-		m_pBackBufferTexture->SetDevTexture(nullptr);
+		const uint32 width = pContext->m_Width;
+		const uint32 height = pContext->m_Height;
+		const bool bBaseDisplayContext = (pContext->m_uniqueId == 0);
+		CRY_ASSERT(!bBaseDisplayContext || (width == m_d3dsdBackBuffer.Width && height == m_d3dsdBackBuffer.Height));
+
+		// Prepare back-buffer texture(s)
+		if (!pContext->m_pBackBuffers[i])
+		{
+			const ETEX_Format format = DeviceFormats::ConvertToTexFormat(m_d3dsdBackBuffer.Format);
+			const uint32 id = pContext->m_uniqueId;
+			char str[40]; sprintf(str, "$SwapChainBackBuffer %d:%d", id, i);
+
+			pContext->m_pBackBuffers[i] = CTexture::GetOrCreateTextureObject(str, width, height, 1, eTT_2D, FT_DONT_STREAM | FT_USAGE_RENDERTARGET, format);
+			pContext->m_pBackBuffers[i]->SRGBRead(DeviceFormats::ConvertToSRGB(DeviceFormats::ConvertFromTexFormat(format)) == m_d3dsdBackBuffer.Format);
+		}
+
+		if (!pContext->m_pBackBuffers[i]->GetDevTexture())
+		{
+	#if CRY_RENDERER_GNM
+			CGnmTexture* pBackBuffer = pContext->m_pSwapChain->GnmGetBuffer(i);
+	#elif CRY_PLATFORM_ORBIS
+			CCryDXOrbisTexture* pBackBuffer;
+			pContext->m_pSwapChain->GetBuffer(i, ID3D11Texture2D__GUID, (void**)&pBackBuffer);
+			assert(pBackBuffer != nullptr);
+	#elif CRY_PLATFORM_DURANGO
+			D3DBaseTexture* pBackBuffer;
+			HRESULT hr = pContext->m_pSwapChain->GetBuffer(i, __uuidof(ID3D11Texture2D), (LPVOID*)&pBackBuffer);
+			assert(SUCCEEDED(hr) && pBackBuffer != nullptr);
+	#elif CRY_RENDERER_VULKAN
+			D3DTexture* pBackBuffer = pContext->m_pSwapChain->GetVKBuffer(i);
+			assert(pBackBuffer != nullptr);
+	//#elif defined(SUPPORT_DEVICE_INFO)
+	//		D3DBaseTexture* pBackBuffer = m_devInfo.BackbufferTex2D();
+	#else
+			D3DTexture* pBackBuffer = 0;
+			HRESULT hr = pContext->m_pSwapChain->GetBuffer(i, __uuidof(D3DTexture), (void**)&pBackBuffer);
+			assert(SUCCEEDED(hr) && pBackBuffer != nullptr);
+	#endif
+
+			pContext->m_pBackBuffers[i]->SetWidth(width);
+			pContext->m_pBackBuffers[i]->SetHeight(height);
+			pContext->m_pBackBuffers[i]->SetDevTexture(CDeviceTexture::Associate(pContext->m_pBackBuffers[i]->GetLayout(), pBackBuffer));
+
+			// Guarantee that the back-buffers are cleared on first use (e.g. Flash alpha-blends onto the back-buffer)
+			// NOTE: GNM requires shaders to be initialized before issuing any draws/clears/copies/resolves. This is not yet the case here.
+			// NOTE: Can only access current backbuffer on DX12
+	#if !(CRY_RENDERER_GNM || CRY_RENDERER_DIRECT3D >= 120)
+			CDeviceCommandListRef commandList = GetDeviceObjectFactory().GetCoreCommandList();
+			commandList.GetGraphicsInterface()->ClearSurface(pContext->m_pBackBuffers[i]->GetDevTexture()->LookupRTV(EDefaultResourceViews::RasterizerTarget), Clr_Transparent);
+	#endif
+		}
+	}
+
+	// NOTE: Actual device texture allocation happens just before rendering.
+	const uint32 renderTargetFlags = FT_NOMIPS | FT_DONT_STREAM | FT_DONT_RELEASE | FT_USAGE_RENDERTARGET;
+	const string uniqueTexName = string("$HDRTarget_context_") + string().Format("%d", m_uniqueRContextId);
+	pContext->m_pHDRTargetTex = CTexture::GetOrCreateTextureObject(uniqueTexName.c_str(), 0, 0, 1, eTT_2D, renderTargetFlags, eTF_Unknown);
+}
+
+void CD3D9Renderer::ObtainDepthBuffer(SDisplayContext* pContext)
+{
+	const float clearDepth = CRenderer::CV_r_ReverseDepth ? 0.f : 1.f;
+	const uint clearStencil = 1;
+	const ColorF clearValues = ColorF(clearDepth, FLOAT(clearStencil), 0.f, 0.f);
+
+	int nDepthBufferWidth = IsEditorMode() ? m_d3dsdBackBuffer.Width : GetWidth();
+	int nDepthBufferHeight = IsEditorMode() ? m_d3dsdBackBuffer.Height : GetHeight();
+	m_preferredDepthFormat = m_zbpp == 32 ? eTF_D32FS8 : m_zbpp == 24 ? eTF_D24S8 : (m_zbpp == 8 ? eTF_D16S8 : eTF_D16);
+
+	m_pZTexture = CTexture::GetOrCreateDepthStencil("$DeviceDepthScene", nDepthBufferWidth, nDepthBufferHeight,
+		clearValues, eTT_2D, FT_USAGE_DEPTHSTENCIL | FT_DONT_RELEASE | FT_DONT_STREAM, m_preferredDepthFormat);
+#if defined(DURANGO_USE_ESRAM)
+	m_pZTexture->SetESRAMOffset(11894784 + 5955584 * 2);
+#endif
+
+	D3DTexture* pZTarget = m_pZTexture->GetDevTexture()->Get2DTexture();
+	D3DDepthSurface* pZSurface = m_pZTexture->GetDevTexture(m_d3dsdBackBuffer.SampleDesc.Count > 1)->LookupDSV(EDefaultResourceViews::DepthStencil);
+
+#if !CRY_RENDERER_GNM // GNM requires shaders to be initialized before issuing any draws/clears/copies/resolves. This is not yet the case here.
+	CDeviceCommandListRef commandList = GetDeviceObjectFactory().GetCoreCommandList();
+	commandList.GetGraphicsInterface()->ClearSurface(pZSurface, D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, clearDepth, clearStencil);
+#endif
+
+	m_DepthBufferOrig.pTexture = m_pZTexture;
+	m_DepthBufferOrig.pTarget = pZTarget;
+	m_DepthBufferOrig.pSurface = pZSurface;
+	m_DepthBufferOrig.nWidth = nDepthBufferWidth;
+	m_DepthBufferOrig.nHeight = nDepthBufferHeight;
+	m_DepthBufferOrig.bBusy = true;
+	m_DepthBufferOrig.nFrameAccess = -2;
+
+	m_DepthBufferNative = m_DepthBufferOrig;
+
+	// Create the native resolution depth stencil buffer for overlay rendering if needed
+	if (!IsEditorMode() && (m_nativeWidth != nDepthBufferWidth || m_nativeHeight != nDepthBufferHeight))
+	{
+		m_pNativeZTexture = CTexture::GetOrCreateDepthStencil("$DeviceDepthOverlay", m_nativeWidth, m_nativeHeight,
+			clearValues, eTT_2D, FT_USAGE_DEPTHSTENCIL | FT_DONT_RELEASE | FT_DONT_STREAM, m_preferredDepthFormat);
+
+		D3DTexture* pNativeZTarget = m_pZTexture->GetDevTexture()->Get2DTexture();
+		D3DDepthSurface* pNativeZSurface = m_pZTexture->GetDevTexture(m_d3dsdBackBuffer.SampleDesc.Count > 1)->LookupDSV(EDefaultResourceViews::DepthStencil);
+
+#if !CRY_RENDERER_GNM // GNM requires shaders to be initialized before issuing any draws/clears/copies/resolves. This is not yet the case here.
+		commandList.GetGraphicsInterface()->ClearSurface(pNativeZSurface, D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, clearDepth, clearStencil);
+#endif
+
+		m_DepthBufferNative.pTexture = m_pNativeZTexture;
+		m_DepthBufferNative.pTarget = pNativeZTarget;
+		m_DepthBufferNative.pSurface = pNativeZSurface;
+		m_DepthBufferNative.nWidth = m_nativeWidth;
+		m_DepthBufferNative.nHeight = m_nativeHeight;
+	}
+}
+
+void CD3D9Renderer::ReleaseBackBuffers(SDisplayContext* pContext)
+{
+	unsigned indices = 1;
+#if (CRY_RENDERER_DIRECT3D >= 120) || (CRY_RENDERER_VULKAN >= 10)
+	DXGI_SWAP_CHAIN_DESC scDesc;
+	pContext->m_pSwapChain->GetDesc(&scDesc);
+	indices = scDesc.BufferCount;
+#elif CRY_RENDERER_GNM
+	CGnmSwapChain::SDesc desc = pContext->m_pSwapChain->GnmGetDesc();
+	indices = desc.numBuffers;
+#endif
+
+	for (int i = 0, n = indices; i < n; ++i)
+	{
+		pContext->m_pBackBuffers[i]->SetDevTexture(nullptr);
+		SAFE_RELEASE(pContext->m_pBackBuffers[i]);
+	}
+
+	pContext->m_pHDRTargetTex->SetDevTexture(nullptr);
+	SAFE_RELEASE(pContext->m_pHDRTargetTex);
+}
+
+void CD3D9Renderer::ResizeBackBuffers(SDisplayContext* pContext)
+{
+	unsigned indices = 1;
+#if CRY_RENDERER_GNM
+	CGnmSwapChain::SDesc desc = pContext->m_pSwapChain->GnmGetDesc();
+	indices = desc.numBuffers;
+#else
+	DXGI_SWAP_CHAIN_DESC scDesc;
+	pContext->m_pSwapChain->GetDesc(&scDesc);
+#if (CRY_RENDERER_DIRECT3D >= 120) || (CRY_RENDERER_VULKAN >= 10)
+	indices = scDesc.BufferCount;
+#endif
+#endif
+
+	// Keep the CTextures for reuse, remove the device-resources and trigger dirty-handling
+	for (int i = 0, n = indices; i < n; ++i)
+	{
+		pContext->m_pBackBuffers[i]->SetDevTexture(nullptr);
+	}
+
+	pContext->m_pHDRTargetTex->SetDevTexture(nullptr);
+
+	const uint32 width = pContext->m_Width;
+	const uint32 height = pContext->m_Height;
+	const bool bBaseDisplayContext = (pContext->m_uniqueId == 0);
+	CRY_ASSERT(!bBaseDisplayContext || (width == m_d3dsdBackBuffer.Width && height == m_d3dsdBackBuffer.Height));
+
+#if CRY_RENDERER_GNM
+	desc.width = width;
+	desc.height = height;
+	HRESULT hr = m_pActiveContext->m_pSwapChain->GnmSetDesc(desc) ? S_OK : E_FAIL;
+#else
+	HRESULT hr = m_pActiveContext->m_pSwapChain->ResizeBuffers(0, width, height, DXGI_FORMAT_UNKNOWN, scDesc.Flags);
+#endif
+	CRY_ASSERT(SUCCEEDED(hr));
+
+	ObtainBackBuffers(pContext);
+}
+
+CTexture* CD3D9Renderer::GetCurrentTargetOutput()
+{
+	if (m_pActiveContext || !GetS3DRend().IsStereoEnabled() || !(m_RP.m_nRendFlags & (SHDF_STEREO_LEFT_EYE | SHDF_STEREO_RIGHT_EYE)))
+	{
+		return GetCurrentBackBuffer(GetActiveDisplayContext());
+	}
+	{
+		return GetS3DRend().GetEyeTarget((m_RP.m_nRendFlags & SHDF_STEREO_LEFT_EYE) ? LEFT_EYE : RIGHT_EYE);
+	}
+}
+
+CTexture* CD3D9Renderer::GetCurrentDepthOutput()
+{
+	if (m_pActiveContext || !GetS3DRend().IsStereoEnabled() || !(m_RP.m_nRendFlags & (SHDF_STEREO_LEFT_EYE | SHDF_STEREO_RIGHT_EYE)))
+	{
+		if (m_pActiveContext && !m_pActiveContext->m_bMainViewport)
+			return FX_GetDepthSurface(m_pActiveContext->m_Width, m_pActiveContext->m_Height, false, true)->pTexture;
+		else
+			return m_DepthBufferNative.pTexture;
+	}
+	{
+		return m_DepthBufferOrig.pTexture;
 	}
 }
 
@@ -252,7 +351,12 @@ uint32 CD3D9Renderer::GetOrCreateBlendState(const D3D11_BLEND_DESC& desc)
 		SStateBlend* pState = m_StatesBL.AddIndex(1);
 		pState->Desc = desc;
 		pState->nHashVal = nHash;
+#if defined(RENDERER_ENABLE_LEGACY_PIPELINE) || defined(CRY_RENDERER_DIRECT3D)
 		hr = GetDevice().CreateBlendState(&pState->Desc, &pState->pState);
+#else
+		pState->pState = nullptr;
+		hr = S_OK;
+#endif
 		assert(SUCCEEDED(hr));
 	}
 	return SUCCEEDED(hr) ? i : uint32(-1);
@@ -296,7 +400,12 @@ uint32 CD3D9Renderer::GetOrCreateRasterState(const D3D11_RASTERIZER_DESC& raster
 		pState->Desc = desc;
 		pState->nHashVal = nHash;
 		pState->nValuesHash = nValuesHash;
+#if defined(RENDERER_ENABLE_LEGACY_PIPELINE) || defined(CRY_RENDERER_DIRECT3D)
 		hr = GetDevice().CreateRasterizerState(&pState->Desc, &pState->pState);
+#else
+		pState->pState = nullptr;
+		hr = S_OK;
+#endif
 		assert(SUCCEEDED(hr));
 	}
 	return SUCCEEDED(hr) ? i : uint32(-1);
@@ -333,7 +442,12 @@ uint32 CD3D9Renderer::GetOrCreateDepthState(const D3D11_DEPTH_STENCIL_DESC& desc
 		SStateDepth* pState = m_StatesDP.AddIndex(1);
 		pState->Desc = desc;
 		pState->nHashVal = nHash;
+#if defined(RENDERER_ENABLE_LEGACY_PIPELINE) || defined(CRY_RENDERER_DIRECT3D)
 		hr = GetDevice().CreateDepthStencilState(&pState->Desc, &pState->pState);
+#else
+		pState->pState = nullptr;
+		hr = S_OK;
+#endif
 		assert(SUCCEEDED(hr));
 	}
 	return SUCCEEDED(hr) ? i : uint32(-1);
@@ -349,7 +463,9 @@ bool CD3D9Renderer::SetDepthState(const SStateDepth* pNewState, uint8 newStencRe
 	{
 		m_nCurStateDP = dsIndex;
 		m_nCurStencRef = newStencRef;
+#ifdef RENDERER_ENABLE_LEGACY_PIPELINE
 		m_DevMan.SetDepthStencilState(m_StatesDP[dsIndex].pState, newStencRef);
+#endif
 	}
 
 	return true;
@@ -367,10 +483,6 @@ CD3D9Renderer::CD3D9Renderer()
 	m_bDraw2dImageStretchMode = false;
 
 	CreateDeferredUnitBox(m_arrDeferredInds, m_arrDeferredVerts);
-#if CRY_PLATFORM_DURANGO
-	m_occlusionGPUData[0] = m_occlusionGPUData[1] = NULL;
-	m_occlusionReadBackTexture[0] = m_occlusionReadBackTexture[1] = NULL;
-#endif
 }
 
 void CD3D9Renderer::InitRenderer()
@@ -431,24 +543,6 @@ void CD3D9Renderer::InitRenderer()
 #endif
 	m_dwCreateFlags = 0L;
 
-	m_frameFenceCounter = 0;
-	m_completedFrameFenceCounter = 0;
-	for (uint32 i = 0; i < CRY_ARRAY_COUNT(m_frameFences); i++)
-		m_frameFences[i] = NULL;
-
-	m_PrevFenceOcclusionReady = m_FenceOcclusionReady = 0L;
-	m_numOcclusionDownsampleStages = 1;
-	m_occlusionDownsampleSizeX = 0;
-	m_occlusionDownsampleSizeY = 0;
-	m_occlusionRequestedSizeX = 0;
-	m_occlusionRequestedSizeY = 0;
-	m_occlusionSourceSizeX = 0;
-	m_occlusionSourceSizeY = 0;
-
-	m_occlusionViewProj.SetIdentity();
-	for (int i = 0; i < 4; i++)
-		m_occlusionViewProjBuffer[i].SetIdentity();
-
 	m_lockCharCB = 0;
 	m_CharCBFrameRequired[0] = m_CharCBFrameRequired[1] = m_CharCBFrameRequired[2] = 0;
 	m_CharCBAllocated = 0;
@@ -499,13 +593,7 @@ void CD3D9Renderer::InitRenderer()
 	}
 #endif
 
-#if RENDERER_SUPPORT_SCALEFORM
-	SF_CreateResources();
-	assert(m_pSFResD3D);
-#endif
-
-	m_OcclQueriesUsed = 0;
-
+	m_pSFResD3D = 0;
 	m_pPostProcessMgr = 0;
 	m_pWaterSimMgr = 0;
 
@@ -584,42 +672,52 @@ void CD3D9Renderer::ChangeViewport(unsigned int x, unsigned int y, unsigned int 
 {
 	if (m_bDeviceLost)
 		return;
+
 	assert(gEnv->IsEditor());
-	assert(m_CurrContext);
+	assert(m_pActiveContext);
 
-	m_CurrContext->m_nViewportWidth = width;
-	m_CurrContext->m_nViewportHeight = height;
+	m_pActiveContext->m_nViewportWidth  = width;
+	m_pActiveContext->m_nViewportHeight = height;
 
-	if (m_CurrContext->m_bMainViewport)
+	if (m_pActiveContext->m_bMainViewport)
 	{
 		const int nMaxRes = clamp_tpl(CV_r_CustomResMaxSize, 32, m_MaxTextureSize);
 		if (CV_r_CustomResWidth && CV_r_CustomResHeight)
 		{
-			width = clamp_tpl(CV_r_CustomResWidth, 32, nMaxRes);
+			width  = clamp_tpl(CV_r_CustomResWidth, 32, nMaxRes);
 			height = clamp_tpl(CV_r_CustomResHeight, 32, nMaxRes);
 		}
 		if (CV_r_Supersampling > 1)
 		{
 			const int nMaxSSX = nMaxRes / width;
 			const int nMaxSSY = nMaxRes / height;
-			m_CurrContext->m_nSSSamplesX = clamp_tpl(CV_r_Supersampling, 1, nMaxSSX);
-			m_CurrContext->m_nSSSamplesY = clamp_tpl(CV_r_Supersampling, 1, nMaxSSY);
+
+			m_pActiveContext->m_nSSSamplesX = clamp_tpl(CV_r_Supersampling, 1, nMaxSSX);
+			m_pActiveContext->m_nSSSamplesY = clamp_tpl(CV_r_Supersampling, 1, nMaxSSY);
 		}
 		else
 		{
-			m_CurrContext->m_nSSSamplesX = 1;
-			m_CurrContext->m_nSSSamplesY = 1;
+			m_pActiveContext->m_nSSSamplesX = 1;
+			m_pActiveContext->m_nSSSamplesY = 1;
 		}
 	}
 
-	width *= m_CurrContext->m_nSSSamplesX;
-	height *= m_CurrContext->m_nSSSamplesY;
+	width  *= m_pActiveContext->m_nSSSamplesX;
+	height *= m_pActiveContext->m_nSSSamplesY;
 
-	bool bBackbufferChanged = false;
 	DXGI_FORMAT fmt = DXGI_FORMAT_R8G8B8A8_UNORM;
 
-	if (!m_CurrContext->m_pSwapChain && !m_CurrContext->m_pBackBuffer)
+	if (!m_pActiveContext->m_pSwapChain /* && !m_CurrContext->m_pBackBuffer */)
 	{
+#if CRY_RENDERER_GNM
+		CGnmSwapChain::SDesc desc;
+		desc.width = width;
+		desc.height = height;
+		desc.format = fmt;
+
+		const HRESULT hr = GnmCreateSwapChain(desc, &m_pActiveContext->m_pSwapChain) ? S_OK : DXGI_ERROR_DRIVER_INTERNAL_ERROR;
+		CRY_ASSERT(SUCCEEDED(hr) && "Cannot create swapchain");
+#else
 		IDXGISwapChain* pSwapChain = nullptr;
 		DXGI_SWAP_CHAIN_DESC scDesc;
 
@@ -636,11 +734,8 @@ void CD3D9Renderer::ChangeViewport(unsigned int x, unsigned int y, unsigned int 
 
 		scDesc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT | DXGI_USAGE_SHADER_INPUT;
 		scDesc.BufferCount = 1;
-#if CRY_PLATFORM_ORBIS
-		scDesc.OutputWindow = (__typeof__(scDesc.OutputWindow))(TRUNCATE_PTR) m_CurrContext->m_hWnd;
-#else
-		scDesc.OutputWindow = m_CurrContext->m_hWnd;
-#endif
+		scDesc.OutputWindow = m_pActiveContext->m_hWnd;
+
 		scDesc.Windowed = TRUE;
 		scDesc.SwapEffect = DXGI_SWAP_EFFECT_DISCARD;
 		scDesc.Flags = 0;
@@ -656,145 +751,45 @@ void CD3D9Renderer::ChangeViewport(unsigned int x, unsigned int y, unsigned int 
 #else
 	#error UNKNOWN PLATFORM TRYING TO CREATE SWAP CHAIN
 #endif
-		hr = pSwapChain->QueryInterface(__uuidof(DXGISwapChain), (void**)&m_CurrContext->m_pSwapChain);
-		assert(SUCCEEDED(hr) && m_CurrContext->m_pSwapChain != 0);
+		hr = pSwapChain->QueryInterface(__uuidof(DXGISwapChain), (void**)&m_pActiveContext->m_pSwapChain);
+		assert(SUCCEEDED(hr) && m_pActiveContext->m_pSwapChain != 0);
 
 		// Decrement Create() increment
-		m_CurrContext->m_pSwapChain->Release();
-		PREFAST_ASSUME(m_CurrContext->m_pSwapChain);
-		m_CurrContext->m_pSwapChain->GetDesc(&scDesc);
-
-		unsigned int numIndices = GetNumBackBufferIndices(scDesc);
-		m_CurrContext->m_pBackBuffers.resize(numIndices);
-		for (unsigned int b = 0; b < numIndices; ++b)
-		{
-			void* pBackBuf(0);
-			hr = m_CurrContext->m_pSwapChain->GetBuffer(b, __uuidof(ID3D11Texture2D), &pBackBuf);
-			ID3D11Texture2D* pBackBuffer = (ID3D11Texture2D*)pBackBuf;
-			assert(SUCCEEDED(hr) && pBackBuffer != 0);
-
-			D3D11_RENDER_TARGET_VIEW_DESC rtDesc;
-			rtDesc.Format = fmt;
-			rtDesc.ViewDimension = D3D11_RTV_DIMENSION_TEXTURE2D;
-			rtDesc.Texture2D.MipSlice = 0;
-
-			D3DSurface* pBackbufferView;
-			hr = GetDevice().CreateRenderTargetView(pBackBuffer, &rtDesc, &pBackbufferView);
-			assert(SUCCEEDED(hr) && pBackbufferView != nullptr);
-
-			m_CurrContext->m_pBackBuffers[b] = pBackbufferView;
-			SAFE_RELEASE(pBackbufferView);
-
-#if !defined(RELEASE) && CRY_PLATFORM_WINDOWS
-			char str[38] = "";
-			_snprintf(str, CRY_ARRAY_COUNT(str), "Contextual Swap-Chain back buffer %d", b);
-			pBackBuffer->SetPrivateData(WKPDID_D3DDebugObjectName, strlen(str), str);
+		SAFE_RELEASE(pSwapChain);
 #endif
+		m_pActiveContext->m_X = x;
+		m_pActiveContext->m_Y = y;
+		m_pActiveContext->m_Width = width;
+		m_pActiveContext->m_Height = height;
 
-			SAFE_RELEASE(pBackBuffer);
-		}
-
-		m_CurrContext->m_pCurrentBackBufferIndex = GetCurrentBackBufferIndex(m_CurrContext->m_pSwapChain);
-		m_CurrContext->m_pBackBuffer = m_CurrContext->m_pBackBuffers[m_CurrContext->m_pCurrentBackBufferIndex];
-		bBackbufferChanged = true;
+		ObtainBackBuffers(m_pActiveContext);
 	}
-	else if (m_CurrContext->m_Width != width || m_CurrContext->m_Height != height)
+	else if (m_pActiveContext->m_Width != width || m_pActiveContext->m_Height != height)
 	{
-		DXGI_SWAP_CHAIN_DESC scDesc;
-
-		// Release all back-buffers of the m_CurrContext
-		m_CurrContext->m_pBackBuffer = nullptr;
-		std::fill(m_CurrContext->m_pBackBuffers.begin(), m_CurrContext->m_pBackBuffers.end(), nullptr);
-
-		// In case the m_CurrContext is the active context, release the buffers stored in the renderer
-		ReleaseBackBuffers();
-		m_pBackBufferTexture->SetDevTexture(nullptr);
-
 		// Force the release of the back-buffer currently bound as a render-target (otherwise resizing the swap-chain will fail, because of outstanding reference)
-		FX_SetRenderTarget(0, (D3DSurface*)nullptr, NULL);
-		FX_SetActiveRenderTargets();
+		FX_SetRenderTarget(0, (D3DSurface*)0xDEADBEEF, (SDepthTexture*)0xDEADBEEF);
+		GetDeviceObjectFactory().GetCoreCommandList().GetGraphicsInterface()->ClearState(true);
 
-		HRESULT hr = m_CurrContext->m_pSwapChain->ResizeBuffers(0, width, height, fmt, 0);
-		assert(SUCCEEDED(hr));
+		m_pActiveContext->m_X = x;
+		m_pActiveContext->m_Y = y;
+		m_pActiveContext->m_Width = width;
+		m_pActiveContext->m_Height = height;
 
-		PREFAST_ASSUME(m_CurrContext->m_pSwapChain);
-		m_CurrContext->m_pSwapChain->GetDesc(&scDesc);
-
-		unsigned int numIndices = GetNumBackBufferIndices(scDesc);
-		m_CurrContext->m_pBackBuffers.resize(numIndices);
-		for (unsigned int b = 0; b < numIndices; ++b)
-		{
-			void* pBackBuf(0);
-			hr = m_CurrContext->m_pSwapChain->GetBuffer(b, __uuidof(ID3D11Texture2D), &pBackBuf);
-			ID3D11Texture2D* pBackBuffer = (ID3D11Texture2D*)pBackBuf;
-			assert(SUCCEEDED(hr) && pBackBuffer != 0);
-
-			D3D11_RENDER_TARGET_VIEW_DESC rtDesc;
-			rtDesc.Format = fmt;
-			rtDesc.ViewDimension = D3D11_RTV_DIMENSION_TEXTURE2D;
-			rtDesc.Texture2D.MipSlice = 0;
-
-			D3DSurface* pBackbufferView;
-			hr = GetDevice().CreateRenderTargetView(pBackBuffer, &rtDesc, &pBackbufferView);
-			assert(SUCCEEDED(hr) && pBackbufferView != nullptr);
-
-			m_CurrContext->m_pBackBuffers[b] = pBackbufferView;
-			SAFE_RELEASE(pBackbufferView);
-
-#if !defined(RELEASE) && CRY_PLATFORM_WINDOWS
-			char str[64] = "";
-			sprintf(str, "Contextual Swap-Chain back buffer %d", b);
-			pBackBuffer->SetPrivateData(WKPDID_D3DDebugObjectName, strlen(str), str);
-#endif
-
-			SAFE_RELEASE(pBackBuffer);
-		}
-
-		m_CurrContext->m_pCurrentBackBufferIndex = GetCurrentBackBufferIndex(m_CurrContext->m_pSwapChain);
-		m_CurrContext->m_pBackBuffer = m_CurrContext->m_pBackBuffers[m_CurrContext->m_pCurrentBackBufferIndex];
-		bBackbufferChanged = true;
+		ResizeBackBuffers(m_pActiveContext);
 	}
 
-	if (m_CurrContext->m_pSwapChain && m_CurrContext->m_pBackBuffer)
+	m_width = m_nativeWidth = width;
+	m_height = m_nativeHeight = height;
+
+	if (m_pActiveContext->m_pSwapChain /*&& m_CurrContext->m_pBackBuffer*/)
 	{
-		ID3D11Resource* pBackbufferResource;
-		m_CurrContext->m_pBackBuffer->GetResource(&pBackbufferResource);
-
-		if (bBackbufferChanged || (m_pBackBufferTexture->GetDevTexture() && m_pBackBufferTexture->GetDevTexture()->GetBaseTexture() != pBackbufferResource))
-		{
-			CDeviceTexture* pDeviceTexture = new CDeviceTexture((D3DTexture*)pBackbufferResource);
-			m_pBackBufferTexture->SetDevTexture(pDeviceTexture);
-			m_pBackBufferTexture->SetWidth(width);
-			m_pBackBufferTexture->SetHeight(height);
-			m_pBackBufferTexture->ClosestFormatSupported(m_pBackBufferTexture->GetDstFormat());
-		}
-		else
-		{
-			SAFE_RELEASE(pBackbufferResource);
-		}
-
 		assert(m_nRTStackLevel[0] == 0);
 
-		m_CurrContext->m_pCurrentBackBufferIndex = GetCurrentBackBufferIndex(m_CurrContext->m_pSwapChain);
-		m_CurrContext->m_pBackBuffer = m_CurrContext->m_pBackBuffers[m_CurrContext->m_pCurrentBackBufferIndex];
-
-		m_pBackBuffer = m_CurrContext->m_pBackBuffer;
-		for (int i = 0; i < m_CurrContext->m_pBackBuffers.size(); ++i)
-			m_pBackBuffers[i] = m_CurrContext->m_pBackBuffers[i];
-
-		m_pCurrentBackBufferIndex = m_CurrContext->m_pCurrentBackBufferIndex;
-
 		// Force unbinding any render-target which is from another swap-chain, by setting the m_CurrContext's back-buffer
-		FX_SetRenderTarget(0, m_CurrContext->m_pBackBuffer, &m_DepthBufferNative);
-		FX_SetActiveRenderTargets();
+//		FX_SetRenderTarget(0, m_pActiveContext->m_pBackBuffer, &m_DepthBufferNative);
+		FX_SetRenderTarget(0, (D3DSurface*)0xDEADBEEF, (SDepthTexture*)0xDEADBEEF);
+		GetDeviceObjectFactory().GetCoreCommandList().GetGraphicsInterface()->ClearState(true);
 	}
-
-	m_CurrContext->m_X = x;
-	m_CurrContext->m_Y = y;
-	m_CurrContext->m_Width = width;
-	m_CurrContext->m_Height = height;
-	m_width = m_nativeWidth = m_backbufferWidth = width;
-	m_height = m_nativeHeight = m_backbufferHeight = height;
 
 	SetCurDownscaleFactor(Vec2(1, 1));
 	RT_SetViewport(x, y, width, height);
@@ -1005,11 +1000,9 @@ void CD3D9Renderer::PostMeasureOverdraw()
 			pSH->FXSetTechnique("ShowInstructions");
 			pSH->FXBegin(&nPasses, FEF_DONTSETTEXTURES | FEF_DONTSETSTATES);
 			pSH->FXBeginPass(0);
-			STexState TexStateLinear = STexState(FILTER_LINEAR, true);
 
-			if (!FAILED(FX_SetVertexDeclaration(0, eVF_P3F_C4B_T2F)))
+			if (!FAILED(FX_SetVertexDeclaration(0, EDefaultInputLayouts::P3F_C4B_T2F)))
 			{
-				STexState TexStatePoint = STexState(FILTER_POINT, true);
 				FX_Commit();
 				SDynTexture* pRT = new SDynTexture(m_width, m_height, eTF_R8G8B8A8, eTT_2D, FT_STATE_CLAMP, "TempDebugRT");
 				if (pRT)
@@ -1017,8 +1010,8 @@ void CD3D9Renderer::PostMeasureOverdraw()
 					pRT->Update(m_width, m_height);
 					PostProcessUtils().CopyScreenToTexture(pRT->m_pTexture);
 
-					pRT->Apply(0, CTexture::GetTexState(TexStatePoint));
-					CTexture::s_ptexPaletteDebug->Apply(1, CTexture::GetTexState(TexStateLinear));
+					pRT->Apply(0, EDefaultSamplerStates::PointClamp);
+					CTexture::s_ptexPaletteDebug->Apply(1, EDefaultSamplerStates::LinearClamp);
 
 					FX_DrawPrimitive(eptTriangleStrip, 0, 4);
 
@@ -1071,7 +1064,7 @@ void CD3D9Renderer::PostMeasureOverdraw()
 			pSH->FXBeginPass(0);
 			FX_Commit();
 
-			CTexture::s_ptexPaletteDebug->Apply(0, CTexture::GetTexState(TexStateLinear));
+			CTexture::s_ptexPaletteDebug->Apply(0, EDefaultSamplerStates::LinearClamp);
 
 			FX_DrawPrimitive(eptTriangleStrip, 0, 4);
 
@@ -1142,13 +1135,15 @@ void CD3D9Renderer::DrawTexelsPerMeterInfo()
 }
 
 #if CRY_PLATFORM_DURANGO
-
 void CD3D9Renderer::RT_SuspendDevice()
 {
 	assert(!m_bDeviceSuspended);
 
+#if defined(DEVICE_SUPPORTS_PERFORMANCE_DEVICE)
 	if (m_pPerformanceDeviceContext)
 		m_pPerformanceDeviceContext->Suspend(0);   // must be 0 for now, reserved for future use.
+#endif
+
 	m_bDeviceSuspended = true;
 }
 
@@ -1156,8 +1151,11 @@ void CD3D9Renderer::RT_ResumeDevice()
 {
 	assert(m_bDeviceSuspended);
 
+#if defined(DEVICE_SUPPORTS_PERFORMANCE_DEVICE)
 	if (m_pPerformanceDeviceContext)
 		m_pPerformanceDeviceContext->Resume();
+#endif
+
 	m_bDeviceSuspended = false;
 }
 #endif
@@ -1242,22 +1240,20 @@ void CD3D9Renderer::RT_SwitchToNativeResolutionBackbuffer(bool resolveBackBuffer
 	}
 	else if (resolveBackBuffer)
 	{
-		// Custom upscaling from internal to native resolution
-		CPostEffect* pPostAA = PostEffectMgr()->GetEffect(ePFX_PostAA);
-		if (pPostAA)
-		{
-			((CPostAA*)pPostAA)->UpscaleImage();
-		}
+		gcpRendD3D->GetGraphicsPipeline().m_UpscalePass->Execute(CTexture::s_ptexSceneSpecular, GetCurrentTargetOutput());
 	}
 }
 
 void CD3D9Renderer::HandleDisplayPropertyChanges()
 {
+	SDisplayContext* pDC = GetActiveDisplayContext();
+
 	const bool msaaChanged = CheckMSAAChange();
 	const bool ssaaChanged = CheckSSAAChange();
 
 	if (!IsEditorMode())
 	{
+		CRY_ASSERT(!m_pActiveContext);
 		bool bChangeRes = ssaaChanged;
 
 #if defined(SUPPORT_DEVICE_INFO_USER_DISPLAY_OVERRIDES)
@@ -1313,18 +1309,19 @@ void CD3D9Renderer::HandleDisplayPropertyChanges()
 			m_nativeHeight = nativeHeight;
 		}
 
-		if (m_backbufferWidth != backbufferWidth || m_backbufferHeight != backbufferHeight)
+		if (pDC->m_Width != backbufferWidth || pDC->m_Height != backbufferHeight)
 		{
 			bForceReset = true;
-			m_backbufferWidth = backbufferWidth;
-			m_backbufferHeight = backbufferHeight;
+			pDC->m_Width = backbufferWidth;
+			pDC->m_Height = backbufferHeight;
 		}
 #endif
 
 		if (bForceReset || bChangeRes || bFullScreen != m_bFullScreen || colorBits != m_cbpp || CV_r_vsync != m_VSync)
 			ChangeResolution(width, height, colorBits, 75, bFullScreen, bForceReset);
 	}
-	else if (m_CurrContext && m_CurrContext->m_bMainViewport)
+	else if (GetBaseDisplayContext() && GetBaseDisplayContext()->m_bMainViewport)
+//	else if (pDC->m_bMainViewport) TODO
 	{
 		static bool bCustomRes = false;
 		static int nOrigWidth = m_d3dsdBackBuffer.Width;
@@ -1351,6 +1348,7 @@ void CD3D9Renderer::HandleDisplayPropertyChanges()
 		{
 			if (CV_r_CustomResWidth > CV_r_CustomResMaxSize || CV_r_CustomResHeight > CV_r_CustomResMaxSize)
 				iLog->LogWarning("Custom resolution exceeds given limits, try increasing CV_r_CustomResMaxSize");
+
 			iLog->Log("Resizing back buffer to match custom resolution rendering:");
 			ChangeResolution(nNewBBWidth, nNewBBHeight, 32, 75, false, true);
 		}
@@ -1380,11 +1378,6 @@ void CD3D9Renderer::BeginFrame()
 
 	CRenderElement::Tick();
 	CFlashTextureSourceSharedRT::Tick();
-
-	CREImposter::m_PrevMemPostponed = CREImposter::m_MemPostponed;
-	CREImposter::m_PrevMemUpdated = CREImposter::m_MemUpdated;
-	CREImposter::m_MemPostponed = 0;
-	CREImposter::m_MemUpdated = 0;
 
 	m_RP.m_TI[m_RP.m_nFillThreadID].m_nFrameID++;
 	m_RP.m_TI[m_RP.m_nFillThreadID].m_nFrameUpdateID++;
@@ -1470,8 +1463,7 @@ void CD3D9Renderer::RT_BeginFrame()
 		if (!pCVarVolumetricFog) pCVarVolumetricFog = iConsole->GetCVar("e_VolumetricFog");
 		bool bVolumetricFog = pCVarVolumetricFog && (pCVarVolumetricFog->GetIVal() != 0);
 		m_bVolumetricFogEnabled = bVolumetricFog
-		                          && CVolumetricFogStage::IsEnabledInFrame()
-		                          && !IsRecursiveRenderView(); // volumetric fog doesn't support recursive pass currently.
+		                          && CVolumetricFogStage::IsEnabledInFrame();
 		if (pCVarVolumetricFog && bVolumetricFog && (CRenderer::CV_r_DeferredShadingTiled == 0))
 		{
 #if !defined(_RELEASE)
@@ -1500,10 +1492,20 @@ void CD3D9Renderer::RT_BeginFrame()
 		                          && rainVolParams.fRadius > 0.05f
 		                          && CV_r_rain > 0);
 
+		SSnowParams& snowVolParams = m_p3DEngineCommon.m_SnowInfo;
+		m_bDeferredSnowEnabled = ((snowVolParams.m_fSnowAmount > 0.05f || snowVolParams.m_fFrostAmount > 0.05f)
+		                          && snowVolParams.m_fRadius > 0.05f
+		                          && CV_r_snow > 0);
+
+		const auto& arrOccluders = m_p3DEngineCommon.m_RainOccluders.m_arrCurrOccluders[m_RP.m_nProcessThreadID];
+		m_bDeferredRainOcclusionEnabled = (rainVolParams.bApplyOcclusion
+		                                   && ((CV_r_snow == 2 && m_bDeferredSnowEnabled) || (CV_r_rain == 2 && m_bDeferredRainEnabled))
+		                                   && !arrOccluders.empty());
+
 		m_nGraphicsPipeline = CV_r_GraphicsPipeline;
 	}
 
-#if defined(SUPPORT_D3D_DEBUG_RUNTIME)
+#if defined(DX11_ALLOW_D3D_DEBUG_RUNTIME)
 	if (m_bUpdateD3DDebug)
 	{
 		m_d3dDebug.Update(ESeverityCombination(CV_d3d11_debugMuteSeverity->GetIVal()), CV_d3d11_debugMuteMsgID->GetString(), CV_d3d11_debugBreakOnMsgID->GetString());
@@ -1519,10 +1521,11 @@ void CD3D9Renderer::RT_BeginFrame()
 #endif
 
 	// Update PSOs
-	CCryDeviceWrapper::GetObjectFactory().UpdatePipelineStates();
+	GetDeviceObjectFactory().UpdatePipelineStates();
 
 	CResFile::Tick();
 	m_DevBufMan.Update(m_RP.m_TI[m_RP.m_nProcessThreadID].m_nFrameUpdateID, false);
+	GetDeviceObjectFactory().OnBeginFrame();
 
 	if (m_pPipelineProfiler)
 		m_pPipelineProfiler->BeginFrame();
@@ -1533,7 +1536,9 @@ void CD3D9Renderer::RT_BeginFrame()
 
 #ifndef CONSOLE_CONST_CVAR_MODE
 	ICVar* pCVDebugTexelDensity = gEnv->pConsole->GetCVar("e_texeldensity");
-	CV_e_DebugTexelDensity = pCVDebugTexelDensity ? pCVDebugTexelDensity->GetIVal() : 0;
+	ICVar* pCVDebugDraw = gEnv->pConsole->GetCVar("e_debugdraw");
+	CRendererCVars::CV_e_DebugTexelDensity = pCVDebugTexelDensity ? pCVDebugTexelDensity->GetIVal() : 0;
+	CRendererCVars::CV_e_DebugDraw = pCVDebugDraw ? pCVDebugDraw->GetIVal() : 0;
 #endif
 
 	CheckDeviceLost();
@@ -1556,18 +1561,21 @@ void CD3D9Renderer::RT_BeginFrame()
 	if (CV_r_usehwskinning != (int)m_bUseHWSkinning)
 	{
 		m_bUseHWSkinning = CV_r_usehwskinning != 0;
-		CRenderElement* pRE = CRenderElement::m_RootGlobal.m_NextGlobal;
-		for (pRE = CRenderElement::m_RootGlobal.m_NextGlobal; pRE != &CRenderElement::m_RootGlobal; pRE = pRE->m_NextGlobal)
+		CRenderElement* pRE = CRenderElement::s_RootGlobal.m_NextGlobal;
+		for (pRE = CRenderElement::s_RootGlobal.m_NextGlobal; pRE != &CRenderElement::s_RootGlobal; pRE = pRE->m_NextGlobal)
 		{
 			CRenderElement* pR = (CRenderElement*)pRE;
 			if (pR->mfIsHWSkinned())
 				pR->mfReset();
 		}
 	}
-	if (CV_r_texminanisotropy != m_nCurMinAniso || CV_r_texmaxanisotropy != m_nCurMaxAniso)
+	
+	float mipLodBias = FX_GetAntialiasingType() == eAT_TSAA_MASK ? CV_r_AntialiasingTSAAMipBias : 0.0f;
+	if (CV_r_texminanisotropy != m_nCurMinAniso || CV_r_texmaxanisotropy != m_nCurMaxAniso || mipLodBias != m_fCurMipLodBias)
 	{
 		m_nCurMinAniso = CV_r_texminanisotropy;
 		m_nCurMaxAniso = CV_r_texmaxanisotropy;
+		m_fCurMipLodBias = mipLodBias;
 		for (uint32 i = 0; i < CShader::s_ShaderResources_known.Num(); i++)
 		{
 			CShaderResources* pSR = CShader::s_ShaderResources_known[i];
@@ -1589,9 +1597,18 @@ void CD3D9Renderer::RT_BeginFrame()
 		};
 
 		int8 nAniso = min(CRenderer::CV_r_texminanisotropy, CRenderer::CV_r_texmaxanisotropy); // for backwards compatibility. should really be CV_r_texmaxanisotropy
-		m_nMaterialAnisoHighSampler = CTexture::GetTexState(STexState(getAnisoFilter(nAniso), false));
-		m_nMaterialAnisoLowSampler = CTexture::GetTexState(STexState(getAnisoFilter(CRenderer::CV_r_texminanisotropy), false));
-		m_nMaterialAnisoSamplerBorder = CTexture::GetTexState(STexState(getAnisoFilter(nAniso), TADDR_BORDER, TADDR_BORDER, TADDR_BORDER, 0x0));
+
+		SSamplerState ssAnisoHigh(getAnisoFilter(nAniso), false);
+		SSamplerState ssAnisoLow(getAnisoFilter(CRenderer::CV_r_texminanisotropy), false);
+		SSamplerState ssAnisoBorder(getAnisoFilter(nAniso), eSamplerAddressMode_Border, eSamplerAddressMode_Border, eSamplerAddressMode_Border, 0x0);
+
+		ssAnisoHigh.SetMipLodBias(mipLodBias);
+		ssAnisoLow.SetMipLodBias(mipLodBias);
+		ssAnisoBorder.SetMipLodBias(mipLodBias);
+		
+		m_nMaterialAnisoHighSampler = CDeviceObjectFactory::GetOrCreateSamplerStateHandle(ssAnisoHigh);
+		m_nMaterialAnisoLowSampler = CDeviceObjectFactory::GetOrCreateSamplerStateHandle(ssAnisoLow);
+		m_nMaterialAnisoSamplerBorder = CDeviceObjectFactory::GetOrCreateSamplerStateHandle(ssAnisoBorder);
 	}
 
 	// Verify if water caustics needed at all
@@ -1618,8 +1635,10 @@ void CD3D9Renderer::RT_BeginFrame()
 	UpdateRenderingModesInfo();
 
 #if !defined(_RELEASE)
-	m_RP.m_pRNDrawCallsInfoPerNode[m_RP.m_nProcessThreadID].clear();
+	m_pGraphicsPipeline->GetDrawCallInfoPerMesh()->clear();
+	m_pGraphicsPipeline->GetDrawCallInfoPerNode()->clear();
 	m_RP.m_pRNDrawCallsInfoPerMesh[m_RP.m_nProcessThreadID].clear();
+	m_RP.m_pRNDrawCallsInfoPerNode[m_RP.m_nProcessThreadID].clear();
 #endif
 
 	//////////////////////////////////////////////////////////////////////
@@ -1651,8 +1670,6 @@ void CD3D9Renderer::RT_BeginFrame()
 		SPipeStat::s_pCurrentOutput = &m_RP.m_PS[m_RP.m_nProcessThreadID];
 	}
 
-	m_OcclQueriesUsed = 0;
-
 	{
 		static float fWaitForGPU;
 		float fSmooth = 5.0f;
@@ -1673,22 +1690,24 @@ void CD3D9Renderer::RT_BeginFrame()
 	}
 
 #if defined(SUPPORT_DEVICE_INFO)
-	if (m_bEditor)
+	if (m_bEditor && GetActiveDisplayContext()->m_bMainViewport)
 	{
 		const int width = GetWidth();
 		const int height = GetHeight();
 
-		if (m_DepthBufferOrigMSAA.nWidth < width || m_DepthBufferOrigMSAA.nHeight < height)
+		// If the BaseContext and the Editor's active bMainViewPort context are divergent, make the BaseContext match the ActiveContext
+		if (m_devInfo.SwapChainDesc().BufferDesc.Width  != width ||
+			m_devInfo.SwapChainDesc().BufferDesc.Height != height)
 		{
-			D3DDepthSurface* pDSV = 0;
-			D3DSurface* pRTVs[8] = { 0 };
-			GetDeviceContext().OMSetRenderTargets(8, pRTVs, pDSV);
+			SDisplayContext* pDC = GetBaseDisplayContext();
+
+			GetDeviceObjectFactory().GetCoreCommandList().GetGraphicsInterface()->ClearState(true);
 
 			GetS3DRend().ReleaseBuffers();
-			ReleaseBackBuffers();
+			ReleaseBackBuffers(pDC);
 
-			m_devInfo.SwapChainDesc().BufferDesc.Width = max(m_DepthBufferOrigMSAA.nWidth, width);
-			m_devInfo.SwapChainDesc().BufferDesc.Height = max(m_DepthBufferOrigMSAA.nHeight, height);
+			m_devInfo.SwapChainDesc().BufferDesc.Width  = width;
+			m_devInfo.SwapChainDesc().BufferDesc.Height = height;
 			m_devInfo.ResizeDXGIBuffers();
 
 			OnD3D11PostCreateDevice(m_devInfo.Device());
@@ -1730,8 +1749,6 @@ void CD3D9Renderer::RT_BeginFrame()
 		}
 	}
 #endif
-
-	//FX_SetActiveRenderTargets();
 }
 
 bool CD3D9Renderer::CheckDeviceLost()
@@ -1805,13 +1822,6 @@ void CD3D9Renderer::EF_SetVertColor()
 	EF_SetColorOp(255, 255, eCA_Texture | (eCA_Diffuse << 3), eCA_Texture | (eCA_Diffuse << 3));
 }
 
-#if defined(FEATURE_PER_SHADER_INPUT_LAYOUT_CACHE)
-uint32 CD3D9Renderer::FX_GetInputLayoutCacheId(int StreamMask, EVertexFormat eVF)
-{
-	return (StreamMask & (0xfe | VSM_MORPHBUDDY)) ^ (eVF << 24);
-}
-#endif //FEATURE_PER_SHADER_INPUT_LAYOUT_CACHE
-
 bool CD3D9Renderer::CaptureFrameBufferToFile(const char* pFilePath, CTexture* pRenderTarget)
 {
 	assert(pFilePath);
@@ -1828,79 +1838,50 @@ bool CD3D9Renderer::CaptureFrameBufferToFile(const char* pFilePath, CTexture* pR
 		return false;
 	}
 
-	assert(!IsEditorMode() || (m_CurrContext && m_CurrContext->m_pBackBuffers == m_pBackBuffers));
-
-	// get last buffer used for Present()
-	D3DSurface* pBackBuffer;
-	pBackBuffer = m_pBackBuffers[(m_pCurrentBackBufferIndex + m_pBackBuffers.size() - 1) % m_pBackBuffers.size()];
-
-	assert(pBackBuffer);
-	if (!pBackBuffer)
-	{
-		return false;
-	}
-
 	bool frameCaptureSuccessful(false);
-	D3DResource* pBackBufferRsrc(0);
-	if (!pRenderTarget)
-	{
-		pBackBuffer->GetResource(&pBackBufferRsrc);
-	}
-	else
-	{
-		D3DSurface* pSurface = pRenderTarget->GetSurface(0, 0);
-		assert(pSurface);
-		pSurface->GetResource(&pBackBufferRsrc);
-	}
-
+	CTexture* pBackBufferTex = GetLastBackBuffer(GetActiveDisplayContext());
 	CTexture* pTempCopyTex = nullptr;
-	D3DTexture* pBackBufferTex = (D3DTexture*)pBackBufferRsrc;
 	if (pBackBufferTex)
 	{
-		D3D11_TEXTURE2D_DESC bbDesc;
-		pBackBufferTex->GetDesc(&bbDesc);
+		const SResourceRegionMapping region =
+		{
+			{ 0, 0, 0, 0 },
+			{ 0, 0, 0, 0 },
+			pBackBufferTex->GetDevTexture()->GetDimension()
+		};
 
-		int numSSSamplesX = IsEditorMode() ? m_CurrContext->m_nSSSamplesX : 1;
-		int numSSSamplesY = IsEditorMode() ? m_CurrContext->m_nSSSamplesY : 1;
+		int numSSSamplesX = IsEditorMode() ? m_pActiveContext->m_nSSSamplesX : 1;
+		int numSSSamplesY = IsEditorMode() ? m_pActiveContext->m_nSSSamplesY : 1;
 
-		if (bbDesc.Format == DXGI_FORMAT_R8G8B8A8_UNORM_SRGB
+		if (pBackBufferTex->GetDevTexture()->GetNativeFormat() == DXGI_FORMAT_R8G8B8A8_UNORM_SRGB
 		    || numSSSamplesX > 1
 		    || numSSSamplesY > 1)
 		{
 			const int nResolvedWidth = m_width / numSSSamplesX;
 			const int nResolvedHeight = m_height / numSSSamplesY;
-			bbDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
-			bbDesc.Width = nResolvedWidth;
-			bbDesc.Height = nResolvedHeight;
 
-			pTempCopyTex = CTexture::Create2DTexture("$TempCopyTex", bbDesc.Width, bbDesc.Height, 1, 0, nullptr, eTF_R8G8B8A8, eTF_R8G8B8A8);
+			pTempCopyTex = CTexture::GetOrCreate2DTexture("$TempCopyTex", region.Extent.Width, region.Extent.Height, 1, 0, nullptr, eTF_R8G8B8A8);
 
-			D3D11_BOX srcRegion;
-			srcRegion.left = 0;
-			srcRegion.right = nResolvedWidth;
-			srcRegion.top = 0;
-			srcRegion.bottom = nResolvedHeight;
-			srcRegion.front = 0;
-			srcRegion.back = 1;
+			const SResourceRegionMapping region =
+			{
+				{ 0,              0,               0, 0 },
+				{ 0,              0,               0, 0 },
+				{ nResolvedWidth, nResolvedHeight, 1, 1 }
+			};
 
 			// copy resolved part of back-buffer to temporary target
-			GetDeviceContext().CopySubresourceRegion(pTempCopyTex->GetDevTexture()->Get2DTexture(), 0, 0, 0, 0, pBackBufferTex, 0, &srcRegion);
+			GetDeviceObjectFactory().GetCoreCommandList().GetCopyInterface()->Copy(pBackBufferTex->GetDevTexture(), pTempCopyTex->GetDevTexture(), region);
 
-			pBackBufferTex = pTempCopyTex->GetDevTexture()->Get2DTexture();
+			pBackBufferTex = pTempCopyTex;
 		}
 
-		D3D11_TEXTURE2D_DESC tmpDesc = bbDesc;
-		tmpDesc.Usage = D3D11_USAGE_STAGING;
-		tmpDesc.CPUAccessFlags = D3D11_CPU_ACCESS_READ;
-		tmpDesc.BindFlags = 0;
+		CTexture* pTmpTexture = CTexture::GetOrCreate2DTexture("$TmpTexture", region.Extent.Width, region.Extent.Height, 1, FT_STAGE_READBACK, nullptr, eTF_R8G8B8A8);
 
-		CTexture* pTmpTexture = CTexture::Create2DTexture("$TmpTexture", bbDesc.Width, bbDesc.Height, 1, FT_STAGE_READBACK, nullptr, eTF_R8G8B8A8, eTF_R8G8B8A8);
-
-		gcpRendD3D->GetDeviceContext().CopyResource(pTmpTexture->GetDevTexture()->Get2DTexture(), pBackBufferTex);
+		GetDeviceObjectFactory().GetCoreCommandList().GetCopyInterface()->Copy(pBackBufferTex->GetDevTexture(), pTmpTexture->GetDevTexture(), region);
 
 		const int INPUT_BYTES_PER_PIXEL = 4;
 		const int OUTPUT_BYTES_PER_PIXEL = 3;
-		const int texsize = bbDesc.Width * bbDesc.Height * OUTPUT_BYTES_PER_PIXEL;
+		const int texsize = region.Extent.Width * region.Extent.Height * OUTPUT_BYTES_PER_PIXEL;
 		byte* pDest = new byte[texsize + sizeof(uint32)];  // Extra space required since we always copy 32 bits
 		assert(pDest);
 
@@ -1917,20 +1898,20 @@ bool CD3D9Renderer::CaptureFrameBufferToFile(const char* pFilePath, CTexture* pR
 			const byte* pSrc = reinterpret_cast<const byte*>(pData);
 			byte* dst = pDest;
 			const byte* src = pSrc;
-			for (int i = 0; i < bbDesc.Height; i++)
+			for (int i = 0; i < region.Extent.Height; i++)
 			{
-			  for (int j = 0; j < bbDesc.Width; j++)
+			  for (int j = 0; j < region.Extent.Width; j++)
 			  {
 			    *(uint32*)&dst[j * OUTPUT_BYTES_PER_PIXEL] = *(uint32*)&src[j * INPUT_BYTES_PER_PIXEL];
 			  }
 			  if (needRBSwap)
 			  {
-			    PREFAST_ASSUME(texsize == bbDesc.Width * 4);
-			    for (int j = 0; j < bbDesc.Width; j++)
+			    PREFAST_ASSUME(texsize == region.Extent.Width * 4);
+			    for (int j = 0; j < region.Extent.Width; j++)
 						Exchange(dst[j * OUTPUT_BYTES_PER_PIXEL + 0], dst[j * OUTPUT_BYTES_PER_PIXEL + 2]);
 			  }
 			  src += rowPitch;
-			  dst += bbDesc.Width * OUTPUT_BYTES_PER_PIXEL;
+			  dst += region.Extent.Width * OUTPUT_BYTES_PER_PIXEL;
 			}
 
 			return true;
@@ -1941,10 +1922,13 @@ bool CD3D9Renderer::CaptureFrameBufferToFile(const char* pFilePath, CTexture* pR
 		switch (captureFormat)
 		{
 		case SCaptureFormatInfo::eCaptureFormat_TGA:
-			frameCaptureSuccessful = ::WriteTGA(pDest, bbDesc.Width, bbDesc.Height, pFilePath, 8 * OUTPUT_BYTES_PER_PIXEL, 8 * OUTPUT_BYTES_PER_PIXEL);
+			frameCaptureSuccessful = ::WriteTGA(pDest, region.Extent.Width, region.Extent.Height, pFilePath, 8 * OUTPUT_BYTES_PER_PIXEL, 8 * OUTPUT_BYTES_PER_PIXEL);
 			break;
 		case SCaptureFormatInfo::eCaptureFormat_JPEG:
-			frameCaptureSuccessful = ::WriteJPG(pDest, bbDesc.Width, bbDesc.Height, pFilePath, 8 * OUTPUT_BYTES_PER_PIXEL, 90);
+			frameCaptureSuccessful = ::WriteJPG(pDest, region.Extent.Width, region.Extent.Height, pFilePath, 8 * OUTPUT_BYTES_PER_PIXEL, 90);
+			break;
+		case SCaptureFormatInfo::eCaptureFormat_PNG:
+			frameCaptureSuccessful = ::WritePNG(pDest, region.Extent.Width, region.Extent.Height, pFilePath);
 			break;
 		default:
 			frameCaptureSuccessful = false;
@@ -1954,7 +1938,6 @@ bool CD3D9Renderer::CaptureFrameBufferToFile(const char* pFilePath, CTexture* pR
 		delete[] pDest;
 	}
 
-	SAFE_RELEASE(pBackBufferTex);
 	SAFE_RELEASE(pTempCopyTex);
 
 	return frameCaptureSuccessful;
@@ -1964,7 +1947,7 @@ bool CD3D9Renderer::CaptureFrameBufferToFile(const char* pFilePath, CTexture* pR
 
 void CD3D9Renderer::CaptureFrameBuffer()
 {
-	CDebugAllowFileAccess ignoreInvalidFileAccess;
+	SCOPED_ALLOW_FILE_ACCESS_FROM_THIS_THREAD();
 
 	CacheCaptureCVars();
 	if (!CV_capture_frames || !CV_capture_folder || !CV_capture_file_format || !CV_capture_frame_once ||
@@ -2018,45 +2001,51 @@ void CD3D9Renderer::CaptureFrameBuffer()
 
 void CD3D9Renderer::ResolveSupersampledBackbuffer()
 {
-	if (IsEditorMode() && (!m_CurrContext || (m_CurrContext->m_nSSSamplesX <= 1 || m_CurrContext->m_nSSSamplesY <= 1)))
+	if (IsEditorMode() && (!m_pActiveContext || (m_pActiveContext->m_nSSSamplesX <= 1 || m_pActiveContext->m_nSSSamplesY <= 1)))
 		return;
 
 	PROFILE_LABEL_SCOPE("RESOLVE_SUPERSAMPLED");
 
-	SD3DPostEffectsUtils::EFilterType eFilter = SD3DPostEffectsUtils::FilterType_Box;
+	CDownsamplePass::EFilterType eFilter = CDownsamplePass::FilterType_Box;
 	if (CV_r_SupersamplingFilter == 1)
-		eFilter = SD3DPostEffectsUtils::FilterType_Tent;
+		eFilter = CDownsamplePass::FilterType_Tent;
 	else if (CV_r_SupersamplingFilter == 2)
-		eFilter = SD3DPostEffectsUtils::FilterType_Gauss;
+		eFilter = CDownsamplePass::FilterType_Gauss;
 	else if (CV_r_SupersamplingFilter == 3)
-		eFilter = SD3DPostEffectsUtils::FilterType_Lanczos;
+		eFilter = CDownsamplePass::FilterType_Lanczos;
 
+	const SDisplayContext* pDC = GetActiveDisplayContext();
 	if (IsEditorMode())
 	{
 		RT_SetViewport(0, 0, m_width, m_height);
+
+		// New pipeline, wrong namespace
 		PostProcessUtils().CopyScreenToTexture(CTexture::s_ptexBackBuffer);
-		PostProcessUtils().Downsample(CTexture::s_ptexBackBuffer, NULL,
-		                              m_width, m_height,
-		                              m_width / m_CurrContext->m_nSSSamplesX, m_height / m_CurrContext->m_nSSSamplesY,
-		                              eFilter, false);
+
+		gcpRendD3D->GetGraphicsPipeline().m_DownscalePass->Execute(
+			CTexture::s_ptexBackBuffer, GetCurrentTargetOutput(),
+			m_width, m_height,
+			m_width / m_pActiveContext->m_nSSSamplesX, m_height / m_pActiveContext->m_nSSSamplesY,
+			eFilter);
 	}
 	else
 	{
-		PostProcessUtils().Downsample(CTexture::s_ptexSceneSpecular, NULL,
-		                              m_width, m_height,
-		                              m_backbufferWidth, m_backbufferHeight,
-		                              eFilter, false);
+		gcpRendD3D->GetGraphicsPipeline().m_DownscalePass->Execute(
+			CTexture::s_ptexSceneSpecular, GetCurrentTargetOutput(),
+			m_width, m_height,
+			pDC->m_Width, pDC->m_Height,
+			eFilter);
 	}
 }
 
 void CD3D9Renderer::ScaleBackbufferToViewport()
 {
-	if (m_CurrContext && (m_CurrContext->m_nSSSamplesX > 1 || m_CurrContext->m_nSSSamplesY > 1))
+	if (m_pActiveContext && (m_pActiveContext->m_nSSSamplesX > 1 || m_pActiveContext->m_nSSSamplesY > 1))
 	{
 		PROFILE_LABEL_SCOPE("STRETCH_TO_VIEWPORT");
 
-		const int nResolvedWidth = m_width / m_CurrContext->m_nSSSamplesX;
-		const int nResolvedHeight = m_height / m_CurrContext->m_nSSSamplesY;
+		const int nResolvedWidth = m_width / m_pActiveContext->m_nSSSamplesX;
+		const int nResolvedHeight = m_height / m_pActiveContext->m_nSSSamplesY;
 
 		RECT srcRegion;
 		srcRegion.left = 0;
@@ -2064,9 +2053,9 @@ void CD3D9Renderer::ScaleBackbufferToViewport()
 		srcRegion.top = 0;
 		srcRegion.bottom = nResolvedHeight;
 
-		// copy resolved part of backbuffer to temporary target
+		// copy resolved part of back-buffer to temporary target
 		PostProcessUtils().CopyScreenToTexture(CTexture::s_ptexBackBufferScaled[0], &srcRegion);
-		// stretch back to backbuffer
+		// stretch back to back-buffer
 		PostProcessUtils().CopyTextureToScreen(CTexture::s_ptexBackBufferScaled[0], &srcRegion);
 	}
 }
@@ -2178,7 +2167,7 @@ void CD3D9Renderer::PrintResourcesLeaks()
 			if (!psh)
 				continue;
 			nPS++;
-			Warning("--- Vertex Shader '%s' leak after level unload", psh->GetName());
+			Warning("--- Pixel Shader '%s' leak after level unload", psh->GetName());
 		}
 	}
 	iLog->Log("\n \n");
@@ -2203,9 +2192,11 @@ void CD3D9Renderer::PrintResourcesLeaks()
 	iLog->Log("\n \n");
 
 	CRenderElement* pRE;
-	for (pRE = CRenderElement::m_RootGlobal.m_NextGlobal; pRE != &CRenderElement::m_RootGlobal; pRE = pRE->m_NextGlobal)
+	for (pRE = CRenderElement::s_RootGlobal.m_NextGlobal; pRE != &CRenderElement::s_RootGlobal; pRE = pRE->m_NextGlobal)
 	{
-		Warning("--- CRenderElement %s leak after level unload", pRE->mfTypeString());
+		const char* name = pRE->mfGetType() == eDATA_Mesh && ((CREMeshImpl*)pRE)->m_pRenderMesh ? ((CREMeshImpl*)pRE)->m_pRenderMesh->m_sSource.c_str() : "-";
+
+		Warning("--- CRenderElement \"%s\" leak after level unload: %s", pRE->mfTypeString(), name);
 	}
 	iLog->Log("\n \n");
 
@@ -2295,7 +2286,6 @@ void CD3D9Renderer::DebugDrawStats1()
 	IRenderAuxText::Draw2dLabel(nX, nY += nYstep, fFSize, &col.r, false, "Managed streamed textures: Sys=%.3f Mb, Vid:=%.3f", BYTES_TO_MB(m_RP.m_PS[m_RP.m_nProcessThreadID].m_ManagedTexturesStreamSysSize), BYTES_TO_MB(m_RP.m_PS[m_RP.m_nProcessThreadID].m_ManagedTexturesStreamVidSize));
 	IRenderAuxText::Draw2dLabel(nX, nY += nYstep, fFSize, &col.r, false, "RT textures: Used: %.3f Mb, Updated: %.3f Mb, Cleared: %.3f Mb, Copied: %.3f Mb", BYTES_TO_MB(m_RP.m_PS[m_RP.m_nProcessThreadID].m_DynTexturesSize), BYTES_TO_MB(m_RP.m_PS[m_RP.m_nProcessThreadID].m_RTSize), BYTES_TO_MB(m_RP.m_PS[m_RP.m_nProcessThreadID].m_RTClearedSize), BYTES_TO_MB(m_RP.m_PS[m_RP.m_nProcessThreadID].m_RTCopiedSize));
 	IRenderAuxText::Draw2dLabel(nX, nY += nYstep, fFSize, &col.r, false, "Meshes updated: Static: %.3f Mb, Dynamic: %.3f Mb", BYTES_TO_MB(m_RP.m_PS[m_RP.m_nProcessThreadID].m_MeshUpdateBytes), BYTES_TO_MB(m_RP.m_PS[m_RP.m_nProcessThreadID].m_DynMeshUpdateBytes));
-	IRenderAuxText::Draw2dLabel(nX, nY += nYstep, fFSize, &col.r, false, "Cloud textures updated: %.3f Mb", BYTES_TO_MB(m_RP.m_PS[m_RP.m_nProcessThreadID].m_CloudImpostersSizeUpdate));
 
 	int nYBars = nY;
 
@@ -2318,7 +2308,7 @@ void CD3D9Renderer::DebugDrawStats1()
 	size_t nMemDevIBPoolUsed = 0;
 	{
 		AUTO_LOCK(CRenderMesh::m_sLinkLock);
-		for (util::list<CRenderMesh>* iter = CRenderMesh::m_MeshList.prev; iter != &CRenderMesh::m_MeshList; iter = iter->prev)
+		for (util::list<CRenderMesh>* iter = CRenderMesh::s_MeshList.prev; iter != &CRenderMesh::s_MeshList; iter = iter->prev)
 		{
 			CRenderMesh* pRM = iter->item<& CRenderMesh::m_Chain>();
 			nMemApp += pRM->Size(CRenderMesh::SIZE_ONLY_SYSTEM);
@@ -2512,8 +2502,8 @@ void CD3D9Renderer::DebugDrawStats1()
 
 	nSize = 0;
 	n = 0;
-	CRenderElement* pRE = CRenderElement::m_RootGlobal.m_NextGlobal;
-	while (pRE != &CRenderElement::m_RootGlobal)
+	CRenderElement* pRE = CRenderElement::s_RootGlobal.m_NextGlobal;
+	while (pRE != &CRenderElement::s_RootGlobal)
 	{
 		n++;
 		nSize += pRE->Size();
@@ -2618,7 +2608,7 @@ void CD3D9Renderer::DebugDrawStats1()
 
 	if (m_DepthBufferOrig.pSurface)
 		nSizeZRT += m_DepthBufferOrig.nWidth * m_DepthBufferOrig.nHeight * 4;
-	if (m_DepthBufferOrigMSAA.pSurface && m_DepthBufferOrig.pSurface != m_DepthBufferOrigMSAA.pSurface)
+	if (m_DepthBufferOrig.pSurface && m_DepthBufferOrig.pSurface != m_DepthBufferOrig.pSurface)
 		nSizeZRT += m_DepthBufferOrig.nWidth * m_DepthBufferOrig.nHeight * 2 * 4;
 
 	for (i = 0; i < (int)m_TempDepths.Num(); i++)
@@ -2705,7 +2695,7 @@ void CD3D9Renderer::DebugVidResourcesBars(int nX, int nY)
 
 	if (m_DepthBufferOrig.pSurface)
 		nSizeZRT += m_DepthBufferOrig.nWidth * m_DepthBufferOrig.nHeight * 4;
-	if (m_DepthBufferOrigMSAA.pSurface && m_DepthBufferOrig.pSurface != m_DepthBufferOrigMSAA.pSurface)
+	if (m_DepthBufferOrig.pSurface && m_DepthBufferOrig.pSurface != m_DepthBufferOrig.pSurface)
 		nSizeZRT += m_DepthBufferOrig.nWidth * m_DepthBufferOrig.nHeight * 2 * 4;
 
 	for (i = 0; i < (int)m_TempDepths.Num(); i++)
@@ -2789,7 +2779,7 @@ void CD3D9Renderer::DebugVidResourcesBars(int nX, int nY)
 	size_t nSizeMeshes = 0;
 	{
 		AUTO_LOCK(CRenderMesh::m_sLinkLock);
-		for (util::list<CRenderMesh>* iter = CRenderMesh::m_MeshList.next; iter != &CRenderMesh::m_MeshList; iter = iter->next)
+		for (util::list<CRenderMesh>* iter = CRenderMesh::s_MeshList.next; iter != &CRenderMesh::s_MeshList; iter = iter->next)
 		{
 			nSizeMeshes += iter->item<& CRenderMesh::m_Chain>()->Size(CRenderMesh::SIZE_VB | CRenderMesh::SIZE_IB);
 		}
@@ -2873,7 +2863,7 @@ void CD3D9Renderer::DebugPerfBars(int nX, int nY)
 	DrawQuad(nX + fOffs, nY + 4, nX + fOffs + fMaxBar, nY + 12, Col_Cyan, 1.0f);
 	nY += nYst + 5;
 
-	float fTimeDIPSum = fTimeDIPZ + fTimeDIP[EFSLIST_DEFERRED_PREPROCESS] + fTimeDIP[EFSLIST_GENERAL] + fTimeDIP[EFSLIST_TERRAINLAYER] + fTimeDIP[EFSLIST_SHADOW_GEN] + fTimeDIP[EFSLIST_DECAL] + fTimeDIPAO + fTimeDIPRAIN + fTimeDIPLayers + fTimeDIP[EFSLIST_WATER_VOLUMES] + fTimeDIP[EFSLIST_TRANSP] + fTimeDIP[EFSLIST_POSTPROCESS] + fTimeDIPSprites;
+	float fTimeDIPSum = fTimeDIPZ + fTimeDIP[EFSLIST_DEFERRED_PREPROCESS] + fTimeDIP[EFSLIST_GENERAL] + fTimeDIP[EFSLIST_TERRAINLAYER] + fTimeDIP[EFSLIST_SHADOW_GEN] + fTimeDIP[EFSLIST_DECAL] + fTimeDIPAO + fTimeDIPRAIN + fTimeDIPLayers + fTimeDIP[EFSLIST_WATER_VOLUMES] + fTimeDIP[EFSLIST_TRANSP] + fTimeDIPSprites;
 	IRenderAuxText::Draw2dLabel(nX, nY, fFSize, &colF.r, false, "Sum all passes: %.3fms", fTimeDIPSum * 1000.0f);
 	CTexture::s_ptexWhite->Apply(0);
 	DrawQuad(nX + fOffs, nY + 4, nX + fOffs + fTimeDIPSum / fFrameTime * fMaxBar, nY + 12, Col_Yellow, 1.0f);
@@ -3056,11 +3046,11 @@ void CD3D9Renderer::DebugPrintShader(CHWShader_D3D* pSH, void* pI, int nX, int n
 	SD3DShader* pHWS = pInst->m_Handle.m_pShader;
 	if (!pHWS || !pHWS->m_pHandle)
 		return;
-	if (!pInst->m_pShaderData)
+	if (!pInst->m_Shader.m_pShaderData)
 		return;
 	byte* pData = NULL;
-	ID3D10Blob* pAsm = NULL;
-	D3DDisassemble((UINT*)pInst->m_pShaderData, pInst->m_nDataSize, 0, NULL, &pAsm);
+	D3DBlob* pAsm = NULL;
+	D3DDisassemble((UINT*)pInst->m_Shader.m_pShaderData, pInst->m_Shader.m_nDataSize, 0, NULL, &pAsm);
 	if (!pAsm)
 		return;
 	char* szAsm = (char*)pAsm->GetBufferPointer();
@@ -3228,13 +3218,13 @@ void CD3D9Renderer::DebugDrawStats()
 				const int nYstep = 30;
 				int nYpos = 270; // initial Y pos
 				IRenderAuxText::WriteXY(10, nYpos += nYstep, 2, 2, 1, 1, 1, 1, "CREOcclusionQuery stats:%d",
-				               CREOcclusionQuery::m_nQueriesPerFrameCounter);
+				                        CREOcclusionQuery::m_nQueriesPerFrameCounter);
 				IRenderAuxText::WriteXY(10, nYpos += nYstep, 2, 2, 1, 1, 1, 1, "CREOcclusionQuery::m_nQueriesPerFrameCounter=%d",
-				               CREOcclusionQuery::m_nQueriesPerFrameCounter);
+				                        CREOcclusionQuery::m_nQueriesPerFrameCounter);
 				IRenderAuxText::WriteXY(10, nYpos += nYstep, 2, 2, 1, 1, 1, 1, "CREOcclusionQuery::m_nReadResultNowCounter=%d",
-				               CREOcclusionQuery::m_nReadResultNowCounter);
+				                        CREOcclusionQuery::m_nReadResultNowCounter);
 				IRenderAuxText::WriteXY(10, nYpos += nYstep, 2, 2, 1, 1, 1, 1, "CREOcclusionQuery::m_nReadResultTryCounter=%d",
-				               CREOcclusionQuery::m_nReadResultTryCounter);
+				                        CREOcclusionQuery::m_nReadResultTryCounter);
 			}
 			break;
 
@@ -3243,11 +3233,28 @@ void CD3D9Renderer::DebugDrawStats()
 				ColorF clrDPBlue = ColorF(0, 1, 1, 1);
 				ColorF clrDPRed = ColorF(1, 0, 0, 1);
 				ColorF clrDPInterp = ColorF(1, 0, 0, 1);
-				;
 				ColorF clrInfo = ColorF(1, 1, 0, 1);
 
-				IRenderer::RNDrawcallsMapNodeItor pEnd = m_RP.m_pRNDrawCallsInfoPerNode[m_RP.m_nProcessThreadID].end();
-				IRenderer::RNDrawcallsMapNodeItor pItor = m_RP.m_pRNDrawCallsInfoPerNode[m_RP.m_nProcessThreadID].begin();
+				// Support for legacy pipeline
+				for (auto it_legacy = m_RP.m_pRNDrawCallsInfoPerNode[m_RP.m_nProcessThreadID].begin(); it_legacy != m_RP.m_pRNDrawCallsInfoPerNode[m_RP.m_nProcessThreadID].end(); ++it_legacy)
+				{
+					for (auto it = m_pGraphicsPipeline->GetDrawCallInfoPerNode()->begin(); it != m_pGraphicsPipeline->GetDrawCallInfoPerNode()->end(); ++it)
+					{
+						// Same rendernode ?
+						if (it->first == it_legacy->first)
+						{
+							it->second.nGeneral += it_legacy->second.nGeneral;
+							it->second.nZpass += it_legacy->second.nZpass;
+							it->second.nShadows += it_legacy->second.nShadows;
+							it->second.nMisc += it_legacy->second.nMisc;
+							it->second.nTransparent += it_legacy->second.nTransparent;
+						}
+					}
+				}
+
+				IRenderer::RNDrawcallsMapNodeItor pEnd = m_pGraphicsPipeline->GetDrawCallInfoPerNode()->end();
+				IRenderer::RNDrawcallsMapNodeItor pItor = m_pGraphicsPipeline->GetDrawCallInfoPerNode()->begin();
+
 				for (; pItor != pEnd; ++pItor)
 				{
 					IRenderNode* pRenderNode = pItor->first;
@@ -3272,7 +3279,7 @@ void CD3D9Renderer::DebugDrawStats()
 					}
 
 					IRenderAuxText::DrawLabelExF(pInfo.pPos, 1.3f, pfColor, true, true, "DP: %d (%d/%d/%d/%d/%d)",
-					                            nDrawcalls, pInfo.nZpass, pInfo.nGeneral, pInfo.nTransparent, pInfo.nShadows, pInfo.nMisc);
+					                             nDrawcalls, pInfo.nZpass, pInfo.nGeneral, pInfo.nTransparent, pInfo.nShadows, pInfo.nMisc);
 				}
 
 				IRenderAuxText::Draw2dLabel(40.f, 40.f, 1.3f, &clrInfo.r, false, "Instance drawcall count (zpass/general/transparent/shadows/misc)");
@@ -3634,6 +3641,7 @@ void CD3D9Renderer::RT_RenderDebug(bool bRenderStats)
 			col = ColTotalMem;
 			IRenderAuxText::WriteXY(4, hgt - 280 + 16 * 5, 1, 1, col.r, col.g, col.b, 1, "Streaming textures pool used (Mb) (%d of %d)", (int)BYTES_TO_MB(pool), (int)fScaleTotalMem);
 		}
+
 		if (sMask & 64)
 		{
 			f = (BYTES_TO_MB(m_RP.m_PS[m_RP.m_nProcessThreadID].m_ManagedTexturesSysMemSize + m_RP.m_PS[m_RP.m_nProcessThreadID].m_ManagedTexturesStreamSysSize + m_RP.m_PS[m_RP.m_nProcessThreadID].m_DynTexturesSize)) / fScaleCurMem;
@@ -3643,6 +3651,7 @@ void CD3D9Renderer::RT_RenderDebug(bool bRenderStats)
 			col = ColCurMem;
 			IRenderAuxText::WriteXY(4, hgt - 280 + 16 * 6, 1, 1, col.r, col.g, col.b, 1, "Cur Scene Size: Dyn. + Stat. (Mb) (%d-%d)", (int)(BYTES_TO_MB(m_RP.m_PS[m_RP.m_nProcessThreadID].m_ManagedTexturesSysMemSize + m_RP.m_PS[m_RP.m_nProcessThreadID].m_ManagedTexturesStreamSysSize + m_RP.m_PS[m_RP.m_nProcessThreadID].m_DynTexturesSize)), (int)fScaleCurMem);
 		}
+
 		if (sMask & 128)    // streaming stat
 		{
 			int nLineStep = 12;
@@ -3992,36 +4001,6 @@ static uint32 ComputePresentInterval(bool vsync, uint32 refreshNumerator, uint32
 	return presentInterval;
 };
 
-void CD3D9Renderer::IssueFrameFences()
-{
-	static_assert(CRY_ARRAY_COUNT(m_frameFences) == MAX_FRAMES_IN_FLIGHT, "Unexpected size for m_frameFences");
-
-	if (!m_frameFences[0])
-	{
-		m_frameFenceCounter = MAX_FRAMES_IN_FLIGHT;
-		for (uint32 i = 0; i < CRY_ARRAY_COUNT(m_frameFences); i++)
-		{
-			HRESULT hr = m_DevMan.CreateFence(m_frameFences[i]);
-			assert(hr == S_OK);
-		}
-		return;
-	}
-
-	HRESULT hr = gRenDev->m_DevMan.IssueFence(m_frameFences[m_frameFenceCounter % MAX_FRAMES_IN_FLIGHT]);
-	assert(hr == S_OK);
-
-	if (CV_r_SyncToFrameFence)
-	{
-		// Stall render thread until GPU has finished processing previous frame (in case max frame latency is 1)
-		PROFILE_FRAME("WAIT FOR GPU");
-		HRESULT hr = gRenDev->m_DevMan.SyncFence(m_frameFences[(m_frameFenceCounter - (MAX_FRAMES_IN_FLIGHT - 1)) % MAX_FRAMES_IN_FLIGHT], true, true);
-		assert(hr == S_OK);
-	}
-
-	m_completedFrameFenceCounter = m_frameFenceCounter - (MAX_FRAMES_IN_FLIGHT - 1);
-	m_frameFenceCounter += 1;
-}
-
 void CD3D9Renderer::RT_EndFrame()
 {
 	FUNCTION_PROFILER(GetISystem(), PROFILE_RENDERER);
@@ -4137,9 +4116,9 @@ void CD3D9Renderer::RT_EndFrame()
 		m_pPipelineProfiler->EndFrame();
 
 #if defined(ENABLE_RENDER_AUX_GEOM)
-	if( m_pRenderAuxGeomD3D )
+	if (m_pRenderAuxGeomD3D)
 	{
-		if( CAuxGeomCB* aux = m_pRenderAuxGeomD3D->GetRenderAuxGeom() )
+		if (CAuxGeomCB* aux = m_pRenderAuxGeomD3D->GetRenderAuxGeom())
 		{
 			aux->Flush(true);
 		}
@@ -4155,9 +4134,9 @@ void CD3D9Renderer::RT_EndFrame()
 		m_pPipelineProfiler->EndFrame();
 
 #if defined(ENABLE_RENDER_AUX_GEOM)
-	if( m_pRenderAuxGeomD3D )
+	if (m_pRenderAuxGeomD3D)
 	{
-		if( CAuxGeomCB* aux = m_pRenderAuxGeomD3D->GetRenderAuxGeom() )
+		if (CAuxGeomCB* aux = m_pRenderAuxGeomD3D->GetRenderAuxGeom())
 		{
 			aux->Flush(true);
 		}
@@ -4185,6 +4164,7 @@ void CD3D9Renderer::RT_EndFrame()
 #endif
 
 	gRenDev->m_DevMan.RT_Tick();
+	GetDeviceObjectFactory().OnEndFrame();
 
 	gRenDev->m_fRTTimeEndFrame = iTimer->GetAsyncTime().GetDifferenceInSeconds(TimeEndF);
 
@@ -4209,17 +4189,21 @@ void CD3D9Renderer::RT_EndFrame()
 	bool bSetActive = false;
 	if (m_bSwapBuffers)
 	{
+		SDisplayContext* pDC = GetActiveDisplayContext();
+
 		if (IsEditorMode())
 		{
 			ResolveSupersampledBackbuffer();
 		}
 
 		CaptureFrameBuffer();
-
 		CaptureFrameBufferCallBack();
 
 		if (!IsEditorMode())
 		{
+			FRAME_PROFILER("Present", GetISystem(), PROFILE_RENDERER);
+			pDC->m_pBackBufferPresented = GetCurrentBackBuffer(pDC);
+
 #if !defined(SUPPORT_DEVICE_INFO)
 			if (gEnv && gEnv->pConsole)
 			{
@@ -4236,29 +4220,29 @@ void CD3D9Renderer::RT_EndFrame()
 				}
 			}
 #endif
-#if CRY_PLATFORM_ORBIS
-			hReturn = m_pSwapChain->Present(m_VSync ? 1 : 0, 0);
+#if CRY_RENDERER_GNM
+			auto* const pCommandList = GnmCommandList(GetDeviceObjectFactory().GetCoreCommandList().GetGraphicsInterfaceImpl());
+			const CGnmSwapChain::EFlipMode flipMode = m_VSync ? CGnmSwapChain::kFlipModeSequential : CGnmSwapChain::kFlipModeImmediate;
+			pDC->m_pSwapChain->GnmPresent(pCommandList, flipMode);
+#elif CRY_PLATFORM_ORBIS
+			hReturn = pDC->m_pSwapChain->Present(m_VSync ? 1 : 0, 0);
 			gRenDev->RT_UnbindTMUs();
-
-			m_pCurrentBackBufferIndex = GetCurrentBackBufferIndex(m_pSwapChain);
 #elif CRY_PLATFORM_DURANGO
 	#if DURANGO_ENABLE_ASYNC_DIPS
 			WaitForAsynchronousDevice();
 	#endif
-			hReturn = m_pSwapChain->Present(m_VSync ? 1 : 0, 0);
+			hReturn = pDC->m_pSwapChain->Present(m_VSync ? 1 : 0, 0);
 			gRenDev->RT_UnbindTMUs();
-
-			m_pCurrentBackBufferIndex = GetCurrentBackBufferIndex(m_pSwapChain);
 	#if DURANGO_ENABLE_ASYNC_DIPS
 			WaitForAsynchronousDevice();
 	#endif
 #elif defined(SUPPORT_DEVICE_INFO)
-	#if CRY_PLATFORM_WINDOWS
+	#if CRY_PLATFORM_WINDOWS && !CRY_RENDERER_VULKAN
 			m_devInfo.EnforceFullscreenPreemption();
 	#endif
 			DWORD syncInterval = ComputePresentInterval(m_devInfo.SyncInterval() != 0, m_devInfo.RefreshRate().Numerator, m_devInfo.RefreshRate().Denominator);
 			DWORD presentFlags = m_devInfo.PresentFlags();
-			hReturn = m_pSwapChain->Present(syncInterval, presentFlags);
+			hReturn = pDC->m_pSwapChain->Present(syncInterval, presentFlags);
 			if (DXGI_ERROR_DEVICE_RESET == hReturn)
 			{
 				CryFatalError("DXGI_ERROR_DEVICE_RESET");
@@ -4294,41 +4278,6 @@ void CD3D9Renderer::RT_EndFrame()
 			{
 				m_dwPresentStatus = 0;
 			}
-	#if 0
-		#ifdef DEBUG
-			// CAPTURING NOTE: frame-capture exchanges the swap-chain on the next present the capture
-			// is started, we can't cache the RTV in that case, and have to recreate it
-			unsigned int b = GetCurrentBackBufferIndex(m_pSwapChain);
-			{
-				ID3D11Texture2D* pBackBuffer = 0;
-				HRESULT hr = m_pSwapChain->GetBuffer(b, __uuidof(ID3D11Texture2D), (void**)&pBackBuffer);
-
-				SAFE_RELEASE(m_pBackBuffers[b]);
-				if (SUCCEEDED(hr) && pBackBuffer)
-				{
-					{
-						assert(!m_pBackBuffers[b]);
-						hr = GetDevice().CreateRenderTargetView(pBackBuffer, 0, &m_pBackBuffers[b]);
-					}
-
-			#if !defined(RELEASE) && CRY_PLATFORM_WINDOWS
-					char str[32] = "";
-					sprintf(str, "Swap-Chain back buffer %d", b);
-					pBackBuffer->SetPrivateData(WKPDID_D3DDebugObjectName, strlen(str), str);
-			#elif !defined(RELEASE) && CRY_PLATFORM_ORBIS
-					char str[32] = "";
-					sprintf(str, "Swap-Chain back buffer %d", b);
-					pBackBuffer->DebugSetName(str);
-			#endif
-				}
-
-				SAFE_RELEASE(pBackBuffer);
-			}
-		#endif
-	#endif
-
-			m_pCurrentBackBufferIndex = GetCurrentBackBufferIndex(m_pSwapChain);
-			m_pBackBuffer = m_pBackBuffers[m_pCurrentBackBufferIndex];
 
 			assert(m_nRTStackLevel[0] == 0);
 
@@ -4338,7 +4287,8 @@ void CD3D9Renderer::RT_EndFrame()
 			if (pHmdManager && pHmdManager->GetHmdDevice())
 				bIsVRActive = true;
 
-			bSetActive = FX_SetRenderTarget(0, m_pBackBuffer, bIsVRActive ? NULL : &m_DepthBufferNative, 0);
+		//	bSetActive = FX_SetRenderTarget(0, m_pBackBuffer, bIsVRActive ? NULL : &m_DepthBufferNative, 0);
+			bSetActive = FX_SetRenderTarget(0, (D3DSurface*)0xDEADBEEF, (SDepthTexture*)0xDEADBEEF, 0);
 #endif
 		}
 		else
@@ -4356,12 +4306,13 @@ void CD3D9Renderer::RT_EndFrame()
 			RECT ClientRect;
 			ClientRect.top = 0;
 			ClientRect.left = 0;
-			ClientRect.right = m_CurrContext->m_Width;
-			ClientRect.bottom = m_CurrContext->m_Height;
+			ClientRect.right = pDC->m_Width;
+			ClientRect.bottom = pDC->m_Height;
 			//hReturn = m_pSwapChain->Present(0, dwFlags);
-			if (m_CurrContext && m_CurrContext->m_pSwapChain)
+			if (pDC && pDC->m_pSwapChain)
 			{
-				hReturn = m_CurrContext->m_pSwapChain->Present(0, dwFlags);
+				pDC->m_pBackBufferPresented = GetCurrentBackBuffer(pDC);
+				hReturn = pDC->m_pSwapChain->Present(0, dwFlags);
 				if (hReturn == DXGI_ERROR_INVALID_CALL)
 				{
 					assert(0);
@@ -4383,12 +4334,10 @@ void CD3D9Renderer::RT_EndFrame()
 					m_dwPresentStatus = 0;
 				}
 
-				m_CurrContext->m_pCurrentBackBufferIndex = GetCurrentBackBufferIndex(m_CurrContext->m_pSwapChain);
-				m_CurrContext->m_pBackBuffer = m_CurrContext->m_pBackBuffers[m_CurrContext->m_pCurrentBackBufferIndex];
-
 				assert(m_nRTStackLevel[0] == 0);
 
-				bSetActive = FX_SetRenderTarget(0, m_CurrContext->m_pBackBuffer, &m_DepthBufferNative, 0);
+//				bSetActive = FX_SetRenderTarget(0, m_pActiveContext->m_pBackBuffer, &m_DepthBufferNative, 0);
+				bSetActive = FX_SetRenderTarget(0, (D3DSurface*)0xDEADBEEF, (SDepthTexture*)0xDEADBEEF, 0);
 			}
 #endif
 		}
@@ -4396,7 +4345,7 @@ void CD3D9Renderer::RT_EndFrame()
 		m_nFrameSwapID++;
 	}
 
-	IssueFrameFences();
+	GetDeviceObjectFactory().IssueFrameFences();
 
 	m_fTimeWaitForGPU[m_RP.m_nProcessThreadID] += iTimer->GetAsyncTime().GetDifferenceInSeconds(timePresentBegin);
 
@@ -4461,7 +4410,7 @@ void CD3D9Renderer::RT_EndFrame()
 	// NOTE: main thread is already working on buffer+1 and we want to prepare the next one => hence buffer+2
 	gRenDev->LockParticleVideoMemory();
 
-#if CRY_PLATFORM_ORBIS
+#if CRY_PLATFORM_ORBIS && !CRY_RENDERER_GNM
 	m_fTimeGPUIdlePercent[m_RP.m_nProcessThreadID] = DXOrbis::Device()->GetGPUIdlePercentage();
 	m_fTimeWaitForGPU[m_RP.m_nProcessThreadID] = DXOrbis::Device()->GetCPUWaitOnGPUTime();
 	m_fTimeProcessedGPU[m_RP.m_nProcessThreadID] = DXOrbis::Device()->GetCPUFrameTime();
@@ -4485,12 +4434,12 @@ void CD3D9Renderer::RT_EndFrame()
 	}
 #endif
 
-#if defined(OPENGL)
+#if CRY_RENDERER_OPENGL
 	DXGLIssueFrameFences(GetDevice().GetRealDevice());
-#endif //defined(OPENGL)
+#endif //CRY_RENDERER_OPENGL
 
-	// Note: Please be aware that the below has to be called AFTER the xenon texturemanager performs
-	// Note: Please be aware that the below has to be called AFTER the texturemanager performs
+	// Note: Please be aware that the below has to be called AFTER the xenon texture-manager performs
+	// Note: Please be aware that the below has to be called AFTER the texture-manager performs
 	// it's garbage collection because a scheduled gpu copy might be pending
 	// touching the memory that will be reclaimed below.
 	m_DevBufMan.ReleaseEmptyBanks(m_RP.m_TI[m_RP.m_nProcessThreadID].m_nFrameUpdateID);
@@ -4505,23 +4454,25 @@ void CD3D9Renderer::RT_EndFrame()
 		m_condStopAtRenderFrameEnd.Wait(m_mtxStopAtRenderFrameEnd);
 		m_mtxStopAtRenderFrameEnd.Unlock();
 	}
-
-	if (bSetActive)
-	{
-		FX_SetActiveRenderTargets();
-	}
 }
 
 void CD3D9Renderer::RT_PresentFast()
 {
+	SDisplayContext* pDC = GetActiveDisplayContext();
+	pDC->m_pBackBufferPresented = GetCurrentBackBuffer(pDC);
+
 	HRESULT hReturn = S_OK;
 #if CRY_PLATFORM_DURANGO
 	#if DURANGO_ENABLE_ASYNC_DIPS
 	WaitForAsynchronousDevice();
 	#endif
-	hReturn = m_pSwapChain->Present(m_VSync ? 1 : 0, 0);
+	hReturn = pDC->m_pSwapChain->Present(m_VSync ? 1 : 0, 0);
+#elif CRY_RENDERER_GNM
+	auto* const pCommandList = GnmCommandList(GetDeviceObjectFactory().GetCoreCommandList().GetGraphicsInterfaceImpl());
+	const CGnmSwapChain::EFlipMode flipMode = m_VSync ? CGnmSwapChain::kFlipModeSequential : CGnmSwapChain::kFlipModeImmediate;
+	pDC->m_pSwapChain->GnmPresent(pCommandList, flipMode);
 #elif CRY_PLATFORM_ORBIS
-	hReturn = m_pSwapChain->Present(m_VSync ? 1 : 0, 0);
+	hReturn = pDC->m_pSwapChain->Present(m_VSync ? 1 : 0, 0);
 	gRenDev->RT_UnbindTMUs();
 #elif defined(SUPPORT_DEVICE_INFO)
 
@@ -4533,18 +4484,15 @@ void CD3D9Renderer::RT_PresentFast()
 	#endif
 	DWORD syncInterval = m_devInfo.SyncInterval();
 	DWORD presentFlags = m_devInfo.PresentFlags();
-	hReturn = m_pSwapChain->Present(syncInterval, presentFlags);
+	hReturn = pDC->m_pSwapChain->Present(syncInterval, presentFlags);
 #endif
 	assert(hReturn == S_OK);
-
-	m_pCurrentBackBufferIndex = GetCurrentBackBufferIndex(m_pSwapChain);
-	m_pBackBuffer = m_pBackBuffers[m_pCurrentBackBufferIndex];
-
 	assert(m_nRTStackLevel[0] == 0);
 
-	FX_ClearTarget(m_pBackBuffer, Clr_Transparent, 0, nullptr);
-	FX_SetRenderTarget(0, m_pBackBuffer, &m_DepthBufferNative, 0);
+	//FX_ClearTarget(m_pBackBuffer, Clr_Transparent, 0, nullptr);
+	//FX_SetRenderTarget(0, m_pBackBuffer, &m_DepthBufferNative, 0);
 	//FX_SetActiveRenderTargets();
+	FX_SetRenderTarget(0, (D3DSurface*)0xDEADBEEF, (SDepthTexture*)0xDEADBEEF, 0);
 
 	m_RP.m_TI[m_RP.m_nProcessThreadID].m_nFrameUpdateID++;
 }
@@ -4614,13 +4562,16 @@ HRESULT CD3D9Renderer::FX_SetIStream(const void* pB, uint32 nOffs, RenderIndexTy
 
 HRESULT CD3D9Renderer::FX_ResetVertexDeclaration()
 {
+#ifdef RENDERER_ENABLE_LEGACY_PIPELINE
 	GetDeviceContext().IASetInputLayout(NULL);
+#endif
 	m_pLastVDeclaration = NULL;
 	return S_OK;
 }
 
 void CD3D9Renderer::FX_DrawIndexedPrimitive(const ERenderPrimitiveType eType, const int nVBOffset, const int nMinVertexIndex, const int nVerticesCount, const int nStartIndex, const int nNumIndices, bool bInstanced /*= false*/)
 {
+#ifdef RENDERER_ENABLE_LEGACY_PIPELINE
 	int nPrimitives = 0;
 
 	if (eType == eptTriangleList)
@@ -4675,10 +4626,12 @@ void CD3D9Renderer::FX_DrawIndexedPrimitive(const ERenderPrimitiveType eType, co
 		m_RP.m_PS[m_RP.m_nProcessThreadID].m_nDIPs[m_RP.m_nPassGroupDIP]++;
 #endif
 	}
+#endif
 }
 
 void CD3D9Renderer::FX_DrawPrimitive(const ERenderPrimitiveType eType, const int nStartVertex, const int nVerticesCount, const int nInstanceVertices /*= 0*/)
 {
+#ifdef RENDERER_ENABLE_LEGACY_PIPELINE
 	int nPrimitives;
 	if (nInstanceVertices)
 		nPrimitives = nVerticesCount;
@@ -4725,13 +4678,14 @@ void CD3D9Renderer::FX_DrawPrimitive(const ERenderPrimitiveType eType, const int
 	m_RP.m_PS[m_RP.m_nProcessThreadID].m_nPolygons[m_RP.m_nPassGroupDIP] += nPrimitives;
 	m_RP.m_PS[m_RP.m_nProcessThreadID].m_nDIPs[m_RP.m_nPassGroupDIP]++;
 #endif
+#endif
 }
 
 //////////////////////////////////////////////////////////////////////////
 bool CD3D9Renderer::ScreenShotInternal(const char* filename, int width, EScreenShotMode eScreenShotMode)
 {
 	// ignore invalid file access for screenshots
-	CDebugAllowFileAccess ignoreInvalidFileAccess;
+	SCOPED_ALLOW_FILE_ACCESS_FROM_THIS_THREAD();
 
 	bool bRet = true;
 #if !defined(_RELEASE) || CRY_PLATFORM_WINDOWS || defined(ENABLE_LW_PROFILERS)
@@ -4886,7 +4840,7 @@ int CD3D9Renderer::CreateRenderTarget(int nWidth, int nHeight, const ColorF& cCl
 
 	char pName[128];
 	cry_sprintf(pName, "$RenderTarget_%d", n);
-	m_RTargets[n] = CTexture::CreateRenderTarget(pName, nWidth, nHeight, cClear, eTT_2D, FT_NOMIPS, eTF);
+	m_RTargets[n] = CTexture::GetOrCreateRenderTarget(pName, nWidth, nHeight, cClear, eTT_2D, FT_NOMIPS, eTF);
 
 	return m_RTargets[n]->GetID();
 }
@@ -4918,7 +4872,7 @@ bool CD3D9Renderer::SetRenderTarget(int nHandle, int nFlags)
 	if (nFlags & SRF_USE_ORIG_DEPTHBUF)
 		pDepthSurf = &m_DepthBufferOrig;
 	else if (nFlags & SRF_USE_ORIG_DEPTHBUF_MSAA)
-		pDepthSurf = &m_DepthBufferOrigMSAA;
+		pDepthSurf = &m_DepthBufferOrig;
 	else
 		pDepthSurf = FX_GetDepthSurface(pTex->GetWidth(), pTex->GetHeight(), false);
 
@@ -4928,188 +4882,55 @@ bool CD3D9Renderer::SetRenderTarget(int nHandle, int nFlags)
 	return bRes;
 }
 
-void CD3D9Renderer::ReadFrameBuffer(unsigned char* pRGB, int nImageX, int nSizeX, int nSizeY, ERB_Type eRBType, bool bRGBA, int nScaledX, int nScaledY)
+void CD3D9Renderer::ReadFrameBuffer(unsigned char* pDstRGBA8, int nImageX, int nSizeX, int nSizeY, ERB_Type eRBType, bool bRGBA, int destinationWidth, int destinationHeight)
 {
-	m_pRT->RC_ReadFrameBuffer(pRGB, nImageX, nSizeX, nSizeY, eRBType, bRGBA, nScaledX, nScaledY);
+	m_pRT->RC_ReadFrameBuffer(pDstRGBA8, nImageX, nSizeX, nSizeY, eRBType, bRGBA, destinationWidth, destinationHeight);
 }
 
-void CD3D9Renderer::RT_ReadFrameBuffer(unsigned char* pRGB, int nImageX, int nSizeX, int nSizeY, ERB_Type eRBType, bool bRGBA, int nScaledX, int nScaledY)
+void CD3D9Renderer::RT_ReadFrameBuffer(unsigned char* pDstRGBA8, int nImageX, int nSizeX, int nSizeY, ERB_Type eRBType, bool bRGBA, int destinationWidth, int destinationHeight)
 {
-
-#if defined(USE_D3DX) && CRY_PLATFORM_WINDOWS && !defined(OPENGL)
-	if (!pRGB || nImageX <= 0 || nSizeX <= 0 || nSizeY <= 0 || eRBType != eRB_BackBuffer)
-		return;
-
-	assert(!IsEditorMode() || (m_CurrContext && m_CurrContext->m_pBackBuffers == m_pBackBuffers));
-
-	// get last buffer used for Present()
-	D3DSurface* pBackBuffer;
-	pBackBuffer = m_pBackBuffers[(m_pCurrentBackBufferIndex + m_pBackBuffers.size() - 1) % m_pBackBuffers.size()];
-
-	assert(pBackBuffer);
-
-	D3DTexture* pBackBufferTex(0);
-
-	D3D11_RENDER_TARGET_VIEW_DESC bbDesc;
-	pBackBuffer->GetDesc(&bbDesc);
-	if (bbDesc.ViewDimension == D3D11_RTV_DIMENSION_TEXTURE2DMS)
-	{
-		// TODO: resolve
-	}
-
-	pBackBuffer->GetResource((ID3D11Resource**) &pBackBufferTex);
-	if (pBackBufferTex)
-	{
-		D3D11_TEXTURE2D_DESC dstDesc;
-		dstDesc.Width = nScaledX <= 0 ? nSizeX : nScaledX;
-		dstDesc.Height = nScaledY <= 0 ? nSizeY : nScaledY;
-		dstDesc.MipLevels = 1;
-		dstDesc.ArraySize = 1;
-		dstDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
-		dstDesc.SampleDesc.Count = 1;
-		dstDesc.SampleDesc.Quality = 0;
-		dstDesc.Usage = D3D11_USAGE_STAGING;
-		dstDesc.BindFlags = 0;
-		dstDesc.CPUAccessFlags = D3D11_CPU_ACCESS_READ /* | D3D11_CPU_ACCESS_WRITE*/;
-		dstDesc.MiscFlags = 0;
-
-		D3DTexture* pDstTex(0);
-		if (SUCCEEDED(GetDevice().CreateTexture2D(&dstDesc, 0, &pDstTex)))
-		{
-			D3D11_BOX srcBox;
-			srcBox.left = 0;
-			srcBox.right = nSizeX;
-			srcBox.top = 0;
-			srcBox.bottom = nSizeY;
-			srcBox.front = 0;
-			srcBox.back = 1;
-
-			D3D11_BOX dstBox;
-			dstBox.left = 0;
-			dstBox.right = dstDesc.Width;
-			dstBox.top = 0;
-			dstBox.bottom = dstDesc.Height;
-			dstBox.front = 0;
-			dstBox.back = 1;
-
-			D3DX11_TEXTURE_LOAD_INFO loadInfo;
-			loadInfo.pSrcBox = &srcBox;
-			loadInfo.pDstBox = &dstBox;
-			loadInfo.SrcFirstMip = 0;
-			loadInfo.DstFirstMip = 0;
-			loadInfo.NumMips = 1;
-			loadInfo.SrcFirstElement = D3D11CalcSubresource(0, 0, 1);
-			loadInfo.DstFirstElement = D3D11CalcSubresource(0, 0, 1);
-			loadInfo.NumElements = 0;
-			loadInfo.Filter = D3DX11_FILTER_LINEAR;
-			loadInfo.MipFilter = D3DX11_FILTER_LINEAR;
-
-			if (SUCCEEDED(D3DX11LoadTextureFromTexture(GetDeviceContext().GetRealDeviceContext(), pBackBufferTex, &loadInfo, pDstTex)))
-			{
-				D3D11_MAPPED_SUBRESOURCE mappedTex;
-				STALL_PROFILER("lock/read texture")
-				if (SUCCEEDED(GetDeviceContext_ForMapAndUnmap().Map(pDstTex, 0, D3D11_MAP_READ, 0, &mappedTex)))
-				{
-					if (bRGBA)
-					{
-						for (unsigned int i = 0; i < dstDesc.Height; ++i)
-						{
-							uint8* pSrc((uint8*) mappedTex.pData + i * mappedTex.RowPitch);
-							uint8* pDst((uint8*) pRGB + (dstDesc.Height - 1 - i) * nImageX * 4);
-							for (unsigned int j = 0; j < dstDesc.Width; ++j, pSrc += 4, pDst += 4)
-							{
-								pDst[0] = pSrc[2];
-								pDst[1] = pSrc[1];
-								pDst[2] = pSrc[0];
-								pDst[3] = 255;
-							}
-						}
-					}
-					else
-					{
-						for (unsigned int i = 0; i < dstDesc.Height; ++i)
-						{
-							uint8* pSrc((uint8*) mappedTex.pData + i * mappedTex.RowPitch);
-							uint8* pDst((uint8*) pRGB + (dstDesc.Height - 1 - i) * nImageX * 3);
-							for (unsigned int j = 0; j < dstDesc.Width; ++j, pSrc += 4, pDst += 3)
-							{
-								pDst[0] = pSrc[2];
-								pDst[1] = pSrc[1];
-								pDst[2] = pSrc[0];
-							}
-						}
-					}
-					GetDeviceContext_ForMapAndUnmap().Unmap(pDstTex, 0);
-				}
-			}
-		}
-		SAFE_RELEASE(pDstTex);
-	}
-	SAFE_RELEASE(pBackBufferTex);
-#endif
-}
-
-void CD3D9Renderer::ReadFrameBufferFast(uint32* pDstARGBA8, int dstWidth, int dstHeight)
-{
-	if (!pDstARGBA8 || dstWidth <= 0 || dstHeight <= 0)
+	if (!pDstRGBA8 || destinationWidth <= 0 || destinationHeight <= 0)
 		return;
 
 #if CRY_PLATFORM_WINDOWS
-
-	assert(!IsEditorMode() || (m_CurrContext && m_CurrContext->m_pBackBuffers == m_pBackBuffers));
-
-	// get last buffer used for Present()
-	D3DSurface* pBackBuffer;
-	pBackBuffer = m_pBackBuffers[(m_pCurrentBackBufferIndex + m_pBackBuffers.size() - 1) % m_pBackBuffers.size()];
-
-	assert(pBackBuffer);
-
-	D3D11_RENDER_TARGET_VIEW_DESC bbDesc;
-	pBackBuffer->GetDesc(&bbDesc);
-	if (bbDesc.ViewDimension == D3D11_RTV_DIMENSION_TEXTURE2DMS)
-		return;
-
-	D3DTexture* pBackBufferTex(0);
-	pBackBuffer->GetResource((D3DResource**)&pBackBufferTex);
-	if (pBackBufferTex)
+	CTexture* pSourceTexture = GetLastBackBuffer(GetActiveDisplayContext());
+	if (pSourceTexture)
 	{
-		D3D11_TEXTURE2D_DESC dstDesc;
-		dstDesc.Width = dstWidth > GetWidth() ? GetWidth() : dstWidth;
-		dstDesc.Height = dstHeight > GetHeight() ? GetHeight() : dstHeight;
-		dstDesc.MipLevels = 1;
-		dstDesc.ArraySize = 1;
-		dstDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
-		dstDesc.SampleDesc.Count = 1;
-		dstDesc.SampleDesc.Quality = 0;
-		dstDesc.Usage = D3D11_USAGE_STAGING;
-		dstDesc.BindFlags = 0;
-		dstDesc.CPUAccessFlags = D3D11_CPU_ACCESS_READ /* | D3D11_CPU_ACCESS_WRITE*/;
-		dstDesc.MiscFlags = 0;
-
-		ID3D11Texture2D* pDstTex(0);
-		if (SUCCEEDED(GetDevice().CreateTexture2D(&dstDesc, 0, &pDstTex)))
+		if (true /*sourceDesc.SampleDesc.Count == 1*/)
 		{
-			D3D11_TEXTURE2D_DESC srcDesc;
-			pBackBufferTex->GetDesc(&srcDesc);
+			CTexture* pCopySourceTexture;
+			unsigned int width(destinationWidth == 0 ? GetWidth() : destinationWidth);
+			unsigned int height(destinationHeight == 0 ? GetHeight() : destinationHeight);
 
-			D3D11_BOX srcBox;
-			srcBox.left = 0;
-			srcBox.right = dstDesc.Width;
-			srcBox.top = 0;
-			srcBox.bottom = dstDesc.Height;
-			srcBox.front = 0;
-			srcBox.back = 1;
-			GetDeviceContext().CopySubresourceRegion(pDstTex, 0, 0, 0, 0, pBackBufferTex, 0, &srcBox);
+			// TODO: download without staging
+			LPDEVICETEXTURE pTargetTexture(0);
+			if (!SUCCEEDED(GetDeviceObjectFactory().Create2DTexture(width, height, 1, 1, 0, Clr_Transparent, DXGI_FORMAT_R8G8B8A8_UNORM, &pTargetTexture)))
+				return;
 
-			D3D11_MAPPED_SUBRESOURCE mappedTex;
-			STALL_PROFILER("lock/read texture")
-			if (SUCCEEDED(GetDeviceContext_ForMapAndUnmap().Map(pDstTex, 0, D3D11_MAP_READ, 0, &mappedTex)))
+			if (width != GetWidth() || height != GetHeight())
 			{
-				for (unsigned int i = 0; i < dstDesc.Height; ++i)
+				// reuse stereo left and right RTs to downscale
+				GetDeviceObjectFactory().GetCoreCommandList().GetCopyInterface()->Copy(pSourceTexture->GetDevTexture(), CTexture::s_ptexStereoL->GetDevTexture());
+
+				GetUtils().Downsample(CTexture::s_ptexStereoL, CTexture::s_ptexStereoR, GetWidth(), GetHeight(), width, height);
+				pCopySourceTexture = CTexture::s_ptexStereoR;
+			}
+			else
+			{
+				pCopySourceTexture = pSourceTexture;
+			}
+
+			// Setup the copy of the captured frame to our local surface
+			GetDeviceObjectFactory().GetCoreCommandList().GetCopyInterface()->Copy(pCopySourceTexture->GetDevTexture(), pTargetTexture);
+
+			// Copy the frame from our local surface to the requested buffer location
+			pTargetTexture->DownloadToStagingResource(0, [&](void* pData, uint32 rowPitch, uint32 slicePitch)
+			{
+				for (unsigned int i = 0; i < height; ++i)
 				{
-					uint8* pSrc((uint8*) mappedTex.pData + i * mappedTex.RowPitch);
-					uint8* pDst((uint8*) pDstARGBA8 + i * dstWidth * 4);
-					for (unsigned int j = 0; j < dstDesc.Width; ++j, pSrc += 4, pDst += 4)
+					uint8* pSrc((uint8*)pData + i * rowPitch);
+					uint8* pDst((uint8*)pDstRGBA8 + i * width * 4);
+					for (unsigned int j = 0; j < width; ++j, pSrc += 4, pDst += 4)
 					{
 						pDst[0] = pSrc[2];
 						pDst[1] = pSrc[1];
@@ -5117,12 +4938,72 @@ void CD3D9Renderer::ReadFrameBufferFast(uint32* pDstARGBA8, int dstWidth, int ds
 						pDst[3] = 255;
 					}
 				}
-				GetDeviceContext_ForMapAndUnmap().Unmap(pDstTex, 0);
-			}
+
+				return true;
+			});
+
+			SAFE_RELEASE(pTargetTexture);
 		}
-		SAFE_RELEASE(pDstTex);
 	}
-	SAFE_RELEASE(pBackBufferTex);
+#endif
+}
+
+void CD3D9Renderer::ReadFrameBufferFast(uint32* pDstRGBA8, int destinationWidth, int destinationHeight)
+{
+	if (!pDstRGBA8 || destinationWidth <= 0 || destinationHeight <= 0)
+		return;
+
+#if CRY_PLATFORM_WINDOWS
+	CTexture* pSourceTexture = GetLastBackBuffer(GetActiveDisplayContext());
+	if (pSourceTexture)
+	{
+		if (true /*sourceDesc.SampleDesc.Count == 1*/)
+		{
+			CTexture* pCopySourceTexture;
+			unsigned int width(destinationWidth > GetWidth() ? GetWidth() : destinationWidth);
+			unsigned int height(destinationHeight > GetHeight() ? GetHeight() : destinationHeight);
+
+			// TODO: download without staging
+			LPDEVICETEXTURE pTargetTexture(0);
+			if (!SUCCEEDED(GetDeviceObjectFactory().Create2DTexture(width, height, 1, 1, 0, Clr_Transparent, DXGI_FORMAT_R8G8B8A8_UNORM, &pTargetTexture)))
+				return;
+
+			{
+				pCopySourceTexture = pSourceTexture;
+			}
+
+			// Setup the copy of the captured frame to our local surface
+			const SResourceRegionMapping region =
+			{
+				{ 0,     0,      0, 0 },
+				{ 0,     0,      0, 0 },
+				{ width, height, 1, 1 }
+			};
+
+			GetDeviceObjectFactory().GetCoreCommandList().GetCopyInterface()->Copy(pCopySourceTexture->GetDevTexture(), pTargetTexture, region);
+
+			// Copy the frame from our local surface to the requested buffer location
+			pTargetTexture->DownloadToStagingResource(0, [&](void* pData, uint32 rowPitch, uint32 slicePitch)
+			{
+				for (unsigned int i = 0; i < height; ++i)
+				{
+					uint8* pSrc((uint8*)pData + i * rowPitch);
+					uint8* pDst((uint8*)pDstRGBA8 + i * width * 4);
+					for (unsigned int j = 0; j < width; ++j, pSrc += 4, pDst += 4)
+					{
+						pDst[0] = pSrc[2];
+						pDst[1] = pSrc[1];
+						pDst[2] = pSrc[0];
+						pDst[3] = 255;
+					}
+				}
+
+				return true;
+			});
+
+			SAFE_RELEASE(pTargetTexture);
+		}
+	}
 #endif
 }
 
@@ -5143,39 +5024,17 @@ bool CD3D9Renderer::InitCaptureFrameBufferFast(uint32 bufferWidth, uint32 buffer
 	SAFE_RELEASE(m_pSaveTexture[0]);
 	SAFE_RELEASE(m_pSaveTexture[1]);
 
-	assert(!IsEditorMode() || (m_CurrContext && m_CurrContext->m_pBackBuffers == m_pBackBuffers));
-
-	// get last buffer used for Present()
-	D3DSurface* pBackBuffer;
-	pBackBuffer = m_pBackBuffers[(m_pCurrentBackBufferIndex + m_pBackBuffers.size() - 1) % m_pBackBuffers.size()];
-
-	assert(pBackBuffer);
-
-	D3D11_RENDER_TARGET_VIEW_DESC bbDesc;
-	pBackBuffer->GetDesc(&bbDesc);
-	if (bbDesc.ViewDimension == D3D11_RTV_DIMENSION_TEXTURE2DMS)
-		return(false);
-
-	m_captureFlipFlop = 0;
-	D3DTexture* pSourceTexture(0);
-	pBackBuffer->GetResource((D3DResource**) &pSourceTexture);
-	if (!pSourceTexture)
-		return(false);
-
-	D3D11_TEXTURE2D_DESC sourceDesc;
-	pSourceTexture->GetDesc(&sourceDesc);
-
 	if (bufferWidth == 0)
 	{
-		bufferWidth = sourceDesc.Width;
+		bufferWidth = GetActiveDisplayContext()->m_Width;
 	}
 	if (bufferHeight == 0)
 	{
-		bufferHeight = sourceDesc.Height;
+		bufferHeight = GetActiveDisplayContext()->m_Height;
 	}
 
-	m_pSaveTexture[0] = CTexture::Create2DTexture("$SaveTexture0", bufferWidth, bufferHeight, 1, FT_STAGE_READBACK, nullptr, eTF_R8G8B8A8, eTF_R8G8B8A8);
-	m_pSaveTexture[1] = CTexture::Create2DTexture("$SaveTexture1", bufferWidth, bufferHeight, 1, FT_STAGE_READBACK, nullptr, eTF_R8G8B8A8, eTF_R8G8B8A8);
+	m_pSaveTexture[0] = CTexture::GetOrCreate2DTexture("$SaveTexture0", bufferWidth, bufferHeight, 1, FT_STAGE_READBACK, nullptr, eTF_R8G8B8A8);
+	m_pSaveTexture[1] = CTexture::GetOrCreate2DTexture("$SaveTexture1", bufferWidth, bufferHeight, 1, FT_STAGE_READBACK, nullptr, eTF_R8G8B8A8);
 
 	// Initialize one of the buffers by capturing the current backbuffer
 	// If we allow this call on the MT we cannot interact with the device
@@ -5185,8 +5044,6 @@ bool CD3D9Renderer::InitCaptureFrameBufferFast(uint32 bufferWidth, uint32 buffer
 	   srcBox.top = 0; srcBox.bottom = dstDesc.Height;
 	   srcBox.front = 0; srcBox.back = 1;
 	   GetDeviceContext().CopySubresourceRegion(m_pSaveTexture[0], 0, 0, 0, 0, pSourceTexture, 0, &srcBox);*/
-
-	SAFE_RELEASE(pSourceTexture);
 #endif
 	return(true);
 }
@@ -5225,33 +5082,15 @@ bool CD3D9Renderer::CaptureFrameBufferFast(unsigned char* pDstRGBA8, int destina
 	bool bStatus(false);
 
 #if defined(ENABLE_PROFILING_CODE)
-	D3DTexture* pSourceTexture(0);
-
 	//In case this routine is called without the init function being called
 	if (m_pSaveTexture[0] == NULL || m_pSaveTexture[1] == NULL || !GetDevice().IsValid()) return bStatus;
 
-	assert(!IsEditorMode() || (m_CurrContext && m_CurrContext->m_pBackBuffers == m_pBackBuffers));
-
-	// get last buffer used for Present()
-	D3DSurface* pBackBuffer;
-	pBackBuffer = m_pBackBuffers[(m_pCurrentBackBufferIndex + m_pBackBuffers.size() - 1) % m_pBackBuffers.size()];
-
-	assert(pBackBuffer);
-
-	D3D11_RENDER_TARGET_VIEW_DESC bbDesc;
-	pBackBuffer->GetDesc(&bbDesc);
-	if (bbDesc.ViewDimension == D3D11_RTV_DIMENSION_TEXTURE2DMS)
-		return bStatus;
-
-	pBackBuffer->GetResource((D3DResource**)&pSourceTexture);
+	CTexture* pSourceTexture = GetLastBackBuffer(GetActiveDisplayContext());
 	if (pSourceTexture)
 	{
-		D3D11_TEXTURE2D_DESC sourceDesc;
-		pSourceTexture->GetDesc(&sourceDesc);
-
-		if (sourceDesc.SampleDesc.Count == 1)
+		if (true /*sourceDesc.SampleDesc.Count == 1*/)
 		{
-			D3DTexture* pCopySourceTexture;
+			CTexture* pCopySourceTexture;
 			CTexture* pTargetTexture, * pCopyTexture;
 			unsigned int width(destinationWidth > GetWidth() ? GetWidth() : destinationWidth);
 			unsigned int height(destinationHeight > GetHeight() ? GetHeight() : destinationHeight);
@@ -5263,9 +5102,10 @@ bool CD3D9Renderer::CaptureFrameBufferFast(unsigned char* pDstRGBA8, int destina
 			if (width != GetWidth() || height != GetHeight())
 			{
 				// reuse stereo left and right RTs to downscale
-				GetDeviceContext().CopyResource(CTexture::s_ptexStereoL->GetDevTexture()->Get2DTexture(), pSourceTexture);
+				GetDeviceObjectFactory().GetCoreCommandList().GetCopyInterface()->Copy(pSourceTexture->GetDevTexture(), CTexture::s_ptexStereoL->GetDevTexture());
+
 				GetUtils().Downsample(CTexture::s_ptexStereoL, CTexture::s_ptexStereoR, GetWidth(), GetHeight(), width, height);
-				pCopySourceTexture = CTexture::s_ptexStereoR->GetDevTexture()->Get2DTexture();
+				pCopySourceTexture = CTexture::s_ptexStereoR;
 			}
 			else
 			{
@@ -5273,14 +5113,14 @@ bool CD3D9Renderer::CaptureFrameBufferFast(unsigned char* pDstRGBA8, int destina
 			}
 
 			// Setup the copy of the captured frame to our local surface in the background
-			D3D11_BOX srcBox;
-			srcBox.left = 0;
-			srcBox.right = width;
-			srcBox.top = 0;
-			srcBox.bottom = height;
-			srcBox.front = 0;
-			srcBox.back = 1;
-			GetDeviceContext().CopySubresourceRegion(pTargetTexture->GetDevTexture()->Get2DTexture(), 0, 0, 0, 0, pCopySourceTexture, 0, &srcBox);
+			const SResourceRegionMapping region =
+			{
+				{ 0,     0,      0, 0 },
+				{ 0,     0,      0, 0 },
+				{ width, height, 1, 1 }
+			};
+
+			GetDeviceObjectFactory().GetCoreCommandList().GetCopyInterface()->Copy(pCopySourceTexture->GetDevTexture(), pTargetTexture->GetDevTexture(), region);
 
 			// Copy the previous frame from our local surface to the requested buffer location
 			pCopyTexture->GetDevTexture()->DownloadToStagingResource(0, [&](void* pData, uint32 rowPitch, uint32 slicePitch)
@@ -5304,8 +5144,6 @@ bool CD3D9Renderer::CaptureFrameBufferFast(unsigned char* pDstRGBA8, int destina
 			bStatus = true;
 		}
 	}
-
-	SAFE_RELEASE(pSourceTexture);
 #endif
 
 	return bStatus;
@@ -5651,112 +5489,112 @@ bool CD3D9Renderer::RayIntersectMesh(IRenderMesh* pMesh, const Ray& ray, Vec3& h
 	return hasHit;
 }
 
-int CD3D9Renderer::RayToUV(const Vec3& vOrigin, const Vec3& vDirection, float* pUOut, float* pVOut)
+int CD3D9Renderer::GetDetailedRayHitInfo(IPhysicalEntity* pCollider, const Vec3& vOrigin, const Vec3& vDirection, const float maxRayDist, float* pUOut, float* pVOut)
 {
-	IGameFramework* pGameFramework = gEnv->pGameFramework;
+	int type = pCollider->GetiForeignData();
 
-	// Setup ray + optionally skip 1 entity
-	ray_hit rayHit;
-	static const float maxRayDist = 100.f;
-	const unsigned int flags = rwi_stop_at_pierceable | rwi_colltype_any;
-	IPhysicalEntity* skipList[1];
-	int skipCount = 0;
-
-	// Check if the ray hits an entity
-	if (gEnv->pSystem->GetIPhysicalWorld()->RayWorldIntersection(vOrigin, vDirection * maxRayDist, ent_all, flags, &rayHit, 1, skipList, skipCount))
+	if (type == PHYS_FOREIGN_ID_ENTITY)
 	{
-		int type = rayHit.pCollider->GetiForeignData();
+		IEntity* pEntity = (IEntity*)pCollider->GetForeignData(PHYS_FOREIGN_ID_ENTITY);
+		IEntityRender* pIEntityRender = pEntity ? pEntity->GetRenderInterface() : nullptr;
 
-		if (type == PHYS_FOREIGN_ID_ENTITY)
+		if (pIEntityRender == nullptr)
 		{
-			IEntity* pEntity = (IEntity*)rayHit.pCollider->GetForeignData(PHYS_FOREIGN_ID_ENTITY);
-			IEntityRender* pIEntityRender = pEntity ? pEntity->GetRenderInterface() : 0;
+			return -1;
+		}
 
-			// Get the renderproxy, and use it to check if the material is a DynTex, and get the UIElement if so
-			
+		int dynTexGeomSlot = 0;
+
+		IStatObj* pObj = nullptr;
+		for (uint i = 0; i < pEntity->GetSlotCount(); ++i)
+		{
+			pObj = pEntity->GetStatObj(i);
+
+			if (pObj != nullptr)
 			{
-				IRenderNode* pRenderNode = pIEntityRender->GetRenderNode();
-				if (pRenderNode)
-				{
-					int m_dynTexGeomSlot = 0;
-					IStatObj* pObj = pRenderNode->GetEntityStatObj(m_dynTexGeomSlot);
-
-					// result
-					bool hasHit = false;
-					Vec2 uv0, uv1, uv2;
-					Vec3 p0, p1, p2;
-					Vec3 hitpos;
-
-					// calculate ray dir
-					CCamera cam = gEnv->pRenderer->GetCamera();
-					if (pEntity->GetSlotFlags(m_dynTexGeomSlot) & ENTITY_SLOT_RENDER_NEAREST)
-					{
-						ICVar* r_drawnearfov = gEnv->pConsole->GetCVar("r_DrawNearFoV");
-						assert(r_drawnearfov);
-						cam.SetFrustum(cam.GetViewSurfaceX(), cam.GetViewSurfaceZ(), DEG2RAD(r_drawnearfov->GetFVal()), cam.GetNearPlane(), cam.GetFarPlane(), cam.GetPixelAspectRatio());
-					}
-
-					Vec3 vPos0 = vOrigin;
-					Vec3 vPos1 = vOrigin + vDirection;
-
-					// translate into object space
-					const Matrix34 m = pEntity->GetWorldTM().GetInverted();
-					vPos0 = m * vPos0;
-					vPos1 = m * vPos1;
-
-					// walk through all sub objects
-					const int objCount = pObj->GetSubObjectCount();
-					for (int obj = 0; obj <= objCount && !hasHit; ++obj)
-					{
-						Vec3 vP0, vP1;
-						IStatObj* pSubObj = NULL;
-
-						if (obj == objCount)
-						{
-							vP0 = vPos0;
-							vP1 = vPos1;
-							pSubObj = pObj;
-						}
-						else
-						{
-							IStatObj::SSubObject* pSub = pObj->GetSubObject(obj);
-							const Matrix34 mm = pSub->tm.GetInverted();
-							vP0 = mm * vPos0;
-							vP1 = mm * vPos1;
-							pSubObj = pSub->pStatObj;
-						}
-
-						IRenderMesh* pMesh = pSubObj ? pSubObj->GetRenderMesh() : NULL;
-						if (pMesh)
-						{
-							const Ray ray(vP0, (vP1 - vP0).GetNormalized() * maxRayDist);
-							hasHit = RayIntersectMesh(pMesh, ray, hitpos, p0, p1, p2, uv0, uv1, uv2);
-						}
-					}
-
-					// skip if not hit
-					if (!hasHit)
-						return -1;
-
-					// calculate vectors from hitpos to vertices p0, p1 and p2:
-					const Vec3 v0 = p0 - hitpos;
-					const Vec3 v1 = p1 - hitpos;
-					const Vec3 v2 = p2 - hitpos;
-
-					// calculate factors
-					const float h = (p0 - p1).Cross(p0 - p2).GetLength();
-					const float f0 = v1.Cross(v2).GetLength() / h;
-					const float f1 = v2.Cross(v0).GetLength() / h;
-					const float f2 = v0.Cross(v1).GetLength() / h;
-
-					// find the uv corresponding to hitpos
-					Vec3 uv = uv0 * f0 + uv1 * f1 + uv2 * f2;
-					*pUOut = uv.x;
-					*pVOut = uv.y;
-					return (int)pEntity->GetId();
-				}
+				dynTexGeomSlot = i;
+				break;
 			}
 		}
+
+		if (pObj == nullptr)
+		{
+			return -1;
+		}
+
+		// result
+		bool hasHit = false;
+		Vec2 uv0, uv1, uv2;
+		Vec3 p0, p1, p2;
+		Vec3 hitpos;
+
+		// calculate ray dir
+		CCamera cam = gEnv->pRenderer->GetCamera();
+		if (pEntity->GetSlotFlags(dynTexGeomSlot) & ENTITY_SLOT_RENDER_NEAREST)
+		{
+			ICVar* r_drawnearfov = gEnv->pConsole->GetCVar("r_DrawNearFoV");
+			assert(r_drawnearfov);
+			cam.SetFrustum(cam.GetViewSurfaceX(), cam.GetViewSurfaceZ(), DEG2RAD(r_drawnearfov->GetFVal()), cam.GetNearPlane(), cam.GetFarPlane(), cam.GetPixelAspectRatio());
+		}
+
+		Vec3 vPos0 = vOrigin;
+		Vec3 vPos1 = vOrigin + vDirection;
+
+		// translate into object space
+		const Matrix34 m = pEntity->GetWorldTM().GetInverted();
+		vPos0 = m * vPos0;
+		vPos1 = m * vPos1;
+
+		// walk through all sub objects
+		const int objCount = pObj->GetSubObjectCount();
+		for (int obj = 0; obj <= objCount && !hasHit; ++obj)
+		{
+			Vec3 vP0, vP1;
+			IStatObj* pSubObj = NULL;
+
+			if (obj == objCount)
+			{
+				vP0 = vPos0;
+				vP1 = vPos1;
+				pSubObj = pObj;
+			}
+			else
+			{
+				IStatObj::SSubObject* pSub = pObj->GetSubObject(obj);
+				const Matrix34 mm = pSub->tm.GetInverted();
+				vP0 = mm * vPos0;
+				vP1 = mm * vPos1;
+				pSubObj = pSub->pStatObj;
+			}
+
+			IRenderMesh* pMesh = pSubObj ? pSubObj->GetRenderMesh() : NULL;
+			if (pMesh)
+			{
+				const Ray ray(vP0, (vP1 - vP0).GetNormalized() * maxRayDist);
+				hasHit = RayIntersectMesh(pMesh, ray, hitpos, p0, p1, p2, uv0, uv1, uv2);
+			}
+		}
+
+		// skip if not hit
+		if (!hasHit)
+			return -1;
+
+		// calculate vectors from hitpos to vertices p0, p1 and p2:
+		const Vec3 v0 = p0 - hitpos;
+		const Vec3 v1 = p1 - hitpos;
+		const Vec3 v2 = p2 - hitpos;
+
+		// calculate factors
+		const float h = (p0 - p1).Cross(p0 - p2).GetLength();
+		const float f0 = v1.Cross(v2).GetLength() / h;
+		const float f1 = v2.Cross(v0).GetLength() / h;
+		const float f2 = v0.Cross(v1).GetLength() / h;
+
+		// find the uv corresponding to hitpos
+		Vec3 uv = uv0 * f0 + uv1 * f1 + uv2 * f2;
+		*pUOut = uv.x;
+		*pVOut = uv.y;
+		return (int)pEntity->GetId();
 	}
 	return -1;
 }
@@ -5870,16 +5708,13 @@ void CD3D9Renderer::RT_DrawImageWithUVInternal(float xpos, float ypos, float z, 
 	vQuad[3].st = Vec2(s[2], t[2]);
 	vQuad[3].color.dcolor = col;
 
-	STexState TS;
-	TS.SetFilterMode(filtered ? FILTER_BILINEAR : FILTER_POINT);
-	TS.SetClampMode(1, 1, 1);
-	CTexture::ApplyForID(0, texture_id, CTexture::GetTexState(TS), -1);
+	CTexture::ApplyForID(0, texture_id, filtered ? EDefaultSamplerStates::BilinearClamp : EDefaultSamplerStates::PointClamp, -1);
 
 	FX_SetFPMode();
 
 	TempDynVB<SVF_P3F_C4B_T2F>::CreateFillAndBind(vQuad, 4, 0);
 
-	if (FAILED(FX_SetVertexDeclaration(0, eVF_P3F_C4B_T2F)))
+	if (FAILED(FX_SetVertexDeclaration(0, EDefaultInputLayouts::P3F_C4B_T2F)))
 		return;
 
 	FX_DrawPrimitive(eptTriangleStrip, 0, 4);
@@ -5946,19 +5781,19 @@ void CD3D9Renderer::Graph(byte* g, int x, int y, int wdt, int hgt, int nC, int t
 void CD3D9Renderer::GetModelViewMatrix(float* mat)
 {
 	int nThreadID = m_pRT->GetThreadList();
-	*(Matrix44*)mat = *m_RP.m_TI[nThreadID].m_matView->GetTop();
+	*(Matrix44f*)mat = *m_RP.m_TI[nThreadID].m_matView->GetTop();
 }
 
 void CD3D9Renderer::GetProjectionMatrix(float* mat)
 {
 	int nThreadID = m_pRT->GetThreadList();
-	*(Matrix44*)mat = *m_RP.m_TI[nThreadID].m_matProj->GetTop();
+	*(Matrix44f*)mat = *m_RP.m_TI[nThreadID].m_matProj->GetTop();
 }
 
 void CD3D9Renderer::GetCameraZeroMatrix(float* mat)
 {
 	int nThreadID = m_pRT->GetThreadList();
-	*(Matrix44*)mat = m_RP.m_TI[nThreadID].m_matCameraZero;
+	*(Matrix44f*)mat = m_RP.m_TI[nThreadID].m_matCameraZero;
 }
 
 void CD3D9Renderer::SetMatrices(float* pProjMat, float* pViewMat, float* pZeroMat)
@@ -6360,7 +6195,7 @@ void CD3D9Renderer::DrawQuad(float x0, float y0, float x1, float y1, const Color
 
 	FX_Commit();
 
-	if (!FAILED(FX_SetVertexDeclaration(0, eVF_P3F_C4B_T2F)))
+	if (!FAILED(FX_SetVertexDeclaration(0, EDefaultInputLayouts::P3F_C4B_T2F)))
 		FX_DrawPrimitive(eptTriangleStrip, 0, 4);
 }
 
@@ -6400,7 +6235,7 @@ void CD3D9Renderer::DrawFullScreenQuad(CShader* pSH, const CCryNameTSCRC& TechNa
 
 	// Draw a fullscreen quad to sample the RT
 	FX_SetState(nState);
-	if (!FAILED(FX_SetVertexDeclaration(0, eVF_TP3F_C4B_T2F)))
+	if (!FAILED(FX_SetVertexDeclaration(0, EDefaultInputLayouts::TP3F_C4B_T2F)))
 		FX_DrawPrimitive(eptTriangleStrip, 0, 4);
 
 	pSH->FXEndPass();
@@ -6439,7 +6274,7 @@ void CD3D9Renderer::DrawQuad3D(const Vec3& v0, const Vec3& v1, const Vec3& v2, c
 	TempDynVB<SVF_P3F_C4B_T2F>::CreateFillAndBind(vQuad, 4, 0);
 
 	FX_Commit();
-	if (!FAILED(FX_SetVertexDeclaration(0, eVF_P3F_C4B_T2F)))
+	if (!FAILED(FX_SetVertexDeclaration(0, EDefaultInputLayouts::P3F_C4B_T2F)))
 		FX_DrawPrimitive(eptTriangleStrip, 0, 4);
 }
 
@@ -6447,26 +6282,6 @@ void CD3D9Renderer::DrawQuad3D(const Vec3& v0, const Vec3& v1, const Vec3& v2, c
 
 void CD3D9Renderer::DrawPrimitivesInternal(CVertexBuffer* src, int vert_num, const ERenderPrimitiveType prim_type)
 {
-	size_t stride = 0;
-	switch (src->m_eVF)
-	{
-	case eVF_P3F_C4B_T2F:
-		stride = sizeof(SVF_P3F_C4B_T2F);
-		break;
-	case eVF_TP3F_C4B_T2F:
-		stride = sizeof(SVF_TP3F_C4B_T2F);
-		break;
-	case eVF_P3F_T3F:
-		stride = sizeof(SVF_P3F_T3F);
-		break;
-	case eVF_P3F_T2F_T3F:
-		stride = sizeof(SVF_P3F_T2F_T3F);
-		break;
-	default:
-		assert(0);
-		return;
-	}
-
 	FX_Commit();
 
 	if (FAILED(FX_SetVertexDeclaration(0, src->m_eVF)))
@@ -6474,7 +6289,7 @@ void CD3D9Renderer::DrawPrimitivesInternal(CVertexBuffer* src, int vert_num, con
 
 	FX_SetVStream(3, NULL, 0, 0);
 
-	TempDynVBAny::CreateFillAndBind(src->m_VData, vert_num, 0, stride);
+	TempDynVBAny::CreateFillAndBind(src->m_VData, vert_num, 0, CDeviceObjectFactory::LookupInputLayout(src->m_eVF).first.m_Stride);
 
 	FX_DrawPrimitive(prim_type, 0, vert_num);
 }
@@ -6540,7 +6355,9 @@ void CD3D9Renderer::ResetToDefault()
 	BS.Desc.RenderTarget[2].RenderTargetWriteMask = D3D11_COLOR_WRITE_ENABLE_ALL;
 	BS.Desc.RenderTarget[3].RenderTargetWriteMask = D3D11_COLOR_WRITE_ENABLE_ALL;
 	SetBlendState(&BS);
+#ifdef RENDERER_ENABLE_LEGACY_PIPELINE
 	GetDeviceContext().GSSetShader(NULL, NULL, 0);
+#endif
 
 	m_RP.m_CurState = GS_DEPTHWRITE;
 
@@ -6808,26 +6625,6 @@ void CD3D9Renderer::ClearTargetsImmediately(uint32 nFlags, float fDepth)
 	m_pRT->RC_ClearTargetsImmediately(3, nFlags, Clr_Transparent, fDepth);
 }
 
-void CD3D9Renderer::ClearTargetsLater(uint32 nFlags)
-{
-	EF_ClearTargetsLater(nFlags);
-}
-
-void CD3D9Renderer::ClearTargetsLater(uint32 nFlags, const ColorF& Colors, float fDepth)
-{
-	EF_ClearTargetsLater(nFlags, Colors, fDepth, 0);
-}
-
-void CD3D9Renderer::ClearTargetsLater(uint32 nFlags, const ColorF& Colors)
-{
-	EF_ClearTargetsLater(nFlags, Colors);
-}
-
-void CD3D9Renderer::ClearTargetsLater(uint32 nFlags, float fDepth)
-{
-	EF_ClearTargetsLater(nFlags, fDepth, 0);
-}
-
 #ifdef _DEBUG
 
 int s_In2DMode[RT_COMMAND_BUF_COUNT];
@@ -6854,7 +6651,7 @@ void CD3D9Renderer::Set2DMode(bool enable, int ortox, int ortoy, float znear, fl
 
 #if defined(ENABLE_RENDER_AUX_GEOM)
 		if (m_pRenderAuxGeomD3D)
-			m_pRenderAuxGeomD3D->SetOrthoMode(true, m);
+			m_pRenderAuxGeomD3D->GetRenderAuxGeom()->SetOrthoMode(true, m);
 #endif
 		EF_PushMatrix();
 		m_RP.m_TI[nThreadID].m_matView->LoadIdentity();
@@ -6869,7 +6666,7 @@ void CD3D9Renderer::Set2DMode(bool enable, int ortox, int ortoy, float znear, fl
 
 #if defined(ENABLE_RENDER_AUX_GEOM)
 		if (m_pRenderAuxGeomD3D)
-			m_pRenderAuxGeomD3D->SetOrthoMode(false);
+			m_pRenderAuxGeomD3D->GetRenderAuxGeom()->SetOrthoMode(false);
 #endif
 		m_RP.m_TI[nThreadID].m_matProj->Pop();
 		EF_PopMatrix();
@@ -7066,7 +6863,7 @@ ITexture* CD3D9Renderer::EF_CreateCompositeTexture(int type, const char* szName,
 	switch (type)
 	{
 	case eTT_2DArray:
-		pTex = CTexture::Create2DCompositeTexture(szName, nWidth, nHeight, nMips, nFlags, eTF, pCompositions, nCompositions);
+		pTex = CTexture::GetOrCreate2DCompositeTexture(szName, nWidth, nHeight, nMips, nFlags, eTF, pCompositions, nCompositions);
 		break;
 
 	default:
@@ -7086,7 +6883,7 @@ void CD3D9Renderer::ReleaseResourceAsync(SResourceAsync* pResource)
 	m_pRT->RC_ReleaseResource(pResource);
 }
 
-unsigned int CD3D9Renderer::DownLoadToVideoMemory(unsigned char* data, int w, int h, int d, ETEX_Format eTFSrc, ETEX_Format eTFDst, int nummipmap, ETEX_Type eTT, bool repeat, int filter, int Id, const char* szCacheName, int flags, EEndian eEndian, RectI* pRegion, bool bAsyncDevTexCreation)
+unsigned int CD3D9Renderer::DownLoadToVideoMemory(unsigned char* pSrcData, int w, int h, int d, ETEX_Format eSrcFormat, ETEX_Format eTFDst, int nummipmap, ETEX_Type eTT, bool repeat, int filter, int Id, const char* szCacheName, int flags, EEndian eEndian, RectI* pRegion, bool bAsyncDevTexCreation)
 {
 	FUNCTION_PROFILER(GetISystem(), PROFILE_RENDERER);
 
@@ -7095,6 +6892,7 @@ unsigned int CD3D9Renderer::DownLoadToVideoMemory(unsigned char* data, int w, in
 		cry_sprintf(name, "$AutoDownload_%d", m_TexGenID++);
 	else
 		cry_strcpy(name, szCacheName);
+
 	if (!nummipmap)
 	{
 		if (filter != FILTER_BILINEAR && filter != FILTER_TRILINEAR)
@@ -7104,10 +6902,9 @@ unsigned int CD3D9Renderer::DownLoadToVideoMemory(unsigned char* data, int w, in
 	else if (nummipmap < 0)
 		nummipmap = CTexture::CalcNumMips(w, h);
 
+	flags |= FT_DONT_STREAM;
 	if (!repeat)
 		flags |= FT_STATE_CLAMP;
-	if (!szCacheName)
-		flags |= FT_DONT_STREAM;
 
 	if (Id > 0)
 	{
@@ -7115,9 +6912,9 @@ unsigned int CD3D9Renderer::DownLoadToVideoMemory(unsigned char* data, int w, in
 		if (pTex)
 		{
 			if (pRegion)
-				pTex->UpdateTextureRegion(data, pRegion->x, pRegion->y, 0, pRegion->w, pRegion->h, 1, eTFSrc);
+				pTex->UpdateTextureRegion(pSrcData, pRegion->x, pRegion->y, 0, pRegion->w, pRegion->h, 1, eSrcFormat);
 			else
-				pTex->UpdateTextureRegion(data, 0, 0, 0, w, h, 1, eTFSrc);
+				pTex->UpdateTextureRegion(pSrcData, 0, 0, 0, w, h, 1, eSrcFormat);
 
 			return Id;
 		}
@@ -7134,9 +6931,9 @@ unsigned int CD3D9Renderer::DownLoadToVideoMemory(unsigned char* data, int w, in
 		{
 			// make texture without device texture and request it async creation
 			SResourceAsync* pInfo = new SResourceAsync();
-			int nImgSize = CTexture::TextureDataSize(w, h, 1, nummipmap, 1, eTFSrc);
+			int nImgSize = CTexture::TextureDataSize(w, h, 1, nummipmap, 1, eSrcFormat);
 			pInfo->pData = new byte[nImgSize];
-			memcpy(pInfo->pData, data, nImgSize);
+			memcpy(pInfo->pData, pSrcData, nImgSize);
 			pInfo->eClassName = eRCN_Texture;
 			pInfo->nWidth = w;
 			pInfo->nHeight = h;
@@ -7144,20 +6941,24 @@ unsigned int CD3D9Renderer::DownLoadToVideoMemory(unsigned char* data, int w, in
 			pInfo->nTexFlags = flags;
 			pInfo->nFormat = eTFDst;
 
-			tp = CTexture::CreateTextureObject(name, w, h, 1, eTT_2D, flags, eTFDst);
+			tp = CTexture::GetOrCreateTextureObject(name, w, h, 1, eTT_2D, flags, eTFDst);
 			tp->m_bAsyncDevTexCreation = bAsyncDevTexCreation;
-			tp->m_eTFSrc = eTFSrc;
+			tp->m_eSrcFormat = eSrcFormat;
 			tp->m_nMips = nummipmap;
 
 			pInfo->nTexId = tp->GetID();
 			gRenDev->CreateResourceAsync(pInfo);
 		}
-		else if (eTT == eTT_Cube)
-			assert(!"Not supported");   // tp = CTexture::CreateCubeTexture(name, w, h, nummipmap, flags, data, eTFSrc, eTFDst);
 		else if (eTT == eTT_3D)
-			tp = CTexture::Create3DTexture(name, w, h, d, nummipmap, flags, data, eTFSrc, eTFDst);
-		else
-			tp = CTexture::Create2DTexture(name, w, h, nummipmap, flags, data, eTFSrc, eTFDst);
+			tp = CTexture::GetOrCreate3DTexture(name, w, h, d, nummipmap, flags, pSrcData, eSrcFormat);
+		else if (eTT == eTT_2D)
+			tp = CTexture::GetOrCreate2DTexture(name, w, h, nummipmap, flags, pSrcData, eSrcFormat);
+		else if (eTT == eTT_2DArray)
+			assert(!"Not supported");
+		else if (eTT == eTT_Cube)
+			assert(!"Not supported");
+		else if (eTT == eTT_CubeArray)
+			assert(!"Not supported");   // tp = CTexture::CreateCubeTexture(name, w, h, nummipmap, flags, data, eTFSrc);
 
 		return tp->GetID();
 	}
@@ -7204,7 +7005,7 @@ void CD3D9Renderer::GetLogVBuffers()
 	CRenderMesh* pRM = NULL;
 	int nNums = 0;
 	AUTO_LOCK(CRenderMesh::m_sLinkLock);
-	for (util::list<CRenderMesh>* iter = CRenderMesh::m_MeshList.next; iter != &CRenderMesh::m_MeshList; iter = iter->next)
+	for (util::list<CRenderMesh>* iter = CRenderMesh::s_MeshList.next; iter != &CRenderMesh::s_MeshList; iter = iter->next)
 	{
 		int nTotal = 0;
 		string final;
@@ -7315,7 +7116,7 @@ void CD3D9Renderer::GetMemoryUsage(ICrySizer* Sizer)
 	{
 		SIZER_COMPONENT_NAME(Sizer, "Mesh");
 		AUTO_LOCK(CRenderMesh::m_sLinkLock);
-		for (util::list<CRenderMesh>* iter = CRenderMesh::m_MeshList.next; iter != &CRenderMesh::m_MeshList; iter = iter->next)
+		for (util::list<CRenderMesh>* iter = CRenderMesh::s_MeshList.next; iter != &CRenderMesh::s_MeshList; iter = iter->next)
 		{
 			CRenderMesh* pRM = iter->item<& CRenderMesh::m_Chain>();
 			pRM->m_sResLock.Lock();
@@ -7329,8 +7130,8 @@ void CD3D9Renderer::GetMemoryUsage(ICrySizer* Sizer)
 		SIZER_COMPONENT_NAME(Sizer, "Render elements");
 
 		AUTO_LOCK(m_sREResLock);
-		CRenderElement* pRE = CRenderElement::m_RootGlobal.m_NextGlobal;
-		while (pRE != &CRenderElement::m_RootGlobal)
+		CRenderElement* pRE = CRenderElement::s_RootGlobal.m_NextGlobal;
+		while (pRE != &CRenderElement::s_RootGlobal)
 		{
 			Sizer->AddObject(pRE);
 			pRE = pRE->m_NextGlobal;
@@ -7364,11 +7165,20 @@ void CD3D9Renderer::SetMouseCursorIconCVar(ICVar* pVar)
 	gEnv->pHardwareMouse->SetCursor(pVar->GetString());
 }
 
-IRenderAuxGeom* CD3D9Renderer::GetIRenderAuxGeom(void* jobID /*= 0*/)
+IRenderAuxGeom* CD3D9Renderer::GetIRenderAuxGeom(EViewportType viewport)
 {
 #if defined(ENABLE_RENDER_AUX_GEOM)
 	if (m_pRenderAuxGeomD3D)
-		return m_pRenderAuxGeomD3D->GetRenderAuxGeom(jobID);
+	{
+		if (viewport == eViewportType_Default)
+		{
+			return m_pRenderAuxGeomD3D->GetRenderAuxGeom();
+		}
+		else if (viewport == eViewportType_Secondary)
+		{
+			return m_pRenderAuxGeomD3D->GetRenderAuxGeom((void*)eViewportType_Secondary);
+		}
+	}
 #endif
 	return &m_renderAuxGeomNull;
 }
@@ -7518,8 +7328,6 @@ void CD3D9Renderer::DebugShowRenderTarget()
 
 	static CCryNameR colorMultiplierName("colorMultiplier");
 	static CCryNameR showRTFlagsName("showRTFlags");
-	int nTexStateLinear = CTexture::GetTexState(STexState(FILTER_LINEAR, true));
-	int nTexStatePoint = CTexture::GetTexState(STexState(FILTER_POINT, true));
 
 	size_t col2 = m_showRenderTargetInfo.col * m_showRenderTargetInfo.col;
 	for (size_t i = 0; i < min(m_showRenderTargetInfo.rtList.size(), col2); ++i)
@@ -7532,7 +7340,7 @@ void CD3D9Renderer::DebugShowRenderTarget()
 		int col = i - row * m_showRenderTargetInfo.col;
 		float curX = col * (tileW + tileGapW);
 		float curY = row * (tileH + tileGapH);
-		pTex->Apply(0, m_showRenderTargetInfo.rtList[i].bFiltered ? nTexStateLinear : nTexStatePoint);
+		pTex->Apply(0, m_showRenderTargetInfo.rtList[i].bFiltered ? EDefaultSamplerStates::LinearClamp : EDefaultSamplerStates::PointClamp);
 
 		Vec4 channelWeight = m_showRenderTargetInfo.rtList[i].channelWeight;
 		pSH->FXSetPSFloat(colorMultiplierName, &channelWeight, 1);
@@ -7714,8 +7522,6 @@ static CSystemEventListner_Render g_system_event_listener_render;
 
 extern "C" DLL_EXPORT IRenderer * CreateCryRenderInterface(ISystem * pSystem)
 {
-	ModuleInitISystem(pSystem, "CryRenderer");
-
 	gbRgb = false;
 
 	iConsole = gEnv->pConsole;
@@ -7729,19 +7535,26 @@ extern "C" DLL_EXPORT IRenderer * CreateCryRenderInterface(ISystem * pSystem)
 	QueryPerformanceCounter(&li);
 	srand((uint32) li.QuadPart);
 
-	iSystem->GetISystemEventDispatcher()->RegisterListener(&g_system_event_listener_render);
+	iSystem->GetISystemEventDispatcher()->RegisterListener(&g_system_event_listener_render, "CSystemEventListner_Render");
 	return gRenDev;
 }
 
-class CEngineModule_CryRenderer : public IEngineModule
+class CEngineModule_CryRenderer : public IRendererEngineModule
 {
-	CRYINTERFACE_SIMPLE(IEngineModule)
-	CRYGENERATE_SINGLETONCLASS(CEngineModule_CryRenderer, "EngineModule_CryRenderer", 0x540c91a7338e41d3, 0xaceeac9d55614450)
+	CRYINTERFACE_BEGIN()
+		CRYINTERFACE_ADD(Cry::IDefaultModule)
+		CRYINTERFACE_ADD(IRendererEngineModule)
+	CRYINTERFACE_END()
 
-	virtual ~CEngineModule_CryRenderer() {}
+	CRYGENERATE_SINGLETONCLASS_GUID(CEngineModule_CryRenderer, "EngineModule_CryRenderer", "540c91a7-338e-41d3-acee-ac9d55614450"_cry_guid)
 
-	virtual const char* GetName() override { return "CryRenderer"; }
-	virtual const char* GetCategory() override { return "CryEngine"; }
+	virtual ~CEngineModule_CryRenderer() 
+	{
+		SAFE_RELEASE(gEnv->pRenderer);
+	}
+
+	virtual const char* GetName() const override     { return "CryRenderer"; }
+	virtual const char* GetCategory() const override { return "CryEngine"; }
 
 	virtual bool        Initialize(SSystemGlobalEnvironment& env, const SSystemInitParams& initParams) override
 	{
@@ -7780,25 +7593,22 @@ void CD3D9Renderer::ActivateLayer(const char* pLayerName, bool activate)
 	CDynTextureSourceLayerActivator::ActivateLayer(pLayerName, activate);
 }
 
-SDepthTexture CD3D9Renderer::FX_ReplaceMSAADepthBuffer(CTexture* pDepthBufferRT, bool bMSAA, D3DShaderResource*& pZTargetOrigSRV)
+SDepthTexture CD3D9Renderer::FX_ReplaceMainDepthBuffer(CTexture* pDepthBufferRT, bool bMSAA)
 {
-	SDepthTexture sBackup = m_DepthBufferOrigMSAA;
+	SDepthTexture sBackup = m_DepthBufferOrig;
+	SResourceView pDesc = SResourceView::DepthStencilView(DeviceFormats::ConvertFromTexFormat(m_pZTexture->GetDstFormat()), 0, -1, 0, bMSAA, SResourceView::eDSV_ReadOnly);
 
-	m_DepthBufferOrigMSAA.pTexture = m_pZTexture;
-	m_DepthBufferOrigMSAA.pTarget = m_pZTexture->GetDevTexture()->Get2DTexture();
-	m_DepthBufferOrigMSAA.pSurface = m_pZTexture->GetDeviceDepthStencilView(0, -1, bMSAA, true);
-
-	pZTargetOrigSRV = pDepthBufferRT->GetShaderResourceView(bMSAA ? SResourceView::DefaultViewMS : SResourceView::DefaultView);
+	m_DepthBufferOrig.pTexture = m_pZTexture;
+	m_DepthBufferOrig.pTarget  = m_pZTexture->GetDevTexture(bMSAA)->Get2DTexture();
+	m_DepthBufferOrig.pSurface = m_pZTexture->GetDevTexture(bMSAA)->GetOrCreateDSV(pDesc);
 
 	return sBackup;
 }
 
-void CD3D9Renderer::FX_RestoreMSAADepthBuffer(SDepthTexture sBackup, CTexture* pDepthBufferRT, bool bMSAA, D3DShaderResource*& pZTargetOrigSRV)
+void CD3D9Renderer::FX_RestoreMSAADepthBuffer(SDepthTexture sBackup, CTexture* pDepthBufferRT, bool bMSAA)
 {
 	// Restore original DSV/SRV
-	m_DepthBufferOrigMSAA = sBackup;
-
-	pDepthBufferRT->SetShaderResourceView(pZTargetOrigSRV, bMSAA);
+	m_DepthBufferOrig= sBackup;
 }
 
 void CD3D9Renderer::RegisterDeviceWrapperHook(ICryDeviceWrapperHook* pDeviceWrapperHook)
@@ -7825,7 +7635,7 @@ void CD3D9Renderer::UnregisterDeviceWrapperHook(const char* pDeviceHookName)
 IHWMouseCursor* CD3D9Renderer::GetIHWMouseCursor()
 {
 	#if CRY_PLATFORM_ORBIS
-	return m_pSwapChain ? m_pSwapChain->GetIHWMouseCursor() : NULL;
+	return DXOrbis::m_pSwapChain ? DXOrbis::m_pSwapChain->GetIHWMouseCursor() : NULL;
 	#else
 		#error Need implementation of IHWMouseCursor
 	#endif
@@ -7848,7 +7658,7 @@ void CD3D9Renderer::BeginRenderDocCapture()
 		if (pRENDERDOC_StartFrameCapture fpStartFrameCap = (pRENDERDOC_StartFrameCapture)GetProcAddress(rdocDll, "RENDERDOC_StartFrameCapture"))
 		{
 			DXGI_SWAP_CHAIN_DESC desc = { 0 };
-			gcpRendD3D->m_pSwapChain->GetDesc(&desc);
+			gcpRendD3D->GetActiveDisplayContext()->m_pSwapChain->GetDesc(&desc);
 			fpStartFrameCap(desc.OutputWindow);
 			CryLogAlways("Started RenderDoc capture");
 		}
@@ -7867,7 +7677,7 @@ void CD3D9Renderer::EndRenderDocCapture()
 		if (pRENDERDOC_EndFrameCapture fpEndFrameCap = (pRENDERDOC_EndFrameCapture)GetProcAddress(rdocDll, "RENDERDOC_EndFrameCapture"))
 		{
 			DXGI_SWAP_CHAIN_DESC desc = { 0 };
-			gcpRendD3D->m_pSwapChain->GetDesc(&desc);
+			gcpRendD3D->GetActiveDisplayContext()->m_pSwapChain->GetDesc(&desc);
 			fpEndFrameCap(desc.OutputWindow);
 			CryLogAlways("Finished RenderDoc capture");
 		}

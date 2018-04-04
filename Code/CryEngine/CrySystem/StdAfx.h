@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 // -------------------------------------------------------------------------
 //  File name:   stdafx.h
@@ -54,6 +54,7 @@
 /////////////////////////////////////////////////////////////////////////////
 #include <CryMath/Cry_Math.h>
 #include <CryMath/Cry_Camera.h>
+#include <CryMath/Random.h>
 #include <CryCore/smartptr.h>
 #include <CryMath/Range.h>
 #include <CryMemory/CrySizer.h>
@@ -105,7 +106,6 @@ struct ICryPak;
 struct ICryFont;
 struct I3DEngine;
 struct IMovieSystem;
-struct IAudioSystem;
 struct IPhysicalWorld;
 
 /////////////////////////////////////////////////////////////////////////////

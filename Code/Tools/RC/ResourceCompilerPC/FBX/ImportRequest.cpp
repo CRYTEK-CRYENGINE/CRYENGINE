@@ -9,11 +9,11 @@
 #include "Plugins/MeshImporter/NodeProperties.h"
 #include "../CryEngine/Cry3DEngine/CGF/ChunkFile.h"
 
-#include <yasli/Archive.h>
-#include <yasli/STL.h>
-#include <yasli/Enum.h>
-#include <yasli/JSONIArchive.h>
-#include <yasli/JSONOArchive.h>
+#include <CrySerialization/yasli/Archive.h>
+#include <CrySerialization/yasli/STL.h>
+#include <CrySerialization/yasli/Enum.h>
+#include <CrySerialization/yasli/JSONIArchive.h>
+#include <CrySerialization/yasli/JSONOArchive.h>
 
 #include <numeric> // std::accumulate
 
@@ -160,6 +160,7 @@ namespace Serialization
 		ar(value.bMergeAllNodes, "merge_all_nodes", "Merge all nodes");
 		ar(value.bSceneOrigin, "scene_origin", "true - use scene's origin, false - use origins of root nodes");
 		ar(value.bIgnoreCustomNormals, "ignore_custom_normals", "Ignore Custom Normals");
+		ar(value.bIgnoreTextureCoordinates, "ignore_uv", "Ignore Texture Coordinates");
 
 		ar(value.materials, "materials", "Materials");
 

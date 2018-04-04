@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #ifndef __VOXELSEGMENT_H__
 #define __VOXELSEGMENT_H__
@@ -50,6 +50,19 @@ public:
 struct SObjInfo
 {
 	SObjInfo() { ZeroStruct(*this); }
+
+	static int32 Compare(const void* v1, const void* v2)
+	{
+		SObjInfo* p[2] = { (SObjInfo*)v1, (SObjInfo*)v2 };
+
+		if (p[0]->fMaxViewDist < p[1]->fMaxViewDist)
+			return 1;
+		if (p[0]->fMaxViewDist > p[1]->fMaxViewDist)
+			return -1;
+
+		return 0;
+	}
+
 	Matrix34   matObjInv;
 	Matrix34   matObj;
 	float      fObjScale;
@@ -57,6 +70,7 @@ struct SObjInfo
 	CStatObj*  pStatObj;
 	bool       bIndoor;
 	bool       bVegetation;
+	float      fMaxViewDist;
 };
 
 struct SVoxSegmentFileHeader

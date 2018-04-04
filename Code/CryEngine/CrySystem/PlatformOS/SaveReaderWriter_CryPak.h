@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 // -------------------------------------------------------------------------
 //  File name:   SaveReaderWriter_CryPak.h
@@ -39,7 +39,7 @@ protected:
 	NO_INLINE_WEAK static size_t FSeek(FILE* fp, long offset, int mode);
 
 private:
-	CDebugAllowFileAccess m_allowFileAccess;
+	CScopedAllowFileAccessFromThisThread m_allowFileAccess;
 };
 
 class CSaveReader_CryPak : public IPlatformOS::ISaveReader, public CCryPakFile

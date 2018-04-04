@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 // -------------------------------------------------------------------------
 //  File name:   MaterialFGManager
@@ -126,6 +126,13 @@ bool CMaterialFGManager::LoadFG(const string& filename, IFlowGraphPtr* pGraphRet
 
 	//Deactivated it by default
 	pFlowGraph->SetEnabled(false);
+	pFlowGraph->SetType(IFlowGraph::eFGT_MaterialFx);
+
+#ifndef _RELEASE
+	stack_string debugName = "[Material FX] ";
+	debugName.append(PathUtil::GetFileName(filename).c_str());
+	pFlowGraph->SetDebugName(debugName);
+#endif
 
 	const TFlowNodeId nodeTypeId_StartFX = gEnv->pFlowSystem->GetTypeId("MaterialFX:HUDStartFX");
 	const TFlowNodeId nodeTypeId_EndFX = gEnv->pFlowSystem->GetTypeId("MaterialFX:HUDEndFX");
@@ -162,8 +169,8 @@ bool CMaterialFGManager::LoadFG(const string& filename, IFlowGraphPtr* pGraphRet
 	PathUtil::RemoveExtension(fgData.m_name);
 	m_flowGraphVector.push_back(fgData);
 
-	// send initialize event to allow for resource caching
-	if (gEnv->pCryPak->GetLvlResStatus())
+	// send initialize event to allow for resource caching in game
+	if (gEnv->pCryPak->GetLvlResStatus() && !gEnv->IsEditor())
 	{
 		SFlowGraphData* pFGData = FindFG(pFlowGraph);
 		if (pFGData)
@@ -394,7 +401,7 @@ void CMaterialFGManager::GetMemoryUsage(ICrySizer* s) const
 	s->AddObject(m_flowGraphVector);
 }
 
-int CMaterialFGManager::GetFlowGraphCount() const
+size_t CMaterialFGManager::GetFlowGraphCount() const
 {
 	return m_flowGraphVector.size();
 }

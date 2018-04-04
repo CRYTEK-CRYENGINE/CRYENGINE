@@ -7,15 +7,14 @@
 namespace ACE
 {
 class IAudioSystemEditor;
-}
 
-class CImplementationManager : public QObject
+class CImplementationManager final : public QObject
 {
 	Q_OBJECT
 
 public:
 	CImplementationManager();
-	virtual ~CImplementationManager();
+	virtual ~CImplementationManager() override;
 
 	bool                     LoadImplementation();
 	void                     Release();
@@ -28,3 +27,4 @@ private:
 	ACE::IAudioSystemEditor* ms_pAudioSystemImpl;
 	HMODULE                  ms_hMiddlewarePlugin;
 };
+} // namespace ACE

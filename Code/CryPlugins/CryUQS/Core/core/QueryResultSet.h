@@ -4,9 +4,9 @@
 
 // *INDENT-OFF* - <hard to read code and declarations due to inconsistent indentation>
 
-namespace uqs
+namespace UQS
 {
-	namespace core
+	namespace Core
 	{
 
 		//===================================================================================
@@ -21,12 +21,12 @@ namespace uqs
 			explicit                          CQueryResultSet();
 
 			// IQueryResultSet
-			virtual client::IItemFactory&     GetItemFactory() const override;
+			virtual Client::IItemFactory&     GetItemFactory() const override;
 			virtual size_t                    GetResultCount() const override;
 			virtual SResultSetEntry           GetResult(size_t index) const override;
 			// ~IQueryResultSet
 
-			void                              SetItemFactoryAndCreateItems(client::IItemFactory& itemFactory, size_t numItemsToCreate);
+			void                              SetItemFactoryAndCreateItems(Client::IItemFactory& itemFactory, size_t numItemsToCreate);
 			void                              SetItemAndScore(size_t index, const void* pSourceItem, float score);
 
 		private:
@@ -37,7 +37,7 @@ namespace uqs
 			// ~IQueryResultSet
 
 		private:
-			client::IItemFactory*             m_pItemFactory;
+			Client::IItemFactory*             m_pItemFactory;
 			CItemList                         m_items;
 			std::vector<float>                m_scores;
 		};

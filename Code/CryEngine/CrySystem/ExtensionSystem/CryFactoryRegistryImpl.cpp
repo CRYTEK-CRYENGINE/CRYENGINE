@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #include "StdAfx.h"
 #include "CryFactoryRegistryImpl.h"
@@ -6,7 +6,6 @@
 
 #include <CryExtension/ICryUnknown.h>
 #include <CryExtension/RegFactoryNode.h>
-#include <CryExtension/CryGUIDHelper.h>
 
 #include <algorithm>
 
@@ -119,8 +118,8 @@ bool CCryFactoryRegistryImpl::GetInsertionPos(ICryFactory* pFactory, FactoriesBy
 			cry_sprintf(err, "Conflicting factories...\n"
 			                 "Factory (0x%p): ClassID = %s, ClassName = \"%s\"\n"
 			                 "Factory (0x%p): ClassID = %s, ClassName = \"%s\"",
-			            pKnownFactory, pKnownFactory ? CryGUIDHelper::Print(pKnownFactory->GetClassID()).c_str() : "$unknown$", pKnownFactory ? pKnownFactory->GetName() : "$unknown$",
-			            pNewFactory, pNewFactory ? CryGUIDHelper::Print(pNewFactory->GetClassID()).c_str() : "$unknown$", pNewFactory ? pNewFactory->GetName() : "$unknown$");
+			            pKnownFactory, pKnownFactory ? pKnownFactory->GetClassID().ToString().c_str() : "$unknown$", pKnownFactory ? pKnownFactory->GetName() : "$unknown$",
+			            pNewFactory, pNewFactory ? pNewFactory->GetClassID().ToString().c_str() : "$unknown$", pNewFactory ? pNewFactory->GetName() : "$unknown$");
 
 #if CRY_PLATFORM_ORBIS || CRY_PLATFORM_APPLE || CRY_PLATFORM_LINUX || CRY_PLATFORM_ANDROID
 			printf("\n!!! Fatal error !!!\n");
@@ -146,7 +145,7 @@ bool CCryFactoryRegistryImpl::GetInsertionPos(ICryFactory* pFactory, FactoriesBy
 	FactoryByCID searchByCID(pFactory);
 	FactoriesByCIDIt itForCID = std::lower_bound(m_byCID.begin(), m_byCID.end(), searchByCID);
 	if (itForCID != m_byCID.end() && !(searchByCID < *itForCID))
-		FatalError::Report((*itForCName).m_ptr, pFactory);
+		FatalError::Report((*itForCID).m_ptr, pFactory);
 
 	itPosForCName = itForCName;
 	itPosForCID = itForCID;

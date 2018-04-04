@@ -14,6 +14,6 @@ add_sources("NoUberFile"
 end_sources()
 #END-FILE-LIST
 
-CryPlugin(EditorCryLink SOLUTION_FOLDER "Sandbox/Plugins/Extensions")
+CryEditorPlugin(EditorCryLink SOLUTION_FOLDER "Sandbox/Plugins/Extensions")
 use_xt()
 target_include_directories(${THIS_PROJECT} PRIVATE .. ../Interface)

@@ -1,23 +1,22 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #pragma once
 
-#include <Schematyc/Script/Elements/IScriptActionInstance.h>
-#include <Schematyc/SerializationUtils/MultiPassSerializer.h>
+#include <CrySchematyc/Script/Elements/IScriptActionInstance.h>
+#include <CrySchematyc/SerializationUtils/MultiPassSerializer.h>
+#include <CrySchematyc/Utils/ClassProperties.h>
 
 #include "Script/ScriptElementBase.h"
 
 namespace Schematyc
 {
-// Forward declare shared pointers.
-DECLARE_SHARED_POINTERS(IProperties)
 
 class CScriptActionInstance : public CScriptElementBase<IScriptActionInstance>, public CMultiPassSerializer
 {
 public:
 
 	CScriptActionInstance();
-	CScriptActionInstance(const SGUID& guid, const char* szName, const SGUID& actionTypeGUID, const SGUID& componentInstanceGUID);
+	CScriptActionInstance(const CryGUID& guid, const char* szName, const CryGUID& actionTypeGUID, const CryGUID& componentInstanceGUID);
 
 	// IScriptElement
 	virtual void EnumerateDependencies(const ScriptDependencyEnumerator& enumerator, EScriptDependencyType type) const override;
@@ -27,9 +26,9 @@ public:
 	// ~IScriptElement
 
 	// IScriptActionInstance
-	virtual SGUID              GetActionTypeGUID() const override;
-	virtual SGUID              GetComponentInstanceGUID() const override;
-	virtual const IProperties* GetProperties() const override;
+	virtual CryGUID                   GetActionTypeGUID() const override;
+	virtual CryGUID                   GetComponentInstanceGUID() const override;
+	virtual const CClassProperties& GetProperties() const override;
 	// ~IScriptActionInstance
 
 protected:
@@ -48,8 +47,9 @@ private:
 
 private:
 
-	SGUID          m_actionTypeGUID;
-	SGUID          m_componentInstanceGUID;
-	IPropertiesPtr m_pProperties;
+	CryGUID            m_actionTypeGUID;
+	CryGUID            m_componentInstanceGUID;
+	CClassProperties m_properties;
 };
+
 } // Schematyc

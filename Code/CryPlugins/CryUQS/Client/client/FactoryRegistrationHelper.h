@@ -4,9 +4,9 @@
 
 // *INDENT-OFF* - <hard to read code and declarations due to inconsistent indentation>
 
-namespace uqs
+namespace UQS
 {
-	namespace client
+	namespace Client
 	{
 
 		//===================================================================================
@@ -15,14 +15,14 @@ namespace uqs
 		//
 		// - registers all factories of item types, evaluators, generators, etc. in the IHub
 		// - it's a convenient way for client code to register all factories in just one call
-		// - should be called upon core::EHubEvent::RegisterYourFactoriesNow
+		// - should be called upon Core::EHubEvent::RegisterYourFactoriesNow
 		//
 		//===================================================================================
 
 		class CFactoryRegistrationHelper
 		{
 		public:
-			static void RegisterAllFactoryInstancesInHub(core::IHub& hub);
+			static void RegisterAllFactoryInstancesInHub(Core::IHub& hub);
 		};
 
 	}

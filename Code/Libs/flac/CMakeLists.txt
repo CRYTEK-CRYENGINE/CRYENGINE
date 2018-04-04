@@ -47,8 +47,8 @@ end_sources()
 ################### flac_static ###################
 CryEngineStaticModule(flac_static SOLUTION_FOLDER "Libs/Audio")
 target_include_directories(${THIS_PROJECT} PUBLIC
-	${SDK_DIR}/flac/include
-	${SDK_DIR}/flac/src/libFLAC/include
+	"${SDK_DIR}/flac/include"
+	"${SDK_DIR}/flac/src/libFLAC/include"
 )
 target_compile_definitions(${THIS_PROJECT} PUBLIC
 	-DFLAC__ALIGN_MALLOC_DATA

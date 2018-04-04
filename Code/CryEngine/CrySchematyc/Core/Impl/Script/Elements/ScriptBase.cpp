@@ -1,23 +1,23 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #include "StdAfx.h"
 #include "Script/Elements/ScriptBase.h"
 
 #include <CrySerialization/IArchiveHost.h>
 #include <CrySerialization/Decorators/ActionButton.h>
-#include <Schematyc/ICore.h>
-#include <Schematyc/Env/IEnvRegistry.h>
-#include <Schematyc/Env/Elements/IEnvClass.h>
-#include <Schematyc/Env/Elements/IEnvComponent.h>
-#include <Schematyc/SerializationUtils/ISerializationContext.h>
-#include <Schematyc/Script/IScriptRegistry.h>
-#include <Schematyc/Script/Elements/IScriptClass.h>
-#include <Schematyc/Script/Elements/IScriptComponentInstance.h>
-#include <Schematyc/Script/Elements/IScriptVariable.h>
-#include <Schematyc/Utils/Any.h>
-#include <Schematyc/Utils/Assert.h>
-#include <Schematyc/Utils/CryLinkUtils.h>
-#include <Schematyc/Utils/IGUIDRemapper.h>
+#include <CrySchematyc/ICore.h>
+#include <CrySchematyc/Env/IEnvRegistry.h>
+#include <CrySchematyc/Env/Elements/IEnvClass.h>
+#include <CrySchematyc/Env/Elements/IEnvComponent.h>
+#include <CrySchematyc/SerializationUtils/ISerializationContext.h>
+#include <CrySchematyc/Script/IScriptRegistry.h>
+#include <CrySchematyc/Script/Elements/IScriptClass.h>
+#include <CrySchematyc/Script/Elements/IScriptComponentInstance.h>
+#include <CrySchematyc/Script/Elements/IScriptVariable.h>
+#include <CrySchematyc/Utils/Any.h>
+#include <CrySchematyc/Utils/Assert.h>
+#include <CrySchematyc/Utils/CryLinkUtils.h>
+#include <CrySchematyc/Utils/IGUIDRemapper.h>
 
 namespace Schematyc
 {
@@ -27,15 +27,16 @@ CScriptBase::CScriptBase()
 	: CScriptElementBase({ EScriptElementFlags::NotCopyable, EScriptElementFlags::FixedName })
 {}
 
-CScriptBase::CScriptBase(const SGUID& guid, const SElementId& classId)
+CScriptBase::CScriptBase(const CryGUID& guid, const SElementId& classId)
 	: CScriptElementBase(guid, nullptr, { EScriptElementFlags::NotCopyable, EScriptElementFlags::FixedName })
 	, m_classId(classId)
-{}
+{
+}
 
 void CScriptBase::EnumerateDependencies(const ScriptDependencyEnumerator& enumerator, EScriptDependencyType type) const
 {
-	SCHEMATYC_CORE_ASSERT(!enumerator.IsEmpty());
-	if (!enumerator.IsEmpty())
+	SCHEMATYC_CORE_ASSERT(enumerator);
+	if (enumerator)
 	{
 		if (m_classId.domain == EDomain::Script)
 		{
@@ -57,6 +58,11 @@ void CScriptBase::ProcessEvent(const SScriptEvent& event)
 	RefreshFlags refreshFlags;
 	switch (event.id)
 	{
+	case EScriptEventId::FileReload:
+		{
+			refreshFlags.Add(ERefreshFlags::All);
+			break;
+		}
 	case EScriptEventId::EditorAdd:
 		{
 			refreshFlags.Add(ERefreshFlags::All);
@@ -70,7 +76,9 @@ void CScriptBase::ProcessEvent(const SScriptEvent& event)
 	case EScriptEventId::EditorPaste:
 	case EScriptEventId::EditorDependencyModified:
 		{
-			refreshFlags.Add(RefreshFlags({ ERefreshFlags::Name, ERefreshFlags::Variables, ERefreshFlags::ComponentInstances }));   // #SchematycTODO : How do we track when new elements are added to base?
+			// TODO : How do we track when new elements are added to base?
+			refreshFlags.Add(RefreshFlags({ ERefreshFlags::Name, ERefreshFlags::Variables, ERefreshFlags::ComponentInstances }));
+			// ~TODO
 			break;
 		}
 	}
@@ -203,10 +211,12 @@ void CScriptBase::Refresh(const RefreshFlags& flags)
 					CScriptElementBase::SetName(name.c_str());
 				}
 
-				if (flags.Check(ERefreshFlags::Variables))
-				{
-					RefreshVariables(*pScriptClass);
-				}
+				// TODO: Not fully working yet.
+				/*if (flags.Check(ERefreshFlags::Variables))
+				   {
+				   RefreshVariables(*pScriptClass);
+				   }*/
+				// ~TODO
 			}
 			break;
 		}
@@ -215,20 +225,24 @@ void CScriptBase::Refresh(const RefreshFlags& flags)
 
 void CScriptBase::RefreshVariables(const IScriptClass& scriptClass)
 {
-	typedef std::unordered_map<SGUID, const IScriptVariable*> BaseVariables;
-	typedef std::unordered_map<SGUID, IScriptVariable*>       DerivedVariables;
+	typedef std::unordered_map<CryGUID, const IScriptVariable*> BaseVariables;
+	typedef std::unordered_map<CryGUID, IScriptVariable*>       DerivedVariables;
 
 	// Collect base variables.
 	BaseVariables baseVariables;
 	auto collectBaseVariables = [&baseVariables](const IScriptElement& scriptElement) -> EVisitStatus
 	{
-		switch (scriptElement.GetElementType())
+		switch (scriptElement.GetType())
 		{
 		case EScriptElementType::Variable: // #SchematycTODO : Make sure variable is public/protected?
 			{
 				const IScriptVariable& baseVariable = DynamicCast<IScriptVariable>(scriptElement);
 				baseVariables.insert(BaseVariables::value_type(baseVariable.GetGUID(), &baseVariable));
 				return EVisitStatus::Continue;
+			}
+		case EScriptElementType::ComponentInstance:
+			{
+				// TODO: Not implemented yet!
 			}
 		default:
 			{
@@ -237,13 +251,13 @@ void CScriptBase::RefreshVariables(const IScriptClass& scriptClass)
 		}
 		return EVisitStatus::Continue;
 	};
-	scriptClass.VisitChildren(ScriptElementConstVisitor::FromLambda(collectBaseVariables));
+	scriptClass.VisitChildren(collectBaseVariables);
 
 	// Collect derived variables.
 	DerivedVariables derivedVariables;
 	auto collectDerivedVariables = [&derivedVariables](IScriptElement& scriptElement) -> EVisitStatus
 	{
-		switch (scriptElement.GetElementType())
+		switch (scriptElement.GetType())
 		{
 		case EScriptElementType::Variable: // #SchematycTODO : Make sure variable is public/protected?
 			{
@@ -257,7 +271,7 @@ void CScriptBase::RefreshVariables(const IScriptClass& scriptClass)
 			}
 		}
 	};
-	CScriptElementBase::VisitChildren(ScriptElementVisitor::FromLambda(collectDerivedVariables));
+	CScriptElementBase::VisitChildren(collectDerivedVariables);
 
 	IScriptRegistry& scriptRegistry = gEnv->pSchematyc->GetScriptRegistry();
 
@@ -291,8 +305,8 @@ void CScriptBase::RefreshVariables(const IScriptClass& scriptClass)
 
 void CScriptBase::RefreshComponentInstances(const IEnvClass& envClass)
 {
-	typedef std::unordered_map<SGUID, const IEnvComponent*>      BaseComponentInstances;
-	typedef std::unordered_map<SGUID, IScriptComponentInstance*> DerivedComponentInstances;
+	typedef std::unordered_map<CryGUID, const IEnvComponent*>      BaseComponentInstances;
+	typedef std::unordered_map<CryGUID, IScriptComponentInstance*> DerivedComponentInstances;
 
 	IEnvRegistry& envRegistry = gEnv->pSchematyc->GetEnvRegistry();
 
@@ -302,7 +316,7 @@ void CScriptBase::RefreshComponentInstances(const IEnvClass& envClass)
 	baseComponentInstances.reserve(baseComponentCount);
 	for (uint32 baseComponentIdx = 0; baseComponentIdx < baseComponentCount; ++baseComponentIdx)
 	{
-		const SGUID baseComponentTypeGUID = envClass.GetComponentTypeGUID(baseComponentIdx);
+		const CryGUID baseComponentTypeGUID = envClass.GetComponentTypeGUID(baseComponentIdx);
 		const IEnvComponent* pEnvComponent = envRegistry.GetComponent(baseComponentTypeGUID);
 		SCHEMATYC_CORE_ASSERT(pEnvComponent);
 		if (pEnvComponent)
@@ -315,7 +329,7 @@ void CScriptBase::RefreshComponentInstances(const IEnvClass& envClass)
 	DerivedComponentInstances derivedComponentInstances;
 	auto collectDerivedComponentInstances = [&derivedComponentInstances](IScriptElement& scriptElement) -> EVisitStatus
 	{
-		switch (scriptElement.GetElementType())
+		switch (scriptElement.GetType())
 		{
 		case EScriptElementType::ComponentInstance:
 			{
@@ -329,7 +343,7 @@ void CScriptBase::RefreshComponentInstances(const IEnvClass& envClass)
 			}
 		}
 	};
-	CScriptElementBase::VisitChildren(ScriptElementVisitor::FromLambda(collectDerivedComponentInstances));
+	CScriptElementBase::VisitChildren(collectDerivedComponentInstances);
 
 	IScriptRegistry& scriptRegistry = gEnv->pSchematyc->GetScriptRegistry();
 

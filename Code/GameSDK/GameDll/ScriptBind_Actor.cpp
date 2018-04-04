@@ -1515,7 +1515,7 @@ int CScriptBind_Actor::SvGiveAmmoClips( IFunctionHandler* pH, int numClips )
 					{
 						int clipSize = pFireMode->GetClipSize();
 						int finalAmmoCount = ammoTypeCount + (clipSize * numClips);
-						finalAmmoCount = MIN(finalAmmoCount, ammoTypeCapacity);
+						finalAmmoCount = std::min(finalAmmoCount, ammoTypeCapacity);
 
 						pWeapon->SetInventoryAmmoCount(pAmmoTypeClass, finalAmmoCount);
 						ammoCollected = 1;

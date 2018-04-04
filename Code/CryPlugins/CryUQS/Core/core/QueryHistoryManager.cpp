@@ -4,9 +4,9 @@
 
 // *INDENT-OFF* - <hard to read code and declarations due to inconsistent indentation>
 
-namespace uqs
+namespace UQS
 {
-	namespace core
+	namespace Core
 	{
 
 		CQueryHistoryManager::CQueryHistoryManager()
@@ -35,26 +35,29 @@ namespace uqs
 			const CTimeValue now = gEnv->pTimer->GetAsyncTime();
 
 			//
-			// draw all ongoing queries in the 3D world while they haven't been finished (destroyed) yet
+			// if debug-drawing is enabled, then draw all ongoing queries in the 3D world while they haven't been finished (destroyed) yet
 			//
 
-			for (size_t i = 0, n = history.GetHistorySize(); i < n; ++i)
+			if (SCvars::debugDraw)
 			{
-				const CHistoricQuery& query = history.GetHistoryEntryByIndex(i);
+				for (size_t i = 0, n = history.GetHistorySize(); i < n; ++i)
+				{
+					const CHistoricQuery& query = history.GetHistoryEntryByIndex(i);
 
-				// skip the query that we've selected for permanent drawing (we'll draw it separately outside this loop)
-				if (query.GetQueryID() == queryIdOfSelectedHistoricQuery)
-					continue;
+					// skip the query that we've selected for permanent drawing (we'll draw it separately outside this loop)
+					if (query.GetQueryID() == queryIdOfSelectedHistoricQuery)
+						continue;
 
-				// skip this query if it's finished and too old (we'll draw finished queries for just a short moment beyond their lifetime)
-				if (query.IsQueryDestroyed() && (now - query.GetQueryDestroyedTimestamp() > 2.0f))
-					continue;
+					// skip this query if it's finished and too old (we'll draw finished queries for just a short moment beyond their lifetime)
+					if (query.IsQueryDestroyed() && (now - query.GetQueryDestroyedTimestamp() > 2.0f))
+						continue;
 
-				query.DrawDebugPrimitivesInWorld(CDebugRenderWorld::kItemIndexWithoutAssociation, SEvaluatorDrawMasks::CreateAllBitsSet());
+					query.DrawDebugPrimitivesInWorld(CDebugRenderWorldPersistent::kIndexWithoutAssociation, SEvaluatorDrawMasks::CreateAllBitsSet());
+				}
 			}
 
 			//
-			// - have the currently selected historic query draw its debug primitives in the world
+			// - have the currently selected historic query draw its debug primitives in the world (this is independent of whether debug-drawing is enabled or not)
 			// - figure out what the currently focused item by the camera is
 			//
 
@@ -72,18 +75,18 @@ namespace uqs
 					else
 					{
 						m_indexOfFocusedItem = s_noItemFocusedIndex;
-						pHistoricQueryToDraw->DrawDebugPrimitivesInWorld(CDebugRenderWorld::kItemIndexWithoutAssociation, evaluatorDrawMasks);
+						pHistoricQueryToDraw->DrawDebugPrimitivesInWorld(CDebugRenderWorldPersistent::kIndexWithoutAssociation, evaluatorDrawMasks);
 					}
 
 					if (m_indexOfFocusedItem != indexOfPreviouslyFocusedItem)
 					{
-						NotifyListeners(IQueryHistoryListener::EEvent::FocusedItemChanged);
+						NotifyListeners(IQueryHistoryListener::EEventType::FocusedItemChanged);
 					}
 				}
 			}
 		}
 
-		bool CQueryHistoryManager::SerializeLiveQueryHistory(const char* xmlFilePath, shared::IUqsString& error)
+		bool CQueryHistoryManager::SerializeLiveQueryHistory(const char* szXmlFilePath, Shared::IUqsString& error)
 		{
 			//
 			// add some meta data to the live history before serializing it
@@ -110,23 +113,23 @@ namespace uqs
 			//
 
 			Serialization::IArchiveHost* pArchiveHost = gEnv->pSystem->GetArchiveHost();
-			if (pArchiveHost->SaveXmlFile(xmlFilePath, Serialization::SStruct(m_queryHistories[EHistoryOrigin::Live]), "UQSQueryHistory"))
+			if (pArchiveHost->SaveXmlFile(szXmlFilePath, Serialization::SStruct(m_queryHistories[EHistoryOrigin::Live]), "UQSQueryHistory"))
 			{
 				return true;
 			}
 			else
 			{
-				error.Format("Could not serialize the live query history to xml file '%s' (Serialization::IArchiveHost::SaveXmlFile() failed for some reason)", xmlFilePath);
+				error.Format("Could not serialize the live query history to xml file '%s' (Serialization::IArchiveHost::SaveXmlFile() failed for some reason)", szXmlFilePath);
 				return false;
 			}
 		}
 
-		bool CQueryHistoryManager::DeserializeQueryHistory(const char* xmlFilePath, shared::IUqsString& error)
+		bool CQueryHistoryManager::DeserializeQueryHistory(const char* szXmlFilePath, Shared::IUqsString& error)
 		{
 			CQueryHistory tempQueryHistory;
 
 			Serialization::IArchiveHost* pArchiveHost = gEnv->pSystem->GetArchiveHost();
-			if (pArchiveHost->LoadXmlFile(Serialization::SStruct(tempQueryHistory), xmlFilePath))
+			if (pArchiveHost->LoadXmlFile(Serialization::SStruct(tempQueryHistory), szXmlFilePath))
 			{
 				m_queryHistories[EHistoryOrigin::Deserialized] = std::move(tempQueryHistory);
 				m_queryIDOfCurrentHistoricQuery[EHistoryOrigin::Deserialized] = CQueryID::CreateInvalid();
@@ -134,12 +137,12 @@ namespace uqs
 				{
 					m_indexOfFocusedItem = s_noItemFocusedIndex;
 				}
-				NotifyListeners(IQueryHistoryListener::EEvent::QueryHistoryDeserialized);
+				NotifyListeners(IQueryHistoryListener::EEventType::QueryHistoryDeserialized);
 				return true;
 			}
 			else
 			{
-				error.Format("Could not de-serialize the query history from xml file '%s'", xmlFilePath);
+				error.Format("Could not de-serialize the query history from xml file '%s'", szXmlFilePath);
 				return false;
 			}
 		}
@@ -150,7 +153,7 @@ namespace uqs
 			{
 				m_historyToManage = whichHistory;
 				m_indexOfFocusedItem = s_noItemFocusedIndex;
-				NotifyListeners(IQueryHistoryListener::EEvent::CurrentQueryHistorySwitched);
+				NotifyListeners(IQueryHistoryListener::EEventType::CurrentQueryHistorySwitched);
 			}
 		}
 
@@ -172,15 +175,27 @@ namespace uqs
 			switch (whichHistory)
 			{
 			case EHistoryOrigin::Live:
-				NotifyListeners(IQueryHistoryListener::EEvent::LiveQueryHistoryCleared);
+				NotifyListeners(IQueryHistoryListener::EEventType::LiveQueryHistoryCleared);
 				break;
 
 			case EHistoryOrigin::Deserialized:
-				NotifyListeners(IQueryHistoryListener::EEvent::DeserializedQueryHistoryCleared);
+				NotifyListeners(IQueryHistoryListener::EEventType::DeserializedQueryHistoryCleared);
 				break;
 
 			default:
 				assert(0);
+			}
+		}
+
+		void CQueryHistoryManager::EnumerateSingleHistoricQuery(EHistoryOrigin whichHistory, const CQueryID& queryIDToEnumerate, IQueryHistoryConsumer& receiver) const
+		{
+			const CQueryHistory& history = m_queryHistories[whichHistory];
+
+			if (const CHistoricQuery* pHistoricQuery = history.FindHistoryEntryByQueryID(queryIDToEnumerate))
+			{
+				const bool bHighlight = (whichHistory == m_historyToManage) && (m_queryIDOfCurrentHistoricQuery[whichHistory] == queryIDToEnumerate);
+
+				pHistoricQuery->FillQueryHistoryConsumerWithShortInfoAboutQuery(receiver, bHighlight);
 			}
 		}
 
@@ -204,7 +219,7 @@ namespace uqs
 			{
 				m_queryIDOfCurrentHistoricQuery[whichHistory] = queryIDToMakeCurrent;
 				m_indexOfFocusedItem = s_noItemFocusedIndex;
-				NotifyListeners(IQueryHistoryListener::EEvent::DifferentHistoricQuerySelected);
+				NotifyListeners(IQueryHistoryListener::EEventType::DifferentHistoricQuerySelected);
 			}
 		}
 
@@ -265,21 +280,48 @@ namespace uqs
 			return m_queryHistories[whichHistory].GetHistorySize();
 		}
 
+		SDebugCameraView CQueryHistoryManager::GetIdealDebugCameraView(EHistoryOrigin whichHistory, const CQueryID& queryID, const SDebugCameraView& currentCameraView) const
+		{
+			if (const CHistoricQuery* pHistoricQuery = m_queryHistories[whichHistory].FindHistoryEntryByQueryID(queryID))
+			{
+				return pHistoricQuery->GetIdealDebugCameraView(currentCameraView);
+			}
+			else
+			{
+				return currentCameraView;
+			}
+		}
+
 		HistoricQuerySharedPtr CQueryHistoryManager::AddNewLiveHistoricQuery(const CQueryID& queryID, const char* querierName, const CQueryID& parentQueryID)
 		{
 			HistoricQuerySharedPtr newHistoricQuery = m_queryHistories[IQueryHistoryManager::EHistoryOrigin::Live].AddNewHistoryEntry(queryID, querierName, parentQueryID, this);
 			return newHistoricQuery;
 		}
 
-		void CQueryHistoryManager::UnderlyingQueryIsGettingDestroyed(const CQueryID& queryID)
+		void CQueryHistoryManager::UnderlyingQueryJustGotCreated(const CQueryID& queryID)
 		{
-			NotifyListeners(IQueryHistoryListener::EEvent::HistoricQueryJustFinishedInLiveQueryHistory);
+			NotifyListeners(IQueryHistoryListener::EEventType::HistoricQueryJustGotCreatedInLiveQueryHistory, queryID);
 		}
 
-		void CQueryHistoryManager::NotifyListeners(IQueryHistoryListener::EEvent ev) const
+		void CQueryHistoryManager::UnderlyingQueryIsGettingDestroyed(const CQueryID& queryID)
+		{
+			NotifyListeners(IQueryHistoryListener::EEventType::HistoricQueryJustFinishedInLiveQueryHistory, queryID);
+		}
+
+		void CQueryHistoryManager::NotifyListeners(IQueryHistoryListener::EEventType eventType) const
 		{
 			if (!m_listeners.empty())
 			{
+				NotifyListeners(eventType, CQueryID::CreateInvalid());
+			}
+		}
+
+		void CQueryHistoryManager::NotifyListeners(IQueryHistoryListener::EEventType eventType, const CQueryID& relatedQueryID) const
+		{
+			if (!m_listeners.empty())
+			{
+				const IQueryHistoryListener::SEvent ev(eventType, relatedQueryID);
+
 				for (IQueryHistoryListener* pListener : m_listeners)
 				{
 					pListener->OnQueryHistoryEvent(ev);

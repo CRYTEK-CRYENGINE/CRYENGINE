@@ -46,6 +46,7 @@
 #include "ItemAnimation.h"
 
 #include <IVehicleSystem.h>
+#include <IPerceptionManager.h>
 
 
 #pragma warning(disable: 4355)	// 'this' used in base member initializer list
@@ -277,6 +278,9 @@ bool CItem::Init( IGameObject *pGameObject )
 
 	// attach script bind
 	g_pGame->GetItemScriptBind()->AttachTo(this);
+
+	// ignore invalid file access for CItem initialization
+	SCOPED_ALLOW_FILE_ACCESS_FROM_THIS_THREAD();
 
 	if(!ResetParams())
 	{
@@ -1806,8 +1810,10 @@ void CItem::Drop(float impulseScale, bool selectNext, bool byDeath)
 
 	// AI should ignore collisions from this item for a while
 	// to not 'scare' himself and the friends around him
-	if (gEnv->pAISystem)
-		gEnv->pAISystem->IgnoreStimulusFrom(pThisItemEntity->GetId(), AISTIM_COLLISION, 2.0f);
+	if (IPerceptionManager::GetInstance())
+	{
+		IPerceptionManager::GetInstance()->IgnoreStimulusFrom(pThisItemEntity->GetId(), AISTIM_COLLISION, 2.0f);
+	}
 
 	DetachItem(pThisItemEntity, pOwnerActor, impulseScale);
 

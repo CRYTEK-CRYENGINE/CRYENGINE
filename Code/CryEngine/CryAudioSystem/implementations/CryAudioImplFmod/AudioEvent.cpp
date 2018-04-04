@@ -1,14 +1,34 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #include "stdafx.h"
 #include "AudioEvent.h"
 #include "AudioObject.h"
 #include "AudioImplCVars.h"
+#include "ATLEntities.h"
 
-using namespace CryAudio::Impl::Fmod;
+namespace CryAudio
+{
+namespace Impl
+{
+namespace Fmod
+{
+//////////////////////////////////////////////////////////////////////////
+CEvent::~CEvent()
+{
+	if (m_pInstance != nullptr)
+	{
+		FMOD_RESULT const fmodResult = m_pInstance->release();
+		ASSERT_FMOD_OK_OR_INVALID_HANDLE;
+	}
+
+	if (m_pObject != nullptr)
+	{
+		m_pObject->RemoveEvent(this);
+	}
+}
 
 //////////////////////////////////////////////////////////////////////////
-bool CAudioEvent::PrepareForOcclusion()
+bool CEvent::PrepareForOcclusion()
 {
 	m_pMasterTrack = nullptr;
 	FMOD_RESULT fmodResult = m_pInstance->getChannelGroup(&m_pMasterTrack);
@@ -61,7 +81,7 @@ bool CAudioEvent::PrepareForOcclusion()
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CAudioEvent::SetObstructionOcclusion(float const obstruction, float const occlusion)
+void CEvent::SetObstructionOcclusion(float const obstruction, float const occlusion)
 {
 	if (m_pOcclusionParameter != nullptr)
 	{
@@ -70,7 +90,7 @@ void CAudioEvent::SetObstructionOcclusion(float const obstruction, float const o
 	}
 	else if (m_pLowpass != nullptr)
 	{
-		float const range = m_lowpassFrequencyMax - std::max(m_lowpassFrequencyMin, g_audioImplCVars.m_lowpassMinCutoffFrequency);
+		float const range = m_lowpassFrequencyMax - std::max(m_lowpassFrequencyMin, g_cvars.m_lowpassMinCutoffFrequency);
 		float const value = m_lowpassFrequencyMax - (occlusion * range);
 		FMOD_RESULT const fmodResult = m_pLowpass->setParameterFloat(FMOD_DSP_LOWPASS_CUTOFF, value);
 		ASSERT_FMOD_OK;
@@ -78,29 +98,7 @@ void CAudioEvent::SetObstructionOcclusion(float const obstruction, float const o
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CAudioEvent::Reset()
-{
-	if (m_pInstance != nullptr)
-	{
-		// Will be destroyed after the next update if the handle is valid.
-		// It's fine if not though as in that case it's been already released.
-		FMOD_RESULT const fmodResult = m_pInstance->release();
-		ASSERT_FMOD_OK_OR_INVALID_HANDLE;
-		m_pInstance = nullptr;
-	}
-
-	if (m_pAudioObject != nullptr)
-	{
-		m_pAudioObject->RemoveAudioEvent(this);
-		m_pAudioObject = nullptr;
-	}
-
-	m_eventPathId = AUDIO_INVALID_CRC32;
-	m_pMasterTrack = nullptr;
-}
-
-//////////////////////////////////////////////////////////////////////////
-void CAudioEvent::TrySetEnvironment(CAudioEnvironment const* const pEnvironment, float const value)
+void CEvent::TrySetEnvironment(CEnvironment const* const pEnvironment, float const value)
 {
 	if (m_pInstance != nullptr && m_pMasterTrack != nullptr)
 	{
@@ -160,3 +158,14 @@ void CAudioEvent::TrySetEnvironment(CAudioEnvironment const* const pEnvironment,
 		CRY_ASSERT(false);
 	}
 }
+
+//////////////////////////////////////////////////////////////////////////
+ERequestStatus CEvent::Stop()
+{
+	FMOD_RESULT const fmodResult = m_pInstance->stop(FMOD_STUDIO_STOP_IMMEDIATE);
+	ASSERT_FMOD_OK;
+	return ERequestStatus::Success;
+}
+} // namespace Fmod
+} // namespace Impl
+} // namespace CryAudio

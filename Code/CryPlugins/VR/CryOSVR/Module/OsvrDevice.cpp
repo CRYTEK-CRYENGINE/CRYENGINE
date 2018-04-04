@@ -17,6 +17,7 @@
 
 #include <CrySystem/VR/IHMDManager.h>
 
+#include <CryMath/Cry_Camera.h>
 #include <CryRenderer/IRenderer.h>
 
 namespace CryVR
@@ -109,7 +110,7 @@ Device::Device()
 
 	if (GetISystem()->GetISystemEventDispatcher())
 	{
-		GetISystem()->GetISystemEventDispatcher()->RegisterListener(this);
+		GetISystem()->GetISystemEventDispatcher()->RegisterListener(this, "CryVR::Osvr::Device");
 	}
 
 	gEnv->pSystem->GetHmdManager()->AddEventListener(this);
@@ -649,7 +650,9 @@ bool Device::RegisterTextureSwapSet(TextureSwapSet* swapSet)
 		}
 	}
 
-	return (bSuccess && osvrRenderManagerFinishRegisterRenderBuffers(m_renderManagerD3D11, regBufState, OSVR_TRUE) == OSVR_RETURN_SUCCESS);
+	// The final parameter specifies whether we won't overwrite the texture before presenting again
+	// We cannot currently guarantee this, so we indicate that a copy needs to be done on the OSVR side to enable Asynchronous Time Warp.
+	return (bSuccess && osvrRenderManagerFinishRegisterRenderBuffers(m_renderManagerD3D11, regBufState, OSVR_FALSE) == OSVR_RETURN_SUCCESS);
 }
 
 void Device::GetPreferredRenderResolution(unsigned int& width, unsigned int& height)

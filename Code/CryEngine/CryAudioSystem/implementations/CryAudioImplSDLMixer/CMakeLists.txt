@@ -20,6 +20,7 @@ add_sources("CryAudioImpl_uber_0.cpp"
 		"AudioImplCVars.cpp"
 		"Common.cpp"
 		"CryAudioImpl.cpp"
+		"SoundEngineTypes.cpp"
 		"SoundEngine.cpp"
 )
 
@@ -32,7 +33,7 @@ end_sources()
 #END-FILE-LIST
 
 if(AUDIO_SDL_MIXER)
-	CryEngineModule(CryAudioImplSDLMixer PCH "stdafx.cpp" SOLUTION_FOLDER "CryEngine/Audio/Implementations")
+	CryEngineModule(CryAudioImplSDLMixer FORCE_SHARED PCH "stdafx.cpp" SOLUTION_FOLDER "CryEngine/Audio/Implementations")
 	target_link_libraries(${THIS_PROJECT} PRIVATE
 		SDL2
 		sdl_mixer_static

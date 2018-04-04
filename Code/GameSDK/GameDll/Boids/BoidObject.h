@@ -142,7 +142,7 @@ struct SBoidContext
 	float scareRatio;       // How scarry is scare point
 	float scareThreatLevel; // Level of that scare threat, comparable with AI events
 
-	std::vector<AudioControlId> audio;
+	std::vector<CryAudio::ControlId> audio;
 	std::vector<string> animations;
 
 	bool bAutoTakeOff;

@@ -20,7 +20,7 @@ public:
 		m_configurationsMask = std::numeric_limits<uint>::max();
 	}
 
-	virtual ~IAudioConnection() {}
+	virtual ~IAudioConnection() = default;
 
 	CID          GetID() const                          { return m_id; }
 	virtual bool HasProperties()                        { return false; }
@@ -36,8 +36,9 @@ public:
 		else
 		{
 			m_configurationsMask &= ~(1 << platformIndex);
-
 		}
+
+		signalConnectionChanged();
 	}
 
 	bool IsPlatformEnabled(const uint platformIndex)
@@ -47,7 +48,11 @@ public:
 
 	void ClearPlatforms()
 	{
-		m_configurationsMask = 0;
+		if (m_configurationsMask != 0)
+		{
+			m_configurationsMask = 0;
+			signalConnectionChanged();
+		}
 	}
 
 	CCrySignal<void()> signalConnectionChanged;
@@ -56,4 +61,4 @@ private:
 	CID  m_id;
 	uint m_configurationsMask;
 };
-}
+} // namespace ACE

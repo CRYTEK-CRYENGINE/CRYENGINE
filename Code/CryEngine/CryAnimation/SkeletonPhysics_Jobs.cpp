@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #include "stdafx.h"
 #include "SkeletonPhysics.h"
@@ -145,7 +145,7 @@ void CSkeletonPhysics::Job_Physics_SynchronizeFromEntityPrepare(Memory::CPool& m
 	if (pPhysicalEntity)
 	{
 		pe_status_awake statusTmp2;
-		statusTmp2.lag = 2;
+		statusTmp2.lag = 2 + g_pCharacterManager->m_nUpdateCounter - m_idLastSyncFrame;
 		m_bPhysicsAwake = pPhysicalEntity->GetStatus(&statusTmp2) != 0;
 	}
 
@@ -319,6 +319,7 @@ void CSkeletonPhysics::Job_Physics_SynchronizeFromEntity(Skeleton::CPoseData& po
 	poseData.ComputeRelativePose(rDefaultSkeleton);
 
 	m_bPhysicsWasAwake = m_bPhysicsAwake;
+	m_idLastSyncFrame = g_pCharacterManager->m_nUpdateCounter;
 }
 
 void CSkeletonPhysics::Job_Physics_SynchronizeFromEntityArticulated(Skeleton::CPoseData& poseData, float fDeltaTimePhys)
@@ -512,11 +513,11 @@ void CSkeletonPhysics::Job_Physics_SynchronizeFromImpactPrepare(Memory::CPool& m
 		return;
 	const CDefaultSkeleton& rDefaultSkeleton = *m_pInstance->m_pDefaultSkeleton;
 
+	if (m_bPhysicsRelinquished)
+		return;
 	pe_status_awake physicsStatusAwake;
 	m_bPhysicsAwake = m_pCharPhysics->GetStatus(&physicsStatusAwake) != 0;
 	if (!m_bPhysicsAwake)
-		return;
-	if (m_bPhysicsRelinquished)
 		return;
 
 	if (!Console::GetInst().ca_physicsProcessImpact)

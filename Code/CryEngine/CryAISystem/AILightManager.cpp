@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 /********************************************************************
    -------------------------------------------------------------------------
@@ -362,25 +362,6 @@ void CAILightManager::DebugDraw()
 	CDebugDrawContext dc1;
 	dc1->SetBackFaceCulling(false);
 
-	// Navigation modifiers
-	for (SpecialAreas::const_iterator di = gAIEnv.pNavigation->GetSpecialAreas().begin(), dend = gAIEnv.pNavigation->GetSpecialAreas().end(); di != dend; ++di)
-	{
-		const SpecialArea& sa = *di;
-		if (sa.nBuildingID >= 0)
-		{
-			if (sa.lightLevel == AILL_NONE)
-				continue;
-
-			if (sa.fHeight < 0.0001f)
-				continue;
-
-			DebugDrawArea(sa.GetPolygon(), sa.fMinZ, sa.fMaxZ, lightCols[(int)sa.lightLevel]);
-			Vec3 pos(sa.GetPolygon().front());
-			pos.z = (sa.fMinZ + sa.fMaxZ) / 2;
-			dc1->Draw3dLabel(pos, 1.1f, "%s\n%s", gAIEnv.pNavigation->GetSpecialAreaName(sa.nBuildingID), g_szLightLevels[(int)sa.lightLevel]);
-		}
-	}
-
 	// AIShapes
 	for (ShapeMap::const_iterator di = GetAISystem()->GetGenericShapes().begin(), dend = GetAISystem()->GetGenericShapes().end(); di != dend; ++di)
 	{
@@ -451,28 +432,6 @@ EAILightLevel CAILightManager::GetLightLevelAt(const Vec3& pos, const CAIActor* 
 
 	// Start from time-of-day.
 	EAILightLevel lightLevel = AILL_NONE;
-
-	// Override from Navigation modifiers
-	for (SpecialAreas::const_iterator di = gAIEnv.pNavigation->GetSpecialAreas().begin(), dend = gAIEnv.pNavigation->GetSpecialAreas().end(); di != dend; ++di)
-	{
-		const SpecialArea& sa = *di;
-
-		if (sa.nBuildingID >= 0)
-		{
-			if (sa.lightLevel <= lightLevel)
-				continue;
-
-			if (sa.fHeight < 0.0001f)
-				continue;
-
-			AABB aabb = sa.GetAABB();
-			aabb.min.z = sa.fMinZ;
-			aabb.max.z = sa.fMaxZ;
-
-			if (Overlap::Point_Polygon2D(pos, sa.GetPolygon(), &aabb))
-				lightLevel = sa.lightLevel;
-		}
-	}
 
 	// Override from AIShapes
 	for (ShapeMap::const_iterator di = GetAISystem()->GetGenericShapes().begin(), dend = GetAISystem()->GetGenericShapes().end(); di != dend; ++di)

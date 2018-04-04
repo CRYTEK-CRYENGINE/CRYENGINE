@@ -6,8 +6,8 @@
       <file alias="schematyc/entity_particle_emitter_component.png">icons/entity_particle_emitter_component.png</file>
       <file alias="schematyc/entity_audio_component.ico">icons/entity_audio_component.ico</file>
       <file alias="schematyc/entity_physics_component.ico">icons/entity_physics_component.ico</file>
-	  <file alias="schematyc/entity_sensor_volume_component.ico">icons/entity_sensor_volume_component.ico</file>
-	  <file alias="schematyc/entity_utils_component.ico">icons/entity_utils_component.ico</file>
+      <file alias="schematyc/entity_sensor_volume_component.ico">icons/entity_sensor_volume_component.ico</file>
+      <file alias="schematyc/entity_utils_component.ico">icons/entity_utils_component.ico</file>
       <file alias="schematyc/file_add.png">icons/file_add.png</file>
       <file alias="schematyc/file_checked_out.png">icons/file_checked_out.png</file>
       <file alias="schematyc/file_local.png">icons/file_local.png</file>
@@ -16,13 +16,13 @@
       <file alias="schematyc/forward.png">icons/forward.png</file>
       <file alias="schematyc/home.png">icons/home.png</file>
       <file alias="schematyc/camera.ico">icons/Camera.ico</file>
-	  <file alias="schematyc/debug.ico">icons/Debug.ico</file>
+      <file alias="schematyc/debug.ico">icons/Debug.ico</file>
       <file alias="schematyc/toolbar_toggle_scope.ico">icons/toolbar_scope_toggle.ico</file>
       <file alias="schematyc/toolbar_clear_log.ico">icons/toolbar_clear_log.ico</file>
       <file alias="schematyc/toolbar_clear_compiler_log.ico">icons/toolbar_clear_compiler.ico</file>
       <file alias="schematyc/toolbar_log_settings.ico">icons/toolbar_settings_log.ico</file>
       <file alias="schematyc/toolbar_preview_settings.ico">icons/toolbar_settings_preview.ico</file>
-	  <file alias="schematyc/node_default.ico">icons/node_default.ico</file>
+      <file alias="schematyc/node_default.ico">icons/node_default.ico</file>
       <file alias="schematyc/core_flowcontrol_begin.ico">icons/core_flowcontrol_begin.ico</file>
       <file alias="schematyc/core_flowcontrol_end.ico">icons/core_flowcontrol_end.ico</file>
       <file alias="schematyc/core_flowcontrol.ico">icons/core_flowcontrol.ico</file>
@@ -32,9 +32,10 @@
       <file alias="schematyc/core_data.ico">icons/core_data.ico</file>
       <file alias="schematyc/core_utility.ico">icons/core_utilities.ico</file>
       <file alias="schematyc/core_state.ico">icons/core_states.ico</file>
+      <file alias="schematyc/node_flow_graph.png">icons/node_flow_graph.png</file>
       <file alias="schematyc/element_folder.ico">icons/element_folder.ico</file>
-	  <file alias="schematyc/element_enum.ico">icons/element_enum.ico</file>
-	  <file alias="schematyc/element_struct.ico">icons/Placeholder.ico</file>
+      <file alias="schematyc/element_enum.ico">icons/element_enum.ico</file>
+      <file alias="schematyc/element_struct.ico">icons/Placeholder.ico</file>
       <file alias="schematyc/element_signal.ico">icons/element_signal.ico</file>
       <file alias="schematyc/element_constructor.ico">icons/element_constructor.ico</file>
       <file alias="schematyc/element_function.ico">icons/element_function.ico</file>
@@ -45,5 +46,13 @@
       <file alias="schematyc/element_timer.ico">icons/element_timer.ico</file>
       <file alias="schematyc/element_signalreceiver.ico">icons/element_signalreceiver.ico</file>
       <file alias="schematyc/element_componentinstance.ico">icons/element_componentinstance.ico</file>
+      <file alias="schematyc/assettype_library.ico">icons/assettype_library.ico</file>
+      <file alias="schematyc/assettype_entity.ico">icons/assettype_entity.ico</file>
+	  <file alias="schematyc/script_function.png">icons/script_function.png</file>
+	  <file alias="schematyc/script_constructor.png">icons/script_constructor.png</file>
+	  <file alias="schematyc/script_destructor.png">icons/script_destructor.png</file>
+	  <file alias="schematyc/script_signal_receiver.png">icons/script_signal_receiver.png</file>
+	  <file alias="schematyc/script_state.png">icons/script_state.png</file>
+	  <file alias="schematyc/script_state_machine.png">icons/script_state_machine.png</file>
     </qresource>
 </RCC>

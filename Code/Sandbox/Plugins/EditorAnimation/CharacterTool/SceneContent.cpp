@@ -8,6 +8,7 @@
 #include <CrySerialization/IArchiveHost.h>
 #include "Serialization.h"
 #include "AnimationContent.h"
+#include "AnimEvent.h"
 
 namespace CharacterTool {
 
@@ -117,7 +118,7 @@ SceneContent::SceneContent()
 	, aimLayer(-1)
 	, lookLayer(-1)
 {
-	::CryCreateClassInstance<IAnimEventPlayer>("AnimEventPlayer_CharacterTool", animEventPlayer);
+	::CryCreateClassInstance<IAnimEventPlayer>(AnimEventPlayer_CharacterTool::GetCID(), animEventPlayer);
 	if (animEventPlayer)
 		animEventPlayer->Initialize();
 }

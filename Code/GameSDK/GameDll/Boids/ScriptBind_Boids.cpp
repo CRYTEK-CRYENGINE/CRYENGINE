@@ -360,9 +360,8 @@ bool CScriptBind_Boids::ReadParamsTable(IScriptTable* pTable, struct SBoidContex
 			str = "";
 			if (audio->GetAt(i, str))
 			{
-				AudioControlId audioControlID = INVALID_AUDIO_CONTROL_ID;
-				gEnv->pAudioSystem->GetAudioTriggerId(str, audioControlID);
-				bc.audio.push_back(audioControlID);
+				CryAudio::ControlId const triggerId = CryAudio::StringToId(str);
+				bc.audio.push_back(triggerId);
 			}
 		}
 	}
@@ -376,7 +375,7 @@ bool CScriptBind_Boids::ReadParamsTable(IScriptTable* pTable, struct SBoidContex
 			str = "";
 			if (animations->GetAt(i, str))
 			{
-				bc.animations.push_back(str);
+				bc.animations.emplace_back(str);
 			}
 			else
 				break;

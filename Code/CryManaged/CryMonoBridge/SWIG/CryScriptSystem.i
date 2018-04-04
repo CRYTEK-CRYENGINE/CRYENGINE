@@ -14,6 +14,7 @@ bool IScriptTableIterator::Next( ScriptAnyValue &var )
 void IScriptTableIterator::AddRef() {}
 void IScriptTableIterator::Release() {}
 %}
+%ignore IScriptSystemEngineModule;
 %ignore CreateScriptSystem;
 %include "../../../../CryEngine/CryCommon/CryScriptSystem/IScriptSystem.h"
 %include "../../../../CryEngine/CryCommon/CryScriptSystem/ScriptHelpers.h"

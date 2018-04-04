@@ -1,16 +1,17 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #pragma once
 
-#include <Schematyc/FundamentalTypes.h>
-#include <Schematyc/Reflection/Reflection.h>
-#include <Schematyc/Runtime/RuntimeGraph.h>
-#include <Schematyc/Utils/GUID.h>
+#include <CrySchematyc/FundamentalTypes.h>
+#include <CrySchematyc/Reflection/TypeDesc.h>
+#include <CrySchematyc/Runtime/RuntimeGraph.h>
+#include <CrySchematyc/Utils/GUID.h>
 
 #include "Script/Graph/ScriptGraphNodeModel.h"
 
 namespace Schematyc
 {
+
 class CScriptGraphReceiveSignalNode : public CScriptGraphNodeModel
 {
 private:
@@ -27,10 +28,10 @@ private:
 public:
 
 	CScriptGraphReceiveSignalNode();
-	CScriptGraphReceiveSignalNode(const SElementId& signalId);
+	CScriptGraphReceiveSignalNode(const SElementId& signalId, const CryGUID& objectGUID = CryGUID());
 
 	// CScriptGraphNodeModel
-	virtual SGUID GetTypeGUID() const override;
+	virtual CryGUID GetTypeGUID() const override;
 	virtual void  CreateLayout(CScriptGraphNodeLayout& layout) override;
 	virtual void  Compile(SCompilerContext& context, IGraphNodeCompiler& compiler) const override;
 	virtual void  LoadDependencies(Serialization::IArchive& archive, const ISerializationContext& context) override;
@@ -51,10 +52,12 @@ private:
 
 public:
 
-	static const SGUID ms_typeGUID;
+	static const CryGUID ms_typeGUID;
 
 private:
 
 	SElementId m_signalId;
+	CryGUID      m_objectGUID;
 };
-}
+
+} // Schematyc

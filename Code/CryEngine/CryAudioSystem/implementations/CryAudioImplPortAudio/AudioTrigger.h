@@ -1,16 +1,9 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #pragma once
 
 #include <ATLEntityData.h>
 #include <portaudio.h>
-
-enum EPortAudioEventType
-{
-	ePortAudioEventType_None = 0,
-	ePortAudioEventType_Start,
-	ePortAudioEventType_Stop,
-};
 
 namespace CryAudio
 {
@@ -18,37 +11,51 @@ namespace Impl
 {
 namespace PortAudio
 {
-class CAudioTrigger final : public IAudioTrigger
+enum class EEventType : EnumFlagsType
+{
+	None,
+	Start,
+	Stop,
+};
+
+class CTrigger final : public ITrigger
 {
 public:
 
-	explicit CAudioTrigger(
-	  uint32 const _pathId,
-	  int const _numLoops,
-	  double const _sampleRate,
-	  EPortAudioEventType const _eventType,
-	  CryFixedStringT<512> const& _filePath,
-	  PaStreamParameters const& _streamParameters)
-		: pathId(_pathId)
-		, numLoops(_numLoops)
-		, sampleRate(_sampleRate)
-		, eventType(_eventType)
-		, filePath(_filePath)
-		, streamParameters(_streamParameters)
+	explicit CTrigger(
+	  uint32 const pathId_,
+	  int const numLoops_,
+	  double const sampleRate_,
+	  EEventType const eventType_,
+	  CryFixedStringT<MaxFilePathLength> const& filePath_,
+	  PaStreamParameters const& streamParameters_)
+		: pathId(pathId_)
+		, numLoops(numLoops_)
+		, sampleRate(sampleRate_)
+		, eventType(eventType_)
+		, filePath(filePath_)
+		, streamParameters(streamParameters_)
 	{}
 
-	virtual ~CAudioTrigger() override = default;
+	virtual ~CTrigger() override = default;
 
-	CAudioTrigger(CAudioTrigger const&) = delete;
-	CAudioTrigger& operator=(CAudioTrigger const&) = delete;
+	CTrigger(CTrigger const&) = delete;
+	CTrigger& operator=(CTrigger const&) = delete;
 
-	uint32 const               pathId;
-	int const                  numLoops;
-	double const               sampleRate;
-	EPortAudioEventType const  eventType;
-	CryFixedStringT<512> const filePath;
-	PaStreamParameters const   streamParameters;
+	// CryAudio::Impl::ITrigger
+	virtual ERequestStatus Load() const override                             { return ERequestStatus::Success; }
+	virtual ERequestStatus Unload() const override                           { return ERequestStatus::Success; }
+	virtual ERequestStatus LoadAsync(IEvent* const pIEvent) const override   { return ERequestStatus::Success; }
+	virtual ERequestStatus UnloadAsync(IEvent* const pIEvent) const override { return ERequestStatus::Success; }
+	// ~CryAudio::Impl::ITrigger
+
+	uint32 const                             pathId;
+	int const                                numLoops;
+	double const                             sampleRate;
+	EEventType const                         eventType;
+	CryFixedStringT<MaxFilePathLength> const filePath;
+	PaStreamParameters const                 streamParameters;
 };
-}
-}
-}
+} // namespace PortAudio
+} // namespace Impl
+} // namespace CryAudio

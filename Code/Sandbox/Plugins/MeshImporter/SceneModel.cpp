@@ -22,6 +22,18 @@ namespace
 
 const FbxTool::ENodeExportSetting kDefaultSceneExportSetting = FbxTool::eNodeExportSetting_Include;
 
+CItemModelAttributeEnumFunc s_meshTypeAttribute("Mesh Type", []()
+{
+	QStringList strs;
+	strs.reserve(MAX_STATOBJ_LODS_NUM + 1);
+	for (int i = 0; i < MAX_STATOBJ_LODS_NUM; ++i)
+	{
+		strs.push_back(QString("LOD %1").arg(i));
+	}
+	strs.push_back(QStringLiteral("Physics Proxy"));
+	return strs;
+});
+
 } // namespace
 
 CSceneModel::CSceneModel()
@@ -316,9 +328,19 @@ QVariant CSceneModel::GetSourceNodeData(CSceneElementSourceNode* pSelf, const QM
 		{
 			return GetScene()->IsProxy(pNode) ? MAX_STATOBJ_LODS_NUM : GetScene()->GetNodeLod(pNode);
 		}
+		else if (role == Qt::DisplayRole && CanBeLod(pNode))
+		{
+			return QString("LOD %1").arg(GetScene()->IsProxy(pNode) ? MAX_STATOBJ_LODS_NUM : GetScene()->GetNodeLod(pNode));
+		}
 		else if (role == Qt::DisplayRole && !IsSceneRoot(pSelf) && !CanBeLod(pNode))
 		{
 			return "LOD 0";  // Just display lod, non-editable.
+		}
+		break;
+	case eColumnType_SourceNodeAttribute:
+		if (role == Qt::DisplayRole && !pNode->namedAttributes.empty())
+		{
+			return QtUtil::ToQString(pNode->namedAttributes[0]);
 		}
 		break;
 	default:
@@ -330,7 +352,7 @@ QVariant CSceneModel::GetSourceNodeData(CSceneElementSourceNode* pSelf, const QM
 		return GetToolTipForColumn(index.column());
 	}
 
-	return QVariant();
+	return CSceneModelCommon::data(index, role);
 }
 
 bool IsSkinElementSelected(DialogMesh::CSceneUserData* pSceneUserData, CSceneElementSkin* pSkinElement)
@@ -367,7 +389,6 @@ QVariant CSceneModel::GetSkinData(CSceneElementSkin* pSelf, const QModelIndex& i
 		}
 		break;
 	default:
-		assert(false);
 		break;
 	}
 	if (role == Qt::ToolTipRole)
@@ -375,7 +396,7 @@ QVariant CSceneModel::GetSkinData(CSceneElementSkin* pSelf, const QModelIndex& i
 		return GetToolTipForColumn(index.column());
 	}
 
-	return QVariant();
+	return CSceneModelCommon::data(index, role);
 }
 
 QVariant CSceneModel::data(const QModelIndex& index, int role) const
@@ -414,7 +435,7 @@ QVariant CSceneModel::data(const QModelIndex& index, int role) const
 			return QtUtil::ToQString(pSelf->GetName());
 		}
 	}
-	return QVariant();
+	return CSceneModelCommon::data(index, role);
 }
 
 bool CSceneModel::SetDataSourceNodeElement(const QModelIndex& index, const QVariant& value, int role)
@@ -527,6 +548,21 @@ bool CSceneModel::setData(const QModelIndex& index, const QVariant& value, int r
 	return false;
 }
 
+CItemModelAttribute* CSceneModel::GetColumnAttribute(int col) const
+{
+	switch(col)
+	{
+	case eColumnType_Name:
+		return &Attributes::s_nameAttribute;
+	case eColumnType_Type:
+		return &s_meshTypeAttribute;
+	case eColumnType_SourceNodeAttribute:
+		return GetSourceNodeAttributeAttribute();
+	default:
+		return nullptr;
+	};
+}
+
 QVariant CSceneModel::headerData(int column, Qt::Orientation orientation, int role) const
 {
 	switch (column)
@@ -543,14 +579,30 @@ QVariant CSceneModel::headerData(int column, Qt::Orientation orientation, int ro
 			return tr("Type");
 		}
 		break;
+	case eColumnType_SourceNodeAttribute:
+		if (role == Qt::DisplayRole)
+		{
+			return tr("Attribute");
+		}
 	default:
-		assert(false);
 		break;
 	}
+
 	if (role == Qt::ToolTipRole)
 	{
 		return GetToolTipForColumn(column);
 	}
+
+	// Attributes.
+	if (role == Attributes::s_getAttributeRole)
+	{
+		CItemModelAttribute* const pAttribute = GetColumnAttribute(column);
+		if (pAttribute)
+		{
+			return QVariant::fromValue(pAttribute);
+		}
+	}
+
 	return QVariant();
 }
 
@@ -593,6 +645,8 @@ QVariant CSceneModel::GetToolTipForColumn(int column)
 		return tr("Name of the node in the scene");
 	case eColumnType_Type:
 		return tr("Type of this node");
+	case eColumnType_SourceNodeAttribute:
+		return tr("Attributes of this node");
 	default:
 		assert(false);
 		break;

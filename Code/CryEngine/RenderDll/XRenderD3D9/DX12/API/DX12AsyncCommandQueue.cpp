@@ -1,21 +1,20 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #include "StdAfx.h"
 #include "DX12AsyncCommandQueue.hpp"
 #include "DX12CommandList.hpp"
 #include "DriverD3D.h"
 
-#ifdef CRY_USE_DX12_MULTIADAPTER
-#include "Redirections/D3D12Device.inl"
+#ifdef DX12_LINKEDADAPTER
+	#include "Redirections/D3D12Device.inl"
 #endif
-
-extern CD3D9Renderer gcpRendD3D;
 
 namespace NCryDX12
 {
+
 void CAsyncCommandQueue::SExecuteCommandlist::Process(const STaskArgs& args)
 {
-	args.pCommandQueue->ExecuteCommandLists(1, &pCommandList);
+	args.pCommandListPool->GetD3D12CommandQueue()->ExecuteCommandLists(1, &pCommandList);
 }
 
 void CAsyncCommandQueue::SResetCommandlist::Process(const STaskArgs& args)
@@ -25,26 +24,26 @@ void CAsyncCommandQueue::SResetCommandlist::Process(const STaskArgs& args)
 
 void CAsyncCommandQueue::SSignalFence::Process(const STaskArgs& args)
 {
-	args.pCommandQueue->Signal(pFence, FenceValue);
-	*args.SignalledFenceValue = FenceValue;
+	args.pCommandListPool->GetD3D12CommandQueue()->Signal(pFence, FenceValue);
+	args.pCommandListPool->SetSignalledFenceValue(FenceValue);
 }
 
 void CAsyncCommandQueue::SWaitForFence::Process(const STaskArgs& args)
 {
-	args.pCommandQueue->Wait(pFence, FenceValue);
+	args.pCommandListPool->GetD3D12CommandQueue()->Wait(pFence, FenceValue);
 }
 
 void CAsyncCommandQueue::SWaitForFences::Process(const STaskArgs& args)
 {
-	if (FenceValues[CMDQUEUE_GRAPHICS]) args.pCommandQueue->Wait(pFences[CMDQUEUE_GRAPHICS], FenceValues[CMDQUEUE_GRAPHICS]);
-	if (FenceValues[CMDQUEUE_COMPUTE]) args.pCommandQueue->Wait(pFences[CMDQUEUE_COMPUTE], FenceValues[CMDQUEUE_COMPUTE]);
-	if (FenceValues[CMDQUEUE_COPY]) args.pCommandQueue->Wait(pFences[CMDQUEUE_COPY], FenceValues[CMDQUEUE_COPY]);
+	if (FenceValues[CMDQUEUE_GRAPHICS]) args.pCommandListPool->GetD3D12CommandQueue()->Wait(pFences[CMDQUEUE_GRAPHICS], FenceValues[CMDQUEUE_GRAPHICS]);
+	if (FenceValues[CMDQUEUE_COMPUTE]) args.pCommandListPool->GetD3D12CommandQueue()->Wait(pFences[CMDQUEUE_COMPUTE], FenceValues[CMDQUEUE_COMPUTE]);
+	if (FenceValues[CMDQUEUE_COPY]) args.pCommandListPool->GetD3D12CommandQueue()->Wait(pFences[CMDQUEUE_COPY], FenceValues[CMDQUEUE_COPY]);
 }
 
-#ifdef CRY_USE_DX12_MULTIADAPTER
+#ifdef DX12_LINKEDADAPTER
 void CAsyncCommandQueue::SSyncAdapters::Process(const STaskArgs& args)
 {
-	BroadcastableD3D12CommandQueue<2>* broadcastCQ = (BroadcastableD3D12CommandQueue<2>*)(args.pCommandQueue);
+	BroadcastableD3D12CommandQueue<2>* broadcastCQ = (BroadcastableD3D12CommandQueue<2>*)(args.pCommandListPool->GetD3D12CommandQueue());
 	broadcastCQ->SyncAdapters(pFence, FenceValue);
 }
 #endif
@@ -53,12 +52,20 @@ void CAsyncCommandQueue::SPresentBackbuffer::Process(const STaskArgs& args)
 {
 	DWORD result = S_OK;
 
-	if (DescFlags & DXGI_SWAP_CHAIN_FLAG_FRAME_LATENCY_WAITABLE_OBJECT)
+	#ifdef __dxgi1_3_h__
+	if (Desc->Flags & DXGI_SWAP_CHAIN_FLAG_FRAME_LATENCY_WAITABLE_OBJECT)
 	{
 		// Check if the swapchain is ready to accept another frame
 		HANDLE frameLatencyWaitableObject = pSwapChain->GetFrameLatencyWaitableObject();
 		result = WaitForSingleObjectEx(frameLatencyWaitableObject, 0, true);
 	}
+
+	if (Desc->Windowed && (Desc->Flags & DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING))
+	{
+		Flags |= DXGI_PRESENT_ALLOW_TEARING;
+		SyncInterval = 0;
+	}
+	#endif
 
 	if (result == S_OK)
 	{
@@ -66,6 +73,11 @@ void CAsyncCommandQueue::SPresentBackbuffer::Process(const STaskArgs& args)
 	}
 
 	CryInterlockedDecrement(args.QueueFramesCounter);
+}
+
+bool CAsyncCommandQueue::IsSynchronous()
+{
+	return !(CRenderer::CV_r_D3D12SubmissionThread & BIT(m_pCmdListPool->GetD3D12QueueType()));
 }
 
 CAsyncCommandQueue::CAsyncCommandQueue()
@@ -165,7 +177,7 @@ void CAsyncCommandQueue::Wait(ID3D12Fence** pFences, const UINT64 (&FenceValues)
 	AddTask<SWaitForFences>(task);
 }
 
-#ifdef CRY_USE_DX12_MULTIADAPTER
+#ifdef DX12_LINKEDADAPTER
 void CAsyncCommandQueue::SyncAdapters(ID3D12Fence* pFence, const UINT64 FenceValue)
 {
 	SSubmissionTask task;
@@ -179,7 +191,7 @@ void CAsyncCommandQueue::SyncAdapters(ID3D12Fence* pFence, const UINT64 FenceVal
 }
 #endif
 
-void CAsyncCommandQueue::Present(IDXGISwapChain3* pSwapChain, HRESULT* pPresentResult, UINT SyncInterval, UINT Flags, UINT DescFlags, UINT bufferIndex)
+void CAsyncCommandQueue::Present(IDXGISwapChain3ToCall* pSwapChain, HRESULT* pPresentResult, UINT SyncInterval, UINT Flags, const DXGI_SWAP_CHAIN_DESC& Desc, UINT bufferIndex)
 {
 	CryInterlockedIncrement(&m_QueuedFramesCounter);
 
@@ -190,7 +202,7 @@ void CAsyncCommandQueue::Present(IDXGISwapChain3* pSwapChain, HRESULT* pPresentR
 	task.Data.PresentBackbuffer.pSwapChain = pSwapChain;
 	task.Data.PresentBackbuffer.pPresentResult = pPresentResult;
 	task.Data.PresentBackbuffer.Flags = Flags;
-	task.Data.PresentBackbuffer.DescFlags = DescFlags;
+	task.Data.PresentBackbuffer.Desc = &Desc;
 	task.Data.PresentBackbuffer.SyncInterval = SyncInterval;
 
 	AddTask<SPresentBackbuffer>(task);
@@ -207,7 +219,7 @@ void CAsyncCommandQueue::Flush(UINT64 lowerBoundFenceValue)
 {
 	if (lowerBoundFenceValue != (~0ULL))
 	{
-		while (lowerBoundFenceValue > m_SignalledFenceValue)
+		while (lowerBoundFenceValue > m_pCmdListPool->GetSignalledFenceValue())
 		{
 			CryMT::CryYieldThread();
 		}
@@ -235,7 +247,7 @@ void CAsyncCommandQueue::FlushNextPresent()
 
 void CAsyncCommandQueue::ThreadEntry()
 {
-	const STaskArgs taskArgs = { m_pCmdListPool->GetD3D12CommandQueue(), &m_QueuedFramesCounter, &m_SignalledFenceValue };
+	const STaskArgs taskArgs = { m_pCmdListPool, &m_QueuedFramesCounter };
 	SSubmissionTask task;
 
 	while (!m_bStopRequested)
@@ -261,7 +273,7 @@ void CAsyncCommandQueue::ThreadEntry()
 			case eTT_WaitForFences:
 				task.Process<SWaitForFences>(taskArgs);
 				break;
-#ifdef CRY_USE_DX12_MULTIADAPTER
+#ifdef DX12_LINKEDADAPTER
 			case eTT_SyncAdapters:
 				task.Process<SSyncAdapters>(taskArgs);
 				break;
@@ -273,4 +285,5 @@ void CAsyncCommandQueue::ThreadEntry()
 		}
 	}
 }
+
 }

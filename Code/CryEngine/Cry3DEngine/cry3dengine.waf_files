@@ -9,13 +9,6 @@
 	},
 	"Cry3DEngine_volume_water_uber.cpp":
 	{
-		"Effects/VolumeObject":
-		[
-			"VolumeObjectDataCreate.cpp",
-			"VolumeObjectRenderNode.cpp",
-			"VolumeObjectDataCreate.h",
-			"VolumeObjectRenderNode.h"
-		],
 		"Water":
 		[
 			"terrain_water.h",
@@ -295,12 +288,8 @@
 		"Effects/Clounds":
 		[
 			"CloudBlockerRenderNode.cpp",
-			"CloudRenderNode.cpp",
-			"CloudsManager.cpp",
 			"DistanceCloudRenderNode.cpp",
 			"CloudBlockerRenderNode.h",
-			"CloudRenderNode.h",
-			"CloudsManager.h",
 			"DistanceCloudRenderNode.h"
 		]
 	},
@@ -442,6 +431,7 @@
       "ParticleSystem/Features/Featurekill.cpp",
       "ParticleSystem/Features/FeatureMotion.h",
 			"ParticleSystem/Features/FeatureMotion.cpp",
+			"ParticleSystem/Features/FeatureRenderDecal.cpp",
 			"ParticleSystem/Features/FeatureRenderGpuSprites.h",
 			"ParticleSystem/Features/FeatureRenderGpuSprites.cpp",
 			"ParticleSystem/Features/FeatureRenderMeshes.cpp",

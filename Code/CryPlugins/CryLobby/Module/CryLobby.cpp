@@ -25,6 +25,8 @@
 #include "Protocol/FrameTypes.h"
 #include <CryMemory/BucketAllocatorImpl.h>
 
+#include <CryMath/Random.h>
+
 const int LOBBY_KEEP_ALIVE_INTERVAL = (CryLobbySendInterval + 100);
 const int LOBBY_FORCE_DISCONNECT_TIMER = 99999999;
 
@@ -682,9 +684,7 @@ void CCryLobby::InternalSocketCreate(ECryLobbyService service)
 		if (!pSocketService->m_socket)
 		{
 			NetLog("[Lobby] Failed to create socket on port %u", port);
-#ifndef IS_EAAS // For EaaS, some users want to locally run a dedi server + client for testing, so by default we make this work independent on the start order
 			if ((gEnv->IsDedicated() == false) || ((gEnv->IsClient() == true) && (gEnv->bServer == false)))
-#endif
 			{
 				// If we are not a dedicated server (Which should always use the port specified in the cfg file) and we fail to create the socket
 				// try to create on some different ports.

@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 /* Notes
    MTJ 22/07/07
@@ -3240,9 +3240,14 @@ bool CTacticalPointSystem::Parse(const char* sSpec, TTacticalPointQuery& _query,
 	string sWords[MAXWORDS];
 
 	int iC = 0, iWord = 0;
-	for (; iWord < MAXWORDS; !sWords[iWord].empty(), iWord++)
+
+	for (; iWord < MAXWORDS; iWord++)
 	{
 		sWords[iWord] = sInput.Tokenize("_", iC);
+		if (sWords[iWord].empty())
+		{
+			break;
+		}
 	}
 
 	TTacticalPointQuery token;

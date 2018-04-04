@@ -4,13 +4,13 @@
 
 // *INDENT-OFF* - <hard to read code and declarations due to inconsistent indentation>
 
-namespace uqs
+namespace UQS
 {
-	namespace core
+	namespace Core
 	{
 		//
 		// An IItemDebugProxy_* is a geometric representation of an item that was generated and evaluated throughout the query.
-		// It's used to render a visual representation of all items after the query has finished.
+		// It's used to figure out the most aligned item to the camera in order to draw more details about that particular one.
 		//
 
 		//===================================================================================

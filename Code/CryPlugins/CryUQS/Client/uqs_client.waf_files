@@ -15,7 +15,6 @@
 		],
 		"client":
 		[
-			"client/FactoryBase.h",
 			"client/ItemFactory.h",
 			"client/ItemListProxy.h",
 			"client/InputParameterRegistry.h",
@@ -36,7 +35,10 @@
 			"client/ParamsHolder.h",
 			"client/FactoryRegistrationHelper.h",
 			"client/FactoryRegistrationHelper.cpp",
-			"client/TypeWrapper.h"
+			"client/TypeWrapper.h",
+			"client/ItemConverter.h",
+			"client/QueryHost.h",
+			"client/QueryHost.cpp"
 		]
 	}
 }

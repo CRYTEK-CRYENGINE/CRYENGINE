@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #include "StdAfx.h"
 
@@ -86,7 +86,7 @@ public:
 		static bool s_registered = false;
 		if (!s_registered)
 		{
-			gEnv->pSystem->GetISystemEventDispatcher()->RegisterListener(&ms_inst);
+			gEnv->pSystem->GetISystemEventDispatcher()->RegisterListener(&ms_inst, "CryGFxVideoPlayer_SystemEventListener");
 			s_registered = true;
 		}
 	}

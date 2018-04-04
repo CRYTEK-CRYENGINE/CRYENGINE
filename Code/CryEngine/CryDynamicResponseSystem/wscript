@@ -1,4 +1,4 @@
-# Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+# Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 def build(bld):
 
@@ -6,5 +6,11 @@ def build(bld):
 		target     = 'CryDynamicResponseSystem',
 		vs_filter  = 'CryEngine',
 		file_list  = 'crydynamicresponsesystem.waf_files',
-		pch        = 'stdafx.cpp'
+		pch        = 'stdafx.cpp',
+		includes = [
+			'.', 
+			Path('Code/CryEngine/CryCommon'),
+			Path('Code/CryEngine/CrySchematyc/Core/Interface'),
+			Path('Code/CryEngine/CrySchematyc/STDEnv/Interface')
+		]
 	)

@@ -1,6 +1,6 @@
 <Material MtlFlags="524320" Shader="Terrain.Layer" GenMask="200000000" StringGenMask="%TEMP_TERRAIN" SurfaceType="mat_concrete" MatTemplate="" Diffuse="1,1,1" Specular="0.0030352699,0.0030352699,0.0030352699" Emissive="0,0,0" Shininess="10" Opacity="1" LayerAct="1">
  <Textures>
-  <Texture Map="Diffuse" File="EngineAssets/TextureMsg/DefaultNoUVs.dds"/>
+  <Texture Map="Diffuse" File="%ENGINE%/EngineAssets/TextureMsg/DefaultNoUVs.dds"/>
  </Textures>
  <PublicParams BlendFalloff="1" DetailTextureStrength="1" BlendFactor="0" IndirectColor="0.25,0.25,0.25"/>
 </Material>

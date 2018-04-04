@@ -1,8 +1,10 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #pragma once
 
 #include <CryCore/functor.h>
+#include <CrySystem/ISystem.h>
+#include <CrySystem/IEngineModule.h>
 
 class ICrySizer;
 struct IWeakScriptObject;
@@ -213,6 +215,11 @@ struct ScriptAnyValue
 	}
 
 	void GetMemoryUsage(ICrySizer* pSizer) const {}
+};
+
+struct IScriptSystemEngineModule : public Cry::IDefaultModule
+{
+	CRYINTERFACE_DECLARE_GUID(IScriptSystemEngineModule, "39b5373f-b298-4aa1-b691-88ed53cf5f9d"_cry_guid);
 };
 
 //! Scripting Engine interface.

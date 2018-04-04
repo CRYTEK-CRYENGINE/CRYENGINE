@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 // -------------------------------------------------------------------------
 //  File name:   RenderMesh.h
@@ -57,13 +57,6 @@ public:
 	{
 		return stl::hash_uint32()((uint32)key);
 	}
-};
-
-struct SBufInfoTable
-{
-  int OffsTC;
-  int OffsColor;
-	int OffsNorm;
 };
 
 struct SMeshStream
@@ -167,7 +160,7 @@ private:
 	uint32 m_nInds;
 	uint32 m_nVerts;
   int   m_nRefCounter;
-	EVertexFormat m_eVF;          // Base stream vertex format (optional streams are hardcoded: VSF_)
+	InputLayoutHandle m_eVF;          // Base stream vertex format (optional streams are hardcoded: VSF_)
 
   Vec3 *m_pCachePos;         // float positions (cached)
   int   m_nFrameRequestCachePos;
@@ -210,7 +203,7 @@ private:
   SMeshStream* GetVertexStream(int nStream, uint32 nFlags = 0) const { return m_VBStream[nStream]; }
   bool UpdateVidIndices(SMeshStream& IBStream, bool stall=true);
 
-  bool CreateVidVertices(int nVerts=0, EVertexFormat eVF=eVF_Unknown, int nStream=VSF_GENERAL);
+  bool CreateVidVertices(int nVerts=0, InputLayoutHandle eVF=InputLayoutHandle::Unspecified, int nStream=VSF_GENERAL);
   bool UpdateVidVertices(int nStream, bool stall=true);
 
   bool CopyStreamToSystemForUpdate(SMeshStream& MS, size_t nSize);
@@ -286,15 +279,34 @@ public:
     }
   }
 
-  // ----------------------------------------------------------------
-  // Helper functions
-  inline int GetStreamStride(int nStream) const
-  {
-    if (nStream == VSF_GENERAL)
-      return  m_cSizeVF[m_eVF];
-    else
-      return m_cSizeStream[nStream];
-  }
+	// ----------------------------------------------------------------
+	// Helper functions
+	inline int GetStreamStride(int nStream) const
+	{
+		InputLayoutHandle eVF = m_eVF;
+
+		if (nStream != VSF_GENERAL)
+		{
+			switch (nStream)
+			{
+		#ifdef TANG_FLOATS
+				case VSF_TANGENTS       : eVF = EDefaultInputLayouts::T4F_B4F; break;
+				case VSF_QTANGENTS      : eVF = EDefaultInputLayouts::Q4F; break;
+		#else
+				case VSF_TANGENTS       : eVF = EDefaultInputLayouts::T4S_B4S; break;
+				case VSF_QTANGENTS      : eVF = EDefaultInputLayouts::Q4S; break;
+		#endif
+				case VSF_HWSKIN_INFO    : eVF = EDefaultInputLayouts::W4B_I4S; break;
+				case VSF_VERTEX_VELOCITY: eVF = EDefaultInputLayouts::V3F; break;
+				case VSF_NORMALS        : eVF = EDefaultInputLayouts::N3F; break;
+			}
+		}
+
+		uint16 Stride = CDeviceObjectFactory::LookupInputLayout(eVF).first.m_Stride;
+		assert(Stride != 0);
+
+		return Stride;
+	}
 
   inline uint32 _GetFlags() const { return m_nFlags; }
   inline int GetStreamSize(int nStream, int nVerts=0) const { return GetStreamStride(nStream) * (nVerts ? nVerts : m_nVerts); }
@@ -304,8 +316,8 @@ public:
   inline bool _HasIBStream() const { return m_IBStream.m_nID!=~0u; }
   inline int _IsVBStreamLocked(int nStream) const { if (!m_VBStream[nStream]) return 0; return (m_VBStream[nStream]->m_nLockFlags & FSL_LOCKED); }
   inline int _IsIBStreamLocked() const { return m_IBStream.m_nLockFlags & FSL_LOCKED; }
-  inline EVertexFormat _GetVertexFormat() const { return m_eVF; }
-  inline void _SetVertexFormat(EVertexFormat eVF) { m_eVF = eVF; }
+  inline InputLayoutHandle _GetVertexFormat() const { return m_eVF; }
+  inline void _SetVertexFormat(InputLayoutHandle eVF) { m_eVF = eVF; }
   inline int _GetNumVerts() const { return m_nVerts; }
   inline void _SetNumVerts(int nVerts) { m_nVerts = max(nVerts, 0); }
   inline int _GetNumInds() const { return m_nInds; }
@@ -320,10 +332,10 @@ public:
     return this;
   }
 
-  D3DBuffer* _GetD3DVB(int nStream, size_t* offs) const;
-  D3DBuffer* _GetD3DIB(size_t* offs) const;
+  D3DBuffer* _GetD3DVB(int nStream, buffer_size_t* offs) const;
+  D3DBuffer* _GetD3DIB(buffer_size_t* offs) const;
 
-  size_t Size(uint32 nFlags) const;
+  buffer_size_t Size(uint32 nFlags) const;
 	void Size(uint32 nFlags, ICrySizer *pSizer ) const;
 
   void *LockVB(int nStream, uint32 nFlags, int nOffset=0, int nVerts=0, int *nStride=NULL, bool prefetchIB=false, bool inplaceCachePos=false);
@@ -340,10 +352,10 @@ public:
   void UnlockVB(int nStream);
   void UnlockIB();
 
-  bool RT_CheckUpdate(CRenderMesh *pVContainer, EVertexFormat eVF, uint32 nStreamMask, bool bTessellation = false, bool stall=true);
+  bool RT_CheckUpdate(CRenderMesh *pVContainer, InputLayoutHandle eVF, uint32 nStreamMask, bool bTessellation = false, bool stall=true);
 	void RT_SetMeshCleanup();
 	void RT_AllocationFailure(const char* sPurpose, uint32 nSize);
-  bool CheckUpdate(EVertexFormat eVF, uint32 nStreamMask);
+  bool CheckUpdate(InputLayoutHandle eVF, uint32 nStreamMask);
   void AssignChunk(CRenderChunk *pChunk, class CREMeshImpl *pRE);
 	void InitRenderChunk( CRenderChunk &rChunk );
 
@@ -364,7 +376,7 @@ public:
 	virtual int GetIndicesCount() final  { return m_nInds; }
 	virtual int GetVerticesCount() final { return m_nVerts; }
 
-	virtual EVertexFormat   GetVertexFormat() final { return m_eVF; }
+	virtual InputLayoutHandle   GetVertexFormat() final { return m_eVF; }
 	virtual ERenderMeshType GetMeshType() final     { return m_eType; }
 
 	virtual void SetSkinned(bool bSkinned = true) final
@@ -486,10 +498,6 @@ public:
 	// --------------------------------------------------------------
   // Members
 
-	static int32         m_cSizeVF[eVF_MaxRenderMesh];
-  static int32 m_cSizeStream[VSF_NUM];
-	static SBufInfoTable m_cBufInfoTable[eVF_MaxRenderMesh];
-
 	// When modifying or traversing any of the lists below, be sure to always hold the link lock
   static CryCriticalSection m_sLinkLock;
 
@@ -499,10 +507,10 @@ public:
 	util::list<CRenderMesh>          m_Modified[2]; // if linked, mesh has modified data (to be uploaded to vram)
 
 	// The static list heads, corresponds to the entries above
-	static util::list<CRenderMesh> m_MeshList;
-	static util::list<CRenderMesh> m_MeshGarbageList[MAX_RELEASED_MESH_FRAMES];
-	static util::list<CRenderMesh> m_MeshDirtyList[2];
-	static util::list<CRenderMesh> m_MeshModifiedList[2];
+	static util::list<CRenderMesh> s_MeshList;
+	static util::list<CRenderMesh> s_MeshGarbageList[MAX_RELEASED_MESH_FRAMES];
+	static util::list<CRenderMesh> s_MeshDirtyList[2];
+	static util::list<CRenderMesh> s_MeshModifiedList[2];
 
 	TRenderChunkArray  m_Chunks;
 	TRenderChunkArray  m_ChunksSubObjects; // Chunks of sub-objects.
@@ -552,8 +560,8 @@ public:
 	SMeshBoneMapping_uint16* m_pExtraBoneMapping;
 
 	static void Initialize();
-  static void ShutDown();
-  static void Tick();
+	static void ShutDown();
+	static void Tick(uint numFrames = 1);
 	static void UpdateModified();
 	static void UpdateModifiedMeshes(bool bLocked, int threadId);
 	static bool ClearStaleMemory(bool bLocked, int threadId);
@@ -573,10 +581,10 @@ class CVertexBuffer
 public:
 	CVertexBuffer()
 	{
-		m_eVF = eVF_Unknown;
+		m_eVF = InputLayoutHandle::Unspecified;
 		m_nVerts = 0;
 	}
-	CVertexBuffer(void* pData, EVertexFormat eVF, int nVerts = 0)
+	CVertexBuffer(void* pData, InputLayoutHandle eVF, int nVerts = 0)
 	{
 		m_VData = pData;
 		m_eVF = eVF;
@@ -584,7 +592,7 @@ public:
 	}
 
 	void* m_VData;
-	EVertexFormat m_eVF;
+	InputLayoutHandle m_eVF;
 	int32 m_nVerts;
 };
 

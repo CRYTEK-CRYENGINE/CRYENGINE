@@ -211,7 +211,7 @@ void CItem::UpdateDamageLevel()
 	int slot=(m_stats.viewmode&eIVM_FirstPerson)?eIGS_FirstPerson:eIGS_ThirdPerson;
 
 	int n=(int)m_sharedparams->damageLevels.size();
-	int health=(int)((100.0f*MAX(0.0f, m_stats.health))/m_properties.hitpoints);
+	int health=(int)((100.0f*std::max(0.0f, m_stats.health))/m_properties.hitpoints);
 	for (int i=0; i<n; ++i)
 	{
 		const SDamageLevel &level = m_sharedparams->damageLevels[i];

@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 /*=============================================================================
    PostProcessRenderModes : custom render modes post processing
@@ -51,9 +51,6 @@ void CNightVision::Render()
 	PostProcessUtils().StretchRect(CTexture::s_ptexBackBuffer, CTexture::s_ptexBackBufferScaled[1]);
 	PostProcessUtils().TexBlurGaussian(CTexture::s_ptexBackBufferScaled[1], 1, 1.25f, 1.5f, false, 0, false, CTexture::s_ptexBackBufferScaledTemp[1]);
 
-	if (CRenderer::CV_r_HDRRendering)
-		gcpRendD3D->m_RP.m_FlagsShader_RT |= g_HWSR_MaskBit[HWSR_HDR_MODE];
-
 	static CCryNameTSCRC pTechName("NightVision");
 	PostProcessUtils().ShBeginPass(CShaderMan::s_shPostEffectsRenderModes, pTechName, FEF_DONTSETTEXTURES | FEF_DONTSETSTATES);
 
@@ -66,7 +63,7 @@ void CNightVision::Render()
 
 	PostProcessUtils().SetTexture(CTexture::s_ptexBackBuffer, 0, FILTER_POINT);
 	PostProcessUtils().SetTexture(CTexture::s_ptexBackBufferScaled[1], 1, FILTER_LINEAR);
-	PostProcessUtils().SetTexture(m_pNoise, 2, FILTER_POINT, 0);
+	PostProcessUtils().SetTexture(m_pNoise, 2, FILTER_POINT, eSamplerAddressMode_Wrap);
 	PostProcessUtils().SetTexture(m_pGradient, 3, FILTER_LINEAR);
 
 	if (CRenderer::CV_r_HDRRendering)
@@ -252,7 +249,7 @@ void CSonarVision::AmbientPass()
 	PostProcessUtils().SetTexture(CTexture::s_ptexSceneNormalsMap, 1, FILTER_POINT);
 	PostProcessUtils().SetTexture(CTexture::s_ptexBackBuffer, 2, FILTER_POINT);
 	PostProcessUtils().SetTexture(CTexture::s_ptexBackBufferScaled[1], 3, FILTER_LINEAR);
-	PostProcessUtils().SetTexture(m_pNoise, 4, FILTER_POINT, 0);
+	PostProcessUtils().SetTexture(m_pNoise, 4, FILTER_POINT, eSamplerAddressMode_Wrap);
 	PostProcessUtils().SetTexture(m_pGradient, 5, FILTER_LINEAR);
 
 	SD3DPostEffectsUtils::DrawFullScreenTriWPOS(CTexture::s_ptexBackBuffer->GetWidth(), CTexture::s_ptexBackBuffer->GetHeight());
@@ -361,7 +358,7 @@ void CSonarVision::FinalComposePass()
 	PostProcessUtils().SetTexture(CTexture::s_ptexBackBuffer, 2, FILTER_POINT);
 	PostProcessUtils().SetTexture(CTexture::s_ptexBackBufferScaled[0], 3, FILTER_LINEAR);
 	PostProcessUtils().SetTexture(pPrevFrame, 4, FILTER_LINEAR);
-	PostProcessUtils().SetTexture(m_pNoise, 5, FILTER_POINT, 0);
+	PostProcessUtils().SetTexture(m_pNoise, 5, FILTER_POINT, eSamplerAddressMode_Wrap);
 	PostProcessUtils().SetTexture(m_pGradient, 6, FILTER_LINEAR);
 
 	SD3DPostEffectsUtils::DrawFullScreenTriWPOS(CTexture::s_ptexBackBuffer->GetWidth(), CTexture::s_ptexBackBuffer->GetHeight());
@@ -571,7 +568,7 @@ void CThermalVision::FinalComposePass()
 	PostProcessUtils().SetTexture(CTexture::s_ptexBackBuffer, 0, FILTER_POINT);
 	PostProcessUtils().SetTexture(CTexture::s_ptexBackBufferScaled[0], 1, FILTER_LINEAR);
 	PostProcessUtils().SetTexture(CTexture::s_ptexBackBufferScaled[1], 2, FILTER_LINEAR);
-	PostProcessUtils().SetTexture(m_pNoise, 3, FILTER_POINT, 0);
+	PostProcessUtils().SetTexture(m_pNoise, 3, FILTER_POINT, eSamplerAddressMode_Wrap);
 	PostProcessUtils().SetTexture(m_pGradient, 4, FILTER_LINEAR);
 	PostProcessUtils().SetTexture(CTexture::s_ptexSceneNormalsMap, 5, FILTER_POINT);
 

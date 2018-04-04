@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 // -------------------------------------------------------------------------
 //  File name:   SubstitutionProxy.cpp
@@ -18,6 +18,11 @@
 
 CRYREGISTER_CLASS(CEntityComponentSubstitution);
 
+CEntityComponentSubstitution::CEntityComponentSubstitution()
+{
+	m_componentFlags.Add(EEntityComponentFlags::NoSave);
+}
+
 //////////////////////////////////////////////////////////////////////////
 CEntityComponentSubstitution::~CEntityComponentSubstitution()
 {
@@ -31,7 +36,7 @@ CEntityComponentSubstitution::~CEntityComponentSubstitution()
 void CEntityComponentSubstitution::Done()
 {
 	// Substitution proxy does not need to be restored if entity system is being rested.
-	if (m_pSubstitute && !g_pIEntitySystem->m_bReseting)
+	if (m_pSubstitute)
 	{
 		//gEnv->pLog->Log("CRYSIS-3502: CSubstitutionProxy::Done: Ptr=%d", (int)m_pSubstitute);
 		//gEnv->pLog->Log("CRYSIS-3502: CSubstitutionProxy::Done: %s", m_pSubstitute->GetName());
@@ -68,13 +73,21 @@ void CEntityComponentSubstitution::ProcessEvent(SEntityEvent& event)
 	{
 	case ENTITY_EVENT_DONE:
 		Done();
+		break;
+	case ENTITY_EVENT_PHYSICAL_TYPE_CHANGED:
+	case ENTITY_EVENT_ENABLE_PHYSICS:
+		if (m_pEntity->GetPhysicalEntity() == nullptr)
+		{
+			m_pSubstitute = nullptr;
+		}
+		break;
 	}
 }
 
 //////////////////////////////////////////////////////////////////////////
 uint64 CEntityComponentSubstitution::GetEventMask() const
 {
-	return BIT64(ENTITY_EVENT_DONE);
+	return BIT64(ENTITY_EVENT_DONE) | BIT64(ENTITY_EVENT_PHYSICAL_TYPE_CHANGED) | BIT64(ENTITY_EVENT_ENABLE_PHYSICS);
 }
 
 //////////////////////////////////////////////////////////////////////////

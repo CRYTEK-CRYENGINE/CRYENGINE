@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 /*=============================================================================
 
@@ -18,7 +18,10 @@
 	#include "D3DTiledShading.h"
 	#include "Common/RenderView.h"
 
-//#pragma optimize("",off)
+_smart_ptr<CTexture> CSvoRenderer::m_pRsmColorMap;
+_smart_ptr<CTexture> CSvoRenderer::m_pRsmNormlMap;
+_smart_ptr<CTexture> CSvoRenderer::m_pRsmPoolCol;
+_smart_ptr<CTexture> CSvoRenderer::m_pRsmPoolNor;
 
 CSvoRenderer* CSvoRenderer::s_pInstance = 0;
 
@@ -28,21 +31,7 @@ CSvoRenderer::CSvoRenderer()
 
 	ZeroStruct(m_texInfo.arrAnalyticalOccluders);
 
-	#ifdef FEATURE_SVO_GI_ALLOW_HQ
-	m_pRT_AIR_MIN =
-	  m_pRT_AIR_MAX =
-	    m_pRT_AIR_SHAD =
-	      m_pRT_NID_0 = NULL;
-	#endif
-
-	m_nTexStateTrilinear = CTexture::GetTexState(STexState(FILTER_TRILINEAR, true));
-	m_nTexStateLinear = CTexture::GetTexState(STexState(FILTER_LINEAR, true));
-	m_nTexStatePoint = CTexture::GetTexState(STexState(FILTER_POINT, true));
-	m_nTexStateLinearWrap = CTexture::GetTexState(STexState(FILTER_LINEAR, false));
-
-	m_pNoiseTex = CTexture::ForName("EngineAssets/Textures/noise.dds", FT_DONT_STREAM, eTF_Unknown);
-	m_pRsmNormlMap = m_pRsmColorMap = 0;
-	m_pRsmPoolNor = m_pRsmPoolCol = 0;
+	m_pNoiseTex = CTexture::ForNamePtr("%ENGINE%/EngineAssets/Textures/noise.dds", FT_DONT_STREAM, eTF_Unknown);
 
 	m_pShader = CShaderMan::s_ShaderSVOGI;
 
@@ -51,42 +40,6 @@ CSvoRenderer::CSvoRenderer()
 	ZeroStruct(m_tcOffset);
 	ZeroStruct(m_arrNodesForUpdate);
 	ZeroStruct(m_nCurPropagationPassID);
-}
-
-void SSvoTargetsSet::Release()
-{
-	SAFE_RELEASE(pRT_RGB_DEM_MIN_0);
-	SAFE_RELEASE(pRT_ALD_DEM_MIN_0);
-	SAFE_RELEASE(pRT_RGB_DEM_MAX_0);
-	SAFE_RELEASE(pRT_ALD_DEM_MAX_0);
-	SAFE_RELEASE(pRT_RGB_DEM_MIN_1);
-	SAFE_RELEASE(pRT_ALD_DEM_MIN_1);
-	SAFE_RELEASE(pRT_RGB_DEM_MAX_1);
-	SAFE_RELEASE(pRT_ALD_DEM_MAX_1);
-	SAFE_RELEASE(pRT_FIN_OUT_0);
-	SAFE_RELEASE(pRT_FIN_OUT_1);
-	SAFE_RELEASE(pRT_ALD_0);
-	SAFE_RELEASE(pRT_ALD_1);
-	SAFE_RELEASE(pRT_RGB_0);
-	SAFE_RELEASE(pRT_RGB_1);
-}
-
-CSvoRenderer::~CSvoRenderer()
-{
-	m_tsDiff.Release();
-	m_tsSpec.Release();
-
-	#ifdef FEATURE_SVO_GI_ALLOW_HQ
-	SAFE_RELEASE(m_pRT_AIR_MIN);
-	SAFE_RELEASE(m_pRT_AIR_MAX);
-	SAFE_RELEASE(m_pRT_AIR_SHAD);
-	SAFE_RELEASE(m_pRT_NID_0);
-	#endif
-
-	SAFE_RELEASE(m_pRsmColorMap);
-	SAFE_RELEASE(m_pRsmNormlMap);
-	SAFE_RELEASE(m_pRsmPoolCol);
-	SAFE_RELEASE(m_pRsmPoolNor);
 }
 
 CSvoRenderer* CSvoRenderer::GetInstance(bool bCheckAlloce)
@@ -100,6 +53,11 @@ CSvoRenderer* CSvoRenderer::GetInstance(bool bCheckAlloce)
 void CSvoRenderer::Release()
 {
 	SAFE_DELETE(s_pInstance);
+
+	m_pRsmColorMap.reset();
+	m_pRsmNormlMap.reset();
+	m_pRsmPoolCol.reset();
+	m_pRsmPoolNor.reset();
 }
 
 void CSvoRenderer::SetEditingHelper(const Sphere& sp)
@@ -288,31 +246,30 @@ void CSvoRenderer::ExecuteComputeShader(const char* szTechFinalName, CSvoCompute
 	FUNCTION_PROFILER_RENDERER;
 
 	rp.SetTechnique(m_pShader, szTechFinalName, GetRunTimeFlags(true, false));
-	rp.BeginConstantUpdate();
-
-	SetupCommonConstants(NULL, rp, NULL);
 
 	// setup in/out textures
 
 	if (&rp == &m_passInjectAirOpacity)
 	{
-		SetupLightSources(m_arrLightsStatic, rp);
-		SetupNodesForUpdate(*pnNodesForUpdateStartIndex, arrNodesForUpdate, rp);
-
 		// update OPAC
 		rp.SetOutputUAV(2, vp_RGB0.pTex);
 		if(vp_OPAC.pUAV)
 			rp.SetOutputUAV(7, vp_OPAC.pTex);
 
-		SetupSvoTexturesForRead(m_texInfo, rp, 0, 1);
-
 		rp.SetTexture(15, m_pNoiseTex);
-	}
-	else if (&rp == &m_passInjectStaticLights)
-	{
+		SetupSvoTexturesForRead(m_texInfo, rp, 0, 1);
+		SetupCommonSamplers(rp);
+
+		rp.BeginConstantUpdate();
+
+		SetupCommonConstants(NULL, rp, NULL);
 		SetupLightSources(m_arrLightsStatic, rp);
 		SetupNodesForUpdate(*pnNodesForUpdateStartIndex, arrNodesForUpdate, rp);
 
+
+	}
+	else if (&rp == &m_passInjectStaticLights)
+	{
 		// update RGB1
 		rp.SetOutputUAV(2, vp_RGB0.pTex);
 		rp.SetOutputUAV(7, vp_RGB1.pTex);
@@ -320,14 +277,20 @@ void CSvoRenderer::ExecuteComputeShader(const char* szTechFinalName, CSvoCompute
 		if (vp_DYNL.pUAV) rp.SetOutputUAV(6, vp_DYNL.pTex);
 
 		SetupSvoTexturesForRead(m_texInfo, rp, 0);
+		SetupRsmSunTextures(rp);
+		SetupCommonSamplers(rp);
 
-		SetupRsmSun(rp);
+		rp.BeginConstantUpdate();
+
+		SetupCommonConstants(NULL, rp, NULL);
+		SetupRsmSunConstants(rp);
+		SetupLightSources(m_arrLightsStatic, rp);
+		SetupNodesForUpdate(*pnNodesForUpdateStartIndex, arrNodesForUpdate, rp);
+
 	}
 	else if (&rp == &m_passInjectDynamicLights)
 	{
 		BindTiledLights(m_arrLightsDynamic, (CComputeRenderPass&)rp);
-		SetupLightSources(m_arrLightsDynamic, rp);
-		SetupNodesForUpdate(*pnNodesForUpdateStartIndex, arrNodesForUpdate, rp);
 
 		// update RGB
 		rp.SetOutputUAV(2, vp_RGB0.pTex);
@@ -340,59 +303,78 @@ void CSvoRenderer::ExecuteComputeShader(const char* szTechFinalName, CSvoCompute
 			rp.SetOutputUAV(7, vp_RGB3.pTex);
 
 		rp.SetOutputUAV(5, vp_DYNL.pTex);
-
-		SetupSvoTexturesForRead(m_texInfo, rp, 0);
-
 		rp.SetTexture(15, m_pNoiseTex);
 
-		SetupRsmSun(rp);
+		SetupSvoTexturesForRead(m_texInfo, rp, 0);
+		SetupRsmSunTextures(rp);
+		SetupCommonSamplers(rp);
+		
+		rp.BeginConstantUpdate();
+
+		SetupRsmSunConstants(rp);
+		SetupCommonConstants(NULL, rp, NULL);
+		SetupLightSources(m_arrLightsDynamic, rp);
+		SetupNodesForUpdate(*pnNodesForUpdateStartIndex, arrNodesForUpdate, rp);
+
 	}
 	else if (&rp == &m_passPropagateLighting_1to2)
 	{
-		SetupLightSources(m_arrLightsStatic, rp);
-		SetupNodesForUpdate(*pnNodesForUpdateStartIndex, arrNodesForUpdate, rp);
-
 		// update RGB2
 		if (vp_RGB0.pUAV) rp.SetOutputUAV(0, vp_RGB0.pTex);
 		SetupSvoTexturesForRead(m_texInfo, rp, 1); // input
 		if (vp_RGB2.pUAV) rp.SetOutputUAV(5, vp_RGB2.pTex);
 		if (vp_ALDI.pUAV) rp.SetOutputUAV(6, vp_ALDI.pTex);
 		if (vp_DYNL.pUAV) rp.SetOutputUAV(7, vp_DYNL.pTex);
-	}
-	else if (&rp == &m_passPropagateLighting_2to3)
-	{
+
+		SetupCommonSamplers(rp);
+
+		rp.BeginConstantUpdate();
+
+		SetupCommonConstants(NULL, rp, NULL);
 		SetupLightSources(m_arrLightsStatic, rp);
 		SetupNodesForUpdate(*pnNodesForUpdateStartIndex, arrNodesForUpdate, rp);
 
+	}
+	else if (&rp == &m_passPropagateLighting_2to3)
+	{
 		// update RGB3
 		if (vp_RGB0.pUAV) rp.SetOutputUAV(0, vp_RGB0.pTex);
 		if (vp_RGB1.pUAV) rp.SetOutputUAV(1, vp_RGB1.pTex);
 		SetupSvoTexturesForRead(m_texInfo, rp, 2); // input
 		if (vp_RGB3.pUAV) rp.SetOutputUAV(5, vp_RGB3.pTex);
 		if (vp_DYNL.pUAV) rp.SetOutputUAV(7, vp_DYNL.pTex);
+
+		SetupCommonSamplers(rp);
+
+		rp.BeginConstantUpdate();
+
+		SetupCommonConstants(NULL, rp, NULL);
+		SetupLightSources(m_arrLightsStatic, rp);
+		SetupNodesForUpdate(*pnNodesForUpdateStartIndex, arrNodesForUpdate, rp);
+
 	}
 	else if (&rp == &m_passClearBricks)
 	{
+		if (vp_RGB4.pUAV) rp.SetOutputUAV(3, vp_RGB4.pTex);
+		if (vp_OPAC.pUAV) rp.SetOutputUAV(4, vp_OPAC.pTex);
+		if (vp_RGB3.pUAV) rp.SetOutputUAV(6, vp_RGB3.pTex);
+		if(vp_RGB1.pUAV)  rp.SetOutputUAV(7, vp_RGB1.pTex);
+		if(vp_RGB2.pUAV)  rp.SetOutputUAV(5, vp_RGB2.pTex);
+		if(vp_ALDI.pUAV)  rp.SetOutputUAV(0, vp_ALDI.pTex);
+
+		SetupCommonSamplers(rp);
+
+		rp.BeginConstantUpdate();
+
+		SetupCommonConstants(NULL, rp, NULL);
 		SetupNodesForUpdate(*pnNodesForUpdateStartIndex, arrNodesForUpdate, rp);
 
-		if (vp_RGB4.pUAV)
-			rp.SetOutputUAV(3, vp_RGB4.pTex);
-		if(vp_OPAC.pUAV)
-			rp.SetOutputUAV(4, vp_OPAC.pTex);
-		if (vp_RGB3.pUAV)
-			rp.SetOutputUAV(6, vp_RGB3.pTex);
-		if(vp_RGB1.pUAV)
-			rp.SetOutputUAV(7, vp_RGB1.pTex);
-		if(vp_RGB2.pUAV)
-			rp.SetOutputUAV(5, vp_RGB2.pTex);
-		if(vp_ALDI.pUAV)
-			rp.SetOutputUAV(0, vp_ALDI.pTex);
 	}
 
 	{
 		rp.SetDispatchSize(e_svoDispatchX, e_svoDispatchY, 1);
 
-		rp.PrepareResourcesForUse(*CCryDeviceWrapper::GetObjectFactory().GetCoreCommandList(), EShaderStage_All);
+		rp.PrepareResourcesForUse(GetDeviceObjectFactory().GetCoreCommandList());
 
 		SScopedComputeCommandList computeCommandList(e_svoTI_AsyncCompute != 0);
 		rp.Execute(computeCommandList, EShaderStage_All);
@@ -428,24 +410,25 @@ void CSvoRenderer::TropospherePass()
 
 	const char* szTechFinalName = "RenderAtmosphere";
 
+	rp.SetTechnique(m_pShader, szTechFinalName, GetRunTimeFlags(0));
+	rp.SetPrimitiveFlags(CRenderPrimitive::eFlags_ReflectShaderConstants_PS);
+	rp.SetState(GS_NODEPTHTEST);
+
 	rp.SetRenderTarget(0, m_pRT_AIR_MIN);
 	rp.SetRenderTarget(1, m_pRT_AIR_SHAD);
 	rp.SetRenderTarget(2, m_pRT_AIR_MAX);
 	rp.SetRequireWorldPos(true);
 	rp.SetRequirePerViewConstantBuffer(true);
 
-	rp.SetTechnique(m_pShader, szTechFinalName, GetRunTimeFlags(0));
-	rp.BeginConstantUpdate();
-	rp.SetState(GS_NODEPTHTEST);
-
-	SetupCommonConstants(NULL, rp, rp.GetRenderTarget(0));
-
-	SetupLightSources(m_arrLightsStatic, rp);
-	
+	SetupCommonSamplers(rp);
 	SetupSvoTexturesForRead(m_texInfo, rp, e_svoTI_NumberOfBounces, 0, 0);
-
 	SetupGBufferTextures(rp);
 
+	rp.BeginConstantUpdate();
+
+	SetupCommonConstants(NULL, rp, rp.GetRenderTarget(0));
+	SetupLightSources(m_arrLightsStatic, rp);
+	
 	rp.Execute();
 
 	#endif
@@ -469,19 +452,18 @@ void CSvoRenderer::ConeTracePass(SSvoTargetsSet* pTS)
 		return;
 
 	const char* szTechFinalName = "ConeTracePass";
+	const bool bBindDynamicLights = !GetIntegratioMode() && e_svoTI_InjectionMultiplier && m_arrLightsDynamic.Count();
+
+	rp.SetTechnique(m_pShader, szTechFinalName, GetRunTimeFlags(pTS == &m_tsDiff));
+	rp.SetPrimitiveFlags(CRenderPrimitive::eFlags_ReflectShaderConstants_PS);
+	rp.SetState(GS_NODEPTHTEST);
 
 	rp.SetRenderTarget(0, pTS->pRT_ALD_0);
 	rp.SetRenderTarget(1, pTS->pRT_RGB_0);
 	rp.SetRequireWorldPos(true);
 	rp.SetRequirePerViewConstantBuffer(true);
 
-	rp.SetTechnique(m_pShader, szTechFinalName, GetRunTimeFlags(pTS == &m_tsDiff));
-	rp.BeginConstantUpdate();
-	rp.SetState(GS_NODEPTHTEST);
-
-	SetupCommonConstants(pTS, rp, pTS->pRT_ALD_0);
-
-	SetupRsmSun(rp);
+	SetupRsmSunTextures(rp);
 
 	SetupSvoTexturesForRead(m_texInfo, rp, (e_svoTI_Active ? e_svoTI_NumberOfBounces : 0), 0, 0);
 
@@ -490,19 +472,18 @@ void CSvoRenderer::ConeTracePass(SSvoTargetsSet* pTS)
 
 	SetupGBufferTextures(rp);
 
-	#ifdef FEATURE_SVO_GI_ALLOW_HQ
-	if (m_texInfo.pTexIndA)
+#ifdef FEATURE_SVO_GI_ALLOW_HQ
+	if (m_pTexIndA)
 	{
-		rp.SetTexture( 8, (CTexture*)m_texInfo.pTexTexA);
-		rp.SetTexture( 9, (CTexture*)m_texInfo.pTexTriA);
-		rp.SetTexture(13, (CTexture*)m_texInfo.pTexIndA);
+		rp.SetTexture(8, m_pTexTexA);
+		rp.SetTexture(9, m_pTexTriA);
+		rp.SetTexture(13, m_pTexIndA);
 	}
-	#endif
+#endif
 
-	if (!GetIntegratioMode() && e_svoTI_InjectionMultiplier && m_arrLightsDynamic.Count())
+	if (bBindDynamicLights)
 	{
 		BindTiledLights(m_arrLightsDynamic, (CFullscreenPass&)rp);
-		SetupLightSources(m_arrLightsDynamic, rp);
 	}
 
 	if (GetIntegratioMode() && e_svoTI_SSDepthTrace)
@@ -518,15 +499,10 @@ void CSvoRenderer::ConeTracePass(SSvoTargetsSet* pTS)
 		if (setupCloudShadows)
 		{
 			// cloud shadow map
-			CTexture* pCloudShadowTex(gcpRendD3D->GetCloudShadowTextureId() > 0 ? CTexture::GetByID(gcpRendD3D->GetCloudShadowTextureId()) : CTexture::s_ptexWhite);
-			assert(pCloudShadowTex);
+			m_pCloudShadowTex = gcpRendD3D->GetCloudShadowTextureId() > 0 ? CTexture::GetByID(gcpRendD3D->GetCloudShadowTextureId()) : CTexture::s_ptexWhite;
+			assert(m_pCloudShadowTex);
 
-			STexState pTexStateLinearClamp;
-			pTexStateLinearClamp.SetFilterMode(FILTER_LINEAR);
-			pTexStateLinearClamp.SetClampMode(false, false, false);
-			int nTexStateLinearClampID = CTexture::GetTexState(pTexStateLinearClamp);
-
-			rp.SetTexture(15, pCloudShadowTex);
+			rp.SetTexture(15, m_pCloudShadowTex);
 		}
 		else
 		{
@@ -534,7 +510,18 @@ void CSvoRenderer::ConeTracePass(SSvoTargetsSet* pTS)
 		}
 	}
 
-	rp.SetTexture( 8, GetUtils().GetVelocityObjectRT());
+	rp.SetTexture(8, GetUtils().GetVelocityObjectRT());
+
+	SetupCommonSamplers(rp);
+
+	rp.BeginConstantUpdate();
+	SetupCommonConstants(pTS, rp, pTS->pRT_ALD_0);
+	SetupRsmSunConstants(rp);
+
+	if (bBindDynamicLights)
+	{
+		SetupLightSources(m_arrLightsDynamic, rp);
+	}
 
 	rp.Execute();
 }
@@ -542,10 +529,6 @@ void CSvoRenderer::ConeTracePass(SSvoTargetsSet* pTS)
 template<class T>
 void CSvoRenderer::SetupCommonConstants(SSvoTargetsSet* pTS, T &rp, CTexture * pRT)
 {
-	rp.SetSampler(0, m_nTexStatePoint);
-	rp.SetSampler(1, m_nTexStateLinear);
-	rp.SetSampler(2, m_nTexStateLinearWrap);
-
 	CD3D9Renderer* const __restrict rd = gcpRendD3D;
 
 	{
@@ -699,11 +682,19 @@ void CSvoRenderer::SetupCommonConstants(SSvoTargetsSet* pTS, T &rp, CTexture * p
 	}
 }
 
+template<class T> 
+void CSvoRenderer::SetupCommonSamplers(T &rp)
+{
+	rp.SetSampler(0, EDefaultSamplerStates::PointClamp);
+	rp.SetSampler(1, EDefaultSamplerStates::LinearClamp);
+	rp.SetSampler(2, EDefaultSamplerStates::LinearWrap);
+}
+
 void CSvoRenderer::DrawPonts(PodArray<SVF_P3F_C4B_T2F>& arrVerts)
 {
 	SPostEffectsUtils::UpdateFrustumCorners();
 
-	CVertexBuffer strip(arrVerts.GetElements(), eVF_P3F_C4B_T2F);
+	CVertexBuffer strip(arrVerts.GetElements(), EDefaultInputLayouts::P3F_C4B_T2F);
 
 	gRenDev->DrawPrimitivesInternal(&strip, arrVerts.Count() / max(1, e_svoRender), eptPointList);
 }
@@ -778,6 +769,10 @@ void CSvoRenderer::DemosaicPass(SSvoTargetsSet* pTS)
 	if (!e_svoTI_Active || !e_svoTI_Apply || !e_svoRender || !m_pShader || !pTS->pRT_ALD_0 || m_texInfo.bSvoFreeze || !m_texInfo.pTexTree)
 		return;
 
+	rp.SetTechnique(m_pShader, szTechFinalName, GetRunTimeFlags(pTS == &m_tsDiff));
+	rp.SetPrimitiveFlags(CRenderPrimitive::eFlags_ReflectShaderConstants_PS);
+	rp.SetState(GS_NODEPTHTEST);
+
 	rp.SetRenderTarget(0, pTS->pRT_RGB_DEM_MIN_0);
 	rp.SetRenderTarget(1, pTS->pRT_ALD_DEM_MIN_0);
 	rp.SetRenderTarget(2, pTS->pRT_RGB_DEM_MAX_0);
@@ -785,11 +780,7 @@ void CSvoRenderer::DemosaicPass(SSvoTargetsSet* pTS)
 	rp.SetRequireWorldPos(true);
 	rp.SetRequirePerViewConstantBuffer(true);
 
-	rp.SetTechnique(m_pShader, szTechFinalName, GetRunTimeFlags(pTS == &m_tsDiff));
-	rp.BeginConstantUpdate();
-	rp.SetState(GS_NODEPTHTEST);
-
-	SetupCommonConstants(pTS, rp, pTS->pRT_ALD_0);
+	SetupCommonSamplers(rp);
 
 	SetupSvoTexturesForRead(m_texInfo, rp, (e_svoTI_Active ? e_svoTI_NumberOfBounces : 0), 0, 0);
 
@@ -798,12 +789,16 @@ void CSvoRenderer::DemosaicPass(SSvoTargetsSet* pTS)
 	rp.SetTexture(10, pTS->pRT_ALD_0);
 	rp.SetTexture(11, pTS->pRT_RGB_0);
 
-	rp.SetTexture( 6, pTS->pRT_RGB_DEM_MIN_1);
-	rp.SetTexture( 9, pTS->pRT_ALD_DEM_MIN_1);
+	rp.SetTexture(6, pTS->pRT_RGB_DEM_MIN_1);
+	rp.SetTexture(9, pTS->pRT_ALD_DEM_MIN_1);
 	rp.SetTexture(12, pTS->pRT_RGB_DEM_MAX_1);
 	rp.SetTexture(13, pTS->pRT_ALD_DEM_MAX_1);
 
-	rp.SetTexture( 8, GetUtils().GetVelocityObjectRT());
+	rp.SetTexture(8, GetUtils().GetVelocityObjectRT());
+
+	rp.BeginConstantUpdate();
+
+	SetupCommonConstants(pTS, rp, pTS->pRT_ALD_0);
 
 	rp.Execute();
 }
@@ -862,7 +857,7 @@ void CSvoRenderer::SetupNodesForUpdate(int& nNodesForUpdateStartIndex, PodArray<
 
 	for (int g = 0; g < SVO_MAX_NODE_GROUPS; g++)
 	{
-		float matVal[4][4];
+		Vec4 matVal[4];
 
 		for (int x = 0; x < 4; x++)
 		{
@@ -881,7 +876,7 @@ void CSvoRenderer::SetupNodesForUpdate(int& nNodesForUpdateStartIndex, PodArray<
 			}
 		}
 
-		rp.SetConstantArray(paramNames[g], alias_cast<Vec4*>(&matVal[0][0]), 4);
+		rp.SetConstantArray(paramNames[g], &matVal[0], 4);
 	}
 
 	nNodesForUpdateStartIndex += 4 * 4 * SVO_MAX_NODE_GROUPS;
@@ -890,7 +885,7 @@ void CSvoRenderer::SetupNodesForUpdate(int& nNodesForUpdateStartIndex, PodArray<
 template<class T>
 void CSvoRenderer::SetupSvoTexturesForRead(I3DEngine::SSvoStaticTexInfo& texInfo, T & rp, int nStage, int nStageOpa, int nStageNorm)
 {
-	rp.SetTexture(0, ((CTexture*)texInfo.pTexTree));
+	rp.SetTexture(0, (static_cast<CTexture*>(texInfo.pTexTree.get())));
 
 	rp.SetTexture(1, CTexture::s_ptexBlack);
 
@@ -913,7 +908,7 @@ void CSvoRenderer::SetupSvoTexturesForRead(I3DEngine::SSvoStaticTexInfo& texInfo
 	#endif
 
 	if (nStageOpa == 0)
-		rp.SetTexture(3, (CTexture*)texInfo.pTexOpac);
+		rp.SetTexture(3, static_cast<CTexture*>(texInfo.pTexOpac.get()));
 
 	#ifdef FEATURE_SVO_GI_ALLOW_HQ
 
@@ -921,9 +916,9 @@ void CSvoRenderer::SetupSvoTexturesForRead(I3DEngine::SSvoStaticTexInfo& texInfo
 		rp.SetTexture(3, CTexture::GetByID(vp_RGB4.nTexId));
 
 	if (texInfo.pTexTris)
-		rp.SetTexture(6, (CTexture*)texInfo.pTexTris);
+		rp.SetTexture(6, static_cast<CTexture*>(texInfo.pTexTris.get()));
 	if (texInfo.pGlobalSpecCM)
-		rp.SetTexture(6, (CTexture*)texInfo.pGlobalSpecCM);
+		rp.SetTexture(6, static_cast<CTexture*>(texInfo.pGlobalSpecCM.get()));
 
 	#endif
 }
@@ -1421,7 +1416,7 @@ void CSvoRenderer::InitCVarValues()
 	#undef INIT_SVO_CVAR
 }
 
-bool CSvoRenderer::SetSamplers(int nCustomID, EHWShaderClass eSHClass, int nTUnit, int nTState, int nTexMaterialSlot, int nSUnit)
+bool CSvoRenderer::SetSamplers(int nCustomID, EHWShaderClass eSHClass, int nTUnit, SamplerStateHandle nTState, int nTexMaterialSlot, int nSUnit)
 {
 	CSvoRenderer* pSR = CSvoRenderer::GetInstance();
 
@@ -1475,7 +1470,7 @@ bool CSvoRenderer::SetSamplers(int nCustomID, EHWShaderClass eSHClass, int nTUni
 					pTex = CTexture::GetByID(nCustomID);
 			}
 
-			pTex->Apply(nTUnit, nTState, nTexMaterialSlot, nSUnit, -1, eSHClass);
+			pTex->Apply(nTUnit, nTState, nTexMaterialSlot, nSUnit, -1, false, eSHClass);
 
 			return true;
 		}
@@ -1530,15 +1525,13 @@ void CSvoRenderer::UpscalePass(SSvoTargetsSet* pTS)
 	if (!e_svoTI_Active || !e_svoTI_Apply || !e_svoRender || !m_pShader)
 		return;
 
+	rp.SetTechnique(m_pShader, szTechFinalName, GetRunTimeFlags(pTS == &m_tsDiff));
+	rp.SetPrimitiveFlags(CRenderPrimitive::eFlags_ReflectShaderConstants_PS);
+	rp.SetState(GS_NODEPTHTEST);
+	
 	rp.SetRenderTarget(0, pTS->pRT_FIN_OUT_0);
 	rp.SetRequireWorldPos(true);
 	rp.SetRequirePerViewConstantBuffer(true);
-
-	rp.SetTechnique(m_pShader, szTechFinalName, GetRunTimeFlags(pTS == &m_tsDiff));
-	rp.BeginConstantUpdate();
-	rp.SetState(GS_NODEPTHTEST);
-
-	SetupCommonConstants(pTS, rp, pTS->pRT_ALD_0);
 
 	SetupGBufferTextures(rp);
 
@@ -1547,51 +1540,69 @@ void CSvoRenderer::UpscalePass(SSvoTargetsSet* pTS)
 	rp.SetTexture(12, pTS->pRT_ALD_DEM_MAX_0);
 	rp.SetTexture(13, pTS->pRT_RGB_DEM_MAX_0);
 
-	rp.SetTexture( 9, pTS->pRT_FIN_OUT_1);
+	rp.SetTexture(9, pTS->pRT_FIN_OUT_1);
 
 	if (pTS == &m_tsSpec && m_tsDiff.pRT_FIN_OUT_0)
 		rp.SetTexture(15, m_tsDiff.pRT_FIN_OUT_0);
 	else
 		rp.SetTexture(15, CTexture::s_ptexBlack);
 
-	rp.SetTexture( 8, GetUtils().GetVelocityObjectRT());
+	rp.SetTexture(8, GetUtils().GetVelocityObjectRT());
+
+	SetupCommonSamplers(rp);
+
+	rp.BeginConstantUpdate();
+
+	SetupCommonConstants(pTS, rp, pTS->pRT_ALD_0);
 
 	rp.Execute();
 }
 
 template<class T>
-void CSvoRenderer::SetupRsmSun(T & rp)
+void CSvoRenderer::SetupRsmSunTextures(T & rp)
 {
 	const int rsmDepthTexSlot = 29;
 	const int rsmColorTexSlot = 30;
 	const int rsmNormlTexSlot = 31;
 
+	CTexture* pRsmDepthMap  = CTexture::s_ptexBlack;
+	CTexture* pRsmColorMap  = CTexture::s_ptexBlack;
+	CTexture* pRsmNormalMap = CTexture::s_ptexBlack;
+
+	if (ShadowMapFrustum* pRsmFrustum = GetRsmSunFrustum(gcpRendD3D->m_RP.RenderView()))
+	{
+		assert(!pRsmFrustum->bUseShadowsPool);
+
+		pRsmDepthMap = pRsmFrustum->pDepthTex;
+
+		if (CTexture* pColorMap = GetRsmColorMap(*pRsmFrustum))
+			pRsmColorMap = pColorMap;
+
+		if (CTexture* pNormalMap = GetRsmNormlMap(*pRsmFrustum))
+			pRsmNormalMap = pNormalMap;
+	}
+
+	rp.SetTexture(rsmDepthTexSlot, pRsmDepthMap);
+	rp.SetTexture(rsmColorTexSlot, pRsmColorMap);
+	rp.SetTexture(rsmNormlTexSlot, pRsmNormalMap);
+}
+
+template<class T>
+void CSvoRenderer::SetupRsmSunConstants(T & rp)
+{
 	static CCryNameR lightProjParamName("SVO_RsmSunShadowProj");
 	static CCryNameR rsmSunColparamName("SVO_RsmSunCol");
 	static CCryNameR rsmSunDirparamName("SVO_RsmSunDir");
 	Matrix44A shadowMat;
 	shadowMat.SetIdentity();
 
-	CRenderView* pRenderView = gcpRendD3D->m_RP.RenderView();
-	auto& SMFrustums = pRenderView->GetShadowFrustumsByType(CRenderView::eShadowFrustumRenderType_SunDynamic);
-	int nFrIdx = 0;
-	for (nFrIdx = 0; nFrIdx < SMFrustums.size(); nFrIdx++)
+	ShadowMapFrustum* pRsmFrustum = GetRsmSunFrustum(gcpRendD3D->m_RP.RenderView());
+
+	if (pRsmFrustum && GetRsmColorMap(*pRsmFrustum))
 	{
-		ShadowMapFrustum& firstFrustum = *SMFrustums[nFrIdx]->pFrustum;
-		if (firstFrustum.nShadowMapLod == e_svoTI_GsmCascadeLod)
-			break;
-	}
+		gcpRendD3D->ConfigShadowTexgen(0, pRsmFrustum, 0);
 
-	if ((nFrIdx < SMFrustums.size()) && GetRsmColorMap(*SMFrustums[nFrIdx]->pFrustum))
-	{
-		ShadowMapFrustum& firstFrustum = *SMFrustums[nFrIdx]->pFrustum;
-		gcpRendD3D->ConfigShadowTexgen(0, &firstFrustum, 0);
-
-		assert(!firstFrustum.bUseShadowsPool);
-
-		rp.SetTexture(rsmDepthTexSlot, firstFrustum.pDepthTex);
-		rp.SetTexture(rsmColorTexSlot, GetRsmColorMap(firstFrustum));
-		rp.SetTexture(rsmNormlTexSlot, GetRsmNormlMap(firstFrustum));
+		assert(!pRsmFrustum->bUseShadowsPool);
 
 		// set up shadow matrix
 		shadowMat = gRenDev->m_TempMatrices[0][0];
@@ -1611,11 +1622,6 @@ void CSvoRenderer::SetupRsmSun(T & rp)
 	}
 	else
 	{
-		rp.SetTexture(rsmDepthTexSlot, CTexture::s_ptexBlack);
-		rp.SetTexture(rsmColorTexSlot, CTexture::s_ptexBlack);
-		rp.SetTexture(rsmNormlTexSlot, CTexture::s_ptexBlack);
-		rp.SetConstantArray(lightProjParamName, alias_cast<Vec4*>(&shadowMat), 4);
-
 		Vec4 vData(0, 0, 0, 0);
 		rp.SetConstantArray(rsmSunColparamName, (Vec4*)&vData, 1);
 		Vec4 vData2(0, 0, 0, 0);
@@ -1631,7 +1637,29 @@ ISvoRenderer* CD3D9Renderer::GetISvoRenderer()
 template<class T>
 void CSvoRenderer::BindTiledLights(PodArray<I3DEngine::SLightTI>& lightsTI, T & rp)
 {
-	gcpRendD3D->GetTiledShading().BindForwardShadingResources(rp);
+	auto tiledShadingResources = gcpRendD3D->GetTiledShading().GetTiledShadingResources();
+	rp.SetBuffer(16, tiledShadingResources.lightShadeInfoBuf);
+	rp.SetTexture(19, tiledShadingResources.spotTexAtlas);
+	rp.SetTexture(20, CTexture::s_ptexRT_ShadowPool);
+
+	CTexture* ptexRsmCol = CTexture::s_ptexBlack;
+	CTexture* ptexRsmNor = CTexture::s_ptexBlack;
+	if (CSvoRenderer::GetInstance()->IsActive() && CSvoRenderer::GetInstance()->GetSpecularFinRT())
+	{
+		if (CTexture* pTexPoolCol = CSvoRenderer::GetInstance()->GetRsmPoolCol())
+		{
+			if (CTexture::IsTextureExist(pTexPoolCol))
+				ptexRsmCol = pTexPoolCol;
+		}
+		if (CTexture* pTexPoolNor = CSvoRenderer::GetInstance()->GetRsmPoolNor())
+		{
+			if (CTexture::IsTextureExist(pTexPoolNor))
+				ptexRsmNor = pTexPoolNor;
+		}
+	}
+
+	rp.SetTexture(26, ptexRsmCol);
+	rp.SetTexture(27, ptexRsmNor);
 
 	STiledLightShadeInfo* tiledLightShadeInfo = gcpRendD3D->GetTiledShading().GetTiledLightShadeInfo();
 
@@ -1659,22 +1687,35 @@ void CSvoRenderer::BindTiledLights(PodArray<I3DEngine::SLightTI>& lightsTI, T & 
 	}
 }
 
+ShadowMapFrustum* CSvoRenderer::GetRsmSunFrustum(CRenderView* pRenderView) const
+{
+	for (auto pFrustumToRender : pRenderView->GetShadowFrustumsByType(CRenderView::eShadowFrustumRenderType_SunDynamic))
+	{
+		if (pFrustumToRender->pFrustum->nShadowMapLod == e_svoTI_GsmCascadeLod)
+		{
+			return pFrustumToRender->pFrustum;
+		}
+	}
+
+	return nullptr;
+}
+
 CTexture* CSvoRenderer::GetRsmColorMap(const ShadowMapFrustum& rFr, bool bCheckUpdate)
 {
 	if (IsActive() && (rFr.nShadowMapLod == CSvoRenderer::GetInstance()->e_svoTI_GsmCascadeLod) && CSvoRenderer::GetInstance()->e_svoTI_InjectionMultiplier && CSvoRenderer::GetInstance()->e_svoTI_RsmUseColors >= 0)
 	{
 		if (bCheckUpdate)
-			CSvoRenderer::GetInstance()->CheckCreateUpdateRT(CSvoRenderer::GetInstance()->m_pRsmColorMap, rFr.nShadowMapSize, rFr.nShadowMapSize, eTF_R8G8B8A8, eTT_2D, FT_STATE_CLAMP, "SVO_SUN_RSM_COLOR");
+			CSvoRenderer::GetInstance()->CheckCreateUpdateRT(m_pRsmColorMap, rFr.nShadowMapSize, rFr.nShadowMapSize, eTF_R8G8B8A8, eTT_2D, FT_STATE_CLAMP, "SVO_SUN_RSM_COLOR");
 
-		return CSvoRenderer::GetInstance()->m_pRsmColorMap;
+		return CTexture::IsTextureExist(m_pRsmColorMap) ? m_pRsmColorMap : nullptr;
 	}
 
 	if (IsActive() && rFr.bUseShadowsPool && CSvoRenderer::GetInstance()->e_svoTI_InjectionMultiplier && CSvoRenderer::GetInstance()->e_svoTI_RsmUseColors >= 0 && rFr.m_Flags & DLF_USE_FOR_SVOGI)
 	{
 		if (bCheckUpdate)
-			CSvoRenderer::GetInstance()->CheckCreateUpdateRT(CSvoRenderer::GetInstance()->m_pRsmPoolCol, gcpRendD3D->m_nShadowPoolWidth, gcpRendD3D->m_nShadowPoolHeight, eTF_R8G8B8A8, eTT_2D, FT_STATE_CLAMP, "SVO_PRJ_RSM_COLOR");
+			CSvoRenderer::GetInstance()->CheckCreateUpdateRT(m_pRsmPoolCol, gcpRendD3D->m_nShadowPoolWidth, gcpRendD3D->m_nShadowPoolHeight, eTF_R8G8B8A8, eTT_2D, FT_STATE_CLAMP, "SVO_PRJ_RSM_COLOR");
 
-		return CSvoRenderer::GetInstance()->m_pRsmPoolCol;
+		return CTexture::IsTextureExist(m_pRsmPoolCol) ? m_pRsmPoolCol : nullptr;
 	}
 
 	return NULL;
@@ -1685,34 +1726,51 @@ CTexture* CSvoRenderer::GetRsmNormlMap(const ShadowMapFrustum& rFr, bool bCheckU
 	if (IsActive() && (rFr.nShadowMapLod == CSvoRenderer::GetInstance()->e_svoTI_GsmCascadeLod) && CSvoRenderer::GetInstance()->e_svoTI_InjectionMultiplier && CSvoRenderer::GetInstance()->e_svoTI_RsmUseColors >= 0)
 	{
 		if (bCheckUpdate)
-			CSvoRenderer::GetInstance()->CheckCreateUpdateRT(CSvoRenderer::GetInstance()->m_pRsmNormlMap, rFr.nShadowMapSize, rFr.nShadowMapSize, eTF_R8G8B8A8, eTT_2D, FT_STATE_CLAMP, "SVO_SUN_RSM_NORMAL");
+			CSvoRenderer::GetInstance()->CheckCreateUpdateRT(m_pRsmNormlMap, rFr.nShadowMapSize, rFr.nShadowMapSize, eTF_R8G8B8A8, eTT_2D, FT_STATE_CLAMP, "SVO_SUN_RSM_NORMAL");
 
-		return CSvoRenderer::GetInstance()->m_pRsmNormlMap;
+		return CTexture::IsTextureExist(m_pRsmNormlMap) ? m_pRsmNormlMap : nullptr;
 	}
 
 	if (IsActive() && rFr.bUseShadowsPool && CSvoRenderer::GetInstance()->e_svoTI_InjectionMultiplier && CSvoRenderer::GetInstance()->e_svoTI_RsmUseColors >= 0 && rFr.m_Flags & DLF_USE_FOR_SVOGI)
 	{
 		if (bCheckUpdate)
-			CSvoRenderer::GetInstance()->CheckCreateUpdateRT(CSvoRenderer::GetInstance()->m_pRsmPoolNor, gcpRendD3D->m_nShadowPoolWidth, gcpRendD3D->m_nShadowPoolHeight, eTF_R8G8B8A8, eTT_2D, FT_STATE_CLAMP, "SVO_PRJ_RSM_NORMAL");
+			CSvoRenderer::GetInstance()->CheckCreateUpdateRT(m_pRsmPoolNor, gcpRendD3D->m_nShadowPoolWidth, gcpRendD3D->m_nShadowPoolHeight, eTF_R8G8B8A8, eTT_2D, FT_STATE_CLAMP, "SVO_PRJ_RSM_NORMAL");
 
-		return CSvoRenderer::GetInstance()->m_pRsmPoolNor;
+		return CTexture::IsTextureExist(m_pRsmPoolNor) ? m_pRsmPoolNor : nullptr;
 	}
 
 	return NULL;
 }
 
-void CSvoRenderer::CheckCreateUpdateRT(CTexture*& pTex, int nWidth, int nHeight, ETEX_Format eTF, ETEX_Type eTT, int nTexFlags, const char* szName)
+void CSvoRenderer::GetRsmTextures(_smart_ptr<CTexture>& pRsmColorMap, _smart_ptr<CTexture>& pRsmNormlMap, _smart_ptr<CTexture>& pRsmPoolCol, _smart_ptr<CTexture>& pRsmPoolNor)
 {
-	if ((!pTex) || (pTex->GetWidth() != nWidth) || (pTex->GetHeight() != nHeight) || (pTex->GetTextureDstFormat() != eTF))
+	// *INDENT-OFF*
+	if (!m_pRsmColorMap) m_pRsmColorMap = CTexture::GetOrCreateTextureObjectPtr("SVO_SUN_RSM_COLOR",  0, 0, 1, eTT_2D, FT_STATE_CLAMP, eTF_R8G8B8A8);
+	if (!m_pRsmNormlMap) m_pRsmNormlMap = CTexture::GetOrCreateTextureObjectPtr("SVO_SUN_RSM_NORMAL", 0, 0, 1, eTT_2D, FT_STATE_CLAMP, eTF_R8G8B8A8);
+	if (!m_pRsmPoolCol)  m_pRsmPoolCol  = CTexture::GetOrCreateTextureObjectPtr("SVO_PRJ_RSM_COLOR",  0, 0, 1, eTT_2D, FT_STATE_CLAMP, eTF_R8G8B8A8);
+	if (!m_pRsmPoolNor)  m_pRsmPoolNor  = CTexture::GetOrCreateTextureObjectPtr("SVO_PRJ_RSM_NORMAL", 0, 0, 1, eTT_2D, FT_STATE_CLAMP, eTF_R8G8B8A8);
+
+	pRsmColorMap = m_pRsmColorMap;
+	pRsmNormlMap = m_pRsmNormlMap;
+	pRsmPoolCol  = m_pRsmPoolCol;
+	pRsmPoolNor  = m_pRsmPoolNor;
+	// *INDENT-ON*
+}
+
+void CSvoRenderer::CheckCreateUpdateRT(_smart_ptr<CTexture>& pTex, int nWidth, int nHeight, ETEX_Format eTF, ETEX_Type eTT, int nTexFlags, const char* szName)
+{
+	if (!CTexture::IsTextureExist(pTex) || pTex->GetWidth() != nWidth || pTex->GetHeight() != nHeight || pTex->GetTextureDstFormat() != eTF)
 	{
-		SAFE_RELEASE(pTex);
+		const bool bNeedsDecRef = !CTexture::IsTextureExist(pTex); // NOTE: SD3DPostEffectsUtils::GetOrCreateRenderTarget adds ref when !CTexture::IsTextureExist only
+		
+		CTexture* pTexRaw = pTex;
+		SD3DPostEffectsUtils::GetOrCreateRenderTarget(szName, pTexRaw, nWidth, nHeight, Clr_Unknown, 0, false, eTF);
 
-		char szNameEx[256];
-		cry_sprintf(szNameEx, "%s_%d_%d", szName, nWidth, nHeight); // workaround for RT management bug
+		pTex = pTexRaw;
+		pTex->DisableMgpuSync(); 
 
-		SD3DPostEffectsUtils::CreateRenderTarget(szNameEx, pTex, nWidth, nHeight, Clr_Unknown, 0, false, eTF);
-
-		pTex->DisableMgpuSync();
+		if (bNeedsDecRef)
+			pTex->Release();
 
 		//iLog->Log("Realloc RT %dx%d, %s, %s", nWidth, nHeight, CTexture::NameForTextureFormat(eTF), szName);
 	}
@@ -1729,9 +1787,9 @@ void CSvoRenderer::SVoxPool::Init(ITexture* _pTex)
 		if (CSvoRenderer::s_pInstance && CSvoRenderer::s_pInstance->GetIntegratioMode())
 		{
 			if(pTex->GetFlags() & FT_USAGE_UAV_RWTEXTURE)
-				pUAV = pTex->GetDeviceUAV();
+				pUAV = pTex->GetDevTexture()->LookupUAV(EDefaultResourceViews::UnorderedAccess);
 			else
-				pSRV = pTex->GetShaderResourceView();
+				pSRV = pTex->GetDevTexture()->LookupSRV(EDefaultResourceViews::Default);
 		}
 
 		nTexId = pTex->GetTextureID();

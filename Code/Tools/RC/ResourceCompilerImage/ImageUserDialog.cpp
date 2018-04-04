@@ -13,6 +13,7 @@
 
 #include <commctrl.h>               // TCITEM
 #include <vector>
+#include <algorithm>
 
 #include <windowsx.h>               // ComboBox_GetCurSel
 #undef SubclassWindow
@@ -1439,7 +1440,7 @@ RECT CImageUserDialog::GetPreviewRectangle(const uint32 mipLevel)
 		fCoordinateShiftY *= fTemp * fScaleShiftY;
 	}
 
-	const int iTemp = (MAX(m_iPreviewWidth, m_iPreviewHeight) * DEFAULT_SCALE64) / iScale;
+	const int iTemp = (std::max(m_iPreviewWidth, m_iPreviewHeight) * DEFAULT_SCALE64) / iScale;
 
 	rect.left = (long)((m_PreviewData.fShiftX - fCoordinateShiftX) * iWidth);
 	rect.right = rect.left + iTemp;
@@ -1449,11 +1450,11 @@ RECT CImageUserDialog::GetPreviewRectangle(const uint32 mipLevel)
 	rect.bottom = (rect.bottom > iHeight) ? iHeight : rect.bottom;
 
 	//additional border pixels for mipmap generation
-	const int maxBorderSize = 16;
-	rect.left -= MIN(maxBorderSize, rect.left);
-	rect.right += MIN(maxBorderSize, iWidth - rect.right);
-	rect.top -= MIN(maxBorderSize, rect.top);
-	rect.bottom += MIN(maxBorderSize, iHeight - rect.bottom);
+	const LONG maxBorderSize = 16;
+	rect.left -= std::min(maxBorderSize, rect.left);
+	rect.right += std::min(maxBorderSize, iWidth - rect.right);
+	rect.top -= std::min(maxBorderSize, rect.top);
+	rect.bottom += std::min(maxBorderSize, iHeight - rect.bottom);
 
 	// expand to include full 4x4 blocks
 	rect.left = rect.left & (~0x3);

@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #ifndef _DevBuffer_H_
 #define _DevBuffer_H_
@@ -14,6 +14,9 @@
 #endif
 
 #include <CryCore/Platform/CryWindows.h>
+#include "../XRenderD3D9/DeviceManager/DeviceResources.h"
+
+class CSubmissionQueue_DX11; // friend
 
 ////////////////////////////////////////////////////////////////////////////////////////
 // Usage hints
@@ -42,7 +45,7 @@ typedef uintptr_t buffer_handle_t;
 typedef uint32    item_handle_t;
 
 ////////////////////////////////////////////////////////////////////////////////////////
-struct SDescriptorBlock : SUsageTrackedItem
+struct SDescriptorBlock : SUsageTrackedItem<DEVRES_TRACK_LATENCY>
 {
 	SDescriptorBlock(uint32 id)
 		: SUsageTrackedItem(0)
@@ -54,25 +57,38 @@ struct SDescriptorBlock : SUsageTrackedItem
 
 	const uint32 blockID;
 
-	void*        pBuffer;
-	uint32       size;
-	uint32       offset;
+	void*         pBuffer;
+	buffer_size_t size;
+	buffer_size_t offset;
 };
+
+#if (CRY_RENDERER_VULKAN >= 10)
+struct SDescriptorSet : SUsageTrackedItem<DEVRES_TRACK_LATENCY>
+{
+	SDescriptorSet()
+		: vkDescriptorSet(VK_NULL_HANDLE)
+	{
+	}
+
+	VkDescriptorSet vkDescriptorSet;
+};
+#endif
 
 ////////////////////////////////////////////////////////////////////////////////////////
 // Constant buffer wrapper class
 class CConstantBuffer
 {
 public:
-	D3DBuffer*    m_buffer;
+	CDeviceBuffer* m_buffer;
 #if CONSTANT_BUFFER_ENABLE_DIRECT_ACCESS
-	void*         m_allocator;
+	void*          m_allocator;
 #endif
-	void*         m_base_ptr;
-	item_handle_t m_handle;
-	uint32        m_offset;
-	uint32        m_size;
-	int32         m_nRefCount;
+	void*          m_base_ptr;
+	item_handle_t  m_handle;
+	buffer_size_t  m_offset;
+	buffer_size_t  m_size;
+	int32          m_nRefCount;
+	int8           m_nUpdCount;
 	union
 	{
 		struct
@@ -80,10 +96,6 @@ public:
 			uint8 m_used              : 1;
 			uint8 m_lock              : 1;
 			uint8 m_dynamic           : 1;
-			uint8 m_intentionallyNull : 1;
-#if defined(OPENGL)
-			uint8 m_no_streaming      : 1;
-#endif
 		};
 
 		uint8 m_clearFlags;
@@ -103,17 +115,22 @@ public:
 			ReturnToPool();
 	}
 
-	inline D3DBuffer* GetD3D(size_t* offset, size_t* size) const
+	inline D3DBuffer* GetD3D() const
+	{
+		return m_buffer->GetBuffer();
+	}
+
+	inline D3DBuffer* GetD3D(buffer_size_t* offset, buffer_size_t* size) const
 	{
 		*offset = m_offset;
 		*size = m_size;
-		return m_buffer;
+		return m_buffer->GetBuffer();
 	}
 
 	inline uint64 GetCode() const
 	{
-#if CONSTANT_BUFFER_ENABLE_DIRECT_ACCESS || defined(OPENGL)
-		uint64 code = reinterpret_cast<uintptr_t>(m_buffer) | ((uint64)m_offset << 40);//|(((uint64)m_size>>4)<<60); Size will follow buffer address, so we just need offset
+#if CONSTANT_BUFFER_ENABLE_DIRECT_ACCESS || CRY_RENDERER_OPENGL
+		uint64 code = reinterpret_cast<uintptr_t>(m_buffer) ^ SwapEndianValue((uint64)m_offset, true);
 		return code;
 #else
 		return reinterpret_cast<uint64>(m_buffer);
@@ -122,7 +139,9 @@ public:
 
 	void* BeginWrite();
 	void  EndWrite(bool requires_flush = false);
-	void  UpdateBuffer(const void* src, size_t size, size_t offset = 0, uint32 numDataBlocks = 1); // See CDeviceManager::UploadContents for details on numDataBlocks
+	void  UpdateBuffer(const void* src, buffer_size_t size, buffer_size_t offset = 0, int numDataBlocks = 1); // See CDeviceManager::UploadContents for details on numDataBlocks
+
+	bool  IsNullBuffer() const { return m_size == 0; }
 
 private:
 	void  ReturnToPool();
@@ -138,13 +157,13 @@ public:
 	// Should only be called from the thread that can create and update constant buffers
 	CConstantBufferPtr GetConstantBuffer();
 	CConstantBufferPtr GetNullConstantBuffer();
-	size_t             GetSize() const { return m_size; }
+	buffer_size_t      GetSize() const { return m_size; }
 
 protected:
 	virtual void DeleteThis() override { delete this; }
 
 private:
-	size_t                                             m_size;
+	buffer_size_t                                      m_size;
 	stl::aligned_vector<uint8, CRY_PLATFORM_ALIGNMENT> m_data;
 	CConstantBufferPtr                                 m_pConstantBuffer;
 	bool                                               m_bDirty;
@@ -182,24 +201,24 @@ class CDeviceBufferManager
 	// Wanted to only expose the actual function using these, however impossible to forward declare a method
 	// without including the full renderer here
 	friend class CD3D9Renderer;
-	void* BeginReadDirectIB(D3DIndexBuffer*, size_t size, size_t offset);
-	void* BeginReadDirectVB(D3DVertexBuffer*, size_t size, size_t offset);
+	void* BeginReadDirectIB(D3DIndexBuffer*, buffer_size_t size, buffer_size_t offset);
+	void* BeginReadDirectVB(D3DVertexBuffer*, buffer_size_t size, buffer_size_t offset);
 	void  EndReadDirectIB(D3DIndexBuffer*);
 	void  EndReadDirectVB(D3DVertexBuffer*);
 #endif
 
 	friend class CGuardedDeviceBufferManager;
-	friend class CDeviceManager;
+	friend class CSubmissionQueue_DX11;
 
 	void            PinItem_Locked(buffer_handle_t);
 	void            UnpinItem_Locked(buffer_handle_t);
-	buffer_handle_t Create_Locked(BUFFER_BIND_TYPE, BUFFER_USAGE, size_t);
+	buffer_handle_t Create_Locked(BUFFER_BIND_TYPE type, BUFFER_USAGE usage, buffer_size_t size, bool bUsePool=true);
 	void            Destroy_Locked(buffer_handle_t);
 	void*           BeginRead_Locked(buffer_handle_t handle);
 	void*           BeginWrite_Locked(buffer_handle_t handle);
 	void            EndReadWrite_Locked(buffer_handle_t handle);
-	bool            UpdateBuffer_Locked(buffer_handle_t handle, const void*, size_t, size_t = 0);
-	size_t          Size_Locked(buffer_handle_t);
+	bool            UpdateBuffer_Locked(buffer_handle_t handle, const void*, buffer_size_t, buffer_size_t = 0);
+	buffer_size_t   Size_Locked(buffer_handle_t);
 
 public:
 	CDeviceBufferManager();
@@ -210,24 +229,26 @@ public:
 
 	// PPOL_ALIGNMENT is 128 in general, which is a bit much, we use the smallest alignment necessary for fast mem-copies
 #if 0
-	static size_t        GetBufferAlignmentForStreaming();
+	static        buffer_size_t GetBufferAlignmentForStreaming();
 #else
-	static inline size_t GetBufferAlignmentForStreaming()
+	static inline buffer_size_t GetBufferAlignmentForStreaming()
 	{
 		return CRY_PLATFORM_ALIGNMENT;
 	}
 #endif
 
-	static inline size_t AlignBufferSizeForStreaming(size_t size)
+	template<typename var_size_t>
+	static inline var_size_t AlignBufferSizeForStreaming(var_size_t size)
 	{
 		// Align the allocation size up to the configured allocation alignment
-		size_t alignment = GetBufferAlignmentForStreaming();
+		var_size_t alignment = GetBufferAlignmentForStreaming();
 		return (size + (alignment - 1)) & ~(alignment - 1);
 	}
 
-	static inline size_t AlignElementCountForStreaming(size_t numElements, size_t sizeOfElement)
+	template<typename var_size_t>
+	static inline var_size_t AlignElementCountForStreaming(var_size_t numElements, var_size_t sizeOfElement)
 	{
-		const size_t missing = AlignBufferSizeForStreaming(sizeOfElement * numElements) - (sizeOfElement * numElements);
+		const var_size_t missing = AlignBufferSizeForStreaming(sizeOfElement * numElements) - (sizeOfElement * numElements);
 		if (missing)
 			numElements += (missing + (sizeOfElement - 1)) / sizeOfElement;
 		return numElements;
@@ -243,19 +264,29 @@ public:
 
 	////////////////////////////////////////////////////////////////////////////////////////
 	// ConstantBuffer creation
-	CConstantBuffer*          CreateConstantBufferRaw(size_t size, bool dynamic = true, bool needslock = false);
-	inline CConstantBufferPtr CreateConstantBuffer(size_t size, bool dynamic = true, bool needslock = false)
+	CConstantBuffer*          CreateConstantBufferRaw(buffer_size_t size, bool dynamic = true, bool needslock = false);
+	inline CConstantBufferPtr CreateConstantBuffer(buffer_size_t size, bool dynamic = true, bool needslock = false)
 	{
 		CConstantBufferPtr result;
 		result.Assign_NoAddRef(CreateConstantBufferRaw(size, dynamic, needslock));
 		return result;
 	}
-	static CConstantBufferPtr CreateNullConstantBuffer();
+
+	// null buffers
+	static CConstantBufferPtr GetNullConstantBuffer();
+	static CGpuBuffer* GetNullBufferTyped();
+	static CGpuBuffer* GetNullBufferStructured();
+
 
 	////////////////////////////////////////////////////////////////////////////////////////
 	// Descriptor blocks
-	SDescriptorBlock* CreateDescriptorBlock(size_t size);
+	SDescriptorBlock* CreateDescriptorBlock(buffer_size_t size);
 	void              ReleaseDescriptorBlock(SDescriptorBlock* pBlock);
+
+#if (CRY_RENDERER_VULKAN >= 10)
+	SDescriptorSet* AllocateDescriptorSet(const VkDescriptorSetLayout& descriptorSetLayout);
+	void ReleaseDescriptorSet(SDescriptorSet *pDescriptorSet);
+#endif
 
 	////////////////////////////////////////////////////////////////////////////////////////
 	// Locks the global devicebuffer lock
@@ -268,12 +299,12 @@ public:
 	void UnpinItem(buffer_handle_t);
 
 	// Returns the size in bytes of the allocation
-	size_t Size(buffer_handle_t);
+	buffer_size_t Size(buffer_handle_t);
 
 	////////////////////////////////////////////////////////////////////////////////////////
 	// Buffer Resource creation methods
 	//
-	buffer_handle_t Create(BUFFER_BIND_TYPE, BUFFER_USAGE, size_t);
+	buffer_handle_t Create(BUFFER_BIND_TYPE type, BUFFER_USAGE usage, buffer_size_t size, bool bUsePool=true);
 	void            Destroy(buffer_handle_t);
 
 	////////////////////////////////////////////////////////////////////////////////////////
@@ -288,12 +319,13 @@ public:
 	void* BeginRead(buffer_handle_t handle);
 	void* BeginWrite(buffer_handle_t handle);
 	void  EndReadWrite(buffer_handle_t handle);
-	bool UpdateBuffer(buffer_handle_t handle, const void*, size_t, size_t = 0);
+	bool UpdateBuffer(buffer_handle_t handle, const void*, buffer_size_t, buffer_size_t = 0);
 
 	template<class T>
 	bool UpdateBuffer(buffer_handle_t handle, stl::aligned_vector<T, CRY_PLATFORM_ALIGNMENT>& vData)
 	{
-		return UpdateBuffer(handle, &vData[0], AlignBufferSizeForStreaming(vData.size() * sizeof(T)));
+		buffer_size_t size = buffer_size_t(vData.size() * sizeof(T));
+		return UpdateBuffer(handle, &vData[0], AlignBufferSizeForStreaming(size));
 	}
 
 	////////////////////////////////////////////////////////////////////////////////////////
@@ -308,36 +340,39 @@ public:
 	// Note: Do not store the returned device buffer pointer outside of the function performing
 	//       calls below.
 
-	D3DBuffer*       GetD3D  (buffer_handle_t, size_t*);
-	D3DVertexBuffer* GetD3DVB(buffer_handle_t, size_t*);
-	D3DIndexBuffer*  GetD3DIB(buffer_handle_t, size_t*);
+	D3DBuffer*       GetD3D  (buffer_handle_t, buffer_size_t* offset);
+	D3DBuffer*       GetD3D  (buffer_handle_t, buffer_size_t* offset, buffer_size_t* size);
+	D3DVertexBuffer* GetD3DVB(buffer_handle_t, buffer_size_t*);
+	D3DIndexBuffer*  GetD3DIB(buffer_handle_t, buffer_size_t*);
 };
 
 class CGuardedDeviceBufferManager : public NoCopy
 {
-	CDeviceBufferManager* m_pDevMan;
+	CDeviceBufferManager* m_pDevBufMan;
 public:
 
 	explicit CGuardedDeviceBufferManager(CDeviceBufferManager* pDevMan)
-		: m_pDevMan(pDevMan)
-	{ m_pDevMan->LockDevMan(); }
+		: m_pDevBufMan(pDevMan)
+	{ m_pDevBufMan->LockDevMan(); }
 
-	~CGuardedDeviceBufferManager() { m_pDevMan->UnlockDevMan(); }
+	~CGuardedDeviceBufferManager() { m_pDevBufMan->UnlockDevMan(); }
 
-	static inline size_t GetBufferAlignForStreaming()                                            { return CDeviceBufferManager::GetBufferAlignmentForStreaming(); }
-	static inline size_t AlignBufferSizeForStreaming(size_t size)                                { return CDeviceBufferManager::AlignBufferSizeForStreaming(size); }
-	static inline size_t AlignElementCountForStreaming(size_t numElements, size_t sizeOfElement) { return CDeviceBufferManager::AlignElementCountForStreaming(numElements, sizeOfElement); }
+	static inline buffer_size_t GetBufferAlignForStreaming()                                                    { return CDeviceBufferManager::GetBufferAlignmentForStreaming(); }
+	template<typename var_size_t>
+	static inline    var_size_t AlignBufferSizeForStreaming(var_size_t size)                                    { return CDeviceBufferManager::AlignBufferSizeForStreaming(size); }
+	template<typename var_size_t>
+	static inline    var_size_t AlignElementCountForStreaming(var_size_t numElements, var_size_t sizeOfElement) { return CDeviceBufferManager::AlignElementCountForStreaming(numElements, sizeOfElement); }
 
 	////////////////////////////////////////////////////////////////////////////////////////
 	// Pin/Unpin items for async access outside of the renderthread
-	void PinItem(buffer_handle_t handle)   { m_pDevMan->PinItem_Locked(handle); }
-	void UnpinItem(buffer_handle_t handle) { m_pDevMan->UnpinItem_Locked(handle); }
+	void PinItem(buffer_handle_t handle)   { m_pDevBufMan->PinItem_Locked(handle); }
+	void UnpinItem(buffer_handle_t handle) { m_pDevBufMan->UnpinItem_Locked(handle); }
 
 	////////////////////////////////////////////////////////////////////////////////////////
 	// Buffer Resource creation methods
 	//
-	buffer_handle_t Create(BUFFER_BIND_TYPE type, BUFFER_USAGE usage, size_t size) { return m_pDevMan->Create_Locked(type, usage, size); }
-	void            Destroy(buffer_handle_t handle)                                { return m_pDevMan->Destroy_Locked(handle); }
+	buffer_handle_t Create(BUFFER_BIND_TYPE type, BUFFER_USAGE usage, buffer_size_t size) { return m_pDevBufMan->Create_Locked(type, usage, size); }
+	void            Destroy(buffer_handle_t handle)                                       { return m_pDevBufMan->Destroy_Locked(handle); }
 
 	////////////////////////////////////////////////////////////////////////////////////////
 	// Manual IO operations
@@ -348,14 +383,14 @@ public:
 	//       the contents of the untouched areas might be undefined as a copy-on-write semantic
 	//       ensures that the updating of buffers does not synchronize with the GPU at any cost.
 	//
-	void*            BeginRead(buffer_handle_t handle)                                  { return m_pDevMan->BeginRead_Locked(handle); }
-	void*            BeginWrite(buffer_handle_t handle)                                 { return m_pDevMan->BeginWrite_Locked(handle); }
-	void             EndReadWrite(buffer_handle_t handle)                               { m_pDevMan->EndReadWrite_Locked(handle); }
-	bool             UpdateBuffer(buffer_handle_t handle, const void* src, size_t size) { return m_pDevMan->UpdateBuffer_Locked(handle, src, size); }
+	void*            BeginRead(buffer_handle_t handle)                                         { return m_pDevBufMan->BeginRead_Locked(handle); }
+	void*            BeginWrite(buffer_handle_t handle)                                        { return m_pDevBufMan->BeginWrite_Locked(handle); }
+	void             EndReadWrite(buffer_handle_t handle)                                      { m_pDevBufMan->EndReadWrite_Locked(handle); }
+	bool             UpdateBuffer(buffer_handle_t handle, const void* src, buffer_size_t size) { return m_pDevBufMan->UpdateBuffer_Locked(handle, src, size); }
 
-	D3DBuffer*       GetD3D(buffer_handle_t handle, size_t* offset)                     { return m_pDevMan->GetD3D(handle, offset); }
-	D3DVertexBuffer* GetD3DVB(buffer_handle_t handle, size_t* offset)                   { return static_cast<D3DVertexBuffer*>(m_pDevMan->GetD3D(handle, offset)); }
-	D3DIndexBuffer*  GetD3DIB(buffer_handle_t handle, size_t* offset)                   { return static_cast<D3DIndexBuffer*>(m_pDevMan->GetD3D(handle, offset)); }
+	D3DBuffer*       GetD3D(buffer_handle_t handle, buffer_size_t* offset)                     { return m_pDevBufMan->GetD3D(handle, offset); }
+	D3DVertexBuffer* GetD3DVB(buffer_handle_t handle, buffer_size_t* offset)                   { return static_cast<D3DVertexBuffer*>(m_pDevBufMan->GetD3D(handle, offset)); }
+	D3DIndexBuffer*  GetD3DIB(buffer_handle_t handle, buffer_size_t* offset)                   { return static_cast<D3DIndexBuffer*>(m_pDevBufMan->GetD3D(handle, offset)); }
 };
 
 class SRecursiveSpinLock
@@ -468,90 +503,70 @@ public:
 	}
 };
 
-// CGpuBuffer Flags
-#define DX11BUF_DYNAMIC            BIT(0)
-#define DX11BUF_STRUCTURED         BIT(1)
-#define DX11BUF_BIND_VERTEX_BUFFER BIT(2)
-#define DX11BUF_BIND_INDEX_BUFFER  BIT(3)
-#define DX11BUF_BIND_SRV           BIT(4)
-#define DX11BUF_BIND_UAV           BIT(5)
-#define DX11BUF_UAV_APPEND         BIT(6)
-#define DX11BUF_UAV_COUNTER        BIT(7)
-#define DX11BUF_DRAWINDIRECT       BIT(8)
-#define DX11BUF_NULL_RESOURCE      BIT(9)   // The buffer shall be created with DeviceManager::AllocateNullResource, as such it cannot be accessed on the CPU, and all reads on the GPU shall return zero.
-#define DX11BUF_UAV_OVERLAP        BIT(10)
-
-struct CGpuBuffer
+class CGpuBuffer : NoCopy, public CResourceBindingInvalidator
 {
 private:
-	struct STrackedGpuBuffer : public SUsageTrackedItem
+	struct STrackedDeviceBuffer : public SUsageTrackedItem<DEVRES_TRACK_LATENCY>
 	{
-		STrackedGpuBuffer() : SUsageTrackedItem(0), m_BufferPersistentMapMode(D3D11_MAP(0)) {}
-		STrackedGpuBuffer(CGpuBuffer* pGpuBuffer, const void* pInitialData);
+		STrackedDeviceBuffer(CDeviceBuffer* pBuffer) 
+			: pDeviceBuffer(pBuffer)
+		{}
 
-		~STrackedGpuBuffer();
-
-		void EnablePersistentMap(bool bEnable);
-
-		_smart_ptr<ID3D11Buffer>              m_pBuffer;
-		_smart_ptr<ID3D11ShaderResourceView>  m_pSRV;
-		_smart_ptr<ID3D11UnorderedAccessView> m_pUAV;
-
-		D3D11_MAP                             m_BufferPersistentMapMode;
-	};
-
-	struct STrackedGpuBufferSet
-	{
-		STrackedGpuBufferSet() : pCurrentBuffer(nullptr) {}
-
-		CTrackedItemAllocator<STrackedGpuBuffer> allocator;
-		STrackedGpuBuffer*                       pCurrentBuffer;
+		CDeviceBuffer* pDeviceBuffer;
 	};
 
 public:
-	CGpuBuffer(int maxBufferCopies = -1)
-		: m_numElements(0)
-		, m_flags(0)
-		, m_MapMode(D3D11_MAP(0))
+	CGpuBuffer(int maxBufferCopies = -1, CDeviceBuffer* devBufToOwn = nullptr)
+		: m_pDeviceBuffer(nullptr)
+		, m_elementCount(0)
+		, m_elementSize(0)
+		, m_eFlags(0)
+		, m_eMapMode(D3D11_MAP(0))
 		, m_bLocked(false)
 		, m_MaxBufferCopies(maxBufferCopies)
 	{
-		ZeroStruct(m_bufferDesc);
-		ZeroStruct(m_srvDesc);
-		ZeroStruct(m_uavDesc);
+		if (devBufToOwn)
+		{
+			OwnDevBuffer(devBufToOwn);
+		}
 	}
 
-	~CGpuBuffer();
+	virtual ~CGpuBuffer();
 
-	bool                       operator==(const CGpuBuffer& other) const;
+	void           Create(buffer_size_t numElements, buffer_size_t elementSize, DXGI_FORMAT elementFormat, uint32 flags, const void* pData);
+	void           Release();
 
-	void                       Create(uint32 numElements, uint32 elementSize, DXGI_FORMAT elementFormat, uint32 flags, const void* pData);
-	void                       Release();
+	void           OwnDevBuffer(CDeviceBuffer* pDeviceTex);
+	void           UpdateBufferContent(const void* pData, buffer_size_t nSize);
+	void*          Lock();
+	void           Unlock(buffer_size_t nSize);
 
-	void                       UpdateBufferContent(const void* pData, size_t nSize);
-	void*                      Lock();
-	void                       Unlock(size_t nSize);
+	bool           IsNullBuffer()    const { return m_elementCount == 0; }
+	bool           IsAvailable ()    const { return m_pDeviceBuffer != nullptr;  }
+	CDeviceBuffer* GetDevBuffer()    const { return m_pDeviceBuffer; }
+	uint32         GetFlags()        const { return m_eFlags; }
+	buffer_size_t  GetElementCount() const { return m_elementCount; }
 
-	ID3D11Buffer*              GetBuffer() const;
-	ID3D11ShaderResourceView*  GetSRV() const;
-	ID3D11UnorderedAccessView* GetDeviceUAV() const;
-
-	int                        m_numElements;
-	int                        m_flags;
+	//////////////////////////////////////////////////////////////////////////
 
 private:
-	void               PrepareFreeBuffer();
-	STrackedGpuBuffer* GetCurrentBuffer() const { return m_pBufferSet ? m_pBufferSet->pCurrentBuffer : nullptr; }
+	CDeviceBuffer*     AllocateDeviceBuffer(const void* pInitialData) const;
+	void               ReleaseDeviceBuffer(CDeviceBuffer*& pDeviceBuffer) const;
 
-	std::shared_ptr<STrackedGpuBufferSet> m_pBufferSet;
+	void               PrepareUnusedBuffer();
 
+	std::queue<STrackedDeviceBuffer> m_deviceBufferPool;
+	CDeviceBuffer*                   m_pDeviceBuffer;
+
+	buffer_size_t                    m_elementCount;
+	buffer_size_t                    m_elementSize;
+	uint32                           m_eFlags;
+
+	D3D11_MAP                        m_eMapMode;
+	DXGI_FORMAT                      m_eFormat;
+	
 	bool                             m_bLocked;
 	int                              m_MaxBufferCopies;
-
-	D3D11_MAP                        m_MapMode;
-	D3D11_BUFFER_DESC                m_bufferDesc;
-	D3D11_SHADER_RESOURCE_VIEW_DESC  m_srvDesc;
-	D3D11_UNORDERED_ACCESS_VIEW_DESC m_uavDesc;
 
 };
 

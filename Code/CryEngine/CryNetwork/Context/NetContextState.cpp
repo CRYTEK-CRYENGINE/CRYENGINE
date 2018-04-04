@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #include "StdAfx.h"
 #include "NetContextState.h"
@@ -21,6 +21,26 @@
 #if ENABLE_NET_DEBUG_ENTITY_INFO
 	#include <CryRenderer/IRenderAuxGeom.h>
 #endif
+
+static uint8 GetDefaultProfileForAspect(EntityId id, EEntityAspects aspectID)
+{
+	IEntity* pEntity = gEnv->pEntitySystem->GetEntity(id);
+	if (!pEntity)
+	{
+		CRY_ASSERT_MESSAGE(gEnv->IsEditor(), "Trying to get default profile for aspect %d on unknown entity %d", aspectID, id);
+		return ~uint8(0);
+	}
+	INetEntity* pNetEntity = pEntity->GetNetEntity();
+	return pNetEntity ? pNetEntity->GetDefaultProfile(aspectID) : 0;
+}
+
+static void SetEntityAspectProfile(EntityId id, NetworkAspectType aspectBit, uint8 profile)
+{
+	CRY_ASSERT(0 == (aspectBit & (aspectBit - 1)));
+	IEntity* pEntity = gEnv->pEntitySystem->GetEntity(id);
+	if (INetEntity* pNetEntity = pEntity->GetNetEntity())
+		pNetEntity->SetAspectProfile(static_cast<EEntityAspects>(aspectBit), profile, true);
+}
 
 CNetContextState::CNetContextState(CNetContext* pContext, int token, CNetContextState* pPrev) : m_pMMM(new CMementoMemoryManager(string().Format("NetContextState[%d]", token)))
 {
@@ -549,7 +569,7 @@ void CNetContextState::PropogateProfileChangesToGame()
 		for (TChangedProfiles::iterator it = m_changedProfiles.begin(); it != m_changedProfiles.end(); ++it)
 		{
 			ASSERT_PRIMARY_THREAD;
-			m_pGameContext->SetAspectProfile(m_vObjects[it->obj.GetID().id].userID, it->aspect, it->profile);
+			SetEntityAspectProfile(m_vObjects[it->obj.GetID().id].userID, it->aspect, it->profile);
 			UnlockObject(it->obj.GetID(), eCOL_GameDataSync);
 		}
 		m_changedProfiles.resize(0);
@@ -1049,7 +1069,7 @@ void CNetContextState::SetAspectProfile(EntityId id, NetworkAspectType aspectBit
 		// not sure if this is the correct thing to do, but should work
 		// if the object is not bound, allow the SetAspectProfile to succeed anyway
 		ASSERT_PRIMARY_THREAD;
-		m_pGameContext->SetAspectProfile(id, aspectBit, profile);
+		SetEntityAspectProfile(id, aspectBit, profile);
 	}
 	else
 	{
@@ -1057,7 +1077,7 @@ void CNetContextState::SetAspectProfile(EntityId id, NetworkAspectType aspectBit
 		if (obj.bOwned)
 		{
 			ASSERT_PRIMARY_THREAD;
-			m_pGameContext->SetAspectProfile(id, aspectBit, profile);
+			SetEntityAspectProfile(id, aspectBit, profile);
 			LockObject(netID, eCOL_GameDataSync);
 			lockedUpdate = true;
 		}
@@ -1444,7 +1464,8 @@ void CNetContextState::RebindObject(SNetObjectID netId, EntityId userId)
 		obj.refUserID = obj.userID = userId;
 
 		for (NetworkAspectID i = 0; i < NumAspects; ++i)
-			obj.vAspectProfiles[i] = obj.vAspectDefaultProfiles[i] = m_pGameContext->GetDefaultProfileForAspect(userId, 1 << i);
+			obj.vAspectProfiles[i] = obj.vAspectDefaultProfiles[i] = 
+				GetDefaultProfileForAspect(userId, static_cast<EEntityAspects>(1 << i));
 
 		// TODO: make sure only relevant to mp - Lin
 		if (m_multiplayer)
@@ -1676,7 +1697,7 @@ bool CNetContextState::AllocateObject(EntityId userID, SNetObjectID netID, Netwo
 		for (NetworkAspectID i = 0; i < NumAspects; i++)
 		{
 			ASSERT_PRIMARY_THREAD;
-			profiles[i] = m_pGameContext->GetDefaultProfileForAspect(userID, 1 << i);
+			profiles[i] = GetDefaultProfileForAspect(userID, static_cast<EEntityAspects>(1 << i));
 			if (profiles[i] >= MaxProfilesPerAspect)
 			{
 #if ENABLE_DEBUG_KIT
@@ -1936,10 +1957,6 @@ bool CNetContextState::AllocateObject(EntityId userID, SNetObjectID netID, Netwo
 			}
 		};
 		objx.pPulseState = new CPriorityPulseStateWrapper();
-#if ENABLE_ASPECT_HASHING
-		for (int i = 0; i < NumAspects; i++)
-			objx.hash[i] = 0;
-#endif
 
 		if (obj.userID)
 		{
@@ -2545,16 +2562,26 @@ void CNetContextState::GC_ControlObject(SNetObjectID id, bool controlled, CNetOb
 	ASSERT_GLOBAL_LOCK;
 	ASSERT_PRIMARY_THREAD;
 	ENSURE_REALTIME;
-	if (m_vObjects[id.id].userID)
-		m_pGameContext->ControlObject(m_vObjects[id.id].userID, controlled);
+	if (const EntityId eid = m_vObjects[id.id].userID)
+	{
+		if (IEntity* pEntity = gEnv->pEntitySystem->GetEntity(eid))
+		{
+			pEntity->GetNetEntity()->SetAuthority(controlled);
+		}
+		m_pGameContext->ControlObject(eid, controlled);
+	}
 }
 
-void CNetContextState::GC_BoundObject(std::pair<EntityId, NetworkAspectType> p)
+void CNetContextState::GC_BoundObject(const EntityId eid)
 {
 	ASSERT_GLOBAL_LOCK;
 	ASSERT_PRIMARY_THREAD;
 	ENSURE_REALTIME;
-	m_pGameContext->BoundObject(p.first, p.second);
+
+	IEntity* pEntity = gEnv->pEntitySystem->GetEntity(eid);
+	CRY_ASSERT_MESSAGE(pEntity, "[net] notification of binding non existant entity %.8x received", eid);
+	if (INetEntity* pNetEntity = (pEntity ? pEntity->GetNetEntity() : nullptr))
+		pNetEntity->BecomeBound();
 }
 
 void CNetContextState::GC_SendPostSpawnEntities(CContextViewPtr pView)
@@ -2588,7 +2615,7 @@ void CNetContextState::GC_SetAspectProfile(NetworkAspectType aspect, uint8 profi
 	ENSURE_REALTIME;
 	ASSERT_PRIMARY_THREAD;
 	if (m_vObjects[netID.id].userID)
-		m_pGameContext->SetAspectProfile(m_vObjects[netID.id].userID, aspect, profile);
+		SetEntityAspectProfile(m_vObjects[netID.id].userID, aspect, profile);
 	UnlockObject(netID, eCOL_GameDataSync);
 }
 
@@ -3034,7 +3061,7 @@ void CNetContextState::NetDump(ENetDumpType type)
 							//IGameChannel* pGameChan = pChan ? pChan-> : NULL;
 							TNetChannelID chanid = pChan ? pChan->GetLocalChannelID() : 0;
 
-							NetLog("  %d %s %s flags:%d%d%d%d aspects:%.2x class %s channel=%p controlchan %d",
+							NetLog("  %d %s %s flags(alc,ctrl,stc,own):%d%d%d%d aspects:%.2x class %s channel=%p controlchan %d",
 							       iterNetIDs->first, iterNetIDs->second.GetText(), name,
 							       obj.main->bAllocated, obj.main->bControlled, obj.main->spawnType, obj.main->bOwned,
 							       obj.xtra->nAspectsEnabled, nom.c_str(), pChan, chanid);
@@ -3309,8 +3336,8 @@ void CNetContextState::DrawDebugScreens()
 							textPos = aabbCenterPos + aabb.GetRadius() * dir;
 
 							char buff[160];
-							cry_sprintf(buff, "%s\n%s\nAct %d Hid %d Inv %d\nID %u\nNetID %s\nGUID %016" PRIx64,
-							            pEntity->GetName(), pEntity->GetClass()->GetName(), pEntity->IsActive(), pEntity->IsHidden(), pEntity->IsInvisible(), pEntity->GetId(), netID.GetText(), pEntity->GetGuid());
+							cry_sprintf(buff, "%s\n%s\nAct %d Hid %d Inv %d\nID %u\nNetID %s\nGUID %s",
+							           pEntity->GetName(), pEntity->GetClass()->GetName(), pEntity->IsActivatedForUpdates(), pEntity->IsHidden(), pEntity->IsInvisible(), pEntity->GetId(), netID.GetText(), pEntity->GetGuid().ToDebugString());
 
 							IRenderAuxText::DrawText(textPos, textSize, color, eDrawText_DepthTest | eDrawText_FixedSize | eDrawText_Center | eDrawText_CenterV | eDrawText_800x600, buff);
 						}

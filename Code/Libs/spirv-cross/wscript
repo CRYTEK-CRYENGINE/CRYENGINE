@@ -1,0 +1,17 @@
+# Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+
+def build(bld):	
+
+	bld.CryEngineStaticModule( 
+		target       = 'spirv-cross', 
+		vs_filter    = 'Libs',
+		file_list    = 'spirv-cross.waf_files',
+		win_defines  = [ '_HAS_EXCEPTIONS=0' ], # cpp locale used
+		win_cxxflags = [ '/W0' ],               # conversion warnings, sprintf warnings
+		
+		exclude_from_static_code_analyzer = True,
+
+		module_provides = dict(
+			includes = [ Path('Code/SDKs/spirv-cross'), ],
+		)
+)

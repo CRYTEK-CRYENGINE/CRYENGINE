@@ -70,7 +70,7 @@ end_sources()
 
 CryEngineStaticModule(jpeg SOLUTION_FOLDER "Libs")
 target_compile_definitions(${THIS_PROJECT} PRIVATE -DSTDC_HEADERS=1 )
-target_include_directories(${THIS_PROJECT} INTERFACE ${SDK_DIR}/jpeg )
+target_include_directories(${THIS_PROJECT} INTERFACE "${SDK_DIR}/jpeg" )
 
 if(LINUX)
 	target_compile_options(${THIS_PROJECT} PRIVATE

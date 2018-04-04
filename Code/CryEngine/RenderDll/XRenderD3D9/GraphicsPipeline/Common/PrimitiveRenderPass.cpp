@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #include "StdAfx.h"
 
@@ -45,7 +45,7 @@ void SCompiledRenderPrimitive::Reset()
 
 CRenderPrimitive::SPrimitiveGeometry::SPrimitiveGeometry()
 	: primType(eptTriangleList)
-	, vertexFormat(eVF_Unknown)
+	, vertexFormat(InputLayoutHandle::Unspecified)
 	, vertexBaseOffset(0)
 	, vertexOrIndexCount(0)
 	, vertexOrIndexOffset(0)
@@ -58,7 +58,7 @@ CRenderPrimitive::SPrimitiveGeometry::SPrimitiveGeometry()
 CRenderPrimitive::CRenderPrimitive(CRenderPrimitive&& other)
 	: SCompiledRenderPrimitive(std::move(other))
 	, m_flags(std::move(other.m_flags))
-	, m_dirtyMask(std::move(other.m_dirtyMask))
+	, m_dirtyMask(other.m_dirtyMask)
 	, m_renderState(std::move(other.m_renderState))
 	, m_stencilState(std::move(other.m_stencilState))
 	, m_stencilReadMask(std::move(other.m_stencilReadMask))
@@ -69,11 +69,12 @@ CRenderPrimitive::CRenderPrimitive(CRenderPrimitive&& other)
 	, m_rtMask(std::move(other.m_rtMask))
 	, m_primitiveType(std::move(other.m_primitiveType))
 	, m_primitiveGeometry(std::move(other.m_primitiveGeometry))
+	, m_resourceDesc(other.m_resourceDesc)
 	, m_constantManager(std::move(other.m_constantManager))
 	, m_currentPsoUpdateCount(std::move(other.m_currentPsoUpdateCount))
+	, m_renderPassHash(std::move(other.m_renderPassHash))
 	, m_bDepthClip(std::move(other.m_bDepthClip))
-{
-}
+{}
 
 CRenderPrimitive::CRenderPrimitive(EPrimitiveFlags flags)
 	: m_flags(flags)
@@ -87,17 +88,15 @@ CRenderPrimitive::CRenderPrimitive(EPrimitiveFlags flags)
 	, m_rtMask(0)
 	, m_primitiveType(ePrim_Triangle)
 	, m_currentPsoUpdateCount(0)
+	, m_renderPassHash(0)
 	, m_bDepthClip(true)
+	, m_resourceDesc()
 {
-	m_pResources = CCryDeviceWrapper::GetObjectFactory().CreateResourceSet(CDeviceResourceSet::EFlags_ForceSetAllState);
 	m_instances.resize(1);
 }
 
 void CRenderPrimitive::Reset(EPrimitiveFlags flags)
 {
-	// Allocate before free, so that the re-allocated memory-pointer doesn't become the same/identical
-	CDeviceResourceSetPtr pResources = CCryDeviceWrapper::GetObjectFactory().CreateResourceSet(CDeviceResourceSet::EFlags_ForceSetAllState);
-
 	SCompiledRenderPrimitive::Reset();
 
 	m_flags = flags;
@@ -107,16 +106,18 @@ void CRenderPrimitive::Reset(EPrimitiveFlags flags)
 	m_stencilReadMask = 0xFF;
 	m_stencilWriteMask = 0xFF;
 	m_cullMode = eCULL_Back;
+	m_bDepthClip = false;
 	m_pShader = nullptr;
+	m_techniqueName.reset();
 	m_rtMask = 0;
 	m_primitiveType = ePrim_Triangle;
-	m_currentPsoUpdateCount = 0;
-	m_bDepthClip = true;
-
-	m_pResources = std::move(pResources);
-	m_instances.resize(1);
-
+	m_primitiveGeometry = SPrimitiveGeometry();
+	m_resourceDesc.ClearResources();
 	m_constantManager.Reset();
+	m_currentPsoUpdateCount = 0;
+	m_renderPassHash = 0;
+
+	m_instances.resize(1);
 }
 
 void CRenderPrimitive::AllocateTypedConstantBuffer(EConstantBufferShaderSlot shaderSlot, int size, EShaderStage shaderStages)
@@ -126,120 +127,145 @@ void CRenderPrimitive::AllocateTypedConstantBuffer(EConstantBufferShaderSlot sha
 
 bool CRenderPrimitive::IsDirty() const
 {
-	if (m_dirtyMask != eDirty_None)
+	// Merge local and remote dirty flags to test for changes
+	EDirtyFlags dirtyMask = m_dirtyMask | (EDirtyFlags)m_resourceDesc.GetDirtyFlags();
+
+	if (dirtyMask != eDirty_None)
 		return true;
 
 	if (m_currentPsoUpdateCount != m_pPipelineState->GetUpdateCount())
 		return true;
 
-	if (m_pResources && m_pResources->IsDirty())
-		return true;
-
 	return false;
 }
 
-CRenderPrimitive::EDirtyFlags CRenderPrimitive::Compile(uint32 renderTargetCount, CTexture* const* pRenderTargets, const SDepthTexture* pDepthTarget, SResourceView::KeyType* pRenderTargetViews, CDeviceResourceSetPtr pOutputResources, uint64 extraRtMask)
+CRenderPrimitive::EDirtyFlags CRenderPrimitive::Compile(const CPrimitiveRenderPass& targetPass)
 {
-	CD3D9Renderer* const __restrict rd = gcpRendD3D;
-	auto& instance = m_instances.front();
+	CRY_ASSERT_MESSAGE(targetPass.GetRenderPass() && targetPass.GetRenderPass()->IsValid(), 
+		"Target pass needs to have a valid renderpass for compilation. Call CPrimitiveRenderPass::BeginAddingPrimitives first");
 
-	if (m_dirtyMask & eDirty_Geometry)
+	// Merge local and remote dirty flags to test for changes
+	EDirtyFlags dirtyMask = m_dirtyMask | (EDirtyFlags)m_resourceDesc.GetDirtyFlags();
+
+	// TODO: This comparison detects a change even when CRenderPrimitivePass's format doesn't change. It's excessive for dx12.
+	const uint64 targetPassHash = targetPass.GetRenderPass()->GetHash();
+	if (targetPassHash != m_renderPassHash)
 	{
-		m_dirtyMask |= eDirty_InstanceData;
+		dirtyMask |=  eDirty_RenderPass;
+	}
 
-		if (m_primitiveType != ePrim_Custom)
+	if ((dirtyMask != eDirty_None) || (m_currentPsoUpdateCount != m_pPipelineState->GetUpdateCount()))
+	{
+		EDirtyFlags revertMask = dirtyMask;
+
+		CD3D9Renderer* const __restrict rd = gcpRendD3D;
+		auto& instance = m_instances.front();
+
+		if (dirtyMask & eDirty_Geometry)
 		{
-			CRenderPrimitive::EPrimitiveType primitiveType = m_primitiveType;
-			if (CVrProjectionManager::Instance()->GetProjectionType() == CVrProjectionManager::eVrProjection_LensMatched && primitiveType == ePrim_Triangle)
-				primitiveType = ePrim_FullscreenQuad;
+			dirtyMask |= eDirty_InstanceData;
 
-			m_primitiveGeometry = s_primitiveGeometryCache[primitiveType];
+			if (m_primitiveType != ePrim_Custom)
+			{
+				CRenderPrimitive::EPrimitiveType primitiveType = m_primitiveType;
+				if (CVrProjectionManager::Instance()->GetProjectionType() == CVrProjectionManager::eVrProjection_LensMatched && primitiveType == ePrim_Triangle)
+					primitiveType = ePrim_FullscreenQuad;
+
+				m_primitiveGeometry = s_primitiveGeometryCache[primitiveType];
+			}
+
+			m_pIndexInputSet = GetDeviceObjectFactory().CreateIndexStreamSet(&m_primitiveGeometry.indexStream);
+			m_pVertexInputSet = GetDeviceObjectFactory().CreateVertexStreamSet(1, &m_primitiveGeometry.vertexStream);
+
+			dirtyMask &= ~eDirty_Geometry;
 		}
 
-		m_pIndexInputSet = CCryDeviceWrapper::GetObjectFactory().CreateIndexStreamSet(&m_primitiveGeometry.indexStream);
-		m_pVertexInputSet = CCryDeviceWrapper::GetObjectFactory().CreateVertexStreamSet(1, &m_primitiveGeometry.vertexStream);
-
-		m_dirtyMask &= ~eDirty_Geometry;
-	}
-
-	if (m_dirtyMask & eDirty_InstanceData)
-	{
-		instance.vertexBaseOffset = m_primitiveGeometry.vertexBaseOffset;
-		instance.vertexOrIndexCount = m_primitiveGeometry.vertexOrIndexCount;
-		instance.vertexOrIndexOffset = m_primitiveGeometry.vertexOrIndexOffset;
-	}
-
-	if (m_dirtyMask & eDirty_Resources)
-	{
-		m_pResources->Build();
-
-		if (!m_pResources->IsValid())
-			return m_dirtyMask;
-
-		if (m_pResources->IsLayoutDirty())
-			m_dirtyMask |= eDirty_ResourceLayout;
-	}
-
-	if (m_dirtyMask & (eDirty_Technique | eDirty_ResourceLayout))
-	{
-		int bindSlot = 0;
-		SDeviceResourceLayoutDesc resourceLayoutDesc;
-
-		// check for valid shader reflection first
-		if (m_flags & eFlags_ReflectConstantBuffersFromShader)
+		if (dirtyMask & eDirty_InstanceData)
 		{
-			if (!m_constantManager.IsShaderReflectionValid())
-				return m_dirtyMask;
+			instance.vertexBaseOffset = m_primitiveGeometry.vertexBaseOffset;
+			instance.vertexOrIndexCount = m_primitiveGeometry.vertexOrIndexCount;
+			instance.vertexOrIndexOffset = m_primitiveGeometry.vertexOrIndexOffset;
 		}
 
-		if (pOutputResources)
+		if (dirtyMask & eDirty_Resources)
 		{
-			resourceLayoutDesc.SetResourceSet(bindSlot++, pOutputResources);
+			if (!CDeviceResourceSet::UpdateWithReevaluation(m_pResources, m_resourceDesc))
+				return (EDirtyFlags)(m_dirtyMask |= revertMask);
 		}
 
-		instance.constantBuffers = m_constantManager.GetBuffers();
-
-		for (auto& cb : instance.constantBuffers)
-			resourceLayoutDesc.SetConstantBuffer(bindSlot++, cb.shaderSlot, cb.shaderStages);
-
-		if (!m_pResources->IsEmpty())
+		if (dirtyMask & (eDirty_Technique | eDirty_ResourceLayout))
 		{
-			resourceLayoutDesc.SetResourceSet(bindSlot++, m_pResources);
+			m_constantManager.ReleaseShaderReflection();
+
+			if (m_flags & eFlags_ReflectShaderConstants_Mask)
+			{
+				EShaderStage stages = EShaderStage_None;
+				stages |= (m_flags & eFlags_ReflectShaderConstants_VS) ? EShaderStage_Vertex   : EShaderStage_None;
+				stages |= (m_flags & eFlags_ReflectShaderConstants_PS) ? EShaderStage_Pixel    : EShaderStage_None;
+				stages |= (m_flags & eFlags_ReflectShaderConstants_GS) ? EShaderStage_Geometry : EShaderStage_None;
+				m_constantManager.AllocateShaderReflection(m_pShader, m_techniqueName, m_rtMask, stages);
+			}
+
+			int bindSlot = 0;
+			SDeviceResourceLayoutDesc resourceLayoutDesc;
+
+			if (!targetPass.GetOutputResources().IsEmpty())
+			{
+				resourceLayoutDesc.SetResourceSet(bindSlot++, targetPass.GetOutputResources());
+			}
+
+			if (!m_resourceDesc.IsEmpty())
+			{
+				resourceLayoutDesc.SetResourceSet(bindSlot++, m_resourceDesc);
+			}
+
+			for (auto& cb : m_constantManager.GetBuffers())
+				resourceLayoutDesc.SetConstantBuffer(bindSlot++, cb.shaderSlot, cb.shaderStages);
+
+			m_pResourceLayout = GetDeviceObjectFactory().CreateResourceLayout(resourceLayoutDesc);
+
+			if (!m_pResourceLayout)
+				return (EDirtyFlags)(m_dirtyMask |= revertMask);
 		}
 
-		m_pResourceLayout = CCryDeviceWrapper::GetObjectFactory().CreateResourceLayout(resourceLayoutDesc);
+		if (dirtyMask & (eDirty_Technique | eDirty_RenderState | eDirty_ResourceLayout | eDirty_RenderPass | eDirty_Topology))
+		{
+			CDeviceGraphicsPSODesc psoDesc;
 
-		if (!m_pResourceLayout)
-			return m_dirtyMask;
+			psoDesc.m_pResourceLayout = m_pResourceLayout;
+			psoDesc.m_pShader = m_pShader;
+			psoDesc.m_technique = m_techniqueName;
+			psoDesc.m_ShaderFlags_RT = m_rtMask;
+			psoDesc.m_ShaderFlags_MD = 0;
+			psoDesc.m_ShaderFlags_MDV = 0;
+			psoDesc.m_PrimitiveType = m_primitiveGeometry.primType;
+			psoDesc.m_VertexFormat = m_primitiveGeometry.vertexFormat;
+			psoDesc.m_RenderState = m_renderState;
+			psoDesc.m_StencilState = m_stencilState;
+			psoDesc.m_StencilReadMask = m_stencilReadMask;
+			psoDesc.m_StencilWriteMask = m_stencilWriteMask;
+			psoDesc.m_CullMode = m_cullMode;
+			psoDesc.m_bDepthClip = m_bDepthClip;
+			psoDesc.m_pRenderPass = targetPass.GetRenderPass();
+			
+			m_pPipelineState = GetDeviceObjectFactory().CreateGraphicsPSO(psoDesc);
+			if (!m_pPipelineState || !m_pPipelineState->IsValid())
+				return (EDirtyFlags)(m_dirtyMask |= revertMask);
+
+			m_currentPsoUpdateCount = m_pPipelineState->GetUpdateCount();
+
+			m_renderPassHash = targetPass.GetRenderPass()->GetHash();
+
+			if (m_flags & eFlags_ReflectShaderConstants_Mask)
+				m_constantManager.InitShaderReflection(*m_pPipelineState);
+
+			instance.constantBuffers = m_constantManager.GetBuffers();
+		}
+
+		m_dirtyMask = dirtyMask = eDirty_None;
 	}
 
-	if (m_dirtyMask & (eDirty_Technique | eDirty_RenderState | eDirty_ResourceLayout | eDirty_Topology))
-	{
-		CDeviceGraphicsPSODesc psoDesc(renderTargetCount, pRenderTargets, pDepthTarget, pRenderTargetViews);
-		psoDesc.m_pResourceLayout = m_pResourceLayout.get();
-		psoDesc.m_pShader = m_pShader;
-		psoDesc.m_technique = m_techniqueName;
-		psoDesc.m_ShaderFlags_RT = m_rtMask | extraRtMask;
-		psoDesc.m_ShaderFlags_MD = 0;
-		psoDesc.m_ShaderFlags_MDV = 0;
-		psoDesc.m_PrimitiveType = m_primitiveGeometry.primType;
-		psoDesc.m_VertexFormat = m_primitiveGeometry.vertexFormat;
-		psoDesc.m_RenderState = m_renderState;
-		psoDesc.m_StencilState = m_stencilState;
-		psoDesc.m_StencilReadMask = m_stencilReadMask;
-		psoDesc.m_StencilWriteMask = m_stencilWriteMask;
-		psoDesc.m_CullMode = m_cullMode;
-		psoDesc.m_bDepthClip = m_bDepthClip;
-		m_pPipelineState = CCryDeviceWrapper::GetObjectFactory().CreateGraphicsPSO(psoDesc);
-
-		if (!m_pPipelineState || !m_pPipelineState->IsValid())
-			return m_dirtyMask;
-
-		m_currentPsoUpdateCount = m_pPipelineState->GetUpdateCount();
-	}
-
-	m_dirtyMask = eDirty_None;
-	return m_dirtyMask;
+	return dirtyMask;
 }
 
 void CRenderPrimitive::AddPrimitiveGeometryCacheUser()
@@ -259,7 +285,7 @@ void CRenderPrimitive::AddPrimitiveGeometryCacheUser()
 			primitiveGeometry.vertexStream.hStream = gcpRendD3D->m_DevBufMan.Create(BBT_VERTEX_BUFFER, BU_DYNAMIC, 3 * sizeof(SVF_P3F_C4B_T2F));
 			primitiveGeometry.vertexStream.nStride = sizeof(SVF_P3F_C4B_T2F);
 			primitiveGeometry.primType = eptTriangleList;
-			primitiveGeometry.vertexFormat = eVF_P3F_C4B_T2F;
+			primitiveGeometry.vertexFormat = EDefaultInputLayouts::P3F_C4B_T2F;
 			primitiveGeometry.vertexOrIndexOffset = 0;
 			primitiveGeometry.vertexOrIndexCount = 3;
 
@@ -277,7 +303,7 @@ void CRenderPrimitive::AddPrimitiveGeometryCacheUser()
 			primitiveGeometry.vertexStream.hStream = gcpRendD3D->m_DevBufMan.Create(BBT_VERTEX_BUFFER, BU_DYNAMIC, 4 * sizeof(SVF_P3F_C4B_T2F));
 			primitiveGeometry.vertexStream.nStride = sizeof(SVF_P3F_C4B_T2F);
 			primitiveGeometry.primType = eptTriangleStrip;
-			primitiveGeometry.vertexFormat = eVF_P3F_C4B_T2F;
+			primitiveGeometry.vertexFormat = EDefaultInputLayouts::P3F_C4B_T2F;
 			primitiveGeometry.vertexOrIndexOffset = 0;
 			primitiveGeometry.vertexOrIndexCount = 4;
 
@@ -294,7 +320,7 @@ void CRenderPrimitive::AddPrimitiveGeometryCacheUser()
 			primitiveGeometry.indexStream.hStream = gcpRendD3D->m_DevBufMan.Create(BBT_INDEX_BUFFER, BU_STATIC, boxIndices.size() * sizeof(boxIndices[0]));
 			primitiveGeometry.indexStream.nStride = Index16;
 			primitiveGeometry.primType = eptTriangleList;
-			primitiveGeometry.vertexFormat = eVF_P3F_C4B_T2F;
+			primitiveGeometry.vertexFormat = EDefaultInputLayouts::P3F_C4B_T2F;
 			primitiveGeometry.vertexOrIndexOffset = 0;
 			primitiveGeometry.vertexOrIndexCount = boxIndices.size();
 
@@ -334,8 +360,14 @@ void CRenderPrimitive::AddPrimitiveGeometryCacheUser()
 
 		// fullscreen quad
 		{
-			MeshUtil::GenScreenTile(-1, -1, 1, 1, ColorF(1, 1, 1, 1), 1, 1, vertices, indices);
+			MeshUtil::GenScreenTile(0, 0, 1, 1, ColorF(1, 1, 1, 1), 1, 1, vertices, indices);
 			initPrimitiveGeometryStreams(s_primitiveGeometryCache[ePrim_FullscreenQuad], vertices, indices);
+		}
+
+		// tessellated fullscreen centered
+		{
+			MeshUtil::GenScreenTile(-1, -1, 1, 1, ColorF(1, 1, 1, 1), 1, 1, vertices, indices);
+			initPrimitiveGeometryStreams(s_primitiveGeometryCache[ePrim_FullscreenQuadCentered], vertices, indices);
 		}
 
 		// tessellated fullscreen quad
@@ -366,14 +398,14 @@ void CRenderPrimitive::RemovePrimitiveGeometryCacheUser()
 }
 
 CPrimitiveRenderPass::CPrimitiveRenderPass(bool createGeometryCache)
-	: m_numRenderTargets(0)
-	, m_pDepthTarget(nullptr)
-	, m_scissorEnabled(false)
+	: m_scissorEnabled(false)
+	, m_bAddingPrimitives(false)
 	, m_passFlags(ePassFlags_None)
+	, m_clearMask(0)
+	, m_outputResources()
+	, m_outputNULLResources()
+	, m_renderPassDesc()
 {
-	m_pRenderTargets.fill(nullptr);
-	m_renderTargetViews.fill(SResourceView::KeyType(SResourceView::DefaultRendertargetView));
-
 	ZeroStruct(m_viewport);
 	ZeroStruct(m_scissor);
 
@@ -381,6 +413,29 @@ CPrimitiveRenderPass::CPrimitiveRenderPass(bool createGeometryCache)
 	{
 		CRenderPrimitive::AddPrimitiveGeometryCacheUser();
 	}
+
+	SetLabel("PRIMITIVE_PASS");
+}
+
+void CPrimitiveRenderPass::Reset()
+{
+	m_passFlags = ePassFlags_None;
+
+	m_pRenderPass.reset();
+	m_pOutputResourceSet.reset();
+	m_pOutputNULLResourceSet.reset();
+
+	m_renderPassDesc.ClearResources();
+	m_outputResources.ClearResources();
+	m_outputNULLResources.ClearResources();
+	m_compiledPrimitives.clear();
+
+	ZeroStruct(m_viewport);
+	ZeroStruct(m_scissor);
+
+	m_scissorEnabled = false;
+	m_bAddingPrimitives = false;
+	m_clearMask = 0;
 }
 
 CPrimitiveRenderPass::~CPrimitiveRenderPass()
@@ -389,65 +444,20 @@ CPrimitiveRenderPass::~CPrimitiveRenderPass()
 }
 
 CPrimitiveRenderPass::CPrimitiveRenderPass(CPrimitiveRenderPass&& other)
-	: m_numRenderTargets(std::move(other.m_numRenderTargets))
-	, m_pDepthTarget(std::move(other.m_pDepthTarget))
+	: CRenderPassBase(std::move(other))
 	, m_scissorEnabled(std::move(other.m_scissorEnabled))
+	, m_bAddingPrimitives(std::move(other.m_bAddingPrimitives))
 	, m_passFlags(ePassFlags_None)
-{
-	m_pRenderTargets = std::move(other.m_pRenderTargets);
-	m_renderTargetViews = std::move(other.m_renderTargetViews);
-
-	m_viewport = std::move(other.m_viewport);
-	m_scissor = std::move(other.m_scissor);
-
-	m_compiledPrimitives = std::move(other.m_compiledPrimitives);
-}
-
-CPrimitiveRenderPass& CPrimitiveRenderPass::operator=(CPrimitiveRenderPass&& other)
-{
-	m_passFlags = std::move(other.m_passFlags);
-	m_numRenderTargets = std::move(other.m_numRenderTargets);
-	m_pDepthTarget = std::move(other.m_pDepthTarget);
-	m_scissorEnabled = std::move(other.m_scissorEnabled);
-
-	m_pRenderTargets = std::move(other.m_pRenderTargets);
-	m_renderTargetViews = std::move(other.m_renderTargetViews);
-
-	m_viewport = std::move(other.m_viewport);
-	m_scissor = std::move(other.m_scissor);
-
-	m_compiledPrimitives = std::move(other.m_compiledPrimitives);
-
-	return *this;
-}
-
-void CPrimitiveRenderPass::SetRenderTarget(uint32 slot, CTexture* pRenderTarget, SResourceView::KeyType rendertargetView)
-{
-	CRY_ASSERT(slot < m_pRenderTargets.size());
-
-	m_pRenderTargets[slot] = pRenderTarget;
-	m_renderTargetViews[slot] = rendertargetView;
-}
-
-void CPrimitiveRenderPass::SetOutputUAV(uint32 slot, CGpuBuffer* pBuffer)
-{
-	if (!m_pOutputResources)
-	{
-		m_pOutputResources     = CCryDeviceWrapper::GetObjectFactory().CreateResourceSet(CDeviceResourceSet::EFlags_ForceSetAllState);
-		m_pOutputNULLResources = CCryDeviceWrapper::GetObjectFactory().CreateResourceSet(CDeviceResourceSet::EFlags_ForceSetAllState);
-	}
-
-	CGpuBuffer nullBuffer;
-	nullBuffer.Create(0, 0, DXGI_FORMAT_R32G32B32A32_FLOAT, DX11BUF_NULL_RESOURCE | DX11BUF_BIND_UAV, nullptr);
-
-	m_pOutputResources->SetBuffer(slot, pBuffer ? *pBuffer : CGpuBuffer(), true);
-	m_pOutputNULLResources->SetBuffer(slot, nullBuffer, true);
-}
-
-void CPrimitiveRenderPass::SetDepthTarget(SDepthTexture* pDepthTarget)
-{
-	m_pDepthTarget = pDepthTarget;
-}
+	, m_pRenderPass(std::move(other.m_pRenderPass))
+	, m_renderPassDesc(std::move(other.m_renderPassDesc))
+	, m_outputResources(std::move(other.m_outputResources))
+	, m_outputNULLResources(std::move(other.m_outputNULLResources))
+	, m_pOutputResourceSet(std::move(other.m_pOutputResourceSet))
+	, m_pOutputNULLResourceSet(std::move(other.m_pOutputNULLResourceSet))
+	, m_viewport(std::move(other.m_viewport))
+	, m_scissor(std::move(other.m_scissor))
+	, m_compiledPrimitives(std::move(other.m_compiledPrimitives))
+{}
 
 void CPrimitiveRenderPass::SetViewport(const D3DViewPort& viewport)
 {
@@ -477,24 +487,45 @@ void CPrimitiveRenderPass::SetScissor(bool bEnable, const D3DRectangle& scissor)
 	}
 }
 
-bool CPrimitiveRenderPass::AddPrimitive(CRenderPrimitive* pPrimitive)
+void CPrimitiveRenderPass::SetTargetClearMask(uint32 clearMask)
 {
-	uint64 rtMask = 0;
-	if (m_passFlags & ePassFlags_VrProjectionPass)
-		rtMask |= CVrProjectionManager::Instance()->GetRTFlags();
+	m_clearMask = clearMask;
+}
 
-	if (pPrimitive->IsDirty())
+void CPrimitiveRenderPass::ClearPrimitives()
+{
+	m_compiledPrimitives.clear();
+}
+
+void CPrimitiveRenderPass::BeginAddingPrimitives(bool bClearPrimitiveList)
+{
+	Compile();
+
+	if (bClearPrimitiveList)
 	{
-		if (pPrimitive->Compile(m_pRenderTargets.size(), &m_pRenderTargets[0], m_pDepthTarget, nullptr, m_pOutputResources, rtMask) != CRenderPrimitive::eDirty_None)
-			return false;
+		ClearPrimitives();
 	}
 
-	m_compiledPrimitives.push_back(pPrimitive);
-	return true;
+	m_bAddingPrimitives = true;
+}
+
+
+bool CPrimitiveRenderPass::AddPrimitive(CRenderPrimitive* pPrimitive)
+{
+	CRY_ASSERT(m_bAddingPrimitives); // Need to call 'BeginAddingPrimitives' first
+
+	if (!pPrimitive->IsDirty())
+	{
+		m_compiledPrimitives.push_back(pPrimitive);
+		return true;
+	}
+
+	return false;
 }
 
 bool CPrimitiveRenderPass::AddPrimitive(SCompiledRenderPrimitive* pPrimitive)
 {
+	CRY_ASSERT(m_bAddingPrimitives); // Need to call 'BeginAddingPrimitives' first
 	CRY_ASSERT(pPrimitive->m_pPipelineState->IsValid());
 	CRY_ASSERT(pPrimitive->m_pResourceLayout);
 	CRY_ASSERT(!pPrimitive->m_pResources || pPrimitive->m_pResources->IsValid());
@@ -503,41 +534,61 @@ bool CPrimitiveRenderPass::AddPrimitive(SCompiledRenderPrimitive* pPrimitive)
 	return true;
 }
 
+void CPrimitiveRenderPass::Compile()
+{
+	bool bOutputsDirty = CDeviceRenderPass::UpdateWithReevaluation(m_pRenderPass, m_renderPassDesc);
+
+	// update output resource set whenever something changed
+	if (bOutputsDirty)
+	{
+		const auto& outputUAVs = m_renderPassDesc.GetOutputUAVs();
+		if (outputUAVs[0].IsValid())
+		{
+			// TODO: respect dirty flags, currently a RT-change invalidates the UAV resource sets
+			for (int i = 0; i < outputUAVs.size(); ++i)
+			{
+				if (!outputUAVs[i].IsValid())
+					break;
+
+				m_outputResources.SetBuffer(i, outputUAVs[i].pBuffer, EDefaultResourceViews::UnorderedAccess, EShaderStage_Pixel);
+				m_outputNULLResources.SetBuffer(i, gcpRendD3D->m_DevBufMan.GetNullBufferTyped(), EDefaultResourceViews::UnorderedAccess, EShaderStage_Pixel);
+			}
+
+			if (m_outputResources.HasChanged())
+			{
+				CDeviceResourceSet::UpdateWithReevaluation(m_pOutputResourceSet, m_outputResources);
+				CRY_ASSERT(m_pOutputResourceSet->IsValid());
+			}
+
+			if (m_outputNULLResources.HasChanged())
+			{
+				CDeviceResourceSet::UpdateWithReevaluation(m_pOutputNULLResourceSet, m_outputNULLResources);
+				CRY_ASSERT(m_pOutputNULLResourceSet->IsValid());
+			}
+		}
+	}
+}
+
 void CPrimitiveRenderPass::Prepare(CDeviceCommandListRef RESTRICT_REFERENCE commandList)
 {
-	m_numRenderTargets = 0;
-	while (m_numRenderTargets < m_pRenderTargets.size() && m_pRenderTargets[m_numRenderTargets])
-		++m_numRenderTargets;
-	
+	uint32 firstBindSlot = m_pOutputResourceSet ? 1 : 0;
+
 	CDeviceGraphicsCommandInterface* pCommandInterface = commandList.GetGraphicsInterface();
 
-	pCommandInterface->PrepareRenderTargetsForUse(m_numRenderTargets, &m_pRenderTargets[0], m_pDepthTarget, &m_renderTargetViews[0]);
-
-	if (m_passFlags & ePassFlags_VrProjectionPass)
-	{
-		if (CVrProjectionManager::IsMultiResEnabledStatic())
-			CVrProjectionManager::Instance()->PrepareProjectionParameters(commandList, m_viewport);
-	}
-
-	uint32 bindSlot = 0;
-
-	if (m_pOutputResources)
-	{
-		if (m_pOutputResources->IsDirty())
-		{
-			m_pOutputResources->Build();
-			m_pOutputNULLResources->Build();
-		}
-
-		if (m_pOutputResources->IsValid())
-			pCommandInterface->PrepareResourcesForUse(bindSlot++, m_pOutputResources.get(), EShaderStage_AllWithoutCompute);
-	}
+	pCommandInterface->PrepareRenderPassForUse(*m_pRenderPass.get());
 
 	for (auto pPrimitive : m_compiledPrimitives)
 	{
+		uint32 bindSlot = firstBindSlot;
+
 		CRY_ASSERT(pPrimitive->m_pPipelineState->IsValid());
 		CRY_ASSERT(pPrimitive->m_pResourceLayout);
 
+		if (pPrimitive->m_pResources)
+		{
+			CRY_ASSERT(pPrimitive->m_pResources->IsValid());
+			pCommandInterface->PrepareResourcesForUse(bindSlot++, pPrimitive->m_pResources.get());
+		}
 
 		for (auto& instance : pPrimitive->m_instances)
 		{
@@ -546,13 +597,6 @@ void CPrimitiveRenderPass::Prepare(CDeviceCommandListRef RESTRICT_REFERENCE comm
 			{
 				pCommandInterface->PrepareInlineConstantBufferForUse(cbBindSlot++, cb.pBuffer, cb.shaderSlot, cb.shaderStages);
 			}
-		}
-
-		if (pPrimitive->m_pResources && !pPrimitive->m_pResources->IsEmpty())
-		{
-			CRY_ASSERT(pPrimitive->m_pResources->IsValid());
-			uint32 resourcesBindSlot = bindSlot + pPrimitive->m_instances.front().constantBuffers.size();
-			pCommandInterface->PrepareResourcesForUse(resourcesBindSlot, pPrimitive->m_pResources.get(), EShaderStage_AllWithoutCompute);
 		}
 
 		if (pPrimitive->m_pVertexInputSet)
@@ -569,24 +613,42 @@ void CPrimitiveRenderPass::Prepare(CDeviceCommandListRef RESTRICT_REFERENCE comm
 
 void CPrimitiveRenderPass::Execute()
 {
-	if (m_compiledPrimitives.empty())
+	m_bAddingPrimitives = false;
+
+	if (m_compiledPrimitives.empty() || !m_pRenderPass || !m_pRenderPass->IsValid())
 		return;
 
+	if (gcpRendD3D->GetGraphicsPipeline().GetRenderPassScheduler().IsActive())
+	{
+		gcpRendD3D->GetGraphicsPipeline().GetRenderPassScheduler().AddPass(this);
+		return;
+	}
+
 	CD3D9Renderer* const __restrict rd = gcpRendD3D;
-	CDeviceCommandListPtr pCommandList = CCryDeviceWrapper::GetObjectFactory().GetCoreCommandList();
-	CDeviceGraphicsCommandInterface* pCommandInterface = pCommandList->GetGraphicsInterface();
+	CDeviceCommandListRef commandList = GetDeviceObjectFactory().GetCoreCommandList();
+	CDeviceGraphicsCommandInterface* pCommandInterface = commandList.GetGraphicsInterface();
 
 #ifdef ENABLE_PROFILING_CODE
-	pCommandList->BeginProfilingSection();
+	commandList.BeginProfilingSection();
 #endif
 
-	// prepare primitives first
-	Prepare(*pCommandList);
+	if (m_clearMask & CPrimitiveRenderPass::eClear_Stencil)
+	{
+		D3DDepthSurface* pDsv = GetDepthTarget()->GetDevTexture()->LookupDSV(EDefaultResourceViews::DepthStencil);
+		pCommandInterface->ClearSurface(pDsv, CLEAR_STENCIL, 0);
+	}
+	if (m_clearMask & CPrimitiveRenderPass::eClear_Color0)
+	{
+		pCommandInterface->ClearSurface(GetRenderTarget(0)->GetSurface(0, 0), Clr_Transparent);
+	}
 
-	pCommandInterface->SetRenderTargets(m_numRenderTargets, &m_pRenderTargets[0], m_pDepthTarget, &m_renderTargetViews[0]);
+	// prepare primitives first
+	Prepare(commandList);
+
+	pCommandInterface->BeginRenderPass(*m_pRenderPass, m_scissor);
 
 	if (!CVrProjectionManager::Instance()->SetRenderingState(
-		*pCommandList,
+		commandList,
 		m_viewport,
 		(m_passFlags & ePassFlags_UseVrProjectionState) != 0,
 		(m_passFlags & ePassFlags_RequireVrProjectionConstants) != 0))
@@ -612,15 +674,14 @@ void CPrimitiveRenderPass::Execute()
 			pCommandInterface->SetIndexBuffer(pPrimitive->m_pIndexInputSet);
 		}
 
-		if (m_pOutputResources && m_pOutputResources->IsValid())
+		if (m_pOutputResourceSet)
 		{
-			pCommandInterface->SetResources(bindSlot++, m_pOutputResources.get(), EShaderStage_AllWithoutCompute);
+			pCommandInterface->SetResources(bindSlot++, m_pOutputResourceSet.get());
 		}
 
-		if (pPrimitive->m_pResources && !pPrimitive->m_pResources->IsEmpty())
+		if (pPrimitive->m_pResources)
 		{
-			uint32 resourcesBindSlot = bindSlot + pPrimitive->m_instances.front().constantBuffers.size();
-			pCommandInterface->SetResources( resourcesBindSlot, pPrimitive->m_pResources.get(), EShaderStage_AllWithoutCompute);
+			pCommandInterface->SetResources( bindSlot++, pPrimitive->m_pResources.get());
 		}
 
 		for (auto& instance : pPrimitive->m_instances)
@@ -644,16 +705,19 @@ void CPrimitiveRenderPass::Execute()
 
 	if (m_passFlags & ePassFlags_UseVrProjectionState)
 	{
-		CVrProjectionManager::Instance()->RestoreState(*pCommandList);
+		CVrProjectionManager::Instance()->RestoreState(commandList);
 	}
 
 	// unbind output resources
-	if (m_pOutputNULLResources)
+	if (m_pOutputNULLResourceSet)
 	{
-		pCommandInterface->SetResources(0, m_pOutputNULLResources.get(), EShaderStage_AllWithoutCompute);
+		pCommandInterface->SetResources(0, m_pOutputNULLResourceSet.get());
+		gcpRendD3D->m_DevMan.CommitDeviceStates();
 	}
 
+	pCommandInterface->EndRenderPass(*m_pRenderPass);
+
 #ifdef ENABLE_PROFILING_CODE
-	rd->AddRecordedProfilingStats(pCommandList->EndProfilingSection(), EFSLIST_GENERAL, false);
+	rd->AddRecordedProfilingStats(commandList.EndProfilingSection(), EFSLIST_GENERAL, false);
 #endif
 }

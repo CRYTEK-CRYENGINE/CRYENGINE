@@ -17,7 +17,6 @@
 #define VOX_COMPUTE_NUM_THREADS 16
 #define VOX_DEPTH_BIAS 0
 #define VOX_DEPTH_SCALE 1
-#define VOX_REPROJECT 1
 
 #define vSkyColorTop float3(SvoTreeSettings5.z, SvoTreeSettings5.w, SvoParamsSpecular.y)
 
@@ -850,23 +849,23 @@ void GetAverNormAndSmooth(float2 tcIn, out float3 vAverNor, out float fAverSmoot
 	vAverReflectance /= fSummW;
 }
 
-float GetBlendMin(float2 tcDiff, float3 vAverReflectance, float fAverSmoothness, float fDepth)
+float GetBlendMin(float2 tc0, float2 tc1, float fAverSmoothness, float fDepth0, float fDepth1)
 {
-	float fMinBlend = SVO_TargetResScale.z;
-
-	fMinBlend /= fDepth*PS_NearFarClipDist.y / 2.f + 1.f;
-
-	fMinBlend += SVO_TargetResScale.w + 0.05f;
+	float fMinBlend = SVO_TargetResScale.z * 0.25f + SVO_TargetResScale.w;
 
 	if (!IsDiffuseMode())
 	{
-		float fDistTCRat = IsDiffuseMode() ? 0 : saturate(length(tcDiff) / .025f);
+		float fDistTCRat = saturate(length(tc0 - tc1) / .025f);
 
-		// reduce ghosting for mirrors
-		fMinBlend = saturate(max(fMinBlend + fDistTCRat*(1.f - fMinBlend), 0.7 * saturate(GetLuminance(vAverReflectance*fAverSmoothness))));
+		// reduce ghosting for mirrors and in case of camera movement
+		fMinBlend = saturate(max(fMinBlend + fDistTCRat*(1.f - fMinBlend), 0.7 * saturate(pow(fAverSmoothness, 3))));
 	}
 
-	return fMinBlend;
+	fMinBlend += saturate(abs(fDepth0 - fDepth1) * PS_NearFarClipDist.y - .25);
+
+	fMinBlend += 0.25f * (tc0.x < 0 || tc0.x > 1 || tc0.y < 0 || tc0.y > 1);
+
+	return saturate(fMinBlend);
 }
 
 #define SVO_MAX_PORTALS 8
@@ -938,11 +937,9 @@ pixoutMRT DemosaicPS(vtxOutWPOS IN)
 	float4 vALD1 = 0;
 	float4 vRGB1 = 0;
 
-#if VOX_REPROJECT
 	// blend with prev frame ALD in order to remove flickering
 	float fDepthC = SampleLinearDepth(sceneDepth, IN.baseTC.xy);
 	float3 vReprojTC = Reproject(vLowResBestTC.xy, fDepthC, SVO_ReprojectionMatrix);
-#endif
 
 	int GI_DIFFUSE_KERNEL_TILING;
 	GetDiffuseKernel(GI_DIFFUSE_KERNEL_TILING, 0);
@@ -1170,13 +1167,8 @@ pixoutMRT DemosaicPS(vtxOutWPOS IN)
 	float fDepthMinPrev = tex2DlodLC(sceneRgbMinPrev, float4(vReprojTC_Min.xy, 0, 0)).w;
 	float fDepthMaxPrev = tex2DlodLC(sceneRgbMaxPrev, float4(vReprojTC_Max.xy, 0, 0)).w;
 
-	float fOut_Min = vReprojTC_Min.x < 0 || vReprojTC_Min.x > 1 || vReprojTC_Min.y < 0 || vReprojTC_Min.y > 1;
-	float fOut_Max = vReprojTC_Max.x < 0 || vReprojTC_Max.x > 1 || vReprojTC_Max.y < 0 || vReprojTC_Max.y > 1;
-
-	float fMinBlend = GetBlendMin(vReprojTC.xy - IN.baseTC.xy, 1, fAverSmoothness, fDepthC);
-
-	float fBlendMin = saturate(fOut_Min + fMinBlend + abs(1 - fDepthMin / fDepthMinPrev) * 8);
-	float fBlendMax = saturate(fOut_Max + fMinBlend + abs(1 - fDepthMax / fDepthMaxPrev) * 8);
+	float fBlendMin = GetBlendMin(vReprojTC_Min.xy, IN.baseTC.xy, fAverSmoothness, fDepthMin, fDepthMinPrev);
+	float fBlendMax = GetBlendMin(vReprojTC_Max.xy, IN.baseTC.xy, fAverSmoothness, fDepthMax, fDepthMaxPrev);
 
 	OUT.Diffuse = clamp(lerp(tex2DlodLC(sceneRgbMinPrev, float4(vReprojTC_Min.xy, 0, 0)), OUT.Diffuse, fBlendMin), -8, 8);
 	OUT.Specular = clamp(lerp(tex2DlodLC(sceneAldMinPrev, float4(vReprojTC_Min.xy, 0, 0)), OUT.Specular, fBlendMin), -8, 8);
@@ -1444,7 +1436,7 @@ pixoutMRT ConeTracePS(vtxOutWPOS IN)
 	int y = nXY.y&(GI_DIFFUSE_KERNEL_TILING - (int)1);
 	int i = x*GI_DIFFUSE_KERNEL_TILING + y;
 
-	const int nFramesNum = SVO_TargetResScale.w ? 1 : 2;
+	const int nFramesNum = (SVO_TargetResScale.w || !IsDiffuseMode()) ? 1 : 2;
 
 #if %_RT_MOTION_BLUR
 	const int nPassesNum = 2;
@@ -1565,32 +1557,9 @@ pixoutMRT ConeTracePS(vtxOutWPOS IN)
 
 #endif
 
-#if VOX_REPROJECT
-	half2 vReprojTC = Reproject(IN.baseTC.xy, vRGB.w, SVO_ReprojectionMatrix);
-
-	half2 TSRadius = 0;
-	const float2 bValid = (vReprojTC > TSRadius) && (vReprojTC < (1.h - TSRadius));
-
-	// blend with prev values
-	float fOldDepth = tex2DlodLC(sceneRgb, float4(vReprojTC.xy, 0, 0)).w;
-	float4 vALDPrev = tex2DlodLC(sceneAld, float4(vReprojTC.xy, 0, 0));
-	float4 vRGBPrev = tex2DlodLC(sceneRgb, float4(vReprojTC.xy, 0, 0));
-	float fPrevDepth = SampleLinearDepth(sceneDepth, vReprojTC.xy);
-
-	float fMinBlend = GetBlendMin(vReprojTC.xy - IN.baseTC.xy, vAverReflectance, fAverSmoothness, fNewDepth);
-
-	float fBlendRatio = (bValid.x && bValid.y) ? saturate(fMinBlend + abs(1 - vRGB.w / fOldDepth) * 4) : 1;
-
-	{
-		OUT.Diffuse = lerp(vALDPrev, vALD, fBlendRatio);
-		OUT.Specular = lerp(vRGBPrev, vRGB, fBlendRatio);
-		OUT.Specular.w = vRGB.w;
-	}
-#else	
 	OUT.Diffuse = vALD;
 	OUT.Specular = vRGB;
 	OUT.Specular.w = vRGB.w;
-#endif
 
 	return OUT;
 }
@@ -2541,11 +2510,7 @@ pixoutMRT UpScalePS(vtxOutWPOS IN)
 
 	float4 valPrev = tex2DlodPC(sceneFinOutPrev, float4(vReprojTC.xy, 0, 0));
 
-	float fOut = vReprojTC.x < 0 || vReprojTC.x > 1 || vReprojTC.y < 0 || vReprojTC.y > 1;
-
-	float fMinBlend = GetBlendMin(vReprojTC.xy - IN.baseTC.xy, 1, fAverSmoothness, fDepthC);
-
-	float fBlend = saturate(fOut + fMinBlend + abs(1 - fDepthC / valPrev.w) * 16);
+	float fBlend = GetBlendMin(vReprojTC.xy, IN.baseTC.xy, fAverSmoothness, fDepthC, valPrev.w);
 
 	// detect high contrast difference
 	float fDiff = dot(abs(1.f - OUT.Diffuse.xyz / valPrev.xyz), half3(0.33f, 0.33f, 0.33f));

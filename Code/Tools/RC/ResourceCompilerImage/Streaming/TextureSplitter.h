@@ -24,7 +24,7 @@ History:
 				((uint32)(uint8)(ch2) << 16) | ((uint32)(uint8)(ch3) << 24 ))
 #endif
 
-#include "IConvertor.h"
+#include "IConverter.h"
 #include "../../ResourceCompiler/ConvertContext.h"
 #include <list>
 #include <set>
@@ -43,15 +43,23 @@ namespace TextureHelper
 }
 
 // creates pak file from file with list of resources
-class CTextureSplitter : public IConvertor, public ICompiler
+class CTextureSplitter : public IConverter, public ICompiler
 {
 private:
 	string GetOutputFileNameOnly() const;
 	string GetOutputPath() const;
 
-protected:
+public:
 	struct STexture;
-	
+
+protected:
+
+	enum CompilerType
+	{
+		TextureSplitter,
+		Decompressor,
+	};
+
 	friend string MakeFileName( const string& filePath, const uint32 nChunk, const uint32 nFlags );
 
 	// textures work
@@ -110,6 +118,8 @@ public:
 	void SetOverrideSourceFileName( const string &srcFilename );
 	string GetSourceFilename();
 
+	virtual void Init(const ConverterInitContext& context) override;
+
 	enum ETargetType
 	{
 		eTT_None,
@@ -164,6 +174,7 @@ protected:
 	};
 #endif
 
+public:
 	// structure to store mapping information about interleaved resource 
 	struct STexture
 	{
@@ -242,7 +253,7 @@ protected:
 	uint32 m_attachedAlphaOffset;
 
 	ConvertContext m_CC;
-
+	CompilerType m_compilerType;
 	string m_sOverrideSourceFile;
 };
 

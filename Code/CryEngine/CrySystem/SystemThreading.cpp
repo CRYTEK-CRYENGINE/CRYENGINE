@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #include "StdAfx.h"
 #include "System.h"
@@ -53,6 +53,7 @@ struct SThreadMetaData : public CMultiThreadRefCount
 {
 	SThreadMetaData()
 		: m_pThreadTask(0)
+		, m_pThreadMngr(nullptr)
 		, m_threadHandle(0)
 		, m_threadId(0)
 		, m_threadName("Cry_UnnamedThread")

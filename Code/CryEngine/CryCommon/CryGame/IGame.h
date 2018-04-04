@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 /*************************************************************************
    -------------------------------------------------------------------------
@@ -19,18 +19,17 @@
 
 #include <CrySystem/ICmdLine.h>
 #include <CryNetwork/INetwork.h>
-#include <CrySystem/ITestSystem.h> // <> required for Interfuscator
 
 struct IAIActorProxy;
 struct IGameFramework;
 struct IGameStateRecorder;
 struct IGameAudio;
 struct IGameWarningsListener;
-//struct ITestManager;
 struct SGameStartParams;
 struct SRenderingPassInfo;
 struct IGameToEditorInterface;
 struct IGameWebDebugService;
+struct IGameplayListener;
 
 //! Main interface used for the game central object.
 //! The IGame interface should be implemented in the GameDLL.
@@ -38,6 +37,14 @@ struct IGameWebDebugService;
 //! \see IEditorGame.
 struct IGame
 {
+	//! Interface used to communicate what entities/entity archetypes need to be precached.
+	//! Game code can further do some data mining to figure out the resources needed for the entities
+	struct IResourcesPreCache
+	{
+		virtual void QueueEntityClass(const char* szEntityClass) = 0;
+		virtual void QueueEntityArchetype(const char* szEntityArchetype) = 0;
+	};
+
 	struct ExportFilesInfo
 	{
 		ExportFilesInfo(const char* _baseFileName, const uint32 _fileCount)
@@ -129,7 +136,7 @@ struct IGame
 	//! \retval true, if the game handles the end level action and calls ScheduleEndLevel directly.
 	virtual bool GameEndLevel(const char* stringId) = 0;
 
-	//! Creates a GameStateRecorder instance in GameDll and passes its ownership to the caller (CryAction/GamePlayRecorder).
+	//! Creates a GameStateRecorder instance in GameDll and returns the non-owning pointer to the caller (CryAction/GamePlayRecorder).
 	virtual IGameStateRecorder* CreateGameStateRecorder(IGameplayListener* pL) = 0;
 
 	virtual void                FullSerialize(TSerialize ser) = 0;
@@ -142,11 +149,11 @@ struct IGame
 	//! Interface hook to load all game exported data when the level is loaded.
 	virtual void LoadExportedLevelData(const char* levelName, const char* missionName) = 0;
 
-	//! Called by FlowSystem to register all game specific flow nodes.
-	virtual void RegisterGameFlowNodes() = 0;
-
 	//! Access to game interface.
 	virtual void* GetGameInterface() = 0;
+
+	//! Access game specific resource precache interface
+	virtual IResourcesPreCache* GetResourceCache() { return nullptr; }
 
 	//! Retrieves IGameWebDebugService for web-socket based remote debugging.
 	virtual IGameWebDebugService* GetIWebDebugService() { return nullptr; };

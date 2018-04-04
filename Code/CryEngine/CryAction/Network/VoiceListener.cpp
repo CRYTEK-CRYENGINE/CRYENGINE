@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #include "StdAfx.h"
 #include "GameContext.h"
@@ -115,10 +115,6 @@ void CVoiceListener::StartPlaying(bool checkStarted)
 	}
 
 	UpdateSound3dPan();
-}
-
-void CVoiceListener::SetAuthority(bool auth)
-{
 }
 
 void CVoiceListener::PostUpdate(float frameTime)

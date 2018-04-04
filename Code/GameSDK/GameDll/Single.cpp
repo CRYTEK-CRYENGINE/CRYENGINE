@@ -42,8 +42,11 @@ History:
 
 #include "AI/GameAIEnv.h"
 #include "AI/HazardModule/HazardModule.h"
+
 #include "ItemAnimation.h"
 #include "Melee.h"
+
+#include <IPerceptionManager.h>
 
 CRY_IMPLEMENT_GTI(CSingle, CFireMode);
 
@@ -1944,20 +1947,22 @@ void CSingle::CheckNearMisses(const Vec3 &probableHit, const Vec3 &pos, const Ve
 {
 	FUNCTION_PROFILER( GetISystem(), PROFILE_GAME );
 
-	IAISystem* pAISystem = gEnv->pAISystem;
-	EntityId ownerId = m_pWeapon->GetOwnerId();
-	if (pAISystem && (ownerId != 0) && !GetShared()->fireparams.is_silenced)
+	if (IPerceptionManager::GetInstance())
 	{
-		// Associate event with vehicle if the shooter is in a vehicle (tank cannon shot, etc)
-		CActor* pActor = m_pWeapon->GetOwnerActor();
-		IVehicle* pVehicle = pActor ? pActor->GetLinkedVehicle() : NULL;
-		if (pVehicle)
+		EntityId ownerId = m_pWeapon->GetOwnerId();
+		if ((ownerId != 0) && !GetShared()->fireparams.is_silenced)
 		{
-			ownerId = pVehicle->GetEntityId();
-		}
+			// Associate event with vehicle if the shooter is in a vehicle (tank cannon shot, etc)
+			CActor* pActor = m_pWeapon->GetOwnerActor();
+			IVehicle* pVehicle = pActor ? pActor->GetLinkedVehicle() : NULL;
+			if (pVehicle)
+			{
+				ownerId = pVehicle->GetEntityId();
+			}
 
-		SAIStimulus stim(AISTIM_BULLET_WHIZZ, 0, ownerId, 0, pos, dir, range);
-		pAISystem->RegisterStimulus(stim);
+			SAIStimulus stim(AISTIM_BULLET_WHIZZ, 0, ownerId, 0, pos, dir, range);
+			IPerceptionManager::GetInstance()->RegisterStimulus(stim);
+		}
 	}
 }
 

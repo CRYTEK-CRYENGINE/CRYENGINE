@@ -1,9 +1,9 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #include "StdAfx.h"
 #include "LogRecorder.h"
 
-#include <Schematyc/Utils/Assert.h>
+#include <CrySchematyc/Utils/Assert.h>
 
 namespace Schematyc
 {
@@ -15,7 +15,7 @@ namespace Schematyc
 	void CLogRecorder::Begin()
 	{
 		m_recordedMessages.reserve(1024);
-		gEnv->pSchematyc->GetLog().GetMessageSignalSlots().Connect(Delegate::Make(*this, &CLogRecorder::OnLogMessage), m_connectionScope);
+		gEnv->pSchematyc->GetLog().GetMessageSignalSlots().Connect(SCHEMATYC_MEMBER_DELEGATE(&CLogRecorder::OnLogMessage, *this), m_connectionScope);
 	}
 
 	void CLogRecorder::End()
@@ -25,8 +25,8 @@ namespace Schematyc
 
 	void CLogRecorder::VisitMessages(const LogMessageVisitor& visitor)
 	{
-		SCHEMATYC_CORE_ASSERT(!visitor.IsEmpty());
-		if(!visitor.IsEmpty())
+		SCHEMATYC_CORE_ASSERT(visitor);
+		if(visitor)
 		{
 			for(auto recordedMessage : m_recordedMessages)
 			{

@@ -6,39 +6,7 @@
 #include "bstrlib.h"
 #include <stdlib.h>
 #include <stdio.h>
-
-static void FormatVariableName(char* Name)
-{
-	int i;
-
-	/* MSDN http://msdn.microsoft.com/en-us/library/windows/desktop/bb944006(v=vs.85).aspx
-	The uniform function parameters appear in the
-	constant table prepended with a dollar sign ($),
-	unlike the global variables. The dollar sign is
-	required to avoid name collisions between local
-	uniform inputs and global variables of the same name.*/
-
-	/* Leave $ThisPointer, $Element and $Globals as-is.
-	Otherwise remove $ character ($ is not a valid character for GLSL variable names). */
-	if(Name[0] == '$')
-	{
-		if(strcmp(Name, "$Element") !=0 &&
-			strcmp(Name, "$Globals") != 0 &&
-			strcmp(Name, "$ThisPointer") != 0)
-		{
-			Name[0] = '_';
-		}
-	}
-
-	// remove "__" because it's reserved in OpenGL
-	for (i = 0; Name[i] != '\0'; ++i)
-	{
-		if (Name[i] == '_' && Name[i + 1] == '_')
-		{
-			Name[i + 1] = 'x';
-		}
-	}
-}
+#include "reflect.inl"
 
 static void ReadStringFromTokenStream(const uint32_t* tokens, char* str)
 {
@@ -95,6 +63,12 @@ static void ReadInputSignatures(const uint32_t* pui32Tokens, ShaderInfo* psShade
 		psCurrentSignature->eComponentType = (INOUT_COMPONENT_TYPE) *pui32Tokens++;
 		psCurrentSignature->ui32Register = *pui32Tokens++;
 
+		// Massage some special inputs/outputs to match the types of GLSL counterparts
+		if (psCurrentSignature->eSystemValueType == NAME_RENDER_TARGET_ARRAY_INDEX)
+		{
+			psCurrentSignature->eComponentType = INOUT_COMPONENT_SINT32;
+		}
+
 		ui32ComponentMasks = *pui32Tokens++;
 		psCurrentSignature->ui32Mask = ui32ComponentMasks & 0x7F;
 		//Shows which components are read
@@ -103,7 +77,9 @@ static void ReadInputSignatures(const uint32_t* pui32Tokens, ShaderInfo* psShade
 		if(extended)
 			psCurrentSignature->eMinPrec = *pui32Tokens++;
 
-		ReadStringFromTokenStream((const uint32_t*)((const char*)pui32FirstSignatureToken+ui32SemanticNameOffset), psCurrentSignature->SemanticName);
+		psCurrentSignature->SemanticName[0] = '\0';
+		ReadStringFromTokenStream((const uint32_t*)((const char*)pui32FirstSignatureToken + ui32SemanticNameOffset), psCurrentSignature->SemanticName);
+		FormatVariableName(psCurrentSignature->SemanticName, 1);
 	}
 }
 
@@ -138,6 +114,12 @@ static void ReadOutputSignatures(const uint32_t* pui32Tokens, ShaderInfo* psShad
 		psCurrentSignature->eComponentType = (INOUT_COMPONENT_TYPE) *pui32Tokens++;
 		psCurrentSignature->ui32Register = *pui32Tokens++;
 
+		// Massage some special inputs/outputs to match the types of GLSL counterparts
+		if (psCurrentSignature->eSystemValueType == NAME_RENDER_TARGET_ARRAY_INDEX)
+		{
+			psCurrentSignature->eComponentType = INOUT_COMPONENT_SINT32;
+		}
+
 		ui32ComponentMasks = *pui32Tokens++;
 		psCurrentSignature->ui32Mask = ui32ComponentMasks & 0x7F;
 		//Shows which components are NEVER written.
@@ -146,7 +128,60 @@ static void ReadOutputSignatures(const uint32_t* pui32Tokens, ShaderInfo* psShad
 		if(minPrec)
 			psCurrentSignature->eMinPrec = *pui32Tokens++;
 
-		ReadStringFromTokenStream((const uint32_t*)((const char*)pui32FirstSignatureToken+ui32SemanticNameOffset), psCurrentSignature->SemanticName);
+		psCurrentSignature->SemanticName[0] = '\0';
+		ReadStringFromTokenStream((const uint32_t*)((const char*)pui32FirstSignatureToken + ui32SemanticNameOffset), psCurrentSignature->SemanticName);
+		FormatVariableName(psCurrentSignature->SemanticName, 1);
+	}
+}
+
+static void ReadPatchConstantSignatures(const uint32_t* pui32Tokens, ShaderInfo* psShaderInfo, const int minPrec, const int streams)
+{
+    uint32_t i;
+
+    InOutSignature* psSignatures;
+    const uint32_t* pui32FirstSignatureToken = pui32Tokens;
+    const uint32_t ui32ElementCount = *pui32Tokens++;
+    const uint32_t ui32Key = *pui32Tokens++;
+
+    psSignatures = hlslcc_malloc(sizeof(InOutSignature) * ui32ElementCount);
+    psShaderInfo->psPatchConstantSignatures = psSignatures;
+    psShaderInfo->ui32NumPatchConstantSignatures = ui32ElementCount;
+
+    for(i=0; i<ui32ElementCount; ++i)
+    {
+        uint32_t ui32ComponentMasks;
+        InOutSignature* psCurrentSignature = psSignatures + i;
+        uint32_t ui32SemanticNameOffset;
+
+		psCurrentSignature->ui32Stream = 0;
+		psCurrentSignature->eMinPrec = MIN_PRECISION_DEFAULT;
+
+		if(streams)
+			psCurrentSignature->ui32Stream = *pui32Tokens++;
+
+		ui32SemanticNameOffset = *pui32Tokens++;
+        psCurrentSignature->ui32SemanticIndex = *pui32Tokens++;
+        psCurrentSignature->eSystemValueType = (SPECIAL_NAME)*pui32Tokens++;
+        psCurrentSignature->eComponentType = (INOUT_COMPONENT_TYPE) *pui32Tokens++;
+        psCurrentSignature->ui32Register = *pui32Tokens++;
+
+		// Massage some special inputs/outputs to match the types of GLSL counterparts
+		if (psCurrentSignature->eSystemValueType == NAME_RENDER_TARGET_ARRAY_INDEX)
+		{
+			psCurrentSignature->eComponentType = INOUT_COMPONENT_SINT32;
+		}
+
+		ui32ComponentMasks = *pui32Tokens++;
+		psCurrentSignature->ui32Mask = ui32ComponentMasks & 0x7F;
+		//Shows which components are NEVER written.
+		psCurrentSignature->ui32ReadWriteMask = (ui32ComponentMasks & 0x7F00) >> 8;
+
+		if(minPrec)
+			psCurrentSignature->eMinPrec = *pui32Tokens++;
+		
+		psCurrentSignature->SemanticName[0] = '\0';
+		ReadStringFromTokenStream((const uint32_t*)((const char*)pui32FirstSignatureToken + ui32SemanticNameOffset), psCurrentSignature->SemanticName);
+		FormatVariableName(psCurrentSignature->SemanticName, 1);
 	}
 }
 
@@ -155,7 +190,7 @@ static const uint32_t* ReadResourceBinding(const uint32_t* pui32FirstResourceTok
 	uint32_t ui32NameOffset = *pui32Tokens++;
 
 	ReadStringFromTokenStream((const uint32_t*)((const char*)pui32FirstResourceToken+ui32NameOffset), psBinding->Name);
-	FormatVariableName(psBinding->Name);
+	FormatVariableName(psBinding->Name, 1);
 
 	psBinding->eType = *pui32Tokens++;
 	psBinding->ui32ReturnType = *pui32Tokens++;
@@ -186,9 +221,19 @@ static void ReadShaderVariableType(const uint32_t ui32MajorVersion, const uint32
 	varType->MemberCount = ui32MemberCount = pui16Tokens[5];
 	varType->Members = 0;
 
+	if(varType->ParentCount)
+	{
+		ASSERT( (strlen(varType->Parent->FullName) + 1 + strlen(varType->Name) + 1 + 2) < MAX_REFLECT_STRING_LENGTH);
+
+		strcpy(varType->FullName, varType->Parent->FullName);
+		strcat(varType->FullName, ".");
+		strcat(varType->FullName, varType->Name);
+	}
+
 	if(ui32MemberCount)
 	{
-		varType->Members = (ShaderVarType*)hlslcc_malloc(sizeof(ShaderVarType)*ui32MemberCount);
+		// NOTE: allocate one member more for the pseudo-element which contains the size and alignment of the struct itself
+		varType->Members = (ShaderVarType*)hlslcc_calloc(ui32MemberCount + 1, sizeof(ShaderVarType));
 
 		ui32MemberOffset = pui32tokens[3];
 
@@ -221,9 +266,11 @@ static const uint32_t* ReadConstantBuffer(ShaderInfo* psShaderInfo, const uint32
 	const uint32_t* pui32VarToken = (const uint32_t*)((const char*)pui32FirstConstBufToken+ui32VarOffset);
 
 	ReadStringFromTokenStream((const uint32_t*)((const char*)pui32FirstConstBufToken+ui32NameOffset), psBuffer->Name);
-	FormatVariableName(psBuffer->Name);
+	FormatVariableName(psBuffer->Name, 1);
 
+	// NOTE: allocate one member more for the pseudo-element which contains the size and alignment of the CB itself
 	psBuffer->ui32NumVars = ui32VarCount;
+	psBuffer->asVars = hlslcc_calloc(psBuffer->ui32NumVars + 1, sizeof(ShaderVar));
 
 	for(i=0; i<ui32VarCount; ++i)
 	{
@@ -236,7 +283,7 @@ static const uint32_t* ReadConstantBuffer(ShaderInfo* psShaderInfo, const uint32
 		ui32NameOffset = *pui32VarToken++;
 
 		ReadStringFromTokenStream((const uint32_t*)((const char*)pui32FirstConstBufToken+ui32NameOffset), psVar->Name);
-		FormatVariableName(psVar->Name);
+		FormatVariableName(psVar->Name, 0);
 
 		psVar->ui32StartOffset = *pui32VarToken++;
 		psVar->ui32Size = *pui32VarToken++;
@@ -244,6 +291,7 @@ static const uint32_t* ReadConstantBuffer(ShaderInfo* psShaderInfo, const uint32
 		ui32TypeOffset = *pui32VarToken++;
 
 		strcpy(psVar->sType.Name, psVar->Name);
+		strcpy(psVar->sType.FullName, psVar->Name);
 		psVar->sType.Parent = 0;
 		psVar->sType.ParentCount = 0;
 		psVar->sType.Offset = 0;
@@ -291,6 +339,7 @@ static const uint32_t* ReadConstantBuffer(ShaderInfo* psShaderInfo, const uint32
 		uint32_t ui32BufferType;
 
 		psBuffer->ui32TotalSizeInBytes = *pui32Tokens++;
+		psBuffer->iUnsized = 0;
 		psBuffer->blob = 0;
 		ui32Flags = *pui32Tokens++;
 		ui32BufferType = *pui32Tokens++;
@@ -532,20 +581,94 @@ int GetInputSignatureFromRegister(const uint32_t ui32Register, const ShaderInfo*
 	return 0;
 }
 
-int GetOutputSignatureFromRegister(const uint32_t ui32Register, const uint32_t ui32CompMask, const uint32_t ui32Stream, ShaderInfo* psShaderInfo, InOutSignature** ppsOut)
+int GetInputSignatureFromSystemValue(SPECIAL_NAME eSystemValueType, uint32_t ui32SemanticIndex, ShaderInfo* psShaderInfo, InOutSignature** ppsOut)
 {
 	uint32_t i;
-	const uint32_t ui32NumVars = psShaderInfo->ui32NumOutputSignatures;
+	const uint32_t ui32NumVars = psShaderInfo->ui32NumInputSignatures;
+
+	for (i = 0; i < ui32NumVars; ++i)
+	{
+		InOutSignature* psInputSignatures = psShaderInfo->psInputSignatures;
+		if (eSystemValueType == psInputSignatures[i].eSystemValueType &&
+			ui32SemanticIndex == psInputSignatures[i].ui32SemanticIndex)
+		{
+			*ppsOut = psInputSignatures + i;
+			return 1;
+		}
+	}
+	return 0;
+}
+
+int GetPatchConstantSignatureFromRegister(const uint32_t ui32Register, const uint32_t ui32CompMask, const ShaderInfo* psShaderInfo, const InOutSignature** ppsOut)
+{
+	uint32_t i;
+	const uint32_t ui32NumVars = psShaderInfo->ui32NumPatchConstantSignatures;
 
 	for(i=0; i<ui32NumVars; ++i)
 	{
-		InOutSignature* psOutputSignatures = psShaderInfo->psOutputSignatures;
-		if(ui32Register == psOutputSignatures[i].ui32Register &&
-			(ui32CompMask & psOutputSignatures[i].ui32Mask) &&
-			ui32Stream == psOutputSignatures[i].ui32Stream)
+		InOutSignature* psPatchConstantSignatures = psShaderInfo->psPatchConstantSignatures;
+		if (ui32Register == psPatchConstantSignatures[i].ui32Register &&
+			(ui32CompMask & psPatchConstantSignatures[i].ui32Mask))
 		{
-			*ppsOut = psOutputSignatures+i;
+			*ppsOut = psPatchConstantSignatures+i;
 			return 1;
+		}
+	}
+	return 0;
+}
+
+int GetPatchConstantSignatureFromSystemValue(SPECIAL_NAME eSystemValueType, uint32_t ui32SemanticIndex, ShaderInfo* psShaderInfo, InOutSignature** ppsOut)
+{
+	uint32_t i;
+	const uint32_t ui32NumVars = psShaderInfo->ui32NumPatchConstantSignatures;
+
+	for (i = 0; i < ui32NumVars; ++i)
+	{
+		InOutSignature* psPatchConstantSignatures = psShaderInfo->psPatchConstantSignatures;
+		if (eSystemValueType == psPatchConstantSignatures[i].eSystemValueType &&
+			ui32SemanticIndex == psPatchConstantSignatures[i].ui32SemanticIndex)
+		{
+			*ppsOut = psPatchConstantSignatures + i;
+			return 1;
+		}
+	}
+	return 0;
+}
+
+int GetOutputSignatureFromRegister(const uint32_t currentPhase, const uint32_t ui32Register, const uint32_t ui32CompMask, const uint32_t ui32Stream, ShaderInfo* psShaderInfo, InOutSignature** ppsOut)
+{
+	uint32_t i;
+
+	if(currentPhase == HS_JOIN_PHASE || currentPhase == HS_FORK_PHASE)
+	{
+		const uint32_t ui32NumVars = psShaderInfo->ui32NumPatchConstantSignatures;
+
+		for(i=0; i<ui32NumVars; ++i)
+		{
+			InOutSignature* psOutputSignatures = psShaderInfo->psPatchConstantSignatures;
+			if(ui32Register == psOutputSignatures[i].ui32Register &&
+				(ui32CompMask & psOutputSignatures[i].ui32Mask) &&
+				ui32Stream == psOutputSignatures[i].ui32Stream)
+			{
+				*ppsOut = psOutputSignatures+i;
+				return 1;
+			}
+		}
+	}
+	else
+	{
+		const uint32_t ui32NumVars = psShaderInfo->ui32NumOutputSignatures;
+
+		for(i=0; i<ui32NumVars; ++i)
+		{
+			InOutSignature* psOutputSignatures = psShaderInfo->psOutputSignatures;	
+			if(ui32Register == psOutputSignatures[i].ui32Register &&
+				(ui32CompMask & psOutputSignatures[i].ui32Mask) &&
+				ui32Stream == psOutputSignatures[i].ui32Stream)
+			{
+				*ppsOut = psOutputSignatures+i;
+				return 1;
+			}
 		}
 	}
 	return 0;
@@ -574,9 +697,17 @@ static int IsOffsetInType(ShaderVarType* psType, uint32_t parentOffset, uint32_t
 	uint32_t thisOffset = parentOffset + psType->Offset;
 	uint32_t thisSize = psType->Columns * psType->Rows * 4;
 
-	if(psType->Elements)
+	if (psType->Elements)
 	{
-		thisSize += 16 * (psType->Elements - 1);
+		// Everything smaller than vec4 in an array takes the space of vec4, except for the last one
+		if (thisSize < (4 * 4))
+		{
+			thisSize = (4 * 4 * (psType->Elements - 1)) + thisSize;
+		}
+		else
+		{
+			thisSize *= psType->Elements;
+		}
 	}
 
 	//Swizzle can point to another variable. In the example below
@@ -604,98 +735,116 @@ static int IsOffsetInType(ShaderVarType* psType, uint32_t parentOffset, uint32_t
 	// ------------------------------ ---------- ------- ----------- ---- --------
 	// cbUIUpdates                       cbuffer      NA          NA    1        1
 
-	if(pui32Swizzle[0] == OPERAND_4_COMPONENT_Y)
+	if (pui32Swizzle[0] == OPERAND_4_COMPONENT_Y)
 	{
 		offsetToFind += 4;
 	}
-	else
-		if(pui32Swizzle[0] == OPERAND_4_COMPONENT_Z)
+	else if (pui32Swizzle[0] == OPERAND_4_COMPONENT_Z)
+	{
+		offsetToFind += 8;
+	}
+	else if (pui32Swizzle[0] == OPERAND_4_COMPONENT_W)
+	{
+		offsetToFind += 12;
+	}
+
+	if ((offsetToFind >= thisOffset) &&
+		(offsetToFind < (thisOffset + thisSize)))
+	{
+		if (psType->Class == SVC_MATRIX_ROWS ||
+			psType->Class == SVC_MATRIX_COLUMNS)
 		{
-			offsetToFind += 8;
+			//Matrices are treated as arrays of vectors.
+			pi32Index[0] = (offsetToFind - thisOffset) / 16;
 		}
-		else
-			if(pui32Swizzle[0] == OPERAND_4_COMPONENT_W)
-			{
-				offsetToFind += 12;
-			}
+		//Check for array of scalars or vectors (both take up 16 bytes per element)
+		else if ((psType->Class == SVC_SCALAR || psType->Class == SVC_VECTOR) && psType->Elements > 1)
+		{
+			pi32Index[0] = (offsetToFind - thisOffset) / 16;
+		}
+		else if (psType->Class == SVC_VECTOR && psType->Columns > 1)
+		{
+			//Check for vector starting at a non-vec4 offset.
 
-			if((offsetToFind >= thisOffset) &&
-				offsetToFind < (thisOffset + thisSize))
-			{
+			// cbuffer $Globals
+			// {
+			//
+			//   float angle;                       // Offset:    0 Size:     4
+			//   float2 angle2;                     // Offset:    4 Size:     8
+			//
+			// }
 
-				if(psType->Class == SVC_MATRIX_ROWS || 
-					psType->Class == SVC_MATRIX_COLUMNS)
-				{
-					//Matrices are treated as arrays of vectors.
-					pi32Index[0] = (offsetToFind - thisOffset) / 16;
-				}
-				//Check for array of vectors
-				else if(psType->Class == SVC_VECTOR && psType->Elements > 1)
-				{
-					pi32Index[0] = (offsetToFind - thisOffset) / 16;
-				}
-				else if(psType->Class == SVC_VECTOR && psType->Columns > 1)
-				{
-					//Check for vector starting at a non-vec4 offset.
+			//cb0[0].x = angle
+			//cb0[0].yzyy = angle2.xyxx
 
-					// cbuffer $Globals
-					// {
-					//
-					//   float angle;                       // Offset:    0 Size:     4
-					//   float2 angle2;                     // Offset:    4 Size:     8
-					//
-					// }
+			//Rebase angle2 so that .y maps to .x, .z maps to .y
 
-					//cb0[0].x = angle
-					//cb0[0].yzyy = angle2.xyxx
+			pi32Rebase[0] = thisOffset % 16;
+		}
 
-					//Rebase angle2 so that .y maps to .x, .z maps to .y
+		return 1;
+	}
 
-					pi32Rebase[0] = thisOffset % 16;
-				}
-
-				return 1;
-			}
-			return 0;
+	return 0;
 }
 
 int GetShaderVarFromOffset(const uint32_t ui32Vec4Offset, const uint32_t* pui32Swizzle, ConstantBuffer* psCBuf, ShaderVarType** ppsShaderVar, int32_t* pi32Index, int32_t* pi32Rebase)
 {
-	uint32_t i;
-	const uint32_t ui32BaseByteOffset = ui32Vec4Offset * 16;
-
-	uint32_t ui32ByteOffset = ui32Vec4Offset * 16;
-
+	uint32_t i, m, e;
+	const uint32_t ui32ByteOffset = ui32Vec4Offset * 16;
 	const uint32_t ui32NumVars = psCBuf->ui32NumVars;
 
-	for(i=0; i<ui32NumVars; ++i)
+	if (psCBuf->iUnsized && ui32NumVars == 1 && psCBuf->asVars[0].sType.Class != SVC_STRUCT)
 	{
-		if(psCBuf->asVars[i].sType.Class == SVC_STRUCT)
+		ppsShaderVar[0] = &psCBuf->asVars[0].sType;
+		return 1;
+	}
+
+	for (i = 0; i < ui32NumVars; ++i)
+	{
+		ShaderVar* pVar = psCBuf->asVars + i;
+		uint32_t ui32StartOffset = pVar->ui32StartOffset;
+
+		if (pVar->sType.Class == SVC_STRUCT)
 		{
-			uint32_t m = 0;
+			// Equals pVar->ui32Size / pVar->sType.Elements
+			uint32_t ui32ByteSize = pVar->sType.Columns * pVar->sType.Rows * 4;
+			uint32_t numElements = (pVar->sType.Elements ? pVar->sType.Elements : 1U);
 
-			for(m=0; m < psCBuf->asVars[i].sType.MemberCount; ++m)
+			for (e = 0; e < numElements; ++e)
 			{
-				ShaderVarType* psMember = psCBuf->asVars[i].sType.Members + m;
-
-				ASSERT(psMember->Class != SVC_STRUCT);
-
-				if(IsOffsetInType(psMember, psCBuf->asVars[i].ui32StartOffset, ui32ByteOffset, pui32Swizzle, pi32Index, pi32Rebase))
+				for (m = 0; m < pVar->sType.MemberCount; ++m)
 				{
-					ppsShaderVar[0] = psMember;
-					return 1;
+					ShaderVarType* psMember = pVar->sType.Members + m;
+					ASSERT(psMember->Class != SVC_STRUCT);
+
+					if (IsOffsetInType(psMember, ui32StartOffset, ui32ByteOffset, pui32Swizzle, pi32Index, pi32Rebase))
+					{
+						// Nested index
+						if (pVar->sType.Elements)
+						{
+							pi32Index[1] = pi32Index[0];
+							pi32Index[0] = e;
+						}
+
+						ppsShaderVar[0] = psMember;
+						return 1;
+					}
 				}
+
+				ui32StartOffset += ui32ByteSize;
 			}
 		}
 		else
 		{
-			if(IsOffsetInType(&psCBuf->asVars[i].sType, psCBuf->asVars[i].ui32StartOffset, ui32ByteOffset, pui32Swizzle, pi32Index, pi32Rebase))
+			if (IsOffsetInType(&pVar->sType, ui32StartOffset, ui32ByteOffset, pui32Swizzle, pi32Index, pi32Rebase))
 			{
-				ppsShaderVar[0] = &psCBuf->asVars[i].sType;
+				ppsShaderVar[0] = &pVar->sType;
 				return 1;
 			}
 		}
 	}
+
 	return 0;
 }
 
@@ -741,11 +890,10 @@ void LoadShaderInfo(const uint32_t ui32MajorVersion, const uint32_t ui32MinorVer
 	const uint32_t* pui32Outputs = psChunks->pui32Outputs;
 	const uint32_t* pui32Outputs11 = psChunks->pui32Outputs11;
 	const uint32_t* pui32OutputsWithStreams = psChunks->pui32OutputsWithStreams;
+	const uint32_t* pui32PatchConstants = psChunks->pui32PatchConstants;
 
 	psInfo->eTessOutPrim = TESSELLATOR_OUTPUT_UNDEFINED;
 	psInfo->eTessPartitioning = TESSELLATOR_PARTITIONING_UNDEFINED;
-	for(i=0; i<MAX_SHADER_VEC4_INPUT;++i)
-		psInfo->aePixelInputInterpolation[i] = INTERPOLATION_LINEAR;
 
 	psInfo->ui32MajorVersion = ui32MajorVersion;
 	psInfo->ui32MinorVersion = ui32MinorVersion;
@@ -772,6 +920,8 @@ void LoadShaderInfo(const uint32_t ui32MajorVersion, const uint32_t ui32MinorVer
 		ReadOutputSignatures(pui32Outputs11, psInfo, 1, 1);
 	if(pui32OutputsWithStreams)
 		ReadOutputSignatures(pui32OutputsWithStreams, psInfo, 0, 1);
+	if(pui32PatchConstants)
+		ReadPatchConstantSignatures(pui32PatchConstants, psInfo, 0, 0);
 
 	for(i=0; i<psInfo->ui32NumConstantBuffers;++i)
 	{
@@ -786,6 +936,8 @@ void LoadShaderInfo(const uint32_t ui32MajorVersion, const uint32_t ui32MinorVer
 	}
 
 	memset(psInfo->asSamplers, 0, sizeof(psInfo->asSamplers));
+	for(i=0; i<MAX_RESOURCE_BINDINGS;++i)
+		psInfo->aui32SamplerMap[i] = MAX_RESOURCE_BINDINGS;
 }
 
 void FreeShaderInfo(ShaderInfo* psShaderInfo)
@@ -797,15 +949,18 @@ void FreeShaderInfo(ShaderInfo* psShaderInfo)
 	{
 		ConstantBuffer* psCBuf = &psShaderInfo->psConstantBuffers[cbuf];
 		uint32_t var;
-		for(var=0; var < psCBuf->ui32NumVars; ++var)
-		{
-			ShaderVar* psVar = &psCBuf->asVars[var];
-			hlslcc_free(psVar->sType.Members);
-			if(psVar->haveDefaultValue)
+		if(psCBuf->ui32NumVars)
+ 		{
+			for(var=0; var < psCBuf->ui32NumVars; ++var)
 			{
-				hlslcc_free(psVar->pui32DefaultValues);
+				ShaderVar* psVar = &psCBuf->asVars[var];
+				if(psVar->haveDefaultValue)
+				{
+					hlslcc_free(psVar->pui32DefaultValues);
+				}
 			}
-		}
+			hlslcc_free(psCBuf->asVars);
+ 		}
 	}
 	hlslcc_free(psShaderInfo->psInputSignatures);
 	hlslcc_free(psShaderInfo->psResourceBindings);
@@ -821,6 +976,7 @@ void FreeShaderInfo(ShaderInfo* psShaderInfo)
 		hlslcc_free(psShaderInfo->psTraceSteps[uStep].psVariables);
 	}
 	hlslcc_free(psShaderInfo->psTraceSteps);
+	hlslcc_free(psShaderInfo->psPatchConstantSignatures);
 
 	psShaderInfo->ui32NumInputSignatures = 0;
 	psShaderInfo->ui32NumResourceBindings = 0;
@@ -831,6 +987,7 @@ void FreeShaderInfo(ShaderInfo* psShaderInfo)
 	psShaderInfo->ui32NumTraceSteps = 0;
 	psShaderInfo->ui32NumImports = 0;
 	psShaderInfo->ui32NumExports = 0;
+	psShaderInfo->ui32NumPatchConstantSignatures = 0;
 }
 
 typedef struct ConstantTableD3D9_TAG
@@ -951,6 +1108,9 @@ void LoadD3D9ConstantTable(const char* data, ShaderInfo* psInfo)
 
 	psInfo->psResourceBindings = hlslcc_malloc(numResourceBindingsNeeded*sizeof(ResourceBinding));
 
+	// NOTE: allocate one member more for the pseudo-element which contains the size and alignment of the CB itself
+	psConstantBuffer->asVars = hlslcc_calloc(ctab->constants - numResourceBindingsNeeded + 1, sizeof(ShaderVar));
+
 	var = &psConstantBuffer->asVars[0];
 
 	for(constNum = 0; constNum < ctab->constants; ++constNum)
@@ -960,7 +1120,7 @@ void LoadD3D9ConstantTable(const char* data, ShaderInfo* psInfo)
 		if(cinfos[constNum].registerSet != RS_SAMPLER)
 		{
 			strcpy(var->Name, data + cinfos[constNum].name);
-			FormatVariableName(var->Name);
+			FormatVariableName(var->Name, 0);
 			var->ui32Size = cinfos[constNum].registerCount * 16;
 			var->ui32StartOffset = cinfos[constNum].registerIndex * 16;
 			var->haveDefaultValue = 0;
@@ -976,6 +1136,7 @@ void LoadD3D9ConstantTable(const char* data, ShaderInfo* psInfo)
 			var->sType.MemberCount = typeInfo->structMembers;
 			var->sType.Members = 0;
 			var->sType.Offset = 0;
+			strcpy(var->sType.FullName, var->Name);
 			var->sType.Parent = 0;
 			var->sType.ParentCount = 0;
 
@@ -1043,7 +1204,7 @@ void LoadD3D9ConstantTable(const char* data, ShaderInfo* psInfo)
 			ResourceBinding* res = &psInfo->psResourceBindings[ui32ResourceIndex];
 
 			strcpy(res->Name, data + cinfos[constNum].name);
-			FormatVariableName(res->Name);
+			FormatVariableName(res->Name, 1);
 
 			res->ui32BindPoint = cinfos[constNum].registerIndex;
 			res->ui32BindCount = cinfos[constNum].registerCount;
@@ -1063,7 +1224,7 @@ void LoadD3D9ConstantTable(const char* data, ShaderInfo* psInfo)
 				res->eDimension = REFLECT_RESOURCE_DIMENSION_TEXTURE2D;
 				break;
 			case PT_SAMPLER3D:
-				res->eDimension = REFLECT_RESOURCE_DIMENSION_TEXTURE2D;
+				res->eDimension = REFLECT_RESOURCE_DIMENSION_TEXTURE3D;
 				break;
 			case PT_SAMPLERCUBE:
 				res->eDimension = REFLECT_RESOURCE_DIMENSION_TEXTURECUBE;
@@ -1072,4 +1233,5 @@ void LoadD3D9ConstantTable(const char* data, ShaderInfo* psInfo)
 		}
 	}
 	psConstantBuffer->ui32TotalSizeInBytes = ui32ConstantBufferSize;
+	psConstantBuffer->iUnsized = 0;
 }

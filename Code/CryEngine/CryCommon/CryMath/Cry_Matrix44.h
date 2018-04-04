@@ -1,131 +1,34 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
-//
-//	File:Cry_Matrix.h
-//	Description: Common matrix class
-//
-//	History:
-//	-Feb 27,2003: Created by Ivo Herzeg
-//
-//
-//////////////////////////////////////////////////////////////////////
-
-#ifndef MATRIX44_H
+#pragma once
 #define MATRIX44_H
 
-#if _MSC_VER > 1000
-	#pragma once
-#endif
+template<typename F> struct Matrix44H;
+template<typename F> struct Matrix44HR;
 
 template<typename F> struct Matrix44_tpl
+	: INumberArray<F, 16>
 {
+	typedef INumberArray<F, 16> NA;
 
 	F m00, m01, m02, m03;
 	F m10, m11, m12, m13;
 	F m20, m21, m22, m23;
 	F m30, m31, m32, m33;
 
-#if defined(_DEBUG)
-	ILINE Matrix44_tpl()
-	{
-		if (sizeof(F) == 4)
-		{
-			uint32* p = (uint32*)&m00;
-			p[0] = F32NAN;
-			p[1] = F32NAN;
-			p[2] = F32NAN;
-			p[3] = F32NAN;
-			p[4] = F32NAN;
-			p[5] = F32NAN;
-			p[6] = F32NAN;
-			p[7] = F32NAN;
-			p[8] = F32NAN;
-			p[9] = F32NAN;
-			p[10] = F32NAN;
-			p[11] = F32NAN;
-			p[12] = F32NAN;
-			p[13] = F32NAN;
-			p[14] = F32NAN;
-			p[15] = F32NAN;
-		}
-		if (sizeof(F) == 8)
-		{
-			uint64* p = (uint64*)&m00;
-			p[0] = F64NAN;
-			p[1] = F64NAN;
-			p[2] = F64NAN;
-			p[3] = F64NAN;
-			p[4] = F64NAN;
-			p[5] = F64NAN;
-			p[6] = F64NAN;
-			p[7] = F64NAN;
-			p[8] = F64NAN;
-			p[9] = F64NAN;
-			p[10] = F64NAN;
-			p[11] = F64NAN;
-			p[12] = F64NAN;
-			p[13] = F64NAN;
-			p[14] = F64NAN;
-			p[15] = F64NAN;
-		}
-	}
-#else
-	ILINE Matrix44_tpl(){};
-#endif
+	ILINE Matrix44_tpl() {}
+	ILINE Matrix44_tpl(type_zero) { NA::SetZero(); }
 
-	//! Initialize with zeros.
-	ILINE void SetZero()
-	{
-		m00 = 0;
-		m01 = 0;
-		m02 = 0;
-		m03 = 0;
-		m10 = 0;
-		m11 = 0;
-		m12 = 0;
-		m13 = 0;
-		m20 = 0;
-		m21 = 0;
-		m22 = 0;
-		m23 = 0;
-		m30 = 0;
-		m31 = 0;
-		m32 = 0;
-		m33 = 0;
-	}
-	ILINE Matrix44_tpl(type_zero) { SetZero(); }
-
-	//! ASSIGNMENT OPERATOR of identical Matrix44 types.
-	//! The assignment operator has precedence over assignment constructor.
-	//! Matrix44 m; m=m44;
-	ILINE Matrix44_tpl<F>& operator=(const Matrix44_tpl<F>& m)
-	{
-		CRY_MATH_ASSERT(m.IsValid());
-		m00 = m.m00;
-		m01 = m.m01;
-		m02 = m.m02;
-		m03 = m.m03;
-		m10 = m.m10;
-		m11 = m.m11;
-		m12 = m.m12;
-		m13 = m.m13;
-		m20 = m.m20;
-		m21 = m.m21;
-		m22 = m.m22;
-		m23 = m.m23;
-		m30 = m.m30;
-		m31 = m.m31;
-		m32 = m.m32;
-		m33 = m.m33;
-		return *this;
-	}
+	template<class F1> ILINE Matrix44_tpl(const Matrix44_tpl<F1>& m) { NA::Set(m); }
+	template<class F1> ILINE Matrix44_tpl(const Matrix44H<F1>& m) { NA::Set(m.mat()); }
+	template<class F1> ILINE Matrix44_tpl(const Matrix44HR<F1>& m) { NA::Set(m.mat()); Transpose(); }
 
 	// implementation of the constructors
 
-	ILINE Matrix44_tpl<F>(F v00, F v01, F v02, F v03,
-	                      F v10, F v11, F v12, F v13,
-	                      F v20, F v21, F v22, F v23,
-	                      F v30, F v31, F v32, F v33)
+	ILINE Matrix44_tpl(F v00, F v01, F v02, F v03,
+	                   F v10, F v11, F v12, F v13,
+	                   F v20, F v21, F v22, F v23,
+	                   F v30, F v31, F v32, F v33)
 	{
 		m00 = v00;
 		m01 = v01;
@@ -145,31 +48,9 @@ template<typename F> struct Matrix44_tpl
 		m33 = v33;
 	}
 
-	//! CONSTRUCTOR for different types. It converts a Matrix33 into a Matrix44.
-	//! Matrix44(m33);
-	ILINE Matrix44_tpl<F>(const Matrix33_tpl<F> &m)
-	{
-		CRY_MATH_ASSERT(m.IsValid());
-		m00 = m.m00;
-		m01 = m.m01;
-		m02 = m.m02;
-		m03 = 0;
-		m10 = m.m10;
-		m11 = m.m11;
-		m12 = m.m12;
-		m13 = 0;
-		m20 = m.m20;
-		m21 = m.m21;
-		m22 = m.m22;
-		m23 = 0;
-		m30 = 0;
-		m31 = 0;
-		m32 = 0;
-		m33 = 1;
-	}
 	//! CONSTRUCTOR for different types. It converts a Matrix33 into a Matrix44 and also converts between double/float.
 	//! Matrix44(Matrix33);
-	template<class F1> ILINE Matrix44_tpl<F>(const Matrix33_tpl<F1> &m)
+	template<class F1> ILINE Matrix44_tpl(const Matrix33_tpl<F1> &m)
 	{
 		CRY_MATH_ASSERT(m.IsValid());
 		m00 = F(m.m00);
@@ -190,31 +71,9 @@ template<typename F> struct Matrix44_tpl
 		m33 = 1;
 	}
 
-	//! CONSTRUCTOR for different types. It converts a Matrix34 into a Matrix44.
-	//! Matrix44(m34);
-	ILINE Matrix44_tpl<F>(const Matrix34_tpl<F> &m)
-	{
-		CRY_MATH_ASSERT(m.IsValid());
-		m00 = m.m00;
-		m01 = m.m01;
-		m02 = m.m02;
-		m03 = m.m03;
-		m10 = m.m10;
-		m11 = m.m11;
-		m12 = m.m12;
-		m13 = m.m13;
-		m20 = m.m20;
-		m21 = m.m21;
-		m22 = m.m22;
-		m23 = m.m23;
-		m30 = 0;
-		m31 = 0;
-		m32 = 0;
-		m33 = 1;
-	}
 	//! CONSTRUCTOR for different types. It converts a Matrix34 into a Matrix44 and also converts between double/float.
 	//! Matrix44(Matrix34);
-	template<class F1> ILINE Matrix44_tpl<F>(const Matrix34_tpl<F1> &m)
+	template<class F1> ILINE Matrix44_tpl(const Matrix34_tpl<F1> &m)
 	{
 		CRY_MATH_ASSERT(m.IsValid());
 		m00 = F(m.m00);
@@ -234,33 +93,8 @@ template<typename F> struct Matrix44_tpl
 		m32 = 0;
 		m33 = 1;
 	}
-
-	//! CONSTRUCTOR for identical types.
-	//! Matrix44 m=m44;
-	ILINE Matrix44_tpl<F>(const Matrix44_tpl<F> &m)
-	{
-		CRY_MATH_ASSERT(m.IsValid());
-		m00 = m.m00;
-		m01 = m.m01;
-		m02 = m.m02;
-		m03 = m.m03;
-		m10 = m.m10;
-		m11 = m.m11;
-		m12 = m.m12;
-		m13 = m.m13;
-		m20 = m.m20;
-		m21 = m.m21;
-		m22 = m.m22;
-		m23 = m.m23;
-		m30 = m.m30;
-		m31 = m.m31;
-		m32 = m.m32;
-		m33 = m.m33;
-	}
-	//! CONSTRUCTOR for identical types which converts between double/float.
-	//! Matrix44 m=m44r;
-	//! Matrix44r m=m44;
-	template<class F1> ILINE Matrix44_tpl<F>(const Matrix44_tpl<F1> &m)
+#ifdef MATRIX34H
+	template<class F1> ILINE Matrix44_tpl(const Matrix34H<F1> &m)
 	{
 		CRY_MATH_ASSERT(m.IsValid());
 		m00 = F(m.m00);
@@ -275,12 +109,12 @@ template<typename F> struct Matrix44_tpl
 		m21 = F(m.m21);
 		m22 = F(m.m22);
 		m23 = F(m.m23);
-		m30 = F(m.m30);
-		m31 = F(m.m31);
-		m32 = F(m.m32);
-		m33 = F(m.m33);
+		m30 = 0;
+		m31 = 0;
+		m32 = 0;
+		m33 = 1;
 	}
-
+#endif
 	//---------------------------------------------------------------------
 
 	//! multiply all m1 matrix's values by f and return the matrix
@@ -353,45 +187,34 @@ template<typename F> struct Matrix44_tpl
 	}
 	ILINE Matrix44_tpl(type_identity) { SetIdentity(); }
 
+	ILINE Matrix44_tpl& Transpose(const Matrix44_tpl& m)
+	{
+		m00 = m.m00;
+		m01 = m.m10;
+		m02 = m.m20;
+		m03 = m.m30;
+		m10 = m.m01;
+		m11 = m.m11;
+		m12 = m.m21;
+		m13 = m.m31;
+		m20 = m.m02;
+		m21 = m.m12;
+		m22 = m.m22;
+		m23 = m.m32;
+		m30 = m.m03;
+		m31 = m.m13;
+		m32 = m.m23;
+		m33 = m.m33;
+		return *this;
+	}
 	ILINE void Transpose()
 	{
-		Matrix44_tpl<F> tmp = *this;
-		m00 = tmp.m00;
-		m01 = tmp.m10;
-		m02 = tmp.m20;
-		m03 = tmp.m30;
-		m10 = tmp.m01;
-		m11 = tmp.m11;
-		m12 = tmp.m21;
-		m13 = tmp.m31;
-		m20 = tmp.m02;
-		m21 = tmp.m12;
-		m22 = tmp.m22;
-		m23 = tmp.m32;
-		m30 = tmp.m03;
-		m31 = tmp.m13;
-		m32 = tmp.m23;
-		m33 = tmp.m33;
+		Transpose(Matrix44_tpl(*this));
 	}
-	ILINE Matrix44_tpl<F> GetTransposed() const
+	ILINE Matrix44_tpl GetTransposed() const
 	{
-		Matrix44_tpl<F> tmp;
-		tmp.m00 = m00;
-		tmp.m01 = m10;
-		tmp.m02 = m20;
-		tmp.m03 = m30;
-		tmp.m10 = m01;
-		tmp.m11 = m11;
-		tmp.m12 = m21;
-		tmp.m13 = m31;
-		tmp.m20 = m02;
-		tmp.m21 = m12;
-		tmp.m22 = m22;
-		tmp.m23 = m32;
-		tmp.m30 = m03;
-		tmp.m31 = m13;
-		tmp.m32 = m23;
-		tmp.m33 = m33;
+		Matrix44_tpl tmp;
+		tmp.Transpose(*this);
 		return tmp;
 	}
 
@@ -401,110 +224,126 @@ template<typename F> struct Matrix44_tpl
 	//!   Matrix44 im44; im44.Invert();
 	//! Example 2:
 	//!   Matrix44 im44 = m33.GetInverted();
-	void Invert(void)
+	F DeterminantInvert(Matrix44_tpl* pInv = 0) const
 	{
-		F tmp[12];
-		Matrix44_tpl<F> m = *this;
+		F tmp[16];
 
 		// Calculate pairs for first 8 elements (cofactors)
-		tmp[0] = m.m22 * m.m33;
-		tmp[1] = m.m32 * m.m23;
-		tmp[2] = m.m12 * m.m33;
-		tmp[3] = m.m32 * m.m13;
-		tmp[4] = m.m12 * m.m23;
-		tmp[5] = m.m22 * m.m13;
-		tmp[6] = m.m02 * m.m33;
-		tmp[7] = m.m32 * m.m03;
-		tmp[8] = m.m02 * m.m23;
-		tmp[9] = m.m22 * m.m03;
-		tmp[10] = m.m02 * m.m13;
-		tmp[11] = m.m12 * m.m03;
+		tmp[0] = m22 * m33;
+		tmp[1] = m32 * m23;
+		tmp[2] = m12 * m33;
+		tmp[3] = m32 * m13;
+		tmp[4] = m12 * m23;
+		tmp[5] = m22 * m13;
+		tmp[6] = m02 * m33;
+		tmp[7] = m32 * m03;
+		tmp[8] = m02 * m23;
+		tmp[9] = m22 * m03;
+		tmp[10] = m02 * m13;
+		tmp[11] = m12 * m03;
 
 		// Calculate first 8 elements (cofactors)
-		m00 = tmp[0] * m.m11 + tmp[3] * m.m21 + tmp[4] * m.m31;
-		m00 -= tmp[1] * m.m11 + tmp[2] * m.m21 + tmp[5] * m.m31;
-		m01 = tmp[1] * m.m01 + tmp[6] * m.m21 + tmp[9] * m.m31;
-		m01 -= tmp[0] * m.m01 + tmp[7] * m.m21 + tmp[8] * m.m31;
-		m02 = tmp[2] * m.m01 + tmp[7] * m.m11 + tmp[10] * m.m31;
-		m02 -= tmp[3] * m.m01 + tmp[6] * m.m11 + tmp[11] * m.m31;
-		m03 = tmp[5] * m.m01 + tmp[8] * m.m11 + tmp[11] * m.m21;
-		m03 -= tmp[4] * m.m01 + tmp[9] * m.m11 + tmp[10] * m.m21;
-		m10 = tmp[1] * m.m10 + tmp[2] * m.m20 + tmp[5] * m.m30;
-		m10 -= tmp[0] * m.m10 + tmp[3] * m.m20 + tmp[4] * m.m30;
-		m11 = tmp[0] * m.m00 + tmp[7] * m.m20 + tmp[8] * m.m30;
-		m11 -= tmp[1] * m.m00 + tmp[6] * m.m20 + tmp[9] * m.m30;
-		m12 = tmp[3] * m.m00 + tmp[6] * m.m10 + tmp[11] * m.m30;
-		m12 -= tmp[2] * m.m00 + tmp[7] * m.m10 + tmp[10] * m.m30;
-		m13 = tmp[4] * m.m00 + tmp[9] * m.m10 + tmp[10] * m.m20;
-		m13 -= tmp[5] * m.m00 + tmp[8] * m.m10 + tmp[11] * m.m20;
-
-		// Calculate pairs for second 8 elements (cofactors)
-		tmp[0] = m.m20 * m.m31;
-		tmp[1] = m.m30 * m.m21;
-		tmp[2] = m.m10 * m.m31;
-		tmp[3] = m.m30 * m.m11;
-		tmp[4] = m.m10 * m.m21;
-		tmp[5] = m.m20 * m.m11;
-		tmp[6] = m.m00 * m.m31;
-		tmp[7] = m.m30 * m.m01;
-		tmp[8] = m.m00 * m.m21;
-		tmp[9] = m.m20 * m.m01;
-		tmp[10] = m.m00 * m.m11;
-		tmp[11] = m.m10 * m.m01;
-
-		// Calculate second 8 elements (cofactors)
-		m20 = tmp[0] * m.m13 + tmp[3] * m.m23 + tmp[4] * m.m33;
-		m20 -= tmp[1] * m.m13 + tmp[2] * m.m23 + tmp[5] * m.m33;
-		m21 = tmp[1] * m.m03 + tmp[6] * m.m23 + tmp[9] * m.m33;
-		m21 -= tmp[0] * m.m03 + tmp[7] * m.m23 + tmp[8] * m.m33;
-		m22 = tmp[2] * m.m03 + tmp[7] * m.m13 + tmp[10] * m.m33;
-		m22 -= tmp[3] * m.m03 + tmp[6] * m.m13 + tmp[11] * m.m33;
-		m23 = tmp[5] * m.m03 + tmp[8] * m.m13 + tmp[11] * m.m23;
-		m23 -= tmp[4] * m.m03 + tmp[9] * m.m13 + tmp[10] * m.m23;
-		m30 = tmp[2] * m.m22 + tmp[5] * m.m32 + tmp[1] * m.m12;
-		m30 -= tmp[4] * m.m32 + tmp[0] * m.m12 + tmp[3] * m.m22;
-		m31 = tmp[8] * m.m32 + tmp[0] * m.m02 + tmp[7] * m.m22;
-		m31 -= tmp[6] * m.m22 + tmp[9] * m.m32 + tmp[1] * m.m02;
-		m32 = tmp[6] * m.m12 + tmp[11] * m.m32 + tmp[3] * m.m02;
-		m32 -= tmp[10] * m.m32 + tmp[2] * m.m02 + tmp[7] * m.m12;
-		m33 = tmp[10] * m.m22 + tmp[4] * m.m02 + tmp[9] * m.m12;
-		m33 -= tmp[8] * m.m12 + tmp[11] * m.m22 + tmp[5] * m.m02;
+		tmp[12] = tmp[0] * m11 + tmp[3] * m21 + tmp[4] * m31;
+		tmp[12] -= tmp[1] * m11 + tmp[2] * m21 + tmp[5] * m31;
+		tmp[13] = tmp[1] * m01 + tmp[6] * m21 + tmp[9] * m31;
+		tmp[13] -= tmp[0] * m01 + tmp[7] * m21 + tmp[8] * m31;
+		tmp[14] = tmp[2] * m01 + tmp[7] * m11 + tmp[10] * m31;
+		tmp[14] -= tmp[3] * m01 + tmp[6] * m11 + tmp[11] * m31;
+		tmp[15] = tmp[5] * m01 + tmp[8] * m11 + tmp[11] * m21;
+		tmp[15] -= tmp[4] * m01 + tmp[9] * m11 + tmp[10] * m21;
 
 		// Calculate determinant
-		F det = (m.m00 * m00 + m.m10 * m01 + m.m20 * m02 + m.m30 * m03);
-		//if (fabs_tpl(det)<0.0001f) CRY_MATH_ASSERT(0);
+		F det = (m00 * tmp[12] + m10 * tmp[13] + m20 * tmp[14] + m30 * tmp[15]);
 
-		// Divide the cofactor-matrix by the determinant
-		F idet = (F)1.0 / det;
-		m00 *= idet;
-		m01 *= idet;
-		m02 *= idet;
-		m03 *= idet;
-		m10 *= idet;
-		m11 *= idet;
-		m12 *= idet;
-		m13 *= idet;
-		m20 *= idet;
-		m21 *= idet;
-		m22 *= idet;
-		m23 *= idet;
-		m30 *= idet;
-		m31 *= idet;
-		m32 *= idet;
-		m33 *= idet;
+		if (pInv)
+		{
+			F rdet = F(1) / det;
+
+			pInv->m00 = tmp[12];
+			pInv->m01 = tmp[13];
+			pInv->m02 = tmp[14];
+			pInv->m03 = tmp[15];
+			pInv->m10 = tmp[1] * m10 + tmp[2] * m20 + tmp[5] * m30;
+			pInv->m10 -= tmp[0] * m10 + tmp[3] * m20 + tmp[4] * m30;
+			pInv->m11 = tmp[0] * m00 + tmp[7] * m20 + tmp[8] * m30;
+			pInv->m11 -= tmp[1] * m00 + tmp[6] * m20 + tmp[9] * m30;
+			pInv->m12 = tmp[3] * m00 + tmp[6] * m10 + tmp[11] * m30;
+			pInv->m12 -= tmp[2] * m00 + tmp[7] * m10 + tmp[10] * m30;
+			pInv->m13 = tmp[4] * m00 + tmp[9] * m10 + tmp[10] * m20;
+			pInv->m13 -= tmp[5] * m00 + tmp[8] * m10 + tmp[11] * m20;
+
+			// Calculate pairs for second 8 elements (cofactors)
+			tmp[0] = m20 * m31;
+			tmp[1] = m30 * m21;
+			tmp[2] = m10 * m31;
+			tmp[3] = m30 * m11;
+			tmp[4] = m10 * m21;
+			tmp[5] = m20 * m11;
+			tmp[6] = m00 * m31;
+			tmp[7] = m30 * m01;
+			tmp[8] = m00 * m21;
+			tmp[9] = m20 * m01;
+			tmp[10] = m00 * m11;
+			tmp[11] = m10 * m01;
+
+			// Calculate second 8 elements (cofactors)
+			pInv->m20 = tmp[0] * m13 + tmp[3] * m23 + tmp[4] * m33;
+			pInv->m20 -= tmp[1] * m13 + tmp[2] * m23 + tmp[5] * m33;
+			pInv->m21 = tmp[1] * m03 + tmp[6] * m23 + tmp[9] * m33;
+			pInv->m21 -= tmp[0] * m03 + tmp[7] * m23 + tmp[8] * m33;
+			pInv->m22 = tmp[2] * m03 + tmp[7] * m13 + tmp[10] * m33;
+			pInv->m22 -= tmp[3] * m03 + tmp[6] * m13 + tmp[11] * m33;
+			pInv->m23 = tmp[5] * m03 + tmp[8] * m13 + tmp[11] * m23;
+			pInv->m23 -= tmp[4] * m03 + tmp[9] * m13 + tmp[10] * m23;
+			pInv->m30 = tmp[2] * m22 + tmp[5] * m32 + tmp[1] * m12;
+			pInv->m30 -= tmp[4] * m32 + tmp[0] * m12 + tmp[3] * m22;
+			pInv->m31 = tmp[8] * m32 + tmp[0] * m02 + tmp[7] * m22;
+			pInv->m31 -= tmp[6] * m22 + tmp[9] * m32 + tmp[1] * m02;
+			pInv->m32 = tmp[6] * m12 + tmp[11] * m32 + tmp[3] * m02;
+			pInv->m32 -= tmp[10] * m32 + tmp[2] * m02 + tmp[7] * m12;
+			pInv->m33 = tmp[10] * m22 + tmp[4] * m02 + tmp[9] * m12;
+			pInv->m33 -= tmp[8] * m12 + tmp[11] * m22 + tmp[5] * m02;
+
+			// Divide the cofactor-matrix by the determinant
+			pInv->m00 *= rdet;
+			pInv->m01 *= rdet;
+			pInv->m02 *= rdet;
+			pInv->m03 *= rdet;
+			pInv->m10 *= rdet;
+			pInv->m11 *= rdet;
+			pInv->m12 *= rdet;
+			pInv->m13 *= rdet;
+			pInv->m20 *= rdet;
+			pInv->m21 *= rdet;
+			pInv->m22 *= rdet;
+			pInv->m23 *= rdet;
+			pInv->m30 *= rdet;
+			pInv->m31 *= rdet;
+			pInv->m32 *= rdet;
+			pInv->m33 *= rdet;
+		}
+
+		return det;
+	}
+	ILINE void Invert(const Matrix44_tpl<F>& m)
+	{
+		m.DeterminantInvert(this);
+	}
+	ILINE void Invert()
+	{
+		DeterminantInvert(this);
 	}
 
 	ILINE Matrix44_tpl<F> GetInverted() const
 	{
-		Matrix44_tpl<F> dst = *this;
-		dst.Invert();
+		Matrix44_tpl<F> dst;
+		DeterminantInvert(&dst);
 		return dst;
 	}
 
 	ILINE F Determinant() const
 	{
-		//determinant is ambiguous: only the upper-left-submatrix's determinant is calculated
-		return (m00 * m11 * m22) + (m01 * m12 * m20) + (m02 * m10 * m21) - (m02 * m11 * m20) - (m00 * m12 * m21) - (m01 * m10 * m22);
+		return DeterminantInvert();
 	}
 
 	//! Transform a vector.
@@ -547,43 +386,9 @@ template<typename F> struct Matrix44_tpl
 
 	ILINE Vec3               GetTranslation() const                  { return Vec3(m03, m13, m23); }
 	ILINE void               SetTranslation(const Vec3& t)           { m03 = t.x; m13 = t.y; m23 = t.z; }
-
-	bool                     IsValid() const
-	{
-		if (!NumberValid(m00)) return false;  if (!NumberValid(m01)) return false;  if (!NumberValid(m02)) return false;  if (!NumberValid(m03)) return false;
-		if (!NumberValid(m10)) return false;  if (!NumberValid(m11)) return false;  if (!NumberValid(m12)) return false;  if (!NumberValid(m13)) return false;
-		if (!NumberValid(m20)) return false;  if (!NumberValid(m21)) return false;  if (!NumberValid(m22)) return false;  if (!NumberValid(m23)) return false;
-		if (!NumberValid(m30)) return false;  if (!NumberValid(m31)) return false;  if (!NumberValid(m32)) return false;  if (!NumberValid(m33)) return false;
-		return true;
-	}
-	static bool IsEquivalent(const Matrix44_tpl<F>& m0, const Matrix44_tpl<F>& m1, f32 e = VEC_EPSILON)
-	{
-		return  (
-		  (fabs_tpl(m0.m00 - m1.m00) <= e) && (fabs_tpl(m0.m01 - m1.m01) <= e) && (fabs_tpl(m0.m02 - m1.m02) <= e) && (fabs_tpl(m0.m03 - m1.m03) <= e) &&
-		  (fabs_tpl(m0.m10 - m1.m10) <= e) && (fabs_tpl(m0.m11 - m1.m11) <= e) && (fabs_tpl(m0.m12 - m1.m12) <= e) && (fabs_tpl(m0.m13 - m1.m13) <= e) &&
-		  (fabs_tpl(m0.m20 - m1.m20) <= e) && (fabs_tpl(m0.m21 - m1.m21) <= e) && (fabs_tpl(m0.m22 - m1.m22) <= e) && (fabs_tpl(m0.m23 - m1.m23) <= e) &&
-		  (fabs_tpl(m0.m30 - m1.m30) <= e) && (fabs_tpl(m0.m31 - m1.m31) <= e) && (fabs_tpl(m0.m32 - m1.m32) <= e) && (fabs_tpl(m0.m33 - m1.m33) <= e)
-		  );
-	}
-
+	
 	AUTO_STRUCT_INFO;
 };
-
-// Typedefs
-
-typedef Matrix44_tpl<f32>  Matrix44;   //!< Always 32 bit.
-typedef Matrix44_tpl<f64>  Matrix44d;  //!< Always 64 bit.
-typedef Matrix44_tpl<real> Matrix44r;  //!< Variable float precision. depending on the target system it can be between 32, 64 or 80 bit.
-
-#if CRY_COMPILER_GCC
-/* GCC has a bug where TYPE_USER_ALIGN is ignored in certain situations with template layouts
- * the user speficied alignment is not correctly stored with the new type unless it's layed before.
- * This bug has been fixed for gcc5: https://gcc.gnu.org/bugzilla/show_bug.cgi?id=65734
- * Workaroud by forcing the template which needs to be aligned to be fully instantiated: (deprecated so it's not used by accident)
- */
-struct __attribute__((deprecated)) Matrix44_f32_dont_use : public Matrix44_tpl<f32> {};
-#endif
-typedef CRY_ALIGN(16) Matrix44_tpl<f32> Matrix44A;
 
 // implementation of Matrix44
 
@@ -762,9 +567,31 @@ ILINE Vec4_tpl<F1> operator*(const Vec4_tpl<F1>& v, const Matrix44_tpl<F2>& m)
 	                    v.x * m.m03 + v.y * m.m13 + v.z * m.m23 + v.w * m.m33);
 }
 
-template<class F>
-bool IsEquivalent(const Matrix44_tpl<F>& m0, const Matrix44_tpl<F>& m1, f32 e = VEC_EPSILON)
-{
-	return Matrix44_tpl<F>::IsEquivalent(m0, m1, e);
-}
-#endif //MATRIX_H
+// Typedefs
+
+#include "Cry_Matrix44H.h"
+
+#ifdef CRY_HARDWARE_VECTOR4
+
+typedef Matrix44H<f32> Matrix44;
+typedef Matrix44H<f32> Matrix44A;
+
+#else
+
+typedef Matrix44_tpl<f32> Matrix44;
+typedef CRY_ALIGN (16) Matrix44_tpl<f32> Matrix44A;
+
+#endif
+
+typedef Matrix44_tpl<f32>  Matrix44f;
+typedef Matrix44_tpl<f64>  Matrix44d;
+typedef Matrix44_tpl<real> Matrix44r;  //!< Variable float precision. depending on the target system it can be between 32, 64 or 80 bit.
+
+#if CRY_COMPILER_GCC
+/* GCC has a bug where TYPE_USER_ALIGN is ignored in certain situations with template layouts
+ * the user speficied alignment is not correctly stored with the new type unless it's layed before.
+ * This bug has been fixed for gcc5: https://gcc.gnu.org/bugzilla/show_bug.cgi?id=65734
+ * Workaroud by forcing the template which needs to be aligned to be fully instantiated: (deprecated so it's not used by accident)
+ */
+struct __attribute__((deprecated)) Matrix44_f32_dont_use: public Matrix44_tpl<f32> {};
+#endif

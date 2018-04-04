@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 /*=============================================================================
    RendElement.cpp : common RE functions.
@@ -10,8 +10,8 @@
 
 #include "StdAfx.h"
 
-CRenderElement CRenderElement::m_RootGlobal(true);
-CRenderElement *CRenderElement::m_pRootRelease[4];
+CRenderElement CRenderElement::s_RootGlobal(true);
+CRenderElement *CRenderElement::s_pRootRelease[4];
 
 //===============================================================
 
@@ -30,12 +30,13 @@ void CRenderElement::ShutDown()
 
 	CRenderElement* pRE;
 	CRenderElement* pRENext;
-	for (pRE = CRenderElement::m_RootGlobal.m_NextGlobal; pRE != &CRenderElement::m_RootGlobal; pRE = pRENext)
+	for (pRE = CRenderElement::s_RootGlobal.m_NextGlobal; pRE != &CRenderElement::s_RootGlobal; pRE = pRENext)
 	{
-		pRENext = pRE->m_NextGlobal;
 		if (CRenderer::CV_r_printmemoryleaks)
 			iLog->Log("Warning: CRenderElement::ShutDown: RenderElement %s was not deleted", pRE->mfTypeString());
-		pRE->Release(true);
+
+		pRENext = pRE->m_NextGlobal;
+		SAFE_DELETE(pRE);
 	}
 }
 
@@ -46,7 +47,7 @@ void CRenderElement::Tick()
 #endif
 	int nFrameID = gRenDev->m_RP.m_TI[gRenDev->m_RP.m_nFillThreadID].m_nFrameUpdateID;
 	int nFrame = nFrameID - 3;
-	CRenderElement& Root = *CRenderElement::m_pRootRelease[nFrame & 3];
+	CRenderElement& Root = *CRenderElement::s_pRootRelease[nFrame & 3];
 	CRenderElement* pRENext = NULL;
 
 	for (CRenderElement* pRE = Root.m_NextGlobal; pRE != &Root; pRE = pRENext)
@@ -64,7 +65,7 @@ void CRenderElement::Cleanup()
 
 	for (int i = 0; i < 4; ++i)
 	{
-		CRenderElement& Root = *CRenderElement::m_pRootRelease[i];
+		CRenderElement& Root = *CRenderElement::s_pRootRelease[i];
 		CRenderElement* pRENext = NULL;
 
 		for (CRenderElement* pRE = Root.m_NextGlobal; pRE != &Root; pRE = pRENext)
@@ -93,7 +94,7 @@ void CRenderElement::Release(bool bForce)
 	int nFrame = gRenDev->GetFrameID(false);
 
 	AUTO_LOCK(m_sREResLock);
-	CRenderElement& Root = *CRenderElement::m_pRootRelease[nFrame & 3];
+	CRenderElement& Root = *CRenderElement::s_pRootRelease[nFrame & 3];
 	UnlinkGlobal();
 	LinkGlobal(&Root);
 	//sDeleteRE(this);
@@ -102,15 +103,15 @@ void CRenderElement::Release(bool bForce)
 CRenderElement::CRenderElement(bool bGlobal)
 {
 	m_Type = eDATA_Unknown;
-	if (!m_RootGlobal.m_NextGlobal)
+	if (!s_RootGlobal.m_NextGlobal)
 	{
-		m_RootGlobal.m_NextGlobal = &m_RootGlobal;
-		m_RootGlobal.m_PrevGlobal = &m_RootGlobal;
+		s_RootGlobal.m_NextGlobal = &s_RootGlobal;
+		s_RootGlobal.m_PrevGlobal = &s_RootGlobal;
 		for (int i = 0; i < 4; i++)
 		{
-			m_pRootRelease[i] = new CRenderElement(true);
-			m_pRootRelease[i]->m_NextGlobal = m_pRootRelease[i];
-			m_pRootRelease[i]->m_PrevGlobal = m_pRootRelease[i];
+			s_pRootRelease[i] = new CRenderElement(true);
+			s_pRootRelease[i]->m_NextGlobal = s_pRootRelease[i];
+			s_pRootRelease[i]->m_PrevGlobal = s_pRootRelease[i];
 		}
 	}
 
@@ -140,14 +141,14 @@ CRenderElement::CRenderElement()
 	//sAddRE(this);
 
 	AUTO_LOCK(m_sREResLock);
-  LinkGlobal(&m_RootGlobal);
+  LinkGlobal(&s_RootGlobal);
 }
 CRenderElement::~CRenderElement()
 {
-	assert(m_Type == eDATA_Unknown || m_Type == eDATA_Particle);
+	assert(m_Type == eDATA_Unknown || m_Type == eDATA_Particle || m_Type == eDATA_ClientPoly);
 
 	//@TODO: Fix later, prevent crash on exit in single executable
-	if (this == m_pRootRelease[0] || this == m_pRootRelease[1] || this == m_pRootRelease[2] || this == m_pRootRelease[3] || this == &m_RootGlobal)
+	if (this == s_pRootRelease[0] || this == s_pRootRelease[1] || this == s_pRootRelease[2] || this == s_pRootRelease[3] || this == &s_RootGlobal)
 		return;
 
 	AUTO_LOCK(m_sREResLock);
@@ -175,8 +176,6 @@ const char*        CRenderElement::mfTypeString()
 	{
 	case eDATA_Sky:
 		return "Sky";
-	case eDATA_Beam:
-		return "Beam";
 	case eDATA_ClientPoly:
 		return "ClientPoly";
 	case eDATA_Flare:
@@ -187,8 +186,6 @@ const char*        CRenderElement::mfTypeString()
 		return "SkyZone";
 	case eDATA_Mesh:
 		return "Mesh";
-	case eDATA_Imposter:
-		return "Imposter";
 	case eDATA_LensOptics:
 		return "LensOptics";
 	case eDATA_FarTreeSprites:
@@ -197,12 +194,6 @@ const char*        CRenderElement::mfTypeString()
 		return "OcclusionQuery";
 	case eDATA_Particle:
 		return "Particle";
-	case eDATA_PostProcess:
-		return "PostProcess";
-	case eDATA_HDRProcess:
-		return "HDRProcess";
-	case eDATA_Cloud:
-		return "Cloud";
 	case eDATA_HDRSky:
 		return "HDRSky";
 	case eDATA_FogVolume:
@@ -211,8 +202,6 @@ const char*        CRenderElement::mfTypeString()
 		return "WaterVolume";
 	case eDATA_WaterOcean:
 		return "WaterOcean";
-	case eDATA_VolumeObject:
-		return "VolumeObject";
 	case eDATA_DeferredShading:
 		return "DeferredShading";
 	case eDATA_GameEffect:

@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 /*************************************************************************
    -------------------------------------------------------------------------
@@ -253,7 +253,21 @@ bool CEntityLoadManager::ExtractCommonEntityLoadParams(XmlNodeRef& entityNode, S
 
 	bool bResult = true;
 
-	IEntityClass* const pClass = m_pEntitySystem->GetClassRegistry()->FindClass(szEntityClass);
+	IEntityClass* pClass = nullptr;
+
+	CryGUID classGUID;
+	if (entityNode->getAttr("ClassGUID", classGUID))
+	{
+		// Class GUID exist, so use it instead of the class name
+		pClass = m_pEntitySystem->GetClassRegistry()->FindClassByGUID(classGUID);
+	}
+
+	if (!pClass)
+	{
+		// (Legacy) If class not found by GUID try to find it by class name
+		pClass = m_pEntitySystem->GetClassRegistry()->FindClass(szEntityClass);
+	}
+
 	if (pClass)
 	{
 		SEntitySpawnParams& spawnParams = outLoadParams.spawnParams;
@@ -283,10 +297,7 @@ bool CEntityLoadManager::ExtractCommonEntityLoadParams(XmlNodeRef& entityNode, S
 		spawnParams.vScale = scale;
 
 		spawnParams.id = 0;
-		if (!gEnv->pEntitySystem->EntitiesUseGUIDs())
-		{
-			entityNode->getAttr("EntityId", spawnParams.id);
-		}
+		entityNode->getAttr("EntityId", spawnParams.id);
 		entityNode->getAttr("EntityGuid", spawnParams.guid);
 
 		ISegmentsManager* const pSegmentsManager = gEnv->p3DEngine->GetSegmentsManager();
@@ -305,45 +316,45 @@ bool CEntityLoadManager::ExtractCommonEntityLoadParams(XmlNodeRef& entityNode, S
 			}
 		}
 
-		// Get flags.
-		bool bGoodOccluder = false; // false by default (do not change, it must be coordinated with editor export)
-		bool bOutdoorOnly = false;
-		bool bNoDecals = false;
-		bool bDynamicDistanceShadows = false;
 		int castShadowMinSpec = CONFIG_LOW_SPEC;
-		int giMode = 0;
-
-		entityNode->getAttr("CastShadowMinSpec", castShadowMinSpec);
-		entityNode->getAttr("GIMode", giMode);
-		entityNode->getAttr("DynamicDistanceShadows", bDynamicDistanceShadows);
-		entityNode->getAttr("GoodOccluder", bGoodOccluder);
-		entityNode->getAttr("OutdoorOnly", bOutdoorOnly);
-		entityNode->getAttr("NoDecals", bNoDecals);
-
-		static const ICVar* const pObjShadowCastSpec = gEnv->pConsole->GetCVar("e_ObjShadowCastSpec");
-		if (castShadowMinSpec <= pObjShadowCastSpec->GetIVal())
+		if (entityNode->getAttr("CastShadowMinSpec", castShadowMinSpec))
 		{
-			spawnParams.nFlags |= ENTITY_FLAG_CASTSHADOW;
+			static const ICVar* const pObjShadowCastSpec = gEnv->pConsole->GetCVar("e_ObjShadowCastSpec");
+			if (castShadowMinSpec <= pObjShadowCastSpec->GetIVal())
+			{
+				spawnParams.nFlags |= ENTITY_FLAG_CASTSHADOW;
+			}
 		}
 
-		if (bDynamicDistanceShadows)
+		int giMode = 0;
+		if (entityNode->getAttr("GIMode", giMode))
+		{
+			spawnParams.nFlagsExtended = (spawnParams.nFlagsExtended & ~ENTITY_FLAG_EXTENDED_GI_MODE_BIT_MASK) | ((giMode << ENTITY_FLAG_EXTENDED_GI_MODE_BIT_OFFSET) & ENTITY_FLAG_EXTENDED_GI_MODE_BIT_MASK);
+		}
+
+		bool bDynamicDistanceShadows = false;
+		if (entityNode->getAttr("DynamicDistanceShadows", bDynamicDistanceShadows) && bDynamicDistanceShadows)
 		{
 			spawnParams.nFlagsExtended |= ENTITY_FLAG_EXTENDED_DYNAMIC_DISTANCE_SHADOWS;
 		}
-		if (bGoodOccluder)
+
+		bool bGoodOccluder = false; // false by default (do not change, it must be coordinated with editor export)
+		if (entityNode->getAttr("GoodOccluder", bGoodOccluder) && bGoodOccluder)
 		{
 			spawnParams.nFlags |= ENTITY_FLAG_GOOD_OCCLUDER;
 		}
-		if (bOutdoorOnly)
+
+		bool bOutdoorOnly = false;
+		if (entityNode->getAttr("OutdoorOnly", bOutdoorOnly) && bOutdoorOnly)
 		{
 			spawnParams.nFlags |= ENTITY_FLAG_OUTDOORONLY;
 		}
-		if (bNoDecals)
+
+		bool bNoDecals = false;
+		if (entityNode->getAttr("NoDecals", bNoDecals) && bNoDecals)
 		{
 			spawnParams.nFlags |= ENTITY_FLAG_NO_DECALNODE_DECALS;
 		}
-
-		spawnParams.nFlagsExtended = (spawnParams.nFlagsExtended & ~ENTITY_FLAG_EXTENDED_GI_MODE_BIT_MASK) | ((giMode << ENTITY_FLAG_EXTENDED_GI_MODE_BIT_OFFSET) & ENTITY_FLAG_EXTENDED_GI_MODE_BIT_MASK);
 
 		const char* szArchetypeName = entityNode->getAttr("Archetype");
 		if (szArchetypeName && szArchetypeName[0])
@@ -436,14 +447,14 @@ bool CEntityLoadManager::CreateEntity(SEntityLoadParams& loadParams, EntityId& o
 	XmlNodeRef& entityNode = loadParams.spawnParams.entityNode;
 	SEntitySpawnParams& spawnParams = loadParams.spawnParams;
 
-	uint32 entityGuid = 0;
+	CryGUID entityGuid = spawnParams.guid;
 	if (entityNode)
 	{
 		// Only runtime prefabs should have GUID id's
 		const char* entityGuidStr = entityNode->getAttr("Id");
 		if (entityGuidStr[0] != '\0')
 		{
-			entityGuid = CCrc32::ComputeLowercase(entityGuidStr);
+			entityGuid = CryGUID::FromString(entityGuidStr);
 		}
 	}
 
@@ -477,17 +488,20 @@ bool CEntityLoadManager::CreateEntity(SEntityLoadParams& loadParams, EntityId& o
 		if (entityNode)
 		{
 			// Create needed proxies
-			if (entityNode->findChild("Area"))
+			if (XmlNodeRef componentNode = entityNode->findChild("Area"))
 			{
-				pSpawnedEntity->CreateComponent<IEntityAreaComponent>();
+				IEntityComponent* pComponent = pSpawnedEntity->GetOrCreateComponent<IEntityAreaComponent>();
+				pComponent->LegacySerializeXML(entityNode, componentNode, true);
 			}
-			if (entityNode->findChild("Rope"))
+			if (XmlNodeRef componentNode = entityNode->findChild("Rope"))
 			{
-				pSpawnedEntity->CreateComponent<IEntityRopeComponent>();
+				IEntityComponent* pComponent = pSpawnedEntity->GetOrCreateComponent<IEntityRopeComponent>();
+				pComponent->LegacySerializeXML(entityNode, componentNode, true);
 			}
-			if (entityNode->findChild("ClipVolume"))
+			if (XmlNodeRef componentNode = entityNode->findChild("ClipVolume"))
 			{
-				pSpawnedEntity->CreateComponent<IClipVolumeComponent>();
+				IEntityComponent* pComponent = pSpawnedEntity->GetOrCreateComponent<IClipVolumeComponent>();
+				pComponent->LegacySerializeXML(entityNode, componentNode, true);
 			}
 
 			// Load RenderNodeParams
@@ -600,13 +614,6 @@ bool CEntityLoadManager::CreateEntity(SEntityLoadParams& loadParams, EntityId& o
 				}
 			}
 
-			//////////////////////////////////////////////////////////////////////////
-			// Serialize all entity proxies except Script proxy after initialization.
-			if (pCSpawnedEntity)
-			{
-				pCSpawnedEntity->SerializeXML(entityNode, true, false);
-			}
-
 			const char* attachmentType = entityNode->getAttr("AttachmentType");
 			const char* attachmentTarget = entityNode->getAttr("AttachmentTarget");
 
@@ -621,29 +628,18 @@ bool CEntityLoadManager::CreateEntity(SEntityLoadParams& loadParams, EntityId& o
 			}
 
 			// Add attachment to parent.
-			if (m_pEntitySystem->EntitiesUseGUIDs())
+			EntityGUID parentGuid;
+			if (entityNode->getAttr("ParentGuid", parentGuid))
 			{
-				EntityGUID nParentGuid = 0;
-				if (entityNode->getAttr("ParentGuid", nParentGuid))
-				{
-					AddQueuedAttachment(0, nParentGuid, spawnParams.id, spawnParams.vPosition, spawnParams.qRotation, spawnParams.vScale, false, flags, attachmentTarget);
-				}
-			}
-			else if (entityGuid == 0)
-			{
-				EntityId nParentId = 0;
-				if (entityNode->getAttr("ParentId", nParentId))
-				{
-					AddQueuedAttachment(nParentId, 0, spawnParams.id, spawnParams.vPosition, spawnParams.qRotation, spawnParams.vScale, false, flags, attachmentTarget);
-				}
+				AddQueuedAttachment(0, parentGuid, spawnParams.id, spawnParams.vPosition, spawnParams.qRotation, spawnParams.vScale, flags, attachmentTarget);
 			}
 			else
 			{
-				const char* pParentGuid = entityNode->getAttr("Parent");
-				if (pParentGuid[0] != '\0')
+				// Legacy maps loading.
+				EntityId nParentId = 0;
+				if (entityNode->getAttr("ParentId", nParentId))
 				{
-					uint32 parentGuid = CCrc32::ComputeLowercase(pParentGuid);
-					AddQueuedAttachment((EntityId)parentGuid, 0, spawnParams.id, spawnParams.vPosition, spawnParams.qRotation, spawnParams.vScale, true, flags, attachmentTarget);
+					AddQueuedAttachment(nParentId, CryGUID::Null(), spawnParams.id, spawnParams.vPosition, spawnParams.qRotation, spawnParams.vScale, flags, attachmentTarget);
 				}
 			}
 
@@ -665,27 +661,9 @@ bool CEntityLoadManager::CreateEntity(SEntityLoadParams& loadParams, EntityId& o
 					XmlNodeRef linkNode = linksNode->getChild(i);
 					if (linkNode)
 					{
-						if (entityGuid == 0)
-						{
-							EntityId targetId = 0;
-							EntityGUID targetGuid = 0;
-							if (gEnv->pEntitySystem->EntitiesUseGUIDs())
-								linkNode->getAttr("TargetGuid", targetGuid);
-							else
-								linkNode->getAttr("TargetId", targetId);
-
-							const char* sLinkName = linkNode->getAttr("Name");
-							Quat relRot(IDENTITY);
-							Vec3 relPos(IDENTITY);
-
-							pSpawnedEntity->AddEntityLink(sLinkName, targetId, targetGuid);
-						}
-						else
-						{
-							// If this is a runtime prefab we're spawning, queue the entity
-							// link for later, since it has a guid target id we need to look up.
-							AddQueuedEntityLink(pSpawnedEntity, linkNode);
-						}
+						// If this is a runtime prefab we're spawning, queue the entity
+						// link for later, since it has a guid target id we need to look up.
+						AddQueuedEntityLink(pSpawnedEntity, linkNode);
 					}
 				}
 			}
@@ -708,11 +686,6 @@ bool CEntityLoadManager::CreateEntity(SEntityLoadParams& loadParams, EntityId& o
 
 	outUsingId = (pSpawnedEntity ? pSpawnedEntity->GetId() : 0);
 
-	if (outUsingId != 0 && entityGuid != 0)
-	{
-		m_guidToId[entityGuid] = outUsingId;
-	}
-
 	return bResult;
 }
 
@@ -724,20 +697,18 @@ void CEntityLoadManager::PrepareBatchCreation(int nSize)
 
 	m_queuedAttachments.reserve(nSize);
 	m_queuedFlowgraphs.reserve(nSize);
-	m_guidToId.clear();
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CEntityLoadManager::AddQueuedAttachment(EntityId nParent, EntityGUID nParentGuid, EntityId nChild, const Vec3& pos, const Quat& rot, const Vec3& scale, bool guid, const int flags, const char* target)
+void CEntityLoadManager::AddQueuedAttachment(EntityId nParent, EntityGUID parentGuid, EntityId nChild, const Vec3& pos, const Quat& rot, const Vec3& scale, const int flags, const char* target)
 {
 	SEntityAttachment entityAttachment;
 	entityAttachment.child = nChild;
 	entityAttachment.parent = nParent;
-	entityAttachment.parentGuid = nParentGuid;
+	entityAttachment.parentGuid = parentGuid;
 	entityAttachment.pos = pos;
 	entityAttachment.rot = rot;
 	entityAttachment.scale = scale;
-	entityAttachment.guid = guid;
 	entityAttachment.flags = flags;
 	entityAttachment.target = target;
 
@@ -778,10 +749,10 @@ void CEntityLoadManager::OnBatchCreationCompleted()
 		if (pChild)
 		{
 			EntityId parentId = entityAttachment.parent;
-			if (m_pEntitySystem->EntitiesUseGUIDs())
+			if (!entityAttachment.parentGuid.IsNull())
+			{
 				parentId = m_pEntitySystem->FindEntityByGuid(entityAttachment.parentGuid);
-			else if (entityAttachment.guid)
-				parentId = m_guidToId[(uint32)entityAttachment.parent];
+			}
 			IEntity* pParent = m_pEntitySystem->GetEntity(parentId);
 			if (pParent)
 			{
@@ -818,50 +789,24 @@ void CEntityLoadManager::OnBatchCreationCompleted()
 
 		if (f.pEntity)
 		{
-			const char* targetGuidStr = f.pNode->getAttr("TargetId");
-			if (targetGuidStr[0] != '\0')
+			EntityGUID targetGuid;
+			EntityId targetId = 0;
+			f.pNode->getAttr("TargetId",targetId);
+			if (f.pNode->getAttr("TargetGuid", targetGuid))
 			{
-				EntityId targetId = FindEntityByEditorGuid(targetGuidStr);
-
-				const char* sLinkName = f.pNode->getAttr("Name");
-				Quat relRot(IDENTITY);
-				Vec3 relPos(IDENTITY);
-
-				f.pEntity->AddEntityLink(sLinkName, targetId, 0);
+				targetId = gEnv->pEntitySystem->FindEntityByGuid(targetGuid);
 			}
+			const char* sLinkName = f.pNode->getAttr("Name");
+			Quat relRot(IDENTITY);
+			Vec3 relPos(IDENTITY);
+			f.pEntity->AddEntityLink(sLinkName, targetId, targetGuid);
 		}
 	}
+
 	stl::free_container(m_queuedEntityLinks);
-	stl::free_container(m_guidToId);
-}
 
-//////////////////////////////////////////////////////////////////////////
-void CEntityLoadManager::ResolveLinks()
-{
-	if (!m_pEntitySystem->EntitiesUseGUIDs())
-		return;
-
-	IEntityItPtr pIt = m_pEntitySystem->GetEntityIterator();
-	pIt->MoveFirst();
-	while (IEntity* pEntity = pIt->Next())
-	{
-		IEntityLink* pLink = pEntity->GetEntityLinks();
-		while (pLink)
-		{
-			if (pLink->entityId == 0)
-				pLink->entityId = m_pEntitySystem->FindEntityByGuid(pLink->entityGuid);
-			pLink = pLink->next;
-		}
-	}
-}
-
-//////////////////////////////////////////////////////////////////////////
-EntityId CEntityLoadManager::FindEntityByEditorGuid(const char* pGuid) const
-{
-	uint32 guidCrc = CCrc32::ComputeLowercase(pGuid);
-	TGuidToId::const_iterator it = m_guidToId.find(guidCrc);
-	if (it != m_guidToId.end())
-		return it->second;
-
-	return INVALID_ENTITYID;
+	// Resume loading by calling POST SERIALZIE event
+	SEntityEvent event;
+	event.event = ENTITY_EVENT_POST_SERIALIZE;
+	gEnv->pEntitySystem->SendEventToAll(event);
 }

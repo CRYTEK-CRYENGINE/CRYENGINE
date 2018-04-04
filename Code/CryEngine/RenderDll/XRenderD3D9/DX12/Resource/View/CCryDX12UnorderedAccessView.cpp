@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #include "StdAfx.h"
 #include "CCryDX12UnorderedAccessView.hpp"
@@ -88,11 +88,6 @@ CCryDX12UnorderedAccessView::CCryDX12UnorderedAccessView(ID3D11Resource* pResour
 	, m_Desc11(desc11)
 {
 	m_DX12View.GetUAVDesc() = desc12;
-}
-
-CCryDX12UnorderedAccessView::~CCryDX12UnorderedAccessView()
-{
-
 }
 
 #pragma region /* ID3D11UnorderedAccessView implementation */

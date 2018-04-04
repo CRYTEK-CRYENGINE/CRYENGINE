@@ -1,12 +1,12 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #include "StdAfx.h"
 #include "Script/Graph/Nodes/ScriptGraphGetObjectIdNode.h"
 
-#include <Schematyc/IObject.h>
-#include <Schematyc/Compiler/IGraphNodeCompiler.h>
+#include <CrySchematyc/IObject.h>
+#include <CrySchematyc/Compiler/IGraphNodeCompiler.h>
 
-#include <Schematyc/Script/Elements/IScriptVariable.h>
+#include <CrySchematyc/Script/Elements/IScriptVariable.h>
 
 #include "Runtime/RuntimeClass.h"
 #include "Script/ScriptView.h"
@@ -18,7 +18,7 @@ namespace Schematyc
 {
 CScriptGraphGetObjectIdNode::CScriptGraphGetObjectIdNode() {}
 
-SGUID CScriptGraphGetObjectIdNode::GetTypeGUID() const
+CryGUID CScriptGraphGetObjectIdNode::GetTypeGUID() const
 {
 	return ms_typeGUID;
 }
@@ -28,7 +28,7 @@ void CScriptGraphGetObjectIdNode::CreateLayout(CScriptGraphNodeLayout& layout)
 	layout.SetName("GetObjectId");
 	layout.SetStyleId("Core::Data");
 	
-	layout.AddOutputWithData("ObjectId", GetTypeInfo<ObjectId>().GetGUID(), { EScriptGraphPortFlags::Data, EScriptGraphPortFlags::MultiLink, EScriptGraphPortFlags::Pull }, ObjectId());
+	layout.AddOutputWithData("ObjectId", GetTypeDesc<ObjectId>().GetGUID(), { EScriptGraphPortFlags::Data, EScriptGraphPortFlags::MultiLink, EScriptGraphPortFlags::Pull }, ObjectId());
 }
 
 void CScriptGraphGetObjectIdNode::Compile(SCompilerContext& context, IGraphNodeCompiler& compiler) const
@@ -80,12 +80,12 @@ void CScriptGraphGetObjectIdNode::Register(CScriptGraphNodeFactory& factory)
 
 		// IScriptGraphNodeCreator
 
-		virtual SGUID GetTypeGUID() const override
+		virtual CryGUID GetTypeGUID() const override
 		{
 			return CScriptGraphGetObjectIdNode::ms_typeGUID;
 		}
 
-		virtual IScriptGraphNodePtr CreateNode(const SGUID& guid) override
+		virtual IScriptGraphNodePtr CreateNode(const CryGUID& guid) override
 		{
 			return std::make_shared<CScriptGraphNode>(guid, stl::make_unique<CScriptGraphGetObjectIdNode>());
 		}
@@ -111,7 +111,7 @@ SRuntimeResult CScriptGraphGetObjectIdNode::Execute(SRuntimeContext& context, co
 	return SRuntimeResult(ERuntimeStatus::Continue);
 }
 
-const SGUID CScriptGraphGetObjectIdNode::ms_typeGUID = "6b0c3534-1117-4a57-bb15-e43c51aff2e0"_schematyc_guid;
+const CryGUID CScriptGraphGetObjectIdNode::ms_typeGUID = "6b0c3534-1117-4a57-bb15-e43c51aff2e0"_cry_guid;
 } // Schematyc
 
 SCHEMATYC_REGISTER_SCRIPT_GRAPH_NODE(Schematyc::CScriptGraphGetObjectIdNode::Register)

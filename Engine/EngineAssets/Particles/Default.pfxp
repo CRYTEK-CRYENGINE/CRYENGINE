@@ -1,23 +1,10 @@
 {
 	"Name": "Component",
 	"Features": [
-		{ "RenderSprites": { "SortMode": "None" } },
-		{ "SpawnRate": {
-			"Amount": { "value": 1.0, "modifiers": [ ] },
-			"Delay": { "State": false, "Value": { "value": 0.0, "modifiers": [ ] } },
-			"Duration": {
-				"State": false,
-				"Value": { "value": 0.0, "modifiers": [ ] }
-			},
-			"Mode": "ParticlesPerSecond"} },
-		{ "LifeTime": { "LifeTime": { "value": 1, "var": 0 } } },
-		{ "FieldSize": { "value": { "value": 1, "modifiers": [ ] } } },
-		{ "MotionPhysics": {
-			"gravity": { "value": 0.0, "modifiers": [ ] },
-			"drag": { "value": 0.0, "modifiers": [ ] },
-			"UniformAcceleration": [ 0.0, 0.0, 0.0 ],
-			"UniformWind": [ 0.0, 0.0, 0.0 ],
-			"windMultiplier": 1.0,
-			"localEffectors": [ ]} }
+		{ "SpawnRate": { "Amount": { "value": 1.0 } } },
+		{ "LifeTime": { "LifeTime": { "value": 1.0 } } },
+		{ "RenderSprites": { } },
+		{ "FieldSize": { "value": { "value": 1.0 } } },
+		{ "MotionPhysics": {} }
 	]
 }

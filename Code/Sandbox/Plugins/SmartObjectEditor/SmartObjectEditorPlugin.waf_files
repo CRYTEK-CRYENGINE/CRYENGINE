@@ -1,0 +1,41 @@
+{
+	"NoUberFile": {
+		"Root": [
+			
+			"StdAfx.h",
+			"StdAfx.cpp",
+			"Resource.h",
+			"SmartObjectEditor.rc"
+		]
+	},
+	"Editor_Uber_SmartObjects.cpp":
+	{
+		"Root":
+		[
+			"SmartObject.h",
+			"SmartObject.cpp",
+			"SmartObjectEditorPlugin.cpp",
+			"SmartObjectEditorPlugin.h",
+			"ItemDescriptionDlg.h",
+			"ItemDescriptionDlg.cpp",
+			"SmartObjectHelperObject.cpp",
+			"SmartObjectHelperObject.h",
+			"SmartObjectsEditorDialog.cpp",
+			"SmartObjectsEditorDialog.h",
+			"SmartObjectActionDialog.cpp",
+			"SmartObjectActionDialog.h",
+			"SmartObjectClassDialog.cpp",
+			"SmartObjectClassDialog.h",
+			"SmartObjectEventDialog.cpp",
+			"SmartObjectEventDialog.h",
+			"SmartObjectHelperDialog.cpp",
+			"SmartObjectHelperDialog.h",
+			"SmartObjectPatternDialog.cpp",
+			"SmartObjectPatternDialog.h",
+			"SmartObjectStateDialog.cpp",
+			"SmartObjectStateDialog.h",
+			"SmartObjectTemplateDialog.cpp",
+			"SmartObjectTemplateDialog.h"
+		]
+	}
+}

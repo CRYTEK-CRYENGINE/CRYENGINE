@@ -1,0 +1,7 @@
+<Material MtlFlags="524288" Shader="Illum" GenMask="140400000" StringGenMask="%BILLBOARD%NORMAL_MAP%SUBSURFACE_SCATTERING" SurfaceType="mat_vegetation" MatTemplate="" Diffuse="1,1,1" Specular="0,0,0" Opacity="1" Shininess="9" AlphaTest="0.5" vertModifType="0" LayerAct="1">
+ <Textures>
+  <Texture Map="Diffuse" File="textures/defaults/grey.dds"/>
+  <Texture Map="Bumpmap" File="textures/defaults/grey.dds"/>
+ </Textures>
+ <PublicParams EmittanceMapGamma="1" SSSIndex="0"/>
+</Material>

@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 /*=============================================================================
    ShadowUtils.h :
@@ -28,7 +28,7 @@ public:
 	}
 
 	// Create/Initialize simulation
-	void Create(float fA, float fWind, float fWindScale, float fWorldSizeX, float fWorldSizeY);
+	void Create(float fA, float fWind, float fWorldSizeX, float fWorldSizeY);
 	void Release();
 	void SaveToDisk(const char* pszFileName);
 

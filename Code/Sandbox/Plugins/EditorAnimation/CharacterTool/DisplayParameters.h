@@ -131,7 +131,8 @@ struct DisplayFollowJointOptions
 
 struct DisplayOptions
 {
-	bool                             attachmentAndPoseModifierGizmos;
+	bool                             attachmentGizmos;
+	bool                             poseModifierGizmos;
 	DisplayAnimationOptions          animation;
 	DisplayRenderingOptions          rendering;
 	DisplaySkeletonOptions           skeleton;
@@ -141,7 +142,8 @@ struct DisplayOptions
 	SViewportSettings                viewport;
 
 	DisplayOptions()
-		: attachmentAndPoseModifierGizmos(true)
+		: attachmentGizmos(true)
+		, poseModifierGizmos(true)
 	{
 	}
 

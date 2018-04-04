@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #include "StdAfx.h"
 #include "RuntimeAreaObject.h"
@@ -144,7 +144,7 @@ void CRuntimeAreaObject::UpdateParameterValues(IEntity* const pEntity, TAudioPar
 					{
 						SAudioControls const& rAudioControls = iAudioControls->second;
 
-						pAudioProxy->SetRtpcValue(rAudioControls.audioRtpcId, fNewParamValue);
+						pAudioProxy->SetParameter(rAudioControls.audioRtpcId, fNewParamValue);
 						pAudioProxy->ExecuteTrigger(rAudioControls.audioTriggerId);
 
 						paramMap.insert(
@@ -160,7 +160,7 @@ void CRuntimeAreaObject::UpdateParameterValues(IEntity* const pEntity, TAudioPar
 				if (fabs_tpl(fNewParamValue - oSoundInfo.parameter) >= fParamEpsilon)
 				{
 					oSoundInfo.parameter = fNewParamValue;
-					pAudioProxy->SetRtpcValue(oSoundInfo.audioControls.audioRtpcId, oSoundInfo.parameter);
+					pAudioProxy->SetParameter(oSoundInfo.audioControls.audioRtpcId, oSoundInfo.parameter);
 				}
 			}
 		}
@@ -179,7 +179,7 @@ void CRuntimeAreaObject::StopEntitySounds(EntityId const entityId, TAudioParamet
 			for (TAudioParameterMap::const_iterator iSoundPair = paramMap.begin(), iSoundPairEnd = paramMap.end(); iSoundPair != iSoundPairEnd; ++iSoundPair)
 			{
 				pAudioProxy->StopTrigger(iSoundPair->second.audioControls.audioTriggerId);
-				pAudioProxy->SetRtpcValue(iSoundPair->second.audioControls.audioRtpcId, 0.0f);
+				pAudioProxy->SetParameter(iSoundPair->second.audioControls.audioRtpcId, 0.0f);
 			}
 
 			paramMap.clear();

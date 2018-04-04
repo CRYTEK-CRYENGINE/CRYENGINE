@@ -1,18 +1,11 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
-// -------------------------------------------------------------------------
-//  File name:   AnimKey.h
-//  Created:     22/4/2002 by Timur.
-//
-////////////////////////////////////////////////////////////////////////////
-
-	#pragma once
+#pragma once
 
 #include <CrySystem/IConsole.h>     // <> required for Interfuscator
 #include <CrySystem/File/ICryPak.h> // <> required for Interfuscator
 #include <CrySystem/ILocalizationManager.h>
 #include <CryMath/Bezier.h>
-#include <CryAudio/IAudioInterfacesCommonData.h>
 #include <CryAudio/IAudioSystem.h>
 #include <CryMovie/AnimTime.h>
 
@@ -258,7 +251,7 @@ struct SSequenceKey : public STrackKey
 struct SAudioTriggerKey : public STrackDurationKey
 {
 	SAudioTriggerKey()
-	: STrackDurationKey()
+		: STrackDurationKey()
 	{}
 
 	static const char* GetType()              { return "AudioTrigger"; }
@@ -282,16 +275,16 @@ struct SAudioTriggerKey : public STrackDurationKey
 
 		if (ar.isInput())
 		{
-			gEnv->pAudioSystem->GetAudioTriggerId(m_startTriggerName.c_str(), m_startTriggerId);
-			gEnv->pAudioSystem->GetAudioTriggerId(m_stopTriggerName.c_str(), m_stopTriggerId);
+			m_startTriggerId = CryAudio::StringToId(m_startTriggerName.c_str());
+			m_stopTriggerId = CryAudio::StringToId(m_stopTriggerName.c_str());
 		}
 	}
 
-	string m_startTriggerName;
-	string m_stopTriggerName;
-	string m_keyDescription;
-	AudioControlId m_startTriggerId;
-	AudioControlId m_stopTriggerId;
+	string              m_startTriggerName;
+	string              m_stopTriggerName;
+	string              m_keyDescription;
+	CryAudio::ControlId m_startTriggerId;
+	CryAudio::ControlId m_stopTriggerId;
 };
 
 /** SAudioFileKey used in audio file track.
@@ -299,9 +292,9 @@ struct SAudioTriggerKey : public STrackDurationKey
 struct SAudioFileKey : public STrackDurationKey
 {
 	SAudioFileKey()
-	: STrackDurationKey()
-	, m_bIsLocalized(false)
-	, m_bNoTriggerInScrubbing(false)
+		: STrackDurationKey()
+		, m_bIsLocalized(false)
+		, m_bNoTriggerInScrubbing(false)
 	{}
 
 	static const char* GetType()              { return "AudioFile"; }
@@ -320,8 +313,8 @@ struct SAudioFileKey : public STrackDurationKey
 			int pathLength = m_audioFile.find(PathUtil::GetGameFolder());
 			const string tempFilePath = (pathLength == -1) ? PathUtil::GetGameFolder() + CRY_NATIVE_PATH_SEPSTR + m_audioFile : m_audioFile;
 
-			SAudioFileData audioData;
-			gEnv->pAudioSystem->GetAudioFileData(tempFilePath.c_str(), audioData);
+			CryAudio::SFileData audioData;
+			gEnv->pAudioSystem->GetFileData(tempFilePath.c_str(), audioData);
 			m_duration = audioData.duration;
 		}
 		else
@@ -330,17 +323,17 @@ struct SAudioFileKey : public STrackDurationKey
 			{
 				const char* szLanguage = gEnv->pSystem->GetLocalizationManager()->GetLanguage();
 				m_audioFile = PathUtil::GetGameFolder() + CRY_NATIVE_PATH_SEPSTR + PathUtil::GetLocalizationFolder() + CRY_NATIVE_PATH_SEPSTR + szLanguage + CRY_NATIVE_PATH_SEPSTR;
-		}
+			}
 			else
-		{
+			{
 				m_audioFile = PathUtil::GetGameFolder() + CRY_NATIVE_PATH_SEPSTR;
-		}
+			}
 		}
 	}
 
 	string m_audioFile;
-	bool m_bIsLocalized;
-	bool m_bNoTriggerInScrubbing;
+	bool   m_bIsLocalized;
+	bool   m_bNoTriggerInScrubbing;
 };
 
 /** SAudioSwitchKey used in CAudioSwitchTrack
@@ -348,9 +341,9 @@ struct SAudioFileKey : public STrackDurationKey
 struct SAudioSwitchKey : public STrackKey
 {
 	SAudioSwitchKey()
-	: STrackKey()
-	, m_audioSwitchId(INVALID_AUDIO_CONTROL_ID)
-	, m_audioSwitchStateId(INVALID_AUDIO_SWITCH_STATE_ID)
+		: STrackKey()
+		, m_audioSwitchId(CryAudio::InvalidControlId)
+		, m_audioSwitchStateId(CryAudio::InvalidSwitchStateId)
 	{}
 
 	static const char* GetType()              { return "AudioSwitch"; }
@@ -365,26 +358,26 @@ struct SAudioSwitchKey : public STrackKey
 
 		if (ar.isInput())
 		{
-			gEnv->pAudioSystem->GetAudioSwitchId(m_audioSwitchName.c_str(), m_audioSwitchId);
-			gEnv->pAudioSystem->GetAudioSwitchStateId(m_audioSwitchId, m_audioSwitchStateName.c_str(), m_audioSwitchStateId);
+			m_audioSwitchId = CryAudio::StringToId(m_audioSwitchName.c_str());
+			m_audioSwitchStateId = CryAudio::StringToId(m_audioSwitchStateName.c_str());
 		}
 
 		m_keyDescription.Format("%s : %s", m_audioSwitchName.c_str(), m_audioSwitchStateName.c_str());
 	}
 
-	string m_audioSwitchName;
-	string m_audioSwitchStateName;
-	string m_keyDescription;
+	string                  m_audioSwitchName;
+	string                  m_audioSwitchStateName;
+	string                  m_keyDescription;
 
-	AudioControlId m_audioSwitchId;
-	AudioSwitchStateId m_audioSwitchStateId;
+	CryAudio::ControlId     m_audioSwitchId;
+	CryAudio::SwitchStateId m_audioSwitchStateId;
 };
 
 struct SDynamicResponseSignalKey : public STrackKey
-		{
+{
 	SDynamicResponseSignalKey()
-	: STrackKey()
-	, m_bNoTriggerInScrubbing(false)
+		: STrackKey()
+		, m_bNoTriggerInScrubbing(false)
 	{}
 
 	static const char* GetType()              { return "DynamicResponseSignal"; }
@@ -403,7 +396,7 @@ struct SDynamicResponseSignalKey : public STrackKey
 	string m_signalName;
 	string m_contextVariableName;
 	string m_contextVariableValue;
-	bool m_bNoTriggerInScrubbing;
+	bool   m_bNoTriggerInScrubbing;
 };
 
 /** SCharacterKey used in Character animation track.
@@ -684,6 +677,7 @@ struct SCaptureFormatInfo
 	{
 		eCaptureFormat_TGA,
 		eCaptureFormat_JPEG,
+		eCaptureFormat_PNG,
 		eCaptureFormat_Num
 	};
 
@@ -692,7 +686,8 @@ struct SCaptureFormatInfo
 		const char* captureFormatNames[eCaptureFormat_Num] =
 		{
 			"tga",
-			"jpg"
+			"jpg",
+			"png"
 		};
 		return captureFormatNames[captureFormat];
 	};

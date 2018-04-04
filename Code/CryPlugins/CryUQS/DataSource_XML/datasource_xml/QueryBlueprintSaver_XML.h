@@ -4,9 +4,9 @@
 
 // *INDENT-OFF* - <hard to read code and declarations due to inconsistent indentation>
 
-namespace uqs
+namespace UQS
 {
-	namespace datasource_xml
+	namespace DataSource_XML
 	{
 
 		//===================================================================================
@@ -15,25 +15,26 @@ namespace uqs
 		//
 		//===================================================================================
 
-		class CQueryBlueprintSaver_XML : public datasource::IQueryBlueprintSaver
+		class CQueryBlueprintSaver_XML : public DataSource::IQueryBlueprintSaver
 		{
 		public:
-			explicit                                    CQueryBlueprintSaver_XML(const char* xmlFileNameToSaveTo);
-			virtual bool                                SaveTextualQueryBlueprint(const core::ITextualQueryBlueprint& queryBlueprintToSave, shared::IUqsString& error) override;
+			explicit                                    CQueryBlueprintSaver_XML(const char* szXmlFileNameToSaveTo);
+			virtual bool                                SaveTextualQueryBlueprint(const Core::ITextualQueryBlueprint& queryBlueprintToSave, Shared::IUqsString& error) override;
 
 		private:
 			void                                        SaveQueryElement(const XmlNodeRef& queryElementToSaveTo);
 			void                                        SaveGlobalParamsElement(const XmlNodeRef& globalParamsElementToSaveTo);
 			void                                        SaveGeneratorElement(const XmlNodeRef& generatorElementToSaveTo);
-			void                                        SaveInstantEvaluatorElement(const XmlNodeRef& instantEvaluatorElementToSaveTo, const core::ITextualInstantEvaluatorBlueprint& instantEvaluatorBP);
-			void                                        SaveDeferredEvaluatorElement(const XmlNodeRef& deferredEvaluatorElementToSaveTo, const core::ITextualDeferredEvaluatorBlueprint& deferredEvaluatorBP);
-			void                                        SaveFunctionElement(const XmlNodeRef& functionElementToSaveTo, const core::ITextualInputBlueprint& parentInput);
-			void                                        SaveInputElement(const XmlNodeRef& inputElementToSaveTo, const core::ITextualInputBlueprint& inputBP);
+			void                                        SaveInstantEvaluatorElement(const XmlNodeRef& instantEvaluatorElementToSaveTo, const Core::ITextualEvaluatorBlueprint& instantEvaluatorBP);
+			void                                        SaveDeferredEvaluatorElement(const XmlNodeRef& deferredEvaluatorElementToSaveTo, const Core::ITextualEvaluatorBlueprint& deferredEvaluatorBP);
+			void                                        SaveFunctionElement(const XmlNodeRef& functionElementToSaveTo, const Core::ITextualInputBlueprint& parentInput);
+			void                                        SaveInputElement(const XmlNodeRef& inputElementToSaveTo, const Core::ITextualInputBlueprint& inputBP);
+			void                                        CommonSaveEvaluatorElement(const XmlNodeRef& evaluatorElementToSaveTo, const char* szAttributeForEvaluatorFactoryGUID, const Core::ITextualEvaluatorBlueprint& evaluatorBP);  // common code for SaveInstantEvaluatorElement() and SaveDeferredEvaluatorElement()
 
 		private:
 			string                                      m_xmlFileNameToSaveTo;
 			XmlNodeRef                                  m_queryElementToSaveTo;
-			const core::ITextualQueryBlueprint*         m_query;	// points to what was passed in to SaveTextualQueryBlueprint() throughout the saving process
+			const Core::ITextualQueryBlueprint*         m_pQuery;	// points to what was passed in to SaveTextualQueryBlueprint() throughout the saving process
 		};
 
 	}

@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 /*************************************************************************
    -------------------------------------------------------------------------
@@ -111,28 +111,34 @@ void CGameServerChannel::OnDisconnect(EDisconnectionCause cause, const char* des
 	//CryLogAlways("CGameServerChannel::OnDisconnect(%d, '%s')", cause, description?description:"");
 	CCryAction::GetCryAction()->OnActionEvent(SActionEvent(eAE_clientDisconnected, int(cause), description));
 
-	IGameRules* pGameRules = CCryAction::GetCryAction()->GetIGameRulesSystem()->GetCurrentGameRules();
-
-	if (pGameRules && IsOnHold())
+	if (!IsOnHold() && sv_timeout_disconnect && sv_timeout_disconnect->GetIVal() > 0)
 	{
-		pGameRules->OnClientDisconnect(GetChannelId(), cause, description, false);
-		Cleanup();
-
-		return;
-	}
-
-	if (sv_timeout_disconnect && pGameRules && sv_timeout_disconnect->GetIVal() > 0 && pGameRules->ShouldKeepClient(GetChannelId(), cause, description))
-	{
-		if (m_pServerNub->PutChannelOnHold(this))
+		// Check if any clients want to keep this player
+		for (INetworkedClientListener* pListener : CCryAction::GetCryAction()->GetNetworkClientListeners())
 		{
-			pGameRules->OnClientDisconnect(GetChannelId(), cause, description, true);
-			m_hasLoadedLevel = false;
-			return;
+			if(!pListener->OnClientTimingOut(GetChannelId(), cause, description))
+			{
+				if (m_pServerNub->PutChannelOnHold(this))
+				{
+					for (INetworkedClientListener* pRecursiveListener : CCryAction::GetCryAction()->GetNetworkClientListeners())
+					{
+						pRecursiveListener->OnClientDisconnected(GetChannelId(), cause, description, true);
+					}
+
+					m_hasLoadedLevel = false;
+					return;
+				}
+
+				break;
+			}
 		}
 	}
 
-	if (pGameRules)
-		pGameRules->OnClientDisconnect(GetChannelId(), cause, description, false);
+	for (INetworkedClientListener* pListener : CCryAction::GetCryAction()->GetNetworkClientListeners())
+	{
+		pListener->OnClientDisconnected(GetChannelId(), cause, description, false);
+	}
+
 	Cleanup();
 }
 
@@ -154,6 +160,7 @@ void CGameServerChannel::DefineProtocol(IProtocolBuilder* pBuilder)
 		cca->GetIGameObjectSystem()->DefineProtocol(true, pBuilder);
 	if (cca->GetGameContext())
 		cca->GetGameContext()->DefineContextProtocols(pBuilder, true);
+	cca->DefineProtocolRMI(pBuilder);
 }
 
 void CGameServerChannel::SetPlayerId(EntityId playerId)

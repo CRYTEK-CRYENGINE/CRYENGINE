@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #pragma once
 
@@ -46,6 +46,7 @@ public:
 	void          InitAttachmentList(const CharacterAttachment* parrAttachments, uint32 numAttachments, const string pathname, uint32 nLoadingFlags, int nKeepModelInMemory);
 
 	IAttachment*  CreateAttachment(const char* szName, uint32 type, const char* szJointName = 0, bool bCallProject = true);
+	IAttachment*  CreateVClothAttachment(const SVClothAttachmentParams& params);
 
 	void          MergeCharacterAttachments();
 	void          RequestMergeCharacterAttachments() { ++m_attachmentMergingRequired; }

@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #include "StdAfx.h"
 #include "CET_GameRules.h"
@@ -93,10 +93,10 @@ public:
 		IGameRulesSystem* pGameRulesSystem = CCryAction::GetCryAction()->GetIGameRulesSystem();
 		const char* gameRulesName = pGameRulesSystem->GetGameRulesName(CCryAction::GetCryAction()->GetGameContext()->GetRequestedGameRules());
 
-		if (!gameRulesName || !m_pRep->ClassIdFromName(id, string(gameRulesName)) || id == (uint16)(~uint16(0)))
+		if ((!gameRulesName || !m_pRep->ClassIdFromName(id, string(gameRulesName)) || id == (uint16)(~uint16(0)))
+			&& !CCryAction::GetCryAction()->GetGameContext()->HasContextFlag(eGSF_NoGameRules))
 		{
 			GameWarning("Cannot find rules %s in network class registry", CCryAction::GetCryAction()->GetGameContext()->GetRequestedGameRules().c_str());
-			return eCETR_Failed;
 		}
 
 		// called on the server, we should send any information about the
@@ -167,63 +167,6 @@ public:
 void AddInitImmersiveness(IContextEstablisher* pEst, EContextViewState state)
 {
 	pEst->AddTask(state, new CCET_InitImmersiveness());
-}
-
-/*
- * On client connect
- */
-
-class CCET_OnClient : public CCET_Base
-{
-public:
-	CCET_OnClient(bool(IGameRules::* func)(int, bool), const char* name, bool isReset) : m_func(func), m_name(name), m_isReset(isReset) {}
-
-	const char*                 GetName() { return m_name; }
-
-	EContextEstablishTaskResult OnStep(SContextEstablishState& state)
-	{
-		int channelId = 0;
-		if (INetChannel* pNC = state.pSender)
-			if (CGameServerChannel* pSC = (CGameServerChannel*) pNC->GetGameChannel())
-				channelId = pSC->GetChannelId();
-		if (!channelId)
-		{
-			GameWarning("OnClient: No channel id");
-			return eCETR_Failed;
-		}
-		IGameRules* pGameRules = CCryAction::GetCryAction()->GetIGameRulesSystem()->GetCurrentGameRules();
-		if (!pGameRules)
-		{
-			CryLog("[GameRules]No game rules");
-			return eCETR_Ok; // Editor without gamedll can have no gamerules.
-		}
-		//CryLog( "Spawn player for channel %d%s", channelId, m_isReset? " as reset" : "" );
-		if (!(pGameRules->*m_func)(channelId, m_isReset))
-			return eCETR_Failed;
-		else
-			return eCETR_Ok;
-	}
-
-private:
-	bool (IGameRules::* m_func)(int, bool);
-	const char* m_name;
-	bool        m_isReset;
-};
-
-void AddOnClientConnect(IContextEstablisher* pEst, EContextViewState state, bool isReset)
-{
-	if (!(gEnv->bHostMigrating && gEnv->bMultiplayer))
-	{
-		pEst->AddTask(state, new CCET_OnClient(&IGameRules::OnClientConnect, "OnClientConnect", isReset));
-	}
-}
-
-void AddOnClientEnteredGame(IContextEstablisher* pEst, EContextViewState state, bool isReset)
-{
-	if (!(gEnv->bHostMigrating && gEnv->bMultiplayer))
-	{
-		pEst->AddTask(state, new CCET_OnClient(&IGameRules::OnClientEnteredGame, "OnClientEnteredGame", isReset));
-	}
 }
 
 class CCET_ClearOnHold : public CCET_Base

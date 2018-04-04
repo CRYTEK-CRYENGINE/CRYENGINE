@@ -4,48 +4,12 @@
 #include "QAudioControlTreeWidget.h"
 #include "QAudioControlEditorIcons.h"
 #include "QtUtil.h"
+#include "AudioAssetsExplorerModel.h"
 #include <ACETypes.h>
 
 #include <QAdvancedItemDelegate.h>
 
 using namespace ACE;
-
-QFolderItem::QFolderItem(const QString& sName) : QStandardItem(sName)
-{
-	setIcon(GetFolderIcon());
-	setData(eItemType_Folder, eDataRole_Type);
-	setData(ACE_INVALID_ID, eDataRole_Id);
-
-	setFlags(flags() | Qt::ItemIsDropEnabled);
-	setFlags(flags() | Qt::ItemIsDragEnabled);
-
-	setData(false, eDataRole_Modified);
-}
-
-QAudioControlItem::QAudioControlItem(const QString& sName, CATLControl* pControl) : QStandardItem(sName)
-{
-	setIcon(GetControlTypeIcon(pControl->GetType()));
-	setData(eItemType_AudioControl, eDataRole_Type);
-	setData(pControl->GetId(), eDataRole_Id);
-
-	EACEControlType eType = pControl->GetType();
-	if (eType == eACEControlType_Switch)
-	{
-		setFlags(flags() | Qt::ItemIsDropEnabled);
-		setFlags(flags() | Qt::ItemIsDragEnabled);
-	}
-	else if (eType == eACEControlType_State)
-	{
-		setFlags(flags() & ~Qt::ItemIsDropEnabled);
-		setFlags(flags() & ~Qt::ItemIsDragEnabled);
-	}
-	else
-	{
-		setFlags(flags() & ~Qt::ItemIsDropEnabled);
-		setFlags(flags() | Qt::ItemIsDragEnabled);
-	}
-	setData(false, eDataRole_Modified);
-}
 
 QAudioControlSortProxy::QAudioControlSortProxy(QObject* pParent /*= 0*/)
 	: QSortFilterProxyModel(pParent)
@@ -64,7 +28,7 @@ bool QAudioControlSortProxy::setData(const QModelIndex& index, const QVariant& v
 			return false;
 		}
 
-		if (index.data(eDataRole_Type) == eItemType_Folder)
+		if (index.data(eDataRole_ItemType) == eItemType_Folder)
 		{
 			// Validate that the new folder name is valid
 			bool bFoundValidName = false;
@@ -78,7 +42,7 @@ bool QAudioControlSortProxy::setData(const QModelIndex& index, const QVariant& v
 				while (sibiling.isValid())
 				{
 					QString sSibilingName = sibiling.data(Qt::DisplayRole).toString();
-					if ((sibiling != index) && (sibiling.data(eDataRole_Type) == eItemType_Folder) && (QString::compare(sCandidateName, sSibilingName, Qt::CaseInsensitive) == 0))
+					if ((sibiling != index) && (sibiling.data(eDataRole_ItemType) == eItemType_Folder) && (QString::compare(sCandidateName, sSibilingName, Qt::CaseInsensitive) == 0))
 					{
 						sCandidateName = sInitialName + "_" + QString::number(nNumber);
 						++nNumber;
@@ -97,8 +61,8 @@ bool QAudioControlSortProxy::setData(const QModelIndex& index, const QVariant& v
 
 bool QAudioControlSortProxy::lessThan(const QModelIndex& left, const QModelIndex& right) const
 {
-	uint eLeftType = sourceModel()->data(left, eDataRole_Type).toUInt();
-	uint eRightType = sourceModel()->data(right, eDataRole_Type).toUInt();
+	uint eLeftType = sourceModel()->data(left, eDataRole_ItemType).toUInt();
+	uint eRightType = sourceModel()->data(right, eDataRole_ItemType).toUInt();
 	if (eLeftType != eRightType)
 	{
 		return eLeftType > eRightType;
@@ -150,7 +114,7 @@ void QAudioControlsTreeView::SaveExpandedState(QModelIndex& index)
 {
 	if (isExpanded(index))
 	{
-		m_storedExpandedItems.push_back(QPersistentModelIndex(index));
+		m_storedExpandedItems.emplace_back(index);
 	}
 
 	int row = 0;

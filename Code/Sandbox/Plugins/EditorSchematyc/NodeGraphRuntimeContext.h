@@ -5,7 +5,7 @@
 #include <NodeGraph/ICryGraphEditor.h>
 #include <Controls/DictionaryWidget.h>
 
-#include <Schematyc/Script/IScriptGraph.h>
+#include <CrySchematyc/Script/IScriptGraph.h>
 
 #include <ProxyModels/ItemModelAttribute.h>
 
@@ -14,6 +14,12 @@ class QIcon;
 namespace Schematyc {
 
 struct IScriptGraph;
+
+}
+
+namespace CryGraphEditor {
+
+class CNodeGraphViewStyle;
 
 }
 
@@ -66,7 +72,7 @@ public:
 		, m_name(name)
 		, m_pParent(pParent)
 	{}
-	virtual ~CNodesDictionaryCategoryEntry() {}
+	virtual ~CNodesDictionaryCategoryEntry();
 
 	// CryGraphEditor::CAbstractDictionaryItem
 	virtual uint32                          GetType() const override { return Type_Folder; }
@@ -119,8 +125,12 @@ public:
 	// ~CAbstractDictionary
 
 	void LoadLoadsFromScriptGraph(Schematyc::IScriptGraph& scriptGraph);
+	void SetStyle(const CryGraphEditor::CNodeGraphViewStyle* pStyle) { m_pStyle = pStyle; }
+
+	void Clear();
 
 private:
+	const CryGraphEditor::CNodeGraphViewStyle*  m_pStyle;
 	std::vector<CNodesDictionaryCategoryEntry*> m_categories;
 	std::vector<CNodesDictionaryNodeEntry*>     m_nodes;
 
@@ -131,12 +141,19 @@ class CNodeGraphRuntimeContext : public CryGraphEditor::INodeGraphRuntimeContext
 {
 public:
 	CNodeGraphRuntimeContext(Schematyc::IScriptGraph& scriptGraph);
+	~CNodeGraphRuntimeContext();
 
-	virtual const char*          GetTypeName() const           { return "Schematyc_Graph"; };
-	virtual CAbstractDictionary* GetAvailableNodesDictionary() { return &m_nodesDictionary; };
+	// CryGraphEditor::INodeGraphRuntimeContext
+	virtual const char*                                GetTypeName() const override { return "Schematyc_Graph"; };
+	virtual CAbstractDictionary*                       GetAvailableNodesDictionary() override;
+
+	virtual const CryGraphEditor::CNodeGraphViewStyle* GetStyle() const override { return m_pStyle; }
+	// ~CryGraphEditor::INodeGraphRuntimeContext
 
 private:
-	CNodesDictionary m_nodesDictionary;
+	CNodesDictionary                     m_nodesDictionary;
+	CryGraphEditor::CNodeGraphViewStyle* m_pStyle;
+	Schematyc::IScriptGraph&             m_scriptGraph;
 };
 
 }

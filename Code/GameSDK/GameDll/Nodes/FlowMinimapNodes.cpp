@@ -230,12 +230,16 @@ protected:
 private:
 	void RegisterEntity(EntityId entityId)
 	{
-		auto insertResult = m_entityIds.insert(entityId);
-
-		// ensure to subscribe to given entity only once
-		if (insertResult.second)
+		//Check if the entity actual exists so the listener can be added
+		if (gEnv->pEntitySystem->GetEntity(entityId) != nullptr)
 		{
-			gEnv->pEntitySystem->AddEntityEventListener(entityId, ENTITY_EVENT_XFORM, this);
+			auto insertResult = m_entityIds.insert(entityId);
+
+			// ensure to subscribe to given entity only once
+			if (insertResult.second)
+			{
+				gEnv->pEntitySystem->AddEntityEventListener(entityId, ENTITY_EVENT_XFORM, this);
+			}
 		}
 	}
 

@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #pragma once
 
@@ -70,9 +70,10 @@ private:
 	void SortEntries();
 	void WriteEntries(CCSVFileOutput& output) const;
 
-	void DrawStats();
+	void DrawPerfomanceStats();
 	void DrawStatsCounts(CStatisticsDisplay& output, Vec2 pos, uint budget);
 	void DrawStats(CStatisticsDisplay& output, Vec2 pos, EProfileStat stat, uint budget, cstr statName);
+	void DrawMemoryStats();
 
 	std::vector<TEntries> m_entries;
 };

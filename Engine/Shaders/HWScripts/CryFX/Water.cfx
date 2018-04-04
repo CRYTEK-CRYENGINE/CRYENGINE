@@ -453,8 +453,7 @@ void GetGridVertexPos( inout float4 vPos )
 		// Set a 45 degree rotation to the grid
 		vPos.xy = 0.707f * vPos.xy + 0.707f * float2( - vPos.y, vPos.x);
 
-		float3 cameraRightVector = cross(CV_CameraUpVector.xyz, CV_CameraFrontVector.xyz);
-		float3x3 mCam = float3x3( cameraRightVector.xyz, CV_CameraUpVector.xyz, CV_CameraFrontVector.xyz);
+		float3x3 mCam = float3x3( CV_CameraRightVector.xyz, CV_CameraUpVector.xyz, CV_CameraFrontVector.xyz);
 
 		// select better projection axis if front angle too steep
 		const float fFrontThreshold = 0.75f;
@@ -690,12 +689,6 @@ v2f WaterVS(a2v IN)
 
 HS_CONSTANT_DATA_OUTPUT WaterConstantsHS(InputPatch<v2f, 3> p, uint PatchID : SV_PrimitiveID )
 {
-#if (D3DX_SDK_VERSION == 43)
-	// Workaround for the optimization rule problem of DXSDKJune10's HLSL Compiler (9.29.952.3111)
-	// See: http://support.microsoft.com/kb/2448404	
-	#pragma ruledisable 0x0802405f  ;
-#endif
-
 	HS_CONSTANT_DATA_OUTPUT OUT = (HS_CONSTANT_DATA_OUTPUT)0;
 
 	// map inputs

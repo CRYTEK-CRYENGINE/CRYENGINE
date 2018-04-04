@@ -30,6 +30,7 @@
 		"CryAudioCommon",
 		"CrySystem",
 		"CryAction",
+		"CryFlowGraph",
 		"CrySchematycCore",
 		"CrySchematycSTDEnv",
 		"CrySensorSystem",
@@ -46,7 +47,6 @@
 		"lua",
 		"freetype",
 		"bigdigits",
-		"yasli",
 		"tomcrypt",
 		"curl",
 

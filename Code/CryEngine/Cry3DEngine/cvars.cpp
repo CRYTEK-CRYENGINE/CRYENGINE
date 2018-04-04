@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 // -------------------------------------------------------------------------
 //  File name:   cvars.cpp
@@ -85,7 +85,7 @@ void CVars::Init()
 	                   "Activates global height/distance based fog");
 	DefineConstIntCVar(e_FogVolumes, 1, VF_CHEAT | VF_CHEAT_ALWAYS_CHECK,
 	                   "Activates local height/distance based fog volumes");
-	REGISTER_CVAR(e_VolumetricFog, 0, VF_NULL,
+	REGISTER_CVAR(e_VolumetricFog, 0, VF_REQUIRE_APP_RESTART,
 	              "Activates volumetric fog");
 	REGISTER_CVAR(e_Entities, 1, VF_CHEAT | VF_CHEAT_ALWAYS_CHECK,
 	              "Activates drawing of entities and brushes");
@@ -189,7 +189,8 @@ void CVars::Init()
 	                   " x = show bounding box stats"
 	                   " d = force dynamic bounds and update for all emitters"
 	                   " c = disable clipping against water and vis area bounds"
-	                   " z = freeze particle system");
+	                   " z = freeze particle system"
+	                   " t = used by developers to debug test algorithms");
 	REGISTER_CVAR(e_ParticlesThread, 1, VF_BITFIELD,
 	              "Enable particle threading");
 	REGISTER_CVAR(e_ParticlesObjectCollisions, 2, VF_NULL,
@@ -206,7 +207,10 @@ void CVars::Init()
 	REGISTER_CVAR(e_ParticlesAllowRuntimeLoad, 1, VF_NULL,
 	              "Allow loading of dynamic particle effects at runtime");
 	REGISTER_CVAR(e_ParticlesConvertPfx1, 0, VF_NULL,
-	              "Convert pfx1 to pfx2 when loaded");
+	              "Convert pfx1 to pfx2 when loaded. Combinable options:\n"
+	              "  1 = Convert if pfx2 version doesn't exist.\n"
+	              "  2 = Convert and overwrite pfx2 version.\n"
+	              "  4 = Replace loaded pfx1 effects with pfx2 version.\n");
 	DefineConstIntCVar(e_ParticlesSerializeNamedFields, 1, VF_NULL,
 	                   "Save effects libraries with named fields for future compatibility (compatible with versions >= 24)");
 	REGISTER_CVAR(e_ParticlesLod, 1, VF_NULL,
@@ -239,7 +243,8 @@ void CVars::Init()
 	              "2 - disable the warning message when running out of pool memory");
 	REGISTER_CVAR(e_ParticlesProfiler, 0, VF_BITFIELD,
 		          "Wavicle only:\n"
-                  "1 - Display profiler on screen\n"
+                  "1 - Display performance profiler on screen\n"
+                  "2 - Display memory profiler on screen\n"
 		          "f - Output statistics to a csv file");
 	e_ParticlesProfilerOutputFolder = REGISTER_STRING("e_ParticlesProfilerOutputFolder", "%USER%/ParticlesProfiler/", VF_NULL,
 		"Folder to output particle profiler");
@@ -307,6 +312,9 @@ void CVars::Init()
 	              "Maximum number of static decal render mesh updates per frame");
 	DefineConstIntCVar(e_VegetationBending, 2, VF_NULL,
 	                   "Enable vegetation bending (does not affect merged grass)");
+	REGISTER_CVAR(e_VegetationBillboards, 0, VF_NULL,
+								"Allow replacing distant vegetation with billboards\n"
+								"Billboard textures must be prepared by ed_GenerateBillboardTextures command in the editor");
 	REGISTER_CVAR(e_VegetationUseTerrainColor, 1, VF_NULL,
 	              "Allow blend with terrain color for vegetations");
 	REGISTER_CVAR(e_VegetationUseTerrainColorDistance, 0, VF_NULL,
@@ -447,6 +455,11 @@ void CVars::Init()
 
 	REGISTER_CVAR(e_Terrain, 1, VF_CHEAT | VF_CHEAT_ALWAYS_CHECK,
 	              "Activates drawing of terrain ground");
+	REGISTER_CVAR(e_TerrainIntegrateObjectsMaxVertices, 30000, VF_NULL,
+	              "Preallocate specified number of vertices to be used for objects integration into terrain (per terrain sector)\n"
+	              "0 - disable the feature completelly");
+	REGISTER_CVAR(e_TerrainIntegrateObjectsMaxHeight, 32.f, VF_NULL,
+		            "Take only trianglses close to terrain for objects integration");
 	DefineConstIntCVar(e_TerrainDeformations, 0, VF_CHEAT,
 	                   "Allows in-game terrain surface deformations");
 	DefineConstIntCVar(e_AutoPrecacheCameraJumpDist, 16, VF_CHEAT,
@@ -1126,6 +1139,7 @@ void CVars::Init()
 	REGISTER_CVAR(e_MergedMeshesBulletScale, 35.f, VF_NULL, "MergedMesh Bullet approximations size scale");
 	REGISTER_CVAR(e_MergedMeshesBulletLifetime, 0.15f, VF_NULL, "MergedMesh Bullet approximations lifetime");
 	REGISTER_CVAR(e_MergedMeshesOutdoorOnly, 0, VF_NULL, "MergedMeshes will recieve ERF_OUTDOORONLY by default");
+	REGISTER_CVAR(e_MergedMeshesMaxTriangles, 600, VF_NULL, "Do not merge meshes containing too many triangles. It's more efficient to render them without merging");
 	REGISTER_CVAR(e_CheckOctreeObjectsBoxSize, 1, VF_NULL, "CryWarning for crazy sized COctreeNode m_objectsBoxes");
 	REGISTER_CVAR(e_DebugGeomPrep, 0, VF_NULL, "enable logging of Geom preparation");
 	DefineConstIntCVar(e_GeomCaches, 1, VF_NULL, "Activates drawing of geometry caches");

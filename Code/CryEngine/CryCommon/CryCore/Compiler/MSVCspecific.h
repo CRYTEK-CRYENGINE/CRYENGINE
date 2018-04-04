@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 // -------------------------------------------------------------------------
 //  File name:   MSVCSpecific.h
@@ -82,6 +82,9 @@
 
 // Suppress undefined behavior sanitizer errors on a function.
 #define CRY_FUNCTION_CONTAINS_UNDEFINED_BEHAVIOR
+
+//! Unreachable code marker for helping error handling and optimization
+#define UNREACHABLE() __assume(0)
 
 // Disable (and enable) specific compiler warnings.
 // MSVC compiler is very confusing in that some 4xxx warnings are shown even with warning level 3,

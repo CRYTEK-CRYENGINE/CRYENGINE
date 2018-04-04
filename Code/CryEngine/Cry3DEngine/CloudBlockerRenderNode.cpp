@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #include "StdAfx.h"
 
@@ -11,6 +11,7 @@ CCloudBlockerRenderNode::CCloudBlockerRenderNode()
 	, m_decayEnd(0.0f)
 	, m_decayInfluence(0.0)
 	, m_bScreenspace(false)
+	, m_pOwnerEntity(nullptr)
 {
 	GetInstCount(GetRenderNodeType())++;
 

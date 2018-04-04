@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #include "StdAfx.h"
 #include <CryCore/BitFiddling.h>
@@ -169,8 +169,11 @@ CRYMEMORYMANAGER_API void* CryMalloc(size_t size, size_t& allocated, size_t alig
 		// e.g. if we request 56bytes and the next fitting bucket is 64bytes, we will be allocating 64bytes.
 		//
 		// Having the correct value is important because the whole bucket size is later used by CryFree when
-		// deallocating and both values should match for stats tracking to be accurate
-		sizePlus = g_GlobPageBucketAllocator.getSizeEx(p);
+		// deallocating and both values should match for stats tracking to be accurate.
+		//
+		// We use getSize and not getSizeEx because in the case of an allocation with "alignment" == 0 and "size" bigger than the bucket size
+		// the bucket allocator will end up allocating memory using CryCrtMalloc which falls outside the address range of the bucket allocator
+		sizePlus = g_GlobPageBucketAllocator.getSize(p);
 	}
 	else
 	{
@@ -220,13 +223,23 @@ CRYMEMORYMANAGER_API void* CryMalloc(size_t size, size_t& allocated, size_t alig
 }
 
 //////////////////////////////////////////////////////////////////////////
-CRYMEMORYMANAGER_API size_t CryGetMemSize(void* memblock, size_t sourceSize)
+CRYMEMORYMANAGER_API size_t CryGetMemSize(void* memblock, size_t alignment)
 {
 	//	ReadLock lock(g_lockMemMan);
 #ifdef DANGLING_POINTER_DETECTOR
 	memblock = DanglingPointerDetectorTransformNull(memblock);
 #endif
-	return g_GlobPageBucketAllocator.getSize(memblock);
+	
+	if (!alignment || g_GlobPageBucketAllocator.IsInAddressRange(memblock))
+	{
+		return g_GlobPageBucketAllocator.getSize(memblock);
+	}
+	else
+	{
+		uint8* pb = static_cast<uint8*>(memblock);
+		uint32 adj = reinterpret_cast<uint32*>(pb)[-1];
+		return CrySystemCrtSize(pb - adj) - adj;
+	}
 }
 
 //////////////////////////////////////////////////////////////////////////

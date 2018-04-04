@@ -18,6 +18,19 @@ namespace ZipFile
 	typedef unsigned int ulong;
 	typedef unsigned short ushort;
 
+	enum
+	{
+		BLOCK_CIPHER_NUM_KEYS = 16
+	};
+	enum
+	{
+		BLOCK_CIPHER_KEY_LENGTH = 16
+	};
+	enum
+	{
+		RSA_KEY_MESSAGE_LENGTH = 128    // The modulus of our private/public key pair for signing, verification, encryption and decryption.
+	};
+
 	// General-purpose bit field flags
 	enum {
 		GPF_ENCRYPTED = 1 << 0, // If set, indicates that the file is encrypted.
@@ -39,7 +52,10 @@ namespace ZipFile
 		METHOD_DEFLATE  = 8, // The file is Deflated
 		METHOD_DEFLATE64 = 9, // Enhanced Deflating using Deflate64(tm)
 		METHOD_IMPLODE_PKWARE = 10, // PKWARE Date Compression Library Imploding
-		METHOD_DEFLATE_AND_ENCRYPT = 11 // Deflate + Custom encryption
+		METHOD_DEFLATE_AND_ENCRYPT               = 11, // Deflate + Custom encryption (TEA)
+		METHOD_DEFLATE_AND_STREAMCIPHER          = 12, // Deflate + stream cipher encryption on a per file basis
+		METHOD_STORE_AND_STREAMCIPHER_KEYTABLE   = 13, // Store + Timur's encryption technique on a per file basis
+		METHOD_DEFLATE_AND_STREAMCIPHER_KEYTABLE = 14, // Deflate + Timur's encryption technique on a per file basis
 	};
 
 	// version numbers
@@ -346,6 +362,57 @@ namespace ZipFile
 		ulong  nDiskNumberStart;   // Number of the disk on which this file starts  2->4 bytes
 
 		AUTO_STRUCT_INFO;
+	} PACK_GCC;
+
+	// encryption settings for zip header - stored in m_headerExtended struct
+	enum EHeaderEncryptionType
+	{
+		HEADERS_NOT_ENCRYPTED                   = 0,
+		HEADERS_ENCRYPTED_STREAMCIPHER          = 1,
+		HEADERS_ENCRYPTED_TEA                   = 2, //TEA = Tiny Encryption Algorithm
+		HEADERS_ENCRYPTED_STREAMCIPHER_KEYTABLE = 3, //Timur's technique. Encrypt each file and the CDR with one of 16 stream cipher keys. Encrypt the table of keys with an RSA key.
+	};
+	// Signature settings for zip header
+	enum EHeaderSignatureType
+	{
+		HEADERS_NOT_SIGNED = 0,
+		HEADERS_CDR_SIGNED = 1  //Includes an RSA signature based on the hash of the archive's CDR. Verified in a console compatible way.
+	};
+
+	//Header for HEADERS_ENCRYPTED_CRYCUSTOM technique. Paired with a CrySignedCDRHeader to allow for signing as well as encryption.
+	//i.e. the comment section for a file that uses this technique needs the following in order:
+	//CryCustomExtendedHeader, CrySignedCDRHeader, CryCustomEncryptionHeader
+	struct CryCustomEncryptionHeader
+	{
+		// Note: Not initialized for performance reasons
+		// cppcheck-suppress uninitMemberVar
+		CryCustomEncryptionHeader() {}
+
+		uint32        nHeaderSize;                                               // Size of the extended header.
+		unsigned char CDR_IV[RSA_KEY_MESSAGE_LENGTH];                            //Initial Vector is actually BLOCK_CIPHER_KEY_LENGTH bytes in length, but is encrypted as a RSA_KEY_MESSAGE_LENGTH byte message.
+		unsigned char keys_table[BLOCK_CIPHER_NUM_KEYS][RSA_KEY_MESSAGE_LENGTH]; //As above, actually BLOCK_CIPHER_KEY_LENGTH but encrypted.
+	} PACK_GCC;
+
+	//Header for HEADERS_SIGNED_CDR technique implemented on consoles. The comment section needs to contain the following in order:
+	//CryCustomExtendedHeader, CrySignedCDRHeader
+	struct CrySignedCDRHeader
+	{
+		// Note: Not initialized for performance reasons
+		// cppcheck-suppress uninitMemberVar
+		CrySignedCDRHeader() {}
+
+		uint32        nHeaderSize; // Size of the extended header.
+		unsigned char CDR_signed[RSA_KEY_MESSAGE_LENGTH];
+	} PACK_GCC;
+
+	//Stores type of encryption and signing
+	struct CryCustomExtendedHeader
+	{
+		uint32 nHeaderSize; // Size of the extended header.
+		uint16 nEncryption; // Matches one of EHeaderEncryptionType: 0 = No encryption/extension
+		uint16 nSigning;    // Matches one of EHeaderSignatureType: 0 = No signing
+
+		CryCustomExtendedHeader() : nHeaderSize(0), nEncryption(0) {}
 	} PACK_GCC;
 
 }

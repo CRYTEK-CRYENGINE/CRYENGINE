@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #pragma once
 
@@ -11,6 +11,15 @@ class XmlNodeRef;
 
 namespace Serialization
 {
+//! Specifies the version of xml archive implementation used by the IArchiveHost
+enum class ECryXmlVersion : uint32
+{
+	Auto = 0,            //!< Automatically select version to use
+	Version1 = 1,        //!< Use xml archive version 1
+	Version2 = 2,        //!< Use xml archive version 2
+	Last                 //!< Keep this value as the last version
+};
+
 
 //! IArchiveHost serves a purpose of sharing IArchive implementations among diffferent modules.
 //! Example of usage:
@@ -41,11 +50,11 @@ struct IArchiveHost
 	//! Compares two instances in serialized form through binary archive
 	virtual bool       CompareBinary(const SStruct& lhs, const SStruct& rhs) = 0;
 
-	virtual bool       LoadXmlFile(const SStruct& outObj, const char* filename) = 0;
-	virtual bool       SaveXmlFile(const char* filename, const SStruct& obj, const char* rootNodeName) = 0;
-	virtual bool       LoadXmlNode(const SStruct& outObj, const XmlNodeRef& node) = 0;
-	virtual XmlNodeRef SaveXmlNode(const SStruct& obj, const char* nodeName) = 0;
-	virtual bool       SaveXmlNode(XmlNodeRef& node, const SStruct& obj) = 0;
+	virtual bool       LoadXmlFile(const SStruct& outObj, const char* filename, ECryXmlVersion forceVersion = ECryXmlVersion::Auto) = 0;
+	virtual bool       SaveXmlFile(const char* filename, const SStruct& obj, const char* rootNodeName, ECryXmlVersion forceVersion = ECryXmlVersion::Auto) = 0;
+	virtual bool       LoadXmlNode(const SStruct& outObj, const XmlNodeRef& node, ECryXmlVersion forceVersion = ECryXmlVersion::Auto) = 0;
+	virtual XmlNodeRef SaveXmlNode(const SStruct& obj, const char* nodeName, ECryXmlVersion forceVersion = ECryXmlVersion::Auto) = 0;
+	virtual bool       SaveXmlNode(XmlNodeRef& node, const SStruct& obj, ECryXmlVersion forceVersion = ECryXmlVersion::Auto) = 0;
 
 	virtual bool       LoadBlackBox(const SStruct& outObj, SBlackBox& box) = 0;
 };
@@ -105,29 +114,29 @@ template<class T> bool CompareBinary(const T& lhs, const T& rhs)
 
 // ---------------------------------------------------------------------------
 
-template<class T> bool LoadXmlFile(T& outInstance, const char* filename)
+template<class T> bool LoadXmlFile(T& outInstance, const char* filename, ECryXmlVersion forceVersion = ECryXmlVersion::Auto)
 {
-	return gEnv->pSystem->GetArchiveHost()->LoadXmlFile(Serialization::SStruct(outInstance), filename);
+	return gEnv->pSystem->GetArchiveHost()->LoadXmlFile(Serialization::SStruct(outInstance), filename, forceVersion);
 }
 
-template<class T> bool SaveXmlFile(const char* filename, const T& instance, const char* rootNodeName)
+template<class T> bool SaveXmlFile(const char* filename, const T& instance, const char* rootNodeName, ECryXmlVersion forceVersion = ECryXmlVersion::Auto)
 {
-	return gEnv->pSystem->GetArchiveHost()->SaveXmlFile(filename, Serialization::SStruct(instance), rootNodeName);
+	return gEnv->pSystem->GetArchiveHost()->SaveXmlFile(filename, Serialization::SStruct(instance), rootNodeName, forceVersion);
 }
 
-template<class T> bool LoadXmlNode(T& outInstance, const XmlNodeRef& node)
+template<class T> bool LoadXmlNode(T& outInstance, const XmlNodeRef& node, ECryXmlVersion forceVersion = ECryXmlVersion::Auto)
 {
-	return gEnv->pSystem->GetArchiveHost()->LoadXmlNode(Serialization::SStruct(outInstance), node);
+	return gEnv->pSystem->GetArchiveHost()->LoadXmlNode(Serialization::SStruct(outInstance), node, forceVersion);
 }
 
-template<class T> XmlNodeRef SaveXmlNode(const T& instance, const char* nodeName)
+template<class T> XmlNodeRef SaveXmlNode(const T& instance, const char* nodeName, ECryXmlVersion forceVersion = ECryXmlVersion::Auto)
 {
-	return gEnv->pSystem->GetArchiveHost()->SaveXmlNode(Serialization::SStruct(instance), nodeName);
+	return gEnv->pSystem->GetArchiveHost()->SaveXmlNode(Serialization::SStruct(instance), nodeName, forceVersion);
 }
 
-template<class T> bool SaveXmlNode(XmlNodeRef& node, const T& instance)
+template<class T> bool SaveXmlNode(XmlNodeRef& node, const T& instance, ECryXmlVersion forceVersion = ECryXmlVersion::Auto)
 {
-	return gEnv->pSystem->GetArchiveHost()->SaveXmlNode(node, Serialization::SStruct(instance));
+	return gEnv->pSystem->GetArchiveHost()->SaveXmlNode(node, Serialization::SStruct(instance), forceVersion);
 }
 
 // ---------------------------------------------------------------------------

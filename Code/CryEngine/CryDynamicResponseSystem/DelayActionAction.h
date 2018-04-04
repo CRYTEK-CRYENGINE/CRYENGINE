@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 /************************************************************************
 
@@ -17,7 +17,7 @@ class CResponseInstance;
 class DelayActionActionInstance final : public DRS::IResponseActionInstance
 {
 public:
-	virtual ~DelayActionActionInstance();
+	virtual ~DelayActionActionInstance() override;
 	DelayActionActionInstance(float timeToDelay, DRS::IResponseActionSharedPtr pActionToDelay, CResponseInstance* pResponseInstance);
 
 	//////////////////////////////////////////////////////////

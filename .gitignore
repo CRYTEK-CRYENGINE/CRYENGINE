@@ -25,6 +25,7 @@ _WAF_/user_settings.options
 # Temporary directories.
 /TestResults/*
 /Solutions/*
+/solutions_cmake/*
 /.depproj/*
 /project.sln
 /[Ll]og[Bb]ackups

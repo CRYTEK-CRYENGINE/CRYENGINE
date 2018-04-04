@@ -22,7 +22,7 @@ public:
 		CRYINTERFACE_ADD(ITransformationPinning)
 	CRYINTERFACE_END()
 
-	CRYGENERATE_CLASS(CTransformationPinning, "AnimationPoseModifier_TransformationPin", 0xcc34ddea972e47da, 0x93f9cdcb98c28c8e)
+	CRYGENERATE_CLASS_GUID(CTransformationPinning, "AnimationPoseModifier_TransformationPin", "cc34ddea-972e-47da-93f9-cdcb98c28c8e"_cry_guid)
 
 	CTransformationPinning();
 	virtual ~CTransformationPinning();

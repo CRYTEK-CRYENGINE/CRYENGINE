@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 // -------------------------------------------------------------------------
 //  File name:   SurfaceManager.h
@@ -51,8 +51,13 @@ public:
 	}
 private:
 	int                         m_lastSurfaceId;
+	int                         m_lastDefaultId;
 
 	class CMaterialSurfaceType* m_pDefaultSurfaceType;
+
+	void                        RegisterAllDefaultTypes();
+	CMaterialSurfaceType*       RegisterDefaultType(const char* szName);
+	void                        ResetSurfaceTypes();
 
 	struct SSurfaceRecord
 	{

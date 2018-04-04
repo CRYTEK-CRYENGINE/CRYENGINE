@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #ifndef _SMART_PTR_H_
 #define _SMART_PTR_H_
@@ -29,7 +29,7 @@ public:
 			p->AddRef();
 	}
 
-	_smart_ptr(_smart_ptr&& p_)
+	_smart_ptr(_smart_ptr&& p_) noexcept
 	{
 		p = p_.p;
 		p_.p = nullptr;

@@ -34,5 +34,5 @@ end_sources()
 #END-FILE-LIST
 
 CryEngineStaticModule(png16 SOLUTION_FOLDER "Libs")
-target_include_directories(${THIS_PROJECT} INTERFACE ${SDK_DIR}/png16 )
+target_include_directories(${THIS_PROJECT} INTERFACE "${SDK_DIR}/png16" "${CRYENGINE_DIR}/Code/Libs/png16")
 target_link_libraries(${THIS_PROJECT} PRIVATE zlib)

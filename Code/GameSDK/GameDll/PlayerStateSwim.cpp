@@ -25,10 +25,10 @@ CPlayerStateSwim::CSwimmingParams CPlayerStateSwim::s_swimParams;
 void CPlayerStateSwim::CSwimmingParams::SetParamsFromXml(const IItemParamsNode* pParams)
 {
 	const IItemParamsNode* pSwimParams = pParams->GetChild("SwimmingParams");
-	if( pSwimParams )
+	if (pSwimParams)
 	{
 		const IItemParamsNode* pSprintNode = pSwimParams->GetChild("Sprint");
-		if( pSprintNode )
+		if (pSprintNode)
 		{
 			pSprintNode->GetAttribute("swimSpeedSprintSpeedMul", m_swimSpeedSprintSpeedMul);
 			pSprintNode->GetAttribute("swimUpSprintSpeedMul", m_swimUpSprintSpeedMul);
@@ -36,7 +36,7 @@ void CPlayerStateSwim::CSwimmingParams::SetParamsFromXml(const IItemParamsNode* 
 			pSprintNode->GetAttribute("stateSwim_animCameraFactor", m_stateSwim_animCameraFactor);
 		}
 		const IItemParamsNode* pDolphinNode = pSwimParams->GetChild("Dolphin");
-		if( pDolphinNode )
+		if (pDolphinNode)
 		{
 			pDolphinNode->GetAttribute("swimDolphinJumpDepth", m_swimDolphinJumpDepth);
 			pDolphinNode->GetAttribute("swimDolphinJumpThresholdSpeed", m_swimDolphinJumpThresholdSpeed);
@@ -45,47 +45,44 @@ void CPlayerStateSwim::CSwimmingParams::SetParamsFromXml(const IItemParamsNode* 
 	}
 }
 
-AudioControlId CPlayerStateSwim::m_submersionDepthParam = INVALID_AUDIO_CONTROL_ID;
+CryAudio::ControlId CPlayerStateSwim::m_submersionDepthParam = CryAudio::InvalidControlId;
 float CPlayerStateSwim::m_previousSubmersionDepth = 0.0f;
 
 CPlayerStateSwim::CPlayerStateSwim()
-: m_gravity(ZERO)
-, m_headUnderWaterTimer(-1.0f)
-, m_lastWaterLevel(0.0f)
-, m_lastWaterLevelTime(0.0f)
-, m_verticalVelDueToSurfaceMovement(0.0f)
-, m_onSurface(false)
-, m_bStillDiving(false)
+	: m_gravity(ZERO)
+	, m_headUnderWaterTimer(-1.0f)
+	, m_lastWaterLevel(0.0f)
+	, m_lastWaterLevelTime(0.0f)
+	, m_verticalVelDueToSurfaceMovement(0.0f)
+	, m_onSurface(false)
+	, m_bStillDiving(false)
 {
-	if (m_submersionDepthParam == INVALID_AUDIO_CONTROL_ID)
-	{
-		gEnv->pAudioSystem->GetAudioRtpcId("submersion_depth", m_submersionDepthParam);
-	}
+	m_submersionDepthParam = CryAudio::StringToId("submersion_depth");
 }
 
-bool CPlayerStateSwim::OnPrePhysicsUpdate( CPlayer& player, const SActorFrameMovementParams& movement, float frameTime )
+bool CPlayerStateSwim::OnPrePhysicsUpdate(CPlayer& player, const SActorFrameMovementParams& movement, float frameTime)
 {
 	const CPlayerStateSwim_WaterTestProxy& waterProxy = player.m_playerStateSwim_WaterTestProxy;
 
-	CPlayerStateUtil::PhySetFly( player );
+	CPlayerStateUtil::PhySetFly(player);
 
 	const SPlayerStats& stats = player.m_stats;
 
 #ifdef STATE_DEBUG
 	const bool debug = (g_pGameCVars->cl_debugSwimming != 0);
 #endif
-	
+
 	const Vec3 entityPos = player.GetEntity()->GetWorldPos();
 	const Quat baseQuat = player.GetBaseQuat();
 	const Vec3 vRight(baseQuat.GetColumn0());
-	
+
 	Vec3 velocity = player.GetActorPhysics().velocity;
 
 	// Underwater timer, sounds update and surface wave speed.
 	if (waterProxy.IsHeadUnderWater())
 	{
 		m_headUnderWaterTimer += frameTime;
-		if (m_headUnderWaterTimer < 0.0f && !m_onSurface )
+		if (m_headUnderWaterTimer < 0.0f && !m_onSurface)
 		{
 			player.PlaySound(CPlayer::ESound_DiveIn, true, nullptr, velocity.len());
 			m_headUnderWaterTimer = 0.0f;
@@ -102,24 +99,24 @@ bool CPlayerStateSwim::OnPrePhysicsUpdate( CPlayer& player, const SActorFrameMov
 			m_bStillDiving = false;
 		}
 	}
-	m_headUnderWaterTimer = clamp_tpl( m_headUnderWaterTimer, -0.2f, 0.2f );
+	m_headUnderWaterTimer = clamp_tpl(m_headUnderWaterTimer, -0.2f, 0.2f);
 
 	// Apply water flow velocity to the player
 	Vec3 gravity;
 	pe_params_buoyancy buoyancy[s_maxWaterVolumesToConsider];
 	if (int count = gEnv->pPhysicalWorld->CheckAreas(entityPos, gravity, &buoyancy[0], s_maxWaterVolumesToConsider))
 	{
-		for(int i = 0; i < count && i < s_maxWaterVolumesToConsider; ++i)
+		for (int i = 0; i < count && i < s_maxWaterVolumesToConsider; ++i)
 		{
 			// 0 is water
-			if( buoyancy[i].iMedium == 0 )
+			if (buoyancy[i].iMedium == 0)
 			{
 				velocity += (buoyancy[i].waterFlow * frameTime);
 			}
 		}
 	}
 
-	// Calculate desired acceleration (user input)	
+	// Calculate desired acceleration (user input)
 	Vec3 desiredWorldVelocity(ZERO);
 
 	Vec3 acceleration(ZERO);
@@ -158,16 +155,16 @@ bool CPlayerStateSwim::OnPrePhysicsUpdate( CPlayer& player, const SActorFrameMov
 #ifdef STATE_DEBUG
 		if (debug)
 		{
-			IRenderAuxText::DrawLabelF(entityPos - vRight * 1.5f + Vec3(0,0,0.8f), 1.5f, "BaseSpeed %1.3f", baseSpeed);
-			IRenderAuxText::DrawLabelF(entityPos - vRight * 1.5f + Vec3(0,0,1.0f), 1.5f, "SprintMul %1.2f", sprintMultiplier);
-			IRenderAuxText::DrawLabelF(entityPos - vRight * 1.5f + Vec3(0,0,0.6f), 1.5f, "MoveN[%1.3f, %1.3f, %1.3f]", desiredLocalNormalizedVelocity.x, desiredLocalNormalizedVelocity.y, desiredLocalNormalizedVelocity.z);
-			IRenderAuxText::DrawLabelF(entityPos - vRight * 1.5f + Vec3(0,0,0.5f), 1.5f, "VeloL[%1.3f, %1.3f, %1.3f]", desiredLocalVelocity.x, desiredLocalVelocity.y, desiredLocalVelocity.z);
-			IRenderAuxText::DrawLabelF(entityPos - vRight * 1.5f + Vec3(0,0,0.4f), 1.5f, "VeloW[%1.3f, %1.3f, %1.3f]", desiredWorldVelocity.x, desiredWorldVelocity.y, desiredWorldVelocity.z);
+			IRenderAuxText::DrawLabelF(entityPos - vRight * 1.5f + Vec3(0, 0, 0.8f), 1.5f, "BaseSpeed %1.3f", baseSpeed);
+			IRenderAuxText::DrawLabelF(entityPos - vRight * 1.5f + Vec3(0, 0, 1.0f), 1.5f, "SprintMul %1.2f", sprintMultiplier);
+			IRenderAuxText::DrawLabelF(entityPos - vRight * 1.5f + Vec3(0, 0, 0.6f), 1.5f, "MoveN[%1.3f, %1.3f, %1.3f]", desiredLocalNormalizedVelocity.x, desiredLocalNormalizedVelocity.y, desiredLocalNormalizedVelocity.z);
+			IRenderAuxText::DrawLabelF(entityPos - vRight * 1.5f + Vec3(0, 0, 0.5f), 1.5f, "VeloL[%1.3f, %1.3f, %1.3f]", desiredLocalVelocity.x, desiredLocalVelocity.y, desiredLocalVelocity.z);
+			IRenderAuxText::DrawLabelF(entityPos - vRight * 1.5f + Vec3(0, 0, 0.4f), 1.5f, "VeloW[%1.3f, %1.3f, %1.3f]", desiredWorldVelocity.x, desiredWorldVelocity.y, desiredWorldVelocity.z);
 		}
 #endif
 
 		//Remove a bit of control when entering the water
-		const float userControlFraction = (float)__fsel(0.3f - waterProxy.GetSwimmingTimer(), 0.2f, 1.0f); 
+		const float userControlFraction = (float)__fsel(0.3f - waterProxy.GetSwimmingTimer(), 0.2f, 1.0f);
 		acceleration += desiredWorldVelocity * userControlFraction;
 	}
 
@@ -176,9 +173,9 @@ bool CPlayerStateSwim::OnPrePhysicsUpdate( CPlayer& player, const SActorFrameMov
 	velocity += acceleration * (frameTime * accelerateDelayInv);
 
 #ifdef STATE_DEBUG
-	if( debug )
+	if (debug)
 	{
-		IRenderAuxText::DrawLabelF(entityPos - vRight * 1.5f - Vec3(0,0,0.2f), 1.5f, " Axx[%1.3f, %1.3f, %1.3f]", acceleration.x, acceleration.y, acceleration.z);
+		IRenderAuxText::DrawLabelF(entityPos - vRight * 1.5f - Vec3(0, 0, 0.2f), 1.5f, " Axx[%1.3f, %1.3f, %1.3f]", acceleration.x, acceleration.y, acceleration.z);
 	}
 #endif
 
@@ -199,7 +196,7 @@ bool CPlayerStateSwim::OnPrePhysicsUpdate( CPlayer& player, const SActorFrameMov
 		damping.x = fabsf(velocity.x);
 		damping.y = fabsf(velocity.y);
 
-		// Vertical damping is special, to allow jumping out of water with higher speed, 
+		// Vertical damping is special, to allow jumping out of water with higher speed,
 		// and also not sink too deep when falling down ito the water after jump or such.
 		float zDamp = 1.0f + (6.0f * clamp_tpl((-velocity.z - 1.0f) * 0.333f, 0.0f, 1.0f));
 		zDamp *= 1.0f - surfaceProximityInfluence;
@@ -211,7 +208,7 @@ bool CPlayerStateSwim::OnPrePhysicsUpdate( CPlayer& player, const SActorFrameMov
 		velocity.x = (float)__fsel((fabsf(velocity.x) - damping.x), (velocity.x - fsgnf(velocity.x) * damping.x), 0.0f);
 		velocity.y = (float)__fsel((fabsf(velocity.y) - damping.y), (velocity.y - fsgnf(velocity.y) * damping.y), 0.0f);
 		velocity.z = (float)__fsel((fabsf(velocity.z) - damping.z), (velocity.z - fsgnf(velocity.z) * damping.z), 0.0f);
-		
+
 		//Make sure you can not swim above the surface
 		if ((relativeWaterLevel >= 0.0f) && (velocity.z > 0.0f))
 		{
@@ -220,32 +217,32 @@ bool CPlayerStateSwim::OnPrePhysicsUpdate( CPlayer& player, const SActorFrameMov
 	}
 
 	// Decide if we're on the surface and therefore need to be kept there..
-	if( relativeWaterLevel > -0.2f && relativeWaterLevel < 1.0f && fabs_tpl( zSpeedPreDamping ) < 0.5f )
+	if (relativeWaterLevel > -0.2f && relativeWaterLevel < 1.0f && fabs_tpl(zSpeedPreDamping) < 0.5f)
 	{
-		if( !waterProxy.IsHeadUnderWater() )
+		if (!waterProxy.IsHeadUnderWater())
 		{
 			m_onSurface = true;
 		}
 	}
 	else
 	{
-		// we only leave the surface if the player moves, otherwise we try and keep the 
+		// we only leave the surface if the player moves, otherwise we try and keep the
 		// player on the surface, even if they currently arent
 		m_onSurface = false;
 	}
 
 	// Calculate and apply surface movement to the player.
 	float speedDelta = 0.0f;
-	if( m_onSurface )
+	if (m_onSurface)
 	{
 		const float newWaterLevel = waterProxy.GetWaterLevel();
-		const float waterLevelDelta = clamp_tpl(newWaterLevel - m_lastWaterLevel, -1.0f, 1.0f );
+		const float waterLevelDelta = clamp_tpl(newWaterLevel - m_lastWaterLevel, -1.0f, 1.0f);
 		const float newCheckedTime = waterProxy.GetWaterLevelTimeUpdated();
 		const float timeDelta = newCheckedTime - m_lastWaterLevelTime;
 
-		if( timeDelta > FLT_EPSILON )
+		if (timeDelta > FLT_EPSILON)
 		{
-			speedDelta = waterLevelDelta/timeDelta;
+			speedDelta = waterLevelDelta / timeDelta;
 
 			velocity.z += speedDelta;
 		}
@@ -262,33 +259,33 @@ bool CPlayerStateSwim::OnPrePhysicsUpdate( CPlayer& player, const SActorFrameMov
 	// DEBUG VELOCITY
 	if (debug)
 	{
-		IRenderAuxText::DrawLabelF(entityPos - vRight * 1.5f - Vec3(0,0,0.0f), 1.5f, "Velo[%1.3f, %1.3f, %1.3f]", velocity.x, velocity.y, velocity.z);
-		IRenderAuxText::DrawLabelF(entityPos - vRight * 1.5f - Vec3(0,0,0.4f), 1.5f, "Damp[%1.3f, %1.3f, %1.3f]", damping.x, damping.y, damping.z);
-		IRenderAuxText::DrawLabelF(entityPos - vRight * 1.5f - Vec3(0,0,0.6f), 1.5f, "FrameTime %1.4f", frameTime);
-		IRenderAuxText::DrawLabelF(entityPos - vRight * 1.5f + Vec3(0,0,0.3f), 1.5f, "DeltaSpeed[%1.3f]", speedDelta );
+		IRenderAuxText::DrawLabelF(entityPos - vRight * 1.5f - Vec3(0, 0, 0.0f), 1.5f, "Velo[%1.3f, %1.3f, %1.3f]", velocity.x, velocity.y, velocity.z);
+		IRenderAuxText::DrawLabelF(entityPos - vRight * 1.5f - Vec3(0, 0, 0.4f), 1.5f, "Damp[%1.3f, %1.3f, %1.3f]", damping.x, damping.y, damping.z);
+		IRenderAuxText::DrawLabelF(entityPos - vRight * 1.5f - Vec3(0, 0, 0.6f), 1.5f, "FrameTime %1.4f", frameTime);
+		IRenderAuxText::DrawLabelF(entityPos - vRight * 1.5f + Vec3(0, 0, 0.3f), 1.5f, "DeltaSpeed[%1.3f]", speedDelta);
 		//if (bNewSwimJumping)
-			//IRenderAuxText::DrawLabel(entityPos - vRight * 0.15f + Vec3(0,0,0.6f), 2.0f, "JUMP");
+		//IRenderAuxText::DrawLabel(entityPos - vRight * 0.15f + Vec3(0,0,0.6f), 2.0f, "JUMP");
 	}
 #endif
 
 	return true;
 }
 
-void CPlayerStateSwim::OnEnter( CPlayer& player )
+void CPlayerStateSwim::OnEnter(CPlayer& player)
 {
 	m_headUnderWaterTimer = -1.0f;
 	player.m_playerStateSwim_WaterTestProxy.OnEnterWater(player);
-	
+
 	IPhysicalEntity* pPhysEnt = player.GetEntity()->GetPhysics();
 	if (pPhysEnt != nullptr)
 	{
 		// get current gravity before setting to zero.
 		pe_player_dynamics simPar;
-		if( pPhysEnt->GetParams(&simPar) != 0 )
+		if (pPhysEnt->GetParams(&simPar) != 0)
 		{
 			m_gravity = simPar.gravity;
 		}
-		CPlayerStateUtil::PhySetFly( player );
+		CPlayerStateUtil::PhySetFly(player);
 	}
 
 	m_lastWaterLevel = player.m_playerStateSwim_WaterTestProxy.GetWaterLevel();
@@ -301,13 +298,13 @@ void CPlayerStateSwim::OnEnter( CPlayer& player )
 		ICameraMode::AnimationSettings animationSettings;
 		animationSettings.positionFactor = 1.0f;
 		animationSettings.rotationFactor = GetSwimParams().m_stateSwim_animCameraFactor;
-		
-		player.GetPlayerCamera()->SetCameraModeWithAnimationBlendFactors( eCameraMode_PartialAnimationControlled, animationSettings, "Entering swim state" );
+
+		player.GetPlayerCamera()->SetCameraModeWithAnimationBlendFactors(eCameraMode_PartialAnimationControlled, animationSettings, "Entering swim state");
 
 		if (!player.IsCinematicFlagActive(SPlayerStats::eCinematicFlag_HolsterWeapon))
 			player.HolsterItem(true);
 
-		if (gEnv->bMultiplayer)	// any left hand holding in SP?
+		if (gEnv->bMultiplayer) // any left hand holding in SP?
 		{
 			player.HideLeftHandObject(true);
 		}
@@ -321,15 +318,15 @@ void CPlayerStateSwim::OnEnter( CPlayer& player )
 }
 
 //------------------------------------------------------------------------
-void CPlayerStateSwim::OnExit( CPlayer& player )
+void CPlayerStateSwim::OnExit(CPlayer& player)
 {
 	m_headUnderWaterTimer = -1.0f;
 	player.m_playerStateSwim_WaterTestProxy.OnExitWater(player);
-	player.m_actorPhysics.groundNormal = Vec3(0,0,1);
-	
+	player.m_actorPhysics.groundNormal = Vec3(0, 0, 1);
+
 	if (player.IsClient())
 	{
-		//check if the camera still exists 
+		//check if the camera still exists
 		if (player.m_playerCamera != nullptr)
 		{
 			player.GetPlayerCamera()->SetCameraMode(eCameraMode_Default, "Leaving swim state");
@@ -341,7 +338,7 @@ void CPlayerStateSwim::OnExit( CPlayer& player )
 			player.HolsterItem(false);
 		}
 
-		if (gEnv->bMultiplayer)	// any left hand holding in SP?
+		if (gEnv->bMultiplayer) // any left hand holding in SP?
 		{
 			player.HideLeftHandObject(false);
 		}
@@ -361,7 +358,7 @@ void CPlayerStateSwim::OnExit( CPlayer& player )
 	IPhysicalEntity* pPhysEnt = player.GetEntity()->GetPhysics();
 	if (pPhysEnt != nullptr)
 	{
-		CPlayerStateUtil::PhySetNoFly( player, m_gravity );
+		CPlayerStateUtil::PhySetNoFly(player, m_gravity);
 	}
 
 	// Record 'Swim' telemetry stats.
@@ -369,20 +366,20 @@ void CPlayerStateSwim::OnExit( CPlayer& player )
 	CStatsRecordingMgr::TryTrackEvent(&player, eGSE_Swim, false);
 }
 
-void CPlayerStateSwim::OnUpdate( CPlayer& player, float frameTime )
+void CPlayerStateSwim::OnUpdate(CPlayer& player, float frameTime)
 {
 	// DT 12908: swim animation not playing after cutscene.
 	//           due to "NoWeapon" not being equipped as it hasn't been loaded into the inventory yet.
 	//           (Part 2).
 	// this function is called until "NoWeapon" is equipped.
-	if ( player.IsClient() )
+	if (player.IsClient())
 	{
 		const float breathingInterval = 5.0f;
-		player.m_pPlayerTypeComponent->UpdateSwimming( frameTime, breathingInterval );
+		player.m_pPlayerTypeComponent->UpdateSwimming(frameTime, breathingInterval);
 	}
 }
 
-bool CPlayerStateSwim::DetectJump( CPlayer& player, const SActorFrameMovementParams& movement, float frameTime, float* pVerticalSpeedModifier) const
+bool CPlayerStateSwim::DetectJump(CPlayer& player, const SActorFrameMovementParams& movement, float frameTime, float* pVerticalSpeedModifier) const
 {
 	const float minInWaterTime = 0.35f;
 	const CPlayerStateSwim_WaterTestProxy& waterProxy = player.m_playerStateSwim_WaterTestProxy;
@@ -390,13 +387,13 @@ bool CPlayerStateSwim::DetectJump( CPlayer& player, const SActorFrameMovementPar
 	if (allowJump)
 	{
 		// we broke the surface at a velocity enough to dolphin jump.
-		if( !m_onSurface && (waterProxy.GetRelativeWaterLevel() > -GetSwimParams().m_swimDolphinJumpDepth) )
+		if (!m_onSurface && (waterProxy.GetRelativeWaterLevel() > -GetSwimParams().m_swimDolphinJumpDepth))
 		{
 			const float velZ = player.GetActorPhysics().velocity.z;
 
-			if( (velZ > GetSwimParams().m_swimDolphinJumpThresholdSpeed) )
+			if ((velZ > GetSwimParams().m_swimDolphinJumpThresholdSpeed))
 			{
-				if( pVerticalSpeedModifier )
+				if (pVerticalSpeedModifier)
 				{
 					*pVerticalSpeedModifier = GetSwimParams().m_swimDolphinJumpSpeedModification;
 				}
@@ -411,7 +408,7 @@ bool CPlayerStateSwim::DetectJump( CPlayer& player, const SActorFrameMovementPar
 
 void CPlayerStateSwim::UpdateAudio(CPlayer const& player)
 {
-	if (m_submersionDepthParam != INVALID_AUDIO_CONTROL_ID)
+	if (m_submersionDepthParam != CryAudio::InvalidControlId)
 	{
 		float submersionDepth = 0.0f;
 
@@ -423,11 +420,7 @@ void CPlayerStateSwim::UpdateAudio(CPlayer const& player)
 		if (fabs_tpl(submersionDepth - m_previousSubmersionDepth) > 0.1f || submersionDepth == 0.0f)
 		{
 			m_previousSubmersionDepth = submersionDepth;
-			SAudioRequest request;
-			SAudioObjectRequestData<eAudioObjectRequestType_SetRtpcValue> requestData(m_submersionDepthParam, submersionDepth);
-			request.flags = eAudioRequestFlags_PriorityNormal;
-			request.pData = &requestData;
-			gEnv->pAudioSystem->PushRequest(request);
+			gEnv->pAudioSystem->SetParameter(m_submersionDepthParam, submersionDepth);
 		}
 	}
 }

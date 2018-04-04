@@ -13,13 +13,16 @@
 #include "MaterialSettings.h"
 #include "MaterialHelpers.h"
 #include "MaterialGenerator/MaterialGenerator.h"
-#include "TextureConversionDialog.h"
+#include "TextureManager.h"
 #include "SceneModelSingleSelection.h"
 #include "SceneView.h"
+#include "SaveRcObject.h"
+#include "ImporterUtil.h"
 
 // EditorCommon
 #include <CrySerialization/Decorators/Resources.h>
 #include <FilePathUtil.h>
+#include <ThreadingUtils.h>
 
 // EditorQt
 #include "QViewportSettings.h"
@@ -28,7 +31,7 @@
 #include <Material\Material.h>
 #include <Material\MaterialManager.h>
 
-#include <QPropertyTree/QPropertyTree.h>
+#include <Serialization/QPropertyTree/QPropertyTree.h>
 #include <QPropertyTree/ContextList.h>
 
 #include "Serialization/Decorators/EditorActionButton.h"
@@ -44,19 +47,6 @@
 
 namespace MeshImporter
 {
-
-string MakeFilename(string str)
-{
-	string res;
-	for (int i = 0; i < str.length(); ++i)
-	{
-		res += isalnum(str[i]) ? str[i] : ' ';
-	}
-
-	res.Trim();
-
-	return res;
-}
 
 namespace Private_DialogCAF
 {
@@ -121,7 +111,7 @@ SAnimationClip CreateClip(const FbxTool::SAnimationTake* const pTake)
 
 	SAnimationClip clip;
 	clip.takeName = pTake->name.empty() ? s_defaultTake : pTake->name;
-	clip.outputName = MakeFilename(clip.takeName);
+	clip.outputName = MakeAlphaNum(clip.takeName);
 	clip.startFrame = pTake->startFrame;
 	clip.endFrame = pTake->endFrame;
 	return clip;
@@ -432,9 +422,7 @@ void CDialogCAF::AssignScene(const SImportScenePayload* pUserData)
 	
 	AutoAssignSubMaterialIDs(std::vector<std::pair<int, QString>>(), GetScene());
 
-	// Fill textures.
-	m_pTextureManager->ClearTextures();
-	Fill(GetSceneManager(), *m_pTextureManager);
+	m_pTextureManager->Init(GetSceneManager());
 
 	UpdateMaterial();
 
@@ -493,6 +481,7 @@ void CDialogCAF::AssignMaterial(CMaterial* pMat, void* pUserData)
 
 QString CreateCHPARAMS(const QString& path)
 {
+	const QString animPath = !path.isEmpty() ? path : QString(".");
 	static const char* const szFormat =
 	  "<Params>\n"
 	  " <AnimationList>\n"
@@ -502,7 +491,7 @@ QString CreateCHPARAMS(const QString& path)
 	  "  <Animation name=\"*\" path=\"*/*.comb\"/>\n"
 	  " </AnimationList>\n"
 	  "</Params>\n";
-	return QString(szFormat).arg(path);
+	return QString(szFormat).arg(animPath);
 }
 
 void CDialogCAF::PreviewAnimationClip(const Private_DialogCAF::SAnimationClip& clip)
@@ -757,26 +746,50 @@ bool CDialogCAF::SaveAs(SSaveContext& ctx)
 {
 	using namespace Private_DialogCAF;
 
-	const QString targetDirPath = QtUtil::ToQString(ctx.targetFilePath);
+	std::shared_ptr<QTemporaryDir> pTempDir(std::move(ctx.pTempDir));
 
-	const QString sourceFilename = GetSceneManager().GetImportFile()->GetFilename();
+	struct SClipSaveState
+	{
+		SRcObjectSaveState rcSaveState;
+		string clipName;
+	};
 
-	for (const auto& clip : m_pSkeletonProperties->m_clips)
+	std::vector<SClipSaveState> clipSaveStates;
+	clipSaveStates.reserve(m_pSkeletonProperties->m_clips.size());
+	for (const SAnimationClip& clip : m_pSkeletonProperties->m_clips)
 	{
 		FbxMetaData::SMetaData metaData;
 		CreateMetaDataCaf(metaData, clip);
 
-		metaData.sourceFilename = QtUtil::ToString(sourceFilename);
-
-		auto pMetaDataFile = WriteTemporaryFile(targetDirPath, metaData.ToJson(), QtUtil::ToQString(clip.outputName));
-		CRY_ASSERT(pMetaDataFile);
-		const QString metaDataFilename = pMetaDataFile->fileName();
-
-		std::unique_ptr<SRcPayload> pPayload(new SRcPayload());
-		pPayload->m_pMetaDataFile = std::move(pMetaDataFile);
-
-		m_pAnimationRcCaller->CallRc(metaDataFilename, pPayload.release(), GetTaskHost(), GetRcOptions());
+		clipSaveStates.emplace_back();
+		SClipSaveState& saveState = clipSaveStates.back();
+		CaptureRcObjectSaveState(pTempDir, metaData, saveState.rcSaveState);
+		saveState.clipName = clip.outputName;
 	}
+
+	const string targetDirPath = ctx.targetFilePath;
+
+	const QString absOriginalFilePath = GetSceneManager().GetImportFile()->GetOriginalFilePath();
+	ThreadingUtils::Async([clipSaveStates, absOriginalFilePath, targetDirPath]()
+	{
+		// Asset relative path to directory. targetFilePath is absolute path.
+		const string dir = PathUtil::AbsolutePathToGamePath(targetDirPath);
+
+		const std::pair<bool, string> ret = CopySourceFileToDirectoryAsync(QtUtil::ToString(absOriginalFilePath), dir).get();
+		if (!ret.first)
+		{
+			const string& error = ret.second;
+			CryWarning(VALIDATOR_MODULE_EDITOR, VALIDATOR_ERROR, "Copying source file to '%s' failed: '%s'",
+				dir.c_str(), error.c_str());
+			return;
+		}
+
+		for (const SClipSaveState& clipSaveState : clipSaveStates)
+		{
+			const string targetFilePath = PathUtil::ReplaceExtension(PathUtil::Make(targetDirPath, clipSaveState.clipName), "caf");
+			SaveRcObjectAsync(clipSaveState.rcSaveState, targetFilePath);
+		}
+	});
 
 	return true;
 }
@@ -787,15 +800,15 @@ void CDialogCAF::CreateMetaDataCaf(FbxMetaData::SMetaData& metaData, const Priva
 
 	metaData.sourceFilename = QtUtil::ToString(GetSceneManager().GetImportFile()->GetFilePath());
 
-	metaData.m_animationClip.takeName = strcmp(clip.takeName, Private_DialogCAF::s_defaultTake) ? clip.takeName : "";
-	metaData.m_animationClip.startFrame = clip.startFrame;
-	metaData.m_animationClip.endFrame = clip.endFrame;
+	metaData.animationClip.takeName = strcmp(clip.takeName, Private_DialogCAF::s_defaultTake) ? clip.takeName : "";
+	metaData.animationClip.startFrame = clip.startFrame;
+	metaData.animationClip.endFrame = clip.endFrame;
 	metaData.outputFileExt = "caf";
 
 	const FbxTool::SNode* const pRootMotionNode = m_pScene->GetRootMotionNode();
 	if (pRootMotionNode)
 	{
-		metaData.m_animationClip.motionNodePath = FbxTool::GetPath(pRootMotionNode);
+		metaData.animationClip.motionNodePath = FbxTool::GetPath(pRootMotionNode);
 	}
 }
 

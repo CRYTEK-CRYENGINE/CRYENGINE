@@ -14,7 +14,7 @@ class CPlugin_OpenVR : public IOpenVRPlugin, public ISystemEventListener
 	CRYINTERFACE_ADD(ICryPlugin)
 	CRYINTERFACE_END()
 
-	CRYGENERATE_SINGLETONCLASS(CPlugin_OpenVR, "Plugin_OpenVR", 0x50A54ADB4BBF4068, 0x80B9EB3BFFA30C93)
+	CRYGENERATE_SINGLETONCLASS_GUID(CPlugin_OpenVR, "Plugin_OpenVR", "50a54adb-4bbf-4068-80b9-eb3bffa30c93"_cry_guid)
 
 	virtual ~CPlugin_OpenVR();
 

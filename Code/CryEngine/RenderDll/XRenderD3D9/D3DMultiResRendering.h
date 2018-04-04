@@ -49,7 +49,7 @@ public:
 	CConstantBufferPtr GetProjectionConstantBuffer(int flattenedWidth, int flattenedHeight);
 
 	void ExecuteFlattenDepth(CTexture* pSrcRT, CTexture* pDestRT);
-	void ExecuteLensMatchedOctagon(SDepthTexture* pDestRT);
+	void ExecuteLensMatchedOctagon(CTexture* pDestRT);
 
 private:
 	CVrProjectionManager(CD3D9Renderer* const pRenderer);

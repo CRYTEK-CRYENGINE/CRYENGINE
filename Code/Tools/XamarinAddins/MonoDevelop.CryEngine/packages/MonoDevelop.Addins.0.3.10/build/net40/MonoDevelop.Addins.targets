@@ -1,0 +1,183 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <UsingTask TaskName="MonoDevelop.Addins.Tasks.ResolveMonoDevelopAddins" AssemblyFile="MonoDevelop.Addins.Tasks.dll" />
+  <UsingTask TaskName="MonoDevelop.Addins.Tasks.GetDefaultMonoDevelopLocations" AssemblyFile="MonoDevelop.Addins.Tasks.dll" />
+  <UsingTask TaskName="MonoDevelop.Addins.Tasks.GenerateManifest" AssemblyFile="MonoDevelop.Addins.Tasks.dll" />
+  <UsingTask TaskName="MonoDevelop.Addins.Tasks.CollectOutputFiles" AssemblyFile="MonoDevelop.Addins.Tasks.dll" />
+  <UsingTask TaskName="MonoDevelop.Addins.Tasks.CreatePackage" AssemblyFile="MonoDevelop.Addins.Tasks.dll" />
+
+  <PropertyGroup Condition="'$(IsAddin)' != 'False'">
+    <IsAddin>True</IsAddin>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <MDProfileVersion Condition="'$(MDProfileVersion)' == ''">6.0</MDProfileVersion>
+    <MDProfilePath Condition="'$(MDProfilePath)' == ''">$(MONODEVELOP_TEST_PROFILE)</MDProfilePath>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(InstallAddin)'=='True' And '$(IsAddin)'=='True'">
+    <BuildDependsOn>$(BuildDependsOn);_CoreCreatePackage;_CoreInstallAddin</BuildDependsOn>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(CreatePackage)'=='True' And '$(IsAddin)'=='True'">
+    <BuildDependsOn>$(BuildDependsOn);_CoreCreatePackage</BuildDependsOn>
+  </PropertyGroup>
+
+  <!-- always reference the core addins and assemblies -->
+  <ItemGroup>
+    <Reference Include="System" />
+    <Reference Include="System.Core" />
+    <Reference Include="System.Xml" />
+    <AddinReference Include="MonoDevelop.Core"/>
+    <AddinReference Include="MonoDevelop.Ide" />
+    <!-- we depend on GTK# and friends but it's not in bin -->
+    <Reference Include="gtk-sharp">
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="atk-sharp">
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="glib-sharp">
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="gdk-sharp">
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="pango-sharp">
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="Mono.Cairo">
+      <Private>False</Private>
+    </Reference>
+    <!-- this is in bin, but core addins don't use it, so we have to make it explicit -->
+    <Reference Include="Newtonsoft.Json">
+      <Private>False</Private>
+    </Reference>
+  </ItemGroup>
+
+  <PropertyGroup>
+    <!-- FIXME logically this should be ResolveReferencesDependsOn but XS currently uses ResolveAssemblyReferences -->
+    <ResolveAssemblyReferencesDependsOn>
+      _MDResolveAddinReferences;
+      $(ResolveAssemblyReferencesDependsOn)
+    </ResolveAssemblyReferencesDependsOn>
+  </PropertyGroup>
+
+  <Target Name="ResolveMonoDevelopLocations">
+    <GetDefaultMonoDevelopLocations ProfileVersion="$(MDProfileVersion)" ProfilePath="$(MDProfilePath)" ReferencePath="$(ReferencePath)">
+      <Output TaskParameter="ConfigDir"   PropertyName="MDConfigDir"   Condition="'$(MDConfigDir)' == ''"    />
+      <Output TaskParameter="AddinsDir"   PropertyName="MDAddinsDir"   Condition="'$(MDAddinsDir)' == ''"    />
+      <Output TaskParameter="BinDir" PropertyName="MDBinDir" Condition="'$(MDBinDir)' == ''"  />
+    </GetDefaultMonoDevelopLocations>
+
+    <Message Text = "MDConfigDir:   $(MDConfigDir)" />
+    <Message Text = "MDAddinsDir:   $(MDAddinsDir)" />
+    <Message Text = "MDBinDir:      $(MDBinDir)" />
+
+    <PropertyGroup>
+      <MDToolExe Condition="Exists('$(MDBinDir)\vstool.exe')">$(MDBinDir)\vstool.exe</MDToolExe>
+      <MDToolExe Condition="'$(MDToolExe)'==''">$(MDBinDir)\mdtool.exe</MDToolExe>
+      <_MDToolCommand>"$(MDToolExe)"</_MDToolCommand>
+      <_MDToolCommand Condition="'$(OS)'=='Unix'">mono "$(MDToolExe)"</_MDToolCommand>
+    </PropertyGroup>
+
+    <Error Text = "Bin directory not found: $(MDBinDir)" Condition="!Exists('$(MDToolExe)')" />
+
+    <PropertyGroup>  
+      <AssemblySearchPaths>$(MDBinDir);$(AssemblySearchPaths)</AssemblySearchPaths>
+      <MDDatabaseDir>$(IntermediateOutputPath)mdam\db</MDDatabaseDir>
+      <MDConfigDir Condition="'$(MDConfigDir)'==''">$(IntermediateOutputPath)mdam\config</MDConfigDir>
+      <MDAddinsDir Condition="'$(MDAddinsDir)'==''">$(IntermediateOutputPath)mdam\addins</MDAddinsDir>
+    </PropertyGroup>
+  </Target>
+  
+  <Target Name="_MDResolveAddinReferences" DependsOnTargets="ResolveMonoDevelopLocations">
+    <ResolveMonoDevelopAddins
+      ConfigDir="$(MDConfigDir)"
+      AddinsDir="$(MDAddinsDir)"
+      DatabaseDir="$(MDDatabaseDir)"
+      BinDir="$(MDBinDir)"
+      AddinReferences="@(AddinReference)"
+    >
+      <Output TaskParameter="AssemblyReferences" ItemName ="Reference" />
+      <Output TaskParameter="AssemblyReferences" ItemName ="_MDResolvedAddinAssemblies" />
+      <Output TaskParameter="ResolvedAddins" ItemName ="_MDResolvedAddins" />
+      <Output TaskParameter="VersionDefines" PropertyName ="_MDVersionDefines" />
+    </ResolveMonoDevelopAddins>
+    <PropertyGroup>
+      <DefineConstants>$(DefineConstants);$(_MDVersionDefines)</DefineConstants>
+    </PropertyGroup>
+  </Target>
+
+  <Target Name="_CoreCreatePackage">
+    <CreatePackage
+      ConfigDir="$(MDConfigDir)"
+      AddinsDir="$(MDAddinsDir)"
+      DatabaseDir="$(MDDatabaseDir)"
+      BinDir="$(MDBinDir)"
+      OutputDir="$(OutDir)"
+      AddinFile="$(TargetPath)">
+          <Output TaskParameter="PackageFile" PropertyName="PackageFile" />
+      </CreatePackage>
+  </Target>
+
+  <Target Name="_CoreInstallAddin">
+    <!-- xbuild doesn't support StandardOutputImportance="Low" -->
+    <Exec Command='$(_MDToolCommand) setup install -y "$(PackageFile)"' />
+  </Target>
+
+  <Target Name="InstallAddin" DependsOnTargets="PackageAddin;_CoreInstallAddin" />
+
+  <Target Name="PackageAddin" DependsOnTargets="Build;_CoreCreatePackage" />
+
+  <PropertyGroup Condition="'$(IsAddin)' == 'True'">
+    <PrepareResourcesDependsOn>
+      _MDCollectOutputFiles;
+      _MDGenerateManifest;
+      $(PrepareResourcesDependsOn)
+    </PrepareResourcesDependsOn>
+    <PrepareForRunDependsOn>
+      _MDCopyOutputFiles;
+      $(PrepareForRunDependsOn)
+    </PrepareForRunDependsOn>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <_MDAddinFilesManifest>$(IntermediateOutputPath)_Manifest.addin.xml</_MDAddinFilesManifest>
+  </PropertyGroup>
+
+  <Target Name="_MDCollectOutputFiles">
+    <CollectOutputFiles
+        AddinFiles="@(AddinFile)">
+      <Output TaskParameter="AddinFilesWithLinkMetadata" ItemName ="_AddinFilesWithLinkMetadata" />
+    </CollectOutputFiles>
+    <ItemGroup>
+      <FileWrites Include="@(_AddinFilesWithLinkMetadata->'$(OutputPath)%(Link)')" />
+      <FileWrites Include="$(_MDAddinFilesManifest)" />
+      <EmbeddedResource Include="$(_MDAddinFilesManifest)">
+        <LogicalName>_Manifest.addin.xml</LogicalName>
+      </EmbeddedResource>
+    </ItemGroup>
+  </Target>
+
+  <Target Name="_MDCopyOutputFiles" Inputs="@(_AddinFilesWithLinkMetadata)" Outputs="@(_AddinFilesWithLinkMetadata->'$(OutputPath)%(Link)')">
+    <Copy
+      SkipUnchangedFiles="True"
+      SourceFiles="@(_AddinFilesWithLinkMetadata)"
+      DestinationFiles="@(_AddinFilesWithLinkMetadata->'$(OutputPath)%(Link)')" />
+  </Target>
+
+  <Target Name="_MDGenerateManifest" Inputs="$(MSBuildAllProjects);@(_MDResolvedAddins->'%(AddinFile)')" Outputs="$(_MDAddinFilesManifest)">
+    <GenerateManifest
+      ManifestFile="$(_MDAddinFilesManifest)"
+      ReferenceCopyLocalPaths="@(ReferenceCopyLocalPaths)"
+      AddinFilesWithLinkMetadata="@(_AddinFilesWithLinkMetadata)"
+      AddinDependencies="@(_MDResolvedAddins)" />
+  </Target>
+
+  <!-- when running in XS, the global property provider provides a valid mdbindir -->
+  <PropertyGroup Condition="'$(IsAddin)' != 'True'">
+    <TestRunnerCommand>$(MDBinDir)\mdtool.exe</TestRunnerCommand>
+    <TestRunnerArgs>run-md-tests</TestRunnerArgs>
+  </PropertyGroup>
+</Project>

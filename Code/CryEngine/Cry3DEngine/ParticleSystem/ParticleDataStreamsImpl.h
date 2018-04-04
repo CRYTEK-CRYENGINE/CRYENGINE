@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #ifdef CRY_PFX2_USE_SSE
 template<> ILINE pfx2::UColv convert<pfx2::UColv>(UCol v) { return _mm_set1_epi32(v.dcolor); }
@@ -22,12 +22,6 @@ template<typename T, typename Tv>
 ILINE T TIStream<T, Tv >::Load(TParticleId pId) const
 {
 	return *(m_pStream + pId);
-}
-
-template<typename T, typename Tv>
-ILINE T TIStream<T, Tv >::Load(TParticleId pId, T defaultVal) const
-{
-	return (pId != gInvalidId) ? *(m_pStream + pId) : defaultVal;
 }
 
 template<typename T, typename Tv>
@@ -74,7 +68,7 @@ ILINE void IOVec3Stream::Store(TParticleId pId, Vec3 value)
 }
 
 ILINE IQuatStream::IQuatStream(const float* pX, const float* pY, const float* pZ, const float* pW, Quat defaultVal)
-	: m_safeSink(defaultVal)
+	: m_safeSink(ToFloatv(defaultVal.w), ToFloatv(defaultVal.v.x), ToFloatv(defaultVal.v.y), ToFloatv(defaultVal.v.z))
 	, m_pXStream((pX && pY && pZ && pW) ? pX : (float*)&m_safeSink.v.x)
 	, m_pYStream((pX && pY && pZ && pW) ? pY : (float*)&m_safeSink.v.y)
 	, m_pZStream((pX && pY && pZ && pW) ? pZ : (float*)&m_safeSink.v.z)
@@ -112,16 +106,16 @@ ILINE void IOQuatStream::Store(TParticleId pId, Quat value)
 //////////////////////////////////////////////////////////////////////////
 
 ILINE STempVec3Stream::STempVec3Stream(TParticleHeap* pMemHeap, SUpdateRange range)
-	: m_xBuffer(*pMemHeap, range.m_lastParticleId - range.m_firstParticleId)
-	, m_yBuffer(*pMemHeap, range.m_lastParticleId - range.m_firstParticleId)
-	, m_zBuffer(*pMemHeap, range.m_lastParticleId - range.m_firstParticleId)
-	, m_stream(m_xBuffer.data() - range.m_firstParticleId, m_yBuffer.data() - range.m_firstParticleId, m_zBuffer.data() - range.m_firstParticleId)
+	: m_xBuffer(*pMemHeap, range.size())
+	, m_yBuffer(*pMemHeap, range.size())
+	, m_zBuffer(*pMemHeap, range.size())
+	, m_stream(m_xBuffer.data() - *range.begin(), m_yBuffer.data() - *range.begin(), m_zBuffer.data() - *range.begin())
 {
 }
 
 ILINE void STempVec3Stream::Clear(SUpdateRange range)
 {
-	const uint numBytes = (range.m_lastParticleId - range.m_firstParticleId) * sizeof(float);
+	const uint numBytes = range.size() * sizeof(float);
 	memset(m_xBuffer.data(), 0, numBytes);
 	memset(m_yBuffer.data(), 0, numBytes);
 	memset(m_zBuffer.data(), 0, numBytes);

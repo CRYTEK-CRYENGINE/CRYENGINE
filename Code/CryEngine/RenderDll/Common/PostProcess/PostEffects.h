@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 /*=============================================================================
    PostEffects.h : Post process effects
@@ -379,6 +379,8 @@ private:
 
 class CUberGamePostProcess : public CPostEffect
 {
+	friend class CUberGamePostEffectPass;
+
 public:
 
 	// Bitmaks used to enable only certain effects or combinations of most expensive effects
@@ -693,35 +695,6 @@ public:
 	virtual const char* GetName() const
 	{
 		return "WaterFlow";
-	}
-
-private:
-
-	// float
-	CEffectParam* m_pAmount;
-};
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-class CWaterVolume : public CPostEffect
-{
-public:
-	CWaterVolume()
-	{
-		m_nRenderFlags = 0;
-		m_nID = ePFX_WaterVolume;
-
-		AddParamFloatNoTransition("WaterVolume_Amount", m_pAmount, 0.0f);
-	}
-
-	virtual bool Preprocess();
-	virtual void Render();
-	virtual void Reset(bool bOnSpecChange = false);
-
-	virtual const char* GetName() const
-	{
-		return "WaterVolume";
 	}
 
 private:
@@ -1145,6 +1118,8 @@ private:
 
 class CFlashBang : public CPostEffect
 {
+	friend class CFlashBangPass;
+
 public:
 	CFlashBang()
 	{
@@ -1155,8 +1130,7 @@ public:
 		AddParamFloat("FlashBang_Time", m_pTime, 2.0f);               // flashbang time duration in seconds
 		AddParamFloat("FlashBang_BlindAmount", m_pBlindAmount, 0.5f); // flashbang blind time (fraction of frashbang time)
 
-		m_pGhostImage = 0;
-		m_fBlindAmount = 1.0f;
+		m_pGhostImage = nullptr;
 		m_fSpawnTime = 0.0f;
 	}
 
@@ -1179,136 +1153,10 @@ private:
 
 	SDynTexture* m_pGhostImage;
 
-	float        m_fBlindAmount;
 	float        m_fSpawnTime;
 
 	// float, float
 	CEffectParam* m_pTime, * m_pDifractionAmount, * m_pBlindAmount;
-};
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-class CSceneRain : public CPostEffect
-{
-public:
-	CSceneRain()
-	{
-		m_nRenderFlags = 0;
-		m_nID = ePFX_SceneRain;
-
-		m_pConeVB = 0;
-		m_nConeVBSize = 0;
-		m_updateFrameCount = 0;
-		m_bReinit = true;
-
-		AddParamBool("SceneRain_Active", m_pActive, 0);
-	}
-
-	virtual int         CreateResources();
-	virtual void        Release();
-	virtual bool        Preprocess();
-	virtual void        Render();
-	virtual void        Reset(bool bOnSpecChange = false);
-	virtual void        OnLostDevice();
-
-	virtual const char* GetName() const;
-
-	// Rain volume parameters (filled during rain layer/occ generation pass)
-	SRainParams m_RainVolParams;
-
-private:
-	bool   m_bReinit;
-	void*  m_pConeVB;
-	uint16 m_nConeVBSize;
-	uint32 m_updateFrameCount;
-	void CreateBuffers(uint16 nVerts, void*& pINVB, SVF_P3F_C4B_T2F* pVtxList);
-};
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-class CSceneSnow : public CPostEffect
-{
-public:
-	_smart_ptr<IRenderMesh> m_pSnowFlakeMesh;
-	CSceneSnow()
-	{
-		m_nID = ePFX_SceneSnow;
-
-		AddParamBool("SceneSnow_Active", m_pActive, 0);
-
-		m_nAliveClusters = 0;
-		m_pSnowFlakeMesh = NULL;
-		m_nSnowFlakeVertCount = 0;
-		m_nNumClusters = 0;
-		m_nFlakesPerCluster = 0;
-	}
-
-	virtual ~CSceneSnow()
-	{
-		Release();
-	}
-
-	bool                IsActiveSnow();
-
-	virtual int         CreateResources();
-	virtual bool        Preprocess();
-	virtual void        Render();
-	virtual void        Reset(bool bOnSpecChange = false);
-	virtual void        Release();
-
-	virtual const char* GetName() const;
-
-	// Rain volume parameters (filled during rain layer/occ generation pass)
-	// Needed for occlusion.
-	SRainParams m_RainVolParams;
-	SSnowParams m_SnowVolParams;
-
-private:
-
-	// Snow particle properties
-	struct SSnowCluster
-	{
-		// set default data
-		SSnowCluster() : m_pPos(0, 0, 0), m_pPosPrev(0, 0, 0), m_fSpawnTime(0.0f), m_fLifeTime(4.0f), m_fLifeTimeVar(2.5f), m_fWeight(0.3f), m_fWeightVar(0.1f)
-		{
-
-		}
-
-		// World position
-		Vec3  m_pPos, m_pPosPrev;
-		// Spawn time
-		float m_fSpawnTime;
-		// Life time and variation
-		float m_fLifeTime, m_fLifeTimeVar;
-		// Weight and variation
-		float m_fWeight, m_fWeightVar;
-	};
-
-	// Generate particle cluster mesh
-	bool GenerateClusterMesh();
-	// Spawn a cluster
-	void SpawnCluster(SSnowCluster*& pCluster);
-	// Update all clusters
-	void UpdateClusters();
-	// Draw clusters
-	void DrawClusters();
-	// Half resolution composite.
-	void HalfResComposite();
-
-	// float
-	CEffectParam* m_pActive;
-
-	typedef std::vector<SSnowCluster*> SSnowClusterVec;
-	typedef SSnowClusterVec::iterator  SSnowClusterItor;
-	SSnowClusterVec m_pClusterList;
-
-	int             m_nSnowFlakeVertCount;
-
-	int             m_nAliveClusters;
-	int             m_nNumClusters;
-	int             m_nFlakesPerCluster;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1500,6 +1348,8 @@ struct HudDataSortCmp
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 class C3DHud : public CPostEffect
 {
+	friend class C3DHudPass;
+
 public:
 
 	typedef CThreadSafeRendererContainer<SHudData> SHudDataVec;
@@ -1568,29 +1418,19 @@ public:
 #endif
 	}
 
-	virtual int  CreateResources();
-	virtual void Release();
-	virtual bool Preprocess();
+	virtual int         CreateResources();
+	virtual void        Release();
+	virtual bool        Preprocess();
 
-	virtual void Update();
-	virtual void OnBeginFrame(const SRenderingPassInfo& passInfo);
+	virtual void        Update();
+	virtual void        OnBeginFrame(const SRenderingPassInfo& passInfo);
 
-	virtual void Reset(bool bOnSpecChange = false);
-	virtual void AddRE(const CRenderElement* re, const SShaderItem* pShaderItem, CRenderObject* pObj, const SRenderingPassInfo& passInfo);
-	virtual void Render();
-
-	// Shared shader params/textures setup
-	void                CalculateProjMatrix();
-	void                SetShaderParams(SHudData& pData);
-	void                SetTextures(SHudData& pData);
-	void                RenderMesh(const CRenderElement* pRE, SShaderPass* pPass);
+	virtual void        Reset(bool bOnSpecChange = false);
+	virtual void        AddRE(const CRenderElement* re, const SShaderItem* pShaderItem, CRenderObject* pObj, const SRenderingPassInfo& passInfo);
+	virtual void        Render();
 
 	void                FlashUpdateRT();
-	void                DownsampleHud4x4(CTexture* pDstRT);
 	void                UpdateBloomRT(CTexture* pDstRT, CTexture* pBlurDst);
-	void                FinalPass();
-	void                ReleaseFlashPlayerRef(const uint32 nThreadID);
-	void                RenderFinalPass();
 
 	virtual const char* GetName() const
 	{
@@ -1606,6 +1446,18 @@ public:
 	{
 		m_maxParallax = maxParallax;
 	}
+
+private:
+	// Shared shader params/textures setup
+	void CalculateProjMatrix();
+	void SetShaderParams(SHudData& pData);
+	void SetTextures(SHudData& pData);
+	void RenderMesh(const CRenderElement* pRE, SShaderPass* pPass);
+
+	void DownsampleHud4x4(CTexture* pDstRT);
+	void FinalPass();
+	void ReleaseFlashPlayerRef(const uint32 nThreadID);
+	void RenderFinalPass();
 
 private:
 
@@ -1658,6 +1510,8 @@ private:
 
 class CFilterKillCamera : public CPostEffect
 {
+	friend class CKillCameraPass;
+
 public:
 
 	CFilterKillCamera()

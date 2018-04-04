@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #include "StdAfx.h"
 #include "UpdateAspectDataContext.h"
@@ -25,10 +25,6 @@ void CUpdateAspectDataContext::RequestFetchAspects(const NetworkAspectType fetch
 	PrefetchLine(m_objx.vAspectData, 0);
 	PrefetchLine(m_objx.vAspectData, 124);  //128 offset would potentially be off of the end of the array
 	m_fetchAspects = fetchAspects & m_allowedAspects;
-
-#if ENABLE_ASPECT_HASHING
-	m_hashAspects = fetchAspects & m_objx.nAspectsEnabled;
-#endif
 
 	const NetworkAspectType nAspectsEnabled = m_objx.nAspectsEnabled;
 	const NetworkAspectType nOriginalFetchAspects = m_fetchAspects;
@@ -116,14 +112,6 @@ CUpdateAspectDataContext::~CUpdateAspectDataContext()
 		{
 			MMM().FreeHdl(m_oldHdls[i]);
 		}
-#if ENABLE_ASPECT_HASHING
-		const NetworkAspectType aspectBit = 1 << i;
-		if (m_hashAspects & aspectBit)
-		{
-			ASSERT_PRIMARY_THREAD;
-			m_objx.hash[i] = m_pNetContext->GetGameContext()->HashAspect(m_obj.userID, aspectBit);
-		}
-#endif
 	}
 }
 

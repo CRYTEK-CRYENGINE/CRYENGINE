@@ -6,7 +6,7 @@
 #include "SandboxPlugin.h"
 #include "AsyncHelper.h"
 #include "MaterialHelpers.h"
-#include "TextureConversionDialog.h"
+#include "TextureManager.h"
 #include "Util/FileUtil.h"
 #include "TempRcObject.h"
 #include "ImporterUtil.h"
@@ -20,6 +20,7 @@
 #include <FilePathUtil.h>
 #include <DragDrop.h>
 #include <Notifications/NotificationCenter.h>
+#include <ThreadingUtils.h>
 
 #include <AssetSystem/Asset.h>
 #include <AssetSystem/AssetManager.h>
@@ -210,9 +211,9 @@ bool CBaseDialog::SaveAs(const QString& targetFilePath)
 	// Copy asset meta-data (.cryasset) to temporary save directory, if present, so that the RC takes the old data into account.
 	if (!QFile::copy(QtUtil::ToQString(absMetaSrcPath), ctx.pTempDir->path() + QtUtil::ToQString(tail)) && m_sceneData->pAsset)
 	{
-		CryWarning(VALIDATOR_MODULE_EDITOR, VALIDATOR_WARNING, "%s: Opened asset '%s', but asset meta-data '%s' is missing.",
-			__FUNCTION__, m_sceneData->pAsset->GetName(), m_sceneData->pAsset->GetMetadataFile());
-		return false;
+		CryWarning(VALIDATOR_MODULE_EDITOR, VALIDATOR_WARNING, 
+			"Asset meta-data '%s' is missing. A new one will be created.", 
+			m_sceneData->pAsset->GetMetadataFile());
 	}
 
 	return SaveAs(ctx);
@@ -249,25 +250,6 @@ void CBaseDialog::dropEvent(QDropEvent* pEvent)
 	const QStringList filePaths = pDragDropData->GetFilePaths();
 	CRY_ASSERT(!filePaths.empty());
 	OnDropFile(filePaths.first());
-}
-
-void CBaseDialog::closeEvent(QCloseEvent* pEvent)
-{
-	bool bDiscardChanges = false;
-	bDiscardChanges = GetIEditor()->IsMainFrameClosing();
-
-	// At the moment the tool-pane manager will close tool-panes unconditionally.
-	// Therefore, we always have to close the widget.
-	bDiscardChanges = true;
-
-	if (bDiscardChanges || MayUnloadSceneInternal())
-	{
-		pEvent->accept();
-	}
-	else
-	{
-		pEvent->ignore();
-	}
 }
 
 CBaseDialog::~CBaseDialog()
@@ -470,7 +452,8 @@ void CBaseDialog::OnOpen()
 
 	string assetFilePath;
 
-	if (gEnv->pConsole->GetCVar("ed_enableAssetPickers")->GetIVal())
+	const auto pickerState = (EAssetResourcePickerState)gEnv->pConsole->GetCVar("ed_enableAssetPickers")->GetIVal();
+	if (pickerState == EAssetResourcePickerState::EnableRecommended || pickerState == EAssetResourcePickerState::EnableAll)
 	{
 		auto assetTypes = GetAssetTypesFromFileFormatFlags(GetOpenFileFormatFlags());
 		const CAsset* const pAsset = CAssetBrowserDialog::OpenSingleAssetForTypes(assetTypes);
@@ -526,8 +509,16 @@ bool CBaseDialog::Open(const string& filePath)
 		return false;
 	}
 
-	// When opening a file, the source file is expected to be in the same directory.
-	const string absSourceFilePath = PathUtil::Make(PathUtil::GetParentDirectory(absSourceMetaFilePath), pMetaData->sourceFilename);
+	string absSourceFilePath;
+	if (pAsset && pAsset->GetSourceFile() && *pAsset->GetSourceFile() && (!pAsset->GetFilesCount() || stricmp(pAsset->GetSourceFile(), pAsset->GetFile(0)) != 0) )
+	{
+		absSourceFilePath = PathUtil::Make(PathUtil::GetGameProjectAssetsPath(), pAsset->GetSourceFile());
+	}
+	else
+	{
+		// When opening a file, the source file is expected to be in the same directory.
+		absSourceFilePath = PathUtil::Make(PathUtil::GetParentDirectory(absSourceMetaFilePath), pMetaData->sourceFilename);
+	}
 
 	std::unique_ptr<MeshImporter::SImportScenePayload> pPayload(new MeshImporter::SImportScenePayload());
 	pPayload->pMetaData = std::move(pMetaData);
@@ -576,51 +567,21 @@ void CBaseDialog::OnSaveAs()
 		return;  // Nothing to save.
 	}
 
-	QString filePath;  // File path of CGF file.
-
-	const QString originalFilePath = GetSceneManager().GetImportFile()->GetOriginalFilePath();
-
-	filePath = ShowSaveAsDialog();
-	if (filePath.isEmpty())
+	const QString assetFilePath = ShowSaveAsDialog();
+	if (assetFilePath.isEmpty())
 	{
 		return;
 	}
 
-	const QString assetFilePath = filePath;
-
-	filePath = GetAbsoluteGameFolderPath() + QDir::separator() + filePath;
-
-	// Original FBX file is outside game directory, so we have to copy it to the same directory
-	// as the target CGF file.
-
-	const QString path = QtUtil::ToQString(PathUtil::GetPathWithoutFilename(QtUtil::ToString(filePath)));
-	if (path.isEmpty())
+	const QString absFilePath = GetAbsoluteGameFolderPath() + QDir::separator() + assetFilePath;
+	if (!SaveAs(absFilePath))
 	{
-		LogPrintf("%s: Malformed path %s.", __FUNCTION__, QtUtil::ToString(path).c_str());
-		return;
+		CQuestionDialog::SCritical(tr("Save to CGF failed"), tr("Failed to write current data to %1").arg(absFilePath));
 	}
-
-	const QString sourceFilePath = QDir(path).absoluteFilePath(QFileInfo(originalFilePath).fileName());
-
-	CFileImporter fileImporter;
-	if (!fileImporter.Import(QtUtil::ToString(originalFilePath), QtUtil::ToString(sourceFilePath)))
+	else
 	{
-
-		CQuestionDialog::SCritical(tr("Save to CGF failed"), QtUtil::ToQString(fileImporter.GetError()));
-		return;
-	}
-
-	if (!filePath.isEmpty())
-	{
-		if (!SaveAs(filePath))
-		{
-			CQuestionDialog::SCritical(tr("Save to CGF failed"), tr("Failed to write current data to %1").arg(filePath));
-		}
-		else
-		{
-			CRY_ASSERT(m_sceneData);
-			m_sceneData->targetFilename = assetFilePath;
-		}
+		CRY_ASSERT(m_sceneData);
+		m_sceneData->targetFilename = assetFilePath;
 	}
 }
 
@@ -647,23 +608,19 @@ void CBaseDialog::OnSave()
 	}
 }
 
-bool CBaseDialog::CanQuit(std::vector<string>& unsavedChanges)
+void CBaseDialog::OnCloseAsset()
 {
-	if (!MayUnloadScene())
-	{
-		const IImportFile* const pImportFile = GetSceneManager().GetImportFile();
-		if (pImportFile)
-		{
-			unsavedChanges.push_back(QtUtil::ToString(pImportFile->GetOriginalFilePath()));
-		}
-		return false;
-	}
-	return true;
+	GetSceneManager().UnloadScene();
 }
 
 std::unique_ptr<CTempRcObject> CBaseDialog::CreateTempRcObject()
 {
 	return std::unique_ptr<CTempRcObject>(new CTempRcObject(GetTaskHost(), &m_sceneManager));
+}
+
+string CBaseDialog::GetTargetFilePath() const
+{
+	return m_sceneData ? QtUtil::ToString(m_sceneData->targetFilename) : string();
 }
 
 QString ReplaceExtension(const QString& str, const char* ext)

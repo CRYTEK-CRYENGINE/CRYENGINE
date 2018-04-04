@@ -2,38 +2,60 @@
 
 #pragma once
 
-#include <CryMono/IMonoObject.h>
+#include "MonoClass.h"
+#include "MonoString.h"
 
-#include <mono/metadata/object.h>
-#include <mono/metadata/class.h>
-
-struct IMonoClass;
-
-class CMonoObject final : public IMonoObject
+#ifndef HAVE_MONO_API
+namespace MonoInternals
 {
+	struct MonoObject;
+}
+#endif
+
+class CMonoObject
+{
+	friend class CMonoClass;
+	friend class CMonoMethod;
+	friend class CMonoProperty;
+
+	// Begin public API
 public:
-	CMonoObject(MonoObject* pObject, std::shared_ptr<IMonoClass> pClass);
-	virtual ~CMonoObject();
+	CMonoObject(MonoInternals::MonoObject* pObject, std::shared_ptr<CMonoClass> pClass);
+	CMonoObject(MonoInternals::MonoObject* pObject);
+	~CMonoObject();
 
-	// IMonoObject
-	virtual std::shared_ptr<IMonoObject> InvokeMethod(const char *methodName, void **pParams, int numParams) const override;
-	virtual std::shared_ptr<IMonoObject> InvokeMethodWithDesc(const char* methodDesc, void** pParams = nullptr) const override;
+	// Gets the string form of the object
+	std::shared_ptr<CMonoString> ToString() const;
 
-	virtual const char* ToString() const override;
+	// Gets the size of the array this object represents, if any
+	size_t GetArraySize() const;
+	// Gets the address of an element inside the array
+	char* GetArrayAddress(size_t elementSize, size_t index) const;
 
-	virtual size_t GetArraySize() const override;
-	virtual char* GetArrayAddress(size_t elementSize, size_t index) const override;
+	// Gets the internal handle for the object
+	MonoInternals::MonoObject* GetManagedObject() const { return m_pObject; }
+	// Gets the class of the object, queries if not already available
+	CMonoClass* GetClass();
 
-	virtual void* GetHandle() const override { return m_pObject; }
-	virtual IMonoClass* GetClass() const override { return m_pClass.get(); }
-	// ~IMonoObject
+	void CopyFrom(const CMonoObject& source);
+	void CopyFrom(MonoInternals::MonoObject* pSource);
+	std::shared_ptr<CMonoObject> Clone();
 
-	void Serialize();
-	void Deserialize();
+	void* UnboxObject();
+	template<typename T>
+	T* Unbox()
+	{
+		return static_cast<T*>(UnboxObject());
+	}
 
 protected:
-	MonoObject* m_pObject;
+	void AssignObject(MonoInternals::MonoObject* pObject);
+
+	void ReleaseGCHandle();
+
+protected:
+	MonoInternals::MonoObject* m_pObject;
 	uint32 m_gcHandle;
 
-	std::shared_ptr<IMonoClass> m_pClass;
+	std::shared_ptr<CMonoClass> m_pClass;
 };

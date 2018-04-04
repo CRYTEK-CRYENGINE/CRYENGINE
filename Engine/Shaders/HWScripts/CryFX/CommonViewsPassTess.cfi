@@ -53,7 +53,7 @@ HS_CONTROL_POINT_OUTPUT_CUSTOMRENDER Common_CustomRenderPassHS(InputPatch<vert2f
 
 ///////////////// domain shader //////////////////
 
-void FillEvalInput_CR(in HS_CONTROL_POINT_OUTPUT_CUSTOMRENDER triPatch[3], in HS_CONSTANT_DATA_OUTPUT hsConstData, in float3 vBaryCoords, inout CommonEvaluationInputDS evalInput)
+void FillEvalInput_CR(in const OutputPatch<HS_CONTROL_POINT_OUTPUT_CUSTOMRENDER, 3> triPatch, in HS_CONSTANT_DATA_OUTPUT hsConstData, in float3 vBaryCoords, inout CommonEvaluationInputDS evalInput)
 {
 	evalInput.vBaryCoords = vBaryCoords;
 	FillEvalInputControlPoint(triPatch[0].controlPoint, triPatch[1].controlPoint, triPatch[2].controlPoint, hsConstData, evalInput);

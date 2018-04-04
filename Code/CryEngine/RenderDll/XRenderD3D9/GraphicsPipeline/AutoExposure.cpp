@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #include "StdAfx.h"
 #include "AutoExposure.h"
@@ -7,8 +7,6 @@
 
 void CAutoExposureStage::Init()
 {
-	m_samplerPoint = CTexture::GetTexState(STexState(FILTER_POINT, true));
-	m_samplerLinear = CTexture::GetTexState(STexState(FILTER_LINEAR, true));
 }
 
 void GetSampleOffsets_Downscale4x4Bilinear(uint32 width, uint32 height, Vec4 avSampleOffsets[])
@@ -67,15 +65,16 @@ void CAutoExposureStage::MeasureLuminance()
 		if (m_passLuminanceInitial.InputChanged())
 		{
 			static CCryNameTSCRC techLumInitial("HDRSampleLumInitial");
+			m_passLuminanceInitial.SetPrimitiveFlags(CRenderPrimitive::eFlags_ReflectShaderConstants_PS);
 			m_passLuminanceInitial.SetTechnique(pShader, techLumInitial, 0);
 			m_passLuminanceInitial.SetRenderTarget(0, CTexture::s_ptexHDRToneMaps[curTexture]);
 			m_passLuminanceInitial.SetState(GS_NODEPTHTEST);
 			m_passLuminanceInitial.SetFlags(CPrimitiveRenderPass::ePassFlags_RequireVrProjectionConstants);
 
-			m_passLuminanceInitial.SetTextureSamplerPair(0, CTexture::s_ptexHDRTargetScaled[1], m_samplerLinear);
-			m_passLuminanceInitial.SetTextureSamplerPair(1, CTexture::s_ptexSceneNormalsMap, m_samplerLinear);
-			m_passLuminanceInitial.SetTextureSamplerPair(2, CTexture::s_ptexSceneDiffuse, m_samplerLinear);
-			m_passLuminanceInitial.SetTextureSamplerPair(3, CTexture::s_ptexSceneSpecular, m_samplerLinear);
+			m_passLuminanceInitial.SetTextureSamplerPair(0, CTexture::s_ptexHDRTargetScaled[1], EDefaultSamplerStates::LinearClamp);
+			m_passLuminanceInitial.SetTextureSamplerPair(1, CTexture::s_ptexSceneNormalsMap, EDefaultSamplerStates::LinearClamp);
+			m_passLuminanceInitial.SetTextureSamplerPair(2, CTexture::s_ptexSceneDiffuse, EDefaultSamplerStates::LinearClamp);
+			m_passLuminanceInitial.SetTextureSamplerPair(3, CTexture::s_ptexSceneSpecular, EDefaultSamplerStates::LinearClamp);
 		}
 
 		static CCryNameR sampleLumOffsets0Name("SampleLumOffsets0");
@@ -110,10 +109,11 @@ void CAutoExposureStage::MeasureLuminance()
 				rtMask |= g_HWSR_MaskBit[HWSR_SAMPLE1];
 
 			static CCryNameTSCRC techLumIterative("HDRSampleLumIterative");
+			passLuminanceIteration.SetPrimitiveFlags(CRenderPrimitive::eFlags_ReflectShaderConstants_PS);
 			passLuminanceIteration.SetTechnique(pShader, techLumIterative, rtMask);
 			passLuminanceIteration.SetRenderTarget(0, CTexture::s_ptexHDRToneMaps[curTexture]);
 			passLuminanceIteration.SetState(GS_NODEPTHTEST);
-			passLuminanceIteration.SetTextureSamplerPair(0, CTexture::s_ptexHDRToneMaps[curTexture + 1], m_samplerLinear);
+			passLuminanceIteration.SetTextureSamplerPair(0, CTexture::s_ptexHDRToneMaps[curTexture + 1], EDefaultSamplerStates::LinearClamp);
 		}
 
 		static CCryNameR param1Name("SampleOffsets");
@@ -126,9 +126,10 @@ void CAutoExposureStage::MeasureLuminance()
 		passLuminanceIteration.Execute();
 	}
 
-	pRenderer->GetDeviceContext().CopyResource(
-	  CTexture::s_ptexHDRMeasuredLuminance[gcpRendD3D->RT_GetCurrGpuID()]->GetDevTexture()->GetBaseTexture(),
-	  CTexture::s_ptexHDRToneMaps[0]->GetDevTexture()->GetBaseTexture());
+	GetDeviceObjectFactory().GetCoreCommandList().GetCopyInterface()->Copy(
+		CTexture::s_ptexHDRToneMaps[0]->GetDevTexture(),
+		CTexture::s_ptexHDRMeasuredLuminance[gcpRendD3D->RT_GetCurrGpuID()]->GetDevTexture()
+	);
 }
 
 void CAutoExposureStage::AdjustExposure()
@@ -152,11 +153,12 @@ void CAutoExposureStage::AdjustExposure()
 	if (m_passAutoExposure.InputChanged(pTexCur->GetTextureID(), pTexPrev->GetTextureID()))
 	{
 		static CCryNameTSCRC techAdaptedLum("HDRCalculateAdaptedLum");
+		m_passAutoExposure.SetPrimitiveFlags(CRenderPrimitive::eFlags_ReflectShaderConstants_PS);
 		m_passAutoExposure.SetTechnique(pShader, techAdaptedLum, 0);
 		m_passAutoExposure.SetRenderTarget(0, pTexCur);
 		m_passAutoExposure.SetState(GS_NODEPTHTEST);
-		m_passAutoExposure.SetTextureSamplerPair(0, pTexPrev, m_samplerPoint);
-		m_passAutoExposure.SetTextureSamplerPair(1, CTexture::s_ptexHDRToneMaps[0], m_samplerPoint);
+		m_passAutoExposure.SetTextureSamplerPair(0, pTexPrev, EDefaultSamplerStates::PointClamp);
+		m_passAutoExposure.SetTextureSamplerPair(1, CTexture::s_ptexHDRToneMaps[0], EDefaultSamplerStates::PointClamp);
 	}
 
 	static CCryNameR param0Name("ElapsedTime");

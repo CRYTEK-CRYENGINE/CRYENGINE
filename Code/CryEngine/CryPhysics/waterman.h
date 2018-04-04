@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #ifndef waterman_h
 #define waterman_h
@@ -6,6 +6,7 @@
 
 
 struct SWaterTile : SWaterTileBase {
+	SWaterTile() {}
 	SWaterTile(int _nCells) { int n=sqr(nCells=_nCells); ph=new float[n]; pvel=new Vec3[n]; mv=new Vec2[n]; m=new float[n]; norm=new uchar[n]; bActive=0; }
 	~SWaterTile() { delete[] ph; delete[] pvel; delete[] mv; delete[] m; delete[] norm; }
 	SWaterTile *Activate(int bActivate=1) {	if (bActive && !bActivate) zero(); bActive=bActivate; return this; }
@@ -36,6 +37,7 @@ public:
 	int IsActive() { for(int i=0;i<sqr(m_nTiles*2+1);i++) if (m_pTiles[i] && m_pTiles[i]->bActive) return 1; return 0; }
 	void Reset() { for(int i=0;i<sqr(m_nTiles*2+1);i++) if (m_pTiles[i]) m_pTiles[i]->Activate(0); m_doffs=0; }
 	void DrawHelpers(IPhysRenderer *pRenderer);
+	void GetMemoryStatistics(ICrySizer *pSizer) const;
 
 	int GetCellIdx(Vec2i pt, int &idxtile) {
 		float rncells = m_cellSz*m_rtileSz;

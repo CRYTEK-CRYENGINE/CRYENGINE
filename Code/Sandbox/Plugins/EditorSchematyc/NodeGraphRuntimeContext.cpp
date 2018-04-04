@@ -4,8 +4,24 @@
 #include "NodeGraphRuntimeContext.h"
 
 #include "GraphNodeItem.h"
+#include "GraphViewWidget.h"
 
-#include <Schematyc/Script/IScriptGraph.h>
+#include <NodeGraph/NodeGraphViewStyle.h>
+#include <CrySchematyc/Script/IScriptGraph.h>
+
+// TODO: Replace when CNodeStyle was moved into its own header.
+#include "GraphNodeItem.h"
+
+#include "VariableStorage/AbstractVariableTypesModel.h"
+
+#include "NodeGraph/NodeWidgetStyle.h"
+#include "NodeGraph/NodeHeaderWidgetStyle.h"
+#include "NodeGraph/NodeGraphViewStyle.h"
+#include "NodeGraph/ConnectionWidgetStyle.h"
+#include "NodeGraph/NodePinWidgetStyle.h"
+
+#include <QtUtil.h>
+// ~TODO
 
 #include <QStringList>
 
@@ -72,6 +88,21 @@ QVariant CNodesDictionaryNodeEntry::GetIdentifier() const
 	// ~TODO
 }
 
+CNodesDictionaryCategoryEntry::~CNodesDictionaryCategoryEntry()
+{
+	for (CNodesDictionaryCategoryEntry* pCategoryEntry : m_categories)
+	{
+		delete pCategoryEntry;
+	}
+	m_categories.clear();
+
+	for (CNodesDictionaryNodeEntry* pNodeEntry : m_nodes)
+	{
+		delete pNodeEntry;
+	}
+	m_nodes.clear();
+}
+
 QVariant CNodesDictionaryCategoryEntry::GetColumnValue(int32 columnIndex) const
 {
 	switch (columnIndex)
@@ -112,13 +143,14 @@ const CAbstractDictionaryEntry* CNodesDictionaryCategoryEntry::GetParentEntry() 
 }
 
 CNodesDictionary::CNodesDictionary()
+	: m_pStyle(nullptr)
 {
 
 }
 
 CNodesDictionary::~CNodesDictionary()
 {
-
+	Clear();
 }
 
 const CAbstractDictionaryEntry* CNodesDictionary::GetEntry(int32 index) const
@@ -182,6 +214,8 @@ public:
 
 	void AddRecursive(const QString& name, QStringList& categories, CNodesDictionaryCategoryEntry* pParentCategory, const char* szStyleId = nullptr)
 	{
+		const CryGraphEditor::CNodeGraphViewStyle* pStyle = m_dictionary.m_pStyle;
+
 		if (categories.size() > 0)
 		{
 			std::vector<CNodesDictionaryCategoryEntry*>* pCategoryItems = pParentCategory ? &pParentCategory->m_categories : &m_dictionary.m_categories;
@@ -197,9 +231,12 @@ public:
 			}
 
 			const QIcon* pIcon = nullptr;
-			if (const CNodeStyle* pStyle = CNodeStyles::GetStyleById(szStyleId))
+			if (pStyle)
 			{
-				pIcon = pStyle->GetMenuIcon();
+				if (const CryGraphEditor::CNodeWidgetStyle* pNodeStyle = pStyle->GetNodeWidgetStyle(szStyleId))
+				{
+					pIcon = &pNodeStyle->GetMenuIcon();
+				}
 			}
 
 			CNodesDictionaryCategoryEntry* pNewCategory = nullptr;
@@ -220,9 +257,12 @@ public:
 		else
 		{
 			const QIcon* pIcon = nullptr;
-			if (const CNodeStyle* pStyle = CNodeStyles::GetStyleById(szStyleId))
+			if (pStyle)
 			{
-				pIcon = pStyle->GetMenuIcon();
+				if (const CryGraphEditor::CNodeWidgetStyle* pNodeStyle = pStyle->GetNodeWidgetStyle(szStyleId))
+				{
+					pIcon = &pNodeStyle->GetMenuIcon();
+				}
 			}
 
 			CNodesDictionaryNodeEntry* pNewNodeItem = new CNodesDictionaryNodeEntry(name, m_fullName, *m_ppCommand, pParentCategory, pIcon);
@@ -250,9 +290,132 @@ void CNodesDictionary::LoadLoadsFromScriptGraph(Schematyc::IScriptGraph& scriptG
 	scriptGraph.PopulateNodeCreationMenu(creator);
 }
 
-CNodeGraphRuntimeContext::CNodeGraphRuntimeContext(Schematyc::IScriptGraph& scriptGraph)
+void CNodesDictionary::Clear()
 {
-	m_nodesDictionary.LoadLoadsFromScriptGraph(scriptGraph);
+	for (CNodesDictionaryCategoryEntry* pCategoryEntry : m_categories)
+	{
+		delete pCategoryEntry;
+	}
+	m_categories.clear();
+
+	for (CNodesDictionaryNodeEntry* pNodeEntry : m_nodes)
+	{
+		delete pNodeEntry;
+	}
+	m_nodes.clear();
+}
+
+void AddNodeStyle(CryGraphEditor::CNodeGraphViewStyle& viewStyle, const char* szStyleId, const char* szIcon, QColor color, bool coloredHeaderIconText = true)
+{
+	CryGraphEditor::CNodeWidgetStyle* pStyle = new CryGraphEditor::CNodeWidgetStyle(szStyleId, viewStyle);
+	CryGraphEditor::CNodeHeaderWidgetStyle& headerStyle = pStyle->GetHeaderWidgetStyle();
+
+	headerStyle.SetNodeIconMenuColor(color);
+
+	if (coloredHeaderIconText)
+	{
+		headerStyle.SetNameColor(color);
+		headerStyle.SetLeftColor(QColor(26, 26, 26));
+		headerStyle.SetRightColor(QColor(26, 26, 26));
+		headerStyle.SetNodeIconViewDefaultColor(color);
+
+		CryIcon icon(szIcon, {
+				{ QIcon::Mode::Normal, QColor(255, 255, 255) }
+		  });
+		headerStyle.SetNodeIcon(icon);
+	}
+	else
+	{
+		headerStyle.SetNameColor(QColor(26, 26, 26));
+		headerStyle.SetLeftColor(color);
+		headerStyle.SetRightColor(color);
+		headerStyle.SetNodeIconViewDefaultColor(QColor(26, 26, 26));
+
+		CryIcon icon(szIcon, {
+				{ QIcon::Mode::Normal, QColor(255, 255, 255) }
+		  });
+		headerStyle.SetNodeIcon(icon);
+	}
+}
+
+void AddConnectionStyle(CryGraphEditor::CNodeGraphViewStyle& viewStyle, const char* szStyleId, float width)
+{
+	CryGraphEditor::CConnectionWidgetStyle* pStyle = new CryGraphEditor::CConnectionWidgetStyle(szStyleId, viewStyle);
+	pStyle->SetWidth(width);
+}
+
+void AddPinStyle(CryGraphEditor::CNodeGraphViewStyle& viewStyle, const char* szStyleId, const char* szIcon, QColor color)
+{
+	CryIcon icon(szIcon, {
+			{ QIcon::Mode::Normal, color }
+	  });
+
+	CryGraphEditor::CNodePinWidgetStyle* pStyle = new CryGraphEditor::CNodePinWidgetStyle(szStyleId, viewStyle);
+	pStyle->SetIcon(icon);
+	pStyle->SetColor(color);
+}
+
+CryGraphEditor::CNodeGraphViewStyle* CreateStyle()
+{
+	CryGraphEditor::CNodeGraphViewStyle* pViewStyle = new CryGraphEditor::CNodeGraphViewStyle("Schematyc");
+
+	AddNodeStyle(*pViewStyle, "Node", "icons:schematyc/node_default.ico", QColor(255, 0, 0));
+	// TODO: We should use something like 'Node::Core::FlowControl' for nodes.
+	AddNodeStyle(*pViewStyle, "Core::FlowControl::Begin", "icons:schematyc/core_flowcontrol_begin.ico", QColor(97, 172, 236), false);
+	AddNodeStyle(*pViewStyle, "Core::FlowControl::End", "icons:schematyc/core_flowcontrol_end.ico", QColor(97, 172, 236), false);
+	AddNodeStyle(*pViewStyle, "Core::FlowControl", "icons:schematyc/core_flowcontrol.ico", QColor(255, 255, 255));
+	AddNodeStyle(*pViewStyle, "Core::SendSignal", "icons:schematyc/core_sendsignal.ico", QColor(100, 193, 98));
+	AddNodeStyle(*pViewStyle, "Core::ReceiveSignal", "icons:schematyc/core_receivesignal.ico", QColor(100, 193, 98));
+	AddNodeStyle(*pViewStyle, "Core::Function", "icons:schematyc/core_function.ico", QColor(193, 98, 98));
+	AddNodeStyle(*pViewStyle, "Core::Data", "icons:schematyc/core_data.ico", QColor(156, 98, 193));
+	AddNodeStyle(*pViewStyle, "Core::Utility", "icons:schematyc/core_utility.ico", QColor(153, 153, 153));
+	AddNodeStyle(*pViewStyle, "Core::State", "icons:schematyc/core_state.ico", QColor(192, 193, 98));
+	AddNodeStyle(*pViewStyle, "Node::FlowGraph", "icons:schematyc/node_flow_graph.png", QColor(98, 98, 236));
+	// ~TODO
+
+	AddConnectionStyle(*pViewStyle, "Connection::Data", 2.0);
+	AddConnectionStyle(*pViewStyle, "Connection::Execution", 3.0);
+
+	//AddConnectionStyle(*pViewStyle, "Connection", 2.0);
+
+	//AddPinStyle(*pViewStyle, "Pin", "icons:Graph/Node_connection_arrow_R.ico", QColor(200, 200, 200));
+
+	CDataTypesModel& dataTypesModel = CDataTypesModel::GetInstance();
+	for (uint32 i = 0; i < dataTypesModel.GetTypeItemsCount(); ++i)
+	{
+		CDataTypeItem* pDataType = dataTypesModel.GetTypeItemByIndex(i);
+		if (pDataType)
+		{
+			stack_string styleId = "Pin::";
+			styleId.append(QtUtil::ToString(pDataType->GetName()).c_str());
+
+			AddPinStyle(*pViewStyle, styleId.c_str(), "icons:Graph/Node_connection_circle.ico", pDataType->GetColor());
+		}
+	}
+
+	AddPinStyle(*pViewStyle, "Pin::Execution", "icons:Graph/Node_connection_arrow_R.ico", QColor(200, 200, 200));
+	AddPinStyle(*pViewStyle, "Pin::Signal", "icons:Graph/Node_connection_arrow_R.ico", QColor(200, 200, 200));
+
+	return pViewStyle;
+}
+
+CNodeGraphRuntimeContext::CNodeGraphRuntimeContext(Schematyc::IScriptGraph& scriptGraph)
+	: m_scriptGraph(scriptGraph)
+{
+	m_pStyle = CreateStyle();
+	m_nodesDictionary.SetStyle(m_pStyle);
+}
+
+CNodeGraphRuntimeContext::~CNodeGraphRuntimeContext()
+{
+	m_pStyle->deleteLater();
+}
+
+CAbstractDictionary* CNodeGraphRuntimeContext::GetAvailableNodesDictionary()
+{
+	m_nodesDictionary.Clear();
+	m_nodesDictionary.LoadLoadsFromScriptGraph(m_scriptGraph);
+	return &m_nodesDictionary;
 }
 
 }

@@ -7,7 +7,7 @@ float4 BaseTCMatrix    : PB_TerrainBaseMatrix;
 
 sampler2D TextureCompiling = sampler_state
 {
-  Texture = EngineAssets/TextureMsg/ShaderCompiling.dds;
+  Texture = %ENGINE%/EngineAssets/TextureMsg/ShaderCompiling.dds;
   MinFilter = LINEAR;
   MagFilter = LINEAR;
   MipFilter = LINEAR;
@@ -15,7 +15,7 @@ sampler2D TextureCompiling = sampler_state
 
 sampler2D TextureError = sampler_state
 {
-  Texture = EngineAssets/TextureMsg/ShaderError.dds;
+  Texture = %ENGINE%/EngineAssets/TextureMsg/ShaderError.dds;
   MinFilter = LINEAR;
   MagFilter = LINEAR;
   MipFilter = LINEAR;

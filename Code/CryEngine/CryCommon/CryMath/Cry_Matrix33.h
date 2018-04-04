@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 //
 //	File:Cry_Matrix33.h
@@ -9,54 +9,22 @@
 //
 //////////////////////////////////////////////////////////////////////
 
-#ifndef MATRIX33_H
-#define MATRIX33_H
-
-#if _MSC_VER > 1000
-	#pragma once
-#endif
+#pragma once
 
 template<typename F> struct Matrix33_tpl
+	: INumberArray<F, 9>
 {
+	typedef INumberArray<F, 9> NA;
+
 	F m00, m01, m02;
 	F m10, m11, m12;
 	F m20, m21, m22;
 
 	//---------------------------------------------------------------------------------
+	ILINE Matrix33_tpl() {}
+	ILINE Matrix33_tpl(type_zero) { NA::SetZero(); }
 
-#ifdef _DEBUG
-	ILINE Matrix33_tpl()
-	{
-		if (sizeof(F) == 4)
-		{
-			uint32* p = alias_cast<uint32*>(&m00);
-			p[0] = F32NAN;
-			p[1] = F32NAN;
-			p[2] = F32NAN;
-			p[3] = F32NAN;
-			p[4] = F32NAN;
-			p[5] = F32NAN;
-			p[6] = F32NAN;
-			p[7] = F32NAN;
-			p[8] = F32NAN;
-		}
-		if (sizeof(F) == 8)
-		{
-			uint64* p = alias_cast<uint64*>(&m00);
-			p[0] = F64NAN;
-			p[1] = F64NAN;
-			p[2] = F64NAN;
-			p[3] = F64NAN;
-			p[4] = F64NAN;
-			p[5] = F64NAN;
-			p[6] = F64NAN;
-			p[7] = F64NAN;
-			p[8] = F64NAN;
-		}
-	}
-#else
-	ILINE Matrix33_tpl(){};
-#endif
+	template<class F1> ILINE Matrix33_tpl(const Matrix33_tpl<F1>& m) { NA::Set(m); }
 
 	//! Set matrix to Identity.
 	ILINE Matrix33_tpl(type_identity)
@@ -70,37 +38,6 @@ template<typename F> struct Matrix33_tpl
 		m20 = 0;
 		m21 = 0;
 		m22 = 1;
-	}
-	//! Set matrix to Zero.
-	ILINE Matrix33_tpl(type_zero)
-	{
-		m00 = 0;
-		m01 = 0;
-		m02 = 0;
-		m10 = 0;
-		m11 = 0;
-		m12 = 0;
-		m20 = 0;
-		m21 = 0;
-		m22 = 0;
-	}
-
-	//! ASSIGNMENT OPERATOR of identical Matrix33 types.
-	//! The assignment operator has precedence over assignment constructor
-	//! Matrix33 m; m=m33;
-	ILINE Matrix33_tpl<F>& operator=(const Matrix33_tpl<F>& m)
-	{
-		CRY_MATH_ASSERT(m.IsValid());
-		m00 = m.m00;
-		m01 = m.m01;
-		m02 = m.m02;
-		m10 = m.m10;
-		m11 = m.m11;
-		m12 = m.m12;
-		m20 = m.m20;
-		m21 = m.m21;
-		m22 = m.m22;
-		return *this;
 	}
 
 	//! implementation of the constructors
@@ -119,35 +56,7 @@ template<typename F> struct Matrix33_tpl
 		m21 = x21;
 		m22 = x22;
 	}
-	//! CONSTRUCTOR for different float-types. It initializes a Matrix33 with 9 floats.
-	//! Matrix33(0.0,1.0,2.0, 3.0,4.0,5.0, 6.0,7.0,8.0);
-	template<class F1> explicit ILINE Matrix33_tpl<F>(F1 x00, F1 x01, F1 x02, F1 x10, F1 x11, F1 x12, F1 x20, F1 x21, F1 x22)
-	{
-		m00 = F(x00);
-		m01 = F(x01);
-		m02 = F(x02);
-		m10 = F(x10);
-		m11 = F(x11);
-		m12 = F(x12);
-		m20 = F(x20);
-		m21 = F(x21);
-		m22 = F(x22);
-	}
 
-	//! CONSTRUCTOR for identical float-types. It initializes a Matrix33 with 3 vectors stored in the columns.
-	//! Matrix33(v0,v1,v2);
-	explicit ILINE Matrix33_tpl<F>(const Vec3_tpl<F> &vx, const Vec3_tpl<F> &vy, const Vec3_tpl<F> &vz)
-	{
-		m00 = vx.x;
-		m01 = vy.x;
-		m02 = vz.x;
-		m10 = vx.y;
-		m11 = vy.y;
-		m12 = vz.y;
-		m20 = vx.z;
-		m21 = vy.z;
-		m22 = vz.z;
-	}
 	//! CONSTRUCTOR for different float-types. It initializes a Matrix33 with 3 vectors stored in the columns and converts between floats/doubles.
 	//! Matrix33r(v0,v1,v2);
 	template<class F1> explicit ILINE Matrix33_tpl<F>(const Vec3_tpl<F1> &vx, const Vec3_tpl<F1> &vy, const Vec3_tpl<F1> &vz)
@@ -163,21 +72,6 @@ template<typename F> struct Matrix33_tpl
 		m22 = F(vz.z);
 	}
 
-	//! CONSTRUCTOR for identical float-types. It converts a Diag33 into a Matrix33.
-	//! Matrix33(diag33);
-	ILINE Matrix33_tpl<F>(const Diag33_tpl<F> &d)
-	{
-		CRY_MATH_ASSERT(d.IsValid());
-		m00 = d.x;
-		m01 = 0;
-		m02 = 0;
-		m10 = 0;
-		m11 = d.y;
-		m12 = 0;
-		m20 = 0;
-		m21 = 0;
-		m22 = d.z;
-	}
 	//! CONSTRUCTOR for different float-types. It converts a Diag33 into a Matrix33 and also converts between double/float.
 	//! Matrix33(diag33);
 	template<class F1> ILINE Matrix33_tpl<F>(const Diag33_tpl<F1> &d)
@@ -194,55 +88,6 @@ template<typename F> struct Matrix33_tpl
 		m22 = F(d.z);
 	}
 
-	//! CONSTRUCTOR for identical float-types
-	//! Matrix33 m=m33;
-	ILINE Matrix33_tpl<F>(const Matrix33_tpl<F> &m)
-	{
-		uint32 size = sizeof(F);
-		CRY_MATH_ASSERT(m.IsValid());
-		m00 = m.m00;
-		m01 = m.m01;
-		m02 = m.m02;
-		m10 = m.m10;
-		m11 = m.m11;
-		m12 = m.m12;
-		m20 = m.m20;
-		m21 = m.m21;
-		m22 = m.m22;
-	}
-	//! CONSTRUCTOR for different float-types which converts between double/float
-	//! Matrix33 m=m33r;
-	template<class F1> ILINE Matrix33_tpl<F>(const Matrix33_tpl<F1> &m)
-	{
-		uint32 size = sizeof(F1);
-		CRY_MATH_ASSERT(m.IsValid());
-		m00 = F(m.m00);
-		m01 = F(m.m01);
-		m02 = F(m.m02);
-		m10 = F(m.m10);
-		m11 = F(m.m11);
-		m12 = F(m.m12);
-		m20 = F(m.m20);
-		m21 = F(m.m21);
-		m22 = F(m.m22);
-	}
-
-	//! CONSTRUCTOR for identical float-types. It converts a Matrix34 into a Matrix33.
-	//! Needs to be 'explicit' because we lose the translation vector in the conversion process.
-	//! Matrix33(m34);
-	explicit ILINE Matrix33_tpl<F>(const Matrix34_tpl<F> &m)
-	{
-		CRY_MATH_ASSERT(m.IsValid());
-		m00 = m.m00;
-		m01 = m.m01;
-		m02 = m.m02;
-		m10 = m.m10;
-		m11 = m.m11;
-		m12 = m.m12;
-		m20 = m.m20;
-		m21 = m.m21;
-		m22 = m.m22;
-	}
 	//! CONSTRUCTOR for different float-types. It converts a Matrix34 into a Matrix33 and converts between double/float.
 	//! Needs to be 'explicit' because we loose the translation vector in the conversion process.
 	//! Matrix33(m34r);
@@ -260,22 +105,6 @@ template<typename F> struct Matrix33_tpl
 		m22 = F(m.m22);
 	}
 
-	//! CONSTRUCTOR for identical float-types. It converts a Matrix44 into a Matrix33.
-	//! Needs to be 'explicit' because we loose the translation vector and the 3rd row in the conversion process.
-	//! Matrix33(m44);
-	explicit ILINE Matrix33_tpl<F>(const Matrix44_tpl<F> &m)
-	{
-		CRY_MATH_ASSERT(m.IsValid());
-		m00 = m.m00;
-		m01 = m.m01;
-		m02 = m.m02;
-		m10 = m.m10;
-		m11 = m.m11;
-		m12 = m.m12;
-		m20 = m.m20;
-		m21 = m.m21;
-		m22 = m.m22;
-	}
 	//! CONSTRUCTOR for different float-types. It converts a Matrix44 into a Matrix33 and converts between double/float.
 	//! Needs to be 'explicit' because we loose the translation vector and the 3rd row in the conversion process.
 	//! Matrix33(m44r);
@@ -293,39 +122,12 @@ template<typename F> struct Matrix33_tpl
 		m22 = F(m.m22);
 	}
 
-	//! CONSTRUCTOR for identical float-types. It converts a Quat into a Matrix33.
-	//! Needs to be 'explicit' because we loose fp-precision in the conversion process.
-	//! Matrix33(quat);
-	explicit ILINE Matrix33_tpl<F>(const Quat_tpl<F> &q)
-	{
-		CRY_MATH_ASSERT(q.IsValid(0.05f));
-		Vec3_tpl<F> v2 = q.v + q.v;
-		F xx = 1 - v2.x * q.v.x;
-		F yy = v2.y * q.v.y;
-		F xw = v2.x * q.w;
-		F xy = v2.y * q.v.x;
-		F yz = v2.z * q.v.y;
-		F yw = v2.y * q.w;
-		F xz = v2.z * q.v.x;
-		F zz = v2.z * q.v.z;
-		F zw = v2.z * q.w;
-		m00 = 1 - yy - zz;
-		m01 = xy - zw;
-		m02 = xz + yw;
-		m10 = xy + zw;
-		m11 = xx - zz;
-		m12 = yz - xw;
-		m20 = xz - yw;
-		m21 = yz + xw;
-		m22 = xx - yy;
-	}
-
 	//! CONSTRUCTOR for different float-types. It converts a Quat into a Matrix33 and converts between double/float.
 	//! Needs to be 'explicit' because we loose fp-precision in the conversion process.
 	//! Matrix33(quatr);
 	template<class F1> explicit ILINE Matrix33_tpl<F>(const Quat_tpl<F1> &q)
 	{
-		CRY_MATH_ASSERT(q.IsValid(0.05f));
+		CRY_MATH_ASSERT(q.IsUnit(0.05f));
 		Vec3_tpl<F1> v2 = q.v + q.v;
 		F1 xx = 1 - v2.x * q.v.x;
 		F1 yy = v2.y * q.v.y;
@@ -347,14 +149,6 @@ template<typename F> struct Matrix33_tpl
 		m22 = F(xx - yy);
 	}
 
-	//! CONSTRUCTOR for identical float-types. It converts a Euler Angle into a Matrix33.
-	//! Needs to be 'explicit' because we loose fp-precision in the conversion process.
-	//! Matrix33(Ang3(1,2,3));
-	explicit ILINE Matrix33_tpl<F>(const Ang3_tpl<F> &ang)
-	{
-		CRY_MATH_ASSERT(ang.IsValid());
-		SetRotationXYZ(ang);
-	}
 	//! CONSTRUCTOR for different float-types. It converts a Euler Angle into a Matrix33 and converts between double/float.
 	//! Needs to be 'explicit' because we loose fp-precision in the conversion process.
 	//! Matrix33(Ang3r(1,2,3));
@@ -377,7 +171,7 @@ template<typename F> struct Matrix33_tpl
 		m20 = x20;
 		m21 = x21;
 		m22 = x22;
-		CRY_MATH_ASSERT(IsValid());
+		CRY_MATH_ASSERT(NA::IsValid());
 	}
 
 	//---------------------------------------------------------------------------------------
@@ -400,19 +194,6 @@ template<typename F> struct Matrix33_tpl
 		Matrix33_tpl<F> m33;
 		m33.SetIdentity();
 		return m33;
-	}
-
-	ILINE void SetZero()
-	{
-		m00 = 0;
-		m01 = 0;
-		m02 = 0;
-		m10 = 0;
-		m11 = 0;
-		m12 = 0;
-		m20 = 0;
-		m21 = 0;
-		m22 = 0;
 	}
 
 	//! Create a rotation matrix around an arbitrary axis (Eulers Theorem).
@@ -785,7 +566,7 @@ template<typename F> struct Matrix33_tpl
 		m20 = m01 * m12 - m02 * m11;
 		m21 = m02 * m10 - m00 * m12;
 		m22 = m00 * m11 - m01 * m10;
-		CRY_MATH_ASSERT(this->IsOrthonormalRH(0.0001f));
+		CRY_MATH_ASSERT(IsOrthonormalRH(0.0001f));
 	}
 	ILINE static Matrix33_tpl<F> CreateSlerp(const Matrix33_tpl<F> m, const Matrix33_tpl<F> n, F t)
 	{
@@ -1022,15 +803,6 @@ template<typename F> struct Matrix33_tpl
 		return *this;
 	}
 
-	ILINE static bool IsEquivalent(const Matrix33_tpl<F>& m0, const Matrix33_tpl<F>& m1, f32 e = VEC_EPSILON)
-	{
-		return  (
-		  (fabs_tpl(m0.m00 - m1.m00) <= e) && (fabs_tpl(m0.m01 - m1.m01) <= e) && (fabs_tpl(m0.m02 - m1.m02) <= e) &&
-		  (fabs_tpl(m0.m10 - m1.m10) <= e) && (fabs_tpl(m0.m11 - m1.m11) <= e) && (fabs_tpl(m0.m12 - m1.m12) <= e) &&
-		  (fabs_tpl(m0.m20 - m1.m20) <= e) && (fabs_tpl(m0.m21 - m1.m21) <= e) && (fabs_tpl(m0.m22 - m1.m22) <= e)
-		  );
-	}
-
 	ILINE bool IsIdentity(F e) const
 	{
 		return  (
@@ -1043,10 +815,6 @@ template<typename F> struct Matrix33_tpl
 	ILINE bool IsIdentity() const
 	{
 		return 0 == (fabs_tpl((F)1 - m00) + fabs_tpl(m01) + fabs_tpl(m02) + fabs_tpl(m10) + fabs_tpl((F)1 - m11) + fabs_tpl(m12) + fabs_tpl(m20) + fabs_tpl(m21) + fabs_tpl((F)1 - m22));
-	}
-	ILINE int IsZero() const
-	{
-		return 0 == (fabs_tpl(m00) + fabs_tpl(m01) + fabs_tpl(m02) + fabs_tpl(m10) + fabs_tpl(m11) + fabs_tpl(m12) + fabs_tpl(m20) + fabs_tpl(m21) + fabs_tpl(m22));
 	}
 
 	//! Check if we have an orthonormal-base (general case, works even with reflection matrices).
@@ -1083,14 +851,6 @@ template<typename F> struct Matrix33_tpl
 	ILINE void NoScale()
 	{
 		*this /= GetColumn(0).GetLength();
-	}
-
-	ILINE bool IsValid() const
-	{
-		if (!NumberValid(m00)) return false;  if (!NumberValid(m01)) return false;  if (!NumberValid(m02)) return false;
-		if (!NumberValid(m10)) return false;  if (!NumberValid(m11)) return false;  if (!NumberValid(m12)) return false;
-		if (!NumberValid(m20)) return false;  if (!NumberValid(m21)) return false;  if (!NumberValid(m22)) return false;
-		return true;
 	}
 
 	AUTO_STRUCT_INFO;
@@ -1407,11 +1167,4 @@ ILINE Matrix33_tpl<F1>& dotproduct_matrix(const Vec3_tpl<F1>& v, const Vec3_tpl<
 	return m;
 }
 
-template<class F>
-ILINE bool IsEquivalent(const Matrix33_tpl<F>& m0, const Matrix33_tpl<F>& m1, f32 e = VEC_EPSILON)
-{
-	return Matrix33_tpl<F>::IsEquivalent(m0, m1, e);
-}
 
-
-#endif //MATRIX33_H

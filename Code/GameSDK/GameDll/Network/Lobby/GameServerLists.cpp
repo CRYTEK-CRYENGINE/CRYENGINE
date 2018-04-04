@@ -22,15 +22,15 @@ CGameServerLists::CGameServerLists()
 	m_bHasChanges = false;
 
 #if 0 && !defined(_RELEASE)
-		gEnv->pConsole->AddCommand("gsl_addFavourite", CmdAddFavourite, 0, "Add a favourite server by name");
-		gEnv->pConsole->AddCommand("gsl_removeFavourite", CmdRemoveFavourite, 0, "Remove a favourite server by name");
-		gEnv->pConsole->AddCommand("gsl_listFavourite", CmdListFavourites, 0, "list favourite servers");
-		gEnv->pConsole->AddCommand("gsl_showFavourite", CmdShowFavourites, 0, "show favourite servers");
+		REGISTER_COMMAND("gsl_addFavourite", CmdAddFavourite, 0, "Add a favourite server by name", false);
+		REGISTER_COMMAND("gsl_removeFavourite", CmdRemoveFavourite, 0, "Remove a favourite server by name", false);
+		REGISTER_COMMAND("gsl_listFavourite", CmdListFavourites, 0, "list favourite servers", false);
+		REGISTER_COMMAND("gsl_showFavourite", CmdShowFavourites, 0, "show favourite servers", false);
 
-		gEnv->pConsole->AddCommand("gsl_addRecent", CmdAddRecent, 0, "Add a recent server by name");
-		gEnv->pConsole->AddCommand("gsl_removeRecent", CmdRemoveRecent, 0, "Remove a recent server by name");
-		gEnv->pConsole->AddCommand("gsl_listRecent", CmdListRecent, 0, "list recent servers");
-		gEnv->pConsole->AddCommand("gsl_showRecent", CmdShowRecent, 0, "show recent servers");
+		REGISTER_COMMAND("gsl_addRecent", CmdAddRecent, 0, "Add a recent server by name", false);
+		REGISTER_COMMAND("gsl_removeRecent", CmdRemoveRecent, 0, "Remove a recent server by name", false);
+		REGISTER_COMMAND("gsl_listRecent", CmdListRecent, 0, "list recent servers", false);
+		REGISTER_COMMAND("gsl_showRecent", CmdShowRecent, 0, "show recent servers", false);
 #endif
 }
 

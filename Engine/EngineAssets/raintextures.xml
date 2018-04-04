@@ -1,6 +1,6 @@
 <textures>
-	<entry>EngineAssets/Textures/Rain/puddle_mask.dds</entry>
-	<entry>EngineAssets/Textures/Rain/rain_spatter.dds</entry>
-	<entry>EngineAssets/Textures/Rain/rain_streak.dds</entry>
-	<entry>EngineAssets/Textures/Rain/rainfall.dds</entry>
+	<entry>%ENGINE%/EngineAssets/Textures/Rain/puddle_mask.dds</entry>
+	<entry>%ENGINE%/EngineAssets/Textures/Rain/rain_spatter.dds</entry>
+	<entry>%ENGINE%/EngineAssets/Textures/Rain/rain_streak.dds</entry>
+	<entry>%ENGINE%/EngineAssets/Textures/Rain/rainfall.dds</entry>
 </textures>

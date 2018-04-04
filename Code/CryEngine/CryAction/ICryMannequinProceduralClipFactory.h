@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #ifndef __I_PROCEDURAL_CLIP_FACTORY__H__
 #define __I_PROCEDURAL_CLIP_FACTORY__H__
@@ -35,13 +35,13 @@ struct SProceduralClipFactoryRegistrationInfo
 template<typename T>
 inline IProceduralClipPtr CreateProceduralClip()
 {
-	return IProceduralClipPtr(new T());
+	return std::make_shared<T>();
 }
 
 template<typename T>
 inline IProceduralParamsPtr CreateProceduralParams()
 {
-	return IProceduralParamsPtr(new T());
+	return std::make_shared<T>();
 }
 
 struct IProceduralClipFactory

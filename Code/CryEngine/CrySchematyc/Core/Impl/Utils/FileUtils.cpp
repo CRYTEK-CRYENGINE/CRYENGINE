@@ -1,12 +1,12 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #include "StdAfx.h"
 
 #include "FileUtils.h"
 
 #include <CrySystem/File/ICryPak.h>
-#include <Schematyc/Utils/Assert.h>
-#include <Schematyc/Utils/StackString.h>
+#include <CrySchematyc/Utils/Assert.h>
+#include <CrySchematyc/Utils/StackString.h>
 
 namespace Schematyc
 {
@@ -17,8 +17,8 @@ void EnumFilesInFolder(const char* szFolderName, const char* szExtension, FileEn
 	SCHEMATYC_CORE_ASSERT(szFolderName);
 	if (szFolderName)
 	{
-		SCHEMATYC_CORE_ASSERT(!callback.IsEmpty());
-		if (!callback.IsEmpty())
+		SCHEMATYC_CORE_ASSERT(callback);
+		if (callback)
 		{
 			if (flags.Check(EFileEnumFlags::Recursive))
 			{

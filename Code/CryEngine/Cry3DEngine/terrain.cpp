@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 // -------------------------------------------------------------------------
 //  File name:   terrain.cpp
@@ -222,7 +222,7 @@ void CTerrain::UpdateNodesIncrementaly(const SRenderingPassInfo& passInfo)
 		      sizeof(m_lstActiveTextureNodes[0]), CmpTerrainNodesImportance);
 
 		// release unimportant textures and make sure at least one texture is free for possible loading
-		while (m_lstActiveTextureNodes.Count() > GetCVars()->e_TerrainTextureStreamingPoolItemsNum - 1)
+		while (m_lstActiveTextureNodes.Count() > m_texCache[0].GetPoolItemsNum() - 1)
 		{
 			m_lstActiveTextureNodes.Last()->UnloadNodeTexture(false);
 			m_lstActiveTextureNodes.DeleteLast();
@@ -383,7 +383,7 @@ void CTerrain::ApplyForceToEnvironment(Vec3 vPos, float fRadius, float fAmountOf
 	    vPos.z < (GetZApr(vPos.x, vPos.y, GetDefSID()) - 1.f))                                            // under ground
 		return;
 
-	//#TODO Add temporary physical wind force to an environment, that will fade out slowly
+	Get3DEngine()->AddForcedWindArea(vPos, fAmountOfForce, fRadius);
 }
 
 Vec3 CTerrain::GetTerrainSurfaceNormal_Int(int x, int y, int nSID)
@@ -564,12 +564,6 @@ void CTerrain::SetHeightMapMaxHeight(float fMaxHeight)
 		if (Get3DEngine()->IsSegmentSafeToUse(nSID) && m_pParentNodes[nSID])
 			InitHeightfieldPhysics(nSID);
 }
-/*
-   void CTerrain::RenaderImposterContent(class CREImposter * pImposter, const CCamera & cam)
-   {
-   pImposter->GetTerrainNode()->RenderImposterContent(pImposter, cam);
-   }
- */
 
 void SetTerrain(CTerrain& rTerrain);
 

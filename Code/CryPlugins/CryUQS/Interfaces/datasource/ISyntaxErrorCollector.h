@@ -4,9 +4,9 @@
 
 // *INDENT-OFF* - <hard to read code and declarations due to inconsistent indentation>
 
-namespace uqs
+namespace UQS
 {
-	namespace datasource
+	namespace DataSource
 	{
 
 		struct ISyntaxErrorCollector;       // below
@@ -33,7 +33,7 @@ namespace uqs
 		struct ISyntaxErrorCollector
 		{
 			virtual                        ~ISyntaxErrorCollector() {}
-			virtual void                   AddErrorMessage(const char* fmt, ...) PRINTF_PARAMS(2, 3) = 0;
+			virtual void                   AddErrorMessage(const char* szFormat, ...) PRINTF_PARAMS(2, 3) = 0;
 		};
 
 		//===================================================================================
@@ -46,25 +46,25 @@ namespace uqs
 		{
 		public:
 			explicit                       CSyntaxErrorCollectorDeleter();
-			explicit                       CSyntaxErrorCollectorDeleter(void (*deleteFunc)(ISyntaxErrorCollector* pSyntaxErrorCollectorToDelete));
+			explicit                       CSyntaxErrorCollectorDeleter(void (*pDeleteFunc)(ISyntaxErrorCollector* pSyntaxErrorCollectorToDelete));
 			void                           operator()(ISyntaxErrorCollector* pSyntaxErrorCollectorToDelete);
 
 		private:
-			void                           (*m_deleteFunc)(ISyntaxErrorCollector* pSyntaxErrorCollectorToDelete);
+			void                           (*m_pDeleteFunc)(ISyntaxErrorCollector* pSyntaxErrorCollectorToDelete);
 		};
 
 		inline CSyntaxErrorCollectorDeleter::CSyntaxErrorCollectorDeleter()
-			: m_deleteFunc(nullptr)
+			: m_pDeleteFunc(nullptr)
 		{}
 
-		inline CSyntaxErrorCollectorDeleter::CSyntaxErrorCollectorDeleter(void (*deleteFunc)(ISyntaxErrorCollector* pSyntaxErrorCollectorToDelete))
-			: m_deleteFunc(deleteFunc)
+		inline CSyntaxErrorCollectorDeleter::CSyntaxErrorCollectorDeleter(void (*pDeleteFunc)(ISyntaxErrorCollector* pSyntaxErrorCollectorToDelete))
+			: m_pDeleteFunc(pDeleteFunc)
 		{}
 
 		inline void CSyntaxErrorCollectorDeleter::operator()(ISyntaxErrorCollector* pSyntaxErrorCollectorToDelete)
 		{
-			assert(m_deleteFunc);
-			(*m_deleteFunc)(pSyntaxErrorCollectorToDelete);
+			assert(m_pDeleteFunc);
+			(*m_pDeleteFunc)(pSyntaxErrorCollectorToDelete);
 		}
 
 	}

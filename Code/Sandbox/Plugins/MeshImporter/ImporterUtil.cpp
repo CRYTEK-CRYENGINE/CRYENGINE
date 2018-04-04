@@ -7,12 +7,16 @@
 #include <Controls/QuestionDialog.h>
 #include <FileDialogs/EngineFileDialog.h>
 #include <FilePathUtil.h>
+#include <QViewport.h>
+#include <Notifications/NotificationCenter.h>
+#include <ThreadingUtils.h>
 
 // EditorQt.
 #include <AssetSystem/Asset.h>
-#include <Util/FileUtil.h>
+#include "Util/FileUtil.h"
 
 #include <CrySystem/IProjectManager.h>
+#include <CryRenderer/IRenderAuxGeom.h>
 
 #include <QDir>
 #include <QTextStream>
@@ -28,7 +32,8 @@ QString GetAbsoluteGameFolderPath()
 
 static QString GetTempAssetFolder()
 {
-	const QString folder = AppendPath(GetAbsoluteGameFolderPath(), QStringLiteral("_tmp"));
+	char path[ICryPak::g_nMaxPath] = {};
+	static const QString folder = QtUtil::ToQString(gEnv->pCryPak->AdjustFileName("%USER%/MeshImporter", path, ICryPak::FLAGS_PATH_REAL | ICryPak::FLAGS_FOR_WRITING | ICryPak::FLAGS_ADD_TRAILING_SLASH));
 	QDir().mkpath(folder);
 	return folder;
 }
@@ -36,6 +41,25 @@ static QString GetTempAssetFolder()
 QString AppendPath(const QString& lhp, const QString& rhp)
 {
 	return QDir::cleanPath(lhp + QDir::separator() + rhp);
+}
+
+string MakeAlphaNum(const string& str)
+{
+	string res;
+	for (int i = 0; i < str.length(); ++i)
+	{
+		res += isalnum(str[i]) ? str[i] : ' ';
+	}
+
+	res.Trim();
+
+	return res;
+}
+
+
+std::unique_ptr<QTemporaryFile> WriteTemporaryFile(const string& dirPath, const string& content, const string& templateName)
+{
+	return WriteTemporaryFile(QtUtil::ToQString(dirPath), content, QtUtil::ToQString(templateName));
 }
 
 std::unique_ptr<QTemporaryFile> WriteTemporaryFile(const QString& dirPath, const string& content, QString templateName)
@@ -192,6 +216,45 @@ bool CopyNoOverwrite(const QString& from, const QString& to, bool bSilent)
 	}
 }
 
+bool CopyNoOverwrite(const string& from, const string& to)
+{
+	return !CopyNoOverwrite(QtUtil::ToQString(from), QtUtil::ToQString(to), true);
+}
+
+static bool CopyAllowOverwriteInternal(const QString& from, const QString& to)
+{
+	if (QFile::rename(from, to))
+	{
+		return true;
+	}
+	else
+	{
+		// Try to overwrite existing file.
+		return QFile::remove(to) && QFile::rename(from, to);
+	}
+}
+
+bool CopyAllowOverwrite(const string& from, const string& to)
+{
+	if (!FileExists(from))
+	{
+		return false; // Source file does not exist and copy operation is considered to be unsuccessful.
+	}
+
+	if (CFileUtil::CompareFiles(to.c_str(), from.c_str()))
+	{
+		return true; // Files are identical and copy operation is considered to be successful.
+	}
+
+	return CopyAllowOverwriteInternal(QtUtil::ToQString(from), QtUtil::ToQString(to));
+}
+
+bool IsFileWritable(const string& path)
+{
+	QFile f(QtUtil::ToQString(path));
+	return (f.permissions() & QFileDevice::WriteOwner) != 0;
+}
+
 bool CFileImporter::Import(const string& inputFilePath, const string& outputFilePath)
 {
 	m_error.clear();
@@ -268,3 +331,89 @@ string CFileImporter::ShowDialog(const string& inputFilename)
 	const QString path = CEngineFileDialog::RunGameSelectDirectory(runParams, nullptr);
 	return PathUtil::Make(PathUtil::Make(PathUtil::GetGameProjectAssetsPath(), QtUtil::ToString(path)), PathUtil::GetFile(inputFilename));
 }
+
+// ==================================================
+// Rendering.
+// ==================================================
+
+void ShowLabelNextToCursor(const QViewport* vp, const string& label)
+{
+	const float xOffset = 10.0f;
+	const float yOffset = 10.0f;
+
+	QPoint mousePos = vp->mapFromGlobal(QCursor::pos());
+	if (mousePos.x() >= 0 && mousePos.x() < vp->width() &&
+		mousePos.y() >= 0 && mousePos.y() < vp->height())
+	{
+		IRenderer* const pRenderer = gEnv->pRenderer;
+		IRenderAuxGeom* const pAux = pRenderer->GetIRenderAuxGeom();
+		pAux->Draw2dLabel(mousePos.x() + xOffset, mousePos.y() + yOffset, 1.5, ColorF(1, 1, 1), false,
+			"%s", label.c_str());
+	}
+}
+
+// ==================================================
+// Qt <-> STL
+// ==================================================
+
+QStringList ToStringList(const std::vector<string>& strs)
+{
+	QStringList ret;
+	std::transform(strs.begin(), strs.end(), std::back_inserter(ret), [](const string& str) { return QtUtil::ToQString(str); }); // Lambda for overload resolution.
+	return ret;
+}
+
+std::future<std::pair<bool, string>> CopySourceFileToDirectoryAsync(const string& from, const string& dir, bool bShowNotification)
+{
+	const QString absOriginalFilePath = QtUtil::ToQString(from);
+	const string absDir = PathUtil::Make(PathUtil::GetGameProjectAssetsPath(), dir);
+
+	QFileInfo origInfo(absOriginalFilePath);
+	QFileInfo dirInfo(QtUtil::ToQString(absDir));
+
+	if (!origInfo.isFile())
+	{
+		std::promise<std::pair<bool, string>> promise;
+		promise.set_value({ false, string().Format("Absolute path '%s' is not a file.", QtUtil::ToString(absOriginalFilePath).c_str()) });
+		return promise.get_future();
+	}
+		
+	if (!dirInfo.isDir())
+	{
+		std::promise<std::pair<bool, string>> promise;
+		promise.set_value({ false, string().Format("Absolute path '%s' is not a directory.", absDir) });
+		return promise.get_future();
+	}
+
+	QString targetFilePath = dirInfo.absoluteDir().absoluteFilePath(origInfo.fileName());
+
+	auto copyFunction = [absOriginalFilePath, targetFilePath]()
+	{
+		CFileImporter fileImporter;
+		if (!fileImporter.Import(QtUtil::ToString(absOriginalFilePath), QtUtil::ToString(targetFilePath)))
+		{
+			return std::make_pair(false, fileImporter.GetError());
+		}
+		else
+		{
+			return std::make_pair(true, string());
+		}
+	};
+
+	return ThreadingUtils::Async([copyFunction, targetFilePath, bShowNotification]()
+	{
+		if (bShowNotification)
+		{
+			const QString message = QApplication::tr("File %1").arg(targetFilePath);
+			CProgressNotification notif(QApplication::tr("Copying file"), message);
+			const std::pair<bool, string> ret = copyFunction();
+			notif.SetProgress(1.0);
+			return ret;
+		}
+		else
+		{
+			return copyFunction();
+		}
+	});
+}
+

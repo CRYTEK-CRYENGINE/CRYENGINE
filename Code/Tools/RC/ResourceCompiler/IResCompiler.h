@@ -22,14 +22,14 @@ struct CryChunkedFile;
 class  ICfgFile;
 struct ICompiler;
 class  IConfig;
-struct IConvertor;
+struct IConverter;
 struct IPakSystem;
 struct IPhysicalWorld;
 struct IRCLog;
+struct IAssetManager;
 class  MultiplatformConfig;
 struct SFileVersion;
 class XmlNodeRef;
-
 
 struct PlatformInfo
 {
@@ -120,8 +120,8 @@ struct IResourceCompiler
 		virtual void OnExit() = 0;
 	};
 
-	//! Register new convertor.
-	virtual void RegisterConvertor(const char* name, IConvertor* conv) = 0;
+	//! Register new converter.
+	virtual void RegisterConverter(const char* name, IConverter* conv) = 0;
 
 	// Get the interface for opening files - handles files stored in ZIP archives.
 	virtual IPakSystem* GetPakSystem() = 0;
@@ -178,14 +178,17 @@ struct IResourceCompiler
 	// This function is intended to be called by compilers to call the RC recursively.
 	// No additional thread is spawned.
 	virtual bool CompileSingleFileNested(const string& fileSpec, const std::vector<string>& args) = 0;
+
+	// returns pointer to IAssetManager interface. There is only one instance. Callers should not delete it.
+	virtual IAssetManager* GetAssetManager() const = 0;
 };
 
 
 // this is the plugin function that's exported by plugins
-// Registers all convertors residing in this DLL
+// Registers all converters residing in this DLL
 extern "C" 
 {
-	typedef void  (__stdcall* FnRegisterConvertors )(IResourceCompiler*pRC);
+	typedef void  (__stdcall* FnRegisterConverters )(IResourceCompiler*pRC);
 }
 
 #endif // __irescompiler_h__

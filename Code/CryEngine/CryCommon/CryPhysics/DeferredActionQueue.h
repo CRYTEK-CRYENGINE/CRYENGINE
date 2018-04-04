@@ -1,13 +1,14 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #ifndef __DeferredActionQueue_h__
 #define __DeferredActionQueue_h__
 
 #pragma once
 
-#include <CryCore/StlUtils.h>
-
 #include "AgePriorityQueue.h"
+
+#include <CryCore/StlUtils.h>
+#include <CryCore/functor.h>
 #include <CryMemory/STLPoolAllocator.h>
 #include <CryMemory/STLPoolAllocator_ManyElems.h>
 

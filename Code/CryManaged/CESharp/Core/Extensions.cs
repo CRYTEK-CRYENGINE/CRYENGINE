@@ -1,12 +1,10 @@
 // Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
 
-using CryEngine;
-using CryEngine.Common;
 using System;
-using System.Collections.Generic;
 using System.Drawing;
 using System.Drawing.Imaging;
 using System.Reflection;
+using CryEngine.Common;
 
 namespace CryEngine
 {
@@ -31,13 +29,13 @@ namespace CryEngine
 		public static byte[] GetPixels(this Bitmap bmp)
 		{
 			var rect = new Rectangle(0, 0, bmp.Width, bmp.Height);
-			var data = bmp.LockBits(rect, System.Drawing.Imaging.ImageLockMode.ReadOnly, bmp.PixelFormat);
-			int bytes = System.Math.Abs(data.Stride) * bmp.Height;
+			var data = bmp.LockBits(rect, ImageLockMode.ReadOnly, bmp.PixelFormat);
+			int bytes = Math.Abs(data.Stride) * bmp.Height;
 			byte[] pix = new byte[bytes];
 			System.Runtime.InteropServices.Marshal.Copy(data.Scan0, pix, 0, bytes);
 			bmp.UnlockBits(data);
 
-			int bpp = bmp.GetBPP();
+			var bpp = bmp.GetBPP();
 			Action<int> SwapRnB = (ofs) =>
 			{
 				byte p0 = pix[ofs];
@@ -64,36 +62,6 @@ namespace CryEngine
 			return str.c_str();
 		}
 	}
-
-	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-	public static class SInputEventExtensions
-	{
-		public static Dictionary<EKeyId, bool> KeyDownLog = new Dictionary<EKeyId, bool>();
-		public static Dictionary<EKeyId, float> KeyInputValueLog = new Dictionary<EKeyId, float>();
-
-		public static bool KeyDown(this SInputEvent e, EKeyId k)
-		{
-			bool isDown = false;
-			KeyDownLog.TryGetValue(k, out isDown);
-			return isDown;
-		}
-
-		public static bool KeyPressed(this SInputEvent e, EKeyId k)
-		{
-			return e.keyId == k && e.state == EInputState.eIS_Pressed;
-		}
-
-		public static bool KeyUp(this SInputEvent e, EKeyId k)
-		{
-			return e.keyId == k && e.state == EInputState.eIS_Released;
-		}
-
-		// For analog inputs
-		public static bool KeyChanged(this SInputEvent e, EKeyId k)
-		{
-			return e.keyId == k && e.state == EInputState.eIS_Changed;
-		}
-	}
 	
 	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	public static class MethodInfoExtensions
@@ -101,8 +69,8 @@ namespace CryEngine
 		/// <summary>
 		/// Unlike MethodInfo.Invoke, this way of calling will raise exceptions appropriately.
 		/// </summary>
+		/// <param name="m">Method to be invoked.</param>
 		/// <param name="instance">Instance of the class to invoke method on.</param>
-		/// <param name="method">Method to be invoked.</param>
 		public static void InvokeSecure(this MethodInfo m, object instance)
 		{
 			var action = (Action)Delegate.CreateDelegate(typeof(Action), instance, m);
@@ -151,7 +119,7 @@ namespace CryEngine
 	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	public static class StringExtensions
 	{
-		private static uint[] s_crcTable = new uint[]
+		private static uint[] s_crcTable =
 		{
 			0x00000000, 0x77073096, 0xEE0E612C, 0x990951BA, 0x076DC419, 0x706AF48F,
 			0xE963A535, 0x9E6495A3, 0x0EDB8832, 0x79DCB8A4, 0xE0D5E91E, 0x97D2D988,
@@ -202,7 +170,7 @@ namespace CryEngine
 		{
 			unchecked
 			{
-				uint crc = (uint)(((uint)0) ^ (-1));
+				var crc = (uint)(((uint)0) ^ (-1));
 				var len = str.Length;
 				for (var i = 0; i < len; i++)
 				{

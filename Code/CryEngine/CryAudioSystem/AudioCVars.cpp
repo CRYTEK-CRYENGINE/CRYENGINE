@@ -1,140 +1,112 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #include "stdafx.h"
 #include "AudioCVars.h"
 #include <CrySystem/ISystem.h>
 #include <CrySystem/IConsole.h>
 
-//////////////////////////////////////////////////////////////////////////
-void OnCVarChangedAudioSystemCallback(ICVar* pCVar)
+namespace CryAudio
 {
-	if (gEnv->pAudioSystem != nullptr)
-	{
-		gEnv->pAudioSystem->OnCVarChanged(pCVar);
-	}
-}
-
 //////////////////////////////////////////////////////////////////////////
-void CAudioCVars::RegisterVariables()
+void CCVars::RegisterVariables()
 {
 #if CRY_PLATFORM_WINDOWS
-	m_audioPrimaryPoolSize = 16 << 10;       // 16 MiB on PC
 	m_fileCacheManagerSize = 384 << 10;      // 384 MiB on PC
 	m_audioObjectPoolSize = 256;
 	m_audioEventPoolSize = 256;
-	m_audioStandaloneFilePoolSize = 0;
+	m_audioStandaloneFilePoolSize = 1;
 	m_audioProxiesInitType = 0;
-	m_occlusionMaxDistance = 500.0f;
 	m_occlusionMaxSyncDistance = 10.0f;
 	m_occlusionHighDistance = 10.0f;
 	m_occlusionMediumDistance = 80.0f;
 	m_fullObstructionMaxDistance = 5.0f;
-	m_positionUpdateThreshold = 0.1f;
 	m_velocityTrackingThreshold = 0.1f;
 	m_occlusionRayLengthOffset = 0.1f;
 #elif CRY_PLATFORM_DURANGO
-	m_audioPrimaryPoolSize = 16 << 10;       // 16 MiB on XboxOne
 	m_fileCacheManagerSize = 384 << 10;      // 384 MiB on XboxOne
 	m_audioObjectPoolSize = 256;
 	m_audioEventPoolSize = 256;
-	m_audioStandaloneFilePoolSize = 0;
+	m_audioStandaloneFilePoolSize = 1;
 	m_audioProxiesInitType = 0;
-	m_occlusionMaxDistance = 500.0f;
 	m_occlusionMaxSyncDistance = 10.0f;
 	m_occlusionHighDistance = 10.0f;
 	m_occlusionMediumDistance = 80.0f;
 	m_fullObstructionMaxDistance = 5.0f;
-	m_positionUpdateThreshold = 0.1f;
 	m_velocityTrackingThreshold = 0.1f;
 	m_occlusionRayLengthOffset = 0.1f;
 #elif CRY_PLATFORM_ORBIS
-	m_audioPrimaryPoolSize = 16 << 10;       // 16 MiB on PS4
 	m_fileCacheManagerSize = 384 << 10;      // 384 MiB on PS4
 	m_audioObjectPoolSize = 256;
 	m_audioEventPoolSize = 256;
-	m_audioStandaloneFilePoolSize = 0;
+	m_audioStandaloneFilePoolSize = 1;
 	m_audioProxiesInitType = 0;
-	m_occlusionMaxDistance = 500.0f;
 	m_occlusionMaxSyncDistance = 10.0f;
 	m_occlusionHighDistance = 10.0f;
 	m_occlusionMediumDistance = 80.0f;
 	m_fullObstructionMaxDistance = 5.0f;
-	m_positionUpdateThreshold = 0.1f;
 	m_velocityTrackingThreshold = 0.1f;
 	m_occlusionRayLengthOffset = 0.1f;
 #elif CRY_PLATFORM_MAC
-	m_audioPrimaryPoolSize = 16 << 10;       // 16 MiB on Mac
 	m_fileCacheManagerSize = 384 << 10;      // 384 MiB on Mac
 	m_audioObjectPoolSize = 256;
 	m_audioEventPoolSize = 256;
-	m_audioStandaloneFilePoolSize = 0;
+	m_audioStandaloneFilePoolSize = 1;
 	m_audioProxiesInitType = 0;
-	m_occlusionMaxDistance = 500.0f;
 	m_occlusionMaxSyncDistance = 10.0f;
 	m_occlusionHighDistance = 10.0f;
 	m_occlusionMediumDistance = 80.0f;
 	m_fullObstructionMaxDistance = 5.0f;
-	m_positionUpdateThreshold = 0.1f;
 	m_velocityTrackingThreshold = 0.1f;
 	m_occlusionRayLengthOffset = 0.1f;
 #elif CRY_PLATFORM_LINUX
-	m_audioPrimaryPoolSize = 16 << 10;       // 16 MiB on Linux
 	m_fileCacheManagerSize = 384 << 10;      // 384 MiB on Linux
 	m_audioObjectPoolSize = 256;
 	m_audioEventPoolSize = 256;
-	m_audioStandaloneFilePoolSize = 0;
+	m_audioStandaloneFilePoolSize = 1;
 	m_audioProxiesInitType = 0;
-	m_occlusionMaxDistance = 500.0f;
 	m_occlusionMaxSyncDistance = 10.0f;
 	m_occlusionHighDistance = 10.0f;
 	m_occlusionMediumDistance = 80.0f;
 	m_fullObstructionMaxDistance = 5.0f;
-	m_positionUpdateThreshold = 0.1f;
 	m_velocityTrackingThreshold = 0.1f;
 	m_occlusionRayLengthOffset = 0.1f;
 #elif CRY_PLATFORM_IOS
-	m_audioPrimaryPoolSize = 16 << 10;       // 16 MiB on iOS
 	m_fileCacheManagerSize = 384 << 10;      // 384 MiB on iOS
 	m_audioObjectPoolSize = 256;
 	m_audioEventPoolSize = 256;
-	m_audioStandaloneFilePoolSize = 0;
+	m_audioStandaloneFilePoolSize = 1;
 	m_audioProxiesInitType = 0;
-	m_occlusionMaxDistance = 500.0f;
 	m_occlusionMaxSyncDistance = 10.0f;
 	m_occlusionHighDistance = 10.0f;
 	m_occlusionMediumDistance = 80.0f;
 	m_fullObstructionMaxDistance = 5.0f;
-	m_positionUpdateThreshold = 0.1f;
 	m_velocityTrackingThreshold = 0.1f;
 	m_occlusionRayLengthOffset = 0.1f;
 #elif CRY_PLATFORM_ANDROID
-	m_audioPrimaryPoolSize = 4 << 10;       // 4 MiB
 	m_fileCacheManagerSize = 72 << 10;      // 72 MiB
 	m_audioObjectPoolSize = 256;
 	m_audioEventPoolSize = 256;
-	m_audioStandaloneFilePoolSize = 0;
+	m_audioStandaloneFilePoolSize = 1;
 	m_audioProxiesInitType = 0;
-	m_occlusionMaxDistance = 500.0f;
 	m_occlusionMaxSyncDistance = 10.0f;
 	m_occlusionHighDistance = 10.0f;
 	m_occlusionMediumDistance = 80.0f;
 	m_fullObstructionMaxDistance = 5.0f;
-	m_positionUpdateThreshold = 0.1f;
 	m_velocityTrackingThreshold = 0.1f;
 	m_occlusionRayLengthOffset = 0.1f;
 #else
 	#error "Undefined platform."
 #endif
 
-	REGISTER_CVAR2("s_AudioPrimaryPoolSize", &m_audioPrimaryPoolSize, m_audioPrimaryPoolSize, VF_REQUIRE_APP_RESTART,
-	               "Specifies the size (in KiB) of the memory pool to be used by the ATL.\n"
-	               "Usage: s_AudioPrimaryPoolSize [0/...]\n"
-	               "Default PC: 8192 (8 MiB), XboxOne: 8192 (8 MiB), PS4: 8192 (8 MiB), Mac: 8192 (8 MiB), Linux: 8192 (8 MiB), iOS: 8192 (8 MiB), Android: 4096 (4 MiB)\n");
-
 	REGISTER_CVAR2("s_OcclusionMaxDistance", &m_occlusionMaxDistance, m_occlusionMaxDistance, VF_CHEAT | VF_CHEAT_NOCHECK,
-	               "Obstruction/Occlusion is not calculated for the sounds, whose distance to the listener is greater than this value. Setting this value to 0 disables obstruction/occlusion calculations.\n"
+	               "Occlusion is not calculated for audio objects, whose distance to the listener is greater than this value. Setting this value to 0 disables obstruction/occlusion calculations.\n"
 	               "Usage: s_OcclusionMaxDistance [0/...]\n"
 	               "Default: 500 m\n");
+
+	REGISTER_CVAR2("s_OcclusionMinDistance", &m_occlusionMinDistance, m_occlusionMinDistance, VF_CHEAT | VF_CHEAT_NOCHECK,
+	               "Occlusion is not calculated for audio objects, whose distance to the listener is smaller than this value.\n"
+	               "Usage: s_OcclusionMinDistance [0/...]\n"
+	               "Default: 0.1 m\n");
 
 	REGISTER_CVAR2("s_OcclusionMaxSyncDistance", &m_occlusionMaxSyncDistance, m_occlusionMaxSyncDistance, VF_CHEAT | VF_CHEAT_NOCHECK,
 	               "Physics rays are processed synchronously for the sounds that are closer to the listener than this value, and asynchronously for the rest (possible performance optimization).\n"
@@ -156,14 +128,13 @@ void CAudioCVars::RegisterVariables()
 	               "Usage: s_FullObstructionMaxDistance [0/...]\n"
 	               "Default: 5 m\n");
 
-	REGISTER_CVAR2("s_PositionUpdateThreshold", &m_positionUpdateThreshold, m_positionUpdateThreshold, VF_CHEAT | VF_CHEAT_NOCHECK,
-	               "An audio object has to move by at least this amount to issue a position update request to the audio system.\n"
-	               "This kind of optimization should ideally be done by the parent system so this is here for convenience."
-	               "Usage: s_PositionUpdateThreshold [0/...]\n"
-	               "Default: 0.1 (10 cm)\n");
+	REGISTER_CVAR2("s_PositionUpdateThresholdMultiplier", &m_positionUpdateThresholdMultiplier, m_positionUpdateThresholdMultiplier, VF_CHEAT | VF_CHEAT_NOCHECK,
+	               "An audio object's distance to the listener is multiplied by this value to determine the position update threshold.\n"
+	               "Usage: s_PositionUpdateThresholdMultiplier [0/...]\n"
+	               "Default: 0.02\n");
 
 	REGISTER_CVAR2("s_VelocityTrackingThreshold", &m_velocityTrackingThreshold, m_velocityTrackingThreshold, VF_CHEAT | VF_CHEAT_NOCHECK,
-	               "An audio object has to change its velocity by at least this amount to issue an \"object_speed\" RTPC update request to the audio system.\n"
+	               "An audio object has to change its velocity by at least this amount to issue an \"absolute_velocity\" parameter update request to the audio system.\n"
 	               "Usage: s_VelocityTrackingThreshold [0/...]\n"
 	               "Default: 0.1 (10 cm/s)\n");
 
@@ -191,7 +162,7 @@ void CAudioCVars::RegisterVariables()
 	REGISTER_CVAR2("s_AudioStandaloneFilePoolSize", &m_audioStandaloneFilePoolSize, m_audioStandaloneFilePoolSize, VF_REQUIRE_APP_RESTART,
 	               "Sets the number of preallocated audio standalone files.\n"
 	               "Usage: s_AudioStandaloneFilePoolSize [0/...]\n"
-	               "Default PC: 0, XboxOne: 0, PS4: 0, Mac: 0, Linux: 0, iOS: 0, Android: 0\n");
+	               "Default PC: 1, XboxOne: 1, PS4: 1, Mac: 1, Linux: 1, iOS: 1, Android: 1\n");
 
 	REGISTER_CVAR2("s_AudioProxiesInitType", &m_audioProxiesInitType, m_audioProxiesInitType, VF_NULL,
 	               "Can override AudioProxies' init type on a global scale.\n"
@@ -241,9 +212,9 @@ void CAudioCVars::RegisterVariables()
 	                 "otherwise, the AudioSwitch is set on the GlobalAudioObject\n"
 	                 "Usage: s_SetSwitchState SurfaceType concrete 601 or s_SetSwitchState weather rain\n");
 
-	REGISTER_STRING("s_DefaultStandaloneFilesAudioTrigger", "do_nothing", 0,
+	REGISTER_STRING("s_DefaultStandaloneFilesAudioTrigger", DoNothingTriggerName, 0,
 	                "The name of the ATL AudioTrigger which is used for playing back standalone files, when you call 'PlayFile' without specifying\n"
-	                "an override audioTriggerId that should be used instead.\n"
+	                "an override triggerId that should be used instead.\n"
 	                "Usage: s_DefaultStandaloneFilesAudioTrigger audio_trigger_name.\n"
 	                "If you change this CVar to be empty, the control will not be created automatically.\n"
 	                "Default: \"do_nothing\" \n");
@@ -320,19 +291,19 @@ void CAudioCVars::RegisterVariables()
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CAudioCVars::UnregisterVariables()
+void CCVars::UnregisterVariables()
 {
 	IConsole* const pConsole = gEnv->pConsole;
 
 	if (pConsole != nullptr)
 	{
-		pConsole->UnregisterVariable("s_AudioPrimaryPoolSize");
 		pConsole->UnregisterVariable("s_OcclusionMaxDistance");
+		pConsole->UnregisterVariable("s_OcclusionMinDistance");
 		pConsole->UnregisterVariable("s_OcclusionMaxSyncDistance");
 		pConsole->UnregisterVariable("s_OcclusionHighDistance");
 		pConsole->UnregisterVariable("s_OcclusionMediumDistance");
 		pConsole->UnregisterVariable("s_FullObstructionMaxDistance");
-		pConsole->UnregisterVariable("s_PositionUpdateThreshold");
+		pConsole->UnregisterVariable("s_PositionUpdateThresholdMultiplier");
 		pConsole->UnregisterVariable("s_VelocityTrackingThreshold");
 		pConsole->UnregisterVariable("s_OcclusionRayLengthOffset");
 		pConsole->UnregisterVariable("s_FileCacheManagerSize");
@@ -361,137 +332,68 @@ void CAudioCVars::UnregisterVariables()
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CAudioCVars::CmdExecuteTrigger(IConsoleCmdArgs* pCmdArgs)
+void CCVars::CmdExecuteTrigger(IConsoleCmdArgs* pCmdArgs)
 {
-	AudioControlId audioTriggerId = INVALID_AUDIO_CONTROL_ID;
-
 	int const numArgs = pCmdArgs->GetArgCount();
 
 	if ((numArgs == 2) || (numArgs == 3))
 	{
-		gEnv->pAudioSystem->GetAudioTriggerId(pCmdArgs->GetArg(1), audioTriggerId);
-
-		if (audioTriggerId == INVALID_AUDIO_CONTROL_ID)
-		{
-			g_audioLogger.Log(eAudioLogType_Error, "Unknown trigger name: %s", pCmdArgs->GetArg(1));
-		}
-		else
-		{
-			SAudioRequest request;
-			SAudioObjectRequestData<eAudioObjectRequestType_ExecuteTrigger> requestData(audioTriggerId, 0.0f);
-			request.flags = eAudioRequestFlags_PriorityNormal;
-			request.pData = &requestData;
-
-			gEnv->pAudioSystem->PushRequest(request);
-		}
+		ControlId const triggerId = CryAudio::StringToId(pCmdArgs->GetArg(1));
+		gEnv->pAudioSystem->ExecuteTrigger(triggerId);
 	}
 	else
 	{
-		g_audioLogger.Log(eAudioLogType_Error, "Usage: s_ExecuteTrigger [TriggerName]");
+		g_logger.Log(ELogType::Error, "Usage: s_ExecuteTrigger [TriggerName]");
 	}
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CAudioCVars::CmdStopTrigger(IConsoleCmdArgs* pCmdArgs)
+void CCVars::CmdStopTrigger(IConsoleCmdArgs* pCmdArgs)
 {
-	AudioControlId audioTriggerId = INVALID_AUDIO_CONTROL_ID;
-
 	int const numArgs = pCmdArgs->GetArgCount();
 
 	if ((numArgs == 2) || (numArgs == 3))
 	{
-		gEnv->pAudioSystem->GetAudioTriggerId(pCmdArgs->GetArg(1), audioTriggerId);
-
-		if (audioTriggerId == INVALID_AUDIO_CONTROL_ID)
-		{
-			g_audioLogger.Log(eAudioLogType_Error, "Unknown trigger name: %s", pCmdArgs->GetArg(1));
-		}
-		else
-		{
-			SAudioRequest request;
-			SAudioObjectRequestData<eAudioObjectRequestType_StopTrigger> requestData(audioTriggerId);
-			request.flags = eAudioRequestFlags_PriorityNormal;
-			request.pData = &requestData;
-
-			gEnv->pAudioSystem->PushRequest(request);
-		}
+		ControlId const triggerId = CryAudio::StringToId(pCmdArgs->GetArg(1));
+		gEnv->pAudioSystem->StopTrigger(triggerId);
 	}
 	else
 	{
-		g_audioLogger.Log(eAudioLogType_Error, "Usage: s_StopTrigger [TriggerName]");
+		g_logger.Log(ELogType::Error, "Usage: s_StopTrigger [TriggerName]");
 	}
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CAudioCVars::CmdSetRtpc(IConsoleCmdArgs* pCmdArgs)
+void CCVars::CmdSetRtpc(IConsoleCmdArgs* pCmdArgs)
 {
-	AudioControlId audioRtpcId = INVALID_AUDIO_CONTROL_ID;
-
 	int const numArgs = pCmdArgs->GetArgCount();
 
 	if ((numArgs == 3) || (numArgs == 4))
 	{
-		gEnv->pAudioSystem->GetAudioRtpcId(pCmdArgs->GetArg(1), audioRtpcId);
-
+		ControlId const parameterId = CryAudio::StringToId(pCmdArgs->GetArg(1));
 		double const value = atof(pCmdArgs->GetArg(2));
-
-		if (audioRtpcId == INVALID_AUDIO_CONTROL_ID)
-		{
-			g_audioLogger.Log(eAudioLogType_Error, "Unknown Rtpc name: %s", pCmdArgs->GetArg(1));
-		}
-		else
-		{
-			SAudioRequest request;
-			SAudioObjectRequestData<eAudioObjectRequestType_SetRtpcValue> requestData(audioRtpcId, static_cast<float>(value));
-			request.flags = eAudioRequestFlags_PriorityNormal;
-			request.pData = &requestData;
-
-			gEnv->pAudioSystem->PushRequest(request);
-		}
+		gEnv->pAudioSystem->SetParameter(parameterId, static_cast<float>(value));
 	}
 	else
 	{
-		g_audioLogger.Log(eAudioLogType_Error, "Usage: s_SetRtpc [RtpcName] [RtpcValue]");
+		g_logger.Log(ELogType::Error, "Usage: s_SetRtpc [RtpcName] [RtpcValue]");
 	}
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CAudioCVars::CmdSetSwitchState(IConsoleCmdArgs* pCmdArgs)
+void CCVars::CmdSetSwitchState(IConsoleCmdArgs* pCmdArgs)
 {
-	AudioControlId audioSwitchId = INVALID_AUDIO_CONTROL_ID;
-	AudioSwitchStateId audioSwitchStateId = INVALID_AUDIO_SWITCH_STATE_ID;
-
 	int const numArgs = pCmdArgs->GetArgCount();
 
 	if ((numArgs == 3) || (numArgs == 4))
 	{
-		gEnv->pAudioSystem->GetAudioSwitchId(pCmdArgs->GetArg(1), audioSwitchId);
-
-		if (audioSwitchId != INVALID_AUDIO_CONTROL_ID)
-		{
-			gEnv->pAudioSystem->GetAudioSwitchStateId(audioSwitchId, pCmdArgs->GetArg(2), audioSwitchStateId);
-
-			if (audioSwitchStateId != INVALID_AUDIO_SWITCH_STATE_ID)
-			{
-				SAudioRequest request;
-				SAudioObjectRequestData<eAudioObjectRequestType_SetSwitchState> requestData(audioSwitchId, audioSwitchStateId);
-				request.flags = eAudioRequestFlags_PriorityNormal;
-				request.pData = &requestData;
-
-				gEnv->pAudioSystem->PushRequest(request);
-			}
-			else
-			{
-				g_audioLogger.Log(eAudioLogType_Error, "Invalid  Switch State name: %s", pCmdArgs->GetArg(2));
-			}
-		}
-		else
-		{
-			g_audioLogger.Log(eAudioLogType_Error, "Unknown Switch name: %s", pCmdArgs->GetArg(1));
-		}
+		ControlId const switchId = CryAudio::StringToId(pCmdArgs->GetArg(1));
+		SwitchStateId const switchStateId = CryAudio::StringToId(pCmdArgs->GetArg(2));
+		gEnv->pAudioSystem->SetSwitchState(switchId, switchStateId);
 	}
 	else
 	{
-		g_audioLogger.Log(eAudioLogType_Error, "Usage: s_SetSwitchState [SwitchName] [SwitchStateName]");
+		g_logger.Log(ELogType::Error, "Usage: s_SetSwitchState [SwitchName] [SwitchStateName]");
 	}
 }
+} // namespace CryAudio

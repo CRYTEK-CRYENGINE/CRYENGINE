@@ -236,7 +236,6 @@ private:
 	void Server_ActivateNode(int index);
 	void Server_InitNode(SNodeInfo *pNodeInfo);
 	void Server_ActivateAllNodes();
-	void Common_FixNodeRenderGlitch(SNodeInfo *pNodeInfo);
 	void Common_UpdateNode( SNodeInfo *pNodeInfo, float frameTime, bool &bAspectChanged);
 	void Server_UpdateScoring(float frameTime, bool &bAspectChanged);
 	void Common_UpdateDebug(float frameTime);

@@ -60,6 +60,7 @@ class CMainDialog
 	Q_OBJECT
 private:
 	class CViewportHeader;
+	class CSceneContextMenu;
 public:
 	struct SNodeRenderInfo
 	{
@@ -142,8 +143,8 @@ private:
 	void InitMaterials();
 	void ApplyMaterial();
 
-	bool SaveCgf(const std::shared_ptr<QTemporaryDir>& pTempDir, const QString& file, const QString& sourceFilename);
-	bool SaveSkin(const std::shared_ptr<QTemporaryDir>& pTempDir, const QString& file, const QString& sourceFilename);
+	bool SaveCgf(const std::shared_ptr<QTemporaryDir>& pTempDir, const string& file, const QString& sourceFilename);
+	bool SaveSkin(const std::shared_ptr<QTemporaryDir>& pTempDir, const string& file, const QString& sourceFilename);
 
 	void ApplyMetaDataCommon(const FbxMetaData::SMetaData& metaData);
 	void ApplyMetaDataSkin(const FbxMetaData::SMetaData& metaData);
@@ -156,7 +157,6 @@ private:
 	void            AddExpandCollapseChildrenContextMenu(const QModelIndex& index, QMenu* pMenu);
 	void            AddExpandCollapseAllContextMenu(QMenu* pMenu);
 	void            AddSkinFilterContextMenu(QMenu* pMenu);
-	void            CreateSceneContextMenu(const QPoint& point);
 
 	void            CreateMaterialContextMenu(QMenu* pMenu, CMaterialElement* pMaterialElement);
 
@@ -269,6 +269,10 @@ private:
 
 	std::unique_ptr<DialogMesh::CSceneUserData> m_pSceneUserData;
 
+	// If true, we opened an already existing CGF file that references its material by relative path.
+	// When overwriting the CGF in the same place, we try to preserve this setting.
+	bool m_bMaterialNameWasRelative;
+
 	// Models.
 	std::unique_ptr<CSceneModel>           m_pSceneModel;
 
@@ -280,14 +284,13 @@ private:
 	Private_MainDialog::CShowMeshesModeWidget* m_pShowMeshesModeWidget;
 	QPropertyTree*                         m_pGlobalImportSettingsTree;
 	QPropertyTree*                         m_pPropertyTree; // General properties of selected view item.
+	std::unique_ptr<CSceneContextMenu> m_pSceneContextMenu;
 
 	std::unique_ptr<CGlobalImportSettings> m_pGlobalImportSettings;
 
 	std::unique_ptr<CAutoLodSettings>      m_pAutoLodSettings;
 	bool m_bHasLods;
 	bool m_bAutoLodCheckViewSettingsFlag;  // If true, changing the LOD viewport setting should trigger an update of the rc mesh.
-
-	std::unique_ptr<SEditorMetaData> m_pEditorMetaData;
 
 	bool            m_bGlobalAabbNeedsRefresh;
 

@@ -1,14 +1,20 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #ifndef __WorldMonitor_h__
 #define __WorldMonitor_h__
 
 #pragma once
 
+namespace MNM
+{
+struct BoundingVolume;
+}
+
 class WorldMonitor
 {
 public:
-	typedef Functor1<const AABB&> Callback;
+	typedef Functor2<int, const AABB&> Callback;
+	typedef MNM::BoundingVolume NavigationBoundingVolume;
 
 	WorldMonitor();
 	WorldMonitor(const Callback& callback);
@@ -21,7 +27,6 @@ public:
 	void FlushPendingAABBChanges();
 
 protected:
-
 	bool IsEnabled() const;
 
 	Callback m_callback;
@@ -29,6 +34,12 @@ protected:
 	bool     m_enabled;
 
 private:
+	struct EntityAABBChange
+	{
+		AABB aabb;
+		int entityId;
+	};
+	
 	// physics event handlers
 	static int StateChangeHandler(const EventPhys* pPhysEvent);
 	static int EntityRemovedHandler(const EventPhys* pPhysEvent);
@@ -36,9 +47,9 @@ private:
 
 	// - common code for EntityRemovedHandler() and EntityRemovedHandlerAsync()
 	// - inspects the type of physics entity in given event, returns true if we're interested in this kind of entity and fills given AABB
-	static bool ShallEventPhysEntityDeletedBeHandled(const EventPhys* pPhysEvent, AABB& outAabb);
+	static bool ShallEventPhysEntityDeletedBeHandled(const EventPhys* pPhysEvent, EntityAABBChange& outChange);
 
-	CryMT::vector<AABB> m_queuedAABBChanges;    // changes from the physical world that have been queued asynchronously; will be fired by FlushPendingAABBChanges()
+	CryMT::vector<EntityAABBChange> m_queuedAABBChanges;    // changes from the physical world that have been queued asynchronously; will be fired by FlushPendingAABBChanges()
 };
 
 #endif

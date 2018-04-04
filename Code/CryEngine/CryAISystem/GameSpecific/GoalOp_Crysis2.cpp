@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 /********************************************************************
    -------------------------------------------------------------------------
@@ -2439,7 +2439,7 @@ EGoalOpResult COPCrysis2Fly::CalculateTarget(CPipeUser* pPipeUser)
 bool COPCrysis2Fly::HandleThreat(CPipeUser* pPipeUser, const Vec3& moveDir)
 {
 	bool ret = false;
-
+	/*
 	if (pPipeUser->IsPerceptionEnabled())
 	{
 		if (m_Threat.threatId)
@@ -2493,7 +2493,7 @@ bool COPCrysis2Fly::HandleThreat(CPipeUser* pPipeUser, const Vec3& moveDir)
 			}
 		}
 	}
-
+	*/
 	return ret;
 }
 
@@ -3776,7 +3776,7 @@ void COPCrysis2FlightFireWeapons::ParseParam(const char* param, const GoalParams
 			m_PausedTime = 0.0f;
 			m_PauseOverrideTime = 0.0f;
 		}
-		else if (!paused && (m_State == eFP_PAUSED) && (m_State != eFP_PAUSED_OVERRIDE))
+		else if (!paused && ((m_State == eFP_PAUSED) || (m_State == eFP_PAUSED_OVERRIDE)))
 		{
 			m_State = m_NextState;
 			m_NextState = eFP_STOP;

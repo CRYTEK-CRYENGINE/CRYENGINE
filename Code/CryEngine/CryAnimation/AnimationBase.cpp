@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #include "stdafx.h"
 #include "AnimationBase.h"
@@ -77,16 +77,23 @@ public:
 static CSystemEventListner_Animation g_system_event_listener_anim;
 
 //////////////////////////////////////////////////////////////////////////
-class CEngineModule_CryAnimation : public IEngineModule
+class CEngineModule_CryAnimation : public IAnimationEngineModule
 {
-	CRYINTERFACE_SIMPLE(IEngineModule)
-	CRYGENERATE_SINGLETONCLASS(CEngineModule_CryAnimation, "EngineModule_CryAnimation", 0x9c73d2cd142c4256, 0xa8f0706d80cd7ad2)
+	CRYINTERFACE_BEGIN()
+		CRYINTERFACE_ADD(Cry::IDefaultModule)
+		CRYINTERFACE_ADD(IAnimationEngineModule)
+	CRYINTERFACE_END()
+	CRYGENERATE_SINGLETONCLASS_GUID(CEngineModule_CryAnimation, "EngineModule_CryAnimation", "9c73d2cd-142c-4256-a8f0-706d80cd7ad2"_cry_guid)
 
-	virtual ~CEngineModule_CryAnimation() {}
+	virtual ~CEngineModule_CryAnimation()
+	{
+		gEnv->pSystem->GetISystemEventDispatcher()->RemoveListener(&g_system_event_listener_anim);
+		SAFE_RELEASE(gEnv->pCharacterManager);
+	}
 
 	//////////////////////////////////////////////////////////////////////////
-	virtual const char* GetName() override { return "CryAnimation"; };
-	virtual const char* GetCategory() override { return "CryEngine"; };
+	virtual const char* GetName()  const override { return "CryAnimation"; };
+	virtual const char* GetCategory()  const override { return "CryEngine"; };
 
 	//////////////////////////////////////////////////////////////////////////
 	virtual bool Initialize(SSystemGlobalEnvironment& env, const SSystemInitParams& initParams) override
@@ -102,7 +109,7 @@ class CEngineModule_CryAnimation : public IEngineModule
 		if (!g_controllerHeap.IsInitialised())
 			g_controllerHeap.Init(Console::GetInst().ca_MemoryDefragPoolSize);
 
-		pSystem->GetISystemEventDispatcher()->RegisterListener(&g_system_event_listener_anim);
+		pSystem->GetISystemEventDispatcher()->RegisterListener(&g_system_event_listener_anim, "CSystemEventListner_Animation");
 
 		g_pCharacterManager = NULL;
 		env.pCharacterManager = NULL;

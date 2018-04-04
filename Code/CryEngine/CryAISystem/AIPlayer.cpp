@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 /********************************************************************
    -------------------------------------------------------------------------
@@ -217,8 +217,6 @@ void CAIPlayer::GetPhysicalSkipEntities(PhysSkipList& skipList) const
 	{
 		stl::push_back_unique(skipList, m_exposedCoverObjects[i].pPhysEnt);
 	}
-
-	CRY_ASSERT_MESSAGE(skipList.size() <= 5, "Too many physical skipped entities determined. See SRwiRequest definition.");
 }
 
 //
@@ -345,7 +343,7 @@ bool CAIPlayer::IsAffectedByLight() const
 
 //
 //---------------------------------------------------------------------------------
-void CAIPlayer::Update(EObjectUpdate type)
+void CAIPlayer::Update(EUpdateType type)
 {
 	if (m_refAttentionTarget.IsValid())
 	{
@@ -394,7 +392,7 @@ void CAIPlayer::Update(EObjectUpdate type)
 	const float zMinDifferenceBetweenStandAndCrouchToRecalculateWaterOcclusion = 0.6f;
 	const bool playerFullyChangedStance = (m_lastFullUpdateStance != bodyInfo.stance)
 	                                      && abs(m_vLastFullUpdatePos.z - bodyInfo.vEyePos.z) > zMinDifferenceBetweenStandAndCrouchToRecalculateWaterOcclusion;
-	if (type == AIUPDATE_FULL && (!IsEquivalent(m_vLastFullUpdatePos, bodyInfo.vEyePos, 1.0f) || playerFullyChangedStance))
+	if (type == EUpdateType::Full && (!IsEquivalent(m_vLastFullUpdatePos, bodyInfo.vEyePos, 1.0f) || playerFullyChangedStance))
 	{
 		// Recalculate the water occlusion at the new point
 		m_cachedWaterOcclusionValue = GetAISystem()->GetWaterOcclusionValue(bodyInfo.vEyePos);
@@ -416,7 +414,7 @@ void CAIPlayer::Update(EObjectUpdate type)
 	if (pProxy)
 		pProxy->UpdateMind(m_State);
 
-	if (type == AIUPDATE_FULL)
+	if (type == EUpdateType::Full)
 	{
 		m_lightLevel = GetAISystem()->GetLightManager()->GetLightLevelAt(GetPos(), this, &m_usingCombatLight);
 
@@ -483,7 +481,7 @@ void CAIPlayer::Update(EObjectUpdate type)
 	}
 
 	// Collect new covers.
-	if (type == AIUPDATE_FULL)
+	if (type == EUpdateType::Full)
 		CollectExposedCover();
 
 #ifdef CRYAISYSTEM_DEBUG
@@ -929,17 +927,8 @@ void CAIPlayer::Event(unsigned short eType, SAIEVENT* pEvent)
 		m_playerStuntSprinting = -1.0f;
 		break;
 	case AIEVENT_PLAYER_STUNT_PUNCH:
-		if (pEvent)
-			AddThrownEntity(pEvent->targetId);
-		break;
 	case AIEVENT_PLAYER_STUNT_THROW:
-		if (pEvent)
-			AddThrownEntity(pEvent->targetId);
-		break;
 	case AIEVENT_PLAYER_STUNT_THROW_NPC:
-		if (pEvent)
-			AddThrownEntity(pEvent->targetId);
-		break;
 	case AIEVENT_PLAYER_THROW:
 		if (pEvent)
 			AddThrownEntity(pEvent->targetId);

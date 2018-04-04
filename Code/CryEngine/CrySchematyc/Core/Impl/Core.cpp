@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #include "StdAfx.h"
 #include "Core.h"
@@ -7,11 +7,11 @@
 #include <CryExtension/ICryPluginManager.h>
 #include <CryGame/IGameFramework.h>
 
-#include <Schematyc/Env/EnvPackage.h>
-#include <Schematyc/Env/Elements/EnvDataType.h>
-#include <Schematyc/SerializationUtils/SerializationEnums.inl>
-#include <Schematyc/SerializationUtils/SerializationUtils.h>
-#include <Schematyc/Utils/StackString.h>
+#include <CrySchematyc/Env/EnvPackage.h>
+#include <CrySchematyc/Env/Elements/EnvDataType.h>
+#include <CrySchematyc/SerializationUtils/SerializationEnums.inl>
+#include <CrySchematyc/SerializationUtils/SerializationUtils.h>
+#include <CrySchematyc/Utils/StackString.h>
 
 #include "CVars.h"
 #include "ObjectPool.h"
@@ -34,6 +34,7 @@ namespace Schematyc
 {
 namespace
 {
+
 static void OnLogFileStreamsChange(ICVar* pCVar)
 {
 	CCore::GetInstance().RefreshLogFileStreams();
@@ -53,10 +54,10 @@ inline bool WantUpdate()
 {
 	return !gEnv->pGameFramework->IsGamePaused() && (gEnv->pSystem->GetSystemGlobalState() == ESYSTEM_GLOBAL_STATE_RUNNING);
 }
+
 } // Anonymous
 
-static const char* g_szScriptsFolder = "scripts";
-static const char* g_szSettingsFolder = "settings";
+static const char* g_szSettingsFolder = "CrySchematycSettings";
 
 CCore::CCore()
 	: m_pEnvRegistry(new CEnvRegistry())
@@ -73,6 +74,10 @@ CCore::CCore()
 
 CCore::~CCore()
 {
+	// TODO: This should be moved to a proper shutdown function later.
+	m_pEnvRegistry->DeregisterPackage(g_coreEnvPackageGuid);
+	// ~TODO
+
 	gEnv->pSystem->GetISystemEventDispatcher()->RemoveListener(this);
 
 	m_pLog->Shutdown();
@@ -84,7 +89,7 @@ CCore::~CCore()
 
 const char* CCore::GetName() const
 {
-	return "SchematycCore";
+	return "CrySchematycCore";
 }
 
 const char* CCore::GetCategory() const
@@ -101,8 +106,6 @@ bool CCore::Initialize(SSystemGlobalEnvironment& env, const SSystemInitParams& i
 
 	Schematyc::CVars::Register();
 
-	ICryPlugin::SetUpdateFlags(EUpdateType_PrePhysicsUpdate | EUpdateType_Update);
-
 	m_pLog->Init();
 	if (CVars::sc_LogToFile)
 	{
@@ -110,11 +113,11 @@ bool CCore::Initialize(SSystemGlobalEnvironment& env, const SSystemInitParams& i
 		const int applicationInstance = gEnv->pSystem->GetApplicationInstance();
 		if (applicationInstance)
 		{
-			logFileName.Format("schematyc(%d).log", applicationInstance);
+			logFileName.Format("CrySchematyc(%d).log", applicationInstance);
 		}
 		else
 		{
-			logFileName = "schematyc.log";
+			logFileName = "CrySchematyc.log";
 		}
 		m_pLogFileOutput = m_pLog->CreateFileOutput(logFileName.c_str());
 		SCHEMATYC_CORE_ASSERT(m_pLogFileOutput);
@@ -129,11 +132,11 @@ bool CCore::Initialize(SSystemGlobalEnvironment& env, const SSystemInitParams& i
 		CUnitTestRegistrar::RunUnitTests();
 	}
 
-	gEnv->pSystem->GetISystemEventDispatcher()->RegisterListener(this);
-	
+	gEnv->pSystem->GetISystemEventDispatcher()->RegisterListener(this, "CCore");
+
 	env.pSchematyc = this;
 
-	if (!m_pEnvRegistry->RegisterPackage(SCHEMATYC_MAKE_ENV_PACKAGE("a67cd89b-a62c-417e-851c-85bc2ffafdc9"_schematyc_guid, "CoreEnv", Delegate::Make(&RegisterCoreEnvPackage))))
+	if (!m_pEnvRegistry->RegisterPackage(SCHEMATYC_MAKE_ENV_PACKAGE(g_coreEnvPackageGuid, "CoreEnv", g_szCrytek, "Core Schematyc environment", SCHEMATYC_DELEGATE(&RegisterCoreEnvPackage))))
 	{
 		env.pSchematyc = nullptr;
 		return false;
@@ -155,10 +158,10 @@ void CCore::SetGUIDGenerator(const GUIDGenerator& guidGenerator)
 	m_guidGenerator = guidGenerator;
 }
 
-SGUID CCore::CreateGUID() const
+CryGUID CCore::CreateGUID() const
 {
-	SCHEMATYC_CORE_ASSERT(!m_guidGenerator.IsEmpty());
-	return !m_guidGenerator.IsEmpty() ? m_guidGenerator() : SGUID();
+	SCHEMATYC_CORE_ASSERT(m_guidGenerator);
+	return m_guidGenerator ? m_guidGenerator() : CryGUID();
 }
 
 const char* CCore::GetRootFolder() const
@@ -168,15 +171,13 @@ const char* CCore::GetRootFolder() const
 
 const char* CCore::GetScriptsFolder() const
 {
-	m_scriptsFolder = GetRootFolder();
-	m_scriptsFolder.append("/");
-	m_scriptsFolder.append(g_szScriptsFolder);
+	m_scriptsFolder = PathUtil::GetGameFolder();
 	return m_scriptsFolder.c_str();
 }
 
 const char* CCore::GetSettingsFolder() const
 {
-	m_settingsFolder = GetRootFolder();
+	m_settingsFolder = PathUtil::GetGameFolder();
 	m_settingsFolder.append("/");
 	m_settingsFolder.append(g_szSettingsFolder);
 	return m_settingsFolder.c_str();
@@ -246,14 +247,14 @@ ISerializationContextPtr CCore::CreateSerializationContext(const SSerializationC
 	return std::make_shared<CSerializationContext>(params);
 }
 
-IScriptViewPtr CCore::CreateScriptView(const SGUID& scopeGUID) const
+IScriptViewPtr CCore::CreateScriptView(const CryGUID& scopeGUID) const
 {
 	return std::make_shared<CScriptView>(scopeGUID);
 }
 
-IObject* CCore::CreateObject(const SObjectParams& params)
+bool CCore::CreateObject(const Schematyc::SObjectParams& params, IObject*& pObjectOut)
 {
-	return m_pObjectPool->CreateObject(params);
+	return m_pObjectPool->CreateObject(params, pObjectOut);
 }
 
 IObject* CCore::GetObject(ObjectId objectId)
@@ -266,26 +267,14 @@ void CCore::DestroyObject(ObjectId objectId)
 	m_pObjectPool->DestroyObject(objectId);
 }
 
-void CCore::SendSignal(ObjectId objectId, const SGUID& signalGUID, CRuntimeParams& params)
+void CCore::SendSignal(ObjectId objectId, const SObjectSignal& signal)
 {
-	m_pObjectPool->SendSignal(objectId, signalGUID, params);
+	m_pObjectPool->SendSignal(objectId, signal);
 }
 
-void CCore::BroadcastSignal(const SGUID& signalGUID, CRuntimeParams& params)
+void CCore::BroadcastSignal(const SObjectSignal& signal)
 {
-	m_pObjectPool->BroadcastSignal(signalGUID, params);
-}
-
-void CCore::OnPluginUpdate(EPluginUpdateType updateType)
-{
-	if (updateType == IPluginUpdateListener::EUpdateType_PrePhysicsUpdate)
-	{
-		PrePhysicsUpdate();
-	}
-	else if (updateType == IPluginUpdateListener::EUpdateType_Update)
-	{
-		Update();
-	}
+	m_pObjectPool->BroadcastSignal(signal);
 }
 
 void CCore::PrePhysicsUpdate()
@@ -420,4 +409,5 @@ void CCore::OnSystemEvent(ESystemEvent event, UINT_PTR wparam, UINT_PTR lparam)
 CCore* CCore::s_pInstance = nullptr;
 
 CRYREGISTER_SINGLETON_CLASS(CCore)
+
 } // Schematyc

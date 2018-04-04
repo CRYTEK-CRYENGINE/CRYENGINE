@@ -4,21 +4,21 @@
 
 // *INDENT-OFF* - <hard to read code and declarations due to inconsistent indentation>
 
-namespace uqs
+namespace UQS
 {
-	namespace client { struct IItemFactory; }
+	namespace Client { struct IItemFactory; }
 
-	namespace shared
+	namespace Shared
 	{
 
 		struct IVariantDict
 		{
 			virtual                             ~IVariantDict() {}
-			virtual void                        __AddOrReplace(const char* key, client::IItemFactory& itemFactory, void* pObject) = 0;  // this method can easily be used in a wrong way (passing in an object that was not created via given item-factory), but needs to be public, hence prefixed with underscores to discourage direct usage by client code
+			virtual void                        AddOrReplace(const char* szKey, Client::IItemFactory& itemFactory, const void* pItemToClone) = 0;
 			virtual void                        AddSelfToOtherAndReplace(IVariantDict& out) const = 0;
-			virtual bool                        Exists(const char* key) const = 0;
-			virtual client::IItemFactory*       FindItemFactory(const char* key) const = 0;
-			virtual bool                        FindItemFactoryAndObject(const char* key, client::IItemFactory* &outItemItemFactory, void* &outObject) const = 0;
+			virtual bool                        Exists(const char* szKey) const = 0;
+			virtual Client::IItemFactory*       FindItemFactory(const char* szKey) const = 0;
+			virtual bool                        FindItemFactoryAndObject(const char* szKey, Client::IItemFactory* &outItemItemFactory, void* &pOutObject) const = 0;
 		};
 
 	}

@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #include "StdAfx.h"
 #include "RenderAuxGeom.h"
@@ -32,20 +32,22 @@ CAuxGeomCB::CAuxGeomCB(IRenderAuxGeomImpl* pRenderAuxGeom)
 	: m_pRenderAuxGeom(pRenderAuxGeom)
 	, m_lastFlushPos(0)
 {
-	assert(m_pRenderAuxGeom != 0);
+	CRY_ASSERT(m_pRenderAuxGeom != nullptr);
 	m_cbCurrent = AddCBuffer();
 }
 
 CAuxGeomCB::~CAuxGeomCB()
 {
-	for (CBList::iterator it = m_cbData.begin(); it != m_cbData.end(); ++it)
-		delete *it;
+	for (auto const pData : m_cbData)
+	{
+		delete pData;
+	}
 }
 
 void CAuxGeomCB::SetRenderFlags(const SAuxGeomRenderFlags& renderFlags)
 {
 	// make sure caller only tries to set public bits
-	assert(0 == (renderFlags.m_renderFlags & ~e_PublicParamsMask));
+	CRY_ASSERT(0 == (renderFlags.m_renderFlags & ~e_PublicParamsMask));
 	m_cbCurrent->m_curRenderFlags = renderFlags;
 }
 
@@ -56,8 +58,8 @@ SAuxGeomRenderFlags CAuxGeomCB::GetRenderFlags()
 
 void CAuxGeomCB::DrawPoint(const Vec3& v, const ColorB& col, uint8 size)
 {
-	assert(size > 0);
-	SAuxVertex* pVertex(0);
+	CRY_ASSERT(size > 0);
+	SAuxVertex* pVertex(nullptr);
 	AddPrimitive(pVertex, 1, CreatePointRenderFlags(size));
 
 	pVertex->xyz = v;
@@ -66,8 +68,8 @@ void CAuxGeomCB::DrawPoint(const Vec3& v, const ColorB& col, uint8 size)
 
 void CAuxGeomCB::DrawPoints(const Vec3* v, uint32 numPoints, const ColorB& col, uint8 size)
 {
-	assert(size > 0);
-	SAuxVertex* pVertices(0);
+	CRY_ASSERT(size > 0);
+	SAuxVertex* pVertices(nullptr);
 	AddPrimitive(pVertices, numPoints, CreatePointRenderFlags(size));
 
 	uint32 color(PackColor(col));
@@ -80,8 +82,8 @@ void CAuxGeomCB::DrawPoints(const Vec3* v, uint32 numPoints, const ColorB& col, 
 
 void CAuxGeomCB::DrawPoints(const Vec3* v, uint32 numPoints, const ColorB* col, uint8 size)
 {
-	assert(size > 0);
-	SAuxVertex* pVertices(0);
+	CRY_ASSERT(size > 0);
+	SAuxVertex* pVertices(nullptr);
 	AddPrimitive(pVertices, numPoints, CreatePointRenderFlags(size));
 
 	for (uint32 i(0); i < numPoints; ++i)
@@ -95,7 +97,7 @@ void CAuxGeomCB::DrawLine(const Vec3& v0, const ColorB& colV0, const Vec3& v1, c
 {
 	if (thickness <= 1.0f)
 	{
-		SAuxVertex* pVertices(0);
+		SAuxVertex* pVertices(nullptr);
 		AddPrimitive(pVertices, 2, CreateLineRenderFlags(false) | AlphaFlags(colV0) | AlphaFlags(colV1));
 
 		pVertices[0].xyz = v0;
@@ -111,11 +113,11 @@ void CAuxGeomCB::DrawLine(const Vec3& v0, const ColorB& colV0, const Vec3& v1, c
 
 void CAuxGeomCB::DrawLines(const Vec3* v, uint32 numPoints, const ColorB& col, float thickness)
 {
-	assert((numPoints >= 2) && (0 == (numPoints & 1)));
+	CRY_ASSERT((numPoints >= 2) && (0 == (numPoints & 1)));
 
 	if (thickness <= 1.0f)
 	{
-		SAuxVertex* pVertices(0);
+		SAuxVertex* pVertices(nullptr);
 		AddPrimitive(pVertices, numPoints, CreateLineRenderFlags(false) | AlphaFlags(col));
 
 		uint32 color(PackColor(col));
@@ -136,11 +138,11 @@ void CAuxGeomCB::DrawLines(const Vec3* v, uint32 numPoints, const ColorB& col, f
 
 void CAuxGeomCB::DrawLines(const Vec3* v, uint32 numPoints, const ColorB* col, float thickness)
 {
-	assert((numPoints >= 2) && (0 == (numPoints & 1)));
+	CRY_ASSERT((numPoints >= 2) && (0 == (numPoints & 1)));
 
 	if (thickness <= 1.0f)
 	{
-		SAuxVertex* pVertices(0);
+		SAuxVertex* pVertices(nullptr);
 		AddPrimitive(pVertices, numPoints, CreateLineRenderFlags(false));
 
 		for (uint32 i(0); i < numPoints; ++i)
@@ -160,13 +162,13 @@ void CAuxGeomCB::DrawLines(const Vec3* v, uint32 numPoints, const ColorB* col, f
 
 void CAuxGeomCB::DrawLines(const Vec3* v, uint32 numPoints, const vtx_idx* ind, uint32 numIndices, const ColorB& col, float thickness)
 {
-	assert(numPoints >= 2);
-	assert((numIndices >= 2) && (0 == (numIndices & 1)));
+	CRY_ASSERT(numPoints >= 2);
+	CRY_ASSERT((numIndices >= 2) && (0 == (numIndices & 1)));
 
 	if (thickness <= 1.0f)
 	{
-		SAuxVertex* pVertices(0);
-		vtx_idx* pIndices(0);
+		SAuxVertex* pVertices(nullptr);
+		vtx_idx* pIndices(nullptr);
 		AddIndexedPrimitive(pVertices, numPoints, pIndices, numIndices, CreateLineRenderFlags(true) | AlphaFlags(col));
 
 		uint32 color(PackColor(col));
@@ -189,13 +191,13 @@ void CAuxGeomCB::DrawLines(const Vec3* v, uint32 numPoints, const vtx_idx* ind, 
 
 void CAuxGeomCB::DrawLines(const Vec3* v, uint32 numPoints, const vtx_idx* ind, uint32 numIndices, const ColorB* col, float thickness)
 {
-	assert(numPoints >= 2);
-	assert((numIndices >= 2) && (0 == (numIndices & 1)));
+	CRY_ASSERT(numPoints >= 2);
+	CRY_ASSERT((numIndices >= 2) && (0 == (numIndices & 1)));
 
 	if (thickness <= 1.0f)
 	{
-		SAuxVertex* pVertices(0);
-		vtx_idx* pIndices(0);
+		SAuxVertex* pVertices(nullptr);
+		vtx_idx* pIndices(nullptr);
 		AddIndexedPrimitive(pVertices, numPoints, pIndices, numIndices, CreateLineRenderFlags(true));
 
 		for (uint32 i(0); i < numPoints; ++i)
@@ -217,13 +219,13 @@ void CAuxGeomCB::DrawLines(const Vec3* v, uint32 numPoints, const vtx_idx* ind, 
 
 void CAuxGeomCB::DrawPolyline(const Vec3* v, uint32 numPoints, bool closed, const ColorB& col, float thickness)
 {
-	assert(numPoints >= 2);
-	assert(!closed || numPoints >= 3);   // if "closed" then we need at least three vertices
+	CRY_ASSERT(numPoints >= 2);
+	CRY_ASSERT(!closed || numPoints >= 3);   // if "closed" then we need at least three vertices
 
 	if (thickness <= 1.0f)
 	{
-		SAuxVertex* pVertices(0);
-		vtx_idx* pIndices(0);
+		SAuxVertex* pVertices(nullptr);
+		vtx_idx* pIndices(nullptr);
 		AddIndexedPrimitive(pVertices, numPoints, pIndices, (false != closed) ? 2 * numPoints : 2 * (numPoints - 1), CreateLineRenderFlags(true) | AlphaFlags(col));
 
 		uint32 color(PackColor(col));
@@ -260,13 +262,13 @@ void CAuxGeomCB::DrawPolyline(const Vec3* v, uint32 numPoints, bool closed, cons
 
 void CAuxGeomCB::DrawPolyline(const Vec3* v, uint32 numPoints, bool closed, const ColorB* col, float thickness)
 {
-	assert(numPoints >= 2);
-	assert(!closed || numPoints >= 3);   // if "closed" then we need at least three vertices
+	CRY_ASSERT(numPoints >= 2);
+	CRY_ASSERT(!closed || numPoints >= 3);   // if "closed" then we need at least three vertices
 
 	if (thickness <= 1.0f)
 	{
-		SAuxVertex* pVertices(0);
-		vtx_idx* pIndices(0);
+		SAuxVertex* pVertices(nullptr);
+		vtx_idx* pIndices(nullptr);
 		AddIndexedPrimitive(pVertices, numPoints, pIndices, (false != closed) ? 2 * numPoints : 2 * (numPoints - 1), CreateLineRenderFlags(true));
 
 		for (uint32 i(0); i < numPoints; ++i)
@@ -302,12 +304,12 @@ void CAuxGeomCB::DrawPolyline(const Vec3* v, uint32 numPoints, bool closed, cons
 
 void CAuxGeomCB::DrawThickLine(const Vec3& v0, const ColorB& colV0, const Vec3& v1, const ColorB& colV1, float thickness)
 {
-	assert(thickness > 0.0f);
-	assert(0 != gRenDev);
+	CRY_ASSERT(thickness > 0.0f);
+	CRY_ASSERT(gRenDev != nullptr);
 
 	// allocate space for two triangles
-	SAuxVertex* pVertices(0);
-	AddPrimitive(pVertices, 6, CreateTriangleRenderFlags(false) | e_TriListParam_ProcessThickLines);
+	SAuxVertex* pVertices(nullptr);
+	AddPrimitive(pVertices, 4, CreateLineRenderFlags(false) | e_LineListParam_ProcessThickLines);
 
 	// Encode paramaters for thick line in vertex memory.
 	// The actual "aux render" implementation has to process these before feeding it to the GPU.
@@ -315,15 +317,15 @@ void CAuxGeomCB::DrawThickLine(const Vec3& v0, const ColorB& colV0, const Vec3& 
 	// (see D3DRenderAuxGeom.cpp for an implementation).
 	pVertices[0].xyz = v0;
 	pVertices[0].color.dcolor = PackColor(colV0);
+	pVertices[0].st = Vec2(thickness, 0.0f);
 	pVertices[1].xyz = v1;
 	pVertices[1].color.dcolor = PackColor(colV1);
-
-	pVertices[2].xyz = Vec3(thickness, 0.0f, 0.0f);
+	pVertices[1].st = Vec2(thickness, 0.0f);
 }
 
 void CAuxGeomCB::DrawTriangle(const Vec3& v0, const ColorB& colV0, const Vec3& v1, const ColorB& colV1, const Vec3& v2, const ColorB& colV2)
 {
-	SAuxVertex* pVertices(0);
+	SAuxVertex* pVertices(nullptr);
 	AddPrimitive(pVertices, 3, CreateTriangleRenderFlags(false));
 
 	pVertices[0].xyz = v0;
@@ -338,9 +340,9 @@ void CAuxGeomCB::DrawTriangle(const Vec3& v0, const ColorB& colV0, const Vec3& v
 
 void CAuxGeomCB::DrawTriangles(const Vec3* v, uint32 numPoints, const ColorB& col)
 {
-	assert((numPoints >= 3) && (0 == (numPoints % 3)));
+	CRY_ASSERT((numPoints >= 3) && (0 == (numPoints % 3)));
 
-	SAuxVertex* pVertices(0);
+	SAuxVertex* pVertices(nullptr);
 	AddPrimitive(pVertices, numPoints, CreateTriangleRenderFlags(false));
 
 	uint32 color(PackColor(col));
@@ -353,9 +355,9 @@ void CAuxGeomCB::DrawTriangles(const Vec3* v, uint32 numPoints, const ColorB& co
 
 void CAuxGeomCB::DrawTriangles(const Vec3* v, uint32 numPoints, const ColorB* col)
 {
-	assert((numPoints >= 3) && (0 == (numPoints % 3)));
+	CRY_ASSERT((numPoints >= 3) && (0 == (numPoints % 3)));
 
-	SAuxVertex* pVertices(0);
+	SAuxVertex* pVertices(nullptr);
 	AddPrimitive(pVertices, numPoints, CreateTriangleRenderFlags(false));
 
 	for (uint32 i(0); i < numPoints; ++i)
@@ -367,11 +369,11 @@ void CAuxGeomCB::DrawTriangles(const Vec3* v, uint32 numPoints, const ColorB* co
 
 void CAuxGeomCB::DrawTriangles(const Vec3* v, uint32 numPoints, const vtx_idx* ind, uint32 numIndices, const ColorB& col)
 {
-	assert(numPoints >= 3);
-	assert((numIndices >= 3) && (0 == (numIndices % 3)));
+	CRY_ASSERT(numPoints >= 3);
+	CRY_ASSERT((numIndices >= 3) && (0 == (numIndices % 3)));
 
-	SAuxVertex* pVertices(0);
-	vtx_idx* pIndices(0);
+	SAuxVertex* pVertices(nullptr);
+	vtx_idx* pIndices(nullptr);
 	AddIndexedPrimitive(pVertices, numPoints, pIndices, numIndices, CreateTriangleRenderFlags(true));
 
 	uint32 color(PackColor(col));
@@ -386,11 +388,11 @@ void CAuxGeomCB::DrawTriangles(const Vec3* v, uint32 numPoints, const vtx_idx* i
 
 void CAuxGeomCB::DrawTriangles(const Vec3* v, uint32 numPoints, const vtx_idx* ind, uint32 numIndices, const ColorB* col)
 {
-	assert(numPoints >= 3);
-	assert((numIndices >= 3) && (0 == (numIndices % 3)));
+	CRY_ASSERT(numPoints >= 3);
+	CRY_ASSERT((numIndices >= 3) && (0 == (numIndices % 3)));
 
-	SAuxVertex* pVertices(0);
-	vtx_idx* pIndices(0);
+	SAuxVertex* pVertices(nullptr);
+	vtx_idx* pIndices(nullptr);
 	AddIndexedPrimitive(pVertices, numPoints, pIndices, numIndices, CreateTriangleRenderFlags(true));
 
 	for (uint32 i(0); i < numPoints; ++i)
@@ -402,10 +404,20 @@ void CAuxGeomCB::DrawTriangles(const Vec3* v, uint32 numPoints, const vtx_idx* i
 	memcpy(pIndices, ind, sizeof(pIndices[0]) * numIndices);
 }
 
+void CAuxGeomCB::DrawBuffer(const SAuxVertex* inVertices, uint32 numVertices, bool textured)
+{
+	CRY_ASSERT((numVertices >= 3) && (0 == (numVertices % 3)));
+
+	SAuxVertex* bufVertices(nullptr);
+	AddPrimitive(bufVertices, numVertices, CreateTriangleRenderFlags(false, textured));
+
+	memcpy(bufVertices, inVertices, numVertices * sizeof(SAuxVertex));
+}
+
 void CAuxGeomCB::DrawAABB(const AABB& aabb, bool bSolid, const ColorB& col, const EBoundingBoxDrawStyle& bbDrawStyle)
 {
-	SAuxVertex* pVertices(0);
-	vtx_idx* pIndices(0);
+	SAuxVertex* pVertices(nullptr);
+	vtx_idx* pIndices(nullptr);
 
 	if (eBBD_Extremes_Color_Encoded == bbDrawStyle)
 	{
@@ -681,8 +693,8 @@ void CAuxGeomCB::DrawAABB(const AABB& aabb, bool bSolid, const ColorB& col, cons
 void CAuxGeomCB::DrawAABBs(const AABB* aabbs, uint32 aabbCount, bool bSolid, const ColorB& col,
                            const EBoundingBoxDrawStyle& bbDrawStyle)
 {
-	SAuxVertex* pVertices(0);
-	vtx_idx* pIndices(0);
+	SAuxVertex* pVertices(nullptr);
+	vtx_idx* pIndices(nullptr);
 
 	if (eBBD_Extremes_Color_Encoded == bbDrawStyle)
 	{
@@ -987,10 +999,12 @@ void CAuxGeomCB::DrawAABBs(const AABB* aabbs, uint32 aabbCount, bool bSolid, con
 	}
 }
 
-void CAuxGeomCB::DrawAABB(const AABB& aabb, const Matrix34& matWorld, bool bSolid, const ColorB& col, const EBoundingBoxDrawStyle& bbDrawStyle)
+// TODO: remove this function in favor of just using PushMatrix around the previous function users
+void CAuxGeomCB::DrawAABB(const AABB& aabb, const Matrix34& mat, bool bSolid, const ColorB& col, const EBoundingBoxDrawStyle& bbDrawStyle)
 {
-	SAuxVertex* pVertices(0);
-	vtx_idx* pIndices(0);
+	SAuxVertex* pVertices(nullptr);
+	vtx_idx* pIndices(nullptr);
+	int oldMatrixIndex = PushMatrix(mat);
 
 	if (eBBD_Extremes_Color_Encoded == bbDrawStyle)
 	{
@@ -1076,21 +1090,21 @@ void CAuxGeomCB::DrawAABB(const AABB& aabb, const Matrix34& matWorld, bool bSoli
 		uint32 colorMin(PackColor(ColorB(15, 15, 15, col.a)));
 		uint32 colorMax(PackColor(ColorB(255, 255, 255, col.a)));
 
-		pVertices[0].xyz = matWorld * Vec3(aabb.min.x, aabb.min.y, aabb.min.z);
+		pVertices[0].xyz = Vec3(aabb.min.x, aabb.min.y, aabb.min.z);
 		pVertices[0].color.dcolor = colorMin;
-		pVertices[1].xyz = matWorld * Vec3(aabb.min.x, aabb.max.y, aabb.min.z);
+		pVertices[1].xyz = Vec3(aabb.min.x, aabb.max.y, aabb.min.z);
 		pVertices[1].color.dcolor = color;
-		pVertices[2].xyz = matWorld * Vec3(aabb.max.x, aabb.max.y, aabb.min.z);
+		pVertices[2].xyz = Vec3(aabb.max.x, aabb.max.y, aabb.min.z);
 		pVertices[2].color.dcolor = color;
-		pVertices[3].xyz = matWorld * Vec3(aabb.max.x, aabb.min.y, aabb.min.z);
+		pVertices[3].xyz = Vec3(aabb.max.x, aabb.min.y, aabb.min.z);
 		pVertices[3].color.dcolor = color;
-		pVertices[4].xyz = matWorld * Vec3(aabb.min.x, aabb.min.y, aabb.max.z);
+		pVertices[4].xyz = Vec3(aabb.min.x, aabb.min.y, aabb.max.z);
 		pVertices[4].color.dcolor = color;
-		pVertices[5].xyz = matWorld * Vec3(aabb.min.x, aabb.max.y, aabb.max.z);
+		pVertices[5].xyz = Vec3(aabb.min.x, aabb.max.y, aabb.max.z);
 		pVertices[5].color.dcolor = color;
-		pVertices[6].xyz = matWorld * Vec3(aabb.max.x, aabb.max.y, aabb.max.z);
+		pVertices[6].xyz = Vec3(aabb.max.x, aabb.max.y, aabb.max.z);
 		pVertices[6].color.dcolor = colorMax;
-		pVertices[7].xyz = matWorld * Vec3(aabb.max.x, aabb.min.y, aabb.max.z);
+		pVertices[7].xyz = Vec3(aabb.max.x, aabb.min.y, aabb.max.z);
 		pVertices[7].color.dcolor = color;
 	}
 	else
@@ -1101,21 +1115,21 @@ void CAuxGeomCB::DrawAABB(const AABB& aabb, const Matrix34& matWorld, bool bSoli
 
 			uint32 color(PackColor(col));
 
-			pVertices[0].xyz = matWorld * Vec3(aabb.min.x, aabb.min.y, aabb.min.z);
+			pVertices[0].xyz = Vec3(aabb.min.x, aabb.min.y, aabb.min.z);
 			pVertices[0].color.dcolor = color;
-			pVertices[1].xyz = matWorld * Vec3(aabb.min.x, aabb.max.y, aabb.min.z);
+			pVertices[1].xyz = Vec3(aabb.min.x, aabb.max.y, aabb.min.z);
 			pVertices[1].color.dcolor = color;
-			pVertices[2].xyz = matWorld * Vec3(aabb.max.x, aabb.max.y, aabb.min.z);
+			pVertices[2].xyz = Vec3(aabb.max.x, aabb.max.y, aabb.min.z);
 			pVertices[2].color.dcolor = color;
-			pVertices[3].xyz = matWorld * Vec3(aabb.max.x, aabb.min.y, aabb.min.z);
+			pVertices[3].xyz = Vec3(aabb.max.x, aabb.min.y, aabb.min.z);
 			pVertices[3].color.dcolor = color;
-			pVertices[4].xyz = matWorld * Vec3(aabb.min.x, aabb.min.y, aabb.max.z);
+			pVertices[4].xyz = Vec3(aabb.min.x, aabb.min.y, aabb.max.z);
 			pVertices[4].color.dcolor = color;
-			pVertices[5].xyz = matWorld * Vec3(aabb.min.x, aabb.max.y, aabb.max.z);
+			pVertices[5].xyz = Vec3(aabb.min.x, aabb.max.y, aabb.max.z);
 			pVertices[5].color.dcolor = color;
-			pVertices[6].xyz = matWorld * Vec3(aabb.max.x, aabb.max.y, aabb.max.z);
+			pVertices[6].xyz = Vec3(aabb.max.x, aabb.max.y, aabb.max.z);
 			pVertices[6].color.dcolor = color;
-			pVertices[7].xyz = matWorld * Vec3(aabb.max.x, aabb.min.y, aabb.max.z);
+			pVertices[7].xyz = Vec3(aabb.max.x, aabb.min.y, aabb.max.z);
 			pVertices[7].color.dcolor = color;
 
 			pIndices[0] = 0;
@@ -1149,14 +1163,14 @@ void CAuxGeomCB::DrawAABB(const AABB& aabb, const Matrix34& matWorld, bool bSoli
 		{
 			AddIndexedPrimitive(pVertices, 24, pIndices, 36, CreateTriangleRenderFlags(true));
 
-			Vec3 xyz(matWorld * Vec3(aabb.min.x, aabb.min.y, aabb.min.z));
-			Vec3 xyZ(matWorld * Vec3(aabb.min.x, aabb.min.y, aabb.max.z));
-			Vec3 xYz(matWorld * Vec3(aabb.min.x, aabb.max.y, aabb.min.z));
-			Vec3 xYZ(matWorld * Vec3(aabb.min.x, aabb.max.y, aabb.max.z));
-			Vec3 Xyz(matWorld * Vec3(aabb.max.x, aabb.min.y, aabb.min.z));
-			Vec3 XyZ(matWorld * Vec3(aabb.max.x, aabb.min.y, aabb.max.z));
-			Vec3 XYz(matWorld * Vec3(aabb.max.x, aabb.max.y, aabb.min.z));
-			Vec3 XYZ(matWorld * Vec3(aabb.max.x, aabb.max.y, aabb.max.z));
+			Vec3 xyz(Vec3(aabb.min.x, aabb.min.y, aabb.min.z));
+			Vec3 xyZ(Vec3(aabb.min.x, aabb.min.y, aabb.max.z));
+			Vec3 xYz(Vec3(aabb.min.x, aabb.max.y, aabb.min.z));
+			Vec3 xYZ(Vec3(aabb.min.x, aabb.max.y, aabb.max.z));
+			Vec3 Xyz(Vec3(aabb.max.x, aabb.min.y, aabb.min.z));
+			Vec3 XyZ(Vec3(aabb.max.x, aabb.min.y, aabb.max.z));
+			Vec3 XYz(Vec3(aabb.max.x, aabb.max.y, aabb.min.z));
+			Vec3 XYZ(Vec3(aabb.max.x, aabb.max.y, aabb.max.z));
 
 			uint32 colDown(PackColor(ScaleColor(col, 0.5f)));
 			pVertices[0].xyz = xyz;
@@ -1261,12 +1275,14 @@ void CAuxGeomCB::DrawAABB(const AABB& aabb, const Matrix34& matWorld, bool bSoli
 			pIndices[35] = 23;
 		}
 	}
+
+	m_cbCurrent->m_curWorldMatIdx = oldMatrixIndex;
 }
 
 void CAuxGeomCB::DrawOBB(const OBB& obb, const Vec3& pos, bool bSolid, const ColorB& col, const EBoundingBoxDrawStyle& bbDrawStyle)
 {
-	SAuxVertex* pVertices(0);
-	vtx_idx* pIndices(0);
+	SAuxVertex* pVertices(nullptr);
+	vtx_idx* pIndices(nullptr);
 
 	if (eBBD_Extremes_Color_Encoded == bbDrawStyle)
 	{
@@ -1542,10 +1558,11 @@ void CAuxGeomCB::DrawOBB(const OBB& obb, const Vec3& pos, bool bSolid, const Col
 	}
 }
 
-void CAuxGeomCB::DrawOBB(const OBB& obb, const Matrix34& matWorld, bool bSolid, const ColorB& col, const EBoundingBoxDrawStyle& bbDrawStyle)
+void CAuxGeomCB::DrawOBB(const OBB& obb, const Matrix34& mat, bool bSolid, const ColorB& col, const EBoundingBoxDrawStyle& bbDrawStyle)
 {
-	SAuxVertex* pVertices(0);
-	vtx_idx* pIndices(0);
+	SAuxVertex* pVertices(nullptr);
+	vtx_idx* pIndices(nullptr);
+	int oldMatrixIndex = PushMatrix(mat);
 
 	if (eBBD_Extremes_Color_Encoded == bbDrawStyle)
 	{
@@ -1632,21 +1649,21 @@ void CAuxGeomCB::DrawOBB(const OBB& obb, const Matrix34& matWorld, bool bSolid, 
 		uint32 colorMax(PackColor(ColorB(255, 255, 255, col.a)));
 
 		AABB aabb(obb.c - obb.h, obb.c + obb.h);
-		pVertices[0].xyz = matWorld * (obb.m33 * Vec3(aabb.min.x, aabb.min.y, aabb.min.z));
+		pVertices[0].xyz = obb.m33 * Vec3(aabb.min.x, aabb.min.y, aabb.min.z);
 		pVertices[0].color.dcolor = colorMin;
-		pVertices[1].xyz = matWorld * (obb.m33 * Vec3(aabb.min.x, aabb.max.y, aabb.min.z));
+		pVertices[1].xyz = obb.m33 * Vec3(aabb.min.x, aabb.max.y, aabb.min.z);
 		pVertices[1].color.dcolor = color;
-		pVertices[2].xyz = matWorld * (obb.m33 * Vec3(aabb.max.x, aabb.max.y, aabb.min.z));
+		pVertices[2].xyz = obb.m33 * Vec3(aabb.max.x, aabb.max.y, aabb.min.z);
 		pVertices[2].color.dcolor = color;
-		pVertices[3].xyz = matWorld * (obb.m33 * Vec3(aabb.max.x, aabb.min.y, aabb.min.z));
+		pVertices[3].xyz = obb.m33 * Vec3(aabb.max.x, aabb.min.y, aabb.min.z);
 		pVertices[3].color.dcolor = color;
-		pVertices[4].xyz = matWorld * (obb.m33 * Vec3(aabb.min.x, aabb.min.y, aabb.max.z));
+		pVertices[4].xyz = obb.m33 * Vec3(aabb.min.x, aabb.min.y, aabb.max.z);
 		pVertices[4].color.dcolor = color;
-		pVertices[5].xyz = matWorld * (obb.m33 * Vec3(aabb.min.x, aabb.max.y, aabb.max.z));
+		pVertices[5].xyz = obb.m33 * Vec3(aabb.min.x, aabb.max.y, aabb.max.z);
 		pVertices[5].color.dcolor = color;
-		pVertices[6].xyz = matWorld * (obb.m33 * Vec3(aabb.max.x, aabb.max.y, aabb.max.z));
+		pVertices[6].xyz = obb.m33 * Vec3(aabb.max.x, aabb.max.y, aabb.max.z);
 		pVertices[6].color.dcolor = colorMax;
-		pVertices[7].xyz = matWorld * (obb.m33 * Vec3(aabb.max.x, aabb.min.y, aabb.max.z));
+		pVertices[7].xyz = obb.m33 * Vec3(aabb.max.x, aabb.min.y, aabb.max.z);
 		pVertices[7].color.dcolor = color;
 	}
 	else
@@ -1658,21 +1675,21 @@ void CAuxGeomCB::DrawOBB(const OBB& obb, const Matrix34& matWorld, bool bSolid, 
 			uint32 color(PackColor(col));
 
 			AABB aabb(obb.c - obb.h, obb.c + obb.h);
-			pVertices[0].xyz = matWorld * (obb.m33 * Vec3(aabb.min.x, aabb.min.y, aabb.min.z));
+			pVertices[0].xyz = obb.m33 * Vec3(aabb.min.x, aabb.min.y, aabb.min.z);
 			pVertices[0].color.dcolor = color;
-			pVertices[1].xyz = matWorld * (obb.m33 * Vec3(aabb.min.x, aabb.max.y, aabb.min.z));
+			pVertices[1].xyz = obb.m33 * Vec3(aabb.min.x, aabb.max.y, aabb.min.z);
 			pVertices[1].color.dcolor = color;
-			pVertices[2].xyz = matWorld * (obb.m33 * Vec3(aabb.max.x, aabb.max.y, aabb.min.z));
+			pVertices[2].xyz = obb.m33 * Vec3(aabb.max.x, aabb.max.y, aabb.min.z);
 			pVertices[2].color.dcolor = color;
-			pVertices[3].xyz = matWorld * (obb.m33 * Vec3(aabb.max.x, aabb.min.y, aabb.min.z));
+			pVertices[3].xyz = obb.m33 * Vec3(aabb.max.x, aabb.min.y, aabb.min.z);
 			pVertices[3].color.dcolor = color;
-			pVertices[4].xyz = matWorld * (obb.m33 * Vec3(aabb.min.x, aabb.min.y, aabb.max.z));
+			pVertices[4].xyz = obb.m33 * Vec3(aabb.min.x, aabb.min.y, aabb.max.z);
 			pVertices[4].color.dcolor = color;
-			pVertices[5].xyz = matWorld * (obb.m33 * Vec3(aabb.min.x, aabb.max.y, aabb.max.z));
+			pVertices[5].xyz = obb.m33 * Vec3(aabb.min.x, aabb.max.y, aabb.max.z);
 			pVertices[5].color.dcolor = color;
-			pVertices[6].xyz = matWorld * (obb.m33 * Vec3(aabb.max.x, aabb.max.y, aabb.max.z));
+			pVertices[6].xyz = obb.m33 * Vec3(aabb.max.x, aabb.max.y, aabb.max.z);
 			pVertices[6].color.dcolor = color;
-			pVertices[7].xyz = matWorld * (obb.m33 * Vec3(aabb.max.x, aabb.min.y, aabb.max.z));
+			pVertices[7].xyz = obb.m33 * Vec3(aabb.max.x, aabb.min.y, aabb.max.z);
 			pVertices[7].color.dcolor = color;
 
 			pIndices[0] = 0;
@@ -1707,14 +1724,14 @@ void CAuxGeomCB::DrawOBB(const OBB& obb, const Matrix34& matWorld, bool bSolid, 
 			AddIndexedPrimitive(pVertices, 24, pIndices, 36, CreateTriangleRenderFlags(true));
 
 			AABB aabb(obb.c - obb.h, obb.c + obb.h);
-			Vec3 xyz(matWorld * (obb.m33 * Vec3(aabb.min.x, aabb.min.y, aabb.min.z)));
-			Vec3 xyZ(matWorld * (obb.m33 * Vec3(aabb.min.x, aabb.min.y, aabb.max.z)));
-			Vec3 xYz(matWorld * (obb.m33 * Vec3(aabb.min.x, aabb.max.y, aabb.min.z)));
-			Vec3 xYZ(matWorld * (obb.m33 * Vec3(aabb.min.x, aabb.max.y, aabb.max.z)));
-			Vec3 Xyz(matWorld * (obb.m33 * Vec3(aabb.max.x, aabb.min.y, aabb.min.z)));
-			Vec3 XyZ(matWorld * (obb.m33 * Vec3(aabb.max.x, aabb.min.y, aabb.max.z)));
-			Vec3 XYz(matWorld * (obb.m33 * Vec3(aabb.max.x, aabb.max.y, aabb.min.z)));
-			Vec3 XYZ(matWorld * (obb.m33 * Vec3(aabb.max.x, aabb.max.y, aabb.max.z)));
+			Vec3 xyz(obb.m33 * Vec3(aabb.min.x, aabb.min.y, aabb.min.z));
+			Vec3 xyZ(obb.m33 * Vec3(aabb.min.x, aabb.min.y, aabb.max.z));
+			Vec3 xYz(obb.m33 * Vec3(aabb.min.x, aabb.max.y, aabb.min.z));
+			Vec3 xYZ(obb.m33 * Vec3(aabb.min.x, aabb.max.y, aabb.max.z));
+			Vec3 Xyz(obb.m33 * Vec3(aabb.max.x, aabb.min.y, aabb.min.z));
+			Vec3 XyZ(obb.m33 * Vec3(aabb.max.x, aabb.min.y, aabb.max.z));
+			Vec3 XYz(obb.m33 * Vec3(aabb.max.x, aabb.max.y, aabb.min.z));
+			Vec3 XYZ(obb.m33 * Vec3(aabb.max.x, aabb.max.y, aabb.max.z));
 
 			uint32 colDown(PackColor(ScaleColor(col, 0.5f)));
 			pVertices[0].xyz = xyz;
@@ -1819,13 +1836,14 @@ void CAuxGeomCB::DrawOBB(const OBB& obb, const Matrix34& matWorld, bool bSolid, 
 			pIndices[35] = 23;
 		}
 	}
+	m_cbCurrent->m_curWorldMatIdx = oldMatrixIndex;
 }
 
 void CAuxGeomCB::DrawSphere(const Vec3& pos, float radius, const ColorB& col, bool drawShaded)
 {
 	if (radius > 0.0f)
 	{
-		SAuxDrawObjParams* pDrawParams(0);
+		SAuxDrawObjParams* pDrawParams(nullptr);
 		AddObject(pDrawParams, CreateObjectRenderFlags(eDOT_Sphere));
 
 		pDrawParams->m_matWorld = Matrix34::CreateTranslationMat(pos) * Matrix33::CreateScale(Vec3(radius, radius, radius));
@@ -1839,7 +1857,7 @@ void CAuxGeomCB::DrawCone(const Vec3& pos, const Vec3& dir, float radius, float 
 {
 	if (radius > 0.0f && height > 0.0f && dir.GetLengthSquared() > 0.0f)
 	{
-		SAuxDrawObjParams* pDrawParams(0);
+		SAuxDrawObjParams* pDrawParams(nullptr);
 		AddObject(pDrawParams, CreateObjectRenderFlags(eDOT_Cone));
 
 		Vec3 direction(dir.normalized());
@@ -1862,7 +1880,7 @@ void CAuxGeomCB::DrawCylinder(const Vec3& pos, const Vec3& dir, float radius, fl
 {
 	if (radius > 0.0f && height > 0.0f && dir.GetLengthSquared() > 0.0f)
 	{
-		SAuxDrawObjParams* pDrawParams(0);
+		SAuxDrawObjParams* pDrawParams(nullptr);
 		AddObject(pDrawParams, CreateObjectRenderFlags(eDOT_Cylinder));
 
 		Vec3 direction(dir.normalized());
@@ -1936,23 +1954,39 @@ void CAuxGeomCB::DrawBone(const Vec3& p, const Vec3& c, ColorB col)
 	DrawLine(VBuffer[5], CBuffer[5], VBuffer[4], CBuffer[4]);
 }
 
-#include "CommonRender.h"
+	#include "CommonRender.h"
 
 void CAuxGeomCB::RenderTextQueued(Vec3 pos, const SDrawTextInfo& ti, const char* text)
 {
-	if(!gEnv->IsDedicated())
+	if (!gEnv->IsDedicated())
 	{
 		ColorB col(ColorF(ti.color[0], ti.color[1], ti.color[2], ti.color[3]));
+		IFFont* pFont = ti.pFont;
 
-		m_cbCurrent->m_TextMessages.PushEntry_Text(pos, col, ti.scale, ti.flags, text);
+		if (!pFont)
+		{
+			if (gEnv->pSystem && gEnv->pSystem->GetICryFont())
+				pFont = gEnv->pSystem->GetICryFont()->GetFont("default");
+
+			if (!pFont)
+				return;
+		}
+
+		m_cbCurrent->m_TextMessages.PushEntry_Text(pos, col, pFont, ti.scale, ti.flags, text);
 	}
 }
 
-#include "D3DStereo.h"
+	#include "D3DStereo.h"
 
 void CAuxGeomCB::DrawStringImmediate(IFFont_RenderProxy* pFont, float x, float y, float z, const char* pStr, const bool asciiMultiLine, const STextDrawContext& ctx)
 {
+	CRY_ASSERT(gcpRendD3D->m_pRT && gcpRendD3D->m_pRT->IsRenderThread());
 	m_pRenderAuxGeom->DrawStringImmediate(pFont, x, y, z, pStr, asciiMultiLine, ctx);
+}
+
+void CAuxGeomCB::DrawBufferRT(const SAuxVertex* data, int numVertices, int blendMode, const Matrix44* matViewProj, int texID)
+{
+	m_pRenderAuxGeom->DrawBufferRT(data, numVertices, blendMode, matViewProj, texID);
 }
 
 int32 CAuxGeomCB::PushMatrix(const Matrix34& mat)
@@ -1961,6 +1995,13 @@ int32 CAuxGeomCB::PushMatrix(const Matrix34& mat)
 	m_cbCurrent->m_curWorldMatIdx = m_cbCurrent->m_auxWorldMatrices.size();
 	m_cbCurrent->m_auxWorldMatrices.push_back(mat);
 	return curIndex;
+}
+
+int CAuxGeomCB::SetTexture(int texID)
+{
+	int prev = m_cbCurrent->m_textureID;
+	m_cbCurrent->m_textureID = texID;
+	return prev;
 }
 
 Matrix34* CAuxGeomCB::GetMatrix()
@@ -2017,16 +2058,19 @@ void CAuxGeomCBWorkerThread::Commit(uint frames)
 
 	Flush();
 
-	assert(m_cbCurrent->m_curTransMatIdx == -1);
+	CRY_ASSERT(m_cbCurrent->m_curTransMatIdx == -1);
 	m_cbCurrent->m_curTransMatIdx = -1;
 
 	m_cbCurrent = (SAuxGeomCBRawData*)CryInterlockedExchangePointer((void* volatile*)&m_CBReady, m_cbCurrent);
 
-	if (!m_cbCurrent)
+	if (m_cbCurrent == nullptr)
 	{
-		for (CBList::iterator it = m_cbData.begin(); it != m_cbData.end(); ++it)
+		for (auto const pData : m_cbData)
 		{
-			if (!(*it)->IsUsed()) m_cbCurrent = *it;
+			if (!pData->IsUsed())
+			{
+				m_cbCurrent = pData;
+			}
 		}
 
 		if (!m_cbCurrent)
@@ -2042,7 +2086,7 @@ void CAuxGeomCBWorkerThread::Commit(uint frames)
 
 void CAuxGeomCBWorkerThread::Process()
 {
-	if (SAuxGeomCBRawData* current = (SAuxGeomCBRawData*)CryInterlockedExchangePointer((void* volatile*)&m_CBReady, 0))
+	if (SAuxGeomCBRawData* current = (SAuxGeomCBRawData*)CryInterlockedExchangePointer((void* volatile*)&m_CBReady, nullptr))
 	{
 		if (m_cbProcessed) m_cbProcessed->SetUsed(false);
 
@@ -2062,36 +2106,46 @@ void CAuxGeomCBWorkerThread::Process()
 		if (processed->Count() == 1)
 		{
 			processed->SetUsed(false);
-			m_cbProcessed = 0;
+			m_cbProcessed = nullptr;
 		}
 	}
 }
 
 void CAuxGeomCB::SAuxGeomCBRawData::GetSortedPushBuffer(size_t begin, size_t end, AuxSortedPushBuffer& auxSortedPushBuffer) const
 {
-	assert(begin < end);
-	assert(end <= m_auxPushBuffer.size());
+	CRY_ASSERT(begin < end);
+	CRY_ASSERT(end <= m_auxPushBuffer.size());
 
 	auxSortedPushBuffer.reserve(end - begin);
 	auxSortedPushBuffer.resize(0);
 
 	for (AuxPushBuffer::const_iterator it(m_auxPushBuffer.begin() + begin), itEnd(m_auxPushBuffer.begin() + end); it != itEnd; ++it)
+	{
 		auxSortedPushBuffer.push_back(&(*it));
+	}
 
 	std::sort(auxSortedPushBuffer.begin(), auxSortedPushBuffer.end(), PushBufferSortFunc());
 }
 
 void CAuxGeomCB::AddPushBufferEntry(uint32 numVertices, uint32 numIndices, const SAuxGeomRenderFlags& renderFlags)
 {
-	assert(numVertices > 0);
+	CRY_ASSERT(numVertices > 0);
 
 	AuxPushBuffer& auxPushBuffer(AccessData()->m_auxPushBuffer);
 
-	EPrimType primType(GetPrimType(renderFlags));
+	if (GetWorldMatrixIndex() == -1)
+	{
+		perror("");
+	}
+
+	EPrimType primType = GetPrimType(renderFlags);
+	int textureID = IsTextured(renderFlags) ? AccessData()->m_textureID : -1;
+
 	if (false == auxPushBuffer.empty() &&
+	    auxPushBuffer[auxPushBuffer.size() - 1].m_textureID == textureID &&
 	    auxPushBuffer[auxPushBuffer.size() - 1].m_renderFlags == renderFlags &&
 	    auxPushBuffer[auxPushBuffer.size() - 1].m_transMatrixIdx == GetTransMatrixIndex() &&
-		auxPushBuffer[auxPushBuffer.size() - 1].m_worldMatrixIdx == GetWorldMatrixIndex() &&
+	    auxPushBuffer[auxPushBuffer.size() - 1].m_worldMatrixIdx == GetWorldMatrixIndex() &&
 	    (e_PtList == primType || e_LineList == primType || e_TriList == primType))
 	{
 		// Perform a runtime optimization (pre-merging) which effectively reduces the number of PB entries created.
@@ -2101,7 +2155,7 @@ void CAuxGeomCB::AddPushBufferEntry(uint32 numVertices, uint32 numIndices, const
 		// Only done for non-indexed primitives as otherwise there would be the additional overhead of patching
 		// the indices for each push buffer entry. Indices already and still have to be patched during rendering
 		// anyway (merging) so in case of indexed primitives there'd be no real benefit. Also, merging up too many
-		// indexed primitves could potentially produce a push buffer entry which cannot be rendered as it exceeds
+		// indexed primitives could potentially produce a push buffer entry which cannot be rendered as it exceeds
 		// the vb/ib buffer size for auxiliary geometries in the renderer.
 		SAuxPushBufferEntry& lastPBEntry(auxPushBuffer[auxPushBuffer.size() - 1]);
 		lastPBEntry.m_numVertices += numVertices;
@@ -2110,16 +2164,15 @@ void CAuxGeomCB::AddPushBufferEntry(uint32 numVertices, uint32 numIndices, const
 	else
 	{
 		// create new push buffer entry
-		auxPushBuffer.push_back(SAuxPushBufferEntry(numVertices, numIndices,
-		                                            AccessData()->m_auxVertexBuffer.size(), AccessData()->m_auxIndexBuffer.size(), GetTransMatrixIndex(), GetWorldMatrixIndex(), renderFlags));
+		auxPushBuffer.emplace_back(numVertices, numIndices, AccessData()->m_auxVertexBuffer.size(), AccessData()->m_auxIndexBuffer.size(), GetTransMatrixIndex(), GetWorldMatrixIndex(), renderFlags, textureID);
 	}
 }
 
 void CAuxGeomCB::AddPrimitive(SAuxVertex*& pVertices, uint32 numVertices, const SAuxGeomRenderFlags& renderFlags)
 {
-	assert(numVertices > 0);
+	CRY_ASSERT(numVertices > 0);
 
-	// add push buffer entry to allow later merging of batches commited via DP
+	// add push buffer entry to allow later merging of batches committed via DP
 	AddPushBufferEntry(numVertices, 0, renderFlags);
 
 	// get vertex ptr
@@ -2131,10 +2184,10 @@ void CAuxGeomCB::AddPrimitive(SAuxVertex*& pVertices, uint32 numVertices, const 
 
 void CAuxGeomCB::AddIndexedPrimitive(SAuxVertex*& pVertices, uint32 numVertices, vtx_idx*& pIndices, uint32 numIndices, const SAuxGeomRenderFlags& renderFlags)
 {
-	assert(numVertices > 0);
-	assert(numIndices > 0);
+	CRY_ASSERT(numVertices > 0);
+	CRY_ASSERT(numIndices > 0);
 
-	// add push buffer entry to allow later merging of batches commited via DIP
+	// add push buffer entry to allow later merging of batches committed via DIP
 	AddPushBufferEntry(numVertices, numIndices, renderFlags);
 
 	// get vertex ptr
@@ -2155,7 +2208,7 @@ void CAuxGeomCB::AddObject(SAuxDrawObjParams*& pDrawParams, const SAuxGeomRender
 	// create new push buffer entry
 	AuxPushBuffer& auxPushBuffer(AccessData()->m_auxPushBuffer);
 	AuxDrawObjParamBuffer& auxDrawObjParamBuffer(AccessData()->m_auxDrawObjParamBuffer);
-	auxPushBuffer.push_back(SAuxPushBufferEntry(auxDrawObjParamBuffer.size(), GetTransMatrixIndex(), GetWorldMatrixIndex(), renderFlags));
+	auxPushBuffer.emplace_back(auxDrawObjParamBuffer.size(), GetTransMatrixIndex(), GetWorldMatrixIndex(), renderFlags);
 
 	// get draw param buffer ptr
 	AuxDrawObjParamBuffer::size_type oldSize(auxDrawObjParamBuffer.size());

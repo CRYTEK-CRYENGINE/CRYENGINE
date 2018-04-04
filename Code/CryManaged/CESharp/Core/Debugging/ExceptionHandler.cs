@@ -2,7 +2,7 @@ using System;
 
 namespace CryEngine.Debugging
 {
-	public class ExceptionHandler
+	public static class ExceptionHandler
 	{
 		static ExceptionHandler()
 		{
@@ -14,7 +14,7 @@ namespace CryEngine.Debugging
 			var exception = e.ExceptionObject as Exception;
 
 			// The CLS doesn't force exceptions to derive from System.Exception
-			if (exception == null)
+			if(exception == null)
 				throw new NotSupportedException("An exception that does not derive from System.Exception was thrown.");
 
 			Display(exception);
@@ -24,7 +24,6 @@ namespace CryEngine.Debugging
 		/// Displays an exception via an exception form.
 		/// </summary>
 		/// <param name="ex">The exception that occurred</param>
-		/// <param name="fatal">Indicates if this exception is fatal</param>
 		public static void Display(Exception ex)
 		{
 			// Log exception as well

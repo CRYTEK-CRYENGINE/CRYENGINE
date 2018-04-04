@@ -1,34 +1,23 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
-// -------------------------------------------------------------------------
-//  File name:
-//  Version:     v1.00
-//  Created:     03/02/2015 by Jan Pinter
-//  Description:
-// -------------------------------------------------------------------------
-//  History:
-//
-////////////////////////////////////////////////////////////////////////////
 #pragma once
-#ifndef __CCRYDX12OBJECT__
-	#define __CCRYDX12OBJECT__
 
-	#include "API/DX12Base.hpp"
+#include "API/DX12Base.hpp"
 
-	#define DX12_BASE_OBJECT(className, interfaceName)       \
-	  typedef className     Class;                           \
-	  typedef               DX12_PTR (Class) Ptr;            \
-	  typedef               DX12_PTR (const Class) ConstPtr; \
-	  typedef interfaceName Super;                           \
-	  typedef interfaceName Interface;
+#define DX12_BASE_OBJECT(className, interfaceName)         \
+	typedef className     Class;                           \
+	typedef               DX12_PTR (Class) Ptr;            \
+	typedef               DX12_PTR (const Class) ConstPtr; \
+	typedef interfaceName Super;                           \
+	typedef interfaceName Interface;
 
-	#define DX12_OBJECT(className, superName)            \
-	  typedef className Class;                           \
-	  typedef           DX12_PTR (Class) Ptr;            \
-	  typedef           DX12_PTR (const Class) ConstPtr; \
-	  typedef superName Super;
+#define DX12_OBJECT(className, superName)              \
+	typedef className Class;                           \
+	typedef           DX12_PTR (Class) Ptr;            \
+	typedef           DX12_PTR (const Class) ConstPtr; \
+	typedef superName Super;
 
-	#include "CryDX12Guid.hpp"
+#include "CryDX12Guid.hpp"
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -69,12 +58,12 @@ public:
 
 	#pragma region /* IUnknown implementation */
 
-	virtual ULONG STDMETHODCALLTYPE AddRef()
+	VIRTUALGFX ULONG STDMETHODCALLTYPE AddRef() FINALGFX
 	{
 		return CryInterlockedIncrement(&m_RefCount);
 	}
 
-	virtual ULONG STDMETHODCALLTYPE Release()
+	VIRTUALGFX ULONG STDMETHODCALLTYPE Release() FINALGFX
 	{
 		ULONG RefCount;
 		if (!(RefCount = CryInterlockedDecrement(&m_RefCount)))
@@ -86,15 +75,15 @@ public:
 		return RefCount;
 	}
 
-	virtual HRESULT STDMETHODCALLTYPE QueryInterface(
+	VIRTUALGFX HRESULT STDMETHODCALLTYPE QueryInterface(
 	  REFIID riid,
-	  void** ppvObject)
+	  void** ppvObject) FINALGFX
 	{
 		if (
 		  (riid == __uuidof(T)) ||
-			(riid == __uuidof(ID3D11Device) && __uuidof(ID3D11Device1ToImplement) == __uuidof(T)) ||
+		  (riid == __uuidof(ID3D11Device       ) && __uuidof(ID3D11Device1ToImplement       ) == __uuidof(T)) ||
 		  (riid == __uuidof(ID3D11DeviceContext) && __uuidof(ID3D11DeviceContext1ToImplement) == __uuidof(T))
-		  )
+		)
 		{
 			if (ppvObject)
 			{
@@ -135,12 +124,12 @@ public:
 
 	#pragma region /* IUnknown implementation */
 
-	virtual ULONG STDMETHODCALLTYPE AddRef()
+	VIRTUALGFX ULONG STDMETHODCALLTYPE AddRef() FINALGFX
 	{
 		return CryInterlockedIncrement(&m_RefCount);
 	}
 
-	virtual ULONG STDMETHODCALLTYPE Release()
+	VIRTUALGFX ULONG STDMETHODCALLTYPE Release() FINALGFX
 	{
 		ULONG RefCount;
 		if (!(RefCount = CryInterlockedDecrement(&m_RefCount)))
@@ -152,18 +141,20 @@ public:
 		return RefCount;
 	}
 
-	virtual HRESULT STDMETHODCALLTYPE QueryInterface(
+	VIRTUALGFX HRESULT STDMETHODCALLTYPE QueryInterface(
 	  REFIID riid,
-	  void** ppvObject)
+	  void** ppvObject) FINALGFX
 	{
 		if (
 		  (riid == __uuidof(T)) ||
-		  (riid == __uuidof(IDXGIFactory) && __uuidof(IDXGIFactory4) == __uuidof(T)) ||
-		  (riid == __uuidof(IDXGIAdapter) && __uuidof(IDXGIAdapter3) == __uuidof(T)) ||
-		  (riid == __uuidof(IDXGIOutput) && __uuidof(IDXGIOutput4) == __uuidof(T)) ||
-		  (riid == __uuidof(IDXGISwapChain) && __uuidof(IDXGISwapChain3) == __uuidof(T)) ||
-		  (riid == __uuidof(IDXGIDevice) && __uuidof(IDXGIDevice3) == __uuidof(T))
-		  )
+#if !CRY_PLATFORM_DURANGO
+		  (riid == __uuidof(IDXGIDevice   ) && __uuidof(IDXGIDevice3   ) == __uuidof(T)) ||
+#endif
+		  (riid == __uuidof(IDXGIFactory  ) && __uuidof(IDXGIFactory4  ) == __uuidof(T)) ||
+		  (riid == __uuidof(IDXGIAdapter  ) && __uuidof(IDXGIAdapter3  ) == __uuidof(T)) ||
+		  (riid == __uuidof(IDXGIOutput   ) && __uuidof(IDXGIOutput4   ) == __uuidof(T)) ||
+		  (riid == __uuidof(IDXGISwapChain) && __uuidof(IDXGISwapChain3) == __uuidof(T))
+		)
 		{
 			if (ppvObject)
 			{
@@ -181,32 +172,32 @@ public:
 
 	#pragma region /* IDXGIObject implementation */
 
-	virtual HRESULT STDMETHODCALLTYPE SetPrivateData(
+	VIRTUALGFX HRESULT STDMETHODCALLTYPE SetPrivateData(
 	  _In_ REFGUID Name,
 	  UINT DataSize,
-	  _In_reads_bytes_(DataSize) const void* pData)
+	  _In_reads_bytes_(DataSize) const void* pData) FINALGFX
 	{
 		return -1;
 	}
 
-	virtual HRESULT STDMETHODCALLTYPE SetPrivateDataInterface(
+	VIRTUALGFX HRESULT STDMETHODCALLTYPE SetPrivateDataInterface(
 	  _In_ REFGUID Name,
-	  _In_ const IUnknown* pUnknown)
+	  _In_ const IUnknown* pUnknown) FINALGFX
 	{
 		return -1;
 	}
 
-	virtual HRESULT STDMETHODCALLTYPE GetPrivateData(
+	VIRTUALGFX HRESULT STDMETHODCALLTYPE GetPrivateData(
 	  _In_ REFGUID Name,
 	  _Inout_ UINT* pDataSize,
-	  _Out_writes_bytes_(*pDataSize) void* pData)
+	  _Out_writes_bytes_(*pDataSize) void* pData) FINALGFX
 	{
 		return -1;
 	}
 
-	virtual HRESULT STDMETHODCALLTYPE GetParent(
+	VIRTUALGFX HRESULT STDMETHODCALLTYPE GetParent(
 	  _In_ REFIID riid,
-	  _Out_ void** ppParent)
+	  _Out_ void** ppParent) FINALGFX
 	{
 		return -1;
 	}
@@ -216,5 +207,3 @@ public:
 private:
 	int m_RefCount;
 };
-
-#endif // __CCRYDX12OBJECT__

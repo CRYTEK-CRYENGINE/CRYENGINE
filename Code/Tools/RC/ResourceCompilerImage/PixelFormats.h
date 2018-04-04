@@ -1,4 +1,5 @@
 // Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved.
+
 #ifndef __PIXELFORMATS_H__
 #define __PIXELFORMATS_H__
 
@@ -38,6 +39,16 @@ enum EPixelFormat
 	ePixelFormat_EAC_RG11,
 	ePixelFormat_ETC2,
 	ePixelFormat_ETC2a,
+	ePixelFormat_ASTC_LDR_L,
+	ePixelFormat_ASTC_LDR_A,
+	ePixelFormat_ASTC_LDR_LA,
+	ePixelFormat_ASTC_LDR_RG,
+	ePixelFormat_ASTC_LDR_N,
+	ePixelFormat_ASTC_LDR_RGB,
+	ePixelFormat_ASTC_LDR_RGBA,
+	ePixelFormat_ASTC_HDR_L,
+	ePixelFormat_ASTC_HDR_RGB,
+	ePixelFormat_ASTC_HDR_RGBA,
 
 	ePixelFormat_BC1,
 	ePixelFormat_BC1a,
@@ -85,7 +96,7 @@ enum ESampleType
 
 struct PixelFormatInfo
 {
-	int         bitsPerPixel;
+	int         bytesPerBlock;
 	int         nChannels;
 	bool        bHasAlpha;
 	const char* szAlpha;
@@ -103,7 +114,7 @@ struct PixelFormatInfo
 	bool        bSelectable;     // shows up in the list of usable destination pixel formats in the dialog window
 
 	PixelFormatInfo()
-		: bitsPerPixel(-1)
+		: bytesPerBlock(-1)
 		, nChannels(-1)
 		, bHasAlpha(false)
 		, szAlpha(0)
@@ -123,7 +134,7 @@ struct PixelFormatInfo
 	}
 
 	PixelFormatInfo(
-		int         a_bitsPerPixel,
+		int         a_bytesPerBlock,
 		int         a_Channels,
 		bool        a_Alpha,
 		const char* a_szAlpha,
@@ -139,7 +150,7 @@ struct PixelFormatInfo
 		const char* a_szDescription,
 		bool        a_bCompressed,
 		bool        a_bSelectable)
-		: bitsPerPixel(a_bitsPerPixel)
+		: bytesPerBlock(a_bytesPerBlock)
 		, nChannels(a_Channels)
 		, bHasAlpha(a_Alpha)
 		, minWidth(a_minWidth)
@@ -210,6 +221,7 @@ public:
 
 	static const PixelFormatInfo* GetPixelFormatInfo(EPixelFormat format);
 	static bool GetPixelFormatInfo(EPixelFormat format, ESampleType* pSampleType, int* pChannelCount, bool* pHasAlpha);
+	static int GetBitsPerPixel(EPixelFormat format);
 
 	static bool IsPixelFormatWithoutAlpha(EPixelFormat format);
 	static bool IsPixelFormatUncompressed(EPixelFormat format);
@@ -232,16 +244,26 @@ public:
 };
 
 
-#define D3DFMT_3DC      ((D3DFORMAT)(MAKEFOURCC('A', 'T', 'I', '2')))   // two channel compressed normal maps 8bit -> 8 bits per pixel
-#define D3DFMT_3DCp     ((D3DFORMAT)(MAKEFOURCC('A', 'T', 'I', '1')))   // one channel compressed maps 8bit -> 4 bits per pixel
-#define D3DFMT_CTX1     ((D3DFORMAT)(MAKEFOURCC('C', 'T', 'X', '1')))   // two channel compressed normal maps 4bit -> 4 bits per pixel
-#define D3DFMT_PVRTC2   ((D3DFORMAT)(MAKEFOURCC('P', 'V', 'R', '2')))   // POWERVR texture compression, 2 bits per pixel, block is 8x4 pixels, 64 bits
-#define D3DFMT_PVRTC4   ((D3DFORMAT)(MAKEFOURCC('P', 'V', 'R', '4')))   // POWERVR texture compression, 4 bits per pixel, block is 4x4 pixels, 64 bits
+#define D3DFMT_3DC           ((D3DFORMAT)(MAKEFOURCC('A', 'T', 'I', '2')))   // two channel compressed normal maps 8bit -> 8 bits per pixel
+#define D3DFMT_3DCp          ((D3DFORMAT)(MAKEFOURCC('A', 'T', 'I', '1')))   // one channel compressed maps 8bit -> 4 bits per pixel
+#define D3DFMT_CTX1          ((D3DFORMAT)(MAKEFOURCC('C', 'T', 'X', '1')))   // two channel compressed normal maps 4bit -> 4 bits per pixel
+#define D3DFMT_PVRTC2        ((D3DFORMAT)(MAKEFOURCC('P', 'V', 'R', '2')))   // POWERVR texture compression, 2 bits per pixel, block is 8x4 pixels, 64 bits
+#define D3DFMT_PVRTC4        ((D3DFORMAT)(MAKEFOURCC('P', 'V', 'R', '4')))   // POWERVR texture compression, 4 bits per pixel, block is 4x4 pixels, 64 bits
 // Sokov: ETC2/EAC fourcc codes below are not official, I made them by myself. Feel free to replace them by better codes.
-#define D3DFMT_ETC2     ((D3DFORMAT)(MAKEFOURCC('E', 'T', '2', ' ')))   // ETC2 RGB texture compression, 4 bits per pixel, block is 4x4 pixels, 64 bits
-#define D3DFMT_ETC2a    ((D3DFORMAT)(MAKEFOURCC('E', 'T', '2', 'A')))   // ETC2 RGBA texture compression, 8 bits per pixel, block is 4x4 pixels, 128 bits
-#define D3DFMT_EAC_R11  ((D3DFORMAT)(MAKEFOURCC('E', 'A', 'R', ' ')))   // EAC one channel texture compression, 4 bits per pixel, block is 4x4 pixels, 64 bits
-#define D3DFMT_EAC_RG11 ((D3DFORMAT)(MAKEFOURCC('E', 'A', 'R', 'G')))   // EAC two channel texture compression, 4 bits per pixel, block is 4x4 pixels, 128 bits
-#define D3DFMT_DX10     ((D3DFORMAT)(MAKEFOURCC('D', 'X', '1', '0')))   // DirectX 10+ header
+#define D3DFMT_ETC2          ((D3DFORMAT)(MAKEFOURCC('E', 'T', '2', ' ')))   // ETC2 RGB texture compression, 4 bits per pixel, block is 4x4 pixels, 64 bits
+#define D3DFMT_ETC2a         ((D3DFORMAT)(MAKEFOURCC('E', 'T', '2', 'A')))   // ETC2 RGBA texture compression, 8 bits per pixel, block is 4x4 pixels, 128 bits
+#define D3DFMT_EAC_R11       ((D3DFORMAT)(MAKEFOURCC('E', 'A', 'R', ' ')))   // EAC one channel texture compression, 4 bits per pixel, block is 4x4 pixels, 64 bits
+#define D3DFMT_EAC_RG11      ((D3DFORMAT)(MAKEFOURCC('E', 'A', 'R', 'G')))   // EAC two channel texture compression, 4 bits per pixel, block is 4x4 pixels, 128 bits
+#define D3DFMT_ASTC_LDR_L    ((D3DFORMAT)(MAKEFOURCC('A', 'L', '1', ' ')))   // ASTC compressed texture format for single channel LDR maps, 128 bits
+#define D3DFMT_ASTC_LDR_A    ((D3DFORMAT)(MAKEFOURCC('A', 'L', '1', 'A')))   // ASTC compressed texture format for single channel LDR alpha maps, 128 bits
+#define D3DFMT_ASTC_LDR_LA   ((D3DFORMAT)(MAKEFOURCC('A', 'L', '2', 'A')))   // ASTC compressed texture format for dual channel LDR luminance-alpha maps, 128 bits
+#define D3DFMT_ASTC_LDR_RG   ((D3DFORMAT)(MAKEFOURCC('A', 'L', '2', ' ')))   // ASTC compressed texture format for dual channel LDR red-green maps, 128 bits
+#define D3DFMT_ASTC_LDR_N    ((D3DFORMAT)(MAKEFOURCC('A', 'L', 'N', ' ')))   // ASTC compressed texture format for dual channel LDR normalmaps, 128 bits
+#define D3DFMT_ASTC_LDR_RGB  ((D3DFORMAT)(MAKEFOURCC('A', 'L', '3', ' ')))   // ASTC compressed texture format for RGB LDR maps, 128 bits
+#define D3DFMT_ASTC_LDR_RGBA ((D3DFORMAT)(MAKEFOURCC('A', 'L', '4', ' ')))   // ASTC compressed texture format for RGBA LDR maps, 128 bits
+#define D3DFMT_ASTC_HDR_L    ((D3DFORMAT)(MAKEFOURCC('A', 'H', '1', ' ')))   // ASTC compressed texture format for single channel HDR maps, 128 bits
+#define D3DFMT_ASTC_HDR_RGB  ((D3DFORMAT)(MAKEFOURCC('A', 'H', '3', ' ')))   // ASTC compressed texture format for RGB HDR maps, 128 bits
+#define D3DFMT_ASTC_HDR_RGBA ((D3DFORMAT)(MAKEFOURCC('A', 'H', '4', ' ')))   // ASTC compressed texture format for RGBA HDR maps, 128 bits
+#define D3DFMT_DX10          ((D3DFORMAT)(MAKEFOURCC('D', 'X', '1', '0')))   // DirectX 10+ header
 
 #endif // __PIXELFORMATS_H__

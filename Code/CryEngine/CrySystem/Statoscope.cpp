@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 // -------------------------------------------------------------------------
 //  File name:   Statoscope.cpp
@@ -936,23 +936,6 @@ struct SParticlesDG : public IStatoscopeDataGroup
 		SParticleCounts particleCounts;
 		gEnv->pParticleManager->GetCounts(particleCounts);
 
-		SParticleCounts particleCountsPfx2;
-		pfx2::GetIParticleSystem()->GetCounts(particleCountsPfx2);
-
-		particleCounts.ParticlesRendered    += particleCountsPfx2.ParticlesRendered;
-		particleCounts.ParticlesActive      += particleCountsPfx2.ParticlesActive;
-		particleCounts.ParticlesAlloc       += particleCountsPfx2.ParticlesAlloc;
-		particleCounts.PixelsRendered       += particleCountsPfx2.PixelsRendered;
-		particleCounts.PixelsProcessed      += particleCountsPfx2.PixelsProcessed;
-		particleCounts.EmittersRendered     += particleCountsPfx2.EmittersRendered;
-		particleCounts.EmittersActive       += particleCountsPfx2.EmittersActive;
-		particleCounts.EmittersAlloc        += particleCountsPfx2.EmittersAlloc;
-		particleCounts.ParticlesReiterate   += particleCountsPfx2.ParticlesReiterate;
-		particleCounts.ParticlesReject      += particleCountsPfx2.ParticlesReject;
-		particleCounts.ParticlesCollideTest += particleCountsPfx2.ParticlesCollideTest;
-		particleCounts.ParticlesCollideHit  += particleCountsPfx2.ParticlesCollideHit;
-		particleCounts.ParticlesClip        += particleCountsPfx2.ParticlesClip;
-
 		float fScreenPix = (float)(gEnv->pRenderer->GetWidth() * gEnv->pRenderer->GetHeight());
 		fr.AddValue(particleCounts.ParticlesRendered);
 		fr.AddValue(particleCounts.ParticlesActive);
@@ -967,6 +950,39 @@ struct SParticlesDG : public IStatoscopeDataGroup
 		fr.AddValue(particleCounts.ParticlesCollideTest);
 		fr.AddValue(particleCounts.ParticlesCollideHit);
 		fr.AddValue(particleCounts.ParticlesClip);
+	}
+};
+
+struct SWavicleDG : public IStatoscopeDataGroup
+{
+	virtual SDescription GetDescription() const
+	{
+		return SDescription(
+			'P', "Wavicle", "['/Wavicle/'"
+			"(int emittersAlive)(int emittersUpdated)(int emittersRendererd)"
+			"(int componentAlive)(int componentUpdated)(int componentRendered)"
+			"(int particlesAllocated)(int particlesAlive)(int particlesUpdated)(int particlesRendered)(int particlesClipped)"
+			"]");
+	}
+
+	virtual void Write(IStatoscopeFrameRecord& fr)
+	{
+		using namespace pfx2;
+
+		SParticleStats stats;
+		GetIParticleSystem()->GetStats(stats);
+		
+		fr.AddValue(int(stats.m_emittersAlive));
+		fr.AddValue(int(stats.m_emittersUpdated));
+		fr.AddValue(int(stats.m_emittersRendererd));
+		fr.AddValue(int(stats.m_runtimesAlive));
+		fr.AddValue(int(stats.m_runtimesUpdated));
+		fr.AddValue(int(stats.m_runtimesRendered));
+		fr.AddValue(int(stats.m_particlesAllocated));
+		fr.AddValue(int(stats.m_particlesAlive));
+		fr.AddValue(int(stats.m_particlesUpdated));
+		fr.AddValue(int(stats.m_particlesRendered));
+		fr.AddValue(int(stats.m_particlesClipped));
 	}
 };
 
@@ -1775,7 +1791,7 @@ CStatoscope::CStatoscope()
 	m_pStatoscopeScreenshotCapturePeriodCVar = REGISTER_FLOAT("e_StatoscopeScreenshotCapturePeriod", -1.0f, VF_NULL, "How many seconds between Statoscope screenshot captures (-1 to disable).");
 	m_pStatoscopeFilenameUseBuildInfoCVar = REGISTER_INT("e_StatoscopeFilenameUseBuildInfo", 1, VF_NULL, "Set to include the platform and build number in the log filename.");
 	m_pStatoscopeFilenameUseMapCVar = REGISTER_INT("e_StatoscopeFilenameUseMap", 0, VF_NULL, "Set to include the map name in the log filename.");
-	m_pStatoscopeFilenameUseTagCvar = REGISTER_STRING("e_StatoscopeFilenameUseTag", "", VF_NULL, "Set to include tag in the log file name.");
+	m_pStatoscopeFilenameUseTagCvar = REGISTER_STRING_CB("e_StatoscopeFilenameUseTag", "", VF_NULL, "Set to include tag in the log file name.", OnTagCVarChange);
 	m_pStatoscopeFilenameUseTimeCVar = REGISTER_INT("e_StatoscopeFilenameUseTime", 0, VF_NULL, "Set to include the time and date in the log filename.");
 	m_pStatoscopeFilenameUseDatagroupsCVar = REGISTER_INT("e_StatoscopeFilenameUseDatagroups", 0, VF_NULL, "Set to include the datagroup and date in the log filename.");
 	m_pStatoscopeMinFuncLengthMsCVar = REGISTER_FLOAT("e_StatoscopeMinFuncLengthMs", 0.01f, VF_NULL, "Min func duration (ms) to be logged by statoscope.");
@@ -1790,7 +1806,7 @@ CStatoscope::CStatoscope()
 
 	REGISTER_COMMAND("e_StatoscopeAddUserMarker", &ConsoleAddUserMarker, 0, "Add a user marker to the perf stat logging for this frame");
 
-	gEnv->pSystem->GetISystemEventDispatcher()->RegisterListener(this);
+	gEnv->pSystem->GetISystemEventDispatcher()->RegisterListener(this, "CStatoscope");
 
 	CryCreateDirectory("%USER%/statoscope");
 
@@ -1935,7 +1951,10 @@ void CStatoscope::Tick()
 	else if (IsRunning())
 	{
 		CryLogAlways("Flushing Statoscope log\n");
-		m_pDataWriter->Close();
+		if (m_pDataWriter)
+		{
+			m_pDataWriter->Close();
+		}
 
 		for (IntervalGroupVec::const_iterator it = m_intervalGroups.begin(), itEnd = m_intervalGroups.end(); it != itEnd; ++it)
 			(*it)->Disable();
@@ -1960,7 +1979,7 @@ void CStatoscope::SetCurrentProfilerRecords(const std::vector<CFrameProfiler*>* 
 		// even if numProfilers is quite large (in the thousands), it'll only be tens of KB
 		uint32 numProfilers = profilers->size();
 		m_perfStatDumpProfilers.clear();
-		m_perfStatDumpProfilers.reserve(MAX(numProfilers, m_perfStatDumpProfilers.size()));		
+		m_perfStatDumpProfilers.reserve(std::max((size_t)numProfilers, m_perfStatDumpProfilers.size()));		
 
 		float minFuncTime = m_pStatoscopeMinFuncLengthMsCVar->GetFVal();
 
@@ -1996,7 +2015,7 @@ void CStatoscope::SetCurrentProfilerRecords(const std::vector<CFrameProfiler*>* 
 		{
 			uint32 maxNumFuncs = (uint32)m_pStatoscopeMaxNumFuncsPerFrameCVar->GetIVal();
 			// limit the number being recorded
-			m_perfStatDumpProfilers.resize(MIN(m_perfStatDumpProfilers.size(), maxNumFuncs));
+			m_perfStatDumpProfilers.resize(std::min(m_perfStatDumpProfilers.size(), (size_t)maxNumFuncs));
 		}
 
 		uint32 numDumpProfilers = m_perfStatDumpProfilers.size();
@@ -2596,6 +2615,19 @@ void CStatoscope::OnLogDestinationCVarChange(ICVar* pVar)
 	pStatoscope->m_pServer->CloseConnection();
 }
 
+void CStatoscope::OnTagCVarChange(ICVar* pVar)
+{
+	CStatoscope* pStatoscope = (CStatoscope*)gEnv->pStatoscope;
+	if (pStatoscope->m_pDataWriter)
+	{
+		pStatoscope->m_pDataWriter->Close();
+	}
+	SAFE_DELETE(pStatoscope->m_pDataWriter);
+	pStatoscope->m_pServer->CloseConnection();
+
+	pStatoscope->SetLogFilename();
+}
+
 bool CStatoscope::IsLoggingForTelemetry()
 {
 	return m_pStatoscopeLogDestinationCVar->GetIVal() == eLD_Telemetry;
@@ -2771,6 +2803,7 @@ void CStatoscope::RegisterBuiltInDataGroups()
 	RegisterDataGroup(new SCPUTimesDG());
 	RegisterDataGroup(new SVertexCostDG());
 	RegisterDataGroup(new SParticlesDG);
+	RegisterDataGroup(new SWavicleDG);
 	RegisterDataGroup(new SLocationDG());
 	RegisterDataGroup(new SPerCGFGPUProfilersDG());
 	RegisterDataGroup(m_pParticleProfilers);
@@ -3177,7 +3210,7 @@ bool CFileDataWriter::Open()
 {
 	if (!m_pFile)
 	{
-		CDebugAllowFileAccess afa;
+		SCOPED_ALLOW_FILE_ACCESS_FROM_THIS_THREAD();
 
 		const char* modeStr = m_bAppend ? "ab" : "wb";
 		m_bAppend = true;

@@ -184,7 +184,7 @@ struct HS_CONTROL_POINT_OUTPUT_ILLUM
 {
 	hsControlPointShared controlPoint;
 
-#if %_RT_FOG || %ANISO_SPECULAR || %IRIS_PARALAX_MAPPING || %OFFSET_BUMP_MAPPING || %PARALLAX_OCCLUSION_MAPPING || %SILHOUETTE_PARALLAX_OCCLUSION_MAPPING
+#if %_RT_FOG || %ANISO_SPECULAR || %IRIS_PARALAX_MAPPING || %OFFSET_BUMP_MAPPING || %PARALLAX_OCCLUSION_MAPPING || %SILHOUETTE_PARALLAX_OCCLUSION_MAPPING || %_RT_PER_INSTANCE_CB_TEMP
 	float4 vTangent  : TEXCOORDN;
 	float4 vBinormal : TEXCOORDN;
 #endif
@@ -217,12 +217,6 @@ int GetPatchIDOffset()
 
 HS_CONSTANT_DATA_OUTPUT CommonConstantsHS(float3 vWP0, float3 vWP1, float3 vWP2, float3 vViewPosition, float3 vCullPosition, uint PatchID, bool bCullFront = false)
 {
-#if (D3DX_SDK_VERSION == 43)
-	// Workaround for the optimization rule problem of DXSDKJune10's HLSL Compiler (9.29.952.3111)
-	// See: http://support.microsoft.com/kb/2448404	
-#pragma ruledisable 0x0802405f  ;
-#endif
-
 	HS_CONSTANT_DATA_OUTPUT output = (HS_CONSTANT_DATA_OUTPUT)0;
 
 #if !%_TT_TEXCOORD_MATRIX && %DISPLACEMENT_MAPPING

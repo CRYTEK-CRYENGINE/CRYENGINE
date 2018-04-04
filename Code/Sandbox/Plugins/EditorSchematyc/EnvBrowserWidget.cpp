@@ -18,14 +18,14 @@
 #include <QSortFilterProxyModel>
 #include <QSplitter>
 #include <QWidgetAction>
-#include <Schematyc/Env/IEnvRegistry.h>
-#include <Schematyc/Env/Elements/IEnvClass.h>
-#include <Schematyc/Script/IScriptRegistry.h>
-#include <Schematyc/Script/Elements/IScriptFunction.h>
-#include <Schematyc/Script/Elements/IScriptModule.h>
-#include <Schematyc/SerializationUtils/ISerializationContext.h>
-#include <Schematyc/SerializationUtils/IValidatorArchive.h>
-#include <Schematyc/Utils/StackString.h>
+#include <CrySchematyc/Env/IEnvRegistry.h>
+#include <CrySchematyc/Env/Elements/IEnvClass.h>
+#include <CrySchematyc/Script/IScriptRegistry.h>
+#include <CrySchematyc/Script/Elements/IScriptFunction.h>
+#include <CrySchematyc/Script/Elements/IScriptModule.h>
+#include <CrySchematyc/SerializationUtils/ISerializationContext.h>
+#include <CrySchematyc/SerializationUtils/IValidatorArchive.h>
+#include <CrySchematyc/Utils/StackString.h>
 #include <Serialization/Qt.h>
 
 #include "PluginUtils.h"
@@ -40,14 +40,14 @@ const char* GetElementIcon(EEnvElementType elementType)
 }
 }
 
-CEnvBrowserItem::CEnvBrowserItem(const SGUID& guid, const char* szName, const char* szIcon)
+CEnvBrowserItem::CEnvBrowserItem(const CryGUID& guid, const char* szName, const char* szIcon)
 	: m_guid(guid)
 	, m_name(szName)
 	, m_iconName(szIcon)
 	, m_pParent(nullptr)
 {}
 
-SGUID CEnvBrowserItem::GetGUID() const
+CryGUID CEnvBrowserItem::GetGUID() const
 {
 	return m_guid;
 }
@@ -333,7 +333,7 @@ CEnvBrowserItem* CEnvBrowserModel::ItemFromIndex(const QModelIndex& index) const
 	return static_cast<CEnvBrowserItem*>(index.internalPointer());
 }
 
-CEnvBrowserItem* CEnvBrowserModel::ItemFromGUID(const SGUID& guid) const
+CEnvBrowserItem* CEnvBrowserModel::ItemFromGUID(const CryGUID& guid) const
 {
 	ItemsByGUID::const_iterator itItem = m_itemsByGUID.find(guid);
 	return itItem != m_itemsByGUID.end() ? itItem->second : nullptr;
@@ -346,15 +346,15 @@ void CEnvBrowserModel::Populate()
 		// #SchematycTODO : Would be better if we could filter deprecated/non-deprecated elements and use an icon rather than text to indicate status!!!
 
 		CStackString name = envElement.GetName();
-		if (envElement.GetElementFlags().Check(EEnvElementFlags::Deprecated))
+		if (envElement.GetFlags().Check(EEnvElementFlags::Deprecated))
 		{
 			name.append(" [DEPRECATED]");
 		}
 
-		const SGUID guid = envElement.GetGUID();
-		CEnvBrowserItemPtr pItem = std::make_shared<CEnvBrowserItem>(guid, name.c_str(), GetElementIcon(envElement.GetElementType()));
+		const CryGUID guid = envElement.GetGUID();
+		CEnvBrowserItemPtr pItem = std::make_shared<CEnvBrowserItem>(guid, name.c_str(), GetElementIcon(envElement.GetType()));
 		const IEnvElement* pParentEnvElement = envElement.GetParent();
-		if (pParentEnvElement && (pParentEnvElement->GetElementType() != EEnvElementType::Root))
+		if (pParentEnvElement && (pParentEnvElement->GetType() != EEnvElementType::Root))
 		{
 			CEnvBrowserItem* pParentItem = ItemFromGUID(pParentEnvElement->GetGUID());
 			if (pParentItem)
@@ -373,7 +373,7 @@ void CEnvBrowserModel::Populate()
 		m_itemsByGUID.insert(ItemsByGUID::value_type(guid, pItem.get()));
 		return EVisitStatus::Recurse;
 	};
-	gEnv->pSchematyc->GetEnvRegistry().GetRoot().VisitChildren(EnvElementConstVisitor::FromLambda(visitEnvElement));
+	gEnv->pSchematyc->GetEnvRegistry().GetRoot().VisitChildren(visitEnvElement);
 }
 
 CEnvBrowserWidget::CEnvBrowserWidget(QWidget* pParent)

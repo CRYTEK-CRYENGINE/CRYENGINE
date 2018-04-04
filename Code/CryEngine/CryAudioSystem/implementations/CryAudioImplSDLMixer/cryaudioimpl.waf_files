@@ -10,6 +10,7 @@
 			"AudioImplCVars.cpp",
 			"Common.cpp",
 			"CryAudioImpl.cpp",
+			"SoundEngineTypes.cpp",
 			"SoundEngine.cpp"
 		],
 		"Header Files": [

@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 // -------------------------------------------------------------------------
 //  File name:   VoxelSegment.cpp
@@ -153,18 +153,34 @@ public:
 			m_threadId = 0;
 			m_thread = (void*)CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)FileReadThreadFunc, (void*)this, 0, (LPDWORD)&m_threadId);
 			SetThreadPriority(m_thread, THREAD_PRIORITY_BELOW_NORMAL);
+			if (Cry3DEngineBase::GetCVars()->e_svoTI_ThreadAffinity0 >= 0)
+			{
+				SetThreadAffinityMask(m_thread, BIT64(Cry3DEngineBase::GetCVars()->e_svoTI_ThreadAffinity0));
+			}
 
 			m_threadId = 0;
 			m_thread = (void*)CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)FileReadThreadFunc, (void*)this, 0, (LPDWORD)&m_threadId);
 			SetThreadPriority(m_thread, THREAD_PRIORITY_BELOW_NORMAL);
+			if (Cry3DEngineBase::GetCVars()->e_svoTI_ThreadAffinity1 >= 0)
+			{
+				SetThreadAffinityMask(m_thread, BIT64(Cry3DEngineBase::GetCVars()->e_svoTI_ThreadAffinity1));
+			}
 	#elif CRY_PLATFORM_ORBIS
 			ScePthread m_thread0;
 			::scePthreadCreate(&m_thread0, nullptr, FileReadThreadFunc, (void*)this, "VoxelThread_0");
 			::scePthreadSetprio(m_thread0, THREAD_PRIORITY_BELOW_NORMAL);
+			if (Cry3DEngineBase::GetCVars()->e_svoTI_ThreadAffinity0 >= 0)
+			{
+				::scePthreadSetaffinity(m_thread0, BIT64(Cry3DEngineBase::GetCVars()->e_svoTI_ThreadAffinity0));
+			}
 
 			ScePthread m_thread1;
 			::scePthreadCreate(&m_thread1, nullptr, FileReadThreadFunc, (void*)this, "VoxelThread_1");
 			::scePthreadSetprio(m_thread1, THREAD_PRIORITY_BELOW_NORMAL);
+			if (Cry3DEngineBase::GetCVars()->e_svoTI_ThreadAffinity1 >= 0)
+			{
+				::scePthreadSetaffinity(m_thread1, BIT64(Cry3DEngineBase::GetCVars()->e_svoTI_ThreadAffinity1));
+			}
 	#else
 			_beginthread(FileReadThreadFunc, 0, (void*)this);
 			_beginthread(FileReadThreadFunc, 0, (void*)this);
@@ -213,6 +229,8 @@ DECLARE_JOB("VoxelSegmentFileDecompress", TDecompressVoxStreamItemJob, CVoxStrea
 
 void CVoxStreamEngine::ThreadEntry()
 {
+	MEMSTAT_CONTEXT(EMemStatContextTypes::MSC_Other, 0, "VoxStreamEngine");
+
 	while (1)
 	{
 		if (m_bDoResort)
@@ -1150,14 +1168,25 @@ void CVoxelSegment::CheckAllocateTexturePool()
 
 	if (!gSvoEnv->m_nTexOpasPoolId)
 	{
-		gSvoEnv->m_nTexOpasPoolId = gEnv->pRenderer->DownLoadToVideoMemory3D(NULL,
-		                                                                     nVoxTexPoolDimXY, nVoxTexPoolDimXY, nVoxTexPoolDimZ, gSvoEnv->m_nVoxTexFormat, gSvoEnv->m_nVoxTexFormat, 1, false, FILTER_LINEAR, 0, 0, nFlagsReadOnly);
-		m_nSvoDataPoolsCounter++;
-	}
+#ifndef _RELEASE
+		int nVoxDataSize = nVoxTexPoolDimXY * nVoxTexPoolDimXY * nVoxTexPoolDimZ * sizeof(ColorB);
+		byte * pDataZero = new byte[nVoxDataSize];
+		memset(pDataZero, 0, nVoxDataSize);
+#else
+		byte * pDataZero = 0;
+#endif
 
-	if (!gSvoEnv->m_nTexNodePoolId)
-		gSvoEnv->m_nTexNodePoolId = gEnv->pRenderer->DownLoadToVideoMemory3D(NULL,
-		                                                                     nVoxNodPoolDimXY, nVoxNodPoolDimXY, nVoxNodPoolDimZ, eTF_R32G32B32A32F, eTF_R32G32B32A32F, 1, false, FILTER_POINT, 0, 0, nFlagsReadOnly);
+		gSvoEnv->m_nTexOpasPoolId = gEnv->pRenderer->DownLoadToVideoMemory3D(pDataZero,
+			nVoxTexPoolDimXY, nVoxTexPoolDimXY, nVoxTexPoolDimZ, gSvoEnv->m_nVoxTexFormat, gSvoEnv->m_nVoxTexFormat, 1, false, FILTER_LINEAR, 0, 0, nFlagsReadOnly);
+		m_nSvoDataPoolsCounter++;
+
+		gSvoEnv->m_nTexNodePoolId = gEnv->pRenderer->DownLoadToVideoMemory3D(pDataZero,
+			nVoxNodPoolDimXY, nVoxNodPoolDimXY, nVoxNodPoolDimZ, eTF_R32G32B32A32F, eTF_R32G32B32A32F, 1, false, FILTER_POINT, 0, 0, nFlagsReadOnly);
+
+#ifndef _RELEASE
+		delete[] pDataZero;
+#endif
+	}
 }
 
 void CVoxelSegment::UpdateNodeRenderData()
@@ -1422,6 +1451,8 @@ ColorF CVoxelSegment::GetBilinearAt(float iniX, float iniY, const ColorB* pImg, 
 
 void CVoxelSegment::VoxelizeMeshes(int nTID)
 {
+	MEMSTAT_CONTEXT(EMemStatContextTypes::MSC_Other, 0, "VoxelizeMeshes");
+
 	m_vCropBoxMin.Set(0, 0, 0);
 	m_vCropTexSize.Set(nVoxTexMaxDim, nVoxTexMaxDim, nVoxTexMaxDim);
 
@@ -1843,7 +1874,7 @@ bool CVoxelSegment::CheckCollectObjectsForVoxelization(const AABB& cloudBoxWS, P
 	{
 		for (int nObjType = 0; nObjType < eERType_TypesNum; nObjType++)
 		{
-			if ((bThisIsAreaParent && (nObjType == eERType_Brush || nObjType == eERType_RenderProxy)) || (nObjType == eERType_Vegetation))
+			if ((bThisIsAreaParent && (nObjType == eERType_Brush || nObjType == eERType_MovableBrush)) || (nObjType == eERType_Vegetation))
 			{
 				PodArray<IRenderNode*> arrRenderNodes;
 
@@ -1891,123 +1922,75 @@ bool CVoxelSegment::CheckCollectObjectsForVoxelization(const AABB& cloudBoxWS, P
 						continue;
 					}
 
-					int nMaxSlots = 1;
-					int nMaxSubSlots = 1;
-					if (pNode->GetRenderNodeType() == eERType_RenderProxy)
-					{
-						nMaxSlots = 32;
-						nMaxSubSlots = 32;
-					}
+					Matrix34A nodeTM;
+					CStatObj* pStatObj = (CStatObj*)pNode->GetEntityStatObj(0, &nodeTM);
 
-					for (int nSlotId = 0; nSlotId < nMaxSlots; nSlotId++)
+					IMaterial* pMaterial = pNode->GetMaterial();
+					if (!pMaterial && pStatObj)
+						pMaterial = pStatObj->GetMaterial();
+
+					if (pMaterial)
 					{
-						for (int nSubSlotId = 0; nSubSlotId < nMaxSubSlots; nSubSlotId++)
+						SObjInfo info;
+						info.matObjInv = nodeTM.GetInverted();
+						info.matObj = nodeTM;
+						info.pStatObj = pStatObj;
+
+						if (!info.pStatObj)
+							continue;
+
+						int nLod = GetCVars()->e_svoTI_ObjectsLod;
+
+						if (bThisIsLowLodNode)
+							nLod++;
+
+						info.pStatObj = (CStatObj*)info.pStatObj->GetLodObject(nLod, true);
+
+						CStatObj* pParent = info.pStatObj->GetParentObject() ? ((CStatObj*)info.pStatObj->GetParentObject()) : (CStatObj*)info.pStatObj;
+						EFileStreamingStatus eStreamingStatusParent = pParent->m_eStreamingStatus;
+						bool bUnloadable = pParent->IsUnloadable();
+
+						if (pNode->GetRenderNodeType() == eERType_Vegetation)
 						{
-							Matrix34A nodeTM;
-							CStatObj* pStatObj = (CStatObj*)pNode->GetEntityStatObj(nSlotId, nSubSlotId, &nodeTM);
+							info.fObjScale = ((CVegetation*)pNode)->GetScale();
+						}
+						else if (pNode->GetRenderNodeType() == eERType_MovableBrush || pNode->GetRenderNodeType() == eERType_Brush)
+						{
+							Vec3 vScaleAbs = info.matObj.TransformVector(Vec3(1, 1, 1)).abs();
+							info.fObjScale = min(min(vScaleAbs.x, vScaleAbs.y), vScaleAbs.z);
+						}
+						else
+							assert(!"Undefined object type");
 
-							IMaterial* pMaterial = pNode->GetMaterial();
-							if (!pMaterial && pStatObj)
-								pMaterial = pStatObj->GetMaterial();
+						info.pMat = pMaterial;
 
-							if (pMaterial)
+						if (info.pStatObj->m_nFlags & STATIC_OBJECT_HIDDEN)
+							continue;
+
+						info.bIndoor = pNode->GetEntityVisArea() != 0 || (pNode->GetRndFlags() & ERF_REGISTER_BY_BBOX);
+
+						info.bVegetation = (nObjType == eERType_Vegetation);
+
+						info.fMaxViewDist = fMaxViewDist;
+
+						if (parrObjects)
+						{
+							parrObjects->Add(info);
+						}
+						else if (eStreamingStatusParent != ecss_Ready && bUnloadable)
+						{
+							// request streaming of missing meshes
+							if (Cry3DEngineBase::GetCVars()->e_svoTI_VoxelizaionPostpone == 2)
 							{
-								SObjInfo info;
-								info.matObjInv = nodeTM.GetInverted();
-								info.matObj = nodeTM;
-								info.pStatObj = (CStatObj*)pNode->GetEntityStatObj(nSlotId, nSubSlotId, NULL);
-
-								if (!info.pStatObj && nObjType == eERType_Character)
-								{
-									if (ICharacterInstance* pChar = pNode->GetEntityCharacter(nSlotId, &nodeTM))
-									{
-										// spawn decals on CGA components
-										ISkeletonPose* pSkeletonPose = pChar->GetISkeletonPose();
-										uint32 numJoints = pChar->GetIDefaultSkeleton().GetJointCount();
-
-										// spawn decal on every sub-object intersecting decal bbox
-										uint32 nJointId = nSubSlotId;
-
-										if (nJointId >= numJoints)
-											break;
-
-										CStatObj* pStatObj = (CStatObj*)pSkeletonPose->GetStatObjOnJoint(nJointId);
-
-										if (pStatObj && !(pStatObj->GetFlags() & STATIC_OBJECT_HIDDEN) && pStatObj->GetRenderMesh())
-										{
-											assert(!pStatObj->GetSubObjectCount());
-
-											Matrix34 subSlotTM = nodeTM * Matrix34(pSkeletonPose->GetAbsJointByID(nJointId));
-											AABB objBoxWS = AABB::CreateTransformedAABB(subSlotTM, pStatObj->GetAABB());
-
-											if (Overlap::AABB_AABB(objBoxWS, cloudBoxWS))
-											{
-												info.matObjInv = subSlotTM.GetInverted();
-												info.matObj = subSlotTM;
-												info.pStatObj = pStatObj;
-												pMaterial = pSkeletonPose->GetMaterialOnJoint(nJointId);
-												if (!pMaterial)
-													pMaterial = pStatObj->GetMaterial();
-											}
-										}
-									}
-								}
-
-								if (!info.pStatObj)
-									continue;
-
-								int nLod = GetCVars()->e_svoTI_ObjectsLod;
-
-								if (bThisIsLowLodNode)
-									nLod++;
-
-								info.pStatObj = (CStatObj*)info.pStatObj->GetLodObject(nLod, true);
-
-								CStatObj* pParent = info.pStatObj->GetParentObject() ? ((CStatObj*)info.pStatObj->GetParentObject()) : (CStatObj*)info.pStatObj;
-								EFileStreamingStatus eStreamingStatusParent = pParent->m_eStreamingStatus;
-								bool bUnloadable = pParent->IsUnloadable();
-
-								if (pNode->GetRenderNodeType() == eERType_Vegetation)
-								{
-									info.fObjScale = ((CVegetation*)pNode)->GetScale();
-								}
-								else if (pNode->GetRenderNodeType() == eERType_RenderProxy || pNode->GetRenderNodeType() == eERType_Brush)
-								{
-									Vec3 vScaleAbs = info.matObj.TransformVector(Vec3(1, 1, 1)).abs();
-									info.fObjScale = min(min(vScaleAbs.x, vScaleAbs.y), vScaleAbs.z);
-								}
-								else
-									assert(!"Undefined object type");
-
-								info.pMat = pMaterial;
-
-								if (info.pStatObj->m_nFlags & STATIC_OBJECT_HIDDEN)
-									continue;
-
-								info.bIndoor = pNode->GetEntityVisArea() != 0;
-
-								info.bVegetation = (nObjType == eERType_Vegetation);
-
-								if (parrObjects)
-								{
-									parrObjects->Add(info);
-								}
-								else if (eStreamingStatusParent != ecss_Ready && bUnloadable)
-								{
-									// request streaming of missing meshes
-									if (Cry3DEngineBase::GetCVars()->e_svoTI_VoxelizaionPostpone == 2)
-									{
-										info.pStatObj->UpdateStreamableComponents(0.5f, info.matObj, false, nLod);
-									}
-
-									if (Cry3DEngineBase::GetCVars()->e_svoDebug == 7)
-									{
-										Cry3DEngineBase::Get3DEngine()->DrawBBox(pNode->GetBBox(), Col_Red);
-										IRenderAuxText::DrawLabel(pNode->GetBBox().GetCenter(), 1.3f, info.pStatObj->GetFilePath());
-									}
-									bSuccess = false;
-								}
+								info.pStatObj->UpdateStreamableComponents(0.5f, info.matObj, false, nLod);
 							}
+
+							if (Cry3DEngineBase::GetCVars()->e_svoDebug == 7)
+							{
+								Cry3DEngineBase::Get3DEngine()->DrawBBox(pNode->GetBBox(), Col_Red);
+								IRenderAuxText::DrawLabel(pNode->GetBBox().GetCenter(), 1.3f, info.pStatObj->GetFilePath());
+							}
+							bSuccess = false;
 						}
 					}
 				}
@@ -2020,6 +2003,8 @@ bool CVoxelSegment::CheckCollectObjectsForVoxelization(const AABB& cloudBoxWS, P
 
 void CVoxelSegment::FindTrianglesForVoxelization(int nTID, PodArray<int>*& rpNodeTrisXYZ, bool _bThisIsAreaParent)
 {
+	MEMSTAT_CONTEXT(EMemStatContextTypes::MSC_Other, 0, "FindTrianglesForVoxelization");
+
 	AABB cloudBoxWS;
 	cloudBoxWS.min = m_boxOS.min + m_vSegOrigin;
 	cloudBoxWS.max = m_boxOS.max + m_vSegOrigin;
@@ -2053,130 +2038,6 @@ void CVoxelSegment::FindTrianglesForVoxelization(int nTID, PodArray<int>*& rpNod
 
 		//      if(nCulled)
 		//        PrintMessage("  %d objects culled", nCulled);
-
-		PodArray<SRayHitTriangle> arrTris;
-
-		for (int d = 0; d < arrObjects.Count(); d++)
-		{
-			SRayHitInfo nodeHitInfo;
-			nodeHitInfo.bInFirstHit = true;
-			nodeHitInfo.bUseCache = false;
-			nodeHitInfo.bGetVertColorAndTC = true;
-
-			SObjInfo& info = arrObjects[d];
-
-			nodeHitInfo.nHitTriID = HIT_UNKNOWN;
-			nodeHitInfo.nHitMatID = HIT_UNKNOWN;
-			nodeHitInfo.inRay.origin = info.matObjInv.TransformPoint(m_vSegOrigin);
-			nodeHitInfo.inRay.direction = Vec3(0, 0, 0);
-			nodeHitInfo.inReferencePoint = nodeHitInfo.inRay.origin + nodeHitInfo.inRay.direction * 0.5f;
-			nodeHitInfo.fMaxHitDistance = GetBoxSize() / 2.f / info.fObjScale * sqrt(3.f);
-
-			arrTris.Clear();
-			nodeHitInfo.pHitTris = &arrTris;
-
-			nodeHitInfo.fMinHitOpacity = GetCVars()->e_svoTI_MinVoxelOpacity;
-			int nMinVoxelOpacity = (int)(GetCVars()->e_svoTI_MinVoxelOpacity * 255.f);
-
-			float fTimeRayIntersection = Cry3DEngineBase::GetTimer()->GetAsyncCurTime();
-
-			info.pStatObj->RayIntersection(nodeHitInfo, info.pMat);
-
-			if (arrTris.Count())
-			{
-				{
-					AUTO_MODIFYLOCK(CVoxelSegment::m_arrLockedMaterials.m_Lock);
-					CVoxelSegment::m_arrLockedMaterials.Add(info.pMat);
-					info.pMat->AddRef();
-					for (int s = 0; s < info.pMat->GetSubMtlCount(); s++)
-					{
-						IMaterial* pSubMtl = info.pMat->GetSafeSubMtl(s);
-						CVoxelSegment::m_arrLockedMaterials.Add(pSubMtl);
-						pSubMtl->AddRef();
-					}
-				}
-
-				superMesh.Clear(&arrVertHash[0][0][0]);
-
-				float fEpsilon = GetCVars()->e_svoTI_ObjectsMaxViewDistance ? (VEC_EPSILON / 2) : (VEC_EPSILON / 10);
-
-				for (int t = 0; t < arrTris.Count(); t++)
-				{
-					SRayHitTriangle ht = arrTris[t];
-
-					// Workaround for over occlusion from vegetation; TODO: make thin geoemtry produce less occlusion
-					if (info.bVegetation && ht.pMat)
-					{
-						float fMidZ = 0;
-						for (int v = 0; v < 3; v++)
-							fMidZ += ht.v[v].z;
-						fMidZ *= 0.333f;
-
-						SShaderItem& rSI = ht.pMat->GetShaderItem();
-
-						if (rSI.m_pShaderResources && rSI.m_pShader)
-						{
-							bool bVegetationLeaves = (rSI.m_pShaderResources->GetAlphaRef() > 0.05f && rSI.m_pShader->GetShaderType() == eST_Vegetation);
-
-							if (bVegetationLeaves)
-								ht.nOpacity = min(ht.nOpacity, uint8(SATURATEB(GetCVars()->e_svoTI_VegetationMaxOpacity * 255.f)));
-							else
-								ht.nOpacity = min(ht.nOpacity, uint8(SATURATEB(LERP(255.f, GetCVars()->e_svoTI_VegetationMaxOpacity * 255.f, SATURATE(fMidZ * .5f)))));
-						}
-					}
-
-					if (ht.nOpacity < nMinVoxelOpacity)
-						continue;
-
-					for (int v = 0; v < 3; v++)
-						ht.v[v] = info.matObj.TransformPoint(ht.v[v]);
-
-					ht.nTriArea = SATURATEB(int(SVO_CPU_VOXELIZATION_AREA_SCALE * 0.5f * (ht.v[1] - ht.v[0]).Cross(ht.v[2] - ht.v[0]).GetLength()));
-					Plane pl;
-					pl.SetPlane(ht.v[0], ht.v[1], ht.v[2]);
-	#ifdef FEATURE_SVO_GI_ALLOW_HQ
-					ht.n = pl.n;
-	#endif
-					if (!ht.v[0].IsEquivalent(ht.v[1], fEpsilon) && !ht.v[1].IsEquivalent(ht.v[2], fEpsilon) && !ht.v[2].IsEquivalent(ht.v[0], fEpsilon))
-						if ((ht.nTriArea || !GetCVars()->e_svoTI_ObjectsMaxViewDistance) && Overlap::AABB_Triangle(cloudBoxWS, ht.v[0], ht.v[1], ht.v[2]))
-						{
-							bool bSkipUnderTerrain = Get3DEngine()->m_bShowTerrainSurface && !info.bIndoor && (!GetCVars()->e_svoTI_VoxelizeUnderTerrain || info.bVegetation);
-
-							if (bSkipUnderTerrain)
-							{
-								for (int h = 0; h < 3; h++)
-								{
-									Vec3 vH = ht.v[h];
-									vH.CheckMax(cloudBoxWS.min);
-									vH.CheckMin(cloudBoxWS.max);
-									if (vH.z > (GetTerrain()->GetZ((int)vH.x, (int)vH.y, 0) - 1.f) || GetTerrain()->GetHole((int)vH.x, (int)vH.y, 0))
-									{
-										bSkipUnderTerrain = false;
-										break;
-									}
-								}
-							}
-
-							if (!bSkipUnderTerrain)
-								superMesh.AddSuperTriangle(ht, arrVertHash);
-						}
-				}
-
-				{
-					AUTO_MODIFYLOCK(m_superMeshLock);
-
-					AddSuperMesh(superMesh, SVO_CPU_VOXELIZATION_OFFSET_MESH);
-				}
-			}
-
-			fTimeRayIntersection = Cry3DEngineBase::GetTimer()->GetAsyncCurTime() - fTimeRayIntersection;
-
-			if (GetCVars()->e_svoDebug)
-			{
-				AUTO_MODIFYLOCK(CVoxelSegment::m_cgfTimeStatsLock);
-				m_cgfTimeStats[info.pStatObj] += fTimeRayIntersection;
-			}
-		}
 
 		// add terrain
 		if (Get3DEngine()->m_bShowTerrainSurface)
@@ -2326,6 +2187,145 @@ void CVoxelSegment::FindTrianglesForVoxelization(int nTID, PodArray<int>*& rpNod
 			AddSuperMesh(superMesh, SVO_CPU_VOXELIZATION_OFFSET_TERRAIN);
 		}
 
+		PodArray<SRayHitTriangle> arrTris;
+
+		// sort objects by size
+		if (arrObjects.Count())
+		{
+			qsort(arrObjects.GetElements(), arrObjects.Count(), sizeof(arrObjects[0]), SObjInfo::Compare);
+		}
+
+		for (int d = 0; d < arrObjects.Count(); d++)
+		{
+			SRayHitInfo nodeHitInfo;
+			nodeHitInfo.bInFirstHit = true;
+			nodeHitInfo.bUseCache = false;
+			nodeHitInfo.bGetVertColorAndTC = true;
+
+			SObjInfo& info = arrObjects[d];
+
+			nodeHitInfo.nHitTriID = HIT_UNKNOWN;
+			nodeHitInfo.nHitMatID = HIT_UNKNOWN;
+			nodeHitInfo.inRay.origin = info.matObjInv.TransformPoint(m_vSegOrigin);
+			nodeHitInfo.inRay.direction = Vec3(0, 0, 0);
+			nodeHitInfo.inReferencePoint = nodeHitInfo.inRay.origin + nodeHitInfo.inRay.direction * 0.5f;
+			nodeHitInfo.fMaxHitDistance = GetBoxSize() / 2.f / info.fObjScale * sqrt(3.f);
+
+			arrTris.Clear();
+			nodeHitInfo.pHitTris = &arrTris;
+
+			nodeHitInfo.fMinHitOpacity = GetCVars()->e_svoTI_MinVoxelOpacity;
+			int nMinVoxelOpacity = (int)(GetCVars()->e_svoTI_MinVoxelOpacity * 255.f);
+
+			float fTimeRayIntersection = Cry3DEngineBase::GetTimer()->GetAsyncCurTime();
+
+			info.pStatObj->RayIntersection(nodeHitInfo, info.pMat);
+
+			if (arrTris.Count())
+			{
+				{
+					AUTO_MODIFYLOCK(CVoxelSegment::m_arrLockedMaterials.m_Lock);
+					CVoxelSegment::m_arrLockedMaterials.Add(info.pMat);
+					info.pMat->AddRef();
+					for (int s = 0; s < info.pMat->GetSubMtlCount(); s++)
+					{
+						IMaterial* pSubMtl = info.pMat->GetSafeSubMtl(s);
+						CVoxelSegment::m_arrLockedMaterials.Add(pSubMtl);
+						pSubMtl->AddRef();
+					}
+				}
+
+				superMesh.Clear(&arrVertHash[0][0][0]);
+
+				float fEpsilon = GetCVars()->e_svoTI_ObjectsMaxViewDistance ? (VEC_EPSILON / 2) : (VEC_EPSILON / 10);
+
+				for (int t = 0; t < arrTris.Count(); t++)
+				{
+					SRayHitTriangle ht = arrTris[t];
+
+					// Workaround for over occlusion from vegetation; TODO: make thin geoemtry produce less occlusion
+					if (info.bVegetation && ht.pMat)
+					{
+						float fMidZ = 0;
+						for (int v = 0; v < 3; v++)
+							fMidZ += ht.v[v].z;
+						fMidZ *= 0.333f;
+
+						SShaderItem& rSI = ht.pMat->GetShaderItem();
+
+						if (rSI.m_pShaderResources && rSI.m_pShader)
+						{
+							bool bVegetationLeaves = (rSI.m_pShaderResources->GetAlphaRef() > 0.05f && rSI.m_pShader->GetShaderType() == eST_Vegetation);
+
+							if (bVegetationLeaves)
+								ht.nOpacity = min(ht.nOpacity, uint8(SATURATEB(GetCVars()->e_svoTI_VegetationMaxOpacity * 255.f)));
+							else
+								ht.nOpacity = min(ht.nOpacity, uint8(SATURATEB(LERP(255.f, GetCVars()->e_svoTI_VegetationMaxOpacity * 255.f, SATURATE(fMidZ * .5f)))));
+						}
+					}
+
+					if (ht.nOpacity < nMinVoxelOpacity)
+						continue;
+
+					for (int v = 0; v < 3; v++)
+						ht.v[v] = info.matObj.TransformPoint(ht.v[v]);
+
+					ht.nTriArea = SATURATEB(int(SVO_CPU_VOXELIZATION_AREA_SCALE * 0.5f * (ht.v[1] - ht.v[0]).Cross(ht.v[2] - ht.v[0]).GetLength()));
+					Plane pl;
+					pl.SetPlane(ht.v[0], ht.v[1], ht.v[2]);
+#ifdef FEATURE_SVO_GI_ALLOW_HQ
+					ht.n = pl.n;
+#endif
+					if (!ht.v[0].IsEquivalent(ht.v[1], fEpsilon) && !ht.v[1].IsEquivalent(ht.v[2], fEpsilon) && !ht.v[2].IsEquivalent(ht.v[0], fEpsilon))
+						if ((ht.nTriArea || !GetCVars()->e_svoTI_ObjectsMaxViewDistance) && Overlap::AABB_Triangle(cloudBoxWS, ht.v[0], ht.v[1], ht.v[2]))
+						{
+							bool bSkipUnderTerrain = Get3DEngine()->m_bShowTerrainSurface && !info.bIndoor && (!GetCVars()->e_svoTI_VoxelizeUnderTerrain || info.bVegetation);
+
+							if (bSkipUnderTerrain)
+							{
+								for (int h = 0; h < 3; h++)
+								{
+									Vec3 vH = ht.v[h];
+									vH.CheckMax(cloudBoxWS.min);
+									vH.CheckMin(cloudBoxWS.max);
+									if (vH.z > (GetTerrain()->GetZ((int)vH.x, (int)vH.y, 0) - 1.f) || GetTerrain()->GetHole((int)vH.x, (int)vH.y, 0))
+									{
+										bSkipUnderTerrain = false;
+										break;
+									}
+								}
+							}
+
+							if (!bSkipUnderTerrain)
+								superMesh.AddSuperTriangle(ht, arrVertHash);
+						}
+				}
+
+				{
+					AUTO_MODIFYLOCK(m_superMeshLock);
+
+					int nMeshMemoryAllocated = m_pTrisInArea ? (m_pTrisInArea->ComputeSizeInMemory() + m_pVertInArea->ComputeSizeInMemory()) : 0;
+					int nMeshMemoryToAppend = superMesh.m_pTrisInArea ? (superMesh.m_pTrisInArea->ComputeSizeInMemory() + superMesh.m_pVertInArea->ComputeSizeInMemory()) : 0;
+
+					if ((nMeshMemoryAllocated + nMeshMemoryToAppend) > GetCVars()->e_svoMaxAreaMeshSizeKB * 1024)
+					{
+						// skip low importance objects
+						break;
+					}
+
+					AddSuperMesh(superMesh, SVO_CPU_VOXELIZATION_OFFSET_MESH);
+				}
+			}
+
+			fTimeRayIntersection = Cry3DEngineBase::GetTimer()->GetAsyncCurTime() - fTimeRayIntersection;
+
+			if (GetCVars()->e_svoDebug)
+			{
+				AUTO_MODIFYLOCK(CVoxelSegment::m_cgfTimeStatsLock);
+				m_cgfTimeStats[info.pStatObj] += fTimeRayIntersection;
+			}
+		}
+
 	#ifdef FEATURE_SVO_GI_ALLOW_HQ
 		AABB cloudBoxWS_VisAreaEx = cloudBoxWS;
 		cloudBoxWS_VisAreaEx.Expand(Vec3(SVO_CPU_VOXELIZATION_OFFSET_VISAREA, SVO_CPU_VOXELIZATION_OFFSET_VISAREA, SVO_CPU_VOXELIZATION_OFFSET_VISAREA));
@@ -2431,13 +2431,12 @@ void CVoxelSegment::FindTrianglesForVoxelization(int nTID, PodArray<int>*& rpNod
 			AUTO_READLOCK(m_superMeshLock);
 
 			if (m_pTrisInArea)
+			{
 				for (int t = 0; t < m_pTrisInArea->Count(); t++)
 				{
 					AddTriangle(m_pTrisInArea->GetAt(t), t, rpNodeTrisXYZ, m_pVertInArea);
-
-					if (m_pVertInArea->Count() + 3 > (SMINDEX) ~0)
-						break;
 				}
+			}
 		}
 	}
 	else if (m_pParentCloud->m_pTrisInArea)
@@ -2941,6 +2940,9 @@ void CVoxelSegment::DebugDrawVoxels()
 							voxBox.min.Set(vMin.x, vMin.y, vMin.z);
 							voxBox.max.Set(vMax.x, vMax.y, vMax.z);
 
+							if (!CVoxelSegment::m_voxCam.IsAABBVisible_F(voxBox))
+								continue;
+
 							voxBox.Expand(-voxBox.GetSize() * 0.025f);
 
 							Cry3DEngineBase::DrawBBox(voxBox,
@@ -3105,6 +3107,8 @@ void SSuperMesh::AddSuperTriangle(SRayHitTriangle& htIn, PodArray<SMINDEX> arrVe
 
 void SSuperMesh::AddSuperMesh(SSuperMesh& smIn, float fVertexOffset)
 {
+	MEMSTAT_CONTEXT(EMemStatContextTypes::MSC_Other, 0, "AddSuperMesh");
+
 	if (!smIn.m_pVertInArea || !smIn.m_pTrisInArea || !smIn.m_pTrisInArea->Count())
 		return;
 

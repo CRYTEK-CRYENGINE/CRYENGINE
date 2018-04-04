@@ -14,7 +14,7 @@ android_version_code = "1"
 android_version_name = "1.0"
 android_debuggable = "true"
 android_min_sdk_version = "23"
-android_permissions_required = ["WRITE_EXTERNAL_STORAGE", "INTERNET"]
+android_permissions_required = ["WRITE_EXTERNAL_STORAGE", "READ_EXTERNAL_STORAGE", "INTERNET"]
 
 ANT_BUILD_TEMPLATE = r'''<?xml version="1.0" encoding="UTF-8"?>
 <project name="AndroidLauncher" default="help">
@@ -273,15 +273,15 @@ def load_win_x64_android_arm_common_settings(conf):
 	
 
 	# LLVM STL
-	#android_stl_home = android_ndk_home + '/sources/cxx-stl/llvm-libc++'
-	#android_stl_include_paths =  [android_stl_home + '/libcxx/include']
-	#android_stl_lib_name = 'c++_shared'
-
+	android_stl_home = android_ndk_home + '/sources/cxx-stl/llvm-libc++'
+	android_stl_include_paths =  [android_stl_home + '/libcxx/include']
+	android_stl_lib_name = 'c++_shared'
+	v['DEFINES'] += ['HAVE_SYS_PARAM_H']
 
 	# GNU STL 
-	android_stl_home =  android_ndk_home + '/sources/cxx-stl/gnu-libstdc++/' + str(android_gcc_version) 
-	android_stl_include_paths =  [android_stl_home + '/include', android_stl_home + 'libs/armeabi-v7a/include', android_stl_home + 'include/backward']
-	android_stl_lib_name = 'gnustl_shared'
+	#android_stl_home =  android_ndk_home + '/sources/cxx-stl/gnu-libstdc++/' + str(android_gcc_version) 
+	#android_stl_include_paths =  [android_stl_home + '/include', android_stl_home + 'libs/armeabi-v7a/include', android_stl_home + 'include/backward']
+	#android_stl_lib_name = 'gnustl_shared'
 	
 	android_stl_lib = android_stl_home + '/libs/armeabi-v7a/lib' + android_stl_lib_name + '.so'
 
@@ -317,7 +317,7 @@ def load_win_x64_android_arm_common_settings(conf):
 	v['DEFINES'] += ['_LINUX', 'LINUX', 'LINUX32', 'ANDROID', '_HAS_C9X' ]
 	
 	if android_target_version >= 21:
-		v['DEFINES'] += ['HAS_STPCPY=1']
+		v['DEFINES'] += ['HAS_STPCPY=1', 'HAVE_LROUND']
 
 	# Setup global include paths
 	v['INCLUDES'] += android_stl_include_paths + [ 

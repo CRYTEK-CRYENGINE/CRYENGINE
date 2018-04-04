@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #include "StdAfx.h"
 #include "FactionMap.h"
@@ -64,7 +64,7 @@ void CFactionMap::Reload()
 	{
 		if (!m_pDataSource->Load(*this))
 		{
-			AIWarning("[FactionMap] Failed to load factions from data source!");
+			AILogAlways("[FactionMap] Failed to load factions from data source!");
 		}
 	}
 }
@@ -295,7 +295,7 @@ void CFactionMap::SetDataSource(IFactionDataSource* pDataSource, EDataSourceLoad
 	{
 		if (!m_pDataSource->Load(*this))
 		{
-			AIWarning("[FactionMap] Failed to load factions from data source!");
+			AILogAlways("[FactionMap] Failed to load factions from data source!");
 		}
 	}
 }

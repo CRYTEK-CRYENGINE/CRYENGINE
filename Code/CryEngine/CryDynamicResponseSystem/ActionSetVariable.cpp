@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #include "stdafx.h"
 
@@ -155,8 +155,6 @@ void CActionSetVariable::Serialize(Serialization::IArchive& ar)
 //--------------------------------------------------------------------------------------------------
 //--------------------------------------------------------------------------------------------------
 //--------------------------------------------------------------------------------------------------
-
-REGISTER_DRS_ACTION(CActionSetVariable, "ChangeVariable", "11DD11");
 
 namespace DRS
 {

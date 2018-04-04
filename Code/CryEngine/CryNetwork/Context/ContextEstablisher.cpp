@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #include "StdAfx.h"
 #include "ContextEstablisher.h"
@@ -131,6 +131,8 @@ void CContextEstablisher::Fail(EDisconnectionCause cause, const string& reason)
 }
 
 #if ENABLE_DEBUG_KIT
+#include <CryRenderer/IRenderAuxGeom.h>
+
 void CContextEstablisher::DebugDraw()
 {
 	ASSERT_PRIMARY_THREAD;

@@ -1,13 +1,14 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #include "StdAfx.h"
 #include "Script/ScriptEnumValue.h"
 
-#include <Schematyc/Reflection/Reflection.h>
-#include <Schematyc/Script/Elements/IScriptEnum.h>
+#include <CrySchematyc/Reflection/TypeDesc.h>
+#include <CrySchematyc/Script/Elements/IScriptEnum.h>
 
 namespace Schematyc
 {
+
 CScriptEnumValue::CScriptEnumValue(const IScriptEnum* pEnum)
 	: m_pEnum(pEnum)
 	, m_constantIdx(0)
@@ -71,15 +72,15 @@ void CScriptEnumValue::ToString(IString& output) const
 	}
 }
 
-SGUID CScriptEnumValue::ReflectSchematycType(CTypeInfo<CScriptEnumValue>& typeInfo)
+void CScriptEnumValue::ReflectType(CTypeDesc<CScriptEnumValue>& desc)
 {
-	typeInfo.SetToStringMethod<&CScriptEnumValue::ToString>();
-	typeInfo.DeclareSerializeable();
-	return "6353d2e0-683d-424d-a4d9-16c4d6e350f9"_schematyc_guid;
+	desc.SetGUID("6353d2e0-683d-424d-a4d9-16c4d6e350f9"_cry_guid);
+	desc.SetToStringOperator<&CScriptEnumValue::ToString>();
 }
 
 bool Serialize(Serialization::IArchive& archive, CScriptEnumValue& value, const char* szName, const char* szLabel)
 {
 	return value.Serialize(archive, szName, szLabel);
 }
+
 } // Schematyc

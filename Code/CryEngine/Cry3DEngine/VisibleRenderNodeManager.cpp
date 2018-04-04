@@ -1,7 +1,9 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #include "StdAfx.h"
 #include "3dEngine.h"
+
+#include <CryEntitySystem/IEntity.h>
 
 //////////////////////////////////////////////////////////////////////////
 void SRenderNodeTempData::Free()
@@ -49,6 +51,7 @@ CVisibleRenderNodesManager::CVisibleRenderNodesManager()
 	: m_lastStartUpdateNode(0)
 	, m_currentNodesToDelete(0)
 	, m_lastUpdateFrame(0)
+	, m_firstAddedNode(-1)
 {
 
 }
@@ -62,8 +65,12 @@ SRenderNodeTempData* CVisibleRenderNodesManager::AllocateTempData(int lastSeenFr
 {
 	SRenderNodeTempData* pData = m_pool.New();
 
+	pData->userData.objMat.SetIdentity();
+
 	{
 		CryAutoCriticalSectionNoRecursive lock(m_accessLock);
+		if (m_firstAddedNode < 0)
+			m_firstAddedNode = m_visibleNodes.size();
 		m_visibleNodes.push_back(pData);
 	}
 	return pData;
@@ -112,6 +119,19 @@ void CVisibleRenderNodesManager::UpdateVisibleNodes(int currentFrame, int maxNod
 		// LOCK START
 		CryAutoCriticalSectionNoRecursive lock(m_accessLock);
 
+		// Process on new node visible events
+		if (m_firstAddedNode >= 0)
+		{
+			for (size_t i = m_firstAddedNode, num = m_visibleNodes.size(); i < num; ++i)
+			{
+				if (m_visibleNodes[i]->userData.pOwnerNode)
+				{
+					OnRenderNodeVisibilityChange(m_visibleNodes[i]->userData.pOwnerNode,true);
+				}
+			}
+			m_firstAddedNode = -1;
+		}
+
 		int numNodes = m_visibleNodes.size();
 		int start = m_lastStartUpdateNode;
 		if (start >= numNodes)
@@ -138,7 +158,7 @@ void CVisibleRenderNodesManager::UpdateVisibleNodes(int currentFrame, int maxNod
 			{
 				if (pTempData->userData.pOwnerNode)
 				{
-					pTempData->userData.pOwnerNode->OnRenderNodeBecomeInvisible();
+					OnRenderNodeVisibilityChange(pTempData->userData.pOwnerNode,false);
 					pTempData->userData.pOwnerNode->m_pTempData = nullptr; // clear reference to use from owning render node.
 				}
 				m_visibleNodes[i]->Free();
@@ -187,7 +207,7 @@ void CVisibleRenderNodesManager::ClearAll()
 	{
 		if (node->userData.pOwnerNode)
 		{
-			node->userData.pOwnerNode->OnRenderNodeBecomeInvisible();
+			OnRenderNodeVisibilityChange(node->userData.pOwnerNode,false);
 			node->userData.pOwnerNode->m_pTempData = nullptr; // clear reference to use from owning render node.
 		}
 		m_pool.Delete(node);
@@ -204,10 +224,45 @@ void CVisibleRenderNodesManager::ClearAll()
 	}
 }
 
+//////////////////////////////////////////////////////////////////////////
+void CVisibleRenderNodesManager::OnRenderNodeVisibilityChange(IRenderNode *pRenderNode, bool bVisible)
+{
+	//if (!passInfo.IsCachedShadowPass())
+	{
+		pRenderNode->OnRenderNodeVisible(bVisible);
+
+		if (pRenderNode->GetOwnerEntity() && (pRenderNode->GetRndFlags() & ERF_ENABLE_ENTITY_RENDER_CALLBACK))
+		{
+			// When render node becomes visible notify our owner render node that it is now visible.
+			pRenderNode->GetOwnerEntity()->OnRenderNodeVisibilityChange(bVisible);
+		}
+	}
+}
+
 CVisibleRenderNodesManager::Statistics CVisibleRenderNodesManager::GetStatistics() const
 {
 	Statistics stats;
 	stats.numFree = 0;
 	stats.numUsed = m_visibleNodes.size();
 	return stats;
+}
+
+void CVisibleRenderNodesManager::OnEntityDeleted(IEntity *pEntity)
+{
+#ifdef _DEBUG
+	LOADING_TIME_PROFILE_SECTION;
+
+	for (auto* node : m_visibleNodes)
+	{
+		const bool bEntityOwnerdeleted =
+			node->userData.pOwnerNode &&
+			node->userData.pOwnerNode->GetOwnerEntity() == pEntity;
+		if (bEntityOwnerdeleted)
+		{
+			CryFatalError(
+				"%s: Dangling IEntity pointer detected in render node: %s",
+				__FUNCTION__, node->userData.pOwnerNode->GetEntityClassName());
+		}
+	}
+#endif
 }

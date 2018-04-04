@@ -4,9 +4,9 @@
 
 // *INDENT-OFF* - <hard to read code and declarations due to inconsistent indentation>
 
-namespace uqs
+namespace UQS
 {
-	namespace core
+	namespace Core
 	{
 
 		//===================================================================================
@@ -26,24 +26,26 @@ namespace uqs
 			enum EStatus
 			{
 				Success,                  // the query finished without runtime errors; the final result may still contain 0 items, though, but the .pResultSet pointer is definitely valid
-				ExceptionOccurred         // a runtime error occurred during the execution of the query; use the .error property to see what went wrong
+				ExceptionOccurred,        // a runtime error occurred during the execution of the query; use the .error property to see what went wrong
+				CanceledByHubTearDown     // the UQS Hub is about to get torn down and is therefore in the process of canceling all running queries
 			};
 
-			explicit                      SQueryResult(const CQueryID& _queryID, EStatus _status, QueryResultSetUniquePtr& _pResultSet, const char* _error);
+			explicit                      SQueryResult(const CQueryID& _queryID, EStatus _status, QueryResultSetUniquePtr& _pResultSet, const char* _szError);
 			static SQueryResult           CreateSuccess(const CQueryID& _queryID, QueryResultSetUniquePtr& _pResultSet);
-			static SQueryResult           CreateError(const CQueryID& _queryID, QueryResultSetUniquePtr& _pResultSetDummy, const char* _error);
+			static SQueryResult           CreateError(const CQueryID& _queryID, QueryResultSetUniquePtr& _pResultSetDummy, const char* _szError);
+			static SQueryResult           CreateCanceledByHubTearDown(const CQueryID& _queryID, QueryResultSetUniquePtr& _pResultSetDummy);
 
 			CQueryID                      queryID;
 			EStatus                       status;
 			QueryResultSetUniquePtr&      pResultSet;   // only set in case of EStatus::Success, nullptr otherwise; the code in the callback is free to claim ownership for later proecssing
-			const char*                   error;        // only set in case of EStatus::ExceptionOccurred, "" otherwise
+			const char*                   szError;      // only set in case of EStatus::ExceptionOccurred, "" otherwise
 		};
 
-		inline SQueryResult::SQueryResult(const CQueryID& _queryID, EStatus _status, QueryResultSetUniquePtr& _pResultSet, const char* _error)
+		inline SQueryResult::SQueryResult(const CQueryID& _queryID, EStatus _status, QueryResultSetUniquePtr& _pResultSet, const char* _szError)
 			: queryID(_queryID)
 			, status(_status)
 			, pResultSet(_pResultSet)
-			, error(_error)
+			, szError(_szError)
 		{}
 
 		inline SQueryResult SQueryResult::CreateSuccess(const CQueryID& _queryID, QueryResultSetUniquePtr& _pResultSet)
@@ -52,9 +54,14 @@ namespace uqs
 			return SQueryResult(_queryID, EStatus::Success, _pResultSet, "");
 		}
 
-		inline SQueryResult SQueryResult::CreateError(const CQueryID& _queryID, QueryResultSetUniquePtr& _pResultSetDummy, const char* _error)
+		inline SQueryResult SQueryResult::CreateError(const CQueryID& _queryID, QueryResultSetUniquePtr& _pResultSetDummy, const char* _szError)
 		{
-			return SQueryResult(_queryID, EStatus::ExceptionOccurred, _pResultSetDummy, _error);
+			return SQueryResult(_queryID, EStatus::ExceptionOccurred, _pResultSetDummy, _szError);
+		}
+
+		inline SQueryResult SQueryResult::CreateCanceledByHubTearDown(const CQueryID& _queryID, QueryResultSetUniquePtr& _pResultSetDummy)
+		{
+			return SQueryResult(_queryID, EStatus::CanceledByHubTearDown, _pResultSetDummy, "");
 		}
 
 	}

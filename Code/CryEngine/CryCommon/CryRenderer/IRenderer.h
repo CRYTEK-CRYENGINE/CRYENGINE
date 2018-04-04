@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 //
 //  File:Renderer.h - API Independent
@@ -14,6 +14,9 @@
 #include <CryMath/Cry_Geo.h>
 #include <CryRenderer/IFlares.h> // <> required for Interfuscator
 #include <CryThreading/IJobManager.h>
+
+#include <CryExtension/ClassWeaver.h>
+#include <CrySystem/IEngineModule.h>
 
 // forward declarations
 struct SRenderingPassInfo;
@@ -902,12 +905,19 @@ enum PublicRenderPrimitiveType
 #define R_WIREFRAME_MODE  1
 #define R_POINT_MODE      2
 
-#define R_DX9_RENDERER    2
-#define R_DX11_RENDERER   3
-#define R_CUBAGL_RENDERER 5
-#define R_GL_RENDERER     6
-#define R_DX12_RENDERER   7
+//////////////////////////////////////////////////////////////////////
+#define R_DX11_RENDERER   0
+#define R_DX12_RENDERER   1
+#define R_GL_RENDERER     2
+#define R_VK_RENDERER     3
+#define R_GNM_RENDERER    4
 
+#define STR_DX11_RENDERER   "DX11"
+#define STR_DX12_RENDERER   "DX12"
+#define STR_GL_RENDERER     "GL"
+#define STR_VK_RENDERER     "VK"
+#define STR_GNM_RENDERER    "GNM"
+#define STR_AUTO_RENDERER   "Auto"
 //////////////////////////////////////////////////////////////////////
 // Render features
 
@@ -970,19 +980,21 @@ enum PublicRenderPrimitiveType
 // Draw shaders flags (EF_EndEf3d)
 enum EShaderRenderingFlags
 {
-	SHDF_ALLOWHDR         = BIT(0),
-	SHDF_CUBEMAPGEN       = BIT(1),
-	SHDF_ZPASS            = BIT(2),
-	SHDF_STEREO_LEFT_EYE  = BIT(3),
-	SHDF_STEREO_RIGHT_EYE = BIT(4),
-	SHDF_ALLOWPOSTPROCESS = BIT(5),
-	SHDF_ALLOW_AO         = BIT(8),
-	SHDF_ALLOW_WATER      = BIT(9),
-	SHDF_NOASYNC          = BIT(10),
-	SHDF_NO_DRAWNEAR      = BIT(11),
-	SHDF_STREAM_SYNC      = BIT(13),
-	SHDF_NO_DRAWCAUSTICS  = BIT(14),
-	SHDF_NO_SHADOWGEN     = BIT(15)
+	SHDF_ALLOWHDR           = BIT(0),
+	SHDF_CUBEMAPGEN         = BIT(1),
+	SHDF_ZPASS              = BIT(2),
+	SHDF_STEREO_LEFT_EYE    = BIT(3),
+	SHDF_STEREO_RIGHT_EYE   = BIT(4),
+	SHDF_ALLOWPOSTPROCESS   = BIT(5),
+	SHDF_BILLBOARDS         = BIT(6),
+	SHDF_ALLOW_AO           = BIT(8),
+	SHDF_ALLOW_WATER        = BIT(9),
+	SHDF_NOASYNC            = BIT(10),
+	SHDF_NO_DRAWNEAR        = BIT(11),
+	SHDF_STREAM_SYNC        = BIT(13),
+	SHDF_NO_DRAWCAUSTICS    = BIT(14),
+	SHDF_NO_SHADOWGEN       = BIT(15),
+	SHDF_SECONDARY_VIEWPORT = BIT(16),
 };
 
 //////////////////////////////////////////////////////////////////////
@@ -1127,6 +1139,10 @@ struct IRenderNode;
 struct SShaderItem;
 struct IParticleVertexCreator;
 struct IParticleComponentInstance;
+namespace gpu_pfx2
+{
+	class IParticleComponentRuntime;
+}
 
 struct CRY_ALIGN(16) SAddParticlesToSceneJob
 {
@@ -1134,7 +1150,8 @@ struct CRY_ALIGN(16) SAddParticlesToSceneJob
 
 	SShaderItem* pShaderItem;
 	CRenderObject* pRenderObject;
-	IParticleVertexCreator* pPVC;
+	IParticleVertexCreator* pVertexCreator = nullptr;
+	gpu_pfx2::IParticleComponentRuntime* pGpuRuntime = nullptr;
 	int16 nCustomTexId;
 };
 
@@ -1155,21 +1172,22 @@ public:
 #include "IMeshBaking.h"
 
 //! Flags passed in function FreeResources.
-#define FRR_SHADERS                  1
-#define FRR_SHADERTEXTURES           2
-#define FRR_TEXTURES                 4
-#define FRR_SYSTEM                   8
-#define FRR_RESTORE                  0x10
-#define FRR_REINITHW                 0x20
-#define FRR_DELETED_MESHES           0x40
-#define FRR_FLUSH_TEXTURESTREAMING   0x80
-#define FRR_OBJECTS                  0x100
-#define FRR_RENDERELEMENTS           0x200
-#define FRR_RP_BUFFERS               0x400
-#define FRR_SYSTEM_RESOURCES         0x800
-#define FRR_POST_EFFECTS             0x1000
-#define FRR_PERMANENT_RENDER_OBJECTS 0x2000
+#define FRR_DELETED_MESHES           BIT(0)
+#define FRR_FLUSH_TEXTURESTREAMING   BIT(1)
+#define FRR_RP_BUFFERS               BIT(2)
+#define FRR_POST_EFFECTS             BIT(3)
+#define FRR_OBJECTS                  BIT(4)
+#define FRR_PERMANENT_RENDER_OBJECTS BIT(5)
+#define FRR_SYSTEM                   BIT(6) // requires also FRR_OBJECTS
+#define FRR_SYSTEM_RESOURCES         BIT(7) // requires also FRR_DELETED_MESHES |  FRR_FLUSH_TEXTURESTREAMING | FRR_RP_BUFFERS | FRR_POST_EFFECTS | FRR_OBJECTS | FRR_PERMANENT_RENDER_OBJECTS | FRR_SVOGI
+#define FRR_TEXTURES                 BIT(8) // requires also FRR_DELETED_MESHES |  FRR_FLUSH_TEXTURESTREAMING | FRR_RP_BUFFERS | FRR_POST_EFFECTS | FRR_OBJECTS | FRR_PERMANENT_RENDER_OBJECTS | FRR_SYSTEM_RESOURCES | FRR_SVOGI
+#define FRR_SVOGI                    BIT(9)
 #define FRR_ALL                      -1
+
+// Free resource flag combinations for commonly used operations
+#define FRR_LEVEL_UNLOAD_SANDBOX  (FRR_DELETED_MESHES | FRR_FLUSH_TEXTURESTREAMING | FRR_OBJECTS | FRR_RP_BUFFERS | FRR_POST_EFFECTS | FRR_PERMANENT_RENDER_OBJECTS | FRR_SVOGI)
+#define FRR_LEVEL_UNLOAD_LAUNCHER (FRR_DELETED_MESHES | FRR_FLUSH_TEXTURESTREAMING | FRR_OBJECTS | FRR_RP_BUFFERS | FRR_POST_EFFECTS | FRR_PERMANENT_RENDER_OBJECTS | FRR_SYSTEM_RESOURCES | FRR_SVOGI)
+#define FRR_SHUTDOWN              (FRR_ALL)
 
 // Refresh render resources flags.
 // Flags passed in function RefreshResources.
@@ -1260,12 +1278,14 @@ struct SDrawTextInfo
 	//! Text color, (r,g,b,a) all members must be specified.
 	float color[4];
 	Vec2  scale;
+	IFFont* pFont;
 
 	SDrawTextInfo()
 	{
 		flags = 0;
 		color[0] = color[1] = color[2] = color[3] = 1;
 		scale = ZERO;
+		pFont = nullptr;
 	}
 };
 
@@ -1310,15 +1330,14 @@ struct ISyncMainWithRenderListener
 };
 
 //////////////////////////////////////////////////////////////////////
-enum ERenderType
+enum class ERenderType : uint8
 {
-	eRT_Undefined,
-	eRT_Null,
-	eRT_DX11,
-	eRT_DX12,
-	eRT_XboxOne,
-	eRT_PS4,
-	eRT_OpenGL,
+	Undefined,
+	Direct3D11,
+	Direct3D12,
+	OpenGL,
+	Vulkan,
+	GNM
 };
 
 //////////////////////////////////////////////////////////////////////
@@ -1353,21 +1372,6 @@ enum {CULL_SIZEX = 256};
 enum {CULL_SIZEY = 128};
 #endif
 
-//////////////////////////////////////////////////////////////////////
-//! Z-buffer as occlusion buffer definitions: used, shared and initialized in engine and renderer.
-struct SHWOccZBuffer
-{
-	uint32* pHardwareZBuffer;
-	uint32* pZBufferVMem;
-	uint32  ZBufferSizeX;
-	uint32  ZBufferSizeY;
-	uint32  HardwareZBufferRSXOff;
-	uint32  ZBufferVMemRSXOff;
-	uint32  pad[2]; //!< Keep 32 byte aligned.
-	SHWOccZBuffer() : pHardwareZBuffer(NULL), pZBufferVMem(NULL), ZBufferSizeX(CULL_SIZEX), ZBufferSizeY(CULL_SIZEY),
-		ZBufferVMemRSXOff(0), HardwareZBufferRSXOff(0){}
-};
-
 class ITextureStreamListener
 {
 public:
@@ -1384,7 +1388,7 @@ protected:
 };
 
 #if defined(CRY_ENABLE_RC_HELPER)
-
+#include <CryCore/ToolsHelpers/ResourceCompilerHelper.h>
 //! Listener for asynchronous texture compilation.
 //! Connects the listener to the task-queue of pending compilation requests.
 enum ERcExitCode;
@@ -1498,6 +1502,16 @@ struct SRenderPolygonDescription
 // Interface to the render view.
 struct IRenderView : public CMultiThreadRefCount
 {
+	enum EViewType
+	{
+		eViewType_Default,
+		eViewType_Recursive,
+		eViewType_Shadow,
+		eViewType_BillboardGen,
+		eViewType_Count,
+	};
+
+
 	// View can be in either reading or writing modes.
 	enum EUsageMode
 	{
@@ -1561,9 +1575,20 @@ struct IRenderView : public CMultiThreadRefCount
 	virtual void AddPolygon(const SRenderPolygonDescription& poly, const SRenderingPassInfo& passInfo) = 0;
 };
 
+struct IRendererEngineModule : public Cry::IDefaultModule
+{
+	CRYINTERFACE_DECLARE_GUID(IRendererEngineModule, "516d044b-d626-4283-b08d-9ad9558204e0"_cry_guid);
+};
+
 //////////////////////////////////////////////////////////////////////
 struct IRenderer//: public IRendererCallbackServer
 {
+	enum EViewportType
+	{
+		eViewportType_Default,
+		eViewportType_Secondary,
+	};
+
 	virtual ~IRenderer(){}
 	virtual void        AddListener(IRendererEventListener* pRendererEventListener) = 0;
 	virtual void        RemoveListener(IRendererEventListener* pRendererEventListener) = 0;
@@ -1676,7 +1701,7 @@ struct IRenderer//: public IRendererCallbackServer
 	//! Get the renderer camera.
 	virtual const CCamera& GetCamera() = 0;
 
-	virtual CRenderView*   GetRenderViewForThread(int nThreadID, bool bRecursive = false) = 0;
+	virtual CRenderView*   GetRenderViewForThread(int nThreadID, IRenderView::EViewType Type=IRenderView::eViewType_Default) = 0;
 
 	//! Set delta gamma.
 	virtual bool SetGammaDelta(const float fGamma) = 0;
@@ -1720,11 +1745,8 @@ struct IRenderer//: public IRendererCallbackServer
 	//! Will post render in Render Thread.
 	virtual void PushUITexture(int srcId, int dstId, float x0, float y0, float w, float h, float u0, float v0, float u1, float v1, float r, float g, float b, float a) = 0;
 
-	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-	// Temporarily hosted in IRenderer as IPhysicalWorld is not yet exposed by SWIG.
-	// TODO: Move to IPhysicalWorld.
-	//! Intersects a Ray with the Scene. Performs UV check on Render mesh of hit physics object
-	virtual int RayToUV(const Vec3& vOrigin, const Vec3& vDirection, float* pUOut, float* pVOut) = 0;
+	//! Used for calculating the hit uv-coordinates from a raycast.
+	virtual int	GetDetailedRayHitInfo(IPhysicalEntity* pCollider, const Vec3& vOrigin, const Vec3& vDirection, const float maxRayDist, float* pUOut, float* pVOut) = 0;
 
 	//! Turns screen point into vector that is projected into scene, from the current view
 	virtual Vec3 UnprojectFromScreen(int x, int y) = 0;
@@ -1780,7 +1802,14 @@ struct IRenderer//: public IRendererCallbackServer
 	virtual void RemoveAsyncTextureCompileListener(IAsyncTextureCompileListener* pListener) = 0;
 #endif
 
-	virtual int GetOcclusionBuffer(uint16* pOutOcclBuffer, int32 nSizeX, int32 nSizeY, Matrix44* pmViewProj, Matrix44* pmCamBuffer) = 0;
+	//! Pins an occlusion buffer into CPU memory, from where it can be used until UnpinOcclusionBuffer is called.
+	//! The occlusion buffer is of type 'float[CULL_SIZEX * CULL_SIZEY]', and contains non-linearized depth values from 0 (near) to 1 (far).
+	//! While at least one client has a buffer pinned, all other clients are guaranteed to pin the same buffer.
+	//! Note: This implies all pins have to be released at some point or all clients will forever be stuck with old data.
+	//! (Un)pinning can be arbitrarily nested from any thread and will never block forward progress of the render thread or GPU.
+	//! The function may fail (by returning nullptr) if no data is available, in which case you must not call UnpinOcclusionBuffer.
+	virtual float* PinOcclusionBuffer(Matrix44A& camera) = 0;
+	virtual void   UnpinOcclusionBuffer() = 0;
 
 	//! Take a screenshot and save it to a file
 	//! \return true on success
@@ -1939,6 +1968,12 @@ struct IRenderer//: public IRendererCallbackServer
 	//! Load lightmap for name.
 	virtual int  EF_LoadLightmap(const char* name) = 0;
 	virtual bool EF_RenderEnvironmentCubeHDR(int size, Vec3& Pos, TArray<unsigned short>& vecData) = 0;
+	// Writes a TIF file to the system with the requested preset
+	// Intended for use with EF_RenderEnvironmentCubeHDR
+	virtual bool WriteTIFToDisk(const void* pData, int width, int height, int bytesPerChannel, int numChannels, bool bFloat, const char* szPreset, const char* szFileName) = 0;
+
+	//! Stores GBuffers region to atlas textures.
+	virtual bool StoreGBufferToAtlas(const RectI& rcDst, int nSrcWidth, int nSrcHeight, int nDstWidth, int nDstHeight, ITexture *pDataD, ITexture *pDataN) = 0;
 
 	//! Create new RE (RenderElement) of type (edt).
 	virtual CRenderElement*  EF_CreateRE(EDataType edt) = 0;
@@ -2045,7 +2080,7 @@ struct IRenderer//: public IRendererCallbackServer
 	  ) = 0;
 
 	virtual _smart_ptr<IRenderMesh> CreateRenderMeshInitialized(
-	  const void* pVertBuffer, int nVertCount, EVertexFormat eVF,
+	  const void* pVertBuffer, int nVertCount, InputLayoutHandle eVF,
 	  const vtx_idx* pIndices, int nIndices,
 	  const PublicRenderPrimitiveType nPrimetiveType, const char* szType, const char* szSourceName, ERenderMeshType eBufType = eRMT_Static,
 	  int nMatInfoCount = 1, int nClientTextureBindID = 0,
@@ -2084,7 +2119,7 @@ struct IRenderer//: public IRendererCallbackServer
 
 	//////////////////////////////////////////////////////////////////////
 	//! Interface for auxiliary geometry (for debugging, editor purposes, etc.)
-	virtual IRenderAuxGeom* GetIRenderAuxGeom(void* jobID = 0) = 0;
+	virtual IRenderAuxGeom* GetIRenderAuxGeom(EViewportType viewport = eViewportType_Default) = 0;
 	//////////////////////////////////////////////////////////////////////
 
 	//! Interface for renderer side SVO.
@@ -2103,11 +2138,6 @@ struct IRenderer//: public IRendererCallbackServer
 	virtual void ClearTargetsImmediately(uint32 nFlags, const ColorF& Colors, float fDepth) = 0;
 	virtual void ClearTargetsImmediately(uint32 nFlags, const ColorF& Colors) = 0;
 	virtual void ClearTargetsImmediately(uint32 nFlags, float fDepth) = 0;
-
-	virtual void ClearTargetsLater(uint32 nFlags) = 0;
-	virtual void ClearTargetsLater(uint32 nFlags, const ColorF& Colors, float fDepth) = 0;
-	virtual void ClearTargetsLater(uint32 nFlags, const ColorF& Colors) = 0;
-	virtual void ClearTargetsLater(uint32 nFlags, float fDepth) = 0;
 
 	virtual void ReadFrameBuffer(unsigned char* pRGB, int nImageX, int nSizeX, int nSizeY, ERB_Type eRBType, bool bRGBA, int nScaledX = -1, int nScaledY = -1) = 0;
 	virtual void ReadFrameBufferFast(uint32* pDstARGBA8, int dstWidth, int dstHeight) = 0;
@@ -2240,6 +2270,7 @@ struct IRenderer//: public IRendererCallbackServer
 	virtual void                                      SF_GetMeshMaxSize(int& numVertices, int& numIndices) const = 0;
 
 	virtual ITexture*                                 CreateTexture(const char* name, int width, int height, int numMips, unsigned char* pData, ETEX_Format eTF, int flags) = 0;
+	virtual ITexture*                                 CreateTextureArray(const char* name, ETEX_Type eType, uint32 nWidth, uint32 nHeight, uint32 nArraySize, int nMips, uint32 nFlags, ETEX_Format eTF, int nCustomID) = 0;
 
 	virtual const RPProfilerStats*                    GetRPPStats(ERenderPipelineProfilerStats eStat, bool bCalledFromMainThread = true) = 0;
 	virtual const RPProfilerStats*                    GetRPPStatsArray(bool bCalledFromMainThread = true) = 0;
@@ -2251,12 +2282,14 @@ struct IRenderer//: public IRendererCallbackServer
 
 	virtual void                                      SetCloudShadowsParams(int nTexID, const Vec3& speed, float tiling, bool invert, float brightness) = 0;
 	virtual void                                      SetVolumetricCloudParams(int nTexID) = 0;
+	virtual void                                      SetVolumetricCloudNoiseTex(int cloudNoiseTexId, int edgeNoiseTexId) = 0;
 	virtual uint16                                    PushFogVolumeContribution(const ColorF& fogVolumeContrib, const SRenderingPassInfo& passInfo) = 0;
 
 	virtual int                                       GetMaxTextureSize() = 0;
 
 	virtual const char*                               GetTextureFormatName(ETEX_Format eTF) = 0;
 	virtual int                                       GetTextureFormatDataSize(int nWidth, int nHeight, int nDepth, int nMips, ETEX_Format eTF) = 0;
+	virtual bool                                      IsTextureFormatSupported(ETEX_Format eTF) = 0;
 
 	virtual void                                      SetDefaultMaterials(IMaterial* pDefMat, IMaterial* pTerrainDefMat) = 0;
 
@@ -2314,7 +2347,10 @@ struct IRenderer//: public IRendererCallbackServer
 			typeName[0] = '\0';
 		}
 
-		void Update(CRenderObject* pObj, IRenderMesh* pRM);
+#if !defined(_RELEASE)
+		void Update(CRenderObject* pObj, IRenderMesh* pRM); // legacy support
+		void Update(CRenderObject* pObj, IRenderMesh* pRM, EShaderTechniqueID techniqueID);
+#endif
 
 		Vec3  pPos;
 		uint8 nZpass, nShadows, nGeneral, nTransparent, nMisc;

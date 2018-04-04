@@ -1,9 +1,16 @@
-using CryEngine.UI.Components;
+﻿using CryEngine.UI.Components;
 
 namespace CryEngine.UI
 {
+	/// <summary>
+	/// A UIElement that has a Text component.
+	/// </summary>
 	public class TextElement : UIElement
 	{
+		/// <summary>
+		/// The Text component.
+		/// </summary>
+		/// <value>The text.</value>
 		public Text Text { get; private set; }
 
 		/// <summary>
@@ -11,13 +18,16 @@ namespace CryEngine.UI
 		/// </summary>
 		public float Height { set { RectTransform.Height = value; } }
 
+		/// <summary>
+		/// Called when a TextElement is created.
+		/// </summary>
 		public override void OnAwake()
 		{
 			Text = AddComponent<Text>();
-			var parentRect = Parent as UIElement;
+			var parentRect = Parent.GetComponent<RectTransform>();
+
 			RectTransform.Alignment = Alignment.Center;
-			RectTransform.Size = new Point(parentRect.RectTransform.Width, parentRect.RectTransform.Height);
+			RectTransform.Size = parentRect == null ? new Point(0,0) : new Point(parentRect.Width, parentRect.Height);
 		}
 	}
 }
-

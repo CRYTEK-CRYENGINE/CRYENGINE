@@ -1,25 +1,12 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
-// -------------------------------------------------------------------------
-//  File name:   ISubtitleManager.h
-//  Version:     v1.00
-//  Created:     29/01/2007 by AlexL.
-//  Compilers:   Visual Studio.NET 2005
-//  Description: Interface to the Subtitle Manager
-// -------------------------------------------------------------------------
-//  History:
-//
-////////////////////////////////////////////////////////////////////////////
-
-#ifndef __ISUBTITLEMANAGER_H__
-#define __ISUBTITLEMANAGER_H__
 #pragma once
 
 //////////////////////////////////////////////////////////////////////////
 struct ISubtitleHandler
 {
 	virtual ~ISubtitleHandler(){}
-	virtual void ShowSubtitle(const SAudioRequestInfo* const pAudioRequestInfo, bool bShow) = 0;
+	virtual void ShowSubtitle(const CryAudio::SRequestInfo* const pAudioRequestInfo, bool bShow) = 0;
 	virtual void ShowSubtitle(const char* subtitleLabel, bool bShow) = 0;
 };
 
@@ -38,5 +25,3 @@ struct ISubtitleManager
 
 	virtual void ShowSubtitle(const char* subtitleLabel, bool bShow) = 0;
 };
-
-#endif // __ISUBTITLEMANAGER_H__

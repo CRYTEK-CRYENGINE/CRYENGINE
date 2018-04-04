@@ -13,11 +13,11 @@
 #include <CrySystem/ICryLink.h>
 #include <CrySerialization/IArchiveHost.h>
 #include <QAdvancedPropertyTree.h>
-#include <Schematyc/Script/IScriptRegistry.h>
-#include <Schematyc/Services/ILog.h>
-#include <Schematyc/Services/ILogRecorder.h>
-#include <Schematyc/Services/LogStreamName.h>
-#include <Schematyc/Utils/StackString.h>
+#include <CrySchematyc/Script/IScriptRegistry.h>
+#include <CrySchematyc/Services/ILog.h>
+#include <CrySchematyc/Services/ILogRecorder.h>
+#include <CrySchematyc/Services/LogStreamName.h>
+#include <CrySchematyc/Utils/StackString.h>
 
 #include "PluginUtils.h"
 
@@ -156,7 +156,29 @@ SLogSettings::SLogSettings()
 	, bShowErrors(true)
 	, bShowEntity(false)
 	, bShowOrigin(false)
-{}
+{
+	ILog& log = gEnv->pSchematyc->GetLog();
+
+	const char* szStreamName = log.GetStreamName(LogStreamId::Default);
+	if (szStreamName && szStreamName != "")
+		streams.emplace_back(SLogStreamName(szStreamName));
+
+	szStreamName = log.GetStreamName(LogStreamId::Core);
+	if (szStreamName && szStreamName != "")
+		streams.emplace_back(SLogStreamName(szStreamName));
+
+	szStreamName = log.GetStreamName(LogStreamId::Compiler);
+	if (szStreamName && szStreamName != "")
+		streams.emplace_back(SLogStreamName(szStreamName));
+
+	szStreamName = log.GetStreamName(LogStreamId::Editor);
+	if (szStreamName && szStreamName != "")
+		streams.emplace_back(SLogStreamName(szStreamName));
+
+	szStreamName = log.GetStreamName(LogStreamId::Env);
+	if (szStreamName && szStreamName != "")
+		streams.emplace_back(SLogStreamName(szStreamName));
+}
 
 void SLogSettings::Serialize(Serialization::IArchive& archive)
 {
@@ -172,6 +194,8 @@ void SLogSettings::Serialize(Serialization::IArchive& archive)
 CLogSettingsWidget::CLogSettingsWidget(SLogSettings& settings)
 	: m_settings(settings)
 {
+	QVBoxLayout* pLayout = new QVBoxLayout(this);
+
 	m_pPropertyTree = new QAdvancedPropertyTree("LogSettings");
 	m_pPropertyTree->setSizeHint(QSize(250, 250));
 	m_pPropertyTree->setExpandLevels(1);
@@ -179,12 +203,12 @@ CLogSettingsWidget::CLogSettingsWidget(SLogSettings& settings)
 	m_pPropertyTree->setValueColumnWidth(0.6f);
 	m_pPropertyTree->attach(Serialization::SStruct(m_settings));
 
-	addWidget(m_pPropertyTree);
+	pLayout->addWidget(m_pPropertyTree);
 }
 
 void CLogSettingsWidget::showEvent(QShowEvent* pEvent)
 {
-	QScrollableBox::showEvent(pEvent);
+	QWidget::showEvent(pEvent);
 
 	if (m_pPropertyTree)
 		m_pPropertyTree->setSizeToContent(true);
@@ -214,8 +238,8 @@ CLogWidget::CLogWidget(const SLogSettings& settings)
 
 	QObject::connect(m_pOutput, SIGNAL(anchorClicked(const QUrl &)), this, SLOT(OnLinkClicked(const QUrl &)));
 
-	gEnv->pSchematyc->GetLogRecorder().VisitMessages(Schematyc::Delegate::Make(*this, &CLogWidget::VisitRecordedLogMessage));
-	gEnv->pSchematyc->GetLog().GetMessageSignalSlots().Connect(Schematyc::Delegate::Make(*this, &CLogWidget::OnLogMessage), m_connectionScope);
+	gEnv->pSchematyc->GetLogRecorder().VisitMessages(SCHEMATYC_MEMBER_DELEGATE(&CLogWidget::VisitRecordedLogMessage, *this));
+	gEnv->pSchematyc->GetLog().GetMessageSignalSlots().Connect(SCHEMATYC_MEMBER_DELEGATE(&CLogWidget::OnLogMessage, *this), m_connectionScope);
 
 	QWidget::startTimer(80);
 }

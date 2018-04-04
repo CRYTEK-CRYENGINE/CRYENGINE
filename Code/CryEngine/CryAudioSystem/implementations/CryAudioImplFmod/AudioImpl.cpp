@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #include "stdafx.h"
 #include "AudioImpl.h"
@@ -11,189 +11,68 @@
 #include <CryAudio/IAudioSystem.h>
 #include <CryString/CryPath.h>
 
-using namespace CryAudio::Impl;
-using namespace CryAudio::Impl::Fmod;
-
-AudioParameterToIndexMap g_parameterToIndex;
-FmodSwitchToIndexMap g_switchToIndex;
-FmodAudioObjectId g_globalAudioObjectId = 0;
-
-char const* const CAudioImpl::s_szFmodEventTag = "FmodEvent";
-char const* const CAudioImpl::s_szFmodSnapshotTag = "FmodSnapshot";
-char const* const CAudioImpl::s_szFmodEventParameterTag = "FmodEventParameter";
-char const* const CAudioImpl::s_szFmodSnapshotParameterTag = "FmodSnapshotParameter";
-char const* const CAudioImpl::s_szFmodFileTag = "FmodFile";
-char const* const CAudioImpl::s_szFmodBusTag = "FmodBus";
-char const* const CAudioImpl::s_szFmodNameAttribute = "fmod_name";
-char const* const CAudioImpl::s_szFmodValueAttribute = "fmod_value";
-char const* const CAudioImpl::s_szFmodMutiplierAttribute = "fmod_value_multiplier";
-char const* const CAudioImpl::s_szFmodShiftAttribute = "fmod_value_shift";
-char const* const CAudioImpl::s_szFmodPathAttribute = "fmod_path";
-char const* const CAudioImpl::s_szFmodLocalizedAttribute = "fmod_localized";
-char const* const CAudioImpl::s_szFmodEventTypeAttribute = "fmod_event_type";
-char const* const CAudioImpl::s_szFmodEventPrefix = "event:/";
-char const* const CAudioImpl::s_szFmodSnapshotPrefix = "snapshot:/";
-char const* const CAudioImpl::s_szFmodBusPrefix = "bus:/";
-
-//////////////////////////////////////////////////////////////////////////
-FMOD_RESULT F_CALLBACK EventCallback(FMOD_STUDIO_EVENT_CALLBACK_TYPE type, FMOD_STUDIO_EVENTINSTANCE* event, void* parameters)
+namespace CryAudio
 {
-	FMOD::Studio::EventInstance* const pEvent = reinterpret_cast<FMOD::Studio::EventInstance*>(event);
-
-	if (pEvent != nullptr)
-	{
-		CAudioEvent* pAudioEvent = nullptr;
-		FMOD_RESULT const fmodResult = pEvent->getUserData(reinterpret_cast<void**>(&pAudioEvent));
-		ASSERT_FMOD_OK;
-
-		if (pAudioEvent != nullptr)
-		{
-			SAudioRequest request;
-			SAudioCallbackManagerRequestData<eAudioCallbackManagerRequestType_ReportFinishedEvent> requestData(pAudioEvent->GetId(), true);
-			request.flags = eAudioRequestFlags_ThreadSafePush;
-			request.pData = &requestData;
-
-			gEnv->pAudioSystem->PushRequest(request);
-		}
-	}
-
-	return FMOD_OK;
-}
-
-//////////////////////////////////////////////////////////////////////////
-FMOD_RESULT F_CALLBACK StandaloneFileCallback(FMOD_STUDIO_EVENT_CALLBACK_TYPE type, FMOD_STUDIO_EVENTINSTANCE* pEvent, void* pInOutParameters)
+namespace Impl
 {
-	if (pEvent != nullptr)
-	{
-		FMOD::Studio::EventInstance* const pEventInstance = reinterpret_cast<FMOD::Studio::EventInstance*>(pEvent);
-		CAudioStandaloneFile* pStandaloneFileEvent = nullptr;
-		FMOD_RESULT fmodResult = pEventInstance->getUserData(reinterpret_cast<void**>(&pStandaloneFileEvent));
-		ASSERT_FMOD_OK;
+namespace Fmod
+{
+ParameterToIndexMap g_parameterToIndex;
+SwitchToIndexMap g_switchToIndex;
 
-		if (pStandaloneFileEvent != nullptr)
-		{
-			SAudioRequest request;
-			if (type == FMOD_STUDIO_EVENT_CALLBACK_CREATE_PROGRAMMER_SOUND)
-			{
-				CRY_ASSERT(pInOutParameters);
-				FMOD_STUDIO_PROGRAMMER_SOUND_PROPERTIES* const pInOutProperties = reinterpret_cast<FMOD_STUDIO_PROGRAMMER_SOUND_PROPERTIES*>(pInOutParameters);
-				// Create the sound
-				fmodResult = pStandaloneFileEvent->pLowLevelSystem->createSound(pStandaloneFileEvent->fileName, (pStandaloneFileEvent->bShouldBeStreamed) ? (FMOD_CREATESTREAM | FMOD_NONBLOCKING) : (FMOD_CREATECOMPRESSEDSAMPLE | FMOD_NONBLOCKING), NULL, &pStandaloneFileEvent->pLowLevelSound);
-				ASSERT_FMOD_OK;
-				// Pass the sound to FMOD
-				pInOutProperties->sound = reinterpret_cast<FMOD_SOUND*>(pStandaloneFileEvent->pLowLevelSound);
-			}
-			else if (type == FMOD_STUDIO_EVENT_CALLBACK_STARTED)
-			{
-				pStandaloneFileEvent->bWaitingForData = true;  //will be evaluated in the main loop
-			}
-			else if (type == FMOD_STUDIO_EVENT_CALLBACK_STOPPED || type == FMOD_STUDIO_EVENT_CALLBACK_START_FAILED)
-			{
-				pStandaloneFileEvent->bHasFinished = true;  //will be evaluated in the main loop
-			}
-			else if (type == FMOD_STUDIO_EVENT_CALLBACK_DESTROY_PROGRAMMER_SOUND)
-			{
-				pStandaloneFileEvent->pLowLevelSound = nullptr;
-				CRY_ASSERT(pInOutParameters);
-				FMOD_STUDIO_PROGRAMMER_SOUND_PROPERTIES* const pInOutProperties = reinterpret_cast<FMOD_STUDIO_PROGRAMMER_SOUND_PROPERTIES*>(pInOutParameters);
-				// Obtain the sound
-				FMOD::Sound* pSound = reinterpret_cast<FMOD::Sound*>(pInOutProperties->sound);
-				// Release the sound
-				fmodResult = pSound->release();
-				ASSERT_FMOD_OK;
-			}
-		}
-	}
-
-	return FMOD_OK;
-}
+char const* const CImpl::s_szFmodEventTag = "FmodEvent";
+char const* const CImpl::s_szFmodSnapshotTag = "FmodSnapshot";
+char const* const CImpl::s_szFmodEventParameterTag = "FmodEventParameter";
+char const* const CImpl::s_szFmodSnapshotParameterTag = "FmodSnapshotParameter";
+char const* const CImpl::s_szFmodFileTag = "FmodFile";
+char const* const CImpl::s_szFmodBusTag = "FmodBus";
+char const* const CImpl::s_szFmodNameAttribute = "fmod_name";
+char const* const CImpl::s_szFmodValueAttribute = "fmod_value";
+char const* const CImpl::s_szFmodMutiplierAttribute = "fmod_value_multiplier";
+char const* const CImpl::s_szFmodShiftAttribute = "fmod_value_shift";
+char const* const CImpl::s_szFmodPathAttribute = "fmod_path";
+char const* const CImpl::s_szFmodLocalizedAttribute = "fmod_localized";
+char const* const CImpl::s_szFmodEventTypeAttribute = "fmod_event_type";
+char const* const CImpl::s_szFmodEventPrefix = "event:/";
+char const* const CImpl::s_szFmodSnapshotPrefix = "snapshot:/";
+char const* const CImpl::s_szFmodBusPrefix = "bus:/";
 
 ///////////////////////////////////////////////////////////////////////////
-CAudioImpl::CAudioImpl()
+CImpl::CImpl()
 	: m_pSystem(nullptr)
 	, m_pLowLevelSystem(nullptr)
 	, m_pMasterBank(nullptr)
 	, m_pStringsBank(nullptr)
 {
-	m_registeredAudioObjects.reserve(256);
+	m_constructedObjects.reserve(256);
 }
 
 ///////////////////////////////////////////////////////////////////////////
-CAudioImpl::~CAudioImpl()
-{
-}
-
-///////////////////////////////////////////////////////////////////////////
-void CAudioImpl::Update(float const deltaTime)
+void CImpl::Update(float const deltaTime)
 {
 	if (m_pSystem != nullptr)
 	{
 		FMOD_RESULT fmodResult = FMOD_ERR_UNINITIALIZED;
 		fmodResult = m_pSystem->update();
 		ASSERT_FMOD_OK;
-
-		if (!m_pendingAudioEvents.empty())
-		{
-			AudioEvents::iterator iter(m_pendingAudioEvents.begin());
-			AudioEvents::const_iterator iterEnd(m_pendingAudioEvents.cend());
-
-			while (iter != iterEnd)
-			{
-				if ((*iter)->GetAudioObjectData()->SetAudioEvent(*iter))
-				{
-					iter = m_pendingAudioEvents.erase(iter);
-					iterEnd = m_pendingAudioEvents.cend();
-					continue;
-				}
-
-				++iter;
-			}
-		}
-
-		for (CAudioStandaloneFile* pCurrentStandaloneFile : m_pendingStandaloneFiles)
-		{
-			if (pCurrentStandaloneFile->bWaitingForData)
-			{
-				FMOD_OPENSTATE state = FMOD_OPENSTATE_ERROR;
-				if (pCurrentStandaloneFile->pLowLevelSound)
-				{
-					pCurrentStandaloneFile->pLowLevelSound->getOpenState(&state, nullptr, nullptr, nullptr);
-				}
-
-				if (state != FMOD_OPENSTATE_LOADING)
-				{
-					bool bStarted = (state == FMOD_OPENSTATE_READY || state == FMOD_OPENSTATE_PLAYING);
-
-					SAudioRequest request;
-					SAudioCallbackManagerRequestData<eAudioCallbackManagerRequestType_ReportStartedFile> requestData(pCurrentStandaloneFile->fileInstanceId, pCurrentStandaloneFile->fileName.c_str(), bStarted);
-					request.pData = &requestData;
-					request.flags = eAudioRequestFlags_ThreadSafePush;
-					gEnv->pAudioSystem->PushRequest(request);
-					pCurrentStandaloneFile->bWaitingForData = false;
-				}
-			}
-
-			if (pCurrentStandaloneFile->bHasFinished)
-			{
-				//send finished request
-				SAudioRequest request;
-				SAudioCallbackManagerRequestData<eAudioCallbackManagerRequestType_ReportStoppedFile> requestData(pCurrentStandaloneFile->fileInstanceId, pCurrentStandaloneFile->fileName.c_str());
-				request.pData = &requestData;
-				request.flags = eAudioRequestFlags_ThreadSafePush;
-				gEnv->pAudioSystem->PushRequest(request);
-				pCurrentStandaloneFile->bHasFinished = false;
-			}
-		}
 	}
 }
 
 ///////////////////////////////////////////////////////////////////////////
-EAudioRequestStatus CAudioImpl::Init()
+ERequestStatus CImpl::Init(uint32 const objectPoolSize, uint32 const eventPoolSize)
 {
-	char const* const szAssetDirectory = gEnv->pSystem->GetIProjectManager()->GetCurrentAssetDirectoryRelative();
+	MEMSTAT_CONTEXT(EMemStatContextTypes::MSC_Other, 0, "Fmod Object Pool");
+	CObject::CreateAllocator(objectPoolSize);
+
+	MEMSTAT_CONTEXT(EMemStatContextTypes::MSC_Other, 0, "Fmod Event Pool");
+	CEvent::CreateAllocator(eventPoolSize);
+
+	char const* szAssetDirectory = gEnv->pSystem->GetIProjectManager()->GetCurrentAssetDirectoryRelative();
+
 	if (strlen(szAssetDirectory) == 0)
 	{
-		CryFatalError("<Audio - FMOD>: Needs a valid asset folder to proceed!");
+		g_implLogger.Log(ELogType::Error, "<Audio - Fmod>: No asset folder set!");
+		szAssetDirectory = "no-asset-folder-set";
 	}
 
 	m_regularSoundBankFolder = szAssetDirectory;
@@ -211,22 +90,22 @@ EAudioRequestStatus CAudioImpl::Init()
 	fmodResult = m_pLowLevelSystem->getVersion(&version);
 	ASSERT_FMOD_OK;
 
-	CryFixedStringT<MAX_AUDIO_MISC_STRING_LENGTH> systemVersion;
+	CryFixedStringT<MaxMiscStringLength> systemVersion;
 	systemVersion.Format("%08x", version);
-	CryFixedStringT<MAX_AUDIO_MISC_STRING_LENGTH> headerVersion;
+	CryFixedStringT<MaxMiscStringLength> headerVersion;
 	headerVersion.Format("%08x", FMOD_VERSION);
 	CreateVersionString(systemVersion);
 	CreateVersionString(headerVersion);
 
-	m_fullImplString = FMOD_IMPL_INFO_STRING;
-	m_fullImplString += "System: ";
-	m_fullImplString += systemVersion;
-	m_fullImplString += " Header: ";
-	m_fullImplString += headerVersion;
-	m_fullImplString += " (";
-	m_fullImplString += szAssetDirectory;
-	m_fullImplString += CRY_NATIVE_PATH_SEPSTR FMOD_IMPL_DATA_ROOT ")";
-#endif // INCLUDE_FMOD_IMPL_PRODUCTION_CODE
+	m_name = FMOD_IMPL_INFO_STRING;
+	m_name += "System: ";
+	m_name += systemVersion;
+	m_name += " Header: ";
+	m_name += headerVersion;
+	m_name += " (";
+	m_name += szAssetDirectory;
+	m_name += CRY_NATIVE_PATH_SEPSTR FMOD_IMPL_DATA_ROOT ")";
+#endif  // INCLUDE_FMOD_IMPL_PRODUCTION_CODE
 
 	int sampleRate = 0;
 	int numRawSpeakers = 0;
@@ -236,29 +115,29 @@ EAudioRequestStatus CAudioImpl::Init()
 	fmodResult = m_pLowLevelSystem->setSoftwareFormat(sampleRate, speakerMode, numRawSpeakers);
 	ASSERT_FMOD_OK;
 
-	fmodResult = m_pLowLevelSystem->set3DSettings(g_audioImplCVars.m_dopplerScale, g_audioImplCVars.m_distanceFactor, g_audioImplCVars.m_rolloffScale);
+	fmodResult = m_pLowLevelSystem->set3DSettings(g_cvars.m_dopplerScale, g_cvars.m_distanceFactor, g_cvars.m_rolloffScale);
 	ASSERT_FMOD_OK;
 
 	void* pExtraDriverData = nullptr;
 	int initFlags = FMOD_INIT_NORMAL | FMOD_INIT_VOL0_BECOMES_VIRTUAL;
 	int studioInitFlags = FMOD_STUDIO_INIT_NORMAL;
 
-	if (g_audioImplCVars.m_enableLiveUpdate > 0)
+	if (g_cvars.m_enableLiveUpdate > 0)
 	{
 		studioInitFlags |= FMOD_STUDIO_INIT_LIVEUPDATE;
 	}
 
-	if (g_audioImplCVars.m_enableSynchronousUpdate > 0)
+	if (g_cvars.m_enableSynchronousUpdate > 0)
 	{
 		studioInitFlags |= FMOD_STUDIO_INIT_SYNCHRONOUS_UPDATE;
 	}
 
-	fmodResult = m_pSystem->initialize(g_audioImplCVars.m_maxChannels, studioInitFlags, initFlags, pExtraDriverData);
+	fmodResult = m_pSystem->initialize(g_cvars.m_maxChannels, studioInitFlags, initFlags, pExtraDriverData);
 	ASSERT_FMOD_OK;
 
 	if (!LoadMasterBanks())
 	{
-		return eAudioRequestStatus_Failure;
+		return ERequestStatus::Failure;
 	}
 
 	FMOD_3D_ATTRIBUTES attributes = {
@@ -269,11 +148,21 @@ EAudioRequestStatus CAudioImpl::Init()
 	fmodResult = m_pSystem->setListenerAttributes(0, &attributes);
 	ASSERT_FMOD_OK;
 
-	return (fmodResult == FMOD_OK) ? eAudioRequestStatus_Success : eAudioRequestStatus_Failure;
+	CObjectBase::s_pSystem = m_pSystem;
+	CListener::s_pSystem = m_pSystem;
+	CStandaloneFileBase::s_pLowLevelSystem = m_pLowLevelSystem;
+
+	return (fmodResult == FMOD_OK) ? ERequestStatus::Success : ERequestStatus::Failure;
 }
 
 ///////////////////////////////////////////////////////////////////////////
-EAudioRequestStatus CAudioImpl::ShutDown()
+ERequestStatus CImpl::OnBeforeShutDown()
+{
+	return ERequestStatus::Success;
+}
+
+///////////////////////////////////////////////////////////////////////////
+ERequestStatus CImpl::ShutDown()
 {
 	FMOD_RESULT fmodResult = FMOD_OK;
 
@@ -285,49 +174,47 @@ EAudioRequestStatus CAudioImpl::ShutDown()
 		ASSERT_FMOD_OK;
 	}
 
-	return (fmodResult == FMOD_OK) ? eAudioRequestStatus_Success : eAudioRequestStatus_Failure;
+	return (fmodResult == FMOD_OK) ? ERequestStatus::Success : ERequestStatus::Failure;
 }
 
 ///////////////////////////////////////////////////////////////////////////
-EAudioRequestStatus CAudioImpl::Release()
+ERequestStatus CImpl::Release()
 {
-	POOL_FREE(this);
+	delete this;
+	g_cvars.UnregisterVariables();
 
-	// Freeing Memory Pool Memory again
-	uint8 const* const pMemSystem = g_audioImplMemoryPool.Data();
-	g_audioImplMemoryPool.UnInitMem();
-	delete[] pMemSystem;
-	g_audioImplCVars.UnregisterVariables();
+	CObject::FreeMemoryPool();
+	CEvent::FreeMemoryPool();
 
-	return eAudioRequestStatus_Success;
+	return ERequestStatus::Success;
 }
 
 ///////////////////////////////////////////////////////////////////////////
-EAudioRequestStatus CAudioImpl::OnLoseFocus()
+ERequestStatus CImpl::OnLoseFocus()
 {
 	return MuteMasterBus(true);
 }
 
 ///////////////////////////////////////////////////////////////////////////
-EAudioRequestStatus CAudioImpl::OnGetFocus()
+ERequestStatus CImpl::OnGetFocus()
 {
 	return MuteMasterBus(false);
 }
 
 ///////////////////////////////////////////////////////////////////////////
-EAudioRequestStatus CAudioImpl::MuteAll()
+ERequestStatus CImpl::MuteAll()
 {
 	return MuteMasterBus(true);
 }
 
 ///////////////////////////////////////////////////////////////////////////
-EAudioRequestStatus CAudioImpl::UnmuteAll()
+ERequestStatus CImpl::UnmuteAll()
 {
 	return MuteMasterBus(false);
 }
 
 ///////////////////////////////////////////////////////////////////////////
-EAudioRequestStatus CAudioImpl::StopAllSounds()
+ERequestStatus CImpl::StopAllSounds()
 {
 	FMOD::Studio::Bus* pMasterBus = nullptr;
 	FMOD_RESULT fmodResult = m_pSystem->getBus("bus:/", &pMasterBus);
@@ -339,501 +226,35 @@ EAudioRequestStatus CAudioImpl::StopAllSounds()
 		ASSERT_FMOD_OK;
 	}
 
-	return (fmodResult == FMOD_OK) ? eAudioRequestStatus_Success : eAudioRequestStatus_Failure;
-}
-
-///////////////////////////////////////////////////////////////////////////
-EAudioRequestStatus CAudioImpl::RegisterAudioObject(IAudioObject* const pAudioObject)
-{
-	CAudioObject* const pFmodAudioObject = static_cast<CAudioObject* const>(pAudioObject);
-
-	if (!stl::push_back_unique(m_registeredAudioObjects, pFmodAudioObject))
-	{
-		g_audioImplLogger.Log(eAudioLogType_Warning, "Trying to register an already registered audio object. (%u)", pFmodAudioObject->GetId());
-	}
-
-	return eAudioRequestStatus_Success;
-}
-
-///////////////////////////////////////////////////////////////////////////
-EAudioRequestStatus CAudioImpl::RegisterAudioObject(
-  IAudioObject* const pAudioObject,
-  char const* const szAudioObjectName)
-{
-	CAudioObject* const pFmodAudioObject = static_cast<CAudioObject* const>(pAudioObject);
-
-	if (!stl::push_back_unique(m_registeredAudioObjects, pFmodAudioObject))
-	{
-		g_audioImplLogger.Log(eAudioLogType_Warning, "Trying to register an already registered audio object. (%u)", pFmodAudioObject->GetId());
-	}
-
-	return eAudioRequestStatus_Success;
-}
-
-///////////////////////////////////////////////////////////////////////////
-EAudioRequestStatus CAudioImpl::UnregisterAudioObject(IAudioObject* const pAudioObject)
-{
-	CAudioObject* const pFmodAudioObject = static_cast<CAudioObject* const>(pAudioObject);
-
-	if (!stl::find_and_erase(m_registeredAudioObjects, pFmodAudioObject))
-	{
-		g_audioImplLogger.Log(eAudioLogType_Warning, "Trying to unregister a non-existing audio object. (%u)", pFmodAudioObject->GetId());
-	}
-
-	return eAudioRequestStatus_Success;
-}
-
-///////////////////////////////////////////////////////////////////////////
-EAudioRequestStatus CAudioImpl::ResetAudioObject(IAudioObject* const pAudioObject)
-{
-	CAudioObject* const pFmodAudioObject = static_cast<CAudioObject* const>(pAudioObject);
-	pFmodAudioObject->Reset();
-	return eAudioRequestStatus_Success;
-}
-
-///////////////////////////////////////////////////////////////////////////
-EAudioRequestStatus CAudioImpl::UpdateAudioObject(IAudioObject* const pAudioObject)
-{
-	CAudioObject* const pFmodAudioObject = static_cast<CAudioObject* const>(pAudioObject);
-	return pFmodAudioObject ? eAudioRequestStatus_Success : eAudioRequestStatus_Failure;
+	return (fmodResult == FMOD_OK) ? ERequestStatus::Success : ERequestStatus::Failure;
 }
 
 //////////////////////////////////////////////////////////////////////////
-EAudioRequestStatus CAudioImpl::PlayFile(SAudioStandaloneFileInfo* const _pAudioStandaloneFileInfo)
+ERequestStatus CImpl::RegisterInMemoryFile(SFileInfo* const pFileInfo)
 {
-	CAudioObject* const pFmodAudioObject = static_cast<CAudioObject* const>(_pAudioStandaloneFileInfo->pAudioObject);
-	CAudioTrigger const* const pFmodAudioTrigger = static_cast<CAudioTrigger const* const>(_pAudioStandaloneFileInfo->pUsedAudioTrigger);
-	CAudioStandaloneFile* const pPlayStandaloneEvent = static_cast<CAudioStandaloneFile* const>(_pAudioStandaloneFileInfo->pImplData);
+	ERequestStatus requestResult = ERequestStatus::Failure;
 
-	if ((pFmodAudioObject != nullptr) && (pFmodAudioTrigger != nullptr) && (pPlayStandaloneEvent != nullptr))
+	if (pFileInfo != nullptr)
 	{
-		if (pFmodAudioTrigger->m_eventType == eFmodEventType_Start)
-		{
-			FMOD_RESULT fmodResult = FMOD_ERR_UNINITIALIZED;
-			FMOD::Studio::EventDescription* pEventDescription = pFmodAudioTrigger->m_pEventDescription;
+		CFile* const pFileData = static_cast<CFile*>(pFileInfo->pImplData);
 
-			if (pEventDescription == nullptr)
-			{
-				fmodResult = m_pSystem->getEventByID(&pFmodAudioTrigger->m_guid, &pEventDescription);
-				ASSERT_FMOD_OK;
-			}
-
-			if (pEventDescription != nullptr)
-			{
-				CRY_ASSERT_MESSAGE(pPlayStandaloneEvent->programmerSoundEvent.GetInstance() == nullptr, "must not be set yet");
-
-				FMOD::Studio::EventInstance* pInstance = nullptr;
-				fmodResult = pEventDescription->createInstance(&pInstance);
-				ASSERT_FMOD_OK;
-				pPlayStandaloneEvent->programmerSoundEvent.SetInstance(pInstance);
-				fmodResult = pInstance->setCallback(StandaloneFileCallback, FMOD_STUDIO_EVENT_CALLBACK_ALL);
-				ASSERT_FMOD_OK;
-				fmodResult = pInstance->setUserData(pPlayStandaloneEvent);
-				ASSERT_FMOD_OK;
-				fmodResult = pInstance->set3DAttributes(&pFmodAudioObject->Get3DAttributes());
-				ASSERT_FMOD_OK;
-
-				FMOD_STUDIO_USER_PROPERTY userProperty;
-				fmodResult = pEventDescription->getUserProperty("Streamed", &userProperty);
-				pPlayStandaloneEvent->bShouldBeStreamed = (fmodResult == FMOD_OK); //if the event has the property "Streamed" we stream the programmer sound later on
-
-				CRY_ASSERT(pPlayStandaloneEvent->programmerSoundEvent.GetEventPathId() == AUDIO_INVALID_CRC32);
-				pPlayStandaloneEvent->fileId = _pAudioStandaloneFileInfo->fileId;
-				pPlayStandaloneEvent->fileInstanceId = _pAudioStandaloneFileInfo->fileInstanceId;
-
-				static string s_localizedfilesFolder = PathUtil::GetGameFolder() + CRY_NATIVE_PATH_SEPSTR + PathUtil::GetLocalizationFolder() + CRY_NATIVE_PATH_SEPSTR + m_language.c_str() + CRY_NATIVE_PATH_SEPSTR;
-				static string s_nonLocalizedfilesFolder = PathUtil::GetGameFolder() + CRY_NATIVE_PATH_SEPSTR;
-				static string filePath;
-
-				if (_pAudioStandaloneFileInfo->bLocalized)
-				{
-					filePath = s_localizedfilesFolder + _pAudioStandaloneFileInfo->szFileName + ".mp3";
-				}
-				else
-				{
-					filePath = s_nonLocalizedfilesFolder + _pAudioStandaloneFileInfo->szFileName + ".mp3";
-				}
-				pPlayStandaloneEvent->fileName = filePath.c_str();
-				pPlayStandaloneEvent->pLowLevelSystem = m_pLowLevelSystem;
-				pPlayStandaloneEvent->programmerSoundEvent.SetEventPathId(pFmodAudioTrigger->m_eventPathId);
-				pPlayStandaloneEvent->programmerSoundEvent.SetAudioObjectData(pFmodAudioObject);
-
-				CRY_ASSERT_MESSAGE(std::find(m_pendingStandaloneFiles.begin(), m_pendingStandaloneFiles.end(), pPlayStandaloneEvent) == m_pendingStandaloneFiles.end(), "standalone file was already in the pending standalone files list");
-				m_pendingStandaloneFiles.push_back(pPlayStandaloneEvent);
-				CRY_ASSERT_MESSAGE(std::find(m_pendingAudioEvents.begin(), m_pendingAudioEvents.end(), &pPlayStandaloneEvent->programmerSoundEvent) == m_pendingAudioEvents.end(), "Event was already in the pending event list");
-				m_pendingAudioEvents.push_back(&pPlayStandaloneEvent->programmerSoundEvent);
-				return eAudioRequestStatus_Success;
-			}
-		}
-	}
-
-	g_audioImplLogger.Log(eAudioLogType_Error, "Invalid AudioObject, AudioTrigger or StandaloneFile passed to the Fmod implementation of PlayFile.");
-	return eAudioRequestStatus_Failure;
-}
-
-//////////////////////////////////////////////////////////////////////////
-EAudioRequestStatus CAudioImpl::StopFile(SAudioStandaloneFileInfo* const _pAudioStandaloneFileInfo)
-{
-	CAudioStandaloneFile* const pFmodStandaloneFile = static_cast<CAudioStandaloneFile* const>(_pAudioStandaloneFileInfo->pImplData);
-
-	if (pFmodStandaloneFile != nullptr)
-	{
-		pFmodStandaloneFile->bWaitingForData = false;
-		FMOD::Studio::EventInstance* const pEventInstance = pFmodStandaloneFile->programmerSoundEvent.GetInstance();
-		CRY_ASSERT(pEventInstance != nullptr);
-
-		FMOD_RESULT const fmodResult = pEventInstance->stop(FMOD_STUDIO_STOP_IMMEDIATE);
-		ASSERT_FMOD_OK;
-		return eAudioRequestStatus_Pending;
-	}
-	else
-	{
-		g_audioImplLogger.Log(eAudioLogType_Error, "Invalid SAudioStandaloneFileInfo passed to the Fmod implementation of StopFile.");
-	}
-
-	return eAudioRequestStatus_Failure;
-}
-
-///////////////////////////////////////////////////////////////////////////
-EAudioRequestStatus CAudioImpl::PrepareTriggerSync(
-  IAudioObject* const pAudioObject,
-  IAudioTrigger const* const pAudioTrigger)
-{
-	return eAudioRequestStatus_Success;
-}
-
-///////////////////////////////////////////////////////////////////////////
-EAudioRequestStatus CAudioImpl::UnprepareTriggerSync(
-  IAudioObject* const pAudioObject,
-  IAudioTrigger const* const pAudioTrigger)
-{
-	return eAudioRequestStatus_Success;
-}
-
-///////////////////////////////////////////////////////////////////////////
-EAudioRequestStatus CAudioImpl::PrepareTriggerAsync(
-  IAudioObject* const pAudioObject,
-  IAudioTrigger const* const pAudioTrigger,
-  IAudioEvent* const pAudioEvent)
-{
-	return eAudioRequestStatus_Success;
-}
-
-///////////////////////////////////////////////////////////////////////////
-EAudioRequestStatus CAudioImpl::UnprepareTriggerAsync(
-  IAudioObject* const pAudioObject,
-  IAudioTrigger const* const pAudioTrigger,
-  IAudioEvent* const pAudioEvent)
-{
-	return eAudioRequestStatus_Success;
-}
-
-///////////////////////////////////////////////////////////////////////////
-EAudioRequestStatus CAudioImpl::ActivateTrigger(
-  IAudioObject* const pAudioObject,
-  IAudioTrigger const* const pAudioTrigger,
-  IAudioEvent* const pAudioEvent)
-{
-	EAudioRequestStatus requestResult = eAudioRequestStatus_Failure;
-	CAudioObject* const pFmodAudioObject = static_cast<CAudioObject* const>(pAudioObject);
-	CAudioTrigger const* const pFmodAudioTrigger = static_cast<CAudioTrigger const* const>(pAudioTrigger);
-	CAudioEvent* const pFmodAudioEvent = static_cast<CAudioEvent*>(pAudioEvent);
-
-	if ((pFmodAudioObject != nullptr) && (pFmodAudioTrigger != nullptr) && (pFmodAudioEvent != nullptr))
-	{
-		if (pFmodAudioTrigger->m_eventType == eFmodEventType_Start)
-		{
-			FMOD_RESULT fmodResult = FMOD_ERR_UNINITIALIZED;
-			FMOD::Studio::EventDescription* pEventDescription = pFmodAudioTrigger->m_pEventDescription;
-
-			if (pEventDescription == nullptr)
-			{
-				fmodResult = m_pSystem->getEventByID(&pFmodAudioTrigger->m_guid, &pEventDescription);
-				ASSERT_FMOD_OK;
-			}
-
-			if (pEventDescription != nullptr)
-			{
-				CRY_ASSERT(pFmodAudioEvent->GetInstance() == nullptr);
-
-				FMOD::Studio::EventInstance* pInstance = nullptr;
-				fmodResult = pEventDescription->createInstance(&pInstance);
-				ASSERT_FMOD_OK;
-				pFmodAudioEvent->SetInstance(pInstance);
-				fmodResult = pFmodAudioEvent->GetInstance()->setCallback(EventCallback, FMOD_STUDIO_EVENT_CALLBACK_START_FAILED | FMOD_STUDIO_EVENT_CALLBACK_STOPPED);
-				ASSERT_FMOD_OK;
-				fmodResult = pFmodAudioEvent->GetInstance()->setUserData(pFmodAudioEvent);
-				ASSERT_FMOD_OK;
-				fmodResult = pFmodAudioEvent->GetInstance()->set3DAttributes(&pFmodAudioObject->Get3DAttributes());
-				ASSERT_FMOD_OK;
-
-				CRY_ASSERT(pFmodAudioEvent->GetEventPathId() == AUDIO_INVALID_CRC32);
-				pFmodAudioEvent->SetEventPathId(pFmodAudioTrigger->m_eventPathId);
-				pFmodAudioEvent->SetAudioObjectData(pFmodAudioObject);
-
-				CRY_ASSERT_MESSAGE(std::find(m_pendingAudioEvents.begin(), m_pendingAudioEvents.end(), pFmodAudioEvent) == m_pendingAudioEvents.end(), "Event was already in the pending list");
-				m_pendingAudioEvents.push_back(pFmodAudioEvent);
-				requestResult = eAudioRequestStatus_Success;
-			}
-		}
-		else
-		{
-			pFmodAudioObject->StopEvent(pFmodAudioTrigger->m_eventPathId);
-
-			// Return failure here so the ATL does not keep track of this event.
-			requestResult = eAudioRequestStatus_Failure;
-		}
-	}
-	else
-	{
-		g_audioImplLogger.Log(eAudioLogType_Error, "Invalid AudioObjectData, ATLTriggerData or EventData passed to the Fmod implementation of ActivateTrigger.");
-	}
-
-	return requestResult;
-}
-
-///////////////////////////////////////////////////////////////////////////
-EAudioRequestStatus CAudioImpl::StopEvent(
-  IAudioObject* const pAudioObject,
-  IAudioEvent const* const pAudioEvent)
-{
-	EAudioRequestStatus requestResult = eAudioRequestStatus_Failure;
-	CAudioEvent const* const pFmodAudioEvent = static_cast<CAudioEvent const* const>(pAudioEvent);
-
-	if (pFmodAudioEvent != nullptr)
-	{
-		FMOD_RESULT const fmodResult = pFmodAudioEvent->GetInstance()->stop(FMOD_STUDIO_STOP_IMMEDIATE);
-		ASSERT_FMOD_OK;
-		requestResult = eAudioRequestStatus_Success;
-	}
-	else
-	{
-		g_audioImplLogger.Log(eAudioLogType_Error, "Invalid EventData passed to the Fmod implementation of StopEvent.");
-	}
-
-	return requestResult;
-}
-
-///////////////////////////////////////////////////////////////////////////
-EAudioRequestStatus CAudioImpl::StopAllEvents(IAudioObject* const pAudioObject)
-{
-	EAudioRequestStatus requestResult = eAudioRequestStatus_Failure;
-	CAudioObject* const pFmodAudioObject = static_cast<CAudioObject* const>(pAudioObject);
-
-	if (pFmodAudioObject != nullptr)
-	{
-		pFmodAudioObject->StopAllEvents();
-		requestResult = eAudioRequestStatus_Success;
-	}
-	else
-	{
-		g_audioImplLogger.Log(eAudioLogType_Error, "Invalid AudioObjectData passed to the Fmod implementation of StopAllEvents.");
-	}
-
-	return requestResult;
-}
-
-///////////////////////////////////////////////////////////////////////////
-EAudioRequestStatus CAudioImpl::Set3DAttributes(
-  IAudioObject* const pAudioObject,
-  CryAudio::Impl::SAudioObject3DAttributes const& attributes)
-{
-	EAudioRequestStatus requestResult = eAudioRequestStatus_Failure;
-	CAudioObject* const pFmodAudioObject = static_cast<CAudioObject* const>(pAudioObject);
-
-	if (pFmodAudioObject != nullptr)
-	{
-		pFmodAudioObject->Set3DAttributes(attributes);
-		requestResult = eAudioRequestStatus_Success;
-	}
-	else
-	{
-		g_audioImplLogger.Log(eAudioLogType_Error, "Invalid AudioObjectData passed to the Fmod implementation of SetPosition.");
-	}
-
-	return requestResult;
-}
-
-///////////////////////////////////////////////////////////////////////////
-EAudioRequestStatus CAudioImpl::SetEnvironment(
-  IAudioObject* const pAudioObject,
-  IAudioEnvironment const* const pAudioEnvironment,
-  float const amount)
-{
-	EAudioRequestStatus result = eAudioRequestStatus_Failure;
-	CAudioObject* const pFmodAudioObject = static_cast<CAudioObject* const>(pAudioObject);
-	CAudioEnvironment const* const pFmodAudioEnvironment = static_cast<CAudioEnvironment const* const>(pAudioEnvironment);
-
-	if ((pFmodAudioObject != nullptr) && (pFmodAudioEnvironment != nullptr))
-	{
-		if (pFmodAudioObject->GetId() != g_globalAudioObjectId)
-		{
-			pFmodAudioObject->SetEnvironment(pFmodAudioEnvironment, amount);
-		}
-		else
-		{
-			for (auto const pRegisteredAudioObject : m_registeredAudioObjects)
-			{
-				pRegisteredAudioObject->SetEnvironment(pFmodAudioEnvironment, amount);
-			}
-		}
-
-		result = eAudioRequestStatus_Success;
-	}
-	else
-	{
-		g_audioImplLogger.Log(eAudioLogType_Error, "Invalid AudioObjectData or EnvironmentData passed to the Fmod implementation of SetEnvironment");
-	}
-
-	return result;
-}
-
-///////////////////////////////////////////////////////////////////////////
-EAudioRequestStatus CAudioImpl::SetRtpc(
-  IAudioObject* const pAudioObject,
-  IAudioRtpc const* const pAudioRtpc,
-  float const value)
-{
-	EAudioRequestStatus result = eAudioRequestStatus_Failure;
-	CAudioObject* const pFmodAudioObject = static_cast<CAudioObject* const>(pAudioObject);
-	CAudioParameter const* const pFmodAudioParameter = static_cast<CAudioParameter const* const>(pAudioRtpc);
-
-	if ((pFmodAudioObject != nullptr) && (pFmodAudioParameter != nullptr))
-	{
-		if (pFmodAudioObject->GetId() != g_globalAudioObjectId)
-		{
-			pFmodAudioObject->SetParameter(pFmodAudioParameter, value);
-		}
-		else
-		{
-			for (auto const pRegisteredAudioObject : m_registeredAudioObjects)
-			{
-				pRegisteredAudioObject->SetParameter(pFmodAudioParameter, value);
-			}
-		}
-
-		result = eAudioRequestStatus_Success;
-	}
-	else
-	{
-		g_audioImplLogger.Log(eAudioLogType_Error, "Invalid AudioObjectData or RtpcData passed to the Fmod implementation of SetRtpc");
-	}
-
-	return result;
-}
-
-///////////////////////////////////////////////////////////////////////////
-EAudioRequestStatus CAudioImpl::SetSwitchState(
-  IAudioObject* const pAudioObject,
-  IAudioSwitchState const* const pAudioSwitchState)
-{
-	EAudioRequestStatus result = eAudioRequestStatus_Failure;
-	CAudioObject* const pFmodAudioObject = static_cast<CAudioObject* const>(pAudioObject);
-	CAudioSwitchState const* const pFmodAudioSwitchState = static_cast<CAudioSwitchState const* const>(pAudioSwitchState);
-
-	if ((pFmodAudioObject != nullptr) && (pFmodAudioSwitchState != nullptr))
-	{
-		if (pFmodAudioObject->GetId() != g_globalAudioObjectId)
-		{
-			pFmodAudioObject->SetSwitch(pFmodAudioSwitchState);
-		}
-		else
-		{
-			for (auto const pRegisteredAudioObject : m_registeredAudioObjects)
-			{
-				pRegisteredAudioObject->SetSwitch(pFmodAudioSwitchState);
-			}
-		}
-
-		result = eAudioRequestStatus_Success;
-	}
-	else
-	{
-		g_audioImplLogger.Log(eAudioLogType_Error, "Invalid AudioObjectData or RtpcData passed to the Fmod implementation of SetSwitchState");
-	}
-
-	return result;
-}
-
-///////////////////////////////////////////////////////////////////////////
-EAudioRequestStatus CAudioImpl::SetObstructionOcclusion(
-  IAudioObject* const pAudioObject,
-  float const obstruction,
-  float const occlusion)
-{
-	EAudioRequestStatus result = eAudioRequestStatus_Failure;
-	CAudioObject* const pFmodAudioObject = static_cast<CAudioObject* const>(pAudioObject);
-
-	if (pFmodAudioObject != nullptr)
-	{
-		if (pFmodAudioObject->GetId() != g_globalAudioObjectId)
-		{
-			pFmodAudioObject->SetObstructionOcclusion(obstruction, occlusion);
-		}
-		else
-		{
-			g_audioImplLogger.Log(eAudioLogType_Error, "Trying to set occlusion and obstruction values on the global audio object!");
-		}
-
-		result = eAudioRequestStatus_Success;
-	}
-	else
-	{
-		g_audioImplLogger.Log(eAudioLogType_Error, "Invalid AudioObjectData passed to the Fmod implementation of SetObjectObstructionAndOcclusion");
-	}
-
-	return result;
-}
-
-///////////////////////////////////////////////////////////////////////////
-EAudioRequestStatus CAudioImpl::SetListener3DAttributes(
-  IAudioListener* const pAudioListener,
-  CryAudio::Impl::SAudioObject3DAttributes const& attributes)
-{
-	EAudioRequestStatus requestResult = eAudioRequestStatus_Failure;
-	CAudioListener* const pFmodAudioListener = static_cast<CAudioListener* const>(pAudioListener);
-
-	if (pFmodAudioListener != nullptr)
-	{
-		FillFmodObjectPosition(attributes, pFmodAudioListener->Get3DAttributes());
-		FMOD_RESULT const fmodResult = m_pSystem->setListenerAttributes(pFmodAudioListener->GetId(), &pFmodAudioListener->Get3DAttributes());
-		ASSERT_FMOD_OK;
-		requestResult = eAudioRequestStatus_Success;
-	}
-	else
-	{
-		g_audioImplLogger.Log(eAudioLogType_Error, "Invalid ATLListenerData passed to the Fmod implementation of SetListenerPosition");
-	}
-
-	return requestResult;
-}
-
-//////////////////////////////////////////////////////////////////////////
-EAudioRequestStatus CAudioImpl::RegisterInMemoryFile(SAudioFileEntryInfo* const pFileEntryInfo)
-{
-	EAudioRequestStatus requestResult = eAudioRequestStatus_Failure;
-
-	if (pFileEntryInfo != nullptr)
-	{
-		CAudioFileEntry* const pFmodAudioFileEntry = static_cast<CAudioFileEntry*>(pFileEntryInfo->pImplData);
-
-		if (pFmodAudioFileEntry != nullptr)
+		if (pFileData != nullptr)
 		{
 #if defined(INCLUDE_FMOD_IMPL_PRODUCTION_CODE)
 			// loadBankMemory requires 32-byte alignment when using FMOD_STUDIO_LOAD_MEMORY_POINT
-			if ((reinterpret_cast<uintptr_t>(pFileEntryInfo->pFileData) & (32 - 1)) > 0)
+			if ((reinterpret_cast<uintptr_t>(pFileInfo->pFileData) & (32 - 1)) > 0)
 			{
 				CryFatalError("<Audio>: allocation not %d byte aligned!", 32);
 			}
-#endif // INCLUDE_FMOD_IMPL_PRODUCTION_CODE
+#endif      // INCLUDE_FMOD_IMPL_PRODUCTION_CODE
 
-			FMOD_RESULT const fmodResult = m_pSystem->loadBankMemory(static_cast<char*>(pFileEntryInfo->pFileData), static_cast<int>(pFileEntryInfo->size), FMOD_STUDIO_LOAD_MEMORY_POINT, FMOD_STUDIO_LOAD_BANK_NORMAL, &pFmodAudioFileEntry->pBank);
+			FMOD_RESULT const fmodResult = m_pSystem->loadBankMemory(static_cast<char*>(pFileInfo->pFileData), static_cast<int>(pFileInfo->size), FMOD_STUDIO_LOAD_MEMORY_POINT, FMOD_STUDIO_LOAD_BANK_NORMAL, &pFileData->pBank);
 			ASSERT_FMOD_OK;
-			requestResult = (fmodResult == FMOD_OK) ? eAudioRequestStatus_Success : eAudioRequestStatus_Failure;
+			requestResult = (fmodResult == FMOD_OK) ? ERequestStatus::Success : ERequestStatus::Failure;
 		}
 		else
 		{
-			g_audioImplLogger.Log(eAudioLogType_Error, "Invalid AudioFileEntryData passed to the Fmod implementation of RegisterInMemoryFile");
+			g_implLogger.Log(ELogType::Error, "Invalid FileData passed to the Fmod implementation of RegisterInMemoryFile");
 		}
 	}
 
@@ -841,17 +262,17 @@ EAudioRequestStatus CAudioImpl::RegisterInMemoryFile(SAudioFileEntryInfo* const 
 }
 
 //////////////////////////////////////////////////////////////////////////
-EAudioRequestStatus CAudioImpl::UnregisterInMemoryFile(SAudioFileEntryInfo* const pFileEntryInfo)
+ERequestStatus CImpl::UnregisterInMemoryFile(SFileInfo* const pFileInfo)
 {
-	EAudioRequestStatus requestResult = eAudioRequestStatus_Failure;
+	ERequestStatus requestResult = ERequestStatus::Failure;
 
-	if (pFileEntryInfo != nullptr)
+	if (pFileInfo != nullptr)
 	{
-		CAudioFileEntry* const pFmodAudioFileEntry = static_cast<CAudioFileEntry*>(pFileEntryInfo->pImplData);
+		CFile* const pFileData = static_cast<CFile*>(pFileInfo->pImplData);
 
-		if (pFmodAudioFileEntry != nullptr)
+		if (pFileData != nullptr)
 		{
-			FMOD_RESULT fmodResult = pFmodAudioFileEntry->pBank->unload();
+			FMOD_RESULT fmodResult = pFileData->pBank->unload();
 			ASSERT_FMOD_OK;
 
 			FMOD_STUDIO_LOADING_STATE loadingState;
@@ -860,17 +281,17 @@ EAudioRequestStatus CAudioImpl::UnregisterInMemoryFile(SAudioFileEntryInfo* cons
 			{
 				fmodResult = m_pSystem->update();
 				ASSERT_FMOD_OK;
-				fmodResult = pFmodAudioFileEntry->pBank->getLoadingState(&loadingState);
+				fmodResult = pFileData->pBank->getLoadingState(&loadingState);
 				ASSERT_FMOD_OK_OR_INVALID_HANDLE;
 			}
 			while (loadingState == FMOD_STUDIO_LOADING_STATE_UNLOADING);
 
-			pFmodAudioFileEntry->pBank = nullptr;
-			requestResult = (fmodResult == FMOD_OK) ? eAudioRequestStatus_Success : eAudioRequestStatus_Failure;
+			pFileData->pBank = nullptr;
+			requestResult = (fmodResult == FMOD_OK) ? ERequestStatus::Success : ERequestStatus::Failure;
 		}
 		else
 		{
-			g_audioImplLogger.Log(eAudioLogType_Error, "Invalid AudioFileEntryData passed to the Fmod implementation of UnregisterInMemoryFile");
+			g_implLogger.Log(ELogType::Error, "Invalid FileData passed to the Fmod implementation of UnregisterInMemoryFile");
 		}
 	}
 
@@ -878,34 +299,32 @@ EAudioRequestStatus CAudioImpl::UnregisterInMemoryFile(SAudioFileEntryInfo* cons
 }
 
 //////////////////////////////////////////////////////////////////////////
-EAudioRequestStatus CAudioImpl::ParseAudioFileEntry(
-  XmlNodeRef const pAudioFileEntryNode,
-  SAudioFileEntryInfo* const pFileEntryInfo)
+ERequestStatus CImpl::ConstructFile(XmlNodeRef const pRootNode, SFileInfo* const pFileInfo)
 {
-	EAudioRequestStatus result = eAudioRequestStatus_Failure;
+	ERequestStatus result = ERequestStatus::Failure;
 
-	if ((_stricmp(pAudioFileEntryNode->getTag(), s_szFmodFileTag) == 0) && (pFileEntryInfo != nullptr))
+	if ((_stricmp(pRootNode->getTag(), s_szFmodFileTag) == 0) && (pFileInfo != nullptr))
 	{
-		char const* const szFmodAudioFileEntryName = pAudioFileEntryNode->getAttr(s_szFmodNameAttribute);
+		char const* const szFileName = pRootNode->getAttr(s_szFmodNameAttribute);
 
-		if (szFmodAudioFileEntryName != nullptr && szFmodAudioFileEntryName[0] != '\0')
+		if (szFileName != nullptr && szFileName[0] != '\0')
 		{
-			char const* const szFmodLocalized = pAudioFileEntryNode->getAttr(s_szFmodLocalizedAttribute);
-			pFileEntryInfo->bLocalized = (szFmodLocalized != nullptr) && (_stricmp(szFmodLocalized, "true") == 0);
-			pFileEntryInfo->szFileName = szFmodAudioFileEntryName;
+			char const* const szLocalized = pRootNode->getAttr(s_szFmodLocalizedAttribute);
+			pFileInfo->bLocalized = (szLocalized != nullptr) && (_stricmp(szLocalized, "true") == 0);
+			pFileInfo->szFileName = szFileName;
 
 			// FMOD Studio always uses 32 byte alignment for preloaded banks regardless of the platform.
-			pFileEntryInfo->memoryBlockAlignment = 32;
+			pFileInfo->memoryBlockAlignment = 32;
 
-			POOL_NEW(CAudioFileEntry, pFileEntryInfo->pImplData);
+			pFileInfo->pImplData = new CFile();
 
-			result = eAudioRequestStatus_Success;
+			result = ERequestStatus::Success;
 		}
 		else
 		{
-			pFileEntryInfo->szFileName = nullptr;
-			pFileEntryInfo->memoryBlockAlignment = 0;
-			pFileEntryInfo->pImplData = nullptr;
+			pFileInfo->szFileName = nullptr;
+			pFileInfo->memoryBlockAlignment = 0;
+			pFileInfo->pImplData = nullptr;
 		}
 	}
 
@@ -913,221 +332,220 @@ EAudioRequestStatus CAudioImpl::ParseAudioFileEntry(
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CAudioImpl::DeleteAudioFileEntry(IAudioFileEntry* const pOldAudioFileEntry)
+void CImpl::DestructFile(IFile* const pIFile)
 {
-	POOL_FREE(pOldAudioFileEntry);
+	delete pIFile;
 }
 
 //////////////////////////////////////////////////////////////////////////
-char const* const CAudioImpl::GetAudioFileLocation(SAudioFileEntryInfo* const pFileEntryInfo)
+char const* const CImpl::GetFileLocation(SFileInfo* const pFileInfo)
 {
-	char const* sResult = nullptr;
+	char const* szResult = nullptr;
 
-	if (pFileEntryInfo != nullptr)
+	if (pFileInfo != nullptr)
 	{
-		sResult = pFileEntryInfo->bLocalized ? m_localizedSoundBankFolder.c_str() : m_regularSoundBankFolder.c_str();
+		szResult = pFileInfo->bLocalized ? m_localizedSoundBankFolder.c_str() : m_regularSoundBankFolder.c_str();
 	}
 
-	return sResult;
+	return szResult;
 }
 
 ///////////////////////////////////////////////////////////////////////////
-IAudioObject* CAudioImpl::NewGlobalAudioObject()
+IObject* CImpl::ConstructGlobalObject()
 {
-	POOL_NEW_CREATE(CAudioObject, pFmodAudioObject)(g_globalAudioObjectId);
-	return pFmodAudioObject;
+	CObjectBase* const pObject = new CGlobalObject(m_constructedObjects);
+
+	if (!stl::push_back_unique(m_constructedObjects, pObject))
+	{
+		g_implLogger.Log(ELogType::Warning, "Trying to construct an already registered audio object.");
+	}
+
+	return static_cast<IObject*>(pObject);
 }
 
 ///////////////////////////////////////////////////////////////////////////
-IAudioObject* CAudioImpl::NewAudioObject()
+IObject* CImpl::ConstructObject(char const* const szName /*= nullptr*/)
 {
-	static FmodAudioObjectId nextId = g_globalAudioObjectId + 1;
-	POOL_NEW_CREATE(CAudioObject, pFmodAudioObject)(nextId++);
-	return pFmodAudioObject;
+	CObjectBase* pObject = new CObject();
+
+	if (!stl::push_back_unique(m_constructedObjects, pObject))
+	{
+		g_implLogger.Log(ELogType::Warning, "Trying to construct an already registered audio object.");
+	}
+
+	return static_cast<IObject*>(pObject);
 }
 
 ///////////////////////////////////////////////////////////////////////////
-void CAudioImpl::DeleteAudioObject(IAudioObject const* const pOldAudioObject)
+void CImpl::DestructObject(IObject const* const pIObject)
 {
-	POOL_FREE_CONST(pOldAudioObject);
+	CObjectBase const* const pObject = static_cast<CObjectBase const* const>(pIObject);
+
+	if (!stl::find_and_erase(m_constructedObjects, pObject))
+	{
+		g_implLogger.Log(ELogType::Warning, "Trying to delete a non-existing audio object.");
+	}
+
+	delete pObject;
 }
 
 ///////////////////////////////////////////////////////////////////////////
-CryAudio::Impl::IAudioListener* CAudioImpl::NewDefaultAudioListener()
-{
-	POOL_NEW_CREATE(CAudioListener, pAudioListener)(0);
-	return pAudioListener;
-}
-
-///////////////////////////////////////////////////////////////////////////
-CryAudio::Impl::IAudioListener* CAudioImpl::NewAudioListener()
+IListener* CImpl::ConstructListener(char const* const szName /*= nullptr*/)
 {
 	static int id = 0;
-	POOL_NEW_CREATE(CAudioListener, pAudioListener)(++id);
-	return pAudioListener;
+	return static_cast<IListener*>(new CListener(id++));
 }
 
 ///////////////////////////////////////////////////////////////////////////
-void CAudioImpl::DeleteAudioListener(CryAudio::Impl::IAudioListener* const pOldAudioListener)
+void CImpl::DestructListener(IListener* const pIListener)
 {
-	POOL_FREE(pOldAudioListener);
+	delete pIListener;
 }
 
 //////////////////////////////////////////////////////////////////////////
-IAudioEvent* CAudioImpl::NewAudioEvent(AudioEventId const audioEventID)
+IEvent* CImpl::ConstructEvent(CATLEvent& event)
 {
-	POOL_NEW_CREATE(CAudioEvent, pNewEvent)(audioEventID);
-	return pNewEvent;
+	return static_cast<IEvent*>(new CEvent(&event));
 }
 
 ///////////////////////////////////////////////////////////////////////////
-void CAudioImpl::DeleteAudioEvent(IAudioEvent const* const pOldAudioEvent)
+void CImpl::DestructEvent(IEvent const* const pIEvent)
 {
-	POOL_FREE_CONST(pOldAudioEvent);
+	CRY_ASSERT(pIEvent != nullptr);
+	delete pIEvent;
 }
 
-///////////////////////////////////////////////////////////////////////////
-void CAudioImpl::ResetAudioEvent(IAudioEvent* const pAudioEvent)
+//////////////////////////////////////////////////////////////////////////
+IStandaloneFile* CImpl::ConstructStandaloneFile(CATLStandaloneFile& standaloneFile, char const* const szFile, bool const bLocalized, ITrigger const* pITrigger /*= nullptr*/)
 {
-	CRY_ASSERT(pAudioEvent);
-	CAudioEvent* const pFmodAudioEvent = static_cast<CAudioEvent*>(pAudioEvent);
-	AudioEvents::iterator it = std::find(m_pendingAudioEvents.begin(), m_pendingAudioEvents.end(), pFmodAudioEvent);
-	if (it != m_pendingAudioEvents.end())
+	static string s_localizedfilesFolder = PathUtil::GetGameFolder() + CRY_NATIVE_PATH_SEPSTR + PathUtil::GetLocalizationFolder() + CRY_NATIVE_PATH_SEPSTR + m_language.c_str() + CRY_NATIVE_PATH_SEPSTR;
+	static string s_nonLocalizedfilesFolder = PathUtil::GetGameFolder() + CRY_NATIVE_PATH_SEPSTR;
+	string filePath;
+
+	if (bLocalized)
 	{
-		m_pendingAudioEvents.erase(it);
+		filePath = s_localizedfilesFolder + szFile + ".mp3";
 	}
-	pFmodAudioEvent->Reset();
-}
-
-//////////////////////////////////////////////////////////////////////////
-IAudioStandaloneFile* CAudioImpl::NewAudioStandaloneFile()
-{
-	POOL_NEW_CREATE(CAudioStandaloneFile, pAudioStandaloneFile);
-	return pAudioStandaloneFile;
-}
-
-//////////////////////////////////////////////////////////////////////////
-void CAudioImpl::DeleteAudioStandaloneFile(IAudioStandaloneFile const* const _pOldAudioStandaloneFile)
-{
-	POOL_FREE_CONST(_pOldAudioStandaloneFile);
-}
-
-//////////////////////////////////////////////////////////////////////////
-void CAudioImpl::ResetAudioStandaloneFile(IAudioStandaloneFile* const _pAudioStandaloneFile)
-{
-	CRY_ASSERT(_pAudioStandaloneFile);
-	CAudioStandaloneFile* const pStandaloneImpl = static_cast<CAudioStandaloneFile* const>(_pAudioStandaloneFile);
-	CRY_ASSERT_MESSAGE(pStandaloneImpl->pLowLevelSound == nullptr, "Sound must not play when the file is reset");
-
-	StandaloneFiles::iterator itStandaloneFile = std::find(m_pendingStandaloneFiles.begin(), m_pendingStandaloneFiles.end(), pStandaloneImpl);
-	if (itStandaloneFile != m_pendingStandaloneFiles.end())
+	else
 	{
-		m_pendingStandaloneFiles.erase(itStandaloneFile);
+		filePath = s_nonLocalizedfilesFolder + szFile + ".mp3";
 	}
-	AudioEvents::iterator itEvent = std::find(m_pendingAudioEvents.begin(), m_pendingAudioEvents.end(), &pStandaloneImpl->programmerSoundEvent);
-	if (itEvent != m_pendingAudioEvents.end())
+
+	CStandaloneFileBase* pFile = nullptr;
+
+	if (pITrigger != nullptr)
 	{
-		m_pendingAudioEvents.erase(itEvent);
+		pFile = new CProgrammerSoundFile(filePath, static_cast<CTrigger const* const>(pITrigger)->m_guid, standaloneFile);
 	}
-	pStandaloneImpl->Reset();
+	else
+	{
+		pFile = new CStandaloneFile(filePath, standaloneFile);
+	}
+
+	return static_cast<IStandaloneFile*>(pFile);
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CAudioImpl::GamepadConnected(TAudioGamepadUniqueID const deviceUniqueID)
+void CImpl::DestructStandaloneFile(IStandaloneFile const* const pIStandaloneFile)
+{
+	CRY_ASSERT(pIStandaloneFile != nullptr);
+	delete pIStandaloneFile;
+}
+
+//////////////////////////////////////////////////////////////////////////
+void CImpl::GamepadConnected(DeviceId const deviceUniqueID)
 {
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CAudioImpl::GamepadDisconnected(TAudioGamepadUniqueID const deviceUniqueID)
+void CImpl::GamepadDisconnected(DeviceId const deviceUniqueID)
 {
 }
 
 ///////////////////////////////////////////////////////////////////////////
-IAudioTrigger const* CAudioImpl::NewAudioTrigger(XmlNodeRef const pAudioTriggerNode)
+ITrigger const* CImpl::ConstructTrigger(XmlNodeRef const pRootNode)
 {
-	IAudioTrigger* pAudioTrigger = nullptr;
-	char const* const szTag = pAudioTriggerNode->getTag();
+	CTrigger* pTrigger = nullptr;
+	char const* const szTag = pRootNode->getTag();
 
 	if (_stricmp(szTag, s_szFmodEventTag) == 0)
 	{
 		stack_string path(s_szFmodEventPrefix);
-		path += pAudioTriggerNode->getAttr(s_szFmodNameAttribute);
+		path += pRootNode->getAttr(s_szFmodNameAttribute);
 		FMOD_GUID guid = { 0 };
 
 		if (m_pSystem->lookupID(path.c_str(), &guid) == FMOD_OK)
 		{
-			EFmodEventType eventType = eFmodEventType_Start;
-			char const* const szFmodEventType = pAudioTriggerNode->getAttr(s_szFmodEventTypeAttribute);
+			EEventType eventType = EEventType::Start;
+			char const* const szEventType = pRootNode->getAttr(s_szFmodEventTypeAttribute);
 
-			if (szFmodEventType != nullptr &&
-			    szFmodEventType[0] != '\0' &&
-			    _stricmp(szFmodEventType, "stop") == 0)
+			if (szEventType != nullptr && szEventType[0] != '\0' && _stricmp(szEventType, "stop") == 0)
 			{
-				eventType = eFmodEventType_Stop;
+				eventType = EEventType::Stop;
 			}
 
 #if defined (INCLUDE_FMOD_IMPL_PRODUCTION_CODE)
-			POOL_NEW(CAudioTrigger, pAudioTrigger)(AudioStringToId(path.c_str()), eventType, nullptr, guid, path.c_str());
+			pTrigger = new CTrigger(StringToId(path.c_str()), eventType, nullptr, guid, path.c_str());
 #else
-			POOL_NEW(CAudioTrigger, pAudioTrigger)(AudioStringToId(path.c_str()), eventType, nullptr, guid);
-#endif // INCLUDE_FMOD_IMPL_PRODUCTION_CODE
+			pTrigger = new CTrigger(StringToId(path.c_str()), eventType, nullptr, guid);
+#endif      // INCLUDE_FMOD_IMPL_PRODUCTION_CODE
 		}
 		else
 		{
-			g_audioImplLogger.Log(eAudioLogType_Warning, "Unknown Fmod event: %s", path.c_str());
+			g_implLogger.Log(ELogType::Warning, "Unknown Fmod event: %s", path.c_str());
 		}
 	}
 	else if (_stricmp(szTag, s_szFmodSnapshotTag) == 0)
 	{
 		stack_string path(s_szFmodSnapshotPrefix);
-		path += pAudioTriggerNode->getAttr(s_szFmodNameAttribute);
+		path += pRootNode->getAttr(s_szFmodNameAttribute);
 		FMOD_GUID guid = { 0 };
 
 		if (m_pSystem->lookupID(path.c_str(), &guid) == FMOD_OK)
 		{
-			EFmodEventType eventType = eFmodEventType_Start;
-			char const* const szFmodEventType = pAudioTriggerNode->getAttr(s_szFmodEventTypeAttribute);
+			EEventType eventType = EEventType::Start;
+			char const* const szFmodEventType = pRootNode->getAttr(s_szFmodEventTypeAttribute);
 
 			if (szFmodEventType != nullptr &&
 			    szFmodEventType[0] != '\0' &&
 			    _stricmp(szFmodEventType, "stop") == 0)
 			{
-				eventType = eFmodEventType_Stop;
+				eventType = EEventType::Stop;
 			}
 
 			FMOD::Studio::EventDescription* pEventDescription = nullptr;
 			m_pSystem->getEventByID(&guid, &pEventDescription);
 
 #if defined (INCLUDE_FMOD_IMPL_PRODUCTION_CODE)
-			POOL_NEW(CAudioTrigger, pAudioTrigger)(AudioStringToId(path.c_str()), eventType, pEventDescription, guid, path.c_str());
+			pTrigger = new CTrigger(StringToId(path.c_str()), eventType, pEventDescription, guid, path.c_str());
 #else
-			POOL_NEW(CAudioTrigger, pAudioTrigger)(AudioStringToId(path.c_str()), eventType, pEventDescription, guid);
-#endif // INCLUDE_FMOD_IMPL_PRODUCTION_CODE
+			pTrigger = new CTrigger(StringToId(path.c_str()), eventType, pEventDescription, guid);
+#endif      // INCLUDE_FMOD_IMPL_PRODUCTION_CODE
 		}
 		else
 		{
-			g_audioImplLogger.Log(eAudioLogType_Warning, "Unknown Fmod snapshot: %s", path.c_str());
+			g_implLogger.Log(ELogType::Warning, "Unknown Fmod snapshot: %s", path.c_str());
 		}
 	}
 	else
 	{
-		g_audioImplLogger.Log(eAudioLogType_Warning, "Unknown Fmod tag: %s", szTag);
+		g_implLogger.Log(ELogType::Warning, "Unknown Fmod tag: %s", szTag);
 	}
 
-	return pAudioTrigger;
+	return static_cast<ITrigger*>(pTrigger);
 }
 
 ///////////////////////////////////////////////////////////////////////////
-void CAudioImpl::DeleteAudioTrigger(IAudioTrigger const* const pOldAudioTrigger)
+void CImpl::DestructTrigger(ITrigger const* const pITrigger)
 {
-	POOL_FREE_CONST(pOldAudioTrigger);
+	delete pITrigger;
 }
 
 ///////////////////////////////////////////////////////////////////////////
-IAudioRtpc const* CAudioImpl::NewAudioRtpc(XmlNodeRef const pAudioParameterNode)
+IParameter const* CImpl::ConstructParameter(XmlNodeRef const pRootNode)
 {
-	CAudioParameter* pFmodAudioParameter = nullptr;
-	char const* const szTag = pAudioParameterNode->getTag();
+	CParameter* pParameter = nullptr;
+	char const* const szTag = pRootNode->getTag();
 	stack_string path;
 
 	if (_stricmp(szTag, s_szFmodEventParameterTag) == 0)
@@ -1141,46 +559,46 @@ IAudioRtpc const* CAudioImpl::NewAudioRtpc(XmlNodeRef const pAudioParameterNode)
 
 	if (!path.empty())
 	{
-		char const* const szName = pAudioParameterNode->getAttr(s_szFmodNameAttribute);
-		char const* const szPath = pAudioParameterNode->getAttr(s_szFmodPathAttribute);
+		char const* const szName = pRootNode->getAttr(s_szFmodNameAttribute);
+		char const* const szPath = pRootNode->getAttr(s_szFmodPathAttribute);
 		path += szPath;
-		uint32 const pathId = AudioStringToId(path.c_str());
+		uint32 const pathId = StringToId(path.c_str());
 
 		float multiplier = 1.0f;
 		float shift = 0.0f;
-		pAudioParameterNode->getAttr(s_szFmodMutiplierAttribute, multiplier);
-		pAudioParameterNode->getAttr(s_szFmodShiftAttribute, shift);
+		pRootNode->getAttr(s_szFmodMutiplierAttribute, multiplier);
+		pRootNode->getAttr(s_szFmodShiftAttribute, shift);
 
-		POOL_NEW(CAudioParameter, pFmodAudioParameter)(pathId, multiplier, shift, szName);
-		g_parameterToIndex.emplace(std::piecewise_construct, std::make_tuple(pFmodAudioParameter), std::make_tuple(FMOD_IMPL_INVALID_INDEX));
+		pParameter = new CParameter(pathId, multiplier, shift, szName);
+		g_parameterToIndex.emplace(std::piecewise_construct, std::make_tuple(pParameter), std::make_tuple(FMOD_IMPL_INVALID_INDEX));
 	}
 	else
 	{
-		g_audioImplLogger.Log(eAudioLogType_Warning, "Unknown Fmod tag: %s", szTag);
+		g_implLogger.Log(ELogType::Warning, "Unknown Fmod tag: %s", szTag);
 	}
 
-	return static_cast<IAudioRtpc*>(pFmodAudioParameter);
+	return static_cast<IParameter*>(pParameter);
 }
 
 ///////////////////////////////////////////////////////////////////////////
-void CAudioImpl::DeleteAudioRtpc(IAudioRtpc const* const pOldAudioRtpc)
+void CImpl::DestructParameter(IParameter const* const pIParameter)
 {
-	CAudioParameter const* const pFmodAudioParameter = static_cast<CAudioParameter const* const>(pOldAudioRtpc);
+	CParameter const* const pParameter = static_cast<CParameter const* const>(pIParameter);
 
-	for (auto const pAudioObject : m_registeredAudioObjects)
+	for (auto const pObject : m_constructedObjects)
 	{
-		pAudioObject->RemoveParameter(pFmodAudioParameter);
+		pObject->RemoveParameter(pParameter);
 	}
 
-	g_parameterToIndex.erase(pFmodAudioParameter);
-	POOL_FREE_CONST(pOldAudioRtpc);
+	g_parameterToIndex.erase(pParameter);
+	delete pParameter;
 }
 
 ///////////////////////////////////////////////////////////////////////////
-IAudioSwitchState const* CAudioImpl::NewAudioSwitchState(XmlNodeRef const pAudioSwitchNode)
+ISwitchState const* CImpl::ConstructSwitchState(XmlNodeRef const pRootNode)
 {
-	CAudioSwitchState* pFmodAudioSwitchState = nullptr;
-	char const* const szTag = pAudioSwitchNode->getTag();
+	CSwitchState* pSwitchState = nullptr;
+	char const* const szTag = pRootNode->getTag();
 	stack_string path;
 
 	if (_stricmp(szTag, s_szFmodEventParameterTag) == 0)
@@ -1194,47 +612,47 @@ IAudioSwitchState const* CAudioImpl::NewAudioSwitchState(XmlNodeRef const pAudio
 
 	if (!path.empty())
 	{
-		char const* const szFmodParameterName = pAudioSwitchNode->getAttr(s_szFmodNameAttribute);
-		char const* const szFmodPath = pAudioSwitchNode->getAttr(s_szFmodPathAttribute);
-		char const* const szFmodParameterValue = pAudioSwitchNode->getAttr(s_szFmodValueAttribute);
+		char const* const szFmodParameterName = pRootNode->getAttr(s_szFmodNameAttribute);
+		char const* const szFmodPath = pRootNode->getAttr(s_szFmodPathAttribute);
+		char const* const szFmodParameterValue = pRootNode->getAttr(s_szFmodValueAttribute);
 		path += szFmodPath;
-		uint32 const pathId = AudioStringToId(path.c_str());
+		uint32 const pathId = StringToId(path.c_str());
 		float const value = static_cast<float>(atof(szFmodParameterValue));
-		POOL_NEW(CAudioSwitchState, pFmodAudioSwitchState)(pathId, value, szFmodParameterName);
-		g_switchToIndex.emplace(std::piecewise_construct, std::make_tuple(pFmodAudioSwitchState), std::make_tuple(FMOD_IMPL_INVALID_INDEX));
+		pSwitchState = new CSwitchState(pathId, value, szFmodParameterName);
+		g_switchToIndex.emplace(std::piecewise_construct, std::make_tuple(pSwitchState), std::make_tuple(FMOD_IMPL_INVALID_INDEX));
 	}
 	else
 	{
-		g_audioImplLogger.Log(eAudioLogType_Warning, "Unknown Fmod tag: %s", szTag);
+		g_implLogger.Log(ELogType::Warning, "Unknown Fmod tag: %s", szTag);
 	}
 
-	return static_cast<IAudioSwitchState*>(pFmodAudioSwitchState);
+	return static_cast<ISwitchState*>(pSwitchState);
 }
 
 ///////////////////////////////////////////////////////////////////////////
-void CAudioImpl::DeleteAudioSwitchState(IAudioSwitchState const* const pOldAudioSwitchState)
+void CImpl::DestructSwitchState(ISwitchState const* const pISwitchState)
 {
-	CAudioSwitchState const* const pFmodAudioSwitchState = static_cast<CAudioSwitchState const* const>(pOldAudioSwitchState);
+	CSwitchState const* const pSwitchState = static_cast<CSwitchState const* const>(pISwitchState);
 
-	for (auto const pAudioObject : m_registeredAudioObjects)
+	for (auto const pObject : m_constructedObjects)
 	{
-		pAudioObject->RemoveSwitch(pFmodAudioSwitchState);
+		pObject->RemoveSwitch(pSwitchState);
 	}
 
-	g_switchToIndex.erase(pFmodAudioSwitchState);
-	POOL_FREE_CONST(pOldAudioSwitchState);
+	g_switchToIndex.erase(pSwitchState);
+	delete pSwitchState;
 }
 
 ///////////////////////////////////////////////////////////////////////////
-IAudioEnvironment const* CAudioImpl::NewAudioEnvironment(XmlNodeRef const pAudioEnvironmentNode)
+IEnvironment const* CImpl::ConstructEnvironment(XmlNodeRef const pRootNode)
 {
-	IAudioEnvironment* pAudioEnvironment = nullptr;
-	char const* const szTag = pAudioEnvironmentNode->getTag();
+	CEnvironment* pEnvironment = nullptr;
+	char const* const szTag = pRootNode->getTag();
 
 	if (_stricmp(szTag, s_szFmodBusTag) == 0)
 	{
 		stack_string path(s_szFmodBusPrefix);
-		path += pAudioEnvironmentNode->getAttr(s_szFmodNameAttribute);
+		path += pRootNode->getAttr(s_szFmodNameAttribute);
 		FMOD_GUID guid = { 0 };
 
 		if (m_pSystem->lookupID(path.c_str(), &guid) == FMOD_OK)
@@ -1242,17 +660,17 @@ IAudioEnvironment const* CAudioImpl::NewAudioEnvironment(XmlNodeRef const pAudio
 			FMOD::Studio::Bus* pBus = nullptr;
 			FMOD_RESULT const fmodResult = m_pSystem->getBusByID(&guid, &pBus);
 			ASSERT_FMOD_OK;
-			POOL_NEW(CAudioEnvironment, pAudioEnvironment)(nullptr, pBus);
+			pEnvironment = new CEnvironment(nullptr, pBus);
 		}
 		else
 		{
-			g_audioImplLogger.Log(eAudioLogType_Warning, "Unknown Fmod bus: %s", path.c_str());
+			g_implLogger.Log(ELogType::Warning, "Unknown Fmod bus: %s", path.c_str());
 		}
 	}
 	else if (_stricmp(szTag, s_szFmodSnapshotTag) == 0)
 	{
 		stack_string path(s_szFmodSnapshotPrefix);
-		path += pAudioEnvironmentNode->getAttr(s_szFmodNameAttribute);
+		path += pRootNode->getAttr(s_szFmodNameAttribute);
 		FMOD_GUID guid = { 0 };
 
 		if (m_pSystem->lookupID(path.c_str(), &guid) == FMOD_OK)
@@ -1260,49 +678,47 @@ IAudioEnvironment const* CAudioImpl::NewAudioEnvironment(XmlNodeRef const pAudio
 			FMOD::Studio::EventDescription* pEventDescription = nullptr;
 			FMOD_RESULT const fmodResult = m_pSystem->getEventByID(&guid, &pEventDescription);
 			ASSERT_FMOD_OK;
-			POOL_NEW(CAudioEnvironment, pAudioEnvironment)(pEventDescription, nullptr);
+			pEnvironment = new CEnvironment(pEventDescription, nullptr);
 		}
 		else
 		{
-			g_audioImplLogger.Log(eAudioLogType_Warning, "Unknown Fmod snapshot: %s", path.c_str());
+			g_implLogger.Log(ELogType::Warning, "Unknown Fmod snapshot: %s", path.c_str());
 		}
 	}
 
-	return pAudioEnvironment;
+	return static_cast<IEnvironment*>(pEnvironment);
 }
 
 ///////////////////////////////////////////////////////////////////////////
-void CAudioImpl::DeleteAudioEnvironment(IAudioEnvironment const* const pOldAudioEnvironment)
+void CImpl::DestructEnvironment(IEnvironment const* const pIEnvironment)
 {
-	CAudioEnvironment const* const pFmodAudioEnvironment = static_cast<CAudioEnvironment const* const>(pOldAudioEnvironment);
+	CEnvironment const* const pEnvironment = static_cast<CEnvironment const* const>(pIEnvironment);
 
-	for (auto const pAudioObject : m_registeredAudioObjects)
+	for (auto const pObject : m_constructedObjects)
 	{
-		pAudioObject->RemoveEnvironment(pFmodAudioEnvironment);
+		pObject->RemoveEnvironment(pEnvironment);
 	}
 
-	POOL_FREE_CONST(pOldAudioEnvironment);
+	delete pEnvironment;
 }
 
 ///////////////////////////////////////////////////////////////////////////
-char const* const CAudioImpl::GetImplementationNameString() const
+char const* const CImpl::GetName() const
 {
 #if defined(INCLUDE_FMOD_IMPL_PRODUCTION_CODE)
-	return m_fullImplString.c_str();
-#endif // INCLUDE_FMOD_IMPL_PRODUCTION_CODE
-
+	return m_name.c_str();
+#endif  // INCLUDE_FMOD_IMPL_PRODUCTION_CODE
 	return nullptr;
 }
 
 ///////////////////////////////////////////////////////////////////////////
-void CAudioImpl::GetMemoryInfo(SAudioImplMemoryInfo& memoryInfo) const
+void CImpl::GetMemoryInfo(SMemoryInfo& memoryInfo) const
 {
-	memoryInfo.primaryPoolSize = g_audioImplMemoryPool.MemSize();
-	memoryInfo.primaryPoolUsedSize = memoryInfo.primaryPoolSize - g_audioImplMemoryPool.MemFree();
-	memoryInfo.primaryPoolAllocations = g_audioImplMemoryPool.FragmentCount();
+	CryModuleMemoryInfo memInfo;
+	ZeroStruct(memInfo);
+	CryGetMemoryInfoForModule(&memInfo);
 
-	memoryInfo.bucketUsedSize = g_audioImplMemoryPool.GetSmallAllocsSize();
-	memoryInfo.bucketAllocations = g_audioImplMemoryPool.GetSmallAllocsCount();
+	memoryInfo.totalMemory = static_cast<size_t>(memInfo.allocated - memInfo.freed);
 
 #if defined(PROVIDE_FMOD_IMPL_SECONDARY_POOL)
 	memoryInfo.secondaryPoolSize = g_audioImplMemoryPoolSecondary.MemSize();
@@ -1312,18 +728,38 @@ void CAudioImpl::GetMemoryInfo(SAudioImplMemoryInfo& memoryInfo) const
 	memoryInfo.secondaryPoolSize = 0;
 	memoryInfo.secondaryPoolUsedSize = 0;
 	memoryInfo.secondaryPoolAllocations = 0;
-#endif // PROVIDE_AUDIO_IMPL_SECONDARY_POOL
+#endif  // PROVIDE_AUDIO_IMPL_SECONDARY_POOL
+
+	{
+		auto& allocator = CObject::GetAllocator();
+		auto mem = allocator.GetTotalMemory();
+		auto pool = allocator.GetCounts();
+		memoryInfo.poolUsedObjects = pool.nUsed;
+		memoryInfo.poolConstructedObjects = pool.nAlloc;
+		memoryInfo.poolUsedMemory = mem.nUsed;
+		memoryInfo.poolAllocatedMemory = mem.nAlloc;
+	}
+
+	{
+		auto& allocator = CEvent::GetAllocator();
+		auto mem = allocator.GetTotalMemory();
+		auto pool = allocator.GetCounts();
+		memoryInfo.poolUsedObjects += pool.nUsed;
+		memoryInfo.poolConstructedObjects += pool.nAlloc;
+		memoryInfo.poolUsedMemory += mem.nUsed;
+		memoryInfo.poolAllocatedMemory += mem.nAlloc;
+	}
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CAudioImpl::OnAudioSystemRefresh()
+void CImpl::OnRefresh()
 {
 	UnloadMasterBanks();
 	LoadMasterBanks();
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CAudioImpl::SetLanguage(char const* const szLanguage)
+void CImpl::SetLanguage(char const* const szLanguage)
 {
 	if (szLanguage != nullptr)
 	{
@@ -1339,11 +775,10 @@ void CAudioImpl::SetLanguage(char const* const szLanguage)
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CAudioImpl::CreateVersionString(CryFixedStringT<MAX_AUDIO_MISC_STRING_LENGTH>& stringOut) const
+void CImpl::CreateVersionString(CryFixedStringT<MaxMiscStringLength>& stringOut) const
 {
 	// Remove the leading zeros on the upper 16 bit and inject the 2 dots between the 3 groups
 	size_t const stringLength = stringOut.size();
-
 	for (size_t i = 0; i < stringLength; ++i)
 	{
 		if (stringOut.c_str()[0] == '0')
@@ -1368,7 +803,7 @@ void CAudioImpl::CreateVersionString(CryFixedStringT<MAX_AUDIO_MISC_STRING_LENGT
 	}
 }
 
-struct SFileData
+struct SFmodFileData
 {
 	void*        pData;
 	int unsigned fileSize;
@@ -1377,7 +812,7 @@ struct SFileData
 //////////////////////////////////////////////////////////////////////////
 FMOD_RESULT F_CALLBACK FmodFileOpenCallback(const char* szName, unsigned int* pFileSize, void** pHandle, void* pUserData)
 {
-	SFileData* const pFileData = static_cast<SFileData*>(pUserData);
+	SFmodFileData* const pFileData = static_cast<SFmodFileData*>(pUserData);
 	*pHandle = pFileData->pData;
 	*pFileSize = pFileData->fileSize;
 
@@ -1433,12 +868,12 @@ FMOD_RESULT F_CALLBACK FmodFileSeekCallback(void* pHandle, unsigned int pos, voi
 }
 
 //////////////////////////////////////////////////////////////////////////
-bool CAudioImpl::LoadMasterBanks()
+bool CImpl::LoadMasterBanks()
 {
 	FMOD_RESULT fmodResult = FMOD_ERR_UNINITIALIZED;
-	CryFixedStringT<MAX_AUDIO_FILE_NAME_LENGTH> masterBankPath;
-	CryFixedStringT<MAX_AUDIO_FILE_NAME_LENGTH> masterBankStringsPath;
-	CryFixedStringT<MAX_AUDIO_FILE_PATH_LENGTH + MAX_AUDIO_FILE_NAME_LENGTH> search(m_regularSoundBankFolder + CRY_NATIVE_PATH_SEPSTR "*.bank");
+	CryFixedStringT<MaxFileNameLength> masterBankPath;
+	CryFixedStringT<MaxFileNameLength> masterBankStringsPath;
+	CryFixedStringT<MaxFilePathLength + MaxFileNameLength> search(m_regularSoundBankFolder + CRY_NATIVE_PATH_SEPSTR "*.bank");
 	_finddata_t fd;
 	intptr_t const handle = gEnv->pCryPak->FindFirst(search.c_str(), &fd);
 
@@ -1478,28 +913,26 @@ bool CAudioImpl::LoadMasterBanks()
 			FILE* const pMasterBank = gEnv->pCryPak->FOpen(masterBankPath.c_str(), "rbx", ICryPak::FOPEN_HINT_DIRECT_OPERATION);
 			FILE* const pStringsBank = gEnv->pCryPak->FOpen(masterBankStringsPath.c_str(), "rbx", ICryPak::FOPEN_HINT_DIRECT_OPERATION);
 
-			SFileData fileData;
+			SFmodFileData fileData;
 			fileData.pData = static_cast<void*>(pMasterBank);
 			fileData.fileSize = static_cast<int>(masterBankFileSize);
 
 			FMOD_STUDIO_BANK_INFO bankInfo;
 			ZeroStruct(bankInfo);
-			bankInfo.closeCallback = &FmodFileCloseCallback;
-			bankInfo.openCallback = &FmodFileOpenCallback;
-			bankInfo.readCallback = &FmodFileReadCallback;
-			bankInfo.seekCallback = &FmodFileSeekCallback;
+			bankInfo.closecallback = &FmodFileCloseCallback;
+			bankInfo.opencallback = &FmodFileOpenCallback;
+			bankInfo.readcallback = &FmodFileReadCallback;
+			bankInfo.seekcallback = &FmodFileSeekCallback;
 			bankInfo.size = sizeof(bankInfo);
-			bankInfo.userData = static_cast<void*>(&fileData);
-			bankInfo.userDataLength = sizeof(SFileData);
+			bankInfo.userdata = static_cast<void*>(&fileData);
+			bankInfo.userdatalength = sizeof(SFmodFileData);
 
 			fmodResult = m_pSystem->loadBankCustom(&bankInfo, FMOD_STUDIO_LOAD_BANK_NORMAL, &m_pMasterBank);
 			ASSERT_FMOD_OK;
-
 			fileData.pData = static_cast<void*>(pStringsBank);
 			fileData.fileSize = static_cast<int>(masterBankStringsFileSize);
 			fmodResult = m_pSystem->loadBankCustom(&bankInfo, FMOD_STUDIO_LOAD_BANK_NORMAL, &m_pStringsBank);
 			ASSERT_FMOD_OK;
-
 			if (m_pMasterBank != nullptr)
 			{
 				int numBuses = 0;
@@ -1508,8 +941,7 @@ bool CAudioImpl::LoadMasterBanks()
 
 				if (numBuses > 0)
 				{
-					FMOD::Studio::Bus** pBuses = nullptr;
-					POOL_NEW_CUSTOM(FMOD::Studio::Bus*, pBuses, numBuses);
+					FMOD::Studio::Bus** pBuses = new FMOD::Studio::Bus*[numBuses];
 					int numRetrievedBuses = 0;
 					fmodResult = m_pMasterBank->getBusList(pBuses, numBuses, &numRetrievedBuses);
 					ASSERT_FMOD_OK;
@@ -1521,7 +953,7 @@ bool CAudioImpl::LoadMasterBanks()
 						ASSERT_FMOD_OK;
 					}
 
-					POOL_FREE(pBuses);
+					delete[] pBuses;
 				}
 			}
 		}
@@ -1530,7 +962,7 @@ bool CAudioImpl::LoadMasterBanks()
 	{
 		// This does not qualify for a fallback to the NULL implementation!
 		// Still notify the user about this failure!
-		g_audioImplLogger.Log(eAudioLogType_Error, "Fmod failed to load master banks");
+		g_implLogger.Log(ELogType::Error, "Fmod failed to load master banks");
 		return true;
 	}
 
@@ -1538,7 +970,7 @@ bool CAudioImpl::LoadMasterBanks()
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CAudioImpl::UnloadMasterBanks()
+void CImpl::UnloadMasterBanks()
 {
 	FMOD_RESULT fmodResult = FMOD_ERR_UNINITIALIZED;
 
@@ -1558,7 +990,7 @@ void CAudioImpl::UnloadMasterBanks()
 }
 
 //////////////////////////////////////////////////////////////////////////
-EAudioRequestStatus CAudioImpl::MuteMasterBus(bool const bMute)
+ERequestStatus CImpl::MuteMasterBus(bool const bMute)
 {
 	FMOD::Studio::Bus* pMasterBus = nullptr;
 	FMOD_RESULT fmodResult = m_pSystem->getBus(s_szFmodBusPrefix, &pMasterBus);
@@ -1570,24 +1002,27 @@ EAudioRequestStatus CAudioImpl::MuteMasterBus(bool const bMute)
 		ASSERT_FMOD_OK;
 	}
 
-	return (fmodResult == FMOD_OK) ? eAudioRequestStatus_Success : eAudioRequestStatus_Failure;
+	return (fmodResult == FMOD_OK) ? ERequestStatus::Success : ERequestStatus::Failure;
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CAudioImpl::GetAudioFileData(char const* const szFilename, SAudioFileData& audioFileData) const
+void CImpl::GetFileData(char const* const szName, SFileData& fileData) const
 {
 	FMOD::Sound* pSound = nullptr;
 	FMOD_CREATESOUNDEXINFO info;
 	ZeroStruct(info);
 	info.cbsize = sizeof(FMOD_CREATESOUNDEXINFO);
 	info.decodebuffersize = 1;
-	FMOD_RESULT const fmodResult = m_pLowLevelSystem->createStream(szFilename, FMOD_OPENONLY, &info, &pSound);
+	FMOD_RESULT const fmodResult = m_pLowLevelSystem->createStream(szName, FMOD_OPENONLY, &info, &pSound);
 	ASSERT_FMOD_OK;
 
 	if (pSound != nullptr)
 	{
 		unsigned int length = 0;
 		pSound->getLength(&length, FMOD_TIMEUNIT_MS);
-		audioFileData.duration = length / 1000.0f; // convert to seconds
+		fileData.duration = length / 1000.0f; // convert to seconds
 	}
 }
+} // namespace Fmod
+} // namespace Impl
+} // namespace CryAudio

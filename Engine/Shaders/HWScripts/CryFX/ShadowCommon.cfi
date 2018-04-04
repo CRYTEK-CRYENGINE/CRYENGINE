@@ -100,7 +100,7 @@ Texture2D<float4> depthMapSampler3 : TS_Shadow6;
 
 sampler2D sRotSampler = sampler_state
 {
-  Texture = EngineAssets/Textures/rotrandom.dds;
+  Texture = %ENGINE%/EngineAssets/Textures/rotrandom.dds;
   MinFilter = POINT;
   MagFilter = POINT;
   MipFilter = POINT; 
@@ -108,10 +108,10 @@ sampler2D sRotSampler = sampler_state
   AddressV = Wrap;	
 };
 
-Texture2D sRotTex  = "EngineAssets/Textures/rotrandom.dds"; 
+Texture2D sRotTex  = "%ENGINE%/EngineAssets/Textures/rotrandom.dds"; 
 
 //prefarable state
-/*  Texture = EngineAssets/Textures/rotrandom.dds;
+/*  Texture = %ENGINE%/EngineAssets/Textures/rotrandom.dds;
 	//enable Point filtermode for MinFilter
   MinFilter = POINT;
   MagFilter = LINEAR;
@@ -122,7 +122,7 @@ Texture2D sRotTex  = "EngineAssets/Textures/rotrandom.dds";
 
 sampler2D sRotSamplerCM = sampler_state
 {
-  Texture = EngineAssets/Textures/rotrandomCM.dds;
+  Texture = %ENGINE%/EngineAssets/Textures/rotrandomCM.dds;
   MinFilter = LINEAR;
   MagFilter = LINEAR;
   MipFilter = NONE; 

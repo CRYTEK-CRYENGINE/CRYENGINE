@@ -2,9 +2,13 @@
 
 #include "stdafx.h"
 
+#include "AnimEvent.h"
+
 #include <CryAnimation/ICryAnimation.h>
 #include <CryAnimation/IAnimEventPlayer.h>
 #include <CryAudio/IAudioSystem.h>
+#include <CryAudio/IListener.h>
+#include <CryAudio/IObject.h>
 #include <CryAction/IMaterialEffects.h>
 #include <CryExtension/ClassWeaver.h>
 #include <CryExtension/CryCreateClassInstance.h>
@@ -23,7 +27,7 @@ void SerializeParameterAudioTrigger(string& parameter, IArchive& ar)
 }
 
 void SerializeParameterString(string& parameter, IArchive& ar) { ar(parameter, "parameter", "^"); }
-void SerializeParameterEffect(string& parameter, IArchive& ar) { ar(Serialization::ParticleName(parameter), "parameter", "^"); }
+void SerializeParameterEffect(string& parameter, IArchive& ar) { ar(Serialization::ParticlePickerLegacy(parameter), "parameter", "^"); }
 void SerializeParameterNone(string& parameter, IArchive& ar)   { ar(parameter, "parameter", 0); }
 
 void SerializeParameterAnimFXEvent(string& parameter, IArchive& ar)
@@ -184,12 +188,12 @@ public:
 	CRYINTERFACE_BEGIN()
 	CRYINTERFACE_ADD(IAnimEventPlayer)
 	CRYINTERFACE_END()
-	CRYGENERATE_CLASS(AnimEventPlayer_AudioTranslationLayer, "AnimEventPlayer_AudioTranslationLayer", 0xa9fefa2dfe04dec4, 0xa6169d6e3ac635b0)
+	CRYGENERATE_CLASS_GUID(AnimEventPlayer_AudioTranslationLayer, "AnimEventPlayer_AudioTranslationLayer", "a9fefa2d-fe04-dec4-a616-9d6e3ac635b0"_cry_guid)
 
 	AnimEventPlayer_AudioTranslationLayer();
 	virtual ~AnimEventPlayer_AudioTranslationLayer();
 
-	const SCustomAnimEventType * GetCustomType(int customTypeIndex) const override
+	const SCustomAnimEventType* GetCustomType(int customTypeIndex) const override
 	{
 		int count = GetCustomTypeCount();
 		if (customTypeIndex < 0 || customTypeIndex >= count)
@@ -199,24 +203,21 @@ public:
 
 	void Initialize() override
 	{
-		m_audioProxy = gEnv->pAudioSystem->GetFreeAudioProxy();
-		if (!m_audioProxy)
-			return;
-		m_audioProxy->Initialize("Character Tool", false);
-		m_audioProxy->SetOcclusionType(eAudioOcclusionType_Ignore);
+		CryAudio::SCreateObjectData const objectData("Character Tool", CryAudio::EOcclusionType::Ignore);
+		m_pIAudioObject = gEnv->pAudioSystem->CreateObject(objectData);
 		SetPredefinedSwitches();
 	}
 
 	void Reset() override
 	{
-		if (!m_audioProxy)
+		if (!m_pIAudioObject)
 			return;
 		SetPredefinedSwitches();
 	}
 
 	void SetPredefinedSwitches()
 	{
-		if (!m_audioProxy)
+		if (!m_pIAudioObject)
 			return;
 		size_t num = m_predefinedSwitches.size();
 		for (size_t i = 0; i < num; ++i)
@@ -256,33 +257,38 @@ public:
 		if (!m_audioEnabled)
 			return;
 
-		SAudioRequest request;
-		request.pAudioObject = nullptr;
-		request.flags = eAudioRequestFlags_PriorityNormal;
-		request.pOwner = 0;
+		if (m_pIAudioListener != nullptr)
+		{
+			Matrix34 cameraWithOffset = cameraMatrix;
+			cameraWithOffset.SetTranslation(cameraMatrix.GetTranslation());
+			m_pIAudioListener->SetTransformation(cameraWithOffset);
+		}
 
-		Matrix34 cameraWithOffset = cameraMatrix;
-		cameraWithOffset.SetTranslation(cameraMatrix.GetTranslation());
-		SAudioListenerRequestData<eAudioListenerRequestType_SetTransformation> requestData(cameraWithOffset);
-		request.pData = &requestData;
-
-		gEnv->pAudioSystem->PushRequest(request);
-
-		if (m_audioProxy != nullptr)
+		if (m_pIAudioObject != nullptr)
 		{
 			Vec3 const& pos = GetBonePosition(character, m_playerLocation, m_boneToAttachTo.c_str());
-			m_audioProxy->SetPosition(pos);
+			m_pIAudioObject->SetTransformation(pos);
 		}
 	}
 
 	void EnableAudio(bool enableAudio) override
 	{
+		if (enableAudio && m_pIAudioListener == nullptr)
+		{
+			m_pIAudioListener = gEnv->pAudioSystem->CreateListener();
+		}
+		else if (m_pIAudioListener != nullptr)
+		{
+			gEnv->pAudioSystem->ReleaseListener(m_pIAudioListener);
+			m_pIAudioListener = nullptr;
+		}
+
 		m_audioEnabled = enableAudio;
 	}
 
 	bool Play(ICharacterInstance* character, const AnimEventInstance& event) override
 	{
-		if (!m_audioProxy)
+		if (!m_pIAudioObject)
 			return false;
 		const char* name = event.m_EventName ? event.m_EventName : "";
 		if (stricmp(name, "sound") == 0 || stricmp(name, "sound_tp") == 0)
@@ -322,30 +328,22 @@ public:
 
 	void SetRTPC(const char* name, float value)
 	{
-		AudioControlId rtpcId = INVALID_AUDIO_CONTROL_ID;
-		gEnv->pAudioSystem->GetAudioRtpcId(name, rtpcId);
-		m_audioProxy->SetRtpcValue(rtpcId, value);
+		CryAudio::ControlId const parameterId = CryAudio::StringToId(name);
+		m_pIAudioObject->SetParameter(parameterId, value);
 	}
 
 	void SetSwitch(const char* name, const char* state)
 	{
-		AudioControlId switchId = INVALID_AUDIO_CONTROL_ID;
-		AudioControlId stateId = INVALID_AUDIO_CONTROL_ID;
-		gEnv->pAudioSystem->GetAudioSwitchId(name, switchId);
-		gEnv->pAudioSystem->GetAudioSwitchStateId(switchId, state, stateId);
-		m_audioProxy->SetSwitchState(switchId, stateId);
+		CryAudio::ControlId const switchId = CryAudio::StringToId(name);
+		CryAudio::SwitchStateId const stateId = CryAudio::StringToId(state);
+		m_pIAudioObject->SetSwitchState(switchId, stateId);
 	}
 
 	void PlayTrigger(const char* trigger, Vec3 const& pos)
 	{
-		AudioControlId audioControlId = INVALID_AUDIO_CONTROL_ID;
-		gEnv->pAudioSystem->GetAudioTriggerId(trigger, audioControlId);
-
-		if (audioControlId != INVALID_AUDIO_CONTROL_ID)
-		{
-			m_audioProxy->SetPosition(pos);
-			m_audioProxy->ExecuteTrigger(audioControlId);
-		}
+		CryAudio::ControlId const triggerId = CryAudio::StringToId(trigger);
+		m_pIAudioObject->SetTransformation(pos);
+		m_pIAudioObject->ExecuteTrigger(triggerId);
 	}
 
 private:
@@ -354,7 +352,7 @@ private:
 		string name;
 		string state;
 
-		void   Serialize(Serialization::IArchive& ar)
+		void Serialize(Serialization::IArchive& ar)
 		{
 			ar(Serialization::AudioSwitch(name), "name", "^");
 			ar(Serialization::AudioSwitchState(state), "state", "^");
@@ -364,7 +362,8 @@ private:
 	std::vector<PredefinedSwitch> m_predefinedSwitches;
 
 	bool                          m_audioEnabled;
-	IAudioProxy*                  m_audioProxy;
+	CryAudio::IObject*            m_pIAudioObject;
+	CryAudio::IListener*          m_pIAudioListener;
 	string                        m_parameter;
 	string                        m_boneToAttachTo;
 
@@ -373,16 +372,23 @@ private:
 
 AnimEventPlayer_AudioTranslationLayer::AnimEventPlayer_AudioTranslationLayer()
 	: m_audioEnabled(false)
-	, m_audioProxy()
+	, m_pIAudioObject(nullptr)
+	, m_pIAudioListener(nullptr)
 {
 }
 
 AnimEventPlayer_AudioTranslationLayer::~AnimEventPlayer_AudioTranslationLayer()
 {
-	if (m_audioProxy)
+	if (m_pIAudioObject != nullptr)
 	{
-		m_audioProxy->Release();
-		m_audioProxy = nullptr;
+		gEnv->pAudioSystem->ReleaseObject(m_pIAudioObject);
+		m_pIAudioObject = nullptr;
+	}
+
+	if (m_pIAudioListener != nullptr)
+	{
+		gEnv->pAudioSystem->ReleaseListener(m_pIAudioListener);
+		m_pIAudioListener = nullptr;
 	}
 }
 
@@ -408,12 +414,12 @@ public:
 	CRYINTERFACE_BEGIN()
 	CRYINTERFACE_ADD(IAnimEventPlayer)
 	CRYINTERFACE_END()
-	CRYGENERATE_CLASS(AnimEventPlayerMaterialEffects, "AnimEventPlayer_MaterialEffects", 0xa9fffa2dae34d6c4, 0xa6969d6e3ac732b0)
+	CRYGENERATE_CLASS_GUID(AnimEventPlayerMaterialEffects, "AnimEventPlayer_MaterialEffects", "a9fffa2d-ae34-d6c4-a696-9d6e3ac732b0"_cry_guid)
 
 	AnimEventPlayerMaterialEffects();
 	virtual ~AnimEventPlayerMaterialEffects() {}
 
-	const SCustomAnimEventType * GetCustomType(int customTypeIndex) const override
+	const SCustomAnimEventType* GetCustomType(int customTypeIndex) const override
 	{
 		int count = GetCustomTypeCount();
 		if (customTypeIndex < 0 || customTypeIndex >= count)
@@ -548,19 +554,77 @@ CRYREGISTER_CLASS(AnimEventPlayerMaterialEffects)
 // ---------------------------------------------------------------------------
 class AnimEventPlayerAnimFXEvents : public IAnimEventPlayer
 {
+	struct SAnimFXSource
+	{
+		string m_soundFXLib;
+		string m_enviroment;
+
+		SAnimFXSource()
+			: m_soundFXLib("")
+			, m_enviroment("")
+		{}
+
+		SAnimFXSource(const string& fxLib, const string& enviroment)
+			: m_soundFXLib(fxLib)
+			, m_enviroment(enviroment)
+		{}
+
+		void Serialize(Serialization::IArchive& ar)
+		{
+			Serialization::StringList soundFXLibsList;
+
+			if (IAnimFXEvents* pAnimFXEvents = gEnv->pMaterialEffects->GetAnimFXEvents())
+			{
+				uint32 index = 0;
+				for (uint32 i = 0; i < pAnimFXEvents->GetLibrariesCount(); ++i)
+				{
+					const char* soundLibraryName = pAnimFXEvents->GetLibraryName(i);
+					soundFXLibsList.push_back(soundLibraryName);
+				}
+
+				int foundIdx = soundFXLibsList.find(m_soundFXLib.c_str());
+				index = foundIdx == Serialization::StringList::npos ? 0 : uint32(foundIdx);
+
+				Serialization::StringListValue eventListChoice(soundFXLibsList, index);
+
+				ar.doc("These are the defined anim fx libs coming from the game.dll");
+				ar(eventListChoice, "animFxLib", "^Animation FX Lib");
+
+				if (ISurfaceTypeEnumerator* pSurfaceTypeEnum = gEnv->p3DEngine->GetMaterialManager()->GetSurfaceTypeManager()->GetEnumerator())
+				{
+					Serialization::StringList envList;
+					for (ISurfaceType* pSurfaceType = pSurfaceTypeEnum->GetFirst(); pSurfaceType; pSurfaceType = pSurfaceTypeEnum->GetNext())
+					{
+						stl::push_back_unique(envList, pSurfaceType->GetType());
+					}
+
+					foundIdx = envList.find(m_enviroment.c_str());
+					index = foundIdx == Serialization::StringList::npos ? 0 : uint32(foundIdx);
+
+					Serialization::StringListValue envListChoice(envList, index);
+					ar(envListChoice, "enviroment", "Enviroment");
+					m_enviroment = envListChoice.c_str();
+				}
+
+				m_soundFXLib = eventListChoice.c_str();
+			}
+		}
+	};
+
 	typedef std::vector<SCustomAnimEventType>    TCustomEventTypes;
 	typedef std::vector<TSerializeParameterFunc> TSerializeParamFuncs;
+	typedef std::vector<SAnimFXSource>           TAnimFxSources;
 
 public:
 	CRYINTERFACE_BEGIN()
 	CRYINTERFACE_ADD(IAnimEventPlayer)
 	CRYINTERFACE_END()
-	CRYGENERATE_CLASS(AnimEventPlayerAnimFXEvents, "AnimEventPlayer_AnimFXEvents", 0x9688f29304f3400c, 0x886c2d31c5199481)
+	CRYGENERATE_CLASS_GUID(AnimEventPlayerAnimFXEvents, "AnimEventPlayer_AnimFXEvents", "9688f293-04f3-400c-886c-2d31c5199481"_cry_guid)
 
 	AnimEventPlayerAnimFXEvents();
 	virtual ~AnimEventPlayerAnimFXEvents() {}
 
-	const SCustomAnimEventType * GetCustomType(int customTypeIndex) const override
+	const SCustomAnimEventType* GetCustomType(int customTypeIndex) const override
 	{
 		int count = GetCustomTypeCount();
 		if (customTypeIndex < 0 || customTypeIndex >= count)
@@ -575,43 +639,7 @@ public:
 
 	void Serialize(Serialization::IArchive& ar) override
 	{
-		Serialization::StringList soundFXLibsList;
-
-		if (IAnimFXEvents* pAnimFXEvents = gEnv->pMaterialEffects->GetAnimFXEvents())
-		{
-			uint32 index = 0;
-			for (uint32 i = 0; i < pAnimFXEvents->GetLibrariesCount(); ++i)
-			{
-				const char* soundLibraryName = pAnimFXEvents->GetLibraryName(i);
-				soundFXLibsList.push_back(soundLibraryName);
-			}
-
-			int foundIdx = soundFXLibsList.find(m_soundFXLib.c_str());
-			index = foundIdx == Serialization::StringList::npos ? 0 : uint32(foundIdx);
-
-			Serialization::StringListValue eventListChoice(soundFXLibsList, index);
-
-			ar.doc("These are the defined anim fx libs coming from the game.dll");
-			ar(eventListChoice, "animFxLib", "Animation FX Lib");
-
-			if (ISurfaceTypeEnumerator* pSurfaceTypeEnum = gEnv->p3DEngine->GetMaterialManager()->GetSurfaceTypeManager()->GetEnumerator())
-			{
-				Serialization::StringList envList;
-				for (ISurfaceType* pSurfaceType = pSurfaceTypeEnum->GetFirst(); pSurfaceType; pSurfaceType = pSurfaceTypeEnum->GetNext())
-				{
-					stl::push_back_unique(envList, pSurfaceType->GetType());
-				}
-
-				foundIdx = envList.find(m_enviroment.c_str());
-				index = foundIdx == Serialization::StringList::npos ? 0 : uint32(foundIdx);
-
-				Serialization::StringListValue envListChoice(envList, index);
-				ar(envListChoice, "enviroment", "Enviroment");
-				m_enviroment = envListChoice.c_str();
-			}
-
-			m_soundFXLib = eventListChoice.c_str();
-		}
+		ar(m_animFxSources, "animFxSources", "Anim FX libs");
 	}
 
 	const char* SerializeCustomParameter(const char* parameterValue, Serialization::IArchive& ar, int customTypeIndex) override
@@ -660,40 +688,49 @@ public:
 			if (IAnimFXEvents* pAnimFXEvents = pMaterialEffects->GetAnimFXEvents())
 			{
 				pAnimFXEvents->GetAnimFXEventInfoById(uint32(eventUid), eventType);
+				bool effectFound(false);
 
-				mfxLibrary.Format("%s/%d/%d", m_soundFXLib.c_str(), eventUid, eventNameUid);
-				subType = m_enviroment.c_str();
-
-				// Check for enviroment effect
-				effectId = pMaterialEffects->GetEffectIdByName(mfxLibrary.c_str(), subType.c_str());
-
-				// Search for regular effect
-				if (effectId == InvalidEffectId)
+				for (const SAnimFXSource& animFxSource : m_animFxSources)
 				{
-					mfxLibrary.Format("%s/%d/0", m_soundFXLib.c_str(), eventUid);
-					subType = pAnimFXEvents->GetAnimFXEventParamName(eventUid, eventNameUid);
+					mfxLibrary.Format("%s/%d/%d", animFxSource.m_soundFXLib.c_str(), eventUid, eventNameUid);
+					subType = animFxSource.m_enviroment.c_str();
 
+					// Check for enviroment effect
 					effectId = pMaterialEffects->GetEffectIdByName(mfxLibrary.c_str(), subType.c_str());
+
+					// Search for regular effect
+					if (effectId == InvalidEffectId)
+					{
+						mfxLibrary.Format("%s/%d/0", animFxSource.m_soundFXLib.c_str(), eventUid);
+						subType = pAnimFXEvents->GetAnimFXEventParamName(eventUid, eventNameUid);
+
+						effectId = pMaterialEffects->GetEffectIdByName(mfxLibrary.c_str(), subType.c_str());
+					}
+
+					effectFound = (effectId != InvalidEffectId) || effectFound;
+					if (effectId != InvalidEffectId)
+					{
+						pMaterialEffects->ExecuteEffect(effectId, params);
+					}
 				}
 
-				if (effectId != InvalidEffectId)
+				if (!effectFound)
 				{
-					pMaterialEffects->ExecuteEffect(effectId, params);
-				}
-				else
-				{
-					const char* szFullEventName = pAnimFXEvents->GetAnimFXEventParamName(eventUid, eventNameUid);
-					if (!eventType.szName)
+					for (const SAnimFXSource& animFxSource : m_animFxSources)
 					{
-						gEnv->pSystem->Warning(VALIDATOR_MODULE_EDITOR, VALIDATOR_WARNING, VALIDATOR_FLAG_AUDIO, 0, "Failed to find sound event (UID %d/%d) in environment (%s) and definition in (%s).", eventUid, eventNameUid, m_enviroment.c_str(), m_soundFXLib.c_str());
-					}
-					else if (!szFullEventName)
-					{
-						gEnv->pSystem->Warning(VALIDATOR_MODULE_EDITOR, VALIDATOR_WARNING, VALIDATOR_FLAG_AUDIO, 0, "Failed to find sound event (%s/ UID %d) in environment (%s) and definition in (%s).", eventType.szName, eventNameUid, m_enviroment.c_str(), m_soundFXLib.c_str());
-					}
-					else
-					{
-						gEnv->pSystem->Warning(VALIDATOR_MODULE_EDITOR, VALIDATOR_WARNING, VALIDATOR_FLAG_AUDIO, 0, "Failed to find sound event (%s/%s) in environment (%s) and definition in (%s).", eventType.szName, szFullEventName, m_enviroment.c_str(), m_soundFXLib.c_str());
+						const char* szFullEventName = pAnimFXEvents->GetAnimFXEventParamName(eventUid, eventNameUid);
+						if (!eventType.szName)
+						{
+							gEnv->pSystem->Warning(VALIDATOR_MODULE_EDITOR, VALIDATOR_WARNING, VALIDATOR_FLAG_AUDIO, 0, "Failed to find sound event (UID %d/%d) in environment (%s) and definition in (%s).", eventUid, eventNameUid, animFxSource.m_enviroment.c_str(), animFxSource.m_soundFXLib.c_str());
+						}
+						else if (!szFullEventName)
+						{
+							gEnv->pSystem->Warning(VALIDATOR_MODULE_EDITOR, VALIDATOR_WARNING, VALIDATOR_FLAG_AUDIO, 0, "Failed to find sound event (%s/ UID %d) in environment (%s) and definition in (%s).", eventType.szName, eventNameUid, animFxSource.m_enviroment.c_str(), animFxSource.m_soundFXLib.c_str());
+						}
+						else
+						{
+							gEnv->pSystem->Warning(VALIDATOR_MODULE_EDITOR, VALIDATOR_WARNING, VALIDATOR_FLAG_AUDIO, 0, "Failed to find sound event (%s/%s) in environment (%s) and definition in (%s).", eventType.szName, szFullEventName, animFxSource.m_enviroment.c_str(), animFxSource.m_soundFXLib.c_str());
+						}
 					}
 				}
 			}
@@ -705,9 +742,8 @@ public:
 
 private:
 	bool                 m_audioEnabled;
+	TAnimFxSources       m_animFxSources;
 	string               m_parameter;
-	string               m_soundFXLib;
-	string               m_enviroment;
 	QuatT                m_playerLocation;
 	TCustomEventTypes    m_eventTypes;
 	TSerializeParamFuncs m_eventSerializeFuncs;
@@ -737,12 +773,12 @@ public:
 	CRYINTERFACE_BEGIN()
 	CRYINTERFACE_ADD(IAnimEventPlayer)
 	CRYINTERFACE_END()
-	CRYGENERATE_CLASS(AnimEventPlayer_Particles, "AnimEventPlayer_Particles", 0xa9fef72df304dec4, 0xa9162a6e4ac635b0)
+	CRYGENERATE_CLASS_GUID(AnimEventPlayer_Particles, "AnimEventPlayer_Particles", "a9fef72d-f304-dec4-a916-2a6e4ac635b0"_cry_guid)
 
 	AnimEventPlayer_Particles();
 	virtual ~AnimEventPlayer_Particles() {}
 
-	const SCustomAnimEventType * GetCustomType(int customTypeIndex) const override
+	const SCustomAnimEventType* GetCustomType(int customTypeIndex) const override
 	{
 		int count = GetCustomTypeCount();
 		if (customTypeIndex < 0 || customTypeIndex >= count)
@@ -831,184 +867,32 @@ CRYREGISTER_CLASS(AnimEventPlayer_Particles)
 
 // ---------------------------------------------------------------------------
 
-class AnimEventPlayer_CharacterTool : public IAnimEventPlayer
-{
-public:
-	CRYINTERFACE_BEGIN()
-	CRYINTERFACE_ADD(IAnimEventPlayer)
-	CRYINTERFACE_END()
-	CRYGENERATE_CLASS(AnimEventPlayer_CharacterTool, "AnimEventPlayer_CharacterTool", 0xa5fefb2dfe05dec4, 0xa8169d6e3ac635b0)
-
-	AnimEventPlayer_CharacterTool();
-	virtual ~AnimEventPlayer_CharacterTool() {}
-
-	const SCustomAnimEventType * GetCustomType(int customTypeIndex) const override
-	{
-		int listSize = m_list.size();
-		int lowerLimit = 0;
-		for (int i = 0; i < listSize; ++i)
-		{
-			if (!m_list[i])
-				continue;
-			int typeCount = m_list[i]->GetCustomTypeCount();
-			if (customTypeIndex >= lowerLimit && customTypeIndex < lowerLimit + typeCount)
-				return m_list[i]->GetCustomType(customTypeIndex - lowerLimit);
-			lowerLimit += typeCount;
-		}
-		return 0;
-	}
-
-	void Initialize() override
-	{
-		size_t listSize = m_list.size();
-		for (size_t i = 0; i < listSize; ++i)
-		{
-			if (!m_list[i].get())
-				continue;
-			m_list[i]->Initialize();
-		}
-	}
-
-	int GetCustomTypeCount() const override
-	{
-		int typeCount = 0;
-
-		size_t listSize = m_list.size();
-		for (size_t i = 0; i < listSize; ++i)
-		{
-			if (!m_list[i].get())
-				continue;
-			typeCount += m_list[i]->GetCustomTypeCount();
-		}
-
-		return typeCount;
-	}
-
-	void Serialize(Serialization::IArchive& ar) override
-	{
-		// m_list could be serialized directly to unlock full customization of the list:
-		//   ar(m_list, "list", "^");
-
-		size_t num = m_list.size();
-		for (size_t i = 0; i < num; ++i)
-			ar(*m_list[i], m_list[i]->GetFactory()->GetName(), m_names[i].c_str());
-	}
-
-	const char* SerializeCustomParameter(const char* parameterValue, Serialization::IArchive& ar, int customTypeIndex) override
-	{
-		int listSize = m_list.size();
-		int lowerLimit = 0;
-		for (int i = 0; i < listSize; ++i)
-		{
-			if (!m_list[i])
-				continue;
-			int typeCount = m_list[i]->GetCustomTypeCount();
-			if (customTypeIndex >= lowerLimit && customTypeIndex < lowerLimit + typeCount)
-				return m_list[i]->SerializeCustomParameter(parameterValue, ar, customTypeIndex - lowerLimit);
-			lowerLimit += typeCount;
-		}
-
-		return "";
-	}
-
-	void Reset() override
-	{
-		int listSize = m_list.size();
-		for (int i = 0; i < listSize; ++i)
-		{
-			if (!m_list[i])
-				continue;
-			m_list[i]->Reset();
-		}
-	}
-
-	void Render(const QuatT& playerPosition, SRendParams& params, const SRenderingPassInfo& passInfo) override
-	{
-		int listSize = m_list.size();
-		for (int i = 0; i < listSize; ++i)
-		{
-			if (!m_list[i])
-				continue;
-			m_list[i]->Render(playerPosition, params, passInfo);
-		}
-	}
-
-	void Update(ICharacterInstance* character, const QuatT& playerLocation, const Matrix34& cameraMatrix) override
-	{
-		int listSize = m_list.size();
-		for (int i = 0; i < listSize; ++i)
-		{
-			if (!m_list[i])
-				continue;
-			m_list[i]->Update(character, playerLocation, cameraMatrix);
-		}
-	}
-
-	void EnableAudio(bool enableAudio) override
-	{
-		int listSize = m_list.size();
-		for (int i = 0; i < listSize; ++i)
-		{
-			if (!m_list[i])
-				continue;
-			m_list[i]->EnableAudio(enableAudio);
-		}
-	}
-
-	bool Play(ICharacterInstance* character, const AnimEventInstance& event) override
-	{
-		int listSize = m_list.size();
-		for (int i = 0; i < listSize; ++i)
-		{
-			if (!m_list[i])
-				continue;
-			if (m_list[i]->Play(character, event))
-				return true;
-		}
-		return false;
-	}
-
-private:
-	std::vector<IAnimEventPlayerPtr> m_list;
-	std::vector<string>              m_names;
-	string                           m_defaultGamePlayerName;
-};
-
 AnimEventPlayer_CharacterTool::AnimEventPlayer_CharacterTool()
 {
-	if (ICVar* gameName = gEnv->pConsole->GetCVar("sys_game_name"))
+	IAnimEventPlayerPtr defaultGamePlayer;
+	if (CryCreateClassInstance<IAnimEventPlayer>(cryiidof<IAnimEventPlayerGame>(), defaultGamePlayer))
 	{
-		// Expect game dll to have its own player, add it first into the list,
-		// so it has the highest priority.
-		string defaultGamePlayerName = "AnimEventPlayer_";
-		defaultGamePlayerName += gameName->GetString();
-		defaultGamePlayerName.replace(" ", "_");
-
-		IAnimEventPlayerPtr defaultGamePlayer;
-		if (::CryCreateClassInstance<IAnimEventPlayer>(defaultGamePlayerName.c_str(), defaultGamePlayer))
-		{
-			m_list.push_back(defaultGamePlayer);
-			m_names.push_back(gameName->GetString());
-		}
+		m_list.push_back(defaultGamePlayer);
+		m_names.push_back(defaultGamePlayer->GetFactory()->GetName());
 	}
 
 	IAnimEventPlayerPtr player;
-	if (::CryCreateClassInstance<IAnimEventPlayer>("AnimEventPlayer_AudioTranslationLayer", player))
+	if (::CryCreateClassInstance<IAnimEventPlayer>(CharacterTool::AnimEventPlayer_AudioTranslationLayer::GetCID(), player))
 	{
 		m_list.push_back(player);
 		m_names.push_back("Audio Translation Layer");
 	}
-	if (::CryCreateClassInstance<IAnimEventPlayer>("AnimEventPlayer_MaterialEffects", player))
+	if (::CryCreateClassInstance<IAnimEventPlayer>(CharacterTool::AnimEventPlayerMaterialEffects::GetCID(), player))
 	{
 		m_list.push_back(player);
 		m_names.push_back("Material Effects");
 	}
-	if (::CryCreateClassInstance<IAnimEventPlayer>("AnimEventPlayer_Particles", player))
+	if (::CryCreateClassInstance<IAnimEventPlayer>(CharacterTool::AnimEventPlayer_Particles::GetCID(), player))
 	{
 		m_list.push_back(player);
 		m_names.push_back("Particles");
 	}
-	if (::CryCreateClassInstance<IAnimEventPlayer>("AnimEventPlayer_AnimFXEvents", player))
+	if (::CryCreateClassInstance<IAnimEventPlayer>(CharacterTool::AnimEventPlayerAnimFXEvents::GetCID(), player))
 	{
 		m_list.push_back(player);
 		m_names.push_back("AnimFX");

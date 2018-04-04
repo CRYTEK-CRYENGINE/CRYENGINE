@@ -39,6 +39,8 @@
 #include "Utility/AttachmentUtils.h"
 #include "Mannequin/Serialization.h"
 
+#include <IPerceptionManager.h>
+
 #ifdef PICKANDTHROWWEAPON_DEBUGINFO
 #include "Utility/CryWatch.h"
 
@@ -2795,12 +2797,13 @@ void CPickAndThrowWeapon::DropObject()
 	if (!pPhysicalEntity)
 		return;
 		
-	if (gEnv->pAISystem)
+	// AI should ignore collisions from this item for a while
+	// to not 'scare' himself and the friends around him
+	IPerceptionManager* pPerceptionManager = IPerceptionManager::GetInstance();
+	if (pPerceptionManager)
 	{
-		// AI should ignore collisions from this item for a while
-		// to not 'scare' himself and the friends around him
-		gEnv->pAISystem->IgnoreStimulusFrom(pEntity->GetId(), AISTIM_COLLISION, 2.0f);
-		gEnv->pAISystem->IgnoreStimulusFrom(pEntity->GetId(), AISTIM_SOUND, 2.0f);
+		pPerceptionManager->IgnoreStimulusFrom(pEntity->GetId(), AISTIM_COLLISION, 2.0f);
+		pPerceptionManager->IgnoreStimulusFrom(pEntity->GetId(), AISTIM_SOUND, 2.0f);
 	}
 
 	pe_params_pos ppos;

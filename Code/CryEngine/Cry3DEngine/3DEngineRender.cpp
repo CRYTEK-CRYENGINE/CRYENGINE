@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 // -------------------------------------------------------------------------
 //  File name:   3denginerender.cpp
@@ -26,9 +26,7 @@
 #include "FogVolumeRenderNode.h"
 #include "ObjectsTree.h"
 #include "WaterWaveRenderNode.h"
-#include "CloudsManager.h"
 #include "MatMan.h"
-#include "VolumeObjectRenderNode.h"
 #include <CryString/CryPath.h>
 #include <CryMemory/ILocalMemoryUsage.h>
 #include <CryCore/BitFiddling.h>
@@ -688,7 +686,7 @@ void C3DEngine::DebugDraw_Draw()
 
 	CTimeValue CurrentTime = gEnv->pTimer->GetFrameStartTime();
 
-	IRenderAuxGeom* pAux = gEnv->pAuxGeomRenderer;
+	IRenderAuxGeom* pAux = IRenderAuxGeom::GetAux();
 
 	SAuxGeomRenderFlags oldFlags = pAux->GetRenderFlags();
 	SAuxGeomRenderFlags newFlags;
@@ -868,8 +866,8 @@ void C3DEngine::RenderWorld(const int nRenderFlags, const SRenderingPassInfo& pa
 
 		if (GetCVars()->e_DefaultMaterial)
 		{
-			_smart_ptr<IMaterial> pMat = GetMaterialManager()->LoadMaterial("EngineAssets/Materials/material_default");
-			_smart_ptr<IMaterial> pTerrainMat = GetMaterialManager()->LoadMaterial("EngineAssets/Materials/material_terrain_default");
+			_smart_ptr<IMaterial> pMat = GetMaterialManager()->LoadMaterial("%ENGINE%/EngineAssets/Materials/material_default");
+			_smart_ptr<IMaterial> pTerrainMat = GetMaterialManager()->LoadMaterial("%ENGINE%/EngineAssets/Materials/material_terrain_default");
 			GetRenderer()->SetDefaultMaterials(pMat, pTerrainMat);
 		}
 		else
@@ -1464,11 +1462,6 @@ void C3DEngine::RenderInternal(const int nRenderFlags, const SRenderingPassInfo&
 
 	if (passInfo.IsGeneralPass() && passInfo.RenderClouds())
 	{
-		if (m_pCloudsManager)
-			m_pCloudsManager->MoveClouds();
-
-		CVolumeObjectRenderNode::MoveVolumeObjects();
-
 		// move procedural volumetric clouds with global wind.
 		{
 			Vec3 cloudParams(0, 0, 0);
@@ -1662,7 +1655,7 @@ void C3DEngine::RenderScene(const int nRenderFlags, const SRenderingPassInfo& pa
 	////////////////////////////////////////////////////////////////////////////////////////
 	// Add render elements for indoor
 	////////////////////////////////////////////////////////////////////////////////////////
-	if (passInfo.IsGeneralPass() && GetCVars()->e_StatObjBufferRenderTasks && JobManager::InvokeAsJob("CheckOcclusion"))
+	if (passInfo.IsGeneralPass() && IsStatObjBufferRenderTasksAllowed() && JobManager::InvokeAsJob("CheckOcclusion"))
 		m_pObjManager->BeginOcclusionCulling(passInfo);
 
 	// draw objects inside visible vis areas
@@ -1793,7 +1786,7 @@ void C3DEngine::RenderScene(const int nRenderFlags, const SRenderingPassInfo& pa
 		m_pDecalManager->Render(passInfo);
 
 	// tell the occlusion culler that no new work will be submitted
-	if (GetCVars()->e_StatObjBufferRenderTasks == 1 && passInfo.IsGeneralPass() && JobManager::InvokeAsJob("CheckOcclusion"))
+	if (IsStatObjBufferRenderTasksAllowed() && GetCVars()->e_StatObjBufferRenderTasks == 1 && passInfo.IsGeneralPass() && JobManager::InvokeAsJob("CheckOcclusion"))
 		GetObjManager()->PushIntoCullQueue(SCheckOcclusionJobData::CreateQuitJobData());
 
 	// fill shadow list here to allow more time between starting and waiting for the occlusion buffer
@@ -1802,7 +1795,7 @@ void C3DEngine::RenderScene(const int nRenderFlags, const SRenderingPassInfo& pa
 	if (passInfo.IsGeneralPass())
 		gEnv->pSystem->DoWorkDuringOcclusionChecks();
 
-	if (passInfo.IsGeneralPass() && GetCVars()->e_StatObjBufferRenderTasks && JobManager::InvokeAsJob("CheckOcclusion"))
+	if (passInfo.IsGeneralPass() && IsStatObjBufferRenderTasksAllowed() && JobManager::InvokeAsJob("CheckOcclusion"))
 		m_pObjManager->RenderBufferedRenderMeshes(passInfo);
 
 	// Call postrender on the meshes that require it.
@@ -2299,25 +2292,22 @@ void C3DEngine::DisplayInfo(float& fTextPosX, float& fTextPosY, float& fTextStep
 
 	switch (gEnv->pRenderer->GetRenderType())
 	{
-	case eRT_OpenGL:
-		pRenderType = "GL";
+	case ERenderType::Direct3D11:
+		pRenderType = STR_DX11_RENDERER;
 		break;
-	case eRT_DX11:
-		pRenderType = "DX11";
+	case ERenderType::Direct3D12:
+		pRenderType = STR_DX12_RENDERER;
 		break;
-	case eRT_DX12:
-		pRenderType = "DX12";
+	case ERenderType::OpenGL:
+		pRenderType = STR_GL_RENDERER;
 		break;
-	case eRT_XboxOne:
-		pRenderType = "XboxOne";
+	case ERenderType::Vulkan:
+		pRenderType = STR_VK_RENDERER;
 		break;
-	case eRT_PS4:
-		pRenderType = "PS4";
+	case ERenderType::GNM:
+		pRenderType = STR_GNM_RENDERER;
 		break;
-	case eRT_Null:
-		pRenderType = "Null";
-		break;
-	case eRT_Undefined:
+	case ERenderType::Undefined:
 	default:
 		assert(0);
 		pRenderType = "Undefined";
@@ -3198,18 +3188,12 @@ void C3DEngine::DisplayInfo(float& fTextPosX, float& fTextPosY, float& fTextStep
 	{
 		// Show particle stats.
 		static SParticleCounts Counts;
-		static SParticleCounts Pfx2Counts;
 		SParticleCounts CurCounts;
-		SParticleCounts CurPfx2Counts;
 		if (m_pPartManager)
 			m_pPartManager->GetCounts(CurCounts);
-		if (m_pParticleSystem)
-			m_pParticleSystem->GetCounts(CurPfx2Counts);
 
 		// Blend stats.
 		for (float* pd = (float*)&Counts, * ps = (float*)&CurCounts; pd < (float*)(&Counts + 1); pd++, ps++)
-			Blend(*pd, *ps, fBlendCur);
-		for (float* pd = (float*)&Pfx2Counts, * ps = (float*)&CurPfx2Counts; pd < (float*)(&Pfx2Counts + 1); pd++, ps++)
 			Blend(*pd, *ps, fBlendCur);
 
 		float fScreenPix = (float)(GetRenderer()->GetWidth() * GetRenderer()->GetHeight());
@@ -3219,13 +3203,13 @@ void C3DEngine::DisplayInfo(float& fTextPosX, float& fTextPosY, float& fTextStep
 		                     Counts.ParticlesRendered, Counts.ParticlesActive, Counts.ParticlesAlloc,
 		                     Counts.EmittersRendered, Counts.EmittersActive, Counts.EmittersAlloc, Counts.SubEmittersActive,
 		                     Counts.PixelsRendered / fScreenPix, Counts.PixelsProcessed / fScreenPix);
+		fTextPosY += fTextStepY;
+
 		if (m_pParticleSystem)
 		{
-			DrawTextRightAligned(fTextPosX, fTextPosY += fTextStepY,
-			                     "pfx2 (Rendered/Active/Alloc): Particles %5.0f/%5.0f/%5.0f, Emitters %3.0f/%3.0f/%3.0f, Containers: %3.0f, Fill %5.2f/%5.2f",
-			                     Pfx2Counts.ParticlesRendered, Pfx2Counts.ParticlesActive, Pfx2Counts.ParticlesAlloc,
-			                     Pfx2Counts.EmittersRendered, Pfx2Counts.EmittersActive, Pfx2Counts.EmittersAlloc, Pfx2Counts.SubEmittersActive,
-			                     Pfx2Counts.PixelsRendered / fScreenPix, Pfx2Counts.PixelsProcessed / fScreenPix);
+			const Vec2 location = Vec2(fTextPosX, fTextPosY);
+			pfx2::CParticleSystem* pPSystem = static_cast<pfx2::CParticleSystem*>(m_pParticleSystem.get());
+			fTextPosY = pPSystem->DisplayDebugStats(location, fTextStepY);
 		}
 
 		if (GetCVars()->e_ParticlesDebug & AlphaBit('r'))
@@ -3234,13 +3218,6 @@ void C3DEngine::DisplayInfo(float& fTextPosX, float& fTextPosY, float& fTextStep
 			                     "Reiter %4.0f, Reject %4.0f, Clip %4.1f, Coll %4.1f / %4.1f",
 			                     Counts.ParticlesReiterate, Counts.ParticlesReject, Counts.ParticlesClip,
 			                     Counts.ParticlesCollideHit, Counts.ParticlesCollideTest);
-			if (m_pParticleSystem)
-			{
-				DrawTextRightAligned(fTextPosX, fTextPosY += fTextStepY,
-				                     "pfx2: Reiter %4.0f, Reject %4.0f, Clip %4.1f, Coll %4.1f / %4.1f",
-				                     Pfx2Counts.ParticlesReiterate, Pfx2Counts.ParticlesReject, Pfx2Counts.ParticlesClip,
-				                     Pfx2Counts.ParticlesCollideHit, Pfx2Counts.ParticlesCollideTest);
-			}
 		}
 		if (GetCVars()->e_ParticlesDebug & AlphaBits('bx'))
 		{
@@ -3323,7 +3300,6 @@ void C3DEngine::DisplayInfo(float& fTextPosX, float& fTextPosY, float& fTextStep
 		DRAW_OBJ_STATS(eERType_Brush);
 		DRAW_OBJ_STATS(eERType_Vegetation);
 		DRAW_OBJ_STATS(eERType_Light);
-		DRAW_OBJ_STATS(eERType_Cloud);
 		DRAW_OBJ_STATS(eERType_FogVolume);
 		DRAW_OBJ_STATS(eERType_Decal);
 		DRAW_OBJ_STATS(eERType_ParticleEmitter);
@@ -3331,9 +3307,8 @@ void C3DEngine::DisplayInfo(float& fTextPosX, float& fTextPosY, float& fTextStep
 		DRAW_OBJ_STATS(eERType_WaterWave);
 		DRAW_OBJ_STATS(eERType_Road);
 		DRAW_OBJ_STATS(eERType_DistanceCloud);
-		DRAW_OBJ_STATS(eERType_VolumeObject);
 		DRAW_OBJ_STATS(eERType_Rope);
-		DRAW_OBJ_STATS(eERType_RenderProxy);
+		DRAW_OBJ_STATS(eERType_MovableBrush);
 		DRAW_OBJ_STATS(eERType_GameEffect);
 		DRAW_OBJ_STATS(eERType_BreakableGlass);
 		DRAW_OBJ_STATS(eERType_CloudBlocker);

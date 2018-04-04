@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 // -------------------------------------------------------------------------
 //  File name:   GLContext.hpp
@@ -92,7 +92,7 @@ struct SDisplayMode
 	uint32    m_uWidth;
 	uint32    m_uHeight;
 	uint32    m_uFrequency;
-#if defined(DXGL_USE_SDL)
+#if defined(USE_SDL2_VIDEO)
 	EGIFormat m_ePixelFormat;
 #elif CRY_PLATFORM_WINDOWS
 	uint32    m_uBitsPerPixel;
@@ -107,7 +107,7 @@ struct SResourceUnitPartitionBound
 
 typedef SResourceUnitPartitionBound TPipelineResourceUnitPartitionBound[eST_NUM];
 
-#if defined(DXGL_USE_SDL) && defined(DXGL_SINGLEWINDOW)
+#if defined(USE_SDL2_VIDEO) && defined(DXGL_SINGLEWINDOW)
 
 struct SMainWindow
 {
@@ -172,7 +172,7 @@ struct SDummyWindow;
 
 #if DXGL_USE_ES_EMULATOR
 typedef EGLNativeDisplayType TNativeDisplay;
-#elif defined(DXGL_USE_SDL)
+#elif defined(USE_SDL2_VIDEO)
 typedef TWindowContext*      TNativeDisplay;
 #else
 typedef TWindowContext       TNativeDisplay;
@@ -188,16 +188,16 @@ public:
 #if !DXGL_FULL_EMULATION
 	static void Configure(uint32 uNumSharedContexts);
 #endif //!DXGL_FULL_EMULATION
-#if defined(DXGL_USE_SDL)
+#if defined(USE_SDL2_VIDEO)
 	static bool CreateSDLWindow(const char* szTitle, uint32 uWidth, uint32 uHeight, bool bFullScreen, HWND * pHandle);
 	static void DestroySDLWindow(HWND kHandle);
-#endif //defined(DXGL_USE_SDL)
+#endif //defined(USE_SDL2_VIDEO)
 
 	bool Initialize(const TNativeDisplay &kDefaultNativeDisplay);
 	void Shutdown();
 	bool Present(const TWindowContext &kTargetWindowContext);
 
-#if !CRY_OPENGL_SINGLE_CONTEXT
+#if !OGL_SINGLE_CONTEXT
 	CContext* ReserveContext();
 	void ReleaseContext();
 #endif
@@ -210,7 +210,7 @@ public:
 	uint32 GetMaxContextCount();
 
 	void IssueFrameFences();
-#if CRY_OPENGL_SINGLE_CONTEXT
+#if OGL_SINGLE_CONTEXT
 	bool FlushFrameFence(uint32 uContext) { return Exchange(&m_bContextFenceIssued, 0) == 1; }
 #else
 	bool FlushFrameFence(uint32 uContext) { return m_kContextFenceIssued.Set(uContext, false); }
@@ -269,7 +269,7 @@ protected:
 	SList m_kFreeContexts;
 	void* m_pCurrentContextTLS;
 
-#if CRY_OPENGL_SINGLE_CONTEXT
+#if OGL_SINGLE_CONTEXT
 	volatile LONG m_bContextFenceIssued;
 #else
 	SBitMask<MAX_NUM_CONTEXT_PER_DEVICE, SSpinlockBitMaskWord> m_kContextFenceIssued;
@@ -288,9 +288,9 @@ bool                 SwapChainDescToFrameBufferSpec(SFrameBufferSpec& kFrameBuff
 bool                 GetNativeDisplay(TNativeDisplay& kNativeDisplay, HWND kWindowHandle);
 bool                 CreateWindowContext(TWindowContext& kWindowContext, const SFeatureSpec& kFeatureSpec, const SPixelFormatSpec& kPixelFormatSpec, const TNativeDisplay& kNativeDisplay);
 void                 ReleaseWindowContext(const TWindowContext& kWindowContext);
-#if defined(DXGL_USE_SDL)
+#if defined(USE_SDL2_VIDEO)
 const SGIFormatInfo* SDLFormatToGIFormatInfo(int format);
-#endif //defined(DXGL_USE_SDL)
+#endif //defined(USE_SDL2_VIDEO)
 
 uint32 DetectGIFormatSupport(EGIFormat eGIFormat);
 bool   DetectFeaturesAndCapabilities(TFeatures& kFeatures, SCapabilities& kCapabilities);

@@ -1,16 +1,7 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
-/*************************************************************************
-   -------------------------------------------------------------------------
-   $Id$
-   $DateTime$
-   Description: Implements a part for vehicles which uses animated characters
+// Implements a part for vehicles which uses animated characters
 
-   -------------------------------------------------------------------------
-   History:
-   - 24:08:2005: Created by Mathieu Pinard
-
-*************************************************************************/
 #include "StdAfx.h"
 
 #include <CryAnimation/ICryAnimation.h>
@@ -22,9 +13,8 @@
 #include "VehiclePartAnimated.h"
 #include "VehiclePartAnimatedJoint.h"
 #include "VehicleUtils.h"
+#include "VehicleComponent.h"
 
-//#pragma optimize("", off)
-//#pragma inline_depth(0)
 
 //------------------------------------------------------------------------
 CVehiclePartAnimated::CVehiclePartAnimated()
@@ -120,10 +110,81 @@ void CVehiclePartAnimated::Reset()
 //------------------------------------------------------------------------
 void CVehiclePartAnimated::OnEvent(const SVehiclePartEvent& event)
 {
-	CVehiclePartBase::OnEvent(event);
-
 	switch (event.type)
 	{
+	case eVPE_Damaged:
+		{
+			float old = m_damageRatio;
+			m_damageRatio = event.fparam;
+
+			if (m_damageRatio >= 1.0f && old < 1.f)
+			{
+				EVehiclePartState state = GetStateForDamageRatio(m_damageRatio);
+				ChangeState(state, eVPSF_Physicalize);
+			}
+
+		}
+		break;
+	case eVPE_Repair:
+		{
+			float old = m_damageRatio;
+			m_damageRatio = max(0.f, event.fparam);
+
+			if (eVPT_Base == GetType() && m_damageRatio <= COMPONENT_DAMAGE_LEVEL_RATIO && m_hideCount == 0)
+				Hide(false);
+
+			if (m_damageRatio <= COMPONENT_DAMAGE_LEVEL_RATIO && old > COMPONENT_DAMAGE_LEVEL_RATIO)
+				ChangeState(eVGS_Default, eVPSF_Physicalize);
+		}
+		break;
+	case eVPE_StartUsing:
+		{
+			m_users++;
+
+			if (m_users == 1)
+			{
+				m_pVehicle->SetObjectUpdate(this, IVehicle::eVOU_AlwaysUpdate);
+			}
+		}
+		break;
+	case eVPE_StopUsing:
+		{
+			if (m_users > 0)
+				--m_users;
+
+			if (m_users <= 0)
+			{
+				m_pVehicle->SetObjectUpdate(this, IVehicle::eVOU_NoUpdate);
+			}
+		}
+		break;
+	case eVPE_GotDirty:
+		{
+			break;
+		}
+	case eVPE_Fade:
+		{
+			if (event.bparam)
+				m_hideMode = eVPH_FadeOut;
+			else
+				m_hideMode = eVPH_FadeIn;
+
+			m_hideTimeCount = event.fparam;
+			m_hideTimeMax = event.fparam;
+
+			m_pVehicle->SetObjectUpdate(this, IVehicle::eVOU_AlwaysUpdate);
+		}
+	break;
+	case eVPE_Hide:
+		{
+			Hide(event.bparam);
+		}
+		break;
+	case eVPE_BlockRotation:
+		{
+			m_isRotationBlocked = event.bparam;
+		}
+		break;
 	case eVPE_DriverEntered:
 		{
 			if (!m_pVehicle->IsFlipped())

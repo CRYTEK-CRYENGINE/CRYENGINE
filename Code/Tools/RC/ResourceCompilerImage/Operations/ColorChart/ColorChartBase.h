@@ -1,4 +1,5 @@
 // Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved.
+
 #ifndef __COLORCHARTBASE_H__
 #define __COLORCHARTBASE_H__
 

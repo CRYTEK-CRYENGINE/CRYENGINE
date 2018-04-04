@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 /*=============================================================================
    DDSImage.cpp : DDS image file format implementation.
@@ -18,8 +18,6 @@
 #include <CryString/StringUtils.h>                // stristr()
 #include <CrySystem/ILog.h>
 #include "../TextureHelpers.h"
-
-//#pragma optimize("",off)
 
 CImageDDSFile::CImageDDSFile(const string& filename)
 	: CImageFile(filename)
@@ -75,13 +73,13 @@ DDSSplitted::DDSDesc CImageDDSFile::mfGet_DDSDesc() const
 	d.eFormat = m_eFormat;
 	d.eTileMode = m_eTileMode;
 	d.nBaseOffset = mfGet_StartSeek();
-	d.nDepth = m_DDSHeader.dwDepth;
 	d.nFlags = (m_Flags & (FIM_ALPHA | FIM_SPLITTED | FIM_DX10IO));
-	d.nHeight = m_DDSHeader.dwHeight;
-	d.nMips = m_DDSHeader.dwMipMapCount;
-	d.nMipsPersistent = m_NumPersistantMips;
-	d.nSides = m_Sides;
 	d.nWidth = m_DDSHeader.dwWidth;
+	d.nHeight = m_DDSHeader.dwHeight;
+	d.nDepth = m_DDSHeader.dwDepth;
+	d.nMips = m_DDSHeader.dwMipMapCount;
+	d.nSides = m_Sides;
+	d.nMipsPersistent = m_NumPersistantMips;
 	return d;
 }
 
@@ -94,7 +92,8 @@ bool CImageDDSFile::Load(const string& filename, uint32 nFlags)
 	AdjustFirstFileName(nFlags, filename.c_str(), adjustedFileName);
 
 	// load file content
-	CDebugAllowFileAccess dafa;
+	SCOPED_ALLOW_FILE_ACCESS_FROM_THIS_THREAD();
+
 	CCryFile file(adjustedFileName.c_str(), "rb");
 
 	DDSSplitted::RequestInfo otherMips[64];
@@ -178,7 +177,7 @@ bool CImageDDSFile::LoadFromFile(DDSSplitted::FileWrapper& file, uint32 nFlags, 
 			mfSet_error(eIFE_BadFormat, "Bad DDS header");
 			return false;
 		}
-
+		
 		if (ddsHeader.header.IsDX10Ext())
 			file.ReadRaw(&ddsExtendedHeader, sizeof(CImageExtensionHelper::DDS_HEADER_DXT10));
 
@@ -212,10 +211,11 @@ bool CImageDDSFile::LoadFromFile(DDSSplitted::FileWrapper& file, uint32 nFlags, 
 		int nFirstPersistentMip = m_NumMips - m_NumPersistantMips;
 
 		size_t nImageSideSize = CTexture::TextureDataSize(
-		  max(1, m_Width >> nImageIgnoreMips),
-		  max(1, m_Height >> nImageIgnoreMips),
-		  max(1, m_Depth >> nImageIgnoreMips),
-		  nMipsToLoad, 1, m_eFormat, m_eTileMode);
+			std::max(1, m_Width  >> nImageIgnoreMips),
+			std::max(1, m_Height >> nImageIgnoreMips),
+			std::max(1, m_Depth  >> nImageIgnoreMips),
+			nMipsToLoad, 1, m_eFormat, m_eTileMode);
+
 		size_t nImageSize = nImageSideSize * m_Sides;
 		pImageMemory = gEnv->pCryPak->PoolAllocMemoryBlock(nImageSize, "CImageDDSFile::LoadFromFile");
 
@@ -234,10 +234,11 @@ bool CImageDDSFile::LoadFromFile(DDSSplitted::FileWrapper& file, uint32 nFlags, 
 			const DDSSplitted::ChunkInfo& chunk = chunks[chunkIdx];
 
 			uint32 nSurfaceSize = CTexture::TextureDataSize(
-			  max(1u, (uint32)desc.nWidth >> chunk.nMipLevel),
-			  max(1u, (uint32)desc.nHeight >> chunk.nMipLevel),
-			  max(1u, (uint32)desc.nDepth >> chunk.nMipLevel),
-			  1, 1, desc.eFormat, desc.eTileMode);
+				std::max(1U, (uint32)desc.nWidth  >> chunk.nMipLevel),
+				std::max(1U, (uint32)desc.nHeight >> chunk.nMipLevel),
+				std::max(1U, (uint32)desc.nDepth  >> chunk.nMipLevel),
+				1, 1, desc.eFormat, desc.eTileMode);
+
 			uint32 nSidePitch = nSurfaceSize + chunk.nSideDelta;
 
 			// Only copy persistent mips now. Create continuations for any others.
@@ -394,7 +395,7 @@ bool CImageDDSFile::SetHeaderFromMemory(byte* pFileStart, byte* pFileAfterHeader
 {
 	LOADING_TIME_PROFILE_SECTION
 
-	CImageExtensionHelper::DDS_FILE_DESC& dds = *(CImageExtensionHelper::DDS_FILE_DESC*)pFileStart;
+	CImageExtensionHelper::DDS_FILE_DESC&    dds = *(CImageExtensionHelper::DDS_FILE_DESC   *)pFileStart;
 	CImageExtensionHelper::DDS_HEADER_DXT10& ddx = *(CImageExtensionHelper::DDS_HEADER_DXT10*)pFileAfterHeader;
 
 	SwapEndian(dds);
@@ -410,6 +411,10 @@ bool CImageDDSFile::SetHeaderFromMemory(byte* pFileStart, byte* pFileAfterHeader
 	m_DDSHeader = dds.header;
 	m_DDSHeaderExtension = ddx;
 
+	m_DDSHeader.dwWidth  = std::max<uint32>(1U, m_DDSHeader.dwWidth );
+	m_DDSHeader.dwHeight = std::max<uint32>(1U, m_DDSHeader.dwHeight);
+	m_DDSHeader.dwDepth  = std::max<uint32>(1U, m_DDSHeader.dwDepth );
+
 	// check for nativeness of texture
 	const uint32 imageFlags = CImageExtensionHelper::GetImageFlags(&m_DDSHeader);
 	if (!CImageExtensionHelper::IsImageNative(imageFlags))
@@ -419,9 +424,10 @@ bool CImageDDSFile::SetHeaderFromMemory(byte* pFileStart, byte* pFileAfterHeader
 	}
 
 	// setup texture properties
-	m_Width = m_DDSHeader.dwWidth;
+	m_Width  = m_DDSHeader.dwWidth;
 	m_Height = m_DDSHeader.dwHeight;
-
+	m_Depth  = m_DDSHeader.dwDepth;
+	
 	m_Flags |= m_DDSHeader.IsDX10Ext() ? FIM_DX10IO : 0;
 
 	m_eFormat = DDSFormats::GetFormatByDesc(m_DDSHeader.ddspf, m_DDSHeaderExtension.dxgiFormat);
@@ -439,7 +445,6 @@ bool CImageDDSFile::SetHeaderFromMemory(byte* pFileStart, byte* pFileAfterHeader
 		case CImageExtensionHelper::eTM_LinearPadded:
 			m_eTileMode = eTM_LinearPadded;
 			break;
-
 		case CImageExtensionHelper::eTM_Optimal:
 			m_eTileMode = eTM_Optimal;
 			break;
@@ -447,10 +452,12 @@ bool CImageDDSFile::SetHeaderFromMemory(byte* pFileStart, byte* pFileAfterHeader
 	}
 
 	mfSet_numMips(m_DDSHeader.GetMipCount());
-	m_Depth = max((uint32)1ul, (uint32)m_DDSHeader.dwDepth);
-
+	
+	// TODO: support eTT_2DArray and eTT_CubeArray
 	m_Sides = 1;
-	if ((m_DDSHeader.dwSurfaceFlags & DDS_SURFACE_FLAGS_CUBEMAP) && (m_DDSHeader.dwCubemapFlags & DDS_CUBEMAP_ALLFACES))
+	if (imageFlags & CImageExtensionHelper::EIF_Cubemap)
+		m_Sides = 6;
+	else if ((m_DDSHeader.dwSurfaceFlags & DDS_SURFACE_FLAGS_CUBEMAP) && (m_DDSHeader.dwCubemapFlags & DDS_CUBEMAP_ALLFACES))
 		m_Sides = 6;
 
 	if (m_DDSHeader.dwTextureStage == 'CRYF')
@@ -764,11 +771,10 @@ size_t GetFilesToRead_Split(ChunkInfo* pFiles, size_t nFilesCapacity, const DDSD
 
 	size_t nNumFiles = 0;
 
+	uint32 nFirstPersistentMip = desc.nMips - desc.nMipsPersistent;
 	for (uint32 mip = nStartMip; mip <= nEndMip; ++mip)
 	{
-		const int chunkNumber = (mip >= (int)(desc.nMips - desc.nMipsPersistent))
-		                        ? 0
-		                        : desc.nMips - mip - desc.nMipsPersistent;
+		uint32 chunkNumber = (nFirstPersistentMip <= mip ? 0 : nFirstPersistentMip - mip);
 
 		ChunkInfo& newChunk = pFiles[nNumFiles];
 		MakeName(newChunk.fileName, desc.pName, chunkNumber, desc.nFlags);
@@ -777,22 +783,35 @@ size_t GetFilesToRead_Split(ChunkInfo* pFiles, size_t nFilesCapacity, const DDSD
 
 		if (chunkNumber != 0)
 		{
+			// Pull chunk from split file
+			CRY_ASSERT(mip < nFirstPersistentMip);
+
 			newChunk.nOffsetInFile = 0;
 			newChunk.nSizeInFile = 0;
 			newChunk.nSideDelta = 0;
 		}
 		else
 		{
-			uint32 nFirstPersistentMip = desc.nMips - desc.nMipsPersistent;
+			// Pull chunk from merged header+persistent file
+			CRY_ASSERT(mip >= nFirstPersistentMip);
+
 			uint32 nSurfaceSize = CTexture::TextureDataSize(
-			  max(1u, desc.nWidth >> mip), max(1u, desc.nHeight >> mip), max(1u, desc.nDepth >> mip),
-			  1, 1, desc.eFormat, desc.eTileMode);
+				std::max(1U, desc.nWidth  >> mip),
+				std::max(1U, desc.nHeight >> mip),
+				std::max(1U, desc.nDepth  >> mip),
+				1, 1, desc.eFormat, desc.eTileMode);
+
 			uint32 nSidePitch = CTexture::TextureDataSize(
-			  max(1u, desc.nWidth >> nFirstPersistentMip), max(1u, desc.nHeight >> nFirstPersistentMip), max(1u, desc.nDepth >> nFirstPersistentMip),
-			  desc.nMipsPersistent, 1, desc.eFormat, desc.eTileMode);
+				std::max(1U, desc.nWidth  >> nFirstPersistentMip),
+				std::max(1U, desc.nHeight >> nFirstPersistentMip),
+				std::max(1U, desc.nDepth  >> nFirstPersistentMip),
+				desc.nMipsPersistent, 1, desc.eFormat, desc.eTileMode);
+
 			uint32 nStartOffset = CTexture::TextureDataSize(
-			  max(1u, desc.nWidth >> nFirstPersistentMip), max(1u, desc.nHeight >> nFirstPersistentMip), max(1u, desc.nDepth >> nFirstPersistentMip),
-			  mip - nFirstPersistentMip, 1, desc.eFormat, desc.eTileMode);
+				std::max(1U, desc.nWidth  >> nFirstPersistentMip),
+				std::max(1U, desc.nHeight >> nFirstPersistentMip),
+				std::max(1U, desc.nDepth  >> nFirstPersistentMip),
+				mip - nFirstPersistentMip, 1, desc.eFormat, desc.eTileMode);
 
 			newChunk.nOffsetInFile = desc.nBaseOffset + nStartOffset;
 			newChunk.nSizeInFile = nSidePitch * (desc.nSides - 1) + nSurfaceSize;
@@ -822,10 +841,10 @@ size_t GetFilesToRead_UnSplit(ChunkInfo* pFiles, size_t nFilesCapacity, const DD
 	{
 		uint32 nOffset = desc.nBaseOffset + nSideStart;
 		uint32 nSurfaceSize = CTexture::TextureDataSize(
-		  max(1u, desc.nWidth >> nMip),
-		  max(1u, desc.nHeight >> nMip),
-		  max(1u, desc.nDepth >> nMip),
-		  1, 1, desc.eFormat, desc.eTileMode);
+			max(1u, desc.nWidth  >> nMip),
+			max(1u, desc.nHeight >> nMip),
+			max(1u, desc.nDepth  >> nMip),
+			1, 1, desc.eFormat, desc.eTileMode);
 
 		if (nNumFiles < nFilesCapacity)
 		{
@@ -852,7 +871,7 @@ size_t GetFilesToRead(ChunkInfo* pFiles, size_t nFilesCapacity, const DDSDesc& d
 
 bool SeekToAttachedImage(FileWrapper& file)
 {
-	CImageExtensionHelper::DDS_FILE_DESC ddsFileDesc;
+	CImageExtensionHelper::DDS_FILE_DESC    ddsFileDesc;
 	CImageExtensionHelper::DDS_HEADER_DXT10 ddsExtendedHeader;
 
 	if (!file.ReadRaw(&ddsFileDesc, sizeof(ddsFileDesc)))
@@ -866,6 +885,10 @@ bool SeekToAttachedImage(FileWrapper& file)
 		file.ReadRaw(&ddsExtendedHeader, sizeof(CImageExtensionHelper::DDS_HEADER_DXT10));
 	else
 		memset(&ddsExtendedHeader, 0, sizeof(CImageExtensionHelper::DDS_HEADER_DXT10));
+	
+	ddsFileDesc.header.dwWidth  = std::max<uint32>(1U, ddsFileDesc.header.dwWidth );
+	ddsFileDesc.header.dwHeight = std::max<uint32>(1U, ddsFileDesc.header.dwHeight);
+	ddsFileDesc.header.dwDepth  = std::max<uint32>(1U, ddsFileDesc.header.dwDepth );
 
 	const uint32 imageFlags = CImageExtensionHelper::GetImageFlags(&ddsFileDesc.header);
 
@@ -881,15 +904,19 @@ bool SeekToAttachedImage(FileWrapper& file)
 		case CImageExtensionHelper::eTM_LinearPadded:
 			eTM = eTM_LinearPadded;
 			break;
-
 		case CImageExtensionHelper::eTM_Optimal:
 			eTM = eTM_Optimal;
 			break;
 		}
 	}
 
-	uint32 numSlices = (imageFlags& CImageExtensionHelper::EIF_Cubemap) ? 6 : 1;
-	uint32 ddsSize = CTexture::TextureDataSize(ddsFileDesc.header.dwWidth, ddsFileDesc.header.dwHeight, ddsFileDesc.header.dwDepth, max(static_cast<DWORD>(1), ddsFileDesc.header.dwMipMapCount), numSlices, eTF, eTM);
+	const uint32 numSlices = (imageFlags& CImageExtensionHelper::EIF_Cubemap) ? 6 : 1;
+	const uint32 ddsSize = CTexture::TextureDataSize(
+		ddsFileDesc.header.dwWidth,
+		ddsFileDesc.header.dwHeight,
+		ddsFileDesc.header.dwDepth,
+		ddsFileDesc.header.dwMipMapCount,
+		numSlices, eTF, eTM);
 
 	size_t fileLength = file.GetLength();
 	size_t trailLength = fileLength - ddsSize;
@@ -926,12 +953,17 @@ size_t LoadMipRequests(RequestInfo* pReqs, size_t nReqsCap, const DDSDesc& desc,
 		{
 			const ChunkInfo& chunk = *it;
 
-			uint32 nSideSize = CTexture::TextureDataSize(desc.nWidth, desc.nHeight, desc.nDepth, desc.nMips, 1, desc.eFormat, desc.eTileMode);
-			uint32 nSideSizeToRead = CTexture::TextureDataSize(
-			  max(1u, desc.nWidth >> chunk.nMipLevel),
-			  max(1u, desc.nHeight >> chunk.nMipLevel),
-			  max(1u, desc.nDepth >> chunk.nMipLevel),
-			  1, 1, desc.eFormat, desc.eTileMode);
+			const uint32 nSideSize = CTexture::TextureDataSize(
+				desc.nWidth,
+				desc.nHeight,
+				desc.nDepth,
+				desc.nMips, 1, desc.eFormat, desc.eTileMode);
+
+			const uint32 nSideSizeToRead = CTexture::TextureDataSize(
+				std::max(1U, desc.nWidth  >> chunk.nMipLevel),
+				std::max(1U, desc.nHeight >> chunk.nMipLevel),
+				std::max(1U, desc.nDepth  >> chunk.nMipLevel),
+				1, 1, desc.eFormat, desc.eTileMode);
 
 			string sFileName = string(it->fileName);
 

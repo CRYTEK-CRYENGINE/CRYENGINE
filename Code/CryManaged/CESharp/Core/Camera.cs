@@ -15,13 +15,13 @@ namespace CryEngine
 		/// </summary>
 		public static Vector3 Position
 		{
-			set
-			{
-				Engine.System.GetViewCamera().SetPosition(value);
-			}
 			get
 			{
 				return Engine.System.GetViewCamera().GetPosition();
+			}
+			set
+			{
+				Engine.System.GetViewCamera().SetPosition(value);
 			}
 		}
 
@@ -30,16 +30,16 @@ namespace CryEngine
 		/// </summary>
 		public static Vector3 ForwardDirection
 		{
+			get
+			{
+				return Engine.System.GetViewCamera().GetMatrix().GetColumn1();
+			}
 			set
 			{
 				var camera = Engine.System.GetViewCamera();
 				var newRotation = new Quaternion(value);
 
 				camera.SetMatrix(new Matrix3x4(Vector3.One, newRotation, camera.GetPosition()));
-			}
-			get
-			{
-				return Engine.System.GetViewCamera().GetMatrix().GetColumn1();
 			}
 		}
 
@@ -48,13 +48,13 @@ namespace CryEngine
 		/// </summary>
 		public static Matrix3x4 Transform
 		{
-			set
-			{
-				Engine.System.GetViewCamera().SetMatrix(value);
-			}
 			get
 			{
 				return Engine.System.GetViewCamera().GetMatrix();
+			}
+			set
+			{
+				Engine.System.GetViewCamera().SetMatrix(value);
 			}
 		}
 
@@ -63,15 +63,15 @@ namespace CryEngine
 		/// </summary>
 		public static Quaternion Rotation
 		{
+			get
+			{
+				return new Quaternion(Engine.System.GetViewCamera().GetMatrix());
+			}
 			set
 			{
 				var camera = Engine.System.GetViewCamera();
 
 				camera.SetMatrix(new Matrix3x4(Vector3.One, value, camera.GetPosition()));
-			}
-			get
-			{
-				return new Quaternion(Engine.System.GetViewCamera().GetMatrix());
 			}
 		}
 
@@ -114,54 +114,9 @@ namespace CryEngine
 			return Global.gEnv.pRenderer.ProjectToScreen(position);
 		}
 
-		#region CCAmera-methods
-
-		/// <summary>
-		/// x-YAW
-		/// y-PITCH (negative=looking down / positive=looking up)
-		/// z-ROLL
-		/// Note: If we are looking along the z-axis, its not possible to specify the x and z-angle.
-		/// </summary>
-		/// <param name="m"></param>
-		/// <returns></returns>
-		public static Angles3 CreateAnglesYPR(Matrix3x4 m)
+		public static Vector3 TransformDirection(Vector3 direction)
 		{
-			Matrix33 m33 = new Matrix33(m);
-			return CCamera.CreateAnglesYPR(m33);
+			return Rotation * direction;
 		}
-
-		/// <summary>
-		/// This function builds a 3x3 orientation matrix using YPR-angles, and converts it to a Matrix3x4
-		/// Rotation order for the orientation-matrix is Z-X-Y. (Zaxis=YAW / Xaxis=PITCH / Yaxis=ROLL)
-		/// COORDINATE-SYSTEM
-		/// z-axis
-		///  ^
-		///  |
-		///  |  y-axis
-		///  |  /
-		///  | /
-		///  |/
-		///  +--------------->   x-axis
-		/// </summary>
-		/// <param name="ypr"></param>
-		/// <returns></returns>
-		public static Matrix3x4 CreateOrientationYPR(Angles3 ypr)
-		{
-			return new Matrix34(CCamera.CreateOrientationYPR(ypr));
-		}
-
-		/// <summary>
-		/// x=yaw
-		/// y=pitch
-		/// z=roll (we ignore this element, since its not possible to convert the roll-component into a vector)
-		/// </summary>
-		/// <param name="ypr"></param>
-		/// <returns></returns>
-		public static Vector3 CreateViewdir(Angles3 ypr)
-		{
-			return CCamera.CreateViewdir(ypr);
-		}
-
-		#endregion
 	}
 }

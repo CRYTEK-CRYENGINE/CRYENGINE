@@ -10,54 +10,10 @@
 
 // *INDENT-OFF* - <hard to read code and declarations due to inconsistent indentation>
 
-namespace uqs
+namespace UQS
 {
-	namespace stdlib
+	namespace StdLib
 	{
-
-		//===================================================================================
-		//
-		// int
-		//
-		//===================================================================================
-
-		bool Int_Serialize(Serialization::IArchive& archive, int& value, const char* szName, const char* szLabel)
-		{
-			return archive(value, szName, szLabel);
-		}
-
-		//===================================================================================
-		//
-		// bool
-		//
-		//===================================================================================
-
-		bool Bool_Serialize(Serialization::IArchive& archive, bool& value, const char* szName, const char* szLabel)
-		{
-			return archive(value, szName, szLabel);
-		}
-
-		//===================================================================================
-		//
-		// float
-		//
-		//===================================================================================
-
-		bool Float_Serialize(Serialization::IArchive& archive, float& value, const char* szName, const char* szLabel)
-		{
-			return archive(value, szName, szLabel);
-		}
-
-		//===================================================================================
-		//
-		// Vec3
-		//
-		//===================================================================================
-
-		bool Vec3_Serialize(Serialization::IArchive& archive, Vec3& value, const char* szName, const char* szLabel)
-		{
-			return archive(value, szName, szLabel);
-		}
 
 		//===================================================================================
 		//

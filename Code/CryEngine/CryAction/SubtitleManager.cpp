@@ -1,29 +1,18 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
-
-// -------------------------------------------------------------------------
-//  File name:   SubtitleManager.cpp
-//  Version:     v1.00
-//  Created:     29/01/2007 by AlexL.
-//  Compilers:   Visual Studio.NET 2005
-//  Description: Subtitle Manager Implementation
-// -------------------------------------------------------------------------
-//  History:
-//
-////////////////////////////////////////////////////////////////////////////
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #include "StdAfx.h"
 #include "SubtitleManager.h"
 #include "ISubtitleManager.h"
 #include "DialogSystem/DialogActorContext.h"
 
-CSubtitleManager* CSubtitleManager::s_Instance = NULL;
+CSubtitleManager* CSubtitleManager::s_Instance = nullptr;
 
 //////////////////////////////////////////////////////////////////////////
 CSubtitleManager::CSubtitleManager()
 {
 	m_bEnabled = false;
 	m_bAutoMode = true;
-	m_pHandler = NULL;
+	m_pHandler = nullptr;
 
 	s_Instance = this;
 }
@@ -32,7 +21,7 @@ CSubtitleManager::CSubtitleManager()
 CSubtitleManager::~CSubtitleManager()
 {
 	SetEnabled(false);
-	s_Instance = NULL;
+	s_Instance = nullptr;
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -46,13 +35,13 @@ void CSubtitleManager::SetEnabled(bool bEnabled)
 		{
 			if (bEnabled)
 			{
-				gEnv->pAudioSystem->AddRequestListener(&CSubtitleManager::OnAudioTriggerStarted, 0, eAudioRequestType_AudioObjectRequest, eAudioObjectRequestType_ExecuteTrigger);
-				gEnv->pAudioSystem->AddRequestListener(&CSubtitleManager::OnAudioTriggerFinished, 0, eAudioRequestType_AudioCallbackManagerRequest, eAudioCallbackManagerRequestType_ReportFinishedTriggerInstance);
+				gEnv->pAudioSystem->AddRequestListener(&CSubtitleManager::OnAudioTriggerStarted, nullptr, CryAudio::ESystemEvents::TriggerExecuted);
+				gEnv->pAudioSystem->AddRequestListener(&CSubtitleManager::OnAudioTriggerFinished, nullptr, CryAudio::ESystemEvents::TriggerFinished);
 			}
 			else
 			{
-				gEnv->pAudioSystem->RemoveRequestListener(&CSubtitleManager::OnAudioTriggerStarted, 0);
-				gEnv->pAudioSystem->RemoveRequestListener(&CSubtitleManager::OnAudioTriggerFinished, 0);
+				gEnv->pAudioSystem->RemoveRequestListener(&CSubtitleManager::OnAudioTriggerStarted, nullptr);
+				gEnv->pAudioSystem->RemoveRequestListener(&CSubtitleManager::OnAudioTriggerFinished, nullptr);
 			}
 		}
 	}
@@ -86,7 +75,7 @@ void CSubtitleManager::ShowSubtitle(const char* subtitleLabel, bool bShow)
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CSubtitleManager::ShowSubtitle(const SAudioRequestInfo* const pAudioRequestInfo, bool bShow)
+void CSubtitleManager::ShowSubtitle(const CryAudio::SRequestInfo* const pAudioRequestInfo, bool bShow)
 {
 	if (m_bEnabled && m_pHandler)
 	{
@@ -95,13 +84,13 @@ void CSubtitleManager::ShowSubtitle(const SAudioRequestInfo* const pAudioRequest
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CSubtitleManager::OnAudioTriggerStarted(const SAudioRequestInfo* const pAudioRequestInfo)
+void CSubtitleManager::OnAudioTriggerStarted(const CryAudio::SRequestInfo* const pAudioRequestInfo)
 {
 	CSubtitleManager::s_Instance->ShowSubtitle(pAudioRequestInfo, true);
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CSubtitleManager::OnAudioTriggerFinished(const SAudioRequestInfo* const pAudioRequestInfo)
+void CSubtitleManager::OnAudioTriggerFinished(const CryAudio::SRequestInfo* const pAudioRequestInfo)
 {
 	CSubtitleManager::s_Instance->ShowSubtitle(pAudioRequestInfo, false);
 }

@@ -24,7 +24,7 @@ m_updatecoords(false)
 	// Register as System listener
 	if (gEnv->pSystem)
 	{
-		gEnv->pSystem->GetISystemEventDispatcher()->RegisterListener( this );
+		gEnv->pSystem->GetISystemEventDispatcher()->RegisterListener( this, "CScreenEffects");
 	}
 }
 

@@ -37,7 +37,7 @@ namespace CryEngine
 
 		public static void Info(string msg)
 		{
-			if (Global.gEnv == null || Global.gEnv.pLog == null || String.IsNullOrEmpty(msg))
+			if (Global.gEnv == null || Global.gEnv.pLog == null || string.IsNullOrEmpty(msg))
 				return;
 
 			Global.gEnv.pLog.Log("[Mono] " + msg);
@@ -48,7 +48,7 @@ namespace CryEngine
 			if (args == null || args.Length < 1)
 				Info(format);
 			else
-				Info(String.Format(format, args));
+				Info(string.Format(format, args));
 		}
 
 		public static void Info<T>(string msg)
@@ -63,7 +63,7 @@ namespace CryEngine
 
 		public static void Always(string msg)
 		{
-			if (Global.gEnv == null || Global.gEnv.pLog == null || String.IsNullOrEmpty(msg))
+			if (Global.gEnv == null || Global.gEnv.pLog == null || string.IsNullOrEmpty(msg))
 				return;
 
 			Global.gEnv.pLog.LogAlways("[Mono] " + msg);
@@ -74,7 +74,7 @@ namespace CryEngine
 			if (args == null || args.Length < 1)
 				Always(format);
 			else
-				Always(String.Format(format, args));
+				Always(string.Format(format, args));
 		}
 
 		public static void Always<T>(string msg)
@@ -89,7 +89,7 @@ namespace CryEngine
 
 		public static void Warning(string msg)
 		{
-			if (Global.gEnv == null || Global.gEnv.pLog == null || String.IsNullOrEmpty(msg))
+			if (Global.gEnv == null || Global.gEnv.pLog == null || string.IsNullOrEmpty(msg))
 				return;
 
 			Global.gEnv.pLog.LogWarning("[Mono] " + msg);
@@ -100,7 +100,7 @@ namespace CryEngine
 			if (args == null || args.Length < 1)
 				Warning(format);
 			else
-				Warning(String.Format(format, args));
+				Warning(string.Format(format, args));
 		}
 
 		public static void Warning<T>(string msg)
@@ -115,7 +115,7 @@ namespace CryEngine
 
 		public static void Error(string msg)
 		{
-			if (Global.gEnv == null || Global.gEnv.pLog == null || String.IsNullOrEmpty(msg))
+			if (Global.gEnv == null || Global.gEnv.pLog == null || string.IsNullOrEmpty(msg))
 				return;
 
 			Global.gEnv.pLog.LogError("[Mono] " + msg);
@@ -126,7 +126,7 @@ namespace CryEngine
 			if (args == null || args.Length < 1)
 				Error(format);
 			else
-				Error(String.Format(format, args));
+				Error(string.Format(format, args));
 		}
 
 		public static void Error<T>(string msg)
@@ -141,7 +141,7 @@ namespace CryEngine
 
 		public static void Plus(string msg)
 		{
-			if (Global.gEnv == null || Global.gEnv.pLog == null || String.IsNullOrEmpty(msg))
+			if (Global.gEnv == null || Global.gEnv.pLog == null || string.IsNullOrEmpty(msg))
 				return;
 
 			Global.gEnv.pLog.LogPlus("[Mono] " + msg);
@@ -152,7 +152,7 @@ namespace CryEngine
 			if (args == null || args.Length < 1)
 				Plus(format);
 			else
-				Plus(String.Format(format, args));
+				Plus(string.Format(format, args));
 		}
 
 		public static void Plus<T>(string msg)
@@ -167,7 +167,7 @@ namespace CryEngine
 
 		public static void ToConsole(string msg)
 		{
-			if (Global.gEnv == null || Global.gEnv.pLog == null || String.IsNullOrEmpty(msg))
+			if (Global.gEnv == null || Global.gEnv.pLog == null || string.IsNullOrEmpty(msg))
 				return;
 
 			Global.gEnv.pLog.LogToConsole("[Mono] " + msg);
@@ -178,7 +178,7 @@ namespace CryEngine
 			if (args == null || args.Length < 1)
 				ToConsole(format);
 			else
-				ToConsole(String.Format(format, args));
+				ToConsole(string.Format(format, args));
 		}
 
 		public static void ToConsole<T>(string msg)
@@ -193,7 +193,7 @@ namespace CryEngine
 
 		public static void ToConsolePlus(string msg)
 		{
-			if (Global.gEnv == null || Global.gEnv.pLog == null || String.IsNullOrEmpty(msg))
+			if (Global.gEnv == null || Global.gEnv.pLog == null || string.IsNullOrEmpty(msg))
 				return;
 
 			Global.gEnv.pLog.LogToConsolePlus("[Mono] " + msg);
@@ -204,7 +204,7 @@ namespace CryEngine
 			if (args == null || args.Length < 1)
 				ToConsolePlus(format);
 			else
-				ToConsolePlus(String.Format(format, args));
+				ToConsolePlus(string.Format(format, args));
 		}
 
 		public static void ToConsolePlus<T>(string msg)
@@ -219,7 +219,7 @@ namespace CryEngine
 
 		public static void ToFile(string msg)
 		{
-			if (Global.gEnv == null || Global.gEnv.pLog == null || String.IsNullOrEmpty(msg))
+			if (Global.gEnv == null || Global.gEnv.pLog == null || string.IsNullOrEmpty(msg))
 				return;
 
 			Global.gEnv.pLog.LogToFile("[Mono] " + msg);
@@ -230,7 +230,7 @@ namespace CryEngine
 			if (args == null || args.Length < 1)
 				ToFile(format);
 			else
-				ToFile(String.Format(format, args));
+				ToFile(string.Format(format, args));
 		}
 
 		public static void ToFile<T>(string msg)
@@ -245,7 +245,7 @@ namespace CryEngine
 
 		public static void ToFilePlus(string msg)
 		{
-			if (Global.gEnv == null || Global.gEnv.pLog == null || String.IsNullOrEmpty(msg))
+			if (Global.gEnv == null || Global.gEnv.pLog == null || string.IsNullOrEmpty(msg))
 				return;
 
 			Global.gEnv.pLog.LogToFilePlus("[Mono] " + msg);
@@ -256,7 +256,7 @@ namespace CryEngine
 			if (args == null || args.Length < 1)
 				ToFilePlus(format);
 			else
-				ToFilePlus(String.Format(format, args));
+				ToFilePlus(string.Format(format, args));
 		}
 
 		public static void ToFilePlus<T>(string msg)
@@ -276,7 +276,7 @@ namespace CryEngine
 
 		public static void Exception(Exception ex, string format, params object[] args)
 		{
-			Exception(ex, String.Format(format, args));
+			Exception(ex, string.Format(format, args));
 		}
 
 		public static void Exception(Exception ex, string customError)
@@ -286,7 +286,7 @@ namespace CryEngine
 				Error("Error: " + customError);
 			}
 			Error("Message: " + ex.Message);
-			StackTrace st = new StackTrace(ex, true);
+			var st = new StackTrace(ex, true);
 			Error("Stack Trace: " + st.FrameCount);
 			for (int i = 0; i < st.FrameCount; i++)
 			{
@@ -305,7 +305,7 @@ namespace CryEngine
 
 		public static void Exception<T>(Exception ex, string format, params object[] args)
 		{
-			Exception<T>(ex, String.Format(format, args));
+			Exception<T>(ex, string.Format(format, args));
 		}
 
 		public static void Exception<T>(Exception ex, string customError = null)
@@ -315,7 +315,7 @@ namespace CryEngine
 				Error<T>("Error: " + customError);
 			}
 			Error<T>("Message: " + ex.Message);
-			StackTrace st = new StackTrace(ex, true);
+			var st = new StackTrace(ex, true);
 			Error<T>("Stack Trace: " + st.FrameCount);
 			for (int i = 0; i < st.FrameCount; i++)
 			{
@@ -332,7 +332,7 @@ namespace CryEngine
 		/// </summary>
 		public static void StackTrace()
 		{
-			Log.Always(Environment.StackTrace);
+			Always(Environment.StackTrace);
 		}
 	}
 }

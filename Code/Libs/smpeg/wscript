@@ -14,10 +14,12 @@ def build(bld):
 		win_lib = ['kernel32', 'user32', 'gdi32', 'winspool', 'comdlg32', 'advapi32', 'shell32', 'ole32', 'oleaut32', 'uuid'],
 		win_defines = ['NOCONTROLS', 'THREADED_AUDIO', '_WINDOWS', 'WIN32'],
 		linux_defines = ['NOCONTROLS', 'THREADED_AUDIO'],
+		android_defines = ['NOCONTROLS', 'THREADED_AUDIO'],
 
 		win_cxxflags = [
 			'/W0', 	# No warnings in 3rdParty code, we can't fix them anyway
 			'/FImemory', # Force include needed for memset() in MPEGaudio.cpp around line 43, remove this once they fixed it in their code base.
 			],
 		linux_cxxflags = ['-w'],
+		android_cxxflags = ['-w'],
 	)

@@ -11,7 +11,7 @@ namespace CryVR
 namespace Oculus {
 struct IOculusVRPlugin : public ICryPlugin
 {
-	CRYINTERFACE_DECLARE(IOculusVRPlugin, 0xE4B6593F30CE4F80, 0x9348285F842E11C1);
+	CRYINTERFACE_DECLARE_GUID(IOculusVRPlugin, "e4b6593f-30ce-4f80-9348-285f842e11c1"_cry_guid);
 
 public:
 	virtual IOculusDevice* CreateDevice() = 0;

@@ -1,15 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
-
-// -------------------------------------------------------------------------
-//  File name:   DialogScript.cpp
-//  Version:     v1.00
-//  Created:     07/07/2006 by AlexL
-//  Compilers:   Visual Studio.NET
-//  Description: Dialog Script
-// -------------------------------------------------------------------------
-//  History:
-//
-////////////////////////////////////////////////////////////////////////////
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #include "StdAfx.h"
 #include "DialogScript.h"
@@ -88,7 +77,7 @@ CDialogScript::~CDialogScript()
 
 ////////////////////////////////////////////////////////////////////////////
 // Add one line after another
-bool CDialogScript::AddLine(TActorID actorID, AudioControlId audioID, const char* anim, const char* facial, TActorID lookAtTargetID, float delay, float facialWeight, float facialFadeTime, bool bLookAtSticky, bool bResetFacial, bool bResetLookAt, bool bSoundStopsAnim, bool bUseAGSignal, bool bUseAGEP)
+bool CDialogScript::AddLine(TActorID actorID, CryAudio::ControlId audioID, const char* anim, const char* facial, TActorID lookAtTargetID, float delay, float facialWeight, float facialFadeTime, bool bLookAtSticky, bool bResetFacial, bool bResetLookAt, bool bSoundStopsAnim, bool bUseAGSignal, bool bUseAGEP)
 {
 	SScriptLine line;
 	line.m_actor = actorID;

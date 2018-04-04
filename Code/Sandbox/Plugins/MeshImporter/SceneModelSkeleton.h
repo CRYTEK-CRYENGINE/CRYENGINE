@@ -32,6 +32,14 @@ private:
 
 class CSceneModelSkeleton : public CSceneModelCommon
 {
+private:
+	enum EColumnType
+	{
+		eColumnType_Name,
+		eColumnType_SourceNodeAttribute,
+		eColumnType_COUNT
+	};
+
 public:
 	CSceneModelSkeleton(CSkeleton* pNodeSkeleton)
 		: m_pNodeSkeleton(pNodeSkeleton)
@@ -43,6 +51,10 @@ public:
 	QVariant      headerData(int column, Qt::Orientation orientation, int role) const override;
 	Qt::ItemFlags flags(const QModelIndex& modelIndex) const override;
 	bool          setData(const QModelIndex& index, const QVariant& value, int role) override;
+
+private:
+	CItemModelAttribute* GetColumnAttribute(int col) const;
+
 private:
 	CSkeleton* m_pNodeSkeleton;
 };

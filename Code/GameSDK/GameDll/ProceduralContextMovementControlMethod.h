@@ -22,7 +22,7 @@ class CProceduralContextMovementControlMethod
 	: public IProceduralContext
 {
 public:
-	PROCEDURAL_CONTEXT( CProceduralContextMovementControlMethod, PROCEDURAL_CONTEXT_MOVEMENT_CONTROL_METHOD_NAME, 0x80140507bdc64be4, 0xa24190f322270e82 );
+	PROCEDURAL_CONTEXT(CProceduralContextMovementControlMethod, PROCEDURAL_CONTEXT_MOVEMENT_CONTROL_METHOD_NAME, "80140507-bdc6-4be4-a241-90f322270e82"_cry_guid);
 
 	virtual ~CProceduralContextMovementControlMethod() {}
 

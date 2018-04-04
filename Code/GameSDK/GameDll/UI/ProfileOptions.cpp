@@ -709,7 +709,7 @@ void CProfileOptions::AddOrReplacePendingOption(const char* command, const char*
 
 bool CProfileOptions::WriteGameCfg()
 {
-	CDebugAllowFileAccess ignoreInvalidFileAccess;
+	SCOPED_ALLOW_FILE_ACCESS_FROM_THIS_THREAD();
 
 	FILE* pFile = fxopen("%USER%/game.cfg", "wb");
 	if (pFile == 0)

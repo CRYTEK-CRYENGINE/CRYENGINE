@@ -89,7 +89,8 @@ void DisplayFollowJointOptions::Serialize(Serialization::IArchive& ar)
 
 void DisplayOptions::Serialize(Serialization::IArchive& ar)
 {
-	ar(attachmentAndPoseModifierGizmos, "attachmentAndPoseModifierGizmos", "Attachment/Modifier Gizmos");
+	ar(attachmentGizmos, "attachmentGizmos", "Attachment Gizmos");
+	ar(poseModifierGizmos, "poseModifierGizmos", "Pose Modifier Gizmos");
 
 	ar(animation, "animation", "+Animation");
 

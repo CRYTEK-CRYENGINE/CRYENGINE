@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #pragma once
 
@@ -45,7 +45,7 @@ private:
 		ICryFactory* m_ptr;
 
 		FactoryByCID(const CryClassID& cid) : m_cid(cid), m_ptr(0) {}
-		FactoryByCID(ICryFactory* ptr) : m_cid(ptr ? ptr->GetClassID() : MAKE_CRYGUID(0, 0)), m_ptr(ptr) { assert(m_ptr); }
+		FactoryByCID(ICryFactory* ptr) : m_cid(ptr ? ptr->GetClassID() : CryGUID::Null()), m_ptr(ptr) { assert(m_ptr); }
 		bool operator<(const FactoryByCID& rhs) const { return m_cid < rhs.m_cid; }
 	};
 	typedef std::vector<FactoryByCID>      FactoriesByCID;

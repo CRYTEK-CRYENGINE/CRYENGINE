@@ -1,9 +1,10 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #pragma once
 
-#include "ATLEntities.h"
+#include "ATLEntityData.h"
 #include <SharedAudioData.h>
+#include <PoolObject.h>
 
 namespace CryAudio
 {
@@ -11,53 +12,89 @@ namespace Impl
 {
 namespace Fmod
 {
+class CEvent;
+class CParameter;
+class CSwitchState;
+class CEnvironment;
+class CStandaloneFileBase;
 
-using FmodAudioObjectId = uint32;
-
-class CAudioObject final : public IAudioObject
+class CObjectBase : public IObject
 {
 public:
 
-	explicit CAudioObject(FmodAudioObjectId const _id);
-	virtual ~CAudioObject() override = default;
+	CObjectBase();
+	virtual ~CObjectBase() override;
 
-	CAudioObject(CAudioObject const&) = delete;
-	CAudioObject(CAudioObject&&) = delete;
-	CAudioObject&             operator=(CAudioObject const&) = delete;
-	CAudioObject&             operator=(CAudioObject&&) = delete;
+	void RemoveEvent(CEvent* const pEvent);
+	void RemoveParameter(CParameter const* const pParameter);
+	void RemoveSwitch(CSwitchState const* const pSwitch);
+	void RemoveEnvironment(CEnvironment const* const pEnvironment);
+	void RemoveFile(CStandaloneFileBase const* const pStandaloneFile);
 
-	FmodAudioObjectId         GetId() const { return m_id; }
-	void                      RemoveAudioEvent(CAudioEvent* const pAudioEvent);
-	bool                      SetAudioEvent(CAudioEvent* const pAudioEvent);
-	void                      RemoveParameter(CAudioParameter const* const pParameter);
-	void                      SetParameter(CAudioParameter const* const pAudioParameter, float const value);
-	void                      RemoveSwitch(CAudioSwitchState const* const pSwitch);
-	void                      SetSwitch(CAudioSwitchState const* const pSwitch);
-	void                      RemoveEnvironment(CAudioEnvironment const* const pEnvironment);
-	void                      SetEnvironment(CAudioEnvironment const* const pEnvironment, float const value);
-	void                      Set3DAttributes(CryAudio::Impl::SAudioObject3DAttributes const& attributes);
-	void                      StopAllEvents();
-	void                      StopEvent(uint32 const eventPathId);
-	void                      SetObstructionOcclusion(float const obstruction, float const occlusion);
-	FMOD_3D_ATTRIBUTES const& Get3DAttributes() const { return m_attributes; }
-	void                      Reset();
+	// CryAudio::Impl::IObject
+	virtual ERequestStatus Update() override;
+	virtual ERequestStatus Set3DAttributes(SObject3DAttributes const& attributes) override;
+	virtual ERequestStatus ExecuteTrigger(ITrigger const* const pITrigger, IEvent* const pIEvent) override;
+	virtual ERequestStatus StopAllTriggers() override;
+	virtual ERequestStatus PlayFile(IStandaloneFile* const pIStandaloneFile) override;
+	virtual ERequestStatus StopFile(IStandaloneFile* const pIStandaloneFile) override;
+	virtual ERequestStatus SetName(char const* const szName) override;
+	// ~CryAudio::Impl::IObject
 
-private:
+protected:
 
-	FmodAudioObjectId const m_id;
-	FMOD_3D_ATTRIBUTES      m_attributes;
-	float                   m_obstruction;
-	float                   m_occlusion;
+	void StopEvent(uint32 const eventPathId);
+	bool SetEvent(CEvent* const pEvent);
 
-	AudioEvents             m_audioEvents;
-	typedef std::map<CAudioParameter const* const, float>    AudioParameters;
-	AudioParameters         m_audioParameters;
-	typedef std::map<uint32 const, CAudioSwitchState const*> AudioSwitches;
-	AudioSwitches           m_audioSwitches;
-	typedef std::map<CAudioEnvironment const* const, float, std::less<CAudioEnvironment const* const>,
-	                 STLSoundAllocator<std::pair<CAudioEnvironment const* const, float>>> AudioEnvironments;
-	AudioEnvironments m_audioEnvironments;
+	std::vector<CEvent*>                        m_events;
+	std::vector<CStandaloneFileBase*>           m_files;
+	std::map<CParameter const* const, float>    m_parameters;
+	std::map<uint32 const, CSwitchState const*> m_switches;
+	std::map<CEnvironment const* const, float>  m_environments;
+
+	std::vector<CEvent*>                        m_pendingEvents;
+	std::vector<CStandaloneFileBase*>           m_pendingFiles;
+
+	FMOD_3D_ATTRIBUTES                          m_attributes;
+	float m_obstruction = 0.0f;
+	float m_occlusion = 0.0f;
+
+public:
+
+	static FMOD::Studio::System* s_pSystem;
 };
-}
-}
-}
+
+using Objects = std::vector<CObjectBase*>;
+
+class CObject final : public CObjectBase, public CPoolObject<CObject, stl::PSyncNone>
+{
+public:
+
+	// CryAudio::Impl::IObject
+	virtual ERequestStatus SetEnvironment(IEnvironment const* const pIEnvironment, float const amount) override;
+	virtual ERequestStatus SetParameter(IParameter const* const pIParameter, float const value) override;
+	virtual ERequestStatus SetSwitchState(ISwitchState const* const pISwitchState) override;
+	virtual ERequestStatus SetObstructionOcclusion(float const obstruction, float const occlusion) override;
+	// ~CryAudio::Impl::IObject
+};
+
+class CGlobalObject final : public CObjectBase
+{
+public:
+
+	CGlobalObject(Objects const& objects)
+		: m_objects(objects)
+	{}
+
+	// CryAudio::Impl::IObject
+	virtual ERequestStatus SetEnvironment(IEnvironment const* const pIEnvironment, float const amount) override;
+	virtual ERequestStatus SetParameter(IParameter const* const pIParameter, float const value) override;
+	virtual ERequestStatus SetSwitchState(ISwitchState const* const pISwitchState) override;
+	virtual ERequestStatus SetObstructionOcclusion(float const obstruction, float const occlusion) override;
+	// ~CryAudio::Impl::IObject
+
+	Objects const& m_objects;
+};
+} // namespace Fmod
+} // namespace Impl
+} // namespace CryAudio

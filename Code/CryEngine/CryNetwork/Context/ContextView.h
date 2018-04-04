@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 /*************************************************************************
    -------------------------------------------------------------------------
@@ -107,9 +107,6 @@ struct SContextViewConfiguration
 	std::array<const SNetMessageDef*, NumAspects> pPartialUpdate;
 	std::array<const SNetMessageDef*, NumAspects> pSetAspectProfileMsgs;
 	std::array<const SNetMessageDef*, NumAspects> pUpdateAspectMsgs;
-#if ENABLE_ASPECT_HASHING
-	std::array<const SNetMessageDef*, NumAspects> pHashAspectMsgs;
-#endif
 	const SNetMessageDef* pRMIMsgs[eNRT_NumReliabilityTypes + 1];
 };
 
@@ -348,10 +345,6 @@ protected:
 
 	virtual void UnboundObject(SNetObjectID id);
 
-#if ENABLE_ASPECT_HASHING
-	bool HashAspect(NetworkAspectID aspectIdx, TSerialize ser, uint32, uint32, uint32);
-#endif
-
 	virtual void InitChannelEstablishmentTasks(IContextEstablisher* pEst);
 
 	// change context:
@@ -486,10 +479,6 @@ protected:
 		CContextViewPtr m_pView;
 		SSendableHandle m_handle;
 	};
-#endif
-
-#if ENABLE_ASPECT_HASHING
-	class CHashMessage;
 #endif
 
 	class CNotifyPartialUpdateMessage;

@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #include "StdAfx.h"
 #include "IGameRulesSystem.h"
@@ -211,7 +211,7 @@ CActionGame::CActionGame(CScriptRMI* pScriptRMI)
 	, m_pGameClientNub(0)
 	, m_pGameServerNub(0)
 	, m_pGameContext(0)
-	, m_pNetContext(0)
+	, m_pNetContext(gEnv->pNetContext)
 	, m_pGameTokenSystem(0)
 	, m_pPhysicalWorld(0)
 	, m_pGameStats(0)
@@ -577,7 +577,6 @@ bool CActionGame::Init(const SGameStartParams* pGameStartParams)
 	{
 		if (!gEnv->pSystem->IsSerializingFile()) //GameSerialize will reset and reserve in the right order
 			gEnv->pEntitySystem->Reset();
-		gEnv->pEntitySystem->ReserveEntityId(LOCAL_PLAYER_ENTITY_ID);
 	}
 
 	m_pPhysicalWorld = gEnv->pPhysicalWorld;
@@ -1078,11 +1077,6 @@ IActor* CActionGame::GetClientActor()
 	}
 
 	return m_pClientActor;
-}
-
-bool CActionGame::ControlsEntity(EntityId id)
-{
-	return m_pGameContext->ControlsEntity(id);
 }
 
 bool CActionGame::Update()
@@ -2117,7 +2111,7 @@ void CActionGame::PerformPlaneBreak(const EventPhysCollision& epc, SBreakEvent* 
 	else if (rec.itype == PHYS_FOREIGN_ID_STATIC)
 	{
 		BreakLogAlways("> PHYS_FOREIGN_ID_STATIC");
-		pStatObj = (pBrush = ((IRenderNode*)epc.pForeignData[1]))->GetEntityStatObj(0, 0, &mtx);
+		pStatObj = (pBrush = ((IRenderNode*)epc.pForeignData[1]))->GetEntityStatObj(0, &mtx);
 		if (pStatObj && pStatObj->GetFlags() & STATIC_OBJECT_COMPOUND)
 		{
 			if (pSubObj = (pStatObjHost = pStatObj)->GetSubObject(epc.partid[1]))
@@ -2510,7 +2504,7 @@ ForceObjUpdate:
 					}
 					pStatObjNew = pStatObjHost;
 				}
-				pBrush->SetEntityStatObj(0, pStatObjNew);
+				pBrush->SetEntityStatObj(pStatObjNew);
 				if (!pStatObjHost)
 					pBrush->Physicalize(true);
 				pp.partid = epc.partid[1];
@@ -2597,7 +2591,7 @@ ForceObjUpdate:
 			dcl.ownerInfo.pRenderNode = rec.itype == PHYS_FOREIGN_ID_ENTITY ?
 			                            (pEntityTrg->GetRenderInterface())->GetRenderNode() : pBrush;
 			dcl.ownerInfo.nRenderNodeSlotId = 0;
-			dcl.ownerInfo.nRenderNodeSlotSubObjectId = GetSlotIdx(epc.partid[1], 1);
+			dcl.ownerInfo.nRenderNodeSlotSubObjectId = EntityPhysicsUtils::GetSlotIdx(epc.partid[1], 1);
 			dcl.vPos = epc.pt;
 			dcl.vNormal = epc.n;
 			dcl.vHitDirection = epc.n; // epc.vloc[0].normalized();
@@ -3382,38 +3376,6 @@ int CActionGame::OnCreatePhysicalEntityLogged(const EventPhys* pEvent)
 		IRenderNode* rn = (IRenderNode*)pCEvent->pForeignData;
 		if (eERType_Vegetation == rn->GetRenderNodeType())
 		{
-			// notify AISystem
-			if (gEnv->pAISystem)
-			{
-				IEntity* pNewEnt = (IEntity*)pCEvent->pEntNew->GetForeignData(PHYS_FOREIGN_ID_ENTITY);
-				if (pNewEnt)
-				{
-					AABB bounds;
-					pNewEnt->GetWorldBounds(bounds);
-				}
-
-				// Classify the collision type.
-				SAICollisionObjClassification type = AICOL_LARGE;
-				if (pCEvent->breakSize < 0.5f)
-					type = AICOL_SMALL;
-				else if (pCEvent->breakSize < 2.0f)
-					type = AICOL_MEDIUM;
-				else
-					type = AICOL_LARGE;
-
-				// Magic formula to calculate the reaction and sound radii.
-				const float impulse = pCEvent->breakImpulse.GetLength();
-				const float reactionRadius = pCEvent->breakSize * 2.0f;
-				const float soundRadius = 10.0f + sqrtf(clamp_tpl(impulse / 800.0f, 0.0f, 1.0f)) * 60.0f;
-
-				SAIStimulus stim(AISTIM_COLLISION, type, pNewEnt ? pNewEnt->GetId() : 0, 0, rn->GetPos(), ZERO, reactionRadius);
-				gEnv->pAISystem->RegisterStimulus(stim);
-
-				SAIStimulus stimSound(AISTIM_SOUND, type == AICOL_SMALL ? AISOUND_COLLISION : AISOUND_COLLISION_LOUD,
-				                      pNewEnt ? pNewEnt->GetId() : 0, 0, rn->GetPos(), ZERO, soundRadius, AISTIMPROC_FILTER_LINK_WITH_PREVIOUS);
-				gEnv->pAISystem->RegisterStimulus(stimSound);
-			}
-
 			IMaterialEffects* pMaterialEffects = CCryAction::GetCryAction()->GetIMaterialEffects();
 			TMFXEffectId effectId = pMaterialEffects ? pMaterialEffects->GetEffectIdByName("vegetation", "tree_break") : InvalidEffectId;
 			if (effectId != InvalidEffectId)
@@ -3514,7 +3476,7 @@ int CActionGame::ReuseBrokenTrees(const EventPhysCollision* pCEvent, float size,
 		STreeBreakInst* rec;
 		IEntity* pentSrc, * pentClone;
 		IPhysicalEntity* pPhysEntSrc, * pPhysEntClone;
-		pVeg->GetEntityStatObj(0, 0, &objMat);
+		pVeg->GetEntityStatObj(0, &objMat);
 		float scale = objMat.GetColumn(0).len();
 		float hHit = pCEvent->pt.z - pVeg->GetPos().z;
 
@@ -3549,7 +3511,7 @@ int CActionGame::ReuseBrokenTrees(const EventPhysCollision* pCEvent, float size,
 
 			epp.type = PE_STATIC;
 			esp.pClass = gEnv->pEntitySystem->GetClassRegistry()->FindClass("Breakage");
-			pStatObj = pVeg->GetEntityStatObj(0, 0, &mtx);
+			pStatObj = pVeg->GetEntityStatObj(0, &mtx);
 			esp.vPosition = mtx.GetTranslation();
 			esp.vScale = Vec3(mtx.GetColumn(0).len());
 			esp.qRotation = Quat(Matrix33(mtx) / esp.vScale.x);
@@ -4145,7 +4107,7 @@ int CActionGame::OnRemovePhysicalEntityPartsLogged(const EventPhys* pEvent)
 	if (pREvent->iForeignData == PHYS_FOREIGN_ID_ENTITY && (pEntity = (IEntity*)pREvent->pForeignData))
 	{
 		int idOffs = pREvent->idOffs;
-		if (pREvent->idOffs >= PARTID_LINKED)
+		if (pREvent->idOffs >= EntityPhysicsUtils::PARTID_LINKED)
 			pEntity = pEntity->UnmapAttachedChild(idOffs);
 		if (pEntity && (pStatObj = pEntity->GetStatObj(ENTITY_SLOT_ACTUAL)) && pStatObj->GetFlags() & STATIC_OBJECT_COMPOUND)
 		{
@@ -4621,7 +4583,7 @@ void CActionGame::CloneBrokenObjectsByIndex(uint16* pBreakEventIndices, int32& i
 
 					IRenderNode* pNewNode = BrokenObj.pBrush->Clone();
 
-					pNewNode->SetEntityStatObj(0, BrokenObj.pStatObjOrg);
+					pNewNode->SetEntityStatObj(BrokenObj.pStatObjOrg);
 
 					IPhysicalEntity* pPhysEnt = pNewNode->GetPhysics();
 					if (pPhysEnt)
@@ -4643,11 +4605,11 @@ void CActionGame::CloneBrokenObjectsByIndex(uint16* pBreakEventIndices, int32& i
 					IRenderNode* pNewNode = gEnv->p3DEngine->CreateRenderNode(eERType_Brush);
 
 					Matrix34A mtx;
-					BrokenObj.pBrush->GetEntityStatObj(0, 0, &mtx);
+					BrokenObj.pBrush->GetEntityStatObj(0, &mtx);
 
 					BrokenObj.pBrush->CopyIRenderNodeData(pNewNode);
 
-					pNewNode->SetEntityStatObj(0, BrokenObj.pStatObjOrg, &mtx);
+					pNewNode->SetEntityStatObj(BrokenObj.pStatObjOrg, &mtx);
 
 					IPhysicalEntity* pPhysEnt = pNewNode->GetPhysics();
 					if (pPhysEnt)
@@ -4728,7 +4690,7 @@ void CActionGame::FixBrokenObjects(bool bRestoreBroken)
 			}
 			else
 			{
-				m_brokenObjs[i].pBrush->SetEntityStatObj(0, m_brokenObjs[i].pStatObjOrg);
+				m_brokenObjs[i].pBrush->SetEntityStatObj(m_brokenObjs[i].pStatObjOrg);
 				//m_brokenObjs[i].pBrush->GetEntityStatObj()->Refresh(FRO_GEOMETRY);
 			}
 		}

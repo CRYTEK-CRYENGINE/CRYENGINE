@@ -10,17 +10,21 @@
 class QAudioControlsTreeView;
 class QDialogButtonBox;
 class QAudioControlSortProxy;
-class QStandardItemModel;
+class CMountingProxyModel;
+class QAbstractItemModel;
 
 namespace ACE
 {
-class CATLControlsModel;
+
+class CAudioAssetsManager;
+class CAudioAssetsExplorerModel;
+class CAudioLibraryModel;
 
 class ATLControlsDialog : public CEditorDialog
 {
 	Q_OBJECT
 public:
-	ATLControlsDialog(QWidget* pParent, EACEControlType eType);
+	ATLControlsDialog(QWidget* pParent, EItemType eType);
 	~ATLControlsDialog();
 
 private slots:
@@ -36,26 +40,30 @@ public:
 
 private:
 
-	QModelIndex FindItem(const string& sControlName);
-	void        ApplyFilter();
-	bool        ApplyFilter(const QModelIndex parent);
-	bool        IsValid(const QModelIndex index);
+	QModelIndex         FindItem(const string& sControlName);
+	void                ApplyFilter();
+	bool                ApplyFilter(const QModelIndex parent);
+	bool                IsValid(const QModelIndex index);
+	QAbstractItemModel* CreateLibraryModelFromIndex(const QModelIndex& sourceIndex);
 
 	// ------------------ QWidget ----------------------------
 	bool eventFilter(QObject* pObject, QEvent* pEvent);
 	// -------------------------------------------------------
 
 	// Filtering
-	QString                 m_sFilter;
-	EACEControlType         m_eType;
-	Scope                   m_scope;
+	QString                          m_sFilter;
+	EItemType                        m_eType;
+	Scope                            m_scope;
 
-	static string           ms_controlName;
-	QAudioControlsTreeView* m_pControlTree;
-	QDialogButtonBox*       m_pDialogButtons;
+	static string                    ms_controlName;
+	QAudioControlsTreeView*          m_pControlTree;
+	QDialogButtonBox*                m_pDialogButtons;
 
-	QStandardItemModel*     m_pTreeModel;
-	QAudioControlSortProxy* m_pProxyModel;
-	CATLControlsModel*      m_pATLModel;
+	QAudioControlSortProxy*          m_pProxyModel;
+	CAudioAssetsManager*             m_pAssetsManager;
+	CAudioAssetsExplorerModel*       m_pAssetsModel;
+	CMountingProxyModel*             m_pMountedModel;
+	std::vector<CAudioLibraryModel*> m_libraryModels;
+
 };
 }

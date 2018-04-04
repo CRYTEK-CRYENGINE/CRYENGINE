@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #ifndef _IRENDERAUXGEOM_H_
 #define _IRENDERAUXGEOM_H_
@@ -119,6 +119,8 @@ struct IRenderAuxGeom
 	virtual void DrawTriangles(const Vec3* v, uint32 numPoints, const vtx_idx* ind, uint32 numIndices, const ColorB* col) = 0;
 	//! ##@}
 
+	virtual void DrawBuffer(const SAuxVertex* inVertices, uint32 numVertices, bool textured) = 0;
+
 	//! Draw a Axis-aligned Bounding Boxes (AABB).
 	//! ##@{
 	virtual void DrawAABB(const AABB& aabb, bool bSolid, const ColorB& col, const EBoundingBoxDrawStyle& bbDrawStyle) = 0;
@@ -165,6 +167,8 @@ struct IRenderAuxGeom
 	virtual void RenderTextQueued(Vec3 pos, const SDrawTextInfo& ti, const char* text) = 0;
 
 	virtual void DrawStringImmediate(IFFont_RenderProxy* pFont, float x, float y, float z, const char* pStr, const bool asciiMultiLine, const STextDrawContext& ctx) {}
+
+	virtual void DrawBufferRT(const SAuxVertex* data, int numVertices, int blendMode, const Matrix44* matViewProj, int texID) = 0;
 
 	void RenderText(Vec3 pos, const SDrawTextInfo& ti, const char* format, va_list args)
 	{
@@ -213,6 +217,8 @@ struct IRenderAuxGeom
 	//! \return     Index of previous used matrix index in the matrix buffer, as set internally or by SetMatrixIndex!
 	virtual int PushMatrix(const Matrix34& mat) = 0;
 
+	virtual int SetTexture(int idTexture) { return -1; }
+
 	//! Get the world matrix for the next primitives
 	//! \return active matrix in the matrix buffer.
 	virtual Matrix34* GetMatrix() = 0;
@@ -234,17 +240,18 @@ struct IRenderAuxGeom
 	//! for render and main thread this parameter has no effect
 	virtual void Commit(uint frames = 0) = 0;
 	// </interfuscator:shuffle>
+
+
+	static IRenderAuxGeom* GetAux()
+	{
+		return gEnv->pRenderer->GetIRenderAuxGeom();
+	}
 };
 
 
 
 class IRenderAuxText
 {
-	static IRenderAuxGeom* GetAux()
-	{
-		return gEnv->pRenderer->GetIRenderAuxGeom();
-	}
-
 public:
 	struct AColor
 	{
@@ -309,7 +316,7 @@ public:
 
 	static void DrawText(Vec3 pos, const SDrawTextInfo& ti, const char* text)
 	{
-		GetAux()->RenderTextQueued(pos, ti, text);
+		IRenderAuxGeom::GetAux()->RenderTextQueued(pos, ti, text);
 	}
 
 	static void DrawText(Vec3 pos, const ASize& size, const AColor& color, int flags, const char* text)
@@ -430,9 +437,9 @@ public:
 		TextToScreenColor((int)(8 * x), (int)(6 * y), 1, 1, 1, 1, buffer);
 	}
 
-	static void DrawString(IFFont_RenderProxy* pFont, float x, float y, float z, const char* pStr, const bool asciiMultiLine, const STextDrawContext& ctx)
+	static void DrawStringRT(IFFont_RenderProxy* pFont, float x, float y, float z, const char* pStr, const bool asciiMultiLine, const STextDrawContext& ctx)
 	{
-		GetAux()->DrawStringImmediate(pFont, x, y, z, pStr, asciiMultiLine, ctx);
+		IRenderAuxGeom::GetAux()->DrawStringImmediate(pFont, x, y, z, pStr, asciiMultiLine, ctx);
 	}
 };
 

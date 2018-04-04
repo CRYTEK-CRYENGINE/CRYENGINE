@@ -4,9 +4,9 @@
 
 // *INDENT-OFF* - <hard to read code and declarations due to inconsistent indentation>
 
-namespace uqs
+namespace UQS
 {
-	namespace client
+	namespace Client
 	{
 
 		//===================================================================================
@@ -19,7 +19,7 @@ namespace uqs
 		class CItemListProxy_Readable
 		{
 		public:
-			explicit                        CItemListProxy_Readable(const core::IItemList& itemList);
+			explicit                        CItemListProxy_Readable(const Core::IItemList& itemList);
 			explicit                        CItemListProxy_Readable();   // default ctor required for CItemFactoryInternal<>::CreateItems()
 
 			// implicitly allow copying
@@ -31,19 +31,19 @@ namespace uqs
 			// - these point into the IItemList that was passed in to the ctor
 			// - we cache them to circumvent some virtual function calls, rather than invoking the according Get*() method on the IItemList each time we need access to one particular item
 			// - of course, the passed in IItemList must not go out of scope or change its content while we read from it
-			const client::IItemFactory*     m_pItemFactory;
+			const Client::IItemFactory*     m_pItemFactory;
 			const void*                     m_pItems;
 			size_t                          m_itemCount;
 		};
 
 		template <class TItem>
-		CItemListProxy_Readable<TItem>::CItemListProxy_Readable(const core::IItemList& itemList)
+		CItemListProxy_Readable<TItem>::CItemListProxy_Readable(const Core::IItemList& itemList)
 			: m_pItemFactory(&itemList.GetItemFactory())
 			, m_pItems(itemList.GetItems())
 			, m_itemCount(itemList.GetItemCount())
 		{
 			// ensure type correctness (this presumes that given item-list has already been provided with an item-factory)
-			assert(m_pItemFactory->GetItemType() == shared::SDataTypeHelper<TItem>::GetTypeInfo());
+			assert(m_pItemFactory->GetItemType() == Shared::SDataTypeHelper<TItem>::GetTypeInfo());
 		}
 
 		template <class TItem>
@@ -78,40 +78,42 @@ namespace uqs
 		class CItemListProxy_Writable
 		{
 		public:
-			explicit                  CItemListProxy_Writable(core::IItemList& itemList);
+			explicit                  CItemListProxy_Writable(Core::IItemList& itemList);
 			void                      CreateItemsByItemFactory(size_t numItemsToCreate);
 			TItem&                    GetItemAtIndex(size_t index);
-			core::IItemList&          GetUnderlyingItemList();
+			Core::IItemList&          GetUnderlyingItemList();
 
 		private:
 			                          UQS_NON_COPYABLE(CItemListProxy_Writable);
 
 		private:
-			core::IItemList&          m_itemList;
+			Core::IItemList&          m_itemList;
 
 			// - these point into the IItemList that was passed in to the ctor
 			// - we cache them to circumvent some virtual function calls, rather than invoking the according Get*() method on the IItemList each time we need access to one particular item
 			// - of course, the passed in IItemList must not go out of scope or change its content while we write to it
-			client::IItemFactory&     m_itemFactory;
+			Client::IItemFactory&     m_itemFactory;
 			void*                     m_pItems;
 			size_t                    m_itemCount;
 		};
 
 		template <class TItem>
-		CItemListProxy_Writable<TItem>::CItemListProxy_Writable(core::IItemList& itemList)
+		CItemListProxy_Writable<TItem>::CItemListProxy_Writable(Core::IItemList& itemList)
 			: m_itemList(itemList)
 			, m_itemFactory(itemList.GetItemFactory())
-			, m_pItems(nullptr)
-			, m_itemCount(0)
+			, m_pItems(itemList.GetItems())         // this may be or may not point to potentially created items, depending on whether the underlying item-list had been filled in a previous roundtrip already
+			, m_itemCount(itemList.GetItemCount())  // ditto
 		{
 			// ensure type correctness (this presumes that given item-list has already been provided with an item-factory)
-			assert(itemList.GetItemFactory().GetItemType() == shared::SDataTypeHelper<TItem>::GetTypeInfo());
+			assert(itemList.GetItemFactory().GetItemType() == Shared::SDataTypeHelper<TItem>::GetTypeInfo());
 		}
 
 		template <class TItem>
 		void CItemListProxy_Writable<TItem>::CreateItemsByItemFactory(size_t numItemsToCreate)
 		{
 			m_itemList.CreateItemsByItemFactory(numItemsToCreate);
+
+			// retrieve the items in case they hadn't been created in a previous roundtrip
 			m_pItems = m_itemList.GetItems();
 			m_itemCount = numItemsToCreate;
 		}
@@ -124,7 +126,7 @@ namespace uqs
 		}
 
 		template <class TItem>
-		core::IItemList& CItemListProxy_Writable<TItem>::GetUnderlyingItemList()
+		Core::IItemList& CItemListProxy_Writable<TItem>::GetUnderlyingItemList()
 		{
 			return m_itemList;
 		}

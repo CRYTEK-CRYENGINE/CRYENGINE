@@ -36,8 +36,8 @@ if (WIN32 OR WIN64)
 
 	target_include_directories( ${THIS_PROJECT}
 	PRIVATE
-		${CRYENGINE_DIR}/Code/SDKs/OculusSDK/LibOVR/Include
-		${CRYENGINE_DIR}/Code/CryEngine/CryCommon
+		"${CRYENGINE_DIR}/Code/SDKs/OculusSDK/LibOVR/Include"
+		"${CRYENGINE_DIR}/Code/CryEngine/CryCommon"
 	PUBLIC
 		../Interface
 	)

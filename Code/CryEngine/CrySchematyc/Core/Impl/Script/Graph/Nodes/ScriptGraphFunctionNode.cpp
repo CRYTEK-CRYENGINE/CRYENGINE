@@ -1,21 +1,20 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #include "StdAfx.h"
 #include "Script/Graph/Nodes/ScriptGraphFunctionNode.h"
 
 #include <CrySerialization/Decorators/ActionButton.h>
-#include <Schematyc/Compiler/CompilerContext.h>
-#include <Schematyc/Compiler/IGraphNodeCompiler.h>
-#include <Schematyc/Env/IEnvRegistry.h>
-#include <Schematyc/Env/Elements/IEnvComponent.h>
-#include <Schematyc/Env/Elements/IEnvFunction.h>
-#include <Schematyc/Script/IScriptRegistry.h>
-#include <Schematyc/Script/Elements/IScriptComponentInstance.h>
-#include <Schematyc/Script/Elements/IScriptFunction.h>
-#include <Schematyc/Utils/Any.h>
-#include <Schematyc/Utils/IGUIDRemapper.h>
-#include <Schematyc/Utils/Properties.h>
-#include <Schematyc/Utils/StackString.h>
+#include <CrySchematyc/Compiler/CompilerContext.h>
+#include <CrySchematyc/Compiler/IGraphNodeCompiler.h>
+#include <CrySchematyc/Env/IEnvRegistry.h>
+#include <CrySchematyc/Env/Elements/IEnvComponent.h>
+#include <CrySchematyc/Env/Elements/IEnvFunction.h>
+#include <CrySchematyc/Script/IScriptRegistry.h>
+#include <CrySchematyc/Script/Elements/IScriptComponentInstance.h>
+#include <CrySchematyc/Script/Elements/IScriptFunction.h>
+#include <CrySchematyc/Utils/Any.h>
+#include <CrySchematyc/Utils/IGUIDRemapper.h>
+#include <CrySchematyc/Utils/StackString.h>
 
 #include "Object.h"
 #include "Runtime/RuntimeClass.h"
@@ -26,6 +25,7 @@
 
 namespace Schematyc
 {
+
 CScriptGraphFunctionNode::SEnvGlobalFunctionRuntimeData::SEnvGlobalFunctionRuntimeData(const IEnvFunction* _pEnvFunction)
 	: pEnvFunction(_pEnvFunction)
 {}
@@ -34,9 +34,9 @@ CScriptGraphFunctionNode::SEnvGlobalFunctionRuntimeData::SEnvGlobalFunctionRunti
 	: pEnvFunction(rhs.pEnvFunction)
 {}
 
-SGUID CScriptGraphFunctionNode::SEnvGlobalFunctionRuntimeData::ReflectSchematycType(CTypeInfo<CScriptGraphFunctionNode::SEnvGlobalFunctionRuntimeData>& typeInfo)
+void CScriptGraphFunctionNode::SEnvGlobalFunctionRuntimeData::ReflectType(CTypeDesc<CScriptGraphFunctionNode::SEnvGlobalFunctionRuntimeData>& desc)
 {
-	return "90c48655-4a34-49cc-a618-44ae349c9c7b"_schematyc_guid;
+	desc.SetGUID("90c48655-4a34-49cc-a618-44ae349c9c7b"_cry_guid);
 }
 
 CScriptGraphFunctionNode::SEnvComponentFunctionRuntimeData::SEnvComponentFunctionRuntimeData(const IEnvFunction* _pEnvFunction, uint32 _componentIdx)
@@ -49,9 +49,9 @@ CScriptGraphFunctionNode::SEnvComponentFunctionRuntimeData::SEnvComponentFunctio
 	, componentIdx(rhs.componentIdx)
 {}
 
-SGUID CScriptGraphFunctionNode::SEnvComponentFunctionRuntimeData::ReflectSchematycType(CTypeInfo<CScriptGraphFunctionNode::SEnvComponentFunctionRuntimeData>& typeInfo)
+void CScriptGraphFunctionNode::SEnvComponentFunctionRuntimeData::ReflectType(CTypeDesc<CScriptGraphFunctionNode::SEnvComponentFunctionRuntimeData>& desc)
 {
-	return "205a9972-3dc7-4d20-97f6-a322ae2d9e37"_schematyc_guid;
+	desc.SetGUID("205a9972-3dc7-4d20-97f6-a322ae2d9e37"_cry_guid);
 }
 
 CScriptGraphFunctionNode::SScriptFunctionRuntimeData::SScriptFunctionRuntimeData(uint32 _functionIdx)
@@ -62,19 +62,19 @@ CScriptGraphFunctionNode::SScriptFunctionRuntimeData::SScriptFunctionRuntimeData
 	: functionIdx(rhs.functionIdx)
 {}
 
-SGUID CScriptGraphFunctionNode::SScriptFunctionRuntimeData::ReflectSchematycType(CTypeInfo<CScriptGraphFunctionNode::SScriptFunctionRuntimeData>& typeInfo)
+void CScriptGraphFunctionNode::SScriptFunctionRuntimeData::ReflectType(CTypeDesc<CScriptGraphFunctionNode::SScriptFunctionRuntimeData>& desc)
 {
-	return "e049b617-7e1e-4f61-aefc-b827e5d353f5"_schematyc_guid;
+	desc.SetGUID("e049b617-7e1e-4f61-aefc-b827e5d353f5"_cry_guid);
 }
 
 CScriptGraphFunctionNode::CScriptGraphFunctionNode() {}
 
-CScriptGraphFunctionNode::CScriptGraphFunctionNode(const SElementId& functionId, const SGUID& objectGUID)
+CScriptGraphFunctionNode::CScriptGraphFunctionNode(const SElementId& functionId, const CryGUID& objectGUID)
 	: m_functionId(functionId)
 	, m_objectGUID(objectGUID)
 {}
 
-SGUID CScriptGraphFunctionNode::GetTypeGUID() const
+CryGUID CScriptGraphFunctionNode::GetTypeGUID() const
 {
 	return ms_typeGUID;
 }
@@ -94,8 +94,8 @@ void CScriptGraphFunctionNode::CreateLayout(CScriptGraphNodeLayout& layout)
 
 	if (!GUID::IsEmpty(m_functionId.guid))
 	{
-		layout.AddInput("In", SGUID(), { EScriptGraphPortFlags::Flow, EScriptGraphPortFlags::MultiLink });
-		layout.AddOutput("Out", SGUID(), EScriptGraphPortFlags::Flow);
+		layout.AddInput("In", CryGUID(), { EScriptGraphPortFlags::Flow, EScriptGraphPortFlags::MultiLink });
+		layout.AddOutput("Out", CryGUID(), EScriptGraphPortFlags::Flow);
 
 		IEnvRegistry& envRegistry = gEnv->pSchematyc->GetEnvRegistry();
 		switch (m_functionId.domain)
@@ -114,7 +114,7 @@ void CScriptGraphFunctionNode::CreateLayout(CScriptGraphNodeLayout& layout)
 		case EDomain::Script:
 			{
 				const IScriptElement* pScriptElement = gEnv->pSchematyc->GetScriptRegistry().GetElement(m_functionId.guid); // #SchematycTODO : Should we be using a script view to retrieve this?
-				if (pScriptElement && (pScriptElement->GetElementType() == EScriptElementType::Function))
+				if (pScriptElement && (pScriptElement->GetType() == EScriptElementType::Function))
 				{
 					subject.append(pScriptElement->GetName());
 
@@ -144,7 +144,7 @@ void CScriptGraphFunctionNode::Compile(SCompilerContext& context, IGraphNodeComp
 					{
 						if (GUID::IsEmpty(m_objectGUID))
 						{
-							if (!pEnvFunction->GetFlags().Check(EEnvFunctionFlags::Member))
+							if (!pEnvFunction->GetFunctionFlags().Check(EEnvFunctionFlags::Member))
 							{
 								compiler.BindCallback(&ExecuteEnvGlobalFunction);
 								compiler.BindData(SEnvGlobalFunctionRuntimeData(pEnvFunction));
@@ -159,12 +159,12 @@ void CScriptGraphFunctionNode::Compile(SCompilerContext& context, IGraphNodeComp
 							const IScriptElement* pScriptObject = gEnv->pSchematyc->GetScriptRegistry().GetElement(m_objectGUID);
 							if (pScriptObject)
 							{
-								switch (pScriptObject->GetElementType())
+								switch (pScriptObject->GetType())
 								{
 								case EScriptElementType::ComponentInstance:
 									{
 										const IScriptComponentInstance& scriptComponentInstance = DynamicCast<IScriptComponentInstance>(*pScriptObject);
-										if (scriptComponentInstance.GetTypeGUID() == pEnvFunction->GetObjectTypeInfo()->GetGUID()) // #SchematycTODO : Check type info before dereferencing?
+										if (scriptComponentInstance.GetTypeGUID() == pEnvFunction->GetObjectTypeDesc()->GetGUID()) // #SchematycTODO : Check object type desc is not null before dereferencing?
 										{
 											compiler.BindCallback(&ExecuteEnvComponentFunction);
 
@@ -227,6 +227,12 @@ void CScriptGraphFunctionNode::LoadDependencies(Serialization::IArchive& archive
 	archive(m_objectGUID, "objectGUID");
 }
 
+void CScriptGraphFunctionNode::Load(Serialization::IArchive& archive, const ISerializationContext& context)
+{
+	archive(m_functionId, "functionId");
+	archive(m_objectGUID, "objectGUID");
+}
+
 void CScriptGraphFunctionNode::Save(Serialization::IArchive& archive, const ISerializationContext& context)
 {
 	archive(m_functionId, "functionId");
@@ -254,7 +260,7 @@ void CScriptGraphFunctionNode::Validate(Serialization::IArchive& archive, const 
 				const IEnvFunction* pEnvFunction = gEnv->pSchematyc->GetEnvRegistry().GetFunction(m_functionId.guid);
 				if (pEnvFunction)
 				{
-					if (pEnvFunction->GetElementFlags().Check(EEnvElementFlags::Deprecated))
+					if (pEnvFunction->GetFlags().Check(EEnvElementFlags::Deprecated))
 					{
 						archive.warning(*this, "Function is deprecated!");
 					}
@@ -288,7 +294,7 @@ void CScriptGraphFunctionNode::Register(CScriptGraphNodeFactory& factory)
 		{
 		public:
 
-			CCreationCommand(const char* szSubject, const char* szDescription, const SElementId& functionId, const SGUID& objectGUID = SGUID())
+			CCreationCommand(const char* szSubject, const char* szDescription, const SElementId& functionId, const CryGUID& objectGUID = CryGUID())
 				: m_subject(szSubject)
 				, m_description(szDescription)
 				, m_functionId(functionId)
@@ -329,19 +335,19 @@ void CScriptGraphFunctionNode::Register(CScriptGraphNodeFactory& factory)
 			string     m_subject;
 			string     m_description;
 			SElementId m_functionId;
-			SGUID      m_objectGUID;
+			CryGUID    m_objectGUID;
 		};
 
 	public:
 
 		// IScriptGraphNodeCreator
 
-		virtual SGUID GetTypeGUID() const override
+		virtual CryGUID GetTypeGUID() const override
 		{
 			return CScriptGraphFunctionNode::ms_typeGUID;
 		}
 
-		virtual IScriptGraphNodePtr CreateNode(const SGUID& guid) override
+		virtual IScriptGraphNodePtr CreateNode(const CryGUID& guid) override
 		{
 			return std::make_shared<CScriptGraphNode>(guid, stl::make_unique<CScriptGraphFunctionNode>());
 		}
@@ -350,15 +356,15 @@ void CScriptGraphFunctionNode::Register(CScriptGraphNodeFactory& factory)
 		{
 			struct SObject
 			{
-				inline SObject(const SGUID& _guid, const SGUID& _typeGUID, const char* szName)
+				inline SObject(const CryGUID& _guid, const CryGUID& _typeGUID, const char* szName)
 					: guid(_guid)
 					, typeGUID(_typeGUID)
 					, name(szName)
 				{}
 
-				SGUID  guid;
-				SGUID  typeGUID;
-				string name;
+				CryGUID guid;
+				CryGUID typeGUID;
+				string  name;
 			};
 
 			const EScriptGraphType graphType = graph.GetType();
@@ -373,29 +379,31 @@ void CScriptGraphFunctionNode::Register(CScriptGraphNodeFactory& factory)
 			auto visitScriptComponentInstance = [&scriptView, &objects](const IScriptComponentInstance& scriptComponentInstance) -> EVisitStatus
 			{
 				CStackString name;
-				scriptView.QualifyName(scriptComponentInstance, EDomainQualifier::Global, name);
+				//scriptView.QualifyName(scriptComponentInstance, EDomainQualifier::Global, name);
+				name = "Components::";
+				name += scriptComponentInstance.GetName();
 				objects.emplace_back(scriptComponentInstance.GetGUID(), scriptComponentInstance.GetTypeGUID(), name.c_str());
 				return EVisitStatus::Continue;
 			};
-			scriptView.VisitScriptComponentInstances(ScriptComponentInstanceConstVisitor::FromLambda(visitScriptComponentInstance), EDomainScope::Derived);
+			scriptView.VisitScriptComponentInstances(visitScriptComponentInstance, EDomainScope::Derived);
 
 			auto visitEnvFunction = [&nodeCreationMenu, &scriptView, graphType, &objects](const IEnvFunction& envFunction) -> EVisitStatus
 			{
-				if (envFunction.GetElementFlags().Check(EEnvElementFlags::Deprecated))
+				if (envFunction.GetFlags().Check(EEnvElementFlags::Deprecated))
 				{
 					return EVisitStatus::Continue;
 				}
 
 				// #SchematycTODO : Create utility functions to determine which nodes are callable from which graphs?
 
-				if ((graphType == EScriptGraphType::Construction) && !envFunction.GetFlags().Check(EEnvFunctionFlags::Construction))
+				if ((graphType == EScriptGraphType::Construction) && !envFunction.GetFunctionFlags().Check(EEnvFunctionFlags::Construction))
 				{
 					return EVisitStatus::Continue;
 				}
 
-				if (envFunction.GetFlags().Check(EEnvFunctionFlags::Member))
+				if (envFunction.GetFunctionFlags().Check(EEnvFunctionFlags::Member))
 				{
-					const SGUID objectTypeGUID = envFunction.GetObjectTypeInfo()->GetGUID();
+					const CryGUID objectTypeGUID = envFunction.GetObjectTypeDesc()->GetGUID();
 					for (SObject& object : objects)
 					{
 						if (object.typeGUID == objectTypeGUID)
@@ -415,7 +423,7 @@ void CScriptGraphFunctionNode::Register(CScriptGraphNodeFactory& factory)
 				}
 				return EVisitStatus::Continue;
 			};
-			gEnv->pSchematyc->GetEnvRegistry().VisitFunctions(EnvFunctionConstVisitor::FromLambda(visitEnvFunction));
+			gEnv->pSchematyc->GetEnvRegistry().VisitFunctions(visitEnvFunction);
 
 			if (graphType == EScriptGraphType::Construction)
 			{
@@ -429,7 +437,19 @@ void CScriptGraphFunctionNode::Register(CScriptGraphNodeFactory& factory)
 				nodeCreationMenu.AddCommand(std::make_shared<CCreationCommand>(subject.c_str(), scriptFunction.GetDescription(), SElementId(EDomain::Script, scriptFunction.GetGUID())));
 				return EVisitStatus::Continue;
 			};
-			scriptView.VisitScriptFunctions(ScriptFunctionConstVisitor::FromLambda(visitScriptFunction));
+			scriptView.VisitScriptFunctions(visitScriptFunction);
+
+			// Library functions
+			CScriptView gloablView(gEnv->pSchematyc->GetScriptRegistry().GetRootElement().GetGUID());
+			auto visitLibraries = [&nodeCreationMenu](const IScriptFunction& scriptFunction) -> EVisitStatus
+			{
+				CStackString subject;
+				QualifyScriptElementName(gEnv->pSchematyc->GetScriptRegistry().GetRootElement(), scriptFunction, EDomainQualifier::Global, subject);
+				nodeCreationMenu.AddCommand(std::make_shared<CCreationCommand>(subject.c_str(), scriptFunction.GetDescription(), SElementId(EDomain::Script, scriptFunction.GetGUID())));
+
+				return EVisitStatus::Continue;
+			};
+			gloablView.VisitScriptModuleFunctions(visitLibraries);
 		}
 
 		// ~IScriptGraphNodeCreator
@@ -445,7 +465,7 @@ void CScriptGraphFunctionNode::CreateInputsAndOutputs(CScriptGraphNodeLayout& la
 		CAnyConstPtr pData = envFunction.GetInputData(inputIdx);
 		if (pData)
 		{
-			layout.AddInputWithData(CGraphPortId::FromUniqueId(envFunction.GetInputId(inputIdx)), envFunction.GetInputName(inputIdx), pData->GetTypeInfo().GetGUID(), { EScriptGraphPortFlags::Data, EScriptGraphPortFlags::Persistent, EScriptGraphPortFlags::Editable }, *pData);
+			layout.AddInputWithData(CUniqueId::FromUInt32(envFunction.GetInputId(inputIdx)), envFunction.GetInputName(inputIdx), pData->GetTypeDesc().GetGUID(), { EScriptGraphPortFlags::Data, EScriptGraphPortFlags::Persistent, EScriptGraphPortFlags::Editable }, *pData);
 		}
 	}
 
@@ -454,7 +474,7 @@ void CScriptGraphFunctionNode::CreateInputsAndOutputs(CScriptGraphNodeLayout& la
 		CAnyConstPtr pData = envFunction.GetOutputData(outputIdx);
 		if (pData)
 		{
-			layout.AddOutputWithData(CGraphPortId::FromUniqueId(envFunction.GetOutputId(outputIdx)), envFunction.GetOutputName(outputIdx), pData->GetTypeInfo().GetGUID(), { EScriptGraphPortFlags::Data, EScriptGraphPortFlags::MultiLink }, *pData);
+			layout.AddOutputWithData(CUniqueId::FromUInt32(envFunction.GetOutputId(outputIdx)), envFunction.GetOutputName(outputIdx), pData->GetTypeDesc().GetGUID(), { EScriptGraphPortFlags::Data, EScriptGraphPortFlags::MultiLink }, *pData);
 		}
 	}
 }
@@ -466,7 +486,7 @@ void CScriptGraphFunctionNode::CreateInputsAndOutputs(CScriptGraphNodeLayout& la
 		CAnyConstPtr pData = scriptFunction.GetInputData(inputIdx);
 		if (pData)
 		{
-			layout.AddInputWithData(CGraphPortId::FromGUID(scriptFunction.GetInputGUID(inputIdx)), scriptFunction.GetInputName(inputIdx), pData->GetTypeInfo().GetGUID(), { EScriptGraphPortFlags::Data, EScriptGraphPortFlags::Persistent, EScriptGraphPortFlags::Editable }, *pData);
+			layout.AddInputWithData(CUniqueId::FromGUID(scriptFunction.GetInputGUID(inputIdx)), scriptFunction.GetInputName(inputIdx), pData->GetTypeDesc().GetGUID(), { EScriptGraphPortFlags::Data, EScriptGraphPortFlags::Persistent, EScriptGraphPortFlags::Editable }, *pData);
 		}
 	}
 
@@ -475,7 +495,7 @@ void CScriptGraphFunctionNode::CreateInputsAndOutputs(CScriptGraphNodeLayout& la
 		CAnyConstPtr pData = scriptFunction.GetOutputData(outputIdx);
 		if (pData)
 		{
-			layout.AddOutputWithData(CGraphPortId::FromGUID(scriptFunction.GetInputGUID(outputIdx)), scriptFunction.GetOutputName(outputIdx), pData->GetTypeInfo().GetGUID(), { EScriptGraphPortFlags::Data, EScriptGraphPortFlags::MultiLink }, *pData);
+			layout.AddOutputWithData(CUniqueId::FromGUID(scriptFunction.GetOutputGUID(outputIdx)), scriptFunction.GetOutputName(outputIdx), pData->GetTypeDesc().GetGUID(), { EScriptGraphPortFlags::Data, EScriptGraphPortFlags::MultiLink }, *pData);
 		}
 	}
 }
@@ -489,7 +509,10 @@ SRuntimeResult CScriptGraphFunctionNode::ExecuteEnvGlobalFunction(SRuntimeContex
 {
 	SEnvGlobalFunctionRuntimeData& data = DynamicCast<SEnvGlobalFunctionRuntimeData>(*context.node.GetData());
 
-	data.pEnvFunction->Execute(context, nullptr);
+	StackRuntimeParamMap params;
+	context.node.BindParams(params); // #SchematycTODO : Rather than populating the runtime parameter map every time we reference a node it might make more sense to pre-allocate node instances every time we instantiate a graph.
+
+	data.pEnvFunction->Execute(params, nullptr);
 
 	return SRuntimeResult(ERuntimeStatus::Continue, EOutputIdx::Out);
 }
@@ -497,9 +520,13 @@ SRuntimeResult CScriptGraphFunctionNode::ExecuteEnvGlobalFunction(SRuntimeContex
 SRuntimeResult CScriptGraphFunctionNode::ExecuteEnvComponentFunction(SRuntimeContext& context, const SRuntimeActivationParams& activationParams)
 {
 	SEnvComponentFunctionRuntimeData& data = DynamicCast<SEnvComponentFunctionRuntimeData>(*context.node.GetData());
-	CComponent* pEnvComponent = static_cast<CObject*>(context.pObject)->GetComponent(data.componentIdx);  // #SchematycTODO : How can we ensure this pointer is correct for the implementation, not just the interface?
+	void* pComponent = static_cast<CObject*>(context.pObject)->GetComponent(data.componentIdx); // #SchematycTODO : How can we ensure this pointer is correct for the implementation, not just the interface?
+	assert(pComponent);
 
-	data.pEnvFunction->Execute(context, pEnvComponent);
+	StackRuntimeParamMap params;
+	context.node.BindParams(params); // #SchematycTODO : Rather than populating the runtime parameter map every time we reference a node it might make more sense to pre-allocate node instances every time we instantiate a graph.
+
+	data.pEnvFunction->Execute(params, pComponent);
 
 	return SRuntimeResult(ERuntimeStatus::Continue, EOutputIdx::Out);
 }
@@ -508,33 +535,16 @@ SRuntimeResult CScriptGraphFunctionNode::ExecuteScriptFunction(SRuntimeContext& 
 {
 	SScriptFunctionRuntimeData& data = DynamicCast<SScriptFunctionRuntimeData>(*context.node.GetData());
 
-	CRuntimeParams params;
-	for (uint8 inputIdx = EInputIdx::FirstParam, inputCount = context.node.GetInputCount(); inputIdx < inputCount; ++inputIdx)
-	{
-		if (context.node.IsDataInput(inputIdx))
-		{
-			params.SetInput(inputIdx - EInputIdx::FirstParam, *context.node.GetInputData(inputIdx));
-		}
-	}
+	StackRuntimeParamMap params;
+	context.node.BindParams(params); // #SchematycTODO : Rather than populating the runtime parameter map every time we reference a node it might make more sense to pre-allocate node instances every time we instantiate a graph.
 
 	static_cast<CObject*>(context.pObject)->ExecuteFunction(data.functionIdx, params);
-
-	for (uint8 outputIdx = EOutputIdx::FirstParam, outputCount = context.node.GetOutputCount(); outputIdx < outputCount; ++outputIdx)
-	{
-		if (context.node.IsDataOutput(outputIdx))
-		{
-			CAnyConstPtr pSrcValue = params.GetOutput(outputIdx - EOutputIdx::FirstParam);
-			if (pSrcValue)
-			{
-				Any::CopyAssign(*context.node.GetOutputData(outputIdx), *pSrcValue);
-			}
-		}
-	}
 
 	return SRuntimeResult(ERuntimeStatus::Continue, EOutputIdx::Out);
 }
 
-const SGUID CScriptGraphFunctionNode::ms_typeGUID = "1bcfd811-b8b7-4032-a90c-311dfa4454c6"_schematyc_guid;
+const CryGUID CScriptGraphFunctionNode::ms_typeGUID = "1bcfd811-b8b7-4032-a90c-311dfa4454c6"_cry_guid;
+
 } // Schematyc
 
 SCHEMATYC_REGISTER_SCRIPT_GRAPH_NODE(Schematyc::CScriptGraphFunctionNode::Register)

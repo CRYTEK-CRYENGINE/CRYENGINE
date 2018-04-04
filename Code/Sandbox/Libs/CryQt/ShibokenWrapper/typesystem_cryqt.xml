@@ -1,0 +1,133 @@
+<?xml version="1.0"?>
+<!-- https://github.com/PySide/Shiboken/blob/master/ApiExtractor/doc/typesystem_specifying_types.rst -->
+<typesystem package="_CryQt">
+	<load-typesystem name="typesystem_core.xml" generate="no"/>
+    <load-typesystem name="typesystem_gui.xml" generate="no" />
+	<load-typesystem name="typesystem_widgets.xml" generate="no" />
+
+    <template name="fix_interface_return">
+        %END_ALLOW_THREADS
+        void* ptr = dynamic_cast&lt;void*&gt;(%0);
+        %PYARG_0 = %CONVERTTOPYTHON[%RETURN_TYPE](ptr);
+    </template>
+    <template name="fix_interface_0args">
+        %BEGIN_ALLOW_THREADS
+        %RETURN_TYPE %0 = %CPPSELF.%FUNCTION_NAME();
+        <insert-template name="fix_interface_return"/>
+    </template>
+    <template name="fix_interface_1args">
+        %BEGIN_ALLOW_THREADS
+        %RETURN_TYPE %0 = %CPPSELF.%FUNCTION_NAME(%1);
+        <insert-template name="fix_interface_return"/>
+    </template>
+    <template name="fix_interface_2args">
+        %BEGIN_ALLOW_THREADS
+        %RETURN_TYPE %0 = %CPPSELF.%FUNCTION_NAME(%1, %2);
+        <insert-template name="fix_interface_return"/>
+    </template>
+    <template name="fix_interface_3args">
+        %BEGIN_ALLOW_THREADS
+        %RETURN_TYPE %0 = %CPPSELF.%FUNCTION_NAME(%1, %2, %3);
+        <insert-template name="fix_interface_return"/>
+    </template>   
+    
+    <object-type name="CryIcon" />
+    <object-type name="QRollupBar" />
+    <object-type name="QCollapsibleFrame" />
+    <object-type name="QScrollableBox" />
+  <!-- QToolWindowManager -->
+	<enum-type name="QTWMReleaseCachingPolicy"/>
+	<enum-type name="QTWMWrapperAreaType"/>
+    <enum-type name="QTWMToolType"/>
+	<interface-type name="IToolWindowArea">
+      <modify-function signature="wrapper()">
+            <inject-code class="target" position="beginning">
+                <insert-template name="fix_interface_0args" />
+            </inject-code>
+        </modify-function>        
+    </interface-type>
+	<interface-type name="IToolWindowWrapper" />
+ 	<interface-type name="IToolWindowDragHandler">
+		<value-type name="SplitSizes"/>
+	</interface-type>
+  
+	<value-type name="QToolWindowAreaTarget" />
+	<value-type name="QToolWindowAreaReference">
+		<enum-type name="eType"/>
+	</value-type>
+  
+	<object-type name="QCustomTitleBar" />
+	<object-type name="QCustomWindowFrame">
+        <modify-field name="dwmExtendFrameIntoClientArea"  remove='all' />
+        <modify-field name="m_dwm"  remove='all' />
+    </object-type>
+	<object-type name="QToolWindowArea"/>
+	<object-type name="QToolWindowRollupBarArea"/>
+	<object-type name="QToolWindowCustomTitleBar" />
+ 	<object-type name="QToolWindowCustomWrapper" />
+	<object-type name="QToolWindowDropTarget" />
+	<object-type name="QToolWindowDragHandlerDropTargets" />
+	<object-type name="QToolWindowDragHandlerNinePatch" />
+	<object-type name="QToolWindowManagerClassFactory">
+        <modify-function signature="createArea(QToolWindowManager*,QWidget*,QTWMWrapperAreaType)">
+            <inject-code class="target" position="beginning">
+                <insert-template name="fix_interface_2args" />
+            </inject-code>
+        </modify-function>    
+        <modify-function signature="createWrapper(QToolWindowManager*)">
+            <inject-code class="target" position="beginning">
+                <insert-template name="fix_interface_1args" />
+            </inject-code>
+        </modify-function>   
+        <modify-function signature="createDragHandler(QToolWindowManager*)">
+            <inject-code class="target" position="beginning">
+                <insert-template name="fix_interface_1args" />
+            </inject-code>
+        </modify-function>          
+    </object-type>
+ 	<object-type name="QToolWindowManager">
+        <modify-function signature="areaOf(QWidget*)">
+            <inject-code class="target" position="beginning">
+                <insert-template name="fix_interface_1args" />
+            </inject-code>
+        </modify-function>
+        <modify-function signature="createWrapper()">
+            <inject-code class="target" position="beginning">
+                <insert-template name="fix_interface_0args" />
+            </inject-code>
+        </modify-function>
+        <modify-function signature="createArea()">
+            <inject-code class="target" position="beginning">
+                <insert-template name="fix_interface_0args" />
+            </inject-code>
+        </modify-function>
+        <modify-function signature="draggedWrapper()">
+            <inject-code class="target" position="beginning">
+                <insert-template name="fix_interface_0args" />
+            </inject-code>
+        </modify-function>        
+        <modify-function signature="restoreWrapperState(const QVariantMap&amp;, int, IToolWindowWrapper*)">
+            <inject-code class="target" position="beginning">
+                <insert-template name="fix_interface_3args" />
+            </inject-code>
+        </modify-function>
+        <modify-function signature="getClosestParentArea(QWidget*)">
+            <inject-code class="target" position="beginning">
+                <insert-template name="fix_interface_1args" />                
+            </inject-code>
+        </modify-function>
+        <modify-function signature="getFurthestParentArea(QWidget*)">
+            <inject-code class="target" position="beginning">
+                <insert-template name="fix_interface_1args" />
+            </inject-code>
+        </modify-function>      
+        <modify-function signature="createDragHandler()">
+            <inject-code class="target" position="beginning">
+                <insert-template name="fix_interface_0args" />
+            </inject-code>
+        </modify-function>             
+    </object-type>
+	<object-type name="QToolWindowTabBar" />
+	<object-type name="QToolWindowWrapper" />
+    <function signature="registerMainWindow(QMainWindow*)"/>
+</typesystem>

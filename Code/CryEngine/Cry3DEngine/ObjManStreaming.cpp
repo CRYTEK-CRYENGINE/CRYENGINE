@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 // -------------------------------------------------------------------------
 //  File name:   statobjman.cpp
@@ -1066,7 +1066,6 @@ void CObjManager::UpdateRenderNodeStreamingPriority(IRenderNode* pObj, float fEn
 	case eERType_FogVolume:
 		fObjScale = max(0.001f, ((CFogVolumeRenderNode*)pObj)->CFogVolumeRenderNode::GetMatrix().GetColumn0().GetLength());
 		break;
-	case eERType_Cloud:
 	case eERType_DistanceCloud:
 		fObjScale = max(0.001f, pObj->GetBBox().GetRadius());
 		break;
@@ -1115,7 +1114,7 @@ void CObjManager::UpdateRenderNodeStreamingPriority(IRenderNode* pObj, float fEn
 	if (nodeType == eERType_Brush || nodeType == eERType_Vegetation)
 	{
 		Matrix34A brushMatrix;
-		IStatObj* pStatObj = pObj->GetEntityStatObj(0, 0, &brushMatrix);
+		IStatObj* pStatObj = pObj->GetEntityStatObj(0, &brushMatrix);
 		if (pStatObj)
 		{
 			IMaterial* pStatObjMat = pStatObj->GetMaterial();
@@ -1150,7 +1149,7 @@ void CObjManager::UpdateRenderNodeStreamingPriority(IRenderNode* pObj, float fEn
 	}
 
 	Matrix34A matParent;
-	CStatObj* pStatObj = (CStatObj*)pObj->GetEntityStatObj(0, 0, &matParent, false);
+	CStatObj* pStatObj = (CStatObj*)pObj->GetEntityStatObj(0, &matParent, false);
 	if (pStatObj)
 	{
 		IMaterial* pStatObjMat = pStatObj->GetMaterial();

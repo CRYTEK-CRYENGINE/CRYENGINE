@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #pragma once
 
@@ -21,7 +21,7 @@ namespace Impl
 namespace Fmod
 {
 ///////////////////////////////////////////////////////////////////////////
-inline void FillFmodObjectPosition(SAudioObject3DAttributes const& inAttributes, FMOD_3D_ATTRIBUTES& outAttributes)
+inline void FillFmodObjectPosition(SObject3DAttributes const& inAttributes, FMOD_3D_ATTRIBUTES& outAttributes)
 {
 	outAttributes.forward.x = inAttributes.transformation.GetForward().x;
 	outAttributes.forward.z = inAttributes.transformation.GetForward().y;

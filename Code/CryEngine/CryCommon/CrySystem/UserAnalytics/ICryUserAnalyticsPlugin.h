@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #pragma once
 
@@ -8,14 +8,8 @@ struct IUserAnalytics;
 
 struct ICryUserAnalyticsPlugin : public ICryPlugin
 {
-	CRYINTERFACE_DECLARE(ICryUserAnalyticsPlugin, 0xC97AD475FD95416D, 0x9C3048B2D2C5B7F6);
+	CRYINTERFACE_DECLARE_GUID(ICryUserAnalyticsPlugin, "c97ad475-fd95-416d-9c30-48b2d2c5b7f6"_cry_guid);
 
 public:
 	virtual IUserAnalytics*         GetIUserAnalytics() const = 0;
-	static ICryUserAnalyticsPlugin* GetCryUserAnalytics() { return m_pThis; }
-
-protected:
-	static ICryUserAnalyticsPlugin* m_pThis;
 };
-
-ICryUserAnalyticsPlugin* ICryUserAnalyticsPlugin::m_pThis = 0;

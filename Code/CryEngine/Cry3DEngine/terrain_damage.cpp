@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 // -------------------------------------------------------------------------
 //  File name:   terrain_damage.cpp
@@ -56,7 +56,7 @@ bool CTerrain::RemoveObjectsInArea(Vec3 vExploPos, float fExploRadius)
 				{
 					//
 					Matrix34A objMat;
-					CStatObj* pStatObj = (CStatObj*)pRenderNode->GetEntityStatObj(0, 0, &objMat);
+					CStatObj* pStatObj = (CStatObj*)pRenderNode->GetEntityStatObj(0, &objMat);
 					if (!pStatObj)
 						continue;
 					objMat.Invert();

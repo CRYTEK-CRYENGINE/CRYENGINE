@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #include "stdafx.h"
 #include "ResponseInstance.h"
@@ -38,6 +38,3 @@ void CActionSendSignal::Serialize(Serialization::IArchive& ar)
 	ar(m_bCopyContextVariables, "copyContextVar", "^Copy Context Variable");
 }
 
-//--------------------------------------------------------------------------------------------------
-
-REGISTER_DRS_ACTION(CActionSendSignal, "SendSignal", DEFAULT_DRS_ACTION_COLOR);

@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #pragma once
 
@@ -31,7 +31,7 @@ public:
 	CRYINTERFACE_ADD(IAnimationOperatorQueue)
 	CRYINTERFACE_END()
 
-	CRYGENERATE_CLASS(COperatorQueue, "AnimationPoseModifier_OperatorQueue", 0xac90f2bc76a843ec, 0x9970463fb080a520);
+	CRYGENERATE_CLASS_GUID(COperatorQueue, "AnimationPoseModifier_OperatorQueue", "ac90f2bc-76a8-43ec-9970-463fb080a520"_cry_guid);
 
 	COperatorQueue();
 	virtual ~COperatorQueue() {}

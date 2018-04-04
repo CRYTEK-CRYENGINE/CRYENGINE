@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 // -------------------------------------------------------------------------
 //  File name:   terrain.h
@@ -206,6 +206,7 @@ struct CTextureCache : public Cry3DEngineBase
 	int    GetPoolTexDim() { return m_nPoolDim * m_nDim; }
 	void   ResetTexturePool();
 	int    GetPoolSize();
+	int		 GetPoolItemsNum();
 };
 
 #pragma pack(push,4)
@@ -505,7 +506,7 @@ public:
 	void CheckNodesGeomUnload(int nSID, const SRenderingPassInfo& passInfo);
 	void GetStreamingStatus(int& nLoadedSectors, int& nTotalSectors);
 	void InitTerrainWater(IMaterial* pTerrainWaterMat, int nWaterBottomTexId);
-	void ResetTerrainVertBuffers(const AABB* pBox, int nSID);
+	void ResetTerrainVertBuffers(const AABB* pBox, int nSID = GetDefSID());
 	void SetTerrainSectorTexture(int nTexSectorX, int nTexSectorY, unsigned int textureId, bool bMergeNotAllowed, int nSID = GetDefSID());
 	void SetDetailLayerProperties(int nId, float fScaleX, float fScaleY, uint8 ucProjAxis, const char* szSurfName, const PodArray<int>& lstnVegetationGroups, IMaterial* pMat, int nSID);
 	bool IsOceanVisible() { return m_bOceanIsVisible != 0; }
@@ -703,7 +704,6 @@ protected: // ------------------------------------------------------------------
 	PodArray<SBaseTexInfo>           m_arrBaseTexInfos;
 
 	_smart_ptr<IMaterial>            m_pTerrainEf;
-	_smart_ptr<IMaterial>            m_pImposterEf;
 
 	float                            m_fOceanWaterLevel;
 

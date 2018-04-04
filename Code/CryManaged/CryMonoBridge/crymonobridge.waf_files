@@ -50,7 +50,9 @@
 		"NativeToManagedInterfaces" :
 		[
 		  "NativeToManagedInterfaces/Entity.h",
-		  "NativeToManagedInterfaces/Entity.cpp"
+		  "NativeToManagedInterfaces/Entity.cpp",
+		  "NativeToManagedInterfaces/Console.h",
+		  "NativeToManagedInterfaces/Console.cpp"
 		]
 	},
 	"NoUberFile" :

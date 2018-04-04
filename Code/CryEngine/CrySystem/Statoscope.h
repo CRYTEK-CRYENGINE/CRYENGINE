@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 // -------------------------------------------------------------------------
 //  File name:   Statoscope.h
@@ -735,6 +735,7 @@ public:
 
 	static void ConsoleAddUserMarker(IConsoleCmdArgs* pParams);
 	static void OnLogDestinationCVarChange(ICVar* pVar);
+	static void OnTagCVarChange(ICVar* pVar);
 
 	//Screenshot capturing
 	virtual bool OnNeedFrameData(unsigned char*& pConvertedTextureBuf);

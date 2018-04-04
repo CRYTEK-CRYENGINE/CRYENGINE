@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #include "StdAfx.h"
 #include "ParticleSystem/ParticleFeature.h"
@@ -100,8 +100,7 @@ public:
 
 			const ColorF& cColor = light.m_Color;
 			const float spectralIntensity = cColor.r * 0.299f + cColor.g * 0.587f + cColor.b * 0.114f;
-			const Vec4* vLight = (Vec4*)&light.m_Origin.x;
-			if (spectralIntensity > minColorThreshold && vLight->w > minRadiusThreshold)
+			if (spectralIntensity > minColorThreshold && light.m_fRadius > minRadiusThreshold)
 			{
 				Get3DEngine()->SetupLightScissors(&light, passInfo);
 				light.m_n3DEngineUpdateFrameID = passInfo.GetMainFrameID();

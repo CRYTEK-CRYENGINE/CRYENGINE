@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 // -------------------------------------------------------------------------
 //  File name:   EntityClass.cpp
@@ -15,6 +15,9 @@
 #include "EntityClass.h"
 #include "EntityScript.h"
 
+#include <CrySchematyc/ICore.h>
+#include <CryFlowGraph/IFlowSystem.h>
+
 //////////////////////////////////////////////////////////////////////////
 CEntityClass::CEntityClass()
 {
@@ -30,6 +33,7 @@ CEntityClass::CEntityClass()
 //////////////////////////////////////////////////////////////////////////
 CEntityClass::~CEntityClass()
 {
+	SAFE_RELEASE(m_pIFlowNodeFactory);
 	SAFE_RELEASE(m_pEntityScript);
 }
 
@@ -173,9 +177,40 @@ bool CEntityClass::FindEventInfo(const char* sEvent, SEventInfo& event)
 	return true;
 }
 
+//////////////////////////////////////////////////////////////////////////
+void CEntityClass::SetClassDesc(const IEntityClassRegistry::SEntityClassDesc &classDesc)
+{
+	m_sName = classDesc.sName;
+	m_nFlags = classDesc.flags;
+	m_guid = classDesc.guid;
+	m_schematycRuntimeClassGuid = classDesc.schematycRuntimeClassGuid;
+	m_onSpawnCallback = classDesc.onSpawnCallback;
+	m_sScriptFile = classDesc.sScriptFile;
+	m_pfnUserProxyCreate = classDesc.pUserProxyCreateFunc;
+	m_pUserProxyUserData = classDesc.pUserProxyData;
+	m_pScriptFileHandler = classDesc.pScriptFileHandler;
+	m_EditorClassInfo = classDesc.editorClassInfo;
+	m_pEventHandler = classDesc.pEventHandler;
+
+	if (m_pIFlowNodeFactory)
+	{ 
+		m_pIFlowNodeFactory->Release();
+	}
+	m_pIFlowNodeFactory = classDesc.pIFlowNodeFactory;
+	if (m_pIFlowNodeFactory)
+	{
+		m_pIFlowNodeFactory->AddRef();
+	}
+}
+
 void CEntityClass::SetName(const char* sName)
 {
 	m_sName = sName;
+}
+
+void CEntityClass::SetGUID(const CryGUID& guid)
+{
+	m_guid = guid;
 }
 
 void CEntityClass::SetScriptFile(const char* sScriptFile)
@@ -202,6 +237,22 @@ void CEntityClass::SetEventHandler(IEntityEventHandler* pEventHandler)
 void CEntityClass::SetScriptFileHandler(IEntityScriptFileHandler* pScriptFileHandler)
 {
 	m_pScriptFileHandler = pScriptFileHandler;
+}
+
+void CEntityClass::SetOnSpawnCallback(const OnSpawnCallback &callback)
+{
+	m_onSpawnCallback = callback;
+}
+
+Schematyc::IRuntimeClassConstPtr CEntityClass::GetSchematycRuntimeClass() const
+{
+	if (!m_pSchematycRuntimeClass && !m_schematycRuntimeClassGuid.IsNull())
+	{
+		// Cache Schematyc runtime class pointer
+		m_pSchematycRuntimeClass = gEnv->pSchematyc->GetRuntimeRegistry().GetClass(m_schematycRuntimeClassGuid);
+	}
+
+	return m_pSchematycRuntimeClass;
 }
 
 IEntityEventHandler* CEntityClass::GetEventHandler() const

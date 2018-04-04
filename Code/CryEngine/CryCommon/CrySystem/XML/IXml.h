@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 // -------------------------------------------------------------------------
 //  File name:   ixml.h
@@ -94,6 +94,7 @@ public:
 	XmlNodeRef() : p(NULL) {}
 	XmlNodeRef(IXmlNode* p_);
 	XmlNodeRef(const XmlNodeRef& p_);
+	XmlNodeRef(XmlNodeRef&& other);
 
 	~XmlNodeRef();
 
@@ -104,6 +105,8 @@ public:
 
 	XmlNodeRef& operator=(IXmlNode* newp);
 	XmlNodeRef& operator=(const XmlNodeRef& newp);
+
+	XmlNodeRef& operator=(XmlNodeRef&& other);
 
 #if !defined(RESOURCE_COMPILER)
 	template<typename Sizer>
@@ -413,9 +416,29 @@ inline XmlNodeRef::XmlNodeRef(const XmlNodeRef& p_) : p(p_.p)
 	if (p) p->AddRef();
 }
 
+// Move constructor
+inline XmlNodeRef::XmlNodeRef(XmlNodeRef&& other)
+{
+	if (this != &other)
+	{
+		p = other.p;
+		other.p = nullptr;
+	}
+}
+
 inline XmlNodeRef::~XmlNodeRef()
 {
 	if (p) p->Release();
+}
+
+inline XmlNodeRef& XmlNodeRef::operator=(XmlNodeRef&& other)
+{
+	if (this != &other)
+	{
+		p = other.p;
+		other.p = nullptr;
+	}
+	return *this;
 }
 
 inline XmlNodeRef& XmlNodeRef::operator=(IXmlNode* newp)

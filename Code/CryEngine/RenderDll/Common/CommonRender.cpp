@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #include "StdAfx.h"
 
@@ -8,11 +8,6 @@ CNameTableR* CCryNameR::ms_table;
 // Resource manager internal variables.
 ResourceClassMap CBaseResource::m_sResources;
 CryCriticalSection CBaseResource::s_cResLock;
-
-CBaseResource& CBaseResource::operator=(const CBaseResource& Src)
-{
-	return *this;
-}
 
 bool CBaseResource::IsValid()
 {
@@ -188,85 +183,149 @@ void CBaseResource::ShutDown()
 	}
 }
 
-#ifdef MEMREPLAY_WRAP_D3D11
+//=================================================================
 
-const GUID MemReplayD3DAnnotation::s_guid = {
-	{ 0xff23dad0 }, { 0xd47b }, { 0x4d80 }, { 0xaf, 0x63, 0x7e, 0xf5, 0xea, 0x2c, 0x4a, 0x9d }
-};
+static const inline size_t NoAlign(size_t nSize) { return nSize; }
 
-MemReplayD3DAnnotation::MemReplayD3DAnnotation(ID3D11DeviceChild* pRes, size_t sz)
-	: m_nRefCount(0)
-	, m_pRes(pRes)
+void SResourceBinding::AddInvalidateCallback(void* pCallbackOwner, SResourceBindPoint bindPoint, const SResourceBinding::InvalidateCallbackFunction& callback) threadsafe const
 {
-	MEMREPLAY_SCOPE(EMemReplayAllocClass::C_D3DManaged, 0);
-	MEMREPLAY_SCOPE_ALLOC(pRes, sz, 0);
-}
-
-MemReplayD3DAnnotation::~MemReplayD3DAnnotation()
-{
-	MEMREPLAY_SCOPE(EMemReplayAllocClass::C_D3DManaged, 0);
-	MEMREPLAY_SCOPE_FREE(m_pRes);
-}
-
-void MemReplayD3DAnnotation::AddMap(UINT nSubRes, void* pData, size_t sz)
-{
-	MapDesc desc;
-	desc.nSubResource = nSubRes;
-	desc.pData = pData;
-	m_maps.push_back(desc);
-
-	MEMREPLAY_SCOPE(EMemReplayAllocClass::C_UserPointer, EMemReplayUserPointerClass::C_CryMalloc);
-	MEMREPLAY_SCOPE_ALLOC(pData, sz, 0);
-}
-
-void MemReplayD3DAnnotation::RemoveMap(UINT nSubRes)
-{
-	for (std::vector<MapDesc>::reverse_iterator it = m_maps.rbegin(), itEnd = m_maps.rend(); it != itEnd; ++it)
+	switch (type)
 	{
-		if (it->nSubResource == nSubRes)
-		{
-			MEMREPLAY_SCOPE(EMemReplayAllocClass::C_UserPointer, EMemReplayUserPointerClass::C_CryMalloc);
-			MEMREPLAY_SCOPE_FREE(it->pData);
-
-			m_maps.erase(m_maps.begin() + std::distance(&*m_maps.begin(), &*it));
-			if (m_maps.empty())
-				stl::free_container(m_maps);
-			break;
-		}
+		case EResourceType::ConstantBuffer:                                                                       break;
+		case EResourceType::Texture:        pTexture->AddInvalidateCallback(pCallbackOwner, bindPoint, callback); break;
+		case EResourceType::Buffer:         pBuffer->AddInvalidateCallback(pCallbackOwner, bindPoint, callback);  break;
+		case EResourceType::Sampler:                                                                              break;
+		default:                            CRY_ASSERT(false);
 	}
 }
 
-HRESULT MemReplayD3DAnnotation::QueryInterface(REFIID riid, void** ppvObject)
+void SResourceBinding::RemoveInvalidateCallback(void* pCallbackOwner, SResourceBindPoint bindPoint) threadsafe const
 {
-	if (riid == IID_IUnknown)
+	switch (type)
 	{
-		*reinterpret_cast<IUnknown**>(ppvObject) = this;
-		return S_OK;
+		case EResourceType::ConstantBuffer:                                                                       break;
+		case EResourceType::Texture:        pTexture->RemoveInvalidateCallbacks(pCallbackOwner, bindPoint);       break;
+		case EResourceType::Buffer:         pBuffer->RemoveInvalidateCallbacks(pCallbackOwner, bindPoint);        break;
+		case EResourceType::Sampler:                                                                              break;
+		default:                            CRY_ASSERT(false);
 	}
-
-	*ppvObject = NULL;
-	return E_NOINTERFACE;
 }
 
-ULONG MemReplayD3DAnnotation::AddRef()
+size_t CResourceBindingInvalidator::CountInvalidateCallbacks() threadsafe
 {
-	return ++m_nRefCount;
+	m_invalidationLock.RLock();
+	size_t count = m_invalidateCallbacks.size();
+	m_invalidationLock.RUnlock();
+
+	return count;
 }
 
-ULONG MemReplayD3DAnnotation::Release()
+void CResourceBindingInvalidator::AddInvalidateCallback(void* listener, const SResourceBindPoint bindPoint, const SResourceBinding::InvalidateCallbackFunction& callback) threadsafe
 {
-	ULONG nr = --m_nRefCount;
+	auto context = std::make_pair(listener, bindPoint);
 
-	if (!nr)
-		delete this;
-
-	return nr;
-}
-
+#if !CRY_PLATFORM_ORBIS || defined(__GXX_RTTI)
+	CRY_ASSERT(callback.target<SResourceBinding::InvalidateCallbackSignature*>() != nullptr);
 #endif
 
-CDeviceObjectFactory& CCryDeviceWrapper::GetObjectFactory()
+	m_invalidationLock.WLock();
+	auto insertResult = m_invalidateCallbacks.emplace(context, callback);
+	m_invalidationLock.WUnlock();
+
+	++insertResult.first->second.refCount;
+
+	// We only allow one callback function per listener
+#if !CRY_PLATFORM_ORBIS || defined(__GXX_RTTI)
+	CRY_ASSERT(*callback.target<SResourceBinding::InvalidateCallbackSignature*>() == *insertResult.first->second.callback.target<SResourceBinding::InvalidateCallbackSignature*>());
+#endif
+}
+
+void CResourceBindingInvalidator::RemoveInvalidateCallbacks(void* listener, const SResourceBindPoint bindPoint) threadsafe
 {
-	static CDeviceObjectFactory ext12;
-	return ext12;
+	typedef std::vector<SInvalidateRegistry::const_iterator, CryStack::CSingleBlockAllocator<SInvalidateRegistry::const_iterator>> StackErasureVector;
+	const bool bBatchRemoval = (bindPoint == SResourceBindPoint());
+	// If a bind-point is given the limit is 1, otherwise the limit is the maximum number of possible bind-points per listener (256 as in DX11s t0-t255)
+	const size_t erasureLimit = bBatchRemoval ? 256ULL /*m_invalidateCallbacks.size()*/ : 1ULL;
+
+	CryStackAllocatorWithSizeVector(SInvalidateRegistry::const_iterator, erasureLimit, erasureMem, NoAlign);
+	StackErasureVector erasureList(erasureMem);
+	erasureList.reserve(erasureLimit);
+
+	{
+		m_invalidationLock.RLock();
+
+		// remove all callback of this listener
+		if (bBatchRemoval)
+		{
+			for (auto it = m_invalidateCallbacks.begin(), end = m_invalidateCallbacks.end(); it != end;)
+			{
+				auto itCurrentCallback = it++;
+				auto context = itCurrentCallback->first;
+
+				bool bErase = (context.first == listener);
+				if (bErase)
+					erasureList.push_back(itCurrentCallback);
+			}
+		}
+		// remove one callback of this listener
+		else
+		{
+			auto context = std::make_pair(listener, bindPoint);
+			auto itCurrentCallback = m_invalidateCallbacks.find(context);
+
+			bool bErase = (itCurrentCallback != m_invalidateCallbacks.end()) && (--itCurrentCallback->second.refCount <= 0);
+			if (bErase)
+				erasureList.push_back(itCurrentCallback);
+		}
+
+		m_invalidationLock.RUnlock();
+	}
+
+	if (erasureList.size())
+	{
+		m_invalidationLock.WLock();
+		if (m_invalidateCallbacks.size() == erasureList.size())
+			m_invalidateCallbacks.clear();
+		else for (auto eraseIt = erasureList.begin(), end = erasureList.end(); eraseIt != end; ++eraseIt)
+			m_invalidateCallbacks.erase(*eraseIt);
+		m_invalidationLock.WUnlock();
+	}
+}
+
+void CResourceBindingInvalidator::InvalidateDeviceResource(UResourceReference pResource, uint32 dirtyFlags) threadsafe
+{
+	typedef std::vector<SInvalidateRegistry::const_iterator, CryStack::CSingleBlockAllocator<SInvalidateRegistry::const_iterator>> StackErasureVector;
+	const size_t erasureLimit = m_invalidateCallbacks.size();
+
+	CryStackAllocatorWithSizeVector(SInvalidateRegistry::const_iterator, erasureLimit, erasureMem, NoAlign);
+	StackErasureVector erasureList(erasureMem);
+	erasureList.reserve(erasureLimit);
+
+	{
+		m_invalidationLock.RLock();
+
+		for (auto it = m_invalidateCallbacks.begin(), end = m_invalidateCallbacks.end(); it != end;)
+		{
+			auto itCurrentCallback = it++;
+			auto context = itCurrentCallback->first;
+			auto callback = itCurrentCallback->second;
+
+			// Should we keep the callback? true/false
+			bool bKeep = callback.callback(context.first, context.second, pResource, dirtyFlags);
+			if (!bKeep)
+				erasureList.push_back(itCurrentCallback);
+		}
+
+		m_invalidationLock.RUnlock();
+	}
+
+	if (erasureList.size())
+	{
+		m_invalidationLock.WLock();
+		if (m_invalidateCallbacks.size() == erasureList.size())
+			m_invalidateCallbacks.clear();
+		else for (auto eraseIt = erasureList.begin(), end = erasureList.end(); eraseIt != end; ++eraseIt)
+			m_invalidateCallbacks.erase(*eraseIt);
+		m_invalidationLock.WUnlock();
+	}
 }

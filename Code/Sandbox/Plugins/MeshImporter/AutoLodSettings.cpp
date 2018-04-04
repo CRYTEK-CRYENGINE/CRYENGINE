@@ -4,11 +4,11 @@
 
 #include <CryString/CryString.h>
 #include <CrySerialization/IArchive.h>
-#include <yasli/Archive.h>
-#include <yasli/STL.h>
-#include <yasli/Enum.h>
-#include <yasli/JSONIArchive.h>
-#include <yasli/JSONOArchive.h>
+#include <CrySerialization/yasli/Archive.h>
+#include <CrySerialization/yasli/STL.h>
+#include <CrySerialization/yasli/Enum.h>
+#include <CrySerialization/yasli/JSONIArchive.h>
+#include <CrySerialization/yasli/JSONOArchive.h>
 
 void CAutoLodSettings::sGlobalParams::Serialize(yasli::Archive& ar)
 {

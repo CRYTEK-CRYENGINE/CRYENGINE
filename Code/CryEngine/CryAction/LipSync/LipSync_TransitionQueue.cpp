@@ -1,14 +1,5 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
-// -------------------------------------------------------------------------
-//  File name:   LipSync_TransitionQueue.cpp
-//  Version:     v1.00
-//  Created:     2014-08-29 by Christian Werle.
-//  Description: Automatic start of facial animation when a sound is being played back.
-// -------------------------------------------------------------------------
-//  History:
-//
-////////////////////////////////////////////////////////////////////////////
 #include "StdAfx.h"
 #include "LipSync_TransitionQueue.h"
 
@@ -23,7 +14,7 @@ static const float LIPSYNC_STOP_TRANSITION_TIME = 0.1f;
 
 uint32 CLipSyncProvider_TransitionQueue::s_lastAnimationToken = 0;
 
-static const char* GetSoundName(const AudioControlId soundId)
+static const char* GetSoundName(const CryAudio::ControlId soundId)
 {
 	CRY_ASSERT(gEnv && gEnv->pAudioSystem);
 
@@ -65,7 +56,7 @@ CLipSyncProvider_TransitionQueue::CLipSyncProvider_TransitionQueue(EntityId enti
 	, m_isSynchronized(false)
 	, m_requestedAnimId(-1)
 	, m_nCurrentAnimationToken(0)
-	, m_soundId(INVALID_AUDIO_CONTROL_ID)
+	, m_soundId(CryAudio::InvalidControlId)
 {
 	// read settings from script
 	if (IEntity* pEntity = GetEntity())
@@ -132,10 +123,10 @@ void CLipSyncProvider_TransitionQueue::FullSerialize(TSerialize ser)
 	}
 }
 
-void CLipSyncProvider_TransitionQueue::RequestLipSync(IEntityAudioComponent* pProxy, const AudioControlId audioTriggerId, const ELipSyncMethod lipSyncMethod)
+void CLipSyncProvider_TransitionQueue::RequestLipSync(IEntityAudioComponent* pProxy, const CryAudio::ControlId audioTriggerId, const ELipSyncMethod lipSyncMethod)
 {
 	CRY_ASSERT(pProxy);
-	CRY_ASSERT(audioTriggerId != INVALID_AUDIO_CONTROL_ID);
+	CRY_ASSERT(audioTriggerId != CryAudio::InvalidControlId);
 
 	if (lipSyncMethod != eLSM_None)
 	{
@@ -162,10 +153,10 @@ void CLipSyncProvider_TransitionQueue::RequestLipSync(IEntityAudioComponent* pPr
 	m_state = eS_Requested;
 }
 
-void CLipSyncProvider_TransitionQueue::StartLipSync(IEntityAudioComponent* pProxy, const AudioControlId audioTriggerId, const ELipSyncMethod lipSyncMethod)
+void CLipSyncProvider_TransitionQueue::StartLipSync(IEntityAudioComponent* pProxy, const CryAudio::ControlId audioTriggerId, const ELipSyncMethod lipSyncMethod)
 {
 	CRY_ASSERT(pProxy);
-	CRY_ASSERT(audioTriggerId != INVALID_AUDIO_CONTROL_ID);
+	CRY_ASSERT(audioTriggerId != CryAudio::InvalidControlId);
 	CRY_ASSERT((m_state == eS_Requested) || (m_state == eS_Unpaused));
 
 	if (lipSyncMethod != eLSM_None)
@@ -194,20 +185,20 @@ void CLipSyncProvider_TransitionQueue::StartLipSync(IEntityAudioComponent* pProx
 	m_state = eS_Started;
 }
 
-void CLipSyncProvider_TransitionQueue::PauseLipSync(IEntityAudioComponent* pProxy, const AudioControlId audioTriggerId, const ELipSyncMethod lipSyncMethod)
+void CLipSyncProvider_TransitionQueue::PauseLipSync(IEntityAudioComponent* pProxy, const CryAudio::ControlId audioTriggerId, const ELipSyncMethod lipSyncMethod)
 {
 	CRY_ASSERT(pProxy);
-	CRY_ASSERT(audioTriggerId != INVALID_AUDIO_CONTROL_ID);
+	CRY_ASSERT(audioTriggerId != CryAudio::InvalidControlId);
 	CRY_ASSERT(audioTriggerId == m_soundId);
 	CRY_ASSERT((m_state == eS_Started) || (m_state == eS_Unpaused));
 
 	m_state = eS_Paused;
 }
 
-void CLipSyncProvider_TransitionQueue::UnpauseLipSync(IEntityAudioComponent* pProxy, const AudioControlId audioTriggerId, const ELipSyncMethod lipSyncMethod)
+void CLipSyncProvider_TransitionQueue::UnpauseLipSync(IEntityAudioComponent* pProxy, const CryAudio::ControlId audioTriggerId, const ELipSyncMethod lipSyncMethod)
 {
 	CRY_ASSERT(pProxy);
-	CRY_ASSERT(audioTriggerId != INVALID_AUDIO_CONTROL_ID);
+	CRY_ASSERT(audioTriggerId != CryAudio::InvalidControlId);
 	CRY_ASSERT(audioTriggerId == m_soundId);
 	CRY_ASSERT((m_state == eS_Started) || (m_state == eS_Paused));
 
@@ -220,17 +211,17 @@ void CLipSyncProvider_TransitionQueue::UnpauseLipSync(IEntityAudioComponent* pPr
 	m_state = eS_Unpaused;
 }
 
-void CLipSyncProvider_TransitionQueue::StopLipSync(IEntityAudioComponent* pProxy, const AudioControlId audioTriggerId, const ELipSyncMethod lipSyncMethod)
+void CLipSyncProvider_TransitionQueue::StopLipSync(IEntityAudioComponent* pProxy, const CryAudio::ControlId audioTriggerId, const ELipSyncMethod lipSyncMethod)
 {
 	CRY_ASSERT(pProxy);
-	CRY_ASSERT(audioTriggerId != INVALID_AUDIO_CONTROL_ID);
+	CRY_ASSERT(audioTriggerId != CryAudio::InvalidControlId);
 	CRY_ASSERT((m_state == eS_Started) || (m_state == eS_Requested) || (m_state == eS_Unpaused) || (m_state == eS_Paused));
 
 	if (lipSyncMethod != eLSM_None)
 	{
 		if (m_state == eS_Requested)
 		{
-			CRY_ASSERT(m_soundId == INVALID_AUDIO_CONTROL_ID);
+			CRY_ASSERT(m_soundId == CryAudio::InvalidControlId);
 		}
 		else
 		{
@@ -248,7 +239,7 @@ void CLipSyncProvider_TransitionQueue::StopLipSync(IEntityAudioComponent* pProxy
 				}
 			}
 
-			m_soundId = INVALID_AUDIO_CONTROL_ID;
+			m_soundId = CryAudio::InvalidControlId;
 			m_isSynchronized = false;
 		}
 
@@ -257,7 +248,7 @@ void CLipSyncProvider_TransitionQueue::StopLipSync(IEntityAudioComponent* pProxy
 	m_state = eS_Stopped;
 }
 
-void CLipSyncProvider_TransitionQueue::UpdateLipSync(IEntityAudioComponent* pProxy, const AudioControlId audioTriggerId, const ELipSyncMethod lipSyncMethod)
+void CLipSyncProvider_TransitionQueue::UpdateLipSync(IEntityAudioComponent* pProxy, const CryAudio::ControlId audioTriggerId, const ELipSyncMethod lipSyncMethod)
 {
 	CRY_ASSERT(pProxy);
 
@@ -288,9 +279,9 @@ void CLipSyncProvider_TransitionQueue::FillCharAnimationParams(const bool isDefa
 	}
 }
 
-void CLipSyncProvider_TransitionQueue::FindMatchingAnim(const AudioControlId audioTriggerId, const ELipSyncMethod lipSyncMethod, ICharacterInstance& character, int* pAnimIdOut, CryCharAnimationParams* pAnimParamsOut) const
+void CLipSyncProvider_TransitionQueue::FindMatchingAnim(const CryAudio::ControlId audioTriggerId, const ELipSyncMethod lipSyncMethod, ICharacterInstance& character, int* pAnimIdOut, CryCharAnimationParams* pAnimParamsOut) const
 {
-	CRY_ASSERT(audioTriggerId != INVALID_AUDIO_CONTROL_ID);
+	CRY_ASSERT(audioTriggerId != CryAudio::InvalidControlId);
 	CRY_ASSERT(pAnimIdOut != NULL);
 	CRY_ASSERT(pAnimParamsOut != NULL);
 
@@ -342,9 +333,9 @@ void CLipSyncProvider_TransitionQueue::FindMatchingAnim(const AudioControlId aud
 	FillCharAnimationParams(isDefaultAnim, pAnimParamsOut);
 }
 
-void CLipSyncProvider_TransitionQueue::SynchronizeAnimationToSound(const AudioControlId audioTriggerId)
+void CLipSyncProvider_TransitionQueue::SynchronizeAnimationToSound(const CryAudio::ControlId audioTriggerId)
 {
-	CRY_ASSERT(audioTriggerId != INVALID_AUDIO_CONTROL_ID);
+	CRY_ASSERT(audioTriggerId != CryAudio::InvalidControlId);
 	CRY_ASSERT(gEnv->pAudioSystem);
 
 	if (m_isSynchronized)
@@ -483,10 +474,6 @@ void CLipSync_TransitionQueue::SetChannelId(uint16 id)
 {
 }
 
-void CLipSync_TransitionQueue::SetAuthority(bool auth)
-{
-}
-
 void CLipSync_TransitionQueue::PostUpdate(float frameTime)
 {
 }
@@ -501,6 +488,6 @@ void CLipSync_TransitionQueue::OnShutDown()
 	if (IEntityAudioComponent* pSoundProxy = pEntity->GetComponent<IEntityAudioComponent>())
 	{
 		REINST(add SetLipSyncProvider to interface)
-			//pSoundProxy->SetLipSyncProvider(ILipSyncProviderPtr());
+		//pSoundProxy->SetLipSyncProvider(ILipSyncProviderPtr());
 	}
 }

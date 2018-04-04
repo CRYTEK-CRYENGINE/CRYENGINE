@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 // -------------------------------------------------------------------------
 //  File name:   AIEnvironment.cpp
@@ -42,11 +42,9 @@ SAIEnvironment::SAIEnvironment()
 	, pPipeManager(NULL)
 	, pAIActionManager(NULL)
 	, pSmartObjectManager(NULL)
-	, pPerceptionManager(NULL)
 	, pCommunicationManager(NULL)
 	, pCoverSystem(NULL)
 	, pNavigationSystem(NULL)
-	, pSelectionTreeManager(NULL)
 	, pBehaviorTreeManager(NULL)
 	, pGraftManager(NULL)
 	, pVisionMap(NULL)

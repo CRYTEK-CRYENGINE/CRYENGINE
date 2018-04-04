@@ -1,20 +1,9 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
-// -------------------------------------------------------------------------
-//  File name:
-//  Version:     v1.00
-//  Created:     11/02/2015 by Jan Pinter
-//  Description:
-// -------------------------------------------------------------------------
-//  History:
-//
-////////////////////////////////////////////////////////////////////////////
 #pragma once
-#ifndef __CCRYDX12BUFFER__
-	#define __CCRYDX12BUFFER__
 
-	#include "DX12/Resource/CCryDX12Resource.hpp"
-	#include "DX12/API/DX12View.hpp"
+#include "DX12/Resource/CCryDX12Resource.hpp"
+#include "DX12/API/DX12View.hpp"
 
 class CCryDX12Buffer : public CCryDX12Resource<ID3D11BufferToImplement>
 {
@@ -25,8 +14,6 @@ public:
 	static CCryDX12Buffer* Create(CCryDX12Device* pDevice, ID3D12Resource* pResource, D3D12_RESOURCE_STATES initialState);
 	static CCryDX12Buffer* Create(CCryDX12Device* pDevice, CCryDX12SwapChain* pSwapChain, ID3D12Resource* pResource);
 	static CCryDX12Buffer* Create(CCryDX12Device* pDevice, const D3D11_BUFFER_DESC* pDesc, const D3D11_SUBRESOURCE_DATA* pInitialData);
-
-	virtual ~CCryDX12Buffer();
 
 	ILINE UINT GetStructureByteStride() const
 	{
@@ -46,12 +33,12 @@ public:
 
 	#pragma region /* ICryDX12Resource implementation */
 
-	virtual EDX12ResourceType GetDX12ResourceType() const final
+	VIRTUALGFX EDX12ResourceType GetDX12ResourceType() const FINALGFX
 	{
 		return eDX12RT_Buffer;
 	}
 
-	virtual void STDMETHODCALLTYPE GetType(_Out_ D3D11_RESOURCE_DIMENSION* pResourceDimension) final
+	VIRTUALGFX void STDMETHODCALLTYPE GetType(_Out_ D3D11_RESOURCE_DIMENSION* pResourceDimension) FINALGFX
 	{
 		if (pResourceDimension)
 		{
@@ -59,15 +46,14 @@ public:
 		}
 	}
 
-	void MapDiscard();
-	void CopyDiscard();
+	VIRTUALGFX bool SubstituteUsed() FINALGFX;
 
 	#pragma endregion
 
 	#pragma region /* ID3D11Buffer implementation */
 
-	virtual void STDMETHODCALLTYPE GetDesc(
-	  _Out_ D3D11_BUFFER_DESC* pDesc) final;
+	VIRTUALGFX void STDMETHODCALLTYPE GetDesc(
+	  _Out_ D3D11_BUFFER_DESC* pDesc) FINALGFX;
 
 	#pragma endregion
 
@@ -79,5 +65,3 @@ private:
 
 	NCryDX12::CView   m_DX12View;
 };
-
-#endif // __CCRYDX12BUFFER__

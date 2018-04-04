@@ -1,0 +1,59 @@
+{
+  "Name": "mesh_immortal",
+  "Features": [
+    {
+      "RenderMeshes": {
+        "Scale": [ 1.0, 1.0, 1.0 ],
+        "PiecesMode": "RandomPiece",
+        "PiecePlacement": "Standard",
+        "SizeMode": "Scale",
+        "Mesh": "objects/default/primitive_sphere.cgf",
+        "OriginMode": "Origin"
+      }
+    },
+    {
+      "SpawnCount": {
+        "Delay": {
+          "modifiers": [ ],
+          "value": 0.0
+        },
+        "Duration": {
+          "State": true,
+          "Value": {
+            "modifiers": [ ],
+            "value": 0.0
+          }
+        },
+        "Amount": {
+          "modifiers": [ ],
+          "value": 1.0
+        },
+        "Restart": {
+          "State": false,
+          "Value": {
+            "modifiers": [ ],
+            "value": 1.0
+          }
+        }
+      }
+    },
+    { "LifeImmortal": [ ] },
+    {
+      "FieldSize": {
+        "value": {
+          "modifiers": [ ],
+          "value": 1.0
+        }
+      }
+    },
+    {
+      "VelocityMoveRelativeToEmitter": {
+        "AngularInherit": 0.0,
+        "PositionInherit": 1.0,
+        "VelocityInheritAfterDeath": 0.0,
+        "Enabled": false,
+        "VelocityInherit": 1.0
+      }
+    }
+  ]
+}

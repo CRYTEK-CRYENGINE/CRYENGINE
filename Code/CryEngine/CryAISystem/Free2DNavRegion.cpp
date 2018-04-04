@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #include "StdAfx.h"
 #include "Free2DNavRegion.h"
@@ -94,10 +94,7 @@ size_t CFree2DNavRegion::MemStats()
 bool CFree2DNavRegion::CheckPassability(const Vec3& from, const Vec3& to,
                                         float radius, const NavigationBlockers& navigationBlockers, IAISystem::tNavCapMask) const
 {
-	const SpecialArea* sa = gAIEnv.pNavigation->GetSpecialArea(from, SpecialArea::TYPE_FREE_2D);
-	if (!sa)
-		return false;
-	return !Overlap::Lineseg_Polygon2D(Lineseg(from, to), sa->GetPolygon(), &sa->GetAABB());
+	return false;
 }
 
 //===================================================================
@@ -172,146 +169,5 @@ bool CFree2DNavRegion::GetSingleNodePath(const GraphNode* pNode,
                                          std::vector<PathPointDescriptor>& points,
                                          IAISystem::tNavCapMask) const
 {
-	const SpecialArea* sa = gAIEnv.pNavigation->GetSpecialAreaNearestPos(startPos, SpecialArea::TYPE_FREE_2D);
-	if (!sa)
-		return false;
-
-	const ListPositions& origShape = sa->GetPolygon();
-	ListPositions shape;
-	ShrinkShape(origShape, shape, radius);
-
-	// simplest straight-line case
-	if (!Overlap::Lineseg_Polygon2D(Lineseg(startPos, endPos), shape))
-	{
-		points.resize(0);
-		points.push_back(PathPointDescriptor(IAISystem::NAV_FREE_2D, startPos));
-		points.push_back(PathPointDescriptor(IAISystem::NAV_FREE_2D, endPos));
-		return true;
-	}
-
-	if (!Overlap::Point_Polygon2D(endPos, origShape, &sa->GetAABB()))
-		return false;
-
-	// So, now start and end are in the same area. make a "safe" path
-	// by going from startPos to the nearest vertex, then through all
-	// vertices to the vertex nearest to endPos, then to endPos. Subsequently
-	// we'll tidy this up by cutting vertices.
-
-	ListPositions::const_iterator itStart, itEnd;
-	float bestDistStartSq = std::numeric_limits<float>::max();
-	float bestDistEndSq = std::numeric_limits<float>::max();
-	int countToStart = -1;
-	int countToEnd = -1;
-	int count = 0;
-	for (ListPositions::const_iterator it = shape.begin(); it != shape.end(); ++it, ++count)
-	{
-		Vec3 itPos = *it;
-		static float frac = 0.99f;
-		bool reachableStart = !Overlap::Lineseg_Polygon2D(Lineseg(startPos, startPos + frac * (itPos - startPos)), origShape, &sa->GetAABB());
-		bool reachableEnd = !Overlap::Lineseg_Polygon2D(Lineseg(endPos, endPos + frac * (itPos - endPos)), origShape, &sa->GetAABB());
-		if (reachableStart)
-		{
-			float distToStartSq = Distance::Point_Point2DSq(startPos, itPos);
-			if (distToStartSq < bestDistStartSq)
-			{
-				bestDistStartSq = distToStartSq;
-				itStart = it;
-				countToStart = count;
-			}
-		}
-		if (reachableEnd)
-		{
-			float distToEndSq = Distance::Point_Point2DSq(endPos, itPos);
-			if (distToEndSq < bestDistEndSq)
-			{
-				bestDistEndSq = distToEndSq;
-				itEnd = it;
-				countToEnd = count;
-			}
-		}
-	}
-
-	if (countToStart < 0 || countToEnd < 0)
-	{
-		AIWarning("CFree2DNavRegion::GetSingleNodePath failed from (%5.2f, %5.2f, %5.2f) to (%5.2f, %5.2f, %5.2f)",
-		          startPos.x, startPos.y, startPos.z, endPos.x, endPos.y, endPos.z);
-		return false;
-	}
-
-	// add the points
-	points.resize(0);
-	points.push_back(PathPointDescriptor(IAISystem::NAV_FREE_2D, startPos));
-	bool walkingFwd = true;
-	if (itStart == itEnd)
-	{
-		points.push_back(PathPointDescriptor(IAISystem::NAV_FREE_2D, *itStart));
-	}
-	else
-	{
-		// decide on the direction using the counts...
-		int shapeCount = shape.size();
-		int countFwd = (shapeCount + countToEnd - countToStart) % shapeCount;
-		int countBwd = shapeCount - countFwd;
-		walkingFwd = countFwd < countBwd;
-
-		ListPositions::const_iterator it = itStart;
-		do
-		{
-			points.push_back(PathPointDescriptor(IAISystem::NAV_FREE_2D, *it));
-			if (walkingFwd)
-			{
-				++it;
-				if (it == shape.end()) it = shape.begin();
-			}
-			else
-			{
-				if (it == shape.begin()) it = shape.end();
-				--it;
-			}
-		}
-		while (it != itEnd);
-		points.push_back(PathPointDescriptor(IAISystem::NAV_FREE_2D, *itEnd));
-	}
-	points.push_back(PathPointDescriptor(IAISystem::NAV_FREE_2D, endPos));
-
-	// now walk through iteratively cutting points
-	static bool doCutting = true;
-	bool cutOne = doCutting;
-	while (cutOne == true && points.size() > 2)
-	{
-		cutOne = false;
-		for (std::vector<PathPointDescriptor>::iterator it = points.begin(); it != points.end(); ++it)
-		{
-			std::vector<PathPointDescriptor>::iterator itNext = it;
-			if (++itNext == points.end())
-				break;
-			std::vector<PathPointDescriptor>::iterator itNextNext = itNext;
-			if (++itNextNext == points.end())
-				break;
-
-			Vec3 pos = it->vPos;
-			//      Vec3 posNext = itNext->vPos;
-			Vec3 posNextNext = itNextNext->vPos;
-
-			static float frac = 0.001f;
-			pos += frac * (posNextNext - pos);
-			posNextNext += frac * (pos - posNextNext);
-
-			Lineseg seg(pos, posNextNext);
-			Vec3 posMid = 0.5f * (pos + posNextNext);
-			std::vector<PathPointDescriptor>::iterator itNextNextNext = itNextNext;
-			++itNextNextNext;
-			bool doingEnd = it == points.begin() || itNextNextNext == points.end();
-			const ListPositions& thisShape = doingEnd ? origShape : shape;
-			if (Overlap::Point_Polygon2D(pos, thisShape) && !Overlap::Lineseg_Polygon2D(seg, thisShape))
-			{
-				points.erase(itNext);
-				cutOne = true;
-				// iterator it is safe because itNext comes after it
-				it = points.begin();
-			}
-		}
-	}
-
-	return true;
+	return false;
 }

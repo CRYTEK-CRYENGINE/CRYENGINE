@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #ifndef __NavigationSystem_h__
 #define __NavigationSystem_h__
@@ -16,6 +16,7 @@
 #include "OffMeshNavigationManager.h"
 #include "VolumesManager.h"
 #include "IslandConnectionsManager.h"
+#include "NavigationUpdatesManager.h"
 
 #include <CryCore/Containers/CryListenerSet.h>
 
@@ -396,6 +397,7 @@ class NavigationSystem :
 {
 	friend class NavigationSystemDebugDraw;
 	friend class NavigationSystemBackgroundUpdate;
+	friend class CMNMUpdatesManager;
 
 public:
 	NavigationSystem(const char* configName);
@@ -415,6 +417,8 @@ public:
 	virtual NavigationMeshID CreateMesh(const char* name, NavigationAgentTypeID agentTypeID, const CreateMeshParams& params) override;
 	virtual NavigationMeshID CreateMesh(const char* name, NavigationAgentTypeID agentTypeID, const CreateMeshParams& params, NavigationMeshID requestedId) override;
 #endif
+	virtual NavigationMeshID CreateMeshForVolumeAndUpdate(const char* name, NavigationAgentTypeID agentTypeID, const CreateMeshParams& params, const NavigationVolumeID volumeID) override;
+
 	virtual void             DestroyMesh(NavigationMeshID meshID) override;
 
 	virtual void             SetMeshEntityCallback(NavigationAgentTypeID agentTypeID, const NavigationMeshEntityCallback& callback) override;
@@ -451,7 +455,8 @@ public:
 	virtual void                  PauseNavigationUpdate() override;
 	virtual void                  RestartNavigationUpdate() override;
 
-	virtual size_t                QueueMeshUpdate(NavigationMeshID meshID, const AABB& aabb) override;
+	virtual uint32                GetWorkingQueueSize() const override;
+
 	virtual void                  ProcessQueuedMeshUpdates() override;
 
 	virtual void                  Clear() override;
@@ -460,16 +465,15 @@ public:
 	virtual void                  DebugDraw() override;
 	virtual void                  Reset() override;
 
+
 	void                          GetMemoryStatistics(ICrySizer* pSizer);
 
 	virtual void                  SetDebugDisplayAgentType(NavigationAgentTypeID agentTypeID) override;
 	virtual NavigationAgentTypeID GetDebugDisplayAgentType() const override;
 
-	void                          QueueDifferenceUpdate(NavigationMeshID meshID, const NavigationBoundingVolume& oldVolume,
-	                                                    const NavigationBoundingVolume& newVolume);
-
-	virtual void          WorldChanged(const AABB& aabb) override;
-
+	//! deprecated - RequestQueueMeshUpdate(meshID, aabb) should be used instead
+	virtual size_t                QueueMeshUpdate(NavigationMeshID meshID, const AABB& aabb) override;
+	
 	const NavigationMesh& GetMesh(const NavigationMeshID& meshID) const;
 	NavigationMesh&       GetMesh(const NavigationMeshID& meshID);
 	NavigationMeshID      GetEnclosingMeshID(NavigationAgentTypeID agentTypeID, const Vec3& location) const override;
@@ -546,6 +550,8 @@ public:
 	virtual TileGeneratorExtensionID         RegisterTileGeneratorExtension(MNM::TileGenerator::IExtension& extension) override;
 	virtual bool                             UnRegisterTileGeneratorExtension(const TileGeneratorExtensionID extensionId) override;
 
+	virtual INavigationUpdatesManager*        GetUpdateManager() override { return &m_updatesManager; }
+
 	inline const WorldMonitor*               GetWorldMonitor() const
 	{
 		return &m_worldMonitor;
@@ -575,44 +581,6 @@ public:
 	{
 		return &m_islandConnectionsManager;
 	}
-
-	struct TileTask
-	{
-		TileTask()
-			: aborted(false)
-		{
-		}
-
-		inline bool operator==(const TileTask& other) const
-		{
-			return (meshID == other.meshID) && (x == other.y) && (y == other.y) && (z == other.z);
-		}
-
-		inline bool operator<(const TileTask& other) const
-		{
-			if (meshID != other.meshID)
-				return meshID < other.meshID;
-
-			if (x != other.x)
-				return x < other.x;
-
-			if (y != other.y)
-				return y < other.y;
-
-			if (z != other.z)
-				return z < other.z;
-
-			return false;
-		}
-
-		NavigationMeshID meshID;
-
-		uint16           x;
-		uint16           y;
-		uint16           z;
-
-		bool             aborted;
-	};
 
 	struct TileTaskResult
 	{
@@ -678,9 +646,6 @@ private:
 #endif
 
 	void GatherNavigationVolumesToSave(std::vector<NavigationVolumeID>& usedVolumes) const;
-
-	typedef std::deque<TileTask> TileTaskQueue;
-	TileTaskQueue m_tileQueue;
 
 	typedef std::vector<uint16> RunningTasks;
 	RunningTasks m_runningTasks;
@@ -752,6 +717,7 @@ private:
 	typedef CListenerSet<INavigationSystemUser*> NavigationSystemUsers;
 	NavigationSystemUsers                  m_users;
 
+	CMNMUpdatesManager                     m_updatesManager;
 	CVolumesManager                        m_volumesManager;
 	bool                                   m_isNavigationUpdatePaused;
 

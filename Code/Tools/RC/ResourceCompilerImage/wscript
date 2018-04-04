@@ -9,7 +9,7 @@ def build(bld):
 		linkflags = ['/DELAYLOAD:xg.dll', '/DELAYLOAD:libSceGpuAddress.dll', '/DELAYLOAD:libSceGnm.dll'],
 		lib       = ['delayimp'],
 
-		use_module = ['tiff', 'zlib'],
+		use_module = ['tiff', 'zlib', 'astc'],
 
 		defines         = ['RESOURCECOMPILERIMAGE_EXPORTS', 'RESOURCE_COMPILER_IMAGE'],
 		release_defines = ['NDEBUG'],
@@ -28,7 +28,7 @@ def build(bld):
 
 		libpath = [
 			Path('Code/SDKs/Orbis/host_tools/lib'),
-			Path('Code/SDKs/DurangoSDK/160303/PC/Lib/amd64'),
+			Path('Code/SDKs/DurangoSDK/170300/PC/Lib/amd64'),
 			Path('Code/SDKs/DurangoSDK/PC/Lib/amd64'),
 			Path('Code/SDKs/POWERVR/PVRTexLib/Windows_x86_64'),
 		],

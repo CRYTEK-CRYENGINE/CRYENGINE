@@ -10,8 +10,6 @@
 #include <CryCore/Platform/CryWindows.h>
 #include <ShellAPI.h> // requires <windows.h>
 
-#include <CrySystem/ParseEngineConfig.h>
-
 // We need shell api for Current Root Extruction.
 #include "shlwapi.h"
 #pragma comment(lib, "shlwapi.lib")
@@ -62,7 +60,7 @@ ILINE unsigned Hash( unsigned a )
 // encode size ignore last 3 bits of size in bytes. (encode by 8bytes min)
 #define TEA_GETSIZE( len ) ((len) & (~7))
 
-ILINE int RunGame(const char *commandLine)
+ILINE int RunGame(const char* szCommandLine)
 {
 	SSystemInitParams startupParams;
 	const char* frameworkDLLName = "CryAction.dll";
@@ -89,7 +87,7 @@ ILINE int RunGame(const char *commandLine)
 		MessageBox(0, errorStr.c_str(), "Error", MB_OK | MB_DEFAULT_DESKTOP_ONLY);
 		// failed to load the dll
 
-		return 0;
+		return EXIT_FAILURE;
 	}
 
 	// get address of startup function
@@ -102,18 +100,18 @@ ILINE int RunGame(const char *commandLine)
 
 		MessageBox(0, "Specified Game DLL is not valid! Please make sure you are running the correct executable", "Error", MB_OK | MB_DEFAULT_DESKTOP_ONLY);
 
-		return 0;
+		return EXIT_FAILURE;
 	}
-#endif //!defined(_LIB) || defined(IS_EAAS)
+#endif //!defined(_LIB)
 
-	strcat((char*)commandLine, (char*)buf);	
+	cry_strcpy(startupParams.szSystemCmdLine, szCommandLine);
+	cry_strcat(startupParams.szSystemCmdLine, (const char*)buf);
 
 	startupParams.sLogFileName = logFileName;
-	strcpy(startupParams.szSystemCmdLine, commandLine);
 
 	for (int i=0; i<4; i++)
 		if (Hash(buf[i])!=hash[i])
-			return 1;
+			return EXIT_FAILURE;
 
 	// create the startup interface
 	IGameFramework* pFramework = CreateGameFramework();
@@ -124,7 +122,7 @@ ILINE int RunGame(const char *commandLine)
 
 		MessageBox(0, "Failed to create the GameStartup Interface!", "Error", MB_OK | MB_DEFAULT_DESKTOP_ONLY);
 
-		return 0;
+		return EXIT_FAILURE;
 	}
 
 	// main game loop
@@ -135,7 +133,7 @@ ILINE int RunGame(const char *commandLine)
 
 	CryFreeLibrary(frameworkDll);
 
-	return 0;
+	return EXIT_SUCCESS;
 }
 
 

@@ -4,9 +4,9 @@
 
 // *INDENT-OFF* - <hard to read code and declarations due to inconsistent indentation>
 
-namespace uqs
+namespace UQS
 {
-	namespace core
+	namespace Core
 	{
 
 		//===================================================================================
@@ -15,7 +15,7 @@ namespace uqs
 		//
 		//===================================================================================
 
-		typedef IFactoryDatabase<client::IInstantEvaluatorFactory> IInstantEvaluatorFactoryDatabase;
+		typedef IFactoryDatabase<Client::IInstantEvaluatorFactory> IInstantEvaluatorFactoryDatabase;
 
 	}
 }

@@ -1,8 +1,8 @@
 <Material MtlFlags="524416" Shader="Illum" GenMask="C0000081" StringGenMask="%ALLOW_SILHOUETTE_POM%BUMP_MAP%SPEC_MAP%SUBSURFACE_SCATTERING" SurfaceType="" MatTemplate="" Diffuse="1,1,1" Specular="0.035,0.035,0.035" Emissive="0,0,0" Shininess="255" Opacity="1" LayerAct="1">
  <Textures>
-  <Texture Map="Diffuse" File="Engine/EngineAssets/TextureMsg/ReplaceMe.tif" IsTileU="0" IsTileV="0"/>
-  <Texture Map="Specular" File="Engine/EngineAssets/TextureMsg/ReplaceMe.tif" IsTileU="0" IsTileV="0"/>
-  <Texture Map="Bumpmap" File="Engine/EngineAssets/TextureMsg/ReplaceMe.tif" IsTileU="0" IsTileV="0"/>
+  <Texture Map="Diffuse" File="%ENGINE%/EngineAssets/TextureMsg/ReplaceMe.tif" IsTileU="0" IsTileV="0"/>
+  <Texture Map="Specular" File="%ENGINE%/EngineAssets/TextureMsg/ReplaceMe.tif" IsTileU="0" IsTileV="0"/>
+  <Texture Map="Bumpmap" File="%ENGINE%/EngineAssets/TextureMsg/ReplaceMe.tif" IsTileU="0" IsTileV="0"/>
  </Textures>
  <PublicParams SSSIndex="0" IndirectColor="0.25,0.25,0.25"/>
 </Material>

@@ -7,4 +7,3 @@
 #include <CryCore/Platform/platform.h>
 
 #include <CrySchematyc/CoreAPI.h>
-#include <CrySchematyc/STDEnvAPI.h>

@@ -1,17 +1,17 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #include "StdAfx.h"
 #include "Script/Elements/ScriptVariable.h"
 
 #include <CrySerialization/IArchiveHost.h>
 #include <CrySerialization/STL.h>
-#include <Schematyc/Env/IEnvRegistry.h>
-#include <Schematyc/Env/Elements/IEnvInterface.h>
-#include <Schematyc/SerializationUtils/ISerializationContext.h>
-#include <Schematyc/SerializationUtils/SerializationUtils.h>
-#include <Schematyc/Utils/Any.h>
-#include <Schematyc/Utils/Assert.h>
-#include <Schematyc/Utils/IGUIDRemapper.h>
+#include <CrySchematyc/Env/IEnvRegistry.h>
+#include <CrySchematyc/Env/Elements/IEnvInterface.h>
+#include <CrySchematyc/SerializationUtils/ISerializationContext.h>
+#include <CrySchematyc/SerializationUtils/SerializationUtils.h>
+#include <CrySchematyc/Utils/Any.h>
+#include <CrySchematyc/Utils/Assert.h>
+#include <CrySchematyc/Utils/IGUIDRemapper.h>
 
 namespace Schematyc
 {
@@ -19,7 +19,7 @@ CScriptVariable::CScriptVariable()
 	: m_data(SElementId(), true)
 {}
 
-CScriptVariable::CScriptVariable(const SGUID& guid, const char* szName, const SElementId& typeId, const SGUID& baseGUID)
+CScriptVariable::CScriptVariable(const CryGUID& guid, const char* szName, const SElementId& typeId, const CryGUID& baseGUID)
 	: CScriptElementBase(guid, szName)
 	, m_data(typeId, true)
 	, m_baseGUID(baseGUID)
@@ -32,8 +32,8 @@ EScriptElementAccessor CScriptVariable::GetAccessor() const
 
 void CScriptVariable::EnumerateDependencies(const ScriptDependencyEnumerator& enumerator, EScriptDependencyType type) const
 {
-	SCHEMATYC_CORE_ASSERT(!enumerator.IsEmpty());
-	if (!enumerator.IsEmpty())
+	SCHEMATYC_CORE_ASSERT(enumerator);
+	if (enumerator)
 	{
 		m_data.EnumerateDependencies(enumerator, type);
 
@@ -80,7 +80,7 @@ CAnyConstPtr CScriptVariable::GetData() const
 	return m_data.GetValue();
 }
 
-SGUID CScriptVariable::GetBaseGUID() const
+CryGUID CScriptVariable::GetBaseGUID() const
 {
 	return m_baseGUID;
 }
@@ -117,7 +117,7 @@ void CScriptVariable::Edit(Serialization::IArchive& archive, const ISerializatio
 	{
 		ScriptVariableData::CScopedSerializationConfig serializationConfig(archive);
 
-		const SGUID guid = CScriptElementBase::GetGUID();
+		const CryGUID guid = CScriptElementBase::GetGUID();
 		serializationConfig.DeclareEnvDataTypes(guid);
 		serializationConfig.DeclareScriptEnums(guid);
 		serializationConfig.DeclareScriptStructs(guid);

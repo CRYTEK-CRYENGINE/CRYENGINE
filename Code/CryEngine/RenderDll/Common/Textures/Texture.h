@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 /*=============================================================================
    TexMan.h : Common texture manager declarations.
@@ -13,7 +13,13 @@
 #define _TEXTURE_H
 
 #include <set>
+#include <atomic>
+#include "../../XRenderD3D9/DeviceManager/DeviceFormats.h" // SPixFormat
 #include "../ResFile.h"
+#include "../CommonRender.h" // CBaseResource, SResourceView, SSamplerState
+#include "../Shaders/ShaderResources.h" // EHWShaderClass
+#include "../Shaders/CShader.h" // MAX_ENVTEXTURES
+
 #include "PowerOf2BlockPacker.h"
 #include <CryMemory/STLPoolAllocator.h>
 
@@ -25,11 +31,12 @@
 
 #include <Cry3DEngine/ImageExtensionHelper.h>
 
+class CDeviceTexture;
 class CTexture;
 class CImageFile;
 struct IFlashPlayer;
 struct IUIElement;
-struct IUILayout;
+struct IUILayoutBase;
 class CTextureStreamPoolMgr;
 class CReactiveTextureStreamer;
 class CMipmapGenPass;
@@ -90,9 +97,6 @@ enum
 	TO_WATERVOLUMECAUSTICSMAP,
 	TO_WATERVOLUMECAUSTICSMAPTEMP,
 
-	TO_VOLOBJ_DENSITY,
-	TO_VOLOBJ_SHADOW,
-
 	TO_COLORCHART,
 
 	TO_ZTARGET_MS,
@@ -125,7 +129,7 @@ enum
 #define NUM_HDR_BLOOM_TEXTURES   3
 #define MIN_DOF_COC_K            6
 
-#if defined(OPENGL_ES)
+#if CRY_RENDERER_OPENGLES
 	#define MAX_OCCLUSION_READBACK_TEXTURES 2
 #else
 	#define MAX_OCCLUSION_READBACK_TEXTURES 8
@@ -149,14 +153,6 @@ enum EShadowBuffers_Pool
 	SBP_R16G16,
 	SBP_MAX,
 	SBP_UNKNOWN
-};
-
-//dx9 usages
-enum ETexture_Usage
-{
-	eTXUSAGE_AUTOGENMIPMAP,
-	eTXUSAGE_DEPTHSTENCIL,
-	eTXUSAGE_RENDERTARGET
 };
 
 #define SHADOWS_POOL_SIZE     1024//896 //768
@@ -216,7 +212,7 @@ struct SDynTexture : public IDynTexture
 	virtual int       GetTextureID();
 	virtual bool      Update(int nNewWidth, int nNewHeight);
 	bool              RT_Update(int nNewWidth, int nNewHeight);
-	virtual void      Apply(int nTUnit, int nTS = -1);
+	virtual void      Apply(int nTUnit, SamplerStateHandle nTS = EDefaultSamplerStates::Unspecified);
 	virtual bool      ClearRT();
 	virtual bool      SetRT(int nRT, bool bPush, SDepthTexture* pDepthSurf, bool bScreenVP = false);
 	virtual bool      RT_SetRT(int nRT, int nWidth, int nHeight, bool bPush, bool bScreenVP = false);
@@ -487,7 +483,7 @@ struct SDynTexture2 : public IDynTexture
 	void              ReleaseForce();
 
 	virtual bool      Update(int nNewWidth, int nNewHeight);
-	virtual void      Apply(int nTUnit, int nTS = -1);
+	virtual void      Apply(int nTUnit, SamplerStateHandle nTS = EDefaultSamplerStates::Unspecified);
 	virtual bool      ClearRT();
 	virtual bool      SetRT(int nRT, bool bPush, SDepthTexture* pDepthSurf, bool bScreenVP = false);
 	virtual bool      SetRectStates();
@@ -748,7 +744,7 @@ struct STexMipHeader
 
 struct STexStreamingInfo
 {
-	STexStreamZoneInfo   m_arrSPInfo[MAX_PREDICTION_ZONES];
+	STexStreamZoneInfo   m_arrSPInfo[MAX_STREAM_PREDICTION_ZONES];
 
 	STexPoolItem*        m_pPoolItem;
 
@@ -812,7 +808,7 @@ private:
 struct STexStreamInMipState
 {
 	uint32 m_nSideDelta     : 28;
-	bool   m_bStreamInPlace : 1;
+	bool   m_bStreamInPlace : 1; // If true, the i/o reads the DDS contents directly into the texture surface and subsequent operations are conducted in-place
 	bool   m_bExpanded      : 1;
 	bool   m_bUploaded      : 1;
 
@@ -986,116 +982,12 @@ struct SEnvTexture
 
 //===============================================================================
 
-struct SPixFormat
-{
-	// Pixel format info.
-	D3DFormat   DeviceFormat; // Pixel format from Direct3D.
-	const char* Desc;         // Stat: Human readable name for stats.
-	int8        BitsPerPixel; // Total bits per pixel.
-	uint8       bCanDS            : 1;
-	uint8       bCanRT            : 1;
-	uint8       bCanMultiSampleRT : 1;
-	uint8       bCanMipsAutoGen   : 1;
-	uint8       bCanReadSRGB      : 1;
-	uint8       bCanGather        : 1;
-	uint8       bCanGatherCmp     : 1;
-	uint8       bCanBlend         : 1;
-	int16       MaxWidth;
-	int16       MaxHeight;
-	SPixFormat* Next;
-
-	SPixFormat()
-	{
-		Init();
-	}
-	void Init()
-	{
-		BitsPerPixel = 0;
-		DeviceFormat = (D3DFormat)0;
-		Desc = NULL;
-		Next = NULL;
-		bCanDS = false;
-		bCanRT = false;
-		bCanMultiSampleRT = false;
-		bCanMipsAutoGen = false;
-		bCanReadSRGB = false;
-		bCanGather = false;
-		bCanGatherCmp = false;
-		bCanBlend = false;
-	}
-	bool IsValid() const
-	{
-		if (BitsPerPixel)
-			return true;
-		return false;
-	}
-	bool CheckSupport(D3DFormat Format, const char* szDescr, ETexture_Usage eTxUsage = eTXUSAGE_AUTOGENMIPMAP);
-};
-
-struct SPixFormatSupport
-{
-	SPixFormat  m_FormatR1;
-	SPixFormat  m_FormatA8;                          //8 bit alpha
-	SPixFormat  m_FormatR8;
-	SPixFormat  m_FormatR8S;
-	SPixFormat  m_FormatR8G8;                        //16 bit
-	SPixFormat  m_FormatR8G8S;                       //16 bit
-	SPixFormat  m_FormatR8G8B8A8;                    //32 bit
-	SPixFormat  m_FormatR8G8B8A8S;                   //32 bit
-	SPixFormat  m_FormatR10G10B10A2;                 //32 bit
-
-	SPixFormat  m_FormatR16;                         //16 bit
-	SPixFormat  m_FormatR16F;                        //16 bit
-	SPixFormat  m_FormatR32F;                        //32 bit
-	SPixFormat  m_FormatR16G16;                      //32 bit
-	SPixFormat  m_FormatR16G16S;                     //32 bit
-	SPixFormat  m_FormatR16G16F;                     //32 bit
-	SPixFormat  m_FormatR11G11B10F;                  //32 bit
-	SPixFormat  m_FormatR16G16B16A16F;               //64 bit
-	SPixFormat  m_FormatR16G16B16A16;                //64 bit
-	SPixFormat  m_FormatR16G16B16A16S;               //64 bit
-	SPixFormat  m_FormatR32G32B32A32F;               //128 bit
-
-	SPixFormat  m_FormatBC1;                         //Compressed RGB
-	SPixFormat  m_FormatBC2;                         //Compressed RGBA
-	SPixFormat  m_FormatBC3;                         //Compressed RGBA
-	SPixFormat  m_FormatBC4U;                        // ATI1, single channel compression, unsigned
-	SPixFormat  m_FormatBC4S;                        // ATI1, single channel compression, signed
-	SPixFormat  m_FormatBC5U;                        //
-	SPixFormat  m_FormatBC5S;                        //
-	SPixFormat  m_FormatBC6UH;                       //Compressed RGB
-	SPixFormat  m_FormatBC6SH;                       //Compressed RGB
-	SPixFormat  m_FormatBC7;                         //Compressed RGBA
-
-	SPixFormat  m_FormatR9G9B9E5;                    //Shared exponent RGB
-
-	SPixFormat  m_FormatEAC_R11;                     //EAC compressed single channel for mobile
-	SPixFormat  m_FormatEAC_RG11;                    //EAC compressed dual channel for mobile
-	SPixFormat  m_FormatETC2;                        //ETC2 compressed RGB for mobile
-	SPixFormat  m_FormatETC2A;                       //ETC2a compressed RGBA for mobile
-
-	SPixFormat  m_FormatD16;             //16bit fixed point depth
-	SPixFormat  m_FormatD24S8;           //24bit fixed point depth + 8bit stencil
-	SPixFormat  m_FormatD32F;            //32bit floating point depth
-	SPixFormat  m_FormatD32FS8;          //32bit floating point depth + 8bit stencil
-
-	SPixFormat  m_FormatB5G6R5;                      //16 bit
-	SPixFormat  m_FormatB5G5R5;                      //16 bit
-	SPixFormat  m_FormatB4G4R4A4;                    //16 bit
-	SPixFormat  m_FormatB8G8R8X8;                    //32 bit
-	SPixFormat  m_FormatB8G8R8A8;                    //32 bit
-
-	SPixFormat* m_FirstPixelFormat;
-
-	void        CheckFormatSupport();
-};
-
 struct STexStageInfo
 {
 	int                m_nCurState;
 	CDeviceTexture*    m_DevTexture;
 
-	STexState          m_State;
+	SSamplerState      m_State;
 	float              m_fMipBias;
 
 	D3DShaderResource* m_pCurResView;
@@ -1111,9 +1003,9 @@ struct STexStageInfo
 		m_State.m_nMipFilter = -1;
 		m_State.m_nMinFilter = -1;
 		m_State.m_nMagFilter = -1;
-		m_State.m_nAddressU = -1;
-		m_State.m_nAddressV = -1;
-		m_State.m_nAddressW = -1;
+		m_State.m_nAddressU = eSamplerAddressMode_Wrap;
+		m_State.m_nAddressV = eSamplerAddressMode_Wrap;
+		m_State.m_nAddressW = eSamplerAddressMode_Wrap;
 		m_State.m_nAnisotropy = 0;
 
 		m_pCurResView = NULL;
@@ -1124,55 +1016,6 @@ struct STexStageInfo
 	}
 };
 
-struct STexData
-{
-	byte*       m_pData[6];
-	uint16      m_nWidth;
-	uint16      m_nHeight;
-	uint16      m_nDepth;
-protected:
-	uint8       m_reallocated;
-public:
-	ETEX_Format m_eTF;
-	uint8       m_nMips;
-	int         m_nFlags;
-	float       m_fAvgBrightness;
-	ColorF      m_cMinColor;
-	ColorF      m_cMaxColor;
-	const char* m_pFilePath;
-
-	STexData()
-	{
-		m_pData[0] = m_pData[1] = m_pData[2] = m_pData[3] = m_pData[4] = m_pData[5] = 0;
-		m_nWidth = 0;
-		m_nHeight = 0;
-		m_nDepth = 1;
-		m_reallocated = 0;
-		m_eTF = eTF_Unknown;
-		m_nMips = 0;
-		m_nFlags = 0;
-		m_fAvgBrightness = 1.0f;
-		m_cMinColor = 0.0f;
-		m_cMaxColor = 1.0f;
-		m_pFilePath = 0;
-	}
-	void AssignData(unsigned int i, byte* pNewData)
-	{
-		assert(i < 6);
-		if (WasReallocated(i))
-			delete[] m_pData[i];
-		m_pData[i] = pNewData;
-		SetReallocated(i);
-	}
-	bool WasReallocated(unsigned int i) const
-	{
-		return (m_reallocated & (1 << i)) != 0;
-	}
-	void SetReallocated(unsigned int i)
-	{
-		m_reallocated |= (1 << i);
-	}
-};
 
 struct SDepthTexture
 {
@@ -1197,131 +1040,6 @@ struct SDepthTexture
 	~SDepthTexture();
 
 	void Release(bool bReleaseTexture);
-};
-
-struct DirtyRECT
-{
-	RECT   srcRect;
-	uint16 dstX;
-	uint16 dstY;
-};
-
-struct SResourceView
-{
-	typedef uint64 KeyType;
-
-	static const KeyType DefaultView = (KeyType) - 1LL;
-	static const KeyType DefaultViewMS = (KeyType) - 2LL;
-	static const KeyType DefaultViewSRGB = (KeyType) - 3LL;
-	static const KeyType DefaultRendertargetView = (KeyType) - 4LL;
-	static const KeyType DefaultDepthStencilView = (KeyType) - 5LL;
-	static const KeyType DefaultUnordererdAccessView = (KeyType) - 6LL;
-
-	enum ResourceViewType
-	{
-		eShaderResourceView = 0,
-		eRenderTargetView,
-		eDepthStencilView,
-		eUnorderedAccessView,
-
-		eNumResourceViews
-	};
-
-	enum ResourceViewFlags
-	{
-		eSRV_DepthOnly   = 0,
-		eSRV_StencilOnly = 1,
-
-		eDSV_ReadWrite   = 0,
-		eDSV_ReadOnly    = 1,
-
-		eUAV_WriteOnly   = 0,
-		eUAV_ReadWrite   = 1,
-	};
-
-	union ResourceViewDesc
-	{
-		struct
-		{
-			uint64 nDefaultMarker   : 1;
-			uint64 eViewType        : 3;
-			uint64 nFormat          : 6;
-			uint64 nFirstSlice      : 11;
-			uint64 nSliceCount      : 11;
-			uint64 nMostDetailedMip : 4;
-			uint64 nMipCount        : 4;
-			uint64 bSrgbRead        : 1;
-			uint64 bMultisample     : 1;
-			uint64 nFlags           : 2;
-			uint64 nUnused          : 19;
-		};
-
-		KeyType Key;
-	};
-
-	SResourceView(uint64 nKey = DefaultView)
-	{
-		static_assert(sizeof(m_Desc) <= sizeof(KeyType), "Invalid type size!");
-
-		m_Desc.Key = nKey;
-		m_pDeviceResourceView = NULL;
-	}
-
-	static SResourceView ShaderResourceView(ETEX_Format nFormat, int nFirstSlice = 0, int nSliceCount = -1, int nMostDetailedMip = 0, int nMipCount = -1, bool bSrgbRead = false, bool bMultisample = false, int nFlags = 0);
-	static SResourceView RenderTargetView(ETEX_Format nFormat, int nFirstSlice = 0, int nSliceCount = -1, int nMipLevel = 0, bool bMultisample = false);
-	static SResourceView DepthStencilView(ETEX_Format nFormat, int nFirstSlice = 0, int nSliceCount = -1, int nMipLevel = 0, bool bMultisample = false, int nFlags = 0);
-	static SResourceView UnorderedAccessView(ETEX_Format nFormat, int nFirstSlice = 0, int nSliceCount = -1, int nMipLevel = 0, int nFlags = 0);
-
-	static bool          IsDefaultView(KeyType key)         { return key < 0LL; }
-	static bool          IsShaderResourceView(KeyType key)  { return key == DefaultView || key == DefaultViewMS || key == DefaultViewSRGB || SResourceView(key).m_Desc.eViewType == eShaderResourceView; }
-	static bool          IsRenderTargetView(KeyType key)    { return key == DefaultRendertargetView || SResourceView(key).m_Desc.eViewType == eRenderTargetView; }
-	static bool          IsDepthStencilView(KeyType key)    { return key == DefaultDepthStencilView || SResourceView(key).m_Desc.eViewType == eDepthStencilView; }
-	static bool          IsUnorderedAccessView(KeyType key) { return key == DefaultUnordererdAccessView || SResourceView(key).m_Desc.eViewType == eUnorderedAccessView; }
-
-	bool                 operator==(const SResourceView& other) const
-	{
-		return m_Desc.Key == other.m_Desc.Key;
-	}
-
-	ResourceViewDesc m_Desc;
-	void*            m_pDeviceResourceView;
-};
-
-// properties of the render targets ONLY
-struct RenderTargetData
-{
-	int               m_nRTSetFrameID; // last read access, compare with GetFrameID(false)
-	TArray<DirtyRECT> m_DirtyRects;
-	struct
-	{
-		uint8 m_nMSAASamples : 4;
-		uint8 m_nMSAAQuality : 4;
-	};
-#if CRY_PLATFORM_DURANGO
-	int32           m_nESRAMOffset;
-#endif
-	CDeviceTexture* m_pDeviceTextureMSAA;
-
-	RenderTargetData()
-	{
-		memset(this, 0, sizeof(*this));
-		m_nRTSetFrameID = -1;
-#if CRY_PLATFORM_DURANGO
-		m_nESRAMOffset = -1;
-#endif
-	}
-	~RenderTargetData();
-};
-
-struct ResourceViewData
-{
-	TArray<SResourceView> m_ResourceViews;
-
-	ResourceViewData()
-	{
-		memset(this, 0, sizeof(*this));
-	}
-	~ResourceViewData();
 };
 
 //////////////////////////////////////////////////////////////////////////
@@ -1383,27 +1101,24 @@ class CTexture : public ITexture, public CBaseResource
 	friend class CReactiveTextureStreamer;
 	friend struct CompareStreamingPrioriry;
 	friend struct CompareStreamingPrioriryInv;
-private:
-	D3DSurface*       m_pDeviceRTV;
-	D3DSurface*       m_pDeviceRTVMS;
 
+private:
 	CDeviceTexture*   m_pDevTexture;
 	const SPixFormat* m_pPixelFormat;
 
 	// Start block that should fit in one cache-line
-	// Reason is to minimise cache misses during texture streaming update job
-	// Note: This is checked COMPILE_TIME_ASSERTS in ~CTexture implementation (Texture.cpp)
+	// Reason is to minimize cache misses during texture streaming update job
+	// Note: This is checked static_assert in ~CTexture implementation (Texture.cpp)
 
 	STexStreamingInfo*  m_pFileTexMips;   // properties of the streamable texture ONLY
 
 	uint16              m_nWidth;
 	uint16              m_nHeight;
 	uint16              m_nDepth;
-	ETEX_Format         m_eTFDst;
+	ETEX_Format         m_eDstFormat;
 	ETEX_TileMode       m_eSrcTileMode;
-	uint8               m_nStreamFormatCode;
 
-	uint32              m_nFlags;     // e.g. FT_USAGE_DYNAMIC
+	uint32              m_eFlags;     // e.g. FT_USAGE_DYNAMIC
 
 	bool                m_bStreamed             : 1;
 	bool                m_bStreamPrepared       : 1;
@@ -1431,13 +1146,14 @@ private:
 	bool                m_bStatTracked          : 1;
 	bool                m_bStreamHighPriority   : 1;
 
+	uint8               m_nStreamFormatCode;
 	int8                m_nCustomID;
 
-	uint8               m_nArraySize;
+	uint16              m_nArraySize;
 	int8                m_nMips;
 	ETEX_Type           m_eTT;
 
-	ETEX_Format         m_eTFSrc;
+	ETEX_Format         m_eSrcFormat;
 	int8                m_nStreamingPriority;
 	int8                m_nMinMipVidUploaded;
 	int8                m_nMinMipVidActive;
@@ -1446,13 +1162,13 @@ private:
 	int16               m_fpMinMipCur;
 
 	STexCacheFileHeader m_CacheFileHeader;
-	uint16              m_nDefState;
+	SamplerStateHandle  m_nDefState;
 
-	int32               m_nActualSize;
+	int32               m_nDevTextureSize;
 	int32               m_nPersistentSize;
 
 	int                 m_nAccessFrameID; // last read access, compare with GetFrameID(false)
-	STexStreamRoundInfo m_streamRounds[MAX_PREDICTION_ZONES];
+	STexStreamRoundInfo m_streamRounds[MAX_STREAM_PREDICTION_ZONES];
 
 	// End block that should fit in one cache-line
 
@@ -1463,20 +1179,18 @@ private:
 	ColorF                    m_cMaxColor;
 	ColorF                    m_cClearColor;
 
-	RenderTargetData*         m_pRenderTargetData;
-	ResourceViewData*         m_pResourceViewData;
+#if CRY_PLATFORM_DURANGO && (CRY_RENDERER_DIRECT3D >= 110) && (CRY_RENDERER_DIRECT3D < 120)
+	uint32                    m_nDeviceAddressInvalidated;
+#endif
+#if CRY_PLATFORM_DURANGO && DURANGO_USE_ESRAM
+	int32                     m_nESRAMOffset;
+#endif
 
 	string                    m_SrcName;
 
 #ifndef _RELEASE
 	string m_sAssetScopeName;
 #endif
-
-	D3DShaderResource* m_pDeviceShaderResource;
-	D3DShaderResource* m_pDeviceShaderResourceSRGB;
-
-	typedef std::function<void (void*, uint32)> InvalidateCallbackType;
-	std::unordered_map<void*, InvalidateCallbackType> m_invalidateCallbacks;
 
 public:
 	int m_nUpdateFrameID;         // last write access, compare with GetFrameID(false)
@@ -1502,9 +1216,9 @@ private:
 #endif
 
 	static CCryNameTSCRC GenName(const char* name, uint32 nFlags = 0);
-	static CTexture*     NewTexture(const char* name, uint32 nFlags, ETEX_Format eTFDst, bool& bFound);
+	static CTexture*     FindOrRegisterTextureObject(const char* name, uint32 nFlags, ETEX_Format eTFDst, bool& bFound); // NOTE: increases refcount
 
-	ETEX_Format          FormatFixup(ETEX_Format src);
+	ETEX_Format          FormatFixup(ETEX_Format eFormat);
 	bool                 FormatFixup(STexData& td);
 	bool                 ImagePreprocessing(STexData& td);
 
@@ -1518,21 +1232,13 @@ protected:
 	virtual ~CTexture();
 
 public:
-	//! Dirty flags will indicate what kind of device data was invalidated
-	enum EDeviceDirtyFlags
-	{
-		eDeviceResourceDirty     = BIT(0),
-		eDeviceResourceViewDirty = BIT(1),
-	};
-
-public:
 	CTexture(const uint32 nFlags, const ColorF& clearColor = ColorF(Clr_Empty), CDeviceTexture* devTexToOwn = nullptr);
 
 	// ITexture interface
 	virtual int AddRef() final { return CBaseResource::AddRef(); }
 	virtual int Release() final
 	{
-		if (!(m_nFlags & FT_DONT_RELEASE) || IsLocked())
+		if (!(m_eFlags & FT_DONT_RELEASE) || IsLocked())
 		{
 			return CBaseResource::Release();
 		}
@@ -1541,7 +1247,7 @@ public:
 	}
 	virtual int ReleaseForce()
 	{
-		m_nFlags &= ~FT_DONT_RELEASE;
+		m_eFlags &= ~FT_DONT_RELEASE;
 		int nRef = 0;
 		while (true)
 		{
@@ -1556,6 +1262,26 @@ public:
 		return nRef;
 	}
 
+	inline STextureLayout GetLayout() const
+	{
+		assert((m_eTT != eTT_Cube && m_eTT != eTT_CubeArray) || !(m_nArraySize % 6));
+		const STextureLayout Layout =
+		{
+			m_pPixelFormat,
+			m_nWidth, m_nHeight, m_nDepth, m_nArraySize, m_nMips,
+			m_eSrcFormat, m_eDstFormat, m_eTT,
+			/* TODO: change FT_... to CDeviceObjectFactory::... */
+			m_eFlags, m_bIsSRGB,
+			m_cClearColor,
+#if CRY_PLATFORM_DURANGO && DURANGO_USE_ESRAM
+			m_nESRAMOffset
+#endif
+		};
+
+		return Layout;
+	}
+
+
 	virtual const char*     GetName() const                    { return GetSourceName(); }
 	virtual const int       GetWidth() const                   { return m_nWidth; }
 	ILINE const int         GetWidthNonVirtual() const         { return m_nWidth; }
@@ -1568,30 +1294,32 @@ public:
 	ILINE const bool        IsForceStreamHighRes() const       { return m_bForceStreamHighRes; }
 	ILINE const bool        IsStreamHighPriority() const       { return m_bStreamHighPriority; }
 	virtual const int       GetTextureID() const;
-	void                    SetFlags(uint32 nFlags)            { m_nFlags = nFlags; }
-	virtual const uint32    GetFlags() const                   { return m_nFlags; }
+	void                    SetFlags(uint32 nFlags)            { m_eFlags = nFlags; }
+	virtual const uint32    GetFlags() const                   { return m_eFlags; }
 	ILINE const int         GetNumMipsNonVirtual() const       { return m_nMips; }
 	virtual const int       GetNumMips() const                 { return m_nMips; }
 	virtual const int       GetRequiredMip() const             { return max(0, m_fpMinMipCur >> 8); }
 	ILINE const int         GetRequiredMipNonVirtual() const   { return max(0, m_fpMinMipCur >> 8); }
 	ILINE const int         GetRequiredMipNonVirtualFP() const { return m_fpMinMipCur; }
 	virtual const ETEX_Type GetTextureType() const;
+	// TODO: deprecate global state based sampler state configuration
 	virtual void            SetClamp(bool bEnable)
 	{
-		int nMode = bEnable ? TADDR_CLAMP : TADDR_WRAP;
-		SetClampingMode(nMode, nMode, nMode);
+		ESamplerAddressMode nMode = bEnable ? eSamplerAddressMode_Clamp : eSamplerAddressMode_Wrap;
+		SSamplerState::SetDefaultClampingMode(nMode, nMode, nMode);
 	}
 	virtual const bool IsTextureLoaded() const { return IsLoaded(); }
 	virtual void       PrecacheAsynchronously(float fMipFactor, int nFlags, int nUpdateId, int nCounter = 1);
 	virtual byte*      GetData32(int nSide = 0, int nLevel = 0, byte* pDst = NULL, ETEX_Format eDstFormat = eTF_R8G8B8A8);
-	virtual const int  GetDeviceDataSize() const { return m_nActualSize; }
+	virtual const int  GetDeviceDataSize() const { return m_nDevTextureSize; }
 	virtual const int  GetDataSize() const
 	{
 		if (IsStreamed())
-			return StreamComputeDevDataSize(0);
-		return m_nActualSize;
+			return StreamComputeSysDataSize(0);
+		return m_nDevTextureSize;
 	}
-	virtual bool          SetFilter(int nFilter) { return SetFilterMode(nFilter); }
+	// TODO: deprecate global state based sampler state configuration
+	virtual bool          SetFilter(int nFilter) { return SSamplerState::SetDefaultFilterMode(nFilter); }
 	virtual bool          Clear();
 	virtual bool          Clear(const ColorF& color);
 	virtual float         GetAvgBrightness() const                 { return m_fAvgBrightness; }
@@ -1603,6 +1331,13 @@ public:
 	virtual const ColorF& GetClearColor() const                    { return m_cClearColor; }
 	virtual void          SetClearColor(const ColorF& cClearColor) { m_cClearColor = cClearColor; }
 
+#if CRY_PLATFORM_DURANGO && DURANGO_USE_ESRAM
+	// The only reason this access exists, is because RenderTargets are CTexture and not CDeviceTexture,
+	// and they are allocated deferred (CDevicetexture doesn't exist when ESRAM-location is configured)
+	void SetESRAMOffset(int32 offset) { m_nESRAMOffset = offset; if (m_pDevTexture) m_pDevTexture->SetESRAMOffset(offset); }
+	int32 GetESRAMOffset() { if (m_pDevTexture) return m_pDevTexture->GetESRAMOffset(); return m_nESRAMOffset; }
+#endif
+
 	virtual void          GetMemoryUsage(ICrySizer* pSizer) const;
 	virtual const char*   GetFormatName() const;
 	virtual const char*   GetTypeName() const;
@@ -1612,32 +1347,40 @@ public:
 		return CBaseResource::GetRefCounter() > 1;
 	}
 
-	virtual const ETEX_Format GetTextureDstFormat() const { return m_eTFDst; }
-	virtual const ETEX_Format GetTextureSrcFormat() const { return m_eTFSrc; }
+	virtual const ETEX_Format GetTextureDstFormat() const { return m_eDstFormat; }
+	virtual const ETEX_Format GetTextureSrcFormat() const { return m_eSrcFormat; }
 
 	virtual const bool        IsParticularMipStreamed(float fMipFactor) const;
 
 	// Internal functions
-	const ETEX_Format GetDstFormat() const { return m_eTFDst; }
-	const ETEX_Format GetSrcFormat() const { return m_eTFSrc; }
+	const ETEX_Format GetDstFormat() const { return m_eDstFormat; }
+	const ETEX_Format GetSrcFormat() const { return m_eSrcFormat; }
 	const ETEX_Type   GetTexType() const   { return m_eTT; }
 	const uint32      StreamGetNumSlices() const
 	{
+#if !defined(_RELEASE)
 		switch (m_eTT)
 		{
+		case eTT_1D:
 		case eTT_2D:
+		case eTT_2DMS:
+		case eTT_3D:
+			assert((m_nArraySize == 1));
 		case eTT_2DArray:
-			return m_nArraySize;
+			break;
 
 		case eTT_Cube:
-			return 6 * m_nArraySize;
+			assert((m_nArraySize == 6));
+		case eTT_CubeArray:
+			assert(!(m_nArraySize % 6));
+			break;
 
 		default:
-#ifndef _RELEASE
 			__debugbreak();
-#endif
-			return 1;
 		}
+#endif
+
+		return m_nArraySize;
 	}
 
 	void               RT_ReleaseDevice();
@@ -1649,7 +1392,7 @@ public:
 	void               SetWasUnload(bool bSet)                       { m_bWasUnloaded = bSet; }
 	const bool         IsPartiallyLoaded() const                     { return m_nMinMipVidUploaded != 0; }
 	const bool         IsUnloaded(void) const                        { return m_bWasUnloaded; }
-	void               SetKeepSystemCopy(const bool bKeepSystemCopy) { if (bKeepSystemCopy) m_nFlags |= FT_KEEP_LOWRES_SYSCOPY; else m_nFlags &= ~FT_KEEP_LOWRES_SYSCOPY; }
+	void               SetKeepSystemCopy(const bool bKeepSystemCopy) { if (bKeepSystemCopy) m_eFlags |= FT_KEEP_LOWRES_SYSCOPY; else m_eFlags &= ~FT_KEEP_LOWRES_SYSCOPY; }
 	void               SetStreamingInProgress(uint16 nStreamSlot)
 	{
 		assert(nStreamSlot == InvalidStreamSlot || m_nStreamSlot == InvalidStreamSlot);
@@ -1668,11 +1411,11 @@ public:
 	const bool                       UseMultisampledRTV() const                  { return m_bUseMultisampledRTV; }
 	const bool                       IsVertexTexture() const                     { return m_bVertexTexture; }
 	void                             SetVertexTexture(bool bEnable)              { m_bVertexTexture = bEnable; }
-	const bool                       IsDynamic() const                           { return ((m_nFlags & (FT_USAGE_DYNAMIC | FT_USAGE_RENDERTARGET)) != 0); }
+	const bool                       IsDynamic() const                           { return ((m_eFlags & (FT_USAGE_DYNAMIC | FT_USAGE_RENDERTARGET | FT_USAGE_DEPTHSTENCIL)) != 0); }
 	bool                             IsStillUsedByGPU();
 	void                             Lock()                                      { m_bIsLocked = true; }
 	void                             Unlock()                                    { m_bIsLocked = false; }
-	const bool                       IsLoaded() const                            { return (m_nFlags & FT_FAILED) == 0; }
+	const bool                       IsLoaded() const                            { return (m_eFlags & FT_FAILED) == 0; }
 	const bool                       IsLocked() const                            { return m_bIsLocked; }
 	ILINE const bool                 IsStreamed() const                          { return m_bStreamed; }
 	ILINE const bool                 IsInDistanceSortedList() const              { return m_bInDistanceSortedList; }
@@ -1688,12 +1431,13 @@ public:
 	const bool                       UseDecalBorderCol() const                   { return m_bUseDecalBorderCol; }
 	const bool                       IsSRGB() const                              { return m_bIsSRGB; }
 	void                             SRGBRead(bool bEnable = false)              { m_bIsSRGB = bEnable; }
+	const bool                       IsMSAA() const                              { return ((m_eFlags & FT_USAGE_MSAA) && m_bUseMultisampledRTV) != 0; }
 	const bool                       IsCustomFormat() const                      { return m_bCustomFormat; }
 	void                             SetCustomFormat()                           { m_bCustomFormat = true; }
 	void                             SetWidth(int16 width)                       { m_nWidth = std::max<int16>(width, 1); m_nMips = 1; }
 	void                             SetHeight(int16 height)                     { m_nHeight = std::max<int16>(height, 1); m_nMips = 1; }
 	int                              GetUpdateFrameID() const                    { return m_nUpdateFrameID; }
-	ILINE const int32                GetActualSize() const                       { return m_nActualSize; }
+	ILINE const int32                GetActualSize() const                       { return m_nDevTextureSize; }
 	ILINE const int32                GetPersistentSize() const                   { return m_nPersistentSize; }
 
 	ILINE void                       PrefetchStreamingInfo() const               { PrefetchLine(m_pFileTexMips, 0); }
@@ -1701,10 +1445,11 @@ public:
 
 	virtual const bool               IsStreamable() const                        { return IsStreamed(); }
 
-	const bool                       IsStreamableNonVirtual() const              { return !(m_nFlags & FT_DONT_STREAM) && !(m_eTT == eTT_3D); }
+	const bool                       IsStreamableNonVirtual() const              { return !(m_eFlags & FT_DONT_STREAM) && !(m_eTT == eTT_3D); }
+
 	ILINE void                       DisableMgpuSync()
 	{
-#if defined(USE_NV_API)
+#if (CRY_RENDERER_DIRECT3D >= 110) && (CRY_RENDERER_DIRECT3D < 120) && defined(USE_NV_API)
 		if (m_pDevTexture)
 			m_pDevTexture->DisableMgpuSync();
 #endif
@@ -1712,71 +1457,34 @@ public:
 
 	ILINE void MgpuResourceUpdate(bool bUpdating = true)
 	{
-#if defined(USE_NV_API)
+#if (CRY_RENDERER_DIRECT3D >= 110) && (CRY_RENDERER_DIRECT3D < 120) && defined(USE_NV_API)
 		if (m_pDevTexture)
 			m_pDevTexture->MgpuResourceUpdate(bUpdating);
 #endif
 	}
 
-	// Sets render target destination edram tile.
-	//  -  0 = backbuffer, 1 = secondary, mostly free, 2 = zbuffer, can use when zbuffer not needed anymore
-	void         SetRenderTargetTile(uint8 nTile = 0);
-	void         SetRenderTargetTileOffset(uint8 nTileOffset = 0);
-	const uint8  GetRenderTargetTile() const;
-	const uint8  GetRenderTargetTileOffset() const;
-
 	bool         IsHighQualityFiltered() const               { return m_bHighQualityFiltering; }
 	virtual void SetHighQualityFiltering(bool bState = true) { m_bHighQualityFiltering = bState; }
 
-#if CRY_PLATFORM_DURANGO
-	void SetESRAMOffset(int32 offset)
-	{
-		if (m_pRenderTargetData)
-		{
-			m_pRenderTargetData->m_nESRAMOffset = offset;
-		}
-	}
-#endif
+	bool            IsFPFormat() const    { return CImageExtensionHelper::IsRangeless(m_eDstFormat); };
 
-	bool            IsFPFormat() const    { return CImageExtensionHelper::IsRangeless(m_eTFDst); };
-
-	void*           GetDeviceRT() const   { return m_pDeviceRTV; }
-
-	CDeviceTexture* GetDevTexture() const { return m_pDevTexture; }
+	CDeviceTexture* GetDevTexture(bool bMultisampled = false) const { return (!bMultisampled ? m_pDevTexture : m_pDevTexture->GetMSAATexture()); }
 	void            SetDevTexture(CDeviceTexture* pDeviceTex);
-	void            OwnDevTexture(uint32 nFlags, CDeviceTexture* pDeviceTex);
-	void            AddDirtRect(RECT& rcSrc, uint32 dstX, uint32 dstY);
+	void            OwnDevTexture(CDeviceTexture* pDeviceTex);
 	bool            IsAsyncDevTexCreation() const { return m_bAsyncDevTexCreation; }
 
 	// note: render target should be created with FT_FORCE_MIPS flag
 	bool               GenerateMipMaps(bool bSetOrthoProj = false, bool bUseHW = true, bool bNormalMap = false);
 
-	D3DShaderResource* GetShaderResourceView(SResourceView::KeyType resourceViewID = SResourceView::DefaultView, bool bLegacySrgbLookup = false);
-	D3DShaderResource* GetShaderResourceView(SResourceView::KeyType resourceViewID = SResourceView::DefaultView, bool bLegacySrgbLookup = false) const;
+	void               SetDefaultShaderResourceView(D3DBaseView* pDeviceShaderResource, bool bMultisampled = false);
 
-	void               SetShaderResourceView(D3DShaderResource* pDeviceShaderResource, bool bMultisampled = false);
+	D3DBaseView*       GetResourceView(const SResourceView& rvDesc);
+	D3DBaseView*       GetResourceView(const SResourceView& rvDesc) const;
+	void               SetResourceView(const SResourceView& rvDesc, D3DBaseView* pView);
 
-	CDeviceTexture*    GetDevTextureMSAA() const
-	{
-		return m_pRenderTargetData->m_pDeviceTextureMSAA;
-	}
-
-	D3DUAV*            GetDeviceUAV();
-	D3DUAV*            GetDeviceUAV() const;
-
-	void*              GetResourceView(const SResourceView& rvDesc);
-	void*              GetResourceView(const SResourceView& rvDesc) const;
-
-	void               SetResourceView(const SResourceView& rvDesc, void* pView);
-
-	void*              CreateDeviceResourceView(const SResourceView& rvDesc);
-	D3DDepthSurface*   GetDeviceDepthStencilView(int nFirstSlice = 0, int nSliceCount = -1, bool bMultisampled = false, bool readOnly = false);
-	D3DShaderResource* GetDeviceDepthReadOnlySRV(int nFirstSlice = 0, int nSliceCount = -1, bool bMultisampled = false);
-	D3DShaderResource* GetDeviceStencilReadOnlySRV(int nFirstSlice = 0, int nSliceCount = -1, bool bMultisampled = false);
-
+	// NOTE: deprecated
 	D3DSurface*        GetSurface(int nCMSide, int nLevel);
 	D3DSurface*        GetSurface(int nCMSide, int nLevel) const;
-	D3DPOOL            GetPool();
 
 	const SPixFormat*  GetPixelFormat() const { return m_pPixelFormat; }
 	bool               Invalidate(int nNewWidth, int nNewHeight, ETEX_Format eTF);
@@ -1784,20 +1492,20 @@ public:
 	const int          GetSize(bool bIncludePool) const;
 	void               PostCreate();
 
-	//////////////////////////////////////////////////////////////////////////
-	// Will notify resource's user that some data of the the resource was invalidated.
-	// dirtyFlags - one or more of the EDeviceDirtyFlags enum bits
-	void InvalidateDeviceResource(uint32 dirtyFlags);
-
-	inline void AddInvalidateCallback(void* listener, InvalidateCallbackType callback)
+#if CRY_PLATFORM_DURANGO && (CRY_RENDERER_DIRECT3D >= 110) && (CRY_RENDERER_DIRECT3D < 120)
+	void CheckValidateSRVs()
 	{
-		m_invalidateCallbacks.emplace(listener, callback);
+		if (m_pDevTexture && m_pDevTexture->GetBaseAddressInvalidated() != m_nDeviceAddressInvalidated)
+		{
+			ValidateSRVs();
+
+			m_nDeviceAddressInvalidated = m_pDevTexture->GetBaseAddressInvalidated();
+		}
 	}
 
-	inline void RemoveInvalidateCallbacks(void* listener)
-	{
-		m_invalidateCallbacks.erase(listener);
-	}
+	void ValidateSRVs();
+#endif
+
 	//////////////////////////////////////////////////////////////////////////
 
 public:
@@ -1822,7 +1530,7 @@ public:
 	static volatile size_t s_nStatsStreamPoolInUseMem;          // Amount of stream pool currently in use by texture streaming
 	static volatile size_t s_nStatsStreamPoolBoundMem;          // Amount of stream pool currently bound and in use by textures (avail + non avail)
 	static volatile size_t s_nStatsStreamPoolBoundPersMem;      // Amount of stream pool currently bound and in use by persistent texture mem (avail + non avail)
-	static volatile int    s_nStatsCurManagedNonStreamedTexMem;
+	static volatile size_t s_nStatsCurManagedNonStreamedTexMem;
 	static volatile size_t s_nStatsCurDynamicTexMem;
 	static volatile size_t s_nStatsStreamPoolWanted;
 	static bool            s_bStatsComputeStreamPoolWanted;
@@ -1866,6 +1574,7 @@ public:
 
 	static volatile int s_nBytesSubmittedToStreaming;
 	static volatile int s_nMipsSubmittedToStreaming;
+	static volatile int s_nNumStreamingRequests;
 	static int          s_nBytesRequiredNotSubmitted;
 
 #if !defined (_RELEASE) || defined(ENABLE_STATOSCOPE_RELEASE)
@@ -1891,36 +1600,25 @@ public:
 	static void StreamUpdateStats();
 #endif
 
-#if defined(TEXSTRM_STORE_DEVSIZES)
-	int StreamComputeDevDataSize(int nFromMip) const
+	int StreamComputeSysDataSize(int nFromMip) const
 	{
+#if defined(TEXSTRM_STORE_DEVSIZES)
 		if (m_pFileTexMips)
 		{
 			return m_pFileTexMips->m_pMipHeader[nFromMip].m_DevSideSizeWithMips;
 		}
-		else
-		{
-			return CDeviceTexture::TextureDataSize(
-			  max(1, m_nWidth >> nFromMip),
-			  max(1, m_nHeight >> nFromMip),
-			  max(1, m_nDepth >> nFromMip),
-			  m_nMips - nFromMip,
-			  StreamGetNumSlices(),
-			  m_eTFDst);
-		}
-	}
-#else
-	int StreamComputeDevDataSize(int nFromMip) const
-	{
-		return CDeviceTexture::TextureDataSize(
-		  max(1, m_nWidth >> nFromMip),
-		  max(1, m_nHeight >> nFromMip),
-		  max(1, m_nDepth >> nFromMip),
-		  m_nMips - nFromMip,
-		  StreamGetNumSlices(),
-		  m_eTFDst);
-	}
 #endif
+
+		return CTexture::TextureDataSize(
+			max(1, m_nWidth  >> nFromMip),
+			max(1, m_nHeight >> nFromMip),
+			max(1, m_nDepth  >> nFromMip),
+			m_nMips - nFromMip,
+			StreamGetNumSlices(),
+			m_eSrcFormat,
+			m_eSrcTileMode
+		);
+	}
 
 	void StreamUploadMip(IReadStream* pStream, int nMip, int nBaseMipOffset, STexPoolItem* pNewPoolItem, STexStreamInMipState& mipState);
 	void StreamUploadMipSide(
@@ -1939,15 +1637,23 @@ public:
 	bool          CanAsyncCopy();
 #endif
 	void          StreamCopyMipsTexToMem(int nStartMip, int nEndMip, bool bToDevice, STexPoolItem* pNewPoolItem);
-	static void   StreamCopyMipsTexToTex(STexPoolItem* pSrcItem, int nMipSrc, STexPoolItem* pDestItem, int nMipDest, int nNumMips); // GPU-assisted platform-dependent
-	static void   CopySliceChain(CDeviceTexture* const pDevTexture, int ownerMips, int nDstSlice, int nDstMip, CDeviceTexture* pSrcDevTex, int nSrcSlice, int nSrcMip, int nSrcMips, int nNumMips);
-#if CRY_PLATFORM_DURANGO
+	static void   StreamCopyMipsTexToTex(
+		STexPoolItem* const pSrcItem, int nSrcMipOffset,
+		STexPoolItem* const pDstItem, int nDstMipOffset, int nNumMips);
+	static void   CopySliceChain(
+		CDeviceTexture* const pDstDevTex, int nDstNumMips, int nDstSliceOffset, int nDstMipOffset,
+		CDeviceTexture* const pSrcDevTex, int nSrcNumMips, int nSrcSliceOffset, int nSrcMipOffset, int nNumSlices, int nNumMips);
+
+#if CRY_PLATFORM_DURANGO && (CRY_RENDERER_DIRECT3D >= 110) && (CRY_RENDERER_DIRECT3D < 120)
 	void          StreamUploadMip_Durango(const void* pSurfaceData, int nMip, int nBaseMipOffset, STexPoolItem* pNewPoolItem, STexStreamInMipState& mipState);
 	void          StreamUploadMips_Durango(int nBaseMip, int nMipCount, STexPoolItem* pNewPoolItem, STexStreamInState& streamState);
-	bool          StreamInCheckComplete_Durango(STexStreamInState& state);
+	bool          StreamInCheckTileComplete_Durango(STexStreamInState& state);
+	bool          StreamInCheckCopyComplete_Durango(STexStreamInState& state);
 	bool          StreamOutCheckComplete_Durango(STexStreamOutState& state);
+	static UINT64 StreamInsertFence();
 	static UINT64 StreamCopyMipsTexToTex_MoveEngine(STexPoolItem* pSrcItem, int nMipSrc, STexPoolItem* pDestItem, int nMipDest, int nNumMips);  // GPU-assisted platform-dependent
 #endif
+
 #if defined(TEXSTRM_DEFERRED_UPLOAD)
 	ID3D11CommandList*         StreamCreateDeferred(int nStartMip, int nEndMip, STexPoolItem* pNewPoolItem, STexPoolItem* pSrcPoolItem);
 	void                       StreamApplyDeferred(ID3D11CommandList* pCmdList);
@@ -2006,7 +1712,7 @@ public:
 
 	//=======================================================
 
-	static void ApplyForID(int nTUnit, int nID, int nState, int nSUnit)
+	static void ApplyForID(int nTUnit, int nID, SamplerStateHandle nState, int nSUnit)
 	{
 		CTexture* pTex = GetByID(nID);
 		assert(pTex);
@@ -2014,14 +1720,12 @@ public:
 			pTex->Apply(nTUnit, nState, -1, nSUnit);
 	}
 
-	static const CCryNameTSCRC& mfGetClassName();
-	static CTexture*            GetByID(int nID);
-	static CTexture*            GetByName(const char* szName, uint32 flags = 0);
-	static CTexture*            GetByNameCRC(CCryNameTSCRC Name);
-	static CTexture*            ForName(const char* name, uint32 nFlags, ETEX_Format eTFDst);
-	static CTexture*            CreateTextureArray(const char* name, ETEX_Type eType, uint32 nWidth, uint32 nHeight, uint32 nArraySize, int nMips, uint32 nFlags, ETEX_Format eTF, int nCustomID = -1);
-	static CTexture*            CreateRenderTarget(const char* name, uint32 nWidth, uint32 nHeight, const ColorF& cClear, ETEX_Type eTT, uint32 nFlags, ETEX_Format eTF, int nCustomID = -1);
-	static CTexture*            CreateTextureObject(const char* name, uint32 nWidth, uint32 nHeight, int nDepth, ETEX_Type eTT, uint32 nFlags, ETEX_Format eTF, int nCustomID = -1);
+	static const CCryNameTSCRC&  mfGetClassName();
+	static CTexture*             GetByID(int nID);
+	static CTexture*             GetByName(const char* szName, uint32 flags = 0);
+	static CTexture*             GetByNameCRC(CCryNameTSCRC Name);
+	static CTexture*             ForName(const char* name, uint32 nFlags, ETEX_Format eFormat);
+	static _smart_ptr<CTexture>  ForNamePtr(const char* name, uint32 nFlags, ETEX_Format eFormat);
 
 	static void                 InitStreaming();
 	static void                 InitStreamingDev();
@@ -2035,55 +1739,71 @@ public:
 	static void                 ReleaseSystemTextures(bool bFinalRelease = false);
 	static void                 LoadDefaultSystemTextures();
 	static void                 LoadScaleformSystemTextures();
-	static inline void          ResetTMUs() { for (int j = 0; j < eHWSC_Num; j++) for (int i = 0; i < MAX_TMU; i++) s_TexStateIDs[j][i] = -1; }
+	static inline void          ResetTMUs() { memset(s_TexStateIDs, int(EDefaultSamplerStates::Unspecified), sizeof(s_TexStateIDs)); }
 
 	static bool                 ReloadFile(const char* szFileName);
 	static bool                 ReloadFile_Request(const char* szFileName);
 	static void                 ReloadTextures();
-	static CTexture*            Create2DTexture(const char* szName, int nWidth, int nHeight, int nMips, int nFlags, byte* pData, ETEX_Format eTFSrc, ETEX_Format eTFDst, bool bAsyncDevTexCreation = false);
-	static CTexture*            Create3DTexture(const char* szName, int nWidth, int nHeight, int nDepth, int nMips, int nFlags, byte* pData, ETEX_Format eTFSrc, ETEX_Format eTFDst);
-	static CTexture*            Create2DCompositeTexture(const char* szName, int nWidth, int nHeight, int nMips, int nFlags, ETEX_Format eTFDst, const STexComposition* pCompositions, size_t nCompositions);
 	static void                 Update();
 	static void                 RT_LoadingUpdate();
 	static void                 RLT_LoadingUpdate();
 
 	// Loading/creating functions
-	bool  Load(ETEX_Format eTFDst);
+	bool  Load(ETEX_Format eFormat);
 	bool  Load(CImageFile* pImage);
-	bool  LoadFromImage(const char* name, ETEX_Format eTFDst = eTF_Unknown);
+	bool  LoadFromImage(const char* name, ETEX_Format eFormat = eTF_Unknown);
 	bool  Reload();
 	bool  ToggleStreaming(const bool bEnable);
-	bool  CreateTexture(STexData& td);
+	virtual void UpdateData(STexData &td, int flags);
 
 	byte* GetSubImageData32(int nX, int nY, int nW, int nH, int& nOutTexDim);
+
+	//=======================================================
+	// Lowest-level functions calling into the API-specific implementation
+	bool               RT_CreateDeviceTexture(const void* pData[]);
+	bool               RT_CreateDeviceTexture(D3DResource* pNatTex);
+	bool               CreateDeviceTexture(const void* pData[]);
+	bool               CreateDeviceTexture(D3DResource* pTex);
+	void               ReleaseDeviceTexture(bool bKeepLastMips, bool bFromUnload = false);
+
+	// Low-level functions calling CreateDeviceTexture()
+	bool               CreateRenderTarget(ETEX_Format eFormat, const ColorF& cClear);
+	bool               CreateDepthStencil(ETEX_Format eFormat, const ColorF& cClear);
+	bool               CreateShaderResource(STexData& td);
+
+	// Mid-level functions calling Create...()
+	bool               Create2DTexture(int nWidth, int nHeight, int nMips, int nFlags, byte* pData, ETEX_Format eSrcFormat);
+	bool               Create3DTexture(int nWidth, int nHeight, int nDepth, int nMips, int nFlags, byte* pData, ETEX_Format eTFSrc);
+
+	// High-level functions calling Create...()
+	static CTexture*              GetOrCreateTextureObject(const char* name, uint32 nWidth, uint32 nHeight, int nDepth, ETEX_Type eTT, uint32 nFlags, ETEX_Format eFormat, int nCustomID = -1);
+	static _smart_ptr<CTexture>   GetOrCreateTextureObjectPtr(const char* name, uint32 nWidth, uint32 nHeight, int nDepth, ETEX_Type eTT, uint32 nFlags, ETEX_Format eFormat, int nCustomID = -1);
+	static CTexture*              GetOrCreateTextureArray(const char* name, uint32 nWidth, uint32 nHeight, uint32 nArraySize, int nMips, ETEX_Type eType, uint32 nFlags, ETEX_Format eFormat, int nCustomID = -1);
+
+	// High-level functions calling GetOrCreate...() and Create...()
+	static CTexture*   GetOrCreateRenderTarget(const char* name, uint32 nWidth, uint32 nHeight, const ColorF& cClear, ETEX_Type eTT, uint32 nFlags, ETEX_Format eSrcFormat, int nCustomID = -1);
+	static CTexture*   GetOrCreateDepthStencil(const char* name, uint32 nWidth, uint32 nHeight, const ColorF& cClear, ETEX_Type eTT, uint32 nFlags, ETEX_Format eSrcFormat, int nCustomID = -1);
+	static CTexture*   GetOrCreate2DTexture(const char* szName, int nWidth, int nHeight, int nMips, int nFlags, byte* pData, ETEX_Format eSrcFormat, bool bAsyncDevTexCreation = false);
+	static CTexture*   GetOrCreate3DTexture(const char* szName, int nWidth, int nHeight, int nDepth, int nMips, int nFlags, byte* pData, ETEX_Format eSrcFormat);
+	static CTexture*   GetOrCreate2DCompositeTexture(const char* szName, int nWidth, int nHeight, int nMips, int nFlags, ETEX_Format eSrcFormat, const STexComposition* pCompositions, size_t nCompositions);
+	//=======================================================
 
 	// API depended functions
 	void               Unbind();
 	bool               Resolve(int nTarget = 0, bool bUseViewportSize = false);
-	bool               CreateDeviceTexture(byte* pData[6]);
-	bool               RT_CreateDeviceTexture(byte* pData[6]);
-	bool               CreateRenderTarget(ETEX_Format eTF, const ColorF& cClear);
-	void               ReleaseDeviceTexture(bool bKeepLastMips, bool bFromUnload = false);
-	void               Apply(int nTUnit, int nState = -1, int nTexMatSlot = EFTT_UNKNOWN, int nSUnit = -1, SResourceView::KeyType nResViewKey = SResourceView::DefaultView, EHWShaderClass eHWSC = eHWSC_Pixel);
-	void               ApplySamplerState(int nSUnit, EHWShaderClass eHWSC = eHWSC_Pixel, int nState = -1);
-	void               ApplyTexture(int nTUnit, EHWShaderClass eHWSC = eHWSC_Pixel, SResourceView::KeyType nResViewKey = SResourceView::DefaultView);
-	ETEX_Format        ClosestFormatSupported(ETEX_Format eTFDst);
-	static ETEX_Format ClosestFormatSupported(ETEX_Format eTFDst, const SPixFormat*& pPF);
+	
+	void               Apply(int nTUnit, SamplerStateHandle nState = EDefaultSamplerStates::Unspecified, int nTexMatSlot = EFTT_UNKNOWN, int nSUnit = -1, ResourceViewHandle hView = EDefaultResourceViews::Default, bool bMSAA = false, EHWShaderClass eHWSC = eHWSC_Pixel);
+	void               ApplySampler(int nSUnit, EHWShaderClass eHWSC = eHWSC_Pixel, SamplerStateHandle eState = EDefaultSamplerStates::Unspecified);
+	void               ApplyTexture(int nTUnit, EHWShaderClass eHWSC = eHWSC_Pixel, ResourceViewHandle hView = EDefaultResourceViews::Default, bool bMSAA = false);
 	void               SetTexStates();
 	void               UpdateTexStates();
-	bool               SetFilterMode(int nFilter);
-	bool               SetClampingMode(int nAddressU, int nAddressV, int nAddressW);
-	void               UpdateTextureRegion(byte* data, int X, int Y, int Z, int USize, int VSize, int ZSize, ETEX_Format eTFSrc);
-	void               RT_UpdateTextureRegion(byte* data, int X, int Y, int Z, int USize, int VSize, int ZSize, ETEX_Format eTFSrc);
-	bool               Create2DTexture(int nWidth, int nHeight, int nMips, int nFlags, byte* pData, ETEX_Format eTFSrc, ETEX_Format eTFDst);
-	bool               Create3DTexture(int nWidth, int nHeight, int nDepth, int nMips, int nFlags, byte* pData, ETEX_Format eTFSrc, ETEX_Format eTFDst);
+	void               UpdateTextureRegion(byte* pSrcData, int X, int Y, int Z, int USize, int VSize, int ZSize, ETEX_Format eSrcFormat);
+	void               RT_UpdateTextureRegion(byte* pSrcData, int X, int Y, int Z, int USize, int VSize, int ZSize, ETEX_Format eSrcFormat);
 	bool               SetNoTexture(CTexture* pDefaultTexture = s_ptexNoTexture);
-	bool               IsMSAAChanged();
 
-	static void        SetSamplerState(int nTS, int nSSlot, EHWShaderClass eHWSC = eHWSC_Pixel);
+	static void        SetSampler(SamplerStateHandle nTS, int nSSlot, EHWShaderClass eHWSC = eHWSC_Pixel);
 
 	// Helper functions
-	static bool IsFormatSupported(ETEX_Format eTFDst);
 	static void GenerateZMaps();
 	static void DestroyZMaps();
 	static void GenerateHDRMaps();
@@ -2097,13 +1817,16 @@ public:
 	static void DestroyNearestShadowMap();
 
 #if defined(TEXTURE_GET_SYSTEM_COPY_SUPPORT)
-	static byte*        Convert(byte* pSrc, int nWidth, int nHeight, int nMips, ETEX_Format eTFSrc, ETEX_Format eTFDst, int nOutMips, int& nOutSize, bool bLinear);
+	static byte*        Convert(byte* pSrc, int nWidth, int nHeight, int nMips, ETEX_Format eSrcFormat, ETEX_Format eDstFormat, int nOutMips, int& nOutSize, bool bLinear);
 #endif
 	static int          CalcNumMips(int nWidth, int nHeight);
 	// upload mip data from file regarding to platform specifics
 	static bool         IsInPlaceFormat(const ETEX_Format fmt);
-	static void         ExpandMipFromFile(byte* dest, const int destSize, const byte* src, const int srcSize, const ETEX_Format fmt);
+	static void         ExpandMipFromFile(byte* dest, const int destSize, const byte* src, const int srcSize, const ETEX_Format srcFmt, const ETEX_Format dstFmt);
 	static uint32       TextureDataSize(uint32 nWidth, uint32 nHeight, uint32 nDepth, uint32 nMips, uint32 nSlices, const ETEX_Format eTF, ETEX_TileMode eTM = eTM_None);
+
+	static ETEX_Format  GetClosestFormatSupported(ETEX_Format eTFDst, const SPixFormat*& pPF);
+	ETEX_Format         SetClosestFormatSupported();
 
 	static ILINE bool   IsBlockCompressed(const ETEX_Format eTF) { return CImageExtensionHelper::IsBlockCompressed(eTF); }
 	static ILINE bool   IsFourBit(ETEX_Format eTF)               { return BitsPerPixel(eTF) == 16; }
@@ -2114,53 +1837,16 @@ public:
 	static const char*  NameForTextureType(ETEX_Type eTT)        { return CImageExtensionHelper::NameForTextureType(eTT); }
 	static ETEX_Format  TextureFormatForName(const char* str)    { return CImageExtensionHelper::TextureFormatForName(str); }
 	static ETEX_Type    TextureTypeForName(const char* str)      { return CImageExtensionHelper::TextureTypeForName(str); }
-	static bool         IsDeviceFormatTypeless(D3DFormat nFormat);
-	static bool         IsDeviceFormatSRGBReadable(D3DFormat nFormat);
-	static D3DFormat    DeviceFormatFromTexFormat(ETEX_Format eTF);
-	static uint32       WriteMaskFromTexFormat(ETEX_Format eTF);
-	static ETEX_Format  TexFormatFromDeviceFormat(D3DFormat nFormat);
-	static D3DFormat    GetD3DLinFormat(D3DFormat nFormat);
-	static D3DFormat    ConvertToDepthStencilFmt(D3DFormat nFormat);
-	static D3DFormat    ConvertToStencilOnlyFmt(D3DFormat nFormat);
-	static D3DFormat    ConvertToDepthOnlyFmt(D3DFormat nFormat);
-
-	static D3DFormat    ConvertToSRGBFmt(D3DFormat fmt);
-	static D3DFormat    ConvertToSignedFmt(D3DFormat fmt);
-	static D3DFormat    ConvertToTypelessFmt(D3DFormat fmt);
 
 	static SEnvTexture* FindSuitableEnvTex(Vec3& Pos, Ang3& Angs, bool bMustExist, int RendFlags, bool bUseExistingREs, CShader* pSH, CShaderResources* pRes, CRenderObject* pObj, bool bReflect, CRenderElement* pRE, bool* bMustUpdate);
 	static void         DrawSceneToCubeSide(Vec3& Pos, int tex_size, int side);
 	static bool         RenderEnvironmentCMHDR(int size, Vec3& Pos, TArray<unsigned short>& vecData);
 
 public:
-
-	static std::vector<STexState> s_TexStates;
-	static int GetTexState(const STexState& TS)
-	{
-		uint32 i;
-
-		const uint32 nTexStatesSize = s_TexStates.size();
-		for (i = 0; i < nTexStatesSize; i++)
-		{
-			STexState* pTS = &s_TexStates[i];
-			if (*pTS == TS)
-				break;
-		}
-
-		if (i == nTexStatesSize)
-		{
-			s_TexStates.push_back(TS);
-			s_TexStates[i].PostCreate();
-		}
-
-		return i;
-	}
-
 	static bool          m_bLoadedSystem;
 
-	static STexState     s_sDefState;
 	static STexStageInfo s_TexStages[MAX_TMU];
-	static int           s_TexStateIDs[eHWSC_Num][MAX_TMU];
+	static SamplerStateHandle s_TexStateIDs[eHWSC_Num][MAX_TMU];
 	static uint32        s_TexState_MipSRGBMask[MAX_TMU];
 
 	static ETEX_Format   s_eTFZ;
@@ -2174,9 +1860,9 @@ public:
 	static CTexture* s_ptexBlackAlpha;
 	static CTexture* s_ptexBlackCM;
 	static CTexture* s_ptexDefaultProbeCM;
+	static CTexture* s_ptexDefaultMergedDetail;
 	static CTexture* s_ptexFlatBump;
 #if !defined(_RELEASE)
-	static CTexture* s_ptexDefaultMergedDetail;
 	static CTexture* s_ptexMipMapDebug;
 	static CTexture* s_ptexColorBlue;
 	static CTexture* s_ptexColorCyan;
@@ -2200,6 +1886,7 @@ public:
 	static CTexture* s_ptexEnvironmentBRDF;
 	static CTexture* s_ptexScreenNoiseMap;
 	static CTexture* s_ptexDissolveNoiseMap;
+	static CTexture* s_ptexNoise3D;
 	static CTexture* s_ptexGrainFilterMap;
 	static CTexture* s_ptexFilmGrainMap;
 	static CTexture* s_ptexVignettingMap; // todo: create at runtime based on viggneting cvars
@@ -2221,6 +1908,7 @@ public:
 	static CTexture* s_ptexRT_2D;
 	static CTexture* s_ptex16_PointsOnSphere;
 	static CTexture* s_ptexNormalsFitting;
+	static CTexture* s_ptexPerlinNoiseMap;
 
 	static CTexture* s_ptexSceneNormalsMap;           // RT with normals for deferred shading
 	static CTexture* s_ptexSceneNormalsMapMS;         // Dummy normals target for binding multisampled rt
@@ -2256,16 +1944,11 @@ public:
 	static CTexture*           s_ptexWaterOcean;         // water ocean vertex texture
 	static CTexture*           s_ptexWaterVolumeDDN;     // water volume heightmap
 	static CTexture*           s_ptexWaterVolumeTemp[2]; // water volume heightmap
-	static CTexture*           s_ptexWaterRipplesDDN;    // xy: wave propagation normals, z: frame t-2, w: frame t-1
 	static CTexture*           s_ptexWaterVolumeRefl[2]; // water volume reflections buffer
 	static CTexture*           s_ptexWaterCaustics[2];   // caustics buffers
 	static CTexture*           s_ptexRainOcclusion;      // top-down rain occlusion
 	static CTexture*           s_ptexRainSSOcclusion[2]; // screen-space rain occlusion accumulation
-
-	static CMipmapGenPass*     s_pMipperWaterVolumeDDN;
-	static CMipmapGenPass*     s_pMipperWaterVolumeRefl[2];
-	static CMipmapGenPass*     s_pMipperWaterRipplesDDN;
-
+	
 	static CTexture*           s_ptexRainDropsRT[2];
 
 	static CTexture*           s_ptexRT_ShadowPool;
@@ -2318,9 +2001,6 @@ public:
 	static CTexture*           s_ptexSceneTargetScaled;
 	static CTexture*           s_ptexSceneTargetScaledBlurred;
 
-	static CTexture*           s_ptexVolObj_Density;
-	static CTexture*           s_ptexVolObj_Shadow;
-
 	static CTexture*           s_ptexColorChart;
 
 	static CTexture*           s_ptexStereoL;
@@ -2357,17 +2037,19 @@ public:
 };
 
 bool  WriteTGA(byte* dat, int wdt, int hgt, const char* name, int src_bits_per_pixel, int dest_bits_per_pixel);
+bool  WritePNG(byte* dat, int wdt, int hgt, const char* name);
 bool  WriteJPG(byte* dat, int wdt, int hgt, const char* name, int bpp, int nQuality = 100);
 #if CRY_PLATFORM_WINDOWS
 byte* WriteDDS(byte* dat, int wdt, int hgt, int dpth, const char* name, ETEX_Format eTF, int nMips, ETEX_Type eTT, bool bToMemory = false, int* nSize = NULL);
 #endif
+bool  WriteTIF(const void* dat, int wdth, int hgt, int bytesPerChannel, int numChannels, bool bFloat, const char* szPreset, const char* szFileName);
 
 //////////////////////////////////////////////////////////////////////////
 
 struct IDynTextureSourceImpl : public IDynTextureSource
 {
 	virtual bool Update() = 0;
-	virtual bool Apply(int nTUnit, int nTS = -1) = 0;
+	virtual bool Apply(int nTUnit, SamplerStateHandle nTS = EDefaultSamplerStates::Unspecified) = 0;
 	virtual void GetTexGenInfo(float& offsX, float& offsY, float& scaleX, float& scaleY) const = 0;
 	virtual void SetSize(uint32 width, uint32 height) = 0;
 };
@@ -2384,7 +2066,7 @@ public:
 	virtual string GetProfileInfo() const               { return string(); }
 #endif
 
-	virtual bool      Apply(int nTUnit, int nTS = -1);
+	virtual bool      Apply(int nTUnit, SamplerStateHandle nTS = EDefaultSamplerStates::Unspecified);
 	virtual void      GetTexGenInfo(float& offsX, float& offsY, float& scaleX, float& scaleY) const;
 
 	virtual ITexture* GetTexture() const                   { return m_pDynTexture->GetTexture(); }
@@ -2427,7 +2109,7 @@ public:
 #endif
 
 	virtual bool              Update();
-	virtual bool              Apply(int nTUnit, int nTS = -1);
+	virtual bool              Apply(int nTUnit, SamplerStateHandle nTS = EDefaultSamplerStates::Unspecified);
 	virtual void              GetTexGenInfo(float& offsX, float& offsY, float& scaleX, float& scaleY) const;
 
 	virtual void*             GetSourceTemp(EDynTextureSource type) const;
@@ -2630,7 +2312,7 @@ public:
 	private:
 		string                     m_layoutName;
 
-		IUILayout*                 m_pUILayout;
+		IUILayoutBase*             m_pUILayout;
 		IFlashPlayer*              m_pPlayer;
 
 		mutable CryCriticalSection m_lock;
@@ -2696,8 +2378,8 @@ private:
 
 	struct CachedTexStateID
 	{
-		int orig;
-		int patched;
+		SamplerStateHandle original;
+		SamplerStateHandle patched;
 	};
 	static const size_t NumCachedTexStateIDs = 2;
 

@@ -27,7 +27,9 @@ namespace CryEngine.EntitySystem
 
 		public override int GetHashCode()
 		{
+#pragma warning disable RECS0025 // Non-readonly field referenced in 'GetHashCode()'
 			return _value.GetHashCode();
+#pragma warning restore RECS0025 // Non-readonly field referenced in 'GetHashCode()'
 		}
 
 		public override string ToString()

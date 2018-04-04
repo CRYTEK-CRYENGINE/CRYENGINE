@@ -4,9 +4,9 @@
 
 // *INDENT-OFF* - <hard to read code and declarations due to inconsistent indentation>
 
-namespace uqs
+namespace UQS
 {
-	namespace core
+	namespace Core
 	{
 
 		//===================================================================================
@@ -18,7 +18,8 @@ namespace uqs
 		struct IUtils
 		{
 			virtual                          ~IUtils() {}
-			virtual client::IItemFactory*    FindItemFactoryByType(const shared::CTypeInfo& type) const = 0;
+			virtual Client::IItemFactory*    FindItemFactoryByType(const Shared::CTypeInfo& type) const = 0;
+			virtual const IQueryFactory&     GetDefaultQueryFactory() const = 0;
 		};
 
 	}

@@ -1,17 +1,14 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #include "StdAfx.h"
 #include "Script/Graph/Nodes/ScriptGraphBeginNode.h"
 
-#include <Schematyc/Compiler/CompilerContext.h>
-#include <Schematyc/Compiler/IGraphNodeCompiler.h>
-#include <Schematyc/Env/IEnvRegistry.h>
-#include <Schematyc/Env/Elements/IEnvSignal.h>
-#include <Schematyc/Script/IScriptRegistry.h>
-#include <Schematyc/Script/Elements/IScriptFunction.h>
-#include <Schematyc/Script/Elements/IScriptSignal.h>
-#include <Schematyc/Script/Elements/IScriptSignalReceiver.h>
-#include <Schematyc/Utils/Any.h>
+#include <CrySchematyc/Compiler/CompilerContext.h>
+#include <CrySchematyc/Compiler/IGraphNodeCompiler.h>
+#include <CrySchematyc/Env/IEnvRegistry.h>
+#include <CrySchematyc/Script/IScriptRegistry.h>
+#include <CrySchematyc/Script/Elements/IScriptFunction.h>
+#include <CrySchematyc/Utils/Any.h>
 
 #include "Runtime/RuntimeClass.h"
 #include "Script/Graph/ScriptGraphNode.h"
@@ -19,6 +16,7 @@
 
 namespace Schematyc
 {
+
 CScriptGraphBeginNode::CScriptGraphBeginNode() {}
 
 void CScriptGraphBeginNode::Init()
@@ -26,7 +24,7 @@ void CScriptGraphBeginNode::Init()
 	CScriptGraphNodeModel::GetNode().SetFlags({ EScriptGraphNodeFlags::NotCopyable, EScriptGraphNodeFlags::NotRemovable });
 }
 
-SGUID CScriptGraphBeginNode::GetTypeGUID() const
+CryGUID CScriptGraphBeginNode::GetTypeGUID() const
 {
 	return ms_typeGUID;
 }
@@ -35,10 +33,10 @@ void CScriptGraphBeginNode::CreateLayout(CScriptGraphNodeLayout& layout)
 {
 	layout.SetName("Begin");
 	layout.SetStyleId("Core::FlowControl::Begin");
-	layout.AddOutput("Out", SGUID(), { EScriptGraphPortFlags::Flow, EScriptGraphPortFlags::Begin });
+	layout.AddOutput("Out", CryGUID(), { EScriptGraphPortFlags::Flow, EScriptGraphPortFlags::Begin });
 
 	const IScriptElement& scriptElement = CScriptGraphNodeModel::GetNode().GetGraph().GetElement();
-	switch (scriptElement.GetElementType())
+	switch (scriptElement.GetType())
 	{
 	case EScriptElementType::Function:
 		{
@@ -48,47 +46,7 @@ void CScriptGraphBeginNode::CreateLayout(CScriptGraphNodeLayout& layout)
 				CAnyConstPtr pData = scriptFunction.GetInputData(functionInputIdx);
 				if (pData)
 				{
-					layout.AddOutputWithData(CGraphPortId::FromGUID(scriptFunction.GetInputGUID(functionInputIdx)), scriptFunction.GetInputName(functionInputIdx), scriptFunction.GetInputTypeId(functionInputIdx).guid, { EScriptGraphPortFlags::Data, EScriptGraphPortFlags::MultiLink }, *pData);
-				}
-			}
-			break;
-		}
-	case EScriptElementType::SignalReceiver:
-		{
-			const IScriptSignalReceiver& scriptSignalReceiver = DynamicCast<IScriptSignalReceiver>(scriptElement);
-			switch (scriptSignalReceiver.GetType())
-			{
-			case EScriptSignalReceiverType::EnvSignal:
-				{
-					const IEnvSignal* pEnvSignal = gEnv->pSchematyc->GetEnvRegistry().GetSignal(scriptSignalReceiver.GetSignalGUID());
-					if (pEnvSignal)
-					{
-						/*for (uint32 signalInputIdx = 0, signalInputCount = pEnvSignal->GetInputCount(); signalInputIdx < signalInputCount; ++signalInputIdx)
-						   {
-						   CAnyConstPtr pData = pEnvSignal->GetInputData(signalInputIdx);
-						   if (pData)
-						   {
-						    layout.AddOutputWithData(CGraphPortId::FromUniqueId(pEnvSignal->GetInputId(signalInputIdx)), pData->GetTypeInfo().guid, pEnvSignal->GetInputTypeId(signalInputIdx).guid, { EScriptGraphPortFlags::Data, EScriptGraphPortFlags::MultiLink }, *pData);
-						   }
-						   }*/
-					}
-					break;
-				}
-			case EScriptSignalReceiverType::ScriptSignal:
-				{
-					const IScriptSignal* pScriptSignal = DynamicCast<IScriptSignal>(gEnv->pSchematyc->GetScriptRegistry().GetElement(scriptSignalReceiver.GetSignalGUID()));
-					if (pScriptSignal)
-					{
-						for (uint32 signalInputIdx = 0, signalInputCount = pScriptSignal->GetInputCount(); signalInputIdx < signalInputCount; ++signalInputIdx)
-						{
-							CAnyConstPtr pData = pScriptSignal->GetInputData(signalInputIdx);
-							if (pData)
-							{
-								layout.AddOutputWithData(CGraphPortId::FromGUID(pScriptSignal->GetInputGUID(signalInputIdx)), pScriptSignal->GetInputName(signalInputIdx), pScriptSignal->GetInputTypeId(signalInputIdx).guid, { EScriptGraphPortFlags::Data, EScriptGraphPortFlags::MultiLink }, *pData);
-							}
-						}
-					}
-					break;
+					layout.AddOutputWithData(CUniqueId::FromGUID(scriptFunction.GetInputGUID(functionInputIdx)), scriptFunction.GetInputName(functionInputIdx), scriptFunction.GetInputTypeId(functionInputIdx).guid, { EScriptGraphPortFlags::Data, EScriptGraphPortFlags::MultiLink }, *pData);
 				}
 			}
 			break;
@@ -102,7 +60,7 @@ void CScriptGraphBeginNode::Compile(SCompilerContext& context, IGraphNodeCompile
 	if (pClass)
 	{
 		const IScriptElement& scriptElement = CScriptGraphNodeModel::GetNode().GetGraph().GetElement();
-		switch (scriptElement.GetElementType())
+		switch (scriptElement.GetType())
 		{
 		case EScriptElementType::Constructor:
 			{
@@ -130,13 +88,6 @@ void CScriptGraphBeginNode::Compile(SCompilerContext& context, IGraphNodeCompile
 				}
 				break;
 			}
-		case EScriptElementType::SignalReceiver:
-			{
-				const IScriptSignalReceiver& scriptSignalReceiver = DynamicCast<IScriptSignalReceiver>(scriptElement);
-				pClass->AddSignalReceiver(scriptSignalReceiver.GetSignalGUID(), compiler.GetGraphIdx(), SRuntimeActivationParams(compiler.GetGraphNodeIdx(), EOutputIdx::Out, EActivationMode::Output));
-				compiler.BindCallback(&ExecuteSignalReceiver);
-				break;
-			}
 		}
 	}
 }
@@ -149,12 +100,12 @@ void CScriptGraphBeginNode::Register(CScriptGraphNodeFactory& factory)
 
 		// IScriptGraphNodeCreator
 
-		virtual SGUID GetTypeGUID() const override
+		virtual CryGUID GetTypeGUID() const override
 		{
 			return CScriptGraphBeginNode::ms_typeGUID;
 		}
 
-		virtual IScriptGraphNodePtr CreateNode(const SGUID& guid) override
+		virtual IScriptGraphNodePtr CreateNode(const CryGUID& guid) override
 		{
 			return std::make_shared<CScriptGraphNode>(guid, stl::make_unique<CScriptGraphBeginNode>());
 		}
@@ -178,7 +129,7 @@ SRuntimeResult CScriptGraphBeginNode::ExecuteFunction(SRuntimeContext& context, 
 	{
 		if (context.node.IsDataOutput(outputIdx))
 		{
-			CAnyConstPtr pSrcValue = context.params.GetInput(outputIdx - EOutputIdx::FirstParam);
+			CAnyConstPtr pSrcValue = context.params.GetInput(context.node.GetOutputId(outputIdx));
 			if (pSrcValue)
 			{
 				Any::CopyAssign(*context.node.GetOutputData(outputIdx), *pSrcValue);
@@ -189,24 +140,8 @@ SRuntimeResult CScriptGraphBeginNode::ExecuteFunction(SRuntimeContext& context, 
 	return SRuntimeResult(ERuntimeStatus::Continue, EOutputIdx::Out);
 }
 
-SRuntimeResult CScriptGraphBeginNode::ExecuteSignalReceiver(SRuntimeContext& context, const SRuntimeActivationParams& activationParams)
-{
-	for (uint8 outputIdx = EOutputIdx::FirstParam, outputCount = context.node.GetOutputCount(); outputIdx < outputCount; ++outputIdx)
-	{
-		if (context.node.IsDataOutput(outputIdx))
-		{
-			CAnyConstPtr pSrcValue = context.params.GetInput(outputIdx - EOutputIdx::FirstParam);
-			if (pSrcValue)
-			{
-				Any::CopyAssign(*context.node.GetOutputData(outputIdx), *pSrcValue);
-			}
-		}
-	}
+const CryGUID CScriptGraphBeginNode::ms_typeGUID = "12bdfa06-ba95-4e48-bb2d-bb48a7080abc"_cry_guid;
 
-	return SRuntimeResult(ERuntimeStatus::Continue, EOutputIdx::Out);
-}
-
-const SGUID CScriptGraphBeginNode::ms_typeGUID = "12bdfa06-ba95-4e48-bb2d-bb48a7080abc"_schematyc_guid;
 } // Schematyc
 
 SCHEMATYC_REGISTER_SCRIPT_GRAPH_NODE(Schematyc::CScriptGraphBeginNode::Register)

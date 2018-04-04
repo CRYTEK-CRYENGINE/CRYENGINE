@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #include "StdAfx.h"
 #include "PlayerProfileManager.h"
@@ -261,6 +261,7 @@ CPlayerProfileManager::~CPlayerProfileManager()
 //------------------------------------------------------------------------
 bool CPlayerProfileManager::Initialize()
 {
+	LOADING_TIME_PROFILE_SECTION;
 	if (m_bInitialized)
 		return true;
 
@@ -691,6 +692,9 @@ bool CPlayerProfileManager::SaveProfile(const char* userId, IPlayerProfileManage
 	}
 
 	result = ePOR_Success;
+
+	// ignore invalid file access for now since we do not support async save games yet - Feb. 2017
+	SCOPED_ALLOW_FILE_ACCESS_FROM_THIS_THREAD();
 
 	// notify game systems that the profile is about to be saved
 	const int listenerSize = m_listeners.size();

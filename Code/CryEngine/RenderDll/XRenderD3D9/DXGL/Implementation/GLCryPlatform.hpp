@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 // -------------------------------------------------------------------------
 //  File name:   GLCryPlatform.hpp
@@ -182,7 +182,7 @@ struct STraceFile
 
 inline void RegisterConfigVariable(const char* szName, int* piVariable, int iDefaultValue)
 {
-	gEnv->pConsole->Register(szName, piVariable, iDefaultValue);
+	REGISTER_CVAR2(szName, piVariable, iDefaultValue, 0, "");
 }
 
 inline void Memcpy(void* pDst, const void* pSrc, size_t uLength)

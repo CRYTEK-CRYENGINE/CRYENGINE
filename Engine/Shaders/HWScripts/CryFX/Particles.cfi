@@ -1,51 +1,7 @@
 // CRYENGINE Source Code File
 // Copyright 2001-2015 Crytek GmbH. All rights reserved.
 
-float4 CloudShadowAnimParams	: PB_CloudShadowAnimParams;
-float4 CloudShadowParams			: PB_CloudShadowParams;
-
-CLOUD_SHADOW_MAP
-
-sampler2D envMapSamplerRefr
-{
-	Texture = $SceneTarget;
-	MinFilter = POINT;
-	MagFilter = POINT;
-	MipFilter = POINT;
-	AddressU = Clamp;
-	AddressV = Clamp;
-	sRGBLookup = true; 
-};
-
-sampler2D particlesThicknessSampler
-{
-	Texture = $BackBufferScaled_d4;
-	MinFilter = LINEAR;
-	MagFilter = LINEAR;
-	MipFilter = LINEAR;  
-	AddressU = Clamp;
-	AddressV = Clamp;  
-};
-
-sampler2D gradientMapSampler = sampler_state
-{
-	Texture = EngineAssets/Textures/TexelsPerMeterGrad.dds;
-	MinFilter = LINEAR;
-	MagFilter = LINEAR;
-	MipFilter = NONE; 
-	AddressU = Clamp;
-	AddressV = Clamp;
-};
-
-samplerCUBE environmentCMSampler = sampler_state
-{
-	Texture = $FromRE0;
-	AddressU = Clamp;
-	AddressV = Clamp;
-	MinFilter = LINEAR;
-	MagFilter = LINEAR;
-	MipFilter = LINEAR;
-};
+DISSOLVE_NOISE_MAP
 
 //////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -80,33 +36,70 @@ struct OutputVS
 	half4 lightData1 : TEXCOORDN;
 };
 
-/////////////////////////////////////////////////
+struct pixoutParticle
+{
+	half4 Color : COLOR0;
 
-void ParticlesDebug( inout SParticleVertex OUT, in float3 vCenter, in float3 vVertexPos )
+#if %DEPTH_FIXUP
+	half4 BlendFactors : COLOR1;
+#endif
+};
+
+//////////////////////////////////////////////////////////////////////////////////////////////////
+
+void ParticlesDebugVertex(inout SParticleVertex OUT, float4 debugColor)
 {
 #if %_RT_DEBUG0
-	// Aproximate quad screen space area
-	float fRadius =   length( vVertexPos.xyz - vCenter.xyz );
-
-	float4 vCenterScreenTC = HPosToScreenTC( TransformPosition(float4(vCenter.xyz, 1)) );
-	float4 vUpScreenTC = HPosToScreenTC( TransformPosition(float4(vCenter.xyz + CV_CameraUpVector.xyz * fRadius, 1)) );
-
-	vCenterScreenTC /= vCenterScreenTC.w;
-	vUpScreenTC /= vUpScreenTC.w;
-
-	const float fScreenCoverageRatio = 15.h; // 15% of screen area. todo: expose via cvar
-	OUT.baseTC.xy = saturate( length(vUpScreenTC.xy - vCenterScreenTC.xy) * fScreenCoverageRatio );
+	OUT.Color = lerp(debugColor, float4(0.35, 0.35, 0.35, 1), saturate(OUT.HPosition.w / 100.0));
 #endif
 }
 
+bool ParticlesDebugPixel(inout pixoutParticle OUT, OutputVS IN)
+{
+#if %_RT_DEBUG0
+	[branch]
+	if (CP_Custom_ViewMode.x == 0)  // Wireframe
+	{
+		OUT.Color = IN.cColor;
+	}
+	else if (CP_Custom_ViewMode.x == 1)  // Texel density
+	{
+		float2 diffuseTexRes = 0;
+		diffuseTex.GetDimensions(diffuseTexRes.x, diffuseTexRes.y);
+
+		float3 ddx_P = ddx(IN.vWorldPos.xyz);
+		float3 ddy_P = ddy(IN.vWorldPos.xyz);
+		float2 ddx_T = ddx(IN.baseTC.xy);
+		float2 ddy_T = ddy(IN.baseTC.xy);
+
+		float tx = length(ddx_T) / length(ddx_P) * diffuseTexRes.x * 0.5 / CP_Custom_ViewMode.y;
+		float ty = length(ddy_T) / length(ddy_P) * diffuseTexRes.y * 0.5 / CP_Custom_ViewMode.y;
+		float t = max(tx, ty);
+
+		float2 p = frac(IN.baseTC.xy * diffuseTexRes / 16.0); // 16x16 texels are a 2x2 checkerboard block
+		float checker = p.x < 0.5 ? (p.y < 0.5 ? 0.9 : 1) : (p.y < 0.5 ? 1 : 0.9);
+
+		// Sample diffuse tex so texture modificator in VS gets properly applied
+		// Multiply by very small number and use result so compiler doesn't optimize tex fetch away
+		float3 c = GetDiffuseTex(diffuseTex, IN.baseTC.xy) * 0.0001;
+		c += GetTexture2D(dissolveNoiseTex, ssMaterialBilinearClamp, float2(t, 0.25));
+
+		OUT.Color = float4(c * checker, 1);
+	}
+	return true;
+#endif
+	return false;
+}
+
 //////////////////////////////////////////////////////////////////////////////////////////////////
+
 void Particle_Convert_TC( float4 baseTC, inout SParticleVertex OUT )
 {
 	// Save original coords
 	OUT.baseTC.zw = baseTC.xy;
 	
 	// Apply tiling params to TCs
-	OUT.baseTC.xy = baseTC.xy * TexTileSize.xy;
+	OUT.baseTC.xy = baseTC.xy * particleParams.tileSize.xy;
 	
 #if %_RT_ANIM_BLEND
 	// Compute coords of 2nd blended tile
@@ -114,43 +107,40 @@ void Particle_Convert_TC( float4 baseTC, inout SParticleVertex OUT )
 	float tileBlend = baseTC.z * 255.0 + 1.0;
 	
 	// Detect wrap to 1st frame when looping
-	if (floor((tileBlend - TexTileSize.w) / TexTileSize.z) > floor((baseTC.z * 255.0 - TexTileSize.w) / TexTileSize.z))
-		tileBlend -= TexTileSize.z;
-	float tileXBlend = tileBlend * TexTileSize.x;
+	if (floor((tileBlend - particleParams.firstTile) / particleParams.frameCount) > floor((baseTC.z * 255.0 - particleParams.firstTile) / particleParams.frameCount))
+		tileBlend -= particleParams.frameCount;
+	float tileXBlend = tileBlend * particleParams.tileSize.x;
 	OUT.blendTC.x += frac(tileXBlend);
-	OUT.blendTC.y += floor(tileXBlend) * TexTileSize.y;
+	OUT.blendTC.y += floor(tileXBlend) * particleParams.tileSize.y;
 	OUT.blendTC.z = baseTC.w;
 #endif
 
-	float tileX = baseTC.z * 255.0 * TexTileSize.x;
+	float tileX = baseTC.z * 255.0 * particleParams.tileSize.x;
 	OUT.baseTC.x += frac(tileX);
-	OUT.baseTC.y += floor(tileX) * TexTileSize.y;
-	OUT.baseTC.y *= ParticleParams.w;
+	OUT.baseTC.y += floor(tileX) * particleParams.tileSize.y;
+	OUT.baseTC.y *= particleParams.textureFrequency;
 }
 
-float GetShadowOccl(float3 worldPos, float3 worldNormal)
+float GetShadowOccl(float3 worldPos)
 {
-	half objectsShadow = 1.0f;
-	half cloudsShadow = 1.0f;
-	
-	// object shadows
-	float4 vShadowWPos = float4(worldPos,1);
-	vert2fragShadowCommon shadowTC;
-	GenShadowTC(vShadowWPos, shadowTC);
-	objectsShadow = ShadowDepthTest(shadowTC, worldNormal*0.125).r;
+	ShadowCascades shadowCascades;
+	shadowCascades.shadowMap0 = texShadowMap0;
+	shadowCascades.shadowMap1 = texShadowMap1;
+	shadowCascades.shadowMap2 = texShadowMap2;
+	shadowCascades.shadowMap3 = texShadowMap3;
+	shadowCascades.cloudShadowTex = texCloudShadowMap;
 
-	// cloud shadows
-#if %_RT_LIGHT_TEX_PROJ
-	float2 uv = ComputeCloudShadowMapUV(worldPos);
-	cloudsShadow = saturate( tex2Dlod(cloudShadowMap, float4((uv * CloudShadowAnimParams.xy - CloudShadowAnimParams.zw) , 0, 0)).r * CloudShadowParams.w );
-	cloudsShadow = lerp ( cloudsShadow, 1 - cloudsShadow, CloudShadowParams.z ); // 0 = do not invert, 1 invert
-#endif
+	ShadowSamplingContext samplingContext;
+	samplingContext.comparisonSampler = ssForwardComparison;
+	samplingContext.pointSamplerWrap = ssPointWrap;
+	samplingContext.pointSamplerClamp = ssPointClamp;
+	samplingContext.bilinearSamplerWrap = ssForwardBilinearWrap;
 
-	return min(objectsShadow, cloudsShadow);
+	return ShadowDepthTest((SShadowSamplingParams)cbShadowSampling, shadowCascades, samplingContext, worldPos, true, true);
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////
-SParticleVertex ParticleCommonVertexOutput(in float4 vPos, in app2vertParticleGeneral IN, in half4 vSSCenterMotion)
+SParticleVertex ParticleCommonVertexOutput(in float4 vPos, in app2vertParticleGeneral IN, in half4 vSSCenterMotion, const float4 debugColor)
 {
 	SParticleVertex OUT = (SParticleVertex)0;
 	
@@ -175,22 +165,22 @@ SParticleVertex ParticleCommonVertexOutput(in float4 vPos, in app2vertParticleGe
 	OUT.Color = IN.Color;
 
 	// Compute alpha clipping params from input alpha
-	OUT.alphaClip.xyz = ParticleAlphaTest[0].xyz + ParticleAlphaTest[1].xyz * IN.Color.aaa;
+	OUT.alphaClip.xyz = particleParams.alphaTestMin.xyz + particleParams.alphaTestMax.xyz * IN.Color.aaa;
 	OUT.alphaClip.z = clamp(OUT.alphaClip.z, 0.001, 1 - OUT.alphaClip.y);
 	OUT.alphaClip.x /= OUT.alphaClip.z;
 
 #if FEATURE_PARTICLES_TESSELLATION && !%_RT_NO_TESSELLATION
 	OUT.lightData0 = 0;
-	OUT.lightData1 = half4(OUT.Color.rgb, ParticleLightParams.z);		// Backlight ratio
+	OUT.lightData1 = half4(OUT.Color.rgb, particleParams.backLighting);		// Backlight ratio
 #else	
 	half shadowOccl = 1.0f;
 
 	#if %_RT_PARTICLE_SHADOW
-		shadowOccl = GetShadowOccl(OUT.vWorldPos.xyz, OUT.vNormal.xyz);
+		shadowOccl = GetShadowOccl(OUT.vWorldPos.xyz);
 		OUT.blendTC.w = shadowOccl;
 	#endif
 
-	const float backLightning = ParticleLightParams.z;
+	const float backLightning = particleParams.backLighting;
 	SParticleLightInfo lightInfo;
 	ProjectLightVolume(OUT.vWorldPos.xyz, shadowOccl, backLightning, lightInfo);
 	ToLightData(lightInfo, OUT.lightData0, OUT.lightData1);
@@ -202,16 +192,11 @@ SParticleVertex ParticleCommonVertexOutput(in float4 vPos, in app2vertParticleGe
 #endif
 
 #if %_RT_FOG && !%REFRACTION
-#if !%_RT_VOLUMETRIC_FOG
-	OUT.localFogColor = GetVolumetricFogColor( vPos );
-#else
-	OUT.localFogColor = GetVolumetricFogAnalyticalColorByWorldPos( vPos );
-#endif
+	const float3 camToWorld = vPos.xyz - GetWorldViewPos();
+	OUT.localFogColor = Fwd_GetLocalFogColor(vPos.xyz, camToWorld);
 #endif
 
-#if %_RT_DEBUG0
-	ParticlesDebug( OUT, vPos.xyz, vCenter );
-#endif
+	ParticlesDebugVertex(OUT, debugColor);
 
 	return OUT;
 }
@@ -276,7 +261,7 @@ void ParticleSpriteCommon(inout float4 Position, inout app2vertParticleGeneral I
 
 #if %_RT_SOFT_PARTICLE
 	// soft particle 1/thickness^2 in Position.w
-	float3 vAxis = (IN.XAxis + IN.YAxis) * (0.5 * ParticleSoftParams.x);
+	float3 vAxis = (IN.XAxis + IN.YAxis) * (0.5 * particleParams.softnessMultiplier);
 	Position.w = 1 / dot(vAxis, vAxis);
 #endif
 }
@@ -315,7 +300,9 @@ OutputVS ParticleVS(
 	}
 #endif
 
-	SParticleVertex MID = ParticleCommonVertexOutput(Position, IN, CenterMotion());	
+	const float4 debugColor = float4(0.8, 1.0, 0.0, 1.0);
+
+	SParticleVertex MID = ParticleCommonVertexOutput(Position, IN, CenterMotion(), debugColor);
 	return UnifyParticleOutputVS(MID);
 }
 
@@ -348,9 +335,9 @@ float4 UintToFloat4(uint v)
 OutputVS PulledParticleVS(uint vertID: SV_VertexID)
 {
 #if %_RT_SPRITE
-	const uint particleId = (vertID>>2) + asuint(PullVerticesInfo.x);
+	const uint particleId = (vertID>>2) + particleInstance.vertexOffset;
 
-	float4 Position = float4(positionsSRV[particleId], 1.0);
+	float4 Position = float4(positionsSRV[particleId].position, 1.0);
 
 	app2vertParticleGeneral IN = (app2vertParticleGeneral)0;
 	IN.XAxis = axesSRV[particleId].XAxis;
@@ -362,13 +349,16 @@ OutputVS PulledParticleVS(uint vertID: SV_VertexID)
 
 	IN.baseTC.x = vertID & 1;
 	IN.baseTC.y = vertID & 2 ? 1 : 0;
-#else
-	const uint vertexId = (vertID>>1) + asuint(PullVerticesInfo.x);
-	const uint isDegen = (colorSTsSRV[vertexId].baseTC >> 16) & 1;
-	const uint isPositive = (vertID & 1);
-	const uint offset = isDegen & isPositive;
 
-	float4 Position = float4(positionsSRV[vertexId+offset], 1.0);
+	const float4 debugColor = float4(0.8, 1.0, 0.0, 1.0);
+
+#else
+	const uint vertexId = (vertID>>1) + particleInstance.vertexOffset;
+	const bool isDegen  = colorSTsSRV[vertexId].baseTC & 0x10000;
+	const bool isOdd    = vertID & 1;
+	const uint offset   = (isDegen && isOdd) ? 1 : 0;
+
+	float4 Position = float4(positionsSRV[vertexId+offset].position, 1.0);
 	app2vertParticleGeneral IN = (app2vertParticleGeneral)0;
 	IN.XAxis = axesSRV[vertexId+offset].XAxis;
 	IN.YAxis = axesSRV[vertexId+offset].YAxis;
@@ -377,59 +367,55 @@ OutputVS PulledParticleVS(uint vertID: SV_VertexID)
 
 	ParticleSpriteCommon(Position, IN);
 
-	IN.baseTC.x = isPositive ^ isDegen;
+	IN.baseTC.x = isDegen != isOdd ? 1 : 0;
+
+	const float4 debugColor = isDegen ? float4(1.0, 0.0, 0.0, 1.0) : float4(0.6, 1.0, 0.2, 1.0);
 
 #endif
 
-	SParticleVertex MID = ParticleCommonVertexOutput(Position, IN, CenterMotion());	
+	SParticleVertex MID = ParticleCommonVertexOutput(Position, IN, CenterMotion(), debugColor);
 	return UnifyParticleOutputVS(MID);
 }
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-#include "GpuParticlesCommon.cfi"
-
-float4 cameraRightVector : PB_CameraRight;
-float4 cameraUpVector : PB_CameraUp;
-
-cbuffer g_gpuParticleVertexShaderParameters : register(b4)
+OutputVS GpuParticleVS(uint vertID : SV_VertexID)
 {
-	float c_axisScale;
-};
+	const uint particleId = vertID / 6;
 
-StructuredBuffer<SDefaultParticleData> gpuParticleSRV : register(t7);
-OutputVS GpuParticleVS(uint vertID: SV_VertexID)
-{
-	const uint particleId = (vertID >> 2) + asuint(PullVerticesInfo.x);
 	float4 Position = float4(gpuParticleSRV[particleId].position, 1.0);
 	app2vertParticleGeneral IN = (app2vertParticleGeneral)0;
 	uint color = gpuParticleSRV[particleId].color;
 	SAuxData auxData = UnpackAuxData(gpuParticleSRV[particleId].auxData);
 	float size = auxData.size;
 #if %GPU_FACING_VELOCITY
-	float3 vel = gpuParticleSRV[particleId].velocity;
-	float length2 = dot(vel,vel);
-	float3 moveDirection = -cameraRightVector;
+	const float3 vel = gpuParticleSRV[particleId].velocity;
+	float length2 = length(vel);
+	float3 moveDirection = -CV_CameraRightVector;
 	if (length2 > 0.0)
-		moveDirection = normalize(gpuParticleSRV[particleId].velocity);
+		moveDirection = vel / length2;
 	float3 normal = normalize(Position - g_VS_WorldViewPos);
-	float axisSize = max(size, sqrt(length2)*c_axisScale);
+	float axisSize = max(size, length2 * particleParams.axisScale);
 	IN.XAxis = moveDirection*axisSize;
 	IN.YAxis = cross(-moveDirection, normal)*size;
 #else
-	IN.XAxis = cameraRightVector * size;
-	IN.YAxis = -cameraUpVector * size;
+	IN.XAxis = CV_CameraRightVector * size;
+	IN.YAxis = -CV_CameraUpVector * size;
 #endif
 	IN.Color = UintToFloat4(color);
-	float animPos = auxData.normalAge * TexTileSize.z;
+	float animPos = auxData.normalAge * particleParams.frameCount;
 
 	ParticleSpriteCommon(Position, IN);
 
-	IN.baseTC.x = vertID & 1;
-	IN.baseTC.y = vertID & 2 ? 1 : 0;
+	const uint spriteIndices[6] = {0, 1, 2, 2, 1, 3};
+	const uint indexId = spriteIndices[vertID % 6];
+	IN.baseTC.x = indexId & 1;
+	IN.baseTC.y = indexId & 2 ? 1 : 0;
 	IN.baseTC.z = int(animPos) / 255.f;
 	IN.baseTC.w = (animPos - int(animPos));
 
-	SParticleVertex MID = ParticleCommonVertexOutput(Position, IN, CenterMotion());	
+	const float4 debugColor = float4(1.0, 0.8, 0.0, 1.0);
+
+	SParticleVertex MID = ParticleCommonVertexOutput(Position, IN, CenterMotion(), debugColor);
 	return UnifyParticleOutputVS(MID);
 }
 
@@ -559,7 +545,8 @@ ControlPointHS ParticleHS(
 	ParticleHSInput IN = inputPatch[uCPID];
 #endif
 
-	SParticleVertex MID = ParticleCommonVertexOutput(IN.Position, IN.VSIn, 0);
+	const float4 debugColor = float4(0.0, 0.5, 1.0, 1.0);
+	SParticleVertex MID = ParticleCommonVertexOutput(IN.Position, IN.VSIn, 0, debugColor);
 
 	ControlPointHS OUT = (ControlPointHS)0;
 
@@ -643,11 +630,11 @@ OutputVS ParticleDS(float2 QuadUV : SV_DomainLocation, const OutputPatch<Control
 	
 	half shadowOccl = 1;// Sun shadows
 	#if %_RT_PARTICLE_SHADOW
-		shadowOccl = GetShadowOccl(vWorldPos.xyz, vNormal.xyz);
+		shadowOccl = GetShadowOccl(vWorldPos.xyz);
 		OUT.blendTC.w = shadowOccl;
 	#endif
 
-	const float backLighting = ParticleLightParams.z;
+	const float backLighting = particleParams.backLighting;
 	SParticleLightInfo lightInfo;
 	ProjectLightVolume(vWorldPos.xyz, shadowOccl, backLighting, lightInfo);
 	ToLightData(lightInfo, OUT.lightData0, OUT.lightData1);
@@ -761,7 +748,7 @@ half4 GetRefractionMap( OutputVS IN, float4 tcScreen, half3 cNormalMap)
 #if USE_MATERIAL
 	#if %REFRACTION
 	half2 tcRefraction = tcScreen + cNormalMap.xy * RefrBumpScale.x * IN.alphaClip.x;
-	return DecodeHDRBuffer( tex2D(envMapSamplerRefr, tcRefraction ) );
+	return texSceneTarget.Sample(ssForwardBilinearWrap, tcRefraction);
 	#endif
 #endif
 	return 0;
@@ -776,7 +763,7 @@ half ApplySoftIntersection( inout half4 cFinal, float4 WPos, half fThicknessK )
 	for (int s=0; s<nMsaaSamples; s++) // Ideally would use pre-resolved depth target (note that existing resolved versions use sample0 for proper pixel/sample passes - having a max depth target will require extra mem)
 		fDepth =  max(fDepth, GetDecodedSceneDepthMS(WPos.xy, nMsaaSamples, s));
 #else
-	const half fDepth = GetLinearDepthScaled( sceneLinearDepthTex, WPos.xy ).x; // todo: pre-computed linear depth could save a bunch
+	const half fDepth = linearDepthMap.Sample(ssForwardBilinearWrap, WPos.xy).x * CV_NearFarClipDist.y;
 #endif
 
 	const half fDist = max(min(fDepth-WPos.w, WPos.w), 0.0);
@@ -791,16 +778,31 @@ half ApplySoftIntersection( inout half4 cFinal, float4 WPos, half fThicknessK )
 }
 
 //////////////////////////////////////////////////////////////////////
-void ApplyFog( inout half4 cFinal, half4 avgFogVolumeContrib, half4 localFogColor)
+void ApplyFog( inout half4 cFinal, half4 avgFogVolumeContrib, in OutputVS IN )
 {
 #if %_RT_FOG && !%REFRACTION
+#if !%_RT_VOLUMETRIC_FOG
 	#if %_RT_ALPHABLEND
-		cFinal.xyz = lerp( localFogColor.xyz, cFinal.xyz, localFogColor.w );
+		cFinal.xyz = lerp( IN.localFogColor.xyz, cFinal.xyz, IN.localFogColor.w );
 		cFinal.xyz = lerp( avgFogVolumeContrib.xyz, cFinal.xyz, avgFogVolumeContrib.w );
 	#else
-		cFinal.xyz *= localFogColor.w;
-		cFinal.xyz *= avgFogVolumeContrib.w;  
+		cFinal.xyz *= IN.localFogColor.w;
+		cFinal.xyz *= avgFogVolumeContrib.w;
 	#endif
+#else
+	SVolumetricFogParams params = GetVolumetricFogParams();
+	VolumetricFogSampling vfs = GetVolumetricFogSampling();
+	VolumetricFogTexcoord vtc = GetVolumetricFogTexcoordParamByScreenPos(params, IN.HPosition);
+	float4 vf = GetVolumetricFogValue(vfs, vtc);
+
+	#if %_RT_ALPHABLEND
+		// apply volumetric fog for alpha blend mode.
+		ApplyVolumetricFog(params, vf, IN.localFogColor, vtc, cFinal.rgb);
+	#else
+		// apply transmittance for additive blend mode.
+		ApplyVolumetricFogTransmittance(params, vf, IN.localFogColor, vtc, cFinal.rgb);
+	#endif
+#endif
 #endif
 }
 
@@ -817,31 +819,15 @@ float4 GetScreenCoords( float4 WPos )
 	return tcScreen;
 }
 
-//////////////////////////////////////////////////////////////////////
-struct pixoutParticle
-{
-	half4 Color : COLOR0;
-
-#if %DEPTH_FIXUP
-	half4 BlendFactors : COLOR1;
-#endif
-};
-
+#if !ORBIS
 [earlydepthstencil]
+#endif
 pixoutParticle ParticlePS(OutputVS IN)
 {
 	pixoutParticle OUT = (pixoutParticle) 0;
 
-#if %_RT_DEBUG0 || %_RT_DEBUG1 || %_RT_DEBUG2 || %_RT_DEBUG3    
-	// Custom debug mode for particles
-	#if %_RT_DEBUG0 && !%_RT_DEBUG1 && !%_RT_DEBUG2 && !%_RT_DEBUG3
-		OUT.Color = float4(tex2D(gradientMapSampler, IN.baseTC.x).xyz, 0.5);
-		OUT.Color.xyz *= OUT.Color.xyz * 0.1h; // output linear space and 10% brightness - compensate for hdr blooming kicking in
-	#else
-		DebugOutput(OUT.Color, float4(IN.baseTC.xy, 0, 1));
-	#endif
-	return OUT;
-#endif
+	if (ParticlesDebugPixel(OUT, IN))
+		return OUT;
 	
 	float4 tcScreen = GetScreenCoords( IN.HPosition );
 
@@ -880,13 +866,22 @@ pixoutParticle ParticlePS(OutputVS IN)
 	SParticleLightInfo lightInfo = FromLightData(IN.lightData0, IN.lightData1);
 	cDiffuseAcc.rgb = GetEnvLighting(
 		lightInfo, vNormal,
-		ParticleLightParams.x, ParticleLightParams.y, ParticleLightParams.z);
-
+		particleParams.diffuseLighting, particleParams.emissiveLighting, particleParams.backLighting);
 
 #if %_RT_ENVIRONMENT_CUBEMAP
-	half3 envDiffuseColor = GetEnvironmentCMap(environmentCMSampler, vNormal.xyz, 0.0f).rgb;
-	envDiffuseColor *= EnvProbeMult.rgb * ParticleLightParams.x;
-	cDiffuseAcc.rgb += envDiffuseColor;
+	uint envMapIndex;
+	float4 envMapColor;
+	
+	if (particleInstance.envCubemapIndex < TILED_SHADING_MAX_NUM_LIGHTS)
+	{
+		envMapIndex = Fwd_TiledLightsShadeInfo[particleInstance.envCubemapIndex].resIndex;
+		envMapColor = Fwd_TiledLightsShadeInfo[particleInstance.envCubemapIndex].color;
+		float3 envDiffuseColor = Fwd_DiffuseCubeArray.SampleLevel(
+			TrilinearClampSamplerState,
+			float4(vNormal.xyz, envMapIndex), 0.0).rgb;
+		envDiffuseColor *= envMapColor.rgb * particleParams.diffuseLighting;
+		cDiffuseAcc.rgb += envDiffuseColor;
+	}
 #endif  
 
 	half4 cFinal = float4(cDiffuseAcc.rgb, cDiffuseMap.a);
@@ -905,14 +900,20 @@ pixoutParticle ParticlePS(OutputVS IN)
 	#if %SPECULAR_LIGHTING
 		{
 			half3 cSpecularAcc = 0;
-			half3 vView = normalize(PS_WorldViewPos.xyz-IN.vWorldPos.xyz);
-			half fGloss = MatSpecColor.w;	
+			half3 vView = normalize(CV_WorldViewPosition.xyz-IN.vWorldPos.xyz);
+			half fGloss = MatSpecColor.w;
 
 			#if %_RT_ENVIRONMENT_CUBEMAP
-				half fNdotE = saturate( dot(vView.xyz, vNormal.xyz));                                        // 1 alu
-				half3 vReflVec = (2.0h * fNdotE * vNormal.xyz) - vView.xyz;  
-				cSpecularAcc.rgb = GetEnvironmentCMap(environmentCMSampler, vReflVec.xyz, fGloss);
-				cSpecularAcc.rgb *= EnvProbeMult.rgb * EnvProbeMult.a;
+				if (particleInstance.envCubemapIndex < TILED_SHADING_MAX_NUM_LIGHTS)
+				{
+					half fNdotE = saturate( dot(vView.xyz, vNormal.xyz));
+					half3 vReflVec = (2.0h * fNdotE * vNormal.xyz) - vView.xyz;
+					// #PFX2_TODO : copy-pasted from ShadeLib.cfi. tileShading also uses the exact same thing. Make it consistent.
+					const float numCMapMips = 6.0;
+					const float fGlossinessLod = numCMapMips - fGloss * numCMapMips;
+					cSpecularAcc.rgb = Fwd_SpecCubeArray.SampleLevel(TrilinearClampSamplerState, float4(vNormal.xyz, envMapIndex), fGlossinessLod).rgb;
+					cSpecularAcc.rgb *= envMapColor.rgb * envMapColor.a;
+				}
 			#endif	
 			
 			// sun spec
@@ -922,7 +923,7 @@ pixoutParticle ParticlePS(OutputVS IN)
 				sunIntensity *= IN.blendTC.w;
 			#endif
 			
-			cSpecularAcc.rgb += BlinnBRDF(vNormal, vView, CV_SunLightDir, fGloss) * saturate(dot(vNormal, CV_SunLightDir)) * sunIntensity;
+			cSpecularAcc.rgb += BlinnBRDF(vNormal, vView, CV_SunLightDir, fGloss) * saturate(dot(vNormal, CV_SunLightDir.xyz)) * sunIntensity;
 			cSpecularAcc *= MatSpecColor.rgb;
 
 			// combine with diffuse, but make sure we stay energy conservant
@@ -933,7 +934,7 @@ pixoutParticle ParticlePS(OutputVS IN)
 #endif
 
 	// Add particle glow 
-	cFinal.rgb += cDiffuseMap.a * cDiffuseMap.rgb * cGlowMap.rgb * (half3) GlowParams.rgb; // todo: only add if really used
+	cFinal.rgb += cDiffuseMap.a * cDiffuseMap.rgb * cGlowMap.rgb * particleInstance.glowParams.rgb;
 
 	// add particle color
 	cFinal.rgb *= IN.cColor.rgb;
@@ -943,27 +944,15 @@ pixoutParticle ParticlePS(OutputVS IN)
 	cFinal.xyz *= cFinal.w;
 #endif
 
-#if %_RT_SOFT_PARTICLE	
+#if %_RT_SOFT_PARTICLE
 	ApplySoftIntersection(cFinal, tcScreen, IN.alphaClip.w);
 #endif
 
 #if %_RT_FOG && !%REFRACTION
-	#if !%_RT_VOLUMETRIC_FOG
-		ApplyFog(cFinal, AvgFogVolumeContrib, IN.localFogColor);
-	#else
-		VolumetricFogTexcoord vtc = GetVolumetricFogTexcoordParamByScreenPos(IN.HPosition);
-		float4 vf = GetVolumetricFogValue(vtc);
-		#if %_RT_ALPHABLEND
-			// apply volumetric fog for alpha blend mode.
-			ApplyVolumetricFog(vf, IN.localFogColor, vtc, cFinal.rgb);
-		#else
-			// apply transmittance for additive blend mode.
-			ApplyVolumetricFogTransmittance(vf, IN.localFogColor, vtc, cFinal.rgb);
-		#endif
-	#endif
+	ApplyFog(cFinal, particleInstance.avgFogVolumeContrib, IN);
 #endif
 
-#if !%REFRACTION  
+#if !%REFRACTION
 	cFinal.rgb *= PS_HDR_RANGE_ADAPT_MAX; // Re-scale hdr range for consoles
 #endif
 
@@ -1019,6 +1008,89 @@ struct pixoutParticleVolumeFogPS
 	half4 Color2 : COLOR2;
 };
 
+cbuffer CBPerPassVolFogInj : register(b5)
+{
+	// Voxel-based volumetric fog parameters
+	struct
+	{
+		float4 vfSamplingParams;
+		float4 vfDistributionParams;
+		float4 vfScatteringParams;
+		float4 vfScatteringBlendParams;
+		float4 vfScatteringColor;
+		float4 vfScatteringSecondaryColor;
+		float4 vfHeightDensityParams;
+		float4 vfHeightDensityRampParams;
+		float4 vfDistanceParams;
+		float4 vfGlobalEnvProbeParams0;
+		float4 vfGlobalEnvProbeParams1;
+	} cbVolFogInj;
+};
+
+SVolumetricFogParams GetVolumetricFogInjParams()
+{
+	SVolumetricFogParams params;
+
+	params.sunDir = CV_SunLightDir.xyz;
+	params.padding0 = 0.0f;
+
+	params.nearDist = cbVolFogInj.vfSamplingParams.x;
+	params.invFarMinusNearDist = cbVolFogInj.vfSamplingParams.y;
+	params.maxIndex = cbVolFogInj.vfSamplingParams.z;
+	params.invMaxIndex = cbVolFogInj.vfSamplingParams.w;
+
+	params.screenSize = CV_ScreenSize.xy;
+	params.farMinusNearDist = cbVolFogInj.vfDistributionParams.y;
+	params.invMaxIndexMinusOne = cbVolFogInj.vfDistributionParams.z;
+
+	params.viewPos = g_VS_WorldViewPos.xyz;
+	params.framwCountJitter = cbVolFogInj.vfDistributionParams.w;
+
+	params.scatterCoefficient = cbVolFogInj.vfScatteringParams.x;
+	params.extinctionCoefficient = cbVolFogInj.vfScatteringParams.y;
+	params.blendFactor = cbVolFogInj.vfScatteringBlendParams.x;
+	params.blendMode = cbVolFogInj.vfScatteringBlendParams.y;
+
+	params.cDiffuse1 = cbVolFogInj.vfScatteringColor.xyz;
+	params.padding1 = 0.0f;
+
+	params.cDiffuse2 = cbVolFogInj.vfScatteringSecondaryColor.xyz;
+	params.padding2 = 0.0f;
+
+	params.anisotropy1.x = cbVolFogInj.vfScatteringParams.z;
+	params.anisotropy1.y = cbVolFogInj.vfScatteringParams.w;
+	params.anisotropy2.x = cbVolFogInj.vfScatteringColor.w;
+	params.anisotropy2.y = cbVolFogInj.vfScatteringSecondaryColor.w;
+
+	params.heightDensityScale = cbVolFogInj.vfHeightDensityParams.x;
+	params.densityAtViewer = cbVolFogInj.vfHeightDensityParams.y;
+	params.fogVisibility = cbVolFogInj.vfHeightDensityParams.z;
+	params.clampTransmittance = cbVolFogInj.vfHeightDensityParams.w;
+
+	params.rampStart = cbVolFogInj.vfHeightDensityRampParams.x;
+	params.rampEnd = cbVolFogInj.vfHeightDensityRampParams.y;
+	params.oneOverRampDiff = cbVolFogInj.vfHeightDensityRampParams.z;
+	params.rampStartOverRampDiff = cbVolFogInj.vfHeightDensityRampParams.w;
+
+	params.farDistTopLeft = cbVolFogInj.vfDistanceParams.x;
+	params.farDistTopCenter = cbVolFogInj.vfDistanceParams.y;
+	params.farDistCenterLeft = cbVolFogInj.vfDistanceParams.z;
+	params.farDistCenter = cbVolFogInj.vfDistanceParams.w;
+
+	params.globalProbeColor0 = cbVolFogInj.vfGlobalEnvProbeParams0.xyz;
+	params.globalProbeAttenuation0 = cbVolFogInj.vfGlobalEnvProbeParams0.w;
+
+	params.globalProbeColor1 = cbVolFogInj.vfGlobalEnvProbeParams1.xyz;
+	params.globalProbeAttenuation1 = cbVolFogInj.vfGlobalEnvProbeParams1.w;
+
+	params.timeParams.x = CV_AnimGenParams.z;
+	params.timeParams.y = CV_AnimGenParams.z * 0.5f;
+	params.timeParams.z = CV_AnimGenParams.y;
+	params.timeParams.w = CV_AnimGenParams.w;
+
+	return params;
+}
+
 OutputParticleVolumeFogVS ParticleVolumeFogVS(in float4 Position: POSITION, app2vertParticleGeneral IN, uint vertID: SV_VertexID)
 {
 	ParticleSpriteCommon(Position, IN);
@@ -1048,7 +1120,8 @@ OutputParticleVolumeFogVS ParticleVolumeFogVS(in float4 Position: POSITION, app2
 		IN.baseTC.y = vertID & 2 ? 1 : 0;
 	}
 #endif
-	SParticleVertex MID = ParticleCommonVertexOutput(Position, IN, CenterMotion());
+	const float4 debugColor = float4(0.0f, 1.0f, 1.0f, 1.0f);
+	SParticleVertex MID = ParticleCommonVertexOutput(Position, IN, CenterMotion(), debugColor);
 
 	Position.w = 1.0f;
 	float4 hPosition = TransformPosition(Position);
@@ -1058,7 +1131,7 @@ OutputParticleVolumeFogVS ParticleVolumeFogVS(in float4 Position: POSITION, app2
 
 	// calculate thickness
 	float thickness = length(IN.XAxis + IN.YAxis);
-	thickness *= ParticleSoftParams.z;
+	thickness *= particleParams.thickness;
 
 	OutputParticleVolumeFogVS OUT;
 	OUT.HPosition = MID.HPosition;
@@ -1079,8 +1152,8 @@ OutputParticleVolumeFogVS ParticleVolumeFogVS(in float4 Position: POSITION, app2
 [maxvertexcount(48)]
 void ParticleVolumeFogGS( triangle OutputParticleVolumeFogVS IN[3], inout TriangleStream<OutputParticleVolumeFogGS> outputStream )
 {
-	const float maxRange = vfDistributionParams.x + vfDistributionParams.y;
-	const float rcpMaxSlices = vfSamplingParams.w;
+	const float maxRange = cbVolFogInj.vfDistributionParams.x + cbVolFogInj.vfDistributionParams.y;
+	const float rcpMaxSlices = cbVolFogInj.vfSamplingParams.w;
 	const float maxThickness = 7.0f * rcpMaxSlices * maxRange;//max length of half thickness is less than 7 slices.
 	const float thickness = min(maxThickness, IN[0].color.w);
 
@@ -1088,19 +1161,21 @@ void ParticleVolumeFogGS( triangle OutputParticleVolumeFogVS IN[3], inout Triang
 	const float linearDepthFront = linearDepth - thickness;
 	const float linearDepthBack = linearDepth + thickness;
 
-	const float depthIndexFront = vfSamplingParams.z * GetVolumetricFogDepthTexcoord(linearDepthFront);
-	const float depthIndexBack = vfSamplingParams.z * GetVolumetricFogDepthTexcoord(linearDepthBack);
+	SVolumetricFogParams params = GetVolumetricFogInjParams();
+
+	const float depthIndexFront = cbVolFogInj.vfSamplingParams.z * GetVolumetricFogDepthTexcoord(params, linearDepthFront);
+	const float depthIndexBack = cbVolFogInj.vfSamplingParams.z * GetVolumetricFogDepthTexcoord(params, linearDepthBack);
 	const uint sliceStartIndex = max(0.0f, floor(depthIndexFront));
-	const uint sliceEndIndex = min(vfSamplingParams.z - 2, ceil(depthIndexBack));
+	const uint sliceEndIndex = min(cbVolFogInj.vfSamplingParams.z - 2, ceil(depthIndexBack));
 
 	for(uint i = sliceStartIndex; i <= sliceEndIndex; ++i)
 	{
 		OutputParticleVolumeFogGS OUT;
 		OUT.rtindex = i;
 
-		float depthFront0 = GetVolumetricFogLinearDepth(i - 1.0f);
-		float depthFront1 = GetVolumetricFogLinearDepth(i);
-		float depthBack1 = GetVolumetricFogLinearDepth(i + 1.0f);
+		float depthFront0 = GetVolumetricFogLinearDepth(params, i - 1.0f);
+		float depthFront1 = GetVolumetricFogLinearDepth(params, i);
+		float depthBack1 = GetVolumetricFogLinearDepth(params, i + 1.0f);
 		OUT.volume = float4(linearDepthFront, linearDepthBack, depthFront0, depthFront1);
 
 		[unroll] for(uint j = 0; j < 3; ++j)
@@ -1147,7 +1222,7 @@ pixoutParticleVolumeFogPS ParticleVolumeFogPS(OutputParticleVolumeFogGS IN)
 	cDiffuseMap.a = saturate(cDiffuseMap.a);
 
 	// calculate jittered coverage of voxel
-	const float frameCount = vfDistributionParams.w;
+	const float frameCount = cbVolFogInj.vfDistributionParams.w;
 	float jitter = GetJitterInternal(IN.HPosition.xy, frameCount.xx);
 	const float depthFront0 = IN.volume.z;
 	const float depthFront1 = IN.volume.w;
@@ -1165,7 +1240,7 @@ pixoutParticleVolumeFogPS ParticleVolumeFogPS(OutputParticleVolumeFogGS IN)
 
 	cDiffuseMap.a *= coverage;
 	half4 cFinal = float4(cDiffuseMap.rgb * cDiffuseMap.a, cDiffuseMap.a);
-	half3 emission = ParticleLightParams.y * cDiffuseMap.a;
+	half3 emission = particleParams.emissiveLighting * cDiffuseMap.a;
 
 	OUT.Color.xyz = cFinal.xyz;
 	OUT.Color1.x = cFinal.w;

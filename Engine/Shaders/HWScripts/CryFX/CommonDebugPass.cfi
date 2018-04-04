@@ -1,6 +1,9 @@
 // CRYENGINE Source Code File
 // Copyright 2001-2015 Crytek GmbH. All rights reserved.
 
+SCENE_DEPTH_MAP
+DISSOLVE_NOISE_MAP
+
 struct vert2fragDebug
 {
 #if %_DS || %_PS || %_GS || !ENABLE_TESSELLATION || %_RT_NO_TESSELLATION
@@ -8,7 +11,6 @@ struct vert2fragDebug
 #endif
  
 	float4 baseTC  : TEXCOORDN; 
-	float4 Color   : TEXCOORDN;
 	
 	float4 vView   : TEXCOORDN;
 #if ENABLE_TESSELLATION && !%_RT_NO_TESSELLATION
@@ -19,16 +21,17 @@ struct vert2fragDebug
 struct app2vertDebug
 {
   app2vertCommon vertCommon;
-
-  #if %_RT_INSTANCING_ATTR || %_RT_INSTANCING_CONST
-    float4 InstAmbientOp  : TEXCOORDN;
-  #endif
 };
 
-vert2fragDebug Common_DebugPassVS(app2vertDebug IN)
+vert2fragDebug Common_DebugPassVS(app2vertDebug IN_common)
 {
   vert2fragDebug OUT = (vert2fragDebug)0;
   
+	app2vertDebug IN = IN_common;
+#if %TEMP_TERRAIN
+	IN.vertCommon.Position.z = IN_common.vertCommon.baseTC.x;
+#endif
+
   streamPos vertPassPos = (streamPos)0;
   vtxStreamUnifyCommon(IN.vertCommon, vertPassPos);
   
@@ -50,37 +53,45 @@ vert2fragDebug Common_DebugPassVS(app2vertDebug IN)
 #endif
 
 	_TCModify(vertPassPos.baseTC, OUT.baseTC, 0, 0, TS_DIFFUSE);
-	
-#if %_RT_SAMPLE1  // Selection Pass
-	// We are passing the actual texture coordinate here for use in alpha testing
-	OUT.Color = float4(IN.vertCommon.baseTC.x, IN.vertCommon.baseTC.y, 0, 0);
-#else  // Debug Views
-	// Prepare color for wireframe
-	OUT.Color = lerp(float4(0, 0.7, 0.9, 1), float4(0.35, 0.35, 0.35, 1), saturate(HPosition.w / 100.0));
-#endif
-	
-  return OUT;            
+
+	return OUT;            
 }
 
-Texture2D<float4> SceneDepthTex : register(t25);
+Texture2D   texelPerMeterTex         : register(t33)                                   = "%ENGINE%/EngineAssets/Textures/TexelsPerMeterGrad.dds";
 
 pixout Common_DebugPassPS(vert2fragDebug IN)
 {
-  pixout OUT = (pixout)0;
-	
+	pixout OUT = (pixout)0;
+
+	bool alphatested = false;
+#if %_RT_ALPHATEST
+	// only access texture for alpha tested meshes
+	float alpha = GetAlphaTex(diffuseTex, IN.baseTC.xy);
+	float alphaTest =	Get_MaterialAlphaTest();
+	alphatested = (alpha - alphaTest) < 0.0f; //need to perform texkill just like in regular passes
+#endif 
+
+	bool dissolved = false;
+#if %_RT_DISSOLVE
+	half fNoise = GetDissolveTex(dissolveNoiseTex, IN.baseTC.xy*6.h).x;
+	dissolved = (fNoise - Get_SPI_Dissolve()) < 0.0f;
+#endif
+
+#if %_RT_ALPHATEST || %_RT_DISSOLVE
+	clip((alphatested || dissolved) ? -1 : +1);
+#endif
+
 	// Debug Views
 #if !%_RT_SAMPLE1
 	[branch] if (CP_Custom_ViewMode.x == 0)  // Wireframe
 	{
-		OUT.Color.xyz = IN.Color.xyz;
+		OUT.Color = lerp(float4(0, 0.7, 0.9, 1), float4(0.35, 0.35, 0.35, 1), saturate(IN.WPos.w / 100.0));
 	}
 	else if (CP_Custom_ViewMode.x == 1)  // Texel density
 	{
 		float2 diffuseTexRes = 0;
-#if !OPENGL
-	diffuseTex.GetDimensions(diffuseTexRes.x, diffuseTexRes.y);
-#endif
-	
+		diffuseTex.GetDimensions(diffuseTexRes.x, diffuseTexRes.y);
+
 		float3 ddx_P = ddx(IN.vView.xyz);
 		float3 ddy_P = ddy(IN.vView.xyz);
 		float2 ddx_T = ddx(IN.baseTC.xy);
@@ -96,10 +107,18 @@ pixout Common_DebugPassPS(vert2fragDebug IN)
 		// Sample diffuse tex so texture modificator in VS gets properly applied
 		// Multiply by very small number and use result so compiler doesn't optimize tex fetch away
 		float3 c = GetDiffuseTex(diffuseTex, IN.baseTC.xy) * 0.0001;
-		c += GetTexture2D(dissolveNoiseTex, ssMaterialBilinearClamp, float2(t, 0.25));
+		c += GetTexture2D(texelPerMeterTex, ssMaterialBilinearClamp, float2(t, 0.0));
 		
 		OUT.Color = float4(c * checker, 1);
 	}
+#endif
+
+// Set the color in debug mode.	
+#if %_RT_SAMPLE1  // Selection Pass
+	// We are passing the actual texture coordinate here for use in alpha testing
+	OUT.Color = float4(IN.baseTC.x, IN.baseTC.y, 0, 0);
+#elif %_RT_SAMPLE2 // DebugDraw Pass
+	OUT.Color = float4(PerInstanceCustomData1.rgb, 1.0f); // SilhouetteColor contains custom debug color
 #endif
 
 	// Selection Pass
@@ -109,22 +128,14 @@ pixout Common_DebugPassPS(vert2fragDebug IN)
 	#define HIGHLIGHTED_FLAG (1 << 1)
 	#define HIDDEN_FLAG      (1 << 2)
 
-#if %_RT_ALPHATEST
-  // only access texture for alpha tested meshes
-  float alpha = GetAlphaTex(diffuseTex, IN.Color.xy);
-  float alphaTest =	Get_MaterialAlphaTest();
-  clip(alpha - alphaTest); //need to perform texkill just like in regular passes
-#endif 
-
   // write the selection ID to our color with some possible modifications
   uint selectionID = asuint(PerInstanceCustomData2.x);
 
   // now we need to compare the scene's depth to the fragment's depth. We do that here instead of after rendering, so precision is maintained better
-  float fragmentDepth = IN.WPos.z;
-  int3 vPixCoord = int3(IN.WPos.xy, 0);
-  float sceneDepth = SceneDepthTex.Load(vPixCoord);
+  float fGeomDepth = IN.WPos.w * CV_NearFarClipDist.w;
+  float fSceneDepth = GetLinearDepth(linearDepthTex, int2(IN.WPos.xy));
 
-  if (fragmentDepth < 0.999 * sceneDepth)
+  if (fGeomDepth > fSceneDepth * 1.001)
   {
     // set the fragment as occluded in regular scene
     selectionID |= HIDDEN_FLAG;

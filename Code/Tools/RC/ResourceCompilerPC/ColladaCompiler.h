@@ -32,7 +32,7 @@ public:
 	ColladaCompiler(ICryXML* pCryXML, IPakSystem* pPakSystem);
 	virtual ~ColladaCompiler();
 
-	// IConvertor methods.
+	// IConverter methods.
 	virtual const char* GetExt(int index) const;
 
 	// ICompiler methods.

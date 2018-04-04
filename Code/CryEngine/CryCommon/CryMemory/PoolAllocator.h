@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 // Created by: Michael Smith
 // Modified 2008-06, Scott Peter
@@ -64,7 +64,15 @@ protected:
 	}
 	static size_t AllocAlign(size_t nSize, size_t nAlign)
 	{
-		return nAlign > 0 ? nAlign : min<size_t>(nSize, alignof(void*));
+		if (nAlign == 0)
+		{
+			for (nAlign = 1; nAlign < 16; nAlign <<= 1)
+			{
+				if (nSize & nAlign)
+					break;
+			}
+		}
+		return nAlign;
 	}
 
 public:

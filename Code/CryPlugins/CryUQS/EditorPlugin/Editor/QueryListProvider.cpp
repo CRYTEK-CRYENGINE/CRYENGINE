@@ -88,7 +88,7 @@ CQueryListProvider::~CQueryListProvider()
 	RemoveAllNeverSavedQueries();
 }
 
-struct SListQueriesVisitor : public uqs::datasource::IEditorLibraryProvider::IListQueriesVisitor
+struct SListQueriesVisitor : public UQS::DataSource::IEditorLibraryProvider::IListQueriesVisitor
 {
 	SListQueriesVisitor(Explorer::CEntryList<SUqsQueryEntry>& entries)
 		: m_entries(entries)
@@ -109,9 +109,9 @@ void CQueryListProvider::Populate()
 {
 	m_queries.Clear();
 
-	if (uqs::core::IHub* pHub = uqs::core::IHubPlugin::GetHubPtr())
+	if (UQS::Core::IHub* pHub = UQS::Core::IHubPlugin::GetHubPtr())
 	{
-		if (uqs::datasource::IEditorLibraryProvider* pProvider = pHub->GetEditorLibraryProvider())
+		if (UQS::DataSource::IEditorLibraryProvider* pProvider = pHub->GetEditorLibraryProvider())
 		{
 			SListQueriesVisitor visitor(m_queries);
 			pProvider->GetQueriesList(visitor);

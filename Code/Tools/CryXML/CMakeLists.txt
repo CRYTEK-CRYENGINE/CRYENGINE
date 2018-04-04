@@ -28,9 +28,9 @@ end_sources()
 
 CryResourceCompilerModule(CryXML PCH "StdAfx.cpp" SOLUTION_FOLDER "RC")
 target_include_directories(${THIS_PROJECT} PRIVATE 
-	${CRYENGINE_SOURCE_DIR}/Code/Tools/CryCommonTools 
-	${CRYENGINE_SOURCE_DIR}/Code/Tools 
-	${CMAKE_SOURCE_DIR}/ResourceCompiler)
+	"${CRYENGINE_SOURCE_DIR}/Code/Tools/CryCommonTools"
+	"${CRYENGINE_SOURCE_DIR}/Code/Tools" 
+	"${CMAKE_SOURCE_DIR}/ResourceCompiler")
 target_compile_definitions(${THIS_PROJECT} PRIVATE -DCRYXML_EXPORTS -DCRYTOOLS)
 target_link_libraries(${THIS_PROJECT} PRIVATE expat)
 

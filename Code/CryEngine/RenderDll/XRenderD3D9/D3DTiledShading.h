@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 /*=============================================================================
 
@@ -11,6 +11,7 @@
 #define _D3DTILEDSHADING_H_
 
 #include "GraphicsPipeline/Common/ComputeRenderPass.h"
+#include "DeviceManager/D3D11/DeviceSubmissionQueue_D3D11.h" // CSubmissionQueue_DX11
 
 const uint32 MaxNumTileLights = 255;
 const uint32 LightTileSizeX = 8;
@@ -62,6 +63,7 @@ class CTiledShading
 protected:
 	friend class CTiledShadingStage;
 	friend class CSceneForwardStage;
+	friend class CMobileCompositionStage;
 
 	struct AtlasItem
 	{
@@ -89,6 +91,18 @@ public:
 		tlVolumeOBB    = 3,
 		tlVolumeSun    = 4,
 	};
+
+	struct SGPUResources
+	{
+		CGpuBuffer*  lightCullInfoBuf;
+		CGpuBuffer*  lightShadeInfoBuf;
+		CGpuBuffer*  tileOpaqueLightMaskBuf;
+		CGpuBuffer*  tileTranspLightMaskBuf;
+		CGpuBuffer*  clipVolumeInfoBuf;
+		CTexture*    specularProbeAtlas;
+		CTexture*    diffuseProbeAtlas;
+		CTexture*    spotTexAtlas;
+	};
 	
 	CTiledShading();
 
@@ -98,16 +112,14 @@ public:
 
 	void                  Render(CRenderView* pRenderView, Vec4* clipVolumeParams);
 
-	void                  BindForwardShadingResources(CShader* pShader, CDeviceManager::SHADER_TYPE shType = CDeviceManager::TYPE_PS);
-	void                  UnbindForwardShadingResources(CDeviceManager::SHADER_TYPE shType = CDeviceManager::TYPE_PS);
-
-	template<class RenderPassType>
-	void                  BindForwardShadingResources(RenderPassType& pass);
+	void                  BindForwardShadingResources(CShader* pShader, CSubmissionQueue_DX11::SHADER_TYPE shType = CSubmissionQueue_DX11::TYPE_PS);
+	void                  UnbindForwardShadingResources(CSubmissionQueue_DX11::SHADER_TYPE shType = CSubmissionQueue_DX11::TYPE_PS);
 
 	STiledLightInfo*      GetTiledLightInfo()                                                  { return m_tileLights; }
 	STiledLightCullInfo*  GetTiledLightCullInfo();
 	STiledLightShadeInfo* GetTiledLightShadeInfo();
 	uint32                GetValidLightCount()                                                 { return m_numValidLights; }
+	const SGPUResources   GetTiledShadingResources();
 
 	int                   InsertTextureToSpecularProbeAtlas(CTexture* texture, int arrayIndex) { return InsertTexture(texture, m_specularProbeAtlas, arrayIndex); }
 	int                   InsertTextureToDiffuseProbeAtlas(CTexture* texture, int arrayIndex)  { return InsertTexture(texture, m_diffuseProbeAtlas, arrayIndex); }
@@ -115,10 +127,12 @@ public:
 
 	void                  NotifyCausticsVisible()                                              { m_bApplyCaustics = true; }
 
+	// #PFX2_TODO overly specific function. Re-implement as an algorithm.
+	uint32                GetLightShadeIndexBySpecularTextureId(int textureId) const;
+
 protected:
 	int  InsertTexture(CTexture* texture, TextureAtlas& atlas, int arrayIndex);
 	void PrepareLightList(CRenderView* pRenderView);
-	void PrepareShadowCastersList(CRenderView* pRenderView);
 	void PrepareClipVolumeList(Vec4* clipVolumeParams);
 
 protected:
@@ -127,7 +141,7 @@ protected:
 	uint32         m_dispatchSizeX, m_dispatchSizeY;
 
 	CGpuBuffer     m_lightCullInfoBuf;
-	CGpuBuffer     m_LightShadeInfoBuf;
+	CGpuBuffer     m_lightShadeInfoBuf;
 	CGpuBuffer     m_tileOpaqueLightMaskBuf;
 	CGpuBuffer     m_tileTranspLightMaskBuf;
 
@@ -136,9 +150,6 @@ protected:
 	TextureAtlas   m_specularProbeAtlas;
 	TextureAtlas   m_diffuseProbeAtlas;
 	TextureAtlas   m_spotTexAtlas;
-
-	uint32         m_samplerTrilinearClamp;
-	uint32         m_samplerCompare;
 
 	uint32         m_numValidLights;
 	uint32         m_numSkippedLights;

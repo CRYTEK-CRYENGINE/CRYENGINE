@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #ifndef _GAME_VOLUME_WATER_H
 #define _GAME_VOLUME_WATER_H
@@ -85,7 +85,6 @@ public:
 	virtual void                 ProcessEvent(SEntityEvent&);
 	virtual uint64               GetEventMask() const final;;
 	virtual void                 SetChannelId(uint16 id)     {};
-	virtual void                 SetAuthority(bool auth)     {};
 	virtual void                 PostUpdate(float frameTime) { CRY_ASSERT(false); }
 	virtual void                 PostRemoteSpawn()           {};
 	virtual void                 GetMemoryUsage(ICrySizer* pSizer) const;

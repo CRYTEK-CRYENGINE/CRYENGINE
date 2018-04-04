@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 /********************************************************************
    -------------------------------------------------------------------------
@@ -18,46 +18,45 @@
 #ifdef CRYAISYSTEM_DEBUG
 
 // AI includes
-	#include "CAISystem.h"
-	#include "DebugDrawContext.h"
-	#include "AILog.h"
+#include "CAISystem.h"
+#include "DebugDrawContext.h"
+#include "AILog.h"
 
-	#include "Graph.h"
-	#include "Puppet.h"
-	#include "AIVehicle.h"
-	#include "GoalPipe.h"
-	#include "GoalOp.h"
-	#include "AIPlayer.h"
-	#include "PipeUser.h"
-	#include "Leader.h"
-	#include "NavRegion.h"
-	#include "SmartObjects.h"
-	#include "PathFollower.h"
-	#include "Shape.h"
-	#include "CodeCoverageGUI.h"
-	#include "StatsManager.h"
-	#include "PerceptionManager.h"
-	#include "FireCommand.h"
+#include "Graph.h"
+#include "Puppet.h"
+#include "AIVehicle.h"
+#include "GoalPipe.h"
+#include "GoalOp.h"
+#include "AIPlayer.h"
+#include "PipeUser.h"
+#include "Leader.h"
+#include "NavRegion.h"
+#include "SmartObjects.h"
+#include "PathFollower.h"
+#include "Shape.h"
+#include "CodeCoverageGUI.h"
+#include "StatsManager.h"
+#include "FireCommand.h"
 
 // (MATT) TODO Get a lightweight DebugDraw interface rather than pulling in this header file {2008/12/04}
-	#include "TacticalPointSystem/TacticalPointSystem.h"
-	#include "TargetSelection/TargetTrackManager.h"
-	#include "Communication/CommunicationManager.h"
-	#include "Cover/CoverSystem.h"
-	#include "Navigation/NavigationSystem/NavigationSystem.h"
-	#include "SelectionTree/SelectionTree.h"
-	#include "CollisionAvoidance/CollisionAvoidanceSystem.h"
-	#include "Group/GroupManager.h"
-	#include "CentralInterestManager.h"
-	#include "PersonalInterestManager.h"
-	#include "BehaviorTree/BehaviorTreeManager.h"
+#include "TacticalPointSystem/TacticalPointSystem.h"
+#include "TargetSelection/TargetTrackManager.h"
+#include "Communication/CommunicationManager.h"
+#include "Cover/CoverSystem.h"
+#include "Navigation/NavigationSystem/NavigationSystem.h"
+#include "CollisionAvoidance/CollisionAvoidanceSystem.h"
+#include "Group/GroupManager.h"
+#include "CentralInterestManager.h"
+#include "PersonalInterestManager.h"
+#include "BehaviorTree/BehaviorTreeManager.h"
 
-	#include <CryAISystem/IAIBubblesSystem.h>
+#include <CryAISystem/IAIBubblesSystem.h>
+#include <CryAISystem/IAISystemComponent.h>
 
-	#pragma warning(disable: 4244)
+#pragma warning(disable: 4244)
 
-	#define whiteTrans ColorB(255, 255, 255, 179)
-	#define redTrans   ColorB(255, 0, 0, 179)
+#define whiteTrans ColorB(255, 255, 255, 179)
+#define redTrans   ColorB(255, 0, 0, 179)
 
 void CAISystem::DebugDrawRecorderRange() const
 {
@@ -965,14 +964,6 @@ void CAISystem::DebugDrawCodeCoverage() const
 	gAIEnv.pCodeCoverageGUI->DebugDraw(gAIEnv.CVars.CodeCoverage);
 }
 
-void CAISystem::DebugDrawPerceptionManager()
-{
-	FUNCTION_PROFILER(GetISystem(), PROFILE_AI);
-
-	gAIEnv.pPerceptionManager->DebugDraw(gAIEnv.CVars.DebugPerceptionManager);
-	gAIEnv.pPerceptionManager->DebugDrawPerformance(gAIEnv.CVars.DebugPerceptionManager);
-}
-
 void CAISystem::DebugDrawNavigation() const
 {
 	FUNCTION_PROFILER(GetISystem(), PROFILE_AI);
@@ -1111,51 +1102,6 @@ void CAISystem::DebugDrawCheckRay() const
 	}
 }
 
-void CAISystem::DebugDrawCheckWalkability()
-{
-	FUNCTION_PROFILER(GetISystem(), PROFILE_AI);
-
-	IEntity* entFrom = gEnv->pEntitySystem->FindEntityByName("CheckWalkabilityFrom");
-	IEntity* entTo = gEnv->pEntitySystem->FindEntityByName("CheckWalkabilityTo");
-	if (entFrom && entTo)
-	{
-		CDebugDrawContext dc;
-
-		{
-			static CTimeValue lastTime = gEnv->pTimer->GetAsyncTime();
-			CTimeValue thisTime = gEnv->pTimer->GetAsyncTime();
-			float deltaT = (thisTime - lastTime).GetSeconds();
-			static float testsPerSec = 0.0f;
-			if (deltaT > 2.0f)
-			{
-				lastTime = thisTime;
-				testsPerSec = g_CheckWalkabilityCalls / deltaT;
-				g_CheckWalkabilityCalls = 0;
-			}
-			const int column = 5;
-			const int row = 50;
-			char buff[256];
-			cry_sprintf(buff, "%5.2f walkability calls per sec", testsPerSec);
-			dc->Draw2dLabel(column, row, buff, ColorB(255, 0, 255));
-		}
-
-		const Vec3& posFrom = entFrom->GetPos();
-		const Vec3& posTo = entTo->GetPos();
-		int nBuildingID;
-		m_pNavigation->CheckNavigationType(posFrom, nBuildingID, IAISystem::NAV_WAYPOINT_HUMAN);
-		const SpecialArea* sa = m_pNavigation->GetSpecialArea(nBuildingID);
-		const float radius = 0.3f;
-		bool result = CheckWalkability(posFrom, posTo, 0.35f, sa ? sa->GetPolygon() : ListPositions());
-		ColorB color;
-		if (result)
-			color.set(0, 255, 0, 255);
-		else
-			color.set(255, 0, 0, 255);
-		dc->DrawSphere(posFrom, radius, color);
-		dc->DrawSphere(posTo, radius, color);
-	}
-}
-
 void CAISystem::DebugDrawCheckWalkabilityTime() const
 {
 	FUNCTION_PROFILER(GetISystem(), PROFILE_AI);
@@ -1230,31 +1176,6 @@ void CAISystem::DebugDrawCheckGravity() const
 		const float lenScale = 0.3f;
 		CDebugDrawContext dc;
 		dc->DrawLine(pos, color, pos + lenScale * gravity, color);
-	}
-}
-
-void CAISystem::DebugDrawGetTeleportPos() const
-{
-	FUNCTION_PROFILER(GetISystem(), PROFILE_AI);
-
-	IEntity* ent = gEnv->pEntitySystem->FindEntityByName("GetTeleportPos");
-	if (ent)
-	{
-		const Vec3& pos = ent->GetPos();
-		Vec3 teleportPos = pos;
-
-		IAISystem::tNavCapMask navCapMask = IAISystem::NAV_TRIANGULAR | IAISystem::NAV_WAYPOINT_HUMAN;
-
-		int nBuildingID;
-		IAISystem::ENavigationType currentNavType = m_pNavigation->CheckNavigationType(pos, nBuildingID, navCapMask);
-
-		bool canTeleport = gAIEnv.pNavigation->GetNavRegion(currentNavType, gAIEnv.pGraph)->GetTeleportPosition(pos, teleportPos, "GetTeleportPos");
-
-		CDebugDrawContext dc;
-		if (canTeleport)
-			dc->DrawSphere(teleportPos, 0.5f, ColorB(0, 255, 0));
-		else
-			dc->DrawSphere(pos, 0.5f, ColorB(255, 0, 0));
 	}
 }
 
@@ -2665,36 +2586,6 @@ void CAISystem::DebugDrawAgent(CAIObject* pAgentObj) const
 	static string text;
 	text.clear();
 
-	// Behavior Selection
-	if (SelectionTree* behaviorSelectionTree = pAgent->GetBehaviorSelectionTree())
-	{
-		if (enabledStats & BehaviorSelectionNode)
-		{
-			SelectionNodeID nodeID = behaviorSelectionTree->GetCurrentNodeID();
-			if (nodeID)
-			{
-				const SelectionTreeNode& node = behaviorSelectionTree->GetNode(nodeID);
-				const char* nodeName = node.GetName();
-
-				if (node.GetParentID())
-				{
-					const SelectionTreeNode& parentNode = behaviorSelectionTree->GetNode(node.GetParentID());
-					text = parentNode.GetName();
-					text.append(" > ");
-					text.append(nodeName);
-				}
-				else
-					text = nodeName;
-			}
-
-			const bool isTextEmpty = text.empty();
-			dc->Draw2dLabel(x, y, fontSize * 1.15f, isTextEmpty ? red : blue, false, "%s", isTextEmpty ? "No Selection" : text.c_str());
-			y += fontHeight * 1.15;
-		}
-	}
-
-	text.clear();
-
 	// Behavior
 	if (enabledStats & Behavior)
 	{
@@ -2827,7 +2718,7 @@ void CAISystem::DebugDrawAgent(CAIObject* pAgentObj) const
 					}
 				}
 
-				const ColorB color = pPipeUser->IsPaused() ? Col_Grey : white;
+				const ColorB color = pPipeUser->IsPaused() ? ColorB(Col_Grey) : white;
 
 				dc->Draw2dLabel(x, y, fontSize, color, false, "%s", text.c_str());
 				y += fontHeight;
@@ -2836,7 +2727,7 @@ void CAISystem::DebugDrawAgent(CAIObject* pAgentObj) const
 			// Goal Op
 			if (enabledStats & GoalOp)
 			{
-				const ColorB color = pPipeUser->IsPaused() ? Col_Grey : white;
+				const ColorB color = pPipeUser->IsPaused() ? ColorB(Col_Grey) : white;
 
 				if (pPipeUser->m_lastExecutedGoalop != eGO_LAST)
 					dc->Draw2dLabel(x, y, fontSize, color, false, "%s", pPipe->GetGoalOpName(pPipeUser->m_lastExecutedGoalop));
@@ -4003,24 +3894,6 @@ void CAISystem::DebugDrawStatsTarget(const char* pName)
 			                 szOwner, szType, ed.threatTimeout, ed.threatTime, ed.exposure, ed.soundThreatLevel, ed.visualThreatLevel, szVisType);
 		}
 	}
-}
-
-//
-//-----------------------------------------------------------------------------------------------------------
-void CAISystem::DebugDrawBehaviorSelection(const char* agentName)
-{
-	FUNCTION_PROFILER(GetISystem(), PROFILE_AI);
-
-	if (!agentName || !*agentName)
-		return;
-
-	CAIObject* targetObject = gAIEnv.pAIObjectManager->GetAIObjectByName(agentName);
-	if (!targetObject)
-		return;
-
-	CAIActor* targetActor = targetObject->CastToCAIActor();
-	if (targetActor)
-		targetActor->DebugDrawBehaviorSelectionTree();
 }
 
 //
@@ -5278,6 +5151,11 @@ void CAISystem::DebugDraw()
 	dc->Init3DMode();
 	dc->SetAlphaBlended(true);
 
+	for (auto& systemComponent : m_setSystemComponents)
+	{
+		systemComponent->DebugDraw(dc.operator->());
+	}
+
 	if (gAIEnv.CVars.DebugDrawCollisionAvoidance > 0)
 		gAIEnv.pCollisionAvoidanceSystem->DebugDraw();
 
@@ -5346,9 +5224,6 @@ void CAISystem::DebugDraw()
 
 	DebugDrawRecorderRange();
 
-	if (gAIEnv.CVars.DebugPerceptionManager > 0)
-		DebugDrawPerceptionManager();
-
 	//------------------------------------------------------------------------------------
 	// Check for graph and return on fail - note that graph is assumed by most of system
 	//------------------------------------------------------------------------------------
@@ -5374,8 +5249,6 @@ void CAISystem::DebugDraw()
 	DebugDrawPathAdjustments();
 
 	DebugDrawStatsTarget(gAIEnv.CVars.StatsTarget);
-
-	DebugDrawBehaviorSelection(gAIEnv.CVars.DebugBehaviorSelection);
 
 	if (gAIEnv.CVars.DrawFormations)
 		DebugDrawFormations();
@@ -5407,7 +5280,6 @@ void CAISystem::DebugDraw()
 	DebugDrawCheckCapsules();
 	DebugDrawCheckRay();
 	m_pSmartObjectManager->DebugDrawValidateSmartObjectArea();
-	DebugDrawCheckWalkability();
 	DebugDrawCheckWalkabilityTime();
 	DebugDrawCheckFloorPos();
 	DebugDrawCheckGravity();

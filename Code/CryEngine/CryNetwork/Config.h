@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #ifndef __NET_CONFIG_H__
 #define __NET_CONFIG_H__
@@ -74,8 +74,6 @@
 #define LOG_ENCODING_TO_FILE               0
 
 #define DETAIL_REGULARLY_SYNCED_ITEM_DEBUG 0
-
-#define ENABLE_ASPECT_HASHING              0
 
 #define CRC8_ASPECT_FORMAT                 1
 #define CRC8_ENCODING_GLOBAL               1
@@ -371,7 +369,7 @@
 
 	#define USUAL_DEBUG_STUFF 0
 
-	#if !defined(_RELEASE) && !defined(IS_EAAS) // guard against shipping this feature in cases where it cannot be rebuilt by the developer
+	#if !defined(_RELEASE) // guard against shipping this feature in cases where it cannot be rebuilt by the developer
 		#define INTERNET_SIMULATOR      1
 		#define ENABLE_DEBUG_KIT        0
 		#define ENABLE_NETWORK_MEM_INFO 1

@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #ifndef _ZIP_DIR_CACHE_RW_HDR_
 #define _ZIP_DIR_CACHE_RW_HDR_
@@ -28,13 +28,14 @@ public:
 	void AddRef();
 	void Release();
 
-	CacheRW() :
-		m_pFile(NULL),
-		m_pHeap(NULL),
-		m_nFlags(0),
-		m_lCDROffset(0),
-		m_tempStringPool(false),
-		m_encryptedHeaders(ZipFile::HEADERS_NOT_ENCRYPTED)
+	CacheRW()
+		: m_pFile(nullptr)
+		, m_pHeap(nullptr)
+		, m_lCDROffset(0)
+		, m_tempStringPool(false)
+		, m_nFlags(0)
+		, m_encryptedHeaders(ZipFile::HEADERS_NOT_ENCRYPTED)
+		, m_signedHeaders(ZipFile::HEADERS_NOT_SIGNED)
 	{
 		m_nRefCount = 0;
 	}

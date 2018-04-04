@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Linq;
 
 namespace CryEngine.UI
@@ -11,6 +11,10 @@ namespace CryEngine.UI
 		private float _spacing;
 		private List<UIElement> _items;
 
+		/// <summary>
+		/// Spacing around the elements in the  LayoutGroup.
+		/// </summary>
+		/// <value>The spacing.</value>
 		public float Spacing
 		{
 			get
@@ -24,12 +28,19 @@ namespace CryEngine.UI
 			}
 		}
 
+		/// <summary>
+		/// Called when the LayoutGroup is created.
+		/// </summary>
 		public override void OnAwake()
 		{
 			base.OnAwake();
 			_items = new List<UIElement>();
 		}
 
+		/// <summary>
+		/// Add an UIElement to the LayoutGroup.
+		/// </summary>
+		/// <param name="item">The UIElement to add.</param>
 		public void Add(UIElement item)
 		{
 			if (!_items.Contains(item))
@@ -40,6 +51,10 @@ namespace CryEngine.UI
 			}
 		}
 
+		/// <summary>
+		/// Remove an UIElement from the LayoutGroup.
+		/// </summary>
+		/// <param name="item">The UIElement to remove.</param>
 		public void Remove(UIElement item)
 		{
 			if (_items.Contains(item))
@@ -50,15 +65,25 @@ namespace CryEngine.UI
 			}
 		}
 
+		/// <summary>
+		/// Removes all UIElements from this LayoutGroup.
+		/// </summary>
+		/// <returns>The clear.</returns>
+		/// <param name="updateLayout">If set to <c>true</c> update layout.</param>
 		public void Clear(bool updateLayout = true)
 		{
 			_items.ForEach(x => x.ActiveChanged -= OnItemActiveChanged);
 			_items.Clear();
 
-			if (updateLayout)
+			if(updateLayout)
+			{
 				UpdateLayout();
+			}
 		}
 
+		/// <summary>
+		/// Called when the LayoutGroup is being destroyed.
+		/// </summary>
 		public override void OnDestroy()
 		{
 			Clear(false);

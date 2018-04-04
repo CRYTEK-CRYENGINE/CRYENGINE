@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 // -------------------------------------------------------------------------
 //  File name:   TimeOfDayScheduler.cpp
@@ -14,6 +14,8 @@
 #include "StdAfx.h"
 #include <Cry3DEngine/ITimeOfDay.h>
 #include "TimeOfDayScheduler.h"
+
+#include <CryFlowGraph/IFlowBaseNode.h>
 
 CTimeOfDayScheduler::CTimeOfDayScheduler()
 {
@@ -117,3 +119,114 @@ void CTimeOfDayScheduler::Update()
 
 	m_lastTime = curTime;
 }
+
+//////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////
+class CFlowNode_TimeOfDayTrigger : public CFlowBaseNode<eNCT_Instanced>
+{
+public:
+	enum EInputs
+	{
+		EIP_Enabled = 0,
+		EIP_Time,
+	};
+	enum EOutputs
+	{
+		EOP_Trigger = 0,
+	};
+
+	CFlowNode_TimeOfDayTrigger(SActivationInfo* /* pActInfo */)
+	{
+		m_timerId = CTimeOfDayScheduler::InvalidTimerId;
+	}
+
+	~CFlowNode_TimeOfDayTrigger()
+	{
+		ResetTimer();
+	}
+
+	virtual IFlowNodePtr Clone(SActivationInfo* pActInfo)
+	{
+		return new CFlowNode_TimeOfDayTrigger(pActInfo);
+	}
+
+	virtual void GetConfiguration(SFlowNodeConfig& config)
+	{
+		static const SInputPortConfig in_config[] = {
+			InputPortConfig<bool>("Active", true, _HELP("Whether trigger is enabled")),
+			InputPortConfig<float>("Time",  0.0f, _HELP("Time when to trigger")),
+			{ 0 }
+		};
+		static const SOutputPortConfig out_config[] = {
+			OutputPortConfig<float>("Trigger", _HELP("Triggered when TimeOfDay has been reached. Outputs current timeofday")),
+			{ 0 }
+		};
+
+		config.sDescription = _HELP("TimeOfDay Trigger");
+		config.pInputPorts = in_config;
+		config.pOutputPorts = out_config;
+		config.SetCategory(EFLN_APPROVED);
+	}
+	virtual void ProcessEvent(EFlowEvent event, SActivationInfo* pActInfo)
+	{
+		switch (event)
+		{
+		case eFE_Initialize:
+		case eFE_Activate:
+		{
+			ResetTimer();
+			m_actInfo = *pActInfo;
+			const bool bEnabled = IsBoolPortActive(pActInfo, EIP_Enabled);
+			if (bEnabled)
+				RegisterTimer(pActInfo);
+		}
+		break;
+		}
+	}
+
+	void ResetTimer()
+	{
+		if (m_timerId != CTimeOfDayScheduler::InvalidTimerId)
+		{
+			CCryAction::GetCryAction()->GetTimeOfDayScheduler()->RemoveTimer(m_timerId);
+			m_timerId = CTimeOfDayScheduler::InvalidTimerId;
+		}
+	}
+
+	void RegisterTimer(SActivationInfo* pActInfo)
+	{
+		assert(m_timerId == CTimeOfDayScheduler::InvalidTimerId);
+		const float time = GetPortFloat(pActInfo, EIP_Time);
+		m_timerId = CCryAction::GetCryAction()->GetTimeOfDayScheduler()->AddTimer(time, OnTODCallback, (void*)this);
+	}
+
+	virtual void GetMemoryUsage(ICrySizer* s) const
+	{
+		s->Add(*this);
+	}
+
+	virtual void Serialize(SActivationInfo* pActInfo, TSerialize ser)
+	{
+		if (ser.IsReading())
+		{
+			ResetTimer();
+			// re-enable if it's enabled
+			const bool bEnabled = GetPortBool(pActInfo, EIP_Enabled);
+			if (bEnabled)
+				RegisterTimer(pActInfo);
+		}
+	}
+
+protected:
+	static void OnTODCallback(CTimeOfDayScheduler::TimeOfDayTimerId timerId, void* pUserData, float curTime)
+	{
+		CFlowNode_TimeOfDayTrigger* pThis = reinterpret_cast<CFlowNode_TimeOfDayTrigger*>(pUserData);
+		if (timerId != pThis->m_timerId)
+			return;
+		ActivateOutput(&pThis->m_actInfo, EOP_Trigger, curTime);
+	}
+
+	SActivationInfo                       m_actInfo;
+	CTimeOfDayScheduler::TimeOfDayTimerId m_timerId;
+};
+REGISTER_FLOW_NODE("Time:TimeOfDayTrigger", CFlowNode_TimeOfDayTrigger)

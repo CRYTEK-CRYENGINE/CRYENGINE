@@ -1,21 +1,24 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #ifndef IKTorsoAim_h
 #define IKTorsoAim_h
 
 #include <CryExtension/ClassWeaver.h>
 
+#include "IAnimatedCharacter.h"
+
 #define TORSOAIM_MAX_JOINTS 5
 
 class CRY_ALIGN(32) CIKTorsoAim:
-	public IAnimationPoseModifier
+	public IAnimationPoseModifierTorsoAim
 {
 public:
 	CRYINTERFACE_BEGIN()
-	CRYINTERFACE_ADD(IAnimationPoseModifier)
+		CRYINTERFACE_ADD(IAnimationPoseModifier)
+		CRYINTERFACE_ADD(IAnimationPoseModifierTorsoAim)
 	CRYINTERFACE_END()
 
-	CRYGENERATE_CLASS(CIKTorsoAim, "AnimationPoseModifier_IKTorsoAim", 0x2058e99dd05243e2, 0x88985eff40b942e4)
+	CRYGENERATE_CLASS_GUID(CIKTorsoAim, "AnimationPoseModifier_IKTorsoAim", "2058e99d-d052-43e2-8898-5eff40b942e4"_cry_guid)
 
 	CIKTorsoAim();
 	virtual ~CIKTorsoAim() {}

@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #pragma once
 
@@ -8,9 +8,8 @@ namespace CryAudio
 {
 namespace Impl
 {
-struct IAudioImpl;
-struct SAudioObject3DAttributes;
-}
+struct IImpl;
+struct SObject3DAttributes;
 }
 
 class CATLListener;
@@ -24,26 +23,24 @@ public:
 
 	CAudioListenerManager(CAudioListenerManager const&) = delete;
 	CAudioListenerManager(CAudioListenerManager&&) = delete;
-	CAudioListenerManager&                          operator=(CAudioListenerManager const&) = delete;
-	CAudioListenerManager&                          operator=(CAudioListenerManager&&) = delete;
+	CAudioListenerManager&           operator=(CAudioListenerManager const&) = delete;
+	CAudioListenerManager&           operator=(CAudioListenerManager&&) = delete;
 
-	void                                            Init(CryAudio::Impl::IAudioImpl* const pImpl);
-	void                                            Release();
-	void                                            Update(float const deltaTime);
-	CATLListener*                                   CreateListener();
-	void                                            Release(CATLListener* const pListener);
-	size_t                                          GetNumActive() const;
-	CryAudio::Impl::SAudioObject3DAttributes const& GetDefaultListenerAttributes() const;
-	CATLListener*                                   GetDefaultListener() const;
+	void                             Init(Impl::IImpl* const pIImpl);
+	void                             Release();
+	void                             Update(float const deltaTime);
+	CATLListener*                    CreateListener(char const* const szName = nullptr);
+	void                             ReleaseListener(CATLListener* const pListener);
+	size_t                           GetNumActiveListeners() const;
+	Impl::SObject3DAttributes const& GetActiveListenerAttributes() const;
 
 #if defined(INCLUDE_AUDIO_PRODUCTION_CODE)
-	float GetDefaultListenerVelocity() const;
-#endif //INCLUDE_AUDIO_PRODUCTION_CODE
+	char const* GetActiveListenerName() const;
+#endif // INCLUDE_AUDIO_PRODUCTION_CODE
 
 private:
 
-	std::vector<CATLListener*, STLSoundAllocator<CATLListener*>> m_activeListeners;
-	CATLListener*               m_pDefaultListenerObject = nullptr;
-
-	CryAudio::Impl::IAudioImpl* m_pImpl = nullptr;
+	std::vector<CATLListener*> m_activeListeners;
+	Impl::IImpl*               m_pIImpl = nullptr;
 };
+} // namespace CryAudio

@@ -22,6 +22,7 @@
 #include <windowsx.h>
 #include <dwmapi.h>
 
+
 #ifdef UNICODE
 #define _UNICODE
 #endif
@@ -63,7 +64,11 @@ QToolWindowCustomWrapper::QToolWindowCustomWrapper(QToolWindowManager* manager, 
 
 QToolWindowCustomWrapper::~QToolWindowCustomWrapper()
 {
-	m_manager->removeWrapper(this);
+	if (m_manager)
+	{
+		m_manager->removeWrapper(this);
+		m_manager = nullptr;
+	}
 }
 
 bool QToolWindowCustomWrapper::event(QEvent* e)
@@ -175,11 +180,30 @@ bool QToolWindowCustomWrapper::winEvent(MSG *msg, long *result)
 		}
 		return false;
 		break;
-	case WM_EXITSIZEMOVE:
-		if (m_manager && m_manager->draggedWrapper() == this)
+
+	case WM_SIZING:
+		if (m_manager)
 		{
-			m_manager->finishWrapperDrag();
+			if (m_manager->resizedWrapper() != this)
+			{
+				m_manager->startResize(this);
+			}
 		}
+		break;
+
+	case WM_EXITSIZEMOVE:
+		if (m_manager)
+		{
+			if (m_manager->draggedWrapper() == this)
+			{
+				m_manager->finishWrapperDrag();
+			}
+			else if (m_manager->resizedWrapper() == this)
+			{
+				m_manager->finishWrapperResize();
+			}
+		}
+		break;
 	}
 #if QT_VERSION < 0x050000
 	return QCustomWindowFrame::winEvent(msg, result);
@@ -189,15 +213,18 @@ bool QToolWindowCustomWrapper::winEvent(MSG *msg, long *result)
 }
 #endif
 
-QRect QToolWindowCustomWrapper::getWrapperFrameSize()
-{
-	QRect wrapperSize;
-	wrapperSize.setTopLeft(-(m_contents->mapToGlobal(QPoint(0, 0)) - mapToGlobal(QPoint(0, 0))));
-	wrapperSize.setBottomRight(rect().bottomRight() - m_contents->rect().bottomRight() + wrapperSize.topLeft());
-	return wrapperSize;
-}
-
 void QToolWindowCustomWrapper::startDrag()
 {
 	m_titleBar->onBeginDrag();
+}
+
+void QToolWindowCustomWrapper::deferDeletion()
+{
+	if (m_manager)
+	{
+		m_manager->removeWrapper(this);
+		m_manager = nullptr;
+	}
+	setParent(nullptr);
+	deleteLater();
 }

@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 /*************************************************************************
    -------------------------------------------------------------------------
@@ -32,9 +32,6 @@
 
 #define SERVER_DEFAULT_PORT        64087
 #define SERVER_DEFAULT_PORT_STRING "64087"
-
-#define UNSAFE_NUM_ASPECTS         32         // 8,16 or 32
-#define NUM_ASPECTS                (UNSAFE_NUM_ASPECTS)
 
 #define NEW_BANDWIDTH_MANAGEMENT   1
 #if NEW_BANDWIDTH_MANAGEMENT
@@ -114,39 +111,6 @@ class CNetSerialize;
 typedef _smart_ptr<IRMIMessageBody> IRMIMessageBodyPtr;
 typedef uint32                      TPacketSize;
 
-//! This enum describes different reliability mechanisms for packet delivery.
-//! Do not change ordering here without updating ServerContextView, ClientContextView.
-//! \note This is pretty much deprecated; new code should use the message queue facilities
-//! to order messages, and be declared either ReliableUnordered or UnreliableUnordered.
-enum ENetReliabilityType
-{
-	eNRT_ReliableOrdered,
-	eNRT_ReliableUnordered,
-	eNRT_UnreliableOrdered,
-	eNRT_UnreliableUnordered,
-
-	// Must be last.
-	eNRT_NumReliabilityTypes
-};
-
-//! Implementation of CContextView relies on the first two values being as they are.
-enum ERMIAttachmentType
-{
-	eRAT_PreAttach  = 0,
-	eRAT_PostAttach = 1,
-	eRAT_NoAttach,
-
-	//! Urgent RMIs will be sent at the next sync with game.
-	//! \note Use with caution as this will increase bandwidth.
-	eRAT_Urgent,
-
-	//! If an RMI doesn't care about the object update, then use independent RMIs as they can be sent in the urgent RMI flush.
-	eRAT_Independent,
-
-	// Must be last.
-	eRAT_NumAttachmentTypes
-};
-
 enum EContextViewState
 {
 
@@ -191,10 +155,6 @@ enum EAspectFlags
 
 	//! Aspect has more than one profile (serialization format).
 	eAF_ServerManagedProfile = 0x20,
-
-	//! Client should periodically send a hash of what it thinks the current state of an aspect is.
-	//! This hash is compared to the server hash and forces a server update if there's a mismatch.
-	eAF_HashState = 0x40,
 
 	//! Aspect needs a timestamp to make sense (i.e. physics).
 	eAF_TimestampState = 0x80,
@@ -265,19 +225,8 @@ ILINE EMessageSendResult WorstMessageSendResult(EMessageSendResult r1, EMessageS
 		return r1;
 }
 
-#define _CRYNETWORK_CONCAT(x, y) x ## y
-#define CRYNETWORK_CONCAT(x, y)  _CRYNETWORK_CONCAT(x, y)
-#define ASPECT_TYPE CRYNETWORK_CONCAT(uint, UNSAFE_NUM_ASPECTS)
-
-#if NUM_ASPECTS > 32
-	#error Aspects > 32 Not supported at this time
-#endif
-
+#include "INetEntity.h"
 typedef uint8       ChannelMaskType;
-typedef ASPECT_TYPE NetworkAspectType;
-typedef uint8       NetworkAspectID;
-
-#define NET_ASPECT_ALL (NetworkAspectType(0xFFFFFFFF))
 
 typedef uint32 TNetChannelID;
 static const char* LOCAL_CONNECTION_STRING = "<local>";
@@ -800,6 +749,11 @@ enum EListenerPriorityType
 	ELPT_PreEngine  = 0x00000000,
 	ELPT_Engine     = 0x00010000,
 	ELPT_PostEngine = 0x00020000,
+};
+
+struct INetworkEngineModule : public Cry::IDefaultModule
+{
+	CRYINTERFACE_DECLARE_GUID(INetworkEngineModule, "e6083617-4219-4054-93fa-3b2ada514755"_cry_guid);
 };
 
 //! Main access point for creating Network objects.
@@ -1409,25 +1363,14 @@ struct IGameContext
 	//! \note nAspect will have exactly one bit set describing which aspect to synch.
 	virtual ESynchObjectResult SynchObject(EntityId id, NetworkAspectType nAspect, uint8 nCurrentProfile, TSerialize ser, bool verboseLogging) = 0;
 
-	//! Changes the current profile of an object.
-	//! \note Game code should ensure that things work out correctly.
-	//! Example: Change physicalization.
-	virtual bool SetAspectProfile(EntityId id, NetworkAspectType nAspect, uint8 nProfile) = 0;
-
 	//! An entity has been unbound (we may wish to destroy it).
 	virtual void UnboundObject(EntityId id) = 0;
-
-	//! An entity has been bound (we may wish to do something with that info).
-	virtual void BoundObject(EntityId id, NetworkAspectType nAspects) = 0;
 
 	//! Handles a remote method invocation.
 	virtual INetAtSyncItem* HandleRMI(bool bClient, EntityId objID, uint8 funcID, TSerialize ser, INetChannel* pChannel) = 0;
 
 	//! Passes current demo playback mapped entity ID of the original demo recording server (local) player.
 	virtual void PassDemoPlaybackMappedOriginalServerPlayer(EntityId id) = 0;
-
-	//! Fetches the default (spawned) profile for an aspect.
-	virtual uint8      GetDefaultProfileForAspect(EntityId id, NetworkAspectType aspectID) = 0;
 
 	virtual CTimeValue GetPhysicsTime() = 0;
 	virtual void       BeginUpdateObjects(CTimeValue physTime, INetChannel* pChannel) = 0;
@@ -1436,7 +1379,6 @@ struct IGameContext
 	virtual void       OnEndNetworkFrame() = 0;
 	virtual void       OnStartNetworkFrame() = 0;
 
-	virtual uint32     HashAspect(EntityId id, NetworkAspectType nAspect) = 0;
 	virtual void       PlaybackBreakage(int breakId, INetBreakagePlaybackPtr pBreakage) = 0;
 	virtual void*      ReceiveSimpleBreakage(TSerialize ser)                                           { return NULL; }
 	virtual void       PlaybackSimpleBreakage(void* userData, INetBreakageSimplePlaybackPtr pBreakage) {}
@@ -1527,6 +1469,25 @@ struct INetNub
 
 	virtual bool HasPendingConnections() = 0;
 	// </interfuscator:shuffle>
+};
+
+// Listener that allows for listening to client connection and disconnect events
+struct INetworkedClientListener
+{
+	// Sent to the local client on disconnect
+	virtual void OnLocalClientDisconnected(EDisconnectionCause cause, const char* description) = 0;
+
+	// Sent to the server when a new client has started connecting
+	// Return false to disallow the connection
+	virtual bool OnClientConnectionReceived(int channelId, bool bIsReset) = 0;
+	// Sent to the server when a new client has finished connecting and is ready for gameplay
+	// Return false to disallow the connection and kick the player
+	virtual bool OnClientReadyForGameplay(int channelId, bool bIsReset) = 0;
+	// Sent to the server when a client is disconnected
+	virtual void OnClientDisconnected(int channelId, EDisconnectionCause cause, const char* description, bool bKeepClient) = 0;
+	// Sent to the server when a client is timing out (no packets for X seconds)
+	// Return true to allow disconnection, otherwise false to keep client.
+	virtual bool OnClientTimingOut(int channelId, EDisconnectionCause cause, const char* description) = 0;
 };
 
 #if ENABLE_RMI_BENCHMARK
@@ -2234,7 +2195,7 @@ public:
 
 	size_t Size() const
 	{
-		return MIN(m_count, N);
+		return std::min(m_count, N);
 	}
 
 	size_t Capacity() const

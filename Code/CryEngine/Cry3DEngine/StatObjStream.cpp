@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 // -------------------------------------------------------------------------
 //  File name:   statobjconstr.cpp
@@ -441,6 +441,11 @@ bool CStatObj::UpdateStreamableComponents(float fImportance, const Matrix34A& ob
 		if (CStatObj* pNextState = (CStatObj*)GetObjManager()->FindStaticObjectByFilename(m_pParentObject->m_szStreamingDependencyFilePath))
 			pNextState->UpdateStreamableComponents(fImportance, objMatrix, bFullUpdate, nNewLod);
 
+	if (GetBillboardMaterial())
+	{
+		GetBillboardMaterial()->PrecacheMaterial(0, 0, false);
+	}
+
 	return true;
 }
 
@@ -454,11 +459,17 @@ void CStatObj::DisableStreaming()
 			pLodObj->UpdateStreamingPrioriryLowLevel(1.f, GetObjManager()->m_nUpdateStreamingPrioriryRoundId, true);
 			pLodObj->m_bCanUnload = false;
 
-			// only register the parent object for streaming, it will stream in all subobject + lods
-			if (pLodObj->m_pParentObject)
-				GetObjManager()->RegisterForStreaming(pLodObj->m_pParentObject);
-			else
-				GetObjManager()->RegisterForStreaming(pLodObj);
+			CStatObj* pParentObject = pLodObj->m_pParentObject ? pLodObj->m_pParentObject : pLodObj;
+
+			// only register the parent object for streaming, it will stream in all sub-objects + lods
+			GetObjManager()->RegisterForStreaming(pParentObject);
+
+			// force start streaming immediately, otherwise mesh may be loaded only when global streaming update reaches it in few frames
+			if (pParentObject->m_eStreamingStatus == ecss_NotLoaded)
+			{
+				IReadStream_AutoPtr readStream;
+				pParentObject->StartStreaming(true, &readStream);
+			}
 		}
 	}
 }

@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 /*=============================================================================
    RemoteCompiler.h : socket wrapper for shader compile server connections
@@ -142,6 +142,8 @@ const char* CShaderSrv::GetPlatform() const
 		szTarget = "GL4";
 	else if (CParserBin::m_nPlatform == SF_GLES3)
 		szTarget = "GLES3";
+	else if (CParserBin::m_nPlatform == SF_VULKAN)
+		szTarget = "VULKAN";
 
 	return szTarget;
 }

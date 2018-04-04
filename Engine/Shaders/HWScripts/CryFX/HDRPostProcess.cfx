@@ -38,7 +38,7 @@ float Time = {PB_time};
 sampler2D baseMap : register(s0);
 Texture2D<float4> zMap : register(t0);
 
-Texture2DMS<float4> baseMapMS : register(t0);
+Texture2DMS<float4> baseMapMS : register(t0); 
 Texture2DMS<float4> zMapMS : register(t0);
 
 // Specific for final tone map pass
@@ -224,7 +224,7 @@ pixout HDRSampleLumIterativePS(vtxOut IN)
   for (int i=0; i < nIter; i++)
   {
     half4 vTex = tex2D(baseMap, IN.baseTC.xy + SampleOffsets[i].xy);
-		vResampleSum += vTex;
+	vResampleSum += vTex;
   }
 
   vResampleSum /= (half)nIter;
@@ -350,15 +350,24 @@ void ApplyDithering(inout half3 color, float2 uv)
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+Texture2D hdrTex :  register(t0);
+Texture2D luminanceTex : register(t1);
+Texture2D bloomTex : register(t2);
+Texture2D vignettingTex : register(t7);
+Texture2D colorChartTex : register(t8);
+Texture2D sunShaftsTex : register(t9);
+
+SamplerState linearClampSS : register(s0);
+
 pixout HDRFinalScenePS(vert2frag IN)
 {
-  pixout OUT = (pixout)0;
+	pixout OUT = (pixout)0;
 
-  float2 ScreenTC = MapViewportToRaster(IN.baseTCScaled.xy);
-
-	half fVignetting = tex2D(vignettingMap, ScreenTC); 
-	half4 cBloom = tex2D(bloomMap0, ScreenTC);
-  half3 vAdaptedLum = tex2D(lumMap, ScreenTC);
+	float2 ScreenTC = MapViewportToRaster(IN.baseTCScaled.xy);
+	
+	half fVignetting = vignettingTex.Sample(linearClampSS, ScreenTC.xy); 
+	half4 cBloom = bloomTex.Sample(linearClampSS, ScreenTC.xy);tex2D(bloomMap0, ScreenTC);
+	half3 vAdaptedLum = luminanceTex.Sample(linearClampSS, ScreenTC.xy);
 
 	int nSampleCountMS = GetMSAASampleNum();
 	if( nSampleCountMS )
@@ -373,54 +382,82 @@ pixout HDRFinalScenePS(vert2frag IN)
 	}		
 	else
 	{
-		half4 vSample = tex2D(baseMap, ScreenTC);
+		half4 vSample = hdrTex.Sample(linearClampSS, ScreenTC.xy);
 		OUT.Color.rgb = HDRToneMapSample( IN, vSample, cBloom, vAdaptedLum, fVignetting);
 	}
 
 	// Apply merged post processes
-	OUT.Color.rgb += tex2D(sunshaftsMap, ScreenTC) * SunShafts_SunCol * (1 - OUT.Color.rgb); // Blend in ldr sunshafts	
+	OUT.Color.rgb += sunShaftsTex.Sample(linearClampSS, ScreenTC.xy) * SunShafts_SunCol * (1 - OUT.Color.rgb); // Blend in ldr sunshafts	
 	#if %_RT_SAMPLE1
-		TexColorChart2D(colorChartMap, OUT.Color.xyz);
+		TexColorChart2D(colorChartTex, linearClampSS, OUT.Color.xyz);
 	#endif
 	
 	ApplyDithering(OUT.Color.rgb, IN.baseTC.xy);
-
-#if %_RT_SAMPLE0  // FXAA
-	OUT.Color.a = dot(OUT.Color.rgb, half3(0.299h, 0.587h, 0.114h));
-#endif
  
-  return OUT;
+	return OUT;
 }
 
-pixout HDRFinalDebugScenePS(vtxOut IN)
+pixout HDRFinalSceneDebugPS(vert2frag IN)
 {
-  pixout OUT;
+	pixout OUT = (pixout)0;
 
-#if %_RT_DEBUG0
-	float fExposure = ComputeExposure( tex2D(lumMap, IN.baseTC.xy).y );
-	OUT.Color = pow( saturate(tex2D(baseMap, IN.baseTC.xy) * fExposure), 1.0 / 2.2 );
-	return OUT;
-#endif
+	float2 ScreenTC = MapViewportToRaster(IN.baseTCScaled.xy);
 	
-	float4 sampleXYZW = 0;
-  for(int i=0; i<4; i++)
-  {
-    sampleXYZW += tex2D(baseMap, IN.baseTC.xy + SampleOffsets[i].xy);
-  }
-  float4 vSample = tex2D(baseMap, IN.baseTC.xy);
-  sampleXYZW += vSample;
-  
-  float4 s = 1;
-  s.xyz = GetLuminance( vSample.xyz );
-  if (!isfinite(sampleXYZW.x) || !isfinite(sampleXYZW.y) || !isfinite(sampleXYZW.z))
-		s = half4(1,0,0,0);
+#if %_RT_DEBUG0
+	float fExposure = 0.00001 * ComputeExposure( luminanceTex.Sample(linearClampSS, ScreenTC.xy).y );
+	float3 col = hdrTex.Sample(linearClampSS, ScreenTC.xy).xyz * fExposure;
+	OUT.Color.xyz = (col.xyz < 0.0031308) ? 12.92 * col.xyz : 1.055 * pow( col.xyz, 1.0 / 2.4 ) - float3( 0.055, 0.055, 0.055 );
+	OUT.Color.w = 1.0f;
+#elif %_RT_DEBUG1
+	float3 col = hdrTex.Sample(linearClampSS, ScreenTC.xy);
+	if(any(isnan(col)) || any(isinf(col)))
+	{
+		OUT.Color = float4(1.0f, 0.0f, 0.0f, 1.0f);
+	}
+	else if(any(col<0.0f))
+	{
+		OUT.Color = float4(0.f, 1.f, 0.f, 1.0f);
+	}
+	else 
+	{
+		OUT.Color = float4(0.5f, 0.5f, 0.5f, 1.0f);
+	}
+#endif
 
-  if (sampleXYZW.x<0 || sampleXYZW.y<0 || sampleXYZW.z<0)
-		s=float4(0,1,0,1);
+	return OUT;
+}
 
-  OUT.Color = s;
-  
-  return OUT;
+pixout HDRFinalSceneFixeExposurePS(vert2frag IN)
+{
+	pixout OUT = (pixout)0;
+
+	float2 ScreenTC = MapViewportToRaster(IN.baseTCScaled.xy);
+
+	float3 vAdaptedLum = float3(1.0f, 1.0f, 1.0f);
+
+	half4 cScene = tex2D(baseMap, ScreenTC);
+
+	{
+		// Compute exposure
+		const half fExposure = 1.0f;
+
+		half3 cColor = fExposure * cScene.xyz;
+
+#if 0
+		// Filmic response curve as proposed by J. Hable
+		half4 c = half4(max(cColor.rgb, 0), HDRFilmCurve.w);
+		const half ShoStren = 0.22 * HDRFilmCurve.x, LinStren = 0.3 * HDRFilmCurve.y, LinAngle = 0.1, ToeStren = 0.2, ToeNum = 0.01 * HDRFilmCurve.z, ToeDenom = 0.3;
+		half4 compressedCol = ((c * (ShoStren * c + LinAngle*LinStren) + ToeStren*ToeNum) / (c * (ShoStren * c + LinStren) + ToeStren*ToeDenom)) - (ToeNum / ToeDenom);
+		cScene.xyz = saturate(compressedCol / compressedCol.w);
+#endif
+
+		// Apply gamma correction using exact sRGB curve
+		cScene.xyz = (cScene.xyz < 0.0031308) ? 12.92h * cScene.xyz : 1.055h * pow(cScene.xyz, 1.0h / 2.4h) - half3(0.055h, 0.055h, 0.055h);
+
+		OUT.Color.rgb = cScene.xyz;
+	}
+
+	return OUT;
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -441,8 +478,8 @@ struct fragInShadowFog
 };
 
 Texture2D fogShadowDepthTex : register(t0) = TS_ZTarget;
-Texture2D fogShadowInterleaveTex : register(t1) = "EngineAssets/Textures/FogVolShadowJitter.dds";
-Texture2D fogShadowRotTex : register(t2) = "EngineAssets/Textures/rotrandom.dds";
+Texture2D fogShadowInterleaveTex : register(t1) = "%ENGINE%/EngineAssets/Textures/FogVolShadowJitter.dds";
+Texture2D fogShadowRotTex : register(t2) = "%ENGINE%/EngineAssets/Textures/rotrandom.dds";
 Texture2D fogCloudShadowTex : register(t3) = TS_CloudShadow;
 Texture2D fogShadowMap0Tex : register(t4) = TS_Shadow0;
 Texture2D fogShadowMap1Tex : register(t5) = TS_Shadow2;
@@ -1060,13 +1097,21 @@ technique HDRFinalPass
   }
 }
 
-
 technique HDRFinalDebugPass
+{
+	pass p0
+	{
+		VertexShader = TransformedVS() HDRPostProcessVS;
+		PixelShader = HDRFinalSceneDebugPS() HDRPostProcessPS;
+	}
+}
+
+technique HDRFinalPassFixedExposure
 {
   pass p0
   {
-    VertexShader = FullscreenTriVS();
-    PixelShader = HDRFinalDebugScenePS();
+    VertexShader = TransformedVS() HDRPostProcessVS;
+    PixelShader = HDRFinalSceneFixeExposurePS() HDRPostProcessPS;
   }
 }
 

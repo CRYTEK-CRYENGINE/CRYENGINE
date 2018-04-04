@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #include <CryMath/ISplines.h>
 #include <CrySerialization/IArchive.h>
@@ -70,7 +70,6 @@ inline void remove_trailing(string& str, char c)
 
 namespace spline
 {
-SERIALIZATION_ENUM_IMPLEMENT(ETangentType)
 
 // Float4SplineKey implementation
 

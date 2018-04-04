@@ -1,58 +1,50 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #include "stdafx.h"
 #include "AudioImplCVars.h"
 #include <CrySystem/IConsole.h>
 
-using namespace CryAudio::Impl::Fmod;
-
+namespace CryAudio
+{
+namespace Impl
+{
+namespace Fmod
+{
 //////////////////////////////////////////////////////////////////////////
-void CAudioImplCVars::RegisterVariables()
+void CCVars::RegisterVariables()
 {
 #if CRY_PLATFORM_WINDOWS
-	m_primaryMemoryPoolSize = 128 << 10;  // 128 MiB
 	m_maxChannels = 512;
 	#if defined(INCLUDE_FMOD_IMPL_PRODUCTION_CODE)
 	#endif // INCLUDE_FMOD_IMPL_PRODUCTION_CODE
 #elif CRY_PLATFORM_DURANGO
-	m_primaryMemoryPoolSize = 128 << 10;  // 128 MiB
 	m_secondaryMemoryPoolSize = 32 << 10; // 32 MiB
 	m_maxChannels = 512;
 	#if defined(INCLUDE_FMOD_IMPL_PRODUCTION_CODE)
 	#endif // INCLUDE_FMOD_IMPL_PRODUCTION_CODE
 #elif CRY_PLATFORM_ORBIS
-	m_primaryMemoryPoolSize = 128 << 10;  // 128 MiB
 	m_maxChannels = 512;
 	#if defined(INCLUDE_FMOD_IMPL_PRODUCTION_CODE)
 	#endif // INCLUDE_FMOD_IMPL_PRODUCTION_CODE
 #elif CRY_PLATFORM_MAC
-	m_primaryMemoryPoolSize = 128 << 10;  // 128 MiB
 	m_maxChannels = 512;
 	#if defined(INCLUDE_FMOD_IMPL_PRODUCTION_CODE)
 	#endif // INCLUDE_FMOD_IMPL_PRODUCTION_CODE
 #elif CRY_PLATFORM_LINUX
-	m_primaryMemoryPoolSize = 128 << 10;  // 128 MiB
 	m_maxChannels = 512;
 	#if defined(INCLUDE_FMOD_IMPL_PRODUCTION_CODE)
 	#endif // INCLUDE_FMOD_IMPL_PRODUCTION_CODE
 #elif defined(CRY_PLATFORM_IOS)
-	m_primaryMemoryPoolSize = 8 << 10;    // 8 MiB
 	m_maxChannels = 512;
 	#if defined(INCLUDE_FMOD_IMPL_PRODUCTION_CODE)
 	#endif // INCLUDE_FMOD_IMPL_PRODUCTION_CODE
 #elif CRY_PLATFORM_ANDROID
-	m_primaryMemoryPoolSize = 32 << 10;   // 32 MiB
 	m_maxChannels = 512;
 	#if defined(INCLUDE_FMOD_IMPL_PRODUCTION_CODE)
 	#endif // INCLUDE_FMOD_IMPL_PRODUCTION_CODE
 #else
 	#error "Undefined platform."
 #endif
-
-	REGISTER_CVAR2("s_FmodPrimaryPoolSize", &m_primaryMemoryPoolSize, m_primaryMemoryPoolSize, VF_REQUIRE_APP_RESTART,
-	               "Specifies the size (in KiB) of the memory pool to be used by the Fmod audio system implementation.\n"
-	               "Usage: s_FmodPrimaryPoolSize [0/...]\n"
-	               "Default PC: 131072 (128 MiB), XboxOne: 131072 (128 MiB), PS4: 131072 (128 MiB), Mac: 131072 (128 MiB), Linux: 131072 (128 MiB), iOS: 8192 (8 MiB), Android: 32768 (32 MiB)\n");
 
 	REGISTER_CVAR2("s_FmodMaxChannels", &m_maxChannels, m_maxChannels, VF_REQUIRE_APP_RESTART,
 	               "Sets the maximum number of channels.\n"
@@ -107,20 +99,19 @@ void CAudioImplCVars::RegisterVariables()
 	               "Specifies the size (in KiB) of the memory pool to be used by the Fmod audio system implementation.\n"
 	               "Usage: s_FmodSecondaryPoolSize [0/...]\n"
 	               "Default PC: 0, XboxOne: 32768 (32 MiB), PS4: 0, Mac: 0, Linux: 0, iOS: 0, Android: 0\n");
-#endif // CRY_PLATFORM_DURANGO
+#endif  // CRY_PLATFORM_DURANGO
 
 #if defined(INCLUDE_FMOD_IMPL_PRODUCTION_CODE)
-#endif // INCLUDE_FMOD_IMPL_PRODUCTION_CODE
+#endif  // INCLUDE_FMOD_IMPL_PRODUCTION_CODE
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CAudioImplCVars::UnregisterVariables()
+void CCVars::UnregisterVariables()
 {
 	IConsole* const pConsole = gEnv->pConsole;
 
 	if (pConsole != nullptr)
 	{
-		pConsole->UnregisterVariable("s_FmodPrimaryPoolSize");
 		pConsole->UnregisterVariable("s_FmodMaxChannels");
 		pConsole->UnregisterVariable("s_FmodEnableLiveUpdate");
 		pConsole->UnregisterVariable("s_FmodEnableSynchronousUpdate");
@@ -131,9 +122,12 @@ void CAudioImplCVars::UnregisterVariables()
 
 #if CRY_PLATFORM_DURANGO
 		pConsole->UnregisterVariable("s_FmodSecondaryPoolSize");
-#endif // CRY_PLATFORM_DURANGO
+#endif    // CRY_PLATFORM_DURANGO
 
 #if defined(INCLUDE_FMOD_IMPL_PRODUCTION_CODE)
-#endif // INCLUDE_FMOD_IMPL_PRODUCTION_CODE
+#endif    // INCLUDE_FMOD_IMPL_PRODUCTION_CODE
 	}
 }
+} // namespace Fmod
+} // namespace Impl
+} // namespace CryAudio

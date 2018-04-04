@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 // -------------------------------------------------------------------------
 //  File name:   particleeffect.cpp
@@ -763,7 +763,7 @@ int ResourceParticleParams::LoadResources(const char* pEffectName)
 		else if (!sTexture.empty() && sGeometry.empty())
 		{
 			const uint32 textureLoadFlags = FT_DONT_STREAM;
-			const int nTexId = GetRenderer()->EF_LoadTexture(sTexture.c_str(), textureLoadFlags)->GetTextureID();
+			const int nTexId = GetRenderer()->EF_LoadTexture(sTexture.c_str(), textureLoadFlags)->GetTextureID();			
 			if (nTexId <= 0)
 				CryWarning(VALIDATOR_MODULE_3DENGINE, VALIDATOR_WARNING, "Particle effect texture %s not found", sTexture.c_str());
 			else
@@ -782,6 +782,8 @@ int ResourceParticleParams::LoadResources(const char* pEffectName)
 			pMaterial->SetGetMaterialParamVec3("diffuse", white, false);
 			pMaterial->SetGetMaterialParamFloat("opacity", defaultOpacity, false);
 			pMaterial->RequestTexturesLoading(0.0f);
+			if (nTexId > 0)
+				GetRenderer()->RemoveTexture(nTexId);
 		}
 		else if (sGeometry.empty())
 		{
@@ -1796,7 +1798,9 @@ IParticleAttributes& CParticleEffect::GetAttributes()
 {
 	static class CNullParticleAttributes : public IParticleAttributes
 	{
-		virtual void         UpdateScriptTable(const SmartScriptTable& scriptTable)  {}
+		virtual void         Reset(const IParticleAttributes* pCopySource = nullptr) {}
+		virtual void         Serialize(Serialization::IArchive& ar)                  {}
+		virtual void         TransferInto(IParticleAttributes* pReceiver) const      {}
 		virtual TAttributeId FindAttributeIdByName(cstr name) const                  { return -1; }
 		virtual uint         GetNumAttributes() const                                { return 0; }
 		virtual cstr         GetAttributeName(uint idx) const                        { return nullptr; }

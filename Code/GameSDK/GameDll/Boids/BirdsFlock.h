@@ -44,7 +44,7 @@ public:
 	virtual void CreateBoids( SBoidsCreateContext &ctx );
 	virtual void SetEnabled( bool bEnabled );
 	virtual void Update( CCamera *pCamera );
-	virtual void OnAIEvent(EAIStimulusType type, const Vec3& pos, float radius, float threat, EntityId sender);
+	virtual void OnStimulusReceived(const SAIStimulusParams& params);
 	virtual void Reset();
 
 	void SetAttractionPoint(const Vec3 &point);

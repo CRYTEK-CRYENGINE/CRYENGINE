@@ -4,12 +4,6 @@
 #include "Common.cfi"
 #include "ShadowCommon.cfi"
 
-#define INST_STREAM_CUSTOM                       \
- #if %_RT_ALPHATEST || %_RT_DISSOLVE             \
-  float4 InstAlphaTest : TEXCOORDN;              \
- #endif                                          \
-#endif                                           \
-
 float Script : STANDARDSGLOBAL
 <
   string Script =           
@@ -43,37 +37,24 @@ float Script : STANDARDSGLOBAL
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////// Custom shading pass structure /////////////////////////////////////
 
-struct fragPassCustom
-{            
-  // Custom per pass data   
-  bool bOpaquePass;
-  half3 vHairDir;		 // hair direction in tangent space
-  half3 vTangent;        // perturbed tangent vector
-  half3 vTangentSec;     // perturbed tangent vector for secondary specular highlight
-	
-	half4 vDirOcc;
-  
-  half3 cHair;           // hair diffuse color
-  half3 cScatter;
- 
-	half fScreenSpaceSunShadow;
-	half fWorldSpaceSunShadow;
+struct CustomForwardShadingAttribs
+{
+	bool      bOpaquePass;
+	float3    vertexNormal;
+	float3    tangent;
+	float3    tangentSec;
+	float4    dirOcc;
 };
 
-struct fragLightPassCustom
-{
-  // ... Custom per light data ...
-}; 
-
-
 #include "ShadeLib.cfi"
-
+#include "ForwardShading.cfi"
 
 //////////////////////////////// Common vertex shader ////////////////
 
 #include "VertexLib.cfi"
 
 //////////////////////////////// Samplers ////////////////
+
 SUBSURFACEMAP
 DECALMAP
 OPACITYMAP
@@ -227,11 +208,6 @@ float3 GetViewAlignmentDelta(streamPos vertPassPos, float3 worldTangentT)
 //                GENERAL PASS
 ////////////////////////////////////////////////////////
 
-// Notes:
-
-// baseTC.wz: detail texture coordinates
-// vBinormal.w: normal inversion (for double sided lighting)
-///////////////// vertex shader //////////////////
 vert2FragHair HairVS(app2vertGeneral IN)
 {
   vert2FragHair OUT = (vert2FragHair)0;
@@ -256,270 +232,61 @@ vert2FragHair HairVS(app2vertGeneral IN)
   OUT.Common.vBinormal.w = 1.0 / 0.5;// AlphaTest.w;
 
 #if %THIN_HAIR && THIN_HAIR_SHADOWS && THIN_HAIR_VS_SHADOWS
-	OUT.SunShadow = 1-ShadowDepthTest(vertPassPos.WorldPos);
+	#if !%_RT_PER_INSTANCE_CB_TEMP
+		OUT.SunShadow = 1 - ShadowDepthTest(vertPassPos.WorldPos);
+	#else
+		OUT.SunShadow = 1 - Fwd_SampleSunShadowMaps(vertPassPos.WorldPos);
+	#endif
 #endif
 
   return OUT;
 }
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void frag_unify_parameters( inout fragPass pPass )
+void Callback_ShadingDirect(in ForwardShadingAttribs attribs, in ForwardLightParams light, out float3 diffuseAcc, out float3 specularAcc)
 {
-
-  pPass.bRenormalizeNormal = true;
-  pPass.bCustomComposition = true;
-  pPass.bHemisphereLighting = true;
-  pPass.bDisableAlphaTestD3D11 = true;
-
-	pPass.bDeferredSpecularShading = true;
-  
-#if %VERTCOLORS
-  pPass.bVertexColors = true;
-#endif
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-void frag_custom_begin(inout fragPass pPass)
-{
-	if (pPass.bVertexColors)
-		pPass.cDiffuseMap.rgb *= pPass.IN.Color.rgb;  // Vertex alpha is reserved for wind bending
-	
-	pPass.cSpecularMap = GetSpecularTex(specularTex, pPass.IN.baseTC.xy); 
-	pPass.fGloss = clamp(pPass.fGloss, 0.5, 0.9);
-	pPass.pCustom.cHair = pPass.cDiffuseMap.xyz * MatDifColor.xyz;
-	
-	if (pPass.pCustom.bOpaquePass)
-	{
-		half4 occlusionTex = GetSceneTexProj(sceneNormalsBentTex, pPass.IN.screenProj.xyzw);
-		occlusionTex.xyz = occlusionTex.xyz * 2 - 1;
-	#if %_RT_STATIC_INST_DATA
-		float ssdoAmount = SPIAlphaTest.z;
-	#else		
-		float ssdoAmount = AlphaTest.z; // just cvar value CV_r_ssdoAmountDirect. TODO: put into per pass cbuffer
-	#endif
-		pPass.pCustom.vDirOcc = occlusionTex * ssdoAmount * 0.5;
-	}
-
-	half fShiftAmount = 0;
-	pPass.pCustom.vHairDir = pPass.IN.vBinormal.xyz;
-	
-#if %DIRECTION_MAP
-	half3 vDirection = GetNormalMap(DirectionTex, pPass.IN.baseTC.xy);
-	pPass.pCustom.vHairDir = mul(vDirection.xyz, pPass.mTangentToWS);
-	fShiftAmount = vDirection.z * ShiftVariation;
-#endif
-
-  const half PrimarySpecShift = 0;
-	pPass.pCustom.vTangent = ShiftVector(pPass.pCustom.vHairDir.xyz, pPass.vNormal.xyz*pPass.IN.vTangent.w, fShiftAmount + PrimarySpecShift);
-  pPass.pCustom.vTangentSec = ShiftVector(pPass.pCustom.vHairDir.xyz, pPass.vNormal.xyz*pPass.IN.vTangent.w, fShiftAmount + SecondaryHighlightShiftAmount);
-
-  // set opacity
-  pPass.fAlpha = pPass.cDiffuseMap.w;
-  
-#if !%THIN_HAIR
-  if( pPass.pCustom.bOpaquePass == false) 
-    clip( pPass.fAlpha - 0.05 );  // clip redundant stuff - also to void some sorting artefacts on transparent passes
-#endif
-
-  pPass.fAlpha = saturate( pPass.fAlpha * AlphaBlendMultiplier ) * AmbientOpPB.a;
-	
-	// Soft intersection
-	if (SoftIntersection > 0)
-	{
-		float depthDiff = abs( pPass.IN.screenProj.w - GetLinearDepthScaledProj( sceneLinearDepthTex, pPass.IN.screenProj ) );
-		pPass.fAlpha *= saturate( lerp( 1, saturate( depthDiff * 100 ), SoftIntersection ) );
-	}
-
-	pPass.pCustom.fScreenSpaceSunShadow = 1;
-
-#if %THIN_HAIR && THIN_HAIR_SHADOWS
-	#if THIN_HAIR_VS_SHADOWS
-		pPass.cShadowOcclMap.w = pPass.pCustom.fWorldSpaceSunShadow;
-	#else
-		pPass.cShadowOcclMap.w = 1-ShadowDepthTest(pPass.IN.vView.xyz + PS_WorldViewPos.xyz);
-	#endif
-#else
-	if(pPass.pCustom.bOpaquePass)
-	{
-		float2 tcScreen = pPass.IN.screenProj.xy / pPass.IN.screenProj.w;
-		int4 vPixCoord = int4(tcScreen * PS_ScreenSize.xy, 0, 0);
-		pPass.cShadowOcclMap.w = sunShadowMask.Load(vPixCoord).r;
-	}
-	else
-		pPass.cShadowOcclMap.w = 1-ShadowDepthTest(pPass.IN.vView.xyz + PS_WorldViewPos.xyz);
-
-#endif
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-void frag_custom_per_light(inout fragPass pPass, inout fragLightPass pLight)
-{ 
-  half3 vHalf = normalize( pPass.vView.xyz + pLight.vLight.xyz );                                   // 1 + 3 alu
+	half3 vHalf = normalize(-normalize(attribs.worldPos) + light.lightVec);
                           
-  float NdotLVertex = dot( pPass.IN.vNormal.xyz, pLight.vLight );
+  half NdotL = dot(attribs.normal, light.lightVec);
+	half NdotLVertex = dot(attribs.custom.vertexNormal, light.lightVec);
 	
 	// Wrapped diffuse, using normalization factor of (1 + DiffuseWrap) to be energy-conserving
 	half wrapDenom = 1 + DiffuseWrap;
-	half fNdotLDiffuse = saturate(((pLight.fNdotL + NdotLVertex) * 0.5 + DiffuseWrap) / (wrapDenom * wrapDenom));
+	half fNdotLDiffuse = saturate(((NdotL + NdotLVertex) * 0.5 + DiffuseWrap) / (wrapDenom * wrapDenom));
 
   // Diffuse term - wrapped diffuse
-  half3 cDiffuse = fNdotLDiffuse * pLight.fOcclShadow + pPass.pCustom.cScatter;
-  cDiffuse *= pLight.cDiffuse.xyz;                                                                  // 1 alu
+  half3 cDiffuse = fNdotLDiffuse;
 	
-	half3 specCol = min( pPass.cSpecularMap.xyz * MatSpecColor.xyz, 0.045 );
+	half3 specCol = min(attribs.reflectance, 0.045);
 	
 	// Primary highlight (specular surface reflection) 
-  half3 cSpecular = KajiyaKayAnisotropic(pPass.pCustom.vTangent, vHalf, exp2(10.0 * pPass.fGloss + 1.0)) * specCol;  
+  half3 cSpecular = KajiyaKayAnisotropic(attribs.custom.tangent, vHalf, exp2(10.0 * attribs.smoothness + 1.0)) * specCol;
 
   // Secondary highlight (reflected back after entering underneath surface)   
-	cSpecular.xyz += KajiyaKayAnisotropic(pPass.pCustom.vTangentSec.xyz, vHalf.xyz, exp2(10.0 * max(pPass.fGloss / SecondaryHighlightWidth, 0.4) + 1.0)) * SecondaryHighlightColor.xyz * pPass.pCustom.cHair;   
- 
- cSpecular.xyz *= saturate( pLight.fNdotL );
-
-  // apply specular light color and specular multiplier
-  cSpecular.xyz *= pLight.cSpecular.xyz * pLight.fOcclShadow;
-                                        
-  half3 cK = pLight.fFallOff * pLight.cFilter;                                // 2 alu 
+	cSpecular.xyz += KajiyaKayAnisotropic(attribs.custom.tangentSec.xyz, vHalf.xyz, exp2(10.0 * max(attribs.smoothness / SecondaryHighlightWidth, 0.4) + 1.0)) * SecondaryHighlightColor.xyz * attribs.albedo;
+	cSpecular.xyz *= saturate(NdotL);
 		
-  if( pLight.nType == LT_DIRECTIONAL) 
-		cK = cK * pPass.pCustom.fScreenSpaceSunShadow + pLight.fOcclShadow * (1.h-cK);
-		
-	if (pPass.pCustom.bOpaquePass)
+	if (attribs.custom.bOpaquePass)
 	{
-		half fOcclusion = max( 1.0 - saturate( dot( float4( pLight.vLight, 0 ), pPass.pCustom.vDirOcc ) ), 0.3 );
+		half fOcclusion = max( 1.0 - saturate( dot( float4( light.lightVec, 0 ), attribs.custom.dirOcc ) ), 0.3 );
 		cDiffuse.xyz *= fOcclusion;
 		cSpecular.xyz *= fOcclusion;
 	}
 
-  pPass.cDiffuseAcc.xyz += cDiffuse.xyz * cK.xyz;                                                   // 1 alu
-  pPass.cSpecularAcc.xyz += cSpecular.xyz * cK.xyz;                                                // 1 alu
+  diffuseAcc.xyz = cDiffuse.xyz * light.illuminance;
+  specularAcc.xyz = cSpecular.xyz * light.illuminance;
 }
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////////////////////////////////
 
 #include "TiledShading.cfi"
 
-void frag_custom_ambient(inout fragPass pPass, inout half3 cAmbient)
-{ 
-	pPass.cAmbientAcc.xyz = 0;
-
-	// Use tiled shading to blend probes
-#if %_RT_TILED_SHADING
-	uint2 numTiles = ceil( PS_ScreenSize.xy / float2( TILED_SHADING_TILE_SIZE_X, TILED_SHADING_TILE_SIZE_Y ) );
-	
-	const float2 tcProj = pPass.IN.screenProj.xy / pPass.IN.screenProj.w;
-	const uint2 tileIdx = uint2( tcProj.x * numTiles.x, tcProj.y * numTiles.y );
-	const uint bufferIdx = (tileIdx.y * numTiles.x + tileIdx.x) * 8;
-	
-	float probeWeightSum = 0;
-	
-	int lightIndex = -1;
-	uint maskIndex = 0;
-	uint curMask = TileLightMask[bufferIdx];
-	
-	[loop] for (;;)
-	{
-		while (maskIndex < 8)
-		{
-			lightIndex = GetNextTileLightIndex(curMask, lightIndex);
-			if (lightIndex >= 0) break;
-			else curMask = TileLightMask[++maskIndex + bufferIdx];
-		}
-
-		[branch]
-		if (lightIndex < 0 || TiledLightsShadeInfo[lightIndex].lightType != TILEDLIGHT_TYPE_PROBE)
-			break;
-			
-		STiledLightShadeInfo light = TiledLightsShadeInfo[lightIndex];
-		float3 lightVec = (light.posRad.xyz - GetWorldViewPos()) - pPass.IN.vView.xyz;
-
-		// Compute attenuation for box
-		float3 tmpLightVec;
-		tmpLightVec.x = dot( light.projectorMatrix[0].xyz, lightVec );
-		tmpLightVec.y = dot( light.projectorMatrix[1].xyz, lightVec );
-		tmpLightVec.z = dot( light.projectorMatrix[2].xyz, lightVec );
-		
-		const float clipVolumeWeight = GetClipVolumeWeightBinary(ClipVolumeParams.x, TiledLightsShadeInfo[lightIndex].stencilID);
-		[branch] if (abs(tmpLightVec.x) < 1 && abs(tmpLightVec.y) < 1 && abs(tmpLightVec.x) < 1 && clipVolumeWeight>0)  // Required for correctness and performance
-		{
-			tmpLightVec = MapCubeToSphere( tmpLightVec );
-			float attenuation = GetAttenuation( tmpLightVec, 1, true, light.attenuationParams.y ) * light.attenuationParams.x;
-		
-			// Diffuse
-			float4 diffuseProbe = DiffuseCubeArray.SampleLevel( TrilinearClampSamplerState, float4( pPass.vNormal.xyz, light.resIndex ), 0 );
-			diffuseProbe.rgb = DecodeHDRCubemap( diffuseProbe );
-			float probeWeight = (1 - probeWeightSum) * attenuation;
-			pPass.cAmbientAcc += diffuseProbe.rgb * light.color.rgb * probeWeight;
-			
-			probeWeightSum += probeWeight;
-			if (probeWeightSum >= 1) break;
-		}
-	}
-#elif %HAIR_AMBIENT
-	// Use low mip level of specular cubemap as irradiance approximation
-	// Use geometry normal instead of normal map to get smoother results
-	pPass.cAmbientAcc.xyz += DecodeHDRCubemap( GetEnvCubeTexLod( envCubeTex, half4(pPass.IN.vNormal.xyz, 7) ) ).xyz;
-#endif
-
-#if !%_RT_QUALITY1 && !%ENFORCE_TILED_SHADING
-	// When no regular deferred lights are applied, fake some additional lighting
-	pPass.cAmbientAcc += GetTexture2D( avgLumSampler, pPass.IN.screenProj.xy / pPass.IN.screenProj.w ).x;
-#endif
-	
-	if (pPass.pCustom.bOpaquePass)
-	{
-		pPass.cAmbientAcc.xyz *= max( 1 - saturate( pPass.pCustom.vDirOcc.w * 0.5 ), 0.5 );
-	}
-}
-
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////////
-
-void frag_custom_end(inout fragPass pPass, inout half3 cFinal)
-{  
-#if %_RT_TILED_SHADING
-	#if %_RT_QUALITY1
-		const bool highQualityShadowFiltering = true;
-	#else
-		const bool highQualityShadowFiltering = false;
-	#endif
-
-	#if %_RT_QUALITY1 || %ENFORCE_TILED_SHADING
-		TiledForwardShading(pPass, highQualityShadowFiltering, false);
-	#else
-		TiledForwardShading(pPass, false, false, false);
-	#endif
-#else
-	#if FEATURE_SVO_GI
-		float2 tcProj = pPass.IN.screenProj.xy / pPass.IN.screenProj.w;
-		ApplyGI(pPass.cSpecularAcc, pPass.cAmbientAcc, pPass.cDiffuseAcc, tcProj + .5f / PS_ScreenSize.xy, pPass.fGloss, pPass.cSpecularMap, 
-			ForwGiDiffuseRT, ForwGiSpecularRT, TrilinearClampSamplerState, (int)(ForwGiIntegrationMode.y));
-	#endif
-#endif
-	
-	// Final composition
-  half3 cDiffuse = (pPass.cAmbientAcc.xyz + pPass.cDiffuseAcc.xyz) * pPass.pCustom.cHair.xyz;
-  half3 cSpecular = pPass.cSpecularAcc.xyz;
-  cFinal.xyz = cDiffuse + cSpecular; 
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-#include "fragLib.cfi"
-
-///////////////// pixel shader //////////////////
 
 struct pixoutHair
 {
   half4 Color  : COLOR0;
-  half4 SoftAlphaInfo : COLOR1;
 };
 
 struct pixoutHair2
@@ -530,50 +297,210 @@ struct pixoutHair2
 #endif
 };
 
+float4 HairShading(vert2FragHair IN, bool bOpaquePass)
+{
+	half4 diffuseMap =  GetDiffuseTex(diffuseTex, IN.Common.baseTC.xy);
+	
+	half fAlpha = saturate(diffuseMap.w * AlphaBlendMultiplier);
+#if !%_RT_PER_INSTANCE_CB_TEMP	
+	fAlpha *= AmbientOpPB.a;
+#endif
+#if !%THIN_HAIR
+	if (!bOpaquePass)
+		clip(fAlpha - 0.05);
+#endif
+	
+	half3 vNormal = cross(IN.Common.vTangent.xyz, IN.Common.vBinormal.xyz) * IN.Common.vTangent.w;
+	half3x3 matTangentToWS = float3x3(IN.Common.vTangent.xyz, IN.Common.vBinormal.xyz, vNormal);
+
+	ForwardShadingAttribs attribs;
+	attribs.screenUV = IN.Common.screenProj.xy / IN.Common.screenProj.w;
+	attribs.worldPos = IN.Common.vView.xyz;
+	attribs.custom.bOpaquePass = bOpaquePass;
+	attribs.custom.vertexNormal = vNormal.xyz;
+	attribs.custom.dirOcc = 0;
+
+	attribs.albedo = diffuseMap.rgb * MatDifColor.xyz;
+#if %VERTCOLORS
+	attribs.albedo *= IN.Common.Color.rgb;  // Vertex alpha is reserved for wind bending
+#endif
+	attribs.reflectance = GetSpecularTex(specularTex, IN.Common.baseTC.xy) * MatSpecColor.xyz;
+	attribs.smoothness = clamp(MatSpecColor.w, 0.5, 0.9);
+
+	half3 normalMap = GetNormalMap(normalsTex, IN.Common.baseTC.xy);
+	attribs.normal = normalize(mul(normalMap.xyz, matTangentToWS));
+	attribs.normalSpecProbe = attribs.normal;
+	
+#if !%_RT_PER_INSTANCE_CB_TEMP
+	if (bOpaquePass)
+	{
+		half4 occlusionTex = GetSceneTexProj(sceneNormalsBentTex, IN.Common.screenProj.xyzw);
+		occlusionTex.xyz = occlusionTex.xyz * 2 - 1;
+	#if %_RT_STATIC_INST_DATA
+		float ssdoAmount = SPIAlphaTest.z;
+	#else
+		float ssdoAmount = AlphaTest.z; // just cvar value CV_r_ssdoAmountDirect. TODO: put into per pass cbuffer
+	#endif
+		attribs.custom.dirOcc = occlusionTex * ssdoAmount * 0.5;
+	}
+#endif
+
+	half shiftAmount = 0;
+	half3 hairDir = IN.Common.vBinormal.xyz;
+#if %DIRECTION_MAP
+	half3 vDirection = GetNormalMap(DirectionTex, IN.Common.baseTC.xy);
+	hairDir = mul(vDirection.xyz, matTangentToWS);
+	shiftAmount = vDirection.z * ShiftVariation;
+#endif
+
+	const half PrimarySpecShift = 0;
+	attribs.custom.tangent = ShiftVector(hairDir.xyz, attribs.normal.xyz * IN.Common.vTangent.w, shiftAmount + PrimarySpecShift);
+	attribs.custom.tangentSec = ShiftVector(hairDir.xyz, attribs.normal.xyz * IN.Common.vTangent.w, shiftAmount + SecondaryHighlightShiftAmount);
+	
+	// Soft intersection
+	if (SoftIntersection > 0)
+	{
+#if !%_RT_PER_INSTANCE_CB_TEMP
+		float fDepth = GetLinearDepthScaledProj(sceneLinearDepthTex, IN.Common.screenProj);
+#else
+		float2 tcProj = (IN.Common.screenProj.xy / IN.Common.screenProj.w);
+		int3 vPixCoord = int3(max(min(tcProj * CV_ScreenSize.xy, CV_ScreenSize.xy - float2(1.0f, 1.0f)), float2(0.0f, 0.0f)), 0);
+		float fDepth = Fwd_SceneDepth.Load(vPixCoord).x * CV_NearFarClipDist.y;
+#endif
+		float depthDiff = abs(IN.Common.screenProj.w - fDepth);
+		fAlpha *= saturate(lerp(1, saturate(depthDiff * 100), SoftIntersection));
+	}
+	
+	half3 diffuseAcc = 0;
+	half3 specularAcc = 0;
+	
+	// Handle direct lighting from sun
+	{
+		half shadowOccl = 0;
+	
+#if !%_RT_PER_INSTANCE_CB_TEMP
+	#if %THIN_HAIR && THIN_HAIR_SHADOWS
+		#if THIN_HAIR_VS_SHADOWS
+			if (!bOpaquePass)
+				shadowOccl = IN.SunShadow;
+		#else
+			shadowOccl = 1 - ShadowDepthTest(IN.Common.vView.xyz + GetWorldViewPos());
+		#endif
+	#else
+		if (bOpaquePass)
+		{
+			int4 vPixCoord = int4(attribs.screenUV * CV_ScreenSize.xy, 0, 0);
+			shadowOccl = sunShadowMask.Load(vPixCoord).r;
+		}
+		else
+		{
+			shadowOccl = 1 - ShadowDepthTest(IN.Common.vView.xyz + GetWorldViewPos());
+		}
+	#endif
+#else
+	#if %THIN_HAIR && THIN_HAIR_SHADOWS
+		#if THIN_HAIR_VS_SHADOWS
+			if (!bOpaquePass)
+				shadowOccl = IN.SunShadow;
+		#else
+			shadowOccl = Fwd_SampleSunShadowMaps(IN.Common.vView.xyz + GetWorldViewPos());
+		#endif
+	#else
+		if (bOpaquePass)
+		{
+			int4 vPixCoord = int4(attribs.screenUV * CV_ScreenSize.xy, 0, 0);
+			shadowOccl = Fwd_SunShadowMask.Load(vPixCoord).r;
+		}
+		else
+		{
+			shadowOccl = Fwd_SampleSunShadowMaps(IN.Common.vView.xyz + GetWorldViewPos());
+		}
+	#endif
+#endif
+		
+		ForwardLightParams lightParams;
+		lightParams.type = LT_DIRECTIONAL;
+		lightParams.lightVec = CV_SunLightDir.xyz;
+		lightParams.illuminance = CV_SunColor.xyz * (1 - shadowOccl);
+		
+		Callback_ShadingDirect(attribs, lightParams, diffuseAcc, specularAcc);
+  }
+
+#if %_RT_TILED_SHADING
+	#if %_RT_QUALITY1 && !%_RT_PER_INSTANCE_CB_TEMP
+		const bool highQualityShadowFiltering = true;
+	#else
+		const bool highQualityShadowFiltering = false;
+	#endif
+	
+	#if %_RT_QUALITY1 || %ENFORCE_TILED_SHADING
+		const bool applyLights = true;
+	#else
+		const bool applyLights = false;
+	#endif
+	
+	#if %_RT_PER_INSTANCE_CB_TEMP
+		TiledForwardShading(attribs, diffuseAcc, specularAcc, ssFwdBilinearWrap, ssFwdComparison, highQualityShadowFiltering, true, applyLights, true);
+	#else
+		TiledForwardShading(attribs, diffuseAcc, specularAcc, TrilinearClampSamplerState, SampStateComp, highQualityShadowFiltering, true, applyLights, true);
+	#endif
+#endif
+
+#if !%_RT_QUALITY1 && !%ENFORCE_TILED_SHADING && !%_RT_PER_INSTANCE_CB_TEMP
+	// When no regular deferred lights are applied, fake some additional lighting
+	diffuseAcc += GetTexture2D(avgLumSampler, attribs.screenUV).x;
+#endif
+	
+#if !%_RT_TILED_SHADING
+	#if FEATURE_SVO_GI
+		ApplyGI(specularAcc, diffuseAcc, diffuseAcc, attribs.screenUV + .5f / CV_ScreenSize.xy, attribs.smoothness, attribs.reflectance, 
+			Fwd_GiDiffuseRT, Fwd_GiSpecularRT, TrilinearClampSamplerState, (int)(ForwGiIntegrationMode.y));
+	#endif
+#endif
+	
+	// Final composition
+	half4 cFinal = half4(diffuseAcc * attribs.albedo.rgb + specularAcc, fAlpha);
+
+#if !%_RT_PER_INSTANCE_CB_TEMP
+	// Fog
+	#if %_RT_FOG && !%_RT_DECAL_TEXGEN_2D
+		#if %_RT_VOLUMETRIC_FOG
+			VolumetricFogTexcoord vtc = GetVolumetricFogTexcoordParamByScreenProj(IN.Common.screenProj);
+			float4 vf = GetVolumetricFogValue(vtc);
+			half4 globalFogColor = IN.Common.AvgFogVolumeContrib.xyzw;
+			ApplyVolumetricFog(vf, globalFogColor, vtc, cFinal.rgb);
+		#else
+			ComputeGlobalFogPS(cFinal.rgb, IN.Common.vView.w);
+			cFinal.rgb = IN.Common.AvgFogVolumeContrib.xyz + cFinal.rgb * IN.Common.AvgFogVolumeContrib.w;
+		#endif
+	#endif
+#else
+	Fwd_ApplyFog(IN.Common.vView.xyz + GetWorldViewPos(), IN.Common.vView.xyz, IN.Common.WPos, cFinal.xyz);
+#endif
+
+	return cFinal;
+}
+
 pixoutHair HairOpaquePS(vert2FragHair IN)
 {
-  pixoutHair OUT = (pixoutHair) 0;  
-    
-  // Initialize fragPass structure
-  fragPass pPass = (fragPass) 0;
-  frag_unify(pPass, IN.Common);      
-  
-  pPass.pCustom.bOpaquePass = true;
-
-  half4 cFinal = frag_shared_output(pPass);
-
-  //HDROutput(OUT, cFinal, 1);
-  OUT.Color = cFinal;
-
+	pixoutHair OUT = (pixoutHair) 0;  
+  OUT.Color = HairShading(IN, true);
   return OUT;  
 }
 
-
 pixoutHair2 HairPS(vert2FragHair IN)
 {
-  pixoutHair2 OUT = (pixoutHair2) 0;  
-    
-  // Initialize fragPass structure
-  fragPass pPass = (fragPass) 0;
-  frag_unify(pPass, IN.Common);
-
-#if %THIN_HAIR && THIN_HAIR_SHADOWS && THIN_HAIR_VS_SHADOWS
-	pPass.pCustom.fWorldSpaceSunShadow = IN.SunShadow;
-#endif
-
-  half4 cFinal = frag_shared_output(pPass);
-  pixout tempOUT;
-  tempOUT.Color = OUT.Color;		  
-  HDROutput(tempOUT, cFinal, 1);
-  OUT.Color = tempOUT.Color;
-
-#if %THIN_HAIR
-	OUT.BlendFactors.a = cFinal.a;
-	float fZ = IN.Common.WPos.w * PS_NearFarClipDist.w;
-	OUT.Color.a = (cFinal.a > ThinHairThreshold) ? -fZ : 1;
-#endif
+	pixoutHair2 OUT = (pixoutHair2) 0;
   
-  return OUT;  
+	OUT.Color = HairShading(IN, false);
+	
+#if %THIN_HAIR
+	OUT.BlendFactors.a = OUT.Color.a;
+	float fZ = IN.Common.WPos.w * CV_NearFarClipDist.w;
+	OUT.Color.a = (OUT.Color.a > ThinHairThreshold) ? -fZ : 1;
+#endif
+	
+  return OUT;
 }
 
 pixoutHair2 ThinHairDepthPS(vert2FragHair IN)
@@ -751,13 +678,10 @@ pixout_gbuffer ZPassPS(vert2fragZ_C IN)
 	clip(fDiffuseAlpha - IN.baseTC.w);
 #endif
 
-#if %_RT_DISSOLVE
-	half2 noiseTC = IN.WPos.xy/(100.0f*PS_HPosScale.xy);
-
-	half fNoise = GetDissolveTex(dissolveNoiseTex, noiseTC).g;
-
-	clip((fNoise-IN.baseTC.z));
-#endif
+//#if %_RT_DISSOLVE
+//	const int2 vPixQuadIdx = (int2)IN.WPos.xy % 2;
+//	clip(IN.vBinormal.w * (abs(dot(half4(0.0h, 0.76h, 0.5h,-1.0h), vPixQuadIdx.xxyy)) - IN.baseTC.z));
+//#endif
 
   ////////////////////////////////////////////////////////////////////////////////////////////////
   // Normals processing
@@ -782,7 +706,11 @@ pixout_gbuffer ZPassPS(vert2fragZ_C IN)
 	
 	attribs.Albedo = half3(0.5, 0.5, 0.5);
 	
+#if %_RT_SAMPLE0
+	EncodeMicroGBuffer(attribs, OUT.GBufferA, IN.WPos.xy);
+#else		
 	EncodeGBuffer( attribs, OUT.GBufferA, OUT.GBufferB, OUT.GBufferC );
+#endif
 
 #if %_RT_MOTION_BLUR && !%_RT_ALPHABLEND
 	OUT.VelocityRT = OutputVelocityRT(IN.WPos.xy * (CV_ScreenSize.zw * 2), IN.HPosPrev.xy/IN.HPosPrev.z);
@@ -964,8 +892,8 @@ vert2fragCustomRender Hair_CustomRenderPassVS(app2vertCustomViews IN)
 	streamPos vertPassPos = (streamPos)0;
 	streamPos_FromCustomViews(IN, vertPassPos);
 
-#if %_RT_INSTANCING_ATTR
-	OUT.cVision = vertPassPos.InstVisionParams;
+#if %_RT_PER_INSTANCE_CB_TEMP
+	OUT.cVision = PerInstanceCustomData1;
 #else
 	OUT.cVision = VisionParams;
 #endif

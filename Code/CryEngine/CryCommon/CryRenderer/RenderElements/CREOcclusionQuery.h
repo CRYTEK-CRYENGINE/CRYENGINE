@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #ifndef __CREOCCLUSIONQUERY_H__
 #define __CREOCCLUSIONQUERY_H__
@@ -17,7 +17,7 @@ public:
 	Vec3          m_vBoxMin;
 	Vec3          m_vBoxMax;
 
-	UINT_PTR      m_nOcclusionID; //!< this will carry a pointer LPDIRECT3DQUERY9, so it needs to be 64-bit on Windows 64
+	UINT_PTR      m_nOcclusionID; //!< This will carry a pointer D3DOcclusionQuery, so it needs to be 64-bit on Windows 64
 
 	CRenderMesh*  m_pRMBox;
 	static uint32 m_nQueriesPerFrameCounter;

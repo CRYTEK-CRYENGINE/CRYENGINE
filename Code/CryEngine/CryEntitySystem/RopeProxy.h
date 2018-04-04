@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 // -------------------------------------------------------------------------
 //  File name:   RopeProxy.h
@@ -26,7 +26,7 @@ struct IPhysicalWorld;
 //////////////////////////////////////////////////////////////////////////
 class CEntityComponentRope : public IEntityRopeComponent
 {
-	CRY_ENTITY_COMPONENT_CLASS(CEntityComponentRope,IEntityRopeComponent,"CEntityComponentRope",0xDFAE2B7E15BB4F3D,0xBD09E0C8E560BF85);
+	CRY_ENTITY_COMPONENT_CLASS_GUID(CEntityComponentRope, IEntityRopeComponent, "CEntityComponentRope", "dfae2b7e-15bb-4f3d-bd09-e0c8e560bf85"_cry_guid);
 
 	CEntityComponentRope();
 	virtual ~CEntityComponentRope();
@@ -62,10 +62,14 @@ public:
 		pSizer->AddObject(this, sizeof(*this));
 	}
 	void PreserveParams();
+
 protected:
 	IRopeRenderNode* m_pRopeRenderNode;
 	int              m_nSegmentsOrg;
 	float            m_texTileVOrg;
+
+	int              m_segmentsCount = 0;
+	float            m_texureTileV = 0;
 };
 
 #endif // __RopeProxy_h__

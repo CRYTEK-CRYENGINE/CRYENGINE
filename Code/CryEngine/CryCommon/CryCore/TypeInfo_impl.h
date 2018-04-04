@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 // -------------------------------------------------------------------------
 //  File name:   TypeInfo.h
@@ -186,7 +186,7 @@ Array<CTypeInfo const*> TypeInfoArray1(T const* pt)
 		  }                                                        \
 
 		#define ENUM_ELEM_INFO(Scope, Elem) \
-		  { Scope Elem, # Elem },
+		  { static_cast<CEnumDef::TValue>(Scope Elem), # Elem },
 
 	#else // ENABLE_TYPE_INFO_NAMES
 

@@ -10,8 +10,9 @@ def build(bld):
 		includes	= [ 
 				'..',
 				Path('Code/Sandbox/EditorQt/Include'),
-				Path('Code/Sandbox/EditorQt')
+				Path('Code/Sandbox/EditorQt'),
+				Path('Code/Sandbox/Plugins/MFCToolsPlugin')
 				],
-		use			= [ 'Sandbox' ]
+		use			= [ 'Sandbox', 'MFCToolsPlugin' ]
 	)
 	

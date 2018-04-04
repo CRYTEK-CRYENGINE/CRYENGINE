@@ -1,4 +1,7 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+
+//! Implementation of the CryEngine Unit Testing framework
+//! Also contains core engine tests
 
 #include "StdAfx.h"
 #include "UnitTestSystem.h"
@@ -27,106 +30,80 @@ jmp_buf* GetAssertJmpBuf()
 
 struct SAutoTestsContext
 {
-	float                           fStartTime;
-	float                           fCurrTime;
-	string                          sSuiteName;
-	string                          sTestName;
-	int                             waitAfterMSec;
-	int                             iter;
-	int                             runCount;
-	CryUnitTest::UnitTestRunContext context;
-
-	SAutoTestsContext() : fStartTime(0), fCurrTime(0), waitAfterMSec(0), iter(-1), runCount(1) { memset(&context, 0, sizeof(context)); }
+	float               fStartTime     = 0;
+	float               fCurrTime      = 0;
+	string              sSuiteName;    
+	string              sTestName;     
+	int                 waitAfterMSec  = 0;
+	int                 iter           = -1;
+	int                 runCount       = 1;
+	SUnitTestRunContext context;
 };
 
-CUnitTestManager::CUnitTestManager()
-	: m_pCurrentTest(nullptr)
+//////////////////////////////////////////////////////////////////////////
+
+CUnitTestManager::CUnitTestManager(ILog& logToUse)
+	: m_log(logToUse)
 {
-	m_failureMsg[0] = '\0';
-	m_pAutoTestsContext = new SAutoTestsContext;
-	assert(m_pAutoTestsContext);
+	m_pAutoTestsContext = stl::make_unique<SAutoTestsContext>();
+	CRY_ASSERT(m_pAutoTestsContext != nullptr);
 
 	// Register tests defined in this module
-	CreateTests(CryUnitTest::Test::m_pFirst, "CrySystem");
+	CreateTests("CrySystem");
 }
 
+//Empty destructor here to enable m_pAutoTestsContext forward declaration
 CUnitTestManager::~CUnitTestManager()
 {
-	delete m_pAutoTestsContext;
-	m_pAutoTestsContext = 0;
-
-	RemoveTests();
 }
 
-void CUnitTestManager::RemoveTests()
+IUnitTest* CUnitTestManager::GetTestInstance(const CUnitTestInfo& info)
 {
-	for (size_t i = 0; i < m_tests.size(); ++i)
-		delete m_tests[i];
-
-	m_tests.clear();
-}
-
-IUnitTest* CUnitTestManager::CreateTest(const UnitTestInfo& info)
-{
-	for (size_t i = 0; i < m_tests.size(); ++i)
+	for (auto& pt : m_tests)
 	{
-		CUnitTest* pt = m_tests[i];
-
-		if (pt->m_info.pTestImpl == info.pTestImpl)
-			return pt;
-	}
-
-	CUnitTest* pTest = new CUnitTest(info);
-	m_tests.push_back(pTest);
-	return pTest;
-}
-
-int CUnitTestManager::RunAllTests(CryUnitTest::TReporterToUse reporterToUse)
-{
-	CryUnitTest::UnitTestRunContext context;
-	StartTesting(context, reporterToUse);
-
-	for (uint32 i = 0; i < m_tests.size(); i++)
-	{
-		m_tests[i]->Init();
-		RunTest(m_tests[i], context);
-		m_tests[i]->Done();
-	}
-
-	EndTesting(context);
-	return (context.failedTestCount == 0) ? 0 : 1;
-}
-
-void CUnitTestManager::RunMatchingTests(const char* sName, UnitTestRunContext& context)
-{
-	StartTesting(context, CryUnitTest::ExcelReporter);
-
-	for (uint32 i = 0; i < m_tests.size(); i++)
-	{
-		if (strstr(m_tests[i]->m_info.name, sName) != 0 || strcmp(m_tests[i]->m_info.suite, sName) == 0 || strcmp(m_tests[i]->m_info.module, sName) == 0)
+		if (pt->GetInfo() == info)
 		{
-			m_tests[i]->Init();
-			RunTest(m_tests[i], context);
-			m_tests[i]->Done();
+			return pt.get();
 		}
 	}
 
-	EndTesting(context);
+	auto pTest = stl::make_unique<CUnitTest>(info);
+	CUnitTest* pTestRaw = pTest.get();
+	m_tests.push_back(std::move(pTest));
+	return pTestRaw;
 }
 
-void CUnitTestManager::RunAutoTests(const char* sSuiteName, const char* sTestName)
+int CUnitTestManager::RunAllTests(EReporterType reporterType)
+{
+	CryLogAlways("Running all unit tests...");//this gets output to main log. details are output to test log.
+	SUnitTestRunContext context;
+	StartTesting(context, reporterType);
+
+	for (auto& pt : m_tests)
+	{
+		RunTest(*pt, context);
+	}
+
+	EndTesting(context);
+	CryLogAlways("Running all unit tests done.");
+	return (context.failedTestCount == 0) ? 0 : 1; //non-zero for error exit code
+}
+
+void CUnitTestManager::RunAutoTests(const char* szSuiteName, const char* szTestName)
 {
 	// prepare auto tests context
 	// tests actually will be called during Update call
 	m_pAutoTestsContext->fStartTime = gEnv->pTimer->GetFrameStartTime().GetMilliSeconds();
 	m_pAutoTestsContext->fCurrTime = m_pAutoTestsContext->fStartTime;
-	m_pAutoTestsContext->sSuiteName = sSuiteName;
-	m_pAutoTestsContext->sTestName = sTestName;
+	m_pAutoTestsContext->sSuiteName = szSuiteName;
+	m_pAutoTestsContext->sTestName = szTestName;
 	m_pAutoTestsContext->waitAfterMSec = 0;
 	m_pAutoTestsContext->iter = 0;
+
+	// Note this requires cvar "ats_loop" be defined to work.
 	m_pAutoTestsContext->runCount = max(gEnv->pConsole->GetCVar("ats_loop")->GetIVal(), 1);
 
-	StartTesting(m_pAutoTestsContext->context, CryUnitTest::ExcelReporter);
+	StartTesting(m_pAutoTestsContext->context, EReporterType::Excel);
 }
 
 void CUnitTestManager::Update()
@@ -141,14 +118,11 @@ void CUnitTestManager::Update()
 
 			for (size_t i = m_pAutoTestsContext->iter; i < m_tests.size(); i++)
 			{
-				if (IsTestMatch(m_tests[i], m_pAutoTestsContext->sSuiteName, m_pAutoTestsContext->sTestName))
+				if (IsTestMatch(*m_tests[i], m_pAutoTestsContext->sSuiteName, m_pAutoTestsContext->sTestName))
 				{
-					m_tests[i]->Init();
-					RunTest(m_tests[i], m_pAutoTestsContext->context);
-					m_tests[i]->Done();
+					RunTest(*m_tests[i], m_pAutoTestsContext->context);
 
-					AutoTestInfo info;
-					m_tests[i]->GetAutoTestInfo(info);
+					const SAutoTestInfo& info = m_tests[i]->GetAutoTestInfo();
 					m_pAutoTestsContext->waitAfterMSec = info.waitMSec;
 					m_pAutoTestsContext->iter = i;
 
@@ -169,7 +143,7 @@ void CUnitTestManager::Update()
 					EndTesting(m_pAutoTestsContext->context);
 					m_pAutoTestsContext->iter = -1;
 
-					if (gEnv->pConsole->GetCVar("ats_exit")->GetIVal())
+					if (gEnv->pConsole->GetCVar("ats_exit")->GetIVal())// Note this requires cvar "ats_exit" be defined to work.
 						exit(0);
 				}
 				else
@@ -184,7 +158,7 @@ void CUnitTestManager::Update()
 	}
 }
 
-void CUnitTestManager::StartTesting(UnitTestRunContext& context, CryUnitTest::TReporterToUse reporterToUse)
+void CUnitTestManager::StartTesting(SUnitTestRunContext& context, EReporterType reporterToUse)
 {
 	context.testCount = 0;
 	context.failedTestCount = 0;
@@ -192,45 +166,45 @@ void CUnitTestManager::StartTesting(UnitTestRunContext& context, CryUnitTest::TR
 
 	switch (reporterToUse)
 	{
-	case ExcelReporter:
-		context.pReporter = new CUnitTestExcelReporter;
+	case EReporterType::Excel:
+		context.pReporter = stl::make_unique<CUnitTestExcelReporter>(m_log);
 		break;
-	case MinimalReporter:
-		context.pReporter = new CMinimalLogUnitTestReporter;
+	case EReporterType::ExcelWithNotification:
+		context.pReporter = stl::make_unique<CUnitTestExcelNotificationReporter>(m_log);
 		break;
-	case RegularReporter:
-		context.pReporter = new CLogUnitTestReporter;
+	case EReporterType::Minimal:
+		context.pReporter = stl::make_unique<CMinimalLogUnitTestReporter>(m_log);
+		break;
+	case EReporterType::Regular:
+		context.pReporter = stl::make_unique<CLogUnitTestReporter>(m_log);
 		break;
 	default:
-		assert(0);
+		CRY_ASSERT(false);
+		break;
 	}
+	CRY_ASSERT(context.pReporter != nullptr);
 
-	if (context.pReporter)
-		context.pReporter->OnStartTesting(context);
+	context.pReporter->OnStartTesting(context);
 }
 
-void CUnitTestManager::EndTesting(UnitTestRunContext& context)
+void CUnitTestManager::EndTesting(SUnitTestRunContext& context)
 {
-	if (context.pReporter)
-		context.pReporter->OnFinishTesting(context);
+	context.pReporter->OnFinishTesting(context);
 }
 
-void CUnitTestManager::RunTest(IUnitTest* pTest, UnitTestRunContext& context)
+void CUnitTestManager::RunTest(CUnitTest& test, SUnitTestRunContext& context)
 {
-
-	m_failureMsg[0] = 0;
-
 	bool bFail = false;
 
-	if (context.pReporter)
-		context.pReporter->OnTestStart(pTest);
-
+	test.Init();
+	context.pReporter->OnSingleTestStart(test);
 	context.testCount++;
 
 	CTimeValue t0 = gEnv->pTimer->GetAsyncTime();
 
 #if defined(CRY_UNIT_TESTING)
-	m_pCurrentTest = pTest; // store test to be able to handle exception cause callbacks
+	m_bRunningTest = true;
+	m_failureMsg.clear();
 
 	#if !defined(CRY_UNIT_TESTING_USE_EXCEPTIONS)
 	if (setjmp(*GetAssertJmpBuf()) == 0)
@@ -238,7 +212,7 @@ void CUnitTestManager::RunTest(IUnitTest* pTest, UnitTestRunContext& context)
 	try
 	#endif
 	{
-		pTest->Run(context);
+		test.Run();
 		context.succedTestCount++;
 	}
 	#if !defined(CRY_UNIT_TESTING_USE_EXCEPTIONS)
@@ -248,139 +222,131 @@ void CUnitTestManager::RunTest(IUnitTest* pTest, UnitTestRunContext& context)
 		bFail = true;
 	}
 	#else
-	catch (assert_exception const& e)
+	catch (CryUnitTest::assert_exception const& e)
 	{
 		context.failedTestCount++;
 		bFail = true;
-		cry_strcpy(m_failureMsg, e.what());
+		m_failureMsg = e.what();
 
 		// copy filename and line number of unit test assert
 		// will be used later for test reporting
-		CUnitTest* pT = static_cast<CUnitTest*>(pTest);
-		pT->m_info.sFilename = e.m_filename;
-		pT->m_info.filename = pT->m_info.sFilename.c_str();
-		pT->m_info.lineNumber = e.m_lineNumber;
+		test.m_info.SetFileName(e.m_filename);
+		test.m_info.SetLineNumber(e.m_lineNumber);
 	}
 	catch (std::exception const& e)
 	{
 		context.failedTestCount++;
 
 		bFail = true;
-		cry_strcpy(m_failureMsg, "Unhandled exception: ");
-		cry_strcpy(m_failureMsg, e.what());
+		m_failureMsg.Format("Unhandled exception: %s", e.what());
 	}
 	catch (...)
 	{
 		context.failedTestCount++;
 
 		bFail = true;
-		cry_strcpy(m_failureMsg, "Crash");
+		m_failureMsg = "Crash";
 	}
 	#endif
 
-	m_pCurrentTest = NULL;
+	m_bRunningTest = false;
 #endif
 	CTimeValue t1 = gEnv->pTimer->GetAsyncTime();
 
 	float fRunTimeInMs = (t1 - t0).GetMilliSeconds();
 
-	if (context.pReporter)
-		context.pReporter->OnTestFinish(pTest, fRunTimeInMs, !bFail, m_failureMsg);
+	context.pReporter->OnSingleTestFinish(test, fRunTimeInMs, !bFail, m_failureMsg.c_str());
+
+	test.Done();
 }
 
-void CUnitTestManager::SetExceptionCause(const char* expression, const char* file, int line)
+void CUnitTestManager::SetExceptionCause(const char* szExpression, const char* szFile, int line)
 {
-	CUnitTest* pT = static_cast<CUnitTest*>(m_pCurrentTest);
-	if (pT)
+	if (m_bRunningTest)
 	{
-		pT->m_info.sFilename = file;
-		pT->m_info.filename = file;
-		pT->m_info.lineNumber = line;
-		cry_strcpy(m_failureMsg, expression);
+		m_failureMsg = szExpression;
 	}
 #if defined(CRY_UNIT_TESTING_USE_EXCEPTIONS)
-	throw CryUnitTest::assert_exception(expression, file, line);
+	throw CryUnitTest::assert_exception(szExpression, szFile, line);
 #else
 	longjmp(*GetAssertJmpBuf(), 1);
 #endif
 }
 
-bool CUnitTestManager::IsTestMatch(CUnitTest* pTest, const string& sSuiteName, const string& sTestName)
+bool CUnitTestManager::IsTestMatch(const CUnitTest& test, const string& sSuiteName, const string& sTestName) const
 {
-	assert(pTest);
-
 	bool isMatch = true; // by default test is match
 
 	if (sSuiteName != "" && sSuiteName != "*")
 	{
-		isMatch &= (strcmp(sSuiteName.c_str(), pTest->m_info.suite) == 0);
+		isMatch &= (sSuiteName == test.GetInfo().GetSuite());
 	}
 	if (sTestName != "" && sTestName != "*")
 	{
-		isMatch &= (strcmp(sTestName.c_str(), pTest->m_info.name) == 0);
+		isMatch &= (sTestName == test.GetInfo().GetName());
 	}
 	return isMatch;
 }
 
-void CLogUnitTestReporter::OnStartTesting(UnitTestRunContext& context)
+//////////////////////////////////////////////////////////////////////////
+
+void CryUnitTest::CLogUnitTestReporter::OnStartTesting(const SUnitTestRunContext& context)
 {
-	CryLog("UnitTesting Started");
+	m_log.Log("UnitTesting Started");
 }
 
-void CLogUnitTestReporter::OnFinishTesting(UnitTestRunContext& context)
+void CryUnitTest::CLogUnitTestReporter::OnFinishTesting(const SUnitTestRunContext& context)
 {
-	CryLog("UnitTesting Finished");
+	m_log.Log("UnitTesting Finished");
 }
 
-void CLogUnitTestReporter::OnTestStart(IUnitTest* pTest)
+void CryUnitTest::CLogUnitTestReporter::OnSingleTestStart(const IUnitTest& test)
 {
-	UnitTestInfo info;
-	pTest->GetInfo(info);
-	CryLog("UnitTestStart:  [%s]%s:%s", info.module, info.suite, info.name);
+	auto& info = test.GetInfo();
+	m_log.Log("UnitTestStart:  [%s]%s:%s", info.GetModule(), info.GetSuite(), info.GetName());
 }
 
-void CLogUnitTestReporter::OnTestFinish(IUnitTest* pTest, float fRunTimeInMs, bool bSuccess, char const* failureDescription)
+void CryUnitTest::CLogUnitTestReporter::OnSingleTestFinish(const IUnitTest& test, float fRunTimeInMs, bool bSuccess, char const* szFailureDescription)
 {
-	UnitTestInfo info;
-	pTest->GetInfo(info);
+	auto& info = test.GetInfo();
 	if (bSuccess)
-		CryLog("UnitTestFinish: [%s]%s:%s | OK (%3.2fms)", info.module, info.suite, info.name, fRunTimeInMs);
+		m_log.Log("UnitTestFinish: [%s]%s:%s | OK (%3.2fms)", info.GetModule(), info.GetSuite(), info.GetName(), fRunTimeInMs);
 	else
-		CryLog("UnitTestFinish: [%s]%s:%s | FAIL (%s)", info.module, info.suite, info.name, failureDescription);
+		m_log.Log("UnitTestFinish: [%s]%s:%s | FAIL (%s)", info.GetModule(), info.GetSuite(), info.GetName(), szFailureDescription);
 }
 
-void CMinimalLogUnitTestReporter::OnStartTesting(UnitTestRunContext& context)
+//////////////////////////////////////////////////////////////////////////
+
+void CryUnitTest::CMinimalLogUnitTestReporter::OnStartTesting(const SUnitTestRunContext& context)
 {
 	m_nRunTests = 0;
 	m_nSucceededTests = 0;
 	m_nFailedTests = 0;
-	m_fTimeTaken = 0.0f;
+	m_fTimeTaken = 0.f;
 }
 
-void CMinimalLogUnitTestReporter::OnFinishTesting(UnitTestRunContext& context)
+void CryUnitTest::CMinimalLogUnitTestReporter::OnFinishTesting(const SUnitTestRunContext& context)
 {
-	CryLog("UnitTesting Finished Tests: %d Succeeded: %d, Failed: %d, Time: %5.2f ms", m_nRunTests, m_nSucceededTests, m_nFailedTests, m_fTimeTaken);
+	m_log.Log("UnitTesting Finished Tests: %d Succeeded: %d, Failed: %d, Time: %5.2f ms", m_nRunTests, m_nSucceededTests, m_nFailedTests, m_fTimeTaken);
 }
 
-void CMinimalLogUnitTestReporter::OnTestStart(IUnitTest* pTest)
+void CryUnitTest::CMinimalLogUnitTestReporter::OnSingleTestFinish(const IUnitTest& test, float fRunTimeInMs, bool bSuccess, char const* szFailureDescription)
 {
-}
-
-void CMinimalLogUnitTestReporter::OnTestFinish(IUnitTest* pTest, float fRunTimeInMs, bool bSuccess, char const* failureDescription)
-{
-	m_nRunTests += 1;
-	m_nSucceededTests += (bSuccess == true);
-	m_nFailedTests += (bSuccess == false);
+	++m_nRunTests;
+	if (bSuccess)
+		++m_nSucceededTests;
+	else
+		++m_nFailedTests;
 	m_fTimeTaken += fRunTimeInMs;
 
 	if (!bSuccess)
 	{
-		UnitTestInfo info;
-		pTest->GetInfo(info);
-		CryLog("-- FAIL (%s): [%s]%s:%s (%s:%d)", failureDescription, info.module, info.suite, info.name, info.filename, info.lineNumber);
+		auto& info = test.GetInfo();
+		m_log.Log("-- FAIL (%s): [%s]%s:%s (%s:%d)", szFailureDescription, info.GetModule(), info.GetSuite(), info.GetName(), info.GetFileName(), info.GetLineNumber());
 	}
-
 }
+
+//////////////////////////////////////////////////////////////////////////
 
 #if defined(CRY_UNIT_TESTING)
 
@@ -408,10 +374,22 @@ CRY_UNIT_TEST_SUITE(BITFIDDLING)
 		}
 	}
 }
+
 CRY_UNIT_TEST_SUITE(Math)
 {
 	using namespace crymath;
 	const float HALF_EPSILON = 0.00025f;
+
+	CRndGen MathRand;  // Static generator for reproducible sequence
+
+	float RandomExp(float fMaxExp)
+	{
+		float f = pow(10.0f, MathRand.GetRandom(-fMaxExp, fMaxExp));
+		if (MathRand.GetRandom(0, 1))
+			f = -f;
+		assert(IsValid(f));
+		return f;
+	}
 
 	template<typename Real, typename S>
 	void TestFunction(Real (* func)(Real), S in, S res)
@@ -437,7 +415,7 @@ CRY_UNIT_TEST_SUITE(Math)
 	template<typename Real, typename S>
 	bool IsEquiv(Real a, Real b, S epsilon)
 	{
-		return NumberValid(a) && All(abs(a - b) <= abs(b) * convert<Real>(epsilon));
+		return NumberValid(a) && NumberValid(b) && IsEquivalent(a, b, -epsilon); // Relative comparison
 	}
 
 	template<typename Real, typename S>
@@ -531,9 +509,10 @@ CRY_UNIT_TEST_SUITE(Math)
 
 	#if CRY_PLATFORM_SSE2
 
-	template<typename V, typename T>
+	template<typename V>
 	void ConvertTest()
 	{
+		using T = scalar_t<V>;
 		V v = convert<V>(T(0), T(1), T(2), T(3));
 		CRY_UNIT_TEST_ASSERT(NumberValid(v));
 		CRY_UNIT_TEST_ASSERT(get_element<0>(v) == T(0));
@@ -593,6 +572,31 @@ CRY_UNIT_TEST_SUITE(Math)
 	}
 
 	template<typename V>
+	void HorizontalTest()
+	{
+		i32v4 idata[] = {
+			convert<i32v4>(1,  -2,  3,   -4),
+			convert<i32v4>(-2, -1,  5,   6),
+			convert<i32v4>(7,  -12, -13, 24),
+			convert<i32v4>(-2, -5,  5,   6)
+		};
+
+		for (i32v4 d : idata)
+		{
+			V v = convert<V>(d);
+
+			auto h_sum = get_element<0>(v) + get_element<1>(v) + get_element<2>(v) + get_element<3>(v);
+			CRY_UNIT_TEST_ASSERT(All(hsumv(v) == to_v4(h_sum)));
+
+			auto h_min = min(get_element<0>(v), min(get_element<1>(v), min(get_element<2>(v), get_element<3>(v))));
+			CRY_UNIT_TEST_ASSERT(All(hminv(v) == to_v4(h_min)));
+
+			auto h_max = max(get_element<0>(v), max(get_element<1>(v), max(get_element<2>(v), get_element<3>(v))));
+			CRY_UNIT_TEST_ASSERT(All(hmaxv(v) == to_v4(h_max)));
+		}
+	}
+
+	template<typename V>
 	void CompareTest()
 	{
 		CRY_UNIT_TEST_ASSERT(All(convert<V>(-3, -5, 6, 9) == convert<V>(-3, -5, 6, 9)));
@@ -636,32 +640,48 @@ CRY_UNIT_TEST_SUITE(Math)
 
 	#endif // CRY_PLATFORM_SSE2
 
-	void QuadraticTest()
+	template<typename F> NO_INLINE
+	void QuadraticTest(int mode = 2)
 	{
-		float r[2];
-		for (int i = 0; i < 20; ++i)
+		F maxErrAbs = 0, maxErrRel = 0;
+
+		for (int i = 0; i < 240; ++i)
 		{
-			float c0 = cry_random(-999.f, 999.f) * (i % 5);
-			float c1 = cry_random(-999.f, 999.f) * (i % 4);
-			float c2 = cry_random(-999.f, 999.f) * (i % 3);
+			F c0 = RandomExp(6.0f) * (i % 5);
+			F c1 = RandomExp(6.0f) * (i % 4);
+			F c2 = RandomExp(6.0f) * (i % 3);
+
+			F r[2];
 			int n = solve_quadratic(c2, c1, c0, r);
 			while (--n >= 0)
 			{
-				float f = c0 + c1 * r[n] + c2 * sqr(r[n]);
-				CRY_UNIT_TEST_ASSERT(abs(f) <= 0.01f);
+				F err = abs(c0 + r[n] * (c1 + r[n] * c2));
+				F mag = abs(r[n] * c1) + abs(r[n] * r[n] * c2 * F(2));
+
+				if (err > maxErrAbs)
+					maxErrAbs = err;
+				if (err > mag * maxErrRel)
+				{
+					maxErrRel = err / mag;
+					CRY_UNIT_TEST_ASSERT(err <= mag * std::numeric_limits<F>::epsilon() * F(5));
+				}
 			}
 		}
 	}
 
-	CRY_UNIT_TEST(CUT_Math)
+	CRY_UNIT_TEST(Math)
 	{
-		QuadraticTest();
+		QuadraticTest<f32>();
+		QuadraticTest<f64>();
 		FunctionTest<float, int, uint>();
 	#if CRY_PLATFORM_SSE2
 		FunctionTest<f32v4, i32v4, u32v4>();
-		ConvertTest<f32v4, float>();
-		ConvertTest<i32v4, int>();
+		ConvertTest<f32v4>();
+		ConvertTest<i32v4>();
 		OperatorTest();
+		HorizontalTest<f32v4>();
+		HorizontalTest<i32v4>();
+		HorizontalTest<u32v4>();
 		CompareTest<f32v4>();
 		CompareTest<i32v4>();
 		UCompareTest();
@@ -669,6 +689,190 @@ CRY_UNIT_TEST_SUITE(Math)
 	#endif
 	}
 }
+
+#ifdef CRY_HARDWARE_VECTOR4
+
+#ifndef _DEBUG
+	#define VECTOR_PROFILE
+#endif
+
+CRY_UNIT_TEST_SUITE(MathVector)
+{
+	float RandomFloat()
+	{
+		return Math::RandomExp(3.0f);
+	}
+	Vec4 RandomVec4()
+	{
+		return Vec4(RandomFloat(), RandomFloat(), RandomFloat(), RandomFloat());
+	}
+	Matrix44 RandomMatrix44()
+	{
+		return Matrix44(RandomVec4(), RandomVec4(), RandomVec4(), RandomVec4());
+	}
+
+	static const int VCount = 256;
+	static const int VRep = 1024;
+
+	template<typename Vec, typename Mat>
+	struct Element
+	{
+		float f0;
+		Vec v0, v1;
+		Mat m0, m1;
+
+		Element() {}
+
+		Element(int)
+			: f0(RandomFloat())
+			, v0(RandomVec4()), v1(RandomVec4())
+			, m0(RandomMatrix44()), m1(RandomMatrix44()) {}
+
+		template<typename Vec2, typename Mat2>
+		Element(const Element<Vec2, Mat2>& in)
+			: f0(in.f0)
+			, v0(in.v0), v1(in.v1)
+			, m0(in.m0), m1(in.m1)
+		{}
+	};
+
+	std::vector<cstr> TestNames;
+
+	template<typename Elem>
+	struct Tester
+	{
+		cstr name;
+		std::vector<int64> times;
+		Elem elems[VCount];
+
+		void Log() const
+		{
+			uint32 divide = VCount * VRep;
+			#if CRY_PLATFORM_WINDOWS
+				// Ticks are kilocycles
+				divide /= 1000;
+			#endif
+
+			CryLog("Timings for %s", name);
+			for (int i = 0; i < TestNames.size(); ++i)
+			{
+				uint32 ticks = uint32((times[i] + divide/2) / divide);
+				CryLog(" %3u: %s", ticks, TestNames[i]);
+			}
+		}
+	};
+
+	template<typename Elem1, typename Elem2, typename Code1, typename Code2, typename E>
+	void VerifyCode(cstr message, Tester<Elem1>& tester1, Tester<Elem2>& tester2, Code1 code1, Code2 code2, E tolerance)
+	{
+		for (int i = 0; i < VCount; ++i)
+		{
+			auto res1 = code1(tester1.elems[i]);
+			auto res2 = code2(tester2.elems[i]);
+			CRY_ASSERT_MESSAGE(IsEquivalent(res1, res2, tolerance), message);
+		}
+	}
+
+	enum class TestMode { Verify, Prime, Profile };
+
+	using Element4H = Element<Vec4,  Matrix44>;   Tester<Element4H> test4H = {"Vec4H, Matrix44H"};
+	using Element4  = Element<Vec4f, Matrix44f>;  Tester<Element4>  test4  = {"Vec4, Matrix44"};
+	using Element3H = Element<Vec3,  Matrix34>;   Tester<Element3H> test3H = {"Vec3, Matrix34H"};
+	using Element3  = Element<Vec3,  Matrix34f>;  Tester<Element3>  test3  = {"Vec3, Matrix34"};
+
+	void VectorTest(TestMode mode)
+	{
+		#define	VECTOR_PROFILE_CODE(tester, code) { \
+			auto& e = tester.elems[0]; \
+			typedef decltype(code) Result; \
+			Result results[VCount]; \
+			int i = 0; \
+			int64 time = CryGetTicks(); \
+			for (auto& e: tester.elems) \
+				results[i++] = code; \
+			time = CryGetTicks() - time; \
+			if (mode == TestMode::Prime) \
+				tester.times.resize(TestNames.size()); \
+			if (mode == TestMode::Profile) \
+				tester.times[stat] += time; \
+		}
+
+		#define	VECTOR_TEST_CODE(code, tolerance) \
+			if (mode == TestMode::Verify) \
+			{ \
+				if (add_names) TestNames.push_back(#code); \
+				VerifyCode<Element4H, Element4>("mismatch: " #code, test4H, test4, [](Element4H& e) { return (code); }, [](Element4& e) { return (code); }, tolerance); \
+				VerifyCode<Element3H, Element3>("mismatch: " #code, test3H, test3, [](Element3H& e) { return (code); }, [](Element3& e) { return (code); }, tolerance); \
+			} \
+			else \
+			{ \
+				VECTOR_PROFILE_CODE(test4H, code) \
+				VECTOR_PROFILE_CODE(test4,  code) \
+				VECTOR_PROFILE_CODE(test3H, code) \
+				VECTOR_PROFILE_CODE(test3,  code) \
+				++stat; \
+			} \
+
+		static const float Tolerance = -1e5f;
+		bool add_names = TestNames.empty();
+
+		int stat = 0;
+		VECTOR_TEST_CODE(e.v0, 0.0f);
+		VECTOR_TEST_CODE(e.v0 == e.v1, bool());
+		VECTOR_TEST_CODE(IsEquivalent(e.v0, e.v1, Tolerance), bool());
+		VECTOR_TEST_CODE(IsEquivalent(e.v0, e.v1, Tolerance), bool());
+		VECTOR_TEST_CODE(e.v0 | e.v1, Tolerance);
+		VECTOR_TEST_CODE(e.v0 + e.v1, 0.0f);
+		VECTOR_TEST_CODE(e.v0 * e.f0, Tolerance);
+		VECTOR_TEST_CODE(e.v0.GetLength(), Tolerance);
+		VECTOR_TEST_CODE(e.v0.GetNormalized(), Tolerance);
+		VECTOR_TEST_CODE(e.v0.ProjectionOn(e.v1), Tolerance);
+
+		VECTOR_TEST_CODE(e.m0, 0.0f);
+		VECTOR_TEST_CODE(e.m0 == e.m1, bool());
+		VECTOR_TEST_CODE(IsEquivalent(e.m0, e.m1, Tolerance), bool());
+		VECTOR_TEST_CODE(IsEquivalent(e.m0, e.m1, Tolerance), bool());
+		VECTOR_TEST_CODE(e.m0.GetTransposed(), 0.0f);
+		VECTOR_TEST_CODE(e.m0.GetInverted(), Tolerance);
+		VECTOR_TEST_CODE(e.m0.Determinant(), Tolerance);
+
+		VECTOR_TEST_CODE(e.v0 * e.m0, Tolerance);
+		VECTOR_TEST_CODE(e.m0 * e.v0, Tolerance);
+		VECTOR_TEST_CODE(e.m0.TransformVector(e.v0), Tolerance);
+		VECTOR_TEST_CODE(e.m0.TransformPoint(e.v0), Tolerance);
+		VECTOR_TEST_CODE(e.m0 * e.m1, Tolerance);
+	}
+
+	CRY_UNIT_TEST(Vector)
+	{
+		// Init test to equivalent values
+		for (int i = 0; i < VCount; ++i)
+		{
+			Construct(test4H.elems[i], 1);
+			test4.elems[i]  = test4H.elems[i];
+			test3H.elems[i] = test4H.elems[i];
+			test3.elems[i]  = test3H.elems[i];
+		}
+
+		VectorTest(TestMode::Verify);
+
+		#ifdef VECTOR_PROFILE
+			VectorTest(TestMode::Prime);
+			for (int i = 0; i < VRep; ++i)
+			{
+				VectorTest(TestMode::Profile);
+			}
+
+			test4H.Log();
+			test4.Log();
+			test3H.Log();
+			test3.Log();
+		#endif
+	}
+}
+
+#endif // CRY_HARDWARE_VECTOR4
+
 
 CRY_UNIT_TEST_SUITE(Strings)
 {
@@ -902,7 +1106,7 @@ CRY_UNIT_TEST_SUITE(Strings)
 			const auto test = [](const bool bNull, int charCount, const char* src, const char* initBuffer, const char* resultBuffer, bool resultBool)
 			{
 				char buffer[3] = { initBuffer[0], initBuffer[1], initBuffer[2] };
-				assert(charCount >= 0 && charCount <= CRY_ARRAY_COUNT(buffer));
+				CRY_ASSERT(charCount >= 0 && charCount <= CRY_ARRAY_COUNT(buffer));
 				const bool b = cry_sprintf(bNull ? nullptr : buffer, charCount * sizeof(buffer[0]), src);
 				CRY_UNIT_TEST_ASSERT(b == resultBool && !memcmp(buffer, resultBuffer, sizeof(buffer)));
 			};
@@ -1142,7 +1346,6 @@ static Counts delta_counts()
 	return delta;
 }
 
-
 struct Tracker
 {
 	int res;
@@ -1288,21 +1491,21 @@ CRY_UNIT_TEST(CUT_HeapAlloc)
 	{
 		THeap::Array<float> af(beep, i + 77);
 		af.push_back(3.14f);
-		THeap::Array<bool> ab(beep, i);
-		THeap::Array<int, uint, 16> ai(beep);
+		THeap::Array<bool, uint, 16> ab(beep, i*5);
+		THeap::Array<int> ai(beep);
 		ai.reserve(9111);
+		THeap::Array<string> as(beep, 8);
 		ai.push_back(-7);
 		ai.push_back(-6);
 		af.erase(30, 40);
 		if (i == 2)
-			ai.clear();
-		else if (i == 4)
 			ai.resize(0);
+		as[0] = "nil";
+		as[7] = "sevven";
+		if (i == 4)
+			as.clear();
 	}
 	CRY_UNIT_TEST_ASSERT(beep.GetTotalMemory().nUsed == 0);
-	THeap::Array<string> as(beep, 8);
-	as[0] = "nil";
-	as[7] = "sevven";
 }
 
 CRY_UNIT_TEST(CUT_SimplifyFilePath)
@@ -1388,7 +1591,8 @@ CRY_UNIT_TEST(CUT_SimplifyFilePath)
 			{ "../../abc",                   true,  "..\\..\\abc",               true,  "../../abc"              },
 			{ "bar/../../../abc",            true,  "..\\..\\abc",               true,  "../../abc"              },
 			{ "/abc/foo/bar",                true,  "\\abc\\foo\\bar",           true,  "/abc/foo/bar"           },
-			{ "abc",                         true,  "abc",                       true,  "abc"                    },{ "abc/.", true, "abc", true, "abc" },
+			{ "abc",                         true,  "abc",                       true,  "abc"                    },
+			{ "abc/.",                       true,  "abc",                       true,  "abc"                    },
 			{ "abc/..",                      true,  "",                          true,  ""                       },
 			{ "abc/../..",                   true,  "..",                        true,  ".."                     },
 			{ "abc/foo/bar",                 true,  "abc\\foo\\bar",             true,  "abc/foo/bar"            },
@@ -1508,7 +1712,7 @@ CRY_UNIT_TEST(CUT_Variant)
 	// Emplace & Get
 	{
 		CryVariant<int, string> v;
-		
+
 		v.emplace<int>(5);
 		CRY_UNIT_TEST_ASSERT(stl::get<int>(v) == 5);
 		CRY_UNIT_TEST_ASSERT(stl::get<0>(v) == 5);
@@ -1553,7 +1757,7 @@ CRY_UNIT_TEST(CUT_Variant)
 	// Equals
 	{
 		CryVariant<bool, int> v1, v2;
-		
+
 		v1.emplace<bool>(true);
 		v2.emplace<bool>(true);
 		CRY_UNIT_TEST_ASSERT(v1 == v2);
@@ -1677,6 +1881,33 @@ CRY_UNIT_TEST(CUT_Variant)
 		CRY_UNIT_TEST_ASSERT(stl::get<int>(v1) == 10);
 		CRY_UNIT_TEST_ASSERT(stl::get<string>(v2) == "Hello World Hello World");
 	}
+}
+
+CRY_UNIT_TEST(CUT_CRYGUID)
+{
+	CryGUID guid;
+
+	// Test that CryGUID constructor initialize it to null
+	CRY_UNIT_TEST_ASSERT(guid.IsNull());
+
+	guid = "296708CE-F570-4263-B067-C6D8B15990BD"_cry_guid;
+
+	// Verify that all string-based ways to create CryGUID return the same result
+	CRY_UNIT_TEST_CHECK_EQUAL(guid, CryGUID::FromString("296708CE-F570-4263-B067-C6D8B15990BD"));
+
+	// Test that GUID specified in string with or without brackets work reliably
+	CRY_UNIT_TEST_CHECK_EQUAL(guid, "{296708CE-F570-4263-B067-C6D8B15990BD}"_cry_guid);
+	CRY_UNIT_TEST_CHECK_EQUAL(guid, CryGUID::FromString("{296708CE-F570-4263-B067-C6D8B15990BD}"));
+
+	// Verify that CryGUID is case insensitive
+	CRY_UNIT_TEST_CHECK_EQUAL(guid, "296708ce-f570-4263-b067-c6d8b15990bd"_cry_guid);
+	CRY_UNIT_TEST_CHECK_EQUAL(guid, "{296708ce-f570-4263-b067-c6d8b15990bd}"_cry_guid);
+
+	// Test back conversion from GUID to string
+	char str[64];
+	guid.ToString(str);
+	CRY_UNIT_TEST_CHECK_EQUAL(CryStringUtils::toUpper(str), "296708CE-F570-4263-B067-C6D8B15990BD");
+	CRY_UNIT_TEST_CHECK_EQUAL(CryStringUtils::toUpper(guid.ToString()), "296708CE-F570-4263-B067-C6D8B15990BD");
 }
 
 #endif //CRY_UNIT_TESTING

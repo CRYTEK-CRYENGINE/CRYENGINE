@@ -1,9 +1,8 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #pragma once
 
-#include "ATLEntities.h"
-#include "FileCacheManager.h"
+#include "InternalEntities.h"
 #include "AudioListenerManager.h"
 #include "AudioEventListenerManager.h"
 #include "AudioStandaloneFileManager.h"
@@ -12,12 +11,28 @@
 #include "AudioXMLProcessor.h"
 #include <CryInput/IInput.h>
 
+namespace CryAudio
+{
+enum class EInternalStates : EnumFlagsType
+{
+	None                        = 0,
+	IsMuted                     = BIT(0),
+	AudioMiddlewareShuttingDown = BIT(1),
+};
+CRY_CREATE_ENUM_FLAG_OPERATORS(EInternalStates);
+
+class CSystem;
+
+#if defined(INCLUDE_AUDIO_PRODUCTION_CODE)
+class CProfileData;
+#endif // INCLUDE_AUDIO_PRODUCTION_CODE
+
 class CAudioTranslationLayer final : public IInputEventListener
 {
 public:
 
 	CAudioTranslationLayer();
-	virtual ~CAudioTranslationLayer();
+	virtual ~CAudioTranslationLayer() override;
 
 	CAudioTranslationLayer(CAudioTranslationLayer const&) = delete;
 	CAudioTranslationLayer(CAudioTranslationLayer&&) = delete;
@@ -25,113 +40,48 @@ public:
 	CAudioTranslationLayer& operator=(CAudioTranslationLayer&&) = delete;
 
 	// IInputEventListener
-	virtual bool OnInputEvent(SInputEvent const& event);
+	virtual bool OnInputEvent(SInputEvent const& event) override;
 	// ~IInputEventListener
 
-	bool                Initialize();
-	bool                ShutDown();
-	void                ProcessRequest(CAudioRequestInternal& request);
-	void                Update(float const deltaTime);
-	bool                GetAudioTriggerId(char const* const szAudioTriggerName, AudioControlId& audioTriggerId) const;
-	bool                GetAudioRtpcId(char const* const szAudioRtpcName, AudioControlId& audioRtpcId) const;
-	bool                GetAudioSwitchId(char const* const szAudioSwitchName, AudioControlId& audioSwitchId) const;
-	bool                GetAudioSwitchStateId(AudioControlId const switchId, char const* const szAudioSwitchStateName, AudioSwitchStateId& audioSwitchStateId) const;
-	bool                GetAudioPreloadRequestId(char const* const szAudioPreloadRequestName, AudioPreloadRequestId& audioPreloadRequestId) const;
-	bool                GetAudioEnvironmentId(char const* const szAudioEnvironmentName, AudioEnvironmentId& audioEnvironmentId) const;
-	bool                ReserveAudioObject(CATLAudioObject*& pAudioObject);
-	bool                ReleaseAudioObject(CATLAudioObject* const pAudioObject);
-	CATLListener*       CreateAudioListener();
-	void                Release(CATLListener* const pAudioObject);
-	bool                CanProcessRequests() const { return (m_flags & eAudioInternalStates_AudioMiddlewareShuttingDown) == 0; }
+	bool           Initialize(CSystem* const pAudioSystem);
+	bool           ShutDown();
+	void           ProcessRequest(CAudioRequest& request);
+	void           Update(float const deltaTime);
 
-	EAudioRequestStatus ParseControlsData(char const* const szFolderPath, EAudioDataScope const dataScope);
-	EAudioRequestStatus ClearControlsData(EAudioDataScope const dataScope);
-	EAudioRequestStatus ParsePreloadsData(char const* const szFolderPath, EAudioDataScope const dataScope);
-	EAudioRequestStatus ClearPreloadsData(EAudioDataScope const dataScope);
+	bool           CanProcessRequests() const { return (m_flags& EInternalStates::AudioMiddlewareShuttingDown) == 0; }
 
-	void                NotifyListener(CAudioRequestInternal const& request);
+	ERequestStatus ParseControlsData(char const* const szFolderPath, EDataScope const dataScope);
+	ERequestStatus ClearControlsData(EDataScope const dataScope);
+	ERequestStatus ParsePreloadsData(char const* const szFolderPath, EDataScope const dataScope);
+	ERequestStatus ClearPreloadsData(EDataScope const dataScope);
+
+	void           NotifyListener(CAudioRequest const& request);
+
+	void           IncrementGlobalObjectSyncCallbackCounter();
+	void           DecrementGlobalObjectSyncCallbackCounter();
 
 private:
 
-	EAudioRequestStatus ProcessAudioManagerRequest(CAudioRequestInternal const& request);
-	EAudioRequestStatus ProcessAudioCallbackManagerRequest(CAudioRequestInternal& request);
-	EAudioRequestStatus ProcessAudioObjectRequest(CAudioRequestInternal const& request);
-	EAudioRequestStatus ProcessAudioListenerRequest(SAudioRequestDataInternal const* const pPassedRequestData);
-	EAudioRequestStatus SetImpl(CryAudio::Impl::IAudioImpl* const pImpl);
-	void                ReleaseImpl();
-	EAudioRequestStatus PrepUnprepTriggerAsync(
-	  CATLAudioObject* const pAudioObject,
-	  CATLTrigger const* const pTrigger,
-	  bool const bPrepare);
-	EAudioRequestStatus PlayFile(
-	  CATLAudioObject* const pAudioObject,
-	  char const* const szFile,
-	  AudioControlId const audioTriggerId,
-	  bool const bLocalized,
-	  void* const pOwner,
-	  void* const pUserData,
-	  void* const pUserDataOwner);
+	ERequestStatus ProcessAudioManagerRequest(CAudioRequest const& request);
+	ERequestStatus ProcessAudioCallbackManagerRequest(CAudioRequest& request);
+	ERequestStatus ProcessAudioObjectRequest(CAudioRequest const& request);
+	ERequestStatus ProcessAudioListenerRequest(SAudioRequestData const* const pPassedRequestData);
+	ERequestStatus SetImpl(Impl::IImpl* const pIImpl);
+	void           ReleaseImpl();
 
-	EAudioRequestStatus StopFile(CATLAudioObject* const pAudioObject, char const* const szFile);
-	EAudioRequestStatus ActivateTrigger(
-	  CATLAudioObject* const pAudioObject,
-	  CATLTrigger const* const pTrigger,
-	  float const timeUntilRemovalMS,
-	  void* const pOwner = nullptr,
-	  void* const pUserData = nullptr,
-	  void* const pUserDataOwner = nullptr,
-	  AudioEnumFlagsType const flags = INVALID_AUDIO_ENUM_FLAG_TYPE);
-	EAudioRequestStatus StopTrigger(CATLAudioObject* const pAudioObject, CATLTrigger const* const pTrigger);
-	EAudioRequestStatus StopAllTriggers(CATLAudioObject* const pAudioObject);
-	EAudioRequestStatus SetSwitchState(
-	  CATLAudioObject* const pAudioObject,
-	  CATLSwitch const* const pSwitch,
-	  CATLSwitchState const* const pState);
-	EAudioRequestStatus SetRtpc(
-	  CATLAudioObject* const pAudioObject,
-	  CATLRtpc const* const pRtpc,
-	  float const value);
-	EAudioRequestStatus SetEnvironment(
-	  CATLAudioObject* const pAudioObject,
-	  CATLAudioEnvironment const* const pEnvironment,
-	  float const amount);
-	EAudioRequestStatus ResetEnvironments(CATLAudioObject* const pAudioObject);
-	EAudioRequestStatus ActivateInternalTrigger(
-	  CATLAudioObject* const pAudioObject,
-	  CryAudio::Impl::IAudioTrigger const* const pAudioTrigger,
-	  CryAudio::Impl::IAudioEvent* const pAudioEvent);
-	EAudioRequestStatus StopInternalEvent(CATLAudioObject* const pAudioObject, CryAudio::Impl::IAudioEvent const* const pAudioEvent);
-	EAudioRequestStatus StopAllInternalEvents(CATLAudioObject* const pAudioObject);
-	EAudioRequestStatus SetInternalRtpc(
-	  CATLAudioObject* const pAudioObject,
-	  CryAudio::Impl::IAudioRtpc const* const pAudioRtpc,
-	  float const value);
-	EAudioRequestStatus SetInternalSwitchState(CATLAudioObject* const pAudioObject, CryAudio::Impl::IAudioSwitchState const* const pAudioSwitchState);
-	EAudioRequestStatus SetInternalEnvironment(
-	  CATLAudioObject* const pAudioObject,
-	  CryAudio::Impl::IAudioEnvironment const* const pAudioEnvironment,
-	  float const amount);
-	EAudioRequestStatus RefreshAudioSystem(char const* const szLevelName);
-	void                SetImplLanguage();
-
-	enum EAudioInternalStates : AudioEnumFlagsType
-	{
-		eAudioInternalStates_None                        = 0,
-		eAudioInternalStates_IsMuted                     = BIT(0),
-		eAudioInternalStates_AudioMiddlewareShuttingDown = BIT(1),
-	};
+	ERequestStatus RefreshAudioSystem(char const* const szLevelName);
+	void           SetImplLanguage();
+	void           InitInternalControls();
+	void           SetCurrentEnvironmentsOnObject(CATLAudioObject* const pObject, EntityId const entityToIgnore, Vec3 const& position);
 
 	// ATLObject containers
 	AudioTriggerLookup        m_triggers;
-	AudioRtpcLookup           m_parameters;
+	AudioParameterLookup      m_parameters;
 	AudioSwitchLookup         m_switches;
 	AudioPreloadRequestLookup m_preloadRequests;
 	AudioEnvironmentLookup    m_environments;
-	AudioStandaloneFileLookup m_audioStandaloneFiles;
 
-	CATLAudioObject*          m_pGlobalAudioObject;
-
-	AudioTriggerInstanceId    m_triggerInstanceIDCounter;
+	CATLAudioObject*          m_pGlobalAudioObject = nullptr;
 
 	// Components
 	CAudioStandaloneFileManager m_audioStandaloneFileMgr;
@@ -142,17 +92,19 @@ private:
 	CAudioEventListenerManager  m_audioEventListenerMgr;
 	CAudioXMLProcessor          m_xmlProcessor;
 
+	SInternalControls           m_internalControls;
+
 	// Utility members
-	uint32                      m_lastMainThreadFrameId;
-	volatile AudioEnumFlagsType m_flags;
-	CryAudio::Impl::IAudioImpl* m_pImpl;
+	uint32          m_lastMainThreadFrameId = 0;
+	EInternalStates m_flags = EInternalStates::None;
+	Impl::IImpl*    m_pIImpl = nullptr;
 
 #if defined(INCLUDE_AUDIO_PRODUCTION_CODE)
 public:
 
-	bool ReserveAudioObject(CATLAudioObject*& audioObject, char const* const szAudioObjectName);
-	void DrawAudioSystemDebugInfo();
-	void GetAudioTriggerData(AudioControlId const audioTriggerId, SAudioTriggerData& audioTriggerData) const;
+	void          DrawAudioSystemDebugInfo();
+	void          GetAudioTriggerData(ControlId const audioTriggerId, STriggerData& audioTriggerData) const;
+	CProfileData* GetProfileData() const;
 
 private:
 
@@ -160,6 +112,7 @@ private:
 	void DrawATLComponentDebugInfo(IRenderAuxGeom& auxGeom, float posX, float const posY);
 	void RetriggerAudioControls();
 
-	CryFixedStringT<MAX_AUDIO_MISC_STRING_LENGTH> m_implNameString;
+	CProfileData* m_pProfileData = nullptr;
 #endif // INCLUDE_AUDIO_PRODUCTION_CODE
 };
+} // namespace CryAudio

@@ -5,9 +5,9 @@
 #ifndef __XMLCONVERTER_H__
 #define __XMLCONVERTER_H__
 
-#include "IConvertor.h"
+#include "IConverter.h"
 #include "ICryXML.h"
-#include "NameConvertor.h"
+#include "NameConverter.h"
 #include <CrySystem/XML/XMLBinaryHeaders.h>
 
 struct XMLFilterElement
@@ -24,7 +24,7 @@ public:
 		ICryXML* pCryXML,
 		const std::vector<XMLFilterElement>& filter,
 		const std::vector<string>& tableFilemasks,
-		const NameConvertor& nameConverter);
+		const NameConverter& nameConverter);
 
 public:
 	virtual void Release();
@@ -43,11 +43,11 @@ private:
 	ICryXML* m_pCryXML;
 	const std::vector<XMLFilterElement>* m_pFilter;
 	const std::vector<string>* m_pTableFilemasks;
-	const NameConvertor* m_pNameConverter;
+	const NameConverter* m_pNameConverter;
 	ConvertContext m_CC;
 };
 
-class XMLConverter : public IConvertor
+class XMLConverter : public IConverter
 {
 public:
 	explicit XMLConverter(ICryXML* pCryXML);
@@ -55,7 +55,7 @@ public:
 
 	virtual void Release();
 
-	virtual void Init(const ConvertorInitContext& context);
+	virtual void Init(const ConverterInitContext& context);
 	virtual ICompiler* CreateCompiler();
 	virtual bool SupportsMultithreading() const;
 	virtual const char* GetExt(int index) const;
@@ -65,7 +65,7 @@ private:
 	ICryXML* m_pCryXML;
 	std::vector<XMLFilterElement> m_filter;
 	std::vector<string> m_tableFilemasks;
-	NameConvertor m_nameConvertor;
+	NameConverter m_nameConverter;
 };
 
 #endif //__XMLCONVERTER_H__

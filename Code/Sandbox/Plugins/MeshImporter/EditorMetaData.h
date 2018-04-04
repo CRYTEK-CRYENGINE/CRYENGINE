@@ -1,17 +1,19 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+
 #pragma once
 
 #include "FbxScene.h"
 #include "FbxMetaData.h"
+#include "GlobalImportSettings.h"
 #include "NodeProperties.h"
 
 #include <CryString/CryString.h>
 #include <CrySerialization/IArchive.h>
-#include <yasli/Archive.h>
-#include <yasli/STL.h>
-#include <yasli/Enum.h>
-#include <yasli/JSONIArchive.h>
-#include <yasli/JSONOArchive.h>
+#include <CrySerialization/yasli/Archive.h>
+#include <CrySerialization/yasli/STL.h>
+#include <CrySerialization/yasli/Enum.h>
+#include <CrySerialization/yasli/JSONIArchive.h>
+#include <CrySerialization/yasli/JSONOArchive.h>
 
 namespace FbxTool
 {
@@ -53,7 +55,7 @@ void ReadMaterialMetaData(const std::vector<SMaterialMeta>& materialMeta, CScene
 //! Data used to restore state of editor. Not passed to RC.
 struct SEditorMetaData : FbxMetaData::IEditorMetaData
 {
-	std::shared_ptr<CGlobalImportSettings>    pEditorGlobalImportSettings;
+	CGlobalImportSettings editorGlobalImportSettings;
 	std::vector<FbxTool::Meta::SNodeMeta>     editorNodeMeta;
 	std::vector<FbxTool::Meta::SMaterialMeta> editorMaterialMeta;
 
@@ -61,5 +63,6 @@ struct SEditorMetaData : FbxMetaData::IEditorMetaData
 
 	// IEditorMetaData implementation.
 	virtual void Serialize(yasli::Archive& ar) override;
+	virtual std::unique_ptr<FbxMetaData::IEditorMetaData> Clone() const override;
 };
 

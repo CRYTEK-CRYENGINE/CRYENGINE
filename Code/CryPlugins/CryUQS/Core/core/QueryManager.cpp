@@ -6,9 +6,9 @@
 
 // *INDENT-OFF* - <hard to read code and declarations due to inconsistent indentation>
 
-namespace uqs
+namespace UQS
 {
-	namespace core
+	namespace Core
 	{
 
 		//===================================================================================
@@ -66,7 +66,7 @@ namespace uqs
 			// nothing
 		}
 
-		CQueryID CQueryManager::StartQuery(const client::SQueryRequest& request, shared::IUqsString& errorMessage)
+		CQueryID CQueryManager::StartQuery(const Client::SQueryRequest& request, Shared::IUqsString& errorMessage)
 		{
 			if (!request.queryBlueprintID.IsOrHasBeenValid())
 			{
@@ -75,7 +75,7 @@ namespace uqs
 				return CQueryID::CreateInvalid();
 			}
 
-			std::shared_ptr<const CQueryBlueprint> qbp = g_hubImpl->GetQueryBlueprintLibrary().GetQueryBlueprintByIDInternal(request.queryBlueprintID);
+			std::shared_ptr<const CQueryBlueprint> qbp = g_pHub->GetQueryBlueprintLibrary().GetQueryBlueprintByIDInternal(request.queryBlueprintID);
 			if (!qbp)
 			{
 				errorMessage.Format("CQueryManager::StartQuery: the blueprint '%s' was once in the library, but has been removed and not been (successfully) reloaded since then", request.queryBlueprintID.GetQueryBlueprintName());
@@ -84,7 +84,7 @@ namespace uqs
 
 			static const CQueryID noParentQueryID = CQueryID::CreateInvalid();
 			std::unique_ptr<CItemList> emptyResultSinceThereIsNoPreviousQuery;
-			return StartQueryInternal(noParentQueryID, qbp, request.runtimeParams, request.querierName, request.callback, emptyResultSinceThereIsNoPreviousQuery, errorMessage);
+			return StartQueryInternal(noParentQueryID, qbp, request.runtimeParams, request.szQuerierName, request.callback, emptyResultSinceThereIsNoPreviousQuery, errorMessage);
 		}
 
 		void CQueryManager::CancelQuery(const CQueryID& idOfQueryToCancel)
@@ -98,7 +98,7 @@ namespace uqs
 			}
 		}
 
-		void CQueryManager::AddItemMonitorToQuery(const CQueryID& queryID, client::ItemMonitorUniquePtr&& pItemMonitorToInstall)
+		void CQueryManager::AddItemMonitorToQuery(const CQueryID& queryID, Client::ItemMonitorUniquePtr&& pItemMonitorToInstall)
 		{
 			assert(pItemMonitorToInstall);
 
@@ -108,7 +108,7 @@ namespace uqs
 			}
 		}
 
-		CQueryID CQueryManager::StartQueryInternal(const CQueryID& parentQueryID, std::shared_ptr<const CQueryBlueprint> qbp, const shared::IVariantDict& runtimeParams, const char* querierName, Functor1<const core::SQueryResult&> callback, std::unique_ptr<CItemList>& potentialResultingItemsFromPreviousQuery, shared::IUqsString& errorMessage)
+		CQueryID CQueryManager::StartQueryInternal(const CQueryID& parentQueryID, std::shared_ptr<const CQueryBlueprint> pQueryBlueprint, const Shared::IVariantDict& runtimeParams, const char* szQuerierName, Functor1<const Core::SQueryResult&> callback, std::unique_ptr<CItemList>& pPotentialResultingItemsFromPreviousQuery, Shared::IUqsString& errorMessage)
 		{
 			// generate a new query ID (even if the query fails to start)
 			const CQueryID id = ++m_queryIDProvider;
@@ -117,16 +117,16 @@ namespace uqs
 			HistoricQuerySharedPtr pOptionalHistoryEntry;
 			if (SCvars::logQueryHistory)
 			{
-				pOptionalHistoryEntry = m_queryHistoryManager.AddNewLiveHistoricQuery(id, querierName, parentQueryID);
+				pOptionalHistoryEntry = m_queryHistoryManager.AddNewLiveHistoricQuery(id, szQuerierName, parentQueryID);
 			}
 
 			// create a new query instance through the query-blueprint
-			const CQueryBase::SCtorContext queryCtorContext(id, querierName, pOptionalHistoryEntry, potentialResultingItemsFromPreviousQuery);
-			std::unique_ptr<CQueryBase> q = qbp->CreateQuery(queryCtorContext);
+			const CQueryBase::SCtorContext queryCtorContext(id, szQuerierName, pOptionalHistoryEntry, pPotentialResultingItemsFromPreviousQuery);
+			std::unique_ptr<CQueryBase> q = pQueryBlueprint->CreateQuery(queryCtorContext);
 
 			// instantiate that query (cannot be done in the query's ctor as it needs to return success/failure)
-			shared::CUqsString error;
-			if (!q->InstantiateFromQueryBlueprint(qbp, runtimeParams, error))
+			Shared::CUqsString error;
+			if (!q->InstantiateFromQueryBlueprint(pQueryBlueprint, runtimeParams, error))
 			{
 				errorMessage.Format("CQueryManager::StartQueryInternal: %s", error.c_str());
 				return CQueryID::CreateInvalid();
@@ -218,10 +218,10 @@ namespace uqs
 					// to the remaining queries (this happens implicitly).
 					//
 
-					CQueryBase* q = it->second.query.get();
+					CQueryBase* pQuery = it->second.query.get();
 					CTimeValue timeBudgetForThisQuery;   // 0.0 seconds by default
 
-					if (q->RequiresSomeTimeBudgetForExecution())
+					if (pQuery->RequiresSomeTimeBudgetForExecution())
 					{
 						size_t numRemainingQueriesThatRequireSomeTimeBudget = 1;
 
@@ -230,8 +230,8 @@ namespace uqs
 						++it2;
 						for (; it2 != m_queries.cend(); ++it2)
 						{
-							const CQueryBase* q2 = it2->second.query.get();
-							if (q2->RequiresSomeTimeBudgetForExecution())
+							const CQueryBase* pQuery2 = it2->second.query.get();
+							if (pQuery2->RequiresSomeTimeBudgetForExecution())
 							{
 								++numRemainingQueriesThatRequireSomeTimeBudget;
 							}
@@ -247,9 +247,9 @@ namespace uqs
 					// - keep track of the used time for donating unused time to the whole pool (so that the upcoming queries can benefit from it)
 					//
 
-					shared::CUqsString error;
+					Shared::CUqsString error;
 					const CTimeValue timestampBeforeQueryUpdate = gEnv->pTimer->GetAsyncTime();
-					const CQueryBase::EUpdateState queryState = q->Update(timeBudgetForThisQuery, error);
+					const CQueryBase::EUpdateState queryState = pQuery->Update(timeBudgetForThisQuery, error);
 					const CTimeValue timestampAfterQueryUpdate = gEnv->pTimer->GetAsyncTime();
 
 					//
@@ -318,7 +318,7 @@ namespace uqs
 							}
 							else
 							{
-								QueryResultSetUniquePtr pResultSetDummy = entry.query->ClaimResultSet();
+								QueryResultSetUniquePtr pResultSetDummy;
 								const SQueryResult result = SQueryResult::CreateError(entry.queryID, pResultSetDummy, entry.errorIfAny.c_str());
 								entry.callback(result);
 							}
@@ -376,12 +376,36 @@ namespace uqs
 			logger.Printf("");
 		}
 
+		void CQueryManager::CancelAllRunningQueriesDueToUpcomingTearDownOfHub()
+		{
+			// operate on a copy in case the query's callback cancels queries recursively (happens in hierarchical queries)
+			std::map<CQueryID, SRunningQueryInfo> copyOfRunningQueries;
+			copyOfRunningQueries.swap(m_queries);
+
+			for (auto it = copyOfRunningQueries.begin(); it != copyOfRunningQueries.end(); ++it)
+			{
+				const SRunningQueryInfo& runningQueryInfo = it->second;
+
+				// notify the originator of the query that we're prematurely canceling the query
+				if (runningQueryInfo.callback)
+				{
+					const CQueryID& queryID = it->first;
+					QueryResultSetUniquePtr pDummyResultSet;
+					const SQueryResult result = SQueryResult::CreateCanceledByHubTearDown(queryID, pDummyResultSet);
+					runningQueryInfo.callback(result);
+				}
+
+				// now cancel it (this might attempt to do some recursive cancelations, but they will effectively end up in CancelQuery() as a NOP since m_queries has already been emptied)
+				runningQueryInfo.query->Cancel();
+			}
+		}
+
 		void CQueryManager::DebugPrintQueryStatistics(CLogger& logger, const CQueryBase& query, const CQueryID& queryID)
 		{
 			CQueryBase::SStatistics stats;
 			query.GetStatistics(stats);
 
-			shared::CUqsString queryIdAsString;
+			Shared::CUqsString queryIdAsString;
 			queryID.ToString(queryIdAsString);
 			logger.Printf("--- UQS query #%s ('%s': '%s') ---", queryIdAsString.c_str(), stats.querierName.c_str(), stats.queryBlueprintName.c_str());
 
@@ -433,15 +457,16 @@ namespace uqs
 
 		int CQueryManager::DebugDrawQueryStatistics(const CQueryBase::SStatistics& statisticsToDraw, const CQueryID& queryID, int row, const ColorF& color)
 		{
-			shared::CUqsString queryIDAsString;
+			Shared::CUqsString queryIDAsString;
 			queryID.ToString(queryIDAsString);
 
-			CDrawUtil2d::DrawLabel(row, color, "#%s: '%s' / '%s' (%i/%i)",
+			CDrawUtil2d::DrawLabel(row, color, "#%s: '%s' / '%s' (%i/%i) still to inspect: %i",
 				queryIDAsString.c_str(),
 				statisticsToDraw.querierName.c_str(),
 				statisticsToDraw.queryBlueprintName.c_str(),
-				(int)statisticsToDraw.numRemainingItemsToInspect,
-				(int)statisticsToDraw.numGeneratedItems);
+				(int)statisticsToDraw.numItemsInFinalResultSet,
+				(int)statisticsToDraw.numGeneratedItems,
+				(int)statisticsToDraw.numRemainingItemsToInspect);
 			++row;
 
 			return row;

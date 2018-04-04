@@ -1,29 +1,45 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #pragma once
 
 #include <CryAudio/IAudioInterfacesCommonData.h>
-#include <CryCore/CryCrc32.h>
 
-#define AUDIO_INVALID_CRC32 (0xFFFFffff)
-
+/**
+ * @namespace CryAudio
+ * @brief Most parent audio namespace used throughout the entire engine.
+ */
 namespace CryAudio
 {
-namespace Impl
+enum class EEventState : EnumFlagsType
 {
-struct SAudioObject3DAttributes
-{
-	SAudioObject3DAttributes() : velocity(ZERO){}
-	CAudioObjectTransformation transformation;
-	Vec3                       velocity;
+	None,
+	Playing,
+	PlayingDelayed,
+	Loading,
+	Unloading,
+	Virtual,
 };
 
-//////////////////////////////////////////////////////////////////////////
-inline uint32 AudioStringToId(char const* const _szSource)
+/**
+ * @namespace CryAudio::Impl
+ * @brief Sub-namespace of the CryAudio namespace used by audio middleware implementations.
+ */
+namespace Impl
 {
-	return CCrc32::ComputeLowercase(_szSource);
-}
-}
-}
+/**
+ * @struct SObject3DAttributes
+ * @brief A struct holding velocity and transformation of audio objects.
+ */
+struct SObject3DAttributes
+{
+	SObject3DAttributes()
+		: velocity(ZERO)
+	{}
 
-static const CryAudio::Impl::SAudioObject3DAttributes g_sNullAudioObjectAttributes;
+	static SObject3DAttributes const& GetEmptyObject() { static SObject3DAttributes const emptyInstance; return emptyInstance; }
+
+	CObjectTransformation transformation;
+	Vec3                  velocity;
+};
+} // namespace Impl
+} // namespace CryAudio

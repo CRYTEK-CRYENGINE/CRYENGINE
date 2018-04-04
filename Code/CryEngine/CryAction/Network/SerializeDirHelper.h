@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #ifndef __DIR_SERIALIZE_HELPER_H__
 #define __DIR_SERIALIZE_HELPER_H__

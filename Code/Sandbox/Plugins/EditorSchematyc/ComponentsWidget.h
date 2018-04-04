@@ -19,12 +19,14 @@ namespace CrySchematycEditor {
 class CComponentItem;
 class CAbstractComponentsModel;
 
+class CMainWindow;
+
 class CComponentsWidget : public QWidget
 {
 	Q_OBJECT;
 
 public:
-	CComponentsWidget(QWidget* pParent = nullptr);
+	CComponentsWidget(CMainWindow& editor, QWidget* pParent = nullptr);
 	~CComponentsWidget();
 
 	CAbstractComponentsModel* GetModel() const { return m_pModel; }
@@ -51,6 +53,7 @@ private:
 	virtual void customEvent(QEvent* pEvent) override;
 
 private:
+	CMainWindow*                m_pEditor;
 	CAbstractComponentsModel*   m_pModel;
 
 	QFilteringPanel*            m_pFilter;

@@ -42,7 +42,5 @@
 
 #include <CrySchematyc/CoreAPI.h>
 
-IEditor*  GetIEditor();
-HINSTANCE GetHInstance();
 
-Q_DECLARE_METATYPE(Schematyc::SGUID);
+Q_DECLARE_METATYPE(CryGUID);

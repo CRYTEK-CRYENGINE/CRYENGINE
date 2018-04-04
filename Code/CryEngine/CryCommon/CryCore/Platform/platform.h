@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #pragma once
 
@@ -100,12 +100,7 @@
 #endif
 
 #if CRY_PLATFORM_WINAPI
-	#define PRIX64 "I64X"
-	#define PRIx64 "I64x"
-	#define PRId64 "I64d"
-	#define PRIu64 "I64u"
-	#define PRIi64 "I64i"
-
+	#include <inttypes.h>
 	#define PLATFORM_I64(x) x ## i64
 #else
 	#define __STDC_FORMAT_MACROS
@@ -229,11 +224,15 @@ static inline void __dmb()
 
 // Define BIT macro for use in enums and bit masks.
 #if !defined(SWIG)
-#define BIT(x)   (1u << (x))
-#define BIT64(x) (1ull << (x))
+	#define BIT(x)    (1u << (x))
+	#define BIT64(x)  (1ull << (x))
+	#define MASK(x)   (BIT(x) - 1U)
+	#define MASK64(x) (BIT64(x) - 1ULL)
 #else
-#define BIT(x)   (1 << (x))
-#define BIT64(x)   (1 << (x))
+	#define BIT(x)    (1 << (x))
+	#define BIT64(x)  (1 << (x))
+	#define MASK(x)   (BIT(x) - 1)
+	#define MASK64(x) (BIT64(x) - 1)
 #endif
 
 //! ILINE always maps to CRY_FORCE_INLINE, which is the strongest possible inline preference.
@@ -268,8 +267,12 @@ static inline void __dmb()
 	#include <CryCore/Platform/Linux32Specific.h>
 #endif
 
-#if CRY_PLATFORM_ANDROID
-	#include <CryCore/Platform/AndroidSpecific.h>
+#if CRY_PLATFORM_ANDROID && CRY_PLATFORM_64BIT
+	#include <CryCore/Platform/Android64Specific.h>
+#endif
+
+#if CRY_PLATFORM_ANDROID && CRY_PLATFORM_32BIT
+	#include <CryCore/Platform/Android32Specific.h>
 #endif
 
 #if CRY_PLATFORM_DURANGO
@@ -293,20 +296,6 @@ static inline void __dmb()
 #endif
 
 #include "CryPlatform.h"
-
-#if CRY_PLATFORM_ARM
-// Define when platform has LL/SC rather than CAS atomics
-	#define CRY_HAS_LLSC
-	#define FORCED_MALLOC_NEW_ALIGNMENT 16
-	#define CRY_UNALIGNED_LOAD
-#else
-	#define FORCED_MALLOC_NEW_ALIGNMENT 0
-#endif
-
-// When >1 all allocations use memalign
-#if FORCED_MALLOC_NEW_ALIGNMENT > 1
-	#define CRY_FORCE_MALLOC_NEW_ALIGN
-#endif
 
 // Indicates potentially dangerous cast on 64bit machines
 typedef UINT_PTR TRUNCATE_PTR;
@@ -354,6 +343,13 @@ inline int IsHeapValid()
 
 #undef STATIC_CHECK
 #define STATIC_CHECK(expr, msg) static_assert((expr) != 0, # msg)
+
+// Conditionally execute code in debug only
+#ifdef _DEBUG
+	#define IF_DEBUG(expr) (expr)
+#else
+	#define IF_DEBUG(expr)
+#endif
 
 // Assert dialog box macros
 #include <CryCore/Assert/CryAssert.h>
@@ -534,6 +530,20 @@ ILINE T* non_const(const T* t)
 	return const_cast<T*>(t);
 }
 
+// Member operator generators
+
+//! Define simple operator, automatically generate compound.
+//! Example: COMPOUND_MEMBER_OP(TThis, +, TOther) { return add(a, b); }
+#define COMPOUND_MEMBER_OP(T, op, B)                                     \
+  ILINE T& operator op ## = (const B& b) { return *this = *this op b; }  \
+  ILINE T operator op(const B& b) const                                  \
+
+//! Define compound operator, automatically generate simple.
+//! Example: COMPOUND_STRUCT_MEMBER_OP(TThis, +, TOther) { return a = add(a, b); }
+#define COMPOUND_MEMBER_OP_EQ(T, op, B)                                      \
+  ILINE T operator op(const B& b) const { T t = *this; return t op ## = b; } \
+  ILINE T& operator op ## = (const B& b)                                     \
+
 #define using_type(super, type) \
   typedef typename super::type type;
 
@@ -542,23 +552,23 @@ typedef unsigned int           uint;
 typedef const char*            cstr;
 
 //! Align function works on integer or pointer values. Only supports power-of-two alignment.
-template<typename T> inline
-T Align(T nData, size_t nAlign)
+template<typename T>
+ILINE T Align(T nData, size_t nAlign)
 {
 	assert((nAlign & (nAlign - 1)) == 0);
 	size_t size = ((size_t)nData + (nAlign - 1)) & ~(nAlign - 1);
 	return T(size);
 }
 
-template<typename T> inline
-bool IsAligned(T nData, size_t nAlign)
+template<typename T>
+ILINE bool IsAligned(T nData, size_t nAlign)
 {
 	assert((nAlign & (nAlign - 1)) == 0);
 	return (size_t(nData) & (nAlign - 1)) == 0;
 }
 
-template<typename T, typename U> inline
-void SetFlags(T& dest, U flags, bool b)
+template<typename T, typename U>
+ILINE void SetFlags(T& dest, U flags, bool b)
 {
 	if (b)
 		dest |= flags;
@@ -673,6 +683,12 @@ extern "C" {
 	#define MESSAGE(msg)
 #endif
 
+#ifdef _MSC_VER
+	#define CRY_PP_ERROR(msg) __pragma(message( __FILE__ "(" STRINGIFY(__LINE__) ")" ": error: " msg))
+#else
+	#define CRY_PP_ERROR(msg)
+#endif
+
 #define DECLARE_SHARED_POINTERS(name)                   \
   typedef std::shared_ptr<name> name ##       Ptr;      \
   typedef std::shared_ptr<const name> name ## ConstPtr; \
@@ -681,6 +697,9 @@ extern "C" {
 
 // Include array.
 #include <CryCore/Containers/CryArray.h>
+
+// Include static auto registration function
+#include <CryCore/StaticInstanceList.h>
 
 #ifdef _WINDOWS_
 	#error windows.h should not be included through any headers within platform.h

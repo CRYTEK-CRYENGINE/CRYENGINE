@@ -1,18 +1,9 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
-
-// -------------------------------------------------------------------------
-//  File name:   ParticleSubEmitter.cpp
-//  Created:     20/04/2010 by Corey
-//  Description: Split out from ParticleEmitter.cpp
-// -------------------------------------------------------------------------
-//  History:
-//
-////////////////////////////////////////////////////////////////////////////
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #include "StdAfx.h"
 #include "ParticleSubEmitter.h"
 #include "ParticleEmitter.h"
-#include <CryAudio/IAudioSystem.h>
+#include <CryAudio/IObject.h>
 
 static const float fMIN_PULSE_PERIOD = 0.1f;
 
@@ -26,11 +17,11 @@ CParticleSubEmitter::CParticleSubEmitter(CParticleSource* pSource, CParticleCont
 	, m_nSequenceIndex(0)
 	, m_pContainer(pCont)
 	, m_pSource(pSource)
-	, m_startAudioTriggerId(INVALID_AUDIO_CONTROL_ID)
-	, m_stopAudioTriggerId(INVALID_AUDIO_CONTROL_ID)
-	, m_audioRtpcId(INVALID_AUDIO_CONTROL_ID)
-	, m_pIAudioProxy(NULL)
-	, m_currentAudioOcclusionType(eAudioOcclusionType_Ignore)
+	, m_startAudioTriggerId(CryAudio::InvalidControlId)
+	, m_stopAudioTriggerId(CryAudio::InvalidControlId)
+	, m_audioParameterId(CryAudio::InvalidControlId)
+	, m_pIAudioObject(nullptr)
+	, m_currentAudioOcclusionType(CryAudio::EOcclusionType::Ignore)
 	, m_bExecuteAudioTrigger(false)
 {
 	assert(pCont);
@@ -219,7 +210,7 @@ void CParticleSubEmitter::EmitParticles(SParticleUpdateContext& context)
 						} Interp;
 
 						Interp.bInterp = context.fUpdateTime > 0.f && !params.bMoveRelativeEmitter
-							                && m_LastLoc.s >= 0.f && !IsEquivalent(locA, locB, 0.0045f, 1e-5f);
+						                 && m_LastLoc.s >= 0.f && !IsEquivalent(locA, locB, 0.0045f, 1e-5f);
 
 						if (params.fMaintainDensity && (Interp.bInterp || params.nEnvFlags & ENV_PHYS_AREA))
 						{
@@ -242,17 +233,17 @@ void CParticleSubEmitter::EmitParticles(SParticleUpdateContext& context)
 							if (!(GetCVars()->e_ParticlesDebug & AlphaBit('q')))
 							{
 								/*
-									  Spherically interpolate based on rotation changes and velocity.
-									  Instead of interpolating linearly along path (P0,P1,t);
-									  Interpolate along an arc:
+								    Spherically interpolate based on rotation changes and velocity.
+								    Instead of interpolating linearly along path (P0,P1,t);
+								    Interpolate along an arc:
 
-									  (P0,P1,y) + C x, where
-									  a = half angle of arc segment = angle(R0,R1) / 2 = acos (R1 ~R0).w
-									  C = max arc extension, perpendicular to (P0,P1)
-									  = (P0,P1)/2 ^ (R1 ~R0).xyz.norm (1 - cos a)
-									  y = (sin (a (2t-1)) / sin(a) + 1)/2
-									  x = cos (a (2t-1)) - cos a
-									*/
+								    (P0,P1,y) + C x, where
+								    a = half angle of arc segment = angle(R0,R1) / 2 = acos (R1 ~R0).w
+								    C = max arc extension, perpendicular to (P0,P1)
+								    = (P0,P1)/2 ^ (R1 ~R0).xyz.norm (1 - cos a)
+								    y = (sin (a (2t-1)) / sin(a) + 1)/2
+								    x = cos (a (2t-1)) - cos a
+								 */
 
 								Vec3 vVelB = GetSource().GetVelocity().vLin;
 								Vec3 vDeltaAdjusted = locB.t - locA.t - vVelB * context.fUpdateTime;
@@ -597,74 +588,68 @@ void CParticleSubEmitter::UpdateAudio()
 	{
 		ResourceParticleParams const& params = GetParams();
 
-		if (m_pIAudioProxy != nullptr)
+		if (m_pIAudioObject != nullptr)
 		{
-			if (m_audioRtpcId != INVALID_AUDIO_CONTROL_ID && params.fSoundFXParam(VMAX, VMIN) < 1.0f)
+			if (m_audioParameterId != CryAudio::InvalidControlId && params.fSoundFXParam(VMAX, VMIN) < 1.0f)
 			{
 				float const value = params.fSoundFXParam(m_ChaosKey, GetStrength(0.0f, params.eSoundControlTime));
-				m_pIAudioProxy->SetRtpcValue(m_audioRtpcId, value);
+				m_pIAudioObject->SetParameter(m_audioParameterId, value);
 			}
 
-			m_pIAudioProxy->SetTransformation(GetEmitTM());
+			m_pIAudioObject->SetTransformation(GetEmitTM());
 
 			if (m_currentAudioOcclusionType != spawnParams.occlusionType)
 			{
-				m_pIAudioProxy->SetOcclusionType(spawnParams.occlusionType);
+				m_pIAudioObject->SetOcclusionType(spawnParams.occlusionType);
 				m_currentAudioOcclusionType = spawnParams.occlusionType;
 			}
 
 			if (m_bExecuteAudioTrigger)
 			{
-				m_pIAudioProxy->SetCurrentEnvironments();
-				m_pIAudioProxy->ExecuteTrigger(m_startAudioTriggerId);
+				m_pIAudioObject->SetCurrentEnvironments();
+				m_pIAudioObject->ExecuteTrigger(m_startAudioTriggerId);
 			}
 		}
-		else
+		else if (m_bExecuteAudioTrigger)
 		{
-			if (!params.sStartTrigger.empty())
+			float fAge = GetAge();
+			float fAge0 = m_fStartAge;
+			float fAge1 = m_fStopAge + GetParticleTimer()->GetFrameTime();
+			if (fAge >= fAge0 && fAge <= fAge1)
 			{
-				gEnv->pAudioSystem->GetAudioTriggerId(params.sStartTrigger.c_str(), m_startAudioTriggerId);
-			}
-
-			if (!params.sStopTrigger.empty())
-			{
-				gEnv->pAudioSystem->GetAudioTriggerId(params.sStopTrigger.c_str(), m_stopAudioTriggerId);
-			}
-
-			if (m_startAudioTriggerId != INVALID_AUDIO_CONTROL_ID || m_stopAudioTriggerId != INVALID_AUDIO_CONTROL_ID)
-			{
-				assert(m_pIAudioProxy == nullptr);
-				m_pIAudioProxy = gEnv->pAudioSystem->GetFreeAudioProxy();
-
-				if (m_pIAudioProxy != nullptr)
+				if (!params.sStartTrigger.empty())
 				{
-					m_pIAudioProxy->Initialize("ParticleSubEmitter");
-					m_pIAudioProxy->SetOcclusionType(spawnParams.occlusionType);
+					m_startAudioTriggerId = CryAudio::StringToId(params.sStartTrigger.c_str());
+				}
+
+				if (!params.sStopTrigger.empty())
+				{
+					m_stopAudioTriggerId = CryAudio::StringToId(params.sStopTrigger.c_str());
+				}
+
+				if (m_startAudioTriggerId != CryAudio::InvalidControlId || m_stopAudioTriggerId != CryAudio::InvalidControlId)
+				{
+					CryAudio::SCreateObjectData const objectData("ParticleSubEmitter", spawnParams.occlusionType, GetEmitTM(), INVALID_ENTITYID, true);
+					m_pIAudioObject = gEnv->pAudioSystem->CreateObject(objectData);
 					m_currentAudioOcclusionType = spawnParams.occlusionType;
 
 					if (!spawnParams.audioRtpc.empty())
 					{
-						gEnv->pAudioSystem->GetAudioRtpcId(spawnParams.audioRtpc.c_str(), m_audioRtpcId);
-
-						if (m_audioRtpcId != INVALID_AUDIO_CONTROL_ID)
-						{
-							float const value = params.fSoundFXParam(m_ChaosKey, GetStrength(0.0f, params.eSoundControlTime));
-							m_pIAudioProxy->SetRtpcValue(m_audioRtpcId, value);
-						}
+						m_audioParameterId = CryAudio::StringToId(spawnParams.audioRtpc.c_str());
+						float const value = params.fSoundFXParam(m_ChaosKey, GetStrength(0.0f, params.eSoundControlTime));
+						m_pIAudioObject->SetParameter(m_audioParameterId, value);
 					}
 
 					// Execute start trigger immediately.
-					if (m_startAudioTriggerId != INVALID_AUDIO_CONTROL_ID)
+					if (m_startAudioTriggerId != CryAudio::InvalidControlId)
 					{
-						m_pIAudioProxy->SetTransformation(GetEmitTM());
-						m_pIAudioProxy->SetCurrentEnvironments();
-						m_pIAudioProxy->ExecuteTrigger(m_startAudioTriggerId);
+						m_pIAudioObject->ExecuteTrigger(m_startAudioTriggerId);
 					}
 				}
 			}
 		}
 	}
-	else if (m_pIAudioProxy != nullptr)
+	else if (m_pIAudioObject != nullptr)
 	{
 		DeactivateAudio();
 	}
@@ -787,32 +772,31 @@ Vec3 CParticleSubEmitter::GetEmitFocusDir(const QuatTS& loc, float fStrength, Qu
 
 void CParticleSubEmitter::DeactivateAudio()
 {
-	if (m_pIAudioProxy != nullptr)
+	if (m_pIAudioObject != nullptr)
 	{
-		m_pIAudioProxy->SetTransformation(GetEmitTM());
-
-		if (m_audioRtpcId != INVALID_AUDIO_CONTROL_ID)
+		if (m_audioParameterId != CryAudio::InvalidControlId)
 		{
 			ResourceParticleParams const& params = GetParams();
 			float const value = params.fSoundFXParam(m_ChaosKey, GetStrength(0.0f, params.eSoundControlTime));
-			m_pIAudioProxy->SetRtpcValue(m_audioRtpcId, value);
+			m_pIAudioObject->SetParameter(m_audioParameterId, value);
 		}
 
-		if (m_stopAudioTriggerId != INVALID_AUDIO_CONTROL_ID)
+		if (m_stopAudioTriggerId != CryAudio::InvalidControlId)
 		{
-			m_pIAudioProxy->ExecuteTrigger(m_stopAudioTriggerId);
+			m_pIAudioObject->SetTransformation(GetEmitTM());
+			m_pIAudioObject->ExecuteTrigger(m_stopAudioTriggerId);
 		}
 		else
 		{
-			assert(m_startAudioTriggerId != INVALID_AUDIO_CONTROL_ID);
-			m_pIAudioProxy->StopTrigger(m_startAudioTriggerId);
+			CRY_ASSERT(m_startAudioTriggerId != CryAudio::InvalidControlId);
+			m_pIAudioObject->StopTrigger(m_startAudioTriggerId);
 		}
 
-		m_pIAudioProxy->Release();
-		m_startAudioTriggerId = INVALID_AUDIO_CONTROL_ID;
-		m_stopAudioTriggerId = INVALID_AUDIO_CONTROL_ID;
-		m_audioRtpcId = INVALID_AUDIO_CONTROL_ID;
-		m_pIAudioProxy = nullptr;
+		gEnv->pAudioSystem->ReleaseObject(m_pIAudioObject);
+		m_pIAudioObject = nullptr;
+		m_startAudioTriggerId = CryAudio::InvalidControlId;
+		m_stopAudioTriggerId = CryAudio::InvalidControlId;
+		m_audioParameterId = CryAudio::InvalidControlId;
 	}
 }
 

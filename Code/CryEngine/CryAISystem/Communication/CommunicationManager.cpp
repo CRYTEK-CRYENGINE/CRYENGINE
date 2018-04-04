@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #include "StdAfx.h"
 #include "CommunicationManager.h"
@@ -578,7 +578,6 @@ void CCommunicationManager::Reset()
 {
 	m_variablesDeclaration = Variables::Declarations();
 	{
-		// Use global heap, as SelectionVariables use a deque, which allocates during (re)construction
 		stl::reconstruct(m_variables);
 	}
 

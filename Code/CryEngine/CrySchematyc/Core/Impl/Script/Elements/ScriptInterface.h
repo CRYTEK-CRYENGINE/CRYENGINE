@@ -1,9 +1,9 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #pragma once
 
-#include <Schematyc/Script/Elements/IScriptInterface.h>
-#include <Schematyc/SerializationUtils/MultiPassSerializer.h>
+#include <CrySchematyc/Script/Elements/IScriptInterface.h>
+#include <CrySchematyc/SerializationUtils/MultiPassSerializer.h>
 
 #include "Script/ScriptElementBase.h"
 #include "Script/ScriptUserDocumentation.h"
@@ -15,7 +15,7 @@ class CScriptInterface : public CScriptElementBase<IScriptInterface>, public CMu
 public:
 
 	CScriptInterface();
-	CScriptInterface(const SGUID& guid, const char* szName);
+	CScriptInterface(const CryGUID& guid, const char* szName);
 
 	// IScriptElement
 	virtual void EnumerateDependencies(const ScriptDependencyEnumerator& enumerator, EScriptDependencyType type) const override;

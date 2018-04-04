@@ -75,9 +75,9 @@ CSquadManager::CSquadManager() : REGISTER_GAME_MECHANISM(CSquadManager)
 		REGISTER_CVAR(sm_enable, sm_enable, 0, "Enables and disables squad");
 		REGISTER_CVAR(sm_debug, 0, 0, "Enable squad manager debug watches and logs");
 		REGISTER_CVAR(sm_inviteJoinTimeout, sm_inviteJoinTimeout, VF_CHEAT, "Time to wait for squadmates to leave before following an invite");
-		gEnv->pConsole->AddCommand("sm_create", CmdCreate, 0, "Create a squad session");
-		gEnv->pConsole->AddCommand("sm_leave", CmdLeave, 0, "Leave a squad session");
-		gEnv->pConsole->AddCommand("sm_kick", CmdKick, 0, "Kick a player from the squad");
+		REGISTER_COMMAND("sm_create", CmdCreate, 0, "Create a squad session");
+		REGISTER_COMMAND("sm_leave", CmdLeave, 0, "Leave a squad session");
+		REGISTER_COMMAND("sm_kick", CmdKick, 0, "Kick a player from the squad");
 	}
 #endif
 	if (gEnv->IsDedicated())

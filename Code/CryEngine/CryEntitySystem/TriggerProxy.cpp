@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 // -------------------------------------------------------------------------
 //  File name:   TriggerProxy.h
@@ -24,6 +24,7 @@ CEntityComponentTriggerBounds::CEntityComponentTriggerBounds()
 	, m_pProximityTrigger(NULL)
 	, m_aabb(AABB::RESET)
 {
+	m_componentFlags.Add(EEntityComponentFlags::NoSave);
 }
 
 //////////////////////////////////////////////////////////////////////////

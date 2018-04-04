@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #include "StdAfx.h"
 #include "PlanningTextureStreamer.h"
@@ -29,8 +29,8 @@ static int GetTexReqStreamSizePreClamped(const SPlanningTextureOrderKey& key, in
 		uint32 nFormatSlices = code.sizes[nCodeMip].alignSlices ? nPoTSlices : nSlices;
 		nTotalSize = n1SliceSize * nFormatSlices;
 
-#if defined(PLAN_TEXSTRM_DEBUG) && defined(TEXSTRM_STORE_DEVSIZES)
-		int nTotalSizeTest = key.pTexture->StreamComputeDevDataSize(reqMip);
+#if defined(PLAN_TEXSTRM_DEBUG)
+		int nTotalSizeTest = key.pTexture->StreamComputeSysDataSize(reqMip);
 
 		if (nTotalSizeTest != nTotalSize)
 			__debugbreak();
@@ -38,17 +38,7 @@ static int GetTexReqStreamSizePreClamped(const SPlanningTextureOrderKey& key, in
 	}
 	else
 	{
-#if defined(TEXSTRM_STORE_DEVSIZES)
-		nTotalSize = key.pTexture->StreamComputeDevDataSize(reqMip);
-#else
-		nTotalSize = CDeviceTexture::TextureDataSize(
-		  max(1, key.nWidth >> reqMip),
-		  max(1, key.nHeight >> reqMip),
-		  1,
-		  key.nMips - reqMip,
-		  key.nSlicesMinus1 + 1,
-		  (ETEX_Format)key.eTF);
-#endif
+		nTotalSize = key.pTexture->StreamComputeSysDataSize(reqMip);
 	}
 
 	return nTotalSize - key.nPersistentSize;
@@ -256,7 +246,7 @@ void CPlanningTextureStreamer::Job_UpdateMip(CTexture* pTexture, const float fMi
 
 		if (rRoundInfo.nRoundUpdateId != nUpdateId)
 		{
-			STATIC_CHECK(MAX_PREDICTION_ZONES == 2, THIS_CODE_IS_OPTIMISED_ASSUMING_THIS_EQUALS_2);
+			STATIC_CHECK(MAX_STREAM_PREDICTION_ZONES == 2, THIS_CODE_IS_OPTIMISED_ASSUMING_THIS_EQUALS_2);
 
 			// reset mip factor and save the accumulated value into history and compute final mip factor
 			float fFinalMipFactor = fMipFactor;

@@ -1,19 +1,8 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
-// -------------------------------------------------------------------------
-//  File name:
-//  Version:     v1.00
-//  Created:     11/02/2015 by Jan Pinter
-//  Description:
-// -------------------------------------------------------------------------
-//  History:
-//
-////////////////////////////////////////////////////////////////////////////
 #pragma once
-#ifndef __CCRYDX12QUERY__
-	#define __CCRYDX12QUERY__
 
-	#include "DX12/Resource/CCryDX12Asynchronous.hpp"
+#include "DX12/Resource/CCryDX12Asynchronous.hpp"
 
 class CCryDX12Query : public CCryDX12Asynchronous<ID3D11QueryToImplement>
 {
@@ -22,11 +11,9 @@ public:
 
 	static CCryDX12Query* Create(ID3D12Device* pDevice, const D3D11_QUERY_DESC* pDesc);
 
-	virtual ~CCryDX12Query();
-
 	#pragma region /* ID3D11Asynchronous implementation */
 
-	virtual UINT STDMETHODCALLTYPE GetDataSize()
+	VIRTUALGFX UINT STDMETHODCALLTYPE GetDataSize() FINALGFX
 	{
 		if (m_Desc.Query == D3D11_QUERY_EVENT)
 			return sizeof(BOOL);
@@ -48,8 +35,8 @@ public:
 
 	#pragma region /* ID3D11Query implementation */
 
-	virtual void STDMETHODCALLTYPE GetDesc(
-	  _Out_ D3D11_QUERY_DESC* pDesc);
+	VIRTUALGFX void STDMETHODCALLTYPE GetDesc(
+	  _Out_ D3D11_QUERY_DESC* pDesc) FINALGFX;
 
 	#pragma endregion
 
@@ -65,7 +52,6 @@ public:
 	DX12_OBJECT(CCryDX12EventQuery, CCryDX12Query);
 
 	CCryDX12EventQuery(const D3D11_QUERY_DESC* pDesc);
-	virtual ~CCryDX12EventQuery();
 
 	bool   Init(ID3D12Device* pDevice);
 
@@ -89,7 +75,6 @@ public:
 	DX12_OBJECT(CCryDX12ResourceQuery, CCryDX12EventQuery);
 
 	CCryDX12ResourceQuery(const D3D11_QUERY_DESC* pDesc);
-	virtual ~CCryDX12ResourceQuery();
 
 	bool Init(ID3D12Device* pDevice);
 
@@ -117,5 +102,3 @@ private:
 	UINT            m_QueryIndex;
 	ID3D12Resource* m_pResource;
 };
-
-#endif // __CCRYDX12QUERY__

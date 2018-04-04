@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #include "stdafx.h"
 #include "Variable.h"
@@ -12,15 +12,13 @@ bool IVariableUsingBase::s_bDoDisplayCurrentValueInDebugOutput = false;
 
 void CVariable::Serialize(Serialization::IArchive& ar)
 {
-	ar(m_name, "name", "^!>150>");
+	ar(m_name, "name", "^>150>");
 	m_value.Serialize(ar);
 }
 
 //////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////
-
-IVariableUsingBase::IVariableUsingBase() {}
 
 //--------------------------------------------------------------------------------------------------
 CVariableCollection* IVariableUsingBase::GetCurrentCollection(CResponseInstance* pResponseInstance)
@@ -29,7 +27,7 @@ CVariableCollection* IVariableUsingBase::GetCurrentCollection(CResponseInstance*
 	{
 		CResponseActor* const pCurrentActor = pResponseInstance->GetCurrentActor();
 #if defined(DRS_COLLECT_DEBUG_DATA)
-		s_lastTestedObjectName = pCurrentActor->GetName().GetText();
+		s_lastTestedObjectName = pCurrentActor->GetName();
 #endif
 		return pCurrentActor->GetLocalVariables();
 	}
@@ -124,6 +122,27 @@ void IVariableUsingBase::_Serialize(Serialization::IArchive& ar, const char* szV
 		}
 	}
 #endif
+}
+
+CryDRS::CVariable* CryDRS::IVariableUsingBase::GetOrCreateCurrentVariable(CResponseInstance* pResponseInstance)
+{
+	CVariableCollection* pCollection = GetCurrentCollection(pResponseInstance);
+	if (!pCollection && !m_collectionName.IsValid())
+	{
+		pCollection = CResponseSystem::GetInstance()->GetVariableCollectionManager()->CreateVariableCollection(m_collectionName);
+	}
+	if (pCollection)
+	{
+		CVariable* pVariable = pCollection->CreateOrGetVariable(m_variableName);
+#if defined(DRS_COLLECT_DEBUG_DATA)
+		if (pVariable)
+		{
+			s_lastTestedValueAsString = pVariable->m_value.GetValueAsString();
+		}
+#endif
+		return pVariable;
+	}
+	return nullptr;
 }
 
 //--------------------------------------------------------------------------------------------------

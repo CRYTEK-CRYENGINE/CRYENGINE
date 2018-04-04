@@ -3,7 +3,7 @@
 #include "StdAfx.h"
 #include "PhysicsProxies.h"
 
-#include <yasli/decorators/Range.h>
+#include <CrySerialization/yasli/decorators/Range.h>
 
 void SPhysProxies::Serialize(Serialization::IArchive& ar)
 {

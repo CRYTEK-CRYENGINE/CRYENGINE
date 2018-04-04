@@ -4,9 +4,9 @@
 
 // *INDENT-OFF* - <hard to read code and declarations due to inconsistent indentation>
 
-namespace uqs
+namespace UQS
 {
-	namespace core
+	namespace Core
 	{
 
 		struct IQueryResultSet;         // below
@@ -36,7 +36,7 @@ namespace uqs
 			};
 
 			virtual                               ~IQueryResultSet() {}
-			virtual client::IItemFactory&         GetItemFactory() const = 0;
+			virtual Client::IItemFactory&         GetItemFactory() const = 0;
 			virtual size_t                        GetResultCount() const = 0;
 			virtual SResultSetEntry               GetResult(size_t index) const = 0;
 

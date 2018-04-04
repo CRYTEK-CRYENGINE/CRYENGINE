@@ -9,24 +9,25 @@
 
 #include "ScriptBrowserUtils.h"
 
-#include <Schematyc/Reflection/Reflection.h>
+#include <CrySchematyc/Reflection/TypeDesc.h>
 
-#include <Schematyc/Script/IScriptView.h>
-#include <Schematyc/Script/IScriptRegistry.h>
-#include <Schematyc/Script/Elements/IScriptComponentInstance.h>
-#include <Schematyc/Script/Elements/IScriptFunction.h>
-#include <Schematyc/Script/Elements/IScriptConstructor.h>
-#include <Schematyc/Script/Elements/IScriptStateMachine.h>
-#include <Schematyc/Script/Elements/IScriptInterface.h>
-#include <Schematyc/Script/Elements/IScriptVariable.h>
+#include <CrySchematyc/Script/IScriptView.h>
+#include <CrySchematyc/Script/IScriptRegistry.h>
+#include <CrySchematyc/Script/Elements/IScriptComponentInstance.h>
+#include <CrySchematyc/Script/Elements/IScriptFunction.h>
+#include <CrySchematyc/Script/Elements/IScriptConstructor.h>
+#include <CrySchematyc/Script/Elements/IScriptStateMachine.h>
+#include <CrySchematyc/Script/Elements/IScriptInterface.h>
+#include <CrySchematyc/Script/Elements/IScriptVariable.h>
 
-#include <Schematyc/Env/IEnvRegistry.h>
-#include <Schematyc/Env/IEnvElement.h>
+#include <CrySchematyc/Env/IEnvRegistry.h>
+#include <CrySchematyc/Env/IEnvElement.h>
 
 namespace CrySchematycEditor {
 
-CObjectModel::CObjectModel(Schematyc::IScriptView& scriptView)
+CObjectModel::CObjectModel(Schematyc::IScriptView& scriptView, EResourceType resourceType)
 	: m_scriptView(scriptView)
+	, m_resourceType(resourceType)
 	, m_scriptRegistry(gEnv->pSchematyc->GetScriptRegistry())
 	, m_scriptElement(*gEnv->pSchematyc->GetScriptRegistry().GetElement(scriptView.GetScopeGUID()))
 {
@@ -52,7 +53,7 @@ CComponentItem* CObjectModel::GetComponentItemByIndex(uint32 index) const
 	return nullptr;
 }
 
-CComponentItem* CObjectModel::CreateComponent(Schematyc::SGUID typeId, const char* szName)
+CComponentItem* CObjectModel::CreateComponent(CryGUID typeId, const char* szName)
 {
 	Schematyc::IScriptComponentInstance* pComponentInstance = m_scriptRegistry.AddComponentInstance(szName, typeId, &m_scriptElement);
 	if (pComponentInstance)
@@ -192,7 +193,7 @@ CAbstractVariablesModelItem* CObjectModel::CreateVariable()
 	Schematyc::CStackString uniqueName = "Variable";
 	Schematyc::ScriptBrowserUtils::MakeScriptElementNameUnique(uniqueName, &m_scriptElement);
 
-	Schematyc::IScriptVariable* pVariableElement = m_scriptRegistry.AddVariable(uniqueName, Schematyc::SElementId(), Schematyc::SGUID(), &m_scriptElement);
+	Schematyc::IScriptVariable* pVariableElement = m_scriptRegistry.AddVariable(uniqueName, Schematyc::SElementId(), CryGUID(), &m_scriptElement);
 	if (pVariableElement)
 	{
 		CVariableItem* pVariableItem = new CVariableItem(*pVariableElement, *this);
@@ -226,7 +227,7 @@ void CObjectModel::LoadFromScriptElement()
 	Schematyc::IScriptElement* pElement = m_scriptElement.GetFirstChild();
 	while (pElement)
 	{
-		const Schematyc::EScriptElementType elementType = pElement->GetElementType();
+		const Schematyc::EScriptElementType elementType = pElement->GetType();
 		switch (elementType)
 		{
 		case Schematyc::EScriptElementType::ComponentInstance:

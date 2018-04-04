@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 /********************************************************************
    CryGame Source File.
@@ -746,14 +746,6 @@ bool CGraph::ReadNodes(CCryFile& file)
 					// building id isn't preserved
 					pNode->GetWaypointNavData()->nBuildingID = -1;
 					pNode->GetWaypointNavData()->pArea = 0;
-					SpecialArea::EType areaType = pNode->navType == IAISystem::NAV_WAYPOINT_HUMAN ? SpecialArea::TYPE_WAYPOINT_HUMAN : SpecialArea::TYPE_WAYPOINT_3DSURFACE;
-					const SpecialArea* sa = gAIEnv.pNavigation->GetSpecialArea(pNode->GetPos(), areaType);
-					if (sa)
-					{
-						pNode->GetWaypointNavData()->nBuildingID = sa->nBuildingID;
-						I3DEngine* p3dEngine = gEnv->p3DEngine;
-						pNode->GetWaypointNavData()->pArea = p3dEngine->GetVisAreaFromPos(pNode->GetPos());
-					}
 
 					if (desc.type == WNT_ENTRYEXIT)
 						m_mapEntrances.insert(EntranceMap::iterator::value_type(pNode->GetWaypointNavData()->nBuildingID, nodeIndex));
@@ -859,26 +851,9 @@ bool CGraph::ReadNodes(CCryFile& file)
 							GraphNode* pNextNode = GetNodeManager().GetNode(nextNodeIndex);
 							AIAssert(GetLinkManager().GetNextNode(linkOneTwo) == nextNodeIndex);
 
-							float radius = ldb.fMaxPassRadius;
-
-							// Marcio: Hax for Crysis 2 Critters
-							// ... but only if the link is passable - hence condition (radius > 0.f) [2/1/2011 evgeny]
-							if ((radius > 0.f) && (pNode->navType == IAISystem::NAV_WAYPOINT_HUMAN) && (pNextNode->navType == IAISystem::NAV_WAYPOINT_HUMAN))
-							{
-								const SpecialArea* sa1 = gAIEnv.pNavigation->GetSpecialArea(pNode->GetWaypointNavData()->nBuildingID);
-								if (sa1->bCritterOnly)
-									radius = 0.150001f;
-								else
-								{
-									const SpecialArea* sa2 = gAIEnv.pNavigation->GetSpecialArea(pNextNode->GetWaypointNavData()->nBuildingID);
-									if (sa2->bCritterOnly)
-										radius = 0.150001f;
-								}
-							}
-
 							if (GetLinkManager().GetNextNode(linkOneTwo) == link->second)
 							{
-								GetLinkManager().SetRadius(linkOneTwo, radius);
+								GetLinkManager().SetRadius(linkOneTwo, ldb.fMaxPassRadius);
 								GetLinkManager().SetStartIndex(linkOneTwo, ldb.nStartIndex);
 								GetLinkManager().SetEndIndex(linkOneTwo, ldb.nEndIndex);
 								GetLinkManager().GetEdgeCenter(linkOneTwo) = ldb.vEdgeCenter; // TODO: Don't read shared value twice
@@ -933,13 +908,6 @@ unsigned CGraph::CreateNewNode(IAISystem::tNavCapMask type, const Vec3& pos, uns
 	pNode->AddRef();
 	m_allNodes.AddNode(nodeIndex);
 
-	if (type != IAISystem::NAV_UNSET)
-	{
-		CNavRegion* pNavRegion = gAIEnv.pNavigation->GetNavRegion(pNode->navType, this);
-		if (pNavRegion)
-			pNavRegion->NodeCreated(nodeIndex);
-	}
-
 	return nodeIndex;
 }
 
@@ -967,10 +935,6 @@ void CGraph::MoveNode(unsigned nodeIndex, const Vec3& newPos)
 	m_allNodes.RemoveNode(nodeIndex);
 	pNode->SetPos(newPos);
 	m_allNodes.AddNode(nodeIndex);
-
-	CNavRegion* pNavRegion = gAIEnv.pNavigation->GetNavRegion(pNode->navType, this);
-	if (pNavRegion)
-		pNavRegion->NodeMoved(nodeIndex);
 }
 
 struct SNodeFinder
@@ -1001,12 +965,6 @@ void CGraph::DeleteNode(unsigned nodeIndex)
 
 	if (pNode->Release())
 	{
-		CNavRegion* pNavRegion = gAIEnv.pNavigation ? gAIEnv.pNavigation->GetNavRegion(pNode->navType, this) : NULL;
-		if (pNavRegion)
-		{
-			pNavRegion->NodeAboutToBeDeleted(pNode);
-		}
-
 		m_allNodes.RemoveNode(nodeIndex);
 
 		VectorConstNodeIndices::iterator it;

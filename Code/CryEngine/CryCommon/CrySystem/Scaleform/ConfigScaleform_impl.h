@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #if defined(INCLUDE_SCALEFORM_SDK)
 
@@ -25,11 +25,6 @@ LINK_SYSTEM_LIBRARY("libgfx_ime.lib")
 	#if CRY_PLATFORM_WINDOWS && defined(USE_GFX_IME)
 LINK_SYSTEM_LIBRARY("imm32.lib")
 LINK_SYSTEM_LIBRARY("oleaut32.lib")
-	#endif
-
-	#if defined(USE_GFX_VIDEO) && CRY_COMPILER_MSVC && CRY_COMPILER_VERSION >= 1900
-// We need this to link the CRI library inside GfxVideo when using compiler VC14 or newer.
-static auto* g_ignore = static_cast<int (*)(char*, size_t, const char*, va_list)>(&vsprintf_s);
 	#endif
 
 #endif // #ifdef INCLUDE_SCALEFORM_SDK

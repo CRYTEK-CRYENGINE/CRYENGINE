@@ -199,14 +199,14 @@ void CEquipPackLib::Serialize(XmlNodeRef& xmlNode, bool bLoading, bool bResetWhe
 				string packName;
 				if (!node->getAttr("name", packName))
 				{
-					CLogFile::FormatLine("Warning: Unnamed EquipPack found !");
+					CryLog("Warning: Unnamed EquipPack found !");
 					packName = "Unnamed";
 					node->setAttr("name", packName);
 				}
 				CEquipPack* pCurPack = CreateEquipPack(packName);
 				if (!pCurPack)
 				{
-					CLogFile::FormatLine("Warning: Unable to create EquipPack %s !", packName.GetString());
+					CryLog("Warning: Unable to create EquipPack %s !", packName.GetString());
 					continue;
 				}
 				pCurPack->Load(node);

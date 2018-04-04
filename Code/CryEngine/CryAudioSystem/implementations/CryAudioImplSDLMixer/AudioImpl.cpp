@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #include "stdafx.h"
 #include "AudioImpl.h"
@@ -13,54 +13,54 @@
 // SDL Mixer
 #include <SDL_mixer.h>
 
-using namespace CryAudio::Impl;
-using namespace CryAudio::Impl::SDL_mixer;
-
-char const* const CAudioImpl::s_szSDLFileTag = "SDLMixerSample";
-char const* const CAudioImpl::s_szSDLCommonAttribute = "sdl_name";
-char const* const CAudioImpl::s_szSDLPathAttribute = "sdl_path";
-char const* const CAudioImpl::s_szSDLEventIdTag = "event_id";
-char const* const CAudioImpl::s_szSDLEventTag = "SDLMixerEvent";
-char const* const CAudioImpl::s_szSDLSoundLibraryPath = CRY_NATIVE_PATH_SEPSTR AUDIO_SYSTEM_DATA_ROOT CRY_NATIVE_PATH_SEPSTR "sdlmixer" CRY_NATIVE_PATH_SEPSTR;
-char const* const CAudioImpl::s_szSDLEventTypeTag = "event_type";
-char const* const CAudioImpl::s_szSDLEventPanningEnabledTag = "enable_panning";
-char const* const CAudioImpl::s_szSDLEventAttenuationEnabledTag = "enable_distance_attenuation";
-char const* const CAudioImpl::s_szSDLEventAttenuationMinDistanceTag = "attenuation_dist_min";
-char const* const CAudioImpl::s_szSDLEventAttenuationMaxDistanceTag = "attenuation_dist_max";
-char const* const CAudioImpl::s_szSDLEventVolumeTag = "volume";
-char const* const CAudioImpl::s_szSDLEventLoopCountTag = "loop_count";
-
-void OnEventFinished(AudioEventId eventId)
+namespace CryAudio
 {
-	SAudioRequest request;
-	SAudioCallbackManagerRequestData<eAudioCallbackManagerRequestType_ReportFinishedEvent> requestData(eventId, true);
-	request.flags = eAudioRequestFlags_ThreadSafePush;
-	request.pData = &requestData;
-	gEnv->pAudioSystem->PushRequest(request);
+namespace Impl
+{
+namespace SDL_mixer
+{
+char const* const CImpl::s_szSDLFileTag = "SDLMixerSample";
+char const* const CImpl::s_szSDLCommonAttribute = "sdl_name";
+char const* const CImpl::s_szSDLPathAttribute = "sdl_path";
+char const* const CImpl::s_szSDLEventIdTag = "event_id";
+char const* const CImpl::s_szSDLEventTag = "SDLMixerEvent";
+char const* const CImpl::s_szSDLSoundLibraryPath = CRY_NATIVE_PATH_SEPSTR AUDIO_SYSTEM_DATA_ROOT CRY_NATIVE_PATH_SEPSTR "sdlmixer" CRY_NATIVE_PATH_SEPSTR;
+char const* const CImpl::s_szSDLEventTypeTag = "event_type";
+char const* const CImpl::s_szSDLEventPanningEnabledTag = "enable_panning";
+char const* const CImpl::s_szSDLEventAttenuationEnabledTag = "enable_distance_attenuation";
+char const* const CImpl::s_szSDLEventAttenuationMinDistanceTag = "attenuation_dist_min";
+char const* const CImpl::s_szSDLEventAttenuationMaxDistanceTag = "attenuation_dist_max";
+char const* const CImpl::s_szSDLEventVolumeTag = "volume";
+char const* const CImpl::s_szSDLEventLoopCountTag = "loop_count";
+
+///////////////////////////////////////////////////////////////////////////
+void OnEventFinished(CATLEvent& audioEvent)
+{
+	gEnv->pAudioSystem->ReportFinishedEvent(audioEvent, true);
 }
 
-void OnStandaloneFileFinished(AudioStandaloneFileId const filesInstanceId, const char* szFile)
+///////////////////////////////////////////////////////////////////////////
+void OnStandaloneFileFinished(CATLStandaloneFile& standaloneFile, const char* szFile)
 {
-	SAudioRequest request;
-	SAudioCallbackManagerRequestData<eAudioCallbackManagerRequestType_ReportStoppedFile> requestData(filesInstanceId, szFile);
-	request.flags = eAudioRequestFlags_ThreadSafePush;
-	request.pData = &requestData;
-	gEnv->pAudioSystem->PushRequest(request);
+	gEnv->pAudioSystem->ReportStoppedFile(standaloneFile);
 }
 
-CAudioImpl::CAudioImpl()
+///////////////////////////////////////////////////////////////////////////
+CImpl::CImpl()
 	: m_pCVarFileExtension(nullptr)
 {
 #if defined(INCLUDE_SDLMIXER_IMPL_PRODUCTION_CODE)
-	char const* const szAssetDirectory = gEnv->pSystem->GetIProjectManager()->GetCurrentAssetDirectoryRelative();
+	char const* szAssetDirectory = gEnv->pSystem->GetIProjectManager()->GetCurrentAssetDirectoryRelative();
+
 	if (strlen(szAssetDirectory) == 0)
 	{
-		CryFatalError("<Audio - SDLMixer>: Needs a valid asset folder to proceed!");
+		g_implLogger.Log(ELogType::Error, "<Audio - SDL_mixer>: No asset folder set!");
+		szAssetDirectory = "no-asset-folder-set";
 	}
 
-	m_fullImplString = "SDL Mixer 2.0.1 (";
-	m_fullImplString += szAssetDirectory + PathUtil::RemoveSlash(s_szSDLSoundLibraryPath) + ")";
-#endif      // INCLUDE_SDLMIXER_IMPL_PRODUCTION_CODE
+	m_name = "SDL Mixer 2.0.1 (";
+	m_name += szAssetDirectory + PathUtil::RemoveSlash(s_szSDLSoundLibraryPath) + ")";
+#endif  // INCLUDE_SDLMIXER_IMPL_PRODUCTION_CODE
 
 #if CRY_PLATFORM_WINDOWS
 	m_memoryAlignment = 16;
@@ -77,30 +77,46 @@ CAudioImpl::CAudioImpl()
 #endif
 }
 
-void CAudioImpl::Update(float const deltaTime)
+///////////////////////////////////////////////////////////////////////////
+void CImpl::Update(float const deltaTime)
 {
 	SoundEngine::Update();
 }
 
-EAudioRequestStatus CAudioImpl::Init()
+///////////////////////////////////////////////////////////////////////////
+ERequestStatus CImpl::Init(uint32 const objectPoolSize, uint32 const eventPoolSize)
 {
+	MEMSTAT_CONTEXT(EMemStatContextTypes::MSC_Other, 0, "SDL Mixer Object Pool");
+	CObject::CreateAllocator(objectPoolSize);
+
+	MEMSTAT_CONTEXT(EMemStatContextTypes::MSC_Other, 0, "SDL Mixer Event Pool");
+	CEvent::CreateAllocator(eventPoolSize);
+
 	m_pCVarFileExtension = REGISTER_STRING("s_SDLMixerStandaloneFileExtension", ".mp3", 0, "the expected file extension for standalone files, played via the sdl_mixer");
 
 	if (SoundEngine::Init())
 	{
 		SoundEngine::RegisterEventFinishedCallback(OnEventFinished);
 		SoundEngine::RegisterStandaloneFileFinishedCallback(OnStandaloneFileFinished);
-		return eAudioRequestStatus_Success;
+		return ERequestStatus::Success;
 	}
-	return eAudioRequestStatus_Failure;
+	return ERequestStatus::Failure;
 }
 
-EAudioRequestStatus CAudioImpl::ShutDown()
+///////////////////////////////////////////////////////////////////////////
+ERequestStatus CImpl::OnBeforeShutDown()
 {
-	return eAudioRequestStatus_Success;
+	return ERequestStatus::Success;
 }
 
-EAudioRequestStatus CAudioImpl::Release()
+///////////////////////////////////////////////////////////////////////////
+ERequestStatus CImpl::ShutDown()
+{
+	return ERequestStatus::Success;
+}
+
+///////////////////////////////////////////////////////////////////////////
+ERequestStatus CImpl::Release()
 {
 	if (m_pCVarFileExtension)
 	{
@@ -109,303 +125,112 @@ EAudioRequestStatus CAudioImpl::Release()
 	}
 
 	SoundEngine::Release();
-	POOL_FREE(this);
 
-	// Freeing Memory Pool Memory again
-	uint8 const* const pMemSystem = g_audioImplMemoryPool.Data();
-	g_audioImplMemoryPool.UnInitMem();
-	delete[] pMemSystem;
-	g_audioImplCVars.UnregisterVariables();
+	delete this;
+	g_cvars.UnregisterVariables();
 
-	return eAudioRequestStatus_Success;
+	CObject::FreeMemoryPool();
+	CEvent::FreeMemoryPool();
+
+	return ERequestStatus::Success;
 }
 
-void CAudioImpl::OnAudioSystemRefresh()
+///////////////////////////////////////////////////////////////////////////
+void CImpl::OnRefresh()
 {
 	SoundEngine::Refresh();
 }
 
-EAudioRequestStatus CAudioImpl::OnLoseFocus()
+///////////////////////////////////////////////////////////////////////////
+ERequestStatus CImpl::OnLoseFocus()
 {
 	SoundEngine::Pause();
-	return eAudioRequestStatus_Success;
+	return ERequestStatus::Success;
 }
 
-EAudioRequestStatus CAudioImpl::OnGetFocus()
+///////////////////////////////////////////////////////////////////////////
+ERequestStatus CImpl::OnGetFocus()
 {
 	SoundEngine::Resume();
-	return eAudioRequestStatus_Success;
+	return ERequestStatus::Success;
 }
 
-EAudioRequestStatus CAudioImpl::MuteAll()
+///////////////////////////////////////////////////////////////////////////
+ERequestStatus CImpl::MuteAll()
 {
 	SoundEngine::Mute();
-	return eAudioRequestStatus_Success;
+	return ERequestStatus::Success;
 }
 
-EAudioRequestStatus CAudioImpl::UnmuteAll()
+///////////////////////////////////////////////////////////////////////////
+ERequestStatus CImpl::UnmuteAll()
 {
 	SoundEngine::UnMute();
-	return eAudioRequestStatus_Success;
+	return ERequestStatus::Success;
 }
 
-EAudioRequestStatus CAudioImpl::StopAllSounds()
+///////////////////////////////////////////////////////////////////////////
+ERequestStatus CImpl::StopAllSounds()
 {
 	SoundEngine::Stop();
-	return eAudioRequestStatus_Success;
+	return ERequestStatus::Success;
 }
 
-EAudioRequestStatus CAudioImpl::RegisterAudioObject(IAudioObject* const pAudioObject, char const* const szAudioObjectName)
+///////////////////////////////////////////////////////////////////////////
+ERequestStatus CImpl::RegisterInMemoryFile(SFileInfo* const pFileInfo)
 {
-	SAudioObject* const pSdlMixerObject = static_cast<SAudioObject* const>(pAudioObject);
+	ERequestStatus result = ERequestStatus::Failure;
 
-	if (pSdlMixerObject)
+	if (pFileInfo != nullptr)
 	{
-		SoundEngine::RegisterAudioObject(pSdlMixerObject);
-#if defined(INCLUDE_SDLMIXER_IMPL_PRODUCTION_CODE)
-		m_idToName[pSdlMixerObject->audioObjectId] = szAudioObjectName;
-#endif
-		return eAudioRequestStatus_Success;
-	}
-	return eAudioRequestStatus_Failure;
-}
-
-EAudioRequestStatus CAudioImpl::RegisterAudioObject(IAudioObject* const pAudioObject)
-{
-	SAudioObject* const pSdlMixerObject = static_cast<SAudioObject* const>(pAudioObject);
-	if (pSdlMixerObject)
-	{
-		SoundEngine::RegisterAudioObject(pSdlMixerObject);
-		return eAudioRequestStatus_Success;
-	}
-	return eAudioRequestStatus_Failure;
-}
-
-EAudioRequestStatus CAudioImpl::UnregisterAudioObject(IAudioObject* const pAudioObject)
-{
-	SAudioObject* const pSdlMixerObject = static_cast<SAudioObject* const>(pAudioObject);
-	if (pSdlMixerObject)
-	{
-		SoundEngine::UnregisterAudioObject(pSdlMixerObject);
-		return eAudioRequestStatus_Success;
-	}
-	return eAudioRequestStatus_Failure;
-}
-
-EAudioRequestStatus CAudioImpl::ResetAudioObject(IAudioObject* const pAudioObject)
-{
-	return eAudioRequestStatus_Success;
-}
-
-EAudioRequestStatus CAudioImpl::UpdateAudioObject(IAudioObject* const pAudioObject)
-{
-	return eAudioRequestStatus_Success;
-}
-
-EAudioRequestStatus CAudioImpl::PlayFile(SAudioStandaloneFileInfo* const pAudioStandaloneFileInfo)
-{
-	bool bSuccess = false;
-
-	SAudioObject* const pSDLAudioObjectData = static_cast<SAudioObject* const>(pAudioStandaloneFileInfo->pAudioObject);
-
-	if (pSDLAudioObjectData)
-	{
-		CAudioStandaloneFile* const pPlayStandaloneEvent = static_cast<CAudioStandaloneFile*>(pAudioStandaloneFileInfo->pImplData);
-		pPlayStandaloneEvent->fileName = pAudioStandaloneFileInfo->szFileName;
-		pPlayStandaloneEvent->fileId = pAudioStandaloneFileInfo->fileId;
-		pPlayStandaloneEvent->fileInstanceId = pAudioStandaloneFileInfo->fileInstanceId;
-		const SAudioTrigger* pUsedTrigger = static_cast<const SAudioTrigger*>(pAudioStandaloneFileInfo->pUsedAudioTrigger);
-		static string s_localizedfilesFolder = PathUtil::GetGameFolder() + CRY_NATIVE_PATH_SEPSTR + PathUtil::GetLocalizationFolder() + CRY_NATIVE_PATH_SEPSTR + m_language + CRY_NATIVE_PATH_SEPSTR;
-		static string s_nonLocalizedfilesFolder = PathUtil::GetGameFolder() + CRY_NATIVE_PATH_SEPSTR;
-		static string filePath;
-
-		if (pAudioStandaloneFileInfo->bLocalized)
-		{
-			filePath = s_localizedfilesFolder + pAudioStandaloneFileInfo->szFileName + m_pCVarFileExtension->GetString();
-		}
-		else
-		{
-			filePath = s_nonLocalizedfilesFolder + pAudioStandaloneFileInfo->szFileName + m_pCVarFileExtension->GetString();
-		}
-
-		bSuccess = SoundEngine::PlayFile(pSDLAudioObjectData, pPlayStandaloneEvent, pUsedTrigger, filePath.c_str());
-	}
-
-	SAudioRequest request;
-	SAudioCallbackManagerRequestData<eAudioCallbackManagerRequestType_ReportStartedFile> requestData(pAudioStandaloneFileInfo->fileInstanceId, pAudioStandaloneFileInfo->szFileName, bSuccess);
-	request.pData = &requestData;
-	request.flags = eAudioRequestFlags_ThreadSafePush;
-	gEnv->pAudioSystem->PushRequest(request);
-
-	return (bSuccess) ? eAudioRequestStatus_Success : eAudioRequestStatus_Failure;
-}
-
-EAudioRequestStatus CAudioImpl::StopFile(SAudioStandaloneFileInfo* const pAudioStandaloneFileInfo)
-{
-	SAudioObject* const pSDLAudioObjectData = static_cast<SAudioObject* const>(pAudioStandaloneFileInfo->pAudioObject);
-
-	if (pSDLAudioObjectData)
-	{
-		if (SoundEngine::StopFile(pSDLAudioObjectData, pAudioStandaloneFileInfo->fileInstanceId))
-		{
-			return eAudioRequestStatus_Pending;
-		}
-	}
-	return eAudioRequestStatus_Failure;
-}
-
-EAudioRequestStatus CAudioImpl::PrepareTriggerSync(IAudioObject* const pAudioObject, IAudioTrigger const* const pAudioTrigger)
-{
-	return eAudioRequestStatus_Success;
-}
-
-EAudioRequestStatus CAudioImpl::UnprepareTriggerSync(IAudioObject* const pAudioObject, IAudioTrigger const* const pAudioTrigger)
-{
-	return eAudioRequestStatus_Success;
-}
-
-EAudioRequestStatus CAudioImpl::PrepareTriggerAsync(IAudioObject* const pAudioObject, IAudioTrigger const* const pAudioTrigger, IAudioEvent* const pAudioEvent)
-{
-	return eAudioRequestStatus_Success;
-}
-
-EAudioRequestStatus CAudioImpl::UnprepareTriggerAsync(IAudioObject* const pAudioObject, IAudioTrigger const* const pAudioTrigger, IAudioEvent* const pAudioEvent)
-{
-	return eAudioRequestStatus_Success;
-}
-
-EAudioRequestStatus CAudioImpl::ActivateTrigger(IAudioObject* const pAudioObject, IAudioTrigger const* const pAudioTrigger, IAudioEvent* const pAudioEvent)
-{
-	if ((pAudioObject != nullptr) && (pAudioTrigger != nullptr) && (pAudioEvent != nullptr))
-	{
-		SAudioObject* const pSDLAudioObjectData = static_cast<SAudioObject* const>(pAudioObject);
-		SAudioTrigger const* const pSDLEventStaticData = static_cast<SAudioTrigger const* const>(pAudioTrigger);
-		SAudioEvent* const pSDLEventInstanceData = static_cast<SAudioEvent* const>(pAudioEvent);
-
-		if (SoundEngine::ExecuteEvent(pSDLAudioObjectData, pSDLEventStaticData, pSDLEventInstanceData))
-		{
-			return eAudioRequestStatus_Success;
-		}
-	}
-	return eAudioRequestStatus_Failure;
-}
-
-EAudioRequestStatus CAudioImpl::StopEvent(IAudioObject* const pAudioObject, IAudioEvent const* const pAudioEvent)
-{
-	SAudioEvent const* const pSDLEventInstanceData = static_cast<SAudioEvent const* const>(pAudioEvent);
-
-	if (pSDLEventInstanceData != nullptr)
-	{
-		if (SoundEngine::StopEvent(pSDLEventInstanceData))
-		{
-			return eAudioRequestStatus_Pending;
-		}
-	}
-	return eAudioRequestStatus_Failure;
-}
-
-EAudioRequestStatus CAudioImpl::StopAllEvents(IAudioObject* const pAudioObject)
-{
-	return eAudioRequestStatus_Success;
-}
-
-EAudioRequestStatus CAudioImpl::Set3DAttributes(
-  IAudioObject* const pAudioObject,
-  CryAudio::Impl::SAudioObject3DAttributes const& attributes)
-{
-	SAudioObject* const pSdlMixerObject = static_cast<SAudioObject* const>(pAudioObject);
-	if (pSdlMixerObject)
-	{
-		SoundEngine::SetAudioObjectPosition(pSdlMixerObject, attributes.transformation);
-		return eAudioRequestStatus_Success;
-	}
-	return eAudioRequestStatus_Failure;
-}
-
-EAudioRequestStatus CAudioImpl::SetRtpc(IAudioObject* const pAudioObject, IAudioRtpc const* const pAudioRtpc, float const value)
-{
-	return eAudioRequestStatus_Success;
-}
-
-EAudioRequestStatus CAudioImpl::SetSwitchState(IAudioObject* const pAudioObject, IAudioSwitchState const* const pAudioSwitchState)
-{
-	return eAudioRequestStatus_Success;
-}
-
-EAudioRequestStatus CAudioImpl::SetObstructionOcclusion(IAudioObject* const pAudioObject, float const obstruction, float const occlusion)
-{
-	return eAudioRequestStatus_Success;
-}
-
-EAudioRequestStatus CAudioImpl::SetEnvironment(IAudioObject* const pAudioObject, IAudioEnvironment const* const pAudioEnvironment, float const amount)
-{
-	return eAudioRequestStatus_Success;
-}
-
-EAudioRequestStatus CAudioImpl::SetListener3DAttributes(
-  IAudioListener* const pAudioListener,
-  CryAudio::Impl::SAudioObject3DAttributes const& attributes)
-{
-	SAudioListener* const pListener = static_cast<SAudioListener* const>(pAudioListener);
-	if (pListener)
-	{
-		SoundEngine::SetListenerPosition(pListener->listenerId, attributes.transformation);
-		return eAudioRequestStatus_Success;
-	}
-	return eAudioRequestStatus_Failure;
-}
-
-EAudioRequestStatus CAudioImpl::RegisterInMemoryFile(SAudioFileEntryInfo* const pAudioFileEntry)
-{
-	EAudioRequestStatus eResult = eAudioRequestStatus_Failure;
-
-	if (pAudioFileEntry != nullptr)
-	{
-		SAudioFileEntry* const pFileData = static_cast<SAudioFileEntry*>(pAudioFileEntry->pImplData);
+		SFile* const pFileData = static_cast<SFile*>(pFileInfo->pImplData);
 
 		if (pFileData != nullptr)
 		{
-			pFileData->sampleId = SoundEngine::LoadSampleFromMemory(pAudioFileEntry->pFileData, pAudioFileEntry->size, pAudioFileEntry->szFileName);
-			eResult = eAudioRequestStatus_Success;
+			pFileData->sampleId = SoundEngine::LoadSampleFromMemory(pFileInfo->pFileData, pFileInfo->size, pFileInfo->szFileName);
+			result = ERequestStatus::Success;
 		}
 		else
 		{
-			g_audioImplLogger.Log(eAudioLogType_Error, "Invalid AudioFileEntryData passed to the SDL Mixer implementation of RegisterInMemoryFile");
+			g_implLogger.Log(ELogType::Error, "Invalid AudioFileEntryData passed to the SDL Mixer implementation of RegisterInMemoryFile");
 		}
 	}
-	return eResult;
+
+	return result;
 }
 
-EAudioRequestStatus CAudioImpl::UnregisterInMemoryFile(SAudioFileEntryInfo* const pAudioFileEntry)
+///////////////////////////////////////////////////////////////////////////
+ERequestStatus CImpl::UnregisterInMemoryFile(SFileInfo* const pFileInfo)
 {
-	EAudioRequestStatus eResult = eAudioRequestStatus_Failure;
+	ERequestStatus result = ERequestStatus::Failure;
 
-	if (pAudioFileEntry != nullptr)
+	if (pFileInfo != nullptr)
 	{
-		SAudioFileEntry* const pFileData = static_cast<SAudioFileEntry*>(pAudioFileEntry->pImplData);
+		SFile* const pFileData = static_cast<SFile*>(pFileInfo->pImplData);
 
 		if (pFileData != nullptr)
 		{
 			SoundEngine::UnloadSample(pFileData->sampleId);
-			eResult = eAudioRequestStatus_Success;
+			result = ERequestStatus::Success;
 		}
 		else
 		{
-			g_audioImplLogger.Log(eAudioLogType_Error, "Invalid AudioFileEntryData passed to the SDL Mixer implementation of UnregisterInMemoryFile");
+			g_implLogger.Log(ELogType::Error, "Invalid AudioFileEntryData passed to the SDL Mixer implementation of UnregisterInMemoryFile");
 		}
 	}
-	return eResult;
+	return result;
 }
 
-EAudioRequestStatus CAudioImpl::ParseAudioFileEntry(XmlNodeRef const pAudioFileEntryNode, SAudioFileEntryInfo* const pFileEntryInfo)
+///////////////////////////////////////////////////////////////////////////
+ERequestStatus CImpl::ConstructFile(XmlNodeRef const pRootNode, SFileInfo* const pFileInfo)
 {
-	EAudioRequestStatus eResult = eAudioRequestStatus_Failure;
+	ERequestStatus result = ERequestStatus::Failure;
 
-	if ((_stricmp(pAudioFileEntryNode->getTag(), s_szSDLFileTag) == 0) && (pFileEntryInfo != nullptr))
+	if ((_stricmp(pRootNode->getTag(), s_szSDLFileTag) == 0) && (pFileInfo != nullptr))
 	{
-		char const* const szFileName = pAudioFileEntryNode->getAttr(s_szSDLCommonAttribute);
-		char const* const szPath = pAudioFileEntryNode->getAttr(s_szSDLPathAttribute);
-		CryFixedStringT<MAX_AUDIO_FILE_PATH_LENGTH> fullFilePath;
+		char const* const szFileName = pRootNode->getAttr(s_szSDLCommonAttribute);
+		char const* const szPath = pRootNode->getAttr(s_szSDLPathAttribute);
+		CryFixedStringT<MaxFilePathLength> fullFilePath;
 		if (szPath)
 		{
 			fullFilePath = szPath;
@@ -418,51 +243,58 @@ EAudioRequestStatus CAudioImpl::ParseAudioFileEntry(XmlNodeRef const pAudioFileE
 		}
 
 		// Currently the SDLMixer Implementation does not support localized files.
-		pFileEntryInfo->bLocalized = false;
+		pFileInfo->bLocalized = false;
 
 		if (!fullFilePath.empty())
 		{
-			pFileEntryInfo->szFileName = fullFilePath.c_str();
-			pFileEntryInfo->memoryBlockAlignment = m_memoryAlignment;
-			POOL_NEW(SAudioFileEntry, pFileEntryInfo->pImplData);
-			eResult = eAudioRequestStatus_Success;
+			pFileInfo->szFileName = fullFilePath.c_str();
+			pFileInfo->memoryBlockAlignment = m_memoryAlignment;
+			pFileInfo->pImplData = new SFile;
+			result = ERequestStatus::Success;
 		}
 		else
 		{
-			pFileEntryInfo->szFileName = nullptr;
-			pFileEntryInfo->memoryBlockAlignment = 0;
-			pFileEntryInfo->pImplData = nullptr;
+			pFileInfo->szFileName = nullptr;
+			pFileInfo->memoryBlockAlignment = 0;
+			pFileInfo->pImplData = nullptr;
 		}
 	}
-	return eResult;
+
+	return result;
 }
 
-void CAudioImpl::DeleteAudioFileEntry(IAudioFileEntry* const pOldAudioFileEntry)
+///////////////////////////////////////////////////////////////////////////
+void CImpl::DestructFile(IFile* const pIFile)
 {
-	POOL_FREE(pOldAudioFileEntry);
+	delete pIFile;
 }
 
-char const* const CAudioImpl::GetAudioFileLocation(SAudioFileEntryInfo* const pFileEntryInfo)
+///////////////////////////////////////////////////////////////////////////
+char const* const CImpl::GetFileLocation(SFileInfo* const pFileInfo)
 {
-	static CryFixedStringT<MAX_AUDIO_FILE_PATH_LENGTH> s_path;
+	static CryFixedStringT<MaxFilePathLength> s_path;
 	s_path = PathUtil::GetGameFolder().c_str();
 	s_path += s_szSDLSoundLibraryPath;
 
 	return s_path.c_str();
 }
 
-IAudioTrigger const* CAudioImpl::NewAudioTrigger(XmlNodeRef const pAudioTriggerNode)
+///////////////////////////////////////////////////////////////////////////
+ITrigger const* CImpl::ConstructTrigger(XmlNodeRef const pRootNode)
 {
-	SAudioTrigger* pNewTriggerImpl = nullptr;
-	if (_stricmp(pAudioTriggerNode->getTag(), s_szSDLEventTag) == 0)
+	CTrigger* pTrigger = nullptr;
+
+	if (_stricmp(pRootNode->getTag(), s_szSDLEventTag) == 0)
 	{
-		pNewTriggerImpl = SoundEngine::CreateEventData();
-		if (pNewTriggerImpl)
+		pTrigger = SoundEngine::CreateTrigger();
+
+		if (pTrigger != nullptr)
 		{
-			char const* const szFileName = pAudioTriggerNode->getAttr(s_szSDLCommonAttribute);
-			char const* const szPath = pAudioTriggerNode->getAttr(s_szSDLPathAttribute);
+			char const* const szFileName = pRootNode->getAttr(s_szSDLCommonAttribute);
+			char const* const szPath = pRootNode->getAttr(s_szSDLPathAttribute);
 			string fullFilePath;
-			if (szPath)
+
+			if (szPath != nullptr && szPath[0] != '\0')
 			{
 				fullFilePath = szPath;
 				fullFilePath += CRY_NATIVE_PATH_SEPSTR;
@@ -473,197 +305,230 @@ IAudioTrigger const* CAudioImpl::NewAudioTrigger(XmlNodeRef const pAudioTriggerN
 				fullFilePath = szFileName;
 			}
 
-			pNewTriggerImpl->sampleId = SoundEngine::LoadSample(fullFilePath, true);
+			pTrigger->m_sampleId = SoundEngine::LoadSample(fullFilePath, true);
+			pTrigger->m_bStartEvent = (_stricmp(pRootNode->getAttr(s_szSDLEventTypeTag), "stop") != 0);
 
-			pNewTriggerImpl->bStartEvent = (_stricmp(pAudioTriggerNode->getAttr(s_szSDLEventTypeTag), "stop") != 0);
-			if (pNewTriggerImpl->bStartEvent)
+			if (pTrigger->m_bStartEvent)
 			{
-				pNewTriggerImpl->bPanningEnabled = (_stricmp(pAudioTriggerNode->getAttr(s_szSDLEventPanningEnabledTag), "true") == 0);
-				bool bAttenuationEnabled = (_stricmp(pAudioTriggerNode->getAttr(s_szSDLEventAttenuationEnabledTag), "true") == 0);
+				pTrigger->m_bPanningEnabled = (_stricmp(pRootNode->getAttr(s_szSDLEventPanningEnabledTag), "true") == 0);
+				bool bAttenuationEnabled = (_stricmp(pRootNode->getAttr(s_szSDLEventAttenuationEnabledTag), "true") == 0);
 				if (bAttenuationEnabled)
 				{
-					pAudioTriggerNode->getAttr(s_szSDLEventAttenuationMinDistanceTag, pNewTriggerImpl->attenuationMinDistance);
-					pAudioTriggerNode->getAttr(s_szSDLEventAttenuationMaxDistanceTag, pNewTriggerImpl->attenuationMaxDistance);
+					pRootNode->getAttr(s_szSDLEventAttenuationMinDistanceTag, pTrigger->m_attenuationMinDistance);
+					pRootNode->getAttr(s_szSDLEventAttenuationMaxDistanceTag, pTrigger->m_attenuationMaxDistance);
 				}
 				else
 				{
-					pNewTriggerImpl->attenuationMinDistance = -1.0f;
-					pNewTriggerImpl->attenuationMaxDistance = -1.0f;
+					pTrigger->m_attenuationMinDistance = -1.0f;
+					pTrigger->m_attenuationMaxDistance = -1.0f;
 				}
 
 				// Translate decibel to normalized value.
 				static const int maxVolume = 128;
 				float volume = 0.0f;
-				pAudioTriggerNode->getAttr(s_szSDLEventVolumeTag, volume);
-				pNewTriggerImpl->volume = static_cast<int>(pow_tpl(10.0f, volume / 20.0f) * maxVolume);
+				pRootNode->getAttr(s_szSDLEventVolumeTag, volume);
+				pTrigger->m_volume = static_cast<int>(pow_tpl(10.0f, volume / 20.0f) * maxVolume);
 
-				pAudioTriggerNode->getAttr(s_szSDLEventLoopCountTag, pNewTriggerImpl->loopCount);
+				pRootNode->getAttr(s_szSDLEventLoopCountTag, pTrigger->m_numLoops);
 			}
 		}
 	}
-	return pNewTriggerImpl;
+
+	return static_cast<ITrigger*>(pTrigger);
 }
 
-void CAudioImpl::DeleteAudioTrigger(IAudioTrigger const* const pOldAudioTrigger)
+///////////////////////////////////////////////////////////////////////////
+void CImpl::DestructTrigger(ITrigger const* const pITrigger)
 {
-	SAudioTrigger const* const pSDLEventStaticData = static_cast<SAudioTrigger const* const>(pOldAudioTrigger);
-	if (pSDLEventStaticData)
+	if (pITrigger != nullptr)
 	{
-		SoundEngine::StopTrigger(pSDLEventStaticData);
+		CTrigger const* const pTrigger = static_cast<CTrigger const* const>(pITrigger);
+		SoundEngine::StopTrigger(pTrigger);
+		delete pTrigger;
 	}
-	POOL_FREE_CONST(pOldAudioTrigger);
 }
 
-IAudioRtpc const* CAudioImpl::NewAudioRtpc(XmlNodeRef const pAudioRtpcNode)
+///////////////////////////////////////////////////////////////////////////
+IParameter const* CImpl::ConstructParameter(XmlNodeRef const pRootNode)
 {
-	SAudioParameter* pNewRtpcImpl = nullptr;
-	POOL_NEW(SAudioParameter, pNewRtpcImpl)();
-	return pNewRtpcImpl;
+	return static_cast<IParameter*>(new SParameter);
 }
 
-void CAudioImpl::DeleteAudioRtpc(IAudioRtpc const* const pOldAudioRtpc)
+///////////////////////////////////////////////////////////////////////////
+void CImpl::DestructParameter(IParameter const* const pIParameter)
 {
-	POOL_FREE_CONST(pOldAudioRtpc);
+	delete pIParameter;
 }
 
-IAudioSwitchState const* CAudioImpl::NewAudioSwitchState(XmlNodeRef const pAudioSwitchStateNode)
+///////////////////////////////////////////////////////////////////////////
+ISwitchState const* CImpl::ConstructSwitchState(XmlNodeRef const pRootNode)
 {
-	SAudioSwitchState* pNewSwitchImpl = nullptr;
-	POOL_NEW(SAudioSwitchState, pNewSwitchImpl)();
-	return pNewSwitchImpl;
+	return static_cast<ISwitchState*>(new SSwitchState);
 }
 
-void CAudioImpl::DeleteAudioSwitchState(IAudioSwitchState const* const pOldAudioSwitchState)
+///////////////////////////////////////////////////////////////////////////
+void CImpl::DestructSwitchState(ISwitchState const* const pISwitchState)
 {
-	POOL_FREE_CONST(pOldAudioSwitchState);
+	delete pISwitchState;
 }
 
-IAudioEnvironment const* CAudioImpl::NewAudioEnvironment(XmlNodeRef const pAudioEnvironmentNode)
+///////////////////////////////////////////////////////////////////////////
+IEnvironment const* CImpl::ConstructEnvironment(XmlNodeRef const pRootNode)
 {
-	SAudioEnvironment* pNewEnvironmentImpl = nullptr;
-	POOL_NEW(SAudioEnvironment, pNewEnvironmentImpl)();
-	return pNewEnvironmentImpl;
+	return static_cast<IEnvironment*>(new SEnvironment);
 }
 
-void CAudioImpl::DeleteAudioEnvironment(IAudioEnvironment const* const pOldAudioEnvironment)
+///////////////////////////////////////////////////////////////////////////
+void CImpl::DestructEnvironment(IEnvironment const* const pIEnvironment)
 {
-	POOL_FREE_CONST(pOldAudioEnvironment);
+	delete pIEnvironment;
 }
 
-IAudioObject* CAudioImpl::NewGlobalAudioObject()
+///////////////////////////////////////////////////////////////////////////
+IObject* CImpl::ConstructGlobalObject()
 {
-	POOL_NEW_CREATE(SAudioObject, pObject)(0, true);
-	return pObject;
+	return static_cast<IObject*>(new CObject(0));
 }
 
-IAudioObject* CAudioImpl::NewAudioObject()
+///////////////////////////////////////////////////////////////////////////
+IObject* CImpl::ConstructObject(char const* const szName /*= nullptr*/)
 {
-	static uint32 objectIDCounter = 1;
-	POOL_NEW_CREATE(SAudioObject, pObject)(objectIDCounter++, false);
-	return pObject;
+	static uint32 id = 1;
+	CObject* pObject = new CObject(id++);
+
+	SoundEngine::RegisterObject(pObject);
+
+#if defined(INCLUDE_SDLMIXER_IMPL_PRODUCTION_CODE)
+	m_idToName[pObject->m_id] = szName;
+#endif  // INCLUDE_SDLMIXER_IMPL_PRODUCTION_CODE
+
+	return static_cast<IObject*>(pObject);
 }
 
-void CAudioImpl::DeleteAudioObject(IAudioObject const* const pOldObjectData)
+///////////////////////////////////////////////////////////////////////////
+void CImpl::DestructObject(IObject const* const pIObject)
 {
-	POOL_FREE_CONST(pOldObjectData);
+	if (pIObject != nullptr)
+	{
+		CObject const* pObject = static_cast<CObject const*>(pIObject);
+		SoundEngine::UnregisterObject(pObject);
+		delete pObject;
+	}
 }
 
-CryAudio::Impl::IAudioListener* CAudioImpl::NewDefaultAudioListener()
+///////////////////////////////////////////////////////////////////////////
+IListener* CImpl::ConstructListener(char const* const szName /*= nullptr*/)
 {
-	POOL_NEW_CREATE(SAudioListener, pListener)(0);
-	return pListener;
+	static ListenerId id = 0;
+	return static_cast<IListener*>(new CListener(id++));
 }
 
-CryAudio::Impl::IAudioListener* CAudioImpl::NewAudioListener()
+///////////////////////////////////////////////////////////////////////////
+void CImpl::DestructListener(IListener* const pIListener)
 {
-	static ListenerId listenerIDCounter = 1;
-	POOL_NEW_CREATE(SAudioListener, pListener)(listenerIDCounter++);
-	return pListener;
+	delete pIListener;
 }
 
-void CAudioImpl::DeleteAudioListener(CryAudio::Impl::IAudioListener* const pOldAudioListener)
+///////////////////////////////////////////////////////////////////////////
+IEvent* CImpl::ConstructEvent(CATLEvent& event)
 {
-	POOL_FREE(pOldAudioListener);
+	return static_cast<IEvent*>(new CEvent(event));
 }
 
-IAudioEvent* CAudioImpl::NewAudioEvent(AudioEventId const audioEventID)
+///////////////////////////////////////////////////////////////////////////
+void CImpl::DestructEvent(IEvent const* const pIEvent)
 {
-	POOL_NEW_CREATE(SAudioEvent, pNewEvent)(audioEventID);
-	return pNewEvent;
+	delete pIEvent;
 }
 
-void CAudioImpl::DeleteAudioEvent(IAudioEvent const* const pOldAudioEvent)
+///////////////////////////////////////////////////////////////////////////
+IStandaloneFile* CImpl::ConstructStandaloneFile(CATLStandaloneFile& standaloneFile, char const* const szFile, bool const bLocalized, ITrigger const* pITrigger /*= nullptr*/)
+{
+	static string s_localizedfilesFolder = PathUtil::GetGameFolder() + CRY_NATIVE_PATH_SEPSTR + PathUtil::GetLocalizationFolder() + CRY_NATIVE_PATH_SEPSTR + m_language + CRY_NATIVE_PATH_SEPSTR;
+	static string s_nonLocalizedfilesFolder = PathUtil::GetGameFolder() + CRY_NATIVE_PATH_SEPSTR;
+	static string filePath;
+
+	if (bLocalized)
+	{
+		filePath = s_localizedfilesFolder + szFile + m_pCVarFileExtension->GetString();
+	}
+	else
+	{
+		filePath = s_nonLocalizedfilesFolder + szFile + m_pCVarFileExtension->GetString();
+	}
+
+	return static_cast<IStandaloneFile*>(new CStandaloneFile(filePath, standaloneFile));
+}
+
+///////////////////////////////////////////////////////////////////////////
+void CImpl::DestructStandaloneFile(IStandaloneFile const* const pIStandaloneFile)
 {
 #if defined(INCLUDE_SDLMIXER_IMPL_PRODUCTION_CODE)
-	SAudioEvent const* const pEventInstanceData = static_cast<SAudioEvent const* const>(pOldAudioEvent);
-	CRY_ASSERT_MESSAGE(pEventInstanceData->channels.size() == 0, "Events always have to be stopped/finished before they get deleted");
-#endif
-	POOL_FREE_CONST(pOldAudioEvent);
+	const CStandaloneFile* const pStandaloneEvent = static_cast<const CStandaloneFile*>(pIStandaloneFile);
+	CRY_ASSERT_MESSAGE(pStandaloneEvent->m_channels.size() == 0, "Events always have to be stopped/finished before they get deleted");
+#endif  // INCLUDE_SDLMIXER_IMPL_PRODUCTION_CODE
+	delete pIStandaloneFile;
 }
 
-void CAudioImpl::ResetAudioEvent(IAudioEvent* const pAudioEvent)
-{
-	if (pAudioEvent != nullptr)
-	{
-		SAudioEvent* const pEventInstanceData = static_cast<SAudioEvent*>(pAudioEvent);
-		pEventInstanceData->Reset();
-	}
-}
-
-IAudioStandaloneFile* CAudioImpl::NewAudioStandaloneFile()
-{
-	POOL_NEW_CREATE(CAudioStandaloneFile, pNewEvent)();
-	return pNewEvent;
-}
-
-void CAudioImpl::DeleteAudioStandaloneFile(IAudioStandaloneFile const* const pOldAudioStandaloneFile)
-{
-#if defined(INCLUDE_SDLMIXER_IMPL_PRODUCTION_CODE)
-	const CAudioStandaloneFile* const pStandaloneEvent = static_cast<const CAudioStandaloneFile*>(pOldAudioStandaloneFile);
-	CRY_ASSERT_MESSAGE(pStandaloneEvent->channels.size() == 0, "Events always have to be stopped/finished before they get deleted");
-#endif
-	POOL_FREE_CONST(pOldAudioStandaloneFile);
-}
-
-void CAudioImpl::ResetAudioStandaloneFile(IAudioStandaloneFile* const pAudioStandaloneFile)
-{
-	if (pAudioStandaloneFile != nullptr)
-	{
-		CAudioStandaloneFile* const pStandaloneEvent = static_cast<CAudioStandaloneFile*>(pAudioStandaloneFile);
-		pStandaloneEvent->Reset();
-	}
-}
-
-void CAudioImpl::GamepadConnected(TAudioGamepadUniqueID const deviceUniqueID)
+///////////////////////////////////////////////////////////////////////////
+void CImpl::GamepadConnected(DeviceId const deviceUniqueID)
 {}
 
-void CAudioImpl::GamepadDisconnected(TAudioGamepadUniqueID const deviceUniqueID)
+///////////////////////////////////////////////////////////////////////////
+void CImpl::GamepadDisconnected(DeviceId const deviceUniqueID)
 {}
 
-void CAudioImpl::SetLanguage(char const* const szLanguage)
+///////////////////////////////////////////////////////////////////////////
+void CImpl::SetLanguage(char const* const szLanguage)
 {
 	m_language = szLanguage;
 }
 
-char const* const CAudioImpl::GetImplementationNameString() const
+///////////////////////////////////////////////////////////////////////////
+char const* const CImpl::GetName() const
 {
 #if defined(INCLUDE_SDLMIXER_IMPL_PRODUCTION_CODE)
-	return m_fullImplString.c_str();
-#endif      // INCLUDE_SDLMIXER_IMPL_PRODUCTION_CODE
+	return m_name.c_str();
+#endif  // INCLUDE_SDLMIXER_IMPL_PRODUCTION_CODE
 	return nullptr;
 }
 
-void CAudioImpl::GetMemoryInfo(SAudioImplMemoryInfo& memoryInfo) const
+///////////////////////////////////////////////////////////////////////////
+void CImpl::GetMemoryInfo(SMemoryInfo& memoryInfo) const
 {
-	memoryInfo.primaryPoolSize = g_audioImplMemoryPool.MemSize();
-	memoryInfo.primaryPoolUsedSize = memoryInfo.primaryPoolSize - g_audioImplMemoryPool.MemFree();
-	memoryInfo.primaryPoolAllocations = g_audioImplMemoryPool.FragmentCount();
-	memoryInfo.bucketUsedSize = g_audioImplMemoryPool.GetSmallAllocsSize();
-	memoryInfo.bucketAllocations = g_audioImplMemoryPool.GetSmallAllocsCount();
+	CryModuleMemoryInfo memInfo;
+	ZeroStruct(memInfo);
+	CryGetMemoryInfoForModule(&memInfo);
+
+	memoryInfo.totalMemory = static_cast<size_t>(memInfo.allocated - memInfo.freed);
 	memoryInfo.secondaryPoolSize = 0;
 	memoryInfo.secondaryPoolUsedSize = 0;
 	memoryInfo.secondaryPoolAllocations = 0;
+
+	{
+		auto& allocator = CObject::GetAllocator();
+		auto mem = allocator.GetTotalMemory();
+		auto pool = allocator.GetCounts();
+		memoryInfo.poolUsedObjects = pool.nUsed;
+		memoryInfo.poolConstructedObjects = pool.nAlloc;
+		memoryInfo.poolUsedMemory = mem.nUsed;
+		memoryInfo.poolAllocatedMemory = mem.nAlloc;
+	}
+
+	{
+		auto& allocator = CEvent::GetAllocator();
+		auto mem = allocator.GetTotalMemory();
+		auto pool = allocator.GetCounts();
+		memoryInfo.poolUsedObjects += pool.nUsed;
+		memoryInfo.poolConstructedObjects += pool.nAlloc;
+		memoryInfo.poolUsedMemory += mem.nUsed;
+		memoryInfo.poolAllocatedMemory += mem.nAlloc;
+	}
 }
 
-void CAudioImpl::GetAudioFileData(char const* const szFilename, SAudioFileData& audioFileData) const
+///////////////////////////////////////////////////////////////////////////
+void CImpl::GetFileData(char const* const szName, SFileData& fileData) const
 {}
+} // namespace SDL_mixer
+} // namespace Impl
+} // namespace CryAudio

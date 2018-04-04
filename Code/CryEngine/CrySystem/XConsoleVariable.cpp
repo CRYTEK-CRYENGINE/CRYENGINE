@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #include "StdAfx.h"
 #include "XConsole.h"
@@ -129,17 +129,6 @@ bool CXConsoleVariableBase::RemoveOnChangeFunctor(const uint64 nElement)
 	if (nElement < m_cpChangeFunctors.size())
 	{
 		m_cpChangeFunctors.erase(m_cpChangeFunctors.begin() + (size_t)nElement);
-		return true;
-	}
-	return false;
-}
-
-bool CXConsoleVariableBase::RemoveOnChangeFunctor(const SFunctor& changeFunctor)
-{
-	const auto it = std::find(std::begin(m_cpChangeFunctors), std::end(m_cpChangeFunctors), changeFunctor);
-	if (it != std::end(m_cpChangeFunctors))
-	{
-		m_cpChangeFunctors.erase(it);
 		return true;
 	}
 	return false;

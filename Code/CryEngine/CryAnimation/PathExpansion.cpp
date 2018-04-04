@@ -1,7 +1,9 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #include "stdafx.h"
 #include "PathExpansion.h"
+
+#include <CryMath/Random.h>
 
 // Expand patterns into paths. An example of a pattern before expansion:
 // animations/facial/idle_{0,1,2,3}.fsq

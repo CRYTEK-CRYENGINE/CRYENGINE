@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #ifndef PUPPET_H
 #define PUPPET_H
@@ -9,7 +9,7 @@
 
 #include "PipeUser.h"
 #include "PathObstacles.h"
-#include "ValueHistory.h"
+#include <CryAISystem/ValueHistory.h>
 #include <CryAISystem/IPerceptionHandler.h>
 #include <CryAISystem/IVisionMap.h>
 #include "PostureManager.h"
@@ -203,8 +203,8 @@ public:
 	virtual Vec3 ChooseMissPoint_Deprecated(const Vec3& targetPos) const;
 
 	// Inherited from IPipeUser
-	virtual void Update(EObjectUpdate type);
-	virtual void UpdateProxy(EObjectUpdate type);
+	virtual void Update(EUpdateType type);
+	virtual void UpdateProxy(EUpdateType type);
 	virtual void Devalue(IAIObject* pObject, bool bDevaluePuppets, float fAmount = 20.f);
 	virtual bool IsDevalued(IAIObject* pObject);
 	virtual void ClearDevalued();
@@ -282,15 +282,13 @@ public:
 	// Returns the current alertness level of the puppet.
 	inline int                       GetAlertness() const { return m_Alertness; }
 
-	virtual void                     CheckCloseContact(IAIObject* pTarget, float fDistSq);
-
 	virtual float                    AdjustTargetVisibleRange(const CAIActor& observer, float fVisibleRange) const;
 
 	inline EPuppetUpdatePriority     GetUpdatePriority() const                    { return m_updatePriority; }
 	inline void                      SetUpdatePriority(EPuppetUpdatePriority pri) { m_updatePriority = pri; }
 
 	const AIWeaponDescriptor&        QueryCurrentWeaponDescriptor(bool bIsSecondaryFire = false, ERequestedGrenadeType prefGrenadeType = eRGT_ANY);
-	inline const AIWeaponDescriptor& GetCurrentWeaponDescriptor() const { return m_CurrentWeaponDescriptor; }
+	virtual const AIWeaponDescriptor& GetCurrentWeaponDescriptor() const { return m_CurrentWeaponDescriptor; }
 
 	// Returns true if it is possible to aim at the target without colliding with a wall etc in front of the puppet.
 	bool         CanAimWithoutObstruction(const Vec3& vTargetPos);
@@ -773,7 +771,7 @@ public:
 		int              m_queries;
 	};
 
-	inline void SetAlarmed()
+	virtual void SetAlarmed()
 	{
 		AgentPerceptionParameters& perceptionParameters = m_Parameters.m_PerceptionParams;
 		m_alarmedTime = perceptionParameters.forgetfulnessTarget + perceptionParameters.forgetfulnessMemory;

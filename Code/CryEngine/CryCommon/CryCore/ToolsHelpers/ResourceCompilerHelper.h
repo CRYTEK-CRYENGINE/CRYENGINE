@@ -1,8 +1,10 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #pragma once
 
 #include "SettingsManagerHelpers.h"
+
+class LineStreamBuffer;
 
 enum ERcExitCode
 {
@@ -53,6 +55,11 @@ public:
 
 #if defined(CRY_ENABLE_RC_HELPER)
 
+	//! Returns a file path to RC's INI file.
+	//! \return The number of characters written. If both buffer and bufferCount are 0, no characters are written to the buffer
+	//!		and the return value is number of characters required to write the output.
+	static int GetResourceCompilerConfigPath(char* buffer, size_t bufferCount, ERcExePath rcExePath = eRcExePath_registry);
+
 	// Arguments:
 	//   szFileName null terminated file path (0 can be used to test for rc.exe existence)
 	//   szAdditionalSettings - 0 or e.g. "/refresh" or "/refresh /xyz=56"
@@ -74,6 +81,14 @@ public:
 	  const bool bUserDialog,
 	  const bool bRefresh);
 	static const char* GetCallResultDescription(ERcCallResult result);
+
+	static bool CallProcess(
+		const wchar_t* szStartingDirectory, 
+		const wchar_t* szCommandLine, 
+		bool bShowWindow, 
+		LineStreamBuffer* pListener, 
+		int& exitCode, 
+		void* pEnvironment);
 
 #endif // CRY_ENABLE_RC_HELPER
 

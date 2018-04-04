@@ -1,0 +1,279 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<RCJobs>
+	<!--
+		 DefaultProperties can be override from command line
+	-->
+	<DefaultProperties
+			game="GameSDK"
+			l10n="localization"
+			src="."
+			trg="..\_rc_${p}"
+			pak_root=""
+	/>
+
+	<!-- General properties-->
+	<DefaultProperties DataFolder="${game}" /> <!-- The subfolder that contains game assets -->
+	<DefaultProperties LocalizationFolder="${l10n}" /> <!-- The subfolder that contains localization data -->
+	<DefaultProperties P="PC" /> <!-- Special case: p must be set from the commandline, and it cannot be set to something else using RCJob, this default reflects the hardcoded default -->
+	<Properties Platform="${P}" /> <!-- This is an alias of p that is used in this job file only -->
+
+	<!-- Default path properties -->
+	<DefaultProperties InputPath="${src}" /> <!-- By default, assume current directory contains source assets -->
+	<DefaultProperties TempPath="${trg}" /> <!-- This script will store converted (but unpacked) files in a temp folder -->
+	<DefaultProperties OutputPath="${pak_root}" /> <!-- The target folder for the output files (packed converted files) -->
+
+	<!-- Default index format, can be overridden from the command line, used by meshes (.cgf) and geomcaches (.cax) -->
+	<!-- Alternative: u16. Should match the engine typedef of vtx_idx type to prevent run-time conversion -->
+	<DefaultProperties VertexIndexFormat="u32" />
+
+	<!-- Deprecated option, can be used for benchmarking purposes -->
+	<DefaultProperties CreateStartupCache="0" />
+
+	<!-- This should allow hiding of initial load behind movies -->
+	<DefaultProperties CreateIntroMovies="1" />
+
+	<!-- Shared constant properties -->
+	<Properties XmlFilterFile="${_rc_exe_folder}xmlfilter.txt" />
+	<Properties XmlExtensions="*.animevents;*.adb;*.bspace;*.cdf;*.chrparams;*.comb;*.dlg;*.ent;*.fsq;*.fxl;*.ik;*.lmg;*.mtl;*.setup;*.xml;*.node;*.veg;*.lyr" />
+
+	<!-- Used by the asset pipeline introduced with CRYENGINE 5.3. -->
+	<Properties CryassetType="*.cryasset" />
+	<Properties CaxCryassetType="*.cax.cryasset" />
+
+	<!-- TargetHasEditor, if not passed assume this is only the case for PC -->
+	<!-- By passing explicit zero while platform is PC, you can create a "pure client" asset build -->
+	<DefaultProperties TargetHasEditor="" />
+	<If TargetHasEditor="">
+		<If Platform="PC">
+			<Properties TargetHasEditor="1" />
+		</If>
+		<IfNot Platform="PC">
+			<Properties TargetHasEditor="0" />
+		</IfNot>
+	</If>
+
+	<!-- If (TargetHasEditor == 0 && Platform == PC) store temp files in a separate folder -->
+	<If TargetHasEditor="0">
+		<If Platform="PC">
+			<Properties TempPath="${TempPath}_pure" />
+		</If>
+	</If>
+
+	<!-- Convert meshes template -->
+	<MeshesJob>
+		<DefaultProperties VertexPositionFormat="exporter" /> <!-- Alternative: exporter to use exporter-config, f16 or f32 to force format -->
+		<DefaultProperties SplitLoDs="1" />
+		<Job Input="*.cgf;*.cga" />
+	</MeshesJob>
+
+	<!-- Convert animation template -->
+	<AnimationsJob>
+		<DefaultProperties DbaStreamPrepare="1" />
+		<DefaultProperties CafAlignTracks="1" />
+		<DefaultProperties AnimConfigFolder="Animations" />
+		<Job Input="*.i_caf" Refresh="1" />
+		<Job Input="*.anm" CopyOnly="1" />
+	</AnimationsJob>
+
+	<!-- Convert alembic template -->
+	<AlembicJob>
+		<DefaultProperties SkipFilesWithoutBuildConfig="1" />
+		<Job Input="*.abc" />
+	</AlembicJob>
+
+	<!-- Convert textures template -->
+	<TexturesJob>
+		<If Streaming=""> <!-- If not specified on command-line or otherwise -->
+			<If Platform="PC">
+				<Properties Streaming="1" /> <!-- Split, no tiling -->
+			</If>
+			<If Platform="Orbis">
+				<Properties Streaming="1" /> <!-- Implies Orbis tiling -->
+			</If>
+			<If Platform="Durango">
+				<Properties Streaming="1" /> <!-- Implies Durango tiling (optimal) -->
+			</If>
+			<If Platform="es3">
+				<Properties Streaming="0" /> <!-- ES3 refers to ETC2 compression, RC can't split this yet -->
+			</If>
+		</If>
+		<If PreventDdsSplitting=""> <!-- Work-around for precompiled DDS that can't be split, default: only if not streaming -->
+			<If Streaming="0">
+				<Properties PreventDdsSplitting="1" />
+			</If>
+			<IfNot Streaming="0">
+				<Properties PreventDdsSplitting="0" />
+			</IfNot>
+		</If>
+		<Job Input="*.tif" />
+		<Job Input="*.dds" CopyOnly="${PreventDdsSplitting}" />
+		<Job Input="*.gfx;*.png;*.usm" SourceRoot="${SourceRoot}/Textures" TargetRoot="${TargetRoot}/Textures" CopyOnly="1" />
+	</TexturesJob>
+
+	<!-- Convert XML template -->
+	<XmlJob>
+		<Properties OverwriteExtension="xml" />
+		<If TargetHasEditor="1">
+			<Properties CopyOnly="1" /> <!-- If we have editor, don't make binary XML -->
+		</If>
+		<Job Input="${XmlExtensions}" />
+	</XmlJob>
+
+	<!-- Convert character template -->
+	<CharactersJob>
+		<Properties CopyOnly="1" /> <!-- It appears the commands below don't work when CopyOnly is not set to 1. -->
+		<DefaultProperties CompactVertexStreams="1" />
+		<DefaultProperties CompactVertexStreamsKeepNormals="1" />
+		<DefaultProperties ComputeSubsetTexelDensity="1" />
+		<DefaultProperties VertexPositionFormat="exporter" /> <!-- Alternative: exporter to use exporter-config, f16 or f32 to force format -->
+		<DefaultProperties QTangents="1" />
+		<DefaultProperties OverwriteExtension="chr" />
+		<Job Input="*.chr" Write_Manifests="1" StripMesh="4" />
+		<Job Input="*.chr" Refresh="1" StripNonMesh="1" />
+		<Job Input="*.skin" Write_Manifests="1" StripMesh="3" />
+		<Job Input="*.skin" Refresh="1" StripNonMesh="1" />
+	</CharactersJob>
+
+	<!-- Compile lua script template -->
+	<LuaJob>
+		<If TargetHasEditor="1">
+			<Properties CopyOnly="1" /> <!-- If we have editor, don't compile lua script -->
+		</If>
+		<If Platform="tegra">
+			<Properties CopyOnly="1" /> <!-- Tegra runs 32-bit binaries on a 64-bit arch, but the lua compiler outputs binaries in the format of the arch. on which it is run -->
+		</If>
+		<Job Input="*.lua" />
+	</LuaJob>
+
+	<!-- Copy in subfolder template -->
+	<CopySubfolderJob>
+		<Properties SourceRoot="${SourceRoot}/${Subfolder}" />
+		<Properties TargetRoot="${TargetRoot}/${Subfolder}" />
+		<Job Input="${Input}" CopyOnly="1" />
+	</CopySubfolderJob>
+
+	<!-- Startup cache -->
+	<StartupCache>
+		<Properties ListFile="${InputPath}/${DataFolder}/Levels/Multiplayer/startup_list.txt" />
+		<Properties DdsExpansion="{1}.dds;{1}.dds.0;{1}.dds.0a;{1}.dds.1;{1}.dds.1a;{1}.dds.2;{1}.dds.2a;{1}.dds.3;{1}.dds.3a;{1}.dds.4;{1}.dds.4a;{1}.dds.5;{1}.dds.5a;{1}.dds.6;{1}.dds.6a;{1}.dds.7;{1}.dds.7a;{1}.dds.8;{1}.dds.8a;{1}.dds.9;{1}.dds.9a;{1}.dds.10;{1}.dds.10a;{1}.dds.11;{1}.dds.11a;{1}.dds.12;{1}.dds.12a" />
+		<Properties SourceMaxSize="1000000" />
+		<Job Zip="${TargetRoot}/_FastLoad/startup.pak" Input="*.*"   Exclude="*.fsb;*.usm;*.dds" />
+		<Job Zip="${TargetRoot}/_FastLoad/startup.pak" Input="*.dds" SkipMissing="1" ListFormat="${DdsExpansion}" />
+	</StartupCache>
+
+	<!-- IntroMovies cache -->
+	<IntroMoviesCache>
+		<Properties Zip="${TargetRoot}\_FastLoad\IntroMovies.pak" />
+		<Properties Zip_Compression="0" />
+		<Job Input="Libs\UI\USM_Player_Intro.gfx" />
+		<Job Input="Videos\IntroMovies.usm" />
+		<!-- Add additional intro movies here -->
+	</IntroMoviesCache>
+
+	<GameAssetsConversion>
+		<!-- Conversion -->
+		<Properties SourceRoot="${InputPath}/${DataFolder}" />
+		<Properties TargetRoot="${TempPath}/${DataFolder}_Assets" />
+		<Properties AllExtensions="*.bank;*.bnk;*.cal;*.cfg;*.dat;*.dialog;*.fdp;*.fev;*.fsb;*.gfx;*.grd;*.grp;*.lua;*.lut;*.ogg;*.pfx2;*.pfx;*.pfxp;*.response;*.thread_config;*.txt;*.usm;*.wem;*.xls;" />
+		
+		<Run Job="AnimationsJob" />
+		<Run Job="MeshesJob" />
+		<Run Job="AlembicJob" />
+		<Run Job="TexturesJob" />
+		<Run Job="XmlJob" />
+		<Run Job="LuaJob" />
+		<Run Job="CharactersJob" />
+
+		<!-- Grab all valid files and copy them to the temp location. Some files already got copied by the previous jobs. -->
+		<Job Input="${AllExtensions}" CopyOnly="1" />
+
+		<!-- Pack files -->
+		<Properties SourceRoot="${TempPath}/${DataFolder}_Assets" />
+		<Properties TargetRoot="${OutputPath}/${DataFolder}" />
+		<Properties AnimationTypes="*.animevents;*.animsettings;*.anm;*.fxl;*.comb;*.bspace;*.dba;*.caf" />
+		<Properties TextureTypes="*.dds;*.dds.*" />
+		<Properties AlembicTypes="*.cax" />
+		<Properties GameDataInputs="Libs/*.*;config/*.*;Materials/*.*;Prefabs/*.*;Fonts/*.*;Difficulty/*.*;Data/*.*;Particles/*.*" />
+		<Properties CompressedExcludes="audio/*.*;Music/*.*;Libs/UI/*.*;config/*.*;${AnimationTypes};*.cgf;${TextureTypes};Levels/*.*;${CryassetType}" />
+		<Properties DefaultExcludes="Levels/*.*;${CryassetType}" />
+		
+		<!-- Pak all files that don't need to be compressed. -->
+		<Job Zip="${TargetRoot}/Data.pak"		Input="*.*"						Exclude="${CompressedExcludes}"	Zip_SizeSplit="1"	Zip_MaxSize="1900000"	Zip_Compression="0" />
+		<Job Zip="${TargetRoot}/Audio.pak"		Input="audio/*.*"				Exclude="${DefaultExcludes}"	Zip_SizeSplit="1"	Zip_MaxSize="1900000"	Zip_Compression="0" />
+		<Job Zip="${TargetRoot}/Music.pak"		Input="Music/*.*"				Exclude="${DefaultExcludes}"	Zip_SizeSplit="1"	Zip_MaxSize="1900000"	Zip_Compression="0" />
+		<Job Zip="${TargetRoot}/GameData.pak"	Input="Libs/UI/*.*;config/*.*"	Exclude="${CryassetType}"		Zip_Compression="0" />
+
+		<!-- Pak all files that need to be compressed. -->
+		<Job Zip="${TargetRoot}/Animations.pak"	Input="${AnimationTypes}"	Exclude="*.cgf;${DefaultExcludes}"	Zip_SizeSplit="1" Zip_MaxSize="1900000" />
+		<Job Zip="${TargetRoot}/Objects.pak"	Input="*.cgf"				Exclude="${DefaultExcludes}"		Zip_SizeSplit="1" Zip_MaxSize="1900000" />
+		<Job Zip="${TargetRoot}/Textures.pak"	Input="${TextureTypes}"		Exclude="${DefaultExcludes}"		Zip_SizeSplit="1" Zip_MaxSize="1900000" />
+		<Job Zip="${TargetRoot}/GameData.pak"	Input="${GameDataInputs}"	Exclude="Libs/UI/*.*;${CryassetType}" />
+
+		<!-- Startup cache, this is deprecated -->
+		<If CreateStartupCache="1">
+			<Run Job="StartupCache" />
+		</If>
+
+		<!-- Loose files -->
+		<Properties SourceRoot="${InputPath}/${DataFolder}" />
+		<Properties EditorOnlyTypes="*.txt;*.cry;*.scry" />            <!-- Those files only have meaning for the editor, ignore them for non-editor targets -->
+		<Properties EditorOnlyLevelSubFolders="*/Layers/*.*;" />       <!-- Those folders contain files that only have meaning for the editor, ignore them for non-editor targets -->
+		<Properties AlreadyConvertedTypes="${XmlExtensions};*.tif" />  <!-- Those files have already been converted previously, ignore them now -->
+
+		<If TargetHasEditor="1">
+			<Run Job="CopySubfolderJob" SubFolder="Levels" Input="*.*" Exclude="${AlreadyConvertedTypes};*_list.txt" />
+		</If>
+		<IfNot TargetHasEditor="1">
+			<Run Job="CopySubfolderJob" SubFolder="Levels" Input="*.*" Exclude="${EditorOnlyLevelSubFolders};${EditorOnlyTypes};${AlreadyConvertedTypes}" />
+		</IfNot>
+		<If Platform="Durango">
+			<Run Job="CopySubfolderJob" SubFolder="Grammars" Input="*.*" />
+		</If>
+		<Job Input="game.cfg" CopyOnly="1" />
+
+		<If CreateIntroMovies="1">
+			<Run Job="IntroMoviesCache" />
+		</If>
+
+		<!-- Converted loose files from levels, overwrite -->
+		<Properties SourceRoot="${TempPath}/${DataFolder}_Assets" />
+		<If TargetHasEditor="1">
+			<Run Job="CopySubfolderJob" SubFolder="Levels" Input="*.*" Exclude="*.$*" Refresh="1" />
+		</If>
+		<IfNot TargetHasEditor="1">
+			<Run Job="CopySubfolderJob" SubFolder="Levels" Input="*.*" Exclude="${EditorOnlyLevelSubFolders};*.$*" Refresh="1" />
+		</IfNot>
+
+		<!-- Also copy some level meta-files into GameData.pak for signing purposes -->
+		<Properties SourceRoot="${InputPath}/${DataFolder}" />
+		<Properties TargetRoot="${OutputPath}/${DataFolder}" />
+		<Job Zip="${TargetRoot}/GameData.pak" Input="Levels/*.*" Exclude="${EditorOnlyLevelSubFolders};${EditorOnlyTypes};*.pak;*.tif;*.tmd" />
+	</GameAssetsConversion>
+
+	<!-- Per-language localization template -->
+	<LanguageJob>
+		<Job Zip="${TargetRoot}/${Language}.pak"              Input="${Language}/*.*"                 Zip_Compression="0" Exclude="${CryassetType}" />
+
+		<Job Zip="${TargetRoot}/${Language}_xml.pak"          Input="${Language}_xml/*.*"             Zip_Compression="0" Exclude="${CryassetType}" />
+	</LanguageJob>
+
+	<!-- Localization, all languages -->
+	<LocalizationConversion>
+		<Properties SourceRoot="${InputPath}/${DataFolder}/${LocalizationFolder}" />
+		<Properties TargetRoot="${OutputPath}/${DataFolder}/${LocalizationFolder}" />
+		<Run Job="LanguageJob" Language="english" />
+		<Run Job="LanguageJob" Language="german" />
+		<Run Job="LanguageJob" Language="korean" />
+	</LocalizationConversion>
+
+	<!-- Run the complete asset build by default -->
+	<!-- Note: You can run just one by passing /jobtarget parameter -->
+	<Run Job="GameAssetsConversion" />
+	<Run Job="LocalizationConversion" />
+	<Run Job="CleanJob" />
+	
+	<!-- Used to generate file list -->
+	<CleanJob>
+		<Job Input="" TargetRoot="${TempPath}" Clean_TargetRoot="1" />
+	</CleanJob>
+</RCJobs>

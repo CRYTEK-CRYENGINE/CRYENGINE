@@ -7,6 +7,10 @@
 #include "Common/FullscreenPass.h"
 //#include "Common/UtilityPasses.h"
 
+#if !CRY_PLATFORM_ORBIS
+	#define FEATURE_RENDER_CLIPVOLUME_GEOMETRY_SHADER
+#endif
+
 class CClipVolumesStage : public CGraphicsPipelineStage
 {
 public:
@@ -41,27 +45,39 @@ private:
 	CPrimitiveRenderPass m_blendValuesPass;
 	CFullscreenPass      m_stencilResolvePass;
 
+#ifdef FEATURE_RENDER_CLIPVOLUME_GEOMETRY_SHADER
 	CPrimitiveRenderPass m_volumetricStencilPass;
-	CFullscreenPass      m_passWriteJitteredDepth;
+#else
+	std::vector<std::unique_ptr<CPrimitiveRenderPass>> m_volumetricStencilPassArray;
+	std::vector<std::unique_ptr<CFullscreenPass>>      m_resolveVolumetricStencilPassArray;
+#endif
+	std::vector<std::unique_ptr<CFullscreenPass>>      m_jitteredDepthPassArray;
 
-	CRenderPrimitive     m_stencilPrimitives[MaxDeferredClipVolumes * 2];
-	CRenderPrimitive     m_blendPrimitives[MaxDeferredClipVolumes];
+	CRenderPrimitive m_stencilPrimitives[MaxDeferredClipVolumes * 2];
+	CRenderPrimitive m_blendPrimitives[MaxDeferredClipVolumes];
+#ifdef FEATURE_RENDER_CLIPVOLUME_GEOMETRY_SHADER
+	CRenderPrimitive m_stencilPrimitivesVolFog[MaxDeferredClipVolumes * 2];
+#endif
 
 	CRY_ALIGN(16) Vec4 m_clipVolumeShaderParams[MaxDeferredClipVolumes];
-	uint32                     m_nShaderParamCount;
+	uint32                          m_nShaderParamCount;
 
-	CTexture*                  m_pBlendValuesRT;
-	SDepthTexture*             m_pDepthTarget;
+	CTexture*                       m_pBlendValuesRT;
+	CTexture*                       m_pDepthTarget;
 
 	CTexture*                  m_pClipVolumeStencilVolumeTex;
-	SDepthTexture              m_depthTargetVolFog;
-	std::vector<SDepthTexture> m_depthTargetArrayVolFog;
+#ifdef FEATURE_RENDER_CLIPVOLUME_GEOMETRY_SHADER
+	CTexture*                  m_depthTargetVolFog;
+#else
+	std::vector<CTexture*>     m_pClipVolumeStencilVolumeTexArray;
+#endif
+	std::vector<ResourceViewHandle> m_depthTargetArrayVolFog;
 
-	int32                      m_cleared;
-	float                      m_nearDepth;
-	float                      m_raymarchDistance;
+	int32                           m_cleared;
+	float                           m_nearDepth;
+	float                           m_raymarchDistance;
 
-	bool                       m_bClipVolumesValid;
-	bool                       m_bBlendPassReady;
-	bool                       m_bOutdoorVisible;
+	bool                            m_bClipVolumesValid;
+	bool                            m_bBlendPassReady;
+	bool                            m_bOutdoorVisible;
 };

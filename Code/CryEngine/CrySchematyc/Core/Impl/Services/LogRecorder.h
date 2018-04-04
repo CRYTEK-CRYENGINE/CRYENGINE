@@ -1,13 +1,13 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 // #SchematycTODO : Optimize! Right now we're storing a full copy of the log's scope stack plus two strings per message. Maybe we could serialize to one log string buffer instead?
 
 #pragma once
 
 #include <CryEntitySystem/IEntity.h>
-#include <Schematyc/Services/ILog.h>
-#include <Schematyc/Services/ILogRecorder.h>
-#include <Schematyc/Utils/CryLinkUtils.h>
+#include <CrySchematyc/Services/ILog.h>
+#include <CrySchematyc/Services/ILogRecorder.h>
+#include <CrySchematyc/Utils/CryLinkUtils.h>
 
 namespace Schematyc
 {
@@ -23,8 +23,8 @@ private:
 		ELogMessageType        messageType;
 		LogStreamId            streamId;
 		CryLinkUtils::ECommand linkCommand;
-		SGUID                  elementGUID;
-		SGUID                  detailGUID;
+		CryGUID                  elementGUID;
+		CryGUID                  detailGUID;
 		EntityId               entityId;
 		string                 function;
 		string                 message;

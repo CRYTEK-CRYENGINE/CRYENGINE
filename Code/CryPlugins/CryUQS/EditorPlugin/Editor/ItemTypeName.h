@@ -7,19 +7,21 @@
 struct SItemTypeName
 {
 	SItemTypeName();
-	SItemTypeName(const char* szTypeName);
+	SItemTypeName(const CryGUID& typeGUID);
 	SItemTypeName(const SItemTypeName& other);
 	SItemTypeName(SItemTypeName&& other);
 	SItemTypeName& operator=(const SItemTypeName& other);
 	SItemTypeName& operator=(SItemTypeName&& other);
 
-	void        Serialize(Serialization::IArchive& archive);
-	const char* c_str() const;
+	void           Serialize(Serialization::IArchive& archive);
+	const char*    c_str() const;
+	const CryGUID& GetTypeGUID() const;
 
-	bool        Empty() const;
+	bool           Empty() const;
 
-	bool        operator==(const SItemTypeName& other) const;
-	bool        operator!=(const SItemTypeName& other) const { return !(*this == other); }
+	bool           operator==(const SItemTypeName& other) const;
+	bool           operator!=(const SItemTypeName& other) const { return !(*this == other); }
 
-	string typeName;
+private:
+	CryGUID m_typeGUID;
 };

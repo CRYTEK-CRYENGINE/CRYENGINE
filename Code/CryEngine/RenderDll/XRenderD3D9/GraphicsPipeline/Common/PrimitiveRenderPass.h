@@ -1,9 +1,14 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #pragma once
 #include <array>
+#include <atomic>
 
+#include "RenderPassBase.h"
 #include "../../DeviceManager/DeviceObjects.h" // SDeviceObjectHelpers
+#include "../../../Common/DevBuffer.h" // buffer_handle_t, CConstantBuffer, CGpuBuffer
+
+class CPrimitiveRenderPass;
 
 struct SCompiledRenderPrimitive : private NoCopy
 {
@@ -55,24 +60,33 @@ public:
 		ePrim_First = ePrim_Triangle
 	};
 
-	enum EDirtyFlags
+	enum EDirtyFlags : uint32
 	{
-		eDirty_Technique      = BIT(0),
-		eDirty_RenderState    = BIT(1),
-		eDirty_Resources      = BIT(2),
-		eDirty_Geometry       = BIT(3),
-		eDirty_ResourceLayout = BIT(4),
+		eDirty_ResourceLayout = BIT(0),
+		eDirty_Resources      = BIT(1),
+		eDirty_Technique      = BIT(2),
+		eDirty_RenderState    = BIT(3),
+		eDirty_Geometry       = BIT(4),
 		eDirty_InstanceData   = BIT(5),
 		eDirty_Topology       = BIT(6),
+		eDirty_RenderPass     = BIT(7),
 
-		eDirty_None        = 0,
-		eDirty_All         = eDirty_Technique | eDirty_RenderState | eDirty_Resources | eDirty_Geometry | eDirty_ResourceLayout | eDirty_InstanceData | eDirty_Topology
+		eDirty_None = 0,
+		eDirty_All = eDirty_Technique | eDirty_RenderState | eDirty_Resources | eDirty_Geometry | eDirty_ResourceLayout | eDirty_InstanceData | eDirty_Topology | eDirty_RenderPass
 	};
+
+	static_assert(uint(eDirty_ResourceLayout) == uint(CDeviceResourceSetDesc::EDirtyFlags::eDirtyBindPoint), "eDirty_ResourceLayout needs to match CDeviceResourceSetDesc::EDirtyFlags::eDirtyBindPoint");
+	static_assert(uint(eDirty_Resources)      == uint(CDeviceResourceSetDesc::EDirtyFlags::eDirtyBinding),   "eDirty_Resources needs to match CDeviceResourceSetDesc::EDirtyFlags::eDirtyBinding");
 
 	enum EPrimitiveFlags
 	{
-		eFlags_None                             = 0,
-		eFlags_ReflectConstantBuffersFromShader = BIT(0)
+		eFlags_None                      = 0,
+		eFlags_ReflectShaderConstants_VS = BIT(0),
+		eFlags_ReflectShaderConstants_PS = BIT(1),
+		eFlags_ReflectShaderConstants_GS = BIT(2),
+
+		eFlags_ReflectShaderConstants      = eFlags_ReflectShaderConstants_VS | eFlags_ReflectShaderConstants_PS, // default: reflect vs and ps constants
+		eFlags_ReflectShaderConstants_Mask = eFlags_ReflectShaderConstants_VS | eFlags_ReflectShaderConstants_PS | eFlags_ReflectShaderConstants_GS
 	};
 
 	typedef SDeviceObjectHelpers::CShaderConstantManager ConstantManager;
@@ -91,13 +105,13 @@ public:
 	void          SetCullMode(ECull cullMode);
 	void          SetEnableDepthClip(bool bEnable);
 	void          SetTechnique(CShader* pShader, const CCryNameTSCRC& techName, uint64 rtMask);
-	void          SetTexture(uint32 shaderSlot, CTexture* pTexture, SResourceView::KeyType resourceViewID = SResourceView::DefaultView, EShaderStage shaderStages = EShaderStage_Pixel);
-	void          SetSampler(uint32 shaderSlot, int32 sampler, EShaderStage shaderStages = EShaderStage_Pixel);
+	void          SetTexture(uint32 shaderSlot, CTexture* pTexture, ResourceViewHandle resourceViewID = EDefaultResourceViews::Default, EShaderStage shaderStages = EShaderStage_Pixel);
+	void          SetSampler(uint32 shaderSlot, SamplerStateHandle sampler, EShaderStage shaderStages = EShaderStage_Pixel);
 	void          SetConstantBuffer(uint32 shaderSlot, CConstantBuffer* pBuffer, EShaderStage shaderStages = EShaderStage_Pixel);
-	void          SetBuffer(uint32 shaderSlot, const CGpuBuffer& buffer, bool bUnorderedAccess = false, EShaderStage shaderStages = EShaderStage_Pixel);
+	void          SetBuffer(uint32 shaderSlot, CGpuBuffer* pBuffer, ResourceViewHandle resourceViewID = EDefaultResourceViews::Default, EShaderStage shaderStages = EShaderStage_Pixel);
 	void          SetInlineConstantBuffer(EConstantBufferShaderSlot shaderSlot, CConstantBuffer* pBuffer, EShaderStage shaderStages = EShaderStage_Pixel);
 	void          SetPrimitiveType(EPrimitiveType primitiveType);
-	void          SetCustomVertexStream(buffer_handle_t vertexBuffer, EVertexFormat vertexFormat, uint32 vertexStride);
+	void          SetCustomVertexStream(buffer_handle_t vertexBuffer, InputLayoutHandle vertexFormat, uint32 vertexStride);
 	void          SetCustomIndexStream(buffer_handle_t indexBuffer, RenderIndexType indexType);
 	void          SetDrawInfo(ERenderPrimitiveType primType, uint32 vertexBaseOffset, uint32 vertexOrIndexOffset, uint32 vertexOrIndexCount);
 	void          SetDrawTopology(ERenderPrimitiveType primType);
@@ -111,17 +125,19 @@ public:
 	ConstantManager&       GetConstantManager()       { return m_constantManager; }
 	const ConstantManager& GetConstantManager() const { return m_constantManager; }
 
+	const CDeviceResourceSetDesc& GetResourceDesc() const { return m_resourceDesc; }
+
 	static void      AddPrimitiveGeometryCacheUser();
 	static void      RemovePrimitiveGeometryCacheUser();
 
-	EDirtyFlags Compile(uint32 renderTargetCount, CTexture* const* pRenderTargets, const SDepthTexture* pDepthTarget, SResourceView::KeyType* pRenderTargetViews = nullptr, CDeviceResourceSetPtr pOutputResources = nullptr, uint64 extraRtMask = 0);
+	EDirtyFlags Compile(const CPrimitiveRenderPass& targetPass);
 
 private:
 
 	struct SPrimitiveGeometry
 	{
 		ERenderPrimitiveType primType;
-		EVertexFormat        vertexFormat;
+		InputLayoutHandle        vertexFormat;
 
 		uint32        vertexBaseOffset;
 		uint32        vertexOrIndexCount;
@@ -149,67 +165,100 @@ private:
 	EPrimitiveType            m_primitiveType;
 	SPrimitiveGeometry        m_primitiveGeometry;
 
+	CDeviceResourceSetDesc    m_resourceDesc;
+
 	ConstantManager           m_constantManager;
 
-	int                       m_currentPsoUpdateCount;
+	uint32                    m_currentPsoUpdateCount;
+
+	uint64                    m_renderPassHash;
 
 	static SPrimitiveGeometry s_primitiveGeometryCache[ePrim_Count];
 	static int                s_nPrimitiveGeometryCacheUsers;
 };
 
 DEFINE_ENUM_FLAG_OPERATORS(CRenderPrimitive::EDirtyFlags);
+DEFINE_ENUM_FLAG_OPERATORS(CRenderPrimitive::EPrimitiveFlags);
 
 struct VrProjectionInfo;
 
-class CPrimitiveRenderPass : private NoCopy
+class CPrimitiveRenderPass : public CRenderPassBase, private NoCopy
 {
+	friend class CRenderPassScheduler;
+
 public:
 	enum EPrimitivePassFlags
 	{
-		ePassFlags_None = 0,
-		ePassFlags_UseVrProjectionState = BIT(0),
+		ePassFlags_None                         = 0,
+		ePassFlags_UseVrProjectionState         = BIT(0),
 		ePassFlags_RequireVrProjectionConstants = BIT(1),
-		ePassFlags_VrProjectionPass = ePassFlags_UseVrProjectionState | ePassFlags_RequireVrProjectionConstants // for convenience
+
+		ePassFlags_VrProjectionPass             = ePassFlags_UseVrProjectionState | ePassFlags_RequireVrProjectionConstants // for convenience
 	};
+
+	enum EClearMask
+	{
+		eClear_None    = 0,
+		eClear_Stencil = BIT(1),
+		eClear_Color0  = BIT(2)
+	};
+
 
 	CPrimitiveRenderPass(bool createGeometryCache = true);
 	CPrimitiveRenderPass(CPrimitiveRenderPass&& other);
 	~CPrimitiveRenderPass();
-	CPrimitiveRenderPass& operator=(CPrimitiveRenderPass&& other);
 
 	void   SetFlags(EPrimitivePassFlags flags) { m_passFlags = flags; }
-	void   SetRenderTarget(uint32 slot, CTexture* pRenderTarget, SResourceView::KeyType rendertargetView = SResourceView::DefaultRendertargetView);
-	CTexture* GetRenderTarget(uint32 slot) { return m_pRenderTargets[slot]; }
+
+	void   SetRenderTarget(uint32 slot, CTexture* pRenderTarget, ResourceViewHandle hRenderTargetView = EDefaultResourceViews::RenderTarget);
+	void   SetDepthTarget(CTexture* pDepthTarget, ResourceViewHandle hDepthTargetView = EDefaultResourceViews::DepthStencil);
 	void   SetOutputUAV(uint32 slot, CGpuBuffer* pBuffer);
-	void   SetDepthTarget(SDepthTexture* pDepthTarget);
 	void   SetViewport(const D3DViewPort& viewport);
 	void   SetScissor(bool bEnable, const D3DRectangle& scissor);
+	void   SetTargetClearMask(uint32 clearMask);
 
-	void   ClearPrimitives()   { m_compiledPrimitives.clear(); }
+	bool   IsOutputDirty() const { return m_renderPassDesc.HasChanged(); }
+
+	void   Reset();
+
+	void   BeginAddingPrimitives(bool bClearPrimitiveList = true);
 	bool   AddPrimitive(CRenderPrimitive* pPrimitive);
 	bool   AddPrimitive(SCompiledRenderPrimitive* pPrimitive);
-	void   UndoAddPrimitive()  { CRY_ASSERT(!m_compiledPrimitives.empty()); m_compiledPrimitives.pop_back(); }
+	void   UndoAddPrimitive() { CRY_ASSERT(!m_compiledPrimitives.empty()); m_compiledPrimitives.pop_back(); }
+	void   ClearPrimitives();
 
-	uint32 GetPrimitiveCount() const { return m_compiledPrimitives.size();  }
+	uint32                     GetPrimitiveCount()            const { return m_compiledPrimitives.size(); }
+	CTexture*                  GetRenderTarget(int index)     const { return m_renderPassDesc.GetRenderTargets()[index].pTexture; }
+	ResourceViewHandle         GetRenderTargetView(int index) const { return m_renderPassDesc.GetRenderTargets()[index].view; }
+	const CTexture*            GetDepthTarget()               const { return m_renderPassDesc.GetDepthTarget().pTexture; }
+	ResourceViewHandle         GetDepthTargetView()           const { return m_renderPassDesc.GetDepthTarget().view; }
+	
+	CDeviceResourceSetPtr         GetOutputResourceSet()      const { return m_pOutputResourceSet; }
+	const CDeviceResourceSetDesc& GetOutputResources()        const { return m_outputResources; }
+	const CDeviceRenderPassPtr    GetRenderPass()             const { return m_pRenderPass; }
 
 	void   Execute();
 
 protected:
 	void   Prepare(CDeviceCommandListRef RESTRICT_REFERENCE commandList);
+	void   Compile();
+
+	static bool OnResourceInvalidated(void* pThis, SResourceBindPoint bindPoint, UResourceReference pResource, uint32 flags) threadsafe;
 
 protected:
-	EPrimitivePassFlags                   m_passFlags;
-	std::array<CTexture*, 4>              m_pRenderTargets;
-	std::array<SResourceView::KeyType, 4> m_renderTargetViews;
-	CDeviceResourceSetPtr                 m_pOutputResources;
-	CDeviceResourceSetPtr                 m_pOutputNULLResources;
-	SDepthTexture*                        m_pDepthTarget;
-	uint32                                m_numRenderTargets;
-	D3DViewPort                           m_viewport;
-	bool                                  m_scissorEnabled;
-	D3DRectangle                          m_scissor;
-
-	std::vector<SCompiledRenderPrimitive*> m_compiledPrimitives;
+	EPrimitivePassFlags                     m_passFlags;
+	CDeviceRenderPassDesc                   m_renderPassDesc;
+	CDeviceRenderPassPtr                    m_pRenderPass;
+	CDeviceResourceSetDesc                  m_outputResources;
+	CDeviceResourceSetPtr                   m_pOutputResourceSet;
+	CDeviceResourceSetDesc                  m_outputNULLResources;
+	CDeviceResourceSetPtr                   m_pOutputNULLResourceSet;
+	D3DViewPort                             m_viewport;
+	D3DRectangle                            m_scissor;
+	bool                                    m_scissorEnabled;
+	bool                                    m_bAddingPrimitives;
+	uint32                                  m_clearMask;
+	std::vector<SCompiledRenderPrimitive*>  m_compiledPrimitives;
 };
 
 
@@ -255,38 +304,6 @@ inline void CRenderPrimitive::SetTechnique(CShader* pShader, const CCryNameTSCRC
 
 	if (m_pPipelineState && m_currentPsoUpdateCount != m_pPipelineState->GetUpdateCount())
 		m_dirtyMask |= eDirty_Technique;
-
-	if (m_flags & eFlags_ReflectConstantBuffersFromShader)
-	{
-		if (m_dirtyMask & eDirty_Technique)
-		{
-			m_constantManager.InitShaderReflection(pShader, techName, rtMask);
-		}
-	}
-}
-
-inline void CRenderPrimitive::SetTexture(uint32 shaderSlot, CTexture* pTexture, SResourceView::KeyType resourceViewID, EShaderStage shaderStages)
-{
-	m_pResources->SetTexture(shaderSlot, pTexture, resourceViewID, shaderStages);
-	m_dirtyMask |= m_pResources->IsDirty() ? eDirty_Resources : eDirty_None;
-}
-
-inline void CRenderPrimitive::SetSampler(uint32 shaderSlot, int32 sampler, EShaderStage shaderStages)
-{
-	m_pResources->SetSampler(shaderSlot, sampler, shaderStages);
-	m_dirtyMask |= m_pResources->IsDirty() ? eDirty_Resources : eDirty_None;
-}
-
-inline void CRenderPrimitive::SetConstantBuffer(uint32 shaderSlot, CConstantBuffer* pBuffer, EShaderStage shaderStages)
-{
-	m_pResources->SetConstantBuffer(shaderSlot, pBuffer, shaderStages);
-	m_dirtyMask |= m_pResources->IsDirty() ? eDirty_Resources : eDirty_None;
-}
-
-inline void CRenderPrimitive::SetBuffer(uint32 shaderSlot, const CGpuBuffer& buffer, bool bUnorderedAccess, EShaderStage shaderStages)
-{
-	m_pResources->SetBuffer(shaderSlot, buffer, bUnorderedAccess, shaderStages);
-	m_dirtyMask |= m_pResources->IsDirty() ? eDirty_Resources : eDirty_None;
 }
 
 inline void CRenderPrimitive::SetInlineConstantBuffer(EConstantBufferShaderSlot shaderSlot, CConstantBuffer* pBuffer, EShaderStage shaderStages)
@@ -300,11 +317,11 @@ inline void CRenderPrimitive::SetPrimitiveType(EPrimitiveType primitiveType)
 	ASSIGN_VALUE(m_primitiveType, primitiveType, eDirty_Geometry);
 }
 
-inline void CRenderPrimitive::SetCustomVertexStream(buffer_handle_t vertexBuffer, EVertexFormat vertexFormat, uint32 vertexStride)
+inline void CRenderPrimitive::SetCustomVertexStream(buffer_handle_t vertexBuffer, InputLayoutHandle vertexFormat, uint32 vertexStride)
 {
 	ASSIGN_VALUE(m_primitiveGeometry.vertexStream.hStream, vertexBuffer, eDirty_Geometry);
 	ASSIGN_VALUE(m_primitiveGeometry.vertexStream.nStride, vertexStride, eDirty_Geometry);
-	ASSIGN_VALUE(m_primitiveGeometry.vertexFormat, vertexFormat, eDirty_Geometry);
+	ASSIGN_VALUE(m_primitiveGeometry.vertexFormat, vertexFormat, eDirty_Geometry | eDirty_Topology);
 	ASSIGN_VALUE(m_primitiveType, ePrim_Custom, eDirty_Geometry);
 }
 
@@ -329,3 +346,41 @@ inline void CRenderPrimitive::SetDrawTopology(ERenderPrimitiveType primType)
 }
 
 #undef ASSIGN_VALUE
+
+// ------------------------------------------------------------------------
+
+inline void CRenderPrimitive::SetTexture(uint32 shaderSlot, CTexture* pTexture, ResourceViewHandle resourceViewID, EShaderStage shaderStages)
+{
+	m_resourceDesc.SetTexture(shaderSlot, pTexture, resourceViewID, shaderStages);
+}
+
+inline void CRenderPrimitive::SetSampler(uint32 shaderSlot, SamplerStateHandle sampler, EShaderStage shaderStages)
+{
+	m_resourceDesc.SetSampler(shaderSlot, sampler, shaderStages);
+}
+
+inline void CRenderPrimitive::SetConstantBuffer(uint32 shaderSlot, CConstantBuffer* pBuffer, EShaderStage shaderStages)
+{
+	m_resourceDesc.SetConstantBuffer(shaderSlot, pBuffer, shaderStages);
+}
+
+inline void CRenderPrimitive::SetBuffer(uint32 shaderSlot, CGpuBuffer* pBuffer, ResourceViewHandle resourceViewID, EShaderStage shaderStages)
+{
+	m_resourceDesc.SetBuffer(shaderSlot, pBuffer, resourceViewID, shaderStages);
+}
+
+///////////////////////////////////// Inline functions for CRenderPrimitiveRenderPass /////////////////////////////////////
+inline void CPrimitiveRenderPass::SetRenderTarget(uint32 slot, CTexture* pRenderTarget, ResourceViewHandle hRenderTargetView)
+{
+	m_renderPassDesc.SetRenderTarget(slot, pRenderTarget, hRenderTargetView);
+}
+
+inline void CPrimitiveRenderPass::SetOutputUAV(uint32 slot, CGpuBuffer* pBuffer)
+{
+	m_renderPassDesc.SetOutputUAV(slot, pBuffer);
+}
+
+inline void CPrimitiveRenderPass::SetDepthTarget(CTexture* pDepthTarget, ResourceViewHandle hDepthTargetView)
+{
+	m_renderPassDesc.SetDepthTarget(pDepthTarget, hDepthTargetView);
+}

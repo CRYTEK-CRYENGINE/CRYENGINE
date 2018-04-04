@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #include "StdAfx.h"
 #include "BreakableGlassSystem.h"
@@ -444,7 +444,7 @@ bool CBreakableGlassSystem::ExtractPhysDataFromEvent(const EventPhysCollision& p
 			{
 				if (IRenderNode* pBrush = (IRenderNode*)physEvent.pForeignData[PHYSEVENT_COLLIDEE])
 				{
-					pStatObj = pBrush->GetEntityStatObj(0, 0, &entityMat);
+					pStatObj = pBrush->GetEntityStatObj(0, &entityMat);
 					pRenderMat = pBrush->GetMaterial();
 					renderFlags = pBrush->GetRndFlags();
 

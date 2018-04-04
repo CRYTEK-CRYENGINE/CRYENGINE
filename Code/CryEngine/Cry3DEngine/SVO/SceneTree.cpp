@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 // -------------------------------------------------------------------------
 //  File name:   SceneTree.cpp
@@ -191,6 +191,7 @@ struct SVoxRndDataFileHdr
 
 void CSvoEnv::ReconstructTree(bool bMultiPoint)
 {
+	LOADING_TIME_PROFILE_SECTION;
 	char szFolder[256] = "";
 	CVoxelSegment::MakeFolderName(szFolder);
 	CVoxelSegment::m_strRenderDataFileName = szFolder;
@@ -306,30 +307,27 @@ bool CSvoEnv::Render()
 
 	CollectAnalyticalOccluders();
 
-	//if(m_pDiffCM == (ITexture *)-1)
+	if (Get3DEngine()->m_pObjectsTree[0])
 	{
 		m_pGlobalSpecCM = 0;
 		m_fGlobalSpecCM_Mult = 0;
 
-		if (int nCount = gEnv->p3DEngine->GetObjectsByTypeInBox(eERType_Light, m_worldBox, (IRenderNode**)0))
+		PodArray<IRenderNode*> arrObjects;
+		Get3DEngine()->m_pObjectsTree[0]->GetObjectsByType(arrObjects, eERType_Light, &m_worldBox, 0, false);
+
+		float fMaxRadius = 999;
+
+		for (int nL = 0; nL < arrObjects.Count(); nL++)
 		{
-			PodArray<IRenderNode*> arrObjects(nCount, nCount);
-			nCount = gEnv->p3DEngine->GetObjectsByTypeInBox(eERType_Light, m_worldBox, arrObjects.GetElements());
+			ILightSource* pRN = (ILightSource*)arrObjects[nL];
 
-			float fMaxRadius = 999;
+			CDLight& rLight = pRN->GetLightProperties();
 
-			for (int nL = 0; nL < nCount; nL++)
+			if (rLight.m_fRadius > fMaxRadius && rLight.m_Flags & DLF_DEFERRED_CUBEMAPS)
 			{
-				ILightSource* pRN = (ILightSource*)arrObjects[nL];
-
-				CDLight& rLight = pRN->GetLightProperties();
-
-				if (rLight.m_fRadius > fMaxRadius && rLight.m_Flags & DLF_DEFERRED_CUBEMAPS)
-				{
-					fMaxRadius = rLight.m_fRadius;
-					m_pGlobalSpecCM = rLight.GetSpecularCubemap();
-					m_fGlobalSpecCM_Mult = rLight.m_SpecMult;
-				}
+				fMaxRadius = rLight.m_fRadius;
+				m_pGlobalSpecCM = rLight.GetSpecularCubemap();
+				m_fGlobalSpecCM_Mult = rLight.m_SpecMult;
 			}
 		}
 	}
@@ -474,32 +472,30 @@ bool CSvoEnv::Render()
 			int nNumNodesToDelete = 4 + Cry3DEngineBase::GetCVars()->e_svoMaxStreamRequests;//CVoxelSegment::m_arrLoadedSegments.Count()/1000;
 
 			int nNodesUnloaded = 0;
+
 			while ((nNodesUnloaded < nNumNodesToDelete) &&
-			       (CVoxelSegment::m_arrLoadedSegments[nNodesUnloaded]->m_eStreamingStatus != ecss_InProgress) &&
-			       (CVoxelSegment::m_arrLoadedSegments[nNodesUnloaded]->m_nLastRendFrameId < (GetCurrPassMainFrameID() - 32)))
+				(CVoxelSegment::m_arrLoadedSegments[0]->m_eStreamingStatus != ecss_InProgress) &&
+				(CVoxelSegment::m_arrLoadedSegments[0]->m_nLastRendFrameId < (GetCurrPassMainFrameID() - 32)))
 			{
-				CVoxelSegment::m_arrLoadedSegments[nNodesUnloaded]->FreeRenderData();
-				CVoxelSegment::m_arrLoadedSegments[nNodesUnloaded]->m_eStreamingStatus = ecss_NotLoaded;
+				CVoxelSegment * pSeg = CVoxelSegment::m_arrLoadedSegments[0];
 
-				if (CSvoNode* pNode = CVoxelSegment::m_arrLoadedSegments[nNodesUnloaded]->m_pNode)
+				pSeg->FreeRenderData();
+				pSeg->m_eStreamingStatus = ecss_NotLoaded;
+
+				CSvoNode** ppChilds = pSeg->m_pParentCloud->m_pNode->m_ppChilds;
+
+				for (int nChildId = 0; nChildId < 8; nChildId++)
 				{
-					CSvoNode** ppChilds = CVoxelSegment::m_arrLoadedSegments[nNodesUnloaded]->m_pParentCloud->m_pNode->m_ppChilds;
-
-					for (int nChildId = 0; nChildId < 8; nChildId++)
+					if (ppChilds[nChildId] == pSeg->m_pNode)
 					{
-						if (ppChilds[nChildId] == pNode)
-						{
-							ppChilds[nChildId] = 0;
-						}
+						SAFE_DELETE(ppChilds[nChildId]); // this also deletes pSeg and unregister it from CVoxelSegment::m_arrLoadedSegments
 					}
-
-					SAFE_DELETE(pNode);
 				}
+
+				assert(CVoxelSegment::m_arrLoadedSegments.Find(pSeg) < 0);
 
 				nNodesUnloaded++;
 			}
-
-			CVoxelSegment::m_arrLoadedSegments.Delete(0, nNodesUnloaded);
 		}
 	}
 
@@ -1233,7 +1229,6 @@ CSvoEnv::~CSvoEnv()
 	GetCVars()->e_svoLoadTree = 0;
 	GetCVars()->e_svoEnabled = 0;
 	gSvoEnv = NULL;
-	GetRenderer()->GetISvoRenderer()->Release();
 
 	{
 		AUTO_MODIFYLOCK(CVoxelSegment::m_arrLockedTextures.m_Lock);
@@ -1247,6 +1242,11 @@ CSvoEnv::~CSvoEnv()
 		for (int i = 0; i < CVoxelSegment::m_arrLockedMaterials.Count(); i++)
 			CVoxelSegment::m_arrLockedMaterials[i]->Release();
 		CVoxelSegment::m_arrLockedMaterials.Reset();
+	}
+
+	if (gEnv->pRenderer)
+	{
+		gEnv->pRenderer->FreeResources(FRR_SVOGI);
 	}
 }
 
@@ -2581,10 +2581,11 @@ void CSvoEnv::CollectAnalyticalOccluders()
 
 	Vec3 vCamPos = CVoxelSegment::m_voxCam.GetPosition();
 
-	if (int nCount = gEnv->p3DEngine->GetObjectsByTypeInBox(eERType_Brush, areaBox, (IRenderNode**)0))
+	// collect from static entities
+	if (int nCount = gEnv->p3DEngine->GetObjectsByTypeInBox(eERType_MovableBrush, areaBox, (IRenderNode**)0))
 	{
 		PodArray<IRenderNode*> arrObjects(nCount, nCount);
-		nCount = gEnv->p3DEngine->GetObjectsByTypeInBox(eERType_Brush, areaBox, arrObjects.GetElements());
+		nCount = gEnv->p3DEngine->GetObjectsByTypeInBox(eERType_MovableBrush, areaBox, arrObjects.GetElements());
 
 		Vec3 camPos = gEnv->pSystem->GetViewCamera().GetPosition();
 
@@ -2598,146 +2599,29 @@ void CSvoEnv::CollectAnalyticalOccluders()
 			if (!gEnv->pSystem->GetViewCamera().IsAABBVisible_E(aabbEx))
 				continue;
 
-			Matrix34A matParent;
+			AddAnalyticalOccluder(pRN, camPos);
+		}
+	}
 
-			// make a sphere, box or capsule from geom entity
-			if (CStatObj* pStatObj = (CStatObj*)pRN->GetEntityStatObj(0, 0, &matParent, true))
-			{
-				bool bPO     = (pRN->GetGIMode() == IRenderNode::eGM_AnalytPostOccluder) && GetCVars()->e_svoTI_AnalyticalOccluders;				
-				bool bAO     = (pRN->GetGIMode() == IRenderNode::eGM_AnalyticalProxy_Soft) && (GetCVars()->e_svoTI_AnalyticalGI || GetCVars()->e_svoTI_AnalyticalOccluders);
-				bool bAOHard = (pRN->GetGIMode() == IRenderNode::eGM_AnalyticalProxy_Hard) && (GetCVars()->e_svoTI_AnalyticalGI || GetCVars()->e_svoTI_AnalyticalOccluders);
+	// collect from characters
+	if (int nCount = gEnv->p3DEngine->GetObjectsByTypeInBox(eERType_Character, areaBox, (IRenderNode**)0))
+	{
+		PodArray<IRenderNode*> arrObjects(nCount, nCount);
+		nCount = gEnv->p3DEngine->GetObjectsByTypeInBox(eERType_Character, areaBox, arrObjects.GetElements());
 
-				if (bPO || bAO || bAOHard)
-				{
-					bool bSphere = strstr(pStatObj->GetFilePath(), "sphere") != NULL;
-					bool bCube = strstr(pStatObj->GetFilePath(), "cube") != NULL;
-					bool bCylinder = strstr(pStatObj->GetFilePath(), "cylinder") != NULL;
+		Vec3 camPos = gEnv->pSystem->GetViewCamera().GetPosition();
 
-					if (bCube || bCylinder)
-					{
-						Vec3 vCenter = pStatObj->GetAABB().GetCenter();
-						Vec3 vX = Vec3(1, 0, 0);
-						Vec3 vY = Vec3(0, 1, 0);
-						Vec3 vZ = Vec3(0, 0, 1);
+		for (int nL = 0; nL < nCount; nL++)
+		{
+			IRenderNode* pRN = arrObjects[nL];
 
-						vCenter = matParent.TransformPoint(vCenter);
-						vX = matParent.TransformVector(vX);
-						vY = matParent.TransformVector(vY);
-						vZ = matParent.TransformVector(vZ);
+			AABB aabbEx = pRN->GetBBox();
+			aabbEx.Expand(Vec3(GetCVars()->e_svoTI_ConeMaxLength, GetCVars()->e_svoTI_ConeMaxLength, GetCVars()->e_svoTI_ConeMaxLength));
 
-						I3DEngine::SAnalyticalOccluder obb;
+			if (!gEnv->pSystem->GetViewCamera().IsAABBVisible_E(aabbEx))
+				continue;
 
-						obb.v0 = vX.GetNormalized();
-						obb.e0 = vX.GetLength();
-						obb.v1 = vY.GetNormalized();
-						obb.e1 = vY.GetLength();
-						obb.v2 = vZ.GetNormalized();
-						obb.e2 = vZ.GetLength();
-						obb.c = vCenter;
-
-						if(bCube)
-							obb.type = (float)I3DEngine::SAnalyticalOccluder::eOBB;
-						else
-							obb.type = (float)I3DEngine::SAnalyticalOccluder::eCylinder;
-
-						if (bAOHard)
-							obb.type += 2.f;
-
-						m_AnalyticalOccluders[bPO].Add(obb);
-					}
-					else if (bSphere)
-					{
-						I3DEngine::SAnalyticalOccluder capsule;
-						capsule.type = (float)I3DEngine::SAnalyticalOccluder::eCapsule;
-
-						Vec3 vCenter = pStatObj->GetAABB().GetCenter();
-						Vec3 vZ = Vec3(0, 0, 1);
-						Vec3 vX = Vec3(1, 0, 0);
-
-						vCenter = matParent.TransformPoint(vCenter);
-						vZ = matParent.TransformVector(vZ);
-						vX = matParent.TransformVector(vX);
-
-						capsule.v0 = vCenter + vZ;
-						capsule.v1 = vCenter - vZ;
-						capsule.radius = vX.GetLength();
-
-						m_AnalyticalOccluders[bPO].Add(capsule);
-					}
-				}
-			}
-
-			if (ICharacterInstance* pCharacter = (ICharacterInstance*)pRN->GetEntityCharacter(0, &matParent))
-				if (GetCVars()->e_svoTI_AnalyticalOccluders)
-			{
-				bool bPO = true;
-
-				AABB aabbEx = pRN->GetBBox();
-				aabbEx.Expand(Vec3(GetCVars()->e_svoTI_AnalyticalOccludersRange, GetCVars()->e_svoTI_AnalyticalOccludersRange, GetCVars()->e_svoTI_AnalyticalOccludersRange));
-
-				if (!gEnv->pSystem->GetViewCamera().IsAABBVisible_E(aabbEx))
-					continue;
-
-				// build capsules from character bones (bone names must be specified)
-				if (ISkeletonPose* pSkeletonPose = pCharacter->GetISkeletonPose())
-				{
-					IDefaultSkeleton& rDefaultSkeleton = pCharacter->GetIDefaultSkeleton();
-
-					const DynArray<SBoneShadowCapsule>& capsuleInfos = rDefaultSkeleton.GetShadowCapsules();
-
-					AABB aabb = pRN->GetBBox();
-
-					// for distant objects build single capsule from AABB
-					if (capsuleInfos.size() && aabb.GetDistance(camPos) > 12.f)
-					{
-						I3DEngine::SAnalyticalOccluder capsule;
-						capsule.type = (float)I3DEngine::SAnalyticalOccluder::eCapsule;
-
-						Vec3 vSize = aabb.GetSize();
-						Vec3 vCenter = aabb.GetCenter();
-
-						capsule.radius = min(0.3f, (vSize.x + vSize.y) * 0.25f);
-
-						capsule.v0 = Vec3(vCenter.x, vCenter.y, max(vCenter.z + .01f, aabb.max.z - capsule.radius));
-						capsule.v1 = Vec3(vCenter.x, vCenter.y, min(vCenter.z - .01f, aabb.min.z + capsule.radius));
-
-						m_AnalyticalOccluders[bPO].Add(capsule);
-
-						continue;
-					}
-
-					for (int32 capsuleId = 0; capsuleId < capsuleInfos.size(); capsuleId++)
-					{
-						const SBoneShadowCapsule& capsuleInfo = capsuleInfos[capsuleId];
-
-						Vec3 arrBonePositions[2];
-
-						for (int nJointSlot = 0; nJointSlot< 2; nJointSlot++)
-						{
-							int nJointID = capsuleInfo.arrJoints[nJointSlot];
-
-							if (nJointID >= 0)
-							{
-								Matrix34A tm34 = matParent * Matrix34(pSkeletonPose->GetAbsJointByID(nJointID));
-								arrBonePositions[nJointSlot] = tm34.GetTranslation();
-							}
-							else
-							{
-								arrBonePositions[nJointSlot].zero();
-							}
-						}
-
-						I3DEngine::SAnalyticalOccluder capsule;
-						capsule.type = (float)I3DEngine::SAnalyticalOccluder::eCapsule;
-
-						capsule.radius = capsuleInfo.radius;
-						capsule.v0 = arrBonePositions[0];
-						capsule.v1 = arrBonePositions[1];
-
-						m_AnalyticalOccluders[bPO].Add(capsule);
-					}
-				}
-			}
+			AddAnalyticalOccluder(pRN, camPos);
 		}
 	}
 
@@ -2760,6 +2644,152 @@ void CSvoEnv::CollectAnalyticalOccluders()
 		// sort by importance
 		if (m_AnalyticalOccluders[nStage].Count() > 1)
 			qsort(m_AnalyticalOccluders[nStage].GetElements(), m_AnalyticalOccluders[nStage].Count(), sizeof(m_AnalyticalOccluders[nStage][0]), SAnalyticalOccluder_Compare);
+	}
+}
+
+void CSvoEnv::AddAnalyticalOccluder(IRenderNode* pRN, Vec3 camPos)
+{
+	Matrix34A matParent;
+
+	// make a sphere, box or capsule from geom entity
+	if (CStatObj* pStatObj = (CStatObj*)pRN->GetEntityStatObj(0, &matParent, true))
+	{
+		bool bPO = (pRN->GetGIMode() == IRenderNode::eGM_AnalytPostOccluder) && GetCVars()->e_svoTI_AnalyticalOccluders;
+		bool bAO = (pRN->GetGIMode() == IRenderNode::eGM_AnalyticalProxy_Soft) && (GetCVars()->e_svoTI_AnalyticalGI || GetCVars()->e_svoTI_AnalyticalOccluders);
+		bool bAOHard = (pRN->GetGIMode() == IRenderNode::eGM_AnalyticalProxy_Hard) && (GetCVars()->e_svoTI_AnalyticalGI || GetCVars()->e_svoTI_AnalyticalOccluders);
+
+		if (bPO || bAO || bAOHard)
+		{
+			bool bSphere = strstr(pStatObj->GetFilePath(), "sphere") != NULL;
+			bool bCube = strstr(pStatObj->GetFilePath(), "cube") != NULL;
+			bool bCylinder = strstr(pStatObj->GetFilePath(), "cylinder") != NULL;
+
+			if (bCube || bCylinder)
+			{
+				Vec3 vCenter = pStatObj->GetAABB().GetCenter();
+				Vec3 vX = Vec3(1, 0, 0);
+				Vec3 vY = Vec3(0, 1, 0);
+				Vec3 vZ = Vec3(0, 0, 1);
+
+				vCenter = matParent.TransformPoint(vCenter);
+				vX = matParent.TransformVector(vX);
+				vY = matParent.TransformVector(vY);
+				vZ = matParent.TransformVector(vZ);
+
+				I3DEngine::SAnalyticalOccluder obb;
+
+				obb.v0 = vX.GetNormalized();
+				obb.e0 = vX.GetLength();
+				obb.v1 = vY.GetNormalized();
+				obb.e1 = vY.GetLength();
+				obb.v2 = vZ.GetNormalized();
+				obb.e2 = vZ.GetLength();
+				obb.c = vCenter;
+
+				if (bCube)
+					obb.type = (float)I3DEngine::SAnalyticalOccluder::eOBB;
+				else
+					obb.type = (float)I3DEngine::SAnalyticalOccluder::eCylinder;
+
+				if (bAOHard)
+					obb.type += 2.f;
+
+				m_AnalyticalOccluders[bPO].Add(obb);
+			}
+			else if (bSphere)
+			{
+				I3DEngine::SAnalyticalOccluder capsule;
+				capsule.type = (float)I3DEngine::SAnalyticalOccluder::eCapsule;
+
+				Vec3 vCenter = pStatObj->GetAABB().GetCenter();
+				Vec3 vZ = Vec3(0, 0, 1);
+				Vec3 vX = Vec3(1, 0, 0);
+
+				vCenter = matParent.TransformPoint(vCenter);
+				vZ = matParent.TransformVector(vZ);
+				vX = matParent.TransformVector(vX);
+
+				capsule.v0 = vCenter + vZ;
+				capsule.v1 = vCenter - vZ;
+				capsule.radius = vX.GetLength();
+
+				m_AnalyticalOccluders[bPO].Add(capsule);
+			}
+		}
+	}
+
+	if (GetCVars()->e_svoTI_AnalyticalOccluders)
+	{
+		if (ICharacterInstance* pCharacter = (ICharacterInstance*)pRN->GetEntityCharacter(&matParent))
+		{
+			bool bPO = true;
+
+			AABB aabbEx = pRN->GetBBox();
+			aabbEx.Expand(Vec3(GetCVars()->e_svoTI_AnalyticalOccludersRange, GetCVars()->e_svoTI_AnalyticalOccludersRange, GetCVars()->e_svoTI_AnalyticalOccludersRange));
+
+			if (!gEnv->pSystem->GetViewCamera().IsAABBVisible_E(aabbEx))
+				return;
+
+			// build capsules from character bones (bone names must be specified)
+			if (ISkeletonPose* pSkeletonPose = pCharacter->GetISkeletonPose())
+			{
+				IDefaultSkeleton& rDefaultSkeleton = pCharacter->GetIDefaultSkeleton();
+
+				const DynArray<SBoneShadowCapsule>& capsuleInfos = rDefaultSkeleton.GetShadowCapsules();
+
+				AABB aabb = pRN->GetBBox();
+
+				// for distant objects build single capsule from AABB
+				if (capsuleInfos.size() && aabb.GetDistance(camPos) > 12.f)
+				{
+					I3DEngine::SAnalyticalOccluder capsule;
+					capsule.type = (float)I3DEngine::SAnalyticalOccluder::eCapsule;
+
+					Vec3 vSize = aabb.GetSize();
+					Vec3 vCenter = aabb.GetCenter();
+
+					capsule.radius = min(0.3f, (vSize.x + vSize.y) * 0.25f);
+
+					capsule.v0 = Vec3(vCenter.x, vCenter.y, max(vCenter.z + .01f, aabb.max.z - capsule.radius));
+					capsule.v1 = Vec3(vCenter.x, vCenter.y, min(vCenter.z - .01f, aabb.min.z + capsule.radius));
+
+					m_AnalyticalOccluders[bPO].Add(capsule);
+
+					return;
+				}
+
+				for (int32 capsuleId = 0; capsuleId < capsuleInfos.size(); capsuleId++)
+				{
+					const SBoneShadowCapsule& capsuleInfo = capsuleInfos[capsuleId];
+
+					Vec3 arrBonePositions[2];
+
+					for (int nJointSlot = 0; nJointSlot < 2; nJointSlot++)
+					{
+						int nJointID = capsuleInfo.arrJoints[nJointSlot];
+
+						if (nJointID >= 0)
+						{
+							Matrix34A tm34 = matParent * Matrix34(pSkeletonPose->GetAbsJointByID(nJointID));
+							arrBonePositions[nJointSlot] = tm34.GetTranslation();
+						}
+						else
+						{
+							arrBonePositions[nJointSlot].zero();
+						}
+					}
+
+					I3DEngine::SAnalyticalOccluder capsule;
+					capsule.type = (float)I3DEngine::SAnalyticalOccluder::eCapsule;
+
+					capsule.radius = capsuleInfo.radius;
+					capsule.v0 = arrBonePositions[0];
+					capsule.v1 = arrBonePositions[1];
+
+					m_AnalyticalOccluders[bPO].Add(capsule);
+				}
+			}
+		}
 	}
 }
 

@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 // -------------------------------------------------------------------------
 //  Created:     06/04/2014 by Filipe amim
@@ -16,26 +16,34 @@
 #include <CryRenderer/RenderElements/CREParticle.h>
 
 // compile options
-// #define CRY_DEBUG_PARTICLE_SYSTEM				// enable debugging on all particle source code
-// #define CRY_PFX1_BAIL_UNSUPPORTED		// disable pfx1 features that not yet supported by pfx2 for precision profiling
-// #define CRY_PFX2_LOAD_PRIORITY					// when trying to load a pfx1 effect, try to load pfx2 effect with the same name first
-#define CRY_PFX2_PROFILE_DETAILS // more in detail profile of pfx2. Individual features and sub update parts will appear here.
+#ifdef _DEBUG
+	#define CRY_DEBUG_PARTICLE_SYSTEM    // enable debugging on all particle source code
+#endif
+// #define CRY_PFX1_BAIL_UNSUPPORTED	// disable pfx1 features that not yet supported by pfx2 for precision profiling
+// #define CRY_PFX2_LOAD_PRIORITY		// when trying to load a pfx1 effect, try to load pfx2 effect with the same name first
+#define CRY_PFX2_PROFILE_DETAILS        // more in detail profile of pfx2. Individual features and sub update parts will appear here.
 // ~compile options
 
 #if defined(CRY_DEBUG_PARTICLE_SYSTEM) && CRY_PLATFORM_WINDOWS
-	#define CRY_PFX2_DBG          \
-	  __pragma(optimize("", off)) \
-	  __pragma(inline_depth(0))
-#else
-	#define CRY_PFX2_DBG
+	#pragma optimize("", off)
+	#pragma inline_depth(0)
+	#undef ILINE
+	#define ILINE inline
 #endif
+#define CRY_PFX2_DBG	// obsolete
 #
 #ifndef _RELEASE
 	#define CRY_PFX2_ASSERT(cond) { CRY_ASSERT(cond); }
 #else
 	#define CRY_PFX2_ASSERT(cond)
 #endif
-#
+
+#ifdef CRY_DEBUG_PARTICLE_SYSTEM
+#	define CRY_PFX2_DEBUG_ONLY_ASSERT(cond) CRY_PFX2_ASSERT(cond);
+#else
+#	define CRY_PFX2_DEBUG_ONLY_ASSERT(cond)
+#endif
+
 #ifdef CRY_PFX2_PROFILE_DETAILS
 	#define CRY_PFX2_PROFILE_DETAIL FUNCTION_PROFILER(GetISystem(), PROFILE_PARTICLE);
 #else
@@ -75,12 +83,19 @@ struct SComponentParams;
 typedef _smart_ptr<CParticleFeature> TParticleFeaturePtr;
 
 typedef uint32                       TInstanceDataOffset;
-const TParticleId gInvalidId = -1;
-const float gInfinity = std::numeric_limits<float>::infinity();
 
-typedef stl::HeapAllocator<stl::PSyncNone>                                    TParticleHeap;
-typedef TParticleHeap::Array<TParticleId, uint, CRY_PFX2_PARTICLES_ALIGNMENT> TParticleIdArray;
-typedef TParticleHeap::Array<float, uint, CRY_PFX2_PARTICLES_ALIGNMENT>       TFloatArray;
+const TParticleId gInvalidId           = -1;
+const float gInfinity                  = std::numeric_limits<float>::infinity();
+
+using TParticleHeap                    = stl::HeapAllocator<stl::PSyncNone>;
+template<typename T> using THeapArray  = TParticleHeap::Array<T, uint, CRY_PFX2_PARTICLES_ALIGNMENT>;
+using TParticleIdArray                 = THeapArray<TParticleId>;
+using TFloatArray                      = THeapArray<float>;
+
+template<typename T> using TDynArray   = DynArray<T, uint>;
+template<typename T> using TVarArray   = Array<T, uint>;
+template<typename T> using TConstArray = Array<const T, uint>;
+
 
 #ifdef CRY_PFX2_USE_SSE
 
@@ -89,26 +104,35 @@ struct TParticleGroupId
 public:
 	TParticleGroupId() {}
 	TParticleGroupId(uint32 i) { id = i; }
-	TParticleGroupId&                 operator=(uint32 i)                                            { id = i; return *this; }
 	friend bool                       operator<(const TParticleGroupId a, const TParticleGroupId b)  { return a.id < b.id; }
+	friend bool                       operator>(const TParticleGroupId a, const TParticleGroupId b)  { return a.id > b.id; }
 	friend bool                       operator<=(const TParticleGroupId a, const TParticleGroupId b) { return a.id <= b.id; }
 	friend bool                       operator>=(const TParticleGroupId a, const TParticleGroupId b) { return a.id >= b.id; }
 	friend bool                       operator==(const TParticleGroupId a, const TParticleGroupId b) { return a.id == b.id; }
+	friend bool                       operator!=(const TParticleGroupId a, const TParticleGroupId b) { return a.id != b.id; }
 	TParticleGroupId&                 operator++()                                                   { ++id; return *this; }
 	TParticleGroupId                  operator++(int)                                                { id++; return *this; }
 	TParticleGroupId&                 operator+=(int stride)                                         { id += stride; return *this; }
 	template<class type> friend type* operator+(type* ptr, TParticleGroupId id)                      { return ptr + id.id; }
 	friend TParticleGroupId           operator&(TParticleGroupId id, uint32 mask)                    { return TParticleGroupId(id.id & mask); }
-	uint32                            Get() const                                                    { return id; }
+	uint32                            operator+() const                                              { return id; }
 private:
 	uint32 id;
 };
+
+#define CRY_PFX2_PARTICLESGROUP_STRIDE 4 // can be 8 for AVX or 64 forGPU
 
 #else
 
 typedef TParticleId TParticleGroupId;
 
+#define CRY_PFX2_PARTICLESGROUP_STRIDE 1
+
 #endif
+
+#define CRY_PFX2_PARTICLESGROUP_LOWER(id) ((id) & ~((CRY_PFX2_PARTICLESGROUP_STRIDE - 1)))
+#define CRY_PFX2_PARTICLESGROUP_UPPER(id) ((id) | ((CRY_PFX2_PARTICLESGROUP_STRIDE - 1)))
+
 
 struct SRenderContext
 {
@@ -125,14 +149,36 @@ struct SRenderContext
 	uint16                    m_fogVolumeId;
 };
 
-struct SUpdateRange
+template<typename TIndex, int nStride = 1>
+struct TIndexRange
 {
-	explicit SUpdateRange(TParticleId firstParticleId = 0, TParticleId lastParticleId = 0)
-		: m_firstParticleId(firstParticleId)
-		, m_lastParticleId(lastParticleId) {}
-	TParticleId m_firstParticleId;
-	TParticleId m_lastParticleId;
+	struct iterator
+	{
+		TIndex i;
+		iterator(TIndex i) : i(i) {}
+		bool operator != (iterator it) const { return i != it.i; }
+		void operator ++ () { i += nStride; }
+		TIndex operator*() const { return i; }
+	};
+
+	TIndex m_begin, m_end;
+
+	iterator begin() const { return iterator(m_begin); }
+	iterator end() const   { return iterator(m_end); }
+	TIndex size() const    { return m_end - m_begin; }
+
+	explicit TIndexRange(TIndex b = 0, TIndex e = 0)
+		: m_begin(+b & ~(nStride - 1))
+		, m_end((+e + (nStride - 1)) & ~(nStride - 1))
+	{}
+
+	template<typename TIndex2, int nStride2>
+	TIndexRange(TIndexRange<TIndex2, nStride2> range)
+		: TIndexRange(range.m_begin, range.m_end) {}
 };
+
+typedef TIndexRange<TParticleId> SUpdateRange;
+typedef TIndexRange<TParticleGroupId, CRY_PFX2_PARTICLESGROUP_STRIDE> SGroupRange;
 
 enum EFeatureType
 {

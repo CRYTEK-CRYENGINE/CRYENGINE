@@ -4,7 +4,7 @@
 //  File name:   UISettings.cpp
 //  Version:     v1.00
 //  Created:     10/8/2011 by Paul Reindell.
-//  Description: 
+//  Description:
 // -------------------------------------------------------------------------
 //  History:
 //
@@ -20,7 +20,7 @@
 #include "ScreenResolution.h"
 
 #define OPTION_MUSIC_VOLUME "MusicVolume"
-#define OPTION_SFX_VOLUME "SFXVolume"
+#define OPTION_SFX_VOLUME   "SFXVolume"
 
 ////////////////////////////////////////////////////////////////////////////
 // Note: The default value of these settings is 1.0f in SoundSystem, by picking the same value here, the menu works properly
@@ -30,14 +30,9 @@ static float g_music = 1.0f;
 static float g_sfx = 1.0f;
 
 ////////////////////////////////////////////////////////////////////////////
-static void SetVolume(AudioControlId id, float volume)
+static void SetVolume(CryAudio::ControlId id, float volume)
 {
-	SAudioRequest oRequest;
-	SAudioObjectRequestData<eAudioObjectRequestType_SetRtpcValue> oRequestData(id, volume);
-	oRequest.flags = eAudioRequestFlags_PriorityNormal;
-	oRequest.pOwner = NULL;
-	oRequest.pData = &oRequestData;
-	gEnv->pAudioSystem->PushRequest(oRequest);
+	gEnv->pAudioSystem->SetParameter(id, volume);
 }
 
 ////////////////////////////////////////////////////////////////////////////
@@ -57,19 +52,19 @@ CUISettings::CUISettings()
 }
 
 ////////////////////////////////////////////////////////////////////////////
-#define GET_CVAR_SAFE(var, name) { var = gEnv->pConsole->GetCVar(name); if (!var) {var = SNullCVar::Get(); gEnv->pLog->LogError("UISetting uses undefined CVar: %s", name);} }
+#define GET_CVAR_SAFE(var, name) { var = gEnv->pConsole->GetCVar(name); if (!var) { var = SNullCVar::Get(); gEnv->pLog->LogError("UISetting uses undefined CVar: %s", name); } }
 
 void CUISettings::InitEventSystem()
 {
 	if (!gEnv->pFlashUI) return;
 
 	// CVars
- 	GET_CVAR_SAFE(m_pRXVar, "r_Width");
- 	GET_CVAR_SAFE(m_pRYVar, "r_Height");
- 	GET_CVAR_SAFE(m_pFSVar, "r_Fullscreen");
+	GET_CVAR_SAFE(m_pRXVar, "r_Width");
+	GET_CVAR_SAFE(m_pRYVar, "r_Height");
+	GET_CVAR_SAFE(m_pFSVar, "r_Fullscreen");
 	GET_CVAR_SAFE(m_pGQVar, "sys_spec");
-	gEnv->pAudioSystem->GetAudioRtpcId("volume_music", m_musicVolumeId);
-	gEnv->pAudioSystem->GetAudioRtpcId("volume_sfx", m_sfxVolumeId);
+	m_musicVolumeId = CryAudio::StringToId("volume_music");
+	m_sfxVolumeId = CryAudio::StringToId("volume_sfx");
 	GET_CVAR_SAFE(m_pVideoVar, "sys_flash_video_soundvolume");
 	GET_CVAR_SAFE(m_pMouseSensitivity, "cl_sensitivity");
 	GET_CVAR_SAFE(m_pInvertMouse, "cl_invertMouse");
@@ -134,7 +129,6 @@ void CUISettings::InitEventSystem()
 		eventDesc.AddParam<SUIParameterDesc::eUIPT_String>("LevelPath", "path to the level");
 		m_eventSender.RegisterEvent<eUIE_OnGetLevelItems>(eventDesc);
 	}
-
 
 	// events that can be sent from UI flowgraphs to this class
 	m_pUIEvents = gEnv->pFlashUI->CreateEventSystem("Settings", IUIEventSystem::eEST_UI_TO_SYSTEM);
@@ -226,7 +220,7 @@ void CUISettings::Init()
 		}
 	}
 
-	COption *pOption = g_pGame->GetProfileOptions()->GetOption(OPTION_MUSIC_VOLUME);
+	COption* pOption = g_pGame->GetProfileOptions()->GetOption(OPTION_MUSIC_VOLUME);
 	if (pOption)
 	{
 		string strVal = pOption->Get();
@@ -240,7 +234,7 @@ void CUISettings::Init()
 		g_sfx = (float)atof(strVal.c_str());
 		SetVolume(m_sfxVolumeId, g_sfx);
 	}
-	
+
 	SendSoundSettingsChange();
 	SendGameSettingsChange();
 }
@@ -249,9 +243,9 @@ void CUISettings::Init()
 void CUISettings::Update(float fDeltaTime)
 {
 #ifndef _RELEASE
- 	static int rX = -1;
- 	static int rY = -1;
- 	if (rX != m_pRXVar->GetIVal() || rY != m_pRYVar->GetIVal())
+	static int rX = -1;
+	static int rY = -1;
+	if (rX != m_pRXVar->GetIVal() || rY != m_pRYVar->GetIVal())
 	{
 		rX = m_pRXVar->GetIVal();
 		rY = m_pRYVar->GetIVal();
@@ -314,7 +308,7 @@ void CUISettings::Update(float fDeltaTime)
 ////////////////////////////////////////////////////////////////////////////
 // ui events
 ////////////////////////////////////////////////////////////////////////////
-void CUISettings::OnSetGraphicSettings( int resIndex, int graphicsQuality, bool fullscreen )
+void CUISettings::OnSetGraphicSettings(int resIndex, int graphicsQuality, bool fullscreen)
 {
 #if CRY_PLATFORM_DESKTOP
 	if (resIndex >= 0 && resIndex < m_Resolutions.size())
@@ -335,7 +329,7 @@ void CUISettings::OnSetGraphicSettings( int resIndex, int graphicsQuality, bool 
 
 ////////////////////////////////////////////////////////////////////////////
 // DEPRECATED: should consider to use OnSetGraphicSettings
-void CUISettings::OnSetResolution( int resX, int resY, bool fullscreen )
+void CUISettings::OnSetResolution(int resX, int resY, bool fullscreen)
 {
 #if CRY_PLATFORM_DESKTOP
 	m_pRXVar->Set(resX);
@@ -346,7 +340,7 @@ void CUISettings::OnSetResolution( int resX, int resY, bool fullscreen )
 }
 
 ////////////////////////////////////////////////////////////////////////////
-void CUISettings::OnSetSoundSettings( float music, float sfx, float video )
+void CUISettings::OnSetSoundSettings(float music, float sfx, float video)
 {
 	SetVolume(m_musicVolumeId, music);
 	SetVolume(m_sfxVolumeId, sfx);
@@ -365,7 +359,7 @@ void CUISettings::OnSetSoundSettings( float music, float sfx, float video )
 }
 
 ////////////////////////////////////////////////////////////////////////////
-void CUISettings::OnSetGameSettings( float sensitivity, bool invertMouse, bool invertController )
+void CUISettings::OnSetGameSettings(float sensitivity, bool invertMouse, bool invertController)
 {
 	m_pMouseSensitivity->Set(sensitivity);
 	m_pInvertMouse->Set(invertMouse);
@@ -398,19 +392,19 @@ void CUISettings::OnGetCurrGameSettings()
 }
 
 ////////////////////////////////////////////////////////////////////////////
-void CUISettings::OnGetLevels( string levelPathFilter )
+void CUISettings::OnGetLevels(string levelPathFilter)
 {
 	if (gEnv->pGameFramework && gEnv->pGameFramework->GetILevelSystem())
 	{
 		int i = 0;
-		while ( ILevelInfo* pLevelInfo = gEnv->pGameFramework->GetILevelSystem()->GetLevelInfo( i++ ) )
+		while (ILevelInfo* pLevelInfo = gEnv->pGameFramework->GetILevelSystem()->GetLevelInfo(i++))
 		{
 			string levelPath = pLevelInfo->GetPath();
 			levelPath.MakeLower();
 			levelPathFilter.MakeLower();
-			if(strncmp(levelPathFilter, levelPath.c_str(), levelPathFilter.length()) == 0)
+			if (strncmp(levelPathFilter, levelPath.c_str(), levelPathFilter.length()) == 0)
 			{
- 				m_eventSender.SendEvent<eUIE_OnGetLevelItems>(pLevelInfo->GetDisplayName(), pLevelInfo->GetName(), pLevelInfo->GetPath());
+				m_eventSender.SendEvent<eUIE_OnGetLevelItems>(pLevelInfo->GetDisplayName(), pLevelInfo->GetName(), pLevelInfo->GetPath());
 			}
 		}
 	}
@@ -419,7 +413,7 @@ void CUISettings::OnGetLevels( string levelPathFilter )
 ////////////////////////////////////////////////////////////////////////////
 void CUISettings::OnLogoutUser()
 {
-//TODO: SAFE CURRENT SETTINGS?
+	//TODO: SAFE CURRENT SETTINGS?
 
 	if (gEnv->pGameFramework && gEnv->pGameFramework->GetIPlayerProfileManager())
 	{
@@ -427,7 +421,6 @@ void CUISettings::OnLogoutUser()
 		pProfileManager->LogoutUser(pProfileManager->GetCurrentUser());
 	}
 }
-
 
 ////////////////////////////////////////////////////////////////////////////
 // ui functions
@@ -444,14 +437,14 @@ void CUISettings::SendResolutions()
 		resolutions.AddArgument(m_Resolutions[i].first);
 		resolutions.AddArgument(m_Resolutions[i].second);
 	}
- 	m_eventSender.SendEvent<eUIE_OnGetResolutions>(resolutions);
+	m_eventSender.SendEvent<eUIE_OnGetResolutions>(resolutions);
 }
 
 ////////////////////////////////////////////////////////////////////////////
 void CUISettings::SendGraphicSettingsChange()
 {
 #if !defined(CONSOLE)
- 	m_eventSender.SendEvent<eUIE_GraphicSettingsChanged>(m_currResId, m_Resolutions[m_currResId].first, m_Resolutions[m_currResId].second, m_pFSVar->GetIVal() != 0);
+	m_eventSender.SendEvent<eUIE_GraphicSettingsChanged>(m_currResId, m_Resolutions[m_currResId].first, m_Resolutions[m_currResId].second, m_pFSVar->GetIVal() != 0);
 #endif
 }
 
@@ -459,16 +452,16 @@ void CUISettings::SendGraphicSettingsChange()
 void CUISettings::SendSoundSettingsChange()
 {
 	float video = 0.5f; // an arbitrary value, if the CVar is not present, this setting will have no effect either way
-	if(m_pVideoVar)
+	if (m_pVideoVar)
 		video = m_pVideoVar->GetFVal();
- 	m_eventSender.SendEvent<eUIE_SoundSettingsChanged>(g_music, g_sfx, video);
+	m_eventSender.SendEvent<eUIE_SoundSettingsChanged>(g_music, g_sfx, video);
 }
 
 ////////////////////////////////////////////////////////////////////////////
 void CUISettings::SendGameSettingsChange()
 {
- 	m_eventSender.SendEvent<eUIE_GameSettingsChanged>(m_pMouseSensitivity->GetFVal(), m_pInvertMouse->GetIVal() != 0, m_pInvertController->GetIVal() != 0);
+	m_eventSender.SendEvent<eUIE_GameSettingsChanged>(m_pMouseSensitivity->GetFVal(), m_pInvertMouse->GetIVal() != 0, m_pInvertController->GetIVal() != 0);
 }
 
 ////////////////////////////////////////////////////////////////////////////
-REGISTER_UI_EVENTSYSTEM( CUISettings );
+REGISTER_UI_EVENTSYSTEM(CUISettings);

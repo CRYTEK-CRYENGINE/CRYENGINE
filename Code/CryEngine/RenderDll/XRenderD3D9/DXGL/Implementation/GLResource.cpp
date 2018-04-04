@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 // -------------------------------------------------------------------------
 //  File name:   GLResource.cpp
@@ -1724,7 +1724,7 @@ SBuffer::SBuffer()
 	, m_bSystemMemoryCopyOwner(true)
 #endif //DXGL_SUPPORT_APITRACE
 #if DXGL_STREAMING_CONSTANT_BUFFERS
-	#if CRY_OPENGL_SINGLE_CONTEXT
+	#if OGL_SINGLE_CONTEXT
 	, m_bContextCacheValid(false)
 	#endif
 	, m_bStreaming(false)
@@ -2015,7 +2015,7 @@ SDefaultFrameBufferTexture::SDefaultFrameBufferTexture(GLsizei iWidth, GLsizei i
 #if CRY_PLATFORM_IOS
 	// On iOS there is no system frame buffer, we need to extract the framebuffer
 	// from the currently bound framebuffer.
-	#if defined(DXGL_USE_SDL) && defined(DXGL_SINGLEWINDOW)
+	#if defined(USE_SDL2_VIDEO) && defined(DXGL_SINGLEWINDOW)
 	m_kDefaultFBO.m_uName = 1;
 	SDL_GetWindowSize(SMainWindow::ms_kInstance.m_pSDLWindow, &m_iDefaultFBOWidth, &m_iDefaultFBOHeight);
 	#else
@@ -2193,7 +2193,7 @@ void SDefaultFrameBufferTexture::OnRead(CContext* pContext)
 		pContext->BlitFrameBuffer(
 		  m_kDefaultFBO, m_kInputFBO,
 		  m_eOutputColorBuffer, m_eInputColorBuffer,
-#if CRY_OPENGL_FLIP_Y
+#if OGL_FLIP_Y
 		  0, m_iDefaultFBOHeight, m_iDefaultFBOWidth, 0,
 #else
 		  0, 0, m_iDefaultFBOWidth, m_iDefaultFBOHeight,
@@ -2211,7 +2211,7 @@ void SDefaultFrameBufferTexture::Flush(CContext* pContext)
 		pContext->BlitFrameBuffer(
 		  m_kInputFBO, m_kDefaultFBO,
 		  m_eInputColorBuffer, m_eOutputColorBuffer,
-#if CRY_OPENGL_FLIP_Y
+#if OGL_FLIP_Y
 		  0, m_iHeight, m_iWidth, 0,
 #else
 		  0, 0, m_iWidth, m_iHeight,
@@ -2360,7 +2360,7 @@ const SGIFormatInfo*   GetCompatibleTextureFormatInfo(EGIFormat* peGIFormat)
 	return NULL;
 }
 
-#if CRY_OPENGL_SINGLE_CONTEXT
+#if OGL_SINGLE_CONTEXT
 
 SInitialDataCopy::SInitialDataCopy(const D3D11_SUBRESOURCE_DATA* akSubresourceData, uint32 uNumSubresources)
 	: m_uNumSubresources(uNumSubresources)
@@ -2956,7 +2956,7 @@ struct SStreamingBufferImpl
 		DXGL_SCOPED_PROFILE("SStagingBufferImpl::MapBufferRange")
 		MapBufferSystemMemoryRange(pBuffer, uOffset, pMappedResource);
 		if (eMap == D3D11_MAP_WRITE || eMap == D3D11_MAP_READ_WRITE || eMap == D3D11_MAP_WRITE_DISCARD || eMap == D3D11_MAP_WRITE_NO_OVERWRITE)
-	#if CRY_OPENGL_SINGLE_CONTEXT
+	#if OGL_SINGLE_CONTEXT
 			pBuffer->m_bContextCacheValid = false;
 	#else
 			pBuffer->m_kContextCachesValid.SetZero();
@@ -2970,7 +2970,7 @@ struct SStreamingBufferImpl
 		SBuffer * pBuffer(static_cast<SBuffer*>(pResource));
 		MapBufferSystemMemoryRange(pBuffer, 0, pMappedResource);
 		if (eMap == D3D11_MAP_WRITE || eMap == D3D11_MAP_READ_WRITE || eMap == D3D11_MAP_WRITE_DISCARD || eMap == D3D11_MAP_WRITE_NO_OVERWRITE)
-	#if CRY_OPENGL_SINGLE_CONTEXT
+	#if OGL_SINGLE_CONTEXT
 			pBuffer->m_bContextCacheValid = false;
 	#else
 			pBuffer->m_kContextCachesValid.SetZero();
@@ -2987,7 +2987,7 @@ struct SStreamingBufferImpl
 		DXGL_SCOPED_PROFILE("SStagingBufferImpl::UpdateBufferSubresource")
 		SBuffer * pBuffer(static_cast<SBuffer*>(pResource));
 		UpdateBufferSystemMemory(pBuffer, pDstBox, pSrcData);
-	#if CRY_OPENGL_SINGLE_CONTEXT
+	#if OGL_SINGLE_CONTEXT
 		pBuffer->m_bContextCacheValid = false;
 	#else
 		pBuffer->m_kContextCachesValid.SetZero();

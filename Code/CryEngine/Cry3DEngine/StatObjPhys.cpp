@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #include "StdAfx.h"
 
@@ -127,7 +127,7 @@ void CStatObj::PhysicalizeCompiled(CNodeCGF* pNode, int bAppend)
 				FileWarning(0, GetFilePath(), "Phys proxy rejected due to triangle count limit, %d > %d (%s)", pmd->nTris, GetCVars()->e_PhysProxyTriLimit, GetFilePath());
 				GetPhysicalWorld()->GetGeomManager()->UnregisterGeometry(pPhysGeom);
 				m_isProxyTooBig = true;
-				m_pMaterial = Get3DEngine()->GetMaterialManager()->LoadMaterial("EngineAssets/Materials/PhysProxyTooBig");
+				m_pMaterial = Get3DEngine()->GetMaterialManager()->LoadMaterial("%ENGINE%/EngineAssets/Materials/PhysProxyTooBig");
 			}
 			else
 				AssignPhysGeom(nPhysGeomType + PHYS_GEOM_TYPE_DEFAULT, pPhysGeom, bAppend, /*bLoading*/ 1);
@@ -1971,7 +1971,15 @@ int CStatObj::Physicalize(IPhysicalEntity* pent, pe_geomparams* pgp, int id, con
 			// add all solid and non-colliding geoms as individual parts
 			for (i = 0; i < m_arrPhysGeomInfo.GetGeomCount(); i++)
 				if (m_arrPhysGeomInfo.GetGeomType(i) == PHYS_GEOM_TYPE_DEFAULT)
+				{
+					int flags1 = pgp->flags;
+					if (m_arrPhysGeomInfo[i]->surface_idx < m_arrPhysGeomInfo[i]->nMats)
+						if (ISurfaceType* pMat = pSurfaceMan->GetSurfaceType(m_arrPhysGeomInfo[i]->pMatMapping[m_arrPhysGeomInfo[i]->surface_idx]))
+							if (pMat->GetPhyscalParams().collType >= 0)
+								(pgp->flags &= ~(geom_collides | geom_floats)) |= pMat->GetPhyscalParams().collType;
 					res = pent->AddGeometry(m_arrPhysGeomInfo[i], pgp, id);
+					pgp->flags = flags1;
+				}
 			pgp->idmatBreakable = -1;
 			for (i = 0; i < m_arrPhysGeomInfo.GetGeomCount(); i++)
 				if (m_arrPhysGeomInfo.GetGeomType(i) == PHYS_GEOM_TYPE_NO_COLLIDE)
@@ -2026,7 +2034,7 @@ int CStatObj::PhysicalizeSubobjects(IPhysicalEntity* pent, const Matrix34* pMtx,
 	for (i = j = 0; i < nObj; i++)
 		if (pSubObj = GetSubObject(i))
 			j += pSubObj->pStatObj && pSubObj->pStatObj->GetPhysGeom(0) != 0;
-	id0 = id0 < 0 ? 0 : AllocPartIdRange(id0, j);
+	id0 = id0 < 0 ? 0 : EntityPhysicsUtils::AllocPartIdRange(id0, j);
 
 	for (i = 0; i < nObj; i++)
 		if ((pSubObj = GetSubObject(i))->nType == STATIC_SUB_OBJECT_MESH && pSubObj->pStatObj && pSubObj->pStatObj->GetPhysGeom() &&
@@ -3691,10 +3699,10 @@ CStatObjFoliage::~CStatObjFoliage()
 	m_prev->m_next = m_next;
 	if (m_pStatObj)
 		m_pStatObj->Release();
+	if (*m_ppThis == this)
+		*m_ppThis = nullptr;
 	if (!m_bDelete)
 	{
-		if (*m_ppThis == this)
-			*m_ppThis = 0;
 		if (m_pRenderObject)
 		{
 			m_pRenderObject->m_ObjFlags &= ~(FOB_SKINNED);

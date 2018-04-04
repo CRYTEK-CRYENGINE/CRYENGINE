@@ -7,10 +7,10 @@ namespace CryEngine
 	/// </summary>
 	public class Timer : IGameUpdateReceiver
 	{
+		private readonly float _timeToLive;
 		private Action _onTimerExpired;
 		private float _startTime;
 		private float _time;
-		private float _timeToLive;
 
 		public float Time { get { return _time; } }
 		public bool Looping { get; private set; }
@@ -19,9 +19,9 @@ namespace CryEngine
 		{
 			GameFramework.RegisterForUpdate(this);
 
-			this._timeToLive = time;
-			this._onTimerExpired = onTimerExpired;
-			this.Looping = looping;
+			_timeToLive = time;
+			_onTimerExpired = onTimerExpired;
+			Looping = looping;
 
 			_startTime = Engine.Timer.GetCurrTime();
 		}

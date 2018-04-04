@@ -23,6 +23,7 @@ public:
 		: m_minimumLevel(minimumLevel)
 		, m_pLog(gEnv->pSystem->GetILog())
 		, m_pListener(nullptr)
+		, m_bEcho(true)
 	{
 		assert(m_pLog);
 	}
@@ -48,6 +49,11 @@ public:
 	{
 		m_pListener = pListener;
 	}
+
+	void SetEcho(bool bEcho)
+	{
+		m_bEcho = bEcho;
+	}
 private:
 	// Handle message from RC
 	virtual void OnRCMessage(MessageSeverity severity, const char* text) override
@@ -60,7 +66,10 @@ private:
 			switch (severity)
 			{
 			case MessageSeverity_Warning:
-				m_pLog->LogWarning(szFormat, text);
+				if (m_bEcho)
+				{
+					m_pLog->LogWarning(szFormat, text);
+				}
 				if (m_firstWarning.empty())
 				{
 					m_firstWarning = text;
@@ -68,7 +77,10 @@ private:
 				break;
 			case MessageSeverity_Info:
 			case MessageSeverity_Debug:
-				m_pLog->LogAlways(szFormat, text);
+				if (m_bEcho)
+				{
+					m_pLog->LogAlways(szFormat, text);
+				}
 				break;
 			case MessageSeverity_Error:
 				if (m_firstError.empty() && failMsgPrefix != string(text).substr(0, failMsgPrefix.length()))  // Ignore generic fail message at the end.
@@ -77,7 +89,10 @@ private:
 				}
 			// Fall-through
 			default:
-				m_pLog->LogError(szFormat, text);
+				if (m_bEcho)
+				{
+					m_pLog->LogError(szFormat, text);
+				}
 				break;
 			}
 		}
@@ -93,18 +108,26 @@ private:
 
 	string               m_firstError;
 	string               m_firstWarning;
+
+	bool m_bEcho;
 };
 
 } // namespace Private_RcCaller
 
 CRcCaller::CRcCaller()
 	: m_pListener(nullptr)
+	, m_bEcho(true)
 {
 }
 
 void CRcCaller::SetListener(IListener* pListener)
 {
 	m_pListener = pListener;
+}
+
+void CRcCaller::SetEcho(bool bEcho)
+{
+	m_bEcho = bEcho;
 }
 
 void CRcCaller::OverwriteExtension(const string& ext)
@@ -135,6 +158,7 @@ bool CRcCaller::Call(const string& filename)
 
 	const CResourceCompilerHelper::ERcExePath path = CResourceCompilerHelper::eRcExePath_editor;
 	CRcListener listener(IResourceCompilerListener::MessageSeverity_Warning);
+	listener.SetEcho(m_bEcho);
 	if (m_pListener)
 	{
 		listener.SetListener(m_pListener);
@@ -159,7 +183,12 @@ string CRcCaller::OptionOverwriteExtension(const string& ext)
 	return string().Format("/overwriteextension=%s", ext.c_str());
 }
 
-string CRcCaller::OptionAssetTypes()
+string CRcCaller::OptionOverwriteFilename(const string& filename)
 {
-	return "/assettypes=cgf,Mesh;chr,Skeleton;skin,SkinnedMesh;dds,Texture;mtl,Material;cga,AnimatedMesh;anm,MeshAnimation;cdf,Character;caf,Animation;wav,Sound;ogg,Sound;cax,GeometryCache;lua,Script;pfx,Particles";
+	return string().Format("/overwritefilename=\"%s\"", filename);
+}
+
+string CRcCaller::OptionVertexPositionFormat(bool b32bit)
+{
+	return string().Format("/vertexpositionformat=%s", b32bit ? "f32" : "f16");
 }

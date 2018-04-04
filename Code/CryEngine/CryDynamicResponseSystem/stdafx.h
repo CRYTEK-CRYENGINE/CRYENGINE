@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #pragma once
 
@@ -22,16 +22,16 @@ struct IResponseCondition;
 #include <CrySystem/ITimer.h>
 #include <CryString/CryString.h>
 
-#include <yasli/ConfigLocal.h>
-#if !defined(YASLI_CXX11)
-	#define YASLI_CXX11 1
-#endif
+#include <CrySerialization/yasli/ConfigLocal.h>
 
 #include <CrySerialization/Forward.h>
 #include <CrySerialization/ClassFactory.h>
 #include <CrySerialization/IArchive.h>
 #include <CrySerialization/Enum.h>
 #include <CrySerialization/STL.h>
+
+//Schematyc includes
+#include <CrySchematyc/CoreAPI.h>
 
 #include <CryString/HashedString.h>
 #include <CryDynamicResponseSystem/IDynamicResponseSystem.h>

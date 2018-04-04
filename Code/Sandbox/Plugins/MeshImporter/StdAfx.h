@@ -11,6 +11,15 @@
 #define CRY_USE_MFC
 #include <CryCore/Platform/CryAtlMfc.h> // Required to use QtViewPort
 
+#include <CryMath/Cry_Math.h>
+#include "CryRenderer/IRenderer.h"
+#include "CryRenderer/IShader.h"
+
+#include <IEditor.h>
+#include "SandboxAPI.h"
+#include "EditorCommonAPI.h"
+#include "Material/Material.h"
+
 // don't allow implicit string conversions in this project
 // NOTE: This does not play well with widgets from EditorCommon. So we disable this option for now.
 // #define QT_NO_CAST_FROM_ASCII

@@ -2,9 +2,9 @@
 
 #pragma once
 
-#include "IConvertor.h"
+#include "IConverter.h"
 
-class CSingleThreadedCompiler : public ICompiler, public IConvertor
+class CSingleThreadedCompiler : public ICompiler, public IConverter
 {
 public:
 	CSingleThreadedCompiler() : m_refCount(1) {}
@@ -13,7 +13,7 @@ public:
 	// Inherited via ICompiler
 	virtual IConvertContext* GetConvertContext() override final { return &m_CC; }
 
-	// Inherited via IConvertor
+	// Inherited via IConverter
 	virtual ICompiler* CreateCompiler() override final
 	{
 		// Only ever return one compiler, since we don't support multithreading. Since
@@ -24,15 +24,15 @@ public:
 			return 0;
 		}
 
-		// Until we support multithreading for this convertor, the compiler and the
-		// convertor may as well just be the same object.
+		// Until we support multithreading for this converter, the compiler and the
+		// converter may as well just be the same object.
 		++m_refCount;
 		return this;
 	}
 
 	virtual bool SupportsMultithreading() const override final { return false; }
 
-	// Inherited via ICompiler and IConvertor
+	// Inherited via ICompiler and IConverter
 	virtual void Release() override final
 	{
 		if (--m_refCount <= 0)

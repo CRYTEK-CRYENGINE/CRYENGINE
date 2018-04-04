@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #ifndef _RenderMesh_H_
 #define _RenderMesh_H_
@@ -83,7 +83,7 @@ struct IRenderMesh
 	//! Render mesh initialization parameters, that can be used to create RenderMesh from row pointers.
 	struct SInitParamerers
 	{
-		EVertexFormat             eVertexFormat;
+		InputLayoutHandle             eVertexFormat;
 		ERenderMeshType           eType;
 
 		void*                     pVertBuffer;
@@ -99,7 +99,7 @@ struct IRenderMesh
 		bool                      bPrecache;
 		bool                      bLockForThreadAccess;
 
-		SInitParamerers() : eVertexFormat(eVF_P3F_C4B_T2F), eType(eRMT_Static), pVertBuffer(0), nVertexCount(0), pTangents(0), pNormals(0), pIndices(0), nIndexCount(0),
+		SInitParamerers() : eVertexFormat(EDefaultInputLayouts::P3F_C4B_T2F), eType(eRMT_Static), pVertBuffer(0), nVertexCount(0), pTangents(0), pNormals(0), pIndices(0), nIndexCount(0),
 			nPrimetiveType(prtTriangleList), nRenderChunkCount(0), nClientTextureBindID(0), bOnlyVideoBuffer(false), bPrecache(true), bLockForThreadAccess(false) {}
 	};
 
@@ -144,7 +144,7 @@ struct IRenderMesh
 
 	virtual int             GetIndicesCount() = 0;
 	virtual int             GetVerticesCount() = 0;
-	virtual EVertexFormat   GetVertexFormat() = 0;
+	virtual InputLayoutHandle   GetVertexFormat() = 0;
 	virtual ERenderMeshType GetMeshType() = 0;
 	virtual float           GetGeometricMeanFaceArea() const = 0;
 

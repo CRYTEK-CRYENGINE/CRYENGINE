@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 // -------------------------------------------------------------------------
 //  File name:   ParticleManager.cpp
@@ -272,12 +272,24 @@ void CParticleManager::Reset()
 //////////////////////////////////////////////////////////////////////////
 void CParticleManager::ClearRenderResources(bool bForceClear)
 {
+	const bool bClearEmitters = !GetCVars()->e_ParticlesPreload || bForceClear;
+
+#if !defined(_RELEASE)
+	if (bClearEmitters)
+	{
+		for (const auto& pEmitter : m_Emitters)
+		{
+			assert(pEmitter.Unique()); // All external references need to be released before this point to prevent leaks
+		}
+	}
+#endif
+
 	if (GetCVars()->e_ParticlesDebug & AlphaBit('m'))
 		PrintParticleMemory();
 
 	Reset();
 
-	if (!GetCVars()->e_ParticlesPreload || bForceClear)
+	if (bClearEmitters)
 	{
 		m_Effects.clear();
 		m_LoadedLibs.clear();
@@ -339,7 +351,6 @@ void CParticleManager::SetDefaultEffect(const IParticleEffect* pEffect)
 const ParticleParams& CParticleManager::GetDefaultParams(ParticleParams::EInheritance eInheritance, int nVersion) const
 {
 	static ParticleParams s_paramsStandard;
-	static ParticleParams s_paramsZero(ZERO);
 
 	if (eInheritance == eInheritance.System)
 	{
@@ -349,8 +360,6 @@ const ParticleParams& CParticleManager::GetDefaultParams(ParticleParams::EInheri
 				return pEffect->GetParticleParams();
 		}
 	}
-	else if (eInheritance == eInheritance.Zero)
-		return s_paramsZero;
 	return s_paramsStandard;
 }
 
@@ -452,13 +461,15 @@ IParticleEffect* CParticleManager::FindEffect(cstr sEffectName, cstr sSource, bo
 	assert(pEffect);
 	if (pEffect->IsEnabled() || pEffect->GetChildCount())
 	{
+		if (GetCVars()->e_ParticlesConvertPfx1)
+		{
+			auto pEffectPfx2 = m_pParticleSystem->ConvertEffect(pEffect, !!(GetCVars()->e_ParticlesConvertPfx1 & 2));
+			if (GetCVars()->e_ParticlesConvertPfx1 & 4)
+				return pEffectPfx2;
+		}
 		if (bLoad)
 			pEffect->LoadResources(true, sSource);
 
-		if (GetCVars()->e_ParticlesConvertPfx1)
-		{
-			m_pParticleSystem->ConvertEffect(pEffect, GetCVars()->e_ParticlesConvertPfx1 > 1);
-		}
 		return pEffect;
 	}
 
@@ -855,14 +866,19 @@ void CParticleManager::UpdateEngineData()
 	m_RenderFlags.SetState(GetCVars()->e_ParticlesShadows - 1, FOB_INSHADOW);
 	m_RenderFlags.SetState(GetCVars()->e_ParticlesSoftIntersect - 1, FOB_SOFT_PARTICLE);
 
+	bool bInvalidateCachedRenderObjects = false;
+
 	if (GetRenderer())
 	{
 		bool bParticleTesselation = false;
 		GetRenderer()->EF_Query(EFQ_ParticlesTessellation, bParticleTesselation);
 		m_RenderFlags.SetState(int(bParticleTesselation) - 1, FOB_ALLOW_TESSELLATION);
+
+		bInvalidateCachedRenderObjects = (m_bParticleTessellation != bParticleTesselation);
+		m_bParticleTessellation = bParticleTesselation;
 	}
 
-	if (m_pLastDefaultParams != &GetDefaultParams())
+	if (m_pLastDefaultParams != &GetDefaultParams() || bInvalidateCachedRenderObjects)
 	{
 		// Default effect or config spec changed.
 		m_pLastDefaultParams = &GetDefaultParams();
@@ -1271,6 +1287,7 @@ int CParticleManager::AddEventTiming(cstr sEvent, const CParticleContainer* pCon
 //////////////////////////////////////////////////////////////////////////
 void CParticleManager::Serialize(TSerialize ser)
 {
+	LOADING_TIME_PROFILE_SECTION;
 	ser.BeginGroup("ParticleEmitters");
 
 	if (ser.IsWriting())

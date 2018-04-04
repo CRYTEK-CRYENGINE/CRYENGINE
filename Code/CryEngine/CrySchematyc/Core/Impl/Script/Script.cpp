@@ -1,79 +1,80 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #include "StdAfx.h"
 #include "Script/Script.h"
 
 #include <CrySystem/File/ICryPak.h>
 #include <CrySystem/ITimer.h>
-#include <Schematyc/ICore.h>
-#include <Schematyc/Script/IScriptElement.h>
-#include <Schematyc/SerializationUtils/SerializationToString.h>
-#include <Schematyc/Utils/Assert.h>
-#include <Schematyc/Utils/StringUtils.h>
+#include <CrySchematyc/ICore.h>
+#include <CrySchematyc/Script/IScriptElement.h>
+#include <CrySchematyc/SerializationUtils/SerializationToString.h>
+#include <CrySchematyc/Utils/Assert.h>
+#include <CrySchematyc/Utils/StringUtils.h>
+
+#include <CrySchematyc/Script/IScriptRegistry.h>
+
+#include "Script/ScriptSerializers.h"
+#include "Script/ScriptRegistry.h"
 
 namespace Schematyc
 {
-CScript::CScript(const SGUID& guid, const char* szName)
+CScript::CScript(const CryGUID& guid, const char* szFilePath)
 	: m_guid(guid)
-	, m_name(szName)
+	, m_filePath(szFilePath)
 	, m_timeStamp(gEnv->pTimer->GetAsyncTime())
 	, m_pRoot(nullptr)
 {}
 
-SGUID CScript::GetGUID() const
+CScript::CScript(const char* szFilePath)
+	: m_guid()
+	, m_filePath(szFilePath)
+	, m_timeStamp(gEnv->pTimer->GetAsyncTime())
+	, m_pRoot(nullptr)
+{
+
+}
+
+CryGUID CScript::GetGUID() const
 {
 	return m_guid;
 }
 
-void CScript::SetName(const char* szName)
+const char* CScript::SetFilePath(const char* szFilePath)
 {
-	m_name = szName;
-}
-
-const char* CScript::SetNameFromRoot()
-{
-	// #SchematycTODO : Only store names relative to script folder and re-construct path when saving?
-
-	if (m_pRoot)
+	if (szFilePath)
 	{
-		CStackString name;
+		stack_string gameFolder = gEnv->pCryPak->GetGameFolder();
+		gameFolder.MakeLower();
+		stack_string filePath = szFilePath;
+		filePath.MakeLower();
 
-		SetNameFromRootRecursive(name, *m_pRoot);
-
-		StringUtils::ToSnakeCase(name);
-
-		string path = gEnv->pCryPak->GetGameFolder();
-		path.append("/");
-		path.append(gEnv->pSchematyc->GetScriptsFolder());
-		path.append("/");
-
-		name.insert(0, path);
-
-		switch (m_pRoot->GetElementType())
+		if (filePath.find(gameFolder.c_str()) != 0)
 		{
-		case EScriptElementType::Class:
+
+			filePath = gEnv->pCryPak->GetGameFolder();
+			filePath.append("/");
+			filePath.append(szFilePath);
+
+			switch (m_pRoot->GetType())
 			{
-				name.append(".sc_class");
-				break;
+			case EScriptElementType::Class:
+				{
+					filePath.append(".schematyc_ent");
+					break;
+				}
+			default:
+				{
+					filePath.append(".schematyc_lib");
+					break;
+				}
 			}
-		default:
-			{
-				name.append(".sc_lib");
-				break;
-			}
+			filePath.MakeLower();
 		}
 
-		name.MakeLower();
-
-		m_name = name.c_str();
+		m_filePath = filePath.c_str();
 	}
 
-	return m_name.c_str();
-}
-
-const char* CScript::GetName() const
-{
-	return m_name;
+	return m_filePath.c_str();
 }
 
 const CTimeValue& CScript::GetTimeStamp() const
@@ -93,8 +94,8 @@ IScriptElement* CScript::GetRoot()
 
 EVisitStatus CScript::VisitElements(const ScriptElementVisitor& visitor)
 {
-	SCHEMATYC_CORE_ASSERT(!visitor.IsEmpty());
-	if (m_pRoot && !visitor.IsEmpty())
+	SCHEMATYC_CORE_ASSERT(visitor);
+	if (m_pRoot && visitor)
 	{
 		return VisitElementsRecursive(visitor, *m_pRoot);
 	}
@@ -124,7 +125,7 @@ EVisitStatus CScript::VisitElementsRecursive(const ScriptElementVisitor& visitor
 void CScript::SetNameFromRootRecursive(CStackString& name, IScriptElement& element)
 {
 	IScriptElement* pParent = element.GetParent();
-	if (pParent && (pParent->GetElementType() != EScriptElementType::Root))
+	if (pParent && (pParent->GetType() != EScriptElementType::Root))
 	{
 		SetNameFromRootRecursive(name, *pParent);
 		name.append("/");

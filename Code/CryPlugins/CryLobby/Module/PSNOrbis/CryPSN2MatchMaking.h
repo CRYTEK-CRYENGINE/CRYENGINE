@@ -261,7 +261,7 @@ private:
 
 	struct SCreateParamData
 	{
-		SceNpMatching2CreateJoinRoomRequest m_createRequest;
+		SceNpMatching2CreateJoinRoomRequestA m_createRequest;
 		SceNpMatching2BinAttr               m_binAttrExternal[SCE_NP_MATCHING2_ROOM_BIN_ATTR_EXTERNAL_NUM];
 		SceNpMatching2IntAttr               m_intAttrExternal[SCE_NP_MATCHING2_ROOM_SEARCHABLE_INT_ATTR_EXTERNAL_NUM];
 		SceNpMatching2BinAttr               m_binAttrInternal[SCE_NP_MATCHING2_ROOM_BIN_ATTR_INTERNAL_NUM];
@@ -280,7 +280,7 @@ private:
 
 	struct SJoinParamData
 	{
-		SceNpMatching2JoinRoomRequest m_joinRequest;
+		SceNpMatching2JoinRoomRequestA m_joinRequest;
 		CryWebApiJobId                m_joinJobId;
 	};
 

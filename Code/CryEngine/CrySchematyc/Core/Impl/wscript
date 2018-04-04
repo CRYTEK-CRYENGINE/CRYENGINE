@@ -1,4 +1,4 @@
-# Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+# Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 def build(bld):
 	bld.CryEngineModule(
@@ -7,7 +7,7 @@ def build(bld):
 		file_list = 'core.waf_files',
 		pch = 'StdAfx.cpp',
 		defines = 'SCHEMATYC_EXPORTS',
-		use_module = ['yasli'],
+
 		includes = [ 
 			'.', 
 			Path('Code/CryEngine/CryCommon'),

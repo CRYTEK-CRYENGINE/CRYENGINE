@@ -12,7 +12,7 @@ class CPlugin
 {
 public:
 	CRYINTERFACE_SIMPLE(ICryPlugin)
-	CRYGENERATE_SINGLETONCLASS(CPlugin, "Plugin_Sample", 0x2711A23D38484CDD, 0xA95BE9D88FFA23B0)
+	CRYGENERATE_SINGLETONCLASS_GUID(CPlugin, "Plugin_Sample", "2711a23d-3848-4cdd-a95b-e9d88ffa23b0"_cry_guid)
 
 	virtual ~CPlugin();
 	
@@ -30,30 +30,4 @@ public:
 	// ISystemEventListener
 	virtual void OnSystemEvent(ESystemEvent event, UINT_PTR wparam, UINT_PTR lparam) override;
 	// ~ISystemEventListener
-};
-
-struct IEntityRegistrator
-{
-	IEntityRegistrator()
-	{
-		if (g_pFirst == nullptr)
-		{
-			g_pFirst = this;
-			g_pLast = this;
-		}
-		else
-		{
-			g_pLast->m_pNext = this;
-			g_pLast = g_pLast->m_pNext;
-		}
-	}
-
-	virtual void Register() = 0;
-	virtual void Unregister() = 0;
-
-public:
-	IEntityRegistrator *m_pNext;
-
-	static IEntityRegistrator *g_pFirst;
-	static IEntityRegistrator *g_pLast;
 };

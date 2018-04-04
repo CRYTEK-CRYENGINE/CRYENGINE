@@ -1,6 +1,6 @@
 <Material MtlFlags="524288" Shader="Illum" GenMask="1" StringGenMask="%ALLOW_SILHOUETTE_POM" SurfaceType="" MatTemplate="" Diffuse="1,1,1" Specular="0,0,0" Emissive="0,0,0" Shininess="10" Opacity="1">
  <Textures>
-  <Texture Map="Diffuse" File="EngineAssets/TextureMsg/PhysProxyTooBig.tif"/>
+  <Texture Map="Diffuse" File="%ENGINE%/EngineAssets/TextureMsg/PhysProxyTooBig.tif"/>
  </Textures>
  <PublicParams FresnelPower="4" GlossFromDiffuseContrast="1" FresnelScale="1" GlossFromDiffuseOffset="0" FresnelBias="1" GlossFromDiffuseAmount="0" GlossFromDiffuseBrightness="0.333" IndirectColor="0.25,0.25,0.25"/>
 </Material>

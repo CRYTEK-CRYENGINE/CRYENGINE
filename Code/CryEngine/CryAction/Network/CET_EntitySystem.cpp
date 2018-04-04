@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #include "StdAfx.h"
 #include "CET_EntitySystem.h"
@@ -51,17 +51,12 @@ public:
 				// force remove all other entities
 				gEnv->pEntitySystem->RemoveEntity(pEnt->GetId(), true);
 			}
-
-			if (!m_skipGameRules)
-				gEnv->pEntitySystem->ReserveEntityId(1);
 		}
 		else
 		{
 			if (!gEnv->pSystem->IsSerializingFile())
 				gEnv->pEntitySystem->Reset();
-			gEnv->pEntitySystem->ReserveEntityId(1);
 		}
-		gEnv->pEntitySystem->ReserveEntityId(LOCAL_PLAYER_ENTITY_ID);
 
 		CActionGame::Get()->OnEntitySystemReset();
 

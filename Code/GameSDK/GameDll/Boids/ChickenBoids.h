@@ -52,7 +52,6 @@ public:
 	CChickenFlock( IEntity *pEntity );
 	virtual void CreateBoids( SBoidsCreateContext &ctx );
 	virtual CBoidObject* CreateBoid() { return new CChickenBoid(m_bc); };
-	virtual void OnAIEvent(EAIStimulusType type, const Vec3& pos, float radius, float threat, EntityId sender);	
 };
 
 //////////////////////////////////////////////////////////////////////////

@@ -5,32 +5,49 @@
 
 // *INDENT-OFF* - <hard to read code and declarations due to inconsistent indentation>
 
-namespace uqs
+namespace UQS
 {
-	namespace stdlib
+	namespace StdLib
 	{
 
 		void CStdLibRegistration::InstantiateFunctionFactoriesForRegistration()
 		{
-			static const client::CFunctionFactory<CFunction_Vec3Add> functionFactory_Vec3Add("std::Vec3Add");
-			static const client::CFunctionFactory<CFunction_PosFromEntity> functionFactory_PosFromEntity("std::PosFromEntity");
+			{
+				Client::CFunctionFactory<CFunction_Pos3AddOfs3>::SCtorParams ctorParams;
+
+				ctorParams.szName = "std::Pos3AddOfs3";
+				ctorParams.guid = "20f46e25-1522-46a0-959d-4006241792f8"_cry_guid;
+				ctorParams.szDescription = "Adds an Ofs3 to a Pos3 and returns the new Pos3.";
+
+				static const Client::CFunctionFactory<CFunction_Pos3AddOfs3> functionFactory_Pos3AddOfs3(ctorParams);
+			}
+
+			{
+				Client::CFunctionFactory<CFunction_PosFromEntity>::SCtorParams ctorParams;
+
+				ctorParams.szName = "std::PosFromEntity";
+				ctorParams.guid = "c76ca7ad-02cf-440e-87ca-6e27097b9737"_cry_guid;
+				ctorParams.szDescription = "Returns the position of a given entity.\nCauses an exception if no such entity exists.";
+
+				static const Client::CFunctionFactory<CFunction_PosFromEntity> functionFactory_PosFromEntity(ctorParams);
+			}
 		}
 
 		//===================================================================================
 		//
-		// CFunction_Vec3Add
+		// CFunction_Pos3AddOfs3
 		//
 		//===================================================================================
 
-		CFunction_Vec3Add::CFunction_Vec3Add(const SCtorContext& ctorContext)
+		CFunction_Pos3AddOfs3::CFunction_Pos3AddOfs3(const SCtorContext& ctorContext)
 			: CFunctionBase(ctorContext)
 		{
 			// nothing
 		}
 
-		Vec3 CFunction_Vec3Add::DoExecute(const SExecuteContext& executeContext, const SParams& params) const
+		Pos3 CFunction_Pos3AddOfs3::DoExecute(const SExecuteContext& executeContext, const SParams& params) const
 		{
-			return params.v1 + params.v2;
+			return Pos3(params.pos.value + params.ofs.value);
 		}
 
 		//===================================================================================
@@ -45,17 +62,17 @@ namespace uqs
 			// nothing
 		}
 
-		Vec3 CFunction_PosFromEntity::DoExecute(const SExecuteContext& executeContext, const SParams& params) const
+		Pos3 CFunction_PosFromEntity::DoExecute(const SExecuteContext& executeContext, const SParams& params) const
 		{
 			if (const IEntity* pEntity = gEnv->pEntitySystem->GetEntity(params.entityId.value))
 			{
-				return pEntity->GetPos();
+				return Pos3(pEntity->GetPos());
 			}
 			else
 			{
 				executeContext.error.Format("could not find entity with entityId = %i", static_cast<int>(params.entityId.value));
 				executeContext.bExceptionOccurred = true;
-				return Vec3Constants<float>::fVec3_Zero;
+				return Pos3(Vec3Constants<float>::fVec3_Zero);
 			}
 		}
 

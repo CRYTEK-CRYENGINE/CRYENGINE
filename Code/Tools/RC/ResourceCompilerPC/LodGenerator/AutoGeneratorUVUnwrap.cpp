@@ -1,4 +1,5 @@
 // Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved.
+
 #include "StdAfx.h"
 #include "AutoGeneratorUVUnwrap.h"
 #include <Cry3DEngine/IIndexedMesh.h>
@@ -331,7 +332,7 @@ namespace LODGenerator
 				}
 				else if (h<w)
 				{
-					h=MIN(h+128, w);
+					h=std::min(h+128, w);
 					bDone=false;
 					break;
 				}

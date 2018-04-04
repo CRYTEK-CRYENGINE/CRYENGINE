@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #pragma once
 
@@ -12,7 +12,7 @@ class CLimbIk :
 	CRYINTERFACE_ADD(IAnimationPoseModifier)
 	CRYINTERFACE_END()
 
-	CRYGENERATE_CLASS(CLimbIk, "AnimationPoseModifier_LimbIk", 0x3b00bbad5b9c4fa4, 0x97e9b720fcbc8839)
+	CRYGENERATE_CLASS_GUID(CLimbIk, "AnimationPoseModifier_LimbIk", "3b00bbad-5b9c-4fa4-97e9-b720fcbc8839"_cry_guid)
 
 	CLimbIk();
 	virtual ~CLimbIk() {}

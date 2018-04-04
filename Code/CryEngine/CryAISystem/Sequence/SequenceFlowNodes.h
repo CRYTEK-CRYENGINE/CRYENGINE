@@ -1,17 +1,9 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #pragma once
 
 #include "SequenceManager.h"
 #include <CryFlowGraph/IFlowBaseNode.h>
-
-#ifndef _LIB
-struct AIFlowBaseNode
-{
-	static void RegisterFlowNodes();
-	static void UnregisterFlowNodes();
-};
-#endif
 
 namespace AIActionSequence
 {

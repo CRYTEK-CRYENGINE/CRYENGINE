@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #include "StdAfx.h"
 
@@ -135,9 +135,6 @@ IScaleformPlayback::DeviceData* CScaleformPlayback::CreateDeviceData(const void*
 	assert(pData->DeviceDataHandle != ~0U);
 	gRenDev->m_DevBufMan.UpdateBuffer(pData->DeviceDataHandle, pVertices, pData->StrideSize * pData->NumElements);
 
-	if (!bTemp && (CRenderer::CV_r_GraphicsPipeline > 0))
-		CCryDeviceWrapper::GetObjectFactory().GetCoreCommandList()->Reset();
-
 	return pData;
 }
 
@@ -155,9 +152,6 @@ IScaleformPlayback::DeviceData* CScaleformPlayback::CreateDeviceData(const void*
 
 	assert(pData->DeviceDataHandle != ~0U);
 	gRenDev->m_DevBufMan.UpdateBuffer(pData->DeviceDataHandle, pIndices, pData->StrideSize * pData->NumElements);
-
-	if (!bTemp && (CRenderer::CV_r_GraphicsPipeline > 0))
-		CCryDeviceWrapper::GetObjectFactory().GetCoreCommandList()->Reset();
 
 	return pData;
 }
@@ -238,9 +232,6 @@ IScaleformPlayback::DeviceData* CScaleformPlayback::CreateDeviceData(const Bitma
 	assert(pData->DeviceDataHandle != ~0U);
 	gRenDev->m_DevBufMan.UpdateBuffer(pData->DeviceDataHandle, pGlyphs, pData->StrideSize * pData->NumElements);
 
-	if (!bTemp && (CRenderer::CV_r_GraphicsPipeline > 0))
-		CCryDeviceWrapper::GetObjectFactory().GetCoreCommandList()->Reset();
-
 	return pData;
 }
 
@@ -303,7 +294,7 @@ void CScaleformPlayback::Clear(const ColorF& backgroundColor)
 			LONG(params.viewport.TopLeftY + params.viewport.Height)
 		};
 
-		m_pRenderer->FX_ClearTarget(rCurOutput.pRenderTarget, backgroundColor, 1, &rect, false);
+		rCurOutput.clearPass.Execute(rCurOutput.pRenderTarget, backgroundColor, 1, &rect);
 		rCurOutput.bRenderTargetClear = false;
 		return;
 	}
@@ -337,7 +328,7 @@ void CScaleformPlayback::Clear(const ColorF& backgroundColor)
 	int oldRenderMaskedStates(params.renderMaskedStates);
 	params.renderMaskedStates = m_renderMasked ? params.renderMaskedStates : 0;
 
-#if defined(OPENGL) && CRY_OPENGL_MODIFY_PROJECTIONS
+#if CRY_RENDERER_OPENGL && OGL_MODIFY_PROJECTIONS
 	sAppendClipSpaceAdaptation(&params.m_pScaleformMeshAttributes->cCompositeMat);
 #endif
 
@@ -778,7 +769,7 @@ void CScaleformPlayback::ApplyMatrix(const Matrix23* pMatIn)
 	m_drawParams.m_bScaleformMeshAttributesDirty = true;
 	m_drawParams.m_pScaleformMeshAttributes->cCompositeMat = *pMatOut;
 
-#if defined(OPENGL) && CRY_OPENGL_MODIFY_PROJECTIONS
+#if CRY_RENDERER_OPENGL && OGL_MODIFY_PROJECTIONS
 	sAppendClipSpaceAdaptation(&m_drawParams.m_pScaleformMeshAttributes->cCompositeMat);
 #endif
 }
@@ -813,12 +804,12 @@ void CScaleformPlayback::PopExternalRenderTarget()
 		if (pCurOutput->renderPass.GetPrimitiveCount() >= 1)
 		{
 			pCurOutput->renderPass.Execute();
-			pCurOutput->renderPass.ClearPrimitives();
+			pCurOutput->renderPass.BeginAddingPrimitives();
 		}
 
 		m_pRenderer->SF_GetResources().m_PrimitiveHeap.FreeUsedPrimitives(pCurOutput->key);
 
-		CCryDeviceWrapper::GetObjectFactory().GetCoreCommandList()->Reset();
+		GetDeviceObjectFactory().GetCoreCommandList().Reset();
 	}
 
 	// Graphics pipeline >= 0
@@ -831,7 +822,7 @@ void CScaleformPlayback::PopExternalRenderTarget()
 
 	pCurOutput->pRenderTarget->Release();
 	if (pCurOutput->pStencilTarget)
-		pCurOutput->pStencilTarget->pTexture->Release();
+		pCurOutput->pStencilTarget->Release();
 
 	m_renderTargetStack.pop_back();
 
@@ -853,27 +844,21 @@ void CScaleformPlayback::PushExternalRenderTarget()
 	sNewOutput.oldViewportHeight = 0;
 	sNewOutput.oldViewportWidth = 0;
 
-	sNewOutput.pRenderTarget = pCur->m_pTex;
-	sNewOutput.pStencilTarget = pCur->m_pSurfDepth;
-
 	// NOTE: this is a hacky workaround for all render-target stack pushed that specify no CTexture
-	if (!pCur->m_pTex && (nStackLevel == 0))
+	if (nStackLevel == 0)
 	{
-		sNewOutput.pRenderTarget = m_pRenderer->m_pBackBufferTexture;
-//		newElem.pST = m_pRenderer->m_pZTexture;
-
-		if (m_pRenderer->GetS3DRend().IsStereoEnabled())
-		{
-			if (m_pRenderer->m_RP.m_nRendFlags & SHDF_STEREO_LEFT_EYE)
-				sNewOutput.pRenderTarget = m_pRenderer->GetS3DRend().GetEyeTarget(LEFT_EYE);
-			if (m_pRenderer->m_RP.m_nRendFlags & SHDF_STEREO_RIGHT_EYE)
-				sNewOutput.pRenderTarget = m_pRenderer->GetS3DRend().GetEyeTarget(RIGHT_EYE);
-		}
+		sNewOutput.pRenderTarget = m_pRenderer->GetCurrentTargetOutput();
+		sNewOutput.pStencilTarget = m_pRenderer->GetCurrentDepthOutput();
+	}
+	else
+	{
+		sNewOutput.pRenderTarget = pCur->m_pTex;
+		sNewOutput.pStencilTarget = pCur->m_pSurfDepth ? pCur->m_pSurfDepth->pTexture : nullptr;
 	}
 
 	sNewOutput.pRenderTarget->AddRef();
 	if (sNewOutput.pStencilTarget)
-		sNewOutput.pStencilTarget->pTexture->AddRef();
+		sNewOutput.pStencilTarget->AddRef();
 
 	// Graphics pipeline >= 1
 	{
@@ -888,6 +873,7 @@ void CScaleformPlayback::PushExternalRenderTarget()
 		sNewOutput.renderPass.SetDepthTarget(sNewOutput.pStencilTarget);
 		sNewOutput.renderPass.SetScissor(params.scissorEnabled, params.scissor);
 		sNewOutput.renderPass.SetViewport(params.viewport);
+		sNewOutput.renderPass.BeginAddingPrimitives();
 
 		params.m_bScaleformMeshAttributesDirty = params.m_bScaleformMeshAttributesDirty || !(params.m_vsBuffer);
 		params.m_bScaleformRenderParametersDirty = params.m_bScaleformRenderParametersDirty || !(params.m_psBuffer);
@@ -912,12 +898,12 @@ void CScaleformPlayback::PopRenderTarget()
 		if (pCurOutput->renderPass.GetPrimitiveCount() >= 1)
 		{
 			pCurOutput->renderPass.Execute();
-			pCurOutput->renderPass.ClearPrimitives();
+			pCurOutput->renderPass.BeginAddingPrimitives();
 		}
 
 		m_pRenderer->SF_GetResources().m_PrimitiveHeap.FreeUsedPrimitives(pCurOutput->key);
 
-		CCryDeviceWrapper::GetObjectFactory().GetCoreCommandList()->Reset();
+		GetDeviceObjectFactory().GetCoreCommandList().Reset();
 	}
 
 	// Graphics pipeline >= 0
@@ -930,7 +916,7 @@ void CScaleformPlayback::PopRenderTarget()
 
 	pCurOutput->pRenderTarget->Release();
 	if (pCurOutput->pStencilTarget)
-		pCurOutput->pStencilTarget->pTexture->Release();
+		pCurOutput->pStencilTarget->Release();
 
 	//clear texture slot, may not be required
 	ApplyTextureInfo(0);
@@ -997,7 +983,7 @@ int32 CScaleformPlayback::PushTempRenderTarget(const RectF& frameRect, uint32 ta
 	sNewOutput.oldViewportHeight = height;
 	sNewOutput.oldViewportWidth = width;
 	sNewOutput.pRenderTarget = pNewTempRT;
-	sNewOutput.pStencilTarget = pNewTempST;
+	sNewOutput.pStencilTarget = pNewTempST ? pNewTempST->pTexture : nullptr;
 	sNewOutput.bRenderTargetClear = pNewTempRT && wantClear;
 	sNewOutput.bStencilTargetClear = pNewTempST && false;
 
@@ -1022,6 +1008,7 @@ int32 CScaleformPlayback::PushTempRenderTarget(const RectF& frameRect, uint32 ta
 		sNewOutput.renderPass.SetDepthTarget(sNewOutput.pStencilTarget);
 		sNewOutput.renderPass.SetScissor(params.scissorEnabled, params.scissor);
 		sNewOutput.renderPass.SetViewport(params.viewport);
+		sNewOutput.renderPass.BeginAddingPrimitives();
 
 		params.m_bScaleformMeshAttributesDirty = params.m_bScaleformMeshAttributesDirty || !(params.m_vsBuffer);
 		params.m_bScaleformRenderParametersDirty = params.m_bScaleformRenderParametersDirty || !(params.m_psBuffer);
@@ -1277,7 +1264,7 @@ void CScaleformPlayback::SetView3D(const Matrix44& viewMatIn)
 	assert(m_stereo3DiBaseDepth >= 0);
 }
 
-void CScaleformPlayback::SetWorld3D(const Matrix44* pWorldMatIn)
+void CScaleformPlayback::SetWorld3D(const Matrix44f* pWorldMatIn)
 {
 	m_pMatWorld3D       = pWorldMatIn;
 	m_matCachedWVPDirty = pWorldMatIn != 0;
@@ -1545,17 +1532,18 @@ void CScaleformPlayback::DrawBlurRect(ITexture* _pSrcIn, const RectF& inSrcRect,
 	SSF_GlobalDrawParams& __restrict params = m_drawParams;
 
 	//FIXME 3d matrix screws up blur, should this be necessary?
-	const Matrix44 * pMat3D_Cached = m_pMatWorld3D;
+	const Matrix44f* pMat3D_Cached = m_pMatWorld3D;
 	SetWorld3D(NULL);
 
 	// Flash can call in-to-out cases
 	ITexture* pSrcIn = _pSrcIn; _pSrcIn->AddRef();
 	if (pSrcIn == params.pRenderOutput->pRenderTarget)
 	{
+		// TODO: Don't allocate a RenderTarget here, even though there might be a chance that it clones the surface with color-compression
 		CTexture* pDupl = m_pRenderer->SF_GetResources().GetColorSurface(m_pRenderer, pSrcIn->GetWidth(), pSrcIn->GetHeight(), pSrcIn->GetTextureDstFormat(), pSrcIn->GetWidth(), pSrcIn->GetHeight());
 		CTexture* pRecl = static_cast<CTexture*>(_pSrcIn);
 
-		gcpRendD3D->GetDeviceContext().CopyResource(pDupl->GetDevTexture()->Get2DTexture(), pRecl->GetDevTexture()->Get2DTexture());
+		GetDeviceObjectFactory().GetCoreCommandList().GetCopyInterface()->Copy(pRecl->GetDevTexture(), pDupl->GetDevTexture());
 
 		pSrcIn = pDupl;
 		pSrcIn->AddRef();

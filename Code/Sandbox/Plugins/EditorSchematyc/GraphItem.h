@@ -54,7 +54,7 @@ public:
 
 	void                 SetParentItem(CAbstractObjectStructureModelItem* pParentItem) { m_pParentItem = pParentItem; }
 
-	Schematyc::SGUID     GetGUID() const;
+	CryGUID     GetGUID() const;
 	EGraphType           GetGraphType() const  { return m_graphType; }
 	CNodeGraphViewModel* GetGraphModel() const { return m_pGraphModel; }
 
@@ -62,11 +62,6 @@ protected:
 	void LoadFromScriptElement();
 
 private:
-	static CryIcon s_iconFunction;
-	static CryIcon s_iconConstructor;
-	static CryIcon s_iconDestructor;
-	static CryIcon s_iconSignalReceivers;
-
 	CAbstractObjectStructureModelItem* m_pParentItem;
 	CNodeGraphViewModel*               m_pGraphModel;
 

@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #ifndef __IGAMEOBJECTSYSTEM_H__
 #define __IGAMEOBJECTSYSTEM_H__
@@ -57,13 +57,11 @@ struct IGameObjectSystem
 
 		bool  (* hookFunction)(IEntity* pEntity, IGameObject*, void* pUserData);
 		void* pUserData;
-		TSerialize *pSpawnSerializer;
 
 		SEntitySpawnParamsForGameObjectWithPreactivatedExtension()
 			: m_type(eSpawnParamsType_Default)
 			, pUserData(nullptr)
 			, hookFunction(nullptr)
-			, pSpawnSerializer(nullptr)
 		{
 		}
 
@@ -80,7 +78,7 @@ struct IGameObjectSystem
 	virtual IGameObjectSystem::ExtensionID GetID(const char* name) = 0;
 	virtual const char*                    GetName(IGameObjectSystem::ExtensionID id) = 0;
 	virtual uint32                         GetExtensionSerializationPriority(IGameObjectSystem::ExtensionID id) = 0;
-	virtual IGameObjectExtension*        Instantiate(IGameObjectSystem::ExtensionID id, IGameObject* pObject, TSerialize* pSpawnSerializer) = 0;
+	virtual IGameObjectExtension*        Instantiate(IGameObjectSystem::ExtensionID id, IGameObject* pObject) = 0;
 	virtual void                           BroadcastEvent(const SGameObjectEvent& evt) = 0;
 
 	static const uint32                    InvalidEventID = ~uint32(0);
@@ -99,6 +97,9 @@ struct IGameObjectSystem
 	virtual void              SetPostUpdate(IGameObject* pGameObject, bool enable) = 0;
 
 	virtual void              Reset() = 0;
+
+	virtual void              SetSpawnSerializerForEntity(const EntityId entityId, TSerialize* pSerializer) = 0;
+	virtual void              ClearSpawnSerializerForEntity(const EntityId entityId) = 0;
 
 	virtual void              AddSink(IGameObjectSystemSink* pSink) = 0;
 	virtual void              RemoveSink(IGameObjectSystemSink* pSink) = 0;

@@ -9,6 +9,7 @@
 %}
 %feature("nspace", 1);
 %ignore DRS::IResponseAction::Execute;
+%ignore DRS::IDynamicResponseSystemEngineModule;
 %typemap(csbase) DRS::IDynamicResponseSystem::eResetHints "uint"
 %typemap(csbase) DRS::IDynamicResponseSystem::eSerializationFilter "uint"
 %include "../../../../CryEngine/CryCommon/CryDynamicResponseSystem/IDynamicResponseSystem.h"

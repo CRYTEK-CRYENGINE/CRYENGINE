@@ -1,0 +1,21 @@
+#Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+
+def build(bld) :
+
+	bld.CryEngineModule(
+		target = 'CryPerceptionSystem',
+		vs_filter = 'CryPlugins',
+		file_list = 'cryperceptionsystem.waf_files',
+		pch = 'StdAfx.cpp',
+		includes = [
+			'.'
+		],
+		
+		# The exported includes are used by GameSDK only, CryEngine does not need them.
+		module_provides = dict(
+			includes = [
+				bld.path.make_node('../Interface').abspath(),
+				Path('Code/CryEngine/CryCommon/CryPerceptionSystem'),
+			]
+		),
+	)

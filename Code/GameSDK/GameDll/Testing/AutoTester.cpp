@@ -313,9 +313,12 @@ void CAutoTester::AddTestCaseResult(const char *testSuiteName, XmlNodeRef &testC
 #endif
 	XmlString xmlStr = xmlToSave->getXML();
 
-	CDebugAllowFileAccess allowFileAccess;
-	FILE *file = gEnv->pCryPak->FOpen( fileName,"wt" );
-	allowFileAccess.End();
+	FILE* file = nullptr;
+	{
+		SCOPED_ALLOW_FILE_ACCESS_FROM_THIS_THREAD();
+		file = gEnv->pCryPak->FOpen(fileName, "wt");
+	}
+
 	if (file)
 	{
 		const char *sxml = (const char*)xmlStr;

@@ -32,8 +32,8 @@ Texture2D wcSceneNormalsTex : register(t1) = TS_SceneNormals;
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-Texture2D oceanWavesTex : register(t2) = "EngineAssets/Textures/oceanwaves_ddn.tif";
-Texture2D oceanCausticsTex : register(t3) = "EngineAssets/Textures/caustics_sampler.dds";
+Texture2D oceanWavesTex : register(t2) = "%ENGINE%/EngineAssets/Textures/oceanwaves_ddn.tif";
+Texture2D oceanCausticsTex : register(t3) = "%ENGINE%/EngineAssets/Textures/caustics_sampler.dds";
 Texture2D oceanMaskTex : register(t4);
 
 SamplerState ocTrilinearClampSState : register(s0) = SS_TrilinearClamp;

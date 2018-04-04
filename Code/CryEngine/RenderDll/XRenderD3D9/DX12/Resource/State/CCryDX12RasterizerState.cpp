@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #include "StdAfx.h"
 #include "CCryDX12RasterizerState.hpp"
@@ -29,11 +29,6 @@ CCryDX12RasterizerState::CCryDX12RasterizerState(const D3D11_RASTERIZER_DESC& de
 	: Super(nullptr, nullptr)
 	, m_Desc11(desc11)
 	, m_Desc12(desc12)
-{
-
-}
-
-CCryDX12RasterizerState::~CCryDX12RasterizerState()
 {
 
 }

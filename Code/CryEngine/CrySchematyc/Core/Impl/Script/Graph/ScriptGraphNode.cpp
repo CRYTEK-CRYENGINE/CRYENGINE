@@ -1,13 +1,14 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #include "StdAfx.h"
 #include "Script/Graph/ScriptGraphNode.h"
 
 #include <CrySerialization/Math.h>
-#include <Schematyc/Utils/Any.h>
-#include <Schematyc/Utils/Assert.h>
-#include <Schematyc/Utils/IGUIDRemapper.h>
-#include <Schematyc/Utils/SharedString.h>
+#include <CrySerialization/yasli/ClassFactory.h>
+#include <CrySchematyc/Utils/Any.h>
+#include <CrySchematyc/Utils/Assert.h>
+#include <CrySchematyc/Utils/IGUIDRemapper.h>
+#include <CrySchematyc/Utils/SharedString.h>
 
 #include "Script/Graph/ScriptGraphNodeModel.h"
 #include "SerializationUtils/SerializationContext.h"
@@ -38,27 +39,27 @@ inline bool Serialize(Serialization::IArchive& archive, SInputSerializer& value,
 	return false;
 }
 
-typedef std::map<CGraphPortId, SInputSerializer> InputSerializers;
+typedef std::map<CUniqueId, SInputSerializer> InputSerializers;
 } // Anonymous
 
 // #SchematycTODO: This is just a temporary solution to provide colors.
-inline ColorB GetPortColor(const SGUID& typeGUID)
+inline ColorB GetPortColor(const CryGUID& typeGUID)
 {
 	struct SColors
 	{
-		SGUID  typeGUID;
-		ColorB color;
+		CryGUID typeGUID;
+		ColorB  color;
 	};
 
 	static const SColors portColors[] =
 	{
-		{ GetTypeInfo<bool>().GetGUID(),          ColorB(0,   108, 217) },
-		{ GetTypeInfo<int32>().GetGUID(),         ColorB(215, 55,  55)  },
-		{ GetTypeInfo<uint32>().GetGUID(),        ColorB(215, 55,  55)  },
-		{ GetTypeInfo<float>().GetGUID(),         ColorB(185, 185, 185) },
-		{ GetTypeInfo<Vec3>().GetGUID(),          ColorB(250, 232, 12)  },
-		{ GetTypeInfo<SGUID>().GetGUID(),         ColorB(38,  184, 33)  },
-		{ GetTypeInfo<CSharedString>().GetGUID(), ColorB(128, 100, 162) }
+		{ GetTypeDesc<bool>().GetGUID(),          ColorB(0,   108, 217) },
+		{ GetTypeDesc<int32>().GetGUID(),         ColorB(215, 55,  55)  },
+		{ GetTypeDesc<uint32>().GetGUID(),        ColorB(215, 55,  55)  },
+		{ GetTypeDesc<float>().GetGUID(),         ColorB(185, 185, 185) },
+		{ GetTypeDesc<Vec3>().GetGUID(),          ColorB(250, 232, 12)  },
+		{ GetTypeDesc<CryGUID>().GetGUID(),       ColorB(38,  184, 33)  },
+		{ GetTypeDesc<CSharedString>().GetGUID(), ColorB(128, 100, 162) }
 	};
 
 	for (uint32 portColorIdx = 0; portColorIdx < CRY_ARRAY_COUNT(portColors); ++portColorIdx)
@@ -74,7 +75,7 @@ inline ColorB GetPortColor(const SGUID& typeGUID)
 
 SScriptGraphNodePort::SScriptGraphNodePort() {}
 
-SScriptGraphNodePort::SScriptGraphNodePort(const CGraphPortId& _id, const char* _szName, const SGUID& _typeGUID, const ScriptGraphPortFlags& _flags, const CAnyValuePtr& _pData)
+SScriptGraphNodePort::SScriptGraphNodePort(const CUniqueId& _id, const char* _szName, const CryGUID& _typeGUID, const ScriptGraphPortFlags& _flags, const CAnyValuePtr& _pData)
 	: id(_id)
 	, name(_szName)
 	, typeGUID(_typeGUID)
@@ -132,6 +133,11 @@ const ScriptGraphNodePorts& CScriptGraphNodeLayout::GetOutputs() const
 	return m_outputs;
 }
 
+Schematyc::ScriptGraphNodePorts& CScriptGraphNodeLayout::GetOutputs()
+{
+	return m_outputs;
+}
+
 void CScriptGraphNodeLayout::Exchange(CScriptGraphNodeLayout& rhs)
 {
 	for (SScriptGraphNodePort& rhsInput : rhs.m_inputs)
@@ -158,19 +164,19 @@ void CScriptGraphNodeLayout::Exchange(CScriptGraphNodeLayout& rhs)
 	std::swap(m_outputs, rhs.m_outputs);
 }
 
-void CScriptGraphNodeLayout::AddInput(const CGraphPortId& id, const char* szName, const SGUID& typeGUID, const ScriptGraphPortFlags& flags, const CAnyValuePtr& pData)
+void CScriptGraphNodeLayout::AddInput(const CUniqueId& id, const char* szName, const CryGUID& typeGUID, const ScriptGraphPortFlags& flags, const CAnyValuePtr& pData)
 {
 	// #SchematycTODO : Check for id collisions!!!
 	m_inputs.push_back(SScriptGraphNodePort(id, szName, typeGUID, flags, pData));
 }
 
-void CScriptGraphNodeLayout::AddOutput(const CGraphPortId& id, const char* szName, const SGUID& typeGUID, const ScriptGraphPortFlags& flags, const CAnyValuePtr& pData)
+void CScriptGraphNodeLayout::AddOutput(const CUniqueId& id, const char* szName, const CryGUID& typeGUID, const ScriptGraphPortFlags& flags, const CAnyValuePtr& pData)
 {
 	// #SchematycTODO : Check for id collisions!!!
 	m_outputs.push_back(SScriptGraphNodePort(id, szName, typeGUID, flags, pData));
 }
 
-CScriptGraphNode::CScriptGraphNode(const SGUID& guid, std::unique_ptr<CScriptGraphNodeModel> pModel)
+CScriptGraphNode::CScriptGraphNode(const CryGUID& guid, std::unique_ptr<CScriptGraphNodeModel> pModel)
 	: m_guid(guid)
 	, m_pModel(std::move(pModel))
 {
@@ -181,7 +187,7 @@ CScriptGraphNode::CScriptGraphNode(const SGUID& guid, std::unique_ptr<CScriptGra
 	}
 }
 
-CScriptGraphNode::CScriptGraphNode(const SGUID& guid, std::unique_ptr<CScriptGraphNodeModel> pModel, const Vec2& pos)
+CScriptGraphNode::CScriptGraphNode(const CryGUID& guid, std::unique_ptr<CScriptGraphNodeModel> pModel, const Vec2& pos)
 	: m_guid(guid)
 	, m_pModel(std::move(pModel))
 	, m_pos(pos)
@@ -210,16 +216,16 @@ const IScriptGraph& CScriptGraphNode::GetGraph() const
 	return *m_pGraph;
 }
 
-SGUID CScriptGraphNode::GetTypeGUID() const
+CryGUID CScriptGraphNode::GetTypeGUID() const
 {
 	if (m_pModel) // #SchematycTODO : Can we just assume this is always valid?
 	{
 		return m_pModel->GetTypeGUID();
 	}
-	return SGUID();
+	return CryGUID();
 }
 
-SGUID CScriptGraphNode::GetGUID() const
+CryGUID CScriptGraphNode::GetGUID() const
 {
 	return m_guid;
 }
@@ -254,7 +260,7 @@ uint32 CScriptGraphNode::GetInputCount() const
 	return m_layout.GetInputs().size();
 }
 
-uint32 CScriptGraphNode::FindInputById(const CGraphPortId& id) const
+uint32 CScriptGraphNode::FindInputById(const CUniqueId& id) const
 {
 	const ScriptGraphNodePorts& inputs = m_layout.GetInputs();
 	for (uint32 inputIdx = 0, inputCount = inputs.size(); inputIdx < inputCount; ++inputIdx)
@@ -267,10 +273,10 @@ uint32 CScriptGraphNode::FindInputById(const CGraphPortId& id) const
 	return InvalidIdx;
 }
 
-CGraphPortId CScriptGraphNode::GetInputId(uint32 inputIdx) const
+CUniqueId CScriptGraphNode::GetInputId(uint32 inputIdx) const
 {
 	const ScriptGraphNodePorts& inputs = m_layout.GetInputs();
-	return inputIdx < inputs.size() ? inputs[inputIdx].id : CGraphPortId();
+	return inputIdx < inputs.size() ? inputs[inputIdx].id : CUniqueId();
 }
 
 const char* CScriptGraphNode::GetInputName(uint32 inputIdx) const
@@ -279,10 +285,10 @@ const char* CScriptGraphNode::GetInputName(uint32 inputIdx) const
 	return inputIdx < inputs.size() ? inputs[inputIdx].name.c_str() : "";
 }
 
-SGUID CScriptGraphNode::GetInputTypeGUID(uint32 inputIdx) const
+CryGUID CScriptGraphNode::GetInputTypeGUID(uint32 inputIdx) const
 {
 	const ScriptGraphNodePorts& inputs = m_layout.GetInputs();
-	return inputIdx < inputs.size() ? inputs[inputIdx].typeGUID : SGUID();
+	return inputIdx < inputs.size() ? inputs[inputIdx].typeGUID : CryGUID();
 }
 
 ScriptGraphPortFlags CScriptGraphNode::GetInputFlags(uint32 inputIdx) const
@@ -308,7 +314,7 @@ uint32 CScriptGraphNode::GetOutputCount() const
 	return outputs.size();
 }
 
-uint32 CScriptGraphNode::FindOutputById(const CGraphPortId& id) const
+uint32 CScriptGraphNode::FindOutputById(const CUniqueId& id) const
 {
 	const ScriptGraphNodePorts& outputs = m_layout.GetOutputs();
 	for (uint32 outputIdx = 0, outputCount = outputs.size(); outputIdx < outputCount; ++outputIdx)
@@ -321,10 +327,10 @@ uint32 CScriptGraphNode::FindOutputById(const CGraphPortId& id) const
 	return InvalidIdx;
 }
 
-CGraphPortId CScriptGraphNode::GetOutputId(uint32 outputIdx) const
+CUniqueId CScriptGraphNode::GetOutputId(uint32 outputIdx) const
 {
 	const ScriptGraphNodePorts& outputs = m_layout.GetOutputs();
-	return outputIdx < outputs.size() ? outputs[outputIdx].id : CGraphPortId();
+	return outputIdx < outputs.size() ? outputs[outputIdx].id : CUniqueId();
 }
 
 const char* CScriptGraphNode::GetOutputName(uint32 outputIdx) const
@@ -333,10 +339,10 @@ const char* CScriptGraphNode::GetOutputName(uint32 outputIdx) const
 	return outputIdx < outputs.size() ? outputs[outputIdx].name.c_str() : "";
 }
 
-SGUID CScriptGraphNode::GetOutputTypeGUID(uint32 outputIdx) const
+CryGUID CScriptGraphNode::GetOutputTypeGUID(uint32 outputIdx) const
 {
 	const ScriptGraphNodePorts& outputs = m_layout.GetOutputs();
-	return outputIdx < outputs.size() ? outputs[outputIdx].typeGUID : SGUID();
+	return outputIdx < outputs.size() ? outputs[outputIdx].typeGUID : CryGUID();
 }
 
 ScriptGraphPortFlags CScriptGraphNode::GetOutputFlags(uint32 outputIdx) const
@@ -374,6 +380,7 @@ void CScriptGraphNode::ProcessEvent(const SScriptEvent& event)
 {
 	switch (event.id)
 	{
+	case EScriptEventId::FileReload:
 	case EScriptEventId::EditorAdd:
 	case EScriptEventId::EditorPaste:
 	case EScriptEventId::EditorRefresh:
@@ -399,6 +406,16 @@ void CScriptGraphNode::Serialize(Serialization::IArchive& archive)
 				{
 					m_pModel->LoadDependencies(archive, *pSerializationContext);
 				}
+				break;
+			}
+		case ESerializationPass::Load:
+			{
+				SerializeBasicInfo(archive);
+				if (m_pModel)
+				{
+					m_pModel->Load(archive, *pSerializationContext);
+				}
+				SerializeInputs(archive);
 				break;
 			}
 		case ESerializationPass::PostLoad:

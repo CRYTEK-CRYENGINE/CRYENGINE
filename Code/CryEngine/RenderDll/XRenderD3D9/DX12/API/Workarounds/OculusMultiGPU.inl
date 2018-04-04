@@ -1,8 +1,8 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 void CD3DOculusRenderer::CopyMultiGPUFrameData()
 {
-	CDeviceCommandListUPtr pCLA = CCryDeviceWrapper::GetObjectFactory().AcquireCommandList(CDeviceObjectFactory::eQueue_Graphics);
+	CDeviceCommandListUPtr pCLA = GetDeviceObjectFactory().AcquireCommandList(CDeviceObjectFactory::eQueue_Graphics);
 	pCLA->LockToThread();
 
 	ID3D12GraphicsCommandList* pCL0 = *(*((BroadcastableD3D12GraphicsCommandList<2>*)pCLA->GetDX12CommandList()->GetD3D12CommandList()))[0];
@@ -12,8 +12,8 @@ void CD3DOculusRenderer::CopyMultiGPUFrameData()
 	CCryDX12Texture2D* lRV = (CCryDX12Texture2D*)m_pStereoRenderer->GetEyeTarget(LEFT_EYE)->GetDevTexture()->GetBaseTexture();
 	CCryDX12Texture2D* rRV = (CCryDX12Texture2D*)m_pStereoRenderer->GetEyeTarget(RIGHT_EYE)->GetDevTexture()->GetBaseTexture();
 
-	NCryDX12::CResource& lRVResource = pCLA->GetDX12CommandList()->PatchRenderTarget(lRV->GetDX12Resource());
-	NCryDX12::CResource& rRVResource = pCLA->GetDX12CommandList()->PatchRenderTarget(rRV->GetDX12Resource());
+	NCryDX12::CResource& lRVResource = lRV->GetDX12Resource(); lRVResource.VerifyBackBuffer();
+	NCryDX12::CResource& rRVResource = rRV->GetDX12Resource(); rRVResource.VerifyBackBuffer();
 
 	const int idx0 = m_pOculusDevice->GetCurrentSwapChainIndex(m_scene3DRenderData[0].vrTextureSet.pDeviceTextureSwapChain);
 	const int idx1 = m_pOculusDevice->GetCurrentSwapChainIndex(m_scene3DRenderData[1].vrTextureSet.pDeviceTextureSwapChain);
@@ -68,7 +68,7 @@ void CD3DOculusRenderer::CopyMultiGPUFrameData()
 	{
 		CCryDX12Texture2D* qRV = (CCryDX12Texture2D*)CTexture::s_ptexQuadLayers[i]->GetDevTexture()->GetBaseTexture();
 
-		NCryDX12::CResource& qRVResource = pCLA->GetDX12CommandList()->PatchRenderTarget(qRV->GetDX12Resource());
+		NCryDX12::CResource& qRVResource = qRV->GetDX12Resource(); qRVResource.VerifyBackBuffer();
 
 		const int idx = m_pOculusDevice->GetCurrentSwapChainIndex(m_quadLayerRenderData[i].vrTextureSet.pDeviceTextureSwapChain);
 
@@ -107,7 +107,7 @@ void CD3DOculusRenderer::CopyMultiGPUFrameData()
 	{
 		CCryDX12Texture2D* qRV = (CCryDX12Texture2D*)CTexture::s_ptexQuadLayers[i]->GetDevTexture()->GetBaseTexture();
 
-		NCryDX12::CResource& qRVResource = pCLA->GetDX12CommandList()->PatchRenderTarget(qRV->GetDX12Resource());
+		NCryDX12::CResource& qRVResource = qRV->GetDX12Resource(); qRVResource.VerifyBackBuffer();
 
 		const int idx = m_pOculusDevice->GetCurrentSwapChainIndex(m_quadLayerRenderData[i].vrTextureSet.pDeviceTextureSwapChain);
 
@@ -120,12 +120,12 @@ void CD3DOculusRenderer::CopyMultiGPUFrameData()
 
 	pCLA->GetDX12CommandList()->m_nCommands = 2 + RenderLayer::eQuadLayers_Total;
 	pCLA->Close();
-	CCryDeviceWrapper::GetObjectFactory().ForfeitCommandList(std::move(pCLA), CDeviceObjectFactory::eQueue_Graphics);
+	GetDeviceObjectFactory().ForfeitCommandList(std::move(pCLA), CDeviceObjectFactory::eQueue_Graphics);
 }
 
 void CD3DOculusRenderer::CopyMultiGPUMirrorData(CTexture* pBackbufferTexture)
 {
-	CDeviceCommandListUPtr pCLA = CCryDeviceWrapper::GetObjectFactory().AcquireCommandList(CDeviceObjectFactory::eQueue_Graphics);
+	CDeviceCommandListUPtr pCLA = GetDeviceObjectFactory().AcquireCommandList(CDeviceObjectFactory::eQueue_Graphics);
 	pCLA->LockToThread();
 
 	ID3D12GraphicsCommandList* pCL0 = *(*((BroadcastableD3D12GraphicsCommandList<2>*)pCLA->GetDX12CommandList()->GetD3D12CommandList()))[0];
@@ -133,7 +133,7 @@ void CD3DOculusRenderer::CopyMultiGPUMirrorData(CTexture* pBackbufferTexture)
 
 	CCryDX12Texture2D* bRV = (CCryDX12Texture2D*)pBackbufferTexture->GetDevTexture()->Get2DTexture();
 
-	NCryDX12::CResource& bRVResource = pCLA->GetDX12CommandList()->PatchRenderTarget(bRV->GetDX12Resource());
+	NCryDX12::CResource& bRVResource = bRV->GetDX12Resource(); bRVResource.VerifyBackBuffer();
 
 	IUnknown* bRVN = m_mirrorData.pMirrorTextureNative;
 
@@ -176,5 +176,5 @@ void CD3DOculusRenderer::CopyMultiGPUMirrorData(CTexture* pBackbufferTexture)
 
 	pCLA->GetDX12CommandList()->m_nCommands = 1;
 	pCLA->Close();
-	CCryDeviceWrapper::GetObjectFactory().ForfeitCommandList(std::move(pCLA), CDeviceObjectFactory::eQueue_Graphics);
+	GetDeviceObjectFactory().ForfeitCommandList(std::move(pCLA), CDeviceObjectFactory::eQueue_Graphics);
 }

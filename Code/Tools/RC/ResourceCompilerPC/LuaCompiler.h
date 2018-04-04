@@ -1,4 +1,5 @@
 // Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved.
+
 #ifndef LUA_COMPILER
 #define LUA_COMPILER
 
@@ -12,7 +13,7 @@ public:
 	LuaCompiler();
 	~LuaCompiler();
 
-	// IConvertor methods.
+	// IConverter methods.
 	virtual const char* GetExt(int index) const { return (index == 0) ? "lua" : 0; }
 
 	// ICompiler methods.

@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 /*=============================================================================
 
@@ -33,20 +33,18 @@ public:
 
 struct SSvoTargetsSet
 {
-	void Release();
-
-	CTexture
-	// tracing targets
-	* pRT_RGB_0 = nullptr, * pRT_ALD_0 = nullptr,
-	* pRT_RGB_1 = nullptr, * pRT_ALD_1 = nullptr,
-	// de-mosaic targets
-	* pRT_RGB_DEM_MIN_0 = nullptr, * pRT_ALD_DEM_MIN_0 = nullptr,
-	* pRT_RGB_DEM_MAX_0 = nullptr, * pRT_ALD_DEM_MAX_0 = nullptr,
-	* pRT_RGB_DEM_MIN_1 = nullptr, * pRT_ALD_DEM_MIN_1 = nullptr,
-	* pRT_RGB_DEM_MAX_1 = nullptr, * pRT_ALD_DEM_MAX_1 = nullptr,
-	// output
-	* pRT_FIN_OUT_0 = nullptr,
-	* pRT_FIN_OUT_1 = nullptr;
+	_smart_ptr<CTexture>
+		// tracing targets
+		pRT_RGB_0, pRT_ALD_0,
+		pRT_RGB_1, pRT_ALD_1,
+		// de-mosaic targets
+		pRT_RGB_DEM_MIN_0, pRT_ALD_DEM_MIN_0,
+		pRT_RGB_DEM_MAX_0, pRT_ALD_DEM_MAX_0,
+		pRT_RGB_DEM_MIN_1, pRT_ALD_DEM_MIN_1,
+		pRT_RGB_DEM_MAX_1, pRT_ALD_DEM_MAX_1,
+		// output
+		pRT_FIN_OUT_0,
+		pRT_FIN_OUT_1;
 
 	CSvoFullscreenPass passConeTrace;
 	CSvoFullscreenPass passDemosaic;
@@ -66,10 +64,11 @@ public:
 	int                  GetIntegratioMode(bool& bSpecTracingInUse);
 	bool                 GetUseLightProbes() { return e_svoTI_SkyColorMultiplier >= 0; }
 	void                 DebugDrawStats(const RPProfilerStats* pBasicStats, float& ypos, const float ystep, float xposms);
-	static bool          SetSamplers(int nCustomID, EHWShaderClass eSHClass, int nTUnit, int nTState, int nTexMaterialSlot, int nSUnit);
+	static bool          SetSamplers(int nCustomID, EHWShaderClass eSHClass, int nTUnit, SamplerStateHandle nTState, int nTexMaterialSlot, int nSUnit);
 	static bool          SetShaderParameters(float*& pSrc, uint32 paramType, UFloat4* sData);
 	static CTexture*     GetRsmColorMap(const ShadowMapFrustum& rFr, bool bCheckUpdate = false);
 	static CTexture*     GetRsmNormlMap(const ShadowMapFrustum& rFr, bool bCheckUpdate = false);
+	ShadowMapFrustum*    GetRsmSunFrustum(CRenderView* pRenderView) const;
 	CTexture*            GetTroposphereMinRT();
 	CTexture*            GetTroposphereMaxRT();
 	CTexture*            GetTroposphereShadRT();
@@ -79,11 +78,13 @@ public:
 	float                GetVegetationMaxOpacity() { return e_svoTI_VegetationMaxOpacity; }
 	CTexture*            GetRsmPoolCol()           { return IsActive() ? m_pRsmPoolCol : NULL; }
 	CTexture*            GetRsmPoolNor()           { return IsActive() ? m_pRsmPoolNor : NULL; }
+	static void          GetRsmTextures(_smart_ptr<CTexture>& pRsmColorMap, _smart_ptr<CTexture>& pRsmNormlMap, _smart_ptr<CTexture>& pRsmPoolCol, _smart_ptr<CTexture>& pRsmPoolNor);
 
 protected:
 
 	CSvoRenderer();
-	virtual ~CSvoRenderer();
+	virtual ~CSvoRenderer() {}
+
 	void             SetEditingHelper(const Sphere& sp);
 	bool             IsShaderItemUsedForVoxelization(SShaderItem& rShaderItem, IRenderNode* pRN);
 	static CTexture* GetGBuffer(int nId);
@@ -91,24 +92,16 @@ protected:
 	void             DemosaicPass(SSvoTargetsSet* pTS);
 	void             ConeTracePass(SSvoTargetsSet* pTS);
 
-	template<class T>
-	void SetupCommonConstants(SSvoTargetsSet* pTS, T &rp, CTexture * pRT);
+	template<class T> void SetupCommonSamplers(T &rp);
+	template<class T> void SetupCommonConstants(SSvoTargetsSet* pTS, T &rp, CTexture * pRT);
+	template<class T> void SetupRsmSunTextures(T & rp);
+	template<class T> void SetupRsmSunConstants(T & rp);
 
-	template<class T> void SetupRsmSun(T & rp);
 	void             TropospherePass();
 
 	void SetupGBufferTextures(CSvoFullscreenPass &rp);
 
-	void             CheckCreateUpdateRT(CTexture*& pTex, int nWidth, int nHeight, ETEX_Format eTF, ETEX_Type eTT, int nTexFlags, const char* szName);
-
-	CSvoComputePass m_passClearBricks;
-	CSvoComputePass m_passInjectDynamicLights;
-	CSvoComputePass m_passInjectStaticLights;
-	CSvoComputePass m_passInjectAirOpacity;
-	CSvoComputePass m_passPropagateLighting_1to2;
-	CSvoComputePass m_passPropagateLighting_2to3;
-
-	CSvoFullscreenPass m_passTroposphere;
+	void             CheckCreateUpdateRT(_smart_ptr<CTexture>& pTex, int nWidth, int nHeight, ETEX_Format eTF, ETEX_Type eTT, int nTexFlags, const char* szName);
 
 	void UpdateGpuVoxParams(I3DEngine::SSvoNodeInfo& nodeInfo);
 	void ExecuteComputeShader(const char* szTechFinalName, CSvoComputePass & rp, int* nNodesForUpdateStartIndex, int nObjPassId, PodArray<I3DEngine::SSvoNodeInfo>& arrNodesForUpdate);
@@ -123,25 +116,23 @@ protected:
 	void VoxelizeRE();
 	bool VoxelizeMeshes(CShader* ef, SShaderPass* sfm);
 
-	SSvoTargetsSet m_tsDiff, m_tsSpec;
-
 	#ifdef FEATURE_SVO_GI_ALLOW_HQ
-	CTexture
-	* m_pRT_NID_0,
-	* m_pRT_AIR_MIN,
-	* m_pRT_AIR_MAX,
-	* m_pRT_AIR_SHAD;
+	_smart_ptr<CTexture>
+		m_pRT_NID_0,
+		m_pRT_AIR_MIN,
+		m_pRT_AIR_MAX,
+		m_pRT_AIR_SHAD;
 	#endif
 
-	int       m_nTexStateTrilinear, m_nTexStateLinear, m_nTexStatePoint, m_nTexStateLinearWrap;
 	Matrix44A m_matReproj;
 	Matrix44A m_matViewProjPrev;
 	CShader*  m_pShader;
-	CTexture* m_pNoiseTex;
-	CTexture* m_pRsmColorMap;
-	CTexture* m_pRsmNormlMap;
-	CTexture* m_pRsmPoolCol;
-	CTexture* m_pRsmPoolNor;
+	_smart_ptr<CTexture> m_pNoiseTex;
+	_smart_ptr<CTexture> m_pCloudShadowTex;
+	static _smart_ptr<CTexture> m_pRsmColorMap;
+	static _smart_ptr<CTexture> m_pRsmNormlMap;
+	static _smart_ptr<CTexture> m_pRsmPoolCol;
+	static _smart_ptr<CTexture> m_pRsmPoolNor;
 
 	#ifdef FEATURE_SVO_GI_ALLOW_HQ
 	struct SVoxPool
@@ -163,6 +154,14 @@ protected:
 	SVoxPool vp_RGB4;
 	SVoxPool vp_NORM;
 	SVoxPool vp_ALDI;
+
+	_smart_ptr<CTexture> m_pTexTexA;
+	_smart_ptr<CTexture> m_pTexTriA;
+	_smart_ptr<CTexture> m_pTexIndA;
+	_smart_ptr<CTexture> m_pTexTree;
+	_smart_ptr<CTexture> m_pTexOpac;
+	_smart_ptr<CTexture> m_pTexTris;
+	_smart_ptr<CTexture> m_pGlobalSpecCM;
 	#endif
 
 	PodArray<I3DEngine::SSvoNodeInfo> m_arrNodesForUpdateIncr;
@@ -178,6 +177,17 @@ protected:
 	I3DEngine::SSvoStaticTexInfo      m_texInfo;
 	static CSvoRenderer*              s_pInstance;
 	PodArray<I3DEngine::SSvoNodeInfo> m_arrNodeInfo;
+
+	SSvoTargetsSet m_tsDiff, m_tsSpec;
+
+	// passes
+	CSvoComputePass    m_passClearBricks;
+	CSvoComputePass    m_passInjectDynamicLights;
+	CSvoComputePass    m_passInjectStaticLights;
+	CSvoComputePass    m_passInjectAirOpacity;
+	CSvoComputePass    m_passPropagateLighting_1to2;
+	CSvoComputePass    m_passPropagateLighting_2to3;
+	CSvoFullscreenPass m_passTroposphere;
 
 	// cvar values
 	#define INIT_ALL_SVO_CVARS                                      \

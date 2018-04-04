@@ -1,11 +1,11 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 /************************************************************************
 
    The DialogLine Database holds all DialogLines and is able to pick the correct one, given a lineID.
    A SDialogLineSet contains several SDialogLines which are picked by some criteria (random, sequential...)
 
-   /************************************************************************/
+/************************************************************************/
 
 #pragma once
 
@@ -77,8 +77,8 @@ public:
 	virtual float             GetMaxQueuingDuration() const override          { return m_maxQueuingDuration; }
 	virtual uint32            GetLineCount() const override                   { return m_lines.size(); }
 	virtual DRS::IDialogLine* GetLineByIndex(uint32 index) override;
-	virtual DRS::IDialogLine* InsertLine(uint32 index) override;
-	virtual void              RemoveLine(uint32 index) override;
+	virtual DRS::IDialogLine* InsertLine(uint32 index=1) override;
+	virtual bool              RemoveLine(uint32 index) override;
 	virtual void              Serialize(Serialization::IArchive& ar) override;
 	//////////////////////////////////////////////////////////
 
@@ -96,20 +96,19 @@ class CDialogLineDatabase final : public DRS::IDialogLineDatabase
 
 public:
 	CDialogLineDatabase();
-	virtual ~CDialogLineDatabase();
+	virtual ~CDialogLineDatabase() override;
 	bool            InitFromFiles(const char* szFilePath);
 	//will reset all temporary data (for example the data to pick variations in sequential order)
 	void            Reset();
-	CDialogLineSet* GetLineSetById(const CHashedString& lineID);
 
 	//////////////////////////////////////////////////////////
 	// IDialogLineDatabase implementation
 	virtual bool                       Save(const char* szFilePath) override;
 	virtual uint32                     GetLineSetCount() const override;
 	virtual DRS::IDialogLineSet*       GetLineSetByIndex(uint32 index) override;
-	virtual const DRS::IDialogLineSet* GetLineSetById(const CHashedString& lineID) const override;
-	virtual DRS::IDialogLineSet*       InsertLineSet(uint32 index) override;
-	virtual void                       RemoveLineSet(uint32 index) override;
+	virtual CDialogLineSet*            GetLineSetById(const CHashedString& lineID) override;
+	virtual DRS::IDialogLineSet*       InsertLineSet(uint32 index=-1) override;
+	virtual bool                       RemoveLineSet(uint32 index) override;
 	virtual bool                       ExecuteScript(uint32 index) override;
 	virtual void                       Serialize(Serialization::IArchive& ar) override;
 	virtual void                       SerializeLinesHistory(Serialization::IArchive& ar) override;
@@ -119,7 +118,7 @@ public:
 	void SetAllLineData(DRS::ValuesListIterator start, DRS::ValuesListIterator end);    //restores a state
 
 private:
-	CHashedString GenerateUniqueId(const string& root) const;
+	CHashedString GenerateUniqueId(const string& root);
 
 	typedef std::vector<CDialogLineSet> DialogLineSetList;
 	DialogLineSetList  m_lineSets;

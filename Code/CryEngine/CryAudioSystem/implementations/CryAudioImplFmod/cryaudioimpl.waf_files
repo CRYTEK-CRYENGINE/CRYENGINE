@@ -10,6 +10,7 @@
 	{
 		"Source Files":
 		[
+			"ATLEntities.cpp",
 			"AudioEvent.cpp",
 			"AudioImpl.cpp",
 			"AudioImplCVars.cpp",

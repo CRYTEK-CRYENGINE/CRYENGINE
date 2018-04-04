@@ -9,17 +9,11 @@ class CSchematycPlugin : public IPlugin
 public:
 
 	CSchematycPlugin();
+	~CSchematycPlugin();
 
 	// IPlugin
-	void        Release();
-	void        ShowAbout();
-	const char* GetPluginGUID();
-	DWORD       GetPluginVersion();
-	const char* GetPluginName();
-	bool        CanExitNow();
-	void        Serialize(FILE* hFile, bool bIsStoring);
-	void        ResetContent();
-	bool        CreateUIElements();
-	void        OnEditorNotify(EEditorNotifyEvent eventId);
+	int32       GetPluginVersion() override;
+	const char* GetPluginName() override;
+	const char* GetPluginDescription() override;
 	// ~IPlugin
 };

@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 /*************************************************************************
    -------------------------------------------------------------------------
@@ -110,7 +110,7 @@ class CUNIXConsole : public ISystemUserCallback,
 	SSystemUpdateStats    m_updStats;
 
 		#ifndef _RELEASE
-	bool IsLocked() { return m_Lock.IsLocked(); }
+	bool IsLocked() const { return m_Lock.IsLocked(); }
 		#endif
 
 	// The header string.
@@ -504,13 +504,13 @@ public:
 	/** this method is called at the earliest point the ISystem pointer can be used
 	   the log might not be yet there
 	 */
-	virtual void OnSystemConnect(ISystem* pSystem)  {};
+	virtual void OnSystemConnect(ISystem* pSystem) {};
 
 	/** If working in Editor environment notify user that engine want to Save current document.
 	   This happens if critical error have occured and engine gives a user way to save data and not lose it
 	   due to crash.
 	 */
-	virtual bool OnSaveDocument()                   { return false; }
+	virtual bool OnSaveDocument() { return false; }
 
 	/** Notify user that system wants to switch out of current process.
 	   (For ex. Called when pressing ESC in game mode to go to Menu).

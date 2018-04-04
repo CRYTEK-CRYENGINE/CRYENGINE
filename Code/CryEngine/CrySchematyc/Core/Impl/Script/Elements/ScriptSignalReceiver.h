@@ -1,10 +1,10 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #pragma once
 
-#include <Schematyc/Script/Elements/IScriptSignalReceiver.h>
-#include <Schematyc/SerializationUtils/MultiPassSerializer.h>
-#include <Schematyc/Utils/GUID.h>
+#include <CrySchematyc/Script/Elements/IScriptSignalReceiver.h>
+#include <CrySchematyc/SerializationUtils/MultiPassSerializer.h>
+#include <CrySchematyc/Utils/GUID.h>
 
 #include "Script/ScriptElementBase.h"
 #include "Script/ScriptUserDocumentation.h"
@@ -16,7 +16,7 @@ class CScriptSignalReceiver : public CScriptElementBase<IScriptSignalReceiver>, 
 public:
 
 	CScriptSignalReceiver();
-	CScriptSignalReceiver(const SGUID& guid, const char* szName, EScriptSignalReceiverType type, const SGUID& signalGUID);
+	CScriptSignalReceiver(const CryGUID& guid, const char* szName, EScriptSignalReceiverType type, const CryGUID& signalGUID);
 
 	// IScriptElement
 	virtual void EnumerateDependencies(const ScriptDependencyEnumerator& enumerator, EScriptDependencyType type) const override;
@@ -26,8 +26,8 @@ public:
 	// ~IScriptElement
 
 	// IScriptSignalReceiver
-	virtual EScriptSignalReceiverType GetType() const override;
-	virtual SGUID                     GetSignalGUID() const override;
+	virtual EScriptSignalReceiverType GetSignalReceiverType() const override;
+	virtual CryGUID                     GetSignalGUID() const override;
 	// ~IScriptSignalReceiver
 
 protected:
@@ -48,7 +48,7 @@ private:
 private:
 
 	EScriptSignalReceiverType m_type;
-	SGUID                     m_signalGUID;
+	CryGUID                     m_signalGUID;
 	SScriptUserDocumentation  m_userDocumentation;
 };
 } // Schematyc

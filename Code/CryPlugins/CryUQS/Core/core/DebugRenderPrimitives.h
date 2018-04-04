@@ -6,9 +6,9 @@
 
 // *INDENT-OFF* - <hard to read code and declarations due to inconsistent indentation>
 
-namespace uqs
+namespace UQS
 {
-	namespace core
+	namespace Core
 	{
 
 		//===================================================================================
@@ -21,7 +21,7 @@ namespace uqs
 		{
 		public:
 			virtual            ~CDebugRenderPrimitiveBase() {}
-			virtual void       Draw(bool bHighlight) const = 0;
+			virtual void       Draw(bool bHighlight, const ColorF* pOptionalColorToOverrideWith) const = 0;
 			virtual size_t     GetRoughMemoryUsage() const = 0;
 			virtual void       Serialize(Serialization::IArchive& ar) = 0;
 
@@ -45,7 +45,7 @@ namespace uqs
 			explicit           CDebugRenderPrimitive_Sphere(const Vec3& pos, float radius, const ColorF& color);
 
 			// CDebugRenderPrimitiveBase
-			virtual void       Draw(bool bHighlight) const override;
+			virtual void       Draw(bool bHighlight, const ColorF* pOptionalColorToOverrideWith) const override;
 			virtual size_t     GetRoughMemoryUsage() const override;
 			virtual void       Serialize(Serialization::IArchive& ar) override;
 			// ~CDebugRenderPrimitiveBase
@@ -69,20 +69,21 @@ namespace uqs
 		{
 		public:
 			explicit           CDebugRenderPrimitive_Direction();    // default ctor required for yasli serialization
-			explicit           CDebugRenderPrimitive_Direction(const Vec3& pos, float radius, const Vec3& dir, const ColorF& color);
+			explicit           CDebugRenderPrimitive_Direction(const Vec3& from, const Vec3& to, float coneRadius, float coneHeight, const ColorF& color);
 
 			// CDebugRenderPrimitiveBase
-			virtual void       Draw(bool bHighlight) const override;
+			virtual void       Draw(bool bHighlight, const ColorF* pOptionalColorToOverrideWith) const override;
 			virtual size_t     GetRoughMemoryUsage() const override;
 			virtual void       Serialize(Serialization::IArchive& ar) override;
 			// ~CDebugRenderPrimitiveBase
 
-			static void        Draw(const Vec3& pos, float radius, const Vec3& dir, const ColorF& color, bool bHighlight);
+			static void        Draw(const Vec3& from, const Vec3& to, float coneRadius, float coneHeight, const ColorF& color, bool bHighlight);
 
 		private:
-			Vec3               m_pos;
-			float              m_radius;
-			Vec3               m_dir;
+			Vec3               m_from;
+			Vec3               m_to;
+			float              m_coneRadius;
+			float              m_coneHeight;
 			ColorF             m_color;
 		};
 		SERIALIZATION_CLASS_NAME(CDebugRenderPrimitiveBase, CDebugRenderPrimitive_Direction, "CDebugRenderPrimitive_Direction", "");
@@ -100,7 +101,7 @@ namespace uqs
 			explicit           CDebugRenderPrimitive_Line(const Vec3& pos1, const Vec3& pos2, const ColorF& color);
 
 			// CDebugRenderPrimitiveBase
-			virtual void       Draw(bool bHighlight) const override;
+			virtual void       Draw(bool bHighlight, const ColorF* pOptionalColorToOverrideWith) const override;
 			virtual size_t     GetRoughMemoryUsage() const override;
 			virtual void       Serialize(Serialization::IArchive& ar) override;
 			// ~CDebugRenderPrimitiveBase
@@ -127,7 +128,7 @@ namespace uqs
 			explicit           CDebugRenderPrimitive_Cone(const Vec3& pos, const Vec3& dir, float baseRadius, float height, const ColorF& color);
 
 			// CDebugRenderPrimitiveBase
-			virtual void       Draw(bool bHighlight) const override;
+			virtual void       Draw(bool bHighlight, const ColorF* pOptionalColorToOverrideWith) const override;
 			virtual size_t     GetRoughMemoryUsage() const override;
 			virtual void       Serialize(Serialization::IArchive& ar) override;
 			// ~CDebugRenderPrimitiveBase
@@ -156,7 +157,7 @@ namespace uqs
 			explicit           CDebugRenderPrimitive_Cylinder(const Vec3& pos, const Vec3& dir, float radius, float height, const ColorF& color);
 
 			// CDebugRenderPrimitiveBase
-			virtual void       Draw(bool bHighlight) const override;
+			virtual void       Draw(bool bHighlight, const ColorF* pOptionalColorToOverrideWith) const override;
 			virtual size_t     GetRoughMemoryUsage() const override;
 			virtual void       Serialize(Serialization::IArchive& ar) override;
 			// ~CDebugRenderPrimitiveBase
@@ -182,15 +183,15 @@ namespace uqs
 		{
 		public:
 			explicit           CDebugRenderPrimitive_Text();    // default ctor required for yasli serialization
-			explicit           CDebugRenderPrimitive_Text(const Vec3& pos, float size, const char* text, const ColorF& color);
+			explicit           CDebugRenderPrimitive_Text(const Vec3& pos, float size, const char* szText, const ColorF& color);
 
 			// CDebugRenderPrimitiveBase
-			virtual void       Draw(bool bHighlight) const override;
+			virtual void       Draw(bool bHighlight, const ColorF* pOptionalColorToOverrideWith) const override;
 			virtual size_t     GetRoughMemoryUsage() const override;
 			virtual void       Serialize(Serialization::IArchive& ar) override;
 			// ~CDebugRenderPrimitiveBase
 
-			static void        Draw(const Vec3& pos, float size, const char* text, const ColorF& color, bool bHighlight);
+			static void        Draw(const Vec3& pos, float size, const char* szText, const ColorF& color, bool bHighlight);
 
 		private:
 			Vec3               m_pos;
@@ -213,7 +214,7 @@ namespace uqs
 			explicit           CDebugRenderPrimitive_Quat(const Vec3& pos, const Quat& q, float r, const ColorF& color);
 
 			// CDebugRenderPrimitiveBase
-			virtual void       Draw(bool bHighlight) const override;
+			virtual void       Draw(bool bHighlight, const ColorF* pOptionalColorToOverrideWith) const override;
 			virtual size_t     GetRoughMemoryUsage() const override;
 			virtual void       Serialize(Serialization::IArchive& ar) override;
 			// ~CDebugRenderPrimitiveBase
@@ -241,7 +242,7 @@ namespace uqs
 			explicit           CDebugRenderPrimitive_AABB(const AABB& aabb, const ColorF& color);
 
 			// CDebugRenderPrimitiveBase
-			virtual void       Draw(bool bHighlight) const override;
+			virtual void       Draw(bool bHighlight, const ColorF* pOptionalColorToOverrideWith) const override;
 			virtual size_t     GetRoughMemoryUsage() const override;
 			virtual void       Serialize(Serialization::IArchive& ar) override;
 			// ~CDebugRenderPrimitiveBase
@@ -267,7 +268,7 @@ namespace uqs
 			explicit           CDebugRenderPrimitive_OBB(const OBB& obb, const ColorF& color);
 
 			// CDebugRenderPrimitiveBase
-			virtual void       Draw(bool bHighlight) const override;
+			virtual void       Draw(bool bHighlight, const ColorF* pOptionalColorToOverrideWith) const override;
 			virtual size_t     GetRoughMemoryUsage() const override;
 			virtual void       Serialize(Serialization::IArchive& ar) override;
 			// ~CDebugRenderPrimitiveBase

@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 // ------------------------------------------------------------------------
 //  File name:   GeomCacheRenderNode.h
@@ -67,6 +67,8 @@ public:
 	virtual const AABB  GetBBox() const final;
 	virtual void        GetLocalBounds(AABB& bbox) final;
 	virtual void        OffsetPosition(const Vec3& delta) final;
+	virtual void        SetOwnerEntity(IEntity* pEntity) { m_pOwnerEntity = pEntity; }
+	virtual IEntity*    GetOwnerEntity() const { return m_pOwnerEntity; }
 
 	// Called before rendering to update to current frame bbox
 	void                            UpdateBBox();
@@ -267,6 +269,7 @@ private:
 	bool          m_bBoundsChanged;
 	bool          m_bDrawing;
 	bool          m_bTransformReady;
+	IEntity*      m_pOwnerEntity = 0;
 };
 
 #endif

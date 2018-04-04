@@ -35,7 +35,7 @@ C2DRenderUtils::C2DRenderUtils(ScreenLayoutManager* pLayoutManager)
 	if (m_pRenderer)
 	{
 		// TODO : Init/compile for Render-Testing only or get from Textures.h...
-		m_white_texture = m_pRenderer->EF_LoadTexture("EngineAssets/Textures/White.dds", FT_DONT_RELEASE | FT_DONT_STREAM);
+		m_white_texture = m_pRenderer->EF_LoadTexture("%ENGINE%/EngineAssets/Textures/White.dds", FT_DONT_RELEASE | FT_DONT_STREAM);
 		m_pAuxGeom = gEnv->pRenderer->GetIRenderAuxGeom();
 	}
 

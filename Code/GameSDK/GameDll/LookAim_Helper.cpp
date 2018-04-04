@@ -126,7 +126,7 @@ void CLookAim_Helper::Init(CPlayer* pPlayer, ICharacterInstance* pCharacter)
 	if (m_canUseLookAtSimple)
 	{
 		if (!m_lookAtSimple.get())
-			CryCreateClassInstance<AnimPoseModifier::CLookAtSimple>("AnimationPoseModifier_LookAtSimple", m_lookAtSimple);
+			CryCreateClassInstance<AnimPoseModifier::CLookAtSimple>(AnimPoseModifier::CLookAtSimple::GetCID(), m_lookAtSimple);
 
 		m_lookAtWeight = 1.0;
 		m_lookAtFadeInSpeed = 2.0f; // fade in in 0.5 second(s)

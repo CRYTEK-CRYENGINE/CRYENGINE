@@ -1,0 +1,82 @@
+{
+"presets": [
+		{
+			"enabled": true,
+			"name": "diff",
+			"preset": "Albedo",
+			"resolution": "original",
+			"sourceoutputs": [ "diffuse" ],
+			"mapping": [
+				{ "channel": -1, "output": 0 },
+				{ "channel": -1, "output": 0 },
+				{ "channel": -1, "output": 0 },
+				{ "channel": -1, "output": 0 }
+			]
+		},
+		{
+			"enabled": true,
+			"name": "spec",
+			"preset": "Reflectance",
+			"resolution": "quarter",
+			"sourceoutputs": [ "specular" ],
+			"mapping": [
+				{ "channel": -1, "output": 0 },
+				{ "channel": -1, "output": 0 },
+				{ "channel": -1, "output": 0 },
+				{ "channel": -1, "output": 0 }
+			]
+		},
+		{
+			"enabled": true,
+			"name": "ddna",
+			"preset": "NormalsWithSmoothness",
+			"resolution": "original",
+			"sourceoutputs": [ "normal", "glossiness" ],
+			"mapping": [
+				{ "channel": -1, "output": 0 },
+				{ "channel": -1, "output": 0 },
+				{ "channel": -1, "output": 0 },
+				{ "channel": 0, "output": 1 }
+			]
+		},
+		{
+			"enabled": false,
+			"name": "ddn",
+			"preset": "Normals",
+			"resolution": "original",
+			"sourceoutputs": [ "normal" ],
+			"mapping": [
+				{ "channel": -1, "output": 0 },
+				{ "channel": -1, "output": 0 },
+				{ "channel": -1, "output": 0 },
+				{ "channel": -1, "output": 0 }
+			]
+		},
+		{
+			"enabled": true,
+			"name": "height",
+			"preset": "Displacement",
+			"resolution": "original",
+			"sourceoutputs": [ "height" ],
+			"mapping": [
+				{ "channel": -1, "output": 0 },
+				{ "channel": -1, "output": -1 },
+				{ "channel": -1, "output": -1 },
+				{ "channel": 0, "output": 0 }
+			]
+		},
+		{
+			"enabled": false,
+			"name": "emit",
+			"preset": "Albedo",
+			"resolution": "original",
+			"sourceoutputs": [ "Heatmap" ],
+			"mapping": [
+				{ "channel": -1, "output": 0 },
+				{ "channel": -1, "output": 0 },
+				{ "channel": -1, "output": 0 },
+				{ "channel": -1, "output": 0 }
+			]
+		}
+	]
+}

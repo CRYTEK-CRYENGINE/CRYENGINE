@@ -10,8 +10,8 @@ add_sources("NoUberFile"
 		"AudioLogger.h"
 		"IAudioImpl.h"
 		"SharedAudioData.h"
-		"SoundAllocator.h"
-		"STLSoundAllocator.h"
+		"PoolObject.h"
+		"PoolObject_impl.h"
 )
 
 end_sources()

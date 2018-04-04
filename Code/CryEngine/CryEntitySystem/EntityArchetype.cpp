@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 // -------------------------------------------------------------------------
 //  File name:   EntityArchetype.h
@@ -93,6 +93,12 @@ void CEntityArchetype::LoadFromXML(XmlNodeRef& propertiesNode, XmlNodeRef& objec
 }
 
 //////////////////////////////////////////////////////////////////////////
+CEntityArchetypeManager::CEntityArchetypeManager()
+	: m_pEntityArchetypeManagerExtension(nullptr)
+{
+}
+
+//////////////////////////////////////////////////////////////////////////
 IEntityArchetype* CEntityArchetypeManager::CreateArchetype(IEntityClass* pClass, const char* sArchetype)
 {
 	CEntityArchetype* pArchetype = stl::find_in_map(m_nameToArchetypeMap, sArchetype, NULL);
@@ -101,6 +107,12 @@ IEntityArchetype* CEntityArchetypeManager::CreateArchetype(IEntityClass* pClass,
 	pArchetype = new CEntityArchetype((CEntityClass*)pClass);
 	pArchetype->SetName(sArchetype);
 	m_nameToArchetypeMap[pArchetype->GetName()] = pArchetype;
+
+	if (m_pEntityArchetypeManagerExtension)
+	{
+		m_pEntityArchetypeManagerExtension->OnArchetypeAdded(*pArchetype);
+	}
+
 	return pArchetype;
 }
 
@@ -137,6 +149,11 @@ void CEntityArchetypeManager::UnloadArchetype(const char* sArchetype)
 	ArchetypesNameMap::iterator it = m_nameToArchetypeMap.find(sArchetype);
 	if (it != m_nameToArchetypeMap.end())
 	{
+		if (m_pEntityArchetypeManagerExtension)
+		{
+			m_pEntityArchetypeManagerExtension->OnArchetypeRemoved(*it->second);
+		}
+
 		m_nameToArchetypeMap.erase(it);
 	}
 }
@@ -145,6 +162,11 @@ void CEntityArchetypeManager::UnloadArchetype(const char* sArchetype)
 void CEntityArchetypeManager::Reset()
 {
 	MEMSTAT_LABEL_SCOPED("CEntityArchetypeManager::Reset");
+
+	if (m_pEntityArchetypeManagerExtension)
+	{
+		m_pEntityArchetypeManagerExtension->OnAllArchetypesRemoved();
+	}
 
 	m_nameToArchetypeMap.clear();
 	DynArray<string>().swap(m_loadedLibs);
@@ -208,6 +230,11 @@ bool CEntityArchetypeManager::LoadLibrary(const string& library)
 			{
 				pArchetype->LoadFromXML(props, objVars);
 			}
+
+			if (m_pEntityArchetypeManagerExtension)
+			{
+				m_pEntityArchetypeManagerExtension->LoadFromXML(*pArchetype, node);
+			}
 		}
 	}
 
@@ -215,4 +242,16 @@ bool CEntityArchetypeManager::LoadLibrary(const string& library)
 	m_loadedLibs.push_back(library);
 
 	return true;
+}
+
+//////////////////////////////////////////////////////////////////////////
+void CEntityArchetypeManager::SetEntityArchetypeManagerExtension(IEntityArchetypeManagerExtension* pEntityArchetypeManagerExtension)
+{
+	m_pEntityArchetypeManagerExtension = pEntityArchetypeManagerExtension;
+}
+
+//////////////////////////////////////////////////////////////////////////
+IEntityArchetypeManagerExtension* CEntityArchetypeManager::GetEntityArchetypeManagerExtension() const
+{
+	return m_pEntityArchetypeManagerExtension;
 }

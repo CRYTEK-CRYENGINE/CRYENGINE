@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #include "StdAfx.h"
 
@@ -25,16 +25,20 @@ BOOL APIENTRY DllMain(HANDLE hModule, DWORD ul_reason_for_call, LPVOID lpReserve
 #endif
 
 //////////////////////////////////////////////////////////////////////////
-class CEngineModule_CryInput : public IEngineModule
+class CEngineModule_CryInput : public IInputEngineModule
 {
-	CRYINTERFACE_SIMPLE(IEngineModule)
-	CRYGENERATE_SINGLETONCLASS(CEngineModule_CryInput, "EngineModule_CryInput", 0x3cc0516071bb44f6, 0xae525949f30277f9)
+	CRYINTERFACE_BEGIN()
+		CRYINTERFACE_ADD(Cry::IDefaultModule)
+		CRYINTERFACE_ADD(IInputEngineModule)
+	CRYINTERFACE_END()
+
+	CRYGENERATE_SINGLETONCLASS_GUID(CEngineModule_CryInput, "EngineModule_CryInput", "3cc05160-71bb-44f6-ae52-5949f30277f9"_cry_guid)
 
 	virtual ~CEngineModule_CryInput() {}
 
 	//////////////////////////////////////////////////////////////////////////
-	virtual const char* GetName() override { return "CryInput"; };
-	virtual const char* GetCategory() override { return "CryEngine"; };
+	virtual const char* GetName() const override { return "CryInput"; };
+	virtual const char* GetCategory() const override { return "CryEngine"; };
 
 	//////////////////////////////////////////////////////////////////////////
 	virtual bool Initialize(SSystemGlobalEnvironment& env, const SSystemInitParams& initParams) override

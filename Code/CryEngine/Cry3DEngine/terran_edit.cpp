@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 // -------------------------------------------------------------------------
 //  File name:   terran_edit.cpp
@@ -52,7 +52,10 @@ IRenderNode* CTerrain::AddVegetationInstance(int nStaticGroupIndex, const Vec3& 
 		Warning("I3DEngine::AddStaticObject: Attempt to add object of undefined type");
 		return 0;
 	}
-	if (!group.bAutoMerged)
+
+	bool bValidForMerging = group.GetStatObj()->GetRenderTrisCount() < GetCVars()->e_MergedMeshesMaxTriangles;
+
+	if (!group.bAutoMerged || !bValidForMerging)
 	{
 		CVegetation* pEnt = (CVegetation*)Get3DEngine()->CreateRenderNode(eERType_Vegetation);
 		pEnt->SetScale(fScale);
@@ -68,6 +71,16 @@ IRenderNode* CTerrain::AddVegetationInstance(int nStaticGroupIndex, const Vec3& 
 		{
 			Warning("CTerrain::AddVegetationInstance: Object has invalid bbox: %s,%s, GetRadius() = %.2f",
 			        pEnt->GetName(), pEnt->GetEntityClassName(), sqrt_tpl(fEntLengthSquared) * 0.5f);
+		}
+
+		if (group.bAutoMerged && !bValidForMerging)
+		{
+			static int nLastFrameId = 0;
+			if (nLastFrameId != gEnv->pRenderer->GetFrameID()) // log spam prevention
+			{
+				Warning("%s: Vegetation object is not suitable for merging because of too many polygons: %s (%d triangles)", __FUNCTION__, group.GetStatObj()->GetFilePath(), group.GetStatObj()->GetRenderTrisCount());
+				nLastFrameId = gEnv->pRenderer->GetFrameID();
+			}
 		}
 
 		pEnt->Physicalize();

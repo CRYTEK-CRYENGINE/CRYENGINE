@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 // -------------------------------------------------------------------------
 //  File name:   terrain_sector.cpp
@@ -72,7 +72,14 @@ uint8 CTerrainNode::GetTextureLOD(float fDistance, const SRenderingPassInfo& pas
 
 	float fTexSizeK = nDiffTexDim ? float(nDiffTexDim) / float(GetTerrain()->GetTerrainTextureNodeSizeMeters()) : 1.f;
 
-	uint8 cNodeNewTexMML = GetMML(int(fTexSizeK * 0.05f * (fDistance * passInfo.GetZoomFactor()) * GetFloatCVar(e_TerrainTextureLodRatio)), 0,
+	int nMinLod = 0;
+
+	if (m_pTerrain->m_texCache[0].m_eTexFormat == eTF_R8G8B8A8)
+	{
+		nMinLod++; // limit amount of texture data if in fall-back mode
+	}
+
+	uint8 cNodeNewTexMML = GetMML(int(fTexSizeK * 0.05f * (fDistance * passInfo.GetZoomFactor()) * GetFloatCVar(e_TerrainTextureLodRatio)), nMinLod,
 	                              m_bMergeNotAllowed ? 0 : GetTerrain()->GetParentNode(m_nSID)->m_nTreeLevel);
 
 	return cNodeNewTexMML;

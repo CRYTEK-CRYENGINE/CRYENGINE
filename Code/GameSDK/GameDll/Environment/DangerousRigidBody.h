@@ -31,7 +31,6 @@ public:
 	virtual void HandleEvent(const SGameObjectEvent& event) {};
 	virtual void ProcessEvent(SEntityEvent& event);
 	virtual void SetChannelId(uint16 id) {}
-	virtual void SetAuthority(bool auth) {}
 	virtual void GetMemoryUsage(ICrySizer *pSizer) const;
 	virtual bool ReloadExtension( IGameObject * pGameObject, const SEntitySpawnParams &params );
 	virtual void PostReloadExtension( IGameObject * pGameObject, const SEntitySpawnParams &params ) {};

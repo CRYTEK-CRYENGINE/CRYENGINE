@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 // -------------------------------------------------------------------------
 //  File name:   GeomCacheFileFormat.h
@@ -40,7 +40,7 @@ const uint kTexcoordRange = 64;
 const uint kTangentQuatPrecision = 10;
 
 //! Current file version GUID. Files with other GUIDs will not be loaded by the engine.
-const CryGUID kCurrentVersion = MAKE_CRYGUID(0x1641defe440af501, 0x7ec5e9164c8c2d1c);
+constexpr CryGUID kCurrentVersion = "1641defe-440a-f501-7ec5-e9164c8c2d1c"_cry_guid;
 
 //! Mesh prediction look back array size.
 const uint kMeshPredictorLookBackMaxDist = 4096;
@@ -104,11 +104,17 @@ enum EMeshIFrameFlags
 
 struct SHeader
 {
-	SHeader() : m_signature(0), m_version(kCurrentVersion),
-		m_blockCompressionFormat(0), m_flags(0), m_numFrames(0) {}
+	SHeader()
+		: m_signature(0)
+		, m_versionGuidHipart(kCurrentVersion.hipart)
+		, m_versionGuidLopart(kCurrentVersion.lopart)
+		, m_blockCompressionFormat(0)
+		, m_flags(0)
+		, m_numFrames(0) {}
 
 	uint64  m_signature;
-	CryGUID m_version;
+	uint64 m_versionGuidHipart;
+	uint64 m_versionGuidLopart;
 	uint16  m_blockCompressionFormat;
 	uint32  m_flags;
 	uint32  m_numFrames;

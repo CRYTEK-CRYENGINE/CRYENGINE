@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 // -------------------------------------------------------------------------
 //  File name:   SegmentedWorld.cpp
@@ -127,7 +127,7 @@ void CSegmentedWorld::OnLoadingComplete(ILevelInfo* pLevel)
 #ifndef DEDICATED_SERVER
 	// set all the global entities invisible
 	EntityId id = 0;
-	EntityGUID guid = 0;
+	EntityGUID guid;
 	IEntity* pEntity = NULL;
 
 	for (int i = 0; i < s_levelObjects->getChildCount(); i++)
@@ -350,7 +350,7 @@ Vec2i CSegmentedWorld::SelectSegmentToUpdate(const Vec2i& focalPointWC)
 void CSegmentedWorld::AdjustGlobalObjects()
 {
 	EntityId id = 0;
-	EntityGUID guid = 0;
+	EntityGUID guid;
 	IEntity* pEntity = NULL;
 	Vec3 offset = GridToWorldPosition(-m_neededSegmentsMin);
 

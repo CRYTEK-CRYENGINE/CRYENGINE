@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #ifndef IAIObject_h
 #define IAIObject_h
@@ -26,6 +26,12 @@ class CAIFlyingVehicle;
 struct IAIObject :
 	public IAIRecordable
 {
+	enum EUpdateType
+	{
+		Full,
+		Dry,
+	};
+	
 	enum ESubType
 	{
 		STP_NONE,
@@ -79,7 +85,7 @@ public:
 	virtual void Reset(EObjectResetType type) = 0;
 	virtual void Release() = 0;
 
-	//! \return true if method Update(EObjectUpdate type) has been invoked at least once.
+	//! \return true if method Update(EUpdateType type) has been invoked at least once.
 	virtual bool IsUpdatedOnce() const = 0;
 
 	virtual bool IsEnabled() const = 0;
@@ -113,12 +119,11 @@ public:
 	virtual float       GetRadius() const = 0;
 
 	//! Body direction here should be animated character body direction, with a fall back to entity direction.
-	virtual const Vec3&        GetBodyDir() const = 0;
-	virtual void               SetBodyDir(const Vec3& dir) = 0;
+	virtual const Vec3& GetBodyDir() const = 0;
+	virtual void        SetBodyDir(const Vec3& dir) = 0;
 
-	virtual const Vec3&        GetViewDir() const = 0;
-	virtual void               SetViewDir(const Vec3& dir) = 0;
-	virtual EFieldOfViewResult IsPointInFOV(const Vec3& pos, float distanceScale = 1.0f) const = 0;
+	virtual const Vec3& GetViewDir() const = 0;
+	virtual void        SetViewDir(const Vec3& dir) = 0;
 
 	virtual const Vec3& GetEntityDir() const = 0;
 	virtual void        SetEntityDir(const Vec3& dir) = 0;
@@ -127,6 +132,11 @@ public:
 	virtual void        SetMoveDir(const Vec3& dir) = 0;
 	virtual Vec3        GetVelocity() const = 0;
 	////////////////////////////////////////////////////////////////////////////////////////
+
+	virtual EFieldOfViewResult IsObjectInFOV(const IAIObject* pTarget, float distanceStale = 1.f) const = 0;
+	virtual EFieldOfViewResult IsPointInFOV(const Vec3& pos, float distanceScale = 1.0f) const = 0;
+
+	virtual EntityId GetPerceivedEntityID() const = 0;
 
 	////////////////////////////////////////////////////////////////////////////////////////
 	//Serialize

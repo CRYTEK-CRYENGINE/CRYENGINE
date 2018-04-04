@@ -1493,7 +1493,7 @@ public:
 	{
 		m_functors.push_back(f);
 	}
-	// Remvoe functor from list.
+	// Remove functor from list.
 	void Remove(const FUNCTOR& f)
 	{
 		typename Container::iterator it = std::find(m_functors.begin(), m_functors.end(), f);

@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #include "StdAfx.h"
 #include "RenderView.h"
@@ -21,6 +21,7 @@ CRenderView::CRenderView(const char* name, EViewType type, CRenderView* pParentV
 	, m_nShaderRenderingFlags(0)
 	, m_pParentView(pParentView)
 	, m_bPostWriteExecuted(false)
+	, m_bRenderOutput(false)
 	, m_bTrackUncompiledItems(false)
 	, m_numUsedClientPolygons(0)
 	, m_bDeferrredNormalDecals(false)
@@ -47,6 +48,9 @@ CRenderView::CRenderView(const char* name, EViewType type, CRenderView* pParentV
 CRenderView::~CRenderView()
 {
 	Clear();
+
+	for (auto pClientPoly : m_polygonsPool)
+		delete pClientPoly;
 }
 
 void CRenderView::Clear()
@@ -247,6 +251,11 @@ void CRenderView::SwitchUsageMode(EUsageMode mode)
 
 		CRY_ASSERT(m_usageMode == IRenderView::eUsageModeWritingDone);
 
+		if (m_bRenderOutput)
+		{
+			m_renderOutput.BeginRendering();
+		}
+
 		CompileModifiedRenderObjects();
 		UpdateModifiedShaderItems();
 	}
@@ -257,6 +266,12 @@ void CRenderView::SwitchUsageMode(EUsageMode mode)
 		CRY_ASSERT(!m_jobstate_Write.IsRunning());
 		CRY_ASSERT(!m_jobstate_PostWrite.IsRunning());
 		CRY_ASSERT(!m_jobstate_Sort.IsRunning());
+
+		if (m_bRenderOutput)
+		{
+			m_renderOutput.EndRendering();
+			m_bRenderOutput = false;
+		}
 	}
 
 	{
@@ -570,9 +585,23 @@ void CRenderView::AddPolygon(const SRenderPolygonDescription& poly, const SRende
 }
 
 //////////////////////////////////////////////////////////////////////////
+void CRenderView::SetRenderOutput(const CRenderOutput* pRenderOutput)
+{
+	if (pRenderOutput)
+	{
+		m_renderOutput = *pRenderOutput;
+		m_bRenderOutput = true;
+	}
+	else
+	{
+		m_bRenderOutput = false;
+	}
+}
+
+//////////////////////////////////////////////////////////////////////////
 CRenderView::RenderItems& CRenderView::GetRenderItems(int nRenderList)
 {
-	assert(m_usageMode != eUsageModeWriting || (nRenderList == EFSLIST_PREPROCESS || nRenderList == EFSLIST_HDRPOSTPROCESS || nRenderList == EFSLIST_POSTPROCESS)); // While writing we must not read back items.
+	assert(m_usageMode != eUsageModeWriting || (nRenderList == EFSLIST_PREPROCESS)); // While writing we must not read back items.
 
 	m_renderItems[nRenderList].CoalesceMemory();
 	return m_renderItems[nRenderList];
@@ -613,7 +642,7 @@ void CRenderView::AddPermanentObject(CRenderObject* pObject, const SRenderingPas
 void CRenderView::AddRenderItem(CRenderElement* pElem, CRenderObject* RESTRICT_POINTER pObj, const SShaderItem& shaderItem, uint32 nList, uint32 nBatchFlags,
                                 SRendItemSorter sorter, bool bShadowPass, bool bForceOpaqueForward)
 {
-	assert(m_usageMode == eUsageModeWriting || m_bAddingClientPolys || (nList == EFSLIST_PREPROCESS || nList == EFSLIST_HDRPOSTPROCESS || nList == EFSLIST_POSTPROCESS));  // Adding items only in writing mode
+	assert(m_usageMode == eUsageModeWriting || m_bAddingClientPolys || nList == EFSLIST_PREPROCESS);  // Adding items only in writing mode
 
 	CShader* RESTRICT_POINTER pShader = (CShader*)shaderItem.m_pShader;
 
@@ -629,7 +658,7 @@ void CRenderView::AddRenderItem(CRenderElement* pElem, CRenderObject* RESTRICT_P
 		else if (nList == EFSLIST_GENERAL && (!(pShader->m_Flags & EF_SUPPORTSDEFERREDSHADING_FULL) || bForceOpaqueForward))
 		{
 			// Redirect general list items to the forward opaque list
-			nList = EFSLIST_FORWARD_OPAQUE;
+			nList = (pObj->m_ObjFlags & FOB_NEAREST) ? EFSLIST_FORWARD_OPAQUE_NEAREST : EFSLIST_FORWARD_OPAQUE;
 		}
 	}
 
@@ -692,7 +721,11 @@ void CRenderView::AddRenderItem(CRenderElement* pElem, CRenderObject* RESTRICT_P
 		// This item will need a temporary compiled object
 		EDataType reType = pElem ? pElem->mfGetType() : eDATA_Unknown;
 		bool bMeshCompatibleRenderElement = reType == eDATA_Mesh || reType == eDATA_Terrain || reType == eDATA_GeomCache || reType == eDATA_ClientPoly;
-		bool bCompiledRenderElement = (reType == eDATA_WaterVolume || reType == eDATA_WaterOcean);
+		bool bCompiledRenderElement = (reType == eDATA_WaterVolume
+		                               || reType == eDATA_WaterOcean
+		                               || reType == eDATA_Sky
+		                               || reType == eDATA_HDRSky
+		                               || reType == eDATA_FogVolume);
 		if (bMeshCompatibleRenderElement || bCompiledRenderElement) // temporary disable for these types
 		{
 			// Allocate new CompiledRenderObject.
@@ -700,8 +733,10 @@ void CRenderView::AddRenderItem(CRenderElement* pElem, CRenderObject* RESTRICT_P
 		}
 	}
 	//////////////////////////////////////////////////////////////////////////
+#if !defined(_RELEASE)
 	if (CRenderer::CV_r_SkipAlphaTested && (ri.pObj->m_ObjFlags & FOB_ALPHATEST))
 		return;
+#endif
 
 	AddRenderItemToRenderLists<true>(ri, nList, nBatchFlags, shaderItem);
 
@@ -736,23 +771,32 @@ inline void CRenderView::AddRenderItemToRenderLists(const SRendItem& ri, int nRe
 		const bool bIsMaterialEmissive = (shaderItem.m_pShaderResources && shaderItem.m_pShaderResources->IsEmissive());
 		const bool bIsTransparent = (nRenderList == EFSLIST_TRANSP);
 		const bool bIsSelectable = ri.pObj->m_editorSelectionID > 0;
+		const bool bNearest = (ri.pObj->m_ObjFlags & FOB_NEAREST) != 0;
 
-		if (nRenderList != EFSLIST_GENERAL && nRenderList != EFSLIST_TERRAINLAYER && (nBatchFlags & FB_Z))
+		const bool bGeneralList =
+			nRenderList == EFSLIST_GENERAL ||
+			nRenderList == EFSLIST_TERRAINLAYER ||
+			nRenderList == EFSLIST_DECAL ||
+			nRenderList == EFSLIST_NEAREST_OBJECTS;
+
+		if (!bGeneralList && (nBatchFlags & FB_Z))
 		{
 			m_renderItems[EFSLIST_GENERAL].push_back(ri);
 			UpdateRenderListBatchFlags<bConcurrent>(m_BatchFlags[EFSLIST_GENERAL], nBatchFlags);
 		}
 
-		if (nBatchFlags & FB_ZPREPASS)
+		if ((nBatchFlags & FB_ZPREPASS) && !bNearest)
 		{
 			m_renderItems[EFSLIST_ZPREPASS].push_back(ri);
 			UpdateRenderListBatchFlags<bConcurrent>(m_BatchFlags[EFSLIST_ZPREPASS], nBatchFlags);
 		}
 
-		if (bForwardOpaqueFlags || (bIsMaterialEmissive && !bIsTransparent))
+		const bool bForwardOpaqueList = (nRenderList == EFSLIST_FORWARD_OPAQUE) || (nRenderList == EFSLIST_FORWARD_OPAQUE_NEAREST);
+		if ((bForwardOpaqueFlags || bIsMaterialEmissive) && !bIsTransparent && !bForwardOpaqueList)
 		{
-			m_renderItems[EFSLIST_FORWARD_OPAQUE].push_back(ri);
-			UpdateRenderListBatchFlags<bConcurrent>(m_BatchFlags[EFSLIST_FORWARD_OPAQUE], nBatchFlags);
+			const int targetRenderList = bNearest ? EFSLIST_FORWARD_OPAQUE_NEAREST : EFSLIST_FORWARD_OPAQUE;
+			m_renderItems[targetRenderList].push_back(ri);
+			UpdateRenderListBatchFlags<bConcurrent>(m_BatchFlags[targetRenderList], nBatchFlags);
 		}
 
 		if (nBatchFlags & FB_PREPROCESS)
@@ -766,10 +810,16 @@ inline void CRenderView::AddRenderItemToRenderLists(const SRendItem& ri, int nRe
 			}
 		}
 
-		if (bIsSelectable)
+		if (nBatchFlags & FB_CUSTOM_RENDER)
 		{
 			m_renderItems[EFSLIST_CUSTOM].push_back(ri);
 			UpdateRenderListBatchFlags<bConcurrent>(m_BatchFlags[EFSLIST_CUSTOM], nBatchFlags);
+		}
+
+		if (bIsSelectable)
+		{
+			m_renderItems[EFSLIST_HIGHLIGHT].push_back(ri);
+			UpdateRenderListBatchFlags<bConcurrent>(m_BatchFlags[EFSLIST_HIGHLIGHT], nBatchFlags);
 		}
 	}
 }
@@ -806,11 +856,13 @@ void CRenderView::ExpandPermanentRenderObjects()
 		{
 			ReadLock lock(pRenderObject->m_accessLock); // Block on read access to the render object
 
+#if !defined(_RELEASE)
 			if (CRenderer::CV_r_SkipAlphaTested && (pRenderObject->m_ObjFlags & FOB_ALPHATEST))
 			{
 				pRenderObject = pRenderObject->m_pNextPermanent;
 				continue;
 			}
+#endif
 
 			bool bRecompile = (pRenderObject->m_passReadyMask != pRenderObject->m_compiledReadyMask) && (pRenderObject->m_passReadyMask & passMask);
 
@@ -831,28 +883,13 @@ void CRenderView::ExpandPermanentRenderObjects()
 				{
 					bool bRequireCompiledRenderObject = false;
 					// This item will need a temporary compiled object
-					if (pri.m_pRenderElement && pri.m_pRenderElement->mfGetType() == eDATA_Mesh)
+					if (pri.m_pRenderElement && (pri.m_pRenderElement->mfGetType() == eDATA_Mesh || pri.m_pRenderElement->mfGetType() == eDATA_Particle))
 					{
 						bRequireCompiledRenderObject = true;
 					}
 
 					if (bRequireCompiledRenderObject)
 					{
-						// Optimization code that try to share CompiledRenderObject with the one from the shadow pass.
-						// Same CompiledRenderObject can be used in general pass and in shadow gen pass when then both reference the same render element and material (shader item)
-						if (renderPassType == CPermanentRenderObject::eRenderPass_General && i < num_shadow_items)
-						{
-							auto& pri2 = shadow_items[i];
-							if (pri2.m_pCompiledObject && pri2.m_pRenderElement == pri.m_pRenderElement && pri2.m_sortValue == pri.m_sortValue)
-							{
-								pri.m_pCompiledObject = pri2.m_pCompiledObject;
-								// Mark this compiled object to be shared between general and shadow pass, to prevent double deletion
-								pri.m_pCompiledObject->m_bSharedWithShadow = true;
-								pRenderObject->m_bInstanceDataDirty = false; // In this case everything need to be recompiled, not only instance data.
-								bRecompile = true;
-							}
-						}
-
 						if (((volatile CCompiledRenderObject*) pri.m_pCompiledObject) == nullptr)
 						{
 							static CryCriticalSectionNonRecursive allocCS;
@@ -1031,30 +1068,20 @@ void CRenderView::UpdateModifiedShaderItems()
 	{
 		auto pShaderResources = item.first;
 		auto pShader = item.second;
-		auto pResourceSet = pShaderResources->m_pCompiledResourceSet;
-
-		if (pResourceSet && (pResourceSet->GetFlags() & (CDeviceResourceSet::EFlags_AnimatedSequence)))
-		{
-			gcpRendD3D->FX_UpdateAnimatedShaderResources(pShaderResources);
-		}
-
-		if (pResourceSet && (pResourceSet->GetFlags() & (CDeviceResourceSet::EFlags_DynamicUpdates)))
-		{
-			gcpRendD3D->FX_UpdateDynamicShaderResources(pShaderResources, FB_GENERAL, 0);
-		}
-
-		if (pResourceSet && (pResourceSet->GetFlags() & (CDeviceResourceSet::EFlags_PendingAllocation | CDeviceResourceSet::EFlags_AnimatedSequence)))
-		{
-			pResourceSet->Fill(pShader, pShaderResources, EShaderStage_AllWithoutCompute);
-		}
 
 		if (pShaderResources->HasDynamicTexModifiers())
 		{
 			pShaderResources->RT_UpdateConstants(pShader);
 		}
-		else if (pResourceSet && pResourceSet->IsDirty())
+
+		if (pShaderResources->HasAnimatedTextures())
 		{
-			pResourceSet->Build();
+			gcpRendD3D->FX_UpdateAnimatedShaderResources(pShaderResources);
+		}
+
+		if (pShaderResources->HasDynamicUpdates())
+		{
+			gcpRendD3D->FX_UpdateDynamicShaderResources(pShaderResources, FB_GENERAL, 0);
 		}
 	}
 
@@ -1128,6 +1155,7 @@ void CRenderView::Job_PostWrite()
 		return;
 
 	ExpandPermanentRenderObjects();
+	SortLights();
 
 	for (int renderList = 0; renderList < EFSLIST_NUM; renderList++)
 	{
@@ -1193,8 +1221,6 @@ void CRenderView::Job_SortRenderItemsInList(ERenderListID list)
 		break;
 
 	case EFSLIST_DEFERRED_PREPROCESS:
-	case EFSLIST_HDRPOSTPROCESS:
-	case EFSLIST_POSTPROCESS:
 	case EFSLIST_FOG_VOLUME:
 		break;
 
@@ -1229,6 +1255,8 @@ void CRenderView::Job_SortRenderItemsInList(ERenderListID list)
 
 	case EFSLIST_GENERAL:
 	case EFSLIST_SKIN:
+	case EFSLIST_NEAREST_OBJECTS:
+	case EFSLIST_DEBUG_HELPER:
 		{
 			PROFILE_FRAME(State_SortingGBuffer);
 			if (CRenderer::CV_r_ZPassDepthSorting == 0)
@@ -1241,6 +1269,8 @@ void CRenderView::Job_SortRenderItemsInList(ERenderListID list)
 		break;
 
 	case EFSLIST_FORWARD_OPAQUE:
+	case EFSLIST_FORWARD_OPAQUE_NEAREST:
+	case EFSLIST_CUSTOM:
 		{
 			{
 				PROFILE_FRAME(State_SortingForwardOpaque);
@@ -1263,11 +1293,7 @@ void CRenderView::Job_SortRenderItemsInList(ERenderListID list)
 		}
 		break;
 
-	case EFSLIST_NEAREST_OBJECTS:
-		// No need to sort.
-		break;
-
-	case EFSLIST_CUSTOM:
+	case EFSLIST_HIGHLIGHT:
 		// only sort the selection list if we are in editor and not in game mode
 		if (gcpRendD3D->IsEditorMode() && !gEnv->IsEditorGameMode())
 		{
@@ -1279,6 +1305,26 @@ void CRenderView::Job_SortRenderItemsInList(ERenderListID list)
 	default:
 		assert(0);
 	}
+}
+
+void CRenderView::SortLights()
+{
+	struct CubemapCompare
+	{
+		bool operator()(const SRenderLight& l0, const SRenderLight& l1) const
+		{
+			if (l0.m_nSortPriority != l1.m_nSortPriority)
+				return l0.m_nSortPriority > l1.m_nSortPriority;
+
+			if (l0.m_fRadius == l1.m_fRadius)  // Sort by entity id to guarantee deterministic order across frames
+				return l0.m_nEntityId > l1.m_nEntityId;
+
+			return l0.m_fRadius < l1.m_fRadius;
+		}
+	};
+
+	auto& deferredCubemaps = GetLightsArray(eDLT_DeferredCubemap);
+	std::sort(deferredCubemaps.begin(), deferredCubemaps.end(), CubemapCompare());
 }
 
 int CRenderView::FindRenderListSplit(ERenderListID list, uint32 objFlag)
@@ -1378,12 +1424,7 @@ void CRenderView::CheckAndScheduleForUpdate(const SShaderItem& shaderItem)
 
 	if (pSR && pShader)
 	{
-		auto& pRS = pSR->m_pCompiledResourceSet;
-
-		if (pSR->HasDynamicTexModifiers() || (pRS.get() && (pRS->IsDirty() || (pRS->GetFlags() & (
-		                                                                         CDeviceResourceSet::EFlags_AnimatedSequence |
-		                                                                         CDeviceResourceSet::EFlags_DynamicUpdates |
-		                                                                         CDeviceResourceSet::EFlags_PendingAllocation)))))
+		if (pSR->HasDynamicTexModifiers() || pSR->HasAnimatedTextures())
 		{
 			if (CryInterlockedExchange((volatile LONG*)&pSR->m_nUpdateFrameID, (uint32)m_frameId) != (uint32)m_frameId)
 			{
@@ -1482,7 +1523,7 @@ void CRenderView::SShadows::AddNearestCaster(CRenderObject* pObj)
 	if (pObj->m_pRenderNode)
 	{
 		// CRenderProxy::GetLocalBounds is not thread safe due to lazy evaluation
-		CRY_ASSERT(pObj->m_pRenderNode->GetRenderNodeType() != eERType_RenderProxy ||
+		CRY_ASSERT(pObj->m_pRenderNode->GetRenderNodeType() != eERType_MovableBrush ||
 		           !gRenDev->m_pRT->IsMultithreaded() ||
 		           gRenDev->m_pRT->IsMainThread());
 
@@ -1535,4 +1576,137 @@ void CRenderView::SShadows::PrepareNearestShadows()
 		pNearestFrustum->pFrustum->nShadowGenMask = nearestRenderItems.empty() ? 0 : 1;
 		pNearestShadowsView->SwitchUsageMode(CRenderView::eUsageModeReading);
 	}
+}
+
+//////////////////////////////////////////////////////////////////////////
+CRenderOutput::~CRenderOutput()
+{
+}
+
+CRenderOutput::CRenderOutput(const SEnvTexture& envTex, const SHRenderTarget& renderTarget)
+{
+	m_pOutputDynTexture = envTex.m_pTex;
+
+	m_bUseTempDepthBuffer = renderTarget.m_bTempDepth;
+	if (m_bUseTempDepthBuffer)
+	{
+		m_width = envTex.m_pTex->GetWidth();
+		m_height = envTex.m_pTex->GetHeight();
+	}
+	else
+	{
+		m_width = -1;
+		m_height = -1;
+	}
+
+	m_clearTargetFlag = renderTarget.m_nFlags & (FRT_CLEAR_COLOR | FRT_CLEAR_DEPTH);
+	m_clearColor = renderTarget.m_ClearColor;
+	m_clearDepth = renderTarget.m_fClearDepth;
+}
+
+CRenderOutput::CRenderOutput(CTexture* pHDRTargetTex, int32 width, int32 height, bool bClear, ColorF clearColor)
+{
+	m_pOutputDynTexture = nullptr;
+
+	CRY_ASSERT(pHDRTargetTex);
+	m_pHDRTargetTexture = pHDRTargetTex;
+
+	// Secondary viewports have to have their own depth/stencil buffers
+	m_bUseTempDepthBuffer = true;
+
+	m_width = width;
+	m_height = height;
+
+	if (bClear)
+	{
+		m_clearTargetFlag = (FRT_CLEAR_COLOR | FRT_CLEAR_DEPTH | FRT_CLEAR_STENCIL);
+		m_clearColor = clearColor;
+		m_clearDepth = 1.0f;
+	}
+}
+
+void CRenderOutput::BeginRendering()
+{
+	CRY_ASSERT(gcpRendD3D->m_pRT->IsRenderThread());
+
+	gcpRendD3D->FX_PushVP();
+
+	if (m_pOutputDynTexture)
+	{
+		CRY_ASSERT(m_pHDRTargetTexture == nullptr);
+		CRY_ASSERT(m_pDepthTexture == nullptr);
+
+		m_pOutputDynTexture->Update(m_width, m_height);
+
+		m_pHDRTargetTexture = m_pOutputDynTexture->m_pTexture;
+	}
+	else if (m_pHDRTargetTexture)
+	{
+		ETEX_Format texFormat = eTF_R16G16B16A16F;
+		CRY_ASSERT(!CTexture::IsTextureExist(CTexture::s_ptexHDRTarget) || texFormat == CTexture::s_ptexHDRTarget->GetDstFormat()); // need to be same format to reuse same PSO.
+
+		if (!CTexture::IsTextureExist(m_pHDRTargetTexture)
+		    || m_pHDRTargetTexture->Invalidate(m_width, m_height, texFormat))
+		{
+			const uint32 flags = m_pHDRTargetTexture->GetFlags();
+			m_pHDRTargetTexture->Create2DTexture(m_width, m_height, 1, flags, nullptr, texFormat);
+		}
+	}
+	CRY_ASSERT(m_pHDRTargetTexture && CTexture::IsTextureExist(m_pHDRTargetTexture));
+
+	if (m_bUseTempDepthBuffer)
+	{
+		SDepthTexture* pDepthSurface = gcpRendD3D->FX_GetDepthSurface(m_width, m_height, false, true);
+		CRY_ASSERT(pDepthSurface);
+		m_pDepthTexture = pDepthSurface->pTexture;
+	}
+	else
+	{
+		m_pDepthTexture = gcpRendD3D->m_pZTexture;
+	}
+	CRY_ASSERT(m_pDepthTexture);
+
+	gcpRendD3D->RT_SetViewport(0, 0, m_pHDRTargetTexture->GetWidth(), m_pHDRTargetTexture->GetHeight());
+
+	if (m_clearTargetFlag & (FRT_CLEAR_COLOR | FRT_CLEAR_DEPTH))
+	{
+		CDeviceCommandListRef commandList = GetDeviceObjectFactory().GetCoreCommandList();
+
+		if (m_pDepthTexture && (m_clearTargetFlag & FRT_CLEAR_DEPTH))
+		{
+			const bool bReverseDepth = (gcpRendD3D->m_RP.m_TI[gcpRendD3D->m_RP.m_nProcessThreadID].m_PersFlags & RBPF_REVERSE_DEPTH) != 0;
+			const float clearDepth = bReverseDepth ? 1.0f - m_clearDepth : m_clearDepth;
+
+			D3DDepthSurface* pDsv = m_pDepthTexture->GetDevTexture()->LookupDSV(EDefaultResourceViews::DepthStencil);
+			commandList.GetGraphicsInterface()->ClearSurface(pDsv, CLEAR_ZBUFFER, clearDepth, 0);
+		}
+
+		if (m_pHDRTargetTexture && (m_clearTargetFlag & FRT_CLEAR_COLOR))
+		{
+			commandList.GetGraphicsInterface()->ClearSurface(m_pHDRTargetTexture->GetSurface(0, 0), m_clearColor);
+		}
+
+		m_clearTargetFlag = 0;
+	}
+}
+
+void CRenderOutput::EndRendering()
+{
+	CRY_ASSERT(gcpRendD3D->m_pRT->IsRenderThread());
+
+	m_pOutputDynTexture = nullptr;
+	m_pHDRTargetTexture = nullptr;
+	m_pDepthTexture = nullptr;
+
+	gcpRendD3D->FX_PopVP();
+}
+
+CTexture* CRenderOutput::GetHDRTargetTexture() const
+{
+	return m_pHDRTargetTexture;
+}
+
+CTexture* CRenderOutput::GetDepthTexture() const
+{
+	return m_pDepthTexture;
 }

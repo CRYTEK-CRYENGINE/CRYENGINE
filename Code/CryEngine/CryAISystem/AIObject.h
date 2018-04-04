@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #ifndef AIOBJECT_H
 #define AIOBJECT_H
@@ -48,7 +48,7 @@ public:
 	virtual void Reset(EObjectResetType type) override;
 	virtual void Release() override;
 
-	// "true" if method Update(EObjectUpdate type) has been invoked AT LEAST once
+	// "true" if method Update(EUpdateType type) has been invoked AT LEAST once
 	virtual bool IsUpdatedOnce() const override;
 
 	virtual bool IsEnabled() const override;
@@ -90,7 +90,6 @@ public:
 
 	virtual const Vec3&        GetViewDir() const override;
 	virtual void               SetViewDir(const Vec3& dir) override;
-	virtual EFieldOfViewResult IsPointInFOV(const Vec3& pos, float distanceScale = 1.0f) const override;
 
 	virtual const Vec3& GetEntityDir() const override;
 	virtual void        SetEntityDir(const Vec3& dir) override;
@@ -102,6 +101,9 @@ public:
 	virtual size_t      GetNavNodeIndex() const;
 	//Basic properties//////////////////////////////////////////////////////////////////////
 	////////////////////////////////////////////////////////////////////////////////////////
+
+	virtual EFieldOfViewResult IsObjectInFOV(const IAIObject* pTarget, float distanceStale = 1.f) const override;
+	virtual EFieldOfViewResult IsPointInFOV(const Vec3& pos, float distanceScale = 1.0f) const override;
 
 	////////////////////////////////////////////////////////////////////////////////////////
 	//Serialize/////////////////////////////////////////////////////////////////////////////
@@ -139,7 +141,7 @@ public:
 	virtual bool         IsTargetable() const;
 
 	// Returns the EntityId to be used by the perception manager when this AIObject is perceived by another.
-	virtual EntityId       GetPerceivedEntityID() const;
+	virtual EntityId       GetPerceivedEntityID() const override;
 
 	virtual void           SetProxy(IAIActorProxy* proxy);
 	virtual IAIActorProxy* GetProxy() const override;

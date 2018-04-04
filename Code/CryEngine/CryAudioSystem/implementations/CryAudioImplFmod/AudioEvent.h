@@ -1,9 +1,10 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #pragma once
 
 #include "Common.h"
 #include <ATLEntityData.h>
+#include <PoolObject.h>
 
 // Fmod forward declarations.
 namespace FMOD
@@ -15,8 +16,8 @@ namespace Studio
 {
 class EventInstance;
 class ParameterInstance;
-}
-}
+} // namespace Studio
+} // namespace FMOD
 
 namespace CryAudio
 {
@@ -24,58 +25,53 @@ namespace Impl
 {
 namespace Fmod
 {
-class CAudioEnvironment;
-class CAudioObject;
+class CEnvironment;
+class CObjectBase;
 
-class CAudioEvent final : public IAudioEvent
+class CEvent final : public IEvent, public CPoolObject<CEvent, stl::PSyncNone>
 {
 public:
 
-	explicit CAudioEvent(AudioEventId const _id)
-		: m_id(_id)
-		, m_eventPathId(AUDIO_INVALID_CRC32)
-		, m_lowpassFrequencyMax(0.0f)
-		, m_lowpassFrequencyMin(0.0f)
-		, m_pInstance(nullptr)
-		, m_pMasterTrack(nullptr)
-		, m_pLowpass(nullptr)
-		, m_pOcclusionParameter(nullptr)
-		, m_pAudioObject(nullptr)
+	explicit CEvent(CATLEvent* pEvent)
+		: m_pEvent(pEvent)
 	{}
 
-	virtual ~CAudioEvent() override = default;
+	virtual ~CEvent() override;
 
-	CAudioEvent(CAudioEvent const&) = delete;
-	CAudioEvent(CAudioEvent&&) = delete;
-	CAudioEvent&                 operator=(CAudioEvent const&) = delete;
-	CAudioEvent&                 operator=(CAudioEvent&&) = delete;
+	CEvent(CEvent const&) = delete;
+	CEvent(CEvent&&) = delete;
+	CEvent&                      operator=(CEvent const&) = delete;
+	CEvent&                      operator=(CEvent&&) = delete;
 
 	bool                         PrepareForOcclusion();
 	void                         SetObstructionOcclusion(float const obstruction, float const occlusion);
-	void                         Reset();
-	AudioEventId                 GetId() const                                             { return m_id; }
+	CATLEvent&                   GetATLEvent() const                                       { return *m_pEvent; }
 	uint32                       GetEventPathId() const                                    { return m_eventPathId; }
 	void                         SetEventPathId(uint32 const eventPathId)                  { m_eventPathId = eventPathId; }
 	FMOD::Studio::EventInstance* GetInstance() const                                       { return m_pInstance; }
 	void                         SetInstance(FMOD::Studio::EventInstance* const pInstance) { m_pInstance = pInstance; }
-	CAudioObject*                GetAudioObjectData() const                                { return m_pAudioObject; }
-	void                         SetAudioObjectData(CAudioObject* const pAudioObject)      { m_pAudioObject = pAudioObject; }
-	void                         TrySetEnvironment(CAudioEnvironment const* const pEnvironment, float const value);
+	CObjectBase* const           GetObject()                                               { return m_pObject; }
+	void                         SetObject(CObjectBase* const pAudioObject)                { m_pObject = pAudioObject; }
+	void                         TrySetEnvironment(CEnvironment const* const pEnvironment, float const value);
+
+	// CryAudio::Impl::IEvent
+	virtual ERequestStatus Stop() override;
+	// ~CryAudio::Impl::IEvent
 
 private:
 
-	AudioEventId const               m_id;
-	uint32                           m_eventPathId;
+	CATLEvent*                       m_pEvent = nullptr;
+	uint32                           m_eventPathId = InvalidCRC32;
 
-	float                            m_lowpassFrequencyMax;
-	float                            m_lowpassFrequencyMin;
+	float                            m_lowpassFrequencyMax = 0.0f;
+	float                            m_lowpassFrequencyMin = 0.0f;
 
-	FMOD::Studio::EventInstance*     m_pInstance;
-	FMOD::ChannelGroup*              m_pMasterTrack;
-	FMOD::DSP*                       m_pLowpass;
-	FMOD::Studio::ParameterInstance* m_pOcclusionParameter;
-	CAudioObject*                    m_pAudioObject;
+	FMOD::Studio::EventInstance*     m_pInstance = nullptr;
+	FMOD::ChannelGroup*              m_pMasterTrack = nullptr;
+	FMOD::DSP*                       m_pLowpass = nullptr;
+	FMOD::Studio::ParameterInstance* m_pOcclusionParameter = nullptr;
+	CObjectBase*                     m_pObject = nullptr;
 };
-}
-}
-}
+} // namespace Fmod
+} // namespace Impl
+} // namespace CryAudio

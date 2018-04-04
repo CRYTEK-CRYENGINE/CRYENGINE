@@ -4,7 +4,7 @@
 #include "FbxScene.h"
 
 #include <CrySerialization/Math.h>
-#include <yasli/STL.h>
+#include <CrySerialization/yasli/STL.h>
 
 #include <assert.h>
 

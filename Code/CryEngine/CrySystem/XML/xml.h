@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 // -------------------------------------------------------------------------
 //  File name:   xml.h
@@ -86,6 +86,11 @@ struct XmlAttribute
 {
 	const char* key;
 	const char* value;
+
+	XmlAttribute()
+		: key(nullptr)
+		, value(nullptr)
+	{}
 
 	void GetMemoryUsage(ICrySizer* pSizer) const    {}
 

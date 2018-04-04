@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #pragma once
 
@@ -41,44 +41,45 @@ private:
 	void  BuildCloudBlockerSSList();
 
 private:
-	static const int32  MaxFrameNum = 4;
-	static const uint32 MaxEyeNum = 2;
+	static const int32   MaxFrameNum = 4;
+	static const uint32  MaxEyeNum = 2;
 
-	CComputeRenderPass  m_passGenerateCloudShadow;
-	CComputeRenderPass  m_passComputeDensityAndShadow[MaxEyeNum];
-	CComputeRenderPass  m_passRenderClouds[MaxEyeNum];
-	CFullscreenPass     m_passTemporalReprojectionDepthMax[MaxEyeNum][2];
-	CFullscreenPass     m_passTemporalReprojectionDepthMin[MaxEyeNum][2];
-	CFullscreenPass     m_passUpscale[MaxEyeNum][2];
+	_smart_ptr<CTexture> m_pDownscaledMaxTex[MaxEyeNum][2];
+	_smart_ptr<CTexture> m_pDownscaledMinTex[MaxEyeNum][2];
+	_smart_ptr<CTexture> m_pScaledPrevDepthTex[MaxEyeNum];
+	_smart_ptr<CTexture> m_pCloudDepthTex;
+	_smart_ptr<CTexture> m_pDownscaledMaxTempTex;
+	_smart_ptr<CTexture> m_pDownscaledMinTempTex;
+	_smart_ptr<CTexture> m_pDownscaledLeftEyeTex;
+	_smart_ptr<CTexture> m_pCloudDensityTex;
+	_smart_ptr<CTexture> m_pCloudShadowTex;
 
-	CTexture*           m_pDownscaledMaxTex[MaxEyeNum][2];
-	CTexture*           m_pDownscaledMinTex[MaxEyeNum][2];
-	CTexture*           m_pScaledPrevDepthTex[MaxEyeNum];
-	CTexture*           m_pCloudDepthTex;
-	CTexture*           m_pDownscaledMaxTempTex;
-	CTexture*           m_pDownscaledMinTempTex;
-	CTexture*           m_pDownscaledLeftEyeTex;
-	CTexture*           m_pCloudDensityTex;
-	CTexture*           m_pCloudShadowTex;
+	_smart_ptr<CTexture> m_pCloudMiePhaseFuncTex;
+	_smart_ptr<CTexture> m_pNoiseTex;
 
-	CTexture*           m_pCloudMiePhaseFuncTex;
-	CTexture*           m_pNoiseTex;
+	_smart_ptr<CTexture> m_pVolCloudTex;
+	_smart_ptr<CTexture> m_pVolCloudNoiseTex;
+	_smart_ptr<CTexture> m_pVolCloudEdgeNoiseTex;
 
-	CConstantBufferPtr  m_pCloudShadowConstantBuffer;
-	CConstantBufferPtr  m_pRenderCloudConstantBuffer;
-	CConstantBufferPtr  m_pReprojectionConstantBuffer;
+	CComputeRenderPass   m_passGenerateCloudShadow;
+	CComputeRenderPass   m_passComputeDensityAndShadow[MaxEyeNum];
+	CComputeRenderPass   m_passRenderClouds[MaxEyeNum];
+	CFullscreenPass      m_passTemporalReprojectionDepthMax[MaxEyeNum][2];
+	CFullscreenPass      m_passTemporalReprojectionDepthMin[MaxEyeNum][2];
+	CFullscreenPass      m_passUpscale[MaxEyeNum][2];
 
-	Matrix44            m_viewMatrix[MaxEyeNum][MaxFrameNum];
-	Matrix44            m_projMatrix[MaxEyeNum][MaxFrameNum];
-	int32               m_nUpdateFrameID[MaxEyeNum];
-	int32               m_cleared;
-	int32               m_tick;
+	CConstantBufferPtr   m_pCloudShadowConstantBuffer;
+	CConstantBufferPtr   m_pRenderCloudConstantBuffer;
+	CConstantBufferPtr   m_pReprojectionConstantBuffer;
 
-	int32               m_samplerTrilinearClamp;
-	int32               m_samplerTrilinearWrap;
+	Matrix44             m_viewMatrix[MaxEyeNum][MaxFrameNum];
+	Matrix44             m_projMatrix[MaxEyeNum][MaxFrameNum];
+	int32                m_nUpdateFrameID[MaxEyeNum];
+	int32                m_cleared;
+	int32                m_tick;
 
-	TArray<Vec4>        m_blockerPosArray;
-	TArray<Vec4>        m_blockerParamArray;
-	TArray<Vec4>        m_blockerSSPosArray;
-	TArray<Vec4>        m_blockerSSParamArray;
+	TArray<Vec4>         m_blockerPosArray;
+	TArray<Vec4>         m_blockerParamArray;
+	TArray<Vec4>         m_blockerSSPosArray;
+	TArray<Vec4>         m_blockerSSParamArray;
 };

@@ -1,11 +1,11 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #include "StdAfx.h"
 #include "TextMessages.h"
 
 const uint32 g_dwTextMessageMaxSizeInKB = 128;
 
-void CTextMessages::PushEntry_Text(const Vec3& vPos, const ColorB col, const Vec2& fFontSize, const int nDrawFlags, const char* szText)
+void CTextMessages::PushEntry_Text(const Vec3& vPos, const ColorB col, IFFont* pFont, const Vec2& fFontSize, const int nDrawFlags, const char* szText)
 {
 	AUTO_LOCK(m_TextMessageLock); // Not thread safe without this
 
@@ -37,6 +37,7 @@ void CTextMessages::PushEntry_Text(const Vec3& vPos, const ColorB col, const Vec
 	rHeader.m_Color = col;
 	rHeader.m_fFontSize = fFontSize;
 	rHeader.m_nDrawFlags = nDrawFlags;
+	rHeader.m_pFont = pFont;
 }
 
 void CTextMessages::Clear(bool posonly)

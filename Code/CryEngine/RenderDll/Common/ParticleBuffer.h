@@ -1,9 +1,17 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #pragma once
 
 #include <array>
 #include <CryRenderer/RenderElements/CREParticle.h>
+#include "../XRenderD3D9/DeviceManager/DeviceObjects.h"
+#include "../XRenderD3D9/DeviceManager/D3D11/DeviceSubmissionQueue_D3D11.h" // CSubmissionQueue_DX11
+
+struct CDeviceInputStream;
+class CConstantBuffer;
+class CDeviceResourceSet;
+typedef _smart_ptr<CConstantBuffer> CConstantBufferPtr;
+typedef std::shared_ptr<CDeviceResourceSet> CDeviceResourceSetPtr;
 
 class CParticleSubBuffer
 {
@@ -15,19 +23,19 @@ public:
 	void    Release();
 	byte*   Lock();
 	void    Unlock(uint32 size);
-
-	HRESULT BindVB(uint streamNumber = 0, int bytesOffset = 0, int stride = 0);
-	HRESULT BindIB(uint offset);
-	void    BindSRV(CDeviceManager::SHADER_TYPE shaderType, uint slot);
-
 	uint    GetStride() const { return m_stride; }
 
+	const CGpuBuffer&         GetBuffer() const { return m_buffer; }
+	const CDeviceInputStream* GetStream() const { return m_stream; }
+
 private:
-	CGpuBuffer m_buffer;
-	byte*      m_pLockedData;
-	uint       m_elemCount;
-	uint       m_stride;
-	uint       m_flags;
+	stream_handle_t           m_handle;
+	const CDeviceInputStream* m_stream;
+	CGpuBuffer                m_buffer;
+	byte*                     m_pLockedData;
+	uint                      m_elemCount;
+	uint                      m_stride;
+	uint                      m_flags;
 };
 
 class CParticleBufferSet
@@ -92,19 +100,25 @@ public:
 	void Alloc(uint index, EBufferTypes type, uint numElems, SAlloc* pAllocOut);
 	void Alloc(uint index, uint numElems, SAllocStreams* pAllocOut);
 
-	void BindVB();
-	void BindIB();
-	void BindSRVs();
-	void BindSpriteIB();
+	const CDeviceInputStream* GetSpriteIndexBuffer() const { return m_spriteIndexBufferStream; }
+	const CGpuBuffer&         GetPositionStream() const;
+	const CGpuBuffer&         GetAxesStream() const;
+	const CGpuBuffer&         GetColorSTsStream() const;
+	const CDeviceInputStream* GetVertexStream() const;
+	const CDeviceInputStream* GetIndexStream() const;
 
 private:
-	void CreateSubBuffer(EBufferTypes type, uint elemsCount, uint stride, DXGI_FORMAT format, uint32 flags);
-	void CreateSpriteBuffer(uint poolSize);
+	void                      CreateSubBuffer(EBufferTypes type, uint elemsCount, uint stride, DXGI_FORMAT format, uint32 flags);
+	void                      CreateSpriteBuffer(uint poolSize);
+	const CGpuBuffer&         GetGpuBuffer(uint index) const;
+	const CDeviceInputStream* GetStreamBuffer(uint index) const;
 
-	std::array<SubBuffer, EBT_Total> m_subBuffers;
-	TDeviceFences                    m_fences;
-	CGpuBuffer                       m_spriteIndexBuffer;
-	uint                             m_maxSpriteCount;
-	uint                             m_ids[RT_COMMAND_BUF_COUNT];
-	bool                             m_valid;
+private:
+	std::array<SubBuffer, EBT_Total>   m_subBuffers;
+	stream_handle_t                    m_spriteIndexBufferHandle;
+	const CDeviceInputStream*          m_spriteIndexBufferStream;
+	TDeviceFences                      m_fences;
+	uint                               m_maxSpriteCount;
+	uint                               m_ids[RT_COMMAND_BUF_COUNT];
+	bool                               m_valid;
 };

@@ -1,17 +1,17 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #pragma once
 
-#include <Schematyc/FundamentalTypes.h>
-#include <Schematyc/Reflection/Reflection.h>
-#include <Schematyc/Runtime/RuntimeGraph.h>
-#include <Schematyc/Utils/GUID.h>
+#include <CrySchematyc/FundamentalTypes.h>
+#include <CrySchematyc/Runtime/RuntimeGraph.h>
+#include <CrySchematyc/Utils/GUID.h>
 
 #include "Script/ScriptVariableData.h"
 #include "Script/Graph/ScriptGraphNodeModel.h"
 
 namespace Schematyc
 {
+
 // Forward declare classes.
 class CAnyValue;
 // Forward declare shared pointers.
@@ -44,7 +44,7 @@ public:
 	CScriptGraphArrayAddNode(const SElementId& typeId = SElementId());
 
 	// CScriptGraphNodeModel
-	virtual SGUID GetTypeGUID() const override;
+	virtual CryGUID GetTypeGUID() const override;
 	virtual void  CreateLayout(CScriptGraphNodeLayout& layout) override;
 	virtual void  Compile(SCompilerContext& context, IGraphNodeCompiler& compiler) const override;
 	virtual void  LoadDependencies(Serialization::IArchive& archive, const ISerializationContext& context) override;
@@ -61,10 +61,11 @@ private:
 
 public:
 
-	static const SGUID ms_typeGUID;
+	static const CryGUID ms_typeGUID;
 
 private:
 
 	CScriptVariableData m_defaultValue;
 };
+
 } // Schematyc

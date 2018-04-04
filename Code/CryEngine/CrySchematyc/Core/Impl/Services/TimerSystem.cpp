@@ -1,22 +1,11 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #include "StdAfx.h"
 #include "TimerSystem.h"
 
 #include <CryMath/Random.h>
 #include <CrySystem/ITimer.h>
-#include <Schematyc/Utils/Assert.h>
-
-SERIALIZATION_ENUM_BEGIN_NESTED(Schematyc, ETimerUnits, "Schematyc Timer Units")
-SERIALIZATION_ENUM(Schematyc::ETimerUnits::Frames, "Frames", "Frames")
-SERIALIZATION_ENUM(Schematyc::ETimerUnits::Seconds, "Seconds", "Seconds")
-SERIALIZATION_ENUM(Schematyc::ETimerUnits::Random, "Random", "Random")
-SERIALIZATION_ENUM_END()
-
-SERIALIZATION_ENUM_BEGIN_NESTED(Schematyc, ETimerFlags, "Schematyc Timer Flags")
-SERIALIZATION_ENUM(Schematyc::ETimerFlags::AutoStart, "AutoStart", "Auto Start")
-SERIALIZATION_ENUM(Schematyc::ETimerFlags::Repeat, "Repeat", "Repeat")
-SERIALIZATION_ENUM_END()
+#include <CrySchematyc/Utils/Assert.h>
 
 namespace Schematyc
 {
@@ -28,8 +17,8 @@ CTimerSystem::CTimerSystem()
 
 TimerId CTimerSystem::CreateTimer(const STimerParams& params, const TimerCallback& callback)
 {
-	SCHEMATYC_CORE_ASSERT(!callback.IsEmpty());
-	if (!callback.IsEmpty())
+	SCHEMATYC_CORE_ASSERT(callback);
+	if (callback)
 	{
 		uint64 time = 0;
 		const TimerId timerId = static_cast<TimerId>(ms_nextTimerId++);

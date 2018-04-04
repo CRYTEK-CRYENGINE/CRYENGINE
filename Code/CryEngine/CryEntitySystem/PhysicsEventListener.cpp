@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 // -------------------------------------------------------------------------
 //  File name:   PhysicsEventListener.cpp
@@ -131,6 +131,20 @@ int CPhysicsEventListener::OnPostStep(const EventPhys* pEvent)
 			pPostStep->pEntity->SetParams(&pto);
 			(pRndNode->m_nInternalFlags &= ~IRenderNode::WAS_FARAWAY) |= -bFaraway & IRenderNode::WAS_FARAWAY;
 		}
+	}
+
+	return 1;
+}
+
+//////////////////////////////////////////////////////////////////////////
+int CPhysicsEventListener::OnPostStepImmediate(const EventPhys* pEvent)
+{
+	EventPhysPostStep* pPostStep = (EventPhysPostStep*)pEvent;
+	if (CEntity* pEntity = GetEntity(pPostStep->pForeignData, pPostStep->iForeignData))
+	{
+		SEntityEvent event(ENTITY_EVENT_PHYS_POSTSTEP);
+		event.fParam[0] = pPostStep->dt;
+		pEntity->SendEvent(event);
 	}
 
 	return 1;
@@ -413,8 +427,8 @@ IEntity* CEntity::UnmapAttachedChild(int& partId)
 {
 	CEntity* pChild;
 	int nLevels, nBits;
-	ParsePartId(partId, nLevels, nBits);
-	if (partId >= PARTID_LINKED && (pChild = FindAttachId(this, partId >> nBits & PARTID_MAX_ATTACHMENTS - 1)))
+	EntityPhysicsUtils::ParsePartId(partId, nLevels, nBits);
+	if (partId >= EntityPhysicsUtils::PARTID_LINKED && (pChild = FindAttachId(this, partId >> nBits & EntityPhysicsUtils::PARTID_MAX_ATTACHMENTS - 1)))
 	{
 		partId &= (1 << nBits) - 1;
 		return pChild;
@@ -430,8 +444,8 @@ int CPhysicsEventListener::OnCollision(const EventPhys* pEvent)
 	       * pEntityTrg = GetEntity(pCollision->pForeignData[1], pCollision->iForeignData[1]);
 
 	int nLevels, nBits;
-	ParsePartId(pCollision->partid[0], nLevels, nBits);
-	if (pEntitySrc && pCollision->partid[0] >= PARTID_LINKED && (pChild = FindAttachId(pEntitySrc, pCollision->partid[0] >> nBits & PARTID_MAX_ATTACHMENTS - 1)))
+	EntityPhysicsUtils::ParsePartId(pCollision->partid[0], nLevels, nBits);
+	if (pEntitySrc && pCollision->partid[0] >= EntityPhysicsUtils::PARTID_LINKED && (pChild = FindAttachId(pEntitySrc, pCollision->partid[0] >> nBits & EntityPhysicsUtils::PARTID_MAX_ATTACHMENTS - 1)))
 	{
 		pEntitySrc = pChild;
 		pCollision->pForeignData[0] = pEntitySrc;
@@ -439,10 +453,10 @@ int CPhysicsEventListener::OnCollision(const EventPhys* pEvent)
 		pCollision->partid[0] &= (1 << nBits) - 1;
 	}
 
-	ParsePartId(pCollision->partid[1], nLevels, nBits);
+	EntityPhysicsUtils::ParsePartId(pCollision->partid[1], nLevels, nBits);
 	if (pEntitySrc)
 	{
-		if (pEntityTrg && pCollision->partid[1] >= PARTID_LINKED && (pChild = FindAttachId(pEntityTrg, pCollision->partid[1] >> nBits & PARTID_MAX_ATTACHMENTS - 1)))
+		if (pEntityTrg && pCollision->partid[1] >= EntityPhysicsUtils::PARTID_LINKED && (pChild = FindAttachId(pEntityTrg, pCollision->partid[1] >> nBits & EntityPhysicsUtils::PARTID_MAX_ATTACHMENTS - 1)))
 		{
 			pEntityTrg = pChild;
 			pCollision->pForeignData[1] = pEntityTrg;
@@ -494,8 +508,7 @@ int CPhysicsEventListener::OnJointBreak(const EventPhys* pEvent)
 			IRopeRenderNode* pRopeRenderNode = (IRopeRenderNode*)pBreakEvent->pForeignData[0];
 			if (pRopeRenderNode)
 			{
-				EntityId id = (EntityId)pRopeRenderNode->GetEntityOwner();
-				pCEntity = (CEntity*)g_pIEntitySystem->GetEntityFromID(id);
+				pCEntity = static_cast<CEntity*>(pRopeRenderNode->GetOwnerEntity());
 			}
 		}
 		break;
@@ -505,7 +518,7 @@ int CPhysicsEventListener::OnJointBreak(const EventPhys* pEvent)
 	case PHYS_FOREIGN_ID_STATIC:
 		{
 			pRenderNode = ((IRenderNode*)pBreakEvent->pForeignData[0]);
-			pStatObj = pRenderNode->GetEntityStatObj(0, 0, &nodeTM);
+			pStatObj = pRenderNode->GetEntityStatObj(0, &nodeTM);
 			//bShatter = pRenderNode->GetMaterialLayers() & MTL_LAYER_FROZEN;
 		}
 	}
@@ -626,6 +639,7 @@ void CPhysicsEventListener::RegisterPhysicCallbacks()
 		m_pPhysics->AddEventClient(EventPhysStateChange::id, OnStateChange, 1);
 		m_pPhysics->AddEventClient(EventPhysBBoxOverlap::id, OnBBoxOverlap, 1);
 		m_pPhysics->AddEventClient(EventPhysPostStep::id, OnPostStep, 1);
+		m_pPhysics->AddEventClient(EventPhysPostStep::id, OnPostStepImmediate, 0);
 		m_pPhysics->AddEventClient(EventPhysUpdateMesh::id, OnUpdateMesh, 1);
 		m_pPhysics->AddEventClient(EventPhysUpdateMesh::id, OnUpdateMesh, 0);
 		m_pPhysics->AddEventClient(EventPhysCreateEntityPart::id, OnCreatePhysEntityPart, 1);
@@ -645,6 +659,7 @@ void CPhysicsEventListener::UnregisterPhysicCallbacks()
 		m_pPhysics->RemoveEventClient(EventPhysStateChange::id, OnStateChange, 1);
 		m_pPhysics->RemoveEventClient(EventPhysBBoxOverlap::id, OnBBoxOverlap, 1);
 		m_pPhysics->RemoveEventClient(EventPhysPostStep::id, OnPostStep, 1);
+		m_pPhysics->RemoveEventClient(EventPhysPostStep::id, OnPostStepImmediate, 0);
 		m_pPhysics->RemoveEventClient(EventPhysUpdateMesh::id, OnUpdateMesh, 1);
 		m_pPhysics->RemoveEventClient(EventPhysUpdateMesh::id, OnUpdateMesh, 0);
 		m_pPhysics->RemoveEventClient(EventPhysCreateEntityPart::id, OnCreatePhysEntityPart, 1);

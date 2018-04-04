@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #include "StdAfx.h"
 #include "VehicleSeatActionOrientateBoneToView.h"
@@ -16,7 +16,7 @@ CVehicleSeatActionOrientateBoneToView::CVehicleSeatActionOrientateBoneToView() :
 	, m_BoneSmoothingRate(0.f, 0.f, 0.f)
 	, m_pAnimatedCharacter(NULL)
 {
-	CryCreateClassInstance("AnimationPoseModifier_OperatorQueue", m_poseModifier);
+	CryCreateClassInstanceForInterface(cryiidof<IAnimationOperatorQueue>(), m_poseModifier);
 }
 
 bool CVehicleSeatActionOrientateBoneToView::Init(IVehicle* pVehicle, IVehicleSeat* pSeat, const CVehicleParams& table)

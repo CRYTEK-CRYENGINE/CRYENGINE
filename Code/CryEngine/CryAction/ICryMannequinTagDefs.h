@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 //
 ////////////////////////////////////////////////////////////////////////////
@@ -1581,9 +1581,8 @@ class CTagState
 {
 public:
 	CTagState(const CTagDefinition& defs, TagState state = TAG_STATE_EMPTY)
-		:
-		m_defs(defs),
-		m_state(state)
+		: m_defs(defs)
+		, m_state(state)
 	{
 #ifndef _RELEASE
 		const size_t maxSupportedBits = sizeof(TagState) * 8;
@@ -1593,6 +1592,12 @@ public:
 			CryWarning(VALIDATOR_MODULE_GAME, VALIDATOR_ERROR, "!Number of bits required for tag definition '%s' (%" PRISIZE_T " bits) is greater than %" PRISIZE_T " bits. To fix this, group mutually exclusive tags together, remove unnecessary tags or increase the size of TagState.", defs.GetFilename(), definitionBits, maxSupportedBits);
 		}
 #endif
+	}
+
+	CTagState(const CTagState& other) 
+		: m_defs(other.m_defs)
+		, m_state(other.m_state)
+	{
 	}
 
 	void Clear()
@@ -1656,6 +1661,12 @@ public:
 	CTagState& operator=(const TagState& tagState)
 	{
 		m_state = tagState;
+		return *this;
+	}
+
+	CTagState& operator=(const CTagState& cTagState)
+	{
+		m_state = cTagState.m_state;
 		return *this;
 	}
 

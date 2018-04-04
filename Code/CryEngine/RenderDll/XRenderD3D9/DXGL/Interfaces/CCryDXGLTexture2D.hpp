@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 // -------------------------------------------------------------------------
 //  File name:   CCryDXGLTexture2D.hpp
@@ -21,12 +21,12 @@ public:
 	DXGL_IMPLEMENT_INTERFACE(CCryDXGLTexture2D, D3D11Texture2D)
 
 	CCryDXGLTexture2D(const D3D11_TEXTURE2D_DESC& kDesc, NCryOpenGL::STexture* pGLTexture, CCryDXGLDevice* pDevice);
-#if CRY_OPENGL_SINGLE_CONTEXT
+#if OGL_SINGLE_CONTEXT
 	CCryDXGLTexture2D(const D3D11_TEXTURE2D_DESC& kDesc, NCryOpenGL::SInitialDataCopy* pInitialData, CCryDXGLDevice* pDevice);
 #endif
 	virtual ~CCryDXGLTexture2D();
 
-#if CRY_OPENGL_SINGLE_CONTEXT
+#if OGL_SINGLE_CONTEXT
 	virtual void Initialize();
 #endif
 

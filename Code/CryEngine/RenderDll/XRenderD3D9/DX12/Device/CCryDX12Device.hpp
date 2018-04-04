@@ -1,33 +1,20 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
-// -------------------------------------------------------------------------
-//  File name:
-//  Version:     v1.00
-//  Created:     03/02/2015 by Jan Pinter
-//  Description:
-// -------------------------------------------------------------------------
-//  History:
-//
-////////////////////////////////////////////////////////////////////////////
 #pragma once
-#ifndef __CCRYDX12DEVICE__
-	#define __CCRYDX12DEVICE__
 
-	#include "DX12/CCryDX12Object.hpp"
-	#include "DX12/API/DX12Device.hpp"
+#include "DX12/CCryDX12Object.hpp"
+#include "DX12/API/DX12Device.hpp"
 
-	class CCryDX12DeviceContext;
+class CCryDX12DeviceContext;
 
 class CCryDX12Device : public CCryDX12Object<ID3D11Device1ToImplement>
 {
 public:
 	DX12_OBJECT(CCryDX12Device, CCryDX12Object<ID3D11Device1ToImplement> );
 
-	static CCryDX12Device* Create(IDXGIAdapter* pAdapter, D3D_FEATURE_LEVEL* pFeatureLevel);
+	static CCryDX12Device* Create(CCryDX12GIAdapter* pAdapter, D3D_FEATURE_LEVEL* pFeatureLevel);
 
 	CCryDX12Device(NCryDX12::CDevice* device);
-
-	virtual ~CCryDX12Device();
 
 	NCryDX12::CDevice*     GetDX12Device() const                 { return m_pDevice; }
 
@@ -60,66 +47,66 @@ public:
 
 	#pragma region /* ID3D11Device implementation */
 
-	virtual HRESULT STDMETHODCALLTYPE CreateBuffer(
+	VIRTUALGFX HRESULT STDMETHODCALLTYPE CreateBuffer(
 	  _In_ const D3D11_BUFFER_DESC* pDesc,
 	  _In_opt_ const D3D11_SUBRESOURCE_DATA* pInitialData,
-	  _Out_opt_ ID3D11Buffer** ppBuffer) final;
+	  _Out_opt_ ID3D11Buffer** ppBuffer) FINALGFX;
 
-	virtual HRESULT STDMETHODCALLTYPE CreateTexture1D(
+	VIRTUALGFX HRESULT STDMETHODCALLTYPE CreateTexture1D(
 	  _In_  const D3D11_TEXTURE1D_DESC * pDesc,
 	  _In_reads_opt_(_Inexpressible_(pDesc->MipLevels * pDesc->ArraySize))  const D3D11_SUBRESOURCE_DATA * pInitialData,
-	  _Out_opt_ ID3D11Texture1D * *ppTexture1D) final;
+	  _Out_opt_ ID3D11Texture1D * *ppTexture1D) FINALGFX;
 
-	virtual HRESULT STDMETHODCALLTYPE CreateTexture2D(
+	VIRTUALGFX HRESULT STDMETHODCALLTYPE CreateTexture2D(
 	  _In_  const D3D11_TEXTURE2D_DESC * pDesc,
 	  _In_reads_opt_(_Inexpressible_(pDesc->MipLevels * pDesc->ArraySize))  const D3D11_SUBRESOURCE_DATA * pInitialData,
-	  _Out_opt_ ID3D11Texture2D * *ppTexture2D) final;
+	  _Out_opt_ ID3D11Texture2D * *ppTexture2D) FINALGFX;
 
-	virtual HRESULT STDMETHODCALLTYPE CreateTexture3D(
+	VIRTUALGFX HRESULT STDMETHODCALLTYPE CreateTexture3D(
 	  _In_  const D3D11_TEXTURE3D_DESC * pDesc,
 	  _In_reads_opt_(_Inexpressible_(pDesc->MipLevels))  const D3D11_SUBRESOURCE_DATA * pInitialData,
-	  _Out_opt_ ID3D11Texture3D * *ppTexture3D) final;
+	  _Out_opt_ ID3D11Texture3D * *ppTexture3D) FINALGFX;
 
-	virtual HRESULT STDMETHODCALLTYPE CreateShaderResourceView(
+	VIRTUALGFX HRESULT STDMETHODCALLTYPE CreateShaderResourceView(
 	  _In_ ID3D11Resource* pResource,
 	  _In_opt_ const D3D11_SHADER_RESOURCE_VIEW_DESC* pDesc,
-	  _Out_opt_ ID3D11ShaderResourceView** ppSRView) final;
+	  _Out_opt_ ID3D11ShaderResourceView** ppSRView) FINALGFX;
 
-	virtual HRESULT STDMETHODCALLTYPE CreateUnorderedAccessView(
+	VIRTUALGFX HRESULT STDMETHODCALLTYPE CreateUnorderedAccessView(
 	  _In_ ID3D11Resource* pResource,
 	  _In_opt_ const D3D11_UNORDERED_ACCESS_VIEW_DESC* pDesc,
-	  _Out_opt_ ID3D11UnorderedAccessView** ppUAView) final;
+	  _Out_opt_ ID3D11UnorderedAccessView** ppUAView) FINALGFX;
 
-	virtual HRESULT STDMETHODCALLTYPE CreateRenderTargetView(
+	VIRTUALGFX HRESULT STDMETHODCALLTYPE CreateRenderTargetView(
 	  _In_ ID3D11Resource* pResource,
 	  _In_opt_ const D3D11_RENDER_TARGET_VIEW_DESC* pDesc,
-	  _Out_opt_ ID3D11RenderTargetView** ppRTView) final;
+	  _Out_opt_ ID3D11RenderTargetView** ppRTView) FINALGFX;
 
-	virtual HRESULT STDMETHODCALLTYPE CreateDepthStencilView(
+	VIRTUALGFX HRESULT STDMETHODCALLTYPE CreateDepthStencilView(
 	  _In_ ID3D11Resource* pResource,
 	  _In_opt_ const D3D11_DEPTH_STENCIL_VIEW_DESC* pDesc,
-	  _Out_opt_ ID3D11DepthStencilView** ppDepthStencilView) final;
+	  _Out_opt_ ID3D11DepthStencilView** ppDepthStencilView) FINALGFX;
 
-	virtual HRESULT STDMETHODCALLTYPE CreateInputLayout(
+	VIRTUALGFX HRESULT STDMETHODCALLTYPE CreateInputLayout(
 	  _In_reads_(NumElements)  const D3D11_INPUT_ELEMENT_DESC * pInputElementDescs,
 	  _In_range_(0, D3D11_IA_VERTEX_INPUT_STRUCTURE_ELEMENT_COUNT)  UINT NumElements,
 	  _In_  const void* pShaderBytecodeWithInputSignature,
 	  _In_ SIZE_T BytecodeLength,
-	  _Out_opt_ ID3D11InputLayout * *ppInputLayout) final;
+	  _Out_opt_ ID3D11InputLayout * *ppInputLayout) FINALGFX;
 
-	virtual HRESULT STDMETHODCALLTYPE CreateVertexShader(
+	VIRTUALGFX HRESULT STDMETHODCALLTYPE CreateVertexShader(
 	  _In_ const void* pShaderBytecode,
 	  _In_ SIZE_T BytecodeLength,
 	  _In_opt_ ID3D11ClassLinkage* pClassLinkage,
-	  _Out_opt_ ID3D11VertexShader** ppVertexShader) final;
+	  _Out_opt_ ID3D11VertexShader** ppVertexShader) FINALGFX;
 
-	virtual HRESULT STDMETHODCALLTYPE CreateGeometryShader(
+	VIRTUALGFX HRESULT STDMETHODCALLTYPE CreateGeometryShader(
 	  _In_ const void* pShaderBytecode,
 	  _In_ SIZE_T BytecodeLength,
 	  _In_opt_ ID3D11ClassLinkage* pClassLinkage,
-	  _Out_opt_ ID3D11GeometryShader** ppGeometryShader) final;
+	  _Out_opt_ ID3D11GeometryShader** ppGeometryShader) FINALGFX;
 
-	virtual HRESULT STDMETHODCALLTYPE CreateGeometryShaderWithStreamOutput(
+	VIRTUALGFX HRESULT STDMETHODCALLTYPE CreateGeometryShaderWithStreamOutput(
 	  _In_  const void* pShaderBytecode,
 	  _In_ SIZE_T BytecodeLength,
 	  _In_reads_opt_(NumEntries)  const D3D11_SO_DECLARATION_ENTRY * pSODeclaration,
@@ -128,85 +115,85 @@ public:
 	  _In_range_(0, D3D11_SO_BUFFER_SLOT_COUNT)  UINT NumStrides,
 	  _In_ UINT RasterizedStream,
 	  _In_opt_ ID3D11ClassLinkage * pClassLinkage,
-	  _Out_opt_ ID3D11GeometryShader * *ppGeometryShader) final;
+	  _Out_opt_ ID3D11GeometryShader * *ppGeometryShader) FINALGFX;
 
-	virtual HRESULT STDMETHODCALLTYPE CreatePixelShader(
+	VIRTUALGFX HRESULT STDMETHODCALLTYPE CreatePixelShader(
 	  _In_ const void* pShaderBytecode,
 	  _In_ SIZE_T BytecodeLength,
 	  _In_opt_ ID3D11ClassLinkage* pClassLinkage,
-	  _Out_opt_ ID3D11PixelShader** ppPixelShader) final;
+	  _Out_opt_ ID3D11PixelShader** ppPixelShader) FINALGFX;
 
-	virtual HRESULT STDMETHODCALLTYPE CreateHullShader(
+	VIRTUALGFX HRESULT STDMETHODCALLTYPE CreateHullShader(
 	  _In_ const void* pShaderBytecode,
 	  _In_ SIZE_T BytecodeLength,
 	  _In_opt_ ID3D11ClassLinkage* pClassLinkage,
-	  _Out_opt_ ID3D11HullShader** ppHullShader) final;
+	  _Out_opt_ ID3D11HullShader** ppHullShader) FINALGFX;
 
-	virtual HRESULT STDMETHODCALLTYPE CreateDomainShader(
+	VIRTUALGFX HRESULT STDMETHODCALLTYPE CreateDomainShader(
 	  _In_ const void* pShaderBytecode,
 	  _In_ SIZE_T BytecodeLength,
 	  _In_opt_ ID3D11ClassLinkage* pClassLinkage,
-	  _Out_opt_ ID3D11DomainShader** ppDomainShader) final;
+	  _Out_opt_ ID3D11DomainShader** ppDomainShader) FINALGFX;
 
-	virtual HRESULT STDMETHODCALLTYPE CreateComputeShader(
+	VIRTUALGFX HRESULT STDMETHODCALLTYPE CreateComputeShader(
 	  _In_ const void* pShaderBytecode,
 	  _In_ SIZE_T BytecodeLength,
 	  _In_opt_ ID3D11ClassLinkage* pClassLinkage,
-	  _Out_opt_ ID3D11ComputeShader** ppComputeShader) final;
+	  _Out_opt_ ID3D11ComputeShader** ppComputeShader) FINALGFX;
 
-	virtual HRESULT STDMETHODCALLTYPE CreateClassLinkage(
-	  _Out_ ID3D11ClassLinkage** ppLinkage) final;
+	VIRTUALGFX HRESULT STDMETHODCALLTYPE CreateClassLinkage(
+	  _Out_ ID3D11ClassLinkage** ppLinkage) FINALGFX;
 
-	virtual HRESULT STDMETHODCALLTYPE CreateBlendState(
+	VIRTUALGFX HRESULT STDMETHODCALLTYPE CreateBlendState(
 	  _In_ const D3D11_BLEND_DESC* pBlendStateDesc,
-	  _Out_opt_ ID3D11BlendState** ppBlendState) final;
+	  _Out_opt_ ID3D11BlendState** ppBlendState) FINALGFX;
 
-	virtual HRESULT STDMETHODCALLTYPE CreateDepthStencilState(
+	VIRTUALGFX HRESULT STDMETHODCALLTYPE CreateDepthStencilState(
 	  _In_ const D3D11_DEPTH_STENCIL_DESC* pDepthStencilDesc,
-	  _Out_opt_ ID3D11DepthStencilState** ppDepthStencilState) final;
+	  _Out_opt_ ID3D11DepthStencilState** ppDepthStencilState) FINALGFX;
 
-	virtual HRESULT STDMETHODCALLTYPE CreateRasterizerState(
+	VIRTUALGFX HRESULT STDMETHODCALLTYPE CreateRasterizerState(
 	  _In_ const D3D11_RASTERIZER_DESC* pRasterizerDesc,
-	  _Out_opt_ ID3D11RasterizerState** ppRasterizerState) final;
+	  _Out_opt_ ID3D11RasterizerState** ppRasterizerState) FINALGFX;
 
-	virtual HRESULT STDMETHODCALLTYPE CreateSamplerState(
+	VIRTUALGFX HRESULT STDMETHODCALLTYPE CreateSamplerState(
 	  _In_ const D3D11_SAMPLER_DESC* pSamplerDesc,
-	  _Out_opt_ ID3D11SamplerState** ppSamplerState) final;
+	  _Out_opt_ ID3D11SamplerState** ppSamplerState) FINALGFX;
 
-	virtual HRESULT STDMETHODCALLTYPE CreateQuery(
+	VIRTUALGFX HRESULT STDMETHODCALLTYPE CreateQuery(
 	  _In_ const D3D11_QUERY_DESC* pQueryDesc,
-	  _Out_opt_ ID3D11Query** ppQuery) final;
+	  _Out_opt_ ID3D11Query** ppQuery) FINALGFX;
 
-	virtual HRESULT STDMETHODCALLTYPE CreatePredicate(
+	VIRTUALGFX HRESULT STDMETHODCALLTYPE CreatePredicate(
 	  _In_ const D3D11_QUERY_DESC* pPredicateDesc,
-	  _Out_opt_ ID3D11Predicate** ppPredicate) final;
+	  _Out_opt_ ID3D11Predicate** ppPredicate) FINALGFX;
 
-	virtual HRESULT STDMETHODCALLTYPE CreateCounter(
+	VIRTUALGFX HRESULT STDMETHODCALLTYPE CreateCounter(
 	  _In_ const D3D11_COUNTER_DESC* pCounterDesc,
-	  _Out_opt_ ID3D11Counter** ppCounter) final;
+	  _Out_opt_ ID3D11Counter** ppCounter) FINALGFX;
 
-	virtual HRESULT STDMETHODCALLTYPE CreateDeferredContext(
+	VIRTUALGFX HRESULT STDMETHODCALLTYPE CreateDeferredContext(
 	  UINT ContextFlags,
-	  _Out_opt_ ID3D11DeviceContext** ppDeferredContext) final;
+	  _Out_opt_ ID3D11DeviceContext** ppDeferredContext) FINALGFX;
 
-	virtual HRESULT STDMETHODCALLTYPE OpenSharedResource(
+	VIRTUALGFX HRESULT STDMETHODCALLTYPE OpenSharedResource(
 	  _In_ HANDLE hResource,
 	  _In_ REFIID ReturnedInterface,
-	  _Out_opt_ void** ppResource) final;
+	  _Out_opt_ void** ppResource) FINALGFX;
 
-	virtual HRESULT STDMETHODCALLTYPE CheckFormatSupport(
+	VIRTUALGFX HRESULT STDMETHODCALLTYPE CheckFormatSupport(
 	  _In_ DXGI_FORMAT Format,
-	  _Out_ UINT* pFormatSupport) final;
+	  _Out_ UINT* pFormatSupport) FINALGFX;
 
-	virtual HRESULT STDMETHODCALLTYPE CheckMultisampleQualityLevels(
+	VIRTUALGFX HRESULT STDMETHODCALLTYPE CheckMultisampleQualityLevels(
 	  _In_ DXGI_FORMAT Format,
 	  _In_ UINT SampleCount,
-	  _Out_ UINT* pNumQualityLevels) final;
+	  _Out_ UINT* pNumQualityLevels) FINALGFX;
 
-	virtual void STDMETHODCALLTYPE CheckCounterInfo(
-	  _Out_ D3D11_COUNTER_INFO* pCounterInfo) final;
+	VIRTUALGFX void STDMETHODCALLTYPE CheckCounterInfo(
+	  _Out_ D3D11_COUNTER_INFO* pCounterInfo) FINALGFX;
 
-	virtual HRESULT STDMETHODCALLTYPE CheckCounter(
+	VIRTUALGFX HRESULT STDMETHODCALLTYPE CheckCounter(
 	  _In_ const D3D11_COUNTER_DESC* pDesc,
 	  _Out_ D3D11_COUNTER_TYPE* pType,
 	  _Out_ UINT* pActiveCounters,
@@ -215,67 +202,67 @@ public:
 	  _Out_writes_opt_(*pUnitsLength)  LPSTR szUnits,
 	  _Inout_opt_ UINT* pUnitsLength,
 	  _Out_writes_opt_(*pDescriptionLength)  LPSTR szDescription,
-	  _Inout_opt_ UINT* pDescriptionLength) final;
+	  _Inout_opt_ UINT* pDescriptionLength) FINALGFX;
 
-	virtual HRESULT STDMETHODCALLTYPE CheckFeatureSupport(
+	VIRTUALGFX HRESULT STDMETHODCALLTYPE CheckFeatureSupport(
 	  D3D11_FEATURE Feature,
 	  _Out_writes_bytes_(FeatureSupportDataSize)  void* pFeatureSupportData,
-	  UINT FeatureSupportDataSize) final;
+	  UINT FeatureSupportDataSize) FINALGFX;
 
-	virtual HRESULT STDMETHODCALLTYPE GetPrivateData(
+	VIRTUALGFX HRESULT STDMETHODCALLTYPE GetPrivateData(
 	  _In_ REFGUID guid,
 	  _Inout_ UINT* pDataSize,
-	  _Out_writes_bytes_opt_(*pDataSize)  void* pData) final;
+	  _Out_writes_bytes_opt_(*pDataSize)  void* pData) FINALGFX;
 
-	virtual HRESULT STDMETHODCALLTYPE SetPrivateData(
+	VIRTUALGFX HRESULT STDMETHODCALLTYPE SetPrivateData(
 	  _In_ REFGUID guid,
 	  _In_ UINT DataSize,
-	  _In_reads_bytes_opt_(DataSize)  const void* pData) final;
+	  _In_reads_bytes_opt_(DataSize)  const void* pData) FINALGFX;
 
-	virtual HRESULT STDMETHODCALLTYPE SetPrivateDataInterface(
+	VIRTUALGFX HRESULT STDMETHODCALLTYPE SetPrivateDataInterface(
 	  _In_ REFGUID guid,
-	  _In_opt_ const IUnknown* pData) final;
+	  _In_opt_ const IUnknown* pData) FINALGFX;
 
-	virtual D3D_FEATURE_LEVEL STDMETHODCALLTYPE GetFeatureLevel() final;
+	VIRTUALGFX D3D_FEATURE_LEVEL STDMETHODCALLTYPE GetFeatureLevel() FINALGFX;
 
-	virtual UINT STDMETHODCALLTYPE              GetCreationFlags() final;
+	VIRTUALGFX UINT STDMETHODCALLTYPE              GetCreationFlags() FINALGFX;
 
-	virtual HRESULT STDMETHODCALLTYPE           GetDeviceRemovedReason() final;
+	VIRTUALGFX HRESULT STDMETHODCALLTYPE           GetDeviceRemovedReason() FINALGFX;
 
-	virtual void STDMETHODCALLTYPE              GetImmediateContext(
-	  _Out_ ID3D11DeviceContext** ppImmediateContext) final;
+	VIRTUALGFX void STDMETHODCALLTYPE              GetImmediateContext(
+	  _Out_ ID3D11DeviceContext** ppImmediateContext) FINALGFX;
 
-	virtual HRESULT STDMETHODCALLTYPE SetExceptionMode(
-	  UINT RaiseFlags) final;
+	VIRTUALGFX HRESULT STDMETHODCALLTYPE SetExceptionMode(
+	  UINT RaiseFlags) FINALGFX;
 
-	virtual UINT STDMETHODCALLTYPE GetExceptionMode() final;
+	VIRTUALGFX UINT STDMETHODCALLTYPE GetExceptionMode() FINALGFX;
 
 	#pragma endregion
 
 	#pragma region /* ID3D11Device1 implementation */
 
-	virtual void STDMETHODCALLTYPE GetImmediateContext1(
+	VIRTUALGFX void STDMETHODCALLTYPE GetImmediateContext1(
 	  /* [annotation] */
-	  _Outptr_ ID3D11DeviceContext1** ppImmediateContext) final;
+	  _Outptr_ ID3D11DeviceContext1** ppImmediateContext) FINALGFX;
 
-	virtual HRESULT STDMETHODCALLTYPE CreateDeferredContext1(
+	VIRTUALGFX HRESULT STDMETHODCALLTYPE CreateDeferredContext1(
 	  UINT ContextFlags,
 	  /* [annotation] */
-	  _COM_Outptr_opt_ ID3D11DeviceContext1** ppDeferredContext) final;
+	  _COM_Outptr_opt_ ID3D11DeviceContext1** ppDeferredContext) FINALGFX;
 
-	virtual HRESULT STDMETHODCALLTYPE CreateBlendState1(
+	VIRTUALGFX HRESULT STDMETHODCALLTYPE CreateBlendState1(
 	  /* [annotation] */
 	  _In_ const D3D11_BLEND_DESC1* pBlendStateDesc,
 	  /* [annotation] */
-	  _COM_Outptr_opt_ ID3D11BlendState1** ppBlendState) final;
+	  _COM_Outptr_opt_ ID3D11BlendState1** ppBlendState) FINALGFX;
 
-	virtual HRESULT STDMETHODCALLTYPE CreateRasterizerState1(
+	VIRTUALGFX HRESULT STDMETHODCALLTYPE CreateRasterizerState1(
 	  /* [annotation] */
 	  _In_ const D3D11_RASTERIZER_DESC1* pRasterizerDesc,
 	  /* [annotation] */
-	  _COM_Outptr_opt_ ID3D11RasterizerState1** ppRasterizerState) final;
+	  _COM_Outptr_opt_ ID3D11RasterizerState1** ppRasterizerState) FINALGFX;
 
-	virtual HRESULT STDMETHODCALLTYPE CreateDeviceContextState(
+	VIRTUALGFX HRESULT STDMETHODCALLTYPE CreateDeviceContextState(
 	  UINT Flags,
 	  /* [annotation] */
 	  _In_reads_(FeatureLevels)  const D3D_FEATURE_LEVEL * pFeatureLevels,
@@ -285,17 +272,17 @@ public:
 	  /* [annotation] */
 	  _Out_opt_ D3D_FEATURE_LEVEL * pChosenFeatureLevel,
 	  /* [annotation] */
-	  _Out_opt_ ID3DDeviceContextState * *ppContextState) final;
+	  _Out_opt_ ID3DDeviceContextState * *ppContextState) FINALGFX;
 
-	virtual HRESULT STDMETHODCALLTYPE OpenSharedResource1(
+	VIRTUALGFX HRESULT STDMETHODCALLTYPE OpenSharedResource1(
 	  /* [annotation] */
 	  _In_ HANDLE hResource,
 	  /* [annotation] */
 	  _In_ REFIID returnedInterface,
 	  /* [annotation] */
-	  _COM_Outptr_ void** ppResource) final;
+	  _COM_Outptr_ void** ppResource) FINALGFX;
 
-	virtual HRESULT STDMETHODCALLTYPE OpenSharedResourceByName(
+	VIRTUALGFX HRESULT STDMETHODCALLTYPE OpenSharedResourceByName(
 	  /* [annotation] */
 	  _In_ LPCWSTR lpName,
 	  /* [annotation] */
@@ -303,7 +290,7 @@ public:
 	  /* [annotation] */
 	  _In_ REFIID returnedInterface,
 	  /* [annotation] */
-	  _COM_Outptr_ void** ppResource) final;
+	  _COM_Outptr_ void** ppResource) FINALGFX;
 
 	#pragma endregion
 
@@ -340,7 +327,7 @@ public:
 	HRESULT STDMETHODCALLTYPE ReleaseStagingResource(
 	  _In_ ID3D11Resource* pStagingResource);
 
-	void FlushAndWaitForGPU();
+	ILINE void FlushAndWaitForGPU() { m_pDevice->FlushAndWaitForGPU(); }
 
 private:
 	DX12_PTR(NCryDX12::CDevice) m_pDevice;
@@ -354,5 +341,3 @@ private:
 	DX12_PTR(CCryDX12DeviceContext) m_pMainContext;
 	std::vector<DX12_PTR(CCryDX12DeviceContext)> m_pNodeContexts;
 };
-
-#endif // __CCRYDX12DEVICE__

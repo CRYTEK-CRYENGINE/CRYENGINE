@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #ifndef __IAIActorProxy_h__
 #define __IAIActorProxy_h__
@@ -91,7 +91,6 @@ struct IAIActorProxy :
 	virtual const char* GetVoiceLibraryName(const bool useForcedDefaultName = false) const = 0;
 	virtual const char* GetCommunicationConfigName() const = 0;
 	virtual const float GetFmodCharacterTypeParam() const = 0;
-	virtual const char* GetBehaviorSelectionTreeName() const = 0;
 	virtual const char* GetNavigationTypeName() const = 0;
 
 	//! Needed for debug drawing.

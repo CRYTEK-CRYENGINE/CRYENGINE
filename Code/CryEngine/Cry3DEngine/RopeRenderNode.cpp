@@ -1,12 +1,13 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #include "StdAfx.h"
 #include "RopeRenderNode.h"
 #include "VisAreas.h"
 #include "ObjMan.h"
 #include "MatMan.h"
+#include <CryAudio/IObject.h>
 
-#include <CryAudio/IAudioSystem.h>
+#include <CryEntitySystem/IEntity.h>
 
 #pragma warning(disable: 4244)
 
@@ -735,6 +736,7 @@ CRopeRenderNode::CRopeRenderNode()
 	, m_pMaterial(0)
 	, m_pPhysicalEntity(0)
 	, m_nLinkedEndsMask(0)
+	, m_pIAudioObject(nullptr)
 {
 	GetInstCount(GetRenderNodeType())++;
 
@@ -758,24 +760,51 @@ CRopeRenderNode::CRopeRenderNode()
 	m_WSBBox.max = Vec3(1, 1, 1);
 	m_bNeedToReRegister = true;
 	m_bStaticPhysics = false;
-	m_nEntityOwnerId = 0;
+
+	gEnv->pPhysicalWorld->AddEventClient(EventPhysStateChange::id, &CRopeRenderNode::OnPhysStateChange, 1);
 }
 
 //////////////////////////////////////////////////////////////////////////
 CRopeRenderNode::~CRopeRenderNode()
 {
 	GetInstCount(GetRenderNodeType())--;
-
-	StopRopeSound();
 	Dephysicalize();
 	Get3DEngine()->FreeRenderNodeState(this);
 	m_pRenderMesh = NULL;
+	gEnv->pPhysicalWorld->RemoveEventClient(EventPhysStateChange::id, &CRopeRenderNode::OnPhysStateChange, 1);
 }
 
 //////////////////////////////////////////////////////////////////////////
 void CRopeRenderNode::StaticReset()
 {
 	CRopeSurfaceCache::CleanupCaches();
+}
+
+//////////////////////////////////////////////////////////////////////////
+int CRopeRenderNode::OnPhysStateChange(EventPhys const* pEvent)
+{
+	EventPhysStateChange const* const pStateChangeEvent = static_cast<EventPhysStateChange const*>(pEvent);
+
+	if (pStateChangeEvent->iSimClass[0] == 4 && pStateChangeEvent->iSimClass[1] == 4)
+	{
+		if (pStateChangeEvent->iForeignData == PHYS_FOREIGN_ID_ROPE)
+		{
+			CRopeRenderNode* const pRopeRenderNode = static_cast<CRopeRenderNode*>(pStateChangeEvent->pForeignData);
+
+			if (pRopeRenderNode != nullptr)
+			{
+				pe_status_awake status;
+
+				if (pStateChangeEvent->pEntity->GetStatus(&status) == 0)
+				{
+					// Rope stopped moving.
+					pRopeRenderNode->DisableAudio();
+				}
+			}
+		}
+	}
+
+	return 1;
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -966,7 +995,7 @@ void CRopeRenderNode::Physicalize(bool bInstant)
 		if (m_pPhysicalEntity)
 			gEnv->pPhysicalWorld->DestroyPhysicalEntity(m_pPhysicalEntity);
 		m_pPhysicalEntity = gEnv->pPhysicalWorld->CreatePhysicalEntity((m_bStaticPhysics) ? PE_STATIC : PE_ROPE,
-		                                                               NULL, (IRenderNode*)this, PHYS_FOREIGN_ID_ROPE, m_nEntityOwnerId ? (m_nEntityOwnerId & 0xFFFF) : -1);
+		                                                               NULL, (IRenderNode*)this, PHYS_FOREIGN_ID_ROPE, GetOwnerEntity() ? GetOwnerEntity()->GetId() : -1);
 		if (!m_pPhysicalEntity)
 			return;
 	}
@@ -1094,7 +1123,7 @@ void CRopeRenderNode::Physicalize(bool bInstant)
 				ka = dir.GetLengthSquared();
 				kb = v0 * dir;
 				kc = v0.GetLengthSquared() - sqr(len * rnSegs);
-				kd = sqrt_tpl(max(0.0f, kb * kb - ka * kc));
+				kd = sqrt_tpl(std::max(0.0f, kb * kb - ka * kc));
 				if (kd - kb < ka)
 					pr.pPoints[++i] = pSrcPoints[ivtx] + dir * ((kd - kb) / ka);
 				else
@@ -1131,7 +1160,7 @@ void CRopeRenderNode::Physicalize(bool bInstant)
 	{
 		//////////////////////////////////////////////////////////////////////////
 		pe_params_flags par_flags;
-		par_flags.flags = pef_never_affect_triggers | pef_log_state_changes | pef_log_poststep;
+		par_flags.flags = pef_log_state_changes | pef_log_poststep;
 		if (m_params.nFlags & eRope_Subdivide)
 			par_flags.flags |= rope_subdivide_segs;
 		if (m_params.nFlags & eRope_CheckCollisinos)
@@ -1504,6 +1533,7 @@ void CRopeRenderNode::SyncWithPhysicalRope(bool bForce)
 	{
 		pe_status_rope sr;
 		sr.lock = 1;
+		sr.pGridRefEnt = WORLD_ENTITY;
 		if (!m_pPhysicalEntity->GetStatus(&sr))
 			return;
 		sr.lock = -1;
@@ -1548,7 +1578,7 @@ void CRopeRenderNode::CreateRenderMesh()
 	// make new RenderMesh
 	//////////////////////////////////////////////////////////////////////////
 	m_pRenderMesh = GetRenderer()->CreateRenderMeshInitialized(
-	  NULL, 3, eVF_P3F_C4B_T2F,
+	  NULL, 3, EDefaultInputLayouts::P3F_C4B_T2F,
 	  NULL, 3, prtTriangleList,
 	  "Rope", GetName(),
 	  eRMT_Dynamic, 1, 0, NULL, NULL, false, false);
@@ -1701,14 +1731,6 @@ void CRopeRenderNode::SetPoints(const Vec3* pPoints, int nCount)
 
 	Physicalize();
 	m_bModified = true;
-
-	if (m_pPhysicalEntity)
-	{
-		// Awake on first render after modification.
-		//pe_action_awake pa;
-		//pa.bAwake = 1;
-		//m_pPhysicalEntity->Action( &pa );
-	}
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -1735,176 +1757,132 @@ void CRopeRenderNode::ResetPoints()
 	m_bModified = true;
 }
 
+//////////////////////////////////////////////////////////////////////////
 void CRopeRenderNode::OnPhysicsPostStep()
 {
 	// Re-register entity.
 	if (m_bNeedToReRegister)
 	{
-		pe_params_bbox pbb;
-		m_pPhysicalEntity->GetParams(&pbb);
-		m_WSBBox = AABB(pbb.BBox[0], pbb.BBox[1]);
+		pe_status_pos sp;
+		sp.pGridRefEnt = WORLD_ENTITY;
+		m_pPhysicalEntity->GetStatus(&sp);
+		m_WSBBox = AABB(sp.pos+sp.BBox[0], sp.pos+sp.BBox[1]);
 		Get3DEngine()->RegisterEntity(this);
 	}
 	m_bNeedToReRegister = false;
 	m_bModified = true;
 
-	// Update the sound data
-	UpdateSound();
+	if (m_pIAudioObject != nullptr)
+	{
+		UpdateAudio();
+	}
+	else
+	{
+		pe_status_awake status;
+
+		if (m_pPhysicalEntity->GetStatus(&status) != 0)
+		{
+			CryAudio::SCreateObjectData const objectData("RopeyMcRopeFace", m_audioParams.occlusionType);
+			m_pIAudioObject = gEnv->pAudioSystem->CreateObject(objectData);
+			m_pIAudioObject->SetSwitchState(CryAudio::AbsoluteVelocityTrackingSwitchId, CryAudio::OnStateId);
+			UpdateAudio();
+			m_pIAudioObject->ExecuteTrigger(m_audioParams.startTrigger);
+		}
+	}
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CRopeRenderNode::UpdateSound()
+void CRopeRenderNode::UpdateAudio()
 {
-	REINST(update)
-	//if (m_ropeSoundData.nSoundID != INVALID_SOUNDID)
-	//{
-	//	_smart_ptr<ISound> const pSound = gEnv->pAudioSystem->GetSound( m_ropeSoundData.nSoundID );
-	//	if (pSound)
-	//	{
-	//		// Rope is moving, therefore update the sound now
-	//		// Get rope data
-	//		pe_params_rope oRopeParams;
-	//		m_pPhysicalEntity->GetParams( &oRopeParams );
+	pe_params_rope ropeParams;
+	m_pPhysicalEntity->GetParams(&ropeParams);
 
-	//		int nIndexToUse = m_ropeSoundData.nSegementToAttachTo-1;
-	//		Vec3 v3SoundPos = oRopeParams.pPoints[nIndexToUse];
+	int idx = m_audioParams.segementToAttachTo - 1;
+	Vec3 pos = ropeParams.pPoints[idx];
 
-	//		// Calculate an offset if set
-	//		if (m_ropeSoundData.fOffset > 0.0f)
-	//		{
-	//			if (m_ropeSoundData.fOffset == 1.0f)
-	//			{
-	//				nIndexToUse	= m_ropeSoundData.nSegementToAttachTo;
-	//				v3SoundPos	= oRopeParams.pPoints[nIndexToUse];
-	//			}
-	//			else
-	//			{
-	//				if (m_ropeSoundData.fOffset > 0.5f)
-	//					nIndexToUse	= m_ropeSoundData.nSegementToAttachTo;
+	// Calculate an offset if set.
+	if (m_audioParams.offset > 0.0f)
+	{
+		if (m_audioParams.offset == 1.0f)
+		{
+			idx = m_audioParams.segementToAttachTo;
+			pos = ropeParams.pPoints[idx];
+		}
+		else
+		{
+			if (m_audioParams.offset > 0.5f)
+			{
+				idx = m_audioParams.segementToAttachTo;
+			}
 
-	//				v3SoundPos += (oRopeParams.pPoints[m_ropeSoundData.nSegementToAttachTo] - oRopeParams.pPoints[m_ropeSoundData.nSegementToAttachTo - 1]) * m_ropeSoundData.fOffset;
-	//			}
-	//		}
+			pos += (ropeParams.pPoints[m_audioParams.segementToAttachTo] - ropeParams.pPoints[m_audioParams.segementToAttachTo - 1]) * m_audioParams.offset;
+		}
+	}
 
-	//		// Calculate the angle between the rope segments we're attached to
-	//		if (nIndexToUse != 0 && nIndexToUse != oRopeParams.nSegments)
-	//		{
-	//			// Do this only if we're not attached to either end
-	//			Vec3 v3Segment1 = oRopeParams.pPoints[nIndexToUse] - oRopeParams.pPoints[nIndexToUse - 1];
-	//			Vec3 v3Segment2 = oRopeParams.pPoints[nIndexToUse] - oRopeParams.pPoints[nIndexToUse + 1];
-	//			v3Segment1.Normalize();
-	//			v3Segment2.Normalize();
+	// Calculate the angle between the rope segments that we're attached to.
+	if (m_audioParams.angleParameter != CryAudio::InvalidControlId)
+	{
+		float angle = 180.0f;
 
-	//			float const fAngle = RAD2DEG( acosf( max( -1.0f, v3Segment1.Dot( v3Segment2 ) ) ) );
+		if (idx > 0 && idx < ropeParams.nSegments)
+		{
+			// Update the angle parameter (min 0 max 180 in degree).
+			// Do this only if we're not attached to either end.
+			Vec3 segment1 = ropeParams.pPoints[idx] - ropeParams.pPoints[idx - 1];
+			Vec3 segment2 = ropeParams.pPoints[idx] - ropeParams.pPoints[idx + 1];
+			segment1.Normalize();
+			segment2.Normalize();
+			angle = RAD2DEG(acosf(std::max(-1.0f, segment1.Dot(segment2))));
+		}
 
-	//			// Update the angle parameter (min 0 max 180 in degree)
-	//			pSound->SetParam( "angle", fAngle );
-	//		}
+		m_pIAudioObject->SetParameter(m_audioParams.angleParameter, angle);
+	}
 
-	//		// Update position
-	//		pSound->SetPosition( v3SoundPos );
-	//	}
-	//}
+	m_pIAudioObject->SetTransformation(pos);
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CRopeRenderNode::SetRopeSound(char const* const pcSoundName, int unsigned const nSegmentToAttachTo, float const fOffset)
+void CRopeRenderNode::DisableAudio()
 {
-	REINST(set spund)
-	//m_ropeSoundData.nSegementToAttachTo	= nSegmentToAttachTo;
-	//m_ropeSoundData.fOffset							= fOffset;
+	if (m_pIAudioObject != nullptr)
+	{
+		if (m_audioParams.stopTrigger != CryAudio::InvalidControlId)
+		{
+			m_pIAudioObject->ExecuteTrigger(m_audioParams.stopTrigger);
+		}
+		else
+		{
+			m_pIAudioObject->StopTrigger(m_audioParams.startTrigger);
+		}
 
-	//if (pcSoundName && pcSoundName[0])
-	//{
-	//	bool bAlreadyExists = false;
-
-	//	// Stop a potentially already existing sound
-	//	if (m_ropeSoundData.nSoundID != INVALID_SOUNDID)
-	//	{
-	//		_smart_ptr<ISound> const pOldSound = gEnv->pAudioSystem->GetSound( m_ropeSoundData.nSoundID );
-	//		if (pOldSound)
-	//		{
-	//			// Make sure we don't create a new sound if we already loaded the passed one
-	//			char const* const pcName = pOldSound->GetName();
-	//			if (pcName!=0 && _stricmp(pcName, pcSoundName))
-	//				StopRopeSound();
-	//			else
-	//			{
-	//				bAlreadyExists = true;
-	//				ResetRopeSound();
-	//			}
-	//		}
-	//	}
-
-	//	if (!bAlreadyExists)
-	//	{
-	//		// Now create the new one
-	//		int const nSoundFlags = FLAG_SOUND_DEFAULT_3D|FLAG_SOUND_EVENT|FLAG_SOUND_LOAD_SYNCHRONOUSLY;
-	//		_smart_ptr<ISound> const pNewSound = gEnv->pAudioSystem->CreateSound( pcSoundName, nSoundFlags );
-	//		if (pNewSound)
-	//		{
-	//			m_ropeSoundData.nSoundID = pNewSound->GetId();
-	//			pNewSound->SetSemantic( eSoundSemantic_Physics_General );
-	//			ResetRopeSound();
-	//			pNewSound->Play();
-	//		}
-	//	}
-	//}
+		gEnv->pAudioSystem->ReleaseObject(m_pIAudioObject);
+		m_pIAudioObject = nullptr;
+	}
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CRopeRenderNode::StopRopeSound()
+void CRopeRenderNode::SetAudioParams(SRopeAudioParams const& audioParams)
 {
-	REINST(stop sound)
-	//if (m_ropeSoundData.nSoundID != INVALID_SOUNDID)
-	//{
-	//	_smart_ptr<ISound> const pSound = gEnv->pAudioSystem->GetSound( m_ropeSoundData.nSoundID );
-	//	if (pSound)
-	//		pSound->Stop();
+	m_audioParams.angleParameter = audioParams.angleParameter;
+	m_audioParams.occlusionType = audioParams.occlusionType;
+	m_audioParams.offset = audioParams.offset;
+	m_audioParams.segementToAttachTo = audioParams.segementToAttachTo;
 
-	//	m_ropeSoundData.nSoundID = INVALID_SOUNDID;
-	//}
-}
+	if (m_pIAudioObject != nullptr)
+	{
+		if (m_audioParams.startTrigger != audioParams.startTrigger)
+		{
+			if (m_audioParams.startTrigger != CryAudio::InvalidControlId)
+			{
+				m_pIAudioObject->StopTrigger(m_audioParams.startTrigger);
+			}
+		}
 
-//////////////////////////////////////////////////////////////////////////
-void CRopeRenderNode::ResetRopeSound()
-{
-	REINST(reset sound)
-	//if (m_ropeSoundData.nSoundID != INVALID_SOUNDID)
-	//{
-	//	_smart_ptr<ISound> const pSound = gEnv->pAudioSystem->GetSound( m_ropeSoundData.nSoundID );
-	//	if (pSound)
-	//	{
-	//		// Get rope data
-	//		pe_params_rope oRopeParams;
-	//		m_pPhysicalEntity->GetParams( &oRopeParams );
+		m_pIAudioObject->SetOcclusionType(m_audioParams.occlusionType);
+	}
 
-	//		int nIndexToUse = m_ropeSoundData.nSegementToAttachTo-1;
-	//		Vec3 v3SoundPos = oRopeParams.pPoints[nIndexToUse];
-
-	//		// Calculate an offset if set
-	//		if (m_ropeSoundData.fOffset > 0.0f)
-	//		{
-	//			if (m_ropeSoundData.fOffset == 1.0f)
-	//			{
-	//				nIndexToUse	= m_ropeSoundData.nSegementToAttachTo;
-	//				v3SoundPos	= oRopeParams.pPoints[nIndexToUse];
-	//			}
-	//			else
-	//			{
-	//				if (m_ropeSoundData.fOffset > 0.5f)
-	//					nIndexToUse	= m_ropeSoundData.nSegementToAttachTo;
-
-	//				v3SoundPos += (oRopeParams.pPoints[m_ropeSoundData.nSegementToAttachTo] - oRopeParams.pPoints[m_ropeSoundData.nSegementToAttachTo - 1]) * m_ropeSoundData.fOffset;
-	//			}
-	//		}
-
-	//		// Update position
-	//		pSound->SetPosition( v3SoundPos );
-	//		pSound->SetParam( "angle", 180.0f );
-	//	}
-	//}
-
+	m_audioParams.startTrigger = audioParams.startTrigger;
+	m_audioParams.stopTrigger = audioParams.stopTrigger;
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -1944,9 +1922,9 @@ EERType CRopeRenderNode::GetRenderNodeType()
 float CRopeRenderNode::GetMaxViewDist()
 {
 	if (GetMinSpecFromRenderNodeFlags(m_dwRndFlags) == CONFIG_DETAIL_SPEC)
-		return max(GetCVars()->e_ViewDistMin, CRopeRenderNode::GetBBox().GetRadius() * GetCVars()->e_ViewDistRatioDetail * GetViewDistRatioNormilized());
+		return std::max(GetCVars()->e_ViewDistMin, CRopeRenderNode::GetBBox().GetRadius() * GetCVars()->e_ViewDistRatioDetail * GetViewDistRatioNormilized());
 
-	return(max(GetCVars()->e_ViewDistMin, CRopeRenderNode::GetBBox().GetRadius() * GetCVars()->e_ViewDistRatio * GetViewDistRatioNormilized()));
+	return(std::max(GetCVars()->e_ViewDistMin, CRopeRenderNode::GetBBox().GetRadius() * GetCVars()->e_ViewDistRatio * GetViewDistRatioNormilized()));
 }
 
 ///////////////////////////////////////////////////////////////////////////////

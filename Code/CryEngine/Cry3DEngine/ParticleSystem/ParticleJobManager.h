@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 // -------------------------------------------------------------------------
 //  Created:     13/03/2015 by Filipe amim
@@ -73,7 +73,7 @@ public:
 public:
 	void AddEmitter(CParticleEmitter* pEmitter);
 	void AddDeferredRender(CParticleComponentRuntime* pRuntime, const SRenderContext& renderContext);
-	void ScheduleComputeVertices(CParticleComponentRuntime* pComponentRuntime, CRenderObject* pRenderObject, const SRenderContext& renderContext);
+	void ScheduleComputeVertices(ICommonParticleComponentRuntime* pComponentRuntime, CRenderObject* pRenderObject, const SRenderContext& renderContext);
 	void KernelUpdateAll();
 	void SynchronizeUpdate();
 	void DeferredRender();

@@ -20,6 +20,8 @@
 #include <windowsx.h>
 #include <dwmapi.h>
 
+typedef HRESULT(WINAPI *dwmExtendFrameIntoClientArea_t)(HWND hwnd, const MARGINS* pMarInset);
+
 #ifdef UNICODE
 #define _UNICODE
 #endif
@@ -144,8 +146,15 @@ void QCustomTitleBar::showSystemMenu(QPoint p)
 
 	QWidget* screen = qApp->desktop()->screen(qApp->desktop()->screenNumber(p));
 	p = screen->mapFromGlobal(p);
-	p.setX(p.x() * screen->devicePixelRatioF());
-	p.setY(p.y() * screen->devicePixelRatioF());
+
+#if QT_VERSION < 0x050600
+	const float pixelRatio = 1;
+#else
+	const float pixelRatio = screen->devicePixelRatioF();
+#endif
+
+	p.setX(p.x() * pixelRatio);
+	p.setY(p.y() * pixelRatio);
 	p = screen->mapToGlobal(p);
 
 	HWND hWnd = (HWND)parentWidget()->winId();
@@ -257,6 +266,7 @@ void QCustomTitleBar::onFrameContentsChanged(QWidget* newContents)
 {
 	m_minimizeButton->setVisible(parentWidget()->windowFlags() & Qt::WindowMinimizeButtonHint || parentWidget()->windowFlags() & Qt::MSWindowsFixedSizeDialogHint);
 	m_maximizeButton->setVisible(parentWidget()->windowFlags() & Qt::WindowMaximizeButtonHint || parentWidget()->windowFlags() & Qt::MSWindowsFixedSizeDialogHint);
+	m_closeButton->setVisible(parentWidget()->windowFlags() & Qt::WindowCloseButtonHint);
 
 	QString winTitle = parentWidget()->windowTitle();
 	if (!winTitle.size())
@@ -402,7 +412,7 @@ bool QCustomTitleBar::winEvent(MSG *msg, long *result)
 QCustomWindowFrame* QCustomWindowFrame::wrapWidget(QWidget* w)
 {
 	QCustomWindowFrame* windowFrame = new QCustomWindowFrame();
-	windowFrame->setContents(w);
+	windowFrame->internalSetContents(w);
 	return windowFrame;
 }
 
@@ -423,10 +433,10 @@ QCustomWindowFrame::QCustomWindowFrame()
 
 #if defined(WIN32) || defined(WIN64)
 	SetWindowLong((HWND)winId(), GWL_STYLE, WS_OVERLAPPED | WS_THICKFRAME | WS_MINIMIZEBOX | WS_MAXIMIZEBOX | WS_CLIPCHILDREN | WS_CLIPSIBLINGS | WS_SYSMENU);
-	m_dwm = LoadLibraryEx(_T("dwmapi.dll"), NULL, LOAD_LIBRARY_SEARCH_SYSTEM32);
+	m_dwm = (void*)LoadLibraryEx(_T("dwmapi.dll"), NULL, LOAD_LIBRARY_SEARCH_SYSTEM32);
 	if (m_dwm)
 	{
-		dwmExtendFrameIntoClientArea = (dwmExtendFrameIntoClientArea_t)GetProcAddress(m_dwm, "DwmExtendFrameIntoClientArea");
+		dwmExtendFrameIntoClientArea = (void*)GetProcAddress((HMODULE)m_dwm, "DwmExtendFrameIntoClientArea");
 	}
 	else
 	{
@@ -448,12 +458,12 @@ QCustomWindowFrame::~QCustomWindowFrame()
 	dwmExtendFrameIntoClientArea = nullptr;
 	if (m_dwm)
 	{
-		FreeLibrary(m_dwm);
+		FreeLibrary((HMODULE)m_dwm);
 	}
 #endif
 }
 
-void QCustomWindowFrame::setContents(QWidget* widget, bool useContentsGeometry)
+void QCustomWindowFrame::internalSetContents(QWidget* widget, bool useContentsGeometry)
 {
 	if (m_contents)
 	{
@@ -649,11 +659,18 @@ bool QCustomWindowFrame::winEvent(MSG *msg, long *result)
 			mmi->ptMaxSize.x = mi2Width;
 			mmi->ptMaxSize.y = mi2Height;
 		}
-		setMaximumSize(mi2Width / devicePixelRatioF(), mi2Height / devicePixelRatioF()); //Ensure window will not overlap taskbar
-		mmi->ptMaxTrackSize.x = min(this->maximumWidth() * devicePixelRatioF(), GetSystemMetrics(SM_CXMAXTRACK));
-		mmi->ptMaxTrackSize.y = min(this->maximumHeight() * devicePixelRatioF(), GetSystemMetrics(SM_CYMAXTRACK));
-		mmi->ptMinTrackSize.x = this->minimumWidth() * devicePixelRatioF();
-		mmi->ptMinTrackSize.y = this->minimumHeight() * devicePixelRatioF();
+
+#if QT_VERSION < 0x050600
+		const float pixelRatio = 1;
+#else
+		const float pixelRatio = devicePixelRatioF();
+#endif
+
+		setMaximumSize(mi2Width / pixelRatio, mi2Height / pixelRatio); //Ensure window will not overlap taskbar
+		mmi->ptMaxTrackSize.x = min(this->maximumWidth() * pixelRatio, GetSystemMetrics(SM_CXMAXTRACK));
+		mmi->ptMaxTrackSize.y = min(this->maximumHeight() * pixelRatio, GetSystemMetrics(SM_CYMAXTRACK));
+		mmi->ptMinTrackSize.x = this->minimumWidth() * pixelRatio;
+		mmi->ptMinTrackSize.y = this->minimumHeight() * pixelRatio;
 		*result = 0;
 		return true;
 	}
@@ -665,7 +682,8 @@ bool QCustomWindowFrame::winEvent(MSG *msg, long *result)
 		MARGINS shadow_on = { 1, 1, 1, 1 };
 		if (dwmExtendFrameIntoClientArea)
 		{
-			dwmExtendFrameIntoClientArea((HWND)winId(), &shadow_on);
+			auto pFunc = (dwmExtendFrameIntoClientArea_t)dwmExtendFrameIntoClientArea;
+			pFunc((HWND)winId(), &shadow_on);
 		}
 		*result = 0;
 		// Don't intercept the message, so default functionality still happens.
@@ -871,7 +889,8 @@ void QCustomWindowFrame::updateWindowFlags()
 	if (dwmExtendFrameIntoClientArea)
 	{
 		MARGINS shadow_on = { 1, 1, 1, 1 };
-		dwmExtendFrameIntoClientArea((HWND)winId(), &shadow_on);
+		auto pFunc = (dwmExtendFrameIntoClientArea_t)dwmExtendFrameIntoClientArea;
+		pFunc((HWND)winId(), &shadow_on);
 	}
 #endif
 

@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 // -------------------------------------------------------------------------
 //  File name:   CCryDXGLSwapChain.cpp
@@ -83,7 +83,7 @@ bool CCryDXGLSwapChain::UpdateTexture(bool bSetPixelFormat)
 HRESULT CCryDXGLSwapChain::Present(UINT SyncInterval, UINT Flags)
 {
 	NCryOpenGL::CDevice* pDevice(m_spDevice->GetGLDevice());
-#if CRY_OPENGL_SINGLE_CONTEXT
+#if OGL_SINGLE_CONTEXT
 	NCryOpenGL::CContext* pContext(pDevice->GetCurrentContext());
 #else
 	NCryOpenGL::CContext* pContext(pDevice->ReserveContext());
@@ -106,7 +106,7 @@ HRESULT CCryDXGLSwapChain::Present(UINT SyncInterval, UINT Flags)
 	pGLBackBufferTexture->Flush(pContext);
 	HRESULT kResult(pDevice->Present(kWindowContext) ? S_OK : E_FAIL);
 
-#if !CRY_OPENGL_SINGLE_CONTEXT
+#if !OGL_SINGLE_CONTEXT
 	pDevice->ReleaseContext();
 #endif
 	return kResult;

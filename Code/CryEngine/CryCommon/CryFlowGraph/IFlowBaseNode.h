@@ -1,8 +1,10 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #pragma once
 
 #include <CryFlowGraph/IFlowSystem.h>
+
+struct IActor;
 
 //////////////////////////////////////////////////////////////////////////
 // Enum used for templating node base class
@@ -20,60 +22,61 @@ enum ENodeCloneType
 class CAutoRegFlowNodeBase : public IFlowNodeFactory
 {
 public:
-	CAutoRegFlowNodeBase(const char* sClassName)
+	CAutoRegFlowNodeBase(const char* szClassName)
 	{
-		m_sClassName = sClassName;
+		m_szClassName = szClassName;
 		m_pNext = 0;
-		if (!m_pLast)
+		if (!s_pLast)
 		{
-			m_pFirst = this;
+			s_pFirst = this;
 		}
 		else
 		{
-			m_pLast->m_pNext = this;
+			s_pLast->m_pNext = this;
 		}
 
-		m_pLast = this;
+		s_pLast = this;
 	}
 
 	virtual ~CAutoRegFlowNodeBase()
 	{
-		CAutoRegFlowNodeBase* node = m_pFirst;
-		CAutoRegFlowNodeBase* prev = nullptr;
-		while (node && node != this)
+		CAutoRegFlowNodeBase* pNode = s_pFirst;
+		CAutoRegFlowNodeBase* pPrev = nullptr;
+		while (pNode && pNode != this)
 		{
-			prev = node;
-			node = node->m_pNext;
+			pPrev = pNode;
+			pNode = pNode->m_pNext;
 		}
 
-		assert(node);
-		if (node)
+		if (pNode)
 		{
-			if (prev)
-				prev->m_pNext = m_pNext;
+			if (pPrev)
+				pPrev->m_pNext = m_pNext;
 			else
-				m_pFirst = m_pNext;
+				s_pFirst = m_pNext;
 
-			if (m_pLast == this)
-				m_pLast = prev;
+			if (s_pLast == this)
+				s_pLast = pPrev;
 		}
 	}
 
-	void         AddRef()  {}
-	void         Release() {}
+	// overrides ref count behavior as auto reg nodes are statically allocated.
+	virtual void AddRef() override final {}
+	virtual void Release() override final {}
 
-	void         Reset()   {}
+	virtual void Reset() override   {}
 
-	virtual void GetMemoryUsage(ICrySizer* s) const
+	virtual void GetMemoryUsage(ICrySizer* s) const override
 	{
 		SIZER_SUBCOMPONENT_NAME(s, "CAutoRegFlowNodeBase");
 	}
 
 	//////////////////////////////////////////////////////////////////////////
-	const char*                  m_sClassName;
+	const char*                  m_szClassName;
 	CAutoRegFlowNodeBase*        m_pNext;
-	static CAutoRegFlowNodeBase* m_pFirst;
-	static CAutoRegFlowNodeBase* m_pLast;
+	static CAutoRegFlowNodeBase* s_pFirst;
+	static CAutoRegFlowNodeBase* s_pLast;
+	static bool                  s_bNodesRegistered;
 	//////////////////////////////////////////////////////////////////////////
 };
 
@@ -82,8 +85,8 @@ template<class T>
 class CAutoRegFlowNode : public CAutoRegFlowNodeBase
 {
 public:
-	CAutoRegFlowNode(const char* sClassName)
-		: CAutoRegFlowNodeBase(sClassName)
+	CAutoRegFlowNode(const char* szClassName)
+		: CAutoRegFlowNodeBase(szClassName)
 	{
 	}
 
@@ -103,7 +106,7 @@ public:
 		}
 		else
 		{
-			assert(false);
+			CRY_ASSERT_MESSAGE(false, "Unsupported CloneType!");
 		}
 	}
 
@@ -140,26 +143,21 @@ private:
 //////////////////////////////////////////////////////////////////////////
 class CFlowBaseNodeInternal : public IFlowNode
 {
+private:
 	template<ENodeCloneType CLONE_TYPE> friend class CFlowBaseNode;
-public:
 	// private ctor/dtor to prevent classes directly derived from this;
 	//	the exception is CFlowBaseNode (friended above)
-	CFlowBaseNodeInternal() { m_refs = 0; };
+	CFlowBaseNodeInternal() {};
 	virtual ~CFlowBaseNodeInternal() {}
 
+public:
 	//////////////////////////////////////////////////////////////////////////
 	// IFlowNode
-	virtual void         AddRef()                                                  { ++m_refs; };
-	virtual void         Release()                                                 { if (0 >= --m_refs) delete this; };
-
 	virtual IFlowNodePtr Clone(SActivationInfo* pActInfo)                          = 0;
 	virtual bool         SerializeXML(SActivationInfo*, const XmlNodeRef&, bool)   { return true; }
 	virtual void         Serialize(SActivationInfo*, TSerialize ser)               {}
 	virtual void         PostSerialize(SActivationInfo*)                           {}
 	virtual void         ProcessEvent(EFlowEvent event, SActivationInfo* pActInfo) {};
-
-private:
-	int m_refs;
 };
 
 //////////////////////////////////////////////////////////////////////////
@@ -206,3 +204,31 @@ public:
 
 	static const int myCloneType = eNCT_Singleton;
 };
+
+inline void CryRegisterFlowNodes()
+{
+	if (gEnv->pFlowSystem && !CAutoRegFlowNodeBase::s_bNodesRegistered)
+	{
+		CAutoRegFlowNodeBase* pFactory = CAutoRegFlowNodeBase::s_pFirst;
+		while (pFactory)
+		{
+			gEnv->pFlowSystem->RegisterType(pFactory->m_szClassName, pFactory);
+			pFactory = pFactory->m_pNext;
+		}
+		CAutoRegFlowNodeBase::s_bNodesRegistered = true;
+	}
+}
+
+inline void CryUnregisterFlowNodes()
+{
+	if (gEnv && gEnv->pFlowSystem && CAutoRegFlowNodeBase::s_bNodesRegistered)
+	{
+		CAutoRegFlowNodeBase* pFactory = CAutoRegFlowNodeBase::s_pFirst;
+		while (pFactory)
+		{
+			gEnv->pFlowSystem->UnregisterType(pFactory->m_szClassName);
+			pFactory = pFactory->m_pNext;
+		}
+		CAutoRegFlowNodeBase::s_bNodesRegistered = false;
+	}
+}

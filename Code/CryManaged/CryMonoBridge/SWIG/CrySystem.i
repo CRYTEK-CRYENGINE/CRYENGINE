@@ -49,13 +49,6 @@
 #include <CrySystem/ICryMiniGUI.h>
 #include <CryThreading/IThreadManager.h>
 #include <CryThreading/IJobManager.h>
-// CryOnlineDummy
-struct IOnline
-{
-public:
-	IOnline() {}
-	~IOnline() {}
-};
 
 namespace minigui { class CDrawContext{ public: virtual ~CDrawContext() {} }; }
 
@@ -72,7 +65,22 @@ using JobManager::SJobStateBase;
 %include "../../../../CryEngine/CryCommon/CrySystem/ICmdLine.h"
 %typemap(csbase) EVarFlags "uint"
 %feature("director") IRemoteConsoleListener;
+%include "../../../../CryEngine/CryCommon/CryCore/SFunctor.h"
+%typemap(cscode) ICVar %{
+	public static System.IntPtr GetIntPtr(ICVar icvar)
+	{
+		return getCPtr(icvar).Handle;
+	}
+%}
+// ensures ICVar can only be unregistered through CryEngine.ConsoleVariable.UnRegister in C#
+%ignore ICVar::Release();
+
+// hides methods that cannot be accessed in C#
+%ignore ICVar::AddOnChange(const CallbackFunction &);
+%ignore ICVar::SetOnChangeCallback(ConsoleVarFunc);
+%ignore ICVar::GetOnChangeCallback() const;
 %include "../../../../CryEngine/CryCommon/CrySystem/IConsole.h"
+
 %include "../../../../CryEngine/CryCommon/CrySystem/ITimer.h"
 %include "../../../../CryEngine/CryCommon/CrySystem/File/IFileChangeMonitor.h"
 %include "../../../../CryEngine/CryCommon/CrySystem/Profilers/IStatoscope.h"
@@ -111,12 +119,32 @@ using JobManager::SJobStateBase;
 %include "../../../../CryEngine/CryCommon/CrySystem/ZLib/IZlibDecompressor.h"
 %include "../../../../CryEngine/CryCommon/CrySystem/ICryMiniGUI.h"
 
-// CryOnlineDummy
-struct IOnline
+%extend ICryPak
 {
-public:
-	IOnline() {}
-	~IOnline() {}
-};
+	_finddata_t* FindAllocateData()
+	{
+		return new _finddata_t();
+	}
+
+	void FindFreeData(_finddata_t* fd)
+	{
+		delete fd;
+	}
+
+	bool FindIsResultValid(intptr_t result)
+	{
+		return result != -1;
+	}
+
+	char* FindDataGetPath(_finddata_t* fd)
+	{
+		if (fd == nullptr)
+		{
+			return nullptr;
+		}
+
+		return fd->name;
+	}
+}
 
 namespace minigui { class CDrawContext{}; }

@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #include "StdAfx.h"
 #include "FogVolumeRenderNode.h"
@@ -367,7 +367,7 @@ void CFogVolumeRenderNode::Render(const SRendParams& rParam, const SRenderingPas
 	FUNCTION_PROFILER_3DENGINE;
 
 	// anything to render?
-	if (passInfo.IsRecursivePass())
+	if (!passInfo.IsGeneralPass())
 		return;
 
 	if (!m_pMatFogVolBox || !m_pMatFogVolEllipsoid || GetCVars()->e_Fog == 0 || GetCVars()->e_FogVolumes == 0)
@@ -477,6 +477,8 @@ void CFogVolumeRenderNode::Render(const SRendParams& rParam, const SRenderingPas
 		  : m_pMatFogVolEllipsoid;
 		pMaterial = (rParam.pMaterial != nullptr) ? rParam.pMaterial : pMaterial;
 		SShaderItem& shaderItem = pMaterial->GetShaderItem(0);
+
+		pRenderObject->m_pCurrMaterial = pMaterial;
 
 		// add to renderer
 		GetRenderer()->EF_AddEf(m_pFogVolumeRenderElement[fillThreadID], shaderItem, pRenderObject, passInfo, EFSLIST_TRANSP, nAfterWater);

@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 // -------------------------------------------------------------------------
 //  File name:   SimpleStringPool.h
@@ -348,7 +348,7 @@ private:
 		m_end = pBlock->s + blockSize;
 	}
 
-	char* FindExistingString(const char* szString, int nStrLen)
+	char* FindExistingString(const char* szString, int nStrLen) const
 	{
 		SStringData testData(szString, nStrLen);
 		char* szResult = stl::find_in_map(m_stringToExistingStringMap, testData, NULL);

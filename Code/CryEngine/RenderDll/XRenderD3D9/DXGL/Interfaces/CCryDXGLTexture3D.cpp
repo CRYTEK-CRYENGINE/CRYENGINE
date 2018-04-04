@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 // -------------------------------------------------------------------------
 //  File name:   CCryDXGLTexture3D.cpp
@@ -23,7 +23,7 @@ CCryDXGLTexture3D::CCryDXGLTexture3D(const D3D11_TEXTURE3D_DESC& kDesc, NCryOpen
 	DXGL_INITIALIZE_INTERFACE(D3D11Texture3D)
 }
 
-#if CRY_OPENGL_SINGLE_CONTEXT
+#if OGL_SINGLE_CONTEXT
 
 CCryDXGLTexture3D::CCryDXGLTexture3D(const D3D11_TEXTURE3D_DESC& kDesc, NCryOpenGL::SInitialDataCopy* pInitialData, CCryDXGLDevice* pDevice)
 	: CCryDXGLTextureBase(D3D11_RESOURCE_DIMENSION_TEXTURE3D, pInitialData, pDevice)
@@ -38,7 +38,7 @@ CCryDXGLTexture3D::~CCryDXGLTexture3D()
 {
 }
 
-#if CRY_OPENGL_SINGLE_CONTEXT
+#if OGL_SINGLE_CONTEXT
 
 void CCryDXGLTexture3D::Initialize()
 {

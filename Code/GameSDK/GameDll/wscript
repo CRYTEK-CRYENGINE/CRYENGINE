@@ -13,7 +13,7 @@ def build(bld):
 
 		win_lib       = [ 'shell32', 'Gdi32' ],
 
-		use_module       = [ 'CryLobby' ],
+		use_module       = [ 'CryLobby', 'CryPerceptionSystem' ],
 
 		durango_file_list   = 'gamedllsdk_durango.waf_files',
 		durango_lib         = [ 'etwplus', 'ixmlhttprequest2', 'Ws2_32', 'uuid' ],

@@ -110,6 +110,7 @@ class CHUDMissionObjectiveSystem; // TODO : Remove me?
 class CGameBrowser;
 class CGameLobby;
 class CGameLobbyManager;
+class CGameStateRecorder;
 #if IMPLEMENT_PC_BLADES
 class CGameServerLists;
 #endif //IMPLEMENT_PC_BLADES
@@ -387,8 +388,6 @@ public:
 	virtual IGame::ExportFilesInfo ExportLevelData(const char* levelName, const char* missionName) const;
 	virtual void                   LoadExportedLevelData(const char* levelName, const char* missionName);
 
-	virtual void                   RegisterGameFlowNodes();
-	void                           UnregisterGameFlowNodes();
 	// ~IGame
 
 	// IGameFrameworkListener
@@ -645,6 +644,9 @@ public:
 	const GUID* GetPlayerSessionId() const { return &m_playerSessionId; }
 #endif
 
+	void RegisterPhysicsCallbacks();
+	void UnregisterPhysicsCallbacks();
+
 protected:
 
 	//! Difficulty config loading helper
@@ -843,6 +845,7 @@ protected:
 	CMatchmakingTelemetry*    m_pMatchMakingTelemetry;
 	CDataPatchDownloader*     m_pDataPatchDownloader;
 	CGameLocalizationManager* m_pGameLocalizationManager;
+	CGameStateRecorder*       m_pGameStateRecorder;
 #if USE_LAGOMETER
 	CLagOMeter*               m_pLagOMeter;
 #endif
@@ -903,6 +906,8 @@ public:
 	TStringStringMap* GetVariantOptions() { return &m_variantOptions; }
 
 private:
+	static int OnCreatePhysicalEntityLogged(const EventPhys* pEvent);
+
 	TStringStringMap m_variantOptions;
 
 	typedef std::map<CryFixedStringT<128>, int> TRichPresenceMap;

@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #ifndef LookAtSimple_h
 #define LookAtSimple_h
@@ -24,7 +24,7 @@ public:
 	CRYINTERFACE_ADD(IAnimationPoseModifier)
 	CRYINTERFACE_END()
 
-	CRYGENERATE_CLASS(CLookAtSimple, "AnimationPoseModifier_LookAtSimple", 0xba7e2a809970435f, 0xb6679c08df616d74);
+	CRYGENERATE_CLASS_GUID(CLookAtSimple, "AnimationPoseModifier_LookAtSimple", "ba7e2a80-9970-435f-b667-9c08df616d74"_cry_guid);
 
 	CLookAtSimple();
 	virtual ~CLookAtSimple() {}

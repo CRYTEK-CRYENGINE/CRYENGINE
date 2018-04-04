@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 /*************************************************************************
    -------------------------------------------------------------------------
@@ -38,9 +38,6 @@ public:
 #endif
 	int   aiFlowNodeAlertnessCheck;
 
-	// Disable HUD debug text
-	int cl_DisableHUDText;
-
 	int g_gameplayAnalyst;
 	int g_multiplayerEnableVehicles;
 
@@ -70,9 +67,6 @@ public:
 
 	int g_useSinglePosition;
 	int g_handleEvents;
-	int g_disableInputKeyFlowNodeInDevMode;
-
-	int g_disableSequencePlayback;
 
 	int g_enableMergedMeshRuntimeAreas;
 

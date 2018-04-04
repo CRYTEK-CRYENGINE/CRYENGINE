@@ -17,7 +17,7 @@ namespace CryLinkService
 			CRYINTERFACE_ADD(IFramework)
 		CRYINTERFACE_END()
 
-		CRYGENERATE_CLASS(CCryLinkFramework, CRY_LINK_EXTENSION_CRYCLASS_NAME, 0x8edceb7a34a74853, 0xbbd8cf7d2599eeab)
+		CRYGENERATE_CLASS_GUID(CCryLinkFramework, CRY_LINK_EXTENSION_CRYCLASS_NAME, "8edceb7a-34a7-4853-bbd8-cf7d2599eeab"_cry_guid)
 
 	public:
 		virtual ~CCryLinkFramework();

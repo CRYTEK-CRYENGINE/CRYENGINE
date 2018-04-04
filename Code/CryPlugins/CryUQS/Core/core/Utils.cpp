@@ -4,20 +4,25 @@
 
 // *INDENT-OFF* - <hard to read code and declarations due to inconsistent indentation>
 
-namespace uqs
+namespace UQS
 {
-	namespace core
+	namespace Core
 	{
 
-		client::IItemFactory* CUtils::FindItemFactoryByType(const shared::CTypeInfo& type) const
+		Client::IItemFactory* CUtils::FindItemFactoryByType(const Shared::CTypeInfo& type) const
 		{
 			auto it = m_type2itemFactory.find(type);
 			return (it == m_type2itemFactory.cend()) ? nullptr : it->second;
 		}
 
-		void CUtils::OnFactoryRegistered(client::IItemFactory* freshlyRegisteredFactory)
+		const IQueryFactory& CUtils::GetDefaultQueryFactory() const
 		{
-			m_type2itemFactory[freshlyRegisteredFactory->GetItemType()] = freshlyRegisteredFactory;
+			return CQueryFactoryBase::GetDefaultQueryFactory();
+		}
+
+		void CUtils::OnFactoryRegistered(Client::IItemFactory* pFreshlyRegisteredFactory)
+		{
+			m_type2itemFactory[pFreshlyRegisteredFactory->GetItemType()] = pFreshlyRegisteredFactory;
 		}
 
 		void CUtils::SubscribeToStuffInHub(CHub& hub)

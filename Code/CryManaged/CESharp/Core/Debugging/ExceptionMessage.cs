@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Diagnostics;
 using System.Windows.Forms;
 
@@ -39,7 +39,7 @@ namespace CryEngine
 				uxContinueBtn.Enabled = false;
 		}
 
-		void OnContinueButtonPressed(Object sender, EventArgs e)
+		void OnContinueButtonPressed(object sender, EventArgs e)
 		{
 			Global.gEnv.pHardwareMouse.UseSystemCursor(false);
 			Close();

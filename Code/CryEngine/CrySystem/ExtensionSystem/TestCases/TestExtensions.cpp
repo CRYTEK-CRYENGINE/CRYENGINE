@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #include "StdAfx.h"
 #include "TestExtensions.h"
@@ -15,7 +15,7 @@ namespace TestComposition
 {
 struct ITestExt1 : public ICryUnknown
 {
-	CRYINTERFACE_DECLARE(ITestExt1, 0x9d9e0dcfa5764cb0, 0xa73701595f75bd32);
+	CRYINTERFACE_DECLARE_GUID(ITestExt1, "9d9e0dcf-a576-4cb0-a737-01595f75bd32"_cry_guid);
 
 	virtual void Call1() const = 0;
 };
@@ -28,7 +28,7 @@ class CTestExt1 : public ITestExt1
 	CRYINTERFACE_ADD(ITestExt1)
 	CRYINTERFACE_END()
 
-	CRYGENERATE_CLASS(CTestExt1, "TestExt1", 0x43b04e7cc1be45ca, 0x9df6ccb1c0dc1ad8)
+	CRYGENERATE_CLASS_GUID(CTestExt1, "TestExt1", "43b04e7c-c1be-45ca-9df6-ccb1c0dc1ad8"_cry_guid)
 
 public:
 	virtual void Call1() const;
@@ -58,7 +58,7 @@ void CTestExt1::Call1() const
 
 struct ITestExt2 : public ICryUnknown
 {
-	CRYINTERFACE_DECLARE(ITestExt2, 0x8eb7a4b399874b9c, 0xb96bd6da7a8c72f9);
+	CRYINTERFACE_DECLARE_GUID(ITestExt2, "8eb7a4b3-9987-4b9c-b96b-d6da7a8c72f9"_cry_guid);
 
 	virtual void Call2() = 0;
 };
@@ -71,7 +71,7 @@ class CTestExt2 : public ITestExt2
 	CRYINTERFACE_ADD(ITestExt2)
 	CRYINTERFACE_END()
 
-	CRYGENERATE_CLASS(CTestExt2, "TestExt2", 0x25b3ebf8f1754b9a, 0xb5494e3da7cdd80f);
+	CRYGENERATE_CLASS_GUID(CTestExt2, "TestExt2", "25b3ebf8-f175-4b9a-b549-4e3da7cdd80f"_cry_guid);
 
 public:
 	virtual void Call2();
@@ -101,7 +101,7 @@ void CTestExt2::Call2()
 
 class CComposed : public ICryUnknown
 {
-	CRYGENERATE_CLASS(CComposed, "Composed", 0x0439d74b8dcd4b7f, 0x9287dcdf7e26a3a5)
+	CRYGENERATE_CLASS_GUID(CComposed, "Composed", "0439d74b-8dcd-4b7f-9287-dcdf7e26a3a5"_cry_guid)
 
 	CRYCOMPOSITE_BEGIN()
 	CRYCOMPOSITE_ADD(m_pTestExt1, "Ext1")
@@ -134,7 +134,7 @@ CComposed::~CComposed()
 
 struct ITestExt3 : public ICryUnknown
 {
-	CRYINTERFACE_DECLARE(ITestExt3, 0xdd017935a2134898, 0xbd2fffa145551876);
+	CRYINTERFACE_DECLARE_GUID(ITestExt3, "dd017935-a213-4898-bd2f-ffa145551876"_cry_guid);
 	virtual void Call3() = 0;
 };
 
@@ -142,7 +142,7 @@ DECLARE_SHARED_POINTERS(ITestExt3);
 
 class CTestExt3 : public ITestExt3
 {
-	CRYGENERATE_CLASS(CTestExt3, "TestExt3", 0xeceab40bc4bb4988, 0xa9f63c1db85a69b1);
+	CRYGENERATE_CLASS_GUID(CTestExt3, "TestExt3", "eceab40b-c4bb-4988-a9f6-3c1db85a69b1"_cry_guid);
 
 	CRYINTERFACE_BEGIN()
 	CRYINTERFACE_ADD(ITestExt3)
@@ -176,7 +176,7 @@ void CTestExt3::Call3()
 
 class CComposed2 : public ICryUnknown
 {
-	CRYGENERATE_CLASS(CComposed2, "Composed2", 0x0439d74b8dcd4b7e, 0x9287dcdf7e26a3a6)
+	CRYGENERATE_CLASS_GUID(CComposed2, "Composed2", "0439d74b-8dcd-4b7e-9287-dcdf7e26a3a6"_cry_guid)
 
 	CRYCOMPOSITE_BEGIN()
 	CRYCOMPOSITE_ADD(m_pTestExt3, "Ext3")
@@ -211,7 +211,7 @@ class CTestExt4 : public ITestExt1, public ITestExt2, public ITestExt3
 	CRYINTERFACE_ADD(ITestExt3)
 	CRYINTERFACE_END()
 
-	CRYGENERATE_CLASS(CTestExt4, "TestExt4", 0x43204e7cc1be45ca, 0x9df4ccb1c0dc1ad8)
+	CRYGENERATE_CLASS_GUID(CTestExt4, "TestExt4", "43204e7c-c1be-45ca-9df4-ccb1c0dc1ad8"_cry_guid)
 
 public:
 	virtual void Call1() const;
@@ -253,7 +253,7 @@ void CTestExt4::Call3()
 
 class CMegaComposed : public CComposed, public CComposed2
 {
-	CRYGENERATE_CLASS(CMegaComposed, "MegaComposed", 0x512787559f84503, 0x421ac1af66f2fb6f)
+	CRYGENERATE_CLASS_GUID(CMegaComposed, "MegaComposed", "05127875-59f8-4503-421a-c1af66f2fb6f"_cry_guid)
 
 	CRYCOMPOSITE_BEGIN()
 	CRYCOMPOSITE_ADD(m_pTestExt4, "Ext4")
@@ -332,7 +332,7 @@ class CFoobar : public IFoobar
 	CRYINTERFACE_ADD(IFoobar)
 	CRYINTERFACE_END()
 
-	CRYGENERATE_CLASS(CFoobar, "Foobar", 0x76c8dd6d16634531, 0x95d3b1cfabcf7ef4)
+	CRYGENERATE_CLASS_GUID(CFoobar, "Foobar", "76c8dd6d-1663-4531-95d3-b1cfabcf7ef4"_cry_guid)
 
 public:
 	virtual void Foo();
@@ -391,7 +391,7 @@ class CRaboof : public IRaboof
 	CRYINTERFACE_ADD(IRaboof)
 	CRYINTERFACE_END()
 
-	CRYGENERATE_SINGLETONCLASS(CRaboof, "Raabof", 0xba482ce12b2e4309, 0x8238ed8b52cb1f1e)
+	CRYGENERATE_SINGLETONCLASS_GUID(CRaboof, "Raabof", "ba482ce1-2b2e-4309-8238-ed8b52cb1f1e"_cry_guid)
 
 public:
 	virtual void Rab();
@@ -436,7 +436,7 @@ class CAB : public IA, public IB
 	CRYINTERFACE_ADD(IB)
 	CRYINTERFACE_END()
 
-	CRYGENERATE_CLASS(CAB, "AB", 0xb9e54711a64448c0, 0xa4819b4ed3024d04)
+	CRYGENERATE_CLASS_GUID(CAB, "AB", "b9e54711-a644-48c0-a481-9b4ed3024d04"_cry_guid)
 
 public:
 	virtual void A();
@@ -475,7 +475,7 @@ class CABC : public CAB, public IC
 	CRYINTERFACE_ADD(IC)
 	CRYINTERFACE_ENDWITHBASE(CAB)
 
-	CRYGENERATE_CLASS(CABC, "ABC", 0x4e61feae11854be7, 0xa16157c5f8baadd9)
+	CRYGENERATE_CLASS_GUID(CABC, "ABC", "4e61feae-1185-4be7-a161-57c5f8baadd9"_cry_guid)
 
 public:
 	virtual void C();
@@ -510,7 +510,7 @@ class CCustomC : public ICustomC
 	CRYINTERFACE_ADD(ICustomC)
 	CRYINTERFACE_END()
 
-	CRYGENERATE_CLASS(CCustomC, "CustomC", 0xee61760b98a44b71, 0xa05e7372b44bd0fd)
+	CRYGENERATE_CLASS_GUID(CCustomC, "CustomC", "ee61760b-98a4-4b71-a05e-7372b44bd0fd"_cry_guid)
 
 public:
 	virtual void C();
@@ -548,7 +548,7 @@ class CMultiBase : public CAB, public CCustomC
 	CRYINTERFACE_BEGIN()
 	CRYINTERFACE_ENDWITHBASE2(CAB, CCustomC)
 
-	CRYGENERATE_CLASS(CMultiBase, "MultiBase", 0x75966b8f98644d42, 0x8fbdd489e94cc29e)
+	CRYGENERATE_CLASS_GUID(CMultiBase, "MultiBase", "75966b8f-9864-4d42-8fbd-d489e94cc29e"_cry_guid)
 
 public:
 	virtual void A();
@@ -584,7 +584,7 @@ static void TestComplex()
 {
 	{
 		ICPtr p;
-		if (CryCreateClassInstance(MAKE_CRYGUID(0x75966b8f98644d42, 0x8fbdd489e94cc29e), p))
+		if (CryCreateClassInstance("75966b8f-9864-4d42-8fbd-d489e94cc29e"_cry_guid, p))
 		{
 			p->C();
 		}
@@ -600,7 +600,7 @@ static void TestComplex()
 
 	{
 		IFoobarPtr p;
-		if (CryCreateClassInstance(MAKE_CRYGUID(0x75966b8f98644d42, 0x8fbdd489e94cc29e), p))
+		if (CryCreateClassInstance("75966b8f-9864-4d42-8fbd-d489e94cc29e"_cry_guid, p))
 		{
 			p->Foo();
 		}
@@ -720,7 +720,7 @@ public:
 	}
 	virtual const CryClassID& GetClassID() const
 	{
-		static const CryClassID cid = { 0x73c3ab0042e6488aull, 0x89ca1a3763365565ull };
+		static constexpr CryGUID cid = "73c3ab00-42e6-488a-89ca-1a3763365565"_cry_guid;
 		return cid;
 	}
 	virtual bool ClassSupports(const CryInterfaceID& iid) const
@@ -860,7 +860,7 @@ void TestExtensions(ICryFactoryRegistryImpl* pReg)
 	ICryFactory* pF[4];
 	size_t numFactories = 4;
 	pReg->IterateFactories(cryiidof<IA>(), pF, numFactories);
-	pReg->IterateFactories(MAKE_CRYGUID(-1, -1), pF, numFactories);
+	pReg->IterateFactories("ffffffff-ffff-ffff-ffff-ffffffffffff"_cry_guid, pF, numFactories);
 
 	numFactories = (size_t)-1;
 	pReg->IterateFactories(cryiidof<ICryUnknown>(), 0, numFactories);
@@ -869,13 +869,13 @@ void TestExtensions(ICryFactoryRegistryImpl* pReg)
 	pReg->RegisterCallback(&callback1);
 	pReg->UnregisterCallback(&callback1);
 
-	pReg->GetFactory(MAKE_CRYGUID(0xee61760b98a44b71, 0xa05e7372b44bd0fd));
+	pReg->GetFactory("ee61760b-98a4-4b71-a05e-7372b44bd0fd"_cry_guid);
 	pReg->GetFactory("CustomC");
 	pReg->GetFactory("ABC");
 	pReg->GetFactory(nullptr);
 
 	pReg->GetFactory("DontLikeMacros");
-	pReg->GetFactory(MAKE_CRYGUID(0x73c3ab0042e6488a, 0x89ca1a3763365565));
+	pReg->GetFactory("73c3ab00-42e6-488a-89ca-1a3763365565"_cry_guid);
 
 	TestExtension::TestFoobar();
 	TestExtension::TestRaboof();

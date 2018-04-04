@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #include "StdAfx.h"
 #include "FeatureMotion.h"
@@ -144,17 +144,14 @@ private:
 
 		CParticleContainer& container = context.m_container;
 		IOVec3Stream positions = container.GetIOVec3Stream(EPVF_Position);
-		const floatv deltaTime = ToFloatv(context.m_deltaTime);
 		const float maxSize = (float)(1 << 12);
 		const float minSize = rcp_fast(maxSize); // small enough and prevents SIMD exceptions
 		const floatv time = ToFloatv(fmodf(context.m_time * m_rate * minSize, 1.0f) * maxSize);
-		const floatv invSize = ToFloatv(rcp_fast(MAX(minSize, float(m_size))));
+		const floatv invSize = ToFloatv(rcp_fast(std::max(minSize, float(m_size))));
 		const floatv speed = ToFloatv(m_speed);
-		const floatv rate = ToFloatv(m_rate);
+		const floatv delta = ToFloatv(m_rate * context.m_deltaTime);
 		const uint octaves = m_octaves;
-		const floatv scalex = ToFloatv(m_scale.x);
-		const floatv scaley = ToFloatv(m_scale.y);
-		const floatv scalez = ToFloatv(m_scale.z);
+		const Vec3v scale = ToVec3v(m_scale);
 		const IFStream ages = container.GetIFStream(EPDT_NormalAge);
 
 		CRY_PFX2_FOR_ACTIVE_PARTICLESGROUP(context)
@@ -167,12 +164,12 @@ private:
 			sample.x = Mul(position.x, invSize);
 			sample.y = Mul(position.y, invSize);
 			sample.z = Mul(position.z, invSize);
-			sample.w = MAdd(DeltaTime(age, deltaTime), rate, time);
+			sample.w = StartTime(time, delta, age);
 
 			Vec3v fieldSample = Fractal(sample, octaves, fieldFn);
-			fieldSample.x = Mul(fieldSample.x, scalex);
-			fieldSample.y = Mul(fieldSample.y, scaley);
-			fieldSample.z = Mul(fieldSample.z, scalez);
+			fieldSample.x *= scale.x;
+			fieldSample.y *= scale.y;
+			fieldSample.z *= scale.z;
 			const Vec3v velocity1 = MAdd(fieldSample, speed, velocity0);
 			localVelocities.Store(particleGroupId, velocity1);
 		}

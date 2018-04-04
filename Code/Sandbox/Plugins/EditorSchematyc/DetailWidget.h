@@ -3,9 +3,9 @@
 #pragma once
 
 #include <QPropertyTree/ContextList.h>
-#include <Schematyc/Env/IEnvRegistry.h>
-#include <Schematyc/Services/ISettingsManager.h>
-#include <Schematyc/Utils/Signal.h>
+#include <CrySchematyc/Env/IEnvRegistry.h>
+#include <CrySchematyc/Services/ISettingsManager.h>
+#include <CrySchematyc/Utils/Signal.h>
 
 namespace CrySchematycEditor {
 
@@ -22,7 +22,7 @@ struct IDetailItem
 	virtual ~IDetailItem() {}
 
 	virtual EDetailItemType              GetType() const = 0;
-	virtual Schematyc::SGUID             GetGUID() const = 0;
+	virtual CryGUID             GetGUID() const = 0;
 	virtual Serialization::CContextList* GetContextList() = 0;
 	virtual void                         Serialize(Serialization::IArchive& archive) = 0;
 };
@@ -36,7 +36,7 @@ public:
 
 	// IDetailItem
 	virtual EDetailItemType              GetType() const override;
-	virtual Schematyc::SGUID             GetGUID() const override;
+	virtual CryGUID             GetGUID() const override;
 	virtual Serialization::CContextList* GetContextList() override;
 	virtual void                         Serialize(Serialization::IArchive& archive) override;
 	// ~IDetailItem
@@ -53,7 +53,7 @@ public:
 
 	// IDetailItem
 	virtual EDetailItemType              GetType() const override;
-	virtual Schematyc::SGUID             GetGUID() const override;
+	virtual CryGUID             GetGUID() const override;
 	virtual Serialization::CContextList* GetContextList() override;
 	virtual void                         Serialize(Serialization::IArchive& archive) override;
 	// ~IDetailItem

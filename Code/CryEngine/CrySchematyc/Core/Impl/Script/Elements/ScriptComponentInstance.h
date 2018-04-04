@@ -1,24 +1,23 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #pragma once
 
-#include <Schematyc/Script/Elements/IScriptComponentInstance.h>
-#include <Schematyc/SerializationUtils/MultiPassSerializer.h>
-#include <Schematyc/Utils/Transform.h>
+#include <CrySchematyc/Script/Elements/IScriptComponentInstance.h>
+#include <CrySchematyc/SerializationUtils/MultiPassSerializer.h>
+#include <CrySchematyc/Utils/ClassProperties.h>
+#include <CrySchematyc/Utils/Transform.h>
 
 #include "Script/ScriptElementBase.h"
 
 namespace Schematyc
 {
-// Forward declare shared pointers.
-DECLARE_SHARED_POINTERS(IProperties)
 
 class CScriptComponentInstance : public CScriptElementBase<IScriptComponentInstance>, public CMultiPassSerializer
 {
 public:
 
 	CScriptComponentInstance();
-	CScriptComponentInstance(const SGUID& guid, const char* szName, const SGUID& typeGUID);
+	CScriptComponentInstance(const CryGUID& guid, const char* szName, const CryGUID& typeGUID);
 
 	// IScriptElement
 	virtual EScriptElementAccessor GetAccessor() const override;
@@ -29,12 +28,12 @@ public:
 	// ~IScriptElement
 
 	// IScriptComponentInstance
-	virtual SGUID                        GetTypeGUID() const override;
-	virtual ScriptComponentInstanceFlags GetFlags() const override;
+	virtual CryGUID                        GetTypeGUID() const override;
+	virtual ScriptComponentInstanceFlags GetComponentInstanceFlags() const override;
 	virtual bool                         HasTransform() const override;
-	virtual void                         SetTransform(const CTransform& transform) override;
-	virtual const CTransform&  GetTransform() const override;
-	virtual const IProperties* GetProperties() const override;
+	virtual void                         SetTransform(const CTransformPtr& transform) override;
+	virtual const CTransformPtr&         GetTransform() const override;
+	virtual const CClassProperties&      GetProperties() const override;
 	// ~IScriptComponentInstance
 
 protected:
@@ -54,10 +53,11 @@ private:
 private:
 
 	EScriptElementAccessor       m_accessor = EScriptElementAccessor::Private;
-	SGUID                        m_typeGUID;
+	CryGUID                      m_typeGUID;
 	ScriptComponentInstanceFlags m_flags;
 	bool                         m_bHasTransform = false;
-	CTransform                   m_transform;
-	IPropertiesPtr               m_pProperties;
+	CTransformPtr                m_pTransform;
+	CClassProperties             m_properties;
 };
+
 } // Schematyc

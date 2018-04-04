@@ -1,3 +1,2 @@
 EXPORTS
-	RegisterConvertors			@1
-
+	RegisterConverters			@1

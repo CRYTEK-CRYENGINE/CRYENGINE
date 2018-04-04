@@ -64,30 +64,6 @@ if(NOT DEFINED CMAKE_INSTALL_NAME_TOOL)
   mark_as_advanced(CMAKE_INSTALL_NAME_TOOL)
 endif()
 
-# Make sure the combination of SDK and Deployment Target are allowed
-if(CMAKE_OSX_DEPLOYMENT_TARGET)
-  if("${_CMAKE_OSX_SYSROOT_PATH}" MATCHES "/MacOSX([0-9]+\\.[0-9]+)[^/]*\\.sdk")
-    set(_sdk_ver "${CMAKE_MATCH_1}")
-  elseif("${_CMAKE_OSX_SYSROOT_ORIG}" MATCHES "^macosx([0-9]+\\.[0-9]+)$")
-    set(_sdk_ver "${CMAKE_MATCH_1}")
-  elseif("${_CMAKE_OSX_SYSROOT_ORIG}" STREQUAL "/")
-    set(_sdk_ver "${_CURRENT_OSX_VERSION}")
-  else()
-    message(FATAL_ERROR
-      "CMAKE_OSX_DEPLOYMENT_TARGET is '${CMAKE_OSX_DEPLOYMENT_TARGET}' "
-      "but CMAKE_OSX_SYSROOT:\n \"${_CMAKE_OSX_SYSROOT_ORIG}\"\n"
-      "is not set to a MacOSX SDK with a recognized version.  "
-      "Either set CMAKE_OSX_SYSROOT to a valid SDK or set "
-      "CMAKE_OSX_DEPLOYMENT_TARGET to empty.")
-  endif()
-  if(CMAKE_OSX_DEPLOYMENT_TARGET VERSION_GREATER "${_sdk_ver}")
-    message(FATAL_ERROR
-      "CMAKE_OSX_DEPLOYMENT_TARGET (${CMAKE_OSX_DEPLOYMENT_TARGET}) "
-      "is greater than CMAKE_OSX_SYSROOT SDK:\n ${_CMAKE_OSX_SYSROOT_ORIG}\n"
-      "Please set CMAKE_OSX_DEPLOYMENT_TARGET to ${_sdk_ver} or lower.")
-  endif()
-endif()
-
 # Enable shared library versioning.
 set(CMAKE_SHARED_LIBRARY_SONAME_C_FLAG "-install_name")
 

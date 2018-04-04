@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #include "StdAfx.h"
 #include "PolygonClipContext.h"
@@ -72,11 +72,11 @@ struct SMergedMeshGroupChunk
 struct SBrushChunk : public SRenderNodeChunk
 {
 	SBrushChunk() { m_flags = 0; }
-	Matrix34 m_Matrix;
-	int16    m_collisionClassIdx;
-	uint16   m_flags;
-	int32    m_nMaterialId;
-	int32    m_nMaterialLayers;
+	Matrix34f m_Matrix;
+	int16     m_collisionClassIdx;
+	uint16    m_flags;
+	int32     m_nMaterialId;
+	int32     m_nMaterialLayers;
 
 	AUTO_STRUCT_INFO_LOCAL;
 };
@@ -122,7 +122,7 @@ struct SWaterVolumeChunk : public SRenderNodeChunk
 	// fog properties
 	f32   m_fogDensity;
 	Vec3  m_fogColor;
-	Plane m_fogPlane;
+	Planef m_fogPlane;
 	f32   m_fogShadowing;
 
 	// caustic propeties
@@ -169,8 +169,8 @@ struct SWaterWaveChunk : public SRenderNodeChunk
 	int32 m_nID;
 
 	// Geometry properties
-	Matrix34 m_pWorldTM;
-	uint32   m_nVertexCount;
+	Matrix34f m_pWorldTM;
+	uint32    m_nVertexCount;
 
 	f32      m_fUScale;
 	f32      m_fVScale;
@@ -1056,7 +1056,7 @@ void COctreeNode::LoadSingleObject(byte*& pPtr, std::vector<IStatObj*>* pStatObj
 		memcpy(&properties.m_explicitRightUpFront, &pChunk->m_explicitRightUpFront, sizeof(pChunk->m_explicitRightUpFront));
 		memcpy(&properties.m_radius, &pChunk->m_radius, sizeof(pChunk->m_radius));
 
-		uint8 depth = MIN(pChunk->m_depth, 254);
+		uint8 depth = std::min<size_t>(pChunk->m_depth, 254);
 		properties.m_depth = 1.f - 1.f / 255.f * depth;
 
 		IMaterial* pMaterial(CObjManager::GetItemPtr(pMatTable, pChunk->m_nMaterialId));
@@ -1132,7 +1132,7 @@ void COctreeNode::LoadSingleObject(byte*& pPtr, std::vector<IStatObj*>* pStatObj
 		int auxCntSrc = pChunk->m_volumeTypeAndMiscBits >> volumeTypeAndMiscBitShift, auxCntDst;
 		float* pAuxDataDst = pObj->GetAuxSerializationDataPtr(auxCntDst);
 		const float* pAuxDataSrc = StepData<float>(pPtr, auxCntSrc, eEndian);
-		memcpy(pAuxDataDst, pAuxDataDst, min(auxCntSrc, auxCntDst) * sizeof(float));
+		memcpy(pAuxDataDst, pAuxDataSrc, min(auxCntSrc, auxCntDst) * sizeof(float));
 
 		// read common node data
 		pObj->SetBBox(pChunk->m_WSBBox);

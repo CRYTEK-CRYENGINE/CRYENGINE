@@ -3,16 +3,16 @@
 #include "StdAfx.h"
 #include "DisplayOptions.h"
 #include "SandboxPlugin.h"
-#include <QPropertyTree/QPropertyTree.h>
+#include <Serialization/QPropertyTree/QPropertyTree.h>
 #include <QVBoxLayout>
 #include <QVariant>
 #include <QJsonDocument>
 
-#include <yasli/Archive.h>
-#include <yasli/STL.h>
-#include <yasli/Enum.h>
-#include <yasli/JSONIArchive.h>
-#include <yasli/JSONOArchive.h>
+#include <CrySerialization/yasli/Archive.h>
+#include <CrySerialization/yasli/STL.h>
+#include <CrySerialization/yasli/Enum.h>
+#include <CrySerialization/yasli/JSONIArchive.h>
+#include <CrySerialization/yasli/JSONOArchive.h>
 
 YASLI_ENUM_BEGIN_NESTED(SViewSettings, EViewportMode, "ViewportMode")
 YASLI_ENUM(SViewSettings::eViewportMode_RcOutput, "targetView", "Game");
@@ -76,7 +76,6 @@ CDisplayOptionsWidget::CDisplayOptionsWidget(QWidget* pParent)
 	m_pPropertyTree->setCompact(false);
 	m_pPropertyTree->setExpandLevels(1);
 	m_pPropertyTree->setSliderUpdateDelay(5);
-	m_pPropertyTree->setAutoRevert(false);
 	m_pPropertyTree->setValueColumnWidth(0.6f);
 	m_pPropertyTree->attach(Serialization::SStruct(*m_pOptions));
 

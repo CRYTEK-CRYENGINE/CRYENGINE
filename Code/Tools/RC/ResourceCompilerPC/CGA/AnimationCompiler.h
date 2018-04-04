@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "IConvertor.h"
+#include "IConverter.h"
 #include "../CryEngine/Cry3DEngine/CGF/CGFLoader.h"
 
 #include "AnimationInfoLoader.h"
@@ -78,14 +78,14 @@ struct AnimationJob
 
 class ICryXML;
 
-class CAnimationConvertor : public IConvertor
+class CAnimationConverter : public IConverter
 {
 public:
 
-	CAnimationConvertor(ICryXML* pXMLParser, IPakSystem* pPakSystem, IResourceCompiler* pRC);
+	CAnimationConverter(ICryXML* pXMLParser, IPakSystem* pPakSystem, IResourceCompiler* pRC);
 
-	// interface IConvertor ------------------------------------------------------------
-	virtual void Init(const ConvertorInitContext& context);
+	// interface IConverter ------------------------------------------------------------
+	virtual void Init(const ConverterInitContext& context);
 
 	virtual void DeInit();
 	
@@ -151,7 +151,7 @@ private:
 class CAnimationCompiler : public ICompiler
 {
 public:
-	explicit CAnimationCompiler(CAnimationConvertor* convertor);
+	explicit CAnimationCompiler(CAnimationConverter* converter);
 	virtual ~CAnimationCompiler();
 
 	// interface ICompiler -------------------------------------------------------------
@@ -164,7 +164,7 @@ public:
 	virtual bool Process();
 	// ---------------------------------------------------------------------------
 
-	CAnimationConvertor* Convertor() const{ return m_convertor; }
+	CAnimationConverter* Converter() const{ return m_converter; }
 
 private:
 	string GetOutputFileNameOnly() const;
@@ -174,7 +174,7 @@ private:
 	bool CheckIfAllFilesAreUpToDate(const std::vector<string>& upToDateSrcFilenames, const std::vector<string>& upToDateCheckFilenames);
 	void HandleUpToDateCheckFilesOnReturn(const std::vector<string>& upToDateSrcFilenames, const std::vector<string>& upToDateCheckFilenames);
 
-	CAnimationConvertor* m_convertor;
+	CAnimationConverter* m_converter;
 	ICryXML* m_pXMLParser;
 	ConvertContext m_CC;
 };

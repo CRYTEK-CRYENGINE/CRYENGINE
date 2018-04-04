@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #pragma once
 
@@ -6,19 +6,10 @@
 
 template<typename F>
 struct Diag33_tpl
+	: INumberArray<F, 3>
 {
 	F x, y, z;
-
-	ILINE Diag33_tpl()
-#ifdef _DEBUG
-		: x(std::numeric_limits<F>::signaling_NaN())
-		, y(std::numeric_limits<F>::signaling_NaN())
-		, z(std::numeric_limits<F>::signaling_NaN())
-#else
-	// No initialization
-#endif
-	{
-	}
+	ILINE Diag33_tpl() {}
 
 	explicit Diag33_tpl(type_identity)
 		: x(1)
@@ -53,14 +44,6 @@ struct Diag33_tpl
 		x = v.x;
 		y = v.y;
 		z = v.z;
-		return *this;
-	}
-
-	template<class F1> Diag33_tpl& operator=(const Diag33_tpl<F1>& diag)
-	{
-		x = diag.x;
-		y = diag.y;
-		z = diag.z;
 		return *this;
 	}
 
@@ -102,14 +85,6 @@ struct Diag33_tpl
 	}
 
 	F          determinant() const { return x * y * z; }
-
-	ILINE bool IsValid() const
-	{
-		if (!NumberValid(x)) return false;
-		if (!NumberValid(y)) return false;
-		if (!NumberValid(z)) return false;
-		return true;
-	}
 
 	template<class F1>
 	Diag33_tpl& operator*=(const Diag33_tpl<F1>& other)
@@ -231,22 +206,4 @@ template<class F1, class F2>
 Vec3_tpl<F1> operator*(const Vec3_tpl<F1>& vec, const Diag33_tpl<F2>& mtx)
 {
 	return Vec3_tpl<F1>(mtx.x * vec.x, mtx.y * vec.y, mtx.z * vec.z);
-}
-
-template<class F1, class F2>
-bool operator==(const Diag33_tpl<F1>& lhs, const Diag33_tpl<F2>& rhs)
-{
-	return lhs.x == rhs.x && lhs.y == rhs.y && lhs.z == rhs.z;
-}
-
-template<class F1, class F2>
-bool operator!=(const Diag33_tpl<F1>& lhs, const Diag33_tpl<F2>& rhs)
-{
-	return !(lhs == rhs);
-}
-
-template<class F>
-bool IsEquivalent(const Diag33_tpl<F>& lhs, const Diag33_tpl<F>& rhs, f32 epsilon = VEC_EPSILON)
-{
-	return ((fabs_tpl(lhs.x - rhs.x) <= epsilon) && (fabs_tpl(lhs.y - rhs.y) <= epsilon) && (fabs_tpl(lhs.z - rhs.z) <= epsilon));
 }

@@ -17,6 +17,7 @@
 %feature("director") ITouchEventListener;
 %feature("director") IKinectInputAudioListener;
 %feature("director") IKinectInputListener;
+%ignore IInputEngineModule;
 %ignore CreateInput;
 %include "../../../../CryEngine/CryCommon/CryInput/IInput.h"
 %feature("director") IHardwareMouseEventListener;

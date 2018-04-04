@@ -460,9 +460,9 @@ private:
 									const bool bNotInPoolCorrect = bNotInPool == !pActor->IsPoolEntity();
 
 									m_widget.m_pTable->AddData(eSTC_Name, textColor, "  %s", pActor->GetEntity()->GetName());
-									m_widget.m_pTable->AddData(eSTC_Alive, bAliveCorrect ? textColor : Col_Red, bAlive ? YES : NO);
-									m_widget.m_pTable->AddData(eSTC_AIProxyEnabled, bAIEnabledCorrect ? textColor : Col_Red, bAIEnabled ? YES : NO);
-									m_widget.m_pTable->AddData(eSTC_OutOfEntityPool, bNotInPoolCorrect ? textColor : Col_Red, bNotInPool ? YES : NO);
+									m_widget.m_pTable->AddData(eSTC_Alive, bAliveCorrect ? textColor : ColorB(Col_Red), bAlive ? YES : NO);
+									m_widget.m_pTable->AddData(eSTC_AIProxyEnabled, bAIEnabledCorrect ? textColor : ColorB(Col_Red), bAIEnabled ? YES : NO);
+									m_widget.m_pTable->AddData(eSTC_OutOfEntityPool, bNotInPoolCorrect ? textColor : ColorB(Col_Red), bNotInPool ? YES : NO);
 								}
 								else
 								{

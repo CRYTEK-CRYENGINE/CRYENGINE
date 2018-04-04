@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 // -------------------------------------------------------------------------
 //  File name:   CryDXGL.hpp
@@ -64,17 +64,13 @@
 #define DXGL_INPUT_GLSL !DXGL_FULL_EMULATION
 
 // TODO: Investigate what prevents framebuffer completeness in some framebuffers with depth stencil bigger than color buffers (which is ok according to the standard)
-#define CRY_OPENGL_DO_NOT_ALLOW_LARGER_RT
-
-#if CRY_PLATFORM_APPLE || CRY_PLATFORM_LINUX || CRY_PLATFORM_ANDROID
-	#define DXGL_USE_SDL
-#endif
+#define OGL_DO_NOT_ALLOW_LARGER_RT
 
 typedef ID3D10Blob* LPD3D10BLOB;
 typedef ID3D10Blob  ID3DBlob;
 
 #if DXGL_FULL_EMULATION
-	#if defined(OPENGL)
+	#if CRY_RENDERER_OPENGL
 		#define DXGL_API DXGL_IMPORT
 	#else
 		#define DXGL_API DXGL_EXPORT
@@ -194,7 +190,7 @@ DXGL_EXTERN DXGL_API void DXGLProfileLabelPop(const char* szName);
 // number of threads expected to call device methods at the same time.
 void DXGLInitialize(uint32 uNumSharedContexts);
 
-	#if CRY_OPENGL_SINGLE_CONTEXT
+	#if OGL_SINGLE_CONTEXT
 
 // Direct3D mandates that access to the device context by multiple threads
 // has to be serialized. DXGL additionally requires that each thread taking
@@ -243,7 +239,7 @@ void DXGLIssueFrameFences(ID3D11Device* pDevice);
 
 #endif //!DXGL_FULL_EMULATION
 
-#if defined(DXGL_USE_SDL)
+#if defined(USE_SDL2_VIDEO)
 DXGL_EXTERN DXGL_API bool DXGLCreateSDLWindow(const char* szTitle, uint32 uWidth, uint32 uHeight, bool bFullScreen, HWND* pHandle);
 DXGL_EXTERN DXGL_API void DXGLDestroySDLWindow(HWND kHandle);
 #endif
@@ -277,7 +273,7 @@ DXGL_EXTERN DXGL_API HRESULT WINAPI      DXTraceW(const char* strFile, DWORD dwL
 
 #if !DXGL_FULL_EMULATION
 
-	#if CRY_OPENGL_SINGLE_CONTEXT
+	#if OGL_SINGLE_CONTEXT
 
 struct SDXGLDeviceContextThreadLocalHandle
 {

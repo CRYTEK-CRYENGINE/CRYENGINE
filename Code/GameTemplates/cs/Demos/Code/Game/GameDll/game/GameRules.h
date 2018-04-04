@@ -31,7 +31,6 @@ public:
 	virtual void HandleEvent(const SGameObjectEvent&) override {}
 	virtual void ProcessEvent(SEntityEvent&) override {}
 	virtual void SetChannelId(uint16 id) override {}
-	virtual void SetAuthority(bool auth) override {}
 	virtual void PostUpdate(float frameTime) override {}
 	virtual void PostRemoteSpawn() override {}
 	virtual void GetMemoryUsage(ICrySizer* s) const override;

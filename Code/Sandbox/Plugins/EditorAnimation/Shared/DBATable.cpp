@@ -7,8 +7,8 @@
 #include <CryString/CryPath.h>
 #include "DBATable.h"
 #include "Serialization.h"
-#include <yasli/JSONIArchive.h>
-#include <yasli/JSONOArchive.h>
+#include <CrySerialization/yasli/JSONIArchive.h>
+#include <CrySerialization/yasli/JSONOArchive.h>
 #include <CrySystem/XML/IXml.h>
 
 void SDBAEntry::Serialize(IArchive& ar)

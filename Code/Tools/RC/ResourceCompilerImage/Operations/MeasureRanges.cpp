@@ -1,4 +1,5 @@
 // Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved.
+
 #include "StdAfx.h"
 #include <assert.h>                         // assert()
 
@@ -170,7 +171,7 @@ bool ImageObject::HasSingleColor(int mip, const Vec4& color, float epsilon) cons
 
 		for (uint32 y = 0; y < height; ++y)
 		{
-			const Vec4* pC = (const Vec4 *)&buf[pitch * y];
+			const Vec4f* const pC = (const Vec4f *)&buf[pitch * y];
 
 			for (uint32 x = 0; x < width; ++x)
 			{

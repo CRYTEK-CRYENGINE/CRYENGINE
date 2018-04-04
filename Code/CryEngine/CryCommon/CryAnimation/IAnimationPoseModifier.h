@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 // -------------------------------------------------------------------------
 //  File name:   AnimationPoseModifier.h
@@ -173,7 +173,7 @@ struct IAnimationPoseData
 struct IAnimationPoseModifier :
 	public ICryUnknown
 {
-	CRYINTERFACE_DECLARE(IAnimationPoseModifier, 0x22fe47755e42447f, 0xbab6274ed39af449);
+	CRYINTERFACE_DECLARE_GUID(IAnimationPoseModifier, "22fe4775-5e42-447f-bab6-274ed39af449"_cry_guid);
 
 	// <interfuscator:shuffle>
 	//! Command Buffer. Pose data will not be available at this stage.
@@ -199,7 +199,7 @@ DECLARE_SHARED_POINTERS(IAnimationPoseModifier);
 struct IAnimationPoseModifierSetup :
 	public IAnimationSerializable
 {
-	CRYINTERFACE_DECLARE(IAnimationPoseModifierSetup, 0x59b4f3ae61974bee, 0xba60d361b7975e69)
+	CRYINTERFACE_DECLARE_GUID(IAnimationPoseModifierSetup, "59b4f3ae-6197-4bee-ba60-d361b7975e69"_cry_guid)
 
 	// <interfuscator:shuffle>
 	virtual IAnimationPoseModifier* GetEntry(int index) = 0;
@@ -214,7 +214,7 @@ DECLARE_SHARED_POINTERS(IAnimationPoseModifierSetup);
 struct IAnimationOperatorQueue :
 	public IAnimationPoseModifier
 {
-	CRYINTERFACE_DECLARE(IAnimationOperatorQueue, 0x686a56d5215d44dd, 0xa166ccf13327d8a2);
+	CRYINTERFACE_DECLARE_GUID(IAnimationOperatorQueue, "686a56d5-215d-44dd-a166-ccf13327d8a2"_cry_guid);
 
 	enum EOp
 	{
@@ -246,7 +246,7 @@ DECLARE_SHARED_POINTERS(IAnimationOperatorQueue);
 struct IAnimationPoseBlenderDir :
 	public IAnimationPoseModifier
 {
-	CRYINTERFACE_DECLARE(IAnimationPoseBlenderDir, 0x1725a49dbd684ff4, 0x852cd0d4b7f86c28);
+	CRYINTERFACE_DECLARE_GUID(IAnimationPoseBlenderDir, "1725a49d-bd68-4ff4-852c-d0d4b7f86c28"_cry_guid);
 
 	// <interfuscator:shuffle>
 	virtual void SetState(bool state) = 0;
@@ -270,7 +270,7 @@ DECLARE_SHARED_POINTERS(IAnimationPoseBlenderDir);
 struct IAnimationGroundAlignment :
 	public IAnimationPoseModifier
 {
-	CRYINTERFACE_DECLARE(IAnimationGroundAlignment, 0xb8bf63b98d304d7b, 0xaaa5fbdf665715b2);
+	CRYINTERFACE_DECLARE_GUID(IAnimationGroundAlignment, "b8bf63b9-8d30-4d7b-aaa5-fbdf665715b2"_cry_guid);
 
 	virtual void SetData(const bool bAlignSkeletonVertical, const f32 rootHeight, const Plane& planeLeft, const Plane& planeRight) = 0;
 };
@@ -282,7 +282,7 @@ DECLARE_SHARED_POINTERS(IAnimationGroundAlignment);
 struct IAnimationPoseAlignerChain :
 	public IAnimationPoseModifier
 {
-	CRYINTERFACE_DECLARE(IAnimationPoseAlignerChain, 0xf5d18a45824945b5, 0x9f68e45aa9687c4a);
+	CRYINTERFACE_DECLARE_GUID(IAnimationPoseAlignerChain, "f5d18a45-8249-45b5-9f68-e45aa9687c4a"_cry_guid);
 
 	enum EType
 	{
@@ -321,7 +321,7 @@ DECLARE_SHARED_POINTERS(IAnimationPoseAlignerChain);
 struct IAnimationPoseMatching :
 	public IAnimationPoseModifier
 {
-	CRYINTERFACE_DECLARE(IAnimationPoseMatching, 0xa988bda559404438, 0xb69a1f57e1301815);
+	CRYINTERFACE_DECLARE_GUID(IAnimationPoseMatching, "a988bda5-5940-4438-b69a-1f57e1301815"_cry_guid);
 
 	// <interfuscator:shuffle>
 	virtual void SetAnimations(const uint32* pAnimationIds, uint32 count) = 0;
@@ -336,16 +336,16 @@ DECLARE_SHARED_POINTERS(IAnimationPoseMatching);
 struct IAnimationPoseAligner :
 	public ICryUnknown
 {
-	CRYINTERFACE_DECLARE(IAnimationPoseAligner, 0x5c852e726d447cb0, 0x9f7f5c80c41b429a);
+	CRYINTERFACE_DECLARE_GUID(IAnimationPoseAligner, "5c852e72-6d44-7cb0-9f7f-5c80c41b429a"_cry_guid);
 
 	// <interfuscator:shuffle>
-	virtual bool Initialize(IEntity& entity) = 0;
+	virtual bool Initialize(IEntity& entity, ICharacterInstance* pCharacter) = 0;
 	virtual void Clear() = 0;
 
 	virtual void SetRootOffsetEnable(bool bEnable) = 0;
 	virtual void SetBlendWeight(float weight) = 0;
 
-	virtual void Update(const QuatT& location, const float time) = 0;
+	virtual void Update(ICharacterInstance* pCharacter, const QuatT& location, const float time) = 0;
 	// </interfuscator:shuffle>
 };
 

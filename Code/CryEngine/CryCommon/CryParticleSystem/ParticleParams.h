@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 // -------------------------------------------------------------------------
 //  File name:   ParticleParams.h
@@ -185,16 +185,8 @@ bool RandomActivate(const TFixed& chance)
 
 // Vec3 TypeInfo
 
-//! Must override Vec3 constructor to avoid polluting params with NANs.
-template<class T>
-struct Vec3_Zero : Vec3_tpl<T>
-{
-	Vec3_Zero() : Vec3_tpl<T>(ZERO) {}
-	Vec3_Zero(const Vec3& v) : Vec3_tpl<T>(v) {}
-};
-
-typedef Vec3_Zero<SFloat> Vec3S;
-typedef Vec3_Zero<UFloat> Vec3U;
+typedef Vec3_tpl<SFloat> Vec3S;
+typedef Vec3_tpl<UFloat> Vec3U;
 
 // Color specialisations.
 
@@ -589,16 +581,14 @@ struct CSurfaceTypeIndex
 ///////////////////////////////////////////////////////////////////////
 //! Particle system parameters.
 struct ParticleParams
-	: ZeroInit<ParticleParams>
 {
 	// <Group=Emitter>
 	string     sComment;
-	TSmallBool bEnabled;                            //!< Set false to disable this effect.
+	TSmallBool bEnabled = true;                     //!< Set false to disable this effect.
 
 	DEFINE_ENUM(EInheritance,
 	            System,
 	            Standard,
-	            Zero,
 	            Parent
 	            )
 	EInheritance eInheritance;                      //!< Source of ParticleParams used as base for this effect (for serialization, display, etc).
@@ -657,7 +647,7 @@ struct ParticleParams
 	            )
 	EFacing eFacing;                                //!< Orientation of particle face.
 	TSmallBool bOrientToVelocity;                   //!< Particle X axis aligned to velocity direction.
-	UnitFloat  fCurvature;                          //!< For Facing=Camera, fraction that normals are curved to a spherical shape.
+	UnitFloat  fCurvature = 1;                      //!< For Facing=Camera, fraction that normals are curved to a spherical shape.
 
 	// <Group=Appearance>
 	DEFINE_ENUM_VALS(EBlend, uint8,
@@ -668,14 +658,14 @@ struct ParticleParams
 	                 _ColorBased = OS_ADD_BLEND,
 	                 _None = 0
 	                 )
-	EBlend eBlendType;                              //!< Blend rendering type.
+	EBlend eBlendType = EBlend::AlphaBased;         //!< Blend rendering type.
 	CCryName sTexture;                              //!< Texture asset for sprite.
 	CCryName sMaterial;                             //!< Material (overrides texture).
 
 	struct STextureTiling
 	{
 		PosInt8 nTilesX, nTilesY;                   //!< Number of tiles texture is split into.
-		uint8   nFirstTile;                         //!< First (or only) tile to use.
+		uint8   nFirstTile = 0;                     //!< First (or only) tile to use.
 		PosInt8 nVariantCount;                      //!< Number of randomly selectable tiles; 0 or 1 if no variation.
 		PosInt8 nAnimFramesCount;                   //!< Number of tiles (frames) of animation; 0 or 1 if no animation.
 		DEFINE_ENUM(EAnimationCycle,
@@ -774,7 +764,7 @@ struct ParticleParams
 	            )
 	EGeometryPieces eGeometryPieces;                //!< Which geometry pieces to emit.
 	TSmallBool          bNoOffset;                  //!< Disable centering of geometry.
-	TVarEPParam<UFloat> fAlpha;                     //!< <SoftMax=1> Alpha value (opacity, or multiplier for additive).
+	TVarEPParam<UFloat> fAlpha = 1;                 //!< <SoftMax=1> Alpha value (opacity, or multiplier for additive).
 	struct SAlphaClip
 	{
 		TRangeParam<UFloat>    fScale;              //!< <SoftMax=1> Final alpha multiplier, for particle alpha 0 to 1.
@@ -786,10 +776,10 @@ struct ParticleParams
 
 		AUTO_STRUCT_INFO;
 	}                    AlphaClip;                 //!< Alpha clipping settings, for particle alpha 0 to 1.
-	TVarEPParam<Color3F> cColor;                    //!< Color modulation.
+	TVarEPParam<Color3F> cColor = Color3F(1);       //!< Color modulation.
 
 	// <Group=Lighting>
-	UFloat     fDiffuseLighting;                    //!< <SoftMax=1> Multiplier for particle dynamic lighting.
+	UFloat     fDiffuseLighting = 1;                //!< <SoftMax=1> Multiplier for particle dynamic lighting.
 	UnitFloat  fDiffuseBacklighting;                //!< Fraction of diffuse lighting applied in all directions.
 	UFloat     fEmissiveLighting;                   //!< <SoftMax=1> Multiplier for particle emissive lighting.
 
@@ -816,7 +806,7 @@ struct ParticleParams
 	// <Group=Audio>
 	CCryName           sStartTrigger;               //!< Audio start trigger to execute.
 	CCryName           sStopTrigger;                //!< Audio stop trigger to execute.
-	TVarEParam<UFloat> fSoundFXParam;               //!< Custom real-time sound modulation parameter.
+	TVarEParam<UFloat> fSoundFXParam = 1;           //!< Custom real-time sound modulation parameter.
 	DEFINE_ENUM(ESoundControlTime,
 	            EmitterLifeTime,
 	            EmitterExtendedLifeTime,
@@ -825,8 +815,8 @@ struct ParticleParams
 	ESoundControlTime eSoundControlTime;            //!< The sound control time type.
 
 	// <Group=Size>
-	TVarEPParam<UFloat> fSize;                      //!< <SoftMax=8> Particle radius, for sprites; size scale for geometry.
-	TVarEPParam<UFloat> fAspect;                    //!< <SoftMax=8> X-to-Y scaling factor.
+	TVarEPParam<UFloat> fSize = 1;                  //!< <SoftMax=8> Particle radius, for sprites; size scale for geometry.
+	TVarEPParam<UFloat> fAspect = 1;                //!< <SoftMax=8> X-to-Y scaling factor.
 	TVarEPParam<SFloat> fPivotX;                    //!< <SoftMin=-1> <SoftMax=1> Pivot offset in X direction.
 	TVarEPParam<SFloat> fPivotY;                    //!< <SoftMin=-1> <SoftMax=1> Pivot offset in Y direction.
 
@@ -837,7 +827,7 @@ struct ParticleParams
 	} fStretch;                                     //!< <SoftMax=1> Stretch particle into moving direction, amount in seconds.
 	struct STailLength : TVarEPParam<UFloat>
 	{
-		uint8 nTailSteps;                           //!< <SoftMax=16> Number of tail segments.
+		uint8 nTailSteps = 0;                       //!< <SoftMax=16> Number of tail segments.
 		AUTO_STRUCT_INFO;
 	} fTailLength;                                  //!< <SoftMax=10> Length of tail in seconds.
 	UFloat fMinPixels;                              //!< <SoftMax=10> Augment true size with this many pixels.
@@ -883,8 +873,8 @@ struct ParticleParams
 		TSmallBool& base() { return *this; }
 		TSmallBool  bIgnoreRotation;                //!< Ignore emitter rotation when updating particles.
 		TSmallBool  bIgnoreSize;                    //!< Ignore emitter size when updating particles.
-		bool ScaleWithSize() const { return +*this && !bIgnoreSize; }
 		TSmallBool  bMoveTail;                      //!< Tail segments also move with emitter.
+		bool ScaleWithSize() const { return +*this && !bIgnoreSize; }
 		AUTO_STRUCT_INFO;
 	} bMoveRelativeEmitter;                         //!< Particle motion is in emitter space.
 
@@ -907,10 +897,10 @@ struct ParticleParams
 	} TargetAttraction;                             //!< Specify target attractor behavior.
 
 	// <Group=Rotation>
-	Vec3_Zero<SAngle>     vInitAngles;              //!< Initial rotation in symmetric angles (degrees).
-	Vec3_Zero<UFullAngle> vRandomAngles;            //!< Bidirectional random angle variation.
-	Vec3S                 vRotationRate;            //!< <SoftMin=-360> $<SoftMax=360> Rotation speed (degree/sec).
-	Vec3U                 vRandomRotationRate;      //!< <SoftMax=360> Random variation of rotation speed.
+	Vec3_tpl<SAngle>     vInitAngles;               //!< Initial rotation in symmetric angles (degrees).
+	Vec3_tpl<UFullAngle> vRandomAngles;             //!< Bidirectional random angle variation.
+	Vec3S                vRotationRate;             //!< <SoftMin=-360> $<SoftMax=360> Rotation speed (degree/sec).
+	Vec3U                vRandomRotationRate;       //!< <SoftMax=360> Random variation of rotation speed.
 
 	// <Group=Collision>
 	DEFINE_ENUM(EPhysics,
@@ -923,9 +913,9 @@ struct ParticleParams
 	TSmallBool bCollideTerrain;                     //!< Collides with terrain (if Physics <> none).
 	TSmallBool bCollideStaticObjects;               //!< Collides with static physics objects (if Physics <> none).
 	TSmallBool bCollideDynamicObjects;              //!< Collides with dynamic physics objects (if Physics <> none).
-	UnitFloat8 fCollisionFraction;                  //!< Fraction of emitted particles that actually perform collisions.
+	UnitFloat8 fCollisionFraction = 1;              //!< Fraction of emitted particles that actually perform collisions.
 	UFloat     fCollisionCutoffDistance;            //!< Maximum distance up until collisions are respected (0 = infinite).
-	uint8      nMaxCollisionEvents;                 //!< Max # collision events per particle (0 = no limit).
+	uint8      nMaxCollisionEvents = 0;             //!< Max # collision events per particle (0 = no limit).
 	DEFINE_ENUM(ECollisionResponse,
 	            Die,
 	            Ignore,
@@ -935,11 +925,11 @@ struct ParticleParams
 	CSurfaceTypeIndex sSurfaceType;                 //!< Surface type for physicalized particles.
 	SFloat            fElasticity;                  //!< <SoftMin=0> $<SoftMax=1> Collision bounce coefficient: 0 = no bounce, 1 = full bounce.
 	UFloat            fDynamicFriction;             //!< <SoftMax=10> Sliding drag value, in inverse seconds.
-	UFloat            fThickness;                   //!< <SoftMax=1> Lying thickness ratio - for physicalized particles only.
-	UFloat            fDensity;                     //!< <SoftMax=2000> Mass density for physicslized particles.
+	UFloat            fThickness = 1;               //!< <SoftMax=1> Lying thickness ratio - for physicalized particles only.
+	UFloat            fDensity = 1000;              //!< <SoftMax=2000> Mass density for physicslized particles.
 
 	// <Group=Visibility>
-	UFloat     fViewDistanceAdjust;       //!< <SoftMax=1> Multiplier to automatic distance fade-out.
+	UFloat     fViewDistanceAdjust = 1;   //!< <SoftMax=1> Multiplier to automatic distance fade-out.
 	UFloat     fCameraMaxDistance;        //!< <SoftMax=100> Max distance from camera to render particles.
 	UFloat     fCameraMinDistance;        //!< <SoftMax=100> Min distance from camera to render particles.
 	SFloat     fCameraDistanceOffset;     //!< <SoftMin=-1> <SoftMax=1> Offset the emitter away from the camera.
@@ -959,18 +949,18 @@ struct ParticleParams
 	            // Compatibility
 	            _Target
 	            )
-	EForce eForceGeneration;                               //!< Generate physical forces if set.
-	UFloat                       fFillRateCost;            //!< Adjustment to max screen fill allowed per emitter.
-	TFixed<uint8, MAX_HEATSCALE> fHeatScale;               //!< Multiplier to thermal vision.
-	UnitFloat                    fSphericalApproximation;  //!< Align the particle to the tangent of the sphere.
-	UFloat                       fPlaneAlignBlendDistance; //!< Distance when blend to camera plane aligned particles starts.
+	EForce                       eForceGeneration;            //!< Generate physical forces if set.
+	UFloat                       fFillRateCost = 1;           //!< Adjustment to max screen fill allowed per emitter.
+	TFixed<uint8, MAX_HEATSCALE> fHeatScale;                  //!< Multiplier to thermal vision.
+	UnitFloat                    fSphericalApproximation = 1; //!< Align the particle to the tangent of the sphere.
+	UFloat                       fPlaneAlignBlendDistance;    //!< Distance when blend to camera plane aligned particles starts.
 
-	TRangedType<uint8, 0, 2>     nSortQuality;        //!< Sort new particles as accurately as possible into list, by main camera distance.
-	TSmallBool                   bForceDynamicBounds; //!< Always update particles and compute actual bounds for visibility.
-	TSmallBool                   bHalfRes;            //!< Use half resolution rendering.
-	TSmallBoolTrue               bStreamable;         //!< Texture/geometry allowed to be streamed.
-	TSmallBool                   bVolumeFog;          //!< Use as a participating media of volumetric fog.
-	Unit4Float                   fVolumeThickness;    //!< Thickness factor for particle size.
+	TRangedType<uint8, 0, 2>     nSortQuality;                //!< Sort new particles as accurately as possible into list, by main camera distance.
+	TSmallBool                   bForceDynamicBounds;         //!< Always update particles and compute actual bounds for visibility.
+	TSmallBool                   bHalfRes;                    //!< Use half resolution rendering.
+	TSmallBoolTrue               bStreamable;                 //!< Texture/geometry allowed to be streamed.
+	TSmallBool                   bVolumeFog;                  //!< Use as a participating media of volumetric fog.
+	Unit4Float                   fVolumeThickness = 1;        //!< Thickness factor for particle size.
 
 	// <Group=Configuration>
 	DEFINE_ENUM(EConfigSpecBrief,
@@ -979,44 +969,14 @@ struct ParticleParams
 	            High,
 	            VeryHigh
 	            )
-	EConfigSpecBrief eConfigMin;                    //!< Minimum config spec this effect runs in.
-	EConfigSpecBrief eConfigMax;                    //!< Maximum config spec this effect runs in.
+	EConfigSpecBrief eConfigMin = EConfigSpecBrief::Low;      //!< Minimum config spec this effect runs in.
+	EConfigSpecBrief eConfigMax = EConfigSpecBrief::VeryHigh; //!< Maximum config spec this effect runs in.
 
 	struct SPlatforms
 	{
 		TSmallBoolTrue PCDX11, PS4, XBoxOne;
 		AUTO_STRUCT_INFO;
 	} Platforms;                                    //!< Platforms this effect runs on.
-
-	ParticleParams() :
-		bEnabled(true),
-		fSize(1.f),
-		fAspect(1.f),
-		cColor(1.f),
-		fAlpha(1.f),
-		eBlendType(EBlend::AlphaBased),
-		fDiffuseLighting(1.f),
-		fCurvature(1.f),
-		fViewDistanceAdjust(1.f),
-		fFillRateCost(1.f),
-		fDensity(1000.f),
-		fThickness(1.f),
-		fCollisionFraction(1.f),
-#ifdef PARTICLE_MOTION_BLUR
-		fMotionBlurScale(1.f),
-		fMotionBlurStretchScale(1.f),
-		fMotionBlurCamStretchScale(1.f),
-#endif
-		fSphericalApproximation(1.f),
-		fVolumeThickness(1.0f),
-		fSoundFXParam(1.f),
-		eConfigMax(EConfigSpecBrief::VeryHigh),
-		eConfigMin(EConfigSpecBrief::Low),
-		fFadeAtViewCosAngle(0.f)
-	{}
-
-	ParticleParams(type_zero)
-	{}
 
 	// Derived properties
 	bool HasEquilibrium() const

@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 // -------------------------------------------------------------------------
 //  File name:   FlashUI.h
@@ -34,7 +34,7 @@
 	#define UIACTION_ERROR   (void)
 #endif
 
-class CAutoRegUIFlowNode;
+class CFlashUiFlowNodeFactory;
 struct CUIActionManager;
 class CFlashUIActionEvents;
 
@@ -51,7 +51,7 @@ class CFlashUI
 	CRYINTERFACE_ADD(IFlashUI)
 	CRYINTERFACE_END()
 
-	CRYGENERATE_SINGLETONCLASS(CFlashUI, IFlashUIExtensionName, 0x35AE7F0FBB13437B, 0x9C5FFCD2568616A5)
+	CRYGENERATE_SINGLETONCLASS_GUID(CFlashUI, "FlashUI", "35ae7f0f-bb13-437b-9c5f-fcd2568616a5"_cry_guid)
 
 	CFlashUI();
 	virtual ~CFlashUI() {}
@@ -111,7 +111,7 @@ public:
 
 	virtual void                      GetMemoryStatistics(ICrySizer* s) const override;
 
-#if !defined(_LIB) || defined(IS_EAAS)
+#if !defined(_LIB)
 	virtual SUIItemLookupSet_Impl<SUIParameterDesc>* CreateLookupParameter() override { return new SUIItemLookupSet_Impl<SUIParameterDesc>(); };
 	virtual SUIItemLookupSet_Impl<SUIMovieClipDesc>* CreateLookupMovieClip() override { return new SUIItemLookupSet_Impl<SUIMovieClipDesc>(); };
 	virtual SUIItemLookupSet_Impl<SUIEventDesc>*     CreateLookupEvent() override { return new SUIItemLookupSet_Impl<SUIEventDesc>(); };
@@ -180,7 +180,6 @@ public:
 
 	EPlatformUI GetCurrentPlatform();
 
-	typedef std::vector<CAutoRegUIFlowNode*> TUIFlowNodes;
 private:
 	CFlashUI(const CFlashUI&) : m_modules(8) {}
 
@@ -252,7 +251,7 @@ private:
 	typedef std::vector<IFlashPlayer*> TPlayerList;
 	TPlayerList           m_loadtimePlayerList;
 
-	TUIFlowNodes          m_UINodes;
+	std::vector<CFlashUiFlowNodeFactory*> m_UINodes;
 
 	typedef std::map<ITexture*, string> TTextureMap;
 	TTextureMap       m_preloadedTextures;

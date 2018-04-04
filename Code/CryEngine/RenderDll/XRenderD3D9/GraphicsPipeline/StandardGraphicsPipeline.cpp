@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #include "StdAfx.h"
 #include "StandardGraphicsPipeline.h"
@@ -25,11 +25,18 @@
 #include "ComputeSkinning.h"
 #include "GpuParticles.h"
 #include "ClipVolumes.h"
+#include "DeferredDecals.h"
 #include "ShadowMask.h"
 #include "TiledShading.h"
 #include "ColorGrading.h"
 #include "WaterRipples.h"
 #include "LensOptics.h"
+#include "PostEffects.h"
+#include "Rain.h"
+#include "Snow.h"
+#include "MobileComposition.h"
+
+#include "DepthReadback.h"
 #include "Common/TypedConstantBuffer.h"
 #include "Common/Textures/TextureHelpers.h"
 #include "Common/Include_HLSL_CPP_Shared.h"
@@ -220,37 +227,44 @@ CRenderView* CGraphicsPipelineStage::RenderView()
 
 CStandardGraphicsPipeline::CStandardGraphicsPipeline()
 	: m_changedCVars(gEnv->pConsole)
+	, m_defaultMaterialBindPoints()
+	, m_defaultInstanceExtraResources()
 {}
 
 void CStandardGraphicsPipeline::Init()
 {
-	// default material resources
+	// Initialize all subsequently created passes with the correct stereo-resources
+	if (gcpRendD3D->GetS3DRend().IsStereoEnabled())
 	{
-		m_pDefaultMaterialResources = CCryDeviceWrapper::GetObjectFactory().CreateResourceSet();
-		m_pDefaultMaterialResources->SetConstantBuffer(eConstantBufferShaderSlot_PerMaterial, CDeviceBufferManager::CreateNullConstantBuffer(), EShaderStage_AllWithoutCompute);
+		gcpRendD3D->m_RP.m_nRendFlags |= (SHDF_STEREO_LEFT_EYE | SHDF_STEREO_RIGHT_EYE);
+	}
+
+	// default material bind points
+	{
+		m_defaultMaterialBindPoints.SetConstantBuffer(eConstantBufferShaderSlot_PerMaterial, CDeviceBufferManager::GetNullConstantBuffer(), EShaderStage_AllWithoutCompute);
 
 		for (EEfResTextures texType = EFTT_DIFFUSE; texType < EFTT_MAX; texType = EEfResTextures(texType + 1))
 		{
-			m_pDefaultMaterialResources->SetTexture(texType, CTexture::s_pTexNULL, SResourceView::DefaultView, EShaderStage_AllWithoutCompute);
+			m_defaultMaterialBindPoints.SetTexture(texType, CTexture::s_pTexNULL, EDefaultResourceViews::Default, EShaderStage_AllWithoutCompute);
 		}
 	}
 
 	// default extra per instance
 	{
-		EShaderStage shaderStages = EShaderStage_Vertex | EShaderStage_Hull | EShaderStage_Domain;
-		CGpuBuffer nullBuffer;
-		nullBuffer.Create(0, 0, DXGI_FORMAT_R32G32B32A32_FLOAT, DX11BUF_NULL_RESOURCE | DX11BUF_BIND_SRV, nullptr);
-		m_pDefaultInstanceExtraResources = CCryDeviceWrapper::GetObjectFactory().CreateResourceSet();
-		m_pDefaultInstanceExtraResources->SetConstantBuffer(eConstantBufferShaderSlot_SkinQuat, CDeviceBufferManager::CreateNullConstantBuffer(), shaderStages);
-		m_pDefaultInstanceExtraResources->SetConstantBuffer(eConstantBufferShaderSlot_SkinQuatPrev, CDeviceBufferManager::CreateNullConstantBuffer(), shaderStages);
-		m_pDefaultInstanceExtraResources->SetBuffer(EReservedTextureSlot_SkinExtraWeights, nullBuffer, false, shaderStages);
-		m_pDefaultInstanceExtraResources->SetBuffer(EReservedTextureSlot_AdjacencyInfo, nullBuffer, false, shaderStages);    // shares shader slot with EReservedTextureSlot_PatchID
-		m_pDefaultInstanceExtraResources->SetBuffer(EReservedTextureSlot_ComputeSkinVerts, nullBuffer, false, shaderStages); // shares shader slot with EReservedTextureSlot_PatchID
-		m_pDefaultInstanceExtraResources->Build();                                                                           // This needs to be a valid resource-set since it's shared by all CompiledRenderObject that don't need a unique instance
+		EShaderStage shaderStages = EShaderStage_Vertex | EShaderStage_Pixel | EShaderStage_Hull | EShaderStage_Domain;
+
+		m_defaultInstanceExtraResources.SetConstantBuffer(eConstantBufferShaderSlot_SkinQuat, CDeviceBufferManager::GetNullConstantBuffer(), shaderStages);
+		m_defaultInstanceExtraResources.SetConstantBuffer(eConstantBufferShaderSlot_SkinQuatPrev, CDeviceBufferManager::GetNullConstantBuffer(), shaderStages);
+		m_defaultInstanceExtraResources.SetBuffer(EReservedTextureSlot_SkinExtraWeights, CDeviceBufferManager::GetNullBufferStructured(), EDefaultResourceViews::Default, shaderStages);
+		m_defaultInstanceExtraResources.SetBuffer(EReservedTextureSlot_AdjacencyInfo, CDeviceBufferManager::GetNullBufferTyped(), EDefaultResourceViews::Default, shaderStages);    // shares shader slot with EReservedTextureSlot_PatchID
+		m_defaultInstanceExtraResources.SetBuffer(EReservedTextureSlot_ComputeSkinVerts, CDeviceBufferManager::GetNullBufferStructured(), EDefaultResourceViews::Default, shaderStages); // shares shader slot with EReservedTextureSlot_PatchID
+
+		m_pDefaultInstanceExtraResourceSet = GetDeviceObjectFactory().CreateResourceSet();
+		m_pDefaultInstanceExtraResourceSet->Update(m_defaultInstanceExtraResources);
 	}
 
 	// per view constant buffer
-	m_pPerViewConstantBuffer = gcpRendD3D->m_DevBufMan.CreateConstantBuffer(sizeof(HLSL_PerViewGlobalConstantBuffer));
+	m_mainViewConstantBuffer.CreateDeviceBuffer();
 
 	// Register scene stages that make use of the global PSO cache
 	RegisterSceneStage<CShadowMapStage, eStage_ShadowMap>(m_pShadowMapStage);
@@ -266,22 +280,40 @@ void CStandardGraphicsPipeline::Init()
 	RegisterStage<CVolumetricFogStage>(m_pVolumetricFogStage, eStage_VolumetricFog);
 	RegisterStage<CFogStage>(m_pFogStage, eStage_Fog);
 	RegisterStage<CVolumetricCloudsStage>(m_pVolumetricCloudsStage, eStage_VolumetricClouds);
-	RegisterStage<CWaterStage>(m_pWaterStage, eStage_Water);
 	RegisterStage<CWaterRipplesStage>(m_pWaterRipplesStage, eStage_WaterRipples);
+	RegisterStage<CWaterStage>(m_pWaterStage, eStage_Water);
 	RegisterStage<CMotionBlurStage>(m_pMotionBlurStage, eStage_MotionBlur);
 	RegisterStage<CDepthOfFieldStage>(m_pDepthOfFieldStage, eStage_DepthOfField);
 	RegisterStage<CAutoExposureStage>(m_pAutoExposureStage, eStage_AutoExposure);
 	RegisterStage<CBloomStage>(m_pBloomStage, eStage_Bloom);
+	RegisterStage<CColorGradingStage>(m_pColorGradingStage, eStage_ColorGrading);
 	RegisterStage<CToneMappingStage>(m_pToneMappingStage, eStage_ToneMapping);
 	RegisterStage<CSunShaftsStage>(m_pSunShaftsStage, eStage_Sunshafts);
 	RegisterStage<CPostAAStage>(m_pPostAAStage, eStage_PostAA);
 	RegisterStage<CComputeSkinningStage>(m_pComputeSkinningStage, eStage_ComputeSkinning);
 	RegisterStage<CGpuParticlesStage>(m_pGpuParticlesStage, eStage_GpuParticles);
+	RegisterStage<CDeferredDecalsStage>(m_pDeferredDecalsStage, eStage_DeferredDecals);
 	RegisterStage<CClipVolumesStage>(m_pClipVolumesStage, eStage_ClipVolumes);
 	RegisterStage<CShadowMaskStage>(m_pShadowMaskStage, eStage_ShadowMask);
 	RegisterStage<CTiledShadingStage>(m_pTiledShadingStage, eStage_TiledShading);
-	RegisterStage<CColorGradingStage>(m_pColorGradingStage, eStage_ColorGrading);
 	RegisterStage<CLensOpticsStage>(m_pLensOpticsStage, eStage_LensOptics);
+	RegisterStage<CPostEffectStage>(m_pPostEffectStage, eStage_PostEffet);
+	RegisterStage<CRainStage>(m_pRainStage, eStage_Rain);
+	RegisterStage<CSnowStage>(m_pSnowStage, eStage_Snow);
+	RegisterStage<CDepthReadbackStage>(m_pDepthReadbackStage, eStage_DepthReadback);
+	RegisterStage<CMobileCompositionStage>(m_pMobileCompositionStage, eStage_MobileComposition);
+
+	// Now init stages
+	InitStages();
+
+	// Out-of-pipeline passes for display
+	m_DownscalePass.reset(new CDownsamplePass);
+	m_UpscalePass  .reset(new CSharpeningUpsamplePass);
+
+	if (gcpRendD3D->GetS3DRend().IsStereoEnabled())
+	{
+		gcpRendD3D->m_RP.m_nRendFlags &= ~(SHDF_STEREO_LEFT_EYE | SHDF_STEREO_RIGHT_EYE);
+	}
 }
 
 void CStandardGraphicsPipeline::Prepare(CRenderView* pRenderView, EShaderRenderingFlags renderingFlags)
@@ -446,17 +478,17 @@ int CStandardGraphicsPipeline::GetViewInfo(CStandardGraphicsPipeline::SViewInfo 
 	return viewInfoCount;
 }
 
-void CStandardGraphicsPipeline::UpdatePerViewConstantBuffer(const D3DViewPort* pCustomViewport)
+void CStandardGraphicsPipeline::UpdateMainViewConstantBuffer()
 {
 	CD3D9Renderer* pRenderer = gcpRendD3D;
 	SRenderPipeline& RESTRICT_REFERENCE rp = gRenDev->m_RP;
 
 	SViewInfo viewInfo[2];
-	int viewInfoCount = GetViewInfo(viewInfo, pCustomViewport);
-	UpdatePerViewConstantBuffer(viewInfo, viewInfoCount, m_pPerViewConstantBuffer);
+	int viewInfoCount = GetViewInfo(viewInfo, nullptr);
+	UpdatePerViewConstantBuffer(viewInfo, viewInfoCount, m_mainViewConstantBuffer.GetDeviceConstantBuffer());
 }
 
-void CStandardGraphicsPipeline::UpdatePerViewConstantBuffer(const SViewInfo* pViewInfo, int viewInfoCount, CConstantBufferPtr& pPerViewBuffer)
+void CStandardGraphicsPipeline::UpdatePerViewConstantBuffer(const SViewInfo* pViewInfo, int viewInfoCount, CConstantBufferPtr pPerViewBuffer)
 {
 	if (!gEnv->p3DEngine || !pPerViewBuffer)
 		return;
@@ -471,6 +503,7 @@ void CStandardGraphicsPipeline::UpdatePerViewConstantBuffer(const SViewInfo* pVi
 		CRY_ASSERT(pViewInfo[i].pCamera && pViewInfo[i].pRenderCamera);
 
 		const SViewInfo& viewInfo = pViewInfo[i];
+		const auto& camera = *viewInfo.pRenderCamera;
 		HLSL_PerViewGlobalConstantBuffer& cb = bufferData[i];
 
 		const float time = rp.m_TI[rp.m_nProcessThreadID].m_RealTime;
@@ -498,7 +531,7 @@ void CStandardGraphicsPipeline::UpdatePerViewConstantBuffer(const SViewInfo* pVi
 		cb.CV_ScreenToWorldBasis.SetColumn(0, Vec3r(vWBasisX));
 		cb.CV_ScreenToWorldBasis.SetColumn(1, Vec3r(vWBasisY));
 		cb.CV_ScreenToWorldBasis.SetColumn(2, Vec3r(vWBasisZ));
-		cb.CV_ScreenToWorldBasis.SetColumn(3, viewInfo.pRenderCamera->vOrigin);
+		cb.CV_ScreenToWorldBasis.SetColumn(3, camera.vOrigin);
 
 		cb.CV_SunLightDir = Vec4(perFrameConstants.pSunDirection, 1.0f);
 		cb.CV_SunColor = Vec4(perFrameConstants.pSunColor, perFrameConstants.sunSpecularMultiplier);
@@ -508,25 +541,42 @@ void CStandardGraphicsPipeline::UpdatePerViewConstantBuffer(const SViewInfo* pVi
 
 		cb.CV_AnimGenParams = Vec4(time * 2.0f, time * 0.25f, time * 1.0f, time * 0.125f);
 
-		cb.CV_DecalZFightingRemedy = Vec4(perFrameConstants.pDecalZFightingRemedy, 0);
+		Vec3 pDecalZFightingRemedy;
+		{
+			const float* mProj = viewInfo.projMatrix.GetData();
+			const float s = clamp_tpl(CRenderer::CV_r_ZFightingDepthScale, 0.1f, 1.0f);
 
-		cb.CV_CamFrontVector = Vec4(viewInfo.pRenderCamera->vZ.GetNormalized(), 0);
-		cb.CV_CamUpVector = Vec4(viewInfo.pRenderCamera->vY.GetNormalized(), 0);
+			pDecalZFightingRemedy.x = s;                                      // scaling factor to pull decal in front
+			pDecalZFightingRemedy.y = (float)((1.0f - s) * mProj[4 * 3 + 2]); // correction factor for homogeneous z after scaling is applied to xyzw { = ( 1 - v[0] ) * zMappingRageBias }
+			pDecalZFightingRemedy.z = clamp_tpl(CRenderer::CV_r_ZFightingExtrude, 0.0f, 1.0f);
+
+			// alternative way the might save a bit precision
+			//PF.pDecalZFightingRemedy.x = s; // scaling factor to pull decal in front
+			//PF.pDecalZFightingRemedy.y = (float)((1.0f - s) * mProj[4*2+2]);
+			//PF.pDecalZFightingRemedy.z = clamp_tpl(CRenderer::CV_r_ZFightingExtrude, 0.0f, 1.0f);
+		}
+		cb.CV_DecalZFightingRemedy = Vec4(pDecalZFightingRemedy, 0);
+
+		cb.CV_CamRightVector = Vec4(camera.vX.GetNormalized(), 0);
+		cb.CV_CamFrontVector = Vec4(camera.vZ.GetNormalized(), 0);
+		cb.CV_CamUpVector = Vec4(camera.vY.GetNormalized(), 0);
+		cb.CV_WorldViewPosition = Vec4(camera.vOrigin, 0);
 
 		// CV_NearFarClipDist
 		{
 			// Note: CV_NearFarClipDist.z is used to put the weapon's depth range into correct relation to the whole scene
 			// when generating the depth texture in the z pass (_RT_NEAREST)
-			cb.CV_NearFarClipDist = Vec4(viewInfo.pRenderCamera->fNear,
-			                             viewInfo.pRenderCamera->fFar,
-			                             viewInfo.pRenderCamera->fFar / gEnv->p3DEngine->GetMaxViewDistance(),
-			                             1.0f / viewInfo.pRenderCamera->fFar);
+			cb.CV_NearFarClipDist = Vec4(
+				camera.fNear,
+				camera.fFar,
+				camera.fFar / gEnv->p3DEngine->GetMaxViewDistance(),
+				1.0f / camera.fFar);
 		}
 
 		// CV_ProjRatio
 		{
-			float zn = viewInfo.pRenderCamera->fNear;
-			float zf = viewInfo.pRenderCamera->fFar;
+			float zn = camera.fNear;
+			float zf = camera.fFar;
 			float hfov = viewInfo.pCamera->GetHorizontalFov();
 			cb.CV_ProjRatio.x = bReverseDepth ? zn / (zn - zf) : zf / (zf - zn);
 			cb.CV_ProjRatio.y = bReverseDepth ? zn / (zf - zn) : zn / (zn - zf);
@@ -536,8 +586,8 @@ void CStandardGraphicsPipeline::UpdatePerViewConstantBuffer(const SViewInfo* pVi
 
 		// CV_NearestScaled
 		{
-			float zn = viewInfo.pRenderCamera->fNear;
-			float zf = viewInfo.pRenderCamera->fFar;
+			float zn = camera.fNear;
+			float zf = camera.fFar;
 			float nearZRange = pRenderer->CV_r_DrawNearZRange;
 			float camScale = pRenderer->CV_r_DrawNearFarPlane / gEnv->p3DEngine->GetMaxViewDistance();
 			cb.CV_NearestScaled.x = bReverseDepth ? 1.0f - zf / (zf - zn) * nearZRange : zf / (zf - zn) * nearZRange;
@@ -565,7 +615,6 @@ void CStandardGraphicsPipeline::UpdatePerViewConstantBuffer(const SViewInfo* pVi
 		cb.CV_FrustumPlaneEquation.SetRow4(2, (Vec4&)viewInfo.pFrustumPlanes[FR_PLANE_TOP]);
 		cb.CV_FrustumPlaneEquation.SetRow4(3, (Vec4&)viewInfo.pFrustumPlanes[FR_PLANE_BOTTOM]);
 
-
 		if (gRenDev->m_pCurWindGrid)
 		{
 			float fSizeWH = (float)gRenDev->m_pCurWindGrid->m_nWidth * gRenDev->m_pCurWindGrid->m_fCellSize * 0.5f;
@@ -588,6 +637,7 @@ bool CStandardGraphicsPipeline::FillCommonScenePassStates(const SGraphicsPipelin
 
 	CShaderResources* pRes = static_cast<CShaderResources*>(inputDesc.shaderItem.m_pShaderResources);
 	const uint64 objectFlags = inputDesc.objectFlags;
+	const uint8 renderState = inputDesc.renderState;
 	SShaderPass* pShaderPass = &pTechnique->m_Passes[0];
 
 	// Handle quality flags
@@ -645,6 +695,9 @@ bool CStandardGraphicsPipeline::FillCommonScenePassStates(const SGraphicsPipelin
 	if (psoDesc.m_RenderState & GS_ALPHATEST)
 		psoDesc.m_ShaderFlags_RT |= g_HWSR_MaskBit[HWSR_ALPHATEST];
 
+	if (renderState & OS_ENVIRONMENT_CUBEMAP)
+		psoDesc.m_ShaderFlags_RT |= g_HWSR_MaskBit[HWSR_ENVIRONMENT_CUBEMAP];
+
 #ifdef TESSELLATION_RENDERER
 	const bool bHasTesselationShaders = pShaderPass && pShaderPass->m_HShader && pShaderPass->m_DShader;
 	if (bHasTesselationShaders && (!(objectFlags & FOB_NEAREST) && (objectFlags & FOB_ALLOW_TESSELLATION)))
@@ -657,7 +710,7 @@ bool CStandardGraphicsPipeline::FillCommonScenePassStates(const SGraphicsPipelin
 	psoDesc.m_ShaderFlags_RT |= g_HWSR_MaskBit[HWSR_PER_INSTANCE_CB_TEMP];
 
 	psoDesc.m_CullMode = bTwoSided ? eCULL_None : (pShaderPass->m_eCull != -1 ? (ECull)pShaderPass->m_eCull : eCULL_Back);
-	psoDesc.m_PrimitiveType = ERenderPrimitiveType(inputDesc.primitiveType);
+	psoDesc.m_PrimitiveType = inputDesc.primitiveType;
 
 	if (psoDesc.m_bAllowTesselation)
 	{
@@ -668,6 +721,19 @@ bool CStandardGraphicsPipeline::FillCommonScenePassStates(const SGraphicsPipelin
 	psoDesc.m_ShaderFlags_RT |= CVrProjectionManager::Instance()->GetRTFlags();
 
 	return true;
+}
+
+CDeviceResourceLayoutPtr CStandardGraphicsPipeline::CreateScenePassLayout(const CDeviceResourceSetDesc& perPassResources)
+{
+	SDeviceResourceLayoutDesc layoutDesc;
+	layoutDesc.SetConstantBuffer(EResourceLayoutSlot_PerInstanceCB, eConstantBufferShaderSlot_PerInstance, EShaderStage_Vertex | EShaderStage_Pixel | EShaderStage_Domain);
+	layoutDesc.SetResourceSet(EResourceLayoutSlot_PerMaterialRS, GetDefaultMaterialBindPoints());
+	layoutDesc.SetResourceSet(EResourceLayoutSlot_PerInstanceExtraRS, GetDefaultInstanceExtraResources());
+	layoutDesc.SetResourceSet(EResourceLayoutSlot_PerPassRS, perPassResources);
+
+	CDeviceResourceLayoutPtr pResourceLayout = GetDeviceObjectFactory().CreateResourceLayout(layoutDesc);
+	assert(pResourceLayout != nullptr);
+	return pResourceLayout;
 }
 
 void CStandardGraphicsPipeline::SwitchToLegacyPipeline()
@@ -696,7 +762,7 @@ void CStandardGraphicsPipeline::SwitchToLegacyPipeline()
 	CHWShader::s_pCurCS = nullptr;
 	CHWShader_D3D::s_nActivationFailMask = 0;
 
-	CCryDeviceWrapper::GetObjectFactory().GetCoreCommandList()->Reset();
+	GetDeviceObjectFactory().GetCoreCommandList().Reset();
 
 	// backup viewport we were about to set
 	SViewport newViewport = rd->m_NewViewport;
@@ -717,22 +783,22 @@ void CStandardGraphicsPipeline::SwitchFromLegacyPipeline()
 {
 	CHWShader_D3D::s_nActivationFailMask = 0;
 
-	CCryDeviceWrapper::GetObjectFactory().GetCoreCommandList()->Reset();
+	GetDeviceObjectFactory().GetCoreCommandList().Reset();
 }
 
-std::array<int, EFSS_MAX> CStandardGraphicsPipeline::GetDefaultMaterialSamplers() const
+std::array<SamplerStateHandle, EFSS_MAX> CStandardGraphicsPipeline::GetDefaultMaterialSamplers() const
 {
-	std::array<int, EFSS_MAX> result =
+	std::array<SamplerStateHandle, EFSS_MAX> result =
 	{
 		{
-			gcpRendD3D->m_nMaterialAnisoHighSampler,   // EFSS_ANISO_HIGH
-			gcpRendD3D->m_nMaterialAnisoLowSampler,    // EFSS_ANISO_LOW
-			gcpRendD3D->m_nTrilinearWrapSampler,       // EFSS_TRILINEAR
-			gcpRendD3D->m_nBilinearWrapSampler,        // EFSS_BILINEAR
-			gcpRendD3D->m_nTrilinearClampSampler,      // EFSS_TRILINEAR_CLAMP
-			gcpRendD3D->m_nBilinearClampSampler,       // EFSS_BILINEAR_CLAMP
-			gcpRendD3D->m_nMaterialAnisoSamplerBorder, // EFSS_ANISO_HIGH_BORDER
-			gcpRendD3D->m_nTrilinearBorderSampler,     // EFSS_TRILINEAR_BORDER
+			gcpRendD3D->m_nMaterialAnisoHighSampler,                                                                                                                                         // EFSS_ANISO_HIGH
+			gcpRendD3D->m_nMaterialAnisoLowSampler,                                                                                                                                          // EFSS_ANISO_LOW
+			CDeviceObjectFactory::GetOrCreateSamplerStateHandle(SSamplerState(FILTER_TRILINEAR, eSamplerAddressMode_Wrap, eSamplerAddressMode_Wrap, eSamplerAddressMode_Wrap, 0x0)),         // EFSS_TRILINEAR
+			CDeviceObjectFactory::GetOrCreateSamplerStateHandle(SSamplerState(FILTER_BILINEAR, eSamplerAddressMode_Wrap, eSamplerAddressMode_Wrap, eSamplerAddressMode_Wrap, 0x0)),          // EFSS_BILINEAR
+			CDeviceObjectFactory::GetOrCreateSamplerStateHandle(SSamplerState(FILTER_TRILINEAR, eSamplerAddressMode_Clamp, eSamplerAddressMode_Clamp, eSamplerAddressMode_Clamp, 0x0)),      // EFSS_TRILINEAR_CLAMP
+			CDeviceObjectFactory::GetOrCreateSamplerStateHandle(SSamplerState(FILTER_BILINEAR, eSamplerAddressMode_Clamp, eSamplerAddressMode_Clamp, eSamplerAddressMode_Clamp, 0x0)),       // EFSS_BILINEAR_CLAMP
+			gcpRendD3D->m_nMaterialAnisoSamplerBorder,                                                                                                                                       // EFSS_ANISO_HIGH_BORDER
+			CDeviceObjectFactory::GetOrCreateSamplerStateHandle(SSamplerState(FILTER_TRILINEAR, eSamplerAddressMode_Border, eSamplerAddressMode_Border, eSamplerAddressMode_Border, 0x0)),   // EFSS_TRILINEAR_BORDER
 		}
 	};
 
@@ -760,6 +826,12 @@ void CStandardGraphicsPipeline::RenderPostAA()
 	SwitchToLegacyPipeline();
 }
 
+void CStandardGraphicsPipeline::ExecuteAnisotropicVerticalBlur(CTexture* pTex, int nAmount, float fScale, float fDistribution, bool bAlphaOnly)
+{
+	auto* pPassVerticalBlur = GetOrCreateUtilityPass<CAnisotropicVerticalBlurPass>();
+	pPassVerticalBlur->Execute(pTex, nAmount, fScale, fDistribution, bAlphaOnly);
+}
+
 void CStandardGraphicsPipeline::ExecuteHDRPostProcessing()
 {
 	PROFILE_LABEL_SCOPE("HDR_POSTPROCESS");
@@ -780,76 +852,45 @@ void CStandardGraphicsPipeline::ExecuteHDRPostProcessing()
 
 	const uint32 nAAMode = pRenderer->FX_GetAntialiasingType();
 	CTexture* pDstRT = CTexture::s_ptexSceneDiffuse;
-	if ((nAAMode & (eAT_SMAA_MASK | eAT_FXAA_MASK)) && gRenDev->CV_r_PostProcess && pDstRT)
+	if ((nAAMode & (eAT_SMAA_MASK | eAT_TSAA_MASK)) && gRenDev->CV_r_PostProcess && pDstRT)
 	{
 		assert(pDstRT);
 		// Render to intermediate target, to avoid redundant imagecopy/stretchrect for PostAA
-		pRenderer->FX_PushRenderTarget(0, pDstRT, &pRenderer->m_DepthBufferOrigMSAA);
+		pRenderer->FX_PushRenderTarget(0, pDstRT, &pRenderer->m_DepthBufferOrig);
 		pRenderer->RT_SetViewport(0, 0, pDstRT->GetWidth(), pDstRT->GetHeight());
 	}
 
-	// Rain
-	{
-		CSceneRain* pSceneRain = (CSceneRain*)PostEffectMgr()->GetEffect(ePFX_SceneRain);
-		const SRainParams& rainInfo = gcpRendD3D->m_p3DEngineCommon.m_RainInfo;
-		if (pSceneRain && pSceneRain->IsActive() && rainInfo.fRainDropsAmount > 0.01f)
-		{
-			SwitchToLegacyPipeline();
-			pSceneRain->Render();
-		}
-	}
-
-	SwitchFromLegacyPipeline();
+	m_pRainStage->Execute();
 
 	// Note: MB uses s_ptexHDRTargetPrev to avoid doing another copy, so this should be right before the MB pass
 	{
-		static CStretchRectPass* s_passCopyRT = nullptr;
-		if (!m_bUtilityPassesInitialized) s_passCopyRT = CreateStaticUtilityPass<CStretchRectPass>();
-
-		s_passCopyRT->Execute(CTexture::s_ptexHDRTarget, CTexture::s_ptexHDRTargetPrev);
+		GetOrCreateUtilityPass<CStretchRectPass>()->Execute(CTexture::s_ptexHDRTarget, CTexture::s_ptexHDRTargetPrev);
 	}
 
 	m_pDepthOfFieldStage->Execute();
 
 	m_pMotionBlurStage->Execute();
 
-	// Snow
-	{
-		CSceneSnow* pSceneSnow = (CSceneSnow*)PostEffectMgr()->GetEffect(ePFX_SceneSnow);
-		if (pSceneSnow->IsActiveSnow())
-		{
-			SwitchToLegacyPipeline();
-			pSceneSnow->Render();
-			SwitchFromLegacyPipeline();
-		}
-	}
+	m_pSnowStage->Execute();
 
 	// Half resolution downsampling
 	{
 		PROFILE_LABEL_SCOPE("HALFRES_DOWNSAMPLE_HDRTARGET");
-		static CStableDownsamplePass* s_passStableDownsample = nullptr;
-		static CStretchRectPass* s_passSimpleDownsample = nullptr;
-		if (!m_bUtilityPassesInitialized) s_passStableDownsample = CreateStaticUtilityPass<CStableDownsamplePass>();
-		if (!m_bUtilityPassesInitialized) s_passSimpleDownsample = CreateStaticUtilityPass<CStretchRectPass>();
 
 		if (CRenderer::CV_r_HDRBloomQuality > 1)
-			s_passStableDownsample->Execute(CTexture::s_ptexHDRTarget, CTexture::s_ptexHDRTargetScaled[0], true);
+			GetOrCreateUtilityPass<CStableDownsamplePass>()->Execute(CTexture::s_ptexHDRTarget, CTexture::s_ptexHDRTargetScaled[0], true);
 		else
-			s_passSimpleDownsample->Execute(CTexture::s_ptexHDRTarget, CTexture::s_ptexHDRTargetScaled[0]);
+			GetOrCreateUtilityPass<CStretchRectPass>()->Execute(CTexture::s_ptexHDRTarget, CTexture::s_ptexHDRTargetScaled[0]);
 	}
 
 	// Quarter resolution downsampling
 	{
 		PROFILE_LABEL_SCOPE("QUARTER_RES_DOWNSAMPLE_HDRTARGET");
-		static CStableDownsamplePass* s_passStableDownsample = nullptr;
-		static CStretchRectPass* s_passSimpleDownsample = nullptr;
-		if (!m_bUtilityPassesInitialized) s_passStableDownsample = CreateStaticUtilityPass<CStableDownsamplePass>();
-		if (!m_bUtilityPassesInitialized) s_passSimpleDownsample = CreateStaticUtilityPass<CStretchRectPass>();
 
 		if (CRenderer::CV_r_HDRBloomQuality > 0)
-			s_passStableDownsample->Execute(CTexture::s_ptexHDRTargetScaled[0], CTexture::s_ptexHDRTargetScaled[1], CRenderer::CV_r_HDRBloomQuality >= 1);
+			GetOrCreateUtilityPass<CStableDownsamplePass>()->Execute(CTexture::s_ptexHDRTargetScaled[0], CTexture::s_ptexHDRTargetScaled[1], CRenderer::CV_r_HDRBloomQuality >= 1);
 		else
-			s_passSimpleDownsample->Execute(CTexture::s_ptexHDRTargetScaled[0], CTexture::s_ptexHDRTargetScaled[1]);
+			GetOrCreateUtilityPass<CStretchRectPass>()->Execute(CTexture::s_ptexHDRTargetScaled[0], CTexture::s_ptexHDRTargetScaled[1]);
 	}
 
 	if (pRenderer->m_CurRenderEye != RIGHT_EYE)
@@ -871,28 +912,189 @@ void CStandardGraphicsPipeline::ExecuteHDRPostProcessing()
 	m_pToneMappingStage->Execute();
 }
 
-void CStandardGraphicsPipeline::Execute()
+void CStandardGraphicsPipeline::ExecuteBillboards()
 {
 	CD3D9Renderer* pRenderer = gcpRendD3D;
 
-	void (* pRenderFunc)() = &pRenderer->FX_FlushShader_General;
+	pRenderer->FX_ClearTarget(CTexture::s_ptexSceneNormalsMap, Clr_Transparent);
+	pRenderer->FX_ClearTarget(CTexture::s_ptexSceneDiffuse, Clr_Transparent);
+
+	GetGBufferStage()->Execute();
+
+	m_pCurrentRenderView->SwitchUsageMode(CRenderView::eUsageModeReadingDone);
+	m_pCurrentRenderView->Clear();
+}
+
+// TODO: This will be used only for recursive render pass after all render views get rendered with full graphics pipeline including tiled forward shading.
+void CStandardGraphicsPipeline::ExecuteMinimumForwardShading()
+{
+	CD3D9Renderer* pRenderer = gcpRendD3D;
+
+	PROFILE_LABEL_PUSH("GRAPHICS_PIPELINE_MINIMUM_FORWARD_SHADING");
+
+	void (*pRenderFunc)() = &pRenderer->FX_FlushShader_General;
 	pRenderer->m_RP.m_pRenderFunc = pRenderFunc;
+
+	CRenderView* pRenderView = GetCurrentRenderView();
+	const CRenderOutput* pOutput = pRenderView->GetRenderOutput();
+
+	const bool bRecursive = pRenderView->IsRecursive();
+	const bool bSecondaryViewport = (pRenderer->m_RP.m_nRendFlags & SHDF_SECONDARY_VIEWPORT) != 0;
+
+	m_renderPassScheduler.SetEnabled(true);
 
 	pRenderer->RT_SetCameraInfo();
 
 	if (pRenderer->m_CurRenderEye != RIGHT_EYE)
 	{
 		m_pGpuParticlesStage->Execute(m_pCurrentRenderView);
-		SwitchToLegacyPipeline();
-		pRenderer->FX_DeferredRainPreprocess();
+		m_pGpuParticlesStage->PreDraw(m_pCurrentRenderView);
 		m_pComputeSkinningStage->Execute(m_pCurrentRenderView);
-		SwitchFromLegacyPipeline();
 	}
+
+	UpdateMainViewConstantBuffer();
+
+	{
+		PROFILE_FRAME(WaitForParticleRendItems);
+		pRenderer->SyncComputeVerticesJobs();
+		pRenderer->UnLockParticleVideoMemory();
+	}
+
+	// recursive pass doesn't use deferred fog, instead uses forward shader fog.
+	pRenderer->m_RP.m_PersFlags2 &= ~(RBPF2_NOSHADERFOG);
+
+	if (!(pRenderer->m_RP.m_nRendFlags & SHDF_CUBEMAPGEN))
+	{
+		if (!bRecursive && pOutput && bSecondaryViewport)
+		{
+			gRenDev->GetIRenderAuxGeom(IRenderer::eViewportType_Secondary)->Flush();
+		}
+	}
+
+	// forward opaque and transparent passes for recursive rendering
+	m_pSceneForwardStage->Execute_Minimum();
+
+	// Insert fence which is used on consoles to prevent overwriting video memory
+	pRenderer->InsertParticleVideoDataFence();
+
+	// unbind render target
+	{
+		pRenderer->FX_PushRenderTarget(0, (CTexture*)nullptr, nullptr);
+		pRenderer->FX_SetActiveRenderTargets();
+		pRenderer->RT_UnbindTMUs();
+		pRenderer->FX_PopRenderTarget(0);
+	}
+
+	if (pRenderer->m_CurRenderEye == RIGHT_EYE || !pRenderer->GetS3DRend().IsStereoEnabled() || !pRenderer->GetS3DRend().RequiresSequentialSubmission())
+	{
+		// Recursive pass doesn't need calling PostDraw().
+		// Because general and recursive passes are executed in the same frame between BeginFrame() and EndFrame().
+		if (!(pRenderView->IsRecursive()))
+		{
+			m_pGpuParticlesStage->PostDraw(m_pCurrentRenderView);
+		}
+	}
+
+	if (!(pRenderer->m_RP.m_nRendFlags & SHDF_CUBEMAPGEN))
+	{
+		// Resolve HDR render target to back buffer if needed.
+		if (!bRecursive && pOutput && bSecondaryViewport)
+		{
+			CTexture* pHDRTargetTex = pOutput->GetHDRTargetTexture();
+			CTexture* pBackBufferTex = gcpRendD3D->GetCurrentTargetOutput();
+			CRY_ASSERT(pHDRTargetTex->GetWidth() == pBackBufferTex->GetWidth());
+			CRY_ASSERT(pHDRTargetTex->GetHeight() == pBackBufferTex->GetHeight());
+
+			m_pToneMappingStage->ExecuteFixedExposure();
+		}
+
+		m_pSceneCustomStage->ExecuteHelperPass();
+	}
+
+	PROFILE_LABEL_POP("GRAPHICS_PIPELINE_MINIMUM_FORWARD_SHADING");
+
+	m_renderPassScheduler.SetEnabled(false);
+	m_renderPassScheduler.Execute();
+
+	ResetUtilityPassCache();
+	m_pCurrentRenderView = nullptr;
+}
+
+void CStandardGraphicsPipeline::ExecuteMobilePipeline()
+{
+	CD3D9Renderer* pRenderer = gcpRendD3D;
+	
+	pRenderer->RT_SetCameraInfo();
+	UpdateMainViewConstantBuffer();
+
+	m_pTiledShadingStage->PrepareResources();
+
+	if (CRenderer::CV_r_GraphicsPipelineMobile == 2)
+		m_pSceneGBufferStage->Execute();
+	else
+		m_pSceneGBufferStage->ExecuteMicroGBuffer();
+
+	if (pRenderer->m_CurRenderEye != RIGHT_EYE)
+	{
+		m_pShadowMapStage->Prepare(m_pCurrentRenderView);
+	}
+
+	GetCurrentRenderView()->GetDrawer().WaitForDrawSubmission();
+
+	m_pMobileCompositionStage->Execute(m_pCurrentRenderView);
+
+	pRenderer->m_pPostProcessMgr->End();
+
+	m_pCurrentRenderView = nullptr;
+}
+
+void CStandardGraphicsPipeline::Execute()
+{
+	if (CRenderer::CV_r_GraphicsPipelineMobile)
+	{
+		ExecuteMobilePipeline();
+		return;
+	}
+	
+	CD3D9Renderer* pRenderer = gcpRendD3D;
+
+	PROFILE_LABEL_PUSH("GRAPHICS_PIPELINE");
+	
+	void (* pRenderFunc)() = &pRenderer->FX_FlushShader_General;
+	pRenderer->m_RP.m_pRenderFunc = pRenderFunc;
+
+	m_renderPassScheduler.SetEnabled(true);
+	
+	pRenderer->RT_SetCameraInfo();
+
+	if (pRenderer->m_CurRenderEye != RIGHT_EYE)
+	{
+		m_pGpuParticlesStage->Execute(m_pCurrentRenderView);
+		m_pGpuParticlesStage->PreDraw(m_pCurrentRenderView);
+		m_pComputeSkinningStage->Execute(m_pCurrentRenderView);
+
+		m_pRainStage->ExecuteRainPreprocess();
+		m_pSnowStage->ExecuteSnowPreprocess();
+	}
+
+	UpdateMainViewConstantBuffer();
 
 	gcpRendD3D->GetS3DRend().TryInjectHmdCameraAsync(m_pCurrentRenderView);
 
+	// new graphics pipeline doesn't need clearing stereo render targets.
+	if (pRenderer->m_nGraphicsPipeline > 0)
+	{
+		gcpRendD3D->GetS3DRend().SkipEyeTargetClears();
+	}
+
 	// Prepare tiled shading resources early to give DMA operations enough time to finish
 	m_pTiledShadingStage->PrepareResources();
+
+	if (!m_pCurrentRenderView->IsRecursive() && pRenderer->m_CurRenderEye != RIGHT_EYE)
+	{
+		// compile shadow renderitems. needs to happen before gbuffer pass accesses renderitems
+		m_pCurrentRenderView->PrepareShadowViews();
+	}
 
 	// GBuffer
 	m_pSceneGBufferStage->Execute();
@@ -913,9 +1115,9 @@ void CStandardGraphicsPipeline::Execute()
 		CTexture::s_ptexSceneNormalsMap,
 		CTexture::s_ptexSceneDiffuse,
 		CTexture::s_ptexSceneSpecular,
-		pRenderer->m_DepthBufferOrigMSAA.pTexture
+		pRenderer->m_DepthBufferOrig.pTexture
 	};
-	CDeviceGraphicsCommandInterface* pCmdList = CCryDeviceWrapper::GetObjectFactory().GetCoreCommandList()->GetGraphicsInterface();
+	CDeviceGraphicsCommandInterface* pCmdList = GetDeviceObjectFactory().GetCoreCommandList().GetGraphicsInterface();
 	pCmdList->BeginResourceTransitions(CRY_ARRAY_COUNT(pTextures), pTextures, eResTransition_TextureRead);
 
 	// Shadow maps
@@ -924,39 +1126,33 @@ void CStandardGraphicsPipeline::Execute()
 		m_pShadowMapStage->Execute();
 	}
 
-	m_pSceneGBufferStage->ExecuteLinearizeDepth();
-
 	if (CVrProjectionManager::IsMultiResEnabledStatic())
 		CVrProjectionManager::Instance()->ExecuteFlattenDepth(CTexture::s_ptexZTarget, CVrProjectionManager::Instance()->GetZTargetFlattened());
 
 	// Depth downsampling
 	{
-		CTexture* pZTexture = gcpRendD3D->m_DepthBufferOrigMSAA.pTexture;
-
-		static CDepthDownsamplePass* s_passDepthDownsample2 = nullptr;
-		if (!m_bUtilityPassesInitialized) s_passDepthDownsample2 = CreateStaticUtilityPass<CDepthDownsamplePass>();
-
-		static CDepthDownsamplePass* s_passDepthDownsample4 = nullptr;
-		if (!m_bUtilityPassesInitialized) s_passDepthDownsample4 = CreateStaticUtilityPass<CDepthDownsamplePass>();
-
-		static CDepthDownsamplePass* s_passDepthDownsample8 = nullptr;
-		if (!m_bUtilityPassesInitialized) s_passDepthDownsample8 = CreateStaticUtilityPass<CDepthDownsamplePass>();
+		CTexture* pZTexture = gcpRendD3D->m_DepthBufferOrig.pTexture;
 
 		CTexture* pSourceDepth = CTexture::s_ptexZTarget;
 #if CRY_PLATFORM_DURANGO
 		pSourceDepth = pZTexture;  // On Durango reading device depth is faster since it is in ESRAM
 #endif
 
-		s_passDepthDownsample2->Execute(pSourceDepth, CTexture::s_ptexZTargetScaled, (pSourceDepth == pZTexture), true);
-		s_passDepthDownsample4->Execute(CTexture::s_ptexZTargetScaled, CTexture::s_ptexZTargetScaled2, false, false);
-		s_passDepthDownsample8->Execute(CTexture::s_ptexZTargetScaled2, CTexture::s_ptexZTargetScaled3, false, false);
+		GetOrCreateUtilityPass<CDepthDownsamplePass>()->Execute(pSourceDepth, CTexture::s_ptexZTargetScaled, (pSourceDepth == pZTexture), true);
+		GetOrCreateUtilityPass<CDepthDownsamplePass>()->Execute(CTexture::s_ptexZTargetScaled, CTexture::s_ptexZTargetScaled2, false, false);
+		GetOrCreateUtilityPass<CDepthDownsamplePass>()->Execute(CTexture::s_ptexZTargetScaled2, CTexture::s_ptexZTargetScaled3, false, false);
 	}
 
-	SwitchToLegacyPipeline();
+	// Depth readback (for occlusion culling)
+	m_pDepthReadbackStage->Execute();
 
+#if defined(RENDERER_ENABLE_LEGACY_PIPELINE)
 	// Deferred decals
+	if (CRenderer::CV_r_deferredDecals == 2)
 	{
-		pRenderer->FX_PushRenderTarget(0, CTexture::s_ptexSceneNormalsMap, &pRenderer->m_DepthBufferOrigMSAA);
+		SwitchToLegacyPipeline();
+
+		pRenderer->FX_PushRenderTarget(0, CTexture::s_ptexSceneNormalsMap, &pRenderer->m_DepthBufferOrig);
 		pRenderer->FX_PushRenderTarget(1, CTexture::s_ptexSceneDiffuse, NULL);
 		pRenderer->FX_PushRenderTarget(2, CTexture::s_ptexSceneSpecular, NULL);
 
@@ -965,23 +1161,29 @@ void CStandardGraphicsPipeline::Execute()
 		pRenderer->FX_PopRenderTarget(2);
 		pRenderer->FX_PopRenderTarget(1);
 		pRenderer->FX_PopRenderTarget(0);
-	}
 
-	// Depth readback (for occlusion culling)
+		SwitchFromLegacyPipeline();
+	}
+	else
+#endif
 	{
-		pRenderer->FX_ZTargetReadBack();
+			pRenderer->GetGraphicsPipeline().GetDeferredDecalsStage()->Execute();
 	}
 
 	// GBuffer modifiers
 	{
-		pRenderer->FX_DeferredRainGBuffer();
-		pRenderer->FX_DeferredSnowLayer();
+		m_pRainStage->ExecuteDeferredRainGBuffer();
+		m_pSnowStage->ExecuteDeferredSnowGBuffer();
 	}
-
-	SwitchFromLegacyPipeline();
 
 	// Generate cloud volume textures for shadow mapping.
 	m_pVolumetricCloudsStage->ExecuteShadowGen();
+
+	if (pRenderer->m_nGraphicsPipeline >= 2)
+	{
+		// Wait for Shadow Map draw jobs to finish (also required for HeightMap AO and SVOGI)
+		GetCurrentRenderView()->GetDrawer().WaitForDrawSubmission();
+	}
 
 	// SVOGI
 	{
@@ -1000,12 +1202,6 @@ void CStandardGraphicsPipeline::Execute()
 	// Screen Space Reflections
 	m_pScreenSpaceReflectionsStage->Execute();
 
-	if (pRenderer->m_nGraphicsPipeline >= 2)
-	{
-		// Wait for Shadow Map draw jobs to finish (also required for HeightMap AO)
-		GetCurrentRenderView()->GetDrawer().WaitForDrawSubmission();
-	}
-
 	// Height Map AO
 	ShadowMapFrustum* pHeightMapFrustum = nullptr;
 	CTexture* pHeightMapAOScreenDepthTex = nullptr;
@@ -1013,7 +1209,10 @@ void CStandardGraphicsPipeline::Execute()
 	m_pHeightMapAOStage->Execute(pHeightMapFrustum, pHeightMapAOScreenDepthTex, pHeightMapAOTex);
 
 	// Screen Space Obscurance
-	m_pScreenSpaceObscuranceStage->Execute(pHeightMapFrustum, pHeightMapAOScreenDepthTex, pHeightMapAOTex);
+	if (!CRenderer::CV_r_DeferredShadingDebugGBuffer)
+	{
+		m_pScreenSpaceObscuranceStage->Execute(pHeightMapFrustum, pHeightMapAOScreenDepthTex, pHeightMapAOTex);
+	}
 
 	// Water volume caustics
 	m_pWaterStage->ExecuteWaterVolumeCaustics();
@@ -1026,9 +1225,41 @@ void CStandardGraphicsPipeline::Execute()
 		m_pClipVolumesStage->Prepare(m_pCurrentRenderView);
 		m_pClipVolumesStage->Execute();
 
-		SwitchToLegacyPipeline();
-		pRenderer->FX_ProcessRenderList(EFSLIST_DEFERRED_PREPROCESS, pRenderFunc, false);
-		SwitchToLegacyPipeline();
+		if (CRenderer::CV_r_DeferredShadingTiled > 1)
+		{
+			// TODO: To be refactored later
+			pRenderer->m_RP.m_pSunLight = NULL;
+			for (uint32 i = 0; i < m_pCurrentRenderView->GetDynamicLightsCount(); i++)
+			{
+				SRenderLight* pLight = &m_pCurrentRenderView->GetDynamicLight(i);
+				if (pLight->m_Flags & DLF_SUN)
+				{
+					pRenderer->m_RP.m_pSunLight = pLight;
+					break;
+				}
+			}
+			
+			m_pShadowMaskStage->Prepare(m_pCurrentRenderView);
+			m_pShadowMaskStage->Execute();
+			
+			uint32 numVolumes;
+			const Vec4* pVolumeParams;
+			pRenderer->GetGraphicsPipeline().GetClipVolumesStage()->GetClipVolumeShaderParams(pVolumeParams, numVolumes);
+			pRenderer->GetTiledShading().Render(m_pCurrentRenderView, (Vec4*)pVolumeParams);
+
+			if (CRenderer::CV_r_DeferredShadingSSS)
+			{
+				m_pScreenSpaceSSSStage->Execute(CTexture::s_ptexSceneTargetR11G11B10F[0]);
+			}
+		}
+		else
+		{
+#if defined(RENDERER_ENABLE_LEGACY_PIPELINE)
+			SwitchToLegacyPipeline();
+			pRenderer->FX_ProcessRenderList(EFSLIST_DEFERRED_PREPROCESS, pRenderFunc, false);
+			SwitchFromLegacyPipeline();
+#endif
+		}
 	}
 
 	{
@@ -1039,8 +1270,6 @@ void CStandardGraphicsPipeline::Execute()
 
 	// Opaque forward passes
 	m_pSceneForwardStage->Execute_Opaque();
-
-	SwitchFromLegacyPipeline();
 
 	// Deferred ocean caustics
 	m_pWaterStage->ExecuteDeferredOceanCaustics();
@@ -1066,38 +1295,41 @@ void CStandardGraphicsPipeline::Execute()
 
 	pRenderer->UpdatePrevMatrix(true);
 
-	SwitchToLegacyPipeline();
-
 	// Transparent (below water)
 	m_pSceneForwardStage->Execute_TransparentBelowWater();
-
-	SwitchFromLegacyPipeline();
 
 	// Ocean and water volumes
 	{
 		m_pWaterStage->Execute();
 	}
 
-	SwitchToLegacyPipeline();
-
 	// Transparent (above water)
 	m_pSceneForwardStage->Execute_TransparentAboveWater();
 
+#if defined(RENDERER_ENABLE_LEGACY_PIPELINE)
 	if (CRenderer::CV_r_TranspDepthFixup)
+	{
+		SwitchToLegacyPipeline();
 		pRenderer->FX_DepthFixupMerge();
+		SwitchFromLegacyPipeline();
+	}
 
 	// Half-res particles
 	{
+		SwitchToLegacyPipeline();
 		pRenderer->FX_ProcessHalfResParticlesRenderList(m_pCurrentRenderView, EFSLIST_HALFRES_PARTICLES, pRenderFunc, true);
+		SwitchFromLegacyPipeline();
 	}
 
 	pRenderer->m_CameraProjMatrixPrev = pRenderer->m_CameraProjMatrix;
+#endif
 
 	// Insert fence which is used on consoles to prevent overwriting video memory
 	pRenderer->InsertParticleVideoDataFence();
 
-	pRenderer->FX_DeferredSnowDisplacement();
+	m_pSnowStage->ExecuteDeferredSnowDisplacement();
 
+#if defined(RENDERER_ENABLE_LEGACY_PIPELINE)
 	// Pop HDR target from RT stack
 	{
 		assert(pRenderer->m_RTStack[0][pRenderer->m_nRTStackLevel[0]].m_pTex == CTexture::s_ptexHDRTarget);
@@ -1106,6 +1338,7 @@ void CStandardGraphicsPipeline::Execute()
 		pRenderer->FX_PopRenderTarget(0);
 		//pRenderer->EF_ClearTargetsLater(0);
 	}
+#endif
 
 	if (pRenderer->m_CurRenderEye == RIGHT_EYE || !pRenderer->GetS3DRend().IsStereoEnabled() || !pRenderer->GetS3DRend().RequiresSequentialSubmission())
 	{
@@ -1119,24 +1352,64 @@ void CStandardGraphicsPipeline::Execute()
 		// HDR and LDR post-processing
 		{
 			pRenderer->m_RP.m_PersFlags1 &= ~RBPF1_SKIP_AFTER_POST_PROCESS;
-			SwitchToLegacyPipeline();
 
-			pRenderer->FX_ProcessRenderList(EFSLIST_AFTER_HDRPOSTPROCESS, pRenderFunc, false);
-			pRenderer->FX_ProcessRenderList(EFSLIST_POSTPROCESS, pRenderFunc, false);
+#if defined(RENDERER_ENABLE_LEGACY_PIPELINE)
+			if (pRenderer->m_nGraphicsPipeline < 3)
+			{
+				SwitchToLegacyPipeline();
+				pRenderer->FX_ProcessRenderList(EFSLIST_AFTER_HDRPOSTPROCESS, pRenderFunc, false);
+				SwitchFromLegacyPipeline();
+			}
+#endif
+
+			m_pPostEffectStage->Execute();
 
 			pRenderer->RT_SetViewport(0, 0, pRenderer->GetWidth(), pRenderer->GetHeight());
-
-			pRenderer->FX_ProcessRenderList(EFSLIST_AFTER_POSTPROCESS, pRenderFunc, false);
 		}
 
-		SwitchFromLegacyPipeline();
+		// NOTE: this flag can be enabled in CThermalVision::Render().
+		bool bDrawAfterPostProcess = !(pRenderer->m_RP.m_PersFlags1 & RBPF1_SKIP_AFTER_POST_PROCESS);
+		if (bDrawAfterPostProcess)
+		{
+			if (pRenderer->m_nGraphicsPipeline >= 3)
+			{
+				m_pSceneForwardStage->Execute_AfterPostProcess();
+			}
+			else
+			{
+#if defined(RENDERER_ENABLE_LEGACY_PIPELINE)
+				SwitchToLegacyPipeline();
+				pRenderer->FX_ProcessRenderList(EFSLIST_AFTER_POSTPROCESS, pRenderFunc, false);
+				SwitchFromLegacyPipeline();
+#endif
+			}
+		}
+
 		m_pSceneCustomStage->Execute();
-		SwitchToLegacyPipeline();
+
+		// Display tone mapping debugging information on the screen
+		if (CRenderer::CV_r_HDRDebug == 1 && (pRenderer->m_RP.m_nRendFlags & SHDF_ALLOWPOSTPROCESS))
+		{
+			m_pToneMappingStage->DisplayDebugInfo();
+		}
 
 		if (CRenderer::CV_r_DeferredShadingDebug)
+		{
+#if defined(RENDERER_ENABLE_LEGACY_PIPELINE)
+			SwitchToLegacyPipeline();
 			pRenderer->FX_DeferredRendering(m_pCurrentRenderView, true);
+			SwitchFromLegacyPipeline();
+#endif
+		}
 	}
 
-	m_bUtilityPassesInitialized = true;
+	PROFILE_LABEL_POP("GRAPHICS_PIPELINE");
+
+	m_pVolumetricFogStage->ResetFrame();
+
+	m_renderPassScheduler.SetEnabled(false);
+	m_renderPassScheduler.Execute();
+
+	ResetUtilityPassCache();
 	m_pCurrentRenderView = nullptr;
 }

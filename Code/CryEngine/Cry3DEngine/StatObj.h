@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 // -------------------------------------------------------------------------
 //  File name:   statobj.h
@@ -293,6 +293,9 @@ public:
 	// Default material.
 	_smart_ptr<IMaterial> m_pMaterial;
 
+	// Billboard material and mesh
+	_smart_ptr<IMaterial> m_pBillboardMaterial;
+
 	float m_fRadiusHors;
 	float m_fRadiusVert;
 
@@ -305,7 +308,7 @@ public:
 	float m_lastBooleanOpScale;
 
 	_smart_ptr<CStatObj>* m_pLODs;
-	_smart_ptr<CStatObj> m_pLod0;      // Level 0 stat object. (Pointer to the original object of the LOD)
+	CStatObj* m_pLod0;                 // Level 0 stat object. (Pointer to the original object of the LOD)
 	unsigned int m_nMinUsableLod0 : 8; // What is the minimal LOD that can be used as LOD0.
 	unsigned int m_nMaxUsableLod0 : 8; // What is the maximal LOD that can be used as LOD0.
 	unsigned int m_nMaxUsableLod  : 8; // What is the maximal LOD that can be used.
@@ -458,6 +461,8 @@ public:
 	virtual void SetMaterial(IMaterial * pMaterial) final;
 	virtual IMaterial* GetMaterial() const final { return m_pMaterial; }
 	//////////////////////////////////////////////////////////////////////////
+
+	IMaterial * GetBillboardMaterial() { return m_pBillboardMaterial; }
 
 	void RenderInternal(CRenderObject * pRenderObject, hidemask nSubObjectHideMask, const CLodValue &lodValue, const SRenderingPassInfo &passInfo);
 	void RenderObjectInternal(CRenderObject * pRenderObject, int nLod, uint8 uLodDissolveRef, bool dissolveOut, const SRenderingPassInfo &passInfo);
@@ -718,6 +723,8 @@ protected:
 	}
 
 	bool CheckForStreamingDependencyLoop(const char* szFilenameDependancy) const;
+	void CheckCreateBillboardMaterial();
+	void CreateBillboardMesh(IMaterial* pMaterial);
 };
 
 //////////////////////////////////////////////////////////////////////////

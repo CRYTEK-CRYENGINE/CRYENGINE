@@ -1,7 +1,5 @@
-////////////////////////////////////////////////////////////////////////////
-//
-//  Crytek Engine Source File.
-//  Copyright (C), Crytek Studios, 2009.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+
 // -------------------------------------------------------------------------
 //  File name:   IAIBubblesSystem.h
 //  Version:     v1.00
@@ -17,11 +15,11 @@
 #define __IAIBubblesSystem_h__
 
 #if _MSC_VER > 1000
-#pragma once
+	#pragma once
 #endif
 
 #define MAX_BUBBLE_MESSAGE_LENGHT 512
-#define MIN_CHARACTERS_INTERVAL 30
+#define MIN_CHARACTERS_INTERVAL   30
 
 #include <CryEntitySystem/IEntity.h>
 
@@ -35,58 +33,58 @@ struct SAIBubbleRequest
 		eRT_PrototypeDialog,
 	};
 
-	SAIBubbleRequest(const EntityId _entityID,const char* _message, TBubbleRequestOptionFlags _flags, float _duration = 0.0f, const ERequestType _requestType = eRT_ErrorMessage)
-		:entityID(_entityID)
-		,message(_message)
-		,flags(_flags)
-		,duration(_duration)
-		,requestType(_requestType)
-		,totalLinesFormattedMessage(0)
+	SAIBubbleRequest(const EntityId _entityID, const char* _message, TBubbleRequestOptionFlags _flags, float _duration = 0.0f, const ERequestType _requestType = eRT_ErrorMessage)
+		: entityID(_entityID)
+		, message(_message)
+		, flags(_flags)
+		, duration(_duration)
+		, requestType(_requestType)
+		, totalLinesFormattedMessage(0)
 	{
-		FormatMessageWithMultiline(MIN_CHARACTERS_INTERVAL );
+		FormatMessageWithMultiline(MIN_CHARACTERS_INTERVAL);
 	}
 
 	SAIBubbleRequest(const SAIBubbleRequest& request)
-		:entityID(request.entityID)
-		,message(request.message)
-		,flags(request.flags)
-		,duration(request.duration)
-		,requestType(request.requestType)
-		,totalLinesFormattedMessage(request.totalLinesFormattedMessage)
+		: entityID(request.entityID)
+		, message(request.message)
+		, flags(request.flags)
+		, duration(request.duration)
+		, requestType(request.requestType)
+		, totalLinesFormattedMessage(request.totalLinesFormattedMessage)
 	{}
 
 	size_t GetFormattedMessage(stack_string& outMessage) const { outMessage = message; return totalLinesFormattedMessage; }
-	void GetMessage(stack_string& outMessage) const
+	void   GetMessage(stack_string& outMessage) const
 	{
 		outMessage = message;
-		std::replace(outMessage.begin(), outMessage.end(),'\n',' ');
+		std::replace(outMessage.begin(), outMessage.end(), '\n', ' ');
 	}
 
-	const EntityId GetEntityID() const { return entityID; }
-	TBubbleRequestOptionFlags GetFlags() const { return flags; }
-	float GetDuration() const { return duration; }
-	bool IsDurationInfinite() const { return duration == FLT_MAX; }
-	ERequestType GetRequestType() const { return requestType; }
+	const EntityId            GetEntityID() const        { return entityID; }
+	TBubbleRequestOptionFlags GetFlags() const           { return flags; }
+	float                     GetDuration() const        { return duration; }
+	bool                      IsDurationInfinite() const { return duration == FLT_MAX; }
+	ERequestType              GetRequestType() const     { return requestType; }
 
 private:
 	void FormatMessageWithMultiline(size_t minimumCharactersInterval)
-	{			
+	{
 		size_t pos = message.find(' ', minimumCharactersInterval);
 		size_t i = 1;
-		while(pos != message.npos)
+		while (pos != message.npos)
 		{
-			message.replace(pos,1,"\n");
-			pos = message.find(' ',minimumCharactersInterval*(++i));
+			message.replace(pos, 1, "\n");
+			pos = message.find(' ', minimumCharactersInterval * (++i));
 		}
 		totalLinesFormattedMessage = i;
 	}
 
-	EntityId                                    entityID;
-	CryFixedStringT<MAX_BUBBLE_MESSAGE_LENGHT>  message;
-	TBubbleRequestOptionFlags                   flags;
-	float                                       duration;
-	const ERequestType                          requestType;
-	size_t                                      totalLinesFormattedMessage;
+	EntityId                                   entityID;
+	CryFixedStringT<MAX_BUBBLE_MESSAGE_LENGHT> message;
+	TBubbleRequestOptionFlags                  flags;
+	float duration;
+	const ERequestType                         requestType;
+	size_t totalLinesFormattedMessage;
 
 };
 
@@ -121,12 +119,12 @@ struct IAIBubblesSystem
 	virtual ~IAIBubblesSystem() {};
 
 	virtual void Init() = 0;
-	/* 
-		messageName is an identifier for the part of the code where the
-		QueueMessage is called to avoid queuing the same message
-		several time before the previous message is actually expired
-		inside the BubbleSystem
-	*/ 
+	/*
+	   messageName is an identifier for the part of the code where the
+	   QueueMessage is called to avoid queuing the same message
+	   several time before the previous message is actually expired
+	   inside the BubbleSystem
+	 */
 	virtual SBubbleRequestId QueueMessage(const char* messageName, const SAIBubbleRequest& request) = 0;
 	virtual bool CancelMessageBubble(const EntityId entityId, const SBubbleRequestId& bubbleRequestId) = 0;
 	virtual void Update() = 0;

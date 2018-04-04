@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #include "StdAfx.h"
 #include "ParticleSystem/ParticleFeature.h"
@@ -27,7 +27,7 @@ public:
 		, m_projectPosition(true)
 		, m_projectVelocity(true)
 		, m_projectAngles(false)
-		, m_spawnOnly(false) {}
+		, m_spawnOnly(true) {}
 
 	virtual void AddToComponent(CParticleComponent* pComponent, SComponentParams* pParams) override
 	{

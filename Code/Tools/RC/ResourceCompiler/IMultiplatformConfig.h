@@ -1,4 +1,5 @@
 // Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved.
+
 #ifndef __imultiplatformconfig_h__
 #define __imultiplatformconfig_h__
 #pragma once

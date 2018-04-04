@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #pragma once
 
@@ -534,14 +534,14 @@ struct SVehicleMovementEventParams
 // Sound event info
 struct SVehicleSoundInfo
 {
-	string          name; // event name
-	IVehicleHelper* pHelper;
-	AudioControlId  soundId;
-	bool            isEngineSound;
+	string              name;      // event name
+	IVehicleHelper*     pHelper;
+	CryAudio::ControlId soundId;
+	bool                isEngineSound;
 
 	SVehicleSoundInfo() : isEngineSound(false), pHelper(NULL)
 	{
-		soundId = INVALID_AUDIO_CONTROL_ID;
+		soundId = CryAudio::InvalidControlId;
 	}
 };
 typedef int TVehicleSoundEventId;
@@ -1226,11 +1226,11 @@ struct IVehicleMovement
 
 	virtual void                   GetMemoryUsage(ICrySizer* s) const = 0;
 
-	virtual IEntityAudioComponent*     GetAudioProxy() const                      { return nullptr; }
-	virtual AudioControlId         GetPrimaryWeaponAudioTrigger() const       { return INVALID_AUDIO_CONTROL_ID; }
-	virtual AudioControlId         GetPrimaryWeaponAudioStopTrigger() const   { return INVALID_AUDIO_CONTROL_ID; }
-	virtual AudioControlId         GetSecondaryWeaponAudioTrigger() const     { return INVALID_AUDIO_CONTROL_ID; }
-	virtual AudioControlId         GetSecondaryWeaponAudioStopTrigger() const { return INVALID_AUDIO_CONTROL_ID; }
+	virtual IEntityAudioComponent* GetAudioProxy() const                      { return nullptr; }
+	virtual CryAudio::ControlId    GetPrimaryWeaponAudioTrigger() const       { return CryAudio::InvalidControlId; }
+	virtual CryAudio::ControlId    GetPrimaryWeaponAudioStopTrigger() const   { return CryAudio::InvalidControlId; }
+	virtual CryAudio::ControlId    GetSecondaryWeaponAudioTrigger() const     { return CryAudio::InvalidControlId; }
+	virtual CryAudio::ControlId    GetSecondaryWeaponAudioStopTrigger() const { return CryAudio::InvalidControlId; }
 };
 
 // Summary

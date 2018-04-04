@@ -15,7 +15,7 @@
 #include "Game.h"
 #include "GameCVars.h"
 #include "GameActions.h"
-
+ 
 #include "UI/UIManager.h"
 #include "UI/ProfileOptions.h"
 #include "UI/WarningsManager.h"
@@ -38,6 +38,7 @@
 #include "ItemScheduler.h"
 #include "Utility/CryWatch.h"
 
+#include <CryExtension/ICryPluginManager.h>
 #include <CrySystem/File/ICryPak.h>
 #include <CryString/CryPath.h>
 #include <IActionMapManager.h>
@@ -104,7 +105,6 @@
 #include "VehicleClient.h"
 #include "AI/TacticalPointLanguageExtender.h"
 #include "AI/GameAISystem.h"
-#include "AI/GameAIEnv.h"
 #include "AI/AICorpse.h"
 
 #include "Network/Lobby/GameUserPackets.h"
@@ -181,10 +181,12 @@
 #include "DynamicResponseSystem/ConditionDistanceToEntity.h"
 #include "DynamicResponseSystem/GameTokenToDrsTranslator.h"
 #include "DynamicResponseSystem/ActionExecuteAudioTrigger.h"
-#include "DynamicResponseSystem/ActionSpeakLineBasedOnVariable.h"
 #include <CrySerialization/ClassFactory.h>
 
 #include <CrySystem/Profilers/FrameProfiler/FrameProfiler.h>
+#include <CrySystem/CryUnitTest.h>
+
+#include <IPerceptionManager.h>
 
 //#define GAME_DEBUG_MEM  // debug memory usage
 #undef  GAME_DEBUG_MEM
@@ -206,12 +208,6 @@ STRUCT_INFO_T_INSTANTIATE(Quat_tpl, <float> )
 	#if CRY_PLATFORM_ANDROID
 STRUCT_INFO_T_INSTANTIATE(QuatT_tpl, <float> )
 	#endif
-#endif
-
-// Needed for the Game02 specific flow node
-#ifndef _LIB
-CAutoRegFlowNodeBase* CAutoRegFlowNodeBase::m_pFirst = 0;
-CAutoRegFlowNodeBase* CAutoRegFlowNodeBase::m_pLast = 0;
 #endif
 
 #if CRY_PLATFORM_WINDOWS
@@ -450,6 +446,7 @@ CGame::CGame()
 	m_pMatchMakingTelemetry(NULL),
 	m_pDataPatchDownloader(0),
 	m_pGameLocalizationManager(0),
+	m_pGameStateRecorder(0),
 #if USE_LAGOMETER
 	m_pLagOMeter(0),
 #endif
@@ -596,8 +593,6 @@ CGame::~CGame()
 		pStereoOutput->RemoveOnChangeFunctor(m_stereoOutputFunctorId);
 	}
 
-	UnregisterGameFlowNodes();
-
 	gEnv->pGameFramework->EndGameContext();
 	gEnv->pGameFramework->UnregisterListener(this);
 	GetISystem()->GetPlatformOS()->RemoveListener(this);
@@ -646,6 +641,7 @@ CGame::~CGame()
 	SAFE_DELETE(m_patchPakManager);
 	SAFE_DELETE(m_pDataPatchDownloader);
 	SAFE_DELETE(m_pGameLocalizationManager);
+	SAFE_RELEASE(m_pGameStateRecorder);
 	SAFE_DELETE(m_pGameTokenSignalCreator);
 #if USE_LAGOMETER
 	SAFE_DELETE(m_pLagOMeter);
@@ -709,6 +705,8 @@ CGame::~CGame()
 			pLobby->Terminate(eCLS_Online, eCLSO_All, NULL, NULL);
 		}
 	}
+
+	gEnv->pSystem->UnloadEngineModule("CryLobby");
 
 	GAME_FX_SYSTEM.Destroy();
 
@@ -788,10 +786,8 @@ bool CGame::Init(/*IGameFramework* pFramework*/)
 	m_pGamePhysicsSettings = new CGamePhysicsSettings();
 
 	GetISystem()->GetPlatformOS()->AddListener(this, "CGame");
-	gEnv->pSystem->GetISystemEventDispatcher()->RegisterListener(this);
+	gEnv->pSystem->GetISystemEventDispatcher()->RegisterListener(this, "CGame");
 
-	LoadActionMaps("libs/config/defaultProfile.xml");
-	InlineInitializationProcessing("CGame::Init LoadActionMaps");
 	InitScriptBinds();
 
 	InlineInitializationProcessing("CGame::Init InitScriptBinds");
@@ -851,6 +847,9 @@ bool CGame::Init(/*IGameFramework* pFramework*/)
 	{
 		gEnv->pSystem->GetPlatformOS()->UserDoSignIn(0); // sign in the default user
 	}
+
+	LoadActionMaps("libs/config/defaultProfile.xml");
+	InlineInitializationProcessing("CGame::Init LoadActionMaps");
 
 #if CRY_PLATFORM_DURANGO
 	XboxLiveGameEvents::CreateGUID(m_playerSessionId);
@@ -928,7 +927,7 @@ bool CGame::Init(/*IGameFramework* pFramework*/)
 		}
 #endif
 
-		if (!gEnv->pSystem->InitializeEngineModule("CryLobby", "EngineModule_CryLobby", false))
+		if (!gEnv->pSystem->InitializeEngineModule("CryLobby", cryiidof<ILobbyEngineModule>(), false))
 		{
 			CryWarning(VALIDATOR_MODULE_GAME, VALIDATOR_ERROR, "Error creating Lobby System!");
 		}
@@ -938,13 +937,13 @@ bool CGame::Init(/*IGameFramework* pFramework*/)
 		{
 			pLobby->SetUserPacketEnd(eGUPD_End);
 
-#if !defined(_RELEASE) || defined(PERFORMANCE_BUILD) || defined(IS_EAAS)
+#if !defined(_RELEASE) || defined(PERFORMANCE_BUILD)
 			if (!(g_pGameCVars && (g_pGameCVars->g_useOnlineServiceForDedicated) && gEnv->IsDedicated()))
 			{
 				error = pLobby->Initialise(eCLS_LAN, features, CGameBrowser::ConfigurationCallback, CGameBrowser::InitialiseCallback, this);
 				CRY_ASSERT_MESSAGE(error == eCLE_Success, "Failed to initialize LAN lobby service");
 			}
-#endif // #if !defined(_RELEASE) || defined(PERFORMANCE_BUILD) || defined(IS_EAAS)
+#endif // #if !defined(_RELEASE) || defined(PERFORMANCE_BUILD)
 
 			if (!gEnv->IsDedicated())
 			{
@@ -1229,9 +1228,9 @@ bool CGame::Init(/*IGameFramework* pFramework*/)
 	{
 		// register the custom DRS actions and conditions
 		REGISTER_DRS_CUSTOM_ACTION(CActionExecuteAudioTrigger);
-		REGISTER_DRS_CUSTOM_ACTION(CActionSpeakLineBasedOnVariable);
+		REGISTER_DRS_CUSTOM_ACTION(CActionSetAudioSwitch);
+		REGISTER_DRS_CUSTOM_ACTION(CActionSetAudioParameter);
 		REGISTER_DRS_CUSTOM_CONDITION(CConditionDistanceToEntity);
-		gEnv->pDynamicResponseSystem->Init(PathUtil::GetGameFolder() + "/libs/DynamicResponseSystem");
 
 		// create a special DrsActor that sends out our automatic signals every time a gametoken changes its value
 		DRS::IResponseActor* pDrsActor = gEnv->pDynamicResponseSystem->CreateResponseActor("GameTokenSignalSender");
@@ -1262,31 +1261,6 @@ bool CGame::CompleteInit()
 	DumpMemInfo("CGame::CompleteInit");
 #endif
 
-#if defined(CRY_UNIT_TESTING)
-	// Register All unit tests of this module.
-	// run unit tests
-	if (CryUnitTest::IUnitTestManager* pTestManager = gEnv->pSystem->GetITestSystem()->GetIUnitTestManager())
-	{
-#if defined(_LIB)
-		pTestManager->CreateTests(CryUnitTest::Test::m_pFirst, "StaticBinary");
-#endif
-
-		const ICmdLineArg* pSkipUnitTest = gEnv->pSystem->GetICmdLine()->FindArg(eCLAT_Pre, "skip_unit_tests"); 
-		if(pSkipUnitTest == NULL)
-		{
-			const ICmdLineArg* pUseUnitTestExcelReporter = gEnv->pSystem->GetICmdLine()->FindArg(eCLAT_Pre, "use_unit_test_excel_reporter"); 
-			if(pUseUnitTestExcelReporter)
-			{
-				gEnv->pSystem->GetITestSystem()->GetIUnitTestManager()->RunAllTests(CryUnitTest::ExcelReporter);
-			}
-			else // default is the minimal reporter
-			{
-				gEnv->pSystem->GetITestSystem()->GetIUnitTestManager()->RunAllTests(CryUnitTest::MinimalReporter);
-			}
-		}
-	}
-#endif // CRY_UNIT_TESTING
-
 	return true;
 }
 
@@ -1296,35 +1270,22 @@ void CGame::OnEditorGameInitComplete()
 	m_pWeaponSystem->Reload();
 }
 
-void CGame::RegisterGameFlowNodes()
+void CGame::RegisterPhysicsCallbacks()
 {
-#ifndef _LIB
-	if (IFlowSystem* pFlowSystem = gEnv->pGameFramework->GetIFlowSystem())
-	{
-		CAutoRegFlowNodeBase* pFactory = CAutoRegFlowNodeBase::m_pFirst;
-		while (pFactory)
-		{
-			pFlowSystem->RegisterType(pFactory->m_sClassName, pFactory);
-			pFactory = pFactory->m_pNext;
-		}
-	}
-#endif
+	IPhysicalWorld* pPhysicalWorld = gEnv->pPhysicalWorld;
+	if (!pPhysicalWorld)
+		return;
+
+	pPhysicalWorld->AddEventClient(EventPhysCreateEntityPart::id, OnCreatePhysicalEntityLogged, 1, 0.1f);
 }
 
-void CGame::UnregisterGameFlowNodes()
+void CGame::UnregisterPhysicsCallbacks()
 {
-#ifndef _LIB
-	IFlowSystem* pFlowSystem = gEnv->pGameFramework->GetIFlowSystem();
-	if (pFlowSystem)
-	{
-		CAutoRegFlowNodeBase* pFactory = CAutoRegFlowNodeBase::m_pFirst;
-		while (pFactory)
-		{
-			pFlowSystem->UnregisterType(pFactory->m_sClassName);
-			pFactory = pFactory->m_pNext;
-		}
-	}
-#endif
+	IPhysicalWorld* pPhysicalWorld = gEnv->pPhysicalWorld;
+	if (!pPhysicalWorld)
+		return;
+
+	pPhysicalWorld->RemoveEventClient(EventPhysCreateEntityPart::id, OnCreatePhysicalEntityLogged, 1);
 }
 
 CRevertibleConfigLoader& CGame::GetGameModeCVars()
@@ -1882,7 +1843,7 @@ void CGame::ReloadPlayerParamFiles()
 
 void CGame::SetDifficultyLevel(EDifficulty difficulty)
 {
-	CDebugAllowFileAccess ignoreInvalidFileAccess;
+	SCOPED_ALLOW_FILE_ACCESS_FROM_THIS_THREAD();
 
 	assert(!gEnv->bMultiplayer);
 
@@ -2721,7 +2682,7 @@ int CGame::Update(bool haveFocus, unsigned int updateFlags) PREFAST_SUPPRESS_WAR
 			if (timeRemaining > 0.f)
 			{
 				SHUDEvent resumingEvent(eHUDEvent_OnUpdateGameResumeMessage);
-				int time = MAX(int(floor(timeRemaining + 0.5f)), 0);
+				int time = std::max(int(floor(timeRemaining + 0.5f)), 0);
 				resumingEvent.AddData(time);
 				CHUDEventDispatcher::CallEvent(resumingEvent);
 			}
@@ -3573,7 +3534,6 @@ void CGame::OnActionEvent(const SActionEvent& event)
 			m_pMovementTransitionsSystem->Flush();
 			CSmokeManager::GetSmokeManager()->ReleaseObstructionObjects();
 
-
 			if (m_pGameAISystem)
 			{
 				m_pGameAISystem->Reset(false); // Going to lie about the unload here, and reset it for unload later...
@@ -3766,14 +3726,14 @@ void CGame::LoadActionMaps(const char* filename)
 		{
 			if (gEnv->pSystem->IsDevMode())
 			{
-			#ifndef _RELEASE
+#ifndef _RELEASE
 				//In devmode and not release get the default user if no users are signed in e.g. autotesting, map on the command line
 				pProfile = pPPMgr->GetDefaultProfile();
 				if (pProfile)
 				{
 					userId = pProfile->GetUserId();
 				}
-			#endif      // #ifndef _RELEASE
+#endif            // #ifndef _RELEASE
 			}
 			else
 			{
@@ -3889,6 +3849,7 @@ void CGame::ReleaseScriptBinds()
 	SAFE_DELETE(m_pScriptBindBoids);
 	SAFE_DELETE(m_pScriptBindTurret);
 	SAFE_DELETE(m_pScriptBindProtected);
+	SAFE_DELETE(m_pScriptBindGameAI);
 }
 
 void CGame::CheckReloadLevel()
@@ -4065,13 +4026,13 @@ void CGame::LoadMappedLevelNames(const char* xmlPath)
 
 IGameStateRecorder* CGame::CreateGameStateRecorder(IGameplayListener* pL)
 {
-	CGameStateRecorder* pGSP = new CGameStateRecorder();
-
-	if (pGSP)
-		pGSP->RegisterListener(pL);
-
-	return (IGameStateRecorder*)pGSP;
-
+	if (!m_pGameStateRecorder)
+	{
+		m_pGameStateRecorder = new CGameStateRecorder();
+		CRY_ASSERT(m_pGameStateRecorder);
+		m_pGameStateRecorder->RegisterListener(pL);
+	}
+	return m_pGameStateRecorder;
 }
 
 CInteractiveObjectRegistry& CGame::GetInteractiveObjectsRegistry() const
@@ -4378,7 +4339,7 @@ float CGame::GetRemainingHostMigrationTimeoutTime() const
 {
 	const float timePassed = GetTimeSinceHostMigrationStateChanged();
 	const float timeRemaining = m_hostMigrationNetTimeoutLength - timePassed;
-	return MAX(timeRemaining, 0.f);
+	return std::max(timeRemaining, 0.f);
 }
 
 //------------------------------------------------------------------------
@@ -4393,7 +4354,7 @@ float CGame::GetHostMigrationTimeTillResume() const
 	{
 		const float curTime = gEnv->pTimer->GetAsyncCurTime();
 		const float timePassed = curTime - m_hostMigrationTimeStateChanged;
-		timeRemaining = MAX(g_pGameCVars->g_hostMigrationResumeTime - timePassed, 0.f);
+		timeRemaining = std::max(g_pGameCVars->g_hostMigrationResumeTime - timePassed, 0.f);
 	}
 	return timeRemaining;
 }
@@ -4895,12 +4856,6 @@ void CGame::OnSystemEvent(ESystemEvent event, UINT_PTR wparam, UINT_PTR lparam)
 {
 	switch (event)
 	{
-	case ESYSTEM_EVENT_REGISTER_FLOWNODES:
-		{
-			RegisterGameFlowNodes();
-		}
-		break;
-
 	case ESYSTEM_EVENT_LEVEL_LOAD_PREPARE:
 		{
 			CryLog("Preparing to load level!");
@@ -5030,7 +4985,7 @@ void CGame::OnSystemEvent(ESystemEvent event, UINT_PTR wparam, UINT_PTR lparam)
 
 					if (pIEntityAudioComponent != NULL)
 					{
-						pIEntityAudioComponent->SetCurrentEnvironments(INVALID_AUDIO_PROXY_ID);
+						pIEntityAudioComponent->SetCurrentEnvironments(CryAudio::InvalidAuxObjectId);
 					}
 				}
 			}
@@ -6064,6 +6019,49 @@ float CGame::GetPowerSprintTargetFov() const
 	}
 	else
 		return g_pGameCVars->pl_movement.power_sprint_targetFov;
+}
+
+int CGame::OnCreatePhysicalEntityLogged(const EventPhys* pEvent)
+{
+	const EventPhysCreateEntityPart* pCEvent = static_cast<const EventPhysCreateEntityPart*>(pEvent);
+	
+	if (pCEvent->iForeignData != PHYS_FOREIGN_ID_STATIC)
+		return 1;
+
+	IRenderNode* rn = static_cast<IRenderNode*>(pCEvent->pForeignData);
+	if (eERType_Vegetation == rn->GetRenderNodeType())
+	{
+		// notify PerceptionManager
+		IPerceptionManager* perceptionManager = IPerceptionManager::GetInstance();
+		if (perceptionManager)
+		{
+			IEntity* pNewEnt = static_cast<IEntity*>(pCEvent->pEntNew->GetForeignData(PHYS_FOREIGN_ID_ENTITY));
+			if (pNewEnt)
+			{
+				// Classify the collision type.
+				SAICollisionObjClassification type = AICOL_LARGE;
+				if (pCEvent->breakSize < 0.5f)
+					type = AICOL_SMALL;
+				else if (pCEvent->breakSize < 2.0f)
+					type = AICOL_MEDIUM;
+				else
+					type = AICOL_LARGE;
+
+				// Magic formula to calculate the reaction and sound radii.
+				const float impulse = pCEvent->breakImpulse.GetLength();
+				const float reactionRadius = pCEvent->breakSize * 2.0f;
+				const float soundRadius = 10.0f + sqrtf(clamp_tpl(impulse / 800.0f, 0.0f, 1.0f)) * 60.0f;
+
+				SAIStimulus stim(AISTIM_COLLISION, type, pNewEnt ? pNewEnt->GetId() : 0, 0, rn->GetPos(), ZERO, reactionRadius);
+				SAIStimulus stimSound(AISTIM_SOUND, type == AICOL_SMALL ? AISOUND_COLLISION : AISOUND_COLLISION_LOUD,
+					pNewEnt ? pNewEnt->GetId() : 0, 0, rn->GetPos(), ZERO, soundRadius, AISTIMPROC_FILTER_LINK_WITH_PREVIOUS);
+				
+				perceptionManager->RegisterStimulus(stim);
+				perceptionManager->RegisterStimulus(stimSound);
+			}
+		}
+	}
+	return 1;
 }
 
 static void OnChangedStereoRenderDevice(ICVar* pStereoRenderDevice)

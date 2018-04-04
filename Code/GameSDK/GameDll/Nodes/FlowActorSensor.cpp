@@ -717,7 +717,7 @@ private:
 		RegisterWeapon(currItemId);
 		m_bEnabled = true;
 
-		gEnv->pSystem->GetISystemEventDispatcher()->RegisterListener(this);
+		gEnv->pSystem->GetISystemEventDispatcher()->RegisterListener(this, "CFlowNode_WeaponSensor");
 	}
 
 	void Disable()

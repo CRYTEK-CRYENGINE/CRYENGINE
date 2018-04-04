@@ -6,9 +6,9 @@
 
 // *INDENT-OFF* - <hard to read code and declarations due to inconsistent indentation>
 
-namespace uqs
+namespace UQS
 {
-	namespace core
+	namespace Core
 	{
 
 		//===================================================================================
@@ -22,10 +22,6 @@ namespace uqs
 		public:
 			virtual               ~CItemDebugProxyBase() {}
 
-			// - draws approximation geometry of the item immediately using the static Draw() methods of the CDebugRenderPrimitive_* classes
-			// - the "bHighlight" parameter specifies whether the item is currently the one that has the camera focus (and if so, then more debugging details will be drawn)
-			virtual void          Draw(const ColorF& color, bool bHighlight) const = 0;
-
 			// this is the position where we will add more details about the item in the 3D render world
 			virtual Vec3          GetPivot() const = 0;
 
@@ -34,9 +30,6 @@ namespace uqs
 			virtual bool          GetDistanceToCameraView(const SDebugCameraView& cameraView, float& dist) const = 0;
 
 			virtual void          Serialize(Serialization::IArchive& ar) = 0;
-
-		protected:
-			static const int      s_flags3D = e_Mode3D | e_AlphaBlended | e_DrawInFrontOff | e_FillModeSolid | e_CullModeBack | e_DepthWriteOn | e_DepthTestOn;
 		};
 
 		//===================================================================================
@@ -55,7 +48,6 @@ namespace uqs
 			// ~IItemDebugProxy_Sphere
 
 			// CItemDebugProxyBase
-			virtual void          Draw(const ColorF& color, bool bHighlight) const override;
 			virtual Vec3          GetPivot() const override;
 			virtual bool          GetDistanceToCameraView(const SDebugCameraView& cameraView, float& dist) const override;
 			virtual void          Serialize(Serialization::IArchive& ar) override;
@@ -84,7 +76,6 @@ namespace uqs
 			// ~IItemDebugProxy_Path
 
 			// CItemDebugProxyBase
-			virtual void          Draw(const ColorF& color, bool bHighlight) const override;
 			virtual Vec3          GetPivot() const override;
 			virtual bool          GetDistanceToCameraView(const SDebugCameraView& cameraView, float& dist) const override;
 			virtual void          Serialize(Serialization::IArchive& ar) override;
@@ -112,7 +103,6 @@ namespace uqs
 			// ~IItemDebugProxy_AABB
 
 			// CItemDebugProxyBase
-			virtual void          Draw(const ColorF& color, bool bHighlight) const override;
 			virtual Vec3          GetPivot() const override;
 			virtual bool          GetDistanceToCameraView(const SDebugCameraView& cameraView, float& dist) const override;
 			virtual void          Serialize(Serialization::IArchive& ar) override;

@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #include "StdAfx.h"
 #include "Script/Elements/ScriptActionInstance.h"
@@ -6,20 +6,20 @@
 #include <CrySerialization/BlackBox.h>
 #include <CrySerialization/IArchiveHost.h>
 #include <CrySerialization/STL.h>
-#include <Schematyc/Env/IEnvRegistry.h>
-#include <Schematyc/Env/Elements/IEnvAction.h>
-#include <Schematyc/Env/Elements/IEnvInterface.h>
-#include <Schematyc/SerializationUtils/ISerializationContext.h>
-#include <Schematyc/SerializationUtils/SerializationUtils.h>
-#include <Schematyc/Utils/Any.h>
-#include <Schematyc/Utils/IGUIDRemapper.h>
-#include <Schematyc/Utils/Properties.h>
+#include <CrySchematyc/Env/IEnvRegistry.h>
+#include <CrySchematyc/Env/Elements/IEnvAction.h>
+#include <CrySchematyc/Env/Elements/IEnvInterface.h>
+#include <CrySchematyc/SerializationUtils/ISerializationContext.h>
+#include <CrySchematyc/SerializationUtils/SerializationUtils.h>
+#include <CrySchematyc/Utils/Any.h>
+#include <CrySchematyc/Utils/IGUIDRemapper.h>
 
 namespace Schematyc
 {
+
 CScriptActionInstance::CScriptActionInstance() {}
 
-CScriptActionInstance::CScriptActionInstance(const SGUID& guid, const char* szName, const SGUID& actionTypeGUID, const SGUID& componentInstanceGUID)
+CScriptActionInstance::CScriptActionInstance(const CryGUID& guid, const char* szName, const CryGUID& actionTypeGUID, const CryGUID& componentInstanceGUID)
 	: CScriptElementBase(guid, szName)
 	, m_actionTypeGUID(actionTypeGUID)
 	, m_componentInstanceGUID(componentInstanceGUID)
@@ -44,19 +44,19 @@ void CScriptActionInstance::Serialize(Serialization::IArchive& archive)
 	CScriptElementBase::SerializeExtensions(archive);
 }
 
-SGUID CScriptActionInstance::GetActionTypeGUID() const
+CryGUID CScriptActionInstance::GetActionTypeGUID() const
 {
 	return m_actionTypeGUID;
 }
 
-SGUID CScriptActionInstance::GetComponentInstanceGUID() const
+CryGUID CScriptActionInstance::GetComponentInstanceGUID() const
 {
 	return m_componentInstanceGUID;
 }
 
-const IProperties* CScriptActionInstance::GetProperties() const
+const CClassProperties& CScriptActionInstance::GetProperties() const
 {
-	return m_pProperties.get();
+	return m_properties;
 }
 
 void CScriptActionInstance::LoadDependencies(Serialization::IArchive& archive, const ISerializationContext& context)
@@ -94,22 +94,12 @@ void CScriptActionInstance::Edit(Serialization::IArchive& archive, const ISerial
 
 void CScriptActionInstance::RefreshProperties()
 {
-	const IEnvAction* pEnvAction = gEnv->pSchematyc->GetEnvRegistry().GetAction(m_actionTypeGUID);
-	if (pEnvAction)
-	{
-		const IProperties* pEnvActionProperties = pEnvAction ? pEnvAction->GetProperties() : nullptr;
-		if (pEnvActionProperties)
-		{
-			m_pProperties = pEnvActionProperties->Clone();
-		}
-	}
+	// #SchematycTODO : Implement!!!
 }
 
 void CScriptActionInstance::SerializeProperties(Serialization::IArchive& archive)
 {
-	if (m_pProperties)
-	{
-		archive(*m_pProperties, "properties", "Properties");
-	}
+	// #SchematycTODO : Implement!!!
 }
+
 } // Schematyc

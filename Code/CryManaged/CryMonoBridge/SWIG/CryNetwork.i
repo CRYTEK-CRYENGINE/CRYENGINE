@@ -8,6 +8,7 @@
 #include <CryNetwork/ISimpleHttpServer.h>
 %}
 %csconstvalue("0xFFFFFFFFu") eEA_All;
+%ignore INetworkEngineModule;
 %ignore ISerializableInfo;
 %ignore IBreakDescriptionInfo::SerialiseSimpleBreakage;
 %ignore INetSender::ser;

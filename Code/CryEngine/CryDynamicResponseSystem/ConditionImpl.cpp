@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #include "stdafx.h"
 #include "ConditionImpl.h"
@@ -222,10 +222,3 @@ string CVariableRangeCondition::GetVerboseInfo() const
 {
 	return "Is " + GetVariableVerboseName() + " BETWEEN '" + m_value.GetValueAsString() + "' AND '" + m_value2.GetValueAsString() + "'";
 }
-
-//--------------------------------------------------------------------------------------------------
-REGISTER_DRS_CONDITION(CVariableSmallerCondition, "Variable less than ", DEFAULT_DRS_CONDITION_COLOR);
-REGISTER_DRS_CONDITION(CVariableLargerCondition, "Variable greater than ", DEFAULT_DRS_CONDITION_COLOR);
-REGISTER_DRS_CONDITION(CVariableEqualCondition, "Variable equal to ", DEFAULT_DRS_CONDITION_COLOR);
-REGISTER_DRS_CONDITION(CVariableRangeCondition, "Variable in range ", DEFAULT_DRS_CONDITION_COLOR);
-REGISTER_DRS_CONDITION(CVariableAgainstVariablesCondition, "Variable to Variable", DEFAULT_DRS_CONDITION_COLOR);

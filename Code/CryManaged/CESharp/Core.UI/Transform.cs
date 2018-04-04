@@ -1,6 +1,5 @@
 // Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
 
-using CryEngine.Attributes;
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -12,16 +11,21 @@ namespace CryEngine.UI
 	/// <summary>
 	/// Represents location of a SceneObject in space. Holds a SceneObject's hierarchical children.
 	/// </summary>
-	[DataContract]
 	public class Transform : UIComponent, IEnumerator<Transform>
 	{
-		public event EventHandler ParentChanged; ///< Raised if parent SceneObject was changed.
+		/// <summary>
+		/// Raised if parent SceneObject was changed.
+		/// </summary>
+		public event Action ParentChanged;
 
 		Transform _parent = null;
 		int _childrenPosition = -1;
 		Transform _currentChild = null;
 
-		[HideFromInspector]
+		/// <summary>
+		/// Moves this Transform from one SceneObject to another.
+		/// </summary>
+		/// <value>The parent.</value>
 		public Transform Parent
 		{
 			get
@@ -30,17 +34,20 @@ namespace CryEngine.UI
 			}
 			set
 			{
-				if (_parent != null)
-					_parent.Children.Remove(this);
+				_parent?.Children.Remove(this);
 				_parent = value;
-				if (_parent != null)
-					_parent.Children.Add(this);
-				if (ParentChanged != null)
+				_parent?.Children.Add(this);
+				if(ParentChanged != null)
+				{
 					ParentChanged();
+				}
 			}
-		} ///< Moves this Transform from one SceneObject to another.
+		}
 
-		public List<Transform> Children = new List<Transform>(); ///< Decending SceneObjects.
+		/// <summary>
+		/// Decending SceneObjects.
+		/// </summary>
+		public List<Transform> Children = new List<Transform>();
 
 		[DataMember(Name = "Children")]
 		List<SceneObject> _childOwners
@@ -52,8 +59,10 @@ namespace CryEngine.UI
 			set
 			{
 				Children = value.Select(x => x.GetComponent<Transform>()).ToList();
-				foreach (var ch in value)
+				foreach(var ch in value)
+				{
 					ch.Transform._parent = this;
+				}
 			}
 		}
 
@@ -63,7 +72,7 @@ namespace CryEngine.UI
 		public IEnumerator<Transform> GetEnumerator()
 		{
 			Reset();
-			return (IEnumerator<Transform>)this;
+			return this;
 		}
 
 		/// <summary>
@@ -71,14 +80,12 @@ namespace CryEngine.UI
 		/// </summary>
 		public bool MoveNext()
 		{
-			if (++_childrenPosition >= Children.Count)
+			if(++_childrenPosition >= Children.Count)
 			{
 				return false;
 			}
-			else
-			{
-				_currentChild = Children[_childrenPosition];
-			}
+
+			_currentChild = Children[_childrenPosition];
 			return true;
 		}
 
@@ -93,7 +100,10 @@ namespace CryEngine.UI
 		/// <summary>
 		/// IEnumerator specific.
 		/// </summary>
-		void IDisposable.Dispose() { }
+		void IDisposable.Dispose() 
+		{ 
+			
+		}
 
 		/// <summary>
 		/// IEnumerator specific.

@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #include "StdAfx.h"
 #include "GpuParticleManager.h"
@@ -36,13 +36,14 @@ void CManager::BeginFrame()
 
 _smart_ptr<IParticleComponentRuntime>
 CManager::CreateParticleComponentRuntime(
-  pfx2::IParticleComponent* pComponent,
-  const pfx2::SRuntimeInitializationParameters& params)
+	IParticleEmitter* pEmitter,
+	pfx2::IParticleComponent* pComponent,
+	const pfx2::SRuntimeInitializationParameters& params)
 {
 	FUNCTION_PROFILER(GetISystem(), PROFILE_PARTICLE);
 	CryAutoLock<CryCriticalSection> lock(m_cs);
 
-	CParticleComponentRuntime* pRuntime = new CParticleComponentRuntime(pComponent, params);
+	CParticleComponentRuntime* pRuntime = new CParticleComponentRuntime(pEmitter, pComponent, params);
 	_smart_ptr<IParticleComponentRuntime> result(pRuntime);
 	GetWriteRuntimes().push_back(pRuntime);
 	return result;
@@ -68,8 +69,8 @@ void CManager::RenderThreadUpdate()
 		// Full clear
 		UINT nulls[4] = { 0 };
 
-		CCryDeviceWrapper::GetObjectFactory().GetCoreCommandList()->GetComputeInterface()->ClearUAV(m_counter.GetBuffer().GetDeviceUAV(), nulls, 0, nullptr);
-		CCryDeviceWrapper::GetObjectFactory().GetCoreCommandList()->GetComputeInterface()->ClearUAV(m_scratch.GetBuffer().GetDeviceUAV(), nulls, 0, nullptr);
+		GetDeviceObjectFactory().GetCoreCommandList().GetComputeInterface()->ClearUAV(m_counter.GetBuffer().GetDevBuffer()->LookupUAV(EDefaultResourceViews::UnorderedAccess), nulls, 0, nullptr);
+		GetDeviceObjectFactory().GetCoreCommandList().GetComputeInterface()->ClearUAV(m_scratch.GetBuffer().GetDevBuffer()->LookupUAV(EDefaultResourceViews::UnorderedAccess), nulls, 0, nullptr);
 
 		// initialize readback staging buffer
 		m_counter.Readback(kMaxRuntimes);
@@ -138,6 +139,21 @@ void CManager::RenderThreadUpdate()
 	}
 }
 
+void CManager::RenderThreadPreUpdate()
+{
+	if (uint32 numRuntimes = uint32(GetReadRuntimes().size()))
+	{
+		std::vector<CGpuBuffer*> UAVs;
+
+		UAVs.reserve(numRuntimes);
+		for (auto& pRuntime : GetReadRuntimes())
+			UAVs.emplace_back(&pRuntime->PrepareForUse());
+
+		// Prepare particle buffers which have been used in the compute shader for vertex use
+		GetDeviceObjectFactory().GetCoreCommandList().GetGraphicsInterface()->PrepareUAVsForUse(numRuntimes, &UAVs[0], false);
+	}
+}
+
 void CManager::RenderThreadPostUpdate()
 {
 	if (uint32 numRuntimes = uint32(GetReadRuntimes().size()))
@@ -150,20 +166,20 @@ void CManager::RenderThreadPostUpdate()
 				UAVs.emplace_back(&pRuntime->PrepareForUse());
 
 			// Prepare particle buffers which have been used in the vertex shader for compute use
-			CCryDeviceWrapper::GetObjectFactory().GetCoreCommandList()->GetGraphicsInterface()->PrepareUAVsForUse(numRuntimes, &UAVs[0]);
+			GetDeviceObjectFactory().GetCoreCommandList().GetGraphicsInterface()->PrepareUAVsForUse(numRuntimes, &UAVs[0], true);
 		}
 
 		{
 			// Minimal clear
 			UINT nulls[4] = { 0 };
-#if defined(DEVICE_SUPPORTS_D3D11_1) && !CRY_PLATFORM_ORBIS
+#if defined(DEVICE_SUPPORTS_D3D11_1) && (!CRY_PLATFORM_ORBIS || CRY_RENDERER_GNM)
 			const UINT numRanges = 1;
 			const D3D11_RECT uavRange = { 0, 0, numRuntimes, 0 };
-			CCryDeviceWrapper::GetObjectFactory().GetCoreCommandList()->GetComputeInterface()->ClearUAV(m_counter.GetBuffer().GetDeviceUAV(), nulls, numRanges, &uavRange);
-			CCryDeviceWrapper::GetObjectFactory().GetCoreCommandList()->GetComputeInterface()->ClearUAV(m_scratch.GetBuffer().GetDeviceUAV(), nulls, numRanges, &uavRange);
+			GetDeviceObjectFactory().GetCoreCommandList().GetComputeInterface()->ClearUAV(m_counter.GetBuffer().GetDevBuffer()->LookupUAV(EDefaultResourceViews::UnorderedAccess), nulls, numRanges, &uavRange);
+			GetDeviceObjectFactory().GetCoreCommandList().GetComputeInterface()->ClearUAV(m_scratch.GetBuffer().GetDevBuffer()->LookupUAV(EDefaultResourceViews::UnorderedAccess), nulls, numRanges, &uavRange);
 #else
-			CCryDeviceWrapper::GetObjectFactory().GetCoreCommandList()->GetComputeInterface()->ClearUAV(m_counter.GetBuffer().GetDeviceUAV(), nulls, 0, nullptr);
-			CCryDeviceWrapper::GetObjectFactory().GetCoreCommandList()->GetComputeInterface()->ClearUAV(m_scratch.GetBuffer().GetDeviceUAV(), nulls, 0, nullptr);
+			GetDeviceObjectFactory().GetCoreCommandList().GetComputeInterface()->ClearUAV(m_counter.GetBuffer().GetDevBuffer()->LookupUAV(EDefaultResourceViews::UnorderedAccess), nulls, 0, nullptr);
+			GetDeviceObjectFactory().GetCoreCommandList().GetComputeInterface()->ClearUAV(m_scratch.GetBuffer().GetDevBuffer()->LookupUAV(EDefaultResourceViews::UnorderedAccess), nulls, 0, nullptr);
 #endif
 		}
 	}
@@ -233,6 +249,7 @@ void CManager::CleanupResources()
 {
 	for (auto& runtime : GetWriteRuntimes())
 		runtime->PrepareRelease();
+	GetWriteRuntimes().clear();
 	ProcessResources();
 
 	if (m_readback.IsDeviceBufferAllocated())
@@ -240,8 +257,7 @@ void CManager::CleanupResources()
 		m_readback.FreeDeviceBuffer();
 		m_counter.FreeDeviceBuffer();
 	}
-
-	GetReadRuntimes().clear();
+		
 	if (GetWriteRuntimes().size() > 0)
 		CryFatalError("There are still GPU runtimes living past the render thread.");
 }

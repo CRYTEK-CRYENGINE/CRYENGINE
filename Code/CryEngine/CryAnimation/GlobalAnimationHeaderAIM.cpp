@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #include "stdafx.h"
 #include "GlobalAnimationHeaderAIM.h"
@@ -1216,7 +1216,6 @@ void VExampleInit::Init(const CDefaultSkeleton* pDefaultSkeleton, const DynArray
 
 				if (m_fSmallest < 10.0)
 				{
-					assert(m_fSmallest < (PRECISION * 2));
 					PolarGrid[y * CHUNK_GAHAIM_INFO::XGRID + x].m_fSmalest = f32(m_fSmallest);
 					PolarGrid[y * CHUNK_GAHAIM_INFO::XGRID + x].i0 = i0;
 					PolarGrid[y * CHUNK_GAHAIM_INFO::XGRID + x].i1 = i1;
@@ -1720,9 +1719,6 @@ void VExampleInit::RecursiveTest(const Vec2d& ControlPoint, GlobalAnimationHeade
 				break;
 		}
 
-		uint32 sum = o0 + o1 + o2 + o3;
-		assert(sum);
-
 		m_nIterations++;
 		if (m_nIterations > 50)
 			return;
@@ -1792,9 +1788,9 @@ uint32 VExampleInit::PointInQuat(const Vec2d& ControlPoint, GlobalAnimationHeade
 	weight[0] = w0;
 	f64 maxstep = 0.250f;
 
-	f64 angle0 = MAX(acos_tpl(tq1 | tq2), 0.01);
+	f64 angle0 = std::max(acos_tpl(tq1 | tq2), 0.01);
 	assert(angle0 >= 0.009);
-	f64 step0 = MIN((1.0 / (angle0 * angle0 * 30.0)), maxstep);
+	f64 step0 = std::min((1.0 / (angle0 * angle0 * 30.0)), maxstep);
 	for (f64 i = step0; i < 3.0; i += step0)
 	{
 		c++;
@@ -1808,9 +1804,9 @@ uint32 VExampleInit::PointInQuat(const Vec2d& ControlPoint, GlobalAnimationHeade
 		if (t == 1.0) break;
 	}
 
-	f64 angle1 = MAX(acos_tpl(tq1 | tq2), 0.01f);
+	f64 angle1 = std::max(acos_tpl(tq1 | tq2), 0.01);
 	assert(angle1 >= 0.009);
-	f64 step1 = MIN((1.0 / (angle1 * angle1 * 30.0)), maxstep);
+	f64 step1 = std::min((1.0 / (angle1 * angle1 * 30.0)), maxstep);
 	for (f64 i = step1; i < 3.0; i += step1)
 	{
 		c++;
@@ -1824,9 +1820,9 @@ uint32 VExampleInit::PointInQuat(const Vec2d& ControlPoint, GlobalAnimationHeade
 		if (t == 1.0) break;
 	}
 
-	f64 angle2 = MAX(acos_tpl(tq2 | tq3), 0.01);
+	f64 angle2 = std::max(acos_tpl(tq2 | tq3), 0.01);
 	assert(angle2 >= 0.009);
-	f64 step2 = MIN((1.0 / (angle2 * angle2 * 30.0)), maxstep);
+	f64 step2 = std::min((1.0 / (angle2 * angle2 * 30.0)), maxstep);
 	for (f64 i = step2; i < 3.0; i += step2)
 	{
 		c++;
@@ -1840,9 +1836,9 @@ uint32 VExampleInit::PointInQuat(const Vec2d& ControlPoint, GlobalAnimationHeade
 		if (t == 1.0) break;
 	}
 
-	f64 angle3 = MAX(acos_tpl(tq3 | tq0), 0.01);
+	f64 angle3 = std::max(acos_tpl(tq3 | tq0), 0.01);
 	assert(angle3 >= 0.009);
-	f64 step3 = MIN((1.0 / (angle3 * angle3 * 30.0)), maxstep);
+	f64 step3 = std::min((1.0 / (angle3 * angle3 * 30.0)), maxstep);
 	for (f64 i = step3; i < 3.0; i += step3)
 	{
 		c++;
@@ -1858,7 +1854,6 @@ uint32 VExampleInit::PointInQuat(const Vec2d& ControlPoint, GlobalAnimationHeade
 	assert(c);
 	assert(c < 1000);
 	f64 length = (polar[c] - polar[0]).GetLength();
-	assert(length < 0.0001);
 	polar[c] = polar[0];
 
 	Vec2d ControlPointEnd = ControlPoint + Vec2d(1, 0) * 10;

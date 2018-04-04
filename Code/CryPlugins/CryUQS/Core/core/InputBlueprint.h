@@ -4,12 +4,12 @@
 
 // *INDENT-OFF* - <hard to read code and declarations due to inconsistent indentation>
 
-namespace uqs
+namespace UQS
 {
-	namespace client { struct IFunctionFactory; }
-	namespace client { struct IInputParameterRegistry; }
+	namespace Client { struct IFunctionFactory; }
+	namespace Client { struct IInputParameterRegistry; }
 
-	namespace core
+	namespace Core
 	{
 
 		class CInputBlueprint;
@@ -23,42 +23,49 @@ namespace uqs
 		//
 		//===================================================================================
 
-		class CTextualInputBlueprint : public ITextualInputBlueprint
+		class CTextualInputBlueprint final : public ITextualInputBlueprint
 		{
 		public:
 			explicit                                    CTextualInputBlueprint();
 			                                            ~CTextualInputBlueprint();
 
 			virtual const char*                         GetParamName() const override;
+			virtual const Client::CInputParameterID&    GetParamID() const override;
 			virtual const char*                         GetFuncName() const override;
+			virtual const CryGUID&                      GetFuncGUID() const override;
 			virtual const char*                         GetFuncReturnValueLiteral() const override;
-			virtual const char*                         GetAddReturnValueToDebugRenderWorldUponExecution() const override;
+			virtual bool                                GetAddReturnValueToDebugRenderWorldUponExecution() const override;
 
 			virtual void                                SetParamName(const char* szParamName) override;
+			virtual void                                SetParamID(const Client::CInputParameterID& paramID) override;
 			virtual void                                SetFuncName(const char* szFuncName) override;
+			virtual void                                SetFuncGUID(const CryGUID& funcGUID) override;
 			virtual void                                SetFuncReturnValueLiteral(const char* szValue) override;
-			virtual void                                SetAddReturnValueToDebugRenderWorldUponExecution(const char* szAddReturnValueToDebugRenderWorldUponExecution) override;
+			virtual void                                SetAddReturnValueToDebugRenderWorldUponExecution(bool bAddReturnValueToDebugRenderWorldUponExecution) override;
 
-			virtual ITextualInputBlueprint&             AddChild(const char* paramName, const char* funcName, const char* funcReturnValueLiteral, const char* addReturnValueToDebugRenderWorldUponExecution) override;
+			virtual ITextualInputBlueprint&             AddChild(const char* szParamName, const Client::CInputParameterID& paramID, const char* szFuncName, const CryGUID& funcGUID, const char* szFuncReturnValueLiteral, bool bAddReturnValueToDebugRenderWorldUponExecution) override;
 			virtual size_t                              GetChildCount() const override;
 			virtual const ITextualInputBlueprint&       GetChild(size_t index) const override;
-			virtual const ITextualInputBlueprint*       FindChildByParamName(const char* paramName) const override;
+			virtual const ITextualInputBlueprint*       FindChildByParamName(const char* szParamName) const override;
+			virtual const ITextualInputBlueprint*       FindChildByParamID(const Client::CInputParameterID& paramID) const override;
 
-			virtual void                                SetSyntaxErrorCollector(datasource::SyntaxErrorCollectorUniquePtr ptr) override;
-			virtual datasource::ISyntaxErrorCollector*  GetSyntaxErrorCollector() const override;
+			virtual void                                SetSyntaxErrorCollector(DataSource::SyntaxErrorCollectorUniquePtr pSyntaxErrorCollector) override;
+			virtual DataSource::ISyntaxErrorCollector*  GetSyntaxErrorCollector() const override;
 
 		private:
-			explicit                                    CTextualInputBlueprint(const char* paramName, const char* funcName, const char* funcReturnValueLiteral, const char* addReturnValueToDebugRenderWorldUponExecution);
+			explicit                                    CTextualInputBlueprint(const char* szParamName, const Client::CInputParameterID& paramID, const char* szFuncName, const CryGUID& funcGUID, const char* szFuncReturnValueLiteral, bool bAddReturnValueToDebugRenderWorldUponExecution);
 
 			                                            UQS_NON_COPYABLE(CTextualInputBlueprint);
 
 		private:
 			string                                      m_paramName;
+			Client::CInputParameterID                   m_paramID;
 			string                                      m_funcName;
+			CryGUID                                     m_funcGUID;
 			string                                      m_funcReturnValueLiteral;
-			string                                      m_addReturnValueToDebugRenderWorldUponExecution;
+			bool                                        m_bAddReturnValueToDebugRenderWorldUponExecution;
 			std::vector<CTextualInputBlueprint*>        m_children;
-			datasource::SyntaxErrorCollectorUniquePtr   m_pSyntaxErrorCollector;
+			DataSource::SyntaxErrorCollectorUniquePtr   m_pSyntaxErrorCollector;
 		};
 
 		class CQueryBlueprint;
@@ -78,22 +85,20 @@ namespace uqs
 			explicit                            CInputBlueprint();
 			                                    ~CInputBlueprint();
 
-			bool                                Resolve(const ITextualInputBlueprint& sourceParent, const client::IInputParameterRegistry& inputParamsReg, const CQueryBlueprint& queryBlueprintForGlobalParamChecking, bool bResolvingForAGenerator);
+			bool                                Resolve(const ITextualInputBlueprint& sourceParent, const Client::IInputParameterRegistry& inputParamsReg, const CQueryBlueprint& queryBlueprintForGlobalParamChecking, bool bResolvingForAGenerator);
 
 			size_t                              GetChildCount() const;
 			const CInputBlueprint&              GetChild(size_t index) const;
-			client::IFunctionFactory*           GetFunctionFactory() const;
-			const char*                         GetFunctionReturnValueLiteral() const;
+			Client::IFunctionFactory*           GetFunctionFactory() const;
+			const CLeafFunctionReturnValue&     GetLeafFunctionReturnValue() const;
 			bool                                GetAddReturnValueToDebugRenderWorldUponExecution() const;
 
 		private:
-			explicit                            CInputBlueprint(client::IFunctionFactory& functionFactory, const char* functionReturnValueLiteral, bool bAddReturnValueToDebugRenderWorldUponExecution);
-
 			                                    UQS_NON_COPYABLE(CInputBlueprint);
 
 		private:
-			client::IFunctionFactory*           m_pFunctionFactory;
-			string                              m_functionReturnValueLiteral;
+			Client::IFunctionFactory*           m_pFunctionFactory;
+			CLeafFunctionReturnValue            m_leafFunctionReturnValue;
 			bool                                m_bAddReturnValueToDebugRenderWorldUponExecution;
 			std::vector<CInputBlueprint*>       m_children;	// in order of how the input parameters need to appear at runtime
 		};

@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 /*************************************************************************
    -------------------------------------------------------------------------
@@ -90,9 +90,9 @@ struct IGameObjectExtensionCreatorBase
   template<class T>                                                                     \
   struct C ## name ## Creator : public I ## name ## Creator                             \
   {                                                                                     \
-    IGameObjectExtension* Create(IEntity *pEntity) override                           \
+    IGameObjectExtension* Create(IEntity *pEntity) override                             \
     {                                                                                   \
-      return pEntity->CreateComponentClass<T>();                                        \
+      return pEntity->GetOrCreateComponentClass<T>();                                   \
     }                                                                                   \
     void GetGameObjectExtensionRMIData(void** ppRMI, size_t * nCount) override          \
     {                                                                                   \
@@ -150,6 +150,12 @@ struct IGameToEditorInterface;
 struct IMannequin;
 struct IScriptTable;
 struct ITimeDemoRecorder;
+
+struct SEntitySchedulingProfiles
+{
+	uint32 normal;
+	uint32 owned;
+};
 
 class ISharedParamsManager;
 
@@ -381,6 +387,8 @@ struct IPersistantDebug
 	virtual void ClearStaticTag(EntityId entityId, const char* staticId) = 0;
 	virtual void ClearTagContext(const char* tagContext) = 0;
 	virtual void ClearTagContext(const char* tagContext, EntityId entityId) = 0;
+	virtual void Update(float frameTime) = 0;
+	virtual void PostUpdate(float frameTime) = 0;
 	virtual void Reset() = 0;
 	// </interfuscator:shuffle>
 };
@@ -389,15 +397,11 @@ struct IPersistantDebug
 enum EEntityEventPriority
 {
 	EEntityEventPriority_GameObject = 0,
-	EEntityEventPriority_StartAnimProc,
-	EEntityEventPriority_AnimatedCharacter,
-	EEntityEventPriority_Vehicle,       //!< Vehicles can potentially create move request too!
-	EEntityEventPriority_Actor,         //!< Actor must always be higher than AnimatedCharacter.
 	EEntityEventPriority_PrepareAnimatedCharacterForUpdate,
-
-	EEntityEventPriority_Last,
-
-	EEntityEventPriority_Client = 100   //!< Special variable for the client to tag onto priorities when needed.
+	EEntityEventPriority_Actor,         //!< Actor must always be higher than AnimatedCharacter.
+	EEntityEventPriority_Vehicle,       //!< Vehicles can potentially create move request too!
+	EEntityEventPriority_AnimatedCharacter,
+	EEntityEventPriority_StartAnimProc
 };
 
 //! When you add stuff here, you must also update in CCryAction::Init.
@@ -748,9 +752,6 @@ struct IGameFramework
 	//! Returns the INetChannel associated with the client (or NULL)
 	virtual INetChannel* GetClientChannel() const = 0;
 
-	//! Wrapper for INetContext::DelegateAuthority()
-	virtual void DelegateAuthority(EntityId entityId, uint16 channelId) = 0;
-
 	//! Returns the (synched) time of the server (so use this for timed events, such as MP round times)
 	virtual CTimeValue GetServerTime() = 0;
 
@@ -765,6 +766,12 @@ struct IGameFramework
 	//! Retrieve a pointer to the INetChannel associated with the specified Game Server Channel Id.
 	//! \return Pointer to INetChannel associated with the specified Game Server Channel Id.
 	virtual INetChannel* GetNetChannel(uint16 channelId) = 0;
+
+	// HACK: CNetEntity calls this when binding a player's entity to the network.
+	virtual void SetServerChannelPlayerId(uint16 channelId, EntityId id) = 0;
+
+	// TODO: Move profiles into CNetEntity and get rid of this.
+	virtual const SEntitySchedulingProfiles* GetEntitySchedulerProfiles(IEntity* pEnt) = 0;
 
 	//! Retrieve an IGameObject from an entity id
 	//! \return Pointer to IGameObject of the entity if it exists (or NULL otherwise)
@@ -792,6 +799,8 @@ struct IGameFramework
 	virtual ELoadGameResult LoadGame(const char* path, bool quick = false, bool ignoreDelay = false) = 0;
 
 	virtual TSaveGameName CreateSaveGameName() = 0;
+
+	virtual void ScheduleEndLevel(const char* nextLevel) = 0;
 
 	//! Schedules the level load for the next level
 	virtual void ScheduleEndLevelNow(const char* nextLevel) = 0;
@@ -933,6 +942,11 @@ struct IGameFramework
 		const CryInterfaceID interfaceId = cryiidof<ExtensionInterface>();
 		return cryinterface_cast<ExtensionInterface>(QueryExtensionInterfaceById(interfaceId)).get();
 	}
+
+	virtual void AddNetworkedClientListener(INetworkedClientListener& listener) = 0;
+	virtual void RemoveNetworkedClientListener(INetworkedClientListener& listener) = 0;
+
+	virtual void DoInvokeRMI(_smart_ptr<IRMIMessageBody> pBody, unsigned where, int channel, const bool isGameObjectRmi) = 0;
 
 protected:
 	//! Retrieves an extension interface by interface id.

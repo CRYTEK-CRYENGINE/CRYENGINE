@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #pragma once
 
@@ -55,7 +55,7 @@ public:
 		REGISTER_CVAR2("hmd_resolution_scale", &hmd_resolution_scale, hmd_resolution_scale,
 			VF_NULL, "Scales rendered resolution");
 
-		pSelectedHmdNameVar = gEnv->pConsole->RegisterString("hmd_device", "", VF_NULL, 
+		pSelectedHmdNameVar = REGISTER_STRING("hmd_device", "", VF_NULL, 
 						"Specifies the name of the VR device to use\nAvailable options depend on VR plugins registered with the engine");
 
 		REGISTER_COMMAND("hmd_recenter_pose", &OnHmdRecenter,

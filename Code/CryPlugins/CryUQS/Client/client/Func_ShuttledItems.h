@@ -4,11 +4,11 @@
 
 // *INDENT-OFF* - <hard to read code and declarations due to inconsistent indentation>
 
-namespace uqs
+namespace UQS
 {
-	namespace client
+	namespace Client
 	{
-		namespace internal
+		namespace Internal
 		{
 
 			//===================================================================================
@@ -45,15 +45,19 @@ namespace uqs
 				: BaseClass(ctorContext)
 				, m_pItemListProxy(nullptr)
 			{
+				assert(ctorContext.pOptionalReturnValueInCaseOfLeafFunction);
+
+				const Core::ILeafFunctionReturnValue::SShuttledItemsInfo shuttledItemsInfo = ctorContext.pOptionalReturnValueInCaseOfLeafFunction->GetShuttledItems(ctorContext.blackboard);
+
 				// check for existence of shuttled items
-				if (ctorContext.blackboard.pShuttledItems)
+				if (shuttledItemsInfo.pShuttledItems)
 				{
 					// check for correct type of shuttled items
-					const shared::CTypeInfo& typeOfShuttledItems = ctorContext.blackboard.pShuttledItems->GetItemFactory().GetItemType();
-					const shared::CTypeInfo& expectedType = shared::SDataTypeHelper<TItem>::GetTypeInfo();
+					const Shared::CTypeInfo& typeOfShuttledItems = shuttledItemsInfo.pShuttledItems->GetItemFactory().GetItemType();
+					const Shared::CTypeInfo& expectedType = Shared::SDataTypeHelper<TItem>::GetTypeInfo();
 					if (typeOfShuttledItems == expectedType)
 					{
-						m_pItemListProxy = new CItemListProxy_Readable<TItem>(*ctorContext.blackboard.pShuttledItems);
+						m_pItemListProxy = new CItemListProxy_Readable<TItem>(*shuttledItemsInfo.pShuttledItems);
 					}
 					else
 					{
@@ -81,7 +85,7 @@ namespace uqs
 				}
 				else
 				{
-					validationContext.error.Format("%s: %s", validationContext.nameOfFunctionBeingValidated, m_errorMessage.c_str());
+					validationContext.error.Format("%s: %s", validationContext.szNameOfFunctionBeingValidated, m_errorMessage.c_str());
 					return false;
 				}
 			}
@@ -89,7 +93,7 @@ namespace uqs
 			template <class TItem>
 			CItemListProxy_Readable<TItem> CFunc_ShuttledItems<TItem>::DoExecute(const SExecuteContext& executeContext) const
 			{
-				assert(m_pItemListProxy);  // should have been caught by DoValidateDynamic() already
+				assert(m_pItemListProxy);  // should have been caught by ValidateDynamic() already
 				return *m_pItemListProxy;
 			}
 

@@ -6,9 +6,9 @@
 
 #include <CryAISystem/INavigationSystem.h>
 
-namespace uqs
+namespace UQS
 {
-	namespace stdlib
+	namespace StdLib
 	{
 
 		//===================================================================================
@@ -22,25 +22,25 @@ namespace uqs
 		//
 		//===================================================================================
 
-		class CGenerator_PointsOnPureGrid : public client::CGeneratorBase<CGenerator_PointsOnPureGrid, Vec3>
+		class CGenerator_PointsOnPureGrid : public Client::CGeneratorBase<CGenerator_PointsOnPureGrid, Pos3>
 		{
 		public:
 			struct SParams
 			{
-				Vec3                    center;                  // center of the grid
+				Pos3                    center;                  // center of the grid
 				float                   size;                    // length of one edge of the grid
 				float                   spacing;                 // space between individual points on both, the x- and y-axis
 
 				UQS_EXPOSE_PARAMS_BEGIN
-					UQS_EXPOSE_PARAM("center", center);
-					UQS_EXPOSE_PARAM("size", size);
-					UQS_EXPOSE_PARAM("spacing", spacing);
+					UQS_EXPOSE_PARAM("center", center, "CENT", "Center of the grid.");
+					UQS_EXPOSE_PARAM("size", size, "SIZE", "Length of one edge of the grid.");
+					UQS_EXPOSE_PARAM("spacing", spacing, "SPAC", "Space between individual points on both the x- and y-axis.");
 				UQS_EXPOSE_PARAMS_END
 			};
 
 		public:
 			explicit                    CGenerator_PointsOnPureGrid(const SParams& params);
-			EUpdateStatus               DoUpdate(const SUpdateContext& updateContext, client::CItemListProxy_Writable<Vec3>& itemListToPopulate);
+			EUpdateStatus               DoUpdate(const SUpdateContext& updateContext, Client::CItemListProxy_Writable<Pos3>& itemListToPopulate);
 
 		private:
 			const SParams               m_params;
@@ -57,27 +57,27 @@ namespace uqs
 		//
 		//===================================================================================
 
-		class CGenerator_PointsOnNavMesh : public client::CGeneratorBase<CGenerator_PointsOnNavMesh, Vec3>
+		class CGenerator_PointsOnNavMesh : public Client::CGeneratorBase<CGenerator_PointsOnNavMesh, Pos3>
 		{
 		public:
 			struct SParams
 			{
-				Vec3                    pivot;                   // center of the AABB
-				Vec3                    localAABBMins;           // local min extents of the AABB in which the points will be generated
-				Vec3                    localAABBMaxs;           // local max extents of the AABB in which the points will be generated
+				Pos3                    pivot;                   // center of the AABB
+				Ofs3                    localAABBMins;           // local min extents of the AABB in which the points will be generated
+				Ofs3                    localAABBMaxs;           // local max extents of the AABB in which the points will be generated
 				NavigationAgentTypeID   navigationAgentTypeID;   // the points will be generated in this layer of the NavMesh
 
 				UQS_EXPOSE_PARAMS_BEGIN
-					UQS_EXPOSE_PARAM("pivot", pivot);
-					UQS_EXPOSE_PARAM("localAABBMins", localAABBMins);
-					UQS_EXPOSE_PARAM("localAABBMaxs", localAABBMaxs);
-					UQS_EXPOSE_PARAM("navigationAgentTypeID", navigationAgentTypeID);
+					UQS_EXPOSE_PARAM("pivot", pivot, "PIVO", "Center of the AABB.");
+					UQS_EXPOSE_PARAM("localAABBMins", localAABBMins, "LMIN", "Local min extents of the AABB in which the points will be generated.");
+					UQS_EXPOSE_PARAM("localAABBMaxs", localAABBMaxs, "LMAX", "Local max extents of the AABB in which the points will be generated.");
+					UQS_EXPOSE_PARAM("navigationAgentTypeID", navigationAgentTypeID, "AGEN", "The points will be generated in this layer of the NavMesh.");
 				UQS_EXPOSE_PARAMS_END
 			};
 
 		public:
 			explicit                    CGenerator_PointsOnNavMesh(const SParams& params);
-			EUpdateStatus               DoUpdate(const SUpdateContext& updateContext, client::CItemListProxy_Writable<Vec3>& itemListToPopulate);
+			EUpdateStatus               DoUpdate(const SUpdateContext& updateContext, Client::CItemListProxy_Writable<Pos3>& itemListToPopulate);
 
 		private:
 			const SParams               m_params;

@@ -24,6 +24,7 @@
 		[
 			"../Interface/Schematyc/Env/EnvElementBase.h",
 			"../Interface/Schematyc/Env/EnvPackage.h",
+			"../Interface/Schematyc/Env/EnvUtils.h",
 			"../Interface/Schematyc/Env/IEnvElement.h",
 			"../Interface/Schematyc/Env/IEnvPackage.h",
 			"../Interface/Schematyc/Env/IEnvRegistrar.h",
@@ -55,17 +56,25 @@
 		],
 		"Interface/Reflection":
 		[
-			"../Interface/Schematyc/Reflection/Reflection.h",
-			"../Interface/Schematyc/Reflection/ReflectionCast.h",
-			"../Interface/Schematyc/Reflection/ReflectionTypes.h",
-			"../Interface/Schematyc/Reflection/ReflectionUtils.h"
+			"../Interface/Schematyc/Reflection/ActionDesc.h",
+			"../Interface/Schematyc/Reflection/ComponentDesc.h",
+			"../Interface/Schematyc/Reflection/DefaultTypeReflection.inl",
+			"../Interface/Schematyc/Reflection/FunctionDesc.h",
+			"../Interface/Schematyc/Reflection/ReflectionUtils.h",
+			"../Interface/Schematyc/Reflection/TypeDesc.h",
+			"../Interface/Schematyc/Reflection/TypeDesc.inl",
+			"../Interface/Schematyc/Reflection/TypeOperators.h",
+			"../Interface/Schematyc/Reflection/TypeOperators.inl"
 		],
 		"Interface/Runtime":
 		[
 			"../Interface/Schematyc/Runtime/IRuntimeClass.h",			
 			"../Interface/Schematyc/Runtime/IRuntimeRegistry.h",
 			"../Interface/Schematyc/Runtime/RuntimeGraph.h",
-			"../Interface/Schematyc/Runtime/RuntimeParams.h"
+			"../Interface/Schematyc/Runtime/RuntimeParamMap.h",
+			"../Interface/Schematyc/Runtime/RuntimeParamMap.inl",
+			"../Interface/Schematyc/Runtime/RuntimeParams.h",
+			"../Interface/Schematyc/Runtime/RuntimeParams.inl"
 		],
 		"Interface/Script":
 		[
@@ -126,18 +135,18 @@
 		[
 			"../Interface/Schematyc/Utils/Any.h",
 			"../Interface/Schematyc/Utils/AnyArray.h",
+			"../Interface/Schematyc/Utils/Array.h",
 			"../Interface/Schematyc/Utils/Assert.h",
+			"../Interface/Schematyc/Utils/ClassProperties.h",
 			"../Interface/Schematyc/Utils/CryLinkUtils.h",
 			"../Interface/Schematyc/Utils/Delegate.h",
 			"../Interface/Schematyc/Utils/EnumFlags.h",
-			"../Interface/Schematyc/Utils/GraphPortId.h",
 			"../Interface/Schematyc/Utils/GUID.h",
+			"../Interface/Schematyc/Utils/HybridArray.h",
 			"../Interface/Schematyc/Utils/IGUIDRemapper.h",
 			"../Interface/Schematyc/Utils/IInterfaceMap.h",
-			"../Interface/Schematyc/Utils/IProperties.h",
 			"../Interface/Schematyc/Utils/IString.h",
 			"../Interface/Schematyc/Utils/PreprocessorUtils.h",
-			"../Interface/Schematyc/Utils/Properties.h",
 			"../Interface/Schematyc/Utils/RingBuffer.h",
 			"../Interface/Schematyc/Utils/Rotation.h",
 			"../Interface/Schematyc/Utils/ScopedConnection.h",
@@ -151,6 +160,7 @@
 			"../Interface/Schematyc/Utils/Transform.h",
 			"../Interface/Schematyc/Utils/TypeName.h",
 			"../Interface/Schematyc/Utils/TypeUtils.h",
+			"../Interface/Schematyc/Utils/UniqueId.h",
 			"../Interface/Schematyc/Utils/Validator.h"
 		]
 	},
@@ -287,6 +297,8 @@
 		],
 		"Impl/Script/Graph/Nodes":
 		[
+			"Script/Graph/Nodes/ScriptGraphActionNode.cpp",
+			"Script/Graph/Nodes/ScriptGraphActionNode.h",
 			"Script/Graph/Nodes/ScriptGraphArrayAddNode.cpp",
 			"Script/Graph/Nodes/ScriptGraphArrayAddNode.h",
 			"Script/Graph/Nodes/ScriptGraphArrayForEachNode.cpp",

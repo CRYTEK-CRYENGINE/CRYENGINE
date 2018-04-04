@@ -5,61 +5,10 @@
 
 // *INDENT-OFF* - <hard to read code and declarations due to inconsistent indentation>
 
-namespace uqs
+namespace UQS
 {
-	namespace core
+	namespace Core
 	{
-
-		//===================================================================================
-		//
-		// CTextualInstantEvaluatorBlueprint
-		//
-		//===================================================================================
-
-		CTextualInstantEvaluatorBlueprint::CTextualInstantEvaluatorBlueprint()
-			: m_weight("1.0")
-		{
-		}
-
-		void CTextualInstantEvaluatorBlueprint::SetEvaluatorName(const char* evaluatorName)
-		{
-			m_evaluatorName = evaluatorName;
-		}
-
-		ITextualInputBlueprint& CTextualInstantEvaluatorBlueprint::GetInputRoot()
-		{
-			return m_rootInput;
-		}
-
-		const char* CTextualInstantEvaluatorBlueprint::GetEvaluatorName() const
-		{
-			return m_evaluatorName.c_str();
-		}
-
-		const ITextualInputBlueprint& CTextualInstantEvaluatorBlueprint::GetInputRoot() const
-		{
-			return m_rootInput;
-		}
-
-		void CTextualInstantEvaluatorBlueprint::SetWeight(const char* weight)
-		{
-			m_weight = weight;
-		}
-
-		const char* CTextualInstantEvaluatorBlueprint::GetWeight() const
-		{
-			return m_weight.c_str();
-		}
-
-		void CTextualInstantEvaluatorBlueprint::SetSyntaxErrorCollector(datasource::SyntaxErrorCollectorUniquePtr ptr)
-		{
-			m_pSyntaxErrorCollector = std::move(ptr);
-		}
-
-		datasource::ISyntaxErrorCollector* CTextualInstantEvaluatorBlueprint::GetSyntaxErrorCollector() const
-		{
-			return m_pSyntaxErrorCollector.get();
-		}
 
 		//===================================================================================
 		//
@@ -69,99 +18,96 @@ namespace uqs
 
 		CInstantEvaluatorBlueprint::CInstantEvaluatorBlueprint()
 			: m_pInstantEvaluatorFactory(nullptr)
-			, m_weight(1.0f)
-		{}
-
-		bool CInstantEvaluatorBlueprint::Resolve(const ITextualInstantEvaluatorBlueprint& source, const CQueryBlueprint& queryBlueprintForGlobalParamChecking)
 		{
-			const char* evaluatorName = source.GetEvaluatorName();
-
-			m_pInstantEvaluatorFactory = g_hubImpl->GetInstantEvaluatorFactoryDatabase().FindFactoryByName(evaluatorName);
-			if (!m_pInstantEvaluatorFactory)
-			{
-				if (datasource::ISyntaxErrorCollector* pSE = source.GetSyntaxErrorCollector())
-				{
-					pSE->AddErrorMessage("Unknown InstantEvaluatorFactory '%s'", evaluatorName);
-				}
-				return false;
-			}
-
-			bool parsedWeightSuccessfully = true;
-			const char* weight = source.GetWeight();
-			if (sscanf(weight, "%f", &m_weight) != 1)
-			{
-				if (datasource::ISyntaxErrorCollector* pSE = source.GetSyntaxErrorCollector())
-				{
-					pSE->AddErrorMessage("Could not parse the weight from its textual representation into a float: '%s'", weight);
-				}
-
-				// having failed to parse the weight is not critical in the sense that it prevents parsing further data, but we need to remember its failure for the return value
-				parsedWeightSuccessfully = false;
-			}
-
-			CInputBlueprint inputRoot;
-			const ITextualInputBlueprint& textualInputRoot = source.GetInputRoot();
-			const client::IInputParameterRegistry& inputParamsReg = m_pInstantEvaluatorFactory->GetInputParameterRegistry();
-
-			if (!inputRoot.Resolve(textualInputRoot, inputParamsReg, queryBlueprintForGlobalParamChecking, false))
-			{
-				return false;
-			}
-
-			ResolveInputs(inputRoot);
-
-			// if we're here, then the only parse failure that could have happened is a bad weight, so the final result depends only on that particular outcome
-
-			return parsedWeightSuccessfully;
+			// nothing
 		}
 
-		client::IInstantEvaluatorFactory& CInstantEvaluatorBlueprint::GetFactory() const
+		Client::IInstantEvaluatorFactory& CInstantEvaluatorBlueprint::GetFactory() const
 		{
 			assert(m_pInstantEvaluatorFactory);
 			return *m_pInstantEvaluatorFactory;
 		}
 
-		float CInstantEvaluatorBlueprint::GetWeight() const
+		void CInstantEvaluatorBlueprint::PrintToConsole(CLogger& logger, const char* szMessagePrefix) const
 		{
-			return m_weight;
-		}
-
-		void CInstantEvaluatorBlueprint::PrintToConsole(CLogger& logger, const char* messagePrefix) const
-		{
-			const char* cost;
-			const char* modality;
+			const char* szCost;
+			const char* szModality;
 
 			switch (m_pInstantEvaluatorFactory->GetCostCategory())
 			{
-			case client::IInstantEvaluatorFactory::ECostCategory::Cheap:
-				cost = "cheap";
+			case Client::IInstantEvaluatorFactory::ECostCategory::Cheap:
+				szCost = "cheap";
 				break;
 
-			case client::IInstantEvaluatorFactory::ECostCategory::Expensive:
-				cost = "expensive";
+			case Client::IInstantEvaluatorFactory::ECostCategory::Expensive:
+				szCost = "expensive";
 				break;
 
 			default:
-				cost = "? (programming error)";
+				szCost = "? (programming error)";
 				break;
 			}
 
 			switch (m_pInstantEvaluatorFactory->GetEvaluationModality())
 			{
-			case client::IInstantEvaluatorFactory::EEvaluationModality::Testing:
-				modality = "tester";
+			case Client::IInstantEvaluatorFactory::EEvaluationModality::Testing:
+				szModality = "tester";
 				break;
 
-			case client::IInstantEvaluatorFactory::EEvaluationModality::Scoring:
-				modality = "scorer";
+			case Client::IInstantEvaluatorFactory::EEvaluationModality::Scoring:
+				szModality = "scorer";
 				break;
 
 			default:
-				modality = "? (programming error)";
+				szModality = "? (programming error)";
 				break;
 			}
 
-			logger.Printf("%s%s [%s %s] (weight = %f)", messagePrefix, m_pInstantEvaluatorFactory->GetName(), cost, modality, m_weight);
+			const CEvaluationResultTransform& evaluationResultTransform = GetEvaluationResultTransform();
+			const EScoreTransformType scoreTransformType = evaluationResultTransform.GetScoreTransformType();
+			const IScoreTransformFactory* pScoreTransformFactory = g_pHub->GetScoreTransformFactoryDatabase().FindFactoryByCallback([scoreTransformType](const IScoreTransformFactory& scoreTransformFactory) { return scoreTransformFactory.GetScoreTransformType() == scoreTransformType; });
+
+			logger.Printf("%s%s [%s %s] (weight = %f, scoreTransform = %s, negateDiscard = %s)",
+				szMessagePrefix,
+				m_pInstantEvaluatorFactory->GetName(),
+				szCost,
+				szModality,
+				GetWeight(),
+				pScoreTransformFactory ? pScoreTransformFactory->GetName() : "(unknown scoreTransform - cannot happen)",
+				evaluationResultTransform.GetNegateDiscard() ? "true" : "false"
+			);
+		}
+
+		bool CInstantEvaluatorBlueprint::ResolveFactory(const ITextualEvaluatorBlueprint& source)
+		{
+			const CryGUID& evaluatorGUID = source.GetEvaluatorGUID();
+			const char* szEvaluatorName = source.GetEvaluatorName();
+
+			//
+			// instant-evaluator factory: first search by its GUID, then by its name
+			//
+
+			if (!(m_pInstantEvaluatorFactory = g_pHub->GetInstantEvaluatorFactoryDatabase().FindFactoryByGUID(evaluatorGUID)))
+			{
+				if (!(m_pInstantEvaluatorFactory = g_pHub->GetInstantEvaluatorFactoryDatabase().FindFactoryByName(szEvaluatorName)))
+				{
+					if (DataSource::ISyntaxErrorCollector* pSE = source.GetSyntaxErrorCollector())
+					{
+						Shared::CUqsString guidAsString;
+						Shared::Internal::CGUIDHelper::ToString(evaluatorGUID, guidAsString);
+						pSE->AddErrorMessage("Unknown InstantEvaluatorFactory: GUID = %s, name = '%s'", guidAsString.c_str(), szEvaluatorName);
+					}
+					return false;
+				}
+			}
+
+			return true;
+		}
+
+		const Client::IInputParameterRegistry& CInstantEvaluatorBlueprint::GetInputParameterRegistry() const
+		{
+			assert(m_pInstantEvaluatorFactory);
+			return m_pInstantEvaluatorFactory->GetInputParameterRegistry();
 		}
 
 	}

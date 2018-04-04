@@ -4,9 +4,9 @@
 
 // *INDENT-OFF* - <hard to read code and declarations due to inconsistent indentation>
 
-namespace uqs
+namespace UQS
 {
-	namespace datasource_xml
+	namespace DataSource_XML
 	{
 		//===================================================================================
 		//
@@ -49,7 +49,7 @@ namespace uqs
 		// queries). Or should we keep this file as a basic implementation, which can be inherited or
 		// completely replaced by a particular game?
 
-		class CQueryBlueprintFileLibrary : public datasource::IEditorLibraryProvider
+		class CQueryBlueprintFileLibrary : public DataSource::IEditorLibraryProvider
 		{
 		private:
 			struct SQueryRecord
@@ -62,7 +62,7 @@ namespace uqs
 			typedef std::map<string, SQueryRecord> QueryRecordsMap;
 
 		public:
-			explicit CQueryBlueprintFileLibrary(const SLibraryConfig& config, core::IQueryBlueprintLibrary& blueprintLibrary);
+			explicit CQueryBlueprintFileLibrary(const SLibraryConfig& config, Core::IQueryBlueprintLibrary& blueprintLibrary);
 
 			void EnumerateAll();
 			void LoadAllEnumerated();
@@ -71,10 +71,10 @@ namespace uqs
 		public:
 			// IEditorLibraryProvider
 			virtual void GetQueriesList(IListQueriesVisitor& callback) override;
-			virtual bool LoadTextualQueryBlueprint(const char* szQueryName, core::ITextualQueryBlueprint& outBlueprint, shared::IUqsString& error) override;
-			virtual bool SaveTextualQueryBlueprint(const char* szQueryName, const core::ITextualQueryBlueprint& blueprintToSave, shared::IUqsString& error) override;
-			virtual bool CreateNewTextualQueryBlueprint(const char* szQueryName, core::ITextualQueryBlueprint& outBlueprint, shared::IUqsString& error) override;
-			virtual bool RemoveQueryBlueprint(const char* szQueryName, shared::IUqsString& error) override;
+			virtual bool LoadTextualQueryBlueprint(const char* szQueryName, Core::ITextualQueryBlueprint& outBlueprint, Shared::IUqsString& error) override;
+			virtual bool SaveTextualQueryBlueprint(const char* szQueryName, const Core::ITextualQueryBlueprint& blueprintToSave, Shared::IUqsString& error) override;
+			virtual bool CreateNewTextualQueryBlueprint(const char* szQueryName, Core::ITextualQueryBlueprint& outBlueprint, Shared::IUqsString& error) override;
+			virtual bool RemoveQueryBlueprint(const char* szQueryName, Shared::IUqsString& error) override;
 			// ~IEditorLibraryProvider
 
 		private:
@@ -87,17 +87,17 @@ namespace uqs
 			void SanitizeQueryName(stack_string& queryName) const;
 			bool ValidateQueryName(const stack_string& queryName, stack_string& error) const;
 
-			void LoadRecord(const char* szName, SQueryRecord& record, core::IQueryBlueprintLibrary& outLibrary);
+			void LoadRecord(const char* szName, SQueryRecord& record, Core::IQueryBlueprintLibrary& outLibrary);
 
 		private:
 
 			QueryRecordsMap m_queriesMap;
 
 			SLibraryConfig m_config;
-			core::IQueryBlueprintLibrary& m_blueprintLibrary;
+			Core::IQueryBlueprintLibrary& m_blueprintLibrary;
 
 			// TODO pavloi 2016.04.08: store loading errors?
 		};
 
-	} // namespace datasource_xml
-} // namespace uqs
+	} // namespace DataSource_XML
+} // namespace UQS

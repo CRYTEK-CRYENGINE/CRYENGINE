@@ -1,10 +1,12 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #ifndef __IntersectionTestQueue_h__
 #define __IntersectionTestQueue_h__
 
 #pragma once
 
+#include <type_traits>
+#include <CryCore/StlUtils.h>
 #include "DeferredActionQueue.h"
 
 struct IntersectionTestResult
@@ -134,16 +136,16 @@ struct IntersectionTestRequest
 private:
 	enum
 	{
-		_MaxCapsuleSphereSize              = static_max<sizeof(primitives::capsule), sizeof(primitives::sphere)>::value,
-		_MaxCapsuleSphereCylinderSize      = static_max<sizeof(primitives::cylinder), _MaxCapsuleSphereSize>::value,
-		MaxPrimitiveSize                   = static_max<sizeof(primitives::box), _MaxCapsuleSphereCylinderSize>::value,
+		_MaxCapsuleSphereSize              = stl::static_max<sizeof(primitives::capsule), sizeof(primitives::sphere)>::value,
+		_MaxCapsuleSphereCylinderSize      = stl::static_max<sizeof(primitives::cylinder), _MaxCapsuleSphereSize>::value,
+		MaxPrimitiveSize                   = stl::static_max<sizeof(primitives::box), _MaxCapsuleSphereCylinderSize>::value,
 
-		_MaxCapsuleSphereAlignment         = static_max<alignof(primitives::capsule), alignof(primitives::sphere)>::value,
-		_MaxCapsuleSphereCylinderAlignment = static_max<alignof(primitives::cylinder), _MaxCapsuleSphereAlignment>::value,
-		MaxPrimitiveAlignment              = static_max<alignof(primitives::box), _MaxCapsuleSphereCylinderAlignment>::value,
+		_MaxCapsuleSphereAlignment         = stl::static_max<alignof(primitives::capsule), alignof(primitives::sphere)>::value,
+		_MaxCapsuleSphereCylinderAlignment = stl::static_max<alignof(primitives::cylinder), _MaxCapsuleSphereAlignment>::value,
+		MaxPrimitiveAlignment              = stl::static_max<alignof(primitives::box), _MaxCapsuleSphereCylinderAlignment>::value,
 	};
 
-	aligned_buffer<MaxPrimitiveAlignment, MaxPrimitiveSize> primitiveBuf;
+	typename std::aligned_storage<MaxPrimitiveSize, MaxPrimitiveAlignment>::type primitiveBuf;
 };
 
 template<int IntersectionTesterID>

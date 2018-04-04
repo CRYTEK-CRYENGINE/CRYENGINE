@@ -1,5 +1,5 @@
 <Material MtlFlags="524322" Shader="Referenceimage" GenMask="0" StringGenMask="" SurfaceType="mat_concrete" MatTemplate="" Diffuse="1,1,1" Specular="0,0,0" Emissive="0,0,0" Opacity="0.18" LayerAct="1">
  <Textures>
-  <Texture Map="Diffuse" File="engineassets/texturemsg/orange_for_designer.dds"/>
+  <Texture Map="Diffuse" File="%ENGINE%/EngineAssets/texturemsg/orange_for_designer.dds"/>
  </Textures>
 </Material>

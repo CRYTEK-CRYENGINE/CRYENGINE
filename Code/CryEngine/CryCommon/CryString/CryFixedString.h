@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #pragma once
 
@@ -244,7 +244,7 @@ public:
 	typedef const_pointer         const_iterator;
 	static const size_type MAX_SIZE = S;
 
-	enum _npos_type
+	enum _npos_type : size_t
 	{
 		npos = (size_type) ~0
 	};
@@ -1268,8 +1268,6 @@ inline typename CryStackStringT<T, S>::size_type CryStackStringT<T, S >::rfind(v
 	}
 	else
 	{
-		if (pos == npos)
-			pos = length();
 		if (pos > length())
 		{
 			return npos;

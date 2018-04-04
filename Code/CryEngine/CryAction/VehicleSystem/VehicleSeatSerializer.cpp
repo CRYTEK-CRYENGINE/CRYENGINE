@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 /*************************************************************************
    -------------------------------------------------------------------------
@@ -54,7 +54,6 @@ bool CVehicleSeatSerializer::Init(IGameObject* pGameObject)
 		if (!GetGameObject()->BindToNetworkWithParent(eBTNM_Normal, parentId))
 			return false;
 
-	GetEntity()->Activate(0);
 	GetEntity()->Hide(true);
 
 	if (!IsDemoPlayback())

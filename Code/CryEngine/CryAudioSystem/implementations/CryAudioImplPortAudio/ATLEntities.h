@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #pragma once
 
@@ -10,83 +10,75 @@ namespace Impl
 {
 namespace PortAudio
 {
-class CAudioListener final : public IAudioListener
+class CListener final : public IListener
 {
 public:
 
-	CAudioListener() = default;
-	virtual ~CAudioListener() override = default;
+	CListener() = default;
+	CListener(CListener const&) = delete;
+	CListener(CListener&&) = delete;
+	CListener& operator=(CListener const&) = delete;
+	CListener& operator=(CListener&&) = delete;
 
-	CAudioListener(CAudioListener const&) = delete;
-	CAudioListener(CAudioListener&&) = delete;
-	CAudioListener& operator=(CAudioListener const&) = delete;
-	CAudioListener& operator=(CAudioListener&&) = delete;
+	// CryAudio::Impl::IListener
+	virtual ERequestStatus Set3DAttributes(SObject3DAttributes const& attributes) override { return ERequestStatus::Success; }
+	// ~CryAudio::Impl::IListener
 };
 
-class CAudioParameter final : public IAudioRtpc
+class CParameter final : public IParameter
 {
 public:
 
-	CAudioParameter() = default;
-	virtual ~CAudioParameter() override = default;
-
-	CAudioParameter(CAudioParameter const&) = delete;
-	CAudioParameter(CAudioParameter&&) = delete;
-	CAudioParameter& operator=(CAudioParameter const&) = delete;
-	CAudioParameter& operator=(CAudioParameter&&) = delete;
+	CParameter() = default;
+	CParameter(CParameter const&) = delete;
+	CParameter(CParameter&&) = delete;
+	CParameter& operator=(CParameter const&) = delete;
+	CParameter& operator=(CParameter&&) = delete;
 };
 
-class CAudioSwitchState final : public IAudioSwitchState
+class CSwitchState final : public ISwitchState
 {
 public:
 
-	CAudioSwitchState() = default;
-	virtual ~CAudioSwitchState() override = default;
-
-	CAudioSwitchState(CAudioSwitchState const&) = delete;
-	CAudioSwitchState(CAudioSwitchState&&) = delete;
-	CAudioSwitchState& operator=(CAudioSwitchState const&) = delete;
-	CAudioSwitchState& operator=(CAudioSwitchState&&) = delete;
+	CSwitchState() = default;
+	CSwitchState(CSwitchState const&) = delete;
+	CSwitchState(CSwitchState&&) = delete;
+	CSwitchState& operator=(CSwitchState const&) = delete;
+	CSwitchState& operator=(CSwitchState&&) = delete;
 };
 
-class CAudioEnvironment final : public IAudioEnvironment
+class CEnvironment final : public IEnvironment
 {
 public:
 
-	CAudioEnvironment() = default;
-	virtual ~CAudioEnvironment() override = default;
-
-	CAudioEnvironment(CAudioEnvironment const&) = delete;
-	CAudioEnvironment(CAudioEnvironment&&) = delete;
-	CAudioEnvironment& operator=(CAudioEnvironment const&) = delete;
-	CAudioEnvironment& operator=(CAudioEnvironment&&) = delete;
+	CEnvironment() = default;
+	CEnvironment(CEnvironment const&) = delete;
+	CEnvironment(CEnvironment&&) = delete;
+	CEnvironment& operator=(CEnvironment const&) = delete;
+	CEnvironment& operator=(CEnvironment&&) = delete;
 };
 
-class CAudioFileEntry final : public IAudioFileEntry
+class CFile final : public IFile
 {
 public:
 
-	CAudioFileEntry() = default;
-	virtual ~CAudioFileEntry() override = default;
-
-	CAudioFileEntry(CAudioFileEntry const&) = delete;
-	CAudioFileEntry(CAudioFileEntry&&) = delete;
-	CAudioFileEntry& operator=(CAudioFileEntry const&) = delete;
-	CAudioFileEntry& operator=(CAudioFileEntry&&) = delete;
+	CFile() = default;
+	CFile(CFile const&) = delete;
+	CFile(CFile&&) = delete;
+	CFile& operator=(CFile const&) = delete;
+	CFile& operator=(CFile&&) = delete;
 };
 
-class CAudioStandaloneFile final : public IAudioStandaloneFile
+class CStandaloneFile final : public IStandaloneFile
 {
 public:
 
-	CAudioStandaloneFile() = default;
-	virtual ~CAudioStandaloneFile() override = default;
-
-	CAudioStandaloneFile(CAudioStandaloneFile const&) = delete;
-	CAudioStandaloneFile(CAudioStandaloneFile&&) = delete;
-	CAudioStandaloneFile& operator=(CAudioStandaloneFile const&) = delete;
-	CAudioStandaloneFile& operator=(CAudioStandaloneFile&&) = delete;
+	CStandaloneFile() = default;
+	CStandaloneFile(CStandaloneFile const&) = delete;
+	CStandaloneFile(CStandaloneFile&&) = delete;
+	CStandaloneFile& operator=(CStandaloneFile const&) = delete;
+	CStandaloneFile& operator=(CStandaloneFile&&) = delete;
 };
-}
-}
-}
+} // namespace PortAudio
+} // namespace Impl
+} // namespace CryAudio

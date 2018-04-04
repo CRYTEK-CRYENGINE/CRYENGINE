@@ -18,7 +18,8 @@
 #include "Config.h"
 #include "CfgFile.h"
 #include "FileUtil.h"
-#include "IConvertor.h"
+#include "IConverter.h"
+#include "AssetManager/AssetManager.h"
 #include "CrashHandler.h"
 #include "CpuInfo.h"
 #include <CryString/CryPath.h>
@@ -29,7 +30,7 @@
 #include "ICryXML.h"
 #include "IXmlSerializer.h"
 #include "MathHelpers.h"
-#include "NameConvertor.h"
+#include "NameConverter.h"
 #include <CryCore/CryCrc32.h>
 #include "PropertyVars.h"
 #include <CryCore/StlUtils.h>
@@ -88,6 +89,7 @@ ResourceCompiler::ResourceCompiler()
 	m_numWarnings = 0;
 	m_numErrors = 0;
 	m_tlsIndex_pThreadData = 0;
+	m_pAssetManager.reset(new CAssetManager(this));
 
 	InitializeThreadIds();
 }
@@ -122,9 +124,9 @@ void ResourceCompiler::FinishProgress()
 }
 
 //////////////////////////////////////////////////////////////////////////
-void ResourceCompiler::RegisterConvertor(const char* name, IConvertor* conv)
+void ResourceCompiler::RegisterConverter(const char* name, IConverter* conv)
 {
-	m_extensionManager.RegisterConvertor(name, conv, this);
+	m_extensionManager.RegisterConverter(name, conv, this);
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -251,7 +253,7 @@ struct RcThreadData
 	FilesToConvert* pFilesToConvert;
 	unsigned long tlsIndex_pThreadData;	  // copy of private rc->m_tlsIndex_pThreadData
 	int threadId;
-	IConvertor* convertor;
+	IConverter* converter;
 	ICompiler* compiler;
 	const IConfig* config;
 
@@ -268,7 +270,7 @@ static void CompileFilesMultiThreaded(
 	unsigned long a_tlsIndex_pThreadData,
 	FilesToConvert& a_files,
 	int threadCount,
-	IConvertor* convertor,
+	IConverter* converter,
 	const IConfig* config)
 {
 	assert(pRC);
@@ -291,14 +293,14 @@ static void CompileFilesMultiThreaded(
 		RCLog("Spawning %d thread%s", threadCount, ((threadCount > 1) ? "s" : ""));
 		RCLog("");
 
-		// Initialize the convertor
+		// Initialize the converter
 		{
-			ConvertorInitContext initContext;
+			ConverterInitContext initContext;
 			initContext.config = config;
 			initContext.inputFiles = a_files.m_inputFiles.empty() ? 0 : &a_files.m_inputFiles[0];
 			initContext.inputFileCount = a_files.m_inputFiles.size();
 
-			convertor->Init(initContext);
+			converter->Init(initContext);
 		}
 
 		// Initialize the thread data for each thread.
@@ -306,8 +308,8 @@ static void CompileFilesMultiThreaded(
 		for (int threadIndex = 0; threadIndex < threadCount; ++threadIndex)
 		{
 			threadData[threadIndex].rc = pRC;
-			threadData[threadIndex].convertor = convertor;
-			threadData[threadIndex].compiler = convertor->CreateCompiler();
+			threadData[threadIndex].converter = converter;
+			threadData[threadIndex].compiler = converter->CreateCompiler();
 			threadData[threadIndex].config = config;
 			threadData[threadIndex].tlsIndex_pThreadData = a_tlsIndex_pThreadData;
 			threadData[threadIndex].threadId = threadIndex + 1;	 // our "thread ids" are 1-based indices
@@ -358,8 +360,8 @@ static void CompileFilesMultiThreaded(
 			threadData[threadIndex].compiler->Release();
 		}
 
-		// Clean up the convertor.
-		convertor->DeInit();
+		// Clean up the converter.
+		converter->DeInit();
 
 		if (!a_files.m_outOfMemoryFiles.empty())
 		{
@@ -403,19 +405,19 @@ static void CompileFilesSingleThreaded(
 	unsigned long a_tlsIndex_pThreadData,
 	FilesToConvert& a_files,
 	int threadCount /* unused */,
-	IConvertor* convertor,
+	IConverter* converter,
 	const IConfig* config)
 {
 	assert(pRC);
 
-	// Initialize the convertor
+	// Initialize the converter
 	{
-		ConvertorInitContext initContext;
+		ConverterInitContext initContext;
 		initContext.config = config;
 		initContext.inputFiles = a_files.m_inputFiles.empty() ? 0 : &a_files.m_inputFiles[0];
 		initContext.inputFileCount = a_files.m_inputFiles.size();
 
-		convertor->Init(initContext);
+		converter->Init(initContext);
 	}
 
 	int threadId = 0;  // Main thread.
@@ -429,8 +431,8 @@ static void CompileFilesSingleThreaded(
 
 	RcThreadData threadData;
 	threadData.rc = pRC;
-	threadData.convertor = convertor;
-	threadData.compiler = convertor->CreateCompiler();
+	threadData.converter = converter;
+	threadData.compiler = converter->CreateCompiler();
 	threadData.config = config;
 	threadData.tlsIndex_pThreadData = a_tlsIndex_pThreadData;
 	threadData.threadId = threadId;
@@ -449,7 +451,7 @@ static void CompileFilesSingleThreaded(
 	threadData.compiler->Release();
 
 	// Clean up the converter.
-	convertor->DeInit();
+	converter->DeInit();
 
 	if (!a_files.m_outOfMemoryFiles.empty())
 	{
@@ -748,8 +750,6 @@ void ParseCommandLine(const std::vector<string>& args, IConfig* config, string& 
 
 bool ResourceCompiler::CompileSingleFileNested(const string& fileSpec, const std::vector<string>& args)
 {
-	std::vector<RcFile> list;
-	list.push_back(RcFile("", fileSpec, ""));
 
 	MultiplatformConfig config = m_multiConfig;
 
@@ -760,6 +760,11 @@ bool ResourceCompiler::CompileSingleFileNested(const string& fileSpec, const std
 
 	string unusedFileSpec;
 	ParseCommandLine(extArgs, &config.getConfig(), unusedFileSpec);
+	std::vector<RcFile> list;
+	// TODO we need to figure out how to not pass sourceroot for nested calls
+	// for now we just don't use it together with target root
+	//list.push_back(RcFile(PathHelpers::CanonicalizePath(config.getConfig().GetAsString("sourceroot", "", "")), fileSpec, PathHelpers::CanonicalizePath(config.getConfig().GetAsString("targetroot", "", ""))));
+	list.push_back(RcFile("", fileSpec, ""));
 
 	return CompileFiles(list, &config.getConfig(), CompileFilesSingleThreaded);
 }
@@ -796,40 +801,40 @@ bool ResourceCompiler::CompileFiles(const std::vector<RcFile>& files, const ICon
 
 	//////////////////////////////////////////////////////////////////////////
 
-	// Split up the files based on the convertor they are to use.
-	typedef std::map<IConvertor*, std::vector<RcFile> > FileConvertorMap;
-	FileConvertorMap fileConvertorMap;
+	// Split up the files based on the converter they are to use.
+	typedef std::map<IConverter*, std::vector<RcFile> > FileConverterMap;
+	FileConverterMap fileConverterMap;
 	for (size_t i = 0; i < filesToConvert.m_allFiles.size(); ++i)
 	{
-		string filenameForConvertorSearch;
+		string filenameForConverterSearch;
 		{
 			const string sOverWriteExtension = config->GetAsString("overwriteextension", "", "");
 			if (!sOverWriteExtension.empty())
 			{
-				filenameForConvertorSearch = string("filename.") + sOverWriteExtension;
+				filenameForConverterSearch = string("filename.") + sOverWriteExtension;
 			}
 			else
 			{
-				filenameForConvertorSearch = filesToConvert.m_allFiles[i].m_sourceInnerPathAndName;
+				filenameForConverterSearch = filesToConvert.m_allFiles[i].m_sourceInnerPathAndName;
 			}
 		}
 
-		IConvertor* const convertor = m_extensionManager.FindConvertor(filenameForConvertorSearch.c_str());
+		IConverter* const converter = m_extensionManager.FindConverter(filenameForConverterSearch.c_str());
 
-		if (!convertor)
+		if (!converter)
 		{
-			RCLogWarning("Cannot find convertor for %s", filenameForConvertorSearch);
+			RCLogWarning("Cannot find converter for %s", filenameForConverterSearch);
 			filesToConvert.m_allFiles.erase(filesToConvert.m_allFiles.begin() + i);
 			--i;
 			continue;
 		}
 
-		FileConvertorMap::iterator convertorIt = fileConvertorMap.find(convertor);
-		if (convertorIt == fileConvertorMap.end())
+		FileConverterMap::iterator converterIt = fileConverterMap.find(converter);
+		if (converterIt == fileConverterMap.end())
 		{
-			convertorIt = fileConvertorMap.insert(std::make_pair(convertor, std::vector<RcFile>())).first;
+			converterIt = fileConverterMap.insert(std::make_pair(converter, std::vector<RcFile>())).first;
 		}
-		(*convertorIt).second.push_back(filesToConvert.m_allFiles[i]);
+		(*converterIt).second.push_back(filesToConvert.m_allFiles[i]);
 	}
 
 	if (GetVerbosityLevel() > 0)
@@ -845,41 +850,41 @@ bool ResourceCompiler::CompileFiles(const std::vector<RcFile>& files, const ICon
 		RCLog("");
 	}
 
-	// Loop through all the convertors that we need to invoke.
-	for (FileConvertorMap::iterator convertorIt = fileConvertorMap.begin(); convertorIt != fileConvertorMap.end(); ++convertorIt)
+	// Loop through all the converters that we need to invoke.
+	for (FileConverterMap::iterator converterIt = fileConverterMap.begin(); converterIt != fileConverterMap.end(); ++converterIt)
 	{
 		assert(filesToConvert.m_inputFiles.empty());
 		assert(filesToConvert.m_outOfMemoryFiles.empty());
 
-		IConvertor* const convertor = (*convertorIt).first;
-		assert(convertor);
+		IConverter* const converter = (*converterIt).first;
+		assert(converter);
 
-		// Check whether this convertor is thread-safe.
+		// Check whether this converter is thread-safe.
 		assert(m_maxThreads >= 1);
 		int threadCount = m_maxThreads;
-		if ((threadCount > 1) && (!convertor->SupportsMultithreading()))
+		if ((threadCount > 1) && (!converter->SupportsMultithreading()))
 		{
-			RCLog("/threads specified, but convertor does not support multi-threading. Falling back to single-threading.");
+			RCLog("/threads specified, but converter does not support multi-threading. Falling back to single-threading.");
 			threadCount = 1;
 		}
 
-		const std::vector<RcFile>& convertorFiles = (*convertorIt).second;
-		assert(convertorFiles.size()>0);
+		const std::vector<RcFile>& converterFiles = (*converterIt).second;
+		assert(converterFiles.size()>0);
 
 		// implementation note: we insert filenames starting from last, because converting function will take filenames one by one from the end(!) of the array
-		for(int i = convertorFiles.size() - 1; i >= 0; --i)
+		for(int i = converterFiles.size() - 1; i >= 0; --i)
 		{
-			filesToConvert.m_inputFiles.push_back(convertorFiles[i]);
+			filesToConvert.m_inputFiles.push_back(converterFiles[i]);
 		}
 
 		LogMemoryUsage(false);
 
-		if (!m_cacheFolder.empty() && convertor->IsCacheable())
+		if (!m_cacheFolder.empty() && converter->IsCacheable())
 		{
-			TryToGetFilesFromCache(filesToConvert, convertor);
+			TryToGetFilesFromCache(filesToConvert, converter);
 		}
 
-		compileFiles(this, m_tlsIndex_pThreadData, filesToConvert, threadCount, convertor, config);
+		compileFiles(this, m_tlsIndex_pThreadData, filesToConvert, threadCount, converter, config);
 
 		assert(filesToConvert.m_inputFiles.empty());
 		assert(filesToConvert.m_outOfMemoryFiles.empty());
@@ -1062,7 +1067,7 @@ bool ResourceCompiler::CompileFile(
 
 	MultiplatformConfig localMultiConfig = m_multiConfig;
 	const IConfig* const config = pThreadData->config;
-
+	localMultiConfig.getConfig().AddConfig(pThreadData->config);
 	const string targetPath = PathHelpers::Join(targetLeftPath, sourceInnerPath);
 
 	if (GetVerbosityLevel() >= 2)
@@ -1098,8 +1103,8 @@ bool ResourceCompiler::CompileFile(
 
 	{
 		const string sourceExtension = PathHelpers::FindExtension(sourceFullFileName);
-		const string convertorExtension = config->GetAsString("overwriteextension", sourceExtension, sourceExtension);
-		pCC->SetConvertorExtension(convertorExtension);
+		const string converterExtension = config->GetAsString("overwriteextension", sourceExtension, sourceExtension);
+		pCC->SetConverterExtension(converterExtension);
 	}
 
 	const string sourceFileName = PathHelpers::GetFilename(sourceFullFileName);
@@ -1421,7 +1426,7 @@ void ResourceCompiler::ShowHelp(const bool bDetailed)
 }
 
 //////////////////////////////////////////////////////////////////////////
-bool ResourceCompiler::RegisterConvertors()
+bool ResourceCompiler::RegisterConverters()
 {
 	const string strDir = GetExePath();
 	const string strMask = strDir + "ResourceCompiler*.dll";
@@ -1458,13 +1463,13 @@ bool ResourceCompiler::RegisterConvertors()
 			return false;
 		}
 		
-		FnRegisterConvertors fnRegister = 
+		FnRegisterConverters fnRegister = 
 			hPlugin 
-			? (FnRegisterConvertors)GetProcAddress(hPlugin, "RegisterConvertors") 
+			? (FnRegisterConverters)GetProcAddress(hPlugin, "RegisterConverters") 
 			: NULL;
 		if (!fnRegister)
 		{
-			RCLog("Error: plug-in module \"%s\" doesn't have RegisterConvertors function", pluginFilename.c_str());
+			RCLog("Error: plug-in module \"%s\" doesn't have RegisterConverters function", pluginFilename.c_str());
 			return false;
 		}
 
@@ -1982,7 +1987,7 @@ int __cdecl main(int argc, char** argv, char** envp)
 	
 	rc.RegisterKey("help","lists all usable keys of the ResourceCompiler with description");
 	rc.RegisterKey("version","shows version and exits");
-	rc.RegisterKey("overwriteextension","ignore existing file extension and use specified convertor");
+	rc.RegisterKey("overwriteextension","ignore existing file extension and use specified converter");
 	rc.RegisterKey("overwritefilename","use the filename for output file (folder part is not affected)");
 	
 	rc.RegisterKey("listfile","Specify List file, List file can contain file lists from zip files like: @Levels\\Test\\level.pak|resourcelist.txt");
@@ -2182,16 +2187,16 @@ int __cdecl main(int argc, char** argv, char** envp)
 		RCLog("");
 
 		RCLog("Loading compiler plug-ins (ResourceCompiler*.dll)");
-		if (!rc.RegisterConvertors())
+		if (!rc.RegisterConverters())
 		{
 			RCLogError("A fatal error occurred when loading plug-ins (see error message(s) above). RC cannot continue.");
-			rc.UnregisterConvertors();
+			rc.UnregisterConverters();
 			return eRcExitCode_FatalError;
 		}
 		RCLog("");
 
 		RCLog("Loading zip & pak compiler module");
-		rc.RegisterConvertor("zip & pak compiler", new ZipEncryptor(&rc));
+		rc.RegisterConverter("zip & pak compiler", new ZipEncryptor(&rc));
 		RCLog("");
 
 		rc.LogMemoryUsage(false);
@@ -2200,7 +2205,7 @@ int __cdecl main(int argc, char** argv, char** envp)
 	const bool bJobMode = config.HasKey("job");
 	if (!bJobMode && !CheckCommandLineOptions(config, 0))
 	{
-		rc.UnregisterConvertors();
+		rc.UnregisterConverters();
 		return eRcExitCode_Error;
 	}
 
@@ -2234,7 +2239,7 @@ int __cdecl main(int argc, char** argv, char** envp)
 		bShowUsage = true;
 	}
 
-	rc.UnregisterConvertors();
+	rc.UnregisterConverters();
 
 	rc.SetTimeLogging(false);
 
@@ -2453,7 +2458,7 @@ void ResourceCompiler::InitFileCache(Config & config)
 }
 
 //////////////////////////////////////////////////////////////////////////
-void ResourceCompiler::TryToGetFilesFromCache(FilesToConvert & files, IConvertor * convertor)
+void ResourceCompiler::TryToGetFilesFromCache(FilesToConvert & files, IConverter * converter)
 {
 	assert(m_pDigest);
 	assert(!m_cacheFolder.empty());
@@ -2594,6 +2599,12 @@ void ResourceCompiler::AddFilesToTheCache(const FilesToConvert & files)
 	RCLog("");
 }
 
+IAssetManager* ResourceCompiler::GetAssetManager() const
+{
+	assert(m_pAssetManager);
+	return m_pAssetManager.get();
+}
+
 //////////////////////////////////////////////////////////////////////////
 void ResourceCompiler::Init(Config& config)
 {
@@ -2612,7 +2623,7 @@ void ResourceCompiler::Init(Config& config)
 }
 
 //////////////////////////////////////////////////////////////////////////
-void ResourceCompiler::UnregisterConvertors()
+void ResourceCompiler::UnregisterConverters()
 {
 	m_extensionManager.UnregisterAll();
 }
@@ -3127,7 +3138,7 @@ void ResourceCompiler::CopyFiles(const std::vector<RcFile>& files)
 
 	const bool bRefresh = config->GetAsBool("refresh", false, true);
 
-	NameConvertor nc;
+	NameConverter nc;
 	if (!nc.SetRules(config->GetAsString("targetnameformat", "", "")))
 	{
 		return;

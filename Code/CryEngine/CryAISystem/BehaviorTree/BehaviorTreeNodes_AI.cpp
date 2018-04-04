@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #include "StdAfx.h"
 #include "BehaviorTreeNodes_AI.h"
@@ -857,6 +857,7 @@ protected:
 			return HandleSuccess(context, runtimeData);
 
 		case eTPSQS_Fail:
+		case eTPSQS_Error:
 			return Failure;
 
 		default:

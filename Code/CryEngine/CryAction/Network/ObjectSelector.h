@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 /*************************************************************************
    -------------------------------------------------------------------------
@@ -109,7 +109,7 @@ public:
 			const char* name = pNode->GetName();
 			const char* ename = pNode->GetEntityClassName();
 			Matrix34A matrix;
-			pNode->GetEntityStatObj(0, 0, &matrix);
+			pNode->GetEntityStatObj(0, &matrix);
 			hash = CalculateHash(name, 0);
 			hash = CalculateHash(ename, hash);
 			hash = CalculateHash(alias_cast<int*>(&matrix), sizeof(Matrix34A) / sizeof(int), hash);

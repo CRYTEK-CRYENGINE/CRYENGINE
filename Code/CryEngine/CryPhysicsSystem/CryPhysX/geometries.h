@@ -40,7 +40,7 @@ public:
 	virtual int  GetPrimitiveCount() { return 1; }
 	virtual const primitives::primitive* GetData();
 	virtual void SetData(const primitives::primitive*) {}
-	virtual float GetVolume() { return 1; }
+	virtual float GetVolume();
 	virtual Vec3 GetCenter() { return Vec3(0); }
 	virtual int Subtract(IGeometry* pGeom, geom_world_data* pdata1, geom_world_data* pdata2, int bLogUpdates = 1) { return 0; }
 	virtual int GetSubtractionsCount() { return 0; }

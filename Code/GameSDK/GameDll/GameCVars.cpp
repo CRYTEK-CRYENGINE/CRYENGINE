@@ -565,7 +565,7 @@ void SCVars::InitCVars(IConsole *pConsole)
 	REGISTER_CVAR(cl_controllerYawSnapMax, 0.8f, 0, "Input threshold that must be reached to trigger snapping");
 	REGISTER_CVAR(cl_controllerYawSnapMin, 0.5f, 0, "Input threshold that must be reached to reset snapping");
 
-	REGISTER_CVAR(i_grenade_showTrajectory, 1, 0, "Switches on trajectory display");
+	REGISTER_CVAR(i_grenade_showTrajectory, 0, 0, "Switches on trajectory display");
 	REGISTER_CVAR(i_grenade_trajectory_resolution, 0.03f, 0, "Trajectory display resolution");
 	REGISTER_CVAR(i_grenade_trajectory_dashes, 0.5f, 0, "Trajectory display dashes length");
 	REGISTER_CVAR(i_grenade_trajectory_gaps, 0.3f, 0, "Trajectory gaps length");
@@ -1232,7 +1232,7 @@ void SCVars::InitCVars(IConsole *pConsole)
 	REGISTER_CVAR(pl_movement.mp_slope_speed_multiplier_minHill, 0.f, 0, "Minimum threshold for the slope steepness before speed is affected (in degrees).");
 
 #ifdef STATE_DEBUG
-	pConsole->RegisterString( "pl_state_debug", "", VF_CHEAT, "For PlayerMovement StateMachine Debugging", ChangeDebugState );
+	REGISTER_STRING_CB( "pl_state_debug", "", VF_CHEAT, "For PlayerMovement StateMachine Debugging", ChangeDebugState );
 #endif
 
 	REGISTER_CVAR(mp_ctfParams.carryingFlag_SpeedScale, 0.8f, 0, "Speed multiplier whilst carrying the flag in Capture the Flag game mode.");

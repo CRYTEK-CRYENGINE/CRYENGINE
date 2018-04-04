@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #if !defined(AFX_XCONSOLE_H__BA902011_5C47_4954_8E09_68598456912D__INCLUDED_)
 #define AFX_XCONSOLE_H__BA902011_5C47_4954_8E09_68598456912D__INCLUDED_
@@ -10,6 +10,7 @@
 #include <CrySystem/IConsole.h>
 #include <CryInput/IInput.h>
 #include <CryCore/CryCrc32.h>
+#include <CryCore/Containers/CryListenerSet.h>
 #include "Timer.h"
 
 //forward declaration
@@ -37,9 +38,14 @@ struct CConsoleCommand
 	string             m_sHelp;    // optional help string - can be shown in the console with "<commandname> ?"
 	int                m_nFlags;   // bitmask consist of flag starting with VF_ e.g. VF_CHEAT
 	ConsoleCommandFunc m_func;     // Pointer to console command.
+	bool               m_isManagedExternally;// true if console command is added from C# and the notification of console commands will be through C# class method invocation via mono
 
 	//////////////////////////////////////////////////////////////////////////
-	CConsoleCommand() : m_func(0), m_nFlags(0) {}
+	CConsoleCommand()
+		: m_func(0)
+		, m_nFlags(0)
+		, m_isManagedExternally(false)
+	{}
 	size_t sizeofThis() const { return sizeof(*this) + m_sName.capacity() + 1 + m_sCommand.capacity() + 1; }
 	void   GetMemoryUsage(class ICrySizer* pSizer) const
 	{
@@ -130,14 +136,6 @@ public:
 	// interface IConsole ---------------------------------------------------------
 
 	virtual void                   Release();
-	virtual ICVar*                 RegisterString(const char* sName, const char* sValue, int nFlags, const char* help = "", ConsoleVarFunc pChangeFunc = 0);
-	virtual ICVar*                 RegisterInt(const char* sName, int iValue, int nFlags, const char* help = "", ConsoleVarFunc pChangeFunc = 0);
-	virtual ICVar*                 RegisterInt64(const char* sName, int64 iValue, int nFlags, const char* help = "", ConsoleVarFunc pChangeFunc = 0);
-	virtual ICVar*                 RegisterFloat(const char* sName, float fValue, int nFlags, const char* help = "", ConsoleVarFunc pChangeFunc = 0);
-	virtual ICVar*                 Register(const char* name, float* src, float defaultvalue, int flags = 0, const char* help = "", ConsoleVarFunc pChangeFunc = 0, bool allowModify = true);
-	virtual ICVar*                 Register(const char* name, int* src, int defaultvalue, int flags = 0, const char* help = "", ConsoleVarFunc pChangeFunc = 0, bool allowModify = true);
-	virtual ICVar*                 Register(const char* name, const char** src, const char* defaultvalue, int flags = 0, const char* help = "", ConsoleVarFunc pChangeFunc = 0, bool allowModify = true);
-	virtual ICVar*                 Register(ICVar* pVar) { RegisterVar(pVar); return pVar; }
 
 	virtual void                   UnregisterVariable(const char* sVarName, bool bDelete = false);
 	virtual void                   SetScrollMax(int value);
@@ -162,14 +160,14 @@ public:
 	virtual void                   Clear();
 	virtual void                   Update();
 	virtual void                   Draw();
-	virtual void                   AddCommand(const char* sCommand, ConsoleCommandFunc func, int nFlags = 0, const char* sHelp = NULL);
-	virtual void                   AddCommand(const char* sName, const char* sScriptFunc, int nFlags = 0, const char* sHelp = NULL);
+	virtual void                   RegisterListener(IManagedConsoleCommandListener* pListener, const char* name);
+	virtual void                   UnregisterListener(IManagedConsoleCommandListener* pListener);
 	virtual void                   RemoveCommand(const char* sName);
 	virtual void                   ExecuteString(const char* command, const bool bSilentMode, const bool bDeferExecution = false);
 	virtual void                   Exit(const char* command, ...) PRINTF_PARAMS(2, 3);
 	virtual bool                   IsOpened();
-	virtual int                    GetNumVars(bool bIncludeCommands = false);
-	virtual size_t                 GetSortedVars(const char** pszArray, size_t numItems, const char* szPrefix = 0);
+	virtual size_t                 GetNumVars(bool bIncludeCommands = false) const;
+	virtual size_t                 GetSortedVars(const char** pszArray, size_t numItems, const char* szPrefix = 0, int nListTypes = 0) const;
 	virtual int                    GetNumCheatVars();
 	virtual void                   SetCheatVarHashRange(size_t firstVar, size_t lastVar);
 	virtual void                   CalcCheatVarHash();
@@ -206,8 +204,7 @@ public:
 	virtual bool OnInputEventUI(const SUnicodeEvent& event);
 
 	virtual void SetReadOnly(bool readonly) { m_readOnly = readonly; }
-	virtual bool IsReadOnly() { return m_readOnly; }
-
+	virtual bool IsReadOnly()               { return m_readOnly; }
 
 	// interface IRemoteConsoleListener ------------------------------------------------------------------
 
@@ -280,6 +277,9 @@ private: // ----------------------------------------------------------
 
 	typedef std::vector<std::pair<const char*, ICVar*>>     ConsoleVariablesVector;
 
+	typedef CListenerSet<IManagedConsoleCommandListener*>   TManagedConsoleCommandListener;
+	TManagedConsoleCommandListener m_managedConsoleCommandListeners;
+
 	void LogChangeMessage(const char* name, const bool isConst, const bool isCheat, const bool isReadOnly, const bool isDeprecated,
 	                      const char* oldValue, const char* newValue, const bool isProcessingGroup, const bool allowChange);
 
@@ -287,6 +287,19 @@ private: // ----------------------------------------------------------
 	void        RemoveCheckedCVar(ConsoleVariablesVector& vector, const ConsoleVariablesVector::value_type& value);
 	static void AddCVarsToHash(ConsoleVariablesVector::const_iterator begin, ConsoleVariablesVector::const_iterator end, CCrc32& runningNameCrc32, CCrc32& runningNameValueCrc32);
 	static bool CVarNameLess(const std::pair<const char*, ICVar*>& lhs, const std::pair<const char*, ICVar*>& rhs);
+
+
+	virtual void AddCommand(const char* sCommand, ConsoleCommandFunc func, int nFlags = 0, const char* sHelp = NULL, bool bIsManagedExternally = false);
+	virtual void AddCommand(const char* sName, const char* sScriptFunc, int nFlags = 0, const char* sHelp = NULL);
+
+	virtual ICVar* RegisterString(const char* sName, const char* sValue, int nFlags, const char* help = "", ConsoleVarFunc pChangeFunc = 0);
+	virtual ICVar* RegisterInt(const char* sName, int iValue, int nFlags, const char* help = "", ConsoleVarFunc pChangeFunc = 0);
+	virtual ICVar* RegisterInt64(const char* sName, int64 iValue, int nFlags, const char* help = "", ConsoleVarFunc pChangeFunc = 0);
+	virtual ICVar* RegisterFloat(const char* sName, float fValue, int nFlags, const char* help = "", ConsoleVarFunc pChangeFunc = 0);
+	virtual ICVar* Register(const char* name, float* src, float defaultvalue, int flags = 0, const char* help = "", ConsoleVarFunc pChangeFunc = 0, bool allowModify = true);
+	virtual ICVar* Register(const char* name, int* src, int defaultvalue, int flags = 0, const char* help = "", ConsoleVarFunc pChangeFunc = 0, bool allowModify = true);
+	virtual ICVar* Register(const char* name, const char** src, const char* defaultvalue, int flags = 0, const char* help = "", ConsoleVarFunc pChangeFunc = 0, bool allowModify = true);
+	virtual ICVar* Register(ICVar* pVar) { RegisterVar(pVar); return pVar; }
 
 	typedef std::map<string, CConsoleCommand, string_nocase_lt>                        ConsoleCommandsMap;
 	typedef ConsoleCommandsMap::iterator                                               ConsoleCommandsMapItor;
@@ -389,7 +402,7 @@ private: // ----------------------------------------------------------
 
 	ELoadConfigurationType         m_currentLoadConfigType;
 
-	bool m_readOnly;
+	bool                           m_readOnly;
 
 	static int                     con_display_last_messages;
 	static int                     con_line_buffer_size;

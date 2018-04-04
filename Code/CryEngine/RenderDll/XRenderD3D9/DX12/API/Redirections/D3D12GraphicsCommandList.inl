@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #include <array>
 #include <d3d12.h>
@@ -31,7 +31,7 @@ public:
 			m_Targets[i] = nullptr;
 			if (UINT nM = (nodeMask & (1 << i)))
 			{
-#if CRY_USE_DX12_MULTIADAPTER_SIMULATION
+#if DX12_LINKEDADAPTER_SIMULATION
 				// Always create on the first GPU, if running simulation
 				if (CRenderer::CV_r_StereoEnableMgpu < 0)
 					nM = 1;

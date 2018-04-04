@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #include "StdAfx.h"
 #include "SunShafts.h"
@@ -16,17 +16,16 @@ struct SSunShaftConstants
 
 void CSunShaftsStage::Init()
 {
-	m_samplerPoint = CTexture::GetTexState(STexState(FILTER_POINT, true));
-	m_samplerLinear = CTexture::GetTexState(STexState(FILTER_LINEAR, true));
-
 	m_passShaftsMask.SetFlags(CPrimitiveRenderPass::ePassFlags_VrProjectionPass);
-	m_passShaftsGen0.SetFlags(CPrimitiveRenderPass::ePassFlags_VrProjectionPass);
-	m_passShaftsGen1.SetFlags(CPrimitiveRenderPass::ePassFlags_VrProjectionPass);
-	
-	m_passShaftsGen0.AllocateTypedConstantBuffer<SSunShaftConstants>(eConstantBufferShaderSlot_PerBatch, EShaderStage_Pixel);
-	m_passShaftsGen1.AllocateTypedConstantBuffer<SSunShaftConstants>(eConstantBufferShaderSlot_PerBatch, EShaderStage_Pixel);
 
+	m_passShaftsGen0.SetFlags(CPrimitiveRenderPass::ePassFlags_VrProjectionPass);
+	m_passShaftsGen0.SetPrimitiveFlags(CRenderPrimitive::eFlags_None);
 	m_passShaftsGen0.SetRequirePerViewConstantBuffer(true);
+	m_passShaftsGen0.AllocateTypedConstantBuffer<SSunShaftConstants>(eConstantBufferShaderSlot_PerBatch, EShaderStage_Pixel);
+
+	m_passShaftsGen1.SetFlags(CPrimitiveRenderPass::ePassFlags_VrProjectionPass);
+	m_passShaftsGen1.SetPrimitiveFlags(CRenderPrimitive::eFlags_None);
+	m_passShaftsGen1.AllocateTypedConstantBuffer<SSunShaftConstants>(eConstantBufferShaderSlot_PerBatch, EShaderStage_Pixel);
 	m_passShaftsGen1.SetRequirePerViewConstantBuffer(true);
 }
 
@@ -74,29 +73,16 @@ void CSunShaftsStage::Execute()
 		{
 			static CCryNameTSCRC techMaskGen("SunShaftsMaskGen");
 			uint64 rtMask = g_HWSR_MaskBit[HWSR_SAMPLE0];
+			m_passShaftsMask.SetPrimitiveFlags(CRenderPrimitive::eFlags_ReflectShaderConstants_VS);
 			m_passShaftsMask.SetTechnique(pShader, techMaskGen, rtMask);
 			m_passShaftsMask.SetRenderTarget(0, pFinalRT);
 			m_passShaftsMask.SetState(GS_NODEPTHTEST);
 
-			m_passShaftsMask.SetTextureSamplerPair(0, CTexture::s_ptexZTargetScaled, m_samplerPoint);
-			m_passShaftsMask.SetTextureSamplerPair(1, CTexture::s_ptexHDRTargetScaled[0], m_samplerPoint);  // TODO
+			m_passShaftsMask.SetTextureSamplerPair(0, CTexture::s_ptexZTargetScaled, EDefaultSamplerStates::PointClamp);
+			m_passShaftsMask.SetTextureSamplerPair(1, CTexture::s_ptexHDRTargetScaled[0], EDefaultSamplerStates::PointClamp);  // TODO
 		}
 
-		static CCryNameR nameParams0("texToTexParams0");
-		static CCryNameR nameParams1("texToTexParams1");
-
 		m_passShaftsMask.BeginConstantUpdate();
-
-		// Set sample positions (using rotated grid)
-		float sampleSize = ((float)CTexture::s_ptexBackBuffer->GetWidth() / (float)pFinalRT->GetWidth()) * 0.5f;
-		float s1 = sampleSize / (float)CTexture::s_ptexBackBuffer->GetWidth();
-		float t1 = sampleSize / (float)CTexture::s_ptexBackBuffer->GetHeight();
-		Vec4 params0 = Vec4(s1 * 0.95f, t1 * 0.25f, -s1 * 0.25f, t1 * 0.96f);
-		Vec4 params1 = Vec4(-s1 * 0.96f, -t1 * 0.25f, s1 * 0.25f, -t1 * 0.96f);
-
-		m_passShaftsMask.SetConstant(nameParams0, params0, eHWSC_Pixel);
-		m_passShaftsMask.SetConstant(nameParams1, params1, eHWSC_Pixel);
-
 		m_passShaftsMask.Execute();
 	}
 
@@ -125,8 +111,7 @@ void CSunShaftsStage::Execute()
 				m_passShaftsGen0.SetTechnique(pShader, techShaftsGen, rtMask);
 				m_passShaftsGen0.SetRenderTarget(0, pTempRT);
 				m_passShaftsGen0.SetState(GS_NODEPTHTEST);
-
-				m_passShaftsGen0.SetTextureSamplerPair(0, pFinalRT, m_samplerLinear);
+				m_passShaftsGen0.SetTextureSamplerPair(0, pFinalRT, EDefaultSamplerStates::LinearClamp);
 			}
 
 			auto constants = m_passShaftsGen0.BeginTypedConstantUpdate<SSunShaftConstants>(eConstantBufferShaderSlot_PerBatch);
@@ -152,8 +137,7 @@ void CSunShaftsStage::Execute()
 				m_passShaftsGen1.SetTechnique(pShader, techShaftsGen, rtMask);
 				m_passShaftsGen1.SetRenderTarget(0, pFinalRT);
 				m_passShaftsGen1.SetState(GS_NODEPTHTEST);
-
-				m_passShaftsGen1.SetTextureSamplerPair(0, pTempRT, m_samplerLinear);
+				m_passShaftsGen1.SetTextureSamplerPair(0, pTempRT, EDefaultSamplerStates::LinearClamp);
 			}
 
 			auto constants = m_passShaftsGen1.BeginTypedConstantUpdate<SSunShaftConstants>(eConstantBufferShaderSlot_PerBatch);

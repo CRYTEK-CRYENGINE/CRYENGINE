@@ -17,6 +17,7 @@
 
 #include <CryEntitySystem/IEntitySystem.h>
 #include "BoidsProxy.h"
+#include "GameCache.h"
 
 #include <float.h>
 #include <limits.h>
@@ -25,7 +26,7 @@
 #include <CryAnimation/ICryAnimation.h>
 #include <CryMath/Cry_Camera.h>
 #include <CryString/CryPath.h>
-#include "GameCache.h"
+#include <IPerceptionManager.h>
 
 #define  PHYS_FOREIGN_ID_BOID PHYS_FOREIGN_ID_USER-1
 
@@ -99,6 +100,8 @@ CFlock::CFlock( IEntity *pEntity,EFlockType flockType )
 
 	m_bEntityCreated = false;
 	m_bAnyKilled = false;
+
+	m_bAIEventListenerRegistered = false;
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -495,19 +498,29 @@ void CFlock::SetPos( const Vec3& pos )
 //////////////////////////////////////////////////////////////////////////
 void CFlock::RegisterAIEventListener( bool bEnable )
 {
-	if (!gEnv->pAISystem || gEnv->bMultiplayer)
+	if (gEnv->bMultiplayer)
+		return;
+
+	IPerceptionManager* pPerceptionManager = IPerceptionManager::GetInstance();
+	
+	if (!pPerceptionManager)
 		return;
 
 	if (bEnable)
 	{
-		m_bAIEventListenerRegistered = true;
-		gEnv->pAISystem->RegisterAIEventListener(this,m_bc.flockPos,m_bc.maxVisibleDistance,(1<<AISTIM_EXPLOSION)|(1<<AISTIM_SOUND)|(1<<AISTIM_BULLET_HIT));
+		//Re-register with possibly changed parameters
+		SAIStimulusEventListenerParams params;
+		params.pos = m_bc.flockPos;
+		params.radius = m_bc.maxVisibleDistance;
+		params.flags = (1 << AISTIM_EXPLOSION) | (1 << AISTIM_SOUND) | (1 << AISTIM_BULLET_HIT);
+		pPerceptionManager->RegisterAIStimulusEventListener(functor(*this, &CFlock::OnStimulusReceived), params);
 	}
 	else if (m_bAIEventListenerRegistered)
 	{
-		m_bAIEventListenerRegistered = false;
-		gEnv->pAISystem->UnregisterAIEventListener(this);
+		pPerceptionManager->UnregisterAIStimulusEventListener(functor(*this, &CFlock::OnStimulusReceived));
 	}
+
+	m_bAIEventListenerRegistered = bEnable;
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -647,7 +660,7 @@ bool CFlock::CreateEntities()
 		boid->m_noentity = false;
 		boid->m_entity = pBoidEntity->GetId();
 
-		auto pBoidObjectProxy = pBoidEntity->CreateComponent<CBoidObjectProxy>();
+		auto pBoidObjectProxy = pBoidEntity->GetOrCreateComponent<CBoidObjectProxy>();
 		pBoidObjectProxy->SetBoid(boid);
 
 		// check if character.
@@ -731,14 +744,14 @@ void CFlock::Reset()
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CFlock::OnAIEvent(EAIStimulusType type, const Vec3& pos, float radius, float threat, EntityId sender)
+void CFlock::OnStimulusReceived(const SAIStimulusParams& params)
 {
-	if (m_bc.scareThreatLevel*1.2f < threat)
+	if (m_bc.scareThreatLevel*1.2f < params.threat)
 	{
-		m_bc.scareThreatLevel = threat;
-		m_bc.scarePoint = pos;
+		m_bc.scareThreatLevel = params.threat;
+		m_bc.scarePoint = params.position;
 		m_bc.scareRatio = 1.0f;
-		m_bc.scareRadius = radius;
+		m_bc.scareRadius = params.radius;
 	}
 }
 

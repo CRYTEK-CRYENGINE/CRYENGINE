@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #include "StdAfx.h"
 #include "GpuPhysicsParticleFluid.h"
@@ -60,7 +60,7 @@ CParticleFluidSimulation::CParticleFluidSimulation(const int maxBodies)
 	m_passBuildGridIndices.SetTechnique(pShader, CCryNameTSCRC("BuildGridIndices"), 0);
 	m_passRearrangeParticles.SetTechnique(pShader, CCryNameTSCRC("RearrangeParticles"), 0);
 	m_passEvolveExternalParticles.SetTechnique(pShader, CCryNameTSCRC("EvolveExternalParticles"), 0);
-	m_passCollisionsScreenSpace.SetTechnique(pShader, CCryNameTSCRC("CollisionsScreenSpace"), 0);
+	m_passCollisionsScreenSpace.SetTechnique(pShader, CCryNameTSCRC("CollisionScreenSpace"), 0);
 
 	CreateResources();
 }
@@ -226,7 +226,7 @@ void CParticleFluidSimulation::EvolveParticles(CDeviceCommandListRef RESTRICT_RE
 	m_passEvolveExternalParticles.Execute(commandList);
 }
 
-void CParticleFluidSimulation::FluidCollisions(CDeviceCommandListRef RESTRICT_REFERENCE commandList, CConstantBufferPtr parameterBuffer, int constantBufferSlot, int texSampler, int texPointSampler)
+void CParticleFluidSimulation::FluidCollisions(CDeviceCommandListRef RESTRICT_REFERENCE commandList, CConstantBufferPtr parameterBuffer, int constantBufferSlot)
 {
 	const uint blocks = gpu::GetNumberOfBlocksForArbitaryNumberOfThreads(m_params->numberOfBodies, kThreadsInBlock);
 	m_passCollisionsScreenSpace.SetBuffer(0, &m_pData->adjacencyList.GetBuffer());
@@ -237,8 +237,8 @@ void CParticleFluidSimulation::FluidCollisions(CDeviceCommandListRef RESTRICT_RE
 	m_passCollisionsScreenSpace.SetOutputUAV(3, &m_pData->grid.GetBuffer());
 	m_passCollisionsScreenSpace.SetInlineConstantBuffer(3, m_params.GetDeviceConstantBuffer());
 	m_passCollisionsScreenSpace.SetInlineConstantBuffer(constantBufferSlot, parameterBuffer);
-	m_passCollisionsScreenSpace.SetSampler(0, texSampler);
-	m_passCollisionsScreenSpace.SetSampler(1, texPointSampler);
+	m_passCollisionsScreenSpace.SetSampler(0, EDefaultSamplerStates::BilinearClamp);
+	m_passCollisionsScreenSpace.SetSampler(1, EDefaultSamplerStates::PointClamp);
 	m_passCollisionsScreenSpace.SetDispatchSize(blocks, 1, 1);
 	m_passCollisionsScreenSpace.PrepareResourcesForUse(commandList);
 	m_passCollisionsScreenSpace.Execute(commandList);

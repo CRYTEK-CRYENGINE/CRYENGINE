@@ -1,7 +1,5 @@
-using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Linq;
-using System.Text;
 
 namespace CryEngine.UI
 {
@@ -10,8 +8,16 @@ namespace CryEngine.UI
 	/// </summary>
 	public interface IUpdateReceiver
 	{
-		SceneObject Root { get; } ///< Contains the Objects scene root
-		void Update(); ///< Called by SceneManager
+		/// <summary>
+		/// Contains the Objects scene root
+		/// </summary>
+		/// <value>The root.</value>
+		SceneObject Root { get; }
+
+		/// <summary>
+		/// Called by SceneManager
+		/// </summary>
+		void Update();
 	}
 
 	/// <summary>
@@ -35,11 +41,15 @@ namespace CryEngine.UI
 			public Dictionary<IUpdateReceiver, int> UpdateReceiverOrder = new Dictionary<IUpdateReceiver, int>();
 		}
 
-        internal static SceneManager Instance { get; set; } = new SceneManager();
+		internal static SceneManager Instance { get; set; } = new SceneManager();
 
+		/// <summary>
+		/// The root SceneObject created by the SceneManager.
+		/// </summary>
+		/// <value>The root object.</value>
 		public static SceneObject RootObject { get; private set; }
 
-		static List<SceneDescription> _scenes = new List<SceneDescription>();
+		static readonly List<SceneDescription> _scenes = new List<SceneDescription>();
 
 		/// <summary>
 		/// Will trigger refreshing of update receiver order inside update loop.
@@ -48,10 +58,14 @@ namespace CryEngine.UI
 		public static void InvalidateSceneOrder(SceneObject root)
 		{
 			var scene = _scenes.SingleOrDefault(x => x.Root == root);
-			if (scene != null)
+			if(scene != null)
+			{
 				scene.IsValid = false;
+			}
 			else
-				_scenes.Add(new SceneDescription() { Root = root, IsValid = false });
+			{
+				_scenes.Add(new SceneDescription { Root = root, IsValid = false });
+			}
 		}
 
 		/// <summary>
@@ -62,8 +76,10 @@ namespace CryEngine.UI
 		public static void SetScenePriority(SceneObject root, int priority)
 		{
 			var scene = _scenes.SingleOrDefault(x => x.Root == root);
-			if (scene != null)
+			if(scene != null)
+			{
 				scene.Priority = priority;
+			}
 		}
 
 		/// <summary>
@@ -75,9 +91,9 @@ namespace CryEngine.UI
 		{
 			var root = ur.Root;
 			var scene = _scenes.SingleOrDefault(x => x.Root == root);
-			if (scene == null)
+			if(scene == null)
 			{
-				scene = new SceneDescription() { Root = root };
+				scene = new SceneDescription { Root = root };
 				_scenes.Add(scene);
 			}
 			scene.UpdateReceiverOrder[ur] = order;
@@ -91,16 +107,16 @@ namespace CryEngine.UI
 		{
 			var root = ur.Root;
 			var scene = _scenes.SingleOrDefault(x => x.Root == root);
-			if (scene != null)
+			if(scene != null)
 				scene.UpdateReceiverOrder.Remove(ur);
 		}
-		
+
 		internal SceneManager()
 		{
 			GameFramework.RegisterForUpdate(this);
 		}
 
-		~SceneManager()
+		internal void Destroy()
 		{
 			GameFramework.UnregisterFromUpdate(this);
 		}
@@ -111,15 +127,15 @@ namespace CryEngine.UI
 		public void OnUpdate()
 		{
 			var scenes = new List<SceneDescription>(_scenes);
-			foreach (var scene in scenes.Where(x => !x.IsValid))
+			foreach(var scene in scenes.Where(x => !x.IsValid))
 			{
 				scene.Root.RefreshUpdateOrder();
 				scene.IsValid = true;
 			}
-			foreach (var scene in scenes.OrderBy(x => x.Priority))
+			foreach(var scene in scenes.OrderBy(x => x.Priority))
 			{
 				var sorted = scene.UpdateReceiverOrder.OrderBy(x => x.Value).ToList();
-				sorted.ForEach(x => { if (scene.UpdateReceiverOrder.ContainsKey(x.Key)) x.Key.Update(); });
+				sorted.ForEach(x => { if(scene.UpdateReceiverOrder.ContainsKey(x.Key)) x.Key.Update(); });
 			}
 		}
 	}

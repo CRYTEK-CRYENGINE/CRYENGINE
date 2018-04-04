@@ -132,7 +132,7 @@ void CExactPositioningTrigger::Update( float frameTime, Vec3 userPos, Quat userO
 		//Vec3 rotDistanceError = rotAnimMovementUser - rotAnimMovementWanted;
 
 		float fwdDistance = fabsf(orientFwd.Dot( posDistanceError ));
-		float sideDistance = max( 0.0f, sqrtf( MAX(0,posDistanceError.GetLengthSquared2D() - sqr(fwdDistance)) ) - m_width );
+		float sideDistance = max( 0.0f, sqrtf( std::max(0.f,posDistanceError.GetLengthSquared2D() - sqr(fwdDistance)) ) - m_width );
 
 		float deltaFwd = m_oldFwdDir < fwdDistance ? fwdDistance - m_oldFwdDir : 0.0f;
 		m_oldFwdDir = fwdDistance;

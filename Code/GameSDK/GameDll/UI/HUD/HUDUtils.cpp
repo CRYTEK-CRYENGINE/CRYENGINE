@@ -539,4 +539,22 @@ void* GetNearestTo(const TCenterSortArray& array, const Vec2& center, const floa
 	return NULL;
 }
 
+uint32 ConverToSilhouetteParamValue(ColorF color, bool bEnable/* = true*/)
+{
+		return	ConverToSilhouetteParamValue(color.r, color.g, color.b, color.a);
+}
+
+uint32 ConverToSilhouetteParamValue(float r, float g, float b, float a, bool bEnable/* = true*/)
+{
+	if (bEnable && fabsf(1.f - a) < FLT_EPSILON)
+	{
+		return	(uint32)(int_round(r * 255.0f) << 24) |
+						(int_round(g * 255.0f) << 16) |
+						(int_round(b * 255.0f) << 8) |
+						(int_round(a * 255.0f));
+	}
+
+	return 0;
+}
+
 }

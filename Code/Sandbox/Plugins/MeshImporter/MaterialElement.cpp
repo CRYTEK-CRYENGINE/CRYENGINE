@@ -9,7 +9,7 @@
 #include <CrySerialization/STL.h>
 #include <CrySerialization/StringList.h>
 #include <CrySerialization/Decorators/Range.h>
-#include <yasli/Enum.h>
+#include <CrySerialization/yasli/Enum.h>
 
 FbxTool::EMaterialPhysicalizeSetting Convert(FbxMetaData::EPhysicalizeSetting setting)
 {

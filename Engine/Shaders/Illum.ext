@@ -71,6 +71,14 @@ Property
 
 Property
 {
+  Name = %BILLBOARD
+  Mask = 0x2000
+  Property    (Billboard)
+  Description (Rotate geometry towards camera)
+}
+
+Property
+{
   Name = %DECAL
   Mask = 0x2000000
   Property    (Decal)

@@ -1,32 +1,35 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #pragma once
 
 #include "GraphicsPipelineStage.h"
 #include "GraphicsPipelineStateSet.h"
 #include "UtilityPasses.h"
+#include "RenderPassScheduler.h"
 
 class CGraphicsPipelineStage;
 
 class CGraphicsPipeline
 {
+private:
+	struct SUtilityPassCache
+	{
+		uint32 numUsed = 0;
+		std::vector<std::unique_ptr<IUtilityRenderPass>> utilityPasses;
+	};
+
 public:
 	CGraphicsPipeline()
-		: m_numUtilityPasses(0)
 	{
 		m_pipelineStages.fill(nullptr);
-		m_utilityPasses.fill(nullptr);
 	}
 
 	virtual ~CGraphicsPipeline()
 	{
-		for (auto pStage : m_pipelineStages)
+		// destroy stages in reverse order to satisfy data dependencies
+		for (auto it = m_pipelineStages.rbegin(); it != m_pipelineStages.rend(); ++it)
 		{
-			SAFE_DELETE(pStage);
-		}
-		for (auto pPass : m_utilityPasses)
-		{
-			SAFE_DELETE(pPass);
+			SAFE_DELETE(*it);
 		}
 	}
 
@@ -44,6 +47,16 @@ public:
 		return m_pipelineStages[stageID];
 	}
 
+#if !defined(_RELEASE)
+	std::map<struct IRenderNode*, IRenderer::SDrawCallCountInfo>* GetDrawCallInfoPerNode() { return &m_drawCallInfoPerNode; }
+	std::map<struct IRenderMesh*, IRenderer::SDrawCallCountInfo>* GetDrawCallInfoPerMesh() { return &m_drawCallInfoPerMesh; }
+#endif
+
+	CRenderPassScheduler& GetRenderPassScheduler()
+	{
+		return m_renderPassScheduler;
+	}
+
 protected:
 	template<class T> void RegisterStage(T*& pPipelineStage, uint32 stageID)
 	{
@@ -51,7 +64,6 @@ protected:
 		assert(m_pipelineStages[stageID] == nullptr);
 		pPipelineStage = new T();
 		pPipelineStage->m_stageID = stageID;
-		pPipelineStage->Init();
 		m_pipelineStages[stageID] = pPipelineStage;
 	}
 
@@ -63,20 +75,45 @@ protected:
 		RegisterStage<T>(pPipelineStage, stageID);
 	}
 
-	template<class T> T* CreateStaticUtilityPass()
+	void InitStages()
 	{
-		assert(m_numUtilityPasses < m_utilityPasses.size());
-		if (m_numUtilityPasses < m_utilityPasses.size())
+		for (auto pStage : m_pipelineStages)
 		{
-			T* pUtilityPass = new T();
-			m_utilityPasses[m_numUtilityPasses++] = pUtilityPass;
-			return pUtilityPass;
+			if (pStage)
+			{
+				pStage->Init();
+			}
 		}
-		return nullptr;
+	}
+
+	template<class T> T* GetOrCreateUtilityPass()
+	{
+		IUtilityRenderPass::EPassId id = T::GetPassId();
+		auto& cache = m_utilityPassCaches[uint32(id)];
+		if (cache.numUsed >= cache.utilityPasses.size())
+		{
+			cache.utilityPasses.emplace_back(new T);
+		}
+		return static_cast<T*>(cache.utilityPasses[cache.numUsed++].get());
+	}
+
+	void ResetUtilityPassCache()
+	{
+		for (auto& it : m_utilityPassCaches)
+		{
+			it.numUsed = 0;
+		}
 	}
 
 protected:
-	std::array<CGraphicsPipelineStage*, 32> m_pipelineStages;
-	std::array<IUtilityRenderPass*, 32>     m_utilityPasses;
-	uint32 m_numUtilityPasses;
+	std::array<CGraphicsPipelineStage*, 48> m_pipelineStages;
+	CRenderPassScheduler                    m_renderPassScheduler;
+
+#if !defined(_RELEASE)
+	std::map<struct IRenderNode*, IRenderer::SDrawCallCountInfo> m_drawCallInfoPerNode;
+	std::map<struct IRenderMesh*, IRenderer::SDrawCallCountInfo> m_drawCallInfoPerMesh;
+#endif
+
+private:
+	std::array<SUtilityPassCache, uint32(IUtilityRenderPass::EPassId::MaxPassCount)> m_utilityPassCaches;
 };

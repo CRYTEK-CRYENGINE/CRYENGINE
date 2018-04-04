@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 // -------------------------------------------------------------------------
 //  File name:   ResourceManager.h
@@ -608,7 +608,7 @@ void CResourceManager::Update()
 //////////////////////////////////////////////////////////////////////////
 void CResourceManager::Init()
 {
-	GetISystem()->GetISystemEventDispatcher()->RegisterListener(this);
+	GetISystem()->GetISystemEventDispatcher()->RegisterListener(this,"CResourceManager");
 }
 
 //////////////////////////////////////////////////////////////////////////

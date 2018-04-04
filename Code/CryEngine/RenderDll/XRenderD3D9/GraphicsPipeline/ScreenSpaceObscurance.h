@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #pragma once
 
@@ -20,8 +20,4 @@ private:
 	CStretchRectPass  m_passAlbedoDownsample1;
 	CStretchRectPass  m_passAlbedoDownsample2;
 	CGaussianBlurPass m_passAlbedoBlur;
-
-	int32             m_samplerPoint;
-	int32             m_samplerLinear;
-	int32             m_samplerPointWrap;
 };

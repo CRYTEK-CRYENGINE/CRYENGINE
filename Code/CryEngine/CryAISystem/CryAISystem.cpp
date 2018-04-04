@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 // CryAISystem.cpp : Defines the entry point for the DLL application.
 //
@@ -27,16 +27,24 @@ CAISystem* g_pAISystem;
  */
 
 //////////////////////////////////////////////////////////////////////////
-class CEngineModule_CryAISystem : public IEngineModule
+class CEngineModule_CryAISystem : public IAIEngineModule
 {
-	CRYINTERFACE_SIMPLE(IEngineModule)
-	CRYGENERATE_SINGLETONCLASS(CEngineModule_CryAISystem, "EngineModule_CryAISystem", 0x6b8e79a784004f44, 0x97db7614428ad251)
+	CRYINTERFACE_BEGIN()
+		CRYINTERFACE_ADD(Cry::IDefaultModule)
+		CRYINTERFACE_ADD(IAIEngineModule)
+	CRYINTERFACE_END()
 
-	virtual ~CEngineModule_CryAISystem() {}
+	CRYGENERATE_SINGLETONCLASS_GUID(CEngineModule_CryAISystem, "EngineModule_CryAISystem", "6b8e79a7-8400-4f44-97db-7614428ad251"_cry_guid)
+
+	virtual ~CEngineModule_CryAISystem()
+	{
+		CryUnregisterFlowNodes();
+		SAFE_RELEASE(gEnv->pAISystem);
+	}
 
 	//////////////////////////////////////////////////////////////////////////
-	virtual const char* GetName() override { return "CryAISystem"; };
-	virtual const char* GetCategory() override { return "CryEngine"; };
+	virtual const char* GetName()  const override { return "CryAISystem"; };
+	virtual const char* GetCategory()  const override { return "CryEngine"; };
 
 	//////////////////////////////////////////////////////////////////////////
 	virtual bool Initialize(SSystemGlobalEnvironment& env, const SSystemInitParams& initParams) override
@@ -47,6 +55,8 @@ class CEngineModule_CryAISystem : public IEngineModule
 
 		g_pAISystem = new CAISystem(pSystem);
 		env.pAISystem = g_pAISystem;
+
+		CryRegisterFlowNodes();
 
 		return true;
 	}

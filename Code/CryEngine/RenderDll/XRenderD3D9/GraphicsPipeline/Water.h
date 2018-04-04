@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #pragma once
 
@@ -91,7 +91,6 @@ public:
 
 public:
 	CWaterStage();
-	virtual ~CWaterStage();
 
 	void                         Init() override;
 	void                         Prepare(CRenderView* pRenderView) override;
@@ -102,16 +101,19 @@ public:
 	void                         ExecuteWaterFogVolumeBeforeTransparent();
 	void                         Execute();
 
-	const CDeviceResourceSetPtr& GetDefaultPerInstanceResourceSet() const { return m_pDefaultPerInstanceResources; }
+	const CDeviceResourceSetDesc& GetDefaultPerInstanceResources()   const { return m_defaultPerInstanceResources; }
+	const CDeviceResourceSetPtr&  GetDefaultPerInstanceResourceSet() const { return m_pDefaultPerInstanceResourceSet; }
 
 	bool                         CreatePipelineStates(uint32 passMask, DevicePipelineStatesArray& pStateArray, const SGraphicsPipelineStateDescription& stateDesc, CGraphicsPipelineStateLocalCache* pStateCache);
 	bool                         CreatePipelineState(CDeviceGraphicsPSOPtr& outPSO, const SGraphicsPipelineStateDescription& desc, EPass passID, std::function<void(CDeviceGraphicsPSODesc& psoDesc)> modifier);
 
+	bool                         IsNormalGenActive() const { return m_bWaterNormalGen; }
+
 private:
 	bool  PrepareResourceLayout();
 	bool  PrepareDefaultPerInstanceResources();
-	bool  PreparePerPassResources(CRenderView* RESTRICT_POINTER pRenderView, bool bOnInit, EPass passId);
-	void  UpdatePerPassResources(CRenderView& renderView);
+	bool  SetAndBuildPerPassResources(CRenderView* RESTRICT_POINTER pRenderView, bool bOnInit, EPass passId);
+	void  UpdatePerPassResources(CRenderView& renderView, EPass passId);
 
 	void  ExecuteWaterNormalGen();
 	void  ExecuteOceanMaskGen(CRenderView* pRenderView);
@@ -124,6 +126,17 @@ private:
 	int32 GetPreviousFrameID(const int32 frameID) const;
 
 private:
+	_smart_ptr<CTexture>                      m_pFoamTex;
+	_smart_ptr<CTexture>                      m_pPerlinNoiseTex;
+	_smart_ptr<CTexture>                      m_pJitterTex;
+	_smart_ptr<CTexture>                      m_pWaterGlossTex;
+	_smart_ptr<CTexture>                      m_pOceanWavesTex;
+	_smart_ptr<CTexture>                      m_pOceanCausticsTex;
+	_smart_ptr<CTexture>                      m_pOceanMaskTex;
+
+	std::array<_smart_ptr<CTexture>, RainRippleTexCount> m_pRainRippleTex;
+	uint32                                               m_rainRippleTexIndex;
+
 	CFullscreenPass                           m_passWaterNormalGen;
 	CMipmapGenPass                            m_passWaterNormalMipmapGen;
 	CSceneRenderPass                          m_passOceanMaskGen;
@@ -144,26 +157,17 @@ private:
 	CSceneRenderPass                          m_passWaterFogVolumeAfterWater;
 
 	CDeviceResourceLayoutPtr                  m_pResourceLayout;
-	CDeviceResourceSetPtr                     m_pDefaultPerInstanceResources;
-	CDeviceResourceSetPtr                     m_pPerPassResources;
-	CConstantBufferPtr                        m_pPerPassCB;
+	CDeviceResourceSetDesc                    m_defaultPerInstanceResources;
+	CDeviceResourceSetPtr                     m_pDefaultPerInstanceResourceSet;
+	CDeviceResourceSetDesc                    m_perPassResources[ePass_Count];
+	CDeviceResourceSetPtr                     m_pPerPassResourceSets[ePass_Count];
+	CConstantBufferPtr                        m_pPerPassCB[ePass_Count];
 
 	CRenderPrimitive                          m_causticsGridPrimitive;
 	CRenderPrimitive                          m_deferredOceanStencilPrimitive[2];
 
-	CTexture*                                 m_pFoamTex;
-	CTexture*                                 m_pPerlinNoiseTex;
-	CTexture*                                 m_pJitterTex;
-	CTexture*                                 m_pWaterGlossTex;
-	CTexture*                                 m_pOceanWavesTex;
-	CTexture*                                 m_pOceanCausticsTex;
-	CTexture*                                 m_pOceanMaskTex;
-
-	std::array<CTexture*, RainRippleTexCount> m_pRainRippleTex;
-	uint32 m_rainRippleTexIndex;
-
 	int32  m_frameIdWaterSim;
 	Vec4   m_oceanAnimationParams[2];
 
-	bool   m_bWaterNormalGen;
+	bool              m_bWaterNormalGen;
 };

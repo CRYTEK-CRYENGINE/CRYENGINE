@@ -4,9 +4,9 @@
 
 // *INDENT-OFF* - <hard to read code and declarations due to inconsistent indentation>
 
-namespace uqs
+namespace UQS
 {
-	namespace core
+	namespace Core
 	{
 
 		//===================================================================================
@@ -25,6 +25,8 @@ namespace uqs
 
 			virtual                       ~IQueryFactory() {}
 			virtual const char*           GetName() const = 0;
+			virtual const CryGUID&        GetGUID() const = 0;
+			virtual const char*           GetDescription() const = 0;
 			virtual bool                  SupportsParameters() const = 0;
 			virtual bool                  RequiresGenerator() const = 0;
 			virtual bool                  SupportsEvaluators() const = 0;

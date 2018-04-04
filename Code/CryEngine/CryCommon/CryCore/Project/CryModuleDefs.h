@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #ifndef CRYMODULEDEFS_H__
 #define CRYMODULEDEFS_H__
@@ -30,6 +30,7 @@ enum ECryModule
 	eCryM_AudioImplementation,
 	eCryM_MonoBridge,
 	eCryM_ScaleformHelper,
+	eCryM_FlowGraph,
 
 	eCryM_EnginePlugin,
 

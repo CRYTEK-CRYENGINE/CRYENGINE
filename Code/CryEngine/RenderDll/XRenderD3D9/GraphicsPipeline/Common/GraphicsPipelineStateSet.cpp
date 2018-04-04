@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #include "StdAfx.h"
 #include "GraphicsPipelineStateSet.h"
@@ -11,10 +11,9 @@ SGraphicsPipelineStateDescription::SGraphicsPipelineStateDescription(
   CRenderElement* pRE,
   const SShaderItem& _shaderItem,
   EShaderTechniqueID _technique,
-  EVertexFormat _vertexFormat,
+  InputLayoutHandle _vertexFormat,
   uint32 _streamMask,
-  int _primitiveType)
-	: _dummy(0)
+  ERenderPrimitiveType _primitiveType)
 {
 	shaderItem = _shaderItem;
 	technique = _technique;
@@ -24,6 +23,7 @@ SGraphicsPipelineStateDescription::SGraphicsPipelineStateDescription(
 	vertexFormat = _vertexFormat;
 	streamMask = _streamMask;
 	primitiveType = _primitiveType;
+	renderState = pObj->m_RState;
 
 	if ((pObj->m_ObjFlags & FOB_SKINNED) && (pRE->m_Flags & FCEF_SKINNED) && CRenderer::CV_r_usehwskinning && !CRenderer::CV_r_character_nodeform)
 	{

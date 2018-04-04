@@ -6,6 +6,9 @@
 #include <CryMovie/IMovieSystem.h>
 #include <CryMovie/AnimKey.h>
 %}
+
+%ignore operator==(const SMovieSystemVoid& a, const SMovieSystemVoid& b);
+
 %feature("director") ITrackEventListener;
 %feature("director") IMovieListener;
 %typemap(csbase) EAnimParamType "uint"
@@ -17,5 +20,6 @@
 %csconstvalue("3") eTDT_Vec4;
 %csconstvalue("4") eTDT_Quat;
 %csconstvalue("5") eTDT_Bool;
+%ignore IMovieEngineModule;
 %include "../../../../CryEngine/CryCommon/CryMovie/IMovieSystem.h"
 %include "../../../../CryEngine/CryCommon/CryMovie/AnimKey.h"

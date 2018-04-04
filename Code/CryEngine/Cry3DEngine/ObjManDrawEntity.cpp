@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 // -------------------------------------------------------------------------
 //  File name:   statobjmandraw.cpp
@@ -203,7 +203,6 @@ void CObjManager::RenderObject(IRenderNode* pEnt, PodArray<CDLight*>* pAffecting
 	case eERType_Road:
 		if (!passInfo.RenderRoads()) return;
 		break;
-	case eERType_Cloud:
 	case eERType_DistanceCloud:
 	case eERType_CloudBlocker:
 		if (!passInfo.RenderClouds()) return;
@@ -341,7 +340,7 @@ void CObjManager::RenderObject(IRenderNode* pEnt, PodArray<CDLight*>* pAffecting
 	DrawParams.nMaterialLayers = pEnt->GetMaterialLayers();
 	DrawParams.lodValue = pEnt->ComputeLod(pEnt->m_pTempData->userData.nWantedLod, passInfo);
 
-	if (GetCVars()->e_LodTransitionTime && passInfo.IsGeneralPass() && pEnt->GetRenderNodeType() == eERType_RenderProxy)
+	if (GetCVars()->e_LodTransitionTime && passInfo.IsGeneralPass() && pEnt->GetRenderNodeType() == eERType_MovableBrush)
 	{
 		// Render current lod and (if needed) previous lod and perform time based lod transition using dissolve
 

@@ -348,7 +348,6 @@ public:
 	virtual void HandleEvent( const SGameObjectEvent& );
 	virtual void ProcessEvent(SEntityEvent& );
 	virtual void SetChannelId(uint16 id) {};
-	virtual void SetAuthority(bool auth) {}
 	virtual void GetMemoryUsage(ICrySizer *pSizer) const;
 	void GetInternalMemoryUsage(ICrySizer *pSizer) const;
 	virtual void OnAction(EntityId actorId, const ActionId& actionId, int activationMode, float value);

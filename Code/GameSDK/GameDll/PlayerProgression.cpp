@@ -337,7 +337,7 @@ void CPlayerProgression::InitRanks(const char* filename)
 		const int childCount = xml->getChildCount();
 
 		DesignerWarning(childCount <= k_maxPossibleRanks, "There should be at maximum '%d' ranks, not '%d'", k_maxPossibleRanks, childCount);
-		m_maxRank = MIN(childCount, k_maxPossibleRanks);
+		m_maxRank = std::min((int)childCount, (int)k_maxPossibleRanks);
 
 		ReserveUnlocks(xml, m_unlocks, m_allowUnlocks);
 
@@ -1093,7 +1093,7 @@ void CPlayerProgression::GameOver(EGameOverType localWinner, bool isClientSpecta
 	const SGameRulesPlayerStat *pClientPlayerStats = pPlayerStatsModule ? pPlayerStatsModule->GetPlayerStats(clientId) : NULL;
 	if (pClientPlayerStats)
 	{
-		m_matchScore = MAX(0, pClientPlayerStats->points);
+		m_matchScore = std::max(0, pClientPlayerStats->points);
 
 		CGameLobby *pGameLobby = g_pGame->GetGameLobby();
 		if (pGameLobby && pGameLobby->IsRankedGame())		// Only update skill ranking if we're in a ranked game

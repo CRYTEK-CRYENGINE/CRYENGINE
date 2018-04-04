@@ -26,7 +26,7 @@ public:
 	CRYINTERFACE_ADD(IAnimationPoseModifier)
 	CRYINTERFACE_END()
 
-	CRYGENERATE_CLASS(CSkeletonPoseModifier, "AnimationPoseModifier_SkeletonPoseModifier", 0x1558135D7DB242D1, 0xA93B228776A9D99B);
+	CRYGENERATE_CLASS_GUID(CSkeletonPoseModifier, "AnimationPoseModifier_SkeletonPoseModifier", "1558135d-7db2-42d1-a93b-228776a9d99b"_cry_guid);
 
 public:
 	void PoseJoint(const string& name, const QuatT& transform);

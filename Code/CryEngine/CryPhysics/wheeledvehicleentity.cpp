@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #include "StdAfx.h"
 
@@ -739,12 +739,12 @@ void CWheeledVehicleEntity::CheckAdditionalGeometry(float time_interval)
 			r = m_BBox[1]-m_BBox[0]; r.x = max(max(r.x,r.y),r.z);
 			BBoxEnt[0]=Vec3(r.x); BBoxEnt[1]=Vec3(-r.x);
 			for(j1=0; j1<pentlist[i]->m_nParts; j1++) {
+				pentlist[i]->GetPartTransform(j1, gwd[1].offset,gwd[1].R,gwd[1].scale, this);
 				pentlist[i]->m_parts[j1].pPhysGeomProxy->pGeom->GetBBox(&abox);
-				gwd[1].R = Matrix33(!m_qNew*pentlist[i]->m_qrot*pentlist[i]->m_parts[j1].q);
-				abox.Basis *= gwd[1].R.T();
+				//gwd[1].R = Matrix33(!m_qNew*pentlist[i]->m_qrot*pentlist[i]->m_parts[j1].q);
+				abox.Basis *= gwd[1].R.T() * Matrix33(m_qNew);
 				r = (abox.size*abox.Basis.Fabs())*pentlist[i]->m_parts[j1].scale;
-				ptcw = (pentlist[i]->m_pos + pentlist[i]->m_qrot*(pentlist[i]->m_parts[j1].pos + 
-					pentlist[i]->m_parts[j1].q*abox.center*pentlist[i]->m_parts[j1].scale) - m_posNew)*m_qNew;
+				ptcw = (gwd[1].offset + gwd[1].R*abox.center*gwd[1].scale - m_posNew)*m_qNew;
 				BBoxEnt[0] = min(BBoxEnt[0], ptcw-r);
 				BBoxEnt[1] = max(BBoxEnt[1], ptcw+r);
 			}
@@ -838,15 +838,13 @@ void CWheeledVehicleEntity::CheckAdditionalGeometry(float time_interval)
 			gwd[0].centerOfMass = m_body.pos;
 			ip.time_interval = time_interval*1.4f;
 		}
+		Vec3 partBBox[2];
 
 		for(ient=0;ient<nents;ient++) for(j=0; j<pentlist[ient]->m_nParts; j++) 
 		if (pentlist[ient]->m_parts[j].flags & m_susp[iwheel].flagsCollider0 && 
-				((pentlist[ient]->m_parts[j].BBox[1]-pentlist[ient]->m_parts[j].BBox[0]).len2()==0 || AABB_overlap(pentlist[ient]->m_parts[j].BBox,BBoxWheel))) 
+				((pentlist[ient]->m_parts[j].BBox[1]-pentlist[ient]->m_parts[j].BBox[0]).len2()==0 || AABB_overlap(pentlist[ient]->GetPartBBox(j,partBBox,this),BBoxWheel))) 
 		{
-			gwd[1].offset = pentlist[ient]->m_pos + pentlist[ient]->m_qrot*pentlist[ient]->m_parts[j].pos;
-			gwd[1].R = Matrix33(pentlist[ient]->m_qrot*pentlist[ient]->m_parts[j].q);
-			gwd[1].scale = pentlist[ient]->m_parts[j].scale;
-
+			pentlist[ient]->GetPartTransform(j, gwd[1].offset,gwd[1].R,gwd[1].scale, this);
 			if (!bRayCast)
 				ncontacts = m_parts[i].pPhysGeomProxy->pGeom->Intersect(pentlist[ient]->m_parts[j].pPhysGeomProxy->pGeom, gwd+0,gwd+1, &ip, pcontacts);
 			else {
@@ -928,6 +926,7 @@ void CWheeledVehicleEntity::CheckAdditionalGeometry(float time_interval)
 		}
 		m_susp[iwheel].curlen = min(newlen, m_susp[iwheel].curlen+time_interval*7.0f);
 		m_susp[iwheel].pos.z += m_susp[iwheel].fullen-m_susp[iwheel].curlen;
+		m_parts[iwheel+m_nHullParts].pos = m_susp[iwheel].pos;
 	}
 
 	if (bFakeInnerWheels) {
@@ -961,6 +960,7 @@ void CWheeledVehicleEntity::CheckAdditionalGeometry(float time_interval)
 				if (m_susp[iwheel].pbody)
 					m_susp[iwheel].vrel -= m_susp[iwheel].pbody->v + (m_susp[iwheel].pbody->w^m_susp[iwheel].ptcontact-m_susp[iwheel].pbody->pos);
 				m_susp[iwheel].contact.vreq.zero();
+				m_parts[iwheel+m_nHullParts].pos = m_susp[iwheel].pos;
 			}
 	}
 
@@ -1774,7 +1774,8 @@ void CWheeledVehicleEntity::DrawHelperInformation(IPhysRenderer *pRenderer, int 
 
 void CWheeledVehicleEntity::GetMemoryStatistics(ICrySizer *pSizer) const
 {
-	CRigidEntity::GetMemoryStatistics(pSizer);
 	if (GetType()==PE_WHEELEDVEHICLE)
 		pSizer->AddObject(this, sizeof(CWheeledVehicleEntity));
+	CRigidEntity::GetMemoryStatistics(pSizer);
+	pSizer->AddObject(m_susp, (m_nParts-m_nHullParts)*sizeof(m_susp[0]));
 }

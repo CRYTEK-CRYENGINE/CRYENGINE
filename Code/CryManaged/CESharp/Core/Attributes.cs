@@ -2,23 +2,22 @@
 
 using System;
 using System.Linq;
-using System.Reflection;
 
-/// <summary>
-/// All framework relevant Attributes.
-/// </summary>
+
+// All framework relevant Attributes.
 namespace CryEngine.Attributes
 {
 	/// <summary>
 	/// Use this attribute to hide any Property of Class from any reflection driven inspection.
 	/// </summary>
-	[AttributeUsage(System.AttributeTargets.All)]
+	[AttributeUsage(AttributeTargets.All)]
+	[Obsolete]
 	public class HideFromInspectorAttribute : Attribute
 	{
 	}
 
-	[AttributeUsage(System.AttributeTargets.Field)]
-	public class StringValueAttribute : System.Attribute
+	[AttributeUsage(AttributeTargets.Field)]
+	public class StringValueAttribute : Attribute
 	{
 		#region Properties
 		public string Value { get; private set; }
@@ -34,10 +33,10 @@ namespace CryEngine.Attributes
 		#region Methods
 		public static string GetStringValue(Enum value)
 		{
-			Type type = value.GetType();
-			FieldInfo fi = type.GetField(value.ToString());
-			StringValueAttribute attr = (StringValueAttribute)fi.GetCustomAttributes(typeof(StringValueAttribute), true).FirstOrDefault();
-			return attr != null ? attr.Value : String.Empty;
+			var type = value.GetType();
+			var fi = type.GetField(value.ToString());
+			var attr = (StringValueAttribute)fi.GetCustomAttributes(typeof(StringValueAttribute), true).FirstOrDefault();
+			return attr != null ? attr.Value : string.Empty;
 		}
 		#endregion
 	}

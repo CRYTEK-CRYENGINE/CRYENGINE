@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 /*=============================================================================
    ShaderSerialize.cpp : implementation of the Shaders serialization manager.
@@ -837,13 +837,6 @@ bool CShaderSerialize::ImportShader(CShader* pSH, CShaderManBin& binShaderMgr)
 					CRELensOptics* pLensOptics = new CRELensOptics;
 					pLensOptics->mfImport(SC, nREOffset);
 					pT->m_REs.push_back(pLensOptics);
-				}
-				break;
-			case eDATA_Beam:
-				{
-					CREBeam* pBeam = new CREBeam;
-					pBeam->mfImport(SC, nREOffset);
-					pT->m_REs.push_back(pBeam);
 				}
 				break;
 

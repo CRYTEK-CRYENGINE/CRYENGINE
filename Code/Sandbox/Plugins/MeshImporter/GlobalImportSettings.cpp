@@ -8,8 +8,8 @@
 #include <Material\Material.h>
 #include <Material\MaterialManager.h>
 
-#include <yasli/Archive.h>
-#include <yasli/Enum.h>
+#include <CrySerialization/yasli/Archive.h>
+#include <CrySerialization/yasli/Enum.h>
 #include <CrySerialization/StringList.h>
 
 YASLI_ENUM_BEGIN_NESTED2(FbxTool, Axes, EAxis, "Axis")
@@ -48,12 +48,12 @@ static FbxTool::Axes::EAxis GetNextAxisWrapped(FbxTool::Axes::EAxis axis)
 ////////////////////////////////////////////////////
 
 CGlobalImportSettings::SConversionSettings::SConversionSettings()
-	: m_unit(FbxMetaData::Units::EUnitSetting::eUnitSetting_FromFile)
-	, m_scale(1.0f)
-	, m_forward(FbxTool::Axes::EAxis::PosX)
-	, m_up(FbxTool::Axes::EAxis::PosY)
-	, m_oldForward(FbxTool::Axes::EAxis::PosX)
-	, m_oldUp(FbxTool::Axes::EAxis::PosY)
+	: unit(FbxMetaData::Units::EUnitSetting::eUnitSetting_FromFile)
+	, scale(1.0f)
+	, forward(FbxTool::Axes::EAxis::PosX)
+	, up(FbxTool::Axes::EAxis::PosY)
+	, oldForward(FbxTool::Axes::EAxis::PosX)
+	, oldUp(FbxTool::Axes::EAxis::PosY)
 {}
 
 void CGlobalImportSettings::SConversionSettings::Serialize(yasli::Archive& ar)
@@ -63,51 +63,53 @@ void CGlobalImportSettings::SConversionSettings::Serialize(yasli::Archive& ar)
 	{
 		options.push_back(szUnitName);
 	});
-	options[0] += string(" (") + QtUtil::ToString(m_fileUnitSizeInCm) + string(")");
+	options[0] += string(" (") + QtUtil::ToString(fileUnitSizeInCm) + string(")");
 
-	Serialization::StringListValue dropDown(options, (int)m_unit);
+	Serialization::StringListValue dropDown(options, (int)unit);
 	ar(dropDown, "unit", "Unit");
 
 	if (ar.isInput())
 	{
-		m_unit = (FbxMetaData::Units::EUnitSetting)dropDown.index();
+		unit = (FbxMetaData::Units::EUnitSetting)dropDown.index();
 	}
 
-	ar(m_scale, "scale", "Scale");
-	m_scale = std::max(0.0f, m_scale);
+	ar(scale, "scale", "Scale");
+	scale = std::max(0.0f, scale);
 
-	ar(m_forward, "forward", "Forward");
-	ar(m_up, "up", "Up");
+	ar(forward, "forward", "Forward");
+	ar(up, "up", "Up");
 
 	// Make axes selection consistent.
 
-	if (m_forward != m_oldForward)
+	if (forward != oldForward)
 	{
-		assert(!ar.isEdit() || m_up == m_oldUp);
-		SetForwardAxis(m_forward);
+		assert(!ar.isEdit() || up == oldUp);
+		SetForwardAxis(forward);
 	}
-	else if (m_up != m_oldUp)
+	else if (up != oldUp)
 	{
-		assert(!ar.isEdit() || m_forward == m_oldForward);
-		SetUpAxis(m_up);
+		assert(!ar.isEdit() || forward == oldForward);
+		SetUpAxis(up);
 	}
 }
 
 void CGlobalImportSettings::SConversionSettings::SetForwardAxis(FbxTool::Axes::EAxis axis)
 {
-	m_oldForward = m_forward = axis;
-	while (FbxTool::Axes::Abs(m_forward) == FbxTool::Axes::Abs(m_up))
+	oldForward = axis;
+	forward = axis;
+	while (FbxTool::Axes::Abs(forward) == FbxTool::Axes::Abs(up))
 	{
-		m_up = GetNextAxisWrapped(m_up);
+		up = GetNextAxisWrapped(up);
 	}
 }
 
 void CGlobalImportSettings::SConversionSettings::SetUpAxis(FbxTool::Axes::EAxis axis)
 {
-	m_oldUp = m_up = axis;
-	while (FbxTool::Axes::Abs(m_forward) == FbxTool::Axes::Abs(m_up))
+	oldUp = axis;
+	up = axis;
+	while (FbxTool::Axes::Abs(forward) == FbxTool::Axes::Abs(up))
 	{
-		m_forward = GetNextAxisWrapped(m_forward);
+		forward = GetNextAxisWrapped(forward);
 	}
 }
 
@@ -117,8 +119,10 @@ CGlobalImportSettings::SGeneralSettings::SGeneralSettings()
 {}
 
 CGlobalImportSettings::SStaticMeshSettings::SStaticMeshSettings()
-	: m_bMergeAllNodes(false)
-	, m_bSceneOrigin(false)
+	: bMergeAllNodes(false)
+	, bSceneOrigin(false)
+	, bComputeNormals(false)
+	, bComputeUv(false)
 {}
 
 CGlobalImportSettings::CGlobalImportSettings()
@@ -129,67 +133,77 @@ CGlobalImportSettings::~CGlobalImportSettings() {}
 
 FbxMetaData::Units::EUnitSetting CGlobalImportSettings::GetUnit() const
 {
-	return m_conversionSettings.m_unit;
+	return m_conversionSettings.unit;
 }
 
 float CGlobalImportSettings::GetScale() const
 {
-	return m_conversionSettings.m_scale;
+	return m_conversionSettings.scale;
 }
 
 FbxTool::Axes::EAxis CGlobalImportSettings::GetUpAxis()
 {
-	return m_conversionSettings.m_up;
+	return m_conversionSettings.up;
 }
 
 FbxTool::Axes::EAxis CGlobalImportSettings::GetForwardAxis()
 {
-	return m_conversionSettings.m_forward;
+	return m_conversionSettings.forward;
 }
 
 bool CGlobalImportSettings::IsMergeAllNodes() const
 {
-	return m_staticMeshSettings.m_bMergeAllNodes;
+	return m_staticMeshSettings.bMergeAllNodes;
 }
 
 bool CGlobalImportSettings::IsSceneOrigin() const
 {
-	return m_staticMeshSettings.m_bSceneOrigin;
+	return m_staticMeshSettings.bSceneOrigin;
+}
+
+bool CGlobalImportSettings::IsComputeNormals() const
+{
+	return m_staticMeshSettings.bComputeNormals;
+}
+
+bool CGlobalImportSettings::IsComputeUv() const
+{
+	return m_staticMeshSettings.bComputeUv;
 }
 
 void CGlobalImportSettings::SetInputFilePath(const string& filePath)
 {
-	m_generalSettings.m_inputFilePath = filePath;
-	m_generalSettings.m_inputFilename = PathUtil::GetFileName(m_generalSettings.m_inputFilePath);
+	m_generalSettings.inputFilePath = filePath;
+	m_generalSettings.inputFilename = PathUtil::GetFileName(m_generalSettings.inputFilePath);
 }
 
 void CGlobalImportSettings::SetOutputFilePath(const string& filePath)
 {
-	m_generalSettings.m_outputFilePath = filePath;
-	m_generalSettings.m_outputFilename = PathUtil::GetFileName(m_generalSettings.m_outputFilePath);
+	m_generalSettings.outputFilePath = filePath;
+	m_generalSettings.outputFilename = PathUtil::GetFileName(m_generalSettings.outputFilePath);
 }
 
 void CGlobalImportSettings::ClearFilePaths()
 {
-	m_generalSettings.m_inputFilePath.clear();
-	m_generalSettings.m_outputFilePath.clear();
-	m_generalSettings.m_inputFilename.clear();
-	m_generalSettings.m_outputFilename.clear();
+	m_generalSettings.inputFilePath.clear();
+	m_generalSettings.outputFilePath.clear();
+	m_generalSettings.inputFilename.clear();
+	m_generalSettings.outputFilename.clear();
 }
 
 void CGlobalImportSettings::SetFileUnitSizeInCm(double scale)
 {
-	m_conversionSettings.m_fileUnitSizeInCm = FormatUnitSizeInCm(scale);
+	m_conversionSettings.fileUnitSizeInCm = FormatUnitSizeInCm(scale);
 }
 
 void CGlobalImportSettings::SetUnit(FbxMetaData::Units::EUnitSetting unit)
 {
-	m_conversionSettings.m_unit = unit;
+	m_conversionSettings.unit = unit;
 }
 
 void CGlobalImportSettings::SetScale(float scale)
 {
-	m_conversionSettings.m_scale = std::max(0.0f, scale);
+	m_conversionSettings.scale = std::max(0.0f, scale);
 }
 
 void CGlobalImportSettings::SetForwardAxis(FbxTool::Axes::EAxis axis)
@@ -204,27 +218,55 @@ void CGlobalImportSettings::SetUpAxis(FbxTool::Axes::EAxis axis)
 
 void CGlobalImportSettings::SetMergeAllNodes(bool bMergeAllNodes)
 {
-	m_staticMeshSettings.m_bMergeAllNodes = bMergeAllNodes;
+	m_staticMeshSettings.bMergeAllNodes = bMergeAllNodes;
 }
 
 void CGlobalImportSettings::SetSceneOrigin(bool bSceneOrigin)
 {
-	m_staticMeshSettings.m_bSceneOrigin = bSceneOrigin;
+	m_staticMeshSettings.bSceneOrigin = bSceneOrigin;
+}
+
+void CGlobalImportSettings::SetComputeNormals(bool bComputeNormals)
+{
+	m_staticMeshSettings.bComputeNormals = bComputeNormals;
+}
+
+void CGlobalImportSettings::SetComputeUv(bool bComputeUv)
+{
+	m_staticMeshSettings.bComputeUv = bComputeUv;
+}
+
+bool CGlobalImportSettings::IsVertexPositionFormatF32() const
+{
+	return m_outputSettings.bVertexPositionFormatF32;
+}
+
+void CGlobalImportSettings::SetVertexPositionFormatF32(bool bIs32Bit)
+{
+	m_outputSettings.bVertexPositionFormatF32 = bIs32Bit;
 }
 
 void CGlobalImportSettings::SGeneralSettings::Serialize(yasli::Archive& ar)
 {
-	ar(m_inputFilename, "input_filename", "!Input filename");
-	ar.doc(m_inputFilePath);
+	ar(inputFilename, "input_filename", "!Input filename");
+	ar.doc(inputFilePath);
 
-	ar(m_outputFilename, "output_filename", "!Output filename");
-	ar.doc(m_outputFilePath);
+	ar(outputFilename, "output_filename", "!Output filename");
+	ar.doc(outputFilePath);
 }
 
 void CGlobalImportSettings::SStaticMeshSettings::Serialize(yasli::Archive& ar)
 {
-	ar(m_bMergeAllNodes, "merge_all_nodes", "Merge all nodes");
-	ar(m_bSceneOrigin, "scene_origin", "Scene origin");
+	ar(bMergeAllNodes, "merge_all_nodes", "Merge all nodes");
+	ar(bSceneOrigin, "scene_origin", "Scene origin");
+	ar(bComputeNormals, "compute_normals", "Compute normals");
+	ar.doc("If true the importer computes normals,\n"
+		"otherwise the normals are imported from the file.\n"
+		"Tangents are computed in any case.");
+	ar(bComputeUv, "compute_uv", "Compute UV's");
+	ar.doc("If true the importer generates an automatic UV mapping,\n"
+		"otherwise the UV's are imported from the file.\n"
+		"Useful for correct calculation of tangents, if the source model does not use textured materials.");
 }
 
 void CGlobalImportSettings::Serialize(yasli::Archive& ar)
@@ -235,9 +277,16 @@ void CGlobalImportSettings::Serialize(yasli::Archive& ar)
 		ar(m_staticMeshSettings, "static_mesh_settings", "Static mesh settings");
 	}
 	ar(m_conversionSettings, "conversion_settings", "Conversion settings");
+	ar(m_outputSettings, "output_settings", "Output settings");
 }
 
 void CGlobalImportSettings::SetStaticMeshSettingsEnabled(bool bEnabled)
 {
 	m_bStaticMeshSettingsEnabled = bEnabled;
+}
+
+void CGlobalImportSettings::SOutputSettings::Serialize(yasli::Archive& ar)
+{
+	ar(bVertexPositionFormatF32, "use_32_bit_positions", "Use 32bit precision");
+	ar.doc("When this option is selected, the importer stores vertex positions using 32 bit per coordinate instead of 16 bit.");
 }

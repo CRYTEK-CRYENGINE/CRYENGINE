@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 // -------------------------------------------------------------------------
 //  Created:     13/03/2015 by Filipe amim
@@ -99,15 +99,19 @@ void CParticleJobManager::AddDeferredRender(CParticleComponentRuntime* pRuntime,
 	m_deferredRenders.push_back(render);
 }
 
-void CParticleJobManager::ScheduleComputeVertices(CParticleComponentRuntime* pComponentRuntime, CRenderObject* pRenderObject, const SRenderContext& renderContext)
+void CParticleJobManager::ScheduleComputeVertices(ICommonParticleComponentRuntime* pComponentRuntime, CRenderObject* pRenderObject, const SRenderContext& renderContext)
 {
 	CParticleManager* pPartManager = static_cast<CParticleManager*>(gEnv->pParticleManager);
-	const SComponentParams& params = pComponentRuntime->GetComponentParams();
 
 	SAddParticlesToSceneJob& job = pPartManager->GetParticlesToSceneJob(renderContext.m_passInfo);
-	job.pPVC = pComponentRuntime;
+	auto pGpuRuntime = pComponentRuntime->GetGpuRuntime();
+	auto pCpuRuntime = pComponentRuntime->GetCpuRuntime();
+	if (pGpuRuntime)
+		job.pGpuRuntime = pGpuRuntime;
+	else if (pCpuRuntime)
+		job.pVertexCreator = pCpuRuntime;
 	job.pRenderObject = pRenderObject;
-	job.pShaderItem = &params.m_pMaterial->GetShaderItem();
+	job.pShaderItem = &pRenderObject->m_pCurrMaterial->GetShaderItem();
 	job.nCustomTexId = renderContext.m_renderParams.nTextureID;
 }
 
@@ -233,9 +237,7 @@ void CParticleJobManager::ScheduleUpdateParticles(uint componentRefIdx)
 
 	for (TParticleId pId = 0; pId < lastParticleId; pId += particleCountThreshold)
 	{
-		SUpdateRange range;
-		range.m_firstParticleId = pId;
-		range.m_lastParticleId = MIN(pId + particleCountThreshold, lastParticleId);
+		SUpdateRange range(pId, min<TParticleId>(pId + particleCountThreshold, lastParticleId));
 
 		TUpdateParticlesJob_ job(componentRefIdx, range);
 		job.RegisterJobState(&componentRef.m_subUpdateState);

@@ -2,60 +2,86 @@
 
 #pragma once
 
-#include <CryMono/IMonoAssembly.h>
-#include <CryMono/IMonoRuntime.h>
-
-#include <mono/jit/jit.h>
+#include "MonoException.h"
 
 class CMonoDomain;
 class CMonoClass;
+class CMonoObject;
 
-class CMonoLibrary : public IMonoAssembly
+struct MonoAssembly;
+struct MonoImage;
+struct MonoClass;
+struct MonoObject;
+
+class CMonoLibrary
 {
+	friend class CAppDomain;
+	friend class CMonoDomain;
+
+	// Start public API below
 public:
-	CMonoLibrary(MonoAssembly* pAssembly, const char* filePath, CMonoDomain* pDomain, char* data = nullptr);
-	virtual ~CMonoLibrary();
+	CMonoLibrary(const char* filePath, CMonoDomain* pDomain);
+	CMonoLibrary(MonoInternals::MonoAssembly* pAssembly, const char* filePath, CMonoDomain* pDomain);
+	~CMonoLibrary();
+	
+	bool IsLoaded() const { return m_pAssembly != nullptr; }
 
-	// IMonoAssembly
-	virtual bool                  IsLoaded() const override { return m_pAssembly != nullptr; }
+	const char* GetFilePath();
 
-	virtual const char* GetFilePath() override;
+	CMonoDomain* GetDomain() const;
 
-	virtual IMonoDomain* GetDomain() const override;
+	// Finds a class inside this assembly, returns null if the lookup failed
+	// The class will be stored inside the assembly on success and automatically updated on domain reload
+	CMonoClass* GetClass(const char *nameSpace, const char *className);
 
-	virtual IMonoClass* GetClass(const char *nameSpace, const char *className) override;
-	virtual std::shared_ptr<IMonoClass> GetTemporaryClass(const char *nameSpace, const char *className) override;
+	// Finds a class inside this assembly, returns null if the lookup failed
+	// The pointer returned is entirely temporary, and will be destroyed when the shared pointer goes out of scope
+	std::shared_ptr<CMonoClass> GetTemporaryClass(const char *nameSpace, const char *className);
+	std::shared_ptr<CMonoException> GetExceptionImplementation(const char* nameSpace, const char* exceptionClass, const char* message = "");
+	
+	std::shared_ptr<CMonoException> GetException(const char *nameSpace, const char *exceptionClass, const char *message, ...)
+	{
+		va_list	args;
+		char szBuffer[4096];
+		va_start(args, message);
+		int count = cry_vsprintf(szBuffer, sizeof(szBuffer), message, args);
+		if (count == -1 || count >= sizeof(szBuffer))
+			szBuffer[sizeof(szBuffer) - 1] = '\0';
+		va_end(args);
 
-	virtual std::shared_ptr<IMonoException> GetExceptionInternal(const char* nameSpace, const char* exceptionClass, const char* message = "") override;
-	// ~IMonoAssembly
+		return GetExceptionImplementation(nameSpace, exceptionClass, szBuffer);
+	}
 
+	std::shared_ptr<CMonoClass> GetClassFromMonoClass(MonoInternals::MonoClass* pClass);
+
+	MonoInternals::MonoAssembly* GetAssembly() const { return m_pAssembly; }
+	MonoInternals::MonoImage* GetImage() const { return m_pImage; }
+
+	MonoInternals::MonoObject* GetManagedObject();
+
+protected:
+	bool Load();
 	void Unload();
 	void Reload();
 
-	void Serialize();
-	void Deserialize();
+	void Serialize(CMonoObject* pSerializer);
+	void Deserialize(CMonoObject* pSerializer);
 
-	const char*           GetImageName() const;
-	bool                  IsInMemory() const { return m_pMemory != nullptr; }
-	
-	std::shared_ptr<CMonoClass> GetClassFromMonoClass(MonoClass* pClass);
+	bool CanSerialize() const;
 
-	MonoObject* GetManagedObject();
-
-	void          SetData(char* data)           { m_pMemory = data; }
-	void          SetDebugData(mono_byte* data) { m_pMemoryDebug = data; }
-
-	MonoAssembly* GetAssembly() const { return m_pAssembly; }
-	MonoImage* GetImage() const;
+	const char* GetPath() const { return m_assemblyPath; }
+	const char* GetImageName() const;
 
 private:
-	MonoAssembly* m_pAssembly;
+	MonoInternals::MonoAssembly* m_pAssembly;
+	MonoInternals::MonoImage* m_pImage;
+
 	string        m_assemblyPath;
 
 	CMonoDomain*   m_pDomain;
 
-	char*         m_pMemory;
-	mono_byte*    m_pMemoryDebug;
-
 	std::list<std::shared_ptr<CMonoClass>> m_classes;
+
+	std::vector<char> m_assemblyData;
+	std::vector<unsigned char> m_assemblyDebugData;
 };

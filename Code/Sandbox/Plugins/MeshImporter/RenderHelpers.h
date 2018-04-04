@@ -30,7 +30,7 @@ static ILINE ColorB shader(Vec3 n, Vec3 d0, Vec3 d1, ColorB c)
 	return RGBA8(uint8(l * c.r), uint8(l * c.g), uint8(l * c.b), c.a);
 }
 
-static void DrawJoint(IRenderAuxGeom* pAuxGeom, const Vec3& start, const Vec3& end, const uint8 opacity = 255)
+static void DrawDirectedConnection(IRenderAuxGeom* pAuxGeom, const Vec3& start, const Vec3& end, const uint8 opacity = 255)
 {
 	const ColorB colStart(255, 255, 0, opacity);//255,255
 	const ColorB colEnd(150, 100, 0, opacity);//150,100
@@ -54,7 +54,7 @@ static void DrawJoint(IRenderAuxGeom* pAuxGeom, const Vec3& start, const Vec3& e
 	pAuxGeom->DrawLine(end, colEnd, right, colStart);
 }
 
-static void DrawJoint(IRenderAuxGeom* pAuxGeom, const Vec3& p, const Vec3& c, ColorB clr, const Vec3& vdir)
+static void DrawDirectedConnection(IRenderAuxGeom* pAuxGeom, const Vec3& p, const Vec3& c, ColorB clr, const Vec3& vdir)
 {
 	const f32 fAxisLen = (p - c).GetLength();
 	if (fAxisLen < 0.001f)
@@ -229,7 +229,7 @@ static void DrawSkeleton(IRenderAuxGeom* pAuxGeom, IDefaultSkeleton* pDefaultSke
 
 		if (parentIndex > -1)
 		{
-			DrawJoint(pAuxGeom, location * pPose->GetAbsJointByID(parentIndex).t, jointFrame.t, opacity);
+			DrawDirectedConnection(pAuxGeom, location * pPose->GetAbsJointByID(parentIndex).t, jointFrame.t, opacity);
 		}
 
 		DrawFrame(pAuxGeom, jointFrame, 0.02f * jointScale.x, opacity);

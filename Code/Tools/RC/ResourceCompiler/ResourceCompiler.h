@@ -37,6 +37,7 @@ class CPropertyVars;
 class XmlNodeRef;
 class CDigest;
 class FilesToConvert;
+struct IAssetManager;
 
 /** Implementation of IResCompiler interface.
 */
@@ -76,7 +77,7 @@ public:
 	virtual const char* GetTmpPath() const;
 	virtual const char* GetInitialCurrentDir() const;
 
-	virtual void RegisterConvertor(const char* name, IConvertor* conv);
+	virtual void RegisterConverter(const char* name, IConverter* conv);
 
 	virtual IPakSystem* GetPakSystem();
 
@@ -94,6 +95,8 @@ public:
 
 	virtual void AddExitObserver( IExitObserver* p );
 	virtual void RemoveExitObserver( IExitObserver* p );
+
+	virtual IAssetManager* GetAssetManager() const override;
 
 	virtual IRCLog* GetIRCLog()
 	{
@@ -126,7 +129,7 @@ public:
 
 	void Init(Config& config);
 	bool LoadIniFile();
-	void UnregisterConvertors();
+	void UnregisterConverters();
 
 	bool AddPlatform(const string& names, bool bBigEndian, int pointerSize);
 
@@ -172,7 +175,7 @@ public:
 	static string FindSuitableSourceRoot(const std::vector<string>& sourceRootsReversed, const string& fileName);
 	static void GetSourceRootsReversed(const IConfig* config, std::vector<string>& sourceRootsReversed);
 
-	bool RegisterConvertors();
+	bool RegisterConverters();
 
 private:	
 	typedef void (* CompileFilesFunction)(
@@ -180,7 +183,7 @@ private:
 		unsigned long a_tlsIndex_pThreadData,
 		FilesToConvert& a_files,
 		int threadCount,
-		IConvertor* convertor,
+		IConverter* converter,
 		const IConfig* config);
 
 	bool CompileFiles(const std::vector<RcFile>& files, const IConfig* pConfig, CompileFilesFunction compileFiles);
@@ -204,7 +207,7 @@ private:
 	void LogMultiLine(const char* szText);
 
 	void InitFileCache(Config& config);
-	void TryToGetFilesFromCache(FilesToConvert& files, IConvertor* convertor);
+	void TryToGetFilesFromCache(FilesToConvert& files, IConverter* converter);
 	void AddFilesToTheCache(const FilesToConvert& files);
 
 	// -----------------------------------------------------------------------
@@ -279,6 +282,7 @@ private:
 
 	string                  m_cacheFolder;
 	std::unique_ptr<CDigest> m_pDigest;
+	std::unique_ptr<IAssetManager> m_pAssetManager;
 
 	int                     m_numWarnings;
 	int                     m_numErrors;

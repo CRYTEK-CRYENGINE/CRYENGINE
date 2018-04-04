@@ -34,7 +34,6 @@ public:
 	virtual void                   RemoveGameWarning(const char* stringId) override                                                                    {}
 	virtual bool                   GameEndLevel(const char* stringId) override                                                                         { return false; }
 	virtual void                   OnRenderScene(const SRenderingPassInfo& passInfo) override                                                          {}
-	virtual void                   RegisterGameFlowNodes() override;
 	virtual void                   FullSerialize(TSerialize ser) override                                                                              {}
 	virtual void                   PostSerialize() override                                                                                            {}
 	virtual IGame::ExportFilesInfo ExportLevelData(const char* levelName, const char* missionName) const override                                      { return IGame::ExportFilesInfo(levelName, 0); }
@@ -46,7 +45,4 @@ public:
 	// ISystemEventListener
 	virtual void OnSystemEvent(ESystemEvent event, UINT_PTR wparam, UINT_PTR lparam) override;
 	// ~ISystemEventListener
-
-private:
-	void                           UnregisterGameFlowNodes(); // shouldn't be called outside of the game dll
 };

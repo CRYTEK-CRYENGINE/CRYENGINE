@@ -1,42 +1,39 @@
 // Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
 
 /*************************************************************************
--------------------------------------------------------------------------
-History:
-- 30:03:2010   Created by Will Wilson
+   -------------------------------------------------------------------------
+   History:
+   - 30:03:2010   Created by Will Wilson
 *************************************************************************/
 
 #include "StdAfx.h"
 
 #include "FeatureTestNode.h"
 
-#include "Testing/FeatureTester.h"	// For ENABLE_FEATURE_TESTER definition(!)
+#include "Testing/FeatureTester.h"  // For ENABLE_FEATURE_TESTER definition(!)
 #include <CryAISystem/ICommunicationManager.h>
-#include <CrySystem/ICodeCheckpointMgr.h>			// For ICodeCheckpointMgr & CCodeCheckPoint
+#include <CrySystem/ICodeCheckpointMgr.h>     // For ICodeCheckpointMgr & CCodeCheckPoint
 #include <CrySystem/Profilers/IStatoscope.h>
-#include <CryAISystem/IGoalPipe.h>							// For Entity debug info
+#include <CryAISystem/IGoalPipe.h>              // For Entity debug info
 #include "Player.h"
 
 #include "CodeCheckpointDebugMgr.h"
 #include "Utility/CryWatch.h"
 #include "IMovementController.h"
 
-
 #include <CryEntitySystem/IEntitySystem.h>
 
-
-
 CFlowNode_FeatureTest::CFlowNode_FeatureTest(SActivationInfo* activationInformation)
-:	m_actInfo(),
-	m_entityStartPos(Vec3Constants<float>::fVec3_Zero),
-	m_entitySeqIndex(-1),
-	m_failureCount(),
-	m_timeRunning(0.0f),
-	m_ready(),
-	m_running(),
-	m_startNextRun(),
-	m_labelProfileData(false),
-	m_isEnabled(false)
+	: m_actInfo()
+	, m_entityStartPos(Vec3Constants<float>::fVec3_Zero)
+	, m_entitySeqIndex(-1)
+	, m_failureCount()
+	, m_timeRunning(0.0f)
+	, m_ready()
+	, m_running()
+	, m_startNextRun()
+	, m_labelProfileData(false)
+	, m_isEnabled(false)
 {
 #if ENABLE_FEATURE_TESTER
 	// Register with FeatureTester
@@ -68,44 +65,44 @@ IFlowNodePtr CFlowNode_FeatureTest::Clone(SActivationInfo* pActInfo)
 void CFlowNode_FeatureTest::GetConfiguration(SFlowNodeConfig& config)
 {
 	static const SInputPortConfig inputs[] = {
-		InputPortConfig<string>		("Name",				_HELP("Name of the feature test. Should be short, unique and descriptive. Appended with entity name if test is sequential.")),
-		InputPortConfig<string>		("Description",	_HELP("Description of the feature test. What feature is being tested and how it's being tested.")),
-		InputPortConfig<bool>			("Ready",				true, _HELP("Boolean to indicate if all dependencies have been met and this test is ready to run.")),
+		InputPortConfig<string>("Name",           _HELP("Name of the feature test. Should be short, unique and descriptive. Appended with entity name if test is sequential.")),
+		InputPortConfig<string>("Description",    _HELP("Description of the feature test. What feature is being tested and how it's being tested.")),
+		InputPortConfig<bool>("Ready",            true,                                                                                                                         _HELP("Boolean to indicate if all dependencies have been met and this test is ready to run.")),
 		// TODO: Categories?
-		InputPortConfig<float>		("MaxTime",			30.0f, _HELP("How long (in game time) is the test is allow to run before it fails (seconds).")),
-		InputPortConfig<bool>			("LabelProfileData", false, _HELP("If true then frame profile capture data will be labeled with the name of this test.")),
-		InputPortConfig<string>		("Owners", _HELP("A string containing semi-colon separated names of owners (by domain name) responsible for this test.")),
+		InputPortConfig<float>("MaxTime",         30.0f,                                                                                                                        _HELP("How long (in game time) is the test is allow to run before it fails (seconds).")),
+		InputPortConfig<bool>("LabelProfileData", false,                                                                                                                        _HELP("If true then frame profile capture data will be labeled with the name of this test.")),
+		InputPortConfig<string>("Owners",         _HELP("A string containing semi-colon separated names of owners (by domain name) responsible for this test.")),
 
-		InputPortConfig<bool>			("Sequential",	true, _HELP("If true the entities are tested in individually (in sequence). Otherwise entities all are tested together.")),
+		InputPortConfig<bool>("Sequential",       true,                                                                                                                         _HELP("If true the entities are tested in individually (in sequence). Otherwise entities all are tested together.")),
 
-		InputPortConfig<EntityId> ("Camera",			_HELP("Optional entity used to act as the camera for the test. Does not have to be a real camera.")),
+		InputPortConfig<EntityId>("Camera",       _HELP("Optional entity used to act as the camera for the test. Does not have to be a real camera.")),
 
-		InputPortConfig<EntityId> ("Entity1",			_HELP("Test Entity 1, allows entities associated with the test to be automatically hidden and shown.")),
-		InputPortConfig<EntityId> ("Entity2",			_HELP("Test Entity 2, allows entities associated with the test to be automatically hidden and shown.")),
-		InputPortConfig<EntityId> ("Entity3",			_HELP("Test Entity 3, allows entities associated with the test to be automatically hidden and shown.")),
-		InputPortConfig<EntityId> ("Entity4",			_HELP("Test Entity 4, allows entities associated with the test to be automatically hidden and shown.")),
-		InputPortConfig<EntityId> ("Entity5",			_HELP("Test Entity 5, allows entities associated with the test to be automatically hidden and shown.")),
-		InputPortConfig<EntityId> ("Entity6",			_HELP("Test Entity 6, allows entities associated with the test to be automatically hidden and shown.")),
+		InputPortConfig<EntityId>("Entity1",      _HELP("Test Entity 1, allows entities associated with the test to be automatically hidden and shown.")),
+		InputPortConfig<EntityId>("Entity2",      _HELP("Test Entity 2, allows entities associated with the test to be automatically hidden and shown.")),
+		InputPortConfig<EntityId>("Entity3",      _HELP("Test Entity 3, allows entities associated with the test to be automatically hidden and shown.")),
+		InputPortConfig<EntityId>("Entity4",      _HELP("Test Entity 4, allows entities associated with the test to be automatically hidden and shown.")),
+		InputPortConfig<EntityId>("Entity5",      _HELP("Test Entity 5, allows entities associated with the test to be automatically hidden and shown.")),
+		InputPortConfig<EntityId>("Entity6",      _HELP("Test Entity 6, allows entities associated with the test to be automatically hidden and shown.")),
 
-		InputPortConfig_Void			("Succeeded",		_HELP("Trigger to indicated the feature test has passed. Cleanup will then be triggered.")),
-		InputPortConfig_Void			("Failed",			_HELP("Trigger to indicated the feature test has filed.")),
-		{0}
+		InputPortConfig_Void("Succeeded",         _HELP("Trigger to indicated the feature test has passed. Cleanup will then be triggered.")),
+		InputPortConfig_Void("Failed",            _HELP("Trigger to indicated the feature test has filed.")),
+		{ 0 }
 	};
 
 	static const SOutputPortConfig outputs[] = {
-		OutputPortConfig_Void			("Start",						_HELP("Trigger to start running the feature test.")),
-		OutputPortConfig<EntityId>("SequenceEntity",	_HELP("Outputs the entity in use for this part of the test. Only used if Sequential is true and entities are set.")),
-		OutputPortConfig_Void			("Cleanup",					_HELP("Trigger to cleanup the feature test once it's done.")),
+		OutputPortConfig_Void("Start",               _HELP("Trigger to start running the feature test.")),
+		OutputPortConfig<EntityId>("SequenceEntity", _HELP("Outputs the entity in use for this part of the test. Only used if Sequential is true and entities are set.")),
+		OutputPortConfig_Void("Cleanup",             _HELP("Trigger to cleanup the feature test once it's done.")),
 
-		OutputPortConfig<bool>		("Entity1Passed",		_HELP("Outputs true when Entity1 has successfully run the test. Only used if Sequential is true and Entity1 is set.")),
-		OutputPortConfig<bool>		("Entity2Passed",		_HELP("Outputs true when Entity2 has successfully run the test. Only used if Sequential is true and Entity2 is set.")),
-		OutputPortConfig<bool>		("Entity3Passed",		_HELP("Outputs true when Entity3 has successfully run the test. Only used if Sequential is true and Entity3 is set.")),
-		OutputPortConfig<bool>		("Entity4Passed",		_HELP("Outputs true when Entity4 has successfully run the test. Only used if Sequential is true and Entity4 is set.")),
-		OutputPortConfig<bool>		("Entity5Passed",		_HELP("Outputs true when Entity5 has successfully run the test. Only used if Sequential is true and Entity5 is set.")),
-		OutputPortConfig<bool>		("Entity6Passed",		_HELP("Outputs true when Entity6 has successfully run the test. Only used if Sequential is true and Entity6 is set.")),
+		OutputPortConfig<bool>("Entity1Passed",      _HELP("Outputs true when Entity1 has successfully run the test. Only used if Sequential is true and Entity1 is set.")),
+		OutputPortConfig<bool>("Entity2Passed",      _HELP("Outputs true when Entity2 has successfully run the test. Only used if Sequential is true and Entity2 is set.")),
+		OutputPortConfig<bool>("Entity3Passed",      _HELP("Outputs true when Entity3 has successfully run the test. Only used if Sequential is true and Entity3 is set.")),
+		OutputPortConfig<bool>("Entity4Passed",      _HELP("Outputs true when Entity4 has successfully run the test. Only used if Sequential is true and Entity4 is set.")),
+		OutputPortConfig<bool>("Entity5Passed",      _HELP("Outputs true when Entity5 has successfully run the test. Only used if Sequential is true and Entity5 is set.")),
+		OutputPortConfig<bool>("Entity6Passed",      _HELP("Outputs true when Entity6 has successfully run the test. Only used if Sequential is true and Entity6 is set.")),
 
-		OutputPortConfig<bool>		("AllPassed",				_HELP("Outputs true when the test has been successfully run and all sequential entities passed their tests.")),
-		{0}
+		OutputPortConfig<bool>("AllPassed",          _HELP("Outputs true when the test has been successfully run and all sequential entities passed their tests.")),
+		{ 0 }
 	};
 
 	config.pInputPorts = inputs;
@@ -130,7 +127,6 @@ void CFlowNode_FeatureTest::Serialize(SActivationInfo* pActivationInfo, TSeriali
 	ser.EndGroup();
 }
 
-
 void CFlowNode_FeatureTest::ProcessEvent(EFlowEvent event, SActivationInfo* pActInfo)
 {
 #if ENABLE_FEATURE_TESTER
@@ -142,68 +138,68 @@ void CFlowNode_FeatureTest::ProcessEvent(EFlowEvent event, SActivationInfo* pAct
 		switch (event)
 		{
 		case eFE_ConnectInputPort:
+		{
+			int port = pActInfo->connectPort;
+			if (port == eInputPorts_Ready)
 			{
-				int	port = pActInfo->connectPort;
-				if(port == eInputPorts_Ready)
-				{
-					m_isEnabled = true;
-				}				 
+				m_isEnabled = true;
 			}
-			break;
+		}
+		break;
 
 		case eFE_Initialize:
-			{
-				m_actInfo = *pActInfo;
+		{
+			m_actInfo = *pActInfo;
 
-				// Use this event to reset state in CMapFeatureTestMgr if tests were in progress,
-				// allowing it to cope with game/editor transitions cleanly
-				if (m_running)
-					ftMgr.Reset();
+			// Use this event to reset state in CMapFeatureTestMgr if tests were in progress,
+			// allowing it to cope with game/editor transitions cleanly
+			if (m_running)
+				ftMgr.Reset();
 
-				// Called on level load/reset
-				m_ready = false;
-				m_running = false;
-				m_startNextRun = false;
-				m_failureCount = 0;
-				m_timeRunning = 0.0f;
+			// Called on level load/reset
+			m_ready = false;
+			m_running = false;
+			m_startNextRun = false;
+			m_failureCount = 0;
+			m_timeRunning = 0.0f;
 
-				// Deactivate & hide any associated entities - doesn't work... Need to explore other techniques
-				// For now just use HiddenInGame for tests
-				//DeactivateAllEntities();
+			// Deactivate & hide any associated entities - doesn't work... Need to explore other techniques
+			// For now just use HiddenInGame for tests
+			//DeactivateAllEntities();
 
-				// Set default result outputs to false with reason "Not run"
-				for (m_entitySeqIndex = 0; m_entitySeqIndex < SEQ_ENTITY_COUNT; ++m_entitySeqIndex)
-					SetResult(false, "Not run");
+			// Set default result outputs to false with reason "Not run"
+			for (m_entitySeqIndex = 0; m_entitySeqIndex < SEQ_ENTITY_COUNT; ++m_entitySeqIndex)
+				SetResult(false, "Not run");
 
-				m_entitySeqIndex = -1;
+			m_entitySeqIndex = -1;
 
-				ActivateOutput(pActInfo, eOutputPorts_AllPassed, false);
-			}
-			break;
+			ActivateOutput(pActInfo, eOutputPorts_AllPassed, false);
+		}
+		break;
 
 		case eFE_Activate:
+		{
+			if (IsPortActive(pActInfo, eInputPorts_Ready))
 			{
-				if (IsPortActive(pActInfo, eInputPorts_Ready))
+				bool readyInput = GetPortBool(pActInfo, eInputPorts_Ready);
+				m_labelProfileData = GetPortBool(pActInfo, eInputPorts_LabelProfileData);
+				m_owners = GetPortString(pActInfo, eInputPorts_Owners);
+				if (readyInput != m_ready)
 				{
-					bool readyInput = GetPortBool(pActInfo, eInputPorts_Ready);
-					m_labelProfileData = GetPortBool(pActInfo, eInputPorts_LabelProfileData);
-					m_owners = GetPortString(pActInfo, eInputPorts_Owners);
-					if (readyInput != m_ready)
-					{
-						m_ready = readyInput;
-						CryLogAlways("Test %s now: %s", Name(), m_ready ? "Ready to run" : "Not ready to run");
-					}
-				}
-				else if (IsPortActive(pActInfo, eInputPorts_Succeeded))
-				{
-					OnTestResult(true, "FG Succeeded Triggered");
-				}
-				else if (IsPortActive(pActInfo, eInputPorts_Failed))
-				{
-					OnTestResult(false, "FG Failed Triggered");
+					m_ready = readyInput;
+					CryLogAlways("Test %s now: %s", Name(), m_ready ? "Ready to run" : "Not ready to run");
 				}
 			}
-			break;
+			else if (IsPortActive(pActInfo, eInputPorts_Succeeded))
+			{
+				OnTestResult(true, "FG Succeeded Triggered");
+			}
+			else if (IsPortActive(pActInfo, eInputPorts_Failed))
+			{
+				OnTestResult(false, "FG Failed Triggered");
+			}
+		}
+		break;
 		}
 	}
 #endif
@@ -232,11 +228,11 @@ bool CFlowNode_FeatureTest::Start()
 
 	if (!m_running)
 	{
-		if(m_labelProfileData)
+		if (m_labelProfileData)
 		{
 			string labelName = Name();
 			labelName += "_start";
-			if(gEnv->pStatoscope)
+			if (gEnv->pStatoscope)
 			{
 				gEnv->pStatoscope->AddUserMarker("FeatureTest", labelName);
 			}
@@ -307,7 +303,7 @@ void CFlowNode_FeatureTest::Update(float deltaTime)
 #endif // ENABLE_FEATURE_TESTER
 
 		const float maxTime = GetPortFloat(&m_actInfo, eInputPorts_MaxTime);
-		
+
 		IEntity* pFollowEntity = NULL;
 
 		// Firstly, attempt to get the camera entity (index: -1)
@@ -326,7 +322,7 @@ void CFlowNode_FeatureTest::Update(float deltaTime)
 				for (int i = 0; i < SEQ_ENTITY_COUNT; ++i)
 				{
 					GetEntityAtIndex(i, pFollowEntity);
-					if (pFollowEntity && pFollowEntity->IsActive())
+					if (pFollowEntity && pFollowEntity->IsActivatedForUpdates())
 					{
 						break;
 					}
@@ -338,13 +334,13 @@ void CFlowNode_FeatureTest::Update(float deltaTime)
 		{
 			CCamera& viewCamera = gEnv->pSystem->GetViewCamera();
 
-			Vec3 vPos(0,0,0);
-			Vec3 vDir(0,0,0);
+			Vec3 vPos(0, 0, 0);
+			Vec3 vDir(0, 0, 0);
 
 			AABB bounds;
 			pFollowEntity->GetWorldBounds(bounds);
 
-			if(m_cameraOffset.IsZero())
+			if (m_cameraOffset.IsZero())
 			{
 				m_cameraOffset.Set(0.0f, -(2.0f + bounds.GetRadius()), bounds.GetRadius());
 			}
@@ -354,7 +350,7 @@ void CFlowNode_FeatureTest::Update(float deltaTime)
 			vPos = vTarget + (pFollowEntity->GetForwardDir().GetNormalizedSafe() * m_cameraOffset.y) + (Vec3Constants<float>::fVec3_OneZ * m_cameraOffset.z);
 			vDir = (vTarget - vPos).GetNormalizedSafe();
 
-			const float	fRoll(0.0f);
+			const float fRoll(0.0f);
 
 			viewCamera.SetMatrix(CCamera::CreateOrientationYPR(CCamera::CreateAnglesYPR(vDir, fRoll)));
 			viewCamera.SetPosition(vPos);
@@ -375,11 +371,11 @@ void CFlowNode_FeatureTest::Update(float deltaTime)
 /// Called to cleanup test state once the test is complete
 void CFlowNode_FeatureTest::Cleanup()
 {
-	if(m_labelProfileData)
+	if (m_labelProfileData)
 	{
 		string labelName = Name();
 		labelName += "_end";
-		if(gEnv->pStatoscope)
+		if (gEnv->pStatoscope)
 		{
 			gEnv->pStatoscope->AddUserMarker("FeatureTest", labelName);
 
@@ -403,24 +399,22 @@ const char* CFlowNode_FeatureTest::Name()
 		return "Unknown";
 }
 
-/// Returns the test description along with data about the entities attached to the node 
-/// Note: if the node is not sequential the xml does not contain enitities 
+/// Returns the test description along with data about the entities attached to the node
+/// Note: if the node is not sequential the xml does not contain enitities
 ///  Example output:
 ///  <test name="ExclusionMeshTest">
 ///		<entity name="ForbiddenBoundary_Marine" class="Human"/>
 ///   </test>
 
 const XmlNodeRef CFlowNode_FeatureTest::XmlDescription()
-{	
+{
 	const int entityCount = GetTestEntityCount();
 
-
 	//useful for debugging
-	if(entityCount == 0)
+	if (entityCount == 0)
 	{
 		CryLogAlways("Parsing feature testNode \"%s\". No entities are attached to it, returning...", Name());
 	}
-	
 
 	XmlNodeRef testNode = GetISystem()->CreateXmlNode("test");
 	stack_string name = this->Name();
@@ -428,36 +422,35 @@ const XmlNodeRef CFlowNode_FeatureTest::XmlDescription()
 	testNode->setAttr("enabled", this->m_isEnabled ? "true" : "false");
 	testNode->setAttr("owners", this->m_owners.c_str());
 
-	CryLogAlways("Parsing feature testNode \"%s\". %d entities are attached to it", Name(), entityCount );
+	CryLogAlways("Parsing feature testNode \"%s\". %d entities are attached to it", Name(), entityCount);
 
-	const bool sequential =  GetPortBool(&m_actInfo, eInputPorts_Sequential);
+	const bool sequential = GetPortBool(&m_actInfo, eInputPorts_Sequential);
 
 	//if sequential go through the entities attached to this node
-	if(entityCount > 0 && sequential)
+	if (entityCount > 0 && sequential)
 	{
 		for (int i = 0; i < SEQ_ENTITY_COUNT; ++i)
 		{
 			SEntityData entityData;
 			if (GetEntityDataAtIndex(i, entityData))
-			{												
-				XmlNodeRef entityNode = GetISystem()->CreateXmlNode("entity");					
+			{
+				XmlNodeRef entityNode = GetISystem()->CreateXmlNode("entity");
 				entityNode->setAttr("name", entityData.m_name);
 				entityNode->setAttr("class", entityData.m_class);
-				testNode->addChild(entityNode);			
-				
-			}			
+				testNode->addChild(entityNode);
+
+			}
 		}
 	}
 	return testNode;
-	
-}
 
+}
 
 /// Attempts to start the next test. Returns true if successful.
 bool CFlowNode_FeatureTest::StartNextTestRun()
 {
 	m_startNextRun = false;
-	
+
 	m_cameraOffset.zero();
 
 	// Ensure this is not marked as running
@@ -508,7 +501,10 @@ bool CFlowNode_FeatureTest::StartNextTestRun()
 		if (pSeqEntity)
 		{
 			pSeqEntity->Hide(false);
-			pSeqEntity->Activate(true);
+			if (IGameObject* pGameObject = gEnv->pGameFramework->GetIGameObjectSystem()->CreateGameObjectForEntity(pSeqEntity->GetId()))
+			{
+				pGameObject->ForceUpdate(true);
+			}
 
 			m_running = true;
 			m_timeRunning = 0;
@@ -516,10 +512,10 @@ bool CFlowNode_FeatureTest::StartNextTestRun()
 			m_entityStartPos = pSeqEntity->GetWorldPos();
 
 			CryLogAlways("Starting test: \"%s[%s]\". Max time: %fs. Entity start pos: (%f, %f, %f)",
-										Name(),
-										pSeqEntity->GetEntityTextDescription().c_str(),
-										GetPortFloat(&m_actInfo, eInputPorts_MaxTime),
-										m_entityStartPos.x, m_entityStartPos.y, m_entityStartPos.z);
+				Name(),
+				pSeqEntity->GetEntityTextDescription().c_str(),
+				GetPortFloat(&m_actInfo, eInputPorts_MaxTime),
+				m_entityStartPos.x, m_entityStartPos.y, m_entityStartPos.z);
 
 			// Output entity ID and trigger start
 			ActivateOutput(&m_actInfo, eOutputPorts_SequenceEntity, pSeqEntity->GetId());
@@ -532,7 +528,7 @@ bool CFlowNode_FeatureTest::StartNextTestRun()
 			CryLogAlways("Finished running sequential test \"%s\" for %d entities.", Name(), entityCount);
 		}
 	}
-	else if (!TestHasRun())	// If test has not yet been run
+	else if (!TestHasRun()) // If test has not yet been run
 	{
 		// Not using sequence
 		m_entitySeqIndex = -1;
@@ -544,8 +540,8 @@ bool CFlowNode_FeatureTest::StartNextTestRun()
 		m_timeRunning = 0;
 
 		CryLogAlways("Starting test: \"%s\". Max time: %fs.",
-									Name(),
-									GetPortFloat(&m_actInfo, eInputPorts_MaxTime));
+			Name(),
+			GetPortFloat(&m_actInfo, eInputPorts_MaxTime));
 
 		// Start test
 		ActivateOutput(&m_actInfo, eOutputPorts_Start, true);
@@ -565,21 +561,21 @@ void CFlowNode_FeatureTest::OnTestResult(bool result, const char* reason)
 	{
 		CODECHECKPOINT(FeatureTest_OnTestResult_Start);
 
-			if (!result)
-				++m_failureCount;
+		if (!result)
+			++m_failureCount;
 
-			// Sets the result for any associated entity passed triggers and informs manager of result
-			SetResult(result, reason);
+		// Sets the result for any associated entity passed triggers and informs manager of result
+		SetResult(result, reason);
 
-			// Ensure all tests are reset and this is no longer marked as running
-			Cleanup();
+		// Ensure all tests are reset and this is no longer marked as running
+		Cleanup();
 
-			m_startNextRun = true;
-		}
-		else
-		{
-			CryLogAlways("FeatureTest %s received %s signal when test was inactive (ignoring). Timeout too short?", Name(), result ? "success" : "fail");
-		}
+		m_startNextRun = true;
+	}
+	else
+	{
+		CryLogAlways("FeatureTest %s received %s signal when test was inactive (ignoring). Timeout too short?", Name(), result ? "success" : "fail");
+	}
 }
 
 /// Returns the number of attached entities
@@ -588,7 +584,7 @@ int CFlowNode_FeatureTest::GetTestEntityCount()
 	int count = 0;
 	for (int i = 0; i < SEQ_ENTITY_COUNT; ++i)
 	{
-		IEntity *pEntity = NULL;
+		IEntity* pEntity = NULL;
 		if (GetEntityAtIndex(i, pEntity))
 			++count;
 	}
@@ -600,9 +596,9 @@ int CFlowNode_FeatureTest::GetTestEntityCount()
 /// bPrepareFromPool is used to specify if the entity at the given index should be prepared from the pool if needed
 /// NOTE: Index -1 is special case for camera entity.
 /// Returns: True if there was an entityId specified at this index. Note you can still have a NULL outEntity even if true, indicating error.
-bool CFlowNode_FeatureTest::GetEntityAtIndex(int index, IEntity* &outEntity, bool bPrepareFromPool)
+bool CFlowNode_FeatureTest::GetEntityAtIndex(int index, IEntity*& outEntity, bool bPrepareFromPool)
 {
-	IEntitySystem *pEntitySystem = gEnv->pEntitySystem;
+	IEntitySystem* pEntitySystem = gEnv->pEntitySystem;
 	CRY_ASSERT(pEntitySystem);
 
 	outEntity = NULL;
@@ -622,27 +618,26 @@ bool CFlowNode_FeatureTest::GetEntityAtIndex(int index, IEntity* &outEntity, boo
 	return bHasEntry;
 }
 
-
 /// This method might appear very similar to the above one
 /// instead this one doesn't call ***pEntityPoolManager->PrepareFromPool***
-/// which could cause undesired behavior 
+/// which could cause undesired behavior
 bool CFlowNode_FeatureTest::GetEntityDataAtIndex(int index, SEntityData& outData)
 {
-	
+
 	IEntity* pOutEntity = NULL;
-	
+
 	if (index >= -1 && index < SEQ_ENTITY_COUNT)
 	{
 		EntityId id = GetPortEntityId(&m_actInfo, int(SEQ_ENTITY_FIRST_INPUT_PORT + index));
 
 		if (id)
 		{
-			IEntitySystem *pEntitySystem = gEnv->pEntitySystem;
+			IEntitySystem* pEntitySystem = gEnv->pEntitySystem;
 			CRY_ASSERT(pEntitySystem);
 
 			pOutEntity = pEntitySystem->GetEntity(id);
 
-			if(pOutEntity)
+			if (pOutEntity)
 			{
 				outData.m_name = pOutEntity->GetName();
 				outData.m_class = pOutEntity->GetClass()->GetName();
@@ -745,9 +740,9 @@ public:
 		const Vec3 size(value.GetSize());
 
 		CryLogAlways("%s%s: AABB min(%f, %f, %f) max(%f, %f, %f) size(%f, %f, %f)", Prefix(depth), name,
-								value.min.x, value.min.y, value.min.z,
-								value.max.x, value.max.y, value.max.z,
-								size.x, size.y, size.z);
+			value.min.x, value.min.y, value.min.z,
+			value.max.x, value.max.y, value.max.z,
+			size.x, size.y, size.z);
 	}
 
 	void Log(const char* name, IAIObject* pAI, uint32 depth)
@@ -764,8 +759,8 @@ public:
 		Log("FirePos", pAI->GetFirePos(), depth);
 		Log("Velocity", pAI->GetVelocity(), depth);
 		Log("ViewDir", pAI->GetViewDir(), depth);
-// 		uint32 visionID = pAI->GetVisionID();
-// 		Log("VisionID", visionID, depth);
+		//    uint32 visionID = pAI->GetVisionID();
+		//    Log("VisionID", visionID, depth);
 
 		if (IAIActorProxy* pProxy = pAI->GetProxy())
 			Log("ActorProxy", pProxy, depth);
@@ -826,7 +821,6 @@ public:
 		Log("ActorMaxHealth", pProxy->GetActorMaxHealth(), depth);
 		Log("ActorTargetPhase", pProxy->GetActorTargetPhase(), depth);
 		Log("AndResetShotBulletCount", pProxy->GetAndResetShotBulletCount(), depth);
-		Log("BehaviorSelectionTreeName", pProxy->GetBehaviorSelectionTreeName(), depth);
 		Log("CommunicationConfigName", pProxy->GetCommunicationConfigName(), depth);
 		//Log("CommunicationHandler", pProxy->GetCommunicationHandler(), depth);
 		Log("CurrentBehaviorName", pProxy->GetCurrentBehaviorName(), depth);
@@ -865,7 +859,6 @@ public:
 		Log("ScriptFile", pClass->GetScriptFile(), depth);
 	}
 
-
 	void Log(const char* name, ICharacterInstance* pCharacter, uint32 depth)
 	{
 		if (TooDeep(depth))
@@ -876,7 +869,7 @@ public:
 		Log("FilePath", pCharacter->GetFilePath(), depth);
 		Log("PlaybackScale", pCharacter->GetPlaybackScale(), depth);
 
-		if (ISkeletonAnim* pSkeletonAnim =  pCharacter->GetISkeletonAnim())
+		if (ISkeletonAnim* pSkeletonAnim = pCharacter->GetISkeletonAnim())
 		{
 			IAnimationSet* pAnimSet = pCharacter->GetIAnimationSet();
 			for (int layerIndex = 0; layerIndex < 15; ++layerIndex)
@@ -891,7 +884,7 @@ public:
 
 						const char* animName = (pAnimSet) ? pAnimSet->GetNameByAnimID(anim.GetAnimationId()) : "unknown";
 
-						const float normalizedTime = pSkeletonAnim->GetAnimationNormalizedTime( &anim );
+						const float normalizedTime = pSkeletonAnim->GetAnimationNormalizedTime(&anim);
 
 						CryLogAlways("%s CAnimation[%d]: ID[%d] \"%s\" active: %d animTime: %f duration: %f loopCount: %d repeatCount: %d", Prefix(depth), i,
 							anim.GetAnimationId(),
@@ -950,9 +943,9 @@ public:
 
 		CryLogAlways("%s%s: IEntity", Prefix(depth), name);
 
-		Log("Class", pEntity->GetClass()->GetName(), depth);	// TODO: Expand
+		Log("Class", pEntity->GetClass()->GetName(), depth);  // TODO: Expand
 		Log("ForwardDir", pEntity->GetForwardDir(), depth);
-		Log("Guid", pEntity->GetGuid(), depth);
+		Log("Guid", pEntity->GetGuid().ToDebugString(), depth);
 		Log("EntityID", pEntity->GetId(), depth);
 		Log("UpdatePolicy", pEntity->GetUpdatePolicy(), depth);
 		AABB worldBounds;
@@ -960,7 +953,7 @@ public:
 		Log("WorldBounds", worldBounds, depth);
 		Log("WorldPos", pEntity->GetWorldPos(), depth);
 
-		// 	if (IPhysicalEntity* pPhysicalEntity = pEntity->GetPhysics())
+		//  if (IPhysicalEntity* pPhysicalEntity = pEntity->GetPhysics())
 
 		if (IAIObject* pAI = pEntity->GetAI())
 			Log("AI", pAI, depth);
@@ -986,7 +979,6 @@ private:
 	uint32 m_maxDepth;
 };
 
-
 /// Utility function for returning a test result to the manager and updating any associated entity passed trigger
 void CFlowNode_FeatureTest::SetResult(bool result, const char* reason)
 {
@@ -1011,9 +1003,9 @@ void CFlowNode_FeatureTest::SetResult(bool result, const char* reason)
 					const Vec3 finalEntityPos(pEnt->GetWorldPos());
 					const Vec3 entityTranslation(finalEntityPos - m_entityStartPos);
 					CryLogAlways("Final position for %s: (%f, %f, %f). Translation since start: (%f, %f, %f)",
-												pEnt->GetName(),
-												finalEntityPos.x, finalEntityPos.y, finalEntityPos.z,
-												entityTranslation.x, entityTranslation.y, entityTranslation.z);
+						pEnt->GetName(),
+						finalEntityPos.x, finalEntityPos.y, finalEntityPos.z,
+						entityTranslation.x, entityTranslation.y, entityTranslation.z);
 
 					// Log the entity state (more verbose on failure)
 					EntityLogger entityLogger(result ? 4 : 6);
@@ -1038,7 +1030,7 @@ void CFlowNode_FeatureTest::SetResult(bool result, const char* reason)
 				}
 			}
 		}
-		else	// Single test (not sequence)
+		else  // Single test (not sequence)
 		{
 			// If test has actually run
 			if (m_running)
@@ -1050,7 +1042,7 @@ void CFlowNode_FeatureTest::SetResult(bool result, const char* reason)
 				//Need to ensure non-owned tests pass null pointer
 				const char* owners = m_owners.empty() ? NULL : m_owners.c_str();
 
-				ftMgr.OnTestResults(testSeqName.c_str(), desc.c_str(),  (result) ? NULL : reason, m_timeRunning, owners);
+				ftMgr.OnTestResults(testSeqName.c_str(), desc.c_str(), (result) ? NULL : reason, m_timeRunning, owners);
 			}
 			else
 			{
@@ -1073,17 +1065,18 @@ void CFlowNode_FeatureTest::ActivateAllEntities(bool activate)
 		if (pEnt)
 		{
 			pEnt->Hide(!activate);
-			pEnt->Activate(activate);
+			if (IGameObject* pGameObject = gEnv->pGameFramework->GetGameObject(pEnt->GetId()))
+			{
+				pGameObject->ForceUpdate(activate);
+			}
 		}
 	}
 }
 
 // *************************************************************************************
 
-
-
 CFlowNode_WatchCodeCheckpoint::CFlowNode_WatchCodeCheckpoint(SActivationInfo* activationInformation)
-:	m_actInfo(),
+	: m_actInfo(),
 	m_checkPointIdx(~0),
 	m_pCheckPoint(),
 	m_prevHitCount(0),
@@ -1104,18 +1097,18 @@ IFlowNodePtr CFlowNode_WatchCodeCheckpoint::Clone(SActivationInfo* pActInfo)
 void CFlowNode_WatchCodeCheckpoint::GetConfiguration(SFlowNodeConfig& config)
 {
 	static const SInputPortConfig inputs[] = {
-		InputPortConfig_Void("StartWatching",		_HELP("Trigger to begin observing code checkpoint.")),
-		InputPortConfig<string>("Name",	_HELP("Name of the checkpoint to watch.")),
-		InputPortConfig_Void("StopWatching",		_HELP("Trigger to stop watching the code point and output checkpoint status.")),
-		{0}
+		InputPortConfig_Void("StartWatching", _HELP("Trigger to begin observing code checkpoint.")),
+		InputPortConfig<string>("Name",       _HELP("Name of the checkpoint to watch.")),
+		InputPortConfig_Void("StopWatching",  _HELP("Trigger to stop watching the code point and output checkpoint status.")),
+		{ 0 }
 	};
 
 	static const SOutputPortConfig outputs[] = {
-		OutputPortConfig<int>("Count",		_HELP("Triggered on StopWatching input. Provides the number of hits since the last StartWatching request.")),
-		OutputPortConfig<bool>("Found",		_HELP("Triggered on StopWatching input. Output if this point was hit at least once since the last StartWatching request.")),
-		OutputPortConfig<bool>("NotFound",		_HELP("Triggered on StopWatching input. Output if this point was not hit at least once since the last StartWatching request.")),
-		OutputPortConfig<int>("TotalHits",		_HELP("Triggered on StopWatching input. Outputs the total number of hits for the checkpoint since program start.")),
-		{0}
+		OutputPortConfig<int>("Count",     _HELP("Triggered on StopWatching input. Provides the number of hits since the last StartWatching request.")),
+		OutputPortConfig<bool>("Found",    _HELP("Triggered on StopWatching input. Output if this point was hit at least once since the last StartWatching request.")),
+		OutputPortConfig<bool>("NotFound", _HELP("Triggered on StopWatching input. Output if this point was not hit at least once since the last StartWatching request.")),
+		OutputPortConfig<int>("TotalHits", _HELP("Triggered on StopWatching input. Outputs the total number of hits for the checkpoint since program start.")),
+		{ 0 }
 	};
 
 	config.pInputPorts = inputs;
@@ -1130,29 +1123,29 @@ void CFlowNode_WatchCodeCheckpoint::ProcessEvent(EFlowEvent event, SActivationIn
 	{
 
 	case eFE_Initialize:
-		{
-			m_actInfo = *pActInfo;
+	{
+		m_actInfo = *pActInfo;
 
-			RemoveAsWatcher();
+		RemoveAsWatcher();
 
-			// Reset state
-			m_checkPointIdx	= ~0;
-			m_pCheckPoint				= NULL;
-		}
-		break;
+		// Reset state
+		m_checkPointIdx = ~0;
+		m_pCheckPoint = NULL;
+	}
+	break;
 
 	case eFE_Activate:
+	{
+		if (IsPortActive(pActInfo, eInputPorts_StartWatching))
 		{
-			if(IsPortActive(pActInfo,eInputPorts_StartWatching))
-			{
-				StartWatching(pActInfo);
-			}
-			else if(IsPortActive(pActInfo,eInputPorts_StopWatching))
-			{
-				StopWatching(pActInfo);
-			}
+			StartWatching(pActInfo);
 		}
-		break;
+		else if (IsPortActive(pActInfo, eInputPorts_StopWatching))
+		{
+			StopWatching(pActInfo);
+		}
+	}
+	break;
 	}
 }
 
@@ -1167,7 +1160,7 @@ void CFlowNode_WatchCodeCheckpoint::StartWatching(SActivationInfo* pActInfo)
 {
 	ResolveCheckpointStatus();
 
-	if(m_pCheckPoint)
+	if (m_pCheckPoint)
 		m_prevHitCount = static_cast<int>(m_pCheckPoint->HitCount());
 
 }
@@ -1177,12 +1170,12 @@ void CFlowNode_WatchCodeCheckpoint::StopWatching(SActivationInfo* pActInfo)
 	ResolveCheckpointStatus();
 
 	//Inform the code checkpoint debug manager that we want to stop observing this point
-	if(m_watchRequested)
+	if (m_watchRequested)
 	{
 
-		if(!m_pCheckPoint)
+		if (!m_pCheckPoint)
 		{
-			ActivateOutput(pActInfo, eOutputPorts_RecentHits,0);
+			ActivateOutput(pActInfo, eOutputPorts_RecentHits, 0);
 			ActivateOutput(pActInfo, eOutputPorts_NotFound, true);
 			ActivateOutput(pActInfo, eOutputPorts_TotalHits, 0);
 		}
@@ -1193,11 +1186,10 @@ void CFlowNode_WatchCodeCheckpoint::StopWatching(SActivationInfo* pActInfo)
 
 			ActivateOutput(pActInfo, eOutputPorts_RecentHits, static_cast<int>(difference));
 
-			if(difference > 0)
+			if (difference > 0)
 				ActivateOutput(pActInfo, eOutputPorts_Found, true);
 			else
 				ActivateOutput(pActInfo, eOutputPorts_NotFound, true);
-
 
 			ActivateOutput(pActInfo, eOutputPorts_TotalHits, updatedHitcount);
 
@@ -1212,7 +1204,7 @@ void CFlowNode_WatchCodeCheckpoint::StopWatching(SActivationInfo* pActInfo)
 
 void CFlowNode_WatchCodeCheckpoint::RemoveAsWatcher()
 {
-	if(m_watchRequested)
+	if (m_watchRequested)
 	{
 		CCodeCheckpointDebugMgr::RetrieveCodeCheckpointDebugMgr()->UnregisterWatchPoint(m_checkpointName);
 		m_watchRequested = false;
@@ -1221,7 +1213,7 @@ void CFlowNode_WatchCodeCheckpoint::RemoveAsWatcher()
 
 void CFlowNode_WatchCodeCheckpoint::ResolveCheckpointStatus()
 {
-	if(!m_pCheckPoint)
+	if (!m_pCheckPoint)
 	{
 		ICodeCheckpointMgr* pCodeCheckpointMgr = gEnv->pCodeCheckpointMgr;
 		if (pCodeCheckpointMgr)
@@ -1254,20 +1246,17 @@ void CFlowNode_WatchCodeCheckpoint::ResolveCheckpointStatus()
 	}
 
 	//Inform the code checkpoint debug manager that we want to observe this point
-	if(!m_watchRequested)
+	if (!m_watchRequested)
 	{
 		CCodeCheckpointDebugMgr::RetrieveCodeCheckpointDebugMgr()->RegisterWatchPoint(m_checkpointName);
 		m_watchRequested = true;
 	}
 }
 
-
 // *************************************************************************************
 
-
-
 CFlowNode_ListenForCommunication::CFlowNode_ListenForCommunication(SActivationInfo* activationInformation)
-:	m_actInfo(), m_timeListened(0.0f), m_isListening(false), m_timeout(0.0f)
+	: m_actInfo(), m_timeListened(0.0f), m_isListening(false), m_timeout(0.0f)
 {
 }
 
@@ -1283,19 +1272,19 @@ IFlowNodePtr CFlowNode_ListenForCommunication::Clone(SActivationInfo* pActInfo)
 void CFlowNode_ListenForCommunication::GetConfiguration(SFlowNodeConfig& config)
 {
 	static const SInputPortConfig inputs[] = {
-		InputPortConfig_Void("StartListening",		_HELP("Trigger to begin observing for communication.")),
-		InputPortConfig_Void("StopListening",		_HELP("Trigger to stop observing for communication and cleanup.")),
-		InputPortConfig<string>("Name",	_HELP("Name of the communication to listen for."), _HELP("Name"), _UICONFIG("enum_global:communications")),
-		InputPortConfig<float>("Timeout",	30.0f,	_HELP("Length of time to listen for tracked communication.")),
-		InputPortConfig<EntityId> ("Entity", 0,			_HELP("Entity id for which the communication will be played.")),
-		{0}
+		InputPortConfig_Void("StartListening", _HELP("Trigger to begin observing for communication.")),
+		InputPortConfig_Void("StopListening",  _HELP("Trigger to stop observing for communication and cleanup.")),
+		InputPortConfig<string>("Name",        _HELP("Name of the communication to listen for."),                 _HELP("Name"),                                                    _UICONFIG("enum_global:communications")),
+		InputPortConfig<float>("Timeout",      30.0f,                                                             _HELP("Length of time to listen for tracked communication.")),
+		InputPortConfig<EntityId>("Entity",    0,                                                                 _HELP("Entity id for which the communication will be played.")),
+		{ 0 }
 	};
 
 	static const SOutputPortConfig outputs[] = {
-		OutputPortConfig<bool>("CommunicationEncountered",		_HELP("Triggered and returns true if communication encountered, or returns false if timeout value reached.")),
-		OutputPortConfig<bool>("Success",		_HELP("Triggered and returns true if communication encountered.")),
-		OutputPortConfig<bool>("Failure",		_HELP("Triggered and returns true if timeout limit reached.")),
-		{0}
+		OutputPortConfig<bool>("CommunicationEncountered", _HELP("Triggered and returns true if communication encountered, or returns false if timeout value reached.")),
+		OutputPortConfig<bool>("Success",                  _HELP("Triggered and returns true if communication encountered.")),
+		OutputPortConfig<bool>("Failure",                  _HELP("Triggered and returns true if timeout limit reached.")),
+		{ 0 }
 	};
 
 	config.pInputPorts = inputs;
@@ -1310,35 +1299,35 @@ void CFlowNode_ListenForCommunication::ProcessEvent(EFlowEvent event, SActivatio
 	{
 
 	case eFE_Initialize:
-		{
-			m_actInfo = *pActInfo;
-			m_timeListened = 0.0f;
-			m_isListening = false;
-			m_timeout = 0.0f;
+	{
+		m_actInfo = *pActInfo;
+		m_timeListened = 0.0f;
+		m_isListening = false;
+		m_timeout = 0.0f;
 
-			RemoveAsListener();
+		RemoveAsListener();
 
-			// Request eFE_Update events
-			pActInfo->pGraph->SetRegularlyUpdated(pActInfo->myID, true);
-		}
-		break;
+		// Request eFE_Update events
+		pActInfo->pGraph->SetRegularlyUpdated(pActInfo->myID, true);
+	}
+	break;
 
 	case eFE_Update:
-		{
-			// Check for hits
-			float deltaTime = gEnv->pTimer->GetFrameTime();
-			Update(deltaTime);
-		}
-		break;
+	{
+		// Check for hits
+		float deltaTime = gEnv->pTimer->GetFrameTime();
+		Update(deltaTime);
+	}
+	break;
 
 	case eFE_Activate:
-		{
-			if(IsPortActive(pActInfo,eInputPorts_StartListening))
-				RegisterAsListener(pActInfo);
-			if(IsPortActive(pActInfo,eInputPorts_StopListening))
-				RemoveAsListener();
-		}
-		break;
+	{
+		if (IsPortActive(pActInfo, eInputPorts_StartListening))
+			RegisterAsListener(pActInfo);
+		if (IsPortActive(pActInfo, eInputPorts_StopListening))
+			RemoveAsListener();
+	}
+	break;
 	}
 }
 
@@ -1381,9 +1370,9 @@ void CFlowNode_ListenForCommunication::RemoveAsListener()
 
 void CFlowNode_ListenForCommunication::OnCommunicationEvent(ICommunicationManager::ECommunicationEvent event, EntityId actorID, const CommID& playID)
 {
-	if( (m_entityId == 0 || actorID == m_entityId) && playID == m_commId)
+	if ((m_entityId == 0 || actorID == m_entityId) && playID == m_commId)
 	{
-		switch(event)
+		switch (event)
 		{
 		case ICommunicationManager::CommunicationFinished:
 
@@ -1399,10 +1388,10 @@ void CFlowNode_ListenForCommunication::OnCommunicationEvent(ICommunicationManage
 
 void CFlowNode_ListenForCommunication::Update(float deltaTime)
 {
-	if(m_isListening)
+	if (m_isListening)
 	{
 		m_timeListened += deltaTime;
-		if(deltaTime > m_timeout)
+		if (deltaTime > m_timeout)
 		{
 			RemoveAsListener();
 			ActivateOutput(&m_actInfo, eOutputPorts_CommunicationPlayed, false);
@@ -1412,7 +1401,6 @@ void CFlowNode_ListenForCommunication::Update(float deltaTime)
 	}
 }
 
-
 //////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////
 
@@ -1421,24 +1409,24 @@ CFlowNode_SimulateInput::CFlowNode_SimulateInput(SActivationInfo* pActInfo)
 
 }
 
-void CFlowNode_SimulateInput::GetConfiguration( SFlowNodeConfig& config )
+void CFlowNode_SimulateInput::GetConfiguration(SFlowNodeConfig& config)
 {
-	static const SInputPortConfig in_ports[] = 
+	static const SInputPortConfig in_ports[] =
 	{
-		InputPortConfig<string>( "ActionInput", _HELP("Action input to trigger" ), _HELP("Action"), _UICONFIG("enum_global:input_actions")),
-		InputPortConfig_Void( "Press", _HELP("Simulate press" )),
-		InputPortConfig_Void( "Hold", _HELP("Simulate hold event")),
-		InputPortConfig_Void( "Release", _HELP("Simulate relase" )),
-		InputPortConfig<float>( "Value", 1.0f, _HELP("Value between 0 and 1" )),
-		{0}
+		InputPortConfig<string>("ActionInput", _HELP("Action input to trigger"), _HELP("Action"),                 _UICONFIG("enum_global:input_actions")),
+		InputPortConfig_Void("Press",          _HELP("Simulate press")),
+		InputPortConfig_Void("Hold",           _HELP("Simulate hold event")),
+		InputPortConfig_Void("Release",        _HELP("Simulate relase")),
+		InputPortConfig<float>("Value",        1.0f,                             _HELP("Value between 0 and 1")),
+		{ 0 }
 	};
 
-	static const SOutputPortConfig out_ports[] = 
+	static const SOutputPortConfig out_ports[] =
 	{
-		OutputPortConfig_Void( "Pressed", _HELP("Pressed" )),
-		OutputPortConfig_Void( "Held", _HELP("Held")),
-		OutputPortConfig_Void( "Released", _HELP("Released" )),
-		{0}
+		OutputPortConfig_Void("Pressed",  _HELP("Pressed")),
+		OutputPortConfig_Void("Held",     _HELP("Held")),
+		OutputPortConfig_Void("Released", _HELP("Released")),
+		{ 0 }
 	};
 
 	config.sDescription = _HELP("Simulate player actions input");
@@ -1447,7 +1435,7 @@ void CFlowNode_SimulateInput::GetConfiguration( SFlowNodeConfig& config )
 	config.SetCategory(EFLN_DEBUG);
 }
 
-void CFlowNode_SimulateInput::ProcessEvent( EFlowEvent event, SActivationInfo* pActInfo )
+void CFlowNode_SimulateInput::ProcessEvent(EFlowEvent event, SActivationInfo* pActInfo)
 {
 	if (event == eFE_Activate)
 	{
@@ -1503,7 +1491,7 @@ void CFlowNode_SimulateInput::ProcessEvent( EFlowEvent event, SActivationInfo* p
 	}
 }
 
-void CFlowNode_SimulateInput::GetMemoryUsage( ICrySizer* sizer ) const
+void CFlowNode_SimulateInput::GetMemoryUsage(ICrySizer* sizer) const
 {
 	sizer->Add(*this);
 }

@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #include "StdAfx.h"
 
@@ -154,6 +154,7 @@ CPhysArea::CPhysArea(CPhysicalWorld *pWorld)
 	static_assert(CRY_ARRAY_COUNT(m_BBox) == 2, "Invalid array size!");
 	m_BBox[0].zero();
 	m_BBox[1].zero();
+	m_pWorld->SetGrid(this,&m_pWorld->m_entgrid);
 }
 
 CPhysArea::~CPhysArea() 
@@ -209,8 +210,11 @@ float getHeightData(float *data,getHeightCallback func, int ix,int iy) { return 
 int CPhysArea::ApplyParams(const Vec3& pt, Vec3& gravity, const Vec3 &vel, pe_params_buoyancy *pbdst, int nBuoys, int nMaxBuoys, int &iMedium0, 
 													 IPhysicalEntity *pent) const
 {
-	Vec3 ptloc = ((pt-m_offset)*m_R)*m_rscale;
-	int bRes=1,bUseBuoy=0;
+	int bRes=1,bUseBuoy=0,bDiffGrid=0;
+	QuatT transG(IDENTITY);
+	if (bDiffGrid = pent && m_pWorld->GetGrid(this)!=m_pWorld->GetGrid(pent))
+		transG = GridTrans((CPhysicalPlaceholder*)pent,this);
+	Vec3 ptloc = ((transG*pt-m_offset)*m_R)*m_rscale;
 
 	if (!is_unused(m_pb.waterPlane.origin) && 
 			!(pent && ((CPhysicalEntity*)pent)->m_flags & pef_ignore_ocean && this==m_pWorld->m_pGlobalArea)) 
@@ -282,10 +286,10 @@ int CPhysArea::ApplyParams(const Vec3& pt, Vec3& gravity, const Vec3 &vel, pe_pa
 						float det,maxdet,maxz=0.0f;
 						Matrix33 Rabs,C,tmp;
 						Vec2i ibbox[2];
-						org = (ppc->m_BBox[0]+ppc->m_BBox[1])*0.5f;
+						org = transG*((ppc->m_BBox[0]+ppc->m_BBox[1])*0.5f);
 						sz = (ppc->m_BBox[1]-ppc->m_BBox[0])*0.5f;
 						if (true) {//fabs_tpl((org-m_pb.waterPlane.origin)*n)-sz*n.abs() < 1.5f) {
-							sz = (Rabs=m_R).Fabs()*sz;
+							sz = (Rabs=m_R*Matrix33(transG.q)).Fabs()*sz;
 							heightfield hf, *phf=&hf;
 							int iyscale=1,vmask=0; float *pdata; Vec3 vel(ZERO),*pvel=&vel;
 							float (*getHeight)(float *data,getHeightCallback func, int ix,int iy);
@@ -376,6 +380,12 @@ int CPhysArea::ApplyParams(const Vec3& pt, Vec3& gravity, const Vec3 &vel, pe_pa
 			if (!is_unused(epa.pb.waterPlane.origin) && nBuoys<nMaxBuoys)
 				pbdst[nBuoys] = epa.pb;
 		}
+	}
+
+	if (bUseBuoy & bDiffGrid) {
+		pbdst[nBuoys].waterPlane.origin = transG.GetInverted()*pbdst[nBuoys].waterPlane.origin;
+		pbdst[nBuoys].waterPlane.n = !transG.q*pbdst[nBuoys].waterPlane.n;
+		pbdst[nBuoys].waterFlow = !transG.q*pbdst[nBuoys].waterFlow;
 	}
 
 	return bRes&bUseBuoy;
@@ -1090,7 +1100,7 @@ void CPhysArea::Update(float dt)
 		if (m_pWorld->RayWorldIntersection(m_offset0,m_pWorld->m_pGlobalArea->m_gravity,ent_static|ent_sleeping_rigid|ent_rigid,rwi_pierceability(15),&rhit,1) && rhit.pCollider) 
 			if (CGeometry *pGeom = (CGeometry*)((CPhysicalEntity*)rhit.pCollider)->m_parts[rhit.ipart].pPhysGeom->pGeom)
 				if (pContainer = (CTriMesh*)pGeom->GetTriMesh()) {
-					((CPhysicalEntity*)rhit.pCollider)->GetLocTransform(rhit.ipart,m_qtsContainer.t,m_qtsContainer.q,m_qtsContainer.s);
+					((CPhysicalEntity*)rhit.pCollider)->GetLocTransform(rhit.ipart,m_qtsContainer.t,m_qtsContainer.q,m_qtsContainer.s,this);
 					if (!((CPhysicalPlaceholder*)rhit.pCollider)->m_iSimClass) {
 						CPhysicalEntity **pents;
 						geom_world_data gwd[2];
@@ -1112,7 +1122,8 @@ void CPhysArea::Update(float dt)
 								int nents = m_pWorld->GetEntitiesAround(bboxes[m_nContainerParts-1][0],bboxes[m_nContainerParts-1][1],pents,ent_static,(CPhysicalEntity*)this,0,iCaller);
 								for(i=0;i<nents;i++) for(j=0;j<pents[i]->GetUsedPartsCount(iCaller);j++) 
 									if (pents[i]->m_parts[j1=pents[i]->GetUsedPart(iCaller,j)].flags & geom_floats)	{
-										for(i1=0; i1<m_nContainerParts && !AABB_overlap(bboxes[i1],pents[i]->m_parts[j1].BBox); i1++);
+										Vec3 partBBox[2], *pBBox=pents[i]->GetPartBBox(j1, partBBox, this);
+										for(i1=0; i1<m_nContainerParts && !AABB_overlap(bboxes[i1],pBBox); i1++);
 										if (i1<m_nContainerParts) {
 											for(i1=0,j1=pents[i]->m_id<<8|j1; i1<m_nContainerParts && m_pContainerParts[i1]!=j1; i1++);
 											if (i1==m_nContainerParts && ngeomsNew<MAX_GEOMS)	{
@@ -1129,7 +1140,7 @@ void CPhysArea::Update(float dt)
 								int *t=list0; list0=list1; list1=t; igeom=0; ngeomsNew=0;
 							}
 							for(;igeom<ngeoms && !nNewParts;igeom++) if (CPhysicalEntity *pent = (CPhysicalEntity*)m_pWorld->GetPhysicalEntityById(list0[igeom]>>8)) {
-								Quat q; pent->GetLocTransform(j1=list0[igeom]&0xFF,gwd[1].offset,q,gwd[1].scale); gwd[1].R=Matrix33(q);
+								Quat q; pent->GetLocTransform(j1=list0[igeom]&0xFF,gwd[1].offset,q,gwd[1].scale,this); gwd[1].R=Matrix33(q);
 								if (pContainer->Intersect(pent->m_parts[j1].pPhysGeomProxy->pGeom,gwd,gwd+1,&ip,pcont))	{
 									pContainer->Flip();
 									IGeometry *pMesh = ((CGeometry*)pent->m_parts[j1].pPhysGeomProxy->pGeom)->GetTriMesh(0);
@@ -1165,12 +1176,13 @@ void CPhysArea::Update(float dt)
 		Vec3 offs0 = qtParent*m_offset0, org0 = qtParent*m_pb.waterPlane.origin;
 		if (m_pContainerEnt) {
 			for(int i=m_pContainerEnt->m_nParts-1;i>0 && m_pContainerEnt->m_parts[i].id!=m_idpartContainer;i--);
-			m_pContainerEnt->GetLocTransform(0,m_qtsContainer.t,m_qtsContainer.q,m_qtsContainer.s);
+			m_pContainerEnt->GetLocTransform(0,m_qtsContainer.t,m_qtsContainer.q,m_qtsContainer.s,this);
 			m_offset0 = m_qtsContainer*offs0;	m_pb.waterPlane.origin = m_qtsContainer*org0;
 		}
 		Vec3 g = is_unused(m_pb.waterPlane.origin) ? m_pWorld->m_pGlobalArea->m_gravity.normalized() : -m_pb.waterPlane.n;
 		QuatTS loc = m_qtsContainer.GetInverted();
 		QuatT qtBorder;
+		Vec3 partBBox[2];
 		float depth,V=m_V*cube(loc.s),V0=V;
 		static IGeometry **g_pGeoms;
 		static int g_nGeomsAlloc=0;
@@ -1185,12 +1197,12 @@ void CPhysArea::Update(float dt)
 			}
 			if (Vent>m_V*0.001f) 
 				for(int j=0;j<pents[i]->GetUsedPartsCount(iCaller);j++) 
-					if (pents[i]->m_parts[j1=pents[i]->GetUsedPart(iCaller,j)].flags & geom_floats && AABB_overlap(m_BBox,pents[i]->m_parts[j1].BBox)) {
+					if (pents[i]->m_parts[j1=pents[i]->GetUsedPart(iCaller,j)].flags & geom_floats && AABB_overlap(m_BBox,pents[i]->GetPartBBox(j1,partBBox,this))) {
 						int i1,id=pents[i]->m_id<<8|j1; 
 						for(i1=0; i1<m_nContainerParts && m_pContainerParts[i1]!=id; i1++);
 						if (i1<m_nContainerParts || pents[i]==m_pContainerEnt && pents[i]->m_parts[j1].id==m_idpartContainer)
 							continue;
-						QuatTS loc1; pents[i]->GetLocTransform(j1,loc1.t,loc1.q,loc1.s);
+						QuatTS loc1; pents[i]->GetLocTransform(j1,loc1.t,loc1.q,loc1.s,this);
 						if (ngeoms>=g_nGeomsAlloc) {
 							ReallocateList(g_pGeoms,ngeoms,g_nGeomsAlloc+64);
 							ReallocateList(g_qtsGeoms,ngeoms,g_nGeomsAlloc+=64);
@@ -1465,19 +1477,22 @@ void CPhysArea::DrawHelperInformation(IPhysRenderer *pRenderer, int flags)
 
 void CPhysArea::GetMemoryStatistics(ICrySizer *pSizer) const
 {
-	pSizer->AddObject(this, sizeof(CPhysicalEntity));
+	pSizer->AddObject(this, sizeof(CPhysArea));
 	if (m_pt) {
-		pSizer->AddObject(m_pt, sizeof(m_pt[0]), m_npt+1);
-		pSizer->AddObject(m_idxSort[0], sizeof(m_idxSort[0][0]), m_npt);
-		pSizer->AddObject(m_idxSort[1], sizeof(m_idxSort[1][0]), m_npt);
-		pSizer->AddObject(m_pMask, sizeof(m_pMask[0]), ((m_npt-1>>5)+1)*(MAX_PHYS_THREADS+1));
+		pSizer->AddObject(m_pt, sizeof(m_pt[0])*(m_npt+1));
+		pSizer->AddObject(m_idxSort[0], sizeof(m_idxSort[0][0])*m_npt);
+		pSizer->AddObject(m_idxSort[1], sizeof(m_idxSort[1][0])*m_npt);
+		pSizer->AddObject(m_pMask, sizeof(m_pMask[0])*((m_npt-1>>5)+1)*(MAX_PHYS_THREADS+1));
 	}
 	if (m_ptSpline)
-		pSizer->AddObject(m_ptSpline, sizeof(m_ptSpline[0]), m_npt);
-	if (m_pGeom)
-		m_pGeom->GetMemoryStatistics(pSizer);
+		pSizer->AddObject(m_ptSpline, sizeof(m_ptSpline[0])*m_npt);
+	if (m_pGeom) {
+		if (m_pGeom->AddRef()==2)
+			m_pGeom->GetMemoryStatistics(pSizer);
+		m_pGeom->Release();
+	}
 	if (m_pFlows)
-		pSizer->AddObject(m_pFlows, sizeof(m_pFlows[0]), m_npt);
+		pSizer->AddObject(m_pFlows, sizeof(m_pFlows[0])*m_npt);
 }
 
 
@@ -1747,8 +1762,7 @@ void CPhysicalWorld::RepositionArea(CPhysArea *pArea, Vec3* pBoxPrev)
 	} else
 		pArea->m_rsize.zero();
 
-	if ((res = RepositionEntity(pArea,1))!=0) {
-		JobAtomicAdd(&m_lockGrid,-WRITE_LOCK_VAL);
+	if ((res = RepositionEntity(pArea,1|8))!=0) {
 		if (res!=-1) {
 			if (pPrevArea) {
 				pPrevArea->m_nextBig = pArea->m_nextBig;
@@ -1768,8 +1782,8 @@ void CPhysicalWorld::RepositionArea(CPhysArea *pArea, Vec3* pBoxPrev)
 
 void CPhysicalWorld::RemoveArea(IPhysicalEntity *_pArea)
 {
-	WriteLock lock1(m_lockAreas),lock(m_lockGrid);
 	CPhysArea *pPrevArea,*pArea=(CPhysArea*)_pArea;
+	WriteLock lock1(m_lockAreas),lock(m_lockGrid);
 	pArea->m_bDeleted = 2;
 	for(pPrevArea=m_pGlobalArea; pPrevArea && pPrevArea->m_next!=pArea; pPrevArea=pPrevArea->m_next);
 	if (pPrevArea) pPrevArea->m_next = pArea->m_next;
@@ -1839,10 +1853,10 @@ int CPhysicalWorld::CheckAreas(const Vec3 &ptc, Vec3 &gravity, pe_params_buoyanc
 
 	if (m_nBigAreas==m_nAreas) {
 		for(pArea=m_pGlobalArea->m_nextBig; pArea; pArea=pArea->m_nextBig)
-			if (!pArea->m_bDeleted && AABB_overlap(pArea->m_BBox,bbox) && pArea->CheckPoint(ptc))
+			if (!pArea->m_bDeleted && (!pent || GetGrid(pent)==GetGrid(pArea) || (pArea->m_BBox[1]-pArea->m_BBox[0]).len2()>1e12f) && AABB_overlap(pArea->m_BBox,bbox) && pArea->CheckPoint(ptc))
 				nBuoys += pArea->ApplyParams(ptc, gravity,vel, pb,nBuoys,nMaxBuoys,iMedium0, pent);
 	} else {
-		for(int i=GetEntitiesAround(bbox[0],bbox[1],pEnts,ent_areas,0,0,iCaller)-1; i>=0; i--)
+		for(int i=GetEntitiesAround(bbox[0],bbox[1],pEnts,ent_areas,(CPhysicalEntity*)pent,0,iCaller)-1; i>=0; i--)
 			if ((pArea=(CPhysArea*)pEnts[i])->CheckPoint(ptc,radius))
 				nBuoys += pArea->ApplyParams(ptc, gravity,vel, pb,nBuoys,nMaxBuoys,iMedium0, pent);
 	}

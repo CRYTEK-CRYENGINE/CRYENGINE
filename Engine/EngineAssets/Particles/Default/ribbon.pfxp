@@ -1,0 +1,108 @@
+{
+  "Name": "ribbon",
+  "Features": [
+    {
+      "RenderRibbon": {
+        "TextureFrequency": 1.0,
+        "RibbonMode": "Camera",
+        "ConnectToOrigin": false,
+        "SortBias": 0.0,
+		"ConnectToOrigin": true,
+        "Offset": 0.0,
+        "StreamSource": "Age"
+      }
+    },
+    {
+      "SpawnRate": {
+        "Delay": {
+          "modifiers": [ ],
+          "value": 0.0
+        },
+        "Duration": {
+          "State": false,
+          "Value": {
+            "modifiers": [ ],
+            "value": 0.0
+          }
+        },
+        "Amount": {
+          "modifiers": [ ],
+          "value": 8.0
+        },
+        "Mode": "ParticlesPerSecond"
+      }
+    },
+    {
+      "SpawnCount": {
+        "Delay": {
+          "modifiers": [ ],
+          "value": 0.0
+        },
+        "Duration": {
+          "State": true,
+          "Value": {
+            "modifiers": [ ],
+            "value": 0.0
+          }
+        },
+        "Amount": {
+          "modifiers": [ ],
+          "value": 1.0
+        },
+        "Enabled": false,
+        "Restart": {
+          "State": false,
+          "Value": {
+            "modifiers": [ ],
+            "value": 1.0
+          }
+        }
+      }
+    },
+    {
+      "LifeTime": {
+        "LifeTime": {
+          "modifiers": [ ],
+          "value": 1.0
+        }
+      }
+    },
+    {
+      "FieldSize": {
+        "value": {
+          "modifiers": [ { "Inherit": { "SpawnOnly": false } } ],
+          "value": 1.0
+        }
+      }
+    },
+    {
+      "FieldOpacity": {
+        "AlphaScale": [ 0.0, 1.0 ],
+        "ClipRange": [ 1.0, 1.0 ],
+        "ClipLow": [ 0.0, 0.0 ],
+        "Enabled": false,
+        "value": {
+          "modifiers": [ ],
+          "value": 1.0
+        }
+      }
+    },
+    {
+      "MotionPhysics": {
+        "AngularDragMultiplier": 0.0,
+        "UniformAcceleration": [ 0.0, 0.0, 0.0 ],
+        "UniformWind": [ 0.0, 0.0, 0.0 ],
+        "gravity": {
+          "modifiers": [ ],
+          "value": -1.0
+        },
+        "drag": {
+          "modifiers": [ ],
+          "value": 0.0
+        },
+        "windMultiplier": 1.0,
+        "localEffectors": [ ]
+      }
+    }
+  ]
+}

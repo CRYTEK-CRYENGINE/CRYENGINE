@@ -1,48 +1,38 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
-// -------------------------------------------------------------------------
-//  File name:
-//  Version:     v1.00
-//  Created:     08/05/2015 by Jan Pinter
-//  Description:
-// -------------------------------------------------------------------------
-//  History:
-//
-////////////////////////////////////////////////////////////////////////////
 #pragma once
-#ifndef __DX12COMMANDLIST__
-	#define __DX12COMMANDLIST__
 
-	#include "DX12Base.hpp"
-	#include "DX12CommandListFence.hpp"
-	#include "DX12PSO.hpp"
-	#include "DX12DescriptorHeap.hpp"
-	#include "DX12QueryHeap.hpp"
-	#include "DX12View.hpp"
-	#include "DX12SamplerState.hpp"
-	#include "DX12AsyncCommandQueue.hpp"
+#include "DX12Base.hpp"
+#include "DX12CommandListFence.hpp"
+#include "DX12PSO.hpp"
+#include "DX12DescriptorHeap.hpp"
+#include "DX12QueryHeap.hpp"
+#include "DX12View.hpp"
+#include "DX12SamplerState.hpp"
+#include "DX12AsyncCommandQueue.hpp"
 
-	#define CMDLIST_TYPE_DIRECT   0 // D3D12_COMMAND_LIST_TYPE_DIRECT
-	#define CMDLIST_TYPE_BUNDLE   1 // D3D12_COMMAND_LIST_TYPE_BUNDLE
-	#define CMDLIST_TYPE_COMPUTE  2 // D3D12_COMMAND_LIST_TYPE_COMPUTE
-	#define CMDLIST_TYPE_COPY     3 // D3D12_COMMAND_LIST_TYPE_COPY
+#define CMDLIST_TYPE_DIRECT   0 // D3D12_COMMAND_LIST_TYPE_DIRECT
+#define CMDLIST_TYPE_BUNDLE   1 // D3D12_COMMAND_LIST_TYPE_BUNDLE
+#define CMDLIST_TYPE_COMPUTE  2 // D3D12_COMMAND_LIST_TYPE_COMPUTE
+#define CMDLIST_TYPE_COPY     3 // D3D12_COMMAND_LIST_TYPE_COPY
 
-	#define CMDLIST_DEFAULT       CMDLIST_TYPE_DIRECT
-	#define CMDLIST_GRAPHICS      NCryDX12::CCommandListPool::m_MapQueueType[CMDQUEUE_GRAPHICS]
-	#define CMDLIST_COMPUTE       NCryDX12::CCommandListPool::m_MapQueueType[CMDQUEUE_COMPUTE]
-	#define CMDLIST_COPY          NCryDX12::CCommandListPool::m_MapQueueType[CMDQUEUE_COPY]
+#define CMDLIST_DEFAULT       CMDLIST_TYPE_DIRECT
+#define CMDLIST_GRAPHICS      NCryDX12::CCommandListPool::m_MapQueueType[CMDQUEUE_GRAPHICS]
+#define CMDLIST_COMPUTE       NCryDX12::CCommandListPool::m_MapQueueType[CMDQUEUE_COMPUTE]
+#define CMDLIST_COPY          NCryDX12::CCommandListPool::m_MapQueueType[CMDQUEUE_COPY]
 
-	#define CMDQUEUE_GRAPHICS_IOE true  // graphics queue will terminate in-order
-	#define CMDQUEUE_COMPUTE_IOE  false // compute queue can terminate out-of-order
-	#define CMDQUEUE_COPY_IOE     false // copy queue can terminate out-of-order
+#define CMDQUEUE_GRAPHICS_IOE true  // graphics queue will terminate in-order
+#define CMDQUEUE_COMPUTE_IOE  false // compute queue can terminate out-of-order
+#define CMDQUEUE_COPY_IOE     false // copy queue can terminate out-of-order
 
-	#define DX12_BARRIER_FUSION   true
+#define DX12_BARRIER_FUSION   true
 
 namespace NCryDX12
 {
 
 class CCommandListPool;
 class CCommandList;
+class CSwapChain;
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -106,6 +96,16 @@ public:
 		return m_nPoolFenceId;
 	}
 
+	ILINE void SetSignalledFenceValue(const UINT64 fenceValue) threadsafe
+	{
+		return m_rCmdFences.SetSignalledValue(fenceValue, m_nPoolFenceId);
+	}
+
+	ILINE UINT64 GetSignalledFenceValue() threadsafe
+	{
+		return m_rCmdFences.GetSignalledValue(m_nPoolFenceId);
+	}
+
 	ILINE void SetSubmittedFenceValue(const UINT64 fenceValue) threadsafe
 	{
 		return m_rCmdFences.SetSubmittedValue(fenceValue, m_nPoolFenceId);
@@ -116,7 +116,6 @@ public:
 		return m_rCmdFences.GetSubmittedValue(m_nPoolFenceId);
 	}
 
-private:
 	ILINE void SetCurrentFenceValue(const UINT64 fenceValue) threadsafe
 	{
 		return m_rCmdFences.SetCurrentValue(fenceValue, m_nPoolFenceId);
@@ -258,6 +257,16 @@ public:
 		return WaitForFenceOnCPU(m_rCmdFences.GetSubmittedValues());
 	}
 
+	ILINE void SignalFenceOnGPU(const UINT64 fenceValue)
+	{
+		GetAsyncCommandQueue().Signal(GetD3D12Fence(), fenceValue);
+	}
+
+	ILINE void SignalFenceOnCPU(const UINT64 fenceValue)
+	{
+		GetD3D12Fence()->Signal(fenceValue);
+	}
+
 	template<class T64, const bool bPerspective>
 	ILINE bool IsCompleted(const T64 (&fenceValues)[CMDQUEUE_NUM]) threadsafe_const
 	{
@@ -320,8 +329,8 @@ class CCommandList : public CDeviceObject
 public:
 	virtual ~CCommandList();
 
-	bool                             Init(UINT64 currentFenceValue);
-	bool                             Reset();
+	bool Init(UINT64 currentFenceValue);
+	bool Reset();
 
 	ILINE ID3D12GraphicsCommandList* GetD3D12CommandList() threadsafe_const
 	{
@@ -375,6 +384,7 @@ public:
 		return m_eState >= CLSTATE_COMPLETED;
 	}
 
+	void       Register();
 	void       Schedule();
 	ILINE bool IsScheduled() const
 	{
@@ -385,14 +395,14 @@ public:
 	UINT64 SignalFenceOnGPU()
 	{
 		DX12_LOG(DX12_CONCURRENCY_ANALYZER || DX12_FENCE_ANALYZER, "Signaling GPU fence %s: %lld", m_rPool.GetFenceID() == CMDQUEUE_GRAPHICS ? "gfx" : m_rPool.GetFenceID() == CMDQUEUE_COMPUTE ? "cmp" : "cpy", m_CurrentFenceValue);
-		m_rPool.GetAsyncCommandQueue().Signal(m_rPool.GetD3D12Fence(), m_CurrentFenceValue);
+		m_rPool.SignalFenceOnGPU(m_CurrentFenceValue);
 		return m_CurrentFenceValue;
 	}
 
 	UINT64 SignalFenceOnCPU()
 	{
 		DX12_LOG(DX12_CONCURRENCY_ANALYZER || DX12_FENCE_ANALYZER, "Signaling CPU fence %s: %lld", m_rPool.GetFenceID() == CMDQUEUE_GRAPHICS ? "gfx" : m_rPool.GetFenceID() == CMDQUEUE_COMPUTE ? "cmp" : "cpy", m_CurrentFenceValue);
-		m_rPool.GetD3D12Fence()->Signal(m_CurrentFenceValue);
+		m_rPool.SignalFenceOnCPU(m_CurrentFenceValue);
 		return m_CurrentFenceValue;
 	}
 
@@ -684,18 +694,16 @@ public:
 	void         ClearUnorderedAccessView(const CView& view, const FLOAT rgba[4], UINT NumRects = 0U, const D3D12_RECT* pRect = nullptr);
 	void         ClearView(const CView& view, const FLOAT rgba[4], UINT NumRects = 0U, const D3D12_RECT* pRect = nullptr);
 
+	void         CopyTextureRegion(const D3D12_TEXTURE_COPY_LOCATION* pDst, UINT DstX, UINT DstY, UINT DstZ, const D3D12_TEXTURE_COPY_LOCATION* pSrc, const D3D12_BOX* pSrcBox = nullptr);
+	void         CopyResource(ID3D12Resource* pDstResource, ID3D12Resource* pSrcResource);
+
 	void         CopyResource(CResource& pDstResource, CResource& pSrcResource);
 	void         CopySubresources(CResource& pDestResource, UINT destSubResource, UINT x, UINT y, UINT z, CResource& pSrcResource, UINT srcSubResource, const D3D12_BOX* srcBox, UINT NumSubresources);
 	void         UpdateSubresourceRegion(CResource& pResource, UINT subResource, const D3D12_BOX* box, const void* data, UINT rowPitch, UINT depthPitch);
 	void         UpdateSubresources(CResource& rResource, D3D12_RESOURCE_STATES eAnnouncedState, UINT64 uploadBufferSize, UINT subResources, D3D12_SUBRESOURCE_DATA* subResourceData);
 	void         DiscardResource(CResource& pResource, const D3D12_DISCARD_REGION* pRegion);
 
-	CResource&   PatchRenderTarget(CResource& res);
-	const CView& PatchRenderTargetView(const CView& rtv);
-	const CView& PatchShaderResourceView(const CView& srv);
-
-	bool         PresentRenderTargetView(CView& rtv);
-	bool         PresentRenderTargetView(CSwapChain* pDX12SwapChain);
+	bool         PresentSwapChain(CSwapChain* pDX12SwapChain);
 
 	ILINE void   SetViewports(UINT NumViewports, const D3D12_VIEWPORT* pViewports)
 	{
@@ -808,5 +816,3 @@ public: // Not good
 };
 
 }
-
-#endif // __DX12COMMANDLIST__

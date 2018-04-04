@@ -2,43 +2,32 @@
 
 #pragma once
 #include <QIcon>
-#include "AudioControl.h"
+#include "AudioAssets.h"
 
 namespace ACE
 {
-inline QIcon GetControlTypeIcon(EACEControlType type)
+inline QIcon GetItemTypeIcon(EItemType type)
 {
 	switch (type)
 	{
-	case ACE::eACEControlType_Trigger:
+	case EItemType::eItemType_Trigger:
 		return QIcon(":Icons/Trigger.ico");
-		break;
-	case ACE::eACEControlType_RTPC:
+	case EItemType::eItemType_RTPC:
 		return QIcon(":Icons/RTPC.ico");
-		break;
-	case ACE::eACEControlType_Switch:
+	case EItemType::eItemType_Switch:
 		return QIcon(":Icons/Switch.ico");
-		break;
-	case ACE::eACEControlType_State:
+	case EItemType::eItemType_State:
 		return QIcon(":Icons/Property.ico");
-		break;
-	case ACE::eACEControlType_Environment:
+	case EItemType::eItemType_Environment:
 		return QIcon(":Icons/Environment.ico");
-		break;
-	case ACE::eACEControlType_Preload:
+	case EItemType::eItemType_Preload:
 		return QIcon(":Icons/Bank.ico");
-		break;
+	case EItemType::eItemType_Folder:
+		return QIcon(":Icons/Folder.ico");
+	case EItemType::eItemType_Library:
+		return QIcon("icons:Assets/GeomCache.ico");
 	}
 	return QIcon(":Icons/RTPC.ico");
 }
 
-inline QIcon GetFolderIcon()
-{
-	return QIcon(":Icons/Folder.ico");
-}
-
-inline QIcon GetSoundBankIcon()
-{
-	return QIcon(":Icons/Preload.ico");
-}
 }

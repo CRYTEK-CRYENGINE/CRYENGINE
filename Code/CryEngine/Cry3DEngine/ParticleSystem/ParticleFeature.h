@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 // -------------------------------------------------------------------------
 //  Created:     24/09/2014 by Filipe amim
@@ -48,6 +48,8 @@ public:
 	void                                    ConnectTo(const char* pOtherName) override        {}
 	void                                    DisconnectFrom(const char* pOtherName) override   {}
 	void                                    SetGpuInterfaceNeeded(bool gpuInterface)          { m_gpuInterfaceNeeded = gpuInterface; }
+	uint                                    GetNumResources() const override                  { return 0; }
+	const char*                             GetResourceName(uint resourceId) const override   { return nullptr; }
 	gpu_pfx2::IParticleFeatureGpuInterface* GetGpuInterface() override;
 	// ~IParticleFeature
 
@@ -63,6 +65,12 @@ public:
 	// EUL_InitSubInstance
 	virtual void InitSubInstance(CParticleComponentRuntime* pComponentRuntime, size_t firstInstance, size_t lastInstance) {}
 
+	// EUL_GetExtents
+	virtual void GetSpatialExtents(const SUpdateContext& context, TConstArray<float> scales, TVarArray<float> extents) {}
+
+	// EUL_GetEmitOffset
+	virtual Vec3 GetEmitOffset(const SUpdateContext& context, TParticleId parentId) { return Vec3(0); }
+
 	// EUL_Spawn
 	virtual void SpawnParticles(const SUpdateContext& context) {}
 
@@ -73,7 +81,7 @@ public:
 	virtual void PostInitParticles(const SUpdateContext& context) {}
 
 	// EUL_KillUpdate
-	virtual void KillParticles(const SUpdateContext& context, TParticleId* pParticles, size_t count) {}
+	virtual void KillParticles(const SUpdateContext& context, TConstArray<TParticleId> particleIds) {}
 
 	// EUL_PreUpdate
 	virtual void PreUpdate(const SUpdateContext& context) {}
@@ -81,14 +89,14 @@ public:
 	// EUL_Update
 	virtual void Update(const SUpdateContext& context) {}
 
+	// EUL_PostUpdate
+	virtual void PostUpdate(const SUpdateContext& context) {}
+
 	// EUL_Render
 	virtual void PrepareRenderObjects(CParticleEmitter* pEmitter, CParticleComponent* pComponent)                                                                            {}
 	virtual void ResetRenderObjects(CParticleEmitter* pEmitter, CParticleComponent* pComponent)                                                                              {}
 	virtual void Render(CParticleEmitter* pEmitter, ICommonParticleComponentRuntime* pComponentRuntime, CParticleComponent* pComponent, const SRenderContext& renderContext) {}
 	virtual void ComputeVertices(CParticleComponentRuntime* pComponentRuntime, const SCameraInfo& camInfo, CREParticle* pRE, uint64 uRenderFlags, float fMaxPixels)          {}
-
-	// EUL_GetExtents
-	virtual void GetSpatialExtents(const SUpdateContext& context, Array<const float, uint> scales, Array<float, uint> extents) {}
 
 protected:
 	void AddNoPropertiesLabel(Serialization::IArchive& ar);

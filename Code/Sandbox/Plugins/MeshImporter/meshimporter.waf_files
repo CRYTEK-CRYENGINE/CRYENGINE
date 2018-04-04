@@ -38,8 +38,6 @@
 		  "CallRcTask.cpp",
 		  "RcCaller.h",
 		  "RcCaller.cpp",
-		  "ConvertToTifTask.h",
-		  "ConvertToTifTask.cpp",
 		  "CreateMaterialTask.h",
 		  "CreateMaterialTask.cpp",
 		  "TargetMesh.h",
@@ -48,11 +46,19 @@
 		  "EditorMetaData.cpp",
 		  "MaterialHelpers.h",
 		  "MaterialHelpers.cpp",
+		  "TextureHelpers.h",
+		  "TextureHelpers.cpp",
 		  "GenerateCharacter.cpp",
 		  "GenerateCharacter.h",
 		  "RenderHelpers.h",
 		  "ImporterUtil.h",
-		  "ImporterUtil.cpp"
+		  "ImporterUtil.cpp",
+		  "TextureManager.h",
+		  "TextureManager.cpp",
+		  "AssetImporterFBX.h",
+		  "AssetImporterFBX.cpp",
+		  "AssetImporterImage.h",
+		  "AssetImporterImage.cpp"
 		],
 		"Dialog" :[
 		  "MeshImporterEditor.h",
@@ -71,8 +77,6 @@
 		  "SplitViewportContainer.cpp",
 		  "DisplayOptions.h",
 		  "DisplayOptions.cpp",
-		  "TextureConversionDialog.h",
-		  "TextureConversionDialog.cpp",
 		  "SceneUserData.h",
 		  "SceneUserData.cpp",
 		  "MaterialPanel.h",
@@ -110,7 +114,9 @@
 		  "ProxyGenerator/ProxyData.h",
 		  "ProxyGenerator/ProxyData.cpp",
 		  "ProxyGenerator/PhysProxiesControlsWidget.h",
-		  "ProxyGenerator/PhysProxiesControlsWidget.cpp"
+		  "ProxyGenerator/PhysProxiesControlsWidget.cpp",
+		  "ProxyGenerator/WriteProxies.h",
+		  "ProxyGenerator/WriteProxies.cpp"
 		],
 		"SkeletonPoser" :[
 		  "SkeletonPoser/SkeletonPoser.h",
@@ -119,6 +125,10 @@
 		"AnimationHelpers" :[
 		  "AnimationHelpers/AnimationHelpers.h",
 		  "AnimationHelpers/AnimationHelpers.cpp"
+		],
+		"SkeletonHelpers" :[
+		  "SkeletonHelpers/SkeletonHelpers.h",
+		  "SkeletonHelpers/SkeletonHelpers.cpp"
 		],
 		"Scene" :[
 		  "Scene/SceneElementTypes.h",
@@ -151,36 +161,26 @@
 		  "MaterialElement.h",
 		  "MaterialElement.cpp",
 		  "MaterialModel.h",
-		  "MaterialModel.cpp"
+		  "MaterialModel.cpp",
+		  "TextureModel.h",
+		  "TextureModel.cpp"
 		],
 		"View" :[
 		  "SceneView.h",
 		  "SceneView.cpp",
+		  "SceneContextMenu.h",
+		  "SceneContextMenu.cpp",
 		  "MaterialView.h",
 		  "MaterialView.cpp",
 		  "ComboBoxDelegate.h",
-		  "ComboBoxDelegate.cpp"
+		  "ComboBoxDelegate.cpp",
+		  "TextureView.h",
+		  "TextureView.cpp"
 		],
 		"ModelProperties" :[
 		  "ModelProperties/ModelProperties.h",
 		  "ModelProperties/ModelProperties.cpp"
 		  ],
-		"AssetTypes" :[
-		  "AssetTypes/AssetTypeHelpers.cpp",
-		  "AssetTypes/AssetTypeHelpers.h",
-		  "AssetTypes/MeshType.cpp",
-		  "AssetTypes/MeshType.h",
-		  "AssetTypes/SkinnedMeshType.cpp",
-		  "AssetTypes/SkinnedMeshType.h",
-		  "AssetTypes/SkeletonType.cpp",
-		  "AssetTypes/SkeletonType.h",
-		  "AssetTypes/MaterialType.cpp",
-		  "AssetTypes/MaterialType.h",
-		  "AssetTypes/CharacterDefinitionType.cpp",
-		  "AssetTypes/CharacterDefinitionType.h",
-		  "AssetTypes/AnimationType.cpp",
-		  "AssetTypes/AnimationType.h"
-		],
 		"Resources" :[
 		  "Resources.qrc",
 		  "PlaceholderIcon.png",

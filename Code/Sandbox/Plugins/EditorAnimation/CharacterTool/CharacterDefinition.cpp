@@ -589,7 +589,7 @@ void CharacterAttachment::Serialize(Serialization::IArchive& ar)
 		auto inlineName = m_strSocketName;
 		ar(inlineName, "inlineName", "!^");
 		auto inlineType = m_attachmentType;
-		ar(inlineType, "inlineType", "!>100>^");
+		ar(inlineType, "inlineType", "!>118>^");
 	}
 
 	stack_string oldName = m_strSocketName;
@@ -1065,7 +1065,7 @@ void CharacterDefinition::Serialize(Serialization::IArchive& ar)
 		ar.warning(attachments, "Add attachments to the skeleton to create character geometry.\nIf you want to see the skeleton: go to 'Display Options', 'Skeleton' and select 'Joints'.");
 
 	if (ar.isInput() && !modifiers)
-		CryCreateClassInstance("PoseModifierSetup", modifiers);
+		CryCreateClassInstanceForInterface(cryiidof<IAnimationPoseModifierSetup>(), modifiers);
 	if (modifiers)
 		modifiers->Serialize(ar);
 }
@@ -1443,7 +1443,7 @@ bool CharacterDefinition::LoadFromXml(const XmlNodeRef& root)
 		}
 	}
 
-	if (CryCreateClassInstance("PoseModifierSetup", modifiers))
+	if (CryCreateClassInstanceForInterface(cryiidof<IAnimationPoseModifierSetup>(), modifiers))
 	{
 		if (!Serialization::LoadXmlNode(*modifiers, root))
 			return false;

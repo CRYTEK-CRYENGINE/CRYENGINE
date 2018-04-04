@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 // -------------------------------------------------------------------------
 //  File name:   IGameTokens.h
@@ -17,13 +17,13 @@
 
 enum EGameTokenFlags
 {
-	EGAME_TOKEN_MODIFIED      = 0x01,    //!< Token is modified from its default value.
-	EGAME_TOKEN_GRAPHVARIABLE = 0x02,    //!< Token is constrained to the flowgraph it appears in.
-	EGAME_TOKEN_LOCALONLY     = 0x04,    //!< This token will not be synchronized to clients.
+	EGAME_TOKEN_MODIFIED      = BIT(0),    //!< If the token has been modified at least once for this game run.
+	EGAME_TOKEN_GRAPHVARIABLE = BIT(1),    //!< Token is constrained to the flowgraph it appears in.
+	EGAME_TOKEN_LOCALONLY     = BIT(2),    //!< This token will not be synchronized to clients.
 };
 
 #ifndef _RELEASE
-	#define _GAMETOKENSDEBUGINFO // just to be able to fast activate it in _release easily if needed.
+#define _GAMETOKENSDEBUGINFO  // just to be able to fast activate it in _release easily if needed.
 #endif
 
 //! Game Token can be used as any Plot event in the game.
@@ -44,19 +44,21 @@ struct IGameToken
 	//! Retrieve current data type of the game token.
 	virtual EFlowDataTypes GetType() const = 0;
 
-	//! Assign data type to the game token.
-	virtual void SetType(EFlowDataTypes dataType) = 0;
-
 	//! Assign a new value to the game token.
 	virtual void SetValue(const TFlowInputData& val) = 0;
 
 	//! Retrieve a value of the game token.
-	//! Returns false if a value cannot be retrived.
+	//! Returns false if a value cannot be retrieved.
 	virtual bool GetValue(TFlowInputData& val) const = 0;
 
 	//! Set token value from a string.
-	virtual void        SetValueAsString(const char* sValue, bool bDefault = false) = 0;
+	virtual void SetValueFromString(const char* sValue) = 0;
+
+	//! Get the token value as a string
 	virtual const char* GetValueAsString() const = 0;
+
+	//! Propagate token changed event. use bIsGameStart to true when it is the first time the token is set for the game
+	virtual void TriggerAsChanged(bool bIsGameStart) = 0;
 	// </interfuscator:shuffle>
 
 	//! A small template helper (yes, in the i/f) to get the value.
@@ -122,7 +124,7 @@ struct IGameTokenEventListener
 };
 
 //! Manages collection of game tokens.
-//! Responsible for saving/loading and acessing game tokens.
+//! Responsible for saving/loading and accessing game tokens.
 struct IGameTokenSystem
 {
 	// <interfuscator:shuffle>
@@ -162,6 +164,12 @@ struct IGameTokenSystem
 	//! Reset system (deletes all libraries).
 	virtual void Reset() = 0;
 	virtual void Unload() = 0;
+
+	//! Propagate token changed event for all tokens. This is signaled and should only be used at game start (editor and pure game)
+	virtual void TriggerTokensAsChanged() = 0;
+
+	//! Set the internal state of the GTS, eg. so that it does not send events to other systems when initializing the game
+	virtual void SetGoingIntoGame(bool bGoingIntoGame) = 0;
 
 	virtual void Serialize(TSerialize ser) = 0;
 

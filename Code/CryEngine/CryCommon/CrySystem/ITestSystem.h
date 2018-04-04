@@ -1,8 +1,6 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #pragma once
-
-#include "CryUnitTest.h"
 
 struct ILog;
 struct IGameplayListener;
@@ -20,28 +18,20 @@ struct STimeDemoFrameInfo
 
 struct STimeDemoInfo
 {
-	STimeDemoInfo() :
-		nFrameCount(0), pFrames(NULL), lastPlayedTotalTime(0), lastAveFrameRate(0),
-		minFPS(0), maxFPS(0), minFPS_Frame(0), maxFPS_Frame(0),
-		nTotalPolysRecorded(0), nTotalPolysPlayed(0)
-	{
+	std::vector<STimeDemoFrameInfo> frames;
 
-	}
-	int                 nFrameCount;
-	STimeDemoFrameInfo* pFrames;
+	float               lastPlayedTotalTime = 0.0f;
+	float               lastAveFrameRate = 0.0f;
+	float               minFPS = 0.0f;
+	float               maxFPS = 0.0f;
+	uint32              minFPS_Frame = 0;
+	uint32              maxFPS_Frame = 0;
 
-	float               lastPlayedTotalTime;
-	float               lastAveFrameRate;
-	float               minFPS;
-	float               maxFPS;
-	uint32              minFPS_Frame;
-	uint32              maxFPS_Frame;
+	//! How many polygons were recorded.
+	uint32 nTotalPolysRecorded = 0;
 
-	//! How many polygons per frame where recorded.
-	uint32 nTotalPolysRecorded;
-
-	//! How many polygons per frame where played.
-	uint32 nTotalPolysPlayed;
+	//! How many polygons were played.
+	uint32 nTotalPolysPlayed = 0;
 };
 
 //! Automatic game testing system.
@@ -59,6 +49,7 @@ struct ITestSystem
 
 	virtual void  BeforeRender() = 0;
 	virtual void  AfterRender() = 0;
+	virtual void  InitLog() = 0;
 	virtual ILog* GetILog() = 0;
 
 	//! To free the system (not reference counted).

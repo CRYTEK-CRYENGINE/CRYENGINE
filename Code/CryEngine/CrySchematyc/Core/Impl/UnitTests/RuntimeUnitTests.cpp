@@ -1,10 +1,10 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #include "StdAfx.h"
 
-#include <Schematyc/Runtime/RuntimeParams.h>
-#include <Schematyc/Utils/Scratchpad.h>
-#include <Schematyc/Utils/SharedString.h>
+#include <CrySchematyc/Runtime/RuntimeParams.h>
+#include <CrySchematyc/Utils/Scratchpad.h>
+#include <CrySchematyc/Utils/SharedString.h>
 
 #include "UnitTests/UnitTestRegistrar.h"
 
@@ -12,6 +12,7 @@ namespace Schematyc
 {
 namespace RuntimeUnitTests
 {
+
 UnitTestResultFlags TestScratchpad()
 {
 	const int32 valueA = 101;
@@ -49,41 +50,31 @@ UnitTestResultFlags TestScratchpad()
 
 UnitTestResultFlags TestRuntimeParams()
 {
-	struct EParamId
-	{
-		enum : uint32
-		{
-			A = 0,
-			B,
-			C
-		};
-	};
-
 	const int32 valueA = 101;
 	const float valueB = 202.0f;
 	const CSharedString valueC = "303";
 
 	StackRuntimeParams stackRuntimeParams;
 
-	stackRuntimeParams.SetInput(EParamId::A, valueA);
-	stackRuntimeParams.SetInput(EParamId::B, valueB);
-	stackRuntimeParams.SetInput(EParamId::C, valueC);
+	stackRuntimeParams.AddInput(CUniqueId::FromUInt32('a'), valueA);
+	stackRuntimeParams.AddInput(CUniqueId::FromUInt32('b'), valueB);
+	stackRuntimeParams.AddInput(CUniqueId::FromUInt32('c'), valueC);
 
 	HeapRuntimeParams heapRuntimeParams(stackRuntimeParams);
 
-	const int32* pA = DynamicCast<int32>(heapRuntimeParams.GetInput(EParamId::A));
+	const int32* pA = DynamicCast<int32>(heapRuntimeParams.GetInput(CUniqueId::FromUInt32('a')));
 	if (!pA || (*pA != valueA))
 	{
 		return EUnitTestResultFlags::FatalError;
 	}
 
-	const float* pB = DynamicCast<float>(heapRuntimeParams.GetInput(EParamId::B));
+	const float* pB = DynamicCast<float>(heapRuntimeParams.GetInput(CUniqueId::FromUInt32('b')));
 	if (!pB || (*pB != valueB))
 	{
 		return EUnitTestResultFlags::FatalError;
 	}
 
-	const CSharedString* pC = DynamicCast<CSharedString>(heapRuntimeParams.GetInput(EParamId::C));
+	const CSharedString* pC = DynamicCast<CSharedString>(heapRuntimeParams.GetInput(CUniqueId::FromUInt32('c')));
 	if (!pC || (*pC != valueC))
 	{
 		return EUnitTestResultFlags::FatalError;
@@ -99,7 +90,9 @@ UnitTestResultFlags Run()
 	resultFlags.Add(TestRuntimeParams());
 	return resultFlags;
 }
-}   // RuntimeUnitTests
+
+} // RuntimeUnitTests
 
 SCHEMATYC_REGISTER_UNIT_TEST(&RuntimeUnitTests::Run, "Runtime")
+
 } // Schematyc

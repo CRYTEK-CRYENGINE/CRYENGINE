@@ -1,4 +1,5 @@
 // Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved.
+
 #include "StdAfx.h"
 
 #include "AnimationCompiler.h"
@@ -7,10 +8,10 @@
 #include "AnimationLoader.h"
 #include "AnimationManager.h"
 #include "IConfig.h"
+#include "IAssetManager.h"
 #include "TrackStorage.h"
 #include "UpToDateFileHelpers.h"
 #include "CGF/CGFSaver.h"
-#include "Metadata/MetadataHelpers.h"
 
 #include "IPakSystem.h"
 #include "TempFilePakExtraction.h"
@@ -168,7 +169,7 @@ private:
 
 
 //////////////////////////////////////////////////////////////////////////
-CAnimationConvertor::CAnimationConvertor(ICryXML* pXMLParser, IPakSystem* pPakSystem, IResourceCompiler* pRC)
+CAnimationConverter::CAnimationConverter(ICryXML* pXMLParser, IPakSystem* pPakSystem, IResourceCompiler* pRC)
 	: m_pPakSystem(pPakSystem)
 	, m_pXMLParser(pXMLParser)
 	, m_config(0)
@@ -180,7 +181,7 @@ CAnimationConvertor::CAnimationConvertor(ICryXML* pXMLParser, IPakSystem* pPakSy
 {
 }
 
-void CAnimationConvertor::Init(const ConvertorInitContext& context)
+void CAnimationConverter::Init(const ConverterInitContext& context)
 {
 	m_fancyAnimationIndex = 0;
 	m_changedAnimationCount = 0;
@@ -258,7 +259,7 @@ void CAnimationConvertor::Init(const ConvertorInitContext& context)
 	}	
 }
 
-void CAnimationConvertor::InitSkeletonManager(const std::set<string>& usedSkeletons)
+void CAnimationConverter::InitSkeletonManager(const std::set<string>& usedSkeletons)
 {
 	m_skeletonManager.reset(new SkeletonManager(m_pPakSystem, m_pXMLParser, m_rc));
 
@@ -291,7 +292,7 @@ static string GetDbaTableFilename(const string& sourceGameFolderPath, const stri
 	return string();
 }
 
-void CAnimationConvertor::InitDbaTableEnumerator()
+void CAnimationConverter::InitDbaTableEnumerator()
 {
 	const string dbaTableFilename = GetDbaTableFilename(m_sourceGameFolderPath, m_configSubfolder);
 	if (dbaTableFilename.empty())
@@ -309,7 +310,7 @@ void CAnimationConvertor::InitDbaTableEnumerator()
 }
 
 
-void CAnimationConvertor::DeInit()
+void CAnimationConverter::DeInit()
 {
 	RebuildDatabases();
 }
@@ -325,7 +326,7 @@ static vector<string> GetJointNames(const CSkeletonInfo* skeleton)
 	return result;
 }
 
-bool CAnimationConvertor::RebuildDatabases()
+bool CAnimationConverter::RebuildDatabases()
 {
 	if (m_config->GetAsBool("SkipDba", false, true))
 	{
@@ -672,16 +673,20 @@ bool CAnimationConvertor::RebuildDatabases()
 		m_rc->AddInputOutputFilePair(dbaTableFilename.c_str(), sAnimationsImgFilename);
 	}
 
-	const string sDirectionalBlendsImgFilename = PathHelpers::Join(targetGameFolderPath, "Animations\\DirectionalBlends.img");
-	RCLog("Saving %s...",sDirectionalBlendsImgFilename);
-	if(!animationManager.SaveAIMImage(sDirectionalBlendsImgFilename, latest, bigEndianOutput))
+	// Check if it can be skipped so it won't accidentally log errors.
+	if (!animationManager.CanBeSkipped())
 	{
-		RCLogError("Error saving DirectionalBlends.img");
-		return false;
-	}
-	if (m_rc)
-	{
-		m_rc->AddInputOutputFilePair(dbaTableFilename.c_str(), sDirectionalBlendsImgFilename);
+		const string sDirectionalBlendsImgFilename = PathHelpers::Join(targetGameFolderPath, "Animations\\DirectionalBlends.img");
+		RCLog("Saving %s...", sDirectionalBlendsImgFilename);
+		if (!animationManager.SaveAIMImage(sDirectionalBlendsImgFilename, latest, bigEndianOutput))
+		{
+			RCLogError("Error saving DirectionalBlends.img");
+			return false;
+		}
+		if (m_rc)
+		{
+			m_rc->AddInputOutputFilePair(dbaTableFilename.c_str(), sDirectionalBlendsImgFilename);
+		}
 	}
 
 	if (!unusedDBAs.empty())
@@ -702,37 +707,37 @@ bool CAnimationConvertor::RebuildDatabases()
 	return true;
 }
 
-void CAnimationConvertor::Release()
+void CAnimationConverter::Release()
 {
 	delete this;
 }
 
-ICompiler* CAnimationConvertor::CreateCompiler()
+ICompiler* CAnimationConverter::CreateCompiler()
 {
 	return new CAnimationCompiler(this);
 }
 
-bool CAnimationConvertor::SupportsMultithreading() const
+bool CAnimationConverter::SupportsMultithreading() const
 {
   return true;
 }
 
-void CAnimationConvertor::IncrementChangedAnimationCount()
+void CAnimationConverter::IncrementChangedAnimationCount()
 {
 	InterlockedIncrement(&m_changedAnimationCount);
 }
 
-int CAnimationConvertor::IncrementFancyAnimationIndex()
+int CAnimationConverter::IncrementFancyAnimationIndex()
 {
 	return InterlockedIncrement(&m_fancyAnimationIndex);
 }
 
-bool CAnimationConvertor::InLocalUpdateMode() const
+bool CAnimationConverter::InLocalUpdateMode() const
 {
 	return m_config->GetAsBool("SkipDba", false, true);
 }
 
-void CAnimationConvertor::SetPlatform(int platform)
+void CAnimationConverter::SetPlatform(int platform)
 {
 	if (m_platform < 0)
 	{
@@ -741,9 +746,9 @@ void CAnimationConvertor::SetPlatform(int platform)
 }
 
 //////////////////////////////////////////////////////////////////////////
-CAnimationCompiler::CAnimationCompiler(CAnimationConvertor* convertor) 
-: m_pXMLParser(convertor->GetXMLParser())
-, m_convertor(convertor)
+CAnimationCompiler::CAnimationCompiler(CAnimationConverter* converter) 
+: m_pXMLParser(converter->GetXMLParser())
+, m_converter(converter)
 {
 }
 
@@ -753,7 +758,7 @@ CAnimationCompiler::~CAnimationCompiler()
 
 string CAnimationCompiler::GetOutputFileNameOnly() const
 {
-	const bool localUpdateMode = Convertor()->InLocalUpdateMode();
+	const bool localUpdateMode = Converter()->InLocalUpdateMode();
 
 	const string overwrittenFilename = m_CC.config->GetAsString("overwritefilename", m_CC.sourceFileNameOnly.c_str(), m_CC.sourceFileNameOnly.c_str());
 
@@ -830,7 +835,7 @@ static bool PrepareAnimationJob(
 	job->m_skeleton = skeleton;
 	job->m_bigEndianOutput = bigEndianOutput;
 
-	const bool bLocalUpdateMode = compiler->Convertor()->InLocalUpdateMode();
+	const bool bLocalUpdateMode = compiler->Converter()->InLocalUpdateMode();
 	const bool bUseDBA = (dbaPath != NULL && dbaPath[0] != '\0' && !job->m_animDesc.m_bSkipSaveToDatabase && !bLocalUpdateMode);
 	if (bUseDBA)
 	{
@@ -1012,7 +1017,7 @@ bool CAnimationCompiler::Process()
 {
 	MathHelpers::AutoFloatingPointExceptions autoFpe(0);  // TODO: it's better to replace it by autoFpe(~(_EM_INEXACT | _EM_UNDERFLOW)). it was tested and works.
 
-	Convertor()->SetPlatform(m_CC.platform); // hackish
+	Converter()->SetPlatform(m_CC.platform); // hackish
 
 	const int verbosityLevel = m_CC.pRC->GetVerbosityLevel();
 
@@ -1025,13 +1030,13 @@ bool CAnimationCompiler::Process()
 		return true;
 	}
 
-	if (!StringHelpers::EqualsIgnoreCase(m_CC.convertorExtension, "i_caf"))
+	if (!StringHelpers::EqualsIgnoreCase(m_CC.converterExtension, "i_caf"))
 	{
 		RCLogError("Expected i_caf file as input");
 		return false;
 	}
 
-	const string& sourceGameFolderPath = Convertor()->GetSourceGameFolderPath();
+	const string& sourceGameFolderPath = Converter()->GetSourceGameFolderPath();
 	const string fileName = UnifiedPath(RelativePath(m_CC.GetSourcePath(), sourceGameFolderPath));
 	const string animationName = PathHelpers::ReplaceExtension(fileName, "caf");
 	if (fileName.empty())
@@ -1062,9 +1067,9 @@ bool CAnimationCompiler::Process()
 
 	if (!GetFromAnimSettings(&animDesc, &skeleton, &bErrorReported,
 		sourcePath.c_str(), animationName.c_str(),
-		Convertor()->GetPakSystem(),
-		Convertor()->GetXMLParser(),
-		Convertor()->m_skeletonManager.get()))
+		Converter()->GetPakSystem(),
+		Converter()->GetXMLParser(),
+		Converter()->m_skeletonManager.get()))
 	{
 		if (!bErrorReported)
 		{
@@ -1081,12 +1086,12 @@ bool CAnimationCompiler::Process()
 
 	const bool isAIM = IsAimAnimation(skeleton->m_SkinningInfo, animationName.c_str());
 	const bool isLook = IsLookAnimation(skeleton->m_SkinningInfo, animationName.c_str());
-	if (!(isAIM || isLook) && !Convertor()->InLocalUpdateMode())
+	if (!(isAIM || isLook) && !Converter()->InLocalUpdateMode())
 	{
 		const char* dbaPathFromTable = 0;	
-		if (Convertor()->m_dbaTableEnumerator.get())
+		if (Converter()->m_dbaTableEnumerator.get())
 		{
-			dbaPathFromTable = Convertor()->m_dbaTableEnumerator->FindDBAPath(animationName, animDesc.m_skeletonName.c_str(), animDesc.m_tags);
+			dbaPathFromTable = Converter()->m_dbaTableEnumerator->FindDBAPath(animationName, animDesc.m_skeletonName.c_str(), animDesc.m_tags);
 		}
 
 		if (dbaPathFromTable)
@@ -1115,9 +1120,9 @@ bool CAnimationCompiler::Process()
 		animDesc.oldFmt.m_fSCL_EPSILON = 0.0f;
 		animDesc.m_bNewFormat = false;
 	}
-	else if (Convertor()->m_compressionPresetTable.get())
+	else if (Converter()->m_compressionPresetTable.get())
 	{
-		const SCompressionPresetEntry* const preset = Convertor()->m_compressionPresetTable.get()->FindPresetForAnimation(animationName.c_str(), animDesc.m_tags, animDesc.m_skeletonName.c_str());
+		const SCompressionPresetEntry* const preset = Converter()->m_compressionPresetTable.get()->FindPresetForAnimation(animationName.c_str(), animDesc.m_tags, animDesc.m_skeletonName.c_str());
 		if (preset)
 		{
 			const bool bDebugCompression = m_CC.config->GetAsBool("debugcompression", false, true);
@@ -1179,11 +1184,11 @@ bool CAnimationCompiler::Process()
 
 static void ProcessAnimationJob(AnimationJob* job)
 {
-	CAnimationConvertor* convertor = job->m_compiler->Convertor();
+	CAnimationConverter* converter = job->m_compiler->Converter();
 	const ConvertContext& context = *static_cast<const ConvertContext*>(job->m_compiler->GetConvertContext());
 	const bool bDebugCompression = job->m_debugCompression;
 
-	const SPlatformAnimationSetup* platform = &convertor->GetPlatformSetup();
+	const SPlatformAnimationSetup* platform = &converter->GetPlatformSetup();
 	const SAnimationDesc* animDesc = &job->m_animDesc;
 
 	int processStartTime = GetTickCount();
@@ -1335,10 +1340,10 @@ static void ProcessAnimationJob(AnimationJob* job)
 		{
 			job->m_resSize = compressor.SaveOnlyCompressedChunksInFile(destPath.c_str(), sourceWriteTime, 0, false, job->m_bigEndianOutput);
 			context.pRC->AddInputOutputFilePair(sourcePath, destPath);
-			AssetManager::SaveAsset(context.pRC, context.config, sourcePath, { destPath });
+			context.pRC->GetAssetManager()->SaveCryasset(context.config, sourcePath, { destPath });
 		}
 
-		convertor->IncrementChangedAnimationCount();
+		converter->IncrementChangedAnimationCount();
 	}
 	else
 	{
@@ -1376,7 +1381,7 @@ static void ProcessAnimationJob(AnimationJob* job)
 		{
 			cry_strcpy(processTime, "is up to date");
 		}
-		const int fancyAnimationIndex = convertor->IncrementFancyAnimationIndex();
+		const int fancyAnimationIndex = converter->IncrementFancyAnimationIndex();
 		const char* const aimState = isAIM || isLook ? "AIM" : "   ";
 		RCLog("CAF-%04d %13s %s 0x%08X ctrls:%03d %s %s", fancyAnimationIndex, processTime, aimState, crc32, compressedControllerCount, animPath, dbaPath);
 	}

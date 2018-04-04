@@ -4,7 +4,7 @@
 #include "Script/ScriptSerializers.h"
 
 #include <CrySerialization/IArchiveHost.h>
-#include <Schematyc/Utils/EnumFlags.h>
+#include <CrySchematyc/Utils/EnumFlags.h>
 
 #include "Script/Script.h"
 #include "Script/ScriptElementFactory.h"
@@ -31,13 +31,14 @@
 
 namespace Schematyc
 {
-namespace
-{
-CScriptElementFactory g_scriptElementFactory; // #SchematycTODO : Move to CScriptRegistry?
+
+namespace {
+
+CScriptElementFactory g_scriptElementFactory; // #SchematycTODO : Move to CScriptRegistry? Yes!
 
 enum class EScriptElementOutputSerializerFlags
 {
-	None = 0,
+	None    = 0,
 	Copying = BIT(0)
 };
 
@@ -77,7 +78,7 @@ public:
 			m_pElement->Serialize(archive);
 		}
 
-		if (!m_pParams->callback.IsEmpty())
+		if (m_pParams->callback)
 		{
 			m_pParams->callback(*m_pElement);
 		}
@@ -99,6 +100,7 @@ private:
 	IScriptElement*                            m_pElement;
 	const ScriptElementOutputSerializerParams* m_pParams;
 };
+
 } // Anonymous
 
 CScriptInputElementSerializer::CScriptInputElementSerializer(IScriptElement& element, ESerializationPass serializationPass, const ScriptElementSerializeCallback& callback)
@@ -118,20 +120,21 @@ SScriptInputElement::SScriptInputElement()
 
 void SScriptInputElement::Serialize(Serialization::IArchive& archive)
 {
-	if (!ptr)
+	if (!instance)
 	{
 		EScriptElementType elementType = EScriptElementType::None;
 		archive(elementType, "elementType");
-		ptr = g_scriptElementFactory.CreateElement(elementType);
-		if (ptr)
+
+		instance = g_scriptElementFactory.CreateElement(elementType);
+		if (instance)
 		{
 			children.reserve(20);
 			archive(children, "children");
 			for (SScriptInputElement& child : children)
 			{
-				if (child.ptr)
+				if (child.instance)
 				{
-					ptr->AttachChild(*child.ptr);
+					instance->AttachChild(*child.instance);
 				}
 			}
 		}
@@ -172,7 +175,7 @@ void CScriptSaveSerializer::Serialize(Serialization::IArchive& archive)
 	uint32 versionNumber = 105;
 	archive(versionNumber, "version");
 
-	SGUID guid = m_script.GetGUID();
+	CryGUID guid = m_script.GetGUID();
 	archive(guid, "guid");
 
 	IScriptElement* pRoot = m_script.GetRoot();
@@ -181,7 +184,7 @@ void CScriptSaveSerializer::Serialize(Serialization::IArchive& archive)
 		IScriptElement* pScope = pRoot->GetParent();
 		if (pScope)
 		{
-			SGUID scopeGUID = pScope->GetGUID();
+			CryGUID scopeGUID = pScope->GetGUID();
 			archive(scopeGUID, "scope");
 		}
 
@@ -211,7 +214,7 @@ void CScriptPasteSerializer::Serialize(Serialization::IArchive& archive)
 
 void UnrollScriptInputElementsRecursive(ScriptInputElementPtrs& output, SScriptInputElement& element)
 {
-	if (element.ptr)
+	if (element.instance)
 	{
 		output.push_back(&element);
 	}
@@ -223,19 +226,19 @@ void UnrollScriptInputElementsRecursive(ScriptInputElementPtrs& output, SScriptI
 
 bool SortScriptInputElementsByDependency(ScriptInputElementPtrs& elements)
 {
-	typedef std::unordered_map<SGUID, SScriptInputElement*> ElementsByGUID;
+	typedef std::unordered_map<CryGUID, SScriptInputElement*> ElementsByGUID;
 
 	ElementsByGUID elementsByGUID;
 	const uint32 elementCount = elements.size();
 	elementsByGUID.reserve(elementCount);
 	for (SScriptInputElement* pElement : elements)
 	{
-		elementsByGUID.insert(ElementsByGUID::value_type(pElement->ptr->GetGUID(), pElement));
+		elementsByGUID.insert(ElementsByGUID::value_type(pElement->instance->GetGUID(), pElement));
 	}
 
 	for (SScriptInputElement* pElement : elements)
 	{
-		auto visitElementDependency = [&elementsByGUID, pElement](const SGUID& guid)
+		auto visitElementDependency = [&elementsByGUID, pElement](const CryGUID& guid)
 		{
 			ElementsByGUID::const_iterator itDependency = elementsByGUID.find(guid);
 			if (itDependency != elementsByGUID.end())
@@ -243,7 +246,7 @@ bool SortScriptInputElementsByDependency(ScriptInputElementPtrs& elements)
 				pElement->dependencies.push_back(itDependency->second);
 			}
 		};
-		pElement->ptr->EnumerateDependencies(ScriptDependencyEnumerator::FromLambda(visitElementDependency), EScriptDependencyType::Load);
+		pElement->instance->EnumerateDependencies(visitElementDependency, EScriptDependencyType::Load);
 	}
 
 	uint32 recursiveDependencyCount = 0;

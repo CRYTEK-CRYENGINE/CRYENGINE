@@ -7,6 +7,7 @@
 #include "Scene/SceneElementSourceNode.h"
 #include "Scene/Scene.h"
 #include "Scene/SourceSceneHelper.h"
+#include "ImporterUtil.h"
 
 // ==================================================
 // CSceneModelCommon::ISceneBuilder
@@ -151,6 +152,46 @@ struct CSceneModelCommon::CSceneModelWithoutPseudoRoot : CSceneModelCommon::ISce
 // CSceneModelCommon
 // ==================================================
 
+//! Same as CItemModelAttributeEnumFunc, but does not cache entries; the populate method is invoked every time.
+//! Use this if the enumeration is dynamic.
+class CItemModelAttributeEnumFuncDynamic : public CItemModelAttributeEnum
+{
+public:
+	CItemModelAttributeEnumFuncDynamic(const char* szName, std::function<QStringList()> populateFunc, Visibility visibility = CItemModelAttribute::Visible, bool filterable = true, QVariant defaultFilterValue = QVariant())
+		: CItemModelAttributeEnum(szName, QStringList(), visibility, filterable, defaultFilterValue)
+		, m_populateFunc(populateFunc)
+	{}
+
+	virtual QStringList GetEnumEntries() const override
+	{
+		const_cast<CItemModelAttributeEnumFuncDynamic*>(this)->Populate();
+		return m_enumEntries;
+	}
+
+private:
+	void Populate()
+	{
+		m_enumEntries = m_populateFunc();
+	}
+
+private:
+	std::function<QStringList()> m_populateFunc;
+};
+
+static QStringList GetSourceAttributes(const FbxTool::CScene* pFbxScene)
+{
+	std::vector<string> attribs;
+	for (int i = 0, N = pFbxScene->GetNodeCount(); i < N; ++i)
+	{
+		const FbxTool::SNode* pFbxNode = pFbxScene->GetNodeByIndex(i);
+		if (!pFbxNode->namedAttributes.empty())
+		{
+			stl::push_back_unique(attribs, pFbxNode->namedAttributes[0]);
+		}
+	}
+	return ToStringList(attribs);
+}
+
 CSceneModelCommon::CSceneModelCommon(QObject* pParent /* = nullptr */)
 	: QAbstractItemModel(pParent)
 	, m_pScene(new CScene())
@@ -158,6 +199,17 @@ CSceneModelCommon::CSceneModelCommon(QObject* pParent /* = nullptr */)
 	, m_pRoot(nullptr)
 {
 	m_pSceneBuilder.reset(new CSceneModelWithPseudoRoot());
+
+	auto populateSourceAttribute = [this]()
+	{
+		return m_pFbxScene ? GetSourceAttributes(m_pFbxScene) : QStringList();
+	};
+	m_pSourceNodeAttributeAttribute.reset(new CItemModelAttributeEnumFuncDynamic("Source attribute", populateSourceAttribute, CItemModelAttribute::StartHidden));
+}
+
+CItemModelAttribute* CSceneModelCommon::GetSourceNodeAttributeAttribute() const
+{
+	return m_pSourceNodeAttributeAttribute.get();
 }
 
 CSceneModelCommon::~CSceneModelCommon()
@@ -204,6 +256,15 @@ void CSceneModelCommon::Reset()
 {
 	beginResetModel();
 	endResetModel();
+}
+
+QVariant CSceneModelCommon::data(const QModelIndex& index, int role) const
+{
+	if (index.isValid() && role == eRole_InternalPointerRole)
+	{
+		return QVariant((intptr_t)GetSceneElementFromModelIndex(index));
+	}
+	return QVariant();
 }
 
 QModelIndex CSceneModelCommon::index(int row, int column, const QModelIndex& parent) const

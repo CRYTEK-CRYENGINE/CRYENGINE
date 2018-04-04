@@ -1,4 +1,6 @@
 // Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved.
+
+//////////////////////////////////////////////////////////////////////
 //
 //  CryEngine Source code
 //	
@@ -65,16 +67,6 @@ struct GlobalAnimationHeaderAIM : public GlobalAnimationHeader
 		m_nExist					=	0;
 
 		memset(m_PolarGrid, 0, sizeof(m_PolarGrid));
-
-		((uint32*)&m_MiddleAimPoseRot)[0] = F32NAN;
-		((uint32*)&m_MiddleAimPoseRot)[1] = F32NAN;
-		((uint32*)&m_MiddleAimPoseRot)[2] = F32NAN;
-		((uint32*)&m_MiddleAimPoseRot)[3] = F32NAN;
-
-		((uint32*)&m_MiddleAimPose)[0] = F32NAN;
-		((uint32*)&m_MiddleAimPose)[1] = F32NAN;
-		((uint32*)&m_MiddleAimPose)[2] = F32NAN;
-		((uint32*)&m_MiddleAimPose)[3] = F32NAN;
 	}
 
 

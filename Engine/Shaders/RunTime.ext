@@ -65,26 +65,7 @@ Property
 	Precache = ParticleImposterVS
 	Precache = ParticleImposterPS
 	Precache = VolumetricCloudsPS
-}
-
-Property
-{
-  Name = %_RT_AMBIENT
-  Mask = 0x2
-  Precache = GeneralPS
-  Precache = ClothPS
-  Precache = SkinPS
-  Precache = HairPS  
-  Precache = EyePS
-  Precache = GlassPS
-  Precache = TerrainPS 
-  Precache = VoxTerrainPS
-  Precache = VegetationPS
-  Precache = IcePS
-  Precache = SpritePS
-  Precache = ParticlePS
-  Precache = MethaGenPS  
-  Precache = MeshBakerPS
+	Precache = SkyPassPS
 }
 
 Property
@@ -121,6 +102,7 @@ Property
   Precache = ZVS
   Precache = ShadowGenVS
   Precache = ShadowGenPS
+  Precache = DebugPassPS
 }
 
 Property
@@ -162,6 +144,7 @@ Property
   Precache = ParticleImposterVS
   Precache = ParticleImposterPS
   Precache = VolumetricCloudsPS
+	Precache = SkyPassPS
 }
 
 Property
@@ -177,6 +160,8 @@ Property
   Precache = MotionBlurVS
   Precache = SkinVS
   Precache = GeneralVS
+  Precache = GlassVS
+  Precache = GlassPS
   Precache = VegetationVS    
   Precache = ShadowVS
   Precache = DetailVS
@@ -186,7 +171,7 @@ Property
   Precache = EffectLayerVS
   Precache = MethaGenVS
   Precache = DebugPassVS
-	Precache = ParticleVS
+  Precache = ParticleVS
 }
 
 Property
@@ -226,7 +211,7 @@ Property
 
 Property
 {
-  Name = %_RT_HDR_MODE
+  Name = %_RT_SECONDARY_VIEW
   Mask = 0x400
   Precache = GeneralPS
   Precache = TerrainPS
@@ -236,10 +221,6 @@ Property
   Precache = EyePS
   Precache = GlassPS
   Precache = ParticlePS
-  Precache = SpritePS
-  Precache = CloakPS
-  Precache = WaterSurfacePS
-  Precache = ParticleImposterPS
 }
 
 Property
@@ -351,6 +332,9 @@ Property
 	Precache = VolumetricCloudsPS
 	Precache = ReprojectCloudsPS
 	Precache = CloudShadowGenCS
+
+	Precache = DebugPassVS
+	Precache = DebugPassPS
 }
 
 Property
@@ -413,9 +397,11 @@ Property
   Precache = ParticleVS
 	Precache = HairVS
   Precache = EyeVS
-//  Precache = TerrainPS  
+	Precache = TerrainVS 
+	Precache = TerrainPS  
   Precache = VegetationVS
-  Precache = GeneralVS 
+  Precache = GeneralVS
+	Precache = GeneralPS
   Precache = ClothVS
   Precache = GlassVS
 //  Precache = VegetationPS  
@@ -569,13 +555,22 @@ Property
   Mask = 0x100000
   AutoPrecache
   Precache = GeneralVS
+	Precache = GeneralPS
   Precache = ClothVS
   Precache = SkinVS
+	Precache = SkinPS
   Precache = HairVS
+  Precache = HairPS
   Precache = EyeVS
+  Precache = EyePS
   Precache = GlassVS
+	Precache = GlassPS
   Precache = VegetationVS
   Precache = VegetationPS
+	Precache = VegetationDS
+  Precache = VegetationHS
+	Precache = TerrainVS
+  Precache = TerrainPS
   Precache = ShadowVS
   Precache = ShadowGenVS
   Precache = ShadowGenPS
@@ -590,30 +585,9 @@ Property
   Precache = DebugPassPS
   Precache = GeneralHS
   Precache = GeneralDS
-}
-
-Property
-{
-  Name = %_RT_INSTANCING_ATTR
-  Mask = 0x200000
-  Precache = GeneralVS
-  Precache = ClothVS  
-	Precache = SkinVS 	
-	Precache = HairVS 
-  Precache = EyeVS
-  Precache = GlassVS
-  Precache = VegetationVS    
-  Precache = ShadowVS
-  Precache = ShadowGenVS  
-  Precache = ZVS
-  Precache = DetailVS  
-  Precache = GlowVS
-  Precache = MotionBlurVS
-  Precache = FurVS
-  Precache = SoftAlphaTestPassVS
-  Precache = CustomRenderVS
-  Precache = MethaGenVS
-	Precache = DebugPassVS
+	Precache = DistanceCloudsVS
+	Precache = DistanceCloudsPS
+	Precache = TemplBeamVS
 }
 
 Property
@@ -649,6 +623,10 @@ Property
 	Precache = EyePS
 	Precache = HairPS
 	Precache = GlassPS
+	Precache = GeneralPS
+	Precache = VegetationPS
+	Precache = SkinPS
+	Precache = TerrainPS
 }
 
 Property
@@ -681,6 +659,7 @@ Property
   Precache = ParticleDS
   Precache = ParticlePS
   Precache = DebugPassVS
+	Precache = DebugPassPS
 }
 
 Property
@@ -1018,17 +997,6 @@ Property
 
 Property
 {
-  Name = %_RT_NOZPASS
-  Mask = 0x10000000000
-  Precache = VegetationVS
-  Precache = VegetationHS
-  Precache = VegetationDS
-  Precache = VegetationPS
-  Precache = SpritePS
-}
-
-Property
-{
   Name = %_RT_SHADOW_MIXED_MAP_G16R16
   Mask = 0x20000000000
   Precache = ShadowPS
@@ -1101,19 +1069,6 @@ Property
 
 Property
 {
-  Name = %_RT_HDR_ENCODE
-  Mask = 0x100000000000
-  //Precache = GeneralPS
-  Precache = TerrainPS
-  Precache = VegetationPS
-  Precache = IcePS
-	Precache = EffectLayerPS
-  
-  Precache = FogPostProcessPS
-}
-
-Property
-{
   Name = %_RT_SAMPLE0
   Mask = 0x200000000000
   Precache = ShadowGenVS
@@ -1125,6 +1080,8 @@ Property
   Precache = GlassPS
   Precache = DebugPassVS
   Precache = DebugPassPS
+	Precache = ZPS
+	Precache = ZVS
 
   Precache = FogPostProcessPS
   Precache = HDRPostProcessPS
@@ -1165,6 +1122,9 @@ Property
   Precache = VolumeLightInjectionCS
   Precache = VolumetricCloudsPS
   Precache = ReprojectCloudsPS
+	
+	Precache = SkyPassPS
+	Precache = LightingMobilePS
 }
 
 // Reserved for post processes/deferred - do not use for light/common shaders
@@ -1371,6 +1331,7 @@ Property
 {
   Name = %_RT_SPRITE
   Mask = 0x2000000000000000
+  Precache = ZPS
   Precache = VegetationVS
   Precache = VegetationPS
   Precache = ParticleVS

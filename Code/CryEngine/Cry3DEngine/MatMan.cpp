@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 // -------------------------------------------------------------------------
 //  File name:   MatMan.cpp
@@ -30,29 +30,13 @@
 //////////////////////////////////////////////////////////////////////////
 struct MaterialHelpers CMatMan::s_materialHelpers;
 
-int CMatMan::e_sketch_mode = 0;
-int CMatMan::e_pre_sketch_spec = 0;
-int CMatMan::e_texeldensity = 0;
-
 #if !defined(_RELEASE)
-static const char* szReplaceMe = "EngineAssets/TextureMsg/ReplaceMe.tif";
-static const char* szGeomNotBreakable = "EngineAssets/TextureMsg/GeomNotBreakable.tif";
+static const char* szReplaceMe = "%ENGINE%/EngineAssets/TextureMsg/ReplaceMe.tif";
+static const char* szGeomNotBreakable = "%ENGINE%/EngineAssets/TextureMsg/GeomNotBreakable.tif";
 #else
-static const char* szReplaceMe = "EngineAssets/TextureMsg/ReplaceMeRelease.tif";
-static const char* szGeomNotBreakable = "EngineAssets/TextureMsg/ReplaceMeRelease.tif";
+static const char* szReplaceMe = "%ENGINE%/EngineAssets/TextureMsg/ReplaceMeRelease.tif";
+static const char* szGeomNotBreakable = "%ENGINE%/EngineAssets/TextureMsg/ReplaceMeRelease.tif";
 #endif
-
-static void OnSketchModeChange(ICVar* pVar)
-{
-	int mode = pVar->GetIVal();
-	((CMatMan*)gEnv->p3DEngine->GetMaterialManager())->SetSketchMode(mode);
-}
-
-static void OnDebugTexelDensityChange(ICVar* pVar)
-{
-	int mode = pVar->GetIVal();
-	((CMatMan*)gEnv->p3DEngine->GetMaterialManager())->SetTexelDensityDebug(mode);
-}
 
 //////////////////////////////////////////////////////////////////////////
 CMatMan::CMatMan()
@@ -68,15 +52,6 @@ CMatMan::CMatMan()
 	m_nDelayedDeleteID = 0;
 
 	m_pSurfaceTypeManager = new CSurfaceTypeManager();
-
-	REGISTER_CVAR_CB(e_sketch_mode, 0, VF_CHEAT, "Enables Sketch mode drawing", OnSketchModeChange);
-	REGISTER_CVAR_CB(e_texeldensity, 0, VF_CHEAT,
-	                 "Enables texel density debug\n"
-	                 " 1: Objects texel density\n"
-	                 " 2: Objects texel density with colored mipmaps\n"
-	                 " 3: Terrain texel density\n"
-	                 " 4: Terrain texel density with colored mipmaps\n",
-	                 OnDebugTexelDensityChange);
 
 	m_pXmlParser = GetISystem()->GetXmlUtils()->CreateXmlParser();
 
@@ -134,7 +109,7 @@ CMatMan::~CMatMan()
 }
 
 //////////////////////////////////////////////////////////////////////////
-const char* CMatMan::UnifyName(const char* sMtlName) const
+const char* CMatMan::UnifyName(const char* sMtlName)
 {
 	static char name[260];
 	int n = strlen(sMtlName);
@@ -165,6 +140,8 @@ const char* CMatMan::UnifyName(const char* sMtlName) const
 //////////////////////////////////////////////////////////////////////////
 IMaterial* CMatMan::CreateMaterial(const char* sMtlName, int nMtlFlags)
 {
+	AUTO_LOCK(m_AccessLock);
+
 	CMatInfo* pMat = new CMatInfo;
 
 	//m_mtlSet.insert( pMat );
@@ -194,12 +171,16 @@ void CMatMan::NotifyCreateMaterial(IMaterial* pMtl)
 //////////////////////////////////////////////////////////////////////////
 void CMatMan::DelayedMaterialDeletion()
 {
+	AUTO_LOCK(m_AccessLock);
+
 	uint32 nID = (m_nDelayedDeleteID + 1) % MATERIAL_DELETION_DELAY;
 
-	AUTO_LOCK(m_DelayedDeletionMtlsLock);
 	while (!m_DelayedDeletionMtls[nID].empty())
 	{
-		_smart_ptr<CMatInfo> ptr = m_DelayedDeletionMtls[nID].back();
+		CMatInfo* ptr = m_DelayedDeletionMtls[nID].back();
+		ptr->ShutDown();
+		Unregister(ptr);
+		// TODO: CMatInfo pointer leaks
 		m_DelayedDeletionMtls[nID].pop_back();
 	}
 
@@ -209,6 +190,8 @@ void CMatMan::DelayedMaterialDeletion()
 //////////////////////////////////////////////////////////////////////////
 void CMatMan::ForceDelayedMaterialDeletion()
 {
+	CRY_ASSERT(m_AccessLock.IsLocked());
+
 	// make sure nothing is in flight on RT if we force delete materials
 	if (GetRenderer())
 	{
@@ -216,15 +199,15 @@ void CMatMan::ForceDelayedMaterialDeletion()
 		GetRenderer()->FlushRTCommands(true, true, true);
 	}
 
-	AUTO_LOCK(m_DelayedDeletionMtlsLock);
 	for (uint32 i = 0; i < MATERIAL_DELETION_DELAY; i++)
 	{
 		// clear list m_nDelayedDeleteID last because sub materials can still be added there when clearing the other lists
 		const int nListIndex = (m_nDelayedDeleteID + 1 + i) % MATERIAL_DELETION_DELAY;
 		while (!m_DelayedDeletionMtls[nListIndex].empty())
 		{
-			_smart_ptr<CMatInfo> ptr = m_DelayedDeletionMtls[nListIndex].back();
+			CMatInfo* ptr = m_DelayedDeletionMtls[nListIndex].back();
 			ptr->ShutDown();
+			Unregister(ptr);
 			m_DelayedDeletionMtls[nListIndex].pop_back();
 		}
 	}
@@ -233,13 +216,21 @@ void CMatMan::ForceDelayedMaterialDeletion()
 //////////////////////////////////////////////////////////////////////////
 void CMatMan::DelayedDelete(CMatInfo* pMat)
 {
-	AUTO_LOCK(m_DelayedDeletionMtlsLock);
-	m_DelayedDeletionMtls[m_nDelayedDeleteID].push_back(pMat);
+	AUTO_LOCK(m_AccessLock);
+
+	CRY_ASSERT(m_bInitialized);
+	if (!pMat->m_bDeletePending)
+	{
+		m_DelayedDeletionMtls[m_nDelayedDeleteID].push_back(pMat);
+		pMat->m_bDeletePending = true;
+	}
 }
 
 //////////////////////////////////////////////////////////////////////////
 void CMatMan::Unregister(CMatInfo* pMat)
 {
+	AUTO_LOCK(m_AccessLock);
+
 	assert(pMat);
 
 	if (!(pMat->m_Flags & MTL_FLAG_PURE_CHILD))
@@ -252,6 +243,8 @@ void CMatMan::Unregister(CMatInfo* pMat)
 //////////////////////////////////////////////////////////////////////////
 void CMatMan::RenameMaterial(IMaterial* pMtl, const char* sNewName)
 {
+	AUTO_LOCK(m_AccessLock);
+
 	assert(pMtl);
 	const char* sName = pMtl->GetName();
 	if (*sName != '\0')
@@ -265,11 +258,16 @@ void CMatMan::RenameMaterial(IMaterial* pMtl, const char* sNewName)
 //////////////////////////////////////////////////////////////////////////
 IMaterial* CMatMan::FindMaterial(const char* sMtlName) const
 {
+	AUTO_LOCK(m_AccessLock);
+
 	const char* name = UnifyName(sMtlName);
 
 	MtlNameMap::const_iterator it = m_mtlNameMap.find(CONST_TEMP_STRING(name));
 
 	if (it == m_mtlNameMap.end())
+		return 0;
+
+	if (!static_cast<CMatInfo*>(it->second)->IsValid())
 		return 0;
 
 	return it->second;
@@ -278,23 +276,23 @@ IMaterial* CMatMan::FindMaterial(const char* sMtlName) const
 //////////////////////////////////////////////////////////////////////////
 IMaterial* CMatMan::LoadMaterial(const char* sMtlName, bool bMakeIfNotFound, bool bNonremovable, unsigned long nLoadingFlags)
 {
+	CRY_ASSERT(!m_AccessLock.IsLocked());
+
 	if (!m_bInitialized)
 		InitDefaults();
 
 	if (m_pDefaultMtl && GetCVars()->e_StatObjPreload == 2)
 		return m_pDefaultMtl;
 
+	if (IMaterial* pFound = FindMaterial(sMtlName))
+		return pFound;
+
+	// TODO: To make LoadMaterial threadsafe the CreateMaterial()-call in MakeMaterialFromXml()
+	//       needs to be moved into here (and elsewhere respectively) and put under the m_AccessLock
+	//       together with FindMaterial()
+
 	const char* name = UnifyName(sMtlName);
-
-	MtlNameMap::const_iterator it = m_mtlNameMap.find(CONST_TEMP_STRING(name));
-
 	IMaterial* pMtl = 0;
-
-	if (it != m_mtlNameMap.end())
-	{
-		pMtl = it->second;
-		return pMtl;
-	}
 
 	MEMSTAT_CONTEXT(EMemStatContextTypes::MSC_Other, 0, "Materials");
 	MEMSTAT_CONTEXT_FMT(EMemStatContextTypes::MSC_MTL, EMemStatContextFlags::MSF_Instance, "%s", name);
@@ -311,15 +309,14 @@ IMaterial* CMatMan::LoadMaterial(const char* sMtlName, bool bMakeIfNotFound, boo
 				pMtl = m_pListener->OnLoadMaterial(sMtlName, bMakeIfNotFound, nLoadingFlags);
 				if (pMtl)
 				{
+					AUTO_LOCK(m_AccessLock);
+
 					if (bNonremovable)
 						m_nonRemovables.push_back(static_cast<CMatInfo*>(pMtl));
 
-					if (pMtl && e_sketch_mode != 0)
-					{
-						((CMatInfo*)pMtl)->SetSketchMode(e_sketch_mode);
-					}
 					if (pMtl->GetFlags() & MTL_FLAG_TRACEABLE_TEXTURE)
 						pMtl->SetKeepLowResSysCopyForDiffTex();
+
 					return pMtl;
 				}
 			}
@@ -386,11 +383,6 @@ IMaterial* CMatMan::LoadMaterial(const char* sMtlName, bool bMakeIfNotFound, boo
 		if (mtlNode)
 		{
 			pMtl = MakeMaterialFromXml(name, name, mtlNode, false, 0, 0, nLoadingFlags);
-
-			if (pMtl && e_sketch_mode != 0)
-			{
-				((CMatInfo*)pMtl)->SetSketchMode(e_sketch_mode);
-			}
 		}
 
 		nRecursionCounter--;
@@ -404,16 +396,23 @@ IMaterial* CMatMan::LoadMaterial(const char* sMtlName, bool bMakeIfNotFound, boo
 	}
 #endif
 
-	if (pMtl && pMtl->GetFlags() & MTL_FLAG_TRACEABLE_TEXTURE)
-		pMtl->SetKeepLowResSysCopyForDiffTex();
-
 	if (!pMtl && bMakeIfNotFound)
 	{
-		pMtl = m_pDefaultMtl;
+		pMtl = GetDefaultMaterial();
 	}
 
-	if (bNonremovable && pMtl)
-		m_nonRemovables.push_back(static_cast<CMatInfo*>(pMtl));
+	if (pMtl)
+	{
+		AUTO_LOCK(m_AccessLock);
+
+		if (bNonremovable)
+			m_nonRemovables.push_back(static_cast<CMatInfo*>(pMtl));
+
+		if (pMtl->GetFlags() & MTL_FLAG_TRACEABLE_TEXTURE)
+			pMtl->SetKeepLowResSysCopyForDiffTex();
+
+		return pMtl;
+	}
 
 	return pMtl;
 }
@@ -421,6 +420,8 @@ IMaterial* CMatMan::LoadMaterial(const char* sMtlName, bool bMakeIfNotFound, boo
 //////////////////////////////////////////////////////////////////////////
 IMaterial* CMatMan::MakeMaterialFromXml(const char* sMtlName, const char* sMtlFilename, XmlNodeRef node, bool bForcePureChild, uint16 sortPrio, IMaterial* pExistingMtl, unsigned long nLoadingFlags, IMaterial* pParentMtl)
 {
+	CMatMan* pMatMan = static_cast<CMatMan*>(gEnv->p3DEngine->GetMaterialManager());
+
 	int mtlFlags = 0;
 	CryFixedStringT<128> shaderName;
 	uint64 nShaderGenMask = 0;
@@ -444,7 +445,7 @@ IMaterial* CMatMan::MakeMaterialFromXml(const char* sMtlName, const char* sMtlFi
 	IMaterial* pMtl = pExistingMtl;
 	if (!pMtl)
 	{
-		pMtl = CreateMaterial(sMtlName, mtlFlags);
+		pMtl = pMatMan->CreateMaterial(sMtlName, mtlFlags);
 	}
 	else
 	{
@@ -636,14 +637,14 @@ IMaterial* CMatMan::MakeMaterialFromXml(const char* sMtlName, const char* sMtlFi
 				if (pChildMtl)
 					pMtl->SetSubMtl(i, pChildMtl);
 				else
-					pMtl->SetSubMtl(i, m_pDefaultMtl);
+					pMtl->SetSubMtl(i, pMatMan->GetDefaultMaterial());
 			}
 			else
 			{
 				const char* name = mtlNode->getAttr("Name");
 				if (name[0])
 				{
-					IMaterial* pChildMtl = LoadMaterial(name, true, false, nLoadingFlags);
+					IMaterial* pChildMtl = pMatMan->LoadMaterial(name, true, false, nLoadingFlags);
 					if (pChildMtl)
 						pMtl->SetSubMtl(i, pChildMtl);
 				}
@@ -654,7 +655,7 @@ IMaterial* CMatMan::MakeMaterialFromXml(const char* sMtlName, const char* sMtlFi
 	if (matTemplate != NULL && strlen(matTemplate) != 0 && strcmp(matTemplate, sMtlName) != 0)
 	{
 		CMatInfo* pMtlTmpl = NULL;
-		pMtlTmpl = static_cast<CMatInfo*>(gEnv->p3DEngine->GetMaterialManager()->LoadMaterial(matTemplate, false));
+		pMtlTmpl = static_cast<CMatInfo*>(pMatMan->LoadMaterial(matTemplate, false));
 		if (pMtlTmpl)
 		{
 			pMtlTmpl->Copy(static_cast<CMatInfo*>(pMtl), MTL_COPY_DEFAULT);
@@ -731,7 +732,7 @@ bool CMatMan::LoadMaterialLayerSlot(uint32 nSlot, IMaterial* pMtl, const char* s
 
 	if (pInputResources->m_Textures[EFTT_NORMALS].m_Name.empty())
 	{
-		pInputResources->m_Textures[EFTT_NORMALS].m_Name = "EngineAssets/Textures/white_ddn.dds";
+		pInputResources->m_Textures[EFTT_NORMALS].m_Name = "%ENGINE%/EngineAssets/Textures/white_ddn.dds";
 	}
 
 	// Load layer shader item
@@ -874,24 +875,28 @@ IMaterial* CMatMan::GetDefaultHelperMaterial()
 //////////////////////////////////////////////////////////////////////////
 void CMatMan::GetLoadedMaterials(IMaterial** pData, uint32& nObjCount) const
 {
-	nObjCount = m_mtlNameMap.size();
+	AUTO_LOCK(m_AccessLock);
 
-	if (!pData)
-		return;
-
-	MtlNameMap::const_iterator it, end = m_mtlNameMap.end();
-
-	for (it = m_mtlNameMap.begin(); it != end; ++it)
+	nObjCount = 0;
+	for (const auto& it : m_mtlNameMap)
 	{
-		IMaterial* pMat = it->second;
+		if (static_cast<CMatInfo*>(it.second)->IsValid())
+		{
+			++nObjCount;
 
-		*pData++ = pMat;
+			if (pData)
+			{
+				*pData++ = it.second;
+			}
+		}
 	}
 }
 
 //////////////////////////////////////////////////////////////////////////
 void CMatMan::SetAltMaterialSuffix(const char* pSuffix)
 {
+	AUTO_LOCK(m_AccessLock);
+
 	if (!pSuffix)
 		m_altSuffix.clear();
 	else
@@ -1081,37 +1086,11 @@ IMaterial* CMatMan::LoadCGFMaterial(const char* szMaterialName, const char* szCg
 	{
 		sMtlName = PathUtil::MakeGamePath(sMtlName);
 	}
+
 	return LoadMaterial(sMtlName.c_str(), true, false, nLoadingFlags);
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CMatMan::SetSketchMode(int mode)
-{
-	if (mode != 0)
-	{
-		gEnv->pConsole->ExecuteString("exec sketch_on");
-	}
-	else
-	{
-		gEnv->pConsole->ExecuteString("exec sketch_off");
-	}
-
-	for (MtlNameMap::iterator it = m_mtlNameMap.begin(); it != m_mtlNameMap.end(); ++it)
-	{
-		CMatInfo* pMtl = (CMatInfo*)it->second;
-		pMtl->SetSketchMode(mode);
-	}
-}
-
-//////////////////////////////////////////////////////////////////////////
-void CMatMan::SetTexelDensityDebug(int mode)
-{
-	for (MtlNameMap::iterator it = m_mtlNameMap.begin(); it != m_mtlNameMap.end(); ++it)
-	{
-		CMatInfo* pMtl = (CMatInfo*)it->second;
-		pMtl->SetTexelDensityDebug(mode);
-	}
-}
 
 namespace
 {
@@ -1128,20 +1107,14 @@ static bool IsMultiSubMaterial(IMaterial* pMtl)
 //////////////////////////////////////////////////////////////////////////
 IMaterial* CMatMan::LoadMaterialFromXml(const char* sMtlName, XmlNodeRef mtlNode)
 {
+	IMaterial* pMtl = FindMaterial(sMtlName);
 	const char* name = UnifyName(sMtlName);
 
-	MtlNameMap::const_iterator it = m_mtlNameMap.find(CONST_TEMP_STRING(name));
-
-	IMaterial* pMtl = 0;
-
-	if (it != m_mtlNameMap.end())
+	if (pMtl)
 	{
-		pMtl = it->second;
 		pMtl = MakeMaterialFromXml(name, name, mtlNode, false, 0, pMtl);
-		return pMtl;
 	}
-
-	if (!pMtl)
+	else
 	{
 		pMtl = MakeMaterialFromXml(name, name, mtlNode, false);
 	}
@@ -1246,6 +1219,8 @@ void CMatMan::PreloadDecalMaterials()
 //////////////////////////////////////////////////////////////////////////
 void CMatMan::ShutDown()
 {
+	AUTO_LOCK(m_AccessLock);
+
 	m_pXmlParser = 0;
 	stl::free_container(m_nonRemovables);
 	m_mtlNameMap.clear();
@@ -1286,6 +1261,8 @@ void CMatMan::ShutDown()
 //////////////////////////////////////////////////////////////////////////
 void CMatMan::FreeAllMaterials()
 {
+	CRY_ASSERT(m_AccessLock.IsLocked());
+
 #ifndef _RELEASE
 	{
 		std::vector<IMaterial*> Materials;
@@ -1338,6 +1315,8 @@ void CMatMan::GetMemoryUsage(ICrySizer* pSizer) const
 
 void CMatMan::UpdateShaderItems()
 {
+	AUTO_LOCK(m_AccessLock);
+
 	for (MtlNameMap::iterator iter = m_mtlNameMap.begin(); iter != m_mtlNameMap.end(); ++iter)
 	{
 		CMatInfo* pMaterial = static_cast<CMatInfo*>(iter->second);
@@ -1352,6 +1331,8 @@ void CMatMan::RefreshMaterialRuntime()
 
 void CMatMan::RefreshShaderResourceConstants()
 {
+	AUTO_LOCK(m_AccessLock);
+
 	for (MtlNameMap::iterator iter = m_mtlNameMap.begin(); iter != m_mtlNameMap.end(); ++iter)
 	{
 		CMatInfo* pMaterial = static_cast<CMatInfo*>(iter->second);

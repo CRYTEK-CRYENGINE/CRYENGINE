@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #pragma once
 
@@ -30,40 +30,42 @@ protected:
 
 class CAnimatedCharacterComponent_PrepareAnimatedCharacterForUpdate : public CAnimatedCharacterComponent_Base
 {
-	CRY_ENTITY_COMPONENT_INTERFACE(CAnimatedCharacterComponent_PrepareAnimatedCharacterForUpdate,0x3F9D1B59EBAB4F73,0xABB9B04C675A32B9)
+	CRY_ENTITY_COMPONENT_INTERFACE_AND_CLASS_GUID(CAnimatedCharacterComponent_PrepareAnimatedCharacterForUpdate,
+		"CAnimatedCharacterComponent_PrepareAnimatedCharacterForUpdate", "3f9d1b59-ebab-4f73-abb9-b04c675a32b9"_cry_guid)
 public:
 	CAnimatedCharacterComponent_PrepareAnimatedCharacterForUpdate();
 
 	ILINE void QueueRotation(const Quat& rotation) { m_queuedRotation = rotation; m_hasQueuedRotation = true; }
 	ILINE void ClearQueuedRotation()               { m_hasQueuedRotation = false; }
 
-protected:
-
-	virtual IEntityComponent::ComponentEventPriority GetEventPriority(const int eventID) const;
-
 private:
+
+	virtual IEntityComponent::ComponentEventPriority GetEventPriority() const override;
+
 	Quat m_queuedRotation;
 	bool m_hasQueuedRotation;
-	virtual void OnPrePhysicsUpdate(float elapsedTime);
+	virtual void OnPrePhysicsUpdate(float elapsedTime) override;
 };
 
 class CAnimatedCharacterComponent_StartAnimProc : public CAnimatedCharacterComponent_Base
 {
-	CRY_ENTITY_COMPONENT_INTERFACE(CAnimatedCharacterComponent_StartAnimProc,0xAA2D677D23A048D5,0xAA47116B97DD6216)
+	CRY_ENTITY_COMPONENT_INTERFACE_AND_CLASS_GUID(CAnimatedCharacterComponent_StartAnimProc,
+		"CAnimatedCharacterComponent_StartAnimProc", "aa2d677d-23a0-48d5-aa47-116b97dd6216"_cry_guid)
 
-protected:
-	virtual ComponentEventPriority GetEventPriority(const int eventID) const;
-	virtual void                   OnPrePhysicsUpdate(float elapsedTime);
+private:
+	virtual IEntityComponent::ComponentEventPriority GetEventPriority() const override;
+	virtual void                   OnPrePhysicsUpdate(float elapsedTime) override;
 };
 
 class CAnimatedCharacterComponent_GenerateMoveRequest : public CAnimatedCharacterComponent_Base
 {
-	CRY_ENTITY_COMPONENT_INTERFACE(CAnimatedCharacterComponent_GenerateMoveRequest,0x0CC3EE7E1ACE4BCD,0x9AEAE391B81B8E78)
+	CRY_ENTITY_COMPONENT_INTERFACE_AND_CLASS_GUID(CAnimatedCharacterComponent_GenerateMoveRequest,
+		"CAnimatedCharacterComponent_GenerateMoveRequest", "0cc3ee7e-1ace-4bcd-9aea-e391b81b8e78"_cry_guid)
 
-protected:
+private:
 
-	virtual IEntityComponent::ComponentEventPriority GetEventPriority(const int eventID) const;
-	virtual void                               OnPrePhysicsUpdate(float elapsedTime);
+	virtual IEntityComponent::ComponentEventPriority GetEventPriority() const override;
+	virtual void                               OnPrePhysicsUpdate(float elapsedTime) override;
 };
 
 #endif // __AnimatedCharacterComponents_h__

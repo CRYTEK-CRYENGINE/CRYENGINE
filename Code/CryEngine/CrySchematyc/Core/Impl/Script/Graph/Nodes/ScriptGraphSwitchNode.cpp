@@ -1,16 +1,16 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #include "StdAfx.h"
 #include "Script/Graph/Nodes/ScriptGraphSwitchNode.h"
 
-#include <Schematyc/Compiler/IGraphNodeCompiler.h>
-#include <Schematyc/Env/IEnvRegistry.h>
-#include <Schematyc/Env/Elements/IEnvDataType.h>
-#include <Schematyc/Reflection/Reflection.h>
-#include <Schematyc/Script/Elements/IScriptEnum.h>
-#include <Schematyc/Utils/Any.h>
-#include <Schematyc/Utils/StackString.h>
-#include <Schematyc/Utils/IGUIDRemapper.h>
+#include <CrySchematyc/Compiler/IGraphNodeCompiler.h>
+#include <CrySchematyc/Env/IEnvRegistry.h>
+#include <CrySchematyc/Env/Elements/IEnvDataType.h>
+#include <CrySchematyc/Reflection/TypeDesc.h>
+#include <CrySchematyc/Script/Elements/IScriptEnum.h>
+#include <CrySchematyc/Utils/Any.h>
+#include <CrySchematyc/Utils/StackString.h>
+#include <CrySchematyc/Utils/IGUIDRemapper.h>
 
 #include "Script/ScriptVariableData.h"
 #include "Script/ScriptView.h"
@@ -22,10 +22,12 @@ namespace Schematyc
 {
 namespace
 {
+
 inline bool FilterEnvDataType(const IEnvDataType& envDataType)
 {
-	return (envDataType.GetTypeInfo().GetClassification() == ETypeClassification::Enum) || envDataType.GetFlags().Check(EEnvDataTypeFlags::Switchable);
+	return envDataType.GetDesc().GetFlags().Check(ETypeFlags::Switchable);
 }
+
 } // Anonymous
 
 CScriptGraphSwitchNode::SCase::SCase() {}
@@ -81,9 +83,9 @@ CScriptGraphSwitchNode::SRuntimeData::SRuntimeData(const SRuntimeData& rhs)
 	: pCases(rhs.pCases)
 {}
 
-SGUID CScriptGraphSwitchNode::SRuntimeData::ReflectSchematycType(CTypeInfo<CScriptGraphSwitchNode::SRuntimeData>& typeInfo)
+void CScriptGraphSwitchNode::SRuntimeData::ReflectType(CTypeDesc<CScriptGraphSwitchNode::SRuntimeData>& desc)
 {
-	return "d4f18128-844e-4269-8108-103c13631c76"_schematyc_guid;
+	desc.SetGUID("d4f18128-844e-4269-8108-103c13631c76"_cry_guid);
 }
 
 CScriptGraphSwitchNode::CScriptGraphSwitchNode(const SElementId& typeId)
@@ -91,7 +93,7 @@ CScriptGraphSwitchNode::CScriptGraphSwitchNode(const SElementId& typeId)
 	, m_pValidCases(std::make_shared<Cases>())
 {}
 
-SGUID CScriptGraphSwitchNode::GetTypeGUID() const
+CryGUID CScriptGraphSwitchNode::GetTypeGUID() const
 {
 	return ms_typeGUID;
 }
@@ -100,8 +102,8 @@ void CScriptGraphSwitchNode::CreateLayout(CScriptGraphNodeLayout& layout)
 {
 	layout.SetStyleId("Core::FlowControl");
 
-	layout.AddInput("In", SGUID(), { EScriptGraphPortFlags::Flow, EScriptGraphPortFlags::MultiLink });
-	layout.AddOutput("Default", SGUID(), { EScriptGraphPortFlags::Flow, EScriptGraphPortFlags::SpacerBelow });
+	layout.AddInput("In", CryGUID(), { EScriptGraphPortFlags::Flow, EScriptGraphPortFlags::MultiLink });
+	layout.AddOutput("Default", CryGUID(), { EScriptGraphPortFlags::Flow, EScriptGraphPortFlags::SpacerBelow });
 
 	const char* szSubject = g_szNoType;
 	if (!m_defaultValue.IsEmpty())
@@ -114,7 +116,7 @@ void CScriptGraphSwitchNode::CreateLayout(CScriptGraphNodeLayout& layout)
 		{
 			CStackString caseString;
 			Any::ToString(caseString, *_case.pValue);
-			layout.AddOutput(caseString.c_str(), SGUID(), EScriptGraphPortFlags::Flow);
+			layout.AddOutput(caseString.c_str(), CryGUID(), EScriptGraphPortFlags::Flow);
 		}
 	}
 	layout.SetName("Switch", szSubject);
@@ -133,6 +135,7 @@ void CScriptGraphSwitchNode::LoadDependencies(Serialization::IArchive& archive, 
 
 void CScriptGraphSwitchNode::PostLoad(Serialization::IArchive& archive, const ISerializationContext& context)
 {
+	m_defaultValue.SerializeTypeId(archive);
 	SerializeCases(archive);
 }
 
@@ -149,8 +152,8 @@ void CScriptGraphSwitchNode::Edit(Serialization::IArchive& archive, const ISeria
 	{
 		ScriptVariableData::CScopedSerializationConfig serializationConfig(archive);
 
-		const SGUID guid = CScriptGraphNodeModel::GetNode().GetGraph().GetElement().GetGUID();
-		serializationConfig.DeclareEnvDataTypes(guid, Delegate::Make(&FilterEnvDataType));
+		const CryGUID guid = CScriptGraphNodeModel::GetNode().GetGraph().GetElement().GetGUID();
+		serializationConfig.DeclareEnvDataTypes(guid, SCHEMATYC_DELEGATE(&FilterEnvDataType));
 		serializationConfig.DeclareScriptEnums(guid);
 
 		m_defaultValue.SerializeTypeId(archive);
@@ -231,12 +234,12 @@ void CScriptGraphSwitchNode::Register(CScriptGraphNodeFactory& factory)
 
 		// IScriptGraphNodeCreator
 
-		virtual SGUID GetTypeGUID() const override
+		virtual CryGUID GetTypeGUID() const override
 		{
 			return CScriptGraphSwitchNode::ms_typeGUID;
 		}
 
-		virtual IScriptGraphNodePtr CreateNode(const SGUID& guid) override
+		virtual IScriptGraphNodePtr CreateNode(const CryGUID& guid) override
 		{
 			return std::make_shared<CScriptGraphNode>(guid, stl::make_unique<CScriptGraphSwitchNode>());
 		}
@@ -255,7 +258,7 @@ void CScriptGraphSwitchNode::Register(CScriptGraphNodeFactory& factory)
 				}
 				return EVisitStatus::Continue;
 			};
-			scriptView.VisitEnvDataTypes(EnvDataTypeConstVisitor::FromLambda(visitEnvDataType));
+			scriptView.VisitEnvDataTypes(visitEnvDataType);
 
 			auto visitScriptEnum = [&nodeCreationMenu, &scriptView](const IScriptEnum& scriptEnum)
 			{
@@ -263,7 +266,7 @@ void CScriptGraphSwitchNode::Register(CScriptGraphNodeFactory& factory)
 				scriptView.QualifyName(scriptEnum, EDomainQualifier::Global, specialization);
 				nodeCreationMenu.AddCommand(std::make_shared<CCreationCommand>(specialization.c_str(), SElementId(EDomain::Script, scriptEnum.GetGUID())));
 			};
-			scriptView.VisitAccesibleEnums(ScriptEnumConstVisitor::FromLambda(visitScriptEnum));
+			scriptView.VisitAccesibleEnums(visitScriptEnum);
 		}
 
 		// ~IScriptGraphNodeCreator
@@ -330,7 +333,8 @@ SRuntimeResult CScriptGraphSwitchNode::Execute(SRuntimeContext& context, const S
 	return SRuntimeResult(ERuntimeStatus::Continue, EOutputIdx::Default);
 }
 
-const SGUID CScriptGraphSwitchNode::ms_typeGUID = "1d081133-e900-4244-add5-f0831d27b16f"_schematyc_guid;
+const CryGUID CScriptGraphSwitchNode::ms_typeGUID = "1d081133-e900-4244-add5-f0831d27b16f"_cry_guid;
+
 } // Schematyc
 
 SCHEMATYC_REGISTER_SCRIPT_GRAPH_NODE(Schematyc::CScriptGraphSwitchNode::Register)

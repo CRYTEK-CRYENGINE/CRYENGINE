@@ -1,4 +1,22 @@
 {
+    "console_variables": [
+        {
+            "name": "sys_target_platforms",
+            "value": "pc,ps4,xboxone,linux"
+        },
+        {
+            "name": "r_displayinfo",
+            "value": "0"
+        },
+        {
+            "name": "e_waterocean",
+            "value": "0"
+        },
+        {
+            "name": "ca_useIMG_CAF",
+            "value": "0"
+        }
+    ],
     "content": {
         "assets": [
             "Assets"
@@ -7,20 +25,30 @@
             "Code"
         ]
     },
-    "csharp": {
-        "monodev": {
-            "solution": "Code/RollingBall.sln",
-            "user": "Code/RollingBall/RollingBall.csproj.user"
-        },
-        "msdev": {
-            "solution": "Code/RollingBall_VS.sln",
-            "user": "Code/RollingBall/RollingBall.ceproj.user"
-        }
-    },
     "info": {
-        "name": "CE# Framework - Rolling Ball"
+        "name": "Rolling Ball Game Template"
     },
     "require": {
-        "engine": "engine-5.3"
-    }
+        "engine": "engine-5.4",
+        "plugins": [
+            {
+                "path": "CryDefaultEntities",
+                "type": "EPluginType::Native"
+            },
+            {
+                "path": "CrySensorSystem",
+                "type": "EPluginType::Native"
+            },
+            {
+                "path": "CryPerceptionSystem",
+                "type": "EPluginType::Native"
+            },
+            {
+                "path": "bin/Game.dll",
+                "type": "EPluginType::Managed"
+            }
+        ]
+    },
+    "type": "",
+    "version": 1
 }

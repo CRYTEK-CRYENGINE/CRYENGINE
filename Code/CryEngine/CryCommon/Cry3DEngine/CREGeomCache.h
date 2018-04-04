@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 // ------------------------------------------------------------------------
 //  File name:   CREGeomCache.h
@@ -39,7 +39,7 @@ public:
 	static void UpdateModified();
 
 	// CRenderElement interface
-	virtual bool mfUpdate(EVertexFormat eVertFormat, int Flags, bool bTessellation) override;
+	virtual bool mfUpdate(InputLayoutHandle eVertFormat, int Flags, bool bTessellation) override;
 	virtual void mfPrepare(bool bCheckOverflow) override;
 	virtual bool mfDraw(CShader* ef, SShaderPass* sfm) override;
 
@@ -53,7 +53,7 @@ public:
 	virtual void                       DisplayFilledBuffer(const int threadId);
 
 	// accessors for new render pipeline
-	virtual EVertexFormat GetVertexFormat() const override;
+	virtual InputLayoutHandle GetVertexFormat() const override;
 	virtual bool          GetGeometryInfo(SGeometryInfo& streams, bool bSupportTessellation = false) override;
 	virtual void          DrawToCommandList(CRenderObject* pObj, const SGraphicsPipelinePassContext& ctx) override;
 

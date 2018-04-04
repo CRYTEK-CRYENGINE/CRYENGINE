@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #ifndef __CET_CVARS_H__
 #define __CET_CVARS_H__
@@ -19,6 +19,7 @@ public:
 	// IConsoleVarSink
 	virtual bool OnBeforeVarChange(ICVar* pVar, const char* sNewValue);
 	virtual void OnAfterVarChange(ICVar* pVar);
+	virtual void OnVarUnregister(ICVar* pVar) {}
 
 private:
 	CGameServerChannel*                m_pChannel;

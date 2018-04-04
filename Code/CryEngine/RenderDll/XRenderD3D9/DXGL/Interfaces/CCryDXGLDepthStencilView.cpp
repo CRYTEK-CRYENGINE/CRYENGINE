@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 // -------------------------------------------------------------------------
 //  File name:   CCryDXGLDepthStencilView.cpp
@@ -36,7 +36,7 @@ bool CCryDXGLDepthStencilView::Initialize(NCryOpenGL::CContext* pContext)
 	return m_spGLView != NULL;
 }
 
-#if CRY_OPENGL_SINGLE_CONTEXT
+#if OGL_SINGLE_CONTEXT
 
 NCryOpenGL::SOutputMergerView* CCryDXGLDepthStencilView::GetGLView(NCryOpenGL::CContext* pContext)
 {

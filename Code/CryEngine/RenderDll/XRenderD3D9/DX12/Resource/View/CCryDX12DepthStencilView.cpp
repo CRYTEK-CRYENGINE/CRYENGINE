@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #include "StdAfx.h"
 #include "CCryDX12DepthStencilView.hpp"
@@ -148,11 +148,6 @@ CCryDX12DepthStencilView::CCryDX12DepthStencilView(ID3D11Resource* pResource11, 
 	, m_Desc11(rDesc11)
 {
 	m_DX12View.HasDesc(false);
-}
-
-CCryDX12DepthStencilView::~CCryDX12DepthStencilView()
-{
-
 }
 
 #pragma region /* ID3D11DepthStencilView implementation */

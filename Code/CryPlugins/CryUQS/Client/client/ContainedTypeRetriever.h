@@ -4,11 +4,11 @@
 
 // *INDENT-OFF* - <hard to read code and declarations due to inconsistent indentation>
 
-namespace uqs
+namespace UQS
 {
-	namespace client
+	namespace Client
 	{
-		namespace internal
+		namespace Internal
 		{
 
 			//===================================================================================
@@ -17,14 +17,14 @@ namespace uqs
 			//
 			// - this is a helper for CFunctionFactory<>::GetContainedType()
 			// - it's used to retrieve the underlying type of items that have been shuttled from one query to another
-			// - also see client::internal::CFunc_ShuttledItems<> and observe that it's making use of CItemListProxy_Readable<>, hence the template specialization for it
+			// - also see Client::Internal::CFunc_ShuttledItems<> and observe that it's making use of CItemListProxy_Readable<>, hence the template specialization for it
 			//
 			//===================================================================================
 
 			template <class TItem>
 			struct SContainedTypeRetriever
 			{
-				static const shared::CTypeInfo* GetTypeInfo()
+				static const Shared::CTypeInfo* GetTypeInfo()
 				{
 					return nullptr;
 				}
@@ -33,9 +33,9 @@ namespace uqs
 			template <class TItem>
 			struct SContainedTypeRetriever<CItemListProxy_Readable<TItem>>
 			{
-				static const shared::CTypeInfo* GetTypeInfo()
+				static const Shared::CTypeInfo* GetTypeInfo()
 				{
-					static const shared::CTypeInfo& type = shared::SDataTypeHelper<TItem>::GetTypeInfo();
+					static const Shared::CTypeInfo& type = Shared::SDataTypeHelper<TItem>::GetTypeInfo();
 					return &type;
 				}
 			};

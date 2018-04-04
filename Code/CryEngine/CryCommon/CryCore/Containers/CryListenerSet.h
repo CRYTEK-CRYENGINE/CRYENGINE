@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 /*************************************************************************
    -------------------------------------------------------------------------
@@ -103,6 +103,7 @@
 
 #ifndef _RELEASE
 	#define CRY_LISTENERSET_DEBUG
+	//#define CRY_LISTENERSET_DEBUG_PRINT
 #endif
 
 // Forward decl.
@@ -117,9 +118,14 @@ public:
 	//! \note No default constructor in favor of forcing users to provide an expectedCapacity.
 	inline CListenerSet(size_t expectedCapacity);
 	inline /*non-virtual*/ ~CListenerSet();
-
+	
+#if defined(CRY_LISTENERSET_DEBUG_PRINT)
+	//! Appends a listener to the end of the collection. Name is optional but recommended.
+	inline bool Add(T pListener, const char* name = NULL, bool staticName = false);
+#else
 	//! Appends a listener to the end of the collection. Name is optional but recommended.
 	inline bool Add(T pListener, const char* name = NULL, bool staticName = true);
+#endif
 
 	//! Removes a listener from the collection.
 	inline void Remove(T pListener);
@@ -288,6 +294,11 @@ inline bool CListenerSet<T >::Add(T pListener, const char* name, bool staticName
 				// Add it to the list of heap allocated names (that we need to later delete)
 				m_allocatedNames.push_back(name);
 				safeName = m_allocatedNames.back().c_str();
+
+	#if defined(CRY_LISTENERSET_DEBUG_PRINT) && !defined(NOT_USE_CRY_STRING)
+				CryLogAlways("%s => %s", __FUNCTION__, safeName);
+	#endif
+
 			}
 #endif
 
@@ -310,7 +321,14 @@ inline void CListenerSet<T >::Remove(T pListener)
 #ifdef CRY_LISTENERSET_DEBUG
 		// Delete name if it was heap allocated
 		if (const char* name = iter->m_szName)
+		{
+
+	#if defined(CRY_LISTENERSET_DEBUG_PRINT ) && !defined(NOT_USE_CRY_STRING)
+			CryLogAlways("%s => %s", __FUNCTION__, name);
+	#endif
+
 			DeleteName(name);
+		}
 #endif
 
 		// If no notifications in progress

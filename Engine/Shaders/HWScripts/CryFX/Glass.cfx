@@ -14,7 +14,6 @@ float Script : STANDARDSGLOBAL
 		"ShaderDrawType = Light;"  
 		"VertexColors;"
 		"AlphaBlendShadows;"
-
 #if %DEPTH_FOG
 		"ForceRefractionUpdate;"
 #else
@@ -29,28 +28,14 @@ float Script : STANDARDSGLOBAL
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////// Custom shading pass structure /////////////////////////////////////
-struct fragPassCustom
-{            
-  // Custom per pass data   
-  half4 cTintMap;				// Tinting amount / cloudiness / spec / decals
-  half fHoles;					// Holes in the glass
-  half fBackLightMul;		// Backlighting multiplier
-  half fFrontLightMask;	// Store just frontlighting information to prevent tintcolor getting multiplied by itself on backfaces.
-  half fRefrBumpScl;		// Refraction bump scale  
-  half3 cRefraction;		// Refraction map
-  float fDepth;					// Depth
+
+struct CustomForwardShadingAttribs
+{
+	half  backlightMask;
 };
 
-struct fragLightPassCustom
-{
-}; 
-
-float4x4 mCamera      : PB_CameraMatrix;
-
 #include "ShadeLib.cfi"
-
-//////////////////////////////// Common vertex shader ////////////////
-
+#include "ForwardShading.cfi"
 #include "VertexLib.cfi"
 
 //////////////////////////////// Samplers ////////////////
@@ -60,171 +45,171 @@ DISSOLVE_NOISE_MAP
 
 sampler2D envMapSamplerRefr
 {
-  Texture = $SceneTarget;
-  MinFilter = POINT;
-  MagFilter = POINT;
-  MipFilter = POINT;  
-  AddressU = Clamp;
-  AddressV = Clamp;   
-  sRGBLookup = true; 
+	Texture = $SceneTarget;
+	MinFilter = POINT;
+	MagFilter = POINT;
+	MipFilter = POINT;  
+	AddressU = Clamp;
+	AddressV = Clamp;   
+	sRGBLookup = true; 
 };
 
 Texture2D tintTex : register(t2)
 <
-  UIName = "Tint Map";
-  sRGBLookup = true;
+	UIName = "Tint Map";
+	sRGBLookup = true;
 > = TM_Specular;
 
 Texture2D tintColorTex : register(9)
 <
-  UIName = "Tint Colour Map";
-  sRGBLookup = true;
+	UIName = "Tint Colour Map";
+	sRGBLookup = true;
 > = TM_Custom;
 
 sampler2D decalSampler = sampler_state 
 { 
-  Texture = EngineAssets/Textures/glass_decalatlas_diff.dds; 
-  MinFilter = LINEAR;
-  MagFilter = LINEAR;
-  MipFilter = LINEAR; 
-  AddressU = Clamp;
-  AddressV = Clamp;
-  sRGBLookup = true;  
+	Texture = %ENGINE%/EngineAssets/Textures/glass_decalatlas_diff.dds; 
+	MinFilter = LINEAR;
+	MagFilter = LINEAR;
+	MipFilter = LINEAR; 
+	AddressU = Clamp;
+	AddressV = Clamp;
+	sRGBLookup = true;  
 };
 
 sampler2D decalNormSampler = sampler_state 
 { 
-  Texture = EngineAssets/Textures/glass_decalatlas_ddn.dds; 
-  MinFilter = LINEAR;
-  MagFilter = LINEAR;
-  MipFilter = LINEAR; 
-  AddressU = Clamp;
-  AddressV = Clamp;
-  sRGBLookup = false;
+	Texture = %ENGINE%/EngineAssets/Textures/glass_decalatlas_ddn.dds; 
+	MinFilter = LINEAR;
+	MagFilter = LINEAR;
+	MipFilter = LINEAR; 
+	AddressU = Clamp;
+	AddressV = Clamp;
+	sRGBLookup = false;
 };
 
 // Tweakables /////////////////
 
 float BumpScale
 <
-  register = REG_PM_PARAM_0.x;
-  string UIHelp = "Set reflection / refraction bump scale";
-  string UIName = "Bump Scale";  
-  string UIWidget = "slider";
-  float UIMin = 0.0;
-  float UIMax = 2.0;
-  float UIStep = 0.1;
+	register = REG_PM_PARAM_0.x;
+	string UIHelp = "Set reflection / refraction bump scale";
+	string UIName = "Bump Scale";  
+	string UIWidget = "slider";
+	float UIMin = 0.0;
+	float UIMax = 2.0;
+	float UIStep = 0.1;
 > = 0.1;
 
 float BackLightScale
 <
-  register = REG_PM_PARAM_0.y;
-  string UIHelp = "Set back lighting color scale";                     
-  string UIName = "Back light scale";    
-  string UIWidget = "slider";
-  float UIMin = 0.0;
-  float UIMax = 1.0;
-  float UIStep = 0.01;
+	register = REG_PM_PARAM_0.y;
+	string UIHelp = "Set back lighting color scale";                     
+	string UIName = "Back light scale";    
+	string UIWidget = "slider";
+	float UIMin = 0.0;
+	float UIMax = 1.0;
+	float UIStep = 0.01;
 > = 0.5;
 
 float4 TintColor
 <
-  register = REG_PM_PARAM_1;
-  string UIHelp = "Set tint color";                   
-  string UIName = "Tint Color";    
-  string UIWidget = "color";
+	register = REG_PM_PARAM_1;
+	string UIHelp = "Set tint color";                   
+	string UIName = "Tint Color";    
+	string UIWidget = "color";
 > = {1.0, 1.0, 1.0, 1.0};
 
 float TintCloudiness
 <      
-  register = REG_PM_PARAM_2.x;
-  string UIName = "Tint Cloudiness";
-  string UIHelp = "Adjusts cloudiness of tinted areas";
-  string UIWidget = "slider";
-  float UIMin = 0.0;
-  float UIMax = 1.0;
-  float UIStep = 0.01;
+	register = REG_PM_PARAM_2.x;
+	string UIName = "Tint Cloudiness";
+	string UIHelp = "Adjusts cloudiness of tinted areas";
+	string UIWidget = "slider";
+	float UIMin = 0.0;
+	float UIMax = 1.0;
+	float UIStep = 0.01;
 > = 0.0;
 
 #if %DEPTH_FOG
 float FogDensity
 <
-  register = REG_PM_PARAM_2.y;
-  string UIName = "Fog density";
-string UIWidget = "slider";
-float UIMin = 0.0f;
-float UIMax = 10.0f;
-float UIStep = 0.001f;
+	register = REG_PM_PARAM_2.y;
+	string UIName = "Fog density";
+	string UIWidget = "slider";
+	float UIMin = 0.0f;
+	float UIMax = 10.0f;
+	float UIStep = 0.001f;
 > = 1.0;
 
 float FogCutoffEnd
 <
-  register = REG_PM_PARAM_2.z;
-  string UIName = "Fog cutoff end depth";
-string UIHelp = "After this many meters, fog does not get any stronger";
-string UIWidget = "slider";
-float UIMin = 0.0f;
-float UIMax = 1000.0f;	
-float UIStep = 0.001f;
+	register = REG_PM_PARAM_2.z;
+	string UIName = "Fog cutoff end depth";
+	string UIHelp = "After this many meters, fog does not get any stronger";
+	string UIWidget = "slider";
+	float UIMin = 0.0f;
+	float UIMax = 1000.0f;	
+	float UIStep = 0.001f;
 > = 20.0f;	
 
 float4 FogColor
 <
-register = REG_PM_PARAM_3;  
-string UIName = "Fog color";
-string UIHelp = "Set fog color";
-string UIWidget = "color";
+	register = REG_PM_PARAM_3;  
+	string UIName = "Fog color";
+	string UIHelp = "Set fog color";
+	string UIWidget = "color";
 > = {1.0, 1.0, 1.0, 1.0};
 #endif // %DEPTH_FOG
 
 #if %BLUR_REFRACTION && %TINT_MAP
 float CloudinessMasksBlur
 <      
-  register = REG_PM_PARAM_4.x;
-  string UIName = "Cloudiness Masks Blur";
-  string UIHelp = "Applies blur just to cloudy areas";
-  string UIWidget = "slider";
-  float UIMin = 0.0;
-  float UIMax = 1.0;
-  float UIStep = 0.001;
+	register = REG_PM_PARAM_4.x;
+	string UIName = "Cloudiness Masks Blur";
+	string UIHelp = "Applies blur just to cloudy areas";
+	string UIWidget = "slider";
+	float UIMin = 0.0;
+	float UIMax = 1.0;
+	float UIStep = 0.001;
 > = 0.0;
 #endif
 
 #if %BLUR_REFRACTION
 float BlurAmount
 <      
-  register = REG_PM_PARAM_4.y;
-  string UIName = "Blur Amount";
-  string UIHelp = "Controls amount of blur";
-  string UIWidget = "slider";
-  float UIMin = 0.0;
-  float UIMax = 2.0;
-  float UIStep = 0.001;
+	register = REG_PM_PARAM_4.y;
+	string UIName = "Blur Amount";
+	string UIHelp = "Controls amount of blur";
+	string UIWidget = "slider";
+	float UIMin = 0.0;
+	float UIMax = 2.0;
+	float UIStep = 0.001;
 > = 0.5;
 #endif
 
 #if %TINT_MAP
 float CloudinessReducesGloss
 <      
-  register = REG_PM_PARAM_4.z;        
-  string UIName = "Cloudiness Masks Gloss";
-  string UIHelp = "Makes cloudy areas less glossy";
-  string UIWidget = "slider";
-  float UIMin = 0.0;
-  float UIMax = 1.0;
-  float UIStep = 0.001;
+	register = REG_PM_PARAM_4.z;        
+	string UIName = "Cloudiness Masks Gloss";
+	string UIHelp = "Makes cloudy areas less glossy";
+	string UIWidget = "slider";
+	float UIMin = 0.0;
+	float UIMax = 1.0;
+	float UIStep = 0.001;
 > = 0.5;
 #endif
 
 float BumpMapTile
 <      
-  register = REG_PM_PARAM_4.w;
-  string UIName = "Bump Map Tiling";
-  string UIHelp = "Adjusts tiling of bump map independently from diffuse";
-  string UIWidget = "slider";
-  float UIMin = 0.0;
-  float UIMax = 20.0;
-  float UIStep = 0.01;
+	register = REG_PM_PARAM_4.w;
+	string UIName = "Bump Map Tiling";
+	string UIHelp = "Adjusts tiling of bump map independently from diffuse";
+	string UIWidget = "slider";
+	float UIMin = 0.0;
+	float UIMax = 20.0;
+	float UIStep = 0.01;
 > = 1.0;
 
 ////////////////////////////////////////////////////////////////////////////
@@ -234,121 +219,51 @@ float BumpMapTile
 #define ResInfoImpactDecal	float2(2048.0f, 1024.0f)
 #define EXTRA_IMPACT_DECALS	1
 
-// Note: Structure *MUST* be kept in sync with code (D3DREBreakableGlass.cpp)
-/*
-struct SDecal
-{
-	float4 decalTransform;
-	float4 atlasOffset;
-}
-*/
 #define gNumImpactDecalElems 2
 float4 gImpactDecals[gNumImpactDecals * gNumImpactDecalElems];
 
-////////////////////////////////////////////////////////////////////////////
-// Depth fog computation for glass shader
-// TODO: move to VolumetricFog.cfi when required by other shaders
-float ComputeDepthFog(in float fDepth, in float fZBuffer, in float fFogDensity)
-{
-	// Sample background depth
-	float fBackgroundZ = fZBuffer;
+////////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////
 
-	// Background depth is in camera depth, correct to be in object depth
-	//	- Clamp depth to enable fade-out against far away objects
-	fBackgroundZ -= fDepth;
-	fBackgroundZ = min(fBackgroundZ, FogCutoffEnd);
-	float fFogLevel = saturate( exp2( -fBackgroundZ * fFogDensity ) );
-
-	return fFogLevel;
-}
-
-////////////////////////////////////////////////////////
-//                GENERAL PASS
-////////////////////////////////////////////////////////
 vert2FragGeneral GlassVS(app2vertGeneral IN)
 {
-  vert2FragGeneral OUT = (vert2FragGeneral)0;
+	vert2FragGeneral OUT = (vert2FragGeneral)0;
 
-  streamPos vertPassPos = (streamPos)0;
-  vs_shared_output( IN, OUT, vertPassPos, false );
+	streamPos vertPassPos = (streamPos)0;
+	vs_shared_output( IN, OUT, vertPassPos, false );
 
-  return OUT;
+	return OUT;
 }
 
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////
+// Pixel shader
 ////////////////////////////////////////////////////////////////////////////////////////////////////
-void frag_unify_parameters( inout fragPass pPass )
+
+void Callback_ShadingDirect(in ForwardShadingAttribs attribs, in ForwardLightParams light, out float3 diffuseAcc, out float3 specularAcc)
 {
-  pPass.bCustomComposition = true;
-  pPass.bHemisphereLighting = true;
-  pPass.bDontUseBump = true; // Ensures bumpmap doesn't get looked up twice (once in fraglib, once in glass)
-  
-  // Pre-multiplied constants per-vertex (optimization)
-  pPass.pCustom.fBackLightMul = 1 - (BackLightScale * 2);
-  pPass.pCustom.fRefrBumpScl = BumpScale;
-  pPass.bRenormalizeNormal = true;
-  pPass.bRefractionMap = true;
-    
-  pPass.pCustom.fDepth = -mul( (float3x3)mCamera, pPass.IN.vView.xyz ).z;
- 
-  pPass.fFresnel_Bias = 1.0;
-  pPass.fFresnel_Scale = 0.0;
+#if !%UNLIT
+	const half lightWrap = 0.15h; // This parameter just wraps the light around a bit more to fake a bit of internal bounce in semi-opaque solid glass. Needs work!
 
-#if %ENVIRONMENT_MAP
-  pPass.nReflectionMapping = REFLECT_CUBE;
-#endif 
+	half NdotL = dot(attribs.normal, light.lightVec);
+	half frontLightMask = saturate(NdotL + lightWrap); 
+	half NdotLBackLight = saturate(-NdotL + lightWrap) * saturate(attribs.custom.backlightMask - (1 - (BackLightScale * 2))) + frontLightMask;
 
-#if %_RT_TILED_SHADING
-  pPass.nReflectionMapping = 0;
-#endif
-}
+	NdotL = saturate(NdotL);
 
-////////////////////////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////////////////////////////////
-void frag_custom_begin(inout fragPass pPass)
-{
-	half3 tintMap = half3(1,0,1);
-	pPass.pCustom.cTintMap = half4(1,0,1,0); // Initialize to full tint / no cloudiness / full spec / no decals
-	pPass.pCustom.fHoles = 1; // Initialize to no holes
-	pPass.cSpecularMap.xyz = MatSpecColor.xyz;
-	
-#if !%DIRT_MAP
-	pPass.cDiffuseMap.xyzw = half4(0,0,0,0); // Hopefully diffuse lookup in fraglib will compile out, if not may need to add a custom boolean check in fraglib
-#else  
-	pPass.cDiffuseMap.xyz *= MatDifColor.xyz;
-	const half reflectanceDielectricLow = 0.03;
-	pPass.cSpecularMap.xyz = lerp(MatSpecColor.xyz, reflectanceDielectricLow, pPass.cDiffuseMap.w);
-#endif
-
-#if %SPECULAR_MAP
-	tintMap = GetTexture2D(tintTex, ssMaterialTrilinear, pPass.IN.baseTC.xy).xyz;
-  
-	#if %TINT_MAP
-		pPass.pCustom.cTintMap.xyz = tintMap.xyz;
-		pPass.fGloss *= saturate(1 - tintMap.y * CloudinessReducesGloss);
-		pPass.cSpecularMap = tintMap.z;
-	#else
-		pPass.cSpecularMap.xyz = tintMap.xyz;
-	#endif
-#endif
-  
-	pPass.fGloss *= GetSmoothnessTex(smoothnessTex, pPass.IN.baseTC.xy);
-	
-	// sun shadows
-	pPass.cShadowOcclMap.w = 1-ShadowDepthTest(pPass.IN.vView.xyz + PS_WorldViewPos.xyz);
-
-	// Calculate bumped normal
-	pPass.cBumpMap = GetNormalMap(normalsTex, pPass.IN.bumpTC.xy * BumpMapTile);
-	pPass.vNormal = normalize(mul(pPass.cBumpMap.xyz, pPass.mTangentToWS));
-	pPass.fNdotE = dot(pPass.vView.xyz, pPass.vNormal.xyz);
-	pPass.vReflVec = (2.0h * pPass.fNdotE * pPass.vNormal.xyz) - pPass.vView.xyz;
-	
-	half3 newNormal = half3(0,0,1);
-	
-#if !%_RT_SAMPLE0
-	newNormal.xy += pPass.cBumpMap.xy * pPass.pCustom.fRefrBumpScl;
-  	
+	half3 finalIlluminance = NdotL * light.illuminance * NdotLBackLight;
+	diffuseAcc = finalIlluminance;
+	specularAcc = SpecularBRDF(attribs.normal, -normalize(attribs.worldPos), light.lightVec, attribs.smoothness, attribs.reflectance) * finalIlluminance;
 #else
+	diffuseAcc = 0;
+	specularAcc = 0;
+#endif
+}
+
+#include "TiledShading.cfi"
+
+void ApplyDecals(float2 baseTC, inout half3 newNormal, inout half holeMask, inout half4 tintMap)
+{
 	// Fixed "random" decal transformations
 	const float randRot[gNumImpactDecals] =
 	{
@@ -374,7 +289,7 @@ void frag_custom_begin(inout fragPass pPass)
 		// Get base decal data
 		int decalDataOffset = i * gNumImpactDecalElems;
 		float4 decal = gImpactDecals[decalDataOffset];
-		float2 tempUVs = pPass.IN.baseTC.xy - 0.5f;
+		float2 tempUVs = baseTC.xy - 0.5f;
 		float2 scale = decal.zw * randScale[i];
 	  	  
 		// Calculate offset UV coords
@@ -416,48 +331,27 @@ void frag_custom_begin(inout fragPass pPass)
 			decalNorm += GetXYNormalMapLod(decalNormSampler, float4(decalUV, 0, lodDecal)) * edgeFade;
 		#endif
 			
-			pPass.pCustom.cTintMap.w += decalDiff.x * edgeFade;
-			pPass.pCustom.fHoles *= decalDiff.y;
+			tintMap.w += decalDiff.x * edgeFade;
+			holeMask *= decalDiff.y;
 		}
 	}
 
 	// Stop holes refracting
-	pPass.pCustom.fRefrBumpScl *= pPass.pCustom.fHoles;
-  
-	// Combine normal results
-	newNormal.xy += pPass.cBumpMap.xy * pPass.pCustom.fRefrBumpScl;
+	newNormal.xy *= holeMask;
   
 	const float decalNormStrength = 0.75f;
 	newNormal.xy += decalNorm * decalNormStrength;
-#endif // %_RT_SAMPLE0
-  
-	newNormal = normalize(newNormal); // TODO: Can we got rid of this or does it break 360 lighting?
-  
-	const half2 refractionNormScale = 0.1h*PS_HPosScale.xy;
-	half2 tcRefractionOffset = newNormal * refractionNormScale;		
-  
-	half4 cBackbuffer = 0;
-	pPass.pCustom.cRefraction = 0;
+}
 
-	// Get current pixel screen space coordinates
-	float2 tcProj = (pPass.IN.screenProj.xy/pPass.IN.screenProj.w);
-
-	// Get refracted depth buffer
-	float fFarPlaneScale = PS_NearFarClipDist.y;
-#if %_RT_NEAREST
-	fFarPlaneScale /= PS_NearFarClipDist.z;
-#endif
-
-	float fZBufferRefrac = GetLinearDepthUnclamped(sceneLinearDepthTex, tcProj + tcRefractionOffset) * fFarPlaneScale;
-	tcProj += tcRefractionOffset * saturate(fZBufferRefrac - pPass.pCustom.fDepth);
-
-// Copy/pasted DOF blur code - This is too expensive for consoles...
-// TODO: investigate cheaper version - should probably disable on lower PC settings too.
-#if %BLUR_REFRACTION
-	int tapCount = 37;
-	float fScale = BlurAmount * 0.003;
+half4 GetBlurredRefraction(float2 tcProj, half cloudiness)
+{
+	// Copy/pasted DOF blur code - This is too expensive for consoles...
+	// TODO: investigate cheaper version - should probably disable on lower PC settings too.
 	
-	float2 poisson[37] =
+	const int tapCount = 37;
+	const float fScale = BlurAmount * 0.003;
+
+	const float2 poisson[37] =
 	{		
 		float2(-1.0*fScale, 0),
 		float2(-2.0*fScale, 0),
@@ -466,7 +360,7 @@ void frag_custom_begin(inout fragPass pPass)
 		float2( 3.0*fScale, 0),
 		float2( 2.0*fScale, 0),
 		float2( 1.0*fScale, 0),
-		 // 7
+		// 7
 
 		float2(-1.0*fScale, -1.0*fScale),
 		float2(-2.0*fScale, -1.0*fScale),
@@ -475,7 +369,7 @@ void frag_custom_begin(inout fragPass pPass)
 		float2( 3.0*fScale, -1.0*fScale),
 		float2( 2.0*fScale, -1.0*fScale),
 		float2( 1.0*fScale, -1.0*fScale),
-		 // 14
+		// 14
 
 		float2(-1.0*fScale, 1.0*fScale),
 		float2(-2.0*fScale, 1.0*fScale),
@@ -484,188 +378,267 @@ void frag_custom_begin(inout fragPass pPass)
 		float2( 3.0*fScale, 1.0*fScale),
 		float2( 2.0*fScale, 1.0*fScale),
 		float2( 1.0*fScale, 1.0*fScale),
-		 // 21
+		// 21
 
 		float2(-2.0*fScale,  2.0*fScale),
 		float2(-1.0*fScale,  2.0*fScale),
 		float2( 0.0, 2.0*fScale),
 		float2( 1.0*fScale,  2.0*fScale),
 		float2( 2.0*fScale,  2.0*fScale),
-		 // 26
+		// 26
 
 		float2(-2.0*fScale, -2.0*fScale),
 		float2(-1.0*fScale, -2.0*fScale),
 		float2( 0.0, -2.0*fScale),
 		float2( 1.0*fScale, -2.0*fScale),
 		float2( 2.0*fScale, -2.0*fScale),
-		 // 31
+		// 31
 
 
 		float2(-1.0*fScale, 3.0*fScale),
 		float2( 0.0, 3.0*fScale),
 		float2( 1.0*fScale, 3.0*fScale),
-		 // 34
+		// 34
 
 		float2(-1.0*fScale, -3.0*fScale),
 		float2( 0.0, -3.0*fScale),
 		float2( 1.0*fScale, -3.0*fScale),
-		 // 37
+		// 37
 	};
-	 
-	half4 cAcc = 0;
+	
 	half mask = 1;
-  
 #if %TINT_MAP
-	mask = saturate(tintMap.y + (1-CloudinessMasksBlur));
+	mask = saturate(cloudiness + (1 - CloudinessMasksBlur));
 #endif
 
-	for (int t=0; t<tapCount; t++)
+	half4 cAcc = 0;
+	for (int t = 0; t < tapCount; t++)
 	{ 
+	#if %_RT_PER_INSTANCE_CB_TEMP
+		half4 tap = Fwd_SceneTarget.Sample(ssFwdBilinearWrap, tcProj + poisson[t] * mask);
+	#else	
 		half4 tap = GetTexture2D(envMapSamplerRefr, tcProj + poisson[t] * mask);
+	#endif
 		cAcc += tap;
 	}
 
-	cAcc /= tapCount;
-	cBackbuffer = cAcc;
-#else
-	cBackbuffer = GetTexture2D(envMapSamplerRefr, tcProj);
-#endif
-  
-#if %DEPTH_FOG
-	// Get depth buffer
-	float fFogLevel = ComputeDepthFog(pPass.pCustom.fDepth, fZBufferRefrac, FogDensity);	// Compute fog
-	cBackbuffer = lerp(FogColor, cBackbuffer, fFogLevel);	// Colorize fog and mix it with backbuffer
-#endif
-
-	// Get refraction color  
-	pPass.pCustom.cRefraction = DecodeHDRBuffer(cBackbuffer).xyz;
-	pPass.pCustom.cRefraction /= PS_HDR_RANGE_ADAPT_MAX;
-
-#if %_RT_HDR_MODE && %_RT_FOG && !%_RT_DECAL_TEXGEN_2D && %_RT_VOLUMETRIC_FOG
-	// subtract volumetric fog color from refraction because fog between camera and glass is applied in frag_fog_setup function.
-	VolumetricFogTexcoord vtc = GetVolumetricFogTexcoordParamByScreenProj(pPass.IN.screenProj);
-	float4 vf = GetVolumetricFogValue(vtc);
-	half4 globalFogColor = pPass.IN.AvgFogVolumeContrib.xyzw;
-	half3 fogColor = 0.0f;
-	ApplyVolumetricFog(vf, globalFogColor, vtc, fogColor.xyz);
-	pPass.pCustom.cRefraction.xyz -= fogColor.xyz;
-#endif
-
-	// Output opacity
-	pPass.fAlpha = 1; // Could be worth clipping holes here?
+	return cAcc / tapCount;
 }
 
-////////////////////////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////////////////////////////////
-void frag_custom_per_light(inout fragPass pPass, inout fragLightPass pLight)
+float ComputeDepthFog(in float fDepth, in float fZBuffer, in float fFogDensity)
 {
-#if !%UNLIT
-  half lightWrap = 0.15h; // This parameter just wraps the light around a bit more to fake a bit of internal bounce in semi-opaque solid glass. Needs work!
-  pPass.pCustom.fFrontLightMask = saturate(pLight.fNdotL + lightWrap); 
-  half NdotLBackLight = saturate(-pLight.fNdotL + lightWrap) * saturate((1 - pPass.cDiffuseMap.w) - pPass.pCustom.fBackLightMul) + pPass.pCustom.fFrontLightMask;
-    
-  pLight.fNdotL = saturate(pLight.fNdotL);
-  
-  half3 cDiffuse = pLight.cDiffuse.xyz * pLight.fNdotL;
-  half3 cSpecular = pLight.cSpecular.xyz * SpecularBRDF(pPass.vNormal, pPass.vView, pLight.vLight, pPass.fGloss, pPass.cSpecularMap.rgb) * pLight.fNdotL;
+	// Sample background depth
+	float fBackgroundZ = fZBuffer;
 
-  half3 cK = pLight.fOcclShadow * pLight.fFallOff * pLight.cFilter * saturate(NdotLBackLight);
-  
-  pPass.cDiffuseAcc.xyz += cDiffuse.xyz * cK;
-  pPass.cSpecularAcc.xyz += cSpecular.xyz * cK;
-#endif
-}
-  
-////////////////////////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////////////////////////////////
-void frag_custom_ambient(inout fragPass pPass, inout half3 cAmbient)
-{
-   if (pPass.nReflectionMapping)
-   {
-      // Use low mip level of specular cubemap as irradiance approximation
-      pPass.cAmbientAcc.xyz += DecodeHDRCubemap( GetEnvCubeTexLod( envCubeTex, half4(pPass.vNormal.xyz, 5) ) ).xyz;
-   }
+	// Background depth is in camera depth, correct to be in object depth
+	//	- Clamp depth to enable fade-out against far away objects
+	fBackgroundZ -= fDepth;
+	fBackgroundZ = min(fBackgroundZ, FogCutoffEnd);
+	float fFogLevel = saturate( exp2( -fBackgroundZ * fFogDensity ) );
+
+	return fFogLevel;
 }
 
-////////////////////////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-#include "TiledShading.cfi"
-
-void frag_custom_end(inout fragPass pPass, inout half3 cFinal)
-{
-#if %_RT_TILED_SHADING	
-  TiledForwardShading(pPass, true, true);
-#endif
-	
-  half3 tintBackground = half3(0,0,0);
-  half3 tintDiffuse = half3(0,0,0);
-  half3 litDiffuse = half3(0,0,0);
-  
-  const half decalWhiteTint = 0.45h;
-  const half decalCloudiness = 0.45h;
-  
-#if %_RT_SAMPLE0
-  half4 vertColor = pPass.IN.Color;
-#else
-  half4 vertColor = half4(1,1,1,1);
-#endif
-    
-#if %TINT_COLOR_MAP 
-  TintColor.xyz *= GetTexture2D(tintColorTex, ssMaterialTrilinear, pPass.IN.baseTC.xy).xyz;
-#endif
-  TintColor.xyz = saturate(TintColor.xyz * vertColor.rgb + pPass.pCustom.cTintMap.w * decalWhiteTint); // Tend tint color toward white based on decals
-      
-#if %TINT_MAP		
-  TintCloudiness = saturate(TintCloudiness * pPass.pCustom.cTintMap.x * pPass.pCustom.cTintMap.y + pPass.pCustom.cTintMap.w * decalCloudiness);
-  TintColor.xyz = saturate(TintColor.xyz + (1 - pPass.pCustom.cTintMap.x));
-#else
-  TintCloudiness = saturate(TintCloudiness + pPass.pCustom.cTintMap.w * decalCloudiness);
-#endif
-
-  tintBackground = pPass.pCustom.cRefraction.xyz * TintColor.xyz;
-  tintDiffuse = TintColor.xyz * (pPass.cDiffuseAcc.xyz + pPass.cAmbientAcc.xyz);
-  litDiffuse = pPass.cDiffuseMap.xyz * (pPass.cDiffuseAcc.xyz + pPass.cAmbientAcc.xyz);
-    
-  half3 fresnel = GetEnvmapFresnel(pPass.cSpecularMap.xyz, pPass.fGloss, pPass.fNdotE);
-	
-  if( pPass.nReflectionMapping )
-  {
-    pPass.cSpecularAcc.xyz += pPass.cEnvironment.xyz * fresnel;                       
-  }
-  
-  half3 tintBlend = lerp(tintBackground, tintDiffuse, TintCloudiness);
-  half3 cDiffuse = lerp(tintBlend, litDiffuse, pPass.cDiffuseMap.w);   
-  half3 cSpecular = pPass.cSpecularAcc.xyz;
-  
-  cFinal.xyz = lerp(cDiffuse, cSpecular, fresnel);
- 
-  // Alpha out holes and apply material opacity
-  pPass.fAlpha = pPass.pCustom.fHoles * pPass.IN.Ambient.w;
-  pPass.fAlpha *= vertColor.a;
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-#include "fragLib.cfi"
-
-///////////////// pixel shader //////////////////
 
 pixout GlassPS(vert2FragGeneral IN, bool bIsFrontFace : SV_IsFrontFace)
 {
-	pixout OUT = (pixout) 0;  
+	pixout OUT = (pixout) 0;
 	
-	// Initialize fragPass structure
-	fragPass pPass = (fragPass) 0;
-	frag_unify(pPass, IN);
+	ForwardShadingAttribs attribs;
+	attribs.screenUV = IN.screenProj.xy / IN.screenProj.w;
+	attribs.worldPos = IN.vView.xyz;
 	
-	// Support for double-sided lighting
-	pPass.IN.vNormal *= bIsFrontFace ? 1.0f : -1.0f;
+	attribs.reflectance = MatSpecColor.xyz;
+	attribs.smoothness = MatSpecColor.w;
 	
-	half4 cFinal = frag_shared_output(pPass);
+	half4 tintMap = half4(1, 0, 1, 0);  // Initialize to full tint / no cloudiness / full spec / no decals
+	
+#if !%DIRT_MAP
+	attribs.albedo = half3(0, 0, 0);
+	attribs.custom.backlightMask = 0;
+#else  
+	half4 diffuseMap = GetDiffuseTex(diffuseTex, IN.baseTC.xy);
+	attribs.albedo = diffuseMap.rgb * MatDifColor.xyz;
+	attribs.custom.backlightMask = diffuseMap.a;
+	const half reflectanceDielectricLow = 0.03;
+	attribs.reflectance = lerp(MatSpecColor.xyz, reflectanceDielectricLow, diffuseMap.a);
+#endif
 
-	HDROutput(OUT, cFinal, 1);
+#if %SPECULAR_MAP
+	half3 specMap = GetTexture2D(tintTex, ssMaterialTrilinear, IN.baseTC.xy).xyz;
+
+	#if %TINT_MAP
+		tintMap.xyz = specMap.xyz;
+		attribs.smoothness *= saturate(1 - tintMap.y * CloudinessReducesGloss);
+		attribs.reflectance = tintMap.zzz;
+	#else
+		attribs.reflectance = specMap;
+	#endif
+#endif
+
+	attribs.smoothness *= GetSmoothnessTex(smoothnessTex, IN.baseTC.xy);
+
+	float3 vNormal = cross(IN.vTangent.xyz, IN.vBinormal.xyz) * IN.vTangent.w * (bIsFrontFace ? 1.0f : -1.0f);
+	float3x3 matTangentToWS = float3x3(IN.vTangent.xyz, IN.vBinormal.xyz, vNormal.xyz);
+	
+	half3 normalMap = GetNormalMap(normalsTex, IN.baseTC.xy * BumpMapTile);
+	attribs.normal = normalize(mul(normalMap.xyz, matTangentToWS));
+	attribs.normalSpecProbe = attribs.normal;
+	
+	half3 newNormal = half3(normalMap.xy * BumpScale, 1);
+	half holeMask = 1;  // Initialize to no holes
+	
+#if %_RT_SAMPLE0 && !%_RT_PER_INSTANCE_CB_TEMP
+	ApplyDecals(IN.baseTC.xy, newNormal, holeMask, tintMap);
+#endif
+
+	newNormal = normalize(newNormal);
+
+	half3 diffuseAcc = 0;
+	half3 specularAcc = 0;
+	
+	// Handle direct lighting from sun
+	{
+	#if %_RT_PER_INSTANCE_CB_TEMP	
+		float sunShadow = 1 - Fwd_SampleSunShadowMaps(attribs.worldPos + GetWorldViewPos());
+	#else
+		float sunShadow = ShadowDepthTest(attribs.worldPos + GetWorldViewPos());
+	#endif
+
+		ForwardLightParams lightParams;
+		lightParams.type = LT_DIRECTIONAL;
+		lightParams.lightVec = CV_SunLightDir.xyz;
+		lightParams.illuminance = CV_SunColor.xyz * sunShadow;
+		
+		Callback_ShadingDirect(attribs, lightParams, diffuseAcc, specularAcc);
+	}
+
+#if %_RT_TILED_SHADING
+	#if %_RT_PER_INSTANCE_CB_TEMP
+		TiledForwardShading(attribs, diffuseAcc, specularAcc, ssFwdBilinearWrap, ssFwdComparison, true, true, true);
+	#else
+		TiledForwardShading(attribs, diffuseAcc, specularAcc, TrilinearClampSamplerState, SampStateComp, true, true, true);
+	#endif
+#endif
+
+	const half2 refractionNormScale = 0.1h * CV_HPosScale.xy;
+	half2 tcRefractionOffset = newNormal * refractionNormScale;		
+
+	half3 cBackbuffer = 0;
+
+	// Get current pixel screen space coordinates
+	float2 tcProj = (IN.screenProj.xy / IN.screenProj.w);
+
+	// Get refracted depth buffer
+	float fFarPlaneScale = CV_NearFarClipDist.y;
+#if %_RT_NEAREST
+	fFarPlaneScale /= CV_NearFarClipDist.z;
+#endif
+
+	half fDepth = -mul((float3x3)CV_ViewMatr, IN.vView.xyz).z;
+	
+	int3 vPixCoord = int3(max(min(tcProj + tcRefractionOffset * CV_ScreenSize.xy, CV_ScreenSize.xy - float2(1.0f, 1.0f)), float2(0.0f, 0.0f)), 0);
+#if %_RT_PER_INSTANCE_CB_TEMP	
+	float fZBufferRefrac = Fwd_SceneDepth.Load(vPixCoord).x * fFarPlaneScale;
+#else
+	float fZBufferRefrac = sceneLinearDepthTex.Load(vPixCoord).x * fFarPlaneScale;
+#endif
+	tcProj += tcRefractionOffset * saturate(fZBufferRefrac - fDepth);
+
+#if %BLUR_REFRACTION
+	cBackbuffer = GetBlurredRefraction(tcProj, tintMap.y).rgb;
+#else
+	#if %_RT_PER_INSTANCE_CB_TEMP
+		cBackbuffer = Fwd_SceneTarget.Sample(ssFwdBilinearWrap, tcProj).rgb;
+	#else
+		cBackbuffer = GetTexture2D(envMapSamplerRefr, tcProj).rgb;
+	#endif
+#endif
+
+#if %DEPTH_FOG
+	// Get depth buffer
+	float fFogLevel = ComputeDepthFog(fDepth, fZBufferRefrac, FogDensity);	// Compute fog
+	cBackbuffer = lerp(FogColor.rgb, cBackbuffer, fFogLevel);	// Colorize fog and mix it with backbuffer
+#endif
+
+#if !%_RT_SECONDARY_VIEW && %_RT_FOG && !%_RT_DECAL_TEXGEN_2D && %_RT_VOLUMETRIC_FOG
+#if !%_RT_PER_INSTANCE_CB_TEMP
+	{
+		// Subtract volumetric fog color from refraction because fog between camera and glass is applied in frag_fog_setup function.
+		VolumetricFogTexcoord vtc = GetVolumetricFogTexcoordParamByScreenProj(IN.screenProj);
+		float4 vf = GetVolumetricFogValue(vtc);
+		half4 globalFogColor = IN.AvgFogVolumeContrib.xyzw;
+		half3 fogColor = 0.0f;
+		ApplyVolumetricFog(vf, globalFogColor, vtc, fogColor.xyz);
+		cBackbuffer -= fogColor.xyz;
+	}
+#else
+	{
+		// Subtract volumetric fog color from refraction because fog between camera and glass is applied .
+		half3 fogColor = 0.0f;
+		Fwd_ApplyFog(attribs.worldPos + GetWorldViewPos(), attribs.worldPos, IN.WPos, fogColor.xyz);
+		cBackbuffer -= fogColor.xyz;
+	}
+#endif
+#endif
+
+	const half decalWhiteTint = 0.45h;
+	const half decalCloudiness = 0.45h;
+
+#if %_RT_SAMPLE0
+	half4 vertColor = IN.Color;
+#else
+	half4 vertColor = half4(1,1,1,1);
+#endif
+    
+#if %TINT_COLOR_MAP 
+	TintColor.xyz *= GetTexture2D(tintColorTex, ssMaterialTrilinear, IN.baseTC.xy).xyz;
+#endif
+	TintColor.xyz = saturate(TintColor.xyz * vertColor.rgb + tintMap.w * decalWhiteTint); // Tend tint color toward white based on decals
+      
+#if %TINT_MAP		
+	TintCloudiness = saturate(TintCloudiness * tintMap.x * tintMap.y + tintMap.w * decalCloudiness);
+	TintColor.xyz = saturate(TintColor.xyz + (1 - tintMap.x));
+#else
+	TintCloudiness = saturate(TintCloudiness + tintMap.w * decalCloudiness);
+#endif
+
+	half3 tintBackground = cBackbuffer * TintColor.xyz;
+	half3 tintDiffuse = TintColor.xyz * diffuseAcc;
+	half3 litDiffuse = attribs.albedo * diffuseAcc;
+
+	float3 viewVec = -normalize(attribs.worldPos);
+	half3 fresnel = GetEnvmapFresnel(attribs.reflectance, attribs.smoothness, saturate(dot(attribs.normal, viewVec)));
+
+	half3 tintBlend = lerp(tintBackground, tintDiffuse, TintCloudiness);
+	half3 cDiffuse = lerp(tintBlend, litDiffuse, attribs.custom.backlightMask);   
+	half3 cSpecular = specularAcc.xyz;
+
+	half alpha = holeMask * vertColor.a;
+#if !%_RT_PER_INSTANCE_CB_TEMP
+	alpha *= IN.Ambient.w;
+#endif
+	half4 cFinal = half4(lerp(cDiffuse, cSpecular, fresnel), alpha);	
+	
+#if !%_RT_PER_INSTANCE_CB_TEMP
+	// Fog
+	#if %_RT_FOG && !%_RT_DECAL_TEXGEN_2D && !%_RT_SECONDARY_VIEW
+		#if %_RT_VOLUMETRIC_FOG
+			VolumetricFogTexcoord vtc = GetVolumetricFogTexcoordParamByScreenProj(IN.screenProj);
+			float4 vf = GetVolumetricFogValue(vtc);
+			half4 globalFogColor = IN.AvgFogVolumeContrib.xyzw;
+			ApplyVolumetricFog(vf, globalFogColor, vtc, cFinal.rgb);
+		#else
+			ComputeGlobalFogPS(cFinal.rgb, IN.vView.w);
+			cFinal.rgb = IN.AvgFogVolumeContrib.xyz + cFinal.rgb * IN.AvgFogVolumeContrib.w;
+			cFinal.w *= IN.vView.w;
+		#endif
+	#endif
+#else
+	Fwd_ApplyFog(attribs.worldPos + GetWorldViewPos(), attribs.worldPos, IN.WPos, cFinal.xyz);
+#endif
+
+	OUT.Color = cFinal;
 
 	return OUT;  
 }
@@ -680,20 +653,20 @@ technique General
 #endif
 >
 {  
-  pass p0
-  {
-    VertexShader = GlassVS() GlassVS;
-    PixelShader = GlassPS() GlassPS;
-    GeometryShader = $AutoGS_MultiRes();
+	pass p0
+	{
+		VertexShader = GlassVS() GlassVS;
+		PixelShader = GlassPS() GlassPS;
+		GeometryShader = $AutoGS_MultiRes();
 
-    CullMode = Back;
-    ZEnable = true;
-    ZWriteEnable = false;  
-    
-    SrcBlend = SRC_ALPHA;
-    DestBlend = ONE_MINUS_SRC_ALPHA;
-    AlphaBlendEnable = true;
-  }
+		CullMode = Back;
+		ZEnable = true;
+		ZWriteEnable = false;  
+
+		SrcBlend = SRC_ALPHA;
+		DestBlend = ONE_MINUS_SRC_ALPHA;
+		AlphaBlendEnable = true;
+	}
 }
 
 //////////////////////////////// Common techniques ////////////////
@@ -702,4 +675,3 @@ technique General
 #include "ShadowCommon.cfi"
 #include "CommonShadowGenPass.cfi"
 #endif
-/////////////////////// eof ///

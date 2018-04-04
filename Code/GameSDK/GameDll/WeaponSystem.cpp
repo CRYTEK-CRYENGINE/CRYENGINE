@@ -130,7 +130,7 @@ struct C##name##Creator : public IGameObjectExtensionCreatorBase	\
 { \
 	IGameObjectExtension* Create(IEntity *pEntity) \
 	{ \
-		return pEntity->CreateComponentClass<T>();\
+		return pEntity->GetOrCreateComponentClass<T>();\
 	} \
 	void GetGameObjectExtensionRMIData( void ** ppRMI, size_t * nCount ) \
 	{ \

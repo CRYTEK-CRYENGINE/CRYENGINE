@@ -46,5 +46,5 @@ def build(bld):
 		
 		export_definitions    = 'ResourceCompilerPlugin.def',
 
-		use_module = [ 'yasli', 'lua', 'vco' ]
+		use_module = [ 'lua', 'vco' ]
 	)

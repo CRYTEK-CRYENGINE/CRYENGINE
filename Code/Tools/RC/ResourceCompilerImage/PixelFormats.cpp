@@ -1,4 +1,5 @@
 // Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved.
+
 #include "StdAfx.h"
 #include "PixelFormats.h"           // CPixelFormats
 #include "ImageObject.h"            // ImageObject
@@ -64,64 +65,74 @@ void PixelFormatsInitializer::InitPixelFormats()
 	// Unsigned Formats
 	// Data in an unsigned format must be positive. Unsigned formats use combinations of
 	// (R)ed, (G)reen, (B)lue, (A)lpha, (L)uminance
-	InitPixelFormat(ePixelFormat_A8R8G8B8,     PixelFormatInfo( 32,4,true ,"8",   1,1,1,1,false, D3DFMT_A8R8G8B8, DXGI_FORMAT_B8G8R8A8_UNORM, eSampleType_Uint8     , "A8R8G8B8",     "32-bit ARGB pixel format with alpha, using 8 bits per channel",false,true));
-	InitPixelFormat(ePixelFormat_X8R8G8B8,     PixelFormatInfo( 32,4,false,"0",   1,1,1,1,false, D3DFMT_X8R8G8B8, DXGI_FORMAT_B8G8R8X8_UNORM, eSampleType_Uint8     , "X8R8G8B8",     "32-bit RGB pixel format, where 8 bits are reserved for each color",false,true));
-	InitPixelFormat(ePixelFormat_R8G8B8,       PixelFormatInfo( 24,3,false,"0",   1,1,1,1,false, D3DFMT_R8G8B8,   DXGI_FORMAT_UNKNOWN,        eSampleType_Uint8     , "R8G8B8",       "24-bit RGB pixel format with 8 bits per channel",false,false));
-	InitPixelFormat(ePixelFormat_G8R8,         PixelFormatInfo( 16,2,false,"0",   1,1,1,1,false, D3DFMT_DX10,     DXGI_FORMAT_R8G8_UNORM,     eSampleType_Uint8     , "G8R8",         "16-bit red/green, using 8 bits per channel",false,false));
-	InitPixelFormat(ePixelFormat_R8,           PixelFormatInfo(  8,1,false,"0",   1,1,1,1,false, D3DFMT_DX10,     DXGI_FORMAT_R8_UNORM,       eSampleType_Uint8     , "R8",           "8-bit red only",false,false));
-	InitPixelFormat(ePixelFormat_A8,           PixelFormatInfo(  8,1,true ,"8",   1,1,1,1,false, D3DFMT_A8,       DXGI_FORMAT_A8_UNORM,       eSampleType_Uint8     , "A8",           "8-bit alpha only",false,true));
-	InitPixelFormat(ePixelFormat_L8,           PixelFormatInfo(  8,1,false,"0",   1,1,1,1,false, D3DFMT_L8,       DXGI_FORMAT_UNKNOWN,        eSampleType_Uint8     , "L8",           "8-bit luminance only",false,false));
-	InitPixelFormat(ePixelFormat_A8L8,         PixelFormatInfo( 16,2,true ,"8",   1,1,1,1,false, D3DFMT_A8L8,     DXGI_FORMAT_UNKNOWN,        eSampleType_Uint8     , "A8L8",         "8-bit luminance and alpha",false,false));
-	InitPixelFormat(ePixelFormat_A16B16G16R16, PixelFormatInfo( 64,4,true ,"16",  1,1,1,1,false, D3DFMT_A16B16G16R16,DXGI_FORMAT_R16G16B16A16_UNORM,eSampleType_Uint16,"A16B16G16R16","64-bit ARGB pixel format with alpha, using 16 bits per channel",false,false));
-	InitPixelFormat(ePixelFormat_G16R16,       PixelFormatInfo( 32,2,false,"0",   1,1,1,1,false, D3DFMT_DX10,     DXGI_FORMAT_R16G16_UNORM,   eSampleType_Uint16    , "G16R16",       "32-bit red/green, using 16 bits per channel",false,false));
-	InitPixelFormat(ePixelFormat_R16,          PixelFormatInfo( 16,1,false,"0",   1,1,1,1,false, D3DFMT_DX10,     DXGI_FORMAT_R16_UNORM,      eSampleType_Uint16    , "R16",          "16-bit red only",false,false));
+	InitPixelFormat(ePixelFormat_A8R8G8B8,      PixelFormatInfo( 4,4,true ,"8",   1,1,1,1,false, D3DFMT_A8R8G8B8,      DXGI_FORMAT_B8G8R8A8_UNORM, eSampleType_Uint8     , "A8R8G8B8",      "32-bit ARGB pixel format with alpha, using 8 bits per channel",false,true));
+	InitPixelFormat(ePixelFormat_X8R8G8B8,      PixelFormatInfo( 4,4,false,"0",   1,1,1,1,false, D3DFMT_X8R8G8B8,      DXGI_FORMAT_B8G8R8X8_UNORM, eSampleType_Uint8     , "X8R8G8B8",      "32-bit RGB pixel format, where 8 bits are reserved for each color",false,true));
+	InitPixelFormat(ePixelFormat_R8G8B8,        PixelFormatInfo( 3,3,false,"0",   1,1,1,1,false, D3DFMT_R8G8B8,        DXGI_FORMAT_UNKNOWN,        eSampleType_Uint8     , "R8G8B8",        "24-bit RGB pixel format with 8 bits per channel",false,false));
+	InitPixelFormat(ePixelFormat_G8R8,          PixelFormatInfo( 2,2,false,"0",   1,1,1,1,false, D3DFMT_DX10,          DXGI_FORMAT_R8G8_UNORM,     eSampleType_Uint8     , "G8R8",          "16-bit red/green, using 8 bits per channel",false,false));
+	InitPixelFormat(ePixelFormat_R8,            PixelFormatInfo( 1,1,false,"0",   1,1,1,1,false, D3DFMT_DX10,          DXGI_FORMAT_R8_UNORM,       eSampleType_Uint8     , "R8",            "8-bit red only",false,false));
+	InitPixelFormat(ePixelFormat_A8,            PixelFormatInfo( 1,1,true ,"8",   1,1,1,1,false, D3DFMT_A8,            DXGI_FORMAT_A8_UNORM,       eSampleType_Uint8     , "A8",            "8-bit alpha only",false,true));
+	InitPixelFormat(ePixelFormat_L8,            PixelFormatInfo( 1,1,false,"0",   1,1,1,1,false, D3DFMT_L8,            DXGI_FORMAT_UNKNOWN,        eSampleType_Uint8     , "L8",            "8-bit luminance only",false,false));
+	InitPixelFormat(ePixelFormat_A8L8,          PixelFormatInfo( 2,2,true ,"8",   1,1,1,1,false, D3DFMT_A8L8,          DXGI_FORMAT_UNKNOWN,        eSampleType_Uint8     , "A8L8",          "8-bit luminance and alpha",false,false));
+	InitPixelFormat(ePixelFormat_A16B16G16R16,  PixelFormatInfo( 8,4,true ,"16",  1,1,1,1,false, D3DFMT_A16B16G16R16,  DXGI_FORMAT_R16G16B16A16_UNORM,eSampleType_Uint16 , "A16B16G16R16",  "64-bit ARGB pixel format with alpha, using 16 bits per channel",false,false));
+	InitPixelFormat(ePixelFormat_G16R16,        PixelFormatInfo( 4,2,false,"0",   1,1,1,1,false, D3DFMT_DX10,          DXGI_FORMAT_R16G16_UNORM,   eSampleType_Uint16    , "G16R16",        "32-bit red/green, using 16 bits per channel",false,false));
+	InitPixelFormat(ePixelFormat_R16,           PixelFormatInfo( 2,1,false,"0",   1,1,1,1,false, D3DFMT_DX10,          DXGI_FORMAT_R16_UNORM,      eSampleType_Uint16    , "R16",           "16-bit red only",false,false));
 
 	// Standardized Compressed FourCC Formats (DX9+)
 	// Data in these compressed formats is hardware decodable on all DX9 chips, and manageable with the DX9-API.
-	InitPixelFormat(ePixelFormat_DXT1,         PixelFormatInfo(  4,3,false,"0",   4,4,4,4,false, D3DFMT_DXT1,     DXGI_FORMAT_BC1_UNORM,      eSampleType_Compressed, "DXT1",         "DXT1 compressed texture format",true,true));
-	InitPixelFormat(ePixelFormat_DXT1a,        PixelFormatInfo(  4,4,true ,"1",   4,4,4,4,false, D3DFMT_DXT1,     DXGI_FORMAT_BC1_UNORM,      eSampleType_Compressed, "DXT1a",        "DXT1a compressed texture format with transparency",true,true));
-	InitPixelFormat(ePixelFormat_DXT3,         PixelFormatInfo(  8,4,true ,"4",   4,4,4,4,false, D3DFMT_DXT3,     DXGI_FORMAT_BC2_UNORM,      eSampleType_Compressed, "DXT3",         "DXT3 compressed texture format",true,true));
-	InitPixelFormat(ePixelFormat_DXT3t,        PixelFormatInfo(  8,4,true ,"4",   4,4,4,4,false, D3DFMT_DXT3,     DXGI_FORMAT_BC2_UNORM,      eSampleType_Compressed, "DXT3t",        "DXT3t compressed texture format with transparency",true,true));
-	InitPixelFormat(ePixelFormat_DXT5,         PixelFormatInfo(  8,4,true ,"3of8",4,4,4,4,false, D3DFMT_DXT5,     DXGI_FORMAT_BC3_UNORM,      eSampleType_Compressed, "DXT5",         "DXT5 compressed texture format",true,true));
-	InitPixelFormat(ePixelFormat_DXT5t,        PixelFormatInfo(  8,4,true ,"3of8",4,4,4,4,false, D3DFMT_DXT5,     DXGI_FORMAT_BC3_UNORM,      eSampleType_Compressed, "DXT5t",        "DXT5t compressed texture format with transparency",true,true));
+	InitPixelFormat(ePixelFormat_DXT1,          PixelFormatInfo( 8,3,false,"0",   4,4,4,4,false, D3DFMT_DXT1,          DXGI_FORMAT_BC1_UNORM,      eSampleType_Compressed, "DXT1",          "DXT1 compressed texture format",true,true));
+	InitPixelFormat(ePixelFormat_DXT1a,         PixelFormatInfo( 8,4,true ,"1",   4,4,4,4,false, D3DFMT_DXT1,          DXGI_FORMAT_BC1_UNORM,      eSampleType_Compressed, "DXT1a",         "DXT1a compressed texture format with transparency",true,true));
+	InitPixelFormat(ePixelFormat_DXT3,          PixelFormatInfo(16,4,true ,"4",   4,4,4,4,false, D3DFMT_DXT3,          DXGI_FORMAT_BC2_UNORM,      eSampleType_Compressed, "DXT3",          "DXT3 compressed texture format",true,true));
+	InitPixelFormat(ePixelFormat_DXT3t,         PixelFormatInfo(16,4,true ,"4",   4,4,4,4,false, D3DFMT_DXT3,          DXGI_FORMAT_BC2_UNORM,      eSampleType_Compressed, "DXT3t",         "DXT3t compressed texture format with transparency",true,true));
+	InitPixelFormat(ePixelFormat_DXT5,          PixelFormatInfo(16,4,true ,"3of8",4,4,4,4,false, D3DFMT_DXT5,          DXGI_FORMAT_BC3_UNORM,      eSampleType_Compressed, "DXT5",          "DXT5 compressed texture format",true,true));
+	InitPixelFormat(ePixelFormat_DXT5t,         PixelFormatInfo(16,4,true ,"3of8",4,4,4,4,false, D3DFMT_DXT5,          DXGI_FORMAT_BC3_UNORM,      eSampleType_Compressed, "DXT5t",         "DXT5t compressed texture format with transparency",true,true));
 
 	// Custom FourCC Formats
 	// Data in these FourCC formats is custom compressed data and only decodable by certain hardware.
-	InitPixelFormat(ePixelFormat_3DCp,         PixelFormatInfo(  4,1,true ,"4",   4,4,4,4,false, D3DFMT_3DCp,     DXGI_FORMAT_BC4_UNORM,      eSampleType_Compressed, "3DCp",         "ATI compressed texture format for single channel maps",true,true));
-	InitPixelFormat(ePixelFormat_3DC,          PixelFormatInfo(  8,2,false,"0",   4,4,4,4,false, D3DFMT_3DC,      DXGI_FORMAT_BC5_UNORM,      eSampleType_Compressed, "3DC",          "ATI compressed texture format for normalmaps",true,true));
-	InitPixelFormat(ePixelFormat_CTX1,         PixelFormatInfo(  4,2,false,"0",   4,4,4,4,false, D3DFMT_CTX1,     DXGI_FORMAT_UNKNOWN,        eSampleType_Compressed, "CTX1",         "CTX1 4 bpp compressed normal maps for Xbox 360",true,false));
-	InitPixelFormat(ePixelFormat_PVRTC2,       PixelFormatInfo(  2,4,true ,"2", 16,16,8,4,true,  D3DFMT_PVRTC2,   DXGI_FORMAT_UNKNOWN,        eSampleType_Compressed, "PVRTC2",       "POWERVR 2 bpp compressed texture format",true,false));
-	InitPixelFormat(ePixelFormat_PVRTC4,       PixelFormatInfo(  4,4,true ,"2",   8,8,4,4,true,  D3DFMT_PVRTC4,   DXGI_FORMAT_UNKNOWN,        eSampleType_Compressed, "PVRTC4",       "POWERVR 4 bpp compressed texture format",true,false));
-	InitPixelFormat(ePixelFormat_EAC_R11,      PixelFormatInfo(  4,1,true ,"4",   4,4,4,4,true,  D3DFMT_EAC_R11,  DXGI_FORMAT_UNKNOWN,        eSampleType_Compressed, "EAC_R11",      "EAC 4 bpp single channel texture format",true,false));
-	InitPixelFormat(ePixelFormat_EAC_RG11,     PixelFormatInfo(  8,2,false,"0",   4,4,4,4,false, D3DFMT_EAC_RG11, DXGI_FORMAT_UNKNOWN,        eSampleType_Compressed, "EAC_RG11",     "EAC 8 bpp dual channel texture format",true,false));
-	InitPixelFormat(ePixelFormat_ETC2,         PixelFormatInfo(  4,3,false,"0",   4,4,4,4,false, D3DFMT_ETC2,     DXGI_FORMAT_UNKNOWN,        eSampleType_Compressed, "ETC2",         "ETC2 RGB 4 bpp compressed texture format",true,false));
-	InitPixelFormat(ePixelFormat_ETC2a,        PixelFormatInfo(  8,4,true ,"4",   4,4,4,4,false, D3DFMT_ETC2a,    DXGI_FORMAT_UNKNOWN,        eSampleType_Compressed, "ETC2a",        "ETC2 RGBA 8 bpp compressed texture format",true,false));
+	InitPixelFormat(ePixelFormat_3DCp,          PixelFormatInfo( 8,1,true ,"4",   4,4,4,4,false, D3DFMT_3DCp,          DXGI_FORMAT_BC4_UNORM,      eSampleType_Compressed, "3DCp",          "ATI compressed texture format for single channel maps",true,true));
+	InitPixelFormat(ePixelFormat_3DC,           PixelFormatInfo(16,2,false,"0",   4,4,4,4,false, D3DFMT_3DC,           DXGI_FORMAT_BC5_UNORM,      eSampleType_Compressed, "3DC",           "ATI compressed texture format for normalmaps",true,true));
+	InitPixelFormat(ePixelFormat_CTX1,          PixelFormatInfo( 8,2,false,"0",   4,4,4,4,false, D3DFMT_CTX1,          DXGI_FORMAT_UNKNOWN,        eSampleType_Compressed, "CTX1",          "CTX1 4 bpp compressed normal maps for Xbox 360",true,false));
+	InitPixelFormat(ePixelFormat_PVRTC2,        PixelFormatInfo( 8,4,true ,"2", 16,16,8,4,true,  D3DFMT_PVRTC2,        DXGI_FORMAT_UNKNOWN,        eSampleType_Compressed, "PVRTC2",        "POWERVR 2 bpp compressed texture format",true,false));
+	InitPixelFormat(ePixelFormat_PVRTC4,        PixelFormatInfo( 8,4,true ,"2",   8,8,4,4,true,  D3DFMT_PVRTC4,        DXGI_FORMAT_UNKNOWN,        eSampleType_Compressed, "PVRTC4",        "POWERVR 4 bpp compressed texture format",true,false));
+	InitPixelFormat(ePixelFormat_EAC_R11,       PixelFormatInfo( 8,1,true ,"4",   4,4,4,4,true,  D3DFMT_EAC_R11,       DXGI_FORMAT_UNKNOWN,        eSampleType_Compressed, "EAC_R11",       "EAC 4 bpp single channel texture format",true,false));
+	InitPixelFormat(ePixelFormat_EAC_RG11,      PixelFormatInfo(16,2,false,"0",   4,4,4,4,false, D3DFMT_EAC_RG11,      DXGI_FORMAT_UNKNOWN,        eSampleType_Compressed, "EAC_RG11",      "EAC 8 bpp dual channel texture format",true,false));
+	InitPixelFormat(ePixelFormat_ETC2,          PixelFormatInfo( 8,3,false,"0",   4,4,4,4,false, D3DFMT_ETC2,          DXGI_FORMAT_UNKNOWN,        eSampleType_Compressed, "ETC2",          "ETC2 RGB 4 bpp compressed texture format",true,false));
+	InitPixelFormat(ePixelFormat_ETC2a,         PixelFormatInfo(16,4,true ,"4",   4,4,4,4,false, D3DFMT_ETC2a,         DXGI_FORMAT_UNKNOWN,        eSampleType_Compressed, "ETC2a",         "ETC2 RGBA 8 bpp compressed texture format",true,false));
+	InitPixelFormat(ePixelFormat_ASTC_LDR_L,    PixelFormatInfo(16,1,false,"0",   1,1,4,4,false, D3DFMT_ASTC_LDR_L,    DXGI_FORMAT_UNKNOWN,        eSampleType_Compressed, "ASTC_LDR_L",    "ASTC compressed texture format for single channel LDR maps",true,false));
+	InitPixelFormat(ePixelFormat_ASTC_LDR_A,    PixelFormatInfo(16,1,true ,"8",   1,1,4,4,false, D3DFMT_ASTC_LDR_A,    DXGI_FORMAT_UNKNOWN,        eSampleType_Compressed, "ASTC_LDR_A",    "ASTC compressed texture format for single channel LDR alpha maps",true,false));
+	InitPixelFormat(ePixelFormat_ASTC_LDR_LA,   PixelFormatInfo(16,2,true ,"8",   1,1,4,4,false, D3DFMT_ASTC_LDR_LA,   DXGI_FORMAT_UNKNOWN,        eSampleType_Compressed, "ASTC_LDR_LA",   "ASTC compressed texture format for dual channel LDR luminance-alpha maps",true,false));
+	InitPixelFormat(ePixelFormat_ASTC_LDR_RG,   PixelFormatInfo(16,2,false,"0",   1,1,4,4,false, D3DFMT_ASTC_LDR_RG,   DXGI_FORMAT_UNKNOWN,        eSampleType_Compressed, "ASTC_LDR_RG",   "ASTC compressed texture format for dual channel LDR red-green maps",true,false));
+	InitPixelFormat(ePixelFormat_ASTC_LDR_N,    PixelFormatInfo(16,2,false,"0",   1,1,4,4,false, D3DFMT_ASTC_LDR_N,    DXGI_FORMAT_UNKNOWN,        eSampleType_Compressed, "ASTC_LDR_N",    "ASTC compressed texture format for dual channel LDR normalmaps",true,false));
+	InitPixelFormat(ePixelFormat_ASTC_LDR_RGB,  PixelFormatInfo(16,3,false,"0",   1,1,4,4,false, D3DFMT_ASTC_LDR_RGB,  DXGI_FORMAT_UNKNOWN,        eSampleType_Compressed, "ASTC_LDR_RGB",  "ASTC compressed texture format for RGB LDR maps",true,false));
+	InitPixelFormat(ePixelFormat_ASTC_LDR_RGBA, PixelFormatInfo(16,4,true ,"8",   1,1,4,4,false, D3DFMT_ASTC_LDR_RGBA, DXGI_FORMAT_UNKNOWN,        eSampleType_Compressed, "ASTC_LDR_RGBA", "ASTC compressed texture format for RGBA LDR maps",true,false));
+	InitPixelFormat(ePixelFormat_ASTC_HDR_L,    PixelFormatInfo(16,1,false,"0",   1,1,4,4,false, D3DFMT_ASTC_HDR_L,    DXGI_FORMAT_UNKNOWN,        eSampleType_Compressed, "ASTC_HDR_L",    "ASTC compressed texture format for single channel HDR maps",true,false));
+	InitPixelFormat(ePixelFormat_ASTC_HDR_RGB,  PixelFormatInfo(16,3,false,"0",   1,1,4,4,false, D3DFMT_ASTC_HDR_RGB,  DXGI_FORMAT_UNKNOWN,        eSampleType_Compressed, "ASTC_HDR_RGB",  "ASTC compressed texture format for RGB HDR maps",true,false));
+	InitPixelFormat(ePixelFormat_ASTC_HDR_RGBA, PixelFormatInfo(16,4,true ,"8",   1,1,4,4,false, D3DFMT_ASTC_HDR_RGBA, DXGI_FORMAT_UNKNOWN,        eSampleType_Compressed, "ASTC_HDR_RGBA", "ASTC compressed texture format for RGBA HDR maps",true,false));
 
 	// Standardized Compressed DXGI Formats (DX10+)
 	// Data in these compressed formats is hardware decodable on all DX10 chips, and manageable with the DX10-API.
-	InitPixelFormat(ePixelFormat_BC1,          PixelFormatInfo(  4,3,false,"0",   4,4,4,4,false, D3DFMT_DX10,     DXGI_FORMAT_BC1_UNORM,      eSampleType_Compressed, "BC1",          "BC1 compressed texture format",true,true));
-	InitPixelFormat(ePixelFormat_BC1a,         PixelFormatInfo(  4,4,true ,"1",   4,4,4,4,false, D3DFMT_DX10,     DXGI_FORMAT_BC1_UNORM,      eSampleType_Compressed, "BC1a",         "BC1a compressed texture format with transparency",true,true));
-	InitPixelFormat(ePixelFormat_BC2,          PixelFormatInfo(  8,4,true ,"4",   4,4,4,4,false, D3DFMT_DX10,     DXGI_FORMAT_BC2_UNORM,      eSampleType_Compressed, "BC2",          "BC2 compressed texture format",true,true));
-	InitPixelFormat(ePixelFormat_BC2t,         PixelFormatInfo(  8,4,true ,"4",   4,4,4,4,false, D3DFMT_DX10,     DXGI_FORMAT_BC2_UNORM,      eSampleType_Compressed, "BC2t",         "BC2t compressed texture format with transparency",true,true));
-	InitPixelFormat(ePixelFormat_BC3,          PixelFormatInfo(  8,4,true ,"3of8",4,4,4,4,false, D3DFMT_DX10,     DXGI_FORMAT_BC3_UNORM,      eSampleType_Compressed, "BC3",          "BC3 compressed texture format",true,true));
-	InitPixelFormat(ePixelFormat_BC3t,         PixelFormatInfo(  8,4,true ,"3of8",4,4,4,4,false, D3DFMT_DX10,     DXGI_FORMAT_BC3_UNORM,      eSampleType_Compressed, "BC3t",         "BC3t compressed texture format with transparency",true,true));
-	InitPixelFormat(ePixelFormat_BC4,          PixelFormatInfo(  4,1,false,"0",   4,4,4,4,false, D3DFMT_DX10,     DXGI_FORMAT_BC4_UNORM,      eSampleType_Compressed, "BC4",          "BC4 compressed texture format for single channel maps",true,true));
-	InitPixelFormat(ePixelFormat_BC4s,         PixelFormatInfo(  4,1,false,"0",   4,4,4,4,false, D3DFMT_DX10,     DXGI_FORMAT_BC4_SNORM,      eSampleType_Compressed, "BC4s",         "BC4 compressed texture format for signed single channel maps",true,true));
-	InitPixelFormat(ePixelFormat_BC5,          PixelFormatInfo(  8,2,false,"0",   4,4,4,4,false, D3DFMT_DX10,     DXGI_FORMAT_BC5_UNORM,      eSampleType_Compressed, "BC5",          "BC5 compressed texture format for two channel maps or normalmaps",true,true));
-	InitPixelFormat(ePixelFormat_BC5s,         PixelFormatInfo(  8,2,false,"0",   4,4,4,4,false, D3DFMT_DX10,     DXGI_FORMAT_BC5_SNORM,      eSampleType_Compressed, "BC5s",         "BC5 compressed texture format for signed two channel maps or normalmaps",true,true));
-	InitPixelFormat(ePixelFormat_BC6UH,        PixelFormatInfo(  8,3,false,"0",   4,4,4,4,false, D3DFMT_DX10,     DXGI_FORMAT_BC6H_UF16,      eSampleType_Compressed, "BC6UH",        "BC6 compressed texture format, unsigned half",true,true));
-	InitPixelFormat(ePixelFormat_BC7,          PixelFormatInfo(  8,4,true ,"8",   4,4,4,4,false, D3DFMT_DX10,     DXGI_FORMAT_BC7_UNORM,      eSampleType_Compressed, "BC7",          "BC7 compressed texture format",true,true));
-	InitPixelFormat(ePixelFormat_BC7t,         PixelFormatInfo(  8,4,true ,"8",   4,4,4,4,false, D3DFMT_DX10,     DXGI_FORMAT_BC7_UNORM,      eSampleType_Compressed, "BC7t",         "BC7t compressed texture format with transparency",true,true));
+	InitPixelFormat(ePixelFormat_BC1,           PixelFormatInfo( 8,3,false,"0",   4,4,4,4,false, D3DFMT_DX10,          DXGI_FORMAT_BC1_UNORM,      eSampleType_Compressed, "BC1",           "BC1 compressed texture format",true,true));
+	InitPixelFormat(ePixelFormat_BC1a,          PixelFormatInfo( 8,4,true ,"1",   4,4,4,4,false, D3DFMT_DX10,          DXGI_FORMAT_BC1_UNORM,      eSampleType_Compressed, "BC1a",          "BC1a compressed texture format with transparency",true,true));
+	InitPixelFormat(ePixelFormat_BC2,           PixelFormatInfo(16,4,true ,"4",   4,4,4,4,false, D3DFMT_DX10,          DXGI_FORMAT_BC2_UNORM,      eSampleType_Compressed, "BC2",           "BC2 compressed texture format",true,true));
+	InitPixelFormat(ePixelFormat_BC2t,          PixelFormatInfo(16,4,true ,"4",   4,4,4,4,false, D3DFMT_DX10,          DXGI_FORMAT_BC2_UNORM,      eSampleType_Compressed, "BC2t",          "BC2t compressed texture format with transparency",true,true));
+	InitPixelFormat(ePixelFormat_BC3,           PixelFormatInfo(16,4,true ,"3of8",4,4,4,4,false, D3DFMT_DX10,          DXGI_FORMAT_BC3_UNORM,      eSampleType_Compressed, "BC3",           "BC3 compressed texture format",true,true));
+	InitPixelFormat(ePixelFormat_BC3t,          PixelFormatInfo(16,4,true ,"3of8",4,4,4,4,false, D3DFMT_DX10,          DXGI_FORMAT_BC3_UNORM,      eSampleType_Compressed, "BC3t",          "BC3t compressed texture format with transparency",true,true));
+	InitPixelFormat(ePixelFormat_BC4,           PixelFormatInfo( 8,1,false,"0",   4,4,4,4,false, D3DFMT_DX10,          DXGI_FORMAT_BC4_UNORM,      eSampleType_Compressed, "BC4",           "BC4 compressed texture format for single channel maps",true,true));
+	InitPixelFormat(ePixelFormat_BC4s,          PixelFormatInfo( 8,1,false,"0",   4,4,4,4,false, D3DFMT_DX10,          DXGI_FORMAT_BC4_SNORM,      eSampleType_Compressed, "BC4s",          "BC4 compressed texture format for signed single channel maps",true,true));
+	InitPixelFormat(ePixelFormat_BC5,           PixelFormatInfo(16,2,false,"0",   4,4,4,4,false, D3DFMT_DX10,          DXGI_FORMAT_BC5_UNORM,      eSampleType_Compressed, "BC5",           "BC5 compressed texture format for two channel maps or normalmaps",true,true));
+	InitPixelFormat(ePixelFormat_BC5s,          PixelFormatInfo(16,2,false,"0",   4,4,4,4,false, D3DFMT_DX10,          DXGI_FORMAT_BC5_SNORM,      eSampleType_Compressed, "BC5s",          "BC5 compressed texture format for signed two channel maps or normalmaps",true,true));
+	InitPixelFormat(ePixelFormat_BC6UH,         PixelFormatInfo(16,3,false,"0",   4,4,4,4,false, D3DFMT_DX10,          DXGI_FORMAT_BC6H_UF16,      eSampleType_Compressed, "BC6UH",         "BC6 compressed texture format, unsigned half",true,true));
+	InitPixelFormat(ePixelFormat_BC7,           PixelFormatInfo(16,4,true ,"8",   4,4,4,4,false, D3DFMT_DX10,          DXGI_FORMAT_BC7_UNORM,      eSampleType_Compressed, "BC7",           "BC7 compressed texture format",true,true));
+	InitPixelFormat(ePixelFormat_BC7t,          PixelFormatInfo(16,4,true ,"8",   4,4,4,4,false, D3DFMT_DX10,          DXGI_FORMAT_BC7_UNORM,      eSampleType_Compressed, "BC7t",          "BC7t compressed texture format with transparency",true,true));
 
 	// Float formats
 	// Data in a Float format is floating point data.
-	InitPixelFormat(ePixelFormat_E5B9G9R9,     PixelFormatInfo( 32,3,false,"0",   1,1,1,1,false, D3DFMT_DX10,     DXGI_FORMAT_R9G9B9E5_SHAREDEXP,eSampleType_Compressed,"R9G9B9E5",   "32-bit RGB pixel format with shared exponent",false,true));
-	InitPixelFormat(ePixelFormat_A32B32G32R32F,PixelFormatInfo(128,4,true ,"23",  1,1,1,1,false, D3DFMT_A32B32G32R32F,DXGI_FORMAT_R32G32B32A32_FLOAT,eSampleType_Float,"A32B32G32R32F","four float channels",false,false));
-	InitPixelFormat(ePixelFormat_G32R32F,      PixelFormatInfo( 64,2,false,"0",   1,1,1,1,false, D3DFMT_G32R32F,  DXGI_FORMAT_R32G32_FLOAT,   eSampleType_Float     , "G32R32F",      "two float channels",false,false));
-	InitPixelFormat(ePixelFormat_R32F,         PixelFormatInfo( 32,1,false,"0",   1,1,1,1,false, D3DFMT_R32F,     DXGI_FORMAT_R32_FLOAT,      eSampleType_Float     , "R32F",         "one float channel",false,false));
-	InitPixelFormat(ePixelFormat_A16B16G16R16F,PixelFormatInfo( 64,4,true ,"10",  1,1,1,1,false, D3DFMT_A16B16G16R16F,DXGI_FORMAT_R16G16B16A16_FLOAT,eSampleType_Half ,"A16B16G16R16F","four half channels",false,false));
-	InitPixelFormat(ePixelFormat_G16R16F,      PixelFormatInfo( 32,2,false,"0",   1,1,1,1,false, D3DFMT_G16R16F,  DXGI_FORMAT_R16G16_FLOAT,   eSampleType_Half      , "G16R16F",      "two half channel",false,false));
-	InitPixelFormat(ePixelFormat_R16F,         PixelFormatInfo( 16,1,false,"0",   1,1,1,1,false, D3DFMT_R16F,     DXGI_FORMAT_R16_FLOAT,      eSampleType_Half      , "R16F",         "one half channel",false,false));
+	InitPixelFormat(ePixelFormat_E5B9G9R9,      PixelFormatInfo( 4,3,false,"0",   1,1,1,1,false, D3DFMT_DX10,          DXGI_FORMAT_R9G9B9E5_SHAREDEXP,eSampleType_Compressed,"R9G9B9E5",   "32-bit RGB pixel format with shared exponent",false,true));
+	InitPixelFormat(ePixelFormat_A32B32G32R32F, PixelFormatInfo(16,4,true ,"23",  1,1,1,1,false, D3DFMT_A32B32G32R32F, DXGI_FORMAT_R32G32B32A32_FLOAT,eSampleType_Float,"A32B32G32R32F","four float channels",false,false));
+	InitPixelFormat(ePixelFormat_G32R32F,       PixelFormatInfo( 8,2,false,"0",   1,1,1,1,false, D3DFMT_G32R32F,       DXGI_FORMAT_R32G32_FLOAT,   eSampleType_Float     , "G32R32F",      "two float channels",false,false));
+	InitPixelFormat(ePixelFormat_R32F,          PixelFormatInfo( 4,1,false,"0",   1,1,1,1,false, D3DFMT_R32F,          DXGI_FORMAT_R32_FLOAT,      eSampleType_Float     , "R32F",         "one float channel",false,false));
+	InitPixelFormat(ePixelFormat_A16B16G16R16F, PixelFormatInfo( 8,4,true ,"10",  1,1,1,1,false, D3DFMT_A16B16G16R16F, DXGI_FORMAT_R16G16B16A16_FLOAT,eSampleType_Half ,"A16B16G16R16F","four half channels",false,false));
+	InitPixelFormat(ePixelFormat_G16R16F,       PixelFormatInfo( 4,2,false,"0",   1,1,1,1,false, D3DFMT_G16R16F,       DXGI_FORMAT_R16G16_FLOAT,   eSampleType_Half      , "G16R16F",      "two half channel",false,false));
+	InitPixelFormat(ePixelFormat_R16F,          PixelFormatInfo( 2,1,false,"0",   1,1,1,1,false, D3DFMT_R16F,          DXGI_FORMAT_R16_FLOAT,      eSampleType_Half      , "R16F",         "one half channel",false,false));
 
 	for (int i = 0; i < ePixelFormat_Count; ++i)
 	{
@@ -240,6 +251,13 @@ const PixelFormatInfo* CPixelFormats::GetPixelFormatInfo(EPixelFormat format)
 	}
 
 	return &s_pixelFormatInfo[format];
+}
+
+int CPixelFormats::GetBitsPerPixel(EPixelFormat format)
+{
+	const PixelFormatInfo &info = s_pixelFormatInfo[format];
+
+	return (info.bytesPerBlock / (info.blockWidth * info.blockHeight)) << 3;
 }
 
 bool CPixelFormats::IsPixelFormatUncompressed(EPixelFormat format)
@@ -433,7 +451,7 @@ bool CPixelFormats::BuildSurfaceHeader(const ImageObject* pImage, uint32 maxMipC
 	case D3DFMT_A8R8G8B8:
 	case D3DFMT_X8R8G8B8:
 		header.ddspf.dwFlags = DDPF_RGB;
-		header.ddspf.dwRGBBitCount = pPixelFormatInfo->bitsPerPixel;
+		header.ddspf.dwRGBBitCount = CPixelFormats::GetBitsPerPixel(format);
 		header.ddspf.dwABitMask = 0xff000000;
 		header.ddspf.dwRBitMask = 0x00ff0000;
 		header.ddspf.dwGBitMask = 0x0000ff00;
@@ -500,6 +518,8 @@ bool CPixelFormats::BuildSurfaceHeader(const ImageObject* pImage, uint32 maxMipC
 	header.dwTextureStage = MAKEFOURCC('F','Y','R','C');
 	header.dwReserved1 = pImage->GetImageFlags();
 	header.bNumPersistentMips = (BYTE)pImage->GetNumPersistentMips();
+	header.bCompressedBlockWidth = (BYTE)pImage->GetCompressedBlockWidth();
+	header.bCompressedBlockHeight = (BYTE)pImage->GetCompressedBlockHeight();
 
 	// setting up min and max colors
 	Vec4 colMinARGB, colMaxARGB;
@@ -617,9 +637,8 @@ bool CPixelFormats::ParseSurfaceHeader(ImageObject* pImage, uint32& maxMipCount,
 		eCube = ImageObject::eCubemap_Yes;
 	}
 
-	Vec4 colMinARGB, colMaxARGB;
-	colMinARGB= *(Vec4*)&header.cMinColor;
-	colMaxARGB= *(Vec4*)&header.cMaxColor;
+	const Vec4 colMinARGB = *(Vec4f*)&header.cMinColor;
+	const Vec4 colMaxARGB = *(Vec4f*)&header.cMaxColor;
 
 	{
 		// DX10
@@ -670,7 +689,11 @@ bool CPixelFormats::ParseSurfaceHeader(ImageObject* pImage, uint32& maxMipCount,
 			return false;
 	}
 
-	pImage->ResetImage(dwWidth, dwHeight, dwMips, eFormat, eCube);
+	// Force the pixel format defaults if the provided compressed block sizes are not valid.
+	const uint32 compressedBlockWidth = header.bCompressedBlockWidth > 0 ? header.bCompressedBlockWidth : -1;
+	const uint32 compressedBlockHeight = header.bCompressedBlockHeight > 0 ? header.bCompressedBlockHeight : -1;
+
+	pImage->ResetImage(dwWidth, dwHeight, dwMips, eFormat, eCube, compressedBlockWidth, compressedBlockHeight);
 
 	pImage->SetImageFlags(header.dwReserved1);
 	pImage->SetNumPersistentMips(header.bNumPersistentMips);
@@ -691,6 +714,9 @@ bool CPixelFormats::ParseSurfaceExtendedHeader(ImageObject* pImage, uint32& slic
 	uint32 dwReserved1 = pImage->GetImageFlags();
 	uint32 bNumPersistentMips = pImage->GetNumPersistentMips();
 	float fAvgBrightness = pImage->GetAverageBrightness();
+
+	const uint32 compressedBlockWidth = pImage->GetCompressedBlockWidth();
+	const uint32 compressedBlockHeight = pImage->GetCompressedBlockHeight();
 
 	ImageObject::ECubemap eCube = pImage->GetCubemap();
 	if (exthead.miscFlag & DDS_RESOURCE_MISC_TEXTURECUBE)
@@ -792,7 +818,7 @@ bool CPixelFormats::ParseSurfaceExtendedHeader(ImageObject* pImage, uint32& slic
 			dwReserved1 |= CImageExtensionHelper::EIF_SRGBRead;
 	}
 
-	pImage->ResetImage(dwWidth, dwHeight, dwMips, eFormat, eCube);
+	pImage->ResetImage(dwWidth, dwHeight, dwMips, eFormat, eCube, compressedBlockWidth, compressedBlockHeight);
 
 	pImage->SetImageFlags(dwReserved1);
 	pImage->SetNumPersistentMips(bNumPersistentMips);

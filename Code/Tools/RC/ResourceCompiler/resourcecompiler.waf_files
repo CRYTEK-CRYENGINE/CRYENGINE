@@ -5,22 +5,17 @@
 		[
 			"ICfgFile.h",
 			"IConfig.h",
-			"IConvertor.h",
+			"IConverter.h",
 			"IMultiplatformConfig.h",
 			"IRCLog.h",
-			"IResCompiler.h"
+			"IResCompiler.h",
+			"IAssetManager.h"
 		],
 		"Pak":
 		[
 			"PakHelpers.cpp",
-			"../../CryCommonTools/PakSystem.cpp",
-			"../../CryCommonTools/TempFilePakExtraction.cpp",
 			"PakManager.cpp",
-			"../../CryCommonTools/IPakSystem.h",
 			"PakHelpers.h",
-			"../../CryCommonTools/PakSystem.h",
-			"../../CryCommonTools/PakXmlFileBufferSource.h",
-			"../../CryCommonTools/TempFilePakExtraction.h",
 			"PakManager.h"
 		],
 		"Source Files":
@@ -30,15 +25,12 @@
 			"CrashHandler.cpp",
 			"DependencyList.cpp",
 			"ExtensionManager.cpp",
-			"../../CryCommonTools/FileUtil.cpp",
 			"IConfig.cpp",
 			"ListFile.cpp",
 			"Mailer.cpp",
-			"../../CryCommonTools/PathHelpers.cpp",
 			"PropertyVars.cpp",
 			"ResourceCompiler.cpp",
 			"stdafx.cpp",
-			"../../CryCommonTools/StringHelpers.cpp",
 			"TextFileReader.cpp",
 			"CfgFile.h",
 			"Config.h",
@@ -47,35 +39,63 @@
 			"CrashHandler.h",
 			"DependencyList.h",
 			"ExtensionManager.h",
-			"../../CryCommonTools/FileUtil.h",
 			"ListFile.h",
 			"Mailer.h",
-			"../../CryCommonTools/MathHelpers.h",
 			"MultiplatformConfig.h",
-			"../../CryCommonTools/PathHelpers.h",
 			"platform_implRC.inl",
 			"PropertyVars.h",
 			"RcFile.h",
 			"resource.h",
 			"ResourceCompiler.h",
-			"../../CryCommonTools/SimpleStringPool.h",
 			"stdafx.h",
-			"../../CryCommonTools/StringHelpers.h",
 			"SwapEndianness.h",
 			"TextFileReader.h",
 			"UpToDateFileHelpers.h",
-			"NameConvertor.h",
+			"NameConverter.h",
 			"SimpleString.h",
-		"IProgress.h",
-		"SingleThreadedConverter.h",
+			"IProgress.h",
+			"SingleThreadedConverter.h",
 			"ResourceCompiler.rc"
+		],
+		"AssetManager":
+		[
+			"AssetManager/AssetManager.cpp",
+			"AssetManager/AssetManager.h",
+			"AssetManager/Cryasset.cpp",
+			"AssetManager/Cryasset.h"
 		],
 		"Zip":
 		[
 			"ZipEncryptor.cpp",
 			"ZipEncryptor.h"
 		],
-		"Zip/ZipDir":
+		"CryCommonTools":
+		[
+			"../../CryCommonTools/MathHelpers.h",
+			"../../CryCommonTools/StringHelpers.cpp",
+			"../../CryCommonTools/StringHelpers.h",
+			"../../CryCommonTools/SimpleStringPool.h",
+			"../../CryCommonTools/PathHelpers.cpp",
+			"../../CryCommonTools/PathHelpers.h",
+			"../../CryCommonTools/FileUtil.cpp",
+			"../../CryCommonTools/FileUtil.h",
+			"../../CryCommonTools/CryGUIDHelper.cpp",
+			"../../CryCommonTools/CryGUIDHelper.h",
+			"../../CryCommonTools/ThreadUtils.cpp",
+			"../../CryCommonTools/ThreadUtils.h",
+			"../../CryCommonTools/PakSystem.cpp",
+			"../../CryCommonTools/PakSystem.h",
+			"../../CryCommonTools/IPakSystem.h",
+			"../../CryCommonTools/TempFilePakExtraction.cpp",
+			"../../CryCommonTools/PakXmlFileBufferSource.h",
+			"../../CryCommonTools/TempFilePakExtraction.h"
+		],
+		"CryCommonTools/Metadata":
+		[
+			"../../CryCommonTools/Metadata/Metadata.cpp",
+			"../../CryCommonTools/Metadata/Metadata.h"
+		],
+		"CryCommonTools/ZipDir":
 		[
 			"../../CryCommonTools/ThreadUtils.cpp",
 			"../../CryCommonTools/ZipDir/ZipDirCache.cpp",

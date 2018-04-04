@@ -6,7 +6,7 @@
 <AssetsJob>
  <DefaultProperties overwriteextension="cryasset" />
  <DefaultProperties sourceroot="${src}" />
- <DefaultProperties exclude="levels/*.*;engineassets/*.*"/>
+ <DefaultProperties exclude="levels/*.*"/>
 
  <Job input="*.cgf" assettypes="cgf,Mesh" />
  <Job input="*.chr" assettypes="chr,Skeleton" />

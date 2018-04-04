@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #include "StdAfx.h"
 #include "MovementBlock_UseExactPositioningBase.h"
@@ -114,8 +114,13 @@ Movement::Block::Status UseExactPositioningBase::UpdatePrepare(const MovementUpd
 			return CantBeFinished;
 		}
 	}
+	else if (targetPhase == eATP_Playing || targetPhase == eATP_StartedAndFinished || targetPhase == eATP_Finished)
+	{
+		// Wait for previous traversing to be finished
+		return Movement::Block::Running;
+	}
 
-	assert((targetPhase == eATP_None) || (targetPhase == eATP_Waiting));
+	CRY_ASSERT((targetPhase == eATP_None) || (targetPhase == eATP_Waiting));
 
 	PathFollowResult result;
 	const bool targetReachable = Movement::Helpers::UpdatePathFollowing(result, context, m_style);

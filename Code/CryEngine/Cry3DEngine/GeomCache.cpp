@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 // ------------------------------------------------------------------------
 //  File name:   GeomCache.cpp
@@ -155,7 +155,8 @@ bool CGeomCache::LoadGeomCache()
 		return false;
 	}
 
-	if (header.m_version != kCurrentVersion)
+	if (header.m_versionGuidHipart != kCurrentVersion.hipart
+		|| header.m_versionGuidLopart != kCurrentVersion.lopart)
 	{
 		m_lastError = "Bad file version";
 		return false;

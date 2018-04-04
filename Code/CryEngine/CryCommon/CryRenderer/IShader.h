@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 /*=============================================================================
    IShader.h : Shaders common interface.
@@ -910,119 +910,6 @@ struct SEfTexModificator
 };
 
 //////////////////////////////////////////////////////////////////////
-#define FILTER_NONE      -1
-#define FILTER_POINT     0
-#define FILTER_LINEAR    1
-#define FILTER_BILINEAR  2
-#define FILTER_TRILINEAR 3
-#define FILTER_ANISO2X   4
-#define FILTER_ANISO4X   5
-#define FILTER_ANISO8X   6
-#define FILTER_ANISO16X  7
-
-//////////////////////////////////////////////////////////////////////
-#define TADDR_WRAP   0
-#define TADDR_CLAMP  1
-#define TADDR_MIRROR 2
-#define TADDR_BORDER 3
-
-struct STexState
-{
-	struct
-	{
-		signed char m_nMinFilter  : 8;
-		signed char m_nMagFilter  : 8;
-		signed char m_nMipFilter  : 8;
-		signed char m_nAddressU   : 8;
-		signed char m_nAddressV   : 8;
-		signed char m_nAddressW   : 8;
-		signed char m_nAnisotropy : 8;
-		signed char padding       : 8;
-	};
-	DWORD m_dwBorderColor;
-	void* m_pDeviceState;
-	bool  m_bActive;
-	bool  m_bComparison;
-	bool  m_bSRGBLookup;
-	byte  m_bPAD;
-
-	STexState()
-	{
-		m_nMinFilter = 0;
-		m_nMagFilter = 0;
-		m_nMipFilter = 0;
-		m_nAnisotropy = 0;
-		m_nAddressU = 0;
-		m_nAddressV = 0;
-		m_nAddressW = 0;
-		m_dwBorderColor = 0;
-		padding = 0;
-		m_bSRGBLookup = false;
-		m_bActive = false;
-		m_bComparison = false;
-		m_pDeviceState = NULL;
-		m_bPAD = 0;
-	}
-	STexState(int nFilter, bool bClamp)
-	{
-		m_pDeviceState = NULL;
-		int nAddress = bClamp ? TADDR_CLAMP : TADDR_WRAP;
-		SetFilterMode(nFilter);
-		SetClampMode(nAddress, nAddress, nAddress);
-		SetBorderColor(0);
-		m_bSRGBLookup = false;
-		m_bActive = false;
-		m_bComparison = false;
-		padding = 0;
-		m_bPAD = 0;
-	}
-	STexState(int nFilter, int nAddressU, int nAddressV, int nAddressW, unsigned int borderColor)
-	{
-		m_pDeviceState = NULL;
-		SetFilterMode(nFilter);
-		SetClampMode(nAddressU, nAddressV, nAddressW);
-		SetBorderColor(borderColor);
-		m_bSRGBLookup = false;
-		m_bActive = false;
-		m_bComparison = false;
-		padding = 0;
-		m_bPAD = 0;
-	}
-#ifdef _RENDERER
-	~STexState();
-	STexState(const STexState& src);
-#else
-	~STexState(){}
-	STexState(const STexState& src)
-	{
-		memcpy(this, &src, sizeof(STexState));
-	}
-#endif
-	STexState& operator=(const STexState& src)
-	{
-		this->~STexState();
-		new(this)STexState(src);
-		return *this;
-	}
-	inline friend bool operator==(const STexState& m1, const STexState& m2)
-	{
-		if (*(uint64*)&m1 == *(uint64*)&m2 && m1.m_dwBorderColor == m2.m_dwBorderColor &&
-		    m1.m_bActive == m2.m_bActive && m1.m_bComparison == m2.m_bComparison && m1.m_bSRGBLookup == m2.m_bSRGBLookup)
-			return true;
-		return false;
-	}
-	void Release()
-	{
-		delete this;
-	}
-
-	bool SetFilterMode(int nFilter);
-	bool SetClampMode(int nAddressU, int nAddressV, int nAddressW);
-	void SetBorderColor(DWORD dwColor);
-	void SetComparisonFilter(bool bEnable);
-	void PostCreate();
-};
-
 struct IRenderTarget
 {
 	virtual ~IRenderTarget(){}
@@ -1049,13 +936,14 @@ struct STexSamplerFX
 		IRenderTarget*         m_pITarget;
 	};
 
-	int16  m_nTexState;
-	byte   m_eTexType; //!< ETEX_Type e.g. eTT_2D or eTT_Cube.
-	byte   m_nSlotId;  //!< EFTT_ index if it references one of the material texture slots, EFTT_MAX otherwise.
-	uint32 m_nTexFlags;
+	SamplerStateHandle m_nTexState;
+	byte          m_eTexType; //!< ETEX_Type e.g. eTT_2D or eTT_Cube.
+	byte          m_nSlotId;  //!< EFTT_ index if it references one of the material texture slots, EFTT_MAX otherwise.
+	uint32        m_nTexFlags;
+
 	STexSamplerFX()
 	{
-		m_nTexState = -1;
+		m_nTexState = SamplerStateHandle::Unspecified;
 		m_eTexType = eTT_2D;
 		m_nSlotId = EFTT_MAX;
 		m_nTexFlags = 0;
@@ -1142,7 +1030,7 @@ struct STexSamplerRT
 	IDynTextureSource* m_pDynTexSource;
 
 	uint32             m_nTexFlags;
-	int16              m_nTexState;
+	SamplerStateHandle m_nTexState;
 
 	uint8              m_eTexType; //!< ETEX_Type e.g. eTT_2D or eTT_Cube.
 	int8               m_nSamplerSlot;
@@ -1151,7 +1039,7 @@ struct STexSamplerRT
 
 	STexSamplerRT()
 	{
-		m_nTexState = -1;
+		m_nTexState = SamplerStateHandle::Unspecified;
 		m_pTex = NULL;
 		m_eTexType = eTT_2D;
 		m_nTexFlags = 0;
@@ -1717,7 +1605,7 @@ typedef _smart_ptr<SInputShaderResources> SInputShaderResourcesPtr;
 #define SHGD_HW_GLES3             0x20000
 #define SHGD_USER_ENABLED         0x40000
 // 0x80000
-// 0x100000
+#define SHGD_HW_VULKAN             0x100000
 #define SHGD_HW_DX10               0x200000
 #define SHGD_HW_DX11               0x400000
 #define SHGD_HW_GL4                0x800000
@@ -1952,9 +1840,7 @@ enum ERenderListID
 	EFSLIST_WATER_VOLUMES,           //!< After decals.
 	EFSLIST_TRANSP,                  //!< Sorted by distance under-water render items.
 	EFSLIST_WATER,                   //!< Water-ocean render items.
-	EFSLIST_HDRPOSTPROCESS,          //!< Hdr post-processing screen effects.
 	EFSLIST_AFTER_HDRPOSTPROCESS,    //!< After hdr post-processing screen effects.
-	EFSLIST_POSTPROCESS,             //!< Post-processing screen effects.
 	EFSLIST_AFTER_POSTPROCESS,       //!< After post-processing screen effects.
 	EFSLIST_SHADOW_PASS,             //!< Shadow mask generation (usually from from shadow maps).
 	EFSLIST_DEFERRED_PREPROCESS,     //!< Pre-process before deferred passes.
@@ -1967,7 +1853,10 @@ enum ERenderListID
 	EFSLIST_FOG_VOLUME,              //!< Fog density injection passes.
 	EFSLIST_NEAREST_OBJECTS,         //!< Nearest objects.
 	EFSLIST_FORWARD_OPAQUE,          //!< Forward opaque pass objects.
-	EFSLIST_CUSTOM,               //!< Candidate for selection objects
+	EFSLIST_FORWARD_OPAQUE_NEAREST,  //!< Nearest forward opaque pass objects.
+	EFSLIST_CUSTOM,                  //!< Custom scene pass.
+	EFSLIST_HIGHLIGHT,               //!< Candidate for selection objects
+	EFSLIST_DEBUG_HELPER,            //!< Debug helper render items.
 
 	EFSLIST_NUM
 };
@@ -1984,8 +1873,6 @@ enum ERenderListID
 #define  FSPR_GENSPRITES     (1 << SPRID_GENSPRITES)
 #define  SPRID_CUSTOMTEXTURE 30
 #define  FSPR_CUSTOMTEXTURE  (1 << SPRID_CUSTOMTEXTURE)
-#define  SPRID_GENCLOUDS     31
-#define  FSPR_GENCLOUDS      (1 << SPRID_GENCLOUDS)
 
 #define  FSPR_MASK           0xfff00000
 #define  FSPR_MAX            (1 << 31)
@@ -2036,7 +1923,6 @@ enum ERenderListID
 // Additional Different useful flags
 
 #define EF2_PREPR_GENSPRITES     0x1
-#define EF2_PREPR_GENCLOUDS      0x2
 #define EF2_PREPR_SCANWATER      0x4
 #define EF2_NOCASTSHADOWS        0x8
 #define EF2_NODRAW               0x10
@@ -2054,7 +1940,7 @@ enum ERenderListID
 #define EF2_FORCE_ZPASS          0x10000
 #define EF2_FORCE_DRAWLAST       0x20000
 #define EF2_FORCE_DRAWAFTERWATER 0x40000
-// free 0x80000
+#define EF2_BILLBOARD            0x80000
 #define EF2_DEPTH_FIXUP          0x100000
 #define EF2_SINGLELIGHTPASS      0x200000
 #define EF2_FORCE_DRAWFIRST      0x400000
@@ -2097,7 +1983,7 @@ public:
 	virtual uint64                     GetGenerationMask() = 0;
 	virtual SShaderGen*                GetGenerationParams() = 0;
 	virtual int                        GetTechniqueID(int nTechnique, int nRegisteredTechnique) = 0;
-	virtual EVertexFormat              GetVertexFormat(void) = 0;
+	virtual InputLayoutHandle          GetVertexFormat(void) = 0;
 
 	virtual EShaderType                GetShaderType() = 0;
 	virtual uint32                     GetVertexModificator() = 0;
@@ -2248,7 +2134,7 @@ enum eDynamicLightFlags
 	DLF_CASTSHADOW_MAPS         = BIT(5),
 	DLF_POINT                   = BIT(6),
 	DLF_PROJECT                 = BIT(7),
-	DLF_LIGHT_BEAM              = BIT(8),
+	// UNUSED                   = BIT(8),
 	//	UNUSED										= BIT(9),
 	DLF_IGNORES_VISAREAS        = BIT(10),
 	DLF_DEFERRED_CUBEMAPS       = BIT(11),

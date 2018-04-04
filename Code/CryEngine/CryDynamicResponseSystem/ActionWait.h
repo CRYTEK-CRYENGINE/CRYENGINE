@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 /************************************************************************
 
@@ -16,9 +16,9 @@ namespace CryDRS
 class CActionWait final : public DRS::IResponseAction
 {
 public:
-	CActionWait() : m_timeToWait(0.0f) {}
-	CActionWait(float timeToWait) : m_timeToWait(timeToWait) {}
-	virtual ~CActionWait() {}
+	CActionWait() = default;
+	CActionWait(float time) : m_minTimeToWait(time), m_maxTimeToWait(time) {}
+	CActionWait(float minTime, float maxTime) : m_minTimeToWait(minTime), m_maxTimeToWait(maxTime) {}
 
 	//////////////////////////////////////////////////////////
 	// IResponseAction implementation
@@ -28,10 +28,9 @@ public:
 	virtual const char*                           GetType() const override { return "Do Nothing"; }
 	//////////////////////////////////////////////////////////
 
-	float GetTimeToWait() const { return m_timeToWait; }
-
 private:
-	float m_timeToWait;    //1/100 seconds
+	float m_minTimeToWait = 0.5f;    //seconds
+	float m_maxTimeToWait = 0.0f;    //seconds
 };
 
 //////////////////////////////////////////////////////////////////////////
@@ -40,7 +39,6 @@ class CActionWaitInstance final : public DRS::IResponseActionInstance
 {
 public:
 	CActionWaitInstance(float timeToWait);
-	virtual ~CActionWaitInstance() {}
 
 	//////////////////////////////////////////////////////////
 	// IResponseActionInstance implementation

@@ -1,13 +1,15 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #pragma once
 
 #include <CrySystem/ISystem.h>
 #include <CryExtension/ClassWeaver.h>
 #include <CryExtension/ICryUnknown.h>
+#include <CryExtension/ICryFactoryRegistryImpl.h>
 #include <CryFlowGraph/IFlowBaseNode.h>
 
 struct SSystemInitParams;
+
 struct IPluginUpdateListener
 {
 	enum EPluginUpdateType
@@ -23,7 +25,9 @@ struct IPluginUpdateListener
 
 struct ICryPlugin : public ICryUnknown, IPluginUpdateListener
 {
-	CRYINTERFACE_DECLARE(ICryPlugin, 0xF491A0DB38634FCA, 0xB6E6BCFE2D98EEA2);
+	CRYINTERFACE_DECLARE_GUID(ICryPlugin, "f491a0db-3863-4fca-b6e6-bcfe2d98eea2"_cry_guid);
+
+	virtual ~ICryPlugin() {}
 
 	//! Retrieve name of the plugin.
 	virtual const char* GetName() const = 0;
@@ -42,63 +46,56 @@ struct ICryPlugin : public ICryUnknown, IPluginUpdateListener
 	void SetUpdateFlags(uint8 flags) { m_updateFlags = flags; }
 
 protected:
-	uint8 m_updateFlags;
+	uint8 m_updateFlags = IPluginUpdateListener::EUpdateType_NoUpdate;
 	std::vector<TFlowNodeTypeId> m_registeredFlowNodeIds;
 };
 
 #ifndef _LIB
-	#define USE_CRYPLUGIN_FLOWNODES                                    \
-	  CAutoRegFlowNodeBase * CAutoRegFlowNodeBase::m_pFirst = nullptr; \
-	  CAutoRegFlowNodeBase* CAutoRegFlowNodeBase::m_pLast = nullptr;
-#else
-	#define USE_CRYPLUGIN_FLOWNODES
-#endif
-
-#ifndef _LIB
-	#define PLUGIN_FLOWNODE_REGISTER                                                        \
-	  virtual bool RegisterFlowNodes() override                                             \
-	  {                                                                                     \
-	    m_registeredFlowNodeIds.clear();                                                    \
-	                                                                                        \
-	    CAutoRegFlowNodeBase* pFactory = CAutoRegFlowNodeBase::m_pFirst;                    \
-	    while (pFactory)                                                                    \
-	    {                                                                                   \
-	      TFlowNodeTypeId nodeId = gEnv->pFlowSystem->RegisterType(pFactory->m_sClassName, pFactory); \
-	      m_registeredFlowNodeIds.push_back(nodeId);                                        \
-	      CryLog("Successfully registered flownode '%s'", pFactory->m_sClassName);          \
-	                                                                                        \
-	      pFactory = pFactory->m_pNext;                                                     \
-	    }                                                                                   \
-	                                                                                        \
-	    return (m_registeredFlowNodeIds.size() > 0);                                        \
+	#define PLUGIN_FLOWNODE_REGISTER                                                                    \
+	  virtual bool RegisterFlowNodes() override                                                         \
+	  {                                                                                                 \
+	    m_registeredFlowNodeIds.clear();                                                                \
+	                                                                                                    \
+	    if (auto pFlowSystem = gEnv->pFlowSystem)                                                       \
+		{                                                                                               \
+	      CAutoRegFlowNodeBase* pFactory = CAutoRegFlowNodeBase::s_pFirst;                              \
+	      for (auto pFactory = CAutoRegFlowNodeBase::s_pFirst; pFactory; pFactory = pFactory->m_pNext)  \
+	      {                                                                                             \
+	        TFlowNodeTypeId nodeId = pFlowSystem->RegisterType(pFactory->m_szClassName, pFactory);      \
+	        m_registeredFlowNodeIds.push_back(nodeId);                                                  \
+	        CryLog("Successfully registered flownode '%s'", pFactory->m_szClassName);                   \
+	      }                                                                                             \
+	    }                                                                                               \
+	                                                                                                    \
+	    return m_registeredFlowNodeIds.empty();                                                         \
 	  }
 #else
 	#define PLUGIN_FLOWNODE_REGISTER
 #endif
 
 #ifndef _LIB
-	#define PLUGIN_FLOWNODE_UNREGISTER                                                             \
-	  virtual bool UnregisterFlowNodes() override                                                  \
-	  {                                                                                            \
-	    bool bSuccess = true;                                                                      \
-	    const size_t numFlownodes = m_registeredFlowNodeIds.size();                                \
-	                                                                                               \
-	    for (size_t i = 0; i < numFlownodes; ++i)                                                  \
-	    {                                                                                          \
-	      if (gEnv->pFlowSystem)                                                                   \
-	      {                                                                                        \
-	        const char* szNameBuffer = gEnv->pFlowSystem->GetTypeName(m_registeredFlowNodeIds[i]); \
-	        CryLog("Unregistering flownode '%s'", szNameBuffer);                                   \
-	        if (!gEnv->pFlowSystem->UnregisterType(szNameBuffer))                                  \
-	        {                                                                                      \
-	          bSuccess = false;                                                                    \
-	          CryWarning(VALIDATOR_MODULE_SYSTEM, VALIDATOR_ERROR,                                 \
-	                     "Error unregistering flownode '%s'", szNameBuffer);                       \
-	        }                                                                                      \
-	      }                                                                                        \
-	    }                                                                                          \
-	    m_registeredFlowNodeIds.clear();                                                           \
-	    return bSuccess;                                                                           \
+	#define PLUGIN_FLOWNODE_UNREGISTER                                         \
+	  virtual bool UnregisterFlowNodes() override                              \
+	  {                                                                        \
+	    bool bSuccess = true;                                                  \
+	    const size_t numFlownodes = m_registeredFlowNodeIds.size();            \
+	                                                                           \
+	    if (auto pFlowSystem = gEnv->pFlowSystem)                              \
+	    {                                                                      \
+	      for (auto nodeId : m_registeredFlowNodeIds)                          \
+	      {                                                                    \
+	        const char* szNameBuffer = gEnv->pFlowSystem->GetTypeName(nodeId); \
+	        CryLog("Unregistering flownode '%s'", szNameBuffer);               \
+	        if (!pFlowSystem->UnregisterType(szNameBuffer))                    \
+	        {                                                                  \
+	          bSuccess = false;                                                \
+	          CryWarning(VALIDATOR_MODULE_SYSTEM, VALIDATOR_ERROR,             \
+	                     "Error unregistering flownode '%s'", szNameBuffer);   \
+	        }                                                                  \
+	      }                                                                    \
+	    }                                                                      \
+	    m_registeredFlowNodeIds.clear();                                       \
+	    return bSuccess;                                                       \
 	  }
 #else
 	#define PLUGIN_FLOWNODE_UNREGISTER

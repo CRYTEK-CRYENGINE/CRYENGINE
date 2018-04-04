@@ -33,6 +33,7 @@
 		"CryAction",
 		"CrySchematycCore",
 		"CrySchematycSTDEnv",
+		"CryFlowGraph",
 		"HWScripts",
 		
 		"CryDefaultEntities",
@@ -46,7 +47,6 @@
 		"lua",
 		"freetype",
 		"bigdigits",
-		"yasli",
 		"tomcrypt",
 		"curl",
 

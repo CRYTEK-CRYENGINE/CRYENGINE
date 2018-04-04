@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #include "stdafx.h"
 #include "AudioListenerManager.h"
@@ -7,101 +7,144 @@
 #include <IAudioImpl.h>
 #include <algorithm>
 
-using namespace CryAudio::Impl;
-
+namespace CryAudio
+{
 //////////////////////////////////////////////////////////////////////////
 CAudioListenerManager::~CAudioListenerManager()
 {
-	if (m_pImpl != nullptr)
+	if (!m_activeListeners.empty())
 	{
-		Release();
+		for (auto const pListener : m_activeListeners)
+		{
+			CRY_ASSERT(pListener->m_pImplData == nullptr);
+			delete pListener;
+		}
+
+		m_activeListeners.clear();
 	}
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CAudioListenerManager::Init(IAudioImpl* const pImpl)
+void CAudioListenerManager::Init(Impl::IImpl* const pIImpl)
 {
-	m_pImpl = pImpl;
+	m_pIImpl = pIImpl;
 
-	CRY_ASSERT(m_activeListeners.empty() && !m_pDefaultListenerObject);
+	if (!m_activeListeners.empty())
+	{
+		for (auto const pListener : m_activeListeners)
+		{
+#if defined(INCLUDE_AUDIO_PRODUCTION_CODE)
+			pListener->m_pImplData = m_pIImpl->ConstructListener(pListener->m_name.c_str());
+#else
+			pListener->m_pImplData = m_pIImpl->ConstructListener();
+#endif  // INCLUDE_AUDIO_PRODUCTION_CODE
 
-	POOL_NEW(CATLListener, m_pDefaultListenerObject)(m_pImpl->NewDefaultAudioListener());
-	m_activeListeners.push_back(m_pDefaultListenerObject);
+			pListener->HandleSetTransformation(pListener->Get3DAttributes().transformation);
+		}
+	}
+	else
+	{
+		// Create a default listener for early functionality.
+		CreateListener("DefaultListener");
+	}
 }
 
 //////////////////////////////////////////////////////////////////////////
 void CAudioListenerManager::Release()
 {
-	for (auto pListener : m_activeListeners)
+	for (auto const pListener : m_activeListeners)
 	{
-		m_pImpl->DeleteAudioListener(pListener->m_pImplData);
-		POOL_FREE(pListener);
+		m_pIImpl->DestructListener(pListener->m_pImplData);
+		pListener->m_pImplData = nullptr;
 	}
-	m_activeListeners.clear();
 
-	m_pDefaultListenerObject = nullptr;
-
-	m_pImpl = nullptr;
+	m_pIImpl = nullptr;
 }
 
 //////////////////////////////////////////////////////////////////////////
 void CAudioListenerManager::Update(float const deltaTime)
 {
-	CRY_ASSERT(m_pDefaultListenerObject != nullptr);
-	m_pDefaultListenerObject->Update(m_pImpl);
+	for (auto const pListener : m_activeListeners)
+	{
+		pListener->Update();
+	}
 }
 
 //////////////////////////////////////////////////////////////////////////
-CATLListener* CAudioListenerManager::CreateListener()
+CATLListener* CAudioListenerManager::CreateListener(char const* const szName /*= nullptr*/)
 {
-	POOL_NEW_CREATE(CATLListener, pListener)(m_pImpl->NewAudioListener());
+	if (!m_activeListeners.empty())
+	{
+		// Currently only one listener supported!
+		CATLListener* const pListener = m_activeListeners.front();
+
+#if defined(INCLUDE_AUDIO_PRODUCTION_CODE)
+		// Update name, TODO: needs reconstruction with the middleware in order to update it as well.
+		pListener->m_name = szName;
+#endif // INCLUDE_AUDIO_PRODUCTION_CODE
+
+		return pListener;
+	}
+
+	CATLListener* const pListener = new CATLListener(m_pIImpl->ConstructListener(szName));
+
+#if defined(INCLUDE_AUDIO_PRODUCTION_CODE)
+	pListener->m_name = szName;
+#endif // INCLUDE_AUDIO_PRODUCTION_CODE
+
 	m_activeListeners.push_back(pListener);
 	return pListener;
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CAudioListenerManager::Release(CATLListener* const pListener)
+void CAudioListenerManager::ReleaseListener(CATLListener* const pListener)
 {
-	m_activeListeners.erase
-	(
-	  std::find_if(m_activeListeners.begin(), m_activeListeners.end(), [=](CATLListener const* pRegisteredListener) { return pRegisteredListener == pListener; })
-	);
+	// As we currently support only one listener we will destroy that instance only on engine shutdown!
+	/*m_activeListeners.erase
+	   (
+	   std::find_if(m_activeListeners.begin(), m_activeListeners.end(), [=](CATLListener const* pRegisteredListener)
+	   {
+	   if (pRegisteredListener == pListener)
+	   {
+	    m_pIImpl->DestructListener(pListener->m_pImplData);
+	    delete pListener;
+	    return true;
+	   }
+
+	   return false;
+	   })
+	   );*/
 }
 
 //////////////////////////////////////////////////////////////////////////
-size_t CAudioListenerManager::GetNumActive() const
+size_t CAudioListenerManager::GetNumActiveListeners() const
 {
 	return m_activeListeners.size();
 }
 
 //////////////////////////////////////////////////////////////////////////
-SAudioObject3DAttributes const& CAudioListenerManager::GetDefaultListenerAttributes() const
+Impl::SObject3DAttributes const& CAudioListenerManager::GetActiveListenerAttributes() const
 {
-	if (m_pDefaultListenerObject != nullptr)
+	for (auto const pListener : m_activeListeners)
 	{
-		return m_pDefaultListenerObject->Get3DAttributes();
+		// Only one listener supported currently!
+		return pListener->Get3DAttributes();
 	}
 
-	return g_sNullAudioObjectAttributes;
-}
-
-//////////////////////////////////////////////////////////////////////////
-CATLListener* CAudioListenerManager::GetDefaultListener() const
-{
-	return m_pDefaultListenerObject;
+	return Impl::SObject3DAttributes::GetEmptyObject();
 }
 
 #if defined(INCLUDE_AUDIO_PRODUCTION_CODE)
 //////////////////////////////////////////////////////////////////////////
-float CAudioListenerManager::GetDefaultListenerVelocity() const
+char const* CAudioListenerManager::GetActiveListenerName() const
 {
-	float velocity = 0.0f;
-
-	if (m_pDefaultListenerObject != nullptr)
+	for (auto const pListener : m_activeListeners)
 	{
-		velocity = m_pDefaultListenerObject->GetVelocity();
+		// Only one listener supported currently!
+		return pListener->m_name.c_str();
 	}
 
-	return velocity;
+	return nullptr;
 }
-#endif //INCLUDE_AUDIO_PRODUCTION_CODE
+#endif // INCLUDE_AUDIO_PRODUCTION_CODE
+}      // namespace CryAudio

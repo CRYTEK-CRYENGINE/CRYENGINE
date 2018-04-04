@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 // -------------------------------------------------------------------------
 //  File name:   PerfHUD.cpp
@@ -1412,25 +1412,40 @@ void CRenderStatsWidget::Update()
 
 	switch (gEnv->pRenderer->GetRenderType())
 	{
-	case eRT_OpenGL:
-		pRenderType = "PC - OpenGL";
+#if CRY_PLATFORM_DURANGO
+	case ERenderType::Direct3D11:
+		pRenderType = "Xbox - DX11";
 		break;
-	case eRT_DX11:
+	case ERenderType::Direct3D12:
+		pRenderType = "Xbox - DX12";
+		break;
+#else
+	case ERenderType::Direct3D11:
 		pRenderType = "PC - DX11";
 		break;
-	case eRT_DX12:
+	case ERenderType::Direct3D12:
 		pRenderType = "PC - DX12";
 		break;
-	case eRT_XboxOne:
-		pRenderType = "Xbox One";
+#endif
+#if CRY_PLATFORM_MOBILE
+	case ERenderType::OpenGL:
+		pRenderType = "Mobile - OpenGL";
 		break;
-	case eRT_PS4:
-		pRenderType = "PS4";
+	case ERenderType::Vulkan:
+		pRenderType = "Mobile - Vulkan";
 		break;
-	case eRT_Null:
-		pRenderType = "Null";
+#else
+	case ERenderType::OpenGL:
+		pRenderType = "PC - OpenGL";
 		break;
-	case eRT_Undefined:
+	case ERenderType::Vulkan:
+		pRenderType = "PC - Vulkan";
+		break;
+#endif
+	case ERenderType::GNM:
+		pRenderType = "PS4 - GNM";
+		break;
+	case ERenderType::Undefined:
 	default:
 		assert(0);
 		pRenderType = "Undefined";
@@ -1440,11 +1455,11 @@ void CRenderStatsWidget::Update()
 	const char* buildType = NULL;
 
 	#if defined(_RELEASE)
-	buildType = "RELEASE";
+		buildType = "RELEASE";
 	#elif defined(_DEBUG)
-	buildType = "DEBUG";
+		buildType = "DEBUG";
 	#else
-	buildType = "PROFILE"; //Assume profile?
+		buildType = "PROFILE"; //Assume profile?
 	#endif
 
 	char entryBuffer[CMiniInfoBox::MAX_TEXT_LENGTH];

@@ -4,18 +4,45 @@
 ////////////////////////////////////////////////
 // shader constants
 
-float4 GlowParams           : PB_GlowParams;
-float4 EnvProbeMult         = {PB_ObjVal[0], PB_ObjVal[1], PB_ObjVal[2], PB_ObjVal[3]};
-float4 TexTileSize          : PI_TextureTileSize;     // xy = tile width/height, z = tile count, w = start
-half4 ParticleParams        : PI_ParticleParams;      // per emitter parameters: xy = expansion, z = curvature, w = texture frequency
-half4 ParticleLightParams   : PI_ParticleLightParams; // x = Diffuse term, y = Emissive term, z = back lighting term
-half3 ParticleSoftParams    : PI_ParticleSoftParams;  // x = softness scale, y = spherical param, z = volume thickness
-half3 ParticleAlphaTest[2]  : PI_ParticleAlphaTest;   // Coeffs for (AT0 + alpha AT1): x = alpha scale, y = source min, z = source width
-
-float4 PullVerticesInfo : PB_PullVerticesInfo;					// x = vertex buffer offset
-
 #define HALFRES_DEBUG_COLOR half3(0.3h, 3.h, 0.3h)
 
+cbuffer ParticleInstance : register(b12)
+{
+	struct
+	{
+		float4 avgFogVolumeContrib;
+		float4 glowParams;
+		uint   vertexOffset;
+		uint   lightVolumeId;
+		uint   envCubemapIndex;
+	} particleInstance;
+};
+
+cbuffer ParticleParamsCB : register (b9)
+{
+	struct
+	{
+		float2 expansion;
+		float curvature;
+		float textureFrequency;
+
+		float2 tileSize;
+		float frameCount;
+		float firstTile;
+
+		float4 alphaTestMin;
+		float4 alphaTestMax;
+
+		float softnessMultiplier;
+		float sphericalApproximation;
+		float thickness;
+		float axisScale;
+
+		float diffuseLighting;
+		float emissiveLighting;
+		float backLighting;
+	} particleParams;
+};
 
 struct SParticleAxes
 {
@@ -29,17 +56,54 @@ struct SParticleColorST
 	uint baseTC;
 };
 
-Buffer<float3>                     positionsSRV : register(t7);
-StructuredBuffer<SParticleAxes>    axesSRV      : register(t8);
-StructuredBuffer<SParticleColorST> colorSTsSRV  : register(t9);
+struct SParticlePosition
+{
+	float3 position;
+};
 
+StructuredBuffer<SParticlePosition>    positionsSRV   : register(t35);
+StructuredBuffer<SParticleAxes>        axesSRV        : register(t36);
+StructuredBuffer<SParticleColorST>     colorSTsSRV    : register(t37);
+StructuredBuffer<SDefaultParticleData> gpuParticleSRV : register(t14);
+
+// #PFX2_TODO make a tile shader header file to not duplicate this
+
+#define TILED_SHADING_MAX_NUM_LIGHTS  255
+
+struct STiledLightShadeInfo
+{
+	uint      lightType;
+	uint      resIndex;
+	uint      shadowMaskIndex;
+	uint      stencilID;
+	float4    posRad;
+	float2    attenuationParams;
+	float2    shadowParams;
+	float4    color;
+	float4x4  projectorMatrix;
+	float4x4  shadowMatrix;
+};
+StructuredBuffer<STiledLightShadeInfo> Fwd_TiledLightsShadeInfo : register(t18);
+TextureCubeArray<float4>               Fwd_SpecCubeArray        : register(t20);
+TextureCubeArray<float4>               Fwd_DiffuseCubeArray     : register(t21);
+
+// #PFX2_TODO add this to an include file for re-use
+Texture2D               texSceneTarget        : register(t25);
+SamplerState            ssForwardBilinearWrap : register(s10);
+Texture2D               texShadowMap0         : register(t26);
+Texture2D               texShadowMap1         : register(t27);
+Texture2D               texShadowMap2         : register(t28);
+Texture2D               texShadowMap3         : register(t29);
+Texture2D               texCloudShadowMap     : register(t30);
+SamplerComparisonState  ssForwardComparison   : register(s11);
+Texture2D               linearDepthMap        : register(t32);
 
 struct app2vertParticleGeneral
 {
-	float4 Color     : COLOR0;
-	float4 baseTC    : COLOR1;
-	float3 XAxis     : TEXCOORD0;
-	float3 YAxis     : TEXCOORD1;
+	float4 Color     : COLOR;
+	float4 baseTC    : TEXCOORD;
+	float3 XAxis     : AXIS0;
+	float3 YAxis     : AXIS1;
 };
 
 //////////////////////////////////////////////////////////////////////////////////////////////////
@@ -85,15 +149,15 @@ void Particle_Setup_General(inout float4 vPos, inout app2vertParticleGeneral IN,
 
 	// Apply TCs to axes
 	const half2 xyVertCoord = IN.baseTC.xy * 2 - 1;
-	const half2 xyExpand = xyVertCoord * abs(ParticleParams.xy);
-	const half2 xyCurve = xyVertCoord * saturate(ParticleParams.xy);
+	const half2 xyExpand = xyVertCoord * abs(particleParams.expansion);
+	const half2 xyCurve = xyVertCoord * saturate(particleParams.expansion);
 	
 	// Expand positions and curved side normals.
-	float3 vToCam = vfViewPos - vPos.xyz;
+	float3 vToCam = CV_WorldViewPosition.xyz - vPos.xyz;
 
 	vPos.xyz += IN.XAxis * xyExpand.x + IN.YAxis * xyExpand.y;
 
-	float3 vViewNormal = vfViewPos - vPos;
+	float3 vViewNormal = CV_WorldViewPosition.xyz - vPos;
 	float3 vNormal = cross(IN.YAxis, IN.XAxis);
 	vNormal *= sign(dot(vViewNormal, vNormal));
 	float3 vBitangent;
@@ -102,7 +166,7 @@ void Particle_Setup_General(inout float4 vPos, inout app2vertParticleGeneral IN,
 	if (dot(xyCurve, xyCurve))
 	{
 		// Camera-facing
-		const float fCurveExpand = ParticleSoftParams.y;
+		const float fCurveExpand = particleParams.sphericalApproximation;
 		if (fCurveExpand)
 		{
 			half fXLen = length(IN.XAxis),
@@ -120,14 +184,14 @@ void Particle_Setup_General(inout float4 vPos, inout app2vertParticleGeneral IN,
 			IN.Color.a *= fFade;
 		}
 						
-		if (ParticleParams.z)
+		if (particleParams.curvature)
 		{
 			// Curved normals
 			// Rotate tangents for fake round geometry
 
 			float3 vSideNormal = IN.XAxis * xyCurve.x + IN.YAxis * xyCurve.y;
 			float3 vCurvedNormal = vSideNormal * dot(vViewNormal, vViewNormal) - vViewNormal * dot(vViewNormal, vSideNormal);
-			OUT.vNormal.xyz = lerp(vNormal * length(vCurvedNormal), vCurvedNormal * length(vNormal), ParticleParams.z);
+			OUT.vNormal.xyz = lerp(vNormal * length(vCurvedNormal), vCurvedNormal * length(vNormal), particleParams.curvature);
 
 			#if USE_MATERIAL
 				float3 vAxis = cross(vNormal, OUT.vNormal.xyz);
@@ -138,7 +202,7 @@ void Particle_Setup_General(inout float4 vPos, inout app2vertParticleGeneral IN,
 		}
 	}
 	
-	if (!ParticleParams.z)
+	if (!particleParams.curvature)
 	{
 		// Flat sprite normals
 		if (dot(vNormal, vToCam) < 0)

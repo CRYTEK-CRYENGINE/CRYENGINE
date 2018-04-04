@@ -3,6 +3,8 @@
 
 #include "Common.cfi"
 #include "ShadeLib.cfi"
+#include "ForwardShading.cfi"
+#include "ModificatorVT.cfi"
 
 float Script : STANDARDSGLOBAL
 <
@@ -10,13 +12,10 @@ float Script : STANDARDSGLOBAL
 		"Public;"
 		"Decal;"
 		"ShaderDrawType = General;"
-        "ShaderType = FX;"
+    "ShaderType = FX;"
 >;
 
 #if !%SIMPLE
-
-float4 CameraRightVector			: PB_CameraRight;
-float4 CameraUpVector				: PB_CameraUp;
 
 float3 ShadeColorFromSun			: PB_CloudShadingColorSun;
 float3 ShadeColorFromSky			: PB_CloudShadingColorSky;
@@ -182,7 +181,7 @@ struct a2v
 	float2 baseTC	: TEXCOORD0;
 	float4 color	: COLOR0;
 	float4 Tangent	: TANGENT;
-	float4 Binormal	: BINORMAL;
+	float4 Binormal	: BITANGENT;
 };
 
 
@@ -206,7 +205,7 @@ v2f DistanceCloudsVS(a2v IN)
 	v2f OUT = (v2f)0;
 
 	// Position in screen space
-	float3 worldPos = mul(ObjWorldMatrix, IN.Position);
+	float3 worldPos = mul(Get_SPI_ObjWorldMat(0), IN.Position);
 	OUT.Position = mul(CV_ViewProjMatr, float4(worldPos,1));
 	
 #ifndef %_RT_REVERSE_DEPTH
@@ -256,7 +255,10 @@ pixout DistanceCloudsPS(v2f IN)
 		//height += toSun.z;
 	}
 	
-  // Re-scale range
+#if %_RT_PER_INSTANCE_CB_TEMP
+	ShadeColorFromSun = cbMisc.CloudShadingColorSun;
+	ShadeColorFromSky = cbMisc.CloudShadingColorSky;
+#endif
 
 	float c = exp2( -Attenuation * density );
 	float a = pow( opacity, AlphaSaturation );
@@ -327,6 +329,11 @@ pixout DistanceCloudsAdvancedPS(v2f IN)
 	// Sun light forward scattering
 	float scatteringSun = exp( -DensitySun * density );
 	
+#if %_RT_PER_INSTANCE_CB_TEMP
+	ShadeColorFromSun = cbMisc.CloudShadingColorSun;
+	ShadeColorFromSky = cbMisc.CloudShadingColorSky;
+#endif	
+	
 	// Full shading
 	float3 col = ShadeColorFromSky.xyz * scatteringSky + ShadeColorFromSun.xyz * scatteringSun;
 	
@@ -345,7 +352,7 @@ v2f_simple DistanceCloudsSimpleVS(a2v IN)
 	v2f_simple OUT = (v2f_simple)0;
 
 	// Position in screen space
-	float3 worldPos = mul(ObjWorldMatrix, IN.Position);
+	float3 worldPos = mul(Get_SPI_ObjWorldMat(0), IN.Position);
 	OUT.Position = mul(CV_ViewProjMatr, float4(worldPos,1));
 	OUT.Position.z = OUT.Position.w;
 	

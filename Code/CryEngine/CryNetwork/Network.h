@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 /*************************************************************************
    -------------------------------------------------------------------------
@@ -509,7 +509,7 @@ private:
 		CNetworkConnectivityDetection() : m_hasNetworkConnectivity(true), m_lastCheck(0.0f), m_lastPacketReceived(0.0f) {}
 
 		bool HasNetworkConnectivity();
-		void ReportGotPacket() { m_lastPacketReceived = MAX(g_time, m_lastPacketReceived); }
+		void ReportGotPacket() { m_lastPacketReceived = std::max(g_time, m_lastPacketReceived); }
 
 		void AddRef()          {}
 		void Release()         {}

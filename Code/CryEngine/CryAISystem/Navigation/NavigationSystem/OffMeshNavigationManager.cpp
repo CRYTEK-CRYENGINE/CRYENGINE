@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #include "StdAfx.h"
 #include "OffMeshNavigationManager.h"
@@ -116,7 +116,7 @@ bool OffMeshNavigationManager::AddCustomLink(const NavigationMeshID& meshID, MNM
 	}
 
 	// Select the corresponding off-mesh navigation object
-	assert(m_offMeshMap.validate(meshID));
+	CRY_ASSERT_TRACE(m_offMeshMap.validate(meshID), ("Trying to add offmesh link to invalid mesh! (meshID = %u)", (uint32)meshID));
 	MNM::OffMeshNavigation& offMeshNavigation = m_offMeshMap[meshID];
 
 	// Important: if we already added this particular link before, we need to remove it prior to re-adding it, as the startTriangleID might be
@@ -135,7 +135,7 @@ bool OffMeshNavigationManager::AddCustomLink(const NavigationMeshID& meshID, MNM
 
 	// Register the new link with the off-mesh navigation system
 	offMeshNavigation.AddLink(mesh, startTriangleID, endTriangleID, *&linkID);
-	assert(linkID > 0);
+	CRY_ASSERT_TRACE(linkID != MNM::Constants::eOffMeshLinks_InvalidOffMeshLinkID, ("Adding new offmesh link failed"));
 
 	MNM::OffMeshLinkPtr pOffMeshLink;
 	if (bCloneLinkData)

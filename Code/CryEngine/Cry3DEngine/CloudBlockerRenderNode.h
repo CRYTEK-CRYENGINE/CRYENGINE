@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #ifndef _CLOUDBLOCKER_RENDERNODE_
 #define _CLOUDBLOCKER_RENDERNODE_
@@ -28,6 +28,8 @@ public:
 	virtual float                   GetMaxViewDist() override                   { return 1000000.0f; }
 	virtual EERType                 GetRenderNodeType() override                { return eERType_CloudBlocker; }
 	virtual void                    GetMemoryUsage(ICrySizer* pSizer) const override;
+	virtual void                    SetOwnerEntity(IEntity* pEntity) override { m_pOwnerEntity = pEntity; }
+	virtual IEntity*                GetOwnerEntity() const override { return m_pOwnerEntity; }
 
 	// implements ICloudBlockerRenderNode
 	void SetProperties(const SCloudBlockerProperties& properties) override;
@@ -41,6 +43,7 @@ private:
 	f32  m_decayEnd;
 	f32  m_decayInfluence;
 	bool m_bScreenspace;
+	IEntity* m_pOwnerEntity;
 };
 
 #endif // _CLOUDBLOCKER_RENDERNODE_

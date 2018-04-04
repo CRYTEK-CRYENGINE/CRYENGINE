@@ -1,0 +1,19 @@
+# Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+
+def build(bld):	
+
+	bld.CryEngineStaticModule( 
+		target    = 'astc', 
+		vs_filter = 'Libs',
+		file_list = 'astc.waf_files',
+		exclude_from_static_code_analyzer = True,
+
+		includes = [ Path('Code/SDKs/astc-encoder/Source/win32-2010/astcenc') ],
+		defines  = [ '_CRT_SECURE_NO_WARNINGS', 'WIN32' ],
+		cxxflags = [ '/wd4244', '/wd4267', '/wd4838' ], 
+
+		module_provides = dict(
+			includes = [ Path('Code/Libs/astc') ]
+		),
+
+)

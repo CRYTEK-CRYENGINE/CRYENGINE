@@ -160,9 +160,13 @@ struct SAnimationClip
 	{}
 };
 
+//! Editor meta-data is the part of the meta-data which is only used to restore state of the importer dialog
+//! and is ignored by the RC.
 struct IEditorMetaData
 {
 	virtual ~IEditorMetaData() {}
+
+	virtual std::unique_ptr<IEditorMetaData> Clone() const = 0;
 
 	virtual void Serialize(yasli::Archive& ar) = 0;
 };
@@ -178,34 +182,40 @@ struct SMetaData
 	TString             password;
 	TString             materialFilename;
 
-	Units::EUnitSetting m_unit;
-	float               m_scale;
+	Units::EUnitSetting unit;
+	float               scale;
 
-	bool m_bMergeAllNodes;
-	bool m_bSceneOrigin;
+	bool bMergeAllNodes;
+	bool bSceneOrigin;
+	bool bComputeNormals;
+	bool bComputeUv;
+	bool bVertexPositionFormatF32;
 
 	// Format is "<signOfForwardAxis><forwardAxis><signOfUpAxis><upAxis>".
 	// Example: "-Y+Z".
-	TString                m_forwardUpAxes;
+	TString                forwardUpAxes;
 
 	TMaterialVector        materialData;
 	std::vector<SNodeMeta> nodeData;
 
-	SAnimationClip m_animationClip;
+	SAnimationClip animationClip;
 
 	std::vector<SJointPhysicsData> jointPhysicsData;
 
 	// Editor state.
-	IEditorMetaData* m_pEditorMetaData;  //!< Used to restore state of editor. Ignored by RC.
+	std::unique_ptr<IEditorMetaData> pEditorMetaData;  //!< Used to restore state of editor. Ignored by RC.
 
-	std::shared_ptr<CAutoLodSettings>         pAutoLodSettings;
+	std::shared_ptr<CAutoLodSettings> pAutoLodSettings;
 
 	SMetaData();
+	SMetaData(const SMetaData& other);
+
+	SMetaData& operator=(const SMetaData& other);
 
 	void Clear()
 	{
 		settings = FbxMetaData::SSceneUserSettings();
-		m_animationClip = FbxMetaData::SAnimationClip();
+		animationClip = FbxMetaData::SAnimationClip();
 		nodeData.clear();
 		materialData.clear();
 	}

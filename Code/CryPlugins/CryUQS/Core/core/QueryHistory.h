@@ -4,9 +4,9 @@
 
 // *INDENT-OFF* - <hard to read code and declarations due to inconsistent indentation>
 
-namespace uqs
+namespace UQS
 {
-	namespace core
+	namespace Core
 	{
 
 		class CQueryHistoryManager;
@@ -117,32 +117,33 @@ namespace uqs
 		public:
 
 			explicit                                            CHistoricQuery();
-			explicit                                            CHistoricQuery(const CQueryID& queryID, const char* querierName, const CQueryID& parentQueryID, CQueryHistoryManager* pOwningHistoryManager);
+			explicit                                            CHistoricQuery(const CQueryID& queryID, const char* szQuerierName, const CQueryID& parentQueryID, CQueryHistoryManager* pOwningHistoryManager);
 
-			CDebugRenderWorld&                                  GetDebugRenderWorld();
+			CDebugRenderWorldPersistent&                        GetDebugRenderWorldPersistent();
 			void                                                OnQueryCreated();
-			void                                                OnQueryBlueprintInstantiationStarted(const char* queryBlueprintName);
+			void                                                OnQueryBlueprintInstantiationStarted(const char* szQueryBlueprintName);
 			void                                                OnQueryCanceled(const CQueryBase::SStatistics& finalStatistics);
 			void                                                OnQueryFinished(const CQueryBase::SStatistics& finalStatistics);
 			void                                                OnQueryDestroyed();
-			void                                                OnExceptionOccurred(const char* exceptionMessage, const CQueryBase::SStatistics& finalStatistics);
+			void                                                OnExceptionOccurred(const char* szExceptionMessage, const CQueryBase::SStatistics& finalStatistics);
 			void                                                OnGenerationPhaseFinished(size_t numGeneratedItems, const CQueryBlueprint& queryBlueprint);
 			void                                                OnInstantEvaluatorScoredItem(size_t instantEvaluatorIndex, size_t itemIndex, float nonWeightedSingleScore, float weightedSingleScore, float accumulatedAndWeightedScoreSoFar);
 			void                                                OnInstantEvaluatorDiscardedItem(size_t instantEvaluatorIndex, size_t itemIndex);
-			void                                                OnFunctionCallExceptionOccurredInInstantEvaluator(size_t instantEvaluatorIndex, size_t itemIndex, const char* exceptionMessage);
-			void                                                OnExceptionOccurredInInstantEvaluator(size_t instantEvaluatorIndex, size_t itemIndex, const char* exceptionMessage);
+			void                                                OnFunctionCallExceptionOccurredInInstantEvaluator(size_t instantEvaluatorIndex, size_t itemIndex, const char* szExceptionMessage);
+			void                                                OnExceptionOccurredInInstantEvaluator(size_t instantEvaluatorIndex, size_t itemIndex, const char* szExceptionMessage);
 			void                                                OnDeferredEvaluatorStartedRunningOnItem(size_t deferredEvaluatorIndex, size_t itemIndex);
 			void                                                OnDeferredEvaluatorScoredItem(size_t deferredEvaluatorIndex, size_t itemIndex, float nonWeightedSingleScore, float weightedSingleScore, float accumulatedAndWeightedScoreSoFar);
 			void                                                OnDeferredEvaluatorDiscardedItem(size_t deferredEvaluatorIndex, size_t itemIndex);
-			void                                                OnDeferredEvaluatorGotAborted(size_t deferredEvaluatorIndex, size_t itemIndex, const char* reasonForAbort);
-			void                                                OnFunctionCallExceptionOccurredInDeferredEvaluator(size_t deferredEvaluatorIndex, size_t itemIndex, const char* exceptionMessage);
-			void                                                OnExceptionOccurredInDeferredEvaluator(size_t deferredEvaluatorIndex, size_t itemIndex, const char* exceptionMessage);
+			void                                                OnDeferredEvaluatorGotAborted(size_t deferredEvaluatorIndex, size_t itemIndex, const char* szReasonForAbort);
+			void                                                OnFunctionCallExceptionOccurredInDeferredEvaluator(size_t deferredEvaluatorIndex, size_t itemIndex, const char* szExceptionMessage);
+			void                                                OnExceptionOccurredInDeferredEvaluator(size_t deferredEvaluatorIndex, size_t itemIndex, const char* szExceptionMessage);
 			void                                                OnItemGotDisqualifiedDueToBadScore(size_t itemIndex);
-			void                                                CreateItemDebugProxyViaItemFactoryForItem(const client::IItemFactory& itemFactory, const void* item, size_t indexInGeneratedItemsForWhichToCreateTheProxy);
+			void                                                CreateItemDebugProxyViaItemFactoryForItem(const Client::IItemFactory& itemFactory, const void* pItem, size_t indexInGeneratedItemsForWhichToCreateTheProxy);
 
 			size_t                                              GetRoughMemoryUsage() const;
 			bool                                                FindClosestItemInView(const SDebugCameraView& cameraView, size_t& outItemIndex) const;     // returns true and outputs the index of the closest item to outItemIndex or just returns false if there are no good candidates nearby
 			void                                                DrawDebugPrimitivesInWorld(size_t indexOfItemCurrentlyBeingFocused, const IQueryHistoryManager::SEvaluatorDrawMasks& evaluatorDrawMasks) const;
+			SDebugCameraView                                    GetIdealDebugCameraView(const SDebugCameraView& currentCameraView) const;
 
 			void                                                FillQueryHistoryConsumerWithShortInfoAboutQuery(IQueryHistoryConsumer& consumer, bool bHighlight) const;
 			void                                                FillQueryHistoryConsumerWithDetailedInfoAboutQuery(IQueryHistoryConsumer& consumer) const;
@@ -187,7 +188,7 @@ namespace uqs
 			bool                                                m_bGotCanceledPrematurely;
 			bool                                                m_bExceptionOccurred;
 			string                                              m_exceptionMessage;
-			CDebugRenderWorld                                   m_debugRenderWorld;
+			CDebugRenderWorldPersistent                         m_debugRenderWorldPersistent;
 			std::vector<SHistoricItem>                          m_items;                            // counter-part of all the generated items
 			std::vector<string>                                 m_instantEvaluatorNames;            // cached names of all instant-evaluator factories; this is necessary in case query blueprints get reloaded at runtime to prevent dangling pointers
 			std::vector<string>                                 m_deferredEvaluatorNames;           // ditto for deferred-evaluator factories
@@ -210,13 +211,13 @@ namespace uqs
 		public:
 			explicit                                       CQueryHistory();
 			CQueryHistory&                                 operator=(CQueryHistory&& other);
-			HistoricQuerySharedPtr                         AddNewHistoryEntry(const CQueryID& queryID, const char* querierName, const CQueryID& parentQueryID, CQueryHistoryManager* pOwningHistoryManager);
+			HistoricQuerySharedPtr                         AddNewHistoryEntry(const CQueryID& queryID, const char* szQuerierName, const CQueryID& parentQueryID, CQueryHistoryManager* pOwningHistoryManager);
 			void                                           Clear();
 			size_t                                         GetHistorySize() const;		// number of CHistoricQueries
 			const CHistoricQuery&                          GetHistoryEntryByIndex(size_t index) const;
 			const CHistoricQuery*                          FindHistoryEntryByQueryID(const CQueryID& queryID) const;
 			size_t                                         GetRoughMemoryUsage() const;
-			void                                           SetArbitraryMetaDataForSerialization(const char* key, const char* value);    // adds arbitrary key/value pairs to the history, which will blindly be serialized
+			void                                           SetArbitraryMetaDataForSerialization(const char* szKey, const char* szValue);    // adds arbitrary key/value pairs to the history, which will blindly be serialized
 			void                                           Serialize(Serialization::IArchive& ar);
 
 		private:

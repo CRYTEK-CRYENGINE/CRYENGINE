@@ -1,7 +1,9 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #ifndef _H_ILIVECREATECOMMON_H_
 #define _H_ILIVECREATECOMMON_H_
+
+#include <CrySystem/IEngineModule.h>
 
 //////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////
@@ -14,6 +16,11 @@
 		#define LIVECREATE_FOR_PC
 	#endif
 #endif
+
+struct ILiveCreateEngineModule : public Cry::IDefaultModule
+{
+	CRYINTERFACE_DECLARE_GUID(ILiveCreateEngineModule, "b93b314c-06b2-4660-adf0-c6a1cb3eaf26"_cry_guid);
+};
 
 namespace LiveCreate
 {

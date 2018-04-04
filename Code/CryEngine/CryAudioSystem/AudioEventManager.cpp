@@ -1,265 +1,86 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #include "stdafx.h"
 #include "AudioEventManager.h"
 #include "AudioCVars.h"
 #include "ATLAudioObject.h"
-#include <CryRenderer/IRenderAuxGeom.h>
+#include <IAudioImpl.h>
 
-using namespace CryAudio::Impl;
+#if defined(INCLUDE_AUDIO_PRODUCTION_CODE)
+	#include <CryRenderer/IRenderAuxGeom.h>
+#endif // INCLUDE_AUDIO_PRODUCTION_CODE
 
-//////////////////////////////////////////////////////////////////////////
-CAudioEventManager::CAudioEventManager()
-	: m_audioEventPool(g_audioCVars.m_audioEventPoolSize, 1)
-	, m_pImpl(nullptr)
+namespace CryAudio
 {
-}
-
 //////////////////////////////////////////////////////////////////////////
 CAudioEventManager::~CAudioEventManager()
 {
-	if (m_pImpl != nullptr)
+	if (m_pIImpl != nullptr)
 	{
 		Release();
-	}
-
-	if (!m_audioEventPool.m_reserved.empty())
-	{
-		for (auto const pEvent : m_audioEventPool.m_reserved)
-		{
-			CRY_ASSERT(pEvent->m_pImplData == nullptr);
-			POOL_FREE(pEvent);
-		}
-
-		m_audioEventPool.m_reserved.clear();
-	}
-
-	if (!m_activeAudioEvents.empty())
-	{
-		for (auto const& eventPair : m_activeAudioEvents)
-		{
-			CATLEvent* const pEvent = eventPair.second;
-			CRY_ASSERT(pEvent->m_pImplData == nullptr);
-			POOL_FREE(pEvent);
-		}
-
-		m_activeAudioEvents.clear();
 	}
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CAudioEventManager::Init(IAudioImpl* const pImpl)
+void CAudioEventManager::Init(Impl::IImpl* const pIImpl)
 {
-	m_pImpl = pImpl;
-
-	size_t const numPooledAudioEvents = m_audioEventPool.m_reserved.size();
-	size_t const numActiveAudioEvents = m_activeAudioEvents.size();
-
-#if defined(INCLUDE_AUDIO_PRODUCTION_CODE)
-	if ((numPooledAudioEvents + numActiveAudioEvents) > std::numeric_limits<size_t>::max())
-	{
-		CryFatalError("Exceeding numeric limits during CAudioEventManager::Init");
-	}
-#endif // INCLUDE_AUDIO_PRODUCTION_CODE
-
-	size_t const numTotalEvents = numPooledAudioEvents + numActiveAudioEvents;
-	CRY_ASSERT(!(numTotalEvents > 0 && numTotalEvents < m_audioEventPool.m_reserveSize));
-
-	if (m_audioEventPool.m_reserveSize > numTotalEvents)
-	{
-		for (size_t i = 0; i < m_audioEventPool.m_reserveSize - numActiveAudioEvents; ++i)
-		{
-			AudioEventId const audioEventId = m_audioEventPool.GetNextID();
-			POOL_NEW_CREATE(CATLEvent, pNewEvent)(audioEventId, eAudioSubsystem_AudioImpl);
-			m_audioEventPool.m_reserved.push_back(pNewEvent);
-		}
-	}
-
-	for (auto const pEvent : m_audioEventPool.m_reserved)
-	{
-		CRY_ASSERT(pEvent->m_pImplData == nullptr);
-		pEvent->m_pImplData = m_pImpl->NewAudioEvent(pEvent->GetId());
-	}
-
-	for (auto const& eventPair : m_activeAudioEvents)
-	{
-		CATLEvent* const pEvent = eventPair.second;
-		CRY_ASSERT(pEvent->m_pImplData == nullptr);
-		pEvent->m_pImplData = m_pImpl->NewAudioEvent(pEvent->GetId());
-	}
+	m_pIImpl = pIImpl;
+	CRY_ASSERT(m_constructedAudioEvents.empty());
 }
 
 //////////////////////////////////////////////////////////////////////////
 void CAudioEventManager::Release()
 {
-	if (!m_activeAudioEvents.empty())
+	// Events cannot survive a middleware switch because we cannot
+	// know which event types the new middleware backend will support so
+	// the existing ones have to be destroyed now and new ones created
+	// after the switch.
+	if (!m_constructedAudioEvents.empty())
 	{
-		for (auto const& eventPair : m_activeAudioEvents)
+		for (auto const pEvent : m_constructedAudioEvents)
 		{
-			ReleaseEventInternal(eventPair.second);
+			m_pIImpl->DestructEvent(pEvent->m_pImplData);
+			delete pEvent;
 		}
 
-		m_activeAudioEvents.clear();
+		m_constructedAudioEvents.clear();
 	}
 
-	for (auto const pEvent : m_audioEventPool.m_reserved)
-	{
-		m_pImpl->DeleteAudioEvent(pEvent->m_pImplData);
-		pEvent->m_pImplData = nullptr;
-	}
-
-	m_pImpl = nullptr;
+	m_pIImpl = nullptr;
 }
 
 //////////////////////////////////////////////////////////////////////////
 void CAudioEventManager::Update(float const deltaTime)
 {
-	//TODO: implement
 }
 
 //////////////////////////////////////////////////////////////////////////
-CATLEvent* CAudioEventManager::GetEvent(EAudioSubsystem const audioSubsystem)
+CATLEvent* CAudioEventManager::ConstructAudioEvent()
 {
-	CATLEvent* pATLEvent = nullptr;
-
-	switch (audioSubsystem)
-	{
-	case eAudioSubsystem_AudioImpl:
-		{
-			pATLEvent = GetImplInstance();
-
-			break;
-		}
-	case eAudioSubsystem_AudioInternal:
-		{
-			pATLEvent = GetInternalInstance();
-
-			break;
-		}
-	default:
-		{
-			CRY_ASSERT(false); // Unknown sender!
-		}
-	}
-
-	if (pATLEvent != nullptr)
-	{
-		m_activeAudioEvents[pATLEvent->GetId()] = pATLEvent;
-	}
-
-	return pATLEvent;
-}
-
-//////////////////////////////////////////////////////////////////////////
-CATLEvent* CAudioEventManager::LookupId(AudioEventId const audioEventId) const
-{
-	TActiveEventMap::const_iterator iter(m_activeAudioEvents.begin());
-	bool const bLookupResult = FindPlaceConst(m_activeAudioEvents, audioEventId, iter);
-
-	return bLookupResult ? iter->second : nullptr;
-}
-
-//////////////////////////////////////////////////////////////////////////
-void CAudioEventManager::ReleaseEvent(CATLEvent* const pEvent)
-{
-	m_activeAudioEvents.erase(pEvent->GetId());
-	ReleaseEventInternal(pEvent);
-}
-
-//////////////////////////////////////////////////////////////////////////
-CATLEvent* CAudioEventManager::GetImplInstance()
-{
-	CATLEvent* pEvent = nullptr;
-
-	if (!m_audioEventPool.m_reserved.empty())
-	{
-		pEvent = m_audioEventPool.m_reserved.back();
-		m_audioEventPool.m_reserved.pop_back();
-	}
-	else
-	{
-		AudioEventId const nNewID = m_audioEventPool.GetNextID();
-		POOL_NEW(CATLEvent, pEvent)(nNewID, eAudioSubsystem_AudioImpl);
-
-		if (pEvent != nullptr)
-		{
-			pEvent->m_pImplData = m_pImpl->NewAudioEvent(nNewID);
-		}
-		else
-		{
-			--m_audioEventPool.m_idCounter;
-			g_audioLogger.Log(eAudioLogType_Warning, "Failed to get a new instance of an AudioEvent from the implementation");
-		}
-	}
+	CATLEvent* pEvent = new CATLEvent();
+	pEvent->m_pImplData = m_pIImpl->ConstructEvent(*pEvent);
+	m_constructedAudioEvents.push_back(pEvent);
 
 	return pEvent;
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CAudioEventManager::ReleaseEventInternal(CATLEvent* const pEvent)
+void CAudioEventManager::ReleaseEvent(CATLEvent* const pEvent)
 {
-	switch (pEvent->m_audioSubsystem)
-	{
-	case eAudioSubsystem_AudioImpl:
-		ReleaseImplInstance(pEvent);
-		break;
-	case eAudioSubsystem_AudioInternal:
-		ReleaseInternalInstance(pEvent);
-		break;
-	default:
-		// Unknown sender.
-		CRY_ASSERT(false);
-	}
+	CRY_ASSERT(pEvent != nullptr);
+
+	m_constructedAudioEvents.remove(pEvent);
+	m_pIImpl->DestructEvent(pEvent->m_pImplData);
+	delete pEvent;
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CAudioEventManager::ReleaseImplInstance(CATLEvent* const pOldEvent)
+size_t CAudioEventManager::GetNumConstructed() const
 {
-	if (pOldEvent != nullptr)
-	{
-		pOldEvent->Clear();
-		m_pImpl->ResetAudioEvent(pOldEvent->m_pImplData);
-
-		if (m_audioEventPool.m_reserved.size() < m_audioEventPool.m_reserveSize)
-		{
-			// can return the instance to the reserved pool
-			m_audioEventPool.m_reserved.push_back(pOldEvent);
-		}
-		else
-		{
-			// the reserve pool is full, can return the instance to the implementation to dispose
-			m_pImpl->DeleteAudioEvent(pOldEvent->m_pImplData);
-
-			POOL_FREE(pOldEvent);
-		}
-	}
-}
-
-//////////////////////////////////////////////////////////////////////////
-CATLEvent* CAudioEventManager::GetInternalInstance()
-{
-	// must be called within a block protected by a critical section!
-
-	CRY_ASSERT(false);// implement when it is needed
-	return nullptr;
-}
-
-//////////////////////////////////////////////////////////////////////////
-void CAudioEventManager::ReleaseInternalInstance(CATLEvent* const pOldEvent)
-{
-	// must be called within a block protected by a critical section!
-
-	CRY_ASSERT(false);// implement when it is needed
-}
-
-//////////////////////////////////////////////////////////////////////////
-size_t CAudioEventManager::GetNumActive() const
-{
-	return m_activeAudioEvents.size();
+	return m_constructedAudioEvents.size();
 }
 
 #if defined(INCLUDE_AUDIO_PRODUCTION_CODE)
-
 //////////////////////////////////////////////////////////////////////////
 void CAudioEventManager::DrawDebugInfo(IRenderAuxGeom& auxGeom, float posX, float posY) const
 {
@@ -269,21 +90,20 @@ void CAudioEventManager::DrawDebugInfo(IRenderAuxGeom& auxGeom, float posX, floa
 	static float const itemVirtualColor[4] = { 0.1f, 0.8f, 0.8f, 0.9f };
 	static float const itemOtherColor[4] = { 0.8f, 0.8f, 0.8f, 0.9f };
 
-	auxGeom.Draw2dLabel(posX, posY, 1.6f, headerColor, false, "Audio Events [%" PRISIZE_T "]", m_activeAudioEvents.size());
+	auxGeom.Draw2dLabel(posX, posY, 1.6f, headerColor, false, "Audio Events [%" PRISIZE_T "]", m_constructedAudioEvents.size());
 	posX += 20.0f;
 	posY += 17.0f;
 
-	for (auto const& eventPair : m_activeAudioEvents)
+	for (auto const pEvent : m_constructedAudioEvents)
 	{
-		CATLEvent* const pEvent = eventPair.second;
 		if (pEvent->m_pTrigger != nullptr)
 		{
 			char const* const szOriginalName = pEvent->m_pTrigger->m_name.c_str();
-			CryFixedStringT<MAX_AUDIO_CONTROL_NAME_LENGTH> sLowerCaseAudioTriggerName(szOriginalName);
-			sLowerCaseAudioTriggerName.MakeLower();
-			CryFixedStringT<MAX_AUDIO_CONTROL_NAME_LENGTH> sLowerCaseSearchString(g_audioCVars.m_pAudioTriggersDebugFilter->GetString());
-			sLowerCaseSearchString.MakeLower();
-			bool const bDraw = (sLowerCaseSearchString.empty() || (sLowerCaseSearchString.compareNoCase("0") == 0)) || (sLowerCaseAudioTriggerName.find(sLowerCaseSearchString) != CryFixedStringT<MAX_AUDIO_CONTROL_NAME_LENGTH>::npos);
+			CryFixedStringT<MaxControlNameLength> lowerCaseAudioTriggerName(szOriginalName);
+			lowerCaseAudioTriggerName.MakeLower();
+			CryFixedStringT<MaxControlNameLength> lowerCaseSearchString(g_cvars.m_pAudioTriggersDebugFilter->GetString());
+			lowerCaseSearchString.MakeLower();
+			bool const bDraw = (lowerCaseSearchString.empty() || (lowerCaseSearchString == "0")) || (lowerCaseAudioTriggerName.find(lowerCaseSearchString) != CryFixedStringT<MaxControlNameLength>::npos);
 
 			if (bDraw)
 			{
@@ -293,27 +113,21 @@ void CAudioEventManager::DrawDebugInfo(IRenderAuxGeom& auxGeom, float posX, floa
 				{
 					pColor = itemPlayingColor;
 				}
-				else if (pEvent->m_audioEventState == eAudioEventState_Loading)
+				else if (pEvent->m_state == EEventState::Loading)
 				{
 					pColor = itemLoadingColor;
 				}
-				else if (pEvent->m_audioEventState == eAudioEventState_Virtual)
+				else if (pEvent->m_state == EEventState::Virtual)
 				{
 					pColor = itemVirtualColor;
 				}
 
-				auxGeom.Draw2dLabel(posX, posY, 1.2f,
-				                    pColor,
-				                    false,
-				                    "%s on %s : %u",
-				                    szOriginalName,
-				                    pEvent->m_pAudioObject->m_name.c_str(),
-				                    pEvent->GetId());
+				auxGeom.Draw2dLabel(posX, posY, 1.2f, pColor, false, "%s on %s", szOriginalName, pEvent->m_pAudioObject->m_name.c_str());
 
 				posY += 10.0f;
 			}
 		}
 	}
 }
-
 #endif // INCLUDE_AUDIO_PRODUCTION_CODE
+}      // namespace CryAudio

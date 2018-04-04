@@ -1,5 +1,5 @@
-option(OPTION_GAMESDK "Build GameSDK sample project" ON)
-if (NOT OPTION_GAMESDK)
+option(PROJECT_CRYENGINE_GAMESDK "Build GameSDK sample project" ON)
+if (NOT PROJECT_CRYENGINE_GAMESDK)
 	return()
 endif()
 

@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 /*=============================================================================
    ShaderCore.cpp : implementation of the Shaders manager.
@@ -46,6 +46,7 @@ CShader* CShaderMan::s_ShaderOcclTest;
 CShader* CShaderMan::s_ShaderDXTCompress = NULL;
 CShader* CShaderMan::s_ShaderStereo = NULL;
 CShader* CShaderMan::s_ShaderClouds = NULL;
+CShader* CShaderMan::s_ShaderMobileComposition = nullptr;
 CCryNameTSCRC CShaderMan::s_cNameHEAD;
 
 TArray<CShaderResources*> CShader::s_ShaderResources_known(0, 2600);  // Based on BatteryPark
@@ -222,6 +223,7 @@ void CShader::mfFree()
 
 CShader::~CShader()
 {
+	CRY_ASSERT(GetRefCounter() == 0);
 	gRenDev->m_cEF.m_Bin.mfRemoveFXParams(this);
 
 	if (m_pGenShader && m_pGenShader->m_DerivedShaders)
@@ -598,6 +600,15 @@ void CShaderMan::ShutDown(void)
 	mfCloseShadersCache(0);
 	mfCloseShadersCache(1);
 
+	if (gEnv && gEnv->pSystem)
+	{
+		ISystemEventDispatcher* pSystemEventDispatcher = gEnv->pSystem->GetISystemEventDispatcher();
+		if (pSystemEventDispatcher)
+		{
+			pSystemEventDispatcher->RemoveListener(this);
+		}
+	}
+
 	m_bInitialized = false;
 }
 
@@ -780,6 +791,7 @@ void CShaderMan::mfInitCommonGlobalFlagsLegacyFix(void)
 	m_pSCGFlagLegacyFix.insert(MapNameFlagsItor::value_type("%RIM_LIGHTING", (uint64)0x40000000));
 	m_pSCGFlagLegacyFix.insert(MapNameFlagsItor::value_type("%SPECULARPOW_GLOSSALPHA", (uint64)0x80000000));
 
+	m_pSCGFlagLegacyFix.insert(MapNameFlagsItor::value_type("%BILLBOARD", (uint64)0x100000000ULL));
 	m_pSCGFlagLegacyFix.insert(MapNameFlagsItor::value_type("%TEMP_TERRAIN", (uint64)0x200000000ULL));
 	m_pSCGFlagLegacyFix.insert(MapNameFlagsItor::value_type("%TEMP_VEGETATION", (uint64)0x400000000ULL));
 	m_pSCGFlagLegacyFix.insert(MapNameFlagsItor::value_type("%TERRAINHEIGHTADAPTION", (uint64)0x800000000ULL));
@@ -958,14 +970,10 @@ void CShaderMan::mfInitGlobal(void)
 				continue;
 			if (gb->m_ParamName == "%_RT_FOG")
 				g_HWSR_MaskBit[HWSR_FOG] = gb->m_Mask;
-			else if (gb->m_ParamName == "%_RT_AMBIENT")
-				g_HWSR_MaskBit[HWSR_AMBIENT] = gb->m_Mask;
-			else if (gb->m_ParamName == "%_RT_HDR_ENCODE")
-				g_HWSR_MaskBit[HWSR_HDR_ENCODE] = gb->m_Mask;
 			else if (gb->m_ParamName == "%_RT_ALPHATEST")
 				g_HWSR_MaskBit[HWSR_ALPHATEST] = gb->m_Mask;
-			else if (gb->m_ParamName == "%_RT_HDR_MODE")
-				g_HWSR_MaskBit[HWSR_HDR_MODE] = gb->m_Mask;
+			else if (gb->m_ParamName == "%_RT_SECONDARY_VIEW")
+				g_HWSR_MaskBit[HWSR_SECONDARY_VIEW] = gb->m_Mask;
 			else if (gb->m_ParamName == "%_RT_MSAA_QUALITY")
 				g_HWSR_MaskBit[HWSR_MSAA_QUALITY] = gb->m_Mask;
 			else if (gb->m_ParamName == "%_RT_MSAA_QUALITY1")
@@ -994,10 +1002,6 @@ void CShaderMan::mfInitGlobal(void)
 				g_HWSR_MaskBit[HWSR_QUALITY1] = gb->m_Mask;
 			else if (gb->m_ParamName == "%_RT_PER_INSTANCE_CB_TEMP")
 				g_HWSR_MaskBit[HWSR_PER_INSTANCE_CB_TEMP] = gb->m_Mask;
-			else if (gb->m_ParamName == "%_RT_INSTANCING_ATTR")
-				g_HWSR_MaskBit[HWSR_INSTANCING_ATTR] = gb->m_Mask;
-			else if (gb->m_ParamName == "%_RT_NOZPASS")
-				g_HWSR_MaskBit[HWSR_NOZPASS] = gb->m_Mask;
 			else if (gb->m_ParamName == "%_RT_NO_TESSELLATION")
 				g_HWSR_MaskBit[HWSR_NO_TESSELLATION] = gb->m_Mask;
 			else if (gb->m_ParamName == "%_RT_VERTEX_VELOCITY")
@@ -1081,7 +1085,7 @@ void CShaderMan::mfInit(void)
 
 	if (!m_bInitialized)
 	{
-		GetISystem()->GetISystemEventDispatcher()->RegisterListener(this);
+		GetISystem()->GetISystemEventDispatcher()->RegisterListener(this, "CShaderMan");
 
 		m_ShadersPath = "Shaders/HWScripts/";
 		m_ShadersExtPath = "Shaders/";
@@ -1372,6 +1376,9 @@ static byte bFirst = 1;
 
 static bool sLoadShader(const char* szName, CShader*& pStorage)
 {
+	if (pStorage) // Do not try to overwrite existing shader
+		return false;
+
 	CShader* ef = NULL;
 	bool bRes = true;
 	if (bFirst)
@@ -1393,8 +1400,6 @@ static bool sLoadShader(const char* szName, CShader*& pStorage)
 
 void CShaderMan::mfReleaseSystemShaders()
 {
-	CCryDeviceWrapper::GetObjectFactory().ReleaseResources();
-
 	SAFE_RELEASE_FORCE(s_DefaultShader);
 	SAFE_RELEASE_FORCE(s_shPostEffects);
 	SAFE_RELEASE_FORCE(s_shPostDepthOfField);
@@ -1428,6 +1433,7 @@ void CShaderMan::mfReleaseSystemShaders()
 	SAFE_RELEASE_FORCE(s_ShaderDXTCompress);
 	SAFE_RELEASE_FORCE(s_ShaderStereo);
 	SAFE_RELEASE_FORCE(s_ShaderClouds);
+	SAFE_RELEASE_FORCE(s_ShaderMobileComposition);
 	m_bLoadedSystem = false;
 
 }
@@ -2249,7 +2255,14 @@ void SEfResTexture::UpdateWithModifier(int nTSlot)
 					memset(&Pl, 0, sizeof(Pl));
 					float* fPl = (float*)&Pl;
 					fPl[i] = 1.0f;
-					PlTr = TransformPlane2_NoTrans(Matrix44A(rd->m_RP.m_pCurObject->m_II.m_Matrix).GetTransposed(), Pl);
+					if (rd->m_RP.m_pCurObject)
+					{
+						PlTr = TransformPlane2_NoTrans(Matrix44A(rd->m_RP.m_pCurObject->m_II.m_Matrix).GetTransposed(), Pl);
+					}
+					else
+					{
+						PlTr = Pl;
+					}
 					pMod->m_TexGenMatrix(i, 0) = PlTr.n.x;
 					pMod->m_TexGenMatrix(i, 1) = PlTr.n.y;
 					pMod->m_TexGenMatrix(i, 2) = PlTr.n.z;
@@ -2623,37 +2636,37 @@ const char* CHWShader::mfProfileString(EHWShaderClass eClass)
 	switch (eClass)
 	{
 	case eHWSC_Vertex:
-		if (CParserBin::m_nPlatform == SF_D3D11 || CParserBin::m_nPlatform == SF_ORBIS || CParserBin::m_nPlatform == SF_DURANGO || CParserBin::m_nPlatform == SF_GL4 || CParserBin::m_nPlatform == SF_GLES3)
+		if (CParserBin::m_nPlatform & (SF_D3D11 | SF_ORBIS | SF_DURANGO | SF_VULKAN | SF_GL4 | SF_GLES3))
 			szProfile = "vs_5_0";
 		else
 			assert(0);
 		break;
 	case eHWSC_Pixel:
-		if (CParserBin::m_nPlatform == SF_D3D11 || CParserBin::m_nPlatform == SF_ORBIS || CParserBin::m_nPlatform == SF_DURANGO || CParserBin::m_nPlatform == SF_GL4 || CParserBin::m_nPlatform == SF_GLES3)
+		if (CParserBin::m_nPlatform & (SF_D3D11 | SF_ORBIS | SF_DURANGO | SF_VULKAN | SF_GL4 | SF_GLES3))
 			szProfile = "ps_5_0";
 		else
 			assert(0);
 		break;
 	case eHWSC_Geometry:
-		if (CParserBin::m_nPlatform == SF_D3D11 || CParserBin::m_nPlatform == SF_ORBIS || CParserBin::m_nPlatform == SF_DURANGO || CParserBin::m_nPlatform == SF_GL4)
+		if (CParserBin::PlatformSupportsGeometryShaders())
 			szProfile = "gs_5_0";
 		else
 			assert(0);
 		break;
 	case eHWSC_Domain:
-		if (CParserBin::m_nPlatform == SF_D3D11 || CParserBin::m_nPlatform == SF_ORBIS || CParserBin::m_nPlatform == SF_DURANGO || CParserBin::m_nPlatform == SF_GL4)
+		if (CParserBin::PlatformSupportsDomainShaders())
 			szProfile = "ds_5_0";
 		else
 			assert(0);
 		break;
 	case eHWSC_Hull:
-		if (CParserBin::m_nPlatform == SF_D3D11 || CParserBin::m_nPlatform == SF_ORBIS || CParserBin::m_nPlatform == SF_DURANGO || CParserBin::m_nPlatform == SF_GL4)
+		if (CParserBin::PlatformSupportsHullShaders())
 			szProfile = "hs_5_0";
 		else
 			assert(0);
 		break;
 	case eHWSC_Compute:
-		if (CParserBin::m_nPlatform == SF_D3D11 || CParserBin::m_nPlatform == SF_ORBIS || CParserBin::m_nPlatform == SF_DURANGO || CParserBin::m_nPlatform == SF_GL4)
+		if (CParserBin::PlatformSupportsComputeShaders())
 			szProfile = "cs_5_0";
 		else
 			assert(0);
@@ -2967,7 +2980,7 @@ void CShaderMan::FilterShaderCacheGenListForOrbis(FXShaderCacheCombinations& com
 	};
 	bool combinationFilter[kCombinationCount] = { false };
 
-	static const char* const szFilter = gEnv->pConsole->RegisterString("r_ShadersOrbisFiltering", "L", VF_NULL)->GetString();
+	static const char* const szFilter = REGISTER_STRING("r_ShadersOrbisFiltering", "L", VF_NULL, "")->GetString();
 	for (const char* szFilterItem = szFilter; szFilterItem && *szFilterItem; ++szFilterItem)
 	{
 		switch (*szFilterItem)
@@ -3007,10 +3020,10 @@ void CShaderMan::FilterShaderCacheGenListForOrbis(FXShaderCacheCombinations& com
 		}
 		else
 		{
-			uint8 isa = item.second.Ident.m_pipelineState.GetISA(item.second.eCL);
+			uint8 isa = item.second.Ident.m_pipelineState.GNM.GetISA(item.second.eCL);
 			const auto insertIsa = [&result, &item, isa](uint8 targetIsa)
 			{
-				item.second.Ident.m_pipelineState.SetISA(item.second.eCL, targetIsa);
+				item.second.Ident.m_pipelineState.GNM.SetISA(item.second.eCL, targetIsa);
 
 				string name = item.first.c_str();
 				const string::size_type endPos = name.find_last_of('(', string::npos) - 1;

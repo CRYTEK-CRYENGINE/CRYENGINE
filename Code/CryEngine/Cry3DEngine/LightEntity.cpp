@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #include "StdAfx.h"
 #include "3dEngine.h"
@@ -42,7 +42,6 @@ CLightEntity::CLightEntity()
 
 	memset(&m_Matrix, 0, sizeof(m_Matrix));
 
-	m_pStatObj = NULL;
 	GetInstCount(GetRenderNodeType())++;
 }
 
@@ -69,8 +68,6 @@ CLightEntity::~CLightEntity()
 	SAFE_DELETE(m_pShadowMapInfo);
 
 	GetInstCount(GetRenderNodeType())--;
-
-	SAFE_RELEASE(m_pStatObj);
 }
 
 void CLightEntity::SetLayerId(uint16 nLayerId)
@@ -116,15 +113,6 @@ bool CLightEntity::IsLightAreasVisible()
 	// visible
 
 	return false; // not visible
-}
-
-//////////////////////////////////////////////////////////////////////////
-int CLightEntity::GetSlotCount() const
-{
-	if (m_pStatObj)
-		return 1;
-
-	return 0;
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -1764,7 +1752,7 @@ void CLightEntity::DetectCastersListChanges(ShadowMapFrustum* pFr, const SRender
 		uCastersListCheckSum += uint32((entBox.min.x + entBox.min.y + entBox.min.z) * 10000.f);
 		uCastersListCheckSum += uint32((entBox.max.x + entBox.max.y + entBox.max.z) * 10000.f);
 
-		ICharacterInstance* pChar = pNode->GetEntityCharacter(0);
+		ICharacterInstance* pChar = pNode->GetEntityCharacter();
 
 		if (pChar)
 		{
@@ -2098,11 +2086,13 @@ IRenderNode::EGIMode CLightEntity::GetGIMode() const
 
 void CLightEntity::SetOwnerEntity(IEntity* pEnt)
 {
-	IRenderNode::SetOwnerEntity(pEnt);
-
-	SetRndFlags(ERF_GI_MODE_BIT0, (pEnt->GetFlagsExtended() & ENTITY_FLAG_EXTENDED_GI_MODE_BIT0) != 0);
-	SetRndFlags(ERF_GI_MODE_BIT1, (pEnt->GetFlagsExtended() & ENTITY_FLAG_EXTENDED_GI_MODE_BIT1) != 0);
-	SetRndFlags(ERF_GI_MODE_BIT2, (pEnt->GetFlagsExtended() & ENTITY_FLAG_EXTENDED_GI_MODE_BIT2) != 0);
+	m_pOwnerEntity = pEnt;
+	if (pEnt)
+	{
+		SetRndFlags(ERF_GI_MODE_BIT0, (pEnt->GetFlagsExtended() & ENTITY_FLAG_EXTENDED_GI_MODE_BIT0) != 0);
+		SetRndFlags(ERF_GI_MODE_BIT1, (pEnt->GetFlagsExtended() & ENTITY_FLAG_EXTENDED_GI_MODE_BIT1) != 0);
+		SetRndFlags(ERF_GI_MODE_BIT2, (pEnt->GetFlagsExtended() & ENTITY_FLAG_EXTENDED_GI_MODE_BIT2) != 0);
+	}
 }
 
 void CLightEntity::OffsetPosition(const Vec3& delta)

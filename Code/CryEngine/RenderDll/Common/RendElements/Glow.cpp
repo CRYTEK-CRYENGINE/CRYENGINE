@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #include "StdAfx.h"
 #include "Glow.h"
@@ -96,9 +96,10 @@ bool Glow::PreparePrimitives(const SPreparePrimitivesContext& context)
 
 	ValidateMesh();
 
-	m_primitive.SetCustomVertexStream(m_vertexBuffer, eVF_P3F_C4B_T2F, sizeof(SVF_P3F_C4B_T2F));
+	m_primitive.SetCustomVertexStream(m_vertexBuffer, EDefaultInputLayouts::P3F_C4B_T2F, sizeof(SVF_P3F_C4B_T2F));
 	m_primitive.SetCustomIndexStream(m_indexBuffer, Index16);
 	m_primitive.SetDrawInfo(eptTriangleList, 0, 0, GetIndexCount());
+	m_primitive.Compile(context.pass);
 
 	context.pass.AddPrimitive(&m_primitive);
 

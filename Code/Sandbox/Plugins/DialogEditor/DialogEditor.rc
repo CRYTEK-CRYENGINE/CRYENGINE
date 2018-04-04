@@ -1,0 +1,35 @@
+
+#include "Resource.h"
+
+#define APSTUDIO_READONLY_SYMBOLS
+/////////////////////////////////////////////////////////////////////////////
+//
+// Generated from the TEXTINCLUDE 2 resource.
+//
+#include "winres.h"
+
+/////////////////////////////////////////////////////////////////////////////
+#undef APSTUDIO_READONLY_SYMBOLS
+
+/////////////////////////////////////////////////////////////////////////////
+// English (United States) resources
+
+#if !defined(AFX_RESOURCE_DLL) || defined(AFX_TARG_ENU)
+LANGUAGE LANG_ENGLISH, SUBLANG_ENGLISH_US
+#pragma code_page(1252)
+
+IDR_DIALOGEDITOR_TOOLBAR TOOLBAR 16, 15
+BEGIN
+BUTTON      ID_DE_ADDLINE
+BUTTON      ID_DE_DELLINE
+END
+
+STRINGTABLE
+BEGIN
+ID_PANEL_VEG_CREATE_SEL "Put Selection to Category\nPut Selection to Category"
+ID_PREFABS_ADDSELECTIONTOPREFAB "Add Selection to Prefab"
+ID_DE_ADDLINE           "Add a new Dialog line"
+ID_DE_DELLINE           "Delete the currently selected Dialog line"
+END
+
+#endif    // English (United States) resources

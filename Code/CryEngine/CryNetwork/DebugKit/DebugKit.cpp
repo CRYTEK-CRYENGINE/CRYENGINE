@@ -1,10 +1,12 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #include "StdAfx.h"
 #include "DebugKit.h"
 #include "Network.h"
 
 #if ENABLE_DEBUG_KIT
+
+#include <CryRenderer/IRenderAuxGeom.h>
 
 CryCriticalSection CDebugKit::m_lockThis;
 CDebugKit* volatile CDebugKit::m_pThis = 0;

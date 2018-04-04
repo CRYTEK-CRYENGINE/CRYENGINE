@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #include "StdAfx.h"
 #include "CryMovie.h"
@@ -16,6 +16,11 @@
 struct CSystemEventListner_Movie : public ISystemEventListener
 {
 public:
+	virtual ~CSystemEventListner_Movie()
+	{
+		gEnv->pSystem->GetISystemEventDispatcher()->RemoveListener(this);
+	}
+
 	virtual void OnSystemEvent(ESystemEvent event, UINT_PTR wparam, UINT_PTR lparam)
 	{
 		switch (event)
@@ -31,20 +36,28 @@ public:
 
 static CSystemEventListner_Movie g_system_event_listener_movie;
 
-class CEngineModule_CryMovie : public IEngineModule
+class CEngineModule_CryMovie : public IMovieEngineModule
 {
-	CRYINTERFACE_SIMPLE(IEngineModule)
-	CRYGENERATE_SINGLETONCLASS(CEngineModule_CryMovie, "EngineModule_CryMovie", 0xdce26beebdc6400f, 0xa0e9b42839f2dd5b)
+	CRYINTERFACE_BEGIN()
+		CRYINTERFACE_ADD(Cry::IDefaultModule)
+		CRYINTERFACE_ADD(IMovieEngineModule)
+	CRYINTERFACE_END()
 
-	virtual ~CEngineModule_CryMovie() {}
+	CRYGENERATE_SINGLETONCLASS_GUID(CEngineModule_CryMovie, "EngineModule_CryMovie", "dce26bee-bdc6-400f-a0e9-b42839f2dd5b"_cry_guid)
 
-	virtual const char* GetName() override { return "CryMovie"; };
-	virtual const char* GetCategory() override { return "CryEngine"; };
+	virtual ~CEngineModule_CryMovie()
+	{
+		gEnv->pSystem->GetISystemEventDispatcher()->RemoveListener(&g_system_event_listener_movie);
+		SAFE_RELEASE(gEnv->pMovieSystem);
+	}
+
+	virtual const char* GetName() const override { return "CryMovie"; };
+	virtual const char* GetCategory() const override { return "CryEngine"; };
 
 	virtual bool        Initialize(SSystemGlobalEnvironment& env, const SSystemInitParams& initParams) override
 	{
 		ISystem* pSystem = env.pSystem;
-		pSystem->GetISystemEventDispatcher()->RegisterListener(&g_system_event_listener_movie);
+		pSystem->GetISystemEventDispatcher()->RegisterListener(&g_system_event_listener_movie, "CEngineModule_CryMovie");
 
 		env.pMovieSystem = new CMovieSystem(pSystem);
 		return true;

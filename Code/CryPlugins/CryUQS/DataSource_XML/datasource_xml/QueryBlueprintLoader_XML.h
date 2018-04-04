@@ -4,9 +4,9 @@
 
 // *INDENT-OFF* - <hard to read code and declarations due to inconsistent indentation>
 
-namespace uqs
+namespace UQS
 {
-	namespace datasource_xml
+	namespace DataSource_XML
 	{
 
 		class CXMLDataErrorCollector;
@@ -17,27 +17,28 @@ namespace uqs
 		//
 		//===================================================================================
 
-		class CQueryBlueprintLoader_XML : public datasource::IQueryBlueprintLoader
+		class CQueryBlueprintLoader_XML : public DataSource::IQueryBlueprintLoader
 		{
 		public:
-			explicit                                  CQueryBlueprintLoader_XML(const char* queryName, const char* xmlFilePath, const std::shared_ptr<CXMLDataErrorCollector>& dataErrorCollector);
-			virtual bool                              LoadTextualQueryBlueprint(core::ITextualQueryBlueprint& out, shared::IUqsString& error) override;
+			explicit                                  CQueryBlueprintLoader_XML(const char* szQueryName, const char* szXmlFilePath, const std::shared_ptr<CXMLDataErrorCollector>& pDataErrorCollector);
+			virtual bool                              LoadTextualQueryBlueprint(Core::ITextualQueryBlueprint& out, Shared::IUqsString& error) override;
 
 		private:
-			bool                                      ParseQueryElement(const XmlNodeRef& queryElement, shared::IUqsString& error);
-			bool                                      ParseGlobalParamsElement(const XmlNodeRef& globalParamsElement, shared::IUqsString& error);
-			bool                                      ParseGeneratorElement(const XmlNodeRef& generatorElement, shared::IUqsString& error);
-			bool                                      ParseInstantEvaluatorElement(const XmlNodeRef& instantEvaluatorElement, shared::IUqsString& error);
-			bool                                      ParseDeferredEvaluatorElement(const XmlNodeRef& deferredEvaluatorElement, shared::IUqsString& error);
-			bool                                      ParseFunctionElement(const XmlNodeRef& functionElement, core::ITextualInputBlueprint& parentInput, shared::IUqsString& error);
-			bool                                      ParseInputElement(const XmlNodeRef& inputElement, core::ITextualInputBlueprint& parentInput, shared::IUqsString& error);
+			bool                                      ParseQueryElement(const XmlNodeRef& queryElement, Shared::IUqsString& error);
+			bool                                      ParseGlobalParamsElement(const XmlNodeRef& globalParamsElement, Shared::IUqsString& error);
+			bool                                      ParseGeneratorElement(const XmlNodeRef& generatorElement, Shared::IUqsString& error);
+			bool                                      ParseInstantEvaluatorElement(const XmlNodeRef& instantEvaluatorElement, Shared::IUqsString& error);
+			bool                                      ParseDeferredEvaluatorElement(const XmlNodeRef& deferredEvaluatorElement, Shared::IUqsString& error);
+			bool                                      ParseFunctionElement(const XmlNodeRef& functionElement, Core::ITextualInputBlueprint& parentInput, Shared::IUqsString& error);
+			bool                                      ParseInputElement(const XmlNodeRef& inputElement, Core::ITextualInputBlueprint& parentInput, Shared::IUqsString& error);
+			bool                                      CommonParseEvaluatorElement(const XmlNodeRef& evaluatorElement, const char* szAttributeForEvaluatorFactoryGUID, Core::ITextualEvaluatorBlueprint&  outTextualEvaluatorBP, Shared::IUqsString& error);  // common code for ParseInstantEvaluatorElement() and ParseDeferredEvaluatorElement()
 
 		private:
 			string                                    m_queryName;
 			string                                    m_xmlFilePath;
 			XmlNodeRef                                m_queryElement;
-			std::shared_ptr<CXMLDataErrorCollector>   m_dataErrorCollector;
-			core::ITextualQueryBlueprint*             m_query;	// points to what was passed in to LoadTextualQueryBlueprint() throughout the loading process
+			std::shared_ptr<CXMLDataErrorCollector>   m_pDataErrorCollector;
+			Core::ITextualQueryBlueprint*             m_pQuery;	// points to what was passed in to LoadTextualQueryBlueprint() throughout the loading process
 		};
 
 	}

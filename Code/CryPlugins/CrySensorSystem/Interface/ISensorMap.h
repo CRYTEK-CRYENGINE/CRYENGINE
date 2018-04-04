@@ -56,7 +56,7 @@ struct SSensorEvent
 	SensorVolumeId   eventVolumeId;
 };
 
-typedef Schematyc::CDelegate<void (const SSensorEvent&)> SensorEventListener;
+typedef std::function<void (const SSensorEvent&)> SensorEventListener;
 
 struct SSensorVolumeParams
 {
@@ -90,7 +90,7 @@ enum class ESensorMapDebugFlags
 	Interactive        = BIT(6)
 };
 
-typedef Schematyc::CEnumFlags<ESensorMapDebugFlags> SensorMapDebugFlags;
+typedef CEnumFlags<ESensorMapDebugFlags> SensorMapDebugFlags;
 
 struct ISensorMap
 {

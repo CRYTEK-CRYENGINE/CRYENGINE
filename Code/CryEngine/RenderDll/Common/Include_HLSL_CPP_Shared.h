@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #ifdef __cplusplus
 // C++
@@ -53,6 +53,7 @@ hlsl_cbuffer_register(PerInstanceConstantBuffer_Base, register (b12), 12) // eCo
 	hlsl_matrix34(PerInstanceWorldMatrix);
 	hlsl_matrix34(PerInstancePrevWorldMatrix);
 	hlsl_float4(PerInstanceCustomData);
+	hlsl_float4(PerInstanceCustomData1);
 	hlsl_float4(PerInstanceCustomData2);
 };
 
@@ -61,6 +62,7 @@ hlsl_cbuffer_register(PerInstanceConstantBuffer_TerrainVegetation, register (b12
 	hlsl_matrix34(PerInstanceWorldMatrix);
 	hlsl_matrix34(PerInstancePrevWorldMatrix);
 	hlsl_float4(PerInstanceCustomData);
+	hlsl_float4(PerInstanceCustomData1);
 	// TODO: customdata2 should be added after terrainlayerinfo, make sure a vegetation shader is correctly detected when uploading data to
 	// constant buffer
 	hlsl_float4(PerInstanceCustomData2);
@@ -74,6 +76,7 @@ hlsl_cbuffer_register(PerInstanceConstantBuffer_Skin, register (b12), 12) // eCo
 	hlsl_matrix34(PerInstanceWorldMatrix);
 	hlsl_matrix34(PerInstancePrevWorldMatrix);
 	hlsl_float4(PerInstanceCustomData);
+	hlsl_float4(PerInstanceCustomData1);
 	// TODO: customdata2 should be added after WrinklesMask2. Since constant buffer definition is shared with vegetation, we need this here as well
 	hlsl_float4(PerInstanceCustomData2);
 
@@ -95,6 +98,8 @@ hlsl_cbuffer_register(PerViewGlobalConstantBuffer, register (b13), 13) //eConsta
 	hlsl_matrix44(CV_PrevViewProjNearestMatr);
 	hlsl_matrix34(CV_ScreenToWorldBasis);
 	hlsl_float4(CV_TessInfo);
+	hlsl_float4(CV_WorldViewPosition); // TODO: remove me, data is already available in CV_ScreenToWorldBasis, via GetWorldViewPos
+	hlsl_float4(CV_CamRightVector);
 	hlsl_float4(CV_CamFrontVector);
 	hlsl_float4(CV_CamUpVector);
 

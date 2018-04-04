@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 // -------------------------------------------------------------------------
 //  File name:   SubstitutionProxy.h
@@ -21,8 +21,9 @@
 //////////////////////////////////////////////////////////////////////////
 struct CEntityComponentSubstitution : IEntitySubstitutionComponent
 {
-	CRY_ENTITY_COMPONENT_CLASS(CEntityComponentSubstitution,IEntitySubstitutionComponent,"CEntityComponentSubstitution",0xF60DBB948860494A,0x93586DE8C953B324);
+	CRY_ENTITY_COMPONENT_CLASS_GUID(CEntityComponentSubstitution, IEntitySubstitutionComponent, "CEntityComponentSubstitution", "f60dbb94-8860-494a-9358-6de8c953b324"_cry_guid);
 
+	CEntityComponentSubstitution();
 	virtual ~CEntityComponentSubstitution();
 
 public:

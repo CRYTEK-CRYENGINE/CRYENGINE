@@ -1,18 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
-
-// -------------------------------------------------------------------------
-//  File name:   DialogActorContext.h
-//  Version:     v1.00
-//  Created:     07/07/2006 by AlexL
-//  Compilers:   Visual Studio.NET
-//  Description: Instructs an Entity/Actor to play a certain ScriptLine
-// -------------------------------------------------------------------------
-//  History:
-//
-////////////////////////////////////////////////////////////////////////////
-
-#ifndef __DIALOGACTORCONTEXT_H__
-#define __DIALOGACTORCONTEXT_H__
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #pragma once
 
@@ -58,10 +44,10 @@ public:
 		return (m_pSession->GetActorFlags(m_actorID) & flag) != 0;
 	}
 
-	static void                 OnAudioTriggerFinished(SAudioRequestInfo const* const pAudioRequestInfo);
+	static void                 OnAudioTriggerFinished(CryAudio::SRequestInfo const* const pAudioRequestInfo);
 	static const char*          GetClassIdentifier() { return "DialogActorContext"; }
 
-	static CDialogActorContext* GetDialogActorContextByAudioCallbackData(SAudioRequestInfo const* const pAudioRequestInfo);
+	static CDialogActorContext* GetDialogActorContextByAudioCallbackData(CryAudio::SRequestInfo const* const pAudioRequestInfo);
 	EntityId                    GetEntityID() const { return m_entityID; }
 
 protected:
@@ -175,7 +161,7 @@ protected:
 	float                             m_checkPlayerTimeOut;
 	CDialogSession::EAbortReason      m_abortReason;
 
-	AudioProxyId                      m_SpeechAuxProxy;
+	CryAudio::AuxObjectId             m_SpeechAuxObject;
 
 	// Animation specific
 	IAnimationGraphState*  m_pAGState;
@@ -212,5 +198,3 @@ protected:
 
 	static string m_tempBuffer;
 };
-
-#endif

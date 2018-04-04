@@ -15,8 +15,11 @@
 #include <QDialogButtonbox>
 #include <QLineEdit>
 #include <QMessageBox>
+#include <QDesktopServices>
 
-#include <QPropertyTree/QPropertyTree.h>
+#include <QtUtil.h>
+
+#include <Serialization/QPropertyTree/QPropertyTree.h>
 #include <Controls/QuestionDialog.h>
 
 #include "Document.h"
@@ -78,6 +81,10 @@ CMainEditorWindow::CMainEditorWindow()
 	, m_pDocumentPropertyTree(nullptr)
 	, m_pCurrentDocument(nullptr)
 {
+	// TODO pavloi 2017.04.04: derive CMainEditorWindow from CDockableEditor
+	// TODO pavloi 2017.04.04: rebuild window layout - we dockable widgets don't work if we derive from CEditor/CDockableEditor.
+	// Do we even need list of queries as the dockable widget?
+
 	GetIEditor()->RegisterNotifyListener(this);
 
 	BuildLibraryPanel();
@@ -90,6 +97,7 @@ CMainEditorWindow::CMainEditorWindow()
 	m_pDocumentPropertyTree = new QPropertyTree();
 	m_pDocumentPropertyTree->setExpandLevels(5);
 	m_pDocumentPropertyTree->setTreeStyle(treeStyle);
+	m_pDocumentPropertyTree->setUndoEnabled(true); // TODO pavloi 2017.04.03: use global editor's undo manager
 
 	connect(m_pDocumentPropertyTree, &QPropertyTree::signalChanged, this, &CMainEditorWindow::OnPropertyTreeChanged);
 
@@ -105,7 +113,7 @@ CMainEditorWindow::CMainEditorWindow()
 	BuildMenu();
 
 	// disable everything if the UQS engine plugin was not loaded
-	if (!uqs::core::IHubPlugin::GetHubPtr())
+	if (!UQS::Core::IHubPlugin::GetHubPtr())
 	{
 		QMessageBox::warning(this, "UQS engine-plugin not loaded", "The UQS Editor will be disabled as the UQS core engine-plugin hasn't been loaded.");
 		setEnabled(false);
@@ -129,7 +137,7 @@ CMainEditorWindow::~CMainEditorWindow()
 const char* CMainEditorWindow::GetPaneTitle() const
 {
 	// check for whether the UQS engine plugin has been loaded
-	if (uqs::core::IHubPlugin::GetHubPtr())
+	if (UQS::Core::IHubPlugin::GetHubPtr())
 	{
 		return "UQS Editor";
 	}
@@ -217,12 +225,15 @@ static QAction* AddCheckboxAction(QMenu* pMenu, const QString& label, bool bIsCh
 
 void CMainEditorWindow::BuildMenu()
 {
+	// TODO pavloi 2017.04.04: convert common actions (New, Save, ...) into the CEditor::MenuItems to support better integration into 
+	// the editor framework (key bindings, scripted actions, etc.)
+
 	{
 		// TODO pavloi 2016.04.08: implement File menu actions
 
 		QMenu* pFileMenu = menuBar()->addMenu("&File");
 		connect(pFileMenu->addAction("&New"), &QAction::triggered, this, &CMainEditorWindow::OnMenuActionFileNew);
-		//connect(pFileMenu->addAction("&Save"), &QAction::triggered, this, &CMainEditorWindow::OnMenuActionFileSave);
+		connect(pFileMenu->addAction("&Save"), &QAction::triggered, this, &CMainEditorWindow::OnMenuActionFileSave);
 		//connect(pFileMenu->addAction("Save &As"), &QAction::triggered, this, &CMainEditorWindow::OnMenuActionFileSaveAs);
 	}
 
@@ -235,6 +246,11 @@ void CMainEditorWindow::BuildMenu()
 		connect(AddCheckboxAction(pViewMenu, "&Filter inputs by type", m_editorContext.GetSettings().bFilterAvailableInputsByType), &QAction::triggered,
 		        this, &CMainEditorWindow::OnMenuActionViewFilterInputsByType);
 	}
+
+	{
+		QMenu* pHelpMenu = menuBar()->addMenu("&Help");
+		connect(pHelpMenu->addAction("&Online documentation"), &QAction::triggered, this, &CMainEditorWindow::OnMenuActionHelpOnlineDocumentation);
+	}
 }
 
 void CMainEditorWindow::OnMenuActionFileNew()
@@ -244,7 +260,16 @@ void CMainEditorWindow::OnMenuActionFileNew()
 
 void CMainEditorWindow::OnMenuActionFileSave()
 {
-	// TODO pavloi 2016.04.08: implement
+	if (m_pCurrentDocument)
+	{
+		// TODO pavloi 2016.04.08: instead of checking selected entries, get an entiry ID from a document, which is attached to property tree.
+		Explorer::ActionContext context;
+		GetLibraryExplorerWidget()->GetSelectedEntries(&context.entries);
+		if (!context.entries.empty())
+		{
+			m_pExplorerData->ActionSave(context);
+		}
+	}
 }
 
 void CMainEditorWindow::OnMenuActionFileSaveAs()
@@ -280,6 +305,15 @@ void CMainEditorWindow::OnMenuActionViewFilterInputsByType(bool checked)
 	{
 		m_pCurrentDocument->ApplySettings(m_editorContext.GetSettings());
 	}
+}
+
+void CMainEditorWindow::OnMenuActionHelpOnlineDocumentation()
+{
+	// URL to the UQS Query Editor (as of 2017-04-19)
+	const char* szURL = "http://docs.cryengine.com/display/CEMANUAL/Sandbox+Plugin%3A+Query+Editor";
+	const QUrl qURL = QtUtil::ToQString(szURL);
+
+	QDesktopServices::openUrl(qURL);
 }
 
 void CMainEditorWindow::OnLibraryExplorerSelectionChanged()

@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #ifndef __CRESKY_H__
 #define __CRESKY_H__
@@ -33,8 +33,11 @@ public:
 	virtual void          mfPrepare(bool bCheckOverflow) override;
 	virtual bool          mfDraw(CShader* ef, SShaderPass* sfm) override;
 
-	virtual EVertexFormat GetVertexFormat() const override;
+	virtual InputLayoutHandle GetVertexFormat() const override;
 	virtual bool          GetGeometryInfo(SGeometryInfo& streams, bool bSupportTessellation = false) override;
+
+	virtual bool          Compile(CRenderObject* pObj) override;
+	virtual void          DrawToCommandList(CRenderObject* pObj, const struct SGraphicsPipelinePassContext& ctx) override;
 
 	virtual void          GetMemoryUsage(ICrySizer* pSizer) const override
 	{
@@ -44,6 +47,8 @@ public:
 
 class CREHDRSky : public CRenderElement
 {
+	friend class CSceneForwardStage;
+
 public:
 	CREHDRSky()
 		: m_pRenderParams(0)
@@ -62,8 +67,11 @@ public:
 	virtual void          mfPrepare(bool bCheckOverflow) override;
 	virtual bool          mfDraw(CShader* ef, SShaderPass* sfm) override;
 
-	virtual EVertexFormat GetVertexFormat() const override;
+	virtual InputLayoutHandle GetVertexFormat() const override;
 	virtual bool          GetGeometryInfo(SGeometryInfo& streams, bool bSupportTessellation = false) override;
+
+	virtual bool          Compile(CRenderObject* pObj) override;
+	virtual void          DrawToCommandList(CRenderObject* pObj, const struct SGraphicsPipelinePassContext& ctx) override;
 
 	virtual void          GetMemoryUsage(ICrySizer* pSizer) const override
 	{

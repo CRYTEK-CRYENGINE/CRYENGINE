@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 //
 //	File: SystemRender.cpp
@@ -90,7 +90,7 @@ void CSystem::CreateRendererVars()
 		"Usage: r_ColorBits [32/24/16/8]");
 	m_rDepthBits = REGISTER_INT("r_DepthBits", 24, VF_DUMPTODISK | VF_REQUIRE_APP_RESTART,
 		"Sets the depth precision, in bits per pixel. Default is 24.\n"
-		"Usage: r_DepthBits [32/24]");
+		"Usage: r_DepthBits [32/24/16]");
 	m_rStencilBits = REGISTER_INT("r_StencilBits", 8, VF_DUMPTODISK,
 		"Sets the stencil precision, in bits per pixel. Default is 8.\n");
 
@@ -100,13 +100,18 @@ void CSystem::CreateRendererVars()
 	  "Use this to resolve which video card to use if more than one DX11 capable GPU is available in the system.");
 #endif
 
-#if CRY_PLATFORM_WINDOWS
-	const char* p_r_DriverDef = "Auto";
-#elif CRY_PLATFORM_LINUX || CRY_PLATFORM_ANDROID || CRY_PLATFORM_APPLE
-	const char* p_r_DriverDef = "GL";
+#if CRY_PLATFORM_ANDROID
+	const char* p_r_DriverDef = STR_VK_RENDERER;
+#elif CRY_PLATFORM_LINUX || CRY_PLATFORM_APPLE
+		const char* p_r_DriverDef = STR_GL_RENDERER;
+#elif CRY_PLATFORM_DURANGO
+	const char* p_r_DriverDef = STR_DX11_RENDERER;
+#elif CRY_PLATFORM_ORBIS
+	const char* p_r_DriverDef = STR_DX11_RENDERER;
 #else
-	const char* p_r_DriverDef = "DX9";                 // required to be deactivated for final release
+	const char* p_r_DriverDef = STR_AUTO_RENDERER;
 #endif
+
 	if (m_startupParams.pCvarsDefault)
 	{
 		// hack to customize the default value of r_Driver
@@ -116,7 +121,7 @@ void CSystem::CreateRendererVars()
 	}
 
 	m_rDriver = REGISTER_STRING("r_Driver", p_r_DriverDef, VF_DUMPTODISK,
-		"Sets the renderer driver ( DX11/AUTO/NULL ).\n"
+		"Sets the renderer driver ( DX11/DX12/GL/VK/AUTO ).\n"
 		"Specify in system.cfg like this: r_Driver = \"DX11\"");
 
 	m_rFullscreen = REGISTER_INT("r_Fullscreen", iFullScreenDefault, VF_DUMPTODISK,
@@ -592,11 +597,7 @@ void CSystem::DisplayErrorMessage(const char* acMessage,
 		message.m_Color[3] = 1.0f;
 	}
 	message.m_HardFailure = bHardError;
-#ifdef _RELEASE
 	message.m_fTimeToShow = fTime;
-#else
-	message.m_fTimeToShow = 1.0f;
-#endif
 	m_ErrorMessages.push_back(message);
 }
 
@@ -729,9 +730,8 @@ void CSystem::Render()
 					}
 					else
 					{
-						// force rendering of black screen to be sure we don't only render the clear color (which is the fog color by default)
-						m_env.pRenderer->SetState(GS_BLSRC_SRCALPHA | GS_BLDST_ONEMINUSSRCALPHA | GS_NODEPTHTEST);
-						m_env.pRenderer->Draw2dImage(0, 0, 800, 600, -1, 0.0f, 0.0f, 1.0f, 1.0f, 0.f, 0.0f, 0.0f, 0.0f, 1.0f, 0.f);
+						// clear screen to black
+						m_env.pRenderer->ClearTargetsImmediately(FRT_CLEAR_COLOR, Col_Black);
 					}
 				}
 

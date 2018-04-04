@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 //
 //	File:Cry_Camera.h
@@ -182,7 +182,6 @@ public:
 
 	// constructor/destructor
 	CCamera() { m_Matrix.SetIdentity(); SetFrustum(640, 480); SetEye(eEye_Left); m_zrangeMin = 0.0f; m_zrangeMax = 1.0f;  m_pMultiCamera = NULL; m_pPortal = NULL; m_JustActivated = 0; m_nPosX = m_nPosY = m_nSizeX = m_nSizeY = 0; m_asymR = 0; m_asymL = 0; m_asymB = 0; m_asymT = 0; }
-	~CCamera() {}
 
 	void GetFrustumVertices(Vec3* pVerts) const;
 	void GetFrustumVerticesCam(Vec3* pVerts) const;
@@ -416,10 +415,10 @@ ILINE Vec3 CCamera::CreateViewdir(const Ang3& ypr)
 //! \param p World space position.
 //! \param result Screen space pos.
 //! \return true if visible on screen.
-ILINE bool CCamera::Project(const Vec3& p, Vec3& result, Vec2i topLeft, Vec2i widthHeight) const
+inline bool CCamera::Project(const Vec3& p, Vec3& result, Vec2i topLeft, Vec2i widthHeight) const
 {
 	Matrix44A mProj, mView;
-	Vec4 in, transformed, projected;
+	Vec4 transformed, projected;
 
 	mathMatrixPerspectiveFov(&mProj, GetFov(), GetProjRatio(), GetNearPlane(), GetFarPlane());
 
@@ -435,15 +434,11 @@ ILINE bool CCamera::Project(const Vec3& p, Vec3& result, Vec2i topLeft, Vec2i wi
 		pViewport[3] = widthHeight.y;
 	}
 
-	in.x = p.x;
-	in.y = p.y;
-	in.z = p.z;
-	in.w = 1.0f;
-	mathVec4Transform((f32*)&transformed, (f32*)&mView, (f32*)&in);
+	transformed = Vec4(p, 1) * mView;
 
 	bool visible = transformed.z < 0.0f;
 
-	mathVec4Transform((f32*)&projected, (f32*)&mProj, (f32*)&transformed);
+	projected = transformed * mProj;
 
 	if (projected.w == 0.0f)
 	{
@@ -465,7 +460,7 @@ ILINE bool CCamera::Project(const Vec3& p, Vec3& result, Vec2i topLeft, Vec2i wi
 	return visible;
 }
 
-ILINE bool CCamera::Unproject(const Vec3& viewportPos, Vec3& result, Vec2i topLeft, Vec2i widthHeight) const
+inline bool CCamera::Unproject(const Vec3& viewportPos, Vec3& result, Vec2i topLeft, Vec2i widthHeight) const
 {
 	Matrix44A mProj, mView;
 
@@ -488,18 +483,7 @@ ILINE bool CCamera::Unproject(const Vec3& viewportPos, Vec3& result, Vec2i topLe
 	vIn.z = viewportPos.z;
 	vIn.w = 1.0;
 
-	Matrix44A m;
-	const float* proj = mProj.GetData();
-	const float* view = mView.GetData();
-	float* mdata = m.GetData();
-	for (int i = 0; i < 4; i++)
-	{
-		float ai0 = proj[i], ai1 = proj[4 + i], ai2 = proj[8 + i], ai3 = proj[12 + i];
-		mdata[i] = ai0 * view[0] + ai1 * view[1] + ai2 * view[2] + ai3 * view[3];
-		mdata[4 + i] = ai0 * view[4] + ai1 * view[5] + ai2 * view[6] + ai3 * view[7];
-		mdata[8 + i] = ai0 * view[8] + ai1 * view[9] + ai2 * view[10] + ai3 * view[11];
-		mdata[12 + i] = ai0 * view[12] + ai1 * view[13] + ai2 * view[14] + ai3 * view[15];
-	}
+	Matrix44A m = mView * mProj;
 
 	m.Invert();
 	if (!m.IsValid())
@@ -514,9 +498,8 @@ ILINE bool CCamera::Unproject(const Vec3& viewportPos, Vec3& result, Vec2i topLe
 	return true;
 }
 
-ILINE void CCamera::CalcScreenBounds(int* vOut, const AABB* pAABB, int nWidth, int nHeight) const
+inline void CCamera::CalcScreenBounds(int* vOut, const AABB* pAABB, int nWidth, int nHeight) const
 {
-
 	Matrix44A mProj, mView, mVP;
 	mathMatrixPerspectiveFov(&mProj, GetFov(), GetProjRatio(), GetNearPlane(), GetFarPlane());
 	mathMatrixLookAt(&mView, GetPosition(), GetPosition() + GetViewdir(), GetMatrix().GetColumn2());
@@ -554,11 +537,9 @@ ILINE void CCamera::CalcScreenBounds(int* vOut, const AABB* pAABB, int nWidth, i
 		Vec3 result = Vec3(0.0f, 0.0f, 0.0f);
 		Vec4 transformed, projected, vIn;
 
-		vIn = Vec4(verts[i].x, verts[i].y, verts[i].z, 1.0f);
+		projected = Vec4(verts[i], 1) * mVP;
 
-		mathVec4Transform((f32*)&projected, (f32*)&mVP, (f32*)&vIn);
-
-		fIntersect = (float)__fsel(-projected.w, 0.0f, 1.0f);
+		fIntersect = __fsel(-projected.w, 0.0f, 1.0f);
 
 		if (fIntersect && projected.w)
 		{

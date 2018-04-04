@@ -1,0 +1,158 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<RCJobs>
+	<!--
+		 DefaultProperties can be override from command line
+	-->
+	<DefaultProperties
+			engine="Engine"
+			src="."
+			trg="..\_rc_${p}"
+			pak_root=""
+	/>
+
+	<!-- General properties-->
+	<DefaultProperties DataFolder="${engine}" />   <!-- The subfolder that contains data to process -->
+	<DefaultProperties P="PC" /> <!-- Special case: p must be set from the commandline, and it cannot be set to something else using RCJob, this default reflects the hardcoded default -->
+	<Properties Platform="${P}" /> <!-- This is an alias of p that is used in this job file only -->
+
+	<!-- Default path properties -->
+	<DefaultProperties InputPath="${src}" /> <!-- By default, assume current directory contains source assets -->
+	<DefaultProperties TempPath="${trg}" /> <!-- This script will store converted (but unpacked) files in a temp folder -->
+	<DefaultProperties OutputPath="${pak_root}" /> <!-- The target folder for the output files (packed converted files) -->
+
+	<!-- Default index format, can be overridden from the command line, used by meshes (.cgf) and geomcaches (.cax) -->
+	<!-- Alternative: u16. Should match the engine typedef of vtx_idx type to prevent run-time conversion -->
+	<DefaultProperties VertexIndexFormat="u32" />
+
+	<!-- Shader source should be included only for internal builds -->
+	<DefaultProperties IncludeShaderSource="0" />
+
+	<!-- Shared constant properties -->
+	<Properties XmlFilterFile="${_rc_exe_folder}xmlfilter.txt" />
+	<Properties XmlExtensions="*.animevents;*.adb;*.bspace;*.cdf;*.chrparams;*.comb;*.dlg;*.ent;*.fsq;*.fxl;*.ik;*.json;*.lmg;*.mtl;*.setup;*.xml;*.node;*.veg;*.lyr" />
+
+	<!-- TargetHasEditor, if not passed assume this is only the case for PC -->
+	<!-- By passing explicit zero while platform is PC, you can create a "pure client" asset build -->
+	<DefaultProperties TargetHasEditor="" />
+	<If TargetHasEditor="">
+		<If Platform="PC">
+			<Properties TargetHasEditor="1" />
+		</If>
+		<IfNot Platform="PC">
+			<Properties TargetHasEditor="0" />
+		</IfNot>
+	</If>
+
+	<!-- If (TargetHasEditor == 0 && Platform == PC) store temp files in a separate folder -->
+	<If TargetHasEditor="0">
+		<If Platform="PC">
+			<Properties TempPath="${TempPath}_pure" />
+		</If>
+	</If>
+
+	<!-- Convert meshes template -->
+	<MeshesJob>
+		<DefaultProperties VertexPositionFormat="exporter" /> <!-- Alternative: exporter to use exporter-config, f16 or f32 to force format -->
+		<DefaultProperties SplitLoDs="1" />
+		<Job Input="*.cgf;*.cga" />
+	</MeshesJob>
+
+	<!-- Convert alembic template -->
+	<AlembicJob>
+		<DefaultProperties SkipFilesWithoutBuildConfig="1" />
+		<Job Input="*.abc" />
+	</AlembicJob>
+
+	<!-- Convert textures template -->
+	<TexturesJob>
+		<If Streaming=""> <!-- If not specified on command-line or otherwise -->
+			<If Platform="PC">
+				<Properties Streaming="1" /> <!-- Split, no tiling -->
+			</If>
+			<If Platform="Orbis">
+				<Properties Streaming="1" /> <!-- Implies Orbis tiling -->
+			</If>
+			<If Platform="Durango">
+				<Properties Streaming="1" /> <!-- Implies Durango tiling (optimal) -->
+			</If>
+			<If Platform="es3">
+				<Properties Streaming="0" /> <!-- ES3 refers to ETC2 compression, RC can't split this yet -->
+			</If>
+		</If>
+		<If PreventDdsSplitting=""> <!-- Work-around for precompiled DDS that can't be split, default: only if not streaming -->
+			<If Streaming="0">
+				<Properties PreventDdsSplitting="1" />
+			</If>
+			<IfNot Streaming="0">
+				<Properties PreventDdsSplitting="0" />
+			</IfNot>
+		</If>
+		<Job Input="*.tif" />
+		<Job Input="*.dds" CopyOnly="${PreventDdsSplitting}" />
+		<Job Input="*.gfx;*.png;*.usm" SourceRoot="${SourceRoot}/Textures" TargetRoot="${TargetRoot}/Textures" CopyOnly="1" />
+	</TexturesJob>
+
+	<!-- Convert XML template -->
+	<XmlJob>
+		<Properties OverwriteExtension="xml" />
+		<If TargetHasEditor="1">
+			<Properties CopyOnly="1" /> <!-- If we have editor, don't make binary XML -->
+		</If>
+		<Job Input="${XmlExtensions}" />
+	</XmlJob>
+
+	<!-- Copy in subfolder template -->
+	<CopySubfolderJob>
+		<Properties SourceRoot="${SourceRoot}/${Subfolder}" />
+		<Properties TargetRoot="${TargetRoot}/${Subfolder}" />
+		<Job Input="${Input}" CopyOnly="1" />
+	</CopySubfolderJob>
+
+	<EngineAssetsConversion>
+		<!-- Conversion -->
+		<Properties SourceRoot="${InputPath}/${DataFolder}" />
+		<Properties TargetRoot="${TempPath}/${DataFolder}_Assets" />
+		<Properties AlembicTypes="*.cax" />
+		<Properties CryassetType="*.cryasset" />
+
+		<Run Job="MeshesJob" />
+		<Run Job="AlembicJob" />
+		<Run Job="TexturesJob" PreventDdsSplitting="1" /> <!-- Engine folder has some DDS that can't be split -->
+		<Run Job="XmlJob" />
+
+		<!-- Copying -->
+		<Run Job="CopySubfolderJob" SubFolder="Config"       Input="*.cfg;*.dat;*.ini;*.txt;*.thread_config" />
+		<Run Job="CopySubfolderJob" SubFolder="EngineAssets" Input="*.cfg;*.dat;*.ini;*.lut;*.pfxp;*.pfx;*.txt;${AlembicTypes}" />
+		<Run Job="CopySubfolderJob" SubFolder="Fonts"        Input="*.ttf;*.txt" />
+		<Run Job="CopySubfolderJob" SubFolder="Shaders"      Input="*.ext;*.cfi;*.cfx" />
+
+		<!-- Pack files -->
+		<Properties SourceRoot="${TempPath}/${DataFolder}_Assets" />
+		<Properties TargetRoot="${OutputPath}/${DataFolder}" />
+		<Job Zip="${TargetRoot}/Engine.pak"      Input="*.*"           Exclude="Shaders/*.*;${CryassetType}" />
+
+		<!-- Shaders -->
+		<If IncludeShaderSource="1">
+			<Job Zip="${TargetRoot}/Shaders.pak" Input="Shaders/*.*"   Exclude="${CryassetType}" />
+		</If>
+		<If IncludeShaderSource="0">
+			<Job Zip="${TargetRoot}/Shaders.pak" Input="Shaders/*.ext" Exclude="${CryassetType}" />
+		</If>
+
+		<!-- Loose files -->
+		<Properties SourceRoot="${InputPath}/${DataFolder}" />
+		<If Platform="Orbis">
+			<Run Job="CopySubfolderJob" SubFolder="EngineAssets/DXOrbis" Input="*.bin" />
+		</If>
+	</EngineAssetsConversion>
+
+	<!-- Run the complete asset build by default -->
+	<!-- Note: You can run just one by passing /jobtarget parameter -->
+	<Run Job="EngineAssetsConversion" />
+	<Run Job="CleanJob" />
+	
+	<!-- Used to generate file list -->
+	<CleanJob>
+		<Job Input="" TargetRoot="${TempPath}" Clean_TargetRoot="1" />
+	</CleanJob>
+</RCJobs>

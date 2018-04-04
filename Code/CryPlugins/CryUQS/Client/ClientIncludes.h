@@ -5,7 +5,6 @@
 #include "../Interfaces/InterfacesIncludes.h"
 #include "../Shared/SharedIncludes.h"
 
-#include "client/FactoryBase.h"
 #include "client/ItemListProxy.h"
 #include "client/InputParameterRegistry.h"
 #include "client/FunctionBase.h"
@@ -18,6 +17,7 @@
 #include "client/ParamsHolder.h"
 #include "client/GeneratorBase.h"
 #include "client/GeneratorFactory.h"
+#include "client/ItemConverter.h"
 #include "client/ItemFactory.h"
 #include "client/InstantEvaluatorBase.h"
 #include "client/InstantEvaluatorFactory.h"
@@ -25,3 +25,4 @@
 #include "client/DeferredEvaluatorFactory.h"
 #include "client/FactoryRegistrationHelper.h"
 #include "client/TypeWrapper.h"
+#include "client/QueryHost.h"

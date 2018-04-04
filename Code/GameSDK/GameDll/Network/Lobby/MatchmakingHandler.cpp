@@ -570,7 +570,7 @@ float CMatchMakingHandler::LegacyC2MatchMakingScore( SCrySessionSearchResult* se
 	{										
 		float diff = (float) abs(skillRank - sessionSkillRank);
 		float fracDiff = diff / (float) skillRank;
-		skillSubMetric = 1.f - MIN(fracDiff, 1.f);
+		skillSubMetric = 1.f - std::min(fracDiff, 1.f);
 		skillSubMetric = (skillSubMetric * skillSubMetric);
 	}
 

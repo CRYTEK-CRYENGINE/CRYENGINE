@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 /*=============================================================================
    TextureManager.cpp : Common texture manager implementation.
@@ -32,7 +32,7 @@ void CTextureManager::PreloadDefaultTextures()
 
 	uint32 nDefaultFlags = FT_DONT_STREAM;
 
-	XmlNodeRef root = GetISystem()->LoadXmlFromFile("EngineAssets/defaulttextures.xml");
+	XmlNodeRef root = GetISystem()->LoadXmlFromFile("%ENGINE%/EngineAssets/defaulttextures.xml");
 	if (root)
 	{
 		for (int i = 0; i < root->getChildCount(); i++)

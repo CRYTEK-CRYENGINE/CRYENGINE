@@ -1,15 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
-
-// -------------------------------------------------------------------------
-//  File name:   RopeProxy.cpp
-//  Version:     v1.00
-//  Created:     25/5/2004 by Timur.
-//  Compilers:   Visual Studio.NET 2003
-//  Description:
-// -------------------------------------------------------------------------
-//  History:
-//
-////////////////////////////////////////////////////////////////////////////
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #include "stdafx.h"
 #include "RopeProxy.h"
@@ -17,6 +6,10 @@
 #include "EntitySlot.h"
 #include "EntitySystem.h"
 #include <CryNetwork/ISerialize.h>
+
+#include  <CrySchematyc/Env/IEnvRegistrar.h>
+#include  <CrySchematyc/Env/Elements/EnvComponent.h>
+#include <CryCore/StaticInstanceList.h>
 
 CRYREGISTER_CLASS(CEntityComponentRope);
 
@@ -26,24 +19,22 @@ CEntityComponentRope::CEntityComponentRope()
 	, m_nSegmentsOrg(0)
 	, m_texTileVOrg(0.0f)
 {
+	m_componentFlags.Add(EEntityComponentFlags::NoSave);
 }
 
 //////////////////////////////////////////////////////////////////////////
 CEntityComponentRope::~CEntityComponentRope()
 {
 	// Delete physical entity from physical world.
-	if (m_pRopeRenderNode)
-	{
-		gEnv->p3DEngine->DeleteRenderNode(m_pRopeRenderNode);
-		m_pRopeRenderNode = 0;
-	}
+	m_pRopeRenderNode = nullptr;
 }
 
 //////////////////////////////////////////////////////////////////////////
 void CEntityComponentRope::Initialize()
 {
 	m_pRopeRenderNode = (IRopeRenderNode*)gEnv->p3DEngine->CreateRenderNode(eERType_Rope);
-	m_pRopeRenderNode->SetEntityOwner(m_pEntity->GetId());
+	int nSlot = GetOrMakeEntitySlotId();
+	GetEntity()->SetSlotRenderNode(nSlot,m_pRopeRenderNode);
 	m_nSegmentsOrg = -1;
 }
 
@@ -57,16 +48,9 @@ void CEntityComponentRope::ProcessEvent(SEntityEvent& event)
 {
 	switch (event.event)
 	{
-	case ENTITY_EVENT_XFORM:
-#ifndef SEG_WORLD
-		if (m_pRopeRenderNode)
-			m_pRopeRenderNode->SetMatrix(m_pEntity->GetWorldTM());
-#endif
-		break;
 	case ENTITY_EVENT_HIDE:
 		if (m_pRopeRenderNode)
 		{
-			m_pRopeRenderNode->SetRndFlags(m_pRopeRenderNode->GetRndFlags() | ERF_HIDDEN);
 			if (m_pRopeRenderNode->GetPhysics())
 				gEnv->pPhysicalWorld->DestroyPhysicalEntity(m_pRopeRenderNode->GetPhysics(), 1);
 		}
@@ -74,28 +58,14 @@ void CEntityComponentRope::ProcessEvent(SEntityEvent& event)
 	case ENTITY_EVENT_UNHIDE:
 		if (m_pRopeRenderNode)
 		{
-			m_pRopeRenderNode->SetRndFlags(m_pRopeRenderNode->GetRndFlags() & (~ERF_HIDDEN));
 			if (m_pRopeRenderNode->GetPhysics())
 				gEnv->pPhysicalWorld->DestroyPhysicalEntity(m_pRopeRenderNode->GetPhysics(), 2);
 		}
-		break;
-	case ENTITY_EVENT_ATTACH:
-		break;
-	case ENTITY_EVENT_DETACH:
-		break;
-	case ENTITY_EVENT_COLLISION:
 		break;
 	case ENTITY_EVENT_LEVEL_LOADED:
 		// Relink physics.
 		if (m_pRopeRenderNode)
 			m_pRopeRenderNode->LinkEndPoints();
-		break;
-	case ENTITY_EVENT_MATERIAL:
-		if (m_pRopeRenderNode)
-		{
-			IMaterial* pMtl = (IMaterial*)(event.nParam[0]);
-			m_pRopeRenderNode->SetMaterial(pMtl);
-		}
 		break;
 	case ENTITY_EVENT_RESET:
 		if (m_pRopeRenderNode && m_nSegmentsOrg >= 0)
@@ -113,19 +83,14 @@ void CEntityComponentRope::ProcessEvent(SEntityEvent& event)
 uint64 CEntityComponentRope::GetEventMask() const
 {
 	return
-		BIT64(ENTITY_EVENT_XFORM) |
-		BIT64(ENTITY_EVENT_HIDE) |
-		BIT64(ENTITY_EVENT_UNHIDE) |
-		BIT64(ENTITY_EVENT_VISIBLE) |
-		BIT64(ENTITY_EVENT_INVISIBLE) |
-		BIT64(ENTITY_EVENT_DONE) |
-		BIT64(ENTITY_EVENT_ATTACH) |
-		BIT64(ENTITY_EVENT_DETACH) |
-		BIT64(ENTITY_EVENT_COLLISION) |
-		BIT64(ENTITY_EVENT_PHYS_BREAK) |
-		BIT64(ENTITY_EVENT_MATERIAL) |
-		BIT64(ENTITY_EVENT_LEVEL_LOADED) |
-		BIT64(ENTITY_EVENT_RESET);
+	  BIT64(ENTITY_EVENT_HIDE) |
+	  BIT64(ENTITY_EVENT_UNHIDE) |
+	  BIT64(ENTITY_EVENT_VISIBLE) |
+	  BIT64(ENTITY_EVENT_INVISIBLE) |
+	  BIT64(ENTITY_EVENT_DONE) |
+	  BIT64(ENTITY_EVENT_PHYS_BREAK) |
+	  BIT64(ENTITY_EVENT_LEVEL_LOADED) |
+	  BIT64(ENTITY_EVENT_RESET);
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -296,17 +261,27 @@ void CEntityComponentRope::LegacySerializeXML(XmlNodeRef& entityNode, XmlNodeRef
 				m_pRopeRenderNode->SetPoints(&points[0], points.size());
 			}
 
-			// Sound related
-			XmlNodeRef const xmlNodeSound = ropeNode->findChild("Sound");
-			if (xmlNodeSound)
+			XmlNodeRef const xmlNodeAudio = ropeNode->findChild("Audio");
+
+			if (xmlNodeAudio)
 			{
-				char const* pcName = NULL;
-				int unsigned nNumSegmentToAttachTo = 0;
-				float fOffset = 0.0f;
-				xmlNodeSound->getAttr("Name", &pcName);
-				xmlNodeSound->getAttr("SegmentToAttachTo", nNumSegmentToAttachTo);
-				xmlNodeSound->getAttr("Offset", fOffset);
-				m_pRopeRenderNode->SetRopeSound(pcName, nNumSegmentToAttachTo, fOffset);
+				IRopeRenderNode::SRopeAudioParams audioParams;
+				char const* szTemp = nullptr;
+				xmlNodeAudio->getAttr("StartTrigger", &szTemp);
+				audioParams.startTrigger = CryAudio::StringToId(szTemp);
+
+				xmlNodeAudio->getAttr("StopTrigger", &szTemp);
+				audioParams.stopTrigger = CryAudio::StringToId(szTemp);
+
+				xmlNodeAudio->getAttr("AngleParameter", &szTemp);
+				audioParams.angleParameter = CryAudio::StringToId(szTemp);
+
+				std::underlying_type<CryAudio::EOcclusionType>::type tempOcclusionType;
+				xmlNodeAudio->getAttr("OcclusionType", tempOcclusionType);
+				audioParams.occlusionType = static_cast<CryAudio::EOcclusionType>(tempOcclusionType);
+				xmlNodeAudio->getAttr("SegmentToAttachTo", audioParams.segementToAttachTo);
+				xmlNodeAudio->getAttr("Offset", audioParams.offset);
+				m_pRopeRenderNode->SetAudioParams(audioParams);
 			}
 		}
 	}

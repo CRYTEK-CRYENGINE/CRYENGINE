@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #ifndef __INETCONTEXTLISTENER_H__
 #define __INETCONTEXTLISTENER_H__
@@ -385,9 +385,6 @@ struct SContextObjectEx
 		{
 			for (size_t j = 0; j < MaxProfilesPerAspect; ++j)
 				vAspectProfileChunks[i][j] = 0;
-#if ENABLE_ASPECT_HASHING
-			hash[i] = 0;
-#endif
 			vAspectData[i] = CMementoMemoryManager::InvalidHdl;
 			vRemoteAspectData[i] = CMementoMemoryManager::InvalidHdl;
 		}
@@ -410,9 +407,6 @@ struct SContextObjectEx
 
 	// mapping of profile --> chunk for this object
 	ChunkID vAspectProfileChunks[NumAspects][MaxProfilesPerAspect]; //xtra
-#if ENABLE_ASPECT_HASHING
-	uint32  hash[NumAspects]; //xtra
-#endif
 
 	// scheduling profiles
 	uint32                 scheduler_normal; //xtra

@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #pragma once
 
@@ -6,6 +6,8 @@
 	#define SHADOW_TEXTURE_GROUP_MANAGER_H
 
 	#include <vector>   // STL vector<>
+
+struct SDynTexture_Shadow;
 
 // to combine multiple shadowmaps into one texture (e.g. GSM levels or Cubemap sides)
 class CShadowTextureGroupManager

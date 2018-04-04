@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 /********************************************************************
    -------------------------------------------------------------------------
@@ -57,7 +57,7 @@ public:
 
 	void Release() { delete this; };
 
-	void RunStartupScript();
+	bool RunStartupScript(bool reload);
 
 	//////////////////////////////////////////////////////////////////////////////////////////////////////////
 	// Log functions
@@ -729,19 +729,19 @@ public:
 	int CreateStimulusEvent(IFunctionHandler* pH, ScriptHandle ownerId, ScriptHandle targetId, const char* stimulusName, SmartScriptTable pData);
 	int CreateStimulusEventInRange(IFunctionHandler* pH, ScriptHandle targetId, const char* stimulusName, SmartScriptTable dataScriptTable);
 
-	//! <code>AI.SoundEvent(position, radius, threat, interest, entityId)</code>
+	//! <code>AI.SoundEvent(entityId, position, radius, type, sourceId)</code>
 	//! <description>Generates a sound event in the AI system with the given parameters.</description>
+	//!     <param name="entityId">who receives the sound event</param>
 	//!		<param name="position">of the origin of the sound event</param>
 	//!		<param name="radius">in which this sound event should be heard</param>
-	//!		<param name="threat">value of the sound event </param>
-	//!		<param name="interest">value of the sound event</param>
-	//!		<param name="entityId">of the entity who generated this sound event</param>
+	//!		<param name="type">type of the sound event</param>
+	//!		<param name="targetId">who the receiver is hearing</param>
 	int SoundEvent(IFunctionHandler* pH);
 
-	//! <code>AI.VisualEvent(entityId, targetId)</code>
+	//! <code>AI.VisualEvent(entityId, sourceId)</code>
 	//! <description>Generates a visual event in the AI system with the given parameters.</description>
 	//!		<param name="entityId">who receives the visual event</param>
-	//!		<param name="targetId">who the receiver is seeing</param>
+	//!		<param name="sourceId">who the receiver is seeing</param>
 	int VisualEvent(IFunctionHandler* pH);
 
 	//! <code>AI.GetSoundPerceptionDescriptor(entityId, soundType, descriptorTable)</code>
@@ -1829,9 +1829,6 @@ public:
 
 	//! <code>AI.EnableUpdateLookTarget(entityID, bEnable)</code>
 	int EnableUpdateLookTarget(IFunctionHandler* pH, ScriptHandle entityID, bool bEnable);
-
-	//! <code>AI.SetBehaviorTreeEvaluationEnabled(entityID, enable)</code>
-	int SetBehaviorTreeEvaluationEnabled(IFunctionHandler* pH, ScriptHandle entityID, bool enable);
 
 	//! <code>AI.UpdateGlobalPerceptionScale(visualScale, audioScale, [filterType], [faction])</code>
 	int UpdateGlobalPerceptionScale(IFunctionHandler* pH, float visualScale, float audioScale);

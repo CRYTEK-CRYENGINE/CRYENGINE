@@ -773,7 +773,7 @@ bool CGunTurret::IsInRange(const Vec3& pos, ETargetClass cl)const
 		r = m_turretparams.mg_range;
 		break;
 	case eTC_Vehicle:
-		r = MAX(m_turretparams.mg_range,m_turretparams.rocket_range);
+		r = std::max(m_turretparams.mg_range,m_turretparams.rocket_range);
 		break;
 	case eTC_TACProjectile:
 		r = m_turretparams.tac_range;
@@ -896,7 +896,7 @@ IEntity *CGunTurret::GetClosestTACShell()
 //------------------------------------------------------------------------
 IEntity *CGunTurret::GetClosestTarget() const
 {
-	float r = MAX(m_turretparams.mg_range, m_turretparams.rocket_range);
+	float r = std::max(m_turretparams.mg_range, m_turretparams.rocket_range);
 	Vec3 pos = GetWeaponPos();
 
 	IEntity*	pClosest = 0;

@@ -9,12 +9,6 @@
 struct SkeletonAlias;
 bool Serialize(Serialization::IArchive& ar, SkeletonAlias& value, const char* name, const char* label);
 
-enum
-{
-	SERIALIZE_STATE  = 1 << 0,
-	SERIALIZE_LAYOUT = 1 << 1,
-};
-
 #include <CrySerialization/Decorators/Slider.h>
 #include <CrySerialization/Decorators/Resources.h>
 #include <CrySerialization/Decorators/ResourceFilePath.h>

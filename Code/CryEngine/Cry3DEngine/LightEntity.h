@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #ifndef LIGHT_ENTITY_H
 #define LIGHT_ENTITY_H
@@ -38,13 +38,13 @@ public:
 	virtual bool                     IsLightAreasVisible();
 	const PodArray<SPlaneObject>&    GetCastersHull() const { return s_lstTmpCastersHull; }
 
-	virtual struct IStatObj* GetEntityStatObj(unsigned int nPartId = 0, unsigned int nSubPartId = 0, Matrix34A* pMatrix = NULL, bool bReturnOnlyVisible = false) { return NULL; }
-	virtual int              GetSlotCount() const;
 	virtual void             SetViewDistRatio(int nViewDistRatio);
 #if defined(FEATURE_SVO_GI)
 	virtual EGIMode          GetGIMode() const;
 #endif
 	virtual void             SetOwnerEntity( IEntity *pEntity );
+	virtual IEntity*         GetOwnerEntity() const final      { return m_pOwnerEntity; }
+	virtual bool             IsAllocatedOutsideOf3DEngineDLL() { return GetOwnerEntity() != nullptr; }
 	void                     InitEntityShadowMapInfoStructure();
 	void                     UpdateGSMLightSourceShadowFrustum(const SRenderingPassInfo& passInfo);
 	int                      UpdateGSMLightSourceDynamicShadowFrustum(int nDynamicLodCount, int nDistanceLodCount, float& fDistanceFromViewLastDynamicLod, float& fGSMBoxSizeLastDynamicLod, bool bFadeLastCascade, const SRenderingPassInfo& passInfo);
@@ -98,10 +98,7 @@ public:
 
 private:
 	static PodArray<SPlaneObject> s_lstTmpCastersHull;
-
-private:
-	IStatObj* m_pStatObj;
-
 	uint16    m_layerId;
+	IEntity*  m_pOwnerEntity = 0;
 };
 #endif

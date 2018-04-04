@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #pragma once
 
@@ -6,8 +6,6 @@ class CREMeshImpl : public CREMesh
 {
 public:
 
-	// Constant buffer used for tessellation. It has just one constant which tells the hull shader how it needs to offset iPrimitiveID that comes from HW.
-	CGpuBuffer m_tessCB;        // TODO: remove this buffer once everything works with new pipeline
 	uint       m_nPatchIDOffset;
 
 	CREMeshImpl()
@@ -32,7 +30,7 @@ public:
 	virtual void  mfCenter(Vec3& Pos, CRenderObject* pObj) override;
 	virtual bool  mfDraw(CShader* ef, SShaderPass* sfm) override;
 	virtual void* mfGetPointer(ESrcPointer ePT, int* Stride, EParamType Type, ESrcPointer Dst, int Flags) override;
-	virtual bool  mfUpdate(EVertexFormat eVertFormat, int Flags, bool bTessellation = false) override;
+	virtual bool  mfUpdate(InputLayoutHandle eVertFormat, int Flags, bool bTessellation = false) override;
 	virtual void  mfGetBBox(Vec3& vMins, Vec3& vMaxs) override;
 	virtual void  mfPrecache(const SShaderItem& SH) override;
 	virtual int   Size() override
@@ -51,7 +49,7 @@ public:
 #endif
 
 	virtual bool          GetGeometryInfo(SGeometryInfo& geomInfo, bool bSupportTessellation = false) final;
-	virtual EVertexFormat GetVertexFormat() const final;
+	virtual InputLayoutHandle GetVertexFormat() const final;
 	virtual bool          Compile(CRenderObject* pObj) final;
 	virtual void          DrawToCommandList(CRenderObject* pObj, const SGraphicsPipelinePassContext& ctx) final;
 

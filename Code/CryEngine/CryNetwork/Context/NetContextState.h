@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #ifndef __NETCONTEXTSTATE_H__
 #define __NETCONTEXTSTATE_H__
@@ -238,7 +238,7 @@ public:
 	void GC_UnboundObject(EntityId);
 	void GC_BeginContext(CTimeValue);
 	void GC_ControlObject(SNetObjectID, bool, CNetObjectBindLock);
-	void GC_BoundObject(std::pair<EntityId, NetworkAspectType> );
+	void GC_BoundObject(const EntityId);
 	void GC_SendPostSpawnEntities(CContextViewPtr pView);
 	void GC_SetAspectProfile(NetworkAspectType, uint8, SNetObjectID, CNetObjectBindLock);
 	void GC_EndContext();

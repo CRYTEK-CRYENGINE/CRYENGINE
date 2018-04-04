@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 // -------------------------------------------------------------------------
 //  File name:   RegFactoryNode.h
@@ -18,6 +18,8 @@ struct ICryFactory;
 struct SRegFactoryNode;
 
 extern SRegFactoryNode* g_pHeadToRegFactories;
+extern "C" DLL_EXPORT SRegFactoryNode* GetHeadToRegFactories();
+typedef SRegFactoryNode*(*PtrFunc_GetHeadToRegFactories)();
 
 struct SRegFactoryNode
 {

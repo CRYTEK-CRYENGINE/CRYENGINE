@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #pragma once
 #ifndef RESOURCE_COMPILER
@@ -77,19 +77,12 @@ struct BSParameter
 struct BSBlendable
 {
 	uint32 num;
-	uint8  idx0, idx1, idx2, idx3, idx4, idx5, idx6, idx7;
+	uint8  idx[8];
 
 	BSBlendable()
+		: num{ 0 }
+		, idx{ 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff }
 	{
-		num = 0;
-		idx0 = -1;
-		idx1 = -1;
-		idx2 = -1;
-		idx3 = -1;
-		idx4 = -1;
-		idx5 = -1;
-		idx6 = -1;
-		idx7 = -1;
 	}
 
 	void GetMemoryUsage(ICrySizer* pSizer) const
@@ -105,7 +98,6 @@ struct DimensionParams
 	uint8  m_nInitialized;
 	uint8  m_nDimensionFlags;
 	uint8  m_ParaID;
-	string m_strJointName;
 	f32    m_skey, m_ekey;
 	f32    m_ParaScale;        //for combined blend-spaces
 	int    m_ChooseBlendSpace; //for combined blend-spaces

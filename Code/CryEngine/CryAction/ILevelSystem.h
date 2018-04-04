@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 /*************************************************************************
    -------------------------------------------------------------------------
@@ -88,7 +88,6 @@ struct ILevelRotation
 struct ILevelInfo
 {
 	virtual ~ILevelInfo(){}
-	typedef std::vector<string> TStringVec;
 
 	typedef struct
 	{
@@ -135,7 +134,8 @@ struct ILevelInfo
 	virtual const ILevelInfo::TGameTypeInfo* GetGameType(int gameType) const = 0;
 	virtual bool                             SupportsGameType(const char* gameTypeName) const = 0;
 	virtual const ILevelInfo::TGameTypeInfo* GetDefaultGameType() const = 0;
-	virtual ILevelInfo::TStringVec           GetGameRules() const = 0;
+	virtual size_t                           GetGameRulesCount() const = 0;
+	virtual size_t                           GetGameRules(const char** pszGameRules, size_t numGameRules) const = 0;
 	virtual bool                             HasGameRules() const = 0;
 
 	virtual const ILevelInfo::SMinimapInfo&  GetMinimapInfo() const = 0;

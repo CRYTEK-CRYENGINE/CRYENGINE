@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #include "StdAfx.h"
 
@@ -21,12 +21,13 @@ void PhysXWorld::Release()
 	delete this;
 }
 
-void PhysXWorld::SetupEntityGrid(int axisz, Vec3 org, int nx, int ny, float stepx, float stepy, int log2PODscale, int bCyclic) 
+IPhysicalEntity* PhysXWorld::SetupEntityGrid(int axisz, Vec3 org, int nx, int ny, float stepx, float stepy, int log2PODscale, int bCyclic, IPhysicalEntity* pHost, const QuatT& posInHost) 
 {
 	PxBroadPhaseRegion rgn;
 	rgn.bounds = PxBounds3(V(org-Vec3(0,0,100)), V(org+Vec3(nx*stepx,ny*stepy,200)));
 	g_cryPhysX.Scene()->removeBroadPhaseRegion(m_idWorldRgn);
 	m_idWorldRgn = g_cryPhysX.Scene()->addBroadPhaseRegion(rgn);
+	return nullptr;
 }
 
 IPhysicalEntity *PhysXWorld::SetHeightfieldData(const heightfield *phf, int *pMatMapping, int nMats)
@@ -670,7 +671,7 @@ void PhysXWorld::TimeStep(float dt, int flags)
 	if (flags & ent_rigid && (!m_vars.bSingleStepMode || m_vars.bDoStep)) {
 		float dtFixed = g_cryPhysX.dt();
 		for(int i=0; m_dtSurplus+dt>dtFixed && i<m_vars.nMaxSubsteps; dt-=dtFixed,i++)	{
-			g_cryPhysX.Scene()->simulate(dtFixed);
+			g_cryPhysX.Scene()->simulate(dtFixed,0,m_scratchBuf.data(),m_scratchBuf.size());
 			WriteLockScene lockScene;
 			{ WriteLock lock(m_lockCollEvents); 
 				g_cryPhysX.Scene()->fetchResults(true);
@@ -842,6 +843,7 @@ PhysXWorld::PhysXWorld(ILog* pLog) : m_debugDraw(false)
 	bqd.preFilterShader = RaycastBatchFilter;
 	m_batchQuery[0] = g_cryPhysX.Scene()->createBatchQuery(bqd);
 	m_batchQuery[1] = g_cryPhysX.Scene()->createBatchQuery(bqd);
+	m_scratchBuf.resize(1<<11);
 
 	m_pbGlob.waterDensity = 1000;
 	m_pbGlob.kwaterDensity = 1;

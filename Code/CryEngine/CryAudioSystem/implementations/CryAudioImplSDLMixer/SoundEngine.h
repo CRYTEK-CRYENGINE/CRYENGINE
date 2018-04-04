@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #pragma once
 
@@ -12,8 +12,8 @@ namespace SDL_mixer
 {
 namespace SoundEngine
 {
-typedef void (*FnEventCallback)(AudioEventId);
-typedef void (*FnStandaloneFileCallback)(AudioStandaloneFileId const, char const*);
+typedef void (* FnEventCallback)(CATLEvent&);
+typedef void (* FnStandaloneFileCallback)(CATLStandaloneFile&, char const*);
 
 // Global events
 bool Init();
@@ -34,28 +34,28 @@ const SampleId LoadSampleFromMemory(void* pMemory, const size_t size, const stri
 void           UnloadSample(const SampleId id);
 
 // Events
-SAudioTrigger* CreateEventData();
-bool           ExecuteEvent(SAudioObject* const pAudioObject, SAudioTrigger const* const pEventStaticData, SAudioEvent* const pEventInstance);
-bool           PlayFile(SAudioObject* const pAudioObject, CAudioStandaloneFile* const pEventInstance, const SAudioTrigger* const pUsedTrigger, const char* const szFilePath);
-bool           StopFile(SAudioObject* const pAudioObject, AudioStandaloneFileId const fileInstanceID);
+CTrigger* CreateTrigger();
+bool      ExecuteEvent(CObject* const pObject, CTrigger const* const pTrigger, CEvent* const pEvent);
+bool      PlayFile(CObject* const pObject, CStandaloneFile* const pStandaloneFile);
+bool      StopFile(CObject* const pObject, CStandaloneFile* const pStandaloneFile);
 
 // stops an specific event instance
-bool StopEvent(SAudioEvent const* const pEventInstance);
+bool StopEvent(CEvent const* const pEvent);
 // stops all the events associated with this trigger
-bool StopTrigger(SAudioTrigger const* const pEventData);
+bool StopTrigger(CTrigger const* const pTrigger);
 
 // Listeners
-bool SetListenerPosition(const ListenerId listenerId, const CAudioObjectTransformation& position);
+bool SetListenerPosition(ListenerId const listenerId, CObjectTransformation const& transformation);
 
 // Audio Objects
-bool RegisterAudioObject(SAudioObject* pAudioObjectData);
-bool UnregisterAudioObject(SAudioObject* pAudioObjectData);
-bool SetAudioObjectPosition(SAudioObject* pAudioObjectData, const CAudioObjectTransformation& position);
+bool RegisterObject(CObject* const pObject);
+bool UnregisterObject(CObject const* const pObject);
+bool SetObjectTransformation(CObject* const pObject, CObjectTransformation const& transformation);
 
 // Callbacks
 void RegisterEventFinishedCallback(FnEventCallback pCallbackFunction);
 void RegisterStandaloneFileFinishedCallback(FnStandaloneFileCallback pCallbackFunction);
-}
-}
-}
-}
+} // namespace SoundEngine
+} // namespace SDL_mixer
+} // namespace Impl
+} // namespace CryAudio

@@ -3,7 +3,7 @@
 
 #include "FbxScene.h"
 #include "FbxMetaData.h"
-#include <yasli/Archive.h>
+#include <CrySerialization/yasli/Archive.h>
 
 class CMaterial;
 
@@ -12,11 +12,11 @@ class CGlobalImportSettings
 private:
 	struct SGeneralSettings
 	{
-		string              m_inputFilePath;
-		string              m_outputFilePath;
+		string              inputFilePath;
+		string              outputFilePath;
 
-		string              m_inputFilename;
-		string              m_outputFilename;
+		string              inputFilename;
+		string              outputFilename;
 		SGeneralSettings();
 
 		void Serialize(yasli::Archive& ar);
@@ -24,8 +24,10 @@ private:
 
 	struct SStaticMeshSettings
 	{
-		bool                m_bMergeAllNodes;
-		bool                m_bSceneOrigin;
+		bool                bMergeAllNodes;
+		bool                bSceneOrigin;
+		bool                bComputeNormals;
+		bool                bComputeUv;
 
 		SStaticMeshSettings();
 
@@ -35,17 +37,17 @@ private:
 	struct SConversionSettings
 	{
 		// Displayed in property tree.
-		FbxMetaData::Units::EUnitSetting m_unit;
-		float                            m_scale;
-		FbxTool::Axes::EAxis             m_forward;
-		FbxTool::Axes::EAxis             m_up;
+		FbxMetaData::Units::EUnitSetting unit;
+		float                            scale;
+		FbxTool::Axes::EAxis             forward;
+		FbxTool::Axes::EAxis             up;
 
-		QString                          m_fileUnitSizeInCm;
+		QString                          fileUnitSizeInCm;
 
 		// By comparing forward and up to their old values, we can figure
 		// out which one changed most recently.
-		FbxTool::Axes::EAxis m_oldForward;
-		FbxTool::Axes::EAxis m_oldUp;
+		FbxTool::Axes::EAxis oldForward;
+		FbxTool::Axes::EAxis oldUp;
 
 		SConversionSettings();
 
@@ -54,6 +56,13 @@ private:
 		void SetForwardAxis(FbxTool::Axes::EAxis axis);
 		void SetUpAxis(FbxTool::Axes::EAxis axis);
 	};
+
+	struct SOutputSettings
+	{
+		bool bVertexPositionFormatF32 = false;
+		void Serialize(yasli::Archive& ar);
+	};
+
 public:
 	CGlobalImportSettings();
 	~CGlobalImportSettings();
@@ -64,6 +73,8 @@ public:
 	FbxTool::Axes::EAxis             GetForwardAxis();
 	bool                             IsMergeAllNodes() const;
 	bool                             IsSceneOrigin() const;
+	bool                             IsComputeNormals() const;
+	bool                             IsComputeUv() const;
 
 	void                             SetInputFilePath(const string& path);
 	void                             SetOutputFilePath(const string& path);
@@ -76,6 +87,13 @@ public:
 	void                             SetUpAxis(FbxTool::Axes::EAxis axis);
 	void                             SetMergeAllNodes(bool bMergeAllNodes);
 	void                             SetSceneOrigin(bool bSceneOrigin);
+	void                             SetComputeNormals(bool bComputeNormals);
+	void                             SetComputeUv(bool bComputeUv);
+
+	bool                             IsVertexPositionFormatF32() const;
+	void                             SetVertexPositionFormatF32(bool bIs32Bit);
+
+
 
 	void SetStaticMeshSettingsEnabled(bool bEnabled);
 
@@ -84,5 +102,6 @@ private:
 	SGeneralSettings m_generalSettings;
 	SStaticMeshSettings m_staticMeshSettings;
 	SConversionSettings m_conversionSettings;
+	SOutputSettings m_outputSettings;
 	bool m_bStaticMeshSettingsEnabled;
 };

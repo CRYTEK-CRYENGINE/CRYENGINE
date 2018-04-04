@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #ifndef _CAISYSTEM_H_
 #define _CAISYSTEM_H_
@@ -31,6 +31,7 @@
 #include "AIObjectManager.h"
 #include "GlobalPerceptionScaleHandler.h"
 #include "ClusterDetector.h"
+#include "ActorLookUp.h"
 #include <CryAISystem/BehaviorTree/IBehaviorTreeGraft.h>
 
 #ifdef CRYAISYSTEM_DEBUG
@@ -59,7 +60,6 @@ struct IAISignalExtraData;
 
 class CAIActionManager;
 class ICentralInterestManager;
-class CPerceptionManager;
 class CAIHideObject;
 
 class CScriptBind_AI;
@@ -113,6 +113,24 @@ struct IFireCommandDesc
 };
 
 //====================================================================
+// CAISystemCallbacks
+//====================================================================
+class CAISystemCallbacks : public IAISystemCallbacks
+{
+public:
+	virtual CFunctorsList<Functor1<IAIObject*>>&         ObjectCreated()       { return m_objectCreated; }
+	virtual CFunctorsList<Functor1<IAIObject*>>&         ObjectRemoved()       { return m_objectRemoved; }
+	virtual CFunctorsList<Functor2<tAIObjectID, bool>>&  EnabledStateChanged() { return m_enabledStateChanged; }
+	virtual CFunctorsList<Functor2<EntityId, EntityId>>& AgentDied()           { return m_agentDied; }
+
+private:
+	CFunctorsList<Functor1<IAIObject*>>         m_objectCreated;
+	CFunctorsList<Functor1<IAIObject*>>         m_objectRemoved;
+	CFunctorsList<Functor2<tAIObjectID, bool>>  m_enabledStateChanged;
+	CFunctorsList<Functor2<EntityId, EntityId>> m_agentDied;
+};
+
+//====================================================================
 // CAISystem
 //====================================================================
 class CAISystem :
@@ -141,37 +159,42 @@ public:
 	///////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	//Basic////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-	virtual bool Init();
-	virtual bool CompleteInit();
+	virtual bool                Init();
+	virtual bool                CompleteInit();
 
-	virtual void Reload();
-	virtual void Reset(EResetReason reason);//TODO this is called by lots of people including destructor, but causes NEW ALLOCATIONS! Needs big refactor!
-	virtual void Release();
+	virtual void                Reload();
+	virtual void                Reset(EResetReason reason);//TODO this is called by lots of people including destructor, but causes NEW ALLOCATIONS! Needs big refactor!
+	virtual void                Release();
 
-	virtual void DummyFunctionNumberOne(void);
+	virtual IAISystemCallbacks& Callbacks() { return m_callbacks; }
+
+	virtual void                DummyFunctionNumberOne(void);
 
 	//If disabled most things early out
-	virtual void                  Enable(bool enable = true);
-	virtual void                  SetActorProxyFactory(IAIActorProxyFactory* pFactory);
-	virtual IAIActorProxyFactory* GetActorProxyFactory() const;
-	virtual void                  SetGroupProxyFactory(IAIGroupProxyFactory* pFactory);
-	virtual IAIGroupProxyFactory* GetGroupProxyFactory() const;
-	virtual IAIGroupProxy*        GetAIGroupProxy(int groupID);
+	virtual void                                 Enable(bool enable = true);
+	virtual void                                 SetActorProxyFactory(IAIActorProxyFactory* pFactory);
+	virtual IAIActorProxyFactory*                GetActorProxyFactory() const;
+	virtual void                                 SetGroupProxyFactory(IAIGroupProxyFactory* pFactory);
+	virtual IAIGroupProxyFactory*                GetGroupProxyFactory() const;
+	virtual IAIGroupProxy*                       GetAIGroupProxy(int groupID);
+
+	virtual IActorLookUp*                        GetActorLookup()              { return gAIEnv.pActorLookUp; }
+
+	virtual IAISystem::GlobalRayCaster*          GetGlobalRaycaster()          { return gAIEnv.pRayCaster; }
+	virtual IAISystem::GlobalIntersectionTester* GetGlobalIntersectionTester() { return gAIEnv.pIntersectionTester; }
 
 	//Every frame (multiple time steps per frame possible?)		//TODO find out
 	//	currentTime - AI time since game start in seconds (GetCurrentTime)
 	//	frameTime - since last update (GetFrameTime)
-	virtual void Update(CTimeValue currentTime, float frameTime);
+	virtual void                Update(CTimeValue currentTime, float frameTime);
 
-	virtual bool RegisterListener(IAISystemListener* pListener);
-	virtual bool UnregisterListener(IAISystemListener* pListener);
-	void         OnAgentDeath(EntityId deadEntityID, EntityId killerID);
+	virtual bool                RegisterSystemComponent(IAISystemComponent* pComponent);
+	virtual bool                UnregisterSystemComponent(IAISystemComponent* pComponent);
 
-	// Registers AI event listener. Only events overlapping the sphere will be sent.
-	// Register can be called again to update the listener position, radius and flags.
-	// If pointer to the listener is specified it will be used instead of the pointer to entity.
-	virtual void                RegisterAIEventListener(IAIEventListener* pListener, const Vec3& pos, float rad, int flags);
-	virtual void                UnregisterAIEventListener(IAIEventListener* pListener);
+	void                        OnAgentDeath(EntityId deadEntityID, EntityId killerID);
+
+	void                        OnAIObjectCreated(CAIObject* pObject);
+	void                        OnAIObjectRemoved(CAIObject* pObject);
 
 	virtual void                Event(int eventT, const char*);
 	virtual IAISignalExtraData* CreateSignalExtraData() const;
@@ -304,7 +327,6 @@ public:
 	virtual ICommunicationManager*              GetCommunicationManager() const;
 	virtual ICoverSystem*                       GetCoverSystem() const;
 	virtual INavigationSystem*                  GetNavigationSystem() const;
-	virtual ISelectionTreeManager*              GetSelectionTreeManager() const;
 	virtual BehaviorTree::IBehaviorTreeManager* GetIBehaviorTreeManager() const;
 	virtual BehaviorTree::IGraftManager*        GetIGraftManager() const;
 	virtual ITargetTrackManager*                GetTargetTrackManager() const;
@@ -345,11 +367,14 @@ public:
 	virtual bool DoesNavigationShapeExists(const char* szName, EnumAreaType areaType, bool road = false);
 	virtual void EnableGenericShape(const char* shapeName, bool state);
 
-	const char*  GetEnclosingGenericShapeOfType(const Vec3& pos, int type, bool checkHeight);
-	bool         IsPointInsideGenericShape(const Vec3& pos, const char* shapeName, bool checkHeight);
-	float        DistanceToGenericShape(const Vec3& pos, const char* shapeName, bool checkHeight);
-	bool         ConstrainInsideGenericShape(Vec3& pos, const char* shapeName, bool checkHeight);
-	const char*  CreateTemporaryGenericShape(Vec3* points, int npts, float height, int type);
+	//Temporary - move to perception system in the future
+	virtual int RayOcclusionPlaneIntersection(const Vec3& start, const Vec3& end);
+
+	const char* GetEnclosingGenericShapeOfType(const Vec3& pos, int type, bool checkHeight);
+	bool        IsPointInsideGenericShape(const Vec3& pos, const char* shapeName, bool checkHeight);
+	float       DistanceToGenericShape(const Vec3& pos, const char* shapeName, bool checkHeight);
+	bool        ConstrainInsideGenericShape(Vec3& pos, const char* shapeName, bool checkHeight);
+	const char* CreateTemporaryGenericShape(Vec3* points, int npts, float height, int type);
 
 	// Pathfinding properties
 	virtual void                              AssignPFPropertiesToPathType(const string& sPathType, const AgentPathfindingProperties& properties);
@@ -386,8 +411,6 @@ public:
 	// current global AI alertness value (what's the most alerted puppet)
 	virtual int          GetAlertness() const;
 	virtual int          GetAlertness(const IAIAlertnessPredicate& alertnessPredicate);
-	virtual void         SetAssesmentMultiplier(unsigned short type, float fMultiplier);
-	virtual void         SetFactionThreatMultiplier(uint8 factionID, float fMultiplier);
 	virtual void         SetPerceptionDistLookUp(float* pLookUpTable, int tableSize); //look up table to be used when calculating visual time-out increment
 	// Global perception scale handler functionalities
 	virtual void         UpdateGlobalPerceptionScale(const float visualScale, const float audioScale, EAIFilterType filterType = eAIFT_All, const char* factionName = NULL);
@@ -398,8 +421,7 @@ public:
 	virtual void         UnregisterGlobalPerceptionlistener(IAIGlobalPerceptionListener* pListner);
 	/// Fills the array with possible dangers, returns number of dangers.
 	virtual unsigned int GetDangerSpots(const IAIObject* requester, float range, Vec3* positions, unsigned int* types, unsigned int n, unsigned int flags);
-	virtual void         RegisterStimulus(const SAIStimulus& stim);
-	virtual void         IgnoreStimulusFrom(EntityId sourceId, EAIStimulusType type, float time);
+
 	virtual void         DynOmniLightEvent(const Vec3& pos, float radius, EAILightEventType type, EntityId shooterId, float time = 5.0f);
 	virtual void         DynSpotLightEvent(const Vec3& pos, const Vec3& dir, float radius, float fov, EAILightEventType type, EntityId shooterId, float time = 5.0f);
 	virtual IVisionMap*  GetVisionMap()  { return gAIEnv.pVisionMap; }
@@ -448,14 +470,10 @@ public:
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	//CAISystem/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-	// CActiveAction needs to access action manager
-	CPerceptionManager*      GetPerceptionManager();
 	CAILightManager*         GetLightManager();
 	CAIDynHideObjectManager* GetDynHideObjectManager();
 
 	bool                     InitSmartObjects();
-
-	typedef std::vector<std::pair<string, const SpecialArea*>> VolumeRegions;
 
 	/// Returns true if all the links leading out of the node have radius < fRadius
 	bool ExitNodeImpossible(CGraphLinkManager& linkManager, const GraphNode* pNode, float fRadius) const;
@@ -604,10 +622,6 @@ public:
 	void UpdateAuxSignalsMap();
 	void UpdateCollisionAvoidance(const AIActorVector& agents, float updateTime);
 
-	void CheckVisibilityBodiesOfType(unsigned short int aiObjectType);
-	int  RayOcclusionPlaneIntersection(const Vec3& start, const Vec3& end);
-	int  RayObstructionSphereIntersection(const Vec3& start, const Vec3& end);
-
 	// just steps through objects - for debugging
 	void         DebugOutputObjects(const char* txt) const;
 
@@ -628,11 +642,8 @@ public:
 	bool                  m_IsEnabled;//TODO eventually find how to axe this!
 	///////////////////////////////////////////////////
 
-	std::vector<short>      m_priorityObjectTypes;
-	std::vector<CAIObject*> m_priorityTargets;
-
-	AIObjects               m_mapGroups;
-	AIObjects               m_mapFaction;
+	AIObjects m_mapGroups;
+	AIObjects m_mapFaction;
 
 	// This map stores the AI group info.
 	typedef std::map<int, CAIGroup*> AIGroupMap;
@@ -690,10 +701,12 @@ public:
 	std::vector<const IPhysicalEntity*> m_walkabilityPhysicalEntities;
 	IGeometry*                          m_walkabilityGeometryBox;
 
+	CAISystemCallbacks                  m_callbacks;
+
 	////////////////////////////////////////////////////////////////////
-	//system listeners
-	typedef VectorSet<IAISystemListener*> SystemListenerSet;
-	SystemListenerSet m_setSystemListeners;
+	//system components
+	typedef VectorSet<IAISystemComponent*> SystemComponentsSet;
+	SystemComponentsSet m_setSystemComponents;
 	//system listeners
 	////////////////////////////////////////////////////////////////////
 
@@ -899,11 +912,9 @@ public:
 	void DebugDrawPuppetPaths();
 	void DebugDrawCheckCapsules() const;
 	void DebugDrawCheckRay() const;
-	void DebugDrawCheckWalkability();
 	void DebugDrawCheckWalkabilityTime() const;
 	void DebugDrawCheckFloorPos() const;
 	void DebugDrawCheckGravity() const;
-	void DebugDrawGetTeleportPos() const;
 	void DebugDrawDebugShapes();
 	void DebugDrawGroupTactic();
 	void DebugDrawDamageParts() const;
@@ -919,7 +930,6 @@ public:
 	void DebugDrawAgents() const;
 	void DebugDrawAgent(CAIObject* pAgent) const;
 	void DebugDrawStatsTarget(const char* pName);
-	void DebugDrawBehaviorSelection(const char* agentName);
 	void DebugDrawFormations() const;
 	void DebugDrawGraph(CGraph* pGraph, const std::vector<Vec3>* focusPositions = 0, float radius = 0.0f) const;
 	void DebugDrawGraphErrors(CGraph* pGraph) const;

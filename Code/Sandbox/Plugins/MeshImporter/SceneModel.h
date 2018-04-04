@@ -32,6 +32,7 @@ public:
 	{
 		eColumnType_Name,
 		eColumnType_Type,
+		eColumnType_SourceNodeAttribute,
 		eColumnType_COUNT
 	};
 private:
@@ -77,6 +78,8 @@ private:
 
 	bool SetDataSourceNodeElement(const QModelIndex& index, const QVariant& value, int role);
 	bool SetDataSkinElement(const QModelIndex& index, const QVariant& value, int role);
+
+	CItemModelAttribute* GetColumnAttribute(int col) const;
 private:
 	DialogMesh::CSceneUserData* m_pSceneUserData;
 	FbxMetaData::SSceneUserSettings m_userSettings;

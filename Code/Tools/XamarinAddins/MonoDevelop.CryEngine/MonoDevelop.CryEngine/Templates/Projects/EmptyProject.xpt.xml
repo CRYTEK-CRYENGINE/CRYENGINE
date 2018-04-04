@@ -1,0 +1,35 @@
+﻿<?xml version="1.0"?>
+<Template	originator="Crytek"
+			created="2015/06/01"
+			lastModified="2015/22/11">
+
+	<!-- Template Header -->
+	<TemplateConfiguration>
+		<_Name>Empty CryEngine Game Project</_Name>
+		<Category>cry/cry/general</Category>
+		<!--<Icon>md-project-cry</Icon>-->
+		<LanguageName>C#</LanguageName>
+		<_Description>Creates an empty CryEngine Game project.</_Description>
+		<Wizard>CryEngineGameWizard</Wizard>
+	</TemplateConfiguration>
+
+	<!-- Actions -->
+	<Actions>
+	</Actions>
+
+	<!-- Template Content -->
+	<Combine name = "${ProjectName}" directory = ".">
+		<Options>
+			<StartupProject>${ProjectName}</StartupProject>
+		</Options>
+
+		<Project name = "${ProjectName}" directory = "." type = "CryEngineGame">
+			<Options />
+			<References>
+				<Reference type="Package" refto="System"/>
+			</References>
+			<Files>
+			</Files>
+		</Project>
+	</Combine>
+</Template>

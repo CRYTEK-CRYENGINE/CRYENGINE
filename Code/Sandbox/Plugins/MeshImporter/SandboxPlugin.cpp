@@ -2,6 +2,9 @@
 // Sandbox plugin wrapper.
 #include "StdAfx.h"
 #include "SandboxPlugin.h"
+
+#include <CryCore/Platform/platform_impl.inl>
+
 #include "MainDialog.h"
 #include "QtViewPane.h"
 #include "IEditor.h"
@@ -10,7 +13,7 @@
 
 // Plugin versioning
 static const char* g_szPluginName = "MeshImporter";
-static const char* g_szPluginGuid = "{4F68F679-39AD-4BB4-B5E2-8A8DD3020DC1}";
+static const char* g_szPluginDesc = "FBX Importer tools for meshes, and animations";
 static DWORD g_pluginVersion = 1;
 
 // Plugin instance
@@ -19,26 +22,31 @@ static CFbxToolPlugin* g_pInstance = nullptr;
 // Global lock instance
 CryCriticalSection Detail::g_lock;
 
-CFbxToolPlugin::CFbxToolPlugin(IEditor* pEditor)
-	: m_pEditor(pEditor)
+
+REGISTER_PLUGIN(CFbxToolPlugin);
+
+class CEditorImpl;
+CEditorImpl* GetIEditorImpl()
 {
-	CScopedGlobalLock lock;
-
-	assert(g_pInstance == nullptr);
-	g_pInstance = this;
-
-	RegisterPlugin();
+	return (CEditorImpl*)GetIEditor();
 }
 
-void CFbxToolPlugin::Release()
+CFbxToolPlugin::CFbxToolPlugin()
+{
+	REGISTER_STRING("mi_defaultMaterial", "%ENGINE%/EngineAssets/TextureMsg/DefaultSolids", 0, "Default material.");
+	REGISTER_INT("mi_lazyLodGeneration", 1, 0, "When non-zero, LOD auto-generation is deferred until LODs are actually visible.");
+	REGISTER_FLOAT("mi_jointSize", 0.02f, 0, "Joint size");
+
+	CScopedGlobalLock lock;
+	assert(g_pInstance == nullptr);
+	g_pInstance = this;
+}
+
+CFbxToolPlugin::~CFbxToolPlugin()
 {
 	CScopedGlobalLock lock;
-
-	UnregisterPlugin();
-
 	assert(g_pInstance == this);
 	g_pInstance = nullptr;
-	delete this;
 }
 
 CFbxToolPlugin* CFbxToolPlugin::GetInstance()
@@ -51,24 +59,14 @@ const char* CFbxToolPlugin::GetPluginName()
 	return g_szPluginName;
 }
 
-const char* CFbxToolPlugin::GetPluginGUID()
+const char* CFbxToolPlugin::GetPluginDescription()
 {
-	return g_szPluginGuid;
+	return g_szPluginDesc;
 }
 
-DWORD CFbxToolPlugin::GetPluginVersion()
+int32 CFbxToolPlugin::GetPluginVersion()
 {
 	return g_pluginVersion;
-}
-
-// Requirement for Sandbox plugin
-IEditor* GetIEditor()
-{
-	CFbxToolPlugin* const pPlugin = CFbxToolPlugin::GetInstance();
-	assert(pPlugin);
-	IEditor* const pEditor = pPlugin->GetIEditor();
-	assert(pEditor);
-	return pEditor;
 }
 
 static void LogVPrintf(const char* szFormat, va_list args)
@@ -112,27 +110,3 @@ const QVariant& CFbxToolPlugin::GetPersonalizationProperty(const QString& propNa
 	return GetIEditor()->GetPersonalizationManager()->GetProperty(MESH_IMPORTER_NAME, propName);
 }
 
-// Entry point for plugin initializer
-PLUGIN_API IPlugin* CreatePluginInstance(PLUGIN_INIT_PARAM* pInitParam)
-{
-	if (pInitParam->pluginVersion != SANDBOX_PLUGIN_SYSTEM_VERSION)
-	{
-		return nullptr;
-	}
-
-	// Initialize globals
-	CScopedGlobalLock lock;
-	IEditor* const pEditor = pInitParam->pIEditor;
-
-	// Initialize module
-	ModuleInitISystem(pEditor->GetSystem(), g_szPluginName);
-
-	// Register cvars.
-	REGISTER_STRING("mi_defaultMaterial", "EngineAssets/TextureMsg/DefaultSolids", 0, "Default material.");
-	REGISTER_INT("mi_lazyLodGeneration", 1, 0, "When non-zero, LOD auto-generation is deferred until LODs are actually visible.");
-
-	// Initialize plugin
-	return new CFbxToolPlugin(pEditor);
-}
-
-#include <CryCore/Platform/platform_impl.inl>

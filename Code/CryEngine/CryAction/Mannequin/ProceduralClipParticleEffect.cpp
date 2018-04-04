@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 /*************************************************************************
    -------------------------------------------------------------------------
@@ -31,7 +31,7 @@ struct SPlayParticleEffectParams : public IProceduralParams
 
 	virtual void Serialize(Serialization::IArchive& ar) override
 	{
-		ar(Serialization::ParticleName(effectName), "EffectName", "Effect Name");
+		ar(Serialization::ParticlePickerLegacy(effectName), "EffectName", "Effect Name");
 		ar(Serialization::JointName(jointName), "JointName", "Joint Name");
 		ar(Serialization::AttachmentName(attachmentName), "AttachmentName", "Attachment Name");
 		ar(posOffset, "PosOffset", "Position Offset");
@@ -107,7 +107,7 @@ private:
 	};
 
 public:
-	PROCEDURAL_CONTEXT(CParticleEffectContext, "ParticleEffectContext", 0x9CED30805F8845A3, 0xF527229C51B542A8);
+	PROCEDURAL_CONTEXT(CParticleEffectContext, "ParticleEffectContext", "9ced3080-5f88-45a3-f527-229c51b542a8"_cry_guid);
 
 	virtual void Update(float timePassed) override;
 	void         StartEffect(SParticleEffectClipData& data, const SPlayParticleEffectParams& params, EntityId entityId, ICharacterInstance* pCharacterInstance, IActionController& pActionController);

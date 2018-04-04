@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #include "StdAfx.h"
 #include <CryExtension/ClassWeaver.h>
@@ -41,112 +41,112 @@ bool WriteChildNode(XmlNodeRef pParent, const char* const name, const T& value)
 }
 }
 
-Serialization::CXmlOArchive::CXmlOArchive()
-	: IArchive(OUTPUT | NO_EMPTY_NAMES)
+Serialization::CXmlOArchiveVer1::CXmlOArchiveVer1()
+	: IArchive(OUTPUT | NO_EMPTY_NAMES | XML_VERSION_1)
 {
 }
 
-Serialization::CXmlOArchive::CXmlOArchive(XmlNodeRef pRootNode)
-	: IArchive(OUTPUT | NO_EMPTY_NAMES)
+Serialization::CXmlOArchiveVer1::CXmlOArchiveVer1(XmlNodeRef pRootNode)
+	: IArchive(OUTPUT | NO_EMPTY_NAMES | XML_VERSION_1)
 	, m_pRootNode(pRootNode)
 {
 	CRY_ASSERT(m_pRootNode);
 }
 
-Serialization::CXmlOArchive::~CXmlOArchive()
+Serialization::CXmlOArchiveVer1::~CXmlOArchiveVer1()
 {
 }
 
-void Serialization::CXmlOArchive::SetXmlNode(XmlNodeRef pNode)
+void Serialization::CXmlOArchiveVer1::SetXmlNode(XmlNodeRef pNode)
 {
 	m_pRootNode = pNode;
 }
 
-XmlNodeRef Serialization::CXmlOArchive::GetXmlNode() const
+XmlNodeRef Serialization::CXmlOArchiveVer1::GetXmlNode() const
 {
 	return m_pRootNode;
 }
 
-bool Serialization::CXmlOArchive::operator()(bool& value, const char* name, const char* label)
+bool Serialization::CXmlOArchiveVer1::operator()(bool& value, const char* name, const char* label)
 {
 	const char* const stringValue = value ? "true" : "false";
 	return XmlUtil::WriteChildNode(m_pRootNode, name, stringValue);
 }
 
-bool Serialization::CXmlOArchive::operator()(IString& value, const char* name, const char* label)
+bool Serialization::CXmlOArchiveVer1::operator()(IString& value, const char* name, const char* label)
 {
 	const char* const stringValue = value.get();
 	return XmlUtil::WriteChildNode(m_pRootNode, name, stringValue);
 }
 
-bool Serialization::CXmlOArchive::operator()(IWString& value, const char* name, const char* label)
+bool Serialization::CXmlOArchiveVer1::operator()(IWString& value, const char* name, const char* label)
 {
 	CryFatalError("CXmlOArchive::operator() with IWString is not implemented");
 	return false;
 }
 
-bool Serialization::CXmlOArchive::operator()(float& value, const char* name, const char* label)
+bool Serialization::CXmlOArchiveVer1::operator()(float& value, const char* name, const char* label)
 {
 	return XmlUtil::WriteChildNode(m_pRootNode, name, value);
 }
 
-bool Serialization::CXmlOArchive::operator()(double& value, const char* name, const char* label)
+bool Serialization::CXmlOArchiveVer1::operator()(double& value, const char* name, const char* label)
 {
 	return XmlUtil::WriteChildNode(m_pRootNode, name, value);
 }
 
-bool Serialization::CXmlOArchive::operator()(int16& value, const char* name, const char* label)
+bool Serialization::CXmlOArchiveVer1::operator()(int16& value, const char* name, const char* label)
 {
 	return XmlUtil::WriteChildNodeAs<int>(m_pRootNode, name, value);
 }
 
-bool Serialization::CXmlOArchive::operator()(uint16& value, const char* name, const char* label)
+bool Serialization::CXmlOArchiveVer1::operator()(uint16& value, const char* name, const char* label)
 {
 	return XmlUtil::WriteChildNodeAs<uint>(m_pRootNode, name, value);
 }
 
-bool Serialization::CXmlOArchive::operator()(int32& value, const char* name, const char* label)
+bool Serialization::CXmlOArchiveVer1::operator()(int32& value, const char* name, const char* label)
 {
 	return XmlUtil::WriteChildNode(m_pRootNode, name, value);
 }
 
-bool Serialization::CXmlOArchive::operator()(uint32& value, const char* name, const char* label)
+bool Serialization::CXmlOArchiveVer1::operator()(uint32& value, const char* name, const char* label)
 {
 	return XmlUtil::WriteChildNode(m_pRootNode, name, value);
 }
 
-bool Serialization::CXmlOArchive::operator()(int64& value, const char* name, const char* label)
+bool Serialization::CXmlOArchiveVer1::operator()(int64& value, const char* name, const char* label)
 {
 	return XmlUtil::WriteChildNode(m_pRootNode, name, value);
 }
 
-bool Serialization::CXmlOArchive::operator()(uint64& value, const char* name, const char* label)
+bool Serialization::CXmlOArchiveVer1::operator()(uint64& value, const char* name, const char* label)
 {
 	return XmlUtil::WriteChildNode(m_pRootNode, name, value);
 }
 
-bool Serialization::CXmlOArchive::operator()(int8& value, const char* name, const char* label)
+bool Serialization::CXmlOArchiveVer1::operator()(int8& value, const char* name, const char* label)
 {
 	return XmlUtil::WriteChildNodeAs<int>(m_pRootNode, name, value);
 }
 
-bool Serialization::CXmlOArchive::operator()(uint8& value, const char* name, const char* label)
+bool Serialization::CXmlOArchiveVer1::operator()(uint8& value, const char* name, const char* label)
 {
 	return XmlUtil::WriteChildNodeAs<uint>(m_pRootNode, name, value);
 }
 
-bool Serialization::CXmlOArchive::operator()(char& value, const char* name, const char* label)
+bool Serialization::CXmlOArchiveVer1::operator()(char& value, const char* name, const char* label)
 {
 	return XmlUtil::WriteChildNodeAs<int>(m_pRootNode, name, value);
 }
 
-bool Serialization::CXmlOArchive::operator()(const SStruct& ser, const char* name, const char* label)
+bool Serialization::CXmlOArchiveVer1::operator()(const SStruct& ser, const char* name, const char* label)
 {
 	CRY_ASSERT(name);
 	CRY_ASSERT(name[0]);
 
 	XmlNodeRef pChild = XmlUtil::CreateChildNode(m_pRootNode, name);
-	CXmlOArchive childArchive(pChild);
+	CXmlOArchiveVer1 childArchive(pChild);
 	childArchive.setFilter(getFilter());
 	childArchive.setLastContext(lastContext());
 
@@ -155,7 +155,7 @@ bool Serialization::CXmlOArchive::operator()(const SStruct& ser, const char* nam
 	return serializeSuccess;
 }
 
-bool Serialization::CXmlOArchive::operator()(SBlackBox& box, const char* name, const char* label)
+bool Serialization::CXmlOArchiveVer1::operator()(SBlackBox& box, const char* name, const char* label)
 {
 	CRY_ASSERT(name);
 	CRY_ASSERT(name[0]);
@@ -169,7 +169,7 @@ bool Serialization::CXmlOArchive::operator()(SBlackBox& box, const char* name, c
 	return true;
 }
 
-bool Serialization::CXmlOArchive::operator()(IContainer& ser, const char* name, const char* label)
+bool Serialization::CXmlOArchiveVer1::operator()(IContainer& ser, const char* name, const char* label)
 {
 	CRY_ASSERT(name);
 	CRY_ASSERT(name[0]);
@@ -177,7 +177,7 @@ bool Serialization::CXmlOArchive::operator()(IContainer& ser, const char* name, 
 	bool serializeSuccess = true;
 
 	XmlNodeRef pChild = XmlUtil::CreateChildNode(m_pRootNode, name);
-	CXmlOArchive childArchive(pChild);
+	CXmlOArchiveVer1 childArchive(pChild);
 	childArchive.setFilter(getFilter());
 	childArchive.setLastContext(lastContext());
 
@@ -189,6 +189,190 @@ bool Serialization::CXmlOArchive::operator()(IContainer& ser, const char* name, 
 			serializeSuccess &= ser(childArchive, "Element", "Element");
 		}
 		while (ser.next());
+	}
+
+	return serializeSuccess;
+}
+
+
+//////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////
+
+Serialization::CXmlOutputArchive::CXmlOutputArchive()
+	: IArchive(OUTPUT | NO_EMPTY_NAMES)
+{
+}
+
+Serialization::CXmlOutputArchive::CXmlOutputArchive(const CXmlOutputArchive &ar)
+	: IArchive(ar.caps_)
+	, m_pRootNode(ar.m_pRootNode)
+{
+	filter_ = ar.filter_;
+	modifiedRow_ = ar.modifiedRow_;
+	lastContext_ = ar.lastContext_;
+	CRY_ASSERT(m_pRootNode);
+}
+
+Serialization::CXmlOutputArchive::~CXmlOutputArchive()
+{
+}
+
+void Serialization::CXmlOutputArchive::SetXmlNode(XmlNodeRef pNode)
+{
+	m_pRootNode = pNode;
+}
+
+XmlNodeRef Serialization::CXmlOutputArchive::GetXmlNode() const
+{
+	return m_pRootNode;
+}
+
+bool Serialization::CXmlOutputArchive::operator()(bool& value, const char* name, const char* label)
+{
+	XmlNodeRef node = (!m_bArray) ? m_pRootNode : XmlUtil::CreateChildNode(m_pRootNode, name);
+	const char* const stringValue = value ? "true" : "false";
+	node->setAttr(name, stringValue);
+	return true;
+}
+
+bool Serialization::CXmlOutputArchive::operator()(IString& value, const char* name, const char* label)
+{
+	XmlNodeRef node = (!m_bArray) ? m_pRootNode : XmlUtil::CreateChildNode(m_pRootNode, name);
+	const char* const stringValue = value.get();
+	node->setAttr(name, stringValue);
+	return true;
+}
+
+bool Serialization::CXmlOutputArchive::operator()(IWString& value, const char* name, const char* label)
+{
+	CRY_ASSERT_MESSAGE(0,"CXmlOutputArchive::operator() with IWString is not implemented");
+	CryFatalError("CXmlOutputArchive::operator() with IWString is not implemented");
+	return false;
+}
+
+bool Serialization::CXmlOutputArchive::operator()(float& value, const char* name, const char* label)
+{
+	XmlNodeRef node = (!m_bArray) ? m_pRootNode : XmlUtil::CreateChildNode(m_pRootNode, name);
+	node->setAttr(name, value);
+	return true;
+}
+
+bool Serialization::CXmlOutputArchive::operator()(double& value, const char* name, const char* label)
+{
+	XmlNodeRef node = (!m_bArray) ? m_pRootNode : XmlUtil::CreateChildNode(m_pRootNode, name);
+	node->setAttr(name, value);
+	return true;
+}
+
+bool Serialization::CXmlOutputArchive::operator()(int16& value, const char* name, const char* label)
+{
+	XmlNodeRef node = (!m_bArray) ? m_pRootNode : XmlUtil::CreateChildNode(m_pRootNode, name);
+	node->setAttr(name, value);
+	return true;
+}
+
+bool Serialization::CXmlOutputArchive::operator()(uint16& value, const char* name, const char* label)
+{
+	XmlNodeRef node = (!m_bArray) ? m_pRootNode : XmlUtil::CreateChildNode(m_pRootNode, name);
+	node->setAttr(name, value);
+	return true;
+}
+
+bool Serialization::CXmlOutputArchive::operator()(int32& value, const char* name, const char* label)
+{
+	XmlNodeRef node = (!m_bArray) ? m_pRootNode : XmlUtil::CreateChildNode(m_pRootNode, name);
+	node->setAttr(name, value);
+	return true;
+}
+
+bool Serialization::CXmlOutputArchive::operator()(uint32& value, const char* name, const char* label)
+{
+	XmlNodeRef node = (!m_bArray) ? m_pRootNode : XmlUtil::CreateChildNode(m_pRootNode, name);
+	node->setAttr(name, value);
+	return true;
+}
+
+bool Serialization::CXmlOutputArchive::operator()(int64& value, const char* name, const char* label)
+{
+	XmlNodeRef node = (!m_bArray) ? m_pRootNode : XmlUtil::CreateChildNode(m_pRootNode, name);
+	node->setAttr(name, value);
+	return true;
+}
+
+bool Serialization::CXmlOutputArchive::operator()(uint64& value, const char* name, const char* label)
+{
+	XmlNodeRef node = (!m_bArray) ? m_pRootNode : XmlUtil::CreateChildNode(m_pRootNode, name);
+	node->setAttr(name, value);
+	return true;
+}
+
+bool Serialization::CXmlOutputArchive::operator()(int8& value, const char* name, const char* label)
+{
+	XmlNodeRef node = (!m_bArray) ? m_pRootNode : XmlUtil::CreateChildNode(m_pRootNode, name);
+	node->setAttr(name, value);
+	return true;
+}
+
+bool Serialization::CXmlOutputArchive::operator()(uint8& value, const char* name, const char* label)
+{
+	XmlNodeRef node = (!m_bArray) ? m_pRootNode : XmlUtil::CreateChildNode(m_pRootNode, name);
+	node->setAttr(name, value);
+	return true;
+}
+
+bool Serialization::CXmlOutputArchive::operator()(char& value, const char* name, const char* label)
+{
+	XmlNodeRef node = (!m_bArray) ? m_pRootNode : XmlUtil::CreateChildNode(m_pRootNode, name);
+	node->setAttr(name, value);
+	return true;
+}
+
+bool Serialization::CXmlOutputArchive::operator()(const SStruct& ser, const char* name, const char* label)
+{
+	CRY_ASSERT(name);
+	CRY_ASSERT(name[0]);
+
+	XmlNodeRef pChild = XmlUtil::CreateChildNode(m_pRootNode, name);
+	CXmlOutputArchive childArchive(*this);
+	childArchive.SetXmlNode(pChild);
+
+	const bool serializeSuccess = ser(childArchive);
+
+	return serializeSuccess;
+}
+
+bool Serialization::CXmlOutputArchive::operator()(SBlackBox& box, const char* name, const char* label)
+{
+	CRY_ASSERT(name);
+	CRY_ASSERT(name[0]);
+	CRY_ASSERT(m_pRootNode->isTag(name));
+
+	if ((strcmp(box.format, "xml") != 0) || !box.data)
+		return false;
+
+	m_pRootNode->addChild(*static_cast<XmlNodeRef*>(box.data));
+
+	return true;
+}
+
+bool Serialization::CXmlOutputArchive::operator()(IContainer& ser, const char* name, const char* label)
+{
+	CRY_ASSERT(name);
+	CRY_ASSERT(name[0]);
+
+	bool serializeSuccess = true;
+
+	CXmlOutputArchive childArchive(*this);
+	childArchive.SetXmlNode(XmlUtil::CreateChildNode(m_pRootNode, name));
+	childArchive.m_bArray = true;
+
+	const size_t containerSize = ser.size();
+	if (0 < containerSize)
+	{
+		do
+		{
+			serializeSuccess &= ser(childArchive, "element", "element");
+		} while (ser.next());
 	}
 
 	return serializeSuccess;

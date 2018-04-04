@@ -1,36 +1,39 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #include "StdAfx.h"
 #include <CryCore/CryCustomTypes.h>
 #include "../../DeviceManager/DeviceObjects.h"
 #include "DriverD3D.h"
 
-#if defined(CRY_USE_DX12)
-	#include <pix_win.h>
-
-	#define CRY_USE_DX12_NATIVE
+#ifndef DEVRES_USE_STAGING_POOL
+#error StagingPool is a requirement for DX12
 #endif
 
-#if defined(CRY_USE_DX12_NATIVE)
-#include "DX12/API/Redirections/D3D12Device.inl"
+#ifdef DX12_LINKEDADAPTER
+	#include "DX12/API/Redirections/D3D12Device.inl"
+#endif
 
 using namespace NCryDX12;
 D3D12_SHADER_BYTECODE g_EmptyShader;
 
-	#define GET_DX12_TEXTURE_VIEW(uniformTexture, uniformView) reinterpret_cast<CCryDX12ShaderResourceView*>((uniformTexture)->GetShaderResourceView(uniformView))
-	#define GET_DX12_BUFFER_VIEW(uniformBuffer)                reinterpret_cast<CCryDX12ShaderResourceView*>((uniformBuffer).GetSRV())
-	#define GET_DX12_UNORDERED_VIEW(uniformBufferOrTexture)    reinterpret_cast<CCryDX12UnorderedAccessView*>((uniformBufferOrTexture)->GetDeviceUAV())
-	#define GET_DX12_DEPTHSTENCIL_VIEW(dsTarget)               reinterpret_cast<CCryDX12DepthStencilView*>((dsTarget)->pSurface)
-	#define GET_DX12_RENDERTARGET_VIEW(rTarget, rView)         reinterpret_cast<CCryDX12RenderTargetView*>((rTarget)->GetResourceView(rView))
+#define GET_DX12_SHADER_VIEW(uniformBufferOrTexture, rView)    reinterpret_cast<CCryDX12ShaderResourceView*>((uniformBufferOrTexture)->LookupSRV(rView))
+#define GET_DX12_UNORDERED_VIEW(uniformBufferOrTexture, rView) reinterpret_cast<CCryDX12UnorderedAccessView*>((uniformBufferOrTexture)->LookupUAV(rView))
+#define GET_DX12_DEPTHSTENCIL_VIEW(dsTarget, dView)            reinterpret_cast<CCryDX12DepthStencilView*>((dsTarget)->LookupDSV(dView));
+#define GET_DX12_RENDERTARGET_VIEW(rTarget, rView)             reinterpret_cast<CCryDX12RenderTargetView*>((rTarget)->LookupRTV(rView))
+#define GET_DX12_SAMPLERSTATE(uniformSamplerState)             reinterpret_cast<CCryDX12SamplerState*>(CDeviceObjectFactory::LookupSamplerState(uniformSamplerState).second)
 
-	#define GET_DX12_TEXTURE_RESOURCE(uniformTexture)          reinterpret_cast<CCryDX12Resource<ID3D11Resource>*>((uniformTexture)->GetDevTexture()->GetBaseTexture())
-	#define GET_DX12_BUFFER_RESOURCE(uniformBuffer)            reinterpret_cast<CCryDX12Resource<ID3D11Resource>*>((uniformBuffer).GetBuffer())
-	#define GET_DX12_CONSTANTBUFFER_RESOURCE(constantBuffer)   reinterpret_cast<CCryDX12Buffer*>((constantBuffer)->m_buffer)
-	#define GET_DX12_SAMPLER(uniformSampler)                   reinterpret_cast<CCryDX12SamplerState*>((uniformSampler).m_pDeviceState)
+#define GET_DX12_TEXTURE_RESOURCE(uniformTexture)              reinterpret_cast<CCryDX12Resource<ID3D11Resource>*>((uniformTexture)->GetDevTexture()->GetBaseTexture())
+#define GET_DX12_BUFFER_RESOURCE(uniformBuffer)                reinterpret_cast<CCryDX12Resource<ID3D11Resource>*>((uniformBuffer).GetDevBuffer()->GetBaseBuffer())
+#define GET_DX12_CONSTANTBUFFER_RESOURCE(constantBuffer)       reinterpret_cast<CCryDX12Buffer*>((constantBuffer)->GetD3D())
 
 static NCryDX12::CDevice* GetDevice()
 {
-	return reinterpret_cast<CCryDX12Device*>(gcpRendD3D->GetDevice().GetRealDevice())->GetDX12Device();
+	return GetDeviceObjectFactory().GetDX12Device();
+}
+
+static NCryDX12::CCommandScheduler* GetScheduler()
+{
+	return GetDeviceObjectFactory().GetDX12Scheduler();
 }
 
 D3D12_SHADER_RESOURCE_VIEW_DESC GetNullSrvDesc(const CTexture* pTexture)
@@ -106,6 +109,52 @@ D3D12_UNORDERED_ACCESS_VIEW_DESC GetNullUavDesc(const CGpuBuffer& buffer)
 	return uavDesc;
 }
 
+D3D12_SHADER_VISIBILITY GetShaderVisibility(::EShaderStage shaderStages)
+{
+	static D3D12_SHADER_VISIBILITY shaderVisibility[eHWSC_Num + 1] =
+	{
+		D3D12_SHADER_VISIBILITY_VERTEX,     // eHWSC_Vertex
+		D3D12_SHADER_VISIBILITY_PIXEL,      // eHWSC_Pixel
+		D3D12_SHADER_VISIBILITY_GEOMETRY,   // eHWSC_Geometry
+		D3D12_SHADER_VISIBILITY_ALL,        // eHWSC_Compute
+		D3D12_SHADER_VISIBILITY_DOMAIN,     // eHWSC_Domain
+		D3D12_SHADER_VISIBILITY_HULL,       // eHWSC_Hull
+		D3D12_SHADER_VISIBILITY_ALL,        // eHWSC_Num
+	};
+
+	EHWShaderClass shaderClass = eHWSC_Num;
+
+	if ((int(shaderStages) & (int(shaderStages) - 1)) == 0) // only bound to a single shader stage?
+	{
+		for (shaderClass = eHWSC_Vertex; shaderClass != eHWSC_Num; shaderClass = EHWShaderClass(shaderClass + 1))
+		{
+			if (shaderStages & SHADERSTAGE_FROM_SHADERCLASS(shaderClass))
+				break;
+		}
+	}
+
+	return shaderVisibility[shaderClass];
+};
+
+CD3DX12_DESCRIPTOR_RANGE GetDescriptorRange(SResourceBindPoint bindPoint, int descriptorIndex)
+{
+	CD3DX12_DESCRIPTOR_RANGE result;
+	result.BaseShaderRegister = bindPoint.slotNumber;
+	result.NumDescriptors = 1;
+	result.OffsetInDescriptorsFromTableStart = descriptorIndex;
+	result.RegisterSpace = 0;
+
+	switch (bindPoint.slotType)
+	{
+		case SResourceBindPoint::ESlotType::ConstantBuffer:      result.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_CBV;     break;
+		case SResourceBindPoint::ESlotType::TextureAndBuffer:    result.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;     break;
+		case SResourceBindPoint::ESlotType::UnorderedAccessView: result.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_UAV;     break;
+		case SResourceBindPoint::ESlotType::Sampler:             result.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER; break;
+	};
+
+	return result;
+}
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 class CDeviceResourceSet_DX12 : public CDeviceResourceSet
@@ -116,75 +165,17 @@ public:
 
 	CDeviceResourceSet_DX12(CDeviceResourceSet::EFlags flags)
 		: CDeviceResourceSet(flags)
-	{
-		ZeroStruct(m_DescriptorInfo);
-	}
-
-	CDeviceResourceSet_DX12(const CDeviceResourceSet& other)
-		: CDeviceResourceSet(other)
-	{
-		ZeroStruct(m_DescriptorInfo);
-	}
+		, m_pDescriptors(nullptr)
+	{}
 
 	~CDeviceResourceSet_DX12()
 	{
 		ReleaseDescriptors();
 	}
 
-	virtual bool            BuildImpl(EFlags updatedFlags) final;
+	virtual bool UpdateImpl(const CDeviceResourceSetDesc& desc, CDeviceResourceSetDesc::EDirtyFlags dirtyFlags);
 
-	const CDescriptorBlock& GetDescriptorBlock() const { return m_DescriptorBlock; }
-	void                    MarkInUse();
-
-protected:
-
-	struct SResourcePatchingInfo
-	{
-		DeviceResourceBinding::SShaderSlot shaderSlot;
-		int                                descriptorTableOffset;
-		int                                inUseArrayOffset;
-		bool                               bUnorderedAccess;
-
-		union { CCryDX12ShaderResourceView* pSrv; CCryDX12UnorderedAccessView* pUav; };
-	};
-
-	struct SConstantBufferPatchingInfo
-	{
-		DeviceResourceBinding::SShaderSlot shaderSlot;
-		int                                descriptorTableOffset;
-		D3D12_CONSTANT_BUFFER_VIEW_DESC    desc;
-	};
-
-	struct SDescriptorSet
-	{
-		std::vector<SResourcePatchingInfo>            texturePatchingInfo;
-		std::vector<SResourcePatchingInfo>            bufferPatchingInfo;
-		std::vector<SConstantBufferPatchingInfo>      constantBufferPatchingInfo;
-
-		CTrackedItemCustomAllocator<SDescriptorBlock> descriptorBlockAllocator;
-		SDescriptorBlock*                             pCurrentDescriptorBlock;
-
-		SDescriptorSet()
-			: pCurrentDescriptorBlock(nullptr)
-			, descriptorBlockAllocator(nullptr, nullptr)
-		{
-		}
-
-		~SDescriptorSet()
-		{
-			Reset();
-		}
-
-		void Reset()
-		{
-			descriptorBlockAllocator.Reset();
-			pCurrentDescriptorBlock = nullptr;
-
-			texturePatchingInfo.clear();
-			bufferPatchingInfo.clear();
-			constantBufferPatchingInfo.clear();
-		}
-	};
+	const CDescriptorBlock& GetDescriptorBlock() const { return m_DescriptorBlockDX12; }
 
 protected:
 	// Workaround for: "template<template<typename, class> class C, typename T> using CContainer = C<T, CSingleBlockAllocator<T>>;"
@@ -193,345 +184,168 @@ protected:
 
 	void ReleaseDescriptors();
 
-	template<bool bGatherResourcesInUse, bool bGatherPatchingInfo>
 	bool GatherDescriptors(
+	  const CDeviceResourceSetDesc& resourceDesc,
 	  StackDescriptorVector& descriptors,
 	  CDescriptorBlock& descriptorScratchSpace,
-	  std::vector<_smart_ptr<CCryDX12Buffer>>* pConstantBuffersInUse = nullptr,
-	  std::vector<_smart_ptr<CCryDX12ShaderResourceView>>* pShaderResourceViewsInUse = nullptr,
-	  std::vector<_smart_ptr<CCryDX12UnorderedAccessView>>* pUnorderedAccessViewsInUse = nullptr,
-	  std::vector<SResourcePatchingInfo>* pTexturePatchingInfo = nullptr,
-	  std::vector<SResourcePatchingInfo>* pBufferPatchingInfo = nullptr,
-	  std::vector<SConstantBufferPatchingInfo>* pConstantBufferPatchingInfo = nullptr) const;
+	  std::vector< std::pair<SResourceBindPoint, CCryDX12Buffer*> >& constantBuffersInUse,
+	  std::vector< std::pair<SResourceBindPoint, CCryDX12ShaderResourceView*> >& shaderResourceViewsInUse,
+	  std::vector< std::pair<SResourceBindPoint, CCryDX12UnorderedAccessView*> >& unorderedAccessViewsInUse) const;
 
 	void FillDescriptorBlock(
 		StackDescriptorVector& descriptors,
 		CDescriptorBlock& descriptorBlock) const;
 
-	void PatchDescriptors(CDescriptorBlock& descriptorScratchSpace);
+	CDescriptorBlock  m_DescriptorBlockDX12;
+	SDescriptorBlock* m_pDescriptors;
 
-	CDescriptorBlock m_DescriptorBlock;
-
-	union
-	{
-		SDescriptorSet*   pDescriptorSet;
-		SDescriptorBlock* pDescriptors;
-	} m_DescriptorInfo;
-
-	std::vector<_smart_ptr<CCryDX12Buffer>>              m_ConstantBuffersInUse;
-	std::vector<_smart_ptr<CCryDX12ShaderResourceView>>  m_ShaderResourceViewsInUse;
-	std::vector<_smart_ptr<CCryDX12UnorderedAccessView>> m_UnorderedAccessViewsInUse;
+	std::vector< std::pair<SResourceBindPoint, CCryDX12Buffer*> >              m_ConstantBuffersInUse;
+	std::vector< std::pair<SResourceBindPoint, CCryDX12ShaderResourceView*> >  m_ShaderResourceViewsInUse;
+	std::vector< std::pair<SResourceBindPoint, CCryDX12UnorderedAccessView*> > m_UnorderedAccessViewsInUse;
 };
-
-void CDeviceResourceSet_DX12::MarkInUse()
-{
-	if (m_DescriptorInfo.pDescriptors)
-	{
-		auto pDescriptorBlock =
-		  (m_Flags & EFlags_Multibuffered)
-		  ? m_DescriptorInfo.pDescriptorSet->pCurrentDescriptorBlock
-		  : m_DescriptorInfo.pDescriptors;
-
-		if (pDescriptorBlock)
-			pDescriptorBlock->MarkUsed();
-	}
-}
 
 void CDeviceResourceSet_DX12::ReleaseDescriptors()
 {
-	if (m_Flags & EFlags_Multibuffered)
+	if (m_pDescriptors != nullptr)
 	{
-		SAFE_DELETE(m_DescriptorInfo.pDescriptorSet);
-	}
-	else
-	{
-		if (m_DescriptorInfo.pDescriptors != nullptr)
-		{
-			gcpRendD3D->m_DevBufMan.ReleaseDescriptorBlock(m_DescriptorInfo.pDescriptors);
-			m_DescriptorInfo.pDescriptors = nullptr;
-		}
+		gcpRendD3D->m_DevBufMan.ReleaseDescriptorBlock(m_pDescriptors);
+		m_pDescriptors = nullptr;
 	}
 
-	m_DescriptorBlock = CDescriptorBlock();
+	m_DescriptorBlockDX12 = CDescriptorBlock();
 }
 
 // requires no command-list, just a device
-bool CDeviceResourceSet_DX12::BuildImpl(EFlags updatedFlags)
+bool CDeviceResourceSet_DX12::UpdateImpl(const CDeviceResourceSetDesc& desc, CDeviceResourceSetDesc::EDirtyFlags dirtyFlags)
 {
 	CRY_ASSERT(gRenDev->m_pRT->IsRenderThread());
-	auto pDevice = GetDevice();
 
-	// allocate new descriptor block. NOTE: deletion of previous block is deferred until gpu has finished using it
-	const bool bRequiresMultiBuffering = !!(updatedFlags & EFlags_Multibuffered);
-	const bool bHasMultiBuffering      = !!(m_Flags      & EFlags_Multibuffered);
-	const int descriptorCount = m_ConstantBuffers.size() + m_Textures.size() + m_Buffers.size();
-	bool bBuildSuccess;
+	int descriptorCount = 0;
+	for (auto it : desc.GetResources())
+	{
+		if (it.second.type != SResourceBinding::EResourceType::Sampler)
+			++descriptorCount;
+	}
 
 	CryStackAllocatorWithSizeVector(D3D12_CPU_DESCRIPTOR_HANDLE, descriptorCount, descriptorMem, NoAlign);
 	StackDescriptorVector descriptors(descriptorMem);
 	descriptors.reserve(descriptorCount);
 
-	if (bRequiresMultiBuffering ^ bHasMultiBuffering)
-	{
-		ReleaseDescriptors();
-	}
+	if (m_pDescriptors != nullptr)
+		gcpRendD3D->m_DevBufMan.ReleaseDescriptorBlock(m_pDescriptors);
 
-	if (bRequiresMultiBuffering)
-	{
-		if (!m_DescriptorInfo.pDescriptorSet)
-			m_DescriptorInfo.pDescriptorSet = new SDescriptorSet();
-
-		auto pDescriptors = m_DescriptorInfo.pDescriptorSet;
-		pDescriptors->Reset();
-
-		auto& allocator = pDescriptors->descriptorBlockAllocator;
-		auto allocateBlock = [=]() { return gcpRendD3D->m_DevBufMan.CreateDescriptorBlock(descriptorCount); };
-		auto releaseBlock = [](SDescriptorBlock*& pBlock) { gcpRendD3D->m_DevBufMan.ReleaseDescriptorBlock(pBlock); };
-
-		allocator.SetAllocFunctions(allocateBlock, releaseBlock);
-		pDescriptors->pCurrentDescriptorBlock = allocator.Allocate();
-
-		m_DescriptorBlock = *pDescriptors->pCurrentDescriptorBlock;
+	m_pDescriptors = gcpRendD3D->m_DevBufMan.CreateDescriptorBlock(descriptorCount);
+	m_DescriptorBlockDX12 = *m_pDescriptors;
 
 		// gather descriptors for all bound resources and copy to new block. NOTE: CBV_SRV_UAV heap, SMP heap not yet supported
-		bBuildSuccess = GatherDescriptors<true, true>(descriptors,
-			pDevice->GetResourceDescriptorScratchSpace(),
-			&m_ConstantBuffersInUse,
-			&m_ShaderResourceViewsInUse,
-			&m_UnorderedAccessViewsInUse,
-			&m_DescriptorInfo.pDescriptorSet->texturePatchingInfo,
-			&m_DescriptorInfo.pDescriptorSet->bufferPatchingInfo,
-			&m_DescriptorInfo.pDescriptorSet->constantBufferPatchingInfo);
-	}
-	else
+	bool bSuccess = GatherDescriptors(desc,
+		descriptors,
+		GetDevice()->GetResourceDescriptorScratchSpace(),
+		m_ConstantBuffersInUse,
+		m_ShaderResourceViewsInUse,
+		m_UnorderedAccessViewsInUse);
+
+	if (bSuccess)
 	{
-		if (m_DescriptorInfo.pDescriptors != nullptr)
-			gcpRendD3D->m_DevBufMan.ReleaseDescriptorBlock(m_DescriptorInfo.pDescriptors);
+		CRY_ASSERT(descriptors.size() == descriptorCount);
+		FillDescriptorBlock(descriptors, m_DescriptorBlockDX12);
 
-		m_DescriptorInfo.pDescriptors = gcpRendD3D->m_DevBufMan.CreateDescriptorBlock(descriptorCount);
-		m_DescriptorBlock = *m_DescriptorInfo.pDescriptors;
-
-		// gather descriptors for all bound resources and copy to new block. NOTE: CBV_SRV_UAV heap, SMP heap not yet supported
-		bBuildSuccess = GatherDescriptors<true, false>(descriptors,
-			pDevice->GetResourceDescriptorScratchSpace(),
-			&m_ConstantBuffersInUse,
-			&m_ShaderResourceViewsInUse,
-			&m_UnorderedAccessViewsInUse);
+		return true;
 	}
 
-	CRY_ASSERT(descriptors.size() == descriptorCount);
-	FillDescriptorBlock(descriptors, m_DescriptorBlock);
-
-	return bBuildSuccess;
+	return false;
 }
 
-template<bool bGatherResourcesInUse, bool bGatherPatchingInfo>
 bool CDeviceResourceSet_DX12::GatherDescriptors(
+  const CDeviceResourceSetDesc& resourceDesc,
   StackDescriptorVector& descriptors,
   CDescriptorBlock& descriptorScratchSpace,
-  std::vector<_smart_ptr<CCryDX12Buffer>>* pConstantBuffersInUse,
-  std::vector<_smart_ptr<CCryDX12ShaderResourceView>>* pShaderResourceViewsInUse,
-  std::vector<_smart_ptr<CCryDX12UnorderedAccessView>>* pUnorderedAccessViewsInUse,
-  std::vector<SResourcePatchingInfo>* pTexturePatchingInfo,
-  std::vector<SResourcePatchingInfo>* pBufferPatchingInfo,
-  std::vector<SConstantBufferPatchingInfo>* pConstantBufferPatchingInfo) const
+  std::vector< std::pair<SResourceBindPoint, CCryDX12Buffer*> >& constantBuffersInUse,
+  std::vector< std::pair<SResourceBindPoint, CCryDX12ShaderResourceView*> >& shaderResourceViewsInUse,
+  std::vector< std::pair<SResourceBindPoint, CCryDX12UnorderedAccessView*> >& unorderedAccessViewsInUse) const
 {
-	auto pDevice = GetDevice();
+	const int descriptorCount = descriptors.size();
 
-	const int descriptorSize = descriptorScratchSpace.GetDescriptorSize();
+	constantBuffersInUse.resize(0);
+	constantBuffersInUse.reserve(descriptorCount);
 
-	if (bGatherResourcesInUse)
+	shaderResourceViewsInUse.resize(0);
+	shaderResourceViewsInUse.reserve(descriptorCount);
+
+	unorderedAccessViewsInUse.resize(0);
+	unorderedAccessViewsInUse.reserve(descriptorCount);
+	
+	for (const auto& it : resourceDesc.GetResources())
 	{
-		pConstantBuffersInUse->resize(0);
-		pShaderResourceViewsInUse->resize(0);
-		pUnorderedAccessViewsInUse->resize(0);
+		const SResourceBindPoint& bindPoint = it.first;
+		const SResourceBinding&   resource  = it.second;
 
-		pConstantBuffersInUse->reserve(m_ConstantBuffers.size());
-		pShaderResourceViewsInUse->reserve(m_Textures.size() + m_Buffers.size());
-		pUnorderedAccessViewsInUse->reserve(m_Textures.size() + m_Buffers.size());
-	}
-
-	bool bValid = true;
-
-	// constant buffers: create descriptors on the fly in scratch buffer
-	for (const auto& it : m_ConstantBuffers)
-	{
-		auto cbData = it.second;
-		if (!cbData.resource || !cbData.resource->m_buffer)
+		if (!resource.IsValid())
 		{
-			CRY_ASSERT(false && "An invalid constant buffer has been added to the ResourceSet. You must either insert a null-buffer if this was intended, or fix the code that causes this.");
-			bValid = false;
-			pDevice->GetD3D12Device()->CreateConstantBufferView(nullptr, descriptorScratchSpace.GetHandleOffsetCPU(0));
-
-			descriptors.emplace_back(descriptorScratchSpace.GetHandleOffsetCPU(0));
-			descriptorScratchSpace.IncrementCursor();
-			continue;
+			CRY_ASSERT_MESSAGE(false, "Invalid resource in resource set desc. Update failed");
+			return false;
 		}
 
-		size_t start, length;
-		CCryDX12Buffer* constantBuffer = reinterpret_cast<CCryDX12Buffer*>(cbData.resource->GetD3D(&start, &length));
-
+		switch(bindPoint.slotType)
 		{
-			D3D12_CONSTANT_BUFFER_VIEW_DESC cbvDesc;
-
-			const NCryDX12::CView& pCBV = constantBuffer->GetDX12View();
-			assert(pCBV.GetType() == EVT_ConstantBufferView);
-
-			cbvDesc = pCBV.GetCBVDesc();
-			cbvDesc.BufferLocation += start;
-			cbvDesc.SizeInBytes = length > 0 ? length : cbvDesc.SizeInBytes - start;
-			cbvDesc.SizeInBytes = min(cbvDesc.SizeInBytes, D3D12_REQ_CONSTANT_BUFFER_ELEMENT_COUNT * NCryDX12::CONSTANT_BUFFER_ELEMENT_SIZE);
-
-			pDevice->GetD3D12Device()->CreateConstantBufferView(&cbvDesc, descriptorScratchSpace.GetHandleOffsetCPU(0));
-
-			if (bGatherPatchingInfo)
+			case SResourceBindPoint::ESlotType::ConstantBuffer:
 			{
-				pConstantBufferPatchingInfo->emplace_back();
-				SConstantBufferPatchingInfo& patchingInfo = pConstantBufferPatchingInfo->back();
+				buffer_size_t start, length;
+				CCryDX12Buffer* constantBuffer = reinterpret_cast<CCryDX12Buffer*>(resource.pConstantBuffer->GetD3D(&start, &length));
 
-				patchingInfo.desc = cbvDesc;
-				patchingInfo.descriptorTableOffset = descriptors.size() * descriptorSize;
-				patchingInfo.shaderSlot = it.first;
+				{
+					D3D12_CONSTANT_BUFFER_VIEW_DESC cbvDesc;
+
+					const NCryDX12::CView& pCBV = constantBuffer->GetDX12View();
+					assert(pCBV.GetType() == EVT_ConstantBufferView);
+
+					cbvDesc = pCBV.GetCBVDesc();
+					cbvDesc.BufferLocation += start;
+					cbvDesc.SizeInBytes = length > 0 ? length : cbvDesc.SizeInBytes - start;
+					cbvDesc.SizeInBytes = min(cbvDesc.SizeInBytes, D3D12_REQ_CONSTANT_BUFFER_ELEMENT_COUNT * NCryDX12::CONSTANT_BUFFER_ELEMENT_SIZE);
+
+					GetDevice()->GetD3D12Device()->CreateConstantBufferView(&cbvDesc, descriptorScratchSpace.GetHandleOffsetCPU(0));
+				}
+
+				descriptors.emplace_back(descriptorScratchSpace.GetHandleOffsetCPU(0));
+				descriptorScratchSpace.IncrementCursor();
+
+				constantBuffersInUse.emplace_back(bindPoint, constantBuffer);
 			}
-		}
+			break;
 
-		descriptors.emplace_back(descriptorScratchSpace.GetHandleOffsetCPU(0));
-		descriptorScratchSpace.IncrementCursor();
-		if (bGatherResourcesInUse) pConstantBuffersInUse->emplace_back(constantBuffer);
-	}
-
-	for (const auto& it : m_Textures)
-	{
-		CRY_ASSERT(SResourceView::IsShaderResourceView(it.second.view) || SResourceView::IsUnorderedAccessView(it.second.view));
-
-		SResourceView::KeyType srvKey = it.second.view;
-		CTexture* pTexture = it.second.resource;
-
-		const bool bBindAsSrv = SResourceView::IsShaderResourceView(srvKey);
-		if (!pTexture || !pTexture->GetDevTexture() || !pTexture->GetDevTexture()->GetBaseTexture())
-		{
-			CRY_ASSERT(false && "An invalid texture has been added to the ResourceSet. You must either insert a null-texture if this was intended, or fix the code that causes this.");
-			bValid = false;
-
-			if (bBindAsSrv)
+			case SResourceBindPoint::ESlotType::TextureAndBuffer:
 			{
-				auto nullDesc = GetNullSrvDesc(pTexture);
-				pDevice->GetD3D12Device()->CreateShaderResourceView(nullptr, &nullDesc, descriptorScratchSpace.GetHandleOffsetCPU(0));
+				CDeviceResource* pResource = uint8(bindPoint.flags & SResourceBindPoint::EFlags::IsTexture)
+					? (CDeviceResource*)resource.pTexture->GetDevTexture()
+					: (CDeviceResource*)resource.pBuffer->GetDevBuffer();
+
+				CCryDX12ShaderResourceView* pSrv = GET_DX12_SHADER_VIEW(pResource, resource.view);
+				descriptors.emplace_back(pSrv->GetDX12View().GetDescriptorHandle());
+
+				shaderResourceViewsInUse.emplace_back(bindPoint, pSrv);
 			}
-			else
+			break;
+
+			case SResourceBindPoint::ESlotType::UnorderedAccessView:
 			{
-				auto nullDesc = GetNullUavDesc(pTexture);
-				pDevice->GetD3D12Device()->CreateUnorderedAccessView(nullptr, nullptr, &nullDesc, descriptorScratchSpace.GetHandleOffsetCPU(0));
+				CDeviceResource* pResource = uint8(bindPoint.flags & SResourceBindPoint::EFlags::IsTexture)
+					? (CDeviceResource*)resource.pTexture->GetDevTexture()
+					: (CDeviceResource*)resource.pBuffer->GetDevBuffer();
+
+				CCryDX12UnorderedAccessView* pUav = GET_DX12_UNORDERED_VIEW(pResource, resource.view);
+				descriptors.emplace_back(pUav->GetDX12View().GetDescriptorHandle());
+
+				unorderedAccessViewsInUse.emplace_back(bindPoint, pUav);
 			}
+			break;
 
-			descriptors.emplace_back(descriptorScratchSpace.GetHandleOffsetCPU(0));
-			descriptorScratchSpace.IncrementCursor();
-			continue;
-		}
-
-		// add to descriptor block
-		if (bBindAsSrv)
-		{
-			CCryDX12ShaderResourceView* pSrv = GET_DX12_TEXTURE_VIEW(pTexture, srvKey);
-			descriptors.emplace_back(pSrv->GetDX12View().GetDescriptorHandle());
-			if (bGatherResourcesInUse) pShaderResourceViewsInUse->emplace_back(pSrv);
-			if (bGatherPatchingInfo)
-			{
-				pTexturePatchingInfo->emplace_back();
-				SResourcePatchingInfo& patchingInfo = pTexturePatchingInfo->back();
-
-				patchingInfo.descriptorTableOffset = (descriptors.size() - 1) * descriptorSize;
-				patchingInfo.shaderSlot = it.first;
-				patchingInfo.inUseArrayOffset = (pShaderResourceViewsInUse ? pShaderResourceViewsInUse->size() : 0) - 1;
-				patchingInfo.bUnorderedAccess = false;
-				patchingInfo.pSrv = pSrv;
-			}
-		}
-		else
-		{
-			CCryDX12UnorderedAccessView* pUav = GET_DX12_UNORDERED_VIEW(pTexture);
-			descriptors.emplace_back(pUav->GetDX12View().GetDescriptorHandle());
-			if (bGatherResourcesInUse) pUnorderedAccessViewsInUse->emplace_back(pUav);
-			if (bGatherPatchingInfo)
-			{
-				pTexturePatchingInfo->emplace_back();
-				SResourcePatchingInfo& patchingInfo = pTexturePatchingInfo->back();
-
-				patchingInfo.descriptorTableOffset = (descriptors.size() - 1) * descriptorSize;
-				patchingInfo.shaderSlot = it.first;
-				patchingInfo.inUseArrayOffset = (pUnorderedAccessViewsInUse ? pUnorderedAccessViewsInUse->size() : 0) - 1;
-				patchingInfo.bUnorderedAccess = true;
-				patchingInfo.pUav = pUav;
-			}
+			case SResourceBindPoint::ESlotType::Sampler:
+			break;
 		}
 	}
 
-	for (const auto& it : m_Buffers)
-	{
-		auto sbData = it.second;
-		SResourceView::KeyType srvKey = sbData.view;
-		CGpuBuffer& buffer = sbData.resource;
-
-		const bool bBindAsSrv = SResourceView::IsShaderResourceView(srvKey);
-		if (!buffer.GetBuffer() || (bBindAsSrv && !buffer.GetSRV()) || (!bBindAsSrv && !buffer.GetDeviceUAV()))
-		{
-			CRY_ASSERT(false && "An invalid buffer has been added to the ResourceSet. You must either insert a null-buffer if this was intended, or fix the code that causes this.");
-			bValid = false;
-
-			if (bBindAsSrv)
-			{
-				auto nullDesc = GetNullSrvDesc(buffer);
-				pDevice->GetD3D12Device()->CreateShaderResourceView(nullptr, &nullDesc, descriptorScratchSpace.GetHandleOffsetCPU(0));
-			}
-			else
-			{
-				auto nullDesc = GetNullUavDesc(buffer);
-				pDevice->GetD3D12Device()->CreateUnorderedAccessView(nullptr, nullptr, &nullDesc, descriptorScratchSpace.GetHandleOffsetCPU(0));
-			}
-
-			descriptors.emplace_back(descriptorScratchSpace.GetHandleOffsetCPU(0));
-			descriptorScratchSpace.IncrementCursor();
-			continue;
-		}
-
-		// add to descriptor block
-		if (bBindAsSrv)
-		{
-			CCryDX12ShaderResourceView* pSrv = GET_DX12_BUFFER_VIEW(sbData.resource);
-			descriptors.emplace_back(pSrv->GetDX12View().GetDescriptorHandle());
-			if (bGatherResourcesInUse) pShaderResourceViewsInUse->emplace_back(pSrv);
-			if (bGatherPatchingInfo)
-			{
-				pBufferPatchingInfo->emplace_back();
-				SResourcePatchingInfo& patchingInfo = pBufferPatchingInfo->back();
-
-				patchingInfo.descriptorTableOffset = (descriptors.size() - 1) * descriptorSize;
-				patchingInfo.shaderSlot = it.first;
-				patchingInfo.inUseArrayOffset = (pShaderResourceViewsInUse ? pShaderResourceViewsInUse->size() : 0) - 1;
-				patchingInfo.bUnorderedAccess = false;
-				patchingInfo.pSrv = pSrv;
-			}
-		}
-		else
-		{
-			CCryDX12UnorderedAccessView* pUav = GET_DX12_UNORDERED_VIEW(&sbData.resource);
-			descriptors.emplace_back(pUav->GetDX12View().GetDescriptorHandle());
-			if (bGatherResourcesInUse) pUnorderedAccessViewsInUse->emplace_back(pUav);
-			if (bGatherPatchingInfo)
-			{
-				pBufferPatchingInfo->emplace_back();
-				SResourcePatchingInfo& patchingInfo = pBufferPatchingInfo->back();
-
-				patchingInfo.descriptorTableOffset = (descriptors.size() - 1) * descriptorSize;
-				patchingInfo.shaderSlot = it.first;
-				patchingInfo.inUseArrayOffset = (pUnorderedAccessViewsInUse ? pUnorderedAccessViewsInUse->size() : 0) - 1;
-				patchingInfo.bUnorderedAccess = true;
-				patchingInfo.pUav = pUav;
-			}
-		}
-	}
-
-	return bValid;
+	return true;
 }
 
 static const UINT DescriptorRangesOfOnes[256] = {
@@ -578,183 +392,7 @@ void CDeviceResourceSet_DX12::FillDescriptorBlock(
 	}
 }
 
-void CDeviceResourceSet_DX12::PatchDescriptors(CDescriptorBlock& descriptorScratchSpace)
-{
-	CRY_ASSERT((m_Flags & EFlags_Multibuffered) != 0 && m_DescriptorInfo.pDescriptorSet);
-	auto pDevice = GetDevice()->GetD3D12Device();
-	auto pDescriptors = m_DescriptorInfo.pDescriptorSet;
-
-	size_t dstDescriptorCount = pDescriptors->texturePatchingInfo.size() + pDescriptors->bufferPatchingInfo.size() + pDescriptors->constantBufferPatchingInfo.size();
-	size_t srcDescriptorCount = dstDescriptorCount;
-
-	CryStackAllocatorWithSizeVector(D3D12_CPU_DESCRIPTOR_HANDLE, dstDescriptorCount, dstDescriptorMem, NoAlign);
-	CryStackAllocatorWithSizeVector(D3D12_CPU_DESCRIPTOR_HANDLE, srcDescriptorCount, srcDescriptorMem, NoAlign);
-	StackDescriptorVector dstDescriptors(dstDescriptorMem);
-	StackDescriptorVector srcDescriptors(srcDescriptorMem);
-	dstDescriptors.reserve(dstDescriptorCount);
-	srcDescriptors.reserve(srcDescriptorCount);
-
-	for (auto& patchingInfo : pDescriptors->constantBufferPatchingInfo)
-	{
-		auto it = m_ConstantBuffers.find(patchingInfo.shaderSlot);
-		CRY_ASSERT(it != m_ConstantBuffers.end());
-
-		auto cbData = it->second;
-		CRY_ASSERT(cbData.resource && cbData.resource->m_buffer);
-
-		size_t start, length;
-		CCryDX12Buffer* constantBuffer = reinterpret_cast<CCryDX12Buffer*>(cbData.resource->GetD3D(&start, &length));
-
-		const NCryDX12::CView& pCBV = constantBuffer->GetDX12View();
-		assert(pCBV.GetType() == EVT_ConstantBufferView);
-
-		D3D12_CONSTANT_BUFFER_VIEW_DESC cbvDesc = pCBV.GetCBVDesc();
-		cbvDesc.BufferLocation += start;
-		cbvDesc.SizeInBytes = length > 0 ? length : cbvDesc.SizeInBytes - start;
-		cbvDesc.SizeInBytes = min(cbvDesc.SizeInBytes, D3D12_REQ_CONSTANT_BUFFER_ELEMENT_COUNT * NCryDX12::CONSTANT_BUFFER_ELEMENT_SIZE);
-
-		if (cbvDesc.BufferLocation != patchingInfo.desc.BufferLocation || cbvDesc.SizeInBytes != patchingInfo.desc.SizeInBytes)
-		{
-			pDevice->CreateConstantBufferView(&cbvDesc, descriptorScratchSpace.GetHandleOffsetCPU(0));
-			patchingInfo.desc = cbvDesc; // update patching info
-
-			srcDescriptors.emplace_back(descriptorScratchSpace.GetHandleOffsetCPU(0));
-			D3D12_CPU_DESCRIPTOR_HANDLE dstOffset = { patchingInfo.descriptorTableOffset };
-			dstDescriptors.emplace_back(dstOffset);
-
-			descriptorScratchSpace.IncrementCursor();
-		}
-	}
-
-	for (auto& patchingInfo : pDescriptors->bufferPatchingInfo)
-	{
-		auto it = m_Buffers.find(patchingInfo.shaderSlot);
-		CRY_ASSERT(it != m_Buffers.end());
-
-		auto& buffer = it->second.resource;
-		if (patchingInfo.bUnorderedAccess)
-		{
-			CCryDX12UnorderedAccessView* pUav = GET_DX12_UNORDERED_VIEW(&buffer);
-			CRY_ASSERT(pUav != nullptr);
-
-			if (pUav != patchingInfo.pUav)
-			{
-				srcDescriptors.emplace_back(pUav->GetDX12View().GetDescriptorHandle());
-				patchingInfo.pUav = pUav; // update patching info
-
-				D3D12_CPU_DESCRIPTOR_HANDLE dstOffset = { patchingInfo.descriptorTableOffset };
-				dstDescriptors.emplace_back(dstOffset);
-
-				CRY_ASSERT(patchingInfo.inUseArrayOffset >= 0 && patchingInfo.inUseArrayOffset < m_UnorderedAccessViewsInUse.size());
-				m_UnorderedAccessViewsInUse[patchingInfo.inUseArrayOffset] = pUav;
-			}
-		}
-		else
-		{
-			CCryDX12ShaderResourceView* pSrv = GET_DX12_BUFFER_VIEW(buffer);
-			CRY_ASSERT(pSrv != nullptr);
-
-			if (pSrv != patchingInfo.pSrv)
-			{
-				srcDescriptors.emplace_back(pSrv->GetDX12View().GetDescriptorHandle());
-				patchingInfo.pSrv = pSrv;
-
-				D3D12_CPU_DESCRIPTOR_HANDLE dstOffset = { patchingInfo.descriptorTableOffset };
-				dstDescriptors.emplace_back(dstOffset);
-
-				CRY_ASSERT(patchingInfo.inUseArrayOffset >= 0 && patchingInfo.inUseArrayOffset < m_ShaderResourceViewsInUse.size());
-				m_ShaderResourceViewsInUse[patchingInfo.inUseArrayOffset] = pSrv;
-			}
-		}
-	}
-
-	for (auto& patchingInfo : pDescriptors->texturePatchingInfo)
-	{
-		auto it = m_Textures.find(patchingInfo.shaderSlot);
-		CRY_ASSERT(it != m_Textures.end());
-
-		SResourceView::KeyType srvKey = it->second.view;
-		auto& texture = it->second.resource;
-		if (patchingInfo.bUnorderedAccess)
-		{
-			CCryDX12UnorderedAccessView* pUav = GET_DX12_UNORDERED_VIEW(texture);
-			CRY_ASSERT(pUav != nullptr);
-
-			if (pUav != patchingInfo.pUav)
-			{
-				srcDescriptors.emplace_back(pUav->GetDX12View().GetDescriptorHandle());
-				patchingInfo.pUav = pUav; // update patching info
-
-				D3D12_CPU_DESCRIPTOR_HANDLE dstOffset = { patchingInfo.descriptorTableOffset };
-				dstDescriptors.emplace_back(dstOffset);
-
-				CRY_ASSERT(patchingInfo.inUseArrayOffset >= 0 && patchingInfo.inUseArrayOffset < m_UnorderedAccessViewsInUse.size());
-				m_UnorderedAccessViewsInUse[patchingInfo.inUseArrayOffset] = pUav;
-			}
-		}
-		else
-		{
-			CCryDX12ShaderResourceView* pSrv = GET_DX12_TEXTURE_VIEW(texture, srvKey);
-			CRY_ASSERT(pSrv != nullptr);
-
-			if (pSrv != patchingInfo.pSrv)
-			{
-				srcDescriptors.emplace_back(pSrv->GetDX12View().GetDescriptorHandle());
-				patchingInfo.pSrv = pSrv;
-
-				D3D12_CPU_DESCRIPTOR_HANDLE dstOffset = { patchingInfo.descriptorTableOffset };
-				dstDescriptors.emplace_back(dstOffset);
-
-				CRY_ASSERT(patchingInfo.inUseArrayOffset >= 0 && patchingInfo.inUseArrayOffset < m_ShaderResourceViewsInUse.size());
-				m_ShaderResourceViewsInUse[patchingInfo.inUseArrayOffset] = pSrv;
-			}
-		}
-	}
-
-	if (!srcDescriptors.empty())
-	{
-		auto& allocator = pDescriptors->descriptorBlockAllocator;
-		allocator.Release(pDescriptors->pCurrentDescriptorBlock);
-
-		bool bNewBlock = false;
-		pDescriptors->pCurrentDescriptorBlock = allocator.Allocate(&bNewBlock);
-		m_DescriptorBlock = CDescriptorBlock(*pDescriptors->pCurrentDescriptorBlock);
-
-		if (bNewBlock)
-		{
-			const int descriptorCount = m_ConstantBuffers.size() + m_Textures.size() + m_Buffers.size();
-
-			CryStackAllocatorWithSizeVector(D3D12_CPU_DESCRIPTOR_HANDLE, descriptorCount, descriptorMem, NoAlign);
-			StackDescriptorVector descriptors(descriptorMem);
-			descriptors.reserve(descriptorCount);
-
-			GatherDescriptors<false, false>(descriptors, descriptorScratchSpace);
-			CRY_ASSERT(descriptors.size() == descriptorCount);
-			FillDescriptorBlock(descriptors, m_DescriptorBlock);
-		}
-		else
-		{
-			// patch base address of new block
-			const SIZE_T offset = m_DescriptorBlock.GetHandleOffsetCPU(0).ptr;
-			for (auto& descriptor : dstDescriptors)
-				descriptor.ptr += offset;
-
-			// Deal with unbound number of descriptors in chunks of 256
-			for (UINT i = 0,
-				srcSize = UINT(srcDescriptors.size()),
-				dstSize = UINT(srcDescriptors.size()),
-				chunkSize = CRY_ARRAY_COUNT(DescriptorRangesOfOnes); i < srcSize; i += chunkSize)
-			{
-				pDevice->CopyDescriptors(
-					std::min(srcSize - i, chunkSize), &dstDescriptors[i], &DescriptorRangesOfOnes[0],
-					std::min(dstSize - i, chunkSize), &srcDescriptors[i], &DescriptorRangesOfOnes[0],
-					D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-			}
-		}
-	}
-}
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
 class CDeviceResourceLayout_DX12 : public CDeviceResourceLayout
 {
 public:
@@ -773,146 +411,83 @@ protected:
 
 bool CDeviceResourceLayout_DX12::Init(const SDeviceResourceLayoutDesc& desc)
 {
-	// *INDENT-OFF* - code formatter doesn't work so well on lambdas
-	auto getShaderVisibility = [&](::EShaderStage shaderStages)
-	{
-		D3D12_SHADER_VISIBILITY shaderVisibility[eHWSC_Num + 1] =
-		{
-			D3D12_SHADER_VISIBILITY_VERTEX,     // eHWSC_Vertex
-			D3D12_SHADER_VISIBILITY_PIXEL,      // eHWSC_Pixel
-			D3D12_SHADER_VISIBILITY_GEOMETRY,   // eHWSC_Geometry
-			D3D12_SHADER_VISIBILITY_ALL,        // eHWSC_Compute
-			D3D12_SHADER_VISIBILITY_DOMAIN,     // eHWSC_Domain
-			D3D12_SHADER_VISIBILITY_HULL,       // eHWSC_Hull
-			D3D12_SHADER_VISIBILITY_ALL,        // eHWSC_Num
-		};
-
-		EHWShaderClass shaderClass = eHWSC_Num;
-
-		if ((int(shaderStages) & (int(shaderStages)-1)) == 0) // only bound to a single shader stage?
-		{
-			for (shaderClass = eHWSC_Vertex; shaderClass != eHWSC_Num; shaderClass = EHWShaderClass(shaderClass+1))
-			{
-				if (shaderStages & SHADERSTAGE_FROM_SHADERCLASS(shaderClass))
-					break;
-			}
-		}
-
-		return shaderVisibility[shaderClass];
-	};
-	// *INDENT-ON*
-
 	SResourceMappings resourceMappings;
 
-	// inline constants
-	if (desc.m_InlineConstantCount > 0)
+	for (auto& itLayoutBinding : desc.m_resourceBindings)
 	{
-		resourceMappings.m_RootParameters[0].InitAsConstants(desc.m_InlineConstantCount, InlineConstantsShaderSlot);
+		const SDeviceResourceLayoutDesc::SLayoutBindPoint& layoutBindPoint = itLayoutBinding.first;
 
-		++resourceMappings.m_NumRootParameters;
-
-		assert(resourceMappings.m_NumRootParameters <= 64);
-	}
-
-	// inline constant buffers
-	for (auto it : desc.m_ConstantBuffers)
-	{
-		const int bindSlot = it.first;
-		const SDeviceResourceLayoutDesc::SInlineConstantBuffer& cb = it.second;
-
-		resourceMappings.m_RootParameters[bindSlot].InitAsConstantBufferView(cb.shaderSlot, 0, getShaderVisibility(cb.shaderStages));
-
-		++resourceMappings.m_NumRootParameters;
-
-		assert(resourceMappings.m_NumRootParameters <= 64);
-	}
-
-	// descriptor table resource sets
-	for (auto itRS : desc.m_ResourceSets)
-	{
-		const int bindSlot = itRS.first;
-		CDeviceResourceSet* pResourceSet = itRS.second.get();
-		auto shaderVisibility = getShaderVisibility(pResourceSet->GetShaderStages());
-
-		uint32 startDesc = resourceMappings.m_DescRangeCursor;
-		uint32 tableOffset = 0;
-
-		for (auto itCB : pResourceSet->m_ConstantBuffers)
+		switch (layoutBindPoint.slotType)
 		{
-			const DeviceResourceBinding::SShaderSlot slot = itCB.first;
+			case SDeviceResourceLayoutDesc::ELayoutSlotType::InlineConstantBuffer:
+			{
+				const SResourceBindPoint& resourceBindPoint = itLayoutBinding.second.begin()->first;
 
-			CD3DX12_DESCRIPTOR_RANGE cbDescRange(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1, slot.slotNumber, 0, tableOffset);
-			resourceMappings.m_DescRanges[resourceMappings.m_DescRangeCursor] = cbDescRange;
+				resourceMappings.m_RootParameters[layoutBindPoint.layoutSlot].InitAsConstantBufferView(
+					resourceBindPoint.slotNumber, 0, GetShaderVisibility(resourceBindPoint.stages));
 
-			++resourceMappings.m_DescRangeCursor;
-			++tableOffset;
+				++resourceMappings.m_NumRootParameters;
+			}
+			break;
 
-			assert(resourceMappings.m_DescRangeCursor <= 128);
-		}
+			case SDeviceResourceLayoutDesc::ELayoutSlotType::ResourceSet:
+			{
+				int descriptorCount = 0;
+				int descriptorRangeStart = resourceMappings.m_DescRangeCursor;
 
-		for (auto itTex : pResourceSet->m_Textures)
-		{
-			const DeviceResourceBinding::SShaderSlot slot = itTex.first;
-			SResourceView::KeyType viewKey = itTex.second.view;
+				::EShaderStage shaderStages = EShaderStage_None;
 
-			auto rangeType = SResourceView::IsShaderResourceView(viewKey) ? D3D12_DESCRIPTOR_RANGE_TYPE_SRV : D3D12_DESCRIPTOR_RANGE_TYPE_UAV;
-			CD3DX12_DESCRIPTOR_RANGE texDescRange(rangeType, 1, slot.slotNumber, 0, tableOffset);
-			resourceMappings.m_DescRanges[resourceMappings.m_DescRangeCursor] = texDescRange;
+				for (auto itResource : itLayoutBinding.second)
+				{
+					const SResourceBindPoint& resourceBindPoint = itResource.first;
+					const SResourceBinding&   resourceBinding = itResource.second;
 
-			++resourceMappings.m_DescRangeCursor;
-			++tableOffset;
+					if (itResource.first.slotType == SResourceBindPoint::ESlotType::Sampler)
+					{
+						const NCryDX12::CSamplerState& samplerState = GET_DX12_SAMPLERSTATE(resourceBinding.samplerState)->GetDX12SamplerState();
 
-			assert(resourceMappings.m_DescRangeCursor <= 128);
-		}
+						// copy parameters from sampler desc first
+						auto samplerDesc = samplerState.GetSamplerDesc();
+						memcpy(&resourceMappings.m_StaticSamplers[resourceMappings.m_NumStaticSamplers], &samplerDesc, sizeof(samplerDesc));
 
-		for (auto itBuffer : pResourceSet->m_Buffers)
-		{
-			const DeviceResourceBinding::SShaderSlot slot = itBuffer.first;
-			SResourceView::KeyType viewKey = itBuffer.second.view;
+						// fill in remaining parameters
+						auto& staticSamplerDesc = resourceMappings.m_StaticSamplers[resourceMappings.m_NumStaticSamplers];
+						staticSamplerDesc.BorderColor = D3D12_STATIC_BORDER_COLOR_OPAQUE_BLACK;
+						staticSamplerDesc.MinLOD = samplerDesc.MinLOD;
+						staticSamplerDesc.MaxLOD = samplerDesc.MaxLOD;
+						staticSamplerDesc.ShaderRegister = resourceBindPoint.slotNumber;
+						staticSamplerDesc.RegisterSpace = 0;
+						staticSamplerDesc.ShaderVisibility = GetShaderVisibility(resourceBindPoint.stages);
 
-			auto rangeType = SResourceView::IsShaderResourceView(viewKey) ? D3D12_DESCRIPTOR_RANGE_TYPE_SRV : D3D12_DESCRIPTOR_RANGE_TYPE_UAV;
-			CD3DX12_DESCRIPTOR_RANGE bufferDescRange(rangeType, 1, slot.slotNumber, 0, tableOffset);
-			resourceMappings.m_DescRanges[resourceMappings.m_DescRangeCursor] = bufferDescRange;
+						++resourceMappings.m_NumStaticSamplers;
 
-			++resourceMappings.m_DescRangeCursor;
-			++tableOffset;
+						CRY_ASSERT(resourceMappings.m_NumStaticSamplers <= CRY_ARRAY_COUNT(resourceMappings.m_StaticSamplers));
+					}
+					else
+					{
+						shaderStages |= resourceBindPoint.stages;
 
-			assert(resourceMappings.m_DescRangeCursor <= 128);
-		}
+						resourceMappings.m_DescRanges[resourceMappings.m_DescRangeCursor++] = GetDescriptorRange(resourceBindPoint, descriptorCount);
+						CRY_ASSERT(resourceMappings.m_DescRangeCursor < CRY_ARRAY_COUNT(resourceMappings.m_DescRanges));
 
-		if ((resourceMappings.m_DescRangeCursor - startDesc) > 0)
-		{
-			resourceMappings.m_RootParameters[bindSlot].InitAsDescriptorTable(
-			  resourceMappings.m_DescRangeCursor - startDesc, &resourceMappings.m_DescRanges[startDesc], shaderVisibility);
+						++descriptorCount;
+					}
+				}
 
-			++resourceMappings.m_NumRootParameters;
+				if (descriptorCount > 0)
+				{
+					resourceMappings.m_RootParameters[layoutBindPoint.layoutSlot].InitAsDescriptorTable(
+						resourceMappings.m_DescRangeCursor - descriptorRangeStart, &resourceMappings.m_DescRanges[descriptorRangeStart], GetShaderVisibility(shaderStages));
 
-			assert(resourceMappings.m_NumRootParameters <= 64);
-		}
+					++resourceMappings.m_NumRootParameters;
 
-		for (auto itSampler : pResourceSet->m_Samplers)
-		{
-			const DeviceResourceBinding::SShaderSlot slot = itSampler.first;
-			const CDeviceResourceSet::SSamplerData& samplerData = itSampler.second;
+					CRY_ASSERT(resourceMappings.m_NumRootParameters <= CRY_ARRAY_COUNT(resourceMappings.m_RootParameters));
+				}
+			}
+			break;
 
-			const NCryDX12::CSamplerState& State = GET_DX12_SAMPLER(CTexture::s_TexStates[samplerData.resource])->GetDX12SamplerState();
-			auto samplerDesc = State.GetSamplerDesc();
-
-			// copy parameters from sampler desc first
-			memcpy(&resourceMappings.m_StaticSamplers[resourceMappings.m_NumStaticSamplers], &samplerDesc, sizeof(samplerDesc));
-
-			// fill in remaining parameters
-			auto& staticSamplerDesc = resourceMappings.m_StaticSamplers[resourceMappings.m_NumStaticSamplers];
-			staticSamplerDesc.BorderColor = D3D12_STATIC_BORDER_COLOR_OPAQUE_BLACK;
-			staticSamplerDesc.MinLOD = samplerDesc.MinLOD;
-			staticSamplerDesc.MaxLOD = samplerDesc.MaxLOD;
-			staticSamplerDesc.ShaderRegister = slot.slotNumber;
-			staticSamplerDesc.RegisterSpace = 0;
-			staticSamplerDesc.ShaderVisibility = shaderVisibility;
-
-			++resourceMappings.m_NumStaticSamplers;
-
-			assert(resourceMappings.m_NumStaticSamplers <= 16);
+			default: 
+				CRY_ASSERT(false);
 		}
 	}
 
@@ -930,36 +505,38 @@ public:
 		: m_pDevice(pDevice)
 	{}
 
-	virtual bool             Init(const CDeviceGraphicsPSODesc& desc) final;
+	virtual EInitResult      Init(const CDeviceGraphicsPSODesc& desc) final;
 
 	CGraphicsPSO*            GetGraphicsPSO() const       { return m_pGraphicsPSO.get(); }
 	D3D12_PRIMITIVE_TOPOLOGY GetPrimitiveTopology() const { return m_PrimitiveTopology; }
 
 protected:
-	SOnDemandD3DVertexDeclaration m_InputLayout;
-	D3D12_PRIMITIVE_TOPOLOGY      m_PrimitiveTopology;
+	const SInputLayout*      m_pInputLayout;
+	D3D12_PRIMITIVE_TOPOLOGY m_PrimitiveTopology;
 
 	DX12_PTR(CDevice) m_pDevice;
 	DX12_PTR(CGraphicsPSO) m_pGraphicsPSO;
 };
 
-bool CDeviceGraphicsPSO_DX12::Init(const CDeviceGraphicsPSODesc& psoDesc)
+CDeviceGraphicsPSO::EInitResult CDeviceGraphicsPSO_DX12::Init(const CDeviceGraphicsPSODesc& psoDesc)
 {
 	m_bValid = false;
 	m_nUpdateCount++;
 
 	if (psoDesc.m_pResourceLayout == NULL)
-		return false;
+		return EInitResult::Failure;
+
+	const CDeviceRenderPassDesc* pRenderPassDesc = GetDeviceObjectFactory().GetRenderPassDesc(psoDesc.m_pRenderPass.get());
+	if (!pRenderPassDesc)
+		return EInitResult::Failure;
 
 	auto hwShaders = SDeviceObjectHelpers::GetShaderInstanceInfo(psoDesc.m_pShader, psoDesc.m_technique, psoDesc.m_ShaderFlags_RT, psoDesc.m_ShaderFlags_MD, psoDesc.m_ShaderFlags_MDV, nullptr, psoDesc.m_bAllowTesselation);
 	// validate shaders first
 	for (EHWShaderClass shaderClass = eHWSC_Vertex; shaderClass < eHWSC_Num; shaderClass = EHWShaderClass(shaderClass + 1))
 	{
 		if (hwShaders[shaderClass].pHwShader && hwShaders[shaderClass].pHwShaderInstance == NULL)
-			return false;
+			return EInitResult::Failure;
 
-		// TODO: remove
-		m_pHwShaders[shaderClass] = hwShaders[shaderClass].pHwShader;
 		m_pHwShaderInstances[shaderClass] = hwShaders[shaderClass].pHwShaderInstance;
 	}
 
@@ -973,7 +550,24 @@ bool CDeviceGraphicsPSO_DX12::Init(const CDeviceGraphicsPSODesc& psoDesc)
 	ZeroStruct(psoInitParams);
 
 	// root signature
-	psoInitParams.m_Desc.pRootSignature = reinterpret_cast<CDeviceResourceLayout_DX12*>(psoDesc.m_pResourceLayout)->GetRootSignature()->GetD3D12RootSignature();
+	psoInitParams.m_Desc.pRootSignature = reinterpret_cast<CDeviceResourceLayout_DX12*>(psoDesc.m_pResourceLayout.get())->GetRootSignature()->GetD3D12RootSignature();
+
+	// rendertarget formats
+	{
+		
+		const auto& renderTargets = pRenderPassDesc->GetRenderTargets();
+
+		for (int i = 0; i < renderTargets.size(); ++i)
+		{
+			if (!renderTargets[i].pTexture)
+				break;
+
+			psoInitParams.m_Desc.RTVFormats[psoInitParams.m_Desc.NumRenderTargets++] = renderTargets[i].GetResourceFormat();
+		}
+
+		if (pRenderPassDesc->GetDepthTarget().pTexture)
+			psoInitParams.m_Desc.DSVFormat = pRenderPassDesc->GetDepthTarget().GetResourceFormat();
+	}
 
 	// blend state
 	{
@@ -982,7 +576,7 @@ bool CDeviceGraphicsPSO_DX12::Init(const CDeviceGraphicsPSODesc& psoDesc)
 
 		for (int i = 0; i < CRY_ARRAY_COUNT(blendDesc.RenderTarget); ++i)
 		{
-			uint32 RenderTargetWriteMask = i < psoDesc.m_RenderTargetFormats.size() ? CTexture::WriteMaskFromTexFormat(psoDesc.m_RenderTargetFormats[i]) : 0;
+			uint32 RenderTargetWriteMask = i < psoInitParams.m_Desc.NumRenderTargets ? DeviceFormats::GetWriteMask(psoInitParams.m_Desc.RTVFormats[i]) : 0;
 
 			psoInitParams.m_Desc.BlendState.RenderTarget[i].BlendEnable = blendDesc.RenderTarget[i].BlendEnable;
 			psoInitParams.m_Desc.BlendState.RenderTarget[i].LogicOpEnable = false;
@@ -1019,6 +613,9 @@ bool CDeviceGraphicsPSO_DX12::Init(const CDeviceGraphicsPSODesc& psoDesc)
 	psoInitParams.m_Desc.SampleDesc.Count = 1;
 	// primitive topology
 	{
+		if (!ValidateShadersAndTopologyCombination(psoDesc, m_pHwShaderInstances))
+			return EInitResult::ErrorShadersAndTopologyCombination;
+
 		m_PrimitiveTopology = gcpRendD3D->FX_ConvertPrimitiveType(psoDesc.m_PrimitiveType);
 
 		struct
@@ -1052,46 +649,31 @@ bool CDeviceGraphicsPSO_DX12::Init(const CDeviceGraphicsPSODesc& psoDesc)
 	}
 
 	// input layout
-	m_InputLayout.m_Declaration.SetUse(0);
-	if (psoDesc.m_VertexFormat != eVF_Unknown)
+	if (psoDesc.m_VertexFormat != EDefaultInputLayouts::Empty)
 	{
+		if (psoDesc.m_VertexFormat == EDefaultInputLayouts::Unspecified)
+			return EInitResult::Failure;
+
 		if (CHWShader_D3D::SHWSInstance* pVsInstance = reinterpret_cast<CHWShader_D3D::SHWSInstance*>(hwShaders[eHWSC_Vertex].pHwShaderInstance))
 		{
-			uint8 streamMask = psoDesc.CombineVertexStreamMasks(uint8(pVsInstance->m_VStreamMask_Decl), psoDesc.m_ObjectStreamMask);
+			uint32 streamMask = psoDesc.CombineVertexStreamMasks(uint8(pVsInstance->m_VStreamMask_Decl), psoDesc.m_ObjectStreamMask);
 
-			const bool bMorph = false;
-			const bool bInstanced = (streamMask & VSM_INSTANCED) != 0;
-
-			gcpRendD3D->m_RP.OnDemandVertexDeclaration(m_InputLayout, streamMask >> 1, psoDesc.m_VertexFormat, bMorph, bInstanced);
+			m_pInputLayout = &CDeviceObjectFactory::LookupInputLayout(CDeviceObjectFactory::GetOrCreateInputLayoutHandle(&pVsInstance->m_Shader, streamMask, 0, 0, nullptr, psoDesc.m_VertexFormat)).first;
 
 			// D3D12_INPUT_ELEMENT_DESC := D3D11_INPUT_ELEMENT_DESC
-			psoInitParams.m_Desc.InputLayout.pInputElementDescs = reinterpret_cast<D3D12_INPUT_ELEMENT_DESC*>(&m_InputLayout.m_Declaration[0]);
-			psoInitParams.m_Desc.InputLayout.NumElements = m_InputLayout.m_Declaration.size();
+			psoInitParams.m_Desc.InputLayout.pInputElementDescs = reinterpret_cast<const D3D12_INPUT_ELEMENT_DESC*>(&m_pInputLayout->m_Declaration[0]);
+			psoInitParams.m_Desc.InputLayout.NumElements = m_pInputLayout->m_Declaration.size();
 		}
 	}
 
-	// render targets
-	for (int i = 0; i < psoDesc.m_RenderTargetFormats.size(); ++i)
-	{
-		psoInitParams.m_Desc.RTVFormats[i] = DXGI_FORMAT_UNKNOWN;
-
-		if (psoDesc.m_RenderTargetFormats[i] != eTF_Unknown)
-		{
-			psoInitParams.m_Desc.RTVFormats[i] = CTexture::DeviceFormatFromTexFormat(psoDesc.m_RenderTargetFormats[i]);
-			psoInitParams.m_Desc.NumRenderTargets = i + 1;
-		}
-	}
-
-	if (psoDesc.m_DepthStencilFormat != eTF_Unknown)
-		psoInitParams.m_Desc.DSVFormat = CTexture::DeviceFormatFromTexFormat(psoDesc.m_DepthStencilFormat);
-
-	#if defined(ENABLE_PROFILING_CODE)
+#if defined(ENABLE_PROFILING_CODE)
 	m_PrimitiveTypeForProfiling = psoDesc.m_PrimitiveType;
-	#endif
+#endif
 
 	m_pDevice->GetPSOCache().GetOrCreatePSO(psoInitParams, m_pGraphicsPSO);
 
-	return (m_bValid = (m_pGraphicsPSO != nullptr));
+	m_bValid = (m_pGraphicsPSO != nullptr);
+	return (m_bValid ? EInitResult::Success : EInitResult::Failure);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1117,6 +699,7 @@ protected:
 bool CDeviceComputePSO_DX12::Init(const CDeviceComputePSODesc& psoDesc)
 {
 	m_bValid = false;
+	m_nUpdateCount++;
 
 	if (psoDesc.m_pResourceLayout == NULL)
 		return false;
@@ -1127,8 +710,6 @@ bool CDeviceComputePSO_DX12::Init(const CDeviceComputePSODesc& psoDesc)
 	if (hwShaders[eHWSC_Compute].pHwShader && hwShaders[eHWSC_Compute].pHwShaderInstance == NULL)
 		return false;
 
-	// TODO: remove
-	m_pHwShader = hwShaders[eHWSC_Compute].pHwShader;
 	m_pHwShaderInstance = hwShaders[eHWSC_Compute].pHwShaderInstance;
 
 	// prepare pso init params
@@ -1136,7 +717,7 @@ bool CDeviceComputePSO_DX12::Init(const CDeviceComputePSODesc& psoDesc)
 	ZeroStruct(psoInitParams);
 
 	// root signature
-	psoInitParams.m_Desc.pRootSignature = reinterpret_cast<CDeviceResourceLayout_DX12*>(psoDesc.m_pResourceLayout)->GetRootSignature()->GetD3D12RootSignature();
+	psoInitParams.m_Desc.pRootSignature = reinterpret_cast<CDeviceResourceLayout_DX12*>(psoDesc.m_pResourceLayout.get())->GetRootSignature()->GetD3D12RootSignature();
 
 	// *INDENT-OFF*
 	auto extractShaderBytecode = [&](EHWShaderClass shaderClass)
@@ -1174,7 +755,7 @@ CDeviceTimestampGroup::~CDeviceTimestampGroup()
 
 void CDeviceTimestampGroup::Init()
 {
-	gcpRendD3D->m_DevMan.CreateFence(m_fence);
+	GetDeviceObjectFactory().CreateFence(m_fence);
 	m_numTimestamps = 0;
 
 	m_groupIndex = 0xFFFFFFFF;
@@ -1198,7 +779,7 @@ void CDeviceTimestampGroup::BeginMeasurement()
 
 void CDeviceTimestampGroup::EndMeasurement()
 {
-	gcpRendD3D->m_DevMan.IssueFence(m_fence);
+	GetDeviceObjectFactory().IssueFence(m_fence);
 
 	CCryDX12DeviceContext* m_pDeviceContext = (CCryDX12DeviceContext*)gcpRendD3D->GetDeviceContext().GetRealDeviceContext();
 	m_frequency = m_pDeviceContext->GetTimestampFrequency();
@@ -1222,7 +803,7 @@ bool CDeviceTimestampGroup::ResolveTimestamps()
 	if (m_numTimestamps == 0)
 		return true;
 
-	if (gcpRendD3D->m_DevMan.SyncFence(m_fence, false, true) != S_OK)
+	if (GetDeviceObjectFactory().SyncFence(m_fence, false, true) != S_OK)
 		return false;
 
 	CCryDX12DeviceContext* m_pDeviceContext = (CCryDX12DeviceContext*)gcpRendD3D->GetDeviceContext().GetRealDeviceContext();
@@ -1233,24 +814,100 @@ bool CDeviceTimestampGroup::ResolveTimestamps()
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+bool CDeviceRenderPass::UpdateImpl(const CDeviceRenderPassDesc& passDesc)
+{
+	if (!passDesc.GetDeviceRendertargetViews(m_RenderTargetViews, m_RenderTargetCount))
+		return false;
+
+	if (!passDesc.GetDeviceDepthstencilView(m_pDepthStencilView))
+		return false;
+
+	return true;
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 void CDeviceCommandListImpl::SetProfilerMarker(const char* label)
 {
 #if defined(ENABLE_FRAME_PROFILER_LABELS)
-	PIXSetMarker(m_sharedState.pCommandList->GetD3D12CommandList(), 0, label);
+	PIXSetMarker(GetDX12CommandList()->GetD3D12CommandList(), 0, label);
 #endif
 }
 
 void CDeviceCommandListImpl::BeginProfilerEvent(const char* label)
 {
 #if defined(ENABLE_FRAME_PROFILER_LABELS)
-	PIXBeginEvent(m_sharedState.pCommandList->GetD3D12CommandList(), 0, label);
+	m_profilerEventStack.push_back(label);
+	PIXBeginEvent(GetDX12CommandList()->GetD3D12CommandList(), 0, label);
 #endif
 }
 
 void CDeviceCommandListImpl::EndProfilerEvent(const char* label)
 {
 #if defined(ENABLE_FRAME_PROFILER_LABELS)
-	PIXEndEvent(m_sharedState.pCommandList->GetD3D12CommandList());
+	PIXEndEvent(GetDX12CommandList()->GetD3D12CommandList());
+	m_profilerEventStack.pop_back();
+#endif
+}
+
+void CDeviceCommandListImpl::ClearStateImpl(bool bOutputMergerOnly) const
+{
+	// TODO: remove when r_GraphicsPipeline=0 algorithms don't exist anymore (and no emulated device-context is used)
+	CD3D9Renderer* const __restrict rd = gcpRendD3D;
+
+	D3DDepthSurface* pDSV = 0;
+	D3DSurface*      pRTVs[D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT] = { 0 };
+	D3DUAV*          pUAVs[D3D11_PS_CS_UAV_REGISTER_COUNT] = { 0 };
+
+	if (bOutputMergerOnly)
+		rd->GetDeviceContext().OMSetRenderTargets/*AndUnorderedAccessViews*/(D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT, pRTVs, pDSV/*, 0, D3D11_PS_CS_UAV_REGISTER_COUNT, pUAVs, nullptr*/);
+	else
+		rd->GetDeviceContext().ClearState();
+}
+
+static auto lambdaCeaseCallback = [](void* cmd, uint nPoolId)
+{
+	reinterpret_cast<CDeviceCommandListImpl*>(cmd)->CeaseCommandListEvent(nPoolId);
+};
+
+static auto lambdaResumeCallback = [](void* cmd, uint nPoolId)
+{
+	reinterpret_cast<CDeviceCommandListImpl*>(cmd)->ResumeCommandListEvent(nPoolId);
+};
+
+void CDeviceCommandListImpl::CeaseCommandListEvent(int nPoolId)
+{
+	if (nPoolId != CMDQUEUE_GRAPHICS)
+		return;
+
+	auto* pCommandList = GetScheduler()->GetCommandList(nPoolId);
+	CRY_ASSERT(m_sharedState.pCommandList == pCommandList || m_sharedState.pCommandList == nullptr);
+	m_sharedState.pCommandList = nullptr;
+
+#if defined(ENABLE_FRAME_PROFILER_LABELS)
+	for (auto pEventLabel : m_profilerEventStack)
+	{
+		PIXEndEvent(pCommandList->GetD3D12CommandList());
+	}
+#endif
+
+	reinterpret_cast<CDeviceCommandList*>(this)->Reset();
+}
+
+void CDeviceCommandListImpl::ResumeCommandListEvent(int nPoolId)
+{
+	if (nPoolId != CMDQUEUE_GRAPHICS)
+		return;
+
+	auto* pCommandList = GetScheduler()->GetCommandList(nPoolId);
+	CRY_ASSERT(m_sharedState.pCommandList == nullptr);
+	m_sharedState.pCommandList = pCommandList;
+
+#if defined(ENABLE_FRAME_PROFILER_LABELS)
+	for (auto pEventLabel : m_profilerEventStack)
+	{
+		PIXBeginEvent(pCommandList->GetD3D12CommandList(), 0, pEventLabel);
+	}
 #endif
 }
 
@@ -1261,7 +918,8 @@ void CDeviceCommandListImpl::ResetImpl()
 
 void CDeviceCommandListImpl::LockToThreadImpl()
 {
-	NCryDX12::CCommandList* pCommandListDX12 = m_sharedState.pCommandList;
+	NCryDX12::CCommandList* pCommandListDX12 = GetDX12CommandList();
+
 	pCommandListDX12->Begin();
 	pCommandListDX12->SetResourceAndSamplerStateHeaps();
 }
@@ -1269,84 +927,105 @@ void CDeviceCommandListImpl::LockToThreadImpl()
 void CDeviceCommandListImpl::CloseImpl()
 {
 	FUNCTION_PROFILER_RENDERER
-	m_sharedState.pCommandList->End();
+	GetDX12CommandList()->End();
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-void CDeviceGraphicsCommandInterfaceImpl::PrepareUAVsForUseImpl(uint32 viewCount, CGpuBuffer** pViews) const
+void CDeviceGraphicsCommandInterfaceImpl::PrepareUAVsForUseImpl(uint32 viewCount, CGpuBuffer** pViews, bool bCompute) const
 {
-	NCryDX12::CCommandList* pCommandListDX12 = m_sharedState.pCommandList;
+	NCryDX12::CCommandList* pCommandListDX12 = GetDX12CommandList();
 
 	for (int v = 0; v < viewCount; ++v)
 	{
-		const NCryDX12::CView& View = reinterpret_cast<CCryDX12UnorderedAccessView*>(pViews[v]->GetDeviceUAV())->GetDX12View();
-		NCryDX12::CResource& Resource = View.GetDX12Resource();
-		const D3D12_RESOURCE_STATES desiredState = D3D12_RESOURCE_STATE_UNORDERED_ACCESS;
-
-		if (Resource.InitHasBeenDeferred())
+		if (CDeviceBuffer* pDevBuf = pViews[v]->GetDevBuffer())
 		{
-			Resource.InitDeferred(pCommandListDX12, desiredState);
+			// TODO: ResourceViewHandles[]
+			const NCryDX12::CView& View = GET_DX12_UNORDERED_VIEW(pDevBuf, EDefaultResourceViews::UnorderedAccess)->GetDX12View();
+			NCryDX12::CResource& Resource = View.GetDX12Resource();
+			const D3D12_RESOURCE_STATES desiredState =
+				bCompute 
+				? D3D12_RESOURCE_STATE_UNORDERED_ACCESS 
+				: D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE;
+
+			if (Resource.InitHasBeenDeferred())
+			{
+				Resource.InitDeferred(pCommandListDX12, desiredState | D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+			}
+
+			assert(!((pCommandListDX12->GetD3D12ListType() != D3D12_COMMAND_LIST_TYPE_DIRECT) && (Resource.GetTargetState() & D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE) && (!Resource.IsOffCard())));
+
+			pCommandListDX12->PrepareResourceUAVUsage(Resource, View, desiredState);
 		}
-
-		assert(!((pCommandListDX12->GetD3D12ListType() != D3D12_COMMAND_LIST_TYPE_DIRECT) && (Resource.GetTargetState() & D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE) && (!Resource.IsOffCard())));
-
-		pCommandListDX12->PrepareResourceUAVUsage(Resource, View, desiredState);
 	}
 }
 
-void CDeviceGraphicsCommandInterfaceImpl::PrepareRenderTargetsForUseImpl(uint32 targetCount, CTexture** pTargets, SDepthTexture* pDepthTarget, const SResourceView::KeyType* pRenderTargetViews /*= nullptr*/) const
+void CDeviceGraphicsCommandInterfaceImpl::PrepareRenderPassForUseImpl(CDeviceRenderPass& renderPass) const
 {
-	NCryDX12::CCommandList* pCommandListDX12 = m_sharedState.pCommandList;
+	NCryDX12::CCommandList* pCommandListDX12 = GetDX12CommandList();
 
-	// Get current depth stencil views
-	if (pDepthTarget)
+	if (renderPass.m_pDepthStencilView)
 	{
-		const NCryDX12::CView& View = GET_DX12_DEPTHSTENCIL_VIEW(pDepthTarget)->GetDX12View();
+		const NCryDX12::CView& View   = renderPass.m_pDepthStencilView->GetDX12View();
 		NCryDX12::CResource& Resource = View.GetDX12Resource();
-		const D3D12_RESOURCE_STATES desiredState = Resource.GetDesc().Flags & D3D11_DSV_READ_ONLY_DEPTH ? D3D12_RESOURCE_STATE_DEPTH_READ : D3D12_RESOURCE_STATE_DEPTH_WRITE;
+
+		D3D11_DEPTH_STENCIL_VIEW_DESC Desc; renderPass.m_pDepthStencilView->GetDesc(&Desc);
+		const D3D12_RESOURCE_STATES desiredState = Desc.Flags & D3D11_DSV_READ_ONLY_DEPTH ? D3D12_RESOURCE_STATE_DEPTH_READ : D3D12_RESOURCE_STATE_DEPTH_WRITE;
 
 		pCommandListDX12->PrepareResourceDSVUsage(Resource, View, desiredState);
 	}
 
 	// Get current render target views
-	for (int i = 0; i < targetCount; ++i)
+	for (int i = 0; i < renderPass.m_RenderTargetCount; ++i)
 	{
-		if (pTargets[i])
-		{
-			const bool bHasCustomView = pRenderTargetViews && pRenderTargetViews[i] != SResourceView::DefaultRendertargetView;
-			const SResourceView::KeyType rtvKey = bHasCustomView ? pRenderTargetViews[i] : SResourceView::RenderTargetView(pTargets[i]->GetDstFormat()).m_Desc.Key;
-			CRY_ASSERT(SResourceView::IsRenderTargetView(rtvKey));
+		const NCryDX12::CView& View   = renderPass.m_RenderTargetViews[i]->GetDX12View();
+		NCryDX12::CResource& Resource = View.GetDX12Resource(); Resource.VerifyBackBuffer();
 
-			const NCryDX12::CView& UnpatchedView = GET_DX12_RENDERTARGET_VIEW(pTargets[i], rtvKey)->GetDX12View();
-			const NCryDX12::CView& View = pCommandListDX12->PatchRenderTargetView(UnpatchedView);
-			NCryDX12::CResource& Resource = View.GetDX12Resource();
-			const D3D12_RESOURCE_STATES desiredState = D3D12_RESOURCE_STATE_RENDER_TARGET;
+		const D3D12_RESOURCE_STATES desiredState = D3D12_RESOURCE_STATE_RENDER_TARGET;
 
-			pCommandListDX12->PrepareResourceRTVUsage(Resource, View, desiredState);
-		}
+		pCommandListDX12->PrepareResourceRTVUsage(Resource, View, desiredState);
 	}
 }
 
-void CDeviceGraphicsCommandInterfaceImpl::PrepareResourcesForUseImpl(uint32 bindSlot, CDeviceResourceSet* pResources, ::EShaderStage srvUsage) const
+void CDeviceGraphicsCommandInterfaceImpl::PrepareResourceForUseImpl(uint32 bindSlot, CTexture* pTexture, const ResourceViewHandle TextureView, ::EShaderStage srvUsage) const
 {
 	CRY_ASSERT(bindSlot <= EResourceLayoutSlot_Max);
 
-	NCryDX12::CCommandList* pCommandListDX12 = m_sharedState.pCommandList;
-	CDeviceResourceSet_DX12* pResourcesDX12 = reinterpret_cast<CDeviceResourceSet_DX12*>(pResources);
+	NCryDX12::CCommandList* pCommandListDX12 = GetDX12CommandList();
 
-	if (pResourcesDX12->m_Flags & CDeviceResourceSet::EFlags_Multibuffered)
+	CCryDX12ShaderResourceView* it = GET_DX12_SHADER_VIEW(pTexture->GetDevTexture(), TextureView);
 	{
-		pResourcesDX12->PatchDescriptors(GetDevice()->GetResourceDescriptorScratchSpace());
+		const NCryDX12::CView& View = it->GetDX12View();
+		NCryDX12::CResource& Resource = View.GetDX12Resource();
+		const D3D12_RESOURCE_STATES desiredState =
+			(srvUsage &  EShaderStage_Pixel ? D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE     : D3D12_RESOURCE_STATE_COMMON) |
+			(srvUsage & ~EShaderStage_Pixel ? D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE : D3D12_RESOURCE_STATE_COMMON);
+
+		if (Resource.InitHasBeenDeferred())
+		{
+			Resource.InitDeferred(pCommandListDX12, desiredState | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+		}
+
+		assert(!((pCommandListDX12->GetD3D12ListType() != D3D12_COMMAND_LIST_TYPE_DIRECT) && (Resource.GetTargetState() & D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE) && !(Resource.GetTargetState() & D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE) && (!Resource.IsOffCard())));
+
+		pCommandListDX12->PrepareResourceSRVUsage(Resource, View, desiredState);
 	}
+}
+
+void CDeviceGraphicsCommandInterfaceImpl::PrepareResourcesForUseImpl(uint32 bindSlot, CDeviceResourceSet* pResources) const
+{
+	CRY_ASSERT(bindSlot <= EResourceLayoutSlot_Max);
+
+	NCryDX12::CCommandList* pCommandListDX12 = GetDX12CommandList();
+	CDeviceResourceSet_DX12* pResourcesDX12 = reinterpret_cast<CDeviceResourceSet_DX12*>(pResources);
 
 	for (auto& it : pResourcesDX12->m_ConstantBuffersInUse)
 	{
-		NCryDX12::CResource& Resource = it->GetDX12Resource();
+		NCryDX12::CResource& Resource = it.second->GetDX12Resource();
 		const D3D12_RESOURCE_STATES desiredState = D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER;
 
 		if (Resource.InitHasBeenDeferred())
 		{
-			Resource.InitDeferred(pCommandListDX12, desiredState);
+			Resource.InitDeferred(pCommandListDX12, desiredState | D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER);
 		}
 
 		pCommandListDX12->PrepareResourceCBVUsage(Resource, desiredState);
@@ -1354,48 +1033,52 @@ void CDeviceGraphicsCommandInterfaceImpl::PrepareResourcesForUseImpl(uint32 bind
 
 	for (auto& it : pResourcesDX12->m_ShaderResourceViewsInUse)
 	{
-		const NCryDX12::CView& View = it->GetDX12View();
+		const NCryDX12::CView& View = it.second->GetDX12View();
 		NCryDX12::CResource& Resource = View.GetDX12Resource();
+
 		const D3D12_RESOURCE_STATES desiredState =
-			(srvUsage & EShaderStage_Pixel ? D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE : D3D12_RESOURCE_STATE_COMMON) |
-			(srvUsage & EShaderStage_Compute ? D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE : D3D12_RESOURCE_STATE_COMMON);
+			(it.first.stages &  EShaderStage_Pixel ? D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE     : D3D12_RESOURCE_STATE_COMMON) |
+			(it.first.stages & ~EShaderStage_Pixel ? D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE : D3D12_RESOURCE_STATE_COMMON);
 
 		if (Resource.InitHasBeenDeferred())
 		{
-			Resource.InitDeferred(pCommandListDX12, desiredState);
+			Resource.InitDeferred(pCommandListDX12, desiredState | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 		}
 
-		assert(!((pCommandListDX12->GetD3D12ListType() != D3D12_COMMAND_LIST_TYPE_DIRECT) && (Resource.GetTargetState() & D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE) && (!Resource.IsOffCard())));
+		assert(!((pCommandListDX12->GetD3D12ListType() != D3D12_COMMAND_LIST_TYPE_DIRECT) && (Resource.GetTargetState() & D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE) && !(Resource.GetTargetState() & D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE) && (!Resource.IsOffCard())));
 
 		pCommandListDX12->PrepareResourceSRVUsage(Resource, View, desiredState);
 	}
 
 	for (auto& it : pResourcesDX12->m_UnorderedAccessViewsInUse)
 	{
-		const NCryDX12::CView& View = it->GetDX12View();
+		const NCryDX12::CView& View = it.second->GetDX12View();
 		NCryDX12::CResource& Resource = View.GetDX12Resource();
 		const D3D12_RESOURCE_STATES desiredState = D3D12_RESOURCE_STATE_UNORDERED_ACCESS;
 
 		if (Resource.InitHasBeenDeferred())
 		{
-			Resource.InitDeferred(pCommandListDX12, desiredState);
+			Resource.InitDeferred(pCommandListDX12, desiredState | D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 		}
 
 		assert(!((pCommandListDX12->GetD3D12ListType() != D3D12_COMMAND_LIST_TYPE_DIRECT) && (Resource.GetTargetState() & D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE) && (!Resource.IsOffCard())));
 
 		pCommandListDX12->PrepareResourceUAVUsage(Resource, View, desiredState);
 	}
-
-	pResourcesDX12->MarkInUse();
 }
 
 void CDeviceGraphicsCommandInterfaceImpl::PrepareInlineConstantBufferForUseImpl(uint32 bindSlot, CConstantBuffer* pConstantBuffer, EConstantBufferShaderSlot shaderSlot, EHWShaderClass shaderClass) const
 {
 	CRY_ASSERT(bindSlot <= EResourceLayoutSlot_Max);
-	NCryDX12::CCommandList* pCommandListDX12 = m_sharedState.pCommandList;
+	NCryDX12::CCommandList* pCommandListDX12 = GetDX12CommandList();
 
 	NCryDX12::CResource& Resource = GET_DX12_CONSTANTBUFFER_RESOURCE(pConstantBuffer)->GetDX12Resource();
 	const D3D12_RESOURCE_STATES desiredState = D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER;
+
+	if (Resource.InitHasBeenDeferred())
+	{
+		Resource.InitDeferred(pCommandListDX12, desiredState);
+	}
 
 	pCommandListDX12->PrepareResourceCBVUsage(Resource, desiredState);
 }
@@ -1410,7 +1093,7 @@ void CDeviceGraphicsCommandInterfaceImpl::PrepareVertexBuffersForUseImpl(uint32 
 {
 	if (m_graphicsState.vertexStreams != vertexStreams)
 	{
-		NCryDX12::CCommandList* pCommandListDX12 = m_sharedState.pCommandList;
+		NCryDX12::CCommandList* pCommandListDX12 = GetDX12CommandList();
 
 		for (uint32 s = 0; s < numStreams; ++s)
 		{
@@ -1419,10 +1102,15 @@ void CDeviceGraphicsCommandInterfaceImpl::PrepareVertexBuffersForUseImpl(uint32 
 			CRY_ASSERT(vertexStream.hStream != ~0u);
 			{
 				// TODO: try not to call GetD3D() here, overhead: 1 call (and no inlinening) + 1 look-up + 2 accesses + branch
-				size_t offset;
+				buffer_size_t offset;
 				auto pBuffer = reinterpret_cast<CCryDX12Buffer*>(gcpRendD3D.m_DevBufMan.GetD3D(vertexStream.hStream, &offset));
 				NCryDX12::CResource& Resource = pBuffer->GetDX12Resource();
 				const D3D12_RESOURCE_STATES desiredState = D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER;
+
+				if (Resource.InitHasBeenDeferred())
+				{
+					Resource.InitDeferred(pCommandListDX12, desiredState);
+				}
 
 				pCommandListDX12->PrepareResourceVBVUsage(Resource, desiredState);
 			}
@@ -1434,15 +1122,20 @@ void CDeviceGraphicsCommandInterfaceImpl::PrepareIndexBufferForUseImpl(const CDe
 {
 	if (m_graphicsState.indexStream != indexStream)
 	{
-		NCryDX12::CCommandList* pCommandListDX12 = m_sharedState.pCommandList;
+		NCryDX12::CCommandList* pCommandListDX12 = GetDX12CommandList();
 
 		CRY_ASSERT(indexStream->hStream != ~0u);
 		{
 			// TODO: try not to call GetD3D() here, overhead: 1 call (and no inlinening) + 1 look-up + 2 accesses + branch
-			size_t offset;
+			buffer_size_t offset;
 			auto pBuffer = reinterpret_cast<CCryDX12Buffer*>(gcpRendD3D.m_DevBufMan.GetD3D(indexStream->hStream, &offset));
 			NCryDX12::CResource& Resource = pBuffer->GetDX12Resource();
 			const D3D12_RESOURCE_STATES desiredState = D3D12_RESOURCE_STATE_INDEX_BUFFER;
+
+			if (Resource.InitHasBeenDeferred())
+			{
+				Resource.InitDeferred(pCommandListDX12, desiredState);
+			}
 
 			pCommandListDX12->PrepareResourceIBVUsage(Resource, desiredState);
 		}
@@ -1454,7 +1147,7 @@ void CDeviceGraphicsCommandInterfaceImpl::BeginResourceTransitionsImpl(uint32 nu
 	if (!CRenderer::CV_r_D3D12EarlyResourceBarriers)
 		return;
 
-	NCryDX12::CCommandList* pCommandListDX12 = m_sharedState.pCommandList;
+	NCryDX12::CCommandList* pCommandListDX12 = GetDX12CommandList();
 
 	uint32 numBarriers = 0;
 	for (uint32 i = 0; i < numTextures; i++)
@@ -1490,61 +1183,56 @@ void CDeviceGraphicsCommandInterfaceImpl::BeginResourceTransitionsImpl(uint32 nu
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-void CDeviceGraphicsCommandInterfaceImpl::SetRenderTargetsImpl(uint32 targetCount, CTexture* const* pTargets, const SDepthTexture* pDepthTarget, const SResourceView::KeyType* pRenderTargetViews /*= nullptr*/)
+void CDeviceGraphicsCommandInterfaceImpl::BeginRenderPassImpl(const CDeviceRenderPass& renderPass, const D3DRectangle& renderArea)
 {
-	NCryDX12::CCommandList* pCommandListDX12 = m_sharedState.pCommandList;
+	NCryDX12::CCommandList* pCommandListDX12 = GetDX12CommandList();
 
 	const NCryDX12::CView* pDSV = nullptr;
 	const NCryDX12::CView* pRTV[D3D12_SIMULTANEOUS_RENDER_TARGET_COUNT] = { nullptr };
 
 	// Get current depth stencil views
-	if (pDepthTarget)
+	if (renderPass.m_pDepthStencilView)
 	{
-		const NCryDX12::CView& View = GET_DX12_DEPTHSTENCIL_VIEW(pDepthTarget)->GetDX12View();
+		const NCryDX12::CView& View   = renderPass.m_pDepthStencilView->GetDX12View();
 		NCryDX12::CResource& Resource = View.GetDX12Resource();
 
 		pDSV = &View;
 
-		const D3D12_RESOURCE_STATES desiredState = Resource.GetDesc().Flags & D3D11_DSV_READ_ONLY_DEPTH ? D3D12_RESOURCE_STATE_DEPTH_READ : D3D12_RESOURCE_STATE_DEPTH_WRITE;
+		D3D11_DEPTH_STENCIL_VIEW_DESC Desc; renderPass.m_pDepthStencilView->GetDesc(&Desc);
+		const D3D12_RESOURCE_STATES desiredState = Desc.Flags & D3D11_DSV_READ_ONLY_DEPTH ? D3D12_RESOURCE_STATE_DEPTH_READ : D3D12_RESOURCE_STATE_DEPTH_WRITE;
+
 		assert(!Resource.NeedsTransitionBarrier(pCommandListDX12, View, desiredState));
 	}
 
 	// Get current render target views
-	for (int i = 0; i < targetCount; ++i)
+	for (int i = 0; i < renderPass.m_RenderTargetCount; ++i)
 	{
-		if (pTargets[i])
-		{
-			const bool bHasCustomView = pRenderTargetViews && pRenderTargetViews[i] != SResourceView::DefaultRendertargetView;
-			const SResourceView::KeyType rtvKey = bHasCustomView ? pRenderTargetViews[i] : SResourceView::RenderTargetView(pTargets[i]->GetDstFormat()).m_Desc.Key;
-			CRY_ASSERT(SResourceView::IsRenderTargetView(rtvKey));
+		const NCryDX12::CView& View   = renderPass.m_RenderTargetViews[i]->GetDX12View();
+		NCryDX12::CResource& Resource = View.GetDX12Resource(); Resource.VerifyBackBuffer();
 
-			const NCryDX12::CView& UnpatchedView = GET_DX12_RENDERTARGET_VIEW(pTargets[i], rtvKey)->GetDX12View();
-			pRTV[i] = &pCommandListDX12->PatchRenderTargetView(UnpatchedView);
-			NCryDX12::CResource& Resource = pRTV[i]->GetDX12Resource();
+		pRTV[i] = &View;
 
-			assert(!Resource.NeedsTransitionBarrier(pCommandListDX12, *pRTV[i], D3D12_RESOURCE_STATE_RENDER_TARGET));
-		}
+		assert(!Resource.NeedsTransitionBarrier(pCommandListDX12, *pRTV[i], D3D12_RESOURCE_STATE_RENDER_TARGET));
 	}
 
-	// TODO: if we know early that the resource(s) will be RENDER_TARGET/DEPTH_READ|WRITE we can begin the barrier early and end it here
-	pCommandListDX12->BindAndSetOutputViews(targetCount, pRTV, pDSV);
+	pCommandListDX12->BindAndSetOutputViews(renderPass.m_RenderTargetCount, pRTV, pDSV);
 }
 
 void CDeviceGraphicsCommandInterfaceImpl::SetViewportsImpl(uint32 vpCount, const D3DViewPort* pViewports)
 {
 	// D3D11_VIEWPORT := D3D12_VIEWPORT
-	m_sharedState.pCommandList->SetViewports(vpCount, (D3D12_VIEWPORT*)pViewports);
+	GetDX12CommandList()->SetViewports(vpCount, (D3D12_VIEWPORT*)pViewports);
 }
 
 void CDeviceGraphicsCommandInterfaceImpl::SetScissorRectsImpl(uint32 rcCount, const D3DRectangle* pRects)
 {
 	// D3D11_RECT := D3D12_RECT
-	m_sharedState.pCommandList->SetScissorRects(rcCount, (D3D12_RECT*)pRects);
+	GetDX12CommandList()->SetScissorRects(rcCount, (D3D12_RECT*)pRects);
 }
 
 void CDeviceGraphicsCommandInterfaceImpl::SetPipelineStateImpl(const CDeviceGraphicsPSO* devicePSO)
 {
-	auto pCommandListDX12 = m_sharedState.pCommandList;
+	auto pCommandListDX12 = GetDX12CommandList();
 	const CDeviceGraphicsPSO_DX12* pDevicePSO = reinterpret_cast<const CDeviceGraphicsPSO_DX12*>(devicePSO);
 
 	pCommandListDX12->SetPSO(pDevicePSO->GetGraphicsPSO());
@@ -1564,12 +1252,12 @@ void CDeviceGraphicsCommandInterfaceImpl::SetPipelineStateImpl(const CDeviceGrap
 void CDeviceGraphicsCommandInterfaceImpl::SetResourceLayoutImpl(const CDeviceResourceLayout* resourceLayout)
 {
 	const CDeviceResourceLayout_DX12* pResourceLayoutDX12 = reinterpret_cast<const CDeviceResourceLayout_DX12*>(resourceLayout);
-	m_sharedState.pCommandList->SetGraphicsRootSignature(pResourceLayoutDX12->GetRootSignature());
+	GetDX12CommandList()->SetGraphicsRootSignature(pResourceLayoutDX12->GetRootSignature());
 }
 
 void CDeviceGraphicsCommandInterfaceImpl::SetVertexBuffersImpl(uint32 numStreams, uint32 lastStreamSlot, const CDeviceInputStream* vertexStreams)
 {
-	NCryDX12::CCommandList* pCommandListDX12 = m_sharedState.pCommandList;
+	NCryDX12::CCommandList* pCommandListDX12 = GetDX12CommandList();
 	pCommandListDX12->ClearVertexBufferHeap(lastStreamSlot + 1);
 
 	for (uint32 s = 0; s < numStreams; ++s)
@@ -1579,9 +1267,10 @@ void CDeviceGraphicsCommandInterfaceImpl::SetVertexBuffersImpl(uint32 numStreams
 		CRY_ASSERT(vertexStream.hStream != ~0u);
 		{
 			// TODO: try not to call GetD3D() here, overhead: 1 call (and no inlinening) + 1 look-up + 2 accesses + branch
-			size_t offset;
+			buffer_size_t offset;
 			auto* pBuffer = reinterpret_cast<CCryDX12Buffer*>(gcpRendD3D.m_DevBufMan.GetD3D(vertexStream.hStream, &offset));
 
+			assert(!pBuffer->GetDX12Resource().InitHasBeenDeferred());
 			assert(!pBuffer->GetDX12Resource().NeedsTransitionBarrier(pCommandListDX12, D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER));
 
 	#if defined(ENABLE_PROFILING_CODE)
@@ -1598,14 +1287,15 @@ void CDeviceGraphicsCommandInterfaceImpl::SetVertexBuffersImpl(uint32 numStreams
 
 void CDeviceGraphicsCommandInterfaceImpl::SetIndexBufferImpl(const CDeviceInputStream* indexStream)
 {
-	NCryDX12::CCommandList* pCommandListDX12 = m_sharedState.pCommandList;
+	NCryDX12::CCommandList* pCommandListDX12 = GetDX12CommandList();
 
 	CRY_ASSERT(indexStream->hStream != ~0u);
 	{
 		// TODO: try not to call GetD3D() here, overhead: 1 call (and no inlinening) + 1 look-up + 2 accesses + branch
-		size_t offset;
+		buffer_size_t offset;
 		auto* pBuffer = reinterpret_cast<CCryDX12Buffer*>(gcpRendD3D.m_DevBufMan.GetD3D(indexStream->hStream, &offset));
 
+		assert(!pBuffer->GetDX12Resource().InitHasBeenDeferred());
 		assert(!pBuffer->GetDX12Resource().NeedsTransitionBarrier(pCommandListDX12, D3D12_RESOURCE_STATE_INDEX_BUFFER));
 
 	#if defined(ENABLE_PROFILING_CODE)
@@ -1621,17 +1311,18 @@ void CDeviceGraphicsCommandInterfaceImpl::SetIndexBufferImpl(const CDeviceInputS
 	}
 }
 
-void CDeviceGraphicsCommandInterfaceImpl::SetResourcesImpl(uint32 bindSlot, const CDeviceResourceSet* pResources, ::EShaderStage srvUsage)
+void CDeviceGraphicsCommandInterfaceImpl::SetResourcesImpl(uint32 bindSlot, const CDeviceResourceSet* pResources)
 {
 	CRY_ASSERT(bindSlot <= EResourceLayoutSlot_Max);
 
-	NCryDX12::CCommandList* pCommandListDX12 = m_sharedState.pCommandList;
+	NCryDX12::CCommandList* pCommandListDX12 = GetDX12CommandList();
 	const CDeviceResourceSet_DX12* pResourcesDX12 = reinterpret_cast<const CDeviceResourceSet_DX12*>(pResources);
 
 	for (auto& it : pResourcesDX12->m_ConstantBuffersInUse)
 	{
-		NCryDX12::CResource& Resource = it->GetDX12Resource();
+		NCryDX12::CResource& Resource = it.second->GetDX12Resource();
 
+		assert(!Resource.InitHasBeenDeferred());
 		assert(!Resource.NeedsTransitionBarrier(pCommandListDX12, D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER));
 
 	#if defined(ENABLE_PROFILING_CODE)
@@ -1644,17 +1335,18 @@ void CDeviceGraphicsCommandInterfaceImpl::SetResourcesImpl(uint32 bindSlot, cons
 
 	for (auto& it : pResourcesDX12->m_ShaderResourceViewsInUse)
 	{
-		const NCryDX12::CView& View = it->GetDX12View();
+		const NCryDX12::CView& View = it.second->GetDX12View();
 		NCryDX12::CResource& Resource = View.GetDX12Resource();
 		const D3D12_RESOURCE_STATES desiredState =
-			(srvUsage & EShaderStage_Pixel ? D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE : D3D12_RESOURCE_STATE_COMMON) |
-			(srvUsage & EShaderStage_Compute ? D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE : D3D12_RESOURCE_STATE_COMMON);
+			(it.first.stages &  EShaderStage_Pixel ? D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE     : D3D12_RESOURCE_STATE_COMMON) |
+			(it.first.stages & ~EShaderStage_Pixel ? D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE : D3D12_RESOURCE_STATE_COMMON);
 
+		assert(!Resource.InitHasBeenDeferred());
 		assert(!Resource.NeedsTransitionBarrier(pCommandListDX12, View, desiredState));
 
 	#if defined(ENABLE_PROFILING_CODE)
 		const bool bIsBuffer = Resource.GetDesc().Dimension == D3D12_RESOURCE_DIMENSION_BUFFER;
-		if (bIsBuffer) CryInterlockedIncrement(&gcpRendD3D->m_RP.m_PS[gcpRendD3D->m_RP.m_nProcessThreadID].m_nNumBoundUniformBuffers[Resource.IsOffCard()]);
+		if (bIsBuffer) CryInterlockedIncrement(&gcpRendD3D->m_RP.m_PS[gcpRendD3D->m_RP.m_nProcessThreadID].m_nNumBoundUniformBuffers [Resource.IsOffCard()]);
 		else           CryInterlockedIncrement(&gcpRendD3D->m_RP.m_PS[gcpRendD3D->m_RP.m_nProcessThreadID].m_nNumBoundUniformTextures[Resource.IsOffCard()]);
 	#endif
 
@@ -1664,14 +1356,15 @@ void CDeviceGraphicsCommandInterfaceImpl::SetResourcesImpl(uint32 bindSlot, cons
 
 	for (auto& it : pResourcesDX12->m_UnorderedAccessViewsInUse)
 	{
-		const NCryDX12::CView& View = it->GetDX12View();
+		const NCryDX12::CView& View = it.second->GetDX12View();
 		NCryDX12::CResource& Resource = View.GetDX12Resource();
 
+		assert(!Resource.InitHasBeenDeferred());
 		assert(!Resource.NeedsTransitionBarrier(pCommandListDX12, D3D12_RESOURCE_STATE_UNORDERED_ACCESS));
 
 	#if defined(ENABLE_PROFILING_CODE)
 		const bool bIsBuffer = Resource.GetDesc().Dimension == D3D12_RESOURCE_DIMENSION_BUFFER;
-		if (bIsBuffer) CryInterlockedIncrement(&gcpRendD3D->m_RP.m_PS[gcpRendD3D->m_RP.m_nProcessThreadID].m_nNumBoundUniformBuffers[Resource.IsOffCard()]);
+		if (bIsBuffer) CryInterlockedIncrement(&gcpRendD3D->m_RP.m_PS[gcpRendD3D->m_RP.m_nProcessThreadID].m_nNumBoundUniformBuffers [Resource.IsOffCard()]);
 		else           CryInterlockedIncrement(&gcpRendD3D->m_RP.m_PS[gcpRendD3D->m_RP.m_nProcessThreadID].m_nNumBoundUniformTextures[Resource.IsOffCard()]);
 	#endif
 
@@ -1692,11 +1385,12 @@ void CDeviceGraphicsCommandInterfaceImpl::SetInlineConstantBufferImpl(uint32 bin
 void CDeviceGraphicsCommandInterfaceImpl::SetInlineConstantBufferImpl(uint32 bindSlot, const CConstantBuffer* pConstantBuffer, EConstantBufferShaderSlot shaderSlot, EHWShaderClass shaderClass)
 {
 	CRY_ASSERT(bindSlot <= EResourceLayoutSlot_Max);
-	NCryDX12::CCommandList* pCommandListDX12 = m_sharedState.pCommandList;
+	NCryDX12::CCommandList* pCommandListDX12 = GetDX12CommandList();
 
 	const NCryDX12::CView& View = GET_DX12_CONSTANTBUFFER_RESOURCE(pConstantBuffer)->GetDX12View();
 	NCryDX12::CResource& Resource = View.GetDX12Resource();
 
+	assert(!Resource.InitHasBeenDeferred());
 	assert(!Resource.NeedsTransitionBarrier(pCommandListDX12, D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER));
 
 	#if defined(ENABLE_PROFILING_CODE)
@@ -1713,12 +1407,12 @@ void CDeviceGraphicsCommandInterfaceImpl::SetInlineConstantBufferImpl(uint32 bin
 void CDeviceGraphicsCommandInterfaceImpl::SetInlineConstantsImpl(uint32 bindSlot, uint32 constantCount, float* pConstants)
 {
 	CRY_ASSERT(bindSlot <= EResourceLayoutSlot_Max);
-	m_sharedState.pCommandList->SetGraphics32BitConstants(bindSlot, constantCount, pConstants, 0);
+	GetDX12CommandList()->SetGraphics32BitConstants(bindSlot, constantCount, pConstants, 0);
 }
 
 void CDeviceGraphicsCommandInterfaceImpl::SetStencilRefImpl(uint8 stencilRefValue)
 {
-	m_sharedState.pCommandList->SetStencilRef(stencilRefValue);
+	GetDX12CommandList()->SetStencilRef(stencilRefValue);
 }
 
 void CDeviceGraphicsCommandInterfaceImpl::SetDepthBiasImpl(float constBias, float slopeBias, float biasClamp)
@@ -1728,68 +1422,79 @@ void CDeviceGraphicsCommandInterfaceImpl::SetDepthBiasImpl(float constBias, floa
 
 void CDeviceGraphicsCommandInterfaceImpl::DrawImpl(uint32 VertexCountPerInstance, uint32 InstanceCount, uint32 StartVertexLocation, uint32 StartInstanceLocation)
 {
-	m_sharedState.pCommandList->DrawInstanced(VertexCountPerInstance, InstanceCount, StartVertexLocation, StartInstanceLocation);
+	GetDX12CommandList()->DrawInstanced(VertexCountPerInstance, InstanceCount, StartVertexLocation, StartInstanceLocation);
 }
 
 void CDeviceGraphicsCommandInterfaceImpl::DrawIndexedImpl(uint32 IndexCountPerInstance, uint32 InstanceCount, uint32 StartIndexLocation, int BaseVertexLocation, uint32 StartInstanceLocation)
 {
-	m_sharedState.pCommandList->DrawIndexedInstanced(IndexCountPerInstance, InstanceCount, StartIndexLocation, BaseVertexLocation, StartInstanceLocation);
+	GetDX12CommandList()->DrawIndexedInstanced(IndexCountPerInstance, InstanceCount, StartIndexLocation, BaseVertexLocation, StartInstanceLocation);
 }
 
 void CDeviceGraphicsCommandInterfaceImpl::ClearSurfaceImpl(D3DSurface* pView, const FLOAT Color[4], UINT NumRects, const D3D11_RECT* pRects)
 {
 	const NCryDX12::CView& View = reinterpret_cast<CCryDX12RenderTargetView*>(pView)->GetDX12View();
-	m_sharedState.pCommandList->ClearRenderTargetView(View, Color, NumRects, pRects);
+	GetDX12CommandList()->ClearRenderTargetView(View, Color, NumRects, pRects);
 }
 
 void CDeviceGraphicsCommandInterfaceImpl::ClearSurfaceImpl(D3DDepthSurface* pView, int clearFlags, float depth, uint8 stencil, uint32 numRects, const D3D11_RECT* pRects)
 {
 	const NCryDX12::CView& View = reinterpret_cast<CCryDX12DepthStencilView*>(pView)->GetDX12View();
-	m_sharedState.pCommandList->ClearDepthStencilView(View, D3D12_CLEAR_FLAGS(clearFlags), depth, stencil, numRects, pRects);
+	GetDX12CommandList()->ClearDepthStencilView(View, D3D12_CLEAR_FLAGS(clearFlags), depth, stencil, numRects, pRects);
+}
+
+void CDeviceGraphicsCommandInterfaceImpl::BeginOcclusionQueryImpl(D3DOcclusionQuery* pQuery)
+{
+	CRY_ASSERT(GetDX12CommandList() == GetDeviceObjectFactory().GetCoreCommandList().GetDX12CommandList());
+	gcpRendD3D->GetDeviceContext().GetRealDeviceContext()->Begin(pQuery);
+}
+
+void CDeviceGraphicsCommandInterfaceImpl::EndOcclusionQueryImpl(D3DOcclusionQuery* pQuery)
+{
+	CRY_ASSERT(GetDX12CommandList() == GetDeviceObjectFactory().GetCoreCommandList().GetDX12CommandList());
+	gcpRendD3D->GetDeviceContext().GetRealDeviceContext()->End(pQuery);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 void CDeviceComputeCommandInterfaceImpl::PrepareUAVsForUseImpl(uint32 viewCount, CGpuBuffer** pViews) const
 {
-	NCryDX12::CCommandList* pCommandListDX12 = m_sharedState.pCommandList;
+	NCryDX12::CCommandList* pCommandListDX12 = GetDX12CommandList();
 
 	for (int v = 0; v < viewCount; ++v)
 	{
-		const NCryDX12::CView& View = reinterpret_cast<CCryDX12UnorderedAccessView*>(pViews[v]->GetDeviceUAV())->GetDX12View();
-		NCryDX12::CResource& Resource = View.GetDX12Resource();
-		const D3D12_RESOURCE_STATES desiredState = D3D12_RESOURCE_STATE_UNORDERED_ACCESS;
-
-		if (Resource.InitHasBeenDeferred())
+		if (CDeviceBuffer* pDevBuf = pViews[v]->GetDevBuffer())
 		{
-			Resource.InitDeferred(pCommandListDX12, desiredState);
+			// TODO: ResourceViewHandles[]
+			const NCryDX12::CView& View = GET_DX12_UNORDERED_VIEW(pDevBuf, EDefaultResourceViews::UnorderedAccess)->GetDX12View();
+			NCryDX12::CResource& Resource = View.GetDX12Resource();
+			const D3D12_RESOURCE_STATES desiredState = D3D12_RESOURCE_STATE_UNORDERED_ACCESS;
+
+			if (Resource.InitHasBeenDeferred())
+			{
+				Resource.InitDeferred(pCommandListDX12, desiredState | D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+			}
+
+			assert(!((pCommandListDX12->GetD3D12ListType() != D3D12_COMMAND_LIST_TYPE_DIRECT) && (Resource.GetTargetState() & D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE) && (!Resource.IsOffCard())));
+
+			pCommandListDX12->PrepareResourceUAVUsage(Resource, View, desiredState);
 		}
-
-		assert(!((pCommandListDX12->GetD3D12ListType() != D3D12_COMMAND_LIST_TYPE_DIRECT) && (Resource.GetTargetState() & D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE) && (!Resource.IsOffCard())));
-
-		pCommandListDX12->PrepareResourceUAVUsage(Resource, View, desiredState);
 	}
 }
 
-void CDeviceComputeCommandInterfaceImpl::PrepareResourcesForUseImpl(uint32 bindSlot, CDeviceResourceSet* pResources, ::EShaderStage srvUsage) const
+void CDeviceComputeCommandInterfaceImpl::PrepareResourcesForUseImpl(uint32 bindSlot, CDeviceResourceSet* pResources) const
 {
 	CRY_ASSERT(bindSlot <= EResourceLayoutSlot_Max);
 
-	NCryDX12::CCommandList* pCommandListDX12 = m_sharedState.pCommandList;
+	NCryDX12::CCommandList* pCommandListDX12 = GetDX12CommandList();
 	CDeviceResourceSet_DX12* pResourcesDX12 = reinterpret_cast<CDeviceResourceSet_DX12*>(pResources);
-
-	if (pResourcesDX12->m_Flags & CDeviceResourceSet::EFlags_Multibuffered)
-	{
-		pResourcesDX12->PatchDescriptors(GetDevice()->GetResourceDescriptorScratchSpace());
-	}
 
 	for (auto& it : pResourcesDX12->m_ConstantBuffersInUse)
 	{
-		NCryDX12::CResource& Resource = it->GetDX12Resource();
+		NCryDX12::CResource& Resource = it.second->GetDX12Resource();
 		const D3D12_RESOURCE_STATES desiredState = D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER;
 
 		if (Resource.InitHasBeenDeferred())
 		{
-			Resource.InitDeferred(pCommandListDX12, desiredState);
+			Resource.InitDeferred(pCommandListDX12, desiredState | D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER);
 		}
 
 		pCommandListDX12->PrepareResourceCBVUsage(Resource, desiredState);
@@ -1797,45 +1502,44 @@ void CDeviceComputeCommandInterfaceImpl::PrepareResourcesForUseImpl(uint32 bindS
 
 	for (auto& it : pResourcesDX12->m_ShaderResourceViewsInUse)
 	{
-		const NCryDX12::CView& View = it->GetDX12View();
+		const NCryDX12::CView& View = it.second->GetDX12View();
 		NCryDX12::CResource& Resource = View.GetDX12Resource();
+
 		const D3D12_RESOURCE_STATES desiredState =
-			(srvUsage & EShaderStage_Pixel ? D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE : D3D12_RESOURCE_STATE_COMMON) |
-			(srvUsage & EShaderStage_Compute ? D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE : D3D12_RESOURCE_STATE_COMMON);
+			(it.first.stages &  EShaderStage_Pixel ? D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE     : D3D12_RESOURCE_STATE_COMMON) |
+			(it.first.stages & ~EShaderStage_Pixel ? D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE : D3D12_RESOURCE_STATE_COMMON);
 
 		if (Resource.InitHasBeenDeferred())
 		{
-			Resource.InitDeferred(pCommandListDX12, desiredState);
+			Resource.InitDeferred(pCommandListDX12, desiredState | D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 		}
 
-		assert(!((pCommandListDX12->GetD3D12ListType() != D3D12_COMMAND_LIST_TYPE_DIRECT) && (Resource.GetTargetState() & D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE) && (!Resource.IsOffCard())));
+		assert(!((pCommandListDX12->GetD3D12ListType() != D3D12_COMMAND_LIST_TYPE_DIRECT) && (Resource.GetTargetState() & D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE) && !(Resource.GetTargetState() & D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE) && (!Resource.IsOffCard())));
 
 		pCommandListDX12->PrepareResourceCRVUsage(Resource, View, desiredState);
 	}
 
 	for (auto& it : pResourcesDX12->m_UnorderedAccessViewsInUse)
 	{
-		const NCryDX12::CView& View = it->GetDX12View();
+		const NCryDX12::CView& View = it.second->GetDX12View();
 		NCryDX12::CResource& Resource = View.GetDX12Resource();
 		const D3D12_RESOURCE_STATES desiredState = D3D12_RESOURCE_STATE_UNORDERED_ACCESS;
 
 		if (Resource.InitHasBeenDeferred())
 		{
-			Resource.InitDeferred(pCommandListDX12, desiredState);
+			Resource.InitDeferred(pCommandListDX12, desiredState | D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 		}
 
-		assert(!((pCommandListDX12->GetD3D12ListType() != D3D12_COMMAND_LIST_TYPE_DIRECT) && (Resource.GetTargetState() & D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE) && (!Resource.IsOffCard())));
+		assert(!((pCommandListDX12->GetD3D12ListType() != D3D12_COMMAND_LIST_TYPE_DIRECT) && (Resource.GetTargetState() & D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE) && !(Resource.GetTargetState() & D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE) && (!Resource.IsOffCard())));
 
 		pCommandListDX12->PrepareResourceUAVUsage(Resource, View, desiredState);
 	}
-
-	pResourcesDX12->MarkInUse();
 }
 
-void CDeviceComputeCommandInterfaceImpl::PrepareInlineConstantBufferForUseImpl(uint32 bindSlot, CConstantBuffer* pConstantBuffer, EConstantBufferShaderSlot shaderSlot) const
+void CDeviceComputeCommandInterfaceImpl::PrepareInlineConstantBufferForUseImpl(uint32 bindSlot, CConstantBuffer* pConstantBuffer, EConstantBufferShaderSlot shaderSlot, ::EShaderStage shaderStages) const
 {
 	CRY_ASSERT(bindSlot <= EResourceLayoutSlot_Max);
-	NCryDX12::CCommandList* pCommandListDX12 = m_sharedState.pCommandList;
+	NCryDX12::CCommandList* pCommandListDX12 = GetDX12CommandList();
 
 	NCryDX12::CResource& Resource = GET_DX12_CONSTANTBUFFER_RESOURCE(pConstantBuffer)->GetDX12Resource();
 	const D3D12_RESOURCE_STATES desiredState = D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER;
@@ -1846,26 +1550,26 @@ void CDeviceComputeCommandInterfaceImpl::PrepareInlineConstantBufferForUseImpl(u
 void CDeviceComputeCommandInterfaceImpl::SetPipelineStateImpl(const CDeviceComputePSO* pDevicePSO)
 {
 	const CDeviceComputePSO_DX12* pDevicePsoDX12 = reinterpret_cast<const CDeviceComputePSO_DX12*>(pDevicePSO);
-	m_sharedState.pCommandList->SetPSO(pDevicePsoDX12->GetComputePSO());
+	GetDX12CommandList()->SetPSO(pDevicePsoDX12->GetComputePSO());
 	m_graphicsState.pPipelineState = nullptr; // on dx12 pipeline state is shared between graphics and compute
 }
 
 void CDeviceComputeCommandInterfaceImpl::SetResourceLayoutImpl(const CDeviceResourceLayout* pResourceLayout)
 {
 	const CDeviceResourceLayout_DX12* pResourceLayoutDX12 = reinterpret_cast<const CDeviceResourceLayout_DX12*>(pResourceLayout);
-	m_sharedState.pCommandList->SetComputeRootSignature(pResourceLayoutDX12->GetRootSignature());
+	GetDX12CommandList()->SetComputeRootSignature(pResourceLayoutDX12->GetRootSignature());
 }
 
-void CDeviceComputeCommandInterfaceImpl::SetResourcesImpl(uint32 bindSlot, const CDeviceResourceSet* pResources, ::EShaderStage srvUsage)
+void CDeviceComputeCommandInterfaceImpl::SetResourcesImpl(uint32 bindSlot, const CDeviceResourceSet* pResources)
 {
 	CRY_ASSERT(bindSlot <= EResourceLayoutSlot_Max);
 
-	NCryDX12::CCommandList* pCommandListDX12 = m_sharedState.pCommandList;
+	NCryDX12::CCommandList* pCommandListDX12 = GetDX12CommandList();
 	const CDeviceResourceSet_DX12* pResourcesDX12 = reinterpret_cast<const CDeviceResourceSet_DX12*>(pResources);
 
 	for (auto& it : pResourcesDX12->m_ConstantBuffersInUse)
 	{
-		NCryDX12::CResource& Resource = it->GetDX12Resource();
+		NCryDX12::CResource& Resource = it.second->GetDX12Resource();
 
 		assert(!Resource.NeedsTransitionBarrier(pCommandListDX12, D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER));
 
@@ -1879,11 +1583,11 @@ void CDeviceComputeCommandInterfaceImpl::SetResourcesImpl(uint32 bindSlot, const
 
 	for (auto& it : pResourcesDX12->m_ShaderResourceViewsInUse)
 	{
-		const NCryDX12::CView& View = it->GetDX12View();
+		const NCryDX12::CView& View = it.second->GetDX12View();
 		NCryDX12::CResource& Resource = View.GetDX12Resource();
 		const D3D12_RESOURCE_STATES desiredState =
-			(srvUsage & EShaderStage_Pixel ? D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE : D3D12_RESOURCE_STATE_COMMON) |
-			(srvUsage & EShaderStage_Compute ? D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE : D3D12_RESOURCE_STATE_COMMON);
+			(it.first.stages &  EShaderStage_Pixel ? D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE     : D3D12_RESOURCE_STATE_COMMON) |
+			(it.first.stages & ~EShaderStage_Pixel ? D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE : D3D12_RESOURCE_STATE_COMMON);
 
 		assert(!Resource.NeedsTransitionBarrier(pCommandListDX12, View, desiredState));
 
@@ -1897,7 +1601,7 @@ void CDeviceComputeCommandInterfaceImpl::SetResourcesImpl(uint32 bindSlot, const
 
 	for (auto& it : pResourcesDX12->m_UnorderedAccessViewsInUse)
 	{
-		const NCryDX12::CView& View = it->GetDX12View();
+		const NCryDX12::CView& View = it.second->GetDX12View();
 		NCryDX12::CResource& Resource = View.GetDX12Resource();
 
 		assert(!Resource.NeedsTransitionBarrier(pCommandListDX12, D3D12_RESOURCE_STATE_UNORDERED_ACCESS));
@@ -1917,7 +1621,7 @@ void CDeviceComputeCommandInterfaceImpl::SetResourcesImpl(uint32 bindSlot, const
 void CDeviceComputeCommandInterfaceImpl::SetInlineConstantBufferImpl(uint32 bindSlot, const CConstantBuffer* pConstantBuffer, EConstantBufferShaderSlot shaderSlot)
 {
 	CRY_ASSERT(bindSlot <= EResourceLayoutSlot_Max);
-	NCryDX12::CCommandList* pCommandListDX12 = m_sharedState.pCommandList;
+	NCryDX12::CCommandList* pCommandListDX12 = GetDX12CommandList();
 
 	const NCryDX12::CView& View = GET_DX12_CONSTANTBUFFER_RESOURCE(pConstantBuffer)->GetDX12View();
 	NCryDX12::CResource& Resource = View.GetDX12Resource();
@@ -1938,33 +1642,182 @@ void CDeviceComputeCommandInterfaceImpl::SetInlineConstantBufferImpl(uint32 bind
 void CDeviceComputeCommandInterfaceImpl::SetInlineConstantsImpl(uint32 bindSlot, uint32 constantCount, float* pConstants)
 {
 	CRY_ASSERT(bindSlot <= EResourceLayoutSlot_Max);
-	m_sharedState.pCommandList->SetCompute32BitConstants(bindSlot, constantCount, pConstants, 0);
+	GetDX12CommandList()->SetCompute32BitConstants(bindSlot, constantCount, pConstants, 0);
 }
 
 void CDeviceComputeCommandInterfaceImpl::DispatchImpl(uint32 X, uint32 Y, uint32 Z)
 {
-	m_sharedState.pCommandList->Dispatch(X, Y, Z);
+	GetDX12CommandList()->Dispatch(X, Y, Z);
 }
 
 void CDeviceComputeCommandInterfaceImpl::ClearUAVImpl(D3DUAV* pView, const FLOAT Values[4], UINT NumRects, const D3D11_RECT* pRects)
 {
 	const NCryDX12::CView& View = reinterpret_cast<CCryDX12UnorderedAccessView*>(pView)->GetDX12View();
-	m_sharedState.pCommandList->ClearUnorderedAccessView(View, Values, NumRects, pRects);
+	GetDX12CommandList()->ClearUnorderedAccessView(View, Values, NumRects, pRects);
 }
 
 void CDeviceComputeCommandInterfaceImpl::ClearUAVImpl(D3DUAV* pView, const UINT Values[4], UINT NumRects, const D3D11_RECT* pRects)
 {
 	const NCryDX12::CView& View = reinterpret_cast<CCryDX12UnorderedAccessView*>(pView)->GetDX12View();
-	m_sharedState.pCommandList->ClearUnorderedAccessView(View, Values, NumRects, pRects);
+	GetDX12CommandList()->ClearUnorderedAccessView(View, Values, NumRects, pRects);
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+void CDeviceCopyCommandInterfaceImpl::CopyImpl(CDeviceBuffer* pSrc, CDeviceBuffer* pDst)
+{
+	CD3D9Renderer* const __restrict rd = gcpRendD3D;
+	rd->GetDeviceContext().CopyResource(pDst->GetBaseBuffer(), pSrc->GetBaseBuffer());
+}
+
+void CDeviceCopyCommandInterfaceImpl::CopyImpl(D3DBuffer* pSrc, D3DBuffer* pDst)
+{
+	CD3D9Renderer* const __restrict rd = gcpRendD3D;
+	rd->GetDeviceContext().CopyResource(pDst, pSrc);
+}
+
+void CDeviceCopyCommandInterfaceImpl::CopyImpl(CDeviceTexture* pSrc, CDeviceTexture* pDst)
+{
+	CD3D9Renderer* const __restrict rd = gcpRendD3D;
+	rd->GetDeviceContext().CopyResource(pDst->GetBaseTexture(), pSrc->GetBaseTexture());
+}
+
+void CDeviceCopyCommandInterfaceImpl::CopyImpl(CDeviceTexture* pSrc, D3DTexture* pDst)
+{
+	CD3D9Renderer* const __restrict rd = gcpRendD3D;
+	rd->GetDeviceContext().CopyResource(pDst, pSrc->GetBaseTexture());
+}
+
+void CDeviceCopyCommandInterfaceImpl::CopyImpl(D3DTexture* pSrc, D3DTexture* pDst)
+{
+	CD3D9Renderer* const __restrict rd = gcpRendD3D;
+	rd->GetDeviceContext().CopyResource(pDst, pSrc);
+}
+
+void CDeviceCopyCommandInterfaceImpl::CopyImpl(D3DTexture* pSrc, CDeviceTexture* pDst)
+{
+	CD3D9Renderer* const __restrict rd = gcpRendD3D;
+	rd->GetDeviceContext().CopyResource(pDst->GetBaseTexture(), pSrc);
+}
+
+void CDeviceCopyCommandInterfaceImpl::CopyImpl(CDeviceBuffer* pSrc, CDeviceBuffer* pDst, const SResourceRegionMapping& region)
+{
+	CD3D9Renderer* const __restrict rd = gcpRendD3D;
+	D3D11_BOX box = { region.SourceOffset.Left, region.SourceOffset.Top, region.SourceOffset.Front, region.SourceOffset.Left + region.Extent.Width, region.SourceOffset.Top + region.Extent.Height, region.SourceOffset.Front + region.Extent.Depth };
+	rd->GetDeviceContext().CopySubresourcesRegion1(pDst->GetBaseBuffer(), region.DestinationOffset.Subresource, region.DestinationOffset.Left, region.DestinationOffset.Top, region.DestinationOffset.Front, pSrc->GetBaseBuffer(), region.SourceOffset.Subresource, &box, region.Flags, region.Extent.Subresources);
+}
+
+void CDeviceCopyCommandInterfaceImpl::CopyImpl(D3DBuffer* pSrc, D3DBuffer* pDst, const SResourceRegionMapping& region)
+{
+	CD3D9Renderer* const __restrict rd = gcpRendD3D;
+	D3D11_BOX box = { region.SourceOffset.Left, region.SourceOffset.Top, region.SourceOffset.Front, region.SourceOffset.Left + region.Extent.Width, region.SourceOffset.Top + region.Extent.Height, region.SourceOffset.Front + region.Extent.Depth };
+	rd->GetDeviceContext().CopySubresourcesRegion1(pDst, region.DestinationOffset.Subresource, region.DestinationOffset.Left, region.DestinationOffset.Top, region.DestinationOffset.Front, pSrc, region.SourceOffset.Subresource, &box, region.Flags, region.Extent.Subresources);
+}
+
+void CDeviceCopyCommandInterfaceImpl::CopyImpl(CDeviceTexture* pSrc, CDeviceTexture* pDst, const SResourceRegionMapping& region)
+{
+	CD3D9Renderer* const __restrict rd = gcpRendD3D;
+	D3D11_BOX box = { region.SourceOffset.Left, region.SourceOffset.Top, region.SourceOffset.Front, region.SourceOffset.Left + region.Extent.Width, region.SourceOffset.Top + region.Extent.Height, region.SourceOffset.Front + region.Extent.Depth };
+	rd->GetDeviceContext().CopySubresourcesRegion1(pDst->GetBaseTexture(), region.DestinationOffset.Subresource, region.DestinationOffset.Left, region.DestinationOffset.Top, region.DestinationOffset.Front, pSrc->GetBaseTexture(), region.SourceOffset.Subresource, &box, region.Flags, region.Extent.Subresources);
+}
+
+void CDeviceCopyCommandInterfaceImpl::CopyImpl(D3DTexture* pSrc, CDeviceTexture* pDst, const SResourceRegionMapping& region)
+{
+	CD3D9Renderer* const __restrict rd = gcpRendD3D;
+	D3D11_BOX box = { region.SourceOffset.Left, region.SourceOffset.Top, region.SourceOffset.Front, region.SourceOffset.Left + region.Extent.Width, region.SourceOffset.Top + region.Extent.Height, region.SourceOffset.Front + region.Extent.Depth };
+	rd->GetDeviceContext().CopySubresourcesRegion1(pDst->GetBaseTexture(), region.DestinationOffset.Subresource, region.DestinationOffset.Left, region.DestinationOffset.Top, region.DestinationOffset.Front, pSrc, region.SourceOffset.Subresource, &box, region.Flags, region.Extent.Subresources);
+}
+
+void CDeviceCopyCommandInterfaceImpl::CopyImpl(const void* pSrc, CConstantBuffer* pDst, const SResourceMemoryAlignment& memoryLayout)
+{
+	CD3D9Renderer* const __restrict rd = gcpRendD3D;
+	rd->GetDeviceContext().UpdateSubresource(pDst->GetD3D(), 0, nullptr, pSrc, 0, 0);
+}
+
+void CDeviceCopyCommandInterfaceImpl::CopyImpl(const void* pSrc, CDeviceBuffer* pDst, const SResourceMemoryAlignment& memoryLayout)
+{
+	CD3D9Renderer* const __restrict rd = gcpRendD3D;
+	rd->GetDeviceContext().UpdateSubresource(pDst->GetBaseBuffer(), 0, nullptr, pSrc, memoryLayout.rowStride, memoryLayout.planeStride);
+}
+
+void CDeviceCopyCommandInterfaceImpl::CopyImpl(const void* pSrc, CDeviceTexture* pDst, const SResourceMemoryAlignment& memoryLayout)
+{
+	CD3D9Renderer* const __restrict rd = gcpRendD3D;
+	rd->GetDeviceContext().UpdateSubresource(pDst->GetBaseTexture(), 0, nullptr, pSrc, memoryLayout.rowStride, memoryLayout.planeStride);
+}
+
+void CDeviceCopyCommandInterfaceImpl::CopyImpl(const void* pSrc, CConstantBuffer* pDst, const SResourceMemoryMapping& region)
+{
+	CD3D9Renderer* const __restrict rd = gcpRendD3D;
+	D3D11_BOX box = { region.ResourceOffset.Left, region.ResourceOffset.Top, region.ResourceOffset.Front, region.ResourceOffset.Left + region.Extent.Width, region.ResourceOffset.Top + region.Extent.Height, region.ResourceOffset.Front + region.Extent.Depth };
+	rd->GetDeviceContext().UpdateSubresource1(pDst->GetD3D(), region.ResourceOffset.Subresource, &box, pSrc, region.MemoryLayout.rowStride, region.MemoryLayout.planeStride, region.Flags);
+}
+
+void CDeviceCopyCommandInterfaceImpl::CopyImpl(const void* pSrc, CDeviceBuffer* pDst, const SResourceMemoryMapping& region)
+{
+	CD3D9Renderer* const __restrict rd = gcpRendD3D;
+	D3D11_BOX box = { region.ResourceOffset.Left, region.ResourceOffset.Top, region.ResourceOffset.Front, region.ResourceOffset.Left + region.Extent.Width, region.ResourceOffset.Top + region.Extent.Height, region.ResourceOffset.Front + region.Extent.Depth };
+	rd->GetDeviceContext().UpdateSubresource1(pDst->GetBaseBuffer(), region.ResourceOffset.Subresource, &box, pSrc, region.MemoryLayout.rowStride, region.MemoryLayout.planeStride, region.Flags);
+}
+
+void CDeviceCopyCommandInterfaceImpl::CopyImpl(const void* pSrc, CDeviceTexture* pDst, const SResourceMemoryMapping& region)
+{
+	CD3D9Renderer* const __restrict rd = gcpRendD3D;
+	D3D11_BOX box = { region.ResourceOffset.Left, region.ResourceOffset.Top, region.ResourceOffset.Front, region.ResourceOffset.Left + region.Extent.Width, region.ResourceOffset.Top + region.Extent.Height, region.ResourceOffset.Front + region.Extent.Depth };
+	rd->GetDeviceContext().UpdateSubresource1(pDst->GetBaseTexture(), region.ResourceOffset.Subresource, &box, pSrc, region.MemoryLayout.rowStride, region.MemoryLayout.planeStride, region.Flags);
+}
+
+void CDeviceCopyCommandInterfaceImpl::CopyImpl(CDeviceBuffer* pSrc, void* pDst, const SResourceMemoryAlignment& memoryLayout)
+{
+	assert(0);
+}
+
+void CDeviceCopyCommandInterfaceImpl::CopyImpl(CDeviceTexture* pSrc, void* pDst, const SResourceMemoryAlignment& memoryLayout)
+{
+	assert(0);
+}
+
+void CDeviceCopyCommandInterfaceImpl::CopyImpl(CDeviceBuffer* pSrc, void* pDst, const SResourceMemoryMapping& region)
+{
+	assert(0);
+}
+
+void CDeviceCopyCommandInterfaceImpl::CopyImpl(CDeviceTexture* pSrc, void* pDst, const SResourceMemoryMapping& region)
+{
+	assert(0);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 CDeviceObjectFactory::CDeviceObjectFactory()
+	: m_fence_handle(0)
 {
-	m_pCoreCommandList = std::make_shared<CDeviceCommandList>();
+	memset(m_NullResources, 0, sizeof(m_NullResources));
+
+	m_frameFenceCounter = 0;
+	m_completedFrameFenceCounter = 0;
+	for (uint32 i = 0; i < CRY_ARRAY_COUNT(m_frameFences); i++)
+		m_frameFences[i] = NULL;
+
+	m_pCoreCommandList.reset(new CDeviceCommandList());
 	m_pCoreCommandList->m_sharedState.pCommandList = nullptr;
+
+	m_pDX12Device    = nullptr;
+	m_pDX12Scheduler = nullptr;
 }
 
+void CDeviceObjectFactory::AssignDevice(D3DDevice* pDevice)
+{
+	auto pEmulatedDevice = reinterpret_cast<CCryDX12Device*>(pDevice);
+
+	m_pDX12Device    = pEmulatedDevice->GetDX12Device();
+	m_pDX12Scheduler = &m_pDX12Device->GetScheduler();
+
+	m_pDX12Scheduler->AddQueueEventCallback(m_pCoreCommandList.get(), lambdaCeaseCallback, NCryDX12::CCommandScheduler::CMDQUEUE_EVENT_CEASE);
+	m_pDX12Scheduler->AddQueueEventCallback(m_pCoreCommandList.get(), lambdaResumeCallback, NCryDX12::CCommandScheduler::CMDQUEUE_EVENT_RESUME);
+
+	m_pCoreCommandList->m_sharedState.pCommandList = m_pDX12Scheduler->GetCommandList(CMDQUEUE_GRAPHICS);
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 CDeviceGraphicsPSOPtr CDeviceObjectFactory::CreateGraphicsPSOImpl(const CDeviceGraphicsPSODesc& psoDesc) const
 {
 	auto pResult = std::make_shared<CDeviceGraphicsPSO_DX12>(GetDevice());
@@ -1985,10 +1838,6 @@ CDeviceResourceSetPtr CDeviceObjectFactory::CreateResourceSet(CDeviceResourceSet
 {
 	return std::make_shared<CDeviceResourceSet_DX12>(flags);
 }
-CDeviceResourceSetPtr CDeviceObjectFactory::CloneResourceSet(const CDeviceResourceSetPtr pSrcResourceSet) const
-{
-	return std::make_shared<CDeviceResourceSet_DX12>(*pSrcResourceSet);
-}
 
 CDeviceResourceLayoutPtr CDeviceObjectFactory::CreateResourceLayoutImpl(const SDeviceResourceLayoutDesc& resourceLayoutDesc) const
 {
@@ -1999,22 +1848,15 @@ CDeviceResourceLayoutPtr CDeviceObjectFactory::CreateResourceLayoutImpl(const SD
 	return nullptr;
 }
 
-CDeviceCommandListPtr CDeviceObjectFactory::GetCoreCommandList() const
-{
-	auto pContext = reinterpret_cast<CCryDX12DeviceContext*>(gcpRendD3D->GetDeviceContext().GetRealDeviceContext());
-	m_pCoreCommandList->m_sharedState.pCommandList = pContext->GetCoreGraphicsCommandList();
-
-	return m_pCoreCommandList;
-}
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 // Helper functions for DX12 MultiGPU
-ID3D12CommandQueue* CDeviceObjectFactory::GetNativeCoreCommandQueue()
+ID3D12CommandQueue* CDeviceObjectFactory::GetNativeCoreCommandQueue() const
 {
-	auto pContext = reinterpret_cast<CCryDX12DeviceContext*>(gcpRendD3D->GetDeviceContext().GetRealDeviceContext());
-	ID3D12CommandQueue* pD3d12Queue = pContext->GetCoreCommandListPool(CMDQUEUE_GRAPHICS).GetD3D12CommandQueue();
+	ID3D12CommandQueue* pD3d12Queue = m_pDX12Scheduler->GetCommandListPool(CMDQUEUE_GRAPHICS).GetD3D12CommandQueue();
 
-#ifdef CRY_USE_DX12_MULTIADAPTER
-	if (pContext->GetDevice()->GetDX12Device()->IsMultiAdapter())
+#ifdef DX12_LINKEDADAPTER
+	if (m_pDX12Device->IsMultiAdapter())
 	{
 		BroadcastableD3D12CommandQueue<2>* pBroadcastQueue = reinterpret_cast<BroadcastableD3D12CommandQueue<2>*>(pD3d12Queue);
 		pD3d12Queue = *(*pBroadcastQueue)[0];
@@ -2031,16 +1873,14 @@ CDeviceCommandListUPtr CDeviceObjectFactory::AcquireCommandList(EQueueType eQueu
 {
 	// In theory this whole function need to be atomic, instead it voids the core command-list(s),
 	// Synchronization between different threads acquiring command-lists is deferred to the higher level.
-	auto pContext = reinterpret_cast<CCryDX12DeviceContext*>(gcpRendD3D->GetDeviceContext().GetRealDeviceContext());
-	NCryDX12::CCommandListPool& pQueue = pContext->GetCoreCommandListPool(eQueueType);
-	pContext->CeaseAllCommandQueues(false);
+	NCryDX12::CCommandListPool& pQueue = m_pDX12Scheduler->GetCommandListPool(eQueueType);
+	m_pDX12Scheduler->CeaseAllCommandQueues(false);
 
 	DX12_PTR(CCommandList) pCL;
 	pQueue.AcquireCommandList(pCL);
 
-	pContext->ResumeAllCommandQueues();
-	GetCoreCommandList()->Reset();
-	auto pResult = CryMakeUnique<CDeviceCommandList>();
+	m_pDX12Scheduler->ResumeAllCommandQueues();
+	auto pResult = stl::make_unique<CDeviceCommandList>();
 	pResult->m_sharedState.pCommandList = pCL;
 	return pResult;
 }
@@ -2049,9 +1889,8 @@ std::vector<CDeviceCommandListUPtr> CDeviceObjectFactory::AcquireCommandLists(ui
 {
 	// In theory this whole function need to be atomic, instead it voids the core command-list(s),
 	// Synchronization between different threads acquiring command-lists is deferred to the higher level.
-	auto pContext = reinterpret_cast<CCryDX12DeviceContext*>(gcpRendD3D->GetDeviceContext().GetRealDeviceContext());
-	NCryDX12::CCommandListPool& pQueue = pContext->GetCoreCommandListPool(eQueueType);
-	pContext->CeaseAllCommandQueues(false);
+	NCryDX12::CCommandListPool& pQueue = m_pDX12Scheduler->GetCommandListPool(eQueueType);
+	m_pDX12Scheduler->CeaseAllCommandQueues(false);
 
 	std::vector<CDeviceCommandListUPtr> pCommandLists;
 	DX12_PTR(CCommandList) pCLs[256];
@@ -2064,21 +1903,19 @@ std::vector<CDeviceCommandListUPtr> CDeviceObjectFactory::AcquireCommandLists(ui
 
 		for (uint32 b = 0; b < chunkCount; ++b)
 		{
-			pCommandLists.emplace_back(CryMakeUnique<CDeviceCommandList>());
+			pCommandLists.emplace_back(stl::make_unique<CDeviceCommandList>());
 			pCommandLists.back()->m_sharedState.pCommandList = pCLs[b];
 		}
 	}
 
-	pContext->ResumeAllCommandQueues();
-	GetCoreCommandList()->Reset();
+	m_pDX12Scheduler->ResumeAllCommandQueues();
 	return std::move(pCommandLists);
 }
 
 // Command-list sinks, will automatically submit command-lists in allocation-order
 void CDeviceObjectFactory::ForfeitCommandList(CDeviceCommandListUPtr pCommandList, EQueueType eQueueType /*= eQueue_Graphics*/)
 {
-	auto pContext = reinterpret_cast<CCryDX12DeviceContext*>(gcpRendD3D->GetDeviceContext().GetRealDeviceContext());
-	NCryDX12::CCommandListPool& pQueue = pContext->GetCoreCommandListPool(eQueueType);
+	NCryDX12::CCommandListPool& pQueue = m_pDX12Scheduler->GetCommandListPool(eQueueType);
 
 	if (pCommandList)
 	{
@@ -2088,8 +1925,7 @@ void CDeviceObjectFactory::ForfeitCommandList(CDeviceCommandListUPtr pCommandLis
 
 void CDeviceObjectFactory::ForfeitCommandLists(std::vector<CDeviceCommandListUPtr> pCommandLists, EQueueType eQueueType /*= eQueue_Graphics*/)
 {
-	auto pContext = reinterpret_cast<CCryDX12DeviceContext*>(gcpRendD3D->GetDeviceContext().GetRealDeviceContext());
-	NCryDX12::CCommandListPool& pQueue = pContext->GetCoreCommandListPool(eQueueType);
+	NCryDX12::CCommandListPool& pQueue = m_pDX12Scheduler->GetCommandListPool(eQueueType);
 
 	const uint32 listCount = pCommandLists.size();
 	DX12_PTR(CCommandList) pCLs[256];
@@ -2117,8 +1953,600 @@ void CDeviceObjectFactory::ForfeitCommandLists(std::vector<CDeviceCommandListUPt
 
 void CDeviceObjectFactory::ReleaseResourcesImpl()
 {
-	auto pDevice = reinterpret_cast<CCryDX12Device*>(gcpRendD3D->GetDevice().GetRealDevice());
-	pDevice->FlushAndWaitForGPU();
+	m_pDX12Device->FlushAndWaitForGPU();
 }
 
+////////////////////////////////////////////////////////////////////////////
+UINT64 CDeviceObjectFactory::QueryFormatSupport(D3DFormat Format)
+{
+	CD3D9Renderer* rd = gcpRendD3D;
+
+	D3D12_FEATURE_DATA_FORMAT_SUPPORT data = { Format };
+	HRESULT hr = GetDX12Device()->GetD3D12Device()->CheckFeatureSupport(D3D12_FEATURE_FORMAT_SUPPORT, &data, sizeof(D3D12_FEATURE_DATA_FORMAT_SUPPORT));
+	if (SUCCEEDED(hr))
+	{
+		UINT nOptions = data.Support1;
+
+		// *INDENT-OFF*
+		return
+			(nOptions & D3D11_FORMAT_SUPPORT_BUFFER                      ? FMTSUPPORT_BUFFER                      : 0) |
+			(nOptions & D3D11_FORMAT_SUPPORT_TEXTURE1D                   ? FMTSUPPORT_TEXTURE1D                   : 0) |
+			(nOptions & D3D11_FORMAT_SUPPORT_TEXTURE2D                   ? FMTSUPPORT_TEXTURE2D                   : 0) |
+			(nOptions & D3D11_FORMAT_SUPPORT_TEXTURE3D                   ? FMTSUPPORT_TEXTURE3D                   : 0) |
+			(nOptions & D3D11_FORMAT_SUPPORT_TEXTURECUBE                 ? FMTSUPPORT_TEXTURECUBE                 : 0) |
+			(nOptions & D3D11_FORMAT_SUPPORT_IA_VERTEX_BUFFER            ? FMTSUPPORT_IA_VERTEX_BUFFER            : 0) |
+			(nOptions & D3D11_FORMAT_SUPPORT_IA_INDEX_BUFFER             ? FMTSUPPORT_IA_INDEX_BUFFER             : 0) |
+			(nOptions & D3D11_FORMAT_SUPPORT_SO_BUFFER                   ? FMTSUPPORT_SO_BUFFER                   : 0) |
+			(nOptions & D3D11_FORMAT_SUPPORT_MIP                         ? FMTSUPPORT_MIP                         : 0) |
+//			(nOptions & D3D11_FORMAT_SUPPORT_CAST_WITHIN_BIT_LAYOUT      ? FMTSUPPORT_SRGB                        : 0) |
+			(nOptions & D3D11_FORMAT_SUPPORT_SHADER_LOAD                 ? FMTSUPPORT_SHADER_LOAD                 : 0) |
+			(nOptions & D3D11_FORMAT_SUPPORT_SHADER_GATHER               ? FMTSUPPORT_SHADER_GATHER               : 0) |
+			(nOptions & D3D11_FORMAT_SUPPORT_SHADER_GATHER_COMPARISON    ? FMTSUPPORT_SHADER_GATHER_COMPARISON    : 0) |
+			(nOptions & D3D11_FORMAT_SUPPORT_SHADER_SAMPLE               ? FMTSUPPORT_SHADER_SAMPLE               : 0) |
+			(nOptions & D3D11_FORMAT_SUPPORT_SHADER_SAMPLE_COMPARISON    ? FMTSUPPORT_SHADER_SAMPLE_COMPARISON    : 0) |
+			(nOptions & D3D11_FORMAT_SUPPORT_TYPED_UNORDERED_ACCESS_VIEW ? FMTSUPPORT_TYPED_UNORDERED_ACCESS_VIEW : 0) |
+			(nOptions & D3D11_FORMAT_SUPPORT_DEPTH_STENCIL               ? FMTSUPPORT_DEPTH_STENCIL               : 0) |
+			(nOptions & D3D11_FORMAT_SUPPORT_RENDER_TARGET               ? FMTSUPPORT_RENDER_TARGET               : 0) |
+			(nOptions & D3D11_FORMAT_SUPPORT_BLENDABLE                   ? FMTSUPPORT_BLENDABLE                   : 0) |
+			(nOptions & D3D11_FORMAT_SUPPORT_DISPLAY                     ? FMTSUPPORT_DISPLAYABLE                 : 0) |
+			(nOptions & D3D11_FORMAT_SUPPORT_MULTISAMPLE_LOAD            ? FMTSUPPORT_MULTISAMPLE_LOAD            : 0) |
+			(nOptions & D3D11_FORMAT_SUPPORT_MULTISAMPLE_RESOLVE         ? FMTSUPPORT_MULTISAMPLE_RESOLVE         : 0) |
+			(nOptions & D3D11_FORMAT_SUPPORT_MULTISAMPLE_RENDERTARGET    ? FMTSUPPORT_MULTISAMPLE_RENDERTARGET    : 0);
+		// *INDENT-ON*
+	}
+
+	return 0;
+}
+
+////////////////////////////////////////////////////////////////////////////
+// Fence API
+
+HRESULT CDeviceObjectFactory::CreateFence(DeviceFenceHandle& query)
+{
+	HRESULT hr = S_FALSE;
+	query = reinterpret_cast<DeviceFenceHandle>(new UINT64);
+	hr = query ? S_OK : E_FAIL;
+	if (!FAILED(hr))
+	{
+		IssueFence(query);
+	}
+	return hr;
+}
+
+HRESULT CDeviceObjectFactory::ReleaseFence(DeviceFenceHandle query)
+{
+	HRESULT hr = query ? S_OK : S_FALSE;
+	delete reinterpret_cast<UINT64*>(query);
+	return hr;
+}
+
+HRESULT CDeviceObjectFactory::IssueFence(DeviceFenceHandle query)
+{
+	HRESULT hr = query ? S_OK : E_FAIL;
+	UINT64* handle = reinterpret_cast<UINT64*>(query);
+	if (handle)
+	{
+		*handle = m_pDX12Scheduler->InsertFence();
+	}
+	return hr;
+}
+
+HRESULT CDeviceObjectFactory::SyncFence(DeviceFenceHandle query, bool block, bool flush)
+{
+	HRESULT hr = query ? S_FALSE : E_FAIL;
+	UINT64* handle = reinterpret_cast<UINT64*>(query);
+	if (handle)
+	{
+		hr = m_pDX12Scheduler->TestForFence(*handle);
+		if (hr != S_OK)
+		{
+			// Can only flush from render thread
+			CRY_ASSERT(!flush || !gRenDev->m_pRT || gRenDev->m_pRT->IsRenderThread());
+
+			// Test + Flush + No-Block is okay
+			// Test + No-Flush + Block may not be okay, caution advised as it could deadlock
+			if (flush)
+			{
+				m_pDX12Scheduler->FlushToFence(*handle);
+			}
+
+			if (block)
+			{
+				hr = m_pDX12Scheduler->WaitForFence(*handle);
+			}
+		}
+	}
+	return hr;
+}
+
+////////////////////////////////////////////////////////////////////////////
+// SamplerState API
+
+static inline D3D11_TEXTURE_ADDRESS_MODE sAddressMode(ESamplerAddressMode nAddress)
+{
+	static_assert((eSamplerAddressMode_Wrap   + 1) == D3D11_TEXTURE_ADDRESS_WRAP  , "AddressMode enum not mappable to D3D11 enum by arithmetic");
+	static_assert((eSamplerAddressMode_Clamp  + 1) == D3D11_TEXTURE_ADDRESS_CLAMP , "AddressMode enum not mappable to D3D11 enum by arithmetic");
+	static_assert((eSamplerAddressMode_Border + 1) == D3D11_TEXTURE_ADDRESS_BORDER, "AddressMode enum not mappable to D3D11 enum by arithmetic");
+	static_assert((eSamplerAddressMode_Mirror + 1) == D3D11_TEXTURE_ADDRESS_MIRROR, "AddressMode enum not mappable to D3D11 enum by arithmetic");
+
+	assert(nAddress >= eSamplerAddressMode_Wrap && nAddress <= eSamplerAddressMode_Border);
+	return D3D11_TEXTURE_ADDRESS_MODE(nAddress + 1);
+}
+
+CDeviceSamplerState* CDeviceObjectFactory::CreateSamplerState(const SSamplerState& pState)
+{
+	D3D11_SAMPLER_DESC Desc;
+	ZeroStruct(Desc);
+	CDeviceSamplerState* pSamp = NULL;
+	// AddressMode of 0 is INVALIDARG
+	Desc.AddressU = sAddressMode(ESamplerAddressMode(pState.m_nAddressU));
+	Desc.AddressV = sAddressMode(ESamplerAddressMode(pState.m_nAddressV));
+	Desc.AddressW = sAddressMode(ESamplerAddressMode(pState.m_nAddressW));
+	ColorF col((uint32)pState.m_dwBorderColor);
+	Desc.BorderColor[0] = col.r;
+	Desc.BorderColor[1] = col.g;
+	Desc.BorderColor[2] = col.b;
+	Desc.BorderColor[3] = col.a;
+	if (pState.m_bComparison)
+		Desc.ComparisonFunc = D3D11_COMPARISON_LESS;
+	else
+		Desc.ComparisonFunc = D3D11_COMPARISON_ALWAYS;
+
+	Desc.MaxAnisotropy = 1;
+	Desc.MinLOD = 0;
+	if (pState.m_nMipFilter == FILTER_NONE)
+		Desc.MaxLOD = 0.0f;
+	else
+		Desc.MaxLOD = 100.0f;
+
+	Desc.MipLODBias = pState.m_fMipLodBias;
+
+	if (pState.m_bComparison)
+	{
+		if (pState.m_nMinFilter == FILTER_LINEAR && pState.m_nMagFilter == FILTER_LINEAR && pState.m_nMipFilter == FILTER_LINEAR || pState.m_nMinFilter == FILTER_TRILINEAR || pState.m_nMagFilter == FILTER_TRILINEAR)
+		{
+			Desc.Filter = D3D11_FILTER_COMPARISON_MIN_MAG_MIP_LINEAR;
+		}
+		else if (pState.m_nMinFilter == FILTER_LINEAR && pState.m_nMagFilter == FILTER_LINEAR && (pState.m_nMipFilter == FILTER_NONE || pState.m_nMipFilter == FILTER_POINT) || pState.m_nMinFilter == FILTER_BILINEAR || pState.m_nMagFilter == FILTER_BILINEAR)
+			Desc.Filter = D3D11_FILTER_COMPARISON_MIN_MAG_LINEAR_MIP_POINT;
+		else if (pState.m_nMinFilter == FILTER_POINT && pState.m_nMagFilter == FILTER_POINT && (pState.m_nMipFilter == FILTER_NONE || pState.m_nMipFilter == FILTER_POINT))
+			Desc.Filter = D3D11_FILTER_COMPARISON_MIN_MAG_MIP_POINT;
+		else if (pState.m_nMinFilter >= FILTER_ANISO2X && pState.m_nMagFilter >= FILTER_ANISO2X && pState.m_nMipFilter >= FILTER_ANISO2X)
+		{
+			Desc.Filter = D3D11_FILTER_COMPARISON_ANISOTROPIC;
+			Desc.MaxAnisotropy = pState.m_nAnisotropy;
+		}
+	}
+	else
+	{
+		if (pState.m_nMinFilter == FILTER_LINEAR && pState.m_nMagFilter == FILTER_LINEAR && pState.m_nMipFilter == FILTER_LINEAR || pState.m_nMinFilter == FILTER_TRILINEAR || pState.m_nMagFilter == FILTER_TRILINEAR)
+		{
+			Desc.Filter = D3D11_FILTER_MIN_MAG_MIP_LINEAR;
+		}
+		else if (pState.m_nMinFilter == FILTER_LINEAR && pState.m_nMagFilter == FILTER_LINEAR && (pState.m_nMipFilter == FILTER_NONE || pState.m_nMipFilter == FILTER_POINT) || pState.m_nMinFilter == FILTER_BILINEAR || pState.m_nMagFilter == FILTER_BILINEAR)
+			Desc.Filter = D3D11_FILTER_MIN_MAG_LINEAR_MIP_POINT;
+		else if (pState.m_nMinFilter == FILTER_POINT && pState.m_nMagFilter == FILTER_POINT && (pState.m_nMipFilter == FILTER_NONE || pState.m_nMipFilter == FILTER_POINT))
+			Desc.Filter = D3D11_FILTER_MIN_MAG_MIP_POINT;
+		else if (pState.m_nMinFilter >= FILTER_ANISO2X && pState.m_nMagFilter >= FILTER_ANISO2X && pState.m_nMipFilter >= FILTER_ANISO2X)
+		{
+			Desc.Filter = D3D11_FILTER_ANISOTROPIC;
+			Desc.MaxAnisotropy = pState.m_nAnisotropy;
+		}
+		else
+			assert(0);
+	}
+
+	HRESULT hr = gcpRendD3D->GetDevice().CreateSamplerState(&Desc, &pSamp);
+	if (SUCCEEDED(hr))
+		return pSamp;
+	else
+		assert(0);
+	return nullptr;
+}
+
+////////////////////////////////////////////////////////////////////////////
+// InputLayout API
+
+CDeviceInputLayout* CDeviceObjectFactory::CreateInputLayout(const SInputLayout& pLayout)
+{
+	CDeviceInputLayout* Layout = nullptr;
+	if (!pLayout.m_pVertexShader || !pLayout.m_pVertexShader->m_pShaderData)
+		return Layout;
+
+	const int   nSize = pLayout.m_pVertexShader->m_nDataSize;
+	const void* pVSData = pLayout.m_pVertexShader->m_pShaderData;
+
+	HRESULT hr = E_FAIL;
+	if (FAILED(hr = gcpRendD3D->GetDevice().CreateInputLayout(&pLayout.m_Declaration[0], pLayout.m_Declaration.size(), pVSData, nSize, &Layout)))
+	{
+		return Layout;
+	}
+
+	return Layout;
+}
+
+////////////////////////////////////////////////////////////////////////////
+// Low-level resource management API (TODO: remove D3D-dependency by abstraction)
+
+void CDeviceObjectFactory::AllocateNullResources()
+{
+	for (enum D3D11_RESOURCE_DIMENSION eType = D3D11_RESOURCE_DIMENSION_UNKNOWN; eType <= D3D11_RESOURCE_DIMENSION_TEXTURE3D; eType = D3D11_RESOURCE_DIMENSION(eType + 1))
+	{
+		D3DResource* pNullResource = m_NullResources[eType];
+
+		if (pNullResource || (S_OK == gcpRendD3D->GetDevice_Unsynchronized().CreateNullResource(eType, &pNullResource)))
+		{
+			m_NullResources[eType] = pNullResource;
+			m_NullResources[eType]->AddRef();
+		}
+	}
+}
+
+void CDeviceObjectFactory::ReleaseNullResources()
+{
+	for (enum D3D11_RESOURCE_DIMENSION eType = D3D11_RESOURCE_DIMENSION_UNKNOWN; eType <= D3D11_RESOURCE_DIMENSION_TEXTURE3D; eType = D3D11_RESOURCE_DIMENSION(eType + 1))
+	{
+		if (auto pNullResource = m_NullResources[eType])
+		{
+			ULONG refCount = pNullResource->Release();
+			assert(refCount == 0);
+		}
+	}
+}
+
+//=============================================================================
+
+#ifdef DEVRES_USE_STAGING_POOL
+D3DResource* CDeviceObjectFactory::AllocateStagingResource(D3DResource* pForTex, bool bUpload, void*& pMappedAddress)
+{
+	D3DResource* pStagingResource = nullptr;
+
+	gcpRendD3D->GetDevice_Unsynchronized().CreateStagingResource(pForTex, &pStagingResource, bUpload);
+
+	if (bUpload) // Resources on D3D12_HEAP_TYPE_READBACK heaps do not support persistent map.
+	{
+		gcpRendD3D->GetDeviceContext_Unsynchronized().MapStagingResource(pStagingResource, bUpload, &pMappedAddress);
+	}
+
+	return pStagingResource;
+}
+
+void CDeviceObjectFactory::ReleaseStagingResource(D3DResource* pStagingTex)
+{
+	if (pStagingTex)
+	{
+		gcpRendD3D->GetDevice_Unsynchronized().ReleaseStagingResource(pStagingTex);
+	}
+}
 #endif
+
+//=============================================================================
+
+HRESULT CDeviceObjectFactory::Create2DTexture(uint32 nWidth, uint32 nHeight, uint32 nMips, uint32 nArraySize, uint32 nUsage, const ColorF& cClearValue, D3DFormat Format, LPDEVICETEXTURE* ppDevTexture, const STexturePayload* pTI, int32 nESRAMOffset)
+{
+	D3D11_TEXTURE2D_DESC Desc;
+	ZeroStruct(Desc);
+
+	Desc.Width = nWidth;
+	Desc.Height = nHeight;
+	Desc.MipLevels = nMips;
+	Desc.SampleDesc.Count = pTI ? pTI->m_nDstMSAASamples : 1;
+	Desc.SampleDesc.Quality = pTI ? pTI->m_nDstMSAAQuality : 0;
+	Desc.Format = (nUsage & USAGE_UAV_READWRITE) ? DeviceFormats::ConvertToTypeless(Format) : Format;
+	Desc.ArraySize = nArraySize;
+	Desc.BindFlags = ConvertToDX11BindFlags(nUsage);
+	Desc.CPUAccessFlags = ConvertToDX11CPUAccessFlags(nUsage);
+	Desc.Usage = ConvertToDX11Usage(nUsage);
+	Desc.MiscFlags = ConvertToDX11MiscFlags(nUsage);
+
+	return Create2DTexture(Desc, nUsage, cClearValue, ppDevTexture, pTI);
+}
+
+HRESULT CDeviceObjectFactory::CreateCubeTexture(uint32 nSize, uint32 nMips, uint32 nArraySize, uint32 nUsage, const ColorF& cClearValue, D3DFormat Format, LPDEVICETEXTURE* ppDevTexture, const STexturePayload* pTI)
+{
+	D3D11_TEXTURE2D_DESC Desc;
+	ZeroStruct(Desc);
+
+	Desc.Width = nSize;
+	Desc.Height = nSize;
+	Desc.MipLevels = nMips;
+	Desc.SampleDesc.Count = 1;
+	Desc.SampleDesc.Quality = 0;
+	Desc.Format = (nUsage & USAGE_UAV_READWRITE) ? DeviceFormats::ConvertToTypeless(Format) : Format;
+	Desc.ArraySize = nArraySize; assert(!(nArraySize % 6));
+	Desc.BindFlags = ConvertToDX11BindFlags(nUsage);
+	Desc.CPUAccessFlags = ConvertToDX11CPUAccessFlags(nUsage);
+	Desc.Usage = ConvertToDX11Usage(nUsage);
+	Desc.MiscFlags = ConvertToDX11MiscFlags(nUsage) | D3D11_RESOURCE_MISC_TEXTURECUBE;
+
+	return CreateCubeTexture(Desc, nUsage, cClearValue, ppDevTexture, pTI);
+}
+
+HRESULT CDeviceObjectFactory::CreateVolumeTexture(uint32 nWidth, uint32 nHeight, uint32 nDepth, uint32 nMips, uint32 nUsage, const ColorF& cClearValue, D3DFormat Format, LPDEVICETEXTURE* ppDevTexture, const STexturePayload* pTI)
+{
+	D3D11_TEXTURE3D_DESC Desc;
+	ZeroStruct(Desc);
+
+	Desc.Width = nWidth;
+	Desc.Height = nHeight;
+	Desc.Depth = nDepth;
+	Desc.MipLevels = nMips;
+	Desc.Format = (nUsage & USAGE_UAV_READWRITE) ? DeviceFormats::ConvertToTypeless(Format) : Format;
+	Desc.BindFlags = ConvertToDX11BindFlags(nUsage);
+	Desc.CPUAccessFlags = ConvertToDX11CPUAccessFlags(nUsage);
+	Desc.Usage = ConvertToDX11Usage(nUsage);
+	Desc.MiscFlags = ConvertToDX11MiscFlags(nUsage);
+
+	return CreateVolumeTexture(Desc, nUsage, cClearValue, ppDevTexture, pTI);
+}
+
+HRESULT CDeviceObjectFactory::Create2DTexture(const D3D11_TEXTURE2D_DESC& Desc, uint32 eFlags, const ColorF& cClearValue, LPDEVICETEXTURE* ppDevTexture, const STexturePayload* pPayload)
+{
+	D3D11_SUBRESOURCE_DATA SRD[g_nD3D10MaxSupportedSubres];
+	D3DTexture* pD3DTex = NULL; assert(!pPayload || (((Desc.MipLevels * Desc.ArraySize) <= g_nD3D10MaxSupportedSubres)));
+	D3D11_SUBRESOURCE_DATA* pSRD = ConvertToDX11Data(Desc.MipLevels * Desc.ArraySize, pPayload, SRD);
+	HRESULT hr = S_OK;
+
+	if (Desc.BindFlags & (D3D11_BIND_DEPTH_STENCIL | D3D11_BIND_RENDER_TARGET | D3D11_BIND_UNORDERED_ACCESS))
+	{
+		hr = gcpRendD3D->GetDevice_Unsynchronized().CreateTarget2D(&Desc, (const FLOAT*)&cClearValue, pSRD, &pD3DTex);
+	}
+	else
+	{
+		hr = gcpRendD3D->GetDevice_Unsynchronized().CreateTexture2D(&Desc, pSRD, &pD3DTex);
+	}
+
+	if (SUCCEEDED(hr) && pD3DTex)
+	{
+		CDeviceTexture* pDeviceTexture = new CDeviceTexture();
+
+		pDeviceTexture->m_pNativeResource = pD3DTex;
+		if (!pDeviceTexture->m_nBaseAllocatedSize)
+		{
+			pDeviceTexture->m_nBaseAllocatedSize = CDeviceTexture::TextureDataSize(Desc.Width, Desc.Height, 1, Desc.MipLevels, Desc.ArraySize, DeviceFormats::ConvertToTexFormat(Desc.Format), eTM_Optimal, eFlags);
+		}
+
+		*ppDevTexture = pDeviceTexture;
+	}
+
+	return hr;
+}
+
+HRESULT CDeviceObjectFactory::CreateCubeTexture(const D3D11_TEXTURE2D_DESC& Desc, uint32 eFlags, const ColorF& cClearValue, LPDEVICETEXTURE* ppDevTexture, const STexturePayload* pPayload)
+{
+	D3D11_SUBRESOURCE_DATA SRD[g_nD3D10MaxSupportedSubres];
+	D3DCubeTexture* pD3DTex = NULL; assert(!pPayload || (((Desc.MipLevels * Desc.ArraySize) <= g_nD3D10MaxSupportedSubres) && !(Desc.ArraySize % 6)));
+	D3D11_SUBRESOURCE_DATA* pSRD = ConvertToDX11Data(Desc.MipLevels * Desc.ArraySize, pPayload, SRD);
+	HRESULT hr = S_OK;
+
+	if (Desc.BindFlags & (D3D11_BIND_DEPTH_STENCIL | D3D11_BIND_RENDER_TARGET | D3D11_BIND_UNORDERED_ACCESS))
+	{
+		hr = gcpRendD3D->GetDevice_Unsynchronized().CreateTarget2D(&Desc, (const FLOAT*)&cClearValue, pSRD, &pD3DTex);
+	}
+	else
+	{
+		hr = gcpRendD3D->GetDevice_Unsynchronized().CreateTexture2D(&Desc, pSRD, &pD3DTex);
+	}
+
+	if (SUCCEEDED(hr) && pD3DTex)
+	{
+		CDeviceTexture* pDeviceTexture = new CDeviceTexture();
+
+		pDeviceTexture->m_pNativeResource = pD3DTex;
+		if (!pDeviceTexture->m_nBaseAllocatedSize)
+		{
+			pDeviceTexture->m_nBaseAllocatedSize = CDeviceTexture::TextureDataSize(Desc.Width, Desc.Height, 1, Desc.MipLevels, Desc.ArraySize, DeviceFormats::ConvertToTexFormat(Desc.Format), eTM_Optimal, eFlags);
+		}
+
+		*ppDevTexture = pDeviceTexture;
+	}
+
+	return hr;
+}
+
+HRESULT CDeviceObjectFactory::CreateVolumeTexture(const D3D11_TEXTURE3D_DESC& Desc, uint32 eFlags, const ColorF& cClearValue, LPDEVICETEXTURE* ppDevTexture, const STexturePayload* pPayload)
+{
+	D3D11_SUBRESOURCE_DATA SRD[g_nD3D10MaxSupportedSubres];
+	D3D11_SUBRESOURCE_DATA* pSRD = ConvertToDX11Data(Desc.MipLevels, pPayload, SRD);
+	D3DVolumeTexture* pD3DTex = NULL;
+	HRESULT hr = S_OK;
+
+	if (Desc.BindFlags & (D3D11_BIND_DEPTH_STENCIL | D3D11_BIND_RENDER_TARGET | D3D11_BIND_UNORDERED_ACCESS))
+	{
+		hr = gcpRendD3D->GetDevice_Unsynchronized().CreateTarget3D(&Desc, (const FLOAT*)&cClearValue, pSRD, &pD3DTex);
+	}
+	else
+	{
+		hr = gcpRendD3D->GetDevice_Unsynchronized().CreateTexture3D(&Desc, pSRD, &pD3DTex);
+	}
+
+	if (SUCCEEDED(hr) && pD3DTex)
+	{
+		CDeviceTexture* pDeviceTexture = new CDeviceTexture();
+
+		pDeviceTexture->m_pNativeResource = pD3DTex;
+		if (!pDeviceTexture->m_nBaseAllocatedSize)
+		{
+			pDeviceTexture->m_nBaseAllocatedSize = CDeviceTexture::TextureDataSize(Desc.Width, Desc.Height, Desc.Depth, Desc.MipLevels, 1, DeviceFormats::ConvertToTexFormat(Desc.Format), eTM_Optimal, eFlags);
+		}
+
+		*ppDevTexture = pDeviceTexture;
+	}
+
+	return hr;
+}
+
+HRESULT CDeviceObjectFactory::CreateBuffer(
+	buffer_size_t nSize
+	, buffer_size_t elemSize
+	, uint32 nUsage
+	, uint32 nBindFlags
+	, D3DBuffer** ppBuff
+	, const void* pData)
+{
+	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_RENDERER);
+	MEMSTAT_CONTEXT(EMemStatContextTypes::MSC_Other, 0, "CreateBuffer");
+	HRESULT hr = S_OK;
+
+#ifndef _RELEASE
+	// ToDo verify that the usage and bindflags are correctly set (e.g certain
+	// bit groups are mutually exclusive).
+#endif
+
+	D3D11_BUFFER_DESC BufDesc;
+	ZeroStruct(BufDesc);
+
+	BufDesc.StructureByteStride = elemSize;
+	BufDesc.ByteWidth = nSize * elemSize;
+	if ((nUsage & USAGE_CPU_WRITE))
+		BufDesc.ByteWidth = CDeviceBufferManager::AlignElementCountForStreaming(nSize, elemSize) * elemSize;
+
+	BufDesc.CPUAccessFlags = ConvertToDX11CPUAccessFlags(nUsage);
+	BufDesc.Usage = ConvertToDX11Usage(nUsage);
+	BufDesc.MiscFlags = ConvertToDX11MiscFlags(nUsage);
+
+	if (BufDesc.Usage != D3D11_USAGE_STAGING)
+	{
+		BufDesc.BindFlags = ConvertToDX11BindFlags(nBindFlags);
+		if (nBindFlags & (BIND_STREAM_OUTPUT | BIND_RENDER_TARGET | BIND_DEPTH_STENCIL))
+		{
+			CryFatalError("trying to create (currently) unsupported buffer type");
+		}
+	}
+	else
+	{
+		BufDesc.BindFlags = 0;
+	}
+
+	D3D11_SUBRESOURCE_DATA* pSRD = NULL;
+	D3D11_SUBRESOURCE_DATA SRD;
+	if (pData)
+	{
+		pSRD = &SRD;
+
+		SRD.pSysMem = pData;
+		SRD.SysMemPitch = BufDesc.ByteWidth;
+		SRD.SysMemSlicePitch = BufDesc.ByteWidth;
+	}
+
+	hr = gcpRendD3D->GetDevice_Unsynchronized().CreateBuffer(&BufDesc, pSRD, ppBuff);
+	assert(hr == S_OK);
+	return hr;
+}
+
+//=============================================================================
+
+HRESULT CDeviceObjectFactory::InvalidateCpuCache(void* buffer_ptr, size_t size, size_t offset)
+{
+	return S_OK;
+}
+
+HRESULT CDeviceObjectFactory::InvalidateGpuCache(D3DBuffer* buffer, void* buffer_ptr, buffer_size_t size, buffer_size_t offset)
+{
+	return S_OK;
+}
+
+void CDeviceObjectFactory::InvalidateBuffer(D3DBuffer* buffer, void* base_ptr, buffer_size_t offset, buffer_size_t size, uint32 id)
+{
+}
+
+//=============================================================================
+
+uint8* CDeviceObjectFactory::Map(D3DBuffer* buffer, uint32 subresource, buffer_size_t offset, buffer_size_t size, D3D11_MAP mode)
+{
+	D3D11_MAPPED_SUBRESOURCE mapped_resource = { 0 };
+	SIZE_T BeginEndR[2] = { offset, offset + size };
+	HRESULT hr = gcpRendD3D->GetDeviceContext_ForMapAndUnmap().Map(
+		buffer
+		, subresource
+		, BeginEndR
+		, mode
+		, 0
+		, &mapped_resource);
+	assert(hr == S_OK);
+	return reinterpret_cast<uint8*>(mapped_resource.pData);
+}
+
+void CDeviceObjectFactory::Unmap(D3DBuffer* buffer, uint32 subresource, buffer_size_t offset, buffer_size_t size, D3D11_MAP mode)
+{
+	SIZE_T BeginEndW[2] = { offset, offset + size };
+	gcpRendD3D->GetDeviceContext_ForMapAndUnmap().Unmap(
+		buffer
+		, subresource
+		, BeginEndW);
+}
+
+template<const bool bDirectAccess>
+void CDeviceObjectFactory::UploadContents(D3DBuffer* buffer, uint32 subresource, buffer_size_t offset, buffer_size_t size, D3D11_MAP mode, const void* pInDataCPU, void* pOutDataGPU, UINT numDataBlocks)
+{
+	gcpRendD3D->GetDeviceContext_ForMapAndUnmap().MappedWriteToSubresource(buffer, subresource, offset, size, mode, pInDataCPU, numDataBlocks);
+}
+
+template<const bool bDirectAccess>
+void CDeviceObjectFactory::DownloadContents(D3DBuffer* buffer, uint32 subresource, buffer_size_t offset, buffer_size_t size, D3D11_MAP mode, void* pOutDataCPU, const void* pInDataGPU, UINT numDataBlocks)
+{
+	gcpRendD3D->GetDeviceContext_ForMapAndUnmap().MappedReadFromSubresource(buffer, subresource, offset, size, mode, pOutDataCPU, numDataBlocks);
+}
+
+// Explicit instantiation
+template
+void CDeviceObjectFactory::UploadContents<true>(D3DBuffer* buffer, uint32 subresource, buffer_size_t offset, buffer_size_t size, D3D11_MAP mode, const void* pInDataCPU, void* pOutDataGPU, UINT numDataBlocks);
+template
+void CDeviceObjectFactory::UploadContents<false>(D3DBuffer* buffer, uint32 subresource, buffer_size_t offset, buffer_size_t size, D3D11_MAP mode, const void* pInDataCPU, void* pOutDataGPU, UINT numDataBlocks);
+
+template
+void CDeviceObjectFactory::DownloadContents<true>(D3DBuffer* buffer, uint32 subresource, buffer_size_t offset, buffer_size_t size, D3D11_MAP mode, void* pOutDataCPU, const void* pInDataGPU, UINT numDataBlocks);
+template
+void CDeviceObjectFactory::DownloadContents<false>(D3DBuffer* buffer, uint32 subresource, buffer_size_t offset, buffer_size_t size, D3D11_MAP mode, void* pOutDataCPU, const void* pInDataGPU, UINT numDataBlocks);
+
+// Shader API
+ID3D11VertexShader* CDeviceObjectFactory::CreateVertexShader(const void* pData, size_t bytes)
+{
+	ID3D11VertexShader* pResult;
+	return SUCCEEDED(gcpRendD3D->GetDevice_Unsynchronized().CreateVertexShader(pData, bytes, nullptr, &pResult)) ? pResult : nullptr;
+}
+
+ID3D11PixelShader* CDeviceObjectFactory::CreatePixelShader(const void* pData, size_t bytes)
+{
+	ID3D11PixelShader* pResult;
+	return SUCCEEDED(gcpRendD3D->GetDevice_Unsynchronized().CreatePixelShader(pData, bytes, nullptr, &pResult)) ? pResult : nullptr;
+}
+
+ID3D11GeometryShader* CDeviceObjectFactory::CreateGeometryShader(const void* pData, size_t bytes)
+{
+	ID3D11GeometryShader* pResult;
+	return SUCCEEDED(gcpRendD3D->GetDevice_Unsynchronized().CreateGeometryShader(pData, bytes, nullptr, &pResult)) ? pResult : nullptr;
+}
+
+ID3D11HullShader* CDeviceObjectFactory::CreateHullShader(const void* pData, size_t bytes)
+{
+	ID3D11HullShader* pResult;
+	return SUCCEEDED(gcpRendD3D->GetDevice_Unsynchronized().CreateHullShader(pData, bytes, nullptr, &pResult)) ? pResult : nullptr;
+}
+
+ID3D11DomainShader* CDeviceObjectFactory::CreateDomainShader(const void* pData, size_t bytes)
+{
+	ID3D11DomainShader* pResult;
+	return SUCCEEDED(gcpRendD3D->GetDevice_Unsynchronized().CreateDomainShader(pData, bytes, nullptr, &pResult)) ? pResult : nullptr;
+}
+
+ID3D11ComputeShader* CDeviceObjectFactory::CreateComputeShader(const void* pData, size_t bytes)
+{
+	ID3D11ComputeShader* pResult;
+	return SUCCEEDED(gcpRendD3D->GetDevice_Unsynchronized().CreateComputeShader(pData, bytes, nullptr, &pResult)) ? pResult : nullptr;
+}
+
+// Occlusion Query API
+D3DOcclusionQuery* CDeviceObjectFactory::CreateOcclusionQuery()
+{
+	D3DOcclusionQuery* pResult;
+	D3D11_QUERY_DESC desc;
+	desc.Query = D3D11_QUERY_OCCLUSION;
+	desc.MiscFlags = 0;
+	return SUCCEEDED(gcpRendD3D->GetDevice_Unsynchronized().CreateQuery(&desc, &pResult)) ? pResult : nullptr;
+}
+
+bool CDeviceObjectFactory::GetOcclusionQueryResults(D3DOcclusionQuery* pQuery, uint64& samplesPassed)
+{
+	return gcpRendD3D->GetDeviceContext().GetData(pQuery, &samplesPassed, sizeof(uint64), 0) == S_OK;
+}

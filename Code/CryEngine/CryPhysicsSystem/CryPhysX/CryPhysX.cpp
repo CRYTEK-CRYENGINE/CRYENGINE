@@ -130,7 +130,7 @@ namespace cpx // CryPhysX helper
 			  || (fd1.word2 & -((int)fd0.word3>>5))==-1)
 			return PxFilterFlag::eKILL;
 		pairFlags |= PxPairFlag::eNOTIFY_TOUCH_FOUND | PxPairFlag::eNOTIFY_CONTACT_POINTS | PxPairFlag::ePRE_SOLVER_VELOCITY;
-		if ((fd0.word2 | fd1.word2) & 16)
+		//if ((fd0.word2 | fd1.word2) & 16)
 			pairFlags |= PxPairFlag::eDETECT_CCD_CONTACT;
 		pairFlags |= PxPairFlag::eCONTACT_DEFAULT;
 		return PxFilterFlag::eDEFAULT;
@@ -221,6 +221,7 @@ namespace cpx // CryPhysX helper
 		sceneDesc.filterShader = CollFilter;
 		sceneDesc.broadPhaseType = PxBroadPhaseType::eMBP;
 		sceneDesc.flags |= PxSceneFlag::eENABLE_CCD;
+		sceneDesc.flags |= PxSceneFlag::eENABLE_STABILIZATION;
 		//sceneDesc.flags |= PxSceneFlag::eADAPTIVE_FORCE | PxSceneFlag::eENABLE_AVERAGE_POINT;
 
 		m_Scene = m_Physics->createScene(sceneDesc);

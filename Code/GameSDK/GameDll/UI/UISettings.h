@@ -45,7 +45,6 @@ struct SNullCVar : public ICVar
 	virtual void SetOnChangeCallback(ConsoleVarFunc pChangeFunc) override { return; }
 	virtual uint64 AddOnChangeFunctor(const SFunctor& pChangeFunctor) override { return 0; }
 	virtual bool RemoveOnChangeFunctor(const uint64 nElement) override { return true; }
-	virtual bool RemoveOnChangeFunctor(const SFunctor& changeFunctor) override { return true; }
 	virtual uint64 GetNumberOfOnChangeFunctors() const override { return 0; }
 	virtual const SFunctor& GetOnChangeFunctor(uint64 nFunctorIndex) const override { static SFunctor oDummy; return oDummy; }
 	virtual ConsoleVarFunc GetOnChangeCallback() const override { return nullptr; }
@@ -125,8 +124,8 @@ private:
 	ICVar* m_pGQVar;
 
 
-	AudioControlId m_musicVolumeId;
-	AudioControlId m_sfxVolumeId;
+	CryAudio::ControlId m_musicVolumeId;
+	CryAudio::ControlId m_sfxVolumeId;
 
 	ICVar* m_pVideoVar;
 

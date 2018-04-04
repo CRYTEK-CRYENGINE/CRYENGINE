@@ -228,7 +228,7 @@ if(BISON_EXECUTABLE)
       list(APPEND BISON_TARGET_outputs "${BISON_TARGET_output_header}")
 
       add_custom_command(OUTPUT ${BISON_TARGET_outputs}
-        ${BISON_TARGET_verbose_file}
+        ${BISON_TARGET_extraoutputs}
         COMMAND ${BISON_EXECUTABLE} ${BISON_TARGET_cmdopt} -o ${BisonOutput} ${BisonInput}
         VERBATIM
         DEPENDS ${BisonInput}

@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 /*=============================================================================
    PostProcessMotionBlur : camera/object motion blur post processing
@@ -463,7 +463,7 @@ void CMotionBlur::Render()
 				CShaderMan::s_shPostMotionBlur->FXSetPSFloat(m_pDofFocusParam1Name, &vDofParams1, 1);
 
 				gcpRendD3D->FX_Commit();
-				if (!FAILED(gcpRendD3D->FX_SetVertexDeclaration(0, eVF_P3S_C4B_T2S)))
+				if (!FAILED(gcpRendD3D->FX_SetVertexDeclaration(0, EDefaultInputLayouts::P3S_C4B_T2S)))
 				{
 					gcpRendD3D->FX_SetVStream(0, NULL, 0, 0);
 					gcpRendD3D->FX_SetIStream(0, 0, Index16);

@@ -1,4 +1,5 @@
 // Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved.
+
 #include "stdafx.h"
 #include "IResCompiler.h"
 #include "XMLConverter.h"
@@ -51,7 +52,7 @@ ICryXML* LoadICryXML()
 	return pfnGetICryXML();
 }
 
-void __stdcall RegisterConvertors( IResourceCompiler *pRC )
+void __stdcall RegisterConverters( IResourceCompiler *pRC )
 {
 	SetRCLog(pRC->GetIRCLog());
 
@@ -64,7 +65,7 @@ void __stdcall RegisterConvertors( IResourceCompiler *pRC )
 
 	pCryXML->AddRef();
 
-	pRC->RegisterConvertor("XMLConverter", new XMLConverter(pCryXML));
+	pRC->RegisterConverter("XMLConverter", new XMLConverter(pCryXML));
 
 	pRC->RegisterKey("xmlFilterFile", "specify file with special commands to filter out unneeded XML elements and attributes");	
 

@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #pragma once
 
@@ -24,6 +24,23 @@ struct IParticleEffectPfx2;
 typedef _smart_ptr<IParticleEffectPfx2> PParticleEffect;
 typedef _smart_ptr<IParticleEmitter>    PParticleEmitter;
 
+struct SParticleStats
+{
+	uint m_emittersAlive = 0;
+	uint m_emittersUpdated = 0;
+	uint m_emittersRendererd = 0;
+
+	uint m_runtimesAlive = 0;
+	uint m_runtimesUpdated = 0;
+	uint m_runtimesRendered = 0;
+
+	uint m_particlesAllocated = 0;
+	uint m_particlesAlive = 0;
+	uint m_particlesUpdated = 0;
+	uint m_particlesRendered = 0;
+	uint m_particlesClipped = 0;
+};
+
 struct SParticleFeatureParams
 {
 	const char*       m_groupName;
@@ -46,6 +63,8 @@ struct IParticleFeature
 	virtual const char*                             GetConnectorName(uint connectorId) const = 0;
 	virtual void                                    ConnectTo(const char* pOtherName) = 0;
 	virtual void                                    DisconnectFrom(const char* pOtherName) = 0;
+	virtual uint                                    GetNumResources() const = 0;
+	virtual const char*                             GetResourceName(uint resourceId) const = 0;
 
 	virtual gpu_pfx2::IParticleFeatureGpuInterface* GetGpuInterface() = 0;
 };
@@ -54,15 +73,17 @@ enum EUpdateList
 {
 	EUL_MainPreUpdate,    // this feature will update once per frame on the main thread
 	EUL_InitSubInstance,  // this feature has sub instance data to initialize
+	EUL_GetExtents,       // this feature has a spatial extent
+	EUL_GetEmitOffset,    // this feature moves the effective emit location
 	EUL_Spawn,            // this feature creates new particles
 	EUL_InitUpdate,       // this feature needs to initialize newborn particle data
 	EUL_PostInitUpdate,   // this feature needs to initialize newborn particle data after main InitUpdate
 	EUL_KillUpdate,       // this feature needs to run logic for particles that are being killed
 	EUL_PreUpdate,        // this feature changes particles over time before the main update
 	EUL_Update,           // this feature changes particle data over time
+	EUL_PostUpdate,       // this feature changes particles after the main update
 	EUL_Render,           // this feature has geometry to render
 	EUL_RenderDeferred,   // this feature has geometry to render but can only render after all updates are done
-	EUL_GetExtents,       // this feature has a spatial extent
 
 	EUL_Count,
 };
@@ -113,7 +134,6 @@ struct SRuntimeInitializationParameters
 	int            maxNewBorns;
 	EGpuSortMode   sortMode;
 	EGpuFacingMode facingMode;
-	float          axisScale;
 	bool           isSecondGen;
 	int            parentId;
 	int            version;
@@ -124,8 +144,11 @@ class ICommonParticleComponentRuntime : public _i_reference_target_t
 public:
 	struct SInstance
 	{
-		SInstance() {}
+		SInstance(TParticleId id = 0, float delay = 0.0f)
+			: m_parentId(id), m_startDelay(delay) {}
+
 		TParticleId m_parentId;
+		float m_startDelay;
 	};
 	virtual ~ICommonParticleComponentRuntime() {}
 
@@ -134,14 +157,16 @@ public:
 	virtual gpu_pfx2::IParticleComponentRuntime* GetGpuRuntime() { return nullptr; }
 	virtual pfx2::CParticleComponentRuntime*     GetCpuRuntime() { return nullptr; }
 
-	virtual bool                                 IsActive() const = 0;
+	virtual bool        IsActive() const = 0;
+	virtual void        SetActive(bool active) = 0;
+	virtual bool        IsSecondGen() const = 0;
 	virtual const AABB& GetBounds() const = 0;
 
 	virtual void        AccumCounts(SParticleCounts& counts) = 0;
 
-	virtual void        AddSubInstances(SInstance* pInstances, size_t count) = 0;
-	virtual void        ReparentParticles(const uint* swapIds, const uint numSwapIds) = 0;
-	virtual void        MainPreUpdate() = 0;
+	virtual void        AddSubInstances(Array<const SInstance, uint> instances) = 0;
+	virtual void        RemoveAllSubInstances() = 0;
+	virtual void        ReparentParticles(Array<const TParticleId, uint> swapIds) = 0;
 };
 
 struct IParticleEffectPfx2 : public IParticleEffect
@@ -156,7 +181,7 @@ struct IParticleEffectPfx2 : public IParticleEffect
 
 struct IParticleSystem : public ICryUnknown
 {
-	CRYINTERFACE_DECLARE(IParticleSystem, 0xCC3AA21D44A24DED, 0x9AA1DADED21D570A);
+	CRYINTERFACE_DECLARE_GUID(IParticleSystem, "cc3aa21d-44a2-4ded-9aa1-daded21d570a"_cry_guid);
 
 	virtual PParticleEffect         CreateEffect() = 0;
 	virtual PParticleEffect         ConvertEffect(const IParticleEffect* pOldEffect, bool bReplace = false) = 0;
@@ -165,6 +190,7 @@ struct IParticleSystem : public ICryUnknown
 	virtual PParticleEmitter        CreateEmitter(PParticleEffect pEffect) = 0;
 	virtual uint                    GetNumFeatureParams() const = 0;
 	virtual SParticleFeatureParams& GetFeatureParam(uint featureIdx) const = 0;
+	virtual TParticleAttributesPtr  CreateParticleAttributes() const = 0;
 
 	virtual void                    OnFrameStart() = 0;
 	virtual void                    Update() = 0;
@@ -172,14 +198,14 @@ struct IParticleSystem : public ICryUnknown
 
 	virtual void                    Serialize(TSerialize ser) = 0;
 
-	virtual void                    GetCounts(SParticleCounts& counts) = 0;
+	virtual void                    GetStats(SParticleStats& stats) = 0;
 	virtual void                    GetMemoryUsage(ICrySizer* pSizer) const = 0;
 };
 
 static std::shared_ptr<IParticleSystem> GetIParticleSystem()
 {
 	std::shared_ptr<IParticleSystem> pParticleSystem;
-	CryCreateClassInstance("CryEngine_ParticleSystem", pParticleSystem);
+	CryCreateClassInstanceForInterface(cryiidof<IParticleSystem>(), pParticleSystem);
 	return pParticleSystem;
 }
 

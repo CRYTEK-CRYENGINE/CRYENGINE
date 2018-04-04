@@ -15,7 +15,7 @@ def build(bld):
 		file_list     = 'uqs_stdlib.waf_files',
 		pch           = 'stdlib/StdAfx.cpp',
 		includes      = [ '.', 'stdlib' ],
-		use_module    = [ 'yasli', 'CryUQS_Shared', 'CryUQS_Interfaces', 'CryUQS_Client' ],
+		use_module    = [ 'CryUQS_Shared', 'CryUQS_Interfaces', 'CryUQS_Client' ],
 		module_provides = dict(
 			includes = [ Path('Code/CryPlugins')],
 		),

@@ -8,28 +8,30 @@
 #define USE_MATERIAL
 
 #include "Common.cfi"
+#include "GpuParticlesCommon.cfi"
 #include "ParticleVT.cfi"
 #include "ModificatorVT.cfi"
 #include "ShadeLib.cfi"
 #include "LightVolumes.cfi"
-#include "ParticlesShadowPass.cfi"
+#include "ShadowCommon.cfi"
+#include "ForwardShading.cfi"
 
 float Script : STANDARDSGLOBAL
 <
   string Script =
-           "Public;"
-           "NoPreview;"
+		   "Public;"
+		   "NoPreview;"
 #if %DEPTH_FIXUP
 					 "DepthFixup;"
 #endif
 #if %REFRACTION
-           "Refractive;"
-           "ShaderDrawType = General;"
+		   "Refractive;"
+		   "ShaderDrawType = General;"
 #else 
-           "ShaderDrawType = Light;"
+		   "ShaderDrawType = Light;"
 #endif
 
-           "ShaderType = Particle;";
+		   "ShaderType = Particle;";
 >;
 
 Texture2D customTex : register(t9) 
@@ -54,14 +56,14 @@ Texture2D glowTex: register(t4)
 #if %REFRACTION
   float RefrBumpScale
   <  
-    register = REG_PM_PARAM_0.x;
-    string UIHelp = "Set refraction bump scale \nMin value = 0, Max value = 2.0 \nCorrect name - RefrBumpScale";                     
-    string UIName = "Refraction Bump Scale";    
-    
-    string UIWidget = "slider";
-    float UIMin = 0.0;
-    float UIMax = 2.0;
-    float UIStep = 0.1;
+	register = REG_PM_PARAM_0.x;
+	string UIHelp = "Set refraction bump scale \nMin value = 0, Max value = 2.0 \nCorrect name - RefrBumpScale";                     
+	string UIName = "Refraction Bump Scale";    
+	
+	string UIWidget = "slider";
+	float UIMin = 0.0;
+	float UIMax = 2.0;
+	float UIStep = 0.1;
   > = 0.1;
 #endif
 

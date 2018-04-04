@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #include "StdAfx.h"
 #include "WaterVolumeRenderNode.h"
@@ -241,8 +241,8 @@ CWaterVolumeRenderNode::CWaterVolumeRenderNode()
 {
 	GetInstCount(GetRenderNodeType())++;
 
-	m_pWaterBodyIntoMat = GetMatMan()->LoadMaterial("EngineAssets/Materials/Fog/WaterFogVolumeInto", false);
-	m_pWaterBodyOutofMat = GetMatMan()->LoadMaterial("EngineAssets/Materials/Fog/WaterFogVolumeOutof", false);
+	m_pWaterBodyIntoMat = GetMatMan()->LoadMaterial("%ENGINE%/EngineAssets/Materials/Fog/WaterFogVolumeInto", false);
+	m_pWaterBodyOutofMat = GetMatMan()->LoadMaterial("%ENGINE%/EngineAssets/Materials/Fog/WaterFogVolumeOutof", false);
 	for (int i = 0; i < RT_COMMAND_BUF_COUNT; ++i)
 	{
 		m_pVolumeRE[i] = GetRenderer() ?
@@ -366,9 +366,11 @@ void CWaterVolumeRenderNode::CreateArea(uint64 volumeID, const Vec3* pVertices, 
 	const bool serializeWith3DEngine = keepSerializationParams && !IsAttachedToEntity();
 
 	assert(fabs(fogPlane.n.GetLengthSquared() - 1.0f) < 1e-4 && "CWaterVolumeRenderNode::CreateArea(...) -- Fog plane normal doesn't have unit length!");
-	assert(fogPlane.n.Dot(Vec3(0, 0, 1)) > 1e-4f && "CWaterVolumeRenderNode::CreateArea(...) -- Invalid fog plane specified!");
 	if (fogPlane.n.Dot(Vec3(0, 0, 1)) <= 1e-4f)
+	{
+		// CWaterVolumeRenderNode::CreateArea(...) -- Invalid fog plane specified!
 		return;
+	}
 
 	assert(numVertices >= 3);
 	if (numVertices < 3)

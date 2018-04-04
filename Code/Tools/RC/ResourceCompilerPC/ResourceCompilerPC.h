@@ -22,5 +22,6 @@
 
 #include "..\ResourceCompiler\IRCLog.h"
 #include "..\ResourceCompiler\IResCompiler.h"
+#include "..\ResourceCompiler\IAssetManager.h"
 
 #endif // __ResourceCompilerPC_h__

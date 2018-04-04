@@ -1,11 +1,14 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #pragma once
 
 #include <CrySystem/ICryPlugin.h>
 
-struct IMonoDomain;
-struct IMonoAssembly;
+class CRootMonoDomain;
+class CAppDomain;
+class CMonoDomain;
+class CMonoLibrary;
+
 struct IMonoNativeToManagedInterface;
 
 namespace BehaviorTree { class Node; }
@@ -27,28 +30,27 @@ struct IManagedNodeCreator
 	virtual BehaviorTree::Node* Create() = 0;
 };
 
-struct IMonoRuntime
+struct IMonoEngineModule : public Cry::IDefaultModule
 {
-	virtual ~IMonoRuntime() {}
+	CRYINTERFACE_DECLARE_GUID(IMonoEngineModule, "ae47c989-0ffa-4876-b0b5-fbb833c2b4ef"_cry_guid);
 
-	virtual bool                        Initialize() = 0;
+	virtual void                        Shutdown() = 0;
+
 	virtual std::shared_ptr<ICryPlugin> LoadBinary(const char* szBinaryPath) = 0;
 
 	virtual void                        Update(int updateFlags = 0, int nPauseMode = 0) = 0;
 
 	virtual void                        RegisterListener(IMonoListener* pListener) = 0;
 	virtual void                        UnregisterListener(IMonoListener* pListener) = 0;
-	
-	virtual IMonoDomain*                GetRootDomain() = 0;
-	virtual IMonoDomain*                GetActiveDomain() = 0;
-	virtual IMonoDomain*                CreateDomain(char* name, bool bActivate = false) = 0;
-	
-	virtual IMonoAssembly*              GetCryCommonLibrary() const = 0;
-	virtual IMonoAssembly*              GetCryCoreLibrary() const = 0;
 
-	virtual void						RegisterNativeToManagedInterface(IMonoNativeToManagedInterface& interface) = 0;
+	virtual CRootMonoDomain*            GetRootDomain() = 0;
+	virtual CMonoDomain*                GetActiveDomain() = 0;
+	virtual CAppDomain*                 CreateDomain(char* name, bool bActivate = false) = 0;
 
-	virtual void                        RegisterManagedActor(const char* className) = 0;
+	virtual CMonoLibrary*               GetCryCommonLibrary() const = 0;
+	virtual CMonoLibrary*               GetCryCoreLibrary() const = 0;
+
+	virtual void						RegisterNativeToManagedInterface(IMonoNativeToManagedInterface& managedInterface) = 0;
 
 	virtual void                        RegisterManagedNodeCreator(const char* szClassName, IManagedNodeCreator* pCreator) = 0;
 };

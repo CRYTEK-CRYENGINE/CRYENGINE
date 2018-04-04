@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #include "StdAfx.h"
 
@@ -395,7 +395,7 @@ void CRoadRenderNode::Compile() PREFAST_SUPPRESS_WARNING(6262) //function uses >
 	if (m_dynamicData.indices.Count() && GetRenderer())
 	{
 		m_pRenderMesh = GetRenderer()->CreateRenderMeshInitialized(
-		  m_dynamicData.vertices.GetElements(), m_dynamicData.vertices.Count(), eVF_P3F_C4B_T2S,
+		  m_dynamicData.vertices.GetElements(), m_dynamicData.vertices.Count(), EDefaultInputLayouts::P3F_C4B_T2S,
 		  m_dynamicData.indices.GetElements(), m_dynamicData.indices.Count(), prtTriangleList,
 		  "RoadRenderNode", GetName(), eRMT_Static, 1, 0, NULL, NULL, false, true, m_dynamicData.tangents.GetElements());
 
@@ -634,12 +634,6 @@ void CRoadRenderNode::OnTerrainChanged()
 
 	// Terrain changed, schedule a full rebuild of the road to match
 	ScheduleRebuild(true);
-}
-
-void CRoadRenderNode::OnRenderNodeBecomeVisible(const SRenderingPassInfo& passInfo)
-{
-	assert(m_pTempData);
-	m_pTempData->userData.objMat.SetIdentity();
 }
 
 void CRoadRenderNode::GetTexCoordInfo(float* pTexCoordInfo)

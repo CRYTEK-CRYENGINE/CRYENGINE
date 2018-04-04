@@ -1,16 +1,18 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #pragma once
 
 #include <CryString/StringUtils.h>
 #include <CryCore/Platform/platform.h>
 #include <CrySystem/ISystem.h>
-#include <CrySystem/ITestSystem.h>
+#include <CrySystem/CryUnitTest.h>
 #include <CryExtension/RegFactoryNode.h>
 #include <CryExtension/ICryFactoryRegistryImpl.h>
 #include <CryString/UnicodeFunctions.h>
 #include <CrySystem/CryUtils.h>
 #include <CryCore/Platform/CryWindows.h>
+
+#include <CryFlowGraph/IFlowBaseNode.h>
 
 //////////////////////////////////////////////////////////////////////////
 // Global environment variable.
@@ -22,12 +24,41 @@ SSystemGlobalEnvironment gEnv;
 extern SSystemGlobalEnvironment gEnv;
 	#endif
 #else
-struct SSystemGlobalEnvironment* gEnv = NULL;
+struct SSystemGlobalEnvironment* gEnv = nullptr;
 #endif
 
-#if defined(_LAUNCHER) && (defined(_RELEASE) || CRY_PLATFORM_LINUX || CRY_PLATFORM_ANDROID || CRY_PLATFORM_APPLE || CRY_PLATFORM_ORBIS) || !defined(_LIB)
+#if (defined(_LAUNCHER) && defined(CRY_IS_MONOLITHIC_BUILD)) || !defined(_LIB)
 //The reg factory is used for registering the different modules along the whole project
-struct SRegFactoryNode* g_pHeadToRegFactories = 0;
+struct SRegFactoryNode* g_pHeadToRegFactories = nullptr;
+std::vector<const char*> g_moduleCommands;
+std::vector<const char*> g_moduleCVars;
+
+extern "C" DLL_EXPORT void CleanupModuleCVars()
+{
+	if (auto pConsole = gEnv->pConsole)
+	{
+		// Unregister all commands that were registered from within the plugin/module
+		for (auto& it : g_moduleCommands)
+		{
+			pConsole->RemoveCommand(it);
+		}
+		g_moduleCommands.clear();
+
+		// Unregister all CVars that were registered from within the plugin/module
+		for (auto& it : g_moduleCVars)
+		{
+			pConsole->UnregisterVariable(it);
+		}
+		g_moduleCVars.clear();
+	}
+}
+#endif
+
+#if !defined(CRY_IS_MONOLITHIC_BUILD)  || defined(_LAUNCHER)
+extern "C" DLL_EXPORT SRegFactoryNode* GetHeadToRegFactories()
+{
+	return g_pHeadToRegFactories;
+}
 #endif
 
 #if !defined(_LIB) || defined(_LAUNCHER)
@@ -45,11 +76,6 @@ struct SRegFactoryNode* g_pHeadToRegFactories = 0;
 		#include "WinBase.inl"
 	#endif
 	#undef CRY_PLATFORM_IMPL_H_FILE
-
-// Define UnitTest static variables
-CryUnitTest::Test* CryUnitTest::Test::m_pFirst = 0;
-CryUnitTest::Test* CryUnitTest::Test::m_pLast = 0;
-
 	#if CRY_PLATFORM_WINDOWS
 void CryPureCallHandler()
 {
@@ -113,7 +139,7 @@ extern "C" DLL_EXPORT void ModuleInitISystem(ISystem* pSystem, const char* modul
 	if (pSystem)
 	{
 		if (CryUnitTest::IUnitTestManager* pTestManager = pSystem->GetITestSystem()->GetIUnitTestManager())
-			pTestManager->CreateTests(CryUnitTest::Test::m_pFirst, moduleName);
+			pTestManager->CreateTests(moduleName);
 	}
 	#endif //CRY_UNIT_TESTING
 }
@@ -392,7 +418,7 @@ bool CrySetFileAttributes(const char* lpFileName, uint32 dwFileAttributes)
 //////////////////////////////////////////////////////////////////////////
 void CryFindRootFolderAndSetAsCurrentWorkingDirectory()
 {
-	char szEngineRootDir[_MAX_PATH];
+	char szEngineRootDir[_MAX_PATH] = "";
 	CryFindEngineRootFolder(CRY_ARRAY_COUNT(szEngineRootDir), szEngineRootDir);
 
 #if CRY_PLATFORM_WINAPI || CRY_PLATFORM_LINUX
@@ -409,7 +435,7 @@ void CryFindEngineRootFolder(unsigned int engineRootPathSize, char* szEngineRoot
 		#elif CRY_PLATFORM_POSIX
 	char osSeperator = '/';
 		#endif
-	char szExecFilePath[_MAX_PATH];
+	char szExecFilePath[_MAX_PATH] = "";
 	CryGetExecutableFolder(CRY_ARRAY_COUNT(szExecFilePath), szExecFilePath);
 
 	string strTempPath(szExecFilePath);
@@ -440,9 +466,9 @@ void CryFindEngineRootFolder(unsigned int engineRootPathSize, char* szEngineRoot
 		nCurDirSlashPos = strTempPath.rfind(osSeperator, nCurDirSlashPos - 1);
 
 	}
-	while (nCurDirSlashPos > 0);
+	while (nCurDirSlashPos != 0 && nCurDirSlashPos != string::npos);
 
-	if (nCurDirSlashPos == 0)
+	if (nCurDirSlashPos == 0 || nCurDirSlashPos == string::npos)
 	{
 		CryFatalError("Unable to locate CryEngine root folder. Ensure that the 'engine' folder exists in your CryEngine root directory");
 		return;
@@ -502,6 +528,17 @@ int64 CryGetTicks()
 #else
 	#define THR_INLINE
 #endif
+
+//////////////////////////////////////////////////////////////////////////
+// Support for automatic FlowNode types registration
+//////////////////////////////////////////////////////////////////////////
+#if !defined(_LIB) || defined(_LAUNCHER)
+CAutoRegFlowNodeBase* CAutoRegFlowNodeBase::s_pFirst = nullptr;
+CAutoRegFlowNodeBase* CAutoRegFlowNodeBase::s_pLast = nullptr;
+bool                  CAutoRegFlowNodeBase::s_bNodesRegistered = false;
+#endif
+
+//////////////////////////////////////////////////////////////////////////
 
 //////////////////////////////////////////////////////////////////////////
 //inline void CryDebugStr( const char *format,... )

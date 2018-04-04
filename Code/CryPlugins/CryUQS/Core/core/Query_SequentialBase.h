@@ -4,9 +4,9 @@
 
 // *INDENT-OFF* - <hard to read code and declarations due to inconsistent indentation>
 
-namespace uqs
+namespace UQS
 {
-	namespace core
+	namespace Core
 	{
 
 		//===================================================================================
@@ -30,8 +30,8 @@ namespace uqs
 
 		private:
 			// CQueryBase
-			virtual bool                             OnInstantiateFromQueryBlueprint(const shared::IVariantDict& runtimeParams, shared::CUqsString& error) override final;
-			virtual EUpdateState                     OnUpdate(const CTimeValue& timeBudget, shared::CUqsString& error) override final;
+			virtual bool                             OnInstantiateFromQueryBlueprint(const Shared::IVariantDict& runtimeParams, Shared::CUqsString& error) override final;
+			virtual EUpdateState                     OnUpdate(Shared::CUqsString& error) override final;
 			virtual void                             OnCancel() override final;
 			virtual void                             OnGetStatistics(SStatistics& out) const override final;
 			// ~CQueryBase
@@ -40,12 +40,12 @@ namespace uqs
 			virtual void                             HandleChildQueryFinishedWithSuccess(const CQueryID& childQueryID, QueryResultSetUniquePtr&& pResultSet) = 0;
 
 		private:
-			shared::CVariantDict                     m_runtimeParams;
+			Shared::CVariantDict                     m_runtimeParams;
 			size_t                                   m_indexOfNextChildToInstantiate;
 			CQueryID                                 m_queryIDOfCurrentlyRunningChild;
 			std::unique_ptr<CItemList>               m_pResultingItemsOfLastChildQuery;
 			bool                                     m_bExceptionOccurredInChild;
-			shared::CUqsString                       m_exceptionMessageFromChild;
+			Shared::CUqsString                       m_exceptionMessageFromChild;
 		};
 
 	}

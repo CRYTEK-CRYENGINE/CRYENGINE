@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 //
 //	File:CryPak.cpp
@@ -137,9 +137,6 @@ public:
 	virtual void Add(const char* sResourceFile)
 	{
 		stack_string filename = UnifyFilename(sResourceFile);
-
-		if (strncmp(filename.c_str(), "editor/", 7) == 0)        // we don't want to track editor directory, on demand loading caused errors
-			return;
 
 		CryAutoLock<CryCriticalSection> lock(m_lock);
 		m_set.insert(filename);
@@ -427,7 +424,7 @@ CCryPak::CCryPak(IMiniLog* pLog, PakVars* pPakVars, const bool bLvlRes, const IG
 
 	m_mainThreadId = GetCurrentThreadId();
 
-	gEnv->pSystem->GetISystemEventDispatcher()->RegisterListener(this);
+	gEnv->pSystem->GetISystemEventDispatcher()->RegisterListener(this,"CCryPak");
 
 #ifdef INCLUDE_LIBTOMCRYPT
 	if (pGameStartup)
@@ -476,7 +473,8 @@ bool CCryPak::CheckFileAccessDisabled(const char* name, const char* mode)
 			}
 			if (logInvalidFileAccess && name)
 			{
-				CDebugAllowFileAccess afa;
+				SCOPED_ALLOW_FILE_ACCESS_FROM_THIS_THREAD();
+
 				CryWarning(VALIDATOR_MODULE_SYSTEM, VALIDATOR_ERROR, "File: %s opened when runtime file access is disabled (mode %s)", name, mode);
 
 				//strip off dir to reduce warning size
@@ -503,7 +501,17 @@ bool CCryPak::CheckFileAccessDisabled(const char* name, const char* mode)
 				{
 					char acTmp[2048];
 					cry_sprintf(acTmp, "Invalid File Access: %s '%s'", nameShort, mode);
-					gEnv->pSystem->DisplayErrorMessage(acTmp, 5.f);
+					gEnv->pSystem->DisplayErrorMessage(acTmp, 5.0f);
+
+					static bool bPrintOnce = true;
+
+					if (bPrintOnce)
+					{
+						gEnv->pSystem->DisplayErrorMessage("FILE ACCESS FROM MAIN OR RENDER THREAD DETECTED", 60.0f, 0, false);
+						gEnv->pSystem->DisplayErrorMessage("THIS IMPACTS PERFORMANCE AND NEEDS TO BE REVISED", 60.0f, 0, false);
+						gEnv->pSystem->DisplayErrorMessage("To disable this message set sys_PakLogInvalidFileAccess = 0 (not recommended)", 60.0f, 0, false);
+						bPrintOnce = false;
+					}
 				}
 
 				CryPerfHUDWarning(5.f, "File Access: %s '%s'", nameShort, mode);
@@ -793,6 +801,12 @@ void CCryPak::SetLocalizationFolder(char const* const szLocalizationFolder)
 //////////////////////////////////////////////////////////////////////////
 void CCryPak::SetAlias(const char* szName, const char* szAlias, bool bAdd)
 {
+	// Strip ./ or .\ at the beginning of the szAlias path.
+	if (szAlias && szAlias[0] == '.' && (szAlias[1] == '/' || szAlias[1] == '\\'))
+	{
+		szAlias += 2;
+	}
+
 	// find out if it is already there
 	TAliasList::iterator it;
 	tNameAlias* tPrev = NULL;
@@ -850,6 +864,7 @@ void CCryPak::SetAlias(const char* szName, const char* szAlias, bool bAdd)
 #if !CRY_PLATFORM_IOS && !CRY_PLATFORM_LINUX && !CRY_PLATFORM_ANDROID
 		strlwr(tNew->szAlias);
 #endif
+		std::replace(tNew->szAlias, tNew->szAlias + tNew->nLen2 + 1, g_cNonNativeSlash, g_cNativeSlash);
 		m_arrAliases.push_back(tNew);
 	}
 }
@@ -1038,6 +1053,8 @@ inline bool CheckFileExistOnDisk(const char* filename)
 
 const char* CCryPak::AdjustFileName(const char* src, char dst[g_nMaxPath], unsigned nFlags)
 {
+	CRY_ASSERT(src);
+
 	bool bSkipMods = false;
 
 	if (g_cvars.sys_filesystemCaseSensitivity > 0)
@@ -1049,24 +1066,14 @@ const char* CCryPak::AdjustFileName(const char* src, char dst[g_nMaxPath], unsig
 	    ((nFlags & FLAGS_PATH_REAL) == 0) &&
 	    ((nFlags & FLAGS_FOR_WRITING) == 0) &&
 	    (!m_arrMods.empty()) &&
-	    (*src != '%') &&                                                                   // If path starts from % it is a special alias.
-	    ((m_pPakVars->nPriority != ePakPriorityPakOnly) || (nFlags & FLAGS_NEVER_IN_PAK))) // When priority is Pak only, we only check Mods directories if we're looking for a file that can't be in a pak
+	    (*src != '%') &&                                                                   // If path starts with '%' it is a special alias.
+	    ((m_pPakVars->nPriority != ePakPriorityPakOnly) || (nFlags & FLAGS_NEVER_IN_PAK) || (*src == '%'))) // When priority is Pak only, we only check Mods directories if we're looking for a file that can't be in a pak
 	{
 		// Scan mod folders
 		std::vector<string>::reverse_iterator it;
 		for (it = m_arrMods.rbegin(); it != m_arrMods.rend(); ++it)
 		{
 			CryPathString modPath = (*it).c_str();
-			//FIXME: Used to limit search scope of %ENGINEROOT% mod
-			//Remove test once %ENGINEROOT% is no longer added as a mod
-			if (modPath == "%engineroot%" &&
-				!(filehelpers::CheckPrefix(src, "editor/") ||
-				filehelpers::CheckPrefix(src, "engine/") ||
-				filehelpers::CheckPrefix(src, "editor\\") ||
-				filehelpers::CheckPrefix(src, "engine\\")))
-				continue;
-
-
 			modPath.append(1, '/');
 			modPath += src;
 			const char* szFinalPath = AdjustFileNameInternal(modPath, dst, nFlags | FLAGS_PATH_REAL);
@@ -1269,9 +1276,9 @@ const char* CCryPak::AdjustFileNameInternal(const char* src, char* dst, unsigned
 		if (filehelpers::CheckPrefix(szNewSrc, "./") ||
 		    filehelpers::CheckPrefix(szNewSrc, ".\\"))
 		{
-			const int nLen = min(sizeof(szNewSrc), strlen(szNewSrc) - 2);
-			memmove(szNewSrc, szNewSrc + 2, nLen);
-			szNewSrc[nLen] = 0;
+			size_t len = std::min<size_t>(sizeof(szNewSrc), strlen(szNewSrc) - 2);
+			memmove(szNewSrc, szNewSrc + 2, len);
+			szNewSrc[len] = 0;
 		}
 	}
 	//////////////////////////////////////////////////////////////////////////
@@ -1304,9 +1311,9 @@ const char* CCryPak::AdjustFileNameInternal(const char* src, char* dst, unsigned
 		}
 		else if (filehelpers::CheckPrefix(szNewSrc, "." CRY_NATIVE_PATH_SEPSTR))
 		{
-			const int nLen = min(sizeof(szNewSrc), strlen(szNewSrc) - 2);
-			memmove(szNewSrc, szNewSrc + 2, nLen);
-			szNewSrc[nLen] = 0;
+			size_t len = std::min<size_t>(sizeof(szNewSrc), strlen(szNewSrc) - 2);
+			memmove(szNewSrc, szNewSrc + 2, len);
+			szNewSrc[len] = 0;
 		}
 	}
 
@@ -1511,7 +1518,7 @@ FILE* CCryPak::FOpenRaw(const char* pName, const char* mode)
 //////////////////////////////////////////////////////////////////////////
 FILE* CCryPak::FOpen(const char* pName, const char* szMode, char* szFileGamePath, int nLen)
 {
-	LOADING_TIME_PROFILE_SECTION;
+	LOADING_TIME_PROFILE_SECTION_ARGS(pName);
 
 	SAutoCollectFileAcessTime accessTime(this);
 
@@ -1537,8 +1544,7 @@ FILE* CCryPak::FOpen(const char* pName, const char* szMode, char* szFileGamePath
 //////////////////////////////////////////////////////////////////////////
 FILE* CCryPak::FOpen(const char* pName, const char* szMode, unsigned nInputFlags)
 {
-
-	LOADING_TIME_PROFILE_SECTION;
+	LOADING_TIME_PROFILE_SECTION_ARGS(pName);
 
 	if (strlen(pName) >= g_nMaxPath)
 		return 0;

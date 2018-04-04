@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 // -------------------------------------------------------------------------
 //  File name:   dllmain.cpp
@@ -148,6 +148,19 @@ public:
 				gEnv->pSystem->SetThreadState(ESubsys_Physics, true);
 				break;
 			}
+		case ESYSTEM_EVENT_FULL_SHUTDOWN:
+		case ESYSTEM_EVENT_FAST_SHUTDOWN:
+			{
+				if (gEnv && gEnv->pSystem)
+				{
+					ISystemEventDispatcher* pSystemEventDispatcher = gEnv->pSystem->GetISystemEventDispatcher();
+					if (pSystemEventDispatcher)
+					{
+						pSystemEventDispatcher->RemoveListener(this);
+					}
+				} 
+			}
+			break;
 		}
 	}
 };
@@ -158,14 +171,15 @@ extern "C"
 {
 	CRYSYSTEM_API ISystem* CreateSystemInterface(const SSystemInitParams& startupParams)
 	{
-		CSystem* pSystem = NULL;
-
-		pSystem = new CSystem(startupParams);
-		ModuleInitISystem(pSystem, "CrySystem");
+		std::unique_ptr<CSystem> pSystem = stl::make_unique<CSystem>(startupParams);
+		// Note: This constructs an object on the stack that relies on pSystem, thus it has to be destroyed before the system.
+		// This is fine in this case since pSystem scope local objects will be destroyed in reverse order of construction.
+		LOADING_TIME_PROFILE_SECTION_NAMED("CreateSystemInterface");
+		ModuleInitISystem(pSystem.get(), "CrySystem");
 #if CRY_PLATFORM_DURANGO
-	#if !defined(_LIB)
+#if !defined(_LIB)
 		gEnv = pSystem->GetGlobalEnvironment();
-	#endif
+#endif
 		gEnv->pWindow = startupParams.hWnd;
 #endif
 
@@ -176,25 +190,24 @@ extern "C"
 
 		// the earliest point the system exists - w2e tell the callback
 		if (startupParams.pUserCallback)
-			startupParams.pUserCallback->OnSystemConnect(pSystem);
+			startupParams.pUserCallback->OnSystemConnect(pSystem.get());
 
 #if CRY_PLATFORM_WINDOWS
 		// Install exception handler in Release modes.
-		((DebugCallStack*)IDebugCallStack::instance())->installErrorHandler(pSystem);
+		((DebugCallStack*)IDebugCallStack::instance())->installErrorHandler(pSystem.get());
 #elif CRY_PLATFORM_DURANGO && defined(ENABLE_PROFILING_CODE)
 		DurangoDebugCallStack::InstallExceptionHandler();
 #endif
+
 		if (!pSystem->Init())
 		{
-			delete pSystem;
-
-			return 0;
+			return nullptr;
 		}
 
 		pSystem->GetISystemEventDispatcher()->OnSystemEvent(ESYSTEM_EVENT_CRYSYSTEM_INIT_DONE, 0, 0);
-		pSystem->GetISystemEventDispatcher()->RegisterListener(&g_system_event_listener_system);
+		pSystem->GetISystemEventDispatcher()->RegisterListener(&g_system_event_listener_system,"CSystemEventListner_System");
 
-		return pSystem;
+		return pSystem.release();
 	}
 
 	CRYSYSTEM_API void WINAPI CryInstallUnhandledExceptionHandler()

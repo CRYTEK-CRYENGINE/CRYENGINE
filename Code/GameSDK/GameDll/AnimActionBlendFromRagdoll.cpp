@@ -50,7 +50,7 @@ CAnimActionBlendFromRagdoll::CAnimActionBlendFromRagdoll( int priority, CActor& 
 
 void CAnimActionBlendFromRagdoll::OnInitialise()
 {
-	::CryCreateClassInstance<IAnimationPoseMatching>("AnimationPoseModifier_PoseMatching", m_pPoseMatching); 
+	::CryCreateClassInstanceForInterface<IAnimationPoseMatching>(cryiidof<IAnimationPoseMatching>(), m_pPoseMatching);
 }
 
 void CAnimActionBlendFromRagdoll::Enter()

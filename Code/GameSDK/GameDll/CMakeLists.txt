@@ -954,9 +954,6 @@ add_sources("CryGameSDKDLL_uber_22.cpp"
 		"UI/Utils/LocalizedStringManager.h"
 		"UI/Utils/ScreenLayoutManager.h"
 		"UI/Utils/ScreenLayoutUtils.h"
-	SOURCE_GROUP "Utility"
-		"StatsAgentPipe.cpp"
-		"StatsAgentPipe.h"
 )
 
 add_sources("CryGameSDKDLL_uber_23.cpp"
@@ -964,7 +961,6 @@ add_sources("CryGameSDKDLL_uber_23.cpp"
 	SOURCE_GROUP "Utility"
 		"LaptopUtil.cpp"
 		"NetInputChainDebug.cpp"
-		"StatsAgent.cpp"
 		"Utility/Wiggle.cpp"
 		"ShotDebug.cpp"
 		"Utility/AttachmentUtils.cpp"
@@ -977,7 +973,6 @@ add_sources("CryGameSDKDLL_uber_23.cpp"
 		"Utility/Hermite.h"
 		"LaptopUtil.h"
 		"NetInputChainDebug.h"
-		"StatsAgent.h"
 		"Utility/Wiggle.h"
 		"EventDistributor.h"
 		"ShotDebug.h"
@@ -1010,11 +1005,13 @@ add_sources("CryGameSDKDLL_uber_23.cpp"
 		"VehicleActionDeployRope.cpp"
 		"VehicleActionEntityAttachment.cpp"
 		"VehicleActionLandingGears.cpp"
+		"VehicleSeatActionSound.cpp"
 		"VehicleActionAutomaticDoor.h"
 		"VehicleActionAutoTarget.h"
 		"VehicleActionDeployRope.h"
 		"VehicleActionEntityAttachment.h"
 		"VehicleActionLandingGears.h"
+		"VehicleSeatActionSound.h"
 )
 
 add_sources("CryGameSDKDLL_uber_24.cpp"
@@ -1024,8 +1021,6 @@ add_sources("CryGameSDKDLL_uber_24.cpp"
 		"DynamicResponseSystem/GameTokenToDrsTranslator.h"
 		"DynamicResponseSystem/ActionExecuteAudioTrigger.cpp"
 		"DynamicResponseSystem/ActionExecuteAudioTrigger.h"
-		"DynamicResponseSystem/ActionSpeakLineBasedOnVariable.cpp"
-		"DynamicResponseSystem/ActionSpeakLineBasedOnVariable.h"
 		"DynamicResponseSystem/ConditionDistanceToEntity.cpp"
 		"DynamicResponseSystem/ConditionDistanceToEntity.h"
 	SOURCE_GROUP "Vehicle Files\\\\Damage Files"
@@ -1364,12 +1359,14 @@ end_sources()
 #END-FILE-LIST
 
 add_subdirectory(${CRYENGINE_DIR}/Code/CryPlugins/CryLobby "${CMAKE_CURRENT_BINARY_DIR}/CryLobby")
+add_subdirectory(${CRYENGINE_DIR}/Code/CryPlugins/CryPerceptionSystem/Module "${CMAKE_CURRENT_BINARY_DIR}/CryPerceptionSystem")
 
 CryGameModule(CryGameSDK PCH "StdAfx.cpp" SOLUTION_FOLDER "Projects/GameSDK")
 
-target_include_directories( ${THIS_PROJECT} PRIVATE ${CRYENGINE_DIR}/Code/CryEngine/CryAction )
+target_include_directories( ${THIS_PROJECT} PRIVATE "${CRYENGINE_DIR}/Code/CryEngine/CryAction" )
 
 target_link_libraries( ${THIS_PROJECT} PRIVATE CryLobby )
+target_link_libraries( ${THIS_PROJECT} PRIVATE CryPerceptionSystem )
 
 if (WIN32 OR WIN64)
 	target_link_libraries( ${THIS_PROJECT} PRIVATE shell32 Gdi32  )
@@ -1392,10 +1389,10 @@ elseif(DURANGO)
 		"appxmanifest" "AppxManifest.xml"
 		"logo" "DurangoLogo.png"
 		"small_logo" "DurangoSmallLogo.png"
+		"wide_logo" "DurangoWideLogo.png"
 		"splash_screen" "DurangoSplashScreen.png"
 		"store_logo" "DurangoStoreLogo.png"
 	)
 elseif(ANDROID)
 	target_link_libraries(${THIS_PROJECT} PRIVATE CryAction)
-	configure_android_build(APP_NAME "CRYENGINE SDK" PACKAGE com.crytek.cryengine PERMISSIONS WRITE_EXTERNAL_STORAGE INTERNET DEBUGGABLE VERSION_CODE 1 VERSION_NAME 1.0)
 endif()

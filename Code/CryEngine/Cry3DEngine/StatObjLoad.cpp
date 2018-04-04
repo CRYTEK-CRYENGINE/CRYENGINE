@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 // -------------------------------------------------------------------------
 //  File name:   statobjconstr.cpp
@@ -701,6 +701,12 @@ bool CStatObj::LoadCGF_Int(const char* filename, bool bLod, unsigned long nLoadi
 				m_pMaterial = ::LoadCGFMaterial(GetMatMan(), pCGF->GetCommonMaterial()->name, m_szFileName.c_str(), nLoadingFlags);
 			}
 		}
+	}
+
+	// Prepare material and mesh for the billboards
+	if (GetCVars()->e_VegetationBillboards >= 0)
+	{
+		CheckCreateBillboardMaterial();
 	}
 
 	// Fail if mesh was not complied by RC
@@ -1607,6 +1613,48 @@ void CStatObj::ParseProperties()
 				}
 				//////////////////////////////////////////////////////////////////////////
 			}
+		}
+	}
+}
+
+//////////////////////////////////////////////////////////////////////////
+void CStatObj::CheckCreateBillboardMaterial()
+{
+	// Check if billboard textures exist
+	const char * arrTextureSuffixes[2] = { "_billbalb.dds", "_billbnorm.dds" };
+	int nBillboardTexturesFound = 0;
+	assert(EFTT_DIFFUSE == 0 && EFTT_NORMALS == 1);
+	for (int nSlot = EFTT_DIFFUSE; nSlot <= EFTT_NORMALS; nSlot++)
+	{
+		string szTextureName = m_szFileName;
+		if (szTextureName.find(".cgf") != string::npos)
+		{
+			szTextureName.replace(".cgf", arrTextureSuffixes[nSlot]);
+			if (gEnv->pCryPak->IsFileExist(szTextureName.c_str()))
+				nBillboardTexturesFound++;
+		}
+	}
+
+	// create billboard material and cgf
+	if (nBillboardTexturesFound == 2)
+	{
+		m_pBillboardMaterial = GetMatMan()->LoadMaterial("%ENGINE%/EngineAssets/Materials/billboard_default", false);
+
+		if (m_pBillboardMaterial)
+		{
+			// clone reference material and assign new textures
+			m_pBillboardMaterial = GetMatMan()->CloneMaterial(m_pBillboardMaterial);
+
+			SShaderItem& shaderItem = m_pBillboardMaterial->GetShaderItem();
+			SInputShaderResources* inputShaderResources = gEnv->pRenderer->EF_CreateInputShaderResource(shaderItem.m_pShaderResources);
+			for (int nSlot = EFTT_DIFFUSE; nSlot <= EFTT_NORMALS; nSlot++)
+			{
+				string szTextureName = m_szFileName;
+				szTextureName.replace(".cgf", arrTextureSuffixes[nSlot]);
+				inputShaderResources->m_Textures[nSlot].m_Name = szTextureName;
+			}
+			SShaderItem newShaderItem = gEnv->pRenderer->EF_LoadShaderItem(shaderItem.m_pShader->GetName(), false, 0, inputShaderResources, shaderItem.m_pShader->GetGenerationMask());
+			m_pBillboardMaterial->AssignShaderItem(newShaderItem);
 		}
 	}
 }

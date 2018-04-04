@@ -514,7 +514,7 @@ void CActor::PostInit( IGameObject * pGameObject )
 {
 	GetGameObject()->EnablePrePhysicsUpdate( gEnv->bMultiplayer ? ePPU_Always : ePPU_WhenAIActivated );
 
-	pGameObject->EnableUpdateSlot( this, 0 );	
+	pGameObject->EnableUpdateSlot(this, 0);
 	pGameObject->EnablePostUpdates( this );
 
 	if (m_teamId)
@@ -2972,7 +2972,7 @@ bool CActor::GetRagdollContext( CProceduralContextRagdoll** ppRagdollContext ) c
 	IActionController* piActionController = m_pAnimatedCharacter->GetActionController();
 	if( !gEnv->bMultiplayer && piActionController )
 	{
-		IProceduralContext* piProcContext = piActionController->FindOrCreateProceduralContext( PROCEDURAL_CONTEXT_RAGDOLL_NAME );
+		IProceduralContext* piProcContext = piActionController->FindOrCreateProceduralContext(CProceduralContextRagdoll::GetCID());
 		if( piProcContext )
 		{
 			*ppRagdollContext = static_cast<CProceduralContextRagdoll*> (piProcContext);
@@ -5203,7 +5203,7 @@ void CActor::DumpActorInfo()
   
   Vec3 entPos(pEntity->GetWorldPos());
   CryLog("Entity Pos: %.f %.f %.f", entPos.x, entPos.y, entPos.z);
-  CryLog("Active: %i", pEntity->IsActive());
+  CryLog("Active: %i", pEntity->IsActivatedForUpdates());
   CryLog("Hidden: %i", pEntity->IsHidden());
   CryLog("Invisible: %i", pEntity->IsInvisible());  
   CryLog("Profile: %i", m_currentPhysProfile);
@@ -5588,7 +5588,7 @@ void CActor::SetGrabbedByPlayer( IEntity* pPlayerEntity, bool grabbed )
 			SEntityEvent xFormEvent;
 			xFormEvent.event = ENTITY_EVENT_XFORM;
 			xFormEvent.nParam[0] = ENTITY_XFORM_ROT|ENTITY_XFORM_POS;
-			m_pAnimatedCharacter->ProcessEvent(xFormEvent);
+			m_pAnimatedCharacter->SendEvent(xFormEvent);
 
 			m_pAnimatedCharacter->SetInGrabbedState(false);
 		}
@@ -5969,15 +5969,9 @@ bool CActor::CanSwitchSpectatorStatus() const
 	return true;
 }
 
-IEntityComponent::ComponentEventPriority CActor::GetEventPriority( const int eventID ) const
+IEntityComponent::ComponentEventPriority CActor::GetEventPriority() const
 {
-	switch( eventID )
-	{
-	case ENTITY_EVENT_PREPHYSICSUPDATE:
-		return( ENTITY_PROXY_LAST - ENTITY_PROXY_USER + EEntityEventPriority_Actor + (m_isClient ? EEntityEventPriority_Client : 0) );
-	}
-
-	return IGameObjectExtension::GetEventPriority( eventID );
+	return ENTITY_PROXY_USER + EEntityEventPriority_Actor;
 }
 
 void CActor::OnHostMigrationCompleted()

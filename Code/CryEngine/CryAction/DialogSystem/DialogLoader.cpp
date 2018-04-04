@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 // -------------------------------------------------------------------------
 //  File name:   DialogLoader.cpp
@@ -228,7 +228,7 @@ int CDialogLoader::LoadFromTable(XmlNodeRef tableNode, const string& groupName, 
 
 			unsigned char nCellType = nCellIndexToType[nCellIndex];
 
-			const char* content = cellDataNode->getContent();
+			const char* szContent = cellDataNode->getContent();
 
 			// nRowIndex and nCellIndex should be correct now [1-based, not 0-based!]
 			switch (nCellType)
@@ -243,44 +243,48 @@ int CDialogLoader::LoadFromTable(XmlNodeRef tableNode, const string& groupName, 
 						++nNumGoodScripts;
 					theScript.Reset();
 				}
-				theScript.name = content;
+				theScript.name = szContent;
 				break;
 			case ATTR_ACTOR:
-				scriptLine.actor = content;
+				scriptLine.actor = szContent;
 				bLineValid = true;
 				break;
 			case ATTR_AUDIO:
 				if (bLineValid)
 				{
-					if (content == 0)
-						scriptLine.audioID = INVALID_AUDIO_CONTROL_ID;
+					if (szContent == nullptr)
+					{
+						scriptLine.audioID = CryAudio::InvalidControlId;
+					}
 					else
-						gEnv->pAudioSystem->GetAudioTriggerId(content, scriptLine.audioID);
+					{
+						scriptLine.audioID = CryAudio::StringToId(szContent);
+					}
 				}
 				break;
 			case ATTR_ANIM:
 				if (bLineValid)
-					scriptLine.anim = content;
+					scriptLine.anim = szContent;
 				break;
 			case ATTR_FACIAL:
 				if (bLineValid)
 				{
-					size_t n = strcspn(content, ":; ");
-					if (n == strlen(content))
+					size_t n = strcspn(szContent, ":; ");
+					if (n == strlen(szContent))
 					{
-						scriptLine.facial = content;
+						scriptLine.facial = szContent;
 						scriptLine.facialWeight = 0.5f;
 						scriptLine.facialFadeTime = 0.5f;
 					}
 					else
 					{
-						scriptLine.facial.assign(content, n);
+						scriptLine.facial.assign(szContent, n);
 						float w = 0.5f;
 						float t = 0.5f;
-						int nGood = sscanf(content + n + 1, "%f%*[:; ]%f", &w, &t);
+						int nGood = sscanf(szContent + n + 1, "%f%*[:; ]%f", &w, &t);
 						if (nGood != 1 && nGood != 2)
 						{
-							GameWarning("[DIALOG] CDialogLoader::LoadFromTable: DialogScript '%s' has invalid Facial Expression Content '%s'. Using weight=%f fadetime=%f.", groupName.c_str(), content, w, t);
+							GameWarning("[DIALOG] CDialogLoader::LoadFromTable: DialogScript '%s' has invalid Facial Expression Content '%s'. Using weight=%f fadetime=%f.", groupName.c_str(), szContent, w, t);
 						}
 						scriptLine.facialWeight = w;
 						scriptLine.facialFadeTime = t;
@@ -289,13 +293,13 @@ int CDialogLoader::LoadFromTable(XmlNodeRef tableNode, const string& groupName, 
 				break;
 			case ATTR_LOOKAT:
 				if (bLineValid)
-					scriptLine.lookat = content;
+					scriptLine.lookat = szContent;
 				break;
 			case ATTR_DELAY:
 				if (bLineValid)
 				{
 					float val = 0.0f;
-					int n = sscanf(content, "%f", &val);
+					int n = sscanf(szContent, "%f", &val);
 					if (n == 1)
 					{
 						scriptLine.delay = val;

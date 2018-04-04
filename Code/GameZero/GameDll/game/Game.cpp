@@ -6,11 +6,6 @@
 
 #include <CryFlowGraph/IFlowBaseNode.h>
 
-#ifndef _LIB
-CAutoRegFlowNodeBase* CAutoRegFlowNodeBase::m_pFirst = nullptr;
-CAutoRegFlowNodeBase* CAutoRegFlowNodeBase::m_pLast = nullptr;
-#endif
-
 CGame::CGame()
 {
 }
@@ -23,8 +18,6 @@ CGame::~CGame()
 	{
 		gEnv->pGameFramework->EndGameContext();
 	}
-
-	UnregisterGameFlowNodes();
 }
 
 bool CGame::Init()
@@ -34,57 +27,13 @@ bool CGame::Init()
 
 	// Request loading of the example map next frame
 	gEnv->pConsole->ExecuteString("map example", false, true);
-	gEnv->pSystem->GetISystemEventDispatcher()->RegisterListener(this);
+	gEnv->pSystem->GetISystemEventDispatcher()->RegisterListener(this, "CGame");
 
 	return true;
 }
 
-void CGame::RegisterGameFlowNodes()
-{
-#ifndef _LIB
-	IFlowSystem* pFlowSystem = gEnv->pGameFramework->GetIFlowSystem();
-	if (pFlowSystem)
-	{
-		CAutoRegFlowNodeBase* pFactory = CAutoRegFlowNodeBase::m_pFirst;
-		while (pFactory)
-		{
-			pFlowSystem->RegisterType(pFactory->m_sClassName, pFactory);
-			pFactory = pFactory->m_pNext;
-		}
-
-		CGameFactory::RegisterEntityFlowNodes();
-	}
-#endif
-}
-
-void CGame::UnregisterGameFlowNodes()
-{
-#ifndef _LIB
-	IFlowSystem* pFlowSystem = gEnv->pGameFramework->GetIFlowSystem();
-	if (pFlowSystem)
-	{
-		CAutoRegFlowNodeBase* pFactory = CAutoRegFlowNodeBase::m_pFirst;
-		while (pFactory)
-		{
-			pFlowSystem->UnregisterType(pFactory->m_sClassName);
-			pFactory = pFactory->m_pNext;
-		}
-
-		CGameFactory::UnregisterEntityFlowNodes();
-	}
-#endif
-}
-
 void CGame::OnSystemEvent(ESystemEvent event, UINT_PTR wparam, UINT_PTR lparam)
 {
-	switch (event)
-	{
-	case ESYSTEM_EVENT_REGISTER_FLOWNODES:
-		{
-			RegisterGameFlowNodes();
-		}
-		break;
-	}
 }
 
 int CGame::Update(bool haveFocus, unsigned int updateFlags)

@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #pragma once
 
@@ -71,3 +71,16 @@
 #else
 	#define CRY_FUNCTION_CONTAINS_UNDEFINED_BEHAVIOR
 #endif
+
+//! Unreachable code marker for helping error handling and optimization
+#define UNREACHABLE() __builtin_unreachable()
+
+#ifdef  _MSC_VER
+// For clang on MSBuild
+#define stricmp   _stricmp
+#define strnicmp  _strnicmp
+#define wcsicmp   _wcsicmp
+#define wcsnicmp  _wcsnicmp
+#define alloca    _alloca
+#define itoa      _itoa
+#endif //CRY_PLATFORM_ORBIS

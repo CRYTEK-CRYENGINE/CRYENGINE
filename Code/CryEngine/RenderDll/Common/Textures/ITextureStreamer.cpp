@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #include "StdAfx.h"
 #include "ITextureStreamer.h"
@@ -100,7 +100,7 @@ size_t ITextureStreamer::StatsComputeRequiredMipMemUsage()
 			int nMips = tp->GetNumMipsNonVirtual();
 			nReqMip = min(nReqMip, nPersMip);
 
-			int nWantedSize = tp->StreamComputeDevDataSize(nReqMip);
+			int nWantedSize = tp->StreamComputeSysDataSize(nReqMip);
 
 			nSizeToLoad += nWantedSize;
 			if (nWantedSize && pList)

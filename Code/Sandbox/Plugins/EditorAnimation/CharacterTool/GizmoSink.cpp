@@ -292,6 +292,7 @@ int GizmoSink::Write(const Serialization::LocalPosition& decorator, const Serial
 	e.caps = Manip::CAP_SELECT | Manip::CAP_MOVE;
 	e.shape = Manip::SHAPE_AXES;
 	e.layer = m_currentLayer;
+	e.poseModifier = true;
 	m_scene->AddElement(e, (Manip::ElementId)handle);
 	++m_lastIndex;
 	return m_lastIndex;

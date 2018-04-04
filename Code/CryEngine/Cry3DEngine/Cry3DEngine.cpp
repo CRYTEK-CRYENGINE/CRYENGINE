@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 // -------------------------------------------------------------------------
 //  File name:   cry3dengine.cpp
@@ -115,24 +115,31 @@ static CSystemEventListner_3DEngine g_system_event_listener_engine;
 
 //////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////
-class CEngineModule_Cry3DEngine : public IEngineModule
+class CEngineModule_Cry3DEngine : public I3DEngineModule
 {
-	CRYINTERFACE_SIMPLE(IEngineModule)
-	CRYGENERATE_SINGLETONCLASS(CEngineModule_Cry3DEngine, "EngineModule_Cry3DEngine", 0x2d38f12a521d43cf, 0xba18fd1fa7ea5020)
+	CRYINTERFACE_BEGIN()
+		CRYINTERFACE_ADD(Cry::IDefaultModule)
+		CRYINTERFACE_ADD(I3DEngineModule)
+	CRYINTERFACE_END()
 
-	virtual ~CEngineModule_Cry3DEngine() {}
+	CRYGENERATE_SINGLETONCLASS_GUID(CEngineModule_Cry3DEngine, "EngineModule_Cry3DEngine", "2d38f12a-521d-43cf-ba18-fd1fa7ea5020"_cry_guid)
+
+	virtual ~CEngineModule_Cry3DEngine()
+	{
+		gEnv->pSystem->GetISystemEventDispatcher()->RemoveListener(&g_system_event_listener_engine);
+		SAFE_RELEASE(gEnv->p3DEngine);
+	}
 
 	//////////////////////////////////////////////////////////////////////////
-	virtual const char* GetName() override { return "Cry3DEngine"; };
-	virtual const char* GetCategory() override { return "CryEngine"; };
+	virtual const char* GetName() const override { return "Cry3DEngine"; }
+	virtual const char* GetCategory() const override { return "CryEngine"; }
 
 	//////////////////////////////////////////////////////////////////////////
 	virtual bool Initialize(SSystemGlobalEnvironment& env, const SSystemInitParams& initParams) override
 	{
 		ISystem* pSystem = env.pSystem;
 
-		ModuleInitISystem(pSystem, "Cry3DEngine");
-		pSystem->GetISystemEventDispatcher()->RegisterListener(&g_system_event_listener_engine);
+		pSystem->GetISystemEventDispatcher()->RegisterListener(&g_system_event_listener_engine, "CSystemEventListner_3DEngine");
 
 		C3DEngine* p3DEngine = CryAlignedNew<C3DEngine>(pSystem);
 		env.p3DEngine = p3DEngine;

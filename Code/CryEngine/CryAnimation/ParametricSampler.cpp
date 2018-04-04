@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #include "stdafx.h"
 #include "ParametricSampler.h"
@@ -1200,8 +1200,8 @@ int SParametricSamplerInternal::GetWeights1D(f32 fDesiredParameter, const Global
 	{
 		if (rLMG.m_arrBSAnnotations[f].num == 2)
 		{
-			int32 i0 = rLMG.m_arrBSAnnotations[f].idx0;
-			int32 i1 = rLMG.m_arrBSAnnotations[f].idx1;
+			int32 i0 = rLMG.m_arrBSAnnotations[f].idx[0];
+			int32 i1 = rLMG.m_arrBSAnnotations[f].idx[1];
 			f32 x0 = rLMG.m_arrParameter[i0].m_Para.x;
 			f32 x1 = rLMG.m_arrParameter[i1].m_Para.x;
 
@@ -1269,8 +1269,8 @@ int SParametricSamplerInternal::GetWeights1D(f32 fDesiredParameter, const Global
 		{
 			if (rLMG.m_arrBSAnnotations[f].num == 2)
 			{
-				int32 i0 = rLMG.m_arrBSAnnotations[f].idx0;
-				int32 i1 = rLMG.m_arrBSAnnotations[f].idx1;
+				int32 i0 = rLMG.m_arrBSAnnotations[f].idx[0];
+				int32 i1 = rLMG.m_arrBSAnnotations[f].idx[1];
 				f32 x0 = rLMG.m_arrParameter[i0].m_Para.x;
 				f32 x1 = rLMG.m_arrParameter[i1].m_Para.x;
 
@@ -1306,8 +1306,8 @@ int SParametricSamplerInternal::GetWeights1D(f32 fDesiredParameter, const Global
 
 		if (nLineNo != -1)
 		{
-			int32 i0 = rLMG.m_arrBSAnnotations[nLineNo].idx0;
-			int32 i1 = rLMG.m_arrBSAnnotations[nLineNo].idx1;
+			int32 i0 = rLMG.m_arrBSAnnotations[nLineNo].idx[0];
+			int32 i1 = rLMG.m_arrBSAnnotations[nLineNo].idx[1];
 			f32 x0 = rLMG.m_arrParameter[i0].m_Para.x;
 			f32 x1 = rLMG.m_arrParameter[i1].m_Para.x;
 #ifdef BLENDSPACE_VISUALIZATION
@@ -1369,10 +1369,9 @@ int SParametricSamplerInternal::GetWeights2D(const Vec2& vDesiredParameter, cons
 		for (uint32 b = 0; b < numBlocks; b++)
 		{
 			uint32 numPoints = rLMG.m_arrBSAnnotations[b].num;
-			const uint8* indices = &rLMG.m_arrBSAnnotations[b].idx0;
 			for (uint32 e = 0; e < numPoints; e++)
 			{
-				i[e] = indices[e];
+				i[e] = rLMG.m_arrBSAnnotations[b].idx[e];
 				v[e] = Vec3(rLMG.m_arrParameter[i[e]].m_Para.x, rLMG.m_arrParameter[i[e]].m_Para.y, rLMG.m_arrParameter[i[e]].m_Para.z);
 			}
 
@@ -1417,10 +1416,9 @@ int SParametricSamplerInternal::GetWeights3D(const Vec3& vDesiredParameter, cons
 		for (uint32 b = 0; b < numBlocks; b++)
 		{
 			uint32 numPoints = rLMG.m_arrBSAnnotations[b].num;
-			const uint8* indices = &rLMG.m_arrBSAnnotations[b].idx0;
 			for (uint32 e = 0; e < numPoints; e++)
 			{
-				i[e] = indices[e];
+				i[e] = rLMG.m_arrBSAnnotations[b].idx[e];
 				v[e] = Vec3(rLMG.m_arrParameter[i[e]].m_Para.x, rLMG.m_arrParameter[i[e]].m_Para.y, rLMG.m_arrParameter[i[e]].m_Para.z);
 			}
 
@@ -2230,7 +2228,6 @@ void SParametricSamplerInternal::VisualizeBlendSpace(const IAnimationSet* _pAnim
 			const ColorB faceColor = (selectedFace == f) ? selFaceColor : unselFaceColor;
 
 			const BSBlendable& face = rLMG.m_arrBSAnnotations[f];
-			const uint8* pIdxs = &face.idx0;
 
 			if (face.num < 3)
 			{
@@ -2239,7 +2236,7 @@ void SParametricSamplerInternal::VisualizeBlendSpace(const IAnimationSet* _pAnim
 
 			for (uint32 i = 0; i < face.num; i++)
 			{
-				const Vec3 pt(rLMG.m_arrParameter[pIdxs[i]].m_Para.x, rLMG.m_arrParameter[pIdxs[i]].m_Para.y, rLMG.m_arrParameter[pIdxs[i]].m_Para.z);
+				const Vec3 pt(rLMG.m_arrParameter[face.idx[i]].m_Para.x, rLMG.m_arrParameter[face.idx[i]].m_Para.y, rLMG.m_arrParameter[face.idx[i]].m_Para.z);
 				facePts[i] = pt * scl + off;
 			}
 

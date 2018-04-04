@@ -7,11 +7,11 @@
 // *INDENT-OFF* - <hard to read code and declarations due to inconsistent indentation>
 
 // make the global Serialize() functions available for use in yasli serialization
-using uqs::core::Serialize;
+using UQS::Core::Serialize;
 
-namespace uqs
+namespace UQS
 {
-	namespace core
+	namespace Core
 	{
 
 		//===================================================================================
@@ -62,6 +62,7 @@ namespace uqs
 			ar(status, "status");
 			ar(nonWeightedScore, "nonWeightedScore");
 			ar(weightedScore, "weightedScore");
+			ar(furtherInformationAboutStatus, "furtherInformationAboutStatus");
 		}
 
 		//===================================================================================
@@ -82,6 +83,7 @@ namespace uqs
 			ar(status, "status");
 			ar(nonWeightedScore, "nonWeightedScore");
 			ar(weightedScore, "weightedScore");
+			ar(furtherInformationAboutStatus, "furtherInformationAboutStatus");
 		}
 
 		//===================================================================================
@@ -143,11 +145,11 @@ namespace uqs
 			// nothing
 		}
 
-		CHistoricQuery::CHistoricQuery(const CQueryID& queryID, const char* querierName, const CQueryID& parentQueryID, CQueryHistoryManager* pOwningHistoryManager)
+		CHistoricQuery::CHistoricQuery(const CQueryID& queryID, const char* szQuerierName, const CQueryID& parentQueryID, CQueryHistoryManager* pOwningHistoryManager)
 			: m_pOwningHistoryManager(pOwningHistoryManager)
 			, m_queryID(queryID)
 			, m_parentQueryID(parentQueryID)
-			, m_querierName(querierName)
+			, m_querierName(szQuerierName)
 			, m_queryLifetimeStatus(EQueryLifetimeStatus::QueryIsNotCreatedYet)
 			, m_bGotCanceledPrematurely(false)
 			, m_bExceptionOccurred(false)
@@ -156,20 +158,23 @@ namespace uqs
 			// nothing
 		}
 
-		CDebugRenderWorld& CHistoricQuery::GetDebugRenderWorld()
+		CDebugRenderWorldPersistent& CHistoricQuery::GetDebugRenderWorldPersistent()
 		{
-			return m_debugRenderWorld;
+			return m_debugRenderWorldPersistent;
 		}
 
 		void CHistoricQuery::OnQueryCreated()
 		{
 			m_queryCreatedTimestamp = gEnv->pTimer->GetAsyncTime();
 			m_queryLifetimeStatus = EQueryLifetimeStatus::QueryIsAlive;
+
+			// notify the top-level query-history-manager that the underlying query has just been created/started
+			m_pOwningHistoryManager->UnderlyingQueryJustGotCreated(m_queryID);
 		}
 
-		void CHistoricQuery::OnQueryBlueprintInstantiationStarted(const char* queryBlueprintName)
+		void CHistoricQuery::OnQueryBlueprintInstantiationStarted(const char* szQueryBlueprintName)
 		{
-			m_queryBlueprintName = queryBlueprintName;
+			m_queryBlueprintName = szQueryBlueprintName;
 		}
 
 		void CHistoricQuery::OnQueryCanceled(const CQueryBase::SStatistics& finalStatistics)
@@ -192,9 +197,9 @@ namespace uqs
 			m_pOwningHistoryManager->UnderlyingQueryIsGettingDestroyed(m_queryID);
 		}
 
-		void CHistoricQuery::OnExceptionOccurred(const char* exceptionMessage, const CQueryBase::SStatistics& finalStatistics)
+		void CHistoricQuery::OnExceptionOccurred(const char* szExceptionMessage, const CQueryBase::SStatistics& finalStatistics)
 		{
-			m_exceptionMessage = exceptionMessage;
+			m_exceptionMessage = szExceptionMessage;
 			m_bExceptionOccurred = true;
 			m_finalStatistics = finalStatistics;
 		}
@@ -221,20 +226,20 @@ namespace uqs
 
 			// instant-evaluator names
 			m_instantEvaluatorNames.reserve(numInstantEvaluatorBlueprints);
-			for (const CInstantEvaluatorBlueprint* ieBP : instantEvaluatorBlueprints)
+			for (const CInstantEvaluatorBlueprint* pIEBP : instantEvaluatorBlueprints)
 			{
-				const char* name = ieBP->GetFactory().GetName();
-				m_instantEvaluatorNames.push_back(name);
-				m_longestEvaluatorName = std::max(m_longestEvaluatorName, strlen(name));
+				const char* szName = pIEBP->GetFactory().GetName();
+				m_instantEvaluatorNames.push_back(szName);
+				m_longestEvaluatorName = std::max(m_longestEvaluatorName, strlen(szName));
 			}
 
 			// deferred-evaluator names
 			m_deferredEvaluatorNames.reserve(numDeferredEvaluatorBlueprints);
-			for (const CDeferredEvaluatorBlueprint* deBP : deferredEvaluatorBlueprints)
+			for (const CDeferredEvaluatorBlueprint* pDEBP : deferredEvaluatorBlueprints)
 			{
-				const char* name = deBP->GetFactory().GetName();
-				m_deferredEvaluatorNames.push_back(name);
-				m_longestEvaluatorName = std::max(m_longestEvaluatorName, strlen(name));
+				const char* szName = pDEBP->GetFactory().GetName();
+				m_deferredEvaluatorNames.push_back(szName);
+				m_longestEvaluatorName = std::max(m_longestEvaluatorName, strlen(szName));
 			}
 		}
 
@@ -257,22 +262,22 @@ namespace uqs
 			result.status = SHistoricInstantEvaluatorResult::EStatus::HasFinishedAndDiscardedTheItem;
 		}
 
-		void CHistoricQuery::OnFunctionCallExceptionOccurredInInstantEvaluator(size_t instantEvaluatorIndex, size_t itemIndex, const char* exceptionMessage)
+		void CHistoricQuery::OnFunctionCallExceptionOccurredInInstantEvaluator(size_t instantEvaluatorIndex, size_t itemIndex, const char* szExceptionMessage)
 		{
 			SHistoricItem& item = m_items[itemIndex];
 			SHistoricInstantEvaluatorResult& result = item.resultOfAllInstantEvaluators[instantEvaluatorIndex];
 			assert(result.status == SHistoricInstantEvaluatorResult::EStatus::HasNotRunYet);
 			result.status = SHistoricInstantEvaluatorResult::EStatus::ExceptionOccurredInFunctionCall;
-			result.furtherInformationAboutStatus = exceptionMessage;
+			result.furtherInformationAboutStatus = szExceptionMessage;
 		}
 
-		void CHistoricQuery::OnExceptionOccurredInInstantEvaluator(size_t instantEvaluatorIndex, size_t itemIndex, const char* exceptionMessage)
+		void CHistoricQuery::OnExceptionOccurredInInstantEvaluator(size_t instantEvaluatorIndex, size_t itemIndex, const char* szExceptionMessage)
 		{
 			SHistoricItem& item = m_items[itemIndex];
 			SHistoricInstantEvaluatorResult& result = item.resultOfAllInstantEvaluators[instantEvaluatorIndex];
 			assert(result.status == SHistoricInstantEvaluatorResult::EStatus::HasNotRunYet);
 			result.status = SHistoricInstantEvaluatorResult::EStatus::ExceptionOccurredInHimself;
-			result.furtherInformationAboutStatus = exceptionMessage;
+			result.furtherInformationAboutStatus = szExceptionMessage;
 		}
 
 		void CHistoricQuery::OnDeferredEvaluatorStartedRunningOnItem(size_t deferredEvaluatorIndex, size_t itemIndex)
@@ -302,30 +307,30 @@ namespace uqs
 			result.status = SHistoricDeferredEvaluatorResult::EStatus::HasFinishedAndDiscardedTheItem;
 		}
 
-		void CHistoricQuery::OnDeferredEvaluatorGotAborted(size_t deferredEvaluatorIndex, size_t itemIndex, const char* reasonForAbort)
+		void CHistoricQuery::OnDeferredEvaluatorGotAborted(size_t deferredEvaluatorIndex, size_t itemIndex, const char* szReasonForAbort)
 		{
 			SHistoricDeferredEvaluatorResult& result = m_items[itemIndex].resultOfAllDeferredEvaluators[deferredEvaluatorIndex];
 			assert(result.status == SHistoricDeferredEvaluatorResult::EStatus::IsRunningNow);
 			result.status = SHistoricDeferredEvaluatorResult::EStatus::GotAborted;
-			result.furtherInformationAboutStatus = reasonForAbort;
+			result.furtherInformationAboutStatus = szReasonForAbort;
 		}
 
-		void CHistoricQuery::OnFunctionCallExceptionOccurredInDeferredEvaluator(size_t deferredEvaluatorIndex, size_t itemIndex, const char* exceptionMessage)
+		void CHistoricQuery::OnFunctionCallExceptionOccurredInDeferredEvaluator(size_t deferredEvaluatorIndex, size_t itemIndex, const char* szExceptionMessage)
 		{
 			SHistoricItem& item = m_items[itemIndex];
 			SHistoricDeferredEvaluatorResult& result = item.resultOfAllDeferredEvaluators[deferredEvaluatorIndex];
 			assert(result.status == SHistoricDeferredEvaluatorResult::EStatus::HasNotRunYet);
 			result.status = SHistoricDeferredEvaluatorResult::EStatus::ExceptionOccurredInFunctionCall;
-			result.furtherInformationAboutStatus = exceptionMessage;
+			result.furtherInformationAboutStatus = szExceptionMessage;
 		}
 
-		void CHistoricQuery::OnExceptionOccurredInDeferredEvaluator(size_t deferredEvaluatorIndex, size_t itemIndex, const char* exceptionMessage)
+		void CHistoricQuery::OnExceptionOccurredInDeferredEvaluator(size_t deferredEvaluatorIndex, size_t itemIndex, const char* szExceptionMessage)
 		{
 			SHistoricItem& item = m_items[itemIndex];
 			SHistoricDeferredEvaluatorResult& result = item.resultOfAllDeferredEvaluators[deferredEvaluatorIndex];
 			assert(result.status == SHistoricDeferredEvaluatorResult::EStatus::HasNotRunYet);
 			result.status = SHistoricDeferredEvaluatorResult::EStatus::ExceptionOccurredInHimself;
-			result.furtherInformationAboutStatus = exceptionMessage;
+			result.furtherInformationAboutStatus = szExceptionMessage;
 		}
 
 		void CHistoricQuery::OnItemGotDisqualifiedDueToBadScore(size_t itemIndex)
@@ -333,9 +338,9 @@ namespace uqs
 			m_items[itemIndex].bDisqualifiedDueToBadScore = true;
 		}
 
-		void CHistoricQuery::CreateItemDebugProxyViaItemFactoryForItem(const client::IItemFactory& itemFactory, const void* item, size_t indexInGeneratedItemsForWhichToCreateTheProxy)
+		void CHistoricQuery::CreateItemDebugProxyViaItemFactoryForItem(const Client::IItemFactory& itemFactory, const void* pItem, size_t indexInGeneratedItemsForWhichToCreateTheProxy)
 		{
-			itemFactory.CreateItemDebugProxyForItem(item, m_itemDebugProxyFactory);
+			itemFactory.CreateItemDebugProxyForItem(pItem, m_itemDebugProxyFactory);
 			std::unique_ptr<CItemDebugProxyBase> freshlyCreatedItemProxy = m_itemDebugProxyFactory.GetAndForgetLastCreatedDebugItemRenderProxy();
 			m_items[indexInGeneratedItemsForWhichToCreateTheProxy].pDebugProxy = std::move(freshlyCreatedItemProxy);
 		}
@@ -353,7 +358,7 @@ namespace uqs
 			}
 
 			const size_t sizeOfAllItems = sizeOfSingleItem * m_items.size();
-			const size_t sizeOfDebugRenderWorld = m_debugRenderWorld.GetRoughMemoryUsage();
+			const size_t sizeOfDebugRenderWorld = m_debugRenderWorldPersistent.GetRoughMemoryUsage();
 			return sizeOfAllItems + sizeOfDebugRenderWorld;
 		}
 
@@ -383,7 +388,7 @@ namespace uqs
 				{
 				case SHistoricInstantEvaluatorResult::EStatus::HasFinishedAndScoredTheItem:
 					// check for illegal score (one that is outside [0.0 .. 1.0] which can happen if an evaluator is implemented wrongly)
-					if (ieResult.nonWeightedScore < 0.0f || ieResult.nonWeightedScore > 1.0f)
+					if (ieResult.nonWeightedScore < -FLT_EPSILON || ieResult.nonWeightedScore > 1.0f + FLT_EPSILON)
 					{
 						outFoundScoreOutsideValidRange = true;
 					}
@@ -426,7 +431,7 @@ namespace uqs
 				{
 				case SHistoricDeferredEvaluatorResult::EStatus::HasFinishedAndScoredTheItem:
 					// check for illegal score (one that is outside [0.0 .. 1.0] which can happen if an evaluator is implemented wrongly)
-					if (deResult.nonWeightedScore < 0.0f || deResult.nonWeightedScore > 1.0f)
+					if (deResult.nonWeightedScore < -FLT_EPSILON || deResult.nonWeightedScore > 1.0f + FLT_EPSILON)
 					{
 						outFoundScoreOutsideValidRange = true;
 					}
@@ -510,7 +515,7 @@ namespace uqs
 		bool CHistoricQuery::FindClosestItemInView(const SDebugCameraView& cameraView, size_t& outItemIndex) const
 		{
 			float closestDistanceSoFar = std::numeric_limits<float>::max();
-			bool foundACloseEnoughItem = false;
+			bool bFoundACloseEnoughItem = false;
 
 			for (size_t i = 0, n = m_items.size(); i < n; ++i)
 			{
@@ -524,16 +529,16 @@ namespace uqs
 					{
 						closestDistanceSoFar = dist;
 						outItemIndex = i;
-						foundACloseEnoughItem = true;
+						bFoundACloseEnoughItem = true;
 					}
 				}
 			}
-			return foundACloseEnoughItem;
+			return bFoundACloseEnoughItem;
 		}
 
 		void CHistoricQuery::DrawDebugPrimitivesInWorld(size_t indexOfItemCurrentlyBeingFocused, const IQueryHistoryManager::SEvaluatorDrawMasks& evaluatorDrawMasks) const
 		{
-			m_debugRenderWorld.DrawAllAddedPrimitives(indexOfItemCurrentlyBeingFocused);
+			m_debugRenderWorldPersistent.DrawAllAddedPrimitivesWithNoItemAssociation();
 
 			//
 			// - figure out the best and worst score of items that made it into the final result set
@@ -546,9 +551,9 @@ namespace uqs
 			for (const SHistoricItem& itemToAnalyze : m_items)
 			{
 				float accumulatedAndWeightedScoreOfMaskedEvaluators = 0.0f;
-				bool foundScoreOutsideValidRange = false;
+				bool bFoundScoreOutsideValidRange = false;
 
-				const EItemAnalyzeStatus status = AnalyzeItemStatus(itemToAnalyze, evaluatorDrawMasks, accumulatedAndWeightedScoreOfMaskedEvaluators, foundScoreOutsideValidRange);
+				const EItemAnalyzeStatus status = AnalyzeItemStatus(itemToAnalyze, evaluatorDrawMasks, accumulatedAndWeightedScoreOfMaskedEvaluators, bFoundScoreOutsideValidRange);
 
 				if (status == EItemAnalyzeStatus::ExceptionOccurred)
 					continue;
@@ -580,79 +585,83 @@ namespace uqs
 				const SHistoricItem& item = m_items[i];
 				const bool bShowDetails = (indexOfItemCurrentlyBeingFocused == i);
 
+				ColorF color = Col_Black;
+				bool bDrawScore = false;
+				bool bShouldDrawAnExclamationMarkAsWarning = false;
+
+				float accumulatedAndWeightedScoreOfMaskedEvaluators = 0.0f;
+				bool bFoundItemScoreOutsideValidRange = false;
+
+				const EItemAnalyzeStatus status = AnalyzeItemStatus(item, evaluatorDrawMasks, accumulatedAndWeightedScoreOfMaskedEvaluators, bFoundItemScoreOutsideValidRange);
+
+				if (bFoundItemScoreOutsideValidRange)
+				{
+					bShouldDrawAnExclamationMarkAsWarning = true;
+				}
+
+				switch (status)
+				{
+				case EItemAnalyzeStatus::ExceptionOccurred:
+					bShouldDrawAnExclamationMarkAsWarning = true;
+					color = Col_Black;
+					break;
+
+				case EItemAnalyzeStatus::DiscardedByAtLeastOneEvaluator:
+					color = Col_Black;
+					break;
+
+				case EItemAnalyzeStatus::DisqualifiedDueToBadScoreBeforeAllEvaluatorsHadRun:
+					color = Col_Plum;
+					break;
+
+				case EItemAnalyzeStatus::StillBeingEvaluated:
+					color = Col_Yellow;
+					break;
+
+				case EItemAnalyzeStatus::DisqualifiedDueToBadScoreAfterAllEvaluatorsHadRun:
+					if (0)  // TODO: currently, we don't draw items that were fully run but then disqualified due to bad score with a specific color (we just apply that nice color gradation), 
+						    // but in the future, we might wanna allow the user to tick a checkbox in the History Inspector for getting even more insight into an item)
+					{
+						bDrawScore = true;
+						color = Col_DarkGray;
+						break;
+					}
+					// fall through
+
+				case EItemAnalyzeStatus::SurvivedAllEvaluators:
+					{
+						// it's one of the items in the result set (or at least one that survived all masked evaluators) => gradate its color from red to green, depending on its score
+
+						const float range = bestScoreAmongAllItems - worstScoreAmongAllItems;
+						const float itemRelativeScore = accumulatedAndWeightedScoreOfMaskedEvaluators - worstScoreAmongAllItems;
+						const float fraction = (range > FLT_EPSILON) ? itemRelativeScore / range : 1.0f;
+
+						color = Lerp(Col_Red, Col_Green, fraction);
+						bDrawScore = true;
+					}
+					break;
+
+				default:
+					assert(0);
+				}
+
+				m_debugRenderWorldPersistent.DrawAllAddedPrimitivesAssociatedWithItem(i, evaluatorDrawMasks, color, bShowDetails);
+
 				if (item.pDebugProxy)
 				{
-					ColorF color = Col_Black;
-					bool bDrawScore = false;
-					bool bShouldDrawAnExclamationMarkAsWarning = false;
-
-					float accumulatedAndWeightedScoreOfMaskedEvaluators = 0.0f;
-					bool bFoundItemScoreOutsideValidRange = false;
-
-					const EItemAnalyzeStatus status = AnalyzeItemStatus(item, evaluatorDrawMasks, accumulatedAndWeightedScoreOfMaskedEvaluators, bFoundItemScoreOutsideValidRange);
-
-					if (bFoundItemScoreOutsideValidRange)
-					{
-						bShouldDrawAnExclamationMarkAsWarning = true;
-					}
-
-					switch (status)
-					{
-					case EItemAnalyzeStatus::ExceptionOccurred:
-						bShouldDrawAnExclamationMarkAsWarning = true;
-						color = Col_Black;
-						break;
-
-					case EItemAnalyzeStatus::DiscardedByAtLeastOneEvaluator:
-						color = Col_Black;
-						break;
-
-					case EItemAnalyzeStatus::DisqualifiedDueToBadScoreBeforeAllEvaluatorsHadRun:
-						color = Col_Plum;
-						break;
-
-					case EItemAnalyzeStatus::StillBeingEvaluated:
-						color = Col_Yellow;
-						break;
-
-					case EItemAnalyzeStatus::DisqualifiedDueToBadScoreAfterAllEvaluatorsHadRun:
-						if (0)  // TODO: currently, we don't draw items that were fully run but then disqualified due to bad score with a specific color (we just apply that nice color gradation), 
-						        // but in the future, we might wanna allow the user to tick a checkbox in the History Inspector for getting even more insight into an item)
-						{
-							bDrawScore = true;
-							color = Col_DarkGray;
-							break;
-						}
-						// fall through
-
-					case EItemAnalyzeStatus::SurvivedAllEvaluators:
-						{
-							// it's one of the items in the result set (or at least one that survived all masked evaluators) => gradate its color from red to green, depending on its score
-
-							const float range = bestScoreAmongAllItems - worstScoreAmongAllItems;
-							const float itemRelativeScore = accumulatedAndWeightedScoreOfMaskedEvaluators - worstScoreAmongAllItems;
-							const float fraction = (range > 0.0f) ? itemRelativeScore / range : 1.0f;
-
-							color = Lerp(Col_Red, Col_Green, fraction);
-							bDrawScore = true;
-						}
-						break;
-
-					default:
-						assert(0);
-					}
-
-					item.pDebugProxy->Draw(color, bShowDetails);
-
 					if (bDrawScore)
 					{
-						m_debugRenderWorld.DrawText(item.pDebugProxy->GetPivot(), 1.5f, color, "%f", accumulatedAndWeightedScoreOfMaskedEvaluators);
+						stack_string text;
+						text.Format("%f", accumulatedAndWeightedScoreOfMaskedEvaluators);
+						CDebugRenderPrimitive_Text::Draw(item.pDebugProxy->GetPivot(), 1.5f, text.c_str(), color, false);
 					}
 
 					if (bShowDetails)
 					{
 						// # item index
-						m_debugRenderWorld.DrawText(item.pDebugProxy->GetPivot() + Vec3(0, 0, 1), 1.5f, color, "#%i", (int)i);
+						stack_string text;
+						text.Format("#%i", (int)i);
+						CDebugRenderPrimitive_Text::Draw(item.pDebugProxy->GetPivot() + Vec3(0, 0, 1), 1.5f, text.c_str(), color, false);
 					}
 
 					if (bShouldDrawAnExclamationMarkAsWarning)
@@ -667,10 +676,44 @@ namespace uqs
 							textSize *= CDebugRenderPrimitiveBase::Pulsate();
 						}
 
-						m_debugRenderWorld.DrawText(item.pDebugProxy->GetPivot() + Vec3(0, 0, 1), textSize, Col_Red, "!");
+						CDebugRenderPrimitive_Text::Draw(item.pDebugProxy->GetPivot() + Vec3(0, 0, 1), textSize, "!", Col_Red, false);
 					}
 				}
 			}
+		}
+
+		SDebugCameraView CHistoricQuery::GetIdealDebugCameraView(const SDebugCameraView& currentCameraView) const
+		{
+			// put the direction flat on the x/y plane
+			Vec3 dir = currentCameraView.dir;
+			dir.z = 0.0f;
+			dir.NormalizeSafe(Vec3(0, 1, 0));
+
+			const Vec3 zAxis(0, 0, 1);
+			const Vec3 xAxis = dir.Cross(zAxis).GetNormalized();
+			const Matrix34 localTransform = Matrix34::CreateFromVectors(xAxis, dir, zAxis, currentCameraView.pos).GetInverted();
+			AABB localExtents(AABB::RESET);
+
+			for (const SHistoricItem& item : m_items)
+			{
+				if (const CItemDebugProxyBase* pDebugProxy = item.pDebugProxy.get())
+				{
+					Vec3 itemPivot = localTransform * pDebugProxy->GetPivot();
+					localExtents.Add(itemPivot);
+				}
+			}
+
+			SDebugCameraView suggestedCameraView = currentCameraView;
+
+			if (!localExtents.IsReset())
+			{
+				suggestedCameraView.pos.x = (localExtents.max.x + localExtents.min.x) * 0.5f;
+				suggestedCameraView.pos.y = localExtents.min.y - 3.0f;	// 3 meters behind the closest item
+				suggestedCameraView.pos.z = localExtents.max.z + 3.0f;	// 3 meters above the highest item
+				suggestedCameraView.pos = localTransform.GetInverted() * suggestedCameraView.pos;
+			}
+
+			return suggestedCameraView;
 		}
 
 		void CHistoricQuery::FillQueryHistoryConsumerWithShortInfoAboutQuery(IQueryHistoryConsumer& consumer, bool bHighlight) const
@@ -701,7 +744,7 @@ namespace uqs
 				numGeneratedItems,
 				numItemsInFinalResultSet,
 				elapsedTime);
-			consumer.AddHistoricQuery(overview);
+			consumer.AddOrUpdateHistoricQuery(overview);
 		}
 
 		void CHistoricQuery::FillQueryHistoryConsumerWithDetailedInfoAboutQuery(IQueryHistoryConsumer& consumer) const
@@ -710,7 +753,7 @@ namespace uqs
 
 			// query ID
 			{
-				shared::CUqsString queryIdAsString;
+				Shared::CUqsString queryIdAsString;
 				m_queryID.ToString(queryIdAsString);
 				consumer.AddTextLineToCurrentHistoricQuery(color, "=== Query #%s ===", queryIdAsString.c_str());
 			}
@@ -851,7 +894,7 @@ namespace uqs
 				case SHistoricInstantEvaluatorResult::EStatus::HasFinishedAndScoredTheItem:
 					text.Format("scored the item: %f", ieResult.nonWeightedScore);
 					ieColor = Col_Green;
-					if (ieResult.nonWeightedScore < 0.0f || ieResult.nonWeightedScore > 1.0f)
+					if (ieResult.nonWeightedScore < -FLT_EPSILON || ieResult.nonWeightedScore > 1.0f + FLT_EPSILON)
 					{
 						indexesOfInstantEvaluatorsWithIllegalScores.push_back(i);
 					}
@@ -901,7 +944,7 @@ namespace uqs
 				case SHistoricDeferredEvaluatorResult::EStatus::HasFinishedAndScoredTheItem:
 					text.Format("scored the item: %f", deResult.nonWeightedScore);
 					deColor = Col_Green;
-					if (deResult.nonWeightedScore < 0.0f || deResult.nonWeightedScore > 1.0f)
+					if (deResult.nonWeightedScore < -FLT_EPSILON || deResult.nonWeightedScore > 1.0f + FLT_EPSILON)
 					{
 						indexesOfDeferredEvaluatorsWithIllegalScores.push_back(i);
 					}
@@ -940,17 +983,17 @@ namespace uqs
 				for (size_t i = 0, n = indexesOfInstantEvaluatorsWithIllegalScores.size(); i < n; ++i)
 				{
 					const size_t index = indexesOfInstantEvaluatorsWithIllegalScores[i];
-					const char* ieName = m_instantEvaluatorNames[index];
+					const char* szIEName = m_instantEvaluatorNames[index];
 					const SHistoricInstantEvaluatorResult& ieResult = item.resultOfAllInstantEvaluators[index];
-					consumer.AddTextLineToFocusedItem(Col_Red, "IE #%i [%-*s]: %f", (int)index, (int)m_longestEvaluatorName, ieName, ieResult.nonWeightedScore);
+					consumer.AddTextLineToFocusedItem(Col_Red, "IE #%i [%-*s]: %f", (int)index, (int)m_longestEvaluatorName, szIEName, ieResult.nonWeightedScore);
 				}
 
 				for (size_t i = 0, n = indexesOfDeferredEvaluatorsWithIllegalScores.size(); i < n; ++i)
 				{
 					const size_t index = indexesOfDeferredEvaluatorsWithIllegalScores[i];
-					const char* deName = m_deferredEvaluatorNames[index];
+					const char* szDEName = m_deferredEvaluatorNames[index];
 					const SHistoricDeferredEvaluatorResult& deResult = item.resultOfAllDeferredEvaluators[index];
-					consumer.AddTextLineToFocusedItem(Col_Red, "DE #%i [%-*s]: %f", (int)index, (int)m_longestEvaluatorName, deName, deResult.nonWeightedScore);
+					consumer.AddTextLineToFocusedItem(Col_Red, "DE #%i [%-*s]: %f", (int)index, (int)m_longestEvaluatorName, szDEName, deResult.nonWeightedScore);
 				}
 			}
 		}
@@ -1003,7 +1046,7 @@ namespace uqs
 			ar(m_bGotCanceledPrematurely, "m_bGotCanceledPrematurely");
 			ar(m_bExceptionOccurred, "m_bExceptionOccurred");
 			ar(m_exceptionMessage, "m_exceptionMessage");
-			ar(m_debugRenderWorld, "m_debugRenderWorld");
+			ar(m_debugRenderWorldPersistent, "m_debugRenderWorldPersistent");
 			ar(m_items, "m_items");
 			ar(m_instantEvaluatorNames, "m_instantEvaluatorNames");
 			ar(m_deferredEvaluatorNames, "m_deferredEvaluatorNames");
@@ -1033,7 +1076,7 @@ namespace uqs
 			return *this;
 		}
 
-		HistoricQuerySharedPtr CQueryHistory::AddNewHistoryEntry(const CQueryID& queryID, const char* querierName, const CQueryID& parentQueryID, CQueryHistoryManager* pOwningHistoryManager)
+		HistoricQuerySharedPtr CQueryHistory::AddNewHistoryEntry(const CQueryID& queryID, const char* szQuerierName, const CQueryID& parentQueryID, CQueryHistoryManager* pOwningHistoryManager)
 		{
 			//
 			// insert the new historic query into the correct position in the array such that children will always reside somewhere after their parent
@@ -1063,7 +1106,7 @@ namespace uqs
 				}
 			}
 
-			HistoricQuerySharedPtr pNewEntry(new CHistoricQuery(queryID, querierName, parentQueryID, pOwningHistoryManager));
+			HistoricQuerySharedPtr pNewEntry(new CHistoricQuery(queryID, szQuerierName, parentQueryID, pOwningHistoryManager));
 			insertPos = m_history.insert(insertPos, std::move(pNewEntry));
 			return *insertPos;
 		}
@@ -1109,9 +1152,9 @@ namespace uqs
 			return memoryUsed;
 		}
 
-		void CQueryHistory::SetArbitraryMetaDataForSerialization(const char* key, const char* value)
+		void CQueryHistory::SetArbitraryMetaDataForSerialization(const char* szKey, const char* szValue)
 		{
-			m_metaData[key] = value;
+			m_metaData[szKey] = szValue;
 		}
 
 		void CQueryHistory::Serialize(Serialization::IArchive& ar)

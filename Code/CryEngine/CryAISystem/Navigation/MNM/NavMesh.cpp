@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #include "StdAfx.h"
 #include "NavMesh.h"
@@ -1323,14 +1323,16 @@ CNavMesh::ERayCastResult CNavMesh::RayCast(const vector3_t& from, TriangleID fro
 {
 	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_AI);
 
-	const bool useNewRaycast = gAIEnv.CVars.MNMRaycastImplementation != 0;
-	if (useNewRaycast)
+	switch (gAIEnv.CVars.MNMRaycastImplementation)
 	{
-		return RayCast_new(from, fromTri, to, toTri, raycastRequest);
-	}
-	else
-	{
-		return RayCast_old(from, fromTri, to, toTri, raycastRequest);
+	case 0:
+		return RayCast_v1(from, fromTri, to, toTri, raycastRequest);
+	case 1:
+		return RayCast_v2(from, fromTri, to, toTri, raycastRequest);
+	case 2:
+	default:
+		// toTri parameter not used in this version
+		return RayCast_v3(from, fromTri, to, raycastRequest);
 	}
 }
 
@@ -1379,8 +1381,8 @@ struct IsNodeCloserToEndPredicate
 typedef OpenList<RaycastNode, IsNodeCloserToEndPredicate> RaycastOpenList;
 typedef VectorSet<TriangleID>                             RaycastClosedList;
 
-CNavMesh::ERayCastResult CNavMesh::RayCast_new(const vector3_t& from, TriangleID fromTriangleID, const vector3_t& to, TriangleID toTriangleID,
-                                               RaycastRequestBase& raycastRequest) const
+CNavMesh::ERayCastResult CNavMesh::RayCast_v2(const vector3_t& from, TriangleID fromTriangleID, const vector3_t& to, TriangleID toTriangleID,
+	RaycastRequestBase& raycastRequest) const
 {
 	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_AI);
 
@@ -1404,14 +1406,13 @@ CNavMesh::ERayCastResult CNavMesh::RayCast_new(const vector3_t& from, TriangleID
 	RaycastNode furtherNodeVisited;
 	RayHit rayHit;
 
-	RaycastNode currentNode(fromTriangleID, real_t(.0f), (uint16) MNM::Constants::InvalidEdgeIndex);
+	RaycastNode currentNode(fromTriangleID, real_t(.0f), (uint16)MNM::Constants::InvalidEdgeIndex);
 
 	while (currentNode.IsValid())
 	{
 		if (currentNode.triangleID == toTriangleID)
 		{
-			ReconstructRaycastResult(fromTriangleID, toTriangleID, cameFrom, raycastRequest);
-			return eRayCastResult_NoHit;
+			return ConstructRaycastResult(eRayCastResult_NoHit, rayHit, toTriangleID, cameFrom, raycastRequest);
 		}
 
 		if (currentNode.percentageOfTotalDistance > furtherNodeVisited.percentageOfTotalDistance)
@@ -1429,9 +1430,9 @@ CNavMesh::ERayCastResult CNavMesh::RayCast_new(const vector3_t& from, TriangleID
 			const STile* tile = &container->tile;
 
 			vector3_t tileOrigin(
-			  real_t(container->x * m_params.tileSize.x),
-			  real_t(container->y * m_params.tileSize.y),
-			  real_t(container->z * m_params.tileSize.z));
+				real_t(container->x * m_params.tileSize.x),
+				real_t(container->y * m_params.tileSize.y),
+				real_t(container->z * m_params.tileSize.z));
 
 			const Tile::STriangle& triangle = tile->triangles[ComputeTriangleIndex(currentNode.triangleID)];
 			for (uint16 edgeIndex = 0; edgeIndex < 3; ++edgeIndex)
@@ -1512,9 +1513,9 @@ CNavMesh::ERayCastResult CNavMesh::RayCast_new(const vector3_t& from, TriangleID
 										break;
 
 									const vector3_t neighbourTileOrigin = vector3_t(
-									  real_t(neighbourContainer.x * m_params.tileSize.x),
-									  real_t(neighbourContainer.y * m_params.tileSize.y),
-									  real_t(neighbourContainer.z * m_params.tileSize.z));
+										real_t(neighbourContainer.x * m_params.tileSize.x),
+										real_t(neighbourContainer.y * m_params.tileSize.y),
+										real_t(neighbourContainer.z * m_params.tileSize.z));
 
 									const uint16 i0 = reciprocal.edge;
 									const uint16 i1 = inc_mod3[reciprocal.edge];
@@ -1571,37 +1572,184 @@ CNavMesh::ERayCastResult CNavMesh::RayCast_new(const vector3_t& from, TriangleID
 
 	}
 
-	ReconstructRaycastResult(fromTriangleID, furtherNodeVisited.triangleID, cameFrom, raycastRequest);
-
-	RayHit& requestRayHit = raycastRequest.hit;
-	requestRayHit.distance = rayHit.distance;
-	requestRayHit.triangleID = rayHit.triangleID;
-	requestRayHit.edge = rayHit.edge;
-
-	return eRayCastResult_Hit;
+	return ConstructRaycastResult(eRayCastResult_Hit, rayHit, furtherNodeVisited.triangleID, cameFrom, raycastRequest);
 }
 
-CNavMesh::ERayCastResult CNavMesh::ReconstructRaycastResult(const TriangleID fromTriangleID, const TriangleID toTriangleID, const RaycastCameFromMap& cameFrom, RaycastRequestBase& raycastRequest) const
+CNavMesh::ERayCastResult CNavMesh::RayCast_v3(const vector3_t& fromPos, TriangleID fromTriangleID, const vector3_t& toPos, RaycastRequestBase& raycastRequest) const
 {
-	TriangleID currentTriangleID = toTriangleID;
+	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_AI);
+
+	if (!IsLocationInTriangle(fromPos, fromTriangleID))
+		return eRayCastResult_InvalidStart;
+
+	RaycastCameFromMap cameFrom;
+	cameFrom.reserve(raycastRequest.maxWayTriCount);
+
+	RayHit rayHit;
+	rayHit.distance = 0.0f;
+	rayHit.edge = MNM::Constants::InvalidEdgeIndex;
+	rayHit.triangleID = MNM::Constants::InvalidTriangleID;
+
+	TriangleID currentTriangleID = fromTriangleID;
+	
+	while (currentTriangleID != MNM::Constants::InvalidTriangleID)
+	{
+		TileID currentTileID = ComputeTileID(currentTriangleID);
+		CRY_ASSERT(currentTileID != MNM::Constants::InvalidTileID);
+
+		if (currentTileID == MNM::Constants::InvalidTileID)
+			break;
+		
+		const TileContainer& currentContainer = m_tiles[currentTileID - 1];
+		const STile& currentTile = currentContainer.tile;
+
+		const uint16 currentTriangleIndex = ComputeTriangleIndex(currentTriangleID);
+		const Tile::STriangle& currentTriangle = currentTile.triangles[currentTriangleIndex];
+
+		const vector3_t currentTileOrigin(
+			real_t(currentContainer.x * m_params.tileSize.x),
+			real_t(currentContainer.y * m_params.tileSize.y),
+			real_t(currentContainer.z * m_params.tileSize.z));
+
+		//collect vertices of the current triangle
+		vector2_t currentTriangleVertices[3];
+		currentTriangleVertices[0] = vector2_t(currentTileOrigin + vector3_t(currentContainer.tile.vertices[currentTriangle.vertex[0]]));
+		currentTriangleVertices[1] = vector2_t(currentTileOrigin + vector3_t(currentContainer.tile.vertices[currentTriangle.vertex[1]]));
+		currentTriangleVertices[2] = vector2_t(currentTileOrigin + vector3_t(currentContainer.tile.vertices[currentTriangle.vertex[2]]));
+		
+		real_t rayIntersectionParam;
+		uint16 intersectionEdgeIndex;
+		const bool bEndingInside = FindNextIntersectingTriangleEdge(fromPos, toPos, currentTriangleVertices, rayIntersectionParam, intersectionEdgeIndex);
+
+		if (intersectionEdgeIndex == uint16(MNM::Constants::InvalidEdgeIndex))
+		{
+			if (bEndingInside)
+			{
+				// Ray segment is ending in current triangle, return no hit
+				rayHit.triangleID = currentTriangleID;
+				rayHit.edge = intersectionEdgeIndex;
+				rayHit.distance = 1.0f;
+				return ConstructRaycastResult(eRayCastResult_NoHit, rayHit, rayHit.triangleID, cameFrom, raycastRequest);
+			}
+			else
+			{
+				// Ray segment missed the triangle, return the last hit
+				return ConstructRaycastResult(eRayCastResult_Hit, rayHit, rayHit.triangleID, cameFrom, raycastRequest);
+			}
+		}
+
+		rayHit.triangleID = currentTriangleID;
+		rayHit.edge = intersectionEdgeIndex;
+		if (rayIntersectionParam > rayHit.distance)
+		{
+			rayHit.distance = rayIntersectionParam;
+		}
+		
+		const TriangleID neighbourTriangleID = StepOverEdgeToNeighbourTriangle(fromPos, toPos, currentTileID, currentTriangleID, intersectionEdgeIndex);
+		
+		if (neighbourTriangleID != MNM::Constants::InvalidTriangleID)
+		{
+			cameFrom[neighbourTriangleID] = currentTriangleID;
+		}
+		currentTriangleID = neighbourTriangleID;
+	}
+
+	return ConstructRaycastResult(eRayCastResult_Hit, rayHit, rayHit.triangleID, cameFrom, raycastRequest);
+}
+
+MNM::TriangleID CNavMesh::StepOverEdgeToNeighbourTriangle(const vector3_t& rayStart, const vector3_t& rayEnd, const TileID currentTileID, const TriangleID currentTriangleID, const uint16 edgeIndex) const
+{
+	const TileContainer& currentContainer = m_tiles[currentTileID - 1];
+	const STile& currentTile = currentContainer.tile;
+
+	const uint16 currentTriangleIndex = ComputeTriangleIndex(currentTriangleID);
+	const Tile::STriangle& currentTriangle = currentTile.triangles[currentTriangleIndex];
+	
+	for (size_t linkIndex = 0; linkIndex < currentTriangle.linkCount; ++linkIndex)
+	{
+		// Find link to neighbour triangle corresponding to found edge
+		const Tile::SLink& link = currentTile.links[currentTriangle.firstLink + linkIndex];
+		if (link.edge != edgeIndex)
+			continue;
+
+		const uint16 side = link.side;
+
+		if(side == Tile::SLink::OffMesh)
+			// Not interested in offmesh links
+			continue;
+
+		if (side == Tile::SLink::Internal)
+		{
+			// Internal link between two triangles in the same tile
+			return ComputeTriangleID(currentTileID, link.triangle);
+		}
+
+		// Edge is on the tile boundaries, there can be more neighbour triangles adjacent to this edge
+		TileID neighbourTileID = GetNeighbourTileID(currentContainer.x, currentContainer.y, currentContainer.z, link.side);
+		const TileContainer& neighbourContainer = m_tiles[neighbourTileID - 1];
+		const Tile::STriangle& neighbourTriangle = neighbourContainer.tile.triangles[link.triangle];
+		const uint16 currentOppositeSide = static_cast<uint16>(OppositeSide(side));
+
+		for (size_t reciprocalLinkIndex = 0; reciprocalLinkIndex < neighbourTriangle.linkCount; ++reciprocalLinkIndex)
+		{
+			const Tile::SLink& reciprocal = neighbourContainer.tile.links[neighbourTriangle.firstLink + reciprocalLinkIndex];
+			if ((reciprocal.triangle == currentTriangleIndex) && (reciprocal.side == currentOppositeSide))
+			{
+				const vector3_t neighbourTileOrigin = vector3_t(
+					real_t(neighbourContainer.x * m_params.tileSize.x),
+					real_t(neighbourContainer.y * m_params.tileSize.y),
+					real_t(neighbourContainer.z * m_params.tileSize.z));
+
+				const uint16 i0 = reciprocal.edge;
+				const uint16 i1 = inc_mod3[reciprocal.edge];
+
+				CRY_ASSERT(i0 < 3);
+				CRY_ASSERT(i1 < 3);
+
+				const vector3_t edgeStart = neighbourTileOrigin + vector3_t(neighbourContainer.tile.vertices[neighbourTriangle.vertex[i0]]);
+				const vector3_t edgeEnd = neighbourTileOrigin + vector3_t(neighbourContainer.tile.vertices[neighbourTriangle.vertex[i1]]);
+
+				// TODO: This could be optimized by using variation of IntersectSegmentSegment function, 
+				// which doesn't compute intersection parameters since we are not interested in them in this case
+				// Moreover we probably only need to check whether the intersection is lying on the edge (ray segment was checked in previous parts of the code).
+				real_t rayParameter, edgeParameter;
+				if (IntersectSegmentSegment(vector2_t(rayStart), vector2_t(rayEnd), vector2_t(edgeStart), vector2_t(edgeEnd), rayParameter, edgeParameter))
+				{
+					return ComputeTriangleID(neighbourTileID, link.triangle);
+				}
+			}
+		}
+	}
+
+	return MNM::Constants::InvalidTriangleID;
+}
+
+CNavMesh::ERayCastResult CNavMesh::ConstructRaycastResult(const ERayCastResult returnResult, const RayHit& rayHit, const TriangleID lastTriangleID, const RaycastCameFromMap& cameFromMap,
+	RaycastRequestBase& raycastRequest) const
+{
+	raycastRequest.hit = rayHit;
+	
+	TriangleID currentTriangleID = lastTriangleID;
 	size_t elementIndex = 0;
-	RaycastCameFromMap::const_iterator elementIterator = cameFrom.find(currentTriangleID);
-	while (elementIterator != cameFrom.end())
+	RaycastCameFromMap::const_iterator elementIterator = cameFromMap.find(currentTriangleID);
+	while (elementIterator != cameFromMap.end())
 	{
 		if (elementIndex >= raycastRequest.maxWayTriCount)
 		{
+			raycastRequest.result = eRayCastResult_RayTooLong;
 			return eRayCastResult_RayTooLong;
 		}
 
 		raycastRequest.way[elementIndex++] = currentTriangleID;
 		currentTriangleID = elementIterator->second;
-		elementIterator = cameFrom.find(currentTriangleID);
+		elementIterator = cameFromMap.find(currentTriangleID);
 	}
 
 	raycastRequest.way[elementIndex++] = currentTriangleID;
 	raycastRequest.wayTriCount = elementIndex;
+	raycastRequest.result = elementIndex < raycastRequest.maxWayTriCount ? returnResult : eRayCastResult_RayTooLong;
 
-	return elementIndex < raycastRequest.maxWayTriCount ? eRayCastResult_NoHit : eRayCastResult_RayTooLong;
+	return returnResult;
 }
 
 bool CNavMesh::IsLocationInTriangle(const vector3_t& location, const TriangleID triangleID) const
@@ -1635,7 +1783,7 @@ bool CNavMesh::IsLocationInTriangle(const vector3_t& location, const TriangleID 
 	return false;
 }
 
-CNavMesh::ERayCastResult CNavMesh::RayCast_old(const vector3_t& from, TriangleID fromTri, const vector3_t& to, TriangleID toTri, RaycastRequestBase& raycastRequest) const
+CNavMesh::ERayCastResult CNavMesh::RayCast_v1(const vector3_t& from, TriangleID fromTri, const vector3_t& to, TriangleID toTri, RaycastRequestBase& raycastRequest) const
 {
 	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_AI);
 
@@ -2152,8 +2300,11 @@ void CNavMesh::Swap(CNavMesh& other)
 
 void CNavMesh::Draw(size_t drawFlags, TileID excludeID) const
 {
-	TileMap::const_iterator it = m_tileMap.begin();
-	TileMap::const_iterator end = m_tileMap.end();
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
+
+	const CCamera& camera = gEnv->pSystem->GetViewCamera();
+	const Vec3 cameraPos = camera.GetPosition();
+	const float maxDistanceToRenderSqr = sqr(gAIEnv.CVars.NavmeshTileDistanceDraw);
 
 	// collect areas
 	// TODO: Clean this up!  Temprorary to get up and running.
@@ -2163,6 +2314,8 @@ void CNavMesh::Draw(size_t drawFlags, TileID excludeID) const
 		islandAreas[i] = m_islands[i].area;
 	}
 
+	TileMap::const_iterator it = m_tileMap.begin();
+	TileMap::const_iterator end = m_tileMap.end();
 	for (; it != end; ++it)
 	{
 		if (excludeID == it->second)
@@ -2170,17 +2323,16 @@ void CNavMesh::Draw(size_t drawFlags, TileID excludeID) const
 
 		const TileContainer& container = m_tiles[it->second - 1];
 
-		container.tile.Draw(drawFlags, vector3_t(
-		                      real_t(m_params.origin.x + container.x * m_params.tileSize.x),
-		                      real_t(m_params.origin.y + container.y * m_params.tileSize.y),
-		                      real_t(m_params.origin.z + container.z * m_params.tileSize.z)),
-		                    it->second,
-		                    islandAreas);
+		vector3_t origin(
+			real_t(m_params.origin.x + container.x * m_params.tileSize.x),
+			real_t(m_params.origin.y + container.y * m_params.tileSize.y),
+			real_t(m_params.origin.z + container.z * m_params.tileSize.z));
 
-		const Vec3 offset = Vec3(0.0f, 0.0f, 0.05f) + m_params.origin +
-		                    Vec3((float)container.x * m_params.tileSize.x,
-		                         (float)container.y * m_params.tileSize.y,
-		                         (float)container.z * m_params.tileSize.z);
+		Vec3 min = origin.GetVec3();
+		if (cameraPos.GetSquaredDistance2D(min) < maxDistanceToRenderSqr && camera.IsAABBVisible_F(AABB(min, min + m_params.tileSize)))
+		{
+			container.tile.Draw(drawFlags, origin, it->second, islandAreas);
+		}
 	}
 }
 
@@ -2705,6 +2857,85 @@ bool CNavMesh::CalculateMidEdge(const TriangleID triangleID1, const TriangleID t
 	}
 
 	return false;
+}
+
+bool CNavMesh::FindNextIntersectingTriangleEdge(const vector3_t& rayStartPos3D, const vector3_t& rayEndPos3D, const vector2_t pTriangleVertices[3],
+	real_t& rayIntersectionParam, uint16& intersectingEdgeIndex) const
+{
+	/*       
+	          _Rs
+	        \ |
+	         \|       /           Rs, Re - ray start, ray end
+	          \i2    /            V0, V1, V2 - triangle vertices
+	          |\    /             e0, e1, e2 - triangle edges
+	          | \  /              i0, i1, i2 - intersections of the ray with edges
+	          |  \/V0             
+	          |  /\               Assumption: All triangles in navmesh have the same orientation
+	          | /  \              
+	          |/    \             We are iterating over all edges and trying to find the one, through which the ray is leaving the triangle
+	          /i0    \            It is known that |a x b| = |a|*|b|*sinT
+	         /|       \ e2        We then compute 'det' as magnitude of the cross product between ray direction and edge, then if
+	     e0 / |        \          det == 0: Ray and edge are parallel - ray is either outside of the triangle or there is another edge we are interested in
+	       /  |         \         det < 0: Ray is entering a half-plane where the triangle is located
+	   ___/___|__________\____    det > 0: Ray is leaving a half-plane where the triangle is located - we are interested only in this case
+	   V1/    |i1   e1    \V2              Next we need to find the nearest of these intersections (as minimum intersection parameter of the ray),
+	    /     |            \               that gives us the actual 'leaving' edge.  
+	          |                            There is also needed check whether the intersection really lies on the edge (mainly because of precision and rounding errors)
+	          V             
+	           Re                 When none of the values of 'leaving' intersection parameters is bigger than 1.0, it means, that the ray is ending inside the triangle.
+			                      Note: Relation between 'det' and intersection parameters is described in DetailedIntersectSegmentSegment function.
+	*/
+	
+	rayIntersectionParam = 1.0f;
+	intersectingEdgeIndex = uint16(MNM::Constants::InvalidEdgeIndex);
+
+	const vector2_t rayStartPos = vector2_t(rayStartPos3D);
+	const vector2_t rayEndPos = vector2_t(rayEndPos3D);
+	const vector2_t rayDir = rayEndPos - rayStartPos;
+	const real_t tolerance = real_t::epsilon();
+	const real_t minAllowedValue = real_t(0.0f) - tolerance;
+
+	bool bEndingInside = true;
+
+	for (uint16 edgeIndex = 0; edgeIndex < 3; ++edgeIndex)
+	{
+		const vector2_t& edgeStartPos = pTriangleVertices[edgeIndex];
+		const vector2_t& edgeEndPos = pTriangleVertices[inc_mod3[edgeIndex]];
+
+		const vector2_t edgeDir = edgeEndPos - edgeStartPos;
+		const vector2_t diff = edgeStartPos - rayStartPos;
+
+		const real_t det = rayDir.x * edgeDir.y - rayDir.y * edgeDir.x;
+		const real_t n = (diff.x * edgeDir.y - diff.y * edgeDir.x);
+		
+		if (det > 0)
+		{
+			// Ray is possibly leaving the triangle through this edge line
+
+			// Modified version of n/det < rayIntersectionParam condition because signed division in fixed point aritmetics is not reliable for small values of divisor
+			// (dividing positive number with negative can lead to positive result)
+			if (n < rayIntersectionParam * det)
+			{
+				bEndingInside = false;
+
+				// Make sure that the intersections really lies on the edge segment (only checking for the nearest intersection isn't enough because of precision and rounding errors)
+				const real_t m = (diff.x * rayDir.y - diff.y * rayDir.x);
+				const real_t maxAllowedValue = (real_t(1.0f) * det) + tolerance;
+
+				if (m >= minAllowedValue && m <= maxAllowedValue)
+				{
+					rayIntersectionParam = n / det;
+					intersectingEdgeIndex = edgeIndex;
+				}
+			}
+		}
+		else if (det == 0 && n < minAllowedValue)
+		{
+			// Ray segment is parallel to this edge and is completely outside of the triangle
+			bEndingInside = false;
+		}
+	}
+	return bEndingInside;
 }
 
 //////////////////////////////////////////////////////////////////////////

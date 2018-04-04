@@ -4,87 +4,17 @@
 
 #include "GraphNodeItem.h"
 #include "GraphPinItem.h"
+#include "GraphViewModel.h"
 
-#include <Schematyc/Script/IScriptGraph.h>
+#include <CrySchematyc/Script/IScriptGraph.h>
 
 #include <NodeGraph/NodeWidget.h>
 #include <NodeGraph/PinGridNodeContentWidget.h>
+#include <NodeGraph/NodeGraphUndo.h>
 
 #include <QString>
 
 namespace CrySchematycEditor {
-
-CNodeStyles CNodeStyles::s_instance;
-
-CNodeStyles::CNodeStyles()
-	: m_createdStyles(0)
-{
-
-}
-
-const CNodeStyle* CNodeStyles::GetStyleById(const char* szStyleId)
-{
-	s_instance.LoadIcons();
-	if (szStyleId)
-	{
-		return static_cast<const CNodeStyle*>(s_instance.GetStyle(szStyleId));
-	}
-	return static_cast<const CNodeStyle*>(s_instance.GetStyle(""));
-}
-
-void CNodeStyles::LoadIcons()
-{
-	static bool iconsLoaded = false;
-	if (iconsLoaded == false)
-	{
-		CreateStyle("", "icons:schematyc/node_default.ico", QColor(255, 0, 0));
-		CreateStyle("Core::FlowControl::Begin", "icons:schematyc/core_flowcontrol_begin.ico", QColor(26, 26, 26));
-		CreateStyle("Core::FlowControl::End", "icons:schematyc/core_flowcontrol_end.ico", QColor(26, 26, 26));
-		CreateStyle("Core::FlowControl", "icons:schematyc/core_flowcontrol.ico", QColor(255, 255, 255));
-		CreateStyle("Core::SendSignal", "icons:schematyc/core_sendsignal.ico", QColor(100, 193, 98));
-		CreateStyle("Core::ReceiveSignal", "icons:schematyc/core_receivesignal.ico", QColor(100, 193, 98));
-		CreateStyle("Core::Function", "icons:schematyc/core_function.ico", QColor(193, 98, 98));
-		CreateStyle("Core::Data", "icons:schematyc/core_data.ico", QColor(156, 98, 193));
-		CreateStyle("Core::Utility", "icons:schematyc/core_utility.ico", QColor(153, 153, 153));
-		CreateStyle("Core::State", "icons:schematyc/core_state.ico", QColor(192, 193, 98));
-
-		iconsLoaded = true;
-	}
-}
-
-void CNodeStyles::CreateStyle(const char* szStyleId, const char* szIcon, QColor color)
-{
-	CRY_ASSERT_MESSAGE(m_createdStyles < s_NumStyles, "Not enough space in styles array");
-	if (m_createdStyles < s_NumStyles)
-	{
-		CryIcon* pIcon = new CryIcon(szIcon, {
-				{ QIcon::Mode::Normal, color }
-		  });
-
-		CNodeStyle& style = *(new(&m_nodeStyles[m_createdStyles++])CNodeStyle(szStyleId));
-		style.SetHeaderTextColor(color);
-		style.SetIcon(szIcon, color, CNodeStyle::Icon_NodeType);
-		style.SetMenuIcon(pIcon);
-
-		s_instance.AddStyle(&style);
-	}
-}
-
-CNodeTypeIcon::CNodeTypeIcon(CryGraphEditor::CNodeWidget& nodeWidget)
-	: CNodeHeaderIcon(nodeWidget)
-{
-	CNodeItem& nodeItem = static_cast<CNodeItem&>(nodeWidget.GetItem());
-
-	if (const CNodeStyle* pStyle = CNodeStyles::GetStyleById(nodeItem.GetStyleId()))
-	{
-		if (const QPixmap* pIcon = pStyle->GetHeaderTypeIcon())
-			SetDisplayIcon(pIcon);
-	}
-}
-
-CNodeTypeIcon::~CNodeTypeIcon()
-{
-}
 
 CNodeItem::CNodeItem(Schematyc::IScriptGraphNode& scriptNode, CryGraphEditor::CNodeGraphViewModel& model)
 	: CAbstractNodeItem(model)
@@ -108,14 +38,7 @@ CryGraphEditor::CNodeWidget* CNodeItem::CreateWidget(CryGraphEditor::CNodeGraphV
 	CryGraphEditor::CNodeWidget* pNodeWidget = new CryGraphEditor::CNodeWidget(*this, view);
 	CryGraphEditor::CPinGridNodeContentWidget* pContent = new CryGraphEditor::CPinGridNodeContentWidget(*pNodeWidget, view);
 
-	pNodeWidget->AddHeaderIcon(new CNodeTypeIcon(*pNodeWidget), CryGraphEditor::CNodeHeader::EIconSlot::Left);
-
 	return pNodeWidget;
-}
-
-const CryGraphEditor::CNodeWidgetStyle* CNodeItem::GetStyle() const
-{
-	return CNodeStyles::GetStyleById(GetStyleId());
 }
 
 void CNodeItem::Serialize(Serialization::IArchive& archive)
@@ -130,17 +53,40 @@ void CNodeItem::Serialize(Serialization::IArchive& archive)
 		serPass = archive.isInput() ? Schematyc::ESerializationPass::Load : Schematyc::ESerializationPass::Save;
 	}
 
+	if (serPass == Schematyc::ESerializationPass::Load)
+	{
+		Schematyc::SSerializationContextParams serializationContextParams(archive, Schematyc::ESerializationPass::LoadDependencies);
+		Schematyc::ISerializationContextPtr pSerializationContext = gEnv->pSchematyc->CreateSerializationContext(serializationContextParams);
+
+		m_scriptNode.Serialize(archive);
+	}
+
 	Schematyc::SSerializationContextParams serializationContextParams(archive, serPass);
 	Schematyc::ISerializationContextPtr pSerializationContext = gEnv->pSchematyc->CreateSerializationContext(serializationContextParams);
 
-	m_scriptNode.Serialize(archive);
-	if (archive.isInput())
+	if (archive.isOutput() && archive.isEdit())
 	{
-		m_isDirty = true;
+		Refresh(true);
 
 		// TODO: This should happen in Serialize(...) function not here.
 		gEnv->pSchematyc->GetScriptRegistry().ElementModified(m_scriptNode.GetGraph().GetElement());
 		// ~TODO
+	}
+
+	m_scriptNode.Serialize(archive);
+
+	if (archive.isInput())
+	{
+		// We only want to do an immediate refresh if the change doesn't come from
+		// the editor. Otherwise we wait for the output serialization pass.
+		if (!archive.isEdit())
+		{
+			Refresh(true);
+
+			// TODO: This should happen in Serialize(...) function not here.
+			gEnv->pSchematyc->GetScriptRegistry().ElementModified(m_scriptNode.GetGraph().GetElement());
+			// ~TODO
+		}
 
 		Validate();
 	}
@@ -158,6 +104,11 @@ void CNodeItem::SetPosition(QPointF position)
 	m_scriptNode.SetPos(pos);
 
 	CAbstractNodeItem::SetPosition(position);
+	if (GetIEditor()->GetIUndoManager()->IsUndoRecording())
+	{
+		CryGraphEditor::CUndoNodeMove* pUndoObject = new CryGraphEditor::CUndoNodeMove(*this);
+		CUndo::Record(pUndoObject);
+	}
 }
 
 QVariant CNodeItem::GetId() const
@@ -167,7 +118,7 @@ QVariant CNodeItem::GetId() const
 
 bool CNodeItem::HasId(QVariant id) const
 {
-	return (id.value<Schematyc::SGUID>() == m_scriptNode.GetGUID());
+	return (id.value<CryGUID>() == m_scriptNode.GetGUID());
 }
 
 QVariant CNodeItem::GetTypeId() const
@@ -209,7 +160,7 @@ CPinItem* CNodeItem::GetPinItemById(CPinId id) const
 	return nullptr;
 }
 
-Schematyc::SGUID CNodeItem::GetGUID() const
+CryGUID CNodeItem::GetGUID() const
 {
 	return m_scriptNode.GetGUID();
 }
@@ -219,14 +170,28 @@ const char* CNodeItem::GetStyleId() const
 	return m_scriptNode.GetStyleId();
 }
 
+bool CNodeItem::IsRemovable() const
+{
+	return !m_scriptNode.GetFlags().Check(Schematyc::EScriptGraphNodeFlags::NotRemovable);
+}
+
+bool CNodeItem::IsPasteAllowed() const
+{
+	return !m_scriptNode.GetFlags().Check(Schematyc::EScriptGraphNodeFlags::NotCopyable);
+}
+
 void CNodeItem::Refresh(bool forceRefresh)
 {
+	// TODO: This is a workaround for broken mappings after undo.
+	m_scriptNode.GetGraph().FixMapping(m_scriptNode);
+	// ~TODO
+
 	if (m_isDirty || forceRefresh)
 	{
 		m_isDirty = false;
 
-		// TODO: Just call RefreshLayout(...) here?!
-		m_scriptNode.ProcessEvent(Schematyc::SScriptEvent(Schematyc::EScriptEventId::EditorRefresh));
+		// TODO: We shouldn't have to do this here but it's the only way to refresh the whole node for now!
+		m_scriptNode.ProcessEvent(Schematyc::SScriptEvent(Schematyc::EScriptEventId::EditorPaste));
 		// ~TODO
 
 		RefreshName();
@@ -236,8 +201,6 @@ void CNodeItem::Refresh(bool forceRefresh)
 
 		CryGraphEditor::PinItemArray pins;
 		pins.reserve(numPins);
-
-		size_t numKeptPins = 0;
 
 		const uint32 numInputPins = m_scriptNode.GetInputCount();
 		for (uint32 i = 0; i < numInputPins; ++i)
@@ -260,11 +223,9 @@ void CNodeItem::Refresh(bool forceRefresh)
 			else
 			{
 				CPinItem* pPinItem = static_cast<CPinItem*>(*result);
-				pPinItem->UpdateWithNewIndex(i);
 				pins.push_back(pPinItem);
 
 				*result = nullptr;
-				++numKeptPins;
 			}
 		}
 
@@ -289,11 +250,9 @@ void CNodeItem::Refresh(bool forceRefresh)
 			else
 			{
 				CPinItem* pPinItem = static_cast<CPinItem*>(*result);
-				pPinItem->UpdateWithNewIndex(i);
 				pins.push_back(pPinItem);
 
 				*result = nullptr;
-				++numKeptPins;
 			}
 		}
 
@@ -304,9 +263,28 @@ void CNodeItem::Refresh(bool forceRefresh)
 		{
 			if (pPinItem != nullptr)
 			{
+				// TODO: We need to destroy the connections since Schematyc backend did so already without
+				//			 notifying the editor. Remove that as soon as we have proper communication between
+				//			 editor and backend.
+				pPinItem->Disconnect();
+				// ~TODO
+
 				SignalPinRemoved(*pPinItem);
 				delete pPinItem;
 			}
+		}
+
+		size_t inputIdx = 0;
+		size_t outputIdx = 0;
+		for (uint32 i = 0; i < m_pins.size(); ++i)
+		{
+			CPinItem* pPinItem = static_cast<CPinItem*>(m_pins.at(i));
+			if (pPinItem->IsInputPin())
+				pPinItem->UpdateWithNewIndex(inputIdx++);
+			else
+				pPinItem->UpdateWithNewIndex(outputIdx++);
+
+			pPinItem->SignalInvalidated();
 		}
 	}
 }
@@ -314,7 +292,8 @@ void CNodeItem::Refresh(bool forceRefresh)
 void CNodeItem::LoadFromScriptElement()
 {
 	// TODO: Just call RefreshLayout(...) here?!
-	m_scriptNode.ProcessEvent(Schematyc::SScriptEvent(Schematyc::EScriptEventId::EditorRefresh)); // N.B. After the release of 5.3 we should figure out whether it's really necessary to refresh elements upon initial selection (as opposed to only refreshing when changes are made).
+	m_scriptNode.ProcessEvent(Schematyc::SScriptEvent(Schematyc::EScriptEventId::EditorRefresh));
+	// N.B. After the release of 5.3 we should figure out whether it's really necessary to refresh elements upon initial selection (as opposed to only refreshing when changes are made).
 	// ~TODO
 
 	RefreshName();
@@ -323,16 +302,6 @@ void CNodeItem::LoadFromScriptElement()
 	SetPosition(QPoint(pos.x, pos.y));
 
 	const QString styleId(GetStyleId());
-	if (styleId != "Core::FlowControl::Begin" && styleId != "Core::FlowControl::End")
-	{
-		m_headerGradientColorL = CryGraphEditor::CNodeStyle::GetHeaderDefaultColorLeft();
-		m_headerGradientColorR = CryGraphEditor::CNodeStyle::GetHeaderDefaultColorRight();
-	}
-	else
-	{
-		m_headerGradientColorL = QColor(97, 172, 236);
-		m_headerGradientColorR = m_headerGradientColorL;
-	}
 
 	const uint32 numInputs = m_scriptNode.GetInputCount();
 	for (uint32 i = 0; i < numInputs; ++i)
@@ -348,13 +317,16 @@ void CNodeItem::LoadFromScriptElement()
 		m_pins.push_back(pPinItem);
 	}
 
+	SetAcceptsDeletion(IsRemovable());
+	SetAcceptsCopy(IsCopyAllowed());
+	SetAcceptsPaste(IsPasteAllowed());
+
 	Validate();
 }
 
 void CNodeItem::RefreshName()
 {
 	m_shortName = m_scriptNode.GetName();
-	m_fullQualifiedName = QString("<b>FQNN: </b>%1").arg(m_shortName);
 
 	CNodeItem::SignalNameChanged();
 }
@@ -380,7 +352,7 @@ void CNodeItem::Validate()
 			}
 		}
 	};
-	m_scriptNode.Validate(Schematyc::Validator::FromLambda(validateScriptNode));
+	m_scriptNode.Validate(validateScriptNode);
 
 	CAbstractNodeItem::SetWarnings(warningCount > 0);
 	CAbstractNodeItem::SetErrors(errorCount > 0);

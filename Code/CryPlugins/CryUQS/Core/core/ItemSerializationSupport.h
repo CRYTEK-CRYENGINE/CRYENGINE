@@ -4,9 +4,9 @@
 
 // *INDENT-OFF* - <hard to read code and declarations due to inconsistent indentation>
 
-namespace uqs
+namespace UQS
 {
-	namespace core
+	namespace Core
 	{
 
 		//////////////////////////////////////////////////////////////////////////
@@ -17,9 +17,9 @@ namespace uqs
 		{
 		public:
 			// IItemSerializationSupport
-			virtual bool                     DeserializeItemFromCStringLiteral(void* pOutItem, const client::IItemFactory& itemFactory, const char* szItemLiteral, shared::IUqsString* pErrorMessage) const override;
-			virtual bool                     DeserializeItemIntoDictFromCStringLiteral(shared::IVariantDict& out, const char* szKey, client::IItemFactory& itemFactory, const char* szItemLiteral, shared::IUqsString* pErrorMessage) const override;
-			virtual bool                     SerializeItemToStringLiteral(const void* pItem, const client::IItemFactory& itemFactory, shared::IUqsString& outString) const override;
+			virtual bool                     DeserializeItemFromCStringLiteral(void* pOutItem, const Client::IItemFactory& itemFactory, const char* szItemLiteral, Shared::IUqsString* pErrorMessage) const override;
+			virtual bool                     DeserializeItemIntoDictFromCStringLiteral(Shared::IVariantDict& out, const char* szKey, Client::IItemFactory& itemFactory, const char* szItemLiteral, Shared::IUqsString* pErrorMessage) const override;
+			virtual bool                     SerializeItemToStringLiteral(const void* pItem, const Client::IItemFactory& itemFactory, Shared::IUqsString& outString) const override;
 			// ~IItemSerializationSupport
 		};
 

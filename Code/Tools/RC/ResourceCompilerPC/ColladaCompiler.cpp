@@ -27,10 +27,10 @@
 #include "StatCGFPhysicalize.h"
 #include "StringHelpers.h"
 #include "CGF/CGFNodeMerger.h"
-#include "Iconfig.h"
+#include "IConfig.h"
+#include "IAssetManager.h"
 #include "UpToDateFileHelpers.h"
 #include "Export/ExportHelpers.h"
-#include "Metadata/MetadataHelpers.h"
 
 #include <CrySystem/XML/IXml.h>
 #include "../../CryXML/IXMLSerializer.h"
@@ -488,7 +488,7 @@ bool ColladaCompiler::Process()
 				{
 					const string exportFileNameExt = PathHelpers::ReplaceExtension(exportFileName,"cgf");
 					if (!CompileToCGF(exportfile, exportFileNameExt)
-						|| !AssetManager::SaveAsset(m_CC.pRC, m_CC.config, m_CC.GetSourcePath(), { exportFileNameExt }))
+						|| !m_CC.pRC->GetAssetManager()->SaveCryasset(m_CC.config, m_CC.GetSourcePath(), { exportFileNameExt }))
 					{
 						success = false;
 					}
@@ -501,7 +501,7 @@ bool ColladaCompiler::Process()
 				{
 					const string exportFileNameExt = PathHelpers::ReplaceExtension(exportFileName,"cga");
 					if (!CompileToCGF(exportfile,exportFileNameExt)
-						|| !AssetManager::SaveAsset(m_CC.pRC, m_CC.config, m_CC.GetSourcePath(), { exportFileNameExt }))
+						|| !m_CC.pRC->GetAssetManager()->SaveCryasset(m_CC.config, m_CC.GetSourcePath(), { exportFileNameExt }))
 					{
 						success = false;
 					}
@@ -515,7 +515,7 @@ bool ColladaCompiler::Process()
 				{
 					const string exportFileNameExt = PathHelpers::ReplaceExtension(exportFileName,exportfile.type == EXPORT_SKIN ? "skin" : "chr");
 					if (!CompileToCHR(exportfile,exportFileNameExt)
-						|| !AssetManager::SaveAsset(m_CC.pRC, m_CC.config, m_CC.GetSourcePath(), { exportFileNameExt }))
+						|| !m_CC.pRC->GetAssetManager()->SaveCryasset(m_CC.config, m_CC.GetSourcePath(), { exportFileNameExt }))
 					{
 						success = false;
 					}
@@ -528,7 +528,7 @@ bool ColladaCompiler::Process()
 				{
 					const string exportFileNameExt = PathHelpers::ReplaceExtension(exportFileName,"anm");
 					if (!CompileToANM(exportfile,exportFileNameExt)
-						|| !AssetManager::SaveAsset(m_CC.pRC, m_CC.config, m_CC.GetSourcePath(), { exportFileNameExt }))
+						|| !m_CC.pRC->GetAssetManager()->SaveCryasset(m_CC.config, m_CC.GetSourcePath(), { exportFileNameExt }))
 					{
 						success = false;
 					}
@@ -541,7 +541,7 @@ bool ColladaCompiler::Process()
 				{
 					const string exportFileNameExt = PathHelpers::ReplaceExtension(exportFileName,"caf");
 					if (!CompileToCAF(exportfile,exportFileNameExt)
-						|| !AssetManager::SaveAsset(m_CC.pRC, m_CC.config, m_CC.GetSourcePath(), { exportFileNameExt }))
+						|| !m_CC.pRC->GetAssetManager()->SaveCryasset(m_CC.config, m_CC.GetSourcePath(), { exportFileNameExt }))
 					{
 						success = false;
 					}
@@ -553,7 +553,7 @@ bool ColladaCompiler::Process()
 				{
 					const string exportFileNameExt = PathHelpers::ReplaceExtension(exportFileName,"i_caf");
 					if (!CompileToCAF(exportfile,exportFileNameExt)
-						|| !AssetManager::SaveAsset(m_CC.pRC, m_CC.config, m_CC.GetSourcePath(), { exportFileNameExt }))
+						|| !m_CC.pRC->GetAssetManager()->SaveCryasset(m_CC.config, m_CC.GetSourcePath(), { exportFileNameExt }))
 					{
 						success = false;
 					}

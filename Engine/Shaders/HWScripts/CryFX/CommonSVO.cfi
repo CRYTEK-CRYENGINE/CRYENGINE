@@ -151,7 +151,7 @@ float3 DecodeHDR(float4 Color)
 }
 
 ///////////////////////////////////////////////////////////////////////////////////
-// SVO textures
+// SVO textures and buffers
 ///////////////////////////////////////////////////////////////////////////////////
 
 Texture2D sceneDepth : register(t4);
@@ -188,6 +188,12 @@ RWTexture3D<uint> UAV_4 : register(u4);
 RWTexture3D<uint> UAV_5 : register(u5);
 RWTexture3D<uint> UAV_6 : register(u6);
 RWTexture3D<uint> UAV_7 : register(u7);
+
+#include "TiledShading.cfi"
+
+StructuredBuffer<STiledLightShadeInfo> SVO_TiledLightsShadeInfo : register(t16);
+Texture2DArray                         SVO_SpotTexArray         : register(t19);
+Texture2D                              SVO_ShadowPool           : register(t20);
 
 ///////////////////////////////////////////////////////////////////////////////////
 // Structures
@@ -767,8 +773,6 @@ void RayTraceMesh(const float fMultTriRT, const float ocNodeSize, inout float fD
 }
 #endif
 
-#include "TiledShading.cfi"
-
 bool GetLightTI(int nLightId, out float4 vPosR, out float4 vDirF, out float4 vCol)
 {
 	int nBlockId = nLightId / 4;
@@ -814,7 +818,7 @@ void ProcessTiledLights(inout float4 vRGB, in float3 vPos0, in float3 vRayDir, i
 
 			if (lightIndex >= 0)
 			{
-				STiledLightShadeInfo light = TiledLightsShadeInfo[lightIndex];
+				STiledLightShadeInfo light = SVO_TiledLightsShadeInfo[lightIndex];
 
 				bool shadowMap = false;
 
@@ -831,7 +835,7 @@ void ProcessTiledLights(inout float4 vRGB, in float3 vPos0, in float3 vRayDir, i
 					projTC.xy /= projTC.w;
 
 					if (projTC.x > 0 && projTC.x < 1 && projTC.y>0 && projTC.y < 1)
-						vCol.xyz *= (projTC.w > 0) * pow(SpotTexArray.SampleLevel(ssSvoPointClamp, float3(projTC.xy, light.resIndex), 0).xxx, .5);
+						vCol.xyz *= (projTC.w > 0) * pow(SVO_SpotTexArray.SampleLevel(ssSvoPointClamp, float3(projTC.xy, light.resIndex), 0).xxx, .5);
 					else
 						vCol.xyz = 0;
 
@@ -845,8 +849,8 @@ void ProcessTiledLights(inout float4 vRGB, in float3 vPos0, in float3 vRayDir, i
 					P0.xy /= P0.w;
 					P0.z -= light.shadowParams.y;
 
-					//					vCol.xyz *= ShadowPool.SampleCmpLevelZero( SampStateComp, P0.xy, P0.z ); // causes s14 conflict
-					vCol.xyz *= ShadowPool.SampleLevel(ssSvoPointClamp, float3(P0.xy, 0), 0).x > P0.z;
+					//					vCol.xyz *= SVO_ShadowPool.SampleCmpLevelZero( SampStateComp, P0.xy, P0.z ); // causes s14 conflict
+					vCol.xyz *= SVO_ShadowPool.SampleLevel(ssSvoPointClamp, float3(P0.xy, 0), 0).x > P0.z;
 
 #if !%_RT_SAMPLE5 && %_PS
 					vCol.xyz *= ForwRsmPoolCol.SampleLevel(ssSvoPointClamp, float3(P0.xy, 0), 0);
@@ -1058,7 +1062,8 @@ bool ConeTraceBrick(const float3 vRayStartPos, inout Ray r, const float _fDistan
 
 		float3 vRayDirABS = normalize(abs(r.direction));
 
-		while(1)
+		const int nMaxSamples = VOX_BRICK_TEXRES * 2;
+		for (int nSample = 0; nSample < nMaxSamples; nSample++) 
 		{
 			float fStepSize = bAirOnlyMode ? 1.f : 0.5f; // todo: pass from outside
 

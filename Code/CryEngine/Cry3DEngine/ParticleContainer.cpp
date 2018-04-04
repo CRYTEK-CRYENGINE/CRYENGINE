@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 // -------------------------------------------------------------------------
 //  File name:   ParticleContainer.h
@@ -647,20 +647,6 @@ void CParticleContainer::UpdateEffects()
 	}
 }
 
-/* Water sorting / filtering:
-
-                  Effect:::::::::::::::::::::::::::
-   Emitter	Camera		above					both					below
-   -------	------		-----					----					-----
-   above		above			AFTER					AFTER					skip
-        below			BEFORE				BEFORE				skip
-
-   both		above			AFTER\below		AFTER[\below]	BEFORE\above
-        below			BEFORE\below	AFTER[\above]	AFTER\above
-
-   below		above			skip					BEFORE				BEFORE
-        below			skip					AFTER					AFTER
- */
 void CParticleContainer::Render(SRendParams const& RenParams, SPartRenderParams const& PRParams, const SRenderingPassInfo& passInfo)
 {
 	FUNCTION_PROFILER_CONTAINER(this);
@@ -783,7 +769,7 @@ void CParticleContainer::Render(SRendParams const& RenParams, SPartRenderParams 
 		}
 
 		SAddParticlesToSceneJob& job = CParticleManager::Instance()->GetParticlesToSceneJob(passInfo);
-		job.pPVC = this;
+		job.pVertexCreator = this;
 		job.pRenderObject = pRenderObject;
 		SRenderObjData* pOD = job.pRenderObject->GetObjData();
 
@@ -803,9 +789,9 @@ void CParticleContainer::Render(SRendParams const& RenParams, SPartRenderParams 
 		pOD->m_LightVolumeId = PRParams.m_nDeferredLightVolumeId;
 
 		if (GetMain().m_pTempData)
-			*((Vec4*)&pOD->m_fTempVars[0]) = GetMain().m_pTempData->userData.vEnvironmentProbeMults;
+			*((Vec4f*)&pOD->m_fTempVars[0]) = (const Vec4f&)(GetMain().m_pTempData->userData.vEnvironmentProbeMults);
 		else
-			*((Vec4*)&pOD->m_fTempVars[0]) = Vec4(1.0f, 1.0f, 1.0f, 1.0f);
+			*((Vec4f*)&pOD->m_fTempVars[0]) = Vec4f(1.0f, 1.0f, 1.0f, 1.0f);
 		;
 
 		// Set sort distance based on params and bounding box.
@@ -842,6 +828,7 @@ CRenderObject* CParticleContainer::CreateRenderObject(uint64 nObjFlags)
 	pRenderObject->m_pRE = gEnv->pRenderer->EF_CreateRE(eDATA_Particle);
 	pRenderObject->m_II.m_Matrix.SetIdentity();
 	pRenderObject->m_RState = uint8(nObjFlags);
+	pRenderObject->m_pCurrMaterial = pParams->pMaterial;
 	pOD->m_pParticleShaderData = &GetEffect()->GetParams().ShaderData;
 
 	IF(!!pParams->fHeatScale, 0)

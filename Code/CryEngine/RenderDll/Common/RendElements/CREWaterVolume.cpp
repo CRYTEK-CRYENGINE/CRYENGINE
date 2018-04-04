@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #include "StdAfx.h"
 #include <CryRenderer/RenderElements/CREWaterVolume.h>
@@ -187,7 +187,7 @@ bool CREWaterVolume::Compile(CRenderObject* pObj)
 	pObj->m_ObjFlags &= ~FOB_ALLOW_TESSELLATION;
 
 	// create PSOs which match to specific material.
-	EVertexFormat vertexFormat = eVF_P3F_C4B_T2F;
+	const InputLayoutHandle vertexFormat = EDefaultInputLayouts::P3F_C4B_T2F;
 	SGraphicsPipelineStateDescription psoDescription(
 	  pObj,
 	  this,
@@ -322,7 +322,7 @@ bool CREWaterVolume::Compile(CRenderObject* pObj)
 	CRY_ASSERT((!bFullscreen && cro.m_indexStreamSet != nullptr) || (bFullscreen && cro.m_indexStreamSet == nullptr));
 
 	// Issue the barriers on the core command-list, which executes directly before the Draw()s in multi-threaded jobs
-	PrepareForUse(cro, false, *(CCryDeviceWrapper::GetObjectFactory().GetCoreCommandList()));
+	PrepareForUse(cro, false, GetDeviceObjectFactory().GetCoreCommandList());
 
 	cro.m_bValid = 1;
 	return true;
@@ -359,8 +359,8 @@ void CREWaterVolume::DrawToCommandList(CRenderObject* pObj, const struct SGraphi
 
 	// Set states
 	commandInterface.SetPipelineState(pPso.get());
-	commandInterface.SetResources(EResourceLayoutSlot_PerMaterialRS, cobj.m_pMaterialResourceSet.get(), EShaderStage_AllWithoutCompute);
-	commandInterface.SetResources(EResourceLayoutSlot_PerInstanceExtraRS, cobj.m_pPerInstanceResourceSet.get(), EShaderStage_AllWithoutCompute);
+	commandInterface.SetResources(EResourceLayoutSlot_PerMaterialRS, cobj.m_pMaterialResourceSet.get());
+	commandInterface.SetResources(EResourceLayoutSlot_PerInstanceExtraRS, cobj.m_pPerInstanceResourceSet.get());
 
 	EShaderStage perInstanceCBShaderStages =
 	  cobj.m_bHasTessellation
@@ -391,10 +391,10 @@ void CREWaterVolume::PrepareForUse(watervolume::SCompiledWaterVolume& compiledOb
 
 	if (!bInstanceOnly)
 	{
-		pCommandInterface->PrepareResourcesForUse(EResourceLayoutSlot_PerMaterialRS, compiledObj.m_pMaterialResourceSet.get(), EShaderStage_AllWithoutCompute);
+		pCommandInterface->PrepareResourcesForUse(EResourceLayoutSlot_PerMaterialRS, compiledObj.m_pMaterialResourceSet.get());
 	}
 
-	pCommandInterface->PrepareResourcesForUse(EResourceLayoutSlot_PerInstanceExtraRS, compiledObj.m_pPerInstanceResourceSet.get(), EShaderStage_AllWithoutCompute);
+	pCommandInterface->PrepareResourcesForUse(EResourceLayoutSlot_PerInstanceExtraRS, compiledObj.m_pPerInstanceResourceSet.get());
 
 	EShaderStage perInstanceCBShaderStages =
 	  compiledObj.m_bHasTessellation
@@ -605,7 +605,7 @@ void CREWaterVolume::UpdateVertex(watervolume::SCompiledWaterVolume& compiledObj
 
 		// fill geomInfo.
 		geomInfo.primitiveType = bTessellation ? ept3ControlPointPatchList : eptTriangleList;
-		geomInfo.eVertFormat = eVF_P3F_C4B_T2F;
+		geomInfo.eVertFormat = EDefaultInputLayouts::P3F_C4B_T2F;
 		geomInfo.nFirstIndex = 0;
 		geomInfo.nNumIndices = m_pParams->m_numIndices;
 		geomInfo.nFirstVertex = 0;
@@ -654,7 +654,7 @@ void CREWaterVolume::UpdateVertex(watervolume::SCompiledWaterVolume& compiledObj
 
 		// fill geomInfo.
 		geomInfo.primitiveType = eptTriangleStrip;
-		geomInfo.eVertFormat = eVF_P3F_C4B_T2F;
+		geomInfo.eVertFormat = EDefaultInputLayouts::P3F_C4B_T2F;
 		geomInfo.nFirstVertex = 0;
 		geomInfo.nNumVertices = vertexNum;
 		geomInfo.nNumVertexStreams = 1;
@@ -667,13 +667,13 @@ void CREWaterVolume::UpdateVertex(watervolume::SCompiledWaterVolume& compiledObj
 	// Fill stream pointers.
 	if (geomInfo.indexStream.hStream != 0)
 	{
-		compiledObj.m_indexStreamSet = CCryDeviceWrapper::GetObjectFactory().CreateIndexStreamSet(&geomInfo.indexStream);
+		compiledObj.m_indexStreamSet = GetDeviceObjectFactory().CreateIndexStreamSet(&geomInfo.indexStream);
 	}
 	else
 	{
 		compiledObj.m_indexStreamSet = nullptr;
 	}
-	compiledObj.m_vertexStreamSet = CCryDeviceWrapper::GetObjectFactory().CreateVertexStreamSet(geomInfo.nNumVertexStreams, &geomInfo.vertexStreams[0]);
+	compiledObj.m_vertexStreamSet = GetDeviceObjectFactory().CreateVertexStreamSet(geomInfo.nNumVertexStreams, &geomInfo.vertexStreams[0]);
 	compiledObj.m_nNumIndices = geomInfo.nNumIndices;
 	compiledObj.m_nStartIndex = geomInfo.nFirstIndex;
 	compiledObj.m_nVerticesCount = geomInfo.nNumVertices;

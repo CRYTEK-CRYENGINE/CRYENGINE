@@ -8,75 +8,104 @@
 float Script : STANDARDSGLOBAL
 <
   string Script =
-           "ShaderDrawType = General;"
+           "ShaderDrawType = DebugHelper;"
 >;
 
 /// Un-Tweakables //////////////////////
 float4 ObjColor  : PI_AmbientOpacity;
-float HDRDynamicMultiplier : PB_HDRDynamicMultiplier;
 
 /////////////////////////////
 
 struct a2v
 {
-  float4 Position : POSITION; //in object space
-  float2 Tex0     : TEXCOORD0;
-  float4 Color    : COLOR0;
-  //float3 Normal : NORMAL; //in object space
+	float4 Position : POSITION; //in object space
+	float2 Tex0     : TEXCOORD0;
+	float4 Color    : COLOR0;
+	//float3 Normal : NORMAL; //in object space
 
 	float4 Tangent  : TANGENT;
-	float4 Binormal : BINORMAL;
+	float4 Binormal : BITANGENT;
 };
 
 struct v2f
 {
-  float4 Position  : POSITION;  //in projection space
-  float3 Normal  : COLOR;  //Normal
+	float4 Position  : POSITION;  //in projection space
+	float3 Normal    : COLOR;  //Normal
 };
 
 ///////////////// vertex shader //////////////////
 v2f HelperVS(a2v IN)
 {
-  v2f OUT = (v2f)0; 
+	v2f OUT = (v2f)0; 
 
-  // Position in screen space.
-  float4 vPos = IN.Position;
-  OUT.Position = _pos_Common(vPos);
-  
-  OUT.Normal = normalize( (cross(IN.Tangent.xyz, IN.Binormal.xyz)) * IN.Tangent.w );
+	// Position in screen space.
+	float4 vPos = IN.Position;
+	OUT.Position = _pos_Common(vPos);
 
-  return OUT;
+	OUT.Normal = normalize( (cross(IN.Tangent.xyz, IN.Binormal.xyz)) * IN.Tangent.w );
+
+	return OUT;
 }
 
 ///////////////// pixel shader //////////////////
 
 pixout HelperPS(v2f IN)
 {
-  pixout OUT;
-  
-  // load the base
-  float3 LightVec = normalize( float3(1,1,1) );
-  float cosa = 0.2 + max( 0.2,dot( IN.Normal,LightVec ) );
-  OUT.Color.a = ObjColor.a;
-  OUT.Color.xyz = ObjColor.xyz * cosa * HDRDynamicMultiplier;
+	pixout OUT;
 
-  return OUT;
+	const float HDRDynamicMultiplier = 2.0f;
+#if %_RT_PER_INSTANCE_CB_TEMP
+	uint ambColorPacked = asuint(PerInstanceCustomData2.y);
+	float4 outputColor;
+	outputColor.r = saturate(((ambColorPacked >> 24) & 0xFF) / 255.0f);
+	outputColor.g = saturate(((ambColorPacked >> 16) & 0xFF) / 255.0f);
+	outputColor.b = saturate(((ambColorPacked >> 8) & 0xFF) / 255.0f);
+	outputColor.a = saturate((ambColorPacked & 0xFF) / 255.0f);
+#else
+	float4 outputColor = ObjColor.xyzw;
+#endif
+
+	// load the base
+	float3 LightVec = normalize( float3(1,1,1) );
+	float cosa = 0.2 + max( 0.2,dot( IN.Normal,LightVec ) );
+	OUT.Color.a = outputColor.a;
+	OUT.Color.xyz = outputColor.xyz * cosa * HDRDynamicMultiplier;
+
+	return OUT;
 }
 
 //////////////////////////////// technique ////////////////
 
 technique General
+<
+  string Script =
+        "TechniqueDebug=DebugPass;"
+>
 {
-  pass p0
-  {
-    VertexShader = HelperVS();
-    
-    ZEnable = true;
-    ZWriteEnable = true;
-    CullMode = Back;
-    
-    PixelShader = HelperPS();
-  }
+	pass p0
+	{
+		VertexShader = HelperVS();
+
+		ZEnable = true;
+		ZWriteEnable = true;
+		CullMode = Back;
+
+		PixelShader = HelperPS();
+	}
+}
+
+technique DebugPass
+{
+	pass p0
+	{
+		VertexShader = HelperVS();
+
+		ZEnable = true;
+		ZWriteEnable = true;
+		CullMode = Back;
+
+		PixelShader = HelperPS();
+	}
 }
 
 /////////////////////// eof ///

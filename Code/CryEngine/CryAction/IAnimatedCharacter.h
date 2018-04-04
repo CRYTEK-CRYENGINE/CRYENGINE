@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 // -------------------------------------------------------------------------
 //  File name:   CryName.h
@@ -411,5 +411,10 @@ namespace animatedcharacter
 {
 void Preload(struct IScriptTable* pEntityScript);
 }
+
+struct IAnimationPoseModifierTorsoAim : public IAnimationPoseModifier
+{
+	CRYINTERFACE_DECLARE_GUID(IAnimationPoseModifierTorsoAim, "388374ea-ddf8-49ba-b8b7-5dfd824b2c3a"_cry_guid);
+};
 
 #endif

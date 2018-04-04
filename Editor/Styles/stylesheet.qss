@@ -39,12 +39,36 @@ QSeparators {
 }
 
 QComboBox {
-	height:20px;
+    background-color: rgb(102,102,102);
+    color: rgb(242,242,242);
+
+    margin: 0px;
+    padding: 0px;
+
+    border-radius: 3px;
+
+    height: 22px;
+}
+
+QComboBox:disabled {
+    color:rgb(120,120,120);
+    background-color:rgb(58,58,58);
+}
+
+QComboBox::drop-down {
+    background-color: transparent;
+
+    margin: 0px;
+    padding: 0px;
+}
+
+QComboBox::drop-down:disabled {
+    background-color: rgb(58,58,58);
 }
 
 QComboBox::item {
 	color:rgb(166,166,166);
-	background-color:red; /* for debugging purposes - old value (rgb(50,50,50);*/
+	background-color:rgb(50,50,50);
 }
 
 QComboBox::item:selected {
@@ -52,21 +76,15 @@ QComboBox::item:selected {
 	background-color:rgb(97,172,236);
 }
 
-QComboBox:!editable, QComboBox::drop-down:editable, QComboBox:editable, QComboBox::drop-down {
-	background: qlineargradient(x2:1, y2:2, x2:0, y2:2,
-				stop:0 rgb(110,110,110), stop: 0.5 rgb(88,88,88), stop:1 rgb(78,78,78));
-	color: rgb(195,195,195);
-	border:solid;
-	border:0px;
-	border-radius:2px;
-	margin:0px;
-	padding-left:2px;
-}
-
 QComboBox::down-arrow {
-	width: 14px;
-	height: 14px;
-	image: url(icons:General/Pointer_Down_Tinted.ico);
+    /*background-color: green;*/
+
+    margin: 0px 4px 0px 0px;
+    padding: 0px;
+
+    width: 14px;
+    height: 14px;
+    image: url(icons:General/Pointer_Down_Tinted.ico);
 }
 
 QComboBox::down-arrow::disabled{
@@ -102,15 +120,15 @@ QToolButton::hover {
 	border-radius: 2px;
 	/*background-color: rgba(255,255,255,20);*/
 	background: qlineargradient(y1:1,
-				stop:1 rgba(255,255,255,20), 
-				stop:0.7 rgba(255,255,255,15)); 
+				stop:1 rgba(255,255,255,20),
+				stop:0.7 rgba(255,255,255,15));
 }
 
 QToolButton::checked {
 	/*background-color: rgb(35,35,35);*/
 	background: qlineargradient(y1:1,
-				stop:0.3 rgba(0,0,0,80), 
-				stop:0 rgba(0,0,0,50)); 
+				stop:0.3 rgba(0,0,0,80),
+				stop:0 rgba(0,0,0,50));
 	border-radius:2px;
 	color:rgb(97,172,236);
 }
@@ -134,7 +152,7 @@ QViewportHeader > QToolButton {
 QToolButton::pressed {
 	/*background-color:transparent;*/
 	background: qlineargradient(y1:1,
-				stop:0.3 rgba(0,0,0,40), 
+				stop:0.3 rgba(0,0,0,40),
 				stop:0 rgba(0,0,0,20));
 	/*border:2px solid rgb(97,172,236);*/
 	/*padding:-2px;*/
@@ -143,7 +161,7 @@ QToolButton::pressed {
 QViewportHeader > QToolButton::pressed {
 	color:rgb(97,172,236);
 	background: qlineargradient(y1:1,
-				stop:0.3 rgba(0,0,0,20), 
+				stop:0.3 rgba(0,0,0,20),
 				stop:0 rgba(0,0,0,0));
 	border-radius:0px;
 }
@@ -576,7 +594,7 @@ QToolWindowArea > QTabBar::tab:hover {
 	color:rgb(166,166,166);
 	/*background-color:rgb(78,78,78);*/
 	background: qlineargradient(y1:1,
-				stop:1 rgb(58,58,58), 
+				stop:1 rgb(58,58,58),
 				stop:0.5 rgb(45,45,45));
 	border: none;
 	border-top-left-radius: 0px;
@@ -592,14 +610,14 @@ QToolWindowArea > QTabBar::tab:first, QToolWindowArea > QTabBar::tab:middle, QTo
 	border-radius:0px;
 	margin:0px;
 	padding-bottom:0px;
-	
+
 }
 
 QToolWindowArea > QTabBar::tab:selected {
 	border-bottom-color: black;
 	/*background-color: rgb(66,66,66);*/
 	background: qlineargradient(y1:1,
-				stop:1 rgb(70,70,70), 
+				stop:1 rgb(70,70,70),
 				stop:0.1 rgb(66,66,66));
 	color: rgb(200,200,200);
 	border: none;
@@ -707,33 +725,41 @@ QScrollBar::handle:pressed {
 	border-radius:2px;
 }
 
- QPropertyTree {
-	color:rgb(210,210,210);
-	background-color:rgb(66,66,66);         /* windows background */
-	selection-background-color:rgb(97,172,236);
-	border: none;
-	padding:0px;
-	margin:0px;
-	font-size: 12px;
+QScrollBar::handle:disabled
+{
+	background-color: rgb(80,80,80);
+}
+
+QPropertyTree {
+    color: rgb(166,166,166);
+    selection-background-color: rgb(166,166,166);
+
+    border: none;
+
+    padding: 0px;
+    margin: 0px;
+
+    font-size: 12px;
 	qproperty-branchClosed: url(icons:Window/Collapse_Arrow_Right_Shifted_Tinted.ico);
 	qproperty-branchOpened: url(icons:Window/Collapse_Arrow_Down_Shifted_Tinted.ico);
-	qproperty-editsScale:1.4;
-	qproperty-rowSpacing:1.1;
+	qproperty-editsScale: 1.4;
+	qproperty-rowSpacing: 1.1;
 }
 
 QPropertyGroupHeader {
-	background: qlineargradient(x2:1, y2:2, x2:0, y2:2,
-				stop:0 rgb(84,84,84), stop: 0.5 rgba(73,73,73,255), stop:0.0 rgba(78,78,78,255));
-	margin: 0px -3px 0px -20px;
-	margin-top:1px;
-	margin-bottom:1px;
+    background: transparent;
+
+    margin: 0px;
+    padding: 0px;
 }
 
 QPropertyGroupBox {
-	margin: 1px 0px 0px 0px;
-	background: qlineargradient(x1:1,
-				stop:0.7 rgb(58,58,58), 
-				stop:1 rgb(66,66,66)); 			
+    background: rgb(80,80,80);
+
+    width: 100%;
+
+    margin: 0px;
+    padding: 0px;
 }
 
 QPropertySplitter {
@@ -742,63 +768,51 @@ QPropertySplitter {
 }
 
 QPushButton {
-	color:rgb(180,180,180);
-	background-color:rgb(78,78,78);
-	border:solid;
-	border:0px;
-	border-radius:2px;
-	margin:0px;
-	padding:0px;
-	height:20px;
-	width:100px;
-	background: qlineargradient(x2:1, y2:2, x2:0, y2:2,
-				stop:0 rgb(110,110,110), 
-				stop:0.5 rgb(88,88,88), 
-				stop:1 rgb(78,78,78));
+    background-color: rgb(102,102,102);
+    color: rgb(242,242,242);
+
+    border: none;
+
+    border-radius: 3px;
+
+    margin: 0px;
+    padding: 0px;
+
+    height: 22px;
+    width: 100px;
 }
 
 QPushButton::default {
-	border:1px solid rgb(97,172,236);
-	background: qlineargradient(x2:1, y2:2, x2:0, y2:2,
-				stop:0 rgb(110,110,110), 
-				stop:0.5 rgb(88,88,88), 
-				stop:1 rgb(78,78,78));
-	color:rgb(180,180,180);
-	padding:-1px;
+    /*background-color: rgb(97,172,236);*/
+    color: rgb(97,172,236);
 }
 
 QPushButton::hover {
-background-color: rgb(95,95,95);
-color:rgb(200,200,200);
-background: qlineargradient(x2:1, y2:2, x2:0, y2:2,
-			stop:0 rgb(120,120,120), 
-			stop:0.5 rgb(100,100,100), 
-			stop:1 rgb(100,100,100))
+    background-color: rgb(128,128,128);
+    /*color: rgb(242,242,242);*/
 }
 
 QPushButton::selected {
-	border:0px solid rgb(97,172,236);
-	background-color:rgb(97,172,236);
-	color:black;
+	/*border:0px solid rgb(97,172,236);*/
+	background-color: rgb(97,172,236);
+	color: black;
 }
 
 QPushButton::checked {
-	border:0px solid rgb(97,172,236);
-	background-color:rgb(97,172,236);
-	color:black;
+	/*border:0px solid rgb(97,172,236);*/
+	background-color: rgb(97,172,236);
+	color: purple;
 }
 
 QPushButton::pressed {
-	border:0px solid rgb(97,172,236);
-	background: qlineargradient(x2:1, y2:2, x2:0, y2:2,
-				stop:0 rgb(35,35,35), stop: 0.9 rgb(55,55,55), stop:1 rgb(78,78,78));
-	color:rgb(166,166,166);
+	/*border:0px solid rgb(97,172,236);*/
+	background-color: rgb(97,172,236);
+	/*color: rgb(242,242,242);*/
 }
 
 QPushButton::disabled {
-	color:rgb(120,120,120);
-	background-color: qlineargradient(x2:1, y2:2, x2:0, y2:2,
-				stop:0 rgb(80,80,80), stop: 0.5 rgb(75,75,75), stop:1 rgb(75,75,75));
+    background-color: rgb(45,45,45);
+    color: rgb(120,120,120);
 }
 
 QSeparators {
@@ -1142,6 +1156,12 @@ QCustomTitleBar #closeButton {
 	qproperty-iconSize: 16px;
 }
 
+QCustomTitleBar #minimizeButton::hover, QCustomTitleBar #maximizeButton::hover, QCustomTitleBar #restoreButton::hover, QCustomTitleBar #closeButton::hover {
+	background: qlineargradient(y1:1,
+				stop:1 rgba(255,255,255,20),
+				stop:0.7 rgba(255,255,255,15));
+}
+
 QCustomTitleBar #sysMenu {
 	background-color: rgb(35,35,35);
 	color:rgb(50,50,50);
@@ -1159,7 +1179,7 @@ QWidget[maximized] QCustomTitleBar #sysMenu {
 QToolWindowSingleTabAreaFrame > QLabel {
 	/*background-color: rgb(66,66,66);     /*viewport label*/
 	background: qlineargradient(y1:1,
-				stop:1 rgb(70,70,70), 
+				stop:1 rgb(70,70,70),
 				stop:0.1 rgb(66,66,66));
 	margin-left:0px;
 	padding-left:2px;
@@ -1176,7 +1196,7 @@ QToolWindowSingleTabAreaFrame > #closeButton {
 	border:0;
 	/*background-color: rgb(66,66,66);*/
 	background: qlineargradient(y1:1,
-				stop:1 rgb(70,70,70), 
+				stop:1 rgb(70,70,70),
 				stop:0.1 rgb(66,66,66));
 	qproperty-iconSize: 16px;
 	width:16px;
@@ -1298,17 +1318,6 @@ QLineEdit:disabled {
 	background-color:rgb(58,58,58);
 }
 
-QComboBox:disabled {
-	color:rgb(120,120,120);
-	background-color:red; /* for debugging purposes - old value (rgb(58,58,58);*/
-}
-
-QComboBox::drop-down:disabled {
-	background-color:rgb(58,58,58);
-	color:rgb(78,78,78);
-	border:0px solid;
-}
-
 QAbstractScrollArea::corner {
 	background-color: rgb(66,66,66);
 }
@@ -1384,7 +1393,7 @@ EditorStyleHelper {
 	qproperty-curveTangent: rgb(223, 223, 223);
 	qproperty-curvePoint: rgb(128, 128, 128);
 	qproperty-curveSelectedPoint: rgb(0, 161, 222);
-	
+
 	/* Particle editor */
 	qproperty-particleEdge: rgb(58, 58, 58);
 	qproperty-particleEdgeDisabled: rgb(255, 0, 0);
@@ -1403,7 +1412,7 @@ EditorStyleHelper {
 	qproperty-timeSliderLine: rgb(192, 192, 192);
 	qproperty-timeSliderLineBase: rgb(60, 60, 60);
 
-	/* QPalette color roles */ 
+	/* QPalette color roles */
 	qproperty-windowTextColor: rgb(192, 192, 192);
 	qproperty-buttonColor: rgb(66, 66, 66);
 	qproperty-lightColor: rgb(0, 0, 0);
@@ -1420,10 +1429,14 @@ EditorStyleHelper {
 	qproperty-highlightedTextColor: rgb(255, 255, 255);
 	qproperty-linkColor: rgb(0, 0, 255);
 	qproperty-linkVisitedColor: rgb(255, 0, 255);
-	qproperty-toolTipBaseColor: rgb(255, 255, 200);
-	qproperty-toolTipTextColor: rgb(0, 0, 0);
+	qproperty-toolTipBaseColor: rgb(35, 35, 35);
+	qproperty-toolTipTextColor: rgb(192, 192, 192);
+	qproperty-toolTipMarginTop: 4;
+	qproperty-toolTipMarginLeft: 4;
+	qproperty-toolTipMarginRight: 4;
+	qproperty-toolTipMarginBottom: 4;
 	qproperty-alternateBaseColor: rgb(128, 128, 128);
-	qproperty-disabledWindowTextColor: rgb(192, 192, 192);	
+	qproperty-disabledWindowTextColor: rgb(192, 192, 192);
 	qproperty-disabledButtonColor: rgb(66, 66, 66);
 	qproperty-disabledLightColor: rgb(0, 0, 0);
 	qproperty-disabledMidlightColor: rgb(223, 223, 223);
@@ -1488,24 +1501,25 @@ CObjectCreateToolPanel QPushButton#back_btn
 	icon-size: 16px;
 }
 
-QMenuComboBox > QLineEdit{
-	background: qlineargradient(x2:1, y2:2, x2:0, y2:2,
-				stop:0 rgb(110,110,110), stop: 0.5 rgb(88,88,88), stop:1 rgb(78,78,78));
-	color:rgb(195,195,195);
+QMenuComboBox > QLineEdit {
+    background-color: rgb(102,102,102);
+    color: rgb(242,242,242);
 }
 
-QMenuComboBox > QLineEdit::disabled{
+QMenuComboBox > QLineEdit::hover {
+    background-color: rgb(128,128,128);
+}
+
+QMenuComboBox > QLineEdit::disabled {
 	background: qlineargradient(x2:1, y2:2, x2:0, y2:2,
 				stop:0 rgb(80,80,80), stop: 0.5 rgb(75,75,75), stop:1 rgb(75,75,75));
 	color:rgb(120,120,120);
 }
 
-CObjectCreateToolPanel QMenuComboBox > QLineEdit
-{
+CObjectCreateToolPanel QMenuComboBox > QLineEdit {
 	margin-top: 5px;
 	margin-left: 2px;
 	margin-right: 5px;
-	
 }
 
 CObjectCreateToolPanel QTreeView
@@ -1583,29 +1597,30 @@ ACE--CInspectorPanel QLabel#ConnectionsTitle {
 }
 
 CCollapsibleFrameHeader {
-	background-color:rgb(100,100,100);
+	background-color: rgb(102,102,102);
 	margin-top:1px;
 	margin-bottom:1px;
 	qproperty-iconSize:16px;
 }
 
+CCollapsibleFrameHeader::hover {
+    background-color: rgb(128,128,128);
+}
+
 CCollapsibleFrameHeader QLabel {
 	font:bold;
-	font-family:"Arial";
-	font-size: 12px;
-	color:rgb(210,210,210);
+	/*font-family:"Arial";*/
+	/*font-size: 12px;*/
+	/*color: rgb(242,242,242);*/
 }
 
 CInspector QLabel {
-	margin-left: 1px;
-}
+    color: rgb(242,242,242);
 
-CInspector QLabel {
-	/*width: 16px;
-	height: 16px;*/
-	/*margin-bottom:0px;*/
-	font-size:14px;
-	color:rgb(166,166,166);
+    font-size: 12px;
+
+    margin: 0px;
+    padding: 0px;
 }
 
 CKeybindEditor QTreeView QToolButton {
@@ -1791,18 +1806,18 @@ CryGraphEditor--CGlobalStyle {
 	/* Selection color */
 	qproperty-selectionColor: rgb(97, 172, 237);
 	qproperty-highlightColor: rgb(140, 140, 140);
-	
+
 	/* Background */
 	qproperty-gridBackgroundColor: rgb(75, 75, 75);
-	
+
 	/* Background: Lines */
 	qproperty-girdLineColor: rgb(70,70,70);
 	qproperty-gridLineWidth: 1.0;
-	
+
 	/* Background: Segmentation */
 	qproperty-girdSegmentSize: 400.0;
 	qproperty-gridNumSubSegment: 5;
-	
+
 	/* Background: Sub-lines */
 	qproperty-gridSubLineColor:	rgb(70,70,70);
 	qproperty-gridSubLineThickness: 1.0;
@@ -1828,13 +1843,13 @@ CryGraphEditor--CNodeNameWidget {
 CryGraphEditor--CNodeStyle {
 	/* Content: Background */
 	qproperty-backgroundColor: rgba(35, 35, 35, 200);
-	
+
 	/* Content: Margins */
 	qproperty-contentMarginTop: 3;
 	qproperty-contentMarginLeft: 7;
 	qproperty-contentMarginBottom: 6;
 	qproperty-contentMarginRight: 6;
-	
+
 	/* Content: Rect adjustment for drawing */
 	qproperty-contentRectAdjustmentTop: 0;
 	qproperty-contentRectAdjustmentLeft: 0;
@@ -1846,11 +1861,11 @@ CryGraphEditor--CNodeStyle {
 	qproperty-pinIconOffsetX: 0;
 	qproperty-pinIconOffsetY: 0;
 	qproperty-pinDefaultColor: rgb(110, 110, 110);
-	
+
 	/* Border */
 	qproperty-borderColor: rgb(84, 84, 84);
 	qproperty-borderWidth: 1;
-	
+
 	/* Border: Rect adjustment for drawing */
 	qproperty-borderRectAdjustmentTop: 0;
 	qproperty-borderRectAdjustmentLeft: 0;
@@ -1862,13 +1877,13 @@ CryGraphEditor--CNodeStyle {
 	qproperty-headerIconSize: 16px 16px;
 	qproperty-headerDefaultColorLeft: rgb(26, 26, 26);
 	qproperty-headerDefaultColorRight: rgb(26, 26, 26);
-	
+
 	/* Header: Content margins */
 	qproperty-headerContentMarginTop: 1;
 	qproperty-headerContentMarginLeft: 7;
 	qproperty-headerContentMarginBottom: 0;
 	qproperty-headerContentMarginRight: -6;
-	
+
 	/* Header: Rect adjustment for drawing */
 	qproperty-headerRectAdjustmentTop: 0;
 	qproperty-headerRectAdjustmentLeft: 0;
@@ -1885,12 +1900,12 @@ CryGraphEditor--CNodeStyle {
 CryParticleEditor--CFeatureStyle {
 	qproperty-backgroundColor: rgb(255, 255, 255);
 	qproperty-roundingRadius: 4.0;
-	
+
 	qproperty-contentMarginTop: 5;
 	qproperty-contentMarginleft: 5;
 	qproperty-contentMarginBottom: 5;
 	qproperty-contentMarginRight: 5;
-	
+
 	qproperty-rectAdjustmentTop: 0;
 	qproperty-rectAdjustmentLeft: 0;
 	qproperty-rectAdjustmentBottom: 0;
@@ -1948,8 +1963,8 @@ CBreadcrumbsBar > QToolButton {
 	margin:1px;
 	padding:0px;
 	background: qlineargradient(x2:1, y2:2, x2:0, y2:2,
-				stop:0 rgb(110,110,110), 
-				stop:0.5 rgb(88,88,88), 
+				stop:0 rgb(110,110,110),
+				stop:0.5 rgb(88,88,88),
 				stop:1 rgb(78,78,78));
 }
 
@@ -1957,8 +1972,8 @@ CBreadcrumbsBar > QToolButton::hover {
 background-color: rgb(95,95,95);
 color:rgb(200,200,200);
 background: qlineargradient(x2:1, y2:2, x2:0, y2:2,
-			stop:0 rgb(120,120,120), 
-			stop:0.5 rgb(100,100,100), 
+			stop:0 rgb(120,120,120),
+			stop:0.5 rgb(100,100,100),
 			stop:1 rgb(100,100,100))
 }
 
@@ -1987,4 +2002,32 @@ CDockableDialog > QFrame {
 
 CDockableDialog > QCustomTitleBar {
 	background-color: transparent;
+}
+
+/*property groups in properties panel*/
+QCollapsibleFrame {
+    margin: 0px;
+    padding: 0px;
+
+    border: 2px solid rgb(102,102,102);
+    border-radius: 3px;
+}
+
+QCollapsibleFrame:hover {
+    /*add state in code for when the title is hovered instead of regular hover*/
+
+    border-color: rgb(140,140,140);
+}
+
+CEntityComponentCollapsibleFrameHeader {
+    margin: 0px;
+    padding: 0px;
+}
+
+CEntityComponentCollapsibleFrameHeader QToolButton {
+    icon-size:16px;
+}
+
+QCollapsibleFrame QPushButton {
+    border-radius: 0px;
 }

@@ -1,4 +1,5 @@
 // Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved.
+
 #include "stdafx.h"
 #include "IResCompiler.h"
 #include "IRCLog.h"
@@ -8,7 +9,7 @@
 // Must be included only once in DLL module.
 #include <platform_implRC.inl>
 
-#include "AlembicConvertor.h"
+#include "AlembicConverter.h"
 
 static HMODULE g_hInst;
 
@@ -56,7 +57,7 @@ namespace
 	}
 }
 
-void __stdcall RegisterConvertors(IResourceCompiler* pRC)
+void __stdcall RegisterConverters(IResourceCompiler* pRC)
 {
 	SetRCLog(pRC->GetIRCLog());
 
@@ -68,7 +69,7 @@ void __stdcall RegisterConvertors(IResourceCompiler* pRC)
 	}
 	else
 	{
-		pRC->RegisterConvertor("AlembicCompiler", new AlembicConvertor(pCryXML, pRC->GetPakSystem()));
+		pRC->RegisterConverter("AlembicCompiler", new AlembicConverter(pCryXML, pRC->GetPakSystem()));
 
 		pRC->RegisterKey("upAxis", "[ABC] Up axis of alembic file\n"
 			"Z = Use Z as up axis: No conversion\n"
@@ -95,5 +96,9 @@ void __stdcall RegisterConvertors(IResourceCompiler* pRC)
 		pRC->RegisterKey("positionPrecision", "[ABC] Set the position precision in mm. Higher values usually result in better compression (default is 1)");
 
 		pRC->RegisterKey("skipFilesWithoutBuildConfig", "[ABC] Skip files without build configuration (.CBC)");
+
+		pRC->RegisterKey("faceSetNumberingBase",
+			"0 = Assumes face sets are numbered starting with 0 (e.g., 3DS Max build-in exporter)\n"
+			"1 = Assumes face sets are numbered starting with 1. This will subtract 1 from the ID parsed from a face set name. (default)");
 	}
 }

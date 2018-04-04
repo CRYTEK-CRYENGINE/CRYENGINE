@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #ifndef __CSHADER_H__
 #define __CSHADER_H__
@@ -7,6 +7,7 @@
 #include "CShaderBin.h"
 #include "ShaderSerialize.h"
 #include "ShaderCache.h"
+#include "ShaderComponents.h" // ECGParam
 #include "../ResFileLookupDataMan.h"
 
 struct SRenderBuf;
@@ -347,6 +348,7 @@ public:
 	static CShader*              s_ShaderDXTCompress;
 	static CShader*              s_ShaderStereo;
 	static CShader*              s_ShaderClouds;
+	static CShader*              s_ShaderMobileComposition;
 
 	const SInputShaderResources* m_pCurInputResources;
 	SShaderGen*                  m_pGlobalExt;

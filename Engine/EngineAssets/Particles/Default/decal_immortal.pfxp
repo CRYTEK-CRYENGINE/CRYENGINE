@@ -1,0 +1,58 @@
+{
+  "Name": "decal_immortal",
+  "Features": [
+    { "RenderDecals": { "SortBias": 0.0 } },
+    {
+      "SpawnCount": {
+        "Delay": {
+          "modifiers": [ ],
+          "value": 0.0
+        },
+        "Duration": {
+          "State": true,
+          "Value": {
+            "modifiers": [ ],
+            "value": 0.0
+          }
+        },
+        "Amount": {
+          "modifiers": [ ],
+          "value": 1.0
+        },
+        "Restart": {
+          "State": false,
+          "Value": {
+            "modifiers": [ ],
+            "value": 1.0
+          }
+        }
+      }
+    },
+    { "LifeImmortal": [ ] },
+    {
+      "AppearanceMaterial": {
+        "Material": "",
+        "Texture": ""
+      }
+    },
+    {
+      "FieldSize": {
+        "value": {
+          "modifiers": [ ],
+          "value": 1.0
+        }
+      }
+    },
+    {
+      "FieldOpacity": {
+        "AlphaScale": [ 0.0, 1.0 ],
+        "ClipRange": [ 1.0, 1.0 ],
+        "ClipLow": [ 0.0, 0.0 ],
+        "value": {
+          "modifiers": [],
+          "value": 1.0
+        }
+      }
+    },
+  ]
+}

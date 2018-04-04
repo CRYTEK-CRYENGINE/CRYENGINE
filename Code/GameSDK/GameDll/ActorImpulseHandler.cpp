@@ -92,7 +92,7 @@ CActorImpulseHandler::CActorImpulseHandler(CActor& actor) : m_actor(actor)
 	, m_currentDebugImpulse(0)
 #endif //_RELEASE
 {
-	CryCreateClassInstance("AnimationPoseModifier_OperatorQueue", m_poseModifier);
+	CryCreateClassInstanceForInterface(cryiidof<IAnimationOperatorQueue>(), m_poseModifier);
 	m_impulseState = Imp_None;
 	m_delayedDeathImpulse = false;
 	m_onRagdollizeEventImpulseQueued = false;

@@ -5,23 +5,23 @@
 
 // *INDENT-OFF* - <hard to read code and declarations due to inconsistent indentation>
 
-namespace uqs
+namespace UQS
 {
-	namespace datasource_xml
+	namespace DataSource_XML
 	{
 
-		CSyntaxErrorCollector_XML::CSyntaxErrorCollector_XML(int xmlLineNumber, const std::shared_ptr<CXMLDataErrorCollector>& dataErrorCollector)
+		CSyntaxErrorCollector_XML::CSyntaxErrorCollector_XML(int xmlLineNumber, const std::shared_ptr<CXMLDataErrorCollector>& pDataErrorCollector)
 			: m_xmlLineNumber(xmlLineNumber)
-			, m_dataErrorCollector(dataErrorCollector)
+			, m_pDataErrorCollector(pDataErrorCollector)
 		{}
 
-		void CSyntaxErrorCollector_XML::AddErrorMessage(const char* fmt, ...)
+		void CSyntaxErrorCollector_XML::AddErrorMessage(const char* szFormat, ...)
 		{
 			char tmpText[1024];
 
 			va_list args;
-			va_start(args, fmt);
-			vsnprintf(tmpText, CRY_ARRAY_COUNT(tmpText), fmt, args);
+			va_start(args, szFormat);
+			vsnprintf(tmpText, CRY_ARRAY_COUNT(tmpText), szFormat, args);
 			va_end(args);
 
 			tmpText[CRY_ARRAY_COUNT(tmpText) - 1] = '\0';
@@ -29,7 +29,7 @@ namespace uqs
 			string finalText;
 			finalText.Format("line #%i: %s", m_xmlLineNumber, tmpText);
 
-			m_dataErrorCollector->AddError(finalText.c_str());
+			m_pDataErrorCollector->AddError(finalText.c_str());
 		}
 
 		CXMLDataErrorCollector::CXMLDataErrorCollector()
@@ -37,9 +37,9 @@ namespace uqs
 			// nothing
 		}
 
-		void CXMLDataErrorCollector::AddError(const char* error)
+		void CXMLDataErrorCollector::AddError(const char* szError)
 		{
-			m_errorCollection.push_back(error);
+			m_errorCollection.push_back(szError);
 		}
 
 		size_t CXMLDataErrorCollector::GetErrorCount() const

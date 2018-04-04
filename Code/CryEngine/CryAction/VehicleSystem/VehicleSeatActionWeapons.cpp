@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #include "StdAfx.h"
 
@@ -55,10 +55,13 @@ CVehicleSeatActionWeapons::~CVehicleSeatActionWeapons()
 			pWeapon->RemoveEventListener(this);
 		}
 
-		if (static_cast<CVehicle*>(m_pVehicle)->SpawnAndDeleteEntities())
-			pEntitySystem->RemoveEntity(ite->weaponEntityId, true);
+		if (ite->weaponEntityId != INVALID_ENTITYID)
+		{
+			if (static_cast<CVehicle*>(m_pVehicle)->SpawnAndDeleteEntities())
+				pEntitySystem->RemoveEntity(ite->weaponEntityId, true);
 
-		(*ite).weaponEntityId = 0;
+			(*ite).weaponEntityId = INVALID_ENTITYID;
+		}
 	}
 
 	m_pVehicle->SetObjectUpdate(this, IVehicle::eVOU_NoUpdate);
@@ -731,14 +734,14 @@ void CVehicleSeatActionWeapons::StartFire()
 		{
 			UpdateWeaponTM(vehicleWeapon);
 
-			const IAudioSystem* const pAudioSystem = gEnv->pAudioSystem;
-			const IVehicleMovement* const pMovement = m_pVehicle->GetMovement();
-			if (pMovement && pWeapon->CanFire())
+			CryAudio::IAudioSystem const* const pIAudioSystem = gEnv->pAudioSystem;
+			IVehicleMovement const* const pMovement = m_pVehicle->GetMovement();
+			if (pMovement != nullptr && pWeapon->CanFire())
 			{
 				IEntityAudioComponent* const pAudioProxy = pMovement->GetAudioProxy();
-				if (pAudioSystem && pAudioProxy)
+				if (pIAudioSystem != nullptr && pAudioProxy != nullptr)
 				{
-					AudioControlId audioControlID = INVALID_AUDIO_CONTROL_ID;
+					CryAudio::ControlId audioControlID = CryAudio::InvalidControlId;
 					if (m_attackInput == eAI_Primary)
 					{
 						audioControlID = pMovement->GetPrimaryWeaponAudioTrigger();
@@ -787,7 +790,7 @@ void CVehicleSeatActionWeapons::StopFire()
 			IEntityAudioComponent* const pAudioProxy = pMovement->GetAudioProxy();
 			if (pAudioProxy)
 			{
-				AudioControlId audioControlID = INVALID_AUDIO_CONTROL_ID;
+				CryAudio::ControlId audioControlID = CryAudio::InvalidControlId;
 				if (m_attackInput == eAI_Primary)
 				{
 					audioControlID = pMovement->GetPrimaryWeaponAudioStopTrigger();

@@ -1,35 +1,10 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #include "StdAfx.h"
 #include <CryString/UnicodeFunctions.h>
 #include "DriverD3D.h"
 #include <CryCore/Platform/WindowsUtils.h>
-
-#if CRY_PLATFORM_DURANGO
-
-// Uncomment to allow VSGD capturing
-// Must be run with legacy driver
-// game will run very slowly when enabled because of the API wrapper
-//#define DURANGO_VSGD_CAP
-	#if defined(DURANGO_VSGD_CAP)
-		#include <vsgcapture.h>
-	#endif
-
-	#if defined(DURANGO_MONOD3D_DRIVER)
-LINK_SYSTEM_LIBRARY("d3d11_x.lib")
-	#else
-		#if defined(ENABLE_PROFILING_CODE)
-			#define USE_INSTRUMENTED_LIBS
-		#endif
-
-		#if defined(USE_INSTRUMENTED_LIBS)
-LINK_SYSTEM_LIBRARY("d3d11i.lib")
-		#else
-LINK_SYSTEM_LIBRARY("d3d11.lib")
-		#endif
-	#endif
-
-#endif
+#include <CrySystem/IProjectManager.h>
 
 #include "D3DStereo.h"
 #include "D3DPostProcess.h"
@@ -63,7 +38,7 @@ LINK_THIRD_PARTY_LIBRARY("SDKs/AMD/AGS Lib/lib/Win32/static/amd_ags.lib")
 
 	#if defined(USE_NV_API)
 		#include NV_API_HEADER
-		LINK_THIRD_PARTY_LIBRARY(NV_API_LIB)
+LINK_THIRD_PARTY_LIBRARY(NV_API_LIB)
 	#endif
 
 	#if defined(USE_AMD_EXT)
@@ -77,40 +52,6 @@ IAmdDxExtDepthBounds* g_pDepthBoundsTest = NULL;
 
 // Only needed to load AMD_AGS
 #undef LoadLibrary
-
-#if CRY_PLATFORM_ORBIS
-template<class T0, class T1>
-HRESULT SetupPresentationParameters(float& fPAR, T0& d3dpp, const T1& videoMode)
-{
-	d3dpp.BackBufferWidth = CONSOLES_BACKBUFFER_WIDTH;
-	d3dpp.BackBufferHeight = CONSOLES_BACKBUFFER_HEIGHT;
-
-	d3dpp.VideoScalerParameters.ScaledOutputWidth = videoMode.dwDisplayWidth;
-	d3dpp.VideoScalerParameters.ScaledOutputHeight = videoMode.dwDisplayHeight;
-
-	const float f16_9 = 16.0f / 9.0f;
-	const float f4_3 = 4.0f / 3.0f;
-
-	float fOutputAspect = (videoMode.fIsWideScreen) ? f16_9 : f4_3;
-
-	float fBackBufferRatio = (float)d3dpp.BackBufferWidth / (float)d3dpp.BackBufferHeight;
-
-	//float fOutputRatio = (float)videoMode.dwDisplayWidth / (float)videoMode.dwDisplayHeight;
-	//float fRatioBackBufferTo16_9 = fBackBufferRatio / f16_9;
-	//float fRatioBackBufferToOutputMode  = f16_9 / fOutputRatio;
-	//float fRatioOutputModeToDisplay = fOutputRatio / fOutputAspect;
-	//fPAR =  fRatioBackBufferTo16_9 * fRatioBackBufferToOutputMode * fRatioOutputModeToDisplay;
-	// resolves to...
-
-	fPAR = fBackBufferRatio / fOutputAspect;
-
-	CryLogAlways("	OutDisplay: Width %d, Height %d , Pixel Aspect Ratio %0.3f \n", videoMode.dwDisplayWidth, videoMode.dwDisplayHeight, fPAR);
-	CryLogAlways("	OutDisplay: Interlaced %d, WideScreen %d, HiDef %d, Hz %f\n", (uint32)videoMode.fIsInterlaced, (uint32)videoMode.fIsWideScreen, (uint32)videoMode.fIsHiDef, videoMode.RefreshRate);
-
-	return S_OK;
-}
-
-#endif
 
 #if CRY_PLATFORM_WINDOWS
 // Count monitors helper
@@ -171,10 +112,10 @@ bool CD3D9Renderer::SetCurrentContext(WIN_HWND hWnd)
 	if (i == m_RContexts.Num())
 		return false;
 
-	if (m_CurrContext == m_RContexts[i])
+	if (m_pActiveContext == m_RContexts[i])
 		return true;
 
-	m_CurrContext = m_RContexts[i];
+	m_pActiveContext = m_RContexts[i];
 
 	CHWShader::s_pCurVS = NULL;
 	CHWShader::s_pCurPS = NULL;
@@ -194,23 +135,24 @@ bool CD3D9Renderer::CreateContext(WIN_HWND hWnd, bool bMainViewport, int SSX, in
 	}
 	if (i != m_RContexts.Num())
 		return true;
-	SD3DContext* pContext = new SD3DContext;
+	SDisplayContext* pContext = new SDisplayContext;
 	pContext->m_hWnd = (HWND)hWnd;
 	pContext->m_X = 0;
 	pContext->m_Y = 0;
 	pContext->m_Width = m_width;
 	pContext->m_Height = m_height;
 	pContext->m_pSwapChain = 0;
-	pContext->m_pBackBuffer = 0;
-	pContext->m_pBackBuffers.clear();
-	pContext->m_pCurrentBackBufferIndex = 0;
-	pContext->m_nViewportWidth = m_width / (m_CurrContext ? m_CurrContext->m_nSSSamplesX : 1);
-	pContext->m_nViewportHeight = m_height / (m_CurrContext ? m_CurrContext->m_nSSSamplesY : 1);
+	pContext->m_pHDRTargetTex = 0;
+	pContext->m_nViewportWidth = m_width / (m_pActiveContext ? m_pActiveContext->m_nSSSamplesX : 1);
+	pContext->m_nViewportHeight = m_height / (m_pActiveContext ? m_pActiveContext->m_nSSSamplesY : 1);
 	pContext->m_nSSSamplesX = std::max(1, SSX);
 	pContext->m_nSSSamplesY = std::max(1, SSY);
 	pContext->m_bMainViewport = bMainViewport;
-	m_CurrContext = pContext;
+	pContext->m_uniqueId = m_uniqueRContextId;
+
+	m_pActiveContext = pContext;
 	m_RContexts.AddElem(pContext);
+	++m_uniqueRContextId;
 
 	return true;
 }
@@ -226,29 +168,41 @@ bool CD3D9Renderer::DeleteContext(WIN_HWND hWnd)
 	}
 	if (i == m_RContexts.Num())
 		return false;
-	if (m_CurrContext == m_RContexts[i])
+	if (m_pActiveContext == m_RContexts[i])
 	{
 		for (j = 0; j < m_RContexts.Num(); j++)
 		{
 			if (m_RContexts[j]->m_hWnd != hWnd)
 			{
-				m_CurrContext = m_RContexts[j];
+				m_pActiveContext = m_RContexts[j];
 				break;
 			}
 		}
 		if (j == m_RContexts.Num())
-			m_CurrContext = NULL;
+			m_pActiveContext = NULL;
 
-		if (!m_CurrContext)
+		if (!m_pActiveContext)
 		{
 			m_width = 0;
 			m_height = 0;
 		}
-		else if (m_CurrContext->m_Width != m_width || m_CurrContext->m_Height != m_height)
+		else if (m_pActiveContext->m_Width != m_width || m_pActiveContext->m_Height != m_height)
 		{
-			m_width = m_CurrContext->m_Width;
-			m_height = m_CurrContext->m_Height;
+			m_width = m_pActiveContext->m_Width;
+			m_height = m_pActiveContext->m_Height;
 		}
+	}
+
+	// Wait for GPU to finish occupying the resources
+	FlushRTCommands(true, true, true);
+
+	if (m_RContexts[i]->m_pSwapChain)
+	{
+		// Force the release of the back-buffer currently bound as a render-target (otherwise resizing the swap-chain will fail, because of outstanding reference)
+		FX_SetRenderTarget(0, (D3DSurface*)0xDEADBEEF, (SDepthTexture*)0xDEADBEEF);
+		GetDeviceObjectFactory().GetCoreCommandList().GetGraphicsInterface()->ClearState(true);
+
+		ReleaseBackBuffers(m_RContexts[i]);
 	}
 
 	SAFE_RELEASE(m_RContexts[i]->m_pSwapChain);
@@ -261,48 +215,13 @@ bool CD3D9Renderer::DeleteContext(WIN_HWND hWnd)
 
 void CD3D9Renderer::MakeMainContextActive()
 {
-	if (m_RContexts.empty() || m_CurrContext == m_RContexts[0])
+	if (m_RContexts.empty() || m_pActiveContext == m_RContexts[0])
 		return;
 
-	m_CurrContext = m_RContexts[0];
+	m_pActiveContext = m_RContexts[0];
 
 	CHWShader::s_pCurVS = NULL;
 	CHWShader::s_pCurPS = NULL;
-}
-
-bool CD3D9Renderer::CreateMSAADepthBuffer()
-{
-	CD3D9Renderer* rd = gcpRendD3D;
-	HRESULT hr = S_OK;
-	if (CV_r_msaa)
-	{
-		if (m_RP.m_MSAAData.Type != CV_r_msaa_samples ||
-		    m_RP.m_MSAAData.Quality != CV_r_msaa_quality)
-		{
-		m_RP.m_MSAAData.Type = CV_r_msaa_samples;
-		m_RP.m_MSAAData.Quality = CV_r_msaa_quality;
-
-			const float clearDepth = CRenderer::CV_r_ReverseDepth ? 0.f : 1.f;
-			const uint clearStencil = 1;
-			const ColorF clearValues = ColorF(clearDepth, FLOAT(clearStencil), 0.f, 0.f);
-
-			rd->m_pZTextureMSAA = CTexture::CreateRenderTarget("$DeviceDepthMSAA", m_width, m_height,
-				clearValues, eTT_2D, FT_USAGE_MSAA | FT_USAGE_DEPTHSTENCIL | FT_DONT_RELEASE | FT_DONT_STREAM, rd->m_zbpp == 32 ? eTF_D32FS8 : eTF_D24S8);
-
-			m_RP.m_MSAAData.m_pZTexture = rd->m_pZTextureMSAA;
-			m_DepthBufferOrigMSAA.pTexture = m_RP.m_MSAAData.m_pZTexture;
-			m_DepthBufferOrigMSAA.pTarget = m_RP.m_MSAAData.m_pZTexture->GetDevTexture()->Get2DTexture();
-			m_DepthBufferOrigMSAA.pSurface = m_RP.m_MSAAData.m_pZTexture->GetDeviceDepthStencilView(0, -1, true, false);
-		}
-	}
-	else
-	{
-		m_RP.m_MSAAData.Type = 0;
-		m_RP.m_MSAAData.Quality = 0;
-		m_DepthBufferOrigMSAA = m_DepthBufferOrig;
-	}
-
-	return (hr == S_OK);
 }
 
 #if defined(SUPPORT_DEVICE_INFO_USER_DISPLAY_OVERRIDES)
@@ -364,7 +283,7 @@ bool CD3D9Renderer::ChangeResolution(int nNewWidth, int nNewHeight, int nNewColD
 	else
 		nNewColDepth = 32;
 	bool bNeedReset = bForceReset || nNewColDepth != nPrevColorDepth || bFullScreen != bPrevFullScreen || nNewWidth != nPrevWidth || nNewHeight != nPrevHeight;
-#if !defined(SUPPORT_DEVICE_INFO)
+#if !defined(SUPPORT_DEVICE_INFO) || CRY_RENDERER_VULKAN
 	bNeedReset |= m_VSync != CV_r_vsync;
 #endif
 
@@ -410,30 +329,36 @@ bool CD3D9Renderer::ChangeResolution(int nNewWidth, int nNewHeight, int nNewColD
 		nNewWidth = m_deskwidth;
 		nNewHeight = m_deskheight;
 	}
+
 	HRESULT hr = S_OK;
 	if (bNeedReset)
 	{
+		SDisplayContext* pDC = GetBaseDisplayContext();
+
 #if defined(SUPPORT_DEVICE_INFO)
 	#if CRY_PLATFORM_WINDOWS
 		// disable floating point exceptions due to driver bug when switching to fullscreen
 		SCOPED_DISABLE_FLOAT_EXCEPTIONS();
 	#endif
-	#if defined(CRY_USE_DX12)
+	#if (CRY_RENDERER_DIRECT3D >= 120)
 		CRY_ASSERT_MESSAGE(!(bFullScreen && (m_devInfo.SwapChainDesc().Flags & DXGI_SWAP_CHAIN_FLAG_FRAME_LATENCY_WAITABLE_OBJECT)),
-			"Fullscreen does not work with Waitable SwapChain");
+		                   "Fullscreen does not work with Waitable SwapChain");
+	#elif CRY_RENDERER_VULKAN
+		pDC->m_pSwapChain->SetVSyncEnabled(m_VSync != 0);
 	#endif
-		
-		m_devInfo.SwapChainDesc().Windowed = !bFullScreen;
-		m_devInfo.SwapChainDesc().BufferDesc.Width = m_backbufferWidth;
-		m_devInfo.SwapChainDesc().BufferDesc.Height = m_backbufferHeight;
 
+		m_devInfo.SwapChainDesc().Windowed = !bFullScreen;
+		m_devInfo.SwapChainDesc().BufferDesc.Width = pDC->m_Width;
+		m_devInfo.SwapChainDesc().BufferDesc.Height = pDC->m_Height;
+
+		// Find the mode with the best fit for the given dimensions
 		m_devInfo.SnapSettings();
 
-		int swapChainWidth = m_devInfo.SwapChainDesc().BufferDesc.Width;
-		int swapChainHeight = m_devInfo.SwapChainDesc().BufferDesc.Height;
-		if (m_backbufferWidth != swapChainWidth || m_backbufferHeight != swapChainHeight)
+		const int swapChainWidth = m_devInfo.SwapChainDesc().BufferDesc.Width;
+		const int swapChainHeight = m_devInfo.SwapChainDesc().BufferDesc.Height;
+		if (pDC->m_Width != swapChainWidth || pDC->m_Height != swapChainHeight)
 		{
-			if (m_nativeWidth == m_backbufferWidth)
+			if (m_nativeWidth == pDC->m_Width)
 			{
 				if (m_width == m_nativeWidth)
 				{
@@ -441,11 +366,11 @@ bool CD3D9Renderer::ChangeResolution(int nNewWidth, int nNewHeight, int nNewColD
 					if (m_CVWidth)
 						m_CVWidth->Set(swapChainWidth);
 				}
+
 				m_nativeWidth = swapChainWidth;
 			}
-			m_backbufferWidth = swapChainWidth;
 
-			if (m_nativeHeight == m_backbufferHeight)
+			if (m_nativeHeight == pDC->m_Height)
 			{
 				if (m_height == m_nativeHeight)
 				{
@@ -453,9 +378,12 @@ bool CD3D9Renderer::ChangeResolution(int nNewWidth, int nNewHeight, int nNewColD
 					if (m_CVHeight)
 						m_CVHeight->Set(swapChainHeight);
 				}
+
 				m_nativeHeight = swapChainHeight;
 			}
-			m_backbufferHeight = swapChainHeight;
+
+			pDC->m_Width = swapChainWidth;
+			pDC->m_Height = swapChainHeight;
 		}
 
 		AdjustWindowForChange();
@@ -467,16 +395,14 @@ bool CD3D9Renderer::ChangeResolution(int nNewWidth, int nNewHeight, int nNewColD
 		WaitForAsynchronousDevice();
 	#endif
 
-		D3DDepthSurface* pDSV = 0;
-		D3DSurface* pRTVs[8] = { 0 };
-		GetDeviceContext().OMSetRenderTargets(8, pRTVs, pDSV);
+		GetDeviceObjectFactory().GetCoreCommandList().GetGraphicsInterface()->ClearState(true);
 
-		ReleaseBackBuffers();
+		ReleaseBackBuffers(pDC);
 
 		if (bPrevFullScreen != bFullScreen)
-		m_pSwapChain->SetFullscreenState(bFullScreen, 0);
+			pDC->m_pSwapChain->SetFullscreenState(bFullScreen, 0);
 
-		m_pSwapChain->ResizeTarget(&m_devInfo.SwapChainDesc().BufferDesc);
+		pDC->m_pSwapChain->ResizeTarget(&m_devInfo.SwapChainDesc().BufferDesc);
 		m_devInfo.ResizeDXGIBuffers();
 
 		OnD3D11PostCreateDevice(m_devInfo.Device());
@@ -492,8 +418,13 @@ bool CD3D9Renderer::ChangeResolution(int nNewWidth, int nNewHeight, int nNewColD
 #else
 		RT_SetViewport(0, 0, m_width, m_height);
 #endif
-#if CRY_PLATFORM_ORBIS
-		m_pSwapChain->UpdateBackbufferDimensions(m_backbufferWidth, m_backbufferHeight);
+#if CRY_RENDERER_GNM
+		CGnmSwapChain::SDesc desc = pDC->m_pSwapChain->GnmGetDesc();
+		desc.width = m_width;
+		desc.height = m_height;
+		pDC->m_pSwapChain->GnmSetDesc(desc);
+#elif CRY_PLATFORM_ORBIS
+		pDC->m_pSwapChain->UpdateBackbufferDimensions(pDC->m_Width, pDC->m_Height);
 #endif
 		m_MainViewport.nX = 0;
 		m_MainViewport.nY = 0;
@@ -514,8 +445,6 @@ bool CD3D9Renderer::ChangeResolution(int nNewWidth, int nNewHeight, int nNewColD
 	iLog->Log("  Window resolution: %dx%dx%d (%s)", m_d3dsdBackBuffer.Width, m_d3dsdBackBuffer.Height, nNewColDepth, bFullScreen ? "Fullscreen" : "Windowed");
 	iLog->Log("  Render resolution: %dx%d)", m_width, m_height);
 #endif
-
-	CreateMSAADepthBuffer();
 
 	ICryFont* pCryFont = gEnv->pCryFont;
 	if (pCryFont)
@@ -553,28 +482,29 @@ void CD3D9Renderer::PostDeviceReset()
 //-----------------------------------------------------------------------------
 HRESULT CD3D9Renderer::AdjustWindowForChange()
 {
+	SDisplayContext* pDC = GetBaseDisplayContext();
 
 	if (m_windowParametersOverridden)
 	{
 		OverrideWindowParameters(true, m_overriddenWindowSize.x, m_overriddenWindowSize.y, m_overriddenWindowFullscreenState);
 		return S_OK;
 	}
-#if CRY_PLATFORM_WINDOWS || defined(OPENGL)
+#if CRY_PLATFORM_WINDOWS || CRY_RENDERER_OPENGL
 	if (IsEditorMode())
 		return S_OK;
 
-	#if defined(OPENGL)
+	#if CRY_RENDERER_OPENGL
 	const DXGI_SWAP_CHAIN_DESC& swapChainDesc(m_devInfo.SwapChainDesc());
 
 	DXGI_MODE_DESC modeDesc;
-	modeDesc.Width = m_backbufferWidth;
-	modeDesc.Height = m_backbufferHeight;
+	modeDesc.Width = pDC->m_Width;
+	modeDesc.Height = pDC->m_Height;
 	modeDesc.RefreshRate = swapChainDesc.BufferDesc.RefreshRate;
 	modeDesc.Format = swapChainDesc.BufferDesc.Format;
 	modeDesc.ScanlineOrdering = swapChainDesc.BufferDesc.ScanlineOrdering;
 	modeDesc.Scaling = swapChainDesc.BufferDesc.Scaling;
 
-	HRESULT result = m_pSwapChain->ResizeTarget(&modeDesc);
+	HRESULT result = pDC->m_pSwapChain->ResizeTarget(&modeDesc);
 	if (FAILED(result))
 		return result;
 	#elif CRY_PLATFORM_WINDOWS
@@ -598,22 +528,22 @@ HRESULT CD3D9Renderer::AdjustWindowForChange()
 		#if defined(SUPPORT_DEVICE_INFO_USER_DISPLAY_OVERRIDES)
 		UserOverrideDXGIOutputFS(m_devInfo, CV_r_overrideDXGIOutputFS, m_prefMonX, m_prefMonY, x, y);
 		#endif
-		const int wdt = m_backbufferWidth;
-		const int hgt = m_backbufferHeight;
+		const int wdt = pDC->m_Width;
+		const int hgt = pDC->m_Height;
 		SetWindowPos(m_hWnd, HWND_TOPMOST, x, y, wdt, hgt, SWP_SHOWWINDOW);
 	}
 	else if (bFullscreenWindow)
 	{
-		const int x = m_prefMonX + (m_prefMonWidth - m_backbufferWidth) / 2;
-		const int y = m_prefMonY + (m_prefMonHeight - m_backbufferHeight) / 2;
-		const int wdt = m_backbufferWidth;
-		const int hgt = m_backbufferHeight;
+		const int x = m_prefMonX + (m_prefMonWidth - pDC->m_Width) / 2;
+		const int y = m_prefMonY + (m_prefMonHeight - pDC->m_Height) / 2;
+		const int wdt = pDC->m_Width;
+		const int hgt = pDC->m_Height;
 		SetWindowPos(m_hWnd, HWND_NOTOPMOST, x, y, wdt, hgt, SWP_SHOWWINDOW);
 	}
 	else
 	{
 		RECT wndrect;
-		SetRect(&wndrect, 0, 0, m_backbufferWidth, m_backbufferHeight);
+		SetRect(&wndrect, 0, 0, pDC->m_Width, pDC->m_Height);
 		AdjustWindowRectEx(&wndrect, m_dwWindowStyle, FALSE, WS_EX_APPWINDOW);
 
 		const int wdt = wndrect.right - wndrect.left;
@@ -711,7 +641,7 @@ bool compareDXGIMODEDESC(const DXGI_MODE_DESC& lhs, const DXGI_MODE_DESC& rhs)
 
 int CD3D9Renderer::EnumDisplayFormats(SDispFormat* formats)
 {
-#if CRY_PLATFORM_WINDOWS || defined(OPENGL)
+#if CRY_PLATFORM_WINDOWS || CRY_RENDERER_OPENGL
 
 	#if defined(SUPPORT_DEVICE_INFO)
 
@@ -735,7 +665,7 @@ int CD3D9Renderer::EnumDisplayFormats(SDispFormat* formats)
 					{
 						formats[numUniqueModes].m_Width = dispModes[i].Width;
 						formats[numUniqueModes].m_Height = dispModes[i].Height;
-						formats[numUniqueModes].m_BPP = CTexture::BitsPerPixel(CTexture::TexFormatFromDeviceFormat(dispModes[i].Format));
+						formats[numUniqueModes].m_BPP = CTexture::BitsPerPixel(DeviceFormats::ConvertToTexFormat(dispModes[i].Format));
 					}
 
 					prevWidth = dispModes[i].Width;
@@ -766,17 +696,19 @@ void CD3D9Renderer::UnSetRes()
 {
 	m_Features |= RFT_SUPPORTZBIAS;
 
-#if defined(SUPPORT_D3D_DEBUG_RUNTIME)
+#if defined(DX11_ALLOW_D3D_DEBUG_RUNTIME)
 	m_d3dDebug.Release();
 #endif
 }
 
 void CD3D9Renderer::DestroyWindow(void)
 {
-#if defined(DXGL_USE_SDL)
+#if defined(USE_SDL2_VIDEO) && (CRY_RENDERER_OPENGL || CRY_RENDERER_OPENGLES)
 	DXGLDestroySDLWindow(m_hWnd);
+#elif defined(USE_SDL2_VIDEO) && (CRY_RENDERER_VULKAN)
+	VKDestroySDLWindow(m_hWnd);
 #elif CRY_PLATFORM_WINDOWS
-	if (gEnv && gEnv->pSystem)
+	if (gEnv && gEnv->pSystem && !m_bShaderCacheGen)
 	{
 		gEnv->pSystem->UnregisterWindowMessageHandler(this);
 	}
@@ -952,7 +884,7 @@ void SDepthTexture::Release(bool bReleaseTexture)
 {
 	if (bReleaseTexture && pTexture)
 		pTexture->Release();
-	
+
 	pTarget = nullptr;
 	pSurface = nullptr;
 	pTexture = nullptr;
@@ -968,14 +900,10 @@ void CD3D9Renderer::ShutDownFast()
 	FX_PipelineShutdown(true);
 	//CBaseResource::ShutDown();
 	memset(&CTexture::s_TexStages[0], 0, sizeof(CTexture::s_TexStages));
-	for (uint32 i = 0; i < CTexture::s_TexStates.size(); i++)
-	{
-		memset(&CTexture::s_TexStates[i], 0, sizeof(STexState));
-	}
 	SAFE_DELETE(m_pRT);
 
-#if defined(OPENGL)
-	#if !DXGL_FULL_EMULATION && !CRY_OPENGL_SINGLE_CONTEXT
+#if CRY_RENDERER_OPENGL
+	#if !DXGL_FULL_EMULATION && !OGL_SINGLE_CONTEXT
 	if (CV_r_multithreaded)
 		DXGLReleaseContext(m_devInfo.Device());
 	#endif
@@ -988,12 +916,7 @@ void CD3D9Renderer::RT_ShutDown(uint32 nFlags)
 	CVrProjectionManager::Reset();
 
 	SAFE_RELEASE(m_pZTexture);
-	SAFE_RELEASE(m_pZTextureMSAA);
 	SAFE_RELEASE(m_pNativeZTexture);
-
-#if RENDERER_SUPPORT_SCALEFORM
-	SF_DestroyResources();
-#endif
 
 	CREBreakableGlassBuffer::RT_ReleaseInstance();
 	SAFE_DELETE(m_pColorGradingControllerD3D);
@@ -1011,23 +934,32 @@ void CD3D9Renderer::RT_ShutDown(uint32 nFlags)
 	while (m_CharCBFreeList.next != &m_CharCBFreeList)
 		delete m_CharCBFreeList.next->item<& SCharacterInstanceCB::list>();
 
-	for (uint32 i = 0; i < CRY_ARRAY_COUNT(m_frameFences); i++)
-		m_DevMan.ReleaseFence(m_frameFences[i]);
-
 	CHWShader::mfFlushPendedShadersWait(-1);
-	if (nFlags == FRR_ALL && !IsShaderCacheGenMode())
+	if (!IsShaderCacheGenMode())
 	{
-		memset(&CTexture::s_TexStages[0], 0, sizeof(CTexture::s_TexStages));
-		CTexture::s_TexStates.clear();
-		FreeResources(FRR_ALL);
+		if (nFlags == FRR_SHUTDOWN)
+		{
+			memset(&CTexture::s_TexStages[0], 0, sizeof(CTexture::s_TexStages));
+			FreeResources(nFlags);
+		}
+	}
+	else
+	{
+		m_pRT->RC_ReleaseGraphicsPipeline();
+		ForceFlushRTCommands();
 	}
 
 	FX_PipelineShutdown();
 
+	GetDeviceObjectFactory().ReleaseInputLayouts();
+	GetDeviceObjectFactory().ReleaseSamplerStates();
+	GetDeviceObjectFactory().ReleaseNullResources();
+	GetDeviceObjectFactory().ReleaseFrameFences();
+
 #if defined(SUPPORT_DEVICE_INFO)
 	//m_devInfo.Release();
-	#if defined(OPENGL) && !DXGL_FULL_EMULATION
-		#if CRY_OPENGL_SINGLE_CONTEXT
+	#if CRY_RENDERER_OPENGL && !DXGL_FULL_EMULATION
+		#if OGL_SINGLE_CONTEXT
 	m_pRT->m_kDXGLDeviceContextHandle.Set(NULL);
 		#else
 	m_pRT->m_kDXGLDeviceContextHandle.Set(NULL, !CV_r_multithreaded);
@@ -1036,7 +968,7 @@ void CD3D9Renderer::RT_ShutDown(uint32 nFlags)
 	#endif
 #endif
 
-#if !CRY_PLATFORM_ORBIS && !defined(OPENGL)
+#if !CRY_PLATFORM_ORBIS && !CRY_RENDERER_OPENGL
 	GetDeviceContext().ReleaseDeviceContext();
 #endif
 
@@ -1051,10 +983,12 @@ void CD3D9Renderer::ShutDown(bool bReInit)
 	m_bInShutdown = true;
 
 	// Force Flush RT command buffer
-	ForceFlushRTCommands();
+	if (m_pRT)
+		m_pRT->RC_ReleaseGraphicsPipeline();
+	ForceFlushRTCommands();	
 	PreShutDown();
 	if (m_pRT)
-		m_pRT->RC_ShutDown(bReInit ? (FRR_SHADERS | FRR_TEXTURES | FRR_REINITHW) : FRR_ALL);
+		m_pRT->RC_ShutDown(bReInit ? 0 : FRR_SHUTDOWN);
 
 	//CBaseResource::ShutDown();
 	ForceFlushRTCommands();
@@ -1074,8 +1008,8 @@ void CD3D9Renderer::ShutDown(bool bReInit)
 
 	SAFE_DELETE(m_pRT);
 
-#if defined(OPENGL)
-	#if !DXGL_FULL_EMULATION && !CRY_OPENGL_SINGLE_CONTEXT
+#if CRY_RENDERER_OPENGL
+	#if !DXGL_FULL_EMULATION && !OGL_SINGLE_CONTEXT
 	if (CV_r_multithreaded)
 		DXGLReleaseContext(GetDevice().GetRealDevice());
 	#endif
@@ -1089,7 +1023,7 @@ void CD3D9Renderer::ShutDown(bool bReInit)
 		iTimer = NULL;
 		iSystem = NULL;
 	}
-
+	
 	PostShutDown();
 }
 
@@ -1115,7 +1049,8 @@ LRESULT CALLBACK LowLevelKeyboardProc(INT nCode, WPARAM wParam, LPARAM lParam)
 #if defined(SUPPORT_DEVICE_INFO)
 HWND CD3D9Renderer::CreateWindowCallback()
 {
-	return gcpRendD3D->SetWindow(gcpRendD3D->GetBackbufferWidth(), gcpRendD3D->GetBackbufferHeight(), gcpRendD3D->m_bFullScreen, gcpRendD3D->m_hWnd) ? gcpRendD3D->m_hWnd : 0;
+	const SDisplayContext* pDC = gcpRendD3D->GetBaseDisplayContext();
+	return gcpRendD3D->SetWindow(pDC->m_Width, pDC->m_Height, gcpRendD3D->m_bFullScreen, gcpRendD3D->m_hWnd) ? gcpRendD3D->m_hWnd : 0;
 }
 #endif
 
@@ -1125,8 +1060,10 @@ bool CD3D9Renderer::SetWindow(int width, int height, bool fullscreen, WIN_HWND h
 
 	iSystem->RegisterWindowMessageHandler(this);
 
-#if defined(DXGL_USE_SDL)
+#if USE_SDL2_VIDEO && (CRY_RENDERER_OPENGL || CRY_RENDERER_OPENGLES)
 	DXGLCreateSDLWindow(m_WinTitle, width, height, fullscreen, &m_hWnd);
+#elif USE_SDL2_VIDEO && (CRY_RENDERER_VULKAN)
+	VKCreateSDLWindow(m_WinTitle, width, height, fullscreen, &m_hWnd);
 #elif CRY_PLATFORM_WINDOWS
 	DWORD style, exstyle;
 	int x, y, wdt, hgt;
@@ -1493,7 +1430,7 @@ WIN_HWND CD3D9Renderer::Init(int x, int y, int width, int height, unsigned int c
 		m_deskheight = rc.bottom - rc.top;
 	}
 
-	REGISTER_STRING_CB("r_WindowIconTexture", "EngineAssets/Textures/default_icon.dds", VF_CHEAT | VF_CHEAT_NOCHECK,
+	REGISTER_STRING_CB("r_WindowIconTexture", "%ENGINE%/EngineAssets/Textures/default_icon.dds", VF_CHEAT | VF_CHEAT_NOCHECK,
 	                   "Sets the image (dds file) to be displayed as the window and taskbar icon",
 	                   SetWindowIconCVar);
 #else
@@ -1501,35 +1438,24 @@ WIN_HWND CD3D9Renderer::Init(int x, int y, int width, int height, unsigned int c
 #endif
 
 #if CRY_PLATFORM_DESKTOP
-	REGISTER_STRING_CB("r_MouseCursorTexture", "EngineAssets/Textures/Cursor_Green.dds", VF_CHEAT | VF_CHEAT_NOCHECK,
+	REGISTER_STRING_CB("r_MouseCursorTexture", "%ENGINE%/EngineAssets/Textures/Cursor_Green.dds", VF_CHEAT | VF_CHEAT_NOCHECK,
 	                   "Sets the image (dds file) to be displayed as the mouse cursor",
 	                   SetMouseCursorIconCVar);
 #endif
 
-#if defined(OPENGL) && !DXGL_FULL_EMULATION
-	#if CRY_OPENGL_SINGLE_CONTEXT
+#if (CRY_RENDERER_OPENGL || CRY_RENDERER_OPENGLES) && !DXGL_FULL_EMULATION
+	#if OGL_SINGLE_CONTEXT
 	DXGLInitialize(0);
 	#else
 	DXGLInitialize(CV_r_multithreaded ? 4 : 0);
 	#endif
-#endif //defined(OPENGL) && !DXGL_FULL_EMULATION
-
-#ifdef D3DX_SDK_VERSION
-	iLog->Log("D3DX_SDK_VERSION = %d", D3DX_SDK_VERSION);
-#else
-	iLog->Log("D3DX_SDK_VERSION = <UNDEFINED>");
-#endif
+#endif //CRY_RENDERER_OPENGL && !DXGL_FULL_EMULATION
 
 	iLog->Log("Direct3D driver is creating...");
 	iLog->Log("Crytek Direct3D driver version %4.2f (%s <%s>)", VERSION_D3D, __DATE__, __TIME__);
 
-	const char* sGameName = iConsole->GetCVar("sys_game_name")->GetString();
-
-#if defined(IS_EAAS)
-	cry_sprintf(m_WinTitle, "%s [EaaS]", sGameName);
-#else
+	const char* sGameName = gEnv->pSystem->GetIProjectManager()->GetCurrentProjectName();
 	cry_strcpy(m_WinTitle, sGameName);
-#endif
 
 	iLog->Log("Creating window called '%s' (%dx%d)", m_WinTitle, width, height);
 
@@ -1547,7 +1473,12 @@ WIN_HWND CD3D9Renderer::Init(int x, int y, int width, int height, unsigned int c
 	m_sbpp = sbits;
 	m_bFullScreen = fullscreen;
 
-	CalculateResolutions(width, height, bNativeResolution, &m_width, &m_height, &m_nativeWidth, &m_nativeHeight, &m_backbufferWidth, &m_backbufferHeight);
+	SDisplayContext* pDC = GetBaseDisplayContext();
+	CalculateResolutions(width, height, bNativeResolution, &m_width, &m_height, &m_nativeWidth, &m_nativeHeight, &pDC->m_Width, &pDC->m_Height);
+
+	pDC->m_uniqueId = m_uniqueRContextId;
+	++m_uniqueRContextId;
+	CRY_ASSERT_MESSAGE(pDC->m_uniqueId == 0, "BaseDisplayContext's unique id is expected to be zero");
 
 	// only create device if we are not in shader cache generation mode
 	if (!m_bShaderCacheGen)
@@ -1563,6 +1494,7 @@ WIN_HWND CD3D9Renderer::Init(int x, int y, int width, int height, unsigned int c
 			bool bRes = m_pRT->RC_CreateDevice();
 			if (!bRes)
 			{
+				CryWarning(VALIDATOR_MODULE_RENDERER, VALIDATOR_ERROR, "Rendering device creation failed!");
 				ShutDown(true);
 				return 0;
 			}
@@ -1571,30 +1503,67 @@ WIN_HWND CD3D9Renderer::Init(int x, int y, int width, int height, unsigned int c
 		}
 
 #if defined(SUPPORT_DEVICE_INFO)
-		iLog->Log(" ****** D3D11 CryRender Stats ******");
+		iLog->Log(" ****** CryRender InfoDump ******");
 		iLog->Log(" Driver description: %S", m_devInfo.AdapterDesc().Description);
+#endif
 
+#if CRY_RENDERER_DIRECT3D
+		iLog->Log(" API Version: Direct3D %d.%1d", (CRY_RENDERER_DIRECT3D / 10), (CRY_RENDERER_DIRECT3D % 10));
+#endif
+
+#if defined(SUPPORT_DEVICE_INFO)
 		switch (m_devInfo.FeatureLevel())
 		{
 		case D3D_FEATURE_LEVEL_9_1:
-			iLog->Log(" Feature level: DirectX 9.1");
+			iLog->Log(" Feature level: D3D 9_1");
+			iLog->Log(" Vertex Shaders version %d.%d", 2, 0);
+			iLog->Log(" Pixel Shaders version %d.%d", 2, 0);
 			break;
 		case D3D_FEATURE_LEVEL_9_2:
-			iLog->Log(" Feature level: DirectX 9.2");
+			iLog->Log(" Feature level: D3D 9_2");
+			iLog->Log(" Vertex Shaders version %d.%d", 2, 0);
+			iLog->Log(" Pixel Shaders version %d.%d", 2, 0);
 			break;
 		case D3D_FEATURE_LEVEL_9_3:
-			iLog->Log(" Feature level: DirectX 9.3");
+			iLog->Log(" Feature level: D3D 9_3");
+			iLog->Log(" Vertex Shaders version %d.%d", 3, 0);
+			iLog->Log(" Pixel Shaders version %d.%d", 3, 0);
 			break;
 		case D3D_FEATURE_LEVEL_10_0:
-			iLog->Log(" Feature level: DirectX 10.0");
+			iLog->Log(" Feature level: D3D 10_0");
+			iLog->Log(" Vertex Shaders version %d.%d", 4, 0);
+			iLog->Log(" Pixel Shaders version %d.%d", 4, 0);
 			break;
 		case D3D_FEATURE_LEVEL_10_1:
-			iLog->Log(" Feature level: DirectX 10.1");
+			iLog->Log(" Feature level: D3D 10_1");
+			iLog->Log(" Vertex Shaders version %d.%d", 4, 0);
+			iLog->Log(" Pixel Shaders version %d.%d", 4, 0);
 			break;
 		case D3D_FEATURE_LEVEL_11_0:
-			iLog->Log(" Feature level: DirectX 11.0");
+			iLog->Log(" Feature level: D3D 11_0");
+			iLog->Log(" Vertex Shaders version %d.%d", 5, 0);
+			iLog->Log(" Pixel Shaders version %d.%d", 5, 0);
+			break;
+		case D3D_FEATURE_LEVEL_11_1:
+			iLog->Log(" Feature level: D3D 11_1");
+			iLog->Log(" Vertex Shaders version %d.%d", 5, 0);
+			iLog->Log(" Pixel Shaders version %d.%d", 5, 0);
+			break;
+		case D3D_FEATURE_LEVEL_12_0:
+			iLog->Log(" Feature level: D3D 12_0");
+			iLog->Log(" Vertex Shaders version %d.%d", 5, 1);
+			iLog->Log(" Pixel Shaders version %d.%d", 5, 1);
+			break;
+		case D3D_FEATURE_LEVEL_12_1:
+			iLog->Log(" Feature level: D3D 12_1");
+			iLog->Log(" Vertex Shaders version %d.%d", 5, 1);
+			iLog->Log(" Pixel Shaders version %d.%d", 5, 1);
+			break;
+		default:
+			iLog->Log(" Feature level: Unknown");
 			break;
 		}
+
 		iLog->Log(" Full stats: %s", m_strDeviceStats);
 		if (m_devInfo.DriverType() == D3D_DRIVER_TYPE_HARDWARE)
 			iLog->Log(" Rasterizer: Hardware");
@@ -1602,16 +1571,18 @@ WIN_HWND CD3D9Renderer::Init(int x, int y, int width, int height, unsigned int c
 			iLog->Log(" Rasterizer: Reference");
 		else if (m_devInfo.DriverType() == D3D_DRIVER_TYPE_SOFTWARE)
 			iLog->Log(" Rasterizer: Software");
-
+#elif CRY_PLATFORM_DURANGO
+		iLog->Log(" Feature level: D3D 11_1");
+		iLog->Log(" Vertex Shaders version %d.%d", 5, 0);
+		iLog->Log(" Pixel Shaders version %d.%d", 5, 0);
 #endif
+
 		iLog->Log(" Current Resolution: %dx%dx%d %s", CRenderer::m_width, CRenderer::m_height, CRenderer::m_cbpp, m_bFullScreen ? "Full Screen" : "Windowed");
 		iLog->Log(" HDR Rendering: %s", m_nHDRType == 1 ? "FP16" : m_nHDRType == 2 ? "MRT" : "Disabled");
 		iLog->Log(" Occlusion queries: %s", (m_Features & RFT_OCCLUSIONTEST) ? "Supported" : "Not supported");
 		iLog->Log(" Geometry instancing: %s", (m_bDeviceSupportsInstancing) ? "Supported" : "Not supported");
 		iLog->Log(" NormalMaps compression : %s", m_hwTexFormatSupport.m_FormatBC5U.IsValid() ? "Supported" : "Not supported");
 		iLog->Log(" Gamma control: %s", (m_Features & RFT_HWGAMMA) ? "Hardware" : "Software");
-		iLog->Log(" Vertex Shaders version %d.%d", 4, 0);
-		iLog->Log(" Pixel Shaders version %d.%d", 4, 0);
 
 		CRenderer::OnChange_GeomInstancingThreshold(0);   // to get log printout and to set the internal value (vendor dependent)
 
@@ -1641,11 +1612,11 @@ WIN_HWND CD3D9Renderer::Init(int x, int y, int width, int height, unsigned int c
 #if defined(ENABLE_NULL_D3D11DEVICE)
 		m_DeviceWrapper.AssignDevice(new NullD3D11Device);
 		D3DDeviceContext* pContext = NULL;
-	#if defined(DEVICE_SUPPORTS_D3D11_3)
+	#if (CRY_RENDERER_DIRECT3D >= 113)
 		GetDevice().GetImmediateContext3(&pContext);
-	#elif defined(DEVICE_SUPPORTS_D3D11_2)
+	#elif (CRY_RENDERER_DIRECT3D >= 112)
 		GetDevice().GetImmediateContext2(&pContext);
-	#elif defined(DEVICE_SUPPORTS_D3D11_1)
+	#elif (CRY_RENDERER_DIRECT3D >= 111)
 		GetDevice().GetImmediateContext1(&pContext);
 	#else
 		GetDevice().GetImmediateContext(&pContext);
@@ -1664,9 +1635,9 @@ WIN_HWND CD3D9Renderer::Init(int x, int y, int width, int height, unsigned int c
 
 	// Quality console variables --------------------------------------
 
-#define QUALITY_VAR(name) { ICVar* pVar = iConsole->Register("q_Shader" # name, &m_cEF.m_ShaderProfiles[(int)eST_ ## name].m_iShaderProfileQuality, 1,          \
-  0, CVARHELP("Defines the shader quality of " # name "\nUsage: q_Shader" # name " 0=low/1=med/2=high/3=very high (default)"), OnQShaderChange_Shader ## name); \
-OnQShaderChange_Shader## name(pVar);                                                                                                                                                          \
+#define QUALITY_VAR(name) { ICVar* pVar = ConsoleRegistrationHelper::Register("q_Shader" # name, &m_cEF.m_ShaderProfiles[(int)eST_ ## name].m_iShaderProfileQuality, 1, \
+  0, CVARHELP("Defines the shader quality of " # name "\nUsage: q_Shader" # name " 0=low/1=med/2=high/3=very high (default)"), OnQShaderChange_Shader ## name);         \
+OnQShaderChange_Shader## name(pVar);                                                                                                                                                                                   \
 iLog->Log(" %s shader quality: %s", # name, sGetSQuality("q_Shader" # name)); } // clamp for lowspec
 
 	QUALITY_VAR(General);
@@ -1706,15 +1677,15 @@ iLog->Log(" %s shader quality: %s", # name, sGetSQuality("q_Shader" # name)); } 
 	                 "Takes a PIX GPU capture with the specified name\n");
 #endif
 
-#if defined(OPENGL) && !DXGL_FULL_EMULATION
-	#if CRY_OPENGL_SINGLE_CONTEXT
+#if CRY_RENDERER_OPENGL && !DXGL_FULL_EMULATION
+	#if OGL_SINGLE_CONTEXT
 	if (!m_pRT->IsRenderThread())
 		DXGLUnbindDeviceContext(GetDeviceContext().GetRealDeviceContext());
 	#else
 	if (!m_pRT->IsRenderThread())
 		DXGLUnbindDeviceContext(GetDeviceContext().GetRealDeviceContext(), !CV_r_multithreaded);
 	#endif
-#endif //defined(OPENGL) && !DXGL_FULL_EMULATION
+#endif //CRY_RENDERER_OPENGL && !DXGL_FULL_EMULATION
 
 	if (!bShaderCacheGen)
 		m_pRT->RC_Init();
@@ -1723,11 +1694,6 @@ iLog->Log(" %s shader quality: %s", # name, sGetSQuality("q_Shader" # name)); } 
 		g_shaderGeneralHeap = CryGetIMemoryManager()->CreateGeneralExpandingMemoryHeap(4 * 1024 * 1024, 0, "Shader General");
 
 	m_cEF.mfInit();
-
-	if (!IsEditorMode() && !IsShaderCacheGenMode())
-		m_pRT->RC_PrecacheDefaultShaders();
-
-	//PostInit();
 
 #if CRY_PLATFORM_WINDOWS
 	// Initialize the set of connected monitors
@@ -1757,6 +1723,7 @@ int CD3D9Renderer::EnumAAFormats(SAAFormat* formats)
 
 	int numFormats = 0;
 
+	#ifdef RENDERER_ENABLE_LEGACY_PIPELINE
 	for (unsigned int i = 1; i <= D3D11_MAX_MULTISAMPLE_SAMPLE_COUNT; ++i)
 	{
 		unsigned int maxQuality;
@@ -1772,6 +1739,7 @@ int CD3D9Renderer::EnumAAFormats(SAAFormat* formats)
 			++numFormats;
 		}
 	}
+	#endif
 
 	return numFormats;
 
@@ -1808,7 +1776,7 @@ bool CD3D9Renderer::CheckMSAAChange()
 		_SetVar("r_MSAA", 0);
 		return false;
 	}
-	
+
 	bool bChanged = false;
 	if (!CV_r_HDRRendering && CV_r_msaa)
 	{
@@ -1817,7 +1785,7 @@ bool CD3D9Renderer::CheckMSAAChange()
 	}
 	if (CV_r_msaa != m_MSAA || (CV_r_msaa && (m_MSAA_quality != CV_r_msaa_quality || m_MSAA_samples != CV_r_msaa_samples)))
 	{
-		if (CV_r_msaa && (m_hwTexFormatSupport.m_FormatR16G16B16A16.bCanMultiSampleRT || m_hwTexFormatSupport.m_FormatR16G16.bCanMultiSampleRT))
+		if (CV_r_msaa && ((m_hwTexFormatSupport.m_FormatR16G16B16A16.Options | m_hwTexFormatSupport.m_FormatR16G16.Options) & FMTSUPPORT_MULTISAMPLE_RENDERTARGET))
 		{
 			CTexture::s_eTFZ = eTF_R32F;
 			TArray<SAAFormat> Formats;
@@ -1874,7 +1842,6 @@ bool CD3D9Renderer::CheckSSAAChange()
 void CD3D9Renderer::InitAMDAPI()
 {
 #if USE_AMD_API
-	#if CRY_PLATFORM_WINDOWS
 	do
 	{
 		AGSReturnCode status = AGSInit();
@@ -1892,12 +1859,12 @@ void CD3D9Renderer::InitAMDAPI()
 			iLog->Log("AGS: Catalyst Version: %s  Driver Version: %s", driverInfo.strCatalystVersion, driverInfo.strDriverVersion);
 
 		int outputIndex = 0;
-		#if defined(SUPPORT_DEVICE_INFO)
+	#if defined(SUPPORT_DEVICE_INFO)
 		outputIndex = (int)m_devInfo.OutputIndex();
-		#else
+	#else
 		if (AGSGetDefaultDisplayIndex(&outputIndex) != AGS_SUCCESS)
 			outputIndex = 0;
-		#endif
+	#endif
 
 		m_nGPUs = 1;
 		int numGPUs = 1;
@@ -1914,9 +1881,9 @@ void CD3D9Renderer::InitAMDAPI()
 		}
 	}
 	while (0);
-	#endif // CRY_PLATFORM_WINDOWS
+#endif   // USE_AMD_API
 
-	#if defined(USE_AMD_EXT)
+#if defined(USE_AMD_EXT)
 	do
 	{
 		PFNAmdDxExtCreate11 AmdDxExtCreate;
@@ -1925,11 +1892,11 @@ void CD3D9Renderer::InitAMDAPI()
 		D3DDevice* device = NULL;
 		device = GetDevice().GetRealDevice();
 
-		#if defined _WIN64
+	#if defined _WIN64
 		hDLL = GetModuleHandle("atidxx64.dll");
-		#else
+	#else
 		hDLL = GetModuleHandle("atidxx32.dll");
-		#endif
+	#endif
 
 		g_pDepthBoundsTest = NULL;
 
@@ -1954,8 +1921,7 @@ void CD3D9Renderer::InitAMDAPI()
 	}
 	while (0);
 
-	#endif // CRY_PLATFORM_WINDOWS
-#endif   // USE_AMD_API
+#endif // USE_AMD_EXT
 }
 
 void CD3D9Renderer::InitNVAPI()
@@ -1988,9 +1954,13 @@ void CD3D9Renderer::InitNVAPI()
 	// check SLI state to get number of GPUs available for rendering
 	NV_GET_CURRENT_SLI_STATE sliState;
 	sliState.version = NV_GET_CURRENT_SLI_STATE_VER;
+
+	#if (CRY_RENDERER_DIRECT3D >= 110) && (CRY_RENDERER_DIRECT3D < 120)
+	// TODO: add DX12/Vulkan support
 	D3DDevice* device = NULL;
 	device = GetDevice().GetRealDevice();
 	status = NvAPI_D3D_GetCurrentSLIState(device, &sliState);
+
 	if (status != NVAPI_OK)
 	{
 		iLog->LogError("NVAPI: Unable to get SLI state (%d)", status);
@@ -2008,13 +1978,14 @@ void CD3D9Renderer::InitNVAPI()
 			iLog->Log("NVAPI: System configured as SLI: %d GPU(s) for rendering", m_nGPUs);
 		}
 	}
+	#endif
 
 	m_bDeviceSupports_NVDBT = 1;
 	iLog->Log("NVDBT supported");
 #endif // USE_NV_API
 }
 
-bool CD3D9Renderer::SetRes()
+bool CD3D9Renderer::SetBaseResolution()
 {
 	LOADING_TIME_PROFILE_SECTION;
 	ChangeLog();
@@ -2022,154 +1993,177 @@ bool CD3D9Renderer::SetRes()
 	m_pixelAspectRatio = 1.0f;
 	m_dwCreateFlags = 0;
 
+	SDisplayContext* pDC = GetBaseDisplayContext();
+
 	///////////////////////////////////////////////////////////////////
 #if CRY_PLATFORM_DURANGO
 	HRESULT hr = S_OK;
 
-	// On Durango we use an internal resolution of 720p but create a 1080p swap chain and do custom upscaling.
-	// This is required since the swap chain scaling does just point filtering and since the engine requires the
-	// backbuffer to be RGBA and not BGRA as required by the swap chain on Durango.
+	ID3D11Device* pD3D11Device = nullptr;
+	ID3D11DeviceContext* pD3D11Context = nullptr;
+#if (CRY_RENDERER_DIRECT3D >= 120)
+	CCryDX12Device* pDX12Device = nullptr;
+	ID3D12Device* pD3D12Device = nullptr;
+#endif
 
-	// Create device
-	uint32 creationFlags = D3D11_CREATE_DEVICE_BGRA_SUPPORT;
+	typedef HRESULT(WINAPI * FP_D3D11CreateDevice)(IDXGIAdapter*, D3D_DRIVER_TYPE, HMODULE, UINT, CONST D3D_FEATURE_LEVEL*, UINT, UINT, ID3D11Device**, D3D_FEATURE_LEVEL*, ID3D11DeviceContext**);
 
-	#if defined(SUPPORT_D3D_DEBUG_RUNTIME)
-	creationFlags |= (CV_d3d11_debugruntime) ? D3D11_CREATE_DEVICE_DEBUG : 0; // Debug runtime
-	#endif
-	#ifdef USE_PIX_DURANGO
-		#if defined(DURANGO_MONOD3D_DRIVER)
-	creationFlags |= D3D11_CREATE_DEVICE_INSTRUMENTED;
-		#else
-	creationFlags |= D3D11_CREATE_DEVICE_PIX_PROFILING;
-		#endif
-	#endif
+	FP_D3D11CreateDevice pD3D11CD =
+#if (CRY_RENDERER_DIRECT3D >= 120)
+		(FP_D3D11CreateDevice)DX12CreateDevice;
+#else
+		(FP_D3D11CreateDevice)D3D11CreateDevice;
+#endif
 
-	creationFlags |= D3D11_CREATE_DEVICE_FAST_KICKOFFS; // AprilXDK QFE 4
-
-	D3D_FEATURE_LEVEL featureLevels[] = { D3D_FEATURE_LEVEL_11_0 };
-	D3D_FEATURE_LEVEL actualFeatureLevel;
-
+	if (pD3D11CD)
 	{
-		// create Device and DeviceContext
-		ID3D11Device* pDevice = NULL;
-		ID3D11DeviceContext* pDeviceContext = NULL;
+		// On Durango we use an internal resolution of 720p but create a 1080p swap chain and do custom upscaling.
+		// This is required since the swap chain scaling does just point filtering and since the engine requires the
+		// backbuffer to be RGBA and not BGRA as required by the swap chain on Durango.
 
-		LOADING_TIME_PROFILE_SECTION_NAMED("CD3D9Renderer::SetRes(): D3D11CreateDevice()");
-		hr = D3D11CreateDevice(NULL, D3D_DRIVER_TYPE_HARDWARE, NULL, creationFlags, featureLevels, ARRAYSIZE(featureLevels), D3D11_SDK_VERSION, &pDevice, &actualFeatureLevel, &pDeviceContext);
+#if defined(DX11_ALLOW_D3D_DEBUG_RUNTIME)
+		const unsigned int debugRTFlag = gcpRendD3D->CV_r_EnableDebugLayer ? D3D11_CREATE_DEVICE_VALIDATED | D3D11_CREATE_DEVICE_DEBUG : 0;
+#else
+		const unsigned int debugRTFlag = 0;
+#endif
 
-		if (FAILED(hr))
-			return false;
+		D3D_DRIVER_TYPE driverType = D3D_DRIVER_TYPE_HARDWARE;
+		uint32 creationFlags = debugRTFlag
+			| D3D11_CREATE_DEVICE_BGRA_SUPPORT
+#ifdef USE_PIX_DURANGO
+			| D3D11_CREATE_DEVICE_INSTRUMENTED
+#endif
+			| D3D11_CREATE_DEVICE_FAST_KICKOFFS; // AprilXDK QFE 4
 
-	#if defined(DEVICE_SUPPORTS_D3D11_1)
-		// TODOL check documentation if it is ok to ignore the context from create device? (both pointers are the same), some refcounting to look out for?\	
-		ID3D11Device1* pDevice1 = static_cast<ID3D11Device1*>(pDevice);
-		m_DeviceWrapper.AssignDevice(pDevice1);
+		D3D_FEATURE_LEVEL arrFeatureLevels[] = { CRY_RENDERER_DIRECT3D_FL };
+		D3D_FEATURE_LEVEL* pFeatureLevels(arrFeatureLevels);
+		unsigned int uNumFeatureLevels(sizeof(arrFeatureLevels) / sizeof(D3D_FEATURE_LEVEL));
 
-		D3DDeviceContext* pDeviceContext1 = NULL;
-		GetDevice().GetImmediateContext1(&pDeviceContext1);
-		m_DeviceContextWrapper.AssignDeviceContext(pDeviceContext1);
-	#else
-		m_DeviceWrapper.AssignDevice(pDevice);
-		m_DeviceContextWrapper.AssignDeviceContext(pDeviceContext);
-	#endif
+		D3D_FEATURE_LEVEL featureLevel;
+
+		HRESULT hr = pD3D11CD(nullptr, driverType, 0, creationFlags, pFeatureLevels, uNumFeatureLevels, D3D11_SDK_VERSION, &pD3D11Device, &featureLevel, &pD3D11Context);
+		if (SUCCEEDED(hr) && pD3D11Device && pD3D11Context)
+		{
+#if (CRY_RENDERER_DIRECT3D >= 120)
+			pD3D12Device = (pDX12Device = reinterpret_cast<CCryDX12Device*>(pD3D11Device))->GetD3D12Device();
+#endif
+			{
+				DXGIDevice* pDXGIDevice = 0;
+				if (SUCCEEDED(pD3D11Device->QueryInterface(__uuidof(DXGIDevice), (void**)&pDXGIDevice)) && pDXGIDevice)
+					pDXGIDevice->SetMaximumFrameLatency(MAX_FRAME_LATENCY);
+				SAFE_RELEASE(pDXGIDevice);
+			}
+
+			// ...
+		}
 	}
 
-	{
-		// create performance context	and context
-		ID3DXboxPerformanceDevice* pPerformanceDevice = NULL;
-		ID3DXboxPerformanceContext* pDerformanceDEviceContext = NULL;
+	IDXGIDevice1* pDXGIDevice = nullptr;
+	IDXGIAdapterToCall* pDXGIAdapter = nullptr;
+	IDXGIFactory2ToCall* pDXGIFactory = nullptr;
+	IDXGISwapChain1ToCall* pDXGISwapChain = nullptr;
 
-		hr = GetDevice().QueryInterface(__uuidof(ID3DXboxPerformanceDevice), (void**)&pPerformanceDevice);
-		CHECK_HRESULT(hr);
-
-		hr = GetDeviceContext().QueryInterface(__uuidof(ID3DXboxPerformanceContext), (void**)&pDerformanceDEviceContext);
-		CHECK_HRESULT(hr);
-
-		m_PerformanceDeviceWrapper.AssignPerformanceDevice(pPerformanceDevice);
-		m_PerformanceDeviceContextWrapper.AssignPerformanceDeviceContext(pDerformanceDEviceContext);
-	}
-
-	hr = GetPerformanceDevice().SetDriverHint(XBOX_DRIVER_HINT_CONSTANT_BUFFER_OFFSETS_IN_CONSTANTS, 1);
-	CHECK_HRESULT(hr);
-
-	D3D11_DMA_ENGINE_CONTEXT_DESC dmaDesc = { 0 };
-	dmaDesc.CreateFlags = D3D11_DMA_ENGINE_CONTEXT_CREATE_SDMA_1;
-	dmaDesc.RingBufferSizeBytes = 0;
-
-	GetPerformanceDevice().CreateDmaEngineContext(&dmaDesc, &m_pDMA1);
-
-	IDXGIDevice1* dxgiDevice;
-	hr |= GetDevice().QueryInterface(__uuidof(IDXGIDevice1), (void**)&dxgiDevice);
-
-	PREFAST_ASSUME(dxgiDevice);
-	IDXGIAdapter* dxgiAdapter;
-	hr |= dxgiDevice->GetAdapter(&dxgiAdapter);
-
-	IDXGIFactory2* dxgiFactory;
-	hr |= dxgiAdapter->GetParent(__uuidof(IDXGIFactory2), (void**)&dxgiFactory);
-
-	m_pPerformanceDeviceContext = NULL;
-	hr |= GetDevice().QueryInterface(__uuidof(ID3DXboxPerformanceContext), (void**)&m_pPerformanceDeviceContext);
+#if (CRY_RENDERER_DIRECT3D >= 120)
+	hr |= pD3D12Device->QueryInterface(IID_GFX_ARGS(&pDXGIDevice));
+	hr |= pDXGIDevice->GetAdapter(&pDXGIAdapter);
+	hr |= pDXGIAdapter->GetParent(IID_GFX_ARGS(&pDXGIFactory));
+#else
+	hr |= pD3D11Device->QueryInterface(IID_GFX_ARGS(&pDXGIDevice));
+	hr |= pDXGIDevice->GetAdapter(&pDXGIAdapter);
+	hr |= pDXGIAdapter->GetParent(IID_GFX_ARGS(&pDXGIFactory));
+#endif
 
 	// Create full HD swap chain with backbuffer
 	DXGI_SWAP_CHAIN_DESC1 swapChainDesc = { 0 };
-	swapChainDesc.Width = m_backbufferWidth;
-	swapChainDesc.Height = m_backbufferHeight;
+	swapChainDesc.Width = pDC->m_Width;
+	swapChainDesc.Height = pDC->m_Height;
 	swapChainDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
-	swapChainDesc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
+	swapChainDesc.BufferUsage = DXGI_USAGE_SHADER_INPUT | DXGI_USAGE_RENDER_TARGET_OUTPUT;
 	swapChainDesc.BufferCount = 2;
 	swapChainDesc.Stereo = false;
 	swapChainDesc.SampleDesc.Count = 1;
 	swapChainDesc.SampleDesc.Quality = 0;
 	swapChainDesc.Scaling = DXGI_SCALING_STRETCH;
 	swapChainDesc.SwapEffect = DXGI_SWAP_EFFECT_DISCARD;
-	swapChainDesc.Flags = 0;
-	#if defined(DURANGO_MONOD3D_DRIVER)
-	swapChainDesc.Flags |= DXGIX_SWAP_CHAIN_FLAG_QUANTIZATION_RGB_FULL;
-	#endif
-	m_backbufferWidth = swapChainDesc.Width;
-	m_backbufferHeight = swapChainDesc.Height;
+	swapChainDesc.Flags = DXGIX_SWAP_CHAIN_MATCH_XBOX360_AND_PC;
+	pDC->m_Width = swapChainDesc.Width;
+	pDC->m_Height = swapChainDesc.Height;
+
+	if (pDXGIFactory)
 	{
 		LOADING_TIME_PROFILE_SECTION_NAMED("CD3D9Renderer::SetRes(): CreateSwapChainForCoreWindow()");
-		hr |= dxgiFactory->CreateSwapChainForCoreWindow(m_DeviceWrapper.GetRealDevice(), (IUnknown*)gEnv->pWindow, &swapChainDesc, nullptr, &m_pSwapChain);
+#if (CRY_RENDERER_DIRECT3D >= 120)
+		hr |= pDXGIFactory->CreateSwapChainForCoreWindow(pD3D12Device, (IUnknown*)gEnv->pWindow, &swapChainDesc, nullptr, &pDXGISwapChain);
+		if (hr == S_OK && pDXGISwapChain)
+		{
+			pDC->m_pSwapChain = CCryDX12SwapChain::Create(pDX12Device, pDXGISwapChain, &swapChainDesc);
 	}
-	if (FAILED(hr)) return false;
+#else
+		hr |= pDXGIFactory->CreateSwapChainForCoreWindow(pD3D11Device, (IUnknown*)gEnv->pWindow, &swapChainDesc, nullptr, &pDXGISwapChain);
+		if (hr == S_OK && pDXGISwapChain)
+		{
+			pDC->m_pSwapChain = pDXGISwapChain;
+		}
+#endif
+	}
 
-	dxgiDevice->SetMaximumFrameLatency(MAX_FRAME_LATENCY);
-
-	D3DTexture* pBackBuffer;
+	if (!pDXGIFactory || !pDXGIAdapter || !pDXGISwapChain || !pD3D11Device || !pD3D11Context)
 	{
-		D3DSurface* pBuffer;
-		LOADING_TIME_PROFILE_SECTION_NAMED("CD3D9Renderer::SetRes(): backbuffer");
-		hr |= m_pSwapChain->GetBuffer(0, __uuidof(ID3D11Texture2D), (LPVOID*)&pBackBuffer);
-		hr |= GetDevice().CreateRenderTargetView(pBackBuffer, NULL, &pBuffer);
-
-		m_pBackBuffer = pBuffer;
+		CryWarning(VALIDATOR_MODULE_RENDERER, VALIDATOR_ERROR, "XBOX::CreateDevice() failed");
+		return false;
 	}
 
-	m_pBackBuffers.push_back(m_pBackBuffer); // For backbuffer swapping logic for DX11, 1 item in the collection will work as the "current index" is always 0 in non-DX12
-	SAFE_RELEASE(pBackBuffer);
+	{
+#if (CRY_RENDERER_DIRECT3D >= 111)
+		// TODOL check documentation if it is ok to ignore the context from create device? (both pointers are the same), some refcounting to look out for?\	
+		ID3D11Device1* pDevice1 = static_cast<ID3D11Device1*>(pD3D11Device);
+		m_DeviceWrapper.AssignDevice(pDevice1);
 
-	if (FAILED(hr)) return false;
+		D3DDeviceContext* pDeviceContext1 = nullptr;
+		GetDevice().GetImmediateContext1(&pDeviceContext1);
+		m_DeviceContextWrapper.AssignDeviceContext(pDeviceContext1);
+#else
+		m_DeviceWrapper.AssignDevice(pD3D11Device);
+		m_DeviceContextWrapper.AssignDeviceContext(pDeviceContext);
+#endif
+	}
 
-	#ifdef USE_PIX_DURANGO
+#if defined(DEVICE_SUPPORTS_PERFORMANCE_DEVICE)
+	{
+		// create performance context	and context
+		ID3DXboxPerformanceDevice* pPerformanceDevice = nullptr;
+		ID3DXboxPerformanceContext* pPerformanceDeviceContext = nullptr;
+
+		hr = GetDevice().QueryInterface(__uuidof(ID3DXboxPerformanceDevice), (void**)&pPerformanceDevice);
+		assert(hr == S_OK);
+
+		hr = GetDeviceContext().QueryInterface(__uuidof(ID3DXboxPerformanceContext), (void**)&pPerformanceDeviceContext);
+		assert(hr == S_OK);
+
+		m_PerformanceDeviceWrapper.AssignPerformanceDevice(m_pPerformanceDevice = pPerformanceDevice);
+		m_PerformanceDeviceContextWrapper.AssignPerformanceDeviceContext(m_pPerformanceDeviceContext = pPerformanceDeviceContext);
+	}
+
+	hr = GetPerformanceDevice().SetDriverHint(XBOX_DRIVER_HINT_CONSTANT_BUFFER_OFFSETS_IN_CONSTANTS, 1);
+	assert(hr == S_OK);
+#endif
+
+#ifdef USE_PIX_DURANGO
 	HRESULT res = GetDeviceContext().QueryInterface(__uuidof(ID3DUserDefinedAnnotation), reinterpret_cast<void**>(&m_pPixPerf));
 	assert(SUCCEEDED(res));
-	#endif
+#endif
 
-	float colBlack[4] = { 0 };
-	GetDeviceContext().ClearRenderTargetView(m_pBackBuffer, colBlack);
+	m_DevMan.Init();
 
 	// Post device creation callbacks
 	OnD3D11CreateDevice(GetDevice().GetRealDevice());
-
 	OnD3D11PostCreateDevice(GetDevice().GetRealDevice());
 
-#elif CRY_PLATFORM_MOBILE
+#elif CRY_PLATFORM_IOS || CRY_PLATFORM_ANDROID
 
 	m_bFullScreen = true;
 
-	if (!m_devInfo.CreateDevice(false, m_width, m_height, m_backbufferWidth, m_backbufferHeight, m_zbpp, OnD3D11CreateDevice, CreateWindowCallback))
+	if (!m_devInfo.CreateDevice(false, m_width, m_height, pDC->m_Width, pDC->m_Height, m_zbpp, OnD3D11CreateDevice, CreateWindowCallback))
 		return false;
 	m_devInfo.SyncInterval() = m_VSync ? 1 : 0;
 
@@ -2177,7 +2171,7 @@ bool CD3D9Renderer::SetRes()
 
 	AdjustWindowForChange();
 
-#elif CRY_PLATFORM_WINDOWS || CRY_PLATFORM_APPLE || CRY_PLATFORM_LINUX || CRY_PLATFORM_ANDROID
+#elif CRY_PLATFORM_WINDOWS || CRY_PLATFORM_APPLE || CRY_PLATFORM_LINUX
 
 	UnSetRes();
 
@@ -2185,14 +2179,14 @@ bool CD3D9Renderer::SetRes()
 	int height = m_height;
 	if (IsEditorMode())
 	{
-		// Note: Editor is a special case, m_backbufferWidth needs to be the same as m_width
+		// Note: Editor is a special case, pDC->m_Width needs to be the same as m_width
 		width = m_deskwidth;
 		height = m_deskheight;
 	}
-	
+
 	// DirectX9 and DirectX10 device creating
 	#if defined(SUPPORT_DEVICE_INFO)
-	if (m_devInfo.CreateDevice(!m_bFullScreen, width, height, m_backbufferWidth, m_backbufferHeight, m_zbpp, OnD3D11CreateDevice, CreateWindowCallback))
+	if (m_devInfo.CreateDevice(!m_bFullScreen, width, height, pDC->m_Width, pDC->m_Height, m_zbpp, OnD3D11CreateDevice, CreateWindowCallback))
 	{
 		m_devInfo.SyncInterval() = m_VSync ? 1 : 0;
 	}
@@ -2214,59 +2208,53 @@ bool CD3D9Renderer::SetRes()
 
 	AdjustWindowForChange();
 
-#elif CRY_PLATFORM_ORBIS
+#elif CRY_RENDERER_GNM
+	CGnmDevice::Create();
 
-	SCryVideoMode VideoMode;
+	CGnmSwapChain::SDesc desc;
+	desc.type = CGnmSwapChain::kTypeTelevision;
+	desc.width = m_width;
+	desc.height = m_height;
+	desc.format = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
+	desc.numBuffers = 2;
+	HRESULT hr = GnmCreateSwapChain(desc, &pDC->m_pSwapChain) ? S_OK : E_FAIL;
+
+	GetDevice().AssignDevice(gGnmDevice);
+	GetDeviceContext().AssignDeviceContext(gGnmDevice);
+
+	OnD3D11CreateDevice(gGnmDevice);
+	OnD3D11PostCreateDevice(gGnmDevice);
+
+#elif CRY_PLATFORM_ORBIS
 	DXOrbis::CreateCCryDXOrbisRenderDevice();
 	DXOrbis::CreateCCryDXOrbisSwapChain();
 	DXOrbis::Device()->RegisterDeviceThread();
 
-	VideoMode.ResolutionID = 0;
-	VideoMode.dwDisplayWidth = 1920;
-	VideoMode.dwDisplayHeight = 1080;
-	VideoMode.fIsWideScreen = true;
-	VideoMode.fIsInterlaced = false;
-	VideoMode.fIsHiDef = true;
-	VideoMode.RefreshRate = 60.0f;
-	SCryPresentParams d3dpp;
-	if (FAILED(SetupPresentationParameters(m_pixelAspectRatio, d3dpp, VideoMode)))
-	{
-		iLog->LogError("Error: Could not set up presentation parameters.");
-		return false;
-	}
-
 	DXGI_SWAP_CHAIN_DESC scDesc;
-	scDesc.BufferDesc.Width = m_backbufferWidth;
-	scDesc.BufferDesc.Height = m_backbufferHeight;
+	scDesc.BufferDesc.Width = m_width;
+	scDesc.BufferDesc.Height = m_height;
 	scDesc.BufferDesc.RefreshRate.Numerator = 0;
 	scDesc.BufferDesc.RefreshRate.Denominator = 1;
-	scDesc.BufferDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+	scDesc.BufferDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
 	scDesc.BufferDesc.ScanlineOrdering = DXGI_MODE_SCANLINE_ORDER_UNSPECIFIED;
 	scDesc.BufferDesc.Scaling = DXGI_MODE_SCALING_UNSPECIFIED;
 
 	scDesc.SampleDesc.Count = 1;
 	scDesc.SampleDesc.Quality = 0;
 
-	scDesc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
-	scDesc.BufferCount = 1;
+	scDesc.BufferUsage = DXGI_USAGE_SHADER_INPUT | DXGI_USAGE_RENDER_TARGET_OUTPUT;
+	scDesc.BufferCount = 2;
 	//scDesc.OutputWindow = (typeof(scDesc.OutputWindow))m_CurrContext->m_hWnd;
 	scDesc.Windowed = TRUE;
 	scDesc.SwapEffect = DXGI_SWAP_EFFECT_DISCARD;
 	scDesc.Flags = 0;
 	D3DDevice* pd3dDevice = NULL;
 	D3DDeviceContext* pd3dDeviceContext = NULL;
-	HRESULT hr = D3D11CreateDeviceAndSwapChain(NULL, D3D_DRIVER_TYPE_HARDWARE, NULL, 0, NULL, 0, 0, &scDesc, &m_pSwapChain, &pd3dDevice, NULL, &pd3dDeviceContext);
+
+	HRESULT hr = D3D11CreateDeviceAndSwapChain(NULL, D3D_DRIVER_TYPE_HARDWARE, NULL, 0, NULL, 0, 0, &scDesc, &pDC->m_pSwapChain, &pd3dDevice, NULL, &pd3dDeviceContext);
+
 	GetDevice().AssignDevice(pd3dDevice);
 	GetDeviceContext().AssignDeviceContext(pd3dDeviceContext);
-
-	D3DTexture* pBackBuffer = nullptr;
-	D3DSurface* pBackBufferRTV = nullptr;
-	hr |= m_pSwapChain->GetBuffer(0, __uuidof(ID3D11Texture2D), (LPVOID*)&pBackBuffer);
-	hr |= GetDevice().CreateRenderTargetView(pBackBuffer, NULL, &pBackBufferRTV);
-	m_pBackBuffer = pBackBufferRTV;
-	m_pBackBuffers.push_back(m_pBackBuffer);
-	SAFE_RELEASE(pBackBuffer);
-	SAFE_RELEASE(pBackBufferRTV);
 
 	OnD3D11CreateDevice(GetDevice().GetRealDevice());
 	OnD3D11PostCreateDevice(GetDevice().GetRealDevice());
@@ -2288,9 +2276,8 @@ bool CD3D9Renderer::SetRes()
 
 	m_DevBufMan.Init();
 
-
 #if defined(ENABLE_RENDER_AUX_GEOM)
-	if( m_pRenderAuxGeomD3D )
+	if (m_pRenderAuxGeomD3D)
 	{
 		m_pRenderAuxGeomD3D->RestoreDeviceObjects();
 	}
@@ -2299,131 +2286,6 @@ bool CD3D9Renderer::SetRes()
 	m_pStereoRenderer->InitDeviceAfterD3D();
 
 	return true;
-}
-
-bool SPixFormat::CheckSupport(D3DFormat Format, const char* szDescr, ETexture_Usage eTxUsage)
-{
-	bool bRes = true;
-	CD3D9Renderer* rd = gcpRendD3D;
-
-	UINT nOptions;
-	HRESULT hr = gcpRendD3D->GetDevice().CheckFormatSupport(Format, &nOptions);
-	if (SUCCEEDED(hr))
-	{
-		if (nOptions & (D3D11_FORMAT_SUPPORT_TEXTURE2D | D3D11_FORMAT_SUPPORT_TEXTURECUBE))
-		{
-			bool canAutoGenMips = (nOptions & D3D11_FORMAT_SUPPORT_MIP_AUTOGEN) != 0;
-			bool canReadSRGB = CTexture::IsDeviceFormatSRGBReadable(Format);
-
-			Init();
-			DeviceFormat = Format;
-#if !CRY_PLATFORM_ORBIS
-			MaxWidth = D3D11_REQ_TEXTURE2D_U_OR_V_DIMENSION;
-			MaxHeight = D3D11_REQ_TEXTURE2D_U_OR_V_DIMENSION;
-#else
-			MaxWidth = 2048;
-			MaxHeight = 2048;
-#endif
-			Desc = szDescr;
-			BitsPerPixel = CTexture::BitsPerPixel(CTexture::TexFormatFromDeviceFormat(Format));
-
-			bCanDS = (nOptions & D3D11_FORMAT_SUPPORT_DEPTH_STENCIL) != 0;
-			bCanRT = (nOptions & D3D11_FORMAT_SUPPORT_RENDER_TARGET) != 0;
-			bCanMultiSampleRT = (nOptions & D3D11_FORMAT_SUPPORT_MULTISAMPLE_RENDERTARGET) != 0;
-			bool bCanMips = (nOptions & D3D11_FORMAT_SUPPORT_MIP) != 0;
-			bCanMipsAutoGen = (nOptions & D3D11_FORMAT_SUPPORT_MIP_AUTOGEN) != 0;
-			bCanGather = (nOptions & D3D11_FORMAT_SUPPORT_SHADER_GATHER) != 0;
-			bCanGatherCmp = (nOptions & D3D11_FORMAT_SUPPORT_SHADER_GATHER_COMPARISON) != 0;
-			bCanBlend = (nOptions & D3D11_FORMAT_SUPPORT_BLENDABLE) != 0;
-			bCanReadSRGB = canReadSRGB;
-
-			if (bCanDS || bCanRT || bCanGather || bCanBlend || bCanReadSRGB || bCanMips)
-				iLog->Log("  %s%s%s%s%s%s%s%s%s%s",
-				          szDescr,
-				          bCanMips ? ", mips" : "",
-				          bCanMipsAutoGen ? " (autogen)" : "",
-				          bCanReadSRGB ? ", sRGB" : "",
-				          bCanBlend ? ", blend" : "",
-				          bCanDS ? ", DS" : "",
-				          bCanRT ? ", RT" : "",
-				          bCanMultiSampleRT ? " (multi-sampled)" : "",
-				          bCanGather ? ", gather" : "",
-				          bCanGatherCmp ? " (comparable)" : ""
-				          );
-			else
-				iLog->Log("  %s", szDescr);
-
-			Next = rd->m_hwTexFormatSupport.m_FirstPixelFormat;
-			rd->m_hwTexFormatSupport.m_FirstPixelFormat = this;
-		}
-		else
-			bRes = false;
-	}
-	else
-		bRes = false;
-
-	return bRes;
-}
-
-void SPixFormatSupport::CheckFormatSupport()
-{
-	iLog->Log("Using pixel texture formats:");
-
-	m_FirstPixelFormat = NULL;
-
-	m_FormatR8G8B8A8S.CheckSupport(DXGI_FORMAT_R8G8B8A8_SNORM, "R8G8B8A8S");
-	m_FormatR8G8B8A8.CheckSupport(DXGI_FORMAT_R8G8B8A8_UNORM, "R8G8B8A8");
-
-	m_FormatR1.CheckSupport(DXGI_FORMAT_R1_UNORM, "R1");
-	m_FormatA8.CheckSupport(DXGI_FORMAT_A8_UNORM, "A8");
-	m_FormatR8.CheckSupport(DXGI_FORMAT_R8_UNORM, "R8");
-	m_FormatR8S.CheckSupport(DXGI_FORMAT_R8_SNORM, "R8S");
-	m_FormatR16.CheckSupport(DXGI_FORMAT_R16_UNORM, "R16");
-	m_FormatR16F.CheckSupport(DXGI_FORMAT_R16_FLOAT, "R16F");
-	m_FormatR32F.CheckSupport(DXGI_FORMAT_R32_FLOAT, "R32F");
-	m_FormatR8G8.CheckSupport(DXGI_FORMAT_R8G8_UNORM, "R8G8");
-	m_FormatR8G8S.CheckSupport(DXGI_FORMAT_R8G8_SNORM, "R8G8S");
-	m_FormatR16G16.CheckSupport(DXGI_FORMAT_R16G16_UNORM, "R16G16");
-	m_FormatR16G16S.CheckSupport(DXGI_FORMAT_R16G16_SNORM, "R16G16S");
-	m_FormatR16G16F.CheckSupport(DXGI_FORMAT_R16G16_FLOAT, "R16G16F");
-	m_FormatR11G11B10F.CheckSupport(DXGI_FORMAT_R11G11B10_FLOAT, "R11G11B10F");
-	m_FormatR10G10B10A2.CheckSupport(DXGI_FORMAT_R10G10B10A2_UNORM, "R10G10B10A2");
-	m_FormatR16G16B16A16.CheckSupport(DXGI_FORMAT_R16G16B16A16_UNORM, "R16G16B16A16");
-	m_FormatR16G16B16A16S.CheckSupport(DXGI_FORMAT_R16G16B16A16_SNORM, "R16G16B16A16S");
-	m_FormatR16G16B16A16F.CheckSupport(DXGI_FORMAT_R16G16B16A16_FLOAT, "R16G16B16A16F");
-	m_FormatR32G32B32A32F.CheckSupport(DXGI_FORMAT_R32G32B32A32_FLOAT, "R32G32B32A32F");
-
-	m_FormatBC1.CheckSupport(DXGI_FORMAT_BC1_UNORM, "BC1");
-	m_FormatBC2.CheckSupport(DXGI_FORMAT_BC2_UNORM, "BC2");
-	m_FormatBC3.CheckSupport(DXGI_FORMAT_BC3_UNORM, "BC3");
-	m_FormatBC4U.CheckSupport(DXGI_FORMAT_BC4_UNORM, "BC4");
-	m_FormatBC4S.CheckSupport(DXGI_FORMAT_BC4_SNORM, "BC4S");
-	m_FormatBC5U.CheckSupport(DXGI_FORMAT_BC5_UNORM, "BC5");
-	m_FormatBC5S.CheckSupport(DXGI_FORMAT_BC5_SNORM, "BC5S");
-	m_FormatBC6UH.CheckSupport(DXGI_FORMAT_BC6H_UF16, "BC6UH");
-	m_FormatBC6SH.CheckSupport(DXGI_FORMAT_BC6H_SF16, "BC6SH");
-	m_FormatBC7.CheckSupport(DXGI_FORMAT_BC7_UNORM, "BC7");
-	m_FormatR9G9B9E5.CheckSupport(DXGI_FORMAT_R9G9B9E5_SHAREDEXP, "R9G9B9E5");
-
-	// Depth formats
-	m_FormatD32FS8.CheckSupport(DXGI_FORMAT_R32G8X24_TYPELESS, "R32FX8T");
-	m_FormatD32F.CheckSupport(DXGI_FORMAT_R32_TYPELESS, "R32T");
-	m_FormatD24S8.CheckSupport(DXGI_FORMAT_R24G8_TYPELESS, "R24G8T");
-	m_FormatD16.CheckSupport(DXGI_FORMAT_R16_TYPELESS, "R16T");
-
-	m_FormatB5G6R5.CheckSupport(DXGI_FORMAT_B5G6R5_UNORM, "B5G6R5");
-	m_FormatB5G5R5.CheckSupport(DXGI_FORMAT_B5G5R5A1_UNORM, "B5G5R5");
-	//	m_FormatB4G4R4A4.CheckSupport(DXGI_FORMAT_B4G4R4A4_UNORM, "B4G4R4A4");
-
-	m_FormatB8G8R8A8.CheckSupport(DXGI_FORMAT_B8G8R8A8_UNORM, "B8G8R8A8");
-	m_FormatB8G8R8X8.CheckSupport(DXGI_FORMAT_B8G8R8X8_UNORM, "B8G8R8X8");
-
-#if defined(OPENGL)
-	m_FormatEAC_R11.CheckSupport(DXGI_FORMAT_EAC_R11_UNORM, "EAC_R11");
-	m_FormatEAC_RG11.CheckSupport(DXGI_FORMAT_EAC_RG11_UNORM, "EAC_RG11");
-	m_FormatETC2.CheckSupport(DXGI_FORMAT_ETC2_UNORM, "ETC2");
-	m_FormatETC2A.CheckSupport(DXGI_FORMAT_ETC2A_UNORM, "ETC2A");
-#endif //defined(OPENGL)
 }
 
 void CD3D9Renderer::GetVideoMemoryUsageStats(size_t& vidMemUsedThisFrame, size_t& vidMemUsedRecently, bool bGetPoolsSizes)
@@ -2435,7 +2297,7 @@ void CD3D9Renderer::GetVideoMemoryUsageStats(size_t& vidMemUsedThisFrame, size_t
 	}
 	else
 	{
-#if CRY_USE_DX12
+#if (CRY_RENDERER_DIRECT3D >= 120) && defined(SUPPORT_DEVICE_INFO)
 		CD3D9Renderer* rd = gcpRendD3D;
 		DXGI_QUERY_VIDEO_MEMORY_INFO videoMemoryInfoA;
 		DXGI_QUERY_VIDEO_MEMORY_INFO videoMemoryInfoB;
@@ -2459,17 +2321,22 @@ HRESULT CALLBACK CD3D9Renderer::OnD3D11CreateDevice(D3DDevice* pd3dDevice)
 	LOADING_TIME_PROFILE_SECTION;
 	CD3D9Renderer* rd = gcpRendD3D;
 	rd->m_DeviceWrapper.AssignDevice(pd3dDevice);
+	GetDeviceObjectFactory().AssignDevice(pd3dDevice);
 
 #if defined(SUPPORT_DEVICE_INFO)
 	rd->m_DeviceContextWrapper.AssignDeviceContext(rd->m_devInfo.Context());
 #endif
 	rd->m_Features |= RFT_OCCLUSIONQUERY | RFT_ALLOWANISOTROPIC | RFT_HW_SM20 | RFT_HW_SM2X | RFT_HW_SM30 | RFT_HW_SM40 | RFT_HW_SM50;
 
-#if defined(SUPPORT_D3D_DEBUG_RUNTIME)
+#if defined(DX11_ALLOW_D3D_DEBUG_RUNTIME)
 	rd->m_d3dDebug.Init(pd3dDevice);
 	rd->m_d3dDebug.Update(ESeverityCombination(CV_d3d11_debugMuteSeverity->GetIVal()), CV_d3d11_debugMuteMsgID->GetString(), CV_d3d11_debugBreakOnMsgID->GetString());
 	rd->m_bUpdateD3DDebug = false;
 #endif
+
+	GetDeviceObjectFactory().AllocateNullResources();
+	GetDeviceObjectFactory().AllocatePredefinedSamplerStates();
+	GetDeviceObjectFactory().AllocatePredefinedInputLayouts();
 
 #if defined(SUPPORT_DEVICE_INFO)
 	rd->BindContextToThread(CryGetCurrentThreadId());
@@ -2477,7 +2344,13 @@ HRESULT CALLBACK CD3D9Renderer::OnD3D11CreateDevice(D3DDevice* pd3dDevice)
 	LARGE_INTEGER driverVersion;
 	driverVersion.LowPart = 0;
 	driverVersion.HighPart = 0;
-	rd->m_devInfo.Adapter()->CheckInterfaceSupport(__uuidof(ID3D10Device), &driverVersion);
+	#if CRY_RENDERER_VULKAN >= 10
+	auto version = VK_VERSION_1_0;
+	driverVersion.HighPart = (VK_VERSION_MAJOR(version) << 16) | VK_VERSION_MINOR(version);
+	driverVersion.LowPart = (VK_VERSION_PATCH(version) << 16) | VK_HEADER_VERSION;
+	#else
+	rd->m_devInfo.Adapter()->CheckInterfaceSupport(__uuidof(ID3D11Device), &driverVersion);
+	#endif
 	iLog->Log("D3D Adapter: Description: %ls", rd->m_devInfo.AdapterDesc().Description);
 	iLog->Log("D3D Adapter: Driver version (UMD): %d.%02d.%02d.%04d", HIWORD(driverVersion.u.HighPart), LOWORD(driverVersion.u.HighPart), HIWORD(driverVersion.u.LowPart), LOWORD(driverVersion.u.LowPart));
 	iLog->Log("D3D Adapter: VendorId = 0x%.4X", rd->m_devInfo.AdapterDesc().VendorId);
@@ -2507,7 +2380,7 @@ HRESULT CALLBACK CD3D9Renderer::OnD3D11CreateDevice(D3DDevice* pd3dDevice)
 	}
 
 	rd->m_nGPUs = min(rd->m_nGPUs, (uint32)MAX_GPU_NUM);
-	
+
 #endif
 	rd->m_adapterInfo.nNodeCount = max(rd->m_nGPUs, rd->m_adapterInfo.nNodeCount);
 	CryLogAlways("Active GPUs: %i", rd->m_nGPUs);
@@ -2552,13 +2425,13 @@ HRESULT CALLBACK CD3D9Renderer::OnD3D11CreateDevice(D3DDevice* pd3dDevice)
 	rd->m_bDeviceSupportsInstancing = true;
 #endif
 
-#if !defined(OPENGL_ES)
+#if !CRY_RENDERER_OPENGLES
 	rd->m_bDeviceSupportsGeometryShaders = (rd->m_Features & RFT_HW_SM40) != 0;
 #else
 	rd->m_bDeviceSupportsGeometryShaders = false;
 #endif
 
-#if !defined(OPENGL)
+#if !CRY_RENDERER_OPENGL && !CRY_RENDERER_VULKAN
 	rd->m_bDeviceSupportsTessellation = (rd->m_Features & RFT_HW_SM50) != 0;
 #else
 	rd->m_bDeviceSupportsTessellation = false;
@@ -2577,16 +2450,19 @@ HRESULT CALLBACK CD3D9Renderer::OnD3D11CreateDevice(D3DDevice* pd3dDevice)
 		// Find the needed texture formats.
 		rd->m_hwTexFormatSupport.CheckFormatSupport();
 
-		rd->m_HDR_FloatFormat_Scalar = eTF_R32F;
-		rd->m_HDR_FloatFormat = eTF_R16G16B16A16F;
-
 		if (rd->m_hwTexFormatSupport.m_FormatBC1.IsValid() || rd->m_hwTexFormatSupport.m_FormatBC2.IsValid() || rd->m_hwTexFormatSupport.m_FormatBC3.IsValid())
 			rd->m_Features |= RFT_COMPRESSTEXTURE;
+
+		// One of the two needs to be supported
+		if ((rd->m_zbpp == 32) && !rd->m_hwTexFormatSupport.m_FormatD32FS8.IsValid())
+			rd->m_zbpp = 24;
+		if ((rd->m_zbpp == 24) && !rd->m_hwTexFormatSupport.m_FormatD24S8.IsValid())
+			rd->m_zbpp = 32;
+
+		iLog->Log(" Renderer DepthBits: %d", rd->m_zbpp);
 	}
 
 	rd->m_Features |= RFT_HW_HDR;
-
-	iLog->Log(" Renderer HDR_Scalar: %s", CTexture::NameForTextureFormat(rd->m_HDR_FloatFormat_Scalar));
 
 	rd->m_nHDRType = 1;
 
@@ -2610,9 +2486,10 @@ HRESULT CALLBACK CD3D9Renderer::OnD3D11PostCreateDevice(D3DDevice* pd3dDevice)
 {
 	LOADING_TIME_PROFILE_SECTION;
 	CD3D9Renderer* rd = gcpRendD3D;
+	SDisplayContext* pDC = rd->GetBaseDisplayContext();
 	HRESULT hr;
 
-#if CAPTURE_REPLAY_LOG
+#if DX11_WRAPPABLE_INTERFACE && CAPTURE_REPLAY_LOG
 	rd->MemReplayWrapD3DDevice();
 #endif
 
@@ -2620,124 +2497,75 @@ HRESULT CALLBACK CD3D9Renderer::OnD3D11PostCreateDevice(D3DDevice* pd3dDevice)
 	rd->BindContextToThread(CryGetCurrentThreadId());
 	rd->m_DeviceContextWrapper.AssignDeviceContext(rd->m_devInfo.Context());
 
-	rd->m_pSwapChain = rd->m_devInfo.SwapChain();
-	rd->m_pBackBuffer = rd->m_devInfo.BackbufferRTV();
-	rd->m_pBackBuffers = rd->m_devInfo.BackbufferRTVs();
-	rd->m_pCurrentBackBufferIndex = rd->m_devInfo.GetCurrentBackBufferIndex();
+	pDC->m_pSwapChain = rd->m_devInfo.SwapChain();
 #endif
 
+#if CRY_RENDERER_GNM
+	CGnmSwapChain::SDesc desc = pDC->m_pSwapChain->GnmGetDesc();
+	rd->m_d3dsdBackBuffer.Width = desc.width;
+	rd->m_d3dsdBackBuffer.Height = desc.height;
+	rd->m_d3dsdBackBuffer.Format = desc.format;
+	rd->m_d3dsdBackBuffer.SampleDesc.Count = 1;
+	rd->m_d3dsdBackBuffer.SampleDesc.Quality = 0;
+	hr = pDC->m_pSwapChain->GnmIsValid() ? S_OK : E_FAIL;
+#else
 	DXGI_SWAP_CHAIN_DESC backBufferSurfaceDesc;
-	hr = rd->m_pSwapChain->GetDesc(&backBufferSurfaceDesc);
+	hr = pDC->m_pSwapChain->GetDesc(&backBufferSurfaceDesc);
 
 	ZeroMemory(&rd->m_d3dsdBackBuffer, sizeof(DXGI_SURFACE_DESC));
 	rd->m_d3dsdBackBuffer.Width = (UINT) backBufferSurfaceDesc.BufferDesc.Width;
 	rd->m_d3dsdBackBuffer.Height = (UINT) backBufferSurfaceDesc.BufferDesc.Height;
-#if defined(SUPPORT_DEVICE_INFO)
+	#if defined(SUPPORT_DEVICE_INFO)
 	rd->m_d3dsdBackBuffer.Format = backBufferSurfaceDesc.BufferDesc.Format;
 	rd->m_d3dsdBackBuffer.SampleDesc = backBufferSurfaceDesc.SampleDesc;
-	rd->m_ZFormat = rd->m_devInfo.AutoDepthStencilFmt();
-#elif CRY_PLATFORM_ORBIS
+	#elif CRY_RENDERER_VULKAN
 	rd->m_d3dsdBackBuffer.Format = backBufferSurfaceDesc.BufferDesc.Format;
 	rd->m_d3dsdBackBuffer.SampleDesc = backBufferSurfaceDesc.SampleDesc;
-	rd->m_ZFormat = rd->m_zbpp == 32 ? DXGI_FORMAT_D32_FLOAT_S8X24_UINT : DXGI_FORMAT_D24_UNORM_S8_UINT;
-#elif CRY_PLATFORM_DURANGO
+	#elif CRY_PLATFORM_ORBIS
+	rd->m_d3dsdBackBuffer.Format = backBufferSurfaceDesc.BufferDesc.Format;
+	rd->m_d3dsdBackBuffer.SampleDesc = backBufferSurfaceDesc.SampleDesc;
+	#elif CRY_PLATFORM_DURANGO
 	rd->m_d3dsdBackBuffer.Format = DXGI_FORMAT_R8G8B8A8_TYPELESS;
 	rd->m_d3dsdBackBuffer.SampleDesc.Count = 1;
 	rd->m_d3dsdBackBuffer.SampleDesc.Quality = 0;
-	rd->m_ZFormat = rd->m_zbpp == 32 ? DXGI_FORMAT_R32G8X24_TYPELESS : DXGI_FORMAT_R24G8_TYPELESS;
+	#endif
 #endif
 
 	if (FAILED(hr))
 		return hr;
 
-	// Prepare backbuffer texture
-	if (!rd->m_pBackBufferTexture)
-	{
-		ETEX_Format format = CTexture::TexFormatFromDeviceFormat(rd->m_d3dsdBackBuffer.Format);
-		rd->m_pBackBufferTexture = CTexture::CreateTextureObject("$SwapChainBackBuffer", 0, 0, 1, eTT_2D, FT_DONT_STREAM | FT_USAGE_RENDERTARGET, format);
-	}
-	if (!gEnv->IsEditor())
-	{
-#if CRY_PLATFORM_ORBIS
-		CCryDXOrbisTexture* pBackbuffer;
-		DXOrbis::m_pSwapChain->GetBuffer(0, ID3D11Texture2D__GUID, (void**)&pBackbuffer);
-		CDeviceTexture* const pDeviceTexture = new CDeviceTexture(pBackbuffer);
-#elif CRY_PLATFORM_DURANGO
-		D3DBaseTexture* pBackBuffer;
-		HRESULT hr = rd->m_pSwapChain->GetBuffer(0, __uuidof(ID3D11Texture2D), (LPVOID*)&pBackBuffer);
-		CDeviceTexture* const pDeviceTexture = new CDeviceTexture(pBackBuffer);
-#elif defined(SUPPORT_DEVICE_INFO)
-		CDeviceTexture* pDeviceTexture = new CDeviceTexture(rd->m_devInfo.BackbufferTex2D());
-#else
-		assert(0);
-#endif
-		rd->m_pBackBufferTexture->SetDevTexture(pDeviceTexture);
-		rd->m_pBackBufferTexture->SetWidth(rd->m_d3dsdBackBuffer.Width);
-		rd->m_pBackBufferTexture->SetHeight(rd->m_d3dsdBackBuffer.Height);
-		rd->m_pBackBufferTexture->ClosestFormatSupported(rd->m_pBackBufferTexture->GetDstFormat());
-	}
+	pDC->m_hWnd = rd->m_hWnd;
+	pDC->m_X = 0;
+	pDC->m_Y = 0;
+	pDC->m_Width = rd->m_d3dsdBackBuffer.Width;
+	pDC->m_Height = rd->m_d3dsdBackBuffer.Height;
 
-	const float clearDepth = CRenderer::CV_r_ReverseDepth ? 0.f : 1.f;
-	const uint clearStencil = 1;
-	const ColorF clearValues = ColorF(clearDepth, FLOAT(clearStencil), 0.f, 0.f);
+	pDC->m_nViewportWidth = pDC->m_Width;
+	pDC->m_nViewportHeight = pDC->m_Height;
+	pDC->m_nSSSamplesX = 1;
+	pDC->m_nSSSamplesY = 1;
+	pDC->m_bMainViewport = true;
 
-	int nDepthBufferWidth = rd->IsEditorMode() ? rd->m_d3dsdBackBuffer.Width : rd->GetOverlayWidth();
-	int nDepthBufferHeight = rd->IsEditorMode() ? rd->m_d3dsdBackBuffer.Height : rd->GetOverlayHeight();
-
-	rd->m_pZTexture = CTexture::CreateRenderTarget("$DeviceDepthScene", nDepthBufferWidth, nDepthBufferHeight,
-	                                               clearValues, eTT_2D, FT_USAGE_DEPTHSTENCIL | FT_DONT_RELEASE | FT_DONT_STREAM, rd->m_zbpp == 32 ? eTF_D32FS8 : eTF_D24S8);
-#if defined(DURANGO_USE_ESRAM)
-	rd->m_pZTexture->SetESRAMOffset(11894784 + 5955584 * 2);
-#endif
-
-	D3DTexture* pZTarget = rd->m_pZTexture->GetDevTexture()->Get2DTexture();
-	D3DDepthSurface* pZSurface = rd->m_pZTexture->GetDeviceDepthStencilView(0, -1, rd->m_d3dsdBackBuffer.SampleDesc.Count > 1, false);
-	rd->m_pZTexture->SetShaderResourceView(rd->m_pZTexture->GetDeviceDepthReadOnlySRV(0, -1, rd->m_d3dsdBackBuffer.SampleDesc.Count > 1), rd->m_d3dsdBackBuffer.SampleDesc.Count > 1);
-
-	rd->GetDeviceContext().ClearDepthStencilView(pZSurface, D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, clearDepth, clearStencil);
-
-	rd->m_DepthBufferOrig.pTexture = rd->m_pZTexture;
-	rd->m_DepthBufferOrig.pTarget = pZTarget;
-	rd->m_DepthBufferOrig.pSurface = pZSurface;
-	rd->m_DepthBufferOrig.nWidth = nDepthBufferWidth;
-	rd->m_DepthBufferOrig.nHeight = nDepthBufferHeight;
-	rd->m_DepthBufferOrig.bBusy = true;
-	rd->m_DepthBufferOrig.nFrameAccess = -2;
-
-	rd->m_DepthBufferOrigMSAA = rd->m_DepthBufferOrig;
-	rd->m_DepthBufferNative= rd->m_DepthBufferOrig;
-
-	// Create the native resolution depth stencil buffer for overlay rendering if needed
-	if (!rd->IsEditorMode() && (gcpRendD3D->GetOverlayWidth() != nDepthBufferWidth || gcpRendD3D->GetOverlayHeight() != nDepthBufferHeight))
-	{
-		rd->m_pNativeZTexture = CTexture::CreateRenderTarget("$DeviceDepthOverlay", rd->GetOverlayWidth(), rd->GetOverlayHeight(),
-		                                                     clearValues, eTT_2D, FT_USAGE_DEPTHSTENCIL | FT_DONT_RELEASE | FT_DONT_STREAM, rd->m_zbpp == 32 ? eTF_D32FS8 : eTF_D24S8);
-		
-		D3DTexture* pNativeZTarget = rd->m_pZTexture->GetDevTexture()->Get2DTexture();
-		D3DDepthSurface* pNativeZSurface = rd->m_pZTexture->GetDeviceDepthStencilView(0, -1, rd->m_d3dsdBackBuffer.SampleDesc.Count > 1, false);
-		rd->m_pNativeZTexture->SetShaderResourceView(rd->m_pNativeZTexture->GetDeviceDepthReadOnlySRV(0, -1, rd->m_d3dsdBackBuffer.SampleDesc.Count > 1), rd->m_d3dsdBackBuffer.SampleDesc.Count > 1);
-
-		rd->GetDeviceContext().ClearDepthStencilView(pNativeZSurface, D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, clearDepth, clearStencil);
-
-	rd->m_DepthBufferNative.pTexture = rd->m_pNativeZTexture;
-		rd->m_DepthBufferNative.pTarget = pNativeZTarget;
-		rd->m_DepthBufferNative.pSurface = pNativeZSurface;
-	rd->m_DepthBufferNative.nWidth = rd->m_nativeWidth;
-	rd->m_DepthBufferNative.nHeight = rd->m_nativeHeight;
-	}
+	rd->ObtainBackBuffers(pDC);
+	rd->ObtainDepthBuffer(pDC);
 
 	rd->m_nRTStackLevel[0] = 0;
 	if (rd->m_d3dsdBackBuffer.Width == rd->m_nativeWidth && rd->m_d3dsdBackBuffer.Height == rd->m_nativeHeight)
 	{
-		rd->m_RTStack[0][0].m_pDepth = rd->m_DepthBufferNative.pSurface;
-		rd->m_RTStack[0][0].m_pSurfDepth = &rd->m_DepthBufferNative;
+		rd->m_RTStack[0][0].m_pDepth = (D3DDepthSurface*)0xDEADBEEF; // rd->m_DepthBufferNative.pSurface;
+		rd->m_RTStack[0][0].m_pSurfDepth = (SDepthTexture*)0xDEADBEEF; // &rd->m_DepthBufferNative;
+	}
+	else if (rd->m_d3dsdBackBuffer.Width == rd->GetWidth() && rd->m_d3dsdBackBuffer.Height == rd->GetHeight())
+	{
+		rd->m_RTStack[0][0].m_pDepth = (D3DDepthSurface*)0xDEADBEEF; // rd->m_DepthBufferOrig.pSurface;
+		rd->m_RTStack[0][0].m_pSurfDepth = (SDepthTexture*)0xDEADBEEF; // &rd->m_DepthBufferOrig;
 	}
 	else
 	{
-		rd->m_RTStack[0][0].m_pDepth = NULL;
-		rd->m_RTStack[0][0].m_pSurfDepth = NULL;
+		rd->m_RTStack[0][0].m_pDepth = (D3DDepthSurface*)0xDEADBEEF; // NULL;
+		rd->m_RTStack[0][0].m_pSurfDepth = (SDepthTexture*)0xDEADBEEF; // NULL;
 	}
-	rd->m_RTStack[0][0].m_pTarget = rd->m_pBackBuffer;
+	rd->m_RTStack[0][0].m_pTarget = (D3DSurface*)0xDEADBEEF; // rd->m_pBackBuffer;
 	rd->m_RTStack[0][0].m_Width = rd->m_d3dsdBackBuffer.Width;
 	rd->m_RTStack[0][0].m_Height = rd->m_d3dsdBackBuffer.Height;
 #if CRY_PLATFORM_DURANGO
@@ -2749,15 +2577,13 @@ HRESULT CALLBACK CD3D9Renderer::OnD3D11PostCreateDevice(D3DDevice* pd3dDevice)
 	rd->m_RTStack[0][0].m_bWasSetD = false;
 	rd->m_nMaxRT2Commit = 0;
 	rd->m_pNewTarget[0] = &rd->m_RTStack[0][0];
-	rd->FX_SetActiveRenderTargets();
+	//	rd->FX_SetActiveRenderTargets();
 
 	for (int i = 0; i < RT_STACK_WIDTH; i++)
 	{
 		rd->m_pNewTarget[i] = &rd->m_RTStack[i][0];
 		rd->m_pCurTarget[i] = rd->m_pNewTarget[0]->m_pTex;
 	}
-
-	rd->CreateMSAADepthBuffer();
 
 	rd->ReleaseAuxiliaryMeshes();
 	rd->CreateAuxiliaryMeshes();
@@ -2769,19 +2595,6 @@ HRESULT CALLBACK CD3D9Renderer::OnD3D11PostCreateDevice(D3DDevice* pd3dDevice)
 
 	CHWShader_D3D::mfSetGlobalParams();
 	//rd->ResetToDefault();
-
-	if (rd->m_OcclQueries.capacity())
-	{
-		for (int a = 0; a < MAX_OCCL_QUERIES; a++)
-			rd->m_OcclQueries[a].Release();
-	}
-
-	{
-		LOADING_TIME_PROFILE_SECTION_NAMED("CD3D9Renderer::OnD3D10PostCreateDevice(): m_OcclQueries");
-		rd->m_OcclQueries.Reserve(MAX_OCCL_QUERIES);
-		for (int a = 0; a < MAX_OCCL_QUERIES; a++)
-			rd->m_OcclQueries[a].Create();
-	}
 
 	return S_OK;
 }
@@ -2919,7 +2732,7 @@ void EnableCloseButton(void* hWnd, bool enabled)
 #endif
 }
 
-#if defined(SUPPORT_D3D_DEBUG_RUNTIME)
+#if defined(DX11_ALLOW_D3D_DEBUG_RUNTIME)
 string D3DDebug_GetLastMessage()
 {
 	return gcpRendD3D->m_d3dDebug.GetLastMessage();

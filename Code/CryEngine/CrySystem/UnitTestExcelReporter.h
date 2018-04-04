@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 // -------------------------------------------------------------------------
 //  File name:   UnitTestExcelReporter.h
@@ -9,35 +9,50 @@
 //
 ////////////////////////////////////////////////////////////////////////////
 
-#ifndef __UnitTestExcelReporter_h__
-#define __UnitTestExcelReporter_h__
 #pragma once
 
 #include <CrySystem/CryUnitTest.h>
 #include "ExcelExport.h"
+#include "CryString/CryString.h"
+#include "CrySystem/ILog.h"
 
 namespace CryUnitTest
 {
-struct CUnitTestExcelReporter : public CExcelExportBase, public IUnitTestReporter
+//! Writes multiple excel documents for detailed results
+class CUnitTestExcelReporter : public CExcelExportBase, public IUnitTestReporter
 {
-	virtual void OnStartTesting(UnitTestRunContext& context);
-	virtual void OnFinishTesting(UnitTestRunContext& context);
-	virtual void OnTestStart(IUnitTest* pTest);
-	virtual void OnTestFinish(IUnitTest* pTest, float fRunTimeInMs, bool bSuccess, char const* failureDescription);
+public:
+	explicit CUnitTestExcelReporter(ILog& log) : m_log(log) {}
 
-	void         SaveJUnitCompatableXml();
+protected:
+	virtual void OnStartTesting(const SUnitTestRunContext& context) override {}
+	virtual void OnFinishTesting(const SUnitTestRunContext& context) override;
+	virtual void OnSingleTestStart(const IUnitTest& test) override;
+	virtual void OnSingleTestFinish(const IUnitTest& test, float fRunTimeInMs, bool bSuccess, char const* szFailureDescription) override;
 
-private:
-	struct TestResult
+	virtual void PostFinishTesting(const SUnitTestRunContext& context, bool bSavedReports) const {}
+
+	bool         SaveJUnitCompatableXml();
+
+	ILog& m_log;
+
+	struct STestResult
 	{
-		UnitTestInfo testInfo;
-		AutoTestInfo autoTestInfo;
-		float        fRunTimeInMs;
-		bool         bSuccess;
-		string       failureDescription;
+		CUnitTestInfo testInfo;
+		SAutoTestInfo autoTestInfo;
+		float         fRunTimeInMs;
+		bool          bSuccess;
+		string        failureDescription;
 	};
-	std::vector<TestResult> m_results;
-};
+	std::vector<STestResult> m_results;
 };
 
-#endif //__UnitTestExcelReporter_h__
+//! Extends Excel reporter by opening failed report
+class CUnitTestExcelNotificationReporter : public CUnitTestExcelReporter
+{
+public:
+	using CUnitTestExcelReporter::CUnitTestExcelReporter;
+protected:
+	virtual void PostFinishTesting(const SUnitTestRunContext& context, bool bSavedReports) const override;
+};
+}

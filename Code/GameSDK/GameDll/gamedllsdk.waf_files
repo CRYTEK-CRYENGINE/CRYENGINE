@@ -1282,19 +1282,12 @@
          "UI/Utils/LocalizedStringManager.h",
          "UI/Utils/ScreenLayoutManager.h",
          "UI/Utils/ScreenLayoutUtils.h"
-      ],
-			
-	  "Utility":
-	  [
-			"StatsAgentPipe.cpp",
-			"StatsAgentPipe.h"
-	  ]
-		},
-		"CryGameSDKDLL_uber_23.cpp":{
+      ]
+    },
+    "CryGameSDKDLL_uber_23.cpp":{
       "Utility":[
          "LaptopUtil.cpp",
          "NetInputChainDebug.cpp",
-         "StatsAgent.cpp",
          "Utility/Wiggle.cpp",
          "ShotDebug.cpp",
          "Utility/AttachmentUtils.cpp",
@@ -1307,7 +1300,6 @@
          "Utility/Hermite.h",
          "LaptopUtil.h",
          "NetInputChainDebug.h",
-         "StatsAgent.h",
          "Utility/Wiggle.h",
          "EventDistributor.h",
          "ShotDebug.h",
@@ -1343,11 +1335,13 @@
          "VehicleActionDeployRope.cpp",
          "VehicleActionEntityAttachment.cpp",
          "VehicleActionLandingGears.cpp",
+		 "VehicleSeatActionSound.cpp",
          "VehicleActionAutomaticDoor.h",
          "VehicleActionAutoTarget.h",
          "VehicleActionDeployRope.h",
          "VehicleActionEntityAttachment.h",
-         "VehicleActionLandingGears.h"
+         "VehicleActionLandingGears.h",
+		 "VehicleSeatActionSound.h"
       ]
 		},
 		"CryGameSDKDLL_uber_24.cpp":{
@@ -1391,8 +1385,6 @@
         "DynamicResponseSystem/GameTokenToDrsTranslator.h",
         "DynamicResponseSystem/ActionExecuteAudioTrigger.cpp",
         "DynamicResponseSystem/ActionExecuteAudioTrigger.h",
-        "DynamicResponseSystem/ActionSpeakLineBasedOnVariable.cpp",
-        "DynamicResponseSystem/ActionSpeakLineBasedOnVariable.h",
         "DynamicResponseSystem/ConditionDistanceToEntity.cpp",
         "DynamicResponseSystem/ConditionDistanceToEntity.h"
       ]

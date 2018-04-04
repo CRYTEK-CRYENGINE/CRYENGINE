@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #pragma once
 
@@ -25,7 +25,6 @@ protected:
 	bool                 m_bHighQualityMode;
 	bool                 m_bTexDirty;
 	_smart_ptr<CTexture> m_pGoboTex;
-	int                  m_samplerStateBilinearClamp;
 
 	CRenderPrimitive     m_occlusionPrimitive;
 	CRenderPrimitive     m_shaftGenPrimitive;
@@ -43,8 +42,8 @@ public:
 	EFlareType GetType() { return eFT_ImageSpaceShafts; }
 
 	void       InitEditorParamGroups(DynArray<FuncVariableGroup>& groups);
-	bool       PrepareOcclusion(CTexture* pDestRT, CTexture* pGoboTex, int samplerState);
-	bool       PrepareShaftGen(CTexture* pDestRT, CTexture* pOcclTex, int samplerState);
+	bool       PrepareOcclusion(CTexture* pDestRT, CTexture* pGoboTex, SamplerStateHandle samplerState);
+	bool       PrepareShaftGen(CTexture* pDestRT, CTexture* pOcclTex, SamplerStateHandle samplerState);
 	bool       PreparePrimitives(const SPreparePrimitivesContext& context);
 	void       Load(IXmlNode* pNode);
 

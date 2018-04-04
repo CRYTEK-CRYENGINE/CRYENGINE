@@ -7,7 +7,7 @@
 #include <CryCore/Platform/CryWindows.h>
 #include <ShellAPI.h> // requires <windows.h>
 
-// We need shell api for Current Root Extrection.
+// We need shell api for Current Root Extraction.
 #include "shlwapi.h"
 #pragma comment(lib, "shlwapi.lib")
 
@@ -20,8 +20,6 @@
 #include <CryCore/Platform/platform_impl.inl>
 #include <CrySystem/Profilers/FrameProfiler/FrameProfiler_impl.h>
 #include <CryString/StringUtils.h>
-
-#include <CrySystem/ParseEngineConfig.h>
 
 // Advise notebook graphics drivers to prefer discrete GPU when no explicit application profile exists
 extern "C"
@@ -121,7 +119,7 @@ int RunGame(const char* commandLine)
 		MessageBox(0, errorStr.c_str(), "Error", MB_OK | MB_DEFAULT_DESKTOP_ONLY);
 		// failed to load the dll
 
-		return 0;
+		return EXIT_FAILURE;
 	}
 
 	// get address of startup function
@@ -134,7 +132,7 @@ int RunGame(const char* commandLine)
 
 		MessageBox(0, "Specified Game DLL is not valid! Please make sure you are running the correct executable", "Error", MB_OK | MB_DEFAULT_DESKTOP_ONLY);
 
-		return 0;
+		return EXIT_FAILURE;
 	}
 #endif //!defined(_LIB)
 
@@ -155,16 +153,17 @@ int RunGame(const char* commandLine)
 		if (noPromptArg == NULL)
 			MessageBox(0, "Failed to create the GameStartup Interface!", "Error", MB_OK | MB_DEFAULT_DESKTOP_ONLY);
 
-		return 0;
+		return EXIT_FAILURE;
 	}
 
 	bool oaRun = false;
 
 	if (strstr(commandLine, "-norandom"))
-		startupParams.bNoRandom = 1;
+		startupParams.bNoRandom = true;
 
 	// main game loop
-	pFramework->StartEngine(startupParams);
+	if (!pFramework->StartEngine(startupParams))
+		return EXIT_FAILURE;
 
 	// The main engine loop has exited at this point, shut down
 	pFramework->ShutdownEngine();
@@ -172,13 +171,12 @@ int RunGame(const char* commandLine)
 	// Unload the framework dll
 	CryFreeLibrary(frameworkDll);
 
-	return 0;
+	return EXIT_SUCCESS;
 }
 
 //////////////////////////////////////////////////////////////////////////
 // Support relaunching for windows media center edition.
 //////////////////////////////////////////////////////////////////////////
-#if CRY_PLATFORM_WINDOWS
 bool ReLaunchMediaCenter()
 {
 	// Skip if not running on a Media Center
@@ -198,13 +196,12 @@ bool ReLaunchMediaCenter()
 	INT_PTR result = (INT_PTR)ShellExecute(NULL, TEXT("open"), szExpandedPath, NULL, NULL, SW_SHOWNORMAL);
 	return (result > 32);
 }
-#endif // CRY_PLATFORM_WINDOWS
-///////////////////////////////////////////////
+
 int APIENTRY WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow)
 {
-	// we need pass the full command line, including the filename
-	// lpCmdLine does not contain the filename.
+	// Note: lpCmdLine does not contain the filename.
 	string cmdLine = CryStringUtils::ANSIToUTF8(lpCmdLine);
+
 #if CAPTURE_REPLAY_LOG
 	#ifndef _LIB
 		CryLoadLibrary("CrySystem.dll");
@@ -212,31 +209,27 @@ int APIENTRY WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
 	CryGetIMemReplay()->StartOnCommandLine(cmdLine.c_str());
 #endif
 
-	//check for a restart
-	const char* pos = strstr(cmdLine.c_str(), "restart");
-	if (pos != NULL)
+	// Check for a restart
+	if (cmdLine.find("restart") != string::npos)
 	{
-		Sleep(5000);               //wait for old instance to be deleted
+		Sleep(5000);                     //wait for old instance to be deleted
 		return RunGame(cmdLine.c_str()); //pass the restart level if restarting
 	}
-	else
-		pos = strstr(cmdLine.c_str(), " -load ");// commandLine.find("load");
-
-	if (pos != NULL)
-		RunGame(cmdLine.c_str());
-
-	int nRes = RunGame(CryStringUtils::ANSIToUTF8(GetCommandLineA()).c_str());
-
-	//////////////////////////////////////////////////////////////////////////
-	// Support relaunching for windows media center edition.
-	//////////////////////////////////////////////////////////////////////////
-#if CRY_PLATFORM_WINDOWS
-	if (strstr(lpCmdLine, "ReLaunchMediaCenter") != 0)
+	else if (cmdLine.find(" -load") != string::npos)
 	{
-		ReLaunchMediaCenter();
+		return RunGame(cmdLine.c_str());
 	}
-#endif
-	//////////////////////////////////////////////////////////////////////////
+	else
+	{
+		// We need to pass the full command line, including the filename
+		int nRes = RunGame(CryStringUtils::ANSIToUTF8(GetCommandLineA()).c_str());
 
-	return nRes;
+		// Support relaunching for windows media center edition.
+		if (cmdLine.find("ReLaunchMediaCenter") != string::npos)
+		{
+			ReLaunchMediaCenter();
+		}
+
+		return nRes;
+	}
 }

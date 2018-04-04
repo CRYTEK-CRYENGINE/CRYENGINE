@@ -26,6 +26,7 @@ bop_meshupdate::~bop_meshupdate()
 
 %}
 %feature("nspace", 1);
+%ignore IPhysicsEngineModule;
 %ignore CreatePhysicalWorld;
 %csconstvalue("primitives.triangle.entype.type") GEOM_TRIMESH;
 %csconstvalue("primitives.heightfield.entype.type") GEOM_HEIGHTFIELD;

@@ -8,6 +8,13 @@
 #include <Cry3DEngine/IIndexedMesh.h>
 #include <CrySystem/ITimer.h>
 
+// To check for .mtl files in the current project root.
+#include <CrySystem/ISystem.h>
+#include <CrySystem/IProjectManager.h>
+#include <QtUtil.h>
+#include <QDirIterator> 
+
+
 void LogPrintf(const char* szFormat, ...);
 
 namespace FbxTool
@@ -502,58 +509,33 @@ static void GetAxesFromFbxAxisSystem(
 	}
 }
 
-// Debugging only
-static void DumpHierarchyToFile(const FbxNode* pRoot)
-{
-	FILE* pFile = fopen("last_fbx_scene.txt", "w");
-	if (!pFile)
-	{
-		return;
-	}
-
-	struct SStackItem
-	{
-		const FbxNode* pNode;
-		int            indentation;
-	};
-
-	std::vector<SStackItem> nodeStack;
-	SStackItem rootItem = { pRoot, 0 };
-	nodeStack.push_back(rootItem);
-
-	char buffer[2048];
-
-	while (!nodeStack.empty())
-	{
-		SStackItem item = nodeStack.back();
-		nodeStack.pop_back();
-
-		memset(buffer, 0, sizeof(buffer));
-
-		char* ptr = buffer;
-		for (int i = 0; i < item.indentation; ++i, ++ptr)
-		{
-			*ptr = '>';
-		}
-
-		snprintf(ptr, sizeof(buffer), "%s\n", item.pNode->GetName());
-		fprintf(pFile, "%s", buffer);
-
-		for (int i = 0; i < item.pNode->GetChildCount(); ++i)
-		{
-			SStackItem childItem;
-			childItem.pNode = item.pNode->GetChild(i);
-			childItem.indentation = item.indentation + 1;
-			nodeStack.push_back(childItem);
-		}
-	}
-
-	fflush(pFile);
-	fclose(pFile);
-}
-
 std::unique_ptr<CScene> CScene::ImportFile(const SFileImportDescriptor& desc)
 {
+	static CryCriticalSection m_fbxSdkMutex;
+	AUTO_LOCK(m_fbxSdkMutex); // The FBX SDK is not multi-threading safe.
+	return FbxTool::CScene::ImportFileInternal(desc); // This is supposed to be the only place where CScene::ImportFileInternal() is called.
+}
+
+class CNullCallbacks : public FbxTool::ICallbacks
+{
+public:
+	virtual void OnProgressMessage(const char* szMessage) override {}
+	virtual void OnProgressPercentage(int percentage) override {}
+	virtual void OnWarning(const char* szMessage) override {}
+	virtual void OnError(const char* szMessage) override {}
+
+public:
+	static CNullCallbacks theInstance;
+};
+CNullCallbacks CNullCallbacks::theInstance;
+
+std::unique_ptr<CScene> CScene::ImportFileInternal(SFileImportDescriptor desc)
+{
+	if (!desc.pCallbacks)
+	{
+		desc.pCallbacks = &CNullCallbacks::theInstance;
+	}
+
 	if (desc.filePath.empty())
 	{
 		LogPrintf("CScene::ImportFile failed. Path is null.\n");
@@ -564,10 +546,24 @@ std::unique_ptr<CScene> CScene::ImportFile(const SFileImportDescriptor& desc)
 		return nullptr;
 	}
 
+	// The OBJ importer looks for the material template library (.mtl) in the process current directory.
+	// Having different current directories for the RC and Sandbox we have an issue that RC and Sandbox may create a different scene for the same obj file.
+	if (stricmp(PathUtil::GetExt(desc.filePath.c_str()), "obj") == 0)
+	{
+		QDirIterator iterator(QtUtil::ToQString(GetISystem()->GetIProjectManager()->GetCurrentProjectDirectoryAbsolute()), { "*.mtl" }, QDir::Files);
+		if (iterator.hasNext())
+		{
+			const string filePath = QtUtil::ToString(iterator.next());
+			desc.pCallbacks->OnError(string().Format("Unable to import obj file if the project's root folder contains \"*.mtl\" files.\n"
+				"Please move all the *.mtl files outside the project root.\nFor example: %s", filePath.c_str()));
+			return nullptr;
+		}
+	}
+
 	TFbxManagerPtr pManager(FbxManager::Create());
 	if (!pManager)
 	{
-		LogPrintf("CScene::ImportFile failed. Creating FBX manager failed.\n");
+		LogPrintf("Creating FBX manager failed.\n");
 		if (desc.pCallbacks)
 		{
 			desc.pCallbacks->OnError("The import process failed");
@@ -579,7 +575,7 @@ std::unique_ptr<CScene> CScene::ImportFile(const SFileImportDescriptor& desc)
 	TIOSettingsPtr pIOSettings(FbxIOSettings::Create(pManager.get(), "FBX I/O settings"));
 	if (!pIOSettings)
 	{
-		LogPrintf("CScene::ImportFile failed. Creating FBX IO settings failed.\n");
+		LogPrintf("Creating FBX IO settings failed.\n");
 		if (desc.pCallbacks)
 		{
 			desc.pCallbacks->OnError("The import process failed");
@@ -593,7 +589,7 @@ std::unique_ptr<CScene> CScene::ImportFile(const SFileImportDescriptor& desc)
 	TImporterPtr pImporter(FbxImporter::Create(pManager.get(), "FBX importer"));
 	if (!pImporter)
 	{
-		LogPrintf("CScene::ImportFile failed. Creating FBX IO settings failed.\n");
+		LogPrintf("Creating FBX importer object failed.\n");
 		if (desc.pCallbacks)
 		{
 			desc.pCallbacks->OnError("The import process failed");
@@ -641,7 +637,7 @@ std::unique_ptr<CScene> CScene::ImportFile(const SFileImportDescriptor& desc)
 		}
 
 		const string message = string() + "Cannot initialize importer for " + desc.filePath + ": " + pImporter->GetStatus().GetErrorString();
-		desc.pCallbacks->OnWarning(message.c_str());
+		desc.pCallbacks->OnError(message.c_str());
 
 		return nullptr;
 	}
@@ -668,51 +664,34 @@ std::unique_ptr<CScene> CScene::ImportFile(const SFileImportDescriptor& desc)
 	TFbxScenePtr pScene(FbxScene::Create(pManager.get(), desc.filePath.c_str()));
 	if (!pScene)
 	{
-		LogPrintf("CScene::ImportFile failed. Creating scene failed.\n");
+		LogPrintf("Creating FBX scene failed.\n");
 		if (desc.pCallbacks)
 		{
-			desc.pCallbacks->OnError("The import process failed");
+			desc.pCallbacks->OnError("The import process failed. Try re-exporting the file with the latest FBX plug-in for your DCC package.");
 		}
 		return nullptr;
 	}
 
 	if (!pImporter->Import(pScene.get()))
 	{
-		LogPrintf("CScene::ImportFile failed. Importing scene failed.\n");
+		LogPrintf("Importing scene failed.\n");
 		if (desc.pCallbacks)
 		{
-			desc.pCallbacks->OnError("The import process failed");
+			desc.pCallbacks->OnError("The import process failed. Try re-exporting the file with the latest FBX plug-in for your DCC package.");
 		}
 		return nullptr;
 	}
-
-	DumpHierarchyToFile(pScene->GetRootNode());
 
 	pManager->SetIOSettings(nullptr);
 	pIOSettings.reset();
 	pImporter.reset();
 
-	LogPrintf("Importing .fbx file:\n");
-
 	// Log scale.
-
 	const FbxSystemUnit fileUnit = pScene->GetGlobalSettings().GetSystemUnit();
-	LogPrintf("\tfile unit scale factor = %f, multiplier = %f\n",
-	          fileUnit.GetScaleFactor(),
-	          fileUnit.GetMultiplier());
 	if (fileUnit.GetMultiplier() != 1.0)
 	{
 		LogPrintf("\tignoring multiplier with value != 1\n");
 	}
-
-	// Log axes.
-
-	FbxAxisSystem axisSystem = pScene->GetGlobalSettings().GetAxisSystem();
-	Axes::EAxis fwd, up;
-	GetAxesFromFbxAxisSystem(axisSystem, fwd, up);
-	LogPrintf("\taxis system = %s\n", ToString(axisSystem).c_str());
-	LogPrintf("\tup = %s, fwd = %s\n",
-	          ToString(up), ToString(fwd));
 
 	PostProcess(pScene.get(), desc);
 
@@ -1199,10 +1178,8 @@ SNode* CScene::Initialize(const SFileImportDescriptor& desc)
 
 	desc.pCallbacks->OnProgressMessage("Creating meshes...");
 	desc.pCallbacks->OnProgressPercentage(0);
-	LogPrintf("VisitNodeAttributesOfType: %f\n", pTimer->GetAsyncCurTime() - startTime);
 
 	desc.pCallbacks->OnProgressPercentage(100);
-	SCreateMeshStats::Log(stats);
 
 	// Delete unused materials.
 	{
@@ -1551,6 +1528,10 @@ static const SNode* FindChildNode(
 
 const SNode* FindChildNode(const SNode* pParent, const std::vector<string>& path)
 {
+	if (path.empty())
+	{
+		return nullptr;
+	}
 	return FindChildNode(pParent, path.cbegin(), path.cend());
 }
 

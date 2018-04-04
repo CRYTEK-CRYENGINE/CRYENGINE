@@ -1,22 +1,27 @@
 // Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
 
+using System;
 using CryEngine.Common;
 
 namespace CryEngine
-{
-	public delegate void EventHandler();
-	public delegate void EventHandler<T>(T arg);
-	public delegate void EventHandler<T1, T2>(T1 arg1, T2 arg2);
-	
+{	
 	/// <summary>
 	/// Processes CryEngine's system callback and generates events from it.
 	/// </summary>
 	public class SystemEventHandler : ISystemEventListener
 	{
-		public static EventHandler FocusChanged;
-		public static EventHandler PrecacheEnded;
-		public static EventHandler EditorGameStart; ///< Raised if Game-Mode was initiated in Editor 
-		public static EventHandler EditorGameEnded; ///< Raised if Game-Mode was exited in Editor 
+		public static Action FocusChanged;
+		public static Action PrecacheEnded;
+
+		/// <summary>
+		/// Raised if Game-Mode was initiated in Editor 
+		/// </summary>
+		public static Action EditorGameStart;
+
+		/// <summary>
+		/// Raised if Game-Mode was exited in Editor 
+		/// </summary>
+		public static Action EditorGameEnded;
 
 		internal static SystemEventHandler Instance { get; set; }
 
@@ -32,7 +37,7 @@ namespace CryEngine
 
 		void AddListener()
 		{
-			Engine.System.GetISystemEventDispatcher().RegisterListener(this);
+			Engine.System.GetISystemEventDispatcher().RegisterListener(this, "SystemEventHandler.cs");
 		}
 
 		public override void Dispose()
@@ -45,13 +50,13 @@ namespace CryEngine
 		/// <summary>
 		/// Called by CryEngine. Do not call directly.
 		/// </summary>
-#if WIN64
-		public override void OnSystemEvent(ESystemEvent evt, ulong wparam, ulong lparam)
+#if WIN64 || WIN86
+		public override void OnSystemEvent(ESystemEvent arg0, ulong wparam, ulong lparam)
 #elif WIN32
-		public override void OnSystemEvent (ESystemEvent evt, uint wparam, uint lparam)
+		public override void OnSystemEvent (ESystemEvent arg0, uint wparam, uint lparam)
 #endif
 		{
-			switch (evt)
+			switch (arg0)
 			{
 				case ESystemEvent.ESYSTEM_EVENT_CHANGE_FOCUS:
 					if (FocusChanged != null)

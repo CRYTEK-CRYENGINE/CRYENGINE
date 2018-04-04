@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #include "StdAfx.h"
 #include "ScriptTable.h"
@@ -786,7 +786,7 @@ bool CScriptTable::AddFunction(const SUserFunctionDesc& fd)
 	if (fd.sGlobalName[0] != 0)
 		cry_sprintf(sFuncSignature, "%s.%s(%s)", fd.sGlobalName, fd.sFunctionName, fd.sFunctionParams);
 	else
-		cry_sprintf(sFuncSignature, "%s.%s(%s)", fd.sGlobalName, fd.sFunctionName, fd.sFunctionParams);
+		cry_sprintf(sFuncSignature, "%s(%s)", fd.sFunctionName, fd.sFunctionParams);
 
 	PushRef();
 	lua_pushstring(L, fd.sFunctionName);

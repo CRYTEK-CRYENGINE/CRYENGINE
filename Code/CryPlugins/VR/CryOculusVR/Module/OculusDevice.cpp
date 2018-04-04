@@ -131,7 +131,7 @@ Device::Device()
 	UpdateCurrentIPD();
 
 	if (m_pSession && GetISystem()->GetISystemEventDispatcher())
-		GetISystem()->GetISystemEventDispatcher()->RegisterListener(this);
+		GetISystem()->GetISystemEventDispatcher()->RegisterListener(this, "CryVR::Oculus::Device");
 
 	gEnv->pSystem->GetHmdManager()->AddEventListener(this);
 }
@@ -650,6 +650,98 @@ void Device::DebugDraw(float& xPosLabel, float& yPosLabel) const
 // From SDK 0.6.0 we can only use Oculus SDK Rendering
 // Hence the code below
 // -------------------------------------------------------------------------
+bool Device::CreateSwapTextureSetD3D12(IUnknown* d3d12CommandQueue, TextureDesc desc, STextureSwapChain* set)
+{
+	ovrTextureSwapChainDesc textureDesc = {};
+	textureDesc.Type = ovrTexture_2D;
+	textureDesc.ArraySize = 1;
+	textureDesc.Format = OVR_FORMAT_R8G8B8A8_UNORM_SRGB;
+	textureDesc.Width = desc.width;
+	textureDesc.Height = desc.height;
+	textureDesc.MipLevels = 1;
+	textureDesc.SampleCount = 1;
+	textureDesc.StaticImage = ovrFalse;
+	textureDesc.MiscFlags = ovrTextureMisc_DX_Typeless;
+	textureDesc.BindFlags = ovrTextureBind_DX_RenderTarget;
+
+	ovrTextureSwapChain textureSwapChain = nullptr;
+	ovrResult result = ovr_CreateTextureSwapChainDX(
+		m_pSession,
+		d3d12CommandQueue,
+		&textureDesc,
+		&textureSwapChain);
+
+	if (!OVR_SUCCESS(result) || textureSwapChain == nullptr)
+	{
+		ovrErrorInfo errorInfo;
+		ovr_GetLastErrorInfo(&errorInfo);
+		gEnv->pLog->Log("[HMD][Oculus] %s [%s]", "Unable to create D3D12 texture swap chain!", *errorInfo.ErrorString ? errorInfo.ErrorString : "unspecified error");
+		return false;
+	}
+
+	int textureCount = 0;
+	ovr_GetTextureSwapChainLength(m_pSession, textureSwapChain, &textureCount);
+
+	set->pDeviceTextureSwapChain = textureSwapChain;
+	set->pTextures = new IUnknown*[textureCount];
+	for (uint32 t = 0; t < textureCount; ++t)
+	{
+		ID3D12Resource* pTex2D = nullptr;
+		result = ovr_GetTextureSwapChainBufferDX(m_pSession, textureSwapChain, t, IID_PPV_ARGS(&pTex2D));
+		set->pTextures[t] = pTex2D;
+
+		if (!OVR_SUCCESS(result) || pTex2D == nullptr)
+		{
+			ovrErrorInfo errorInfo;
+			ovr_GetLastErrorInfo(&errorInfo);
+			gEnv->pLog->Log("[HMD][Oculus] %s [%s]", "CreateSwapTextureSetD3D12 failed in ovr_GetTextureSwapChainBufferDX %s", *errorInfo.ErrorString ? errorInfo.ErrorString : "unspecified error", pTex2D == nullptr ? " - tex = nullptr" : "");
+			return false;
+		}
+	}
+	set->numTextures = textureCount;
+	return true;
+}
+
+bool Device::CreateMirrorTextureD3D12(IUnknown* d3d12CommandQueue, TextureDesc desc, STexture* texture)
+{
+	ovrMirrorTextureDesc mirrorDesc = {};
+	mirrorDesc.Format = OVR_FORMAT_R8G8B8A8_UNORM_SRGB;
+	mirrorDesc.Width = desc.width;
+	mirrorDesc.Height = desc.height;
+	mirrorDesc.MiscFlags = ovrTextureMisc_DX_Typeless;
+
+	ovrMirrorTexture mirrorTexture = nullptr;
+	ovrResult result = ovr_CreateMirrorTextureDX(
+		m_pSession,
+		d3d12CommandQueue,
+		&mirrorDesc,
+		&mirrorTexture);
+
+	if (!OVR_SUCCESS(result) || mirrorTexture == nullptr)
+	{
+		ovrErrorInfo errorInfo;
+		ovr_GetLastErrorInfo(&errorInfo);
+		gEnv->pLog->Log("[HMD][Oculus] %s [%s]", "Unable to create D3D12 mirror texture!", *errorInfo.ErrorString ? errorInfo.ErrorString : "unspecified error");
+		return false;
+	}
+
+	texture->pDeviceTexture = mirrorTexture;
+
+	ID3D12Resource* pTex2D = nullptr;
+	result = ovr_GetMirrorTextureBufferDX(m_pSession, mirrorTexture, IID_PPV_ARGS(&pTex2D));
+	if (!OVR_SUCCESS(result) || mirrorTexture == nullptr)
+	{
+		ovrErrorInfo errorInfo;
+		ovr_GetLastErrorInfo(&errorInfo);
+		gEnv->pLog->Log("[HMD][Oculus] %s [%s]", "Error: ovr_GetMirrorTextureBufferDX", *errorInfo.ErrorString ? errorInfo.ErrorString : "unspecified error");
+		return false;
+	}
+	texture->pTexture = pTex2D;
+
+	return true;
+}
+
+// -------------------------------------------------------------------------
 bool Device::CreateSwapTextureSetD3D11(IUnknown* d3d11Device, TextureDesc desc, STextureSwapChain* set)
 {
 	ovrTextureSwapChainDesc textureDesc = {};
@@ -702,7 +794,6 @@ bool Device::CreateSwapTextureSetD3D11(IUnknown* d3d11Device, TextureDesc desc, 
 	return true;
 }
 
-// -------------------------------------------------------------------------
 bool Device::CreateMirrorTextureD3D11(IUnknown* d3d11Device, TextureDesc desc, STexture* texture)
 {
 	ovrMirrorTextureDesc mirrorDesc = {};
@@ -729,99 +820,6 @@ bool Device::CreateMirrorTextureD3D11(IUnknown* d3d11Device, TextureDesc desc, S
 	texture->pDeviceTexture = mirrorTexture;
 
 	ID3D11Texture2D* pTex2D = nullptr;
-	result = ovr_GetMirrorTextureBufferDX(m_pSession, mirrorTexture, IID_PPV_ARGS(&pTex2D));
-	if (!OVR_SUCCESS(result) || mirrorTexture == nullptr)
-	{
-		ovrErrorInfo errorInfo;
-		ovr_GetLastErrorInfo(&errorInfo);
-		gEnv->pLog->Log("[HMD][Oculus] %s [%s]", "Error: ovr_GetMirrorTextureBufferDX", *errorInfo.ErrorString ? errorInfo.ErrorString : "unspecified error");
-		return false;
-	}
-	texture->pTexture = pTex2D;
-
-	return true;
-}
-
-// -------------------------------------------------------------------------
-bool Device::CreateSwapTextureSetD3D12(IUnknown* d3d12CommandQueue, TextureDesc desc, STextureSwapChain* set)
-{
-	ovrTextureSwapChainDesc textureDesc = {};
-	textureDesc.Type = ovrTexture_2D;
-	textureDesc.ArraySize = 1;
-	textureDesc.Format = OVR_FORMAT_R8G8B8A8_UNORM_SRGB;
-	textureDesc.Width = desc.width;
-	textureDesc.Height = desc.height;
-	textureDesc.MipLevels = 1;
-	textureDesc.SampleCount = 1;
-	textureDesc.StaticImage = ovrFalse;
-	textureDesc.MiscFlags = ovrTextureMisc_DX_Typeless;
-	textureDesc.BindFlags = ovrTextureBind_DX_RenderTarget;
-
-	ovrTextureSwapChain textureSwapChain = nullptr;
-	ovrResult result = ovr_CreateTextureSwapChainDX(
-	  m_pSession,
-	  d3d12CommandQueue,
-	  &textureDesc,
-	  &textureSwapChain);
-
-	if (!OVR_SUCCESS(result) || textureSwapChain == nullptr)
-	{
-		ovrErrorInfo errorInfo;
-		ovr_GetLastErrorInfo(&errorInfo);
-		gEnv->pLog->Log("[HMD][Oculus] %s [%s]", "Unable to create D3D12 texture swap chain!", *errorInfo.ErrorString ? errorInfo.ErrorString : "unspecified error");
-		return false;
-	}
-
-	int textureCount = 0;
-	ovr_GetTextureSwapChainLength(m_pSession, textureSwapChain, &textureCount);
-
-	set->pDeviceTextureSwapChain = textureSwapChain;
-	set->pTextures = new IUnknown*[textureCount];
-	for (uint32 t = 0; t < textureCount; ++t)
-	{
-		ID3D12Resource* pTex2D = nullptr;
-		result = ovr_GetTextureSwapChainBufferDX(m_pSession, textureSwapChain, t, IID_PPV_ARGS(&pTex2D));
-		set->pTextures[t] = pTex2D;
-
-		if (!OVR_SUCCESS(result) || pTex2D == nullptr)
-		{
-			ovrErrorInfo errorInfo;
-			ovr_GetLastErrorInfo(&errorInfo);
-			gEnv->pLog->Log("[HMD][Oculus] %s [%s]", "CreateSwapTextureSetD3D12 failed in ovr_GetTextureSwapChainBufferDX %s", *errorInfo.ErrorString ? errorInfo.ErrorString : "unspecified error", pTex2D == nullptr ? " - tex = nullptr" : "");
-			return false;
-		}
-	}
-	set->numTextures = textureCount;
-	return true;
-}
-
-// -------------------------------------------------------------------------
-bool Device::CreateMirrorTextureD3D12(IUnknown* d3d12CommandQueue, TextureDesc desc, STexture* texture)
-{
-	ovrMirrorTextureDesc mirrorDesc = {};
-	mirrorDesc.Format = OVR_FORMAT_R8G8B8A8_UNORM_SRGB;
-	mirrorDesc.Width = desc.width;
-	mirrorDesc.Height = desc.height;
-	mirrorDesc.MiscFlags = ovrTextureMisc_DX_Typeless;
-
-	ovrMirrorTexture mirrorTexture = nullptr;
-	ovrResult result = ovr_CreateMirrorTextureDX(
-	  m_pSession,
-	  d3d12CommandQueue,
-	  &mirrorDesc,
-	  &mirrorTexture);
-
-	if (!OVR_SUCCESS(result) || mirrorTexture == nullptr)
-	{
-		ovrErrorInfo errorInfo;
-		ovr_GetLastErrorInfo(&errorInfo);
-		gEnv->pLog->Log("[HMD][Oculus] %s [%s]", "Unable to create D3D12 mirror texture!", *errorInfo.ErrorString ? errorInfo.ErrorString : "unspecified error");
-		return false;
-	}
-
-	texture->pDeviceTexture = mirrorTexture;
-
-	ID3D12Resource* pTex2D = nullptr;
 	result = ovr_GetMirrorTextureBufferDX(m_pSession, mirrorTexture, IID_PPV_ARGS(&pTex2D));
 	if (!OVR_SUCCESS(result) || mirrorTexture == nullptr)
 	{

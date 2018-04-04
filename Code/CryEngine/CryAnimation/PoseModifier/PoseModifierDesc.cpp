@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #include "stdafx.h"
 #include "PoseModifierDesc.h"
@@ -310,7 +310,7 @@ void Serialize(Serialization::IArchive& ar, PoseModifier::SDynamicsSpringDesc& v
 
 	if (ar.isInput())
 	{
-		value.length = MAX(value.length, 0);
+		value.length = std::max(value.length, 0.f);
 		value.stiffness = clamp_tpl(value.stiffness, 0.0f, 100.f);
 		value.damping = clamp_tpl(value.damping, 0.0f, 100.0f);
 	}
@@ -341,7 +341,7 @@ void Serialize(Serialization::IArchive& ar, PoseModifier::SDynamicsPendulumDesc&
 	ar(value.bLimitPlane1, "limitPlane1", "Limit Plane Negative");
 	if (ar.isInput())
 	{
-		value.length = MAX(value.length, 0.1f);
+		value.length = std::max(value.length, 0.1f);
 
 		value.aimVector.NormalizeSafe(Vec3(1.0f, 0.0f, 0.0f));
 

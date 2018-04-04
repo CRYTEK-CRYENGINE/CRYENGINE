@@ -6,8 +6,8 @@ namespace CryEngine
 {
 	public class ManagedMovementRequest : CLastingMovementRequest
 	{
-		private GCHandle _handle;
-		private Action<MovementRequestResult> _callback;
+		private readonly GCHandle _handle;
+		private readonly Action<MovementRequestResult> _callback;
 
 		public ManagedMovementRequest(Action<MovementRequestResult> callback)
 		{

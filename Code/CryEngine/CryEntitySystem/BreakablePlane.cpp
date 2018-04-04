@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 /*************************************************************************
    -------------------------------------------------------------------------
@@ -1071,7 +1071,7 @@ int CBreakablePlane::ProcessImpact(const SProcessImpactIn& in, SProcessImpactOut
 					{
 						// create a new entity for this stat obj
 						if (!pClass)
-							pClass = pEntitySystem->GetClassRegistry()->FindClass("Default");
+							pClass = pEntitySystem->GetClassRegistry()->GetDefaultClass();
 						params.sName = "breakable_plane_piece";
 						params.pClass = pClass;
 						params.nFlags = ENTITY_FLAG_CLIENT_ONLY | ENTITY_FLAG_NO_PROXIMITY;

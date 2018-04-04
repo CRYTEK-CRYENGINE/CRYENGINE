@@ -1,35 +1,26 @@
 {
-	"ResourceCompilerABC_uber_0.cpp":
+	"NoUberFile":
 	{
 		"AlembicCompiler":
 		[
 			"AlembicCompiler.cpp",
-			"AlembicConvertor.cpp",
+			"AlembicConverter.cpp",
 			"GeomCacheBlockCompressor.cpp",
 			"GeomCacheEncoder.cpp",
 			"GeomCacheWriter.cpp",
 			"AlembicCompiler.h",
-			"AlembicConvertor.h",
+			"AlembicConverter.h",
 			"GeomCache.h",
 			"GeomCacheBlockCompressor.h",
 			"GeomCacheEncoder.h",
 			"GeomCacheWriter.h"
-		]
-	},
-	"ResourceCompilerABC_uber_1.cpp":
-	{
+		],
 		"CryCommonTools":
 		[
 			"../../CryCommonTools/PathHelpers.cpp",
 			"../../CryCommonTools/StringHelpers.cpp",
 			"../../CryCommonTools/PathHelpers.h",
-			"../../CryCommonTools/StringHelpers.h",
-			"../../CryCommonTools/Metadata/Metadata.cpp",
-			"../../CryCommonTools/Metadata/Metadata.h",
-			"../../CryCommonTools/Metadata/MetadataHelpers.cpp",
-			"../../CryCommonTools/Metadata/MetadataHelpers.h",
-			"../../CryCommonTools/CryGUIDHelper.cpp",
-			"../../CryCommonTools/CryGUIDHelper.h"
+			"../../CryCommonTools/StringHelpers.h"
 		],
 		"MeshCompiler (Cry3DEngine)":
 		[

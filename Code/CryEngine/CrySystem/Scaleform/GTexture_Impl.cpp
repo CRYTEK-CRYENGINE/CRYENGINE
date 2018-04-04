@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #include "StdAfx.h"
 
@@ -206,9 +206,8 @@ bool GTextureXRender::InitTextureInternal(ETEX_Format texFmt, int32 width, int32
 {
 	IRenderer* pRenderer(gEnv->pRenderer);
 
-	bool rgba((pRenderer->GetFeatures() & RFT_RGBA) != 0 || pRenderer->GetRenderType() >= eRT_DX11);
-	// MapImageType returns BGR/BGRA for RGB/RGBA for lack of RGB-enum, cast BGR? to RGB? here
-	bool swapRB(texFmt == eTF_B8G8R8 || texFmt == eTF_B8G8R8X8 || texFmt == eTF_B8G8R8A8);
+	bool bRGBA((pRenderer->GetFeatures() & RFT_RGBA) != 0 || pRenderer->GetRenderType() >= ERenderType::Direct3D11);
+	bool bSwapRB(texFmt == eTF_B8G8R8 || texFmt == eTF_B8G8R8X8 || texFmt == eTF_B8G8R8A8);
 	ETEX_Format texFmtOrig(texFmt);
 
 	// expand RGB to RGBX if necessary
@@ -233,10 +232,10 @@ bool GTextureXRender::InitTextureInternal(ETEX_Format texFmt, int32 width, int32
 		texFmt = eTF_B8G8R8X8;
 	}
 
-	if (swapRB)
+	if (bSwapRB)
 	{
 		// software-swap if no RGBA layout supported
-		if (!rgba)
+		if (!bRGBA)
 			SwapRB(pData, width, height, pitch);
 		// otherwise swap by casting to swizzled format
 		else if (texFmt == eTF_B8G8R8X8 || texFmt == eTF_B8G8R8A8)
@@ -306,7 +305,7 @@ bool GTextureXRender::InitTextureInternal(ETEX_Format texFmt, int32 width, int32
 		SwapEndian(pData, width, height, pitch);
 	#endif
 
-	if (swapRB && !rgba)
+	if (bSwapRB && !bRGBA)
 		SwapRB(pData, width, height, pitch);
 
 	return m_texID > 0;

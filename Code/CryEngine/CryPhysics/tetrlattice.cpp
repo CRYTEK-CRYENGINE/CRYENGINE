@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #include "StdAfx.h"
 
@@ -1021,8 +1021,9 @@ int *CBreakableGrid2d::BreakIntoChunks(const Vec2 &pt, float r, Vec2 *&ptout, in
 	if (ry<=0.0f)
 		ry = r;
 
+	SScopedRandomSeedChange seedChange;
 	if (seed!=-1)
-		gEnv->pSystem->GetRandomGenerator().Seed((unsigned int)seed);
+		seedChange.Seed((unsigned int)seed);
 
 	nCells = m_coord.size.x*m_coord.size.y;
 	for(szQueue=8; szQueue<(nCells>>2); szQueue<<=1);

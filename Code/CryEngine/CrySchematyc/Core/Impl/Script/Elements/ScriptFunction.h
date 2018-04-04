@@ -1,9 +1,9 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #pragma once
 
-#include <Schematyc/Script/Elements/IScriptFunction.h>
-#include <Schematyc/SerializationUtils/MultiPassSerializer.h>
+#include <CrySchematyc/Script/Elements/IScriptFunction.h>
+#include <CrySchematyc/SerializationUtils/MultiPassSerializer.h>
 
 #include "Script/ScriptElementBase.h"
 #include "Script/ScriptParam.h"
@@ -19,7 +19,7 @@ class CScriptFunction : public CScriptElementBase<IScriptFunction>, public CMult
 public:
 
 	CScriptFunction();
-	CScriptFunction(const SGUID& guid, const char* szName);
+	CScriptFunction(const CryGUID& guid, const char* szName);
 
 	// IScriptElement
 	virtual void EnumerateDependencies(const ScriptDependencyEnumerator& enumerator, EScriptDependencyType type) const override;
@@ -32,12 +32,12 @@ public:
 	virtual const char*  GetAuthor() const override;
 	virtual const char*  GetDescription() const override;
 	virtual uint32       GetInputCount() const override;
-	virtual SGUID        GetInputGUID(uint32 inputIdx) const override;
+	virtual CryGUID        GetInputGUID(uint32 inputIdx) const override;
 	virtual const char*  GetInputName(uint32 inputIdx) const override;
 	virtual SElementId   GetInputTypeId(uint32 inputIdx) const override;
 	virtual CAnyConstPtr GetInputData(uint32 inputIdx) const override;
 	virtual uint32       GetOutputCount() const override;
-	virtual SGUID        GetOutputGUID(uint32 outputIdx) const override;
+	virtual CryGUID        GetOutputGUID(uint32 outputIdx) const override;
 	virtual const char*  GetOutputName(uint32 outputIdx) const override;
 	virtual SElementId   GetOutputTypeId(uint32 outputIdx) const override;
 	virtual CAnyConstPtr GetOutputData(uint32 outputIdx) const override;

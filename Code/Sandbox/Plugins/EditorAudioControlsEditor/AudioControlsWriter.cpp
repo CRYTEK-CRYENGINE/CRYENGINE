@@ -5,136 +5,123 @@
 #include <CryString/StringUtils.h>
 #include <CrySystem/File/CryFile.h>
 #include <CrySystem/ISystem.h>
-#include "ATLControlsModel.h"
+#include "AudioAssetsManager.h"
 #include <ISourceControl.h>
 #include <IEditor.h>
 #include <IAudioSystemEditor.h>
 #include <IAudioSystemItem.h>
 #include "QtUtil.h"
 #include <ConfigurationManager.h>
-
 #include <QModelIndex>
-#include <QStandardItemModel>
 
 using namespace PathUtil;
 
 namespace ACE
 {
 
-const string CAudioControlsWriter::ms_sControlsPath = AUDIO_SYSTEM_DATA_ROOT CRY_NATIVE_PATH_SEPSTR "ace" CRY_NATIVE_PATH_SEPSTR;
-const string CAudioControlsWriter::ms_sLevelsFolder = "levels" CRY_NATIVE_PATH_SEPSTR;
+const string CAudioControlsWriter::ms_controlsPath = AUDIO_SYSTEM_DATA_ROOT CRY_NATIVE_PATH_SEPSTR "ace" CRY_NATIVE_PATH_SEPSTR;
+const string CAudioControlsWriter::ms_levelsFolder = "levels" CRY_NATIVE_PATH_SEPSTR;
 const uint CAudioControlsWriter::ms_currentFileVersion = 2;
 
-string TypeToTag(EACEControlType eType)
+string TypeToTag(EItemType eType)
 {
 	switch (eType)
 	{
-	case eACEControlType_RTPC:
+	case eItemType_RTPC:
 		return "ATLRtpc";
-	case eACEControlType_Trigger:
+	case eItemType_Trigger:
 		return "ATLTrigger";
-	case eACEControlType_Switch:
+	case eItemType_Switch:
 		return "ATLSwitch";
-	case eACEControlType_State:
+	case eItemType_State:
 		return "ATLSwitchState";
-	case eACEControlType_Preload:
+	case eItemType_Preload:
 		return "ATLPreloadRequest";
-	case eACEControlType_Environment:
+	case eItemType_Environment:
 		return "ATLEnvironment";
 	}
 	return "";
 }
 
-CAudioControlsWriter::CAudioControlsWriter(CATLControlsModel* pATLModel, QStandardItemModel* pLayoutModel, IAudioSystemEditor* pAudioSystemImpl, std::set<string>& previousLibraryPaths)
-	: m_pATLModel(pATLModel)
-	, m_pLayoutModel(pLayoutModel)
+CAudioControlsWriter::CAudioControlsWriter(CAudioAssetsManager* pAssetsManager, IAudioSystemEditor* pAudioSystemImpl, std::set<string>& previousLibraryPaths)
+	: m_pAssetsManager(pAssetsManager)
 	, m_pAudioSystemImpl(pAudioSystemImpl)
 {
-	if (pATLModel && pLayoutModel && pAudioSystemImpl)
+	if (pAssetsManager && pAudioSystemImpl)
 	{
-		m_pLayoutModel->blockSignals(true);
-
-		int i = 0;
-		QModelIndex root = pLayoutModel->index(0, 0);
-		if (root.isValid())
+		const size_t libCount = pAssetsManager->GetLibraryCount();
+		for (size_t i = 0; i < libCount; ++i)
 		{
-			QModelIndex index = root.child(0, 0);
-			while (index.isValid())
-			{
-				WriteLibrary(QtUtil::ToString(index.data(Qt::DisplayRole).toString()), index);
-				++i;
-				index = index.sibling(i, 0);
-			}
-
-			// Delete libraries that don't exist anymore from disk
-			std::set<string> librariesToDelete;
-			std::set_difference(previousLibraryPaths.begin(), previousLibraryPaths.end(), m_foundLibraryPaths.begin(), m_foundLibraryPaths.end(),
-			                    std::inserter(librariesToDelete, librariesToDelete.begin()));
-
-			for (auto it = librariesToDelete.begin(); it != librariesToDelete.end(); ++it)
-			{
-				string sFullFilePath = PathUtil::GetGameFolder() + CRY_NATIVE_PATH_SEPSTR + *it;
-				DeleteLibraryFile(sFullFilePath);
-			}
-			previousLibraryPaths = m_foundLibraryPaths;
+			CAudioLibrary& library = *pAssetsManager->GetLibrary(i);
+			WriteLibrary(library);
+			library.SetModified(false);
 		}
 
-		m_pLayoutModel->blockSignals(false);
+		// Delete libraries that don't exist anymore from disk
+		std::set<string> librariesToDelete;
+		std::set_difference(previousLibraryPaths.begin(), previousLibraryPaths.end(), m_foundLibraryPaths.begin(), m_foundLibraryPaths.end(),
+		                    std::inserter(librariesToDelete, librariesToDelete.begin()));
+
+		for (auto const& name : librariesToDelete)
+		{
+			string const fullFilePath = PathUtil::GetGameFolder() + CRY_NATIVE_PATH_SEPSTR + name;
+			DeleteLibraryFile(fullFilePath);
+		}
+
+		previousLibraryPaths = m_foundLibraryPaths;
 	}
 }
 
-void CAudioControlsWriter::WriteLibrary(const string& sLibraryName, QModelIndex root)
+void CAudioControlsWriter::WriteLibrary(CAudioLibrary& library)
 {
-	if (root.isValid())
+	if (library.IsModified())
 	{
-		TLibraryStorage library;
-		int i = 0;
-		QModelIndex child = root.child(0, 0);
-		while (child.isValid())
+		LibraryStorage libraryXmlNodes;
+
+		const size_t itemCount = library.ChildCount();
+		for (size_t i = 0; i < itemCount; ++i)
 		{
-			WriteItem(child, "", library, root.data(eDataRole_Modified).toBool());
-			child = root.child(++i, 0);
+			WriteItem(library.GetChild(i), "", libraryXmlNodes);
 		}
 
 		// If empty, force it to write an empty library at the root
-		if (library.empty())
+		if (libraryXmlNodes.empty())
 		{
-			library[m_pATLModel->GetGlobalScope()].bDirty = true;
+			libraryXmlNodes[Utils::GetGlobalScope()].bDirty = true;
 		}
 
-		TLibraryStorage::const_iterator it = library.begin();
-		TLibraryStorage::const_iterator end = library.end();
-		for (; it != end; ++it)
+		for (auto const& libraryPair : libraryXmlNodes)
 		{
-			string sLibraryPath;
-			const Scope scope = it->first;
-			if (scope == m_pATLModel->GetGlobalScope())
+			string libraryPath = ms_controlsPath;
+			const Scope scope = libraryPair.first;
+			if (scope == Utils::GetGlobalScope())
 			{
 				// no scope, file at the root level
-				sLibraryPath = ms_sControlsPath + sLibraryName;
+				libraryPath += library.GetName();
 			}
 			else
 			{
 				// with scope, inside level folder
-				sLibraryPath = ms_sControlsPath + ms_sLevelsFolder + m_pATLModel->GetScopeInfo(scope).name + CRY_NATIVE_PATH_SEPSTR + sLibraryName;
+				libraryPath += ms_levelsFolder + m_pAssetsManager->GetScopeInfo(scope).name + CRY_NATIVE_PATH_SEPSTR + library.GetName();
 			}
 
-			m_foundLibraryPaths.insert(sLibraryPath.MakeLower() + ".xml");
+			m_foundLibraryPaths.insert(libraryPath.MakeLower() + ".xml");
 
-			const SLibraryScope& libScope = it->second;
+			const SLibraryScope& libScope = libraryPair.second;
 			if (libScope.bDirty)
 			{
 				XmlNodeRef pFileNode = GetISystem()->CreateXmlNode("ATLConfig");
-				pFileNode->setAttr("atl_name", sLibraryName);
+				pFileNode->setAttr("atl_name", library.GetName());
 				pFileNode->setAttr("atl_version", ms_currentFileVersion);
 
-				for (int i = 0; i < eACEControlType_NumTypes; ++i)
+				for (int i = 0; i < eItemType_NumTypes; ++i)
 				{
-					if (i != eACEControlType_State)   // switch_states are written inside the switches
+					if (i != eItemType_State)   // switch_states are written inside the switches
 					{
-						if (libScope.pNodes[i]->getChildCount() > 0)
+						XmlNodeRef node = libScope.GetXmlNode((EItemType)i);
+						if (node && node->getChildCount() > 0)
 						{
-							pFileNode->addChild(libScope.pNodes[i]);
+							pFileNode->addChild(node);
 						}
 					}
 				}
@@ -146,93 +133,111 @@ void CAudioControlsWriter::WriteLibrary(const string& sLibraryName, QModelIndex 
 					XmlNodeRef pFoldersNode = pEditorData->createNode("Folders");
 					if (pFoldersNode)
 					{
-						WriteEditorData(root, pFoldersNode);
+						WriteEditorData(&library, pFoldersNode);
 						pEditorData->addChild(pFoldersNode);
 					}
 					pFileNode->addChild(pEditorData);
 				}
 
-				const string sFullFilePath = PathUtil::GetGameFolder() + CRY_NATIVE_PATH_SEPSTR + sLibraryPath + ".xml";
+				const string fullFilePath = PathUtil::GetGameFolder() + CRY_NATIVE_PATH_SEPSTR + libraryPath + ".xml";
 
-				const DWORD fileAttributes = GetFileAttributesA(sFullFilePath.c_str());
+				const DWORD fileAttributes = GetFileAttributesA(fullFilePath.c_str());
 				if (fileAttributes & FILE_ATTRIBUTE_READONLY)
 				{
 					// file is read-only
-					SetFileAttributesA(sFullFilePath.c_str(), FILE_ATTRIBUTE_NORMAL);
+					SetFileAttributesA(fullFilePath.c_str(), FILE_ATTRIBUTE_NORMAL);
 				}
-				pFileNode->saveToFile(sFullFilePath);
-				CheckOutFile(sFullFilePath);
+				pFileNode->saveToFile(fullFilePath);
+				CheckOutFile(fullFilePath);
 			}
+		}
+	}
+	else
+	{
+		std::unordered_set<Scope> scopes;
+
+		const size_t numChildren = library.ChildCount();
+
+		for (size_t i = 0; i < numChildren; ++i)
+		{
+			IAudioAsset* const pItem = library.GetChild(i);
+			GetScopes(pItem, scopes);
+		}
+
+		for (auto const scope : scopes)
+		{
+			string libraryPath = ms_controlsPath;
+
+			if (scope == Utils::GetGlobalScope())
+			{
+				// no scope, file at the root level
+				libraryPath += library.GetName();
+			}
+			else
+			{
+				// with scope, inside level folder
+				libraryPath += ms_levelsFolder + m_pAssetsManager->GetScopeInfo(scope).name + CRY_NATIVE_PATH_SEPSTR + library.GetName();
+			}
+
+			m_foundLibraryPaths.insert(libraryPath.MakeLower() + ".xml");
 		}
 	}
 }
 
-void CAudioControlsWriter::WriteItem(QModelIndex index, const string& path, TLibraryStorage& library, bool bParentModified)
+void CAudioControlsWriter::WriteItem(IAudioAsset* pItem, const string& path, LibraryStorage& library)
 {
-	if (index.isValid())
+	if (pItem)
 	{
-		if (index.data(eDataRole_Type) == eItemType_Folder)
+		if (pItem->GetType() == EItemType::eItemType_Folder)
 		{
-			int i = 0;
-			QModelIndex child = index.child(0, 0);
-			while (child.isValid())
+			const size_t itemCount = pItem->ChildCount();
+			for (size_t i = 0; i < itemCount; ++i)
 			{
 				// Use forward slash only to ensure cross platform compatibility.
-				string sNewPath = path.empty() ? "" : path + "/";
-				sNewPath += QtUtil::ToString(index.data(Qt::DisplayRole).toString());
-				WriteItem(child, sNewPath, library, index.data(eDataRole_Modified).toBool() || bParentModified);
-				child = index.child(++i, 0);
-			}
-			QStandardItem* pItem = m_pLayoutModel->itemFromIndex(index);
-			if (pItem)
-			{
-				pItem->setData(false, eDataRole_Modified);
+				string newPath = path.empty() ? "" : path + "/";
+				newPath += pItem->GetName();
+				WriteItem(pItem->GetChild(i), newPath, library);
 			}
 		}
 		else
 		{
-			CATLControl* pControl = m_pATLModel->GetControlByID(index.data(eDataRole_Id).toUInt());
+			CAudioControl* pControl = static_cast<CAudioControl*>(pItem);
 			if (pControl)
 			{
 				SLibraryScope& scope = library[pControl->GetScope()];
-				if (IsItemModified(index) || bParentModified)
-				{
-					scope.bDirty = true;
-					QStandardItem* pItem = m_pLayoutModel->itemFromIndex(index);
-					if (pItem)
-					{
-						pItem->setData(false, eDataRole_Modified);
-					}
-				}
-				WriteControlToXML(scope.pNodes[pControl->GetType()], pControl, path);
+				scope.bDirty = true;
+				WriteControlToXML(scope.GetXmlNode(pControl->GetType()), pControl, path);
 			}
 		}
 	}
 }
 
-bool CAudioControlsWriter::IsItemModified(QModelIndex index) const
+//////////////////////////////////////////////////////////////////////////
+void CAudioControlsWriter::GetScopes(IAudioAsset const* const pItem, std::unordered_set<Scope>& scopes)
 {
-	if (index.data(eDataRole_Modified).toBool() == true)
+	if (pItem->GetType() == EItemType::eItemType_Folder)
 	{
-		return true;
-	}
+		size_t const numChildren = pItem->ChildCount();
 
-	int i = 0;
-	QModelIndex child = index.child(0, 0);
-	while (child.isValid())
-	{
-		if (IsItemModified(child))
+		for (size_t i = 0; i < numChildren; ++i)
 		{
-			return true;
+			GetScopes(pItem->GetChild(i), scopes);
 		}
-		child = index.child(++i, 0);
 	}
-	return false;
+	else
+	{
+		CAudioControl const* const pControl = static_cast<CAudioControl const*>(pItem);
+
+		if (pControl != nullptr)
+		{
+			scopes.insert(pControl->GetScope());
+		}
+	}
 }
 
-void CAudioControlsWriter::WriteControlToXML(XmlNodeRef pNode, CATLControl* pControl, const string& path)
+void CAudioControlsWriter::WriteControlToXML(XmlNodeRef pNode, CAudioControl* pControl, const string& path)
 {
-	const EACEControlType type = pControl->GetType();
+	const EItemType type = pControl->GetType();
 	XmlNodeRef pChildNode = pNode->createNode(TypeToTag(type));
 	pChildNode->setAttr("atl_name", pControl->GetName());
 	if (!path.empty())
@@ -240,7 +245,7 @@ void CAudioControlsWriter::WriteControlToXML(XmlNodeRef pNode, CATLControl* pCon
 		pChildNode->setAttr("path", path);
 	}
 
-	if (type == eACEControlType_Trigger)
+	if (type == eItemType_Trigger)
 	{
 		const float radius = pControl->GetRadius();
 		if (radius > 0.0f)
@@ -259,15 +264,19 @@ void CAudioControlsWriter::WriteControlToXML(XmlNodeRef pNode, CATLControl* pCon
 
 	}
 
-	if (type == eACEControlType_Switch)
+	if (type == eItemType_Switch)
 	{
 		const size_t size = pControl->ChildCount();
 		for (size_t i = 0; i < size; ++i)
 		{
-			WriteControlToXML(pChildNode, pControl->GetChild(i), "");
+			IAudioAsset* pItem = pControl->GetChild(i);
+			if (pItem && pItem->GetType() == EItemType::eItemType_State)
+			{
+				WriteControlToXML(pChildNode, static_cast<CAudioControl*>(pItem), "");
+			}
 		}
 	}
-	else if (type == eACEControlType_Preload)
+	else if (type == eItemType_Preload)
 	{
 		if (pControl->IsAutoLoad())
 		{
@@ -295,7 +304,7 @@ void CAudioControlsWriter::WriteControlToXML(XmlNodeRef pNode, CATLControl* pCon
 	pNode->addChild(pChildNode);
 }
 
-void CAudioControlsWriter::WriteConnectionsToXML(XmlNodeRef pNode, CATLControl* pControl, const int platformIndex)
+void CAudioControlsWriter::WriteConnectionsToXML(XmlNodeRef pNode, CAudioControl* pControl, const int platformIndex)
 {
 	if (pControl && m_pAudioSystemImpl)
 	{
@@ -306,7 +315,38 @@ void CAudioControlsWriter::WriteConnectionsToXML(XmlNodeRef pNode, CATLControl* 
 
 		for (auto& node : otherNodes)
 		{
-			pNode->addChild(node.xmlNode);
+			// Don't add identical nodes!
+			bool bAdd = true;
+			XmlNodeRef const tempNode = pNode->findChild(node.xmlNode->getTag());
+
+			if (tempNode)
+			{
+				int const numAttributes1 = tempNode->getNumAttributes();
+				int const numAttributes2 = node.xmlNode->getNumAttributes();
+
+				if (numAttributes1 == numAttributes2)
+				{
+					const char* key1 = nullptr, * val1 = nullptr, * key2 = nullptr, * val2 = nullptr;
+					bAdd = false;
+
+					for (int i = 0; i < numAttributes1; ++i)
+					{
+						tempNode->getAttributeByIndex(i, &key1, &val1);
+						node.xmlNode->getAttributeByIndex(i, &key2, &val2);
+
+						if (_stricmp(key1, key2) != 0 || _stricmp(val1, val2) != 0)
+						{
+							bAdd = true;
+							break;
+						}
+					}
+				}
+			}
+
+			if (bAdd)
+			{
+				pNode->addChild(node.xmlNode);
+			}
 		}
 
 		const int size = pControl->GetConnectionCount();
@@ -315,7 +355,7 @@ void CAudioControlsWriter::WriteConnectionsToXML(XmlNodeRef pNode, CATLControl* 
 			ConnectionPtr pConnection = pControl->GetConnectionAt(i);
 			if (pConnection)
 			{
-				if (pControl->GetType() != eACEControlType_Preload || pConnection->IsPlatformEnabled(platformIndex))
+				if (pControl->GetType() != eItemType_Preload || pConnection->IsPlatformEnabled(platformIndex))
 				{
 					XmlNodeRef pChild = m_pAudioSystemImpl->CreateXMLNodeFromConnection(pConnection, pControl->GetType());
 					if (pChild)
@@ -365,25 +405,24 @@ void CAudioControlsWriter::DeleteLibraryFile(const string& filepath)
 	}
 }
 
-void CAudioControlsWriter::WriteEditorData(const QModelIndex& parentIndex, XmlNodeRef pParentNode) const
+void CAudioControlsWriter::WriteEditorData(IAudioAsset* pLibrary, XmlNodeRef pParentNode) const
 {
-	if (pParentNode && parentIndex.isValid())
+	if (pParentNode && pLibrary)
 	{
-		int i = 0;
-		QModelIndex child = parentIndex.child(i, 0);
-		while (child.isValid())
+		const size_t itemCount = pLibrary->ChildCount();
+		for (size_t i = 0; i < itemCount; ++i)
 		{
-			if (child.data(eDataRole_Type) == eItemType_Folder)
+			IAudioAsset* pItem = pLibrary->GetChild(i);
+			if (pItem->GetType() == EItemType::eItemType_Folder)
 			{
 				XmlNodeRef pFolderNode = pParentNode->createNode("Folder");
 				if (pFolderNode)
 				{
-					pFolderNode->setAttr("name", QtUtil::ToString(child.data(Qt::DisplayRole).toString()));
-					WriteEditorData(child, pFolderNode);
+					pFolderNode->setAttr("name", pItem->GetName());
+					WriteEditorData(pItem, pFolderNode);
 					pParentNode->addChild(pFolderNode);
 				}
 			}
-			child = parentIndex.child(++i, 0);
 		}
 	}
 }

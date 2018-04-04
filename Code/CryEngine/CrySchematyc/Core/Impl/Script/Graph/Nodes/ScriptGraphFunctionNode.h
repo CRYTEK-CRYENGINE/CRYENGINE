@@ -1,16 +1,17 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #pragma once
 
-#include <Schematyc/FundamentalTypes.h>
-#include <Schematyc/Reflection/Reflection.h>
-#include <Schematyc/Runtime/RuntimeGraph.h>
-#include <Schematyc/Utils/GUID.h>
+#include <CrySchematyc/FundamentalTypes.h>
+#include <CrySchematyc/Reflection/TypeDesc.h>
+#include <CrySchematyc/Runtime/RuntimeGraph.h>
+#include <CrySchematyc/Utils/GUID.h>
 
 #include "Script/Graph/ScriptGraphNodeModel.h"
 
 namespace Schematyc
 {
+
 // Forward declare interfaces.
 struct IEnvFunction;
 struct IScriptFunction;
@@ -42,7 +43,7 @@ public:
 		SEnvGlobalFunctionRuntimeData(const IEnvFunction* _pEnvFunction);
 		SEnvGlobalFunctionRuntimeData(const SEnvGlobalFunctionRuntimeData& rhs);
 
-		static SGUID ReflectSchematycType(CTypeInfo<SEnvGlobalFunctionRuntimeData>& typeInfo);
+		static void ReflectType(CTypeDesc<SEnvGlobalFunctionRuntimeData>& desc);
 
 		const IEnvFunction* pEnvFunction;
 	};
@@ -52,7 +53,7 @@ public:
 		SEnvComponentFunctionRuntimeData(const IEnvFunction* _pEnvFunction, uint32 _componentIdx);
 		SEnvComponentFunctionRuntimeData(const SEnvComponentFunctionRuntimeData& rhs);
 
-		static SGUID ReflectSchematycType(CTypeInfo<SEnvComponentFunctionRuntimeData>& typeInfo);
+		static void ReflectType(CTypeDesc<SEnvComponentFunctionRuntimeData>& desc);
 
 		const IEnvFunction* pEnvFunction;
 		uint32              componentIdx;
@@ -63,25 +64,26 @@ public:
 		SScriptFunctionRuntimeData(uint32 _functionIdx);
 		SScriptFunctionRuntimeData(const SScriptFunctionRuntimeData& rhs);
 
-		static SGUID ReflectSchematycType(CTypeInfo<SScriptFunctionRuntimeData>& typeInfo);
+		static void ReflectType(CTypeDesc<SScriptFunctionRuntimeData>& desc);
 
-		uint32       functionIdx;
+		uint32      functionIdx;
 	};
 
 public:
 
 	CScriptGraphFunctionNode();
-	CScriptGraphFunctionNode(const SElementId& functionId, const SGUID& objectGUID);
+	CScriptGraphFunctionNode(const SElementId& functionId, const CryGUID& objectGUID);
 
 	// CScriptGraphNodeModel
-	virtual SGUID GetTypeGUID() const override;
-	virtual void  CreateLayout(CScriptGraphNodeLayout& layout) override;
-	virtual void  Compile(SCompilerContext& context, IGraphNodeCompiler& compiler) const override;
-	virtual void  LoadDependencies(Serialization::IArchive& archive, const ISerializationContext& context) override;
-	virtual void  Save(Serialization::IArchive& archive, const ISerializationContext& context) override;
-	virtual void  Edit(Serialization::IArchive& archive, const ISerializationContext& context) override;
-	virtual void  Validate(Serialization::IArchive& archive, const ISerializationContext& context) override;
-	virtual void  RemapDependencies(IGUIDRemapper& guidRemapper) override;
+	virtual CryGUID GetTypeGUID() const override;
+	virtual void    CreateLayout(CScriptGraphNodeLayout& layout) override;
+	virtual void    Compile(SCompilerContext& context, IGraphNodeCompiler& compiler) const override;
+	virtual void    LoadDependencies(Serialization::IArchive& archive, const ISerializationContext& context) override;
+	virtual void    Load(Serialization::IArchive& archive, const ISerializationContext& context) override;
+	virtual void    Save(Serialization::IArchive& archive, const ISerializationContext& context) override;
+	virtual void    Edit(Serialization::IArchive& archive, const ISerializationContext& context) override;
+	virtual void    Validate(Serialization::IArchive& archive, const ISerializationContext& context) override;
+	virtual void    RemapDependencies(IGUIDRemapper& guidRemapper) override;
 	// ~CScriptGraphNodeModel
 
 	static void Register(CScriptGraphNodeFactory& factory);
@@ -99,11 +101,12 @@ private:
 
 public:
 
-	static const SGUID ms_typeGUID;
+	static const CryGUID ms_typeGUID;
 
 private:
 
 	SElementId m_functionId;
-	SGUID      m_objectGUID;
+	CryGUID    m_objectGUID;
 };
-}
+
+} // Schematyc

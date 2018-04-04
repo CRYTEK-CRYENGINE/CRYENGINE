@@ -4,8 +4,8 @@
 
 #include "AnimSettings.h"
 #include "Serialization.h"
-#include <yasli/JSONIArchive.h>
-#include <yasli/JSONOArchive.h>
+#include <CrySerialization/yasli/JSONIArchive.h>
+#include <CrySerialization/yasli/JSONOArchive.h>
 #include <CryCore/Assert/CryAssert.h>
 #include <CrySystem/XML/IXml.h>
 #include <CrySystem/ISystem.h>

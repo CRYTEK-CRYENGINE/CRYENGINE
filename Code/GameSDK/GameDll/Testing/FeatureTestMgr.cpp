@@ -60,15 +60,15 @@ CFeatureTestMgr::CFeatureTestMgr()
 :	m_runningTestIndex(),
 	m_pRunningTest(),
 	m_pAutoTester(),
-	m_running(),
-	m_pendingRunAll(),
-	m_pendingQuickload(),
-	m_pendingLevelReload(),
-	m_hasQuickloaded(),
+	m_bRunning(),
+	m_bPendingRunAll(),
+	m_bPendingQuickload(),
+	m_bPendingLevelReload(),
+	m_bHasQuickloaded(),
 	m_timeWaitedForScheduled(0.0f),
-	m_waiting(false),
+	m_bWaiting(false),
 	m_timeoutScheduled(0.0f),
-	m_testManifestWritten(false)
+	m_bTestManifestWritten(false)
 {
 	IConsole* pConsole = GetISystem()->GetIConsole();
 
@@ -128,7 +128,7 @@ void CFeatureTestMgr::RunAll()
 	// which tests were executed and which are skipped 
 	// (We will have no valid results for them)
 	{
-		if(m_pAutoTester && !m_testManifestWritten)
+		if(m_pAutoTester && !m_bTestManifestWritten)
 		{
 			XmlNodeRef testManifest = GetISystem()->CreateXmlNode("testManifest");
 			testManifest->setTag("testmanifest");		
@@ -147,7 +147,7 @@ void CFeatureTestMgr::RunAll()
 			}
 
 			m_pAutoTester->WriteTestManifest(testManifest);
-			m_testManifestWritten = true;
+			m_bTestManifestWritten = true;
 		}
 	}
 
@@ -208,7 +208,7 @@ void CFeatureTestMgr::ForceRun(const char* testNameFilter)
 			ftState.m_state = eFTS_Running;
 			m_runningTestIndex = firstTestIndex;
 			m_pRunningTest = ftState.m_pTest;
-			m_running = true;
+			m_bRunning = true;
 
 			CryLogAlways("Forcefully running Map Tests: %s", m_pRunningTest->Name());
 
@@ -218,7 +218,7 @@ void CFeatureTestMgr::ForceRun(const char* testNameFilter)
 			if (!m_pRunningTest->Start())
 			{
 				// Reset state
-				m_running = false;
+				m_bRunning = false;
 				ResetAllTests(eFTS_Disabled);
 			}
 		}
@@ -244,31 +244,31 @@ bool CFeatureTestMgr::WaitingForScheduledTests()
 			const FeatureTestState& ftState = *iter;
 			if(ftState.m_state == eFTS_Scheduled)
 			{
-				m_waiting = true;
+				m_bWaiting = true;
 				return true;
 			}
 		}
 	}
 
-	m_waiting = false;
+	m_bWaiting = false;
 	return false;
 }
 
 /// Updates testing state
 void CFeatureTestMgr::Update(float deltaTime)
 {
-	if (m_pendingLevelReload)
+	if (m_bPendingLevelReload)
 	{
-		m_pendingLevelReload = false;
-		m_hasQuickloaded = false;
+		m_bPendingLevelReload = false;
+		m_bHasQuickloaded = false;
 		CryLogAlways("Reloading level before starting map tests.");
 		gEnv->pConsole->ExecuteString("map");
 		return;
 	}
 
-	if (m_pendingQuickload)
+	if (m_bPendingQuickload)
 	{
-		m_pendingQuickload = false;
+		m_bPendingQuickload = false;
 
 		bool bAllowQuickload = true;
 
@@ -291,19 +291,19 @@ void CFeatureTestMgr::Update(float deltaTime)
 	}
 
 	// WORKAROUND: Auto-tester sends run all request before FG tests have loaded, so we wait for them to register here
-	if (m_pendingRunAll)
+	if (m_bPendingRunAll)
 	{
 		// Have any feature tests registered yet?
 		if (!m_featureTests.empty())
 		{
 			// Initiate the RunAll!
-			m_pendingRunAll = false;
+			m_bPendingRunAll = false;
 			RunAll();
 		}
 	}
 
 	// If running tests
-	if (m_running)
+	if (m_bRunning)
 	{
 		// If a test is in progress
 		if (m_pRunningTest)
@@ -316,6 +316,13 @@ void CFeatureTestMgr::Update(float deltaTime)
 			if (!StartNextTest() && !WaitingForScheduledTests())
 			{
 				CryLogAlways("Finished running map tests!");
+
+				//reset g_testStatus if it was set by tester
+				if (g_pGameCVars->g_testStatus != 0)
+				{
+					CryLog("Resetting g_testStatus to notify tester.");
+					g_pGameCVars->g_testStatus = 0;
+				}
 			}
 		}
 	}
@@ -328,7 +335,7 @@ void CFeatureTestMgr::Update(float deltaTime)
 			m_timeWaitedForScheduled += deltaTime;
 			if(m_timeWaitedForScheduled >= m_timeoutScheduled)
 			{
-				m_waiting = false;
+				m_bWaiting = false;
 				CryLogAlways("More feature tests were scheduled, but exceeded wait time:%.2f!", m_timeoutScheduled);
 			}
 			else
@@ -347,7 +354,7 @@ void CFeatureTestMgr::OnTestResults(const char* testName, const char* testDesc, 
 
 	if (m_pAutoTester)
 	{
-		const char* testGroupName = m_hasQuickloaded ? "FG Tests (after quickload)" : "FG Tests";
+		const char* testGroupName = m_bHasQuickloaded ? "FG Tests (after quickload)" : "FG Tests";
 		m_pAutoTester->AddSimpleTestCase(testGroupName, testName, duration, failureMsg, owners);
 		m_pAutoTester->WriteResults(m_pAutoTester->kWriteResultsFlag_unfinished);
 	}
@@ -377,11 +384,11 @@ void CFeatureTestMgr::Reset()
 {
 	m_runningTestIndex = 0;
 	m_pRunningTest = NULL;
-	m_running = false;
-	m_pendingRunAll = false;
+	m_bRunning = false;
+	m_bPendingRunAll = false;
 	m_pAutoTester = NULL;
 	m_timeWaitedForScheduled = 0.0f;
-	m_waiting = false;
+	m_bWaiting = false;
 	m_timeoutScheduled = 0.0f;
 }
 
@@ -419,10 +426,10 @@ bool CFeatureTestMgr::StartNextTest()
 		}
 	}
 
-	m_running = m_pRunningTest != NULL;
+	m_bRunning = m_pRunningTest != NULL;
 
 	// Returns false when no more tests are available to run
-	return m_running;
+	return m_bRunning;
 }
 
 /// Returns the index of the first test found with the given name or ~0
@@ -447,7 +454,7 @@ size_t CFeatureTestMgr::FindTest(const char* name) const
 /// Resets all tests to to the given state
 void CFeatureTestMgr::ResetAllTests(EFTState resetState)
 {
-	if (m_running)
+	if (m_bRunning)
 		CryWarning(VALIDATOR_MODULE_GAME, VALIDATOR_WARNING, "Resetting tests while testing was running - may have undesired side effects!");
 
 	m_runningTestIndex = 0;
@@ -464,7 +471,7 @@ void CFeatureTestMgr::ResetAllTests(EFTState resetState)
 /// Writes the success or otherwise of a quickload "test" case
 void CFeatureTestMgr::QuickloadReportResults()
 {
-	m_hasQuickloaded = true;
+	m_bHasQuickloaded = true;
 	CryLogAlways("Performing quickload before starting map tests.");
 	const float startTime = gEnv->pTimer->GetCurrTime();
 	const bool success = g_pGame->LoadLastSave();

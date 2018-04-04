@@ -22,13 +22,17 @@ struct SAssetMetadata
 	std::vector<std::pair<string, string>> details;
 };
 
-//! Returns true if successful, otherwise returns false.
-bool WriteMetadata(XmlNodeRef& asset, const SAssetMetadata& metadata);
+//! Returns name of the metadata root tag.
+const char* GetMetadataTag();
 
 //! Returns true if successful, otherwise returns false.
-bool ReadMetadata(XmlNodeRef& asset, SAssetMetadata& metadata);
+bool WriteMetadata(const XmlNodeRef& asset, const SAssetMetadata& metadata);
 
-//! Returns true if successful or metadata does not exist, otherwise returns false.
-bool DeleteMetadata(XmlNodeRef& asset);
+//! Returns true if successful, otherwise returns false.
+bool ReadMetadata(const XmlNodeRef& asset, SAssetMetadata& metadata);
+
+const XmlNodeRef GetMetadataNode(const XmlNodeRef& asset);
+void AddDetails(XmlNodeRef& xml, const std::vector<std::pair<string, string>>& details);
+void AddDependencies(XmlNodeRef& xml, const std::vector<string>& dependencies);
 
 }

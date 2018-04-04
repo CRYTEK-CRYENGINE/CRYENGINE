@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #include "CryAssert.h"
 #if defined(USE_CRY_ASSERT)
@@ -76,14 +76,16 @@ bool CryAssertIsEnabled()
 
 namespace Detail
 {
-NO_INLINE
+
 void CryAssertHandler(SAssertData const& data, SAssertCond& cond, char const* const szMessage)
 {
-	if (szMessage != nullptr && szMessage[0] != '\0')
-	{
-		CryAssertTrace(szMessage);
-	}
+	CryAssertTrace(szMessage);
+	CryAssertHandler(data, cond);
+}
 
+NO_INLINE
+void CryAssertHandler(SAssertData const& data, SAssertCond& cond)
+{
 	if (cond.bLogAssert) // Just log assert the first time
 	{
 		CryLogAssert(data.szExpression, data.szFile, data.line, &cond.bIgnoreAssert);

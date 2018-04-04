@@ -1,9 +1,9 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #pragma once
 
-#include <Schematyc/Script/Elements/IScriptStateMachine.h>
-#include <Schematyc/SerializationUtils/MultiPassSerializer.h>
+#include <CrySchematyc/Script/Elements/IScriptStateMachine.h>
+#include <CrySchematyc/SerializationUtils/MultiPassSerializer.h>
 
 #include "Script/ScriptElementBase.h"
 
@@ -14,7 +14,7 @@ class CScriptStateMachine : public CScriptElementBase<IScriptStateMachine>, publ
 public:
 
 	CScriptStateMachine();
-	CScriptStateMachine(const SGUID& guid, const char* szName, EScriptStateMachineLifetime lifetime, const SGUID& contextGUID, const SGUID& partnerGUID);
+	CScriptStateMachine(const CryGUID& guid, const char* szName, EScriptStateMachineLifetime lifetime, const CryGUID& contextGUID, const CryGUID& partnerGUID);
 
 	// IScriptElement
 	virtual void EnumerateDependencies(const ScriptDependencyEnumerator& enumerator, EScriptDependencyType type) const override;
@@ -25,8 +25,8 @@ public:
 
 	// IScriptStateMachine
 	virtual EScriptStateMachineLifetime GetLifetime() const override;
-	virtual SGUID                       GetContextGUID() const override;
-	virtual SGUID                       GetPartnerGUID() const override;
+	virtual CryGUID                       GetContextGUID() const override;
+	virtual CryGUID                       GetPartnerGUID() const override;
 	// ~IScriptStateMachine
 
 protected:
@@ -45,8 +45,8 @@ private:
 private:
 
 	EScriptStateMachineLifetime m_lifetime;
-	SGUID                       m_contextGUID;
-	SGUID                       m_partnerGUID;
-	SGUID                       m_transitionGraphGUID;
+	CryGUID                       m_contextGUID;
+	CryGUID                       m_partnerGUID;
+	CryGUID                       m_transitionGraphGUID;
 };
 } // Schematyc

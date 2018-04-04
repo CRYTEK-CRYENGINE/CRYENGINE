@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 /*=============================================================================
    Parser.cpp : Script parser implementations.
@@ -109,16 +109,6 @@ static void fxAddMacro(char* Name, char* Macro, FXMacro& Macros)
 
 void fxParserInit(void)
 {
-#if defined(D3DX_SDK_VERSION)
-	// Needed for a workaround for the optimization rule problem of DXSDKJune10's HLSL Compiler (9.29.952.3111)
-	// See: http://support.microsoft.com/kb/2448404
-	// Causes cracks in tessellated meshes
-	char sdkVer[4];
-	_itoa_s(D3DX_SDK_VERSION, sdkVer, 4);
-	fxAddMacro("D3DX_SDK_VERSION", sdkVer, sStaticMacros);
-#else
-	fxAddMacro("D3DX_SDK_VERSION", "0", sStaticMacros);
-#endif
 }
 
 void fxRegisterEnv(const char* szStr)

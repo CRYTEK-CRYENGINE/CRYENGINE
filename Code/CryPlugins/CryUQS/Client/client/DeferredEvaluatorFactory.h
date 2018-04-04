@@ -4,11 +4,11 @@
 
 // *INDENT-OFF* - <hard to read code and declarations due to inconsistent indentation>
 
-namespace uqs
+namespace UQS
 {
-	namespace client
+	namespace Client
 	{
-		namespace internal
+		namespace Internal
 		{
 
 			//===================================================================================
@@ -17,11 +17,13 @@ namespace uqs
 			//
 			//===================================================================================
 
-			class CDeferredEvaluatorFactoryBase : public IDeferredEvaluatorFactory, public IParamsHolderFactory, public CFactoryBase<CDeferredEvaluatorFactoryBase>
+			class CDeferredEvaluatorFactoryBase : public IDeferredEvaluatorFactory, public IParamsHolderFactory, public Shared::CFactoryBase<CDeferredEvaluatorFactoryBase>
 			{
 			public:
 				// IDeferredEvaluatorFactory
 				virtual const char*                      GetName() const override final;
+				virtual const CryGUID&                   GetGUID() const override final;
+				virtual const char*                      GetDescription() const override final;
 				virtual const IInputParameterRegistry&   GetInputParameterRegistry() const override final;
 				virtual IParamsHolderFactory&            GetParamsHolderFactory() const override final;
 				// ~IDeferredEvaluatorFactory
@@ -37,17 +39,19 @@ namespace uqs
 				// ~IParamsHolderFactory
 
 			protected:
-				explicit                                 CDeferredEvaluatorFactoryBase(const char* evaluatorName);
+				explicit                                 CDeferredEvaluatorFactoryBase(const char* szEvaluatorName, const CryGUID& guid, const char* szDescription);
 
 			protected:
 				CInputParameterRegistry                  m_inputParameterRegistry;
 
 			private:
+				string                                   m_description;
 				IParamsHolderFactory*                    m_pParamsHolderFactory;      // points to *this; it's a trick to allow GetParamsHolderFactory() return a non-const reference to *this
 			};
 
-			inline CDeferredEvaluatorFactoryBase::CDeferredEvaluatorFactoryBase(const char* evaluatorName)
-				: CFactoryBase(evaluatorName)
+			inline CDeferredEvaluatorFactoryBase::CDeferredEvaluatorFactoryBase(const char* szEvaluatorName, const CryGUID& guid, const char* szDescription)
+				: CFactoryBase(szEvaluatorName, guid)
+				, m_description(szDescription)
 			{
 				m_pParamsHolderFactory = this;
 			}
@@ -55,6 +59,16 @@ namespace uqs
 			inline const char* CDeferredEvaluatorFactoryBase::GetName() const
 			{
 				return CFactoryBase::GetName();
+			}
+
+			inline const CryGUID& CDeferredEvaluatorFactoryBase::GetGUID() const
+			{
+				return CFactoryBase::GetGUID();
+			}
+
+			inline const char* CDeferredEvaluatorFactoryBase::GetDescription() const
+			{
+				return m_description.c_str();
 			}
 
 			inline const IInputParameterRegistry& CDeferredEvaluatorFactoryBase::GetInputParameterRegistry() const
@@ -67,7 +81,7 @@ namespace uqs
 				return *m_pParamsHolderFactory;
 			}
 
-		} // namespace internal
+		} // namespace Internal
 
 		//===================================================================================
 		//
@@ -76,10 +90,20 @@ namespace uqs
 		//===================================================================================
 
 		template <class TDeferredEvaluator>
-		class CDeferredEvaluatorFactory final : public internal::CDeferredEvaluatorFactoryBase
+		class CDeferredEvaluatorFactory final : public Internal::CDeferredEvaluatorFactoryBase
 		{
 		public:
-			explicit                                 CDeferredEvaluatorFactory(const char* evaluatorName);
+
+			struct SCtorParams
+			{
+				const char*                          szName = "";
+				CryGUID                              guid = CryGUID::Null();
+				const char*                          szDescription = "";
+			};
+
+		public:
+
+			explicit                                 CDeferredEvaluatorFactory(const SCtorParams& ctorParams);
 
 			// IDeferredEvaluatorFactory
 			virtual DeferredEvaluatorUniquePtr       CreateDeferredEvaluator(const void* pParams) override;
@@ -93,8 +117,8 @@ namespace uqs
 		};
 
 		template <class TDeferredEvaluator>
-		CDeferredEvaluatorFactory<TDeferredEvaluator>::CDeferredEvaluatorFactory(const char* evaluatorName)
-			: CDeferredEvaluatorFactoryBase(evaluatorName)
+		CDeferredEvaluatorFactory<TDeferredEvaluator>::CDeferredEvaluatorFactory(const SCtorParams& ctorParams)
+			: CDeferredEvaluatorFactoryBase(ctorParams.szName, ctorParams.guid, ctorParams.szDescription)
 		{
 			typedef typename TDeferredEvaluator::SParams Params;
 			Params::Expose(m_inputParameterRegistry);
@@ -105,7 +129,7 @@ namespace uqs
 		{
 			const typename TDeferredEvaluator::SParams* pActualParams = static_cast<const typename TDeferredEvaluator::SParams*>(pParams);
 			TDeferredEvaluator* pEvaluator = new TDeferredEvaluator(*pActualParams);
-			internal::CDeferredEvaluatorDeleter deleter(*this);
+			Internal::CDeferredEvaluatorDeleter deleter(*this);
 			return DeferredEvaluatorUniquePtr(pEvaluator, deleter);
 		}
 
@@ -118,7 +142,7 @@ namespace uqs
 		template <class TDeferredEvaluator>
 		ParamsHolderUniquePtr CDeferredEvaluatorFactory<TDeferredEvaluator>::CreateParamsHolder()
 		{
-			internal::CParamsHolder<typename TDeferredEvaluator::SParams>* pParamsHolder = new internal::CParamsHolder<typename TDeferredEvaluator::SParams>;
+			Internal::CParamsHolder<typename TDeferredEvaluator::SParams>* pParamsHolder = new Internal::CParamsHolder<typename TDeferredEvaluator::SParams>;
 			CParamsHolderDeleter deleter(*this);
 			return ParamsHolderUniquePtr(pParamsHolder, deleter);
 		}

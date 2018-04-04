@@ -225,6 +225,7 @@ if(NOT MATLAB_ADDITIONAL_VERSIONS)
 endif()
 
 set(MATLAB_VERSIONS_MAPPING
+  "R2016b=9.1"
   "R2016a=9.0"
   "R2015b=8.6"
   "R2015a=8.5"
@@ -793,7 +794,7 @@ function(matlab_add_unit_test)
             "-Dworking_directory=${${prefix}_WORKING_DIRECTORY}"
             "-DMatlab_PROGRAM=${Matlab_MAIN_PROGRAM}"
             "-Dno_unittest_framework=${${prefix}_NO_UNITTEST_FRAMEWORK}"
-            "-DMatlab_ADDITIONNAL_STARTUP_OPTIONS=${${prefix}_MATLAB_ADDITIONAL_STARTUP_OPTIONS}"
+            "-DMatlab_ADDITIONAL_STARTUP_OPTIONS=${${prefix}_MATLAB_ADDITIONAL_STARTUP_OPTIONS}"
             "-Dunittest_file_to_run=${${prefix}_UNITTEST_FILE}"
             "-Dcustom_Matlab_test_command=${${prefix}_CUSTOM_TEST_COMMAND}"
             "-Dcmd_to_run_before_test=${${prefix}_UNITTEST_PRECOMMAND}"

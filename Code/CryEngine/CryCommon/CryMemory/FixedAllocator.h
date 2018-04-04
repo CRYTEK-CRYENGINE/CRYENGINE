@@ -1,11 +1,12 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #ifndef __FIXED_ALLOCATOR_H
 #define __FIXED_ALLOCATOR_H
 
 #pragma once
 
-#include <CryCore/Assert/CompileTimeUtils.h>
+#include <type_traits>
+#include <CryCore/StlUtils.h>
 
 template<size_t ObjSize, size_t ObjAlign, size_t ChunkObjCount>
 struct FixedAllocator
@@ -39,14 +40,14 @@ private:
 	struct Chunk
 	{
 		typedef BlockIndexType block_index_type;
-		enum { object_memory_size = static_max<object_size, sizeof(block_index_type)>::value };
-		enum { object_memory_alignment = static_max<object_size, alignof(block_index_type)>::value };
+		enum { object_memory_size = stl::static_max<object_size, sizeof(block_index_type)>::value };
+		enum { object_memory_alignment = stl::static_max<object_size, alignof(block_index_type)>::value };
 
 		inline void init(block_index_type maxObjCount)
 		{
 			assert(maxObjCount <= (1ul << ((sizeof(block_index_type) * 8) - 1)));
 
-			typedef alignment_type<object_memory_alignment> AlignedType;
+			typedef typename std::aligned_storage<object_memory_alignment, object_memory_alignment>::type AlignedType;
 			const size_t dataSize = maxObjCount * object_memory_size / sizeof(AlignedType);
 			assert(dataSize * sizeof(AlignedType) == object_memory_size * maxObjCount);
 

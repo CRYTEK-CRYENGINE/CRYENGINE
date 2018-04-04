@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 /*=============================================================================
    D3DOcclQuery.cpp : Occlusion queries unified interface implementation
@@ -17,19 +17,15 @@ void COcclusionQuery::Create()
 
 	// Create visibility queries
 
-	D3DQuery* pVizQuery = NULL;
-	D3D11_QUERY_DESC desc;
-	desc.Query = D3D11_QUERY_OCCLUSION;
-	desc.MiscFlags = 0;
-	HRESULT hr(gcpRendD3D->GetDevice().CreateQuery(&desc, &pVizQuery));
-	assert(SUCCEEDED(hr));
+	D3DOcclusionQuery* pVizQuery = GetDeviceObjectFactory().CreateOcclusionQuery();
+	assert(pVizQuery);
 
 	m_nOcclusionID = (UINT_PTR) pVizQuery;
 }
 
 void COcclusionQuery::Release()
 {
-	D3DQuery* pVizQuery = (D3DQuery*)m_nOcclusionID;
+	D3DOcclusionQuery* pVizQuery = (D3DOcclusionQuery*)m_nOcclusionID;
 	SAFE_RELEASE(pVizQuery);
 
 	m_nOcclusionID = 0;
@@ -43,8 +39,9 @@ void COcclusionQuery::BeginQuery()
 	if (!m_nOcclusionID)
 		return;
 
-	D3DQuery* pVizQuery = (D3DQuery*)m_nOcclusionID;
-	gcpRendD3D->GetDeviceContext().Begin(pVizQuery);
+	D3DOcclusionQuery* pVizQuery = (D3DOcclusionQuery*)m_nOcclusionID;
+	CDeviceCommandListRef commandList = GetDeviceObjectFactory().GetCoreCommandList();
+	commandList.GetGraphicsInterface()->BeginOcclusionQuery(pVizQuery);
 }
 
 void COcclusionQuery::EndQuery()
@@ -55,8 +52,9 @@ void COcclusionQuery::EndQuery()
 	CD3D9Renderer* rd = gcpRendD3D;
 	m_nDrawFrame = rd->m_RP.m_TI[rd->m_RP.m_nProcessThreadID].m_nFrameUpdateID;
 
-	D3DQuery* pVizQuery = (D3DQuery*)m_nOcclusionID;
-	rd->GetDeviceContext().End(pVizQuery);
+	D3DOcclusionQuery* pVizQuery = (D3DOcclusionQuery*)m_nOcclusionID;
+	CDeviceCommandListRef commandList = GetDeviceObjectFactory().GetCoreCommandList();
+	commandList.GetGraphicsInterface()->EndOcclusionQuery(pVizQuery);
 }
 
 bool COcclusionQuery::IsReady()
@@ -77,39 +75,32 @@ uint32 COcclusionQuery::GetVisibleSamples(bool bAsynchronous)
 	if (m_nCheckFrame == nFrame)
 		return m_nVisSamples;
 
-	int64 nVisSamples = ~0; //query needs to be 8byte
+	uint64 samplesPassed;
+	HRESULT hRes;
+	D3DOcclusionQuery* const pVizQuery = (D3DOcclusionQuery*)m_nOcclusionID;
 
 	if (!bAsynchronous)
 	{
 		PROFILE_FRAME(COcclusionQuery::GetVisibleSamples);
 
-		HRESULT hRes = S_FALSE;
-
-		D3DQuery* pVizQuery = (D3DQuery*)m_nOcclusionID;
-
-		size_t DataSize = pVizQuery->GetDataSize();
-		assert(sizeof(nVisSamples) == DataSize);
+		hRes = S_FALSE;
 		while (hRes == S_FALSE)
-			hRes = rd->GetDeviceContext().GetData(pVizQuery, (void*) &nVisSamples, DataSize, 0);
-
-		if (hRes == S_OK)
 		{
-			m_nCheckFrame = nFrame;
-			m_nVisSamples = static_cast<int>(nVisSamples);
+			hRes = GetDeviceObjectFactory().GetOcclusionQueryResults(pVizQuery, samplesPassed) ? S_OK : S_FALSE;
 		}
 	}
 	else
 	{
 		PROFILE_FRAME(COcclusionQuery::GetVisibleSamplesAsync);
 
-		D3DQuery* pVizQuery = (D3DQuery*)m_nOcclusionID;
-		HRESULT hRes = rd->GetDeviceContext().GetData(pVizQuery, (void*) &nVisSamples, pVizQuery->GetDataSize(), 0);
-
-		if (hRes == S_OK)
-		{
-			m_nCheckFrame = nFrame;
-			m_nVisSamples = static_cast<int>(nVisSamples);
-		}
+		hRes = GetDeviceObjectFactory().GetOcclusionQueryResults(pVizQuery, samplesPassed) ? S_OK : S_FALSE;
 	}
+	
+	if (hRes == S_OK)
+	{
+		m_nCheckFrame = nFrame;
+		m_nVisSamples = static_cast<int>(samplesPassed);
+	}
+
 	return m_nVisSamples;
 }

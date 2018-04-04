@@ -16,35 +16,35 @@ void QToolWindowDragHandlerNinePatch::switchedArea(IToolWindowArea* lastArea, IT
 	
 }
 
-QToolWindowManager::AreaTarget QToolWindowDragHandlerNinePatch::getTargetFromPosition(IToolWindowArea* area) const
+QToolWindowAreaTarget QToolWindowDragHandlerNinePatch::getTargetFromPosition(IToolWindowArea* area) const
 {
-	QToolWindowManager::AreaTarget result;
+	QToolWindowAreaTarget result;
 	result.area = area;
 	result.index = -1;
-	result.reference = QToolWindowManager::AreaReference::Floating;
+	result.reference = QToolWindowAreaReference::Floating;
 	if (!area)
 		return result;
 
 	QRect areaRect = area->rect();
 	QRect centerRect = QRect(areaRect.x() + areaRect.width() / 3, areaRect.y() + areaRect.height() / 3, areaRect.width() / 3, areaRect.height() / 3);
 	QPoint pos = area->mapFromGlobal(QCursor::pos());
-	QPoint tabPos = area->mapTabBarFromGlobal(QCursor::pos());
+	QPoint tabPos = area->mapCombineDropAreaFromGlobal(QCursor::pos());
 
-	if (area->tabBarRect().contains(tabPos))
+	if (area->combineAreaRect().contains(tabPos))
 	{				
-		result.reference = QToolWindowManager::AreaReference::Combine;
-		result.index = area->tabBarAt(tabPos);
+		result.reference = QToolWindowAreaReference::Combine;
+		result.index = area->subWidgetAt(tabPos);
 	}
 	else
 	{
 		if (pos.x() < centerRect.x()) // left region
-			result.reference = QToolWindowManager::AreaReference::VSplitLeft;
+			result.reference = QToolWindowAreaReference::VSplitLeft;
 		else if (pos.x() > centerRect.x() + centerRect.width()) // right region
-			result.reference = QToolWindowManager::AreaReference::VSplitRight;
+			result.reference = QToolWindowAreaReference::VSplitRight;
 		else if (pos.y() < centerRect.y()) // top region
-			result.reference = QToolWindowManager::AreaReference::HSplitTop;
+			result.reference = QToolWindowAreaReference::HSplitTop;
 		else if (pos.y() > centerRect.y() + centerRect.height()) // bottom region
-			result.reference = QToolWindowManager::AreaReference::HSplitBottom;
+			result.reference = QToolWindowAreaReference::HSplitBottom;
 	}
 	
 	return result;
@@ -55,7 +55,7 @@ bool QToolWindowDragHandlerNinePatch::isHandlerWidget(QWidget* widget) const
 	return false;
 }
 
-QToolWindowManager::AreaTarget QToolWindowDragHandlerNinePatch::finishDrag(QList<QWidget*> toolWindows, IToolWindowArea* source, IToolWindowArea* destination)
+QToolWindowAreaTarget QToolWindowDragHandlerNinePatch::finishDrag(QList<QWidget*> toolWindows, IToolWindowArea* source, IToolWindowArea* destination)
 {
 	return getTargetFromPosition(destination);
 }
@@ -76,15 +76,15 @@ QRect tabSeparatorRect(QRect tabRect, int splitterWidth)
 QRect QToolWindowDragHandlerNinePatch::getRectFromCursorPos(QWidget* previewArea, IToolWindowArea* area) const
 {
 	int splitterWidth = area->getWidget()->style()->pixelMetric(QStyle::PM_SplitterWidth, 0, area->getWidget());
-	QRect tabEndRect = area->tabRect(area->count() - 1);
+	QRect tabEndRect = area->combineSubWidgetRect(area->count() - 1);
 	tabEndRect.setX(tabEndRect.x() + tabEndRect.width());
-	QToolWindowManager::AreaTarget target = getTargetFromPosition(area);
-	if (target.reference == QToolWindowManager::AreaReference::Combine)
+	QToolWindowAreaTarget target = getTargetFromPosition(area);
+	if (target.reference == QToolWindowAreaReference::Combine)
 	{
 		if (target.index == -1)
 			return tabSeparatorRect(tabEndRect, splitterWidth);
 		else
-			return tabSeparatorRect(area->tabRect(target.index), splitterWidth);
+			return tabSeparatorRect(area->combineSubWidgetRect(target.index), splitterWidth);
 	}
 	return IToolWindowDragHandler::getRectFromCursorPos(previewArea, area);
 }

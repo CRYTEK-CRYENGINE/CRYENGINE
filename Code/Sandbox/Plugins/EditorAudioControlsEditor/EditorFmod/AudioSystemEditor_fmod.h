@@ -72,11 +72,11 @@ public:
 	virtual void                     Reload(bool bPreserveConnectionStatus = true) override;
 	virtual IAudioSystemItem*        GetRoot() override { return &m_root; }
 	virtual IAudioSystemItem*        GetControl(CID id) const override;
-	virtual EACEControlType          ImplTypeToATLType(ItemType type) const override;
-	virtual TImplControlTypeMask     GetCompatibleTypes(EACEControlType controlType) const override;
-	virtual ConnectionPtr            CreateConnectionToControl(EACEControlType controlType, IAudioSystemItem* pMiddlewareControl) override;
-	virtual ConnectionPtr            CreateConnectionFromXMLNode(XmlNodeRef pNode, EACEControlType controlType) override;
-	virtual XmlNodeRef               CreateXMLNodeFromConnection(const ConnectionPtr pConnection, const EACEControlType eATLControlType) override;
+	virtual EItemType                ImplTypeToATLType(ItemType type) const override;
+	virtual TImplControlTypeMask     GetCompatibleTypes(EItemType controlType) const override;
+	virtual ConnectionPtr            CreateConnectionToControl(EItemType controlType, IAudioSystemItem* pMiddlewareControl) override;
+	virtual ConnectionPtr            CreateConnectionFromXMLNode(XmlNodeRef pNode, EItemType controlType) override;
+	virtual XmlNodeRef               CreateXMLNodeFromConnection(const ConnectionPtr pConnection, const EItemType eATLControlType) override;
 	virtual const char*              GetTypeIcon(ItemType type) const override;
 	virtual string                   GetName() const override;
 	virtual void                     EnableConnection(ConnectionPtr pConnection) override;

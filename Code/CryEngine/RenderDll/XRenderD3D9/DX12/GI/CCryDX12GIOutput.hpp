@@ -1,183 +1,202 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
-// -------------------------------------------------------------------------
-//  File name:
-//  Version:     v1.00
-//  Created:     03/02/2015 by Jan Pinter
-//  Description:
-// -------------------------------------------------------------------------
-//  History:
-//
-////////////////////////////////////////////////////////////////////////////
 #pragma once
-#ifndef __CCRYDX12GIOUTPUT__
-	#define __CCRYDX12GIOUTPUT__
 
-	#include "DX12/CCryDX12Object.hpp"
-	#include "CCryDX12GIAdapter.hpp"
+#include "DX12/CCryDX12Object.hpp"
+#include "CCryDX12GIAdapter.hpp"
 
-class CCryDX12GIOutput : public CCryDX12GIObject<IDXGIOutput4>
+class CCryDX12GIOutput : public CCryDX12GIObject<IDXGIOutput4ToImplement>
 {
 public:
-	DX12_OBJECT(CCryDX12GIOutput, CCryDX12GIObject<IDXGIOutput4> );
+	DX12_OBJECT(CCryDX12GIOutput, CCryDX12GIObject<IDXGIOutput4ToImplement>);
 
 	static CCryDX12GIOutput* Create(CCryDX12GIAdapter* Adapter, UINT Output);
 
-	virtual ~CCryDX12GIOutput();
-
-	ILINE CCryDX12GIAdapter* GetAdapter() const    { return m_pAdapter; }
-	ILINE IDXGIOutput4*      GetDXGIOutput() const { return m_pDXGIOutput4; }
+	ILINE CCryDX12GIAdapter*  GetAdapter   () const { return m_pAdapter; }
+	ILINE IDXGIOutput4ToCall* GetDXGIOutput() const { return m_pDXGIOutput4; }
 
 	#pragma region /* IDXGIOutput implementation */
+	#ifndef __d3d11_x_h__
 
-	virtual HRESULT STDMETHODCALLTYPE GetDesc(
+	VIRTUALGFX HRESULT STDMETHODCALLTYPE GetDesc(
 	  /* [annotation][out] */
-	  _Out_ DXGI_OUTPUT_DESC* pDesc) final
+	  _Out_ DXGI_OUTPUT_DESC* pDesc) FINALGFX
 	{
 		return m_pDXGIOutput4->GetDesc(pDesc);
 	}
 
-	virtual HRESULT STDMETHODCALLTYPE GetDisplayModeList(
+	VIRTUALGFX HRESULT STDMETHODCALLTYPE GetDisplayModeList(
 	  /* [in] */ DXGI_FORMAT EnumFormat,
 	  /* [in] */ UINT Flags,
 	  /* [annotation][out][in] */
 	  _Inout_ UINT* pNumModes,
 	  /* [annotation][out] */
-	  _Out_writes_to_opt_(*pNumModes, *pNumModes)  DXGI_MODE_DESC* pDesc) final
+	  _Out_writes_to_opt_(*pNumModes, *pNumModes)  DXGI_MODE_DESC* pDesc) FINALGFX
 	{
 		return m_pDXGIOutput4->GetDisplayModeList(EnumFormat, Flags, pNumModes, pDesc);
 	}
 
-	virtual HRESULT STDMETHODCALLTYPE FindClosestMatchingMode(
+	VIRTUALGFX HRESULT STDMETHODCALLTYPE FindClosestMatchingMode(
 	  /* [annotation][in] */
 	  _In_ const DXGI_MODE_DESC* pModeToMatch,
 	  /* [annotation][out] */
 	  _Out_ DXGI_MODE_DESC* pClosestMatch,
 	  /* [annotation][in] */
-	  _In_opt_ IUnknown* pConcernedDevice) final;
+	  _In_opt_ IUnknown* pConcernedDevice) FINALGFX;
 
-	virtual HRESULT STDMETHODCALLTYPE WaitForVBlank(void) final
+	VIRTUALGFX HRESULT STDMETHODCALLTYPE WaitForVBlank(void) FINALGFX
 	{
 		return m_pDXGIOutput4->WaitForVBlank();
 	}
 
-	virtual HRESULT STDMETHODCALLTYPE TakeOwnership(
+	VIRTUALGFX HRESULT STDMETHODCALLTYPE TakeOwnership(
 	  /* [annotation][in] */
 	  _In_ IUnknown* pDevice,
-	  BOOL Exclusive) final;
+	  BOOL Exclusive) FINALGFX;
 
-	virtual void STDMETHODCALLTYPE ReleaseOwnership(void) final
+	VIRTUALGFX void STDMETHODCALLTYPE ReleaseOwnership(void) FINALGFX
 	{
 		return m_pDXGIOutput4->ReleaseOwnership();
 	}
 
-	virtual HRESULT STDMETHODCALLTYPE GetGammaControlCapabilities(
+	VIRTUALGFX HRESULT STDMETHODCALLTYPE GetGammaControlCapabilities(
 	  /* [annotation][out] */
-	  _Out_ DXGI_GAMMA_CONTROL_CAPABILITIES* pGammaCaps) final
+	  _Out_ DXGI_GAMMA_CONTROL_CAPABILITIES* pGammaCaps) FINALGFX
 	{
 		return m_pDXGIOutput4->GetGammaControlCapabilities(pGammaCaps);
 	}
 
-	virtual HRESULT STDMETHODCALLTYPE SetGammaControl(
+	VIRTUALGFX HRESULT STDMETHODCALLTYPE SetGammaControl(
 	  /* [annotation][in] */
-	  _In_ const DXGI_GAMMA_CONTROL* pArray) final
+	  _In_ const DXGI_GAMMA_CONTROL* pArray) FINALGFX
 	{
 		return m_pDXGIOutput4->SetGammaControl(pArray);
 	}
 
-	virtual HRESULT STDMETHODCALLTYPE GetGammaControl(
+	VIRTUALGFX HRESULT STDMETHODCALLTYPE GetGammaControl(
 	  /* [annotation][out] */
-	  _Out_ DXGI_GAMMA_CONTROL* pArray) final
+	  _Out_ DXGI_GAMMA_CONTROL* pArray) FINALGFX
 	{
 		return m_pDXGIOutput4->GetGammaControl(pArray);
 	}
 
-	virtual HRESULT STDMETHODCALLTYPE SetDisplaySurface(
+	VIRTUALGFX HRESULT STDMETHODCALLTYPE SetDisplaySurface(
 	  /* [annotation][in] */
-	  _In_ IDXGISurface* pScanoutSurface) final
+	  _In_ IDXGISurface* pScanoutSurface) FINALGFX
 	{
 		return m_pDXGIOutput4->SetDisplaySurface(pScanoutSurface);
 	}
 
-	virtual HRESULT STDMETHODCALLTYPE GetDisplaySurfaceData(
+	VIRTUALGFX HRESULT STDMETHODCALLTYPE GetDisplaySurfaceData(
 	  /* [annotation][in] */
-	  _In_ IDXGISurface* pDestination) final
+	  _In_ IDXGISurface* pDestination) FINALGFX
 	{
 		return m_pDXGIOutput4->GetDisplaySurfaceData(pDestination);
 	}
 
-	virtual HRESULT STDMETHODCALLTYPE GetFrameStatistics(
+	VIRTUALGFX HRESULT STDMETHODCALLTYPE GetFrameStatistics(
 	  /* [annotation][out] */
-	  _Out_ DXGI_FRAME_STATISTICS* pStats) final
+	  _Out_ DXGI_FRAME_STATISTICS* pStats) FINALGFX
 	{
 		return m_pDXGIOutput4->GetFrameStatistics(pStats);
 	}
 
+	#else
+	
+	VIRTUALGFX HRESULT STDMETHODCALLTYPE GetGammaControlCapabilities(
+	  /* [annotation][out] */
+	  _Out_ DXGI_GAMMA_CONTROL_CAPABILITIES* pGammaCaps) FINALGFX
+	{
+		return m_pDXGIOutput4->GetGammaControlCapabilities(pGammaCaps);
+	}
+
+	VIRTUALGFX HRESULT STDMETHODCALLTYPE SetGammaControl(
+	  /* [annotation][in] */
+	  _In_ const DXGI_GAMMA_CONTROL* pArray) FINALGFX
+	{
+		return m_pDXGIOutput4->SetGammaControl(pArray);
+	}
+
+	VIRTUALGFX HRESULT STDMETHODCALLTYPE GetGammaControl(
+	  /* [annotation][out] */
+	  _Out_ DXGI_GAMMA_CONTROL* pArray) FINALGFX
+	{
+		return m_pDXGIOutput4->GetGammaControl(pArray);
+	}
+
+	#endif
 	#pragma endregion
 
 	#pragma region /* IDXGIOutput1 implementation */
+	#ifdef __dxgi1_2_h__
 
-	virtual HRESULT STDMETHODCALLTYPE GetDisplayModeList1(
+	VIRTUALGFX HRESULT STDMETHODCALLTYPE GetDisplayModeList1(
 	  /* [in] */ DXGI_FORMAT EnumFormat,
 	  /* [in] */ UINT Flags,
 	  /* [annotation][out][in] */
 	  _Inout_ UINT* pNumModes,
 	  /* [annotation][out] */
-	  _Out_writes_to_opt_(*pNumModes, *pNumModes)  DXGI_MODE_DESC1* pDesc) final
+	  _Out_writes_to_opt_(*pNumModes, *pNumModes)  DXGI_MODE_DESC1* pDesc) FINALGFX
 	{
 		return m_pDXGIOutput4->GetDisplayModeList1(EnumFormat, Flags, pNumModes, pDesc);
 	}
 
-	virtual HRESULT STDMETHODCALLTYPE FindClosestMatchingMode1(
+	VIRTUALGFX HRESULT STDMETHODCALLTYPE FindClosestMatchingMode1(
 	  /* [annotation][in] */
 	  _In_ const DXGI_MODE_DESC1* pModeToMatch,
 	  /* [annotation][out] */
 	  _Out_ DXGI_MODE_DESC1* pClosestMatch,
 	  /* [annotation][in] */
-	  _In_opt_ IUnknown* pConcernedDevice) final;
+	  _In_opt_ IUnknown* pConcernedDevice) FINALGFX;
 
-	virtual HRESULT STDMETHODCALLTYPE GetDisplaySurfaceData1(
+	VIRTUALGFX HRESULT STDMETHODCALLTYPE GetDisplaySurfaceData1(
 	  /* [annotation][in] */
-	  _In_ IDXGIResource* pDestination) final
+	  _In_ IDXGIResource* pDestination) FINALGFX
 	{
 		return m_pDXGIOutput4->GetDisplaySurfaceData1(pDestination);
 	}
 
-	virtual HRESULT STDMETHODCALLTYPE DuplicateOutput(
+	VIRTUALGFX HRESULT STDMETHODCALLTYPE DuplicateOutput(
 	  /* [annotation][in] */
 	  _In_ IUnknown* pDevice,
 	  /* [annotation][out] */
-	  _COM_Outptr_ IDXGIOutputDuplication** ppOutputDuplication) final
+	  _COM_Outptr_ IDXGIOutputDuplication** ppOutputDuplication) FINALGFX
 	{
 		return m_pDXGIOutput4->DuplicateOutput(pDevice, ppOutputDuplication);
 	}
 
+	#endif
 	#pragma endregion
 
 	#pragma region /* IDXGIOutput2 implementation */
+	#ifdef __dxgi1_3_h__
 
-	virtual BOOL STDMETHODCALLTYPE SupportsOverlays(void) final
+	VIRTUALGFX BOOL STDMETHODCALLTYPE SupportsOverlays(void) FINALGFX
 	{
 		return m_pDXGIOutput4->SupportsOverlays();
 	}
 
+	#endif
 	#pragma endregion
 
 	#pragma region /* IDXGIOutput3 implementation */
+	#ifdef __dxgi1_3_h__
 
-	virtual HRESULT STDMETHODCALLTYPE CheckOverlaySupport(
+	VIRTUALGFX HRESULT STDMETHODCALLTYPE CheckOverlaySupport(
 	  /* [annotation][in] */
 	  _In_ DXGI_FORMAT EnumFormat,
 	  /* [annotation][out] */
 	  _In_ IUnknown* pConcernedDevice,
 	  /* [annotation][out] */
-	  _Out_ UINT* pFlags) final;
+	  _Out_ UINT* pFlags) FINALGFX;
 
+	#endif
 	#pragma endregion
 
 	#pragma region /* IDXGIOutput4 implementation */
+	#ifdef __dxgi1_4_h__
 
-	virtual HRESULT STDMETHODCALLTYPE CheckOverlayColorSpaceSupport(
+	VIRTUALGFX HRESULT STDMETHODCALLTYPE CheckOverlayColorSpaceSupport(
 	  /* [annotation][in] */
 	  _In_ DXGI_FORMAT Format,
 	  /* [annotation][in] */
@@ -185,17 +204,15 @@ public:
 	  /* [annotation][in] */
 	  _In_ IUnknown* pConcernedDevice,
 	  /* [annotation][out] */
-	  _Out_ UINT* pFlags) final;
+	  _Out_ UINT* pFlags) FINALGFX;
 
+	#endif
 	#pragma endregion
 
 protected:
-	CCryDX12GIOutput(CCryDX12GIAdapter* pAdapter, IDXGIOutput4* pOutput);
+	CCryDX12GIOutput(CCryDX12GIAdapter* pAdapter, IDXGIOutput4ToCall* pOutput);
 
 private:
-	CCryDX12GIAdapter* m_pAdapter;
-
-	IDXGIOutput4*      m_pDXGIOutput4;
+	CCryDX12GIAdapter*  m_pAdapter;
+	IDXGIOutput4ToCall* m_pDXGIOutput4;
 };
-
-#endif // __CCRYDX12GIOUTPUT__

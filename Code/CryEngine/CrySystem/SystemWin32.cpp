@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #include "StdAfx.h"
 #include "System.h"
@@ -99,37 +99,9 @@ const char* g_szModuleGroups[][2] = {
 	{ "CryRenderD3D12.dll",  g_szGroupCore },
 	{ "CryRenderOpenGL.dll", g_szGroupCore },
 	{ "CryRenderVulkan.dll", g_szGroupCore },
-	{ "CryRenderNULL.dll",   g_szGroupCore }
+	{ "CryRenderNULL.dll",   g_szGroupCore },
+	{ "CryFlowGraph.dll",    g_szGroupCore }
 };
-
-//////////////////////////////////////////////////////////////////////////
-void CSystem::SetAffinity()
-{
-	// the following code is only for Windows
-#if CRY_PLATFORM_WINDOWS
-	// set the process affinity
-	ICVar* pcvAffinityMask = GetIConsole()->GetCVar("sys_affinity");
-	if (!pcvAffinityMask)
-		pcvAffinityMask = REGISTER_INT("sys_affinity", 0, VF_NULL, "");
-
-	if (pcvAffinityMask)
-	{
-		unsigned nAffinity = pcvAffinityMask->GetIVal();
-		if (nAffinity)
-		{
-			typedef BOOL (WINAPI * FnSetProcessAffinityMask)(IN HANDLE hProcess, IN DWORD_PTR dwProcessAffinityMask);
-			HMODULE hKernel = CryLoadLibrary("kernel32.dll");
-			if (hKernel)
-			{
-				FnSetProcessAffinityMask SetProcessAffinityMask = (FnSetProcessAffinityMask)GetProcAddress(hKernel, "SetProcessAffinityMask");
-				if (SetProcessAffinityMask && !SetProcessAffinityMask(GetCurrentProcess(), nAffinity))
-					GetILog()->LogError("Error: Cannot set affinity mask %d, error code %d", nAffinity, GetLastError());
-				FreeLibrary(hKernel);
-			}
-		}
-	}
-#endif
-}
 
 //! dumps the memory usage statistics to the log
 //////////////////////////////////////////////////////////////////////////
@@ -1158,6 +1130,14 @@ void CSystem::FatalError(const char* format, ...)
 	OutputDebugString(szBuffer);
 #if CRY_PLATFORM_WINDOWS
 	OnFatalError(szBuffer);
+
+	if (!g_cvars.sys_no_crash_dialog)
+	{
+#ifdef WIN32
+		::MessageBox(NULL,szBuffer,"CRYENGINE FATAL ERROR",MB_OK|MB_ICONERROR);
+#endif
+	}
+
 	//Triggers a fatal error, so the DebugCallstack can create the error.log and terminate the application
 	IDebugCallStack::instance()->FatalError(szBuffer);
 #endif

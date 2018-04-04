@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #ifndef __SYSTEMEVENTDISPATCHER_H__
 #define __SYSTEMEVENTDISPATCHER_H__
@@ -13,7 +13,7 @@ public:
 	virtual ~CSystemEventDispatcher(){}
 
 	// ISystemEventDispatcher
-	virtual bool RegisterListener(ISystemEventListener* pListener);
+	virtual bool RegisterListener(ISystemEventListener* pListener, const char* szName);
 	virtual bool RemoveListener(ISystemEventListener* pListener);
 
 	virtual void OnSystemEvent(ESystemEvent event, UINT_PTR wparam, UINT_PTR lparam, bool force_queue = false);

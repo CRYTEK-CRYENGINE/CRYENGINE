@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #ifndef ropeentity_h
 #define ropeentity_h
@@ -96,7 +96,7 @@ class CRopeEntity : public CPhysicalEntity {
 	virtual float GetMass(int ipart) { return m_mass/m_nSegs; }
 	virtual float GetMassInv() { return 1E26f; }
 	virtual RigidBody *GetRigidBodyData(RigidBody *pbody, int ipart=-1);
-	virtual void GetLocTransform(int ipart, Vec3 &offs, quaternionf &q, float &scale);
+	virtual void GetLocTransform(int ipart, Vec3 &offs, quaternionf &q, float &scale, const CPhysicalPlaceholder *trg) const;
 	void EnforceConstraints(float seglen, const quaternionf& qtv,const Vec3& offstv,float scaletv, int bTargetPoseActive, float dt=0);
 	virtual void OnNeighbourSplit(CPhysicalEntity *pentOrig, CPhysicalEntity *pentNew);
 	virtual int RegisterContacts(float time_interval,int nMaxPlaneContacts);

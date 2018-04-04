@@ -143,8 +143,14 @@ source_group ("lib\\vtls" FILES ${SOURCE_VTLS})
 
 #---
 
-add_library (${PROJECT_NAME} STATIC ${SOURCE_ROOT} ${SOURCE_VAUTH} ${SOURCE_VTLS})
-set_target_properties (${PROJECT_NAME} PROPERTIES FOLDER "Libs")
+if (COMMAND CryEngineStaticModule)
+	set(${PROJECT_NAME}_SOURCES ${SOURCE_ROOT} ${SOURCE_VAUTH} ${SOURCE_VTLS})
+	CryEngineStaticModule(${PROJECT_NAME} SOLUTION_FOLDER "Libs")
+else()
+	add_library (${PROJECT_NAME} STATIC ${SOURCE_ROOT} ${SOURCE_VAUTH} ${SOURCE_VTLS})
+	set_solution_folder("Libs" ${PROJECT_NAME})
+endif()
+
 target_include_directories (${PROJECT_NAME} 
 	PUBLIC ${SDK_DIR}/curl/include
 	PRIVATE ${SDK_DIR}/curl/lib

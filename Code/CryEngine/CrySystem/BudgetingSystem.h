@@ -1,7 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
-
-#ifndef _C_BUDGETING_SYSTEM_
-#define _C_BUDGETING_SYSTEM_
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #pragma once
 
@@ -10,7 +7,10 @@
 struct IRenderer;
 struct IRenderAuxGeom;
 struct ITimer;
+namespace CryAudio
+{
 struct IAudioSystem;
+}
 struct IStreamEngine;
 
 class CBudgetingSystem : public IBudgetingSystem
@@ -70,23 +70,21 @@ protected:
 	static void PerfHudRender(float x, float y);
 
 protected:
-	IRenderer*      m_pRenderer;
-	IRenderAuxGeom* m_pAuxRenderer;
-	ITimer*         m_pTimer;
-	IAudioSystem*   m_pIAudioSystem;
-	IStreamEngine*  m_pStreamEngine;
+	IRenderer*              m_pRenderer;
+	IRenderAuxGeom*         m_pAuxRenderer;
+	ITimer*                 m_pTimer;
+	CryAudio::IAudioSystem* m_pIAudioSystem;
+	IStreamEngine*          m_pStreamEngine;
 
-	int             m_sysMemLimitInMB;
-	int             m_videoMemLimitInMB;
-	float           m_frameTimeLimitInMS;
-	int             m_soundChannelsPlayingLimit;
-	int             m_soundMemLimitInMB;
-	int             m_soundCPULimitInPercent;
-	int             m_numDrawCallsLimit;
-	int             m_numPolysLimit;
-	float           m_streamingThroughputLimit;
-	int             m_width;
-	int             m_height;
+	int                     m_sysMemLimitInMB;
+	int                     m_videoMemLimitInMB;
+	float                   m_frameTimeLimitInMS;
+	int                     m_soundChannelsPlayingLimit;
+	int                     m_soundMemLimitInMB;
+	int                     m_soundCPULimitInPercent;
+	int                     m_numDrawCallsLimit;
+	int                     m_numPolysLimit;
+	float                   m_streamingThroughputLimit;
+	int                     m_width;
+	int                     m_height;
 };
-
-#endif // #ifndef _C_BUDGETING_SYSTEM_

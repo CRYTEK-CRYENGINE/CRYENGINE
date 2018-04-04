@@ -8,7 +8,7 @@
 #include "ImageObject.h"
 
 
-ImageObject::ImageObject(const uint32 width, const uint32 height, const uint32 maxMipCount, const EPixelFormat pixelFormat, ECubemap eCubemap)
+ImageObject::ImageObject(const uint32 width, const uint32 height, const uint32 maxMipCount, const EPixelFormat pixelFormat, ECubemap eCubemap, const int compressedBlockWidth, const int compressedBlockHeight)
 	: m_pixelFormat(pixelFormat)
 	, m_eCubemap(eCubemap)
 	, m_colMinARGB(0.0f, 0.0f, 0.0f, 0.0f)
@@ -24,6 +24,9 @@ ImageObject::ImageObject(const uint32 width, const uint32 height, const uint32 m
 
 	const PixelFormatInfo* const pFmt = CPixelFormats::GetPixelFormatInfo(m_pixelFormat);
 	assert(pFmt);
+
+	m_compressedBlockWidth = (pFmt->bCompressed && compressedBlockWidth != -1) ? compressedBlockWidth : pFmt->blockWidth;
+	m_compressedBlockHeight = (pFmt->bCompressed && compressedBlockHeight != -1) ? compressedBlockHeight : pFmt->blockHeight;
 
 	const uint32 faceWidth = (eCubemap == eCubemap_Yes) ? width / 6 : width;
 
@@ -78,16 +81,15 @@ ImageObject::ImageObject(const uint32 width, const uint32 height, const uint32 m
 
 		if (pFmt->bCompressed)
 		{
-			const uint32 pixelsInBlock = pFmt->blockWidth * pFmt->blockHeight;
-			const uint32 blocksInRow = (pEntry->m_width + (pFmt->blockWidth - 1)) / pFmt->blockWidth;
-			pEntry->m_pitch = (blocksInRow * pixelsInBlock * pFmt->bitsPerPixel) / 8;
-			pEntry->m_rowCount = (localHeight + (pFmt->blockHeight - 1)) / pFmt->blockHeight;
+			const uint32 blocksInRow = (pEntry->m_width + (m_compressedBlockWidth - 1)) / m_compressedBlockWidth;
+			pEntry->m_pitch = blocksInRow * pFmt->bytesPerBlock;
+			pEntry->m_rowCount = (localHeight + (m_compressedBlockHeight - 1)) / m_compressedBlockHeight;
 		}
 		else
 		{
-			assert(pFmt->blockWidth == 1);
-			assert(pFmt->blockHeight == 1);
-			pEntry->m_pitch = (pEntry->m_width * pFmt->bitsPerPixel) / 8;
+			assert(m_compressedBlockWidth == 1);
+			assert(m_compressedBlockHeight == 1);
+			pEntry->m_pitch = pEntry->m_width * pFmt->bytesPerBlock;
 			pEntry->m_rowCount = localHeight;
 		}
 
@@ -98,7 +100,7 @@ ImageObject::ImageObject(const uint32 width, const uint32 height, const uint32 m
 }
 
 
-void ImageObject::ResetImage(const uint32 width, const uint32 height, const uint32 maxMipCount, const EPixelFormat pixelFormat, ECubemap eCubemap)
+void ImageObject::ResetImage(const uint32 width, const uint32 height, const uint32 maxMipCount, const EPixelFormat pixelFormat, ECubemap eCubemap, const int compressedBlockWidth, const int compressedBlockHeight)
 {
 	delete m_pAttachedImage;
 	for (uint32 mip = 0; mip < uint32(m_mips.size()); ++mip)
@@ -121,6 +123,9 @@ void ImageObject::ResetImage(const uint32 width, const uint32 height, const uint
 	const PixelFormatInfo* const pFmt = CPixelFormats::GetPixelFormatInfo(m_pixelFormat);
 	assert(pFmt);
 
+	m_compressedBlockWidth = (pFmt->bCompressed && compressedBlockWidth != -1) ? compressedBlockWidth : pFmt->blockWidth;
+	m_compressedBlockHeight = (pFmt->bCompressed && compressedBlockHeight != -1) ? compressedBlockHeight : pFmt->blockHeight;
+
 	const uint32 faceWidth = (eCubemap == eCubemap_Yes) ? width / 6 : width;
 
 	if (faceWidth < pFmt->minWidth)
@@ -174,16 +179,15 @@ void ImageObject::ResetImage(const uint32 width, const uint32 height, const uint
 
 		if (pFmt->bCompressed)
 		{
-			const uint32 pixelsInBlock = pFmt->blockWidth * pFmt->blockHeight;
-			const uint32 blocksInRow = (pEntry->m_width + (pFmt->blockWidth - 1)) / pFmt->blockWidth;
-			pEntry->m_pitch = (blocksInRow * pixelsInBlock * pFmt->bitsPerPixel) / 8;
-			pEntry->m_rowCount = (localHeight + (pFmt->blockHeight - 1)) / pFmt->blockHeight;
+			const uint32 blocksInRow = (pEntry->m_width + (m_compressedBlockWidth - 1)) / m_compressedBlockWidth;
+			pEntry->m_pitch = blocksInRow * pFmt->bytesPerBlock;
+			pEntry->m_rowCount = (localHeight + (m_compressedBlockHeight - 1)) / m_compressedBlockHeight;
 		}
 		else
 		{
-			assert(pFmt->blockWidth == 1);
-			assert(pFmt->blockHeight == 1);
-			pEntry->m_pitch = (pEntry->m_width * pFmt->bitsPerPixel) / 8;
+			assert(m_compressedBlockWidth == 1);
+			assert(m_compressedBlockHeight == 1);
+			pEntry->m_pitch = pEntry->m_width * pFmt->bytesPerBlock;
 			pEntry->m_rowCount = localHeight;
 		}
 
@@ -211,7 +215,7 @@ ImageObject* ImageObject::CopyImage() const
 
 		if (CPixelFormats::GetPixelFormatInfo(srcPixelformat)->bCompressed)
 		{
-			dwLines = (dwLocalHeight + 3) / 4;
+			dwLines = (dwLocalHeight + GetCompressedBlockHeight() - 1) / GetCompressedBlockHeight();
 		}
 
 		char *pMem;
@@ -295,7 +299,7 @@ void ImageObject::ClearImage()
 
 		if (CPixelFormats::GetPixelFormatInfo(srcPixelformat)->bCompressed)
 		{
-			dwLines = (dwLocalHeight + 3) / 4;
+			dwLines = (dwLocalHeight + GetCompressedBlockHeight() - 1) / GetCompressedBlockHeight();
 		}
 
 		char *pMem;
@@ -316,9 +320,9 @@ void ImageObject::ClearImage()
 }
 
 // allocate an image with the same properties as the given image and the requested format, with dropping top-mips if requested
-ImageObject* ImageObject::AllocateImage(const uint32 highestMip, const EPixelFormat pixelFormat) const 
+ImageObject* ImageObject::AllocateImage(const uint32 highestMip, const EPixelFormat pixelFormat, const int compressedBlockWidth, const int compressedBlockHeight) const
 {
-	ImageObject* pRet = new ImageObject(GetWidth(highestMip), GetHeight(highestMip), GetMipCount() - highestMip, pixelFormat, GetCubemap());
+	ImageObject* pRet = new ImageObject(GetWidth(highestMip), GetHeight(highestMip), GetMipCount() - highestMip, pixelFormat, GetCubemap(), compressedBlockWidth, compressedBlockHeight);
 	// block compression formats may cause the allocator to drop the bottom mips
 	assert(pRet->GetMipCount() <= GetMipCount() - highestMip);
 	pRet->CopyPropertiesFrom(*this);
@@ -330,7 +334,7 @@ ImageObject* ImageObject::AllocateImage(const uint32 highestMip, const EPixelFor
 // allocate an image with the same properties as the given image, with dropping top-mips if requested
 ImageObject* ImageObject::AllocateImage(const uint32 highestMip) const
 {
-	ImageObject* pRet = new ImageObject(GetWidth(highestMip), GetHeight(highestMip), GetMipCount() - highestMip, GetPixelFormat(), GetCubemap());
+	ImageObject* pRet = new ImageObject(GetWidth(highestMip), GetHeight(highestMip), GetMipCount() - highestMip, GetPixelFormat(), GetCubemap(), GetCompressedBlockWidth(), GetCompressedBlockHeight());
 	// block compression formats may cause the allocator to drop the bottom mips
 	assert(pRet->GetMipCount() <= GetMipCount() - highestMip);
 	pRet->CopyPropertiesFrom(*this);
@@ -510,6 +514,24 @@ void ImageToProcess::ConvertFormatWithSpecifiedCompressor(const CImageProperties
 		// convert to intermediate fp-buffer, then to the final format
 		ConvertFormat(pProps, ePixelFormat_A32B32G32R32F, quality);
 		ConvertFormat(pProps, fmtDst, quality);
+		return;
+	}
+
+	// Special treatment of data for ASTC LDR formats
+	if (((fmtDst >= ePixelFormat_ASTC_LDR_L) && (fmtDst <= ePixelFormat_ASTC_LDR_RGBA) && (get()->GetPixelFormat() != ePixelFormat_A8R8G8B8)) ||
+		((get()->GetPixelFormat() >= ePixelFormat_ASTC_LDR_L) && (get()->GetPixelFormat() <= ePixelFormat_ASTC_LDR_RGBA) && (fmtDst != ePixelFormat_A8R8G8B8)))
+	{
+		ConvertFormat(pProps, ePixelFormat_A8R8G8B8);
+		ConvertFormat(pProps, fmtDst);
+		return;
+	}
+
+	// Special treatment of data for ASTC HDR formats
+	if (((fmtDst >= ePixelFormat_ASTC_HDR_L) && (fmtDst <= ePixelFormat_ASTC_HDR_RGBA) && (get()->GetPixelFormat() != ePixelFormat_A16B16G16R16F)) ||
+		((get()->GetPixelFormat() >= ePixelFormat_ASTC_HDR_L) && (get()->GetPixelFormat() <= ePixelFormat_ASTC_HDR_RGBA) && (fmtDst != ePixelFormat_A16B16G16R16F)))
+	{
+		ConvertFormat(pProps, ePixelFormat_A16B16G16R16F);
+		ConvertFormat(pProps, fmtDst);
 		return;
 	}
 
@@ -791,6 +813,26 @@ void ImageToProcess::ConvertFormatWithSpecifiedCompressor(const CImageProperties
 	default:
 		break;
 	}
+
+#if defined(TOOLS_SUPPORT_ASTC)
+	if (((fmtDst >= ePixelFormat_ASTC_LDR_L) && (fmtDst <= ePixelFormat_ASTC_HDR_RGBA)) ||
+		((get()->GetPixelFormat() >= ePixelFormat_ASTC_LDR_L) && (get()->GetPixelFormat() <= ePixelFormat_ASTC_HDR_RGBA)))
+	{
+		const EResult res = ConvertFormatWithASTCCompressor(pProps, fmtDst, quality);
+
+		if (res == eResult_Failed || res == eResult_Success)
+		{
+			return;
+		}
+
+		if (res != eResult_UnsupportedFormat)
+		{
+			RCLogError("Internal error in %s.", __FUNCTION__);
+			set(0);
+			return;
+		}
+	}
+#endif
 
 	// None of the following compressors can convert to/from floating point images, so we must
 	// convert through RGBA8/RGBX8.

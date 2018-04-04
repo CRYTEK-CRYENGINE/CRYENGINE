@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 // -------------------------------------------------------------------------
 //  File name:   XmlUtils.h
@@ -37,7 +37,7 @@ extern bool g_bEnableBinaryXmlLoading;
 CXmlUtils::CXmlUtils(ISystem* pSystem)
 {
 	m_pSystem = pSystem;
-	m_pSystem->GetISystemEventDispatcher()->RegisterListener(this);
+	m_pSystem->GetISystemEventDispatcher()->RegisterListener(this,"CXmlUtils");
 
 	// create IReadWriteXMLSink object
 	m_pReadWriteXMLSink = new CReadWriteXMLSink();

@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #include "stdafx.h"
 #include "AudioImpl.h"
@@ -13,83 +13,76 @@
 	#include <shapexmacontext.h>
 #endif // CRY_PLATFORM_DURANGO
 
-using namespace CryAudio::Impl::Fmod;
-
+namespace CryAudio
+{
+namespace Impl
+{
+namespace Fmod
+{
 // Define global objects.
-CSoundAllocator<2*1024*1024> g_audioImplMemoryPool;
-CAudioLogger g_audioImplLogger;
-CAudioImplCVars CryAudio::Impl::Fmod::g_audioImplCVars;
+CLogger g_implLogger;
+CCVars g_cvars;
 
 #if defined(PROVIDE_FMOD_IMPL_SECONDARY_POOL)
-tMemoryPoolReferenced g_audioImplMemoryPoolSecondary;
+MemoryPoolReferenced g_audioImplMemoryPoolSecondary;
 #endif // PROVIDE_AUDIO_IMPL_SECONDARY_POOL
 
 //////////////////////////////////////////////////////////////////////////
-class CEngineModule_CryAudioImplFmod : public IEngineModule
+class CEngineModule_CryAudioImplFmod : public CryAudio::IImplModule
 {
-	CRYINTERFACE_SIMPLE(IEngineModule);
-	CRYGENERATE_SINGLETONCLASS(CEngineModule_CryAudioImplFmod, "EngineModule_AudioImpl", 0xaa6a039a0ce5bbab, 0x33e0aad69f3136f4);
+	CRYINTERFACE_BEGIN()
+	CRYINTERFACE_ADD(Cry::IDefaultModule)
+	CRYINTERFACE_ADD(CryAudio::IImplModule)
+	CRYINTERFACE_END()
+
+	CRYGENERATE_SINGLETONCLASS_GUID(CEngineModule_CryAudioImplFmod, "EngineModule_AudioImpl", "aa6a039a-0ce5-bbab-33e0-aad69f3136f4"_cry_guid);
 
 	CEngineModule_CryAudioImplFmod();
-	virtual ~CEngineModule_CryAudioImplFmod() {}
 
 	//////////////////////////////////////////////////////////////////////////
-	virtual char const* GetName()     override { return "CryAudioImplFmod"; }
-	virtual char const* GetCategory() override { return "CryAudio"; }
+	virtual char const* GetName()  const override     { return "CryAudioImplFmod"; }
+	virtual char const* GetCategory()  const override { return "CryAudio"; }
 
 	//////////////////////////////////////////////////////////////////////////
 	virtual bool Initialize(SSystemGlobalEnvironment& env, const SSystemInitParams& initParams) override
 	{
-		// Initialize memory pools.
-		MEMSTAT_CONTEXT(EMemStatContextTypes::MSC_Other, 0, "Fmod Audio Implementation Memory Pool Primary");
-		size_t const poolSize = g_audioImplCVars.m_primaryMemoryPoolSize << 10;
-		uint8* const pPoolMemory = new uint8[poolSize];
-		g_audioImplMemoryPool.InitMem(poolSize, pPoolMemory, "Fmod Implementation Audio Pool");
-
 #if defined(PROVIDE_FMOD_IMPL_SECONDARY_POOL)
 		size_t secondarySize = 0;
 		void* pSecondaryMemory = nullptr;
 
 	#if CRY_PLATFORM_DURANGO
 		MEMSTAT_CONTEXT(EMemStatContextTypes::MSC_Other, 0, "Fmod Implementation Audio Pool Secondary");
-		secondarySize = g_audioImplCVars.m_secondaryMemoryPoolSize << 10;
+		secondarySize = g_cvars.m_secondaryMemoryPoolSize << 10;
 
 		APU_ADDRESS temp;
 		HRESULT const result = ApuAlloc(&pSecondaryMemory, &temp, secondarySize, SHAPE_XMA_INPUT_BUFFER_ALIGNMENT);
 		CRY_ASSERT(result == S_OK);
-	#endif // CRY_PLATFORM_DURANGO
+	#endif  // CRY_PLATFORM_DURANGO
 
 		g_audioImplMemoryPoolSecondary.InitMem(secondarySize, (uint8*)pSecondaryMemory);
-#endif // PROVIDE_AUDIO_IMPL_SECONDARY_POOL
+#endif    // PROVIDE_AUDIO_IMPL_SECONDARY_POOL
 
-		POOL_NEW_CREATE(CAudioImpl, pImpl);
+		gEnv->pAudioSystem->AddRequestListener(&CEngineModule_CryAudioImplFmod::OnEvent, nullptr, ESystemEvents::ImplSet);
+		SRequestUserData const data(ERequestFlags::ExecuteBlocking | ERequestFlags::CallbackOnExternalOrCallingThread);
+		gEnv->pAudioSystem->SetImpl(new CImpl, data);
+		gEnv->pAudioSystem->RemoveRequestListener(&CEngineModule_CryAudioImplFmod::OnEvent, nullptr);
 
-		if (pImpl != nullptr)
+		if (m_bSuccess)
 		{
-			g_audioImplLogger.Log(eAudioLogType_Always, "CryAudioImplFmod loaded");
-
-			SAudioRequest request;
-			request.flags = eAudioRequestFlags_PriorityHigh | eAudioRequestFlags_ExecuteBlocking | eAudioRequestFlags_SyncCallback;
-
-			SAudioManagerRequestData<eAudioManagerRequestType_SetAudioImpl> requestData(pImpl);
-			request.pData = &requestData;
-
-			gEnv->pAudioSystem->AddRequestListener(&CEngineModule_CryAudioImplFmod::OnAudioEvent, nullptr, eAudioRequestType_AudioManagerRequest, eAudioManagerRequestType_SetAudioImpl);
-			env.pAudioSystem->PushRequest(request);
-			gEnv->pAudioSystem->RemoveRequestListener(&CEngineModule_CryAudioImplFmod::OnAudioEvent, nullptr);
+			g_implLogger.Log(ELogType::Always, "CryAudioImplFmod loaded");
 		}
 		else
 		{
-			g_audioImplLogger.Log(eAudioLogType_Always, "CryAudioImplFmod failed to load");
+			g_implLogger.Log(ELogType::Error, "CryAudioImplFmod failed to load");
 		}
 
 		return m_bSuccess;
 	}
 
 	//////////////////////////////////////////////////////////////////////////
-	static void OnAudioEvent(SAudioRequestInfo const* const pAudioRequestInfo)
+	static void OnEvent(SRequestInfo const* const pRequestInfo)
 	{
-		m_bSuccess = pAudioRequestInfo->requestResult == eAudioRequestResult_Success;
+		m_bSuccess = pRequestInfo->requestResult == ERequestResult::Success;
 	}
 
 	static bool m_bSuccess;
@@ -100,7 +93,9 @@ bool CEngineModule_CryAudioImplFmod::m_bSuccess = false;
 
 CEngineModule_CryAudioImplFmod::CEngineModule_CryAudioImplFmod()
 {
-	g_audioImplCVars.RegisterVariables();
+	g_cvars.RegisterVariables();
 }
-
+} // namespace Fmod
+} // namespace Impl
+} // namespace CryAudio
 #include <CryCore/CrtDebugStats.h>

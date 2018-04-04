@@ -15,16 +15,18 @@ function(PhysXaddLib version extension)
 	set_target_properties(PHYSX PROPERTIES IMPORTED_LOCATION "${SDK_DIR}/PhysX/Lib/${version}/PhysX3Cooking${extension}_x64.lib")
 	set_target_properties(PHYSX PROPERTIES IMPORTED_LOCATION "${SDK_DIR}/PhysX/Lib/${version}/PhysX3Vehicle${extension}.lib")
 	 
-	deploy_runtime_files(${SDK_DIR}/PhysX/Bin/${version}/PhysX3${extension}_x64.dll)
-	deploy_runtime_files(${SDK_DIR}/PhysX/Bin/${version}/PhysX3CharacterKinematic${extension}_x64.dll)
-	deploy_runtime_files(${SDK_DIR}/PhysX/Bin/${version}/PhysX3Common${extension}_x64.dll)
-	deploy_runtime_files(${SDK_DIR}/PhysX/Bin/${version}/PhysX3Cooking${extension}_x64.dll)
+	deploy_runtime_files("${SDK_DIR}/PhysX/Bin/${version}/PhysX3${extension}_x64.dll")
+	deploy_runtime_files("${SDK_DIR}/PhysX/Bin/${version}/PhysX3CharacterKinematic${extension}_x64.dll")
+	deploy_runtime_files("${SDK_DIR}/PhysX/Bin/${version}/PhysX3Common${extension}_x64.dll")
+	deploy_runtime_files("${SDK_DIR}/PhysX/Bin/${version}/PhysX3Cooking${extension}_x64.dll")
 
 endfunction()
 
 add_library(PHYSX SHARED IMPORTED GLOBAL)
 
-if (MSVC_VERSION EQUAL 1900)     # Visual Studio 2015
+if (MSVC_VERSION GREATER 1900)     # Visual Studio > 2015
+	set(PHYSX_VS_VERSION vc14win64)
+elseif (MSVC_VERSION EQUAL 1900)     # Visual Studio 2015
 	set(PHYSX_VS_VERSION vc14win64)
 elseif (MSVC_VERSION EQUAL 1800) # Visual Studio 2013
 	set(PHYSX_VS_VERSION vc12win64)

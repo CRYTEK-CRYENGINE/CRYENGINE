@@ -5,7 +5,9 @@
 #include "MaterialView.h"
 #include "MaterialModel.h"
 #include "MaterialElement.h"
-#include "TextureConversionDialog.h"
+#include "TextureManager.h"
+#include "TextureModel.h"
+#include "TextureView.h"
 #include "MaterialHelpers.h"
 #include "CreateMaterialTask.h"
 #include "DialogCommon.h"  // CSceneManager, CreateTemporaryDirectory
@@ -14,7 +16,7 @@
 #include <Cry3DEngine/I3DEngine.h>
 #include <Material/Material.h>
 
-#include <QPropertyTree/QPropertyTree.h>
+#include <Serialization/QPropertyTree/QPropertyTree.h>
 
 #include <QColorDialog>
 #include <QMenu>
@@ -57,8 +59,7 @@ void CMaterialPanel::AssignScene(const MeshImporter::SImportScenePayload* pPaylo
 	m_pMaterialSettings->SetMaterial(materialName);
 
 	// Fill textures.
-	m_pTextureManager->ClearTextures();
-	Fill(*m_pSceneManager, *m_pTextureManager);
+	m_pTextureManager->Init(*m_pSceneManager);
 	m_pTextureModel->Reset();
 
 	m_pMaterialList->resizeColumnToContents(CMaterialModel::eColumnType_Color);

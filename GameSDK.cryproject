@@ -1,0 +1,28 @@
+{
+	"version": 1,
+	"type": "CRYENGINE Project",
+	"info": { "name": "CRYENGINE SDK" },
+	"content": {
+		"assets": [ "GameSDK" ],
+		"code": [ "" ],
+		"libs": [
+			{
+				"name": "CRYENGINE",
+				"shared": { "any": "CryGameSDK", "win_x64": "", "win_x86": "" }
+			}
+		]
+	},
+	"require": {
+		"engine": "engine-5.4",
+		"plugins": [
+			{ "type": "EPluginType::Native", "path": "CryDefaultEntities" },
+			{ "type": "EPluginType::Native", "path": "CrySensorSystem" },
+			{ "type": "EPluginType::Native", "path": "CryPerceptionSystem" }
+		]
+	},
+	"console_variables": [
+		{ "name": "ca_useIMG_CAF", "value": "0" },
+		{ "name": "sys_ime", "value": "1" },
+		{ "name": "sys_target_platforms", "value": "pc,ps4,xboxone,linux" }
+	]
+}

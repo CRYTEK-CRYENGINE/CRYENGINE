@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #include "StdAfx.h"
 
@@ -83,7 +83,7 @@ int CPhysicalPlaceholder::SetParams(pe_params *_params, int bThreadSafe)
 		}
 
 		CPhysicalWorld *pWorld = (CPhysicalWorld*)GetWorld();
-		AtomicAdd(&pWorld->m_lockGrid,-(pWorld->RepositionEntity(this,1) & WRITE_LOCK_VAL));
+		pWorld->RepositionEntity(this,1|8);
 		return 1;
 	}
 

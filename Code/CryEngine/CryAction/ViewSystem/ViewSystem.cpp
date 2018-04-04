@@ -1,20 +1,9 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
-/*************************************************************************
-   -------------------------------------------------------------------------
-   $Id$
-   $DateTime$
-
-   -------------------------------------------------------------------------
-   History:
-   - 17:9:2004 : Created by Filippo De Luca
-    24:11:2005: added movie system (Craig Tiller)
-*************************************************************************/
 #include "StdAfx.h"
-
+#include "ViewSystem.h"
 #include <CryMath/Cry_Camera.h>
 #include <ILevelSystem.h>
-#include "ViewSystem.h"
 #include "GameObjects/GameObject.h"
 #include "CryAction.h"
 #include "IActorSystem.h"
@@ -49,8 +38,7 @@ CViewSystem::CViewSystem(ISystem* const pSystem) :
 	m_fBlendInPosSpeed(0.0f),
 	m_fBlendInRotSpeed(0.0f),
 	m_bPerformBlendOut(false),
-	m_useDeferredViewSystemUpdate(false),
-	m_bControlsAudioListeners(true)
+	m_useDeferredViewSystemUpdate(false)
 {
 	REGISTER_CVAR2("cl_camera_noise", &m_fCameraNoise, -1, 0,
 	               "Adds hand-held like camera noise to the camera view. \n The higher the value, the higher the noise.\n A value <= 0 disables it.");
@@ -98,12 +86,9 @@ void CViewSystem::Update(float frameTime)
 
 	CView* const __restrict pActiveView = static_cast<CView*>(GetActiveView());
 
-	TViewMap::const_iterator Iter(m_views.begin());
-	TViewMap::const_iterator const IterEnd(m_views.end());
-
-	for (; Iter != IterEnd; ++Iter)
+	for (auto const& view : m_views)
 	{
-		CView* const __restrict pView = Iter->second;
+		CView* const __restrict pView = view.second;
 
 		bool const bIsActive = (pView == pActiveView);
 
@@ -111,11 +96,10 @@ void CViewSystem::Update(float frameTime)
 
 		if (bIsActive)
 		{
-			CCamera& rCamera = pView->GetCamera();
-			pView->UpdateAudioListener(rCamera.GetMatrix());
+			CCamera& camera = pView->GetCamera();
 			SViewParams currentParams = *(pView->GetCurrentParams());
 
-			rCamera.SetJustActivated(currentParams.justActivated);
+			camera.SetJustActivated(currentParams.justActivated);
 
 			currentParams.justActivated = false;
 			pView->SetCurrentParams(currentParams);
@@ -123,10 +107,10 @@ void CViewSystem::Update(float frameTime)
 			if (m_bOverridenCameraRotation)
 			{
 				// When camera rotation is overridden.
-				Vec3 pos = rCamera.GetMatrix().GetTranslation();
+				Vec3 pos = camera.GetMatrix().GetTranslation();
 				Matrix34 camTM(m_overridenCameraRotation);
 				camTM.SetTranslation(pos);
-				rCamera.SetMatrix(camTM);
+				camera.SetMatrix(camTM);
 			}
 			else
 			{
@@ -134,12 +118,12 @@ void CViewSystem::Update(float frameTime)
 
 				if (m_fCameraNoise > 0)
 				{
-					Matrix33 m = Matrix33(rCamera.GetMatrix());
+					Matrix33 m = Matrix33(camera.GetMatrix());
 					m.OrthonormalizeFast();
 					Ang3 aAng1 = Ang3::GetAnglesXYZ(m);
 					//Ang3 aAng2 = RAD2DEG(aAng1);
 
-					Matrix34 camTM = rCamera.GetMatrix();
+					Matrix34 camTM = camera.GetMatrix();
 					Vec3 pos = camTM.GetTranslation();
 					camTM.SetIdentity();
 
@@ -155,11 +139,11 @@ void CViewSystem::Update(float frameTime)
 
 					camTM.SetRotationXYZ(aAng1);
 					camTM.SetTranslation(pos);
-					rCamera.SetMatrix(camTM);
+					camera.SetMatrix(camTM);
 				}
 			}
 
-			m_pSystem->SetViewCamera(rCamera);
+			m_pSystem->SetViewCamera(camera);
 		}
 	}
 
@@ -357,12 +341,12 @@ bool CViewSystem::IsClientActorViewActive() const
 //------------------------------------------------------------------------
 unsigned int CViewSystem::GetViewId(IView* pView) const
 {
-	for (TViewMap::const_iterator it = m_views.begin(); it != m_views.end(); ++it)
+	for (auto const& view : m_views)
 	{
-		IView* tView = it->second;
+		IView* tView = view.second;
 
 		if (tView == pView)
-			return it->first;
+			return view.first;
 	}
 
 	return 0;
@@ -378,14 +362,16 @@ unsigned int CViewSystem::GetActiveViewId() const
 }
 
 //------------------------------------------------------------------------
-IView* CViewSystem::GetViewByEntityId(unsigned int id, bool forceCreate)
+IView* CViewSystem::GetViewByEntityId(EntityId id, bool forceCreate)
 {
-	for (TViewMap::const_iterator it = m_views.begin(); it != m_views.end(); ++it)
+	for (auto const& view : m_views)
 	{
-		IView* tView = it->second;
+		IView* const pIView = view.second;
 
-		if (tView && tView->GetLinkedId() == id)
-			return tView;
+		if (pIView != nullptr && pIView->GetLinkedId() == id)
+		{
+			return pIView;
+		}
 	}
 
 	if (forceCreate)
@@ -537,13 +523,6 @@ void CViewSystem::BeginCutScene(IAnimSequence* pSeq, unsigned long dwFlags, bool
 	   m_pGame->AllowQuicksave(false);
 	 */
 
-	/* TODO: how do we pause sounds?
-	   // Sounds are not stopped or cut automatically, code needs to listen to cutscene begin/end event
-	   // Cutscenes have dedicated foley sounds so to lower the volume of the rest a soundmood is used
-	 */
-
-	REINST("notify the audio system?");
-
 	/* TODO: how do we reset FX?
 	   if (bResetFx)
 	   {
@@ -590,17 +569,6 @@ void CViewSystem::EndCutScene(IAnimSequence* pSeq, unsigned long dwFlags)
 	   }
 	 */
 
-	/* TODO: how do we pause sounds?
-	   // Sounds are not stopped or cut automatically, code needs to listen to cutscene begin/end event
-	   // Cutscenes have dedicated foley sounds so to lower the volume of the rest a soundmood is used
-
-	   if (m_bSoundsPaused)
-	   {
-	   }
-	 */
-
-	REINST("notify the audio system?");
-
 	/* TODO: resolve input difficulties
 	   m_pGame->m_pIActionMapManager->SetActionMap("default");
 	   GetISystem()->GetIInput()->GetIKeyboard()->ClearKeyState();
@@ -627,38 +595,11 @@ void CViewSystem::SendGlobalEvent(const char* pszEvent)
 	// TODO: broadcast to flowgraph/script system
 }
 
-//void CViewSystem::PlaySubtitles( IAnimSequence* pSeq, ISound *pSound )
-//{
-//	// TODO: support subtitles
-//}
-
 //////////////////////////////////////////////////////////////////////////
 void CViewSystem::SetOverrideCameraRotation(bool bOverride, Quat rotation)
 {
 	m_bOverridenCameraRotation = bOverride;
 	m_overridenCameraRotation = rotation;
-}
-
-//////////////////////////////////////////////////////////////////////////
-void CViewSystem::UpdateSoundListeners()
-{
-	assert(gEnv->IsEditor() && !gEnv->IsEditorGameMode());
-
-	// In Editor we may want to control global listeners outside of the game view.
-	if (m_bControlsAudioListeners)
-	{
-		CView* const __restrict pActiveView = static_cast<CView*>(GetActiveView());
-		TViewMap::const_iterator Iter(m_views.begin());
-		TViewMap::const_iterator const IterEnd(m_views.end());
-
-		for (; Iter != IterEnd; ++Iter)
-		{
-			CView* const __restrict pView = Iter->second;
-			bool const bIsActive = (pView == pActiveView);
-			CCamera const& rCamera = bIsActive ? gEnv->pSystem->GetViewCamera() : pView->GetCamera();
-			pView->UpdateAudioListener(rCamera.GetMatrix());
-		}
-	}
 }
 
 //////////////////////////////////////////////////////////////////
@@ -747,15 +688,15 @@ void CViewSystem::DebugDraw()
 	IRenderAuxText::Draw2dLabel(xpos, 5, 1.35f, fColor, false, "ViewSystem Stats: %" PRISIZE_T " Views ", m_views.size());
 
 	IView* pActiveView = GetActiveView();
-	for (TViewMap::iterator it = m_views.begin(); it != m_views.end(); ++it)
+	for (auto const& view : m_views)
 	{
-		CView* pView = it->second;
+		CView* pView = view.second;
 		const CCamera& cam = pView->GetCamera();
 		bool isActive = (pView == pActiveView);
 		bool cutSceneCamera = false;
-		for (int i = 0; i < m_cutsceneViewIdVector.size(); i++)
+		for (auto const i : m_cutsceneViewIdVector)
 		{
-			if (m_cutsceneViewIdVector[i] == it->first)
+			if (i == view.first)
 			{
 				cutSceneCamera = true;
 				break;
@@ -765,9 +706,9 @@ void CViewSystem::DebugDraw()
 		Vec3 pos = cam.GetPosition();
 		Ang3 ang = cam.GetAngles();
 		if (!cutSceneCamera)
-			IRenderAuxText::Draw2dLabel(xpos, ypos, 1.35f, isActive ? fColorGreen : fColorRed, false, "View Camera: %p . View Id: %d, pos (%f, %f, %f), ang (%f, %f, %f)", &cam, it->first, pos.x, pos.y, pos.z, ang.x, ang.y, ang.z);
+			IRenderAuxText::Draw2dLabel(xpos, ypos, 1.35f, isActive ? fColorGreen : fColorRed, false, "View Camera: %p . View Id: %d, pos (%f, %f, %f), ang (%f, %f, %f)", &cam, view.first, pos.x, pos.y, pos.z, ang.x, ang.y, ang.z);
 		else
-			IRenderAuxText::Draw2dLabel(xpos, ypos, 1.35f, isActive ? fColorGreen : fColorRed, false, "View Camera: %p . View Id: %d, pos (%f, %f, %f), ang (%f, %f, %f) - Created during Cut-Scene", &cam, it->first, pos.x, pos.y, pos.z, ang.x, ang.y, ang.z);
+			IRenderAuxText::Draw2dLabel(xpos, ypos, 1.35f, isActive ? fColorGreen : fColorRed, false, "View Camera: %p . View Id: %d, pos (%f, %f, %f), ang (%f, %f, %f) - Created during Cut-Scene", &cam, view.first, pos.x, pos.y, pos.z, ang.x, ang.y, ang.z);
 
 		ypos += 11;
 	}
@@ -781,38 +722,43 @@ void CViewSystem::GetMemoryUsage(ICrySizer* s) const
 	s->AddObject(m_views);
 }
 
+//////////////////////////////////////////////////////////////////////////
 void CViewSystem::Serialize(TSerialize ser)
 {
-	TViewMap::iterator iter = m_views.begin();
-	TViewMap::iterator iterEnd = m_views.end();
-	while (iter != iterEnd)
+	for (auto const& view : m_views)
 	{
-		iter->second->Serialize(ser);
-		++iter;
+		view.second->Serialize(ser);
 	}
 }
 
+//////////////////////////////////////////////////////////////////////////
 void CViewSystem::PostSerialize()
 {
-	TViewMap::iterator iter = m_views.begin();
-	TViewMap::iterator iterEnd = m_views.end();
-	while (iter != iterEnd)
+	for (auto const& view : m_views)
 	{
-		iter->second->PostSerialize();
-		++iter;
+		view.second->PostSerialize();
 	}
 }
 
 ///////////////////////////////////////////////////////////////////////////
 void CViewSystem::SetControlAudioListeners(bool bActive)
 {
-	m_bControlsAudioListeners = bActive;
-
-	TViewMap::const_iterator Iter(m_views.begin());
-	TViewMap::const_iterator const IterEnd(m_views.end());
-
-	for (; Iter != IterEnd; ++Iter)
+	for (auto const& view : m_views)
 	{
-		Iter->second->SetActive(bActive);
+		view.second->SetActive(bActive);
 	}
+}
+
+//////////////////////////////////////////////////////////////////////////
+void CViewSystem::UpdateAudioListeners()
+{
+  CView* const __restrict pActiveView = static_cast<CView*>(GetActiveView());
+
+  for (auto const& view : m_views)
+  {
+    CView* const __restrict pView = view.second;
+    bool const bIsActive = (pView == pActiveView);
+    CCamera const& camera = bIsActive ? gEnv->pSystem->GetViewCamera() : pView->GetCamera();
+    pView->UpdateAudioListener(camera.GetMatrix());
+  }
 }

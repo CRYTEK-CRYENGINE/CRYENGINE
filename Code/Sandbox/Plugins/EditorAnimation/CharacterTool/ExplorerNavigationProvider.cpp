@@ -107,7 +107,7 @@ public:
 	static std::vector<string> GetAssetTypesForType(const char* type)
 	{
 		typedef std::vector<string> v;
-		return strcmp(type, "Character") == 0 ? v{ "CharacterDefinition" } :
+		return strcmp(type, "Character") == 0 ? v{ "Character" } :
 			strcmp(type, "Animation") == 0 ? v{ "Animation" } :
 			strcmp(type, "Skeleton") == 0 ? v{ "Skeleton", "AnimatedMesh" } :
 			v();
@@ -225,8 +225,7 @@ static dll_string AnimationResourceSelector(const SResourceSelectorContext& x, c
 	const auto assetTypes = ExplorerNavigationProvider::GetAssetTypesForType(x.typeName);
 	if (GetIEditor()->GetSystem()->GetIConsole()->GetCVar("ed_enableAssetPickers")->GetIVal() && !assetTypes.empty())
 	{
-		CAsset* const pAsset = CAssetBrowserDialog::OpenSingleAssetForTypes(assetTypes);
-		return pAsset ? pAsset->GetFile(0) : previousValue;
+		return x.SelectFromAsset(assetTypes, previousValue);
 	}
 	else
 	{

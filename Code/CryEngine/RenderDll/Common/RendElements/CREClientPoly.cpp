@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 /*=============================================================================
    CREClientPoly.cpp : implementation of 3D Client polygons RE.
@@ -80,8 +80,8 @@ void CREClientPoly::mfPrepare(bool bCheckOverflow)
 	CShader* ef = rd->m_RP.m_pShader;
 	int i, n;
 
-	if (rd->m_RP.m_CurVFormat == eVF_P3S_C4B_T2S)
-		rd->m_RP.m_CurVFormat = eVF_P3F_C4B_T2F;
+	if (rd->m_RP.m_CurVFormat == EDefaultInputLayouts::P3S_C4B_T2S)
+		rd->m_RP.m_CurVFormat = EDefaultInputLayouts::P3F_C4B_T2F;
 
 	rd->FX_StartMerging();
 
@@ -118,9 +118,8 @@ void CREClientPoly::mfPrepare(bool bCheckOverflow)
 	UVertStreamPtr ptr = rd->m_RP.m_NextStreamPtr;
 	byte* OffsTC, * OffsColor;
 	SVF_P3F_C4B_T2F* pSrc = (SVF_P3F_C4B_T2F*)&vertexPool[m_vertexOffset];
-	switch (rd->m_RP.m_CurVFormat)
+	assert(rd->m_RP.m_CurVFormat == EDefaultInputLayouts::P3F_C4B_T2F);
 	{
-	case eVF_P3F_C4B_T2F:
 		OffsTC = rd->m_RP.m_StreamOffsetTC + ptr.PtrB;
 		OffsColor = rd->m_RP.m_StreamOffsetColor + ptr.PtrB;
 		for (i = 0; i < nVerts; i++, ptr.PtrB += rd->m_RP.m_StreamStride, OffsTC += rd->m_RP.m_StreamStride, OffsColor += rd->m_RP.m_StreamStride)
@@ -132,10 +131,6 @@ void CREClientPoly::mfPrepare(bool bCheckOverflow)
 			*(float*)(OffsTC + 4) = pSrc[i].st[1];
 			*(uint32*)OffsColor = pSrc[i].color.dcolor;
 		}
-		break;
-	default:
-		assert(false);
-		break;
 	}
 	rd->m_RP.m_NextStreamPtr = ptr;
 
@@ -175,7 +170,7 @@ void CREClientPoly::AssignPolygon(const SRenderPolygonDescription& poly, const S
 	auto& verts = poly.pVertices;
 	auto& tangs = poly.pTangents;
 
-	int nSize = CRenderMesh::m_cSizeVF[eVF_P3F_C4B_T2F] * poly.numVertices;
+	size_t nSize = CDeviceObjectFactory::LookupInputLayout(EDefaultInputLayouts::P3F_C4B_T2F).first.m_Stride * poly.numVertices;
 	int nOffs = vertexPool.size();
 	vertexPool.resize(nOffs + nSize);
 	SVF_P3F_C4B_T2F* vt = (SVF_P3F_C4B_T2F*)&vertexPool[nOffs];
@@ -238,7 +233,7 @@ bool CREClientPoly::GetGeometryInfo(SGeometryInfo& geomInfo, bool bSupportTessel
 	geomInfo.bonesRemapGUID = 0;
 
 	geomInfo.primitiveType = eptTriangleList;
-	geomInfo.eVertFormat = eVF_P3F_C4B_T2F;
+	geomInfo.eVertFormat = EDefaultInputLayouts::P3F_C4B_T2F;
 
 	geomInfo.nFirstIndex = m_indexOffset;
 	geomInfo.nNumIndices = m_indexCount;
@@ -252,11 +247,11 @@ bool CREClientPoly::GetGeometryInfo(SGeometryInfo& geomInfo, bool bSupportTessel
 	geomInfo.indexStream.hStream = m_pPolygonDataPool->m_indexBuffer;
 
 	geomInfo.vertexStreams[VSF_GENERAL].nSlot = VSF_GENERAL;
-	geomInfo.vertexStreams[VSF_GENERAL].nStride = CRenderMesh::m_cSizeVF[eVF_P3F_C4B_T2F];
+	geomInfo.vertexStreams[VSF_GENERAL].nStride = CDeviceObjectFactory::LookupInputLayout(EDefaultInputLayouts::P3F_C4B_T2F).first.m_Stride;
 	geomInfo.vertexStreams[VSF_GENERAL].hStream = m_pPolygonDataPool->m_vertexBuffer;
 
 	geomInfo.vertexStreams[VSF_TANGENTS].nSlot = VSF_TANGENTS;
-	geomInfo.vertexStreams[VSF_TANGENTS].nStride = sizeof(SPipTangents);
+	geomInfo.vertexStreams[VSF_TANGENTS].nStride = CDeviceObjectFactory::LookupInputLayout(EDefaultInputLayouts::T4S_B4S).first.m_Stride;
 	geomInfo.vertexStreams[VSF_TANGENTS].hStream = m_pPolygonDataPool->m_tangentsBuffer;
 
 	return true;

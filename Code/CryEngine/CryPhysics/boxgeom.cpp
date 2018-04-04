@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #include "StdAfx.h"
 
@@ -426,6 +426,8 @@ void CBoxGeom::BuildTriMesh(CTriMesh &mesh, int bStaticArrays)
 IGeometry *CBoxGeom::GetTriMesh(int bClone)
 {
 	CTriMesh *pMesh = new CTriMesh;
+	pMesh->m_pForeignData = m_pForeignData;
+	pMesh->m_iForeignData = m_iForeignData;
 	BuildTriMesh(*pMesh,0);
 	return pMesh;
 }

@@ -1,11 +1,11 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #pragma once
 
-#include <Schematyc/FundamentalTypes.h>
-#include <Schematyc/Script/Elements/IScriptBase.h>
-#include <Schematyc/SerializationUtils/MultiPassSerializer.h>
-#include <Schematyc/Utils/EnumFlags.h>
+#include <CrySchematyc/FundamentalTypes.h>
+#include <CrySchematyc/Script/Elements/IScriptBase.h>
+#include <CrySchematyc/SerializationUtils/MultiPassSerializer.h>
+#include <CrySchematyc/Utils/EnumFlags.h>
 
 #include "Script/ScriptElementBase.h"
 #include "Script/ScriptUserDocumentation.h"
@@ -40,7 +40,7 @@ private:
 public:
 
 	CScriptBase();
-	CScriptBase(const SGUID& guid, const SElementId& classId);
+	CScriptBase(const CryGUID& guid, const SElementId& classId);
 
 	// IScriptElement
 	virtual void EnumerateDependencies(const ScriptDependencyEnumerator& enumerator, EScriptDependencyType type) const override;

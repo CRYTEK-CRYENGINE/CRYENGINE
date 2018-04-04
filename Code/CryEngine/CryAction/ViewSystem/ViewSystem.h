@@ -1,36 +1,18 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
-/*************************************************************************
-   -------------------------------------------------------------------------
-   $Id$
-   $DateTime$
-   Description: View System interfaces.
-
-   -------------------------------------------------------------------------
-   History:
-   - 17:9:2004 : Created by Filippo De Luca
-   24:11:2005: added movie system (Craig Tiller)
-*************************************************************************/
-#ifndef __VIEWSYSTEM_H__
-#define __VIEWSYSTEM_H__
-
-#if _MSC_VER > 1000
-	#pragma once
-#endif
+#pragma once
 
 #include "View.h"
 #include <CryMovie/IMovieSystem.h>
 #include <ILevelSystem.h>
-
-//typedef std::map<string, IView *(*)()>	TViewClassMap;
 
 class CViewSystem : public IViewSystem, public IMovieUser, public ILevelSystemListener
 {
 
 private:
 
-	typedef std::map<unsigned int, CView*> TViewMap;
-	typedef std::vector<unsigned int>      TViewIdVector;
+	using TViewMap = std::map<unsigned int, CView*>;
+	using TViewIdVector = std::vector<unsigned int>;
 
 public:
 
@@ -63,15 +45,12 @@ public:
 		m_bPerformBlendOut = performBlendOut;
 	};
 	virtual void SetOverrideCameraRotation(bool bOverride, Quat rotation) override;
-	virtual bool IsPlayingCutScene() const override
-	{
-		return m_cutsceneCount > 0;
-	}
-	virtual void UpdateSoundListeners() override;
+	virtual bool IsPlayingCutScene() const override                         { return m_cutsceneCount > 0; }
 
 	virtual void SetDeferredViewSystemUpdate(bool const bDeferred) override { m_useDeferredViewSystemUpdate = bDeferred; }
 	virtual bool UseDeferredViewSystemUpdate() const override               { return m_useDeferredViewSystemUpdate; }
 	virtual void SetControlAudioListeners(bool const bActive) override;
+	virtual void UpdateAudioListeners() override;
 	//~IViewSystem
 
 	//IMovieUser
@@ -79,21 +58,20 @@ public:
 	virtual void BeginCutScene(IAnimSequence* pSeq, unsigned long dwFlags, bool bResetFX) override;
 	virtual void EndCutScene(IAnimSequence* pSeq, unsigned long dwFlags) override;
 	virtual void SendGlobalEvent(const char* pszEvent) override;
-	//virtual void PlaySubtitles( IAnimSequence* pSeq, ISound *pSound );
 	//~IMovieUser
 
 	// ILevelSystemListener
-	virtual void OnLevelNotFound(const char* levelName) override                    {};
+	virtual void OnLevelNotFound(const char* levelName) override                    {}
 	virtual void OnLoadingStart(ILevelInfo* pLevel) override;
-	virtual void OnLoadingLevelEntitiesStart(ILevelInfo* pLevel) override           {};
-	virtual void OnLoadingComplete(ILevelInfo* pLevel) override                     {};
-	virtual void OnLoadingError(ILevelInfo* pLevel, const char* error) override     {};
-	virtual void OnLoadingProgress(ILevelInfo* pLevel, int progressAmount) override {};
+	virtual void OnLoadingLevelEntitiesStart(ILevelInfo* pLevel) override           {}
+	virtual void OnLoadingComplete(ILevelInfo* pLevel) override                     {}
+	virtual void OnLoadingError(ILevelInfo* pLevel, const char* error) override     {}
+	virtual void OnLoadingProgress(ILevelInfo* pLevel, int progressAmount) override {}
 	virtual void OnUnloadComplete(ILevelInfo* pLevel) override;
 	//~ILevelSystemListener
 
 	explicit CViewSystem(ISystem* const pSystem);
-	~CViewSystem();
+	virtual ~CViewSystem() override;
 
 	void Release() { delete this; };
 	void Update(float frameTime);
@@ -154,7 +132,4 @@ private:
 	int                               m_bApplyHmdOffset;
 
 	bool                              m_useDeferredViewSystemUpdate;
-	bool                              m_bControlsAudioListeners;
 };
-
-#endif //__VIEWSYSTEM_H__

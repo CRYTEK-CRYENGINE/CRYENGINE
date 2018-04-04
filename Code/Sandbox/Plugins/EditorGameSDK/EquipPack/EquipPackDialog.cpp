@@ -12,6 +12,7 @@
 #include "FileDialogs/SystemFileDialog.h"
 #include "Dialogs/BaseFrameWnd.h"
 #include "Dialogs/QStringDialog.h"
+#include "QtViewPane.h"
 
 class CEquipPackEditor : public CBaseFrameWnd
 {
@@ -61,17 +62,13 @@ class CEquipPackEditorClass : public IViewPaneClass
 	//////////////////////////////////////////////////////////////////////////
 	// IClassDesc
 	//////////////////////////////////////////////////////////////////////////
-	virtual ESystemClassID SystemClassID() { return ESYSTEM_CLASS_VIEWPANE; };
-	virtual const char*    ClassName() { return "EquipPackEditor"; };
-	virtual const char*    Category() { return "Editor"; };
-	virtual const char*    GetMenuPath() { return "Deprecated"; }
-	//////////////////////////////////////////////////////////////////////////
-	virtual CRuntimeClass* GetRuntimeClass() { return RUNTIME_CLASS(CEquipPackEditor); };
-	virtual const char*    GetPaneTitle() { return _T("Equip Pack Editor"); };
-	virtual CRect          GetPaneRect() { return CRect(200, 200, 1000, 800); };
-	virtual CSize          GetMinSize() { return CSize(400, 300); }
-	virtual bool           SinglePane() { return true; };
-	virtual bool           WantIdleUpdate() { return true; };
+	virtual ESystemClassID SystemClassID()   override { return ESYSTEM_CLASS_VIEWPANE; };
+	virtual const char*    ClassName()       override { return "EquipPackEditor"; };
+	virtual const char*    Category()        override { return "Editor"; };
+	virtual const char*    GetMenuPath()     override { return "Deprecated"; }
+	virtual CRuntimeClass* GetRuntimeClass() override { return RUNTIME_CLASS(CEquipPackEditor); };
+	virtual const char*    GetPaneTitle()    override { return _T("Equip Pack Editor"); };
+	virtual bool           SinglePane()      override { return true; };
 };
 
 REGISTER_CLASS_DESC(CEquipPackEditorClass);

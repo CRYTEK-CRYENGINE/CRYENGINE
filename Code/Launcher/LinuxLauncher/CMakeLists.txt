@@ -15,7 +15,7 @@ end_sources()
 
 if(LINUX)
 	CryLauncher(LinuxLauncher SOLUTION_FOLDER "Launcher")
-	target_include_directories(${THIS_PROJECT} PRIVATE Code/CryEngine/CrySystem)
+	target_include_directories(${THIS_PROJECT} PRIVATE "${CRYENGINE_DIR}/Code/CryEngine/CrySystem")
 	target_link_libraries( ${THIS_PROJECT} PRIVATE SDL2 dl pthread menuw formw ncursesw jsmn)
 else()
 	CryFileContainer(LinuxLauncher SOLUTION_FOLDER "Launcher")

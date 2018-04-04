@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #if !defined(AFX_ENTITYIT_H__95AE38A4_7F15_4069_A97A_2F3A1F06F670__INCLUDED_)
 #define AFX_ENTITYIT_H__95AE38A4_7F15_4069_A97A_2F3A1F06F670__INCLUDED_

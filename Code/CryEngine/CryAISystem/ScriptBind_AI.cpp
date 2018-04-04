@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 /********************************************************************
    -------------------------------------------------------------------------
@@ -38,7 +38,6 @@
 #include <CryAISystem/IInterestSystem.h>
 #include "TacticalPointSystem/TacticalPointSystem.h"
 #include "Communication/CommunicationManager.h"
-#include "SelectionTree/SelectionTreeManager.h"
 #include "Group/GroupManager.h"
 #include "TargetSelection/TargetTrackManager.h"
 #include "AIBubblesSystem/AIBubblesSystem.h"
@@ -391,14 +390,6 @@ void InitLookUp()
 }
 
 //====================================================================
-// ReloadLookUpXML
-//====================================================================
-void ReloadLookUpXML(IConsoleCmdArgs* /* pArgs */)
-{
-	InitLookUp();
-}
-
-//====================================================================
 // CScriptBind_AI
 //====================================================================
 CScriptBind_AI::CScriptBind_AI() :
@@ -685,7 +676,6 @@ CScriptBind_AI::CScriptBind_AI() :
 	SCRIPT_REG_TEMPLFUNC(CheckForFriendlyAgentsAroundPoint, "entityID, point, radius");
 
 	SCRIPT_REG_TEMPLFUNC(EnableUpdateLookTarget, "entityID, bEnable");
-	SCRIPT_REG_TEMPLFUNC(SetBehaviorTreeEvaluationEnabled, "entityID, enabled");
 
 	SCRIPT_REG_TEMPLFUNC(UpdateGlobalPerceptionScale, "visualScale, audioScale, [filterType], [faction]");
 	SCRIPT_REG_TEMPLFUNC(QueueBubbleMessage, "entityID, message");
@@ -897,8 +887,6 @@ CScriptBind_AI::CScriptBind_AI() :
 
 	SCRIPT_REG_GLOBAL(AI_LOOKAT_CONTINUOUS);
 	SCRIPT_REG_GLOBAL(AI_LOOKAT_USE_BODYDIR);
-
-	SCRIPT_REG_GLOBAL(AISYSEVENT_DISABLEMODIFIER);
 
 	SCRIPT_REG_GLOBAL(AILASTOPRES_LOOKAT);
 	SCRIPT_REG_GLOBAL(AILASTOPRES_USE);
@@ -1259,7 +1247,6 @@ CScriptBind_AI::CScriptBind_AI() :
 
 	SCRIPT_REG_TEMPLFUNC(SetLastOpResult, "entityID, targetEntityId");
 
-	RunStartupScript();
 	InitLookUp();
 }
 
@@ -1273,9 +1260,9 @@ CScriptBind_AI::~CScriptBind_AI(void)
 //====================================================================
 // RunStartupScript
 //====================================================================
-void CScriptBind_AI::RunStartupScript()
+bool CScriptBind_AI::RunStartupScript(bool reload)
 {
-	m_pSS->ExecuteFile("scripts/ai/aiconfig.lua", true);
+	return m_pSS->ExecuteFile("scripts/ai/aiconfig.lua", true, reload);
 }
 
 //====================================================================
@@ -3146,19 +3133,7 @@ int CScriptBind_AI::RemoveCoverEntity(IFunctionHandler* pH, ScriptHandle entityI
 //-----------------------------------------------------------------------------------------------------------
 int CScriptBind_AI::SetAssesmentMultiplier(IFunctionHandler* pH)
 {
-	int type;
-	float fMultiplier;
-
-	pH->GetParams(type, fMultiplier);
-
-	if (type < 0)
-	{
-		AIWarningID("<CScriptBind_AI> ", "Tried to set assesment multiplier to a negative type. Not allowed.");
-		return pH->EndFunction();
-	}
-
-	GetAISystem()->SetAssesmentMultiplier((unsigned short)type, fMultiplier);
-
+	pH->GetIScriptSystem()->RaiseError("AI.SetAssesmentMultiplier is deprecated.");
 	return pH->EndFunction();
 }
 
@@ -3664,14 +3639,33 @@ int CScriptBind_AI::SoundEvent(IFunctionHandler* pH)
 	float radius = 0;
 	Vec3 pos(0, 0, 0);
 	ScriptHandle hdl(0);
-	pH->GetParams(pos, radius, type);
-	// can be called from scripts without owner
-	if (pH->GetParamCount() > 3)
-		pH->GetParam(4, hdl);
+	
+	IEntity* pEntity = GetEntityFromParam(pH, 1);
+	IAIObject* pAI = pEntity ? pEntity->GetAI() : nullptr;
+	if (!pAI)
+	{
+		AIWarningID("<CScriptBind_AI> ", "AI.SoundEvent(): wrong type of parameter 1");
+		return pH->EndFunction(0);
+	}
 
-	// cerate AI sound for AI objects and for non-entities (explosions, etc)
-	SAIStimulus stim(AISTIM_SOUND, type, (EntityId)hdl.n, 0, pos, ZERO, radius);
-	gEnv->pAISystem->RegisterStimulus(stim);
+	if (!pH->GetParam(2, pos) || !pH->GetParam(3, radius) || !pH->GetParam(4, type))
+	{
+		AIWarningID("<CScriptBind_AI> ", "AI.SoundEvent(): wrong type of parameter 2, 3 or 4");
+		return pH->EndFunction(0);
+	}
+
+	// can be called from scripts without owner
+	if (pH->GetParamCount() > 4)
+		pH->GetParam(5, hdl);
+
+	// Send event.
+	SAIEVENT event;
+	event.vPosition = pos;
+	event.fThreat = radius;
+	event.nType = type;
+	event.nFlags = 0;
+	event.sourceId = (EntityId)hdl.n;
+	pAI->Event(AIEVENT_ONSOUNDEVENT, &event);
 
 	return pH->EndFunction();
 }
@@ -5958,14 +5952,7 @@ int CScriptBind_AI::GetUnitCount(IFunctionHandler* pH)
 
 int CScriptBind_AI::SetFactionThreatMultiplier(IFunctionHandler* pH)
 {
-	SCRIPT_CHECK_PARAMETERS(2);
-	int factionID;
-	float fMultiplier;
-	if (pH->GetParams(factionID, fMultiplier))
-	{
-		GetAISystem()->SetFactionThreatMultiplier(factionID, fMultiplier);
-	}
-
+	pH->GetIScriptSystem()->RaiseError("AI.SetFactionThreatMultiplier function is deprecated");
 	return pH->EndFunction();
 }
 
@@ -11353,29 +11340,6 @@ int CScriptBind_AI::EnableUpdateLookTarget(IFunctionHandler* pH, ScriptHandle en
 			}
 		}
 	}
-
-	return pH->EndFunction();
-}
-
-int CScriptBind_AI::SetBehaviorTreeEvaluationEnabled(IFunctionHandler* pH, ScriptHandle entityID, bool enabled)
-{
-	if (IEntity* pEntity = gEnv->pEntitySystem->GetEntity(static_cast<EntityId>(entityID.n)))
-	{
-		if (IAIObject* pAIObject = pEntity->GetAI())
-		{
-			if (CAIActor* pAIActor = pAIObject->CastToCAIActor())
-			{
-				if (enabled)
-					pAIActor->SetBehaviorTreeEvaluationMode(CAIActor::EvaluateWhenVariablesChange);
-				else
-					pAIActor->SetBehaviorTreeEvaluationMode(CAIActor::EvaluationBlockedUntilBehaviorUnlocks);
-
-				return pH->EndFunction();
-			}
-		}
-	}
-
-	gEnv->pLog->LogError("SetBehaviorTreeEvaluationEnabled was called with either an unhealthy entity or a non-AI entity.");
 
 	return pH->EndFunction();
 }

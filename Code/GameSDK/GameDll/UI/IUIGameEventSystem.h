@@ -62,7 +62,7 @@ private:
 template <class T>
 struct SAutoRegUIEventSystem : public IUIEventSystemFactory
 {
-	virtual TUIEventSystemPtr Create() { return TUIEventSystemPtr(new T); }
+	virtual TUIEventSystemPtr Create() { return std::make_shared<T>(); }
 };
 
 #define UIEVENTSYSTEM(name) \

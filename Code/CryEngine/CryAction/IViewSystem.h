@@ -1,22 +1,9 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
-
-/*************************************************************************
-   -------------------------------------------------------------------------
-   $Id$
-   $DateTime$
-   Description: View System interfaces.
-
-   -------------------------------------------------------------------------
-   History:
-   - 17:9:2004 : Created by Filippo De Luca
-
-*************************************************************************/
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #pragma once
 
 #include <CryNetwork/ISerialize.h>
 
-//
 #define VIEWID_NORMAL     0
 #define VIEWID_FOLLOWHEAD 1
 #define VIEWID_VEHICLE    2
@@ -180,10 +167,11 @@ struct IGameObject;
 struct IEntity;
 struct IAnimSequence;
 struct SCameraParams;
+struct IGameObjectView;
 
 struct IView
 {
-	virtual ~IView(){}
+	virtual ~IView() = default;
 	struct SShakeParams
 	{
 		Ang3  shakeAngle;
@@ -220,7 +208,7 @@ struct IView
 	virtual void               Release() = 0;
 	virtual void               Update(float frameTime, bool isActive) = 0;
 	virtual void               LinkTo(IGameObject* follow) = 0;
-	virtual void               LinkTo(IEntity* follow) = 0;
+	virtual void               LinkTo(IEntity* follow, IGameObjectView* callback = nullptr) = 0;
 	virtual EntityId           GetLinkedId() = 0;
 
 	virtual void               SetCurrentParams(SViewParams& params) = 0;
@@ -238,7 +226,7 @@ struct IView
 
 struct IViewSystemListener
 {
-	virtual ~IViewSystemListener(){}
+	virtual ~IViewSystemListener() = default;
 	virtual bool OnBeginCutScene(IAnimSequence* pSeq, bool bResetFX) = 0;
 	virtual bool OnEndCutScene(IAnimSequence* pSeq) = 0;
 	virtual bool OnCameraChange(const SCameraParams& cameraParams) = 0;
@@ -246,7 +234,7 @@ struct IViewSystemListener
 
 struct IViewSystem
 {
-	virtual ~IViewSystem(){}
+	virtual ~IViewSystem() = default;
 	virtual IView* CreateView() = 0;
 	virtual void   RemoveView(IView* pView) = 0;
 	virtual void   RemoveView(unsigned int viewId) = 0;
@@ -280,9 +268,8 @@ struct IViewSystem
 
 	virtual bool IsPlayingCutScene() const = 0;
 
-	virtual void UpdateSoundListeners() = 0;
-
 	virtual void SetDeferredViewSystemUpdate(bool const bDeferred) = 0;
 	virtual bool UseDeferredViewSystemUpdate() const = 0;
 	virtual void SetControlAudioListeners(bool const bActive) = 0;
+	virtual void UpdateAudioListeners() = 0;
 };

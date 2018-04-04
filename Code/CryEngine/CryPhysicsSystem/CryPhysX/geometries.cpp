@@ -194,6 +194,22 @@ void PhysXGeom::GetBBox(primitives::box* pbox)
 	}
 }
 
+float PhysXGeom::GetVolume()
+{
+	float V = 0;
+	switch (m_type) {
+		case GEOM_SPHERE:	V = (4*gf_PI/3)*cube(m_geom.sph.r); break;
+		case GEOM_CAPSULE: V = (4*gf_PI/3)*cube(m_geom.caps.r);
+		case GEOM_CYLINDER: V += gf_PI*sqr(m_geom.caps.r)*2*m_geom.caps.hh; break;
+		case GEOM_BOX: V = m_geom.box.size.GetVolume()*8; break;
+		default: {
+			box bbox; GetBBox(&bbox);
+			V = bbox.size.GetVolume()*8;
+		}
+	}
+	return V;
+}
+
 int PhysXGeom::Intersect(IGeometry* pCollider, geom_world_data* pdata1, geom_world_data* pdata2, intersection_params* pparams, geom_contact*& pcontacts)
 { 
 	QuatT pose[2] = { QuatT(IDENTITY), QuatT(IDENTITY) };

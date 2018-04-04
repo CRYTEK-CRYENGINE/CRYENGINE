@@ -1,15 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
-
-// -------------------------------------------------------------------------
-//  File name:   ScriptProxy.cpp
-//  Version:     v1.00
-//  Created:     18/5/2004 by Timur.
-//  Compilers:   Visual Studio.NET 2003
-//  Description:
-// -------------------------------------------------------------------------
-//  History:
-//
-////////////////////////////////////////////////////////////////////////////
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #include "stdafx.h"
 #include "ScriptProxy.h"
@@ -34,9 +23,13 @@ CEntityComponentLuaScript::CEntityComponentLuaScript()
 	, m_fScriptUpdateRate(0.0f)
 	, m_fScriptUpdateTimer(0.0f)
 	, m_nCurrStateId(0)
-	, m_bUpdateScript(false)
+	, m_bUpdateFuncImplemented(false)
+	, m_bUpdateEnabledOverride(false)
 	, m_bEnableSoundAreaEvents(false)
-{}
+{
+	m_componentFlags.Add(EEntityComponentFlags::Legacy);
+	m_componentFlags.Add(EEntityComponentFlags::NoSave);
+}
 
 //////////////////////////////////////////////////////////////////////////
 CEntityComponentLuaScript::~CEntityComponentLuaScript()
@@ -66,8 +59,16 @@ void CEntityComponentLuaScript::ChangeScript(IEntityScript* pScript, SEntitySpaw
 		// New object must be created here.
 		CreateScriptTable(params);
 
-		m_bUpdateScript = CurrentState()->IsStateFunctionImplemented(ScriptState_OnUpdate);
+		m_bUpdateFuncImplemented = CurrentState()->IsStateFunctionImplemented(ScriptState_OnUpdate);
+		m_pEntity->UpdateComponentEventMask(this);
 	}
+}
+
+//////////////////////////////////////////////////////////////////////////
+void CEntityComponentLuaScript::EnableScriptUpdate(bool bEnable)
+{
+	m_bUpdateEnabledOverride = bEnable;
+	m_pEntity->UpdateComponentEventMask(this);
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -132,24 +133,20 @@ void CEntityComponentLuaScript::CreateScriptTable(SEntitySpawnParams* pSpawnPara
 //////////////////////////////////////////////////////////////////////////
 void CEntityComponentLuaScript::Update(SEntityUpdateContext& ctx)
 {
-	// Update`s script function if present.
-	if (m_bUpdateScript)
+	// Shouldn't be the case, but we must not call Lua with a 0 frametime to avoid potential FPE
+	assert(ctx.fFrameTime > FLT_EPSILON);
+
+	if (CVar::pUpdateScript->GetIVal())
 	{
-		// Shouldn't be the case, but we must not call Lua with a 0 frametime to avoid potential FPE
-		assert(ctx.fFrameTime > FLT_EPSILON);
-
-		if (CVar::pUpdateScript->GetIVal())
+		m_fScriptUpdateTimer -= ctx.fFrameTime;
+		if (m_fScriptUpdateTimer <= 0)
 		{
-			m_fScriptUpdateTimer -= ctx.fFrameTime;
-			if (m_fScriptUpdateTimer <= 0)
-			{
-				ENTITY_PROFILER
-				  m_fScriptUpdateTimer = m_fScriptUpdateRate;
+			ENTITY_PROFILER
+			  m_fScriptUpdateTimer = m_fScriptUpdateRate;
 
-				//////////////////////////////////////////////////////////////////////////
-				// Script Update.
-				m_pScript->CallStateFunction(CurrentState(), m_pThis, ScriptState_OnUpdate, ctx.fFrameTime);
-			}
+			//////////////////////////////////////////////////////////////////////////
+			// Script Update.
+			m_pScript->CallStateFunction(CurrentState(), m_pThis, ScriptState_OnUpdate, ctx.fFrameTime);
 		}
 	}
 }
@@ -164,7 +161,7 @@ void CEntityComponentLuaScript::ProcessEvent(SEntityEvent& event)
 			SEntityUpdateContext* pCtx = (SEntityUpdateContext*)event.nParam[0];
 			Update(*pCtx);
 		}
-	break;
+		break;
 	case ENTITY_EVENT_ANIM_EVENT:
 		{
 			const AnimEventInstance* const pAnimEvent = reinterpret_cast<const AnimEventInstance*>(event.nParam[0]);
@@ -467,15 +464,6 @@ void CEntityComponentLuaScript::ProcessEvent(SEntityEvent& event)
 
 			break;
 		}
-	case ENTITY_EVENT_CROSS_AREA:
-		{
-			// Implement in case scripts are interested in this event.
-			if (m_bEnableSoundAreaEvents)
-			{
-			}
-
-			break;
-		}
 	case ENTITY_EVENT_PHYS_BREAK:
 		{
 			EventPhysJointBroken* pBreakEvent = (EventPhysJointBroken*)event.nParam[0];
@@ -488,11 +476,12 @@ void CEntityComponentLuaScript::ProcessEvent(SEntityEvent& event)
 			}
 		}
 		break;
-	case ENTITY_EVENT_SOUND_DONE:
+	case ENTITY_EVENT_AUDIO_TRIGGER_ENDED:
 		{
-			ScriptHandle oHandle;
-			oHandle.n = event.nParam[1];
-			m_pScript->CallStateFunction(CurrentState(), m_pThis, ScriptState_OnSoundDone, oHandle);
+			CryAudio::SRequestInfo const* const pRequestInfo = reinterpret_cast<CryAudio::SRequestInfo const* const>(event.nParam[0]);
+			ScriptHandle handle;
+			handle.n = static_cast<UINT_PTR>(pRequestInfo->audioControlId);
+			m_pScript->CallStateFunction(CurrentState(), m_pThis, ScriptState_OnSoundDone, handle);
 		}
 		break;
 	case ENTITY_EVENT_LEVEL_LOADED:
@@ -537,9 +526,14 @@ void CEntityComponentLuaScript::ProcessEvent(SEntityEvent& event)
 uint64 CEntityComponentLuaScript::GetEventMask() const
 {
 	// All events except runtime expensive ones
-	return 
-	  ~(ENTITY_PERFORMANCE_EXPENSIVE_EVENTS_MASK) |
-	  BIT64(ENTITY_EVENT_UPDATE);
+	uint64 eventMasks = ~ENTITY_PERFORMANCE_EXPENSIVE_EVENTS_MASK;
+
+	if (m_bUpdateFuncImplemented && m_bUpdateEnabledOverride)
+	{
+		eventMasks |= BIT64(ENTITY_EVENT_UPDATE);
+	}
+
+	return eventMasks;
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -585,7 +579,8 @@ bool CEntityComponentLuaScript::GotoState(int nState)
 
 	//////////////////////////////////////////////////////////////////////////
 	// Repeat check if update script function is implemented.
-	m_bUpdateScript = CurrentState()->IsStateFunctionImplemented(ScriptState_OnUpdate);
+	m_bUpdateFuncImplemented = CurrentState()->IsStateFunctionImplemented(ScriptState_OnUpdate);
+	m_pEntity->UpdateComponentEventMask(this);
 
 	/*
 	   //////////////////////////////////////////////////////////////////////////
@@ -700,7 +695,8 @@ void CEntityComponentLuaScript::GameSerialize(TSerialize ser)
 				if (ser.IsReading())
 				{
 					// Repeat check if update script function is implemented.
-					m_bUpdateScript = CurrentState()->IsStateFunctionImplemented(ScriptState_OnUpdate);
+					m_bUpdateFuncImplemented = CurrentState()->IsStateFunctionImplemented(ScriptState_OnUpdate);
+					m_pEntity->UpdateComponentEventMask(this);
 				}
 
 				if (CVar::pEnableFullScriptSave && CVar::pEnableFullScriptSave->GetIVal())
@@ -841,19 +837,17 @@ void CEntityComponentLuaScript::SetEventTargets(XmlNodeRef& eventTargetsNode)
 		m_pThis->SetValue("Events", pEventsTable);
 	}
 
-	for (std::set<string>::iterator it = sourceEvents.begin(); it != sourceEvents.end(); ++it)
+	for (auto const& sourceEvent : sourceEvents)
 	{
 		SmartScriptTable pTrgEvents(pSS);
-
-		string sourceEvent = *it;
 
 		pEventsTable->SetValue(sourceEvent.c_str(), pTrgEvents);
 
 		// Put target events to table.
 		int trgEventIndex = 1;
-		for (size_t i = 0; i < eventTargets.size(); i++)
+
+		for (auto const& et : eventTargets)
 		{
-			SEntityEventTarget& et = eventTargets[i];
 			if (et.sourceEvent == sourceEvent)
 			{
 				SmartScriptTable pTrgEvent(pSS);
@@ -898,7 +892,7 @@ void CEntityComponentLuaScript::CallEvent(const char* sEvent, EntityId nEntityId
 {
 	IScriptTable* pTable = nullptr;
 	IEntity* const pIEntity = gEnv->pEntitySystem->GetEntity(nEntityId);
-	
+
 	if (pIEntity != nullptr)
 	{
 		pTable = pIEntity->GetScriptTable();
@@ -998,7 +992,7 @@ void CEntityComponentLuaScript::SendScriptEvent(int Event, IScriptTable* pParamt
 				Script::CallReturn(GetIScriptSystem(), pState->pStateFuns[i]->pFunction[ScriptState_OnEvent], m_pThis, Event, pParamters, *pRet);
 			else
 				Script::Call(GetIScriptSystem(), pState->pStateFuns[i]->pFunction[ScriptState_OnEvent], m_pThis, Event, pParamters);
-			pRet = 0;
+			pRet = nullptr;
 		}
 	}
 }
@@ -1015,7 +1009,7 @@ void CEntityComponentLuaScript::SendScriptEvent(int Event, const char* str, bool
 				Script::CallReturn(GetIScriptSystem(), pState->pStateFuns[i]->pFunction[ScriptState_OnEvent], m_pThis, Event, str, *pRet);
 			else
 				Script::Call(GetIScriptSystem(), pState->pStateFuns[i]->pFunction[ScriptState_OnEvent], m_pThis, Event, str);
-			pRet = 0;
+			pRet = nullptr;
 		}
 	}
 }
@@ -1032,7 +1026,7 @@ void CEntityComponentLuaScript::SendScriptEvent(int Event, int nParam, bool* pRe
 				Script::CallReturn(GetIScriptSystem(), pState->pStateFuns[i]->pFunction[ScriptState_OnEvent], m_pThis, Event, nParam, *pRet);
 			else
 				Script::Call(GetIScriptSystem(), pState->pStateFuns[i]->pFunction[ScriptState_OnEvent], m_pThis, Event, nParam);
-			pRet = 0;
+			pRet = nullptr;
 		}
 	}
 }
@@ -1050,4 +1044,11 @@ bool CEntityComponentLuaScript::IsRegisteredForAreaEvents() const
 void CEntityComponentLuaScript::GetMemoryUsage(ICrySizer* pSizer) const
 {
 	pSizer->AddObject(this, sizeof(*this));
+}
+
+void CEntityComponentLuaScript::SetPhysParams(int type, IScriptTable* params)
+{
+	// This function can currently be called by a component created without an entity, hence the special case
+	IPhysicalEntity* pPhysicalEntity = m_pEntity != nullptr ? m_pEntity->GetPhysics() : nullptr;
+	((CEntitySystem*)gEnv->pEntitySystem)->GetScriptBindEntity()->SetEntityPhysicParams(nullptr, pPhysicalEntity, type, params);
 }

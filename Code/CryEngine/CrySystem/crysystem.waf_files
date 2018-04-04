@@ -240,7 +240,13 @@
     "UserAnalytics":[
       "UserAnalytics/UserAnalyticsSystem.cpp",
       "UserAnalytics/UserAnalyticsSystem.h"
-    ]
+    ],
+	"Interprocess":[
+		"Interprocess/StatsAgent.cpp",
+		"Interprocess/StatsAgent.h",
+		"Interprocess/StatsAgentPipe.cpp",
+		"Interprocess/StatsAgentPipe.h"
+	]
   },
   "CrySystem_uber_6.cpp":{
     "Threading":[

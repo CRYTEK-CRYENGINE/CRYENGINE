@@ -1,0 +1,124 @@
+{
+  "Name": "impact_debris",
+  "Features": [
+    {
+      "RenderMeshes": {
+        "Scale": [ 1.0, 1.0, 1.0 ],
+        "PiecesMode": "RandomPiece",
+        "PiecePlacement": "Standard",
+        "SizeMode": "Scale",
+        "Mesh": "objects/default/primitive_cube.cgf",
+        "OriginMode": "Origin"
+      }
+    },
+    {
+      "SpawnCount": {
+        "Delay": {
+          "modifiers": [ ],
+          "value": 0.0
+        },
+        "Duration": {
+          "State": true,
+          "Value": {
+            "modifiers": [ ],
+            "value": 0.0
+          }
+        },
+        "Amount": {
+          "modifiers": [ ],
+          "value": 10.0
+        },
+        "Restart": {
+          "State": true,
+          "Value": {
+            "modifiers": [ ],
+            "value": 1.0
+          }
+        }
+      }
+    },
+    {
+      "LifeTime": {
+        "LifeTime": {
+          "modifiers": [ ],
+          "value": 5.0
+        }
+      }
+    },
+    {
+      "FieldSize": {
+        "value": {
+          "modifiers": [
+            {
+              "Curve": {
+                "Owner": "Self",
+                "TimeBias": 0.0,
+                "Curve": "0,1,8,,0;0.79833335,1,9,0,0;1,0,1,-1.8380263",
+                "TimeScale": 1.0,
+                "TimeSource": "Age"
+              }
+            }
+          ],
+          "value": 0.1
+        }
+      }
+    },
+    {
+      "AnglesRotate3D": {
+        "InitialAngle": [ 0.0, 0.0, 0.0 ],
+        "RandomSpin": [ 90.0, 90.0, 90.0 ],
+        "InitialSpin": [ 0.0, 0.0, 0.0 ],
+        "RandomAngle": [ 180.0, 180.0, 180.0 ]
+      }
+    },
+    {
+      "VelocityCone": {
+        "Velocity": {
+          "modifiers": [ { "Random": { "Amount": 0.5 } } ],
+          "value": 5.0
+        },
+        "Angle": {
+          "modifiers": [ { "Random": { "Amount": 1.0 } } ],
+          "value": 35.0
+        },
+        "Axis": [ 0.0, 0.0, 1.0 ]
+      }
+    },
+    {
+      "MotionPhysics": {
+        "AngularDragMultiplier": 0.0,
+        "UniformAcceleration": [ 0.0, 0.0, 0.0 ],
+        "UniformWind": [ 0.0, 0.0, 0.0 ],
+        "gravity": {
+          "modifiers": [ ],
+          "value": 1.0
+        },
+        "drag": {
+          "modifiers": [ ],
+          "value": 0.0
+        },
+        "windMultiplier": 1.0,
+        "localEffectors": [ ]
+      }
+    },
+    {
+      "MotionCollisions": {
+        "StaticObjects": true,
+        "Terrain": true,
+        "Elasticity": 0.5,
+        "Friction": 1.0,
+        "CollisionsLimitMode": "Unlimited",
+        "DynamicObjects": false,
+        "SlidingFriction": 0.0
+      }
+    },
+    {
+      "SecondGenOnCollide": {
+        "Components": [ ],
+        "Enabled": false,
+        "Mode": "All",
+        "Probability": 1.0
+      }
+    }
+  ]
+}

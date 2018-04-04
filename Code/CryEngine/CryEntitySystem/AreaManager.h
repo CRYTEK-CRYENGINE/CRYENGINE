@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #pragma once
 
@@ -122,11 +122,6 @@ public:
 	  Vec3 const& onLowerHull,
 	  AreaEnvironments& areaEnvironments);
 
-	void NotifyAreas(
-	  CArea* const __restrict pArea,
-	  SAreasCache const* const pAreaCache,
-	  EntityId const entityId);
-
 	virtual void DrawLinkedAreas(EntityId linkedId) const override;
 	size_t       GetLinkedAreas(EntityId linkedId, int areaId, std::vector<CArea*>& areas) const;
 
@@ -200,7 +195,7 @@ private:
 	bool GetEnvFadeValueInner(SAreasCache const& areaCache, SAreaCacheEntry const& areaCacheEntry, Vec3 const& entityPos, Vec3 const& posOnLowerArea, EntityId const envProvidingEntityId, AreaEnvironments& areaEnvironments);
 	bool RetrieveEnvironmentAmount(CArea const* const pArea, float const amount, float const distance, EntityId const envProvidingEntityId, AreaEnvironments& areaEnvironments);
 
-	// Unary predicates for conditional removing!
+	// Unary predicates for conditional removing
 	static inline bool IsDoneUpdating(std::pair<EntityId, size_t> const& entry)
 	{
 		return entry.second == 0;
@@ -209,9 +204,9 @@ private:
 	struct SIsNotInGrid
 	{
 		explicit SIsNotInGrid(
-			EntityId const _entityId,
-			std::vector<CArea*> const& _areas,
-			size_t const _numAreas)
+		  EntityId const _entityId,
+		  std::vector<CArea*> const& _areas,
+		  size_t const _numAreas)
 			: entityId(_entityId),
 			areas(_areas),
 			numAreas(_numAreas)
@@ -219,7 +214,7 @@ private:
 
 		bool operator()(SAreaCacheEntry const& cacheEntry) const;
 
-		EntityId const entityId;
+		EntityId const             entityId;
 		std::vector<CArea*> const& areas;
 		size_t const               numAreas;
 	};
@@ -227,9 +222,9 @@ private:
 	struct SRemoveIfNoAreasLeft
 	{
 		explicit SRemoveIfNoAreasLeft(
-			CArea const* const _pArea,
-			std::vector<CArea*> const& _areas,
-			size_t const _numAreas)
+		  CArea const* const _pArea,
+		  std::vector<CArea*> const& _areas,
+		  size_t const _numAreas)
 			: pArea(_pArea),
 			areas(_areas),
 			numAreas(_numAreas)
@@ -237,14 +232,19 @@ private:
 
 		template<typename K, typename V>
 		bool operator()(std::pair<K, V>& cacheEntry) const;
-			
+
 		CArea const* const         pArea;
 		std::vector<CArea*> const& areas;
 		size_t const               numAreas;
 	};
 
-	TAreaCacheMap        m_mapAreaCache;          // Area cache per entity id.
+	TAreaCacheMap        m_mapAreaCache;                      // Area cache per entity id.
 	TEntitiesToUpdateMap m_mapEntitiesToUpdate;
+
+	// We need two lists, one for the main thread access and one for the audio thread access.
+	enum Threads : uint8 { Main = 0, Audio = 1, Num };
+	TAreaPointers                  m_areasAtPos[Threads::Num];
+	CryCriticalSectionNonRecursive m_accessAreas;
 
 #if defined(DEBUG_AREAMANAGER)
 	//////////////////////////////////////////////////////////////////////////

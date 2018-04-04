@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 //
 //	File: PhysRenderer.h
@@ -45,11 +45,18 @@ public:
 	void Init();
 	void DrawGeometry(IGeometry* pGeom, geom_world_data* pgwd, const ColorB& clr, const Vec3& sweepDir = Vec3(0));
 	void DrawGeometry(int itype, const void* pGeomData, geom_world_data* pgwd, const ColorB& clr, const Vec3& sweepDir = Vec3(0));
-	Vec3 SetOffset(const Vec3& offs = Vec3(ZERO)) { Vec3 prev = m_offset; m_offset = offs; return prev; }
+	QuatT SetOffset(const Vec3& offs = Vec3(ZERO), const Quat& qrot = Quat(ZERO)) 
+	{ 
+		QuatT prev(m_qrot,m_offset); 
+		m_offset = offs; 
+		if ((qrot|qrot)>0)
+			m_qrot = qrot;
+		return prev; 
+	}
 
 	// IPhysRenderer
 	virtual void DrawFrame(const Vec3& pnt, const Vec3* axes, const float scale, const Vec3* limits, const int axes_locked);
-	virtual void DrawGeometry(IGeometry* pGeom, geom_world_data* pgwd, int idxColor = 0, int bSlowFadein = 0, const Vec3& sweepDir = Vec3(0));
+	virtual void DrawGeometry(IGeometry* pGeom, geom_world_data* pgwd, int idxColor = 0, int bSlowFadein = 0, const Vec3& sweepDir = Vec3(0), const ColorF& color = ColorF(1, 1, 1, 1));
 	virtual void DrawLine(const Vec3& pt0, const Vec3& pt1, int idxColor = 0, int bSlowFadein = 0);
 	virtual void DrawText(const Vec3& pt, const char* txt, int idxColor, float saturation = 0)
 	{
@@ -80,7 +87,6 @@ public:
 
 protected:
 	CCamera          m_camera;
-	IRenderAuxGeom*  m_pAuxRenderer;
 	IRenderer*       m_pRenderer;
 	SRayRec*         m_rayBuf;
 	int              m_szRayBuf, m_iFirstRay, m_iLastRay, m_nRays;
@@ -89,6 +95,7 @@ protected:
 	IGeometry*       m_pRayGeom;
 	primitives::ray* m_pRay;
 	Vec3             m_offset;
+	Quat             m_qrot;
 	static ColorB    g_colorTab[9];
 	volatile int     m_lockDrawGeometry;
 };

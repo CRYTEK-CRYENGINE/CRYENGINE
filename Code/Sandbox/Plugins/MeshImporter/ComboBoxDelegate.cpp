@@ -57,6 +57,8 @@ QWidget* CComboBoxDelegate::createEditor(QWidget* pParent, const QStyleOptionVie
 		pParentView->model()->setData(modelIndex, index, Qt::EditRole);
 	});
 
+	pEditor->ShowPopup();
+
 	return pEditor;
 }
 
@@ -83,7 +85,6 @@ void CComboBoxDelegate::updateEditorGeometry(QWidget* pEditorWidget, const QStyl
 	using namespace Private_ComboBoxDelegate;
 	QMenuComboBox* const pEditor = static_cast<QMenuComboBox*>(pEditorWidget);
 	pEditor->setGeometry(option.rect.adjusted(0, 0, -MARGIN, -MARGIN));
-	pEditor->ShowPopup();
 }
 
 QMenuComboBox* CComboBoxDelegate::GetPaintHelper() const

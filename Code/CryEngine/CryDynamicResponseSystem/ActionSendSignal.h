@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 /************************************************************************
 
@@ -17,7 +17,6 @@ class CActionSendSignal final : public DRS::IResponseAction
 public:
 	CActionSendSignal() : m_signalName(), m_bCopyContextVariables(false) {}
 	CActionSendSignal(const CHashedString& signalName, bool copyContext) : m_signalName(signalName), m_bCopyContextVariables(copyContext){}
-	virtual ~CActionSendSignal() {}
 
 	//////////////////////////////////////////////////////////
 	// IResponseAction implementation

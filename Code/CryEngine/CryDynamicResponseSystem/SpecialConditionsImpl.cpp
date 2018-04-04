@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #include "stdafx.h"
 #include "SpecialConditionsImpl.h"
@@ -81,17 +81,14 @@ void CGameTokenCondition::Serialize(Serialization::IArchive& ar)
 {
 	ar(m_tokenName, "Token", "Token");
 
+	m_pCachedToken = nullptr;
 	if (gEnv->pGameFramework)
 	{
 		if (auto* pGameTokenSystem = gEnv->pGameFramework->GetIGameTokenSystem())
 		{
 			m_pCachedToken = pGameTokenSystem->FindToken(m_tokenName.c_str());
 		}
-		else
-			m_pCachedToken = nullptr;
 	}
-	else
-		m_pCachedToken = nullptr;
 
 	if (ar.isEdit() &&
 	    ((m_pCachedToken && m_pCachedToken->GetType() == eFDT_Bool) || (ar.isOutput() && (m_minValue.GetType() == eDRVT_Boolean || m_minValue.GetType() == eDRVT_String)))) //for booleans/strings range-tests would not make much sense
@@ -193,7 +190,7 @@ bool CGameTokenCondition::IsMet(DRS::IResponseInstance* pResponseInstance)
 		m_pCachedToken = pGTSys->FindToken(m_tokenName.c_str());
 		if (!m_pCachedToken)
 		{
-			CryWarning(VALIDATOR_MODULE_DRS, VALIDATOR_ERROR, "Could not find GameToken for condition-check, token-name: %s", m_tokenName.c_str());
+			CryWarning(VALIDATOR_MODULE_DRS, VALIDATOR_ERROR, "DRS: Could not find GameToken for condition-check, token-name: '%s'", m_tokenName.c_str());
 			return false;
 		}
 		else
@@ -455,8 +452,9 @@ bool CTimeSinceResponseCondition::IsMet(DRS::IResponseInstance* pResponseInstanc
 	}
 	if (pResponse)
 	{
-		const float timeSinceLastExecution = (pResponse->GetLastEndTime() > 0) ? CResponseSystem::GetInstance()->GetCurrentDrsTime() - pResponse->GetLastEndTime() : std::numeric_limits<float>::max();
-		return timeSinceLastExecution >= m_minTime && ((timeSinceLastExecution <= m_maxTime) || m_maxTime < 0.0f);
+		const float lastStartOrEndTime = std::max(pResponse->GetLastEndTime(), pResponse->GetLastStartTime());  //if the response was started recently, but has not ended yet, then the LastStartTime is actually higher than the LastFinishedTime.
+		const float timeSince = (lastStartOrEndTime > 0) ? CResponseSystem::GetInstance()->GetCurrentDrsTime() - lastStartOrEndTime : std::numeric_limits<float>::max();
+		return timeSince >= m_minTime && ((timeSince <= m_maxTime) || m_maxTime < 0.0f);
 	}
 	else
 	{
@@ -478,11 +476,3 @@ string CTimeSinceResponseCondition::GetVerboseInfo() const
 	string responseName = (m_responseId.IsValid()) ? m_responseId.GetText() : "CurrentResponse";
 	return "Execution of '" + responseName + string("' more than ") + CryStringUtils::toString(m_minTime) + " seconds and less then " + CryStringUtils::toString(m_maxTime);
 }
-
-REGISTER_DRS_CONDITION(CPlaceholderCondition, "Placeholder", "FF66CC");
-REGISTER_DRS_CONDITION(CRandomCondition, "Random", DEFAULT_DRS_CONDITION_COLOR);
-REGISTER_DRS_CONDITION(CTimeSinceCondition, "TimeSince", DEFAULT_DRS_CONDITION_COLOR);
-REGISTER_DRS_CONDITION(CTimeSinceResponseCondition, "TimeSinceResponse", DEFAULT_DRS_CONDITION_COLOR);
-REGISTER_DRS_CONDITION(CGameTokenCondition, "GameToken", DEFAULT_DRS_CONDITION_COLOR);
-REGISTER_DRS_CONDITION(CInheritConditionsCondition, "Inherit Conditions", DEFAULT_DRS_CONDITION_COLOR);
-REGISTER_DRS_CONDITION(CExecutionLimitCondition, "Execution Limit", DEFAULT_DRS_CONDITION_COLOR);

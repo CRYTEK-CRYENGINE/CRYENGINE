@@ -6,6 +6,7 @@ start_sources()
 sources_platform(ALL)
 add_sources("NoUberFile"
 	SOURCE_GROUP "Compressors"
+		"Compressors/ASTC.cpp"
 		"Compressors/PVRTC.cpp"
 		"Compressors/CTSquisher.cpp"
 	SOURCE_GROUP "Compressors\\\\CryTextureSquisher"
@@ -55,10 +56,6 @@ add_sources("NoUberFile"
 		"../../CryCommonTools/FileUtil.h"
 		"../../CryCommonTools/Metadata/Metadata.cpp"
 		"../../CryCommonTools/Metadata/Metadata.h"
-		"../../CryCommonTools/Metadata/MetadataHelpers.cpp"
-		"../../CryCommonTools/Metadata/MetadataHelpers.h"
-		"../../CryCommonTools/CryGUIDHelper.cpp"
-		"../../CryCommonTools/CryGUIDHelper.h"
 	SOURCE_GROUP "Filtering"
 		"Filtering/SummedAreaFilterKernel.cpp"
 		"Filtering/WeightFilterSet.cpp"
@@ -101,7 +98,7 @@ add_sources("NoUberFile"
 	SOURCE_GROUP "ImageProcessing"
 		"GenerationProgress.cpp"
 		"ImageCompiler.cpp"
-		"ImageConvertor.cpp"
+		"ImageConverter.cpp"
 		"ImageObject.cpp"
 		"ImageUserDialog.cpp"
 		"PixelFormats.cpp"
@@ -109,7 +106,7 @@ add_sources("NoUberFile"
 		"ImagePreview.cpp"
 		"GenerationProgress.h"
 		"ImageCompiler.h"
-		"ImageConvertor.h"
+		"ImageConverter.h"
 		"../../../CryEngine/CryCommon/Cry3DEngine/ImageExtensionHelper.h"
 		"ImageObject.h"
 		"ImageProperties.h"
@@ -138,6 +135,9 @@ add_sources("NoUberFile"
 		"UIBumpmapPanel.h"
 		"UIMIPControlPanel.h"
 		"reduce.bmp"
+	SOURCE_GROUP "Metadata"
+		"ImageDetails.cpp"
+		"ImageDetails.h"
 	SOURCE_GROUP "Streaming"
 		"Streaming/TextureSplitter.cpp"
 		"Streaming/TextureSplitter.h"
@@ -203,9 +203,9 @@ endif()
 
 set_libpath_flag()
 target_include_directories( ${THIS_PROJECT} PRIVATE 
-	${CMAKE_SOURCE_DIR}/ResourceCompiler 
-	${CRYENGINE_SOURCE_DIR}/Code/Tools/CryCommonTools
-	${SDK_DIR}/squish-ccr)
+	"${CMAKE_SOURCE_DIR}/ResourceCompiler"
+	"${CRYENGINE_SOURCE_DIR}/Code/Tools/CryCommonTools"
+	"${SDK_DIR}/squish-ccr")
 
 if(COMMAND use_orbis_sdk)
 	use_orbis_sdk()
@@ -220,10 +220,14 @@ target_compile_definitions(${THIS_PROJECT} PRIVATE -DRESOURCECOMPILERIMAGE_EXPOR
 target_link_libraries(${THIS_PROJECT} PRIVATE delayimp tiff zlib)
 
 if(OPTION_POWERVR)
-	target_include_directories(${THIS_PROJECT} PRIVATE ${SDK_DIR}/POWERVR/PVRTexLib/Include)
-	set_property(TARGET ${THIS_PROJECT} APPEND_STRING PROPERTY LINK_FLAGS_RELEASE "${LIBPATH_FLAG}${SDK_DIR}/POWERVR/PVRTexLib/Windows_x86_64 /DELAYLOAD:PVRTexLib.dll")
-	set_property(TARGET ${THIS_PROJECT} APPEND_STRING PROPERTY LINK_FLAGS_DEBUG "${LIBPATH_FLAG}${SDK_DIR}/POWERVR/PVRTexLib/Windows_x86_64 /DELAYLOAD:PVRTexLib.dll")
+	target_include_directories(${THIS_PROJECT} PRIVATE "${SDK_DIR}/POWERVR/PVRTexLib/Include")
+	set_property(TARGET ${THIS_PROJECT} APPEND_STRING PROPERTY LINK_FLAGS_RELEASE " ${LIBPATH_FLAG}\"${SDK_DIR}/POWERVR/PVRTexLib/Windows_x86_64\" /DELAYLOAD:PVRTexLib.dll")
+	set_property(TARGET ${THIS_PROJECT} APPEND_STRING PROPERTY LINK_FLAGS_DEBUG " ${LIBPATH_FLAG}\"${SDK_DIR}/POWERVR/PVRTexLib/Windows_x86_64\" /DELAYLOAD:PVRTexLib.dll")
 	set_property(TARGET ${THIS_PROJECT} APPEND_STRING PROPERTY LINK_FLAGS_DEBUG " /NODEFAULTLIB:libcmt.lib")  # PVR will reference this by default, this is fine in release, but not in debug
+endif()
+
+if(OPTION_ASTC)
+	target_include_directories(${THIS_PROJECT} PRIVATE "${SDK_DIR}/astc-encoder")
 endif()
 
 set_target_properties(${THIS_PROJECT} PROPERTIES LINK_FLAGS "/DEF:ImageExports.def")

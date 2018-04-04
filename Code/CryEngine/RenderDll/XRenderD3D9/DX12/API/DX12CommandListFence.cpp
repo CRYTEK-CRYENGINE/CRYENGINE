@@ -1,10 +1,8 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #include "StdAfx.h"
 #include "DX12CommandListFence.hpp"
 #include "DriverD3D.h"
-
-extern CD3D9Renderer gcpRendD3D;
 
 namespace NCryDX12
 {
@@ -29,7 +27,7 @@ CCommandListFence::~CCommandListFence()
 bool CCommandListFence::Init()
 {
 	ID3D12Fence* fence = NULL;
-	if (S_OK != m_pDevice->GetD3D12Device()->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&fence)))
+	if (S_OK != m_pDevice->GetD3D12Device()->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_GFX_ARGS(&fence)))
 	{
 		DX12_ERROR("Could not create fence object!");
 		return false;
@@ -50,7 +48,7 @@ void CCommandListFence::WaitForFence(UINT64 fenceValue)
 	{
 		DX12_LOG(DX12_FENCE_ANALYZER, "Waiting CPU for fence: %lld (is %lld currently)", fenceValue, m_pFence->GetCompletedValue());
 		{
-#ifdef CRY_USE_DX12_MULTIADAPTER
+#ifdef DX12_LINKEDADAPTER
 			// Waiting in a multi-adapter situation can be more complex
 			if (m_pDevice->WaitForCompletion(m_pFence, fenceValue))
 #endif
@@ -69,15 +67,12 @@ void CCommandListFence::WaitForFence(UINT64 fenceValue)
 CCommandListFenceSet::CCommandListFenceSet(CDevice* device)
 	: m_pDevice(device)
 {
-	m_LastCompletedValues[CMDQUEUE_GRAPHICS] =
-	  m_LastCompletedValues[CMDQUEUE_COMPUTE] =
-	    m_LastCompletedValues[CMDQUEUE_COPY] = 0;
-	m_SubmittedValues[CMDQUEUE_GRAPHICS] =
-	  m_SubmittedValues[CMDQUEUE_COMPUTE] =
-	    m_SubmittedValues[CMDQUEUE_COPY] = 0;
-	m_CurrentValues[CMDQUEUE_GRAPHICS] =
-	  m_CurrentValues[CMDQUEUE_COMPUTE] =
-	    m_CurrentValues[CMDQUEUE_COPY] = 0;
+	// *INDENT-OFF*
+	m_LastCompletedValues[CMDQUEUE_GRAPHICS] = m_LastCompletedValues[CMDQUEUE_COMPUTE] = m_LastCompletedValues[CMDQUEUE_COPY] = 0;
+	m_SubmittedValues    [CMDQUEUE_GRAPHICS] = m_SubmittedValues    [CMDQUEUE_COMPUTE] = m_SubmittedValues    [CMDQUEUE_COPY] = 0;
+	m_SignalledValues    [CMDQUEUE_GRAPHICS] = m_SignalledValues    [CMDQUEUE_COMPUTE] = m_SignalledValues    [CMDQUEUE_COPY] = 0;
+	m_CurrentValues      [CMDQUEUE_GRAPHICS] = m_CurrentValues      [CMDQUEUE_COMPUTE] = m_CurrentValues      [CMDQUEUE_COPY] = 0;
+	// *INDENT-ON*
 }
 
 //---------------------------------------------------------------------------------------------------------------------
@@ -97,7 +92,7 @@ bool CCommandListFenceSet::Init()
 	for (int i = 0; i < CMDQUEUE_NUM; ++i)
 	{
 		ID3D12Fence* fence = NULL;
-		if (S_OK != m_pDevice->GetD3D12Device()->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&fence)))
+		if (S_OK != m_pDevice->GetD3D12Device()->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_GFX_ARGS(&fence)))
 		{
 			DX12_ERROR("Could not create fence object!");
 			return false;
@@ -119,7 +114,7 @@ void CCommandListFenceSet::WaitForFence(const UINT64 fenceValue, const int id) c
 	         m_pFences[id]->GetCompletedValue());
 
 	{
-#ifdef CRY_USE_DX12_MULTIADAPTER
+#ifdef DX12_LINKEDADAPTER
 		// NOTE: Waiting in a multi-adapter situation can be more complex
 		if (!m_pDevice->WaitForCompletion(m_pFences[id], fenceValue))
 #endif
@@ -148,7 +143,7 @@ void CCommandListFenceSet::WaitForFence(const UINT64 (&fenceValues)[CMDQUEUE_NUM
 	         m_pFences[CMDQUEUE_COPY]->GetCompletedValue());
 
 	{
-#ifdef CRY_USE_DX12_MULTIADAPTER
+#ifdef DX12_LINKEDADAPTER
 		if (m_pDevice->IsMultiAdapter())
 		{
 			// NOTE: Waiting in a multi-adapter situation can be more complex

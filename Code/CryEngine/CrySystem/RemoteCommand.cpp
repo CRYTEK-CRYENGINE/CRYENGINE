@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 /*************************************************************************
    -------------------------------------------------------------------------
@@ -27,7 +27,7 @@
 CRemoteCommandManager::CRemoteCommandManager()
 {
 	// Create the CVAR
-	m_pVerboseLevel = gEnv->pConsole->RegisterInt("rc_debugVerboseLevel", 0, VF_DEV_ONLY);
+	m_pVerboseLevel = REGISTER_INT("rc_debugVerboseLevel", 0, VF_DEV_ONLY, "");
 }
 
 CRemoteCommandManager::~CRemoteCommandManager()

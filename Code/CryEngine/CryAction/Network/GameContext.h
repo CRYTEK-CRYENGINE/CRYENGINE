@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 /*************************************************************************
    -------------------------------------------------------------------------
@@ -21,7 +21,6 @@
 #include <CryGame/IGameFramework.h>
 #include <CryEntitySystem/IEntitySystem.h>
 #include <CryScriptSystem/IScriptSystem.h>
-#include "SensedInclusionSet.h"
 #include "ClassRegistryReplicator.h"
 #include <CryNetwork/INetworkService.h>
 
@@ -113,9 +112,6 @@ public:
 	virtual INetSendableHookPtr CreateObjectSpawner(EntityId id, INetChannel* pChannel);
 	virtual void                ObjectInitClient(EntityId id, INetChannel* pChannel);
 	virtual bool                SendPostSpawnObject(EntityId id, INetChannel* pChannel);
-	virtual uint8               GetDefaultProfileForAspect(EntityId id, NetworkAspectType aspectID);
-	virtual bool                SetAspectProfile(EntityId id, NetworkAspectType nAspect, uint8 profile);
-	virtual void                BoundObject(EntityId id, NetworkAspectType nAspects);
 	virtual void                UnboundObject(EntityId id);
 	virtual INetAtSyncItem*     HandleRMI(bool bClient, EntityId objID, uint8 funcID, TSerialize ser, INetChannel* pChannel);
 	virtual void                ControlObject(EntityId id, bool bHaveControl);
@@ -123,7 +119,6 @@ public:
 	virtual void                OnStartNetworkFrame();
 	virtual void                OnEndNetworkFrame();
 	virtual void                ReconfigureGame(INetChannel* pNetChannel);
-	virtual uint32              HashAspect(EntityId id, NetworkAspectType nAspect);
 	virtual CTimeValue          GetPhysicsTime();
 	virtual void                BeginUpdateObjects(CTimeValue physTime, INetChannel* pChannel);
 	virtual void                EndUpdateObjects();
@@ -148,6 +143,7 @@ public:
 	// IConsoleVarSink
 	virtual bool OnBeforeVarChange(ICVar* pVar, const char* sNewValue);
 	virtual void OnAfterVarChange(ICVar* pVar);
+	virtual void OnVarUnregister(ICVar* pVar) {}
 	// ~IConsoleVarSink
 
 	// IHostMigrationEventListener
@@ -201,7 +197,6 @@ public:
 	{
 		m_pNetContext->ChangedAspects(id, eEA_Script);
 	}
-	void   EnablePhysics(EntityId id, bool enable);
 
 	bool   ChangeContext(bool isServer, const SGameContextParams* pParams);
 
@@ -212,12 +207,6 @@ public:
 
 	void   DefineContextProtocols(IProtocolBuilder* pBuilder, bool server);
 
-	bool   ControlsEntity(EntityId id) const
-	{
-		return m_controlledObjects.Get(id);
-	}
-
-	void        EnableAspects(EntityId id, NetworkAspectType aspects, bool bEnable);
 	void        AddControlObjectCallback(EntityId id, bool willHaveControl, HSCRIPTFUNCTION func);
 
 	static void RegisterExtensions(IGameFramework* pFW);
@@ -226,8 +215,6 @@ public:
 
 	void        GetMemoryUsage(ICrySizer* pSizer) const;
 	void        GetMemoryStatistics(ICrySizer* pSizer) { GetMemoryUsage(pSizer); /*dummy till network module is updated*/ }
-	void        LockResources();
-	void        UnlockResources();
 
 #if ENABLE_NETDEBUG
 	CNetDebug* GetNetDebug() { return m_pNetDebug; }
@@ -286,8 +273,6 @@ private:
 #endif
 
 	CClassRegistryReplicator     m_classRegistry;
-
-	SensedInclusionSet<EntityId> m_controlledObjects;
 
 	// context parameters
 	string   m_levelName;

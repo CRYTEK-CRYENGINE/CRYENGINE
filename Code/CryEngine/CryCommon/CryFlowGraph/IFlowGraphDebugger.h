@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 // -------------------------------------------------------------------------
 //  File name:   IFlowGraphDebugger.h
@@ -16,8 +16,6 @@
 #include <CryFlowGraph/IFlowSystem.h>
 #include <CryExtension/ICryUnknown.h>
 #include <CryExtension/CryCreateClassInstance.h>
-
-static const char* IFlowGraphDebuggerExtensionName = "FlowGraphDebugger";
 
 class CFlowNode;
 class CHyperNodePort;
@@ -134,7 +132,7 @@ protected:
 
 struct IFlowGraphDebugger : public ICryUnknown
 {
-	CRYINTERFACE_DECLARE(IFlowGraphDebugger, 0x416CE2E1B23B4017, 0xAD93D04DA67E90E6);
+	CRYINTERFACE_DECLARE_GUID(IFlowGraphDebugger, "416ce2e1-b23b-4017-ad93-d04da67e90e6"_cry_guid);
 
 public:
 	//! Adds a new breakpoint for a specific flownode and port.
@@ -226,9 +224,9 @@ static IFlowGraphDebuggerPtr GetIFlowGraphDebuggerPtr()
 {
 	IFlowGraphDebuggerPtr pFlowGraphDebugger;
 #if defined(INCLUDE_FLOWGRAPHDEBUGGER_EXTENSION)
-	if (!CryCreateClassInstance(IFlowGraphDebuggerExtensionName, pFlowGraphDebugger))
+	if (!CryCreateClassInstanceForInterface(cryiidof<IFlowGraphDebugger>(), pFlowGraphDebugger))
 	{
-		CryWarning(VALIDATOR_MODULE_FLOWGRAPH, VALIDATOR_ERROR, "Could not create class instance of extension: %s", IFlowGraphDebuggerExtensionName);
+		CryWarning(VALIDATOR_MODULE_FLOWGRAPH, VALIDATOR_ERROR, "Could not create class instance of flowgraph debugger");
 	}
 #endif
 	return pFlowGraphDebugger;

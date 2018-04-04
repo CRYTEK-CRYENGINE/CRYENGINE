@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 // -------------------------------------------------------------------------
 //  File name:   CameraProxy.h
@@ -26,8 +26,9 @@ struct SProximityElement;
 //////////////////////////////////////////////////////////////////////////
 class CEntityComponentCamera : public IEntityCameraComponent
 {
-	CRY_ENTITY_COMPONENT_CLASS(CEntityComponentCamera,IEntityCameraComponent,"CEntityComponentCamera",0x0F8EEE88F3AA49B2,0xA20D2747B5E33DF9);
+	CRY_ENTITY_COMPONENT_CLASS_GUID(CEntityComponentCamera, IEntityCameraComponent, "CEntityComponentCamera", "0f8eee88-f3aa-49b2-a20d-2747b5e33df9"_cry_guid);
 
+	CEntityComponentCamera();
 	virtual ~CEntityComponentCamera() {}
 
 public:

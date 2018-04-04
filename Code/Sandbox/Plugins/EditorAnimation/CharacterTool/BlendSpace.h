@@ -22,7 +22,6 @@ struct BlendSpaceDimension
 	float  debugVisualScale;
 	float  startKey;
 	float  endKey;
-	string jointName;
 	bool   locked;
 
 	BlendSpaceDimension()
@@ -44,29 +43,33 @@ typedef vector<BlendSpaceDimension> BlendSpaceDimensions;
 
 struct BlendSpaceAnnotation
 {
-	vector<int> indices;
+	vector<CryGUID> exampleGuids;
 
-	void        Serialize(IArchive& ar)
-	{
-		ar(indices, "indices", "^");
-	}
+	void Serialize(IArchive& ar);
 };
 typedef vector<BlendSpaceAnnotation> BlendSpaceAnnotations;
 
 struct BlendSpaceExample
 {
+	struct SParameter
+	{
+		float value;
+		bool userDefined;
+		bool useDirectlyForDeltaMotion; //!< Serialized, but not exposed in GUI.
+	};
+
+	CryGUID runtimeGuid; //<! GUID used to identify this object at runtime, not serialized to file.
+
 	string animation;
-	Vec4   parameters;
-	bool   specified[4];
-	bool   useDirectlyForDeltaMotion[4];
+	SParameter parameters[eMotionParamID_COUNT];
 	float  playbackScale;
 
 	BlendSpaceExample()
-		: playbackScale(1.0f)
-		, parameters(0.0f, 0.0f, 0.0f, 0.0f)
+		: runtimeGuid(CryGUID::Create())
+		, animation()
+		, parameters()
+		, playbackScale(1.0f)
 	{
-		memset(specified, 0, sizeof(specified));
-		memset(useDirectlyForDeltaMotion, 0, sizeof(useDirectlyForDeltaMotion));
 	}
 
 	void Serialize(IArchive& ar);
@@ -75,27 +78,32 @@ typedef vector<BlendSpaceExample> BlendSpaceExamples;
 
 struct BlendSpaceAdditionalExtraction
 {
-	string parameterName;
-	int32  parameterId;
+	int32 parameterId;
 
 	BlendSpaceAdditionalExtraction()
-		: parameterId(0)
+		: parameterId(eMotionParamID_TravelSpeed)
 	{
 	}
+
+	void Serialize(IArchive& ar);
 };
 typedef vector<BlendSpaceAdditionalExtraction> BlendSpaceAdditionalExtractions;
 
-bool Serialize(IArchive& ar, BlendSpaceAdditionalExtraction& value, const char* name, const char* label);
-
 struct BlendSpacePseudoExample
 {
-	int   i0, i1;
-	float w0;
-	float w1;
+	CryGUID runtimeGuid; //<! GUID used to identify this object at runtime, not serialized to file.
+
+	CryGUID guid0;
+	CryGUID guid1;
+	float weight0;
+	float weight1;
 
 	BlendSpacePseudoExample()
-		: i0(0), i1(0)
-		, w0(0.5f), w1(0.5f)
+		: runtimeGuid(CryGUID::Create())
+		, guid0(CryGUID::Null())
+		, guid1(CryGUID::Null())
+		, weight0(0.5f)
+		, weight1(0.5f)
 	{
 	}
 

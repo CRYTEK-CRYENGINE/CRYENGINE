@@ -35,24 +35,20 @@ CVehicleMovementTank::~CVehicleMovementTank()
 //------------------------------------------------------------------------
 bool CVehicleMovementTank::Init(IVehicle* pVehicle, const CVehicleParams& table)
 {
-	if (!inherited::Init(pVehicle, table))
+	if (inherited::Init(pVehicle, table))
 	{
-		return false;
+		m_audioControlIDs[eSID_TankTurnTurret] = CryAudio::StringToId("Play_abrams_cannon_turn");
+		m_turretTurnRtpcId = CryAudio::StringToId("vehicle_rotation_speed");
+
+		m_audioControlIDs[eSID_VehiclePrimaryWeapon] = CryAudio::StringToId("Play_w_tank_cannon_fire");
+		m_audioControlIDs[eSID_VehicleStopPrimaryWeapon] = CryAudio::DoNothingTriggerId;
+		m_audioControlIDs[eSID_VehicleSecondaryWeapon] = CryAudio::StringToId("Play_w_tank_machinegun_fire");
+		m_audioControlIDs[eSID_VehicleStopSecondaryWeapon] = CryAudio::StringToId("Stop_w_tank_machinegun_fire");
+
+		return true;
 	}
 
-	const IAudioSystem* const pAudioSystem = gEnv->pAudioSystem;
-	if (pAudioSystem)
-	{
-		pAudioSystem->GetAudioTriggerId("Play_abrams_cannon_turn", m_audioControlIDs[eSID_TankTurnTurret]);
-		pAudioSystem->GetAudioRtpcId("vehicle_rotation_speed", m_turretTurnRtpcId);
-
-		pAudioSystem->GetAudioTriggerId("Play_w_tank_cannon_fire", m_audioControlIDs[eSID_VehiclePrimaryWeapon]);
-		pAudioSystem->GetAudioTriggerId("do_nothing", m_audioControlIDs[eSID_VehicleStopPrimaryWeapon]);
-		pAudioSystem->GetAudioTriggerId("Play_w_tank_machinegun_fire", m_audioControlIDs[eSID_VehicleSecondaryWeapon]);
-		pAudioSystem->GetAudioTriggerId("Stop_w_tank_machinegun_fire", m_audioControlIDs[eSID_VehicleStopSecondaryWeapon]);
-	}
-
-	return true;
+	return false;
 }
 
 //------------------------------------------------------------------------
@@ -325,7 +321,7 @@ void CVehicleMovementTank::Update(const float deltaTime)
 {
 	inherited::Update(deltaTime); 
 
-	AudioControlId id = m_audioControlIDs[eSID_TankTurnTurret];
+	CryAudio::ControlId id = m_audioControlIDs[eSID_TankTurnTurret];
 	if (m_bOnTurnTurret && !m_bTurretTurning)
 	{
 		auto pIEntityAudioComponent = GetAudioProxy();
@@ -349,7 +345,7 @@ void CVehicleMovementTank::Update(const float deltaTime)
 
 		auto pIEntityAudioComponent = GetAudioProxy();
 		if (pIEntityAudioComponent)
-			pIEntityAudioComponent->SetRtpcValue(m_turretTurnRtpcId, min(m_turretTurnSpeed / maxSpeedForSound, 1.0f));
+			pIEntityAudioComponent->SetParameter(m_turretTurnRtpcId, min(m_turretTurnSpeed / maxSpeedForSound, 1.0f));
 	}
 
 	m_bOnTurnTurret = false;

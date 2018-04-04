@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #include "StdAfx.h"
 
@@ -191,7 +191,7 @@ void CRopeEntity::RecalcBBox()
 			m_BBox[1] = max(m_BBox[1],m_segs[i].pt); 
 		}
 		m_BBox[0]-=Vec3(m_collDist*2); m_BBox[1]+=Vec3(m_collDist*2);
-		AtomicAdd(&m_pWorld->m_lockGrid,-m_pWorld->RepositionEntity(this,1,m_BBox));
+		m_pWorld->RepositionEntity(this,1|8,m_BBox);
 	}
 }
 
@@ -212,10 +212,6 @@ int CRopeEntity::SetParams(pe_params *_params, int bThreadSafe)
 	if (res = CPhysicalEntity::SetParams(_params,1)) {
 		if (_params->type==pe_params_pos::type_id) {
 			WriteLock lock(m_lockUpdate);
-#ifdef SEG_WORLD
-			pe_params_pos *params = (pe_params_pos*)_params;
-			bRecalcBBox = (params->bRecalcBounds == 3);
-#endif
 			Matrix33 R = Matrix33(m_qrot);
 			if ((prevpos-m_pos).len2()>sqr(0.0001f) || (prevq.v-m_qrot.v).len2()>sqr(0.0001f))
 				m_nVtx = 0;
@@ -229,12 +225,8 @@ int CRopeEntity::SetParams(pe_params *_params, int bThreadSafe)
 		if (m_nSegs>0 && !(m_flags & (rope_collides|rope_collides_with_terrain)) && (flags0 & (rope_collides|rope_collides_with_terrain)))
 			for(int i=0;i<=m_nSegs;i++) m_segs[i].pContactEnt = 0;
 
-		if (m_flags&pef_traceable && !(flags0&pef_traceable)
-#ifdef SEG_WORLD
-			|| (m_flags&pef_traceable && bRecalcBBox)
-#endif
-			)
-			RecalcBBox();
+		RecalcBBox();
+
 		if ((m_flags^flags0) & rope_collides)
 			(m_collTypes &= ~(ent_static|ent_sleeping_rigid|ent_rigid|ent_living)) |= (ent_static|ent_sleeping_rigid|ent_rigid|ent_living) & -((int)m_flags & rope_collides)>>31;
 		if ((m_flags^flags0) & rope_collides_with_terrain)
@@ -301,7 +293,7 @@ int CRopeEntity::SetParams(pe_params *_params, int bThreadSafe)
 			Vec3 pt[2]={ m_pos, m_pos-Vec3(0,0,m_length) };
 			for(i=0;i<2;i++) if (m_pTiedTo[i]) {
 				Vec3 pos; quaternionf q; float scale;
-				m_pTiedTo[i]->GetLocTransform(m_iTiedPart[i], pos,q,scale);
+				m_pTiedTo[i]->GetLocTransform(m_iTiedPart[i], pos,q,scale, this);
 				pt[i] = pos + q*m_ptTiedLoc[i];
 			}
 			if (m_nSegs!=params->nSegments) {
@@ -374,7 +366,7 @@ int CRopeEntity::SetParams(pe_params *_params, int bThreadSafe)
 				}	else
 					m_iTiedPart[i] = params->idPartTiedTo[i];
 				Vec3 pos; quaternionf q; float scale;
-				m_pTiedTo[i]->GetLocTransform(m_iTiedPart[i], pos,q,scale);
+				m_pTiedTo[i]->GetLocTransform(m_iTiedPart[i], pos,q,scale, this);
 				if (!is_unused(params->ptTiedTo[i]))
 					m_ptTiedLoc[i] = params->bLocalPtTied ? params->ptTiedTo[i] : (params->ptTiedTo[i]-pos)*q;
 				else if (m_nSegs>0 && (!is_unused(params->pEntTiedTo[i]) || !is_unused(params->idPartTiedTo[i])))
@@ -411,7 +403,7 @@ int CRopeEntity::SetParams(pe_params *_params, int bThreadSafe)
 			Vec3 pos; quaternionf q; float scale;
 			m_iConstraintClient = isneg(m_pTiedTo[0]->GetMassInv()-m_pTiedTo[1]->GetMassInv());
 			for(i=0;i<2;i++) {
-				m_pTiedTo[m_iConstraintClient^i]->GetLocTransform(m_iTiedPart[m_iConstraintClient^i], pos,q,scale);
+				m_pTiedTo[m_iConstraintClient^i]->GetLocTransform(m_iTiedPart[m_iConstraintClient^i], pos,q,scale, this);
 				aac.pt[i] = pos + q*m_ptTiedLoc[m_iConstraintClient^i];
 				aac.partid[i] = m_pTiedTo[m_iConstraintClient^i]->m_parts[m_iTiedPart[m_iConstraintClient^i]].id;
 			}
@@ -483,7 +475,7 @@ int CRopeEntity::GetParams(pe_params *_params) const
 				params->pEntTiedTo[i] = WORLD_ENTITY;
 			params->idPartTiedTo[i] = m_pTiedTo[i]->m_parts[m_iTiedPart[i]].id;
 			Vec3 pos; quaternionf q; float scale;
-			m_pTiedTo[i]->GetLocTransform(m_iTiedPart[i], pos,q,scale);
+			m_pTiedTo[i]->GetLocTransform(m_iTiedPart[i], pos,q,scale, this);
 			params->ptTiedTo[i] = pos + q*m_ptTiedLoc[i];
 		}
 		if (is_unused(m_collBBox[0]))
@@ -507,6 +499,7 @@ int CRopeEntity::GetStatus(pe_status *_status) const
 	if (_status->type==pe_status_rope::type_id) {
 		PrefetchLine(&m_lastqHost, 0);
 		pe_status_rope *status = (pe_status_rope*)_status;			
+		QuatT transG = is_unused(status->pGridRefEnt) ? QuatT(IDENTITY) : m_pWorld->GetGrid(status->pGridRefEnt)->m_transW.GetInverted() * m_pWorld->GetGrid(this)->m_transW;
 		{ ReadLock lock(m_lockUpdate);
 			PrefetchLine(m_segs, 0);
 			if (m_nSegs<0)
@@ -519,8 +512,8 @@ int CRopeEntity::GetStatus(pe_status *_status) const
 			status->bTargetPoseActive = m_bTargetPoseActive;
 			status->stiffnessAnim = m_stiffnessAnim;
 			status->timeLastActive = m_timeLastActive;
-			status->posHost = m_lastposHost;
-			status->qHost = m_lastqHost;
+			status->posHost = transG*m_lastposHost;
+			status->qHost = transG.q*m_lastqHost;
 
 			//All access to m_segs moved to the end so there's a chance of the cache line being retrieved
 			union {CPhysicalEntity ** pe; IPhysicalEntity** pi;} u; u.pe = &m_segs[0].pContactEnt;
@@ -531,12 +524,12 @@ int CRopeEntity::GetStatus(pe_status *_status) const
 			for(i=0;i<m_nAttach;i++)
 				(*nCollCount[-m_attach[i].pent->m_iSimClass>>31 & 1])++;
 			if (!is_unused(status->pPoints) && status->pPoints)
-				for(i=0;i<=m_nSegs;i++) status->pPoints[i] = m_segs[i].pt0;
+				for(i=0;i<=m_nSegs;i++) status->pPoints[i] = transG*m_segs[i].pt0;
 			if (!is_unused(status->pVelocities) && status->pVelocities)
-				for(i=0;i<=m_nSegs;i++) status->pVelocities[i] = m_segs[i].vel;
+				for(i=0;i<=m_nSegs;i++) status->pVelocities[i] = transG.q*m_segs[i].vel;
 			if (!is_unused(status->pContactNorms) && status->pContactNorms)
 				for(i=0;i<m_nSegs;i++) if (m_segs[i].pContactEnt)
-					status->pContactNorms[i] = m_segs[i].ncontact;
+					status->pContactNorms[i] = transG*m_segs[i].ncontact;
 		}
 
 		if (m_flags & rope_subdivide_segs) {
@@ -544,7 +537,7 @@ int CRopeEntity::GetStatus(pe_status *_status) const
 			lockVtx.SetActive(status->lock-1>>31&1);
 			status->nVtx = m_nVtx0;
 			if (status->pVtx) for(int i=0;i<m_nVtx0;i++)
-				status->pVtx[i] = m_vtx[i].pt0;
+				status->pVtx[i] = transG*m_vtx[i].pt0;
 			status->bStrained = m_bStrained;
 		} else {
 			status->nVtx = 0;
@@ -694,7 +687,7 @@ int CRopeEntity::Action(pe_action *_action, int bThreadSafe)
 			int i; Vec3 pos; quaternionf q; float scale;
 			if ((!m_pTiedTo[0] || !m_pTiedTo[1]) && m_nSegs>0 && m_segs) { // if the rope is tied with at most one end, do exact length enforcement
 				for(i=0;i<2;i++) if (m_pTiedTo[i]) {
-					m_pTiedTo[i]->GetLocTransform(m_iTiedPart[i], pos,q,scale);
+					m_pTiedTo[i]->GetLocTransform(m_iTiedPart[i], pos,q,scale, this);
 					m_segs[m_nSegs*i].pt=m_segs[m_nSegs*i].pt0 = pos + q*m_ptTiedLoc[i];
 				}
 				q.SetIdentity(); pos.zero(); scale=1.0f;
@@ -780,7 +773,7 @@ int CRopeEntity::Action(pe_action *_action, int bThreadSafe)
 				if (m_flags & rope_target_vtx_rel0<<i)
 					m_ptTiedLoc[i] = action->points[m_nSegs*i];
 				else if (!(m_flags & (rope_target_vtx_rel0|rope_target_vtx_rel1))) {
-					m_pTiedTo[i]->GetLocTransform(m_iTiedPart[i], pos,q,scale);
+					m_pTiedTo[i]->GetLocTransform(m_iTiedPart[i], pos,q,scale, this);
 					m_ptTiedLoc[i] = (action->points[m_nSegs*i]-pos)*q;
 				}
 				//if (i==0 && m_iTiedPart[0]<m_pTiedTo[0]->m_nParts)
@@ -792,7 +785,7 @@ int CRopeEntity::Action(pe_action *_action, int bThreadSafe)
 			quaternionf qParent;
 			float scaleParent;
 			if (m_pTiedTo[iParent]) {
-				m_pTiedTo[iParent]->GetLocTransform(m_iTiedPart[iParent], offsParent,qParent,scaleParent);
+				m_pTiedTo[iParent]->GetLocTransform(m_iTiedPart[iParent], offsParent,qParent,scaleParent, this);
 				scaleParent = 1.0f/scaleParent;
 				for(i=0;i<=m_nSegs;i++)
 					m_segs[i].ptdst = (m_segs[i].pt-offsParent)*qParent*scaleParent;
@@ -818,7 +811,7 @@ int CRopeEntity::Action(pe_action *_action, int bThreadSafe)
 			for(i=0;i<action->nPoints;i++) if ((unsigned int)action->piVtx[i]>m_nSegs)
 				return 0;
 			Vec3 pos; Quat q; float scale;
-			pent->GetLocTransform(ipart, pos,q,scale);
+			pent->GetLocTransform(ipart, pos,q,scale, this);
 			for(i=0;i<action->nPoints;i++) {
 				rope_vtx_attach &att = m_attach[m_nAttach+i];
 				(att.pent = pent)->AddRef();
@@ -965,7 +958,7 @@ RigidBody *CRopeEntity::GetRigidBodyData(RigidBody *pbody, int ipart)
 	return pbody;
 }
 
-void CRopeEntity::GetLocTransform(int ipart, Vec3 &offs, quaternionf &q, float &scale)
+void CRopeEntity::GetLocTransform(int ipart, Vec3 &offs, quaternionf &q, float &scale, const CPhysicalPlaceholder *trg)	const
 {
 	scale = 1.0f;
 	/*if (m_bTargetPoseActive) {
@@ -975,6 +968,7 @@ void CRopeEntity::GetLocTransform(int ipart, Vec3 &offs, quaternionf &q, float &
 		q = Quat::CreateRotationV0V1(Vec3(0,0,-1), (m_segs[ipart+1].pt-m_segs[ipart].pt).normalized());
 		offs = m_segs[ipart].pt;
 	}
+	m_pWorld->TransformToGrid(this,trg, offs,q);
 
 	/*if (m_flags & (rope_target_vtx_rel0 | rope_target_vtx_rel1)) {
 		int i = (m_flags & rope_target_vtx_rel1)!=0;
@@ -1045,7 +1039,7 @@ void CRopeEntity::FillVtxContactData(rope_vtx *pvtx,int iseg, SRopeCheckPart &cp
 	}
 	pvtx->ncontact = pcontact->n.normalized();
 	pvtx->pt += pvtx->ncontact*m_collDist;
-	RigidBody *pbody = cp.pent->GetRigidBody(cp.ipart);
+	RigidBody body(false), *pbody = cp.pent->GetRigidBodyTrans(&body,cp.ipart,this);
 	pvtx->vcontact = pbody->v+(pbody->w^pvtx->pt-pbody->pos);
 	pvtx->pContactEnt = cp.pent;
 	pvtx->iContactPart = cp.ipart;
@@ -1074,7 +1068,7 @@ void CRopeEntity::StepSubdivided(float time_interval, SRopeCheckPart *checkParts
 	int i,j,iStart,iEnd,i1,j1,iter,iMoveEnd[2],ncont,bIncomplete[2],bStrainRechecked=0,bRopeChanged;
 	Vec3 dv,center,dir,n;
 	float tmax[2],a,b,len2,rsep=m_length>0 ? 1.3f:1.01f;
-	RigidBody *pbody;
+	RigidBody body(false),*pbody;
 	Vec3 dirUnproj[2] = { Vec3(ZERO),Vec3(ZERO) };
 	rope_vtx vtxBest;
 	intersection_params ip;
@@ -1120,7 +1114,7 @@ void CRopeEntity::StepSubdivided(float time_interval, SRopeCheckPart *checkParts
 			++bRopeChanged;
 		if (m_segs[i].pContactEnt && !is_unused(m_segs[i].ncontact)) {
 			++bRopeChanged;
-			pbody = m_segs[i].pContactEnt->GetRigidBody(m_segs[i].iContactPart);
+			pbody = m_segs[i].pContactEnt->GetRigidBodyTrans(&body,m_segs[i].iContactPart,this);
 			dv = pbody->v + (pbody->w^m_segs[i].pt-pbody->pos);
 			if ((m_segs[i].vel-dv)*m_segs[i].ncontact<m_pWorld->m_vars.minSeparationSpeed) {
 				aray.m_ray.origin.zero(); gwd1.offset = m_segs[i].pt;
@@ -1155,7 +1149,7 @@ void CRopeEntity::StepSubdivided(float time_interval, SRopeCheckPart *checkParts
 						m_segs[i].ncontact = checkParts[j].R*pcontact[i1].n;
 						m_segs[i].pContactEnt = checkParts[j].pent;
 						m_segs[i].iContactPart = checkParts[j].ipart;
-						pbody = checkParts[j].pent->GetRigidBody(checkParts[j].ipart);
+						pbody = checkParts[j].pent->GetRigidBodyTrans(&body,checkParts[j].ipart,this);
 						m_segs[i].vcontact = pbody->v + (pbody->w ^ m_segs[i].pt-pbody->pos);
 						++bRopeChanged;
 					}
@@ -1170,7 +1164,7 @@ void CRopeEntity::StepSubdivided(float time_interval, SRopeCheckPart *checkParts
 				m_segs[i].ncontact = checkParts[j].R*acontact.n;
 				m_segs[i].pContactEnt = checkParts[j].pent;
 				m_segs[i].iContactPart = checkParts[j].ipart;
-				pbody = checkParts[j].pent->GetRigidBody(checkParts[j].ipart);
+				pbody = checkParts[j].pent->GetRigidBodyTrans(&body,checkParts[j].ipart,this);
 				m_segs[i].vcontact = pbody->v + (pbody->w ^ m_segs[i].pt-pbody->pos);
 				++bRopeChanged;
 			}
@@ -1955,7 +1949,7 @@ int CRopeEntity::Step(float time_interval)
 
 	if (m_flags & pef_disabled)	{
 		if (m_bTargetPoseActive==2 && m_pTiedTo[0])	{
-			m_pTiedTo[0]->GetLocTransform(m_iTiedPart[0], dir,q,scale);
+			m_pTiedTo[0]->GetLocTransform(m_iTiedPart[0], dir,q,scale, this);
 			m_segs[0].pt = dir + q*m_ptTiedLoc[0];
 			m_BBox[0] = min(m_BBox[0],m_segs[0].pt);
 			m_BBox[1] = max(m_BBox[1],m_segs[0].pt);
@@ -1980,7 +1974,6 @@ int CRopeEntity::Step(float time_interval)
 		m_gravity = (dir-m_pWorld->m_vars.gravity).len2() < dir.len2()*sqr(0.01) ? m_gravity0 : dir;
 	gravity = m_gravity;
 
-	event.pEntity=this; event.pForeignData=m_pForeignData; event.iForeignData=m_iForeignData;
 	event.dt=time_interval; event.pos=m_pos; event.q=m_qrot; event.idStep=m_pWorld->m_idStep;
 	for(i=0,dir=m_wind;i<iEnd;i++)
 		dir += pb[i].waterFlow*pb[i].iMedium;
@@ -1994,7 +1987,7 @@ int CRopeEntity::Step(float time_interval)
 	if (m_flags & (rope_target_vtx_rel0 | rope_target_vtx_rel1)) {
 		i = (m_flags & rope_target_vtx_rel1)!=0;
 		if (m_pTiedTo[i]) 
-			m_pTiedTo[i]->GetLocTransformLerped(m_iTiedPart[i], offstv,qtv,scaletv,ktimeBack);
+			m_pTiedTo[i]->GetLocTransformLerped(m_iTiedPart[i], offstv,qtv,scaletv,ktimeBack, this);
 	}
 
 	if ((m_windTimer+=time_interval*4)>1.0f) {
@@ -2012,12 +2005,12 @@ int CRopeEntity::Step(float time_interval)
 	if (m_flags & rope_findiff_attached_vel)
 		a = 1.0f/m_timeStepFull;
 	for(i=1;i>=0;i--) if (m_pTiedTo[i]) {
-		m_pTiedTo[i]->GetLocTransformLerped(m_iTiedPart[i], pos,q,scale,ktimeBack);
+		m_pTiedTo[i]->GetLocTransformLerped(m_iTiedPart[i], pos,q,scale,ktimeBack, this);
 		m_posBody[i][1] = pos; m_qBody[i][1] = q;
 		m_segs[m_nSegs*i].pt = ptend[i] = pos + q*m_ptTiedLoc[i];
 		if (m_nVtx)
 			m_vtx[(m_nVtx-1)*i].pt = ptend[i];
-		pbody = m_pTiedTo[i]->GetRigidBodyData(&rbody,m_iTiedPart[i]);
+		pbody = m_pTiedTo[i]->GetRigidBodyTrans(&rbody,m_iTiedPart[i],this,2);
 		if (!(m_flags & rope_findiff_attached_vel)) {
 			dv = pbody->v; dw = pbody->w;
 		}	else {
@@ -2073,9 +2066,9 @@ int CRopeEntity::Step(float time_interval)
 	}
 
 	for(i=0;i<m_nAttach;i++) {
-		m_attach[i].pent->GetLocTransformLerped(m_attach[i].ipart, pos,q,scale,ktimeBack);
+		m_attach[i].pent->GetLocTransformLerped(m_attach[i].ipart, pos,q,scale,ktimeBack, this);
 		m_attach[i].pt = m_segs[j=m_attach[i].ivtx].pt = pos+q*m_attach[i].ptloc;
-		pbody = m_attach[i].pent->GetRigidBodyData(&rbody,m_attach[i].ipart);
+		pbody = m_attach[i].pent->GetRigidBodyTrans(&rbody,m_attach[i].ipart,this,2);
 		m_segs[j].vel = m_attach[i].v = pbody->v+(pbody->w ^ m_attach[i].pt-pbody->pos);
 		if (m_nVtx)	{
 			m_vtx[m_segs[j].iVtx0].pt = m_attach[i].pt;
@@ -2121,8 +2114,9 @@ int CRopeEntity::Step(float time_interval)
 			m_pos = m_segs[0].pt; m_BBox[0] = BBox[0]; m_BBox[1] = BBox[1];
 			for(i=0;i<=m_nSegs;i++)
 				m_segs[i].pt0 = m_segs[i].pt;
-			JobAtomicAdd(&m_pWorld->m_lockGrid,-bGridLocked);
+			m_pWorld->UnlockGrid(this,-bGridLocked);
 		}
+		InitEvent(&event,this);
 		event.pos = m_pos;
 		m_pWorld->OnEvent(m_flags,&event);
 		return 1;
@@ -2166,7 +2160,7 @@ int CRopeEntity::Step(float time_interval)
 			if (!m_pOuterEntity)
 				collBBox[0]=m_collBBox[0], collBBox[1]=m_collBBox[1];
 			else {
-				m_pOuterEntity->GetLocTransform(0,pos,q,scale);
+				m_pOuterEntity->GetLocTransform(0,pos,q,scale,this);
 				Matrix33 mtx = Matrix33(m_pOuterEntity->m_qrot);
 				center = mtx*((m_collBBox[0]+m_collBBox[1])*0.5f*scale)+m_pOuterEntity->m_pos;
 				sz = mtx.Fabs()*((m_collBBox[1]-m_collBBox[0])*0.5f*scale);
@@ -2225,7 +2219,7 @@ int CRopeEntity::Step(float time_interval)
 					m_pWorld->m_threadData[iCaller].szTmpPartBVList+=64; 
 				}
 				partBVList[ippbv].iparttype=pentlist[i]->m_parts[j].pPhysGeomProxy->pGeom->GetType(); 
-				pentlist[i]->GetLocTransformLerped(j,partBVList[ippbv].pospart,partBVList[ippbv].qpart,scale,ktimeBack);
+				pentlist[i]->GetLocTransformLerped(j,partBVList[ippbv].pospart,partBVList[ippbv].qpart,scale,ktimeBack,this);
 				if (partBVList[ippbv].iparttype!=GEOM_HEIGHTFIELD) {
 					pentlist[i]->m_parts[j].pPhysGeomProxy->pGeom->GetBBox(&partBVList[ippbv].partbox);
 					partBVList[ippbv].partbox.size *= pentlist[i]->m_parts[j].scale; 
@@ -2302,7 +2296,7 @@ int CRopeEntity::Step(float time_interval)
 				else
 					pent->m_parts[j].flags |= geom_removed;
 				AtomicAdd(&pent->m_bProcessed, ~pent->m_bProcessed&1<<iCaller);
-				pbody = pent->GetRigidBodyData(&rbody,j);
+				pbody = pent->GetRigidBodyTrans(&rbody,j,this,2);
 				checkParts[nCheckParts].v = pbody->v-(pbody->w^pbody->pos);
 				checkParts[nCheckParts].w = pbody->w;
 				checkParts[nCheckParts].bVtxUnproj = checkParts[nCheckParts].pGeom->IsAPrimitive();
@@ -2361,19 +2355,21 @@ int CRopeEntity::Step(float time_interval)
 	m_bAwake = bAwake;
 	m_nSlowFrames = nSlowFrames;
 
+	m_pos = m_segs[0].pt;
 	if (m_flags & pef_traceable)
 		bGridLocked = m_pWorld->RepositionEntity(this,3,BBox);
 	{ WriteLock lock(m_lockUpdate);
-		m_BBox[0] = BBox[0]; m_BBox[1] = BBox[1]; m_pos = m_segs[0].pt;
+		m_BBox[0] = BBox[0]; m_BBox[1] = BBox[1]; 
 		for(i=0;i<=m_nSegs;i++)
 			m_segs[i].pt0 = m_segs[i].pt;
 		if (m_pTiedTo[0])
-			m_pTiedTo[0]->GetLocTransformLerped(m_iTiedPart[0],m_lastposHost,m_lastqHost,scaletv,ktimeBack);
+			m_pTiedTo[0]->GetLocTransformLerped(m_iTiedPart[0],m_lastposHost,m_lastqHost,scaletv,ktimeBack,this);
 		else {
 			m_lastposHost=m_pos; m_lastqHost.SetIdentity();
 		}
-		AtomicAdd(&m_pWorld->m_lockGrid,-bGridLocked);
+		m_pWorld->UnlockGrid(this,-bGridLocked);
 	}
+	InitEvent(&event,this);
 	event.pos = m_pos;
 	m_pWorld->OnEvent(m_flags,&event);
 
@@ -2403,6 +2399,7 @@ int CRopeEntity::RegisterContacts(float time_interval,int nMaxPlaneContacts)
 
 	for(iStart=j=0; iStart<m_nVtx-1; iStart=iEnd) {
 		pContact = (entity_contact*)AllocSolverTmpBuf(sizeof(entity_contact));
+		pContact->nextAux = (entity_contact*)this;
 
 		for(i=iStart+1,kP=1,len=0,sg=0,icnt0=-1,icnt1=iStart; i<m_nVtx-1; i++) {
 			len += m_vtx[i-1].dir*(m_vtx[i].pt-m_vtx[i-1].pt);
@@ -2445,8 +2442,9 @@ int CRopeEntity::RegisterContacts(float time_interval,int nMaxPlaneContacts)
 		pContact->pt[1] = m_vtx[iEnd].pt;
 		//pContact->K.SetZero();
 		sinb = friction*cosb;
+		QuatT Body2Rope = GridTrans(m_pTiedTo[0], this);
 		pbody[0]->Fcollision += dir0;
-		pbody[0]->Tcollision += m_vtx[iStart].pt-pbody[0]->pos ^ dir0;
+		pbody[0]->Tcollision += m_vtx[iStart].pt-Body2Rope*pbody[0]->pos ^ dir0;
 		maxM = max(pbody[0]->M, pbody[1]->M);
 		nUniqueBodies = (pbody[0]!=pbody[1])+1;
 
@@ -2467,9 +2465,11 @@ int CRopeEntity::RegisterContacts(float time_interval,int nMaxPlaneContacts)
 				kP /= sina*cosb+cosa*sinb;
 				m_vtxSolver[j].P = n*(kP*-2*sina*cosa*cosb);
 				m_vtxSolver[j].pbody=pbody[2] = m_vtx[i].pContactEnt->GetRigidBody(m_vtx[i].iContactPart,1);
+				m_vtxSolver[j].pent = m_vtx[i].pContactEnt;
+				Body2Rope = GridTrans(m_vtx[i].pContactEnt, this);
 				maxM = max(maxM, pbody[2]->M);
 				pbody[2]->Fcollision += m_vtxSolver[j].P;
-				pbody[2]->Tcollision += (m_vtxSolver[j].r = m_vtx[i].pt-pbody[2]->pos)^m_vtxSolver[j].P;
+				pbody[2]->Tcollision += (m_vtxSolver[j].r = m_vtx[i].pt-Body2Rope*pbody[2]->pos)^m_vtxSolver[j].P;
 				kP *= sina*cosb-cosa*sinb;
 				nUniqueBodies += pbody[2]!=pbody[0] && pbody[2]!=pbody[1];
 				j++;
@@ -2478,15 +2478,18 @@ int CRopeEntity::RegisterContacts(float time_interval,int nMaxPlaneContacts)
 		if (nUniqueBodies<=1 || maxM<=0.0f)
 			continue;
 		pContact->nloc.x = kP;
+		Body2Rope = GridTrans(m_pTiedTo[1], this);
 		pbody[1]->Fcollision -= dir1*kP;
-		pbody[1]->Tcollision -= m_vtx[iEnd-1].pt-pbody[1]->pos ^ dir1;
-
-		kP = -dir1*(pbody[1]->Fcollision*pbody[1]->Minv + (pbody[1]->Iinv*pbody[1]->Tcollision ^ m_vtx[iEnd].pt-pbody[1]->pos));
-		kP += dir0*(pbody[0]->Fcollision*pbody[0]->Minv + (pbody[0]->Iinv*pbody[0]->Tcollision ^ m_vtx[iStart].pt-pbody[0]->pos));
+		pbody[1]->Tcollision -= m_vtx[iEnd-1].pt-Body2Rope*pbody[1]->pos ^ dir1;
+		kP = -dir1*(pbody[1]->Fcollision*pbody[1]->Minv + (Body2Rope.q*(pbody[1]->Iinv*(pbody[1]->Tcollision*Body2Rope.q)) ^ m_vtx[iEnd].pt-Body2Rope*pbody[1]->pos));
+		Body2Rope = GridTrans(m_pTiedTo[0], this);
+		kP += dir0*(pbody[0]->Fcollision*pbody[0]->Minv + (Body2Rope.q*(pbody[0]->Iinv*(pbody[0]->Tcollision*Body2Rope.q)) ^ m_vtx[iStart].pt-Body2Rope*pbody[0]->pos));
 		for(i=iStart+1,j=jStart; i<iEnd; i++) 
-			if (!is_unused(m_vtx[i].ncontact) && m_vtx[i].dP>0 && (pbody[2]=m_vtx[i].pContactEnt->GetRigidBody(m_vtx[i].iContactPart,1)))
+			if (!is_unused(m_vtx[i].ncontact) && m_vtx[i].dP>0 && (pbody[2]=m_vtx[i].pContactEnt->GetRigidBody(m_vtx[i].iContactPart,1)))	{
+				Body2Rope = GridTrans(m_vtx[i].pContactEnt,this);
 				kP += m_vtxSolver[j++].v*(pbody[2]->Fcollision*pbody[2]->Minv + 
-							(pbody[2]->Iinv*pbody[2]->Tcollision^m_vtx[i].pt-pbody[2]->pos));
+							(Body2Rope.q*(pbody[2]->Iinv*(pbody[2]->Tcollision*Body2Rope.q)) ^ m_vtx[i].pt-Body2Rope*pbody[2]->pos));
+			}
 		pContact->nloc.y = 1/kP;
 		pContact->nloc.z = m_maxForce*max(0.01f,time_interval)*1.1f;
 
@@ -2515,7 +2518,7 @@ int CRopeEntity::Update(float time_interval, float damping)
 		int i,j,i0;
 		float vrope[2],len,t;
 		Vec3 norm,v,tang,dir;
-		RigidBody *pbody;
+		RigidBody body(false),*pbody;
 
 		/*m_pTiedTo[0]->RemoveCollider(this);
 		m_pTiedTo[1]->RemoveCollider(this);
@@ -2527,7 +2530,7 @@ int CRopeEntity::Update(float time_interval, float damping)
 
 		{//if (m_length>0) {
 			for(i=0;i<2;i++) {
-				pbody = m_pTiedTo[i]->GetRigidBody(m_iTiedPart[i]);
+				pbody = m_pTiedTo[i]->GetRigidBodyTrans(&body,m_iTiedPart[i],this);
 				vrope[i] = m_vtx[i*(m_nVtx-2)].dir*(m_vtx[i*(m_nVtx-1)].vel = pbody->v + (pbody->w ^ m_vtx[i*(m_nVtx-1)].pt-pbody->pos));
 			}
 			for(i=0; i<m_nVtx-1; ) {
@@ -2535,7 +2538,7 @@ int CRopeEntity::Update(float time_interval, float damping)
 				len = (m_vtx[j].pt-m_vtx[0].pt).len2(); t = (m_vtx[j].pt-m_vtx[m_nVtx-1].pt).len2(); t=t/(len+t);
 				len = (dir=m_vtx[j].pt-m_vtx[i].pt).len2(); dir *= len>1e-8f ? 1/len : 0.0f;
 				if (j<m_nVtx-1) {
-					pbody = m_vtx[j].pContactEnt->GetRigidBody(m_vtx[j].iContactPart);
+					pbody = m_vtx[j].pContactEnt->GetRigidBodyTrans(&body,m_vtx[j].iContactPart,this);
 					v = pbody->v + (pbody->w^m_vtx[j].pt-pbody->pos);
 					norm = (m_vtx[j-1].dir-m_vtx[j].dir).normalized();
 					tang = (m_vtx[j-1].dir+m_vtx[j].dir).normalized();
@@ -2704,7 +2707,7 @@ int CRopeEntity::SetStateFromSnapshot(CStream &stm, int flags)
 			m_segs[i].dir = (m_segs[i+1].pt-m_segs[i].pt).normalized();
 		m_pos = m_segs[0].pt;
 		if (m_flags & pef_traceable)
-			AtomicAdd(&m_pWorld->m_lockGrid,-m_pWorld->RepositionEntity(this,3));
+			m_pWorld->RepositionEntity(this,3|8);
 	} else {
 		for(i=0;i<=m_nSegs;i++) {
 			stm.Seek(stm.GetReadPos()+sizeof(Vec3)*8);
@@ -2757,16 +2760,14 @@ int CRopeEntity::GetStateSnapshot(TSerialize ser, float time_back, int flags)
 		ser.Value("pos_start", m_segs[0].pt);
 		ser.Value("pos_end", m_segs[m_nSegs].pt);
 	} else {
-		ser.Value("strained", 0);
+		ser.Value("strained", bAwake = false);
 		ser.Value("awake", bAwake = m_bAwake!=0);
 
 		ser.BeginGroup("Segs");
 		for(i=0;i<=m_nSegs;i++) {
 			ser.Value(numbered_tag("pos",i), m_segs[i].pt);
 			if (m_bAwake)
-			{
 				ser.Value(numbered_tag("vel",i), m_segs[i].vel);
-			}
 		}
 		ser.EndGroup();
 
@@ -2777,9 +2778,7 @@ int CRopeEntity::GetStateSnapshot(TSerialize ser, float time_back, int flags)
 			for(i=0;i<m_nVtx;i++) {
 				ser.Value(numbered_tag("pos",i), m_vtx[i].pt);
 				if (m_bAwake)
-				{
 					ser.Value(numbered_tag("vel",i), m_vtx[i].vel);
-				}
 			}
 			ser.EndGroup();
 		}
@@ -2793,8 +2792,7 @@ int CRopeEntity::GetStateSnapshot(TSerialize ser, float time_back, int flags)
 			m_pTiedTo[1] && m_pTiedTo[1]->m_iSimClass<3 && (!m_pForeignData || m_pForeignData!=m_pTiedTo[1]->m_pForeignData)))
 	{
 		ser.Value("saveties", bAwake=true);
-		for(i=0;i<2;i++) 
-		{
+		for(i=0;i<2;i++) {
 			ser.BeginGroup("link");
 			if (m_pTiedTo[i]) {
 				ser.Value("tied", bAwake=true);
@@ -2915,7 +2913,7 @@ int CRopeEntity::SetStateFromSnapshot(TSerialize ser, int flags)
 	}
 	float scale;
 	if (m_pTiedTo[0])
-		m_pTiedTo[0]->GetLocTransform(m_iTiedPart[0],m_lastposHost,m_lastqHost,scale);
+		m_pTiedTo[0]->GetLocTransform(m_iTiedPart[0],m_lastposHost,m_lastqHost,scale,this);
 
 	m_BBox[0]=m_BBox[1] = m_segs[m_nSegs].pt;
 	for(i=0;i<m_nSegs;i++) {
@@ -2925,7 +2923,7 @@ int CRopeEntity::SetStateFromSnapshot(TSerialize ser, int flags)
 	}
 	m_pos = m_segs[0].pt;
 	if (m_flags & pef_traceable)
-		AtomicAdd(&m_pWorld->m_lockGrid,-m_pWorld->RepositionEntity(this,3));
+		m_pWorld->RepositionEntity(this,3|8);
 
 	return 1;
 }
@@ -2986,10 +2984,17 @@ void CRopeEntity::DrawHelperInformation(IPhysRenderer *pRenderer, int flags)
 
 void CRopeEntity::GetMemoryStatistics(ICrySizer *pSizer) const
 {
-	CPhysicalEntity::GetMemoryStatistics(pSizer);
 	if (GetType()==PE_ROPE)
 		pSizer->AddObject(this, sizeof(CRopeEntity));
-	pSizer->AddObject(m_segs, m_nSegs*sizeof(m_segs[0]));
+	CPhysicalEntity::GetMemoryStatistics(pSizer);
+	pSizer->AddObject(m_segs, (m_nSegs+1)*sizeof(m_segs[0]));
+	pSizer->AddObject(m_vtx, m_nVtxAlloc*sizeof(m_vtx[0]));
+	pSizer->AddObject(m_vtx1, m_nVtxAlloc*sizeof(m_vtx1[0]));
+	if (m_vtxSolver)
+		pSizer->AddObject(m_vtxSolver, m_nVtxAlloc*sizeof(m_vtxSolver[0]));
+	if (m_idx)
+		pSizer->AddObject(m_idx, (m_nMaxSubVtx+2)*sizeof(m_idx[0]));
+	pSizer->AddObject(m_attach, m_nAttach*sizeof(m_attach[0]));
 }
 
 int CRopeEntity::GetVertices(strided_pointer<Vec3>& vtx) const

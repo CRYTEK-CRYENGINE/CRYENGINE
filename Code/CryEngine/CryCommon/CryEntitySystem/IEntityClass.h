@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #pragma once
 
@@ -32,7 +32,6 @@ struct SEditorClassInfo
 enum EEntityClassFlags
 {
 	ECLF_INVISIBLE                         = BIT(0),  //!< If set this class will not be visible in editor,and entity of this class cannot be placed manually in editor.
-	ECLF_DEFAULT                           = BIT(1),  //!< If this is default entity class.
 	ECLF_BBOX_SELECTION                    = BIT(2),  //!< If set entity of this class can be selected by bounding box in the editor 3D view.
 	ECLF_DO_NOT_SPAWN_AS_STATIC            = BIT(3),  //!< If set the entity of this class stored as part of the level won't be assigned a static id on creation.
 	ECLF_MODIFY_EXISTING                   = BIT(4),  //!< If set modify an existing class with the same name.
@@ -112,6 +111,11 @@ struct IEntityEventHandler
 //! Two entities can be compared if they are of the same type by just comparing their IEntityClass pointers.
 struct IEntityClass
 {
+	//! OnSpawnCallback is called when entity of that class is spawned.
+	//! When registering new entity class this callback allow user to execute custom code on entity spawn,
+	//! Like creation and initialization of some default components
+	typedef std::function<bool( IEntity& entity,SEntitySpawnParams& params )> OnSpawnCallback;
+
 	//! UserProxyCreateFunc is a function pointer type,.
 	//! By calling this function EntitySystem can create user defined UserProxy class for an entity in SpawnEntity.
 	//! For example:
@@ -149,6 +153,9 @@ struct IEntityClass
 	//! \return Name of the entity class. Class name must be unique among all the entity classes.
 	virtual const char* GetName() const = 0;
 
+	//! Retrieve unique identifier for this entity class
+	virtual CryGUID GetGUID() const = 0;
+
 	//! \return Entity class flags.
 	virtual uint32 GetFlags() const = 0;
 
@@ -160,11 +167,11 @@ struct IEntityClass
 	virtual const char* GetScriptFile() const = 0;
 
 	//! Returns the IEntityScript interface assigned for this entity class.
-	//! \return IEntityScript interface if this entity have script, or NULL if no script defined for this entity class.
+	//! \return IEntityScript interface if this entity have script, or nullptr if no script defined for this entity class.
 	virtual IEntityScript* GetIEntityScript() const = 0;
 
 	//! Returns the IScriptTable interface assigned for this entity class.
-	//! \return IScriptTable interface if this entity have script, or NULL if no script defined for this entity class.
+	//! \return IScriptTable interface if this entity have script, or nullptr if no script defined for this entity class.
 	virtual IScriptTable*             GetScriptTable() const = 0;
 
 	virtual IEntityEventHandler*      GetEventHandler() const = 0;
@@ -199,6 +206,9 @@ struct IEntityClass
 	//! \return True if event found and event parameter is initialized.
 	virtual bool FindEventInfo(const char* sEvent, SEventInfo& event) = 0;
 
+	//! Return On spawn callback for the class
+	virtual const OnSpawnCallback&  GetOnSpawnCallback() const = 0;
+
 	virtual void                         GetMemoryUsage(ICrySizer* pSizer) const = 0;
 	// </interfuscator:shuffle>
 };
@@ -215,15 +225,17 @@ struct IEntityClassRegistry
 			: flags(0)
 			, sName("")
 			, sScriptFile("")
-			, pScriptTable(NULL)
+			, pScriptTable(nullptr)
 			, editorClassInfo()
-			, pUserProxyCreateFunc(NULL)
-			, pUserProxyData(NULL)
-			, pEventHandler(NULL)
-			, pScriptFileHandler(NULL)
+			, pUserProxyCreateFunc(nullptr)
+			, pUserProxyData(nullptr)
+			, pEventHandler(nullptr)
+			, pScriptFileHandler(nullptr)
+			, pIFlowNodeFactory(nullptr)
 		{
 		};
 
+		CryGUID                           guid;
 		int                               flags;
 		string                            sName;
 		string                            sScriptFile;
@@ -236,24 +248,30 @@ struct IEntityClassRegistry
 
 		IEntityEventHandler*              pEventHandler;
 		IEntityScriptFileHandler*         pScriptFileHandler;
+
+		// Callback function when entity of that class spawns
+		IEntityClass::OnSpawnCallback     onSpawnCallback;
+
+		//! GUID for the Schematyc runtime class
+		CryGUID                           schematycRuntimeClassGuid;
+
+		//! Optional FlowGraph factory.
+		//! Entity class will store and reference count flow node factory.
+		struct IFlowNodeFactory*          pIFlowNodeFactory;
 	};
 
 	virtual ~IEntityClassRegistry(){}
 
-	//! Register a new entity class.
-	//! \return true if successfully registered.
-	virtual bool RegisterEntityClass(IEntityClass* pClass) = 0;
-
-	//! Unregister an entity class.
-	//! \return true if successfully unregistered.
-	virtual bool UnregisterEntityClass(IEntityClass* pClass) = 0;
-
 	//! Retrieves pointer to the IEntityClass interface by entity class name.
-	//! \return Pointer to the IEntityClass interface, or NULL if class not found.
+	//! \return Pointer to the IEntityClass interface, or nullptr if class not found.
 	virtual IEntityClass* FindClass(const char* sClassName) const = 0;
 
+	//! Retrieves pointer to the IEntityClass interface by GUID.
+	//! \return Pointer to the IEntityClass interface, or nullptr if class not found.
+	virtual IEntityClass* FindClassByGUID(const CryGUID& guid) const = 0;
+
 	//! Retrieves pointer to the IEntityClass interface for a default entity class.
-	//! \return Pointer to the IEntityClass interface, It can never return NULL.
+	//! \return Pointer to the IEntityClass interface, It can never return nullptr.
 	virtual IEntityClass* GetDefaultClass() const = 0;
 
 	//! Load all entity class descriptions from the provided xml file.
@@ -261,8 +279,12 @@ struct IEntityClassRegistry
 	virtual void LoadClasses(const char* szFilename, bool bOnlyNewClasses = false) = 0;
 
 	//! Register standard entity class, if class id not specified (is zero), generate a new class id.
-	//! \return Pointer to the new created and registered IEntityClass interface, or NULL if failed.
+	//! \return Pointer to the new created and registered IEntityClass interface, or nullptr if failed.
 	virtual IEntityClass* RegisterStdClass(const SEntityClassDesc& entityClassDesc) = 0;
+	
+	//! Unregister an entity class.
+//! \return true if successfully unregistered.
+	virtual bool UnregisterStdClass(const CryGUID &classGUID) = 0;
 
 	//! Register a listener.
 	virtual void RegisterListener(IEntityClassRegistryListener* pListener) = 0;
@@ -270,11 +292,13 @@ struct IEntityClassRegistry
 	//! Unregister a listener.
 	virtual void UnregisterListener(IEntityClassRegistryListener* pListener) = 0;
 
+	virtual void UnregisterSchematycEntityClass() = 0;
+
 	// Registry iterator.
 
 	//! Move the entity class iterator to the begin of the registry.
 	//! To iterate over all entity classes, e.g.:
-	//! IEntityClass *pClass = NULL;
+	//! IEntityClass *pClass = nullptr;
 	//! for (pEntityRegistry->IteratorMoveFirst(); pClass = pEntityRegistry->IteratorNext();;)
 	//! {
 	//!     pClass
@@ -283,11 +307,11 @@ struct IEntityClassRegistry
 	virtual void IteratorMoveFirst() = 0;
 
 	//! Get the next entity class in the registry.
-	//! \return Return a pointer to the next IEntityClass interface, or NULL if is the end
+	//! \return Return a pointer to the next IEntityClass interface, or nullptr if is the end
 	virtual IEntityClass* IteratorNext() = 0;
 
 	//! Return the number of entity classes in the registry.
-	//! \return Return a pointer to the next IEntityClass interface, or NULL if is the end
+	//! \return Return a pointer to the next IEntityClass interface, or nullptr if is the end
 	virtual int GetClassCount() const = 0;
 	// </interfuscator:shuffle>
 };
@@ -307,7 +331,7 @@ struct IEntityClassRegistryListener
 public:
 
 	inline IEntityClassRegistryListener()
-		: m_pRegistry(NULL)
+		: m_pRegistry(nullptr)
 	{}
 
 	virtual ~IEntityClassRegistryListener()

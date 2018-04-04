@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #include "StdAfx.h"
 #include "NavigationSystem.h"
@@ -137,6 +137,7 @@ bool ShouldBeConsideredByVoxelizer(IPhysicalEntity& physicalEntity, uint32& flag
 
 NavigationSystem::NavigationSystem(const char* configName)
 	: m_configName(configName)
+	, m_updatesManager(this)
 	, m_throughput(0.0f)
 	, m_cacheHitRate(0.0f)
 	, m_free(0)
@@ -155,7 +156,7 @@ NavigationSystem::NavigationSystem(const char* configName)
 {
 	SetupTasks();
 
-	m_worldMonitor = WorldMonitor(functor(*this, &NavigationSystem::WorldChanged));
+	m_worldMonitor = WorldMonitor(functor(m_updatesManager, &CMNMUpdatesManager::EntityChanged));
 
 	ReloadConfig();
 
@@ -164,7 +165,7 @@ NavigationSystem::NavigationSystem(const char* configName)
 #ifdef SEG_WORLD
 	if (ISystemEventDispatcher* pSystemEventDispatcher = gEnv->pSystem->GetISystemEventDispatcher())
 	{
-		pSystemEventDispatcher->RegisterListener(this);
+		pSystemEventDispatcher->RegisterListener(this, "NavigationSystem");
 	}
 #endif
 
@@ -362,6 +363,21 @@ NavigationMeshID NavigationSystem::CreateMesh(const char* name, NavigationAgentT
 	return NavigationMeshID();
 }
 
+NavigationMeshID NavigationSystem::CreateMeshForVolumeAndUpdate(const char* name, NavigationAgentTypeID agentTypeID, const CreateMeshParams& params, const NavigationVolumeID volumeID)
+{
+	if (volumeID && m_volumes.validate(volumeID))
+	{
+		NavigationMeshID meshID = CreateMesh(name, agentTypeID, params);
+		SetMeshBoundaryVolume(meshID, volumeID);
+
+		NavigationBoundingVolume& volume = m_volumes[volumeID];
+		m_updatesManager.RequestMeshUpdate(meshID, volume.aabb);
+
+		return meshID;
+	}
+	return NavigationMeshID();
+}
+
 void NavigationSystem::DestroyMesh(NavigationMeshID meshID)
 {
 	if (meshID && m_meshes.validate(meshID))
@@ -396,15 +412,7 @@ void NavigationSystem::DestroyMesh(NavigationMeshID meshID)
 			}
 		}
 
-		TileTaskQueue::iterator qit = m_tileQueue.begin();
-		TileTaskQueue::iterator qend = m_tileQueue.end();
-
-		for (; qit != qend; ++qit)
-		{
-			TileTask& task = *qit;
-			if (task.meshID == meshID)
-				task.aborted = true;
-		}
+		m_updatesManager.OnMeshDestroyed(meshID);
 
 		m_meshes.erase(meshID);
 
@@ -542,7 +550,7 @@ void NavigationSystem::DestroyVolume(NavigationVolumeID volumeID)
 
 				if (stl::find_and_erase(mesh.exclusions, volumeID))
 				{
-					QueueMeshUpdate(meshID, volume.aabb);
+					m_updatesManager.RequestMeshUpdate(meshID, volume.aabb);
 					++mesh.version;
 				}
 			}
@@ -604,14 +612,14 @@ void NavigationSystem::SetVolume(NavigationVolumeID volumeID, Vec3* vertices, si
 					{
 						++mesh.version;
 						recomputeAABB = true;
-
-						QueueDifferenceUpdate(meshID, volume, newVolume);
+						
+						m_updatesManager.RequestMeshDifferenceUpdate(meshID, volume, newVolume);
 					}
 
 					if (std::find(mesh.exclusions.begin(), mesh.exclusions.end(), volumeID) != mesh.exclusions.end())
 					{
-						QueueMeshUpdate(meshID, volume.aabb);
-						QueueMeshUpdate(meshID, aabbNew);
+						m_updatesManager.RequestMeshUpdate(meshID, volume.aabb);
+						m_updatesManager.RequestMeshUpdate(meshID, aabbNew);
 						++mesh.version;
 					}
 				}
@@ -673,7 +681,7 @@ void NavigationSystem::SetExclusionVolume(const NavigationAgentTypeID* agentType
 
 				if (stl::find_and_erase(mesh.exclusions, volumeID))
 				{
-					QueueMeshUpdate(meshID, volume.aabb);
+					m_updatesManager.RequestMeshUpdate(meshID, volume.aabb);
 
 					++mesh.version;
 				}
@@ -700,12 +708,12 @@ void NavigationSystem::SetExclusionVolume(const NavigationAgentTypeID* agentType
 #ifdef SW_NAVMESH_USE_GUID
 					mesh.exclusionsGUID.push_back(volumeGUID);
 #endif
+					++mesh.version;
 
 					if (mesh.boundary != volumeID)
-						QueueMeshUpdate(meshID, volume.aabb);
+						m_updatesManager.RequestMeshUpdate(meshID, volume.aabb);
 					else
 					{
-						++mesh.version;
 						AILogComment("NavigationSystem::SetExclusionVolume: volumeID %u for a mesh %u '%s'", (unsigned int)volumeID, (unsigned int)meshID, mesh.name.c_str());
 						mesh.boundary = NavigationVolumeID();
 						recomputeAABB = true;
@@ -906,15 +914,22 @@ void NavigationSystem::RestartNavigationUpdate()
 	m_pEditorBackgroundUpdate->Pause(false);
 }
 
+uint32 NavigationSystem::GetWorkingQueueSize() const 
+{ 
+	return (uint32)m_updatesManager.GetRequestQueueSize();
+}
+
 #if NAVIGATION_SYSTEM_PC_ONLY
 void NavigationSystem::UpdateMeshes(const float frameTime, const bool blocking, const bool multiThreaded, const bool bBackground)
 {
+	m_updatesManager.Update();
+	
 	if (m_isNavigationUpdatePaused || frameTime == .0f)
 		return;
 
-	m_debugDraw.UpdateWorkingProgress(frameTime, m_tileQueue.size());
+	m_debugDraw.UpdateWorkingProgress(frameTime, m_updatesManager.GetRequestQueueSize());
 
-	if (m_tileQueue.empty() && m_runningTasks.empty())
+	if (!m_updatesManager.HasUpdateRequests() && m_runningTasks.empty())
 	{
 		if (m_state != Idle)
 		{
@@ -986,7 +1001,7 @@ void NavigationSystem::UpdateMeshes(const float frameTime, const bool blocking, 
 		m_throughput = completed / frameTime;
 		m_cacheHitRate = cacheHit / frameTime;
 
-		if (m_tileQueue.empty() && m_runningTasks.empty())
+		if (!m_updatesManager.HasUpdateRequests() && m_runningTasks.empty())
 		{
 			if (m_state != Idle)
 			{
@@ -1000,7 +1015,7 @@ void NavigationSystem::UpdateMeshes(const float frameTime, const bool blocking, 
 			return;
 		}
 
-		if (!m_tileQueue.empty())
+		if (m_updatesManager.HasUpdateRequests())
 		{
 			m_state = Working;
 
@@ -1008,13 +1023,13 @@ void NavigationSystem::UpdateMeshes(const float frameTime, const bool blocking, 
 			const size_t idealMinimumTaskCount = 2;
 			const size_t MaxRunningTaskCount = multiThreaded ? m_maxRunningTaskCount : std::min(m_maxRunningTaskCount, idealMinimumTaskCount);
 
-			while (!m_tileQueue.empty() && (m_runningTasks.size() < MaxRunningTaskCount))
+			while (m_updatesManager.HasUpdateRequests() && (m_runningTasks.size() < MaxRunningTaskCount))
 			{
-				const TileTask& task = m_tileQueue.front();
+				const CMNMUpdatesManager::TileUpdateRequest& task = m_updatesManager.GetFrontRequest();
 
-				if (task.aborted)
+				if (task.IsAborted())
 				{
-					m_tileQueue.pop_front();
+					m_updatesManager.PopFrontRequest();
 					continue;
 				}
 
@@ -1036,19 +1051,19 @@ void NavigationSystem::UpdateMeshes(const float frameTime, const bool blocking, 
 					break;
 				}
 
-				m_tileQueue.pop_front();
+				m_updatesManager.PopFrontRequest();
 			}
 
 			// keep main thread busy too if we're blocking
-			if (blocking && !m_tileQueue.empty() && multiThreaded)
+			if (blocking && m_updatesManager.HasUpdateRequests() && multiThreaded)
 			{
-				while (!m_tileQueue.empty())
+				while (m_updatesManager.HasUpdateRequests())
 				{
-					const TileTask& task = m_tileQueue.front();
+					const CMNMUpdatesManager::TileUpdateRequest& task = m_updatesManager.GetFrontRequest();
 
-					if (task.aborted)
+					if (task.IsAborted())
 					{
-						m_tileQueue.pop_front();
+						m_updatesManager.PopFrontRequest();
 						continue;
 					}
 
@@ -1061,13 +1076,13 @@ void NavigationSystem::UpdateMeshes(const float frameTime, const bool blocking, 
 
 					CommitTile(result);
 
-					m_tileQueue.pop_front();
+					m_updatesManager.PopFrontRequest();
 					break;
 				}
 			}
 		}
 
-		if (blocking && (!m_tileQueue.empty() || !m_runningTasks.empty()))
+		if (blocking && (m_updatesManager.HasUpdateRequests() || !m_runningTasks.empty()))
 			continue;
 
 		m_state = m_runningTasks.empty() ? Idle : Working;
@@ -1285,97 +1300,6 @@ void NavigationSystem::CommitTile(TileTaskResult& result)
 }
 #endif
 
-size_t NavigationSystem::QueueMeshUpdate(NavigationMeshID meshID, const AABB& aabb)
-{
-	assert(meshID != 0);
-
-	size_t affectedCount = 0;
-#if NAVIGATION_SYSTEM_PC_ONLY
-	if (meshID && m_meshes.validate(meshID))
-	{
-		FUNCTION_PROFILER(gEnv->pSystem, PROFILE_AI);
-
-		NavigationMesh& mesh = m_meshes[meshID];
-		MNM::CNavMesh& navMesh = mesh.navMesh;
-
-		const MNM::CNavMesh::SGridParams& paramsGrid = navMesh.GetGridParams();
-
-		if (aabb.IsEmpty() || !mesh.boundary)
-			return 0;
-
-		const AABB& boundary = m_volumes[mesh.boundary].aabb;
-		const AgentType& agentType = m_agentTypes[mesh.agentTypeID - 1];
-
-		const float extraH = std::max(paramsGrid.voxelSize.x, paramsGrid.voxelSize.y) * (agentType.settings.radiusVoxelCount + 1);
-		const float extraV = paramsGrid.voxelSize.z * (agentType.settings.heightVoxelCount + 1);
-		const float extraVM = paramsGrid.voxelSize.z; // tiles above are not directly influenced
-
-		Vec3 bmin(std::max(0.0f, std::max(boundary.min.x, aabb.min.x - extraH) - paramsGrid.origin.x),
-		          std::max(0.0f, std::max(boundary.min.y, aabb.min.y - extraH) - paramsGrid.origin.y),
-		          std::max(0.0f, std::max(boundary.min.z, aabb.min.z - extraV) - paramsGrid.origin.z));
-
-		Vec3 bmax(std::max(0.0f, std::min(boundary.max.x, aabb.max.x + extraH) - paramsGrid.origin.x),
-		          std::max(0.0f, std::min(boundary.max.y, aabb.max.y + extraH) - paramsGrid.origin.y),
-		          std::max(0.0f, std::min(boundary.max.z, aabb.max.z + extraVM) - paramsGrid.origin.z));
-
-		uint16 xmin = (uint16)(floor_tpl(bmin.x / (float)paramsGrid.tileSize.x));
-		uint16 xmax = (uint16)(floor_tpl(bmax.x / (float)paramsGrid.tileSize.x));
-
-		uint16 ymin = (uint16)(floor_tpl(bmin.y / (float)paramsGrid.tileSize.y));
-		uint16 ymax = (uint16)(floor_tpl(bmax.y / (float)paramsGrid.tileSize.y));
-
-		uint16 zmin = (uint16)(floor_tpl(bmin.z / (float)paramsGrid.tileSize.z));
-		uint16 zmax = (uint16)(floor_tpl(bmax.z / (float)paramsGrid.tileSize.z));
-
-		TileTaskQueue::iterator it = m_tileQueue.begin();
-		TileTaskQueue::iterator rear = m_tileQueue.end();
-
-		for (; it != rear; )
-		{
-			TileTask& task = *it;
-
-			if ((task.meshID == meshID) && (task.x >= xmin) && (task.x <= xmax) &&
-			    (task.y >= ymin) && (task.y <= ymax) &&
-			    (task.z >= zmin) && (task.z <= zmax))
-			{
-				rear = rear - 1;
-				std::swap(task, *rear);
-
-				continue;
-			}
-			++it;
-		}
-
-		if (rear != m_tileQueue.end())
-		{
-			m_tileQueue.erase(rear, m_tileQueue.end());
-		}
-
-		for (size_t y = ymin; y <= ymax; ++y)
-		{
-			for (size_t x = xmin; x <= xmax; ++x)
-			{
-				for (size_t z = zmin; z <= zmax; ++z)
-				{
-					TileTask task;
-					task.meshID = meshID;
-					task.x = (uint16)x;
-					task.y = (uint16)y;
-					task.z = (uint16)z;
-
-					m_tileQueue.push_back(task);
-
-					++affectedCount;
-				}
-			}
-		}
-	}
-
-#endif
-
-	return affectedCount;
-}
-
 void NavigationSystem::ProcessQueuedMeshUpdates()
 {
 #if NAVIGATION_SYSTEM_PC_ONLY
@@ -1387,121 +1311,11 @@ void NavigationSystem::ProcessQueuedMeshUpdates()
 #endif
 }
 
-void NavigationSystem::QueueDifferenceUpdate(NavigationMeshID meshID, const NavigationBoundingVolume& oldVolume,
-                                             const NavigationBoundingVolume& newVolume)
+size_t NavigationSystem::QueueMeshUpdate(NavigationMeshID meshID, const AABB& aabb)
 {
-#if NAVIGATION_SYSTEM_PC_ONLY
-	// TODO: implement properly by verifying what didn't change
-	// since there will be loads of volume-aabb intersection tests,
-	// this should be a new job running in a different thread
-	// producing an array of all the tiles that need updating
-	// which then gets concatenated into m_tileQueue in the main update
-
-	if (meshID && m_meshes.validate(meshID))
-	{
-		FUNCTION_PROFILER(gEnv->pSystem, PROFILE_AI);
-
-		NavigationMesh& mesh = m_meshes[meshID];
-		MNM::CNavMesh& navMesh = mesh.navMesh;
-
-		const MNM::CNavMesh::SGridParams& paramsGrid = navMesh.GetGridParams();
-
-		AABB aabb = oldVolume.aabb;
-		aabb.Add(newVolume.aabb);
-
-		const AgentType& agentType = m_agentTypes[mesh.agentTypeID - 1];
-
-		const float extraH = std::max(paramsGrid.voxelSize.x, paramsGrid.voxelSize.y) * (agentType.settings.radiusVoxelCount + 1);
-		const float extraV = paramsGrid.voxelSize.z * (agentType.settings.heightVoxelCount + 1);
-		const float extraVM = paramsGrid.voxelSize.z; // tiles above are not directly influenced
-
-		Vec3 bmin(std::max(0.0f, (aabb.min.x - extraH) - paramsGrid.origin.x),
-		          std::max(0.0f, (aabb.min.y - extraH) - paramsGrid.origin.y),
-		          std::max(0.0f, (aabb.min.z - extraV) - paramsGrid.origin.z));
-
-		Vec3 bmax(std::max(0.0f, (aabb.max.x + extraH) - paramsGrid.origin.x),
-		          std::max(0.0f, (aabb.max.y + extraH) - paramsGrid.origin.y),
-		          std::max(0.0f, (aabb.max.z + extraVM) - paramsGrid.origin.z));
-
-		uint16 xmin = (uint16)(floor_tpl(bmin.x / (float)paramsGrid.tileSize.x));
-		uint16 xmax = (uint16)(floor_tpl(bmax.x / (float)paramsGrid.tileSize.x));
-
-		uint16 ymin = (uint16)(floor_tpl(bmin.y / (float)paramsGrid.tileSize.y));
-		uint16 ymax = (uint16)(floor_tpl(bmax.y / (float)paramsGrid.tileSize.y));
-
-		uint16 zmin = (uint16)(floor_tpl(bmin.z / (float)paramsGrid.tileSize.z));
-		uint16 zmax = (uint16)(floor_tpl(bmax.z / (float)paramsGrid.tileSize.z));
-
-		TileTaskQueue::iterator it = m_tileQueue.begin();
-		TileTaskQueue::iterator rear = m_tileQueue.end();
-
-		for (; it != rear; )
-		{
-			TileTask& task = *it;
-
-			if ((task.meshID == meshID) && (task.x >= xmin) && (task.x <= xmax) &&
-			    (task.y >= ymin) && (task.y <= ymax) &&
-			    (task.z >= zmin) && (task.z <= zmax))
-			{
-				rear = rear - 1;
-				std::swap(task, *rear);
-
-				continue;
-			}
-			++it;
-		}
-
-		if (rear != m_tileQueue.end())
-		{
-			m_tileQueue.erase(rear, m_tileQueue.end());
-		}
-
-		for (size_t y = ymin; y <= ymax; ++y)
-		{
-			for (size_t x = xmin; x <= xmax; ++x)
-			{
-				for (size_t z = zmin; z <= zmax; ++z)
-				{
-					TileTask task;
-					task.meshID = meshID;
-					task.x = (uint16)x;
-					task.y = (uint16)y;
-					task.z = (uint16)z;
-
-					m_tileQueue.push_back(task);
-				}
-			}
-		}
-	}
-#endif
-}
-
-void NavigationSystem::WorldChanged(const AABB& aabb)
-{
-#if NAVIGATION_SYSTEM_PC_ONLY
-	if (!aabb.IsEmpty() && Overlap::AABB_AABB(m_worldAABB, aabb))
-	{
-		AgentTypes::const_iterator it = m_agentTypes.begin();
-		AgentTypes::const_iterator end = m_agentTypes.end();
-
-		for (; it != end; ++it)
-		{
-			const AgentType& agentType = *it;
-
-			AgentType::Meshes::const_iterator mit = agentType.meshes.begin();
-			AgentType::Meshes::const_iterator mend = agentType.meshes.end();
-
-			for (; mit != mend; ++mit)
-			{
-				const NavigationMeshID meshID = mit->id;
-				const NavigationMesh& mesh = m_meshes[meshID];
-
-				if (mesh.boundary && Overlap::AABB_AABB(aabb, m_volumes[mesh.boundary].aabb))
-					QueueMeshUpdate(meshID, aabb);
-			}
-		}
-	}
-#endif
+	AIWarning("NavigationSystem::QueueMeshUpdate() is deprecated! INavigationUpdatesManager::RequestMeshUpdate should be used instead");
+	m_updatesManager.RequestMeshUpdate(meshID, aabb);
+	return 0;
 }
 
 void NavigationSystem::StopAllTasks()
@@ -2114,9 +1928,10 @@ void NavigationSystem::Clear()
 	StopAllTasks();
 	SetupTasks();
 
+	m_updatesManager.Clear();
+
 	AgentTypes::iterator it = m_agentTypes.begin();
 	AgentTypes::iterator end = m_agentTypes.end();
-
 	for (; it != end; ++it)
 	{
 		AgentType& agentType = *it;
@@ -2148,7 +1963,6 @@ void NavigationSystem::Clear()
 
 	m_worldAABB = AABB::RESET;
 
-	m_tileQueue.clear();
 	m_volumeDefCopy.clear();
 	m_volumeDefCopy.resize(MaxVolumeDefCopyCount, VolumeDefCopy());
 
@@ -3087,6 +2901,7 @@ bool NavigationSystem::ReadFromFile(const char* fileName, bool bAfterExporting)
 						exclusions.push_back(exclusionId);
 					}
 #endif
+					m_agentTypes[agentTypeID - 1].exclusions = exclusions;
 
 					// Reading tile count
 					uint32 tilesCount = 0;
@@ -3801,6 +3616,8 @@ bool NavigationSystem::UnRegisterTileGeneratorExtension(const TileGeneratorExten
 
 void NavigationSystemDebugDraw::DebugDraw(NavigationSystem& navigationSystem)
 {
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
+	
 	const bool validDebugAgent = m_agentTypeID && (m_agentTypeID <= navigationSystem.GetAgentTypeCount());
 
 	if (validDebugAgent)
@@ -4128,25 +3945,20 @@ void NavigationSystemDebugDraw::DebugDrawRayCast(NavigationSystem& navigationSys
 			const MNM::real_t range = MNM::real_t(1.0f);
 
 			MNM::vector3_t start = MNM::vector3_t(
-			  MNM::real_t(startLoc.x), MNM::real_t(startLoc.y), MNM::real_t(startLoc.z)) - origin;
+				MNM::real_t(startLoc.x), MNM::real_t(startLoc.y), MNM::real_t(startLoc.z)) - origin;
 			MNM::vector3_t end = MNM::vector3_t(
-			  MNM::real_t(endLoc.x), MNM::real_t(endLoc.y), MNM::real_t(endLoc.z)) - origin;
+				MNM::real_t(endLoc.x), MNM::real_t(endLoc.y), MNM::real_t(endLoc.z)) - origin;
 
 			MNM::TriangleID triStart = navMesh.GetTriangleAt(start, range, range);
 
 			if (triStart)
 			{
-				MNM::vector3_t a, b, c;
-				navMesh.GetVertices(triStart, a, b, c);
+				SAuxGeomRenderFlags oldFlags = renderAuxGeom->GetRenderFlags();
 
-				renderAuxGeom->DrawTriangle(
-				  (a + originOffset).GetVec3(), ColorB(Col_GreenYellow),
-				  (b + originOffset).GetVec3(), ColorB(Col_GreenYellow),
-				  (c + originOffset).GetVec3(), ColorB(Col_GreenYellow));
-			}
-
-			if (triStart)
-			{
+				SAuxGeomRenderFlags renderFlags(e_Def3DPublicRenderflags);
+				renderFlags.SetAlphaBlendMode(e_AlphaBlended);
+				renderAuxGeom->SetRenderFlags(renderFlags);
+				
 				MNM::TriangleID triEnd = navMesh.GetTriangleAt(end, range, range);
 
 				MNM::CNavMesh::RayCastRequest<512> raycastRequest;
@@ -4160,9 +3972,9 @@ void NavigationSystemDebugDraw::DebugDrawRayCast(NavigationSystem& navigationSys
 					navMesh.GetVertices(raycastRequest.way[i], a, b, c);
 
 					renderAuxGeom->DrawTriangle(
-					  (a + originOffset).GetVec3(), ColorB(Col_Maroon),
-					  (b + originOffset).GetVec3(), ColorB(Col_Maroon),
-					  (c + originOffset).GetVec3(), ColorB(Col_Maroon));
+					  (a + originOffset).GetVec3(), ColorB(Col_Maroon, 0.5f),
+					  (b + originOffset).GetVec3(), ColorB(Col_Maroon, 0.5f),
+					  (c + originOffset).GetVec3(), ColorB(Col_Maroon, 0.5f));
 				}
 
 				if (triStart)
@@ -4171,9 +3983,9 @@ void NavigationSystemDebugDraw::DebugDrawRayCast(NavigationSystem& navigationSys
 					navMesh.GetVertices(triStart, a, b, c);
 
 					renderAuxGeom->DrawTriangle(
-					  (a + originOffset).GetVec3(), ColorB(Col_GreenYellow),
-					  (b + originOffset).GetVec3(), ColorB(Col_GreenYellow),
-					  (c + originOffset).GetVec3(), ColorB(Col_GreenYellow));
+					  (a + originOffset).GetVec3(), ColorB(Col_GreenYellow, 0.5f),
+					  (b + originOffset).GetVec3(), ColorB(Col_GreenYellow, 0.5f),
+					  (c + originOffset).GetVec3(), ColorB(Col_GreenYellow, 0.5f));
 				}
 
 				if (triEnd)
@@ -4182,9 +3994,9 @@ void NavigationSystemDebugDraw::DebugDrawRayCast(NavigationSystem& navigationSys
 					navMesh.GetVertices(triEnd, a, b, c);
 
 					renderAuxGeom->DrawTriangle(
-					  (a + originOffset).GetVec3(), ColorB(Col_Red),
-					  (b + originOffset).GetVec3(), ColorB(Col_Red),
-					  (c + originOffset).GetVec3(), ColorB(Col_Red));
+					  (a + originOffset).GetVec3(), ColorB(Col_Red, 0.5f),
+					  (b + originOffset).GetVec3(), ColorB(Col_Red, 0.5f),
+					  (c + originOffset).GetVec3(), ColorB(Col_Red, 0.5f));
 				}
 
 				const Vec3 offset(0.0f, 0.0f, 0.085f);
@@ -4200,6 +4012,8 @@ void NavigationSystemDebugDraw::DebugDrawRayCast(NavigationSystem& navigationSys
 					renderAuxGeom->DrawLine(startLoc + offset, Col_YellowGreen, hitLoc + offset, Col_YellowGreen, 8.0f);
 					renderAuxGeom->DrawLine(hitLoc + offset, Col_Red, endLoc + offset, Col_Red, 8.0f);
 				}
+
+				renderAuxGeom->SetRenderFlags(oldFlags);
 			}
 		}
 	}
@@ -4537,13 +4351,20 @@ void NavigationSystemDebugDraw::DebugDrawIslandConnection(NavigationSystem& navi
 
 void NavigationSystemDebugDraw::DebugDrawNavigationMeshesForSelectedAgent(NavigationSystem& navigationSystem, MNM::TileID excludeTileID)
 {
+	FRAME_PROFILER("NavigationSystemDebugDraw::DebugDrawNavigationMeshesForSelectedAgent()", gEnv->pSystem, PROFILE_AI);
+
 	AgentType& agentType = navigationSystem.m_agentTypes[m_agentTypeID - 1];
 	AgentType::Meshes::const_iterator it = agentType.meshes.begin();
 	AgentType::Meshes::const_iterator end = agentType.meshes.end();
 
+	CCamera& viewCamera = gEnv->pSystem->GetViewCamera();
+
 	for (; it != end; ++it)
 	{
 		const NavigationMesh& mesh = navigationSystem.GetMesh(it->id);
+
+		if(!viewCamera.IsAABBVisible_F(navigationSystem.m_volumes[mesh.boundary].aabb))
+			continue;
 
 		size_t drawFlag = MNM::STile::DrawTriangles | MNM::STile::DrawMeshBoundaries;
 		if (gAIEnv.CVars.MNMDebugAccessibility)
@@ -4594,7 +4415,7 @@ void NavigationSystemDebugDraw::DebugDrawNavigationSystemState(NavigationSystem&
 			dc->Draw2dLabel(10.0f, 300.0f, 1.6f, Col_Yellow, false, "Navigation System Working");
 			dc->Draw2dLabel(10.0f, 322.0f, 1.2f, Col_White, false, "Processing: %d\nRemaining: %d\nThroughput: %.2f/s\n"
 			                                                       "Cache Hits: %.2f/s",
-			                navigationSystem.m_runningTasks.size(), navigationSystem.m_tileQueue.size(), navigationSystem.m_throughput, navigationSystem.m_cacheHitRate);
+			                navigationSystem.m_runningTasks.size(), navigationSystem.GetWorkingQueueSize(), navigationSystem.m_throughput, navigationSystem.m_cacheHitRate);
 			break;
 		case NavigationSystem::Idle:
 			dc->Draw2dLabel(10.0f, 300.0f, 1.6f, Col_ForestGreen, false, "Navigation System Idle");
@@ -4603,6 +4424,7 @@ void NavigationSystemDebugDraw::DebugDrawNavigationSystemState(NavigationSystem&
 			assert(0);
 			break;
 		}
+		static_cast<CMNMUpdatesManager*>(navigationSystem.GetUpdateManager())->DebugDraw();
 	}
 }
 
@@ -4943,7 +4765,7 @@ void NavigationSystemBackgroundUpdate::RegisterAsSystemListener()
 {
 	if (IsEnabled())
 	{
-		gEnv->pSystem->GetISystemEventDispatcher()->RegisterListener(this);
+		gEnv->pSystem->GetISystemEventDispatcher()->RegisterListener(this, "NavigationSystemBackgroundUpdate");
 	}
 }
 

@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #include "StdAfx.h"
 #include "Script/ScriptRegistry.h"
@@ -7,12 +7,13 @@
 #include <CrySerialization/Forward.h>
 #include <CrySerialization/IArchiveHost.h>
 #include <CrySystem/File/ICryPak.h>
-#include <Schematyc/Env/IEnvRegistry.h>
-#include <Schematyc/Env/Elements/IEnvComponent.h>
-#include <Schematyc/Services/ILog.h>
-#include <Schematyc/Utils/Assert.h>
-#include <Schematyc/Utils/StackString.h>
-#include <Schematyc/Utils/StringUtils.h>
+#include <CrySchematyc/Env/IEnvRegistry.h>
+#include <CrySchematyc/Env/Elements/IEnvComponent.h>
+#include <CrySchematyc/Services/ILog.h>
+#include <CrySchematyc/Utils/Assert.h>
+#include <CrySchematyc/Utils/StackString.h>
+#include <CrySchematyc/Utils/StringUtils.h>
+#include <CrySchematyc/Compiler/ICompiler.h>
 
 #include "CVars.h"
 #include "Script/Script.h"
@@ -40,6 +41,7 @@
 #include "SerializationUtils/SerializationContext.h"
 #include "Utils/FileUtils.h"
 #include "Utils/GUIDRemapper.h"
+#include "Core.h"
 
 namespace Schematyc
 {
@@ -98,7 +100,6 @@ bool CScriptRegistry::Load()
 	LOADING_TIME_PROFILE_SECTION;
 
 	// Configure file enumeration flags.
-
 	FileUtils::FileEnumFlags fileEnumFlags = FileUtils::EFileEnumFlags::Recursive;
 	if (CVars::sc_IgnoreUnderscoredFolders)
 	{
@@ -106,33 +107,39 @@ bool CScriptRegistry::Load()
 	}
 
 	// Enumerate files and construct new elements.
-
 	ScriptInputBlocks inputBlocks;
 	const char* szScriptFolder = gEnv->pSchematyc->GetScriptsFolder();
 
 	auto loadScript = [this, &inputBlocks](const char* szFileName, unsigned attributes)
 	{
+		LOADING_TIME_PROFILE_SECTION_ARGS(szFileName);
+		// TODO: Move this to a separated function.
 		SScriptInputBlock inputBlock;
 		CScriptLoadSerializer serializer(inputBlock);
 		Serialization::LoadXmlFile(serializer, szFileName);
-		if (!GUID::IsEmpty(inputBlock.guid) && inputBlock.rootElement.ptr)
+
+		if (!GUID::IsEmpty(inputBlock.guid) && inputBlock.rootElement.instance)
 		{
 			CScript* pScript = GetScript(inputBlock.guid);
 			if (!pScript)
 			{
-				CStackString fileName = gEnv->pCryPak->GetGameFolder();
-				fileName.append("/");
-				fileName.append(szFileName);
-				fileName.MakeLower();
+				CRY_ASSERT_MESSAGE(szFileName && szFileName[0], "Undefined file name!");
+				if (szFileName && szFileName[0])
+				{
+					CScriptPtr pSharedScript = std::make_shared<CScript>(inputBlock.guid, szFileName);
+					pScript = pSharedScript.get();
+					m_scriptsByGuid.emplace(inputBlock.guid, pSharedScript);
+					m_scriptsByFileName.emplace(CCrc32::ComputeLowercase(szFileName), pSharedScript);
 
-				pScript = CreateScript(fileName.c_str(), inputBlock.guid);
-				pScript->SetRoot(inputBlock.rootElement.ptr.get());
-				inputBlock.rootElement.ptr->SetScript(pScript);
-				inputBlocks.push_back(std::move(inputBlock));
+					pScript->SetRoot(inputBlock.rootElement.instance.get());
+					inputBlock.rootElement.instance->SetScript(pScript);
+					inputBlocks.push_back(std::move(inputBlock));
+				}
 			}
 		}
+		// ~TODO
 	};
-	FileUtils::EnumFilesInFolder(szScriptFolder, "*.sc_*", FileUtils::FileEnumCallback::FromLambda(loadScript), fileEnumFlags);
+	FileUtils::EnumFilesInFolder(szScriptFolder, "*.schematyc_*", loadScript, fileEnumFlags);
 
 	ProcessInputBlocks(inputBlocks, *m_pRoot, EScriptEventId::FileLoad);
 	return true;
@@ -141,7 +148,7 @@ bool CScriptRegistry::Load()
 void CScriptRegistry::Save(bool bAlwaysSave)
 {
 	// Save script files.
-	for (Scripts::value_type& script : m_scripts)
+	for (ScriptsByGuid::value_type& script : m_scriptsByGuid)
 	{
 		SaveScript(*script.second);
 	}
@@ -149,12 +156,12 @@ void CScriptRegistry::Save(bool bAlwaysSave)
 
 bool CScriptRegistry::IsValidScope(EScriptElementType elementType, IScriptElement* pScope) const
 {
-	const EScriptElementType scopeElementType = pScope ? pScope->GetElementType() : EScriptElementType::Root;
+	const EScriptElementType scopeElementType = pScope ? pScope->GetType() : EScriptElementType::Root;
 	switch (elementType)
 	{
 	case EScriptElementType::Module:
 		{
-			return scopeElementType == EScriptElementType::Root || scopeElementType == EScriptElementType::Module;
+			return scopeElementType == EScriptElementType::Root;
 		}
 	case EScriptElementType::Enum:
 		{
@@ -190,7 +197,7 @@ bool CScriptRegistry::IsValidScope(EScriptElementType elementType, IScriptElemen
 		}
 	case EScriptElementType::Class:
 		{
-			return scopeElementType == EScriptElementType::Root || scopeElementType == EScriptElementType::Module;
+			return scopeElementType == EScriptElementType::Root;
 		}
 	case EScriptElementType::Base:
 		{
@@ -198,7 +205,29 @@ bool CScriptRegistry::IsValidScope(EScriptElementType elementType, IScriptElemen
 		}
 	case EScriptElementType::StateMachine:
 		{
-			return scopeElementType == EScriptElementType::Class;
+			if (scopeElementType == EScriptElementType::Class)
+			{
+				bool hasStateMachine = false;
+				auto visitScriptElement = [&hasStateMachine](IScriptElement& scriptElement) -> EVisitStatus
+				{
+					if (scriptElement.GetType() == EScriptElementType::StateMachine)
+					{
+						hasStateMachine = true;
+						return EVisitStatus::Stop;
+					}
+
+					if (scriptElement.GetType() == EScriptElementType::Base)
+					{
+						return EVisitStatus::Continue;
+					}
+
+					return EVisitStatus::Recurse;
+				};
+				pScope->VisitChildren(visitScriptElement);
+				return !hasStateMachine;
+			}
+
+			return false;
 		}
 	case EScriptElementType::State:
 		{
@@ -206,7 +235,9 @@ bool CScriptRegistry::IsValidScope(EScriptElementType elementType, IScriptElemen
 		}
 	case EScriptElementType::Variable:
 		{
-			return scopeElementType == EScriptElementType::Class;
+			// TODO: Variables in modules aren't supported yet.
+			return scopeElementType == EScriptElementType::Class /*|| scopeElementType == EScriptElementType::Module*/;
+			// ~TODO
 		}
 	case EScriptElementType::Timer:
 		{
@@ -235,7 +266,7 @@ bool CScriptRegistry::IsValidScope(EScriptElementType elementType, IScriptElemen
 					const IEnvComponent* pEnvComponent = gEnv->pSchematyc->GetEnvRegistry().GetComponent(componentInstance.GetTypeGUID());
 					if (pEnvComponent)
 					{
-						if (pEnvComponent->GetFlags().Check(EEnvComponentFlags::Socket))
+						if (pEnvComponent->GetDesc().GetComponentFlags().Check(IEntityComponent::EFlags::Socket))
 						{
 							return true;
 						}
@@ -275,23 +306,19 @@ bool CScriptRegistry::IsValidName(const char* szName, IScriptElement* pScope, co
 	return false;
 }
 
-IScriptModule* CScriptRegistry::AddModule(const char* szName, IScriptElement* pScope)
+IScriptModule* CScriptRegistry::AddModule(const char* szName, const char* szFilePath)
 {
 	SCHEMATYC_CORE_ASSERT(gEnv->IsEditor() && szName);
 	if (gEnv->IsEditor() && szName)
 	{
-		const bool bIsValidScope = IsValidScope(EScriptElementType::Module, pScope);
+		const bool bIsValidScope = IsValidScope(EScriptElementType::Module, m_pRoot.get());
 		SCHEMATYC_CORE_ASSERT(bIsValidScope);
 		if (bIsValidScope)
 		{
-			if (!pScope)
-			{
-				pScope = m_pRoot.get();
-			}
-			if (IsElementNameUnique(szName, pScope))
+			if (IsElementNameUnique(szName, m_pRoot.get()))
 			{
 				CScriptModulePtr pModule = std::make_shared<CScriptModule>(gEnv->pSchematyc->CreateGUID(), szName);
-				AddElement(pModule, *pScope);
+				AddElement(pModule, *m_pRoot.get(), szFilePath);
 				return pModule.get();
 			}
 		}
@@ -491,23 +518,21 @@ IScriptInterfaceTask* CScriptRegistry::AddInterfaceTask(const char* szName, IScr
 	return nullptr;
 }
 
-IScriptClass* CScriptRegistry::AddClass(const char* szName, const SElementId& baseId, IScriptElement* pScope)
+IScriptClass* CScriptRegistry::AddClass(const char* szName, const SElementId& baseId, const char* szFilePath)
 {
 	SCHEMATYC_CORE_ASSERT(gEnv->IsEditor() && szName);
+	IScriptElement* pScope = &GetRootElement();
+
 	if (gEnv->IsEditor() && szName)
 	{
 		const bool bIsValidScope = IsValidScope(EScriptElementType::Class, pScope);
 		SCHEMATYC_CORE_ASSERT(bIsValidScope);
 		if (bIsValidScope)
 		{
-			if (!pScope)
-			{
-				pScope = m_pRoot.get();
-			}
 			if (IsElementNameUnique(szName, pScope))
 			{
 				CScriptClassPtr pClass = std::make_shared<CScriptClass>(gEnv->pSchematyc->CreateGUID(), szName);
-				AddElement(pClass, *pScope);
+				AddElement(pClass, *pScope, szFilePath);
 				AddBase(baseId, pClass.get());
 				return pClass.get();
 			}
@@ -537,7 +562,7 @@ IScriptBase* CScriptRegistry::AddBase(const SElementId& baseId, IScriptElement* 
 	return nullptr;
 }
 
-IScriptStateMachine* CScriptRegistry::AddStateMachine(const char* szName, EScriptStateMachineLifetime lifetime, const SGUID& contextGUID, const SGUID& partnerGUID, IScriptElement* pScope)
+IScriptStateMachine* CScriptRegistry::AddStateMachine(const char* szName, EScriptStateMachineLifetime lifetime, const CryGUID& contextGUID, const CryGUID& partnerGUID, IScriptElement* pScope)
 {
 	SCHEMATYC_CORE_ASSERT(gEnv->IsEditor() && szName);
 	if (gEnv->IsEditor() && szName)
@@ -585,7 +610,7 @@ IScriptState* CScriptRegistry::AddState(const char* szName, IScriptElement* pSco
 	return nullptr;
 }
 
-IScriptVariable* CScriptRegistry::AddVariable(const char* szName, const SElementId& typeId, const SGUID& baseGUID, IScriptElement* pScope)
+IScriptVariable* CScriptRegistry::AddVariable(const char* szName, const SElementId& typeId, const CryGUID& baseGUID, IScriptElement* pScope)
 {
 	SCHEMATYC_CORE_ASSERT(gEnv->IsEditor() && szName);
 	if (gEnv->IsEditor() && szName)
@@ -630,7 +655,7 @@ IScriptTimer* CScriptRegistry::AddTimer(const char* szName, IScriptElement* pSco
 	return nullptr;
 }
 
-IScriptSignalReceiver* CScriptRegistry::AddSignalReceiver(const char* szName, EScriptSignalReceiverType type, const SGUID& signalGUID, IScriptElement* pScope)
+IScriptSignalReceiver* CScriptRegistry::AddSignalReceiver(const char* szName, EScriptSignalReceiverType type, const CryGUID& signalGUID, IScriptElement* pScope)
 {
 	SCHEMATYC_CORE_ASSERT(gEnv->IsEditor());
 	if (gEnv->IsEditor())
@@ -651,7 +676,7 @@ IScriptSignalReceiver* CScriptRegistry::AddSignalReceiver(const char* szName, ES
 	return nullptr;
 }
 
-IScriptInterfaceImpl* CScriptRegistry::AddInterfaceImpl(EDomain domain, const SGUID& refGUID, IScriptElement* pScope)
+IScriptInterfaceImpl* CScriptRegistry::AddInterfaceImpl(EDomain domain, const CryGUID& refGUID, IScriptElement* pScope)
 {
 	SCHEMATYC_CORE_ASSERT(gEnv->IsEditor());
 	if (gEnv->IsEditor())
@@ -672,7 +697,7 @@ IScriptInterfaceImpl* CScriptRegistry::AddInterfaceImpl(EDomain domain, const SG
 	return nullptr;
 }
 
-IScriptComponentInstance* CScriptRegistry::AddComponentInstance(const char* szName, const SGUID& typeGUID, IScriptElement* pScope)
+IScriptComponentInstance* CScriptRegistry::AddComponentInstance(const char* szName, const CryGUID& typeGUID, IScriptElement* pScope)
 {
 	SCHEMATYC_CORE_ASSERT(gEnv->IsEditor() && szName);
 	if (gEnv->IsEditor() && szName)
@@ -696,7 +721,7 @@ IScriptComponentInstance* CScriptRegistry::AddComponentInstance(const char* szNa
 	return nullptr;
 }
 
-IScriptActionInstance* CScriptRegistry::AddActionInstance(const char* szName, const SGUID& actionGUID, const SGUID& contextGUID, IScriptElement* pScope)
+IScriptActionInstance* CScriptRegistry::AddActionInstance(const char* szName, const CryGUID& actionGUID, const CryGUID& contextGUID, IScriptElement* pScope)
 {
 	SCHEMATYC_CORE_ASSERT(gEnv->IsEditor() && szName);
 	if (gEnv->IsEditor() && szName)
@@ -720,7 +745,7 @@ IScriptActionInstance* CScriptRegistry::AddActionInstance(const char* szName, co
 	return nullptr;
 }
 
-void CScriptRegistry::RemoveElement(const SGUID& guid)
+void CScriptRegistry::RemoveElement(const CryGUID& guid)
 {
 	Elements::iterator itElement = m_elements.find(guid);
 	if (itElement != m_elements.end())
@@ -739,13 +764,13 @@ const IScriptElement& CScriptRegistry::GetRootElement() const
 	return *m_pRoot;
 }
 
-IScriptElement* CScriptRegistry::GetElement(const SGUID& guid)
+IScriptElement* CScriptRegistry::GetElement(const CryGUID& guid)
 {
 	Elements::iterator itElement = m_elements.find(guid);
 	return itElement != m_elements.end() ? itElement->second.get() : nullptr;
 }
 
-const IScriptElement* CScriptRegistry::GetElement(const SGUID& guid) const
+const IScriptElement* CScriptRegistry::GetElement(const CryGUID& guid) const
 {
 	Elements::const_iterator itElement = m_elements.find(guid);
 	return itElement != m_elements.end() ? itElement->second.get() : nullptr;
@@ -754,7 +779,7 @@ const IScriptElement* CScriptRegistry::GetElement(const SGUID& guid) const
 bool CScriptRegistry::CopyElementsToXml(XmlNodeRef& output, IScriptElement& scope) const
 {
 	// #SchematycTODO : Make sure elements don't have NotCopyable flag!!!
-	output = Serialization::SaveXmlNode(CScriptCopySerializer(scope), "schematycScript");
+	output = Serialization::SaveXmlNode(CScriptCopySerializer(scope), "CrySchematycScript");
 	return !!output;
 }
 
@@ -767,6 +792,40 @@ bool CScriptRegistry::PasteElementsFromXml(const XmlNodeRef& input, IScriptEleme
 		ProcessInputBlocks(inputBlocks, pScope ? *pScope : *m_pRoot, EScriptEventId::EditorPaste);
 	}
 	return true;
+}
+
+bool CScriptRegistry::SaveUndo(XmlNodeRef& output, IScriptElement& scope) const
+{
+	output = Serialization::SaveXmlNode(CScriptSaveSerializer(static_cast<CScript&>(*scope.GetScript())), "CrySchematycScript");
+	return !!output;
+}
+
+IScriptElement* CScriptRegistry::RestoreUndo(const XmlNodeRef& input, IScriptElement* pScope)
+{
+	CScriptPtr pSharedScript = m_scriptsByGuid.find(pScope->GetScript()->GetGUID())->second;
+	RemoveElement(*pScope);
+
+	ScriptInputBlocks inputBlocks(1);
+	SScriptInputBlock& inputBlock = inputBlocks.back();
+	CScriptLoadSerializer serializer(inputBlock);
+	if (Serialization::LoadXmlNode(serializer, input))
+	{
+		if (!GUID::IsEmpty(inputBlock.guid) && inputBlock.rootElement.instance)
+		{
+			m_scriptsByGuid.emplace(inputBlock.guid, pSharedScript);
+			m_scriptsByFileName.emplace(CCrc32::ComputeLowercase(pSharedScript->GetFilePath()), pSharedScript);
+
+			pSharedScript.get()->SetRoot(inputBlock.rootElement.instance.get());
+			inputBlock.rootElement.instance->SetScript(pSharedScript.get());
+
+			ProcessInputBlocks(inputBlocks, *m_pRoot, EScriptEventId::FileReload);
+			CCore::GetInstance().GetCompiler().CompileDependencies(pSharedScript->GetRoot()->GetGUID());
+
+			return pSharedScript->GetRoot();
+		}
+	}
+
+	return nullptr;
 }
 
 bool CScriptRegistry::IsElementNameUnique(const char* szName, IScriptElement* pScope) const
@@ -812,6 +871,8 @@ void CScriptRegistry::MakeElementNameUnique(IString& name, IScriptElement* pScop
 
 void CScriptRegistry::ElementModified(IScriptElement& element)
 {
+	gEnv->pSchematyc->GetCompiler().CompileDependencies(element.GetGUID());
+
 	ProcessChange(SScriptRegistryChange(EScriptRegistryChangeType::ElementModified, element));
 	ProcessChangeDependencies(EScriptRegistryChangeType::ElementModified, element.GetGUID());
 }
@@ -821,29 +882,115 @@ ScriptRegistryChangeSignal::Slots& CScriptRegistry::GetChangeSignalSlots()
 	return m_signals.change.GetSlots();
 }
 
-CScript* CScriptRegistry::CreateScript(const char* szFileName, const SGUID& guid)
+IScript* CScriptRegistry::GetScriptByGuid(const CryGUID& guid) const
 {
-	// #SchematycTODO : Should we also take steps to avoid name collisions?
-	CScriptPtr pScript = std::make_shared<CScript>(guid, szFileName);
-	m_scripts.insert(Scripts::value_type(guid, pScript));
-	return pScript.get();
+	ScriptsByGuid::const_iterator itScript = m_scriptsByGuid.find(guid);
+	return itScript != m_scriptsByGuid.end() ? static_cast<IScript*>(itScript->second.get()) : nullptr;
 }
 
-CScript* CScriptRegistry::CreateScript()
+IScript* CScriptRegistry::GetScriptByFileName(const char* szFilePath) const
 {
-	const SGUID guid = gEnv->pSchematyc->CreateGUID();
-	SCHEMATYC_CORE_ASSERT(!GUID::IsEmpty(guid));
-	if (!GUID::IsEmpty(guid))
+	const uint32 fileNameHash = CCrc32::ComputeLowercase(szFilePath);
+	ScriptsByFileName::const_iterator itScript = m_scriptsByFileName.find(fileNameHash);
+	return itScript != m_scriptsByFileName.end() ? static_cast<IScript*>(itScript->second.get()) : nullptr;
+}
+
+IScript* CScriptRegistry::LoadScript(const char* szFilePath)
+{
+	LOADING_TIME_PROFILE_SECTION;
+
+	CScript* pScript = nullptr;
+
+	CRY_ASSERT_MESSAGE(szFilePath && szFilePath[0], "Undefined file name!");
+	if (szFilePath && szFilePath[0])
 	{
-		return CreateScript(nullptr, guid);
+		const uint32 fileNameCrc = CCrc32::ComputeLowercase(szFilePath);
+		auto result = m_scriptsByFileName.find(fileNameCrc);
+		if (result != m_scriptsByFileName.end())
+		{
+			pScript = result->second.get();
+			if (pScript->GetRoot())
+			{
+				RemoveElement(*pScript->GetRoot());
+			}
+		}
+
+		{
+			ScriptInputBlocks inputBlocks(1);
+			SScriptInputBlock& inputBlock = inputBlocks.back();
+			CScriptLoadSerializer serializer(inputBlock);
+			if (Serialization::LoadXmlFile(serializer, szFilePath))
+			{
+				if (!GUID::IsEmpty(inputBlock.guid) && inputBlock.rootElement.instance)
+				{
+					CScriptPtr pSharedScript = std::make_shared<CScript>(inputBlock.guid, szFilePath);
+					pScript = pSharedScript.get();
+					m_scriptsByGuid.emplace(inputBlock.guid, pSharedScript);
+					m_scriptsByFileName.emplace(CCrc32::ComputeLowercase(szFilePath), pSharedScript);
+
+					pScript->SetRoot(inputBlock.rootElement.instance.get());
+					inputBlock.rootElement.instance->SetScript(pScript);
+
+					ProcessInputBlocks(inputBlocks, *m_pRoot, EScriptEventId::FileReload);
+					return pSharedScript.get();
+				}
+			}
+		}
 	}
 	return nullptr;
 }
 
-CScript* CScriptRegistry::GetScript(const SGUID& guid)
+void CScriptRegistry::SaveScript(IScript& script)
 {
-	Scripts::iterator itScript = m_scripts.find(guid);
-	return itScript != m_scripts.end() ? itScript->second.get() : nullptr;
+	SaveScript(static_cast<CScript&>(script));
+}
+
+void CScriptRegistry::OnScriptRenamed(IScript& script, const char* szFilePath)
+{
+	uint32 filePathHash = CCrc32::ComputeLowercase(script.GetFilePath());
+	ScriptsByFileName::const_iterator itScript = m_scriptsByFileName.find(filePathHash);
+	if (itScript != m_scriptsByFileName.end())
+	{
+		CScriptPtr pScript = itScript->second;
+		pScript->SetFilePath(szFilePath);
+		m_scriptsByFileName.erase(itScript);
+
+		filePathHash = CCrc32::ComputeLowercase(szFilePath);
+		m_scriptsByFileName.emplace(filePathHash, pScript);
+
+		gEnv->pEntitySystem->GetClassRegistry()->UnregisterStdClass(pScript->GetRoot()->GetGUID());
+
+		CCore::GetInstance().GetCompiler().CompileDependencies(pScript->GetRoot()->GetGUID());
+	}
+}
+
+CScript* CScriptRegistry::CreateScript(const char* szFilePath, const IScriptElementPtr& pRoot)
+{
+	if (szFilePath)
+	{
+		const CryGUID guid = gEnv->pSchematyc->CreateGUID();
+		SCHEMATYC_CORE_ASSERT(!GUID::IsEmpty(guid));
+		if (!GUID::IsEmpty(guid))
+		{
+			CScriptPtr pScript = std::make_shared<CScript>(guid, nullptr);
+			pScript->SetRoot(pRoot.get());
+			pRoot->SetScript(pScript.get());
+
+			const char* szFileName = pScript->SetFilePath(szFilePath);
+			const uint32 fileNameHash = CCrc32::ComputeLowercase(szFileName);
+			m_scriptsByFileName.emplace(fileNameHash, pScript);
+			m_scriptsByGuid.emplace(guid, pScript);
+
+			return pScript.get();
+		}
+	}
+	return nullptr;
+}
+
+CScript* CScriptRegistry::GetScript(const CryGUID& guid)
+{
+	ScriptsByGuid::iterator itScript = m_scriptsByGuid.find(guid);
+	return itScript != m_scriptsByGuid.end() ? itScript->second.get() : nullptr;
 }
 
 void CScriptRegistry::ProcessInputBlocks(ScriptInputBlocks& inputBlocks, IScriptElement& scope, EScriptEventId eventId)
@@ -855,47 +1002,52 @@ void CScriptRegistry::ProcessInputBlocks(ScriptInputBlocks& inputBlocks, IScript
 	{
 		UnrollScriptInputElementsRecursive(elements, inputBlock.rootElement);
 	}
+
 	// Pre-load elements.
 	for (SScriptInputElement* pElement : elements)
 	{
-		CScriptInputElementSerializer elementSerializer(*pElement->ptr, ESerializationPass::LoadDependencies);
+		CScriptInputElementSerializer elementSerializer(*pElement->instance, ESerializationPass::LoadDependencies);
 		Serialization::LoadBlackBox(elementSerializer, pElement->blackBox);
 	}
+
 	if (eventId == EScriptEventId::EditorPaste)
 	{
 		// Make sure root elements have unique names.
 		for (SScriptInputBlock& inputBlock : inputBlocks)
 		{
-			CStackString elementName = inputBlock.rootElement.ptr->GetName();
+			CStackString elementName = inputBlock.rootElement.instance->GetName();
 			MakeElementNameUnique(elementName, &scope);
-			inputBlock.rootElement.ptr->SetName(elementName.c_str());
+			inputBlock.rootElement.instance->SetName(elementName.c_str());
 		}
+
 		// Re-map element dependencies.
 		CGUIDRemapper guidRemapper;
 		for (SScriptInputElement* pElement : elements)
 		{
-			guidRemapper.Bind(pElement->ptr->GetGUID(), gEnv->pSchematyc->CreateGUID());
+			guidRemapper.Bind(pElement->instance->GetGUID(), gEnv->pSchematyc->CreateGUID());
 		}
 		for (SScriptInputElement* pElement : elements)
 		{
-			pElement->ptr->RemapDependencies(guidRemapper);
+			pElement->instance->RemapDependencies(guidRemapper);
 		}
 	}
+
 	// Sort elements in order of dependency.
 	if (SortScriptInputElementsByDependency(elements))
 	{
 		// Load elements.
 		for (SScriptInputElement* pElement : elements)
 		{
-			CScriptInputElementSerializer elementSerializer(*pElement->ptr, ESerializationPass::Load);
+			CScriptInputElementSerializer elementSerializer(*pElement->instance, ESerializationPass::Load);
 			Serialization::LoadBlackBox(elementSerializer, pElement->blackBox);
-			m_elements.insert(Elements::value_type(pElement->ptr->GetGUID(), pElement->ptr));
+			m_elements.insert(Elements::value_type(pElement->instance->GetGUID(), pElement->instance));
 		}
+
 		// Attach elements.
 		for (SScriptInputBlock& inputBlock : inputBlocks)
 		{
 			IScriptElement* pScope = !GUID::IsEmpty(inputBlock.scopeGUID) ? GetElement(inputBlock.scopeGUID) : &scope;
-			IScriptElement& element = *inputBlock.rootElement.ptr;
+			IScriptElement& element = *inputBlock.rootElement.instance;
 			if (pScope)
 			{
 				pScope->AttachChild(element);
@@ -905,42 +1057,44 @@ void CScriptRegistry::ProcessInputBlocks(ScriptInputBlocks& inputBlocks, IScript
 				SCHEMATYC_CORE_CRITICAL_ERROR("Invalid scope for element %s!", element.GetName());
 			}
 		}
+
 		// Post-load elements.
 		for (SScriptInputElement* pElement : elements)
 		{
-			CScriptInputElementSerializer elementSerializer(*pElement->ptr, ESerializationPass::PostLoad);
+			CScriptInputElementSerializer elementSerializer(*pElement->instance, ESerializationPass::PostLoad);
 			Serialization::LoadBlackBox(elementSerializer, pElement->blackBox);
 
 			if (eventId == EScriptEventId::EditorPaste)
 			{
-				pElement->ptr->ProcessEvent(SScriptEvent(EScriptEventId::EditorPaste));
+				pElement->instance->ProcessEvent(SScriptEvent(EScriptEventId::EditorPaste));
 			}
-			ProcessChange(SScriptRegistryChange(EScriptRegistryChangeType::ElementAdded, *pElement->ptr));
+			ProcessChange(SScriptRegistryChange(EScriptRegistryChangeType::ElementAdded, *pElement->instance));
 		}
+
 		// Broadcast event to all elements.
 		for (SScriptInputElement* pElement : elements)
 		{
-			pElement->ptr->ProcessEvent(SScriptEvent(eventId));
+			pElement->instance->ProcessEvent(SScriptEvent(eventId));
 		}
 	}
 }
 
-void CScriptRegistry::AddElement(const IScriptElementPtr& pElement, IScriptElement& scope)
+void CScriptRegistry::AddElement(const IScriptElementPtr& pElement, IScriptElement& scope, const char* szFilePath)
 {
 	BeginChange();
 
 	bool bCreateScript = false;
 	if (CVars::sc_EnableScriptPartitioning)
 	{
-		bCreateScript = pElement->GetElementFlags().Check(EScriptElementFlags::CanOwnScript);
+		bCreateScript = pElement->GetFlags().Check(EScriptElementFlags::CanOwnScript);
 	}
 	else
 	{
-		if (pElement->GetElementFlags().Check(EScriptElementFlags::MustOwnScript))
+		if (pElement->GetFlags().Check(EScriptElementFlags::MustOwnScript))
 		{
 			bCreateScript = true;
 		}
-		else if (pElement->GetElementFlags().Check(EScriptElementFlags::CanOwnScript))
+		else if (pElement->GetFlags().Check(EScriptElementFlags::CanOwnScript))
 		{
 			bCreateScript = true;
 			for (const IScriptElement* pScope = &scope; pScope; pScope = pScope->GetParent())
@@ -955,10 +1109,12 @@ void CScriptRegistry::AddElement(const IScriptElementPtr& pElement, IScriptEleme
 
 	if (bCreateScript)
 	{
+		CRY_ASSERT_MESSAGE(szFilePath, "Script file path must be not null!");
 		// #SchematycTODO : We should do this when patching up script elements!!!
-		CScript* pScript = CreateScript();
-		pScript->SetRoot(pElement.get());
-		pElement->SetScript(pScript);
+		if (szFilePath)
+		{
+			CScript* pScript = CreateScript(szFilePath, pElement);
+		}
 	}
 
 	scope.AttachChild(*pElement);
@@ -970,6 +1126,8 @@ void CScriptRegistry::AddElement(const IScriptElementPtr& pElement, IScriptEleme
 	pElement->ProcessEvent(SScriptEvent(EScriptEventId::EditorAdd));
 
 	EndChange();
+
+	CCore::GetInstance().GetCompiler().CompileDependencies(scope.GetGUID());
 }
 
 void CScriptRegistry::RemoveElement(IScriptElement& element)
@@ -981,41 +1139,49 @@ void CScriptRegistry::RemoveElement(IScriptElement& element)
 
 	ProcessChange(SScriptRegistryChange(EScriptRegistryChangeType::ElementRemoved, element));
 
-	const SGUID guid = element.GetGUID();
-	IScript* pScript = element.GetScript();
+	IScriptElement* pParent = element.GetParent();
+	CScript* pScript = static_cast<CScript*>(element.GetScript());
 	if (pScript)
 	{
-		m_scripts.erase(guid);
+		pParent->DetachChild(element);
+		gEnv->pEntitySystem->GetClassRegistry()->UnregisterStdClass(pScript->GetRoot()->GetGUID());
 	}
 
+	const CryGUID parentGuid = pParent ? pParent->GetGUID() : m_pRoot->GetGUID();
+	const CryGUID guid = element.GetGUID();
 	m_elements.erase(guid);
 
-	ProcessChangeDependencies(EScriptRegistryChangeType::ElementRemoved, guid);
+	if (pScript)
+	{
+		m_scriptsByGuid.erase(pScript->GetGUID());
+		const uint32 fileNameHash = CCrc32::ComputeLowercase(pScript->GetFilePath());
+		m_scriptsByFileName.erase(fileNameHash);
+	}
+
+	CCore::GetInstance().GetCompiler().CompileDependencies(parentGuid);
 }
 
 void CScriptRegistry::SaveScript(CScript& script)
 {
-	CStackString fileName = script.GetName();
-	if (fileName.empty())
-	{
-		fileName = script.SetNameFromRoot();
-	}
+	const CStackString fileName = script.GetFilePath();
+	const bool hasFileName = !fileName.empty();
 
-	CStackString folder = fileName.substr(0, fileName.rfind('/'));
-	if (!folder.empty())
+	CRY_ASSERT_MESSAGE(hasFileName, "Trying to save Schematyc script without a defined file name.");
+	if (hasFileName)
 	{
-		gEnv->pCryPak->MakeDir(folder.c_str());
-	}
+		CStackString folder = fileName.substr(0, fileName.rfind('/'));
 
-	auto elementSerializeCallback = [this](IScriptElement& element)
-	{
-		ProcessChange(SScriptRegistryChange(EScriptRegistryChangeType::ElementSaved, element));
-	};
+		auto elementSerializeCallback = [this](IScriptElement& element)
+		{
+			CScriptRegistry& scriptRegistry = static_cast<CScriptRegistry&>(gEnv->pSchematyc->GetScriptRegistry());
+			scriptRegistry.ProcessChange(SScriptRegistryChange(EScriptRegistryChangeType::ElementSaved, element));
+		};
 
-	const bool bError = !Serialization::SaveXmlFile(fileName.c_str(), CScriptSaveSerializer(script, ScriptElementSerializeCallback::FromLambda(elementSerializeCallback)), "schematyc");
-	if (bError)
-	{
-		SCHEMATYC_CORE_ERROR("Failed to save file '%s'!", fileName.c_str());
+		const bool bError = !Serialization::SaveXmlFile(fileName.c_str(), CScriptSaveSerializer(script, elementSerializeCallback), "CrySchematyc");
+		if (bError)
+		{
+			SCHEMATYC_CORE_ERROR("Failed to save file '%s'!", fileName.c_str());
+		}
 	}
 }
 
@@ -1049,7 +1215,7 @@ void CScriptRegistry::ProcessChange(const SScriptRegistryChange& change)
 	}
 }
 
-void CScriptRegistry::ProcessChangeDependencies(EScriptRegistryChangeType changeType, const SGUID& elementGUID)
+void CScriptRegistry::ProcessChangeDependencies(EScriptRegistryChangeType changeType, const CryGUID& elementGUID)
 {
 	EScriptEventId dependencyEventId = EScriptEventId::Invalid;
 	EScriptRegistryChangeType dependencyChangeType = EScriptRegistryChangeType::Invalid;
@@ -1077,14 +1243,14 @@ void CScriptRegistry::ProcessChangeDependencies(EScriptRegistryChangeType change
 	for (Elements::value_type& dependencyElement : m_elements)
 	{
 		bool bIsDependency = false;
-		auto enumerateDependency = [&elementGUID, &bIsDependency](const SGUID& guid)
+		auto enumerateDependency = [&elementGUID, &bIsDependency](const CryGUID& guid)
 		{
 			if (guid == elementGUID)
 			{
 				bIsDependency = true;
 			}
 		};
-		dependencyElement.second->EnumerateDependencies(ScriptDependencyEnumerator::FromLambda(enumerateDependency), EScriptDependencyType::Event);   // #SchematycTODO : Can we cache dependencies after every change?
+		dependencyElement.second->EnumerateDependencies(enumerateDependency, EScriptDependencyType::Event);   // #SchematycTODO : Can we cache dependencies after every change?
 
 		if (bIsDependency)
 		{

@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #include "StdAfx.h"
 #include "Script/Elements/ScriptStruct.h"
@@ -6,12 +6,12 @@
 #include <CrySerialization/BlackBox.h>
 #include <CrySerialization/IArchiveHost.h>
 #include <CrySerialization/STL.h>
-#include <Schematyc/Env/IEnvRegistry.h>
-#include <Schematyc/Reflection/Reflection.h>
-#include <Schematyc/SerializationUtils/ISerializationContext.h>
-#include <Schematyc/SerializationUtils/SerializationUtils.h>
-#include <Schematyc/Utils/Any.h>
-#include <Schematyc/Utils/Assert.h>
+#include <CrySchematyc/Env/IEnvRegistry.h>
+#include <CrySchematyc/Reflection/TypeDesc.h>
+#include <CrySchematyc/SerializationUtils/ISerializationContext.h>
+#include <CrySchematyc/SerializationUtils/SerializationUtils.h>
+#include <CrySchematyc/Utils/Any.h>
+#include <CrySchematyc/Utils/Assert.h>
 
 namespace Schematyc
 {
@@ -19,7 +19,7 @@ CScriptStruct::CScriptStruct()
 	: CScriptElementBase(EScriptElementFlags::CanOwnScript)
 {}
 
-CScriptStruct::CScriptStruct(const SGUID& guid, const char* szName)
+CScriptStruct::CScriptStruct(const CryGUID& guid, const char* szName)
 	: CScriptElementBase(guid, szName, EScriptElementFlags::CanOwnScript)
 {}
 
@@ -93,7 +93,7 @@ void CScriptStruct::Edit(Serialization::IArchive& archive, const ISerializationC
 	{
 		ScriptVariableData::CScopedSerializationConfig serializationConfig(archive);
 
-		const SGUID guid = GetGUID();
+		const CryGUID guid = GetGUID();
 		serializationConfig.DeclareEnvDataTypes(guid);
 		serializationConfig.DeclareScriptEnums(guid);
 

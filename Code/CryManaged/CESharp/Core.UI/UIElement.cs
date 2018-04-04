@@ -1,128 +1,172 @@
 // Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
 
-using CryEngine;
-using CryEngine.UI.Components;
-using System;
-using System.Runtime.Serialization;
-
 using System.IO;
-using CryEngine.Resources;
+using CryEngine.UI.Components;
 
 namespace CryEngine.UI
 {
-    /// <summary>
-    /// Determines a buffer which is applied to make a rect smaller.
-    /// </summary>
-    [DataContract]
-    public class Padding
-    {
-        [DataMember(Name = "L")]
-        public float Left; ///< The left buffer.
-		[DataMember(Name = "T")]
-        public float Top; ///< The top buffer.
-		[DataMember(Name = "R")]
-        public float Right; ///< The right buffer.
-		[DataMember(Name = "B")]
-        public float Bottom; ///< The bottom buffer.
+	/// <summary>
+	/// Determines a buffer which is applied to make a rect smaller.
+	/// </summary>
+	public class Padding
+	{
+		/// <summary>
+		/// The left buffer.
+		/// </summary>
+		public float Left;
 
-        public Point TopLeft { get { return new Point(Left, Top); } set { Left = value.x; Top = value.y; } } ///< The upper left buffer.
+		/// <summary>
+		/// The top buffer.
+		/// </summary>
+		public float Top;
 
-        /// <summary>
-        /// Constructs Padding with one default value for all buffers.
-        /// </summary>
-        /// <param name="def">Default buffer value.</param>
-        public Padding(float def = 0)
-        {
-            Top = Left = Right = Bottom = def;
-        }
+		/// <summary>
+		/// The right buffer.
+		/// </summary>
+		public float Right;
 
-        /// <summary>
-        /// Only initializes upper left buffer. lower right will be 0.
-        /// </summary>
-        /// <param name="left">Left buffer value.</param>
-        /// <param name="top">Top buffer value.</param>
-        public Padding(float left, float top)
-        {
-            Top = top; Left = left;
-        }
+		/// <summary>
+		/// The bottom buffer.
+		/// </summary>
+		public float Bottom;
 
-        /// <summary>
-        /// Initializes Padding with specific values for all buffers.
-        /// </summary>
-        /// <param name="left">Left buffer value.</param>
-        /// <param name="top">Top buffer value.</param>
-        /// <param name="right">Right buffer value.</param>
-        /// <param name="bottom">Bottom buffer value.</param>
-        public Padding(float left, float top, float right, float bottom)
-        {
-            Top = top; Left = left; Right = right; Bottom = bottom;
-        }
+		/// <summary>
+		/// The upper left buffer.
+		/// </summary>
+		/// <value>The top left.</value>
+		public Point TopLeft { get { return new Point(Left, Top); } set { Left = value.x; Top = value.y; } }
 
-        /// <summary>
-        /// Returns a <see cref="System.String"/> that represents the current <see cref="CryEngine.UI.Padding"/>.
-        /// </summary>
-        /// <returns>A <see cref="System.String"/> that represents the current <see cref="CryEngine.UI.Padding"/>.</returns>
-        public override string ToString()
-        {
-            return Left.ToString("0") + "," + Top.ToString("0") + "," + Right.ToString("0") + "," + Bottom.ToString("0");
-        }
-    }
+		/// <summary>
+		/// Constructs Padding with one default value for all buffers.
+		/// </summary>
+		/// <param name="def">Default buffer value.</param>
+		public Padding(float def = 0)
+		{
+			Top = Left = Right = Bottom = def;
+		}
 
-    /// <summary>
-    /// Alignment for Layout computation of UIElements. UIElements will be centered around an alignment target.
-    /// </summary>
-    public enum Alignment
-    {
-        Center,
-        Top,
-        TopRight,
-        Right,
-        BottomRight,
-        Bottom,
-        BottomLeft,
-        Left,
-        TopLeft,
-        TopHStretch,
-        //CenterHStretch,
-        BottomHStretch,
-        //LeftVStretch,
-        //CenterVStretch,
-        RightVStretch,
-        Stretch
-    }
+		/// <summary>
+		/// Only initializes upper left buffer. lower right will be 0.
+		/// </summary>
+		/// <param name="left">Left buffer value.</param>
+		/// <param name="top">Top buffer value.</param>
+		public Padding(float left, float top)
+		{
+			Top = top; Left = left;
+		}
 
-    /// <summary>
-    /// Base class for all UI elements. Provides RectTransform for Layout computation.
-    /// </summary>
-    [DataContract]
-    public class UIElement : SceneObject
-    {
-        public static string DataDirectory { get { return Path.Combine(FileSystem.DataDirectory, "libs/ui"); } } ///< Path where UI System textures are stored.
+		/// <summary>
+		/// Initializes Padding with specific values for all buffers.
+		/// </summary>
+		/// <param name="left">Left buffer value.</param>
+		/// <param name="top">Top buffer value.</param>
+		/// <param name="right">Right buffer value.</param>
+		/// <param name="bottom">Bottom buffer value.</param>
+		public Padding(float left, float top, float right, float bottom)
+		{
+			Top = top; Left = left; Right = right; Bottom = bottom;
+		}
 
-        public RectTransform RectTransform { get; private set; } ///< Defines and computes layout in "d space, for this UIElement.
+		/// <summary>
+		/// Returns a <see cref="string"/> that represents the current <see cref="Padding"/>.
+		/// </summary>
+		/// <returns>A <see cref="string"/> that represents the current <see cref="Padding"/>.</returns>
+		public override string ToString()
+		{
+			return Left.ToString("0") + "," + Top.ToString("0") + "," + Right.ToString("0") + "," + Bottom.ToString("0");
+		}
+	}
 
-        /// <summary>
-        /// Checks if cursor is inside a UIElement, considering its Bounds.
-        /// </summary>
-        public bool IsCursorInside { get { return RectTransform.Bounds.Contains(Mouse.CursorPosition); } }
+	/// <summary>
+	/// Alignment for Layout computation of UIElements. UIElements will be centered around an alignment target.
+	/// </summary>
+	public enum Alignment
+	{
+		/// <summary>
+		/// Center the element.
+		/// </summary>
+		Center,
+		/// <summary>
+		/// Align the element to the top.
+		/// </summary>
+		Top,
+		/// <summary>
+		/// Align the element to the top-right.
+		/// </summary>
+		TopRight,
+		/// <summary>
+		/// Align the element to the right.
+		/// </summary>
+		Right,
+		/// <summary>
+		/// Align the element to the bottom-right.
+		/// </summary>
+		BottomRight,
+		/// <summary>
+		/// Align the element to the bottom.
+		/// </summary>
+		Bottom,
+		/// <summary>
+		/// Align the element to the bottom-left.
+		/// </summary>
+		BottomLeft,
+		/// <summary>
+		/// Align the element to the left.
+		/// </summary>
+		Left,
+		/// <summary>
+		/// Align the element to the top-left.
+		/// </summary>
+		TopLeft,
+		/// <summary>
+		/// Align the element to the top and stretch it horizontally.
+		/// </summary>
+		TopHStretch,
+		//CenterHStretch,
+		/// <summary>
+		/// Align the element to the bottom and stretch it horizontally.
+		/// </summary>
+		BottomHStretch,
+		//LeftVStretch,
+		//CenterVStretch,
+		/// <summary>
+		/// Align the element to the right, and stretch it vertically.
+		/// </summary>
+		RightVStretch,
+		/// <summary>
+		/// Stretch the element in all directions.
+		/// </summary>
+		Stretch
+	}
 
-        /// <summary>
-        /// Creates this element along with a RectTransform.
-        /// </summary>
-        public UIElement()
-        {
-            RectTransform = AddComponent<RectTransform>();
-        }
+	/// <summary>
+	/// Base class for all UI elements. Provides RectTransform for Layout computation.
+	/// </summary>
+	public class UIElement : SceneObject
+	{
+		/// <summary>
+		/// Path where UI System textures are stored.
+		/// </summary>
+		/// <value>The data directory.</value>
+		public static string DataDirectory { get { return Path.Combine(Engine.DataDirectory, "libs/ui"); } }
 
-        /// <summary>
-        /// Returns ths hierarchically predecessing Canvas object for this element.
-        /// </summary>
-        /// <returns>The parent Canvas.</returns>
-        public Canvas FindParentCanvas()
-        {
-            if (this is Canvas)
-                return this as Canvas;
-            return Parent is UIElement ? (Parent as UIElement).FindParentCanvas() : null;
-        }
-    }
+		/// <summary>
+		/// Defines and computes layout in "d space, for this UIElement.
+		/// </summary>
+		/// <value>The rect transform.</value>
+		public RectTransform RectTransform { get; private set; }
+
+		/// <summary>
+		/// Checks if cursor is inside a UIElement, considering its Bounds.
+		/// </summary>
+		public bool IsCursorInside { get { return RectTransform.Bounds.Contains(Mouse.CursorPosition); } }
+
+		/// <summary>
+		/// Creates this element along with a RectTransform.
+		/// </summary>
+		public UIElement()
+		{
+			RectTransform = AddComponent<RectTransform>();
+		}
+	}
 }

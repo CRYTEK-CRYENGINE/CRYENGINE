@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #include "System.h"
 #if CRY_PLATFORM_ANDROID && defined(DEDICATED_SERVER)
@@ -6,6 +6,6 @@
 #endif
 
 #include "UnixConsole.h"
-#if CRY_PLATFORM_LINUX
+#ifdef USE_UNIXCONSOLE
 extern __attribute__((visibility("default"))) CUNIXConsole* pUnixConsole;
 #endif

@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 // -------------------------------------------------------------------------
 //  Created:     27/10/2014 by Filipe amim
@@ -55,12 +55,12 @@ SUpdateContext::SUpdateContext(CParticleComponentRuntime* pRuntime, const SUpdat
 	, m_parentContainer(pRuntime->GetParentContainer())
 	, m_params(pRuntime->GetComponentParams())
 	, m_updateRange(updateRange)
-	, m_deltaTime(gEnv->pTimer->GetFrameTime() * pRuntime->GetEmitter()->GetTimeScale())
+	, m_deltaTime(pRuntime->GetEmitter()->GetDeltaTime())
 	, m_time(pRuntime->GetEmitter()->GetTime())
 	, m_spawnRng(MakeSpawnSeed(pRuntime))
 	, m_spawnRngv(MakeSpawnSeed(pRuntime))
-	, m_updateRng(MakeUpdateSeed(pRuntime, updateRange.m_firstParticleId))
-	, m_updateRngv(MakeUpdateSeed(pRuntime, updateRange.m_firstParticleId))
+	, m_updateRng(MakeUpdateSeed(pRuntime, updateRange.m_begin))
+	, m_updateRngv(MakeUpdateSeed(pRuntime, updateRange.m_begin))
 {
 	const uint32 threadId = JobManager::GetWorkerThreadId();
 	m_pMemHeap = &m_pSystem->GetMemHeap(threadId);

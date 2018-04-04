@@ -1,11 +1,11 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #pragma once
 #include <map>
 #include <vector>
 
-#include <yasli/ClassFactory.h>
-#include <yasli/TypeID.h>
+#include <CrySerialization/yasli/ClassFactory.h>
+#include <CrySerialization/yasli/TypeID.h>
 #include <CrySerialization/IClassFactory.h>
 
 namespace Serialization

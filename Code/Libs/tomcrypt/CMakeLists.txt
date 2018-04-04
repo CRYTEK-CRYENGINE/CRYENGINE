@@ -445,11 +445,25 @@ end_sources()
 #END-FILE-LIST
 
 CryEngineStaticModule(tomcrypt SOLUTION_FOLDER "Libs")
-target_include_directories(${THIS_PROJECT} PUBLIC ${SDK_DIR}/LibTomMath ${SDK_DIR}/LibTomCrypt/src/headers )
-target_compile_definitions(${THIS_PROJECT} PUBLIC -DLTC_NO_ROLC -DLTM_DESC -DARGTYPE=$<$<NOT:$<CONFIG:Release>>:2>$<$<CONFIG:Release>:3> PRIVATE -DLTC_SOURCE -D_CRT_SECURE_NO_WARNINGS -Dmalloc=malloc)
+
+target_include_directories(tomcrypt PUBLIC
+	"${SDK_DIR}/LibTomMath"
+	"${SDK_DIR}/LibTomCrypt/src/headers"
+)
+
+target_compile_definitions(tomcrypt
+	PUBLIC
+		-DLTC_NO_ROLC
+		-DLTM_DESC
+		-DARGTYPE=$<$<NOT:$<CONFIG:Release>>:2>$<$<CONFIG:Release>:3>
+	PRIVATE
+		-DLTC_SOURCE
+		-D_CRT_SECURE_NO_WARNINGS
+		-Dmalloc=malloc
+)
 
 if (WIN32 OR WIN64 OR DURANGO)
-	target_compile_options(${THIS_PROJECT} PRIVATE
+	target_compile_options(tomcrypt PRIVATE
 		/wd4267 # Truncate size_t -> int from strlen() result
 		/wd4244 # Truncate intptr_t -> int from pointer subtraction
 		/wd4101 # Unreferenced local variable
@@ -458,3 +472,34 @@ if (WIN32 OR WIN64 OR DURANGO)
 		/wd4311 # Pointer truncation from T1* to T2
 	)
 endif()
+
+CryEngineStaticModule(tomcrypt_staticcrt SOLUTION_FOLDER "Libs")
+force_static_crt()
+
+target_include_directories(tomcrypt_staticcrt PUBLIC
+	"${SDK_DIR}/LibTomMath"
+	"${SDK_DIR}/LibTomCrypt/src/headers"
+)
+
+target_compile_definitions(tomcrypt_staticcrt
+	PUBLIC
+		-DLTC_NO_ROLC
+		-DLTM_DESC
+		-DARGTYPE=$<$<NOT:$<CONFIG:Release>>:2>$<$<CONFIG:Release>:3>
+	PRIVATE
+		-DLTC_SOURCE
+		-D_CRT_SECURE_NO_WARNINGS
+		-Dmalloc=malloc
+)
+
+if (WIN32 OR WIN64 OR DURANGO)
+	target_compile_options(tomcrypt_staticcrt PRIVATE
+		/wd4267 # Truncate size_t -> int from strlen() result
+		/wd4244 # Truncate intptr_t -> int from pointer subtraction
+		/wd4101 # Unreferenced local variable
+		/wd4333 # Potential shift-right by too large amount
+		/wd4334 # Shift left result converted from 32-bit to 64-bit
+		/wd4311 # Pointer truncation from T1* to T2
+	)
+endif()
+

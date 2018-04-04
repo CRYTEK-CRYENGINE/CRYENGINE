@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 // -------------------------------------------------------------------------
 //  File name:   loadingprofiler.cpp
@@ -266,7 +266,7 @@ static CSystemEventListner_LoadingProfiler g_system_event_listener_loadingProfil
 
 void CLoadingProfilerSystem::Init()
 {
-	gEnv->pSystem->GetISystemEventDispatcher()->RegisterListener(&g_system_event_listener_loadingProfiler);
+	gEnv->pSystem->GetISystemEventDispatcher()->RegisterListener(&g_system_event_listener_loadingProfiler, "CSystemEventListner_LoadingProfiler");
 }
 
 //////////////////////////////////////////////////////////////////////////

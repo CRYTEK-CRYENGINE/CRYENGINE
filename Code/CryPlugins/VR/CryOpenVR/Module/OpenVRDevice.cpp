@@ -15,6 +15,7 @@
 #include <Cry3DEngine/IIndexedMesh.h>
 #include <CryRenderer/IRenderAuxGeom.h>
 #include <CryMath/Cry_Color.h>
+#include <CryMath/Cry_Camera.h>
 
 #include "..\CryAction\IViewSystem.h"
 #include <CryCore/Platform/CryWindows.h>
@@ -210,7 +211,7 @@ Device::Device(vr::IVRSystem* pSystem)
 		m_eyeTargets[i] = nullptr;
 
 	if (GetISystem()->GetISystemEventDispatcher())
-		GetISystem()->GetISystemEventDispatcher()->RegisterListener(this);
+		GetISystem()->GetISystemEventDispatcher()->RegisterListener(this, "CryVR::OpenVR::Device");
 
 	m_controller.Init();
 

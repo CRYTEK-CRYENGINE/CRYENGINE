@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 // -------------------------------------------------------------------------
 //  File name:   CryCreateClassInstance.h
@@ -28,25 +28,6 @@ bool CryCreateClassInstance(const CryClassID& cid, std::shared_ptr<T>& p)
 	{
 		ICryFactory* pFactory = pFactoryReg->GetFactory(cid);
 		if (pFactory && pFactory->ClassSupports(cryiidof<T>()))
-		{
-			ICryUnknownPtr pUnk = pFactory->CreateClassInstance();
-			std::shared_ptr<T> pT = cryinterface_cast<T>(pUnk);
-			if (pT)
-				p = pT;
-		}
-	}
-	return p.get() != NULL;
-}
-
-template<class T>
-bool CryCreateClassInstance(const char* cname, std::shared_ptr<T>& p)
-{
-	p = std::shared_ptr<T>();
-	ICryFactoryRegistry* pFactoryReg = gEnv->pSystem->GetCryFactoryRegistry();
-	if (pFactoryReg)
-	{
-		ICryFactory* pFactory = pFactoryReg->GetFactory(cname);
-		if (pFactory != NULL && pFactory->ClassSupports(cryiidof<T>()))
 		{
 			ICryUnknownPtr pUnk = pFactory->CreateClassInstance();
 			std::shared_ptr<T> pT = cryinterface_cast<T>(pUnk);

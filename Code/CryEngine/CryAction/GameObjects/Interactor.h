@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #ifndef __INTERACTOR_H__
 #define __INTERACTOR_H__
@@ -34,7 +34,6 @@ public:
 	virtual void                 HandleEvent(const SGameObjectEvent&);
 	virtual void                 ProcessEvent(SEntityEvent&) {};
 	virtual void                 SetChannelId(uint16 id)     {};
-	virtual void                 SetAuthority(bool auth)     {}
 	virtual void                 PostUpdate(float frameTime) { CRY_ASSERT(false); }
 	virtual void                 PostRemoteSpawn()           {};
 	virtual void                 GetMemoryUsage(ICrySizer* pSizer) const;

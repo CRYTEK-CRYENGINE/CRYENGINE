@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #pragma once
 
@@ -10,10 +10,12 @@ class CToneMappingStage : public CGraphicsPipelineStage
 public:
 	void Init();
 	void Execute();
+	void ExecuteDebug();
+	void ExecuteFixedExposure();
+	void DisplayDebugInfo();
 
 private:
-	CFullscreenPass m_passToneMapping;
-
-	int             m_samplerPoint;
-	int             m_samplerLinear;
+	_smart_ptr<CTexture> m_pColorChartTex;
+	CFullscreenPass      m_passToneMapping;
+	CFullscreenPass      m_passFixedExposureToneMapping;
 };

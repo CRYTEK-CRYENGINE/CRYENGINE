@@ -7,7 +7,7 @@
     <OutputType>Library</OutputType>
     <RootNamespace>CryEngine</RootNamespace>
     <AssemblyName>CryEngine.Core.UI</AssemblyName>
-    <TargetFrameworkVersion>v4.0</TargetFrameworkVersion>
+    <TargetFrameworkVersion>v4.5</TargetFrameworkVersion>
     <UseMSBuildEngine>False</UseMSBuildEngine>
     <TargetFrameworkProfile>
     </TargetFrameworkProfile>
@@ -17,46 +17,46 @@
     <OutputPath>..\..\..\..\bin\win_x64</OutputPath>
     <DefineConstants>DEBUG;TRACE;WIN64</DefineConstants>
     <DebugType>full</DebugType>
-    <PlatformTarget>x64</PlatformTarget>
+    <PlatformTarget>anycpu</PlatformTarget>
     <ErrorReport>prompt</ErrorReport>
     <CodeAnalysisRuleSet>MinimumRecommendedRules.ruleset</CodeAnalysisRuleSet>
-    <Prefer32Bit>true</Prefer32Bit>
     <WarningLevel>4</WarningLevel>
     <Optimize>false</Optimize>
+    <DocumentationFile>..\..\..\..\bin\win_x64\CryEngine.Core.UI.XML</DocumentationFile>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Release|x64'">
     <OutputPath>..\..\..\..\bin\win_x64</OutputPath>
     <DefineConstants>TRACE;WIN64</DefineConstants>
     <Optimize>true</Optimize>
-    <PlatformTarget>AnyCPU</PlatformTarget>
+    <PlatformTarget>anycpu</PlatformTarget>
     <ErrorReport>prompt</ErrorReport>
     <CodeAnalysisRuleSet>MinimumRecommendedRules.ruleset</CodeAnalysisRuleSet>
-    <Prefer32Bit>true</Prefer32Bit>
     <WarningLevel>4</WarningLevel>
+    <DocumentationFile>..\..\..\..\bin\win_x64\CryEngine.Core.UI.xml</DocumentationFile>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Debug|x86'">
     <DebugSymbols>true</DebugSymbols>
-    <OutputPath>..\..\..\..\bin\win_x64</OutputPath>
+    <OutputPath>..\..\..\..\bin\win_x86</OutputPath>
     <DefineConstants>DEBUG;TRACE;WIN86</DefineConstants>
     <DebugType>full</DebugType>
-    <PlatformTarget>AnyCPU</PlatformTarget>
+    <PlatformTarget>anycpu</PlatformTarget>
     <ErrorReport>prompt</ErrorReport>
     <CodeAnalysisRuleSet>MinimumRecommendedRules.ruleset</CodeAnalysisRuleSet>
-    <Prefer32Bit>true</Prefer32Bit>
-    <PlatformTarget>x86</PlatformTarget>
+    <PlatformTarget>AnyCPU</PlatformTarget>
     <WarningLevel>4</WarningLevel>
+    <DocumentationFile>..\..\..\..\bin\win_x86\CryEngine.Core.UI.xml</DocumentationFile>
     <Optimize>false</Optimize>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Release|x86'">
-    <OutputPath>..\..\..\..\bin\win_x64_release</OutputPath>
+    <OutputPath>..\..\..\..\bin\win_x86_release</OutputPath>
     <DefineConstants>TRACE;WIN86</DefineConstants>
     <Optimize>true</Optimize>
-    <PlatformTarget>AnyCPU</PlatformTarget>
+    <PlatformTarget>anycpu</PlatformTarget>
     <ErrorReport>prompt</ErrorReport>
     <CodeAnalysisRuleSet>MinimumRecommendedRules.ruleset</CodeAnalysisRuleSet>
-    <Prefer32Bit>true</Prefer32Bit>
-    <PlatformTarget>x86</PlatformTarget>
+    <PlatformTarget>AnyCPU</PlatformTarget>
     <WarningLevel>4</WarningLevel>
+    <DocumentationFile>..\..\..\..\bin\win_x86_release\CryEngine.Core.UI.xml</DocumentationFile>
   </PropertyGroup>
   <PropertyGroup>
     <RunPostBuildEvent>Always</RunPostBuildEvent>
@@ -103,7 +103,7 @@
     <Compile Include="TextElement.cs" />
     <Compile Include="Resources\ImageSource.cs" />
     <Compile Include="Resources\Resource.cs" />
-    <Compile Include="Resources\Texture.cs" />
+    <Compile Include="Resources\Graphic.cs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Core\Core.csproj">
@@ -112,4 +112,13 @@
     </ProjectReference>
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
+  <ProjectExtensions>
+    <MonoDevelop>
+      <Properties>
+        <Policies>
+          <StandardHeader Text="Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved." IncludeInNewFiles="True" />
+        </Policies>
+      </Properties>
+    </MonoDevelop>
+  </ProjectExtensions>
 </Project>

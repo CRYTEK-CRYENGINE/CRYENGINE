@@ -3,48 +3,58 @@
 #include "StdAfx.h"
 #include "ScriptBrowserWidget.h"
 
+#include "ScriptUndo.h"
+#include "MainWindow.h"
+
 #include <QBoxLayout>
 #include <QHeaderView>
 #include <QKeyEvent>
 #include <QLineEdit>
 #include <QMenu>
 #include <QMessageBox>
-#include <QParentWndWidget.h>
-#include <QPushButton.h>
-#include <QSortFilterProxyModel>
 #include <QSplitter>
 #include <QToolbar>
 #include <QWidgetAction>
-#include <Schematyc/Compiler/ICompiler.h>
-#include <Schematyc/Env/IEnvRegistry.h>
-#include <Schematyc/Env/Elements/IEnvClass.h>
-#include <Schematyc/Script/IScript.h>
-#include <Schematyc/Script/IScriptRegistry.h>
-#include <Schematyc/Script/Elements/IScriptActionInstance.h>
-#include <Schematyc/Script/Elements/IScriptClass.h>
-#include <Schematyc/Script/Elements/IScriptComponentInstance.h>
-#include <Schematyc/Script/Elements/IScriptEnum.h>
-#include <Schematyc/Script/Elements/IScriptFunction.h>
-#include <Schematyc/Script/Elements/IScriptInterface.h>
-#include <Schematyc/Script/Elements/IScriptInterfaceFunction.h>
-#include <Schematyc/Script/Elements/IScriptInterfaceImpl.h>
-#include <Schematyc/Script/Elements/IScriptInterfaceTask.h>
-#include <Schematyc/Script/Elements/IScriptModule.h>
-#include <Schematyc/Script/Elements/IScriptSignal.h>
-#include <Schematyc/Script/Elements/IScriptSignalReceiver.h>
-#include <Schematyc/Script/Elements/IScriptState.h>
-#include <Schematyc/Script/Elements/IScriptStateMachine.h>
-#include <Schematyc/Script/Elements/IScriptStruct.h>
-#include <Schematyc/Script/Elements/IScriptTimer.h>
-#include <Schematyc/Script/Elements/IScriptVariable.h>
-#include <Schematyc/SerializationUtils/ISerializationContext.h>
-#include <Schematyc/SerializationUtils/IValidatorArchive.h>
-#include <Schematyc/Utils/StackString.h>
+
+#include <QParentWndWidget.h>
+#include <QPushButton.h>
+#include <QSearchBox.h>
+#include <QAdvancedTreeView.h>
+#include <AssetSystem/AssetEditor.h>
+
+#include <CrySchematyc/Compiler/ICompiler.h>
+#include <CrySchematyc/Env/IEnvRegistry.h>
+#include <CrySchematyc/Env/Elements/IEnvClass.h>
+#include <CrySchematyc/Script/IScript.h>
+#include <CrySchematyc/Script/IScriptRegistry.h>
+#include <CrySchematyc/Script/Elements/IScriptActionInstance.h>
+#include <CrySchematyc/Script/Elements/IScriptClass.h>
+#include <CrySchematyc/Script/Elements/IScriptComponentInstance.h>
+#include <CrySchematyc/Script/Elements/IScriptEnum.h>
+#include <CrySchematyc/Script/Elements/IScriptFunction.h>
+#include <CrySchematyc/Script/Elements/IScriptInterface.h>
+#include <CrySchematyc/Script/Elements/IScriptInterfaceFunction.h>
+#include <CrySchematyc/Script/Elements/IScriptInterfaceImpl.h>
+#include <CrySchematyc/Script/Elements/IScriptInterfaceTask.h>
+#include <CrySchematyc/Script/Elements/IScriptModule.h>
+#include <CrySchematyc/Script/Elements/IScriptSignal.h>
+#include <CrySchematyc/Script/Elements/IScriptSignalReceiver.h>
+#include <CrySchematyc/Script/Elements/IScriptState.h>
+#include <CrySchematyc/Script/Elements/IScriptStateMachine.h>
+#include <CrySchematyc/Script/Elements/IScriptStruct.h>
+#include <CrySchematyc/Script/Elements/IScriptTimer.h>
+#include <CrySchematyc/Script/Elements/IScriptVariable.h>
+#include <CrySchematyc/SerializationUtils/ISerializationContext.h>
+#include <CrySchematyc/SerializationUtils/IValidatorArchive.h>
+#include <CrySchematyc/Utils/StackString.h>
 #include <Serialization/Qt.h>
 
-#include "ScriptBrowserUtils.h"
 #include "PluginUtils.h"
 #include <CryIcon.h>
+
+#include <ProxyModels/DeepFilterProxyModel.h>
+#include <EditorFramework/BroadcastManager.h>
+#include <Controls/QuestionDialog.h>
 
 namespace Schematyc
 {
@@ -62,170 +72,66 @@ static const char* g_szFileCheckedOutIcon = "icons:schematyc/file_checked_out.pn
 static const char* g_szFileAddIcon = "icons:schematyc/file_add.png";
 static const char* g_szScriptRootIcon = "icons:schematyc/script_module.png";
 
-const QSize g_defaultColumnSize[EScriptBrowserColumn::Count] = { QSize(100, 20), QSize(20, 20) };
+const QSize g_defaultColumnSize[EScriptBrowserColumn::COUNT] = { QSize(100, 20), QSize(20, 20) };
 
 const char* g_szClipboardPrefix = "[schematyc_xml]";
 }
 
-class CScriptBrowserFilter : public QSortFilterProxyModel
+const CItemModelAttribute CScriptBrowserModel::s_columnAttributes[] =
 {
-public:
+	CItemModelAttribute("Name",            eAttributeType_String, CItemModelAttribute::Visible,      false, ""),
+	CItemModelAttribute("_sort_string_",   eAttributeType_String, CItemModelAttribute::AlwaysHidden, false, ""),
+	CItemModelAttribute("_filter_string_", eAttributeType_String, CItemModelAttribute::AlwaysHidden, false, "")
+};
 
-	CScriptBrowserFilter(QObject* pParent, CScriptBrowserModel& model)
-		: QSortFilterProxyModel(pParent)
-		, m_model(model)
-		, m_pScopeItem(nullptr)
-	{}
-
-	void SetFilterText(const char* szFilterText)
-	{
-		m_filterText = szFilterText;
-	}
-
-	void SetScope(const QModelIndex& index)
-	{
-		m_pScopeItem = m_model.ItemFromIndex(index);
-	}
-
-	QModelIndex GetScope() const
-	{
-		return m_model.ItemToIndex(m_pScopeItem);
-	}
-
-	// QSortFilterProxyModel
-
-	virtual bool filterAcceptsRow(int source_row, const QModelIndex& source_parent) const override
-	{
-		QModelIndex index = sourceModel()->index(source_row, 0, source_parent);
-		CScriptBrowserItem* pItem = m_model.ItemFromIndex(index);
-		if (pItem)
-		{
-			return FilterItemByScope(*pItem) && FilterItemByTextRecursive(*pItem);
-		}
-		return false;
-	}
+class CScriptElementFilterProxyModel : public QDeepFilterProxyModel
+{
+	using QDeepFilterProxyModel::QDeepFilterProxyModel;
 
 	virtual bool lessThan(const QModelIndex& lhs, const QModelIndex& rhs) const override
 	{
-		CScriptBrowserItem* pLHSItem = m_model.ItemFromIndex(lhs);
-		CScriptBrowserItem* pRHSItem = m_model.ItemFromIndex(rhs);
-		if (pLHSItem && pRHSItem)
+		CScriptBrowserItem* pLeft = reinterpret_cast<CScriptBrowserItem*>(lhs.data(CScriptBrowserModel::PointerRole).value<quintptr>());
+		CScriptBrowserItem* pRight = reinterpret_cast<CScriptBrowserItem*>(rhs.data(CScriptBrowserModel::PointerRole).value<quintptr>());
+		if (pLeft && pRight && pLeft->GetType() != pRight->GetType())
 		{
-			const EScriptBrowserItemType lhsItemType = pLHSItem->GetType();
-			const EScriptBrowserItemType rhsItemType = pRHSItem->GetType();
-			if (lhsItemType != rhsItemType)
-			{
-				return lhsItemType > rhsItemType;
-			}
-
-			const IScriptElement* pLHSScriptElement = pLHSItem->GetScriptElement();
-			const IScriptElement* pRHSScriptElement = pRHSItem->GetScriptElement();
-			if (pLHSScriptElement && pRHSScriptElement)
-			{
-				const uint32 lhsScriptElementPriority = GetScriptElementPriority(pLHSScriptElement->GetElementType());
-				const uint32 rhsScriptElementPriority = GetScriptElementPriority(pRHSScriptElement->GetElementType());
-				if (lhsScriptElementPriority != rhsScriptElementPriority)
-				{
-					return lhsScriptElementPriority > rhsScriptElementPriority;
-				}
-			}
+			return pLeft->GetType() == EScriptBrowserItemType::Filter;
 		}
 
 		return QSortFilterProxyModel::lessThan(lhs, rhs);
 	}
-
-	// ~QSortFilterProxyModel
-
-private:
-
-	inline bool FilterItemByScope(CScriptBrowserItem& item) const
-	{
-		return !m_pScopeItem || (&item == m_pScopeItem) || (item.GetParent() != m_pScopeItem->GetParent());
-	}
-
-	inline bool FilterItemByTextRecursive(CScriptBrowserItem& item) const   // #SchematycTODO : Keep an eye on performance of this test!
-	{
-		switch (item.GetType())
-		{
-		case EScriptBrowserItemType::Root:
-			{
-				return true;
-			}
-		case EScriptBrowserItemType::ScriptElement:
-			{
-				if (StringUtils::Filter(item.GetName(), m_filterText.c_str()))
-				{
-					return true;
-				}
-				break;
-			}
-		}
-		for (int childIdx = 0, childCount = item.GetChildCount(); childIdx < childCount; ++childIdx)
-		{
-			if (FilterItemByTextRecursive(*item.GetChildByIdx(childIdx)))
-			{
-				return true;
-			}
-		}
-		return false;
-	}
-
-	inline uint32 GetScriptElementPriority(EScriptElementType scriptElementType) const
-	{
-		const EScriptElementType priorities[] =
-		{
-			EScriptElementType::Base,
-			EScriptElementType::SignalReceiver,
-			EScriptElementType::Constructor,
-			EScriptElementType::ComponentInstance,
-			EScriptElementType::ActionInstance,
-			EScriptElementType::Variable
-		};
-
-		const uint32 priorityCount = CRY_ARRAY_COUNT(priorities);
-		for (int32 priorityIdx = 0; priorityIdx < priorityCount; ++priorityIdx)
-		{
-			if (priorities[priorityIdx] == scriptElementType)
-			{
-				return priorityCount - priorityIdx;
-			}
-		}
-
-		return 0;
-	}
-
-private:
-
-	CScriptBrowserModel& m_model;
-	string               m_filterText;
-	CScriptBrowserItem*  m_pScopeItem;
 };
 
 CScriptBrowserItem::CScriptBrowserItem(EScriptBrowserItemType type, const char* szName, const char* szIcon)
 	: m_type(type)
 	, m_name(szName)
 	, m_iconName(szIcon)
-	, m_filter(EScriptElementType::None)
+	, m_filterType(EFilterType::None)
 	, m_pScriptElement(nullptr)
 	, m_pParent(nullptr)
-{}
+{
 
-CScriptBrowserItem::CScriptBrowserItem(EScriptBrowserItemType type, const char* szName, EScriptElementType filter)
+}
+
+CScriptBrowserItem::CScriptBrowserItem(EScriptBrowserItemType type, const char* szName, EFilterType filterType)
 	: m_type(type)
 	, m_name(szName)
-	, m_filter(filter)
+	, m_filterType(filterType)
 	, m_pScriptElement(nullptr)
 	, m_pParent(nullptr)
-{}
+{
+
+}
 
 CScriptBrowserItem::CScriptBrowserItem(EScriptBrowserItemType type, const char* szName, const char* szIcon, IScriptElement* pScriptElement)
 	: m_type(type)
 	, m_name(szName)
 	, m_iconName(szIcon)
-	, m_filter(EScriptElementType::None)
+	, m_filterType(EFilterType::None)
 	, m_pScriptElement(pScriptElement)
 	, m_pParent(nullptr)
-{}
+{
+
+}
 
 EScriptBrowserItemType CScriptBrowserItem::GetType() const
 {
@@ -263,6 +169,26 @@ const char* CScriptBrowserItem::GetTooltip() const
 	return m_tooltip.c_str();
 }
 
+const char* CScriptBrowserItem::GetSortString() const
+{
+	return m_sortString.c_str();
+}
+
+void CScriptBrowserItem::SetSortString(const char* szSort)
+{
+	m_sortString = szSort;
+}
+
+const char* CScriptBrowserItem::GetFilterString() const
+{
+	return m_filterString.c_str();
+}
+
+void CScriptBrowserItem::SetFilterString(const char* szFilter)
+{
+	m_filterString = szFilter;
+}
+
 void CScriptBrowserItem::SetFlags(const ScriptBrowserItemFlags& flags)
 {
 	m_flags = flags;
@@ -273,9 +199,14 @@ ScriptBrowserItemFlags CScriptBrowserItem::GetFlags() const
 	return m_flags;
 }
 
-EScriptElementType CScriptBrowserItem::GetFilter() const
+EFilterType CScriptBrowserItem::GetFilterType() const
 {
-	return m_filter;
+	return m_filterType;
+}
+
+void CScriptBrowserItem::SetFilterType(EFilterType filterType)
+{
+	m_filterType = filterType;
 }
 
 const char* CScriptBrowserItem::GetFileText() const
@@ -348,12 +279,6 @@ const char* CScriptBrowserItem::GetFileIcon() const
 	return "";
 }
 
-const char* CScriptBrowserItem::GetFileToolTip() const
-{
-	IScript* pScript = GetScript();
-	return pScript ? pScript->GetName() : "";
-}
-
 QVariant CScriptBrowserItem::GetColor() const
 {
 	if (m_flags.CheckAny({ EScriptBrowserItemFlags::ContainsErrors, EScriptBrowserItemFlags::ChildContainsErrors }))
@@ -390,16 +315,16 @@ void CScriptBrowserItem::AddChild(const CScriptBrowserItemPtr& pChild)
 
 CScriptBrowserItemPtr CScriptBrowserItem::RemoveChild(CScriptBrowserItem* pChild)
 {
-	CScriptBrowserItemPtr pResult;
 	for (Items::iterator itChild = m_children.begin(), itEndChild = m_children.end(); itChild != itEndChild; ++itChild)
 	{
 		if (itChild->get() == pChild)
 		{
-			pResult = *itChild;
+			CScriptBrowserItemPtr erasedItem = *itChild;
 			m_children.erase(itChild);
+			return erasedItem;
 		}
 	}
-	return pResult;
+	return CScriptBrowserItemPtr();
 }
 
 int CScriptBrowserItem::GetChildCount() const
@@ -461,7 +386,7 @@ void CScriptBrowserItem::Validate()
 					m_tooltip.append("\n");
 				}
 			};
-			pArchive->Validate(Validator::FromLambda(collectWarnings));
+			pArchive->Validate(collectWarnings);
 
 			flags.Add(EScriptBrowserItemFlags::ContainsWarnings);
 		}
@@ -481,7 +406,7 @@ void CScriptBrowserItem::Validate()
 					m_tooltip.append("\n");
 				}
 			};
-			pArchive->Validate(Validator::FromLambda(collectErrors));
+			pArchive->Validate(collectErrors);
 
 			flags.Add(EScriptBrowserItemFlags::ContainsErrors);
 		}
@@ -514,26 +439,39 @@ void CScriptBrowserItem::RefreshChildFlags()
 	}
 }
 
-CScriptBrowserModel::CScriptBrowserModel(QObject* pParent)
-	: QAbstractItemModel(pParent)
+CScriptBrowserModel::CScriptBrowserModel(CrySchematycEditor::CMainWindow& editor, CAsset& asset, const CryGUID& assetGUID)
+	: QAbstractItemModel(&editor)
+	, m_editor(editor)
+	, m_assetGUID(assetGUID)
+	, m_asset(asset)
 {
-	gEnv->pSchematyc->GetScriptRegistry().GetChangeSignalSlots().Connect(Schematyc::Delegate::Make(*this, &CScriptBrowserModel::OnScriptRegistryChange), m_connectionScope);
+	gEnv->pSchematyc->GetScriptRegistry().GetChangeSignalSlots().Connect(SCHEMATYC_MEMBER_DELEGATE(&CScriptBrowserModel::OnScriptRegistryChange, *this), m_connectionScope);
 
 	Populate();
 }
 
+CScriptBrowserModel::~CScriptBrowserModel()
+{
+	gEnv->pSchematyc->GetScriptRegistry().GetChangeSignalSlots().Disconnect(m_connectionScope);
+}
+
 QModelIndex CScriptBrowserModel::index(int row, int column, const QModelIndex& parent) const
 {
-	CScriptBrowserItem* pParentItem = ItemFromIndex(parent);
-	if (pParentItem)
+	if (parent.isValid())
 	{
-		CScriptBrowserItem* pChildItem = pParentItem->GetChildByIdx(row);
-		return pChildItem ? QAbstractItemModel::createIndex(row, column, pChildItem) : QModelIndex();
+		CScriptBrowserItem* pParentItem = ItemFromIndex(parent);
+		if (pParentItem)
+		{
+			CScriptBrowserItem* pChildItem = pParentItem->GetChildByIdx(row);
+			return pChildItem ? QAbstractItemModel::createIndex(row, column, pChildItem) : QModelIndex();
+		}
 	}
-	else
+	else if (row < m_filterItems.size())
 	{
-		return QAbstractItemModel::createIndex(row, column, m_pRootItem.get());
+		return QAbstractItemModel::createIndex(row, column, m_filterItems[row].get());
 	}
+
+	return QModelIndex();
 }
 
 QModelIndex CScriptBrowserModel::parent(const QModelIndex& index) const
@@ -552,33 +490,35 @@ QModelIndex CScriptBrowserModel::parent(const QModelIndex& index) const
 
 int CScriptBrowserModel::rowCount(const QModelIndex& parent) const
 {
-	CScriptBrowserItem* pParentItem = ItemFromIndex(parent);
-	if (pParentItem)
+	if (parent.isValid())
 	{
-		return pParentItem->GetChildCount();
+		CScriptBrowserItem* pParentItem = ItemFromIndex(parent);
+		if (pParentItem)
+		{
+			return pParentItem->GetChildCount();
+		}
 	}
-	else
-	{
-		return 1;
-	}
+
+	return m_filterItems.size();
 }
 
 int CScriptBrowserModel::columnCount(const QModelIndex& parent) const
 {
-	return /*EScriptBrowserColumn::Count*/ 1; // File management will be handled by asset browser so we might as well this for now.
+	return EScriptBrowserColumn::COUNT;
 }
 
 bool CScriptBrowserModel::hasChildren(const QModelIndex& parent) const
 {
-	CScriptBrowserItem* pParentItem = ItemFromIndex(parent);
-	if (pParentItem)
+	if (parent.isValid())
 	{
-		return pParentItem->GetChildCount() > 0;
+		CScriptBrowserItem* pParentItem = ItemFromIndex(parent);
+		if (pParentItem)
+		{
+			return pParentItem->GetChildCount() > 0;
+		}
 	}
-	else
-	{
-		return true;
-	}
+
+	return m_filterItems.size() > 0;
 }
 
 QVariant CScriptBrowserModel::data(const QModelIndex& index, int role) const
@@ -588,7 +528,7 @@ QVariant CScriptBrowserModel::data(const QModelIndex& index, int role) const
 	{
 		switch (role)
 		{
-		case Qt::DisplayRole:
+		case ERole::DisplayRole:
 			{
 				switch (index.column())
 				{
@@ -601,14 +541,18 @@ QVariant CScriptBrowserModel::data(const QModelIndex& index, int role) const
 						}
 						return name;
 					}
-				case EScriptBrowserColumn::File:
+				case EScriptBrowserColumn::Sort:
 					{
-						return QString(pItem->GetFileText());
+						return QString(pItem->GetSortString());
+					}
+				case EScriptBrowserColumn::Filter:
+					{
+						return QString(pItem->GetName());
 					}
 				}
 				break;
 			}
-		case Qt::DecorationRole:
+		case ERole::DecorationRole:
 			{
 				switch (index.column())
 				{
@@ -616,14 +560,10 @@ QVariant CScriptBrowserModel::data(const QModelIndex& index, int role) const
 					{
 						return CryIcon(pItem->GetIcon());
 					}
-				case EScriptBrowserColumn::File:
-					{
-						return CryIcon(pItem->GetFileIcon());
-					}
 				}
 				break;
 			}
-		case Qt::EditRole:
+		case ERole::EditRole:
 			{
 				switch (index.column())
 				{
@@ -634,7 +574,7 @@ QVariant CScriptBrowserModel::data(const QModelIndex& index, int role) const
 				}
 				break;
 			}
-		case Qt::ToolTipRole:
+		case ERole::ToolTipRole:
 			{
 				switch (index.column())
 				{
@@ -642,14 +582,10 @@ QVariant CScriptBrowserModel::data(const QModelIndex& index, int role) const
 					{
 						return QString(pItem->GetTooltip());
 					}
-				case EScriptBrowserColumn::File:
-					{
-						return QString(pItem->GetFileToolTip());
-					}
 				}
 				break;
 			}
-		case Qt::ForegroundRole:
+		case ERole::ForegroundRole:
 			{
 				switch (index.column())
 				{
@@ -660,9 +596,13 @@ QVariant CScriptBrowserModel::data(const QModelIndex& index, int role) const
 				}
 				break;
 			}
-		case Qt::SizeHintRole:
+		case ERole::SizeHintRole:
 			{
 				return g_defaultColumnSize[index.column()];
+			}
+		case ERole::PointerRole:
+			{
+				return QVariant::fromValue(reinterpret_cast<quintptr>(pItem));
 			}
 		}
 	}
@@ -676,6 +616,18 @@ bool CScriptBrowserModel::setData(const QModelIndex& index, const QVariant& valu
 		CScriptBrowserItem* pItem = ItemFromIndex(index);
 		if (pItem)
 		{
+			const char* szNewName = value.toString().toStdString().c_str();
+			stack_string desc("Renamed '");
+			desc.append(pItem->GetName());
+			desc.append("' to '");
+			desc.append(szNewName);
+			desc.append("'");
+
+			GetIEditor()->GetIUndoManager()->Begin();
+			CrySchematycEditor::CScriptUndoObject* pUndoObject = new CrySchematycEditor::CScriptUndoObject(desc.c_str(), m_editor);
+			CUndo::Record(pUndoObject);
+			GetIEditor()->GetIUndoManager()->Accept(pUndoObject->GetDescription());
+
 			pItem->SetName(value.toString().toStdString().c_str());
 			return true;
 		}
@@ -685,38 +637,13 @@ bool CScriptBrowserModel::setData(const QModelIndex& index, const QVariant& valu
 
 QVariant CScriptBrowserModel::headerData(int section, Qt::Orientation orientation, int role) const
 {
-	if (orientation == Qt::Horizontal)
-	{
-		switch (role)
-		{
-		case Qt::DisplayRole:
-			{
-				switch (section)
-				{
-				case EScriptBrowserColumn::Name:
-					{
-						return QString("Name");
-					}
-				case EScriptBrowserColumn::File:
-					{
-						return QString("File");
-					}
-				}
-				break;
-			}
-		case Qt::SizeHintRole:
-			{
-				return g_defaultColumnSize[section];
-			}
-		}
-	}
-	return QVariant();
+	return GetHeaderData(section, orientation, role);
 }
 
 Qt::ItemFlags CScriptBrowserModel::flags(const QModelIndex& index) const
 {
 	Qt::ItemFlags flags = QAbstractItemModel::flags(index);
-	CScriptBrowserItem* pItem = ItemFromIndex(index);
+	CScriptBrowserItem* pItem = reinterpret_cast<CScriptBrowserItem*>(index.data(ERole::PointerRole).value<quintptr>());
 	if (pItem)
 	{
 		switch (pItem->GetType())
@@ -740,10 +667,39 @@ Qt::ItemFlags CScriptBrowserModel::flags(const QModelIndex& index) const
 	return flags;
 }
 
+QVariant CScriptBrowserModel::GetHeaderData(int section, Qt::Orientation orientation, int role) const
+{
+	if (orientation != Qt::Horizontal)
+	{
+		return QVariant();
+	}
+
+	const CItemModelAttribute* pAttribute = &s_columnAttributes[section];
+	if (pAttribute)
+	{
+		if (role == Qt::DisplayRole || role == Qt::ToolTipRole)
+		{
+			return pAttribute->GetName();
+		}
+		else if (role == Attributes::s_getAttributeRole)
+		{
+			return QVariant::fromValue(const_cast<CItemModelAttribute*>(pAttribute));
+		}
+		else if (role == Attributes::s_attributeMenuPathRole)
+		{
+			return "";
+		}
+	}
+
+	return QVariant();
+}
+
 void CScriptBrowserModel::Reset()
 {
+	m_filterItems.clear();
 	m_itemsByGUID.clear();
 	m_itemsByFileName.clear();
+	m_pRootItem.reset();
 
 	QAbstractItemModel::beginResetModel();
 	{
@@ -754,7 +710,7 @@ void CScriptBrowserModel::Reset()
 
 QModelIndex CScriptBrowserModel::ItemToIndex(CScriptBrowserItem* pItem, int column) const
 {
-	if (pItem)
+	if (pItem && pItem != m_pRootItem.get())
 	{
 		CScriptBrowserItem* pParentItem = pItem->GetParent();
 		if (pParentItem)
@@ -779,7 +735,7 @@ CScriptBrowserItem* CScriptBrowserModel::GetRootItem()
 	return m_pRootItem.get();
 }
 
-CScriptBrowserItem* CScriptBrowserModel::GetItemByGUID(const SGUID& guid)
+CScriptBrowserItem* CScriptBrowserModel::GetItemByGUID(const CryGUID& guid)
 {
 	ItemsByGUID::iterator itItem = m_itemsByGUID.find(guid);
 	return itItem != m_itemsByGUID.end() ? itItem->second : nullptr;
@@ -799,28 +755,61 @@ CScriptBrowserItem* CScriptBrowserModel::GetItemByFileName(const char* szFileNam
 	return nullptr;
 }
 
+Schematyc::IScriptElement* CScriptBrowserModel::GetRootElement()
+{
+	return m_pRootItem->GetScriptElement();
+}
+
 void CScriptBrowserModel::Populate()
 {
-	m_pRootItem = std::make_shared<CScriptBrowserItem>(EScriptBrowserItemType::Root, "Root", g_szScriptRootIcon);
-
-	auto visitScriptElement = [this](IScriptElement& scriptElement) -> EVisitStatus
+	IScriptElement* pScripElement = gEnv->pSchematyc->GetScriptRegistry().GetElement(m_assetGUID);
+	// TODO: Print asset guid.
+	CRY_ASSERT_MESSAGE(pScripElement, "Couldn't find Schematyc asset!");
+	// ~TODO
+	if (pScripElement)
 	{
-		const IScriptElement* pParentScriptElement = scriptElement.GetParent();
-		if (pParentScriptElement)
+		m_pRootItem = std::make_shared<CScriptBrowserItem>(EScriptBrowserItemType::ScriptElement, pScripElement->GetName(), nullptr, pScripElement);
+
+		CScriptBrowserItem* pItemBase = nullptr;
+
+		// Item
+		auto visitScriptElement = [this, &pItemBase](IScriptElement& scriptElement) -> EVisitStatus
 		{
-			CScriptBrowserItem* pParentItem = GetItemByGUID(pParentScriptElement->GetGUID());
-			if (!pParentItem)
+			const IScriptElement* pParentScriptElement = scriptElement.GetParent();
+			if (pParentScriptElement)
 			{
-				pParentItem = m_pRootItem.get();
+				CScriptBrowserItem* pParentItem = GetItemByGUID(pParentScriptElement->GetGUID());
+				CScriptBrowserItem* pItem = CreateScriptElementItem(scriptElement, EScriptBrowserItemFlags::None, pParentItem);
+
+				if (scriptElement.GetType() == EScriptElementType::Base)
+				{
+					pItemBase = pItem;
+					return EVisitStatus::Continue;
+				}
 			}
-			if (pParentItem)
-			{
-				CreateScriptElementItem(scriptElement, EScriptBrowserItemFlags::None, *pParentItem);
-			}
-		}
-		return EVisitStatus::Recurse;
-	};
-	gEnv->pSchematyc->GetScriptRegistry().GetRootElement().VisitChildren(ScriptElementVisitor::FromLambda(visitScriptElement));
+			return EVisitStatus::Recurse;
+		};
+		pScripElement->VisitChildren(visitScriptElement);
+
+		// Base
+		// TODO: Schematyc doesn't support to list components, variables etc. of derived classes yet.
+		/*if (pItemBase)
+		   {
+		   auto visitScriptElementBase = [this, pItemBase](IScriptElement& scriptElement) -> EVisitStatus
+		   {
+		    const IScriptElement* pParentScriptElement = scriptElement.GetParent();
+		    if (pParentScriptElement)
+		    {
+		      CScriptBrowserItem* pParentItem = GetItemByGUID(pParentScriptElement->GetGUID());
+		      CreateScriptElementBaseItem(scriptElement, EScriptBrowserItemFlags::None, pParentItem, pItemBase);
+		    }
+
+		    return EVisitStatus::Recurse;
+		   };
+		   pItemBase->GetScriptElement()->VisitChildren(visitScriptElementBase);
+		   }*/
+		// ~TODO
+	}
 }
 
 void CScriptBrowserModel::OnScriptRegistryChange(const SScriptRegistryChange& change)
@@ -828,45 +817,67 @@ void CScriptBrowserModel::OnScriptRegistryChange(const SScriptRegistryChange& ch
 	bool bRecompile = false;
 	bool bValidate = true;
 
-	switch (change.type)
+	// TODO: Instead of filtering here we should only listen to changes made in the current opened asset.
+	std::function<bool(IScriptElement*)> isThisElement;
+	isThisElement = [this, &isThisElement](IScriptElement* pScriptElement) -> bool
 	{
-	case EScriptRegistryChangeType::ElementAdded:
+		if (pScriptElement)
 		{
-			OnScriptElementAdded(change.element);
-			bRecompile = true;
-			break;
+			if (pScriptElement->GetType() == EScriptElementType::Class || pScriptElement->GetType() == EScriptElementType::Module)
+			{
+				if (pScriptElement == m_pRootItem->GetScriptElement())
+					return true;
+			}
+			return isThisElement(pScriptElement->GetParent());
 		}
-	case EScriptRegistryChangeType::ElementModified:
-		{
-			OnScriptElementModified(change.element);
-			bRecompile = true;
-			break;
-		}
-	case EScriptRegistryChangeType::ElementRemoved:
-		{
-			OnScriptElementRemoved(change.element);
-			bRecompile = true;
-			break;
-		}
-	case EScriptRegistryChangeType::ElementSaved:
-		{
-			OnScriptElementSaved(change.element);
-			bValidate = false;
-			break;
-		}
-	}
+		return false;
+	};
+	// ~TODO
 
-	if (bRecompile)
+	if (isThisElement(&change.element))
 	{
-		gEnv->pSchematyc->GetCompiler().CompileDependencies(change.element.GetGUID());
-	}
-
-	if (bValidate)
-	{
-		CScriptBrowserItem* pItem = GetItemByGUID(change.element.GetGUID());
-		if (pItem)
+		switch (change.type)
 		{
-			ValidateItem(*pItem);
+		case EScriptRegistryChangeType::ElementAdded:
+			{
+				OnScriptElementAdded(change.element);
+				bRecompile = false; // Happens in backend.
+				break;
+			}
+		case EScriptRegistryChangeType::ElementModified:
+			{
+				OnScriptElementModified(change.element);
+				bRecompile = true;
+				break;
+			}
+		case EScriptRegistryChangeType::ElementRemoved:
+			{
+				OnScriptElementRemoved(change.element);
+				bRecompile = false; // Happens in backend.
+				break;
+			}
+		case EScriptRegistryChangeType::ElementSaved:
+			{
+				OnScriptElementSaved(change.element);
+				bValidate = false;
+				break;
+			}
+		}
+
+		// TODO: Recompilation should not happen in editor code at all!
+		if (bRecompile)
+		{
+			gEnv->pSchematyc->GetCompiler().CompileDependencies(change.element.GetGUID());
+		}
+		// ~TODO
+
+		if (bValidate)
+		{
+			CScriptBrowserItem* pItem = GetItemByGUID(change.element.GetGUID());
+			if (pItem)
+			{
+				ValidateItem(*pItem);
+			}
 		}
 	}
 }
@@ -877,14 +888,7 @@ void CScriptBrowserModel::OnScriptElementAdded(IScriptElement& scriptElement)
 	if (pParentScriptElement)
 	{
 		CScriptBrowserItem* pParentItem = GetItemByGUID(pParentScriptElement->GetGUID());
-		if (!pParentItem)
-		{
-			pParentItem = m_pRootItem.get();
-		}
-		if (pParentItem)
-		{
-			CreateScriptElementItem(scriptElement, EScriptBrowserItemFlags::Modified, *pParentItem);
-		}
+		CreateScriptElementItem(scriptElement, EScriptBrowserItemFlags::Modified, pParentItem);
 	}
 }
 
@@ -947,85 +951,122 @@ void CScriptBrowserModel::OnScriptElementSaved(IScriptElement& scriptElement)
 		QModelIndex index = ItemToIndex(pItem);
 		QAbstractItemModel::dataChanged(index, index);
 	}
+	else if (m_pRootItem->GetScriptElement()->GetGUID() == scriptElement.GetGUID())
+	{
+		ScriptBrowserItemFlags itemFlags = m_pRootItem->GetFlags();
+		itemFlags.Remove(EScriptBrowserItemFlags::Modified);
+		m_pRootItem->SetFlags(itemFlags);
+	}
 }
 
-CScriptBrowserItem* CScriptBrowserModel::CreateScriptElementItem(IScriptElement& scriptElement, const ScriptBrowserItemFlags& flags, CScriptBrowserItem& parentItem)
+CScriptBrowserItem* CScriptBrowserModel::CreateScriptElementItem(IScriptElement& scriptElement, const ScriptBrowserItemFlags& flags, CScriptBrowserItem* pParentItem)
 {
-	// Select parent/filter item.
-	const EScriptElementType scriptElementType = scriptElement.GetElementType();
-	CScriptBrowserItem* pFilterItem = nullptr;
-
-	CScriptBrowserItem* pParentParent = parentItem.GetParent();
-	EScriptElementType parentParentType = (pParentParent) ? pParentParent->GetFilter() : EScriptElementType::Root;
-
-	if (scriptElement.GetElementType() != EScriptElementType::Class)
+	const EScriptElementType scriptElementType = scriptElement.GetType();
+	if (scriptElementType == EScriptElementType::Base)
 	{
-		if (parentItem.GetType() != EScriptBrowserItemType::ScriptElement
-			|| parentParentType == EScriptElementType::Class
-			|| parentParentType == EScriptElementType::Root
-			|| parentParentType == EScriptElementType::None
-			) //we don't want sub-filters on other levels
+		const SFilterAttributes filterAttributes = ScriptBrowserUtils::GetScriptElementFilterAttributes(EScriptElementType::Base);
+		CScriptBrowserItemPtr pBaseFilter = std::make_shared<CScriptBrowserItem>(EScriptBrowserItemType::Filter, scriptElement.GetName(), ScriptBrowserUtils::GetScriptElementIcon(scriptElement), &scriptElement);
+		pBaseFilter->SetSortString(filterAttributes.szOrder);
+		pBaseFilter->SetFlags(flags);
+		pBaseFilter->SetFilterType(EFilterType::Base);
+
+		const QModelIndex rootIndex = QModelIndex();
+		const int32 row = m_filterItems.size();
+		QAbstractItemModel::beginInsertRows(rootIndex, row, row);
+		m_filterItems.emplace_back(pBaseFilter);
+		m_pRootItem->AddChild(pBaseFilter);
+		QAbstractItemModel::endInsertRows();
+		QAbstractItemModel::dataChanged(rootIndex, rootIndex);
+
+		if (scriptElementType == EScriptElementType::Base)
 		{
-			const char* szFilter = ScriptBrowserUtils::GetScriptElementFilterName(scriptElementType);
-			if (szFilter && szFilter[0])
+			ValidateItem(*pBaseFilter);
+
+			return pBaseFilter.get();
+		}
+	}
+
+	// Select parent/filter item.
+	if (pParentItem == nullptr)
+	{
+		const SFilterAttributes filterAttributes = ScriptBrowserUtils::GetScriptElementFilterAttributes(scriptElementType);
+		if (filterAttributes.szName && filterAttributes.szName[0])
+		{
+			CScriptBrowserItem* pFilterItem = GetFilter(filterAttributes.szName);
+			if (!pFilterItem)
 			{
-				pFilterItem = parentItem.GetChildByTypeAndName(EScriptBrowserItemType::Filter, szFilter);
-				if (!pFilterItem)
-				{
-					pFilterItem = AddItem(parentItem, std::make_shared<CScriptBrowserItem>(EScriptBrowserItemType::Filter, szFilter, scriptElementType));
-
-					const uint32 childCount = parentItem.GetChildCount();
-
-					if (childCount > 0)
-					{
-						std::vector<CScriptBrowserItem*> childItems;
-						childItems.reserve(childCount);
-						for (uint32 childIdx = 0; childIdx < childCount; ++childIdx)
-						{
-							CScriptBrowserItem* pChildItem = parentItem.GetChildByIdx(childIdx);
-							const IScriptElement* pChildScriptElement = pChildItem->GetScriptElement();
-							if (pChildScriptElement && (pChildScriptElement->GetElementType() == scriptElementType))
-							{
-								childItems.push_back(pChildItem);
-							}
-						}
-
-						if (!childItems.empty())
-						{
-							for (CScriptBrowserItem* pChildItem : childItems)
-							{
-								AddItem(*pFilterItem, RemoveItem(*pChildItem));
-							}
-						}
-					}
-				}
+				pFilterItem = CreateFilter(filterAttributes);
 			}
+
+			pParentItem = pFilterItem;
+		}
+	}
+
+	CRY_ASSERT_MESSAGE(scriptElement.GetType() == Schematyc::EScriptElementType::Class || scriptElement.GetType() == Schematyc::EScriptElementType::Module || pParentItem, "Error adding script element to model because of a missing parent element.");
+	if (pParentItem)
+	{
+		// Create item.
+		stack_string filter;
+		ScriptBrowserUtils::AppendFilterTags(scriptElementType, filter);
+		filter.append(scriptElement.GetName());
+
+		CScriptBrowserItemPtr pItem = std::make_shared<CScriptBrowserItem>(EScriptBrowserItemType::ScriptElement, scriptElement.GetName(), ScriptBrowserUtils::GetScriptElementIcon(scriptElement), &scriptElement);
+		pItem->SetFlags(flags);
+		pItem->SetSortString(scriptElement.GetName());
+		pItem->SetFilterString(filter.c_str());
+
+		AddItem(*pParentItem, pItem);
+
+		m_itemsByGUID.emplace(scriptElement.GetGUID(), pItem.get());
+
+		// Set initial state of item.
+		ValidateItem(*pItem);
+		return pItem.get();
+	}
+
+	return nullptr;
+}
+
+CScriptBrowserItem* CScriptBrowserModel::CreateScriptElementBaseItem(IScriptElement& scriptElement, const ScriptBrowserItemFlags& flags, CScriptBrowserItem* pParentItem, CScriptBrowserItem* pBaseItem)
+{
+	const EScriptElementType scriptElementType = scriptElement.GetType();
+
+	// Select parent/filter item.
+	const SFilterAttributes filterAttributes = ScriptBrowserUtils::GetScriptElementFilterAttributes(scriptElementType);
+	if (filterAttributes.szName && filterAttributes.szName[0])
+	{
+		pParentItem = pBaseItem->GetChildByTypeAndName(EScriptBrowserItemType::Filter, filterAttributes.szName);
+		if (pParentItem == nullptr)
+		{
+			stack_string filter("Base ");
+			filter.append(filterAttributes.szName);
+
+			const SFilterAttributes filterAttributes = ScriptBrowserUtils::GetScriptElementFilterAttributes(scriptElementType);
+			CScriptBrowserItemPtr pFilterItem = std::make_shared<CScriptBrowserItem>(EScriptBrowserItemType::Filter, filterAttributes.szName, filterAttributes.filterType);
+			pFilterItem->SetSortString(filterAttributes.szOrder);
+			pFilterItem->SetFilterString(filter.c_str());
+
+			AddItem(*pBaseItem, pFilterItem);
+			pParentItem = pFilterItem.get();
 		}
 	}
 
 	// Create item.
-	const SGUID guid = scriptElement.GetGUID();
+	stack_string filter("Base ");
+	ScriptBrowserUtils::AppendFilterTags(scriptElementType, filter);
+	filter.append(scriptElement.GetName());
+
 	CScriptBrowserItemPtr pItem = std::make_shared<CScriptBrowserItem>(EScriptBrowserItemType::ScriptElement, scriptElement.GetName(), ScriptBrowserUtils::GetScriptElementIcon(scriptElement), &scriptElement);
 	pItem->SetFlags(flags);
-	if (pFilterItem)
-	{
-		AddItem(*pFilterItem, pItem);
-	}
-	else
-	{
-		AddItem(parentItem, pItem);
-	}
-	m_itemsByGUID.insert(ItemsByGUID::value_type(guid, pItem.get()));
+	pItem->SetSortString(scriptElement.GetName());
+	pItem->SetFilterString(filter.c_str());
+
+	AddItem(*pParentItem, pItem);
+
+	m_itemsByGUID.emplace(scriptElement.GetGUID(), pItem.get());
 
 	// Set initial state of item.
 	ValidateItem(*pItem);
-	IScript* pScript = scriptElement.GetScript();
-	if (pScript)
-	{
-		CStackString fileName;
-		CrySchematycEditor::Utils::ConstructAbsolutePath(fileName, pScript->GetName());
-		m_itemsByFileName.insert(ItemsByFileName::value_type(fileName.c_str(), pItem.get()));
-	}
 
 	return pItem.get();
 }
@@ -1034,10 +1075,12 @@ CScriptBrowserItem* CScriptBrowserModel::AddItem(CScriptBrowserItem& parentItem,
 {
 	const QModelIndex parentIndex = ItemToIndex(&parentItem);
 	const int row = parentItem.GetChildCount();
+
 	QAbstractItemModel::beginInsertRows(parentIndex, row, row);
 	parentItem.AddChild(pItem);
 	QAbstractItemModel::endInsertRows();
 	QAbstractItemModel::dataChanged(parentIndex, parentIndex);
+
 	return pItem.get();
 }
 
@@ -1050,6 +1093,17 @@ CScriptBrowserItemPtr CScriptBrowserModel::RemoveItem(CScriptBrowserItem& item)
 		QModelIndex index = ItemToIndex(&item);
 		QAbstractItemModel::beginRemoveRows(index.parent(), index.row(), index.row());
 		pResult = pParentItem->RemoveChild(&item);
+		if (item.GetType() == EScriptBrowserItemType::Filter)
+		{
+			for (auto itr = m_filterItems.begin(); itr != m_filterItems.end(); ++itr)
+			{
+				if ((*itr).get() == &item)
+				{
+					m_filterItems.erase(itr);
+					break;
+				}
+			}
+		}
 		QAbstractItemModel::endRemoveRows();
 
 		ValidateItem(*pParentItem);
@@ -1087,66 +1141,104 @@ void CScriptBrowserModel::ValidateItem(CScriptBrowserItem& item)
 	}
 }
 
-CScriptBrowserTreeView::CScriptBrowserTreeView(QWidget* pParent)
-	: QTreeView(pParent)
-{}
-
-void CScriptBrowserTreeView::keyPressEvent(QKeyEvent* pKeyEvent)
+CScriptBrowserItem* CScriptBrowserModel::GetFilter(const char* szName) const
 {
-	bool bEventHandled = false;
-	keyPress(pKeyEvent, bEventHandled);
-	if (!bEventHandled)
+	stack_string filterName = szName;
+	for (const CScriptBrowserItemPtr& filter : m_filterItems)
 	{
-		QTreeView::keyPressEvent(pKeyEvent);
+		if (filter->GetName() == filterName)
+		{
+			return filter.get();
+		}
 	}
+	return nullptr;
+}
+
+CScriptBrowserItem* CScriptBrowserModel::CreateFilter(const SFilterAttributes& filterAttributes)
+{
+	CScriptBrowserItemPtr pFilter = std::make_shared<CScriptBrowserItem>(EScriptBrowserItemType::Filter, filterAttributes.szName, filterAttributes.filterType);
+	pFilter->SetSortString(filterAttributes.szOrder);
+	pFilter->SetFilterString(filterAttributes.szName);
+
+	const QModelIndex rootIndex = QModelIndex();
+	const int32 row = m_filterItems.size();
+	QAbstractItemModel::beginInsertRows(rootIndex, row, row);
+	m_filterItems.emplace_back(pFilter);
+	m_pRootItem->AddChild(pFilter);
+	QAbstractItemModel::endInsertRows();
+	QAbstractItemModel::dataChanged(rootIndex, rootIndex);
+
+	return pFilter.get();
+}
+
+bool CScriptBrowserModel::HasUnsavedChanged()
+{
+	std::function<bool(CScriptBrowserItem*)> hasUnsavedChanges;
+	hasUnsavedChanges = [&hasUnsavedChanges](CScriptBrowserItem* pItem) -> bool
+	{
+		if (pItem && !pItem->GetFlags().Check(EScriptBrowserItemFlags::Modified))
+		{
+			for (uint32 i = pItem->GetChildCount(); i--; )
+			{
+				if (hasUnsavedChanges(pItem->GetChildByIdx(i)))
+					return true;
+			}
+			return false;
+		}
+		return true;
+
+	};
+
+	return hasUnsavedChanges(m_pRootItem.get());
 }
 
 SScriptBrowserSelection::SScriptBrowserSelection(IScriptElement* _pScriptElement)
 	: pScriptElement(_pScriptElement)
 {}
 
-CScriptBrowserWidget::CScriptBrowserWidget(QWidget* pParent)
-	: QWidget(pParent)
+CScriptBrowserWidget::CScriptBrowserWidget(CrySchematycEditor::CMainWindow& editor)
+	: QWidget(&editor)
+	, m_editor(editor)
 	, m_pContextMenu(nullptr)
+	, m_pModel(nullptr)
+	, m_pFilterProxy(nullptr)
+	, m_pAsset(nullptr)
 {
 	m_pMainLayout = new QBoxLayout(QBoxLayout::TopToBottom);
 	m_pHeaderLayout = new QBoxLayout(QBoxLayout::LeftToRight);
-	m_pAddButton = new QPushButton(CryIcon(g_szAddIcon), "Add", this);
+	m_pAddButton = new QPushButton("Add", this);
 	m_pAddMenu = new QMenu("Add", this);
-	m_pTreeView = new CScriptBrowserTreeView(this);
-	m_pModel = new CScriptBrowserModel(this);
-	m_pFilter = new CScriptBrowserFilter(this, *m_pModel);
 
-	m_pSearchFilter = new QLineEdit(this);
-	m_pSearchFilter->setPlaceholderText("Search");   // #SchematycTODO : Add drop down history to filter text?
-
-	m_pAddButton->setMenu(m_pAddMenu);
-
-	m_pFilter->setDynamicSortFilter(true);
-	m_pFilter->setSourceModel(m_pModel);
-	m_pTreeView->setModel(m_pFilter);
-
-	m_pTreeView->sortByColumn(0, Qt::AscendingOrder);
-	m_pTreeView->setContextMenuPolicy(Qt::CustomContextMenu);
-	m_pTreeView->setEditTriggers(QAbstractItemView::SelectedClicked);
+	const uint32 behaviorFlags = QAdvancedTreeView::PreserveExpandedAfterReset | QAdvancedTreeView::PreserveSelectionAfterReset | QAdvancedTreeView::UseItemModelAttribute;
+	m_pTreeView = new QAdvancedTreeView(static_cast<QAdvancedTreeView::Behavior>(behaviorFlags));
 	m_pTreeView->setSelectionMode(QAbstractItemView::SingleSelection);
+	m_pTreeView->setItemsExpandable(true);
+	m_pTreeView->setHeaderHidden(true);
+	m_pTreeView->setMouseTracking(true);
+	m_pTreeView->setSortingEnabled(true);
+	m_pTreeView->setContextMenuPolicy(Qt::CustomContextMenu);
+	m_pTreeView->setEditTriggers(QAbstractItemView::DoubleClicked);
 	m_pTreeView->setExpandsOnDoubleClick(false);
 
-	m_pTreeView->selectionModel()->setCurrentIndex(TreeViewFromModelIndex(m_pModel->ItemToIndex(m_pModel->GetRootItem())), QItemSelectionModel::ClearAndSelect);
+	m_pFilter = new QSearchBox(this);
+	m_pFilter->EnableContinuousSearch(true);
+	m_pFilter->setPlaceholderText("Search");
+	m_pFilter->signalOnFiltered.Connect(this, &CScriptBrowserWidget::OnFiltered);
 
-	connect(m_pSearchFilter, SIGNAL(textChanged(const QString &)), this, SLOT(OnSearchFilterChanged(const QString &)));
-	connect(m_pAddMenu, SIGNAL(aboutToShow()), this, SLOT(OnAddMenuShow()));
-	connect(m_pTreeView, SIGNAL(doubleClicked(const QModelIndex &)), this, SLOT(OnTreeViewDoubleClicked(const QModelIndex &)));
-	connect(m_pTreeView, SIGNAL(customContextMenuRequested(const QPoint &)), this, SLOT(OnTreeViewCustomContextMenuRequested(const QPoint &)));
-	connect(m_pTreeView, SIGNAL(keyPress(QKeyEvent*, bool&)), this, SLOT(OnTreeViewKeyPress(QKeyEvent*, bool&)));
-	connect(m_pTreeView->selectionModel(), SIGNAL(selectionChanged(const QItemSelection &, const QItemSelection &)), this, SLOT(OnSelectionChanged(const QItemSelection &, const QItemSelection &)));
+	m_pAddButton->setMenu(m_pAddMenu);
+	m_pAddButton->setEnabled(false);
+
+	QObject::connect(m_pTreeView, SIGNAL(clicked(const QModelIndex &)), this, SLOT(OnTreeViewClicked(const QModelIndex &)));
+	QObject::connect(m_pTreeView, SIGNAL(customContextMenuRequested(const QPoint &)), this, SLOT(OnTreeViewCustomContextMenuRequested(const QPoint &)));
+	QObject::connect(m_pTreeView, SIGNAL(keyPress(QKeyEvent*, bool&)), this, SLOT(OnTreeViewKeyPress(QKeyEvent*, bool&)));
 
 	QWidget::startTimer(500);
 }
 
 CScriptBrowserWidget::~CScriptBrowserWidget()
 {
-	m_pTreeView->setModel(nullptr);
+	if (m_pTreeView)
+		m_pTreeView->setModel(nullptr);
 }
 
 void CScriptBrowserWidget::InitLayout()
@@ -1155,96 +1247,86 @@ void CScriptBrowserWidget::InitLayout()
 	m_pMainLayout->setSpacing(1);
 	m_pMainLayout->setMargin(1);
 
-	m_pHeaderLayout->addWidget(m_pSearchFilter), 1;
+	m_pHeaderLayout->addWidget(m_pFilter), 1;
 	m_pHeaderLayout->addWidget(m_pAddButton), 1;
 
 	m_pMainLayout->addLayout(m_pHeaderLayout, 1);
 	m_pMainLayout->addWidget(m_pTreeView, 1);
-
-	/*for (int column = 0; column < EScriptBrowserColumn::Count; ++column)
-	   {
-	   m_pTreeView->header()->resizeSection(column, g_defaultColumnSize[column].width());
-	   }*/
 }
 
-void CScriptBrowserWidget::Reset()
+void CScriptBrowserWidget::SelectItem(const CryGUID& guid)
 {
-	m_pModel->Reset();
-}
-
-void CScriptBrowserWidget::SelectItem(const SGUID& guid)
-{
-	CScriptBrowserItem* pItem = m_pModel->GetItemByGUID(guid);
-	if (pItem)
+	if (m_pModel)
 	{
-		const QModelIndex itemIndex = TreeViewFromModelIndex(m_pModel->ItemToIndex(pItem));
-		m_pTreeView->selectionModel()->setCurrentIndex(itemIndex, QItemSelectionModel::ClearAndSelect);
-	}
-}
-
-bool CScriptBrowserWidget::SetScope(bool classOnly)
-{
-	if (classOnly)
-	{
-		CScriptBrowserItem* pItem = m_pModel->ItemFromIndex(TreeViewToModelIndex(GetTreeViewSelection()));
+		CScriptBrowserItem* pItem = m_pModel->GetItemByGUID(guid);
 		if (pItem)
 		{
-			while (pItem->GetType() != EScriptBrowserItemType::Root)
-			{
-				Schematyc::IScriptElement* pScriptElement = pItem->GetScriptElement();
-				if (pScriptElement)
-				{
-					const Schematyc::EScriptElementType type = pScriptElement->GetElementType();
-					if (type != Schematyc::EScriptElementType::Class)
-					{
-						pItem = pItem->GetParent();
-						CRY_ASSERT(pItem);
-						if (pItem == nullptr)
-						{
-							return false;
-						}
-						continue;
-					}
-
-					pItem = pItem->GetParent();
-					if (pItem)
-					{
-						const QModelIndex index = TreeViewFromModelIndex(m_pModel->ItemToIndex(pItem));
-						if (index.isValid())
-						{
-							m_pTreeView->setRootIndex(index);
-
-							m_pFilter->SetScope(index);
-							m_pFilter->invalidate();
-							return true;
-						}
-					}
-				}
-				else
-				{
-					pItem = pItem->GetParent();
-				}
-			}
+			const QModelIndex itemIndex = TreeViewFromModelIndex(m_pModel->ItemToIndex(pItem));
+			m_pTreeView->selectionModel()->setCurrentIndex(itemIndex, QItemSelectionModel::ClearAndSelect);
+			m_signals.selection.Send(SScriptBrowserSelection(pItem ? pItem->GetScriptElement() : nullptr));
 		}
 	}
-	else
-	{
-		CScriptBrowserItem* pRootItem = m_pModel->GetRootItem();
-		if (pRootItem)
-		{
-			const QModelIndex index = TreeViewFromModelIndex(m_pModel->ItemToIndex(pRootItem));
-			if (index.isValid())
-			{
-				m_pTreeView->setRootIndex(index);
+}
 
-				m_pFilter->SetScope(index);
-				m_pFilter->invalidate();
+CryGUID CScriptBrowserWidget::GetSelectedItemGUID() const
+{
+	const QItemSelection selection = m_pTreeView->selectionModel()->selection();
+	if (selection.indexes().size() > 0)
+	{
+		if (const CScriptBrowserItem* pItem = m_pModel->ItemFromIndex(TreeViewToModelIndex(selection.indexes().at(0))))
+		{
+			if (IScriptElement* pScriptElement = pItem->GetScriptElement())
+				return pScriptElement->GetGUID();
+		}
+	}
+	return CryGUID::Null();
+}
+
+bool CScriptBrowserWidget::SetModel(CScriptBrowserModel* pModel)
+{
+	if (m_pFilterProxy)
+	{
+		m_pFilterProxy->setSourceModel(nullptr);
+		m_pFilterProxy->deleteLater();
+		QObject::disconnect(m_pFilterProxy);
+		m_pFilterProxy = nullptr;
+	}
+
+	if (pModel)
+	{
+		CScriptBrowserItem* pItem = pModel->GetRootItem();
+		if (pItem && pItem->GetType() == EScriptBrowserItemType::ScriptElement)
+		{
+			IScriptElement* pScriptElement = pItem->GetScriptElement();
+			if (pScriptElement && (pScriptElement->GetType() == EScriptElementType::Class || pScriptElement->GetType() == EScriptElementType::Module))
+			{
+				m_pModel = pModel;
+				m_pAsset = &m_pModel->GetAsset();
+
+				const CScriptElementFilterProxyModel::BehaviorFlags filterBehavior = CScriptElementFilterProxyModel::AcceptIfChildMatches | CScriptElementFilterProxyModel::AcceptIfParentMatches;
+				m_pFilterProxy = new CScriptElementFilterProxyModel(filterBehavior, this);
+				m_pFilterProxy->setSourceModel(m_pModel);
+				m_pFilterProxy->setFilterKeyColumn(EScriptBrowserColumn::Filter);
+
+				m_pTreeView->sortByColumn(EScriptBrowserColumn::Sort, Qt::SortOrder::AscendingOrder);
+
+				m_pFilter->SetModel(m_pFilterProxy);
+				m_pTreeView->setModel(m_pFilterProxy);
+				m_pTreeView->expandToDepth(0);
+
+				m_pAddMenu->clear();
+				PopulateAddMenu(m_pAddMenu, m_pModel->GetRootElement());
+				m_pAddButton->setEnabled(!m_pAddMenu->isEmpty());
+
 				return true;
 			}
 		}
 	}
 
-	return false;
+	m_pModel = nullptr;
+	m_pAddMenu->clear();
+	m_pAddButton->setEnabled(false);
+	return (pModel == nullptr);
 }
 
 void CScriptBrowserWidget::Serialize(Serialization::IArchive& archive)
@@ -1266,138 +1348,102 @@ ScriptBrowserSelectionSignal::Slots& CScriptBrowserWidget::GetSelectionSignalSlo
 	return m_signals.selection.GetSlots();
 }
 
-bool CScriptBrowserWidget::HasUnsavedScriptElements() const
+bool CScriptBrowserWidget::HasScriptUnsavedChanges() const
 {
-	std::function<bool(CScriptBrowserItem*)> hasUnsavedChanges;
-	hasUnsavedChanges = [&hasUnsavedChanges](CScriptBrowserItem* pItem) -> bool
+	if (m_pModel)
 	{
-		if (pItem && !pItem->GetFlags().Check(EScriptBrowserItemFlags::Modified))
-		{
-			for (uint32 i = pItem->GetChildCount(); i--; )
-			{
-				if (hasUnsavedChanges(pItem->GetChildByIdx(i)))
-					return true;
-			}
-			return false;
-		}
-		return true;
-	};
-
-	return hasUnsavedChanges(m_pModel->GetRootItem());
+		return m_pModel->HasUnsavedChanged();
+	}
+	return false;
 }
 
-void CScriptBrowserWidget::OnSearchFilterChanged(const QString& text)
+void CScriptBrowserWidget::OnFiltered()
 {
-	if (m_pSearchFilter)
+	const QString text = m_pFilter->text();
+	if (!text.isEmpty())
 	{
-		m_pFilter->SetFilterText(text.toStdString().c_str());
-		m_pFilter->invalidate();
-		ExpandAll();
+		m_pTreeView->expandAll();
+	}
+	else
+	{
+		m_pTreeView->collapseAll();
+		m_pTreeView->expandToDepth(0);
 	}
 }
 
-void CScriptBrowserWidget::OnAddMenuShow()
+void CScriptBrowserWidget::OnTreeViewClicked(const QModelIndex& index)
 {
-	CScriptBrowserItem* pItem = m_pModel->ItemFromIndex(TreeViewToModelIndex(GetTreeViewSelection()));
-	RefreshAddMenu(pItem);
+	if (index.isValid())
+	{
+		if (m_pModel)
+		{
+			CScriptBrowserItem* pItem = m_pModel->ItemFromIndex(TreeViewToModelIndex(index));
+			if (pItem)
+			{
+				m_signals.selection.Send(SScriptBrowserSelection(pItem ? pItem->GetScriptElement() : nullptr));
+			}
+		}
+	}
 }
-
-void CScriptBrowserWidget::OnTreeViewDoubleClicked(const QModelIndex& index) {}
 
 void CScriptBrowserWidget::OnTreeViewCustomContextMenuRequested(const QPoint& position)
 {
-	QModelIndex index = m_pTreeView->indexAt(position);
-	CScriptBrowserItem* pItem = m_pModel->ItemFromIndex(TreeViewToModelIndex(index));
-	if (pItem)
+	if (m_pModel)
 	{
 		QMenu contextMenu;
-		m_pContextMenu = &contextMenu;
 
-		switch (index.column())
+		QModelIndex index = m_pTreeView->indexAt(position);
+		CScriptBrowserItem* pItem = m_pModel->ItemFromIndex(TreeViewToModelIndex(index));
+		if (pItem)
 		{
-		case EScriptBrowserColumn::Name:
+			m_pContextMenu = &contextMenu;
+
+			IScriptElement* pScriptElement = pItem->GetScriptElement();
+			if (pScriptElement)
 			{
-				IScriptElement* pScriptElement = pItem->GetScriptElement();
-				if (pScriptElement)
+				QMenu* pAddMenu = new QMenu("Add");
+
+				PopulateAddMenu(pAddMenu, pScriptElement);
+				if (!pAddMenu->isEmpty())
 				{
-					/*{
-					   QAction* pScopeToThisAction = contextMenu.addAction(QString("Scope To This"));
-					   connect(pScopeToThisAction, SIGNAL(triggered()), this, SLOT(OnScopeToThis()));
-					   }*/
-
-					/*{
-						QAction* pFindReferencesAction = contextMenu.addAction(QString("Find references"));
-						connect(pFindReferencesAction, SIGNAL(triggered()), this, SLOT(OnFindReferences()));
-					}*/
-
-					//contextMenu.addSeparator();
-
-					if (!m_pAddMenu->isEmpty())
-					{
-						contextMenu.addMenu(m_pAddMenu);
-					}
-
-					/*if(ScriptBrowserUtils::CanCopyScriptElement(*pScriptElement))
-					{
-						QAction* pCopyAction = contextMenu.addAction(QString("Copy"));
-						connect(pCopyAction, SIGNAL(triggered()), this, SLOT(OnCopyItem()));
-					}*/
-
-					// #SchematycTODO : Verify clipboard contents.
-					/*{
-						QAction* pPasteAction = contextMenu.addAction(QString("Paste"));
-						pPasteAction->setEnabled(CrySchematycEditor::Utils::ValidateClipboardContents(g_szClipboardPrefix));
-						connect(pPasteAction, SIGNAL(triggered()), this, SLOT(OnPasteItem()));
-					}*/
-
-					if (ScriptBrowserUtils::CanRemoveScriptElement(*pScriptElement))
-					{
-						QAction* pRemoveAction = contextMenu.addAction(QString("Remove"));
-						connect(pRemoveAction, SIGNAL(triggered()), this, SLOT(OnRemoveItem()));
-					}
-
-					if (ScriptBrowserUtils::CanRenameScriptElement(*pScriptElement))
-					{
-						QAction* pRenameAction = contextMenu.addAction(QString("Rename"));
-						connect(pRenameAction, SIGNAL(triggered()), this, SLOT(OnRenameItem()));
-					}
-				}
-				else
-				{
-					if (!m_pAddMenu->isEmpty())
-					{
-						contextMenu.addMenu(m_pAddMenu);
-					}
+					contextMenu.addMenu(pAddMenu);
 				}
 
-				break;
+				if (ScriptBrowserUtils::CanRemoveScriptElement(*pScriptElement))
+				{
+					QAction* pRemoveAction = contextMenu.addAction(QString("Remove"));
+					QObject::connect(pRemoveAction, SIGNAL(triggered()), this, SLOT(OnRemoveItem()));
+				}
+
+				if (ScriptBrowserUtils::CanRenameScriptElement(*pScriptElement))
+				{
+					QAction* pRenameAction = contextMenu.addAction(QString("Rename"));
+					QObject::connect(pRenameAction, SIGNAL(triggered()), this, SLOT(OnRenameItem()));
+				}
 			}
-		case EScriptBrowserColumn::File:
+			else
 			{
-				const ScriptBrowserItemFlags itemFlags = pItem->GetFlags();
-				if (itemFlags.Check(EScriptBrowserItemFlags::FileLocal))
+				if (pItem->GetType() == EScriptBrowserItemType::Filter && pItem->GetParent() == m_pModel->GetRootItem())
 				{
-					if (!itemFlags.Check(EScriptBrowserItemFlags::FileReadOnly))
-					{
-						QAction* pSaveAction = contextMenu.addAction(QString("Save"));
-						connect(pSaveAction, SIGNAL(triggered()), this, SLOT(OnSave()));
-					}
-					contextMenu.addSeparator();
+					PopulateFilterMenu(&contextMenu, pItem->GetFilterType());
 				}
-				else if (itemFlags.Check(EScriptBrowserItemFlags::FileInPak))
-				{
-					QAction* pExtractAction = contextMenu.addAction(QString("Extract"));
-					connect(pExtractAction, SIGNAL(triggered()), this, SLOT(OnExtract()));
-				}
-
-				break;
 			}
 		}
+		/*else
+		   {
+		   RefreshAddMenu(m_pScriptElement);
+		   if (!m_pAddMenu->isEmpty())
+		   {
+		    m_pContextMenu = m_pAddMenu;
+		   }
+		   }*/
 
-		const QPoint globalPosition = m_pTreeView->viewport()->mapToGlobal(position);
-		contextMenu.exec(globalPosition);
-
-		m_pContextMenu = nullptr;
+		if (m_pContextMenu)
+		{
+			const QPoint globalPosition = m_pTreeView->viewport()->mapToGlobal(position);
+			m_pContextMenu->exec(globalPosition);
+			m_pContextMenu = nullptr;
+		}
 	}
 }
 
@@ -1406,192 +1452,244 @@ void CScriptBrowserWidget::OnTreeViewKeyPress(QKeyEvent* pKeyEvent, bool& bEvent
 	bEventHandled = HandleKeyPress(pKeyEvent);
 }
 
-void CScriptBrowserWidget::OnSelectionChanged(const QItemSelection& selected, const QItemSelection& deselected)
-{
-	CScriptBrowserItem* pItem = m_pModel->ItemFromIndex(TreeViewToModelIndex(GetTreeViewSelection()));
-	if (pItem)
-	{
-		RefreshAddMenu(pItem); // #SchematycTODO : Decide where best to call RefreshAddMenu(), either on 'about to show' or 'selection changed'.
-
-		m_pAddButton->setEnabled(!m_pAddMenu->isEmpty());
-
-		m_signals.selection.Send(SScriptBrowserSelection(pItem ? pItem->GetScriptElement() : nullptr));
-	}
-}
-
-void CScriptBrowserWidget::OnScopeToThis()
-{
-	//SetScope(TreeViewToModelIndex(GetTreeViewSelection()));
-}
-
 void CScriptBrowserWidget::OnFindReferences()
 {
-	CScriptBrowserItem* pItem = m_pModel->ItemFromIndex(TreeViewToModelIndex(GetTreeViewSelection()));
-	if (pItem)
-	{
-		IScriptElement* pScriptElement = pItem->GetScriptElement();
-		if (pScriptElement)
-		{
-			ScriptBrowserUtils::FindReferences(*pScriptElement);
-		}
-	}
-}
-
-void CScriptBrowserWidget::OnAddItem()
-{
-	QAction* pAddItemAction = static_cast<QAction*>(sender());
-	if (pAddItemAction)
+	if (m_pModel)
 	{
 		CScriptBrowserItem* pItem = m_pModel->ItemFromIndex(TreeViewToModelIndex(GetTreeViewSelection()));
 		if (pItem)
 		{
-			switch (pItem->GetType())
+			IScriptElement* pScriptElement = pItem->GetScriptElement();
+			if (pScriptElement)
 			{
-			case EScriptBrowserItemType::Root:
-			case EScriptBrowserItemType::ScriptElement:
-				{
-					IScriptRegistry& scriptRegistry = gEnv->pSchematyc->GetScriptRegistry();
-					IScriptElement* pScriptScope = pItem->GetScriptElement();
-					if (!pScriptScope)
-					{
-						pScriptScope = &scriptRegistry.GetRootElement();
-					}
+				ScriptBrowserUtils::FindReferences(*pScriptElement);
+			}
+		}
+	}
+}
 
-					IScriptElement* pScriptElement = nullptr;
-					bool bRenameElement = false; // #SchematycTODO : Rather than deciding whether to rename based on element type we should probably introduce a 'EScriptElementFlags::IsRenameable' flag.
-					// #SchematycTODO : Move this to ScriptBrowserUtils.h?
-					switch (static_cast<EScriptElementType>(pAddItemAction->data().toInt()))
-					{
-					case EScriptElementType::Module:
-						{
-							pScriptElement = ScriptBrowserUtils::AddScriptModule(pScriptScope);
-							bRenameElement = true;
-							break;
-						}
-					case EScriptElementType::Enum:
-						{
-							pScriptElement = ScriptBrowserUtils::AddScriptEnum(pScriptScope);
-							bRenameElement = true;
-							break;
-						}
-					case EScriptElementType::Struct:
-						{
-							pScriptElement = ScriptBrowserUtils::AddScriptStruct(pScriptScope);
-							bRenameElement = true;
-							break;
-						}
-					case EScriptElementType::Signal:
-						{
-							pScriptElement = ScriptBrowserUtils::AddScriptSignal(pScriptScope);
-							bRenameElement = true;
-							break;
-						}
-					case EScriptElementType::Function:
-						{
-							pScriptElement = ScriptBrowserUtils::AddScriptFunction(pScriptScope);
-							bRenameElement = true;
-							break;
-						}
-					case EScriptElementType::Interface:
-						{
-							pScriptElement = ScriptBrowserUtils::AddScriptInterface(pScriptScope);
-							bRenameElement = true;
-							break;
-						}
-					case EScriptElementType::InterfaceFunction:
-						{
-							pScriptElement = ScriptBrowserUtils::AddScriptInterfaceFunction(pScriptScope);
-							bRenameElement = true;
-							break;
-						}
-					case EScriptElementType::InterfaceTask:
-						{
-							pScriptElement = ScriptBrowserUtils::AddScriptInterfaceTask(pScriptScope);
-							bRenameElement = true;
-							break;
-						}
-					case EScriptElementType::Class:
-						{
-							pScriptElement = ScriptBrowserUtils::AddScriptClass(pScriptScope);
-							bRenameElement = true;
-							break;
-						}
-					case EScriptElementType::StateMachine:
-						{
-							pScriptElement = ScriptBrowserUtils::AddScriptStateMachine(pScriptScope);
-							bRenameElement = true;
-							break;
-						}
-					case EScriptElementType::State:
-						{
-							pScriptElement = ScriptBrowserUtils::AddScriptState(pScriptScope);
-							bRenameElement = true;
-							break;
-						}
-					case EScriptElementType::Variable:
-						{
-							pScriptElement = ScriptBrowserUtils::AddScriptVariable(pScriptScope);
-							bRenameElement = true;
-							break;
-						}
-					case EScriptElementType::Timer:
-						{
-							pScriptElement = ScriptBrowserUtils::AddScriptTimer(pScriptScope);
-							bRenameElement = true;
-							break;
-						}
-					case EScriptElementType::SignalReceiver:
-						{
-							pScriptElement = ScriptBrowserUtils::AddScriptSignalReceiver(pScriptScope);
-							bRenameElement = true;
-							break;
-						}
-					case EScriptElementType::InterfaceImpl:
-						{
-							pScriptElement = ScriptBrowserUtils::AddScriptInterfaceImpl(pScriptScope);
-							bRenameElement = false;
-							break;
-						}
-					case EScriptElementType::ComponentInstance:
-						{
-							if (m_pContextMenu)
-							{
-								QPoint pos = m_pContextMenu->pos();
-								pScriptElement = ScriptBrowserUtils::AddScriptComponentInstance(pScriptScope, &pos);
-							}
-							else if (m_pAddMenu)
-							{
-								QPoint pos = m_pAddMenu->pos();
-								pScriptElement = ScriptBrowserUtils::AddScriptComponentInstance(pScriptScope, &pos);
-							}
-							else
-							{
-								pScriptElement = ScriptBrowserUtils::AddScriptComponentInstance(pScriptScope);
-							}
-							bRenameElement = true;
-							break;
-						}
-					case EScriptElementType::ActionInstance:
-						{
-							pScriptElement = ScriptBrowserUtils::AddScriptActionInstance(pScriptScope);
-							bRenameElement = true;
-							break;
-						}
-					}
-					if (pScriptElement)
-					{
-						CScriptBrowserItem* pItem = m_pModel->GetItemByGUID(pScriptElement->GetGUID());
-						if (pItem)
-						{
-							const QModelIndex itemIndex = TreeViewFromModelIndex(m_pModel->ItemToIndex(pItem));
-							m_pTreeView->selectionModel()->setCurrentIndex(itemIndex, QItemSelectionModel::ClearAndSelect);
-							if (bRenameElement)
-							{
-								m_pTreeView->edit(itemIndex);
-							}
-						}
-					}
-					break;
+void CScriptBrowserWidget::OnAddItem(IScriptElement* pScriptElement, EScriptElementType elementType)
+{
+	if (m_pModel)
+	{
+		IScriptElement* pScriptScope = pScriptElement;
+		if (!pScriptElement)
+		{
+			pScriptScope = m_pModel->GetRootElement();
+		}
+
+		bool bRenameElement = false;
+		switch (elementType)
+		{
+		/*case EScriptElementType::Module:
+		   {
+		    pScriptElement = ScriptBrowserUtils::AddScriptModule(pScriptScope);
+		    bRenameElement = true;
+		    break;
+		   }*/
+		case EScriptElementType::Enum:
+			{
+				GetIEditor()->GetIUndoManager()->Begin();
+				CrySchematycEditor::CScriptUndoObject* pUndoObject = new CrySchematycEditor::CScriptUndoObject("Added Enumeration", m_editor);
+				CUndo::Record(pUndoObject);
+				GetIEditor()->GetIUndoManager()->Accept(pUndoObject->GetDescription());
+
+				pScriptElement = ScriptBrowserUtils::AddScriptEnum(pScriptScope);
+				bRenameElement = true;
+				break;
+			}
+		case EScriptElementType::Struct:
+			{
+				GetIEditor()->GetIUndoManager()->Begin();
+				CrySchematycEditor::CScriptUndoObject* pUndoObject = new CrySchematycEditor::CScriptUndoObject("Added Struct", m_editor);
+				CUndo::Record(pUndoObject);
+				GetIEditor()->GetIUndoManager()->Accept(pUndoObject->GetDescription());
+
+				pScriptElement = ScriptBrowserUtils::AddScriptStruct(pScriptScope);
+				bRenameElement = true;
+				break;
+			}
+		case EScriptElementType::Signal:
+			{
+				GetIEditor()->GetIUndoManager()->Begin();
+				CrySchematycEditor::CScriptUndoObject* pUndoObject = new CrySchematycEditor::CScriptUndoObject("Added Signal", m_editor);
+				CUndo::Record(pUndoObject);
+				GetIEditor()->GetIUndoManager()->Accept(pUndoObject->GetDescription());
+
+				pScriptElement = ScriptBrowserUtils::AddScriptSignal(pScriptScope);
+				bRenameElement = true;
+				break;
+			}
+		case EScriptElementType::Function:
+			{
+				GetIEditor()->GetIUndoManager()->Begin();
+				CrySchematycEditor::CScriptUndoObject* pUndoObject = new CrySchematycEditor::CScriptUndoObject("Added Function Graph", m_editor);
+				CUndo::Record(pUndoObject);
+				GetIEditor()->GetIUndoManager()->Accept(pUndoObject->GetDescription());
+
+				pScriptElement = ScriptBrowserUtils::AddScriptFunction(pScriptScope);
+				bRenameElement = true;
+				break;
+			}
+		case EScriptElementType::Interface:
+			{
+				GetIEditor()->GetIUndoManager()->Begin();
+				CrySchematycEditor::CScriptUndoObject* pUndoObject = new CrySchematycEditor::CScriptUndoObject("Added Interface", m_editor);
+				CUndo::Record(pUndoObject);
+				GetIEditor()->GetIUndoManager()->Accept(pUndoObject->GetDescription());
+
+				pScriptElement = ScriptBrowserUtils::AddScriptInterface(pScriptScope);
+				bRenameElement = true;
+				break;
+			}
+		case EScriptElementType::InterfaceFunction:
+			{
+				GetIEditor()->GetIUndoManager()->Begin();
+				CrySchematycEditor::CScriptUndoObject* pUndoObject = new CrySchematycEditor::CScriptUndoObject("Added Interface Function", m_editor);
+				CUndo::Record(pUndoObject);
+				GetIEditor()->GetIUndoManager()->Accept(pUndoObject->GetDescription());
+
+				pScriptElement = ScriptBrowserUtils::AddScriptInterfaceFunction(pScriptScope);
+				bRenameElement = true;
+				break;
+			}
+		case EScriptElementType::InterfaceTask:
+			{
+				GetIEditor()->GetIUndoManager()->Begin();
+				CrySchematycEditor::CScriptUndoObject* pUndoObject = new CrySchematycEditor::CScriptUndoObject("Added Interface Task", m_editor);
+				CUndo::Record(pUndoObject);
+				GetIEditor()->GetIUndoManager()->Accept(pUndoObject->GetDescription());
+
+				pScriptElement = ScriptBrowserUtils::AddScriptInterfaceTask(pScriptScope);
+				bRenameElement = true;
+				break;
+			}
+		/*case EScriptElementType::Class:
+		   {
+		    pScriptElement = ScriptBrowserUtils::AddScriptClass(pScriptScope);
+		    bRenameElement = true;
+		    break;
+		   }*/
+		case EScriptElementType::StateMachine:
+			{
+				GetIEditor()->GetIUndoManager()->Begin();
+				CrySchematycEditor::CScriptUndoObject* pUndoObject = new CrySchematycEditor::CScriptUndoObject("Added State Machine", m_editor);
+				CUndo::Record(pUndoObject);
+				GetIEditor()->GetIUndoManager()->Accept(pUndoObject->GetDescription());
+
+				pScriptElement = ScriptBrowserUtils::AddScriptStateMachine(pScriptScope);
+				bRenameElement = true;
+				break;
+			}
+		case EScriptElementType::State:
+			{
+				GetIEditor()->GetIUndoManager()->Begin();
+				CrySchematycEditor::CScriptUndoObject* pUndoObject = new CrySchematycEditor::CScriptUndoObject("Added State", m_editor);
+				CUndo::Record(pUndoObject);
+				GetIEditor()->GetIUndoManager()->Accept(pUndoObject->GetDescription());
+
+				pScriptElement = ScriptBrowserUtils::AddScriptState(pScriptScope);
+				bRenameElement = true;
+				break;
+			}
+		case EScriptElementType::Variable:
+			{
+				GetIEditor()->GetIUndoManager()->Begin();
+				CrySchematycEditor::CScriptUndoObject* pUndoObject = new CrySchematycEditor::CScriptUndoObject("Added Variable", m_editor);
+				CUndo::Record(pUndoObject);
+				GetIEditor()->GetIUndoManager()->Accept(pUndoObject->GetDescription());
+
+				pScriptElement = ScriptBrowserUtils::AddScriptVariable(pScriptScope);
+				bRenameElement = true;
+				break;
+			}
+		case EScriptElementType::Timer:
+			{
+				GetIEditor()->GetIUndoManager()->Begin();
+				CrySchematycEditor::CScriptUndoObject* pUndoObject = new CrySchematycEditor::CScriptUndoObject("Added Timer", m_editor);
+				CUndo::Record(pUndoObject);
+				GetIEditor()->GetIUndoManager()->Accept(pUndoObject->GetDescription());
+
+				pScriptElement = ScriptBrowserUtils::AddScriptTimer(pScriptScope);
+				bRenameElement = true;
+				break;
+			}
+		case EScriptElementType::SignalReceiver:
+			{
+				GetIEditor()->GetIUndoManager()->Begin();
+				CrySchematycEditor::CScriptUndoObject* pUndoObject = new CrySchematycEditor::CScriptUndoObject("Added Signal Receiver", m_editor);
+				CUndo::Record(pUndoObject);
+				GetIEditor()->GetIUndoManager()->Accept(pUndoObject->GetDescription());
+
+				pScriptElement = ScriptBrowserUtils::AddScriptSignalReceiver(pScriptScope);
+				bRenameElement = true;
+				break;
+			}
+		case EScriptElementType::InterfaceImpl:
+			{
+				GetIEditor()->GetIUndoManager()->Begin();
+				CrySchematycEditor::CScriptUndoObject* pUndoObject = new CrySchematycEditor::CScriptUndoObject("Added Interface Implementation", m_editor);
+				CUndo::Record(pUndoObject);
+				GetIEditor()->GetIUndoManager()->Accept(pUndoObject->GetDescription());
+
+				if (m_pContextMenu)
+				{
+					QPoint pos = m_pContextMenu->pos();
+					pScriptElement = ScriptBrowserUtils::AddScriptInterfaceImpl(pScriptScope, &pos);
+				}
+				else if (m_pAddMenu)
+				{
+					QPoint pos = m_pAddMenu->pos();
+					pScriptElement = ScriptBrowserUtils::AddScriptInterfaceImpl(pScriptScope, &pos);
+				}
+				else
+				{
+					pScriptElement = ScriptBrowserUtils::AddScriptInterfaceImpl(pScriptScope);
+				}
+				bRenameElement = true;
+				break;
+			}
+		case EScriptElementType::ComponentInstance:
+			{
+				GetIEditor()->GetIUndoManager()->Begin();
+				CrySchematycEditor::CScriptUndoObject* pUndoObject = new CrySchematycEditor::CScriptUndoObject("Added Component", m_editor);
+				CUndo::Record(pUndoObject);
+				GetIEditor()->GetIUndoManager()->Accept(pUndoObject->GetDescription());
+
+				if (m_pContextMenu)
+				{
+					QPoint pos = m_pContextMenu->pos();
+					pScriptElement = ScriptBrowserUtils::AddScriptComponentInstance(pScriptScope, &pos);
+				}
+				else if (m_pAddMenu)
+				{
+					QPoint pos = m_pAddMenu->pos();
+					pScriptElement = ScriptBrowserUtils::AddScriptComponentInstance(pScriptScope, &pos);
+				}
+				else
+				{
+					pScriptElement = ScriptBrowserUtils::AddScriptComponentInstance(pScriptScope);
+				}
+				bRenameElement = true;
+				break;
+			}
+		case EScriptElementType::ActionInstance:
+			{
+				CRY_ASSERT_MESSAGE(false, "Actions not supported!");
+				break;
+			}
+		}
+
+		if (pScriptElement)
+		{
+			SelectItem(pScriptElement->GetGUID());
+			if (bRenameElement)
+			{
+				CScriptBrowserItem* pItem = m_pModel->GetItemByGUID(pScriptElement->GetGUID());
+				if (pItem)
+				{
+					const QModelIndex itemIndex = TreeViewFromModelIndex(m_pModel->ItemToIndex(pItem));
+					m_pTreeView->edit(itemIndex);
 				}
 			}
 		}
@@ -1600,16 +1698,19 @@ void CScriptBrowserWidget::OnAddItem()
 
 void CScriptBrowserWidget::OnCopyItem()
 {
-	CScriptBrowserItem* pItem = m_pModel->ItemFromIndex(TreeViewToModelIndex(GetTreeViewSelection()));
-	if (pItem)
+	if (m_pModel)
 	{
-		IScriptElement* pScriptElement = pItem->GetScriptElement();
-		if (pScriptElement)
+		CScriptBrowserItem* pItem = m_pModel->ItemFromIndex(TreeViewToModelIndex(GetTreeViewSelection()));
+		if (pItem)
 		{
-			XmlNodeRef xml;
-			if (gEnv->pSchematyc->GetScriptRegistry().CopyElementsToXml(xml, *pScriptElement))
+			IScriptElement* pScriptElement = pItem->GetScriptElement();
+			if (pScriptElement)
 			{
-				CrySchematycEditor::Utils::WriteToClipboard(xml->getXMLData()->GetString(), g_szClipboardPrefix);
+				XmlNodeRef xml;
+				if (gEnv->pSchematyc->GetScriptRegistry().CopyElementsToXml(xml, *pScriptElement))
+				{
+					CrySchematycEditor::Utils::WriteToClipboard(xml->getXMLData()->GetString(), g_szClipboardPrefix);
+				}
 			}
 		}
 	}
@@ -1617,19 +1718,22 @@ void CScriptBrowserWidget::OnCopyItem()
 
 void CScriptBrowserWidget::OnPasteItem()
 {
-	CScriptBrowserItem* pItem = m_pModel->ItemFromIndex(TreeViewToModelIndex(GetTreeViewSelection()));
-	if (pItem)
+	if (m_pModel)
 	{
-		IScriptElement* pScriptElement = pItem->GetScriptElement();
-		if (pScriptElement)
+		CScriptBrowserItem* pItem = m_pModel->ItemFromIndex(TreeViewToModelIndex(GetTreeViewSelection()));
+		if (pItem)
 		{
-			string clipboardText;
-			if (CrySchematycEditor::Utils::ReadFromClipboard(clipboardText, g_szClipboardPrefix))
+			IScriptElement* pScriptElement = pItem->GetScriptElement();
+			if (pScriptElement)
 			{
-				XmlNodeRef xml = gEnv->pSystem->LoadXmlFromBuffer(clipboardText.c_str(), clipboardText.length());
-				if (xml)
+				string clipboardText;
+				if (CrySchematycEditor::Utils::ReadFromClipboard(clipboardText, g_szClipboardPrefix))
 				{
-					gEnv->pSchematyc->GetScriptRegistry().PasteElementsFromXml(xml, pScriptElement);
+					XmlNodeRef xml = gEnv->pSystem->LoadXmlFromBuffer(clipboardText.c_str(), clipboardText.length());
+					if (xml)
+					{
+						gEnv->pSchematyc->GetScriptRegistry().PasteElementsFromXml(xml, pScriptElement);
+					}
 				}
 			}
 		}
@@ -1638,13 +1742,133 @@ void CScriptBrowserWidget::OnPasteItem()
 
 void CScriptBrowserWidget::OnRemoveItem()
 {
-	CScriptBrowserItem* pItem = m_pModel->ItemFromIndex(TreeViewToModelIndex(GetTreeViewSelection()));
-	if (pItem)
+	if (m_pModel)
 	{
-		IScriptElement* pScriptElement = pItem->GetScriptElement();
-		if (pScriptElement)
+		CScriptBrowserItem* pItem = m_pModel->ItemFromIndex(TreeViewToModelIndex(GetTreeViewSelection()));
+		if (pItem)
 		{
-			ScriptBrowserUtils::RemoveScriptElement(*pScriptElement);
+			IScriptElement* pScriptElement = pItem->GetScriptElement();
+			if (pScriptElement)
+			{
+				const char* szElementType = nullptr;
+				switch (pScriptElement->GetType())
+				{
+				case EScriptElementType::Module:
+					{
+						break;
+					}
+				case EScriptElementType::Enum:
+					{
+						szElementType = "Enumeration";
+						break;
+					}
+				case EScriptElementType::Struct:
+					{
+						szElementType = "Struct";
+						break;
+					}
+				case EScriptElementType::Signal:
+					{
+						szElementType = "Signal";
+						break;
+					}
+				case EScriptElementType::Function:
+					{
+						szElementType = "Function Graph";
+						break;
+					}
+				case EScriptElementType::Interface:
+					{
+						szElementType = "Interface";
+						break;
+					}
+				case EScriptElementType::InterfaceFunction:
+					{
+						szElementType = "Interface Function";
+						break;
+					}
+				case EScriptElementType::InterfaceTask:
+					{
+						szElementType = "Interface Task";
+						break;
+					}
+				case EScriptElementType::Class:
+					{
+						break;
+					}
+				case EScriptElementType::StateMachine:
+					{
+						szElementType = "State Machine";
+						break;
+					}
+				case EScriptElementType::State:
+					{
+						szElementType = "State";
+						break;
+					}
+				case EScriptElementType::Variable:
+					{
+						szElementType = "Variable";
+						break;
+					}
+				case EScriptElementType::Timer:
+					{
+						szElementType = "Timer";
+						break;
+					}
+				case EScriptElementType::SignalReceiver:
+					{
+						szElementType = "Signal Receiver";
+						break;
+					}
+				case EScriptElementType::InterfaceImpl:
+					{
+						szElementType = "Interface Implementation";
+						break;
+					}
+				case EScriptElementType::ComponentInstance:
+					{
+						szElementType = "Component";
+						break;
+					}
+				}
+
+				if (ScriptBrowserUtils::CanRemoveScriptElement(*pScriptElement))
+				{
+					CStackString question = "Are you sure you want to remove '";
+					question.append(pScriptElement->GetName());
+					question.append("'?");
+
+					CQuestionDialog dialog;
+					dialog.SetupQuestion("Remove", question.c_str(), QDialogButtonBox::Yes | QDialogButtonBox::No);
+
+					QDialogButtonBox::StandardButton result = dialog.Execute();
+
+					if (result == QDialogButtonBox::Yes)
+					{
+						if (szElementType && m_pModel)
+						{
+							Schematyc::IScriptElement* pRootElement = m_pModel->GetRootElement();
+
+							GetIEditor()->GetIUndoManager()->Begin();
+							stack_string desc("Added ");
+							desc.append(szElementType);
+							CrySchematycEditor::CScriptUndoObject* pUndoObject = new CrySchematycEditor::CScriptUndoObject(desc.c_str(), m_editor);
+							CUndo::Record(pUndoObject);
+							GetIEditor()->GetIUndoManager()->Accept(pUndoObject->GetDescription());
+						}
+
+						OnScriptElementRemoved(*pScriptElement);
+						gEnv->pSchematyc->GetScriptRegistry().RemoveElement(pScriptElement->GetGUID());
+					}
+
+					if (CBroadcastManager* pBroadcastManager = CBroadcastManager::Get(this))
+					{
+						PopulateInspectorEvent popEvent([](CInspector& inspector) {});
+						pBroadcastManager->Broadcast(popEvent);
+					}
+				}
+			}
 		}
 	}
 }
@@ -1669,162 +1893,274 @@ void CScriptBrowserWidget::keyPressEvent(QKeyEvent* pKeyEvent)
 	HandleKeyPress(pKeyEvent);
 }
 
+void CScriptBrowserWidget::showEvent(QShowEvent* pEvent)
+{
+	m_pFilter->setText("");
+	QWidget::showEvent(pEvent);
+}
+
 void CScriptBrowserWidget::ExpandAll()
 {
 	m_pTreeView->expandAll();
 }
 
-void CScriptBrowserWidget::RefreshAddMenu(CScriptBrowserItem* pItem)
+void CScriptBrowserWidget::PopulateAddMenu(QMenu* pMenu, IScriptElement* pScriptScope)
 {
-	m_pAddMenu->clear();
-
-	if (pItem)
+	if (pScriptScope)
 	{
-		switch (pItem->GetType())
+		/*if (ScriptBrowserUtils::CanAddScriptElement(EScriptElementType::Module, pScriptScope))
+		   {
+		   QAction* pAction = pMenu->addAction("Folder");
+		   QObject::connect(pAction, &QAction::triggered, [this, pScriptScope]()
+		    {
+		      OnAddItem(pScriptScope, EScriptElementType::Module);
+		    });
+		   }*/
+		/*if (ScriptBrowserUtils::CanAddScriptElement(EScriptElementType::Import, pScriptScope))
+		   {
+		   QAction* pAddImportAction = pMenu->addAction("Import");
+		   pAddImportAction->setData(static_cast<int>(EScriptElementType::Import));
+		   connect(pAddImportAction, SIGNAL(triggered()), this, SLOT(OnAddItem()));
+		   }*/
+		if (ScriptBrowserUtils::CanAddScriptElement(EScriptElementType::Enum, pScriptScope))
 		{
-		case EScriptBrowserItemType::Root:
-			{
-				//QAction* pAddModuleAction = m_pAddMenu->addAction("Module");
-				//pAddModuleAction->setData(static_cast<int>(EScriptElementType::Module));
-				//connect(pAddModuleAction, SIGNAL(triggered()), this, SLOT(OnAddItem()));
-				//break;
-			}  //Intended falls through now:
-		case EScriptBrowserItemType::ScriptElement:
-			{
-				IScriptElement* pScriptScope = pItem->GetScriptElement();
-				EScriptElementType elementType = (pScriptScope) ? pScriptScope->GetElementType() : EScriptElementType::Root;
-				switch (elementType)
+			QAction* pAction = pMenu->addAction("Enumeration");
+			QObject::connect(pAction, &QAction::triggered, [this, pScriptScope]()
 				{
-				case EScriptElementType::Root:
-				case EScriptElementType::Module:
-				case EScriptElementType::Interface:
-				case EScriptElementType::Class:
-				case EScriptElementType::StateMachine:
-				case EScriptElementType::State:
-				case EScriptElementType::ComponentInstance:
-					{
-						// #SchematycTODO : Iterate through possible types rather than explicitly adding each action for each type?
-						if (ScriptBrowserUtils::CanAddScriptElement(EScriptElementType::Module, pScriptScope))
+					OnAddItem(pScriptScope, EScriptElementType::Enum);
+			  });
+		}
+		/*if (ScriptBrowserUtils::CanAddScriptElement(EScriptElementType::Struct, pScriptScope))
+		   {
+		   QAction* pAddStructAction = pMenu->addAction("Structure");
+		   pAddStructAction->setData(static_cast<int>(EScriptElementType::Struct));
+		   connect(pAddStructAction, SIGNAL(triggered()), this, SLOT(OnAddItem()));
+		   }*/
+		if (ScriptBrowserUtils::CanAddScriptElement(EScriptElementType::Signal, pScriptScope))
+		{
+			QAction* pAction = pMenu->addAction("Signal");
+			QObject::connect(pAction, &QAction::triggered, [this, pScriptScope]()
+				{
+					OnAddItem(pScriptScope, EScriptElementType::Signal);
+			  });
+		}
+		if (ScriptBrowserUtils::CanAddScriptElement(EScriptElementType::Function, pScriptScope))
+		{
+			QAction* pAction = pMenu->addAction("Function");
+			QObject::connect(pAction, &QAction::triggered, [this, pScriptScope]()
+				{
+					OnAddItem(pScriptScope, EScriptElementType::Function);
+			  });
+		}
+		/*if (ScriptBrowserUtils::CanAddScriptElement(EScriptElementType::Interface, pScriptScope))
+		   {
+		   QAction* pAction = pMenu->addAction("Interface");
+		   QObject::connect(pAction, &QAction::triggered, [this, pScriptScope]()
+		    {
+		      OnAddItem(pScriptScope, EScriptElementType::Interface);
+		    });
+		   }
+		   if (ScriptBrowserUtils::CanAddScriptElement(EScriptElementType::InterfaceFunction, pScriptScope))
+		   {
+		   QAction* pAction = pMenu->addAction("Interface Function");
+		   QObject::connect(pAction, &QAction::triggered, [this, pScriptScope]()
+		    {
+		      OnAddItem(pScriptScope, EScriptElementType::InterfaceFunction);
+		    });
+		   }
+		   if (ScriptBrowserUtils::CanAddScriptElement(EScriptElementType::InterfaceImpl, pScriptScope))
+		   {
+		   QAction* pAction = pMenu->addAction("Interface Implementation");
+		   QObject::connect(pAction, &QAction::triggered, [this, pScriptScope]()
+		    {
+		      OnAddItem(pScriptScope, EScriptElementType::InterfaceImpl);
+		    });
+		   }*/
+		/*if (ScriptBrowserUtils::CanAddScriptElement(EScriptElementType::InterfaceTask, pScriptScope))
+		   {
+		   QAction* pAddInterfaceTask = pMenu->addAction("Task");
+		   pAddInterfaceTask->setData(static_cast<int>(EScriptElementType::InterfaceTask));
+		   connect(pAddInterfaceTask, SIGNAL(triggered()), this, SLOT(OnAddItem()));
+		   }*/
+		if (ScriptBrowserUtils::CanAddScriptElement(EScriptElementType::StateMachine, pScriptScope))
+		{
+			QAction* pAction = pMenu->addAction("State Machine");
+			QObject::connect(pAction, &QAction::triggered, [this, pScriptScope]()
+				{
+					OnAddItem(pScriptScope, EScriptElementType::StateMachine);
+			  });
+		}
+		if (ScriptBrowserUtils::CanAddScriptElement(EScriptElementType::State, pScriptScope))
+		{
+			QAction* pAction = pMenu->addAction("State");
+			QObject::connect(pAction, &QAction::triggered, [this, pScriptScope]()
+				{
+					OnAddItem(pScriptScope, EScriptElementType::State);
+			  });
+		}
+		if (ScriptBrowserUtils::CanAddScriptElement(EScriptElementType::Variable, pScriptScope))
+		{
+			QAction* pAction = pMenu->addAction("Variable");
+			QObject::connect(pAction, &QAction::triggered, [this, pScriptScope]()
+				{
+					OnAddItem(pScriptScope, EScriptElementType::Variable);
+			  });
+		}
+		/*if (ScriptBrowserUtils::CanAddScriptElement(EScriptElementType::Property, pScriptScope))
+		   {
+		   QAction* pAddPropertyAction = pMenu->addAction("Property");
+		   pAddPropertyAction->setData(static_cast<int>(EScriptElementType::Property));
+		   connect(pAddPropertyAction, SIGNAL(triggered()), this, SLOT(OnAddItem()));
+		   }*/
+		if (ScriptBrowserUtils::CanAddScriptElement(EScriptElementType::Timer, pScriptScope))
+		{
+			QAction* pAction = pMenu->addAction("Timer");
+			QObject::connect(pAction, &QAction::triggered, [this, pScriptScope]()
+				{
+					OnAddItem(pScriptScope, EScriptElementType::Timer);
+			  });
+		}
+		if (ScriptBrowserUtils::CanAddScriptElement(EScriptElementType::SignalReceiver, pScriptScope))
+		{
+			QAction* pAction = pMenu->addAction("Signal Receiver");
+			QObject::connect(pAction, &QAction::triggered, [this, pScriptScope]()
+				{
+					OnAddItem(pScriptScope, EScriptElementType::SignalReceiver);
+			  });
+		}
+		/*if (ScriptBrowserUtils::CanAddScriptElement(EScriptElementType::InterfaceImpl, pScriptScope))
+		   {
+		   QAction* pAddInterfaceImplAction = pMenu->addAction("Interface");
+		   pAddInterfaceImplAction->setData(static_cast<int>(EScriptElementType::InterfaceImpl));
+		   connect(pAddInterfaceImplAction, SIGNAL(triggered()), this, SLOT(OnAddItem()));
+		   }*/
+		if (ScriptBrowserUtils::CanAddScriptElement(EScriptElementType::ComponentInstance, pScriptScope))
+		{
+			QAction* pAction = pMenu->addAction("Component");
+			QObject::connect(pAction, &QAction::triggered, [this, pScriptScope]()
+				{
+					OnAddItem(pScriptScope, EScriptElementType::ComponentInstance);
+			  });
+		}
+	}
+}
+
+void CScriptBrowserWidget::PopulateFilterMenu(QMenu* pMenu, EFilterType filterType)
+{
+	if (m_pModel)
+	{
+		Schematyc::IScriptElement* pRootElement = m_pModel->GetRootElement();
+
+		switch (filterType)
+		{
+		case EFilterType::Types:
+			{
+				if (ScriptBrowserUtils::CanAddScriptElement(EScriptElementType::Enum, pRootElement))
+				{
+					QAction* pAction = pMenu->addAction("Add Enumeration");
+					QObject::connect(pAction, &QAction::triggered, [this, pRootElement]()
 						{
-							QAction* pAddModuleAction = m_pAddMenu->addAction("Folder");
-							pAddModuleAction->setData(static_cast<int>(EScriptElementType::Module));
-							connect(pAddModuleAction, SIGNAL(triggered()), this, SLOT(OnAddItem()));
-						}
-						/*if (ScriptBrowserUtils::CanAddScriptElement(EScriptElementType::Import, pScriptScope))
-						   {
-						   QAction* pAddImportAction = m_pAddMenu->addAction("Import");
-						   pAddImportAction->setData(static_cast<int>(EScriptElementType::Import));
-						   connect(pAddImportAction, SIGNAL(triggered()), this, SLOT(OnAddItem()));
-						   }*/
-						if (ScriptBrowserUtils::CanAddScriptElement(EScriptElementType::Enum, pScriptScope))
+							OnAddItem(pRootElement, EScriptElementType::Enum);
+					  });
+				}
+
+				/*if (ScriptBrowserUtils::CanAddScriptElement(EScriptElementType::Struct, pScriptScope))
+				   {
+				   QAction* pAddStructAction = pMenu->addAction("Add Structure");
+				   QObject::connect(pAction, &QAction::triggered, [this, pRootElement]()
+				   {
+				    OnAddItem(pRootElement, EScriptElementType::Struct);
+				   });
+				   }*/
+				break;
+			}
+
+		case EFilterType::Variables:
+			{
+				if (ScriptBrowserUtils::CanAddScriptElement(EScriptElementType::Variable, pRootElement))
+				{
+					QAction* pAction = pMenu->addAction("Add Variable");
+					QObject::connect(pAction, &QAction::triggered, [this, pRootElement]()
 						{
-							QAction* pAddEnumAction = m_pAddMenu->addAction("Enumeration");
-							pAddEnumAction->setData(static_cast<int>(EScriptElementType::Enum));
-							connect(pAddEnumAction, SIGNAL(triggered()), this, SLOT(OnAddItem()));
-						}
-						/*if (ScriptBrowserUtils::CanAddScriptElement(EScriptElementType::Struct, pScriptScope))
-						   {
-						   QAction* pAddStructAction = m_pAddMenu->addAction("Structure");
-						   pAddStructAction->setData(static_cast<int>(EScriptElementType::Struct));
-						   connect(pAddStructAction, SIGNAL(triggered()), this, SLOT(OnAddItem()));
-						   }*/
-						if (ScriptBrowserUtils::CanAddScriptElement(EScriptElementType::Signal, pScriptScope))
+							OnAddItem(pRootElement, EScriptElementType::Variable);
+					  });
+				}
+
+				if (ScriptBrowserUtils::CanAddScriptElement(EScriptElementType::Timer, pRootElement))
+				{
+					QAction* pAction = pMenu->addAction("Add Timer");
+					QObject::connect(pAction, &QAction::triggered, [this, pRootElement]()
 						{
-							QAction* pAddSignalAction = m_pAddMenu->addAction("Signal");
-							pAddSignalAction->setData(static_cast<int>(EScriptElementType::Signal));
-							connect(pAddSignalAction, SIGNAL(triggered()), this, SLOT(OnAddItem()));
-						}
-						if (ScriptBrowserUtils::CanAddScriptElement(EScriptElementType::Function, pScriptScope))
-						{
-							QAction* pAddFunctionAction = m_pAddMenu->addAction("Function");
-							pAddFunctionAction->setData(static_cast<int>(EScriptElementType::Function));
-							connect(pAddFunctionAction, SIGNAL(triggered()), this, SLOT(OnAddItem()));
-						}
-						/*if (ScriptBrowserUtils::CanAddScriptElement(EScriptElementType::Interface, pScriptScope))
-						   {
-						   QAction* pAddInterfaceAction = m_pAddMenu->addAction("Interface");
-						   pAddInterfaceAction->setData(static_cast<int>(EScriptElementType::Interface));
-						   connect(pAddInterfaceAction, SIGNAL(triggered()), this, SLOT(OnAddItem()));
-						   }*/
-						/*if (ScriptBrowserUtils::CanAddScriptElement(EScriptElementType::InterfaceFunction, pScriptScope))
-						   {
-						   QAction* pAddInterfaceFunction = m_pAddMenu->addAction("Function");
-						   pAddInterfaceFunction->setData(static_cast<int>(EScriptElementType::InterfaceFunction));
-						   connect(pAddInterfaceFunction, SIGNAL(triggered()), this, SLOT(OnAddItem()));
-						   }*/
-						/*if (ScriptBrowserUtils::CanAddScriptElement(EScriptElementType::InterfaceTask, pScriptScope))
-						   {
-						   QAction* pAddInterfaceTask = m_pAddMenu->addAction("Task");
-						   pAddInterfaceTask->setData(static_cast<int>(EScriptElementType::InterfaceTask));
-						   connect(pAddInterfaceTask, SIGNAL(triggered()), this, SLOT(OnAddItem()));
-						   }*/
-						if (ScriptBrowserUtils::CanAddScriptElement(EScriptElementType::Class, pScriptScope))
-						{
-							QAction* pAddClassAction = m_pAddMenu->addAction("Class");
-							pAddClassAction->setData(static_cast<int>(EScriptElementType::Class));
-							connect(pAddClassAction, SIGNAL(triggered()), this, SLOT(OnAddItem()));
-						}
-						if (ScriptBrowserUtils::CanAddScriptElement(EScriptElementType::StateMachine, pScriptScope))
-						{
-							QAction* pAddStateMachineAction = m_pAddMenu->addAction("State Machine");
-							pAddStateMachineAction->setData(static_cast<int>(EScriptElementType::StateMachine));
-							connect(pAddStateMachineAction, SIGNAL(triggered()), this, SLOT(OnAddItem()));
-						}
-						if (ScriptBrowserUtils::CanAddScriptElement(EScriptElementType::State, pScriptScope))
-						{
-							QAction* pAddStateAction = m_pAddMenu->addAction("State");
-							pAddStateAction->setData(static_cast<int>(EScriptElementType::State));
-							connect(pAddStateAction, SIGNAL(triggered()), this, SLOT(OnAddItem()));
-						}
-						if (ScriptBrowserUtils::CanAddScriptElement(EScriptElementType::Variable, pScriptScope))
-						{
-							QAction* pAddVariableAction = m_pAddMenu->addAction("Variable");
-							pAddVariableAction->setData(static_cast<int>(EScriptElementType::Variable));
-							connect(pAddVariableAction, SIGNAL(triggered()), this, SLOT(OnAddItem()));
-						}
-						//if (ScriptBrowserUtils::CanAddScriptElement(EScriptElementType::Property, pScriptScope))
-						//{
-						//	QAction* pAddPropertyAction = m_pAddMenu->addAction("Property");
-						//	pAddPropertyAction->setData(static_cast<int>(EScriptElementType::Property));
-						//	connect(pAddPropertyAction, SIGNAL(triggered()), this, SLOT(OnAddItem()));
-						//}
-						if (ScriptBrowserUtils::CanAddScriptElement(EScriptElementType::Timer, pScriptScope))
-						{
-							QAction* pAddTimerAction = m_pAddMenu->addAction("Timer");
-							pAddTimerAction->setData(static_cast<int>(EScriptElementType::Timer));
-							connect(pAddTimerAction, SIGNAL(triggered()), this, SLOT(OnAddItem()));
-						}
-						if (ScriptBrowserUtils::CanAddScriptElement(EScriptElementType::SignalReceiver, pScriptScope))
-						{
-							QAction* pAddSignalReceiverAction = m_pAddMenu->addAction("Signal Receiver");
-							pAddSignalReceiverAction->setData(static_cast<int>(EScriptElementType::SignalReceiver));
-							connect(pAddSignalReceiverAction, SIGNAL(triggered()), this, SLOT(OnAddItem()));
-						}
-						/*if (ScriptBrowserUtils::CanAddScriptElement(EScriptElementType::InterfaceImpl, pScriptScope))
-						   {
-						   QAction* pAddInterfaceImplAction = m_pAddMenu->addAction("Interface");
-						   pAddInterfaceImplAction->setData(static_cast<int>(EScriptElementType::InterfaceImpl));
-						   connect(pAddInterfaceImplAction, SIGNAL(triggered()), this, SLOT(OnAddItem()));
-						   }*/
-						if (ScriptBrowserUtils::CanAddScriptElement(EScriptElementType::ComponentInstance, pScriptScope))
-						{
-							QAction* pAddComponentAction = m_pAddMenu->addAction("Component");
-							pAddComponentAction->setData(static_cast<int>(EScriptElementType::ComponentInstance));
-							connect(pAddComponentAction, SIGNAL(triggered()), this, SLOT(OnAddItem()));
-						}
-						/*if (ScriptBrowserUtils::CanAddScriptElement(EScriptElementType::ActionInstance, pScriptScope))
-						   {
-						   QAction* pAddActionAction = m_pAddMenu->addAction("Action");
-						   pAddActionAction->setData(static_cast<int>(EScriptElementType::ActionInstance));
-						   connect(pAddActionAction, SIGNAL(triggered()), this, SLOT(OnAddItem()));
-						   }*/
-						break;
-					}
+							OnAddItem(pRootElement, EScriptElementType::Timer);
+					  });
 				}
 				break;
 			}
+
+		case EFilterType::Signals:
+			{
+				if (ScriptBrowserUtils::CanAddScriptElement(EScriptElementType::Signal, pRootElement))
+				{
+					QAction* pAction = pMenu->addAction("Add Signal");
+					QObject::connect(pAction, &QAction::triggered, [this, pRootElement]()
+						{
+							OnAddItem(pRootElement, EScriptElementType::Signal);
+					  });
+				}
+				break;
+			}
+		case EFilterType::Graphs:
+			{
+				if (ScriptBrowserUtils::CanAddScriptElement(EScriptElementType::Function, pRootElement))
+				{
+					QAction* pAction = pMenu->addAction("Add Function");
+					QObject::connect(pAction, &QAction::triggered, [this, pRootElement]()
+						{
+							OnAddItem(pRootElement, EScriptElementType::Function);
+					  });
+				}
+				if (ScriptBrowserUtils::CanAddScriptElement(EScriptElementType::SignalReceiver, pRootElement))
+				{
+					QAction* pAction = pMenu->addAction("Add Signal Receiver");
+					QObject::connect(pAction, &QAction::triggered, [this, pRootElement]()
+						{
+							OnAddItem(pRootElement, EScriptElementType::SignalReceiver);
+					  });
+				}
+				break;
+			}
+
+		case EFilterType::StateMachine:
+			{
+				/*if (ScriptBrowserUtils::CanAddScriptElement(EScriptElementType::StateMachine, m_pScriptElement))
+				   {
+				   QAction* pAction = pMenu->addAction("Add State Machine");
+				   QObject::connect(pAction, &QAction::triggered, [this, pRootElement]()
+				   {
+				    OnAddItem(pRootElement, EScriptElementType::SignalReceiver);
+				   });
+				   }*/
+				break;
+			}
+
+		case EFilterType::Components:
+			{
+				if (ScriptBrowserUtils::CanAddScriptElement(EScriptElementType::ComponentInstance, pRootElement))
+				{
+					QAction* pAction = pMenu->addAction("Add Component");
+					QObject::connect(pAction, &QAction::triggered, [this, pRootElement]()
+						{
+							OnAddItem(pRootElement, EScriptElementType::ComponentInstance);
+					  });
+				}
+				break;
+			}
+		default:
+			break;
 		}
 	}
+
+	return;
 }
 
 bool CScriptBrowserWidget::HandleKeyPress(QKeyEvent* pKeyEvent)
@@ -1839,7 +2175,7 @@ bool CScriptBrowserWidget::HandleKeyPress(QKeyEvent* pKeyEvent)
 		}
 		else if (pKeyEvent->key() == Qt::Key_S)  // #SchematycTODO : Is this really the best shortcut key?
 		{
-			m_pSearchFilter->setFocus();
+			m_pFilter->setFocus();
 			return true;
 		}
 	}
@@ -1858,11 +2194,12 @@ QModelIndex CScriptBrowserWidget::GetTreeViewSelection() const
 
 QModelIndex CScriptBrowserWidget::TreeViewToModelIndex(const QModelIndex& index) const
 {
-	return m_pFilter->mapToSource(index);
+	return m_pFilterProxy->mapToSource(index);
 }
 
 QModelIndex CScriptBrowserWidget::TreeViewFromModelIndex(const QModelIndex& index) const
 {
-	return m_pFilter->mapFromSource(index);
+	return m_pFilterProxy->mapFromSource(index);
 }
+
 } // Schematyc

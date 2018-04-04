@@ -13,24 +13,30 @@
     #define HLSLCC_API
 #endif
 
+#define EXCLUDE_PSTDINT
+#ifndef EXCLUDE_PSTDINT
+#include "pstdint.h"
+#else
 #include <stdint.h>
-#include <stddef.h>
+#endif
 
 typedef enum
 {
-    LANG_DEFAULT,// Depends on the HLSL shader model.
-    LANG_ES_100,
-    LANG_ES_300,
-    LANG_ES_310,
-    LANG_120,
-    LANG_130,
-    LANG_140,
-    LANG_150,
-    LANG_330,
-    LANG_400,
-    LANG_410,
-    LANG_420,
-    LANG_430,
+	LANG_DEFAULT,// Depends on the HLSL shader model.
+	LANG_ES_100,
+	LANG_ES_300,
+	LANG_ES_310,
+	LANG_120,
+	LANG_130,
+	LANG_140,
+	LANG_150,
+	LANG_200,
+	LANG_320,
+	LANG_330,
+	LANG_400,
+	LANG_410,
+	LANG_420,
+	LANG_430,
 	LANG_440,
 	LANG_450,
 } GLLang;
@@ -141,6 +147,7 @@ typedef enum ResourceGroup_TAG {
 	RGROUP_TEXTURE,
 	RGROUP_SAMPLER,
 	RGROUP_UAV,
+	RGROUP_BUFFER,
 	RGROUP_COUNT,
 } ResourceGroup;
 
@@ -219,6 +226,14 @@ typedef enum _SHADER_VARIABLE_TYPE {
 	SVT_RWSTRUCTURED_BUFFER          = 49,
 	SVT_APPEND_STRUCTURED_BUFFER     = 50,
 	SVT_CONSUME_STRUCTURED_BUFFER    = 51,
+	SVT_FLOAT8                       = 52,
+	SVT_FLOAT10                      = 53,
+	SVT_FLOAT16                      = 54,
+	SVT_INT12                        = 55,
+	SVT_INT16                        = 56,
+	SVT_UINT16                       = 57,
+//	SVT_FLOATSNORM                   = 58, // syntactic sugar?
+//	SVT_FLOATUNORM                   = 59,
 
 	SVT_FORCE_DWORD                  = 0x7fffffff
 } SHADER_VARIABLE_TYPE;
@@ -243,9 +258,12 @@ typedef struct ShaderVarType_TAG {
 	uint32_t              Elements;
 	uint32_t              MemberCount;
 	uint32_t              Offset;
+	uint32_t              Unaligned;
 	char                  Name[MAX_REFLECT_STRING_LENGTH];
+	char                  FullName[MAX_REFLECT_STRING_LENGTH]; // Includes all parent names.
 
-	uint32_t ParentCount;
+	uint32_t              ParentCount;
+
 	struct ShaderVarType_TAG * Parent;
 
 	struct ShaderVarType_TAG * Members;
@@ -261,7 +279,7 @@ typedef struct ShaderVar_TAG
 	uint32_t ui32Size;
 	uint32_t ui32Flags;
 
-	ShaderVarType sType;
+	struct ShaderVarType_TAG sType;
 } ShaderVar;
 
 typedef struct ConstantBuffer_TAG
@@ -269,9 +287,11 @@ typedef struct ConstantBuffer_TAG
 	char Name[MAX_REFLECT_STRING_LENGTH];
 
 	uint32_t ui32NumVars;
-	ShaderVar asVars[MAX_SHADER_VARS];
+	ShaderVar* asVars;
 
 	uint32_t ui32TotalSizeInBytes;
+
+	int iUnsized;
 	int blob;
 } ConstantBuffer;
 
@@ -337,7 +357,8 @@ typedef enum TRACE_VARIABLE_TYPE
 	TRACE_VARIABLE_SINT    = 1,
 	TRACE_VARIABLE_UINT    = 2,
 	TRACE_VARIABLE_DOUBLE  = 3,
-	TRACE_VARIABLE_UNKNOWN = 4
+	TRACE_VARIABLE_BOOL    = 4,
+	TRACE_VARIABLE_UNKNOWN = 5
 } TRACE_VARIABLE_TYPE;
 
 typedef struct VariableTraceInfo_TAG
@@ -376,6 +397,17 @@ typedef struct EmbeddedResourceName_TAG
 	uint32_t ui12Size             : 12;
 } EmbeddedResourceName;
 
+typedef struct TextureSamplerPair_TAG
+{
+	char Name[MAX_REFLECT_STRING_LENGTH];
+} TextureSamplerPair;
+
+typedef struct TextureSamplerInfo_TAG
+{
+	uint32_t ui32NumTextureSamplerPairs;
+	TextureSamplerPair aTextureSamplerPair[MAX_RESOURCE_BINDINGS];
+} TextureSamplerInfo;
+
 typedef struct SamplerMask_TAG
 {
 	uint32_t ui10TextureBindPoint : 10;
@@ -410,6 +442,9 @@ typedef struct ShaderInfo_TAG
 	uint32_t ui32NumOutputSignatures;
 	InOutSignature* psOutputSignatures;
 
+	uint32_t ui32NumPatchConstantSignatures;
+	InOutSignature* psPatchConstantSignatures;
+
 	uint32_t ui32NumResourceBindings;
 	ResourceBinding* psResourceBindings;
 
@@ -437,6 +472,8 @@ typedef struct ShaderInfo_TAG
 	uint32_t ui32NumImages;
 	uint32_t ui32NumUniformBuffers;
 	uint32_t ui32NumStorageBuffers;
+	// Texture index to sampler slot
+	uint32_t aui32SamplerMap[MAX_RESOURCE_BINDINGS];
 
 	// Trace info if tracing is enabled
 	uint32_t ui32NumTraceSteps;
@@ -458,10 +495,31 @@ typedef struct ShaderInfo_TAG
 
 	TESSELLATOR_PARTITIONING eTessPartitioning;
 	TESSELLATOR_OUTPUT_PRIMITIVE eTessOutPrim;
-
-	//Required if PixelInterpDependency is true
-	INTERPOLATION_MODE aePixelInputInterpolation[MAX_SHADER_VEC4_INPUT];
 } ShaderInfo;
+
+//The shader stages (Vertex, Pixel et al) do not depend on each other
+//in HLSL. GLSL is a different story. HLSLCrossCompiler requires
+//that hull shaders must be compiled before domain shaders, and
+//the pixel shader must be compiled before all of the others.
+//Durring compiliation the GLSLCrossDependencyData struct will
+//carry over any information needed about a different shader stage
+//in order to construct valid GLSL shader combinations.
+
+//Using GLSLCrossDependencyData is optional. However some shader
+//combinations may show link failures, or runtime errors.
+typedef struct
+{
+    //dcl_tessellator_partitioning and dcl_tessellator_output_primitive appear in hull shader for D3D,
+    //but they appear on inputs inside domain shaders for GL.
+    //Hull shader must be compiled before domain so the
+    //ensure correct partitioning and primitive type information
+    //can be saved when compiling hull and passed to domain compiliation.
+    TESSELLATOR_PARTITIONING eTessPartitioning;
+    TESSELLATOR_OUTPUT_PRIMITIVE eTessOutPrim;
+
+    //Required if PixelInterpDependency is true
+    INTERPOLATION_MODE aePixelInputInterpolation[MAX_SHADER_VEC4_INPUT];
+} GLSLCrossDependencyData;
 
 typedef struct
 {
@@ -469,6 +527,8 @@ typedef struct
 	char* sourceCode;
 	ShaderInfo reflection;
 	GLLang GLSLLanguage;
+
+	TextureSamplerInfo textureSamplerInfo;    // HLSLCC_FLAG_COMBINE_TEXTURE_SAMPLERS fills this out
 } GLSLShader;
 
 /*HLSL constant buffers are treated as default-block unform arrays by default. This is done
@@ -500,15 +560,30 @@ static const unsigned int HLSLCC_FLAG_DUAL_SOURCE_BLENDING = 0x40;
 
 //If set, shader inputs and outputs are declared with their semantic name.
 static const unsigned int HLSLCC_FLAG_INOUT_SEMANTIC_NAMES = 0x80;
+//If set, shader inputs and outputs are declared with their semantic name appended.
+static const unsigned int HLSLCC_FLAG_INOUT_APPEND_SEMANTIC_NAMES = 0x100;
 
-static const unsigned int HLSLCC_FLAG_INVERT_CLIP_SPACE_Y = 0x100;
-static const unsigned int HLSLCC_FLAG_CONVERT_CLIP_SPACE_Z = 0x200;
-static const unsigned int HLSLCC_FLAG_AVOID_RESOURCE_BINDINGS_AND_LOCATIONS = 0x400;
-static const unsigned int HLSLCC_FLAG_AVOID_TEMP_REGISTER_ALIASING = 0x800;
-static const unsigned int HLSLCC_FLAG_TRACING_INSTRUMENTATION = 0x1000;
-static const unsigned int HLSLCC_FLAG_HASH_INPUT = 0x2000;
-static const unsigned int HLSLCC_FLAG_ADD_DEBUG_HEADER = 0x4000;
-static const unsigned int HLSLCC_FLAG_NO_VERSION_STRING = 0x8000;
+//If set, combines texture/sampler pairs used together into samplers named "texturename_X_samplername".
+static const unsigned int HLSLCC_FLAG_COMBINE_TEXTURE_SAMPLERS = 0x200;
+
+//If set, attribute and uniform explicit location qualifiers are disabled (even if the language version supports that)
+static const unsigned int HLSLCC_FLAG_DISABLE_EXPLICIT_LOCATIONS = 0x400;
+
+//If set, global uniforms are not stored in a struct.
+static const unsigned int HLSLCC_FLAG_DISABLE_GLOBALS_STRUCT = 0x800;
+
+static const unsigned int HLSLCC_FLAG_INVERT_CLIP_SPACE_Y = 0x1000;
+static const unsigned int HLSLCC_FLAG_CONVERT_CLIP_SPACE_Z = 0x2000;
+static const unsigned int HLSLCC_FLAG_AVOID_RESOURCE_BINDINGS_AND_LOCATIONS = 0x4000;
+static const unsigned int HLSLCC_FLAG_AVOID_TEMP_REGISTER_ALIASING = 0x8000;
+static const unsigned int HLSLCC_FLAG_TRACING_INSTRUMENTATION = 0x10000;
+static const unsigned int HLSLCC_FLAG_HASH_INPUT = 0x20000;
+
+static const unsigned int HLSLCC_FLAG_ADD_DEBUG_HEADER = 0x40000;
+static const unsigned int HLSLCC_FLAG_NO_VERSION_STRING = 0x80000;
+static const unsigned int HLSLCC_FLAG_MANGLE_IDENTIFIERS_PER_STAGE = 0x100000;
+static const unsigned int HLSLCC_FLAG_FLOATS_AS_BITPATTERNS = 0x200000;
+static const unsigned int HLSLCC_FLAG_FORCE_PRECISION_QUALIFIERS = 0x400000;
 
 #ifdef __cplusplus
 extern "C" {
@@ -519,9 +594,9 @@ HLSLCC_API void HLSLCC_APIENTRY HLSLcc_SetMemoryFunctions(void* (*malloc_overrid
                                                           void (*free_override)(void *),
                                                           void* (*realloc_override)(void*,size_t));
 
-HLSLCC_API int HLSLCC_APIENTRY TranslateHLSLFromFile(const char* filename, unsigned int flags, GLLang language, const GlExtensions *extensions, GLSLShader* result);
+HLSLCC_API int HLSLCC_APIENTRY TranslateHLSLFromFile(const char* filename, unsigned int flags, GLLang language, const GlExtensions *extensions, GLSLCrossDependencyData* dependencies, GLSLShader* result);
 
-HLSLCC_API int HLSLCC_APIENTRY TranslateHLSLFromMem(const char* shader, size_t size, unsigned int flags, GLLang language, const GlExtensions *extensions, GLSLShader* result);
+HLSLCC_API int HLSLCC_APIENTRY TranslateHLSLFromMem(const char* shader, size_t size, unsigned int flags, GLLang language, const GlExtensions *extensions, GLSLCrossDependencyData* dependencies, GLSLShader* result);
 
 HLSLCC_API void HLSLCC_APIENTRY FreeGLSLShader(GLSLShader*);
 

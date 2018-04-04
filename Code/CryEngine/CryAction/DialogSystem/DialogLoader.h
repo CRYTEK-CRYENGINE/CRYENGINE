@@ -1,18 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
-
-// -------------------------------------------------------------------------
-//  File name:   DialogLoader.h
-//  Version:     v1.00
-//  Created:     07/07/2006 by AlexL
-//  Compilers:   Visual Studio.NET
-//  Description: Dialog Loader
-// -------------------------------------------------------------------------
-//  History:
-//
-////////////////////////////////////////////////////////////////////////////
-
-#ifndef __DIALOGLOADER_H__
-#define __DIALOGLOADER_H__
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #pragma once
 
@@ -40,7 +26,7 @@ protected:
 		IMScriptLine() { Reset(); }
 		void Reset()
 		{
-			audioID = INVALID_AUDIO_CONTROL_ID;
+			audioID = CryAudio::InvalidControlId;
 			actor = anim = facial = lookat = "";
 			delay = facialFadeTime = 0.0f;
 			facialWeight = 0.5f;
@@ -48,15 +34,15 @@ protected:
 
 		bool IsValid() const { return (actor != 0 && *actor != 0); }
 
-		const char*    actor;
+		const char*         actor;
 		//const char* sound;
-		AudioControlId audioID;
-		const char*    anim;
-		const char*    lookat;
-		float          delay;
-		string         facial;
-		float          facialWeight;
-		float          facialFadeTime;
+		CryAudio::ControlId audioID;
+		const char*         anim;
+		const char*         lookat;
+		float               delay;
+		string              facial;
+		float               facialWeight;
+		float               facialFadeTime;
 	};
 
 	struct IMScript
@@ -68,7 +54,7 @@ protected:
 		std::vector<IMScriptLine> lines;
 	};
 
-	// returns the numer of successfully loaded scripts
+	// returns the number of successfully loaded scripts
 	int LoadFromTable(XmlNodeRef tableNode, const string& fileName, TDialogScriptMap& outScriptMap);
 
 	// preprocessing stuff
@@ -82,5 +68,3 @@ protected:
 
 	CDialogSystem* m_pDS;
 };
-
-#endif

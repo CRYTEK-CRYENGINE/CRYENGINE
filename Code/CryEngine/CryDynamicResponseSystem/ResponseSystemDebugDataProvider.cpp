@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #include "stdafx.h"
 #include "ResponseSystemDebugDataProvider.h"
@@ -67,7 +67,11 @@ CResponseSystemDebugDataProvider::CResponseSystemDebugDataProvider()
 //--------------------------------------------------------------------------------------------------
 CResponseSystemDebugDataProvider::~CResponseSystemDebugDataProvider()
 {
-	CResponseSystem::GetInstance()->GetSpeakerManager()->RemoveListener(this);
+	if (auto pResponseSystem = CResponseSystem::GetInstance())
+	{
+		pResponseSystem->GetSpeakerManager()->RemoveListener(this);
+	}
+	gEnv->pConsole->UnregisterVariable("drs_loggingOptions", true);
 }
 
 //--------------------------------------------------------------------------------------------------
@@ -91,7 +95,15 @@ void CResponseSystemDebugDataProvider::AddVariableSet(const string& variableName
 	VariableChangeInfo newEntry;
 	newEntry.timeOfChange = time;
 	newEntry.variableName = collectionName + "::" + variableName;
-	newEntry.change = "'" + oldValue.GetValueAsString() + "' to '" + newValue.GetValueAsString() + "', Type: " + newValue.GetTypeAsString();
+	if (oldValue.GetType() == eDRVT_Undefined 
+		&& oldValue.GetValue() == CVariableValue::DEFAULT_VALUE)
+	{
+		newEntry.change = "'Not Existing' to " + newValue.GetValueAsString() + "', Type: " + newValue.GetTypeAsString();
+	}
+	else
+	{
+		newEntry.change = "'" + oldValue.GetValueAsString() + "' to '" + newValue.GetValueAsString() + "', Type: " + newValue.GetTypeAsString();
+	}
 	newEntry.drsUserName = CResponseSystem::GetInstance()->GetCurrentDrsUserName();
 
 	//hard coded limit
@@ -201,7 +213,7 @@ bool CResponseSystemDebugDataProvider::AddActionStarted(const string& actionDesc
 		return false;
 	}
 	SExecutedAction newAction;
-	newAction.actorName = (pActor) ? pActor->GetName().GetText() : "NoActor";
+	newAction.actorName = (pActor) ? pActor->GetName() : "NoActor";
 	newAction.actionDesc = actionDesc;
 	newAction.pInstance = pInstance;
 	newAction.bEnded = false;
@@ -457,7 +469,7 @@ void CResponseSystemDebugDataProvider::VariableChangeInfo::Serialize(Serializati
 //--------------------------------------------------------------------------------------------------
 void CResponseSystemDebugDataProvider::OnLineEvent(const DRS::IResponseActor* pSpeaker, const CHashedString& lineID, eLineEvent lineEvent, const DRS::IDialogLine* pLine)
 {
-	string speakerName = (pSpeaker) ? pSpeaker->GetName().GetText() : "Missing Speaker";
+	string speakerName = (pSpeaker) ? pSpeaker->GetName() : "Missing Speaker";
 	string lineText = (pLine) ? pLine->GetText() : "Missing: " + lineID.GetText();
 
 	switch (lineEvent)

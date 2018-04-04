@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 // -------------------------------------------------------------------------
 //  File name:   GLContext.cpp
@@ -486,7 +486,7 @@ void SStreamingBufferContext::UpdateStreamingSizes(CDevice* pDevice)
 void SStreamingBufferContext::UploadAndBindUniformData(CContext* pContext, const SConstantBufferSlot& kSlot, uint32 uUnit)
 {
 	uint32 uStreamingAlignment(pContext->GetDevice()->GetAdapter()->m_kCapabilities.m_iUniformBufferOffsetAlignment);
-	#if !CRY_OPENGL_SINGLE_CONTEXT
+	#if !OGL_SINGLE_CONTEXT
 	uint32 uContextIndex(pContext->GetIndex());
 	#endif
 
@@ -495,7 +495,7 @@ void SStreamingBufferContext::UploadAndBindUniformData(CContext* pContext, const
 		SBuffer* pBuffer(kSlot.m_pBuffer);
 		SStreamingBuffer* pStreaming(m_akStreamingBuffers + uUnit);
 		uint32 uStreamingSize(kSlot.m_kRange.m_uSize + uStreamingAlignment - 1 - (kSlot.m_kRange.m_uSize - 1) % uStreamingAlignment);
-	#if CRY_OPENGL_SINGLE_CONTEXT
+	#if OGL_SINGLE_CONTEXT
 		SBuffer::SContextCache* pContextCache(&pBuffer->m_kContextCache);
 	#else
 		SBuffer::SContextCache* pContextCache(pBuffer->m_akContextCaches + uContextIndex);
@@ -503,7 +503,7 @@ void SStreamingBufferContext::UploadAndBindUniformData(CContext* pContext, const
 
 		if (pBuffer->m_bStreaming)
 		{
-	#if CRY_OPENGL_SINGLE_CONTEXT
+	#if OGL_SINGLE_CONTEXT
 			bool bDataDirty(!pBuffer->m_bContextCacheValid);
 	#else
 			bool bDataDirty(!pBuffer->m_kContextCachesValid.Get(uContextIndex));
@@ -557,7 +557,7 @@ void SStreamingBufferContext::UploadAndBindUniformData(CContext* pContext, const
 				}
 				else if (pBuffer->m_bStreaming)
 				{
-	#if CRY_OPENGL_SINGLE_CONTEXT
+	#if OGL_SINGLE_CONTEXT
 					pBuffer->m_kContextCache.m_spFrame = NULL;
 	#else
 					pBuffer->m_akContextCaches[uContextIndex].m_spFrame = NULL;
@@ -565,7 +565,7 @@ void SStreamingBufferContext::UploadAndBindUniformData(CContext* pContext, const
 					glNamedBufferDataEXT(pBuffer->m_kName.GetName(), pBuffer->m_uSize, pBuffer->m_pSystemMemoryCopy, pBuffer->m_eUsage);
 				}
 
-	#if CRY_OPENGL_SINGLE_CONTEXT
+	#if OGL_SINGLE_CONTEXT
 				pBuffer->m_bContextCacheValid = true;
 	#else
 				pBuffer->m_kContextCachesValid.Set(uContextIndex, true);
@@ -574,7 +574,7 @@ void SStreamingBufferContext::UploadAndBindUniformData(CContext* pContext, const
 			}
 		}
 
-	#if CRY_OPENGL_SINGLE_CONTEXT
+	#if OGL_SINGLE_CONTEXT
 		if (pBuffer->m_kContextCache.m_spFrame == NULL)
 	#else
 		if (pBuffer->m_akContextCaches[uContextIndex].m_spFrame == NULL)
@@ -585,7 +585,7 @@ void SStreamingBufferContext::UploadAndBindUniformData(CContext* pContext, const
 		}
 		else
 		{
-	#if CRY_OPENGL_SINGLE_CONTEXT
+	#if OGL_SINGLE_CONTEXT
 			SBufferRange kStreamingRange(pBuffer->m_kContextCache.m_uStreamOffset, uStreamingSize);
 	#else
 			SBufferRange kStreamingRange(pBuffer->m_akContextCaches[uContextIndex].m_uStreamOffset, uStreamingSize);
@@ -2197,7 +2197,7 @@ bool MatchDepthStencilAttachment(SOutputMergerView* pView, bool bDepth, bool bSt
 SFrameBufferPtr GetCompatibleColorAttachmentFrameBuffer(SOutputMergerView* pOMView, uint32& uAttachment, CContext* pContext)
 {
 	// Check if there is a suitable cached frame buffer with this view attached at the requested point
-#if CRY_OPENGL_SINGLE_CONTEXT
+#if OGL_SINGLE_CONTEXT
 	SOutputMergerView::SContextData* pOMContextData(&pOMView->m_kContextData);
 #else
 	SOutputMergerView::SContextData* pOMContextData(pOMView->m_kContextMap[pContext->GetIndex()]);
@@ -2226,7 +2226,7 @@ SFrameBufferPtr GetCompatibleColorAttachmentFrameBuffer(SOutputMergerView* pOMVi
 SFrameBufferPtr GetCompatibleDepthStencilAttachmentFrameBuffer(SOutputMergerView* pOMView, bool bDepth, bool bStencil, CContext* pContext)
 {
 	// Check if there is a suitable cached frame buffer with this view attached at the requested point
-#if CRY_OPENGL_SINGLE_CONTEXT
+#if OGL_SINGLE_CONTEXT
 	SOutputMergerView::SContextData* pOMContextData(&pOMView->m_kContextData);
 #else
 	SOutputMergerView::SContextData* pOMContextData(pOMView->m_kContextMap[pContext->GetIndex()]);

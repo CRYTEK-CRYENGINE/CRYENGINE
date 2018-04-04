@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #ifndef _CVegetation_H_
 #define _CVegetation_H_
@@ -73,7 +73,7 @@ public:
 	bool                 IsBreakable() { pe_params_part pp; pp.ipart = 0; return m_pPhysEnt && m_pPhysEnt->GetParams(&pp) && pp.idmatBreakable >= 0; }
 	bool                 IsBending() const;
 	virtual float        GetMaxViewDist() final;
-	IStatObj*            GetEntityStatObj(unsigned int nPartId = 0, unsigned int nSubPartId = 0, Matrix34A* pMatrix = NULL, bool bReturnOnlyVisible = false) final;
+	IStatObj*            GetEntityStatObj(unsigned int nSubPartId = 0, Matrix34A* pMatrix = NULL, bool bReturnOnlyVisible = false) final;
 	virtual EERType      GetRenderNodeType() final;
 	virtual void         Dephysicalize(bool bKeepIfReferenced = false) final;
 	void                 Dematerialize() final;
@@ -122,7 +122,7 @@ public:
 	//	float GetLodForDistance(float fDistance);
 	void         Init();
 	void         ShutDown();
-	void         OnRenderNodeBecomeVisible(const SRenderingPassInfo& passInfo) final;
+	void         OnRenderNodeBecomeVisibleAsync(const SRenderingPassInfo& passInfo) final;
 	void         UpdateSpriteInfo(SVegetationSpriteInfo& properties, float fSpriteAmount, SSectorTextureSet* pTerrainTexInfo, const SRenderingPassInfo& passInfo) const;
 	void         UpdateBending();
 	static void  InitVegDecomprTable();

@@ -14,7 +14,9 @@
 #include "StdAfx.h"
 #include "BirdsFlock.h"
 #include "BoidBird.h"
+
 #include <CryAISystem/IAIObject.h>
+#include <IPerceptionManager.h>
 
 #define START_LANDING_TIME 3
 
@@ -180,12 +182,12 @@ void CBirdsFlock::SetEnabled( bool bEnabled )
 
 
 //////////////////////////////////////////////////////////////////////////
-void CBirdsFlock::OnAIEvent(EAIStimulusType type, const Vec3& pos, float radius, float threat, EntityId sender)
+void CBirdsFlock::OnStimulusReceived(const SAIStimulusParams& params)
 {
-	CFlock::OnAIEvent(type,pos,radius,threat,sender);
-	if(type==AISTIM_SOUND)
+	CFlock::OnStimulusReceived(params);
+	if(params.type == AISTIM_SOUND)
 	{
-		if(threat > 0 && Distance::Point_PointSq(pos, m_bc.flockPos) < radius*radius * threat * threat)
+		if(params.threat > 0 && Distance::Point_PointSq(params.position, m_bc.flockPos) < sqr(params.radius * params.threat))
 			TakeOff();
 	}
 }

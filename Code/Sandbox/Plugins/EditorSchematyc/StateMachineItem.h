@@ -28,7 +28,7 @@ public:
 	virtual void                               SetName(QString name) override;
 	virtual int32                              GetType() const override          { return eObjectItemType_StateMachine; }
 
-	virtual const CryIcon*                     GetIcon() const override          { return &s_icon; }
+	virtual const CryIcon*                     GetIcon() const override;
 	virtual CAbstractObjectStructureModelItem* GetParentItem() const override    { return static_cast<CAbstractObjectStructureModelItem*>(m_pParentItem); }
 
 	virtual uint32                             GetNumChildItems() const override { return GetNumStates(); }
@@ -48,14 +48,12 @@ public:
 	CStateItem*      CreateState();
 	bool             RemoveState();
 
-	Schematyc::SGUID GetGUID() const;
+	CryGUID GetGUID() const;
 
 protected:
 	void LoadFromScriptElement();
 
 private:
-	static CryIcon                       s_icon;
-
 	CAbstractObjectStructureModelItem* m_pParentItem;
 	Schematyc::IScriptStateMachine&    m_scriptStateMachine;
 	std::vector<CStateItem*>           m_states;

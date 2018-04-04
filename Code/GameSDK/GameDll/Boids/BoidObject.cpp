@@ -132,8 +132,8 @@ void CBoidObject::ExecuteTrigger(int nIndex)
 {
 	if ((nIndex >= 0) && (nIndex < (int)m_flock->m_bc.audio.size()))
 	{
-		const AudioControlId id = m_flock->m_bc.audio[nIndex];
-		if (id != INVALID_AUDIO_CONTROL_ID)
+		const CryAudio::ControlId id = m_flock->m_bc.audio[nIndex];
+		if (id != CryAudio::InvalidControlId)
 		{
 			IEntity* pEntity = gEnv->pEntitySystem->GetEntity(m_entity);
 			if (pEntity)

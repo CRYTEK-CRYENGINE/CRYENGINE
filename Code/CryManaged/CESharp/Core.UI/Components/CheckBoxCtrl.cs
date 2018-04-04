@@ -1,38 +1,41 @@
 // Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
 
-using CryEngine.Common;
-using CryEngine.Resources;
-using System.Runtime.Serialization;
-
+using System;
 using System.IO;
+using CryEngine.Resources;
 
 namespace CryEngine.UI.Components
 {
 	/// <summary>
 	/// Controls input on a Checkbox element.
 	/// </summary>
-	[DataContract]
 	public class CheckBoxCtrl : UIComponent
 	{
-		public event EventHandler<bool> CheckedChanged; ///< Invoked if the checked state of checkbox changed.
+		/// <summary>
+		/// Invoked if the checked state of checkbox changed.
+		/// </summary>
+		public event Action<bool> CheckedChanged;
 
-		[DataMember]
 		bool _isChecked;
 		Panel _frame;
 
 		Image _unchecked { get; set; }
 		Image _checked { get; set; }
 
+		/// <summary>
+		/// Determines whether checkbox is currently checked.
+		/// </summary>
+		/// <value><c>true</c> if is checked; otherwise, <c>false</c>.</value>
 		public bool IsChecked
 		{
 			set
 			{
-				if (_isChecked != value)
+				if(_isChecked != value)
 				{
 					_isChecked = value;
 					_unchecked.Active = !value;
 					_checked.Active = value;
-					if (CheckedChanged != null)
+					if(CheckedChanged != null)
 						CheckedChanged(value);
 				}
 			}
@@ -40,7 +43,7 @@ namespace CryEngine.UI.Components
 			{
 				return _isChecked;
 			}
-		} ///< Determines whether checkbox is currently checked.
+		}
 
 		/// <summary>
 		/// Called by Canvas. Do not call directly.
@@ -63,7 +66,7 @@ namespace CryEngine.UI.Components
 		/// </summary>
 		public override void OnLeftMouseUp(int x, int y, bool inside)
 		{
-			if (inside)
+			if(inside)
 				IsChecked = !IsChecked;
 		}
 
@@ -91,9 +94,9 @@ namespace CryEngine.UI.Components
 		/// <summary>
 		/// Called by Canvas. Do not call directly.
 		/// </summary>
-		public override void OnKey(SInputEvent e)
+		public override void OnKey(InputEvent e)
 		{
-			if (e.KeyPressed(EKeyId.eKI_Space))
+			if(e.KeyPressed(KeyId.Space))
 				IsChecked = !IsChecked;
 		}
 	}

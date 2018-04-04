@@ -6,19 +6,24 @@
 
 // *INDENT-OFF* - <hard to read code and declarations due to inconsistent indentation>
 
-namespace uqs
+namespace UQS
 {
-	namespace stdlib
+	namespace StdLib
 	{
 
 		//===================================================================================
 		//
 		// - some types that the UQS StdLib provides, wrapped by the type-disambiguation mechanism
 		// - not all types in the StdLib need this disambiguation (typically only those whose underlying type is used to typedef various other types)
+		// - on the other hand, the same underlying type can be used to typedef new types for use in more specific contexts
 		//
 		//===================================================================================
 
-		typedef client::STypeWrapper<EntityId, 1> EntityIdWrapper;
+		typedef Client::STypeWrapper<EntityId, 1> EntityIdWrapper;
+
+		typedef Client::STypeWrapper<Vec3, 1>     Pos3;              // global position in the 3D world
+		typedef Client::STypeWrapper<Vec3, 2>     Ofs3;              // offset on top of a Pos3; can also act as "local position"
+		typedef Client::STypeWrapper<Vec3, 3>     Dir3;              // normalized 3D vector (aka "direction")
 
 		//===================================================================================
 		//
@@ -35,6 +40,9 @@ namespace uqs
 		{
 		public:
 			static void    InstantiateAllFactoriesForRegistration();                 // call this function once to automatically make all standard stuff available
+#if UQS_SCHEMATYC_SUPPORT
+			static void    RegisterInSchematyc();                                    // stdlib/SchematycSupport.cpp
+#endif
 
 		private:
 			static void    InstantiateItemFactoriesForRegistration();                // stdlib/Items.cpp

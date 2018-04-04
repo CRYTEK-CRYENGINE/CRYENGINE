@@ -18,12 +18,12 @@
 #include <CrySerialization/CryStrings.h>
 #include <CrySerialization/IArchiveHost.h>
 
-// - redirects to g_hubImpl->HaveConsistencyChecksBeenDoneAlready()
-// - CFactoryDatabase<>::RegisterFactory() doesn't know about the global g_hubImpl variable yet due to the way the headers need to be included, so it uses this function instead
+// - redirects to g_pHub->HaveConsistencyChecksBeenDoneAlready()
+// - CFactoryDatabase<>::RegisterFactory() doesn't know about the global g_pHub variable yet due to the way the headers need to be included, so it uses this function instead
 // - function is implemented in Hub.cpp
-namespace uqs
+namespace UQS
 {
-	namespace core
+	namespace Core
 	{
 		bool Hub_HaveConsistencyChecksBeenDoneAlready();
 	}
@@ -37,11 +37,16 @@ namespace uqs
 #include "DebugRenderWorld.h"
 #include "ItemList.h"
 #include "ItemSerializationSupport.h"
+#include "LeafFunctionReturnValue.h"
 #include "InputBlueprint.h"
 #include "BlueprintWithInputs.h"
 #include "FunctionFactoryDatabase.h"
 #include "FunctionBlueprint.h"
 #include "FunctionCallHierarchy.h"
+#include "ScoreTransformFactory.h"
+#include "EvaluationResultTransform.h"
+#include "TextualEvaluatorBlueprint.h"
+#include "EvaluatorBlueprintBase.h"
 #include "InstantEvaluatorFactoryDatabase.h"
 #include "InstantEvaluatorBlueprint.h"
 #include "DeferredEvaluatorFactoryDatabase.h"
@@ -50,6 +55,7 @@ namespace uqs
 #include "GeneratorBlueprint.h"
 #include "GlobalConstantParamsBlueprint.h"
 #include "GlobalRuntimeParamsBlueprint.h"
+#include "TimeBudget.h"
 #include "QueryResultSet.h"
 #include "QueryBase.h"
 #include "Query_Regular.h"
@@ -68,6 +74,9 @@ namespace uqs
 #include "StartupConsistencyChecker.h"
 #include "EditorService.h"
 #include "Utils.h"
+#if UQS_SCHEMATYC_SUPPORT
+#include "SchematycSupport.h"
+#endif
 #include "Hub.h"
 #include "Cvars.h"
 #include "DrawUtil2d.h"

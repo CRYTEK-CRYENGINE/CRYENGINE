@@ -25,5 +25,5 @@ end_sources()
 
 CryEngineModule(CryUserAnalytics PCH "StdAfx.cpp" SOLUTION_FOLDER "CryPlugins")
 target_link_libraries(${THIS_PROJECT} PRIVATE curl Ole32 Shell32)
-target_include_directories(${THIS_PROJECT} PRIVATE ${CMAKE_SOURCE_DIR}/Code/CryEngine/CryCommon PUBLIC ../Interface)
+target_include_directories(${THIS_PROJECT} PRIVATE "${CRYENGINE_DIR}/Code/CryEngine/CryCommon" PUBLIC ../Interface)
 

@@ -431,7 +431,7 @@ struct IScaleformPlayback
 			struct
 			{
 				IScaleformPlayback::VertexFormat VertexFormat;
-				EVertexFormat                    eVertexFormat;
+				InputLayoutHandle::ValueType    eVertexFormat;
 			};
 
 			struct
@@ -493,7 +493,7 @@ public:
 
 	virtual void  SetPerspective3D(const Matrix44& projMatIn) = 0;
 	virtual void  SetView3D(const Matrix44& viewMatIn) = 0;
-	virtual void  SetWorld3D(const Matrix44* pWorldMatIn) = 0;
+	virtual void  SetWorld3D(const Matrix44f* pWorldMatIn) = 0;
 
 	virtual void  SetVertexData(const DeviceData* pVertices) = 0;
 	virtual void  SetIndexData(const DeviceData* pIndices) = 0;

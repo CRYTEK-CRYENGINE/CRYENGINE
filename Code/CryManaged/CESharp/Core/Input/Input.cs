@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+﻿// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
 
 using System;
 using System.Collections.Generic;
@@ -9,18 +9,237 @@ namespace CryEngine
 	/// <summary>
 	/// Pre-Processes CryEngine's Input callback and generates Input events. Classes may be registered here, in order to receive global Input events.
 	/// </summary>
-	public class Input : IInputEventListener
+	public static class Input
 	{
-		public static event EventHandler<SInputEvent> OnKey; ///< Fired when a key-state was modified
+		internal class InputListener : IInputEventListener
+		{
+			internal event Action<SInputEvent> OnInputReceived;
 
-		internal static Input Instance { get; set; }
+			internal InputListener()
+			{
+				AddListener();
+			}
 
+			private void AddListener()
+			{
+				Global.gEnv.pInput.AddEventListener(this);
+			}
+
+			private void RemoveListener()
+			{
+				Global.gEnv.pInput.RemoveEventListener(this);
+			}
+
+			public override void Dispose()
+			{
+				RemoveListener();
+
+				base.Dispose();
+			}
+
+			public override bool OnInputEvent(SInputEvent arg0)
+			{
+				OnInputReceived?.Invoke(arg0);
+				return false;
+			}
+
+			public override bool OnInputEventUI(SUnicodeEvent arg0)
+			{
+				return false;
+			}
+		}
+
+		internal struct KeyState
+		{
+			internal bool Down { get; set; }
+			internal float Value { get; set; }
+		}
+
+		/// <summary>
+		/// Fired when a key-state was modified
+		/// </summary>
+		public static event Action<InputEvent> OnKey;
+
+		private static InputListener _listener;
 		private static bool _lShiftDown = false;
 		private static bool _rShiftDown = false;
-		private static Dictionary<string, Vector2> _axisByName = new Dictionary<string, Vector2>();
+		private static readonly Dictionary<string, Vector2> _axisByName = new Dictionary<string, Vector2>();
+		private static readonly Dictionary<KeyId, KeyState> _keyStateCache = new Dictionary<KeyId, KeyState>();
 
-		public static bool ShiftDown { get { return _lShiftDown || _rShiftDown; } } ///< Set if Shift key is held Down
+		/// <summary>
+		/// Set if Shift key is held Down
+		/// </summary>
+		/// <value><c>true</c> if shift down; otherwise, <c>false</c>.</value>
+		public static bool ShiftDown { get { return _lShiftDown || _rShiftDown; } }
 
+		private static Dictionary<string, string> _charByDescription = new Dictionary<string, string> { { "comma", "," }, { "period", "." }, { "minus", "-" }, { "plus", "+" } };
+
+		static Input()
+		{
+			Engine.StartReload += UnloadListener;
+			Engine.EndReload += LoadListener;
+		}
+
+		private static void LoadListener()
+		{
+			if(_listener != null)
+			{
+				UnloadListener();
+			}
+
+			_listener = new InputListener();
+			_listener.OnInputReceived += OnInput;
+		}
+
+		private static void UnloadListener()
+		{
+			_listener.Dispose();
+			_listener = null;
+		}
+
+		/// <summary>
+		/// Called to make sure Input is initialized and receiving events at the start of the application.
+		/// </summary>
+		internal static void Initialize()
+		{
+			LoadListener();
+
+			if(_listener == null)
+			{
+				//If this is ever called it means there's something wrong with the static constructor.
+				Log.Error("Input listener is null, which can never happen!");
+				throw new NullReferenceException();
+			}
+		}
+
+		private static void OnInput(SInputEvent nativeEvent)
+		{
+			var managedEvent = new InputEvent(nativeEvent);
+			if(managedEvent.DeviceType == InputDeviceType.Keyboard)
+			{
+				switch(managedEvent.State)
+				{
+				case InputState.Down:
+					SetKeyStateDown(managedEvent.KeyId, true);
+					break;
+
+				case InputState.Released:
+					SetKeyStateDown(managedEvent.KeyId, false);
+					break;
+				}
+
+				if(KeyDown(KeyId.LShift))
+				{
+					_lShiftDown = true;
+				}
+				if(KeyUp(KeyId.LShift))
+				{
+					_lShiftDown = false;
+				}
+				if(KeyDown(KeyId.RShift))
+				{
+					_rShiftDown = true;
+				}
+				if(KeyUp(KeyId.RShift))
+				{
+					_rShiftDown = false;
+				}
+
+				// Preprocess keyName to contain valid Chars
+				if(managedEvent.KeyId == KeyId.Space)
+				{
+					managedEvent.KeyName = " ";
+				}
+
+				if(managedEvent.KeyName.Length == 1)
+				{
+					if(ShiftDown)
+					{
+						managedEvent.KeyName = managedEvent.KeyName.ToUpper();
+					}
+
+					if(ShiftDown && char.IsDigit(managedEvent.KeyName[0]))
+					{
+						managedEvent.KeyName = "=!\"§$%&/()".Substring(managedEvent.KeyName[0] - '0', 1);
+					}
+				}
+				else
+				{
+					string res;
+					managedEvent.KeyName = _charByDescription.TryGetValue(managedEvent.KeyName, out res) ? res : string.Empty;
+				}
+
+				OnKey?.Invoke(managedEvent);
+			}
+			else if(managedEvent.DeviceType == InputDeviceType.Gamepad || managedEvent.DeviceType == InputDeviceType.Mouse)
+			{
+				// Set keyName.key = string.Empty to avoid showing up gamepad
+				// presses controller keys in text input forms
+				managedEvent.KeyName = string.Empty;
+
+				switch(managedEvent.State)
+				{
+				case InputState.Down:
+					SetKeyStateDown(managedEvent.KeyId, true);
+					break;
+
+				case InputState.Released:
+					SetKeyStateDown(managedEvent.KeyId, false);
+					break;
+
+				case InputState.Changed:
+					SetKeyStateValue(managedEvent.KeyId, managedEvent.Value);
+					break;
+				}
+
+				if(OnKey != null)
+				{
+					OnKey(managedEvent);
+				}
+			}
+			else if(managedEvent.DeviceType == InputDeviceType.EyeTracker)
+			{
+				if(managedEvent.KeyId == KeyId.EyeTracker_X)
+				{
+					var axis = GetAxis("EyeTracker");
+					_axisByName["EyeTracker"] = new Vector2(managedEvent.Value, axis != null ? axis.y : 0);
+				}
+				if(managedEvent.KeyId == KeyId.EyeTracker_Y)
+				{
+					var axis = GetAxis("EyeTracker");
+					_axisByName["EyeTracker"] = new Vector2(axis != null ? axis.x : 0, managedEvent.Value);
+				}
+			}
+		}
+
+		private static void SetKeyStateDown(KeyId id, bool down)
+		{
+			KeyState keyState;
+			if(!_keyStateCache.TryGetValue(id, out keyState))
+			{
+				keyState = new KeyState();
+			}
+			keyState.Down = down;
+			_keyStateCache[id] = keyState;
+		}
+
+		private static void SetKeyStateValue(KeyId id, float value)
+		{
+			KeyState keyState;
+			if(!_keyStateCache.TryGetValue(id, out keyState))
+			{
+				keyState = new KeyState();
+			}
+			keyState.Value = value;
+			_keyStateCache[id] = keyState;
+		}
+
+		/// <summary>
+		/// Returns the value of and axis by name. 
+		/// Can be used to retrieve EyeTracker values.
+		/// </summary>
+		/// <returns>The axis.</returns>
+		/// <param name="name">Name.</param>
 		public static Vector2 GetAxis(string name)
 		{
 			Vector2 axis;
@@ -28,153 +247,49 @@ namespace CryEngine
 			return axis;
 		}
 
-		private Dictionary<string, string> _charByDescription = new Dictionary<string, string>() { { "comma", "," }, { "period", "." }, { "minus", "-" }, { "plus", "+" } };
+		/// <summary>
+		/// Used to detect if a key is not being pressed in the current frame.
+		/// </summary>
+		/// <returns><c>true</c> if the key is up, <c>false</c> otherwise.</returns>
+		/// <param name="key">Key.</param>
+		public static bool KeyUp(KeyId key)
+		{
+			KeyState state;
+			if(_keyStateCache.TryGetValue(key, out state))
+			{
+				return !state.Down;
+			}
+			return true;
+		}
 
 		/// <summary>
-		/// Called by CryEngine. Do not call directly.
+		/// Used to detect if a key is being hold down in the current frame.
 		/// </summary>
-		public override bool OnInputEvent(SInputEvent e)
+		/// <returns><c>true</c> if the key is down, <c>false</c> otherwise.</returns>
+		/// <param name="key">Key.</param>
+		public static bool KeyDown(KeyId key)
 		{
-			if(e.deviceType == EInputDeviceType.eIDT_Keyboard)
+			KeyState state;
+			if(_keyStateCache.TryGetValue(key, out state))
 			{
-				switch(e.state)
-				{
-					case EInputState.eIS_Down:
-						SInputEventExtensions.KeyDownLog[e.keyId] = true;
-						break;
-
-					case EInputState.eIS_Released:
-						SInputEventExtensions.KeyDownLog[e.keyId] = false;
-						break;
-				}
-
-				if(e.KeyDown(EKeyId.eKI_LShift))
-				{
-					_lShiftDown = true;
-				}
-				if(e.KeyUp(EKeyId.eKI_LShift))
-				{
-					_lShiftDown = false;
-				}
-				if(e.KeyDown(EKeyId.eKI_RShift))
-				{
-					_rShiftDown = true;
-				}
-				if(e.KeyUp(EKeyId.eKI_RShift))
-				{
-					_rShiftDown = false;
-				}
-
-				// Preprocess keyName to contain valid Chars
-				if(e.keyId == EKeyId.eKI_Space)
-				{
-					e.keyName.key = " ";
-				}
-
-				if(e.keyName.key.Length == 1)
-				{
-					if(ShiftDown)
-					{
-						e.keyName.key = e.keyName.key.ToUpper();
-					}
-
-					if(ShiftDown && Char.IsDigit(e.keyName.key[0]))
-					{
-						e.keyName.key = "=!\"§$%&/()".Substring(e.keyName.key[0] - '0', 1);
-					}
-				}
-				else
-				{
-					string res;
-					e.keyName.key = _charByDescription.TryGetValue(e.keyName.key, out res) ? res : string.Empty;
-				}
-
-				if(OnKey != null)
-				{
-					OnKey(e);
-				}
-			}
-			else if(e.deviceType == EInputDeviceType.eIDT_Gamepad || e.deviceType == EInputDeviceType.eIDT_Mouse)
-			{
-				// Set keyName.key = string.Empty to avoid showing up gamepad
-				// presses controller keys in text input forms
-				e.keyName.key = string.Empty;
-
-				switch(e.state)
-				{
-					case EInputState.eIS_Down:
-						SInputEventExtensions.KeyDownLog[e.keyId] = true;
-						break;
-
-					case EInputState.eIS_Released:
-						SInputEventExtensions.KeyDownLog[e.keyId] = false;
-						break;
-
-					case EInputState.eIS_Changed:
-						SInputEventExtensions.KeyInputValueLog[e.keyId] = e.value;
-						break;
-				}
-
-				if(OnKey != null)
-				{
-					OnKey(e);
-				}
-			}
-			else if(e.deviceType == EInputDeviceType.eIDT_EyeTracker)
-			{
-				if(e.keyId == EKeyId.eKI_EyeTracker_X)
-				{
-					var axis = GetAxis("EyeTracker");
-					_axisByName["EyeTracker"] = new Vector2(e.value, axis != null ? axis.y : 0);
-				}
-				if(e.keyId == EKeyId.eKI_EyeTracker_Y)
-				{
-					var axis = GetAxis("EyeTracker");
-					_axisByName["EyeTracker"] = new Vector2(axis != null ? axis.x : 0, e.value);
-				}
+				return state.Down;
 			}
 			return false;
 		}
 
-		public static bool KeyDown(EKeyId key)
-		{
-			bool isDown;
-			SInputEventExtensions.KeyDownLog.TryGetValue(key, out isDown);
-			return isDown;
-		}
-
-		public static float GetInputValue(EKeyId key)
-		{
-			float changedValue;
-			SInputEventExtensions.KeyInputValueLog.TryGetValue(key, out changedValue);
-			return changedValue;
-		}
-
 		/// <summary>
-		/// Called by CryEngine. Do not call directly.
+		/// Get the current input value for the specified key.
 		/// </summary>
-		public override bool OnInputEventUI(SUnicodeEvent e)
+		/// <returns>The input value.</returns>
+		/// <param name="key">Key.</param>
+		public static float GetInputValue(KeyId key)
 		{
-			return false;
-		}
-
-		internal Input()
-		{
-			AddListener();
-
-			Engine.EndReload += AddListener;
-		}
-
-		void AddListener()
-		{
-			Global.gEnv.pInput.AddEventListener(this);
-		}
-
-		public override void Dispose()
-		{
-			Global.gEnv.pInput.RemoveEventListener(this);
-
-			base.Dispose();
+			KeyState state;
+			if(_keyStateCache.TryGetValue(key, out state))
+			{
+				return state.Value;
+			}
+			return 0.0f;
 		}
 	}
 }

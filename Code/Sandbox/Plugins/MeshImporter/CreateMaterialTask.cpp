@@ -3,9 +3,10 @@
 #include "StdAfx.h"
 #include "CreateMaterialTask.h"
 #include "MaterialHelpers.h"
-#include "TextureConversionDialog.h"
-#include "ConvertToTifTask.h"
+#include "TextureHelpers.h"
+#include "TextureManager.h"
 #include "DialogCommon.h"
+#include "ImporterUtil.h"
 
 #include <CryCore/ToolsHelpers/SettingsManagerHelpers.h>
 #include <CryCore/ToolsHelpers/ResourceCompilerHelper.h>
@@ -32,29 +33,6 @@ namespace Private_CreateMaterialTask
 // See also:
 // CMaterialManager::SelectSaveMaterial
 // CMatMan::UnifyName
-void CopyTextures(CTextureManager* pTextureManager, const QString& to)
-{
-	for (int i = 0; i < pTextureManager->GetTextureCount(); ++i)
-	{
-		CTextureManager::TextureHandle tex = pTextureManager->GetTextureFromIndex(i);
-
-		const QString fromFilePath = QtUtil::ToQString(pTextureManager->GetLoadPath(tex));
-		const QString fromFilePathTif = QtUtil::ToQString(PathUtil::ReplaceExtension(pTextureManager->GetLoadPath(tex), "tif"));
-		const QString fromFilePathDds = QtUtil::ToQString(PathUtil::ReplaceExtension(pTextureManager->GetLoadPath(tex), "dds"));
-
-		const QString toFileName = QtUtil::ToQString(pTextureManager->GetTargetPath(tex));
-		const QString toFileNameTif = QtUtil::ToQString(PathUtil::ReplaceExtension(pTextureManager->GetTargetPath(tex), "tif"));
-		const QString toFileNameDds = QtUtil::ToQString(PathUtil::ReplaceExtension(pTextureManager->GetTargetPath(tex), "dds"));
-
-		QDir(to).mkpath(QtUtil::ToQString(PathUtil::GetPathWithoutFilename(QtUtil::ToString(toFileName))));
-		QDir(to).mkpath(QtUtil::ToQString(PathUtil::GetPathWithoutFilename(QtUtil::ToString(toFileNameTif))));
-		QDir(to).mkpath(QtUtil::ToQString(PathUtil::GetPathWithoutFilename(QtUtil::ToString(toFileNameDds))));
-
-		QFile::copy(fromFilePath, to + "/" + toFileName);
-		QFile::copy(fromFilePathTif, to + "/" + toFileNameTif);
-		QFile::copy(fromFilePathDds, to + "/" + toFileNameDds);
-	}
-}
 
 QString SelectNewMaterial(const QString& startPath)
 {
@@ -76,22 +54,6 @@ static ColorF ColorGammaToLinear(COLORREF col)
 	              (float)(g <= 0.04045 ? (g / 12.92) : pow(((double)g + 0.055) / 1.055, 2.4)),
 	              (float)(b <= 0.04045 ? (b / 12.92) : pow(((double)b + 0.055) / 1.055, 2.4)));
 }
-
-static const char* GetTextureSemanticFromChannelType(FbxTool::EMaterialChannelType channelType)
-{
-	switch (channelType)
-	{
-	case FbxTool::eMaterialChannelType_Diffuse:
-		return "Diffuse";
-	case FbxTool::eMaterialChannelType_Bump:
-		return "Bumpmap";
-	case FbxTool::eMaterialChannelType_Specular:
-		return "Specular";
-	default:
-		return nullptr;
-	}
-}
-
 
 static void InitializeMaterial(const string& directoryPath, CMaterial* pEditorMaterial, const FbxTool::SMaterial& material, CTextureManager* pTextureManager)
 {
@@ -187,7 +149,7 @@ void CCreateMaterialTask::SetDisplayScene(const std::shared_ptr<MeshImporter::SD
 
 void CCreateMaterialTask::SetTextureManager(const std::shared_ptr<CTextureManager>& pTextureManager)
 {
-	m_pTextureManager = std::make_shared<CTextureManager>(*pTextureManager);  // Make copy.
+	m_pTextureManager = pTextureManager;
 }
 
 _smart_ptr<CMaterial> CCreateMaterialTask::GetMaterial() { return m_pMaterial; }
@@ -212,11 +174,12 @@ bool                  CCreateMaterialTask::InitializeTask()
 
 	if (m_materialFilePath.empty())
 	{
-		m_materialFilePath = PathUtil::Make(PathUtil::GetGameProjectAssetsPath(), QtUtil::ToString(SelectNewMaterial(sourceFilePath)));
-		if (m_materialFilePath.empty())
+		const QString materialName = SelectNewMaterial(sourceFilePath);
+		if (materialName.isEmpty())
 		{
 			return false;
 		}
+		m_materialFilePath = PathUtil::Make(PathUtil::GetGameProjectAssetsPath(), QtUtil::ToString(materialName));
 
 		const string materialItemName = GetMaterialNameFromFilePath(m_materialFilePath);
 
@@ -261,47 +224,17 @@ bool CCreateMaterialTask::PerformTask()
 	this->UpdateProgress(QStringLiteral("Creating material..."), -1);
 
 	// Copy textures to target directory.
-	const QString copyTo = QtUtil::ToQString(PathUtil::GetPathWithoutFilename(m_materialFilePath));
-	CopyTextures(m_pTextureManager.get(), copyTo);
+	const string copyTo = PathUtil::RemoveSlash(PathUtil::GetPathWithoutFilename(m_materialFilePath));
+	m_pTextureManager->CopyTextures(copyTo);
 
-	// Convert textures to TIF
-	CConvertToTifTask* pConvertTask = new CConvertToTifTask();
+	// Convert textures to CryTIF
 	for (int i = 0; i < m_pTextureManager->GetTextureCount(); ++i)
 	{
 		CTextureManager::TextureHandle tex = m_pTextureManager->GetTextureFromIndex(i);
-		const QString targetFilePath = QtUtil::ToQString(PathUtil::AddSlash(QtUtil::ToString(copyTo)) + m_pTextureManager->GetTargetPath(tex));
-		if (FileExists(QtUtil::ToString(targetFilePath)))
-		{
-			pConvertTask->AddFile(targetFilePath);
-		}
-	}
-	CAsyncTaskBase::CallBlocking(pConvertTask);
-
-	// Convert TIF to CryTIF
-	for (int i = 0; i < m_pTextureManager->GetTextureCount(); ++i)
-	{
-		CTextureManager::TextureHandle tex = m_pTextureManager->GetTextureFromIndex(i);
-		const QString targetFilePath = QtUtil::ToQString(PathUtil::AddSlash(QtUtil::ToString(copyTo)) + PathUtil::ReplaceExtension(m_pTextureManager->GetTargetPath(tex), "tif"));
-
 		const string rcSettings = m_pTextureManager->GetRcSettings(tex);
-		if (!rcSettings.empty() && FileExists(QtUtil::ToString(targetFilePath)))
+		if (!rcSettings.empty())
 		{
-
-			string rcArguments;
-			rcArguments += " /refresh=1";
-			rcArguments += " /savesettings=\"";
-			rcArguments += rcSettings;
-			rcArguments += "\"";
-
-			// CResourceCompilerHelper::InvokeResourceCompiler(tifFilename, tifFilename, false, true);
-			CResourceCompilerHelper::CallResourceCompiler(
-			  targetFilePath.toLocal8Bit().constData(),
-			  rcArguments.c_str(),
-			  nullptr, // Listener
-			  false,   // May show window
-			  CResourceCompilerHelper::eRcExePath_editor,
-			  false,  // silent
-			  true);  // no user dialog
+			TextureHelpers::CreateCryTif(PathUtil::AddSlash(copyTo) + m_pTextureManager->GetTargetPath(tex), rcSettings);
 		}
 	}
 

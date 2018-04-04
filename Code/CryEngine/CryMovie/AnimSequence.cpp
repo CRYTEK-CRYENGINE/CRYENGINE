@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #include "StdAfx.h"
 #include "AnimSequence.h"
@@ -736,14 +736,10 @@ void CAnimSequence::Serialize(XmlNodeRef& xmlNode, bool bLoading, bool bLoadEmpt
 
 		if (GetFlags() & IAnimSequence::eSeqFlags_LightAnimationSet)
 		{
-#if !defined(_RELEASE)
-
 			if (CLightAnimWrapper::GetLightAnimSet())
 			{
-				__debugbreak();
+				CRY_ASSERT_MESSAGE(0, "Track Sequence flagged as LightAnimationSet have LightAnimationSet pointer already set");
 			}
-
-#endif
 			CLightAnimWrapper::SetLightAnimSet(this);
 		}
 	}
@@ -1086,16 +1082,10 @@ bool CAnimSequence::IsAncestorOf(const IAnimSequence* pSequence) const
 	return false;
 }
 
-void CAnimSequence::ExecuteAudioTrigger(const AudioControlId& audioTriggerId)
+void CAnimSequence::ExecuteAudioTrigger(const CryAudio::ControlId audioTriggerId)
 {
-	if (audioTriggerId != INVALID_AUDIO_CONTROL_ID)
+	if (audioTriggerId != CryAudio::InvalidControlId)
 	{
-		SAudioObjectRequestData<eAudioObjectRequestType_ExecuteTrigger> audioExecuteRequestData;
-		audioExecuteRequestData.audioTriggerId = audioTriggerId;
-
-		SAudioRequest audioRequest;
-		audioRequest.pOwner = this;
-		audioRequest.pData = &audioExecuteRequestData;
-		gEnv->pAudioSystem->PushRequest(audioRequest);
+		gEnv->pAudioSystem->ExecuteTrigger(audioTriggerId);
 	}
 }

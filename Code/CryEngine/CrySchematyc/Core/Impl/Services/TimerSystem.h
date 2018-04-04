@@ -1,11 +1,11 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 // Restarting random timers will not affect duration. Is this an issue?
 
 #pragma once
 
-#include <Schematyc/Services/ITimerSystem.h>
-#include <Schematyc/Utils/EnumFlags.h>
+#include <CrySchematyc/Services/ITimerSystem.h>
+#include <CrySchematyc/Utils/EnumFlags.h>
 
 namespace Schematyc
 {

@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 // -------------------------------------------------------------------------
 //  Created:     23/09/2014 by Filipe amim
@@ -29,6 +29,7 @@ CParticleEffect::CParticleEffect()
 	, m_dirty(true)
 	, m_numRenderObjects(0)
 {
+	m_pAttributes = TAttributeTablePtr(new CAttributeTable);
 }
 
 cstr CParticleEffect::GetName() const
@@ -44,7 +45,7 @@ void CParticleEffect::Compile()
 		return;
 
 	m_numRenderObjects = 0;
-	m_attributeInstance.Reset(&m_attributes, EAttributeScope::PerEffect);
+	m_attributeInstance.Reset(m_pAttributes, EAttributeScope::PerEffect);
 	for (size_t i = 0; i < m_components.size(); ++i)
 	{
 		m_components[i]->m_pEffect = this;
@@ -82,19 +83,24 @@ string CParticleEffect::MakeUniqueName(TComponentId forComponentId, const char* 
 	if (foundId == forComponentId || foundId == gInvalidId)
 		return string(name);
 
-	CryStackStringT<char, 256> newName(name);
-	const uint sz = strlen(name);
-	if (isdigit(name[sz - 2]) && isdigit(name[sz - 1]))
+	string newName = name;
+	int pos = newName.length() - 1;
+
+	do
 	{
-		const uint newIdent = (name[sz - 2] - '0') * 10 + (name[sz - 1] - '0') + 1;
-		newName.replace(sz - 2, 1, 1, (newIdent / 10) % 10 + '0');
-		newName.replace(sz - 1, 1, 1, newIdent % 10 + '0');
+		while (pos >= 0 && newName[pos] == '9')
+		{
+			newName.replace(pos, 1, 1, '0');
+			pos--;
+		}
+		if (pos < 0 || !isdigit(newName[pos]))
+			newName.insert(++pos, '1');
+		else
+			newName.replace(pos, 1, 1, newName[pos] + 1);
 	}
-	else
-	{
-		newName.append("01");
-	}
-	return MakeUniqueName(forComponentId, newName);
+	while (FindComponentIdByName(newName) != gInvalidId);
+
+	return newName;
 }
 
 uint CParticleEffect::AddRenderObjectId()
@@ -105,6 +111,35 @@ uint CParticleEffect::AddRenderObjectId()
 uint CParticleEffect::GetNumRenderObjectIds() const
 {
 	return m_numRenderObjects;
+}
+
+float CParticleEffect::GetEquilibriumTime() const
+{
+	float maxEqTime = 0.0f;
+	for (auto comp : m_components)
+	{
+		// Iterate top-level components
+		auto const& params = comp->GetComponentParams();
+		if (comp->IsEnabled() && !params.IsSecondGen() && params.IsImmortal())
+		{
+			float eqTime = comp->GetEquilibriumTime(Range(params.m_emitterLifeTime.start));
+			maxEqTime = max(maxEqTime, eqTime);
+		}
+	}
+	return maxEqTime;
+}
+
+int CParticleEffect::GetEditVersion() const
+{
+	int version = m_editVersion + m_components.size();
+	for (auto pComponent : m_components)
+	{
+		const SComponentParams& params = pComponent->GetComponentParams();
+		const CMatInfo* pMatInfo = (CMatInfo*)params.m_pMaterial.get();
+		if (pMatInfo)
+			version += pMatInfo->GetModificationId();
+	}
+	return version;
 }
 
 void CParticleEffect::SetName(cstr name)
@@ -121,7 +156,7 @@ void CParticleEffect::Serialize(Serialization::IArchive& ar)
 	SSerializationContext documentContext(documentVersion);
 	Serialization::SContext context(ar, &documentContext);
 
-	ar(m_attributes, "Attributes");
+	ar(*m_pAttributes, "Attributes");
 
 	if (ar.isInput() && documentVersion < 3)
 	{
@@ -184,7 +219,7 @@ void CParticleEffect::SetChanged()
 
 Serialization::SStruct CParticleEffect::GetEffectOptionsSerializer() const
 {
-	return Serialization::SStruct(m_attributes);
+	return Serialization::SStruct(*m_pAttributes);
 }
 
 const ParticleParams& CParticleEffect::GetDefaultParams() const

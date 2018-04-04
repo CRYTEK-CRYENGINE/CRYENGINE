@@ -32,11 +32,11 @@
 #  - https://cmake.org/Wiki/CMake:CPackConfiguration
 #  - https://cmake.org/Wiki/CMake:CPackPackageGenerators#DEB_.28UNIX_only.29
 #
-# List of CPackRPM specific variables:
+# List of CPackDEB specific variables:
 #
-# .. variable:: CPACK_DEB_PACKAGE_COMPONENT
+# .. variable:: CPACK_DEB_COMPONENT_INSTALL
 #
-#  Enable component packaging for CPackRPM
+#  Enable component packaging for CPackDEB
 #
 #  * Mandatory : NO
 #  * Default   : OFF
@@ -616,7 +616,7 @@ function(cpack_deb_prepare_package_vars)
     find_program(SHLIBDEPS_EXECUTABLE dpkg-shlibdeps)
 
     if(SHLIBDEPS_EXECUTABLE)
-      # Check version of the dpkg-shlibdeps tool using CPackRPM method
+      # Check version of the dpkg-shlibdeps tool using CPackDEB method
       execute_process(COMMAND env LC_ALL=C ${SHLIBDEPS_EXECUTABLE} --version
         OUTPUT_VARIABLE _TMP_VERSION
         ERROR_QUIET

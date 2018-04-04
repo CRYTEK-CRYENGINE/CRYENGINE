@@ -33,7 +33,7 @@ end_sources()
 
 CryEngineStaticModule(expat SOLUTION_FOLDER "Libs")
 target_compile_definitions(${THIS_PROJECT} PRIVATE -DXML_CONTEXT_BYTES=1024 -DHAVE_MEMMOVE -DBYTEORDER=1234 PUBLIC -DXML_STATIC)
-target_include_directories(${THIS_PROJECT} INTERFACE ${SDK_DIR}/expat-2.1.0/lib)
+target_include_directories(${THIS_PROJECT} INTERFACE "${SDK_DIR}/expat-2.1.0/lib")
 
 if(WIN32 OR WIN64 OR DURANGO)
 	target_compile_options(${THIS_PROJECT} PRIVATE /wd4244)

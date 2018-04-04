@@ -1,73 +1,57 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #ifndef __ActorLookUp_h__
 #define __ActorLookUp_h__
 
 #pragma once
 
+#include <CryAISystem/IActorLookUp.h>
 #include "AIActor.h"
-
-template<typename Ty> struct ActorLookUpCastHelper
-{
-	static Ty* Cast(CAIActor* ptr) { assert(!"dangerous cast!"); return static_cast<Ty*>(ptr); }
-};
 
 template<> struct ActorLookUpCastHelper<CAIObject>
 {
-	static CAIObject* Cast(CAIActor* ptr) { return static_cast<CAIObject*>(ptr); }
+	static CAIObject* Cast(IAIActor* ptr) { return static_cast<CAIActor*>(ptr); }
 };
 
 template<> struct ActorLookUpCastHelper<CAIActor>
 {
-	static CAIActor* Cast(CAIActor* ptr) { return ptr; }
+	static CAIActor* Cast(IAIActor* ptr) { return  static_cast<CAIActor*>(ptr); }
 };
 
 template<> struct ActorLookUpCastHelper<CPipeUser>
 {
-	static CPipeUser* Cast(CAIActor* ptr) { return ptr->CastToCPipeUser(); }
+	static CPipeUser* Cast(IAIActor* ptr) { return static_cast<CAIActor*>(ptr)->CastToCPipeUser(); }
 };
 
 template<> struct ActorLookUpCastHelper<CPuppet>
 {
-	static CPuppet* Cast(CAIActor* ptr) { return ptr->CastToCPuppet(); }
+	static CPuppet* Cast(IAIActor* ptr) { return static_cast<CAIActor*>(ptr)->CastToCPuppet(); }
 };
 
-class ActorLookUp
+class ActorLookUp : public IActorLookUp
 {
 public:
-	ILINE size_t GetActiveCount() const
+	virtual size_t GetActiveCount() const override
 	{
 		return m_actors.size();
 	}
 
-	template<typename Ty>
-	ILINE Ty* GetActor(uint32 index) const
-	{
-		if (index < m_actors.size())
-		{
-			if (CAIActor* actor = m_actors[index])
-				return ActorLookUpCastHelper<Ty>::Cast(actor);
-		}
-
-		return 0;
-	}
-
-	ILINE IAIActorProxy* GetProxy(uint32 index) const
+	virtual IAIActorProxy* GetProxy(uint32 index) const override
 	{
 		return m_proxies[index];
 	}
 
-	ILINE const Vec3& GetPosition(uint32 index) const
+	virtual const Vec3& GetPosition(uint32 index) const override
 	{
 		return m_positions[index];
 	}
 
-	ILINE EntityId GetEntityID(uint32 index) const
+	virtual EntityId GetEntityID(uint32 index) const override
 	{
 		return m_entityIDs[index];
 	}
 
-	ILINE void UpdatePosition(CAIActor* actor, const Vec3& position)
+	virtual void UpdatePosition(CAIActor* actor, const Vec3& position) override
 	{
 		size_t activeActorCount = GetActiveCount();
 
@@ -81,7 +65,7 @@ public:
 		}
 	}
 
-	ILINE void UpdateProxy(CAIActor* actor)
+	virtual void UpdateProxy(CAIActor* actor) override
 	{
 		size_t activeActorCount = GetActiveCount();
 
@@ -95,14 +79,7 @@ public:
 		}
 	}
 
-	enum
-	{
-		Proxy    = BIT(0),
-		Position = BIT(1),
-		EntityID = BIT(2),
-	};
-
-	ILINE void Prepare(uint32 lookUpFields)
+	virtual void Prepare(uint32 lookUpFields) override
 	{
 		if (!m_actors.empty())
 		{
@@ -125,7 +102,7 @@ public:
 		}
 	}
 
-	void AddActor(CAIActor* actor)
+	virtual void AddActor(CAIActor* actor) override
 	{
 		assert(actor);
 
@@ -149,7 +126,7 @@ public:
 		m_entityIDs.push_back(actor->GetEntityID());
 	}
 
-	void RemoveActor(CAIActor* actor)
+	virtual void RemoveActor(CAIActor* actor) override
 	{
 		assert(actor);
 
@@ -177,6 +154,14 @@ public:
 	}
 
 private:
+	virtual IAIActor* GetActorInternal(uint32 index) const override
+	{
+		if (index >= m_actors.size())
+			return nullptr;
+
+		return m_actors[index];
+	}
+
 	typedef std::vector<CAIActor*> Actors;
 	Actors m_actors;
 

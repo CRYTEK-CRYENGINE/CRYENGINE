@@ -270,6 +270,7 @@ struct CloudGenParam
 	float4 cloudBlockerParam[4]; // x: reciprocal of length between decay start and end, y: decay start, z: decay influence, w: one minus decay influence
 
 	Texture3D noiseTex;
+	Texture3D edgeNoiseTex;
 	SamplerState linearWrapSampler;
 };
 
@@ -316,7 +317,7 @@ float GetCloudDensity(in float3 posWS, CloudGenParam param)
 	f *= heightGradient;
 
 	// erode cloud's edge or add fine-grained clouds around edge.
-	float erode = GetFBM(param.noiseTex, param.linearWrapSampler, posCloudSpace * erodeNoiseSizeScale, 1.0f, 2.31285739f, bAbs);
+	float erode = GetFBM(param.edgeNoiseTex, param.linearWrapSampler, posCloudSpace * erodeNoiseSizeScale, 1.0f, 2.31285739f, bAbs);
 	const float edgeFactor = saturate(f / edgeThreshold);
 	const float erodeFactor = -(1.0f - edgeFactor) * edgeTurbulence;
 	const float accumFactor = edgeFactor * edgeTurbulence;
@@ -375,7 +376,8 @@ float GetOpticalThickness(in float3 rayOriginWS, in float3 rayDir, in float exti
 
 RWTexture3D< float3 > VolShadowRW : register( u0 );
 
-Texture3D CloudShadowNoiseTex : register(t0) = "EngineAssets/Textures/noise3d.dds";
+Texture3D CloudShadowNoiseTex : register(t0);
+Texture3D CloudShadowEdgeNoiseTex : register(t1);
 SamplerState CloudShadowTrilinearWrapSState : register(s0) = SS_TrilinearWrap;
 
 cbuffer CloudShadowConstantBuffer : register(b3)
@@ -476,6 +478,7 @@ void CloudShadowGenCS(uint3 GroupID : SV_GroupID,
 	cloudGenParam.cloudBlockerParam = CloudShadow.cloudBlockerParam;
 #endif
 	cloudGenParam.noiseTex = CloudShadowNoiseTex;
+	cloudGenParam.edgeNoiseTex = CloudShadowEdgeNoiseTex;
 	cloudGenParam.linearWrapSampler = CloudShadowTrilinearWrapSState;
 
 	float opticalThickness = GetOpticalThickness(worldPos, sunLightDir.xyz, extinctionCoefficient, cloudGenParam);
@@ -500,7 +503,7 @@ technique CloudShadowGen
 #ifdef ENABLE_CIRRUS_CLOUD_LAYER
 sampler2D cloudDetailSampler = sampler_state
 {
-	Texture = EngineAssets/Textures/cloud/stratus_clouds_mask.tif;
+	Texture = %ENGINE%/EngineAssets/Textures/cloud/stratus_clouds_mask.tif;
 	MinFilter = LINEAR;
 	MagFilter = LINEAR;
 	MipFilter = LINEAR;
@@ -510,7 +513,7 @@ sampler2D cloudDetailSampler = sampler_state
 
 sampler2D PlaneCloudsDiff = sampler_state
 {
-	Texture = EngineAssets/Textures/cloud/stratus_clouds_diff.tif;
+	Texture = %ENGINE%/EngineAssets/Textures/cloud/stratus_clouds_diff.tif;
 	MinFilter = LINEAR;
 	MagFilter = LINEAR;
 	MipFilter = LINEAR;
@@ -520,7 +523,7 @@ sampler2D PlaneCloudsDiff = sampler_state
 
 sampler2D PlaneCloudsNorm = sampler_state
 {
-	Texture = EngineAssets/Textures/cloud/stratus_clouds_ddn.tif;
+	Texture = %ENGINE%/EngineAssets/Textures/cloud/stratus_clouds_ddn.tif;
 	MinFilter = LINEAR;
 	MagFilter = LINEAR;
 	MipFilter = LINEAR;
@@ -538,14 +541,16 @@ Texture3D<float> VolCloudDensity : register(t3);
 Texture3D<float3> VolCloudShadow : register(t4);
 
 Texture3D VolCloudGlobalShadowTex : register(t5) = TS_VolCloudShadow;
-Texture3D VolCloudNoiseTex : register(t6) = "EngineAssets/Textures/noise3d.dds";
-Texture2D VolCloudMiePhaseTex : register(t7) = "EngineAssets/Shading/cloud_mie_phase_function.dds";
+Texture3D VolCloudNoiseTex : register(t6);
+Texture3D VolCloudEdgeNoiseTex : register(t7);
 
 Texture2D VolFogShadowTex : register(t8) = TS_VolumetricFogShadow0;
 
 Texture3D VolFogSamplingTex : register(t9) = TS_VolumetricFog;
 TextureCube VolFogGlobalEnvProbeTex0 : register(t10) = TS_VolumetricFogGlobalEnvProbe0;
 TextureCube VolFogGlobalEnvProbeTex1 : register(t11) = TS_VolumetricFogGlobalEnvProbe1;
+
+Texture2D VolCloudMiePhaseTex : register(t12) = "%ENGINE%/EngineAssets/Shading/cloud_mie_phase_function.dds";
 
 SamplerState VolCloudGlobalShadowSState : register(s0) = SS_MaterialTrilinearBorder;
 SamplerState VolCloudTrilinearWrapSState : register(s1) = SS_TrilinearWrap;
@@ -1455,6 +1460,7 @@ void RenderCloudMonolithicCS(uint3 GroupID : SV_GroupID,
 	cloudGenParam.baseTexRemap = baseTexRemap.xy;
 	cloudGenParam.additionalNoiseIntensity = additionalNoiseIntensity.x;
 	cloudGenParam.noiseTex = VolCloudNoiseTex;
+	cloudGenParam.edgeNoiseTex = VolCloudEdgeNoiseTex;
 	cloudGenParam.linearWrapSampler = VolCloudTrilinearWrapSState;
 #if !%_RT_SAMPLE2
 	cloudGenParam.cloudBlockerPos = vcCloudBlockerPos;
@@ -2001,6 +2007,7 @@ void InjectCloudDensityAndShadowCS(uint3 GroupID : SV_GroupID,
 	cloudGenParam.baseTexRemap = baseTexRemap.xy;
 	cloudGenParam.additionalNoiseIntensity = additionalNoiseIntensity.x;
 	cloudGenParam.noiseTex = VolCloudNoiseTex;
+	cloudGenParam.edgeNoiseTex = VolCloudEdgeNoiseTex;
 	cloudGenParam.linearWrapSampler = VolCloudTrilinearWrapSState;
 #if !%_RT_SAMPLE2
 	cloudGenParam.cloudBlockerPos = vcCloudBlockerPos;
@@ -2339,6 +2346,7 @@ void RenderCloudCS(uint3 GroupID : SV_GroupID,
 	cloudGenParam.baseTexRemap = baseTexRemap.xy;
 	cloudGenParam.additionalNoiseIntensity = additionalNoiseIntensity.x;
 	cloudGenParam.noiseTex = VolCloudNoiseTex;
+	cloudGenParam.edgeNoiseTex = VolCloudEdgeNoiseTex;
 	cloudGenParam.linearWrapSampler = VolCloudTrilinearWrapSState;
 #if !%_RT_SAMPLE2
 	cloudGenParam.cloudBlockerPos = vcCloudBlockerPos;

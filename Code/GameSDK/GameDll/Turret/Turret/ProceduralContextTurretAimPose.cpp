@@ -257,7 +257,7 @@ bool CProceduralContextTurretAimPose::InitialiseCharacter( const int characterSl
 
 void CProceduralContextTurretAimPose::InitialiseHorizontalAim()
 {
-	CryCreateClassInstance( "AnimationPoseModifier_OperatorQueue", m_pHorizontalAim );
+	CryCreateClassInstanceForInterface(cryiidof<IAnimationOperatorQueue>(), m_pHorizontalAim);
 }
 
 

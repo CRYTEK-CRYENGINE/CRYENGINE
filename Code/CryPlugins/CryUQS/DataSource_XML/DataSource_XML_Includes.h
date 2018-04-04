@@ -9,3 +9,4 @@
 #include "datasource_xml/QueryBlueprintLoader_XML.h"
 #include "datasource_xml/QueryBlueprintSaver_XML.h"
 #include "datasource_xml/QueryBlueprintFileLibrary.h"
+#include "datasource_xml/XMLDatasource.h"

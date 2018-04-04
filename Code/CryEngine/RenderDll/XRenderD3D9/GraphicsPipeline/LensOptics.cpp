@@ -39,14 +39,14 @@ void CLensOpticsStage::Execute(CRenderView* pRenderView)
 			UpdateOcclusionQueries(viewInfo, viewInfoCount);
 			m_occlusionUpdateFrame = frameID;
 		}
-		CCryDeviceWrapper::GetObjectFactory().GetCoreCommandList()->GetGraphicsInterface()->ClearSurface(pDestRT->GetSurface(0, 0), Clr_Transparent);
+		GetDeviceObjectFactory().GetCoreCommandList().GetGraphicsInterface()->ClearSurface(pDestRT->GetSurface(0, 0), Clr_Transparent);
 
 		m_passLensOptics.SetRenderTarget(0, pDestRT);
 		m_passLensOptics.SetViewport(viewport);
 
 		for (auto& re : lensOpticsElements)
 		{
-			m_passLensOptics.ClearPrimitives();
+			m_passLensOptics.BeginAddingPrimitives();
 			std::vector<CPrimitiveRenderPass*> prePasses;
 
 			CD3D9Renderer* pRD = gcpRendD3D;

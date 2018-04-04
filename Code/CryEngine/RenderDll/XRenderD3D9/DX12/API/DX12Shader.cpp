@@ -1,10 +1,15 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #include "StdAfx.h"
 #include "DX12Shader.hpp"
 
+#if CRY_PLATFORM_DURANGO
+#include <d3d11shader_x.h>
+#include <d3dcompiler_x.h>
+#else
 #include <d3d11shader.h>
 #include <d3dcompiler.h>
+#endif
 
 namespace NCryDX12
 {

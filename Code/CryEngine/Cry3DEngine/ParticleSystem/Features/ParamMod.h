@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 // -------------------------------------------------------------------------
 //  Created:     25/03/2015 by Filipe amim
@@ -149,7 +149,7 @@ public:
 	void                           ModifyUpdate(const SUpdateContext& context, TType* data, SUpdateRange range) const;
 
 	TRange<TType>                  GetValues(const SUpdateContext& context, TType* data, SUpdateRange range, EModDomain domain, bool updating) const;
-	TRange<TType>                  GetValues(const SUpdateContext& context, Array<TType,uint> data, EModDomain domain, bool updating) const;
+	TRange<TType>                  GetValues(const SUpdateContext& context, TVarArray<TType> data, EModDomain domain, bool updating) const;
 	TRange<TType>                  GetValueRange(const SUpdateContext& context) const;
 	TRange<TType>                  GetValueRange() const;
 	void                           Sample(TType* samples, int numSamples) const;

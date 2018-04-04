@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #ifndef __WrinkleMapRenderProxyCallback_H__
 #define __WrinkleMapRenderProxyCallback_H__
@@ -16,7 +16,7 @@ class CWrinkleMapShaderParamCallback : public IShaderParamCallback
 	CRYINTERFACE_ADD(IShaderParamCallback)
 	CRYINTERFACE_END()
 
-	CRYGENERATE_CLASS(CWrinkleMapShaderParamCallback, "WrinkleMapShaderParamCallback", 0x68c7f0e0c36446fe, 0x82a3bc01b54dc7bf)
+	CRYGENERATE_CLASS_GUID(CWrinkleMapShaderParamCallback, "WrinkleMapShaderParamCallback", "68c7f0e0-c364-46fe-82a3-bc01b54dc7bf"_cry_guid)
 
 	CWrinkleMapShaderParamCallback();
 	virtual ~CWrinkleMapShaderParamCallback();
@@ -70,7 +70,7 @@ class CWrinkleMapShaderParamCallbackUI : public CWrinkleMapShaderParamCallback
 	CRYINTERFACE_ADD(CWrinkleMapShaderParamCallback)
 	CRYINTERFACE_END()
 		
-	CRYGENERATE_CLASS(CWrinkleMapShaderParamCallbackUI, "bWrinkleMap", 0x1B9D46925918485B, 0xB7312C8FB3F5B763)
+	CRYGENERATE_CLASS_GUID(CWrinkleMapShaderParamCallbackUI, "bWrinkleMap", "1b9d4692-5918-485b-b731-2c8fb3f5b763"_cry_guid)
 };
 
 #endif //__WrinkleMapRenderProxyCallback_H__

@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #include "StdAfx.h"
 #include <CryExtension/ClassWeaver.h>
@@ -14,7 +14,7 @@ public:
 	CRYINTERFACE_ADD(IProceduralParamsComparer)
 	CRYINTERFACE_END()
 
-	CRYGENERATE_CLASS(CProceduralParamsComparerDefault, IProceduralParamsComparerDefaultName, 0xfc53bd9248534faa, 0xab0fb42b24e55b3e)
+	CRYGENERATE_CLASS_GUID(CProceduralParamsComparerDefault, "ProceduralParamsComparerDefault", "fc53bd92-4853-4faa-ab0f-b42b24e55b3e"_cry_guid)
 
 	virtual ~CProceduralParamsComparerDefault() {}
 

@@ -30,7 +30,7 @@ namespace CryLinkService
 
 	struct IFramework : public ICryUnknown
 	{
-		CRYINTERFACE_DECLARE(IFramework, 0xbddef21f92c24cff, 0xb5b50d8f89bd2350)
+		CRYINTERFACE_DECLARE_GUID(IFramework, "bddef21f-92c2-4cff-b5b5-0d8f89bd2350"_cry_guid)
 
 		virtual ICryLinkService& GetService() = 0;
 	};

@@ -39,6 +39,8 @@ IGameRef CGameStartup::Init(SSystemInitParams& startupParams)
 	gEnv = startupParams.pSystem->GetGlobalEnvironment();
 #endif // !_LIB
 
+	CryRegisterFlowNodes();
+
 	static char pGameBuffer[sizeof(CGame)];
 	m_pGame = new((void*)pGameBuffer)CGame();
 
@@ -52,5 +54,6 @@ IGameRef CGameStartup::Init(SSystemInitParams& startupParams)
 
 void CGameStartup::Shutdown()
 {
+	CryUnregisterFlowNodes();
 	this->~CGameStartup();
 }

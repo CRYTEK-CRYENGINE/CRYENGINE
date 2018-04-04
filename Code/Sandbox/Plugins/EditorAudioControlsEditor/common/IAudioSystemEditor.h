@@ -19,20 +19,6 @@ class IAudioConnection;
 
 typedef uint TImplControlTypeMask;
 
-struct SControlDef
-{
-	ItemType          type;       // middleware type of the control
-	string            name;       // name of the control
-	bool              bLocalised; // true if the control is localised.
-	IAudioSystemItem* pParent;    // pointer to the parent
-	SControlDef(const string& name, ItemType type, bool localised = false, IAudioSystemItem* parent = nullptr)
-		: type(type)
-		, name(name)
-		, bLocalised(localised)
-		, pParent(parent)
-	{}
-};
-
 class IImplementationSettings
 {
 public:
@@ -44,8 +30,9 @@ public:
 class IAudioSystemEditor
 {
 public:
-	IAudioSystemEditor() {}
-	virtual ~IAudioSystemEditor() {}
+
+	IAudioSystemEditor() = default;
+	virtual ~IAudioSystemEditor() = default;
 
 	// <title Reload>
 	// Description:
@@ -86,7 +73,7 @@ public:
 	//      An ATL control type that corresponds to the middleware control type passed as argument.
 	// See Also:
 	//      GetCompatibleTypes
-	virtual EACEControlType ImplTypeToATLType(ItemType type) const = 0;
+	virtual EItemType ImplTypeToATLType(ItemType type) const = 0;
 
 	// <title GetCompatibleTypes>
 	// Description:
@@ -97,7 +84,7 @@ public:
 	//      A mask representing all the middleware control types that can be connected to the ATL control type passed as argument.
 	// See Also:
 	//      ImplTypeToATLType
-	virtual TImplControlTypeMask GetCompatibleTypes(EACEControlType eATLControlType) const = 0;
+	virtual TImplControlTypeMask GetCompatibleTypes(EItemType eATLControlType) const = 0;
 
 	// <title CreateConnectionToControl>
 	// Description:
@@ -109,7 +96,7 @@ public:
 	//      A pointer to the newly created connection
 	// See Also:
 	//      CreateConnectionFromXMLNode
-	virtual ConnectionPtr CreateConnectionToControl(EACEControlType eATLControlType, IAudioSystemItem* pMiddlewareControl) = 0;
+	virtual ConnectionPtr CreateConnectionToControl(EItemType eATLControlType, IAudioSystemItem* pMiddlewareControl) = 0;
 
 	// <title CreateConnectionFromXMLNode>
 	// Description:
@@ -124,7 +111,7 @@ public:
 	//      A pointer to the newly created connection
 	// See Also:
 	//      CreateXMLNodeFromConnection
-	virtual ConnectionPtr CreateConnectionFromXMLNode(XmlNodeRef pNode, EACEControlType eATLControlType) = 0;
+	virtual ConnectionPtr CreateConnectionFromXMLNode(XmlNodeRef pNode, EItemType eATLControlType) = 0;
 
 	// <title CreateXMLNodeFromConnection>
 	// Description:
@@ -137,7 +124,7 @@ public:
 	//      XML node with the connection serialized
 	// See Also:
 	//      CreateConnectionFromXMLNode
-	virtual XmlNodeRef CreateXMLNodeFromConnection(const ConnectionPtr pConnection, const EACEControlType eATLControlType) = 0;
+	virtual XmlNodeRef CreateXMLNodeFromConnection(const ConnectionPtr pConnection, const EItemType eATLControlType) = 0;
 
 	// <title EnableConnection>
 	// Description:
@@ -180,4 +167,5 @@ public:
 	//      Gets the settings for this implementation
 	virtual IImplementationSettings* GetSettings() = 0;
 };
+
 }

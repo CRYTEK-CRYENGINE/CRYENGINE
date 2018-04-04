@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 /************************************************************************
 
@@ -29,7 +29,6 @@ public:
 
 	CActionSetVariable() : m_changeOperation(eChangeOperation_Set), m_cooldown(0.0f) {}
 	CActionSetVariable(const CHashedString& pCollection, const CHashedString& variableName, CVariableValue targetValue, EChangeOperation operation, float cooldown);
-	virtual ~CActionSetVariable() {}
 
 	//////////////////////////////////////////////////////////
 	// IResponseAction implementation

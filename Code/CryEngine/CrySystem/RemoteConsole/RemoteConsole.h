@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 // -------------------------------------------------------------------------
 //  File name:   RemoteConsole.h
@@ -16,7 +16,7 @@
 #include <CryCore/Containers/CryListenerSet.h>
 #include <CryNetwork/CrySocks.h>
 
-#if !defined(RELEASE) || (defined(RELEASE_LOGGING) && !defined(IS_EAAS)) || defined(ENABLE_PROFILING_CODE)
+#if !defined(RELEASE) || defined(RELEASE_LOGGING) || defined(ENABLE_PROFILING_CODE)
 	#define USE_REMOTE_CONSOLE
 #endif
 
@@ -118,17 +118,16 @@ struct IRemoteEvent
 {
 	virtual ~IRemoteEvent() {}
 	IRemoteEvent(EConsoleEventType type) : m_type(type) {}
-	EConsoleEventType     GetType() const { return m_type; }
-
-	virtual IRemoteEvent* Clone() = 0;
+	EConsoleEventType                     GetType() const { return m_type; }
+	virtual std::unique_ptr<IRemoteEvent> Clone() const = 0;
 
 protected:
 	friend struct SRemoteEventFactory;
-	virtual void          WriteToBuffer(char* buffer, int& size, int maxsize) = 0;
-	virtual IRemoteEvent* CreateFromBuffer(const char* buffer, int size) = 0;
+	virtual void                          WriteToBuffer(char* buffer, size_t& size, size_t maxsize) const = 0;
+	virtual std::unique_ptr<IRemoteEvent> CreateFromBuffer(const char* buffer, size_t size) const = 0;
 
 private:
-	EConsoleEventType m_type;
+	const EConsoleEventType m_type;
 };
 
 /////////////////////////////////////////////////////////////////////////////////////////////
@@ -138,35 +137,39 @@ private:
 //
 /////////////////////////////////////////////////////////////////////////////////////////////
 template<EConsoleEventType T>
-struct SNoDataEvent : public IRemoteEvent
+struct SNoDataEvent final : IRemoteEvent
 {
-	SNoDataEvent() : IRemoteEvent(T) {};
-	virtual IRemoteEvent* Clone() { return new SNoDataEvent<T>(); }
+	SNoDataEvent() : IRemoteEvent(T) {}
+	virtual std::unique_ptr<IRemoteEvent> Clone() const override { return std::unique_ptr<IRemoteEvent>(new SNoDataEvent<T>()); }
 
 protected:
-	virtual void          WriteToBuffer(char* buffer, int& size, int maxsize) { size = 0; }
-	virtual IRemoteEvent* CreateFromBuffer(const char* buffer, int size)      { return Clone(); }
+	virtual void                          WriteToBuffer(char* buffer, size_t& size, size_t maxsize) const override { size = 0; }
+	virtual std::unique_ptr<IRemoteEvent> CreateFromBuffer(const char* buffer, size_t size) const override         { return Clone(); }
 };
 
 /////////////////////////////////////////////////////////////////////////////////////////////
 template<EConsoleEventType T>
-struct SStringEvent : public IRemoteEvent
+struct SStringEvent final : IRemoteEvent
 {
-	SStringEvent(const char* string) : IRemoteEvent(T), m_data(string) {};
-	virtual IRemoteEvent* Clone()         { return new SStringEvent<T>(GetData()); }
-	const char*           GetData() const { return m_data.c_str(); }
+	SStringEvent(const char* string) : IRemoteEvent(T), m_data(string) {}
+	virtual std::unique_ptr<IRemoteEvent> Clone() const override { return std::unique_ptr<IRemoteEvent>(new SStringEvent<T>(GetData())); }
+	const char*                           GetData() const        { return m_data.c_str(); }
 
 protected:
-	virtual void WriteToBuffer(char* buffer, int& size, int maxsize)
+	virtual void WriteToBuffer(char* buffer, size_t& size, size_t maxsize) const override
 	{
 		const char* data = GetData();
-		size = min((int)strlen(data), maxsize);
+		size = std::min(m_data.size(), maxsize);
 		memcpy(buffer, data, size);
 	}
-	virtual IRemoteEvent* CreateFromBuffer(const char* buffer, int size) { return new SStringEvent<T>(buffer); }
+
+	virtual std::unique_ptr<IRemoteEvent> CreateFromBuffer(const char* buffer, size_t size) const override
+	{
+		return std::unique_ptr<IRemoteEvent>(new SStringEvent<T>(buffer));
+	}
 
 private:
-	string m_data;
+	const string m_data;
 };
 
 /////////////////////////////////////////////////////////////////////////////////////////////
@@ -177,21 +180,21 @@ private:
 /////////////////////////////////////////////////////////////////////////////////////////////
 struct SRemoteEventFactory
 {
-	static SRemoteEventFactory* GetInst() { static SRemoteEventFactory inst; return &inst; }
-	IRemoteEvent*               CreateEventFromBuffer(const char* buffer, int size);
-	void                        WriteToBuffer(IRemoteEvent* pEvent, char* buffer, int& size);
+	static SRemoteEventFactory*   GetInst() { static SRemoteEventFactory inst; return &inst; }
+	std::unique_ptr<IRemoteEvent> CreateEventFromBuffer(const char* buffer, size_t size);
+	void                          WriteToBuffer(const IRemoteEvent* pEvent, char* buffer, size_t& size);
 
 private:
 	SRemoteEventFactory();
-	~SRemoteEventFactory();
+	~SRemoteEventFactory() {}
 
-	void RegisterEvent(IRemoteEvent* pEvent);
+	void RegisterEvent(std::unique_ptr<IRemoteEvent> pEvent);
 private:
-	typedef std::map<EConsoleEventType, IRemoteEvent*> TPrototypes;
+	typedef std::map<EConsoleEventType, std::unique_ptr<IRemoteEvent>> TPrototypes;
 	TPrototypes m_prototypes;
 };
 
-typedef std::list<IRemoteEvent*> TEventBuffer;
+typedef std::list<std::unique_ptr<IRemoteEvent>> TEventBuffer;
 
 /////////////////////////////////////////////////////////////////////////////////////////////
 // SRemoteServer
@@ -202,12 +205,12 @@ typedef std::list<IRemoteEvent*> TEventBuffer;
 struct SRemoteClient;
 struct SRemoteServer : public IThread
 {
-	SRemoteServer() : m_socket(CRY_INVALID_SOCKET), m_bAcceptClients(false) { m_stopEvent.Set(); }
+	SRemoteServer() : m_socket(CRY_INVALID_SOCKET), m_bAcceptClients(false) {}
 
 	void StartServer();
 	void StopServer();
 
-	void AddEvent(IRemoteEvent* pEvent);
+	void AddEvent(std::unique_ptr<IRemoteEvent> pEvent);
 	void GetEvents(TEventBuffer& buffer);
 
 	// Start accepting work on thread
@@ -217,17 +220,15 @@ struct SRemoteServer : public IThread
 	void SignalStopWork();
 
 private:
-	bool WriteBuffer(SRemoteClient* pClient, char* buffer, int& size);
-	bool ReadBuffer(const char* buffer, int data);
-
-	void ClientDone(SRemoteClient* pClient);
+	bool WriteBuffer(SRemoteClient* pClient, char* buffer, size_t& size);
+	bool ReadBuffer(const char* buffer, size_t data);
 
 private:
 	struct SRemoteClientInfo
 	{
-		SRemoteClientInfo(SRemoteClient* client) : pClient(client), pEvents(new TEventBuffer) {}
-		SRemoteClient* pClient;
-		TEventBuffer*  pEvents;
+		SRemoteClientInfo(std::unique_ptr<SRemoteClient> client) : pClient(std::move(client)), pEvents(new TEventBuffer) {}
+		std::unique_ptr<SRemoteClient> pClient;
+		std::unique_ptr<TEventBuffer>  pEvents;
 	};
 
 	typedef std::vector<SRemoteClientInfo> TClients;
@@ -235,7 +236,6 @@ private:
 	CRYSOCKET     m_socket;
 	CryMutex      m_lock;
 	TEventBuffer  m_eventBuffer;
-	CryEvent      m_stopEvent;
 	volatile bool m_bAcceptClients;
 	friend struct SRemoteClient;
 };
@@ -248,10 +248,9 @@ private:
 /////////////////////////////////////////////////////////////////////////////////////////////
 struct SRemoteClient : public IThread
 {
-	SRemoteClient(SRemoteServer* pServer) : m_pServer(pServer), m_socket(CRY_INVALID_SOCKET) {}
+	SRemoteClient(SRemoteServer* pServer) : m_pServer(pServer), m_socket(CRY_INVALID_SOCKET), m_bRun(true){}
 
 	void StartClient(CRYSOCKET socket);
-	void StopClient();
 
 	// Start accepting work on thread
 	virtual void ThreadEntry();
@@ -260,13 +259,14 @@ struct SRemoteClient : public IThread
 	void SignalStopWork();
 
 private:
-	bool RecvPackage(char* buffer, int& size);
-	bool SendPackage(const char* buffer, int size);
+	bool RecvPackage(char* buffer, size_t& size);
+	bool SendPackage(const char* buffer, size_t size);
 	void FillAutoCompleteList(std::vector<string>& list);
 
 private:
 	SRemoteServer* m_pServer;
 	CRYSOCKET      m_socket;
+	volatile bool  m_bRun;
 };
 
 /////////////////////////////////////////////////////////////////////////////////////////////

@@ -15,6 +15,13 @@ static bool HeaderLessFuncCAF(const GlobalAnimationHeaderCAF* lhs, const GlobalA
 	return lhs->m_FilePath < rhs->m_FilePath;
 }
 
+// Checks if the GlobalAnimationHeaderAIMs are empty, 
+// which indicates that calls to SaveAIMImage can be skipped for this instance.
+bool CAnimationManager::CanBeSkipped()
+{
+	return m_arrGlobalAIM.empty();
+}
+
 bool CAnimationManager::SaveAIMImage(const char* name, FILETIME timeStamp, bool bigEndianOutput)
 {
 	CChunkFile chunkFile;

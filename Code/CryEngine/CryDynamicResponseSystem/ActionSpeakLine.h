@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #pragma once
 
@@ -50,7 +50,7 @@ class CActionSpeakLineInstance final : public DRS::IResponseActionInstance, DRS:
 {
 public:
 	CActionSpeakLineInstance(CResponseActor* pSpeaker, const CHashedString& lineID, CResponseInstance* pResponseInstance, uint32 flags);
-	~CActionSpeakLineInstance();
+	virtual ~CActionSpeakLineInstance() override;
 
 	//////////////////////////////////////////////////////////
 	// IResponseActionInstance implementation

@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #pragma once
 
@@ -106,16 +106,32 @@ ILINE unsigned char CryInterlockedCompareExchange128(volatile int64* pDst, int64
 	#endif
 	CRY_ASSERT_MESSAGE((((int64)pDst) & 15) == 0, "The destination data must be 16-byte aligned to avoid a general protection fault.");
 	#if CRY_PLATFORM_X64 || CRY_PLATFORM_X86
-	bool bEquals;
-	__asm__ __volatile__ (
-	  "lock cmpxchg16b %1\n\t"
-	  "setz %0"
-	  : "=q" (bEquals), "+m" (*pDst), "+d" (pComparandResult[1]), "+a" (pComparandResult[0])
-	  : "c" (exchangehigh), "b" (exchangelow)
-	  : "cc");
-	return (char)bEquals;
+		bool bEquals;
+		__asm__ __volatile__(
+		"lock cmpxchg16b %1\n\t"
+		"setz %0"
+		: "=q" (bEquals), "+m" (*pDst), "+d" (pComparandResult[1]), "+a" (pComparandResult[0])
+		: "c" (exchangehigh), "b" (exchangelow)
+		: "cc");
+		return (char)bEquals;
 	#else
-		#error "POSIX CryInterlockedCompareExchange128 only supported for x86/x64 architecture"
+		// Use lock for targeted CPU architecture that does not support DCAS/CAS2/MCAS
+		static pthread_mutex_t mutex;
+		bool bResult = false;
+		pthread_mutex_lock (&mutex);
+		if (pDst[0] == pComparandResult[0] && pDst[1] == pComparandResult[1])
+		{
+			pDst[0] = exchangelow;
+			pDst[1] = exchangehigh;
+			bResult = true;
+		}
+		else
+		{
+			pComparandResult[0] = pDst[0];
+			pComparandResult[1] = pDst[1];
+		}
+		pthread_mutex_unlock (&mutex);
+		return bResult;
 	#endif
 }
 #endif

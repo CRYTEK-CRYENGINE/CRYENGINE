@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 // -------------------------------------------------------------------------
 //  Created:     29/10/2014 by Filipe amim
@@ -26,6 +26,7 @@ public:
 	CFeatureVelocityCone()
 		: m_velocity(0.0f)
 		, m_angle(0.0f)
+		, m_axis(0.0f, 0.0f, 1.0f)
 		, CParticleFeature(gpu_pfx2::eGpuFeatureType_VelocityCone)
 	{}
 
@@ -49,6 +50,7 @@ public:
 		CParticleFeature::Serialize(ar);
 		ar(m_angle, "Angle", "Angle");
 		ar(m_velocity, "Velocity", "Velocity");
+		ar(m_axis, "Axis", "Axis");
 	}
 
 	virtual void InitParticles(const SUpdateContext& context) override
@@ -58,8 +60,9 @@ public:
 		CParticleContainer& parentContainer = context.m_parentContainer;
 		CParticleContainer& container = context.m_container;
 		const Quat defaultQuat = context.m_runtime.GetEmitter()->GetLocation().q;
-		IPidStream parentIds = container.GetIPidStream(EPDT_ParentId);
-		IQuatStream parentQuats = parentContainer.GetIQuatStream(EPQF_Orientation, defaultQuat);
+		const IPidStream parentIds = container.GetIPidStream(EPDT_ParentId);
+		const IQuatStream parentQuats = parentContainer.GetIQuatStream(EPQF_Orientation, defaultQuat);
+		const Quat axisQuat = Quat::CreateRotationV0V1(Vec3(0.0f, 0.0f, 1.0f), m_axis.GetNormalizedSafe());
 		IOVec3Stream velocities = container.GetIOVec3Stream(EPVF_Velocity);
 		const float baseAngle = m_angle.GetBaseValue();
 		const float invBaseAngle = rcp_fast(max(FLT_EPSILON, baseAngle));
@@ -82,7 +85,7 @@ public:
 
 			float as, ac;
 			sincos(angle, &as, &ac);
-			const Vec3 dir = Vec3(disc.x * as, disc.y * as, ac);
+			const Vec3 dir = axisQuat * Vec3(disc.x * as, disc.y * as, ac);
 			const Vec3 oVelocity = dir * velocity;
 			const Vec3 wVelocity1 = wVelocity0 + wQuat * oVelocity;
 			velocities.Store(particleId, wVelocity1);
@@ -93,6 +96,7 @@ public:
 private:
 	CParamMod<SModParticleSpawnInit, UAngle180> m_angle;
 	CParamMod<SModParticleSpawnInit, UFloat10>  m_velocity;
+	Vec3 m_axis;
 };
 
 CRY_PFX2_IMPLEMENT_FEATURE(CParticleFeature, CFeatureVelocityCone, "Velocity", "Cone", colorVelocity);

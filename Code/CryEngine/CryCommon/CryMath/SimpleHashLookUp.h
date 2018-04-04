@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #ifndef __SimpleHashLookUp_h__
 #define __SimpleHashLookUp_h__
@@ -6,7 +6,8 @@
 #pragma once
 
 #include <algorithm>
-#include <CryCore/Assert/CompileTimeUtils.h>
+#include <type_traits>
+#include <CryCore/StlUtils.h>
 
 template<size_t IntegerSize>
 struct default_integer_hash
@@ -74,8 +75,8 @@ protected:
 	size_t      max_count;
 	size_t      bucket_count;
 
-	enum { storage_alignment = static_max<alignof(container_type), alignof(index_type)>::value, };
-	typedef typename alignment_type<storage_alignment>::type buffer_type;
+	enum { storage_alignment = stl::static_max<alignof(container_type), alignof(index_type)>::value, };
+	typedef typename std::aligned_storage<storage_alignment, storage_alignment>::type buffer_type;
 
 	container_type* values;
 	index_type*     buckets;

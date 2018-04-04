@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 // -------------------------------------------------------------------------
 //  Created:     24/09/2014 by Filipe amim
@@ -17,7 +17,6 @@
 #include "ParticleDataTypes.h"
 #include "ParticleMath.h"
 #include "ParticleDataStreams.h"
-#include "ParticleUpdate.h"
 
 namespace pfx2
 {
@@ -55,12 +54,12 @@ public:
 	void                              AddParticleData(EParticleDataType type);
 	bool                              HasData(EParticleDataType type) const { return m_useData[type]; }
 	void                              AddParticle();
-	void                              AddRemoveParticles(const SSpawnEntry* pSpawnEntries, size_t numSpawnEntries, const TParticleIdArray* pToRemove, TParticleIdArray* pSwapIds);
+	void                              AddRemoveParticles(TConstArray<SSpawnEntry> spawnEntries, TVarArray<TParticleId> toRemove, TVarArray<TParticleId> swapIds);
 	void                              Trim();
 	void                              Clear();
 
-	template<typename T> T*           GetData(EParticleDataType type)       { CRY_PFX2_ASSERT(type.info().isType<T>()); return reinterpret_cast<T*>(m_pData[type]); }
-	template<typename T> const T*     GetData(EParticleDataType type) const { CRY_PFX2_ASSERT(type.info().isType<T>()); return reinterpret_cast<const T*>(m_pData[type]); }
+	template<typename T> T*           GetData(EParticleDataType type);
+	template<typename T> const T*     GetData(EParticleDataType type) const;
 	template<typename T> void         FillData(EParticleDataType type, const T& data, SUpdateRange range);
 	void                              CopyData(EParticleDataType dstType, EParticleDataType srcType, SUpdateRange range);
 
@@ -70,7 +69,7 @@ public:
 	IOVec3Stream                      GetIOVec3Stream(EParticleDataType type);
 	IQuatStream                       GetIQuatStream(EParticleDataType type, Quat defaultVal = Quat(IDENTITY)) const;
 	IOQuatStream                      GetIOQuatStream(EParticleDataType type);
-	IColorStream                      GetIColorStream(EParticleDataType type) const;
+	IColorStream                      GetIColorStream(EParticleDataType type, UCol defaultVal = UCol()) const;
 	IOColorStream                     GetIOColorStream(EParticleDataType type);
 	IUintStream                       GetIUintStream(EParticleDataType type, uint32 defaultVal = 0) const;
 	IOUintStream                      GetIOUintStream(EParticleDataType type);
@@ -90,14 +89,13 @@ public:
 	void                              RemoveNewBornFlags();
 	TParticleId                       GetRealId(TParticleId pId) const;
 	uint32                            GetNextSpawnId() const          { return m_nextSpawnId; }
-
-	SUpdateRange                      GetFullRange() const;
-	SUpdateRange                      GetSpawnedRange() const;
+	SUpdateRange                      GetFullRange() const            { return SUpdateRange(0, GetLastParticleId()); }
+	SUpdateRange                      GetSpawnedRange() const         { return SUpdateRange(GetFirstSpawnParticleId(), GetLastParticleId()); }
 
 private:
-	void AddParticles(const SSpawnEntry* pSpawnEntries, size_t numSpawnEntries);
-	void RemoveParticles(const TParticleIdArray& toRemove);
-	void MakeSwapIds(const TParticleIdArray& toRemove, TParticleIdArray* pSwapIds);
+	void AddParticles(TConstArray<SSpawnEntry> spawnEntries);
+	void RemoveParticles(TConstArray<TParticleId> toRemove);
+	void MakeSwapIds(TVarArray<TParticleId> toRemove, TVarArray<TParticleId> swapIds);
 
 	StaticEnumArray<void*, EParticleDataType> m_pData;
 	StaticEnumArray<bool, EParticleDataType>  m_useData;
@@ -111,6 +109,7 @@ private:
 
 }
 
+#include "ParticleUpdate.h"
 #include "ParticleContainerImpl.h"
 
 #endif // PARTICLECONTAINER_H

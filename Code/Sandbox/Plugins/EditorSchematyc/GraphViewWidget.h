@@ -4,21 +4,23 @@
 
 #include <NodeGraph/NodeGraphView.h>
 
-namespace CrySchematycEditor {
+namespace CrySchematycEditor
+{
+class CMainWindow;
 
-class CNodeGraphView : public CryGraphEditor::CNodeGraphView
+class CGraphViewWidget : public CryGraphEditor::CNodeGraphView
 {
 public:
-	CNodeGraphView();
-	~CNodeGraphView();
+	CGraphViewWidget(CMainWindow& editor);
+	~CGraphViewWidget();
 
+	// CryGraphEditor::CNodeGraphView
 	virtual QWidget* CreatePropertiesWidget(CryGraphEditor::GraphItemSet& selectedItems) override;
+	// ~CryGraphEditor::CNodeGraphView
 
 private:
-	// CryGraphEditor::CNodeGraphView
-	//virtual QWidget* CreatePropertiesWidget(CryGraphEditor::GraphItemSet& selectedItems) override;
-	//virtual bool     PopulateNodeContextMenu(CryGraphEditor::CAbstractNodeItem& node, QMenu& menu) override;
-	// ~CryGraphEditor::CNodeGraphView
+	CMainWindow& m_editor;
+
 };
 
 }

@@ -110,18 +110,18 @@ CAudioSystemPanel::CAudioSystemPanel()
 	  });
 }
 
-void CAudioSystemPanel::SetAllowedControls(EACEControlType type, bool bAllowed)
+void CAudioSystemPanel::SetAllowedControls(EItemType type, bool bAllowed)
 {
 	const ACE::IAudioSystemEditor* pAudioSystemEditorImpl = CAudioControlsEditorPlugin::GetAudioSystemEditorImpl();
 	if (pAudioSystemEditorImpl)
 	{
 		m_allowedATLTypes[type] = bAllowed;
 		uint mask = 0;
-		for (int i = 0; i < EACEControlType::eACEControlType_NumTypes; ++i)
+		for (int i = 0; i < EItemType::eItemType_NumTypes; ++i)
 		{
 			if (m_allowedATLTypes[i])
 			{
-				mask |= pAudioSystemEditorImpl->GetCompatibleTypes((EACEControlType)i);
+				mask |= pAudioSystemEditorImpl->GetCompatibleTypes((EItemType)i);
 			}
 		}
 		m_pModelProxy->SetAllowedControlsMask(mask);

@@ -11,12 +11,13 @@
 #include "RcLoader.h"
 #include "SceneModel.h"
 #include "SceneView.h"
+#include "SceneContextMenu.h"
 #include "MaterialElement.h"
 #include "MaterialModel.h"
 #include "MaterialView.h"
 #include "TargetMesh.h"
 #include "DisplayOptions.h"
-#include "TextureConversionDialog.h"
+#include "TextureManager.h"
 #include "GlobalImportSettings.h"
 #include "MaterialSettings.h"
 #include "AutoLodSettings.h"
@@ -31,10 +32,12 @@
 #include "Scene/SceneElementPhysProxies.h"
 #include "Scene/SceneElementProxyGeom.h"
 #include "Scene/SceneElementTypes.h"
+#include "Scene/SourceSceneHelper.h"
 #include "Scene/ProxySceneHelper.h"
 #include "ProxyGenerator/ProxyData.h"
 #include "ProxyGenerator/ProxyGenerator.h"
 #include "ProxyGenerator/PhysProxiesControlsWidget.h"
+#include "ProxyGenerator/WriteProxies.h"
 #include "DialogMesh/DialogMesh_SceneUserData.h"
 #include "TempRcObject.h"
 #include "RenderHelpers.h"
@@ -50,7 +53,7 @@
 #include <IEditor.h>
 #include <Controls\QuestionDialog.h>
 #include <QtViewPane.h>
-#include <QPropertyTree/QPropertyTree.h>
+#include <Serialization/QPropertyTree/QPropertyTree.h>
 #include <ProxyModels/AttributeFilterProxyModel.h>
 #include <../../CryEngine/Cry3DEngine/CGF/ChunkFile.h>
 #include <../../CryEngine/Cry3DEngine/MeshCompiler/MeshCompiler.h>
@@ -63,6 +66,7 @@
 #include <Material/MaterialManager.h>
 #include <Material/MaterialHelpers.h>
 #include <Controls/QMenuComboBox.h>
+#include <ThreadingUtils.h>
 
 #include <QVBoxLayout>
 #include <QHBoxLayout>
@@ -92,11 +96,9 @@
 
 void LogPrintf(const char* szformat, ...);
 
-static const char* const kDefaultProxyMaterial = "Editor/Materials/areasolid";
+static const char* const kDefaultProxyMaterial = "%EDITOR%/Materials/areasolid";
 
 static const QString s_initialFilePropertyName = QStringLiteral("initialFile");
-
-static const float kSelectionCooldownPerSec = 1.1f;
 
 // An object of type SDisplayScene stores a FBX scene, as well as the compiled meshes for the scene.
 // At any point in time, there is at most one display scene that is considered the current display
@@ -136,6 +138,31 @@ struct CMainDialog::SDisplayScene
 	QString                    cgfFilePath;
 	string                     lastJson;
 	std::vector<SStaticObject> statObjs;
+};
+
+////////////////////////////////////////////////////
+
+// Scene context menu.
+class CMainDialog::CSceneContextMenu : public CSceneContextMenuCommon
+{
+public:
+	explicit CSceneContextMenu(CMainDialog* pOwner)
+		: CSceneContextMenuCommon(pOwner->m_pSceneTree)
+		, m_pOwner(pOwner)
+	{
+	}
+
+private:
+	virtual void AddSceneElementSection(CSceneElementCommon* pSceneElement) override
+	{
+		QModelIndex originalIndex = m_pOwner->m_pSceneModel->GetModelIndexFromSceneElement(pSceneElement);
+
+		m_pOwner->AddSourceNodeElementContextMenu(originalIndex, this->GetMenu());
+		AddProxyGenerationContextMenu(this->GetMenu(), m_pOwner->m_pSceneModel.get(), originalIndex, m_pOwner->m_pProxyGenerator.get());
+	}
+
+private:
+	CMainDialog* m_pOwner;
 };
 
 ////////////////////////////////////////////////////
@@ -420,19 +447,6 @@ static bool RaycastVisibleCollection(
 
 	outHitIndex = hitIndex;
 	return hitIndex >= 0;
-}
-
-static void SelectSceneElementWithNode(CSceneModelCommon* pSceneModel, CSceneViewCommon* pSceneView, const FbxTool::SNode* pNode)
-{
-	CSceneElementCommon* const pSceneElement = pSceneModel->FindSceneElementOfNode(pNode);
-	const QModelIndex modelIndex = pSceneModel->GetModelIndexFromSceneElement(pSceneElement);
-	const auto pFilter = (QAttributeFilterProxyModel*)pSceneView->model();
-	const QModelIndex proxyIndex = pFilter->mapFromSource(modelIndex);
-	if (proxyIndex.isValid())
-	{
-		pSceneView->selectionModel()->select(proxyIndex, QItemSelectionModel::ClearAndSelect);
-		pSceneView->scrollTo(modelIndex);
-	}
 }
 
 // CShowMeshesModeWidget
@@ -908,20 +922,8 @@ void CMainDialog::RenderStaticMesh(const SRenderContext& rc)
 	}
 
 	// Draw name of picked mesh.
-	const QWidget* const vp = m_pViewportContainer->GetSplitViewport()->GetPrimaryViewport();
-
-	const float xOffset = 10.0f;
-	const float yOffset = 10.0f;
-
-	QPoint mousePos = vp->mapFromGlobal(QCursor::pos());
-	if (mousePos.x() >= 0 && mousePos.x() < vp->width() &&
-	    mousePos.y() >= 0 && mousePos.y() < vp->height())
-	{
-		IRenderer* const pRenderer = gEnv->pRenderer;
-		IRenderAuxGeom* const pAux = pRenderer->GetIRenderAuxGeom();
-		pAux->Draw2dLabel(mousePos.x() + xOffset, mousePos.y() + yOffset, 1.5, ColorF(1, 1, 1), false,
-		                  "%s", m_targetHitInfo.szLabel);
-	}
+	const QViewport* const vp = m_pViewportContainer->GetSplitViewport()->GetPrimaryViewport();
+	ShowLabelNextToCursor(vp, m_targetHitInfo.szLabel);
 
 	if (!frameText.empty())
 	{
@@ -933,9 +935,41 @@ void CMainDialog::RenderStaticMesh(const SRenderContext& rc)
 	// Focus camera to current bounding box.
 	if (m_bCameraNeedsReset && !sceneBox.IsReset())
 	{
-		static const float radiusFactor = 2.0f;
-		rc.viewport->ResetCamera();
-		rc.viewport->LookAt(sceneBox.GetCenter(), radiusFactor * sceneBox.GetRadius(), true);
+		// Move the camera along a given ray for objects relative close to the world's origin to have a nice view.
+		// Put the camera on the ray passing through the world origin in the center of the object box for the remote object.
+		// Interpolate the direction of the ray for the object between these cases.
+		// Thus the world origin will be visible in the viewport that gives the user a visual hint of the object location.
+
+		Vec3 dir = Vec3(1.0f, -1.0f, 0.5f).normalized();
+		const Vec3 lookAtPoint = sceneBox.GetCenter();
+		const float lengthSquared = lookAtPoint.GetLengthSquared();
+		if (lengthSquared > 0 && sceneBox.GetRadius() > 0)
+		{
+			const float length = sqrt(lengthSquared);
+			const float r = length / sceneBox.GetRadius(); // a relative distance to the word origin.
+			const float r0 = 3.0f;
+			const float r1 = 10.0f;
+
+			if (r > r1)
+			{
+				dir = lookAtPoint / length;
+			}
+			else if (r > r0)
+			{
+				const Vec3 dir1 = lookAtPoint / length;
+				const float k = (r - r0) / (r1 - r0);
+				dir = Vec3::CreateSlerp(dir, dir1, k);
+			}
+		}
+
+		// Fit the object into viewport window.
+		const float fow = rc.camera->GetProjRatio() >= 1.0f ? rc.camera->GetFov() : rc.camera->GetFov() * rc.camera->GetProjRatio();
+		const float radiusFactor = tanf(fow * 0.5f);
+
+		SViewportState state = rc.viewport->GetState();
+		state.cameraTarget.t = lookAtPoint + dir * sceneBox.GetRadius() / radiusFactor;
+		rc.viewport->SetState(state);
+		rc.viewport->LookAt(sceneBox.GetCenter(), sceneBox.GetRadius(), true);
 		m_bCameraNeedsReset = false;
 	}
 }
@@ -1211,9 +1245,8 @@ void CMainDialog::CreateMeshFromFile(const string& filePath)
 	// Load target mesh view from file.
 	m_pTargetMeshView->model()->LoadCgf(filePath);
 
-	m_pProxyData->WriteAutoGenProxies(QtUtil::ToQString(filePath));
-
-	TouchLastJson();
+	SProxyTree proxyTree(m_pProxyData.get(), GetScene());
+	WriteAutoGenProxies(filePath, &proxyTree);
 	}
 
 void CMainDialog::CreateUnmergedMeshFromFile(const string& filePath)
@@ -1267,7 +1300,6 @@ CMainDialog::CMainDialog(QWidget* pParent /*= nullptr*/)
 	, m_pUnmergedMeshStatObj(nullptr)
 	, m_ppSelectionMesh(nullptr)
 	, m_pCharacterInstance(nullptr)
-	  , m_pEditorMetaData(new SEditorMetaData())
 {
 	m_pMeshRcObject = CreateTempRcObject();
 
@@ -1302,7 +1334,6 @@ CMainDialog::CMainDialog(QWidget* pParent /*= nullptr*/)
 	Init();
 	InitMaterials();
 
-	m_pGlobalImportSettings.reset(new CGlobalImportSettings());
 	m_pAutoLodSettings.reset(new CAutoLodSettings());
 
 	// Load personalization.
@@ -1401,8 +1432,6 @@ QString GetFilename(const QString& filePath)
 
 } // namespace
 
-static const char* s_szFilenameTemplate = "mesh_import_tmp_%1";
-
 void CMainDialog::setupUi(CMainDialog* MainDialog)
 {
 	m_pMaterialPanel = new CMaterialPanel(&GetSceneManager(), GetTaskHost());
@@ -1431,7 +1460,7 @@ void CMainDialog::setupUi(CMainDialog* MainDialog)
 	// Create property tree widget.
 
 	m_pGlobalImportSettingsTree = new QPropertyTree();
-	m_pGlobalImportSettingsTree->setSizeToContent(true);
+	m_pGlobalImportSettingsTree->setSizeToContent(false);
 	m_pGlobalImportSettingsTree->setEnabled(false);
 	connect(m_pGlobalImportSettingsTree, &QPropertyTree::signalChanged, this, &CMainDialog::OnGlobalImportsTreeChanged);
 
@@ -1528,39 +1557,47 @@ void CMainDialog::setupUi(CMainDialog* MainDialog)
 // Reads meta data from either .cgf or .json file (in that order).
 bool ReadMetaDataFromFile(const QString& filePath, FbxMetaData::SMetaData& metaData)
 {
+	if (!metaData.pEditorMetaData)
+	{
+		metaData.pEditorMetaData.reset(new SEditorMetaData());
+	}
+
 	CChunkFile cf;
 	if (cf.Read(QtUtil::ToString(filePath).c_str()))
 	{
 		// Reading JSON data from ChunkType_ImportSettings chunk of a chunk file.
 		const IChunkFile::ChunkDesc* const pChunk = cf.FindChunkByType(ChunkType_ImportSettings);
-		if (!pChunk)
+		if (pChunk)
+		{
+			const string json((const char*)pChunk->data, (size_t)pChunk->size);
+			return metaData.FromJson(json);
+		}
+		else
 		{
 			LogPrintf("ChunkType_ImportSettings chunk (JSON) is missing in '%s'", QtUtil::ToString(filePath).c_str());
-
-			CQuestionDialog::SWarning("Cannot open .cgf file", "Only .cgf files that have been created from .fbx can be opened.");
-
-			return false;
 		}
-		const string json((const char*)pChunk->data, (size_t)pChunk->size);
-		return metaData.FromJson(json);
 	}
 	else
 	{
 		// Reading JSON data from .json file.
 		QFile file(filePath);
-		if (!file.open(QIODevice::ReadOnly | QIODevice::Text))
+		if (file.open(QIODevice::ReadOnly | QIODevice::Text))
+		{
+			QTextStream inStream(&file);
+			const string json = QtUtil::ToString(inStream.readAll());
+
+			file.close();
+			return metaData.FromJson(json);
+		}
+		else
 		{
 			LogPrintf("unable to open file '%s' for reading.\n", QtUtil::ToString(filePath).c_str());
-			return false;
 		}
-
-		QTextStream inStream(&file);
-		const string json = QtUtil::ToString(inStream.readAll());
-
-		file.close();
-
-		return metaData.FromJson(json);
 	}
+
+	CQuestionDialog::SWarning("Cannot open .cgf file", "Only .cgf files that have been created from .fbx can be opened.");
+	return false;
+
 }
 
 bool CMainDialog::MayUnloadScene()
@@ -1674,19 +1711,21 @@ bool   CMainDialog::SaveAs(SSaveContext& ctx)
 
 	if (m_pSceneUserData->GetSelectedSkin())
 	{
-		if (!SaveSkin(pTempDir, MeshImporter::ReplaceExtension(filePath, "skin"), filename))
+		if (!SaveSkin(pTempDir, PathUtil::ReplaceExtension(QtUtil::ToString(filePath), "skin"), filename))
 		{
 			CQuestionDialog::SCritical(tr("Save to SKIN failed"), tr("Failed to write current data to %1").arg(filePath));
 			bSuccess = false;
 		}
 	}
-	else if (!SaveCgf(pTempDir, MeshImporter::ReplaceExtension(filePath, "cgf"), filename))
+	else if (!SaveCgf(pTempDir, PathUtil::ReplaceExtension(QtUtil::ToString(filePath), "cgf"), filename))
 	{
 		CQuestionDialog::SCritical(tr("Save to CGF failed"), tr("Failed to write current data to %1").arg(filePath));
 		bSuccess = false;
 	}
 
 	m_displayScene->cgfFilePath = filePath;
+
+	TouchLastJson();
 
 	return bSuccess;
 }
@@ -1723,8 +1762,9 @@ void CMainDialog::Init()
 	m_pModelProperties->ConnectViewToPropertyObject(m_pMaterialPanel->GetMaterialView());
 	m_pModelProperties->ConnectViewToPropertyObject(m_pTargetMeshView);
 
-	m_pSceneTree->setContextMenuPolicy(Qt::CustomContextMenu);
-	connect(m_pSceneTree, &QTreeView::customContextMenuRequested, this, &CMainDialog::CreateSceneContextMenu);
+	// Context menu.
+	m_pSceneContextMenu.reset(new CSceneContextMenu(this));
+	m_pSceneContextMenu->Attach();
 
 	// Since both the scene tree and the material tree use the properties panel, we make their selections
 	// mutually exclusive.
@@ -1936,7 +1976,7 @@ namespace Private_MainDialog
 IMaterial* CreateVertexColorMaterial()
 {
 	IMaterialManager* const pMaterialManager = GetIEditor()->Get3DEngine()->GetMaterialManager();
-	IMaterial* const pMat = pMaterialManager->LoadMaterial("EngineAssets/Materials/MeshImporter/MI_PreviewVertexColor");
+	IMaterial* const pMat = pMaterialManager->LoadMaterial("%ENGINE%/EngineAssets/Materials/MeshImporter/MI_PreviewVertexColor");
 	if (!pMat)
 	{
 		LogPrintf("Cannot find material needed for previewing vertex colors.\n");
@@ -1947,7 +1987,7 @@ IMaterial* CreateVertexColorMaterial()
 IMaterial* CreateVertexAlphaMaterial()
 {
 	IMaterialManager* const pMaterialManager = GetIEditor()->Get3DEngine()->GetMaterialManager();
-	IMaterial* const pMat = pMaterialManager->LoadMaterial("EngineAssets/Materials/MeshImporter/MI_PreviewVertexAlpha");
+	IMaterial* const pMat = pMaterialManager->LoadMaterial("%ENGINE%/EngineAssets/Materials/MeshImporter/MI_PreviewVertexAlpha");
 	if (!pMat)
 	{
 		LogPrintf("Cannot find material needed for previewing vertex alphas.\n");
@@ -2037,6 +2077,8 @@ static SShaderItem SetBumpMap(const SShaderItem& shaderItem)
 
 void CMainDialog::AssignScene(const MeshImporter::SImportScenePayload* pPayload)
 {
+	m_bMaterialNameWasRelative = false;
+
 	FbxTool::CScene* const pActiveScene = GetScene();
 
 	m_displayScene.reset(new SDisplayScene());
@@ -2078,7 +2120,7 @@ void CMainDialog::AssignScene(const MeshImporter::SImportScenePayload* pPayload)
 
 	{
 		IMaterialManager* const pMaterialManager = GetIEditor()->Get3DEngine()->GetMaterialManager();
-		const char* const szDefaultMaterial = "EngineAssets/TextureMsg/DefaultSolids";
+		const char* const szDefaultMaterial = "%ENGINE%/EngineAssets/TextureMsg/DefaultSolids";
 		TSmartPtr<IMaterial> const pReferenceMaterial = pMaterialManager->LoadMaterial(szDefaultMaterial);
 		const int materialCount = pActiveScene->GetMaterialCount();
 
@@ -2163,8 +2205,6 @@ void CMainDialog::AssignScene(const MeshImporter::SImportScenePayload* pPayload)
 		  LogPrintf("FinalizeMesh failed: %s\n", szError);
 		}
 	});
-
-	LogPrintf("elapsed time MeshCompiling: %f\n", tMeshCompiling);
 
 	const QString fileName = GetFilename(filePath);
 
@@ -2356,7 +2396,19 @@ void CMainDialog::UnloadScene()
 	m_bGlobalAabbNeedsRefresh = true;
 }
 
-bool CMainDialog::SaveCgf(const std::shared_ptr<QTemporaryDir>& pTempDir, const QString& targetFilePath, const QString& sourceFilename)
+static string MakeMaterialNameRelative(const string& dir, const string& materialName)
+{
+	// Prefix is asset-relative path with trailing slash.
+	const string prefix = PathUtil::ToUnixPath(PathUtil::AddSlash(PathUtil::ToGamePath(dir)));
+	const size_t prefixLen = prefix.length();
+	if (dir.length() > 1 && !strnicmp(prefix.c_str(), materialName.c_str(), prefixLen))
+	{
+		return materialName.substr(prefixLen);
+	}
+	return materialName;
+}
+
+bool CMainDialog::SaveCgf(const std::shared_ptr<QTemporaryDir>& pTempDir, const string& targetFilePath, const QString& sourceFilename)
 	{
 	FbxMetaData::SMetaData metaData;
 	if (!CreateMetaData(metaData, sourceFilename))
@@ -2365,22 +2417,81 @@ bool CMainDialog::SaveCgf(const std::shared_ptr<QTemporaryDir>& pTempDir, const 
 		return false;
 	}
 
-	SaveRcObject(pTempDir, metaData, QtUtil::ToString(targetFilePath), [this](bool bSuccess, const string& filePath)
+	if (m_bMaterialNameWasRelative)
 	{
-		if (bSuccess)
+		const string targetPath = PathUtil::GetPathWithoutFilename(targetFilePath);
+		metaData.materialFilename = MakeMaterialNameRelative(targetPath, metaData.materialFilename);
+	}
+
+	SRcObjectSaveState saveState;
+	CaptureRcObjectSaveState(pTempDir, metaData, saveState);
+
+	SProxyTree* const pProxyTree(new SProxyTree(m_pProxyData.get(), GetScene()));
+
+	const QString absOriginalFilePath = GetSceneManager().GetImportFile()->GetOriginalFilePath();
+	ThreadingUtils::Async([saveState, pProxyTree, absOriginalFilePath, targetFilePath, pTempDir]()
+	{
+		std::unique_ptr<SProxyTree> proxyTree(pProxyTree);
+
+		// Asset relative path to directory. targetFilePath is absolute path.
+		const string dir = PathUtil::GetPathWithoutFilename(PathUtil::AbsolutePathToGamePath(targetFilePath));
+
+		const std::pair<bool, string> ret = CopySourceFileToDirectoryAsync(QtUtil::ToString(absOriginalFilePath), dir).get();
+		if (!ret.first)
 		{
-			m_pProxyData->WriteAutoGenProxies(QtUtil::ToQString(filePath));
+			const string& error = ret.second;
+			CryWarning(VALIDATOR_MODULE_EDITOR, VALIDATOR_ERROR, "Copying source file to '%s' failed: '%s'",
+				dir.c_str(), error.c_str());
+			return;
 		}
+
+		// TODO: Use generalized lambda-capture to move unique_ptr.
+		proxyTree.release();
+		SaveRcObjectAsync(saveState, targetFilePath, [pProxyTree](bool bSuccess, const string& filePath)
+		{
+			std::unique_ptr<SProxyTree> proxyTree(pProxyTree);
+			if (bSuccess)
+			{
+				WriteAutoGenProxies(filePath, proxyTree.get());
+			}
+		});
 	});
 
 	return true;
 }
 
-bool CMainDialog::SaveSkin(const std::shared_ptr<QTemporaryDir>& pTempDir, const QString& targetFilePath, const QString& sourceFilename)
+bool CMainDialog::SaveSkin(const std::shared_ptr<QTemporaryDir>& pTempDir, const string& targetFilePath, const QString& sourceFilename)
 	{
 	FbxMetaData::SMetaData metaData;
 	CreateSkinMetaData(metaData);
-	SaveRcObject(pTempDir, metaData, QtUtil::ToString(targetFilePath));
+
+	if (m_bMaterialNameWasRelative)
+	{
+		const string targetPath = PathUtil::GetPathWithoutFilename(targetFilePath);
+		metaData.materialFilename = MakeMaterialNameRelative(targetPath, metaData.materialFilename);
+	}
+
+	SRcObjectSaveState saveState;
+	CaptureRcObjectSaveState(pTempDir, metaData, saveState);
+
+	const QString absOriginalFilePath = GetSceneManager().GetImportFile()->GetOriginalFilePath();
+	ThreadingUtils::Async([saveState, absOriginalFilePath, targetFilePath, pTempDir]()
+	{
+		// Asset relative path to directory. targetFilePath is absolute path.
+		const string dir = PathUtil::GetPathWithoutFilename(PathUtil::AbsolutePathToGamePath(targetFilePath));
+
+		const std::pair<bool, string> ret = CopySourceFileToDirectoryAsync(QtUtil::ToString(absOriginalFilePath), dir).get();
+		if (!ret.first)
+	{
+			const string& error = ret.second;
+			CryWarning(VALIDATOR_MODULE_EDITOR, VALIDATOR_ERROR, "Copying source file to '%s' failed: '%s'",
+				dir.c_str(), error.c_str());
+			return;
+	}
+
+		SaveRcObjectAsync(saveState, targetFilePath);
+	});
+
 	return true;
 	}
 
@@ -2725,14 +2836,13 @@ bool CMainDialog::CreateMetaData(FbxMetaData::SMetaData& metaData, const QString
 		return false;
 	}
 
-	metaData.m_pEditorMetaData = m_pEditorMetaData.get();
+	CRY_ASSERT(m_pGlobalImportSettings);
 
 	// Gather conversion settings.
+	metaData.unit = m_pGlobalImportSettings->GetUnit();
+	metaData.scale = m_pGlobalImportSettings->GetScale();
 
-	metaData.m_unit = m_pGlobalImportSettings->GetUnit();
-	metaData.m_scale = m_pGlobalImportSettings->GetScale();
-
-	metaData.m_forwardUpAxes = GetFormattedAxes(
+	metaData.forwardUpAxes = GetFormattedAxes(
 	  m_pGlobalImportSettings->GetUpAxis(),
 	  m_pGlobalImportSettings->GetForwardAxis());
 
@@ -2761,26 +2871,38 @@ bool CMainDialog::CreateMetaData(FbxMetaData::SMetaData& metaData, const QString
 	}
 	else
 	{
-		// Material path is relative to game directory and omits extension.
-		metaData.materialFilename = PathUtil::ToGamePath(PathUtil::GetFileName(metaData.sourceFilename).c_str());
+		// If no material has been selected, we assign an existing default material. This way, a mesh
+		// always has a valid material.
+		// Alternatively, we could create a material from the FBX. For previewing, however, this is
+		// tricky, as we do not know where to save it, and we want to avoid having temporaries in the
+		// asset directory.
+		metaData.materialFilename = "%ENGINE%/EngineAssets/Materials/material_default";
 	}
 
 	////////////////////////////////////////////////////
 	// Write node meta data.
 	WriteNodeMetaData(metaData, pScene);
 
+	metaData.bMergeAllNodes = m_pGlobalImportSettings->IsMergeAllNodes();
+	metaData.bSceneOrigin = m_pGlobalImportSettings->IsSceneOrigin();
+	metaData.bComputeNormals = m_pGlobalImportSettings->IsComputeNormals();
+	metaData.bComputeUv = m_pGlobalImportSettings->IsComputeUv();
+
+	// Output settings
+	metaData.bVertexPositionFormatF32 = m_pGlobalImportSettings->IsVertexPositionFormatF32();
+
 	////////////////////////////////////////////////////
 	// Save/restore editor state.
-
-	assert(m_pGlobalImportSettings && m_pEditorMetaData->pEditorGlobalImportSettings);
-	*m_pEditorMetaData->pEditorGlobalImportSettings = *m_pGlobalImportSettings;
+	auto pEditorMetaData = std::make_unique<SEditorMetaData>();
+	pEditorMetaData->editorGlobalImportSettings = *m_pGlobalImportSettings;
 	m_pAutoLodSettings->getNodeList() = GetAutoLodNodes(GetScene());
 	if ((flags & eCreateMetaDataFlags_OmitAutoLods) == 0)
 	{
 	*metaData.pAutoLodSettings = *m_pAutoLodSettings;
 	}
-	FbxTool::Meta::WriteNodeMetaData(*GetScene(), m_pEditorMetaData->editorNodeMeta);
-	FbxTool::Meta::WriteMaterialMetaData(*GetScene(), m_pEditorMetaData->editorMaterialMeta);
+	FbxTool::Meta::WriteNodeMetaData(*GetScene(), pEditorMetaData->editorNodeMeta);
+	FbxTool::Meta::WriteMaterialMetaData(*GetScene(), pEditorMetaData->editorMaterialMeta);
+	metaData.pEditorMetaData = std::move(pEditorMetaData);
 
 	return true;
 }
@@ -2884,12 +3006,27 @@ void CMainDialog::ApplyMetaDataCommon(const FbxMetaData::SMetaData& metaData)
 {
 	// Apply global settings.
 
-	m_pGlobalImportSettings->SetUnit(metaData.m_unit);
-	m_pGlobalImportSettings->SetScale(metaData.m_scale);
+	m_pGlobalImportSettings->SetUnit(metaData.unit);
+	m_pGlobalImportSettings->SetScale(metaData.scale);
 
-	assert(4 == metaData.m_forwardUpAxes.length());
-	m_pGlobalImportSettings->SetForwardAxis(ParseAxis(metaData.m_forwardUpAxes.substr(0, 2)));
-	m_pGlobalImportSettings->SetUpAxis(ParseAxis(metaData.m_forwardUpAxes.substr(2, 2)));
+	if (!metaData.forwardUpAxes.empty())
+	{
+	assert(4 == metaData.forwardUpAxes.length());
+	m_pGlobalImportSettings->SetForwardAxis(ParseAxis(metaData.forwardUpAxes.substr(0, 2)));
+	m_pGlobalImportSettings->SetUpAxis(ParseAxis(metaData.forwardUpAxes.substr(2, 2)));
+	}
+	else
+	{
+		// Empty axes string means default axes.
+		// This convention mainly benefits the importing of assets with the asset browser, i.e., class
+		// CAssetImporterFBX, since we do not need to read the FBX file on editor side just to extract
+		// the default axes. As a consequence, however, the final CGF also contains this empty string,
+		// hence this workaround.
+		// Note that the RC leaves the meta-data unchanged.
+		FbxTool::CScene* const pActiveScene = GetScene();
+		m_pGlobalImportSettings->SetUpAxis(pActiveScene->GetUpAxis());
+		m_pGlobalImportSettings->SetForwardAxis(pActiveScene->GetForwardAxis());
+	}
 
 	// Apply material element settings.
 
@@ -2923,16 +3060,36 @@ void CMainDialog::ApplyMetaDataCommon(const FbxMetaData::SMetaData& metaData)
 
 	assert(m_pGlobalImportSettings);
 
-	// Restore settings not passed to RC
-	m_pGlobalImportSettings->SetMergeAllNodes(metaData.m_bMergeAllNodes);
-	m_pGlobalImportSettings->SetSceneOrigin(metaData.m_bSceneOrigin);
+	m_pGlobalImportSettings->SetMergeAllNodes(metaData.bMergeAllNodes);
+	m_pGlobalImportSettings->SetSceneOrigin(metaData.bSceneOrigin);
+	m_pGlobalImportSettings->SetVertexPositionFormatF32(metaData.bVertexPositionFormatF32);
+	m_pGlobalImportSettings->SetComputeNormals(metaData.bComputeNormals);
+	m_pGlobalImportSettings->SetComputeUv(metaData.bComputeUv);
+
 	m_pGlobalImportSettingsTree->revert();
 
-	FbxTool::Meta::ReadNodeMetaData(m_pEditorMetaData->editorNodeMeta, *GetScene());
-	FbxTool::Meta::ReadMaterialMetaData(m_pEditorMetaData->editorMaterialMeta, *GetScene());
+	CRY_ASSERT(metaData.pEditorMetaData);
+	if (metaData.pEditorMetaData)
+	{
+		SEditorMetaData* const pEditorMetaData = (SEditorMetaData*)metaData.pEditorMetaData.get();
+		FbxTool::Meta::ReadNodeMetaData(pEditorMetaData->editorNodeMeta, *GetScene());
+		FbxTool::Meta::ReadMaterialMetaData(pEditorMetaData->editorMaterialMeta, *GetScene());
+	}
 
-	m_pMaterialPanel->GetMaterialSettings()->SetMaterial(metaData.materialFilename);
+	{
+		// We read the material from the StatObj instead of the json, so that we get a fully qualified
+		// name (i.e., the StatObj loading does the lookup).
+		const string targetFilePath = PathUtil::Make(PathUtil::GetGameProjectAssetsPath(), GetTargetFilePath());
+		IStatObj* const pTarget = GetIEditor()->Get3DEngine()->LoadStatObj(targetFilePath.c_str(), NULL, NULL, false);
+
+		// Get material name (asset relative path) from absolute path.
+		const string materialName = pTarget->GetMaterial() ? PathUtil::ToGamePath(pTarget->GetMaterial()->GetName()) : string();
+
+		m_bMaterialNameWasRelative = materialName != metaData.materialFilename;
+
+		m_pMaterialPanel->GetMaterialSettings()->SetMaterial(materialName);
 	m_pMaterialPanel->GetMaterialSettingsTree()->revert();
+	}
 
 	m_bRefreshRcMesh = true;
 	m_bGlobalAabbNeedsRefresh = true;
@@ -3062,100 +3219,6 @@ void CMainDialog::AddSourceNodeElementContextMenu(const QModelIndex& index, QMen
 		}
 }
 
-void CMainDialog::AddExpandCollapseChildrenContextMenu(const QModelIndex& index, QMenu* pMenu)
-{
-	CSceneElementCommon* const pElement = m_pSceneModel->GetSceneElementFromModelIndex(index);
-
-	if (!pElement)
-	{
-		return;
-	}
-
-		if (pElement->GetNumChildren() > 0)
-		{
-			const auto* const pFilter = m_pSceneViewContainer->GetFilter();
-			const auto proxyIndex = pFilter->mapFromSource(index);
-
-			QAction* const pExpand = pMenu->addAction(tr("Expand child nodes"));
-			connect(pExpand, &QAction::triggered, [=]()
-			{
-				if (proxyIndex.isValid())
-				{
-				m_pSceneTree->ExpandRecursive(proxyIndex, true);
-				}
-			});
-
-			QAction* const pCollapse = pMenu->addAction(tr("Collapse child nodes"));
-			connect(pCollapse, &QAction::triggered, [=]()
-			{
-				if (proxyIndex.isValid())
-				{
-				m_pSceneTree->ExpandRecursive(proxyIndex, false);
-				}
-			});
-		}
-}
-
-void CMainDialog::AddExpandCollapseAllContextMenu(QMenu* pMenu)
-{
-	QAction* const pExpandAll = pMenu->addAction(tr("Expand all nodes"));
-	connect(pExpandAll, &QAction::triggered, [=]()
-	{
-		m_pSceneTree->expandAll();
-	});
-
-	QAction* const pCollapseAll = pMenu->addAction(tr("Collapse all nodes"));
-	connect(pCollapseAll, &QAction::triggered, [=]()
-	{
-		m_pSceneTree->collapseAll();
-	});
-}
-
-void CMainDialog::AddSkinFilterContextMenu(QMenu* pMenu)
-{
-	QAction* const pAct = pMenu->addAction(tr("Show only skins"));
-	connect(pAct, &QAction::triggered, [=]()
-	{
-		m_pSceneViewContainer->SetSearchText("Skin");
-		m_pSceneTree->expandAll();
-	});
-}
-
-void CMainDialog::CreateSceneContextMenu(const QPoint& point)
-{
-	CSceneViewCommon* const pView = m_pSceneTree;
-	assert(pView);
-	QItemSelectionModel* const pSelectionModel = pView->selectionModel();
-	assert(pSelectionModel);
-	const QPersistentModelIndex index = m_pSceneViewContainer->GetFilter()->mapToSource(pView->indexAt(point));
-	CSceneElementCommon* const pElement = index.isValid() ? m_pSceneModel->GetSceneElementFromModelIndex(index) : nullptr;
-	QMenu* const pMenu = new QMenu(this);
-
-	if (!GetScene())
-	{
-		return;
-	}
-
-	if (pElement)
-	{
-		AddSourceNodeElementContextMenu(index, pMenu);
-		AddProxyGenerationContextMenu(pMenu, m_pSceneModel.get(), index, m_pProxyGenerator.get());
-
-		pMenu->addSeparator();
-
-		AddExpandCollapseChildrenContextMenu(index, pMenu);
-	}
-
-	AddExpandCollapseAllContextMenu(pMenu);
-
-	pMenu->addSeparator();
-
-	AddSkinFilterContextMenu(pMenu);
-
-	const QPoint popupLocation = point + QPoint(1, 1); // Otherwise double-right-click immediately executes first option
-	pMenu->popup(pView->viewport()->mapToGlobal(popupLocation));
-}
-
 void CMainDialog::CreateMaterialContextMenu(QMenu* pMenu, CMaterialElement* pElement)
 {
 	QAction* const pSelectMeshes = pMenu->addAction(tr("Select meshes using this material"));
@@ -3192,13 +3255,13 @@ void CMainDialog::UpdateStaticMeshes()
 	if (m_pGlobalImportSettings->IsMergeAllNodes())
 	{
 		FbxMetaData::SMetaData unmergedMeshMetaData = metaData;
-		unmergedMeshMetaData.m_bMergeAllNodes = false;
+		unmergedMeshMetaData.bMergeAllNodes = false;
 		ClearAutoLodNodes(unmergedMeshMetaData);
 
 		m_pUnmergedMeshRcObject->SetMetaData(unmergedMeshMetaData);
 		m_pUnmergedMeshRcObject->CreateAsync();
 
-		unmergedMeshMetaData.m_bMergeAllNodes = true;
+		unmergedMeshMetaData.bMergeAllNodes = true;
 
 		m_ppSelectionMesh = &m_pUnmergedMeshStatObj;
 	}

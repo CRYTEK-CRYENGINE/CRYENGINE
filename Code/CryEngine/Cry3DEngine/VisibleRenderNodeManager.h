@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #pragma once
 
@@ -78,14 +78,19 @@ public:
 	// Iteratively update array of visible nodes checking if they are expired
 	void       UpdateVisibleNodes(int currentFrame, int maxNodesToCheck = MAX_NODES_CHECK_PER_FRAME);
 	void       InvalidateAll();
-
+	void       OnEntityDeleted(IEntity *pEntity);
 	Statistics GetStatistics() const;
 
 	void       ClearAll();
 
 private:
+	void OnRenderNodeVisibilityChange( IRenderNode *pRenderNode,bool bVisible );
+
+private:
 	std::vector<SRenderNodeTempData*> m_visibleNodes;
 	int                               m_lastStartUpdateNode;
+
+	int                               m_firstAddedNode;
 
 	int                               m_currentNodesToDelete;
 	std::vector<SRenderNodeTempData*> m_toDeleteNodes[MAX_DELETE_BUFFERS];

@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 // -------------------------------------------------------------------------
 //  File name:   timedemorecorder.h
@@ -196,7 +196,7 @@ private:
 
 	void               StartChainDemo(const char* levelsListFilename, bool bAutoLoadChainConfig);
 	void               StartDemoLevel(const char** levelNames, int levelCount);
-	void               StartDemoDelayed(int nFrames);
+	void               StartDemoDelayed();
 
 	void               Pause(bool paused) { m_bPaused = paused; }
 
@@ -206,6 +206,7 @@ private:
 	int                GetTotalPolysRecorded() { return m_nTotalPolysRecorded; }
 	void               LogEndOfLoop();
 
+	//! Gets current loaded level path, "" if not yet finished loading
 	static const char* GetCurrentLevelPath();
 
 	CTimeValue         GetTime();
@@ -260,7 +261,7 @@ private:
 	bool         m_bPlaying;
 	bool         m_bPaused;
 	bool         m_bDemoFinished;
-	bool         m_demoEnded;
+	bool         m_bDemoEnded;
 	bool         m_bChainloadingDemo;
 
 	//! Current play or record frame.
@@ -282,9 +283,9 @@ private:
 	CTimeValue m_totalDemoTime;
 	CTimeValue m_recordedDemoTime;
 
-	// How many polygons per frame where recorded.
+	// How many polygons were recorded.
 	int   m_nTotalPolysRecorded;
-	// How many polygons per frame where played.
+	// How many polygons were played.
 	int   m_nTotalPolysPlayed;
 
 	float m_lastPlayedTotalTime;
@@ -321,7 +322,7 @@ private:
 
 	struct STimeDemoInfo* m_pTimeDemoInfo;
 
-public:
+private:
 	static ICVar*             s_timedemo_file;
 	static CTimeDemoRecorder* s_pTimeDemoRecorder;
 
@@ -350,7 +351,7 @@ public:
 
 	bool                      m_bAIEnabled;
 
-	int                       m_countDownPlay;
+	bool                      m_bDelayedPlayFlag;
 	int                       m_prevGodMode;
 
 	struct SChainDemoLevel

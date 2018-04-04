@@ -1,8 +1,9 @@
 {
-	"ResourceCompilerImage_uber_0.cpp":
+	"NoUberFile":
 	{
 		"Compressors":
 		[
+			"Compressors/ASTC.cpp",
 			"Compressors/PVRTC.cpp",
 			"Compressors/CTSquisher.cpp"
 		],
@@ -36,10 +37,7 @@
 			"Converters/R16.cpp",
 			"Converters/R8.cpp",
 			"Converters/NormalFromHeight.h"
-		]
-	},
-	"ResourceCompilerImage_uber_1.cpp":
-	{
+		],
 		"Converters/Colorspaces":
 		[
 			"Converters/ColorSpaces/CIE.cpp",
@@ -62,11 +60,7 @@
 			"../../CryCommonTools/PathHelpers.h",
 			"../../CryCommonTools/FileUtil.h",
 			"../../CryCommonTools/Metadata/Metadata.cpp",
-			"../../CryCommonTools/Metadata/Metadata.h",
-			"../../CryCommonTools/Metadata/MetadataHelpers.cpp",
-			"../../CryCommonTools/Metadata/MetadataHelpers.h",
-			"../../CryCommonTools/CryGUIDHelper.cpp",
-			"../../CryCommonTools/CryGUIDHelper.h"
+			"../../CryCommonTools/Metadata/Metadata.h"
 		],
 		"Filtering":
 		[
@@ -99,10 +93,7 @@
 			"Filtering/CubeMapGen-1.4-Source/HDRWrite.h",
 			"Filtering/CubeMapGen-1.4-Source/Types.h",
 			"Filtering/CubeMapGen-1.4-Source/VectorMacros.h"
-		]
-	},
-	"ResourceCompilerImage_uber_2.cpp":
-	{
+		],
 		"Formats":
 		[
 			"Formats/TIFF.cpp",
@@ -120,7 +111,7 @@
 		[
 			"GenerationProgress.cpp",
 			"ImageCompiler.cpp",
-			"ImageConvertor.cpp",
+			"ImageConverter.cpp",
 			"ImageObject.cpp",
 			"ImageUserDialog.cpp",
 			"PixelFormats.cpp",
@@ -128,17 +119,14 @@
 			"ImagePreview.cpp",
 			"GenerationProgress.h",
 			"ImageCompiler.h",
-			"ImageConvertor.h",
+			"ImageConverter.h",
 			"../../../CryEngine/CryCommon/Cry3DEngine/ImageExtensionHelper.h",
 			"ImageObject.h",
 			"ImageProperties.h",
 			"ImageUserDialog.h",
 			"PixelFormats.h",
 			"ImagePreview.h"
-		]
-	},
-	"ResourceCompilerImage_uber_3.cpp":
-	{
+		],
 		"Operations":
 		[
 			"Operations/CombineNormals.cpp",
@@ -166,10 +154,12 @@
 			"UIBumpmapPanel.h",
 			"UIMIPControlPanel.h",
 			"reduce.bmp"
-		]
-	},
-	"ResourceCompilerImage_uber_4.cpp":
-	{
+		],
+		"Metadata":
+		[
+			"ImageDetails.cpp",
+			"ImageDetails.h"
+		],
 		"Streaming":
 		[
 			"Streaming/TextureSplitter.cpp",

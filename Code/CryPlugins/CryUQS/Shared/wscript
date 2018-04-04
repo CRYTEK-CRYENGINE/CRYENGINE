@@ -15,7 +15,7 @@ def build(bld):
 		file_list     = 'uqs_shared.waf_files',
 		pch           = 'shared/StdAfx.cpp',
 		includes      = [ '.' ],
-		use_module    = [ 'yasli', 'CryUQS_Interfaces' ],
+		use_module    = [ 'CryUQS_Interfaces' ],
 		module_provides = dict(
 			includes = [ Path('Code/CryPlugins')],
 		),

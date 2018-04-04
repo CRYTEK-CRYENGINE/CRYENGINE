@@ -1,42 +1,31 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
-// -------------------------------------------------------------------------
-//  File name:
-//  Version:     v1.00
-//  Created:     03/02/2015 by Jan Pinter
-//  Description:
-// -------------------------------------------------------------------------
-//  History:
-//
-////////////////////////////////////////////////////////////////////////////
 #pragma once
-#ifndef __CCRYDX12RESOURCE__
-	#define __CCRYDX12RESOURCE__
 
-	#include "DX12/Device/CCryDX12DeviceChild.hpp"
+#include "DX12/Device/CCryDX12DeviceChild.hpp"
 
-	#include "DX12/API/DX12Resource.hpp"
+#include "DX12/API/DX12Resource.hpp"
 
 // "res" must be ID3D11Resource
 // This is potentialy dangerous, but easy & fast...
-	#define DX12_EXTRACT_RESOURCE(res) \
-	  (reinterpret_cast<CCryDX12Resource<ID3D11ResourceToImplement>*>(res))
-	#define DX12_EXTRACT_RESOURCE_TYPE(res) \
-	  (reinterpret_cast<CCryDX12Resource<ID3D11ResourceToImplement>*>(res))->GetDX12ResourceType()
+#define DX12_EXTRACT_RESOURCE(res) \
+	(reinterpret_cast<CCryDX12Resource<ID3D11ResourceToImplement>*>(res))
+#define DX12_EXTRACT_RESOURCE_TYPE(res) \
+	(reinterpret_cast<CCryDX12Resource<ID3D11ResourceToImplement>*>(res))->GetDX12ResourceType()
 
-	#define DX12_EXTRACT_ICRYDX12RESOURCE(res) \
-	  ((res) ? (static_cast<ICryDX12Resource*>(reinterpret_cast<CCryDX12Resource<ID3D11ResourceToImplement>*>(res))) : NULL)
-	#define DX12_EXTRACT_D3D12RESOURCE(res) \
-	  ((res) ? (static_cast<ICryDX12Resource*>(reinterpret_cast<CCryDX12Resource<ID3D11ResourceToImplement>*>(res)))->GetD3D12Resource() : NULL)
+#define DX12_EXTRACT_ICRYDX12RESOURCE(res) \
+	((res) ? (static_cast<ICryDX12Resource*>(reinterpret_cast<CCryDX12Resource<ID3D11ResourceToImplement>*>(res))) : NULL)
+#define DX12_EXTRACT_D3D12RESOURCE(res) \
+	((res) ? (static_cast<ICryDX12Resource*>(reinterpret_cast<CCryDX12Resource<ID3D11ResourceToImplement>*>(res)))->GetD3D12Resource() : NULL)
 
-	#define DX12_EXTRACT_BUFFER(res) \
-	  (reinterpret_cast<CCryDX12Buffer*>(res))
-	#define DX12_EXTRACT_TEXTURE1D(res) \
-	  (reinterpret_cast<CCryDX12Texture1D*>(res))
-	#define DX12_EXTRACT_TEXTURE2D(res) \
-	  (reinterpret_cast<CCryDX12Texture2D*>(res))
-	#define DX12_EXTRACT_TEXTURE3D(res) \
-	  (reinterpret_cast<CCryDX12Texture3D*>(res))
+#define DX12_EXTRACT_BUFFER(res) \
+	(reinterpret_cast<CCryDX12Buffer*>(res))
+#define DX12_EXTRACT_TEXTURE1D(res) \
+	(reinterpret_cast<CCryDX12Texture1D*>(res))
+#define DX12_EXTRACT_TEXTURE2D(res) \
+	(reinterpret_cast<CCryDX12Texture2D*>(res))
+#define DX12_EXTRACT_TEXTURE3D(res) \
+	(reinterpret_cast<CCryDX12Texture3D*>(res))
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -56,8 +45,7 @@ struct ICryDX12Resource
 	virtual NCryDX12::CResource&       GetDX12Resource() = 0;
 	virtual const NCryDX12::CResource& GetDX12Resource() const = 0;
 
-	virtual void                       MapDiscard() = 0;
-	virtual void                       CopyDiscard() = 0;
+	virtual bool                       SubstituteUsed() = 0;
 };
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -67,8 +55,6 @@ class CCryDX12Resource : public CCryDX12DeviceChild<T>, public ICryDX12Resource
 {
 public:
 	DX12_OBJECT(CCryDX12Resource, CCryDX12DeviceChild<T> );
-
-	virtual ~CCryDX12Resource() {}
 
 	#pragma region /* ICryDX12Resource implementation */
 
@@ -92,21 +78,16 @@ public:
 		return m_DX12Resource;
 	}
 
-	virtual void MapDiscard()
+	virtual bool SubstituteUsed()
 	{
-		m_DX12Resource.MapDiscard();
-	}
-
-	virtual void CopyDiscard()
-	{
-		m_DX12Resource.CopyDiscard();
+		return m_DX12Resource.SubstituteUsed();
 	}
 
 	#pragma endregion
 
 	#pragma region /* ID3D11Resource implementation */
 
-	virtual void STDMETHODCALLTYPE GetType(
+	VIRTUALGFX void STDMETHODCALLTYPE GetType(
 	  _Out_ D3D11_RESOURCE_DIMENSION* pResourceDimension)
 	{
 		if (pResourceDimension)
@@ -115,13 +96,13 @@ public:
 		}
 	}
 
-	virtual void STDMETHODCALLTYPE SetEvictionPriority(
-	  _In_ UINT EvictionPriority)
+	VIRTUALGFX void STDMETHODCALLTYPE SetEvictionPriority(
+	  _In_ UINT EvictionPriority) FINALGFX
 	{
 
 	}
 
-	virtual UINT STDMETHODCALLTYPE GetEvictionPriority()
+	VIRTUALGFX UINT STDMETHODCALLTYPE GetEvictionPriority() FINALGFX
 	{
 		return 0;
 	}
@@ -160,5 +141,3 @@ protected:
 
 	NCryDX12::CResource m_DX12Resource;
 };
-
-#endif // __CCRYDX12RESOURCE__

@@ -1,19 +1,8 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
-// -------------------------------------------------------------------------
-//  File name:
-//  Version:     v1.00
-//  Created:     08/05/2015 by Jan Pinter
-//  Description:
-// -------------------------------------------------------------------------
-//  History:
-//
-////////////////////////////////////////////////////////////////////////////
 #pragma once
-#ifndef __DX12SHADER__
-	#define __DX12SHADER__
 
-	#include "DX12Base.hpp"
+#include "DX12Base.hpp"
 
 namespace NCryDX12
 {
@@ -193,5 +182,3 @@ private:
 };
 
 }
-
-#endif // __DX12SHADER__

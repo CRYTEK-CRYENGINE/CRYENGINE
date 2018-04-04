@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #include "StdAfx.h"
 #include "AIVehicle.h"
@@ -41,10 +41,10 @@ CAIVehicle::~CAIVehicle(void)
 
 //
 //---------------------------------------------------------------------------------------------------------
-void CAIVehicle::UpdateDisabled(EObjectUpdate type)
+void CAIVehicle::UpdateDisabled(EUpdateType type)
 {
 	CAIActor::UpdateDisabled(type);
-	m_bDryUpdate = type == AIUPDATE_DRY;
+	m_bDryUpdate = type == EUpdateType::Dry;
 	AlertPuppets();
 	m_driverInsideCheck = -1;
 	m_playerInsideCheck = -1;
@@ -52,7 +52,7 @@ void CAIVehicle::UpdateDisabled(EObjectUpdate type)
 
 //
 //---------------------------------------------------------------------------------------------------------
-void CAIVehicle::Update(EObjectUpdate type)
+void CAIVehicle::Update(EUpdateType type)
 {
 	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_AI);
 	CCCPOINT(CAIVehicle_Update);
@@ -62,9 +62,7 @@ void CAIVehicle::Update(EObjectUpdate type)
 
 	const SAIBodyInfo& bodyInfo = QueryBodyInfo();
 
-	UpdateBehaviorSelectionTree();
-
-	m_bDryUpdate = type == AIUPDATE_DRY;
+	m_bDryUpdate = type == EUpdateType::Dry;
 
 	// make sure to update direction when entity is not moved
 	SetPos(bodyInfo.vEyePos);

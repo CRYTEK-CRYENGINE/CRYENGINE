@@ -4,9 +4,9 @@
 
 // *INDENT-OFF* - <hard to read code and declarations due to inconsistent indentation>
 
-namespace uqs
+namespace UQS
 {
-	namespace core
+	namespace Core
 	{
 
 		//===================================================================================
@@ -42,7 +42,7 @@ namespace uqs
 		struct IHub
 		{
 			virtual                                                    ~IHub() {}
-			virtual void                                               RegisterHubEventListener(IHubEventListener* listener) = 0;
+			virtual void                                               RegisterHubEventListener(IHubEventListener* pListener) = 0;
 			virtual void                                               Update() = 0;
 			virtual IQueryFactoryDatabase&                             GetQueryFactoryDatabase() = 0;
 			virtual IItemFactoryDatabase&                              GetItemFactoryDatabase() = 0;
@@ -50,6 +50,7 @@ namespace uqs
 			virtual IGeneratorFactoryDatabase&                         GetGeneratorFactoryDatabase() = 0;
 			virtual IInstantEvaluatorFactoryDatabase&                  GetInstantEvaluatorFactoryDatabase() = 0;
 			virtual IDeferredEvaluatorFactoryDatabase&                 GetDeferredEvaluatorFactoryDatabase() = 0;
+			virtual IScoreTransformFactoryDatabase&                    GetScoreTransformFactoryDatabase() = 0;
 			virtual IQueryBlueprintLibrary&                            GetQueryBlueprintLibrary() = 0;
 			virtual IQueryManager&                                     GetQueryManager() = 0;
 			virtual IQueryHistoryManager&                              GetQueryHistoryManager() = 0;
@@ -60,8 +61,8 @@ namespace uqs
 			// TODO pavloi 2016.04.07: maybe editor library provider doesn't really belong here.
 			// Instead, we should use other means to pass pointer from game to editor (like, register
 			// provider as game extension CRYINTERFACE and query it by GUID - same as Hub).
-			virtual datasource::IEditorLibraryProvider*                GetEditorLibraryProvider() = 0;
-			virtual void                                               SetEditorLibraryProvider(datasource::IEditorLibraryProvider* pProvider) = 0;
+			virtual DataSource::IEditorLibraryProvider*                GetEditorLibraryProvider() = 0;
+			virtual void                                               SetEditorLibraryProvider(DataSource::IEditorLibraryProvider* pProvider) = 0;
 		};
 
 	}

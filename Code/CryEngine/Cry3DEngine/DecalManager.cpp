@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 // -------------------------------------------------------------------------
 //  File name:   decals.cpp
@@ -174,89 +174,86 @@ bool CDecalManager::SpawnHierarchical(const CryEngineDecalInfo& rootDecalInfo, C
 	decalBoxWS.max = rootDecalInfo.vPos + Vec3(fSize, fSize, fSize);
 	decalBoxWS.min = rootDecalInfo.vPos - Vec3(fSize, fSize, fSize);
 
-	for (int nEntitySlotId = 0; nEntitySlotId < 16; nEntitySlotId++)
+	CStatObj* _pStatObj = NULL;
+	Matrix34A entSlotMatrix;
+	entSlotMatrix.SetIdentity();
+	if (_pStatObj = (CStatObj*)rootDecalInfo.ownerInfo.pRenderNode->GetEntityStatObj(~0, &entSlotMatrix, true))
 	{
-		CStatObj* _pStatObj = NULL;
-		Matrix34A entSlotMatrix;
-		entSlotMatrix.SetIdentity();
-		if (_pStatObj = (CStatObj*)rootDecalInfo.ownerInfo.pRenderNode->GetEntityStatObj(nEntitySlotId, ~0, &entSlotMatrix, true))
+		if (_pStatObj->m_nFlags & STATIC_OBJECT_COMPOUND)
 		{
-			if (_pStatObj->m_nFlags & STATIC_OBJECT_COMPOUND)
+			if (int nSubCount = _pStatObj->GetSubObjectCount())
 			{
-				if (int nSubCount = _pStatObj->GetSubObjectCount())
+				// spawn decals on stat obj sub objects
+				CryEngineDecalInfo decalInfo = rootDecalInfo;
+				decalInfo.ownerInfo.nRenderNodeSlotId = 0;
+				if (rootDecalInfo.ownerInfo.nRenderNodeSlotSubObjectId >= 0)
 				{
-					// spawn decals on stat obj sub objects
-					CryEngineDecalInfo decalInfo = rootDecalInfo;
-					decalInfo.ownerInfo.nRenderNodeSlotId = nEntitySlotId;
-					if (rootDecalInfo.ownerInfo.nRenderNodeSlotSubObjectId >= 0)
-					{
-						decalInfo.ownerInfo.nRenderNodeSlotSubObjectId = rootDecalInfo.ownerInfo.nRenderNodeSlotSubObjectId;
-						bSuccess |= Spawn(decalInfo, pCallerManagedDecal);
-					}
-					else
-						for (int nSubId = 0; nSubId < nSubCount; nSubId++)
-						{
-							IStatObj::SSubObject& subObj = _pStatObj->SubObject(nSubId);
-							if (subObj.pStatObj && !subObj.bHidden && subObj.nType == STATIC_SUB_OBJECT_MESH)
-							{
-								Matrix34 subObjMatrix = entSlotMatrix * subObj.tm;
-								AABB subObjAABB = AABB::CreateTransformedAABB(subObjMatrix, subObj.pStatObj->GetAABB());
-								if (Overlap::AABB_AABB(subObjAABB, decalBoxWS))
-								{
-									decalInfo.ownerInfo.nRenderNodeSlotSubObjectId = nSubId;
-									bSuccess |= Spawn(decalInfo, pCallerManagedDecal);
-								}
-							}
-						}
-				}
-			}
-			else
-			{
-				AABB subObjAABB = AABB::CreateTransformedAABB(entSlotMatrix, _pStatObj->GetAABB());
-				if (Overlap::AABB_AABB(subObjAABB, decalBoxWS))
-				{
-					CryEngineDecalInfo decalInfo = rootDecalInfo;
-					decalInfo.ownerInfo.nRenderNodeSlotId = nEntitySlotId;
-					decalInfo.ownerInfo.nRenderNodeSlotSubObjectId = -1; // no childs
+					decalInfo.ownerInfo.nRenderNodeSlotSubObjectId = rootDecalInfo.ownerInfo.nRenderNodeSlotSubObjectId;
 					bSuccess |= Spawn(decalInfo, pCallerManagedDecal);
 				}
-			}
-		}
-		else if (ICharacterInstance* pChar = rootDecalInfo.ownerInfo.pRenderNode->GetEntityCharacter(nEntitySlotId, &entSlotMatrix))
-		{
-			// spawn decals on CGA components
-			ISkeletonPose* pSkeletonPose = pChar->GetISkeletonPose();
-			uint32 numJoints = pChar->GetIDefaultSkeleton().GetJointCount();
-			CryEngineDecalInfo decalInfo = rootDecalInfo;
-			decalInfo.ownerInfo.nRenderNodeSlotId = nEntitySlotId;
-
-			if (rootDecalInfo.ownerInfo.nRenderNodeSlotSubObjectId >= 0)
-			{
-				decalInfo.ownerInfo.nRenderNodeSlotSubObjectId = rootDecalInfo.ownerInfo.nRenderNodeSlotSubObjectId;
-				bSuccess |= Spawn(decalInfo, pCallerManagedDecal);
-			}
-			else
-				// spawn decal on every sub-object intersecting decal bbox
-				for (uint32 nJointId = 0; nJointId < numJoints; nJointId++)
-				{
-					IStatObj* pStatObj = pSkeletonPose->GetStatObjOnJoint(nJointId);
-
-					if (pStatObj && !(pStatObj->GetFlags() & STATIC_OBJECT_HIDDEN) && pStatObj->GetRenderMesh())
+				else
+					for (int nSubId = 0; nSubId < nSubCount; nSubId++)
 					{
-						assert(!pStatObj->GetSubObjectCount());
-
-						Matrix34 tm34 = entSlotMatrix * Matrix34(pSkeletonPose->GetAbsJointByID(nJointId));
-						AABB objBoxWS = AABB::CreateTransformedAABB(tm34, pStatObj->GetAABB());
-						//				DrawBBox(objBoxWS);
-						//			DrawBBox(decalBoxWS);
-						if (Overlap::AABB_AABB(objBoxWS, decalBoxWS))
+						IStatObj::SSubObject& subObj = _pStatObj->SubObject(nSubId);
+						if (subObj.pStatObj && !subObj.bHidden && subObj.nType == STATIC_SUB_OBJECT_MESH)
 						{
-							decalInfo.ownerInfo.nRenderNodeSlotSubObjectId = nJointId;
-							bSuccess |= Spawn(decalInfo, pCallerManagedDecal);
+							Matrix34 subObjMatrix = entSlotMatrix * subObj.tm;
+							AABB subObjAABB = AABB::CreateTransformedAABB(subObjMatrix, subObj.pStatObj->GetAABB());
+							if (Overlap::AABB_AABB(subObjAABB, decalBoxWS))
+							{
+								decalInfo.ownerInfo.nRenderNodeSlotSubObjectId = nSubId;
+								bSuccess |= Spawn(decalInfo, pCallerManagedDecal);
+							}
 						}
 					}
-				}
+			}
 		}
+		else
+		{
+			AABB subObjAABB = AABB::CreateTransformedAABB(entSlotMatrix, _pStatObj->GetAABB());
+			if (Overlap::AABB_AABB(subObjAABB, decalBoxWS))
+			{
+				CryEngineDecalInfo decalInfo = rootDecalInfo;
+				decalInfo.ownerInfo.nRenderNodeSlotId = 0;
+				decalInfo.ownerInfo.nRenderNodeSlotSubObjectId = -1; // no childs
+				bSuccess |= Spawn(decalInfo, pCallerManagedDecal);
+			}
+		}
+	}
+	else if (ICharacterInstance* pChar = rootDecalInfo.ownerInfo.pRenderNode->GetEntityCharacter(&entSlotMatrix))
+	{
+		// spawn decals on CGA components
+		ISkeletonPose* pSkeletonPose = pChar->GetISkeletonPose();
+		uint32 numJoints = pChar->GetIDefaultSkeleton().GetJointCount();
+		CryEngineDecalInfo decalInfo = rootDecalInfo;
+		decalInfo.ownerInfo.nRenderNodeSlotId = 0;
+
+		if (rootDecalInfo.ownerInfo.nRenderNodeSlotSubObjectId >= 0)
+		{
+			decalInfo.ownerInfo.nRenderNodeSlotSubObjectId = rootDecalInfo.ownerInfo.nRenderNodeSlotSubObjectId;
+			bSuccess |= Spawn(decalInfo, pCallerManagedDecal);
+		}
+		else
+			// spawn decal on every sub-object intersecting decal bbox
+			for (uint32 nJointId = 0; nJointId < numJoints; nJointId++)
+			{
+				IStatObj* pStatObj = pSkeletonPose->GetStatObjOnJoint(nJointId);
+
+				if (pStatObj && !(pStatObj->GetFlags() & STATIC_OBJECT_HIDDEN) && pStatObj->GetRenderMesh())
+				{
+					assert(!pStatObj->GetSubObjectCount());
+
+					Matrix34 tm34 = entSlotMatrix * Matrix34(pSkeletonPose->GetAbsJointByID(nJointId));
+					AABB objBoxWS = AABB::CreateTransformedAABB(tm34, pStatObj->GetAABB());
+					//				DrawBBox(objBoxWS);
+					//			DrawBBox(decalBoxWS);
+					if (Overlap::AABB_AABB(objBoxWS, decalBoxWS))
+					{
+						decalInfo.ownerInfo.nRenderNodeSlotSubObjectId = nJointId;
+						bSuccess |= Spawn(decalInfo, pCallerManagedDecal);
+					}
+				}
+			}
 	}
 
 	return bSuccess;
@@ -567,7 +564,7 @@ bool CDecalManager::Spawn(CryEngineDecalInfo DecalInfo, CDecal* pCallerManagedDe
 		{
 			IRenderNode* pDecalOwner = DecalInfo.ownerInfo.pDecalReceivers->Get(nObj)->pNode;
 			Matrix34A objMat;
-			if (IStatObj* pEntObject = pDecalOwner->GetEntityStatObj(DecalInfo.ownerInfo.nRenderNodeSlotId, 0, &objMat))
+			if (IStatObj* pEntObject = pDecalOwner->GetEntityStatObj(0, &objMat))
 			{
 				SRenderMeshInfoInput rmi;
 				rmi.pMesh = pEntObject->GetRenderMesh();
@@ -625,7 +622,7 @@ bool CDecalManager::Spawn(CryEngineDecalInfo DecalInfo, CDecal* pCallerManagedDe
 
 		assert(newDecal.m_pRenderMesh->GetChunks().size() == 1);
 	}
-	else if (ownerRenderNodeType == eERType_RenderProxy || ownerRenderNodeType == eERType_Vegetation)
+	else if (ownerRenderNodeType == eERType_MovableBrush || ownerRenderNodeType == eERType_Vegetation)
 	{
 		newDecal.m_eDecalType = eDecalType_OS_SimpleQuad;
 
@@ -1387,7 +1384,7 @@ _smart_ptr<IRenderMesh> CDecalManager::MakeBigDecalRenderMesh(IRenderMesh* pSour
 	EmptyVertBuffer.Add(SVF_P3S_C4B_T2S());
 
 	_smart_ptr<IRenderMesh> pRenderMesh = 0;
-	pRenderMesh = GetRenderer()->CreateRenderMeshInitialized(EmptyVertBuffer.GetElements(), EmptyVertBuffer.Count(), eVF_P3S_C4B_T2S,
+	pRenderMesh = GetRenderer()->CreateRenderMeshInitialized(EmptyVertBuffer.GetElements(), EmptyVertBuffer.Count(), EDefaultInputLayouts::P3S_C4B_T2S,
 	                                                         lstIndices.GetElements(), lstIndices.Count(), prtTriangleList, "BigDecalOnStatObj", "BigDecal", eRMT_Static, 1, 0, 0, 0, false, false, 0);
 	pRenderMesh->SetVertexContainer(pSourceRenderMesh);
 	pRenderMesh->SetChunk(pDecalMat, 0, pSourceRenderMesh->GetVerticesCount(), 0, lstIndices.Count(), texelAreaDensity);
@@ -1621,7 +1618,7 @@ IStatObj* SDecalOwnerInfo::GetOwner(Matrix34A& objMat)
 		return NULL;
 
 	IStatObj* pStatObj = NULL;
-	if (pStatObj = pRenderNode->GetEntityStatObj(nRenderNodeSlotId, nRenderNodeSlotSubObjectId, &objMat, true))
+	if (pStatObj = pRenderNode->GetEntityStatObj(nRenderNodeSlotSubObjectId, &objMat, true))
 	{
 		if (nRenderNodeSlotSubObjectId >= 0 && nRenderNodeSlotSubObjectId < pStatObj->GetSubObjectCount())
 		{
@@ -1630,7 +1627,7 @@ IStatObj* SDecalOwnerInfo::GetOwner(Matrix34A& objMat)
 			objMat = objMat * pSubObj->tm;
 		}
 	}
-	else if (ICharacterInstance* pChar = pRenderNode->GetEntityCharacter(nRenderNodeSlotId, &objMat))
+	else if (ICharacterInstance* pChar = pRenderNode->GetEntityCharacter(&objMat))
 	{
 		if (nRenderNodeSlotSubObjectId >= 0)
 		{

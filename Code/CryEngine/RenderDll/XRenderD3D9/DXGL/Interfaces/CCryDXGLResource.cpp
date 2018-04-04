@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 // -------------------------------------------------------------------------
 //  File name:   CCryDXGLResource.hpp
@@ -22,7 +22,7 @@ CCryDXGLResource::CCryDXGLResource(D3D11_RESOURCE_DIMENSION eDimension, NCryOpen
 	DXGL_INITIALIZE_INTERFACE(D3D11Resource)
 }
 
-#if CRY_OPENGL_SINGLE_CONTEXT
+#if OGL_SINGLE_CONTEXT
 
 CCryDXGLResource::CCryDXGLResource(D3D11_RESOURCE_DIMENSION eDimension, NCryOpenGL::SInitialDataCopy* pInitialDataCopy, CCryDXGLDevice* pDevice)
 	: CCryDXGLDeviceChild(pDevice)

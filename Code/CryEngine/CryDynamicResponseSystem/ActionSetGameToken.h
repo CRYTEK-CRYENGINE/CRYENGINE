@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #pragma once
 
@@ -12,7 +12,6 @@ class CActionSetGameToken final : public DRS::IResponseAction
 public:
 	CActionSetGameToken() : m_bCreateTokenIfNotExisting(false) {}
 	CActionSetGameToken(const string& tokenName, const string& stringValue, bool bCreate) : m_tokenName(tokenName), m_bCreateTokenIfNotExisting(bCreate) {}
-	virtual ~CActionSetGameToken() {}
 
 	//////////////////////////////////////////////////////////
 	// IResponseAction implementation

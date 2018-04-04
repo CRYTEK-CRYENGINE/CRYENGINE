@@ -7,7 +7,7 @@ def build(bld):
         includes = '.',
         file_list = 'cryqt.waf_files',
         pch = 'stdafx.cpp',
-        defines = ['CryQt_EXPORTS', 'WIN32'],
+        defines = ['CryQt_EXPORTS','QToolWindowManager_EXPORTS','WIN32'],
         features = ['qt', 'copy_qt_binaries'],
         win_lib = ['dwmapi', 'gdi32', 'Ole32'],
         win_profile_lib = ['qtmain'],

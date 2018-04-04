@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 /*=============================================================================
    D3DTexture.cpp : Direct3D specific texture manager implementation.
@@ -20,57 +20,75 @@
 #include "D3DPostProcess.h"
 #include "../Common/Textures/TextureHelpers.h"
 #include "GraphicsPipeline/Common/UtilityPasses.h"
+#include "DeviceManager/DeviceFormats.h" // SPixFormat
 
 #undef min
 #undef max
 
 //===============================================================================
 
-RenderTargetData::~RenderTargetData()
+static bool DecompressSubresourcePayload(const STextureLayout& pLayout, const ETEX_TileMode eSrcTileMode, const void* pData[], STexturePayload& pPayload)
 {
-	CDeviceTexture* pTexMSAA = (CDeviceTexture*)m_pDeviceTextureMSAA;
-	SAFE_RELEASE(pTexMSAA);
-}
-
-ResourceViewData::~ResourceViewData()
-{
-	for (size_t i = 0; i < m_ResourceViews.size(); ++i)
+	assert(!pPayload.m_pSysMemSubresourceData);
+	if (!pData || !pData[0])
 	{
-		const SResourceView& rv = m_ResourceViews[i];
-		switch (rv.m_Desc.eViewType)
-		{
-		case SResourceView::eShaderResourceView:
-			{
-				D3DShaderResource* pView = static_cast<D3DShaderResource*>(rv.m_pDeviceResourceView);
-				SAFE_RELEASE(pView);
-				break;
-			}
-		case SResourceView::eRenderTargetView:
-			{
-				D3DSurface* pView = static_cast<D3DSurface*>(rv.m_pDeviceResourceView);
-				SAFE_RELEASE(pView);
-				break;
-			}
-		case SResourceView::eDepthStencilView:
-			{
-				D3DDepthSurface* pView = static_cast<D3DDepthSurface*>(rv.m_pDeviceResourceView);
-				SAFE_RELEASE(pView);
-				break;
-			}
-#if !CRY_PLATFORM_ORBIS
-		case SResourceView::eUnorderedAccessView:
-			{
-				D3DUAV* pView = static_cast<D3DUAV*>(rv.m_pDeviceResourceView);
-				SAFE_RELEASE(pView);
-				break;
-			}
-#endif
-		default:
-			assert(false);
-		}
+		pPayload.m_pSysMemSubresourceData = nullptr;
+		pPayload.m_eSysMemTileMode = eTM_Unspecified;
+
+		return false;
 	}
+
+	const int nSlices = pLayout.m_nArraySize;
+	const int nMips = pLayout.m_nMips;
+
+	SSubresourcePayload* InitData = new SSubresourcePayload[nMips * nSlices];
+
+	// Contrary to hardware here the sub-resources are sorted by mips, then by slices.
+	// In hardware it's sorted by slices, then by mips (so same mips are consecutive).
+	const byte* pAutoData;
+	const void** pDataCursor = pData;
+
+	for (int nSlice = 0, nSubresource = 0; (nSlice < nSlices); ++nSlice)
+	{
+		int w = pLayout.m_nWidth;
+		int h = pLayout.m_nHeight;
+		int d = pLayout.m_nDepth;
+
+		for (int nMip = 0; (nMip < nMips) && (w | h | d); ++nMip, ++nSubresource)
+		{
+			if (!w) w = 1;
+			if (!h) h = 1;
+			if (!d) d = 1;
+
+			if (*pDataCursor)
+				pAutoData = reinterpret_cast<const byte*>(*pDataCursor++);
+			else
+				pAutoData = pAutoData + InitData[nSubresource - 1].m_sSysMemAlignment.volumeStride;
+
+			InitData[nSubresource].m_pSysMem = pAutoData;
+			InitData[nSubresource].m_sSysMemAlignment.typeStride   = CTexture::TextureDataSize(1, 1, 1, 1, 1, pLayout.m_eSrcFormat, eSrcTileMode);
+			InitData[nSubresource].m_sSysMemAlignment.rowStride    = CTexture::TextureDataSize(w, 1, 1, 1, 1, pLayout.m_eSrcFormat, eSrcTileMode);
+			InitData[nSubresource].m_sSysMemAlignment.planeStride  = CTexture::TextureDataSize(w, h, 1, 1, 1, pLayout.m_eSrcFormat, eSrcTileMode);
+			InitData[nSubresource].m_sSysMemAlignment.volumeStride = CTexture::TextureDataSize(w, h, d, 1, 1, pLayout.m_eSrcFormat, eSrcTileMode);
+
+			w >>= 1;
+			h >>= 1;
+			d >>= 1;
+		}
+
+		// reset to face 0
+		if (pLayout.m_eFlags & FT_REPLICATE_TO_ALL_SIDES)
+			pDataCursor = pData;
+		// each face is nullptr-terminated
+		else if (!*pDataCursor)
+			pDataCursor++;
+	}
+
+	pPayload.m_pSysMemSubresourceData = InitData;
+	pPayload.m_eSysMemTileMode = eSrcTileMode;
+
+	return true;
 }
-//===============================================================================
 
 #if defined(TEXTURE_GET_SYSTEM_COPY_SUPPORT)
 byte* CTexture::Convert(byte* pSrc, int nWidth, int nHeight, int nMips, ETEX_Format eTFSrc, ETEX_Format eTFDst, int nOutMips, int& nOutSize, bool bLinear)
@@ -80,10 +98,10 @@ byte* CTexture::Convert(byte* pSrc, int nWidth, int nHeight, int nMips, ETEX_For
 	if (eTFSrc == eTFDst && nMips == nOutMips)
 		return pSrc;
 	CD3D9Renderer* r = gcpRendD3D;
-	DXGI_FORMAT DeviceFormatSRC = (DXGI_FORMAT)DeviceFormatFromTexFormat(eTFSrc);
+	DXGI_FORMAT DeviceFormatSRC = (DXGI_FORMAT)DeviceFormats::ConvertFromTexFormat(eTFSrc);
 	if (eTFDst == eTF_L8)
 		eTFDst = eTF_A8;
-	DXGI_FORMAT DeviceFormatDST = (DXGI_FORMAT)DeviceFormatFromTexFormat(eTFDst);
+	DXGI_FORMAT DeviceFormatDST = (DXGI_FORMAT)DeviceFormats::ConvertFromTexFormat(eTFDst);
 	if (DeviceFormatSRC == DXGI_FORMAT_UNKNOWN || DeviceFormatDST == DXGI_FORMAT_UNKNOWN)
 	{
 		assert(0);
@@ -171,7 +189,7 @@ D3DSurface* CTexture::GetSurface(int nCMSide, int nLevel)
 	if (!m_pDevTexture)
 		return NULL;
 
-	if (IsDeviceFormatTypeless(m_pPixelFormat->DeviceFormat))
+	if (DeviceFormats::IsTypeless(m_pPixelFormat->DeviceFormat))
 	{
 		iLog->Log("Error: CTexture::GetSurface: typeless formats can't be specified for RTVs, failed to create surface for the texture %s", GetSourceName());
 		return NULL;
@@ -179,42 +197,13 @@ D3DSurface* CTexture::GetSurface(int nCMSide, int nLevel)
 
 	SCOPED_RENDERER_ALLOCATION_NAME_HINT(GetSourceName());
 
-	HRESULT hr = S_OK;
-	D3DTexture* pID3DTexture = NULL;
-	D3DTexture* pID3DTexture3D = NULL;
-	D3DTexture* pID3DTextureCube = NULL;
-	D3DSurface* pTargSurf = m_pDeviceRTV;
-	const bool bUseMultisampledRTV = ((m_nFlags & FT_USAGE_MSAA) && m_bUseMultisampledRTV) != 0;
-	if (bUseMultisampledRTV)
-		pTargSurf = m_pDeviceRTVMS;
+	MEMSTAT_CONTEXT_FMT(EMemStatContextTypes::MSC_Texture, 0, "Create Render Target: %s", GetSourceName());
 
-	if (!pTargSurf)
-	{
-		MEMSTAT_CONTEXT_FMT(EMemStatContextTypes::MSC_Texture, 0, "Create Render Target: %s", GetSourceName());
-		int nMipLevel = 0;
-		int nSlice = 0;
-		int nSliceCount = -1;
+	const int nMipLevel = (m_eFlags & FT_FORCE_MIPS) ? min((int)(m_nMips - 1), nLevel) : 0;
+	const int nSlice = (m_eTT == eTT_Cube || m_eTT == eTT_CubeArray ? nCMSide : 0);
+	const int nSliceCount = (m_eTT == eTT_Cube || m_eTT == eTT_CubeArray ? 1 : -1);
 
-		if (m_eTT == eTT_Cube)
-		{
-			nMipLevel = (m_nFlags & FT_FORCE_MIPS) ? min((int)(m_nMips - 1), nLevel) : 0;
-			nSlice = nCMSide;
-			nSliceCount = 1;
-		}
-		pTargSurf = (D3DSurface*)GetResourceView(SResourceView::RenderTargetView(m_eTFDst, nSlice, nSliceCount, nMipLevel, bUseMultisampledRTV));
-
-		if (bUseMultisampledRTV)
-			m_pDeviceRTVMS = pTargSurf;
-		else
-			m_pDeviceRTV = pTargSurf;
-
-	}
-	assert(hr == S_OK);
-
-	if (FAILED(hr))
-		pTargSurf = NULL;
-
-	return pTargSurf;
+	return (D3DSurface*)GetResourceView(SResourceView::RenderTargetView(DeviceFormats::ConvertFromTexFormat(m_eDstFormat), nSlice, nSliceCount, nMipLevel, IsMSAA()));
 }
 
 D3DSurface* CTexture::GetSurface(int nCMSide, int nLevel) const
@@ -222,7 +211,7 @@ D3DSurface* CTexture::GetSurface(int nCMSide, int nLevel) const
 	if (!m_pDevTexture)
 		return NULL;
 
-	if (IsDeviceFormatTypeless(m_pPixelFormat->DeviceFormat))
+	if (DeviceFormats::IsTypeless(m_pPixelFormat->DeviceFormat))
 	{
 		iLog->Log("Error: CTexture::GetSurface: typeless formats can't be specified for RTVs, failed to create surface for the texture %s", GetSourceName());
 		return NULL;
@@ -230,1325 +219,16 @@ D3DSurface* CTexture::GetSurface(int nCMSide, int nLevel) const
 
 	SCOPED_RENDERER_ALLOCATION_NAME_HINT(GetSourceName());
 
-	D3DSurface* pTargSurf = m_pDeviceRTV;
-	const bool bUseMultisampledRTV = ((m_nFlags & FT_USAGE_MSAA) && m_bUseMultisampledRTV) != 0;
-	if (bUseMultisampledRTV)
-		pTargSurf = m_pDeviceRTVMS;
+	MEMSTAT_CONTEXT_FMT(EMemStatContextTypes::MSC_Texture, 0, "Create Render Target: %s", GetSourceName());
 
-	return pTargSurf;
-}
+	const int nMipLevel = (m_eFlags & FT_FORCE_MIPS) ? min((int)(m_nMips - 1), nLevel) : 0;
+	const int nSlice = (m_eTT == eTT_Cube || m_eTT == eTT_CubeArray ? nCMSide : 0);
+	const int nSliceCount = (m_eTT == eTT_Cube || m_eTT == eTT_CubeArray ? 1 : -1);
 
-D3DPOOL CTexture::GetPool()
-{
-	if (!m_pDevTexture)
-		return D3DPOOL_SYSTEMMEM;
-	HRESULT hr = S_OK;
-	int nLevel = 0;
-	D3DPOOL Pool = D3DPOOL_MANAGED;
-	if (m_eTT == eTT_2D || m_eTT == eTT_Auto2D || m_eTT == eTT_Dyn2D)
-	{
-		D3D11_TEXTURE2D_DESC Desc;
-		D3DTexture* pID3DTexture = m_pDevTexture->Get2DTexture();
-		pID3DTexture->GetDesc(&Desc);
-		if (Desc.BindFlags & D3D11_BIND_RENDER_TARGET)
-			Pool = D3DPOOL_DEFAULT;
-	}
-	else if (m_eTT == eTT_Cube)
-	{
-		D3D11_TEXTURE2D_DESC Desc;
-		D3DCubeTexture* pID3DTexture = m_pDevTexture->GetCubeTexture();
-		pID3DTexture->GetDesc(&Desc);
-		if (Desc.BindFlags & D3D11_BIND_RENDER_TARGET)
-			Pool = D3DPOOL_DEFAULT;
-	}
-	else if (m_eTT == eTT_3D)
-	{
-		D3D11_TEXTURE3D_DESC Desc;
-		D3DVolumeTexture* pID3DTexture = m_pDevTexture->GetVolumeTexture();
-		pID3DTexture->GetDesc(&Desc);
-		if (Desc.BindFlags & D3D11_BIND_RENDER_TARGET)
-			Pool = D3DPOOL_DEFAULT;
-	}
-	assert(hr == S_OK);
-
-	return Pool;
+	return (D3DSurface*)GetResourceView(SResourceView::RenderTargetView(DeviceFormats::ConvertFromTexFormat(m_eDstFormat), nSlice, nSliceCount, nMipLevel, IsMSAA()));
 }
 
 //===============================================================================
-
-bool CTexture::IsDeviceFormatTypeless(D3DFormat nFormat)
-{
-	switch (nFormat)
-	{
-	//128 bits
-	case DXGI_FORMAT_R32G32B32A32_TYPELESS:
-	case DXGI_FORMAT_R32G32B32_TYPELESS:
-
-	//64 bits
-	case DXGI_FORMAT_R16G16B16A16_TYPELESS:
-	case DXGI_FORMAT_R32G32_TYPELESS:
-	case DXGI_FORMAT_R32G8X24_TYPELESS:
-	case DXGI_FORMAT_R32_FLOAT_X8X24_TYPELESS:
-	case DXGI_FORMAT_X32_TYPELESS_G8X24_UINT:
-
-	//32 bits
-	case DXGI_FORMAT_R10G10B10A2_TYPELESS:
-	case DXGI_FORMAT_R8G8B8A8_TYPELESS:
-	case DXGI_FORMAT_R16G16_TYPELESS:
-	case DXGI_FORMAT_R32_TYPELESS:
-	case DXGI_FORMAT_R24G8_TYPELESS:
-	case DXGI_FORMAT_R24_UNORM_X8_TYPELESS:
-	case DXGI_FORMAT_X24_TYPELESS_G8_UINT:
-
-	//16 bits
-	case DXGI_FORMAT_R8G8_TYPELESS:
-	case DXGI_FORMAT_R16_TYPELESS:
-
-	//8 bits
-	case DXGI_FORMAT_R8_TYPELESS:
-
-	//block formats
-	case DXGI_FORMAT_BC1_TYPELESS:
-	case DXGI_FORMAT_BC2_TYPELESS:
-	case DXGI_FORMAT_BC3_TYPELESS:
-	case DXGI_FORMAT_BC4_TYPELESS:
-	case DXGI_FORMAT_BC5_TYPELESS:
-
-#if !CRY_PLATFORM_ORBIS
-	case DXGI_FORMAT_BC6H_TYPELESS:
-#endif
-	case DXGI_FORMAT_BC7_TYPELESS:
-		return true;
-
-	default:
-		break;
-	}
-
-	return false;
-}
-
-bool CTexture::IsDeviceFormatSRGBReadable(D3DFormat nFormat)
-{
-	switch (nFormat)
-	{
-	case DXGI_FORMAT_R8G8B8A8_UNORM:
-		return true;
-	case DXGI_FORMAT_B8G8R8A8_UNORM:
-		return true;
-	case DXGI_FORMAT_B8G8R8X8_UNORM:
-		return true;
-
-	case DXGI_FORMAT_BC1_UNORM:
-		return true;
-	case DXGI_FORMAT_BC2_UNORM:
-		return true;
-	case DXGI_FORMAT_BC3_UNORM:
-		return true;
-	case DXGI_FORMAT_BC7_UNORM:
-		return true;
-
-#if defined(OPENGL)
-	case DXGI_FORMAT_ETC2_UNORM:
-		return true;
-	case DXGI_FORMAT_ETC2A_UNORM:
-		return true;
-#endif //defined(OPENGL)
-
-	default:
-		break;
-	}
-
-	return false;
-}
-
-// this function is valid for FT_USAGE_DEPTHSTENCIL textures only
-D3DFormat CTexture::DeviceFormatFromTexFormat(ETEX_Format eTF)
-{
-	switch (eTF)
-	{
-	case eTF_R8G8B8A8:
-		return DXGI_FORMAT_R8G8B8A8_UNORM;
-	case eTF_R8G8B8A8S:
-		return DXGI_FORMAT_R8G8B8A8_SNORM;
-
-	case eTF_R1:
-		return DXGI_FORMAT_R1_UNORM;
-	case eTF_A8:
-		return DXGI_FORMAT_A8_UNORM;
-	case eTF_R8:
-		return DXGI_FORMAT_R8_UNORM;
-	case eTF_R8S:
-		return DXGI_FORMAT_R8_SNORM;
-	case eTF_R16:
-		return DXGI_FORMAT_R16_UNORM;
-	case eTF_R16F:
-		return DXGI_FORMAT_R16_FLOAT;
-	case eTF_R32F:
-		return DXGI_FORMAT_R32_FLOAT;
-	case eTF_R8G8:
-		return DXGI_FORMAT_R8G8_UNORM;
-	case eTF_R8G8S:
-		return DXGI_FORMAT_R8G8_SNORM;
-	case eTF_R16G16:
-		return DXGI_FORMAT_R16G16_UNORM;
-	case eTF_R16G16S:
-		return DXGI_FORMAT_R16G16_SNORM;
-	case eTF_R16G16F:
-		return DXGI_FORMAT_R16G16_FLOAT;
-	case eTF_R11G11B10F:
-		return DXGI_FORMAT_R11G11B10_FLOAT;
-	case eTF_R10G10B10A2:
-		return DXGI_FORMAT_R10G10B10A2_UNORM;
-	case eTF_R16G16B16A16:
-		return DXGI_FORMAT_R16G16B16A16_UNORM;
-	case eTF_R16G16B16A16S:
-		return DXGI_FORMAT_R16G16B16A16_SNORM;
-	case eTF_R16G16B16A16F:
-		return DXGI_FORMAT_R16G16B16A16_FLOAT;
-	case eTF_R32G32B32A32F:
-		return DXGI_FORMAT_R32G32B32A32_FLOAT;
-
-	case eTF_BC1:
-		return DXGI_FORMAT_BC1_UNORM;
-	case eTF_BC2:
-		return DXGI_FORMAT_BC2_UNORM;
-	case eTF_BC3:
-		return DXGI_FORMAT_BC3_UNORM;
-	case eTF_BC4U:
-		return DXGI_FORMAT_BC4_UNORM;
-	case eTF_BC4S:
-		return DXGI_FORMAT_BC4_SNORM;
-	case eTF_BC5U:
-		return DXGI_FORMAT_BC5_UNORM;
-	case eTF_BC5S:
-		return DXGI_FORMAT_BC5_SNORM;
-	case eTF_BC6UH:
-		return DXGI_FORMAT_BC6H_UF16;
-	case eTF_BC6SH:
-		return DXGI_FORMAT_BC6H_SF16;
-	case eTF_BC7:
-		return DXGI_FORMAT_BC7_UNORM;
-	case eTF_R9G9B9E5:
-		return DXGI_FORMAT_R9G9B9E5_SHAREDEXP;
-
-	// hardware depth buffers
-	case eTF_D16:
-		return DXGI_FORMAT_D16_UNORM;
-	case eTF_D24S8:
-		return DXGI_FORMAT_D24_UNORM_S8_UINT;
-	case eTF_D32F:
-		return DXGI_FORMAT_D32_FLOAT;
-	case eTF_D32FS8:
-		return DXGI_FORMAT_D32_FLOAT_S8X24_UINT;
-
-	// only available as hardware format under DX11.1 with DXGI 1.2
-	case eTF_B5G6R5:
-		return DXGI_FORMAT_B5G6R5_UNORM;
-	case eTF_B5G5R5:
-		return DXGI_FORMAT_B5G5R5A1_UNORM;
-	//      case eTF_B4G4R4A4:                      return DXGI_FORMAT_B4G4R4A4_UNORM;
-	case eTF_B4G4R4A4:
-		return DXGI_FORMAT_UNKNOWN;
-
-#if defined(OPENGL)
-	// only available as hardware format under OpenGL
-	case eTF_EAC_R11:
-		return DXGI_FORMAT_EAC_R11_UNORM;
-	case eTF_EAC_RG11:
-		return DXGI_FORMAT_EAC_RG11_UNORM;
-	case eTF_ETC2:
-		return DXGI_FORMAT_ETC2_UNORM;
-	case eTF_ETC2A:
-		return DXGI_FORMAT_ETC2A_UNORM;
-#endif //defined(OPENGL)
-
-	// only available as hardware format under DX9
-	case eTF_A8L8:
-		return DXGI_FORMAT_UNKNOWN;
-	case eTF_L8:
-		return DXGI_FORMAT_UNKNOWN;
-	case eTF_L8V8U8:
-		return DXGI_FORMAT_UNKNOWN;
-	case eTF_B8G8R8:
-		return DXGI_FORMAT_UNKNOWN;
-	case eTF_L8V8U8X8:
-		return DXGI_FORMAT_UNKNOWN;
-	case eTF_B8G8R8X8:
-		return DXGI_FORMAT_B8G8R8X8_UNORM;
-	case eTF_B8G8R8A8:
-		return DXGI_FORMAT_B8G8R8A8_UNORM;
-
-	default:
-		assert(0);
-	}
-
-	return DXGI_FORMAT_UNKNOWN;
-}
-
-uint32 CTexture::WriteMaskFromTexFormat(ETEX_Format eTF)
-{
-	switch (eTF)
-	{
-	case eTF_R8G8B8A8:
-		return D3D11_COLOR_WRITE_ENABLE_ALL;
-	case eTF_R8G8B8A8S:
-		return D3D11_COLOR_WRITE_ENABLE_ALL;
-
-	case eTF_R1:
-		return D3D11_COLOR_WRITE_ENABLE_RED;
-	case eTF_A8:
-		return D3D11_COLOR_WRITE_ENABLE_ALPHA;
-	case eTF_R8:
-		return D3D11_COLOR_WRITE_ENABLE_RED;
-	case eTF_R8S:
-		return D3D11_COLOR_WRITE_ENABLE_RED;
-	case eTF_R16:
-		return D3D11_COLOR_WRITE_ENABLE_RED;
-	case eTF_R16F:
-		return D3D11_COLOR_WRITE_ENABLE_RED;
-	case eTF_R32F:
-		return D3D11_COLOR_WRITE_ENABLE_RED;
-	case eTF_R8G8:
-		return D3D11_COLOR_WRITE_ENABLE_RED | D3D11_COLOR_WRITE_ENABLE_GREEN;
-	case eTF_R8G8S:
-		return D3D11_COLOR_WRITE_ENABLE_RED | D3D11_COLOR_WRITE_ENABLE_GREEN;
-	case eTF_R16G16:
-		return D3D11_COLOR_WRITE_ENABLE_RED | D3D11_COLOR_WRITE_ENABLE_GREEN;
-	case eTF_R16G16S:
-		return D3D11_COLOR_WRITE_ENABLE_RED | D3D11_COLOR_WRITE_ENABLE_GREEN;
-	case eTF_R16G16F:
-		return D3D11_COLOR_WRITE_ENABLE_RED | D3D11_COLOR_WRITE_ENABLE_GREEN;
-	case eTF_R11G11B10F:
-		return D3D11_COLOR_WRITE_ENABLE_RED | D3D11_COLOR_WRITE_ENABLE_GREEN | D3D11_COLOR_WRITE_ENABLE_BLUE;
-	case eTF_R10G10B10A2:
-		return D3D11_COLOR_WRITE_ENABLE_ALL;
-	case eTF_R16G16B16A16:
-		return D3D11_COLOR_WRITE_ENABLE_ALL;
-	case eTF_R16G16B16A16S:
-		return D3D11_COLOR_WRITE_ENABLE_ALL;
-	case eTF_R16G16B16A16F:
-		return D3D11_COLOR_WRITE_ENABLE_ALL;
-	case eTF_R32G32B32A32F:
-		return D3D11_COLOR_WRITE_ENABLE_ALL;
-
-	case eTF_BC1:
-		return D3D11_COLOR_WRITE_ENABLE_RED | D3D11_COLOR_WRITE_ENABLE_GREEN | D3D11_COLOR_WRITE_ENABLE_BLUE;
-	case eTF_BC2:
-		return D3D11_COLOR_WRITE_ENABLE_ALL;
-	case eTF_BC3:
-		return D3D11_COLOR_WRITE_ENABLE_ALL;
-	case eTF_BC4U:
-		return D3D11_COLOR_WRITE_ENABLE_RED;
-	case eTF_BC4S:
-		return D3D11_COLOR_WRITE_ENABLE_RED;
-	case eTF_BC5U:
-		return D3D11_COLOR_WRITE_ENABLE_RED | D3D11_COLOR_WRITE_ENABLE_GREEN;
-	case eTF_BC5S:
-		return D3D11_COLOR_WRITE_ENABLE_RED | D3D11_COLOR_WRITE_ENABLE_GREEN;
-	case eTF_BC6UH:
-		return D3D11_COLOR_WRITE_ENABLE_RED | D3D11_COLOR_WRITE_ENABLE_GREEN | D3D11_COLOR_WRITE_ENABLE_BLUE;
-	case eTF_BC6SH:
-		return D3D11_COLOR_WRITE_ENABLE_RED | D3D11_COLOR_WRITE_ENABLE_GREEN | D3D11_COLOR_WRITE_ENABLE_BLUE;
-	case eTF_BC7:
-		return D3D11_COLOR_WRITE_ENABLE_ALL;
-	case eTF_R9G9B9E5:
-		return D3D11_COLOR_WRITE_ENABLE_RED | D3D11_COLOR_WRITE_ENABLE_GREEN | D3D11_COLOR_WRITE_ENABLE_BLUE;
-
-	// hardware depth buffers
-	case eTF_D16:
-		return D3D11_COLOR_WRITE_ENABLE_RED;
-	case eTF_D24S8:
-		return D3D11_COLOR_WRITE_ENABLE_RED | D3D11_COLOR_WRITE_ENABLE_GREEN;
-	case eTF_D32F:
-		return D3D11_COLOR_WRITE_ENABLE_RED;
-	case eTF_D32FS8:
-		return D3D11_COLOR_WRITE_ENABLE_RED | D3D11_COLOR_WRITE_ENABLE_GREEN;
-
-	// only available as hardware format under DX11.1 with DXGI 1.2
-	case eTF_B5G6R5:
-		return D3D11_COLOR_WRITE_ENABLE_RED | D3D11_COLOR_WRITE_ENABLE_GREEN | D3D11_COLOR_WRITE_ENABLE_BLUE;
-	case eTF_B5G5R5:
-		return D3D11_COLOR_WRITE_ENABLE_ALL;
-	//  case eTF_B4G4R4A4:                      return D3D11_COLOR_WRITE_ENABLE_ALL;
-	case eTF_B4G4R4A4:
-		return 0;
-
-#if defined(OPENGL)
-	// only available as hardware format under OpenGL
-	case eTF_EAC_R11:
-		return D3D11_COLOR_WRITE_ENABLE_RED;
-	case eTF_EAC_RG11:
-		return D3D11_COLOR_WRITE_ENABLE_RED | D3D11_COLOR_WRITE_ENABLE_GREEN;
-	case eTF_ETC2:
-		return D3D11_COLOR_WRITE_ENABLE_RED | D3D11_COLOR_WRITE_ENABLE_GREEN | D3D11_COLOR_WRITE_ENABLE_BLUE;
-	case eTF_ETC2A:
-		return DXGI_FORMAT_ETC2A_UNORM;
-#endif //defined(OPENGL)
-
-	// only available as hardware format under DX9
-	case eTF_A8L8:
-		return 0;
-	case eTF_L8:
-		return 0;
-	case eTF_L8V8U8:
-		return 0;
-	case eTF_B8G8R8:
-		return 0;
-	case eTF_L8V8U8X8:
-		return 0;
-	case eTF_B8G8R8X8:
-		return D3D11_COLOR_WRITE_ENABLE_RED | D3D11_COLOR_WRITE_ENABLE_GREEN | D3D11_COLOR_WRITE_ENABLE_BLUE;
-	case eTF_B8G8R8A8:
-		return D3D11_COLOR_WRITE_ENABLE_ALL;
-
-	default:
-		return 0;
-	}
-
-	return 0;
-}
-
-D3DFormat CTexture::GetD3DLinFormat(D3DFormat nFormat)
-{
-	return nFormat;
-}
-
-D3DFormat CTexture::ConvertToSRGBFmt(D3DFormat fmt)
-{
-	switch (fmt)
-	{
-	case DXGI_FORMAT_R8G8B8A8_UNORM:
-		return DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
-	case DXGI_FORMAT_B8G8R8A8_UNORM:
-		return DXGI_FORMAT_B8G8R8A8_UNORM_SRGB;
-	case DXGI_FORMAT_B8G8R8X8_UNORM:
-		return DXGI_FORMAT_B8G8R8X8_UNORM_SRGB;
-
-	case DXGI_FORMAT_BC1_UNORM:
-		return DXGI_FORMAT_BC1_UNORM_SRGB;
-	case DXGI_FORMAT_BC2_UNORM:
-		return DXGI_FORMAT_BC2_UNORM_SRGB;
-	case DXGI_FORMAT_BC3_UNORM:
-		return DXGI_FORMAT_BC3_UNORM_SRGB;
-	case DXGI_FORMAT_BC7_UNORM:
-		return DXGI_FORMAT_BC7_UNORM_SRGB;
-
-#if defined(OPENGL)
-	case DXGI_FORMAT_ETC2_UNORM:
-		return DXGI_FORMAT_ETC2_UNORM_SRGB;
-	case DXGI_FORMAT_ETC2A_UNORM:
-		return DXGI_FORMAT_ETC2A_UNORM_SRGB;
-#endif //defined(OPENGL)
-
-	// AntonK: we don't need sRGB space for fp formats, because there is enough precision
-	case DXGI_FORMAT_R16G16B16A16_FLOAT:
-		return DXGI_FORMAT_R16G16B16A16_FLOAT;
-
-	default:
-		assert(0);
-	}
-
-	return fmt;
-}
-
-D3DFormat CTexture::ConvertToSignedFmt(D3DFormat fmt)
-{
-	switch (fmt)
-	{
-	case DXGI_FORMAT_R8_UNORM:
-		return DXGI_FORMAT_R8_SNORM;
-	case DXGI_FORMAT_R8G8_UNORM:
-		return DXGI_FORMAT_R8G8_SNORM;
-	case DXGI_FORMAT_R8G8B8A8_UNORM:
-		return DXGI_FORMAT_R8G8B8A8_SNORM;
-	case DXGI_FORMAT_R16_UNORM:
-		return DXGI_FORMAT_R16_SNORM;
-	case DXGI_FORMAT_R16G16_UNORM:
-		return DXGI_FORMAT_R16G16_SNORM;
-	case DXGI_FORMAT_R16G16B16A16_UNORM:
-		return DXGI_FORMAT_R16G16B16A16_SNORM;
-	case DXGI_FORMAT_BC4_UNORM:
-		return DXGI_FORMAT_BC4_SNORM;
-	case DXGI_FORMAT_BC5_UNORM:
-		return DXGI_FORMAT_BC5_SNORM;
-	case DXGI_FORMAT_BC6H_UF16:
-		return DXGI_FORMAT_BC6H_SF16;
-
-	case DXGI_FORMAT_R32G32B32A32_UINT:
-		return DXGI_FORMAT_R32G32B32A32_SINT;
-	case DXGI_FORMAT_R32G32B32_UINT:
-		return DXGI_FORMAT_R32G32B32_SINT;
-	case DXGI_FORMAT_R16G16B16A16_UINT:
-		return DXGI_FORMAT_R16G16B16A16_SINT;
-	case DXGI_FORMAT_R32G32_UINT:
-		return DXGI_FORMAT_R32G32_SINT;
-	case DXGI_FORMAT_R8G8B8A8_UINT:
-		return DXGI_FORMAT_R8G8B8A8_SINT;
-	case DXGI_FORMAT_R16G16_UINT:
-		return DXGI_FORMAT_R16G16_SINT;
-	case DXGI_FORMAT_R32_UINT:
-		return DXGI_FORMAT_R32_SINT;
-	case DXGI_FORMAT_R8G8_UINT:
-		return DXGI_FORMAT_R8G8_SINT;
-	case DXGI_FORMAT_R16_UINT:
-		return DXGI_FORMAT_R16_SINT;
-	case DXGI_FORMAT_R8_UINT:
-		return DXGI_FORMAT_R8_SINT;
-
-	default:
-		assert(0);
-	}
-
-	return fmt;
-}
-
-ETEX_Format CTexture::TexFormatFromDeviceFormat(D3DFormat nFormat)
-{
-	switch (nFormat)
-	{
-	case DXGI_FORMAT_R8G8B8A8_TYPELESS:
-		return eTF_R8G8B8A8;
-	case DXGI_FORMAT_R8G8B8A8_UNORM:
-		return eTF_R8G8B8A8;
-	case DXGI_FORMAT_R8G8B8A8_UNORM_SRGB:
-		return eTF_R8G8B8A8;
-	case DXGI_FORMAT_R8G8B8A8_SNORM:
-		return eTF_R8G8B8A8S;
-
-	case DXGI_FORMAT_R1_UNORM:
-		return eTF_R1;
-	case DXGI_FORMAT_A8_UNORM:
-		return eTF_A8;
-	case DXGI_FORMAT_R8_UNORM:
-		return eTF_R8;
-	case DXGI_FORMAT_R8_SNORM:
-		return eTF_R8S;
-	case DXGI_FORMAT_R16_UNORM:
-		return eTF_R16;
-	case DXGI_FORMAT_R16_FLOAT:
-		return eTF_R16F;
-	case DXGI_FORMAT_R16_TYPELESS:
-		return eTF_R16F;
-	case DXGI_FORMAT_R32_FLOAT:
-		return eTF_R32F;
-	case DXGI_FORMAT_R32_TYPELESS:
-		return eTF_R32F;
-	case DXGI_FORMAT_R8G8_UNORM:
-		return eTF_R8G8;
-	case DXGI_FORMAT_R8G8_SNORM:
-		return eTF_R8G8S;
-	case DXGI_FORMAT_R16G16_UNORM:
-		return eTF_R16G16;
-	case DXGI_FORMAT_R16G16_SNORM:
-		return eTF_R16G16S;
-	case DXGI_FORMAT_R16G16_FLOAT:
-		return eTF_R16G16F;
-	case DXGI_FORMAT_R11G11B10_FLOAT:
-		return eTF_R11G11B10F;
-	case DXGI_FORMAT_R10G10B10A2_UNORM:
-		return eTF_R10G10B10A2;
-	case DXGI_FORMAT_R16G16B16A16_UNORM:
-		return eTF_R16G16B16A16;
-	case DXGI_FORMAT_R16G16B16A16_SNORM:
-		return eTF_R16G16B16A16S;
-	case DXGI_FORMAT_R16G16B16A16_FLOAT:
-		return eTF_R16G16B16A16F;
-	case DXGI_FORMAT_R32G32B32A32_FLOAT:
-		return eTF_R32G32B32A32F;
-	case DXGI_FORMAT_R32G32B32A32_TYPELESS:
-		return eTF_R32G32B32A32F;
-
-	case DXGI_FORMAT_BC1_TYPELESS:
-		return eTF_BC1;
-	case DXGI_FORMAT_BC1_UNORM:
-		return eTF_BC1;
-	case DXGI_FORMAT_BC1_UNORM_SRGB:
-		return eTF_BC1;
-	case DXGI_FORMAT_BC2_TYPELESS:
-		return eTF_BC2;
-	case DXGI_FORMAT_BC2_UNORM:
-		return eTF_BC2;
-	case DXGI_FORMAT_BC2_UNORM_SRGB:
-		return eTF_BC2;
-	case DXGI_FORMAT_BC3_TYPELESS:
-		return eTF_BC3;
-	case DXGI_FORMAT_BC3_UNORM:
-		return eTF_BC3;
-	case DXGI_FORMAT_BC3_UNORM_SRGB:
-		return eTF_BC3;
-	case DXGI_FORMAT_BC4_TYPELESS:
-		return eTF_BC4U;
-	case DXGI_FORMAT_BC4_UNORM:
-		return eTF_BC4U;
-	case DXGI_FORMAT_BC4_SNORM:
-		return eTF_BC4S;
-	case DXGI_FORMAT_BC5_TYPELESS:
-		return eTF_BC5U;
-	case DXGI_FORMAT_BC5_UNORM:
-		return eTF_BC5U;
-	case DXGI_FORMAT_BC5_SNORM:
-		return eTF_BC5S;
-	case DXGI_FORMAT_BC6H_UF16:
-		return eTF_BC6UH;
-	case DXGI_FORMAT_BC6H_SF16:
-		return eTF_BC6SH;
-	case DXGI_FORMAT_BC7_TYPELESS:
-		return eTF_BC7;
-	case DXGI_FORMAT_BC7_UNORM:
-		return eTF_BC7;
-	case DXGI_FORMAT_BC7_UNORM_SRGB:
-		return eTF_BC7;
-	case DXGI_FORMAT_R9G9B9E5_SHAREDEXP:
-		return eTF_R9G9B9E5;
-
-	// hardware depth buffers
-	case DXGI_FORMAT_D16_UNORM:
-		return eTF_D16;
-	case DXGI_FORMAT_D24_UNORM_S8_UINT:
-		return eTF_D24S8;
-	case DXGI_FORMAT_D32_FLOAT:
-		return eTF_D32F;
-	case DXGI_FORMAT_D32_FLOAT_S8X24_UINT:
-		return eTF_D32FS8;
-
-	case DXGI_FORMAT_R24_UNORM_X8_TYPELESS:
-		return eTF_D24S8;
-	case DXGI_FORMAT_R24G8_TYPELESS:
-		return eTF_D24S8;
-	case DXGI_FORMAT_R32_FLOAT_X8X24_TYPELESS:
-		return eTF_D32FS8;
-	case DXGI_FORMAT_X32_TYPELESS_G8X24_UINT:
-		return eTF_D32FS8;
-	case DXGI_FORMAT_R32G8X24_TYPELESS:
-		return eTF_D32FS8;
-
-	// only available as hardware format under DX11.1 with DXGI 1.2
-	case DXGI_FORMAT_B5G6R5_UNORM:
-		return eTF_B5G6R5;
-	case DXGI_FORMAT_B5G5R5A1_UNORM:
-		return eTF_B5G5R5;
-		//	case DXGI_FORMAT_B4G4R4A4_UNORM:        return eTF_B4G4R4A4;
-
-#if defined(OPENGL)
-	// only available as hardware format under OpenGL
-	case DXGI_FORMAT_EAC_R11_UNORM:
-		return eTF_EAC_R11;
-	case DXGI_FORMAT_EAC_RG11_UNORM:
-		return eTF_EAC_RG11;
-	case DXGI_FORMAT_ETC2_UNORM:
-		return eTF_ETC2;
-	case DXGI_FORMAT_ETC2_UNORM_SRGB:
-		return eTF_ETC2;
-	case DXGI_FORMAT_ETC2A_UNORM:
-		return eTF_ETC2A;
-	case DXGI_FORMAT_ETC2A_UNORM_SRGB:
-		return eTF_ETC2A;
-#endif //defined(OPENGL)
-
-	// only available as hardware format under DX9
-	case DXGI_FORMAT_B8G8R8A8_TYPELESS:
-		return eTF_B8G8R8A8;
-	case DXGI_FORMAT_B8G8R8A8_UNORM:
-		return eTF_B8G8R8A8;
-	case DXGI_FORMAT_B8G8R8A8_UNORM_SRGB:
-		return eTF_B8G8R8A8;
-	case DXGI_FORMAT_B8G8R8X8_TYPELESS:
-		return eTF_B8G8R8X8;
-	case DXGI_FORMAT_B8G8R8X8_UNORM:
-		return eTF_B8G8R8X8;
-	case DXGI_FORMAT_B8G8R8X8_UNORM_SRGB:
-		return eTF_B8G8R8X8;
-
-	default:
-		assert(0);
-	}
-
-	return eTF_Unknown;
-}
-
-// this function is valid for FT_USAGE_DEPTHSTENCIL textures only
-D3DFormat CTexture::ConvertToDepthStencilFmt(D3DFormat nFormat)
-{
-	switch (nFormat)
-	{
-	case DXGI_FORMAT_R16_TYPELESS:
-		return DXGI_FORMAT_D16_UNORM;
-	case DXGI_FORMAT_R24G8_TYPELESS:
-		return DXGI_FORMAT_D24_UNORM_S8_UINT;
-	case DXGI_FORMAT_R32_TYPELESS:
-		return DXGI_FORMAT_D32_FLOAT;
-	case DXGI_FORMAT_R32G8X24_TYPELESS:
-		return DXGI_FORMAT_D32_FLOAT_S8X24_UINT;
-
-	default:
-		assert(nFormat == DXGI_FORMAT_D16_UNORM || nFormat == DXGI_FORMAT_D24_UNORM_S8_UINT || nFormat == DXGI_FORMAT_D32_FLOAT || nFormat == DXGI_FORMAT_D32_FLOAT_S8X24_UINT);
-	}
-
-	return nFormat;
-}
-
-D3DFormat CTexture::ConvertToStencilOnlyFmt(D3DFormat nFormat)
-{
-	switch (nFormat)
-	{
-	case DXGI_FORMAT_R32G8X24_TYPELESS:
-	case DXGI_FORMAT_X32_TYPELESS_G8X24_UINT:
-		return DXGI_FORMAT_X32_TYPELESS_G8X24_UINT;
-	case DXGI_FORMAT_R24G8_TYPELESS:
-	case DXGI_FORMAT_X24_TYPELESS_G8_UINT:
-		return DXGI_FORMAT_X24_TYPELESS_G8_UINT;
-
-	default:
-		assert(nFormat == DXGI_FORMAT_X32_TYPELESS_G8X24_UINT || nFormat == DXGI_FORMAT_X24_TYPELESS_G8_UINT);
-	}
-
-	return nFormat;
-}
-
-D3DFormat CTexture::ConvertToDepthOnlyFmt(D3DFormat nFormat)
-{
-	//handle special cases
-	switch (nFormat)
-	{
-	case DXGI_FORMAT_R16_TYPELESS:
-	case DXGI_FORMAT_D16_UNORM:
-		return DXGI_FORMAT_R16_UNORM;
-	case DXGI_FORMAT_R24G8_TYPELESS:
-	case DXGI_FORMAT_D24_UNORM_S8_UINT:
-		return DXGI_FORMAT_R24_UNORM_X8_TYPELESS;
-	case DXGI_FORMAT_R32_TYPELESS:
-	case DXGI_FORMAT_D32_FLOAT:
-		return DXGI_FORMAT_R32_FLOAT;
-	case DXGI_FORMAT_R32G8X24_TYPELESS:
-	case DXGI_FORMAT_D32_FLOAT_S8X24_UINT:
-		return DXGI_FORMAT_R32_FLOAT_X8X24_TYPELESS;
-
-	default:
-		break;                                       //pass through
-	}
-
-	return nFormat;
-}
-
-D3DFormat CTexture::ConvertToTypelessFmt(D3DFormat fmt)
-{
-	switch (fmt)
-	{
-	case DXGI_FORMAT_R8G8B8A8_UNORM:
-		return DXGI_FORMAT_R8G8B8A8_TYPELESS;
-	case DXGI_FORMAT_R8G8B8A8_UNORM_SRGB:
-		return DXGI_FORMAT_R8G8B8A8_TYPELESS;
-	case DXGI_FORMAT_R8G8B8A8_SNORM:
-		return DXGI_FORMAT_R8G8B8A8_TYPELESS;
-	case DXGI_FORMAT_R8G8B8A8_UINT:
-		return DXGI_FORMAT_R8G8B8A8_TYPELESS;
-	case DXGI_FORMAT_R8G8B8A8_SINT:
-		return DXGI_FORMAT_R8G8B8A8_TYPELESS;
-
-	case DXGI_FORMAT_R8_UNORM:
-		return DXGI_FORMAT_R8_TYPELESS;
-	case DXGI_FORMAT_R8_SNORM:
-		return DXGI_FORMAT_R8_TYPELESS;
-	case DXGI_FORMAT_R8_UINT:
-		return DXGI_FORMAT_R8_TYPELESS;
-	case DXGI_FORMAT_R8_SINT:
-		return DXGI_FORMAT_R8_TYPELESS;
-
-	case DXGI_FORMAT_R16_UNORM:
-		return DXGI_FORMAT_R16_TYPELESS;
-	case DXGI_FORMAT_R16_SNORM:
-		return DXGI_FORMAT_R16_TYPELESS;
-	case DXGI_FORMAT_R16_FLOAT:
-		return DXGI_FORMAT_R16_TYPELESS;
-	case DXGI_FORMAT_R16_UINT:
-		return DXGI_FORMAT_R16_TYPELESS;
-	case DXGI_FORMAT_R16_SINT:
-		return DXGI_FORMAT_R16_TYPELESS;
-
-	case DXGI_FORMAT_R32_FLOAT:
-		return DXGI_FORMAT_R32_TYPELESS;
-	case DXGI_FORMAT_R32_UINT:
-		return DXGI_FORMAT_R32_TYPELESS;
-	case DXGI_FORMAT_R32_SINT:
-		return DXGI_FORMAT_R32_TYPELESS;
-
-	case DXGI_FORMAT_R8G8_UNORM:
-		return DXGI_FORMAT_R8G8_TYPELESS;
-	case DXGI_FORMAT_R8G8_SNORM:
-		return DXGI_FORMAT_R8G8_TYPELESS;
-	case DXGI_FORMAT_R8G8_UINT:
-		return DXGI_FORMAT_R8G8_TYPELESS;
-	case DXGI_FORMAT_R8G8_SINT:
-		return DXGI_FORMAT_R8G8_TYPELESS;
-
-	case DXGI_FORMAT_R16G16_FLOAT:
-		return DXGI_FORMAT_R16G16_TYPELESS;
-	case DXGI_FORMAT_R16G16_UNORM:
-		return DXGI_FORMAT_R16G16_TYPELESS;
-	case DXGI_FORMAT_R16G16_SNORM:
-		return DXGI_FORMAT_R16G16_TYPELESS;
-	case DXGI_FORMAT_R16G16_UINT:
-		return DXGI_FORMAT_R16G16_TYPELESS;
-	case DXGI_FORMAT_R16G16_SINT:
-		return DXGI_FORMAT_R16G16_TYPELESS;
-
-	case DXGI_FORMAT_R32G32_FLOAT:
-		return DXGI_FORMAT_R32G32_TYPELESS;
-	case DXGI_FORMAT_R32G32_UINT:
-		return DXGI_FORMAT_R32G32_TYPELESS;
-	case DXGI_FORMAT_R32G32_SINT:
-		return DXGI_FORMAT_R32G32_TYPELESS;
-
-	case DXGI_FORMAT_R32G32B32_FLOAT:
-		return DXGI_FORMAT_R32G32B32_TYPELESS;
-	case DXGI_FORMAT_R32G32B32_UINT:
-		return DXGI_FORMAT_R32G32B32_TYPELESS;
-	case DXGI_FORMAT_R32G32B32_SINT:
-		return DXGI_FORMAT_R32G32B32_TYPELESS;
-
-	case DXGI_FORMAT_R10G10B10A2_UNORM:
-		return DXGI_FORMAT_R10G10B10A2_TYPELESS;
-	case DXGI_FORMAT_R10G10B10A2_UINT:
-		return DXGI_FORMAT_R10G10B10A2_TYPELESS;
-
-	case DXGI_FORMAT_R16G16B16A16_FLOAT:
-		return DXGI_FORMAT_R16G16B16A16_TYPELESS;
-	case DXGI_FORMAT_R16G16B16A16_UNORM:
-		return DXGI_FORMAT_R16G16B16A16_TYPELESS;
-	case DXGI_FORMAT_R16G16B16A16_SNORM:
-		return DXGI_FORMAT_R16G16B16A16_TYPELESS;
-	case DXGI_FORMAT_R16G16B16A16_UINT:
-		return DXGI_FORMAT_R16G16B16A16_TYPELESS;
-	case DXGI_FORMAT_R16G16B16A16_SINT:
-		return DXGI_FORMAT_R16G16B16A16_TYPELESS;
-
-	case DXGI_FORMAT_R32G32B32A32_FLOAT:
-		return DXGI_FORMAT_R32G32B32A32_TYPELESS;
-	case DXGI_FORMAT_R32G32B32A32_UINT:
-		return DXGI_FORMAT_R32G32B32A32_TYPELESS;
-	case DXGI_FORMAT_R32G32B32A32_SINT:
-		return DXGI_FORMAT_R32G32B32A32_TYPELESS;
-
-	case DXGI_FORMAT_BC1_UNORM:
-		return DXGI_FORMAT_BC1_TYPELESS;
-	case DXGI_FORMAT_BC1_UNORM_SRGB:
-		return DXGI_FORMAT_BC1_TYPELESS;
-
-	case DXGI_FORMAT_BC2_UNORM:
-		return DXGI_FORMAT_BC2_TYPELESS;
-	case DXGI_FORMAT_BC2_UNORM_SRGB:
-		return DXGI_FORMAT_BC2_TYPELESS;
-
-	case DXGI_FORMAT_BC3_UNORM:
-		return DXGI_FORMAT_BC3_TYPELESS;
-	case DXGI_FORMAT_BC3_UNORM_SRGB:
-		return DXGI_FORMAT_BC3_TYPELESS;
-
-	case DXGI_FORMAT_BC4_UNORM:
-		return DXGI_FORMAT_BC4_TYPELESS;
-	case DXGI_FORMAT_BC4_SNORM:
-		return DXGI_FORMAT_BC4_TYPELESS;
-
-	case DXGI_FORMAT_BC5_UNORM:
-		return DXGI_FORMAT_BC5_TYPELESS;
-	case DXGI_FORMAT_BC5_SNORM:
-		return DXGI_FORMAT_BC5_TYPELESS;
-
-#if !CRY_PLATFORM_ORBIS
-	case DXGI_FORMAT_BC6H_UF16:
-		return DXGI_FORMAT_BC6H_TYPELESS;
-	case DXGI_FORMAT_BC6H_SF16:
-		return DXGI_FORMAT_BC6H_TYPELESS;
-#endif
-	case DXGI_FORMAT_BC7_UNORM:
-		return DXGI_FORMAT_BC7_TYPELESS;
-	case DXGI_FORMAT_BC7_UNORM_SRGB:
-		return DXGI_FORMAT_BC7_TYPELESS;
-
-	case DXGI_FORMAT_D16_UNORM:
-		return DXGI_FORMAT_R16_TYPELESS;
-	case DXGI_FORMAT_D24_UNORM_S8_UINT:
-		return DXGI_FORMAT_R24G8_TYPELESS;
-	case DXGI_FORMAT_D32_FLOAT:
-		return DXGI_FORMAT_R32_TYPELESS;
-	case DXGI_FORMAT_D32_FLOAT_S8X24_UINT:
-		return DXGI_FORMAT_R32G8X24_TYPELESS;
-
-	// todo: add missing formats if they found required
-	default:
-		assert(0);
-	}
-
-	return fmt;
-}
-
-bool CTexture::IsFormatSupported(ETEX_Format eTFDst)
-{
-	const SPixFormatSupport* rd = &gcpRendD3D->m_hwTexFormatSupport;
-
-	int D3DFmt = DeviceFormatFromTexFormat(eTFDst);
-	if (!D3DFmt)
-	{
-		return false;
-	}
-	SPixFormat* pFmt;
-	for (pFmt = rd->m_FirstPixelFormat; pFmt; pFmt = pFmt->Next)
-	{
-		if (pFmt->DeviceFormat == D3DFmt && pFmt->IsValid())
-		{
-			return true;
-		}
-	}
-	return false;
-}
-
-ETEX_Format CTexture::ClosestFormatSupported(ETEX_Format eTFDst)
-{
-	return ClosestFormatSupported(eTFDst, m_pPixelFormat);
-}
-
-ETEX_Format CTexture::ClosestFormatSupported(ETEX_Format eTFDst, const SPixFormat*& pPF)
-{
-	const SPixFormatSupport* rd = &gcpRendD3D->m_hwTexFormatSupport;
-
-	switch (eTFDst)
-	{
-	case eTF_R8G8B8A8S:
-		if (rd->m_FormatR8G8B8A8S.IsValid())
-		{
-			pPF = &rd->m_FormatR8G8B8A8S;
-			return eTF_R8G8B8A8S;
-		}
-		return eTF_Unknown;
-	case eTF_R8G8B8A8:
-		if (rd->m_FormatR8G8B8A8.BitsPerPixel)
-		{
-			pPF = &rd->m_FormatR8G8B8A8;
-			return eTF_R8G8B8A8;
-		}
-		return eTF_Unknown;
-
-	case eTF_B5G5R5:
-		if (rd->m_FormatB5G5R5.IsValid())
-		{
-			pPF = &rd->m_FormatB5G5R5;
-			return eTF_B5G5R5;
-		}
-	case eTF_B5G6R5:
-		if (rd->m_FormatB5G6R5.IsValid())
-		{
-			pPF = &rd->m_FormatB5G6R5;
-			return eTF_B5G6R5;
-		}
-
-	case eTF_B8G8R8X8:
-		if (rd->m_FormatB8G8R8X8.BitsPerPixel)
-		{
-			pPF = &rd->m_FormatB8G8R8X8;
-			return eTF_B8G8R8X8;
-		}
-		return eTF_Unknown;
-	case eTF_B4G4R4A4:
-		if (rd->m_FormatB4G4R4A4.BitsPerPixel)
-		{
-			pPF = &rd->m_FormatB4G4R4A4;
-			return eTF_B4G4R4A4;
-		}
-	case eTF_B8G8R8A8:
-		if (rd->m_FormatB8G8R8A8.BitsPerPixel)
-		{
-			pPF = &rd->m_FormatB8G8R8A8;
-			return eTF_B8G8R8A8;
-		}
-		return eTF_Unknown;
-
-	case eTF_A8:
-		if (rd->m_FormatA8.IsValid())
-		{
-			pPF = &rd->m_FormatA8;
-			return eTF_A8;
-		}
-		return eTF_Unknown;
-
-	case eTF_R1:
-		if (rd->m_FormatR1.IsValid())
-		{
-			pPF = &rd->m_FormatR1;
-			return eTF_R1;
-		}
-		return eTF_Unknown;
-
-	case eTF_R8:
-		if (rd->m_FormatR8.IsValid())
-		{
-			pPF = &rd->m_FormatR8;
-			return eTF_R8;
-		}
-		return eTF_Unknown;
-
-	case eTF_R8S:
-		if (rd->m_FormatR8S.IsValid())
-		{
-			pPF = &rd->m_FormatR8S;
-			return eTF_R8S;
-		}
-		return eTF_Unknown;
-
-	case eTF_R16:
-		if (rd->m_FormatR16.IsValid())
-		{
-			pPF = &rd->m_FormatR16;
-			return eTF_R16;
-		}
-		if (rd->m_FormatR16G16.IsValid())
-		{
-			pPF = &rd->m_FormatR16G16;
-			return eTF_R16G16;
-		}
-		return eTF_Unknown;
-
-	case eTF_R16F:
-		if (rd->m_FormatR16F.IsValid())
-		{
-			pPF = &rd->m_FormatR16F;
-			return eTF_R16F;
-		}
-		if (rd->m_FormatR16G16F.IsValid())
-		{
-			pPF = &rd->m_FormatR16G16F;
-			return eTF_R16G16F;
-		}
-		return eTF_Unknown;
-
-	case eTF_R32F:
-		if (rd->m_FormatR32F.IsValid())
-		{
-			pPF = &rd->m_FormatR32F;
-			return eTF_R32F;
-		}
-		if (rd->m_FormatR16G16F.IsValid())
-		{
-			pPF = &rd->m_FormatR16G16F;
-			return eTF_R16G16F;
-		}
-		return eTF_Unknown;
-
-	case eTF_R8G8:
-		if (rd->m_FormatR8G8.IsValid())
-		{
-			pPF = &rd->m_FormatR8G8;
-			return eTF_R8G8;
-		}
-		return eTF_Unknown;
-
-	case eTF_R8G8S:
-		if (rd->m_FormatR8G8S.IsValid())
-		{
-			pPF = &rd->m_FormatR8G8S;
-			return eTF_R8G8S;
-		}
-		return eTF_Unknown;
-
-	case eTF_R16G16:
-		if (rd->m_FormatR16G16.IsValid())
-		{
-			pPF = &rd->m_FormatR16G16;
-			return eTF_R16G16;
-		}
-		return eTF_Unknown;
-
-	case eTF_R16G16S:
-		if (rd->m_FormatR16G16S.IsValid())
-		{
-			pPF = &rd->m_FormatR16G16S;
-			return eTF_R16G16S;
-		}
-		return eTF_Unknown;
-
-	case eTF_R16G16F:
-		if (rd->m_FormatR16G16F.IsValid())
-		{
-			pPF = &rd->m_FormatR16G16F;
-			return eTF_R16G16F;
-		}
-		return eTF_Unknown;
-
-	case eTF_R11G11B10F:
-		if (rd->m_FormatR11G11B10F.IsValid())
-		{
-			pPF = &rd->m_FormatR11G11B10F;
-			return eTF_R11G11B10F;
-		}
-		return eTF_Unknown;
-
-	case eTF_R10G10B10A2:
-		if (rd->m_FormatR10G10B10A2.IsValid())
-		{
-			pPF = &rd->m_FormatR10G10B10A2;
-			return eTF_R10G10B10A2;
-		}
-		return eTF_Unknown;
-
-	case eTF_R16G16B16A16:
-		if (rd->m_FormatR16G16B16A16.IsValid())
-		{
-			pPF = &rd->m_FormatR16G16B16A16;
-			return eTF_R16G16B16A16;
-		}
-		return eTF_Unknown;
-
-	case eTF_R16G16B16A16S:
-		if (rd->m_FormatR16G16B16A16S.IsValid())
-		{
-			pPF = &rd->m_FormatR16G16B16A16S;
-			return eTF_R16G16B16A16S;
-		}
-		return eTF_Unknown;
-
-	case eTF_R16G16B16A16F:
-		if (rd->m_FormatR16G16B16A16F.IsValid())
-		{
-			pPF = &rd->m_FormatR16G16B16A16F;
-			return eTF_R16G16B16A16F;
-		}
-		return eTF_Unknown;
-
-	case eTF_R32G32B32A32F:
-		if (rd->m_FormatR32G32B32A32F.IsValid())
-		{
-			pPF = &rd->m_FormatR32G32B32A32F;
-			return eTF_R32G32B32A32F;
-		}
-		return eTF_Unknown;
-
-	case eTF_BC1:
-		if (rd->m_FormatBC1.IsValid())
-		{
-			pPF = &rd->m_FormatBC1;
-			return eTF_BC1;
-		}
-		if (rd->m_FormatR8G8B8A8.IsValid())
-		{
-			pPF = &rd->m_FormatR8G8B8A8;
-			return eTF_R8G8B8A8;
-		}
-		return eTF_Unknown;
-
-	case eTF_BC2:
-		if (rd->m_FormatBC2.IsValid())
-		{
-			pPF = &rd->m_FormatBC2;
-			return eTF_BC2;
-		}
-		if (rd->m_FormatR8G8B8A8.IsValid())
-		{
-			pPF = &rd->m_FormatR8G8B8A8;
-			return eTF_R8G8B8A8;
-		}
-		return eTF_Unknown;
-
-	case eTF_BC3:
-		if (rd->m_FormatBC3.IsValid())
-		{
-			pPF = &rd->m_FormatBC3;
-			return eTF_BC3;
-		}
-		if (rd->m_FormatR8G8B8A8.IsValid())
-		{
-			pPF = &rd->m_FormatR8G8B8A8;
-			return eTF_R8G8B8A8;
-		}
-		return eTF_Unknown;
-
-	case eTF_BC4U:
-		if (rd->m_FormatBC4U.IsValid())
-		{
-			pPF = &rd->m_FormatBC4U;
-			return eTF_BC4U;
-		}
-		if (rd->m_FormatR8.IsValid())
-		{
-			pPF = &rd->m_FormatR8;
-			return eTF_R8;
-		}
-		return eTF_Unknown;
-
-	case eTF_BC4S:
-		if (rd->m_FormatBC4S.IsValid())
-		{
-			pPF = &rd->m_FormatBC4S;
-			return eTF_BC4S;
-		}
-		if (rd->m_FormatR8S.IsValid())
-		{
-			pPF = &rd->m_FormatR8S;
-			return eTF_R8S;
-		}
-		return eTF_Unknown;
-
-	case eTF_BC5U:
-		if (rd->m_FormatBC5U.IsValid())
-		{
-			pPF = &rd->m_FormatBC5U;
-			return eTF_BC5U;
-		}
-		if (rd->m_FormatR8G8.IsValid())
-		{
-			pPF = &rd->m_FormatR8G8;
-			return eTF_R8G8;
-		}
-		return eTF_Unknown;
-
-	case eTF_BC5S:
-		if (rd->m_FormatBC5S.IsValid())
-		{
-			pPF = &rd->m_FormatBC5S;
-			return eTF_BC5S;
-		}
-		if (rd->m_FormatR8G8S.IsValid())
-		{
-			pPF = &rd->m_FormatR8G8S;
-			return eTF_R8G8S;
-		}
-		return eTF_Unknown;
-
-	case eTF_BC6UH:
-		if (rd->m_FormatBC6UH.IsValid())
-		{
-			pPF = &rd->m_FormatBC6UH;
-			return eTF_BC6UH;
-		}
-		if (rd->m_FormatR16F.IsValid())
-		{
-			pPF = &rd->m_FormatR16F;
-			return eTF_R16F;
-		}
-		return eTF_Unknown;
-
-	case eTF_BC6SH:
-		if (rd->m_FormatBC6SH.IsValid())
-		{
-			pPF = &rd->m_FormatBC6SH;
-			return eTF_BC6SH;
-		}
-		if (rd->m_FormatR16F.IsValid())
-		{
-			pPF = &rd->m_FormatR16F;
-			return eTF_R16F;
-		}
-		return eTF_Unknown;
-
-	case eTF_BC7:
-		if (rd->m_FormatBC7.IsValid())
-		{
-			pPF = &rd->m_FormatBC7;
-			return eTF_BC7;
-		}
-		if (rd->m_FormatR8G8B8A8.IsValid())
-		{
-			pPF = &rd->m_FormatR8G8B8A8;
-			return eTF_R8G8B8A8;
-		}
-		return eTF_Unknown;
-
-	case eTF_R9G9B9E5:
-		if (rd->m_FormatR9G9B9E5.IsValid())
-		{
-			pPF = &rd->m_FormatR9G9B9E5;
-			return eTF_R9G9B9E5;
-		}
-		if (rd->m_FormatR16G16B16A16F.IsValid())
-		{
-			pPF = &rd->m_FormatR16G16B16A16F;
-			return eTF_R16G16B16A16F;
-		}
-		return eTF_Unknown;
-
-	case eTF_D16:
-		if (rd->m_FormatD16.IsValid())
-		{
-			pPF = &rd->m_FormatD16;
-			return eTF_D16;
-		}
-	case eTF_D24S8:
-		if (rd->m_FormatD24S8.IsValid())
-		{
-			pPF = &rd->m_FormatD24S8;
-			return eTF_D24S8;
-		}
-	case eTF_D32F:
-		if (rd->m_FormatD32F.IsValid())
-		{
-			pPF = &rd->m_FormatD32F;
-			return eTF_D32F;
-		}
-	case eTF_D32FS8:
-		if (rd->m_FormatD32FS8.IsValid())
-		{
-			pPF = &rd->m_FormatD32FS8;
-			return eTF_D32FS8;
-		}
-		return eTF_Unknown;
-
-	case eTF_EAC_R11:
-		if (rd->m_FormatEAC_R11.IsValid())
-		{
-			pPF = &rd->m_FormatEAC_R11;
-			return eTF_EAC_R11;
-		}
-		return eTF_Unknown;
-
-	case eTF_EAC_RG11:
-		if (rd->m_FormatEAC_RG11.IsValid())
-		{
-			pPF = &rd->m_FormatEAC_RG11;
-			return eTF_EAC_RG11;
-		}
-		return eTF_Unknown;
-
-	case eTF_ETC2:
-		if (rd->m_FormatETC2.IsValid())
-		{
-			pPF = &rd->m_FormatETC2;
-			return eTF_ETC2;
-		}
-		return eTF_Unknown;
-
-	case eTF_ETC2A:
-		if (rd->m_FormatETC2A.IsValid())
-		{
-			pPF = &rd->m_FormatETC2A;
-			return eTF_ETC2A;
-		}
-		return eTF_Unknown;
-
-	default:
-		assert(0);
-	}
-	return eTF_Unknown;
-}
-
-//===============================================================================
-
-bool CTexture::CreateRenderTarget(ETEX_Format eTF, const ColorF& cClear)
-{
-	if (eTF == eTF_Unknown)
-		eTF = m_eTFDst;
-	if (eTF == eTF_Unknown)
-		return false;
-	byte* pData[6] = { NULL };
-
-	ETEX_Format eTFDst = ClosestFormatSupported(eTF);
-	if (eTF != eTFDst)
-		return false;
-	m_eTFDst = eTF;
-	m_nFlags |= FT_USAGE_RENDERTARGET;
-	m_cClearColor = cClear;
-	bool bRes = CreateDeviceTexture(pData);
-	PostCreate();
-
-	return bRes;
-}
 
 // Resolve anti-aliased RT to the texture
 bool CTexture::Resolve(int nTarget, bool bUseViewportSize)
@@ -1557,39 +237,56 @@ bool CTexture::Resolve(int nTarget, bool bUseViewportSize)
 		return true;
 
 	m_bResolved = true;
-	if (!(m_nFlags & FT_USAGE_MSAA))
+	if (!(m_eFlags & FT_USAGE_MSAA))
 		return true;
 
-	assert((m_nFlags & FT_USAGE_RENDERTARGET) && (m_nFlags & FT_USAGE_MSAA) && m_pDeviceShaderResource && m_pDevTexture && m_pRenderTargetData->m_pDeviceTextureMSAA);
+	assert((m_eFlags & (FT_USAGE_RENDERTARGET | FT_USAGE_DEPTHSTENCIL)) && (m_eFlags & FT_USAGE_MSAA) && GetDevTexture() && GetDevTexture()->GetMSAATexture());
 	CDeviceTexture* pDestSurf = GetDevTexture();
-	CDeviceTexture* pSrcSurf = GetDevTextureMSAA();
+	CDeviceTexture* pSrcSurf = pDestSurf->GetMSAATexture();
 
 	assert(pSrcSurf != NULL);
 	assert(pDestSurf != NULL);
 
+#ifdef RENDERER_ENABLE_LEGACY_PIPELINE
 	gcpRendD3D->GetDeviceContext().ResolveSubresource(pDestSurf->Get2DTexture(), 0, pSrcSurf->Get2DTexture(), 0, (DXGI_FORMAT)m_pPixelFormat->DeviceFormat);
+#endif
 	return true;
 }
 
-bool CTexture::CreateDeviceTexture(byte* pData[6])
+bool CTexture::CreateDeviceTexture(const void* pData[])
 {
-	if (!m_pPixelFormat)
-	{
-		ETEX_Format eTF = ClosestFormatSupported(m_eTFDst);
-
-		assert(eTF != eTF_Unknown);
-		assert(eTF == m_eTFDst);
-	}
-	assert(m_pPixelFormat);
-	if (!m_pPixelFormat)
-		return false;
+	CRY_ASSERT(m_pPixelFormat);
+	CRY_ASSERT(m_eDstFormat != eTF_Unknown);
+	CRY_ASSERT(!pData || !*pData || m_eSrcTileMode != eTM_Unspecified);
 
 	if (gRenDev->m_pRT->RC_CreateDeviceTexture(this, pData))
 	{
 		// Assign name to Texture for enhanced debugging
+#if !defined(RELEASE) && (CRY_PLATFORM_WINDOWS || CRY_PLATFORM_ORBIS)
+	#if CRY_RENDERER_VULKAN || CRY_PLATFORM_ORBIS
+		m_pDevTexture->GetBaseTexture()->DebugSetName(m_SrcName.c_str());
+	#else
+		m_pDevTexture->GetBaseTexture()->SetPrivateData(WKPDID_D3DDebugObjectName, strlen(m_SrcName.c_str()), m_SrcName.c_str());
+	#endif
+#endif
+
+		return true;
+	}
+
+	return false;
+}
+
+bool CTexture::CreateDeviceTexture(D3DResource* pTex)
+{
+	CRY_ASSERT(m_pPixelFormat);
+	CRY_ASSERT(m_eDstFormat != eTF_Unknown);
+
+	if (gRenDev->m_pRT->RC_CreateDeviceTexture(this, pTex))
+	{
+		// Assign name to Texture for enhanced debugging
 #if !defined(RELEASE) && CRY_PLATFORM_WINDOWS
 		m_pDevTexture->GetBaseTexture()->SetPrivateData(WKPDID_D3DDebugObjectName, strlen(m_SrcName.c_str()), m_SrcName.c_str());
-#elif !defined(RELEASE) && CRY_PLATFORM_ORBIS
+#elif !defined(RELEASE) && CRY_PLATFORM_ORBIS && !CRY_RENDERER_GNM
 		static_cast<CCryDXOrbisTexture*>(m_pDevTexture->GetBaseTexture())->DebugSetName(m_SrcName.c_str());
 #endif
 
@@ -1607,478 +304,107 @@ void CTexture::Unbind()
 		pDevTex->Unbind();
 }
 
-bool CTexture::RT_CreateDeviceTexture(byte* pData[6])
+bool CTexture::RT_CreateDeviceTexture(const void* pData[])
 {
 	MEMSTAT_CONTEXT(EMemStatContextTypes::MSC_Texture, 0, "Creating Texture");
-	MEMSTAT_CONTEXT_FMT(EMemStatContextTypes::MSC_Texture, 0, "%s %ix%ix%i %08x", m_SrcName.c_str(), m_nWidth, m_nHeight, m_nMips, m_nFlags);
+	MEMSTAT_CONTEXT_FMT(EMemStatContextTypes::MSC_Texture, 0, "%s %ix%ix%i %08x", m_SrcName.c_str(), m_nWidth, m_nHeight, m_nMips, m_eFlags);
 	SCOPED_RENDERER_ALLOCATION_NAME_HINT(GetSourceName());
 
-	HRESULT hr;
+	if (m_eFlags & FT_USAGE_MSAA)
+		m_bResolved = false;
 
-	int32 nESRAMOffset = -1;
-#if CRY_PLATFORM_DURANGO
-	if (m_pRenderTargetData)
-		nESRAMOffset = m_pRenderTargetData->m_nESRAMOffset;
-#endif
-
-#if CRY_PLATFORM_MAC
-	if (!(m_nFlags & FT_FROMIMAGE) && IsBlockCompressed(m_eTFDst))
-		m_bIsSRGB = true;
-#endif
+	m_nMinMipVidActive = 0;
 
 	//if we have any device owned resources allocated, we must sync with render thread
 	if (m_pDevTexture)
 	{
 		ReleaseDeviceTexture(false);
 	}
-	else
-	{
-		SAFE_DELETE(m_pResourceViewData);
-		SAFE_DELETE(m_pRenderTargetData);
-	}
 
-	CD3D9Renderer* r = gcpRendD3D;
-	int nWdt = m_nWidth;
-	int nHgt = m_nHeight;
-	int nDepth = m_nDepth;
-	int nMips = m_nMips;
-	assert(nWdt && nHgt && nMips);
+	// The payload can only be passed untiled currently
+	STextureLayout TL = GetLayout();
+	STexturePayload TI;
 
-	byte* pTemp = NULL;
-
-	CDeviceManager* pDevMan = &r->m_DevMan;
-
-	bool resetSRGB = true;
-
-	assert(m_pResourceViewData == nullptr);
-	m_pResourceViewData = new ResourceViewData();
-	if (m_nFlags & (FT_USAGE_RENDERTARGET | FT_USAGE_UNORDERED_ACCESS))
-	{
-		assert(m_pRenderTargetData == nullptr);
-		m_pRenderTargetData = new RenderTargetData();
-#if CRY_PLATFORM_DURANGO
-		m_pRenderTargetData->m_nESRAMOffset = nESRAMOffset;
-#endif
-	}
-
-	uint32 nArraySize = m_nArraySize;
-
-	if (m_eTT == eTT_2D)
-	{
-		STextureInfo TI;
-		D3DFormat D3DFmt = m_pPixelFormat->DeviceFormat;
-
-		//nMips = 1;
-		DXGI_FORMAT nFormatOrig = D3DFmt;
-		DXGI_FORMAT nFormatSRGB = D3DFmt;
-
-		resetSRGB = false;
-		{
-			m_bIsSRGB &= m_pPixelFormat->bCanReadSRGB && (m_nFlags & (FT_USAGE_MSAA | FT_USAGE_RENDERTARGET)) == 0;
-			if ((m_bIsSRGB || m_nFlags & FT_USAGE_ALLOWREADSRGB))
-				nFormatSRGB = ConvertToSRGBFmt(D3DFmt);
-
-			if (m_bIsSRGB)
-				D3DFmt = nFormatSRGB;
-
-			// must use typeless format to allow runtime casting
-#if !CRY_PLATFORM_MAC
-			if (m_nFlags & FT_USAGE_ALLOWREADSRGB)
-				D3DFmt = ConvertToTypelessFmt(D3DFmt);
-#endif
-		}
-
-		uint32 nUsage = 0;
-		if (m_nFlags & FT_USAGE_DEPTHSTENCIL)
-			nUsage |= CDeviceManager::USAGE_DEPTH_STENCIL;
-		if (m_nFlags & FT_USAGE_RENDERTARGET)
-			nUsage |= CDeviceManager::USAGE_RENDER_TARGET;
-		if (m_nFlags & FT_USAGE_DYNAMIC)
-			nUsage |= CDeviceManager::USAGE_DYNAMIC;
-		if (m_nFlags & FT_STAGE_READBACK)
-			nUsage |= CDeviceManager::USAGE_STAGE_ACCESS | CDeviceManager::USAGE_CPU_READ;
-		if (m_nFlags & FT_STAGE_UPLOAD)
-			nUsage |= CDeviceManager::USAGE_STAGE_ACCESS | CDeviceManager::USAGE_CPU_WRITE;
-		if (m_nFlags & FT_USAGE_UNORDERED_ACCESS
-#if defined(SUPPORT_DEVICE_INFO)
-		    && r->DevInfo().FeatureLevel() >= D3D_FEATURE_LEVEL_11_0
-#endif //defined(SUPPORT_DEVICE_INFO)
-		    )
-			nUsage |= CDeviceManager::USAGE_UNORDERED_ACCESS;
-		if ((m_nFlags & (FT_DONT_RELEASE | FT_DONT_STREAM)) == (FT_DONT_RELEASE | FT_DONT_STREAM))
-			nUsage |= CDeviceManager::USAGE_ETERNAL;
-		if (m_nFlags & FT_USAGE_UAV_RWTEXTURE)
-			nUsage |= CDeviceManager::USAGE_UAV_RWTEXTURE;
-
-		if (m_nFlags & FT_FORCE_MIPS)
-		{
-			nUsage |= CDeviceManager::USAGE_AUTOGENMIPS;
-			if (nMips <= 1) m_nMips = nMips = max(1, CTexture::CalcNumMips(nWdt, nHgt) - 2);
-		}
-
-		if (m_nFlags & FT_USAGE_MSAA)
-		{
-			m_pRenderTargetData->m_nMSAASamples = (uint8)r->m_RP.m_MSAAData.Type;
-			m_pRenderTargetData->m_nMSAAQuality = (uint8)r->m_RP.m_MSAAData.Quality;
-
-			TI.m_nMSAASamples = m_pRenderTargetData->m_nMSAASamples;
-			TI.m_nMSAAQuality = m_pRenderTargetData->m_nMSAAQuality;
-
-			hr = pDevMan->Create2DTexture(nWdt, nHgt, nMips, nArraySize, nUsage, m_cClearColor, D3DFmt, (D3DPOOL)0, &m_pRenderTargetData->m_pDeviceTextureMSAA, &TI);
-
-			assert(SUCCEEDED(hr));
-			m_bResolved = false;
-
-			TI.m_nMSAASamples = 1;
-			TI.m_nMSAAQuality = 0;
-		}
-
-		if (pData[0])
-		{
-			//assert(TI.m_nArraySize==1); //there is no implementation for tex array data
-
-			//if (!IsBlockCompressed(m_eTFSrc))
-			{
-				STextureInfoData InitData[20];
-				int w = nWdt;
-				int h = nHgt;
-				int nOffset = 0;
-				byte* src = pData[0];
-				for (int i = 0; i < nMips; i++)
-				{
-					if (!w && !h)
-						break;
-					if (!w) w = 1;
-					if (!h) h = 1;
-
-					int nSlicePitch = TextureDataSize(w, h, 1, 1, 1, m_eTFSrc, m_eSrcTileMode);
-
-					InitData[i].pSysMem = &src[nOffset];
-					if (m_eSrcTileMode == eTM_None)
-					{
-						InitData[i].SysMemPitch = TextureDataSize(w, 1, 1, 1, 1, m_eTFSrc, eTM_None);
-						InitData[i].SysMemSlicePitch = nSlicePitch;
-						InitData[i].SysMemTileMode = eTM_None;
-					}
-					else
-					{
-						InitData[i].SysMemPitch = 0;
-						InitData[i].SysMemSlicePitch = 0;
-						InitData[i].SysMemTileMode = m_eSrcTileMode;
-					}
-
-					w >>= 1;
-					h >>= 1;
-					nOffset += nSlicePitch;
-				}
-
-				TI.m_pData = InitData;
-
-				hr = pDevMan->Create2DTexture(nWdt, nHgt, nMips, nArraySize, nUsage, m_cClearColor, D3DFmt, (D3DPOOL)0, &m_pDevTexture, &TI);
-				if (!FAILED(hr) && m_pDevTexture)
-					m_pDevTexture->SetNoDelete(!!(m_nFlags & FT_DONT_RELEASE));
-			}
-		}
-		else
-		{
-			hr = pDevMan->Create2DTexture(nWdt, nHgt, nMips, nArraySize, nUsage, m_cClearColor, D3DFmt, (D3DPOOL)0, &m_pDevTexture, &TI, nESRAMOffset);
-			if (!FAILED(hr) && m_pDevTexture)
-				m_pDevTexture->SetNoDelete(!!(m_nFlags & FT_DONT_RELEASE));
-		}
-
-		if (FAILED(hr))
-		{
-			assert(0);
-			return false;
-		}
-
-		// Restore format
-		if (m_nFlags & FT_USAGE_ALLOWREADSRGB)
-			D3DFmt = nFormatOrig;
-
-		//////////////////////////////////////////////////////////////////////////
-		m_pDeviceShaderResource = (D3DShaderResource*)GetResourceView(SResourceView::ShaderResourceView(m_eTFDst, 0, -1, 0, nMips, m_bIsSRGB, false));
-		m_nMinMipVidActive = 0;
-
-		if (m_nFlags & FT_USAGE_ALLOWREADSRGB)
-		{
-			m_pDeviceShaderResourceSRGB = (D3DShaderResource*)GetResourceView(SResourceView::ShaderResourceView(m_eTFDst, 0, -1, 0, nMips, true, false));
-		}
-	}
-	else if (m_eTT == eTT_Cube)
-	{
-		STextureInfo TI;
-		D3DFormat D3DFmt = m_pPixelFormat->DeviceFormat;
-		uint32 nUsage = 0;
-		if (m_nFlags & FT_USAGE_DEPTHSTENCIL)
-			nUsage |= CDeviceManager::USAGE_DEPTH_STENCIL;
-		if (m_nFlags & FT_USAGE_RENDERTARGET)
-			nUsage |= CDeviceManager::USAGE_RENDER_TARGET;
-		if (m_nFlags & FT_USAGE_DYNAMIC)
-			nUsage |= CDeviceManager::USAGE_DYNAMIC;
-		if (m_nFlags & FT_STAGE_READBACK)
-			nUsage |= CDeviceManager::USAGE_STAGE_ACCESS | CDeviceManager::USAGE_CPU_READ;
-		if (m_nFlags & FT_STAGE_UPLOAD)
-			nUsage |= CDeviceManager::USAGE_STAGE_ACCESS | CDeviceManager::USAGE_CPU_WRITE;
-		if ((m_nFlags & (FT_DONT_RELEASE | FT_DONT_STREAM)) == (FT_DONT_RELEASE | FT_DONT_STREAM))
-			nUsage |= CDeviceManager::USAGE_ETERNAL;
-
-		if (m_nFlags & FT_FORCE_MIPS)
-		{
-			nUsage |= CDeviceManager::USAGE_AUTOGENMIPS;
-			if (nMips <= 1) m_nMips = nMips = max(1, CTexture::CalcNumMips(nWdt, nHgt) - 2);
-		}
-
-		if (m_nFlags & FT_USAGE_MSAA)
-		{
-			m_pRenderTargetData->m_nMSAASamples = (uint8)r->m_RP.m_MSAAData.Type;
-			m_pRenderTargetData->m_nMSAAQuality = (uint8)r->m_RP.m_MSAAData.Quality;
-
-			TI.m_nMSAASamples = m_pRenderTargetData->m_nMSAASamples;
-			TI.m_nMSAAQuality = m_pRenderTargetData->m_nMSAAQuality;
-
-			hr = pDevMan->CreateCubeTexture(nWdt, nMips, m_nArraySize, nUsage, m_cClearColor, D3DFmt, (D3DPOOL)0, &m_pRenderTargetData->m_pDeviceTextureMSAA, &TI);
-
-			assert(SUCCEEDED(hr));
-			m_bResolved = false;
-
-			TI.m_nMSAASamples = 1;
-			TI.m_nMSAAQuality = 0;
-		}
-		DXGI_FORMAT nFormatOrig = D3DFmt;
-		DXGI_FORMAT nFormatSRGB = D3DFmt;
-
-		resetSRGB = false;
-
-		{
-			m_bIsSRGB &= m_pPixelFormat->bCanReadSRGB && (m_nFlags & (FT_USAGE_MSAA | FT_USAGE_RENDERTARGET)) == 0;
-
-			if ((m_bIsSRGB || m_nFlags & FT_USAGE_ALLOWREADSRGB))
-				nFormatSRGB = ConvertToSRGBFmt(D3DFmt);
-
-			if (m_bIsSRGB)
-				D3DFmt = nFormatSRGB;
-
-			// must use typeless format to allow runtime casting
-			if (m_nFlags & FT_USAGE_ALLOWREADSRGB)
-				D3DFmt = ConvertToTypelessFmt(D3DFmt);
-		}
-
-		if (pData[0])
-		{
-			assert(m_nArraySize == 1); //there is no implementation for tex array data
-
-			STextureInfoData InitData[g_nD3D10MaxSupportedSubres];
-
-			for (int nSide = 0; nSide < 6; nSide++)
-			{
-				int w = nWdt;
-				int h = nHgt;
-				int nOffset = 0;
-				byte* src = (!(m_nFlags & FT_REPLICATE_TO_ALL_SIDES)) ? pData[nSide] : pData[0];
-
-				for (int i = 0; i < nMips; i++)
-				{
-					if (!w && !h)
-						break;
-					if (!w) w = 1;
-					if (!h) h = 1;
-
-					int nSubresInd = nSide * nMips + i;
-					int nSlicePitch = TextureDataSize(w, h, 1, 1, 1, m_eTFSrc, m_eSrcTileMode);
-
-					InitData[nSubresInd].pSysMem = &src[nOffset];
-					if (m_eSrcTileMode == eTM_None)
-					{
-						InitData[nSubresInd].SysMemPitch = TextureDataSize(w, 1, 1, 1, 1, m_eTFSrc, eTM_None);
-						InitData[nSubresInd].SysMemSlicePitch = nSlicePitch;
-						InitData[nSubresInd].SysMemTileMode = eTM_None;
-					}
-					else
-					{
-						InitData[nSubresInd].SysMemPitch = 0;
-						InitData[nSubresInd].SysMemSlicePitch = 0;
-						InitData[nSubresInd].SysMemTileMode = m_eSrcTileMode;
-					}
-
-					w >>= 1;
-					h >>= 1;
-					nOffset += nSlicePitch;
-				}
-			}
-
-			TI.m_pData = InitData;
-
-			hr = pDevMan->CreateCubeTexture(nWdt, nMips, m_nArraySize, nUsage, m_cClearColor, D3DFmt, (D3DPOOL)0, &m_pDevTexture, &TI);
-			if (!FAILED(hr) && m_pDevTexture)
-				m_pDevTexture->SetNoDelete(!!(m_nFlags & FT_DONT_RELEASE));
-		}
-		else
-		{
-			hr = pDevMan->CreateCubeTexture(nWdt, nMips, m_nArraySize, nUsage, m_cClearColor, D3DFmt, (D3DPOOL)0, &m_pDevTexture, &TI);
-			if (!FAILED(hr) && m_pDevTexture)
-				m_pDevTexture->SetNoDelete(!!(m_nFlags & FT_DONT_RELEASE));
-		}
-		if (FAILED(hr))
-		{
-			assert(0);
-			return false;
-		}
-
-		if (m_nFlags & FT_USAGE_ALLOWREADSRGB)
-			D3DFmt = nFormatOrig;
-
-		//////////////////////////////////////////////////////////////////////////
-		m_pDeviceShaderResource = (D3DShaderResource*)GetResourceView(SResourceView::ShaderResourceView(m_eTFDst, 0, -1, 0, nMips, m_bIsSRGB, false));
-		m_nMinMipVidActive = 0;
-
-		if (m_nFlags & FT_USAGE_ALLOWREADSRGB)
-		{
-			m_pDeviceShaderResourceSRGB = (D3DShaderResource*)GetResourceView(SResourceView::ShaderResourceView(m_eTFDst, 0, -1, 0, nMips, true, false));
-		}
-	}
-	else if (m_eTT == eTT_3D)
-	{
-		STextureInfo TI;
-		D3DFormat D3DFmt = m_pPixelFormat->DeviceFormat;
-
-		uint32 nUsage = 0;
-		if (m_nFlags & FT_USAGE_DEPTHSTENCIL)
-			nUsage |= CDeviceManager::USAGE_DEPTH_STENCIL;
-		if (m_nFlags & FT_USAGE_RENDERTARGET)
-			nUsage |= CDeviceManager::USAGE_RENDER_TARGET;
-		if (m_nFlags & FT_USAGE_DYNAMIC)
-			nUsage |= CDeviceManager::USAGE_DYNAMIC;
-		if (m_nFlags & FT_STAGE_READBACK)
-			nUsage |= CDeviceManager::USAGE_STAGE_ACCESS | CDeviceManager::USAGE_CPU_READ;
-		if (m_nFlags & FT_STAGE_UPLOAD)
-			nUsage |= CDeviceManager::USAGE_STAGE_ACCESS | CDeviceManager::USAGE_CPU_WRITE;
-		if ((m_nFlags & (FT_DONT_RELEASE | FT_DONT_STREAM)) == (FT_DONT_RELEASE | FT_DONT_STREAM))
-			nUsage |= CDeviceManager::USAGE_ETERNAL;
-		if (m_nFlags & FT_USAGE_UNORDERED_ACCESS
-#if defined(SUPPORT_DEVICE_INFO)
-		    && r->DevInfo().FeatureLevel() >= D3D_FEATURE_LEVEL_11_0
-#endif //defined(SUPPORT_DEVICE_INFO)
-		    )
-			nUsage |= CDeviceManager::USAGE_UNORDERED_ACCESS;
-		if (m_nFlags & FT_USAGE_UAV_RWTEXTURE)
-			nUsage |= CDeviceManager::USAGE_UAV_RWTEXTURE;
-
-		if (m_nFlags & FT_USAGE_MSAA)
-		{
-			m_pRenderTargetData->m_nMSAASamples = (uint8)r->m_RP.m_MSAAData.Type;
-			m_pRenderTargetData->m_nMSAAQuality = (uint8)r->m_RP.m_MSAAData.Quality;
-
-			TI.m_nMSAASamples = m_pRenderTargetData->m_nMSAASamples;
-			TI.m_nMSAAQuality = m_pRenderTargetData->m_nMSAAQuality;
-
-			hr = pDevMan->CreateVolumeTexture(nWdt, nHgt, m_nDepth, nMips, nUsage, m_cClearColor, D3DFmt, (D3DPOOL)0, &m_pRenderTargetData->m_pDeviceTextureMSAA, &TI);
-
-			assert(SUCCEEDED(hr));
-			m_bResolved = false;
-
-			TI.m_nMSAASamples = 1;
-			TI.m_nMSAAQuality = 0;
-		}
-		if (pData[0])
-		{
-			STextureInfoData InitData[15];
-
-			int w = nWdt;
-			int h = nHgt;
-			int d = nDepth;
-			int nOffset = 0;
-			byte* src = pData[0];
-
-			for (int i = 0; i < nMips; i++)
-			{
-				if (!w && !h && !d)
-					break;
-				if (!w) w = 1;
-				if (!h) h = 1;
-				if (!d) d = 1;
-
-				int nSlicePitch = TextureDataSize(w, h, 1, 1, 1, m_eTFSrc);
-				int nMipSize = TextureDataSize(w, h, d, 1, 1, m_eTFSrc);
-				InitData[i].pSysMem = &src[nOffset];
-				InitData[i].SysMemPitch = TextureDataSize(w, 1, 1, 1, 1, m_eTFSrc);
-				InitData[i].SysMemSlicePitch = nSlicePitch;
-				InitData[i].SysMemTileMode = eTM_None;
-
-				w >>= 1;
-				h >>= 1;
-				d >>= 1;
-
-				nOffset += nMipSize;
-			}
-
-			TI.m_pData = InitData;
-
-			hr = pDevMan->CreateVolumeTexture(nWdt, nHgt, nDepth, nMips, nUsage, m_cClearColor, D3DFmt, (D3DPOOL)0, &m_pDevTexture, &TI);
-			if (!FAILED(hr) && m_pDevTexture)
-				m_pDevTexture->SetNoDelete(!!(m_nFlags & FT_DONT_RELEASE));
-		}
-		else
-		{
-			hr = pDevMan->CreateVolumeTexture(nWdt, nHgt, nDepth, nMips, nUsage, m_cClearColor, D3DFmt, (D3DPOOL)0, &m_pDevTexture, &TI);
-			if (!FAILED(hr) && m_pDevTexture)
-				m_pDevTexture->SetNoDelete(!!(m_nFlags & FT_DONT_RELEASE));
-		}
-		if (FAILED(hr))
-		{
-			assert(0);
-			return false;
-		}
-
-		//////////////////////////////////////////////////////////////////////////
-		m_pDeviceShaderResource = (D3DShaderResource*)GetResourceView(SResourceView::ShaderResourceView(m_eTFDst, 0, -1, 0, nMips, m_bIsSRGB, false));
-		m_nMinMipVidActive = 0;
-
-		if (m_nFlags & FT_USAGE_ALLOWREADSRGB)
-		{
-			m_pDeviceShaderResourceSRGB = (D3DShaderResource*)GetResourceView(SResourceView::ShaderResourceView(m_eTFDst, 0, -1, 0, nMips, true, false));
-		}
-	}
-	else
-	{
-		assert(0);
+	CRY_ASSERT(!pData || !*pData || m_eSrcTileMode != eTM_Unspecified);
+	bool bHasPayload = DecompressSubresourcePayload(TL, m_eSrcTileMode, pData, TI);
+	if (!(m_pDevTexture = CDeviceTexture::Create(TL, bHasPayload ? &TI : nullptr)))
 		return false;
+
+	SetTexStates();
+
+	assert(!IsStreamed());
+
+	{
+		m_nDevTextureSize = m_nPersistentSize = m_pDevTexture->GetDeviceSize();
+
+		volatile size_t* pTexMem = &CTexture::s_nStatsCurManagedNonStreamedTexMem;
+		if (IsDynamic())
+			pTexMem = &CTexture::s_nStatsCurDynamicTexMem;
+		
+		CryInterlockedAdd(pTexMem, m_nDevTextureSize);
 	}
+
+	// Notify that resource is dirty
+	InvalidateDeviceResource(this, eDeviceResourceDirty | eDeviceResourceViewDirty);
+
+	if (!pData || !pData[0])
+		return true;
+
+	if (m_eTT == eTT_3D)
+		m_bIsSRGB = false;
+
+	SetWasUnload(false);
+
+	return true;
+}
+
+bool CTexture::RT_CreateDeviceTexture(D3DResource* pNatTex)
+{
+	MEMSTAT_CONTEXT(EMemStatContextTypes::MSC_Texture, 0, "Creating Texture");
+	MEMSTAT_CONTEXT_FMT(EMemStatContextTypes::MSC_Texture, 0, "%s %ix%ix%i %08x", m_SrcName.c_str(), m_nWidth, m_nHeight, m_nMips, m_eFlags);
+	SCOPED_RENDERER_ALLOCATION_NAME_HINT(GetSourceName());
+
+	if (m_eFlags & FT_USAGE_MSAA)
+		m_bResolved = false;
+
+	m_nMinMipVidActive = 0;
+
+	//if we have any device owned resources allocated, we must sync with render thread
+	if (m_pDevTexture)
+	{
+		ReleaseDeviceTexture(false);
+	}
+
+	m_pDevTexture = CDeviceTexture::Associate(GetLayout(), pNatTex);
 
 	SetTexStates();
 
 	assert(!IsStreamed());
 	if (m_pDevTexture)
 	{
-		m_nActualSize = m_nPersistentSize = m_pDevTexture->GetDeviceSize();
-		if (m_nFlags & (FT_USAGE_DYNAMIC | FT_USAGE_RENDERTARGET))
-		{
-			CryInterlockedAdd(&CTexture::s_nStatsCurDynamicTexMem, m_nActualSize);
-		}
-		else
-		{
-			CryInterlockedAdd(&CTexture::s_nStatsCurManagedNonStreamedTexMem, m_nActualSize);
-		}
+#if CRY_PLATFORM_DURANGO && (CRY_RENDERER_DIRECT3D >= 110) && (CRY_RENDERER_DIRECT3D < 120)
+		m_nDeviceAddressInvalidated = m_pDevTexture->GetBaseAddressInvalidated();
+#endif
+
+		m_nDevTextureSize = m_nPersistentSize = m_pDevTexture->GetDeviceSize();
+
+		volatile size_t* pTexMem = &CTexture::s_nStatsCurManagedNonStreamedTexMem;
+		if (IsDynamic())
+			pTexMem = &CTexture::s_nStatsCurDynamicTexMem;
+
+		CryInterlockedAdd(pTexMem, m_nDevTextureSize);
 	}
 
 	// Notify that resource is dirty
-	InvalidateDeviceResource(eDeviceResourceDirty | eDeviceResourceViewDirty);
+	InvalidateDeviceResource(this, eDeviceResourceDirty | eDeviceResourceViewDirty);
 
-	if (!pData[0])
+	if (!pNatTex)
 		return true;
 
-#ifdef DEVMAN_USE_PINNING
-	CDeviceTexturePin pin(pDevTexture);
-#endif
-
-	int nOffset = 0;
-
-	if (resetSRGB)
+	if (m_eTT == eTT_3D)
 		m_bIsSRGB = false;
 
 	SetWasUnload(false);
-
-	SAFE_DELETE_ARRAY(pTemp);
 
 	return true;
 }
@@ -2105,44 +431,29 @@ void CTexture::ReleaseDeviceTexture(bool bKeepLastMips, bool bFromUnload)
 	if (s_pTextureStreamer)
 		s_pTextureStreamer->OnTextureDestroy(this);
 
-	m_pDeviceRTV = nullptr;
-	m_pDeviceRTVMS = nullptr;
-	m_pDeviceShaderResource = nullptr;
-	m_pDeviceShaderResourceSRGB = nullptr;
-
-	SAFE_DELETE(m_pResourceViewData);
-	SAFE_DELETE(m_pRenderTargetData);
-
 	if (!m_bNoTexture)
 	{
-		CDeviceTexture* pTex = m_pDevTexture;
-
+		// The responsible code-path for deconstruction is the m_pFileTexMips->m_pPoolItem's dtor, if either of these is set
 		if (!m_pFileTexMips || !m_pFileTexMips->m_pPoolItem)
 		{
+			CDeviceTexture* pDevTex = m_pDevTexture;
+			if (pDevTex)
+				pDevTex->SetOwner(NULL);
+
 			if (IsStreamed())
 			{
-				SAFE_DELETE(pTex);      // for manually created textures
+				SAFE_DELETE(pDevTex);      // for manually created textures
 			}
 			else
 			{
-				SAFE_RELEASE(pTex);
-			}
-		}
+				SAFE_RELEASE(pDevTex);
 
-		m_pDevTexture = NULL;
+				volatile size_t* pTexMem = &CTexture::s_nStatsCurManagedNonStreamedTexMem;
+				if (IsDynamic())
+					pTexMem = &CTexture::s_nStatsCurDynamicTexMem;
 
-		// otherwise it's already taken into account in the m_pFileTexMips->m_pPoolItem's dtor
-		if (!m_pFileTexMips || !m_pFileTexMips->m_pPoolItem)
-		{
-			if (IsDynamic())
-			{
-				assert(CTexture::s_nStatsCurDynamicTexMem >= m_nActualSize);
-				CryInterlockedAdd(&CTexture::s_nStatsCurDynamicTexMem, -m_nActualSize);
-			}
-			else if (!IsStreamed())
-			{
-				assert(CTexture::s_nStatsCurManagedNonStreamedTexMem >= m_nActualSize);
-				CryInterlockedAdd(&CTexture::s_nStatsCurManagedNonStreamedTexMem, -m_nActualSize);
+				assert(*pTexMem >= m_nDevTextureSize);
+				CryInterlockedAdd(pTexMem, -m_nDevTextureSize);
 			}
 		}
 
@@ -2174,258 +485,58 @@ void CTexture::ReleaseDeviceTexture(bool bKeepLastMips, bool bFromUnload)
 			}
 		}
 
-		m_nActualSize = 0;
+		m_nDevTextureSize = 0;
 		m_nPersistentSize = 0;
 	}
-	else
-	{
-		m_pDevTexture = NULL;
-	}
 
+	m_pDevTexture = nullptr;
 	m_bNoTexture = false;
 }
 
-void* CTexture::CreateDeviceResourceView(const SResourceView& rv)
+ETEX_Format CTexture::GetClosestFormatSupported(ETEX_Format eTFDst, const SPixFormat*& pPF)
 {
-	const SPixFormat* pPixFormat = NULL;
-	if (ClosestFormatSupported((ETEX_Format)rv.m_Desc.nFormat, pPixFormat) == eTF_Unknown)
-		return NULL;
+	return gcpRendD3D->m_hwTexFormatSupport.GetClosestFormatSupported(eTFDst, pPF);
+}
 
-	HRESULT hr = E_FAIL;
-	void* pResult = NULL;
-
-	// DX expects -1 for selecting all mip maps/slices. max count throws an exception
-	const uint nMipCount   = rv.m_Desc.nMipCount   == SResourceView().m_Desc.nMipCount   ? (uint) - 1 : (uint)rv.m_Desc.nMipCount;
-	const uint nSliceCount = rv.m_Desc.nSliceCount == SResourceView().m_Desc.nSliceCount ? (uint) - 1 : (uint)rv.m_Desc.nSliceCount;
-
-	if (rv.m_Desc.eViewType == SResourceView::eShaderResourceView)
-	{
-		D3D11_SHADER_RESOURCE_VIEW_DESC srvDesc;
-		ZeroStruct(srvDesc);
-
-		// stencil only SRV
-		if (rv.m_Desc.nFlags & SResourceView::eSRV_StencilOnly)
-			srvDesc.Format = ConvertToStencilOnlyFmt(pPixFormat->DeviceFormat);
-		// depth only SRV
-		else
-			srvDesc.Format = ConvertToDepthOnlyFmt(pPixFormat->DeviceFormat);
-
-		// sRGB SRV
-		if (rv.m_Desc.bSrgbRead)
-			srvDesc.Format = ConvertToSRGBFmt(srvDesc.Format);
-
-		D3DTexture* pTex = m_pDevTexture->Get2DTexture();
-
-		if (rv.m_Desc.bMultisample && m_eTT == eTT_2D)
-		{
-			srvDesc.ViewDimension = m_nArraySize > 1 ? D3D11_SRV_DIMENSION_TEXTURE2DMSARRAY : D3D11_SRV_DIMENSION_TEXTURE2DMS;
-
-			if (m_nArraySize > 1)
-			{
-				srvDesc.Texture2DMSArray.ArraySize = nSliceCount;
-				srvDesc.Texture2DMSArray.FirstArraySlice = rv.m_Desc.nFirstSlice;
-			}
-
-			pTex = m_pRenderTargetData->m_pDeviceTextureMSAA->Get2DTexture();
-		}
-		else
-		{
-			// *INDENT-OFF*
-			srvDesc.ViewDimension =
-			     m_eTT == eTT_1D   ? (m_nArraySize  > 1 ? D3D11_SRV_DIMENSION_TEXTURE1DARRAY   : D3D11_SRV_DIMENSION_TEXTURE1D)
-			  : (m_eTT == eTT_2D   ? (m_nArraySize  > 1 ? D3D11_SRV_DIMENSION_TEXTURE2DARRAY   : D3D11_SRV_DIMENSION_TEXTURE2D)
-			  : (m_eTT == eTT_Cube ? (m_nArraySize  > 1 ? D3D11_SRV_DIMENSION_TEXTURECUBEARRAY : D3D11_SRV_DIMENSION_TEXTURECUBE)
-			  : (m_eTT == eTT_3D  &&  m_nArraySize <= 1 ? D3D11_SRV_DIMENSION_TEXTURE3D        : D3D11_SRV_DIMENSION_UNKNOWN)));
-			// *INDENT-ON*
-
-			// D3D11_TEX1D_SRV, D3D11_TEX2D_SRV, D3D11_TEX3D_SRV, D3D11_TEXCUBE_SRV and array versions can be aliased here
-			srvDesc.Texture1D.MostDetailedMip = rv.m_Desc.nMostDetailedMip;
-			srvDesc.Texture1D.MipLevels = nMipCount;
-
-			if (m_nArraySize > 1)
-			{
-				srvDesc.Texture1DArray.FirstArraySlice = rv.m_Desc.nFirstSlice;
-				srvDesc.Texture1DArray.ArraySize = nSliceCount;
-			}
-		}
-
-		D3DShaderResource* pSRV = NULL;
-		hr = gcpRendD3D->GetDevice().CreateShaderResourceView(pTex, &srvDesc, &pSRV);
-		pResult = pSRV;
-	}
-	else // SResourceView::eRenderTargetView || SResourceView::eDepthStencilView || SResourceView::eUnorderedAccessView)
-	{
-		D3D11_RENDER_TARGET_VIEW_DESC rtvDesc;
-		ZeroStruct(rtvDesc);
-		rtvDesc.Format = pPixFormat->DeviceFormat;
-		D3DTexture* pTex = m_pDevTexture->Get2DTexture();
-
-		if (rv.m_Desc.bMultisample && m_eTT == eTT_2D && rv.m_Desc.eViewType != SResourceView::eUnorderedAccessView)
-		{
-			rtvDesc.ViewDimension = m_nArraySize > 1 ? D3D11_RTV_DIMENSION_TEXTURE2DMSARRAY : D3D11_RTV_DIMENSION_TEXTURE2DMS;
-
-			if (m_nArraySize > 1)
-			{
-				rtvDesc.Texture2DMSArray.FirstArraySlice = rv.m_Desc.nFirstSlice;
-				rtvDesc.Texture2DMSArray.ArraySize = nSliceCount;
-			}
-
-			pTex = m_pRenderTargetData->m_pDeviceTextureMSAA->Get2DTexture();
-		}
-		else
-		{
-			// *INDENT-OFF*
-			rtvDesc.ViewDimension =
-			     m_eTT == eTT_1D   ? (m_nArraySize  > 1 ? D3D11_RTV_DIMENSION_TEXTURE1DARRAY : D3D11_RTV_DIMENSION_TEXTURE1D)
-			  : (m_eTT == eTT_2D   ? (m_nArraySize  > 1 ? D3D11_RTV_DIMENSION_TEXTURE2DARRAY : D3D11_RTV_DIMENSION_TEXTURE2D)
-			  : (m_eTT == eTT_Cube ?                      D3D11_RTV_DIMENSION_TEXTURE2DARRAY
-			  : (m_eTT == eTT_3D  &&  m_nArraySize <= 1 ? D3D11_RTV_DIMENSION_TEXTURE3D      : D3D11_RTV_DIMENSION_UNKNOWN)));
-			// *INDENT-ON*
-
-			rtvDesc.Texture1D.MipSlice = rv.m_Desc.nMostDetailedMip;
-
-			if (m_nArraySize > 1 || m_eTT == eTT_3D || m_eTT == eTT_Cube)
-			{
-				rtvDesc.Texture1DArray.FirstArraySlice = rv.m_Desc.nFirstSlice;
-				rtvDesc.Texture1DArray.ArraySize = nSliceCount;
-			}
-		}
-
-		switch (rv.m_Desc.eViewType)
-		{
-		case SResourceView::eRenderTargetView:
-			{
-				D3DSurface* pRTV = NULL;
-				hr = gcpRendD3D->GetDevice().CreateRenderTargetView(pTex, &rtvDesc, &pRTV);
-				pResult = pRTV;
-			}
-			break;
-		case SResourceView::eDepthStencilView:
-			{
-				D3D11_DEPTH_STENCIL_VIEW_DESC dsvDesc;
-				ZeroStruct(dsvDesc);
-
-				dsvDesc.Format = (DXGI_FORMAT)ConvertToDepthStencilFmt(rtvDesc.Format);
-				dsvDesc.Flags = rv.m_Desc.nFlags;
-				memcpy(&dsvDesc.Texture1DArray, &rtvDesc.Texture1DArray, sizeof(dsvDesc.Texture1DArray));
-
-				// Depth/Stencil read only DSV
-				if (rv.m_Desc.nFlags & SResourceView::eDSV_ReadOnly)
-					dsvDesc.Flags |= (D3D11_DSV_READ_ONLY_DEPTH | D3D11_DSV_READ_ONLY_STENCIL);
-				// Depth/Stencil read/write DSV
-				else
-					dsvDesc.Flags &= ~(D3D11_DSV_READ_ONLY_DEPTH | D3D11_DSV_READ_ONLY_STENCIL);
-
-				if (rtvDesc.ViewDimension != D3D11_RTV_DIMENSION_UNKNOWN && rtvDesc.ViewDimension != D3D11_RTV_DIMENSION_TEXTURE3D)
-					dsvDesc.ViewDimension = (D3D11_DSV_DIMENSION)(rtvDesc.ViewDimension - 1);
-
-				D3DDepthSurface* pDSV = NULL;
-				hr = gcpRendD3D->GetDevice().CreateDepthStencilView(pTex, &dsvDesc, &pDSV);
-				pResult = pDSV;
-			}
-			break;
-		case SResourceView::eUnorderedAccessView:
-			{
-				D3D11_UNORDERED_ACCESS_VIEW_DESC uavDesc;
-				memcpy(&uavDesc, &rtvDesc, sizeof(uavDesc));
-
-				// typed UAV loads are only allowed for single-component 32-bit element types
-				if (rv.m_Desc.nFlags & SResourceView::eUAV_ReadWrite)
-					uavDesc.Format = DXGI_FORMAT_R32_UINT;
-
-				if (rtvDesc.ViewDimension == D3D11_RTV_DIMENSION_TEXTURE2DMS || rtvDesc.ViewDimension == D3D11_RTV_DIMENSION_TEXTURE2DMSARRAY)
-					uavDesc.ViewDimension = D3D11_UAV_DIMENSION_UNKNOWN;
-
-				D3DUAV* pUAV = NULL;
-				hr = gcpRendD3D->GetDevice().CreateUnorderedAccessView(pTex, &uavDesc, &pUAV);
-				pResult = pUAV;
-			}
-			break;
-		}
-	}
-
-	if (FAILED(hr))
-	{
-		assert(0);
-		return NULL;
-	}
-
-	return pResult;
+ETEX_Format CTexture::SetClosestFormatSupported()
+{
+	if (m_eSrcFormat != eTF_Unknown)
+		return m_eDstFormat = gcpRendD3D->m_hwTexFormatSupport.GetClosestFormatSupported(m_eSrcFormat, m_pPixelFormat);
+	else
+		return m_eDstFormat = eTF_Unknown;
 }
 
 void CTexture::SetTexStates()
 {
-	STexState s;
+	SSamplerState s;
 
-	const bool noMipFiltering = m_nMips <= 1 && !(m_nFlags & FT_FORCE_MIPS);
+	const bool noMipFiltering = m_nMips <= 1 && !(m_eFlags & FT_FORCE_MIPS);
 	s.m_nMinFilter = FILTER_LINEAR;
 	s.m_nMagFilter = FILTER_LINEAR;
 	s.m_nMipFilter = noMipFiltering ? FILTER_NONE : FILTER_LINEAR;
 
-	const int addrMode = (m_nFlags & FT_STATE_CLAMP || m_eTT == eTT_Cube) ? TADDR_CLAMP : TADDR_WRAP;
+	const ESamplerAddressMode addrMode = (m_eFlags & FT_STATE_CLAMP || m_eTT == eTT_Cube) ? eSamplerAddressMode_Clamp : eSamplerAddressMode_Wrap;
 	s.SetClampMode(addrMode, addrMode, addrMode);
 
-	m_nDefState = (uint16)CTexture::GetTexState(s);
+	m_nDefState = CDeviceObjectFactory::GetOrCreateSamplerStateHandle(s);
 }
 
-static uint32 sAddressMode(int nAddress)
+void SSamplerState::SetComparisonFilter(bool bEnable)
 {
-	IF (nAddress < 0, 0)
-		nAddress = TADDR_WRAP;
-
-	switch (nAddress)
-	{
-	case TADDR_WRAP:
-		return D3D11_TEXTURE_ADDRESS_WRAP;
-	case TADDR_CLAMP:
-		return D3D11_TEXTURE_ADDRESS_CLAMP;
-	case TADDR_BORDER:
-		return D3D11_TEXTURE_ADDRESS_BORDER;
-	case TADDR_MIRROR:
-		return D3D11_TEXTURE_ADDRESS_MIRROR;
-	default:
-		assert(0);
-		return D3D11_TEXTURE_ADDRESS_WRAP;
-	}
-}
-
-void STexState::SetComparisonFilter(bool bEnable)
-{
-	if (m_pDeviceState)
-	{
-		D3DSamplerState* pSamp = (D3DSamplerState*)m_pDeviceState;
-		SAFE_RELEASE(pSamp);
-		m_pDeviceState = NULL;
-	}
 	m_bComparison = bEnable;
 }
 
-bool STexState::SetClampMode(int nAddressU, int nAddressV, int nAddressW)
+void SSamplerState::SetClampMode(ESamplerAddressMode nAddressU, ESamplerAddressMode nAddressV, ESamplerAddressMode nAddressW)
 {
-	if (m_pDeviceState)
-	{
-		D3DSamplerState* pSamp = (D3DSamplerState*)m_pDeviceState;
-		SAFE_RELEASE(pSamp);
-		m_pDeviceState = NULL;
-	}
-
-	m_nAddressU = sAddressMode(nAddressU);
-	m_nAddressV = sAddressMode(nAddressV);
-	m_nAddressW = sAddressMode(nAddressW);
-	return true;
+	m_nAddressU = nAddressU;
+	m_nAddressV = nAddressV;
+	m_nAddressW = nAddressW;
 }
 
-bool STexState::SetFilterMode(int nFilter)
+bool SSamplerState::SetFilterMode(int nFilter)
 {
 	IF (nFilter < 0, 0)
 		nFilter = FILTER_TRILINEAR;
-
-	if (m_pDeviceState)
-	{
-		D3DSamplerState* pSamp = (D3DSamplerState*)m_pDeviceState;
-		SAFE_RELEASE(pSamp);
-		m_pDeviceState = NULL;
-	}
 
 	switch (nFilter)
 	{
@@ -2477,128 +588,33 @@ bool STexState::SetFilterMode(int nFilter)
 	return true;
 }
 
-void STexState::SetBorderColor(DWORD dwColor)
+void SSamplerState::SetBorderColor(DWORD dwColor)
 {
-	if (m_pDeviceState)
-	{
-		D3DSamplerState* pSamp = (D3DSamplerState*)m_pDeviceState;
-		SAFE_RELEASE(pSamp);
-		m_pDeviceState = NULL;
-	}
-
 	m_dwBorderColor = dwColor;
 }
 
-void STexState::PostCreate()
+void SSamplerState::SetMipLodBias(float fMipLodBias)
 {
-	if (m_pDeviceState)
-		return;
-
-	D3D11_SAMPLER_DESC Desc;
-	ZeroStruct(Desc);
-	D3DSamplerState* pSamp = NULL;
-	// AddressMode of 0 is INVALIDARG
-	Desc.AddressU = m_nAddressU ? (D3D11_TEXTURE_ADDRESS_MODE)m_nAddressU : D3D11_TEXTURE_ADDRESS_WRAP;
-	Desc.AddressV = m_nAddressV ? (D3D11_TEXTURE_ADDRESS_MODE)m_nAddressV : D3D11_TEXTURE_ADDRESS_WRAP;
-	Desc.AddressW = m_nAddressW ? (D3D11_TEXTURE_ADDRESS_MODE)m_nAddressW : D3D11_TEXTURE_ADDRESS_WRAP;
-	ColorF col((uint32)m_dwBorderColor);
-	Desc.BorderColor[0] = col.r;
-	Desc.BorderColor[1] = col.g;
-	Desc.BorderColor[2] = col.b;
-	Desc.BorderColor[3] = col.a;
-	if (m_bComparison)
-		Desc.ComparisonFunc = D3D11_COMPARISON_LESS;
-	else
-		Desc.ComparisonFunc = D3D11_COMPARISON_ALWAYS;
-
-	Desc.MaxAnisotropy = 1;
-	Desc.MinLOD = 0;
-	if (m_nMipFilter == FILTER_NONE)
-		Desc.MaxLOD = 0.0f;
-	else
-		Desc.MaxLOD = 100.0f;
-
-	Desc.MipLODBias = 0;
-
-	if (m_bComparison)
-	{
-
-		if (m_nMinFilter == FILTER_LINEAR && m_nMagFilter == FILTER_LINEAR && m_nMipFilter == FILTER_LINEAR || m_nMinFilter == FILTER_TRILINEAR || m_nMagFilter == FILTER_TRILINEAR)
-		{
-			Desc.Filter = D3D11_FILTER_COMPARISON_MIN_MAG_MIP_LINEAR;
-		}
-		else if (m_nMinFilter == FILTER_LINEAR && m_nMagFilter == FILTER_LINEAR && (m_nMipFilter == FILTER_NONE || m_nMipFilter == FILTER_POINT) || m_nMinFilter == FILTER_BILINEAR || m_nMagFilter == FILTER_BILINEAR)
-			Desc.Filter = D3D11_FILTER_COMPARISON_MIN_MAG_LINEAR_MIP_POINT;
-		else if (m_nMinFilter == FILTER_POINT && m_nMagFilter == FILTER_POINT && (m_nMipFilter == FILTER_NONE || m_nMipFilter == FILTER_POINT))
-			Desc.Filter = D3D11_FILTER_COMPARISON_MIN_MAG_MIP_POINT;
-		else if (m_nMinFilter >= FILTER_ANISO2X && m_nMagFilter >= FILTER_ANISO2X && m_nMipFilter >= FILTER_ANISO2X)
-		{
-			Desc.Filter = D3D11_FILTER_COMPARISON_ANISOTROPIC;
-			Desc.MaxAnisotropy = m_nAnisotropy;
-		}
-	}
-	else
-	{
-		if (m_nMinFilter == FILTER_LINEAR && m_nMagFilter == FILTER_LINEAR && m_nMipFilter == FILTER_LINEAR || m_nMinFilter == FILTER_TRILINEAR || m_nMagFilter == FILTER_TRILINEAR)
-		{
-			Desc.Filter = D3D11_FILTER_MIN_MAG_MIP_LINEAR;
-		}
-		else if (m_nMinFilter == FILTER_LINEAR && m_nMagFilter == FILTER_LINEAR && (m_nMipFilter == FILTER_NONE || m_nMipFilter == FILTER_POINT) || m_nMinFilter == FILTER_BILINEAR || m_nMagFilter == FILTER_BILINEAR)
-			Desc.Filter = D3D11_FILTER_MIN_MAG_LINEAR_MIP_POINT;
-		else if (m_nMinFilter == FILTER_POINT && m_nMagFilter == FILTER_POINT && (m_nMipFilter == FILTER_NONE || m_nMipFilter == FILTER_POINT))
-			Desc.Filter = D3D11_FILTER_MIN_MAG_MIP_POINT;
-		else if (m_nMinFilter >= FILTER_ANISO2X && m_nMagFilter >= FILTER_ANISO2X && m_nMipFilter >= FILTER_ANISO2X)
-		{
-			Desc.Filter = D3D11_FILTER_ANISOTROPIC;
-			Desc.MaxAnisotropy = m_nAnisotropy;
-		}
-		else
-			assert(0);
-	}
-
-	HRESULT hr = gcpRendD3D->GetDevice().CreateSamplerState(&Desc, &pSamp);
-	if (SUCCEEDED(hr))
-		m_pDeviceState = pSamp;
-	else
-		assert(0);
+	m_fMipLodBias = fMipLodBias;
 }
 
-STexState::~STexState()
+// TODO: deprecate these functions
+void SSamplerState::SetDefaultClampingMode(ESamplerAddressMode nAddressU, ESamplerAddressMode nAddressV, ESamplerAddressMode nAddressW)
 {
-	if (m_pDeviceState)
-	{
-		D3DSamplerState* pSamp = (D3DSamplerState*)m_pDeviceState;
-		SAFE_RELEASE(pSamp);
-		m_pDeviceState = NULL;
-	}
+	s_sDefState.SetClampMode(nAddressU, nAddressV, nAddressW);
 }
 
-STexState::STexState(const STexState& src)
-{
-	memcpy(this, &src, sizeof(src));
-	if (m_pDeviceState)
-	{
-		D3DSamplerState* pSamp = (D3DSamplerState*)m_pDeviceState;
-		pSamp->AddRef();
-	}
-}
-
-bool CTexture::SetClampingMode(int nAddressU, int nAddressV, int nAddressW)
-{
-	return s_sDefState.SetClampMode(nAddressU, nAddressV, nAddressW);
-}
-
-bool CTexture::SetFilterMode(int nFilter)
+bool SSamplerState::SetDefaultFilterMode(int nFilter)
 {
 	return s_sDefState.SetFilterMode(nFilter);
 }
 
 void CTexture::UpdateTexStates()
 {
-	m_nDefState = (uint16)CTexture::GetTexState(s_sDefState);
+	m_nDefState = CDeviceObjectFactory::GetOrCreateSamplerStateHandle(SSamplerState::s_sDefState);
 }
 
-void CTexture::SetSamplerState(int nTS, int nSUnit, EHWShaderClass eHWSC)
+void CTexture::SetSampler(SamplerStateHandle nTS, int nSUnit, EHWShaderClass eHWSC)
 {
 	FUNCTION_PROFILER_RENDER_FLAT
 	  assert(gcpRendD3D->m_pRT->IsRenderThread());
@@ -2606,27 +622,24 @@ void CTexture::SetSamplerState(int nTS, int nSUnit, EHWShaderClass eHWSC)
 
 	if (s_TexStateIDs[eHWSC][nSUnit] != nTS)
 	{
-		STexState* pTS = &s_TexStates[nTS];
-		D3DSamplerState* pSamp = (D3DSamplerState*)pTS->m_pDeviceState;
-		D3D11_SAMPLER_DESC Desc;
+		D3DSamplerState* pSamp = CDeviceObjectFactory::LookupSamplerState(nTS).second;
 
 		assert(pSamp);
 
 		if (pSamp)
 		{
-			pSamp->GetDesc(&Desc);
 			s_TexStateIDs[eHWSC][nSUnit] = nTS;
 
 			if (eHWSC == eHWSC_Pixel)
-				gcpRendD3D->m_DevMan.BindSampler(CDeviceManager::TYPE_PS, &pSamp, nSUnit, 1);
+				gcpRendD3D->m_DevMan.BindSampler(CSubmissionQueue_DX11::TYPE_PS, &pSamp, nSUnit, 1);
 			else if (eHWSC == eHWSC_Domain)
-				gcpRendD3D->m_DevMan.BindSampler(CDeviceManager::TYPE_DS, &pSamp, nSUnit, 1);
+				gcpRendD3D->m_DevMan.BindSampler(CSubmissionQueue_DX11::TYPE_DS, &pSamp, nSUnit, 1);
 			else if (eHWSC == eHWSC_Hull)
-				gcpRendD3D->m_DevMan.BindSampler(CDeviceManager::TYPE_HS, &pSamp, nSUnit, 1);
+				gcpRendD3D->m_DevMan.BindSampler(CSubmissionQueue_DX11::TYPE_HS, &pSamp, nSUnit, 1);
 			else if (eHWSC == eHWSC_Vertex)
-				gcpRendD3D->m_DevMan.BindSampler(CDeviceManager::TYPE_VS, &pSamp, nSUnit, 1);
+				gcpRendD3D->m_DevMan.BindSampler(CSubmissionQueue_DX11::TYPE_VS, &pSamp, nSUnit, 1);
 			else if (eHWSC == eHWSC_Compute)
-				gcpRendD3D->m_DevMan.BindSampler(CDeviceManager::TYPE_CS, &pSamp, nSUnit, 1);
+				gcpRendD3D->m_DevMan.BindSampler(CSubmissionQueue_DX11::TYPE_CS, &pSamp, nSUnit, 1);
 			else
 				assert(0);
 		}
@@ -2822,12 +835,12 @@ void CTexture::SetSamplerState(int nTS, int nSUnit, EHWShaderClass eHWSC)
 
  */
 
-void CTexture::ApplySamplerState(int nSUnit, EHWShaderClass eHWSC, int nState)
+void CTexture::ApplySampler(int nSUnit, EHWShaderClass eHWSC, SamplerStateHandle eState)
 {
 	FUNCTION_PROFILER_RENDER_FLAT
 
-	uint32 nTSSel = Isel32(nState, (int32)m_nDefState);
-	assert(nTSSel >= 0 && nTSSel < s_TexStates.size());
+	SamplerStateHandle nTSSel = (eState == EDefaultSamplerStates::Unspecified ? m_nDefState : eState);
+	assert(nTSSel != EDefaultSamplerStates::Unspecified);
 
 	STexStageInfo* TexStages = s_TexStages;
 	CDeviceTexture* pDevTex = m_pDevTexture;
@@ -2844,18 +857,14 @@ void CTexture::ApplySamplerState(int nSUnit, EHWShaderClass eHWSC, int nState)
 	if (IsVertexTexture())
 		eHWSC = eHWSC_Vertex;
 
-	SetSamplerState(nTSSel, nSUnit, eHWSC);
+	SetSampler(nTSSel, nSUnit, eHWSC);
 }
 
-void CTexture::ApplyTexture(int nTUnit, EHWShaderClass eHWSC, SResourceView::KeyType nResViewKey)
+void CTexture::ApplyTexture(int nTUnit, EHWShaderClass eHWSC /*= eHWSC_Pixel*/, ResourceViewHandle hView /*= EDefaultResourceViews::Default*/, bool bMSAA /*= false*/)
 {
 	FUNCTION_PROFILER_RENDER_FLAT
 
 	STexStageInfo* TexStages = s_TexStages;
-	CDeviceTexture* pDevTex = m_pDevTexture;
-
-	// avoiding L2 cache misses from usage from up ahead
-	PrefetchLine(pDevTex, 0);
 
 	assert(nTUnit >= 0 && nTUnit < gcpRendD3D->m_NumResourceSlots);
 
@@ -2875,19 +884,22 @@ void CTexture::ApplyTexture(int nTUnit, EHWShaderClass eHWSC, SResourceView::Key
 				if (bIsUnloaded)
 					StreamLoadFromCache(0);
 				else
-					Load(m_eTFDst);
-
-				pDevTex = m_pDevTexture;
+					Load(m_eDstFormat);
 			}
 		}
 	}
+
+	CDeviceTexture* pDevTex = GetDevTexture(bMSAA);
+
+	// avoiding L2 cache misses from usage from up ahead
+	PrefetchLine(pDevTex, 0);
 
 	IF (this != CTexture::s_pTexNULL && (!pDevTex || !pDevTex->GetBaseTexture()), 0)
 	{
 		// apply black by default
 		if (CTexture::s_ptexBlack && this != CTexture::s_ptexBlack)
 		{
-			CTexture::s_ptexBlack->ApplyTexture(nTUnit, eHWSC, nResViewKey);
+			CTexture::s_ptexBlack->ApplyTexture(nTUnit, eHWSC, hView, bMSAA);
 		}
 		return;
 	}
@@ -2903,26 +915,26 @@ void CTexture::ApplyTexture(int nTUnit, EHWShaderClass eHWSC, SResourceView::Key
 
 #if !defined(_RELEASE)
 		rd->m_RP.m_PS[rd->m_RP.m_nProcessThreadID].m_NumTextures++;
-		if (m_nFlags & (FT_USAGE_RENDERTARGET | FT_USAGE_DYNAMIC))
+		if (m_eFlags & (FT_USAGE_RENDERTARGET | FT_USAGE_DYNAMIC))
 		{
-			rd->m_RP.m_PS[rd->m_RP.m_nProcessThreadID].m_DynTexturesSize += m_nActualSize;
+			rd->m_RP.m_PS[rd->m_RP.m_nProcessThreadID].m_DynTexturesSize += m_nDevTextureSize;
 		}
 		else
 		{
 			if (bStreamed)
 			{
-				rd->m_RP.m_PS[rd->m_RP.m_nProcessThreadID].m_ManagedTexturesStreamVidSize += m_nActualSize;
-				rd->m_RP.m_PS[rd->m_RP.m_nProcessThreadID].m_ManagedTexturesStreamSysSize += StreamComputeDevDataSize(0);
+				rd->m_RP.m_PS[rd->m_RP.m_nProcessThreadID].m_ManagedTexturesStreamVidSize += m_nDevTextureSize;
+				rd->m_RP.m_PS[rd->m_RP.m_nProcessThreadID].m_ManagedTexturesStreamSysSize += StreamComputeSysDataSize(0);
 			}
 			else
 			{
-				rd->m_RP.m_PS[rd->m_RP.m_nProcessThreadID].m_ManagedTexturesSysMemSize += m_nActualSize;
-				rd->m_RP.m_PS[rd->m_RP.m_nProcessThreadID].m_ManagedTexturesVidMemSize += m_nActualSize;
+				rd->m_RP.m_PS[rd->m_RP.m_nProcessThreadID].m_ManagedTexturesVidMemSize += m_nDevTextureSize;
+				rd->m_RP.m_PS[rd->m_RP.m_nProcessThreadID].m_ManagedTexturesSysMemSize += m_nDevTextureSize;
 			}
 		}
 #endif
 
-#ifndef OPENGL
+#if (CRY_RENDERER_DIRECT3D >= 110) && (CRY_RENDERER_DIRECT3D < 120)
 		// mip map fade in
 		if (bStreamed && CRenderer::CV_r_texturesstreamingmipfading && (m_fCurrentMipBias != 0.0f) && !gEnv->IsEditor())
 		{
@@ -2937,15 +949,18 @@ void CTexture::ApplyTexture(int nTUnit, EHWShaderClass eHWSC, SResourceView::Key
 	if (IsVertexTexture())
 		eHWSC = eHWSC_Vertex;
 
-	const bool bUnnorderedAcessView = SResourceView(nResViewKey).m_Desc.eViewType == SResourceView::eUnorderedAccessView;
+	const std::pair<SResourceView, CDeviceResourceView*>& pView = pDevTex->LookupResourceView(hView);
+	const bool bUnnorderedAcessView = pView.first.m_Desc.eViewType == SResourceView::eUnorderedAccessView;
 
-	D3DShaderResource* pResView = GetShaderResourceView(nResViewKey);
+	{
+		D3DShaderResource* pResView = reinterpret_cast<D3DShaderResource*>(pView.second);
 
-	if (pDevTex == TexStages[nTUnit].m_DevTexture && pResView == TexStages[nTUnit].m_pCurResView && eHWSC == TexStages[nTUnit].m_eHWSC)
-		return;
+		if (pDevTex == TexStages[nTUnit].m_DevTexture && pResView == TexStages[nTUnit].m_pCurResView && eHWSC == TexStages[nTUnit].m_eHWSC)
+			return;
 
-	TexStages[nTUnit].m_pCurResView = pResView;
-	TexStages[nTUnit].m_eHWSC = eHWSC;
+		TexStages[nTUnit].m_pCurResView = pResView;
+		TexStages[nTUnit].m_eHWSC = eHWSC;
+	}
 
 	//	<DEPRECATED> This must get re-factored post C3.
 	//	-	This check is ultra-buggy, render targets setup is deferred until last moment might not be matching this check at all. Also very wrong for MRTs
@@ -2954,7 +969,9 @@ void CTexture::ApplyTexture(int nTUnit, EHWShaderClass eHWSC, SResourceView::Key
 	{
 		//assert(rd->m_pCurTarget[0]->m_pDeviceRTV);
 		rd->m_pNewTarget[0]->m_bWasSetRT = false;
+#ifdef RENDERER_ENABLE_LEGACY_PIPELINE
 		rd->GetDeviceContext().OMSetRenderTargets(1, &rd->m_pNewTarget[0]->m_pTarget, rd->m_pNewTarget[0]->m_pDepth);
+#endif
 	}
 
 	TexStages[nTUnit].m_DevTexture = pDevTex;
@@ -2975,9 +992,9 @@ void CTexture::ApplyTexture(int nTUnit, EHWShaderClass eHWSC, SResourceView::Key
 
 	{
 #ifdef DO_RENDERLOG
-		if (CRenderer::CV_r_log >= 3 && int64(nResViewKey) >= 0)
+		if (CRenderer::CV_r_log >= 3 && int64(hView) >= EDefaultResourceViews::PreAllocated)
 		{
-			rd->Logv("CTexture::Apply(): Shader Resource View: %ul \n", nResViewKey);
+			rd->Logv("CTexture::Apply(): Shader Resource View: %ul \n", GetDevTexture(bMSAA)->LookupResourceView(hView).first.m_Desc.Key);
 		}
 #endif
 
@@ -2986,44 +1003,58 @@ void CTexture::ApplyTexture(int nTUnit, EHWShaderClass eHWSC, SResourceView::Key
 			// todo:
 			// - add support for pixel shader side via OMSetRenderTargetsAndUnorderedAccessViews
 			// - DX11.1 very likely API will be similar to CSSetUnorderedAccessViews, but for all stages
-			D3DUAV* pUAV = (D3DUAV*)pResView;
+			D3DUAV* pUAV = reinterpret_cast<D3DUAV*>(pView.second);
+
+#ifdef RENDERER_ENABLE_LEGACY_PIPELINE
 			rd->GetDeviceContext().CSSetUnorderedAccessViews(nTUnit, 1, &pUAV, NULL);
+#endif
 			return;
 		}
 
 		{
+			D3DShaderResource* pSRV = reinterpret_cast<D3DShaderResource*>(pView.second);
+
 			if (IsVertexTexture())
 				eHWSC = eHWSC_Vertex;
 
 			if (eHWSC == eHWSC_Pixel)
-				rd->m_DevMan.BindSRV(CDeviceManager::TYPE_PS, pResView, nTUnit);
+				rd->m_DevMan.BindSRV(CSubmissionQueue_DX11::TYPE_PS, pSRV, nTUnit);
 			else if (eHWSC == eHWSC_Vertex)
-				rd->m_DevMan.BindSRV(CDeviceManager::TYPE_VS, pResView, nTUnit);
+				rd->m_DevMan.BindSRV(CSubmissionQueue_DX11::TYPE_VS, pSRV, nTUnit);
 			else if (eHWSC == eHWSC_Domain)
-				rd->m_DevMan.BindSRV(CDeviceManager::TYPE_DS, pResView, nTUnit);
+				rd->m_DevMan.BindSRV(CSubmissionQueue_DX11::TYPE_DS, pSRV, nTUnit);
 			else if (eHWSC == eHWSC_Hull)
-				rd->m_DevMan.BindSRV(CDeviceManager::TYPE_HS, pResView, nTUnit);
+				rd->m_DevMan.BindSRV(CSubmissionQueue_DX11::TYPE_HS, pSRV, nTUnit);
 			else if (eHWSC == eHWSC_Compute)
-				rd->m_DevMan.BindSRV(CDeviceManager::TYPE_CS, pResView, nTUnit);
+				rd->m_DevMan.BindSRV(CSubmissionQueue_DX11::TYPE_CS, pSRV, nTUnit);
 			else
 				assert(0);
 		}
 	}
 }
 
-void CTexture::Apply(int nTUnit, int nState, int nTexMatSlot, int nSUnit, SResourceView::KeyType nResViewKey, EHWShaderClass eHWSC)
+#if CRY_PLATFORM_DURANGO && (CRY_RENDERER_DIRECT3D >= 110) && (CRY_RENDERER_DIRECT3D < 120)
+void CTexture::ValidateSRVs()
+{
+	// We should only end up here if the texture was moved due to a defrag. This should only be for static textures.
+	m_pDevTexture->ReleaseResourceViews();
+	m_pDevTexture->AllocatePredefinedResourceViews();
+	// TODO: recreate all views that existed ...
+
+	// Notify that resource is dirty
+	InvalidateDeviceResource(this, eDeviceResourceDirty | eDeviceResourceViewDirty);
+}
+#endif
+
+void CTexture::Apply(int nTUnit, SamplerStateHandle nState /*= EDefaultSamplerStates::Unspecified*/, int nTexMatSlot /*= EFTT_UNKNOWN*/, int nSUnit /*= -1*/, ResourceViewHandle hView /*= EDefaultResourceViews::Default*/, bool bMSAA /*= false*/, EHWShaderClass eHWSC /*= eHWSC_Pixel*/)
 {
 	FUNCTION_PROFILER_RENDER_FLAT
 
-	  assert(nTUnit >= 0);
-	uint32 nTSSel = Isel32(nState, (int32)m_nDefState);
-	assert(nTSSel >= 0 && nTSSel < s_TexStates.size());
+	assert(nTUnit >= 0);
+	SamplerStateHandle nTSSel = (nState == EDefaultSamplerStates::Unspecified ? m_nDefState : nState);
+	assert(nTSSel != EDefaultSamplerStates::Unspecified);
 
 	STexStageInfo* TexStages = s_TexStages;
-	CDeviceTexture* pDevTex = m_pDevTexture;
-
-	// avoiding L2 cache misses from usage from up ahead
-	PrefetchLine(pDevTex, 0);
 
 	if (nSUnit >= -1)
 		nSUnit = Isel32(nSUnit, nTUnit);
@@ -3047,9 +1078,7 @@ void CTexture::Apply(int nTUnit, int nState, int nTexMatSlot, int nSUnit, SResou
 				if (bIsUnloaded)
 					StreamLoadFromCache(0);
 				else
-					Load(m_eTFDst);
-
-				pDevTex = m_pDevTexture;
+					Load(m_eDstFormat);
 			}
 		}
 
@@ -3057,12 +1086,17 @@ void CTexture::Apply(int nTUnit, int nState, int nTexMatSlot, int nSUnit, SResou
 			m_nStreamingPriority = max((int8)m_nStreamingPriority, TextureHelpers::LookupTexPriority((EEfResTextures)nTexMatSlot));
 	}
 
+	CDeviceTexture* pDevTex = GetDevTexture(bMSAA);
+
+	// avoiding L2 cache misses from usage from up ahead
+	PrefetchLine(pDevTex, 0);
+
 	IF (this != CTexture::s_pTexNULL && (!pDevTex || !pDevTex->GetBaseTexture()), 0)
 	{
 		// apply black by default
 		if (CTexture::s_ptexBlack && this != CTexture::s_ptexBlack)
 		{
-			CTexture::s_ptexBlack->Apply(nTUnit, nState, nTexMatSlot, nSUnit, nResViewKey);
+			CTexture::s_ptexBlack->Apply(nTUnit, nState, nTexMatSlot, nSUnit, hView);
 		}
 		return;
 	}
@@ -3078,21 +1112,21 @@ void CTexture::Apply(int nTUnit, int nState, int nTexMatSlot, int nSUnit, SResou
 
 #if !defined(_RELEASE)
 		rd->m_RP.m_PS[rd->m_RP.m_nProcessThreadID].m_NumTextures++;
-		if (m_nFlags & (FT_USAGE_RENDERTARGET | FT_USAGE_DYNAMIC))
+		if (m_eFlags & (FT_USAGE_RENDERTARGET | FT_USAGE_DYNAMIC))
 		{
-			rd->m_RP.m_PS[rd->m_RP.m_nProcessThreadID].m_DynTexturesSize += m_nActualSize;
+			rd->m_RP.m_PS[rd->m_RP.m_nProcessThreadID].m_DynTexturesSize += m_nDevTextureSize;
 		}
 		else
 		{
 			if (bStreamed)
 			{
-				rd->m_RP.m_PS[rd->m_RP.m_nProcessThreadID].m_ManagedTexturesStreamVidSize += m_nActualSize;
-				rd->m_RP.m_PS[rd->m_RP.m_nProcessThreadID].m_ManagedTexturesStreamSysSize += StreamComputeDevDataSize(0);
+				rd->m_RP.m_PS[rd->m_RP.m_nProcessThreadID].m_ManagedTexturesStreamVidSize += m_nDevTextureSize;
+				rd->m_RP.m_PS[rd->m_RP.m_nProcessThreadID].m_ManagedTexturesStreamSysSize += StreamComputeSysDataSize(0);
 			}
 			else
 			{
-				rd->m_RP.m_PS[rd->m_RP.m_nProcessThreadID].m_ManagedTexturesSysMemSize += m_nActualSize;
-				rd->m_RP.m_PS[rd->m_RP.m_nProcessThreadID].m_ManagedTexturesVidMemSize += m_nActualSize;
+				rd->m_RP.m_PS[rd->m_RP.m_nProcessThreadID].m_ManagedTexturesSysMemSize += m_nDevTextureSize;
+				rd->m_RP.m_PS[rd->m_RP.m_nProcessThreadID].m_ManagedTexturesVidMemSize += m_nDevTextureSize;
 			}
 		}
 #endif
@@ -3104,7 +1138,9 @@ void CTexture::Apply(int nTUnit, int nState, int nTexMatSlot, int nSUnit, SResou
 			const float fMipFadeIn = (m_nMips / (float)CRenderer::CV_r_texturesstreamingmipfading); // how much Mip-Levels per tick
 			const float fCurrentMipBias = m_fCurrentMipBias = max(0.0f, min(m_fCurrentMipBias, float(GetStreamableMipNumber())) - fMipFadeIn);
 
+	#ifdef RENDERER_ENABLE_LEGACY_PIPELINE
 			gcpRendD3D->GetDeviceContext().SetResourceMinLOD(pDevTex->Get2DTexture(), fCurrentMipBias);
+	#endif
 		}
 #endif
 	}
@@ -3112,20 +1148,40 @@ void CTexture::Apply(int nTUnit, int nState, int nTexMatSlot, int nSUnit, SResou
 	if (IsVertexTexture())
 		eHWSC = eHWSC_Vertex;
 
-	const bool bUnnorderedAcessView = SResourceView(nResViewKey).m_Desc.eViewType == SResourceView::eUnorderedAccessView;
+	// Patch view to sRGB it isn't an sRGB format
+	{
+		const std::pair<SResourceView, CDeviceResourceView*>& pView = pDevTex->LookupResourceView(hView);
+		const std::pair<SSamplerState, CDeviceSamplerState*>& pSamp = CDeviceObjectFactory::LookupSamplerState(nTSSel);
+
+		if (pSamp.first.m_bSRGBLookup && !pView.first.m_Desc.bSrgbRead)
+		{
+			SResourceView sRGB = pView.first;
+			sRGB.m_Desc.bSrgbRead = pSamp.first.m_bSRGBLookup;
+			hView = pDevTex->GetOrCreateResourceViewHandle(sRGB);
+		}
+	}
+
+	const std::pair<SResourceView, CDeviceResourceView*>& pView = pDevTex->LookupResourceView(hView);
+	const bool bUnnorderedAcessView = pView.first.m_Desc.eViewType == SResourceView::eUnorderedAccessView;
 
 	if (!bUnnorderedAcessView && nSUnit >= 0)
 	{
-		SetSamplerState(nTSSel, nSUnit, eHWSC);
+		SetSampler(nTSSel, nSUnit, eHWSC);
 	}
 
-	D3DShaderResource* pResView = GetShaderResourceView(nResViewKey, s_TexStates[nTSSel].m_bSRGBLookup);
+#if CRY_PLATFORM_DURANGO && (CRY_RENDERER_DIRECT3D >= 110) && (CRY_RENDERER_DIRECT3D < 120)
+	CheckValidateSRVs();
+#endif
 
-	if (pDevTex == TexStages[nTUnit].m_DevTexture && pResView == TexStages[nTUnit].m_pCurResView && eHWSC == TexStages[nTUnit].m_eHWSC)
-		return;
+	{
+		D3DShaderResource* pResView = reinterpret_cast<D3DShaderResource*>(pView.second);
 
-	TexStages[nTUnit].m_pCurResView = pResView;
-	TexStages[nTUnit].m_eHWSC = eHWSC;
+		if (pDevTex == TexStages[nTUnit].m_DevTexture && pResView == TexStages[nTUnit].m_pCurResView && eHWSC == TexStages[nTUnit].m_eHWSC)
+			return;
+
+		TexStages[nTUnit].m_pCurResView = pResView;
+		TexStages[nTUnit].m_eHWSC = eHWSC;
+	}
 
 	//	<DEPRECATED> This must get re-factored post C3.
 	//	-	This check is ultra-buggy, render targets setup is deferred until last moment might not be matching this check at all. Also very wrong for MRTs
@@ -3134,7 +1190,27 @@ void CTexture::Apply(int nTUnit, int nState, int nTexMatSlot, int nSUnit, SResou
 	{
 		//assert(rd->m_pCurTarget[0]->m_pDeviceRTV);
 		rd->m_pNewTarget[0]->m_bWasSetRT = false;
-		rd->GetDeviceContext().OMSetRenderTargets(1, &rd->m_pNewTarget[0]->m_pTarget, rd->m_pNewTarget[0]->m_pDepth);
+
+		// NOTE: bottom of the stack is always the active swap-chain back-buffer
+		if (rd->m_nRTStackLevel[0] == 0)
+		{
+			assert(rd->m_pNewTarget[0]->m_pTarget == (D3DSurface*)0xDEADBEEF);
+			assert(rd->m_pNewTarget[0]->m_pDepth  == (D3DDepthSurface*)0xDEADBEEF);
+			assert(rd->m_pNewTarget[1]->m_pTarget == nullptr);
+			
+			D3DSurface* pRTV = rd->GetCurrentTargetOutput()->GetDevTexture()->LookupRTV(EDefaultResourceViews::RenderTarget);
+			D3DDepthSurface* pDSV = rd->GetCurrentDepthOutput()->GetDevTexture()->LookupDSV(EDefaultResourceViews::DepthStencil);
+
+#ifdef RENDERER_ENABLE_LEGACY_PIPELINE
+			rd->GetDeviceContext().OMSetRenderTargets(1, &pRTV, !rd->m_pActiveContext || rd->m_pActiveContext->m_bMainViewport ? pDSV : nullptr);
+#endif
+		}
+		else
+		{
+#ifdef RENDERER_ENABLE_LEGACY_PIPELINE
+			rd->GetDeviceContext().OMSetRenderTargets(1, &rd->m_pNewTarget[0]->m_pTarget, rd->m_pNewTarget[0]->m_pDepth);
+#endif
+		}
 	}
 
 	TexStages[nTUnit].m_DevTexture = pDevTex;
@@ -3155,9 +1231,9 @@ void CTexture::Apply(int nTUnit, int nState, int nTexMatSlot, int nSUnit, SResou
 
 	{
 #ifdef DO_RENDERLOG
-		if (CRenderer::CV_r_log >= 3 && int64(nResViewKey) >= 0)
+		if (CRenderer::CV_r_log >= 3 && int64(hView) >= EDefaultResourceViews::PreAllocated)
 		{
-			rd->Logv("CTexture::Apply(): Shader Resource View: %ul \n", nResViewKey);
+			rd->Logv("CTexture::Apply(): Shader Resource View: %ul \n", GetDevTexture(bMSAA)->LookupResourceView(hView).first.m_Desc.Key);
 		}
 #endif
 
@@ -3166,168 +1242,112 @@ void CTexture::Apply(int nTUnit, int nState, int nTexMatSlot, int nSUnit, SResou
 			// todo:
 			// - add support for pixel shader side via OMSetRenderTargetsAndUnorderedAccessViews
 			// - DX11.1 very likely API will be similar to CSSetUnorderedAccessViews, but for all stages
-			D3DUAV* pUAV = (D3DUAV*)pResView;
+			D3DUAV* pUAV = reinterpret_cast<D3DUAV*>(pView.second);
+
+#ifdef RENDERER_ENABLE_LEGACY_PIPELINE
 			rd->GetDeviceContext().CSSetUnorderedAccessViews(nTUnit, 1, &pUAV, NULL);
+#endif
 			return;
 		}
 
 		{
+			D3DShaderResource* pSRV = reinterpret_cast<D3DShaderResource*>(pView.second);
+
 			if (IsVertexTexture())
 				eHWSC = eHWSC_Vertex;
 
 			if (eHWSC == eHWSC_Pixel)
-				rd->m_DevMan.BindSRV(CDeviceManager::TYPE_PS, pResView, nTUnit);
+				rd->m_DevMan.BindSRV(CSubmissionQueue_DX11::TYPE_PS, pSRV, nTUnit);
 			else if (eHWSC == eHWSC_Vertex)
-				rd->m_DevMan.BindSRV(CDeviceManager::TYPE_VS, pResView, nTUnit);
+				rd->m_DevMan.BindSRV(CSubmissionQueue_DX11::TYPE_VS, pSRV, nTUnit);
 			else if (eHWSC == eHWSC_Domain)
-				rd->m_DevMan.BindSRV(CDeviceManager::TYPE_DS, pResView, nTUnit);
+				rd->m_DevMan.BindSRV(CSubmissionQueue_DX11::TYPE_DS, pSRV, nTUnit);
 			else if (eHWSC == eHWSC_Hull)
-				rd->m_DevMan.BindSRV(CDeviceManager::TYPE_HS, pResView, nTUnit);
+				rd->m_DevMan.BindSRV(CSubmissionQueue_DX11::TYPE_HS, pSRV, nTUnit);
 			else if (eHWSC == eHWSC_Compute)
-				rd->m_DevMan.BindSRV(CDeviceManager::TYPE_CS, pResView, nTUnit);
+				rd->m_DevMan.BindSRV(CSubmissionQueue_DX11::TYPE_CS, pSRV, nTUnit);
 			else
 				assert(0);
 		}
 	}
 }
 
-void CTexture::UpdateTextureRegion(byte* data, int nX, int nY, int nZ, int USize, int VSize, int ZSize, ETEX_Format eTFSrc)
+void CTexture::UpdateTextureRegion(byte* pSrcData, int nX, int nY, int nZ, int USize, int VSize, int ZSize, ETEX_Format eSrcFormat)
 {
-	gRenDev->m_pRT->RC_UpdateTextureRegion(this, data, nX, nY, nZ, USize, VSize, ZSize, eTFSrc);
+	gRenDev->m_pRT->RC_UpdateTextureRegion(this, pSrcData, nX, nY, nZ, USize, VSize, ZSize, eSrcFormat);
 }
 
-//void CTexture::RT_UpdateTextureRegion(byte *data, int nX, int nY, int USize, int VSize, ETEX_Format eTFSrc)
-void CTexture::RT_UpdateTextureRegion(byte* data, int nX, int nY, int nZ, int USize, int VSize, int ZSize, ETEX_Format eTFSrc)
+void CTexture::RT_UpdateTextureRegion(byte* pSrcData, int nX, int nY, int nZ, int USize, int VSize, int ZSize, ETEX_Format eSrcFormat)
 {
 	PROFILE_FRAME(UpdateTextureRegion);
 
-	if (m_eTT != eTT_2D && m_eTT != eTT_3D)
+	if (m_eTT != eTT_1D && m_eTT != eTT_2D && m_eTT != eTT_3D)
 	{
-		assert(0);
+		CRY_ASSERT(0);
 		return;
 	}
 
 	HRESULT hr = S_OK;
-	CDeviceTexture* pDevTexture = GetDevTexture();
-	assert(pDevTexture);
-	if (!pDevTexture)
+	CDeviceTexture* pDevTex = GetDevTexture();
+	assert(pDevTex);
+	if (!pDevTex)
 		return;
 
-	DXGI_FORMAT frmtSrc = (DXGI_FORMAT)CTexture::DeviceFormatFromTexFormat(eTFSrc);
-	bool bDone = false;
-	D3D11_BOX rc = { UINT(nX), UINT(nY), 0U, UINT(nX + USize), UINT(nY + VSize), 1U };
-	if (m_eTT == eTT_2D)
+	GPUPIN_DEVICE_TEXTURE(gcpRendD3D->GetPerformanceDeviceContext(), pDevTex);
+
+	if (eSrcFormat != m_eDstFormat)
 	{
-		if (!IsBlockCompressed(m_eTFDst))
+		D3DFormat frmtSrc = DeviceFormats::ConvertFromTexFormat(eSrcFormat);
+		D3DFormat frmtDst = DeviceFormats::ConvertFromTexFormat(m_eDstFormat);
+		frmtSrc = DeviceFormats::ConvertToTypeless(frmtSrc);
+		frmtDst = DeviceFormats::ConvertToTypeless(frmtDst);
+		if (frmtSrc != frmtDst)
 		{
-			const int nBPPSrc = CTexture::BitsPerPixel(eTFSrc);
-			const int nBPPDst = CTexture::BitsPerPixel(m_eTFDst);
-			if (nBPPSrc == nBPPDst)
-			{
-				const int nRowPitch = CTexture::TextureDataSize(USize, 1, 1, 1, 1, eTFSrc);
-				const int nSlicePitch = CTexture::TextureDataSize(USize, VSize, 1, 1, 1, eTFSrc);
-				gcpRendD3D->GetDeviceContext().UpdateSubresource(pDevTexture->Get2DTexture(), 0, &rc, data, nRowPitch, nSlicePitch);
-				bDone = true;
-			}
-			else
-			{
-				assert(0);
-				bDone = true;
-			}
+			CRY_ASSERT(0);
+			return;
 		}
 	}
-	else if (m_eTT == eTT_3D)
+
+	CRY_ASSERT(m_eSrcTileMode == eTM_None || m_eSrcTileMode == eTM_Unspecified);
+	CRY_ASSERT(m_nArraySize == 1);
+	for (int i = 0; i < m_nMips; i++)
 	{
-		int nFrame = gRenDev->m_nFrameSwapID;
-		rc.front = nZ;
-		rc.back = nZ + ZSize;
+		if (!USize)
+			USize = 1;
+		if (!VSize)
+			VSize = 1;
+		if (!ZSize)
+			ZSize = 1;
 
-		const int nBPPSrc = CTexture::BitsPerPixel(eTFSrc);
-		const int nBPPDst = CTexture::BitsPerPixel(m_eTFDst);
-		if (nBPPSrc == nBPPDst)
+		const SResourceMemoryMapping mapping =
 		{
-			if (m_nFlags & FT_USAGE_DYNAMIC)
-			{
-				D3DVolumeTexture* pDT = pDevTexture->GetVolumeTexture();
-				int cZ, cY;
-				for (cZ = nZ; cZ < ZSize; cZ++)
-				{
-					D3D11_MAPPED_SUBRESOURCE lrct;
-					uint32 nLockFlags = D3D11_MAP_WRITE_DISCARD_SR;
-					uint32 nSubRes = D3D11CalcSubresource(0, cZ, 1);
+			{                                                    // src alignment == plain software alignment
+				CTexture::TextureDataSize(1    , 1    , 1    , 1, 1, m_eDstFormat, eTM_None),
+				CTexture::TextureDataSize(USize, 1    , 1    , 1, 1, m_eDstFormat, eTM_None),
+				CTexture::TextureDataSize(USize, VSize, 1    , 1, 1, m_eDstFormat, eTM_None),
+				CTexture::TextureDataSize(USize, VSize, ZSize, 1, 1, m_eDstFormat, eTM_None),
+			},
+			{ nX, nY, nZ, D3D11CalcSubresource(i, 0, m_nMips) }, // dst position
+			{ USize, VSize, ZSize, 1 }                           // dst size
+		};
 
-					hr = gcpRendD3D->GetDeviceContext_ForMapAndUnmap().Map(pDT, nSubRes, (D3D11_MAP)nLockFlags, 0, &lrct);
-					assert(hr == S_OK);
+		GetDeviceObjectFactory().GetCoreCommandList().GetCopyInterface()->Copy(pSrcData, pDevTex, mapping);
 
-					byte* pDst = ((byte*)lrct.pData) + nX * 4 + nY * lrct.RowPitch;
-					for (cY = 0; cY < VSize; cY++)
-					{
-						cryMemcpy(pDst, data, USize * 4);
-						data += USize * 4;
-						pDst += lrct.RowPitch;
-					}
-					gcpRendD3D->GetDeviceContext_ForMapAndUnmap().Unmap(pDT, nSubRes);
-				}
-			}
-			else
-			{
-				int U = USize;
-				int V = VSize;
-				int Z = ZSize;
-				for (int i = 0; i < m_nMips; i++)
-				{
-					if (!U)
-						U = 1;
-					if (!V)
-						V = 1;
-					if (!Z)
-						Z = 1;
+		pSrcData += mapping.MemoryLayout.volumeStride;
 
-					const int nRowPitch = CTexture::TextureDataSize(U, 1, 1, 1, 1, eTFSrc);
-					const int nSlicePitch = CTexture::TextureDataSize(U, V, 1, 1, 1, eTFSrc);
-					gcpRendD3D->GetDeviceContext().UpdateSubresource(pDevTexture->GetBaseTexture(), i, &rc, data, nRowPitch, nSlicePitch);
-					bDone = true;
+		USize >>= 1;
+		VSize >>= 1;
+		ZSize >>= 1;
 
-					data += nSlicePitch * Z;
-
-					U >>= 1;
-					V >>= 1;
-					Z >>= 1;
-
-					rc.front >>= 1;
-					rc.left >>= 1;
-					rc.top >>= 1;
-
-					rc.back = max(rc.front + 1, rc.back >> 1);
-					rc.right = max(rc.left + 4, rc.right >> 1);
-					rc.bottom = max(rc.top + 4, rc.bottom >> 1);
-				}
-			}
-		}
-		else if ((eTFSrc == eTF_B8G8R8A8 || eTFSrc == eTF_B8G8R8X8) && (m_eTFDst == eTF_B5G6R5))
-		{
-			assert(0);
-			bDone = true;
-		}
-	}
-	if (!bDone)
-	{
-		D3D11_BOX box;
-		ZeroStruct(box);
-		box.left = nX;
-		box.top = nY;
-		box.right = box.left + USize;
-		box.bottom = box.top + VSize;
-		box.back = 1;
-		const int nRowPitch = CTexture::TextureDataSize(USize, 1, 1, 1, 1, eTFSrc);
-		const int nSlicePitch = CTexture::TextureDataSize(USize, VSize, 1, 1, 1, eTFSrc);
-		gcpRendD3D->GetDeviceContext().UpdateSubresource(pDevTexture->Get2DTexture(), 0, &box, data, nRowPitch, nSlicePitch);
+		nX >>= 1;
+		nY >>= 1;
+		nZ >>= 1;
 	}
 }
 
 bool CTexture::Clear()
 {
-	if (!(m_nFlags & FT_USAGE_RENDERTARGET))
+	if (!(m_eFlags & (FT_USAGE_RENDERTARGET | FT_USAGE_DEPTHSTENCIL)))
 		return false;
 
 	gRenDev->m_pRT->RC_ClearTarget(this, m_cClearColor);
@@ -3336,7 +1356,7 @@ bool CTexture::Clear()
 
 bool CTexture::Clear(const ColorF& cClear)
 {
-	if (!(m_nFlags & FT_USAGE_RENDERTARGET))
+	if (!(m_eFlags & (FT_USAGE_RENDERTARGET | FT_USAGE_DEPTHSTENCIL)))
 		return false;
 
 	gRenDev->m_pRT->RC_ClearTarget(this, cClear);
@@ -3393,7 +1413,7 @@ bool CTexture::RenderEnvironmentCMHDR(int size, Vec3& Pos, TArray<unsigned short
 
 	int nPFlags = gcpRendD3D->m_RP.m_TI[gcpRendD3D->m_RP.m_nProcessThreadID].m_PersFlags;
 
-	CTexture* ptexGenEnvironmentCM = CTexture::Create2DTexture("$GenEnvironmentCM", size, size, 0, FT_DONT_STREAM, 0, eTF_R16G16B16A16F, eTF_R16G16B16A16F);
+	CTexture* ptexGenEnvironmentCM = CTexture::GetOrCreate2DTexture("$GenEnvironmentCM", size, size, 1, FT_DONT_STREAM, nullptr, eTF_R16G16B16A16F);
 	if (!ptexGenEnvironmentCM || !ptexGenEnvironmentCM->GetDevTexture())
 	{
 		iLog->Log("Failed generating a cubemap: out of video memory");
@@ -3476,8 +1496,11 @@ bool CTexture::RenderEnvironmentCMHDR(int size, Vec3& Pos, TArray<unsigned short
 
 		CDeviceTexture* pDevTextureSrc = CTexture::s_ptexHDRTarget->GetDevTexture();
 		CDeviceTexture* pDevTextureDst = ptexGenEnvironmentCM->GetDevTexture();
+		CRY_ASSERT(CTexture::s_ptexHDRTarget->GetNumMips() == ptexGenEnvironmentCM->GetNumMips());
 
-		gcpRendD3D->GetDeviceContext().GetRealDeviceContext()->CopySubresourceRegion(pDevTextureDst->Get2DTexture(), 0, 0, 0, 0, pDevTextureSrc->Get2DTexture(), 0, &srcBox);
+		GPUPIN_DEVICE_TEXTURE(gcpRendD3D->GetPerformanceDeviceContext(), pDevTextureDst);
+		CDeviceCommandListRef commandList = GetDeviceObjectFactory().GetCoreCommandList();
+		commandList.GetCopyInterface()->Copy(pDevTextureSrc, pDevTextureDst);
 
 		CDeviceTexture* pDstDevTex = ptexGenEnvironmentCM->GetDevTexture();
 		pDstDevTex->DownloadToStagingResource(0, [&](void* pData, uint32 rowPitch, uint32 slicePitch)
@@ -3605,11 +1628,8 @@ bool CTexture::GenerateMipMaps(bool bSetOrthoProj, bool bUseHW, bool bNormalMap)
 		return false;
 	}
 
-	D3D11_TEXTURE2D_DESC pDesc;
-	pTex->Get2DTexture()->GetDesc(&pDesc);
-
 	// all d3d11 devices support autogenmipmaps
-	if (m_pRenderTargetData)
+	if (GetDevTexture()->IsWritable())
 	{
 		//	gcpRendD3D->GetDeviceContext().GenerateMips(m_pDeviceShaderResource);
 
@@ -3642,12 +1662,10 @@ void CTexture::GenerateZMaps()
 	}
 
 	if (!s_ptexZTarget)
-	{
-		s_ptexZTarget = CreateRenderTarget("$ZTarget", nWidth, nHeight, ColorF(1.0f, 1.0f, 1.0f, 1.0f), eTT_2D, nFlags, eTFZ);
-	}
+		s_ptexZTarget = GetOrCreateRenderTarget("$ZTarget", nWidth, nHeight, ColorF(1.0f, 1.0f, 1.0f, 1.0f), eTT_2D, nFlags, eTFZ);
 	else
 	{
-		s_ptexZTarget->m_nFlags = nFlags;
+		s_ptexZTarget->m_eFlags = nFlags;
 		s_ptexZTarget->SetWidth(nWidth);
 		s_ptexZTarget->SetHeight(nHeight);
 		s_ptexZTarget->CreateRenderTarget(eTFZ, ColorF(1.0f, 1.0f, 1.0f, 1.0f));
@@ -3666,10 +1684,10 @@ void CTexture::GenerateSceneMap(ETEX_Format eTF)
 	uint32 nFlags = FT_DONT_STREAM | FT_USAGE_RENDERTARGET | FT_USAGE_UNORDERED_ACCESS;
 
 	if (!s_ptexSceneTarget)
-		s_ptexSceneTarget = CreateRenderTarget("$SceneTarget", nWidth, nHeight, Clr_Empty, eTT_2D, nFlags, eTF, TO_SCENE_TARGET);
+		s_ptexSceneTarget = GetOrCreateRenderTarget("$SceneTarget", nWidth, nHeight, Clr_Empty, eTT_2D, nFlags, eTF, TO_SCENE_TARGET);
 	else
 	{
-		s_ptexSceneTarget->m_nFlags = nFlags;
+		s_ptexSceneTarget->m_eFlags = nFlags;
 		s_ptexSceneTarget->SetWidth(nWidth);
 		s_ptexSceneTarget->SetHeight(nHeight);
 		s_ptexSceneTarget->CreateRenderTarget(eTF, Clr_Empty);
@@ -3679,10 +1697,10 @@ void CTexture::GenerateSceneMap(ETEX_Format eTF)
 
 	// This RT used for all post processes passes and shadow mask (group 0) as well
 	if (!CTexture::IsTextureExist(s_ptexBackBuffer))
-		s_ptexBackBuffer = CreateRenderTarget("$BackBuffer", nWidth, nHeight, Clr_Empty, eTT_2D, nFlags, eTF_R8G8B8A8, TO_BACKBUFFERMAP);
+		s_ptexBackBuffer = GetOrCreateRenderTarget("$BackBuffer", nWidth, nHeight, Clr_Empty, eTT_2D, nFlags | FT_USAGE_ALLOWREADSRGB, eTF_R8G8B8A8, TO_BACKBUFFERMAP);
 	else
 	{
-		s_ptexBackBuffer->m_nFlags = nFlags;
+		s_ptexBackBuffer->m_eFlags = nFlags | FT_USAGE_ALLOWREADSRGB;
 		s_ptexBackBuffer->SetWidth(nWidth);
 		s_ptexBackBuffer->SetHeight(nHeight);
 		s_ptexBackBuffer->CreateRenderTarget(eTF_R8G8B8A8, Clr_Empty);
@@ -3694,10 +1712,10 @@ void CTexture::GenerateSceneMap(ETEX_Format eTF)
 	if (CRenderer::CV_r_UsePersistentRTForModelHUD > 0)
 	{
 		if (!CTexture::IsTextureExist(s_ptexModelHudBuffer))
-			s_ptexModelHudBuffer = CreateRenderTarget("$ModelHUD", nWidth, nHeight, Clr_Transparent, eTT_2D, nFlags, eTF_R8G8B8A8, TO_BACKBUFFERMAP);
+			s_ptexModelHudBuffer = GetOrCreateRenderTarget("$ModelHUD", nWidth, nHeight, Clr_Transparent, eTT_2D, nFlags, eTF_R8G8B8A8, TO_BACKBUFFERMAP);
 		else
 		{
-			s_ptexModelHudBuffer->m_nFlags = nFlags;
+			s_ptexModelHudBuffer->m_eFlags = nFlags;
 			s_ptexModelHudBuffer->SetWidth(nWidth);
 			s_ptexModelHudBuffer->SetHeight(nHeight);
 			s_ptexModelHudBuffer->CreateRenderTarget(eTF_R8G8B8A8, Clr_Transparent);
@@ -3711,12 +1729,9 @@ void CTexture::GenerateSceneMap(ETEX_Format eTF)
 		highlightWidth = nWidth;
 		highlightHeight = nHeight;
 
-		SD3DPostEffectsUtils::CreateRenderTarget("$SceneSelectionIDs", CTexture::s_ptexSceneSelectionIDs, highlightWidth, highlightHeight, Clr_Transparent, false, false, eTF_R32F, -1, nFlags);
-
-		nFlags |= FT_USAGE_DEPTHSTENCIL;
-		SD3DPostEffectsUtils::CreateRenderTarget("$SceneHalfDepthStencil", CTexture::s_ptexSceneHalfDepthStencil, highlightWidth, highlightHeight, Clr_FarPlane, false, false, eTF_D32F, -1, nFlags);
-		nFlags &= ~FT_USAGE_DEPTHSTENCIL;
-
+		SD3DPostEffectsUtils::GetOrCreateRenderTarget("$SceneSelectionIDs"    , CTexture::s_ptexSceneSelectionIDs    , highlightWidth, highlightHeight, Clr_Transparent, false, false, eTF_R32F, -1, nFlags);
+		SD3DPostEffectsUtils::GetOrCreateDepthStencil("$SceneHalfDepthStencil", CTexture::s_ptexSceneHalfDepthStencil, highlightWidth, highlightHeight, Clr_FarPlane   , false, false, eTF_D32F, -1, nFlags | FT_USAGE_DEPTHSTENCIL);
+		
 		// Editor fix: it is possible at this point that resolution has changed outside of ChangeResolution and stereoR, stereoL have not been resized
 		gcpRendD3D->GetS3DRend().OnResolutionChanged();
 	}
@@ -3751,8 +1766,8 @@ void CTexture::GenerateCachedShadowMaps()
 		}
 	}
 
-	const ETEX_Format texFormat = gEnv->pConsole->GetCVar("r_ShadowsCacheFormat")->GetIVal() == 0 ? eTF_R32F : eTF_D16;
-	const int cachedShadowsStart = clamp_tpl(CRenderer::CV_r_ShadowsCache, 0, MAX_GSM_LODS_NUM - 1);
+	const ETEX_Format texFormat = CRendererCVars::CV_r_ShadowsCacheFormat == 0 ? eTF_D32F : eTF_D16;
+	const int cachedShadowsStart = clamp_tpl(CRendererCVars::CV_r_ShadowsCache, 0, MAX_GSM_LODS_NUM - 1);
 
 	int gsmCascadeCount = gEnv->pSystem->GetConfigSpec() == CONFIG_LOW_SPEC ? 4 : 5;
 	if (ICVar* pGsmLodsVar = gEnv->pConsole->GetCVar("e_GsmLodsNum"))
@@ -3768,7 +1783,7 @@ void CTexture::GenerateCachedShadowMaps()
 			char szName[32];
 			cry_sprintf(szName, "CachedShadowMap_%d", i);
 
-			pTx = CTexture::CreateTextureObject(szName, nResolutions[i], nResolutions[i], 1, eTT_2D, FT_DONT_RELEASE | FT_DONT_STREAM | FT_USAGE_DEPTHSTENCIL, texFormat);
+			pTx = CTexture::GetOrCreateTextureObject(szName, nResolutions[i], nResolutions[i], 1, eTT_2D, FT_DONT_RELEASE | FT_DONT_STREAM | FT_USAGE_DEPTHSTENCIL, texFormat);
 		}
 
 		pTx->Invalidate(nResolutions[i], nResolutions[i], texFormat);
@@ -3781,20 +1796,22 @@ void CTexture::GenerateCachedShadowMaps()
 		if (!CTexture::IsTextureExist(pTx) && nResolutions[i] > 0 && i < cachedCascadesCount)
 		{
 			CryLog("Allocating shadow map cache %d x %d: %.2f MB", nResolutions[i], nResolutions[i], sqr(nResolutions[i]) * CTexture::BitsPerPixel(texFormat) / (1024.f * 1024.f * 8.f));
-			pTx->CreateRenderTarget(texFormat, Clr_FarPlane);
+			pTx->CreateDepthStencil(texFormat, Clr_FarPlane);
 		}
 	}
 
 	// height map AO
-	if (CRenderer::CV_r_HeightMapAO)
+	if (CRendererCVars::CV_r_HeightMapAO)
 	{
-		const int nTexRes = (int)clamp_tpl(CRenderer::CV_r_HeightMapAOResolution, 0.f, 16384.f);
-		const ETEX_Format texFormatMips = texFormat == eTF_D32F ? eTF_R32F : eTF_R16;
+		const int nTexRes = (int)clamp_tpl(CRendererCVars::CV_r_HeightMapAOResolution, 0.f, 16384.f);
+		ETEX_Format texFormatMips = texFormat == eTF_D32F ? eTF_R32F : eTF_R16;
+		// Allow non-supported SNORM/UNORM to fall back to a FLOAT format with slightly less precision
+		texFormatMips = gcpRendD3D->m_hwTexFormatSupport.GetLessPreciseFormatSupported(texFormatMips);
 
 		if (!s_ptexHeightMapAODepth[0])
 		{
-			s_ptexHeightMapAODepth[0] = CTexture::CreateTextureObject("HeightMapAO_Depth_0", nTexRes, nTexRes, 1, eTT_2D, FT_DONT_RELEASE | FT_DONT_STREAM | FT_USAGE_DEPTHSTENCIL, texFormat);
-			s_ptexHeightMapAODepth[1] = CTexture::CreateTextureObject("HeightMapAO_Depth_1", nTexRes, nTexRes, 1, eTT_2D, FT_DONT_RELEASE | FT_DONT_STREAM | FT_USAGE_RENDERTARGET | FT_FORCE_MIPS, texFormatMips);
+			s_ptexHeightMapAODepth[0] = CTexture::GetOrCreateTextureObject("HeightMapAO_Depth_0", nTexRes, nTexRes, 1, eTT_2D, FT_DONT_RELEASE | FT_DONT_STREAM | FT_USAGE_DEPTHSTENCIL, texFormat);
+			s_ptexHeightMapAODepth[1] = CTexture::GetOrCreateTextureObject("HeightMapAO_Depth_1", nTexRes, nTexRes, 1, eTT_2D, FT_DONT_RELEASE | FT_DONT_STREAM | FT_USAGE_RENDERTARGET | FT_FORCE_MIPS, texFormatMips);
 		}
 
 		s_ptexHeightMapAODepth[0]->Invalidate(nTexRes, nTexRes, texFormat);
@@ -3802,7 +1819,7 @@ void CTexture::GenerateCachedShadowMaps()
 
 		if (!CTexture::IsTextureExist(s_ptexHeightMapAODepth[0]) && nTexRes > 0)
 		{
-			s_ptexHeightMapAODepth[0]->CreateRenderTarget(texFormat, Clr_FarPlane);
+			s_ptexHeightMapAODepth[0]->CreateDepthStencil(texFormat, Clr_FarPlane);
 			s_ptexHeightMapAODepth[1]->CreateRenderTarget(texFormatMips, Clr_FarPlane);
 		}
 	}
@@ -3827,9 +1844,10 @@ void CTexture::DestroyCachedShadowMaps()
 
 void CTexture::GenerateNearestShadowMap()
 {
-	const int texResolution = CRenderer::CV_r_ShadowsNearestMapResolution;
-	const ETEX_Format texFormat = eTF_D32F;
-	s_ptexNearestShadowMap = CTexture::CreateTextureObject("NearestShadowMap", texResolution, texResolution, 1, eTT_2D, FT_DONT_RELEASE | FT_DONT_STREAM | FT_USAGE_DEPTHSTENCIL, texFormat);
+	const int texResolution = CRendererCVars::CV_r_ShadowsNearestMapResolution;
+	const ETEX_Format texFormat = CRendererCVars::CV_r_shadowtexformat == 0 ? eTF_D32F : eTF_D16;
+
+	s_ptexNearestShadowMap = CTexture::GetOrCreateTextureObject("NearestShadowMap", texResolution, texResolution, 1, eTT_2D, FT_DONT_RELEASE | FT_DONT_STREAM | FT_USAGE_DEPTHSTENCIL, texFormat);
 }
 
 void CTexture::DestroyNearestShadowMap()
@@ -3921,7 +1939,7 @@ bool SDynTexture2::SetRectStates()
 	rc.top = m_nY;
 	rc.bottom = m_nY + m_nHeight;
 	if (m_pTexture)
-		m_pTexture->AddDirtRect(rc, rc.left, rc.top);
+		m_pTexture->GetDevTexture()->AddDirtRect(rc, rc.left, rc.top);
 	return true;
 }
 
@@ -4198,9 +2216,11 @@ bool CFlashTextureSource::Update()
 	{
 		PROFILE_LABEL_SCOPE("FlashDynTexture MipMap");
 
-		gcpRendD3D->GetGraphicsPipeline().SwitchFromLegacyPipeline();
+		if (!(CRenderer::CV_r_GraphicsPipeline > 0))
+			gcpRendD3D->GetGraphicsPipeline().SwitchFromLegacyPipeline();
 		m_pMipMapper->Execute((CTexture*)m_pDynTexture->GetTexture());
-		gcpRendD3D->GetGraphicsPipeline().SwitchToLegacyPipeline();
+		if (!(CRenderer::CV_r_GraphicsPipeline > 0))
+			gcpRendD3D->GetGraphicsPipeline().SwitchToLegacyPipeline();
 	}
 
 	return true;
@@ -4222,9 +2242,11 @@ bool CFlashTextureSourceSharedRT::Update()
 	{
 		PROFILE_LABEL_SCOPE("FlashDynTexture MipMap");
 
-		gcpRendD3D->GetGraphicsPipeline().SwitchFromLegacyPipeline();
+		if (!(CRenderer::CV_r_GraphicsPipeline > 0))
+			gcpRendD3D->GetGraphicsPipeline().SwitchFromLegacyPipeline();
 		ms_pMipMapper->Execute((CTexture*)ms_pDynTexture->GetTexture());
-		gcpRendD3D->GetGraphicsPipeline().SwitchToLegacyPipeline();
+		if (!(CRenderer::CV_r_GraphicsPipeline > 0))
+			gcpRendD3D->GetGraphicsPipeline().SwitchToLegacyPipeline();
 	}
 
 	return true;
@@ -4245,7 +2267,6 @@ void CTexture::ReleaseSystemTargets()
 	SAFE_RELEASE_FORCE(s_ptexWaterOcean);
 	SAFE_RELEASE_FORCE(s_ptexWaterVolumeTemp[0]);
 	SAFE_RELEASE_FORCE(s_ptexWaterVolumeTemp[1]);
-	SAFE_RELEASE_FORCE(s_ptexWaterRipplesDDN);
 
 	SAFE_RELEASE_FORCE(s_ptexSceneNormalsMap);
 	SAFE_RELEASE_FORCE(s_ptexSceneNormalsBent);
@@ -4278,13 +2299,11 @@ void CTexture::CreateSystemTargets()
 	{
 		gcpRendD3D->m_bSystemTargetsInit = 1;
 
-		ETEX_Format eTF = (gcpRendD3D->m_RP.m_bUseHDR && gcpRendD3D->m_nHDRType == 1) ? eTF_R16G16B16A16F : eTF_R8G8B8A8;
-
 		// Create HDR targets
 		CTexture::GenerateHDRMaps();
 
 		// Create scene targets
-		CTexture::GenerateSceneMap(eTF);
+		CTexture::GenerateSceneMap(CRenderer::CV_r_HDRTexFormat == 0 ? eTF_R11G11B10F : eTF_R16G16B16A16F);
 
 		// Create ZTarget
 		CTexture::GenerateZMaps();
@@ -4307,16 +2326,18 @@ void CTexture::CreateSystemTargets()
 	}
 }
 
-void CTexture::CopySliceChain(CDeviceTexture* const pDevTexture, int ownerMips, int nDstSlice, int nDstMip, CDeviceTexture* pSrcDevTex, int nSrcSlice, int nSrcMip, int nSrcMips, int nNumMips)
+void CTexture::CopySliceChain(CDeviceTexture* const pDstDevTex, int nDstNumMips, int nDstSliceOffset, int nDstMipOffset,
+                              CDeviceTexture* const pSrcDevTex, int nSrcNumMips, int nSrcSliceOffset, int nSrcMipOffset, int nNumSlices, int nNumMips)
 {
 	HRESULT hr = S_OK;
-	assert(pSrcDevTex && pDevTexture);
+	assert(pSrcDevTex && pDstDevTex);
+	assert(nNumSlices == 1 && "TODO: allow multiple slices being uploaded with the same command");
 
-#if CRY_PLATFORM_DURANGO
-	pDevTexture->InitD3DTexture();
+#if CRY_PLATFORM_DURANGO && (CRY_RENDERER_DIRECT3D >= 110) && (CRY_RENDERER_DIRECT3D < 120)
+	pDstDevTex->InitD3DTexture();
 #endif
 
-	D3DBaseTexture* pDstResource = pDevTexture->GetBaseTexture();
+	D3DBaseTexture* pDstResource = pDstDevTex->GetBaseTexture();
 	D3DBaseTexture* pSrcResource = pSrcDevTex->GetBaseTexture();
 
 #ifndef _RELEASE
@@ -4327,33 +2348,27 @@ void CTexture::CopySliceChain(CDeviceTexture* const pDevTexture, int ownerMips, 
 	if (0)
 	{
 	}
-#if CRY_PLATFORM_DURANGO && defined(DEVICE_SUPPORTS_PERFORMANCE_DEVICE)
-	else if (!gcpRendD3D->m_pRT->IsRenderThread())
+#if CRY_PLATFORM_DURANGO && (CRY_RENDERER_DIRECT3D >= 110) && (CRY_RENDERER_DIRECT3D < 120)  && defined(DEVICE_SUPPORTS_PERFORMANCE_DEVICE)
+	else if (!gcpRendD3D->m_pRT->IsRenderThread(true))
 	{
 		// We can use the move engine!
 
-		CryAutoLock<CryCriticalSection> dmaLock(gcpRendD3D->m_dma1Lock);
-
-		ID3D11DmaEngineContextX* pDMA = gcpRendD3D->m_pDMA1;
+		CryAutoLock<CryCriticalSection> dmaLock(GetDeviceObjectFactory().m_dma1Lock);
+		ID3D11DmaEngineContextX* pDMA = GetDeviceObjectFactory().m_pDMA1;
 
 		for (int nMip = 0; nMip < nNumMips; ++nMip)
 		{
 			pDMA->CopySubresourceRegion(
 			  pDstResource,
-			  D3D11CalcSubresource(nDstMip + nMip, nDstSlice, ownerMips),
+			  D3D11CalcSubresource(nDstMipOffset + nMip, nDstSliceOffset, nDstNumMips),
 			  0, 0, 0,
 			  pSrcResource,
-			  D3D11CalcSubresource(nSrcMip + nMip, nSrcSlice, nSrcMips),
+			  D3D11CalcSubresource(nSrcMipOffset + nMip, nSrcSliceOffset, nSrcNumMips),
 			  NULL,
 			  D3D11_COPY_NO_OVERWRITE);
 		}
 
-	#ifdef DURANGO_MONOD3D_DRIVER
 		UINT64 fence = pDMA->InsertFence(D3D11_INSERT_FENCE_NO_KICKOFF);
-	#else
-		UINT64 fence = pDMA->InsertFence();
-	#endif
-
 		pDMA->Submit();
 		while (gcpRendD3D->GetPerformanceDevice().IsFencePending(fence))
 			CrySleep(1);
@@ -4361,27 +2376,26 @@ void CTexture::CopySliceChain(CDeviceTexture* const pDevTexture, int ownerMips, 
 #endif
 	else
 	{
-		assert(nSrcMip >= 0 && nDstMip >= 0);
-#if defined(DEVICE_SUPPORTS_D3D11_1) || defined(CRY_USE_DX12)
-		gcpRendD3D->GetDeviceContext().CopySubresourcesRegion1(
-		  pDstResource,
-		  D3D11CalcSubresource(nDstMip, nDstSlice, ownerMips),
-		  0, 0, 0,
-		  pSrcResource,
-		  D3D11CalcSubresource(nSrcMip, nSrcSlice, nSrcMips),
-		  NULL,
-		  D3D11_COPY_NO_OVERWRITE_REVERT | D3D11_COPY_NO_OVERWRITE_PXLSRV,
-		  nNumMips);
-#else
-		gcpRendD3D->GetDeviceContext().CopySubresourcesRegion(
-		  pDstResource,
-		  D3D11CalcSubresource(nDstMip, nDstSlice, ownerMips),
-		  0, 0, 0,
-		  pSrcResource,
-		  D3D11CalcSubresource(nSrcMip, nSrcSlice, nSrcMips),
-		  NULL,
-		  nNumMips);
-#endif
+		assert(nSrcMipOffset >= 0 && nDstMipOffset >= 0);
+
+		for (int nMip = 0; nMip < nNumMips; ++nMip)
+		{
+			SResourceRegionMapping mapping =
+			{
+				{ 0, 0, 0, D3D11CalcSubresource(nSrcMipOffset + nMip, nSrcSliceOffset, nSrcNumMips) }, // src position
+				{ 0, 0, 0, D3D11CalcSubresource(nDstMipOffset + nMip, nDstSliceOffset, nDstNumMips) }, // dst position
+				pSrcDevTex->GetDimension(nSrcMipOffset + nMip, nNumSlices), // size
+				D3D11_COPY_NO_OVERWRITE_REVERT | D3D11_COPY_NO_OVERWRITE_PXLSRV
+			};
+
+			// "TODO: allow multiple slices being uploaded with the same command"
+			mapping.Extent.Subresources = 1;
+
+			GetDeviceObjectFactory().GetCoreCommandList().GetCopyInterface()->Copy(
+				pSrcDevTex,
+				pDstDevTex,
+				mapping);
+		}
 	}
 }
 

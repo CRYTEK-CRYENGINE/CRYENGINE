@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 // -------------------------------------------------------------------------
 //  Created:     02/10/2015 by Benjamin Block
@@ -22,6 +22,19 @@ namespace gpu_pfx2
 //	Trouble is, there is no data share between CPU and GPU and so there is no CPU
 //	instance information
 
+bool CFeatureSpawnBase::CanSpawnParticles(CParticleComponentRuntime* pRuntime) const
+{
+	const auto& params = GetParameters();
+	const IParticleEmitter* pEmitter = pRuntime->GetEmitter();
+	const bool isEmitterIndependent = pEmitter->Unique();
+	const bool isSecondGen = pRuntime->IsSecondGen();
+	const bool isContinuous = !params.useDuration || params.useRestart;
+	if (isContinuous && isEmitterIndependent && !isSecondGen)
+		return false;
+
+	return true;
+}
+
 void CFeatureSpawnBase::InitSubInstance(IParticleComponentRuntime* pRuntime, SSpawnData* pInstances, size_t count)
 {
 	const auto& params = GetParameters();
@@ -34,6 +47,9 @@ void CFeatureSpawnCount::SpawnParticles(const gpu_pfx2::SUpdateContext& context)
 {
 	const auto& params = GetParameters();
 	CParticleComponentRuntime* pRuntime = (CParticleComponentRuntime*)(context.pRuntime);
+	if (!CanSpawnParticles(pRuntime))
+		return;
+
 	const size_t numInstances = pRuntime->GetNumInstances();
 
 	const float amount = params.amount;
@@ -78,6 +94,9 @@ void CFeatureSpawnRate::SpawnParticles(const gpu_pfx2::SUpdateContext& context)
 {
 	const auto& params = GetParameters();
 	CParticleComponentRuntime* pRuntime = (CParticleComponentRuntime*)(context.pRuntime);
+	if (!CanSpawnParticles(pRuntime))
+		return;
+
 	const size_t numInstances = pRuntime->GetNumInstances();
 
 	const float amount = params.amount;

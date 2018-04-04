@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 /************************************************************************
    This class initiates from a given string, and stores the hashed Representation of that string
@@ -8,6 +8,9 @@
 #pragma once
 
 #include <CryCore/CryCrc32.h>
+#include <CrySerialization/Forward.h>
+#include <CrySerialization/IArchive.h>
+#include <CrySerialization/STL.h>
 
 #if !defined(_RELEASE)
 	#define HASHEDSTRING_STORES_SOURCE_STRING      //!< For debug purposes, it is often interesting to see from which string the hash was created.

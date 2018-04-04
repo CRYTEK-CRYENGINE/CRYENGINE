@@ -24,7 +24,7 @@ CPlugin_Osvr::~CPlugin_Osvr()
 
 bool CPlugin_Osvr::Initialize(SSystemGlobalEnvironment& env, const SSystemInitParams& initParams)
 {
-	GetISystem()->GetISystemEventDispatcher()->RegisterListener(this);
+	GetISystem()->GetISystemEventDispatcher()->RegisterListener(this, "CPlugin_Osvr");
 
 	return true;
 }

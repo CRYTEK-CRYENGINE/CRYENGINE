@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #include "StdAfx.h"
 
@@ -71,6 +71,17 @@ SPerInstanceResources::SPerInstanceResources(const int numVertices, const int nu
 	passDeformWithMorphs.SetFlags(CComputeRenderPass::eFlags_ReflectConstantBuffersFromShader);
 	passTriangleTangents.SetFlags(CComputeRenderPass::eFlags_ReflectConstantBuffersFromShader);
 	passVertexTangents.SetFlags(CComputeRenderPass::eFlags_ReflectConstantBuffersFromShader);
+}
+
+SPerInstanceResources::~SPerInstanceResources()
+{
+	verticesOut.FreeDeviceBuffer();
+	tangentsOut.FreeDeviceBuffer();
+
+	passDeform.Reset();
+	passDeformWithMorphs.Reset();
+	passTriangleTangents.Reset();
+	passVertexTangents.Reset();
 }
 
 size_t SPerInstanceResources::GetSizeBytes()
@@ -198,8 +209,14 @@ void CComputeSkinningStage::Prepare(CRenderView* pRenderView)
 
 void CComputeSkinningStage::Execute(CRenderView* pRenderView)
 {
-	if (pRenderView->IsRecursive())
+	int32 CurrentFrameID = gcpRendD3D.GetFrameID(false);
+
+	if (CurrentFrameID == m_oldFrameIdExecute)
+	{
 		return;
+	}
+
+	m_oldFrameIdExecute = CurrentFrameID;
 
 	PROFILE_LABEL_SCOPE("CHARACTER_DEFORMATION");
 

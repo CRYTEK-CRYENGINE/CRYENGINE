@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #pragma once
 
@@ -24,9 +24,9 @@ protected:
 	virtual bool GetParamInfoFromType(const CAnimParamType& paramId, SParamInfo& info) const override;
 
 private:
-	void ApplyAudioSwitchKey(AudioControlId audioSwitchId, AudioSwitchStateId audioSwitchStateId);
-	void ApplyAudioParameterValue(AudioControlId audioParameterId, const float value);
-	void ApplyAudioTriggerKey(AudioControlId audioTriggerId, const bool bPlay = true);
+	void ApplyAudioSwitchKey(CryAudio::ControlId audioSwitchId, CryAudio::SwitchStateId audioSwitchStateId);
+	void ApplyAudioParameterValue(CryAudio::ControlId audioParameterId, const float value);
+	void ApplyAudioTriggerKey(CryAudio::ControlId audioTriggerId, const bool bPlay = true);
 	void ApplyAudioFileKey(const string& filePath, const bool bLocalized);
 
 	std::vector<int>        m_audioSwitchTracks;

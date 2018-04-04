@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #include "stdafx.h"
 #include "ActionWait.h"
@@ -6,24 +6,30 @@
 
 #include <CryString/StringUtils.h>
 #include <CryDynamicResponseSystem/IDynamicResponseAction.h>
+#include <CryMath/Random.h>
 
 using namespace CryDRS;
 //--------------------------------------------------------------------------------------------------
 DRS::IResponseActionInstanceUniquePtr CActionWait::Execute(DRS::IResponseInstance* pResponseInstance)
 {
-	return DRS::IResponseActionInstanceUniquePtr(new CActionWaitInstance(m_timeToWait));
+	return DRS::IResponseActionInstanceUniquePtr(new CActionWaitInstance(cry_random(m_minTimeToWait, m_maxTimeToWait)));
 }
 
 //--------------------------------------------------------------------------------------------------
 string CActionWait::GetVerboseInfo() const
 {
-	return CryStringUtils::toString(m_timeToWait) + "s";
+	return string().Format("min '%f', max '%f'", m_minTimeToWait, m_maxTimeToWait);
 }
 
 //--------------------------------------------------------------------------------------------------
 void CActionWait::Serialize(Serialization::IArchive& ar)
 {
-	ar(m_timeToWait, "Time", "^Time (in seconds)");
+	ar(m_minTimeToWait, "Time", "^Min Time (in seconds)");
+	ar(m_maxTimeToWait, "MaxTime", "^Max Time (in seconds)");
+	if (m_maxTimeToWait < m_minTimeToWait)
+	{
+		m_maxTimeToWait = m_minTimeToWait;
+	}
 }
 
 //--------------------------------------------------------------------------------------------------
@@ -41,9 +47,3 @@ DRS::IResponseActionInstance::eCurrentState CActionWaitInstance::Update()
 	}
 	return DRS::IResponseActionInstance::CS_RUNNING;
 }
-
-//--------------------------------------------------------------------------------------------------
-//--------------------------------------------------------------------------------------------------
-//--------------------------------------------------------------------------------------------------
-
-REGISTER_DRS_ACTION(CActionWait, "Wait", DEFAULT_DRS_ACTION_COLOR);

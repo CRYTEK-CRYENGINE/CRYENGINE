@@ -63,7 +63,6 @@ History:
 #include "HitDeathReactions.h"
 #include "PersistantStats.h"
 #include "AI/GameAISystem.h"
-#include "AI/GameAIEnv.h"
 
 #include "UI/WarningsManager.h"
 #include "LagOMeter.h"
@@ -86,6 +85,8 @@ History:
 static const int sSimulateExplosionMaxEntitiesToSkip = 20;
 #include "SkillKill.h"
 #include "EnvironmentalWeapon.h"
+
+#include <IPerceptionManager.h>
 
 //------------------------------------------------------------------------
 // Our local client has hit something locally
@@ -842,7 +843,8 @@ void CGameRules::ClientExplosion(SExplosionContainer &explosionContainer)
 		m_pExplosionGameEffect->Explode(explosionContainer);
 	}
 
-	if (gEnv->pAISystem && !gEnv->bMultiplayer)
+	IPerceptionManager* pPerceptionManager = IPerceptionManager::GetInstance();
+	if (pPerceptionManager && !gEnv->bMultiplayer)
 	{
 		if (explosionInfo.damage > 0.0f)
 		{
@@ -854,7 +856,7 @@ void CGameRules::ClientExplosion(SExplosionContainer &explosionContainer)
 
 			SAIStimulus stim(AISTIM_EXPLOSION, 0, sourceId, 0,
 				explosionInfo.pos, ZERO, explosionInfo.radius);
-			gEnv->pAISystem->RegisterStimulus(stim);
+			pPerceptionManager->RegisterStimulus(stim);
 
 			float fSoundRadius = explosionInfo.soundRadius;
 			if (fSoundRadius <= FLT_EPSILON)
@@ -864,7 +866,7 @@ void CGameRules::ClientExplosion(SExplosionContainer &explosionContainer)
 
 			SAIStimulus stimSound(AISTIM_SOUND, AISOUND_EXPLOSION, sourceId, 0,
 				explosionInfo.pos, ZERO, fSoundRadius, AISTIMPROC_FILTER_LINK_WITH_PREVIOUS);
-			gEnv->pAISystem->RegisterStimulus(stimSound);
+			pPerceptionManager->RegisterStimulus(stimSound);
 		}
 	}
 }

@@ -751,7 +751,7 @@ void CStatsRecordingMgr::BeginRound()
 			IActorIteratorPtr it = pActorSystem->CreateActorIterator();
 			while (IActor *pActor = it->Next())
 			{
-				if(m_checkpointCount != 0 && pActor->GetEntity()->IsActive())
+				if(m_checkpointCount != 0 && pActor->GetEntity()->IsActivatedForUpdates())
 				{
 					CRY_ASSERT_MESSAGE(strcmp(pActor->GetEntity()->GetName(), "PoolEntity"), "Support for pooled entities has been deprecated.");
 					StartTrackingStats(pActor);

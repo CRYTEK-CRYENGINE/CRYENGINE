@@ -1,16 +1,16 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #include "StdAfx.h"
 #include "Script/Graph/Nodes/ScriptGraphArrayAddNode.h"
 
 #include <CrySerialization/Enum.h>
-#include <Schematyc/Compiler/IGraphNodeCompiler.h>
-#include <Schematyc/Env/Elements/IEnvDataType.h>
-#include <Schematyc/Script/Elements/IScriptVariable.h>
+#include <CrySchematyc/Compiler/IGraphNodeCompiler.h>
+#include <CrySchematyc/Env/Elements/IEnvDataType.h>
+#include <CrySchematyc/Script/Elements/IScriptVariable.h>
 #include <SerializationUtils/SerializationContext.h>
-#include <Schematyc/Utils/Any.h>
-#include <Schematyc/Utils/AnyArray.h>
-#include <Schematyc/Utils/StackString.h>
+#include <CrySchematyc/Utils/Any.h>
+#include <CrySchematyc/Utils/AnyArray.h>
+#include <CrySchematyc/Utils/StackString.h>
 
 #include "Script/ScriptView.h"
 #include "Script/Graph/ScriptGraphNode.h"
@@ -19,11 +19,12 @@
 
 namespace Schematyc
 {
+
 CScriptGraphArrayAddNode::CScriptGraphArrayAddNode(const SElementId& typeId)
 	: m_defaultValue(typeId)
 {}
 
-SGUID CScriptGraphArrayAddNode::GetTypeGUID() const
+CryGUID CScriptGraphArrayAddNode::GetTypeGUID() const
 {
 	return ms_typeGUID;
 }
@@ -32,15 +33,15 @@ void CScriptGraphArrayAddNode::CreateLayout(CScriptGraphNodeLayout& layout)
 {
 	layout.SetStyleId("Core::Data");
 
-	layout.AddInput("In", SGUID(), { EScriptGraphPortFlags::Flow, EScriptGraphPortFlags::MultiLink });
-	layout.AddOutput("Default", SGUID(), { EScriptGraphPortFlags::Flow, EScriptGraphPortFlags::SpacerBelow });
+	layout.AddInput("In", CryGUID(), { EScriptGraphPortFlags::Flow, EScriptGraphPortFlags::MultiLink });
+	layout.AddOutput("Default", CryGUID(), { EScriptGraphPortFlags::Flow, EScriptGraphPortFlags::SpacerBelow });
 
 	const char* szSubject = g_szNoType;
 	if (!m_defaultValue.IsEmpty())
 	{
 		szSubject = m_defaultValue.GetTypeName();
 
-		const SGUID typeGUID = m_defaultValue.GetTypeId().guid;
+		const CryGUID typeGUID = m_defaultValue.GetTypeId().guid;
 		layout.AddInput("Array", typeGUID, { EScriptGraphPortFlags::Data, EScriptGraphPortFlags::Array });
 		layout.AddInputWithData(m_defaultValue.GetTypeName(), typeGUID, { EScriptGraphPortFlags::Data, EScriptGraphPortFlags::Persistent, EScriptGraphPortFlags::Editable }, *m_defaultValue.GetValue());
 	}
@@ -69,7 +70,7 @@ void CScriptGraphArrayAddNode::Edit(Serialization::IArchive& archive, const ISer
 {
 	ScriptVariableData::CScopedSerializationConfig serializationConfig(archive);
 
-	const SGUID guid = CScriptGraphNodeModel::GetNode().GetGraph().GetElement().GetGUID();
+	const CryGUID guid = CScriptGraphNodeModel::GetNode().GetGraph().GetElement().GetGUID();
 	serializationConfig.DeclareEnvDataTypes(guid);
 	serializationConfig.DeclareScriptEnums(guid);
 	serializationConfig.DeclareScriptStructs(guid);
@@ -137,12 +138,12 @@ void CScriptGraphArrayAddNode::Register(CScriptGraphNodeFactory& factory)
 
 		// IScriptGraphNodeCreator
 
-		virtual SGUID GetTypeGUID() const override
+		virtual CryGUID GetTypeGUID() const override
 		{
 			return CScriptGraphArrayAddNode::ms_typeGUID;
 		}
 
-		virtual IScriptGraphNodePtr CreateNode(const SGUID& guid) override
+		virtual IScriptGraphNodePtr CreateNode(const CryGUID& guid) override
 		{
 			return std::make_shared<CScriptGraphNode>(guid, stl::make_unique<CScriptGraphArrayAddNode>());
 		}
@@ -160,7 +161,7 @@ void CScriptGraphArrayAddNode::Register(CScriptGraphNodeFactory& factory)
 				nodeCreationMenu.AddCommand(std::make_shared<CCreationCommand>(subject.c_str(), SElementId(EDomain::Env, envDataType.GetGUID())));
 				return EVisitStatus::Continue;
 			};
-			scriptView.VisitEnvDataTypes(EnvDataTypeConstVisitor::FromLambda(visitEnvDataType));
+			scriptView.VisitEnvDataTypes(visitEnvDataType);
 		}
 
 		// ~IScriptGraphNodeCreator
@@ -171,15 +172,20 @@ void CScriptGraphArrayAddNode::Register(CScriptGraphNodeFactory& factory)
 
 SRuntimeResult CScriptGraphArrayAddNode::Execute(SRuntimeContext& context, const SRuntimeActivationParams& activationParams)
 {
-	CAnyArrayPtr pArray = DynamicCast<CAnyArrayPtr>(*context.node.GetInputData(EInputIdx::Array));
-	CAnyConstRef value = *context.node.GetInputData(EInputIdx::Value);
+	CAnyConstPtr pAny = context.node.GetInputData(EInputIdx::Array);
+	if (pAny)
+	{
+		CAnyArrayPtr pArray = DynamicCast<CAnyArrayPtr>(*pAny);
+		CAnyConstRef value = *context.node.GetInputData(EInputIdx::Value);
 
-	pArray->PushBack(value);
+		pArray->PushBack(value);
+	}
 
 	return SRuntimeResult(ERuntimeStatus::Continue, EOutputIdx::Out);
 }
 
-const SGUID CScriptGraphArrayAddNode::ms_typeGUID = "02368e7b-7939-495e-bf65-f044c440f4f3"_schematyc_guid;
+const CryGUID CScriptGraphArrayAddNode::ms_typeGUID = "02368e7b-7939-495e-bf65-f044c440f4f3"_cry_guid;
+
 } // Schematyc
 
 SCHEMATYC_REGISTER_SCRIPT_GRAPH_NODE(Schematyc::CScriptGraphArrayAddNode::Register)

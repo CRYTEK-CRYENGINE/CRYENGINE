@@ -4,9 +4,9 @@
 
 // *INDENT-OFF* - <hard to read code and declarations due to inconsistent indentation>
 
-namespace uqs
+namespace UQS
 {
-	namespace core
+	namespace Core
 	{
 
 		CQuery_Fallbacks::CQuery_Fallbacks(const SCtorContext& ctorContext)
@@ -32,7 +32,7 @@ namespace uqs
 				m_pResultSet = std::move(pResultSet);
 
 				// transfer all item-monitors from the child to ourself to keep monitoring until a higher-level query decides differently
-				CQueryBase* pChildQuery = g_hubImpl->GetQueryManager().FindQueryByQueryID(childQueryID);
+				CQueryBase* pChildQuery = g_pHub->GetQueryManager().FindQueryByQueryID(childQueryID);
 				assert(pChildQuery);
 				pChildQuery->TransferAllItemMonitorsToOtherQuery(*this);
 			}

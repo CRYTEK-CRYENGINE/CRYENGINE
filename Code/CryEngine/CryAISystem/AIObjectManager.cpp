@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #include "StdAfx.h"
 #include "AIObjectManager.h"
@@ -9,7 +9,6 @@
 #include "AIFlyingVehicle.h"
 #include "AIPlayer.h"
 #include "AIObjectIterators.h"//TODO get rid of this file totally!
-#include "PerceptionManager.h"
 #include "ObjectContainer.h"
 #include "./TargetSelection/TargetTrackManager.h"
 
@@ -255,6 +254,8 @@ IAIObject* CAIObjectManager::CreateAIObject(const AIObjectParams& params)
 	if (type == AIOBJECT_PLAYER)
 		pObject->Event(AIEVENT_ENABLE, NULL);
 
+	GetAISystem()->OnAIObjectCreated(pObject);
+
 	return pObject;
 }
 
@@ -456,34 +457,7 @@ void CAIObjectManager::OnObjectRemoved(CAIObject* pObject)
 	RemoveObjectFromAllOfType(AIOBJECT_ATTRIBUTE, pObject);
 	RemoveObjectFromAllOfType(AIOBJECT_LEADER, pObject);
 
-	// (MATT) Remove from player - especially as attention target {2009/02/05}
-	CAIPlayer* pPlayer = CastToCAIPlayerSafe(GetAISystem()->GetPlayer());
-	if (pPlayer)
-		pPlayer->OnObjectRemoved(pObject);
-
-	for (CAISystem::AIGroupMap::iterator it = GetAISystem()->m_mapAIGroups.begin(); it != GetAISystem()->m_mapAIGroups.end(); ++it)
-		it->second->OnObjectRemoved(pObject);
-
-	AIObjects::iterator oi;
-	for (oi = GetAISystem()->m_mapFaction.begin(); oi != GetAISystem()->m_mapFaction.end(); ++oi)
-	{
-		if (oi->second == pObject)
-		{
-			GetAISystem()->m_mapFaction.erase(oi);
-			break;
-		}
-	}
-
-	for (oi = GetAISystem()->m_mapGroups.begin(); oi != GetAISystem()->m_mapGroups.end(); ++oi)
-	{
-		if (oi->second == pObject)
-		{
-			GetAISystem()->m_mapGroups.erase(oi);
-			break;
-		}
-	}
-
-	for (oi = m_mapDummyObjects.begin(); oi != m_mapDummyObjects.end(); ++oi)
+	for (AIObjects::iterator oi = m_mapDummyObjects.begin(); oi != m_mapDummyObjects.end(); ++oi)
 	{
 		if (oi->second == pObject)
 		{
@@ -492,63 +466,7 @@ void CAIObjectManager::OnObjectRemoved(CAIObject* pObject)
 		}
 	}
 
-	CLeader* pLeader = pObject->CastToCLeader();
-	if (pLeader)
-	{
-		if (CAIGroup* pAIGroup = pLeader->GetAIGroup())
-		{
-			pAIGroup->SetLeader(0);
-		}
-	}
-	CAISystem::FormationMap::iterator fi;
-	for (fi = GetAISystem()->m_mapActiveFormations.begin(); fi != GetAISystem()->m_mapActiveFormations.end(); ++fi)
-		fi->second->OnObjectRemoved(pObject);
-
-	//remove this object from any pending paths generated for him
-	CAIActor* pActor = pObject->CastToCAIActor();
-	if (pActor)
-	{
-		pActor->CancelRequestedPath(true);
-	}
-
-	// (MATT) Try to do implicitly {2009/02/05}
-	/*
-	   // check if this object owned any beacons and remove them if so
-	   if (!m_mapBeacons.empty())
-	   {
-	   BeaconMap::iterator bi,biend = m_mapBeacons.end();
-	   for (bi=m_mapBeacons.begin();bi!=biend;)
-	   {
-	    if ((bi->second).pOwner == pObject)
-	    {
-	      BeaconMap::iterator eraseme = bi;
-	   ++bi;
-	      RemoveObject((eraseme->second).pBeacon);
-	      m_mapBeacons.erase(bi);
-	    }
-	    else
-	   ++bi;
-	   }
-	   }
-	 */
-
-	if (gAIEnv.pTargetTrackManager)
-		gAIEnv.pTargetTrackManager->OnObjectRemoved(pObject);
-
-	CPuppet* pPuppet = pObject->CastToCPuppet();
-	if (pPuppet)
-	{
-		for (unsigned i = 0; i < GetAISystem()->m_delayedExpAccessoryUpdates.size(); )
-		{
-			if (GetAISystem()->m_delayedExpAccessoryUpdates[i].pPuppet = pPuppet)
-			{
-				GetAISystem()->m_delayedExpAccessoryUpdates[i] = GetAISystem()->m_delayedExpAccessoryUpdates.back();
-				GetAISystem()->m_delayedExpAccessoryUpdates.pop_back();
-			}
-			else
-				++i;
-		}
-	}
+	GetAISystem()->OnAIObjectRemoved(pObject);
 }
 
 // it removes all references to this object from all objects of the specified type

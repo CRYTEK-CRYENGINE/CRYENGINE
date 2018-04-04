@@ -5,61 +5,10 @@
 
 // *INDENT-OFF* - <hard to read code and declarations due to inconsistent indentation>
 
-namespace uqs
+namespace UQS
 {
-	namespace core
+	namespace Core
 	{
-
-		//===================================================================================
-		//
-		// CTextualDeferredEvaluatorBlueprint
-		//
-		//===================================================================================
-
-		CTextualDeferredEvaluatorBlueprint::CTextualDeferredEvaluatorBlueprint()
-			: m_weight("1.0")
-		{
-		}
-
-		void CTextualDeferredEvaluatorBlueprint::SetEvaluatorName(const char* evaluatorName)
-		{
-			m_evaluatorName = evaluatorName;
-		}
-
-		ITextualInputBlueprint& CTextualDeferredEvaluatorBlueprint::GetInputRoot()
-		{
-			return m_rootInput;
-		}
-
-		const char* CTextualDeferredEvaluatorBlueprint::GetEvaluatorName() const
-		{
-			return m_evaluatorName.c_str();
-		}
-
-		const ITextualInputBlueprint& CTextualDeferredEvaluatorBlueprint::GetInputRoot() const
-		{
-			return m_rootInput;
-		}
-
-		void CTextualDeferredEvaluatorBlueprint::SetWeight(const char* weight)
-		{
-			m_weight = weight;
-		}
-
-		const char* CTextualDeferredEvaluatorBlueprint::GetWeight() const
-		{
-			return m_weight.c_str();
-		}
-
-		void CTextualDeferredEvaluatorBlueprint::SetSyntaxErrorCollector(datasource::SyntaxErrorCollectorUniquePtr ptr)
-		{
-			m_pSyntaxErrorCollector = std::move(ptr);
-		}
-
-		datasource::ISyntaxErrorCollector* CTextualDeferredEvaluatorBlueprint::GetSyntaxErrorCollector() const
-		{
-			return m_pSyntaxErrorCollector.get();
-		}
 
 		//===================================================================================
 		//
@@ -69,66 +18,63 @@ namespace uqs
 
 		CDeferredEvaluatorBlueprint::CDeferredEvaluatorBlueprint()
 			: m_pDeferredEvaluatorFactory(nullptr)
-			, m_weight(1.0f)
-		{}
-
-		bool CDeferredEvaluatorBlueprint::Resolve(const ITextualDeferredEvaluatorBlueprint& source, const CQueryBlueprint& queryBlueprintForGlobalParamChecking)
 		{
-			const char* evaluatorName = source.GetEvaluatorName();
-
-			m_pDeferredEvaluatorFactory = g_hubImpl->GetDeferredEvaluatorFactoryDatabase().FindFactoryByName(evaluatorName);
-			if (!m_pDeferredEvaluatorFactory)
-			{
-				if (datasource::ISyntaxErrorCollector* pSE = source.GetSyntaxErrorCollector())
-				{
-					pSE->AddErrorMessage("Unknown DeferredEvaluatorFactory '%s'", evaluatorName);
-				}
-				return false;
-			}
-
-			bool parsedWeightSuccessfully = true;
-			const char* weight = source.GetWeight();
-			if (sscanf(weight, "%f", &m_weight) != 1)
-			{
-				if (datasource::ISyntaxErrorCollector* pSE = source.GetSyntaxErrorCollector())
-				{
-					pSE->AddErrorMessage("Could not parse the weight from its textual representation into a float: '%s'", weight);
-				}
-
-				// having failed to parse the weight is not critical in the sense that it prevents parsing further data, but we need to remember its failure for the return value
-				parsedWeightSuccessfully = false;
-			}
-
-			CInputBlueprint inputRoot;
-			const ITextualInputBlueprint& textualInputRoot = source.GetInputRoot();
-			const client::IInputParameterRegistry& inputParamsReg = m_pDeferredEvaluatorFactory->GetInputParameterRegistry();
-
-			if (!inputRoot.Resolve(textualInputRoot, inputParamsReg, queryBlueprintForGlobalParamChecking, false))
-			{
-				return false;
-			}
-
-			ResolveInputs(inputRoot);
-
-			// if we're here, then the only parse failure that could have happened is a bad weight, so the final result depends only on that particular outcome
-
-			return parsedWeightSuccessfully;
+			// nothing
 		}
 
-		client::IDeferredEvaluatorFactory& CDeferredEvaluatorBlueprint::GetFactory() const
+		Client::IDeferredEvaluatorFactory& CDeferredEvaluatorBlueprint::GetFactory() const
 		{
 			assert(m_pDeferredEvaluatorFactory);
 			return *m_pDeferredEvaluatorFactory;
 		}
 
-		float CDeferredEvaluatorBlueprint::GetWeight() const
+		void CDeferredEvaluatorBlueprint::PrintToConsole(CLogger& logger, const char* szMessagePrefix) const
 		{
-			return m_weight;
+			const CEvaluationResultTransform& evaluationResultTransform = GetEvaluationResultTransform();
+			const EScoreTransformType scoreTransformType = evaluationResultTransform.GetScoreTransformType();
+			const IScoreTransformFactory* pScoreTransformFactory = g_pHub->GetScoreTransformFactoryDatabase().FindFactoryByCallback([scoreTransformType](const IScoreTransformFactory& scoreTransformFactory) { return scoreTransformFactory.GetScoreTransformType() == scoreTransformType; });
+
+			logger.Printf("%s%s (weight = %f, scoreTransform = %s, negateDiscard = %s)",
+				szMessagePrefix,
+				m_pDeferredEvaluatorFactory->GetName(),
+				GetWeight(),
+				pScoreTransformFactory ? pScoreTransformFactory->GetName() : "(unknown scoreTransform - cannot happen)",
+				evaluationResultTransform.GetNegateDiscard() ? "true" : "false"
+			);
+
+			//logger.Printf("%s%s (weight = %f)", szMessagePrefix, m_pDeferredEvaluatorFactory->GetName(), GetWeight());
 		}
 
-		void CDeferredEvaluatorBlueprint::PrintToConsole(CLogger& logger, const char* messagePrefix) const
+		bool CDeferredEvaluatorBlueprint::ResolveFactory(const ITextualEvaluatorBlueprint& source)
 		{
-			logger.Printf("%s%s (weight = %f)", messagePrefix, m_pDeferredEvaluatorFactory->GetName(), m_weight);
+			const CryGUID& evaluatorGUID = source.GetEvaluatorGUID();
+			const char* szEvaluatorName = source.GetEvaluatorName();
+
+			//
+			// deferred-evaluator factory: first search by its GUID, then by its name
+			//
+
+			if (!(m_pDeferredEvaluatorFactory = g_pHub->GetDeferredEvaluatorFactoryDatabase().FindFactoryByGUID(evaluatorGUID)))
+			{
+				if (!(m_pDeferredEvaluatorFactory = g_pHub->GetDeferredEvaluatorFactoryDatabase().FindFactoryByName(szEvaluatorName)))
+				{
+					if (DataSource::ISyntaxErrorCollector* pSE = source.GetSyntaxErrorCollector())
+					{
+						Shared::CUqsString guidAsString;
+						Shared::Internal::CGUIDHelper::ToString(evaluatorGUID, guidAsString);
+						pSE->AddErrorMessage("Unknown DeferredEvaluatorFactory: GUID = %s, name = '%s'", guidAsString.c_str(), szEvaluatorName);
+					}
+					return false;
+				}
+			}
+
+			return true;
+		}
+
+		const Client::IInputParameterRegistry& CDeferredEvaluatorBlueprint::GetInputParameterRegistry() const
+		{
+			assert(m_pDeferredEvaluatorFactory);
+			return m_pDeferredEvaluatorFactory->GetInputParameterRegistry();
 		}
 
 	}

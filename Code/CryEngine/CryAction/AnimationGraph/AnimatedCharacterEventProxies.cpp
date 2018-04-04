@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #include "StdAfx.h"
 #include "AnimatedCharacterEventProxies.h"
@@ -12,6 +12,10 @@
 #include <CryExtension/CryCreateClassInstance.h>
 
 //////////////////////////////////////////////////////////////////////////
+
+CRYREGISTER_CLASS(CAnimatedCharacterComponent_PrepareAnimatedCharacterForUpdate)
+CRYREGISTER_CLASS(CAnimatedCharacterComponent_StartAnimProc)
+CRYREGISTER_CLASS(CAnimatedCharacterComponent_GenerateMoveRequest)
 
 CAnimatedCharacterComponent_Base::CAnimatedCharacterComponent_Base()
 	: m_pAnimCharacter(nullptr)
@@ -54,26 +58,9 @@ void CAnimatedCharacterComponent_PrepareAnimatedCharacterForUpdate::OnPrePhysics
 	m_pAnimCharacter->PrepareAnimatedCharacterForUpdate();
 }
 
-IEntityComponent::ComponentEventPriority CAnimatedCharacterComponent_PrepareAnimatedCharacterForUpdate::GetEventPriority(const int eventID) const
+IEntityComponent::ComponentEventPriority CAnimatedCharacterComponent_PrepareAnimatedCharacterForUpdate::GetEventPriority() const
 {
-	CRY_ASSERT(m_pAnimCharacter);
-
-	switch (eventID)
-	{
-	case ENTITY_EVENT_PREPHYSICSUPDATE:
-		{
-			int priority = ENTITY_PROXY_LAST - ENTITY_PROXY_USER + EEntityEventPriority_PrepareAnimatedCharacterForUpdate;
-
-			if (m_pAnimCharacter->GetEntityId() == CCryAction::GetCryAction()->GetClientActorId())
-			{
-				// we want the client StartAnimProc to happen after both CActor and GenMoveRequest.
-				priority += EEntityEventPriority_Client;
-			}
-
-			return priority;
-		}
-	}
-	return(ENTITY_PROXY_LAST - ENTITY_PROXY_USER);
+	return ENTITY_PROXY_USER + EEntityEventPriority_PrepareAnimatedCharacterForUpdate;
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -85,26 +72,9 @@ void CAnimatedCharacterComponent_StartAnimProc::OnPrePhysicsUpdate(float elapsed
 	m_pAnimCharacter->PrepareAndStartAnimProc();
 }
 
-IEntityComponent::ComponentEventPriority CAnimatedCharacterComponent_StartAnimProc::GetEventPriority(const int eventID) const
+IEntityComponent::ComponentEventPriority CAnimatedCharacterComponent_StartAnimProc::GetEventPriority() const
 {
-	CRY_ASSERT(m_pAnimCharacter);
-
-	switch (eventID)
-	{
-	case ENTITY_EVENT_PREPHYSICSUPDATE:
-		{
-			int priority = ENTITY_PROXY_LAST - ENTITY_PROXY_USER + EEntityEventPriority_StartAnimProc;
-
-			if (m_pAnimCharacter->GetEntityId() == CCryAction::GetCryAction()->GetClientActorId())
-			{
-				// we want the client StartAnimProc to happen after both CActor and GenMoveRequest.
-				priority += EEntityEventPriority_Client;
-			}
-			return priority;
-		}
-	}
-
-	return(ENTITY_PROXY_LAST - ENTITY_PROXY_USER);
+	return ENTITY_PROXY_USER + EEntityEventPriority_StartAnimProc;
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -116,23 +86,7 @@ void CAnimatedCharacterComponent_GenerateMoveRequest::OnPrePhysicsUpdate(float e
 	m_pAnimCharacter->GenerateMovementRequest();
 }
 
-IEntityComponent::ComponentEventPriority CAnimatedCharacterComponent_GenerateMoveRequest::GetEventPriority(const int eventID) const
+IEntityComponent::ComponentEventPriority CAnimatedCharacterComponent_GenerateMoveRequest::GetEventPriority() const
 {
-	CRY_ASSERT(m_pAnimCharacter);
-
-	switch (eventID)
-	{
-	case ENTITY_EVENT_PREPHYSICSUPDATE:
-		{
-			int priority = ENTITY_PROXY_LAST - ENTITY_PROXY_USER + EEntityEventPriority_AnimatedCharacter;
-
-			if (m_pAnimCharacter->GetEntityId() == CCryAction::GetCryAction()->GetClientActorId())
-			{
-				priority += EEntityEventPriority_Client;
-			}
-			return priority;
-		}
-	}
-
-	return(ENTITY_PROXY_LAST - ENTITY_PROXY_USER);
+	return ENTITY_PROXY_USER + EEntityEventPriority_AnimatedCharacter;
 }

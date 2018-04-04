@@ -35,14 +35,9 @@ float4 g_GeneralParams < vsregister = c13; psregister = c14; > ;
 
 float4 g_ScreenScale < psregister = c15; >;
 
-float4 vWBasisX	 < psregister = c16; > ;
-float4 vWBasisY	 < psregister = c17; > ;
-float4 vWBasisZ	 < psregister = c18; > ;
-
 //range c28 - c31 - can't be used
 
 float4x4 g_mDecalTS <  psregister = c25; > ;
-float4x4 g_mViewProj < vsregister = c14;> ;
 float4x4 g_mViewProjPrev;
 
 float4 g_TextureRect[2];	// x, y, w, h
@@ -101,7 +96,7 @@ Texture2D<uint2>  StencilTex     : register(t4);
 Texture2DMS<float4> DepthTexMS   : register(t3);
 Texture2DMS<uint2>  StencilTexMS : register(t4);
 
-Texture2D shadowNoiseTex         : register(t7) = "EngineAssets/Textures/rotrandom.dds"; 
+Texture2D shadowNoiseTex         : register(t7) = "%ENGINE%/EngineAssets/Textures/rotrandom.dds"; 
 
 SamplerComparisonState ssShadowComparison     : register(s3) = SS_Shadow2;
 SamplerState           ssShadowPointWrap      : register(s7) = SS_PointWrap;
@@ -187,11 +182,6 @@ float4 CalcHomogeneousPos(float SceneDepth, float2 WPos, float4 worldBasisX, flo
   return HPos;
 }
 
-float4 CalcHomogeneousPos(float SceneDepth, float2 WPos)
-{
-  return CalcHomogeneousPos(SceneDepth, WPos, vWBasisX, vWBasisY, vWBasisZ);
-}
-
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 /// Stencil light pre-pass technique ///////////////////////////////////////////////////////////////
 
@@ -263,6 +253,127 @@ vtxOutWPOSOnly DecalVolumeVS(vtxInLightPrePass IN)
 
   return OUT;
 }
+
+cbuffer CBDeferredDecal : register(b0)
+{
+	struct
+	{
+		float4x4 matVolumeProj;
+		float4x4 matInvVolumeProj;
+		float4x4 matDecalTS;
+		float4   textureRect[2];
+		float4   diffuseCol;
+		float4   specularCol;
+		float4   mipLevels;
+		float4   generalParams;
+	} cbDecal;
+};
+
+vtxOutWPOSOnly DefDecalVolumeVS(vtxInLightPrePass IN)
+{
+	vtxOutWPOSOnly OUT = (vtxOutWPOSOnly)0;
+
+	float4 vPos = IN.Position;
+
+	vPos = mul(cbDecal.matInvVolumeProj, vPos);
+	vPos /= vPos.w;
+
+	OUT.HPosition = mul(CV_ViewProjMatr, vPos);
+
+	return OUT;
+}
+
+Texture2D   Decal_SceneDepth   : register(t0);
+Texture2D   Decal_SceneNormals : register(t1);
+Texture2D   Decal_Diffuse      : register(t2);
+Texture2D   Decal_Normal       : register(t3);
+Texture2D   Decal_Smoothness   : register(t4);
+Texture2D   Decal_Opacity      : register(t5);
+
+SamplerState  Decal_SamplerTrilinearWrap : register(s0);
+SamplerState  Decal_SamplerDiffuse       : register(s1);
+
+#if !ORBIS
+[earlydepthstencil]
+#endif
+poDecalsMRT DefDecalPassPS(fragInWPOS IN)
+{
+	poDecalsMRT OUT = (poDecalsMRT)0;
+
+	float fDepth = Decal_SceneDepth.Load(int3(IN.WPos.xy, 0)).x;
+	float3 vPosition = ReconstructWorldPos(IN.WPos.xy, fDepth, true);
+
+	float4 vProjTC = mul(cbDecal.matVolumeProj, float4(vPosition.xyz + GetWorldViewPos(), 1.0));
+	vProjTC.xyz /= vProjTC.w;
+
+	float4 clipFrustum;
+	clipFrustum.xy = vProjTC.xy;
+	clipFrustum.zw = 1.0 - vProjTC.xy;
+	clip(clipFrustum);
+	clip(vProjTC.z);
+
+	// Fading distance is longer under the decal and 4x shorter in front of the decal. 
+	// Attenuation function looks a bit fuzzy, post c3 this should be refactored (doing now would break backward compatibility with current decals)
+	float fAtten = saturate(1 - pow((vProjTC.z - 0.2) * (vProjTC.z < 0.2 ? 5.0 : 1.2), 2));
+
+	// Angle based fading
+	half3 surfNormal = DecodeGBufferNormal(Decal_SceneNormals.Load(int3(IN.WPos.xy, 0)));
+	float fMult = 1.f;
+#if !%_RT_SAMPLE0  
+	fMult = cbDecal.generalParams.w; // w is used for angle based fading if alpha grow feature is off
+#endif
+	float fadeout = saturate(fMult * (1 - dot(surfNormal.xyz, cbDecal.matDecalTS[2].xyz)));
+	fAtten *= 1 - fadeout * fadeout;
+
+	vProjTC.zw = vProjTC.xy;
+	vProjTC.x = dot(float3(vProjTC.xy, 1), cbDecal.textureRect[0].xyz);
+	vProjTC.y = dot(float3(vProjTC.xy, 1), cbDecal.textureRect[1].xyz);
+
+	// Manual mip level computation
+	half NdotV = saturate(dot(cbDecal.matDecalTS[2].xyz, -normalize(vPosition)));
+	half4 mipLevels = log2((cbDecal.mipLevels * length(vPosition)) / NdotV);
+	mipLevels = max(mipLevels - lerp(1.5, 0.5, NdotV), 0);  // Very simple aniso filtering approximation
+
+	half4 cDiffuse = Decal_Diffuse.SampleLevel(Decal_SamplerDiffuse, vProjTC.xy, mipLevels.x);
+#if %_RT_SAMPLE5
+	cDiffuse.w *= Decal_Opacity.SampleLevel(Decal_SamplerTrilinearWrap, vProjTC.zw, mipLevels.w).r;
+#endif
+	half fGloss = cbDecal.specularCol.w;
+#if %_RT_SAMPLE4
+	fGloss *= Decal_Smoothness.SampleLevel(Decal_SamplerTrilinearWrap, vProjTC.xy, mipLevels.z).r;
+#endif
+
+#if %_RT_SAMPLE0  
+	clip(cDiffuse.a - cbDecal.generalParams.w); // alpha grow feature
+#endif
+
+	half3 vNormal = half3(0, 0, 1);
+#if %_RT_SAMPLE1
+	vNormal = GetNormalMapLod(Decal_Normal, Decal_SamplerTrilinearWrap, float4(vProjTC.xy, 0, mipLevels.y));
+	vNormal = mul(float4(vNormal,0), cbDecal.matDecalTS).xyz;
+#endif
+
+	MaterialAttribsCommon attribs = MaterialAttribsDefault();
+
+	attribs.Albedo = cDiffuse.rgb * cbDecal.diffuseCol.rgb;
+	attribs.NormalWorld = vNormal;
+	attribs.Smoothness = fGloss;
+	attribs.Reflectance = GetLuminance(cbDecal.specularCol.rgb);
+
+	half fAlpha = cDiffuse.a * cbDecal.diffuseCol.a * fAtten;
+	fAlpha = saturate(pow(fAlpha * cbDecal.generalParams.x, cbDecal.generalParams.y));
+	half fAlphaDiffuse = fAlpha * cbDecal.generalParams.z;
+	half fAlphaNormal = fAlpha;
+#if !%_RT_SAMPLE1
+	fAlphaNormal = 0;
+#endif
+
+	EncodeGBuffer(attribs, OUT.Normal, OUT.Diffuse, OUT.Specular);
+	SetGBufferBlending(OUT.Normal, OUT.Diffuse, OUT.Specular, fAlphaNormal, fAlphaDiffuse, fAlpha);
+
+	return OUT;
+}
+
 
 [earlydepthstencil]
 poDecalsMRT DecalPassPS(fragInWPOS IN)
@@ -348,7 +459,7 @@ poDecalsMRT DecalPassPS(fragInWPOS IN)
 	
 	EncodeGBuffer( attribs, OUT.Normal, OUT.Diffuse, OUT.Specular );
 	SetGBufferBlending( OUT.Normal, OUT.Diffuse, OUT.Specular, fAlphaNormal, fAlphaDiffuse, fAlpha );
-	
+
   return OUT;
 }
 
@@ -568,6 +679,17 @@ technique DeferredDecal
   {
     VertexShader = LightPassVS() DeferredDecalPassVS;
     PixelShader = DecalPassPS() DeferredDecalPassPS;
+
+    CullMode = None;        
+  }
+}
+
+technique DeferredDecalVolumeMerged
+{
+  pass p0
+  {
+    VertexShader = DefDecalVolumeVS() DeferredDecalPassVS;
+    PixelShader = DefDecalPassPS() DeferredDecalPassPS;
 
     CullMode = None;        
   }
@@ -1020,11 +1142,11 @@ pixout SSRRaytracePS( vtxOutWPOS IN )
 	float dirAtten = saturate( dot( viewVec, reflVec ) + 0.5);
 	if (dirAtten < 0.01 || fDepth == 1) return OUT;  // Ignore sky pixels as well
 	
-	float4 rayStart = mul( float4( vPositionWS, 1 ), g_mViewProj );
+	float4 rayStart = mul( CV_ViewProjMatr, float4( vPositionWS, 1 ) );
 	rayStart.z = fDepth;
 	rayStart.xy = GetScaledScreenTC( rayStart.xy * float2(0.5, -0.5) + 0.5 * rayStart.w );
 
-	float4 rayEnd = mul( float4( vPositionWS + reflVec, 1 ), g_mViewProj );
+	float4 rayEnd = mul( CV_ViewProjMatr, float4( vPositionWS + reflVec, 1 ) );
 	rayEnd.z = g_PS_ProjRatio.y / (rayEnd.z / rayEnd.w - g_PS_ProjRatio.x);
 	rayEnd.xy = GetScaledScreenTC( rayEnd.xy * float2(0.5, -0.5) + 0.5 * rayEnd.w );
 
@@ -1221,7 +1343,7 @@ Texture2D<float4> HeightmapAODepth : register(t11);
 Texture2D<float4> HeightmapAO      : register(t12);
 SamplerState HeightmapAOSampler    : register(s11);
 
-pixout DirOccPassPS(vtxOut IN)
+pixout SSDO_Sampling_PS(vtxOut IN)
 {
 	pixout OUT = (pixout) 0;
 	
@@ -1274,8 +1396,12 @@ pixout DirOccPassPS(vtxOut IN)
 	}
 	
 	// Compute normal in view space
+#if %_RT_SAMPLE2
+	half3 vNormalVS = normalize(cross(ddy(vReceiverPos), ddx(vReceiverPos)));
+#else	
 	half3 vNormal = DecodeGBufferNormal( tex2D( _tex0, screenTC.xy ) );
 	half3 vNormalVS = normalize( mul( CV_ViewMatr, half4(vNormal, 0) ).xyz ) * float3(1, -1, -1);
+#endif
 	
 	half4 sh2 = 0;
 	[unroll]
@@ -1373,14 +1499,62 @@ pixout DirOccPassPS(vtxOut IN)
 	return OUT;
 }
 
-technique DirOccPass
+float4 SSDO_SourceTexSize;
+float4 SSDO_BlurOffset;
+float4 SSDO_BlurKernel;
+
+pixout SSDO_Filter_PS(vtxOut IN)
+{
+	pixout OUT = (pixout)0;
+
+	half2 addr0 = floor(IN.baseTC.xy * SSDO_SourceTexSize.xy) * SSDO_BlurOffset.zw;
+	half2 addr1 = addr0 + SSDO_BlurKernel.xy;
+	half2 addr2 = addr0 + SSDO_BlurKernel.yz;
+	half2 addr3 = addr2 + SSDO_BlurKernel.xy;
+
+	half4 value0 = tex2D(_tex0, addr0);
+	half4 value1 = tex2D(_tex0, addr1);
+	half4 value2 = tex2D(_tex0, addr2);
+	half4 value3 = tex2D(_tex0, addr3);
+	
+	// Sample depth values
+	const half4 vDepthAddrOffset = half4(1.h, 1.h, -1.h, -1.h) * SSDO_BlurOffset.xyxy;
+	half4 depth4;
+	depth4.x = tex2D(_tex1, addr0 + vDepthAddrOffset.zw);
+	depth4.y = tex2D(_tex1, addr1 + vDepthAddrOffset.xw);
+	depth4.z = tex2D(_tex1, addr2 + vDepthAddrOffset.zy);
+	depth4.w = tex2D(_tex1, addr3 + vDepthAddrOffset.xy);
+
+	half centerDepth = tex2D(_tex1, IN.baseTC.xy);
+	half4 weight4 = saturate(1.h - 35.h * abs(depth4 / centerDepth - 1.h));
+
+	half totalWeight = dot(weight4, 1.h);
+	weight4 /= totalWeight;
+	
+	OUT.Color = (value0 + value1 + value2 + value3) * 0.25h;
+	if (totalWeight > 0.01h)
+		OUT.Color = weight4.x * value0 + weight4.y * value1 + weight4.z * value2 + weight4.w * value3;
+
+	return OUT;
+}
+
+technique SSDO_Sampling
 {
   pass p0
   {
-    VertexShader = DirOccPassVS() DeferredPassVS;
+    VertexShader = FullscreenTriVS() DeferredPassVS;
     GeometryShader = $AutoGS_MultiRes();
-    PixelShader = DirOccPassPS() DeferredPassPS;
+    PixelShader = SSDO_Sampling_PS() DeferredPassPS;
     CullMode = None;
+  }
+}
+
+technique SSDO_Filter
+{
+  pass p0
+  {
+		VertexShader = FullscreenTriVS();
+    PixelShader = SSDO_Filter_PS();
   }
 }
 
@@ -2220,6 +2394,97 @@ technique ClipVolumeBlendValue
     PixelShader  = ClipVolumeBlendValuePS();
     CullMode = None;        
   }
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////// Clip Volumes for volumetric fog ////////////////////////
+
+cbuffer CBClipVolumeVolFog : register(b0)
+{
+	struct ClipVolumeVolFogConstants
+	{
+		float4x4 transformMatrix;
+		uint4    sliceIndex;
+	} cbClipVolumeVolFog;
+};
+
+struct vtxOutClipVolumeVolFogGS
+{
+	float4 HPosition  : POSITION;
+	uint rtindex      : SV_RenderTargetArrayIndex;
+};
+
+vtxOutClipVolume ClipVolumeVolFogVS(vtxInLightPrePass IN)
+{
+	vtxOutClipVolume OUT = (vtxOutClipVolume)0; 
+
+	float4 vPos = IN.Position;
+	OUT.HPosition = mul(vPos, cbClipVolumeVolFog.transformMatrix);
+
+	return OUT;
+}
+
+// max 64 slices per one clip volume.
+[maxvertexcount(192)]
+void ClipVolumeVolFogGS(triangle vtxOutClipVolume IN[3], inout TriangleStream<vtxOutClipVolumeVolFogGS> outputStream)
+{
+	uint sliceStartIndex = cbClipVolumeVolFog.sliceIndex.x;
+	uint sliceEndIndex = cbClipVolumeVolFog.sliceIndex.y;
+
+	for(uint i = sliceStartIndex; i < sliceEndIndex; ++i)
+	{
+		vtxOutClipVolumeVolFogGS OUT;
+		OUT.rtindex = i;
+
+		[unroll] for(uint j = 0; j < 3; ++j)
+		{
+			OUT.HPosition = IN[j].HPosition;
+			outputStream.Append(OUT);
+		}
+
+		outputStream.RestartStrip();
+	}
+}
+
+technique ClipVolumeStencilVolFog
+{
+	pass p0
+	{
+		VertexShader = ClipVolumeVolFogVS();
+		GeometryShader = ClipVolumeVolFogGS();
+		PixelShader  = ClipVolumePS();
+		CullMode = None;
+	}
+}
+
+float4 ResolveStencilVolFogPS(vtxOut IN) : COLOR0 
+{
+	const int BIT_STENCIL_STATIC            = 0x0000007F;
+	const int BIT_STENCIL_INSIDE_VOLUME     = 0x00000040;
+
+	const float fMaxStencilRefRcp = 1.0f / 255.0f;
+	
+	int2 nStencilVal;
+	int3 vPixCoord = int3( IN.WPos.xy, 0);
+	nStencilVal = StencilTex.Load(vPixCoord);
+
+	nStencilVal = nStencilVal & BIT_STENCIL_STATIC;
+
+#if DURANGO || ORBIS
+	return nStencilVal.r * fMaxStencilRefRcp;
+#else
+	return nStencilVal.g * fMaxStencilRefRcp;
+#endif
+}
+
+technique ResolveStencilVolFog
+{
+	pass p0
+	{
+		VertexShader = FullscreenTriVS();
+		PixelShader  = ResolveStencilVolFogPS();
+		CullMode = None;
+	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

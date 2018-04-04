@@ -19,7 +19,6 @@
 		"CryEntitySystem",
 		"CryFont",
 		"CryInput",
-		"CryLobby",
 		"CryMovie",
 		"CryNetwork",
 		"CryParticleSystem",
@@ -33,6 +32,7 @@
 		"CryAction",
 		"CrySchematycCore",
 		"CrySchematycSTDEnv",
+		"CryFlowGraph",
 		"HWScripts",
 		
 		"CryDefaultEntities",
@@ -46,12 +46,12 @@
 		"lua",
 		"freetype",
 		"bigdigits",
-		"yasli",
 		"tomcrypt",
 		"jsmn",
 		"png16",
 		"jpeg",
 		"curl",
+		"spirv-cross",
 
 		"CryGameSDK"
 	],
@@ -63,9 +63,9 @@
 		"CryAudioImplFmod",
 		"CryAudioImplPortAudio",
 		
-		"CryRenderOpenGL",
 		"CryRenderD3D11",
 		"CryRenderD3D12",
+		"CryRenderVulkan",
 
 		"CryScaleformHelper",
 
@@ -81,10 +81,11 @@
 		"WindowsLauncher",
 		"CryRenderD3D11",
 		"CryRenderD3D12",
-		"CryRenderOpenGL",
+		"CryRenderVulkan",
 		"CryAudioImplSDLMixer",
 		"CryAudioImplFmod",
 		"CryAudioImplPortAudio",
+		"CryLobby",
 
 		"oculus",
 		"flac",
@@ -113,7 +114,9 @@
 	"win_release_defines"                   : "PURE_CLIENT",
 	"win_release_monolithic_build"          : "True",
 
-	"durango_modules"                       : [ "DurangoLauncher", "CryRenderD3D11" ],
+	"durango_modules"                       : [ "DurangoLauncher", "CryRenderD3D11", "CryLobby" ],
+	"durango_debug_modules"                 : [ "CryRenderD3D12" ],
+	"durango_profile_modules"               : [ "CryRenderD3D12" ],
 	"durango_performance_monolithic_build"  : "True",
 	"durango_release_monolithic_build"      : "True",
 
@@ -128,6 +131,7 @@
 		"CryRenderOpenGL",
 		"CryAudioImplSDLMixer",
 		"CryAudioImplFmod",
+		"CryLobby",
 		"assert_term",
 
 		"libmodplug",
@@ -142,13 +146,15 @@
 		"timidity"
 	],
 
-	"darwin_modules"                        : [ "MacLauncher", "CryRenderOpenGL" ],
+	"darwin_modules"                        : [ "MacLauncher", "CryRenderOpenGL", "CryLobby" ],
 	
 	"android_modules":
 	[
 		"AndroidLauncher",
 		"CryRenderOpenGL",
+		"CryRenderVulkan",
 		"CryAudioImplSDLMixer",
+		"CryLobby",
 
 		"libmodplug",
 		"flac",

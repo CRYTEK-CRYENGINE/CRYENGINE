@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 /********************************************************************
    -------------------------------------------------------------------------
@@ -637,21 +637,6 @@ bool CPipeUser::GetBranchCondition(QGoal& Goal)
 				return true;
 		}
 		break;
-	case IF_NAV_WAYPOINT_HUMAN:   // branch if current navigation graph is waypoint
-		{
-			int nBuilding;
-			IAISystem::ENavigationType navType = gAIEnv.pNavigation->CheckNavigationType(GetPos(), nBuilding, m_movementAbility.pathfindingProperties.navCapMask);
-			if (navType == IAISystem::NAV_WAYPOINT_HUMAN)
-				return true;
-		}
-		break;
-	case IF_NAV_TRIANGULAR:   // branch if current navigation graph is triangular
-		{
-			int nBuilding;
-			IAISystem::ENavigationType navType = gAIEnv.pNavigation->CheckNavigationType(GetPos(), nBuilding, m_movementAbility.pathfindingProperties.navCapMask);
-			if (navType == IAISystem::NAV_TRIANGULAR)
-				return true;
-		}
 	case IF_COVER_COMPROMISED:
 	case IF_COVER_NOT_COMPROMISED:  // jumps if the current cover cannot be used for hiding or if the hide spots does not exists.
 		{
@@ -759,7 +744,7 @@ bool CPipeUser::GetBranchCondition(QGoal& Goal)
 	return false;
 }
 
-void CPipeUser::Update(EObjectUpdate type)
+void CPipeUser::Update(EUpdateType type)
 {
 	IAIActorProxy* pAIActorProxy = GetProxy();
 
@@ -801,7 +786,7 @@ void CPipeUser::Update(EObjectUpdate type)
 
 	if (m_refAttentionTarget.IsValid() && m_coverUser.GetCoverID())
 	{
-		if (type == AIUPDATE_FULL)
+		if (type == EUpdateType::Full)
 		{
 			CAIObject* attTarget = m_refAttentionTarget.GetAIObject();
 
@@ -863,7 +848,7 @@ void CPipeUser::Update(EObjectUpdate type)
 
 	CAIObject* pAttentionTarget = m_refAttentionTarget.GetAIObject();
 
-	if (type == AIUPDATE_FULL)
+	if (type == EUpdateType::Full)
 	{
 		if (m_CurrentHideObject.IsValid())
 		{
@@ -1030,7 +1015,7 @@ void CPipeUser::Update(EObjectUpdate type)
 	{
 		//m_State.Reset();
 
-		if (type != AIUPDATE_FULL)
+		if (type != EUpdateType::Full)
 		{
 			//if approaching then always update
 			for (size_t i = 0; i < m_vActiveGoals.size(); i++)

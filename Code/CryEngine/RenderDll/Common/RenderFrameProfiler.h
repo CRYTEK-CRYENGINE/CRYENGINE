@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #ifndef _SIMPLE_FRAME_PROFILER_
 #define _SIMPLE_FRAME_PROFILER_
@@ -17,27 +17,28 @@
 
 #if defined(ENABLE_FRAME_PROFILER_LABELS)
 
-// macros to implement the platform differences for pushing GPU Markers
-	#if CRY_PLATFORM_ORBIS
+	// macros to implement the platform differences for pushing GPU Markers
+	#if CRY_RENDERER_GNM
+		#define PROFILE_LABEL_GPU(_NAME)      do { GetDeviceObjectFactory().GetCoreCommandList().GetGraphicsInterface()->SetProfilerMarker (_NAME); } while (0)
+		#define PROFILE_LABEL_PUSH_GPU(_NAME) do { GetDeviceObjectFactory().GetCoreCommandList().GetGraphicsInterface()->BeginProfilerEvent(_NAME); } while (0)
+		#define PROFILE_LABEL_POP_GPU(_NAME)  do { GetDeviceObjectFactory().GetCoreCommandList().GetGraphicsInterface()->EndProfilerEvent  (_NAME); } while (0)
+	#elif CRY_PLATFORM_ORBIS
 		#define PROFILE_LABEL_GPU(X)          do { DXOrbis::Device()->SetMarker(X); } while (0)
 		#define PROFILE_LABEL_PUSH_GPU(X)     do { DXOrbis::Device()->PushMarker(X); } while (0)
 		#define PROFILE_LABEL_POP_GPU(X)      do { DXOrbis::Device()->PopMarker(X); } while (0)
-	#elif defined(OPENGL)
+	#elif CRY_RENDERER_OPENGL || CRY_RENDERER_OPENGLES
 		#define PROFILE_LABEL_GPU(_NAME)      DXGLProfileLabel(_NAME);
 		#define PROFILE_LABEL_PUSH_GPU(_NAME) DXGLProfileLabelPush(_NAME);
 		#define PROFILE_LABEL_POP_GPU(_NAME)  DXGLProfileLabelPop(_NAME);
-	#elif defined(CRY_USE_DX12)
-		#define PROFILE_LABEL_GPU(_NAME)      do { CCryDeviceWrapper::GetObjectFactory().GetCoreCommandList()->GetGraphicsInterface()->SetProfilerMarker(_NAME); } while (0)
-		#define PROFILE_LABEL_PUSH_GPU(_NAME)                                                                                 \
-			do { CCryDeviceWrapper::GetObjectFactory().GetCoreCommandList()->GetGraphicsInterface()->BeginProfilerEvent(_NAME); \
-				auto pContext = reinterpret_cast<CCryDX12DeviceContext*>(gcpRendD3D->GetDeviceContext().GetRealDeviceContext());  \
-				pContext->PushProfilerEvent(_NAME); } while (0)
-		#define PROFILE_LABEL_POP_GPU(_NAME)                                                                                  \
-			do { CCryDeviceWrapper::GetObjectFactory().GetCoreCommandList()->GetGraphicsInterface()->EndProfilerEvent(_NAME);   \
-				auto pContext = reinterpret_cast<CCryDX12DeviceContext*>(gcpRendD3D->GetDeviceContext().GetRealDeviceContext());  \
-				pContext->PopProfilerEvent(); } while (0)
-
-	#elif  CRY_PLATFORM_DURANGO
+	#elif(CRY_RENDERER_VULKAN >= 10)
+		#define PROFILE_LABEL_GPU(_NAME)      do { GetDeviceObjectFactory().GetCoreCommandList().GetGraphicsInterface()->SetProfilerMarker (_NAME); } while (0)
+		#define PROFILE_LABEL_PUSH_GPU(_NAME) do { GetDeviceObjectFactory().GetCoreCommandList().GetGraphicsInterface()->BeginProfilerEvent(_NAME); } while (0)
+		#define PROFILE_LABEL_POP_GPU(_NAME)  do { GetDeviceObjectFactory().GetCoreCommandList().GetGraphicsInterface()->EndProfilerEvent  (_NAME); } while (0)
+	#elif (CRY_RENDERER_DIRECT3D >= 120)
+		#define PROFILE_LABEL_GPU(     _NAME) do { GetDeviceObjectFactory().GetCoreCommandList().GetGraphicsInterface()->SetProfilerMarker (_NAME); } while (0)
+		#define PROFILE_LABEL_PUSH_GPU(_NAME) do { GetDeviceObjectFactory().GetCoreCommandList().GetGraphicsInterface()->BeginProfilerEvent(_NAME); } while (0)
+		#define PROFILE_LABEL_POP_GPU( _NAME) do { GetDeviceObjectFactory().GetCoreCommandList().GetGraphicsInterface()->EndProfilerEvent  (_NAME); } while (0)
+	#elif (CRY_RENDERER_DIRECT3D >= 110) && (CRY_RENDERER_DIRECT3D < 120) && CRY_PLATFORM_DURANGO
 		#ifdef USE_PIX_DURANGO
 			#include <CryString/UnicodeFunctions.h>
 			#define PROFILE_LABEL_GPU(X)      do { if (gcpRendD3D->GetPixProfiler() && gcpRendD3D->CV_r_durango_async_dips == 0) { wchar_t buf[256]; Unicode::Convert(buf, X); gcpRendD3D->GetPixProfiler()->SetMarker(buf); } } while (0)
@@ -48,18 +49,21 @@
 			#define PROFILE_LABEL_PUSH_GPU(X) do { /*PIX not enabled*/ } while (0)
 			#define PROFILE_LABEL_POP_GPU(X)  do { /*PIX not enabled*/ } while (0)
 		#endif
-	#else
+	#elif  CRY_PLATFORM_WINDOWS
+		// TODO: replace by ID3DUserDefinedAnnotation https://msdn.microsoft.com/en-us/library/hh446881.aspx
 		#define PROFILE_LABEL_GPU(X)      do { wchar_t buf[256]; Unicode::Convert(buf, X); D3DPERF_SetMarker(0xffffffff, buf); } while (0)
 		#define PROFILE_LABEL_PUSH_GPU(X) do { wchar_t buf[128]; Unicode::Convert(buf, X); D3DPERF_BeginEvent(0xff00ff00, buf); } while (0)
 		#define PROFILE_LABEL_POP_GPU(X)  do { D3DPERF_EndEvent(); } while (0)
+	#else
+		#error "Profiling labels not supported on this api/platform"
 	#endif
 
-// real push/pop marker for GPU, also add to the internal profiler and CPU Markers
+	// real push/pop marker for GPU, also add to the internal profiler and CPU Markers
 	#define PROFILE_LABEL(X)      do { PLATFORM_PROFILER_MARKER(X); PROFILE_LABEL_GPU(X); } while (0)
 	#define PROFILE_LABEL_PUSH(X) do { CryProfile::PushProfilingMarker(EProfileDescription::PUSHPOP, X); PLATFORM_PROFILER_PUSH(X); PROFILE_LABEL_PUSH_GPU(X); if (gcpRendD3D->m_pPipelineProfiler) gcpRendD3D->m_pPipelineProfiler->BeginSection(X); } while (0)
 	#define PROFILE_LABEL_POP(X)  do { CryProfile::PopProfilingMarker(); PLATFORM_PROFILER_POP(); PROFILE_LABEL_POP_GPU(X); if (gcpRendD3D->m_pPipelineProfiler) gcpRendD3D->m_pPipelineProfiler->EndSection(X); } while (0)
 
-// scope util class for GPU profiling Marker
+	// scope util class for GPU profiling Marker
 	#define PROFILE_LABEL_SCOPE(X)                             \
 	  class CProfileLabelScope                                 \
 	  {                                                        \

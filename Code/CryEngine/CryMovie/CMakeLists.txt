@@ -84,4 +84,4 @@ end_sources()
 #END-FILE-LIST
 
 CryEngineModule(CryMovie PCH "StdAfx.cpp" SOLUTION_FOLDER "CryEngine")
-target_include_directories( ${THIS_PROJECT} PRIVATE ${CMAKE_SOURCE_DIR}/Code/CryEngine/CryAction )
+target_include_directories( ${THIS_PROJECT} PRIVATE "${CMAKE_SOURCE_DIR}/Code/CryEngine/CryAction" )

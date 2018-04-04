@@ -110,7 +110,7 @@ struct a2v
 	float2 baseTC	: TEXCOORD0;
 	float4 color	: COLOR0;
 	float4 Tangent	: TANGENT;
-	float4 Binormal	: BINORMAL;
+	float4 Binormal	: BITANGENT;
 };
 
 struct v2f

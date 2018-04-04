@@ -1,24 +1,25 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #include "StdAfx.h"
 #include "Script/Graph/Nodes/ScriptGraphFormatStringNode.h"
 
-#include <Schematyc/Compiler/IGraphNodeCompiler.h>
-#include <Schematyc/Script/IScriptView.h>
-#include <Schematyc/Utils/StackString.h>
-#include <Schematyc/Utils/SharedString.h>
+#include <CrySchematyc/Compiler/IGraphNodeCompiler.h>
+#include <CrySchematyc/Script/IScriptView.h>
+#include <CrySchematyc/Utils/StackString.h>
+#include <CrySchematyc/Utils/SharedString.h>
 
 #include "Script/Graph/ScriptGraphNode.h"
 #include "Script/Graph/ScriptGraphNodeFactory.h"
 #include "SerializationUtils/SerializationContext.h"
 
-SERIALIZATION_ENUM_BEGIN_NESTED2(Schematyc, CScriptGraphFormatStringNode, EElementForm, "Schematyc Script Graph Format String Node Element Form")
+SERIALIZATION_ENUM_BEGIN_NESTED2(Schematyc, CScriptGraphFormatStringNode, EElementForm, "CrySchematyc Script Graph Format String Node Element Form")
 SERIALIZATION_ENUM(Schematyc::CScriptGraphFormatStringNode::EElementForm::Const, "Const", "Constant")
 SERIALIZATION_ENUM(Schematyc::CScriptGraphFormatStringNode::EElementForm::Input, "Input", "Input")
 SERIALIZATION_ENUM_END()
 
 namespace Schematyc
 {
+
 CScriptGraphFormatStringNode::SElement::SElement()
 	: form(EElementForm::Const)
 {}
@@ -107,16 +108,16 @@ CScriptGraphFormatStringNode::SRuntimeData::SRuntimeData(const SRuntimeData& rhs
 	: pElements(rhs.pElements)
 {}
 
-SGUID CScriptGraphFormatStringNode::SRuntimeData::ReflectSchematycType(CTypeInfo<CScriptGraphFormatStringNode::SRuntimeData>& typeInfo)
+void CScriptGraphFormatStringNode::SRuntimeData::ReflectType(CTypeDesc<CScriptGraphFormatStringNode::SRuntimeData>& desc)
 {
-	return "3ade58a5-2317-406c-8411-807cb081a6e6"_schematyc_guid;
+	desc.SetGUID("3ade58a5-2317-406c-8411-807cb081a6e6"_cry_guid);
 }
 
 CScriptGraphFormatStringNode::CScriptGraphFormatStringNode()
 	: m_elements(1)
 {}
 
-SGUID CScriptGraphFormatStringNode::GetTypeGUID() const
+CryGUID CScriptGraphFormatStringNode::GetTypeGUID() const
 {
 	return ms_typeGUID;
 }
@@ -126,9 +127,9 @@ void CScriptGraphFormatStringNode::CreateLayout(CScriptGraphNodeLayout& layout)
 	layout.SetName("Format String");
 	layout.SetStyleId("Core::Utility");
 
-	layout.AddInput("In", SGUID(), { EScriptGraphPortFlags::Flow, EScriptGraphPortFlags::MultiLink });
-	layout.AddOutput("Out", SGUID(), EScriptGraphPortFlags::Flow);
-	layout.AddOutputWithData("Result", GetTypeInfo<CSharedString>().GetGUID(), EScriptGraphPortFlags::Data, CSharedString());
+	layout.AddInput("In", CryGUID(), { EScriptGraphPortFlags::Flow, EScriptGraphPortFlags::MultiLink });
+	layout.AddOutput("Out", CryGUID(), EScriptGraphPortFlags::Flow);
+	layout.AddOutputWithData("Result", GetTypeDesc<CSharedString>().GetGUID(), EScriptGraphPortFlags::Data, CSharedString());
 
 	for (const SElement& element : m_elements)
 	{
@@ -182,7 +183,7 @@ void CScriptGraphFormatStringNode::Edit(Serialization::IArchive& archive, const 
 		ScriptVariableData::CScopedSerializationConfig serializationConfig(archive);
 
 		const IScriptElement& scriptElement = CScriptGraphNodeModel::GetNode().GetGraph().GetElement();
-		const SGUID guid = scriptElement.GetGUID();
+		const CryGUID guid = scriptElement.GetGUID();
 		serializationConfig.DeclareEnvDataTypes(guid);
 		serializationConfig.DeclareScriptEnums(guid);
 
@@ -242,12 +243,12 @@ void CScriptGraphFormatStringNode::Register(CScriptGraphNodeFactory& factory)
 
 		// IScriptGraphNodeCreator
 
-		virtual SGUID GetTypeGUID() const override
+		virtual CryGUID GetTypeGUID() const override
 		{
 			return CScriptGraphFormatStringNode::ms_typeGUID;
 		}
 
-		virtual IScriptGraphNodePtr CreateNode(const SGUID& guid) override
+		virtual IScriptGraphNodePtr CreateNode(const CryGUID& guid) override
 		{
 			return std::make_shared<CScriptGraphNode>(guid, stl::make_unique<CScriptGraphFormatStringNode>());
 		}
@@ -289,7 +290,8 @@ SRuntimeResult CScriptGraphFormatStringNode::Execute(SRuntimeContext& context, c
 	return SRuntimeResult(ERuntimeStatus::Continue, EOutputIdx::Out);
 }
 
-const SGUID CScriptGraphFormatStringNode::ms_typeGUID = "7de077fd-97bb-4f98-955c-1a165d0e5efb"_schematyc_guid;
+const CryGUID CScriptGraphFormatStringNode::ms_typeGUID = "7de077fd-97bb-4f98-955c-1a165d0e5efb"_cry_guid;
+
 } // Schematyc
 
 SCHEMATYC_REGISTER_SCRIPT_GRAPH_NODE(Schematyc::CScriptGraphFormatStringNode::Register)

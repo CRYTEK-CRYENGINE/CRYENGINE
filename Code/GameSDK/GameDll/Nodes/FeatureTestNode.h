@@ -26,11 +26,11 @@ public:
 	CFlowNode_FeatureTest(SActivationInfo* pActInfo);
 	virtual ~CFlowNode_FeatureTest();
 
-	virtual IFlowNodePtr Clone(SActivationInfo* pActInfo);
+	virtual IFlowNodePtr Clone(SActivationInfo* pActInfo) override;
 
-	virtual void         GetConfiguration(SFlowNodeConfig& config);
-	virtual void         ProcessEvent(EFlowEvent event, SActivationInfo* pActInfo);
-	virtual void         GetMemoryUsage(ICrySizer* sizer) const;
+	virtual void         GetConfiguration(SFlowNodeConfig& config) override;
+	virtual void         ProcessEvent(EFlowEvent event, SActivationInfo* pActInfo) override;
+	virtual void         GetMemoryUsage(ICrySizer* sizer) const override;
 
 	enum EInputPorts
 	{
@@ -75,20 +75,20 @@ public:
 	// Implements IFeatureTest
 
 	/// Indicates all dependencies are met and this test is ready to run
-	virtual bool        ReadyToRun() const;
+	virtual bool        ReadyToRun() const override;
 	/// Runs the test
-	virtual bool        Start();
+	virtual bool        Start() override;
 	/// Used to update any time dependent state (such as timeouts)
-	virtual void        Update(float deltaTime);
+	virtual void        Update(float deltaTime) override;
 	/// Called to cleanup test state once the test is complete
-	virtual void        Cleanup();
+	virtual void        Cleanup() override;
 	/// Returns the name of the test
-	virtual const char* Name();
+	virtual const char* Name() override;
 	///Returns the xml description of the node
-	const XmlNodeRef    XmlDescription();
+	const XmlNodeRef    XmlDescription() override;
 
 	// Serialize call for internal state
-	virtual void Serialize(SActivationInfo* pActivationInfo, TSerialize ser);
+	virtual void Serialize(SActivationInfo* pActivationInfo, TSerialize ser) override;
 
 protected:
 	/// Attempts to start the next test. Returns true if successful.
@@ -142,11 +142,11 @@ public:
 	CFlowNode_WatchCodeCheckpoint(SActivationInfo* pActInfo);
 	virtual ~CFlowNode_WatchCodeCheckpoint();
 
-	virtual IFlowNodePtr Clone(SActivationInfo* pActInfo);
+	virtual IFlowNodePtr Clone(SActivationInfo* pActInfo) override;
 
-	virtual void         GetConfiguration(SFlowNodeConfig& config);
-	virtual void         ProcessEvent(EFlowEvent event, SActivationInfo* pActInfo);
-	virtual void         GetMemoryUsage(ICrySizer* sizer) const;
+	virtual void         GetConfiguration(SFlowNodeConfig& config) override;
+	virtual void         ProcessEvent(EFlowEvent event, SActivationInfo* pActInfo) override;
+	virtual void         GetMemoryUsage(ICrySizer* sizer) const override;
 
 	enum EInputPorts
 	{
@@ -188,13 +188,13 @@ public:
 	CFlowNode_ListenForCommunication(SActivationInfo* pActInfo);
 	virtual ~CFlowNode_ListenForCommunication();
 
-	virtual IFlowNodePtr Clone(SActivationInfo* pActInfo);
+	virtual IFlowNodePtr Clone(SActivationInfo* pActInfo) override;
 
-	virtual void         GetConfiguration(SFlowNodeConfig& config);
-	virtual void         ProcessEvent(EFlowEvent event, SActivationInfo* pActInfo);
-	virtual void         GetMemoryUsage(ICrySizer* sizer) const;
+	virtual void         GetConfiguration(SFlowNodeConfig& config) override;
+	virtual void         ProcessEvent(EFlowEvent event, SActivationInfo* pActInfo) override;
+	virtual void         GetMemoryUsage(ICrySizer* sizer) const override;
 
-	virtual void         OnCommunicationEvent(ICommunicationManager::ECommunicationEvent event, EntityId actorID, const CommID& playID);
+	virtual void         OnCommunicationEvent(ICommunicationManager::ECommunicationEvent event, EntityId actorID, const CommID& playID) override;
 
 	enum EInputPorts
 	{
@@ -254,8 +254,8 @@ class CFlowNode_SimulateInput : public CFlowBaseNode<eNCT_Singleton>
 public:
 	CFlowNode_SimulateInput(SActivationInfo* pActInfo);
 
-	virtual void GetConfiguration(SFlowNodeConfig& config);
-	virtual void ProcessEvent(EFlowEvent event, SActivationInfo* pActInfo);
-	virtual void GetMemoryUsage(ICrySizer* sizer) const;
+	virtual void GetConfiguration(SFlowNodeConfig& config) override;
+	virtual void ProcessEvent(EFlowEvent event, SActivationInfo* pActInfo) override;
+	virtual void GetMemoryUsage(ICrySizer* sizer) const override;
 
 };

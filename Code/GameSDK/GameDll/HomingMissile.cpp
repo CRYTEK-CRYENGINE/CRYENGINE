@@ -102,10 +102,11 @@ void CHomingMissile::Launch(const Vec3 &pos, const Vec3 &dir, const Vec3 &veloci
 				// give authority of the missile entity to whoever just fired it
 				if (pActor && pActor->IsPlayer())
 				{
-					INetContext *pNetContext = pFramework->GetNetContext();	
-					if(pNetContext)
+					INetContext *pNetContext = pFramework->GetNetContext();
+					INetChannel *pNetChannel = pFramework->GetNetChannel(pActor->GetChannelId());
+					if (pNetContext && pNetChannel)
 					{
-						pNetContext->DelegateAuthority(GetEntityId(), pActor->GetGameObject()->GetNetChannel()); 
+						pNetContext->DelegateAuthority(GetEntityId(), pNetChannel);
 					}
 				}
 			}

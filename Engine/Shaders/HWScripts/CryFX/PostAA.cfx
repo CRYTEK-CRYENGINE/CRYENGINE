@@ -53,443 +53,6 @@ vtxOutAA PostAA_VS(vtxInWPOS IN)
   return OUT;
 }
 
-///////////////////////////////////////////////////////////////////////
-
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// Nvidia FXAA 3.9
-
-#define FXAA_EXTREME_QUALITY
-
-#if FXAA_EXTREME_QUALITY
-
-	// extreme quality
-  #define FXAA_QUALITY__PS 12
-  #define FXAA_QUALITY__P0 1.0
-  #define FXAA_QUALITY__P1 1.0
-  #define FXAA_QUALITY__P2 1.0
-  #define FXAA_QUALITY__P3 1.0
-  #define FXAA_QUALITY__P4 1.0
-  #define FXAA_QUALITY__P5 1.5
-  #define FXAA_QUALITY__P6 2.0
-  #define FXAA_QUALITY__P7 2.0
-  #define FXAA_QUALITY__P8 2.0
-  #define FXAA_QUALITY__P9 2.0
-  #define FXAA_QUALITY__P10 4.0
-  #define FXAA_QUALITY__P11 8.00
-
-#else
-
-	// default quality
-	#define FXAA_QUALITY__PS 5
-	#define FXAA_QUALITY__P0 1.0
-	#define FXAA_QUALITY__P1 1.5
-	#define FXAA_QUALITY__P2 2.0
-	#define FXAA_QUALITY__P3 4.0
-	#define FXAA_QUALITY__P4 12.0
-
-#endif
-
-float4 sampler2DTop(sampler2D t, float2 p) 
-{
-	return tex2Dlod(t, float4(p, 0.0, 0.0));
-}
-
-float4 sampler2DOff(sampler2D t, float2 p, float2 o, float2 r) 
-{
-	return tex2Dlod(t, float4(p + (o * r), 0, 0));
-}
-
-pixout Fxaa3(vtxOutAA IN, float4 screenSize)
-{
-
-  pixout OUT = (pixout) 1;
-	//OUT.Color =0;//1- float4(sampler2DTop(_tex0, IN.baseTC.xy).xyz, lumaM);
-	//return OUT;
-
-	//	Convert CryENGINE inputs to fxaa inputs
-	float2 pos = IN.baseTC.xy;
-	float2 fxaaQualityRcpFrame = screenSize.zw;
-	//   1.00 - upper limit (softer)
-	//   0.75 - default amount of filtering
-	//   0.50 - lower limit (sharper, less sub-pixel aliasing removal)
-	//   0.25 - almost off
-	//   0.00 - completely off
-	float fxaaQualitySubpix = 0.5;
-	//   0.333 - too little (faster)
-	//   0.250 - low quality
-	//   0.166 - default
-	//   0.125 - high quality 
-	//   0.063 - overkill (slower)
-	float fxaaQualityEdgeThreshold = 0.166;
-	//   0.0833 - upper limit (default, the start of visible unfiltered edges)
-	//   0.0625 - high quality (faster)
-	//   0.0312 - visible limit (slower)
-	float fxaaQualityEdgeThresholdMin = 0.0833;
-
-
-  float2 posM;
-  posM.x = pos.x;
-  posM.y = pos.y;
-
-	float4 rgbyM = sampler2DTop(_tex0, posM);
-
-  #define lumaM rgbyM.w
-
-  float lumaS = sampler2DOff(_tex0, posM, float2( 0, 1), fxaaQualityRcpFrame.xy).w;
-  float lumaE = sampler2DOff(_tex0, posM, float2( 1, 0), fxaaQualityRcpFrame.xy).w;
-  float lumaN = sampler2DOff(_tex0, posM, float2( 0,-1), fxaaQualityRcpFrame.xy).w;
-  float lumaW = sampler2DOff(_tex0, posM, float2(-1, 0), fxaaQualityRcpFrame.xy).w;
-
-  float maxSM = max(lumaS, lumaM);
-  float minSM = min(lumaS, lumaM);
-  float maxESM = max(lumaE, maxSM);
-  float minESM = min(lumaE, minSM);
-  float maxWN = max(lumaN, lumaW);
-  float minWN = min(lumaN, lumaW);
-  float rangeMax = max(maxWN, maxESM);
-  float rangeMin = min(minWN, minESM);
-  float rangeMaxScaled = rangeMax * fxaaQualityEdgeThreshold;
-  float range = rangeMax - rangeMin;
-  float rangeMaxClamped = max(fxaaQualityEdgeThresholdMin, rangeMaxScaled);
-  bool earlyExit = range < rangeMaxClamped;
-
-  if(earlyExit)
-	{
-		OUT.Color = rgbyM;
-		OUT.Color.w = 1;
-    return OUT;
-	}
-
-
-  float lumaNW = sampler2DOff(_tex0, posM, float2(-1,-1), fxaaQualityRcpFrame.xy).w;
-  float lumaSE = sampler2DOff(_tex0, posM, float2( 1, 1), fxaaQualityRcpFrame.xy).w;
-  float lumaNE = sampler2DOff(_tex0, posM, float2( 1,-1), fxaaQualityRcpFrame.xy).w;
-  float lumaSW = sampler2DOff(_tex0, posM, float2(-1, 1), fxaaQualityRcpFrame.xy).w;
-
-  float lumaNS = lumaN + lumaS;
-  float lumaWE = lumaW + lumaE;
-  float subpixRcpRange = 1.0/range;
-  float subpixNSWE = lumaNS + lumaWE;
-  float edgeHorz1 = (-2.0 * lumaM) + lumaNS;
-  float edgeVert1 = (-2.0 * lumaM) + lumaWE;
-
-  float lumaNESE = lumaNE + lumaSE;
-  float lumaNWNE = lumaNW + lumaNE;
-  float edgeHorz2 = (-2.0 * lumaE) + lumaNESE;
-  float edgeVert2 = (-2.0 * lumaN) + lumaNWNE;
-
-  float lumaNWSW = lumaNW + lumaSW;
-  float lumaSWSE = lumaSW + lumaSE;
-  float edgeHorz4 = (abs(edgeHorz1) * 2.0) + abs(edgeHorz2);
-  float edgeVert4 = (abs(edgeVert1) * 2.0) + abs(edgeVert2);
-  float edgeHorz3 = (-2.0 * lumaW) + lumaNWSW;
-  float edgeVert3 = (-2.0 * lumaS) + lumaSWSE;
-  float edgeHorz = abs(edgeHorz3) + edgeHorz4;
-  float edgeVert = abs(edgeVert3) + edgeVert4;
-
-  float subpixNWSWNESE = lumaNWSW + lumaNESE;
-  float lengthSign = fxaaQualityRcpFrame.x;
-  bool horzSpan = edgeHorz >= edgeVert;
-  float subpixA = subpixNSWE * 2.0 + subpixNWSWNESE;
-
-  if(!horzSpan) lumaN = lumaW;
-  if(!horzSpan) lumaS = lumaE;
-  if(horzSpan) lengthSign = fxaaQualityRcpFrame.y;
-
-  float subpixB = (subpixA * (1.0/12.0)) - lumaM;
-
-  float gradientN = lumaN - lumaM;
-  float gradientS = lumaS - lumaM;
-  float lumaNN = lumaN + lumaM;
-  float lumaSS = lumaS + lumaM;
-  bool pairN = abs(gradientN) >= abs(gradientS);
-  float gradient = max(abs(gradientN), abs(gradientS));
-  if(pairN) lengthSign = -lengthSign;
-
-  float subpixC = saturate(abs(subpixB) * subpixRcpRange);
-
-  float2 posB;
-  posB.x = posM.x;
-  posB.y = posM.y;
-  float2 offNP;
-  offNP.x = (!horzSpan) ? 0.0 : fxaaQualityRcpFrame.x;
-  offNP.y = ( horzSpan) ? 0.0 : fxaaQualityRcpFrame.y;
-  if(!horzSpan) posB.x += lengthSign * 0.5;
-  if( horzSpan) posB.y += lengthSign * 0.5;
-
-  float2 posN;
-  posN.x = posB.x - offNP.x * FXAA_QUALITY__P0;
-  posN.y = posB.y - offNP.y * FXAA_QUALITY__P0;
-  float2 posP;
-  posP.x = posB.x + offNP.x * FXAA_QUALITY__P0;
-  posP.y = posB.y + offNP.y * FXAA_QUALITY__P0;
-  float subpixD = ((-2.0)*subpixC) + 3.0;
-  float lumaEndN = sampler2DTop(_tex0, posN).w;
-  float subpixE = subpixC * subpixC;
-  float lumaEndP = sampler2DTop(_tex0, posP).w;
-
-  if(!pairN) lumaNN = lumaSS;
-  float gradientScaled = gradient * 1.0/4.0;
-  float lumaMM = lumaM - lumaNN * 0.5;
-  float subpixF = subpixD * subpixE;
-  bool lumaMLTZero = lumaMM < 0.0;
-
-  lumaEndN -= lumaNN * 0.5;
-  lumaEndP -= lumaNN * 0.5;
-  bool doneN = abs(lumaEndN) >= gradientScaled;
-  bool doneP = abs(lumaEndP) >= gradientScaled;
-  if(!doneN) posN.x -= offNP.x * FXAA_QUALITY__P1;
-  if(!doneN) posN.y -= offNP.y * FXAA_QUALITY__P1;
-  bool doneNP = (!doneN) || (!doneP);
-  if(!doneP) posP.x += offNP.x * FXAA_QUALITY__P1;
-  if(!doneP) posP.y += offNP.y * FXAA_QUALITY__P1;
-
-  if(doneNP) 
-  {
-      if(!doneN) lumaEndN = sampler2DTop(_tex0, posN.xy).w;
-      if(!doneP) lumaEndP = sampler2DTop(_tex0, posP.xy).w;
-      if(!doneN) lumaEndN = lumaEndN - lumaNN * 0.5;
-      if(!doneP) lumaEndP = lumaEndP - lumaNN * 0.5;
-      doneN = abs(lumaEndN) >= gradientScaled;
-      doneP = abs(lumaEndP) >= gradientScaled;
-      if(!doneN) posN.x -= offNP.x * FXAA_QUALITY__P2;
-      if(!doneN) posN.y -= offNP.y * FXAA_QUALITY__P2;
-      doneNP = (!doneN) || (!doneP);
-      if(!doneP) posP.x += offNP.x * FXAA_QUALITY__P2;
-      if(!doneP) posP.y += offNP.y * FXAA_QUALITY__P2;
-
-      if(doneNP) 
-      {
-					if(!doneN) lumaEndN = sampler2DTop(_tex0, posN.xy).w;
-					if(!doneP) lumaEndP = sampler2DTop(_tex0, posP.xy).w;
-					if(!doneN) lumaEndN = lumaEndN - lumaNN * 0.5;
-					if(!doneP) lumaEndP = lumaEndP - lumaNN * 0.5;
-					doneN = abs(lumaEndN) >= gradientScaled;
-					doneP = abs(lumaEndP) >= gradientScaled;
-					if(!doneN) posN.x -= offNP.x * FXAA_QUALITY__P3;
-					if(!doneN) posN.y -= offNP.y * FXAA_QUALITY__P3;
-					doneNP = (!doneN) || (!doneP);
-					if(!doneP) posP.x += offNP.x * FXAA_QUALITY__P3;
-					if(!doneP) posP.y += offNP.y * FXAA_QUALITY__P3;
-
-					if(doneNP) 
-					{
-							if(!doneN) lumaEndN = sampler2DTop(_tex0, posN.xy).w;
-							if(!doneP) lumaEndP = sampler2DTop(_tex0, posP.xy).w;
-							if(!doneN) lumaEndN = lumaEndN - lumaNN * 0.5;
-							if(!doneP) lumaEndP = lumaEndP - lumaNN * 0.5;
-							doneN = abs(lumaEndN) >= gradientScaled;
-							doneP = abs(lumaEndP) >= gradientScaled;
-							if(!doneN) posN.x -= offNP.x * FXAA_QUALITY__P4;
-							if(!doneN) posN.y -= offNP.y * FXAA_QUALITY__P4;
-							doneNP = (!doneN) || (!doneP);
-							if(!doneP) posP.x += offNP.x * FXAA_QUALITY__P4;
-							if(!doneP) posP.y += offNP.y * FXAA_QUALITY__P4;
-
-#if FXAA_EXTREME_QUALITY
-
-						if(doneNP) 
-						{
-								if(!doneN) lumaEndN = sampler2DTop(_tex0, posN.xy).w;
-								if(!doneP) lumaEndP = sampler2DTop(_tex0, posP.xy).w;
-								if(!doneN) lumaEndN = lumaEndN - lumaNN * 0.5;
-								if(!doneP) lumaEndP = lumaEndP - lumaNN * 0.5;
-								doneN = abs(lumaEndN) >= gradientScaled;
-								doneP = abs(lumaEndP) >= gradientScaled;
-								if(!doneN) posN.x -= offNP.x * FXAA_QUALITY__P5;
-								if(!doneN) posN.y -= offNP.y * FXAA_QUALITY__P5;
-								doneNP = (!doneN) || (!doneP);
-								if(!doneP) posP.x += offNP.x * FXAA_QUALITY__P5;
-								if(!doneP) posP.y += offNP.y * FXAA_QUALITY__P5;
-
-								if(doneNP) 
-								{
-										if(!doneN) lumaEndN = sampler2DTop(_tex0, posN.xy).w;
-										if(!doneP) lumaEndP = sampler2DTop(_tex0, posP.xy).w;
-										if(!doneN) lumaEndN = lumaEndN - lumaNN * 0.5;
-										if(!doneP) lumaEndP = lumaEndP - lumaNN * 0.5;
-										doneN = abs(lumaEndN) >= gradientScaled;
-										doneP = abs(lumaEndP) >= gradientScaled;
-										if(!doneN) posN.x -= offNP.x * FXAA_QUALITY__P6;
-										if(!doneN) posN.y -= offNP.y * FXAA_QUALITY__P6;
-										doneNP = (!doneN) || (!doneP);
-										if(!doneP) posP.x += offNP.x * FXAA_QUALITY__P6;
-										if(!doneP) posP.y += offNP.y * FXAA_QUALITY__P6;
-
-										if(doneNP) 
-										{
-												if(!doneN) lumaEndN = sampler2DTop(_tex0, posN.xy).w;
-												if(!doneP) lumaEndP = sampler2DTop(_tex0, posP.xy).w;
-												if(!doneN) lumaEndN = lumaEndN - lumaNN * 0.5;
-												if(!doneP) lumaEndP = lumaEndP - lumaNN * 0.5;
-												doneN = abs(lumaEndN) >= gradientScaled;
-												doneP = abs(lumaEndP) >= gradientScaled;
-												if(!doneN) posN.x -= offNP.x * FXAA_QUALITY__P7;
-												if(!doneN) posN.y -= offNP.y * FXAA_QUALITY__P7;
-												doneNP = (!doneN) || (!doneP);
-												if(!doneP) posP.x += offNP.x * FXAA_QUALITY__P7;
-												if(!doneP) posP.y += offNP.y * FXAA_QUALITY__P7;
-
-												if(doneNP) 
-												{
-														if(!doneN) lumaEndN = sampler2DTop(_tex0, posN.xy).w;
-														if(!doneP) lumaEndP = sampler2DTop(_tex0, posP.xy).w;
-														if(!doneN) lumaEndN = lumaEndN - lumaNN * 0.5;
-														if(!doneP) lumaEndP = lumaEndP - lumaNN * 0.5;
-														doneN = abs(lumaEndN) >= gradientScaled;
-														doneP = abs(lumaEndP) >= gradientScaled;
-														if(!doneN) posN.x -= offNP.x * FXAA_QUALITY__P8;
-														if(!doneN) posN.y -= offNP.y * FXAA_QUALITY__P8;
-														doneNP = (!doneN) || (!doneP);
-														if(!doneP) posP.x += offNP.x * FXAA_QUALITY__P8;
-														if(!doneP) posP.y += offNP.y * FXAA_QUALITY__P8;
-
-
-														if(doneNP) 
-														{
-																if(!doneN) lumaEndN = sampler2DTop(_tex0, posN.xy).w;
-																if(!doneP) lumaEndP = sampler2DTop(_tex0, posP.xy).w;
-																if(!doneN) lumaEndN = lumaEndN - lumaNN * 0.5;
-																if(!doneP) lumaEndP = lumaEndP - lumaNN * 0.5;
-																doneN = abs(lumaEndN) >= gradientScaled;
-																doneP = abs(lumaEndP) >= gradientScaled;
-																if(!doneN) posN.x -= offNP.x * FXAA_QUALITY__P9;
-																if(!doneN) posN.y -= offNP.y * FXAA_QUALITY__P9;
-																doneNP = (!doneN) || (!doneP);
-																if(!doneP) posP.x += offNP.x * FXAA_QUALITY__P9;
-																if(!doneP) posP.y += offNP.y * FXAA_QUALITY__P9;
-
-																if(doneNP) 
-																{
-																		if(!doneN) lumaEndN = sampler2DTop(_tex0, posN.xy).w;
-																		if(!doneP) lumaEndP = sampler2DTop(_tex0, posP.xy).w;
-																		if(!doneN) lumaEndN = lumaEndN - lumaNN * 0.5;
-																		if(!doneP) lumaEndP = lumaEndP - lumaNN * 0.5;
-																		doneN = abs(lumaEndN) >= gradientScaled;
-																		doneP = abs(lumaEndP) >= gradientScaled;
-																		if(!doneN) posN.x -= offNP.x * FXAA_QUALITY__P10;
-																		if(!doneN) posN.y -= offNP.y * FXAA_QUALITY__P10;
-																		doneNP = (!doneN) || (!doneP);
-																		if(!doneP) posP.x += offNP.x * FXAA_QUALITY__P10;
-																		if(!doneP) posP.y += offNP.y * FXAA_QUALITY__P10;
-
-
-																		if(doneNP) 
-																		{
-																				if(!doneN) lumaEndN = sampler2DTop(_tex0, posN.xy).w;
-																				if(!doneP) lumaEndP = sampler2DTop(_tex0, posP.xy).w;
-																				if(!doneN) lumaEndN = lumaEndN - lumaNN * 0.5;
-																				if(!doneP) lumaEndP = lumaEndP - lumaNN * 0.5;
-																				doneN = abs(lumaEndN) >= gradientScaled;
-																				doneP = abs(lumaEndP) >= gradientScaled;
-																				if(!doneN) posN.x -= offNP.x * FXAA_QUALITY__P11;
-																				if(!doneN) posN.y -= offNP.y * FXAA_QUALITY__P11;
-																				doneNP = (!doneN) || (!doneP);
-																				if(!doneP) posP.x += offNP.x * FXAA_QUALITY__P11;
-																				if(!doneP) posP.y += offNP.y * FXAA_QUALITY__P11;
-																		}
-																}
-														}
-												}
-										}
-								}
-						}
-
-#endif
-					}
-      }
-  }
-
-
-  float dstN = posM.x - posN.x;
-  float dstP = posP.x - posM.x;
-  if(!horzSpan) dstN = posM.y - posN.y;
-  if(!horzSpan) dstP = posP.y - posM.y;
-
-  bool goodSpanN = (lumaEndN < 0.0) != lumaMLTZero;
-  float spanLength = (dstP + dstN);
-  bool goodSpanP = (lumaEndP < 0.0) != lumaMLTZero;
-  float spanLengthRcp = 1.0/spanLength;
-
-  bool directionN = dstN < dstP;
-  float dst = min(dstN, dstP);
-  bool goodSpan = directionN ? goodSpanN : goodSpanP;
-  float subpixG = subpixF * subpixF;
-  float pixelOffset = (dst * (-spanLengthRcp)) + 0.5;
-  float subpixH = subpixG * fxaaQualitySubpix;
-
-  float pixelOffsetGood = goodSpan ? pixelOffset : 0.0;
-  float pixelOffsetSubpix = max(pixelOffsetGood, subpixH);
-  if(!horzSpan) posM.x += pixelOffsetSubpix * lengthSign;
-  if( horzSpan) posM.y += pixelOffsetSubpix * lengthSign;
-
-  OUT.Color = float4(sampler2DTop(_tex0, posM).xyz, lumaM);
-
-	OUT.Color.w  = 1;
-
-	return OUT;
-}
-half4 FxaaConsoles(sampler2D tex, float2 pos, float4 fxaaConsolePosPos, float4 samplingOffsets) 
-{
-  half3 dir = 0;
-  half4 lumaNe = tex2Dlod(tex, half4(fxaaConsolePosPos.zy, 0, 0));
-
-	lumaNe.w += half(1.0/512.0);
-	dir.x = -lumaNe.w;
-	dir.z = -lumaNe.w;
-
-  half4 lumaSw = tex2Dlod(tex, half4(fxaaConsolePosPos.xw, 0, 0));
-	dir.x += lumaSw.w;
-	dir.z += lumaSw.w;
-
-  half4 lumaNw = tex2Dlod(tex, half4(fxaaConsolePosPos.xy, 0, 0));
-	dir.x -= lumaNw.w;
-	dir.z += lumaNw.w;
-
-  half4 lumaSe = tex2Dlod(tex, half4(fxaaConsolePosPos.zw, 0, 0));
-	dir.x += lumaSe.w;
-	dir.z -= lumaSe.w;
-
-  half4 dir1_pos;
-  dir1_pos.xy = normalize(dir.xyz).xz;
-  half dirAbsMinTimesC = min(abs(dir1_pos.x), abs(dir1_pos.y)) * 16.0h; // 8.0 is sharper, 4.0 is softer, 2.0 is really soft
-
-  half4 dir2_pos;
-  dir2_pos.xy = clamp(dir1_pos.xy / dirAbsMinTimesC, half(-2.0), half(2.0));
-  dir1_pos.zw = pos.xy;
-  dir2_pos.zw = pos.xy;
-  half4 temp1N;
-  temp1N.xy = dir1_pos.zw - dir1_pos.xy * samplingOffsets.xy;
-
-  temp1N = tex2Dlod(tex, half4(temp1N.xy, 0.0, 0.0));
-  half4 rgby1;
-  rgby1.xy = dir1_pos.zw + dir1_pos.xy * samplingOffsets.xy;
-
-  rgby1 = tex2Dlod(tex, half4(rgby1.xy, 0.0, 0.0));
-  rgby1 = (temp1N + rgby1) * 0.5;
-
-  half4 temp2N;
-  temp2N.xy = dir2_pos.zw - dir2_pos.xy * samplingOffsets.zw;
-  temp2N = tex2Dlod(tex, half4(temp2N.xy, 0.0, 0.0));
-
-  half4 rgby2;
-  rgby2.xy = dir2_pos.zw + dir2_pos.xy * samplingOffsets.zw;
-  rgby2 = tex2Dlod(tex, half4(rgby2.xy, 0.0, 0.0));
-  rgby2 = (temp2N + rgby2) * 0.5;
-
-  half lumaMin = min(min(lumaNw.w, lumaSw.w), min(lumaNe.w, lumaSe.w));
-  half lumaMax = max(max(lumaNw.w, lumaSw.w), max(lumaNe.w, lumaSe.w));
-
-  rgby2 = (rgby2 + rgby1) * 0.5;
-
-  bool twoTapLt = rgby2.w < lumaMin;
-  bool twoTapGt = rgby2.w > lumaMax;
-
-  if(twoTapLt || twoTapGt) rgby2 = rgby1;
-
-  return rgby2; 
-}
-
 ///////////////// pixel shader //////////////////
 float4 sqr(float4 x)
 {
@@ -521,6 +84,38 @@ float ClipHistory(half3 cHistory, half3 cM, half3 cMin, half3 cMax)
 	return saturate(IntersectAABB(rayDir, rayOrg, boxExtents));
 }
 
+float3 FilterHistory(sampler2D tex, float2 texcoord, float4 texSize)
+{
+	const float Sharpening = 0.0;  // [-0.5, 0.5]
+
+	float2 samplePos = texcoord * texSize.xy;
+	float2 tc1 = floor(samplePos - 0.5) + 0.5;
+	float2 f = samplePos - tc1;
+	float2 f2 = f * f;
+	float2 f3 = f * f2;
+
+	// Catmull-Rom weights
+	const float c = 0.5 + Sharpening;
+	float2 w0 = -(c)       * f3 + (2.0 * c)        * f2 - (c * f);
+	float2 w1 =  (2.0 - c) * f3 - (3.0 - c)        * f2            + 1.0;
+	float2 w2 = -(2.0 - c) * f3 + (3.0 -  2.0 * c) * f2 + (c * f);
+	float2 w3 =  (c)       * f3 - (c)              * f2;
+
+	float2 w12  = w1 + w2;
+	float2 tc0  = (tc1 - 1.0)      * texSize.zw;
+	float2 tc3  = (tc1 + 2.0)      * texSize.zw;
+	float2 tc12 = (tc1 + w2 / w12) * texSize.zw;
+	
+	// Bicubic filter using bilinear lookups, skipping the 4 corner texels
+	float4 filtered = float4(tex2D(tex, float2(tc12.x, tc0.y )).rgb, 1.0) * (w12.x *  w0.y) +
+	                  float4(tex2D(tex, float2(tc0.x,  tc12.y)).rgb, 1.0) * ( w0.x * w12.y) +
+	                  float4(tex2D(tex, float2(tc12.x, tc12.y)).rgb, 1.0) * (w12.x * w12.y) +  // Center pixel
+	                  float4(tex2D(tex, float2(tc3.x,  tc12.y)).rgb, 1.0) * ( w3.x * w12.y) +
+	                  float4(tex2D(tex, float2(tc12.x, tc3.y )).rgb, 1.0) * (w12.x *  w3.y);
+	
+	return filtered.rgb * rcp(filtered.a);
+}
+
 Texture2D<float4> PostAA_DepthTex : register(t16);
 
 cbuffer CBPostAA : register(b0)
@@ -531,19 +126,12 @@ cbuffer CBPostAA : register(b0)
 		float4   params;
 		float4   screenSize;
 		float4   worldViewPos;
-		float4   fxaaParams;
 	} cbPostAA;
 };
 
 pixout PostAA_PS(vtxOutAA IN)
 {
   pixout OUT = (pixout) 0;
-	
-#if %_RT_SAMPLE4
-	//OUT.Color = FxaaConsoles(_tex0, IN.baseTC.xy, (IN.baseTC.xyxy + PS_ScreenSize.zwzw * float4(-1, -1, 1, 1)) * PS_HPosScale.xyxy);
-	OUT = Fxaa3(IN, cbPostAA.screenSize);
-	return OUT;
-#endif	
 
 	const float2 tc = IN.baseTC.xy;
 	const float2 texel = cbPostAA.screenSize.zw;
@@ -558,6 +146,15 @@ pixout PostAA_PS(vtxOutAA IN)
 		#endif
 	#else
 		float depth = PostAA_DepthTex.Load(int3(IN.WPos.xy, 0));
+		
+		#if %_RT_SAMPLE3
+			// Dilate depth to improve moving silhouette edges
+			float depth1 = PostAA_DepthTex.Load(int3(IN.WPos.xy + int2(-1, -1), 0));
+			float depth2 = PostAA_DepthTex.Load(int3(IN.WPos.xy + int2( 1, -1), 0));
+			float depth3 = PostAA_DepthTex.Load(int3(IN.WPos.xy + int2(-1,  1), 0));
+			float depth4 = PostAA_DepthTex.Load(int3(IN.WPos.xy + int2( 1,  1), 0));
+			depth = max(max(max(max(depth1, depth2), depth3), depth4), depth);
+		#endif
 	#endif
 
 	float4 vPosHPrev = mul(float4(IN.baseTC.x, IN.baseTC.y, depth, 1.0), cbPostAA.matReprojection);
@@ -576,7 +173,75 @@ pixout PostAA_PS(vtxOutAA IN)
 		v = prevTC - tc;
 	}
 
-#if %_RT_SAMPLE2
+#if %_RT_SAMPLE3
+	// TSAA
+	
+	half3 cCenter	= tex2D(_tex4, tc);
+	half3 cN1 = tex2D(_tex4, tc + texel * float2(-1.05f, -1.05f));
+	half3 cN2 = tex2D(_tex4, tc + texel * float2( 1.05f, -1.05f));
+	half3 cN3 = tex2D(_tex4, tc + texel * float2(-1.05f,  1.05f));
+	half3 cN4 = tex2D(_tex4, tc + texel * float2( 1.05f,  1.05f));
+	
+	half3 cN5 = tex2D(_tex4, tc + texel * float2(-1.0f,  0.0f));
+	half3 cN6 = tex2D(_tex4, tc + texel * float2( 1.0f,  0.0f));
+	half3 cN7 = tex2D(_tex4, tc + texel * float2( 0.0f, -1.0f));
+	half3 cN8 = tex2D(_tex4, tc + texel * float2( 0.0f,  1.0f));
+	
+	// Compute color variance
+	half3 m1 = cN1 + cN2 + cN3 + cN4 + cN5 + cN6 + cN7 + cN8 + cCenter;
+	half3 m2 = cN1*cN1 + cN2*cN2 + cN3*cN3 + cN4*cN4 + cN5*cN5 + cN6*cN6 + cN7*cN7 + cN8*cN8 + cCenter*cCenter;
+	half3 mean = m1 / 9;
+	half3 stddev = sqrt(m2 / 9 - mean * mean);
+	half3 cMin = mean - 1.0 * stddev;
+	half3 cMax = mean + 1.0 * stddev;
+	
+	half4 cHistory = tex2D(_tex5, tc + v);
+	cHistory.rgb = FilterHistory(_tex5, tc + v, cbPostAA.screenSize);
+	
+	bool offscreen = max(abs((tc.x + v.x) * 2 - 1), abs((tc.y + v.y) * 2 - 1)) >= 1.0;
+	float clipLength = 1;
+	float neighborDiff = 0;
+	
+	half4 prevTL = 0, prevTR = 0, prevBL = 0, prevBR = 0;
+	half4 prevTT = 0, prevBB = 0, prevLL = 0, prevRR = 0;
+	
+	[branch] if (!offscreen)
+	{
+		clipLength = ClipHistory(cHistory.rgb, cCenter, cMin, cMax);
+	
+		// Try to identify subpixel changes
+		prevTL = tex2Dlod(_tex5, float4(tc + v + texel * float2(-1.0f, -1.0f), 0, 0));
+		prevTR = tex2Dlod(_tex5, float4(tc + v + texel * float2( 1.0f, -1.0f), 0, 0));
+		prevBL = tex2Dlod(_tex5, float4(tc + v + texel * float2(-1.0f,  1.0f), 0, 0));
+		prevBR = tex2Dlod(_tex5, float4(tc + v + texel * float2( 1.0f,  1.0f), 0, 0));
+		
+		prevTT = tex2Dlod(_tex5, float4(tc + v + texel * float2( 0.0f, -1.0f), 0, 0));
+		prevBB = tex2Dlod(_tex5, float4(tc + v + texel * float2( 0.0f,  1.0f), 0, 0));
+		prevLL = tex2Dlod(_tex5, float4(tc + v + texel * float2(-1.0f,  0.0f), 0, 0));
+		prevRR = tex2Dlod(_tex5, float4(tc + v + texel * float2( 1.0f,  0.0f), 0, 0));
+		
+		float neighborDiff1 = length(clamp(prevTL.rgb, cMin, cMax) - prevTL.rgb) + length(clamp(prevTR.rgb, cMin, cMax) - prevTR.rgb) +
+												  length(clamp(prevBL.rgb, cMin, cMax) - prevBL.rgb) + length(clamp(prevBR.rgb, cMin, cMax) - prevBR.rgb);
+		float neighborDiff2 = length(clamp(prevTT.rgb, cMin, cMax) - prevTT.rgb) + length(clamp(prevBB.rgb, cMin, cMax) - prevBB.rgb) +
+												  length(clamp(prevLL.rgb, cMin, cMax) - prevLL.rgb) + length(clamp(prevRR.rgb, cMin, cMax) - prevRR.rgb);							 
+		
+		neighborDiff = min(neighborDiff1, neighborDiff2);
+		if (neighborDiff < cbPostAA.params.x) clipLength = 0;
+	}
+	
+	// Apply color clipping
+	cHistory.rgb = lerp(cHistory.rgb, cCenter, clipLength);
+	
+	half prevBlend = (cHistory.w + prevTL.w + prevTR.w + prevBL.w + prevBR.w + prevTT.w + prevBB.w + prevLL.w + prevRR.w) / 9.0;
+	half currBlend = saturate(neighborDiff * 10) * 0.10 + prevBlend * 0.90;
+	const float weight = lerp(0.25, 0.08, saturate(currBlend * cbPostAA.params.y));
+	OUT.Color.rgb = cCenter * weight + cHistory.rgb * (1 - weight);
+	OUT.Color.a = currBlend;
+	
+	// Reencode in sRGB
+	OUT.Color.xyz = (OUT.Color.xyz < 0.0031308) ? 12.92 * OUT.Color.xyz : 1.055 * pow(OUT.Color.xyz, 1.0 / 2.4) - float3(0.055, 0.055, 0.055);	
+	
+#elif %_RT_SAMPLE2
 	// SMAA 1TX Mode
 	float fMaxFramesL = cbPostAA.params.z;		// Frames to keep in history (low freq). Higher = less aliasing, but blurier result. Lower = sharper result, but more aliasing.
 	float fMaxFramesH = cbPostAA.params.w;		// Frames to keep in history (high freq). Higher = less aliasing, but blurier result. Lower = sharper result, but more aliasing.

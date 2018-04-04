@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #pragma once
 
@@ -74,7 +74,6 @@ public:
 	virtual void                SetBBox(const AABB& WSBBox) { m_serializedData.worldSpaceBBox = WSBBox; }
 	virtual void                FillBBox(AABB& aabb);
 	virtual void                OffsetPosition(const Vec3& delta);
-	virtual void                OnRenderNodeBecomeVisible(const SRenderingPassInfo& passInfo);
 	virtual void                GetClipPlanes(Plane* pPlanes, int nPlanesNum, int nVertId);
 	virtual void                GetTexCoordInfo(float* pTexCoordInfo);
 	virtual uint8               GetSortPriority()           { return m_sortPrio; }

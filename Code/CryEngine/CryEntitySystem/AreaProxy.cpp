@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #include "stdafx.h"
 #include "AreaProxy.h"
@@ -28,6 +28,7 @@ CEntityComponentArea::CEntityComponentArea()
 	, m_bIsEnableInternal(false)
 	, m_lastFrameTime(0.0f)
 {
+	m_componentFlags.Add(EEntityComponentFlags::Legacy);
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -80,16 +81,12 @@ void CEntityComponentArea::OnMove()
 					s_tmpWorldPoints[i] = worldTM.TransformPoint(m_localPoints[i]);
 				}
 
+				CRY_ASSERT_MESSAGE(!s_tmpWorldPoints.empty(), "An area shape without points cannot be moved, Verify that it is properly initialized!");
+
 				if (!s_tmpWorldPoints.empty())
 				{
 					m_pArea->MovePoints(&s_tmpWorldPoints[0], numLocalPoints);
 					s_tmpWorldPoints.clear();
-				}
-				else
-				{
-#if defined(INCLUDE_ENTITYSYSTEM_PRODUCTION_CODE)
-					CryFatalError("An area shape without points cannot be moved.\nVerify that it is properly initialized.");
-#endif    // INCLUDE_ENTITYSYSTEM_PRODUCTION_CODE
 				}
 			}
 			break;
@@ -218,22 +215,21 @@ void CEntityComponentArea::LegacySerializeXML(XmlNodeRef& entityNode, XmlNodeRef
 		if (!areaNode)
 			return;
 
-		int nId = 0, nGroup = 0, nPriority = 0;
-		float fProximity = 0;
-		float fHeight = 0;
-		float innerFadeDistance = 0.0f;
+		int id = 0, groupId = 0, priority = 0;
+		float proximity = 0.0f, height = 0.0f, innerFadeDistance = 0.0f;
 
-		areaNode->getAttr("Id", nId);
-		areaNode->getAttr("Group", nGroup);
-		areaNode->getAttr("Proximity", fProximity);
-		areaNode->getAttr("Priority", nPriority);
+		areaNode->getAttr("Id", id);
+		areaNode->getAttr("Group", groupId);
+		areaNode->getAttr("Proximity", proximity);
+		areaNode->getAttr("Priority", priority);
 		areaNode->getAttr("InnerFadeDistance", innerFadeDistance);
-		m_pArea->SetID(nId);
-		m_pArea->SetGroup(nGroup);
-		m_pArea->SetProximity(fProximity);
-		m_pArea->SetPriority(nPriority);
+		m_pArea->SetID(id);
+		m_pArea->SetGroup(groupId);
+		m_pArea->SetProximity(proximity);
+		m_pArea->SetPriority(priority);
 		m_pArea->SetInnerFadeDistance(innerFadeDistance);
-		const char* token(0);
+
+		const char* token = nullptr;
 
 		// TODO: workaround for 5.3 - needs refactoring of CreateGameObject + Serialize mechanism
 		m_abObstructSound.clear();
@@ -287,8 +283,8 @@ void CEntityComponentArea::LegacySerializeXML(XmlNodeRef& entityNode, XmlNodeRef
 			m_abObstructSound.push_back(bObstructSound);
 			m_pArea->SetAreaType(ENTITY_AREA_TYPE_SHAPE);
 
-			areaNode->getAttr("Height", fHeight);
-			m_pArea->SetHeight(fHeight);
+			areaNode->getAttr("Height", height);
+			m_pArea->SetHeight(height);
 
 			size_t const numLocalPoints = s_tmpWorldPoints.size();
 			size_t const numAudioPoints = numLocalPoints + 2; // Adding "Roof" and "Floor"

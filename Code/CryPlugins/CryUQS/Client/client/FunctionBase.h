@@ -4,15 +4,15 @@
 
 // *INDENT-OFF* - <hard to read code and declarations due to inconsistent indentation>
 
-namespace uqs
+namespace UQS
 {
-	namespace client
+	namespace Client
 	{
 
 		template <class TFunction, class TReturn, IFunctionFactory::ELeafFunctionKind tLeafFunctionKind>
 		class CFunctionBase;  // below
 
-		namespace internal
+		namespace Internal
 		{
 
 			//===================================================================================
@@ -51,7 +51,7 @@ namespace uqs
 				}
 			};
 
-		} // namespace internal
+		} // namespace Internal
 
 		//===================================================================================
 		//
@@ -70,7 +70,7 @@ namespace uqs
 		public:
 			// IFunction
 			virtual void                                       AddChildAndTransferItsOwnership(FunctionUniquePtr& childPtr) override final;
-			virtual const shared::CTypeInfo&                   DebugAssertGetReturnType() const override final;
+			virtual const Shared::CTypeInfo&                   DebugAssertGetReturnType() const override final;
 			virtual void                                       DebugAssertChildReturnTypes() const override final;
 			virtual void                                       Execute(const SExecuteContext& executeContext, void* pReturnValue) const override final;
 			// ~IFunction
@@ -81,8 +81,6 @@ namespace uqs
 
 		protected:
 			explicit                                           CFunctionBase(const SCtorContext& ctorContext);
-
-			IItemFactory*                                      GetItemFactoryOfReturnType() const { return m_pItemFactoryOfReturnValue; }
 
 		private:
 			IItemFactory*                                      m_pItemFactoryOfReturnValue;
@@ -108,7 +106,7 @@ namespace uqs
 			}
 
 			// find the ItemFactory by the return type of this function
-			m_pItemFactoryOfReturnValue = uqs::core::IHubPlugin::GetHub().GetUtils().FindItemFactoryByType(shared::SDataTypeHelper<TReturn>::GetTypeInfo());
+			m_pItemFactoryOfReturnValue = UQS::Core::IHubPlugin::GetHub().GetUtils().FindItemFactoryByType(Shared::SDataTypeHelper<TReturn>::GetTypeInfo());
 
 			// if this assert() fails, then a function returns a type that is not registered as an item-factory
 			// FIXME: this should not only trigger in debug builds
@@ -116,16 +114,16 @@ namespace uqs
 		}
 
 		template <class TFunction, class TReturn, IFunctionFactory::ELeafFunctionKind tLeafFunctionKind>
-		void CFunctionBase<TFunction, TReturn, tLeafFunctionKind>::AddChildAndTransferItsOwnership(client::FunctionUniquePtr& childPtr)
+		void CFunctionBase<TFunction, TReturn, tLeafFunctionKind>::AddChildAndTransferItsOwnership(Client::FunctionUniquePtr& childPtr)
 		{
 			assert(childPtr.get() != nullptr);
 			m_children.push_back(std::move(childPtr));
 		}
 
 		template <class TFunction, class TReturn, IFunctionFactory::ELeafFunctionKind tLeafFunctionKind>
-		const shared::CTypeInfo& CFunctionBase<TFunction, TReturn, tLeafFunctionKind>::DebugAssertGetReturnType() const
+		const Shared::CTypeInfo& CFunctionBase<TFunction, TReturn, tLeafFunctionKind>::DebugAssertGetReturnType() const
 		{
-			return shared::SDataTypeHelper<TReturn>::GetTypeInfo();
+			return Shared::SDataTypeHelper<TReturn>::GetTypeInfo();
 		}
 
 		template <class TFunction, class TReturn, IFunctionFactory::ELeafFunctionKind tLeafFunctionKind>
@@ -137,8 +135,8 @@ namespace uqs
 
 			for (size_t i = 0; i < numChildren; ++i)
 			{
-				const shared::CTypeInfo& childReturnType = m_children[i]->DebugAssertGetReturnType();
-				const shared::CTypeInfo& expectedReturnType = m_inputParameterRegistry.GetParameter(i).type;
+				const Shared::CTypeInfo& childReturnType = m_children[i]->DebugAssertGetReturnType();
+				const Shared::CTypeInfo& expectedReturnType = m_inputParameterRegistry.GetParameter(i).type;
 				assert(childReturnType == expectedReturnType);
 			}
 		}
@@ -149,11 +147,11 @@ namespace uqs
 			assert(m_inputParameterRegistry.GetParameterCount() == m_children.size());
 
 			const bool bIsLeafFunction = (tLeafFunctionKind != IFunctionFactory::ELeafFunctionKind::None);
-			internal::SFunctionExecuteHelper<TFunction, TReturn, tLeafFunctionKind, bIsLeafFunction>::Execute(this, executeContext, pReturnValue);
+			Internal::SFunctionExecuteHelper<TFunction, TReturn, tLeafFunctionKind, bIsLeafFunction>::Execute(this, executeContext, pReturnValue);
 
-			IF_UNLIKELY(m_bAddReturnValueToDebugRenderWorldUponExecution && executeContext.blackboard.pDebugRenderWorld)
+			IF_UNLIKELY(m_bAddReturnValueToDebugRenderWorldUponExecution && executeContext.blackboard.pDebugRenderWorldPersistent)
 			{
-				m_pItemFactoryOfReturnValue->AddItemToDebugRenderWorld(pReturnValue, *executeContext.blackboard.pDebugRenderWorld);
+				m_pItemFactoryOfReturnValue->AddItemToDebugRenderWorld(pReturnValue, *executeContext.blackboard.pDebugRenderWorldPersistent);
 			}
 		}
 

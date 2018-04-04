@@ -13,11 +13,30 @@ add_sources("NoUberFile"
 
 # -- durango_renderer.waf_files --
 sources_platform(DURANGO)
-add_sources("NoUberFile"
+add_sources("CryRenderer_uber_5_dur_dx11.cpp"
 	PROJECTS CryRenderD3D11
-	SOURCE_GROUP "DeviceManager"
-		"DeviceManager/D3D11/DeviceManager_D3D11_Durango.h"
-		"DeviceManager/D3D11/DeviceManager_D3D11_Durango.inl"
+	SOURCE_GROUP "DeviceManager\\\\D3D11"
+		"DeviceManager/D3D11/DeviceSubmissionQueue_D3D11.h"
+		"DeviceManager/D3D11/DeviceSubmissionQueue_D3D11.inl"
+		"DeviceManager/D3D11/DeviceSubmissionQueue_D3D11.cpp"
+		"DeviceManager/D3D11/DeviceObjects_D3D11.inl"
+		"DeviceManager/D3D11/DeviceObjects_D3D11.cpp"
+		"DeviceManager/D3D11/DeviceResources_D3D11.inl"
+		"DeviceManager/D3D11/DeviceResources_D3D11_NVAPI.h"
+		"DeviceManager/D3D11/DeviceResources_D3D11_NVAPI.inl"
+		"DeviceManager/D3D11/DeviceCommandList_D3D11.h"
+		"DeviceManager/D3D11/DeviceWrapper_D3D11_Logging.cpp"
+		"DeviceManager/D3D11/DeviceWrapper_D3D11_MemReplay.h"
+		"DeviceManager/D3D11/DeviceWrapper_D3D11_MemReplay.cpp"
+)
+
+add_sources("CryRenderer_uber_5_dx11_dur.cpp"
+	PROJECTS CryRenderD3D11
+	SOURCE_GROUP "DeviceManager\\\\D3D11"
+		"DeviceManager/D3D11/DeviceSubmissionQueue_D3D11_Durango.inl"
+		"DeviceManager/D3D11/DeviceObjects_D3D11_Durango.h"
+		"DeviceManager/D3D11/DeviceObjects_D3D11_Durango.cpp"
+		"DeviceManager/D3D11/DeviceResources_D3D11_Durango.inl"
 )
 
 # -- opengl_loader_wgl.waf_files --
@@ -49,6 +68,23 @@ add_sources("NoUberFile"
 
 # -- opengl_renderer.waf_files --
 sources_platform(ALL)
+add_sources("CryRenderer_uber_5_ogl_dx11.cpp"
+	PROJECTS CryRenderOpenGL
+	SOURCE_GROUP "DeviceManager\\\\D3D11"
+		"DeviceManager/D3D11/DeviceSubmissionQueue_D3D11.h"
+		"DeviceManager/D3D11/DeviceSubmissionQueue_D3D11.inl"
+		"DeviceManager/D3D11/DeviceSubmissionQueue_D3D11.cpp"
+		"DeviceManager/D3D11/DeviceObjects_D3D11.inl"
+		"DeviceManager/D3D11/DeviceObjects_D3D11.cpp"
+		"DeviceManager/D3D11/DeviceResources_D3D11.inl"
+		"DeviceManager/D3D11/DeviceResources_D3D11_NVAPI.h"
+		"DeviceManager/D3D11/DeviceResources_D3D11_NVAPI.inl"
+		"DeviceManager/D3D11/DeviceCommandList_D3D11.h"
+		"DeviceManager/D3D11/DeviceWrapper_D3D11_Logging.cpp"
+		"DeviceManager/D3D11/DeviceWrapper_D3D11_MemReplay.h"
+		"DeviceManager/D3D11/DeviceWrapper_D3D11_MemReplay.cpp"
+)
+
 add_sources("NoUberFile"
 	PROJECTS CryRenderOpenGL
 	SOURCE_GROUP "DXGL"
@@ -160,7 +196,24 @@ add_sources("NoUberFile"
 )
 
 # -- dx12_renderer.waf_files --
-sources_platform(WIN32)
+sources_platform(ALL)
+add_sources("CryRenderer_uber_5_dx12_dx11.cpp"
+	PROJECTS CryRenderD3D12
+	SOURCE_GROUP "DeviceManager\\\\D3D11"
+		"DeviceManager/D3D11/DeviceSubmissionQueue_D3D11.h"
+		"DeviceManager/D3D11/DeviceSubmissionQueue_D3D11.inl"
+		"DeviceManager/D3D11/DeviceSubmissionQueue_D3D11.cpp"
+)
+
+add_sources("CryRenderer_uber_5_dx12_dx12.cpp"
+	PROJECTS CryRenderD3D12
+	SOURCE_GROUP "DeviceManager\\\\D3D12"
+		"DeviceManager/D3D12/DeviceObjects_D3D12.inl"
+		"DeviceManager/D3D12/DeviceObjects_D3D12.cpp"
+		"DeviceManager/D3D12/DeviceResources_D3D12.inl"
+		"DeviceManager/D3D12/DeviceCommandList_D3D12.h"
+)
+
 add_sources("NoUberFile"
 	PROJECTS CryRenderD3D12
 	SOURCE_GROUP "DX12"
@@ -169,22 +222,14 @@ add_sources("NoUberFile"
 		"DX12/CryDX12.cpp"
 		"DX12/CryDX12.hpp"
 		"DX12/CryDX12Guid.hpp"
-		"DX12/CryDX12Legacy.hpp"
 	SOURCE_GROUP "DX12\\\\3rdParty"
-		"DX12/Includes/d3d11tokenizedprogramformat.hpp"
+		"DX12/Includes/d3d11TokenizedProgramFormat.hpp"
 		"DX12/Includes/d3dx12.h"
-		"DX12/Includes/fasthash.inl"
-		"DX12/Includes/fasthash.h"
-		"DX12/Includes/concqueue.hpp"
-		"DX12/Includes/concqueue-mpmc-bounded.hpp"
-		"DX12/Includes/concqueue-mpsc.hpp"
-		"DX12/Includes/concqueue-spsc-bounded.hpp"
-		"DX12/Includes/concqueue-spsc.hpp"
 	SOURCE_GROUP "DX12\\\\API"
 		"DX12/API/DX12Base.cpp"
+		"DX12/API/DX12CommandScheduler.cpp"
 		"DX12/API/DX12CommandList.cpp"
 		"DX12/API/DX12CommandListFence.cpp"
-		"DX12/API/DX12DataStreamer.cpp"
 		"DX12/API/DX12DescriptorHeap.cpp"
 		"DX12/API/DX12QueryHeap.cpp"
 		"DX12/API/DX12Device.cpp"
@@ -192,14 +237,13 @@ add_sources("NoUberFile"
 		"DX12/API/DX12Resource.cpp"
 		"DX12/API/DX12RootSignature.cpp"
 		"DX12/API/DX12Shader.cpp"
-		"DX12/API/DX12State.cpp"
 		"DX12/API/DX12View.cpp"
 		"DX12/API/DX12SamplerState.cpp"
 		"DX12/API/DX12SwapChain.cpp"
 		"DX12/API/DX12Base.hpp"
+		"DX12/API/DX12CommandScheduler.hpp"
 		"DX12/API/DX12CommandList.hpp"
 		"DX12/API/DX12CommandListFence.hpp"
-		"DX12/API/DX12DataStreamer.hpp"
 		"DX12/API/DX12DescriptorHeap.hpp"
 		"DX12/API/DX12QueryHeap.hpp"
 		"DX12/API/DX12Device.hpp"
@@ -207,7 +251,6 @@ add_sources("NoUberFile"
 		"DX12/API/DX12Resource.hpp"
 		"DX12/API/DX12RootSignature.hpp"
 		"DX12/API/DX12Shader.hpp"
-		"DX12/API/DX12State.hpp"
 		"DX12/API/DX12View.hpp"
 		"DX12/API/DX12SamplerState.hpp"
 		"DX12/API/DX12SwapChain.hpp"
@@ -337,8 +380,6 @@ add_sources("CryRenderer_dx_orbis_uber_0.cpp"
 		"DXOrbis/Device/Resource/States/CCryDXOrbisBlendState.hpp"
 		"DXOrbis/Device/Resource/States/CCryDXOrbisDepthStencilState.hpp"
 		"DXOrbis/Device/Resource/States/CCryDXOrbisRasterizerState.hpp"
-	SOURCE_GROUP "DeviceManager"
-		"DeviceManager/GNM/DeviceManager_GNM.inl"
 )
 
 add_sources("CryRenderer_dx_orbis_uber_1.cpp"
@@ -383,119 +424,61 @@ add_sources("CryRenderer_dx_orbis_uber_1.cpp"
 		"DXOrbis/Layer0/CCryDXOrbis_Orbis.hpp"
 )
 
-# -- GNM/GnmShaderCompiler.waf_files --
-sources_platform(ALL)
-add_sources("NoUberFile"
-	PROJECTS GnmShaderCompiler
-	SOURCE_GROUP "GnmShaderCompiler"
-		"GNM/Compiler/HlslParser.h"
-		"GNM/Compiler/HlslParser.inl"
-		"GNM/Compiler/HlslParser.cpp"
-		"GNM/Compiler/HlslParser.Tables.cpp"
-		"GNM/Compiler/HlslParser.BaseGrammar.cpp"
-		"GNM/Compiler/HlslParser.OpGrammar.cpp"
-		"GNM/Compiler/HlslParser.StatGrammar.cpp"
-		"GNM/Compiler/HlslParser.TypeGrammar.cpp"
-		"GNM/Compiler/HlslParser.VarGrammar.cpp"
-		"GNM/Compiler/PsslGenerator.h"
-		"GNM/Compiler/PsslGenerator.cpp"
-		"GNM/GnmShaderCompiler.hpp"
-		"GNM/GnmShaderCompiler.cpp"
+add_sources("CryRenderer_uber_5_orb_dx11.cpp"
+	PROJECTS CryRenderD3D11
+	SOURCE_GROUP "DeviceManager\\\\D3D11"
+		"DeviceManager/D3D11/DeviceSubmissionQueue_D3D11.h"
+		"DeviceManager/D3D11/DeviceSubmissionQueue_D3D11.inl"
+		"DeviceManager/D3D11/DeviceSubmissionQueue_D3D11.cpp"
+		"DeviceManager/D3D11/DeviceObjects_D3D11.inl"
+		"DeviceManager/D3D11/DeviceObjects_D3D11.cpp"
+		"DeviceManager/D3D11/DeviceResources_D3D11.inl"
+		"DeviceManager/D3D11/DeviceResources_D3D11_NVAPI.h"
+		"DeviceManager/D3D11/DeviceResources_D3D11_NVAPI.inl"
+		"DeviceManager/D3D11/DeviceCommandList_D3D11.h"
+		"DeviceManager/D3D11/DeviceWrapper_D3D11_Logging.cpp"
+		"DeviceManager/D3D11/DeviceWrapper_D3D11_MemReplay.h"
+		"DeviceManager/D3D11/DeviceWrapper_D3D11_MemReplay.cpp"
+)
+
+# -- dx11_renderer.waf_files --
+sources_platform(WIN32)
+add_sources("CryRenderer_uber_5_dx11_dx11.cpp"
+	PROJECTS CryRenderD3D11
+	SOURCE_GROUP "DeviceManager\\\\D3D11"
+		"DeviceManager/D3D11/DeviceSubmissionQueue_D3D11.h"
+		"DeviceManager/D3D11/DeviceSubmissionQueue_D3D11.inl"
+		"DeviceManager/D3D11/DeviceSubmissionQueue_D3D11.cpp"
+		"DeviceManager/D3D11/DeviceObjects_D3D11.inl"
+		"DeviceManager/D3D11/DeviceObjects_D3D11.cpp"
+		"DeviceManager/D3D11/DeviceResources_D3D11.inl"
+		"DeviceManager/D3D11/DeviceResources_D3D11_NVAPI.h"
+		"DeviceManager/D3D11/DeviceResources_D3D11_NVAPI.inl"
+		"DeviceManager/D3D11/DeviceCommandList_D3D11.h"
+		"DeviceManager/D3D11/DeviceWrapper_D3D11_Logging.cpp"
+		"DeviceManager/D3D11/DeviceWrapper_D3D11_MemReplay.h"
+		"DeviceManager/D3D11/DeviceWrapper_D3D11_MemReplay.cpp"
 )
 
 # -- GNM/GnmRenderer.waf_files --
 sources_platform(ALL)
-add_sources("CryRenderer_dxorbis_uber_0.cpp"
-	PROJECTS CryRenderGNM
-	SOURCE_GROUP "GNM\\\\DXOrbis"
-		"DXOrbis/CCryDXOrbisRenderer.cpp"
-		"DXOrbis/CCryDXOrbisAPtr.hpp"
-		"DXOrbis/CCryDXOrbisDummy.hpp"
-		"DXOrbis/CCryDXOrbisGuid.hpp"
-		"DXOrbis/CCryDXOrbisMisc.hpp"
-		"DXOrbis/CCryDXOrbisMisc9.hpp"
-		"DXOrbis/CCryDXOrbisRenderDeviceWrapper.hpp"
-		"DXOrbis/CCryDXOrbisRenderer.hpp"
-		"DXOrbis/CCryTypes.hpp"
-	SOURCE_GROUP "GNM\\\\DXOrbis\\\\Device"
-		"DXOrbis/Device/CCryDXOrbisRenderDevice.cpp"
-		"DXOrbis/Device/CCryDXOrbisShaderState_CUE.cpp"
-		"DXOrbis/Device/CCryDXOrbisShaderState_SCUE.cpp"
-		"DXOrbis/Device/CCryDXOrbisSwapChain.cpp"
-		"DXOrbis/Device/CCryDXOrbisRenderDevice.hpp"
-		"DXOrbis/Device/CCryDXOrbisShaderState.hpp"
-		"DXOrbis/Device/CCryDXOrbisShaderState_CUE.h"
-		"DXOrbis/Device/CCryDXOrbisShaderState_SCUE.h"
-		"DXOrbis/Device/CCryDXOrbisSwapChain.hpp"
-	SOURCE_GROUP "GNM\\\\DXOrbis\\\\Device\\\\Resources"
-		"DXOrbis/Device/Resource/CCryDXOrbisResource.cpp"
-		"DXOrbis/Device/Resource/CCryDXOrbisResource.hpp"
-	SOURCE_GROUP "GNM\\\\DXOrbis\\\\Device\\\\Resources\\\\Buffer"
-		"DXOrbis/Device/Resource/Buffer/CCryDXOrbisBuffer.cpp"
-		"DXOrbis/Device/Resource/Buffer/CCryDXOrbisBuffer.hpp"
-	SOURCE_GROUP "GNM\\\\DXOrbis\\\\Device\\\\Resources\\\\Misc"
-		"DXOrbis/Device/CCryDXOrbisBlob.cpp"
-		"DXOrbis/Device/Resource/Misc/CCryDXOrbisDepthStencilView.cpp"
-		"DXOrbis/Device/Resource/Misc/CCryDXOrbisInputLayout.cpp"
-		"DXOrbis/Device/Resource/Misc/CCryDXOrbisRenderTargetView.cpp"
-		"DXOrbis/Device/CCryDXOrbisBlob.hpp"
-		"DXOrbis/Device/Resource/Misc/CCryDXOrbisDepthStencilView.hpp"
-		"DXOrbis/Device/Resource/Misc/CCryDXOrbisInputLayout.hpp"
-		"DXOrbis/Device/Resource/Misc/CCryDXOrbisRenderTargetView.hpp"
-	SOURCE_GROUP "GNM\\\\DXOrbis\\\\Device\\\\Resources\\\\States"
-		"DXOrbis/Device/Resource/States/CCryDXOrbisBlendState.cpp"
-		"DXOrbis/Device/Resource/States/CCryDXOrbisDepthStencilState.cpp"
-		"DXOrbis/Device/Resource/States/CCryDXOrbisRasterizerState.cpp"
-		"DXOrbis/Device/Resource/States/CCryDXOrbisSamplerState.cpp"
-		"DXOrbis/Device/Resource/States/CCryDXOrbisSamplerState.hpp"
-		"DXOrbis/Device/Resource/States/CCryDXOrbisBlendState.hpp"
-		"DXOrbis/Device/Resource/States/CCryDXOrbisDepthStencilState.hpp"
-		"DXOrbis/Device/Resource/States/CCryDXOrbisRasterizerState.hpp"
-)
-
-add_sources("CryRenderer_dxorbis_uber_1.cpp"
-	PROJECTS CryRenderGNM
-	SOURCE_GROUP "GNM\\\\DXOrbis\\\\DXOrbisGI"
-		"DXOrbis/DXOrbisGI/CCryDXOrbisGI.cpp"
-		"DXOrbis/DXOrbisGI/CCryDXOrbisGIAdapter.cpp"
-		"DXOrbis/DXOrbisGI/CCryDXOrbisGIDevice.cpp"
-		"DXOrbis/DXOrbisGI/CCryDXOrbisGIFactory.cpp"
-		"DXOrbis/DXOrbisGI/CCryDXOrbisGIOutput.cpp"
-		"DXOrbis/DXOrbisGI/CCryDXOrbisGI.hpp"
-		"DXOrbis/DXOrbisGI/CCryDXOrbisGIAdapter.hpp"
-		"DXOrbis/DXOrbisGI/CCryDXOrbisGIDevice.hpp"
-		"DXOrbis/DXOrbisGI/CCryDXOrbisGIFactory.hpp"
-		"DXOrbis/DXOrbisGI/CCryDXOrbisGIOutput.hpp"
-	SOURCE_GROUP "GNM\\\\DXOrbis\\\\Device\\\\Resources\\\\Shaders"
-		"DXOrbis/Device/Resource/Misc/CCryDXOrbisShader.cpp"
-		"DXOrbis/Device/Resource/Misc/CCryDXOrbisShaderReflection.cpp"
-		"DXOrbis/Device/Resource/Misc/CCryDXOrbisShaderResourceView.cpp"
-		"DXOrbis/Device/Resource/Misc/CCryDXOrbisShader.hpp"
-		"DXOrbis/Device/Resource/Misc/CCryDXOrbisShaderReflection.hpp"
-		"DXOrbis/Device/Resource/Misc/CCryDXOrbisShaderResourceView.hpp"
-	SOURCE_GROUP "GNM\\\\DXOrbis\\\\Device\\\\Resources\\\\Textures"
-		"DXOrbis/Device/Resource/Textures/CCryDXOrbisTexture1D.cpp"
-		"DXOrbis/Device/Resource/Textures/CCryDXOrbisTexture2D.cpp"
-		"DXOrbis/Device/Resource/Textures/CCryDXOrbisTexture3D.cpp"
-		"DXOrbis/Device/Resource/Textures/CCryDXOrbisTextureBase.cpp"
-		"DXOrbis/Device/Resource/Textures/CCryDXOrbisTexture1D.hpp"
-		"DXOrbis/Device/Resource/Textures/CCryDXOrbisTexture2D.hpp"
-		"DXOrbis/Device/Resource/Textures/CCryDXOrbisTexture3D.hpp"
-		"DXOrbis/Device/Resource/Textures/CCryDXOrbisTextureBase.hpp"
-	SOURCE_GROUP "GNM\\\\DXOrbis\\\\Device\\\\SCUE"
-		"DXOrbis/Device/SCUE/scue.cpp"
-		"DXOrbis/Device/SCUE/scue.h"
-	SOURCE_GROUP "GNM\\\\DXOrbis\\\\Layer0"
-		"DXOrbis/Layer0/CCryDXOrbisGNM.cpp"
-		"DXOrbis/Layer0/CCryDXOrbis.hpp"
-		"DXOrbis/Layer0/CCryDXOrbisGNM.hpp"
-		"DXOrbis/Layer0/CCryDXOrbis_Orbis.hpp"
-)
-
 add_sources("NoUberFile"
 	PROJECTS CryRenderGNM
+	SOURCE_GROUP "Common"
+		"GpuHeap.h"
+		"GpuHeap.cpp"
+		"GpuHeap.natvis"
+	SOURCE_GROUP "DeviceManager\\\\GNM"
+		"DeviceManager/GNM/DeviceCommandList_GNM.h"
+		"DeviceManager/GNM/DeviceCommandList_GNM.inl"
+		"DeviceManager/GNM/DeviceResources_GNM.inl"
+		"DeviceManager/GNM/DeviceObjects_GNM.inl"
+		"DeviceManager/GNM/DeviceObjects_GNM.cpp"
 	SOURCE_GROUP "GNM"
 		"GNM/GnmBase.hpp"
+		"GNM/GnmBuffer.hpp"
+		"GNM/GnmBuffer.cpp"
+		"GNM/GnmBuiltIn.hpp"
 		"GNM/GnmCache.hpp"
 		"GNM/GnmCache.cpp"
 		"GNM/GnmCommandList.hpp"
@@ -507,27 +490,35 @@ add_sources("NoUberFile"
 		"GNM/GnmDevice.cpp"
 		"GNM/GnmGpuState.hpp"
 		"GNM/GnmGpuState.cpp"
+		"GNM/GnmHeap.hpp"
+		"GNM/GnmHeap.cpp"
 		"GNM/GnmLegacy.hpp"
 		"GNM/GnmLegacy.cpp"
 		"GNM/GnmPipelineState.hpp"
 		"GNM/GnmPipelineState.cpp"
+		"GNM/GnmQuery.hpp"
+		"GNM/GnmReflection.hpp"
+		"GNM/GnmReflection.cpp"
+		"GNM/GnmRenderer.hpp"
+		"GNM/GnmResource.hpp"
 		"GNM/GnmResourceLayout.hpp"
 		"GNM/GnmResourceLayout.cpp"
 		"GNM/GnmResourceLookup.hpp"
 		"GNM/GnmResourceSet.hpp"
 		"GNM/GnmResourceSet.cpp"
+		"GNM/GnmSampler.hpp"
+		"GNM/GnmSampler.cpp"
 		"GNM/GnmScratch.hpp"
+		"GNM/GnmScratch.cpp"
 		"GNM/GnmShader.hpp"
 		"GNM/GnmShaderCompiler.hpp"
 		"GNM/GnmShaderLoader.cpp"
 		"GNM/GnmShaderRuntime.cpp"
 		"GNM/GnmShaderTools.hpp"
-	SOURCE_GROUP "GNM\\\\DeviceManager"
-		"DeviceManager/GNM/DeviceCommandList_GNM.h"
-		"DeviceManager/GNM/DeviceCommandList_GNM.inl"
-		"DeviceManager/GNM/DeviceManager_GNM.inl"
-		"DeviceManager/GNM/DeviceObjects_GNM.inl"
-		"DeviceManager/GNM/DeviceObjects_GNM.cpp"
+		"GNM/GnmSwapChain.hpp"
+		"GNM/GnmSwapChain.cpp"
+		"GNM/GnmTexture.hpp"
+		"GNM/GnmTexture.cpp"
 )
 
 # -- opengl_loader_egl.waf_files --
@@ -542,15 +533,109 @@ add_sources("NoUberFile"
 # -- mesh_baker.waf_files --
 sources_platform(ANDROID APPLE DURANGO LINUX WIN32)
 add_sources("NoUberFile"
-	PROJECTS CryRenderD3D11 CryRenderD3D12 CryRenderOpenGL
+	PROJECTS CryRenderD3D11 CryRenderD3D12 CryRenderVulkan CryRenderOpenGL
 	SOURCE_GROUP "Source Files"
 		"D3DMeshBaker.cpp"
 )
 
+# -- Vulkan/vulkan_renderer.waf_files --
+sources_platform(ALL)
+add_sources("CryRenderer_uber_5_vulkan_dx11.cpp"
+	PROJECTS CryRenderVulkan
+	SOURCE_GROUP "DeviceManager\\\\D3D11"
+		"DeviceManager/D3D11/DeviceSubmissionQueue_D3D11.h"
+		"DeviceManager/D3D11/DeviceSubmissionQueue_D3D11.inl"
+		"DeviceManager/D3D11/DeviceSubmissionQueue_D3D11.cpp"
+)
+
+add_sources("CryRenderer_uber_5_vulkan_vulkan.cpp"
+	PROJECTS CryRenderVulkan
+	SOURCE_GROUP "DeviceManager\\\\Vulkan"
+		"DeviceManager/Vulkan/DeviceObjects_Vulkan.inl"
+		"DeviceManager/Vulkan/DeviceObjects_Vulkan.cpp"
+		"DeviceManager/Vulkan/DeviceResources_Vulkan.inl"
+		"DeviceManager/Vulkan/DeviceCommandList_Vulkan.h"
+)
+
+add_sources("NoUberFile"
+	PROJECTS CryRenderVulkan
+	SOURCE_GROUP "Common"
+		"GpuHeap.h"
+		"GpuHeap.cpp"
+		"GpuHeap.natvis"
+	SOURCE_GROUP "Vulkan"
+		"Vulkan/CryVulkan.hpp"
+		"Vulkan/CryVulkan.cpp"
+		"Vulkan/D3DVKConversionUtility.hpp"
+	SOURCE_GROUP "Vulkan\\\\API"
+		"Vulkan/API/VKCommandScheduler.cpp"
+		"Vulkan/API/VKCommandScheduler.hpp"
+		"Vulkan/API/VKCommandList.cpp"
+		"Vulkan/API/VKCommandList.hpp"
+		"Vulkan/API/VKCommandListFence.cpp"
+		"Vulkan/API/VKCommandListFence.hpp"
+		"Vulkan/API/VKAsyncCommandQueue.hpp"
+		"Vulkan/API/VKAsyncCommandQueue.cpp"
+		"Vulkan/API/VKBase.hpp"
+		"Vulkan/API/VKBase.cpp"
+		"Vulkan/API/VKDevice.hpp"
+		"Vulkan/API/VKDevice.cpp"
+		"Vulkan/API/VKInstance.hpp"
+		"Vulkan/API/VKInstance.cpp"
+		"Vulkan/API/VKSwapChain.hpp"
+		"Vulkan/API/VKSwapChain.cpp"
+		"Vulkan/API/VKImageResource.hpp"
+		"Vulkan/API/VKImageResource.cpp"
+		"Vulkan/API/VKHeap.hpp"
+		"Vulkan/API/VKHeap.cpp"
+		"Vulkan/API/VKBufferResource.hpp"
+		"Vulkan/API/VKBufferResource.cpp"
+		"Vulkan/API/VKMemoryResource.hpp"
+		"Vulkan/API/VKMemoryResource.cpp"
+		"Vulkan/API/VKLegacyToBeRemoved.cpp"
+		"Vulkan/API/VKShader.hpp"
+		"Vulkan/API/VKShader.cpp"
+		"Vulkan/API/VKSampler.hpp"
+		"Vulkan/API/VKSampler.cpp"
+		"Vulkan/API/VKResourceView.hpp"
+		"Vulkan/API/VKResourceView.cpp"
+		"Vulkan/API/VKExtensions.hpp"
+		"Vulkan/API/VKExtensions.cpp"
+		"Vulkan/API/VKOcclusionQueryManager.hpp"
+		"Vulkan/API/VKOcclusionQueryManager.cpp"
+	SOURCE_GROUP "Vulkan\\\\CryVulkanWrappers\\\\GI"
+		"Vulkan/CryVulkanWrappers/GI/CCryVKGuid.hpp"
+		"Vulkan/CryVulkanWrappers/GI/CCryVKMisc.hpp"
+		"Vulkan/CryVulkanWrappers/GI/CCryVKGIObject.hpp"
+		"Vulkan/CryVulkanWrappers/GI/CCryVKGIAdapter.hpp"
+		"Vulkan/CryVulkanWrappers/GI/CCryVKGIAdapter.cpp"
+		"Vulkan/CryVulkanWrappers/GI/CCryVKGIFactory.hpp"
+		"Vulkan/CryVulkanWrappers/GI/CCryVKGIFactory.cpp"
+		"Vulkan/CryVulkanWrappers/GI/CCryVKGIOutput.hpp"
+		"Vulkan/CryVulkanWrappers/GI/CCryVKGIOutput.cpp"
+		"Vulkan/CryVulkanWrappers/GI/CCryVKSwapChain.hpp"
+		"Vulkan/CryVulkanWrappers/GI/CCryVKSwapChain.cpp"
+	SOURCE_GROUP "Vulkan\\\\CryVulkanWrappers\\\\Resources"
+		"Vulkan/CryVulkanWrappers/Resources/CCryVKShaderReflection.hpp"
+		"Vulkan/CryVulkanWrappers/Resources/CCryVKShaderReflection.cpp"
+)
+
+sources_platform(WIN32)
+add_sources("CryRenderer_uber_5_vulkan_dxgi.cpp"
+	PROJECTS CryRenderVulkan
+	SOURCE_GROUP "Vulkan\\\\CryVulkanWrappers\\\\GI\\\\DXGI"
+		"Vulkan/CryVulkanWrappers/GI/DXGI/CCryVKGIFactory_DXGI.hpp"
+		"Vulkan/CryVulkanWrappers/GI/DXGI/CCryVKGIFactory_DXGI.cpp"
+		"Vulkan/CryVulkanWrappers/GI/DXGI/CCryVKGIAdapter_DXGI.hpp"
+		"Vulkan/CryVulkanWrappers/GI/DXGI/CCryVKGIAdapter_DXGI.cpp"
+		"Vulkan/CryVulkanWrappers/GI/DXGI/CCryVKGIOutput_DXGI.hpp"
+		"Vulkan/CryVulkanWrappers/GI/DXGI/CCryVKGIOutput_DXGI.cpp"
+)
+	
 # -- core_renderer.waf_files --
 sources_platform(ALL)
 add_sources("CryGpuParticles_uber.cpp"
-	PROJECTS CryRenderGNM CryRenderD3D11 CryRenderD3D12 CryRenderOpenGL
+	PROJECTS CryRenderGNM CryRenderD3D11 CryRenderD3D12 CryRenderVulkan CryRenderOpenGL
 	SOURCE_GROUP "Header Files\\\\Gpu"
 		"Gpu/GpuComputeBackend.h"
 		"Gpu/GpuBitonicSort.h"
@@ -570,7 +655,6 @@ add_sources("CryGpuParticles_uber.cpp"
 		"Gpu/Particles/GpuParticleFeatureRender.h"
 		"Gpu/Particles/GpuParticleFeatureSpawn.h"
 		"Gpu/Particles/GpuParticleFeatureVelocity.h"
-		"Gpu/Particles/CREGpuParticle.h"
 	SOURCE_GROUP "Header Files\\\\Gpu\\\\Physics"
 		"Gpu/Physics/GpuPhysicsParticleFluid.h"
 	SOURCE_GROUP "Source Files\\\\Gpu"
@@ -592,13 +676,12 @@ add_sources("CryGpuParticles_uber.cpp"
 		"Gpu/Particles/GpuParticleFeatureRender.cpp"
 		"Gpu/Particles/GpuParticleFeatureSpawn.cpp"
 		"Gpu/Particles/GpuParticleFeatureVelocity.cpp"
-		"Gpu/Particles/CREGpuParticle.cpp"
 	SOURCE_GROUP "Source Files\\\\Gpu\\\\Physics"
 		"Gpu/Physics/GpuPhysicsParticleFluid.cpp"
 )
 
 add_sources("CryRender_resfile_uber.cpp"
-	PROJECTS CryRenderGNM CryRenderD3D11 CryRenderD3D12 CryRenderOpenGL
+	PROJECTS CryRenderGNM CryRenderD3D11 CryRenderD3D12 CryRenderVulkan CryRenderOpenGL
 	SOURCE_GROUP "Common"
 		"../Common/ResFile.cpp"
 		"../Common/ResFileLookupDataMan.cpp"
@@ -609,40 +692,31 @@ add_sources("CryRender_resfile_uber.cpp"
 )
 
 add_sources("CryRenderer_render_elements_uber_0.cpp"
-	PROJECTS CryRenderGNM CryRenderD3D11 CryRenderD3D12 CryRenderOpenGL
+	PROJECTS CryRenderGNM CryRenderD3D11 CryRenderD3D12 CryRenderVulkan CryRenderOpenGL
 	SOURCE_GROUP "Common\\\\RendElements"
 		"../Common/RendElements/CREBreakableGlass.cpp"
 		"CRELensOpticsD3D.cpp"
-		"../Common/RendElements/CREBeam.cpp"
 		"../Common/RendElements/CREClientPoly.cpp"
-		"../Common/RendElements/CRECloud.cpp"
 		"../Common/RendElements/CREDeferredShading.cpp"
 		"../Common/RendElements/CREFarTreeSprites.cpp"
 		"../Common/RendElements/CREFogVolume.cpp"
 		"../Common/RendElements/CREGameEffect.cpp"
-		"../Common/RendElements/CREHDRProcess.cpp"
-		"../Common/RendElements/CREImposter.cpp"
 		"../Common/RendElements/CREMesh.cpp"
 		"../Common/RendElements/CREOclusionQuery.cpp"
 		"../Common/RendElements/CREGeomCache.cpp"
 )
 
 add_sources("CryRenderer_render_elements_uber_1.cpp"
-	PROJECTS CryRenderGNM CryRenderD3D11 CryRenderD3D12 CryRenderOpenGL
+	PROJECTS CryRenderGNM CryRenderD3D11 CryRenderD3D12 CryRenderVulkan CryRenderOpenGL
 	SOURCE_GROUP "Common\\\\RendElements"
 		"../Common/RendElements/CREParticle.cpp"
-		"../Common/RendElements/CREPostProcess.cpp"
 		"../Common/RendElements/CRESky.cpp"
-		"../Common/RendElements/CREVolumeObject.cpp"
 		"../Common/RendElements/CREWaterOcean.cpp"
 		"../Common/RendElements/CREWaterVolume.cpp"
 		"../Common/RendElements/RendElement.cpp"
 		"../Common/RendElements/CRELensOptics.h"
-		"../Common/RendElements/CREBeam.h"
 		"../Common/RendElements/CREClientPoly.h"
-		"../Common/RendElements/CRECloud.h"
 		"../Common/RendElements/CREDeferredShading.h"
-		"../Common/RendElements/CREHDRProcess.h"
 		"../Common/RendElements/Stars.h"
 		"../Common/RendElements/CREMeshImpl.h"
 	SOURCE_GROUP "Common\\\\RendElements\\\\LensOptics"
@@ -688,7 +762,7 @@ add_sources("CryRenderer_render_elements_uber_1.cpp"
 )
 
 add_sources("CryRenderer_textures_uber.cpp"
-	PROJECTS CryRenderGNM CryRenderD3D11 CryRenderD3D12 CryRenderOpenGL
+	PROJECTS CryRenderGNM CryRenderD3D11 CryRenderD3D12 CryRenderVulkan CryRenderOpenGL
 	SOURCE_GROUP "Common\\\\Textures"
 		"../Common/Textures/ITextureStreamer.cpp"
 		"../Common/Textures/PlanningTextureStreamer.cpp"
@@ -715,12 +789,14 @@ add_sources("CryRenderer_textures_uber.cpp"
 		"../Common/Textures/Image/DDSImage.cpp"
 		"../Common/Textures/Image/JpgImage.cpp"
 		"../Common/Textures/Image/TgaImage.cpp"
+		"../Common/Textures/Image/PngImage.cpp"
+		"../Common/Textures/Image/TifImage.cpp"
 		"../Common/Textures/Image/CImage.h"
 		"../Common/Textures/Image/DDSImage.h"
 )
 
 add_sources("CryRenderer_uber_0.cpp"
-	PROJECTS CryRenderGNM CryRenderD3D11 CryRenderD3D12 CryRenderOpenGL
+	PROJECTS CryRenderGNM CryRenderD3D11 CryRenderD3D12 CryRenderVulkan CryRenderOpenGL
 	SOURCE_GROUP "Header Files"
 		"D3DREBreakableGlassBuffer.h"
 		"D3D_SVO.h"
@@ -728,7 +804,6 @@ add_sources("CryRenderer_uber_0.cpp"
 		"D3DAmbientOcclusion.cpp"
 		"D3DColorGradingController.cpp"
 		"D3DDebug.cpp"
-		"D3DDeferredPasses.cpp"
 		"D3DDeferredRender.cpp"
 		"D3DDeferredShading.cpp"
 		"D3DFont.cpp"
@@ -736,23 +811,19 @@ add_sources("CryRenderer_uber_0.cpp"
 		"D3DHDRRender.cpp"
 		"D3DHWShader.cpp"
 		"D3DHWShaderCompiling.cpp"
-		"D3DLog.cpp"
-		"D3DMemReplayDevice.cpp"
 		"D3DOcclQuery.cpp"
 		"D3DOculus.cpp"
 		"D3DOpenVR.cpp"
 		"D3DREBreakableGlass.cpp"
 		"D3DREBreakableGlassBuffer.cpp"
 		"D3D_SVO.cpp"
-		"D3DRECloud.cpp"
 		"D3DMultiResRendering.cpp"
 		"D3DOsvr.cpp"
 )
 
 add_sources("CryRenderer_uber_1.cpp"
-	PROJECTS CryRenderGNM CryRenderD3D11 CryRenderD3D12 CryRenderOpenGL
+	PROJECTS CryRenderGNM CryRenderD3D11 CryRenderD3D12 CryRenderVulkan CryRenderOpenGL
 	SOURCE_GROUP "Source Files"
-		"D3DREImposter.cpp"
 		"D3DRenderAuxGeom.cpp"
 		"D3DRenderThread.cpp"
 		"D3DRendPipeline.cpp"
@@ -773,7 +844,7 @@ add_sources("CryRenderer_uber_1.cpp"
 )
 
 add_sources("CryRenderer_uber_2.cpp"
-	PROJECTS CryRenderGNM CryRenderD3D11 CryRenderD3D12 CryRenderOpenGL
+	PROJECTS CryRenderGNM CryRenderD3D11 CryRenderD3D12 CryRenderVulkan CryRenderOpenGL
 	SOURCE_GROUP "Header Files"
 		"SmartGlassManager.h"
 	SOURCE_GROUP "Source Files"
@@ -790,15 +861,13 @@ add_sources("CryRenderer_uber_2.cpp"
 		"PostProcessHud3D.cpp"
 		"PostProcessMisc.cpp"
 		"PostProcessMotionBlur.cpp"
-		"PostProcessRain.cpp"
 		"PostProcessRenderModes.cpp"
 		"PostProcessSunShafts.cpp"
 		"PostProcessWater.cpp"
-		"PostProcessSnow.cpp"
 )
 
 add_sources("CryRenderer_uber_3.cpp"
-	PROJECTS CryRenderGNM CryRenderD3D11 CryRenderD3D12 CryRenderOpenGL
+	PROJECTS CryRenderGNM CryRenderD3D11 CryRenderD3D12 CryRenderVulkan CryRenderOpenGL
 	SOURCE_GROUP "Common"
 		"../Common/Renderer_Jobs.cpp"
 		"../Common/CommonRender.cpp"
@@ -843,12 +912,11 @@ add_sources("CryRenderer_uber_3.cpp"
 	SOURCE_GROUP "Header Files"
 		"ShadowTextureGroupManager.h"
 		"D3DTiledShading.h"
-		"D3DMemReplayDevice.h"
-		"DeviceManager/DeviceManagerInline.h"
+		"DeviceManager/D3D11/DeviceSubmissionQueue_D3D11.inl"
 		"../Common/Textures/ITextureStreamer.h"
 		"../Common/Shaders/ShaderAllocator.h"
 		"../Common/CryNameR.h"
-		"../Common/CryDeviceWrapper.h"
+		"DeviceManager/D3D11/DeviceWrapper_D3D11.h"
 		"../Common/ISmartGlassContext.h"
 		"../Common/LightVolumeBuffer.h"
 		"../Common/ParticleBuffer.h"
@@ -881,7 +949,7 @@ add_sources("CryRenderer_uber_3.cpp"
 )
 
 add_sources("CryRenderer_uber_4.cpp"
-	PROJECTS CryRenderGNM CryRenderD3D11 CryRenderD3D12 CryRenderOpenGL
+	PROJECTS CryRenderGNM CryRenderD3D11 CryRenderD3D12 CryRenderVulkan CryRenderOpenGL
 	SOURCE_GROUP "Common\\\\PostProcess"
 		"../Common/PostProcess/PostEffects.cpp"
 		"../Common/PostProcess/PostProcess.cpp"
@@ -921,32 +989,25 @@ add_sources("CryRenderer_uber_4.cpp"
 )
 
 add_sources("CryRenderer_uber_5.cpp"
-	PROJECTS CryRenderGNM CryRenderD3D11 CryRenderD3D12 CryRenderOpenGL
+	PROJECTS CryRenderGNM CryRenderD3D11 CryRenderD3D12 CryRenderVulkan CryRenderOpenGL
 	SOURCE_GROUP "DeviceManager"
 		"DevBuffer.cpp"
 		"../Common/DevBuffer.h"
-		"DeviceManager/DeviceManager.cpp"
-		"DeviceManager/DeviceManager.h"
-		"DeviceManager/D3D11/DeviceManager_D3D11.inl"
-		"DeviceManager/D3D11/DeviceManager_D3D11_NVAPI.h"
-		"DeviceManager/D3D11/DeviceManager_D3D11_NVAPI.inl"
-		"DeviceManager/D3D12/DeviceManager_D3D12.inl"
-		"DeviceManager/DeviceManagerInline.h"
 		"DeviceManager/TempDynBuffer.h"
 		"DeviceManager/DeviceObjects.h"
 		"DeviceManager/DeviceObjects.inl"
 		"DeviceManager/DeviceObjects.cpp"
-		"DeviceManager/D3D11/DeviceObjects_D3D11.inl"
-		"DeviceManager/D3D12/DeviceObjects_D3D12.inl"
-		"DeviceManager/D3D11/DeviceObjects_D3D11.cpp"
-		"DeviceManager/D3D12/DeviceObjects_D3D12.cpp"
+		"DeviceManager/DeviceObjectHelpers.h"
+		"DeviceManager/DeviceObjectHelpers.cpp"
+		"DeviceManager/DeviceResources.h"
+		"DeviceManager/DeviceResources.cpp"
+		"DeviceManager/DeviceFormats.h"
+		"DeviceManager/DeviceFormats.cpp"
 		"DeviceManager/DeviceCommandList.inl"
-		"DeviceManager/D3D11/DeviceCommandList_D3D11.h"
-		"DeviceManager/D3D12/DeviceCommandList_D3D12.h"
 )
 
 add_sources("CryRenderer_uber_6.cpp"
-	PROJECTS CryRenderGNM CryRenderD3D11 CryRenderD3D12 CryRenderOpenGL
+	PROJECTS CryRenderGNM CryRenderD3D11 CryRenderD3D12 CryRenderVulkan CryRenderOpenGL
 	SOURCE_GROUP "GraphicsPipeline"
 		"GraphicsPipeline/AutoExposure.h"
 		"GraphicsPipeline/AutoExposure.cpp"
@@ -958,20 +1019,30 @@ add_sources("CryRenderer_uber_6.cpp"
 		"GraphicsPipeline/ColorGrading.cpp"
 		"GraphicsPipeline/ComputeSkinning.h"
 		"GraphicsPipeline/ComputeSkinning.cpp"
+		"GraphicsPipeline/DepthReadback.h"
+		"GraphicsPipeline/DepthReadback.cpp"
 		"GraphicsPipeline/GpuParticles.h"
 		"GraphicsPipeline/GpuParticles.cpp"
+		"GraphicsPipeline/DeferredDecals.h"
+		"GraphicsPipeline/DeferredDecals.cpp"
 		"GraphicsPipeline/DepthOfField.h"
 		"GraphicsPipeline/DepthOfField.cpp"
 		"GraphicsPipeline/Fog.h"
 		"GraphicsPipeline/Fog.cpp"
 		"GraphicsPipeline/LensOptics.h"
 		"GraphicsPipeline/LensOptics.cpp"
+		"GraphicsPipeline/MobileComposition.h"
+		"GraphicsPipeline/MobileComposition.cpp"
 		"GraphicsPipeline/MotionBlur.h"
 		"GraphicsPipeline/MotionBlur.cpp"
 		"GraphicsPipeline/HeightMapAO.h"
 		"GraphicsPipeline/HeightMapAO.cpp"
 		"GraphicsPipeline/PostAA.h"
 		"GraphicsPipeline/PostAA.cpp"
+		"GraphicsPipeline/PostEffects.h"
+		"GraphicsPipeline/PostEffects.cpp"
+		"GraphicsPipeline/Rain.h"
+		"GraphicsPipeline/Rain.cpp"
 		"GraphicsPipeline/SceneCustom.h"
 		"GraphicsPipeline/SceneCustom.cpp"
 		"GraphicsPipeline/SceneForward.h"
@@ -988,6 +1059,8 @@ add_sources("CryRenderer_uber_6.cpp"
 		"GraphicsPipeline/ShadowMap.cpp"
 		"GraphicsPipeline/ShadowMask.h"
 		"GraphicsPipeline/ShadowMask.cpp"
+		"GraphicsPipeline/Snow.h"
+		"GraphicsPipeline/Snow.cpp"
 		"GraphicsPipeline/StandardGraphicsPipeline.h"
 		"GraphicsPipeline/StandardGraphicsPipeline.cpp"
 		"GraphicsPipeline/SunShafts.h"
@@ -1013,17 +1086,19 @@ add_sources("CryRenderer_uber_6.cpp"
 		"GraphicsPipeline/Common/GraphicsPipelineStage.h"
 		"GraphicsPipeline/Common/GraphicsPipelineStateSet.h"
 		"GraphicsPipeline/Common/GraphicsPipelineStateSet.cpp"
+		"GraphicsPipeline/Common/RenderPassScheduler.h"
+		"GraphicsPipeline/Common/RenderPassScheduler.cpp"
 		"GraphicsPipeline/Common/PrimitiveRenderPass.h"
 		"GraphicsPipeline/Common/PrimitiveRenderPass.cpp"
+		"GraphicsPipeline/Common/RenderPassBase.h"
 		"GraphicsPipeline/Common/SceneRenderPass.h"
 		"GraphicsPipeline/Common/SceneRenderPass.cpp"
 		"GraphicsPipeline/Common/UtilityPasses.h"
 		"GraphicsPipeline/Common/UtilityPasses.cpp"
-		"GraphicsPipeline/Common/VolumeRenderPass.h"
 )
 
 add_sources("NoUberFile"
-	PROJECTS CryRenderGNM CryRenderD3D11 CryRenderD3D12 CryRenderOpenGL
+	PROJECTS CryRenderGNM CryRenderD3D11 CryRenderD3D12 CryRenderVulkan CryRenderOpenGL
 	SOURCE_GROUP "Root"
 		"../StdAfx.cpp"
 		"../StdAfx.h"
@@ -1033,40 +1108,39 @@ add_sources("NoUberFile"
 end_sources()
 #END-FILE-LIST
 
-set(gnm_compiler_version "ORBIS/V031")
-
-set(extra_defines -DCRY_GNM_SHADER_COMPILER_VERSION="${gnm_compiler_version}")
+set(extra_defines)
 
 if(PLUGIN_VR_OCULUS OR PLUGIN_VR_OSVR OR PLUGIN_VR_OPENVR)
 	message(STATUS "Enabling VR rendering.")
 	list(APPEND extra_defines -DINCLUDE_VR_RENDERING)
 endif()
 
-if (NOT EXISTS ${SDK_DIR}/NVIDIA/NVAPI_r386)
+if (NOT EXISTS "${SDK_DIR}/NVIDIA/NVAPI_r386")
 	message(STATUS "NVAPI SDK v.386 not found, excluding from the build.")
 	list(APPEND extra_defines -DEXCLUDE_NV_API)
 endif()
 
-if (NOT EXISTS ${SDK_DIR}/AMD)
+if (NOT EXISTS "${SDK_DIR}/AMD")
 	message(STATUS "AMD AGS SDK not found, excluding from the build.")
 	list(APPEND extra_defines -DEXCLUDE_AMD_API)
 endif()
 
 if (RENDERER_DX11)
-	CryEngineModule(CryRenderD3D11 PCH "../StdAfx.cpp" SOLUTION_FOLDER "CryEngine")
+	CryEngineModule(CryRenderD3D11 FORCE_SHARED PCH "../StdAfx.cpp" SOLUTION_FOLDER "CryEngine")
 	
-	target_include_directories(${THIS_PROJECT} PRIVATE .. ${SDK_DIR}/squish-ccr)
-	target_compile_definitions(${THIS_PROJECT} PRIVATE -DDO_RENDERSTATS -D_RENDERER ${extra_defines})
+	target_include_directories(${THIS_PROJECT} PRIVATE .. "${SDK_DIR}/squish-ccr")
 	target_link_libraries(${THIS_PROJECT} PRIVATE lzma lzss lz4 zlib)
 
 	if (WIN32 OR WIN64)
 		set_target_properties(${THIS_PROJECT} PROPERTIES LINK_FLAGS /NODEFAULTLIB:libcmt.lib)
-		target_link_libraries(${THIS_PROJECT} PRIVATE dxguid d3d11 d3d10 d3dcompiler Ole32 Gdi32 wininet Shell32)
+		target_compile_definitions(${THIS_PROJECT} PRIVATE -DCRY_RENDERER_DIRECT3D=110 -DDO_RENDERSTATS -D_RENDERER ${extra_defines})
+		target_link_libraries(${THIS_PROJECT} PRIVATE dxguid d3d11 d3d10 d3dcompiler Ole32 Gdi32 wininet Shell32 png16 tiff)
 	elseif(DURANGO)
-		target_link_libraries(${THIS_PROJECT} PRIVATE ws2_32 SmartGlassInterop d3dcompiler dxguid xg_x uuid kernelx)
+		target_compile_definitions(${THIS_PROJECT} PRIVATE -DCRY_RENDERER_DIRECT3D=111 -DDO_RENDERSTATS -D_RENDERER ${extra_defines})
+		target_link_libraries(${THIS_PROJECT} PRIVATE ws2_32 SmartGlassInterop d3d11_x d3dcompiler dxguid xg_x uuid kernelx)
 	elseif(ORBIS)
 		target_include_directories(${THIS_PROJECT} PRIVATE ../../.. )
-		target_compile_definitions(${THIS_PROJECT} PRIVATE -DCRY_USE_GNM)
+		target_compile_definitions(${THIS_PROJECT} PRIVATE -DCRY_RENDERER_DIRECT3D=111 -DDO_RENDERSTATS -D_RENDERER ${extra_defines})
 		target_compile_options(${THIS_PROJECT} PRIVATE $<$<CONFIG:Release>:-flto>)
 		target_link_libraries(${THIS_PROJECT} PRIVATE SceSystemService_stub_weak SceGnmDriver_stub_weak $<$<NOT:$<CONFIG:Release>>:SceGnm> $<$<NOT:$<CONFIG:Release>>:SceGnmx> $<$<CONFIG:Release>:SceGnm_lto> $<$<CONFIG:Release>:SceGnmx_lto>)
 	endif()
@@ -1075,82 +1149,103 @@ else()
 endif()
 
 if (RENDERER_OPENGL)
-	CryEngineModule(CryRenderOpenGL PCH "../StdAfx.cpp" SOLUTION_FOLDER "CryEngine")
-	target_include_directories(${THIS_PROJECT} PRIVATE .. ${SDK_DIR}/squish-ccr)
-	target_compile_definitions(${THIS_PROJECT} PRIVATE -DOPENGL -DDO_RENDERSTATS -D_RENDERER ${extra_defines})
+	CryEngineModule(CryRenderOpenGL FORCE_SHARED PCH "../StdAfx.cpp" SOLUTION_FOLDER "CryEngine")
+	target_include_directories(${THIS_PROJECT} PRIVATE .. "${SDK_DIR}/squish-ccr")
+	target_compile_definitions(${THIS_PROJECT} PRIVATE -DCRY_RENDERER_DIRECT3D=110 -DCRY_RENDERER_OPENGL=440 -DDO_RENDERSTATS -D_RENDERER ${extra_defines})
 	target_link_libraries(${THIS_PROJECT} PRIVATE lzma lzss lz4 zlib)
 
 	if (WIN32 OR WIN64)
-		target_include_directories(${THIS_PROJECT} PRIVATE ${SDK_DIR}/squish-ccr ${CRYENGINE_DIR}/Code/Tools/LibTIFF ${CRYENGINE_DIR}/Code/Tools/HLSLCrossCompiler/include)
+		target_include_directories(${THIS_PROJECT} PRIVATE "${SDK_DIR}/squish-ccr" "${CRYENGINE_DIR}/Code/Tools/LibTIFF" "${CRYENGINE_DIR}/Code/Tools/HLSLCrossCompiler/include")
 		set_target_properties(${THIS_PROJECT} PROPERTIES LINK_FLAGS /NODEFAULTLIB:libcmt.lib)
-		target_link_libraries(${THIS_PROJECT} PRIVATE opengl32 winmm Ole32 Gdi32 wininet Shell32)
+		target_link_libraries(${THIS_PROJECT} PRIVATE opengl32 winmm Ole32 Gdi32 wininet Shell32 png16 tiff)
 		if(WIN64)
 			find_library(LIBHLSLCC libHLSLcc PATHS "${CRYENGINE_DIR}/Code/Tools/HLSLCrossCompiler/lib/win64")
 		elseif(WIN32)
 			find_library(LIBHLSLCC libHLSLcc PATHS "${CRYENGINE_DIR}/Code/Tools/HLSLCrossCompiler/lib/win32")
 		endif()
 		mark_as_advanced(FORCE LIBHLSLCC)
-		target_link_libraries(${THIS_PROJECT} PRIVATE ${LIBHLSLCC})
+		target_link_libraries(${THIS_PROJECT} PRIVATE "${LIBHLSLCC}")
 	elseif(APPLE)
-		target_include_directories(${THIS_PROJECT} PRIVATE ${SDK_DIR}/SDL2/include/SDL ${SDK_DIR}/SDL2/include/mac ${CRYENGINE_DIR}/Code/Tools/LibTIFF ${CRYENGINE_DIR}/Code/Tools/HLSLCrossCompiler/include)
+		target_include_directories(${THIS_PROJECT} PRIVATE "${SDK_DIR}/SDL2/include/SDL" "${SDK_DIR}/SDL2/include/mac" "${CRYENGINE_DIR}/Code/Tools/LibTIFF" "${CRYENGINE_DIR}/Code/Tools/HLSLCrossCompiler/include")
 		find_library(SDL2 SDL2 PATHS "${SDK_DIR}/SDL2/lib/mac")
 		find_library(LIBHLSLCC HLSLcc PATHS "${CRYENGINE_DIR}/Code/Tools/HLSLCrossCompiler/lib/mac")
 		find_library(OPENGL OpenGL)
 		find_library(APPLICATIONSERVICES ApplicationServices)
 		find_library(IOKIT IOKit)
-		target_link_libraries(${THIS_PROJECT} PRIVATE ${SDL2} ${LIBHLSLCC} ${OPENGL} ${APPLICATIONSERVICES} ${IOKIT})
+		target_link_libraries(${THIS_PROJECT} PRIVATE "${SDL2}" "${LIBHLSLCC}" "${OPENGL}" "${APPLICATIONSERVICES}" "${IOKIT}")
 	elseif(LINUX)
 		target_link_libraries(${THIS_PROJECT} PRIVATE SDL2)
-		target_include_directories(${THIS_PROJECT} PRIVATE ${CRYENGINE_DIR}/Code/Tools/HLSLCrossCompiler/include)	
+		target_include_directories(${THIS_PROJECT} PRIVATE "${CRYENGINE_DIR}/Code/Tools/HLSLCrossCompiler/include")	
 		if(LINUX64)
 			find_library(LIBHLSLCC HLSLcc PATHS "${CRYENGINE_DIR}/Code/Tools/HLSLCrossCompiler/lib/linux")
-			target_link_libraries(${THIS_PROJECT} PRIVATE ${LIBHLSLCC})
+			target_link_libraries(${THIS_PROJECT} PRIVATE "${LIBHLSLCC}")
 		endif()
 	elseif(ANDROID)
 #		target_compile_definitions(${THIS_PROJECT} PRIVATE -DGLEW_MX -DDXGL_ANDROID_GL)
 		target_compile_definitions(${THIS_PROJECT} PRIVATE -DGLEW_MX -DOPENGL_ES)
 
-		target_include_directories(${THIS_PROJECT} PRIVATE ${CRYENGINE_DIR}/Code/CryEngine/CrySystem ${SDK_DIR}/SDL2/include/SDL ${SDK_DIR}/SDL2/include/linux ${CRYENGINE_DIR}/Code/Tools/SDLExtension/src/include ${CRYENGINE_DIR}/Code/Tools/HLSLCrossCompiler/include)	
+		target_include_directories(${THIS_PROJECT} PRIVATE 
+			"${CRYENGINE_DIR}/Code/CryEngine/CrySystem"
+			"${SDK_DIR}/SDL2/include/SDL"
+			"${SDK_DIR}/SDL2/include/linux" 
+			"${CRYENGINE_DIR}/Code/Tools/SDLExtension/src/include" 
+			"${CRYENGINE_DIR}/Code/Tools/HLSLCrossCompiler/include")
 		target_link_libraries(${THIS_PROJECT} PRIVATE EGL GLESv1_CM SDL2)
 	endif()
 else()
 	CryFileContainer(CryRenderOpenGL SOLUTION_FOLDER "CryEngine")
 endif()
 
-
 if (RENDERER_DX12)
-	CryEngineModule(CryRenderD3D12 PCH "../StdAfx.cpp" SOLUTION_FOLDER "CryEngine")
-	target_compile_definitions(${THIS_PROJECT} PRIVATE -DDIRECT3D10 -DCRY_USE_DX12 -DXRENDERD3D10_EXPORTS -DDO_RENDERSTATS -D_RENDERER ${extra_defines})
-	target_include_directories(${THIS_PROJECT} PRIVATE .. ${SDK_DIR} ${SDK_DIR}/squish-ccr ${CRYENGINE_DIR}/Code/Tools/LibTIFF ${CRYENGINE_DIR}/Code/CryEngine/RenderDll/XRenderD3D9/DX12/Includes)
-	set_target_properties(${THIS_PROJECT} PROPERTIES LINK_FLAGS /NODEFAULTLIB:libcmt.lib)
-	target_link_libraries(${THIS_PROJECT} PRIVATE lzma lzss lz4 zlib dxguid d3d12 dxgi d3dcompiler Ole32 Gdi32 wininet Shell32)
+	CryEngineModule(CryRenderD3D12 FORCE_SHARED PCH "../StdAfx.cpp" SOLUTION_FOLDER "CryEngine")
+
+	target_compile_definitions(${THIS_PROJECT} PRIVATE -DCRY_RENDERER_DIRECT3D=120 -DDO_RENDERSTATS -D_RENDERER ${extra_defines})
+	target_include_directories(${THIS_PROJECT} PRIVATE .. "${SDK_DIR}" "${SDK_DIR}/squish-ccr" "${CRYENGINE_DIR}/Code/Tools/LibTIFF" "${CRYENGINE_DIR}/Code/CryEngine/RenderDll/XRenderD3D9/DX12/Includes")
+	target_link_libraries(${THIS_PROJECT} PRIVATE lzma lzss lz4 zlib)
+	
+	if (WIN32 OR WIN64)
+		set_target_properties(${THIS_PROJECT} PROPERTIES LINK_FLAGS /NODEFAULTLIB:libcmt.lib)
+		target_link_libraries(${THIS_PROJECT} PRIVATE lzma lzss lz4 zlib dxguid d3d12 dxgi d3dcompiler Ole32 Gdi32 wininet Shell32 png16 tiff)
+	elseif(DURANGO)
+		target_link_libraries(${THIS_PROJECT} PRIVATE ws2_32 SmartGlassInterop d3d12_x d3dcompiler dxguid xg_x uuid kernelx)
+	endif()
 else()
 	CryFileContainer(CryRenderD3D12 SOLUTION_FOLDER "CryEngine")
 endif()
 
-if (EXISTS ${SDK_DIR}/Orbis AND EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/GNM)
+if (RENDERER_VULKAN)
+	add_subdirectory("${CRY_LIBS_DIR}/spirv-cross" "${CMAKE_CURRENT_BINARY_DIR}/spirv-cross")
+
+	CryEngineModule(CryRenderVulkan PCH "../StdAfx.cpp" SOLUTION_FOLDER "CryEngine")
+	target_compile_definitions(${THIS_PROJECT} PRIVATE -DCRY_RENDERER_VULKAN=10 -DDO_RENDERSTATS -D_RENDERER)
+	target_include_directories(${THIS_PROJECT} PRIVATE ..)
+	target_include_directories(${THIS_PROJECT} PRIVATE "${SDK_DIR}/squish-ccr")
+	target_include_directories(${THIS_PROJECT} PRIVATE "${SDK_DIR}/VulkanSDK/Include")
+	target_link_libraries(${THIS_PROJECT} PRIVATE lzma lzss lz4 zlib spirv-cross)
+	if(WIN32 OR WIN64)
+		target_link_libraries(${THIS_PROJECT} PRIVATE Ole32 Gdi32 wininet Shell32 png16 dxguid vulkan-1 tiff)
+		set_target_properties(${THIS_PROJECT} PROPERTIES LINK_FLAGS /NODEFAULTLIB:libcmt.lib)
+		set_libpath_flag()
+		set_property(TARGET ${THIS_PROJECT} APPEND_STRING PROPERTY LINK_FLAGS " ${LIBPATH_FLAG}\"${SDK_DIR}/VulkanSDK/Lib\"")
+	elseif(ANDROID)
+		target_include_directories(${THIS_PROJECT} PRIVATE 
+			"${CRYENGINE_DIR}/Code/Tools/HLSLCrossCompiler/include")
+
+		target_link_libraries(${THIS_PROJECT} PRIVATE SDL2)
+		target_link_libraries(${THIS_PROJECT} PRIVATE vulkan)
+	endif()
+else()
+	CryFileContainer(CryRenderVulkan SOLUTION_FOLDER "CryEngine")
+endif()
+
+if (EXISTS "${SCE_ORBIS_SDK_DIR}" AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/GNM")
 	if (RENDERER_GNM)
 		CryEngineModule(CryRenderGNM PCH "../StdAfx.cpp" SOLUTION_FOLDER "CryEngine")
 		target_include_directories(${THIS_PROJECT} PRIVATE ..)
-		target_compile_definitions(${THIS_PROJECT} PRIVATE -D_RENDERER -DDO_RENDERSTATS -DCRY_USE_GNM -DCRY_USE_GNM_RENDERER ${extra_defines})
+		target_compile_definitions(${THIS_PROJECT} PRIVATE -D_RENDERER -DDO_RENDERSTATS -DCRY_RENDERER_GNM=40 ${extra_defines})
 		target_compile_options(${THIS_PROJECT} PRIVATE $<$<CONFIG:Release>:-flto>)
 		target_link_libraries(${THIS_PROJECT} PRIVATE lzma lzss lz4 zlib SceSystemService_stub_weak SceGnmDriver_stub_weak $<$<NOT:$<CONFIG:Release>>:SceGnm> $<$<NOT:$<CONFIG:Release>>:SceGnmx> $<$<NOT:$<CONFIG:Release>>:SceDbg_stub_weak> $<$<CONFIG:Release>:SceGnm_lto> $<$<CONFIG:Release>:SceGnmx_lto>)
 	else()
 		CryFileContainer(CryRenderGNM SOLUTION_FOLDER "CryEngine")
-	endif()
-
-	if(RENDERER_GNM_SHADER_COMPILER)
-		CryConsoleApplication(GnmShaderCompiler SOLUTION_FOLDER "Tools")
-
-		# Force static CRT
-		force_static_crt()
-
-		target_include_directories(${THIS_PROJECT} PRIVATE ${SDK_DIR}/Orbis/target/include_common)
-		target_compile_definitions(${THIS_PROJECT} PRIVATE -D_CRT_SECURE_NO_WARNINGS)
-		target_compile_options(${THIS_PROJECT} PRIVATE /EHsc /GR)
-		find_library(WAVEPSSLC libSceShaderWavePsslc PATHS ${SDK_DIR}/Orbis/host_tools/lib)
-		mark_as_advanced(FORCE WAVEPSSLC)
-		target_link_libraries(${THIS_PROJECT} PRIVATE ${WAVEPSSLC})
-		set_property(TARGET ${THIS_PROJECT} PROPERTY LIBRARY_OUTPUT_DIRECTORY ${CRYENGINE_DIR}/Tools/RemoteShaderCompiler/Compiler/${gnm_compiler_version})
 	endif()
 endif()

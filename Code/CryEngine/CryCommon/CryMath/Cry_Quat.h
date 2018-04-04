@@ -1,6 +1,7 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #pragma once
+#define _CRYQUAT_H
 
 #include <limits>
 
@@ -8,58 +9,19 @@ const float RAD_EPSILON = 0.01f;
 
 //! Quaternion.
 template<typename F> struct Quat_tpl
+	: INumberVector<F, 4, Quat_tpl<F>>
 {
-
 	Vec3_tpl<F> v;
 	F           w;
 
-	//constructors
-#if defined(_DEBUG)
-	ILINE Quat_tpl()
-	{
-		if (sizeof(F) == 4)
-		{
-			uint32* p = alias_cast<uint32*>(&v.x);
-			p[0] = F32NAN;
-			p[1] = F32NAN;
-			p[2] = F32NAN;
-			p[3] = F32NAN;
-		}
-		if (sizeof(F) == 8)
-		{
-			uint64* p = alias_cast<uint64*>(&v.x);
-			p[0] = F64NAN;
-			p[1] = F64NAN;
-			p[2] = F64NAN;
-			p[3] = F64NAN;
-		}
-	}
-#else
+	typedef INumberVector<F, 4, Quat_tpl<F>> NV;
+	using NV::IsValid;
+	using NV::Normalize;
+
 	ILINE Quat_tpl() {}
-#endif
-
-	//! Initialize with zeros.
-	ILINE Quat_tpl(type_zero)
-	{
-		w = 0, v.x = 0, v.y = 0, v.z = 0;
-	}
-	ILINE Quat_tpl(type_identity)
-	{
-		w = 1, v.x = 0, v.y = 0, v.z = 0;
-	}
-
-	//! ASSIGNMENT OPERATOR of identical Quat types.
-	//! The assignment operator has precedence over assignment constructor.
-	//! Quat q; q=q0;
-	ILINE Quat_tpl<F>& operator=(const Quat_tpl<F>& src)
-	{
-		v.x = src.v.x;
-		v.y = src.v.y;
-		v.z = src.v.z;
-		w = src.w;
-		CRY_MATH_ASSERT(IsValid());
-		return *this;
-	}
+	ILINE Quat_tpl(type_zero) { NV::SetZero(); }
+	ILINE Quat_tpl(type_identity): v(0), w(1) {}
+	template<class F2> ILINE Quat_tpl(const Quat_tpl<F2> &q) { NV::Set(q); }
 
 	//! CONSTRUCTOR to initialize a Quat from 4 floats.
 	//! Quat q(1,0,0,0);
@@ -80,28 +42,6 @@ template<typename F> struct Quat_tpl
 		CRY_MATH_ASSERT(IsValid());
 	};
 
-	//! CONSTRUCTOR for identical types.
-	//! Quat q=q0;
-	ILINE Quat_tpl<F>(const Quat_tpl<F> &q)
-	{
-		w = q.w;
-		v.x = q.v.x;
-		v.y = q.v.y;
-		v.z = q.v.z;
-		CRY_MATH_ASSERT(IsValid());
-	}
-
-	//! CONSTRUCTOR for identical types which converts between double/float.
-	//! Quat q32=q64;
-	//! Quatr q64=q32;
-	template<class F1> ILINE Quat_tpl<F>(const Quat_tpl<F1> &q)
-	{
-		CRY_MATH_ASSERT(q.IsValid());
-		w = F(q.w);
-		v.x = F(q.v.x);
-		v.y = F(q.v.y);
-		v.z = F(q.v.z);
-	}
 
 	//! CONSTRUCTOR for different types. It converts a Euler Angle into a Quat.
 	//! Needs to be 'explicit' because we loose fp-precision in the conversion process.
@@ -120,32 +60,13 @@ template<typename F> struct Quat_tpl
 		SetRotationXYZ(Ang3_tpl<F>(F(ang.x), F(ang.y), F(ang.z)));
 	}
 
-	//! CONSTRUCTOR for different types. It converts a Matrix33 into a Quat.
-	//! Needs to be 'explicit' because we loose fp-precision in the conversion process.
-	//! Quat(m33);
-	explicit ILINE Quat_tpl<F>(const Matrix33_tpl<F> &m)
+	//! Extract quat from any matrix type which has members of the form m12, etc
+	template<class F1, class M>
+	void SetFromMatrix(const M& m)
 	{
 		CRY_MATH_ASSERT(m.IsOrthonormalRH(0.1f));
-		F s, p, tr = m.m00 + m.m11 + m.m22;
-		w = 1, v.x = 0, v.y = 0, v.z = 0;
-		if (tr > 0)
-			s = sqrt_tpl(tr + 1.0f), p = 0.5f / s, w = s * 0.5f, v.x = (m.m21 - m.m12) * p, v.y = (m.m02 - m.m20) * p, v.z = (m.m10 - m.m01) * p;
-		else if ((m.m00 >= m.m11) && (m.m00 >= m.m22))
-			s = sqrt_tpl(m.m00 - m.m11 - m.m22 + 1.0f), p = 0.5f / s, w = (m.m21 - m.m12) * p, v.x = s * 0.5f, v.y = (m.m10 + m.m01) * p, v.z = (m.m20 + m.m02) * p;
-		else if ((m.m11 >= m.m00) && (m.m11 >= m.m22))
-			s = sqrt_tpl(m.m11 - m.m22 - m.m00 + 1.0f), p = 0.5f / s, w = (m.m02 - m.m20) * p, v.x = (m.m01 + m.m10) * p, v.y = s * 0.5f, v.z = (m.m21 + m.m12) * p;
-		else if ((m.m22 >= m.m00) && (m.m22 >= m.m11))
-			s = sqrt_tpl(m.m22 - m.m00 - m.m11 + 1.0f), p = 0.5f / s, w = (m.m10 - m.m01) * p, v.x = (m.m02 + m.m20) * p, v.y = (m.m12 + m.m21) * p, v.z = s * 0.5f;
-	}
-	//! CONSTRUCTOR for different types. It converts a Matrix33 into a Quat and converts between double/float.
-	//! Needs to be 'explicit' because we loose fp-precision the conversion process.
-	//! Quat(m33r);
-	//! Quatr(m33);
-	template<class F1> explicit ILINE Quat_tpl<F>(const Matrix33_tpl<F1> &m)
-	{
-		CRY_MATH_ASSERT(m.IsOrthonormalRH(0.1f));
+		SetIdentity();
 		F1 s, p, tr = m.m00 + m.m11 + m.m22;
-		w = 1, v.x = 0, v.y = 0, v.z = 0;
 		if (tr > 0)
 			s = sqrt_tpl(tr + 1.0f), p = 0.5f / s, w = F(s * 0.5), v.x = F((m.m21 - m.m12) * p), v.y = F((m.m02 - m.m20) * p), v.z = F((m.m10 - m.m01) * p);
 		else if ((m.m00 >= m.m11) && (m.m00 >= m.m22))
@@ -156,21 +77,14 @@ template<typename F> struct Quat_tpl
 			s = sqrt_tpl(m.m22 - m.m00 - m.m11 + 1.0f), p = 0.5f / s, w = F((m.m10 - m.m01) * p), v.x = F((m.m02 + m.m20) * p), v.y = F((m.m12 + m.m21) * p), v.z = F(s * 0.5);
 	}
 
-	//! CONSTRUCTOR for different types. It converts a Matrix34 into a Quat.
-	//! Needs to be 'explicit' because we loose fp-precision in the conversion process.
-	//! Quat(m34);
-	explicit ILINE Quat_tpl<F>(const Matrix34_tpl<F> &m)
-	{
-		*this = Quat_tpl<F>(Matrix33_tpl<F>(m));
-	}
-	//! CONSTRUCTOR for different types. It converts a Matrix34 into a Quat and converts between double/float.
-	//! Needs to be 'explicit' because we loose fp-precision the conversion process.
-	//! Quat(m34r);
-	//! Quatr(m34);
-	template<class F1> explicit ILINE Quat_tpl<F>(const Matrix34_tpl<F1> &m)
-	{
-		*this = Quat_tpl<F>(Matrix33_tpl<F1>(m));
-	}
+	template<class F1> explicit Quat_tpl(const Matrix33_tpl<F1> &m) { SetFromMatrix<F1>(m); }
+	template<class F1> explicit Quat_tpl(const Matrix34_tpl<F1> &m) { SetFromMatrix<F1>(m); }
+	template<class F1> explicit Quat_tpl(const Matrix44_tpl<F1> &m) { SetFromMatrix<F1>(m); }
+
+#ifdef CRY_TYPE_SIMD4
+	template<class F1> explicit Quat_tpl(const Matrix34H<F1> &m) { SetFromMatrix<F1>(m); }
+	template<class F1> explicit Quat_tpl(const Matrix44H<F1> &m) { SetFromMatrix<F1>(m); }
+#endif
 
 	//! Invert quaternion.
 	//! Example 1:
@@ -181,16 +95,6 @@ template<typename F> struct Quat_tpl
 	ILINE Quat_tpl<F> operator!() const   { return Quat_tpl(w, -v); }
 	ILINE void        Invert(void)        { *this = !*this; }
 	ILINE Quat_tpl<F> GetInverted() const { return !(*this); }
-
-	//! Flip quaternion. don't confuse this with quaternion-inversion.
-	ILINE Quat_tpl<F> operator-() const { return Quat_tpl<F>(-w, -v); };
-
-	//! Multiplication by a scalar.
-	void operator*=(F op) { w *= op; v *= op; }
-
-	//! Exact compare of 2 quats.
-	ILINE bool operator==(const Quat_tpl<F>& q) const { return (v == q.v) && (w == q.w); }
-	ILINE bool operator!=(const Quat_tpl<F>& q) const { return !(*this == q); }
 
 	//! A quaternion is a compressed matrix. Thus there is no problem extracting the rows & columns.
 	ILINE Vec3_tpl<F> GetColumn(uint32 i)
@@ -245,14 +149,6 @@ template<typename F> struct Quat_tpl
 		return fabs_tpl(1 - (w * w + v.x * v.x + v.y * v.y + v.z * v.z)) < e;
 	}
 
-	ILINE bool IsValid(f32 e = VEC_EPSILON) const
-	{
-		if (!v.IsValid()) return false;
-		if (!NumberValid(w)) return false;
-		//if (!IsUnit(e))	return false;
-		return true;
-	}
-
 	ILINE void SetRotationAA(F rad, const Vec3_tpl<F>& axis)
 	{
 		F s, c;
@@ -284,7 +180,7 @@ template<typename F> struct Quat_tpl
 	//!   Quat q=Quat::CreateRotationXYZ( Ang3(1,2,3) );
 	//!   or
 	//!   q.SetRotationXYZ( Ang3(1,2,3) );
-	ILINE void SetRotationXYZ(const Ang3_tpl<F>& a)
+	void SetRotationXYZ(const Ang3_tpl<F>& a)
 	{
 		CRY_MATH_ASSERT(a.IsValid());
 		F sx, cx;
@@ -298,7 +194,7 @@ template<typename F> struct Quat_tpl
 		v.y = cz * sy * cx + sz * cy * sx;
 		v.z = sz * cy * cx - cz * sy * sx;
 	}
-	ILINE static Quat_tpl<F> CreateRotationXYZ(const Ang3_tpl<F>& a)
+	static Quat_tpl<F> CreateRotationXYZ(const Ang3_tpl<F>& a)
 	{
 		CRY_MATH_ASSERT(a.IsValid());
 		Quat_tpl<F> q;
@@ -374,7 +270,7 @@ template<typename F> struct Quat_tpl
 	//! Example:
 	//!   Quat q=Quat::CreateRotationV0V1( v0,v1 );
 	//!   q.SetRotationV0V1( v0,v1 );
-	ILINE void SetRotationV0V1(const Vec3_tpl<F>& v0, const Vec3_tpl<F>& v1)
+	void SetRotationV0V1(const Vec3_tpl<F>& v0, const Vec3_tpl<F>& v1)
 	{
 		CRY_MATH_ASSERT(v0.IsUnit(0.01f));
 		CRY_MATH_ASSERT(v1.IsUnit(0.01f));
@@ -394,7 +290,7 @@ template<typename F> struct Quat_tpl
 		w = 0;
 		v = v0.GetOrthogonal().GetNormalized();
 	}
-	ILINE static Quat_tpl<F> CreateRotationV0V1(const Vec3_tpl<F>& v0, const Vec3_tpl<F>& v1) { Quat_tpl<F> q;  q.SetRotationV0V1(v0, v1);   return q; }
+	static Quat_tpl<F> CreateRotationV0V1(const Vec3_tpl<F>& v0, const Vec3_tpl<F>& v1) { Quat_tpl<F> q;  q.SetRotationV0V1(v0, v1);   return q; }
 
 	//! \param vdir  Normalized view direction.
 	//! \param roll  Radiant to rotate about Y-axis.
@@ -419,7 +315,7 @@ template<typename F> struct Quat_tpl
 	//!   Quat LookAtQuat=Quat::CreateRotationVDir( Vec3(0,1,0) );
 	//!   or
 	//!   Quat LookAtQuat=Quat::CreateRotationVDir( Vec3(0,1,0), 0.333f );
-	ILINE void SetRotationVDir(const Vec3_tpl<F>& vdir)
+	void SetRotationVDir(const Vec3_tpl<F>& vdir)
 	{
 		CRY_MATH_ASSERT(vdir.IsUnit(0.01f));
 		//set default initialization for up-vector
@@ -446,9 +342,9 @@ template<typename F> struct Quat_tpl
 			v.z = F(hasin0 * hacos1);
 		}
 	}
-	ILINE static Quat_tpl<F> CreateRotationVDir(const Vec3_tpl<F>& vdir) { Quat_tpl<F> q;  q.SetRotationVDir(vdir); return q;  }
+	static Quat_tpl<F> CreateRotationVDir(const Vec3_tpl<F>& vdir) { Quat_tpl<F> q;  q.SetRotationVDir(vdir); return q;  }
 
-	ILINE void               SetRotationVDir(const Vec3_tpl<F>& vdir, F r)
+	void SetRotationVDir(const Vec3_tpl<F>& vdir, F r)
 	{
 		SetRotationVDir(vdir);
 		F sy, cy;
@@ -459,74 +355,15 @@ template<typename F> struct Quat_tpl
 		v.z = F(v.z * cy + vx * sy);
 		w = F(w * cy - vy * sy);
 	}
-	ILINE static Quat_tpl<F> CreateRotationVDir(const Vec3_tpl<F>& vdir, F roll) { Quat_tpl<F> q; q.SetRotationVDir(vdir, roll);  return q; }
-
-	//! Normalize quaternion.
-	//! Example 1:
-	//!  Quat q; q.Normalize();
-	//! Example 2:
-	//!  Quat q=Quat(1,2,3,4);
-	//!  Quat qn=q.GetNormalized();
-	ILINE void Normalize(void)
-	{
-		F d = isqrt_tpl(w * w + v.x * v.x + v.y * v.y + v.z * v.z);
-		w *= d;
-		v.x *= d;
-		v.y *= d;
-		v.z *= d;
-	}
-	ILINE Quat_tpl<F> GetNormalized() const
-	{
-		Quat_tpl<F> t = *this;
-		t.Normalize();
-		return t;
-	}
+	static Quat_tpl<F> CreateRotationVDir(const Vec3_tpl<F>& vdir, F roll) { Quat_tpl<F> q; q.SetRotationVDir(vdir, roll);  return q; }
 
 	ILINE void NormalizeSafe(void)
 	{
-		F d = w * w + v.x * v.x + v.y * v.y + v.z * v.z;
-		if (d > 1e-8f)
-		{
-			d = isqrt_tpl(d);
-			w *= d;
-			v.x *= d;
-			v.y *= d;
-			v.z *= d;
-		}
-		else
-		{
-			SetIdentity();
-		}
+		NV::NormalizeSafe(Quat_tpl(IDENTITY), 1e-8f);
 	}
 	ILINE Quat_tpl<F> GetNormalizedSafe() const
 	{
-		Quat_tpl<F> t = *this;
-		t.NormalizeSafe();
-		return t;
-	}
-
-	ILINE void NormalizeFast(void)
-	{
-		CRY_MATH_ASSERT(this->IsValid());
-		F fInvLen = isqrt_fast_tpl(v.x * v.x + v.y * v.y + v.z * v.z + w * w);
-		v.x *= fInvLen;
-		v.y *= fInvLen;
-		v.z *= fInvLen;
-		w *= fInvLen;
-	}
-	ILINE Quat_tpl<F> GetNormalizedFast() const
-	{
-		Quat_tpl<F> t = *this;
-		t.NormalizeFast();
-		return t;
-	}
-
-	//! Get length of quaternion.
-	//! Example:
-	//!   F l=q.GetLength();
-	ILINE F GetLength() const
-	{
-		return sqrt_tpl(w * w + v.x * v.x + v.y * v.y + v.z * v.z);
+		return NV::GetNormalizedSafe(Quat_tpl(IDENTITY), 1e-8f);
 	}
 
 	ILINE static bool IsEquivalent(const Quat_tpl<F>& q1, const Quat_tpl<F>& q2, f32 qe = RAD_EPSILON)
@@ -601,7 +438,7 @@ template<typename F> struct Quat_tpl
 	//! Example:
 	//!   Quat result,p,q;
 	//!   result.SetNlerpCubic( p, q, 0.5f );
-	ILINE void SetNlerpCubic(const Quat_tpl<F>& p, const Quat_tpl<F>& tq, F t)
+	void SetNlerpCubic(const Quat_tpl<F>& p, const Quat_tpl<F>& tq, F t)
 	{
 		Quat_tpl<F> q = tq;
 		CRY_MATH_ASSERT((fabs_tpl(1 - (p | p))) < 0.001); //check if unit-quaternion
@@ -616,7 +453,7 @@ template<typename F> struct Quat_tpl
 		w = p.w * (1.0f - s) + q.w * s;
 		Normalize();
 	}
-	ILINE static Quat_tpl<F> CreateNlerpCubic(const Quat_tpl<F>& p, const Quat_tpl<F>& tq, F t)
+	static Quat_tpl<F> CreateNlerpCubic(const Quat_tpl<F>& p, const Quat_tpl<F>& tq, F t)
 	{
 		Quat_tpl<F> d;
 		d.SetNlerpCubic(p, tq, t);
@@ -624,7 +461,7 @@ template<typename F> struct Quat_tpl
 	}
 
 	//! Spherical-interpolation between unit quaternions (geometrical slerp).
-	ILINE void SetSlerp(const Quat_tpl<F>& tp, const Quat_tpl<F>& tq, F t)
+	void SetSlerp(const Quat_tpl<F>& tp, const Quat_tpl<F>& tq, F t)
 	{
 		CRY_MATH_ASSERT(tp.IsValid());
 		CRY_MATH_ASSERT(tq.IsValid());
@@ -659,7 +496,7 @@ template<typename F> struct Quat_tpl
 	}
 
 	//! Create a quaternion by spherically interpolating between unit quaternions (geometrical slerp)
-	ILINE static Quat_tpl<F> CreateSlerp(const Quat_tpl<F>& p, const Quat_tpl<F>& tq, F t)
+	static Quat_tpl<F> CreateSlerp(const Quat_tpl<F>& p, const Quat_tpl<F>& tq, F t)
 	{
 		Quat_tpl<F> d;
 		d.SetSlerp(p, tq, t);
@@ -739,19 +576,6 @@ typedef CRY_ALIGN (16) Quat QuatA;
 typedef CRY_ALIGN (32) Quatd QuatrA;
 #endif
 
-//! The "inner product" or "dot product" operation.
-//! Calculate the "inner product" between two Quaternion.
-//! If both Quaternion are unit-quaternions, the result is the cosine: p*q=cos(angle).
-//! Example:
-//!   Quat p(1,0,0,0),q(1,0,0,0);
-//!   F cosine = ( p | q );
-template<typename F1, typename F2> ILINE F1 operator|(const Quat_tpl<F1>& q, const Quat_tpl<F2>& p)
-{
-	CRY_MATH_ASSERT(q.v.IsValid());
-	CRY_MATH_ASSERT(p.v.IsValid());
-	return (q.v.x * p.v.x + q.v.y * p.v.y + q.v.z * p.v.z + q.w * p.w);
-}
-
 //! Implements the multiplication operator: Qua=QuatA*QuatB.
 //! AxB = operation B followed by operation A.
 //! A multiplication takes 16 muls and 12 adds.
@@ -808,53 +632,6 @@ template<class F1, class F2> ILINE void operator/=(Quat_tpl<F1>& q, const Quat_t
 {
 	q = (!p * q);
 }
-
-//! Example:
-//!   Quat p(1,0,0,0),q(1,0,0,0);
-//!   Quat result=p+q;
-//! Example:(self-addition operator)
-//!   Quat p(1,0,0,0),q(1,0,0,0);
-//!   Quat p-=q;
-template<class F1, class F2> ILINE Quat_tpl<F1> operator+(const Quat_tpl<F1>& q, const Quat_tpl<F2>& p)
-{
-	return Quat_tpl<F1>(q.w + p.w, q.v + p.v);
-}
-template<class F1, class F2> ILINE void operator+=(Quat_tpl<F1>& q, const Quat_tpl<F2>& p)
-{
-	q.w += p.w;
-	q.v += p.v;
-}
-
-//! Example:
-//!   Quat p(1,0,0,0),q(1,0,0,0);
-//!   Quat result=p-q;
-//! Example: (self-subtraction operator)
-//!   Quat p(1,0,0,0),q(1,0,0,0);
-//!   Quat p-=q;
-template<class F1, class F2> ILINE Quat_tpl<F1> operator-(const Quat_tpl<F1>& q, const Quat_tpl<F2>& p)
-{
-	return Quat_tpl<F1>(q.w - p.w, q.v - p.v);
-}
-template<class F1, class F2> ILINE void operator-=(Quat_tpl<F1>& q, const Quat_tpl<F2>& p)
-{
-	q.w -= p.w;
-	q.v -= p.v;
-}
-
-//! Scale quaternion free function.
-template<typename F> ILINE Quat_tpl<F> operator*(F t, const Quat_tpl<F>& q)
-{
-	return Quat_tpl<F>(t * q.w, t * q.v);
-};
-
-template<typename F1, typename F2> ILINE Quat_tpl<F1> operator*(const Quat_tpl<F1>& q, F2 t)
-{
-	return Quat_tpl<F1>(q.w * t, q.v * t);
-};
-template<typename F1, typename F2> ILINE Quat_tpl<F1> operator/(const Quat_tpl<F1>& q, F2 t)
-{
-	return Quat_tpl<F1>(q.w / t, q.v / t);
-};
 
 //! Post-multiply of a quaternion and a Vec3 (3D rotations with quaternions).
 //! Example:
@@ -924,14 +701,8 @@ template<typename F> struct QuatT_tpl
 	ILINE QuatT_tpl(){}
 
 	//! Initialize with zeros.
-	ILINE QuatT_tpl(type_zero)
-	{
-		q.w = 0, q.v.x = 0, q.v.y = 0, q.v.z = 0, t.x = 0, t.y = 0, t.z = 0;
-	}
-	ILINE QuatT_tpl(type_identity)
-	{
-		q.w = 1, q.v.x = 0, q.v.y = 0, q.v.z = 0, t.x = 0, t.y = 0, t.z = 0;
-	}
+	ILINE QuatT_tpl(type_zero) : q(ZERO), t(ZERO) {}
+	ILINE QuatT_tpl(type_identity) : q(IDENTITY), t(ZERO) {}
 
 	ILINE QuatT_tpl(const Vec3_tpl<F>& _t, const Quat_tpl<F>& _q) { q = _q; t = _t; }
 
@@ -1184,51 +955,16 @@ template<typename F> struct QuatTS_tpl
 	F           s;
 
 	// constructors
-#if defined(_DEBUG)
 	ILINE QuatTS_tpl()
 	{
-		if (sizeof(F) == 4)
-		{
-			uint32* p = alias_cast<uint32*>(&q.v.x);
-			p[0] = F32NAN;
-			p[1] = F32NAN;
-			p[2] = F32NAN;
-			p[3] = F32NAN;
-			p[4] = F32NAN;
-			p[5] = F32NAN;
-			p[6] = F32NAN;
-			p[7] = F32NAN;
-		}
-		if (sizeof(F) == 8)
-		{
-			uint64* p = alias_cast<uint64*>(&q.v.x);
-			p[0] = F64NAN;
-			p[1] = F64NAN;
-			p[2] = F64NAN;
-			p[3] = F64NAN;
-			p[4] = F64NAN;
-			p[5] = F64NAN;
-			p[6] = F64NAN;
-			p[7] = F64NAN;
-		}
-	}
-#else
-	ILINE QuatTS_tpl(){}
+#if defined(_DEBUG)
+		SetInvalid(s);
 #endif
+	}
 
 	ILINE QuatTS_tpl(const Quat_tpl<F>& quat, const Vec3_tpl<F>& trans, F scale = 1)  { q = quat; t = trans; s = scale; }
 	ILINE QuatTS_tpl(type_identity) { SetIdentity(); }
 
-	//! CONSTRUCTOR: implement the copy/casting/assignment constructor.
-	template<typename F1> ILINE QuatTS_tpl(const QuatTS_tpl<F1>& qts) : q(qts.q), t(qts.t), s(qts.s)  {}
-
-	ILINE QuatTS_tpl& operator=(const QuatT_tpl<F>& qt)
-	{
-		q = qt.q;
-		t = qt.t;
-		s = 1.0f;
-		return *this;
-	}
 	ILINE QuatTS_tpl(const QuatT_tpl<F>& qp)  { q = qp.q; t = qp.t; s = 1.0f; }
 
 	ILINE void SetIdentity()
@@ -1241,10 +977,7 @@ template<typename F> struct QuatTS_tpl
 	explicit ILINE QuatTS_tpl(const Matrix34_tpl<F>& m)
 	{
 		t = m.GetTranslation();
-
-		// The determinant of a matrix is the volume spanned by its base vectors.
-		// We need an approximate length scale, so we calculate the cube root of the determinant.
-		s = pow(m.Determinant(), F(1.0 / 3.0));
+		s = m.GetUniformScale();
 
 		//! Orthonormalize using X and Z as anchors.
 		const Vec3_tpl<F>& r0 = m.GetRow(0);
@@ -1312,11 +1045,9 @@ template<typename F> struct QuatTS_tpl
 
 	bool IsValid(f32 e = VEC_EPSILON) const
 	{
-		if (!q.v.IsValid()) return false;
-		if (!NumberValid(q.w)) return false;
 		if (!q.IsUnit(e)) return false;
 		if (!t.IsValid()) return false;
-		if (!NumberValid(s)) return false;
+		if (!::IsValid(s)) return false;
 		return true;
 	}
 
@@ -1388,9 +1119,6 @@ template<typename F> struct QuatTNS_tpl
 	Diag33_tpl<F> s;
 
 	ILINE QuatTNS_tpl()
-		: q()
-		, t()
-		, s()
 	{
 	}
 
@@ -1416,22 +1144,6 @@ template<typename F> struct QuatTNS_tpl
 		, t(qp.t)
 		, s(Diag33_tpl<F>(IDENTITY))
 	{
-	}
-
-	ILINE QuatTNS_tpl& operator=(const QuatTS_tpl<F>& qts)
-	{
-		q = qts.q;
-		t = qts.t;
-		s = Diag33_tpl<F>(qts.s);
-		return *this;
-	}
-
-	ILINE QuatTNS_tpl& operator=(const QuatT_tpl<F>& qt)
-	{
-		q = qt.q;
-		t = qt.t;
-		s = Diag33_tpl<F>(IDENTITY);
-		return *this;
 	}
 
 	ILINE void SetIdentity()
@@ -1516,13 +1228,9 @@ template<typename F> struct QuatTNS_tpl
 
 	bool IsValid(f32 e = VEC_EPSILON) const
 	{
-		if (!q.v.IsValid()) return false;
-		if (!NumberValid(q.w)) return false;
 		if (!q.IsUnit(e)) return false;
 		if (!t.IsValid()) return false;
-		if (!NumberValid(s.x)) return false;
-		if (!NumberValid(s.y)) return false;
-		if (!NumberValid(s.z)) return false;
+		if (!s.IsValid()) return false;
 		return true;
 	}
 

@@ -6,7 +6,7 @@
 #include "ComboBoxDelegate.h"
 
 #include <ProxyModels/AttributeFilterProxyModel.h>
-#include <QSearchBox.h>
+#include <QFilteringPanel.h>
 
 #include <QHeaderView>
 #include <QVBoxLayout>
@@ -90,7 +90,7 @@ CSceneViewContainer::CSceneViewContainer(QAbstractItemModel* pModel, QTreeView* 
 	, m_pFilterModel()
 	, m_pModel(pModel)
 	, m_pView(pView)
-	, m_pSearchBox(nullptr)
+	, m_pFilteringPanel(nullptr)
 {
 	m_pFilterModel.reset(new QAttributeFilterProxyModel(QAttributeFilterProxyModel::AcceptIfChildMatches));
 	m_pFilterModel->setSourceModel(m_pModel);
@@ -99,14 +99,11 @@ CSceneViewContainer::CSceneViewContainer(QAbstractItemModel* pModel, QTreeView* 
 	m_pView->setModel(m_pFilterModel.get());
 	m_pView->setParent(this);
 
-	m_pSearchBox = new QSearchBox(this);
-	m_pSearchBox->SetModel(m_pFilterModel.get());
-	m_pSearchBox->EnableContinuousSearch(true);
-	m_pSearchBox->SetAutoExpandOnSearch(m_pView);
+	m_pFilteringPanel = new QFilteringPanel("Mesh Importer Scene", m_pFilterModel.get());
+	m_pFilteringPanel->SetContent(m_pView);
 
 	QVBoxLayout* pLayout = new QVBoxLayout();
-	pLayout->addWidget(m_pSearchBox);
-	pLayout->addWidget(m_pView);
+	pLayout->addWidget(m_pFilteringPanel);
 	setLayout(pLayout);
 
 	setContentsMargins(0, 0, 0, 0);
@@ -136,9 +133,4 @@ QAbstractItemView* CSceneViewContainer::GetView()
 const QAttributeFilterProxyModel* CSceneViewContainer::GetFilter() const
 {
 	return m_pFilterModel.get();
-}
-
-void CSceneViewContainer::SetSearchText(const QString& query)
-{
-	m_pSearchBox->setText(query);
 }

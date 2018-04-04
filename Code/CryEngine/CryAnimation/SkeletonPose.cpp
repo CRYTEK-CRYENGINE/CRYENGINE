@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #include "stdafx.h"
 #include "SkeletonPose.h"
@@ -59,7 +59,7 @@ void CSkeletonPose::InitSkeletonPose(CCharInstance* pInstance, CSkeletonAnim* pS
 		IAnimationPoseBlenderDir* pPBLook = m_PoseBlenderLook.get();
 		if (pPBLook == 0)
 		{
-			::CryCreateClassInstance<IAnimationPoseBlenderDir>("AnimationPoseModifier_PoseBlenderLook", m_PoseBlenderLook);
+			CryCreateClassInstance<IAnimationPoseBlenderDir>(CPoseBlenderLook::GetCID(), m_PoseBlenderLook);
 		}
 	}
 
@@ -68,7 +68,7 @@ void CSkeletonPose::InitSkeletonPose(CCharInstance* pInstance, CSkeletonAnim* pS
 		IAnimationPoseBlenderDir* pPBAim = m_PoseBlenderAim.get();
 		if (pPBAim == 0)
 		{
-			::CryCreateClassInstance<IAnimationPoseBlenderDir>("AnimationPoseModifier_PoseBlenderAim", m_PoseBlenderAim);
+			CryCreateClassInstance<IAnimationPoseBlenderDir>(CPoseBlenderAim::GetCID(), m_PoseBlenderAim);
 		}
 	}
 
@@ -261,7 +261,7 @@ uint32 CSkeletonPose::SetHumanLimbIK(const Vec3& vWorldPos, const char* strLimb)
 {
 	if (!m_limbIk.get())
 	{
-		::CryCreateClassInstance<IAnimationPoseModifier>("AnimationPoseModifier_LimbIk", m_limbIk);
+		CryCreateClassInstance<IAnimationPoseModifier>(CLimbIk::GetCID(), m_limbIk);
 		assert(m_limbIk.get());
 	}
 
@@ -281,7 +281,7 @@ void CSkeletonPose::ApplyRecoilAnimation(f32 fDuration, f32 fKinematicImpact, f3
 	PoseModifier::CRecoil* pRecoil = static_cast<PoseModifier::CRecoil*>(m_recoil.get());
 	if (!pRecoil)
 	{
-		::CryCreateClassInstance<IAnimationPoseModifier>("AnimationPoseModifier_Recoil", m_recoil);
+		CryCreateClassInstance<IAnimationPoseModifier>(PoseModifier::CRecoil::GetCID(), m_recoil);
 		pRecoil = static_cast<PoseModifier::CRecoil*>(m_recoil.get());
 		assert(pRecoil);
 	}

@@ -6,8 +6,8 @@
 #include "ScriptBrowserUtils.h"
 #include "DetailWidget.h"
 
-#include <Schematyc/Utils/Any.h>
-#include <Schematyc/SerializationUtils/ISerializationContext.h>
+#include <CrySchematyc/Utils/Any.h>
+#include <CrySchematyc/SerializationUtils/ISerializationContext.h>
 
 #include <CryIcon.h>
 

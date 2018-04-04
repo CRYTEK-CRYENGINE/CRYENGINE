@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 // -------------------------------------------------------------------------
 //  File name:   statobjman.h
@@ -28,7 +28,7 @@
 
 #define ENTITY_MAX_DIST_FACTOR  100
 #define MAX_VALID_OBJECT_VOLUME (10000000000.f)
-#define DEFAULT_CGF_NAME        ("EngineAssets\\Objects\\Default.cgf")
+#define DEFAULT_CGF_NAME        ("%ENGINE%\\EngineAssets\\Objects\\Default.cgf")
 
 struct CStatObj;
 struct IIndoorBase;
@@ -455,6 +455,7 @@ public:
 	void         RenderBufferedRenderMeshes(const SRenderingPassInfo& passInfo);
 	uint32       GetResourcesModificationChecksum(IRenderNode* pOwnerNode) const;
 	bool         AddOrCreatePersistentRenderObject(SRenderNodeTempData* pTempData, CRenderObject*& pRenderObject, const CLodValue* pLodValue, const SRenderingPassInfo& passInfo) const;
+	IRenderMesh* GetBillboardRenderMesh(IMaterial* pMaterial);
 
 public:
 	//////////////////////////////////////////////////////////////////////////
@@ -495,6 +496,7 @@ public:
 	//	bool LoadStaticObjectsFromXML(XmlNodeRef xmlVegetation);
 	_smart_ptr<CStatObj>    m_pDefaultCGF;
 	_smart_ptr<IRenderMesh> m_pRMBox;
+	_smart_ptr<IRenderMesh> m_pBillboardMesh;
 
 	//////////////////////////////////////////////////////////////////////////
 	std::vector<_smart_ptr<IStatObj>> m_lockedObjects;

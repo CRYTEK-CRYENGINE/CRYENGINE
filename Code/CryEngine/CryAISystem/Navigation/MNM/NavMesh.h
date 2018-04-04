@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #ifndef __MNM_MESH_GRID_H
 #define __MNM_MESH_GRID_H
@@ -321,6 +321,16 @@ public:
 		size_t     edge;
 	};
 
+	enum ERayCastResult
+	{
+		eRayCastResult_NoHit = 0,
+		eRayCastResult_Hit,
+		eRayCastResult_RayTooLong,
+		eRayCastResult_Unacceptable,
+		eRayCastResult_InvalidStart,
+		eRayCastResult_InvalidEnd,
+	};
+
 	/*
 	 ********************************************************************************************
 	   RayCastRequestBase holds the actual request information needed to perform a RayCast request.
@@ -337,13 +347,15 @@ public:
 			: maxWayTriCount(_maxWayTriCount)
 			, way(NULL)
 			, wayTriCount(0)
+			, result(ERayCastResult::eRayCastResult_NoHit)
 		{}
 
 	public:
-		RayHit       hit;
-		TriangleID*  way;
-		size_t       wayTriCount;
-		const size_t maxWayTriCount;
+		RayHit         hit;
+		TriangleID*    way;
+		size_t         wayTriCount;
+		const size_t   maxWayTriCount;
+		ERayCastResult result;
 	};
 
 	template<size_t MaximumNumberOfTrianglesInWay>
@@ -361,20 +373,12 @@ public:
 
 	// ********************************************************************************************
 
-	enum ERayCastResult
-	{
-		eRayCastResult_NoHit = 0,
-		eRayCastResult_Hit,
-		eRayCastResult_RayTooLong,
-		eRayCastResult_Unacceptable,
-		eRayCastResult_InvalidStart,
-		eRayCastResult_InvalidEnd,
-	};
-
 	ERayCastResult RayCast(const vector3_t& from, TriangleID fromTri, const vector3_t& to, TriangleID toTri,
 	                       RaycastRequestBase& wayRequest) const;
-	ERayCastResult RayCast_new(const vector3_t& from, TriangleID fromTriangleID, const vector3_t& to, TriangleID toTriangleID, RaycastRequestBase& wayRequest) const;
-	ERayCastResult RayCast_old(const vector3_t& from, TriangleID fromTri, const vector3_t& to, TriangleID toTri, RaycastRequestBase& wayRequest) const;
+
+	ERayCastResult RayCast_v1(const vector3_t& from, TriangleID fromTri, const vector3_t& to, TriangleID toTri, RaycastRequestBase& wayRequest) const;
+	ERayCastResult RayCast_v2(const vector3_t& from, TriangleID fromTriangleID, const vector3_t& to, TriangleID toTriangleID, RaycastRequestBase& wayRequest) const;
+	ERayCastResult RayCast_v3(const vector3_t& from, TriangleID fromTriangleID, const vector3_t& to, RaycastRequestBase& wayRequest) const;
 
 	TileID         SetTile(size_t x, size_t y, size_t z, STile& tile);
 	void           ClearTile(TileID tileID, bool clearNetwork = true);
@@ -500,6 +504,13 @@ private:
 
 	void    PredictNextTriangleEntryPosition(const TriangleID bestNodeTriangleID, const vector3_t& startPosition, const TriangleID nextTriangleID, const unsigned int vertexIndex, const vector3_t& finalLocation, vector3_t& outPosition) const;
 
+	//! Function provides next triangle edge through with the ray is leaving the triangle and returns whether the ray ends in the triangle or not.
+	//! intersectingEdgeIndex is set to InvalidEdgeIndex if the ray ends in the triangle or there was no intersection found.
+	bool FindNextIntersectingTriangleEdge(const vector3_t& rayStartPos, const vector3_t& rayEndPos, const vector2_t pVertices[3], real_t& rayIntersectionParam, uint16& intersectingEdgeIndex) const;
+
+	//! Returns id of the neighbour triangle corresponding to the edge index of the current triangle or InvalidTriangleID if the edge is on navmesh boundaries
+	TriangleID StepOverEdgeToNeighbourTriangle(const vector3_t& rayStart, const vector3_t& rayEnd, const TileID currentTileID, const TriangleID currentTriangleID, const uint16 edgeIndex) const;
+
 	//! Filter for QueryTriangles, which accepts all triangles.
 	//! Note, that the signature of Check() function is same as IQueryTrianglesFilter::Check(), but it's not virtual.
 	//! This way, templated implementation functions can avoid unnecessary checks and virtual calls.
@@ -531,7 +542,7 @@ protected:
 
 	bool           IsLocationInTriangle(const vector3_t& location, const TriangleID triangleID) const;
 	typedef VectorMap<TriangleID, TriangleID> RaycastCameFromMap;
-	ERayCastResult ReconstructRaycastResult(const TriangleID fromTriangleID, const TriangleID toTriangleID, const RaycastCameFromMap& comeFrom, RaycastRequestBase& raycastRequest) const;
+	ERayCastResult ConstructRaycastResult(const ERayCastResult returnResult, const RayHit& rayHit, const TriangleID lastTriangleID, const RaycastCameFromMap& comeFromMap, RaycastRequestBase& raycastRequest) const;
 
 	struct TileContainer
 	{

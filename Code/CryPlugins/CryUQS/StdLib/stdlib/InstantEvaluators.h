@@ -5,9 +5,9 @@
 
 // *INDENT-OFF* - <hard to read code and declarations due to inconsistent indentation>
 
-namespace uqs
+namespace UQS
 {
-	namespace stdlib
+	namespace StdLib
 	{
 
 		//===================================================================================
@@ -18,23 +18,23 @@ namespace uqs
 		//
 		//===================================================================================
 
-		class CInstantEvaluator_TestMinDistance : public client::CInstantEvaluatorBase<
+		class CInstantEvaluator_TestMinDistance : public Client::CInstantEvaluatorBase<
 			CInstantEvaluator_TestMinDistance,
-			client::IInstantEvaluatorFactory::ECostCategory::Cheap,
-			client::IInstantEvaluatorFactory::EEvaluationModality::Testing
+			Client::IInstantEvaluatorFactory::ECostCategory::Cheap,
+			Client::IInstantEvaluatorFactory::EEvaluationModality::Testing
 		>
 		{
 		public:
 			struct SParams
 			{
-				Vec3      pos1;
-				Vec3      pos2;
+				Pos3      pos1;
+				Pos3      pos2;
 				float     minRequiredDistance;
 
 				UQS_EXPOSE_PARAMS_BEGIN
-					UQS_EXPOSE_PARAM("pos1", pos1);
-					UQS_EXPOSE_PARAM("pos2", pos2);
-					UQS_EXPOSE_PARAM("minRequiredDistance", minRequiredDistance);
+					UQS_EXPOSE_PARAM("pos1", pos1, "POS1", "");
+					UQS_EXPOSE_PARAM("pos2", pos2, "POS2", "");
+					UQS_EXPOSE_PARAM("minRequiredDistance", minRequiredDistance, "MIND", "Minimally required distance between Pos1 and Pos2. If smaller then the item will get discarded.");
 				UQS_EXPOSE_PARAMS_END
 			};
 
@@ -49,23 +49,23 @@ namespace uqs
 		//
 		//===================================================================================
 
-		class CInstantEvaluator_TestMaxDistance : public client::CInstantEvaluatorBase<
+		class CInstantEvaluator_TestMaxDistance : public Client::CInstantEvaluatorBase<
 			CInstantEvaluator_TestMaxDistance,
-			client::IInstantEvaluatorFactory::ECostCategory::Cheap,
-			client::IInstantEvaluatorFactory::EEvaluationModality::Testing
+			Client::IInstantEvaluatorFactory::ECostCategory::Cheap,
+			Client::IInstantEvaluatorFactory::EEvaluationModality::Testing
 		>
 		{
 		public:
 			struct SParams
 			{
-				Vec3      pos1;
-				Vec3      pos2;
+				Pos3      pos1;
+				Pos3      pos2;
 				float     maxAllowedDistance;
 
 				UQS_EXPOSE_PARAMS_BEGIN
-					UQS_EXPOSE_PARAM("pos1", pos1);
-					UQS_EXPOSE_PARAM("pos2", pos2);
-					UQS_EXPOSE_PARAM("maxAllowedDistance", maxAllowedDistance);
+					UQS_EXPOSE_PARAM("pos1", pos1, "POS1", "");
+					UQS_EXPOSE_PARAM("pos2", pos2, "POS2", "");
+					UQS_EXPOSE_PARAM("maxAllowedDistance", maxAllowedDistance, "MAXD", "Maximally allowed distance between Pos1 and Pos3. If larger then the item will get discarded.");
 				UQS_EXPOSE_PARAMS_END
 			};
 
@@ -76,26 +76,26 @@ namespace uqs
 		//
 		// CInstantEvaluator_TestLocationInNavMesh
 		//
-		// - checks for whether a given Vec3 resides in the NavMesh (roughly on a walkable surface)
+		// - checks for whether a given Pos3 resides in the NavMesh (roughly on a walkable surface)
 		// - discards the item if it's not on the NavMesh
 		//
 		//===================================================================================
 
-		class CInstantEvaluator_TestLocationInNavMesh : public client::CInstantEvaluatorBase<
+		class CInstantEvaluator_TestLocationInNavMesh : public Client::CInstantEvaluatorBase<
 			CInstantEvaluator_TestLocationInNavMesh,
-			client::IInstantEvaluatorFactory::ECostCategory::Expensive,
-			client::IInstantEvaluatorFactory::EEvaluationModality::Testing
+			Client::IInstantEvaluatorFactory::ECostCategory::Expensive,
+			Client::IInstantEvaluatorFactory::EEvaluationModality::Testing
 		>
 		{
 		public:
 			struct SParams
 			{
-				Vec3                    locationToTest;
+				Pos3                    locationToTest;
 				NavigationAgentTypeID   navigationAgentTypeID;
 
 				UQS_EXPOSE_PARAMS_BEGIN
-					UQS_EXPOSE_PARAM("locationToTest", locationToTest);
-					UQS_EXPOSE_PARAM("navigationAgentTypeID", navigationAgentTypeID);
+					UQS_EXPOSE_PARAM("locationToTest", locationToTest, "LOCA", "Rough location in the Navigatin Mesh to test.");
+					UQS_EXPOSE_PARAM("navigationAgentTypeID", navigationAgentTypeID, "AGEN", "Agent type used to pick the according Navigation Mesh layer for testing.");
 				UQS_EXPOSE_PARAMS_END
 			};
 
@@ -117,23 +117,23 @@ namespace uqs
 		//
 		//===================================================================================
 
-		class CInstantEvaluator_ScoreDistance : public client::CInstantEvaluatorBase<
+		class CInstantEvaluator_ScoreDistance : public Client::CInstantEvaluatorBase<
 			CInstantEvaluator_ScoreDistance,
-			client::IInstantEvaluatorFactory::ECostCategory::Cheap,
-			client::IInstantEvaluatorFactory::EEvaluationModality::Scoring
+			Client::IInstantEvaluatorFactory::ECostCategory::Cheap,
+			Client::IInstantEvaluatorFactory::EEvaluationModality::Scoring
 		>
 		{
 		public:
 			struct SParams
 			{
-				Vec3      pos1;
-				Vec3      pos2;
+				Pos3      pos1;
+				Pos3      pos2;
 				float     distanceThreshold;
 
 				UQS_EXPOSE_PARAMS_BEGIN
-					UQS_EXPOSE_PARAM("pos1", pos1);
-					UQS_EXPOSE_PARAM("pos2", pos2);
-					UQS_EXPOSE_PARAM("distanceThreshold", distanceThreshold);
+					UQS_EXPOSE_PARAM("pos1", pos1, "POS1", "");
+					UQS_EXPOSE_PARAM("pos2", pos2, "POS2", "");
+					UQS_EXPOSE_PARAM("distanceThreshold", distanceThreshold, "MAXD", "Clamping distance to map between 0.0 and 1.0");
 				UQS_EXPOSE_PARAMS_END
 			};
 
@@ -150,23 +150,23 @@ namespace uqs
 		//
 		//===================================================================================
 
-		class CInstantEvaluator_ScoreDistanceInverse : public client::CInstantEvaluatorBase<
+		class CInstantEvaluator_ScoreDistanceInverse : public Client::CInstantEvaluatorBase<
 			CInstantEvaluator_ScoreDistanceInverse,
-			client::IInstantEvaluatorFactory::ECostCategory::Cheap,
-			client::IInstantEvaluatorFactory::EEvaluationModality::Scoring
+			Client::IInstantEvaluatorFactory::ECostCategory::Cheap,
+			Client::IInstantEvaluatorFactory::EEvaluationModality::Scoring
 		>
 		{
 		public:
 			struct SParams
 			{
-				Vec3      pos1;
-				Vec3      pos2;
+				Pos3      pos1;
+				Pos3      pos2;
 				float     distanceThreshold;
 
 				UQS_EXPOSE_PARAMS_BEGIN
-					UQS_EXPOSE_PARAM("pos1", pos1);
-					UQS_EXPOSE_PARAM("pos2", pos2);
-					UQS_EXPOSE_PARAM("distanceThreshold", distanceThreshold);
+					UQS_EXPOSE_PARAM("pos1", pos1, "POS1", "");
+					UQS_EXPOSE_PARAM("pos2", pos2, "POS2", "");
+					UQS_EXPOSE_PARAM("distanceThreshold", distanceThreshold, "MAXD", "Clamping distance to map between 0.0 and 1.0");
 				UQS_EXPOSE_PARAMS_END
 			};
 
@@ -181,10 +181,10 @@ namespace uqs
 		//
 		//===================================================================================
 
-		class CInstantEvaluator_ScoreRandom : public client::CInstantEvaluatorBase<
+		class CInstantEvaluator_ScoreRandom : public Client::CInstantEvaluatorBase<
 			CInstantEvaluator_ScoreRandom,
-			client::IInstantEvaluatorFactory::ECostCategory::Cheap,
-			client::IInstantEvaluatorFactory::EEvaluationModality::Scoring
+			Client::IInstantEvaluatorFactory::ECostCategory::Cheap,
+			Client::IInstantEvaluatorFactory::EEvaluationModality::Scoring
 		>
 		{
 		public:

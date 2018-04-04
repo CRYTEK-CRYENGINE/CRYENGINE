@@ -14,10 +14,10 @@
 #include "StealingThreadPool.h"
 #include "StringHelpers.h"
 #include "ResourceCompiler.h"
+#include "IAssetManager.h"
 #include <CrySystem/XML/IXml.h>
 #include "GeomCacheWriter.h"
 #include "UpToDateFileHelpers.h"
-#include "Metadata/MetadataHelpers.h"
 #include "../../CryXML/ICryXML.h"
 #include "../../CryXML/IXMLSerializer.h"
 #include "../../CryEngine/Cry3DEngine/MeshCompiler/ForsythFaceReorderer.h"
@@ -589,7 +589,7 @@ bool AlembicCompiler::Process()
 	}
 
 	m_CC.pRC->AddInputOutputFilePair(sourcePath, GetOutputPath());
-	return AssetManager::SaveAsset(m_CC.pRC, m_CC.config, sourcePath, { GetOutputPath() });
+	return m_CC.pRC->GetAssetManager()->SaveCryasset(m_CC.config, sourcePath, { GetOutputPath() });
 }
 
 string AlembicCompiler::GetOutputFileNameOnly() const
@@ -1755,6 +1755,11 @@ void AlembicCompiler::FrameGroupFinished(FrameJobGroupData *pData)
 
 std::unordered_map<uint32, uint16> AlembicCompiler::GetMeshMaterialMap(const Alembic::AbcGeom::IPolyMesh& mesh, const Alembic::Abc::chrono_t frameTime)
 {
+	// Read config value and clamp it to [0, 1].
+	// Engine uses 0 based indices, but the UI displays them 1 based in sandbox.
+	// By default, subtract 1 from user input in DCC applications to be consistent.
+	const int faceSetNumberingBase = max(min(m_CC.config->GetAsInt("faceSetNumberingBase", 1, 1), 1), 0);
+
 	std::unordered_map<uint32, uint16> materialIdMap;
 
 	const uint numChildren = mesh.getNumChildren();
@@ -1785,14 +1790,13 @@ std::unordered_map<uint32, uint16> AlembicCompiler::GetMeshMaterialMap(const Ale
 
 			int materialId = atoi(pName);
 
-			if (materialId < 1 || materialId > 65536)
+			if (materialId < faceSetNumberingBase || materialId > 65536)
 			{
-				RCLogWarning("  Face set name '%s' refers to material ID out of range 1-65536, will map faces to material ID 1", faceSetName.c_str());
+				RCLogWarning("  Face set name '%s' refers to material ID out of range %d-65536, will map faces to material ID 1", faceSetName.c_str(), faceSetNumberingBase);
 				continue;
 			}
 
-			// Engine uses 0 based indices, but the UI displays them 1 based in sandbox. Subtract 1 from user input in DCC applications to be consistent.
-			materialId -= 1;
+			materialId -= faceSetNumberingBase;
 
 			const int32 *pFaces = static_cast<const int32*>(sample.getFaces()->getData());
 			const uint numFaces = sample.getFaces()->size();
@@ -2630,12 +2634,4 @@ void AlembicCompiler::Cleanup()
 	m_numJobGroupsRunning = 0;		
 	m_nextFrameToWrite = 0;
 	m_numJobsFinished = 0;
-}
-
-namespace AssetManager
-{
-	std::vector<std::pair<string, string>> CollectMetadataDetails(const char* szFilename)
-	{
-		return {};
-	}
 }

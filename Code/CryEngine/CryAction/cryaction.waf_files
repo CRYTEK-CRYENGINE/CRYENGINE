@@ -1,151 +1,10 @@
 {
   "CryAction_flowsystem_uber.cpp":{
-    "Flow System":[
-      "FlowSystem/FlowData.cpp",
-      "FlowSystem/FlowGraph.cpp",
-      "FlowSystem/FlowGraphDebugger.cpp",
-      "FlowSystem/FlowSerialize.cpp",
-      "FlowSystem/FlowSystem.cpp",
-      "FlowSystem/FlowSystemCVars.cpp",
-      "FlowSystem/FlowGraphDebugger.h",
-      "FlowSystem/FlowData.h",
-      "FlowSystem/FlowGraph.h",
-      "FlowSystem/FlowSerialize.h",
-      "FlowSystem/FlowSystem.h",
-      "FlowSystem/FlowSystemCVars.h"
-    ],
-    "Flow System/Modules":[
-      "FlowSystem/Modules/FlowModuleNodes.cpp",
-      "FlowSystem/Modules/Module.cpp",
-      "FlowSystem/Modules/ModuleManager.cpp",
-      "FlowSystem/Modules/FlowModuleNodes.h",
-      "FlowSystem/Modules/Module.h",
-      "FlowSystem/Modules/ModuleManager.h"
-    ],
-    "Flow System/Inspectors":[
-      "FlowSystem/Inspectors/FlowFilters.cpp",
-      "FlowSystem/Inspectors/FlowInspectorDefault.cpp",
-      "FlowSystem/Inspectors/FlowFilters.h",
-      "FlowSystem/Inspectors/FlowInspectorDefault.h"
-    ]
-  },
-  "CryAction_flowsystem_nodes_uber.cpp":{
-    "Flow System/Nodes": [
-      "FlowSystem/Nodes/FlowVRNodes.cpp",
-      "FlowSystem/Nodes/ColorGradientNode.cpp",
-      "FlowSystem/Nodes/ColorGradientNode.h",
-      "FlowSystem/Nodes/ComputeLightingNode.cpp",
-      "FlowSystem/Nodes/EntitiesInRangeNode.cpp",
-      "FlowSystem/Nodes/FlowCVarsNode.cpp",
-      "FlowSystem/Nodes/FlowPlatformNode.cpp",
-      "FlowSystem/Nodes/FlowCameraNodes.cpp",
-      "FlowSystem/Nodes/FlowCompositeNode.cpp",
-      "FlowSystem/Nodes/FlowConditionNode.cpp",
-      "FlowSystem/Nodes/FlowDelayNode.cpp",
-      "FlowSystem/Nodes/FlowDynamicResponseVariable.cpp",
-      "FlowSystem/Nodes/FlowDynamicResponseSignal.cpp",
-      "FlowSystem/Nodes/FlowEngineEffectsNodes.cpp",
-      "FlowSystem/Nodes/FlowEngineNodes.cpp",
-      "FlowSystem/Nodes/FlowEntityNode.cpp",
-      "FlowSystem/Nodes/FlowEnvironmentNodes.cpp",
-      "FlowSystem/Nodes/FlowFlashInvokeNode.cpp",
+    "Flow System/Nodes":[
       "FlowSystem/Nodes/FlowGameNodes.cpp",
-      "FlowSystem/Nodes/FlowHUDNodes.cpp",
-      "FlowSystem/Nodes/FlowInputNode.cpp",
-      "FlowSystem/Nodes/FlowActionMapNodes.cpp",
-      "FlowSystem/Nodes/FlowInterpolNodes.cpp",
-      "FlowSystem/Nodes/FlowInventoryNodes.cpp",
-      "FlowSystem/Nodes/FlowLogNode.cpp",
-      "FlowSystem/Nodes/FlowLogicNodes.cpp",
-      "FlowSystem/Nodes/FlowMathNodes.cpp",
-      "FlowSystem/Nodes/FlowMissionNodes.cpp",
-      "FlowSystem/Nodes/FlowMovieNodes.cpp",
-      "FlowSystem/Nodes/FlowNodeAI.cpp",
-      "FlowSystem/Nodes/FlowNodeAIAction.cpp",
-      "FlowSystem/Nodes/FlowNodesAIActionSequence.cpp",
-      "FlowSystem/Nodes/FlowNoiseNodes.cpp",
-      "FlowSystem/Nodes/FlowPhysicsNodes.cpp",
-      "FlowSystem/Nodes/FlowScriptedNode.cpp",
-      "FlowSystem/Nodes/FlowStartNode.cpp",
-      "FlowSystem/Nodes/FlowStopNode.cpp",
-      "FlowSystem/Nodes/FlowStatsNodes.cpp",
-      "FlowSystem/Nodes/FlowStringNodes.cpp",
-      "FlowSystem/Nodes/FlowTimeNode.cpp",
-      "FlowSystem/Nodes/FlowTrackEventNode.cpp",
       "FlowSystem/Nodes/FlowWeaponNodes.cpp",
-      "FlowSystem/Nodes/GameTokenNode.cpp",
-      "FlowSystem/Nodes/IndexerNode.cpp",
-      "FlowSystem/Nodes/MultiplexerNode.cpp",
-      "FlowSystem/Nodes/OwnerAngularInterpolatorNode.cpp",
-      "FlowSystem/Nodes/OwnerAngularRotationNode.cpp",
-      "FlowSystem/Nodes/OwnerLinearInterpolatorNode.cpp",
-      "FlowSystem/Nodes/PlayCGANode.cpp",
-      "FlowSystem/Nodes/PlaySequenceNode.cpp",
-      "FlowSystem/Nodes/FlowExecuteStringNode.cpp",
-      "FlowSystem/Nodes/FlowNodeStereoparameters.cpp",
-      "FlowSystem/Nodes/FlowAudioPreloadData.cpp",
-      "FlowSystem/Nodes/FlowAudioRtpcNode.cpp",
-      "FlowSystem/Nodes/FlowAudioSwitchNode.cpp",
-      "FlowSystem/Nodes/FlowAudioTriggerNode.cpp",
-      "FlowSystem/Nodes/FlowAttachmentNodes.cpp",
-      "FlowSystem/Nodes/FlowCustomActionNodes.cpp",
-      "FlowSystem/Nodes/AnimationEventListenerNode.cpp",
-      "FlowSystem/Nodes/FlowPrefabNodes.cpp",
-      "FlowSystem/Nodes/FlowMouseInfo.cpp",
-      "FlowSystem/Nodes/FlowNodeAIHelicopter.cpp",
-      "FlowSystem/Nodes/FlowCustomActionNodes.h",
-      "FlowSystem/Nodes/FlowPrefabNodes.h",
-      "FlowSystem/Nodes/FlowFrameworkBaseNode.h",
-      "FlowSystem/Nodes/FlowCompositeNode.h",
-      "FlowSystem/Nodes/FlowDelayNode.h",
-      "FlowSystem/Nodes/FlowEntityNode.h",
-      "FlowSystem/Nodes/FlowLogNode.h",
-      "FlowSystem/Nodes/FlowNodeAIAction.h",
-      "FlowSystem/Nodes/FlowNoiseNodes.h",
-      "FlowSystem/Nodes/FlowScriptedNode.h",
-      "FlowSystem/Nodes/FlowStartNode.h",
-      "FlowSystem/Nodes/FlowTrackEventNode.h",
-      "FlowSystem/Nodes/FlowMannequinNodes.cpp",
-      "FlowSystem/Nodes/FlowMaterialNodes.cpp",
-      "FlowSystem/Nodes/FlowNetMsgNodes.cpp",
-      "FlowSystem/Nodes/FlowBaseXmlNode.cpp",
-      "FlowSystem/Nodes/FlowBaseXmlNode.h",
-      "FlowSystem/Nodes/FlowClipCaptureNodes.cpp",
-      "FlowSystem/Nodes/FlowContainerNode.cpp",
-      "FlowSystem/Nodes/FlowDebugNodes.cpp",
-      "FlowSystem/Nodes/FlowEntityIterator.cpp",
-      "FlowSystem/Nodes/FlowOnlineStatsNodes.cpp",
-      "FlowSystem/Nodes/FlowXmlDataNodes.cpp",
-      "FlowSystem/Nodes/FlowXmlFileNodes.cpp",
-      "FlowSystem/Nodes/FlowXmlNavNodes.cpp",
-      "FlowSystem/Nodes/FlowDialogNode.cpp"
-    ],
-    "Flow System/Unit Tests":[
-      "FlowSystem/UnitTests/FlowGraphDebuggerUnitTests.cpp"
-    ],
-    "Flow System/Nodes/Vehicle":[
-      "FlowSystem/Nodes/Vehicle/FlowVehicleAttachment.cpp",
-      "FlowSystem/Nodes/Vehicle/FlowVehicleBase.cpp",
-      "FlowSystem/Nodes/Vehicle/FlowVehicleDamage.cpp",
-      "FlowSystem/Nodes/Vehicle/FlowVehicleHorn.cpp",
-      "FlowSystem/Nodes/Vehicle/FlowVehicleLights.cpp",
-      "FlowSystem/Nodes/Vehicle/FlowVehicleMoveActionMult.cpp",
-      "FlowSystem/Nodes/Vehicle/FlowVehicleMovement.cpp",
-      "FlowSystem/Nodes/Vehicle/FlowVehiclePassenger.cpp",
-      "FlowSystem/Nodes/Vehicle/FlowVehicleSeat.cpp",
-      "FlowSystem/Nodes/Vehicle/FlowVehicleTurret.cpp",
-      "FlowSystem/Nodes/Vehicle/FlowVehicleHandbrake.cpp",
-      "FlowSystem/Nodes/Vehicle/FlowVehicleCamera.cpp",
-      "FlowSystem/Nodes/Vehicle/FlowVehicleAttachment.h",
-      "FlowSystem/Nodes/Vehicle/FlowVehicleBase.h",
-      "FlowSystem/Nodes/Vehicle/FlowVehicleDamage.h",
-      "FlowSystem/Nodes/Vehicle/FlowVehicleHandbrake.h",
-      "FlowSystem/Nodes/Vehicle/FlowVehicleLights.h",
-      "FlowSystem/Nodes/Vehicle/FlowVehicleMoveActionMult.h",
-      "FlowSystem/Nodes/Vehicle/FlowVehicleMovement.h",
-      "FlowSystem/Nodes/Vehicle/FlowVehiclePassenger.h",
-      "FlowSystem/Nodes/Vehicle/FlowVehicleSeat.h",
-      "FlowSystem/Nodes/Vehicle/FlowVehicleTurret.h"
+      "FlowSystem/Nodes/FlowInventoryNodes.cpp",
+      "FlowSystem/Nodes/FlowOnlineStatsNodes.cpp"
     ]
   },
   "CryAction_vehicle_uber.cpp":{
@@ -267,7 +126,6 @@
       "VehicleSystem/VehicleSeatActionMovement.cpp",
       "VehicleSystem/VehicleSeatActionPassengerIK.cpp",
       "VehicleSystem/VehicleSeatActionRotateTurret.cpp",
-      "VehicleSystem/VehicleSeatActionSound.cpp",
       "VehicleSystem/VehicleSeatActionSteeringWheel.cpp",
       "VehicleSystem/VehicleSeatActionWeapons.cpp",
       "VehicleSystem/VehicleSeatActionOrientateBoneToView.cpp",
@@ -288,7 +146,6 @@
       "VehicleSystem/VehicleSeatActionMovement.h",
       "VehicleSystem/VehicleSeatActionPassengerIK.h",
       "VehicleSystem/VehicleSeatActionRotateTurret.h",
-      "VehicleSystem/VehicleSeatActionSound.h",
       "VehicleSystem/VehicleSeatActionSteeringWheel.h",
       "VehicleSystem/VehicleSeatActionWeapons.h"
     ],
@@ -313,6 +170,33 @@
       "VehicleSystem/Animation/VehicleSeatAnimActions.cpp",
       "VehicleSystem/Animation/VehicleAnimationComponent.h",
       "VehicleSystem/Animation/VehicleSeatAnimActions.h"
+    ],
+	"Vehicle Files/FlowNodes":[
+      "VehicleSystem/FlowNodes/FlowVehicleAttachment.cpp",
+      "VehicleSystem/FlowNodes/FlowVehicleBase.cpp",
+      "VehicleSystem/FlowNodes/FlowVehicleDamage.cpp",
+      "VehicleSystem/FlowNodes/FlowVehicleHorn.cpp",
+      "VehicleSystem/FlowNodes/FlowVehicleLights.cpp",
+      "VehicleSystem/FlowNodes/FlowVehicleMoveActionMult.cpp",
+      "VehicleSystem/FlowNodes/FlowVehicleMovement.cpp",
+      "VehicleSystem/FlowNodes/FlowVehiclePassenger.cpp",
+      "VehicleSystem/FlowNodes/FlowVehicleSeat.cpp",
+      "VehicleSystem/FlowNodes/FlowVehicleTurret.cpp",
+      "VehicleSystem/FlowNodes/FlowVehicleHandbrake.cpp",
+      "VehicleSystem/FlowNodes/FlowVehicleCamera.cpp",
+      "VehicleSystem/FlowNodes/FlowVehicleAttachment.h",
+      "VehicleSystem/FlowNodes/FlowVehicleBase.h",
+      "VehicleSystem/FlowNodes/FlowVehicleDamage.h",
+      "VehicleSystem/FlowNodes/FlowVehicleHandbrake.h",
+      "VehicleSystem/FlowNodes/FlowVehicleLights.h",
+      "VehicleSystem/FlowNodes/FlowVehicleMoveActionMult.h",
+      "VehicleSystem/FlowNodes/FlowVehicleMovement.h",
+      "VehicleSystem/FlowNodes/FlowVehiclePassenger.h",
+      "VehicleSystem/FlowNodes/FlowVehicleSeat.h",
+      "VehicleSystem/FlowNodes/FlowVehicleTurret.h",
+      "VehicleSystem/FlowNodes/FlowVehicleAI.cpp",
+      "VehicleSystem/FlowNodes/FlowNodeAIHelicopter.cpp",
+	  "VehicleSystem/FlowNodes/FlowNodesAIActionSequence.cpp"
     ]
   },
   "CryAction_animgraph_uber.cpp":{
@@ -385,7 +269,8 @@
       "DialogSystem/ScriptBind_DialogSystem.h",
       "SubtitleManager.h",
       "DialogSystem/DialogQueuesManager.h",
-      "DialogSystem/DialogQueuesManager.cpp"
+      "DialogSystem/DialogQueuesManager.cpp",
+      "DialogSystem/FlowDialogNode.cpp"
     ]
   },
   "CryAction_game_objects_uber.cpp":{
@@ -409,14 +294,6 @@
     "GameRules":[
       "GameRulesSystem.cpp",
       "GameRulesSystem.h"
-    ],
-    "GameTokens":[
-      "GameTokens/GameTokenSystem.cpp",
-      "GameTokens/GameToken.cpp",
-      "GameTokens/GameToken.h",
-      "GameTokens/GameTokenSystem.h",
-      "GameTokens/ScriptBind_GameToken.h",
-      "GameTokens/ScriptBind_GameToken.cpp"
     ],
     "GameplayRecorder":[
       "GameplayRecorder/GameplayRecorder.cpp",
@@ -504,7 +381,8 @@
       "Mannequin/ProceduralParamsComparer.cpp",
       "Mannequin/Serialization.h",
       "Mannequin/Tests/Test_CRCRef.cpp",
-      "Mannequin/Tests/Test_ProceduralParams.cpp"
+      "Mannequin/Tests/Test_ProceduralParams.cpp",
+      "Mannequin/FlowMannequinNodes.cpp"
     ],
     "Mannequin/ProceduralClips":[
       "Mannequin/FirstPersonHandIKContext.cpp",
@@ -565,13 +443,14 @@
       "Network/CET_EntitySystem.h",
       "Network/CET_GameRules.h",
       "Network/CET_LevelLoading.h",
-      "Network/CET_NetConfig.h"
+      "Network/CET_NetConfig.h",
+	  "Network/CET_ClientConnections.cpp",
+	  "Network/CET_ClientConnections.h"
     ],
     "Network/Helpers":[
       "Network/ObjectSelector.cpp",
       "Network/NetActionSync.h",
-      "Network/ObjectSelector.h",
-      "Network/SensedInclusionSet.h"
+      "Network/ObjectSelector.h"
     ],
     "Network/Core":[
       "Network/ClassRegistryReplicator.cpp",
@@ -651,6 +530,9 @@
       "Network/GameStatsConfig.cpp",
       "Network/GameStats.h",
       "Network/GameStatsConfig.h"
+    ],
+	"Network/FlowNodes":[
+      "Network/FlowNetMsgNodes.cpp"
     ]
   },
   "CryAction_serialization_uber.cpp":{
@@ -759,6 +641,17 @@
       "BreakableGlassSystem.cpp",
       "BreakableGlassSystem.h",
       "DelayedPlaneBreak.h"
+    ],
+    "EntityContainers":
+    [
+		"EntityContainers/EntityContainer.cpp",
+		"EntityContainers/EntityContainerMgr.cpp",
+		"EntityContainers/EntityContainerObject.cpp",
+		"EntityContainers/EntityContainer.h",
+		"EntityContainers/EntityContainerMgr.h",
+		"EntityContainers/EntityContainerObject.h",
+		"EntityContainers/IEntityContainerListener.h",
+		"EntityContainers/FlowEntityContainerNodes.cpp"
     ]
   },
   "CryAction_main_uber_1.cpp":{
@@ -773,6 +666,7 @@
       "AIFaceManager.cpp",
       "CallbackTimer.cpp",
       "CryAction.cpp",
+      "CryAction_RMI.cpp",
       "CryActionCVars.cpp",
       "DevMode.cpp",
       "Main.cpp",

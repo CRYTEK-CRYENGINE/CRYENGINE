@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #pragma once
 
@@ -22,7 +22,7 @@ class CFeetPoseStore :
 	CRYINTERFACE_ADD(IAnimationPoseModifier)
 	CRYINTERFACE_END()
 
-	CRYGENERATE_CLASS(CFeetPoseStore, "AnimationPoseModifier_FeetPoseStore", 0x4095cfb096b5494f, 0x864d3c007b71d31d)
+	CRYGENERATE_CLASS_GUID(CFeetPoseStore, "AnimationPoseModifier_FeetPoseStore", "4095cfb0-96b5-494f-864d-3c007b71d31d"_cry_guid)
 
 	virtual ~CFeetPoseStore() {}
 
@@ -48,7 +48,7 @@ class CFeetPoseRestore :
 	CRYINTERFACE_ADD(IAnimationPoseModifier)
 	CRYINTERFACE_END()
 
-	CRYGENERATE_CLASS(CFeetPoseRestore, "AnimationPoseModifier_FeetPoseRestore", 0x90662f0ed05a4bf4, 0x8fb69924b5da2872)
+	CRYGENERATE_CLASS_GUID(CFeetPoseRestore, "AnimationPoseModifier_FeetPoseRestore", "90662f0e-d05a-4bf4-8fb6-9924b5da2872"_cry_guid)
 
 	virtual ~CFeetPoseRestore() {}
 

@@ -701,10 +701,10 @@ bool CSpectatorFollowCameraMode::UpdateView( const CPlayer& clientPlayer, SViewP
 				float raiseDist = minHeightDiff - (worldOffset_Len*worldOffset_Norm.z) - sphere.r;
 				if(newHitDist != 0)
 				{
-					raiseDist = MIN(minHeightDiff, newHitDist);
+					raiseDist = std::min(minHeightDiff, newHitDist);
 				}
 
-				raiseDist = MAX(0.0f, raiseDist);
+				raiseDist = std::max(0.0f, raiseDist);
 
 				targetWorldExtra.z += raiseDist*0.8f;
 			}

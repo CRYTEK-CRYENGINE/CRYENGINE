@@ -2,8 +2,11 @@
 
 #pragma once
 #include <array>
+#include <atomic>
 
-class CComputeRenderPass
+#include "RenderPassBase.h"
+
+class CComputeRenderPass : public CRenderPassBase
 {
 public:
 	enum EPassFlags
@@ -12,18 +15,25 @@ public:
 		eFlags_ReflectConstantBuffersFromShader = BIT(0)
 	};
 
-	CComputeRenderPass(EPassFlags flags = eFlags_None);
+	enum EDirtyFlags : uint32
+	{
+		eDirty_ResourceLayout = BIT(0),
+		eDirty_Resources = BIT(1),
+		eDirty_Technique = BIT(2),
 
-#define ASSIGN_VALUE(dst, src, dirtyFlag) \
-  if ((dst) != (src))                     \
-    m_dirtyMask |= (dirtyFlag);           \
-  (dst) = (src);
+		eDirty_None = 0,
+		eDirty_All = eDirty_Technique | eDirty_Resources | eDirty_ResourceLayout
+	};
+
+	static_assert(uint(eDirty_ResourceLayout) == uint(CDeviceResourceSetDesc::EDirtyFlags::eDirtyBindPoint), "eDirty_ResourceLayout needs to match CDeviceResourceSetDesc::EDirtyFlags::eDirtyBindPoint");
+	static_assert(uint(eDirty_Resources) == uint(CDeviceResourceSetDesc::EDirtyFlags::eDirtyBinding), "eDirty_Resources needs to match CDeviceResourceSetDesc::EDirtyFlags::eDirtyBinding");
+
+public:
+	CComputeRenderPass(EPassFlags flags = eFlags_None);
 
 	bool InputChanged(int var0 = 0, int var1 = 0, int var2 = 0, int var3 = 0)
 	{
-		bool bChanged = m_dirtyMask > 0 || m_pResources->IsDirty() ||
-		                !m_pPipelineState || !m_pPipelineState->IsValid() ||
-		                m_currentPsoUpdateCount != m_pPipelineState->GetUpdateCount() ||
+		bool bChanged = IsDirty() || 
 		                var0 != m_inputVars[0] || var1 != m_inputVars[1] ||
 		                var2 != m_inputVars[2] || var3 != m_inputVars[3];
 
@@ -38,108 +48,22 @@ public:
 		return bChanged;
 	}
 
-	void SetOutputUAV(uint32 slot, CTexture* pTexture)
-	{
-		m_pResources->SetTexture(slot, pTexture, SResourceView::DefaultUnordererdAccessView, EShaderStage_Compute);
-		m_dirtyMask |= m_pResources->IsDirty() ? eDirty_Resources : eDirty_None;
-	}
+	void SetOutputUAV(uint32 slot, CTexture* pTexture, ResourceViewHandle resourceViewID = EDefaultResourceViews::UnorderedAccess, ::EShaderStage shaderStages = EShaderStage_Compute);
+	void SetOutputUAV(uint32 slot, CGpuBuffer* pBuffer, ResourceViewHandle resourceViewID = EDefaultResourceViews::UnorderedAccess, ::EShaderStage shaderStages = EShaderStage_Compute);
+	void SetDispatchSize(uint32 sizeX, uint32 sizeY, uint32 sizeZ);
+	void SetTechnique(CShader* pShader, const CCryNameTSCRC& techName, uint64 rtMask);
+	void SetFlags(EPassFlags flags);
+	void SetTexture(uint32 slot, CTexture* pTexture, ResourceViewHandle resourceViewID = EDefaultResourceViews::Default);
+	void SetTextureSamplerPair(uint32 slot, CTexture* pTex, SamplerStateHandle sampler, ResourceViewHandle resourceViewID = EDefaultResourceViews::Default);
+	void SetBuffer(uint32 slot, CGpuBuffer* pBuffer);
+	void SetSampler(uint32 slot, SamplerStateHandle sampler);
+	void SetInlineConstantBuffer(uint32 slot, CConstantBuffer* pConstantBuffer);
+	void SetConstant(const CCryNameR& paramName, const Vec4 param);
+	void SetConstantArray(const CCryNameR& paramName, const Vec4 params[], uint32 numParams);
 
-	void SetOutputUAV(uint32 slot, CGpuBuffer* pBuffer)
-	{
-		m_pResources->SetBuffer(slot, pBuffer ? *pBuffer : CGpuBuffer(), true, EShaderStage_Compute);
-		m_dirtyMask |= m_pResources->IsDirty() ? eDirty_Resources : eDirty_None;
-	}
+	bool IsDirty() const;
 
-	void SetDispatchSize(uint32 sizeX, uint32 sizeY, uint32 sizeZ)
-	{
-		m_dispatchSizeX = sizeX;
-		m_dispatchSizeY = sizeY;
-		m_dispatchSizeZ = sizeZ;
-	}
-
-	void SetTechnique(CShader* pShader, const CCryNameTSCRC& techName, uint64 rtMask)
-	{
-		ASSIGN_VALUE(m_pShader, pShader, eDirty_Technique);
-		ASSIGN_VALUE(m_techniqueName, techName, eDirty_Technique);
-		ASSIGN_VALUE(m_rtMask, rtMask, eDirty_Technique);
-
-		if (m_pPipelineState && (!m_pPipelineState->IsValid() || m_currentPsoUpdateCount != m_pPipelineState->GetUpdateCount()))
-		{
-			m_dirtyMask |= eDirty_Technique;
-		}
-
-		if (m_flags & eFlags_ReflectConstantBuffersFromShader)
-		{
-			if (m_dirtyMask & eDirty_Technique)
-			{
-				m_constantManager.InitShaderReflection(pShader, techName, rtMask);
-			}
-		}
-	}
-
-	void SetFlags(EPassFlags flags)
-	{
-		if (m_flags != flags)
-		{
-			const bool bHaveShaderReflection = m_flags & eFlags_ReflectConstantBuffersFromShader;
-			const bool bWantShaderReflection =   flags & eFlags_ReflectConstantBuffersFromShader;
-
-			if (!bHaveShaderReflection && bWantShaderReflection && m_pShader)
-			{
-				m_constantManager.InitShaderReflection(m_pShader, m_techniqueName, m_rtMask);
-				m_rtMask |= eDirty_Resources;
-			}
-			else if (bHaveShaderReflection && !bWantShaderReflection)
-			{
-				m_constantManager.ReleaseShaderReflection();
-				m_rtMask |= eDirty_Resources;
-			}
-
-			m_flags = flags;
-		}
-	}
-
-	void SetTexture(uint32 slot, CTexture* pTexture, SResourceView::KeyType resourceViewID = SResourceView::DefaultView)
-	{
-		m_pResources->SetTexture(slot, pTexture, resourceViewID, EShaderStage_Compute);
-		m_dirtyMask |= m_pResources->IsDirty() ? eDirty_Resources : eDirty_None;
-	}
-
-	void SetTextureSamplerPair(uint32 slot, CTexture* pTex, int32 sampler, SResourceView::KeyType resourceViewID = SResourceView::DefaultView)
-	{
-		m_pResources->SetTexture(slot, pTex, resourceViewID, EShaderStage_Compute);
-		m_pResources->SetSampler(slot, sampler, EShaderStage_Compute);
-	}
-
-	void SetBuffer(uint32 slot, CGpuBuffer* pBuffer)
-	{
-		m_pResources->SetBuffer(slot, *pBuffer, false, EShaderStage_Compute);
-		m_dirtyMask |= m_pResources->IsDirty() ? eDirty_Resources : eDirty_None;
-	}
-
-	void SetSampler(uint32 slot, int32 sampler)
-	{
-		m_pResources->SetSampler(slot, sampler, EShaderStage_Compute);
-		m_dirtyMask |= m_pResources->IsDirty() ? eDirty_Resources : eDirty_None;
-	}
-
-	void SetInlineConstantBuffer(uint32 slot, _smart_ptr<CConstantBuffer> pConstantBuffer)
-	{
-		if (m_constantManager.SetTypedConstantBuffer(EConstantBufferShaderSlot(slot), pConstantBuffer, EShaderStage_Compute))
-			m_dirtyMask |= eDirty_Resources;
-	}
-
-	void SetConstant(const CCryNameR& paramName, const Vec4 param)
-	{
-		m_constantManager.SetNamedConstant(paramName, param, eHWSC_Compute);
-	}
-
-	void SetConstantArray(const CCryNameR& paramName, const Vec4 params[], uint32 numParams)
-	{
-		m_constantManager.SetNamedConstantArray(paramName, params, numParams, eHWSC_Compute);
-	}
-
-	void PrepareResourcesForUse(CDeviceCommandListRef RESTRICT_REFERENCE commandList, ::EShaderStage srvUsage = EShaderStage_Compute);
+	void PrepareResourcesForUse(CDeviceCommandListRef RESTRICT_REFERENCE commandList);
 
 	void BeginConstantUpdate();
 
@@ -150,21 +74,12 @@ public:
 	// Executes this pass as if it's the only participant of a compute stage (see CSceneGBufferStage + CSceneRenderPass)
 	void Execute(CDeviceCommandListRef RESTRICT_REFERENCE commandList, ::EShaderStage srvUsage = EShaderStage_Compute);
 
-protected:
-
-#undef ASSIGN_VALUE
+	void Reset();
 
 private:
-	enum EDirtyFlags
-	{
-		eDirty_Technique = BIT(0),
-		eDirty_Resources = BIT(1),
+	EDirtyFlags Compile();
 
-		eDirty_None      = 0,
-		eDirty_All       = eDirty_Technique | eDirty_Resources
-	};
-
-	uint Compile();
+	static bool OnResourceInvalidated(void* pThis, SResourceBindPoint bindPoint, UResourceReference pResource, uint32 flags) threadsafe;
 
 	typedef SDeviceObjectHelpers::CShaderConstantManager ConstantManager;
 private:
@@ -172,14 +87,15 @@ private:
 	int                      m_inputVars[4];
 
 	EPassFlags               m_flags;
-	uint32                   m_dirtyMask;
+	EDirtyFlags              m_dirtyMask;
 	CShader*                 m_pShader;
 	CCryNameTSCRC            m_techniqueName;
 	uint64                   m_rtMask;
 	uint32                   m_dispatchSizeX;
 	uint32                   m_dispatchSizeY;
 	uint32                   m_dispatchSizeZ;
-	CDeviceResourceSetPtr    m_pResources;
+	CDeviceResourceSetDesc   m_resourceDesc;
+	CDeviceResourceSetPtr    m_pResourceSet;
 	CDeviceResourceLayoutPtr m_pResourceLayout;
 	CDeviceComputePSOPtr     m_pPipelineState;
 	int                      m_currentPsoUpdateCount;
@@ -187,8 +103,93 @@ private:
 	ConstantManager          m_constantManager;
 
 	bool                     m_bPendingConstantUpdate;
-
-	uint64                   m_prevRTMask;
+	bool                     m_bCompiled;
 
 	SProfilingStats          m_profilingStats;
 };
+
+DEFINE_ENUM_FLAG_OPERATORS(CComputeRenderPass::EDirtyFlags);
+
+///////////////////////////////////// Inline functions for CComputeRenderPass /////////////////////////////////////
+
+#define ASSIGN_VALUE(dst, src, dirtyFlag) \
+  if ((dst) != (src))                     \
+    m_dirtyMask |= (dirtyFlag);           \
+  (dst) = (src);
+
+inline void CComputeRenderPass::SetDispatchSize(uint32 sizeX, uint32 sizeY, uint32 sizeZ)
+{
+	m_dispatchSizeX = sizeX;
+	m_dispatchSizeY = sizeY;
+	m_dispatchSizeZ = sizeZ;
+}
+
+inline void CComputeRenderPass::SetTechnique(CShader* pShader, const CCryNameTSCRC& techName, uint64 rtMask)
+{
+	ASSIGN_VALUE(m_pShader, pShader, eDirty_Technique);
+	ASSIGN_VALUE(m_techniqueName, techName, eDirty_Technique);
+	ASSIGN_VALUE(m_rtMask, rtMask, eDirty_Technique);
+
+	if (m_pPipelineState && (!m_pPipelineState->IsValid() || m_currentPsoUpdateCount != m_pPipelineState->GetUpdateCount()))
+	{
+		m_dirtyMask |= eDirty_Technique;
+	}
+}
+
+inline void CComputeRenderPass::SetFlags(EPassFlags flags)
+{
+	ASSIGN_VALUE(m_flags, flags, eDirty_ResourceLayout);
+}
+
+inline void CComputeRenderPass::SetInlineConstantBuffer(uint32 slot, CConstantBuffer* pConstantBuffer)
+{
+	if (m_constantManager.SetTypedConstantBuffer(EConstantBufferShaderSlot(slot), pConstantBuffer, EShaderStage_Compute))
+		m_dirtyMask |= eDirty_ResourceLayout;
+}
+
+inline void CComputeRenderPass::SetConstant(const CCryNameR& paramName, const Vec4 param)
+{
+	CRY_ASSERT(m_bPendingConstantUpdate);
+	m_constantManager.SetNamedConstant(paramName, param, eHWSC_Compute);
+}
+
+inline void CComputeRenderPass::SetConstantArray(const CCryNameR& paramName, const Vec4 params[], uint32 numParams)
+{
+	CRY_ASSERT(m_bPendingConstantUpdate);
+	m_constantManager.SetNamedConstantArray(paramName, params, numParams, eHWSC_Compute);
+}
+
+#undef ASSIGN_VALUE
+
+// ------------------------------------------------------------------------
+
+inline void CComputeRenderPass::SetOutputUAV(uint32 slot, CTexture* pTexture, ResourceViewHandle resourceViewID, ::EShaderStage shaderStages)
+{
+	m_resourceDesc.SetTexture(slot, pTexture, resourceViewID, shaderStages);
+}
+
+inline void CComputeRenderPass::SetOutputUAV(uint32 slot, CGpuBuffer* pBuffer, ResourceViewHandle resourceViewID, ::EShaderStage shaderStages)
+{
+	m_resourceDesc.SetBuffer(slot, pBuffer, resourceViewID, shaderStages);
+}
+
+inline void CComputeRenderPass::SetTexture(uint32 slot, CTexture* pTexture, ResourceViewHandle resourceViewID)
+{
+	m_resourceDesc.SetTexture(slot, pTexture, resourceViewID, EShaderStage_Compute);
+}
+
+inline void CComputeRenderPass::SetTextureSamplerPair(uint32 slot, CTexture* pTex, SamplerStateHandle sampler, ResourceViewHandle resourceViewID)
+{
+	m_resourceDesc.SetTexture(slot, pTex, resourceViewID, EShaderStage_Compute);
+	m_resourceDesc.SetSampler(slot, sampler, EShaderStage_Compute);
+}
+
+inline void CComputeRenderPass::SetBuffer(uint32 slot, CGpuBuffer* pBuffer)
+{
+	m_resourceDesc.SetBuffer(slot, pBuffer, EDefaultResourceViews::Default, EShaderStage_Compute);
+}
+
+inline void CComputeRenderPass::SetSampler(uint32 slot, SamplerStateHandle sampler)
+{
+	m_resourceDesc.SetSampler(slot, sampler, EShaderStage_Compute);
+}

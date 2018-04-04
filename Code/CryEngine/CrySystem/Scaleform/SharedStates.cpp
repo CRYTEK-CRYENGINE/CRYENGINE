@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #include "StdAfx.h"
 
@@ -53,8 +53,8 @@ CryGFxFileOpener::CryGFxFileOpener()
 
 CryGFxFileOpener& CryGFxFileOpener::GetAccess()
 {
-	static auto s_inst = new CryGFxFileOpener();
-	return *s_inst;
+	static auto s_pInst = new CryGFxFileOpener(); // This pointer is released in ~GFxLoader2()
+	return *s_pInst;
 }
 
 CryGFxFileOpener::~CryGFxFileOpener()
@@ -105,8 +105,8 @@ CryGFxURLBuilder::CryGFxURLBuilder()
 
 CryGFxURLBuilder& CryGFxURLBuilder::GetAccess()
 {
-	static auto s_inst = new CryGFxURLBuilder();
-	return *s_inst;
+	static auto s_pInst = new CryGFxURLBuilder(); // This pointer is released in ~GFxLoader2()
+	return *s_pInst;
 }
 
 CryGFxURLBuilder::~CryGFxURLBuilder()
@@ -175,8 +175,8 @@ CryGFxTextClipboard::~CryGFxTextClipboard()
 
 CryGFxTextClipboard& CryGFxTextClipboard::GetAccess()
 {
-	static auto s_inst = new CryGFxTextClipboard();
-	return *s_inst;
+	static auto s_pInst = new CryGFxTextClipboard(); // This pointer is released in ~GFxLoader2()
+	return *s_pInst;
 }
 
 void CryGFxTextClipboard::OnTextStore(const wchar_t* szText, UPInt length)
@@ -187,8 +187,6 @@ void CryGFxTextClipboard::OnTextStore(const wchar_t* szText, UPInt length)
 	{
 		// Avoid endless notification loop
 		RemoveClipboardFormatListener(reinterpret_cast<HWND>(gEnv->pSystem->GetHWND()));
-
-		EmptyClipboard();
 
 		static_assert(sizeof(wchar_t) == 2, "sizeof(wchar_t) needs to be 2 to be compatible with Scaleform.");
 		const HGLOBAL clipboardData = GlobalAlloc(GMEM_DDESHARE, sizeof(wchar_t) * (length + 1));
@@ -245,8 +243,8 @@ CryGFxTranslator::CryGFxTranslator()
 
 CryGFxTranslator& CryGFxTranslator::GetAccess()
 {
-	static auto s_inst = new CryGFxTranslator();
-	return *s_inst;
+	static auto s_pInst = new CryGFxTranslator(); // This pointer is released in ~GFxLoader2()
+	return *s_pInst;
 }
 
 void CryGFxTranslator::SetWordWrappingMode(const char* pLanguage)
@@ -335,8 +333,8 @@ CryGFxLog::CryGFxLog()
 
 CryGFxLog& CryGFxLog::GetAccess()
 {
-	static auto s_inst = new CryGFxLog();
-	return *s_inst;
+	static auto s_pInst = new CryGFxLog(); // This pointer is released in ~GFxLoader2()
+	return *s_pInst;
 }
 
 CryGFxLog::~CryGFxLog()
@@ -438,8 +436,8 @@ CryGFxFSCommandHandler::CryGFxFSCommandHandler()
 
 CryGFxFSCommandHandler& CryGFxFSCommandHandler::GetAccess()
 {
-	static auto s_inst = new CryGFxFSCommandHandler();
-	return *s_inst;
+	static auto s_pInst = new CryGFxFSCommandHandler(); // This pointer is released in ~GFxLoader2()
+	return *s_pInst;
 }
 
 CryGFxFSCommandHandler::~CryGFxFSCommandHandler()
@@ -463,8 +461,8 @@ CryGFxExternalInterface::CryGFxExternalInterface()
 
 CryGFxExternalInterface& CryGFxExternalInterface::GetAccess()
 {
-	static auto s_inst = new CryGFxExternalInterface();
-	return *s_inst;
+	static auto s_pInst = new CryGFxExternalInterface(); // This pointer is released in ~GFxLoader2()
+	return *s_pInst;
 }
 
 CryGFxExternalInterface::~CryGFxExternalInterface()
@@ -489,8 +487,8 @@ CryGFxUserEventHandler::CryGFxUserEventHandler()
 
 CryGFxUserEventHandler& CryGFxUserEventHandler::GetAccess()
 {
-	static auto s_inst = new CryGFxUserEventHandler();
-	return *s_inst;
+	static auto s_pInst = new CryGFxUserEventHandler(); // This pointer is released in ~GFxLoader2()
+	return *s_pInst;
 }
 
 CryGFxUserEventHandler::~CryGFxUserEventHandler()
@@ -511,8 +509,8 @@ CryGFxImageCreator::CryGFxImageCreator()
 
 CryGFxImageCreator& CryGFxImageCreator::GetAccess()
 {
-	static auto s_inst = new CryGFxImageCreator();
-	return *s_inst;
+	static auto s_pInst = new CryGFxImageCreator(); // This pointer is released in ~GFxLoader2()
+	return *s_pInst;
 }
 
 CryGFxImageCreator::~CryGFxImageCreator()
@@ -562,8 +560,8 @@ CryGFxImageLoader::CryGFxImageLoader()
 
 CryGFxImageLoader& CryGFxImageLoader::GetAccess()
 {
-	static auto s_inst = new CryGFxImageLoader();
-	return *s_inst;
+	static auto s_pInst = new CryGFxImageLoader(); // This pointer is released in ~GFxLoader2()
+	return *s_pInst;
 }
 
 CryGFxImageLoader::~CryGFxImageLoader()

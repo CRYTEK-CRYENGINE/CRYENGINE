@@ -2,11 +2,12 @@
 
 using System;
 using System.Globalization;
+
 using CryEngine.Common;
 
 namespace CryEngine
 {
-	public struct Matrix3x4
+	public struct Matrix3x4 : IEquatable<Matrix3x4>
 	{
 		public static readonly Matrix3x4 Identity = new Matrix3x4(Quaternion.Identity);
 
@@ -102,18 +103,25 @@ namespace CryEngine
 
 		public override bool Equals(object obj)
 		{
-			if (obj == null)
+			if(obj == null)
 				return false;
 
-			if (obj is Matrix3x4 || obj is Matrix34)
-				return this == (Matrix3x4)obj;
+			if(!(obj is Matrix3x4 || obj is Matrix34))
+				return false;
 
-			return false;
+			return Equals((Matrix3x4)obj);
+		}
+
+		public bool Equals(Matrix3x4 other)
+		{
+			return MathHelpers.Approximately(m00 , other.m00) && MathHelpers.Approximately(m01 , other.m01) && MathHelpers.Approximately(m02 , other.m02) && MathHelpers.Approximately(m03 , other.m03)
+				  && MathHelpers.Approximately(m10 , other.m10) && MathHelpers.Approximately(m11 , other.m11) && MathHelpers.Approximately(m12 , other.m12) && MathHelpers.Approximately(m13 , other.m13)
+				  && MathHelpers.Approximately(m20 , other.m20) && MathHelpers.Approximately(m21 , other.m21) && MathHelpers.Approximately(m22 , other.m22) && MathHelpers.Approximately(m23 , other.m23);
 		}
 
 		public override string ToString()
 		{
-			return string.Format(CultureInfo.CurrentCulture, "[{0}],[{1}],[{2}]", this[0].ToString(), this[1].ToString(), this[2].ToString());
+			return string.Format(CultureInfo.CurrentCulture, "[{0}],[{1}],[{2}]", this[0], this[1], this[2]);
 		}
 		#endregion
 
@@ -127,7 +135,7 @@ namespace CryEngine
 
 		public static implicit operator Matrix3x4(Matrix34 nativeMatrix)
 		{
-			if (nativeMatrix == null)
+			if(nativeMatrix == null)
 			{
 				return new Matrix3x4();
 			}
@@ -146,12 +154,10 @@ namespace CryEngine
 		#region Operators
 		public static bool operator ==(Matrix3x4 left, Matrix3x4 right)
 		{
-			if ((object)right == null)
+			if((object)right == null)
 				return (object)left == null;
 
-			return (left.m00 == right.m00) && (left.m01 == right.m01) && (left.m02 == right.m02) && (left.m03 == right.m03)
-				&& (left.m10 == right.m10) && (left.m11 == right.m11) && (left.m12 == right.m12) && (left.m13 == right.m13)
-				&& (left.m20 == right.m20) && (left.m21 == right.m21) && (left.m22 == right.m22) && (left.m23 == right.m23);
+			return left.Equals(right);
 		}
 
 		public static bool operator !=(Matrix3x4 left, Matrix3x4 right)
@@ -199,48 +205,48 @@ namespace CryEngine
 			{
 				switch(row)
 				{
-					case 0:
-						return new Vector4(m00, m01, m02, m03);
-					case 1:
-						return new Vector4(m10, m11, m12, m13);
-					case 2:
-						return new Vector4(m20, m21, m22, m23);
+				case 0:
+					return new Vector4(m00, m01, m02, m03);
+				case 1:
+					return new Vector4(m10, m11, m12, m13);
+				case 2:
+					return new Vector4(m20, m21, m22, m23);
 
-					default:
-						throw new ArgumentOutOfRangeException("index", "Indices must run from 0 to 2!");
+				default:
+					throw new ArgumentOutOfRangeException(nameof(row), "Indices must run from 0 to 2!");
 				}
 			}
 			set
 			{
-				switch (row)
+				switch(row)
 				{
-					case 0:
-						{
-							m00 = value.x;
-							m01 = value.y;
-							m02 = value.z;
-							m03 = value.w;
-						}
-						break;
-					case 1:
-						{
-							m10 = value.x;
-							m11 = value.y;
-							m12 = value.z;
-							m13 = value.w;
-						}
-						break;
-					case 2:
-						{
-							m20 = value.x;
-							m21 = value.y;
-							m22 = value.z;
-							m23 = value.w;
-						}
-						break;
+				case 0:
+					{
+						m00 = value.x;
+						m01 = value.y;
+						m02 = value.z;
+						m03 = value.w;
+					}
+					break;
+				case 1:
+					{
+						m10 = value.x;
+						m11 = value.y;
+						m12 = value.z;
+						m13 = value.w;
+					}
+					break;
+				case 2:
+					{
+						m20 = value.x;
+						m21 = value.y;
+						m22 = value.z;
+						m23 = value.w;
+					}
+					break;
 
-					default:
-						throw new ArgumentOutOfRangeException("index", "Indices must run from 0 to 2!");
+				default:
+					throw new ArgumentOutOfRangeException(nameof(row), "Indices must run from 0 to 2!");
 				}
 			}
 		}
@@ -249,19 +255,24 @@ namespace CryEngine
 		{
 			get
 			{
-				switch (column)
+				if(row < 0 || row > 2)
 				{
-					case 0:
-						return this[row].x;
-					case 1:
-						return this[row].y;
-					case 2:
-						return this[row].z;
-					case 3:
-						return this[row].w;
+					throw new ArgumentOutOfRangeException(nameof(row), "Row indices must run from 0 to 2!");
+				}
 
-					default:
-						throw new ArgumentOutOfRangeException("index", "Indices must run from 0 to 3!");
+				switch(column)
+				{
+				case 0:
+					return this[row].x;
+				case 1:
+					return this[row].y;
+				case 2:
+					return this[row].z;
+				case 3:
+					return this[row].w;
+
+				default:
+					throw new ArgumentOutOfRangeException(nameof(column), "Column indices must run from 0 to 3!");
 				}
 			}
 		}

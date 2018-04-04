@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 /*=============================================================================
    ShaderCache.h : Shaders cache related declarations.
@@ -10,6 +10,8 @@
 
 #ifndef __SHADERCACHE_H__
 #define __SHADERCACHE_H__
+
+#include "Shader.h" // FXDeviceShader
 
 struct SPreprocessMasks
 {
@@ -101,61 +103,70 @@ struct SShaderLevelPolicies
 
 union UPipelineState // Pipeline state relevant for shader instantiation
 {
-	struct
+	union
 	{
-		// GNM VS: Value must be 1TT00XXXb, where X determines the hardware stage to compile for (0: VS, 1: LS, 2: ES (ring), 3: ES (LDS), 4: CS/VS (DD), 5: CS/VS (DDI)). TT is the ISA selector.
-		uint8 targetStage;
-	} VS;
-	struct
-	{
-		// GNM HS: Value must be 1TT00000b. TT is the ISA selector.
-		uint8 targetStage;
-	} HS;
-	struct
-	{
-		// GNM DS: Value must be 1TT0000Xb, where X determines the hardware stage to compile for (0: VS, 1: ES). TT is the ISA selector.
-		uint8 targetStage;
-	} DS;
-	struct
-	{
-		// GNM GS: Value must be 1TT0000Xb, where X determines the hardware stage to compile for (0: GS (ring), 1: GS (LDS)). TT is the ISA selector
-		uint8 targetStage;
-	} GS;
-	struct
-	{
-		// GNM PS: depthStencilInfo value must be 1TT00..00DDSb, for D (0: not present, 1: 16-bit unorm, 2: 32-bit float), and for S (0: not present, 1: 8-bit uint). TT is the ISA selector.
-		// targetFormats contains sce::Gnm::PsTargetOutputMode value (4-bits for each MRT), with MRT0 in the LSBs and MRT7 in the MSBs.
-		uint32 targetFormats;
-		uint32 depthStencilInfo;
-	} PS;
-	struct
-	{
-		// GNM CS: Value must be 1TT000XX, where X determines the hardware stage to compile for (0: CS, 1: CS (DD), 2: CS (DD instanced))
-		uint8 targetStage;
-	} CS;
-
-	UPipelineState() : opaque(0)
-	{
-	}
-
-	uint8 GetISA(EHWShaderClass type) const // Gets the HwISA field (value [0, 3]) given the type of shader
-	{
-		return (type == eHWSC_Pixel ? PS.depthStencilInfo >> 29 : VS.targetStage >> 5) & 0x3U;
-	}
-
-	void SetISA(EHWShaderClass type, uint8 isa) // Sets the HwISA field (value [0, 3]) given the type of shader
-	{
-		if (type == eHWSC_Pixel)
+		struct
 		{
-			PS.depthStencilInfo = static_cast<uint32>(isa << 29) | (PS.depthStencilInfo & ~(3U << 29));
-		}
-		else
+			// GNM VS: Value must be 1TT00XXXb, where X determines the hardware stage to compile for (0: VS, 1: LS, 2: ES (ring), 3: ES (LDS), 4: CS/VS (DD), 5: CS/VS (DDI)). TT is the ISA selector.
+			uint8 targetStage;
+		} VS;
+		struct
 		{
-			VS.targetStage = static_cast<uint32>(isa << 5) | (VS.targetStage & ~(3U << 5));
+			// GNM HS: Value must be 1TT00000b. TT is the ISA selector.
+			uint8 targetStage;
+		} HS;
+		struct
+		{
+			// GNM DS: Value must be 1TT0000Xb, where X determines the hardware stage to compile for (0: VS, 1: ES). TT is the ISA selector.
+			uint8 targetStage;
+		} DS;
+		struct
+		{
+			// GNM GS: Value must be 1TT0000Xb, where X determines the hardware stage to compile for (0: GS (ring), 1: GS (LDS)). TT is the ISA selector
+			uint8 targetStage;
+		} GS;
+		struct
+		{
+			// GNM PS: depthStencilInfo value must be 1TT00..00DDSb, for D (0: not present, 1: 16-bit unorm, 2: 32-bit float), and for S (0: not present, 1: 8-bit uint). TT is the ISA selector.
+			// targetFormats contains sce::Gnm::PsTargetOutputMode value (4-bits for each MRT), with MRT0 in the LSBs and MRT7 in the MSBs.
+			uint32 targetFormats;
+			uint32 depthStencilInfo;
+		} PS;
+		struct
+		{
+			// GNM CS: Value must be 1TT000XX, where X determines the hardware stage to compile for (0: CS, 1: CS (DD), 2: CS (DD instanced))
+			uint8 targetStage;
+		} CS;
+
+		uint8 GetISA(EHWShaderClass type) const // Gets the HwISA field (value [0, 3]) given the type of shader
+		{
+			return (type == eHWSC_Pixel ? PS.depthStencilInfo >> 29 : VS.targetStage >> 5) & 0x3U;
 		}
-	}
+
+		void SetISA(EHWShaderClass type, uint8 isa) // Sets the HwISA field (value [0, 3]) given the type of shader
+		{
+			if (type == eHWSC_Pixel)
+			{
+				PS.depthStencilInfo = static_cast<uint32>(isa << 29) | (PS.depthStencilInfo & ~(3U << 29));
+			}
+			else
+			{
+				VS.targetStage = static_cast<uint32>(isa << 5) | (VS.targetStage & ~(3U << 5));
+			}
+		}
+	} GNM;
+
+	struct
+	{
+		uint64 resourceLayoutHash;
+	} VULKAN;
 
 	uint64 opaque;
+
+	UPipelineState(uint64 opaqueValue = 0) : opaque(opaqueValue)
+	{
+	}
+
 };
 static_assert(sizeof(UPipelineState) == sizeof(uint64), "UPipelineState needs to be 64 bit");
 
@@ -210,6 +221,9 @@ struct SShaderCombIdent
 };
 
 //==========================================================================================================================
+
+struct SShaderCache;
+struct SShaderDevCache;
 
 class CResStreamDirCallback : public IStreamCallback
 {

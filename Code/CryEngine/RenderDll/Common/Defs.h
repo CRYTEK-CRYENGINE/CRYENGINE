@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #ifndef DEFS_H
 #define DEFS_H
@@ -19,14 +19,6 @@
 
 #ifndef FALSE
 	#define FALSE 0
-#endif
-
-#ifndef MIN
-	#define MIN(a, b) ((a) < (b) ? (a) : (b))
-#endif
-
-#ifndef MAX
-	#define MAX(a, b) ((a) > (b) ? (a) : (b))
 #endif
 
 #ifndef ABS

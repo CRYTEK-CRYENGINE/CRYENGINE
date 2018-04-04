@@ -5,9 +5,9 @@
 
 // *INDENT-OFF* - <hard to read code and declarations due to inconsistent indentation>
 
-namespace uqs
+namespace UQS
 {
-	namespace core
+	namespace Core
 	{
 
 		//===================================================================================
@@ -17,19 +17,20 @@ namespace uqs
 		//===================================================================================
 
 		CTextualQueryBlueprint::CTextualQueryBlueprint()
-			: m_bExpectedShuttleTypeHasBeenProvided(false)
+			: m_queryFactoryGUID(CryGUID::Null())
+			, m_maxItemsToKeepInResultSet(0)
 		{
 			// nothing
 		}
 
 		CTextualQueryBlueprint::~CTextualQueryBlueprint()
 		{
-			for (CTextualInstantEvaluatorBlueprint* pIE : m_instantEvaluators)
+			for (CTextualEvaluatorBlueprint* pIE : m_instantEvaluators)
 			{
 				delete pIE;
 			}
 
-			for (CTextualDeferredEvaluatorBlueprint* pDE : m_deferredEvaluators)
+			for (CTextualEvaluatorBlueprint* pDE : m_deferredEvaluators)
 			{
 				delete pDE;
 			}
@@ -40,25 +41,24 @@ namespace uqs
 			}
 		}
 
-		void CTextualQueryBlueprint::SetName(const char* name)
+		void CTextualQueryBlueprint::SetName(const char* szName)
 		{
-			m_name = name;
+			m_name = szName;
 		}
 
-		void CTextualQueryBlueprint::SetQueryFactoryName(const char* factoryName)
+		void CTextualQueryBlueprint::SetQueryFactoryName(const char* szFactoryName)
 		{
-			m_queryFactoryName = factoryName;
+			m_queryFactoryName = szFactoryName;
 		}
 
-		void CTextualQueryBlueprint::SetMaxItemsToKeepInResultSet(const char* maxItems)
+		void CTextualQueryBlueprint::SetQueryFactoryGUID(const CryGUID& factoryGUID)
+		{
+			m_queryFactoryGUID = factoryGUID;
+		}
+
+		void CTextualQueryBlueprint::SetMaxItemsToKeepInResultSet(size_t maxItems)
 		{
 			m_maxItemsToKeepInResultSet = maxItems;
-		}
-
-		void CTextualQueryBlueprint::SetExpectedShuttleType(const char* shuttleTypeName)
-		{
-			m_expectedShuttleType.Format("%s", shuttleTypeName);
-			m_bExpectedShuttleTypeHasBeenProvided = true;
 		}
 
 		ITextualGlobalConstantParamsBlueprint& CTextualQueryBlueprint::GetGlobalConstantParams()
@@ -77,9 +77,9 @@ namespace uqs
 			return *m_pGenerator;
 		}
 
-		ITextualInstantEvaluatorBlueprint& CTextualQueryBlueprint::AddInstantEvaluator()
+		ITextualEvaluatorBlueprint& CTextualQueryBlueprint::AddInstantEvaluator()
 		{
-			CTextualInstantEvaluatorBlueprint* pNewInstantEvaluatorBP = new CTextualInstantEvaluatorBlueprint;
+			CTextualEvaluatorBlueprint* pNewInstantEvaluatorBP = new CTextualEvaluatorBlueprint;
 			m_instantEvaluators.push_back(pNewInstantEvaluatorBP);
 			return *pNewInstantEvaluatorBP;
 		}
@@ -89,9 +89,9 @@ namespace uqs
 			return m_instantEvaluators.size();
 		}
 
-		ITextualDeferredEvaluatorBlueprint& CTextualQueryBlueprint::AddDeferredEvaluator()
+		ITextualEvaluatorBlueprint& CTextualQueryBlueprint::AddDeferredEvaluator()
 		{
-			CTextualDeferredEvaluatorBlueprint* pNewDeferredEvaluatorBlueprint = new CTextualDeferredEvaluatorBlueprint;
+			CTextualEvaluatorBlueprint* pNewDeferredEvaluatorBlueprint = new CTextualEvaluatorBlueprint;
 			m_deferredEvaluators.push_back(pNewDeferredEvaluatorBlueprint);
 			return *pNewDeferredEvaluatorBlueprint;
 		}
@@ -118,14 +118,14 @@ namespace uqs
 			return m_queryFactoryName.c_str();
 		}
 
-		const char* CTextualQueryBlueprint::GetMaxItemsToKeepInResultSet() const
+		const CryGUID& CTextualQueryBlueprint::GetQueryFactoryGUID() const
 		{
-			return m_maxItemsToKeepInResultSet.c_str();
+			return m_queryFactoryGUID;
 		}
 
-		const shared::IUqsString* CTextualQueryBlueprint::GetExpectedShuttleType() const
+		size_t CTextualQueryBlueprint::GetMaxItemsToKeepInResultSet() const
 		{
-			return m_bExpectedShuttleTypeHasBeenProvided ? &m_expectedShuttleType : nullptr;
+			return m_maxItemsToKeepInResultSet;
 		}
 
 		const ITextualGlobalConstantParamsBlueprint& CTextualQueryBlueprint::GetGlobalConstantParams() const
@@ -143,13 +143,13 @@ namespace uqs
 			return m_pGenerator.get();
 		}
 
-		const ITextualInstantEvaluatorBlueprint& CTextualQueryBlueprint::GetInstantEvaluator(size_t index) const
+		const ITextualEvaluatorBlueprint& CTextualQueryBlueprint::GetInstantEvaluator(size_t index) const
 		{
 			assert(index < m_instantEvaluators.size());
 			return *m_instantEvaluators[index];
 		}
 
-		const ITextualDeferredEvaluatorBlueprint& CTextualQueryBlueprint::GetDeferredEvaluator(size_t index) const
+		const ITextualEvaluatorBlueprint& CTextualQueryBlueprint::GetDeferredEvaluator(size_t index) const
 		{
 			assert(index < m_deferredEvaluators.size());
 			return *m_deferredEvaluators[index];
@@ -166,12 +166,12 @@ namespace uqs
 			return *m_children[index];
 		}
 
-		void CTextualQueryBlueprint::SetSyntaxErrorCollector(datasource::SyntaxErrorCollectorUniquePtr ptr)
+		void CTextualQueryBlueprint::SetSyntaxErrorCollector(DataSource::SyntaxErrorCollectorUniquePtr pSyntaxErrorCollector)
 		{
-			m_pSyntaxErrorCollector = std::move(ptr);
+			m_pSyntaxErrorCollector = std::move(pSyntaxErrorCollector);
 		}
 
-		datasource::ISyntaxErrorCollector* CTextualQueryBlueprint::GetSyntaxErrorCollector() const
+		DataSource::ISyntaxErrorCollector* CTextualQueryBlueprint::GetSyntaxErrorCollector() const
 		{
 			return m_pSyntaxErrorCollector.get();
 		}
@@ -185,7 +185,6 @@ namespace uqs
 		CQueryBlueprint::CQueryBlueprint()
 			: m_pQueryFactory(nullptr)
 			, m_maxItemsToKeepInResultSet(0)
-			, m_pExpectedShuttleType(nullptr)
 			, m_pParent(nullptr)
 		{
 			// nothing
@@ -193,14 +192,14 @@ namespace uqs
 
 		CQueryBlueprint::~CQueryBlueprint()
 		{
-			for (CInstantEvaluatorBlueprint* ie : m_instantEvaluators)
+			for (CInstantEvaluatorBlueprint* pIE : m_instantEvaluators)
 			{
-				delete ie;
+				delete pIE;
 			}
 
-			for (CDeferredEvaluatorBlueprint* de : m_deferredEvaluators)
+			for (CDeferredEvaluatorBlueprint* pDE : m_deferredEvaluators)
 			{
-				delete de;
+				delete pDE;
 			}
 		}
 
@@ -209,22 +208,22 @@ namespace uqs
 			return m_name.c_str();
 		}
 
-		void CQueryBlueprint::VisitRuntimeParams(client::IQueryBlueprintRuntimeParamVisitor& visitor) const
+		void CQueryBlueprint::VisitRuntimeParams(Client::IQueryBlueprintRuntimeParamVisitor& visitor) const
 		{
-			std::map<string, client::IItemFactory*> allRuntimeParamsInTheHierarchy;
+			std::map<string, Client::IItemFactory*> allRuntimeParamsInTheHierarchy;
 
 			GrabRuntimeParamsRecursively(allRuntimeParamsInTheHierarchy);
 
 			for (const auto& pair : allRuntimeParamsInTheHierarchy)
 			{
-				const char* paramName = pair.first.c_str();
-				client::IItemFactory* pItemFactory = pair.second;
+				const char* szParamName = pair.first.c_str();
+				Client::IItemFactory* pItemFactory = pair.second;
 				assert(pItemFactory);
-				visitor.OnRuntimeParamVisited(paramName, *pItemFactory);
+				visitor.OnRuntimeParamVisited(szParamName, *pItemFactory);
 			}
 		}
 
-		const shared::CTypeInfo& CQueryBlueprint::GetOutputType() const
+		const Shared::CTypeInfo& CQueryBlueprint::GetOutputType() const
 		{
 			assert(m_pQueryFactory);
 			return m_pQueryFactory->GetQueryBlueprintType(*this);
@@ -237,49 +236,28 @@ namespace uqs
 			// name
 			m_name = source.GetName();
 
-			// query factory
+			// query factory: first search by its GUID, then by its name
 			{
-				const char* queryFactoryName = source.GetQueryFactoryName();
-				m_pQueryFactory = static_cast<CQueryFactoryBase*>(g_hubImpl->GetQueryFactoryDatabase().FindFactoryByName(queryFactoryName));  // the static_cast<> is kinda ok'ish here, since IQueryFactory and its derived class CQueryFactoryBase are _both_ defined in the core, so we definitely know about the inheritance hierarchy
-				if (!m_pQueryFactory)
+				const CryGUID& queryFactoryGUID = source.GetQueryFactoryGUID();
+				const char* szQueryFactoryName = source.GetQueryFactoryName();
+
+				if(!(m_pQueryFactory = static_cast<CQueryFactoryBase*>(g_pHub->GetQueryFactoryDatabase().FindFactoryByGUID(queryFactoryGUID))))         // the static_cast<> is kinda ok'ish here, since IQueryFactory and its derived class CQueryFactoryBase are _both_ defined in the core, so we definitely know about the inheritance hierarchy
 				{
-					if (datasource::ISyntaxErrorCollector* pSE = source.GetSyntaxErrorCollector())
+					if (!(m_pQueryFactory = static_cast<CQueryFactoryBase*>(g_pHub->GetQueryFactoryDatabase().FindFactoryByName(szQueryFactoryName))))  // ditto
 					{
-						pSE->AddErrorMessage("Query factory with name '%s' not found", queryFactoryName);
+						if (DataSource::ISyntaxErrorCollector* pSE = source.GetSyntaxErrorCollector())
+						{
+							Shared::CUqsString guidAsString;
+							Shared::Internal::CGUIDHelper::ToString(queryFactoryGUID, guidAsString);
+							pSE->AddErrorMessage("Unknown QueryFactory: GUID = %s, name = '%s'", guidAsString.c_str(), szQueryFactoryName);
+						}
+						bResolveSucceeded = false;
 					}
-					bResolveSucceeded = false;
 				}
 			}
 
 			// max. items to keep in result set
-			{
-				const char* maxItemsAsString = source.GetMaxItemsToKeepInResultSet();
-				if (sscanf(maxItemsAsString, "%d", &m_maxItemsToKeepInResultSet) != 1)	// using %d to allow only decimal representation (no hex or octal)
-				{
-					if (datasource::ISyntaxErrorCollector* pSE = source.GetSyntaxErrorCollector())
-					{
-						pSE->AddErrorMessage("The maximum number of items could not be parsed into an int (value = '%s')", maxItemsAsString);
-					}
-					bResolveSucceeded = false;
-				}
-			}
-
-			// shuttle type (optional)
-			if (const shared::IUqsString* pShuttleTypeAsString = source.GetExpectedShuttleType())
-			{
-				if (const client::IItemFactory* pItemFactory = g_hubImpl->GetItemFactoryDatabase().FindFactoryByName(pShuttleTypeAsString->c_str()))
-				{
-					m_pExpectedShuttleType = &pItemFactory->GetItemType();
-				}
-				else
-				{
-					if (datasource::ISyntaxErrorCollector* pSE = source.GetSyntaxErrorCollector())
-					{
-						pSE->AddErrorMessage("Unknown item type for the shuttled items: '%s'", pShuttleTypeAsString->c_str());
-					}
-					bResolveSucceeded = false;
-				}
-			}
+			m_maxItemsToKeepInResultSet = source.GetMaxItemsToKeepInResultSet();
 
 			// ensure no duplicates between constant-params and runtime-params
 			for (size_t i1 = 0; i1 < source.GetGlobalConstantParams().GetParameterCount(); ++i1)
@@ -289,18 +267,18 @@ namespace uqs
 					const CTextualGlobalConstantParamsBlueprint::SParameterInfo p1 = source.GetGlobalConstantParams().GetParameter(i1);
 					const CTextualGlobalRuntimeParamsBlueprint::SParameterInfo p2 = source.GetGlobalRuntimeParams().GetParameter(i2);
 
-					if (strcmp(p1.name, p2.name) == 0)
+					if (strcmp(p1.szName, p2.szName) == 0)
 					{
 						// output error to constant-params
-						if (datasource::ISyntaxErrorCollector* pSE = p1.pSyntaxErrorCollector)
+						if (DataSource::ISyntaxErrorCollector* pSE = p1.pSyntaxErrorCollector)
 						{
-							pSE->AddErrorMessage("Global constant-parameter clashes with runtime-parameter of the same name: '%s'", p1.name);
+							pSE->AddErrorMessage("Global constant-parameter clashes with runtime-parameter of the same name: '%s'", p1.szName);
 						}
 
 						// output error to runtime-params
-						if (datasource::ISyntaxErrorCollector* pSE = p2.pSyntaxErrorCollector)
+						if (DataSource::ISyntaxErrorCollector* pSE = p2.pSyntaxErrorCollector)
 						{
-							pSE->AddErrorMessage("Global runtime-parameter clashes with constant-parameter of the same name: '%s'", p2.name);
+							pSE->AddErrorMessage("Global runtime-parameter clashes with constant-parameter of the same name: '%s'", p2.szName);
 						}
 
 						bResolveSucceeded = false;
@@ -326,7 +304,7 @@ namespace uqs
 				m_pGenerator.reset(new CGeneratorBlueprint);
 				if (!m_pGenerator->Resolve(*pGeneratorBlueprint, *this))
 				{
-					m_pGenerator.release();    // nullify the generator so that CInputBlueprint::Resolve() won't be tempted to use this half-baked object for further checks (and crash becuase it might be lacking a generator-factory)
+					m_pGenerator.reset();    // nullify the generator so that CInputBlueprint::Resolve() won't be tempted to use this half-baked object for further checks (and crash becuase it might be lacking a generator-factory)
 					bResolveSucceeded = false;
 				}
 			}
@@ -362,7 +340,7 @@ namespace uqs
 				const size_t numInstantEvaluators = m_instantEvaluators.size();
 				if (numInstantEvaluators > UQS_MAX_EVALUATORS)
 				{
-					if (datasource::ISyntaxErrorCollector* pSE = source.GetSyntaxErrorCollector())
+					if (DataSource::ISyntaxErrorCollector* pSE = source.GetSyntaxErrorCollector())
 					{
 						pSE->AddErrorMessage("Exceeded the maximum number of instant-evaluators in the query blueprint (max %i supported, %i present in the blueprint)", UQS_MAX_EVALUATORS, (int)numInstantEvaluators);
 					}
@@ -374,7 +352,7 @@ namespace uqs
 				const size_t numDeferredEvaluators = m_deferredEvaluators.size();
 				if (numDeferredEvaluators > UQS_MAX_EVALUATORS)
 				{
-					if (datasource::ISyntaxErrorCollector* pSE = source.GetSyntaxErrorCollector())
+					if (DataSource::ISyntaxErrorCollector* pSE = source.GetSyntaxErrorCollector())
 					{
 						pSE->AddErrorMessage("Exceeded the maximum number of deferred-evaluators in the query blueprint (max %i supported, %i present in the blueprint)", UQS_MAX_EVALUATORS, (int)numDeferredEvaluators);
 					}
@@ -398,7 +376,7 @@ namespace uqs
 			{
 				if (m_pQueryFactory->RequiresGenerator() && !m_pGenerator)
 				{
-					if (datasource::ISyntaxErrorCollector* pSE = source.GetSyntaxErrorCollector())
+					if (DataSource::ISyntaxErrorCollector* pSE = source.GetSyntaxErrorCollector())
 					{
 						pSE->AddErrorMessage("Query factories of type '%s' require a generator, but none is provided", m_pQueryFactory->GetName());
 					}
@@ -406,7 +384,7 @@ namespace uqs
 				}
 				else if (!m_pQueryFactory->RequiresGenerator() && m_pGenerator)
 				{
-					if (datasource::ISyntaxErrorCollector* pSE = source.GetSyntaxErrorCollector())
+					if (DataSource::ISyntaxErrorCollector* pSE = source.GetSyntaxErrorCollector())
 					{
 						pSE->AddErrorMessage("Query factories of type '%s' don't require a generator, but one was provided", m_pQueryFactory->GetName());
 					}
@@ -424,7 +402,7 @@ namespace uqs
 					const size_t minRequiredChildQueries = m_pQueryFactory->GetMinRequiredChildren();
 					if (actualNumChildQueries < minRequiredChildQueries)
 					{
-						if (datasource::ISyntaxErrorCollector* pSE = source.GetSyntaxErrorCollector())
+						if (DataSource::ISyntaxErrorCollector* pSE = source.GetSyntaxErrorCollector())
 						{
 							pSE->AddErrorMessage("Too few child queries: %i (expected at least %i)", (int)actualNumChildQueries, (int)minRequiredChildQueries);
 						}
@@ -437,7 +415,7 @@ namespace uqs
 					const size_t maxAllowedChildQueries = m_pQueryFactory->GetMaxAllowedChildren();
 					if (actualNumChildQueries > maxAllowedChildQueries)
 					{
-						if (datasource::ISyntaxErrorCollector* pSE = source.GetSyntaxErrorCollector())
+						if (DataSource::ISyntaxErrorCollector* pSE = source.GetSyntaxErrorCollector())
 						{
 							pSE->AddErrorMessage("Too many child queries: %i (expected no more than %i)", (int)actualNumChildQueries, (int)maxAllowedChildQueries);
 						}
@@ -457,12 +435,19 @@ namespace uqs
 				{
 					// write the error message into the child that caused the error
 					const ITextualQueryBlueprint& childSource = source.GetChild(indexOfChildCausingTheError);
-					if (datasource::ISyntaxErrorCollector* pSE = childSource.GetSyntaxErrorCollector())
+					if (DataSource::ISyntaxErrorCollector* pSE = childSource.GetSyntaxErrorCollector())
 					{
 						pSE->AddErrorMessage("%s", error.c_str());
 					}
 					bResolveSucceeded = false;
 				}
+			}
+
+			// sort the instant-evaluator blueprints by cost and evaluation modality such that their order at execution time won't change
+			// (this also helps the user to read the query history as it will show all evaluators in order of how they were executed)
+			if (bResolveSucceeded)
+			{
+				SortInstantEvaluatorBlueprintsByCostAndEvaluationModality();
 			}
 
 			return bResolveSucceeded;
@@ -484,6 +469,16 @@ namespace uqs
 			return m_children[index];
 		}
 
+		int CQueryBlueprint::GetChildIndex(const CQueryBlueprint* pChildToSearchFor) const
+		{
+			for (size_t i = 0; i < m_children.size(); ++i)
+			{
+				if (m_children[i].get() == pChildToSearchFor)
+					return (int)i;
+			}
+			return -1;
+		}
+
 		QueryBaseUniquePtr CQueryBlueprint::CreateQuery(const CQueryBase::SCtorContext& ctorContext) const
 		{
 			assert(m_pQueryFactory);
@@ -493,11 +488,6 @@ namespace uqs
 		int CQueryBlueprint::GetMaxItemsToKeepInResultSet() const
 		{
 			return m_maxItemsToKeepInResultSet;
-		}
-
-		const shared::CTypeInfo* CQueryBlueprint::GetExpectedShuttleType() const
-		{
-			return m_pExpectedShuttleType;
 		}
 
 		const CGlobalConstantParamsBlueprint& CQueryBlueprint::GetGlobalConstantParamsBlueprint() const
@@ -525,31 +515,31 @@ namespace uqs
 			return m_deferredEvaluators;
 		}
 
-		bool CQueryBlueprint::CheckPresenceAndTypeOfGlobalRuntimeParamsRecursively(const shared::IVariantDict& runtimeParamsToValidate, shared::CUqsString& error) const
+		bool CQueryBlueprint::CheckPresenceAndTypeOfGlobalRuntimeParamsRecursively(const Shared::IVariantDict& runtimeParamsToValidate, Shared::CUqsString& error) const
 		{
 			//
 			// ensure that all required runtime-params have been passed in and that their data types match those in this query-blueprint
 			//
 
-			const std::map<string, client::IItemFactory*>& expectedRuntimeParams = m_globalRuntimeParams.GetParams();
+			const std::map<string, CGlobalRuntimeParamsBlueprint::SParamInfo>& expectedRuntimeParams = m_globalRuntimeParams.GetParams();
 
 			for (const auto& pair : expectedRuntimeParams)
 			{
-				const char* key = pair.first.c_str();
-				const client::IItemFactory* pFoundItemFactory = runtimeParamsToValidate.FindItemFactory(key);
+				const char* szKey = pair.first.c_str();
+				const Client::IItemFactory* pFoundItemFactory = runtimeParamsToValidate.FindItemFactory(szKey);
 
 				if (pFoundItemFactory == nullptr)
 				{
-					error.Format("Missing runtime-param: '%s'", key);
+					error.Format("Missing runtime-param: '%s'", szKey);
 					return false;
 				}
 
-				const client::IItemFactory* pExpectedItemFactory = pair.second;
+				const Client::IItemFactory* pExpectedItemFactory = pair.second.pItemFactory;
 				assert(pExpectedItemFactory);
 
 				if (pFoundItemFactory != pExpectedItemFactory)
 				{
-					error.Format("Runtime-param '%s' mismatches the item-factory: expected '%s', but received '%s'", key, pExpectedItemFactory->GetName(), pFoundItemFactory->GetName());
+					error.Format("Runtime-param '%s' mismatches the item-factory: expected '%s', but received '%s'", szKey, pExpectedItemFactory->GetName(), pFoundItemFactory->GetName());
 					return false;
 				}
 			}
@@ -566,13 +556,25 @@ namespace uqs
 			return true;
 		}
 
+		const Shared::CTypeInfo* CQueryBlueprint::GetTypeOfShuttledItemsToExpect() const
+		{
+			assert(m_pQueryFactory);
+			return m_pQueryFactory->GetTypeOfShuttledItemsToExpect(*this);
+		}
+
+		const CQueryFactoryBase& CQueryBlueprint::GetQueryFactory() const
+		{
+			assert(m_pQueryFactory);
+			return *m_pQueryFactory;
+		}
+
 		void CQueryBlueprint::PrintToConsole(CLogger& logger) const
 		{
 			//
 			// name + output type + max items to generate
 			//
 
-			const shared::CTypeInfo& outputType = GetOutputType();
+			const Shared::CTypeInfo& outputType = GetOutputType();
 			logger.Printf("\"%s\" [%s] (max items in result set = %i)", m_name.c_str(), outputType.name(), m_maxItemsToKeepInResultSet);
 			CLoggerIndentation _indent;
 
@@ -668,16 +670,97 @@ namespace uqs
 			}
 		}
 
-		void CQueryBlueprint::GrabRuntimeParamsRecursively(std::map<string, client::IItemFactory*>& out) const
+		void CQueryBlueprint::SortInstantEvaluatorBlueprintsByCostAndEvaluationModality()
 		{
-			const std::map<string, client::IItemFactory*>& params = m_globalRuntimeParams.GetParams();
+			//
+			// sort all instant-evaluator blueprints such that we end up with the following order:
+			//
+			//   cheap tester1
+			//   cheap tester2
+			//   cheap tester3
+			//   ...
+			//   cheap scorer1
+			//   cheap scorer2
+			//   cheap scorer3
+			//   ...
+			//   expensive tester1
+			//   expensive tester2
+			//   expensive tester3
+			//   ...
+			//   expensive scorer1
+			//   expensive scorer2
+			//   expensive scorer3
+			//   ...
+			//
+
+			std::vector<CInstantEvaluatorBlueprint *> cheapTesters;
+			std::vector<CInstantEvaluatorBlueprint *> cheapScorers;
+			std::vector<CInstantEvaluatorBlueprint *> expensiveTesters;
+			std::vector<CInstantEvaluatorBlueprint *> expensiveScorers;
+
+			for (CInstantEvaluatorBlueprint* pIEBlueprint : m_instantEvaluators)
+			{
+				const Client::IInstantEvaluatorFactory& factory = pIEBlueprint->GetFactory();
+				const Client::IInstantEvaluatorFactory::ECostCategory costCategory = factory.GetCostCategory();
+				const Client::IInstantEvaluatorFactory::EEvaluationModality evaluationModality = factory.GetEvaluationModality();
+
+				switch (costCategory)
+				{
+				case Client::IInstantEvaluatorFactory::ECostCategory::Cheap:
+					switch (evaluationModality)
+					{
+					case Client::IInstantEvaluatorFactory::EEvaluationModality::Testing:
+						cheapTesters.push_back(pIEBlueprint);
+						break;
+
+					case Client::IInstantEvaluatorFactory::EEvaluationModality::Scoring:
+						cheapScorers.push_back(pIEBlueprint);
+						break;
+
+					default:
+						assert(0);
+					}
+					break;
+
+				case Client::IInstantEvaluatorFactory::ECostCategory::Expensive:
+					switch (evaluationModality)
+					{
+					case Client::IInstantEvaluatorFactory::EEvaluationModality::Testing:
+						expensiveTesters.push_back(pIEBlueprint);
+						break;
+
+					case Client::IInstantEvaluatorFactory::EEvaluationModality::Scoring:
+						expensiveScorers.push_back(pIEBlueprint);
+						break;
+
+					default:
+						assert(0);
+					}
+					break;
+
+				default:
+					assert(0);
+				}
+			}
+
+			m_instantEvaluators.clear();
+
+			m_instantEvaluators.insert(m_instantEvaluators.end(), cheapTesters.begin(), cheapTesters.end());
+			m_instantEvaluators.insert(m_instantEvaluators.end(), cheapScorers.begin(), cheapScorers.end());
+			m_instantEvaluators.insert(m_instantEvaluators.end(), expensiveTesters.begin(), expensiveTesters.end());
+			m_instantEvaluators.insert(m_instantEvaluators.end(), expensiveScorers.begin(), expensiveScorers.end());
+		}
+
+		void CQueryBlueprint::GrabRuntimeParamsRecursively(std::map<string, Client::IItemFactory*>& out) const
+		{
+			const std::map<string, CGlobalRuntimeParamsBlueprint::SParamInfo>& params = m_globalRuntimeParams.GetParams();
 
 			for (const auto& pair : params)
 			{
-				const char* paramName = pair.first.c_str();
-				client::IItemFactory* pItemFactory = pair.second;
+				const char* szParamName = pair.first.c_str();
+				Client::IItemFactory* pItemFactory = pair.second.pItemFactory;
 				assert(pItemFactory);
-				out[paramName] = pItemFactory;	// potentially overwrite the param from a parent; we presume here that both have the same item type (this is ensured by CGlobalRuntimeParamsBlueprint::Resolve())
+				out[szParamName] = pItemFactory;	// potentially overwrite the param from a parent; we presume here that both have the same item type (this is ensured by CGlobalRuntimeParamsBlueprint::Resolve())
 			}
 
 			// recurse down all children

@@ -1,21 +1,10 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
-// -------------------------------------------------------------------------
-//  File name:
-//  Version:     v1.00
-//  Created:     08/05/2015 by Jan Pinter
-//  Description:
-// -------------------------------------------------------------------------
-//  History:
-//
-////////////////////////////////////////////////////////////////////////////
 #pragma once
-#ifndef __DX12SWAPCHAIN__
-	#define __DX12SWAPCHAIN__
 
-	#include "DX12Base.hpp"
-	#include "DX12CommandList.hpp"
-	#include "DX12AsyncCommandQueue.hpp"
+#include "DX12Base.hpp"
+#include "DX12CommandList.hpp"
+#include "DX12AsyncCommandQueue.hpp"
 
 namespace NCryDX12
 {
@@ -23,15 +12,16 @@ namespace NCryDX12
 class CSwapChain : public CRefCounted
 {
 public:
-	static CSwapChain* Create(CCommandListPool& commandQueue, IDXGIFactory4* factory, DXGI_SWAP_CHAIN_DESC* pDesc);
+	static CSwapChain* Create(CCommandListPool& commandQueue, IDXGIFactory4ToCall* factory, DXGI_SWAP_CHAIN_DESC* pDesc);
+	static CSwapChain* Create(CCommandListPool& commandQueue, IDXGISwapChain1ToCall* swapchain, DXGI_SWAP_CHAIN_DESC1* pDesc);
 
 protected:
-	CSwapChain(CCommandListPool& commandQueue, IDXGISwapChain3* dxgiSwapChain, DXGI_SWAP_CHAIN_DESC* pDesc);
+	CSwapChain(CCommandListPool& commandQueue, IDXGISwapChain3ToCall* dxgiSwapChain, DXGI_SWAP_CHAIN_DESC* pDesc);
 
 	virtual ~CSwapChain();
 
 public:
-	ILINE IDXGISwapChain3* GetDXGISwapChain() const
+	ILINE IDXGISwapChain3ToCall* GetDXGISwapChain() const
 	{
 		return m_pDXGISwapChain;
 	}
@@ -41,33 +31,30 @@ public:
 		return m_Desc.BufferCount;
 	}
 
+	// Get the index of the back-buffer which is to be used for the next Present().
+	// Cache the value for multiple calls between Present()s, as the cost of GetCurrentBackBufferIndex() could be high.
+	ILINE UINT GetCurrentBackbufferIndex() const
+	{
+		if (!m_bChangedBackBufferIndex)
+			return m_nCurrentBackBufferIndex;
+
+		m_asyncQueue.FlushNextPresent(); DX12_ASSERT(!IsPresentScheduled(), "Flush didn't dry out all outstanding Present() calls!");
+#if CRY_PLATFORM_DURANGO
+		m_nCurrentBackBufferIndex = 0;
+#else
+		m_nCurrentBackBufferIndex = m_pDXGISwapChain->GetCurrentBackBufferIndex();
+#endif
+		m_bChangedBackBufferIndex = false;
+
+		return m_nCurrentBackBufferIndex;
+	}
 	ILINE CResource& GetBackBuffer(UINT index)
 	{
 		return m_BackBuffers[index];
 	}
 	ILINE CResource& GetCurrentBackBuffer()
 	{
-		return m_BackBuffers[m_pDXGISwapChain->GetCurrentBackBufferIndex()];
-	}
-
-	ILINE CView& GetBackBufferView(UINT index, bool isRTV)
-	{
-		if (isRTV)
-			return m_BackBufferRTVs[index];
-		/* else */
-		return m_BackBufferSRVs[index];
-	}
-	ILINE CView& GetCurrentBackBufferView(bool isRTV)
-	{
-		if (isRTV)
-			return m_BackBufferRTVs[m_pDXGISwapChain->GetCurrentBackBufferIndex()];
-		/* else */
-		return m_BackBufferSRVs[m_pDXGISwapChain->GetCurrentBackBufferIndex()];
-	}
-
-	ILINE UINT GetCurrentBackbufferIndex() const
-	{
-		return m_CurrentBackbufferIndex;
+		return m_BackBuffers[GetCurrentBackbufferIndex()];
 	}
 
 	ILINE bool IsPresentScheduled() const
@@ -75,14 +62,12 @@ public:
 		return m_asyncQueue.GetQueuedFramesCount() > 0;
 	}
 
+	// Run Present() asynchronuously, which means the next back-buffer index is not queryable within this function.
+	// Instead defer acquiring the next index to the next call of GetCurrentBackbufferIndex().
 	void Present(UINT SyncInterval, UINT Flags)
 	{
-		m_asyncQueue.FlushNextPresent();
-		DX12_ASSERT(!IsPresentScheduled(), "Flush didn't dry out all outstanding Present() calls!");
-
-		m_asyncQueue.Present(m_pDXGISwapChain, &m_PresentResult, SyncInterval, Flags, m_Desc.Flags, m_CurrentBackbufferIndex);
-
-		m_CurrentBackbufferIndex = (m_CurrentBackbufferIndex + 1) % m_Desc.BufferCount;
+		m_asyncQueue.Present(m_pDXGISwapChain, &m_PresentResult, SyncInterval, Flags, m_Desc, GetCurrentBackbufferIndex());
+		m_bChangedBackBufferIndex = true;
 	}
 
 	HRESULT GetLastPresentReturnValue() { return m_PresentResult; }
@@ -100,17 +85,13 @@ private:
 	CCommandListPool&    m_pCommandQueue;
 
 	DXGI_SWAP_CHAIN_DESC m_Desc;
-	UINT                 m_CurrentBackbufferIndex;
+	mutable bool         m_bChangedBackBufferIndex;
+	mutable UINT         m_nCurrentBackBufferIndex;
 
 	HRESULT              m_PresentResult;
-	DX12_PTR(IDXGISwapChain3) m_pDXGISwapChain;
+	DX12_PTR(IDXGISwapChain3ToCall) m_pDXGISwapChain;
 
 	std::vector<CResource> m_BackBuffers;
-	std::vector<CView>     m_BackBufferRTVs;
-	std::vector<CView>     m_BackBufferSRVs;
-	bool                   m_bPresentScheduled;
 };
 
 }
-
-#endif // __DX12SWAPCHAIN__

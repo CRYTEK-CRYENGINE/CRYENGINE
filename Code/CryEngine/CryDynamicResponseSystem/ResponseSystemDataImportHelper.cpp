@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #include "stdafx.h"
 #include "ResponseSystemDataImportHelper.h"
@@ -355,7 +355,7 @@ DRS::IResponseActionSharedPtr CDataImportHelper::CreateActionFromString(const CH
 	{
 		return itFound->second(data, szFormatName);
 	}
-	DrsLogWarning((string("Could not find a creator methode for actions of type '") + type.GetText() + "' data was: " + data).c_str());
+	DrsLogWarning((string("Could not find a creator method for actions of type '") + type.GetText() + "' data was: " + data).c_str());
 	return nullptr;
 }
 
@@ -367,7 +367,7 @@ DRS::IConditionSharedPtr CDataImportHelper::CreateConditionFromString(const CHas
 	{
 		return itFound->second(data, szFormatName);
 	}
-	DrsLogWarning((string("Could not find a creator methode for condition of type '") + type.GetText() + "' data was: " + data).c_str());
+	DrsLogWarning((string("Could not find a creator method for condition of type '") + type.GetText() + "' data was: " + data).c_str());
 	return nullptr;
 }
 

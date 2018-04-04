@@ -3,11 +3,11 @@
 
 #include <StdAfx.h>
 
-#include <yasli/Archive.h>
-#include <yasli/STL.h>
-#include <yasli/Enum.h>
-#include <yasli/JSONIArchive.h>
-#include <yasli/JSONOArchive.h>
+#include <CrySerialization/yasli/Archive.h>
+#include <CrySerialization/yasli/STL.h>
+#include <CrySerialization/yasli/Enum.h>
+#include <CrySerialization/yasli/JSONIArchive.h>
+#include <CrySerialization/yasli/JSONOArchive.h>
 
 #include "FbxMetaData.h"
 #include "AutoLodSettings.h"
@@ -140,28 +140,30 @@ static void Serialize(yasli::Archive& ar, SMetaData& value)
 	//ar(value.settings.sourceFile.password, "password", "Password of the source file");
 
 	// conversion settings
-	ar(value.m_unit, "unit_size", "Size of the unit ('file', 'cm', 'm', 'in', etc).");
-	ar(value.m_scale, "scale", "Scale (size multiplier).");
-	ar(value.m_forwardUpAxes, "forward_up_axes", "World axes");
+	ar(value.unit, "unit_size", "Size of the unit ('file', 'cm', 'm', 'in', etc).");
+	ar(value.scale, "scale", "Scale (size multiplier).");
+	ar(value.forwardUpAxes, "forward_up_axes", "World axes");
 
-	if (ar.isOutput())
-	{
-		ar(value.m_bMergeAllNodes, "merge_all_nodes", "Merge all nodes");
-		ar(value.m_bSceneOrigin, "scene_origin", "true - use scene's origin, false - use origins of root nodes");
-	}
+	ar(value.bMergeAllNodes, "merge_all_nodes", "Merge all nodes");
+	ar(value.bSceneOrigin, "scene_origin", "true - use scene's origin, false - use origins of root nodes");
+	ar(value.bComputeNormals, "ignore_custom_normals", "true - use computed normal, false - use fbx normals");
+	ar(value.bComputeUv, "ignore_uv", "true - use computed texture coordinates, false - use fbx texture coordinates");
 
 	ar(value.materialData, "materials", "Materials");
 	ar(value.nodeData, "nodes");
-	ar(value.m_animationClip, "animation", "Animation to import");
+	ar(value.animationClip, "animation", "Animation to import");
 	if (ar.isInput() || !value.jointPhysicsData.empty())
 	{
 		ar(value.jointPhysicsData, "jointPhysicsData", "Joint physics data");
 	}
 
-	if (value.m_pEditorMetaData)
+	if (value.pEditorMetaData)
 	{
-		value.m_pEditorMetaData->Serialize(ar);
+		value.pEditorMetaData->Serialize(ar);
 	}
+
+	// RC does not read this. 
+	ar(value.bVertexPositionFormatF32, "use_32_bit_positions", "Use 32bit precision");
 
 	ar(*value.pAutoLodSettings, "autolodsettings");
 }
@@ -227,13 +229,81 @@ const char* ToString(EGenerateNormals value)
 }
 
 SMetaData::SMetaData()
-	: m_unit(FbxMetaData::Units::eUnitSetting_FromFile)
-	, m_scale(1.0f)
-	, m_bMergeAllNodes(false)
-	, m_bSceneOrigin(false)
+	: unit(FbxMetaData::Units::eUnitSetting_FromFile)
+	, scale(1.0f)
+	, bMergeAllNodes(false)
+	, bSceneOrigin(false)
 	, pAutoLodSettings(new CAutoLodSettings())
-	, m_pEditorMetaData(nullptr)
+	, bVertexPositionFormatF32(false)
+	, bComputeNormals(false)
+	, bComputeUv(false)
 {}
+
+SMetaData::SMetaData(const SMetaData& other)
+	: settings(other.settings)
+	, sourceFilename(other.sourceFilename)
+	, outputFileExt(other.outputFileExt)
+	, password(other.password)
+	, materialFilename(other.materialFilename)
+	, unit(other.unit)
+	, scale(other.scale)
+	, forwardUpAxes(other.forwardUpAxes)
+	, bMergeAllNodes(other.bMergeAllNodes)
+	, bSceneOrigin(other.bSceneOrigin)
+	, bVertexPositionFormatF32(other.bVertexPositionFormatF32)
+	, bComputeNormals(other.bComputeNormals)
+	, bComputeUv(other.bComputeUv)
+	, materialData(other.materialData)
+	, nodeData(other.nodeData)
+	, animationClip(other.animationClip)
+	, jointPhysicsData(other.jointPhysicsData)
+	, pAutoLodSettings(other.pAutoLodSettings)
+{
+	if (other.pEditorMetaData)
+	{
+		pEditorMetaData = std::move(other.pEditorMetaData->Clone());
+	}
+}
+
+SMetaData& SMetaData::operator=(const SMetaData& other)
+{
+	if (this == &other)
+	{
+		return *this;
+	}
+
+	settings = other.settings;
+	sourceFilename = other.sourceFilename;
+	outputFileExt = other.outputFileExt;
+	password = other.password;
+	materialFilename = other.materialFilename;
+
+	unit = other.unit;
+	scale = other.scale;
+	forwardUpAxes = other.forwardUpAxes;
+
+	bMergeAllNodes = other.bMergeAllNodes;
+	bSceneOrigin = other.bSceneOrigin;
+	bVertexPositionFormatF32 = other.bVertexPositionFormatF32;
+	bComputeNormals = other.bComputeNormals;
+	bComputeUv = other.bComputeUv;
+
+	materialData = other.materialData;
+	nodeData = other.nodeData;
+
+	animationClip = other.animationClip;
+
+	jointPhysicsData = other.jointPhysicsData;
+
+	if (other.pEditorMetaData)
+	{
+		pEditorMetaData = std::move(other.pEditorMetaData->Clone());
+	}
+
+	pAutoLodSettings = other.pAutoLodSettings;
+
+	return *this;
+}
 
 TString SMetaData::ToJson() const
 {

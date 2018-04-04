@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 //
 //  File:CryHeaders.h
@@ -230,8 +230,8 @@ struct CryBoneDescData
 	CryBonePhysics m_PhysInfo[2];
 	float          m_fMass;
 
-	Matrix34       m_DefaultW2B; //!< Intitalpose matrix World2Bone.
-	Matrix34       m_DefaultB2W; //!< Intitalpose matrix Bone2World.
+	Matrix34f      m_DefaultW2B; //!< Intitalpose matrix World2Bone.
+	Matrix34f      m_DefaultB2W; //!< Intitalpose matrix Bone2World.
 
 	enum { kBoneNameMaxSize = 256, };
 	char m_arrBoneName[CryBoneDescData::kBoneNameMaxSize];
@@ -260,8 +260,8 @@ struct CryBoneDescData_Comp
 	CryBonePhysics_Comp m_PhysInfo[2];
 	float               m_fMass;
 
-	Matrix34            m_DefaultW2B; //!< Intitalpose matrix World2Bone.
-	Matrix34            m_DefaultB2W; //!< Intitalpose matrix Bone2World.
+	Matrix34f           m_DefaultW2B; //!< Intitalpose matrix World2Bone.
+	Matrix34f           m_DefaultB2W; //!< Intitalpose matrix Bone2World.
 
 	char                m_arrBoneName[256];
 

@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 /*************************************************************************
 *************************************************************************/
@@ -354,20 +354,19 @@ void CAttrWriter::Set(const char* pAttrName, const uint8* data, uint32 len, bool
 //////////////////////////////////////////////////////////////////////////
 // in a "multi float semi constant type" there is first a byte, separated in 4 2-bit-fields. Each field corresponds to one of the multifloat components, and it indicates if that
 // if that float is a constant (and which constant) or if is a random value. If is a random value, it is stored as a full float.
-// this function, called once for every member of the multifloat struct, builds the byte header and store the floats in the apropiate positions.
+// this function, called once for every member of the multifloat struct, builds the byte header and store the floats in the appropriate positions.
 
 void CAttrWriter::PackFloatInSemiConstType(float val, uint32 ind, uint32& numVals)
 {
 	uint32 type = PFSC_VAL;
 
-	if (val == 0 || val == -0)
+	if (val == 0.0f)
 		type = PFSC_0;
-	else if (val == 1)
+	else if (val == 1.0f)
 		type = PFSC_1;
-	else if (val == -1)
+	else if (val == -1.0f)
 		type = PFSC_N1;
-
-	if (type == PFSC_VAL)
+	else
 	{
 		assert(numVals < 4);
 		m_data.m_floatSemiConstant.v[numVals] = val;

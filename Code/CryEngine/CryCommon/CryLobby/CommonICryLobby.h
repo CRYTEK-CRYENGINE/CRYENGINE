@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 #pragma once
 
 typedef uint32 CryLobbyTaskID;
@@ -121,7 +121,7 @@ struct ICryLobbyService;
 #define XBOX_RELEASE_USE_SECURE_SOCKETS 1
 
 #if CRY_PLATFORM_ORBIS
-	#define USE_PSN 1
+	#define USE_PSN 0
 #else
 	#define USE_PSN 0
 #endif
@@ -160,6 +160,11 @@ struct SCryLobbyParameters
 {
 	uint16 m_listenPort;        //!< Listen port the lobby service will use for connections.
 	uint16 m_connectPort;       //!< Connect port the lobby service will use for connections.
+};
+
+struct ILobbyEngineModule : public Cry::IDefaultModule
+{
+	CRYINTERFACE_DECLARE_GUID(ILobbyEngineModule, "3ed8ef88-5332-4bdf-a5cb-5a3ad5016279"_cry_guid);
 };
 
 struct ICryLobby

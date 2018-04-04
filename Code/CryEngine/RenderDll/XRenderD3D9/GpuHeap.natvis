@@ -1,0 +1,90 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AutoVisualizer xmlns="http://schemas.microsoft.com/vstudio/debugger/natvis/2010">
+  
+  <Type Name="Detail::SLink">
+    <DisplayString>~ GpuHeap SLink [Next={next}, Prev={prev}]</DisplayString>
+    <Expand>
+      <Item Name="Next" Condition="next &amp;&amp; Detail::gpHeapPages">Detail::gpHeapPages[next]</Item>
+      <Item Name="Prev" Condition="prev &amp;&amp; Detail::gpHeapPages">Detail::gpHeapPages[prev]</Item>
+    </Expand>
+  </Type>
+
+  <Type Name="Detail::CLinkRoot&lt;*&gt;">
+    <DisplayString>~ GpuHeap CLinkRoot</DisplayString>
+    <Expand>
+      <CustomListItems>
+        <Variable Name="it" InitialValue="next" />
+        <Loop>
+          <Break Condition="it == 0"/>
+          <Item>($T1*)(Detail::gpHeapPages + it)</Item>
+          <Exec>it = Detail::gpHeapPages[it].freePage.link[0].next</Exec>
+        </Loop>
+      </CustomListItems>
+    </Expand>
+  </Type>
+
+  <Type Name="Detail::SHugePage">
+    <DisplayString>~ GpuHeap SHugePage</DisplayString>
+    <Expand>
+      <Item Name="Page ID">(unsigned short)((Detail::UPage*)this - Detail::gpHeapPages)</Item>
+      <Item Name="Bin List">link[0]</Item>
+      <Item Name="#Mapped">mapped</Item>
+      <Item Name="Size (Regions)">size</Item>
+      <Item Name="CPU Address">pAddress</Item>
+    </Expand>
+  </Type>
+
+  <Type Name="Detail::SLargePage">
+    <DisplayString>~ GpuHeap SLargePage</DisplayString>
+    <Expand>
+      <Item Name="Page ID">(unsigned short)((Detail::UPage*)this - Detail::gpHeapPages)</Item>
+      <Item Name="Bin List">link[0]</Item>
+      <Item Name="Region List">link[1]</Item>
+      <Item Name="IsFree">range.e &gt; range.b</Item>
+      <Item Name="Size (Regions)">range.e &gt; range.b ? range.e - range.b : range.b - range.e</Item>
+      <Item Name="Begin (Regions)">(range.e &gt; range.b ? range.b : range.e) + (link[1].prev != 0)</Item>
+      <Item Name="End (Regions)">(range.e &gt; range.b ? range.e : range.b) + (link[1].prev != 0)</Item>
+      <Item Name="Parent">Detail::gpHeapPages[parentPage].hugePage</Item>
+    </Expand>
+  </Type>
+
+  <Type Name="Detail::SSmallPage">
+    <DisplayString>~ GpuHeap SSmallPage</DisplayString>
+    <Expand>
+      <Item Name="Page ID">(unsigned short)((Detail::UPage*)this - Detail::gpHeapPages)</Item>
+      <Item Name="Bin List">link[0]</Item>
+      <Item Name="Region List">link[1]</Item>
+      <Item Name="IsFree">range.e &gt; range.b</Item>
+      <Item Name="Free Blocks">freeBlocks</Item>
+      <Item Name="Size (Regions)">range.e &gt; range.b ? range.e - range.b : range.b - range.e</Item>
+      <Item Name="Begin (Regions)">(range.e &gt; range.b ? range.b : range.e) + (link[1].prev != 0)</Item>
+      <Item Name="End (Regions)">(range.e &gt; range.b ? range.e : range.b) + (link[1].prev != 0)</Item>
+      <Item Name="Parent">Detail::gpHeapPages[parentPage].hugePage</Item>
+    </Expand>
+  </Type>
+
+  <Type Name="Detail::STinyPage">
+    <DisplayString>~ GpuHeap STinyPage</DisplayString>
+    <Expand>
+      <Item Name="Page ID">(unsigned short)((Detail::UPage*)this - Detail::gpHeapPages)</Item>
+      <Item Name="Bin List">link[0]</Item>
+      <Item Name="Parent Block (Small)">parentBlock</Item>
+      <Item Name="Free Blocks">freeBlocks</Item>
+    </Expand>
+  </Type>
+
+  <Type Name="Detail::SHandle">
+    <DisplayString>~ GpuHeap SHandle</DisplayString>
+    <Expand>
+      <Item Name="Page ID">pageIndex</Item>
+      <Item Name="Page Type">pageType</Item>
+      <Item Name="Memory Type">memoryType</Item>
+      <Item Name="Block State">blockState</Item>
+      <Item Name="Huge Page Link" Condition="pageType==0">Detail::gpHeapPages[pageIndex].hugePage</Item>
+      <Item Name="Large Page Link" Condition="pageType==1">Detail::gpHeapPages[pageIndex].largePage</Item>
+      <Item Name="Small Page Link" Condition="pageType==2">Detail::gpHeapPages[pageIndex].smallPage</Item>
+      <Item Name="Tiny Page Link" Condition="pageType==3">Detail::gpHeapPages[pageIndex].tinyPage</Item>
+    </Expand>
+  </Type>
+
+</AutoVisualizer>

@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 /*************************************************************************
    -------------------------------------------------------------------------
@@ -84,7 +84,7 @@ CHardwareMouse::CHardwareMouse(bool bVisibleByDefault)
 	Reset(bVisibleByDefault);
 
 	if (gEnv->pSystem)
-		gEnv->pSystem->GetISystemEventDispatcher()->RegisterListener(this);
+		gEnv->pSystem->GetISystemEventDispatcher()->RegisterListener(this,"CHardwareMouse");
 
 #if !defined(_RELEASE)
 	if (gEnv->pConsole)

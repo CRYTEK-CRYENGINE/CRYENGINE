@@ -14,141 +14,77 @@ float Script : STANDARDSGLOBAL
            "ShaderType = PostProcess;"
 >; 
 
-half4 g_RainVolumeParams < psregister = c0; >;
-half4 g_RainColorMultipliers < psregister = c1; >;
-half4 g_fWaterLevel : PB_WaterLevel < psregister = c2; >;
-float4 g_WorldViewPos < psregister = c3; >;
-float4 g_RainPuddleParams0 < psregister = c4; >;
-float4 g_RainPuddleParams1 < psregister = c5; >;
-float4 g_RainAnimParams < psregister = c7; > = { PB_time 0.333, PB_time 0.9, PB_time 0.0832, PB_time 0.0416};
-float4 g_RainOcc_WindOffs < psregister = c8; >;
-float4x4 g_RainOcc_TransMat < psregister = c9; >;
-
-sampler2D surfaceFlowMap : register(s0) = sampler_state
-{
-	Texture = EngineAssets/Textures/Rain/surface_flow_ddn.dds;
-	MinFilter = LINEAR;
-	MagFilter = LINEAR;
-	MipFilter = LINEAR; 
-	AddressU = Wrap;
-	AddressV = Wrap;
-};
-
-sampler2D sceneDepthMapSampler : register(s1) = sampler_state
-{
-  Texture = $ZTarget;
-  MinFilter = POINT;
-  MagFilter = POINT;
-  MipFilter = POINT; 
-  AddressU = Clamp;
-  AddressV = Clamp;	
-};
-
-sampler2D rainOccMap : register(s4) = sampler_state
-{
-  Texture = $RainOcclusion;
-  MinFilter = POINT;
-  MagFilter = POINT;
-  MipFilter = POINT;
-  AddressU = Border;
-  AddressV = Border;
-	BorderColor = {1,1,1,1};
-};
-
-sampler2D rainRipplesMap : register(s5) = sampler_state
-{
-  Texture = EngineAssets/Textures/Rain/Ripple/ripple#01_24_ddn.dds;
-  MinFilter = LINEAR;
-  MagFilter = LINEAR;
-  MipFilter = POINT; 
-  AddressU = Wrap;
-  AddressV = Wrap;
-};
-
-sampler2D rainSpatterMap : register(s6) = sampler_state
-{
-  Texture = EngineAssets/Textures/Rain/rain_spatter.dds;
-  MinFilter = LINEAR;
-  MagFilter = LINEAR;
-  MipFilter = LINEAR; 
-  AddressU = Wrap;
-  AddressV = Wrap;
-};
-
-sampler2D puddleMaskMap : register(s7) = sampler_state
-{
-  Texture = EngineAssets/Textures/Rain/puddle_mask.dds;
-  MinFilter = LINEAR;
-  MagFilter = LINEAR;
-  MipFilter = LINEAR; 
-  AddressU = Wrap;
-  AddressV = Wrap;
-};
-
-
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-half3 GetWorldPos( half fDepth, half3 vCamVec )
-{
-	return fDepth * vCamVec + g_WorldViewPos.xyz;
-}
+Texture2D drLinearDepthTex : register(t0) = TS_ZTarget;
+Texture2D drSceneNormalTex : register(t1);
+Texture2D drSceneSpecularTex : register(t2);
+Texture2D drSceneDiffuseTex : register(t3);
+Texture2D drSurfaceFlowTex : register(t4) = "%ENGINE%/EngineAssets/Textures/Rain/surface_flow_ddn.tif";
+Texture2D drRainSpatterTex : register(t5) = "%ENGINE%/EngineAssets/Textures/Rain/rain_spatter.tif";
+Texture2D drPuddleMaskTex : register(t6) = "%ENGINE%/EngineAssets/Textures/Rain/puddle_mask.tif";
+Texture2D drRainRipplesTex : register(t7) = "%ENGINE%/EngineAssets/Textures/Rain/Ripple/ripple#01_24_ddn.tif";
+Texture2D drRainOcclusionTex : register(t8) = $RainOcclusion;
+Texture2D<uint2> drStencilTex : register(t9);
 
-////////////////////////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////////////////////////////////
+SamplerState drPointWrapSampler : register(s0) = SS_PointWrap;
+SamplerState drTrilinearWrapSampler : register(s1) = SS_TrilinearWrap;
+SamplerState drPointBorderWhiteSampler : register(s2);
+SamplerState drBilinearWrapSampler : register(s3) = SS_MaterialBilinearWrap;
 
-vtxOutWPOS DeferredRainVS(vtxInWPOS IN)
-{
-  vtxOutWPOS OUT = (vtxOutWPOS)0;
+// Those texture and sampler are used in EncodeGBuffer().
+//Texture2D normalsFittingTex : register(t30) = "%ENGINE%/EngineAssets/ScreenSpace/NormalsFitting.dds";
+//SamplerState ssPointClamp : register(s9) = SS_PointClamp;
 
-  float4 vPos = IN.Position;
+half4 g_fWaterLevel : PB_WaterLevel;
+float4 g_RainAnimParams = { PB_time 0.333, PB_time 0.9, PB_time 0.0832, PB_time 0.0416};
 
-  vPos.y = 1 - vPos.y;
-  OUT.HPosition = float4(vPos.xy*2-1, vPos.z, 1.0);
-  OUT.baseTC = HPosToScreenTC(OUT.HPosition);
-  OUT.baseTC.zw = OUT.baseTC.xy/g_VS_HPosScale.xy;
-  OUT.CamVec.xyz = IN.CamVec.xyz;
+float4 g_RainVolumeParams;
+half4 g_RainColorMultipliers;
+float4 g_RainPuddleParams0;
+float4 g_RainPuddleParams1;
+float4 g_RainOcc_WindOffs;
+float4x4 g_RainOcc_TransMat;
 
-  return OUT;
-}
+#define SPLASH_NORMAL_THRESH    0.01h
+#define SPLASH_NORMAL_STR       0.3h
+#define SPLASH_GLOSS_STR        0.5h
+#define SPATTER_SCALE_SMALL     0.8h
 
-
-#define SPLASH_NORMAL_THRESH	0.01h
-#define SPLASH_NORMAL_STR			0.3h
-#define SPLASH_GLOSS_STR			0.5h
-#define SPATTER_SCALE_SMALL		0.8h
-
-#define BIT_STENCIL_STATIC 0x80
-Texture2D<uint2> DeferredRainGBuffer_StencilTex : register(t12);
+#define BIT_STENCIL_STATIC      0x80
 
 struct pixoutRainGBuffer
 {
-  half4 Normal   : COLOR0;
-  half4 Specular : COLOR1;
+	half4 Normal   : COLOR0;
+	half4 Specular : COLOR1;
 	half4 Diffuse  : COLOR2;
 };
 
-pixoutRainGBuffer DeferredRainGBufferPS( vtxOutWPOS IN )
+pixoutRainGBuffer DeferredRainGBufferPS( vtxOut IN )
 {
 	pixoutRainGBuffer OUT = (pixoutRainGBuffer) 0;
-	
-	const half fDepth = GetLinearDepth(sceneDepthMapSampler, IN.baseTC.xy);
-	const float3 vPosition = GetWorldPos(fDepth, IN.CamVec);
-	
-	MaterialAttribsCommon attribs = DecodeGBuffer( tex2D( _tex8, IN.baseTC.xy ), tex2D( _texB, IN.baseTC.xy ), tex2D( _texA, IN.baseTC.xy ) );
-		
+
+	const float fDepth = GetLinearDepth(drLinearDepthTex, IN.baseTC.xy);
+	const float3 vPosition = ReconstructWorldPos(IN.WPos.xy, fDepth);
+
+	const half4 gbufferNormal = drSceneNormalTex.SampleLevel(drPointWrapSampler, IN.baseTC.xy, 0.0f);
+	const half4 gbufferDiffuse = drSceneDiffuseTex.SampleLevel(drPointWrapSampler, IN.baseTC.xy, 0.0f);
+	const half4 gbufferSpecular = drSceneSpecularTex.SampleLevel(drPointWrapSampler, IN.baseTC.xy, 0.0f);
+	MaterialAttribsCommon attribs = DecodeGBuffer(gbufferNormal, gbufferDiffuse, gbufferSpecular);
+
 	///////////////////////////////////////////////////////////////////////////////////////////////////////
 	// World-space masking
-	
-	half puddleMask = max(g_RainPuddleParams1.x, tex2D(puddleMaskMap, vPosition.xy * 0.1h).x);
-	half spatterMaskSmall = tex2D(rainSpatterMap, vPosition.xy * 0.7h).x;
-	half spatterMaskLarge = tex2D(rainSpatterMap, vPosition.xy * 0.3h).x;
-	
-	half spatterMask = spatterMaskSmall + spatterMaskLarge;	
-	
+
+	const half puddleMask = max(g_RainPuddleParams1.x, drPuddleMaskTex.Sample(drTrilinearWrapSampler, vPosition.xy * 0.1f).x);
+	const half spatterMaskSmall = drRainSpatterTex.Sample(drTrilinearWrapSampler, vPosition.xy * 0.7f).x;
+	half spatterMaskLarge = drRainSpatterTex.Sample(drTrilinearWrapSampler, vPosition.xy * 0.3f).x;
+
+	const half spatterMask = spatterMaskSmall + spatterMaskLarge;
+
 	///////////////////////////////////////////////////////////////////////////////////////////////////////
 	// Volume attenuation
-	
+
 	const half fDistAttenuation = saturate( GetAttenuation(g_RainVolumeParams.xyz - vPosition.xyz, g_RainVolumeParams.w) );
 	half fAttenuation = fDistAttenuation * saturate(10.f + g_RainColorMultipliers.w * fDepth);
 
@@ -159,67 +95,67 @@ pixoutRainGBuffer DeferredRainGBufferPS( vtxOutWPOS IN )
 	vOccMapCoords.xy += spatterMask * (2.h/RAIN_OCC_MAP_SIZE) - (1.h/RAIN_OCC_MAP_SIZE);
 
 	half2 vOccDepth;
-	vOccDepth.x = tex2D(rainOccMap, vOccMapCoords.xy).x;
-	vOccDepth.y = tex2D(rainOccMap, vOccMapCoords.xy + g_RainOcc_WindOffs.xy).x;
-	
-	half2 bOccCheck = (vOccDepth==1.0f) ? 1.h : (254.h/256.h - vOccDepth) < vOccMapCoords.z;
+	vOccDepth.x = drRainOcclusionTex.SampleLevel(drPointBorderWhiteSampler, vOccMapCoords.xy, 0.0f).x;
+	vOccDepth.y = drRainOcclusionTex.SampleLevel(drPointBorderWhiteSampler, vOccMapCoords.xy + g_RainOcc_WindOffs.xy, 0.0f).x;
+
+	const half2 bOccCheck = (vOccDepth==1.0f) ? 1.h : (254.h/256.h - vOccDepth) < vOccMapCoords.z;
 	fAttenuation *= lerp(bOccCheck.x, bOccCheck.y, 0.5h);
 #else
 	fAttenuation *= saturate(vPosition.z - (g_fWaterLevel.x - 0.5h));
 #endif
-	
+
 	//////////////////////////////////////////////////////////////////////////////////////////////////
 	// Horizontal surface puddles
-	
+
 	const half isUpSurface = saturate(attribs.NormalWorld.z * 5.h - 4.h);
 	const half fPuddlesBlendAmount = g_RainPuddleParams0.z * isUpSurface;
 	const half fPuddleStrength = saturate(fPuddlesBlendAmount * (puddleMask * 0.5h + 0.5h));
-	
-	int3 vPixCoord = int3(IN.baseTC.xy / PS_HPosScale.xy * PS_ScreenSize.xy, 0);
+
+	const int3 vPixCoord = int3(IN.baseTC.xy / CV_HPosScale.xy * CV_ScreenSize.xy, 0);
 #if DURANGO	|| ORBIS
-	const half isDynamicObject = (DeferredRainGBuffer_StencilTex.Load(vPixCoord).r & BIT_STENCIL_STATIC) == 0 ? 1 : 0;
+	const half isDynamicObject = (drStencilTex.Load(vPixCoord).r & BIT_STENCIL_STATIC) == 0 ? 1 : 0;
 #else
-	const half isDynamicObject = (DeferredRainGBuffer_StencilTex.Load(vPixCoord).g & BIT_STENCIL_STATIC) == 0 ? 1 : 0;
+	const half isDynamicObject = (drStencilTex.Load(vPixCoord).g & BIT_STENCIL_STATIC) == 0 ? 1 : 0;
 #endif
-	
+
 	if (fAttenuation < 0.001 || fPuddlesBlendAmount < 0.001)
 		discard;
-	
+
 	// Ripples
 	const half fPuddleEdge = saturate(puddleMask * 16.h - 4.h) * fAttenuation * (1 - isDynamicObject);
-	half2 vPuddles = GetXYNormalMap(rainRipplesMap, vPosition.xy + g_RainPuddleParams0.xy);
+	const half2 vPuddles = GetXYNormalMap(drRainRipplesTex, drBilinearWrapSampler, vPosition.xy + g_RainPuddleParams0.xy);
 	attribs.NormalWorld.xy = lerp(attribs.NormalWorld.xy, vPuddles * g_RainPuddleParams0.z * g_RainPuddleParams1.y, saturate(fPuddlesBlendAmount * fPuddleEdge));
-	
+
 	// Adjust albedo
-	half porosity = saturate( ((1 - attribs.Smoothness) - 0.5) / 0.3 );
+	const half porosity = saturate( ((1 - attribs.Smoothness) - 0.5) / 0.3 );
 	attribs.Albedo *= lerp( 1, lerp(1, 0.2, saturate(porosity * g_RainPuddleParams0.w)), fPuddleStrength * fAttenuation );
 
 	// Adjust smoothness
-	half fGlossWet = lerp( attribs.Smoothness, lerp(0.85, 0.60, porosity), fPuddleStrength * fAttenuation );
+	const half fGlossWet = lerp( attribs.Smoothness, lerp(0.85, 0.60, porosity), fPuddleStrength * fAttenuation );
 	attribs.Smoothness = lerp( fGlossWet, 0.93, fPuddleEdge * fPuddleStrength );
-	
+
 	///////////////////////////////////////////////////////////////////////////////////////////////////////
 	// Puddle splashes
 
 #if %_RT_SAMPLE1
 	// Use increased tiling on dynamic objects
-	if (isDynamicObject) spatterMaskLarge = tex2D(rainSpatterMap, vPosition.xy * 5).x;
-	
+	if (isDynamicObject) spatterMaskLarge = drRainSpatterTex.Sample(drTrilinearWrapSampler, vPosition.xy * 5).x;
+
 	// Threshold spatter animation
-	half spatterMaskAnim = frac(spatterMask + spatterMaskLarge + g_RainAnimParams.y);
+	const half spatterMaskAnim = frac(spatterMask + spatterMaskLarge + g_RainAnimParams.y);
 	half splash = spatterMaskAnim * step(0.45h, spatterMaskSmall);
-	
+
 	//const float wetnessSplashThresh = 0.99f;
 	//const float wetnessSplashStr = 0.5f;
 	//splash = max(splash, step(wetnessSplashThresh, surfaceWetness) * wetnessSplashStr);
 
-	const half3 vViewVec = g_WorldViewPos.xyz - vPosition.xyz;	
+	const half3 vViewVec = g_VS_WorldViewPos.xyz - vPosition.xyz;
 	const half fViewVecLen = length(vViewVec);
-	
+
 	// Far & near distance fades
 	half splashFade = saturate(fViewVecLen * 0.01h);
 	splashFade = splashFade - splashFade * saturate(fViewVecLen * 0.085h);
-	
+
 	// Increase splashes in puddle areas
 	splashFade = saturate(splashFade * (1.f + 0.5f * fPuddleStrength));
 
@@ -227,44 +163,49 @@ pixoutRainGBuffer DeferredRainGBufferPS( vtxOutWPOS IN )
 	const half splashThreshold = saturate(splash * 20.h - 18.h);
 	splash = splashThreshold * splashFade;
 	splash *= g_RainPuddleParams1.z * isUpSurface * fAttenuation;
-	
-	 // Make splashes more visible on dynamic objects
+
+	// Make splashes more visible on dynamic objects
 	splash *= lerp(1, 5, isDynamicObject);
-	
+
 	// Splashes alter gloss and surface lightness
 	attribs.Albedo = lerp(attribs.Albedo, 0.7h, splash);
 	attribs.Smoothness += splash * SPLASH_GLOSS_STR;
-	
+
 	// Apply random surface noise
-	half2 surfaceNoise = GetXYNormalMap(surfaceFlowMap, vPosition.xy * SPATTER_SCALE_SMALL);
+	half2 surfaceNoise = GetXYNormalMap(drSurfaceFlowTex, drTrilinearWrapSampler, vPosition.xy * SPATTER_SCALE_SMALL);
 	attribs.NormalWorld.xy += step(SPLASH_NORMAL_THRESH, splash) * surfaceNoise * SPLASH_NORMAL_STR;
 #endif
-	
+
 	EncodeGBuffer( attribs, OUT.Normal, OUT.Diffuse, OUT.Specular );
-	
+
 	return OUT;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
+cbuffer RainOccluderCB : register(b0)
+{
+	float4x4 matRainOccluder;
+};
+
 struct app2vertOcc
 {
-  IN_P
+	IN_P
 	IN_TBASE
 	IN_C0
 };
 
 struct vert2fragOcc
 {
-  OUT_P
+	OUT_P
 	float Z : TEXCOORD0;
 };
 
 vert2fragOcc DeferredRainOccVS( app2vertOcc IN )
 {
 	vert2fragOcc OUT = (vert2fragOcc)0;
-	OUT.HPosition = half4(mul((float3x4)g_RainOcc_TransMat, IN.Position), 1);
+	OUT.HPosition = float4(mul((float3x4)matRainOccluder, IN.Position), 1);
 	OUT.HPosition.z = 1 - OUT.HPosition.z;
 	OUT.Z = OUT.HPosition.z;
 	return OUT;
@@ -284,7 +225,7 @@ technique DeferredRainGBuffer
 {
 	pass p0
 	{
-		VertexShader = DeferredRainVS();
+		VertexShader = FullscreenTriVS();
 		PixelShader = DeferredRainGBufferPS() DeferredRainPS;
 		CullMode = None;
 	}

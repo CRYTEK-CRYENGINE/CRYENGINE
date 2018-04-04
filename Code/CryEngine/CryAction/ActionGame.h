@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #ifndef __ACTIONGAME_H__
 #define __ACTIONGAME_H__
@@ -296,7 +296,6 @@ public:
 	CGameClientNub* GetGameClientNub() { return m_pGameClientNub; }
 	CGameContext*   GetGameContext()   { return m_pGameContext; }
 	IActor*         GetClientActor();
-	bool ControlsEntity(EntityId);
 
 	// returns true if should be let go
 	bool Update();
@@ -457,7 +456,7 @@ private:
 	CGameClientNub*     m_pGameClientNub;
 	CGameServerNub*     m_pGameServerNub;
 	CGameContext*       m_pGameContext;
-	INetContext*        m_pNetContext;
+	INetContext*&       m_pNetContext;
 	IGameTokenSystem*   m_pGameTokenSystem;
 	IPhysicalWorld*     m_pPhysicalWorld;
 

@@ -1,8 +1,6 @@
-using CryEngine.Common;
+﻿using CryEngine.Common;
 
-using CryEngine.EntitySystem;
-
-namespace CryEngine
+namespace CryEngine.OldPhysics
 {
 	/// <summary>
 	/// Wrapper class for a ray cast output.
@@ -32,7 +30,7 @@ namespace CryEngine
 		public IEntity HitNativeEntity { get { return _hitID != 0 ? Global.gEnv.pEntitySystem.GetEntity(_hitID) : null; } }
 
 		/// <summary>
-		/// The CESharp entity that was hit. Returns null if nothing was hit, the entity isn't a CESharp entity, or the hit wasn't an Entity.
+		/// The Entity that was hit. Returns null if nothing was hit, or the hit wasn't an Entity.
 		/// </summary>
 		public Entity HitBaseEntity { get { return Entity.Get(_hitID); } }
 
@@ -79,9 +77,15 @@ namespace CryEngine
 
 		/// <summary>
 		/// Returns True if the entity passed in was hit.
+		/// </summary>
+		/// <returns><c>true</c>, if entity was hit, <c>false</c> otherwise.</returns>
+		/// <param name="entity">Entity.</param>
 		public bool HasHitEntity(Entity entity)
 		{
+			//Disable this warning because it's possible that the Entities == operator gets overloaded in which case ?? will not work anymore.
+#pragma warning disable RECS0059 // Conditional expression can be simplified
 			return HitBaseEntity != null ? HitBaseEntity.Id == entity.Id : false;
+#pragma warning restore RECS0059 // Conditional expression can be simplified
 		}
 	}
 }

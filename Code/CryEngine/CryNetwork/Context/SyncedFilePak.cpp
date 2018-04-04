@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #include "StdAfx.h"
 #include "SyncedFilePak.h"
@@ -51,7 +51,7 @@ public:
 	size_t ReadRaw(void* data, size_t length, size_t elems)
 	{
 		uint32 elemsleft = (m_lk.GetLength() - m_cursor) / elems;
-		uint32 elemsread = MIN(length, elemsleft);
+		uint32 elemsread = std::min(length, (size_t)elemsleft);
 		uint32 bytesread = elemsread * elems;
 		memcpy(data, m_lk.GetData() + m_cursor, bytesread);
 		m_cursor += bytesread;

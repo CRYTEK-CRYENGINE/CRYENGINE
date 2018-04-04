@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #pragma once
 
@@ -6,10 +6,6 @@
 	#define Composite_h
 
 	#include "Node.h"
-
-	#ifdef USING_BEHAVIOR_TREE_SERIALIZATION
-		#include <CrySerialization/SharedPtr.h>
-	#endif
 
 namespace BehaviorTree
 {

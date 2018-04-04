@@ -1,4 +1,5 @@
 // Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved.
+
 #include "StdAfx.h"
 #include <assert.h>          // assert()
 #include <iterator>
@@ -1561,10 +1562,13 @@ static bool SaveByUsingTIFFSaver(const char *filenameWrite, const string& settin
 	}
 
 	{
-		const PixelFormatInfo* const info = CPixelFormats::GetPixelFormatInfo(pImageObject->GetPixelFormat());
+		const EPixelFormat pixelFormat = pImageObject->GetPixelFormat();
+		const PixelFormatInfo* const info = CPixelFormats::GetPixelFormatInfo(pixelFormat);
+
+		assert(!info->bCompressed);
 
 		const uint32 dwPlanes = info->nChannels;
-		const uint32 dwBitsPerSample = info->bitsPerPixel / info->nChannels;
+		const uint32 dwBitsPerSample = CPixelFormats::GetBitsPerPixel(pixelFormat) / info->nChannels;
 
 		// We need to set some values for basic tags before we can add any data
 		TIFFSetField(pTiffFile, TIFFTAG_IMAGEWIDTH, dwWidth);

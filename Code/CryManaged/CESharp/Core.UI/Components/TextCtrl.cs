@@ -1,6 +1,5 @@
 // Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
 
-using CryEngine.Common;
 using CryEngine.Resources;
 using System;
 using System.IO;
@@ -17,8 +16,16 @@ namespace CryEngine.UI.Components
 		/// </summary>
 		public class SubmitEventArgs
 		{
-			public string Value { get; private set; } ///< The sugested string.
-			public bool Handled = false; ///< The return value of acceptance determination. If true, the string is accepted.
+			/// <summary>
+			/// The suggested string.
+			/// </summary>
+			/// <value>The value.</value>
+			public string Value { get; private set; }
+
+			/// <summary>
+			/// The return value of acceptance determination. If true, the string is accepted.
+			/// </summary>
+			public bool Handled = false;
 
 			/// <summary>
 			/// Simple Constructor.
@@ -29,7 +36,11 @@ namespace CryEngine.UI.Components
 				Value = value;
 			}
 		}
-		public event EventHandler<TextCtrl, SubmitEventArgs> OnSubmit; ///< Raised if return was pressed. Will lead to an evaluation of acceptance for the sugested string.
+
+		/// <summary>
+		/// Raised if return was pressed. Will lead to an evaluation of acceptance for the sugested string.
+		/// </summary>
+		public event Action<TextCtrl, SubmitEventArgs> OnSubmit;
 
 		Text _text;
 		Panel _cursor;
@@ -64,53 +75,53 @@ namespace CryEngine.UI.Components
 		/// <summary>
 		/// Called by Canvas. Do not call directly.
 		/// </summary>
-		public override void OnKey(SInputEvent e)
+		public override void OnKey(InputEvent e)
 		{
-			if (!_submitDesired)
+			if(!_submitDesired)
 			{
-				if (e.KeyPressed(EKeyId.eKI_Enter))
+				if(e.KeyPressed(KeyId.Enter))
 				{
 					SetCursor(true);
 					_submitDesired = true;
 				}
 				return;
 			}
-			if (e.KeyPressed(EKeyId.eKI_Escape))
+			if(e.KeyPressed(KeyId.Escape))
 			{
 				_text.Content = _contentBackup;
 				PositionContent(true);
 				SetCursor(false);
 				_submitDesired = false;
 			}
-			else if (e.KeyPressed(EKeyId.eKI_Home))
+			else if(e.KeyPressed(KeyId.Home))
 			{
 				_cursorIndex = 0;
 				SetCursor(true);
 				PositionContent();
 			}
-			else if (e.KeyPressed(EKeyId.eKI_End))
+			else if(e.KeyPressed(KeyId.End))
 			{
 				_cursorIndex = _text.Content.Length;
 				SetCursor(true);
 				PositionContent();
 			}
-			else if (e.KeyPressed(EKeyId.eKI_Delete))
+			else if(e.KeyPressed(KeyId.Delete))
 			{
-				if (_cursorIndex < _text.Content.Length)
+				if(_cursorIndex < _text.Content.Length)
 					_text.Content = _text.Content.Substring(0, _cursorIndex) + _text.Content.Substring(_cursorIndex + 1);
 				SetCursor(true);
 			}
-			else if (e.KeyPressed(EKeyId.eKI_Enter) || e.KeyPressed(EKeyId.eKI_XI_A))
+			else if(e.KeyPressed(KeyId.Enter) || e.KeyPressed(KeyId.XI_A))
 			{
-				if (TrySubmit())
+				if(TrySubmit())
 				{
 					SetCursor(false);
 					_contentBackup = _text.Content;
 				}
 			}
-			else if (e.KeyPressed(EKeyId.eKI_Backspace))
+			else if(e.KeyPressed(KeyId.Backspace))
 			{
-				if (_cursorIndex > 0)
+				if(_cursorIndex > 0)
 				{
 					_text.Content = _text.Content.Substring(0, _cursorIndex - 1) + _text.Content.Substring(_cursorIndex);
 					SetCursor(true);
@@ -118,22 +129,22 @@ namespace CryEngine.UI.Components
 				}
 				PositionContent(true);
 			}
-			else if (e.KeyPressed(EKeyId.eKI_Left))
+			else if(e.KeyPressed(KeyId.Left))
 			{
 				_cursorIndex = Math.Max(0, _cursorIndex - 1);
 				SetCursor(true);
 				PositionContent();
 			}
-			else if (e.KeyPressed(EKeyId.eKI_Right))
+			else if(e.KeyPressed(KeyId.Right))
 			{
 				_cursorIndex = Math.Min(_text.Content.Length, _cursorIndex + 1);
 				SetCursor(true);
 				PositionContent();
 			}
-			else if (e.state == EInputState.eIS_Pressed)
+			else if(e.State == InputState.Pressed)
 			{
-				_text.Content = _text.Content.Insert(_cursorIndex, e.keyName.key);
-				_cursorIndex += e.keyName.key.Length;
+				_text.Content = _text.Content.Insert(_cursorIndex, e.KeyName);
+				_cursorIndex += e.KeyName.Length;
 				SetCursor(true);
 				PositionContent(true);
 			}
@@ -142,9 +153,9 @@ namespace CryEngine.UI.Components
 		bool TrySubmit()
 		{
 			var e = new SubmitEventArgs(_text.Content);
-			if (OnSubmit != null)
+			if(OnSubmit != null)
 				OnSubmit(this, e);
-			if (e.Handled)
+			if(e.Handled)
 				_submitDesired = false;
 			return e.Handled;
 		}
@@ -154,18 +165,20 @@ namespace CryEngine.UI.Components
 		/// </summary>
 		public override void OnLeftMouseDown(int x, int y)
 		{
-			int nearestIdx = -1;
-			int nearestOffsetDelta = int.MaxValue;
-			int xStart = (int)_text.GetAlignedRect().x;
-			for (int i = 0; i <= _text.Content.Length; i++)
+			var nearestIdx = -1;
+			var nearestOffsetDelta = int.MaxValue;
+			var xStart = (int)_text.GetAlignedRect().x;
+
+			for(int i = 0; i <= _text.Content.Length; i++)
 			{
 				var ofsDelta = Math.Abs(xStart + _text.GetOffsetAt(i) - x);
-				if (ofsDelta < nearestOffsetDelta)
+				if(ofsDelta < nearestOffsetDelta)
 				{
 					nearestIdx = i;
 					nearestOffsetDelta = ofsDelta;
 				}
 			}
+
 			_cursorIndex = nearestIdx;
 			SetCursor(true);
 			PositionContent();
@@ -189,7 +202,7 @@ namespace CryEngine.UI.Components
 		/// </summary>
 		public override void OnLeaveFocus()
 		{
-			if (_submitDesired)
+			if(_submitDesired)
 				_text.Content = _contentBackup;
 			SetCursor(false);
 			_frame.Active = false;
@@ -210,7 +223,7 @@ namespace CryEngine.UI.Components
 		/// </summary>
 		public override void OnUpdate()
 		{
-			if (DateTime.Now > _blinkTime)
+			if(DateTime.Now > _blinkTime)
 			{
 				_cursor.Active = !_cursor.Active;
 				_blinkTime = DateTime.Now.AddSeconds(0.5f);
@@ -219,11 +232,12 @@ namespace CryEngine.UI.Components
 
 		void PositionContent(bool updateTextLayout = false)
 		{
-			if (updateTextLayout)
+			if(updateTextLayout)
 				_text.UpdateLayout();
 			var cursorOffset = _text.GetOffsetAt(_cursorIndex);
-			var fieldWidth = (Owner as UIElement).RectTransform.Bounds.w - 2;
-			if (cursorOffset < fieldWidth)
+			var rect = Owner.GetComponent<RectTransform>();
+			var fieldWidth = rect == null ? 0 : rect.Bounds.w - 2;
+			if(cursorOffset < fieldWidth)
 			{
 				_cursor.RectTransform.Padding = new Padding(cursorOffset, 0);
 				_cursor.RectTransform.PerformLayout();
@@ -242,7 +256,8 @@ namespace CryEngine.UI.Components
 		/// </summary>
 		public override bool HitTest(int x, int y)
 		{
-			return (Owner as UIElement).RectTransform.ClampRect.Contains(x, y);
+			var rect = Owner.GetComponent<RectTransform>();
+			return rect != null && rect.ClampRect.Contains(x, y);
 		}
 	}
 }

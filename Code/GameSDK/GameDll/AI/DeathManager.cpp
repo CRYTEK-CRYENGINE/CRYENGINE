@@ -8,6 +8,7 @@
 #include <CryAISystem/IAIGroupProxy.h>
 #include <CryAISystem/ITargetTrackManager.h>
 #include <CryAISystem/VisionMapTypes.h>
+#include <CryCore/functor.h>
 
 //
 //   Victim Detection
@@ -30,16 +31,21 @@ namespace GameAI
 		, m_rayID(0)
 	{
 		assert(gEnv->pAISystem);
-		gEnv->pAISystem->RegisterListener(this);
+		gEnv->pAISystem->RegisterSystemComponent(this);
+
+		gEnv->pAISystem->Callbacks().AgentDied().Add(functor(*this, &DeathManager::OnAgentDeath));
 	}
 
 	DeathManager::~DeathManager()
 	{
 		if (gEnv->pAISystem)
-			gEnv->pAISystem->UnregisterListener(this);
+		{
+			gEnv->pAISystem->Callbacks().AgentDied().Remove(functor(*this, &DeathManager::OnAgentDeath));
+			gEnv->pAISystem->UnregisterSystemComponent(this);
+		}
 	}
 
-	void DeathManager::Update()
+	void DeathManager::GameUpdate()
 	{
 		ProcessDeferredDeathReactions();
 	}
@@ -431,9 +437,9 @@ namespace GameAI
 		}
 	}
 
-	void DeathManager::OnAgentUpdate(EntityId entityID)
+	void DeathManager::OnActorUpdate(IAIObject* pAIObject, IAIObject::EUpdateType type, float frameDelta)
 	{
-		Agent agent(entityID);
+		Agent agent(pAIObject);
 		if (agent)
 		{
 			CheckDeadBodyVisibilityFor(agent);

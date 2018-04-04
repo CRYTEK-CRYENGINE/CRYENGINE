@@ -12,7 +12,6 @@
       "CryLinkCommands.h"
     ],
     "Plugin": [
-      "DLLMain.cpp",
       "MainWindow.cpp",
       "MainWindow.h",
       "Plugin.cpp",

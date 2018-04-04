@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 // ----------------------------------------------------------------------------------------
 //  File name:   MFXAudioEffect.h
@@ -17,20 +17,20 @@
 struct SAudioTriggerWrapper
 {
 	SAudioTriggerWrapper()
-		: m_triggerID(INVALID_AUDIO_CONTROL_ID)
+		: m_triggerID(CryAudio::InvalidControlId)
 	{
 	}
 
-	void           Init(const char* triggerName);
+	void                Init(const char* triggerName);
 
-	AudioControlId GetTriggerId() const
+	CryAudio::ControlId GetTriggerId() const
 	{
 		return m_triggerID;
 	}
 
 	bool IsValid() const
 	{
-		return (m_triggerID != INVALID_AUDIO_CONTROL_ID);
+		return (m_triggerID != CryAudio::InvalidControlId);
 	}
 
 	const char* GetTriggerName() const
@@ -54,32 +54,32 @@ private:
 #if defined(MATERIAL_EFFECTS_DEBUG)
 	string m_triggerName;
 #endif
-	AudioControlId m_triggerID;
+	CryAudio::ControlId m_triggerID;
 };
 
 struct SAudioSwitchWrapper
 {
 	SAudioSwitchWrapper()
-		: m_switchID(INVALID_AUDIO_CONTROL_ID)
-		, m_switchStateID(INVALID_AUDIO_SWITCH_STATE_ID)
+		: m_switchID(CryAudio::InvalidControlId)
+		, m_switchStateID(CryAudio::InvalidSwitchStateId)
 	{
 	}
 
-	void           Init(const char* switchName, const char* switchStateName);
+	void                Init(const char* switchName, const char* switchStateName);
 
-	AudioControlId GetSwitchId() const
+	CryAudio::ControlId GetSwitchId() const
 	{
 		return m_switchID;
 	}
 
-	AudioSwitchStateId GetSwitchStateId() const
+	CryAudio::SwitchStateId GetSwitchStateId() const
 	{
 		return m_switchStateID;
 	}
 
 	bool IsValid() const
 	{
-		return (m_switchID != INVALID_AUDIO_CONTROL_ID) && (m_switchStateID != INVALID_AUDIO_SWITCH_STATE_ID);
+		return (m_switchID != CryAudio::InvalidControlId) && (m_switchStateID != CryAudio::InvalidSwitchStateId);
 	}
 
 	const char* GetSwitchName() const
@@ -113,8 +113,8 @@ private:
 	string m_switchName;
 	string m_switchStateName;
 #endif
-	AudioControlId m_switchID;
-	AudioSwitchStateId m_switchStateID;
+	CryAudio::ControlId m_switchID;
+	CryAudio::SwitchStateId m_switchStateID;
 };
 
 //////////////////////////////////////////////////////////////////////////

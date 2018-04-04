@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #pragma once
 
@@ -21,8 +21,10 @@ struct ICryPluginManager
 {
 	enum class EPluginType
 	{
-		EPluginType_CPP = 0,
-		EPluginType_CS
+		// C++ plug-in
+		Native = 0,
+		// Mono / C# plug-in
+		Managed
 	};
 
 	ICryPluginManager() {}
@@ -31,7 +33,7 @@ struct ICryPluginManager
 	virtual void RegisterEventListener(const CryClassID& pluginClassId, IPluginEventListener* pListener) = 0;
 	virtual void RemoveEventListener(const CryClassID& pluginClassId, IPluginEventListener* pListener) = 0;
 
-	virtual bool LoadPluginFromDisk(EPluginType type, const char* path, const char* className) = 0;
+	virtual bool LoadPluginFromDisk(EPluginType type, const char* path) = 0;
 
 	template<typename T>
 	T* QueryPlugin() const

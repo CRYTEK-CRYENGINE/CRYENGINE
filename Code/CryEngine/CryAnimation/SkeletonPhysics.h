@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #pragma once
 
@@ -320,6 +320,7 @@ private:
 	bool m_bPhysicsSynchronize;
 	bool m_bPhysicsSynchronizeFromEntity;
 	bool m_bPhysBufferFilled;
+	int  m_idLastSyncFrame = 0;
 
 	struct PhysAuxData
 	{

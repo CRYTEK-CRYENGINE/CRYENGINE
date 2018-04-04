@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 //
 ////////////////////////////////////////////////////////////////////////////
@@ -52,7 +52,7 @@ private:
 	virtual ~CProceduralContext_SetParam() {}
 
 public:
-	PROCEDURAL_CONTEXT(CProceduralContext_SetParam, "SetParamContext", 0xC6C0871257814854, 0xADC56AB4252834BD);
+	PROCEDURAL_CONTEXT(CProceduralContext_SetParam, "SetParamContext", "c6c08712-5781-4854-adc5-6ab4252834bd"_cry_guid);
 
 	virtual void Update(float timePassed) override
 	{

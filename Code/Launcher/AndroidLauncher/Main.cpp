@@ -24,8 +24,6 @@
 #include <sys/prctl.h>
 #include <dlfcn.h>
 
-#include <CrySystem/ParseEngineConfig.h>
-
 #if defined(_LIB)
 #include <CryCore/Common_TypeInfo.h>
 STRUCT_INFO_T_INSTANTIATE(Vec2_tpl, <float>)
@@ -227,21 +225,20 @@ int RunGame(const char *commandLine)
 
 	// Try to figure out where the PAK files are stored
 	const char* paths[] = {		
-		SDL_AndroidGetExternalStoragePath(),
 		SDLExt_AndroidGetExternalStorageDirectory(),
+		SDL_AndroidGetExternalStoragePath(),		
 		SDL_AndroidGetInternalStoragePath()  // user folder files e.g. "/data/user/0/com.crytek.cryengine/files"
 	};
 	for (int i = 0; i < CRY_ARRAY_COUNT(paths); ++i )
 	{
 		char path[1024];
 		cry_strcpy(path, paths[i]);
-		cry_strcat(path, "/gamezero/gamedata.pak");
+		cry_strcat(path, "/engine");
 		LOGI( "Searching for %s", path);
-		FILE* f = fopen( path, "r" );
-		if (f != NULL)
+		struct stat info;
+		if (stat(path, &info) == 0 && (info.st_mode & S_IFMT) == S_IFDIR)
 		{
 			g_androidPakPath = paths[i];
-			fclose(f);
 			break;
 		}
 	}
@@ -252,6 +249,7 @@ int RunGame(const char *commandLine)
 		RunGame_EXIT(1);
 	}
 
+	chdir(CryGetProjectStoragePath());
 
 	if (strlen(g_androidPakPath) == 0)
 	{
@@ -286,8 +284,6 @@ int RunGame(const char *commandLine)
 		exit(1);
 	}
 #endif
-
-	chdir( CryGetProjectStoragePath() );
 
 	HMODULE frameworkDll = 0;
 
@@ -345,7 +341,7 @@ int _main(int argc, char **argv)
 	LoadLauncherConfig();
 
 	// Initialize SDL.
-	if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_JOYSTICK | SDL_INIT_HAPTIC | SDL_INIT_GAMECONTROLLER ) < 0)
+	if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_JOYSTICK /*| SDL_INIT_HAPTIC*/ | SDL_INIT_GAMECONTROLLER ) < 0)
 	{
 		fprintf(stderr, "ERROR: SDL initialization failed: %s\n",
 			SDL_GetError());

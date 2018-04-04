@@ -44,14 +44,14 @@ public:
 		: m_type(EType::Unset)
 	{}
 
-	CPinId(Schematyc::CGraphPortId portId, EType type)
+	CPinId(Schematyc::CUniqueId portId, EType type)
 		: m_portId(portId)
 		, m_type(type)
 	{}
 
-	const Schematyc::CGraphPortId& GetPortId()  const { return m_portId; }
-	bool                           IsInput() const    { return (m_type == EType::Input); }
-	bool                           IsOutput() const   { return (m_type == EType::Output); }
+	const Schematyc::CUniqueId& GetPortId()  const { return m_portId; }
+	bool                        IsInput() const    { return (m_type == EType::Input); }
+	bool                        IsOutput() const   { return (m_type == EType::Output); }
 
 	//
 	bool operator==(const CPinId& other) const
@@ -65,8 +65,8 @@ public:
 	}
 
 private:
-	Schematyc::CGraphPortId m_portId;
-	EType                   m_type;
+	Schematyc::CUniqueId m_portId;
+	EType                m_type;
 };
 // ~Note
 
@@ -86,6 +86,7 @@ public:
 
 	// CryGraphEditor::CAbstractPinItem
 	virtual CryGraphEditor::CPinWidget*        CreateWidget(CryGraphEditor::CNodeWidget& nodeWidget, CryGraphEditor::CNodeGraphView& view) override;
+	virtual const char*                        GetStyleId() const { return m_styleId.c_str(); }
 	virtual CryGraphEditor::CAbstractNodeItem& GetNodeItem() const override;
 
 	virtual QString                            GetName() const override        { return m_name; };
@@ -95,29 +96,26 @@ public:
 	virtual QVariant                           GetId() const override;
 	virtual bool                               HasId(QVariant id) const override;
 
-	virtual const QPixmap*                     GetIconPixmap(int32 index) const override;
-
 	virtual bool                               IsInputPin() const  { return m_flags & EPinFlag::Input; }
 	virtual bool                               IsOutputPin() const { return m_flags & EPinFlag::Output; }
 
 	virtual bool                               CanConnect(const CryGraphEditor::CAbstractPinItem* pOtherPin) const;
 	// ~CryGraphEditor::CAbstractPinItem
 
-	const CDataTypeItem&    GetDataTypeItem() const { return *m_pDataTypeItem; }
-	uint32                  GetPinIndex() const     { return m_index; }
-	void                    UpdateWithNewIndex(uint32 index);
+	const CDataTypeItem& GetDataTypeItem() const { return *m_pDataTypeItem; }
+	uint32               GetPinIndex() const     { return m_index; }
+	void                 UpdateWithNewIndex(uint32 index);
 
-	Schematyc::CGraphPortId GetPortId() const;
-	EPinType                GetPinType() const { return m_pinType; }
+	Schematyc::CUniqueId GetPortId() const;
+	EPinType             GetPinType() const { return m_pinType; }
 
-	CPinId                  GetPinId() const;
-
-	const QColor&           GetColor() const;
+	CPinId               GetPinId() const;
 
 protected:
 	CNodeItem&           m_nodeItem;
 	const CDataTypeItem* m_pDataTypeItem;
 	QString              m_name;
+	string               m_styleId;
 
 	CPinId               m_id;
 	uint32               m_flags;

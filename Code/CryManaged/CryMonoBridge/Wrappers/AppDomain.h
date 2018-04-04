@@ -1,43 +1,36 @@
 #pragma once
 
 #include "MonoDomain.h"
-#include <CryMono/IMonoObject.h>
 
 // Wrapped manager of a mono app domain
 class CAppDomain final : public CMonoDomain
 {
+	friend class CMonoLibrary;
+	friend class CMonoClass;
+	friend class CMonoRuntime;
+
 public:
 	CAppDomain(char *name, bool bActivate = false);
-	CAppDomain(MonoDomain* pMonoDomain);
+	CAppDomain(MonoInternals::MonoDomain* pMonoDomain);
 	virtual ~CAppDomain() {}
 
 	// CMonoDomain
-	virtual void Release() override { delete this; }
-
 	virtual bool IsRoot() override { return false; }
 
 	virtual bool Reload() override;
 	// ~CMonoDomain
 
-	void Serialize(MonoObject* pObject, bool bIsAssembly);
-	std::shared_ptr<IMonoObject> Deserialize(bool bIsAssembly);
+	void SerializeObject(CMonoObject* pSerializer, MonoInternals::MonoObject* pObject, bool bIsAssembly);
+	std::shared_ptr<CMonoObject> DeserializeObject(CMonoObject* pSerializer, bool bIsAssembly);
 
 protected:
 	void CreateDomain(char *name, bool bActivate);
 
-	void CreateSerializationUtilities(bool bWriting);
-
-	void SerializeDomainData();
-	void DeserializeDomainData();
+	void SerializeDomainData(std::vector<char>& bufferOut);
+	void DeserializeDomainData(const std::vector<char>& serializedData);
 
 protected:
 	string m_name;
-
-	std::shared_ptr<IMonoObject> m_pMemoryStream;
-	std::shared_ptr<IMonoObject> m_pSerializer;
-
-	char* m_pSerializedData;
-	size_t m_serializedDataSize;
 
 	uint64 m_serializationTicks;
 };

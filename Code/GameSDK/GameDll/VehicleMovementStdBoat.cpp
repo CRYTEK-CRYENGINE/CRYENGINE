@@ -393,7 +393,7 @@ void CVehicleMovementStdBoat::UpdateRunSound(const float deltaTime)
 
 		auto pIEntityAudioComponent = GetAudioProxy();
 		if (pIEntityAudioComponent)
-			pIEntityAudioComponent->SetRtpcValue(m_audioControlIDs[eSID_VehicleRPM], m_rpmScale);
+			pIEntityAudioComponent->SetParameter(m_audioControlIDs[eSID_VehicleRPM], m_rpmScale);
   }
 }
 

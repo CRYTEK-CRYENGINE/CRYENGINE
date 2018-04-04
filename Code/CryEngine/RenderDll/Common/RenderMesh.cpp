@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #include "StdAfx.h"
 #include <Cry3DEngine/I3DEngine.h>
@@ -77,17 +77,17 @@ namespace
 	static SMeshPool s_MeshPool;
 
 	//////////////////////////////////////////////////////////////////////////
-	static size_t AlignedMeshDataSize(size_t nSize, size_t nAlign = MESH_DATA_DEFAULT_ALIGN)
+	static buffer_size_t AlignedMeshDataSize(buffer_size_t nSize, buffer_size_t nAlign = MESH_DATA_DEFAULT_ALIGN)
 	{
 		return nSize = (nSize + (nAlign - 1)) & ~(nAlign - 1);
 	}
 
-	static size_t AlignedStreamableMeshDataSize(size_t nSize, size_t nAlign = MESH_DATA_DEFAULT_ALIGN)
+	static buffer_size_t AlignedStreamableMeshDataSize(buffer_size_t nSize, buffer_size_t nAlign = MESH_DATA_DEFAULT_ALIGN)
 	{
 		return AlignedMeshDataSize(nSize, std::min(nAlign, CDeviceBufferManager::GetBufferAlignmentForStreaming()));
 	}
 
-	static void* AllocateMeshDataUnpooled(size_t nSize, size_t nAlign = MESH_DATA_DEFAULT_ALIGN)
+	static void* AllocateMeshDataUnpooled(buffer_size_t nSize, buffer_size_t nAlign = MESH_DATA_DEFAULT_ALIGN)
 	{
 		return CryModuleMemalign(nSize, std::min(nAlign, CDeviceBufferManager::GetBufferAlignmentForStreaming()));
 	}
@@ -100,7 +100,7 @@ namespace
 	}
 
 	//////////////////////////////////////////////////////////////////////////
-	static void* AllocateMeshData(size_t nSize, size_t nAlign = MESH_DATA_DEFAULT_ALIGN, bool bFlush = false)
+	static void* AllocateMeshData(buffer_size_t nSize, buffer_size_t nAlign = MESH_DATA_DEFAULT_ALIGN, bool bFlush = false)
 	{
 		nSize = AlignedMeshDataSize(nSize, nAlign);
 
@@ -310,136 +310,17 @@ namespace
 
 CryCriticalSection CRenderMesh::m_sLinkLock;
 
-// General vertex stream stride
-int32 CRenderMesh::m_cSizeVF[eVF_MaxRenderMesh] =
-{
-	0,
-	sizeof(SVF_P3F_C4B_T2F),
-	sizeof(SVF_P3S_C4B_T2S),
-	sizeof(SVF_P3S_N4B_C4B_T2S),
-	sizeof(SVF_P3F_C4B_T4B_N3F2),
-	sizeof(SVF_TP3F_C4B_T2F),
-	sizeof(SVF_TP3F_T2F_T3F),
-	sizeof(SVF_P3F_T3F),
-	sizeof(SVF_P3F_T2F_T3F),
-	sizeof(SVF_T2F),
-	sizeof(SVF_W4B_I4S),
-	sizeof(SVF_C4B_C4B),
-	sizeof(SVF_P3F_P3F_I4B),
-	sizeof(SVF_P3F),
-	sizeof(SVF_C4B_T2S),
-
-	sizeof(SVF_P2F_T4F_C4F),
-	0, //sizeof(SVF_P2F_T4F_T4F_C4F)
-
-	sizeof(SVF_P2S_N4B_C4B_T1F),
-	sizeof(SVF_P3F_C4B_T2S),
-	sizeof(uint32)
-};
-
-// Additional streams stride
-int32 CRenderMesh::m_cSizeStream[VSF_NUM] =
-{
-  -1,
-  sizeof(SPipTangents),        // VSF_TANGENTS
-  sizeof(SPipQTangents),       // VSF_QTANGENTS
-  sizeof(SVF_W4B_I4S),         // VSF_HWSKIN_INFO
-  sizeof(SVF_P3F),             // VSF_VELOCITY
-# if ENABLE_NORMALSTREAM_SUPPORT
-  sizeof(SPipNormal),          // VSF_NORMALS
-#endif
-};
-
-#define OOFS(t, x) ((int)offsetof(t, x))
-
-SBufInfoTable CRenderMesh::m_cBufInfoTable[eVF_MaxRenderMesh] =
-{
-	// { Texcoord, Color, Normal }
-	{
-		-1, -1, -1
-	},
-	{	   //eVF_P3F_C4B_T2F
-		OOFS(SVF_P3F_C4B_T2F, st),
-		OOFS(SVF_P3F_C4B_T2F, color.dcolor),
-		-1
-	},
-	{	   //eVF_P3S_C4B_T2S
-		OOFS(SVF_P3S_C4B_T2S, st),
-		OOFS(SVF_P3S_C4B_T2S, color.dcolor),
-		-1
-	},
-	{	   //eVF_P3S_N4B_C4B_T2S
-		OOFS(SVF_P3S_N4B_C4B_T2S, st),
-		OOFS(SVF_P3S_N4B_C4B_T2S, color.dcolor),
-		OOFS(SVF_P3S_N4B_C4B_T2S, normal)
-	},
-	{	  // eVF_P3F_C4B_T4B_N3F2
-		-1,
-		OOFS(SVF_P3F_C4B_T4B_N3F2, color.dcolor),
-		-1
-	},
-	{	  // eVF_TP3F_C4B_T2F
-		OOFS(SVF_TP3F_C4B_T2F, st),
-		OOFS(SVF_TP3F_C4B_T2F, color.dcolor),
-		-1
-	},
-	{	  // eVF_TP3F_T2F_T3F
-		OOFS(SVF_TP3F_T2F_T3F, st0),
-		-1,
-		-1
-	},
-	{	  // eVF_P3F_T3F
-		OOFS(SVF_P3F_T3F, st),
-		-1,
-		-1
-	},
-	{	  // eVF_P3F_T2F_T3F
-		OOFS(SVF_P3F_T2F_T3F, st0),
-		-1,
-		-1
-	},
-	{ -1, -1, -1 },// eVF_T2F
-	{ -1, -1, -1 },// eVF_W4B_I4B
-	{ -1, -1, -1 },// eVF_C4B_C4B
-	{ -1, -1, -1 },// eVF_P3F_P3F_I4B
-
-	{ // eVF_P3F, NOTE: aliasing position here because shaders always request texcoord and color.
-		OOFS(SVF_P3F, xyz),
-		OOFS(SVF_P3F, xyz),
-		-1
-	},
-	{	  // eVF_C4B_T2S
-		OOFS(SVF_C4B_T2S, st),
-		OOFS(SVF_C4B_T2S, color.dcolor),
-		-1
-	},
-	{ -1, -1, -1 },// eVF_P2F_T4F_C4F
-	{ -1, -1, -1 },// eVF_P2F_T4F_T4F_C4F
-	{	  // eVF_P2S_N4B_C4B_T1F
-		OOFS(SVF_P2S_N4B_C4B_T1F, z),
-		OOFS(SVF_P2S_N4B_C4B_T1F, color.dcolor),
-		OOFS(SVF_P2S_N4B_C4B_T1F, normal)
-	},
-	{	  // eVF_P3F_C4B_T2S
-		OOFS(SVF_P3F_C4B_T2S, st),
-		OOFS(SVF_P3F_C4B_T2S, color.dcolor),
-		-1
-	}
-};
-
-#undef OOFS
-
-util::list<CRenderMesh> CRenderMesh::m_MeshList;
-util::list<CRenderMesh> CRenderMesh::m_MeshGarbageList[MAX_RELEASED_MESH_FRAMES];
-util::list<CRenderMesh> CRenderMesh::m_MeshDirtyList[2];
-util::list<CRenderMesh> CRenderMesh::m_MeshModifiedList[2];
+util::list<CRenderMesh> CRenderMesh::s_MeshList;
+util::list<CRenderMesh> CRenderMesh::s_MeshGarbageList[MAX_RELEASED_MESH_FRAMES];
+util::list<CRenderMesh> CRenderMesh::s_MeshDirtyList[2];
+util::list<CRenderMesh> CRenderMesh::s_MeshModifiedList[2];
 
 int CRenderMesh::Release()
 {
-  long refCnt = CryInterlockedDecrement(&m_nRefCounter);
+	long refCnt = CryInterlockedDecrement(&m_nRefCounter);
 # if !defined(_RELEASE)
-  if (refCnt < 0)
-  {
+	if (refCnt < 0)
+	{
 		CryLogAlways("CRenderMesh::Release() called so many times on rendermesh that refcount became negative");
 		if (CRenderer::CV_r_BreakOnError)
 			__debugbreak();
@@ -447,7 +328,7 @@ int CRenderMesh::Release()
 # endif
 	if (refCnt == 0)
 	{
-	  AUTO_LOCK(m_sLinkLock);
+		AUTO_LOCK(m_sLinkLock);
 #   if !defined(_RELEASE)
 		if (m_nFlags & FRM_RELEASED)
 		{
@@ -456,13 +337,13 @@ int CRenderMesh::Release()
 				__debugbreak();
 		}
 #   endif
-  	m_nFlags |= FRM_RELEASED;
+		m_nFlags |= FRM_RELEASED;
 		int nFrame = gRenDev->GetFrameID(false);
-		util::list<CRenderMesh>* garbage = &CRenderMesh::m_MeshGarbageList[nFrame & (MAX_RELEASED_MESH_FRAMES-1)];
+		util::list<CRenderMesh>* garbage = &CRenderMesh::s_MeshGarbageList[nFrame & (MAX_RELEASED_MESH_FRAMES - 1)];
 		m_Chain.relink_tail(garbage);
 	}
 
-  return refCnt;
+	return refCnt;
 }
 
 CRenderMesh::CRenderMesh()
@@ -493,9 +374,9 @@ CRenderMesh::CRenderMesh()
 	m_nMorphs = 0;
 
 #ifdef MESH_TESSELLATION_RENDERER
-	m_adjBuffer.Create(0, sizeof(uint16), DXGI_FORMAT_R16_UNORM, DX11BUF_NULL_RESOURCE | DX11BUF_BIND_SRV, nullptr);
+	m_adjBuffer.Create(0, sizeof(uint16), DXGI_FORMAT_R16_UNORM, CDeviceObjectFactory::BIND_SHADER_RESOURCE, nullptr);
 #endif
-	m_extraBonesBuffer.Create(0, sizeof(SVF_W4B_I4S), DXGI_FORMAT_R32_FLOAT, DX11BUF_NULL_RESOURCE | DX11BUF_BIND_SRV, nullptr);
+	m_extraBonesBuffer.Create(0, sizeof(SVF_W4B_I4S), DXGI_FORMAT_UNKNOWN, CDeviceObjectFactory::BIND_SHADER_RESOURCE | CDeviceObjectFactory::USAGE_STRUCTURED, nullptr);
 }
 
 CRenderMesh::CRenderMesh (const char *szType, const char *szSourceName, bool bLock)
@@ -517,12 +398,12 @@ CRenderMesh::CRenderMesh (const char *szType, const char *szSourceName, bool bLo
   m_vBoxMin = m_vBoxMax = Vec3(0,0,0); //used for hw occlusion test
   m_nVerts = 0;
   m_nInds = 0;
-  m_eVF = eVF_P3F_C4B_T2F;
+  m_eVF = EDefaultInputLayouts::P3F_C4B_T2F;
   m_pVertexContainer = NULL;
 
   {
     AUTO_LOCK(m_sLinkLock);
-    m_Chain.relink_tail(&m_MeshList);
+    m_Chain.relink_tail(&s_MeshList);
   }
   m_nPrimetiveType = eptTriangleList;
 
@@ -564,9 +445,9 @@ CRenderMesh::CRenderMesh (const char *szType, const char *szSourceName, bool bLo
 	m_nMorphs = 0;
 
 #ifdef MESH_TESSELLATION_RENDERER
-	m_adjBuffer.Create(0, sizeof(uint16), DXGI_FORMAT_R16_UNORM, DX11BUF_NULL_RESOURCE | DX11BUF_BIND_SRV, nullptr);
+	m_adjBuffer.Create(0, sizeof(uint16), DXGI_FORMAT_R16_UNORM, CDeviceObjectFactory::BIND_SHADER_RESOURCE, nullptr);
 #endif
-	m_extraBonesBuffer.Create(0, sizeof(SVF_W4B_I4S), DXGI_FORMAT_R32_FLOAT, DX11BUF_NULL_RESOURCE | DX11BUF_BIND_SRV, nullptr);
+	m_extraBonesBuffer.Create(0, sizeof(SVF_W4B_I4S), DXGI_FORMAT_UNKNOWN, CDeviceObjectFactory::BIND_SHADER_RESOURCE | CDeviceObjectFactory::USAGE_STRUCTURED, nullptr);
 }
 
 void CRenderMesh::Cleanup()
@@ -748,7 +629,7 @@ void *CRenderMesh::LockVB(int nStream, uint32 nFlags, int nOffset, int nVerts, i
   if (nFlags == FSL_SYSTEM_CREATE)
   {
 	lSysCreate:
-		RelinkTail(m_Modified[threadId], m_MeshModifiedList[threadId]);
+		RelinkTail(m_Modified[threadId], s_MeshModifiedList[threadId]);
     if (!MS->m_pUpdateData)
     {
       uint32 nSize = GetStreamSize(nStream);
@@ -765,7 +646,7 @@ void *CRenderMesh::LockVB(int nStream, uint32 nFlags, int nOffset, int nVerts, i
 	else if (nFlags == FSL_SYSTEM_UPDATE)
   {
 lSysUpdate:
-		RelinkTail(m_Modified[threadId], m_MeshModifiedList[threadId]);
+		RelinkTail(m_Modified[threadId], s_MeshModifiedList[threadId]);
     if (!MS->m_pUpdateData)
     {
       MESSAGE_VIDEO_BUFFER_ACC_ATTEMPT;
@@ -783,7 +664,7 @@ lSysUpdate:
   {
     if (!MS)
       return NULL;
-		RelinkTail(m_Dirty[threadId], m_MeshDirtyList[threadId]);
+		RelinkTail(m_Dirty[threadId], s_MeshDirtyList[threadId]);
 		if (MS->m_pUpdateData)
 		{
 			pD = (byte *)MS->m_pUpdateData;
@@ -796,7 +677,7 @@ lSysUpdate:
   {
     if (!MS)
       return NULL; 
-		RelinkTail(m_Dirty[threadId], m_MeshDirtyList[threadId]); 
+		RelinkTail(m_Dirty[threadId], s_MeshDirtyList[threadId]); 
 #if RENDERMESH_BUFFER_ENABLE_DIRECT_ACCESS == 0
     if (gRenDev->m_pRT && gRenDev->m_pRT->IsMultithreaded())
     {
@@ -836,7 +717,7 @@ lSysUpdate:
     if ((nVB != ~0u && (MS->m_nFrameCreate != nFrame || MS->m_nElements != m_nVerts)) || !CRenderer::CV_r_buffer_enable_lockless_updates)
 #   endif
 			goto lSysCreate;
-		RelinkTail(m_Modified[threadId], m_MeshModifiedList[threadId]);
+		RelinkTail(m_Modified[threadId], s_MeshModifiedList[threadId]);
 		if (nVB == ~0u && !CreateVidVertices(m_nVerts, m_eVF, nStream))
     {
       RT_AllocationFailure("Create VB-Stream", GetStreamSize(nStream, m_nVerts) );
@@ -895,7 +776,7 @@ vtx_idx *CRenderMesh::LockIB(uint32 nFlags, int nOffset, int nInds)
   if (nFlags == FSL_SYSTEM_CREATE)
   {
 lSysCreate:
-		RelinkTail(m_Modified[threadId], m_MeshModifiedList[threadId]);
+		RelinkTail(m_Modified[threadId], s_MeshModifiedList[threadId]);
     if (!m_IBStream.m_pUpdateData)
     {
       uint32 nSize = m_nInds * sizeof(vtx_idx);
@@ -912,7 +793,7 @@ lSysCreate:
 	else if (nFlags == FSL_SYSTEM_UPDATE)
   {
 lSysUpdate:
-		RelinkTail(m_Modified[threadId], m_MeshModifiedList[threadId]);
+		RelinkTail(m_Modified[threadId], s_MeshModifiedList[threadId]);
     if (!m_IBStream.m_pUpdateData)
     {
       MESSAGE_VIDEO_BUFFER_ACC_ATTEMPT;
@@ -928,7 +809,7 @@ lSysUpdate:
   }
   else if (nFlags == FSL_READ)
   {
-		RelinkTail(m_Dirty[threadId], m_MeshDirtyList[threadId]);
+		RelinkTail(m_Dirty[threadId], s_MeshDirtyList[threadId]);
     if (m_IBStream.m_pUpdateData)
     {
       pD = (byte *)m_IBStream.m_pUpdateData;
@@ -939,7 +820,7 @@ lSysUpdate:
 
   if (nFlags == (FSL_READ | FSL_VIDEO))
   {
-		RelinkTail(m_Dirty[threadId], m_MeshDirtyList[threadId]);
+		RelinkTail(m_Dirty[threadId], s_MeshDirtyList[threadId]);
     buffer_handle_t nIB = m_IBStream.m_nID;
     if (nIB == ~0u)
       return NULL;
@@ -977,7 +858,7 @@ lSysUpdate:
 		if ((nIB != ~0u && (m_IBStream.m_nFrameCreate || m_IBStream.m_nElements != m_nInds)) || !CRenderer::CV_r_buffer_enable_lockless_updates)
 #   endif
 			goto lSysCreate;
-		RelinkTail(m_Modified[threadId], m_MeshModifiedList[threadId]);
+		RelinkTail(m_Modified[threadId], s_MeshModifiedList[threadId]);
 		if (m_IBStream.m_nID == ~0u)
 		{
 			nIB = (m_IBStream.m_nID = gRenDev->m_DevBufMan.Create(BBT_INDEX_BUFFER, (BUFFER_USAGE)m_eType, m_nInds*sizeof(vtx_idx)));
@@ -1066,6 +947,11 @@ void CRenderMesh::UnlockStream(int nStream)
 			uint32 i;
 			int nStride;
 			byte *pDst = (byte *)LockVB(nStream, FSL_SYSTEM_UPDATE, 0, m_nVerts, &nStride);
+
+			int8 ofs = CDeviceObjectFactory::LookupInputLayout(GetVertexFormat()).first.m_Offsets[SInputLayout::eOffset_Position];
+			assert(ofs >= 0);
+			pDst += ofs;
+
 			assert(pDst);
 			if (pDst)
 			{
@@ -1084,8 +970,10 @@ void CRenderMesh::UnlockStream(int nStream)
 			uint32 i;
 			int nStride;
 			byte *pDst = (byte *)LockVB(nStream, FSL_SYSTEM_UPDATE, 0, m_nVerts, &nStride);
-			SBufInfoTable *pOffs = &m_cBufInfoTable[GetVertexFormat()];
-			pDst += pOffs->OffsTC;
+
+			int8 ofs = CDeviceObjectFactory::LookupInputLayout(GetVertexFormat()).first.m_Offsets[SInputLayout::eOffset_TexCoord];
+			assert(ofs >= 0);
+			pDst += ofs;
 
 			assert(pDst);
 			if (pDst)
@@ -1304,11 +1192,11 @@ size_t CRenderMesh::SetMesh_Int(CMesh &mesh, int nSecColorsSetOffset, uint32 fla
 	m_nInds = 0;
 	if (mesh.m_pPositions)
 	{
-		m_eVF = eVF_P3F_C4B_T2F;
+		m_eVF = EDefaultInputLayouts::P3F_C4B_T2F;
 	}
 	else
 	{
-		m_eVF = eVF_P3S_C4B_T2S;
+		m_eVF = EDefaultInputLayouts::P3S_C4B_T2S;
 	}
 	pVBuff = (char *)LockVB(VSF_GENERAL, FSL_VIDEO_CREATE);
 	// stop initializing if allocation failed
@@ -1543,7 +1431,7 @@ void CRenderMesh::SetSkinningDataCharacter(CMesh& mesh, uint32 flags, struct SMe
 
 	std::vector<SVF_W4B_I4S> pExtraBones;
 
-	if (pExtraBoneMapping && m_extraBonesBuffer.m_numElements == 0 && m_nVerts)
+	if (pExtraBoneMapping && m_extraBonesBuffer.IsNullBuffer() && m_nVerts)
 	{
 		pExtraBones.resize(m_nVerts);
 		for (uint32 i=0; i<m_nVerts; i++)
@@ -1578,7 +1466,7 @@ void CRenderMesh::SetSkinningDataCharacter(CMesh& mesh, uint32 flags, struct SMe
 
 		m_nFlags |= FRM_SKINNED_EIGHT_WEIGHTS;
 
-		m_extraBonesBuffer.Create(pExtraBones.size(), sizeof(SVF_W4B_I4S), DXGI_FORMAT_UNKNOWN, DX11BUF_STRUCTURED | DX11BUF_BIND_SRV, &pExtraBones[0]);
+		m_extraBonesBuffer.Create(pExtraBones.size(), sizeof(SVF_W4B_I4S), DXGI_FORMAT_UNKNOWN, CDeviceObjectFactory::USAGE_STRUCTURED | CDeviceObjectFactory::BIND_SHADER_RESOURCE, &pExtraBones[0]);
 	}
 	else
 	{
@@ -1587,7 +1475,7 @@ void CRenderMesh::SetSkinningDataCharacter(CMesh& mesh, uint32 flags, struct SMe
 		// happen anyway)
 		m_nFlags &= ~FRM_SKINNED_EIGHT_WEIGHTS;
 
-		m_extraBonesBuffer.Create(0, sizeof(SVF_W4B_I4S), DXGI_FORMAT_R32_FLOAT, DX11BUF_NULL_RESOURCE | DX11BUF_BIND_SRV, nullptr);
+		m_extraBonesBuffer.Create(0, sizeof(SVF_W4B_I4S), DXGI_FORMAT_UNKNOWN, CDeviceObjectFactory::USAGE_STRUCTURED | CDeviceObjectFactory::BIND_SHADER_RESOURCE, nullptr);
 	}
 
 	static ICVar* cvar_gd = gEnv->pConsole->GetCVar("r_ComputeSkinning");
@@ -1788,7 +1676,7 @@ IIndexedMesh *CRenderMesh::GetIndexedMesh(IIndexedMesh *pIdxMesh)
     pMesh->m_pNorms    [i] = SMeshNormal(n);
   }
 
-  if (m_eVF==eVF_P3S_C4B_T2S || m_eVF==eVF_P3F_C4B_T2F || m_eVF==eVF_P3S_N4B_C4B_T2S)
+  if (m_eVF==EDefaultInputLayouts::P3S_C4B_T2S || m_eVF==EDefaultInputLayouts::P3F_C4B_T2F || m_eVF==EDefaultInputLayouts::P3S_N4B_C4B_T2S)
   {
     strided_pointer<UCol> pColors;
     pColors.data = (UCol*)GetColorPtr(pColors.iStride, FSL_READ);
@@ -2069,9 +1957,9 @@ void CRenderMesh::SetChunk(int nIndex, CRenderChunk &inChunk)
   pRenderChunk->m_nMatFlags = inChunk.m_nMatFlags;
 
   pRenderChunk->nFirstIndexId	= inChunk.nFirstIndexId;
-  pRenderChunk->nNumIndices		= MAX(inChunk.nNumIndices,0);
+  pRenderChunk->nNumIndices		= std::max<uint32>(inChunk.nNumIndices,0);
   pRenderChunk->nFirstVertId	= inChunk.nFirstVertId;
-  pRenderChunk->nNumVerts			= MAX(inChunk.nNumVerts,0);
+  pRenderChunk->nNumVerts			= std::max<uint32>(inChunk.nNumVerts,0);
   pRenderChunk->nSubObjectIndex = inChunk.nSubObjectIndex;
 
   pRenderChunk->m_texelAreaDensity = inChunk.m_texelAreaDensity;
@@ -2109,7 +1997,7 @@ void CRenderMesh::SetChunk(IMaterial *pNewMat, int nFirstVertId, int nVertCount,
 
 bool CRenderMesh::PrepareCachePos()
 {
-	if (!m_pCachePos && (m_eVF == eVF_P3S_C4B_T2S || m_eVF == eVF_P3S_N4B_C4B_T2S))
+	if (!m_pCachePos && (m_eVF == EDefaultInputLayouts::P3S_C4B_T2S || m_eVF == EDefaultInputLayouts::P3S_N4B_C4B_T2S))
 	{
 		m_pCachePos = AllocateMeshData<Vec3>(m_nVerts);
 		if (m_pCachePos)
@@ -2124,7 +2012,7 @@ bool CRenderMesh::PrepareCachePos()
 bool CRenderMesh::CreateCachePos(byte *pSrc, uint32 nStrideSrc, uint nFlags)
 {
   PROFILE_FRAME(Mesh_CreateCachePos);
-  if (m_eVF == eVF_P3S_C4B_T2S || m_eVF == eVF_P3S_N4B_C4B_T2S)
+  if (m_eVF == EDefaultInputLayouts::P3S_C4B_T2S || m_eVF == EDefaultInputLayouts::P3S_N4B_C4B_T2S)
 	{
 	#ifdef USE_VBIB_PUSH_DOWN
 		SREC_AUTO_LOCK(m_sResLock);//on USE_VBIB_PUSH_DOWN tick is executed in renderthread
@@ -2141,6 +2029,10 @@ bool CRenderMesh::CreateCachePos(byte *pSrc, uint32 nStrideSrc, uint nFlags)
 		{
 			if (nFlags == FSL_SYSTEM_UPDATE || (nFlags & FSL_READ))
 			{
+				int8 offs = CDeviceObjectFactory::LookupInputLayout(_GetVertexFormat()).first.m_Offsets[SInputLayout::eOffset_Position];
+				if (offs >= 0)
+					pSrc += offs;
+
 				for (uint32 i=0; i<m_nVerts; i++)
 				{
 					Vec3f16 *pVSrc = (Vec3f16 *)pSrc;
@@ -2157,7 +2049,7 @@ bool CRenderMesh::CreateCachePos(byte *pSrc, uint32 nStrideSrc, uint nFlags)
 bool CRenderMesh::CreateCacheUVs(byte *pSrc, uint32 nStrideSrc, uint nFlags)
 {
 	PROFILE_FRAME(Mesh_CreateCacheUVs);
-	if (m_eVF == eVF_P3S_C4B_T2S || m_eVF == eVF_P3S_N4B_C4B_T2S)
+	if (m_eVF == EDefaultInputLayouts::P3S_C4B_T2S || m_eVF == EDefaultInputLayouts::P3S_N4B_C4B_T2S)
 	{
 		m_nFlagsCacheUVs = (nFlags & FSL_WRITE) != 0;
 		m_nFrameRequestCacheUVs = gRenDev->m_RP.m_TI[gRenDev->m_RP.m_nFillThreadID].m_nFrameUpdateID;
@@ -2171,14 +2063,9 @@ bool CRenderMesh::CreateCacheUVs(byte *pSrc, uint32 nStrideSrc, uint nFlags)
 		{
 			if (nFlags == FSL_SYSTEM_UPDATE || (nFlags & FSL_READ))
 			{
-				if (m_eVF == eVF_P3S_C4B_T2S)
-				{
-					pSrc += offsetof(SVF_P3S_C4B_T2S, st);
-				}
-				else
-				{
-					pSrc += offsetof(SVF_P3S_N4B_C4B_T2S, st);
-				}
+				int8 offs = CDeviceObjectFactory::LookupInputLayout(_GetVertexFormat()).first.m_Offsets[SInputLayout::eOffset_TexCoord];
+				if (offs >= 0)
+					pSrc += offs;
 
 				for (uint32 i=0; i<m_nVerts; i++)
 				{
@@ -2202,7 +2089,10 @@ byte *CRenderMesh::GetPosPtrNoCache(int32& nStride, uint32 nFlags, int32 nOffset
   if (!pData)
     return NULL;
   nStride = nStr;
-  return pData;
+  int8 offs = CDeviceObjectFactory::LookupInputLayout(_GetVertexFormat()).first.m_Offsets[SInputLayout::eOffset_Position];
+  if (offs >= 0)
+	  return &pData[offs];
+  return NULL;
 }
 
 byte *CRenderMesh::GetPosPtr(int32& nStride, uint32 nFlags, int32 nOffset)
@@ -2214,16 +2104,20 @@ byte *CRenderMesh::GetPosPtr(int32& nStride, uint32 nFlags, int32 nOffset)
   ASSERT_LOCK;
   if (!pData)
     return NULL;
+  nStride = nStr;
+  int8 offs = CDeviceObjectFactory::LookupInputLayout(_GetVertexFormat()).first.m_Offsets[SInputLayout::eOffset_Position];
 
-  if (!CreateCachePos(pData, nStr, nFlags))
+  // TODO: remove conversion from Half to Float
+  if (CreateCachePos(pData, nStr, nFlags))
   {
-    nStride = nStr;
-    return pData;
+	  pData = (byte *)m_pCachePos;
+	  nStride = sizeof(Vec3);
+	  return pData;
   }
 
-	pData = (byte *)m_pCachePos;
-  nStride = sizeof(Vec3);
-  return pData;
+  if (offs >= 0)
+    return &pData[offs];
+  return NULL;
 }
 
 vtx_idx *CRenderMesh::GetIndexPtr(uint32 nFlags, int32 nOffset)
@@ -2242,9 +2136,9 @@ byte *CRenderMesh::GetColorPtr(int32& nStride, uint32 nFlags, int32 nOffset)
   if (!pData)
     return NULL;
   nStride = nStr;
-  SBufInfoTable *pOffs = &m_cBufInfoTable[_GetVertexFormat()];
-  if (pOffs->OffsColor >= 0)
-    return &pData[pOffs->OffsColor];
+  int8 offs = CDeviceObjectFactory::LookupInputLayout(_GetVertexFormat()).first.m_Offsets[SInputLayout::eOffset_Color];
+  if (offs >= 0)
+    return &pData[offs];
   return NULL;
 }
 byte *CRenderMesh::GetNormPtr(int32& nStride, uint32 nFlags, int32 nOffset)
@@ -2256,8 +2150,11 @@ byte *CRenderMesh::GetNormPtr(int32& nStride, uint32 nFlags, int32 nOffset)
   pData = (byte *)LockVB(VSF_NORMALS, nFlags, nOffset, 0, &nStr);
   if (pData)
   {
-    nStride = sizeof(Vec3);
-    return pData;
+    nStride = sizeof(SPipNormal);
+    int8 offs = CDeviceObjectFactory::LookupInputLayout(EDefaultInputLayouts::N3F).first.m_Offsets[SInputLayout::eOffset_Normal];
+    if (offs >= 0)
+      return &pData[offs];
+    return NULL;
   }
 # endif
   pData = (byte *)LockVB(VSF_GENERAL, nFlags, nOffset, 0, &nStr);
@@ -2265,9 +2162,9 @@ byte *CRenderMesh::GetNormPtr(int32& nStride, uint32 nFlags, int32 nOffset)
   if (!pData)
     return NULL;
   nStride = nStr;
-	SBufInfoTable *pOffs = &m_cBufInfoTable[_GetVertexFormat()];
-	if (pOffs->OffsNorm >= 0)
-		return &pData[pOffs->OffsNorm];
+  int8 offs = CDeviceObjectFactory::LookupInputLayout(_GetVertexFormat()).first.m_Offsets[SInputLayout::eOffset_Normal];
+  if (offs >= 0)
+    return &pData[offs];
   return NULL;
 }
 byte *CRenderMesh::GetUVPtrNoCache(int32& nStride, uint32 nFlags, int32 nOffset)
@@ -2279,9 +2176,9 @@ byte *CRenderMesh::GetUVPtrNoCache(int32& nStride, uint32 nFlags, int32 nOffset)
 	if (!pData)
 		return NULL;
 	nStride = nStr;
-	SBufInfoTable *pOffs = &m_cBufInfoTable[_GetVertexFormat()];
-	if (pOffs->OffsTC >= 0)
-		return &pData[pOffs->OffsTC];
+	int8 offs = CDeviceObjectFactory::LookupInputLayout(_GetVertexFormat()).first.m_Offsets[SInputLayout::eOffset_TexCoord];
+	if (offs >= 0)
+		return &pData[offs];
 	return NULL;
 }
 byte *CRenderMesh::GetUVPtr(int32& nStride, uint32 nFlags, int32 nOffset)
@@ -2292,22 +2189,20 @@ byte *CRenderMesh::GetUVPtr(int32& nStride, uint32 nFlags, int32 nOffset)
   ASSERT_LOCK;
   if (!pData)
     return NULL;
-  
-	if (!CreateCacheUVs(pData, nStr, nFlags))
-	{
-		nStride = nStr;
-		SBufInfoTable *pOffs = &m_cBufInfoTable[_GetVertexFormat()];
-		if (pOffs->OffsTC >= 0)
-			return &pData[pOffs->OffsTC];
-	}
-	else
-	{
-		pData = (byte *)m_pCacheUVs;
-		nStride = sizeof(Vec2);
-		return pData;
-	}
+  nStride = nStr;
+  int8 offs = CDeviceObjectFactory::LookupInputLayout(_GetVertexFormat()).first.m_Offsets[SInputLayout::eOffset_TexCoord];
 
-	return NULL;
+  // TODO: remove conversion from Half to Float
+  if (CreateCacheUVs(pData, nStr, nFlags))
+  {
+    pData = (byte *)m_pCacheUVs;
+    nStride = sizeof(Vec2);
+    return pData;
+  }
+
+  if (offs >= 0)
+    return &pData[offs];
+  return NULL;
 }
 
 byte *CRenderMesh::GetTangentPtr(int32& nStride, uint32 nFlags, int32 nOffset)
@@ -2368,7 +2263,7 @@ bool CRenderMesh::IsEmpty()
 
 //================================================================================================================
 
-bool CRenderMesh::CheckUpdate(EVertexFormat eVF, uint32 nStreamMask)
+bool CRenderMesh::CheckUpdate(InputLayoutHandle eVF, uint32 nStreamMask)
 {
   CRenderMesh *pRM = _GetVertexContainer();
   if ( pRM )
@@ -2565,7 +2460,7 @@ void CRenderMesh::BuildAdjacency(const VertexFormat *pVerts, unsigned int nVerts
 }
 #endif //#ifdef MESH_TESSELLATION_RENDERER
 
-bool CRenderMesh::RT_CheckUpdate(CRenderMesh *pVContainer, EVertexFormat eVF, uint32 nStreamMask, bool bTessellation, bool stall)
+bool CRenderMesh::RT_CheckUpdate(CRenderMesh *pVContainer, InputLayoutHandle eVF, uint32 nStreamMask, bool bTessellation, bool stall)
 {
 	MEMSTAT_CONTEXT(EMemStatContextTypes::MSC_RenderMeshType, 0, this->GetTypeName());
 	MEMSTAT_CONTEXT(EMemStatContextTypes::MSC_RenderMesh, 0, this->GetSourceName());
@@ -2683,17 +2578,17 @@ bool CRenderMesh::RT_CheckUpdate(CRenderMesh *pVContainer, EVertexFormat eVF, ui
 
 #ifdef MESH_TESSELLATION_RENDERER
 	// Build UV adjacency
-	if ((bTessellation && m_adjBuffer.m_numElements == 0)       // if needed and not built already
-		|| (bIndUpdateNeeded && m_adjBuffer.m_numElements > 0)) // if already built but needs update
+	if ((bTessellation && m_adjBuffer.GetElementCount() == 0)       // if needed and not built already
+		|| (bIndUpdateNeeded && m_adjBuffer.GetElementCount() > 0)) // if already built but needs update
 	{
 		if (!(pVContainer->m_IBStream.m_nLockFlags & FSL_WRITE)
 			&& (pVContainer->_HasVBStream(VSF_NORMALS)))
 		{
-			if (m_eVF == eVF_P3S_C4B_T2S)
+			if (m_eVF == EDefaultInputLayouts::P3S_C4B_T2S)
 			{
 				UpdateUVCoordsAdjacency<SVF_P3S_C4B_T2S, Vec3f16, Vec2f16>(m_IBStream);
 			}
-			else if (m_eVF == eVF_P3F_C4B_T2F)
+			else if (m_eVF == EDefaultInputLayouts::P3F_C4B_T2F)
 			{
 				UpdateUVCoordsAdjacency<SVF_P3F_C4B_T2F, Vec3, Vec2>(m_IBStream);
 			}
@@ -2979,7 +2874,7 @@ bool CRenderMesh::UpdateVidIndices(SMeshStream& IBStream, bool stall)
   return false;
 }
 
-bool CRenderMesh::CreateVidVertices(int nVerts, EVertexFormat eVF, int nStream)
+bool CRenderMesh::CreateVidVertices(int nVerts, InputLayoutHandle eVF, int nStream)
 {
 	MEMSTAT_CONTEXT(EMemStatContextTypes::MSC_RenderMeshType, 0, this->GetTypeName());
 	MEMSTAT_CONTEXT(EMemStatContextTypes::MSC_RenderMesh, 0, this->GetSourceName());
@@ -2990,7 +2885,7 @@ bool CRenderMesh::CreateVidVertices(int nVerts, EVertexFormat eVF, int nStream)
 
 	if (gRenDev->m_bDeviceLost)
     return false;
-  if (!nVerts && eVF==eVF_Unknown)
+  if (!nVerts && eVF==InputLayoutHandle::Unspecified)
   {
     nVerts = m_nVerts;
     eVF = m_eVF;
@@ -3074,7 +2969,7 @@ template<class VertexFormat, class VecPos, class VecUV> bool CRenderMesh::Update
 
 			// create triangles with adjacency
 			VertexFormat *pVertexStream = (VertexFormat *)pMS->m_pUpdateData;
-			if ((m_eVF == eVF_P3S_C4B_T2S || m_eVF == eVF_P3F_C4B_T2F) && pVertexStream)
+			if ((m_eVF == EDefaultInputLayouts::P3S_C4B_T2S || m_eVF == EDefaultInputLayouts::P3F_C4B_T2F) && pVertexStream)
 			{
 				int nTrgs = m_nInds / 3;
 				pTxtAdjBuffer.resize(nTrgs * 12);
@@ -3106,19 +3001,16 @@ template<class VertexFormat, class VecPos, class VecUV> bool CRenderMesh::Update
 
 				if (sizeof(VecUV) == sizeof(Vec2f16))
 				{
-					m_adjBuffer.Create(pTxtAdjBuffer.size(), sizeof(VecUV), DXGI_FORMAT_R16G16_FLOAT, DX11BUF_BIND_SRV, &pTxtAdjBuffer[0]);
+					m_adjBuffer.Create(pTxtAdjBuffer.size(), sizeof(VecUV), DXGI_FORMAT_R16G16_FLOAT, CDeviceObjectFactory::BIND_SHADER_RESOURCE, &pTxtAdjBuffer[0]);
 				}
 				else
 				{
-					m_adjBuffer.Create(pTxtAdjBuffer.size(), sizeof(VecUV), DXGI_FORMAT_R32G32_FLOAT, DX11BUF_BIND_SRV, &pTxtAdjBuffer[0]);
+					m_adjBuffer.Create(pTxtAdjBuffer.size(), sizeof(VecUV), DXGI_FORMAT_R32G32_FLOAT, CDeviceObjectFactory::BIND_SHADER_RESOURCE, &pTxtAdjBuffer[0]);
 				}				
 
 				for (int iChunk = 0; iChunk < m_Chunks.size(); ++iChunk)
 				{
-					int myBuffer[4];
-					myBuffer[0] = m_Chunks[iChunk].nFirstIndexId / 3;
-					((CREMeshImpl*) m_Chunks[iChunk].pRE)->m_tessCB.Create(4, sizeof(int), DXGI_FORMAT_R32_SINT, DX11BUF_BIND_SRV, &myBuffer[0]);
-					((CREMeshImpl*) m_Chunks[iChunk].pRE)->m_nPatchIDOffset = myBuffer[0];
+					((CREMeshImpl*) m_Chunks[iChunk].pRE)->m_nPatchIDOffset = m_Chunks[iChunk].nFirstIndexId / 3;
 				}
 			}
 
@@ -3760,7 +3652,7 @@ void CRenderMesh::GetRandomPos(PosNorm& ran, CRndGen& seed, EGeomForm eForm, SSk
 	if (vdata.aPos.data = (Vec3*)GetPosPtr(vdata.aPos.iStride, FSL_READ))
 	{
 		// Check possible sources for normals.
-		if (_GetVertexFormat() != eVF_P3S_N4B_C4B_T2S || !GetStridedArray(vdata.aVert, VSF_GENERAL))
+		if (_GetVertexFormat() != EDefaultInputLayouts::P3S_N4B_C4B_T2S || !GetStridedArray(vdata.aVert, VSF_GENERAL))
 			if (!GetStridedArray(vdata.aQTan, VSF_QTANGENTS))
 				GetStridedArray(vdata.aTan2, VSF_TANGENTS);
 
@@ -3843,9 +3735,9 @@ void CRenderMesh::Size( uint32 nFlags, ICrySizer* pSizer ) const
 
 }
 
-size_t CRenderMesh::Size(uint32 nFlags) const
+buffer_size_t CRenderMesh::Size(uint32 nFlags) const
 {
-  size_t nSize = 0;
+	buffer_size_t nSize = 0;
   uint32 i;
 	if (nFlags == SIZE_ONLY_SYSTEM)  // System size
   {
@@ -4102,7 +3994,7 @@ void CRenderMesh::PrintMeshLeaks()
 {
   MEMORY_SCOPE_CHECK_HEAP();
 	AUTO_LOCK(m_sLinkLock);
-	for (util::list<CRenderMesh> *iter = CRenderMesh::m_MeshList.next; iter != &CRenderMesh::m_MeshList; iter = iter->next)
+	for (util::list<CRenderMesh> *iter = CRenderMesh::s_MeshList.next; iter != &CRenderMesh::s_MeshList; iter = iter->next)
 	{
 		CRenderMesh* pRM = iter->item<&CRenderMesh::m_Chain>();
 		Warning("--- CRenderMesh '%s' leak after level unload", (!pRM->m_sSource.empty() ? pRM->m_sSource.c_str() : pRM->m_sType.c_str()));
@@ -4118,7 +4010,7 @@ bool CRenderMesh::ClearStaleMemory(bool bLocked, int threadId)
 	bool bKeepSystem = false; 
 	CConditionalLock lock(m_sLinkLock, !bLocked);
 	// Clean up the stale mesh temporary data
-  for (util::list<CRenderMesh>* iter=m_MeshDirtyList[threadId].next, *pos=iter->next; iter != &m_MeshDirtyList[threadId]; iter=pos, pos=pos->next)
+  for (util::list<CRenderMesh>* iter=s_MeshDirtyList[threadId].next, *pos=iter->next; iter != &s_MeshDirtyList[threadId]; iter=pos, pos=pos->next)
   {
 		CRenderMesh* pRM = iter->item<&CRenderMesh::m_Dirty>(threadId);
 		if (pRM->m_sResLock.TryLock() == false)
@@ -4174,7 +4066,7 @@ void CRenderMesh::UpdateModifiedMeshes(bool bLocked, int threadId)
   FUNCTION_PROFILER(gEnv->pSystem, PROFILE_RENDERER);
 	CConditionalLock lock(m_sLinkLock, !bLocked);
 	// Update device buffers on modified meshes
-	for (util::list<CRenderMesh>* iter=m_MeshModifiedList[threadId].next, *pos=iter->next; iter != &m_MeshModifiedList[threadId]; iter=pos, pos=pos->next)
+	for (util::list<CRenderMesh>* iter=s_MeshModifiedList[threadId].next, *pos=iter->next; iter != &s_MeshModifiedList[threadId]; iter=pos, pos=pos->next)
 	{
 		CRenderMesh* pRM = iter->item<&CRenderMesh::m_Modified>(threadId);
 		if (pRM->m_sResLock.TryLock() == false)
@@ -4221,19 +4113,21 @@ void CRenderMesh::UpdateModified()
 }
 
 // Mesh garbage collector
-void CRenderMesh::Tick()
+void CRenderMesh::Tick(uint numFrames)
 {
-  MEMORY_SCOPE_CHECK_HEAP();
-  ASSERT_IS_RENDER_THREAD(gRenDev->m_pRT)
-	bool bKeepSystem = false;
-  const threadID threadId = gRenDev->m_pRT->IsMultithreaded() ? gRenDev->m_RP.m_nProcessThreadID : threadID(1);
+	MEMORY_SCOPE_CHECK_HEAP();
+	ASSERT_IS_RENDER_THREAD(gRenDev->m_pRT)
+		bool bKeepSystem = false;
+	const threadID threadId = gRenDev->m_pRT->IsMultithreaded() ? gRenDev->m_RP.m_nProcessThreadID : threadID(1);
 	int nFrame = gRenDev->m_RP.m_TI[gRenDev->m_RP.m_nProcessThreadID].m_nFrameUpdateID;
 
 	// Remove deleted meshes from the list completely
 	bool deleted = false;
+
+	for (int n = 0; n < numFrames; ++n)
 	{
 		AUTO_LOCK(m_sLinkLock);
-		util::list<CRenderMesh>* garbage = &CRenderMesh::m_MeshGarbageList[nFrame & (MAX_RELEASED_MESH_FRAMES-1)];
+		util::list<CRenderMesh>* garbage = &CRenderMesh::s_MeshGarbageList[(nFrame + n) & (MAX_RELEASED_MESH_FRAMES - 1)];
 		while (garbage != garbage->prev)
 		{
 			CRenderMesh* pRM = garbage->next->item<&CRenderMesh::m_Chain>();
@@ -4241,6 +4135,7 @@ void CRenderMesh::Tick()
 			deleted = true;
 		}
 	}
+
 	// If an instance pool is used, try to reclaim any used pages if there are any
 	if (deleted && s_MeshPool.m_MeshInstancePool)
 	{
@@ -4254,7 +4149,6 @@ void CRenderMesh::Tick()
 	// and from any other thread, they still have guarded against contention!
 
 	ClearStaleMemory(true, threadId);
-
 }
 
 void CRenderMesh::Initialize()
@@ -4264,25 +4158,35 @@ void CRenderMesh::Initialize()
 
 void CRenderMesh::ShutDown()
 {
-  if (CRenderer::CV_r_releaseallresourcesonexit)
-  {
+	if (CRenderer::CV_r_releaseallresourcesonexit)
+	{
+		if (gRenDev->m_pRT)
+		{
+			Tick(MAX_RELEASED_MESH_FRAMES);
+		}
+
 		AUTO_LOCK(m_sLinkLock);
-    while (&CRenderMesh::m_MeshList != CRenderMesh::m_MeshList.prev)
-    {
-			CRenderMesh* pRM = CRenderMesh::m_MeshList.next->item<&CRenderMesh::m_Chain>();
+		while (&CRenderMesh::s_MeshList != CRenderMesh::s_MeshList.prev)
+		{
+			CRenderMesh* pRM = CRenderMesh::s_MeshList.next->item<&CRenderMesh::m_Chain>();
 			PREFAST_ASSUME(pRM);
-      if (CRenderer::CV_r_printmemoryleaks)
-      {
-        float fSize = pRM->Size(SIZE_ONLY_SYSTEM)/1024.0f/1024.0f;
-        iLog->Log("Warning: CRenderMesh::ShutDown: RenderMesh leak %s: %0.3fMb", pRM->m_sSource.c_str(), fSize);
-      }
-      SAFE_RELEASE_FORCE(pRM);
-    }
-  }
-	new (&CRenderMesh::m_MeshList) util::list<CRenderMesh>();
-	new (&CRenderMesh::m_MeshGarbageList) util::list<CRenderMesh>();
-	new (&CRenderMesh::m_MeshDirtyList) util::list<CRenderMesh>();
-	new (&CRenderMesh::m_MeshModifiedList) util::list<CRenderMesh>();
+			if (CRenderer::CV_r_printmemoryleaks)
+			{
+				float fSize = pRM->Size(SIZE_ONLY_SYSTEM) / 1024.0f / 1024.0f;
+				iLog->Log("Warning: CRenderMesh::ShutDown: RenderMesh leak %s: %0.3fMb", pRM->m_sSource.c_str(), fSize);
+			}
+			SAFE_RELEASE_FORCE(pRM);
+		}
+	}
+
+	CRY_ASSERT(&CRenderMesh::s_MeshList == CRenderMesh::s_MeshList.prev); // Active RenderMesh-list needs to be empty, or leaks occur!
+	for (int i=0; i<CRY_ARRAY_COUNT(CRenderMesh::s_MeshGarbageList); ++i) // Make sure there are no pending deletes in garbage list
+		CRY_ASSERT(&CRenderMesh::s_MeshGarbageList[i] == CRenderMesh::s_MeshGarbageList[i].prev);
+
+	new (&CRenderMesh::s_MeshList) util::list<CRenderMesh>();
+	new (&CRenderMesh::s_MeshGarbageList) util::list<CRenderMesh>();
+	new (&CRenderMesh::s_MeshDirtyList) util::list<CRenderMesh>();
+	new (&CRenderMesh::s_MeshModifiedList) util::list<CRenderMesh>();
 
 	ShutdownPool();
 }
@@ -4520,7 +4424,7 @@ void CRenderMesh::CreateRemappedBoneIndicesPair(const uint pairGuid, const TRend
 	UnlockIndexStream();
 
 	m_CreatedBoneIndices[threadId].push_back( SBoneIndexStreamRequest( pairGuid, remappedIndices, m_pExtraBoneMapping) );
-	RelinkTail(m_Modified[threadId], m_MeshModifiedList[threadId]); 
+	RelinkTail(m_Modified[threadId], s_MeshModifiedList[threadId]); 
 }
 
 void CRenderMesh::CreateRemappedBoneIndicesPair(const DynArray<JointIdType> &arrRemapTable, const uint pairGuid, const void* tag)
@@ -4603,7 +4507,7 @@ void CRenderMesh::CreateRemappedBoneIndicesPair(const DynArray<JointIdType> &arr
 	UnlockIndexStream();
 
 	m_CreatedBoneIndices[threadId].push_back( SBoneIndexStreamRequest(pairGuid, remappedIndices, m_pExtraBoneMapping) );
-	RelinkTail(m_Modified[threadId], m_MeshModifiedList[threadId]); 
+	RelinkTail(m_Modified[threadId], s_MeshModifiedList[threadId]); 
 }
 
 void CRenderMesh::ReleaseRemappedBoneIndicesPair(const uint pairGuid)
@@ -4635,7 +4539,7 @@ void CRenderMesh::ReleaseRemappedBoneIndicesPair(const uint pairGuid)
 	if (deleted != ~0u)
 	{
 		m_DeletedBoneIndices[threadId].push_back(pairGuid); 
-		RelinkTail(m_Modified[threadId], m_MeshModifiedList[threadId]); 
+		RelinkTail(m_Modified[threadId], s_MeshModifiedList[threadId]); 
 	}
 
 	// Check for created but not yet remapped bone indices
@@ -4657,7 +4561,7 @@ void CRenderMesh::ReleaseRemappedBoneIndicesPair(const uint pairGuid)
 		if (deleted != ~0u)
 		{
 			m_DeletedBoneIndices[threadId].push_back(pairGuid); 
-			RelinkTail(m_Modified[threadId], m_MeshModifiedList[threadId]); 
+			RelinkTail(m_Modified[threadId], s_MeshModifiedList[threadId]); 
 		}
 	}
 }
@@ -4688,7 +4592,7 @@ void CRenderMesh::GetPoolStats(SMeshPoolStatistics* stats)
 	memcpy(stats, &s_MeshPool.m_MeshDataPoolStats, sizeof(SMeshPoolStatistics));
 }
 
-void* CRenderMesh::operator new( size_t size )
+void* CRenderMesh::operator new(size_t size )
 {
 	return AllocateMeshInstanceData(size, alignof(CRenderMesh));
 }
@@ -4698,7 +4602,7 @@ void CRenderMesh::operator delete( void* ptr )
   FreeMeshInstanceData(ptr);
 }
 
-D3DBuffer* CRenderMesh::_GetD3DVB( int nStream, size_t* offs ) const
+D3DBuffer* CRenderMesh::_GetD3DVB( int nStream, buffer_size_t* offs ) const
 {
   if (SMeshStream* pMS = GetVertexStream(nStream))
   {
@@ -4708,7 +4612,7 @@ D3DBuffer* CRenderMesh::_GetD3DVB( int nStream, size_t* offs ) const
   return NULL;
 }
 
-D3DBuffer* CRenderMesh::_GetD3DIB( size_t* offs ) const
+D3DBuffer* CRenderMesh::_GetD3DIB(buffer_size_t* offs ) const
 {
   IF (m_IBStream.m_nID != ~0u, 1)
     return gRenDev->m_DevBufMan.GetD3D(m_IBStream.m_nID, offs);
@@ -4721,14 +4625,14 @@ void CRenderMesh::BindStreamsToRenderPipeline()
 	CRenderMesh* pRenderMesh = this;
 
 	HRESULT h;
-	CD3D9Renderer* rd = gcpRendD3D;
-	CRenderMesh* pRM  = pRenderMesh->_GetVertexContainer();
-	void*  pIB        = NULL;
-	size_t nOffs      = 0;
+	CD3D9Renderer* rd   = gcpRendD3D;
+	CRenderMesh* pRM    = pRenderMesh->_GetVertexContainer();
+	void*  pIB          = NULL;
+	buffer_size_t nOffs = 0;
 
-	size_t streamStride[VSF_NUM] = { 0 };
-	size_t offset[VSF_NUM]       = { 0 };
-	const void* pVB[VSF_NUM]     = { NULL };
+	buffer_size_t streamStride[VSF_NUM] = { 0 };
+	buffer_size_t offset[VSF_NUM]       = { 0 };
+	const void* pVB[VSF_NUM]            = { NULL };
 
 	pIB    = gRenDev->m_DevBufMan.GetD3D(pRenderMesh->_GetIBStream(), &nOffs);
 	pVB[0] = gRenDev->m_DevBufMan.GetD3D(pRM->_GetVBStream(VSF_GENERAL), &offset[0]);
@@ -4761,15 +4665,19 @@ void CRenderMesh::BindStreamsToRenderPipeline()
 	if (CHWShader_D3D::s_pCurInstHS)
 	{
 		// This buffer contains texture coordinates for triangle itself and its neighbors, in total 12 texture coordinates per triangle.
-		auto pSRV = pRenderMesh->m_adjBuffer.GetSRV();
+		auto pSRV = pRenderMesh->m_adjBuffer.GetDevBuffer()->LookupSRV(EDefaultResourceViews::Default);
+	#ifdef RENDERER_ENABLE_LEGACY_PIPELINE
 		gcpRendD3D->GetDeviceContext().GetRealDeviceContext()->DSSetShaderResources(15, 1, &pSRV);
+	#endif
 	}
 #endif
 
 	// 8 weights skinning. setting the last 4 weights
 	{
-		auto pSRV = pRenderMesh->m_extraBonesBuffer.GetSRV();
+		auto pSRV = pRenderMesh->m_extraBonesBuffer.GetDevBuffer()->LookupSRV(EDefaultResourceViews::Default);
+#ifdef RENDERER_ENABLE_LEGACY_PIPELINE
 		gcpRendD3D->GetDeviceContext().GetRealDeviceContext()->VSSetShaderResources(14, 1, &pSRV);
+#endif
 	}
 
 	assert(pIB);
@@ -5231,7 +5139,7 @@ void SMeshSubSetIndicesJobEntry::CreateSubSetRenderMesh()
 		SVF_P3S_C4B_T2S tempVertex;
 		params.pVertBuffer       = &tempVertex;
 		params.nVertexCount      = 1;
-		params.eVertexFormat     = eVF_P3S_C4B_T2S;
+		params.eVertexFormat     = EDefaultInputLayouts::P3S_C4B_T2S;
 		params.pIndices          = lstIndices.GetElements();
 		params.nIndexCount       = lstIndices.Count();
 		params.nPrimetiveType    = prtTriangleList;
@@ -5267,8 +5175,8 @@ void CRenderMesh::DrawImmediately()
 	// set vertex and index buffer
 	CheckUpdate(_GetVertexFormat(), 0);
 
-	size_t vbOffset(0);
-	size_t ibOffset(0);
+	buffer_size_t vbOffset(0);
+	buffer_size_t ibOffset(0);
 	D3DVertexBuffer* pVB = rd->m_DevBufMan.GetD3DVB(_GetVBStream(VSF_GENERAL), &vbOffset);
 	D3DIndexBuffer* pIB = rd->m_DevBufMan.GetD3DIB(_GetIBStream(), &ibOffset);
 	assert(pVB);

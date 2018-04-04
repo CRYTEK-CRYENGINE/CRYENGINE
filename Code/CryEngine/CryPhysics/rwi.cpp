@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #include "StdAfx.h"
 
@@ -13,12 +13,6 @@
 #include "geoman.h"
 
 
-#if defined(GRID_AXIS_STANDARD)
-#define GET_GRID_AXIS(x,y,z,from) const int x=0; const int y=1; const int z=2;
-#else
-#define GET_GRID_AXIS(x,y,z,from) const int x=(from)->m_iEntAxisx; const int y=(from)->m_iEntAxisy; const int z=(from)->m_iEntAxisz;
-#endif
-
 int CPhysicalEntity::RayTrace(SRayTraceRes&) { return 0; }
 CPhysicalEntity *CPhysicalEntity::GetEntity() { return this; }
 
@@ -27,6 +21,7 @@ geom_contact g_RWIContacts[64];
 #include "physicalworld.h"
 #define PrepGeom(pGeom,iCaller) (pGeom)
 
+const int FD_RWI_RECURSIVE = -999;
 
 ILINE void MarkProcessed(volatile unsigned int& bProcessed, int mask)	{ AtomicAdd(&bProcessed, bProcessed & mask ^ mask); }
 ILINE void UnmarkProcessed(volatile unsigned int& bProcessed, int mask)	{ AtomicAdd(&bProcessed, -(int)(bProcessed & mask)); }
@@ -71,6 +66,7 @@ struct entity_grid_checker {
 	float dir2d_len,maxt;
 	ray_hit *phits;
 	CPhysicalWorld *pWorld;
+	SEntityGrid *pgrid;
 	CPhysicalPlaceholder *pGridEnt;
 	CPhysicalEntity **pTmpEntList;
 	int szList;
@@ -85,6 +81,10 @@ struct entity_grid_checker {
   int iPartSubst_initial,iPartSubst_inFlight; 
 	IPhysicalEntity **pSkipEnts;
 	int nSkipEnts;
+	IPhysicalEntity **pPortals;
+	int nPortals, nMaxPortals;
+	const char *pNameTag;
+	void sync_from(const entity_grid_checker &egc) { nThroughHits=egc.nThroughHits; nThroughHitsAux=egc.nThroughHitsAux; }
 
 	entity_grid_checker() 
 		: nMaxHits(0)
@@ -118,16 +118,17 @@ struct entity_grid_checker {
 		, iPartSubst_inFlight(0)
 		, pSkipEnts(nullptr)
 		, nSkipEnts(0)
+		, pPortals(nullptr)
+		, nPortals(0)
+		, nMaxPortals(1)
+		, pNameTag(nullptr)
 	{
 		ZeroStruct(thunkSubst);
 	}
 
 	NO_INLINE int check_cell(const Vec2i &icell, int &ilastcell) {
 
-		const float fCellX =(float)(icell.x);
-		const float fCellY = (float)(icell.y);
-		Vec2 fcell(fCellX, fCellY);
-		quotientf t((org2d+fcell)*dir2d, dir2d_len*dir2d_len);
+		quotientf t((org2d+icell)*dir2d, dir2d_len*dir2d_len);
 		if (t.x>maxt && (icell.x&icell.y)!=-1)
 			return 1;		
 		box bbox;
@@ -140,20 +141,20 @@ struct entity_grid_checker {
 		pe_PODcell *pPODcell;
     IGeometry *pGeom = NULL; 
 		int i,j,ihit,imat,nCellEnts=0,nEntsChecked=0,bRecheckOtherParts,bNoThunkSubst;
-		pWorld->GetPODGridCellBBox(icell.x,icell.y, bbox.center,bbox.size);
+		pgrid->GetPODGridCellBBox(icell.x,icell.y, bbox.center,bbox.size);
 		if (bUsePhysOnDemand && (bbox.size.z>0.f) && box_ray_overlap_check(&bbox,&aray.m_ray)) {
 			AtomicAdd(&pWorld->m_lockGrid,-1);
 			ReadLock lockPOD(pWorld->m_lockPODGrid);
-			if ((pPODcell=pWorld->getPODcell(icell.x,icell.y))->lifeTime<=0) {
+			if ((pPODcell=pgrid->getPODcell(icell.x,icell.y))->lifeTime<=0) {
 				AtomicAdd(&pWorld->m_lockPODGrid,-1);
 				{ WriteLock lockPODw(pWorld->m_lockPODGrid);
 					if (pPODcell->lifeTime<=0) {
 						MarkAsPODThread(pWorld);
 						pWorld->m_nOnDemandListFailures=0; ++pWorld->m_iLastPODUpdate;
 						if (pWorld->m_pPhysicsStreamer && pWorld->m_pPhysicsStreamer->CreatePhysicalEntitiesInBox(bbox.center-bbox.size,bbox.center+bbox.size)) {	
-							pPODcell->lifeTime = pWorld->m_nOnDemandListFailures ? 1E10f:8.0f;
-							pPODcell->inextActive = pWorld->m_iActivePODCell0;
-							pWorld->m_iActivePODCell0 = icell.y<<16|icell.x;
+							pPODcell->lifeTime = pWorld->m_nOnDemandListFailures ? 0.001f:8.0f;
+							pPODcell->inextActive = pgrid->iActivePODCell0;
+							pgrid->iActivePODCell0 = icell.y<<16|icell.x;
 							szList = max(szList, pWorld->GetTmpEntList(pTmpEntList, iCaller));
 						}
 						pWorld->m_nOnDemandListFailures=0;
@@ -165,19 +166,18 @@ struct entity_grid_checker {
 			ReadLockCond relock(pWorld->m_lockGrid,1); relock.SetActive(0);
 		}
 		//fetch some memory references to avoid reloads
-		primitives::grid& RESTRICT_REFERENCE entgrid = pWorld->m_entgrid;
+		primitives::grid& RESTRICT_REFERENCE entgrid = *pgrid;
 		const Vec3 entgrid_origin			= entgrid.origin;
 		const int icellX = icell.x, icellY = icell.y;
 		const Vec2 entgrid_step	= entgrid.step;
 		const Vec2 entgrid_stepr	= entgrid.stepr;
-		pe_entgrid pEntGrid = pWorld->m_pEntGrid;
+		pe_entgrid pEntGrid = pgrid->cells;
 		pe_gridthunk *const __restrict pgthunks = pWorld->m_gthunks;
 		const int gridIdx = entgrid.getcell_safe(icellX,icellY);
-		const float pWorld_m_zGran = pWorld->m_zGran;
+		const float pWorld_m_zGran = pgrid->zGran;
 		const int pWorld_m_matWater = pWorld->m_matWater;
     /*const uint32 simClass[] = {1<<0,1<<1,1<<2,1<<3,1<<4,1<<5,1<<6,1<<7,1<<8,1<<9};*/
 
-		GET_GRID_AXIS(iEntAxisx, iEntAxisy, iEntAxisz, pWorld);
 		int ithunk_prev = 0;
 		pthunk = pgthunks+(ithunk = pEntGrid[gridIdx]);
 		bNoThunkSubst = iszero_mask(pThunkSubst);
@@ -194,23 +194,17 @@ struct entity_grid_checker {
 				&& !(thunk.pent->m_bProcessed & 1<<iCaller)
 				&& (!pSkipForeignData || (CPhysicalPlaceholder*)thunk.pent->CPhysicalPlaceholder::GetForeignData(iSkipForeignData)!=pSkipForeignData))
 			{				
-				float fBBox0 = (float)thunk.BBox[0];
-				float fBBox1 = (float)thunk.BBox[1];
-				float fBBox2 = (float)thunk.BBox[2];
-				float fBBox3 = (float)thunk.BBox[3];
-				float fBBoxZ0 = (float)thunk.BBoxZ0;
-				float fBBoxZ1 = (float)thunk.BBoxZ1;
+				Diag33 gscale(entgrid_step.x*(1.0f/256),entgrid_step.y*(1.0f/256),pWorld_m_zGran);
+				Vec3 gBBox[2], cellOffs(icell.x*256,icell.y*256,0); 
+				int iz0 = thunk.BBoxZ0, iz1 = thunk.BBoxZ1;
+				iz1 += isneg(iz1-iz0)<<16;
+				pgrid->BBoxFromGrid(gscale*(Vec3(thunk.BBox[0],thunk.BBox[1],iz0)+cellOffs), gscale*(Vec3(thunk.BBox[2]+1,thunk.BBox[3]+1,iz1)+cellOffs), gBBox);
+				bbox.center = (gBBox[1]+gBBox[0])*0.5f;
+				bbox.size = (gBBox[1]-gBBox[0])*0.5f;
+				i = pgrid->iup;
+				bbox.center[i] += float2int((aray.m_ray.origin[i]-bbox.center[i])*pgrid->rzGran*(1.0f/65536))*pgrid->zGran*65536;
 
-				if(!(entgrid.inrange(icell.x,icell.y)&-bNoThunkSubst) || 
-							(
-							 bbox.center[iEntAxisx] = ((fCellX+(fBBox2+1+fBBox0)*(1.0f/512))*entgrid_step.x) + entgrid_origin[iEntAxisx],
-							 bbox.center[iEntAxisy] = ((fCellY+(fBBox3+1+fBBox1)*(1.0f/512))*entgrid_step.y) + entgrid_origin[iEntAxisy],
-							 bbox.center[iEntAxisz] = ((fBBoxZ1+fBBoxZ0)*0.5f*pWorld_m_zGran) + entgrid_origin[iEntAxisz],
-							 bbox.size[iEntAxisx] = (fBBox2+1.01f-fBBox0)*(1.0f/512)*entgrid_step.x,
-							 bbox.size[iEntAxisy] = (fBBox3+1.01f-fBBox1)*(1.0f/512)*entgrid_step.y,
-							 bbox.size[iEntAxisz] = (fBBoxZ1-fBBoxZ0)*0.5f*pWorld_m_zGran,
-							 box_ray_overlap_check(&bbox,&aray.m_ray)))
-				{
+				if(!(entgrid.inrange(icell.x,icell.y)&-bNoThunkSubst) || box_ray_overlap_check(&bbox,&aray.m_ray)) {
 					ReadLock lock(thunk.pent->m_lockUpdate);
 					bbox.center = (thunk.pent->m_BBox[0]+thunk.pent->m_BBox[1])*0.5f;
 					bbox.size = (thunk.pent->m_BBox[1]-thunk.pent->m_BBox[0])*0.5f;
@@ -291,6 +285,24 @@ struct entity_grid_checker {
 gotcontacts:
 							bRecheckOtherParts = (j-1 & 1-nParts)>>31 & ipartMask;
 
+							if (-j>>31 & IsPortal(pent)) {
+								QuatT transGrid = pWorld->GetGrid(pent->m_pEntBuddy)->m_transW.GetInverted() * pWorld->GetGrid(pent)->m_transW;
+								IPhysicalWorld::SRWIParams rp;
+								pPortals[nPortals] = pent;
+								nPortals = min(nPortals+1,nMaxPortals);
+								rp.Init(transGrid*aray.m_ray.origin, transGrid.q*aray.m_ray.dir, objtypes & ~ent_terrain, flags, collclass, 
+									phits,nMaxHits, (IPhysicalEntity**)&pent->m_pEntBuddy,1, this,FD_RWI_RECURSIVE, nullptr, pPortals+nPortals,nMaxPortals-nPortals);
+								int nhits1 = pWorld->RayWorldIntersection(rp, pNameTag, iCaller);
+								szList = max(szList, pWorld->GetTmpEntList(pTmpEntList, iCaller));
+								for(; pPortals[nPortals]; nPortals++);
+								transGrid.Invert();
+								int noSolid = !phits[0].pCollider;
+								for(int i1=noSolid; i1<nhits1+noSolid; i1++) if (pWorld->GetGrid(phits[i1].pCollider)==pWorld->GetGrid(pent->m_pEntBuddy)) {
+									phits[i1].pt = transGrid*phits[i1].pt; phits[i1].n = transGrid.q*phits[i1].n;	
+								}
+								break;
+							}
+
 							check_cell_contact(j,pcontacts,phits,flags,pentFlags,nThroughHits,nThroughHitsAux, imat,ilastcell,aray,iSolidNode,pentLog,i,ihit);
 						}	else if (pent->m_parts[i].flags & geom_mat_substitutor) {
 							for(int ihit=!phits[0].pCollider; ihit<=nThroughHits+nThroughHitsAux; ihit++) 
@@ -324,12 +336,10 @@ gotcontacts:
 		CPhysicalEntity *pentFlags,int& nThroughHits, int& nThroughHitsAux, int& imat, int &ilastcell,CRayGeom& aray,
 		int& iSolidNode, CPhysicalEntity *pentLog,int i, int& ihit)
 	{ 
-		primitives::grid& RESTRICT_REFERENCE entgrid = pWorld->m_entgrid;
-		const Vec3 entgrid_origin			= entgrid.origin;
+		primitives::grid& RESTRICT_REFERENCE entgrid = *pgrid;
+		const Vec3 entgrid_origin	= entgrid.origin;
 		const Vec2 entgrid_stepr	= entgrid.stepr;
 		
-		GET_GRID_AXIS(iEntAxisx, iEntAxisy, iEntAxisz, pWorld);
-
 		float facing;
 		for(j--; j>=0; j--) 
 		if (pcontacts[j].t<phits[0].dist && (flags & rwi_ignore_back_faces)*(facing=pcontacts[j].n*aray.m_dirn)<=0) {
@@ -363,16 +373,13 @@ gotcontacts:
 			} else {
 				if ((flags & rwi_ignore_solid_back_faces)*facing>0)
 					continue;
-				ilastcell = 
-					float2int((pcontacts[j].pt[iEntAxisx]-entgrid_origin[iEntAxisx])*
-						entgrid_stepr.x-0.5f) & 0xFFFF |
-					float2int((pcontacts[j].pt[iEntAxisy]-entgrid_origin[iEntAxisy])*
-						entgrid_stepr.y-0.5f)<<16;
+				Vec3 gpt = pgrid->vecToGrid(pcontacts[j].pt-pgrid->origin);
+				ilastcell = float2int(gpt.x*entgrid_stepr.x-0.5f) & 0xFFFF | float2int(gpt.y*entgrid_stepr.y-0.5f)<<16;
 				aray.m_ray.dir = pcontacts[j].pt-aray.m_ray.origin;
 				iSolidNode = pcontacts[j].iNode[0];
 			}
 			
-			phits[ihit].dist = pcontacts[j].t;
+			phits[ihit].dist = max(1e-8f,(float)pcontacts[j].t);
 			phits[ihit].pCollider = pentLog; 
 			phits[ihit].ipart = i+(pcontacts[j].iNode[0]-i & -bCallbackUsed);
 			phits[ihit].partid = pcontacts[j].iPrim[0];
@@ -386,6 +393,9 @@ gotcontacts:
 	}
 };
 
+getSurfTypeCallback g_getSurfType;
+unsigned char getSurfTypeNoHoles(int ix, int iy) { return max((int)(char)g_getSurfType(ix,iy),0);	}
+
 void CPhysicalWorld::RayHeightfield(const Vec3 &org,Vec3 &dir, ray_hit *hits, int flags, int iCaller) 
 {
 	geom_world_data gwd;
@@ -396,19 +406,21 @@ void CPhysicalWorld::RayHeightfield(const Vec3 &org,Vec3 &dir, ray_hit *hits, in
 	gwd.offset = m_HeightfieldOrigin;
   IGeometry* iGeom = PrepGeom(m_pHeightfield[iCaller]->m_parts[0].pPhysGeom->pGeom,iCaller);
 	CHeightfield* hfGeom = (CHeightfield*)iGeom;
+	g_getSurfType = hfGeom->m_hf.fpGetSurfTypeCallback;
+	if (flags & rwi_ignore_terrain_holes) 
+		hfGeom->m_hf.fpGetSurfTypeCallback = getSurfTypeNoHoles;
 	if (hfGeom->CHeightfield::Intersect(&aray, &gwd, (geom_world_data*)0, &ip, pcontacts)) {
-		if (pcontacts->id[0]>=0 || flags&rwi_ignore_terrain_holes) {
-			dir = pcontacts->pt-org;
-			hits[0].dist = pcontacts->t;
-			hits[0].pCollider = m_pHeightfield[iCaller]; 
-			hits[0].partid = hits[0].ipart = 0;
-			hits[0].surface_idx = m_pHeightfield[iCaller]->GetMatId(pcontacts->id[0],0);
-			hits[0].idmatOrg = pcontacts->id[0];
-			hits[0].pt = pcontacts->pt; 
-			hits[0].n = pcontacts->n;
-			hits[0].bTerrain = 1;
-		}
+		dir = pcontacts->pt-org;
+		hits[0].dist = max(1e-8f,(float)pcontacts->t);
+		hits[0].pCollider = m_pHeightfield[iCaller]; 
+		hits[0].partid = hits[0].ipart = 0;
+		hits[0].surface_idx = m_pHeightfield[iCaller]->GetMatId(pcontacts->id[0],0);
+		hits[0].idmatOrg = pcontacts->id[0];
+		hits[0].pt = pcontacts->pt; 
+		hits[0].n = pcontacts->n;
+		hits[0].bTerrain = 1;
 	}
+	hfGeom->m_hf.fpGetSurfTypeCallback = g_getSurfType;
 }
 
 void CPhysicalWorld::RayWater(const Vec3 &org,const Vec3 &dir, entity_grid_checker &egc, int flags,int nMaxHits, ray_hit *hits)
@@ -511,7 +523,7 @@ int CPhysicalWorld::RayWorldIntersection(const IPhysicalWorld::SRWIParams &rp, c
 	} 
 
 	PHYS_FUNC_PROFILER( pNameTag );
-	int i,nHits; for(i=0;i<rp.nMaxHits;i++) { hits[i].dist=1E10; hits[i].bTerrain=0; hits[i].pCollider=0; }
+	int i,nHits; 
 	entity_grid_checker egc;
 	egc.nThroughHits = egc.nThroughHitsAux = 0;
 	CPhysicalEntity *pentLastHit = 0;
@@ -523,8 +535,26 @@ int CPhysicalWorld::RayWorldIntersection(const IPhysicalWorld::SRWIParams &rp, c
 	}
 
 	assert(iCaller<=MAX_PHYS_THREADS);
-	WriteLockCond lock(m_lockCaller[iCaller], iCaller==MAX_PHYS_THREADS);
+	WriteLockCond lock(m_lockCaller[iCaller], iCaller==MAX_PHYS_THREADS && rp.iForeignData!=FD_RWI_RECURSIVE);
 
+	if (rp.iForeignData==FD_RWI_RECURSIVE) {
+		egc.nEnts = ((entity_grid_checker*)rp.pForeignData)->nEnts;
+		egc.sync_from(*(entity_grid_checker*)rp.pForeignData);
+	} else {
+		for(i=0;i<rp.nMaxHits;i++) { hits[i].dist=1E10; hits[i].bTerrain=0; hits[i].pCollider=0; }
+		egc.nEnts = 0;
+	}
+	int nEnts0 = egc.nEnts;
+	egc.pNameTag = pNameTag;
+	if (m_entgrid.m_next)
+		objtypes |= ent_triggers;
+	IPhysicalEntity *dummyPortal;
+	if (!rp.pPortals) {
+		egc.pPortals = &dummyPortal; egc.nMaxPortals = 0;
+	} else {
+		egc.pPortals = rp.pPortals;	egc.nMaxPortals = rp.nMaxPortals;
+	}
+	egc.nPortals = 0;
 	if ((objtypes & ent_terrain) && m_pHeightfield[iCaller]) {
     RayHeightfield(rp.org,dir,rp.hits,rp.flags,iCaller);
   }
@@ -535,11 +565,14 @@ int CPhysicalWorld::RayWorldIntersection(const IPhysicalWorld::SRWIParams &rp, c
 		objtypes |= ent_areas;
 	}
 
-	IF (objtypes & ~(ent_terrain|ent_water), 1) {
+	IF (objtypes & ~(ent_terrain|ent_water) && m_gthunks, 1) {
 		MarkSkipEnts(rp.pSkipEnts,rp.nSkipEnts,1<<iCaller);
 
 		egc.phits = rp.hits;
 		egc.pWorld = this;
+		egc.pgrid = &m_entgrid;
+		for(i=0;i<rp.nSkipEnts;i++) if (rp.pSkipEnts[i] && (egc.pgrid=GetGrid(rp.pSkipEnts[i]))!=&m_entgrid)
+			break;
 		egc.objtypes = objtypes;
 		egc.flags = rp.flags^rwi_separate_important_hits;
 		if (!(egc.flagsColliderAll = rp.flags>>rwi_colltype_bit))
@@ -563,11 +596,10 @@ int CPhysicalWorld::RayWorldIntersection(const IPhysicalWorld::SRWIParams &rp, c
 		egc.iCaller = iCaller;
 		m_prevGEAobjtypes[iCaller] = -1;
 
-		Vec3 origin_grid = (rp.org-m_entgrid.origin).GetPermutated(m_iEntAxisz), dir_grid = dir.GetPermutated(m_iEntAxisz);
-		egc.org2d.set(0.5f-origin_grid.x*m_entgrid.stepr.x, 0.5f-origin_grid.y*m_entgrid.stepr.y);
-		egc.dir2d.set(dir_grid.x*m_entgrid.stepr.x, dir_grid.y*m_entgrid.stepr.y);
+		Vec3 origin_grid = egc.pgrid->vecToGrid(rp.org-egc.pgrid->origin), dir_grid = egc.pgrid->vecToGrid(dir);
+		egc.org2d.set(0.5f-origin_grid.x*egc.pgrid->stepr.x, 0.5f-origin_grid.y*egc.pgrid->stepr.y);
+		egc.dir2d.set(dir_grid.x*egc.pgrid->stepr.x, dir_grid.y*egc.pgrid->stepr.y);
 		egc.dir2d_len = len(egc.dir2d);
-		egc.nEnts = 0;   
 
 		if (pentLastHit) {
 			egc.maxt = 1E20f;
@@ -580,8 +612,8 @@ int CPhysicalWorld::RayWorldIntersection(const IPhysicalWorld::SRWIParams &rp, c
 			egc.check_cell(Vec2i(0,0),i);
 			if (rp.hits[0].dist>0) {
 				dir=egc.aray.m_ray.dir = hits[0].pt-egc.aray.m_ray.origin;
-				dir_grid = dir.GetPermutated(m_iEntAxisz);
-				egc.dir2d.set(dir_grid.x*m_entgrid.stepr.x, dir_grid.y*m_entgrid.stepr.y);
+				dir_grid = egc.pgrid->vecToGrid(dir);
+				egc.dir2d.set(dir_grid.x*egc.pgrid->stepr.x, dir_grid.y*egc.pgrid->stepr.y);
 				egc.dir2d_len = len(egc.dir2d);
 			}
 			egc.pThunkSubst=0; egc.ipartSubst=egc.ipartMask=0; egc.gwd.iStartNode=0;
@@ -592,18 +624,18 @@ int CPhysicalWorld::RayWorldIntersection(const IPhysicalWorld::SRWIParams &rp, c
 		ReadLock lockg(m_lockGrid);
 	  const int checkOutOfBoundsCell = m_vars.iOutOfBounds & raycast_out_of_bounds;
 		  IF (checkOutOfBoundsCell, 0) {
-				if (fabsf(origin_grid.x*m_entgrid.stepr.x*2-m_entgrid.size.x)>m_entgrid.size.x || 
-						fabsf(origin_grid.y*m_entgrid.stepr.y*2-m_entgrid.size.y)>m_entgrid.size.y || 
-						fabsf((origin_grid.x+dir_grid.x)*m_entgrid.stepr.x*2-m_entgrid.size.x)>m_entgrid.size.x || 
-						fabsf((origin_grid.y+dir_grid.y)*m_entgrid.stepr.y*2-m_entgrid.size.y)>m_entgrid.size.y)
+				if (fabsf(origin_grid.x*egc.pgrid->stepr.x*2-egc.pgrid->size.x) > egc.pgrid->size.x || 
+						fabsf(origin_grid.y*egc.pgrid->stepr.y*2-egc.pgrid->size.y) > egc.pgrid->size.y || 
+						fabsf((origin_grid.x+dir_grid.x)*egc.pgrid->stepr.x*2-egc.pgrid->size.x) > egc.pgrid->size.x || 
+						fabsf((origin_grid.y+dir_grid.y)*egc.pgrid->stepr.y*2-egc.pgrid->size.y) > egc.pgrid->size.y)
 					egc.check_cell(Vec2i(-1,-1),i);
 			}
 
-			DrawRayOnGrid(&m_entgrid, origin_grid,dir_grid, egc);
+			DrawRayOnGrid(egc.pgrid, origin_grid,dir_grid, egc);
 		}
 
-		for(i=0;i<egc.nEnts;i++)
-			AtomicAdd(&(egc.pTmpEntList[i]->m_pEntBuddy && egc.pTmpEntList[i]->m_pEntBuddy==egc.pTmpEntList[i] ?
+		for(i=nEnts0; i<egc.nEnts; i++)
+			AtomicAdd(&(egc.pTmpEntList[i]->m_pEntBuddy && egc.pTmpEntList[i]->m_pEntBuddy->m_pEntBuddy==egc.pTmpEntList[i] && !IsPortal(egc.pTmpEntList[i]) ?
 								egc.pTmpEntList[i]->m_pEntBuddy : egc.pTmpEntList[i])->m_bProcessed, -(1<<iCaller));
 		
 		UnmarkSkipEnts(rp.pSkipEnts,rp.nSkipEnts,1<<iCaller);
@@ -623,6 +655,12 @@ int CPhysicalWorld::RayWorldIntersection(const IPhysicalWorld::SRWIParams &rp, c
 				thit=hits[hits[i].bTerrain]; hits[hits[i].bTerrain]=hits[i]; hits[i]=thit;
 			}	else i++;
 		}
+	}
+
+	egc.pPortals[egc.nPortals] = nullptr;
+	if (rp.iForeignData==FD_RWI_RECURSIVE) {
+		((entity_grid_checker*)rp.pForeignData)->sync_from(egc);
+		return egc.nThroughHits + egc.nThroughHitsAux + !!hits[0].pCollider;
 	}
 
 	nHits = 0;

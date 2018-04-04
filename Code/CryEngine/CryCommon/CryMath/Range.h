@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #pragma once
 
@@ -27,7 +27,7 @@ public:
 	T Length() const { return end - start; };
 
 	//! Check if range is empty.
-	bool IsEmpty()  const { return start == end; }
+	bool IsEmpty()  const { return start >= end; }
 
 	//! Check if value is inside range.
 	bool IsInside(T val) const { return val >= start && val <= end; };

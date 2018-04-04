@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 // -------------------------------------------------------------------------
 //  File name:   3dengine.cpp
@@ -35,8 +35,6 @@
 #include "CGF/ChunkFileWriters.h"
 #include "CGF/ReadOnlyChunkFile.h"
 
-#include "CloudRenderNode.h"
-#include "CloudsManager.h"
 #include "SkyLightManager.h"
 #include "FogVolumeRenderNode.h"
 #include "RoadRenderNode.h"
@@ -48,7 +46,6 @@
 #include "WaterVolumeRenderNode.h"
 #include "WaterWaveRenderNode.h"
 #include "DistanceCloudRenderNode.h"
-#include "VolumeObjectRenderNode.h"
 #include "WaterWaveRenderNode.h"
 #include "RopeRenderNode.h"
 #include "RenderMeshMerger.h"
@@ -94,7 +91,6 @@ std::shared_ptr<pfx2::IParticleSystem> Cry3DEngineBase::m_pParticleSystem;
 IOpticsManager* Cry3DEngineBase::m_pOpticsManager = 0;
 CDecalManager* Cry3DEngineBase::m_pDecalManager = 0;
 CSkyLightManager* Cry3DEngineBase::m_pSkyLightManager = 0;
-CCloudsManager* Cry3DEngineBase::m_pCloudsManager = 0;
 CVisAreaManager* Cry3DEngineBase::m_pVisAreaManager = 0;
 CClipVolumeManager* Cry3DEngineBase::m_pClipVolumeManager = 0;
 CWaterWaveManager* Cry3DEngineBase::m_pWaterWaveManager = 0;
@@ -143,6 +139,8 @@ CryCriticalSectionNonRecursive g_renderNodeTempDataLock;
 //////////////////////////////////////////////////////////////////////
 C3DEngine::C3DEngine(ISystem* pSystem)
 {
+	m_renderNodeStatusListenersArray.resize(EERType::eERType_TypesNum, TRenderNodeStatusListeners(0));
+
 	//#if defined(_DEBUG) && CRY_PLATFORM_WINDOWS
 	//	_CrtSetDbgFlag(_CRTDBG_ALLOC_MEM_DF | _CRTDBG_LEAK_CHECK_DF);
 	//#endif
@@ -204,7 +202,6 @@ C3DEngine::C3DEngine(ISystem* pSystem)
 	m_pObjManager = CryAlignedNew<CObjManager>();
 
 	m_pDecalManager = 0;    //new CDecalManager   (m_pSystem, this);
-	m_pCloudsManager = new CCloudsManager;
 	m_pPartManager = 0;
 	m_pOpticsManager = 0;
 	m_pVisAreaManager = 0;
@@ -291,7 +288,6 @@ C3DEngine::C3DEngine(ISystem* pSystem)
 
 	m_oceanWindDirection = 1;
 	m_oceanWindSpeed = 4.0f;
-	m_oceanWavesSpeed = 5.0f;
 	m_oceanWavesAmount = 1.5f;
 	m_oceanWavesSize = 0.75f;
 
@@ -428,6 +424,7 @@ C3DEngine::C3DEngine(ISystem* pSystem)
 	m_fShadowsSlopeBias = 0.0f;
 	m_nCustomShadowFrustumCount = 0;
 	m_bHeightMapAoEnabled = false;
+	m_bIntegrateObjectsIntoTerrain = false;
 
 	m_nCurrentWindAreaList = 0;
 	m_pLevelStatObjTable = NULL;
@@ -465,7 +462,6 @@ C3DEngine::~C3DEngine()
 	delete m_pRenderMeshMerger;
 	delete m_pMatMan;
 	m_pMatMan = 0;
-	delete m_pCloudsManager;
 
 	delete m_pCVars;
 
@@ -772,6 +768,7 @@ void C3DEngine::ProcessCVarsChange()
 	  GetCVars()->e_ViewDistMin +
 	  GetCVars()->e_ViewDistRatioDetail +
 	  GetCVars()->e_ViewDistRatioVegetation +
+	  GetCVars()->e_ViewDistRatioLights +
 	  GetCVars()->e_DefaultMaterial +
 	  GetCVars()->e_VegetationSpritesDistanceRatio +
 	  GetCVars()->e_VegetationSpritesDistanceCustomRatioMin +
@@ -1260,7 +1257,7 @@ void C3DEngine::UpdateRenderingCamera(const char* szCallerName, const SRendering
 
 	// now we have a valid camera, we can start generation of the occlusion buffer
 	// only needed for editor here, ingame we spawn the job more early
-	if (passInfo.IsGeneralPass() && GetCVars()->e_StatObjBufferRenderTasks && JobManager::InvokeAsJob("CheckOcclusion"))
+	if (passInfo.IsGeneralPass() && IsStatObjBufferRenderTasksAllowed() && JobManager::InvokeAsJob("CheckOcclusion"))
 	{
 		if (gEnv->IsEditor())
 			GetObjManager()->PrepareCullbufferAsync(passInfo.GetCamera());
@@ -1300,7 +1297,7 @@ void C3DEngine::UpdateRenderingCamera(const char* szCallerName, const SRendering
 void C3DEngine::PrepareOcclusion(const CCamera& rCamera)
 {
 	const bool bInEditor = gEnv->IsEditor();
-	const bool bStatObjBufferRenderTasks = GetCVars()->e_StatObjBufferRenderTasks != 0;
+	const bool bStatObjBufferRenderTasks = IsStatObjBufferRenderTasksAllowed() != 0;
 	const bool bIsFMVPlaying = gEnv->IsFMVPlaying();
 	const bool bCameraAtZero = IsEquivalent(rCamera.GetPosition(), Vec3(0, 0, 0), VEC_EPSILON);
 	const bool bPost3dEnabled = GetRenderer() && GetRenderer()->IsPost3DRendererEnabled();
@@ -2006,10 +2003,12 @@ void C3DEngine::FreeRenderNodeState(IRenderNode* pEnt)
 
 	m_lstAlwaysVisible.Delete(pEnt);
 
+	const EERType type = pEnt->GetRenderNodeType();
+
 	if (m_pDecalManager && (pEnt->m_nInternalFlags & IRenderNode::DECAL_OWNER))
 		m_pDecalManager->OnEntityDeleted(pEnt);
 
-	if (pEnt->GetRenderNodeType() == eERType_Light && GetRenderer())
+	if (type == eERType_Light && GetRenderer())
 		GetRenderer()->OnEntityDeleted(pEnt);
 
 	if (pEnt->GetRndFlags() & (ERF_CASTSHADOWMAPS | ERF_HAS_CASTSHADOWMAPS))
@@ -2020,6 +2019,15 @@ void C3DEngine::FreeRenderNodeState(IRenderNode* pEnt)
 			Warning("IRenderNode has ERF_CASTSHADOWMAPS set but not ERF_HAS_CASTSHADOWMAPS, name: '%s', class: '%s'.", pEnt->GetName(), pEnt->GetEntityClassName());
 #endif
 		Get3DEngine()->OnCasterDeleted(pEnt);
+	}
+
+	TRenderNodeStatusListeners& listeners = m_renderNodeStatusListenersArray[type];
+	if (!listeners.Empty())
+	{
+		for (TRenderNodeStatusListeners::Notifier notifier(listeners); notifier.IsValid(); notifier.Next())
+		{
+			notifier->OnEntityDeleted(pEnt);
+		}
 	}
 
 	UnRegisterEntityImpl(pEnt);
@@ -2061,6 +2069,12 @@ void C3DEngine::ActivatePortal(const Vec3& vPos, bool bActivate, const char* szE
 {
 	if (m_pVisAreaManager)
 		m_pVisAreaManager->ActivatePortal(vPos, bActivate, szEntityName);
+}
+
+void C3DEngine::ActivateOcclusionAreas(IVisAreaTestCallback* pTest, bool bActivate)
+{
+	if (m_pVisAreaManager)
+		m_pVisAreaManager->ActivateOcclusionAreas(pTest, bActivate);
 }
 
 bool C3DEngine::SetStatInstGroup(int nGroupId, const IStatInstGroup& siGroup, int nSID)
@@ -2766,7 +2780,7 @@ void C3DEngine::GetOceanAnimationParams(Vec4& pParams0, Vec4& pParams1) const
 	{
 		sincos_tpl(m_oceanWindDirection, &s_pParams1.y, &s_pParams1.z);
 
-		s_pParams0 = Vec4(m_oceanWindDirection, m_oceanWindSpeed, m_oceanWavesSpeed, m_oceanWavesAmount);
+		s_pParams0 = Vec4(m_oceanWindDirection, m_oceanWindSpeed, 0.0f, m_oceanWavesAmount);
 		s_pParams1.x = m_oceanWavesSize;
 		s_pParams1.w = m_pTerrain->GetWaterLevel();
 
@@ -2890,15 +2904,15 @@ IRenderNode* C3DEngine::CreateRenderNode(EERType type)
 			CBrush* pBrush = new CBrush();
 			return pBrush;
 		}
+	case eERType_MovableBrush:
+		{
+			CMovableBrush* pEntityBrush = new CMovableBrush();
+			return pEntityBrush;
+		}
 	case eERType_Vegetation:
 		{
 			CVegetation* pVeget = new CVegetation();
 			return pVeget;
-		}
-	case eERType_Cloud:
-		{
-			CCloudRenderNode* pCloud = new CCloudRenderNode();
-			return pCloud;
 		}
 	case eERType_FogVolume:
 		{
@@ -2933,11 +2947,6 @@ IRenderNode* C3DEngine::CreateRenderNode(EERType type)
 	case eERType_Rope:
 		{
 			IRopeRenderNode* pRenderNode = new CRopeRenderNode();
-			return pRenderNode;
-		}
-	case eERType_VolumeObject:
-		{
-			IVolumeObjectRenderNode* pRenderNode = new CVolumeObjectRenderNode();
 			return pRenderNode;
 		}
 	case eERType_BreakableGlass:
@@ -2977,6 +2986,7 @@ IRenderNode* C3DEngine::CreateRenderNode(EERType type)
 
 void C3DEngine::DeleteRenderNode(IRenderNode* pRenderNode)
 {
+	LOADING_TIME_PROFILE_SECTION;
 	UnRegisterEntityDirect(pRenderNode);
 	delete pRenderNode;
 }
@@ -3196,9 +3206,69 @@ static inline __m128i approx_float_to_half_SSE2(__m128 f, __m128i& s)
 }
 #endif
 
+void C3DEngine::AddForcedWindArea(const Vec3& vPos, float fAmountOfForce, float fRadius)
+{
+	SOptimizedOutdoorWindArea area;
+	area.point[4].x = vPos.x; area.point[4].y = vPos.y;
+
+	Vec3 vSpeed = cry_random(Vec3(-1, -1, -1), Vec3(1, 1, 1));
+	vSpeed.Normalize();
+	area.windSpeed[4] = vSpeed * fAmountOfForce;
+
+	area.point[0].x = vPos.x - fRadius; area.point[0].y = vPos.y - fRadius;
+	area.windSpeed[0] = Vec3(-0.01f, -0.01f, 0);
+
+	area.point[1].x = vPos.x + fRadius; area.point[1].y = vPos.y - fRadius;
+	area.windSpeed[1] = Vec3(0.01f, -0.01f, 0);
+
+	area.point[2].x = vPos.x + fRadius; area.point[2].y = vPos.y + fRadius;
+	area.windSpeed[2] = Vec3(0.01f, 0.01f, 0);
+
+	area.point[3].x = vPos.x - fRadius; area.point[3].y = vPos.y + fRadius;
+	area.windSpeed[3] = Vec3(-0.01f, 0.01f, 0);
+
+	m_forcedWindAreas.push_back(area);
+}
+
 void C3DEngine::UpdateWindGridJobEntry(Vec3 vPos)
 {
 	FUNCTION_PROFILER_3DENGINE
+
+	bool bIndoors = false;
+
+	auto* pWindAreas = &m_outdoorWindAreas[m_nCurrentWindAreaList];
+	if (bIndoors)
+		pWindAreas = &m_indoorWindAreas[m_nCurrentWindAreaList];
+	Vec3 vGlobalWind = GetGlobalWind(bIndoors);
+
+	float fElapsedTime = gEnv->pTimer->GetFrameTime();
+
+	RasterWindAreas(pWindAreas, vGlobalWind);
+
+	pWindAreas = &m_forcedWindAreas;
+	RasterWindAreas(pWindAreas, vGlobalWind);
+
+	// Fade forced wind out
+	for (size_t i=0; i<pWindAreas->size(); i++)
+	{
+		SOptimizedOutdoorWindArea& WA = (*pWindAreas)[i];
+		WA.windSpeed[4].x *= 1.0f - fElapsedTime;
+		if (WA.windSpeed->IsZero(0.001f))
+		{
+			pWindAreas->erase(pWindAreas->begin()+i);
+			i--;
+		}
+	}
+}
+
+void C3DEngine::RasterWindAreas(std::vector<SOptimizedOutdoorWindArea> *pWindAreas, const Vec3& vGlobalWind)
+{
+	static const float fBEND_RESPONSE = 0.25f;
+	static const float fMAX_BENDING = 2.f;
+
+	// Don't update anything if there are no areas with wind
+	if (pWindAreas->size() == 0 && vGlobalWind.IsZero())
+		return;
 
 	SWindGrid& rWindGrid = m_WindGrid[m_nCurWind];
 
@@ -3206,23 +3276,9 @@ void C3DEngine::UpdateWindGridJobEntry(Vec3 vPos)
 	rWindGrid.m_vCentr = m_vWindFieldCamera;
 	rWindGrid.m_vCentr.z = 0;
 
-	static const float fBEND_RESPONSE = 0.25f;
-	static const float fMAX_BENDING = 2.f;
-	bool bIndoors = false;
-
 	float fSize = (float)rWindGrid.m_nWidth * rWindGrid.m_fCellSize;
 	Vec3 vHalfSize = Vec3(fSize * 0.5f, fSize * 0.5f, 0.0f);
 	AABB windBox(rWindGrid.m_vCentr - vHalfSize, rWindGrid.m_vCentr + vHalfSize);
-
-	auto* pWindAreas = &m_outdoorWindAreas[m_nCurrentWindAreaList];
-	if (bIndoors)
-		pWindAreas = &m_indoorWindAreas[m_nCurrentWindAreaList];
-
-	Vec3 vGlobalWind = GetGlobalWind(bIndoors);
-
-	// Don't update anything if there are no areas with wind
-	if (pWindAreas->size() == 0 && vGlobalWind.IsZero())
-		return;
 
 	float fInterp = min(gEnv->pTimer->GetFrameTime() * 0.8f, 1.f);
 
@@ -4652,16 +4708,30 @@ void C3DEngine::SetCachedShadowBounds(const AABB& shadowBounds, float fAdditiona
 }
 
 //////////////////////////////////////////////////////////////////////////
-
 void C3DEngine::SetRecomputeCachedShadows(uint nUpdateStrategy)
 {
+	LOADING_TIME_PROFILE_SECTION;
 	m_nCachedShadowsUpdateStrategy = nUpdateStrategy;
 
-	// refresh cached shadow casters
-	if (GetCVars()->e_DynamicDistanceShadows != 0)
+	if (IRenderer* const pRenderer = GetRenderer())
 	{
-		for (int nSID = 0; nSID < m_pObjectsTree.Count(); nSID++)
-			m_pObjectsTree[nSID]->MarkAsUncompiled();
+		// refresh cached shadow casters
+		if (GetCVars()->e_DynamicDistanceShadows != 0)
+		{
+			static int lastFrameId = 0;
+
+			int newFrameId = pRenderer->GetFrameID();
+
+			if (lastFrameId != newFrameId)
+			{
+				for (int nSID = 0; nSID < m_pObjectsTree.Count(); nSID++)
+				{
+					m_pObjectsTree[nSID]->MarkAsUncompiled();
+				}
+
+				lastFrameId = newFrameId;
+			}
+		}
 	}
 }
 
@@ -4676,12 +4746,6 @@ int C3DEngine::GetShadowsCascadeCount(const CDLight* pLight) const
 {
 	int nCascadeCount = m_eShadowMode == ESM_HIGHQUALITY ? MAX_GSM_LODS_NUM : GetCVars()->e_GsmLodsNum;
 	return clamp_tpl(nCascadeCount, 0, MAX_GSM_LODS_NUM);
-}
-
-//////////////////////////////////////////////////////////////////////////
-bool C3DEngine::CheckIntersectClouds(const Vec3& p1, const Vec3& p2)
-{
-	return m_pCloudsManager->CheckIntersectClouds(p1, p2);
 }
 
 void C3DEngine::OnRenderMeshDeleted(IRenderMesh* pRenderMesh)
@@ -4721,7 +4785,7 @@ void C3DEngine::CreateRenderNodeTempData(SRenderNodeTempData** ppInputTempData, 
 
 	if (pRNode)
 	{
-		pRNode->OnRenderNodeBecomeVisible(passInfo); // Internally uses the just assigned RNTmpData pointer i.e IRenderNode::m_pRNTmpData ...
+		pRNode->OnRenderNodeBecomeVisibleAsync(passInfo); // Internally uses the just assigned RNTmpData pointer i.e IRenderNode::m_pRNTmpData ...
 
 		if (IVisArea* pVisArea = pRNode->GetEntityVisArea())
 			pRNode->m_pTempData->userData.m_pClipVolume = pVisArea;
@@ -4767,12 +4831,12 @@ bool C3DEngine::CheckAndCreateRenderNodeTempData(SRenderNodeTempData** ppTempDat
 	return true;
 }
 
-void C3DEngine::CopyObjectsByType(EERType objType, const AABB* pBox, PodArray<IRenderNode*>* plstObjects)
+void C3DEngine::CopyObjectsByType(EERType objType, const AABB* pBox, PodArray<IRenderNode*>* plstObjects, uint64 dwFlags)
 {
-	GetObjectsByTypeGlobal(*plstObjects, objType, pBox);
+	GetObjectsByTypeGlobal(*plstObjects, objType, pBox, 0, dwFlags);
 
 	if (GetVisAreaManager())
-		GetVisAreaManager()->GetObjectsByType(*plstObjects, objType, pBox);
+		GetVisAreaManager()->GetObjectsByType(*plstObjects, objType, pBox, 0, dwFlags);
 }
 
 void C3DEngine::CopyObjects(const AABB* pBox, PodArray<IRenderNode*>* plstObjects)
@@ -4794,18 +4858,13 @@ uint32 C3DEngine::GetObjectsByType(EERType objType, IRenderNode** pObjects)
 	return lstObjects.Count();
 }
 
-uint32 C3DEngine::GetObjectsByTypeInBox(EERType objType, const AABB& bbox, IRenderNode** pObjects)
+uint32 C3DEngine::GetObjectsByTypeInBox(EERType objType, const AABB& bbox, IRenderNode** pObjects, uint64 dwFlags)
 {
 	PodArray<IRenderNode*> lstObjects;
-	CopyObjectsByType(objType, &bbox, &lstObjects);
+	CopyObjectsByType(objType, &bbox, &lstObjects, dwFlags);
 	if (pObjects && !lstObjects.IsEmpty())
 		memcpy(pObjects, &lstObjects[0], lstObjects.GetDataSize());
 	return lstObjects.Count();
-}
-
-void C3DEngine::GetObjectsByTypeInBox(EERType objType, const AABB& bbox, PodArray<IRenderNode*>* pLstObjects)
-{
-	CopyObjectsByType(objType, &bbox, pLstObjects);
 }
 
 uint32 C3DEngine::GetObjectsInBox(const AABB& bbox, IRenderNode** pObjects)
@@ -5033,6 +5092,16 @@ void C3DEngine::SetScreenshotCallback(IScreenshotCallback* pCallback)
 	m_pScreenshotCallback = pCallback;
 }
 
+void C3DEngine::RegisterRenderNodeStatusListener(IRenderNodeStatusListener* pListener, EERType renderNodeType)
+{
+	m_renderNodeStatusListenersArray[renderNodeType].Add(pListener);
+}
+
+void C3DEngine::UnregisterRenderNodeStatusListener(IRenderNodeStatusListener* pListener, EERType renderNodeType)
+{
+	m_renderNodeStatusListenersArray[renderNodeType].Remove(pListener);
+}
+
 void C3DEngine::ActivateObjectsLayer(uint16 nLayerId, bool bActivate, bool bPhys, bool bObjects, bool bStaticLights, const char* pLayerName, IGeneralMemoryHeap* pHeap, bool bCheckLayerActivation /*=true*/)
 {
 	if (bCheckLayerActivation && !IsAreaActivationInUse())
@@ -5168,7 +5237,8 @@ void C3DEngine::CleanUpOldDecals()
 
 void C3DEngine::UpdateRenderTypeEnableLookup()
 {
-	SetRenderNodeTypeEnabled(eERType_RenderProxy, (GetCVars()->e_Entities != 0));
+	SetRenderNodeTypeEnabled(eERType_MovableBrush, (GetCVars()->e_Entities != 0));
+	SetRenderNodeTypeEnabled(eERType_Character, (GetCVars()->e_Entities != 0));
 	SetRenderNodeTypeEnabled(eERType_Brush, (GetCVars()->e_Brushes != 0));
 	SetRenderNodeTypeEnabled(eERType_Vegetation, (GetCVars()->e_Vegetation != 0));
 }
@@ -5512,7 +5582,6 @@ void C3DEngine::SaveInternalState(struct IDataWriteStream& writer, const AABB& f
 		info.nObjTypeMask = objectMask;
 		info.areaBox = filterArea;
 		info.pVisibleLayerMask = NULL; // not used during saving
-
 		int objectCompiledDataSize = 0;
 		int terrainCompiledDataSize = pTerrain->GetCompiledDataSize(&info);
 		if (terrainCompiledDataSize > 0)
@@ -6247,6 +6316,17 @@ bool C3DEngine::IsTessellationAllowed(const CRenderObject* pObj, const SRenderin
 	return false;
 }
 
+bool C3DEngine::IsStatObjBufferRenderTasksAllowed() const
+{
+	auto bDebugDrawEnabled = gEnv->pConsole->GetCVar("e_DebugDraw") != nullptr && gEnv->pConsole->GetCVar("e_DebugDraw")->GetIVal() != 0;
+	auto bMnDebugEnabled = gEnv->pConsole->GetCVar("mn_debug") != nullptr && strlen(gEnv->pConsole->GetCVar("mn_debug")->GetString()) != 0;
+	auto bStatObjBufferRenderTasksEnabled = 
+		gEnv->pConsole->GetCVar("e_StatObjBufferRenderTasks") != nullptr && gEnv->pConsole->GetCVar("e_StatObjBufferRenderTasks")->GetIVal() != 0;
+
+	return !bDebugDrawEnabled && !bMnDebugEnabled && bStatObjBufferRenderTasksEnabled;
+		
+}
+
 ///////////////////////////////////////////////////////////////////////////////
 void C3DEngine::RenderRenderNode_ShadowPass(IShadowCaster* pShadowCaster, const SRenderingPassInfo& passInfo)
 {
@@ -6348,8 +6428,6 @@ void C3DEngine::AsyncOctreeUpdate(IRenderNode* pEnt, int nSID, int nSIDConsidere
 	const char* szName = pEnt->GetName();
 	if (!szName[0] && !szClass[0])
 		Warning("I3DEngine::RegisterEntity: Entity undefined"); // do not register undefined objects
-	                                                          //  if(strstr(szName,"Dude"))
-	                                                          //  int y=0;
 #endif
 
 	IF (bUnRegisterOnly, 0)
@@ -6371,6 +6449,13 @@ void C3DEngine::AsyncOctreeUpdate(IRenderNode* pEnt, int nSID, int nSIDConsidere
 	UpdateObjectsLayerAABB(pEnt);
 
 	auto dwRndFlags = pEnt->GetRndFlags();
+
+	if (m_bIntegrateObjectsIntoTerrain && eERType == eERType_MovableBrush && pEnt->GetGIMode() == IRenderNode::eGM_IntegrateIntoTerrain)
+	{
+		// update meshes integrated into terrain 
+		AABB nodeBox = pEnt->GetBBox();
+		GetTerrain()->ResetTerrainVertBuffers(&nodeBox);
+	}
 
 	if (!(dwRndFlags & ERF_RENDER_ALWAYS) && !(dwRndFlags & ERF_CASTSHADOWMAPS))
 		if (GetCVars()->e_ObjFastRegister && pEnt->m_pOcNode && ((COctreeNode*)pEnt->m_pOcNode)->IsRightNode(aabb, fObjRadiusSqr, pEnt->m_fWSMaxViewDist))
@@ -6397,14 +6482,14 @@ void C3DEngine::AsyncOctreeUpdate(IRenderNode* pEnt, int nSID, int nSIDConsidere
 	{
 		UnRegisterEntityImpl(pEnt);
 	}
-	else if (GetCVars()->e_StreamCgf && pEnt->GetOwnerEntity())
+	else if (GetCVars()->e_StreamCgf && pEnt->IsAllocatedOutsideOf3DEngineDLL())
 	{
 		//  Temporary solution: Force streaming priority update for objects that was not registered before
 		//  and was not visible before since usual prediction system was not able to detect them
 
 		if ((uint32)pEnt->GetDrawFrame(0) < nFrameID - 16)
 		{
-			// deferr the render node streaming priority update still we have a correct 3D Engine camera
+			// defer the render node streaming priority update still we have a correct 3D Engine camera
 			int nElementID = m_deferredRenderProxyStreamingPriorityUpdates.Find(pEnt);
 			if (nElementID == -1)  // only add elements once
 				m_deferredRenderProxyStreamingPriorityUpdates.push_back(pEnt);
@@ -6425,7 +6510,7 @@ void C3DEngine::AsyncOctreeUpdate(IRenderNode* pEnt, int nSID, int nSIDConsidere
 		if (fObjRadiusSqr > sqr(MAX_VALID_OBJECT_VOLUME) || !_finite(fObjRadiusSqr))
 		{
 			Warning("I3DEngine::RegisterEntity: Object has invalid bbox: name: %s, class name: %s, GetRadius() = %.2f",
-			        pEnt->GetName(), pEnt->GetEntityClassName(), fObjRadiusSqr);
+				pEnt->GetName(), pEnt->GetEntityClassName(), fObjRadiusSqr);
 			return; // skip invalid objects - usually only objects with invalid very big scale will reach this point
 		}
 
@@ -6607,6 +6692,13 @@ bool C3DEngine::UnRegisterEntityImpl(IRenderNode* pEnt)
 		pClipVolumeManager->UnregisterRenderNode(pEnt);
 	}
 
+	if (m_bIntegrateObjectsIntoTerrain && eRenderNodeType == eERType_MovableBrush && pEnt->GetGIMode() == IRenderNode::eGM_IntegrateIntoTerrain)
+	{
+		// update meshes integrated into terrain 
+		AABB nodeBox = pEnt->GetBBox();
+		GetTerrain()->ResetTerrainVertBuffers(&nodeBox);
+	}
+
 	return bFound;
 }
 
@@ -6650,4 +6742,10 @@ Vec3 C3DEngine::GetEntityRegisterPoint(IRenderNode* pEnt)
 Vec3 C3DEngine::GetSunDirNormalized() const
 {
 	return m_vSunDirNormalized;
+}
+
+///////////////////////////////////////////////////////////////////////////////
+void C3DEngine::OnEntityDeleted(IEntity * pEntity)
+{
+	m_visibleNodesManager.OnEntityDeleted(pEntity);
 }

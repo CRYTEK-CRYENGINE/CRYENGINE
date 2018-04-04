@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #ifndef _CRY_COMMON_CRY_CHAR_ANIMATION_PARAMS_HDR_
 #define _CRY_COMMON_CRY_CHAR_ANIMATION_PARAMS_HDR_
@@ -18,7 +18,7 @@
 // #define USE_PROTOTYPE_ABS_BLENDING (1)
 
 //! The flags used in the nFlags member.
-enum CA_AssetFlags
+enum CA_AssetFlags : uint32
 {
 	//! This flags in used in RC as well
 	//! If this is true, then this asset is an additive animation.
@@ -161,8 +161,7 @@ struct SMotionParameterDetails
 {
 	enum EFlags
 	{
-		OBSOLETE              = 1 << 0,
-		ADDITIONAL_EXTRACTION = 1 << 1,
+		ADDITIONAL_EXTRACTION = 1 << 0,
 	};
 
 	const char* name;
@@ -192,6 +191,7 @@ enum EMotionParamID
 	eMotionParamID_BlendWeight_Last = eMotionParamID_BlendWeight7,
 
 	eMotionParamID_COUNT,
+	eMotionParamID_INVALID = eMotionParamID_COUNT
 };
 
 //--------------------------------------------------------------------------------

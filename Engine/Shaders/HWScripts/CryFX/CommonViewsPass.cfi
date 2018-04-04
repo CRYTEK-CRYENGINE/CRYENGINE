@@ -2,7 +2,17 @@
 // Copyright 2001-2015 Crytek GmbH. All rights reserved.
 
 
-/// Un-Tweakables ////////////////////// 
+//////////////////////////////////////////////////////////////////////////
+
+sampler2D PNoiseSampler = sampler_state
+{
+  Texture = %ENGINE%/EngineAssets/Textures/perlinNoise2D.dds;
+  MinFilter = LINEAR;
+  MagFilter = LINEAR;
+  MipFilter = LINEAR;
+  AddressU = Wrap;
+  AddressV = Wrap;
+};
 
 float4 VisionParams : PI_VisionParams;
 float4 VisionMtlParams : PB_VisionMtlParams;
@@ -38,8 +48,8 @@ vert2fragCustomRender Common_CustomRenderPassVS(app2vertCustomViews IN)
   streamPos vertPassPos = (streamPos)0;
   streamPos_FromCustomViews(IN, vertPassPos);
 
-#if %_RT_INSTANCING_ATTR
-  OUT.cVision = vertPassPos.InstVisionParams;
+#if %_RT_PER_INSTANCE_CB_TEMP
+   OUT.cVision = PerInstanceCustomData1;
 #else
   OUT.cVision = VisionParams;
 #endif
@@ -83,18 +93,8 @@ vert2fragCustomRender Common_CustomRenderPassVS(app2vertCustomViews IN)
 
 #endif
 
-  return OUT;            
+  return OUT;
 }
-
-sampler2D PNoiseSampler = sampler_state
-{
-  Texture = EngineAssets/Textures/perlinNoise2D.dds;
-  MinFilter = LINEAR;
-  MagFilter = LINEAR;
-  MipFilter = LINEAR;
-  AddressU = Wrap;
-  AddressV = Wrap;	
-};
 
 ///////////////// pixel shaders //////////////////
 
@@ -116,7 +116,6 @@ half4 SilhoueteVision( vert2fragCustomRender IN )
 half4 SilhoueteVisionOptimised( vert2fragCustomRender IN ) 
 {	
 	half fMask = 1.0f;
-
 
 #if !%TEMP_EYES && !%_RT_SAMPLE5
 	float fDepth = GetLinearDepthScaledProj(sceneLinearDepthTex, IN.screenProj);

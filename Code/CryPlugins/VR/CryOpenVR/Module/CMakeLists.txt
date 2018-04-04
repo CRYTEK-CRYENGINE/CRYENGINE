@@ -35,8 +35,8 @@ if(WIN32 OR WIN64 OR APPLE OR LINUX)
 
 	target_include_directories( ${THIS_PROJECT}
 	PRIVATE
-		${CRYENGINE_DIR}/Code/SDKs/OpenVR/headers
-		${CRYENGINE_DIR}/Code/CryEngine/CryCommon
+		"${CRYENGINE_DIR}/Code/SDKs/OpenVR/headers"
+		"${CRYENGINE_DIR}/Code/CryEngine/CryCommon"
 	PUBLIC
 		../Interface
 	)
@@ -51,7 +51,7 @@ if(WIN32 OR WIN64 OR APPLE OR LINUX)
 		find_library(openvr_api openvr_api PATHS "${SDK_DIR}/OpenVR/lib/linux64")
 	endif()
 
-	target_link_libraries(${THIS_PROJECT} PRIVATE ${openvr_api})
+	target_link_libraries(${THIS_PROJECT} PRIVATE "${openvr_api}")
 	
 	if(LINUX)
 		target_compile_options(${THIS_PROJECT} PRIVATE -fPIC)

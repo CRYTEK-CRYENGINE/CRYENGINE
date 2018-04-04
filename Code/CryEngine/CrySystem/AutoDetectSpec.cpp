@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #include "StdAfx.h"
 
@@ -10,6 +10,7 @@
 	#include <ddraw.h>
 	#include <dxgi.h>
 	#include <d3d11.h>
+	#include <d3d12.h>
 	#include <map>
 	#include <CrySystem/File/ICryPak.h>
 	#include <CrySystem/IConsole.h>
@@ -604,6 +605,7 @@ static Win32SysInspect::DXFeatureLevel GetFeatureLevel(D3D_FEATURE_LEVEL feature
 {
 	switch (featureLevel)
 	{
+	default:
 	case D3D_FEATURE_LEVEL_9_1:
 		return Win32SysInspect::DXFL_9_1;
 	case D3D_FEATURE_LEVEL_9_2:
@@ -615,8 +617,13 @@ static Win32SysInspect::DXFeatureLevel GetFeatureLevel(D3D_FEATURE_LEVEL feature
 	case D3D_FEATURE_LEVEL_10_1:
 		return Win32SysInspect::DXFL_10_1;
 	case D3D_FEATURE_LEVEL_11_0:
-	default:
 		return Win32SysInspect::DXFL_11_0;
+	case D3D_FEATURE_LEVEL_11_1:
+		return Win32SysInspect::DXFL_11_1;
+	case D3D_FEATURE_LEVEL_12_0:
+		return Win32SysInspect::DXFL_12_0;
+	case D3D_FEATURE_LEVEL_12_1:
+		return Win32SysInspect::DXFL_12_1;
 	}
 }
 
@@ -656,10 +663,12 @@ static bool FindGPU(DXGI_ADAPTER_DESC1& adapterDesc, Win32SysInspect::DXFeatureL
 	IDXGIFactory1* pFactory = 0;
 	if (pCDXGIF && SUCCEEDED(pCDXGIF(__uuidof(IDXGIFactory1), (void**) &pFactory)) && pFactory)
 	{
-		typedef HRESULT (WINAPI * FP_D3D11CreateDevice)(IDXGIAdapter*, D3D_DRIVER_TYPE, HMODULE, UINT, CONST D3D_FEATURE_LEVEL*, UINT, UINT, ID3D11Device**, D3D_FEATURE_LEVEL*, ID3D11DeviceContext**);
-		FP_D3D11CreateDevice pD3D11CD = (FP_D3D11CreateDevice) GetProcAddress(LoadLibraryA("d3d11.dll"), "D3D11CreateDevice");
+		typedef HRESULT(WINAPI * FP_D3D11CreateDevice)(IDXGIAdapter*, D3D_DRIVER_TYPE, HMODULE, UINT, CONST D3D_FEATURE_LEVEL*, UINT, UINT, ID3D11Device**, D3D_FEATURE_LEVEL*, ID3D11DeviceContext**);
+		typedef HRESULT(WINAPI * FP_D3D12CreateDevice)(IUnknown*, D3D_FEATURE_LEVEL, REFIID, void*);
+		FP_D3D11CreateDevice pD3D11CD = (FP_D3D11CreateDevice)GetProcAddress(LoadLibraryA("d3d11.dll"), "D3D11CreateDevice");
+		FP_D3D12CreateDevice pD3D12CD = (FP_D3D12CreateDevice)GetProcAddress(LoadLibraryA("d3d12.dll"), "D3D12CreateDevice");
 
-		if (pD3D11CD)
+		if (pD3D11CD || pD3D12CD)
 		{
 			const int r_overrideDXGIAdapter = GetDXGIAdapterOverride();
 			const bool logDeviceInfo = !gEnv->pRenderer && r_overrideDXGIAdapter < 0;
@@ -673,20 +682,35 @@ static bool FindGPU(DXGI_ADAPTER_DESC1& adapterDesc, Win32SysInspect::DXFeatureL
 			{
 				if (pAdapter)
 				{
-					ID3D11Device* pDevice = 0;
-					D3D_FEATURE_LEVEL levels[] = { D3D_FEATURE_LEVEL_11_0, D3D_FEATURE_LEVEL_10_1, D3D_FEATURE_LEVEL_10_0, D3D_FEATURE_LEVEL_9_3, D3D_FEATURE_LEVEL_9_2, D3D_FEATURE_LEVEL_9_1 };
+					IDXGIOutput* pOutput = 0;
+					const bool displaysConnected = SUCCEEDED(pAdapter->EnumOutputs(0, &pOutput)) && pOutput;
+					SAFE_RELEASE(pOutput);
+
+					DXGI_ADAPTER_DESC1 ad;
+					pAdapter->GetDesc1(&ad);
+
+					if (!displaysConnected && r_overrideDXGIAdapter >= 0)
+						CryLogAlways("No display connected to DXGI adapter override %d. Adapter cannot be used for rendering.", r_overrideDXGIAdapter);
+
+					HRESULT hr;
+					ID3D11Device* pDevice11 = 0;
+					ID3D12Device* pDevice12 = 0;
+					D3D_FEATURE_LEVEL levels[] = {
+						D3D_FEATURE_LEVEL_11_1,
+						D3D_FEATURE_LEVEL_11_0,
+						D3D_FEATURE_LEVEL_10_1,
+						D3D_FEATURE_LEVEL_10_0,
+						D3D_FEATURE_LEVEL_9_3,
+						D3D_FEATURE_LEVEL_9_2,
+						D3D_FEATURE_LEVEL_9_1 };
 					D3D_FEATURE_LEVEL deviceFeatureLevel = D3D_FEATURE_LEVEL_9_1;
-					HRESULT hr = pD3D11CD(pAdapter, D3D_DRIVER_TYPE_UNKNOWN, NULL, 0, levels, CRY_ARRAY_COUNT(levels), D3D11_SDK_VERSION, &pDevice, &deviceFeatureLevel, NULL);
-					if (SUCCEEDED(hr) && pDevice)
+
+					//DirectX 12
+ 					if (pD3D12CD && SUCCEEDED(hr = pD3D12CD(pAdapter, deviceFeatureLevel, IID_PPV_ARGS(&pDevice12))) && pDevice12)
 					{
-						IDXGIOutput* pOutput = 0;
-						const bool displaysConnected = SUCCEEDED(pAdapter->EnumOutputs(0, &pOutput)) && pOutput;
-						SAFE_RELEASE(pOutput);
-
-						DXGI_ADAPTER_DESC1 ad;
-						pAdapter->GetDesc1(&ad);
-
-						const Win32SysInspect::DXFeatureLevel fl = GetFeatureLevel(deviceFeatureLevel);
+						D3D12_FEATURE_DATA_FEATURE_LEVELS Featurelevels = { 0 };
+						pDevice12->CheckFeatureSupport(D3D12_FEATURE_FEATURE_LEVELS, &Featurelevels, sizeof(Featurelevels));
+						const Win32SysInspect::DXFeatureLevel fl = GetFeatureLevel(Featurelevels.MaxSupportedFeatureLevel);
 
 						if (logDeviceInfo)
 							LogDeviceInfo(nAdapter, ad, fl, displaysConnected);
@@ -696,11 +720,42 @@ static bool FindGPU(DXGI_ADAPTER_DESC1& adapterDesc, Win32SysInspect::DXFeatureL
 							adapterDesc = ad;
 							featureLevel = fl;
 						}
-						else if (r_overrideDXGIAdapter >= 0)
-							CryLogAlways("No display connected to DXGI adapter override %d. Adapter cannot be used for rendering.", r_overrideDXGIAdapter);
+
+						SAFE_RELEASE(pDevice12);
+					}
+					//DirectX 11.1
+					else if (pD3D11CD && SUCCEEDED(hr = pD3D11CD(pAdapter, D3D_DRIVER_TYPE_UNKNOWN, NULL, 0, levels, CRY_ARRAY_COUNT(levels), D3D11_SDK_VERSION, &pDevice11, &deviceFeatureLevel, NULL)) && pDevice11)
+					{
+						const Win32SysInspect::DXFeatureLevel fl = GetFeatureLevel(pDevice11->GetFeatureLevel());
+
+						if (logDeviceInfo)
+							LogDeviceInfo(nAdapter, ad, fl, displaysConnected);
+
+						if (featureLevel < fl && displaysConnected)
+						{
+							adapterDesc = ad;
+							featureLevel = fl;
+						}
+
+						SAFE_RELEASE(pDevice11);
+					}
+					//DirectX 11.0
+					else if (pD3D11CD && SUCCEEDED(hr = pD3D11CD(pAdapter, D3D_DRIVER_TYPE_UNKNOWN, NULL, 0, NULL, 0, D3D11_SDK_VERSION, &pDevice11, &deviceFeatureLevel, NULL)) && pDevice11)
+					{
+						const Win32SysInspect::DXFeatureLevel fl = GetFeatureLevel(pDevice11->GetFeatureLevel());
+
+						if (logDeviceInfo)
+							LogDeviceInfo(nAdapter, ad, fl, displaysConnected);
+
+						if (featureLevel < fl && displaysConnected)
+						{
+							adapterDesc = ad;
+							featureLevel = fl;
+						}
+
+						SAFE_RELEASE(pDevice11);
 					}
 
-					SAFE_RELEASE(pDevice);
 					SAFE_RELEASE(pAdapter);
 				}
 				if (r_overrideDXGIAdapter >= 0)
@@ -718,6 +773,13 @@ bool Win32SysInspect::IsDX11Supported()
 	DXGI_ADAPTER_DESC1 adapterDesc = { 0 };
 	DXFeatureLevel featureLevel = Win32SysInspect::DXFL_Undefined;
 	return FindGPU(adapterDesc, featureLevel) && featureLevel >= DXFL_11_0;
+}
+
+bool Win32SysInspect::IsDX12Supported()
+{
+	DXGI_ADAPTER_DESC1 adapterDesc = { 0 };
+	DXFeatureLevel featureLevel = Win32SysInspect::DXFL_Undefined;
+	return FindGPU(adapterDesc, featureLevel) && featureLevel >= DXFL_12_0;
 }
 
 bool Win32SysInspect::GetGPUInfo(char* pName, size_t bufferSize, unsigned int& vendorID, unsigned int& deviceID, unsigned int& totLocalVidMem, DXFeatureLevel& featureLevel)
@@ -822,7 +884,7 @@ static size_t SafeReadLine(ICryPak* pPak, FILE* f, char* buffer, size_t bufferSi
 	return len;
 }
 
-	#define BUILDPATH_GPURATING(x) "config/gpu/" x
+	#define BUILDPATH_GPURATING(x) "%engine%/config/gpu/" x
 
 CGPURating::CGPURating()
 {

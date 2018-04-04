@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 /*=============================================================================
    ShaderSerialize.h : Shaders serialization declarations.
@@ -157,9 +157,16 @@ template<typename T> void sAddDataArray(TArray<byte>& Dst, TArray<T>& Src, uint3
 
 template<typename T> void SwapEndianEnum(T& e, bool bSwapEndian)
 {
-	uint32 enumConv = e;
+	typename std::underlying_type<T>::type enumConv = typename std::underlying_type<T>::type(e);
 	SwapEndian(enumConv, bSwapEndian);
-	e = (T)enumConv;
+	e = T(enumConv);
+}
+
+template<typename T> void SwapEndianHandle(T& h, bool bSwapEndian)
+{
+	typename T::ValueType handleConv = typename T::ValueType(h);
+	SwapEndian(handleConv, bSwapEndian);
+	h = T(handleConv);
 }
 
 struct SSShaderCacheHeader
@@ -210,7 +217,7 @@ struct SSShader
 	uint32          m_Flags2;
 	uint32          m_nMDV;
 
-	EVertexFormat   m_eVertexFormat;   // Base vertex format for the shader (see VertexFormats.h)
+	InputLayoutHandle   m_eVertexFormat;   // Base vertex format for the shader (see VertexFormats.h)
 	ECull           m_eCull;           // Global culling type
 
 	EShaderType     m_eShaderType;
@@ -287,7 +294,7 @@ struct SSShader
 			;
 			SwapEndian(m_Flags2, eBigEndian);
 			SwapEndian(m_nMDV, eBigEndian);
-			SwapEndianEnum(m_eVertexFormat, eBigEndian);
+			SwapEndianHandle(m_eVertexFormat, eBigEndian);
 			SwapEndianEnum(m_eCull, eBigEndian);
 			SwapEndianEnum(m_eShaderType, eBigEndian);
 			SwapEndian(m_nTechniques, eBigEndian);
@@ -629,7 +636,24 @@ struct SSTexSamplerFX
 	uint32    m_nTexFlags;
 	int       m_nRTIdx;
 	uint32    m_bTexState;
-	STexState ST;
+
+	struct
+	{
+		signed char m_nMinFilter  : 8;
+		signed char m_nMagFilter  : 8;
+		signed char m_nMipFilter  : 8;
+		signed char m_nAddressU   : 8;
+		signed char m_nAddressV   : 8;
+		signed char m_nAddressW   : 8;
+		signed char m_nAnisotropy : 8;
+		signed char padding       : 8;
+	};
+
+	DWORD     m_dwBorderColor;
+	bool      m_bActive;
+	bool      m_bComparison;
+	bool      m_bSRGBLookup;
+	byte      m_bPAD;
 
 	SSTexSamplerFX()
 	{
@@ -661,21 +685,21 @@ struct SSTexSamplerFX
 		sAddData(dst, m_nRTIdx);
 		sAddData(dst, m_bTexState);
 
-		sAddData(dst, ST.m_nMinFilter);
-		sAddData(dst, ST.m_nMagFilter);
-		sAddData(dst, ST.m_nMipFilter);
-		sAddData(dst, ST.m_nAddressU);
-		sAddData(dst, ST.m_nAddressV);
-		sAddData(dst, ST.m_nAddressW);
-		sAddData(dst, ST.m_nAnisotropy);
-		sAddData(dst, ST.padding);
-		sAddData(dst, ST.m_dwBorderColor);
+		sAddData(dst, m_nMinFilter);
+		sAddData(dst, m_nMagFilter);
+		sAddData(dst, m_nMipFilter);
+		sAddData(dst, m_nAddressU);
+		sAddData(dst, m_nAddressV);
+		sAddData(dst, m_nAddressW);
+		sAddData(dst, m_nAnisotropy);
+		sAddData(dst, padding);
+		sAddData(dst, m_dwBorderColor);
 
 		uint32 iPad = 0;
 		sAddData(dst, iPad); //m_pDeviceState
-		sAddData(dst, ST.m_bActive);
-		sAddData(dst, ST.m_bComparison);
-		sAddData(dst, ST.m_bSRGBLookup);
+		sAddData(dst, m_bActive);
+		sAddData(dst, m_bComparison);
+		sAddData(dst, m_bSRGBLookup);
 		byte bPad = 0;
 		sAddData(dst, bPad);
 	}
@@ -694,13 +718,11 @@ struct SSTexSamplerFX
 			SwapEndian(m_nTexFlags, eBigEndian);
 			SwapEndian(m_nRTIdx, eBigEndian);
 			SwapEndian(m_bTexState, eBigEndian);
-			SwapEndian(ST.m_dwBorderColor, eBigEndian);
-			SwapEndian(ST.m_bActive, eBigEndian);
-			SwapEndian(ST.m_bComparison, eBigEndian);
-			SwapEndian(ST.m_bSRGBLookup, eBigEndian);
+			SwapEndian(m_dwBorderColor, eBigEndian);
+			SwapEndian(m_bActive, eBigEndian);
+			SwapEndian(m_bComparison, eBigEndian);
+			SwapEndian(m_bSRGBLookup, eBigEndian);
 		}
-
-		ST.PostCreate();
 	}
 };
 

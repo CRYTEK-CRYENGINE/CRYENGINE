@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 // -------------------------------------------------------------------------
 //  Created:     02/04/2015 by Filipe amim
@@ -28,12 +28,18 @@ public:
 
 	// ICommonParticleComponentRuntime
 	// PFX2_TODO : Figure out a way to do static dispatches
-	virtual const AABB&                GetBounds() const override { return m_bounds; }
-	virtual CParticleComponentRuntime* GetCpuRuntime() override   { return this; }
-	virtual void                       ReparentParticles(const uint* swapIds, const uint numSwapIds) override;
+	virtual const AABB&                GetBounds() const override   { return m_bounds; }
+	virtual CParticleComponentRuntime* GetCpuRuntime() override     { return this; }
+	virtual bool                       IsSecondGen() const override { return GetComponentParams().IsSecondGen(); }
+	virtual bool                       IsActive() const override    { return m_active; }
+	virtual void                       SetActive(bool active) override;
+	virtual void                       ReparentParticles(TConstArray<TParticleId> swapIds) override;
+	void                               OrphanAllParticles();
 	virtual bool                       IsValidRuntimeForInitializationParameters(const SRuntimeInitializationParameters& parameters) override;
-	virtual void                       MainPreUpdate() override;
-	virtual void                       AccumCounts(SParticleCounts& counts) override;
+	virtual void                       AccumCounts(SParticleCounts& counts) override {}
+	virtual void                       AddSubInstances(TConstArray<SInstance> instances) override;
+	virtual void                       RemoveAllSubInstances() override;
+	virtual void                       ComputeVertices(const SCameraInfo& camInfo, CREParticle* pRE, uint64 uRenderFlags, float fMaxPixels) override;
 	// ~ICommonParticleComponentRuntime
 
 	void                      Initialize();
@@ -48,23 +54,21 @@ public:
 	CParticleContainer&       GetContainer()            { return m_container; }
 	const CParticleContainer& GetContainer() const      { return m_container; }
 
-	virtual bool              IsActive() const override { return m_active; }
-	void                      SetActive(bool active);
+	void                      MainPreUpdate();
 	void                      UpdateAll(const SUpdateContext& context);
 	void                      AddRemoveNewBornsParticles(const SUpdateContext& context);
 	void                      UpdateParticles(const SUpdateContext& context);
 	void                      CalculateBounds();
 
-	virtual void              ComputeVertices(const SCameraInfo& camInfo, CREParticle* pRE, uint64 uRenderFlags, float fMaxPixels) override;
-	virtual void              AddSubInstances(SInstance* pInstances, size_t count) override;
-	void                      RemoveAllSubInstances();
 	size_t                    GetNumInstances() const       { return m_subInstances.size(); }
-	const SInstance& GetInstance(size_t idx) const { return m_subInstances[idx]; }
-	IPidStream       GetInstanceParentIds() const  { return IPidStream(&(m_subInstances.data())->m_parentId, gInvalidId); }
-	template<typename T>
-	T*               GetSubInstanceData(size_t instanceId, TInstanceDataOffset offset);
-	void             SpawnParticles(CParticleContainer::SSpawnEntry const& entry);
-	void             GetSpatialExtents(const SUpdateContext& context, Array<const float, uint> scales, Array<float, uint> extents);
+	const SInstance&          GetInstance(size_t idx) const { return m_subInstances[idx]; }
+	SInstance&                GetInstance(size_t idx)       { return m_subInstances[idx]; }
+	TParticleId               GetParentId(size_t idx) const { return GetInstance(idx).m_parentId; }
+	template<typename T> T*   GetSubInstanceData(size_t instanceId, TInstanceDataOffset offset);
+	void                      SpawnParticles(CParticleContainer::SSpawnEntry const& entry);
+	void                      GetSpatialExtents(const SUpdateContext& context, TConstArray<float> scales, TVarArray<float> extents);
+	void                      AccumStatsNonVirtual(SParticleStats& counts);
+	const AABB&               GetBoundsNonVirtual() const { return m_bounds; }
 
 private:
 	void AddRemoveParticles(const SUpdateContext& context);
@@ -80,13 +84,13 @@ private:
 
 	CParticleContainer                           m_container;
 	TInstances                                   m_subInstances;
-	std::vector<byte>                            m_subInstanceData;
-	std::vector<CParticleContainer::SSpawnEntry> m_spawnEntries;
+	TDynArray<byte>                              m_subInstanceData;
+	TDynArray<CParticleContainer::SSpawnEntry>   m_spawnEntries;
 	CParticleEffect*                             m_pEffect;
 	CParticleEmitter*                            m_pEmitter;
 	CParticleComponent*                          m_pComponent;
-	AABB m_bounds;
-	bool m_active;
+	AABB                                         m_bounds;
+	bool                                         m_active;
 };
 
 }

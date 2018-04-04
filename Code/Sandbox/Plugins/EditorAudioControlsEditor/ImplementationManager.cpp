@@ -5,8 +5,9 @@
 #include <CrySystem/IConsole.h>
 #include <IAudioSystemEditor.h>
 #include <IEditor.h>
-#include "ATLControlsModel.h"
+#include "AudioAssetsManager.h"
 #include "AudioControlsEditorPlugin.h"
+#include "IUndoManager.h"
 
 using namespace ACE;
 const string g_sImplementationCVarName = "s_AudioImplName";
@@ -34,6 +35,8 @@ CImplementationManager::~CImplementationManager()
 bool CImplementationManager::LoadImplementation()
 {
 	signalImplementationAboutToChange();
+	GetIEditor()->GetIUndoManager()->Suspend();
+
 	bool bReturn = true;
 	ICVar* pCVar = gEnv->pConsole->GetCVar(g_sImplementationCVarName);
 	if (pCVar)
@@ -42,7 +45,7 @@ bool CImplementationManager::LoadImplementation()
 		{
 			// Need to flush the undo/redo queue to make sure we're not keeping data from
 			// previous implementation there
-			GetIEditor()->FlushUndo(false);
+			GetIEditor()->GetIUndoManager()->Flush();
 
 			FreeLibrary(ms_hMiddlewarePlugin);
 			ms_hMiddlewarePlugin = nullptr;
@@ -51,7 +54,7 @@ bool CImplementationManager::LoadImplementation()
 
 		char szExecutableDirPath[_MAX_PATH];
 		CryGetExecutableFolder(sizeof(szExecutableDirPath), szExecutableDirPath);
-		cry_sprintf(szExecutableDirPath, "%sEditorPlugins\\Editor%s.dll", szExecutableDirPath, pCVar->GetString());
+		cry_sprintf(szExecutableDirPath, "%sEditorPlugins\\ace\\Editor%s.dll", szExecutableDirPath, pCVar->GetString());
 
 		ms_hMiddlewarePlugin = LoadLibraryA(szExecutableDirPath);
 		if (!ms_hMiddlewarePlugin)
@@ -92,6 +95,7 @@ bool CImplementationManager::LoadImplementation()
 		bReturn = false;
 	}
 
+	GetIEditor()->GetIUndoManager()->Resume();
 	signalImplementationChanged();
 	return bReturn;
 }

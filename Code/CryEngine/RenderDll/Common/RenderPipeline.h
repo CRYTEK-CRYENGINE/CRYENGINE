@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 /*=============================================================================
    RenderPipeline.h : Shaders pipeline declarations.
@@ -19,6 +19,9 @@
 
 #include "LightVolumeBuffer.h"
 #include "ParticleBuffer.h"
+
+#include "Common/Shaders/CShader.h" // CShaderMan
+#include "Common/Shaders/ShaderResources.h" // CShaderResources
 
 //====================================================================
 
@@ -219,40 +222,6 @@ union UVertStreamPtr
 
 //==================================================================
 
-struct SOnDemandD3DStreamProperties
-{
-	D3D11_INPUT_ELEMENT_DESC* m_pElements;
-	uint32                    m_nNumElements;
-};
-
-struct SOnDemandD3DVertexDeclaration
-{
-	TArray<D3D11_INPUT_ELEMENT_DESC> m_Declaration;
-};
-
-typedef TArray<SOnDemandD3DVertexDeclaration> SOnDemandD3DVertexDeclarations;
-
-struct SOnDemandD3DVertexDeclarationCache
-{
-	ID3D11InputLayout* m_pDeclaration;
-};
-
-typedef TArray<SOnDemandD3DVertexDeclarationCache> SOnDemandD3DVertexDeclarationCaches;
-
-struct SVertexDeclaration
-{
-	int                              StreamMask;
-	int                              VertFormat;
-	int                              InstAttrMask;
-	TArray<D3D11_INPUT_ELEMENT_DESC> m_Declaration;
-	ID3D11InputLayout*               m_pDeclaration;
-
-	~SVertexDeclaration()
-	{
-		SAFE_RELEASE(m_pDeclaration);
-	}
-};
-
 struct SMSAA
 {
 	SMSAA() : Type(0), Quality(0), m_pZTexture(0)
@@ -352,9 +321,6 @@ struct CRY_ALIGN(128) SPipeStat
 	float m_fRenderTime;
 	float m_fEnvCMapUpdateTime;
 	float m_fEnvTextUpdateTime;
-
-	int m_ImpostersSizeUpdate;
-	int m_CloudImpostersSizeUpdate;
 
 #if REFRACTION_PARTIAL_RESOLVE_STATS
 	float m_fRefractionPartialResolveEstimatedCost;
@@ -687,7 +653,7 @@ struct SRenderPipeline
 	uint32                               m_nCommitFlags;
 	uint32                               m_FlagsStreams_Decl;
 	uint32                               m_FlagsStreams_Stream;
-	EVertexFormat                        m_CurVFormat;
+	InputLayoutHandle                    m_CurVFormat;
 	uint32                               m_FlagsShader_LT;  // Shader light mask
 	uint64                               m_FlagsShader_RT;  // Shader runtime mask
 	uint32                               m_FlagsShader_MD;  // Shader texture modificator mask
@@ -788,14 +754,6 @@ struct SRenderPipeline
 	// particle data for writing directly to VMEM
 	CParticleBufferSet                  m_particleBuffer;
 
-	int                                 m_nStreamOffset[3]; // deprecated!
-
-	SOnDemandD3DVertexDeclarations      m_D3DVertexDeclaration;
-	SOnDemandD3DVertexDeclarationCaches m_D3DVertexDeclarationCache[1 << VSF_NUM][2]; // [StreamMask][Morph][VertexFmt]
-	SOnDemandD3DStreamProperties        m_D3DStreamProperties[VSF_NUM];
-
-	TArray<SVertexDeclaration*>         m_CustomVD;
-
 	uint16*                             m_RendIndices;
 	uint16*                             m_SysRendIndices;
 	byte*                               m_SysArray;
@@ -827,7 +785,7 @@ struct SRenderPipeline
 	CRenderView*                        m_pCurrentRenderView;
 
 	// Separate render views per recursion
-	_smart_ptr<CRenderView> m_pRenderViews[RT_COMMAND_BUF_COUNT][MAX_REND_RECURSION_LEVELS];
+	_smart_ptr<CRenderView> m_pRenderViews[RT_COMMAND_BUF_COUNT][IRenderView::eViewType_Count];
 
 	//===================================================================
 	// Input render data
@@ -853,9 +811,7 @@ struct SRenderPipeline
 	//================================================================
 	// Render elements..
 
-	class CREHDRProcess*      m_pREHDR;
 	class CREDeferredShading* m_pREDeferredShading;
-	class CREPostProcess*     m_pREPostProcess;
 
 	//=================================================================
 	// WaveForm tables
@@ -877,13 +833,6 @@ public:
 	}
 
 	void InitWaveTables();
-
-	// Arguments
-	//   vertexformat - 0..VERTEX_FORMAT_NUMS-1
-	void          OnDemandVertexDeclaration(SOnDemandD3DVertexDeclaration& out, const int nStreamMask, const int vertexformat, const bool bMorph, const bool bInstanced);
-	void          InitD3DVertexDeclarations();
-	EVertexFormat AddD3DVertexDeclaration(size_t numDescs, const D3D11_INPUT_ELEMENT_DESC* inputLayout);
-	EVertexFormat MaxD3DVertexDeclaration() { return EVertexFormat(m_D3DVertexDeclaration.size()); }
 };
 
 extern CryCriticalSection m_sREResLock;

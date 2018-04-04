@@ -1,15 +1,16 @@
 // Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved.
+
 #ifndef __ZipEncryptor_h__
 #define __ZipEncryptor_h__
 #pragma once
 
-#include "IConvertor.h"
+#include "IConverter.h"
 
 struct ConvertContext;
 
 class ZipEncryptor 
 	: public ICompiler
-	, public IConvertor
+	, public IConverter
 {
 public:
 	explicit ZipEncryptor(IResourceCompiler* pRC);
@@ -17,7 +18,7 @@ public:
 
 	static bool ParseKey(uint32 outputKey[4], const char* inputString);
 
-	// ICompiler + IConvertor methods.
+	// ICompiler + IConverter methods.
 	virtual void Release();
 
 	// ICompiler methods.
@@ -26,7 +27,7 @@ public:
 	virtual IConvertContext* GetConvertContext() { return &m_CC; }
 	virtual bool Process();
 
-	// IConvertor methods.
+	// IConverter methods.
 	virtual ICompiler* CreateCompiler();
 	virtual bool SupportsMultithreading() const { return false; }
 	virtual const char* GetExt(int index) const;

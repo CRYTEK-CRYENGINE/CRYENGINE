@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 // -------------------------------------------------------------------------
 //  File name:   Particle.cpp
@@ -1627,11 +1627,6 @@ void CParticle::Physicalize()
 		//symparams.softnessAngular = symparams.softnessAngularGroup = 0.01f;
 		symparams.maxLoggedCollisions = params.nMaxCollisionEvents;
 		m_pPhysEnt->SetParams(&symparams);
-
-		pe_action_set_velocity velparam;
-		velparam.v = m_Vel.vLin;
-		velparam.w = m_Vel.vRot;
-		m_pPhysEnt->Action(&velparam);
 	}
 	else if (params.ePhysicsType == params.ePhysicsType.SimplePhysics)
 	{
@@ -1658,12 +1653,6 @@ void CParticle::Physicalize()
 		}
 
 		part.thickness = params.fThickness * part.size;
-		part.velocity = m_Vel.vLin.GetLength();
-		if (part.velocity > 0.f)
-			part.heading = m_Vel.vLin / part.velocity;
-		part.q0 = m_Loc.q;
-		part.wspin = m_Vel.vRot;
-		part.q0 = m_Loc.q;
 
 		if (m_pMeshObj)
 		{
@@ -1687,6 +1676,12 @@ void CParticle::Physicalize()
 		pf.flagsOR = pef_never_affect_triggers;
 		pf.flagsOR |= pef_log_collisions;
 		m_pPhysEnt->SetParams(&pf);
+
+		pe_action_set_velocity vel;
+		vel.v = m_Vel.vLin;
+		vel.w = m_Vel.vRot;
+		m_pPhysEnt->Action(&vel);
+
 		m_pPhysEnt->AddRef();
 	}
 }

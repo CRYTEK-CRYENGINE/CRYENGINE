@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 // -------------------------------------------------------------------------
 //  File name:   CryDXGLLegacy.h
@@ -13,17 +13,6 @@
 
 #ifndef __CRYDXGLLEGACY__
 #define __CRYDXGLLEGACY__
-
-/* Pool types */
-typedef enum _D3DPOOL
-{
-	D3DPOOL_DEFAULT     = 0,
-	D3DPOOL_MANAGED     = 1,
-	D3DPOOL_SYSTEMMEM   = 2,
-	D3DPOOL_SCRATCH     = 3,
-
-	D3DPOOL_FORCE_DWORD = 0x7fffffff
-} D3DPOOL;
 
 #define D3D10_SHADER_DEBUG                          D3DCOMPILE_DEBUG
 #define D3D10_SHADER_SKIP_VALIDATION                D3DCOMPILE_SKIP_VALIDATION

@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #ifndef IDEFRAGALLOCATOR_H
 #define IDEFRAGALLOCATOR_H
@@ -37,7 +37,7 @@ struct IDefragAllocatorCopyNotification
 class IDefragAllocatorPolicy
 {
 public:
-	enum
+	enum : uint32
 	{
 		InvalidUserMoveId = 0xffffffff
 	};
@@ -50,6 +50,8 @@ public:
 
 	//! Perform the copy and relocate immediately - will only be called when UnAppendSegment is.
 	virtual void SyncCopy(void* pContext, UINT_PTR dstOffset, UINT_PTR srcOffset, UINT_PTR size) = 0;
+	
+	virtual uint32 Hash(UINT_PTR offset, UINT_PTR size) { return 0; }
 	// </interfuscator:shuffle>
 
 protected:
@@ -106,9 +108,11 @@ public:
 	virtual Hdl                   Allocate(size_t sz, const char* source, void* pContext = NULL) = 0;
 	virtual Hdl                   AllocateAligned(size_t sz, size_t alignment, const char* source, void* pContext = NULL) = 0;
 	virtual AllocatePinnedResult  AllocatePinned(size_t sz, const char* source, void* pContext = NULL) = 0;
+	virtual AllocatePinnedResult  AllocateAlignedPinned(size_t sz, size_t alignment, const char* source, void* pContext = NULL) = 0;
 	virtual bool                  Free(Hdl hdl) = 0;
 
 	virtual void                  ChangeContext(Hdl hdl, void* pNewContext) = 0;
+	virtual void*                 GetContext(Hdl hdl) = 0;
 
 	virtual size_t                GetAllocated() const = 0;
 	virtual IDefragAllocatorStats GetStats() = 0;

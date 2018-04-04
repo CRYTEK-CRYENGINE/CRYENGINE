@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #include <StdAfx.h>
 
@@ -83,6 +83,11 @@ const std::vector<const char*>& GetModuleNames()
 		moduleNames.push_back("Sandbox.exe");
 		moduleNames.push_back("CryRenderD3D9.dll");
 		moduleNames.push_back("CryRenderD3D10.dll");
+		moduleNames.push_back("CryRenderD3D11.dll");
+		moduleNames.push_back("CryRenderD3D12.dll");
+		moduleNames.push_back("CryRenderOpenGL.dll");
+		moduleNames.push_back("CryRenderOGES.dll");
+		moduleNames.push_back("CryRenderVulkan.dll");
 		moduleNames.push_back("CryRenderNULL.dll");
 		//TODO: launcher?
 #endif
@@ -821,8 +826,8 @@ private: // --------------------------------------------------------------------
 	//   pObj - 0 is ignored
 	//   pMat - 0 if IStatObjet Material should be used
 	void AddResource_StatObjWithLODs(IStatObj* pObj, CrySizerImpl& statObjTextureSizer, IMaterial* pMat = 0);
-	//
-	void AddResource_SingleStatObj(IStatObj& rData);
+	// If the object was not previously registered, returns true. If the object was already registered, returns false.
+	bool AddResource_SingleStatObj(IStatObj& rData);
 	//
 	void AddResource_CharInstance(ICharacterInstance& rData);
 	//
@@ -877,10 +882,10 @@ inline bool CompareRenderMeshByTypeName(IRenderMesh* pRM1, IRenderMesh* pRM2)
 	return strcmp(pRM1->GetTypeName(), pRM2->GetTypeName()) < 0;
 }
 
-void CEngineStats::AddResource_SingleStatObj(IStatObj& rData)
+bool CEngineStats::AddResource_SingleStatObj(IStatObj& rData)
 {
 	if (!m_ResourceCollector.AddResource(rData.GetFilePath()))
-		return;   // was already registered
+		return false;   // was already registered
 
 	// dependencies
 
@@ -892,6 +897,7 @@ void CEngineStats::AddResource_SingleStatObj(IStatObj& rData)
 
 		m_ResourceCollector.CloseDependencies();
 	}
+	return true;
 }
 
 void CEngineStats::AddResource_CharInstance(ICharacterInstance& rData)
@@ -1009,14 +1015,15 @@ void CEngineStats::AddResource_StatObjWithLODs(IStatObj* pObj, CrySizerImpl& sta
 	if (!pObj)
 		return;
 
+	// Make sure we have not already registered this object
+	if (!AddResource_SingleStatObj(*pObj))
+		return;
+
 	SCryEngineStats::StatObjInfo si;
 
 	si.pStatObj = pObj;
 
 	memset(si.nIndicesPerLod, 0, sizeof(si.nIndicesPerLod));
-
-	// dependencies
-	AddResource_SingleStatObj(*si.pStatObj);
 
 	CrySizerImpl localTextureSizer;
 
@@ -1139,7 +1146,8 @@ void CEngineStats::CollectGeometry()
 	   si.nPhysProxySize = 0;
 	   si.nPhysPrimitives = 0;
 	 */
-	// iterate through all IStatObj
+
+	 // iterate through all IStatObj
 	{
 		int nObjCount = 0;
 
@@ -1168,29 +1176,30 @@ void CEngineStats::CollectGeometry()
 		GetObjectsByType(eERType_Light, lstInstances);
 		GetObjectsByType(eERType_Decal, lstInstances);
 		GetObjectsByType(eERType_Character, lstInstances);
+		GetObjectsByType(eERType_MovableBrush, lstInstances);
 
 		std::vector<IRenderNode*>::const_iterator itEnd = lstInstances.end();
 		for (std::vector<IRenderNode*>::iterator it = lstInstances.begin(); it != itEnd; ++it)
 		{
 			IRenderNode* pRenderNode = *it;
 
-			const int slotCount = pRenderNode->GetSlotCount();
-			for (int dwSlot = 0; dwSlot < slotCount; ++dwSlot)
+			if (IStatObj* pEntObject = pRenderNode->GetEntityStatObj())
 			{
-				if (IStatObj* pEntObject = pRenderNode->GetEntityStatObj(dwSlot))
+				AddResource_StatObjWithLODs(pEntObject, statObjTextureSizer, 0); // Ensure object is registered
+				m_ResourceCollector.AddInstance(pEntObject->GetFilePath(), pRenderNode);
+
+				if (IMaterial* pMat = pRenderNode->GetMaterial())    // if this rendernode overwrites the IStatObj material
 				{
-					m_ResourceCollector.AddInstance(pEntObject->GetFilePath(), pRenderNode);
-
-					if (IMaterial* pMat = pRenderNode->GetMaterial())    // if this rendernode overwrites the IStatObj material
-					{
-						m_ResourceCollector.OpenDependencies(pEntObject->GetFilePath());
-						AddResource_Material(*pMat);                    // to report the dependencies of this instance to the IStatObj
-						m_ResourceCollector.CloseDependencies();
-					}
+					m_ResourceCollector.OpenDependencies(pEntObject->GetFilePath());
+					AddResource_Material(*pMat);                    // to report the dependencies of this instance to the IStatObj
+					m_ResourceCollector.CloseDependencies();
 				}
+			}
 
-				if (ICharacterInstance* pCharInst = pRenderNode->GetEntityCharacter(dwSlot))
-					m_ResourceCollector.AddInstance(pCharInst->GetFilePath(), pRenderNode);
+			if (ICharacterInstance* pCharInst = pRenderNode->GetEntityCharacter(0))
+			{
+				AddResource_CharInstance(*pCharInst);
+				m_ResourceCollector.AddInstance(pCharInst->GetFilePath(), pRenderNode);
 			}
 		}
 	}
@@ -1379,30 +1388,27 @@ void CEngineStats::CollectBrushes()
 	for (std::vector<IRenderNode*>::iterator it = lstInstances.begin(); it != itEnd; ++it)
 	{
 		IRenderNode* pRenderNode = *it;
-		const int slotCount      = pRenderNode->GetSlotCount();
-		for (int dwSlot = 0; dwSlot < slotCount; ++dwSlot)
-		{
-			if (IStatObj* pEntObject = pRenderNode->GetEntityStatObj(dwSlot))
-			{
-				IMaterial* pMat = NULL;
-				pMat = pRenderNode->GetMaterial();
-				if (!pMat)
-				{
-					pMat = pEntObject->GetMaterial();
-				}
 
-				if (pMat)
+		if (IStatObj* pEntObject = pRenderNode->GetEntityStatObj())
+		{
+			IMaterial* pMat = NULL;
+			pMat = pRenderNode->GetMaterial();
+			if (!pMat)
+			{
+				pMat = pEntObject->GetMaterial();
+			}
+
+			if (pMat)
+			{
+				for (int idx = 0; idx < 8; idx++)
 				{
-					for (int idx = 0; idx < 8; idx++)
+					if (IRenderMesh* pMesh = pRenderNode->GetRenderMesh(idx))
 					{
-						if (IRenderMesh* pMesh = pRenderNode->GetRenderMesh(idx))
-						{
-							SCryEngineStats::SBrushMemInfo brushInfo;
-							brushInfo.brushName         = string(pRenderNode->GetName());
-							brushInfo.usedTextureMemory = pMesh->GetTextureMemoryUsage(pMat);
-							brushInfo.lodNum            = idx;
-							m_stats.brushes.push_back(brushInfo);
-						}
+						SCryEngineStats::SBrushMemInfo brushInfo;
+						brushInfo.brushName         = string(pRenderNode->GetName());
+						brushInfo.usedTextureMemory = pMesh->GetTextureMemoryUsage(pMat);
+						brushInfo.lodNum            = idx;
+						m_stats.brushes.push_back(brushInfo);
 					}
 				}
 			}
@@ -4056,7 +4062,7 @@ void CStatsToExcelExporter::ExportTimeDemoInfo()
 	AddCell(pTD->lastPlayedTotalTime);
 	AddRow();
 	AddCell("Num Frames:", CELL_BOLD);
-	AddCell(pTD->nFrameCount);
+	AddCell((int)pTD->frames.size());
 	AddRow();
 	AddCell("Average FPS:", CELL_BOLD);
 	AddCell(pTD->lastAveFrameRate);
@@ -4072,10 +4078,10 @@ void CStatsToExcelExporter::ExportTimeDemoInfo()
 	AddCell(pTD->maxFPS_Frame);
 	AddRow();
 	AddCell("Average Tri/Sec:", CELL_BOLD);
-	AddCell((uint32)(pTD->nTotalPolysPlayed / pTD->lastPlayedTotalTime));
+	AddCell((uint32)((float)pTD->nTotalPolysPlayed / pTD->lastPlayedTotalTime));
 	AddRow();
 	AddCell("Average Tri/Frame:", CELL_BOLD);
-	AddCell((uint32)(pTD->nTotalPolysPlayed / pTD->nFrameCount));
+	AddCell((uint32)((float)pTD->nTotalPolysPlayed / pTD->frames.size()));
 	AddRow();
 	AddCell("Played/Recorded Tris ratio:", CELL_BOLD);
 	AddCell(pTD->nTotalPolysRecorded ? (float)pTD->nTotalPolysPlayed / pTD->nTotalPolysRecorded : 0.f);
@@ -4099,13 +4105,13 @@ void CStatsToExcelExporter::ExportTimeDemoInfo()
 
 	AddRow();
 
-	for (int i = 0; i < pTD->nFrameCount; i++)
+	for (int i = 0; i < pTD->frames.size(); i++)
 	{
 		AddRow();
 		AddCell(i);
-		AddCell(pTD->pFrames[i].fFrameRate);
-		AddCell(pTD->pFrames[i].nPolysRendered);
-		AddCell(pTD->pFrames[i].nDrawCalls);
+		AddCell(pTD->frames[i].fFrameRate);
+		AddCell(pTD->frames[i].nPolysRendered);
+		AddCell(pTD->frames[i].nDrawCalls);
 	}
 }
 
@@ -4151,7 +4157,7 @@ static void SaveLevelStats(IConsoleCmdArgs* pArgs)
 #if !defined(_RELEASE)
 	CryLog("Execute SaveLevelStats");
 
-	CDebugAllowFileAccess allowFileAccess;
+	SCOPED_ALLOW_FILE_ACCESS_FROM_THIS_THREAD();
 
 	{
 		string levelName = "no_level";

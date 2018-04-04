@@ -74,7 +74,6 @@ public:
 	virtual void HandleEvent( const SGameObjectEvent &goEvent);
 	virtual void ProcessEvent(SEntityEvent &entityEvent);
 	virtual void SetChannelId(uint16 id);
-	virtual void SetAuthority(bool auth);
 	virtual void GetMemoryUsage(ICrySizer *pSizer) const;
 	//~IGameObjectExtension
 

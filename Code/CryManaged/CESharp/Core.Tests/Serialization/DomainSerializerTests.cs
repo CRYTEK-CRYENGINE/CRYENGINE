@@ -1,3 +1,5 @@
+﻿// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+
 using CryEngine.Serialization;
 using NUnit.Framework;
 using System;
@@ -257,8 +259,8 @@ namespace Core.Tests.Serialization
                 keyEnumerator.MoveNext();
                 Assert.AreSame(keyEnumerator.Current, secondReadPrimitive);
 
-                Assert.True(readDictionary.ContainsKey(firstReadPrimitive));
-                Assert.True(readDictionary.ContainsKey(secondReadPrimitive));
+				Assert.True(readDictionary.ContainsKey(firstReadPrimitive));
+				Assert.True(readDictionary.ContainsKey(secondReadPrimitive));
 
                 Assert.AreEqual(readDictionary[firstReadPrimitive], 1);
                 Assert.AreEqual(readDictionary[secondReadPrimitive], 0);
@@ -381,7 +383,7 @@ namespace Core.Tests.Serialization
 
         public class DelegateOwner
         {
-            public event CryEngine.EventHandler Event;
+			public event Action Event;
 
             public void NotifyEvent()
             {
@@ -434,7 +436,7 @@ namespace Core.Tests.Serialization
             }
         }
         
-        public static event CryEngine.EventHandler<CryEngine.EventArgs<StringTestClass>> GenericEvent;
+        public static event Action<CryEngine.EventArgs<StringTestClass>> GenericEvent;
 
         private void DomainSerializerTests_GenericEvent(CryEngine.EventArgs<StringTestClass> e)
         {
@@ -507,7 +509,7 @@ namespace Core.Tests.Serialization
             using (var stream = new MemoryStream())
             {
                 {
-                    var handler = new CryEngine.EventHandler(EmptyFunction);
+					var handler = new Action(EmptyFunction);
                     handler += () => MyFunction();
 
                     var writer = new ObjectWriter(stream);
@@ -515,7 +517,7 @@ namespace Core.Tests.Serialization
                 }
 
                 var reader = new ObjectReader(stream);
-                var readHolder = reader.Read() as CryEngine.EventHandler;
+				var readHolder = reader.Read() as Action;
             }
         }
 
@@ -603,7 +605,7 @@ namespace Core.Tests.Serialization
 
                     writer.Write(myClass);
                 }
-                
+
                 var reader = new ObjectReader(stream);
                 reader.ReadStatics();
 
@@ -611,6 +613,77 @@ namespace Core.Tests.Serialization
 
                 var readClass = reader.Read() as PrimitiveTestClass;
                 Assert.AreSame(readClass, StaticPrimitiveContainer.TestClass);
+            }
+        }
+
+        class ReadOnlyOwnerClass
+        {
+            public readonly PrimitiveTestClass test;
+
+            public ReadOnlyOwnerClass()
+            {
+                test = new PrimitiveTestClass();
+                test.Float = 5;
+            }
+        }
+
+        [Test]
+        public void ReadOnlySerialization_With_MemoryStream()
+        {
+            using (var stream = new MemoryStream())
+            {
+                {
+                    var myClass = new ReadOnlyOwnerClass();
+                    
+                    var writer = new ObjectWriter(stream);
+                    writer.Write(myClass);
+                }
+
+                var reader = new ObjectReader(stream);
+                
+                var readClass = reader.Read() as ReadOnlyOwnerClass;
+                Assert.AreEqual(readClass.test.Float, 5);
+            }
+        }
+
+        class PropertyHolder
+        {
+            public float Float { get; set; } = 800.0f;
+        }
+        
+        [Test]
+        public void PropertyDefaultValue()
+        {
+            using (var stream = new MemoryStream())
+            {
+                {
+                    var myClass = new PropertyHolder();
+
+                    var writer = new ObjectWriter(stream);
+                    writer.Write(myClass);
+                }
+
+                var reader = new ObjectReader(stream);
+
+                var readClass = reader.Read() as PropertyHolder;
+                Assert.AreEqual(readClass.Float, 800.0);
+            }
+        }
+
+        [Test]
+        public void AssemblyLoad()
+        {
+            using (var stream = new MemoryStream())
+            {
+                {
+                    var myAssembly = AppDomain.CurrentDomain.GetAssemblies()[1];
+
+                    var writer = new ObjectWriter(stream);
+                    writer.Write(myAssembly);
+                }
+
+                var reader = new ObjectReader(stream);
+                var readAssembly = reader.Read() as Assembly;
             }
         }
     }

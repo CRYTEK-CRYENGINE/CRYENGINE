@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #include "StdAfx.h"
 #include "MemoryAddressRange.h"
@@ -12,6 +12,9 @@ CMemoryAddressRange::CMemoryAddressRange(char* pBaseAddress, size_t nPageSize, s
 	: m_pBaseAddress(pBaseAddress)
 	, m_nPageSize(nPageSize)
 	, m_nPageCount(nPageCount)
+#if CRY_PLATFORM_LINUX || CRY_PLATFORM_ANDROID || CRY_PLATFORM_APPLE
+	, m_allocatedSpace(0)
+#endif
 {
 	CryGetIMemReplay()->RegisterFixedAddressRange(pBaseAddress, nPageSize * nPageCount, sName);
 }

@@ -10,14 +10,14 @@
 #   -Dadditional_paths=""
 #   -Dno_unittest_framework=""
 #   -DMatlab_PROGRAM=matlab_exe_location
-#   -DMatlab_ADDITIONNAL_STARTUP_OPTIONS=""
+#   -DMatlab_ADDITIONAL_STARTUP_OPTIONS=""
 #   -Dtest_name=name_of_the_test
 #   -Dcustom_Matlab_test_command=""
 #   -Dcmd_to_run_before_test=""
 #   -Dunittest_file_to_run
 #   -P FindMatlab_TestsRedirect.cmake
 
-set(Matlab_UNIT_TESTS_CMD -nosplash -nodesktop -nodisplay ${Matlab_ADDITIONNAL_STARTUP_OPTIONS})
+set(Matlab_UNIT_TESTS_CMD -nosplash -nodesktop -nodisplay ${Matlab_ADDITIONAL_STARTUP_OPTIONS})
 if(WIN32)
   set(Matlab_UNIT_TESTS_CMD ${Matlab_UNIT_TESTS_CMD} -wait)
 endif()

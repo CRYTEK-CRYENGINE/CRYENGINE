@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #ifndef physinterface_h
 #define physinterface_h
@@ -115,7 +115,7 @@ enum EPE_Status
 };
 
 //! CStatoscope::AddPhysEntity must be updated when changing this enum.
-enum pe_type { PE_NONE = 0, PE_STATIC = 1, PE_RIGID = 2, PE_WHEELEDVEHICLE = 3, PE_LIVING = 4, PE_PARTICLE = 5, PE_ARTICULATED = 6, PE_ROPE = 7, PE_SOFT = 8, PE_AREA = 9 };
+enum pe_type { PE_NONE = 0, PE_STATIC = 1, PE_RIGID = 2, PE_WHEELEDVEHICLE = 3, PE_LIVING = 4, PE_PARTICLE = 5, PE_ARTICULATED = 6, PE_ROPE = 7, PE_SOFT = 8, PE_AREA = 9, PE_GRID = 10 };
 enum sim_class { SC_STATIC = 0, SC_SLEEPING_RIGID = 1, SC_ACTIVE_RIGID = 2, SC_LIVING = 3, SC_INDEPENDENT = 4, SC_TRIGGER = 6, SC_DELETED = 7 };
 struct IGeometry;
 struct IPhysicalEntity;
@@ -138,7 +138,7 @@ IPhysicalEntity* const WORLD_ENTITY = (IPhysicalEntity*)-10;
 	#endif
 #endif
 
-#ifndef USE_IMPROVED_RIGID_ENTITY_SYNCHRONISATION
+#if !defined(USE_IMPROVED_RIGID_ENTITY_SYNCHRONISATION) && !defined(DONT_USE_IMPROVED_RIGID_ENTITY_SYNCHRONISATION)
 	#define USE_IMPROVED_RIGID_ENTITY_SYNCHRONISATION 1
 #endif
 
@@ -178,7 +178,8 @@ struct IPhysRenderer
 	virtual ~IPhysRenderer(){}
 
 	//! Draws helpers for the specified geometry (idxColor is in 0..7 range).
-	virtual void DrawGeometry(IGeometry* pGeom, struct geom_world_data* pgwd, int idxColor = 0, int bSlowFadein = 0, const Vec3& sweepDir = Vec3(0)) = 0;
+	//! \param color Used to specify an explicit color, only used if idxColor is negative.
+	virtual void DrawGeometry(IGeometry* pGeom, struct geom_world_data* pgwd, int idxColor = 0, int bSlowFadein = 0, const Vec3& sweepDir = Vec3(0), const ColorF& color = ColorF(1, 1, 1, 1)) = 0;
 
 	//! Draws a line for wireframe helpers.
 	virtual void DrawLine(const Vec3& pt0, const Vec3& pt1, int idxColor = 0, int bSlowFadein = 0) = 0;
@@ -189,8 +190,8 @@ struct IPhysRenderer
 	//! Draws a text line (stauration is 0..1 and is currently used to represent stress level on a breakable joint).
 	virtual void DrawText(const Vec3& pt, const char* txt, int idxColor, float saturation = 0) = 0;
 
-	//! Sets an offset that is to be added to all subsequent draw requests.
-	virtual Vec3 SetOffset(const Vec3& offs = Vec3(ZERO)) = 0;
+	//! Sets an offset that is to be added to all subsequent draw requests (ZERO quat to keep the current one). Returns the previous offset
+	virtual QuatT SetOffset(const Vec3& offs = Vec3(ZERO), const Quat& qrot = Quat(ZERO)) = 0;
 
 	//! Draw a frame or a partial frame using a scale for the axes.
 	//! \param pnt The world space position.
@@ -441,7 +442,7 @@ struct pe_params_pos : pe_params
 	pe_params_pos()
 	{
 		type = type_id;
-		MARK_UNUSED pos, scale, q, iSimClass;
+		MARK_UNUSED pos, scale, q, iSimClass, pGridRefEnt;
 		pMtx3x4 = 0;
 		pMtx3x3 = 0;
 		bRecalcBounds = 1;
@@ -456,6 +457,8 @@ struct pe_params_pos : pe_params
 	int         iSimClass;      //!< See the sim_class enum.
 	int         bRecalcBounds;  //!< Tells to recompute the bounding boxes.
 	bool        bEntGridUseOBB; //!< Whether or not to use part OBBs rather than object AABB when registering in the entity grid.
+
+	const IPhysicalEntity* pGridRefEnt;	//!< New grid (set via a reference entity)
 
 	VALIDATORS_START
 	  VALIDATOR(pos)
@@ -479,10 +482,9 @@ struct pe_params_bbox : pe_params
 struct pe_params_outer_entity : pe_params
 {
 	enum entype { type_id = ePE_params_outer_entity };
-	pe_params_outer_entity() { type = type_id; pOuterEntity = 0; pBoundingGeometry = 0; }
+	pe_params_outer_entity() { type = type_id; pOuterEntity = 0; }
 
-	IPhysicalEntity* pOuterEntity;      //!< Outer entity is used to group together SC_INDEPENDENT entities (example: ropes on a tree trunk).
-	IGeometry*       pBoundingGeometry; //!< Optional geometry to test containment (used in pe_status_contains_point).
+	IPhysicalEntity* pOuterEntity;      //!< Outer entity is used to group together SC_INDEPENDENT entities (example: ropes on a tree trunk) and order their updates.
 };
 
 struct ITetrLattice;
@@ -1227,7 +1229,7 @@ struct pe_action
 struct pe_action_impulse : pe_action
 {
 	enum entype { type_id = ePE_action_impulse };
-	pe_action_impulse() { type = type_id; impulse.Set(0, 0, 0); MARK_UNUSED point, angImpulse, partid, ipart; iApplyTime = 2; iSource = 0; }
+	pe_action_impulse() { type = type_id; impulse.Set(0, 0, 0); MARK_UNUSED point, angImpulse, partid, ipart, pGridRefEnt; iApplyTime = 2; iSource = 0; }
 
 	Vec3 impulse;
 	Vec3 angImpulse; //!< optional
@@ -1236,6 +1238,8 @@ struct pe_action_impulse : pe_action
 	int  ipart;      //!< alternatively, part index can be used
 	int  iApplyTime; //!< 0-apply immediately, 1-apply before the next time step, 2-apply after the next time step
 	int  iSource;    //!< reserved for internal use
+
+	const IPhysicalEntity* pGridRefEnt; //!< source grid of the impulse (set via a reference entity)
 
 	VALIDATORS_START
 	  VALIDATOR_RANGE2(impulse, 0, 1E12f)
@@ -1512,7 +1516,7 @@ enum status_pos_flags { status_local = 1, status_thread_safe = 2, status_addref_
 struct pe_status_pos : pe_status
 {
 	enum entype { type_id = ePE_status_pos };
-	pe_status_pos() { type = type_id; ipart = partid = -1; flags = 0; pMtx3x4 = 0; pMtx3x3 = 0; iSimClass = 0; timeBack = 0; }
+	pe_status_pos() { type = type_id; ipart = partid = -1; flags = 0; pMtx3x4 = 0; pMtx3x3 = 0; iSimClass = 0; timeBack = 0; pGridRefEnt = nullptr; }
 
 	int          partid;   //!< part identifier, -1 for entire entity
 	int          ipart;    //!< optionally, part slot index
@@ -1528,6 +1532,8 @@ struct pe_status_pos : pe_status
 	Matrix33*    pMtx3x3; //!< optional 3x3 rotation+scale matrix
 	IGeometry*   pGeom, * pGeomProxy;
 	float        timeBack; //!< can retrieve previous position; only supported by rigid entities; pos and q; one step back
+
+	const IPhysicalEntity* pGridRefEnt;	//!< Target grid (set via a reference entity)
 };
 
 //! Only works when USE_IMPROVED_RIGID_ENTITY_SYNCHRONISATION is 1.
@@ -1855,6 +1861,7 @@ struct pe_status_rope : pe_status
 		stiffnessAnim = timeLastActive = 0;
 		nVtx = 0;
 		lock = 0;
+		MARK_UNUSED pGridRefEnt;
 	}
 
 	int                               nSegments;
@@ -1872,6 +1879,7 @@ struct pe_status_rope : pe_status
 	Vec3                              posHost;             //!< host (the entity part it's attached to) position that corresponds to the returned state
 	quaternionf                       qHost;               //!< host's orientation
 	int                               lock;                //!< for subdivided ropes: +1 to leave read-locked, -1 to release from a previously read-locked state; 0 - local locking only
+	const IPhysicalEntity*            pGridRefEnt;	       //!< Target grid (set via a reference entity)
 };
 
 ////////// soft entity statuses
@@ -1944,6 +1952,7 @@ enum geom_flags
 	geom_no_particle_impulse    = 0x8000000, //!< phys particles don't apply impulses to this part; should be used in flagsCollider
 	geom_destroyed_on_break     = 0x2000000, //!< should be used in flagsCollider
 	geom_allow_id_duplicates    = 0x1000000, //!< doesn't check if id is already used; should be set in flagsCollider
+	geom_ignore_BBox            = 0x20000000,//!< doon't include the part in entity world BBox computation
 	//! mnemonic group names
 	geom_colltype_player        = geom_colltype1, geom_colltype_explosion = geom_colltype2,
 	geom_colltype_vehicle       = geom_colltype3, geom_colltype_foliage = geom_colltype4, geom_colltype_debris = geom_colltype5,
@@ -2362,7 +2371,7 @@ struct IGeometry
 	};
 	struct SProxifyParams
 	{
-		SProxifyParams() : ncells(50), islandMap(-1ll), maxLineDot(0.88f), maxLineDist(2.0f), minLineCells(8), minSurfCells(50), surfPrimIters(1.0f), surfMinNormLen(0.5f), surfMergeDist(4.0f),
+		SProxifyParams() : ncells(50), islandMap(-1l), maxLineDot(0.88f), maxLineDist(2.0f), minLineCells(8), minSurfCells(50), surfPrimIters(1.0f), surfMinNormLen(0.5f), surfMergeDist(4.0f),
 			surfNormRefineThresh(0.94f), primVoxInflate(1.5f), primRefillThresh(0.6f), primVfillSurf(0.85f), primVfillLine(0.6f), primSurfOutside(0.4f), capsHRratio(4.0f), maxGeoms(128),
 			surfMeshMinCells(80), surfMeshIters(7), lenVtxNorm(1.0f), surfRefineWithMesh(1), surfMaxAndMinNorms(0), inflatePrims(0), inflateMeshes(0), nVoxPatches(0),
 			mergeIslands(1), convexHull(0), closeHoles(0), forceBBox(0), findPrimSurfaces(1), findPrimLines(1), findMeshes(1), storeVox(0), reuseVox(0), flipCurCell(0), skipPrimMask(0)
@@ -3018,11 +3027,12 @@ struct EventPhysEnvChange : EventPhysMono
 struct EventPhysPostStep : EventPhysMono
 {
 	enum entype { id = 4, flagsCall = pef_monitor_poststep, flagsLog = pef_log_poststep };
-	EventPhysPostStep() { idval = id; }
-	float       dt;
-	Vec3        pos;
-	quaternionf q;
-	int         idStep; //!< world's internal step count
+	EventPhysPostStep() { idval = id; pGrid = nullptr; }
+	float            dt;
+	Vec3             pos;
+	quaternionf      q;
+	int              idStep; //!< world's internal step count
+	IPhysicalEntity* pGrid; //!< interface to the grid
 };
 
 //! Physics mesh changed.
@@ -3151,6 +3161,7 @@ struct EventPhysEntityDeleted : EventPhysMono
 	enum entype { id = 14, flagsCall = 0, flagsLog = 0 };
 	EventPhysEntityDeleted() { idval = id; }
 	int mode;
+	int isFromPOD;
 };
 
 struct EventPhysPostPump : EventPhys
@@ -3193,7 +3204,8 @@ struct IPhysicalWorld
 		SRWIParams() { memset(this, 0, sizeof(*this)); objtypes = ent_all; flags = rwi_stop_at_pierceable; }
 
 		const SRWIParams& Init(const Vec3& _org, const Vec3& _dir, int _objtypes, unsigned int _flags, const SCollisionClass& _collclass, ray_hit* _hits, int _nMaxHits,
-		                       IPhysicalEntity** _pSkipEnts = 0, int _nSkipEnts = 0, void* _pForeignData = 0, int _iForeignData = 0, ray_hit_cached* _phitLast = 0)
+		                       IPhysicalEntity** _pSkipEnts = 0, int _nSkipEnts = 0, void* _pForeignData = 0, int _iForeignData = 0, ray_hit_cached* _phitLast = 0,
+		                       IPhysicalEntity** _pPortals = nullptr, int _nMaxPortals = 0)
 		{
 			memset(this, 0, sizeof(*this));
 			org = _org;
@@ -3208,6 +3220,8 @@ struct IPhysicalWorld
 			phitLast = _phitLast;
 			pSkipEnts = _pSkipEnts;
 			nSkipEnts = _nSkipEnts;
+			pPortals = _pPortals;
+			nMaxPortals = _nMaxPortals;
 			return *this;
 		}
 
@@ -3224,6 +3238,8 @@ struct IPhysicalWorld
 		int               nSkipEnts;
 		IPhysicalEntity** pSkipEnts;
 		SCollisionClass   collclass;
+		IPhysicalEntity** pPortals;	   // returns null-terminated list of encountered portals
+		int               nMaxPortals; // max amount of returned portals (= list size - 1)
 	};
 
 	//! PrimitiveWorldIntersection  - similar to RayWorldIntersection, but does a primitive sweep (or overlap) check
@@ -3282,7 +3298,8 @@ struct IPhysicalWorld
 	//! log2PODscale sets how many grid cells comprise one on-demand physicalization sector (on_demand_sector = 1<<log2PODscale)
 	//! bCyclic==0 : entities that are outside the grid are all registered in one "exterior" cell
 	//! bCyclic==1 : the grid is infinitely repeated, projected world coordinates only use lower bits to access grid cells
-	virtual void SetupEntityGrid(int axisz, Vec3 org, int nx, int ny, float stepx, float stepy, int log2PODscale = 0, int bCyclic = 0) = 0;
+	virtual IPhysicalEntity* SetupEntityGrid(int axisz, Vec3 org, int nx, int ny, float stepx, float stepy, int log2PODscale = 0, int bCyclic = 0, 
+		IPhysicalEntity* pHost = nullptr, const QuatT& posInHost = QuatT(IDENTITY)) = 0;
 
 	//! Clean up memory pools after level was unloaded.
 	//! should only be called when all outside references to physics where deleted.

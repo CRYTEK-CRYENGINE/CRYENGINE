@@ -1,4 +1,5 @@
 <ObjectTemplates>
-	<Entity SuperType="StdEntity" Category="Entity" ToolTip="Entity"/>
+	<Entity SuperType="StdEntity" Category="Legacy Entities" ToolTip="Entity"/>
+	<EmptyEntity SuperType="StdEntity" Category="Empty Entity" ToolTip="Empty Entity" File="Entity" DataFilter="Entity"/>
 	<TagPoint SuperType="StdTagPoint" Category="AI"  ToolTip="Tag point"/>
 </ObjectTemplates>

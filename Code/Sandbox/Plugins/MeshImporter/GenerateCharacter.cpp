@@ -8,7 +8,7 @@
 #include "MaterialSettings.h"
 #include "MaterialHelpers.h"
 #include "MaterialGenerator/MaterialGenerator.h"
-#include "TextureConversionDialog.h"
+#include "TextureManager.h"
 #include "RcLoader.h"
 #include "RcCaller.h"
 #include "ImporterUtil.h"
@@ -32,7 +32,6 @@ namespace MeshImporter
 {
 
 QString CreateCHPARAMS(const QString& path);
-string  MakeFilename(string str);
 
 } // namespace MeshImporter
 
@@ -41,10 +40,7 @@ namespace Private_GenerateCharacter
 
 static const QString GetRcOptions()
 {
-	const string s = string().Format("%s %s",
-		CRcCaller::OptionOverwriteExtension("fbx").c_str(),
-		CRcCaller::OptionAssetTypes().c_str());
-	return QtUtil::ToQString(s);
+	return QtUtil::ToQString(CRcCaller::OptionOverwriteExtension("fbx"));
 }
 
 struct SRcPayload
@@ -94,9 +90,7 @@ struct SCharacterGenerator : ICharacterGenerator
 
 		AutoAssignSubMaterialIDs(std::vector<std::pair<int, QString>>(), m_sceneManager.GetScene());
 
-		// Fill textures.
-		m_pTextureManager->ClearTextures();
-		Fill(m_sceneManager, *m_pTextureManager);
+		m_pTextureManager->Init(m_sceneManager);
 	}
 
 	bool Import(const string& filePath)
@@ -189,7 +183,7 @@ struct SCharacterGenerator : ICharacterGenerator
 		FbxMetaData::SMetaData metaData;
 		CreateMetaDataCaf(metaData, takeName, startFrame, endFrame);
 
-		string alias = takeName.empty() ? "Default take" : MeshImporter::MakeFilename(takeName);
+		string alias = takeName.empty() ? "Default take" : MakeAlphaNum(takeName);
 
 		auto pMetaDataFile = WriteTemporaryFile(m_targetDirPath, metaData.ToJson(), QtUtil::ToQString(alias));
 		CRY_ASSERT(pMetaDataFile);
@@ -274,9 +268,9 @@ struct SCharacterGenerator : ICharacterGenerator
 	void CreateMetaDataCaf(FbxMetaData::SMetaData& metaData, const string& takeName, int startFrame, int endFrame) const
 	{
 		CreateMetaDataCommon(metaData);
-		metaData.m_animationClip.takeName = takeName;
-		metaData.m_animationClip.startFrame = startFrame;
-		metaData.m_animationClip.endFrame = endFrame;
+		metaData.animationClip.takeName = takeName;
+		metaData.animationClip.startFrame = startFrame;
+		metaData.animationClip.endFrame = endFrame;
 
 		// Writes i_caf with caf extension. Temporary solution.
 		metaData.outputFileExt = "caf";

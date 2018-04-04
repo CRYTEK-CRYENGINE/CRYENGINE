@@ -1,9 +1,8 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #ifndef _STL_UTILS_HEADER_
 #define _STL_UTILS_HEADER_
 
-#include <CryCore/Assert/CompileTimeUtils.h>
 #include "Wrapper.h"
 
 #include <map>
@@ -346,6 +345,22 @@ inline bool binary_insert_unique(Container& container, const Value& value)
 	return true;
 }
 
+//! Find element in a sorted container using binary search with logarithmic efficiency.
+//! \return true if item was inserted.
+template<class Container, class Value, typename Func>
+inline bool binary_insert_unique(Container& container, const Value& value, Func order)
+{
+	typename Container::iterator it = std::lower_bound(container.begin(), container.end(), value, order);
+	if (it != container.end())
+	{
+		if (*it == value)
+			return false;
+		container.insert(it, value);
+	}
+	else
+		container.insert(container.end(), value);
+	return true;
+}
 //! Find element in a sorted container using binary search with logarithmic efficiency and erase it if found.
 //! \return true if item was erased.
 template<class Container, class Value>
@@ -650,7 +665,7 @@ struct SAllocatorConstruct
 	template<typename T, typename ... Args>
 	static void construct(T* ptr, Args&& ... args)
 	{
-		::new(static_cast<void*>(ptr))T(std::forward<Args>(args) ...);
+		::new(const_cast<void*>(static_cast<const void*>(ptr)))T(std::forward<Args>(args) ...);
 	}
 #else
 
@@ -781,6 +796,30 @@ template<size_t First, size_t Second, size_t... Others>
 struct static_max<First, Second, Others...>
 {
 	static constexpr size_t value = First > Second ? static_max<First, Others...>::value : static_max<Second, Others...>::value;
+};
+
+
+template<unsigned int num>
+struct static_log2
+{
+	enum
+	{
+		value = static_log2<(num >> 1)>::value + 1,
+	};
+};
+
+template<>
+struct static_log2<1>
+{
+	enum
+	{
+		value = 0,
+	};
+};
+
+template<>
+struct static_log2<0>
+{
 };
 
 

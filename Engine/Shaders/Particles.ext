@@ -27,14 +27,6 @@ Property
 
 Property
 {
-  Name = %REFRACTION_TINTING
-  Mask = 0x800
-  Property    (Refraction Tinting)
-  Description (Use color texture to tint refraction)
-}
-
-Property
-{
   Name = %SCREEN_SPACE_DEFORMATION
   Mask = 0x10
   Property    (Screen space deformation)
@@ -86,6 +78,14 @@ Property
   DependencySet = $TEX_Normals
   DependencyReset = $TEX_Normals
   Hidden
+}
+
+Property
+{
+  Name = %REFRACTION_TINTING
+  Mask = 0x800
+  Property    (Refraction Tinting)
+  Description (Use color texture to tint refraction)
 }
 
 Property

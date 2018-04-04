@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #pragma once
 
@@ -67,11 +67,6 @@ template<typename T, typename U> T ILINE Mul(const T& a, const U& b)            
 template<typename T, typename U> T ILINE MAdd(const T& a, const U& b, const T& c) { return a * b + c; }
 
 ///////////////////////////////////////////////////////////////////////////
-// Vectorized functions
-
-float  HMin(floatv v0);
-float  HMax(floatv v0);
-
 // Vector functions
 
 Vec3v Add(const Vec3v& a, const floatv b);
@@ -104,9 +99,14 @@ ColorFv operator*(const ColorFv& a, const ColorFv& b);
 ColorFv operator*(const ColorFv& a, floatv b);
 #endif
 
-// Special
-float  DeltaTime(float  normAge, float  frameTime);
-floatv DeltaTime(floatv normAge, floatv frameTime);
+// Return the correct update time for a particle
+template<typename T>
+T DeltaTime(T frameTime, T normAge, T lifeTime);
+
+// Return the start-time of a particle in the previous frame
+template<typename T>
+T StartTime(T curTime, T frameTime, T normAge);
+
 
 // non vectorized
 

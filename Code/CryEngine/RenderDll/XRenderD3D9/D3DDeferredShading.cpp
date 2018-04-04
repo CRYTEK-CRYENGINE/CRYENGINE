@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #include "StdAfx.h"
 #include "DriverD3D.h"
@@ -10,6 +10,7 @@
 #include "../Common/ReverseDepth.h"
 #include "D3DTiledShading.h"
 #include "GraphicsPipeline/ClipVolumes.h"
+#include "GraphicsPipeline/DeferredDecals.h"
 #include "GraphicsPipeline/ShadowMask.h"
 #include "GraphicsPipeline/Water.h"
 #if defined(FEATURE_SVO_GI)
@@ -421,8 +422,6 @@ void CDeferredShading::SetupPasses()
 
 	m_nThreadID = gcpRendD3D->m_RP.m_nProcessThreadID;
 
-	m_nBindResourceMsaa = gcpRendD3D->m_RP.m_MSAAData.Type ? SResourceView::DefaultViewMS : SResourceView::DefaultView;
-
 	gcpRendD3D->m_RP.m_FlagsShader_RT &= ~(RT_LIGHTSMASK | RT_DEBUGMASK);
 
 	gcpRendD3D->FX_SetMSAAFlagsRT();
@@ -435,9 +434,6 @@ void CDeferredShading::SetupPasses()
 	m_pDiffuseRT = CTexture::s_ptexSceneDiffuse;
 	m_pSpecularRT = CTexture::s_ptexSceneSpecular;
 	m_pMSAAMaskRT = CTexture::s_ptexBackBuffer;
-
-	m_nTexStateLinear = CTexture::GetTexState(STexState(FILTER_LINEAR, true));
-	m_nTexStatePoint = CTexture::GetTexState(STexState(FILTER_POINT, true));
 
 	CRenderCamera* pCam = &gcpRendD3D->m_RP.m_TI[m_nThreadID].m_rcam;
 	m_pCamFront = pCam->vZ;
@@ -546,19 +542,19 @@ void CDeferredShading::FilterGBuffer()
 	rd->FX_PushRenderTarget(0, CTexture::s_ptexSceneSpecular, NULL);
 	SD3DPostEffectsUtils::ShBeginPass(m_pShader, tech, FEF_DONTSETSTATES);
 	rd->FX_SetState(GS_NODEPTHTEST);
-	SPostEffectsUtils::SetTexture(CTexture::s_ptexSceneNormalsMap, 0, FILTER_POINT, 0);
-	SPostEffectsUtils::SetTexture(pSceneSpecular, 1, FILTER_POINT, 0);
-	SPostEffectsUtils::SetTexture(CTexture::s_ptexZTarget, 2, FILTER_POINT, 0);
+	SPostEffectsUtils::SetTexture(CTexture::s_ptexSceneNormalsMap, 0, FILTER_POINT, eSamplerAddressMode_Wrap);
+	SPostEffectsUtils::SetTexture(pSceneSpecular, 1, FILTER_POINT, eSamplerAddressMode_Wrap);
+	SPostEffectsUtils::SetTexture(CTexture::s_ptexZTarget, 2, FILTER_POINT, eSamplerAddressMode_Wrap);
 
 	// Bind sampler directly so that it works with DX11 style texture objects
-	ID3D11SamplerState* pSamplers[1] = { (ID3D11SamplerState*)CTexture::s_TexStates[m_nTexStatePoint].m_pDeviceState };
-	rd->m_DevMan.BindSampler(CDeviceManager::TYPE_PS, pSamplers, 15, 1);
+	ID3D11SamplerState* pSamplers[1] = { (ID3D11SamplerState*)CDeviceObjectFactory::LookupSamplerState(EDefaultSamplerStates::PointClamp).second };
+	rd->m_DevMan.BindSampler(CSubmissionQueue_DX11::TYPE_PS, pSamplers, 15, 1);
 
 	SD3DPostEffectsUtils::DrawFullScreenTri(CTexture::s_ptexSceneSpecular->GetWidth(), CTexture::s_ptexSceneSpecular->GetHeight());
 	SD3DPostEffectsUtils::ShEndPass();
 
 	ID3D11SamplerState* pSampNull[1] = { NULL };
-	rd->m_DevMan.BindSampler(CDeviceManager::TYPE_PS, pSampNull, 15, 1);
+	rd->m_DevMan.BindSampler(CSubmissionQueue_DX11::TYPE_PS, pSampNull, 15, 1);
 	rd->FX_Commit();
 
 	rd->FX_PopRenderTarget(0);
@@ -617,7 +613,7 @@ void CDeferredShading::DrawLightVolume(EShapeMeshType meshType, const Matrix44& 
 	rd->FX_SetIStream(rd->m_pUnitFrustumIB[meshType], 0, (rd->kUnitObjectIndexSizeof == 2 ? Index16 : Index32));
 
 	rd->D3DSetCull(eCULL_Back);
-	if (!FAILED(rd->FX_SetVertexDeclaration(0, eVF_P3F_C4B_T2F)))
+	if (!FAILED(rd->FX_SetVertexDeclaration(0, EDefaultInputLayouts::P3F_C4B_T2F)))
 	{
 		rd->FX_Commit();
 		rd->FX_DrawIndexedPrimitive(eptTriangleList, 0, 0, rd->m_UnitFrustVBSize[meshType], 0, rd->m_UnitFrustIBSize[meshType]);
@@ -642,21 +638,6 @@ void CDeferredShading::DrawDecalVolume(const SDeferredDecal& rDecal, Matrix44A& 
 		m_pShader->FXSetPSFloat(paramName, &vScreenScale, 1);
 	}
 
-	{
-		static CCryNameR paramName("vWBasisX");
-		m_pShader->FXSetPSFloat(paramName, &vWorldBasisX, 1);
-	}
-
-	{
-		static CCryNameR paramName("vWBasisY");
-		m_pShader->FXSetPSFloat(paramName, &vWorldBasisY, 1);
-	}
-
-	{
-		static CCryNameR paramName("vWBasisZ");
-		m_pShader->FXSetPSFloat(paramName, &vWorldBasisZ, 1);
-	}
-
 	//////////////// light sphere processing /////////////////////////////////
 	{
 		Matrix44 mInvDecalLightProj = mDecalLightProj.GetInverted();
@@ -664,16 +645,11 @@ void CDeferredShading::DrawDecalVolume(const SDeferredDecal& rDecal, Matrix44A& 
 		m_pShader->FXSetVSFloat(paramName, alias_cast<Vec4*>(&mInvDecalLightProj), 4);
 	}
 
-	{
-		static CCryNameR paramName("g_mViewProj");
-		m_pShader->FXSetVSFloat(paramName, alias_cast<Vec4*>(&m_mViewProj), 4);
-	}
-
 	rd->FX_SetVStream(0, rd->m_pUnitFrustumVB[SHAPE_BOX], 0, sizeof(SVF_P3F_C4B_T2F));
 	rd->FX_SetIStream(rd->m_pUnitFrustumIB[SHAPE_BOX], 0, (rd->kUnitObjectIndexSizeof == 2 ? Index16 : Index32));
 
 	rd->D3DSetCull(volumeCull);
-	if (!FAILED(rd->FX_SetVertexDeclaration(0, eVF_P3F_C4B_T2F)))
+	if (!FAILED(rd->FX_SetVertexDeclaration(0, EDefaultInputLayouts::P3F_C4B_T2F)))
 	{
 		rd->FX_Commit();
 		rd->FX_DrawIndexedPrimitive(eptTriangleList, 0, 0, rd->m_UnitFrustVBSize[SHAPE_BOX], 0, rd->m_UnitFrustIBSize[SHAPE_BOX]);
@@ -788,7 +764,6 @@ bool CDeferredShading::DeferredDecalPass(const SDeferredDecal& rDecal, uint32 in
 		nStates &= ~GS_NODEPTHTEST;
 		//newState |= GS_NODEPTHTEST;
 		nStates |= GS_DEPTHWRITE;
-		nStates |= (~(0xF << GS_COLMASK_SHIFT)) & GS_COLMASK_MASK;
 		nStates |= GS_WIREFRAME;
 	}
 	else if (CRenderer::CV_r_deferredDecalsDebug == 1)
@@ -817,7 +792,7 @@ bool CDeferredShading::DeferredDecalPass(const SDeferredDecal& rDecal, uint32 in
 
 	ITexture* pDiffuseTex = NULL;
 	Matrix44 texMatrix;
-	STexState texState;
+	SSamplerState texState;
 
 	texMatrix.SetIdentity();
 
@@ -836,9 +811,10 @@ bool CDeferredShading::DeferredDecalPass(const SDeferredDecal& rDecal, uint32 in
 				texMatrix = pDiffuseRes->m_Ext.m_pTexModifier->m_TexMatrix;
 			}
 
-			int mode = pDiffuseRes->m_bUTile ? TADDR_WRAP : TADDR_CLAMP;
+			ESamplerAddressMode Umode = pDiffuseRes->m_bUTile ? eSamplerAddressMode_Wrap : eSamplerAddressMode_Clamp;
+			ESamplerAddressMode Vmode = pDiffuseRes->m_bVTile ? eSamplerAddressMode_Wrap : eSamplerAddressMode_Clamp;
 
-			texState.SetClampMode(mode, pDiffuseRes->m_bVTile ? TADDR_WRAP : TADDR_CLAMP, mode);
+			texState.SetClampMode(Umode, Vmode, Umode);
 		}
 	}
 
@@ -855,7 +831,7 @@ bool CDeferredShading::DeferredDecalPass(const SDeferredDecal& rDecal, uint32 in
 	if (pDiffuseTex)
 	{
 		texState.m_bSRGBLookup = true;
-		((CTexture*)pDiffuseTex)->Apply(2, CTexture::GetTexState(texState));
+		((CTexture*)pDiffuseTex)->Apply(2, CDeviceObjectFactory::GetOrCreateSamplerStateHandle(texState));
 	}
 
 	Vec4 vDiff = sItem.m_pShaderResources->GetColorValue(EFTT_DIFFUSE).toVec4();
@@ -897,10 +873,10 @@ bool CDeferredShading::DeferredDecalPass(const SDeferredDecal& rDecal, uint32 in
 		m_pShader->FXSetPSFloat(m_pGeneralParams, &decalParams, 1);
 	}
 
-	SD3DPostEffectsUtils::SetTexture((CTexture*)pNormalMap, 3, FILTER_TRILINEAR, 0);
-	SD3DPostEffectsUtils::SetTexture((CTexture*)pSmoothnessMap, 4, FILTER_TRILINEAR, 0);
-	SD3DPostEffectsUtils::SetTexture((CTexture*)pOpacityMap, 5, FILTER_TRILINEAR, 0);
-	SD3DPostEffectsUtils::SetTexture((CTexture*)CTexture::s_ptexBackBuffer, 6, FILTER_POINT, 0);   //contains copy of normals buffer
+	SD3DPostEffectsUtils::SetTexture((CTexture*)pNormalMap, 3, FILTER_TRILINEAR, eSamplerAddressMode_Wrap);
+	SD3DPostEffectsUtils::SetTexture((CTexture*)pSmoothnessMap, 4, FILTER_TRILINEAR, eSamplerAddressMode_Wrap);
+	SD3DPostEffectsUtils::SetTexture((CTexture*)pOpacityMap, 5, FILTER_TRILINEAR, eSamplerAddressMode_Wrap);
+	SD3DPostEffectsUtils::SetTexture((CTexture*)CTexture::s_ptexBackBuffer, 6, FILTER_POINT, eSamplerAddressMode_Wrap);   //contains copy of normals buffer
 
 	//////////////////////////////////////////////////////////////////////////
 	// texture and depth transformation matrix
@@ -975,7 +951,7 @@ bool CDeferredShading::DeferredDecalPass(const SDeferredDecal& rDecal, uint32 in
 	}
 
 	rd->FX_SetState(nStates);
-	m_pDepthRT->Apply(0, m_nTexStatePoint);
+	m_pDepthRT->Apply(0, EDefaultSamplerStates::PointClamp);
 
 	m_pShader->FXSetPSFloat(m_pParamDecalTS, (Vec4*) mDecalTS.GetData(), 4);
 	m_pShader->FXSetPSFloat(m_pParamLightProjMatrix, (Vec4*) mDecalLightProj.GetData(), 4);
@@ -1116,6 +1092,7 @@ void CDeferredShading::LightPass(const SRenderLight* const __restrict pDL, bool 
 
 	CD3D9Renderer* const __restrict rd = gcpRendD3D;
 	SRenderPipeline& RESTRICT_REFERENCE rRP = rd->m_RP;
+	const bool bMSAA = rd->m_RP.m_MSAAData.Type ? true : false;
 
 #ifdef SUPPORTS_MSAA
 	const int32 nNumPassesMSAA = (rd->FX_GetMSAAMode() == 1) ? 2 : 1;
@@ -1277,7 +1254,7 @@ void CDeferredShading::LightPass(const SRenderLight* const __restrict pDL, bool 
 	rd->FX_SetState(nStates);
 
 #ifdef SUPPORTS_MSAA
-	if (gcpRendD3D->m_RP.m_MSAAData.Type)
+	if (bMSAA)
 	{
 		bool bUsesStencil = bForceStencilDisable || bStencilMask;   // shadows/clip volumes, or using light stencil
 		rRP.m_PersFlags2 |= RBPF2_READMASK_RESERVED_STENCIL_BIT;
@@ -1370,20 +1347,20 @@ void CDeferredShading::LightPass(const SRenderLight* const __restrict pDL, bool 
 
 	// Note: Shadows use slot 3 and slot 7 for shadow map and jitter map
 
-	m_pDepthRT->Apply(0, m_nTexStatePoint, EFTT_UNKNOWN, -1, (rRP.m_PersFlags2 & RBPF2_MSAA_SAMPLEFREQ_PASS) ? m_nBindResourceMsaa : SResourceView::DefaultView);
-	m_pNormalsRT->Apply(1, m_nTexStatePoint, EFTT_UNKNOWN, -1, (rRP.m_PersFlags2 & RBPF2_MSAA_SAMPLEFREQ_PASS) ? m_nBindResourceMsaa : SResourceView::DefaultView);
-	m_pDiffuseRT->Apply(2, m_nTexStatePoint, EFTT_UNKNOWN, -1, (rRP.m_PersFlags2 & RBPF2_MSAA_SAMPLEFREQ_PASS) ? m_nBindResourceMsaa : SResourceView::DefaultView);
-	m_pSpecularRT->Apply(4, m_nTexStatePoint, EFTT_UNKNOWN, -1, (rRP.m_PersFlags2 & RBPF2_MSAA_SAMPLEFREQ_PASS) ? m_nBindResourceMsaa : SResourceView::DefaultView);
+	m_pDepthRT->Apply(0, EDefaultSamplerStates::PointClamp, EFTT_UNKNOWN, -1, EDefaultResourceViews::Default, bMSAA && (rRP.m_PersFlags2 & RBPF2_MSAA_SAMPLEFREQ_PASS));
+	m_pNormalsRT->Apply(1, EDefaultSamplerStates::PointClamp, EFTT_UNKNOWN, -1, EDefaultResourceViews::Default, bMSAA && (rRP.m_PersFlags2 & RBPF2_MSAA_SAMPLEFREQ_PASS));
+	m_pDiffuseRT->Apply(2, EDefaultSamplerStates::PointClamp, EFTT_UNKNOWN, -1, EDefaultResourceViews::Default, bMSAA && (rRP.m_PersFlags2 & RBPF2_MSAA_SAMPLEFREQ_PASS));
+	m_pSpecularRT->Apply(4, EDefaultSamplerStates::PointClamp, EFTT_UNKNOWN, -1, EDefaultResourceViews::Default, bMSAA && (rRP.m_PersFlags2 & RBPF2_MSAA_SAMPLEFREQ_PASS));
 
 	if ((pDL->m_Flags & DLF_PROJECT) && pTexLightImage)
-		SD3DPostEffectsUtils::SetTexture(pTexLightImage, 5, FILTER_TRILINEAR, bProj2D ? 1 : 0);
+		SD3DPostEffectsUtils::SetTexture(pTexLightImage, 5, FILTER_TRILINEAR, bProj2D ? eSamplerAddressMode_Clamp : eSamplerAddressMode_Wrap);
 
-	CTexture::s_ptexSceneNormalsBent->Apply(8, m_nTexStatePoint);
-	m_pMSAAMaskRT->Apply(9, m_nTexStatePoint);
+	CTexture::s_ptexSceneNormalsBent->Apply(8, EDefaultSamplerStates::PointClamp);
+	m_pMSAAMaskRT->Apply(9, EDefaultSamplerStates::PointClamp);
 
 	if (nNumClipVolumes > 0)
 	{
-		m_pResolvedStencilRT->Apply(11, m_nTexStatePoint);
+		m_pResolvedStencilRT->Apply(11, EDefaultSamplerStates::PointClamp);
 		m_pShader->FXSetPSFloat(m_pClipVolumeParams, m_vClipVolumeParams, min(static_cast<uint32>(CClipVolumesStage::MaxDeferredClipVolumes), static_cast<uint32>(nNumClipVolumes + CClipVolumesStage::VisAreasOutdoorStencilOffset)));
 	}
 
@@ -1415,7 +1392,7 @@ void CDeferredShading::LightPass(const SRenderLight* const __restrict pDL, bool 
 	rd->SetDepthBoundTest(0.0f, 1.0f, false);
 
 #ifdef SUPPORTS_MSAA
-	if (gcpRendD3D->m_RP.m_MSAAData.Type)
+	if (bMSAA)
 		rRP.m_PersFlags2 &= ~RBPF2_READMASK_RESERVED_STENCIL_BIT;
 #endif
 
@@ -1455,11 +1432,11 @@ bool CDeferredShading::AmbientPass(SRenderLight* pGlobalCubemap, bool& bOutdoorV
 
 	CD3D9Renderer* const __restrict rd = gcpRendD3D;
 	SRenderPipeline& RESTRICT_REFERENCE rRP = rd->m_RP;
+	const bool bMSAA = rd->m_RP.m_MSAAData.Type ? true : false;
 
 	rd->m_RP.m_nDeferredPrimitiveID = SHAPE_PROJECTOR;
 	rd->D3DSetCull(eCULL_Back, true); //fs quads should not revert test..
 
-	const bool bMSAA = gcpRendD3D->m_RP.m_MSAAData.Type ? true : false;
 #ifdef SUPPORTS_MSAA
 	const int32 nNumPassesMSAA = (rd->FX_GetMSAAMode() == 1) ? 2 : 1;
 	rd->FX_MSAASampleFreqStencilSetup();
@@ -1500,10 +1477,9 @@ bool CDeferredShading::AmbientPass(SRenderLight* pGlobalCubemap, bool& bOutdoorV
 
 	// Patch z-target for all platforms, we need stencil access.
 	CTexture* pDepthBufferRT = m_pDepthRT;
-	D3DShaderResource* pZTargetOrigSRV;
-	SDepthTexture sBackup = rd->FX_ReplaceMSAADepthBuffer(pDepthBufferRT, bMSAA, pZTargetOrigSRV);
+	SDepthTexture sBackup = rd->FX_ReplaceMainDepthBuffer(pDepthBufferRT, bMSAA);
 
-	rd->FX_PushRenderTarget(0, m_pLBufferDiffuseRT, &rd->m_DepthBufferOrigMSAA, -1, false, 1);
+	rd->FX_PushRenderTarget(0, m_pLBufferDiffuseRT, &rd->m_DepthBufferOrig, -1, false, 1);
 
 	SpecularAccEnableMRT(true);
 	if (CRenderer::CV_r_DeferredShadingDepthBoundsTest)
@@ -1535,7 +1511,7 @@ bool CDeferredShading::AmbientPass(SRenderLight* pGlobalCubemap, bool& bOutdoorV
 	rd->FX_SetState(GS_NODEPTHTEST);
 
 #ifdef SUPPORTS_MSAA
-	if (gcpRendD3D->m_RP.m_MSAAData.Type)
+	if (bMSAA)
 	{
 		rRP.m_PersFlags2 |= RBPF2_READMASK_RESERVED_STENCIL_BIT;
 		const int32 nMSAAStState = STENC_FUNC((rRP.m_PersFlags2 & RBPF2_MSAA_SAMPLEFREQ_PASS) ? FSS_STENCFUNC_EQUAL : FSS_STENCFUNC_NOTEQUAL) | STENCOP_FAIL(FSS_STENCOP_KEEP) | STENCOP_ZFAIL(FSS_STENCOP_KEEP) | STENCOP_PASS(FSS_STENCOP_KEEP);
@@ -1551,15 +1527,15 @@ bool CDeferredShading::AmbientPass(SRenderLight* pGlobalCubemap, bool& bOutdoorV
 	if (nNumClipVolumes)
 		m_pShader->FXSetPSFloat(m_pClipVolumeParams, m_vClipVolumeParams, min(static_cast<uint32>(CClipVolumesStage::MaxDeferredClipVolumes), static_cast<uint32>(nNumClipVolumes + CClipVolumesStage::VisAreasOutdoorStencilOffset)));
 
-	m_pNormalsRT->Apply(0, m_nTexStatePoint, EFTT_UNKNOWN, -1, m_nBindResourceMsaa);
+	m_pNormalsRT->Apply(0, EDefaultSamplerStates::PointClamp, EFTT_UNKNOWN, -1, EDefaultResourceViews::Default, bMSAA);
 
 	if (pGlobalCubemap)
 	{
 		CTexture* const texDiffuse = (CTexture*)pGlobalCubemap->GetDiffuseCubemap();
 		CTexture* const texSpecular = (CTexture*)pGlobalCubemap->GetSpecularCubemap();
 
-		SD3DPostEffectsUtils::SetTexture(texDiffuse->GetTextureType() < eTT_Cube ? CTexture::s_ptexNoTextureCM : texDiffuse, 1, FILTER_BILINEAR, 1, texDiffuse->IsSRGB());
-		SD3DPostEffectsUtils::SetTexture(texSpecular->GetTextureType() < eTT_Cube ? CTexture::s_ptexNoTextureCM : texSpecular, 2, FILTER_TRILINEAR, 1, texSpecular->IsSRGB());
+		SD3DPostEffectsUtils::SetTexture(texDiffuse->GetTextureType() < eTT_Cube ? CTexture::s_ptexNoTextureCM : texDiffuse, 1, FILTER_BILINEAR, eSamplerAddressMode_Clamp, texDiffuse->IsSRGB());
+		SD3DPostEffectsUtils::SetTexture(texSpecular->GetTextureType() < eTT_Cube ? CTexture::s_ptexNoTextureCM : texSpecular, 2, FILTER_TRILINEAR, eSamplerAddressMode_Clamp, texSpecular->IsSRGB());
 
 		SD3DPostEffectsUtils::ShSetParamPS(m_pParamLightDiffuse, pLightDiffuse);
 		const Vec4 vCubemapParams(IntegerLog2((uint32)texSpecular->GetWidthNonVirtual()) - 2, 0, 0, 0);   // Use 4x4 mip for lowest gloss values
@@ -1570,19 +1546,17 @@ bool CDeferredShading::AmbientPass(SRenderLight* pGlobalCubemap, bool& bOutdoorV
 		Vec4 ssdoParamsNull(0, 0, 0, 0);
 		static CCryNameR ssdoParamsName("SSDOParams");
 		m_pShader->FXSetPSFloat(ssdoParamsName, CRenderer::CV_r_ssdo ? &ssdoParams : &ssdoParamsNull, 1);
-		CTexture::s_ptexSceneNormalsBent->Apply(8, m_nTexStatePoint);
+		CTexture::s_ptexSceneNormalsBent->Apply(8, EDefaultSamplerStates::PointClamp);
 	}
 
 	// DX11 requires explicitly bind depth then stencil to have access to both depth and stencil read from shader. Formats also must match
-	pDepthBufferRT->SetShaderResourceView(gcpRendD3D->m_DepthBufferOrigMSAA.pTexture->GetDeviceDepthReadOnlySRV(0, -1, bMSAA), bMSAA);
-	pDepthBufferRT->Apply(3, m_nTexStatePoint, EFTT_UNKNOWN, -1, m_nBindResourceMsaa);
-	pDepthBufferRT->SetShaderResourceView(gcpRendD3D->m_DepthBufferOrigMSAA.pTexture->GetDeviceStencilReadOnlySRV(0, -1, bMSAA), bMSAA);
-	pDepthBufferRT->Apply(4, m_nTexStatePoint, EFTT_UNKNOWN, -1, m_nBindResourceMsaa);
-	m_pMSAAMaskRT->Apply(5, m_nTexStatePoint);
-	m_pSpecularRT->Apply(7, m_nTexStatePoint);
-	m_pDiffuseRT->Apply(11, m_nTexStatePoint);
+	pDepthBufferRT->Apply(3, EDefaultSamplerStates::PointClamp, EFTT_UNKNOWN, -1, EDefaultResourceViews::DepthOnly, bMSAA);
+	pDepthBufferRT->Apply(4, EDefaultSamplerStates::PointClamp, EFTT_UNKNOWN, -1, EDefaultResourceViews::StencilOnly, bMSAA);
+	m_pMSAAMaskRT->Apply(5, EDefaultSamplerStates::PointClamp);
+	m_pSpecularRT->Apply(7, EDefaultSamplerStates::PointClamp);
+	m_pDiffuseRT->Apply(11, EDefaultSamplerStates::PointClamp);
 
-	CTexture::s_ptexEnvironmentBRDF->Apply(10, m_nTexStateLinear);
+	CTexture::s_ptexEnvironmentBRDF->Apply(10, EDefaultSamplerStates::LinearClamp);
 
 	SD3DPostEffectsUtils::DrawFullScreenTriWPOS(m_pLBufferDiffuseRT->GetWidth(), m_pLBufferDiffuseRT->GetHeight(), 0, &gcpRendD3D->m_FullResRect);
 	SD3DPostEffectsUtils::ShEndPass();
@@ -1596,16 +1570,16 @@ bool CDeferredShading::AmbientPass(SRenderLight* pGlobalCubemap, bool& bOutdoorV
 #endif
 
 #ifdef SUPPORTS_MSAA
-	if (gcpRendD3D->m_RP.m_MSAAData.Type)
+	if (bMSAA)
 		rRP.m_PersFlags2 &= ~RBPF2_READMASK_RESERVED_STENCIL_BIT;
 #endif
 
 	// Restore DSV/SRV
-	rd->FX_RestoreMSAADepthBuffer(sBackup, pDepthBufferRT, bMSAA, pZTargetOrigSRV);
+	rd->FX_RestoreMSAADepthBuffer(sBackup, pDepthBufferRT, bMSAA);
 	rd->FX_PopRenderTarget(0);
 
-	CTexture::s_ptexBlack->Apply(3, m_nTexStatePoint);
-	CTexture::s_ptexBlack->Apply(4, m_nTexStatePoint);
+	CTexture::s_ptexBlack->Apply(3, EDefaultSamplerStates::PointClamp);
+	CTexture::s_ptexBlack->Apply(4, EDefaultSamplerStates::PointClamp);
 	rd->FX_SetActiveRenderTargets();
 
 	// Follow up with NVidia. Seems driver/pixel quads synchronization? Wrong behavior when reading from native stencil/depth.
@@ -1656,6 +1630,7 @@ void CDeferredShading::DeferredCubemapPass(const SRenderLight* const __restrict 
 
 	CD3D9Renderer* const __restrict rd = gcpRendD3D;
 	SRenderPipeline& RESTRICT_REFERENCE rRP = rd->m_RP;
+	const bool bMSAA = rd->m_RP.m_MSAAData.Type ? true : false;
 
 	rRP.m_nDeferredPrimitiveID = SHAPE_PROJECTOR;
 
@@ -1808,7 +1783,7 @@ void CDeferredShading::DeferredCubemapPass(const SRenderLight* const __restrict 
 	rd->FX_SetState(MultplyState);
 
 #ifdef SUPPORTS_MSAA
-	if (gcpRendD3D->m_RP.m_MSAAData.Type)
+	if (bMSAA)
 	{
 		rRP.m_PersFlags2 |= RBPF2_READMASK_RESERVED_STENCIL_BIT;
 		const int32 nMSAAStState = STENC_FUNC(FSS_STENCFUNC_EQUAL) | STENCOP_FAIL(FSS_STENCOP_KEEP) | STENCOP_ZFAIL(FSS_STENCOP_KEEP) | STENCOP_PASS(FSS_STENCOP_KEEP);
@@ -1823,10 +1798,10 @@ void CDeferredShading::DeferredCubemapPass(const SRenderLight* const __restrict 
 	m_pShader->FXSetPSFloat(m_pParamLightPos, &pLightPos, 1);
 	m_pShader->FXSetPSFloat(m_pParamLightDiffuse, &pLightDiffuse, 1);
 
-	m_pDepthRT->Apply(0, m_nTexStatePoint, EFTT_UNKNOWN, -1, (rRP.m_PersFlags2 & RBPF2_MSAA_SAMPLEFREQ_PASS) ? m_nBindResourceMsaa : SResourceView::DefaultView);
-	m_pNormalsRT->Apply(1, m_nTexStatePoint, EFTT_UNKNOWN, -1, (rRP.m_PersFlags2 & RBPF2_MSAA_SAMPLEFREQ_PASS) ? m_nBindResourceMsaa : SResourceView::DefaultView);
-	m_pDiffuseRT->Apply(2, m_nTexStatePoint, EFTT_UNKNOWN, -1, (rRP.m_PersFlags2 & RBPF2_MSAA_SAMPLEFREQ_PASS) ? m_nBindResourceMsaa : SResourceView::DefaultView);
-	m_pSpecularRT->Apply(3, m_nTexStatePoint, EFTT_UNKNOWN, -1, (rRP.m_PersFlags2 & RBPF2_MSAA_SAMPLEFREQ_PASS) ? m_nBindResourceMsaa : SResourceView::DefaultView);
+	m_pDepthRT->Apply(0, EDefaultSamplerStates::PointClamp, EFTT_UNKNOWN, -1, EDefaultResourceViews::Default, bMSAA && (rRP.m_PersFlags2 & RBPF2_MSAA_SAMPLEFREQ_PASS));
+	m_pNormalsRT->Apply(1, EDefaultSamplerStates::PointClamp, EFTT_UNKNOWN, -1, EDefaultResourceViews::Default, bMSAA && (rRP.m_PersFlags2 & RBPF2_MSAA_SAMPLEFREQ_PASS));
+	m_pDiffuseRT->Apply(2, EDefaultSamplerStates::PointClamp, EFTT_UNKNOWN, -1, EDefaultResourceViews::Default, bMSAA && (rRP.m_PersFlags2 & RBPF2_MSAA_SAMPLEFREQ_PASS));
+	m_pSpecularRT->Apply(3, EDefaultSamplerStates::PointClamp, EFTT_UNKNOWN, -1, EDefaultResourceViews::Default, bMSAA && (rRP.m_PersFlags2 & RBPF2_MSAA_SAMPLEFREQ_PASS));
 
 	static CCryNameR pszProbeOBBParams("g_mProbeOBBParams");
 	Vec4 vProbeOBBParams[3];
@@ -1852,29 +1827,29 @@ void CDeferredShading::DeferredCubemapPass(const SRenderLight* const __restrict 
 	// Use 4x4 mip for lowest gloss values
 	Vec4 vCubemapParams(IntegerLog2((uint32)texSpecular->GetWidthNonVirtual()) - 2, 0, 0, 0);
 	m_pShader->FXSetPSFloat(m_pGeneralParams, &vCubemapParams, 1);
-	SD3DPostEffectsUtils::SetTexture(texDiffuse, 5, FILTER_BILINEAR, 1, texDiffuse->IsSRGB());
-	SD3DPostEffectsUtils::SetTexture(texSpecular, 6, FILTER_TRILINEAR, 1, texSpecular->IsSRGB());
+	SD3DPostEffectsUtils::SetTexture(texDiffuse, 5, FILTER_BILINEAR, eSamplerAddressMode_Clamp, texDiffuse->IsSRGB());
+	SD3DPostEffectsUtils::SetTexture(texSpecular, 6, FILTER_TRILINEAR, eSamplerAddressMode_Clamp, texSpecular->IsSRGB());
 
 	uint32 stencilID = (pDL->m_nStencilRef[1] + 1) << 16 | pDL->m_nStencilRef[0] + 1;
 	const Vec4 vAttenParams(fFadeout, *alias_cast<float*>(&stencilID), 0, fAttenFalloffMax);
 	m_pShader->FXSetPSFloat(m_pAttenParams, &vAttenParams, 1);
 
-	m_pMSAAMaskRT->Apply(7, m_nTexStatePoint);
+	m_pMSAAMaskRT->Apply(7, EDefaultSamplerStates::PointClamp);
 
 	// Directional occlusion
 	Vec4 ssdoParams(CRenderer::CV_r_ssdoAmountDirect, CRenderer::CV_r_ssdoAmountAmbient, CRenderer::CV_r_ssdoAmountReflection, 0);
 	Vec4 ssdoParamsNull(0, 0, 0, 0);
 	static CCryNameR ssdoParamsName("SSDOParams");
 	m_pShader->FXSetPSFloat(ssdoParamsName, CRenderer::CV_r_ssdo ? &ssdoParams : &ssdoParamsNull, 1);
-	CTexture::s_ptexSceneNormalsBent->Apply(8, m_nTexStatePoint);
+	CTexture::s_ptexSceneNormalsBent->Apply(8, EDefaultSamplerStates::PointClamp);
 
 	if (nNumClipVolumes > 0)
 	{
-		m_pResolvedStencilRT->Apply(9, m_nTexStatePoint, -1, -1, -1);
+		m_pResolvedStencilRT->Apply(9, EDefaultSamplerStates::PointClamp, -1, -1, -1);
 		m_pShader->FXSetPSFloat(m_pClipVolumeParams, m_vClipVolumeParams, min(static_cast<uint32>(CClipVolumesStage::MaxDeferredClipVolumes), static_cast<uint32>(nNumClipVolumes + CClipVolumesStage::VisAreasOutdoorStencilOffset)));
 	}
 
-	CTexture::s_ptexEnvironmentBRDF->Apply(10, m_nTexStateLinear);
+	CTexture::s_ptexEnvironmentBRDF->Apply(10, EDefaultSamplerStates::LinearClamp);
 
 	if (bUseLightVolumes)
 	{
@@ -1905,7 +1880,7 @@ void CDeferredShading::DeferredCubemapPass(const SRenderLight* const __restrict 
 #endif
 
 #ifdef SUPPORTS_MSAA
-	if (gcpRendD3D->m_RP.m_MSAAData.Type)
+	if (bMSAA)
 		rRP.m_PersFlags2 &= ~RBPF2_READMASK_RESERVED_STENCIL_BIT;
 #endif
 
@@ -1930,533 +1905,10 @@ void CDeferredShading::DeferredCubemapPass(const SRenderLight* const __restrict 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void CDeferredShading::ScreenSpaceReflectionPass()
-{
-	if (!CRenderer::CV_r_SSReflections || !CTexture::s_ptexHDRTarget)  // Sketch mode disables HDR rendering
-		return;
-
-	CD3D9Renderer* const __restrict rd = gcpRendD3D;
-	const uint32 nPrevPersFlags = rd->m_RP.m_TI[rd->m_RP.m_nProcessThreadID].m_PersFlags;
-
-	Matrix44 mViewProj = rd->m_ViewMatrix * rd->m_ProjMatrix;
-
-	if (rd->m_RP.m_TI[rd->m_RP.m_nProcessThreadID].m_PersFlags & RBPF_REVERSE_DEPTH)
-	{
-		mViewProj = ReverseDepthHelper::Convert(mViewProj);
-		rd->m_RP.m_TI[rd->m_RP.m_nProcessThreadID].m_PersFlags &= ~RBPF_REVERSE_DEPTH;
-	}
-
-	const int frameID = GetUtils().m_iFrameCounter;
-
-	Matrix44 mViewport(0.5f, 0, 0, 0,
-	                   0, -0.5f, 0, 0,
-	                   0, 0, 1.0f, 0,
-	                   0.5f, 0.5f, 0, 1.0f);
-	uint32 numGPUs = rd->GetActiveGPUCount();
-	Matrix44 mViewProjPrev = m_prevViewProj[max((frameID - (int)numGPUs) % MAX_GPU_NUM, 0)] * mViewport;
-
-	PROFILE_LABEL_SCOPE("SS_REFLECTIONS");
-
-	const uint64 shaderFlags = rd->m_RP.m_FlagsShader_RT;
-
-	// Get current viewport
-	int prevVpX, prevVpY, prevVpWidth, prevVpHeight;
-	gRenDev->GetViewport(&prevVpX, &prevVpY, &prevVpWidth, &prevVpHeight);
-
-	{
-		PROFILE_LABEL_SCOPE("SSR_RAYTRACE");
-
-		CTexture* dstTex = CRenderer::CV_r_SSReflHalfRes ? CTexture::s_ptexHDRTargetScaled[0] : CTexture::s_ptexHDRTarget;
-
-		rd->FX_PushRenderTarget(0, dstTex, NULL);
-		rd->RT_SetViewport(0, 0, dstTex->GetWidth(), dstTex->GetHeight());
-
-		rd->FX_SetState(GS_NODEPTHTEST);
-		SD3DPostEffectsUtils::ShBeginPass(m_pShader, m_pReflectionTechName, FEF_DONTSETTEXTURES | FEF_DONTSETSTATES);
-
-		m_pDepthRT->Apply(0, m_nTexStatePoint);
-		m_pNormalsRT->Apply(1, m_nTexStateLinear);
-		m_pSpecularRT->Apply(2, m_nTexStateLinear);
-		CTexture::s_ptexZTargetScaled->Apply(3, m_nTexStatePoint);
-		SD3DPostEffectsUtils::SetTexture(CTexture::s_ptexHDRTargetPrev, 4, FILTER_LINEAR, TADDR_BORDER);
-		CTexture::s_ptexHDRMeasuredLuminance[rd->RT_GetCurrGpuID()]->Apply(5, m_nTexStatePoint);    // Current luminance
-
-		static CCryNameR param0("g_mViewProj");
-		m_pShader->FXSetPSFloat(param0, (Vec4*) mViewProj.GetData(), 4);
-
-		static CCryNameR param1("g_mViewProjPrev");
-		m_pShader->FXSetPSFloat(param1, (Vec4*) mViewProjPrev.GetData(), 4);
-
-		SD3DPostEffectsUtils::DrawFullScreenTriWPOS(dstTex->GetWidth(), dstTex->GetHeight());
-		SD3DPostEffectsUtils::ShEndPass();
-
-		rd->FX_PopRenderTarget(0);
-	}
-
-	if (!CRenderer::CV_r_SSReflHalfRes)
-	{
-		PostProcessUtils().StretchRect(CTexture::s_ptexHDRTarget, CTexture::s_ptexHDRTargetScaled[0]);
-	}
-
-	// Convolve sharp reflections
-	PostProcessUtils().StretchRect(CTexture::s_ptexHDRTargetScaled[0], CTexture::s_ptexHDRTargetScaled[1]);
-	PostProcessUtils().TexBlurGaussian(CTexture::s_ptexHDRTargetScaled[1], 1, 1.0f, 3.0f, false, 0, false, CTexture::s_ptexHDRTargetScaledTempRT[1]);
-
-	PostProcessUtils().StretchRect(CTexture::s_ptexHDRTargetScaled[1], CTexture::s_ptexHDRTargetScaled[2]);
-	PostProcessUtils().TexBlurGaussian(CTexture::s_ptexHDRTargetScaled[2], 1, 1.0f, 3.0f, false, 0, false, CTexture::s_ptexHDRTargetScaledTempRT[2]);
-
-	PostProcessUtils().StretchRect(CTexture::s_ptexHDRTargetScaled[2], CTexture::s_ptexHDRTargetScaled[3]);
-	PostProcessUtils().TexBlurGaussian(CTexture::s_ptexHDRTargetScaled[3], 1, 1.0f, 3.0f, false, 0, false, CTexture::s_ptexHDRTargetScaledTempRT[3]);
-
-	{
-		PROFILE_LABEL_SCOPE("SSR_COMPOSE");
-
-		static CCryNameTSCRC tech("SSReflection_Comp");
-
-		CTexture* dstTex = CTexture::s_ptexHDRTargetScaledTmp[0];
-		dstTex->Unbind();
-
-		rd->FX_SetState(GS_NODEPTHTEST);
-		rd->FX_PushRenderTarget(0, dstTex, NULL);
-		rd->RT_SetViewport(0, 0, dstTex->GetWidth(), dstTex->GetHeight());
-
-		m_pSpecularRT->Apply(0, m_nTexStateLinear);
-		CTexture::s_ptexHDRTargetScaled[0]->Apply(1, m_nTexStateLinear);
-		CTexture::s_ptexHDRTargetScaled[1]->Apply(2, m_nTexStateLinear);
-		CTexture::s_ptexHDRTargetScaled[2]->Apply(3, m_nTexStateLinear);
-		CTexture::s_ptexHDRTargetScaled[3]->Apply(4, m_nTexStateLinear);
-
-		SD3DPostEffectsUtils::ShBeginPass(m_pShader, tech, FEF_DONTSETTEXTURES | FEF_DONTSETSTATES);
-		SD3DPostEffectsUtils::DrawFullScreenTri(dstTex->GetWidth(), dstTex->GetHeight());
-		SD3DPostEffectsUtils::ShEndPass();
-		rd->FX_PopRenderTarget(0);
-	}
-
-	// Restore the old flags
-	rd->m_RP.m_FlagsShader_RT = shaderFlags;
-	rd->m_RP.m_TI[rd->m_RP.m_nProcessThreadID].m_PersFlags = nPrevPersFlags;
-
-	if (rd->m_RP.m_TI[rd->m_RP.m_nProcessThreadID].m_PersFlags & RBPF_REVERSE_DEPTH)
-	{
-		uint32 depthState = ReverseDepthHelper::ConvertDepthFunc(rd->m_RP.m_CurState);
-		rd->FX_SetState(rd->m_RP.m_CurState, rd->m_RP.m_CurAlphaRef, depthState);
-	}
-
-	rd->RT_SetViewport(prevVpX, prevVpY, prevVpWidth, prevVpHeight);
-
-	// Array used for MGPU support
-	m_prevViewProj[frameID % MAX_GPU_NUM] = mViewProj;
-}
-
-void CDeferredShading::ApplySSReflections()
-{
-	if (!CRenderer::CV_r_SSReflections || !CTexture::s_ptexHDRTarget)  // Sketch mode disables HDR rendering
-		return;
-
-	CTexture* pSSRTarget = CTexture::s_ptexHDRTargetScaledTmp[0];
-
-	PROFILE_LABEL_SCOPE("SSR_APPLY");
-
-	SpecularAccEnableMRT(false);
-	gcpRendD3D->FX_PushRenderTarget(0, m_pLBufferSpecularRT, NULL);
-
-	static CCryNameTSCRC tech("ApplySSR");
-	SD3DPostEffectsUtils::ShBeginPass(m_pShader, tech, FEF_DONTSETTEXTURES | FEF_DONTSETSTATES);
-	gcpRendD3D->FX_SetState(GS_NODEPTHTEST | GS_BLSRC_SRCALPHA | GS_BLDST_ONEMINUSSRCALPHA);
-
-	pSSRTarget->Apply(0, m_nTexStateLinear);
-	m_pDepthRT->Apply(1, m_nTexStatePoint);
-	m_pNormalsRT->Apply(2, m_nTexStatePoint);
-	m_pDiffuseRT->Apply(3, m_nTexStatePoint);
-	m_pSpecularRT->Apply(4, m_nTexStatePoint);
-	CTexture::s_ptexEnvironmentBRDF->Apply(5, m_nTexStateLinear);
-
-	SD3DPostEffectsUtils::DrawFullScreenTriWPOS(pSSRTarget->GetWidth(), pSSRTarget->GetHeight());
-	SD3DPostEffectsUtils::ShEndPass();
-
-	gcpRendD3D->FX_PopRenderTarget(0);
-	SpecularAccEnableMRT(true);
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-void CDeferredShading::HeightMapOcclusionPass(ShadowMapFrustum*& pHeightMapFrustum, CTexture*& pHeightMapAOScreenDepth, CTexture*& pHeightmapAO)
-{
-	CD3D9Renderer* const __restrict rd = gcpRendD3D;
-	const int nThreadID = rd->m_RP.m_nProcessThreadID;
-	pHeightMapFrustum = NULL;
-	pHeightMapAOScreenDepth = pHeightmapAO = NULL;
-
-	if (!CRenderer::CV_r_HeightMapAO || rd->m_RP.m_pSunLight == NULL)
-		return;
-
-	// prepare height map ao frustum
-	auto arrHeightmapAOFrustums = RenderView()->GetShadowFrustumsByType(CRenderView::eShadowFrustumRenderType_HeightmapAO);
-	if (!arrHeightmapAOFrustums.empty())
-	{
-		ShadowMapFrustum* pFr = arrHeightmapAOFrustums.front()->pFrustum;
-		if (pFr->pDepthTex)
-		{
-			rd->ConfigShadowTexgen(0, pFr, -1, false, false);
-			pHeightMapFrustum = pFr;
-		}
-	}
-
-	if (pHeightMapFrustum)
-	{
-		PROFILE_LABEL_SCOPE("HEIGHTMAP_OCC");
-
-		const int resolutionIndex = clamp_tpl(CRenderer::CV_r_HeightMapAO - 1, 0, 2);
-		CTexture* pDepth[] = { CTexture::s_ptexZTargetScaled2, CTexture::s_ptexZTargetScaled, m_pDepthRT };
-		CTexture* pDst = CTexture::s_ptexHeightMapAO[0];
-
-		if (!CTexture::s_ptexHeightMapAODepth[0]->IsResolved())
-		{
-			PROFILE_LABEL_SCOPE("GENERATE_MIPS");
-
-			rd->GetDeviceContext().CopySubresourceRegion(
-			  CTexture::s_ptexHeightMapAODepth[1]->GetDevTexture()->GetBaseTexture(), 0, 0, 0, 0,
-			  CTexture::s_ptexHeightMapAODepth[0]->GetDevTexture()->GetBaseTexture(), 0, NULL
-			  );
-
-			CTexture::s_ptexHeightMapAODepth[1]->GenerateMipMaps();
-			CTexture::s_ptexHeightMapAODepth[0]->SetResolved(true);
-		}
-
-		// Generate occlusion
-		{
-			PROFILE_LABEL_SCOPE("GENERATE_OCCL");
-
-			rd->FX_PushRenderTarget(0, pDst, NULL);
-
-			static CCryNameTSCRC tech("HeightMapAOPass");
-			SD3DPostEffectsUtils::ShBeginPass(m_pShader, tech, FEF_DONTSETSTATES);
-			rd->FX_SetState(GS_NODEPTHTEST);
-
-			int TsLinearWithBorder = CTexture::GetTexState(STexState(FILTER_TRILINEAR, TADDR_BORDER, TADDR_BORDER, TADDR_BORDER, 0xFFFFFFFF));
-
-			m_pNormalsRT->Apply(0, m_nTexStatePoint);
-			pDepth[resolutionIndex]->Apply(1, m_nTexStatePoint);
-			CTexture::s_ptexSceneNormalsBent->Apply(10, m_nTexStatePoint);
-			CTexture::s_ptexHeightMapAODepth[1]->Apply(11, TsLinearWithBorder);
-
-			Matrix44A matHMAOTransform = gRenDev->m_TempMatrices[0][0];
-			Matrix44A texToWorld = matHMAOTransform.GetInverted();
-
-			static CCryNameR paramNameHMAO("HMAO_Params");
-			const float texelsPerMeter = CRenderer::CV_r_HeightMapAOResolution / CRenderer::CV_r_HeightMapAORange;
-			const bool enableMinMaxSampling = CRenderer::CV_r_HeightMapAO < 3;
-			Vec4 paramHMAO(CRenderer::CV_r_HeightMapAOAmount, texelsPerMeter / CTexture::s_ptexHeightMapAODepth[1]->GetWidth(), enableMinMaxSampling ? 1.0 : 0.0, 0.0f);
-			m_pShader->FXSetPSFloat(paramNameHMAO, &paramHMAO, 1);
-
-			static CCryNameR paramNameHMAO_TexToWorldT("HMAO_TexToWorldTranslation");
-			Vec4 vTranslation = Vec4(texToWorld.m03, texToWorld.m13, texToWorld.m23, 0);
-			m_pShader->FXSetPSFloat(paramNameHMAO_TexToWorldT, &vTranslation, 1);
-
-			static CCryNameR paramNameHMAO_TexToWorldS("HMAO_TexToWorldScale");
-			Vec4 vScale = Vec4(texToWorld.m00, texToWorld.m11, texToWorld.m22, 1);
-			m_pShader->FXSetPSFloat(paramNameHMAO_TexToWorldS, &vScale, 1);
-
-			static CCryNameR paramHMAO_Transform("HMAO_Transform");
-			m_pShader->FXSetPSFloat(paramHMAO_Transform, (Vec4*)matHMAOTransform.GetData(), 4);
-
-			SD3DPostEffectsUtils::DrawFullScreenTriWPOS(pDst->GetWidth(), pDst->GetHeight());
-			SD3DPostEffectsUtils::ShEndPass();
-
-			rd->FX_PopRenderTarget(0);
-		}
-
-		// depth aware blur
-		{
-			PROFILE_LABEL_SCOPE("BLUR");
-
-			CShader* pSH = rd->m_cEF.s_ShaderShadowBlur;
-
-			CTexture* tpSrc = pDst;
-			rd->FX_PushRenderTarget(0, CTexture::s_ptexHeightMapAO[1], NULL);
-
-			const Vec4* pClipVolumeParams = NULL;
-			uint32 nClipVolumeCount = 0;
-			CDeferredShading::Instance().GetClipVolumeParams(pClipVolumeParams, nClipVolumeCount);
-
-			rd->m_RP.m_FlagsShader_RT &= ~(g_HWSR_MaskBit[HWSR_SAMPLE0]);
-			rd->m_RP.m_FlagsShader_RT |= nClipVolumeCount > 0 ? g_HWSR_MaskBit[HWSR_SAMPLE0] : 0;
-
-			static CCryNameTSCRC TechName("HMAO_Blur");
-			SD3DPostEffectsUtils::ShBeginPass(pSH, TechName, FEF_DONTSETTEXTURES | FEF_DONTSETSTATES);
-
-			tpSrc->Apply(0, m_nTexStatePoint, -2);
-			pDepth[resolutionIndex]->Apply(1, m_nTexStatePoint, -2);
-
-			if (nClipVolumeCount)
-			{
-				static CCryNameR paramClipVolumeData("HMAO_ClipVolumeData");
-				pSH->FXSetPSFloat(paramClipVolumeData, pClipVolumeParams, min(static_cast<uint32>(CClipVolumesStage::MaxDeferredClipVolumes), static_cast<uint32>(nClipVolumeCount + CClipVolumesStage::VisAreasOutdoorStencilOffset)));
-				SD3DPostEffectsUtils::SetTexture(CDeferredShading::Instance().GetResolvedStencilRT(), 2, FILTER_POINT);
-			}
-
-			rd->D3DSetCull(eCULL_Back);
-			rd->FX_SetState(0);
-
-			Vec4 v(0, 0, tpSrc->GetWidth(), tpSrc->GetHeight());
-			static CCryNameR Param1Name("PixelOffset");
-			pSH->FXSetVSFloat(Param1Name, &v, 1);
-
-			SD3DPostEffectsUtils::DrawFullScreenTri(CTexture::s_ptexHeightMapAO[1]->GetWidth(), CTexture::s_ptexHeightMapAO[1]->GetHeight());
-			SD3DPostEffectsUtils::ShEndPass();
-
-			rd->FX_PopRenderTarget(0);
-		}
-
-		pHeightMapAOScreenDepth = pDepth[resolutionIndex];
-		pHeightmapAO = CTexture::s_ptexHeightMapAO[1];
-	}
-}
-
-//////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////
-
-void CDeferredShading::DirectionalOcclusionPass()
-{
-	CD3D9Renderer* const __restrict rd = gcpRendD3D;
-	if (!CRenderer::CV_r_ssdo)
-	{
-		gcpRendD3D->FX_ClearTarget(CTexture::s_ptexSceneNormalsBent, Clr_Median);
-		return;
-	}
-
-	// calculate height map AO first
-	ShadowMapFrustum* pHeightMapFrustum = NULL;
-	CTexture* pHeightMapAODepth, * pHeightMapAO;
-	HeightMapOcclusionPass(pHeightMapFrustum, pHeightMapAODepth, pHeightMapAO);
-
-	rd->m_RP.m_FlagsShader_RT &= ~(g_HWSR_MaskBit[HWSR_SAMPLE0] | g_HWSR_MaskBit[HWSR_SAMPLE1] | g_HWSR_MaskBit[HWSR_SAMPLE2]);
-	CTexture* pDstSSDO = CTexture::s_ptexStereoR;// re-using stereo buffers (only full resolution 32bit non-multisampled available at this step)
-#if defined(DURANGO_USE_ESRAM)
-	pDstSSDO = CTexture::s_ptexSceneSpecularESRAM;
-#endif
-
-	const bool bLowResOutput = (CRenderer::CV_r_ssdoHalfRes == 3);
-	if (bLowResOutput)
-		pDstSSDO = CTexture::s_ptexBackBufferScaled[0];
-
-	rd->m_RP.m_FlagsShader_RT |= CRenderer::CV_r_ssdoHalfRes ? g_HWSR_MaskBit[HWSR_SAMPLE0] : 0;
-	rd->m_RP.m_FlagsShader_RT |= pHeightMapFrustum ? g_HWSR_MaskBit[HWSR_SAMPLE1] : 0;
-
-	// Extreme magnification as happening with small FOVs will cause banding issues with half-res depth
-	if (CRenderer::CV_r_ssdoHalfRes == 2 && RAD2DEG(rd->GetCamera().GetFov()) < 30)
-		rd->m_RP.m_FlagsShader_RT &= ~g_HWSR_MaskBit[HWSR_SAMPLE0];
-
-	PROFILE_LABEL_PUSH("DIRECTIONAL_OCC");
-
-	bool allowDepthBounds = !bLowResOutput;
-	rd->FX_PushRenderTarget(0, pDstSSDO, allowDepthBounds ? &gcpRendD3D->m_DepthBufferOrig : NULL);
-
-#ifdef SUPPORTS_MSAA
-	if (rd->m_RP.m_MSAAData.Type)
-	{
-		rd->FX_ClearTarget(pDstSSDO, Clr_Median);
-	}
-#endif
-
-	if (CRenderer::CV_r_DeferredShadingDepthBoundsTest)
-		rd->SetDepthBoundTest(0.0f, DBT_SKY_CULL_DEPTH, allowDepthBounds);
-
-	static CCryNameTSCRC tech("DirOccPass");
-	SD3DPostEffectsUtils::ShBeginPass(m_pShader, tech, FEF_DONTSETSTATES);
-
-	rd->FX_SetState(GS_NODEPTHTEST);
-	m_pNormalsRT->Apply(0, m_nTexStatePoint);
-	m_pDepthRT->Apply(1, m_nTexStatePoint);
-	SPostEffectsUtils::SetTexture(CTexture::s_ptexAOVOJitter, 3, FILTER_POINT, 0);
-	if (bLowResOutput)
-		CTexture::s_ptexZTargetScaled2->Apply(5, m_nTexStatePoint);
-	else
-		CTexture::s_ptexZTargetScaled->Apply(5, m_nTexStatePoint);
-
-	Matrix44A matView;
-	matView = rd->m_RP.m_TI[rd->m_RP.m_nProcessThreadID].m_cam.GetViewMatrix();
-
-	// Adjust the camera matrix so that the camera space will be: +y = down, +z - towards, +x - right
-	Vec3 zAxis = matView.GetRow(1);
-	matView.SetRow(1, -matView.GetRow(2));
-	matView.SetRow(2, zAxis);
-	float z = matView.m13;
-	matView.m13 = -matView.m23;
-	matView.m23 = z;
-
-	float radius = CRenderer::CV_r_ssdoRadius / rd->GetRCamera().fFar;
-#if defined(FEATURE_SVO_GI)
-	if (CSvoRenderer::GetInstance()->IsActive())
-		radius *= CSvoRenderer::GetInstance()->GetSsaoAmount();
-#endif
-	static CCryNameR paramName1("SSDOParams");
-	Vec4 param1(radius * 0.5f * rd->m_ProjMatrix.m00, radius * 0.5f * rd->m_ProjMatrix.m11,
-	            CRenderer::CV_r_ssdoRadiusMin, CRenderer::CV_r_ssdoRadiusMax);
-	m_pShader->FXSetPSFloat(paramName1, &param1, 1);
-
-	static CCryNameR viewspaceParamName("ViewSpaceParams");
-	Vec4 vViewSpaceParam(2.0f / rd->m_ProjMatrix.m00, 2.0f / rd->m_ProjMatrix.m11, -1.0f / rd->m_ProjMatrix.m00, -1.0f / rd->m_ProjMatrix.m11);
-	m_pShader->FXSetPSFloat(viewspaceParamName, &vViewSpaceParam, 1);
-
-	static CCryNameR paramName2("SSDO_CameraMatrix");
-	m_pShader->FXSetPSFloat(paramName2, (Vec4*)matView.GetData(), 3);
-
-	matView.Invert();
-	static CCryNameR paramName3("SSDO_CameraMatrixInv");
-	m_pShader->FXSetPSFloat(paramName3, (Vec4*)matView.GetData(), 3);
-
-	// set up height map AO
-	if (pHeightMapFrustum)
-	{
-		pHeightMapAODepth->Apply(11, m_nTexStatePoint);
-		pHeightMapAO->Apply(12, -2);
-
-		static CCryNameR paramNameHMAO("HMAO_Params");
-		Vec4 paramHMAO(CRenderer::CV_r_HeightMapAOAmount, 1.0f / pHeightMapFrustum->nTexSize, 0, 0);
-		m_pShader->FXSetPSFloat(paramNameHMAO, &paramHMAO, 1);
-	}
-
-	SD3DPostEffectsUtils::DrawFullScreenTri(pDstSSDO->GetWidth(), pDstSSDO->GetHeight(), 0);//, &gcpRendD3D->m_FullResRect);
-	SD3DPostEffectsUtils::ShEndPass();
-
-	if (CRenderer::CV_r_DeferredShadingDepthBoundsTest)
-		rd->SetDepthBoundTest(0.0f, DBT_SKY_CULL_DEPTH, false);
-
-	rd->FX_PopRenderTarget(0);
-
-	if (CRenderer::CV_r_ssdo != 99)
-	{
-		CShader* pSH = rd->m_cEF.s_ShaderShadowBlur;
-		CTexture* tpSrc = pDstSSDO;
-		const int32 nSizeX = CTexture::s_ptexZTarget->GetWidth();
-		const int32 nSizeY = CTexture::s_ptexZTarget->GetHeight();
-		const int32 nSrcSizeX = tpSrc->GetWidth();
-		const int32 nSrcSizeY = tpSrc->GetHeight();
-
-		PROFILE_LABEL_SCOPE("SSDO_BLUR");
-		rd->FX_PushRenderTarget(0, CTexture::s_ptexSceneNormalsBent, NULL);
-
-		static CCryNameTSCRC TechName("SSDO_Blur");
-		SD3DPostEffectsUtils::ShBeginPass(pSH, TechName, FEF_DONTSETTEXTURES | FEF_DONTSETSTATES);
-
-		tpSrc->Apply(0, m_nTexStateLinear);
-		CTexture::s_ptexZTarget->Apply(1, m_nTexStatePoint);
-
-		rd->D3DSetCull(eCULL_Back);
-		rd->FX_SetState(0);
-
-		Vec4 v(0, 0, nSrcSizeX, nSrcSizeY);
-		static CCryNameR Param1Name("PixelOffset");
-		pSH->FXSetVSFloat(Param1Name, &v, 1);
-
-		v = Vec4(0.5f / (float)nSizeX, 0.5f / (float)nSizeY, 1.f / (float)nSrcSizeX, 1.f / (float)nSrcSizeY);
-		static CCryNameR Param2Name("BlurOffset");
-		pSH->FXSetPSFloat(Param2Name, &v, 1);
-
-		v = Vec4(2.f / nSrcSizeX, 0, 2.f / nSrcSizeY, 10.f); //w = Weight coef
-		static CCryNameR Param3Name("SSAO_BlurKernel");
-		pSH->FXSetPSFloat(Param3Name, &v, 1);
-
-		SD3DPostEffectsUtils::DrawFullScreenTri(CTexture::s_ptexSceneNormalsBent->GetWidth(), CTexture::s_ptexSceneNormalsBent->GetHeight());
-		SD3DPostEffectsUtils::ShEndPass();
-
-		rd->FX_PopRenderTarget(0);
-	}
-	else  // For debugging
-	{
-		PostProcessUtils().StretchRect(pDstSSDO, CTexture::s_ptexSceneNormalsBent);
-	}
-
-	rd->m_RP.m_FlagsShader_RT &= ~(g_HWSR_MaskBit[HWSR_SAMPLE0] | g_HWSR_MaskBit[HWSR_SAMPLE1]);
-
-	if (CRenderer::CV_r_ssdoColorBleeding)
-	{
-		// Generate low frequency scene albedo for color bleeding (convolution not gamma correct but acceptable)
-		PostProcessUtils().StretchRect(CTexture::s_ptexSceneDiffuse, CTexture::s_ptexBackBufferScaled[0], false, false, false, false);
-		PostProcessUtils().StretchRect(CTexture::s_ptexBackBufferScaled[0], CTexture::s_ptexBackBufferScaled[1]);
-		PostProcessUtils().StretchRect(CTexture::s_ptexBackBufferScaled[1], CTexture::s_ptexAOColorBleed);
-		PostProcessUtils().TexBlurGaussian(CTexture::s_ptexAOColorBleed, 1, 1.0f, 4.0f, false, NULL, false, CTexture::s_ptexBackBufferScaled[2]);
-	}
-
-	PROFILE_LABEL_POP("DIRECTIONAL_OCC");
-}
-
-//////////////////////////////////////////////////////////////////////////
-//////////////////////////////////////////////////////////////////////////
-
-void CDeferredShading::DeferredSubsurfaceScattering(CTexture* tmpTex)
-{
-	if (gcpRendD3D->m_nGraphicsPipeline > 0)
-	{
-		m_pLBufferDiffuseRT->Unbind();
-		gcpRendD3D->GetGraphicsPipeline().RenderScreenSpaceSSS(tmpTex);
-		return;
-	}
-
-	CD3D9Renderer* const __restrict rd = gcpRendD3D;
-
-	if (!CTexture::s_ptexHDRTarget)  // Sketch mode disables HDR rendering
-		return;
-
-	PROFILE_LABEL_SCOPE("SSSSS");
-
-	const uint64 nFlagsShaderRT = rd->m_RP.m_FlagsShader_RT;
-	rd->m_RP.m_FlagsShader_RT &= ~(g_HWSR_MaskBit[HWSR_SAMPLE0]);
-
-	static CCryNameTSCRC techBlur("SSSSS_Blur");
-	static CCryNameR blurParamName("SSSBlurDir");
-	static CCryNameR viewspaceParamName("ViewSpaceParams");
-	Vec4 vViewSpaceParam(2.0f / rd->m_ProjMatrix.m00, 2.0f / rd->m_ProjMatrix.m11, -1.0f / rd->m_ProjMatrix.m00, -1.0f / rd->m_ProjMatrix.m11);
-	Vec4 vBlurParam;
-
-	float fProjScaleX = 0.5f * rd->m_ProjMatrix.m00;
-	float fProjScaleY = 0.5f * rd->m_ProjMatrix.m11;
-
-	m_pLBufferDiffuseRT->Unbind();
-	m_pDepthRT->Apply(1, m_nTexStatePoint);
-	m_pNormalsRT->Apply(2, m_nTexStatePoint);
-	m_pDiffuseRT->Apply(3, m_nTexStatePoint);
-	m_pSpecularRT->Apply(4, m_nTexStatePoint);
-
-	rd->FX_SetState(GS_NODEPTHTEST);
-
-	// Horizontal pass
-	rd->FX_PushRenderTarget(0, CTexture::s_ptexSceneTargetR11G11B10F[1], NULL);
-	tmpTex->Apply(0, m_nTexStatePoint);  // Irradiance
-	SD3DPostEffectsUtils::ShBeginPass(m_pShader, techBlur, FEF_DONTSETTEXTURES | FEF_DONTSETSTATES);
-	m_pShader->FXSetPSFloat(viewspaceParamName, &vViewSpaceParam, 1);
-	vBlurParam(fProjScaleX, 0, 0, 0);
-	m_pShader->FXSetPSFloat(blurParamName, &vBlurParam, 1);
-	SD3DPostEffectsUtils::DrawFullScreenTri(CTexture::s_ptexHDRTarget->GetWidth(), CTexture::s_ptexHDRTarget->GetHeight());
-	SD3DPostEffectsUtils::ShEndPass();
-	rd->FX_PopRenderTarget(0);
-
-	rd->FX_SetState(GS_NODEPTHTEST | GS_BLSRC_ONE | GS_BLDST_ONE);
-	rd->m_RP.m_FlagsShader_RT |= g_HWSR_MaskBit[HWSR_SAMPLE0];
-
-	// Vertical pass
-	rd->FX_PushRenderTarget(0, CTexture::s_ptexHDRTarget, NULL);
-	CTexture::s_ptexSceneTargetR11G11B10F[1]->Apply(0, m_nTexStatePoint);
-	tmpTex->Apply(5, m_nTexStatePoint);  // Original irradiance
-	SD3DPostEffectsUtils::ShBeginPass(m_pShader, techBlur, FEF_DONTSETTEXTURES | FEF_DONTSETSTATES);
-	m_pShader->FXSetPSFloat(viewspaceParamName, &vViewSpaceParam, 1);
-	vBlurParam(0, fProjScaleY, 0, 0);
-	m_pShader->FXSetPSFloat(blurParamName, &vBlurParam, 1);
-	SD3DPostEffectsUtils::DrawFullScreenTri(CTexture::s_ptexHDRTarget->GetWidth(), CTexture::s_ptexHDRTarget->GetHeight());
-	SD3DPostEffectsUtils::ShEndPass();
-	rd->FX_PopRenderTarget(0);
-
-	rd->m_RP.m_FlagsShader_RT = nFlagsShaderRT;
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
 void CDeferredShading::DeferredShadingPass()
 {
 	CD3D9Renderer* const __restrict rd = gcpRendD3D;
+	const bool bMSAA = rd->m_RP.m_MSAAData.Type ? true : false;
 
 	rd->GetGraphicsPipeline().SwitchFromLegacyPipeline();
 	rd->GetGraphicsPipeline().GetShadowMaskStage()->Prepare(m_pCurrentRenderView);
@@ -2471,8 +1923,6 @@ void CDeferredShading::DeferredShadingPass()
 
 	const uint64 nFlagsShaderRT = rd->m_RP.m_FlagsShader_RT;
 	rd->m_RP.m_FlagsShader_RT &= ~(g_HWSR_MaskBit[HWSR_SAMPLE0] | g_HWSR_MaskBit[HWSR_SAMPLE1] | g_HWSR_MaskBit[HWSR_SAMPLE2] | g_HWSR_MaskBit[HWSR_SAMPLE4] | RT_CLIPVOLUME_ID);
-
-	const int nResourceViewID = rd->m_RP.m_MSAAData.Type ? m_nBindResourceMsaa : -1;
 
 	if (CRenderer::CV_r_DeferredShadingDepthBoundsTest)
 		rd->SetDepthBoundTest(0.0f, DBT_SKY_CULL_DEPTH, true);
@@ -2521,7 +1971,7 @@ void CDeferredShading::DeferredShadingPass()
 
 	rd->FX_SetState(GS_NODEPTHTEST);
 #ifdef SUPPORTS_MSAA
-	if (gcpRendD3D->m_RP.m_MSAAData.Type)
+	if (bMSAA)
 	{
 		rd->m_RP.m_PersFlags2 |= RBPF2_READMASK_RESERVED_STENCIL_BIT;
 		const int32 nMSAAStState = STENC_FUNC((rd->m_RP.m_PersFlags2 & RBPF2_MSAA_SAMPLEFREQ_PASS) ? FSS_STENCFUNC_EQUAL : FSS_STENCFUNC_NOTEQUAL) | STENCOP_FAIL(FSS_STENCOP_KEEP) | STENCOP_ZFAIL(FSS_STENCOP_KEEP) | STENCOP_PASS(FSS_STENCOP_KEEP);
@@ -2530,23 +1980,23 @@ void CDeferredShading::DeferredShadingPass()
 	}
 #endif
 
-	m_pLBufferDiffuseRT->Apply(0, m_nTexStatePoint, EFTT_UNKNOWN, -1, nResourceViewID);
-	m_pLBufferSpecularRT->Apply(1, m_nTexStatePoint, EFTT_UNKNOWN, -1, nResourceViewID);
-	m_pDiffuseRT->Apply(2, m_nTexStatePoint, EFTT_UNKNOWN, -1, (rd->m_RP.m_PersFlags2 & RBPF2_MSAA_SAMPLEFREQ_PASS) ? nResourceViewID : -1);
-	m_pSpecularRT->Apply(3, m_nTexStatePoint, EFTT_UNKNOWN, -1, (rd->m_RP.m_PersFlags2 & RBPF2_MSAA_SAMPLEFREQ_PASS) ? nResourceViewID : -1);
-	m_pNormalsRT->Apply(4, m_nTexStatePoint, EFTT_UNKNOWN, -1, nResourceViewID);
-	m_pDepthRT->Apply(5, m_nTexStatePoint, EFTT_UNKNOWN, -1, (rd->m_RP.m_PersFlags2 & RBPF2_MSAA_SAMPLEFREQ_PASS) ? nResourceViewID : -1);
-	m_pResolvedStencilRT->Apply(6, m_nTexStatePoint, EFTT_UNKNOWN, -1, -1);
+	m_pLBufferDiffuseRT->Apply(0, EDefaultSamplerStates::PointClamp, EFTT_UNKNOWN, -1, EDefaultResourceViews::Default, bMSAA);
+	m_pLBufferSpecularRT->Apply(1, EDefaultSamplerStates::PointClamp, EFTT_UNKNOWN, -1, EDefaultResourceViews::Default, bMSAA);
+	m_pDiffuseRT->Apply(2, EDefaultSamplerStates::PointClamp, EFTT_UNKNOWN, -1, EDefaultResourceViews::Default, bMSAA && (rd->m_RP.m_PersFlags2 & RBPF2_MSAA_SAMPLEFREQ_PASS));
+	m_pSpecularRT->Apply(3, EDefaultSamplerStates::PointClamp, EFTT_UNKNOWN, -1, EDefaultResourceViews::Default, bMSAA && (rd->m_RP.m_PersFlags2 & RBPF2_MSAA_SAMPLEFREQ_PASS));
+	m_pNormalsRT->Apply(4, EDefaultSamplerStates::PointClamp, EFTT_UNKNOWN, -1, EDefaultResourceViews::Default, bMSAA);
+	m_pDepthRT->Apply(5, EDefaultSamplerStates::PointClamp, EFTT_UNKNOWN, -1, EDefaultResourceViews::Default, bMSAA && (rd->m_RP.m_PersFlags2 & RBPF2_MSAA_SAMPLEFREQ_PASS));
+	m_pResolvedStencilRT->Apply(6, EDefaultSamplerStates::PointClamp, EFTT_UNKNOWN, -1, -1);
 
 	// Directional occlusion
 	Vec4 ssdoParams(CRenderer::CV_r_ssdoAmountDirect, CRenderer::CV_r_ssdoAmountAmbient, CRenderer::CV_r_ssdoAmountReflection, 0);
 	Vec4 ssdoParamsNull(0, 0, 0, 0);
 	static CCryNameR ssdoParamsName("SSDOParams");
 	m_pShader->FXSetPSFloat(ssdoParamsName, CRenderer::CV_r_ssdo ? &ssdoParams : &ssdoParamsNull, 1);
-	CTexture::s_ptexSceneNormalsBent->Apply(7, m_nTexStatePoint);   // todo: should this be msaaed or upscaled ?
+	CTexture::s_ptexSceneNormalsBent->Apply(7, EDefaultSamplerStates::PointClamp);   // todo: should this be msaaed or upscaled ?
 
-	CTexture::s_ptexShadowMask->Apply(8, m_nTexStatePoint);
-	m_pDepthRT->Apply(9, m_nTexStatePoint);
+	CTexture::s_ptexShadowMask->Apply(8, EDefaultSamplerStates::PointClamp);
+	m_pDepthRT->Apply(9, EDefaultSamplerStates::PointClamp);
 
 	Vec3 sunColor;
 	gEnv->p3DEngine->GetGlobalParameter(E3DPARAM_SUN_COLOR, sunColor);
@@ -2580,18 +2030,18 @@ void CDeferredShading::DeferredShadingPass()
 	SD3DPostEffectsUtils::ShEndPass();
 
 #ifdef SUPPORTS_MSAA
-	if (nPass == 1)
-	{
-		rd->FX_MSAASampleFreqStencilSetup();
-		PROFILE_LABEL_POP("SAMPLEFREQPASS");
+		if (nPass == 1)
+		{
+			rd->FX_MSAASampleFreqStencilSetup();
+			PROFILE_LABEL_POP("SAMPLEFREQPASS");
+		}
 	}
-}
 
-if (gcpRendD3D->m_RP.m_MSAAData.Type)
-	rd->m_RP.m_PersFlags2 &= ~RBPF2_READMASK_RESERVED_STENCIL_BIT;
+	if (bMSAA)
+		rd->m_RP.m_PersFlags2 &= ~RBPF2_READMASK_RESERVED_STENCIL_BIT;
 
-rd->FX_StencilTestCurRef(false);
-rd->m_nStencilMaskRef = nPrevStencilMaskRef;
+	rd->FX_StencilTestCurRef(false);
+	rd->m_nStencilMaskRef = nPrevStencilMaskRef;
 #endif
 
 	PROFILE_LABEL_POP("COMPOSITION");
@@ -2603,8 +2053,6 @@ rd->m_nStencilMaskRef = nPrevStencilMaskRef;
 	{
 		rd->FX_PopRenderTarget(1);
 		rd->FX_SetActiveRenderTargets();
-
-		DeferredSubsurfaceScattering(tmpTexSSS);
 	}
 
 	rd->m_RP.m_FlagsShader_RT = nFlagsShaderRT;
@@ -3148,21 +2596,11 @@ bool CDeferredShading::ShadowLightPasses(const SRenderLight& light, const int nL
 			rd->ConfigShadowTexgen(0, &firstFrustum, nS);
 
 			if (firstFrustum.bUseShadowsPool)
-			{
-				const int nTexFilter = firstFrustum.bHWPCFCompare ? FILTER_LINEAR : FILTER_POINT;
-				STexState TS;
-				TS.SetFilterMode(nTexFilter);
-				TS.SetClampMode(TADDR_CLAMP, TADDR_CLAMP, TADDR_CLAMP);
-				TS.m_bSRGBLookup = false;
-				TS.SetComparisonFilter(true);
-				CTexture::s_ptexRT_ShadowPool->Apply(3, CTexture::GetTexState(TS));
-			}
+				CTexture::s_ptexRT_ShadowPool->Apply(3, firstFrustum.bHWPCFCompare ? EDefaultSamplerStates::LinearCompare : EDefaultSamplerStates::PointCompare);
 			else
-			{
-				SD3DPostEffectsUtils::SetTexture(firstFrustum.pDepthTex, 3, FILTER_POINT, 0);
-			}
+				SD3DPostEffectsUtils::SetTexture(firstFrustum.pDepthTex, 3, FILTER_POINT, eSamplerAddressMode_Wrap);
 
-			SD3DPostEffectsUtils::SetTexture(CTexture::s_ptexShadowJitterMap, 7, FILTER_POINT, 0);
+			SD3DPostEffectsUtils::SetTexture(CTexture::s_ptexShadowJitterMap, 7, FILTER_POINT, eSamplerAddressMode_Wrap);
 		}
 		else
 		{
@@ -3200,7 +2638,9 @@ bool CDeferredShading::ShadowLightPasses(const SRenderLight& light, const int nL
 void CDeferredShading::CreateDeferredMaps()
 {
 	static uint32 nPrevLBuffersFmt = CRenderer::CV_r_DeferredShadingLBuffersFmt;
-	if (!CTexture::s_ptexSceneNormalsMap || CTexture::s_ptexSceneNormalsMap->IsMSAAChanged()
+	if (!CTexture::s_ptexSceneNormalsMap ||
+		!CTexture::s_ptexSceneNormalsMap->GetDevTexture() ||
+		 CTexture::s_ptexSceneNormalsMap->GetDevTexture()->IsMSAAChanged()
 	    || CTexture::s_ptexSceneNormalsMap->GetWidth() != gcpRendD3D->m_MainViewport.nWidth
 	    || CTexture::s_ptexSceneNormalsMap->GetHeight() != gcpRendD3D->m_MainViewport.nHeight
 	    || nPrevLBuffersFmt != CRenderer::CV_r_DeferredShadingLBuffersFmt
@@ -3212,9 +2652,9 @@ void CDeferredShading::CreateDeferredMaps()
 		const int height = gRenDev->GetHeight(), height_r2 = (height + 1) / 2, height_r4 = (height_r2 + 1) / 2, height_r8 = (height_r4 + 1) / 2;
 		int32 nMSAAUsageFlag = CRenderer::CV_r_msaa ? FT_USAGE_MSAA : 0;
 
-		SD3DPostEffectsUtils::CreateRenderTarget("$SceneNormalsMap", CTexture::s_ptexSceneNormalsMap, width, height, Clr_Unknown, true, false, eTF_R8G8B8A8, TO_SCENE_NORMALMAP, nMSAAUsageFlag | FT_USAGE_ALLOWREADSRGB);
-		SD3DPostEffectsUtils::CreateRenderTarget("$SceneNormalsBent", CTexture::s_ptexSceneNormalsBent, width, height, Clr_Median, true, false, eTF_R8G8B8A8);
-		SD3DPostEffectsUtils::CreateRenderTarget("$AOColorBleed", CTexture::s_ptexAOColorBleed, width_r8, height_r8, Clr_Unknown, true, false, eTF_R8G8B8A8);
+		SD3DPostEffectsUtils::GetOrCreateRenderTarget("$SceneNormalsMap", CTexture::s_ptexSceneNormalsMap, width, height, Clr_Unknown, true, false, eTF_R8G8B8A8, TO_SCENE_NORMALMAP, nMSAAUsageFlag | FT_USAGE_ALLOWREADSRGB);
+		SD3DPostEffectsUtils::GetOrCreateRenderTarget("$SceneNormalsBent", CTexture::s_ptexSceneNormalsBent, width, height, Clr_Median, true, false, eTF_R8G8B8A8);
+		SD3DPostEffectsUtils::GetOrCreateRenderTarget("$AOColorBleed", CTexture::s_ptexAOColorBleed, width_r8, height_r8, Clr_Unknown, true, false, eTF_R8G8B8A8);
 
 		ETEX_Format fmtZScaled = eTF_R16G16B16A16F;
 		ETEX_Format nTexFormat = eTF_R16G16B16A16F;
@@ -3225,28 +2665,28 @@ void CDeferredShading::CreateDeferredMaps()
 
 		int nFTFlags = nMSAAUsageFlag;
 
-		SD3DPostEffectsUtils::CreateRenderTarget("$SceneDiffuseAcc", CTexture::s_ptexSceneDiffuseAccMap, width, height, Clr_Transparent, true, false, nTexFormat, TO_SCENE_DIFFUSE_ACC, nFTFlags);
+		SD3DPostEffectsUtils::GetOrCreateRenderTarget("$SceneDiffuseAcc", CTexture::s_ptexSceneDiffuseAccMap, width, height, Clr_Transparent, true, false, nTexFormat, TO_SCENE_DIFFUSE_ACC, nFTFlags);
 		CTexture::s_ptexCurrentSceneDiffuseAccMap = CTexture::s_ptexSceneDiffuseAccMap;
-		SD3DPostEffectsUtils::CreateRenderTarget("$SceneSpecularAcc", CTexture::s_ptexSceneSpecularAccMap, width, height, Clr_Transparent, true, false, nTexFormat, TO_SCENE_SPECULAR_ACC, nFTFlags);
+		SD3DPostEffectsUtils::GetOrCreateRenderTarget("$SceneSpecularAcc", CTexture::s_ptexSceneSpecularAccMap, width, height, Clr_Transparent, true, false, nTexFormat, TO_SCENE_SPECULAR_ACC, nFTFlags);
 
-		SD3DPostEffectsUtils::CreateRenderTarget("$SceneDiffuse", CTexture::s_ptexSceneDiffuse, width, height, Clr_Empty, true, false, eTF_R8G8B8A8, -1, nFTFlags);
-		SD3DPostEffectsUtils::CreateRenderTarget("$SceneSpecular", CTexture::s_ptexSceneSpecular, width, height, Clr_Empty, true, false, eTF_R8G8B8A8, -1, nFTFlags | FT_USAGE_ALLOWREADSRGB);
+		SD3DPostEffectsUtils::GetOrCreateRenderTarget("$SceneDiffuse", CTexture::s_ptexSceneDiffuse, width, height, Clr_Empty, true, false, eTF_R8G8B8A8, -1, nFTFlags | FT_USAGE_ALLOWREADSRGB);
+		SD3DPostEffectsUtils::GetOrCreateRenderTarget("$SceneSpecular", CTexture::s_ptexSceneSpecular, width, height, Clr_Empty, true, false, eTF_R8G8B8A8, -1, nFTFlags | FT_USAGE_ALLOWREADSRGB);
 #if defined(DURANGO_USE_ESRAM)
-		SD3DPostEffectsUtils::CreateRenderTarget("$SceneSpecularESRAM", CTexture::s_ptexSceneSpecularESRAM, width, height, Clr_Empty, true, false, eTF_R8G8B8A8, -1, nFTFlags);
+		SD3DPostEffectsUtils::GetOrCreateRenderTarget("$SceneSpecularESRAM", CTexture::s_ptexSceneSpecularESRAM, width, height, Clr_Empty, true, false, eTF_R8G8B8A8, -1, nFTFlags);
 #endif
 
-		SD3DPostEffectsUtils::CreateRenderTarget("$VelocityObjects", CTexture::s_ptexVelocityObjects[0], width, height, Clr_Transparent, true, false, eTF_R16G16F, -1, nFTFlags);
+		SD3DPostEffectsUtils::GetOrCreateRenderTarget("$VelocityObjects", CTexture::s_ptexVelocityObjects[0], width, height, Clr_Transparent, true, false, eTF_R16G16F, -1, nFTFlags);
 		if (gRenDev->IsStereoEnabled())
 		{
-			SD3DPostEffectsUtils::CreateRenderTarget("$VelocityObject_R", CTexture::s_ptexVelocityObjects[1], width, height, Clr_Transparent, true, false, eTF_R16G16F, -1, nFTFlags);
+			SD3DPostEffectsUtils::GetOrCreateRenderTarget("$VelocityObject_R", CTexture::s_ptexVelocityObjects[1], width, height, Clr_Transparent, true, false, eTF_R16G16F, -1, nFTFlags);
 		}
 
-		SD3DPostEffectsUtils::CreateRenderTarget("$ZTargetScaled", CTexture::s_ptexZTargetScaled, width_r2, height_r2, Clr_FarPlane, 1, 0, fmtZScaled, TO_DOWNSCALED_ZTARGET_FOR_AO);
-		SD3DPostEffectsUtils::CreateRenderTarget("$ZTargetScaled2", CTexture::s_ptexZTargetScaled2, width_r4, height_r4, Clr_FarPlane, 1, 0, fmtZScaled, TO_QUARTER_ZTARGET_FOR_AO);
-		SD3DPostEffectsUtils::CreateRenderTarget("$ZTargetScaled3", CTexture::s_ptexZTargetScaled3, width_r8, height_r8, Clr_FarPlane, 1, 0, fmtZScaled);
+		SD3DPostEffectsUtils::GetOrCreateRenderTarget("$ZTargetScaled", CTexture::s_ptexZTargetScaled, width_r2, height_r2, Clr_FarPlane, 1, 0, fmtZScaled, TO_DOWNSCALED_ZTARGET_FOR_AO);
+		SD3DPostEffectsUtils::GetOrCreateRenderTarget("$ZTargetScaled2", CTexture::s_ptexZTargetScaled2, width_r4, height_r4, Clr_FarPlane, 1, 0, fmtZScaled, TO_QUARTER_ZTARGET_FOR_AO);
+		SD3DPostEffectsUtils::GetOrCreateRenderTarget("$ZTargetScaled3", CTexture::s_ptexZTargetScaled3, width_r8, height_r8, Clr_FarPlane, 1, 0, fmtZScaled);
 
-		SD3DPostEffectsUtils::CreateRenderTarget("$DepthBufferQuarter", CTexture::s_ptexDepthBufferQuarter, width_r4, height_r4, Clr_FarPlane, false, false, eTF_D32F, -1, FT_USAGE_DEPTHSTENCIL);
-		SD3DPostEffectsUtils::CreateRenderTarget("$DepthBufferHalfQuarter", CTexture::s_ptexDepthBufferHalfQuarter, width_r8, height_r8, Clr_FarPlane, false, false, eTF_D32F, -1, FT_USAGE_DEPTHSTENCIL);
+		SD3DPostEffectsUtils::GetOrCreateDepthStencil("$DepthBufferQuarter", CTexture::s_ptexDepthBufferQuarter, width_r4, height_r4, Clr_FarPlane, false, false, eTF_D32F, -1, FT_USAGE_DEPTHSTENCIL);
+		SD3DPostEffectsUtils::GetOrCreateDepthStencil("$DepthBufferHalfQuarter", CTexture::s_ptexDepthBufferHalfQuarter, width_r8, height_r8, Clr_FarPlane, false, false, eTF_D32F, -1, FT_USAGE_DEPTHSTENCIL);
 	}
 
 	// Pre-create shadow pool
@@ -3261,7 +2701,7 @@ void CDeferredShading::CreateDeferredMaps()
 		CTexture::s_ptexRT_ShadowPool->Invalidate(gcpRendD3D->m_nShadowPoolWidth, gcpRendD3D->m_nShadowPoolHeight, eShadTF);
 		if (!CTexture::IsTextureExist(CTexture::s_ptexRT_ShadowPool))
 		{
-			CTexture::s_ptexRT_ShadowPool->CreateRenderTarget(eTF_Unknown, Clr_FarPlane);
+			CTexture::s_ptexRT_ShadowPool->CreateDepthStencil(eTF_Unknown, Clr_FarPlane);
 		}
 	}
 
@@ -3275,7 +2715,7 @@ void CDeferredShading::CreateDeferredMaps()
 		if (!CTexture::IsTextureExist(CTexture::s_ptexShadowMask))
 		{
 			const int nArraySize = gcpRendD3D->CV_r_ShadowCastingLightsMaxCount;
-			CTexture::s_ptexShadowMask = CTexture::CreateTextureArray("$ShadowMask", eTT_2D, gcpRendD3D->GetWidth(), gcpRendD3D->GetHeight(), nArraySize, 1, FT_DONT_STREAM | FT_USAGE_RENDERTARGET, eTF_R8, TO_SHADOWMASK);
+			CTexture::s_ptexShadowMask = CTexture::GetOrCreateTextureArray("$ShadowMask", gcpRendD3D->GetWidth(), gcpRendD3D->GetHeight(), nArraySize, 1, eTT_2DArray, FT_DONT_STREAM | FT_USAGE_RENDERTARGET, eTF_R8, TO_SHADOWMASK);
 		}
 	}
 
@@ -3302,7 +2742,7 @@ void CDeferredShading::CreateDeferredMaps()
 				char buf[128];
 				cry_sprintf(buf, "$HeightMapAO_%d", i);
 
-				SD3DPostEffectsUtils::CreateRenderTarget(buf, CTexture::s_ptexHeightMapAO[i], hmaoWidth, hmaoHeight, Clr_Neutral, true, false, eTF_R8G8);
+				SD3DPostEffectsUtils::GetOrCreateRenderTarget(buf, CTexture::s_ptexHeightMapAO[i], hmaoWidth, hmaoHeight, Clr_Neutral, true, false, eTF_R8G8);
 			}
 		}
 	}
@@ -3420,12 +2860,6 @@ void CDeferredShading::Render(CRenderView* pRenderView)
 
 	if (rd->m_nGraphicsPipeline == 0)
 	{
-		// Generate directional occlusion information
-		DirectionalOcclusionPass();
-
-		// Generate glossy screenspace reflections
-		ScreenSpaceReflectionPass();
-
 		PackAllShadowFrustums(true);
 	}
 
@@ -3441,7 +2875,7 @@ void CDeferredShading::Render(CRenderView* pRenderView)
 	}
 
 	// Process deferred direct lighting accumulation
-	rd->FX_PushRenderTarget(0, m_pLBufferDiffuseRT, &gcpRendD3D->m_DepthBufferOrigMSAA, -1, false, 1);
+	rd->FX_PushRenderTarget(0, m_pLBufferDiffuseRT, &gcpRendD3D->m_DepthBufferOrig, -1, false, 1);
 	rd->FX_PushRenderTarget(1, m_pLBufferSpecularRT, NULL, -1, false, 1);
 	m_bSpecularState = true;
 
@@ -3449,7 +2883,7 @@ void CDeferredShading::Render(CRenderView* pRenderView)
 	{
 		rd->FX_ClearTarget(m_pLBufferDiffuseRT);
 		rd->FX_ClearTarget(m_pLBufferSpecularRT);
-		rd->FX_ClearTarget(&gcpRendD3D->m_DepthBufferOrigMSAA, CLEAR_STENCIL, Clr_Unused.r, 1);
+		rd->FX_ClearTarget(&gcpRendD3D->m_DepthBufferOrig, CLEAR_STENCIL, Clr_Unused.r, 1);
 		rd->m_nStencilMaskRef = 1;// Stencil initialized to 1 - 0 is reserved for MSAAed samples
 	}
 
@@ -3493,8 +2927,6 @@ void CDeferredShading::Render(CRenderView* pRenderView)
 
 		if (CRenderer::CV_r_DeferredShadingAmbientLights)
 			DeferredLights(rDeferredAmbientLights, false);
-
-		ApplySSReflections();  // TODO: Try to merge with another pass
 	}
 
 	SpecularAccEnableMRT(true);
@@ -3515,7 +2947,7 @@ void CDeferredShading::Render(CRenderView* pRenderView)
 	{
 		rd->FX_ClearTarget(m_pLBufferDiffuseRT, Clr_MedianHalf);
 		rd->FX_ClearTarget(m_pLBufferSpecularRT, Clr_Transparent);
-		rd->FX_ClearTarget(&gcpRendD3D->m_DepthBufferOrigMSAA, CLEAR_STENCIL, Clr_Unused.r, 0);
+		rd->FX_ClearTarget(&gcpRendD3D->m_DepthBufferOrig, CLEAR_STENCIL, Clr_Unused.r, 0);
 	}
 
 	// Commit any potential render target changes - required for x360 resolves, do not remove this plz.
@@ -3552,9 +2984,6 @@ void CDeferredShading::Render(CRenderView* pRenderView)
 	if (bTiledDeferredShading)
 	{
 		gcpRendD3D->GetTiledShading().Render(pRenderView, m_vClipVolumeParams);
-
-		if (CRenderer::CV_r_DeferredShadingSSS && rd->FX_GetMSAAMode() == 0)  // Explicitly disabling deferred SSS has its incompatible with msaa in current stage
-			DeferredSubsurfaceScattering(CTexture::s_ptexSceneTargetR11G11B10F[0]);
 	}
 	else
 	{
@@ -3731,8 +3160,8 @@ void CDeferredShading::Debug()
 #endif
 		SD3DPostEffectsUtils::ShBeginPass(m_pShader, m_pDebugTechName, FEF_DONTSETTEXTURES | FEF_DONTSETSTATES);
 		gcpRendD3D->FX_SetState(GS_NODEPTHTEST);
-		m_pLBufferDiffuseRT->Apply(0, m_nTexStatePoint);
-		SD3DPostEffectsUtils::SetTexture(CTexture::s_ptexPaletteDebug, 1, FILTER_LINEAR, 1);
+		m_pLBufferDiffuseRT->Apply(0, EDefaultSamplerStates::PointClamp);
+		SD3DPostEffectsUtils::SetTexture(CTexture::s_ptexPaletteDebug, 1, FILTER_LINEAR, eSamplerAddressMode_Clamp);
 		SD3DPostEffectsUtils::DrawFullScreenTriWPOS(m_pLBufferDiffuseRT->GetWidth(), m_pLBufferDiffuseRT->GetHeight());
 		SD3DPostEffectsUtils::ShEndPass();
 	}
@@ -3748,10 +3177,10 @@ void CDeferredShading::DebugGBuffer()
 
 	CTexture* dstTex = CTexture::s_ptexStereoR;
 
-	m_pDepthRT->Apply(0, m_nTexStatePoint);
-	m_pNormalsRT->Apply(1, m_nTexStatePoint);
-	m_pDiffuseRT->Apply(2, m_nTexStatePoint);
-	m_pSpecularRT->Apply(3, m_nTexStatePoint);
+	m_pDepthRT->Apply(0, EDefaultSamplerStates::PointClamp);
+	m_pNormalsRT->Apply(1, EDefaultSamplerStates::PointClamp);
+	m_pDiffuseRT->Apply(2, EDefaultSamplerStates::PointClamp);
+	m_pSpecularRT->Apply(3, EDefaultSamplerStates::PointClamp);
 
 	rd->FX_SetState(GS_NODEPTHTEST);
 
@@ -3849,13 +3278,14 @@ bool CD3D9Renderer::FX_DeferredDecals()
 
 		if (rd->m_RP.m_MSAAData.Type > 1) //always copy when deferredDecals is not empty
 		{
-			pNMRes = CTexture::s_ptexSceneNormalsMap->m_pRenderTargetData->m_pDeviceTextureMSAA->Get2DTexture();
+			pNMRes = CTexture::s_ptexSceneNormalsMap->GetDevTexture()->GetMSAATexture()->Get2DTexture();
+#ifdef RENDERER_ENABLE_LEGACY_PIPELINE
 			rd->GetDeviceContext().ResolveSubresource(pBBRes, 0, pNMRes, 0, (DXGI_FORMAT)CTexture::s_ptexBackBuffer->m_pPixelFormat->DeviceFormat);
+#endif
 		}
 		else
 		{
-			pNMRes = CTexture::s_ptexSceneNormalsMap->GetDevTexture()->Get2DTexture();
-			rd->GetDeviceContext().CopyResource(pBBRes, pNMRes);
+			GetDeviceObjectFactory().GetCoreCommandList().GetCopyInterface()->Copy(CTexture::s_ptexSceneNormalsMap->GetDevTexture(), CTexture::s_ptexBackBuffer->GetDevTexture());
 		}
 
 		std::stable_sort(deferredDecals.begin(), deferredDecals.end(), DeffDecalSort());

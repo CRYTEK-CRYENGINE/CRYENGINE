@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 // -------------------------------------------------------------------------
 //  File name:   CGFLoader.cpp
@@ -873,15 +873,6 @@ static bool CompactBoneVertices(
 			}
 		}
 		outArrIndices[verts[i].faceIndex * 3 + verts[i].cornerIndex] = outVertexCount - 1;
-	}
-
-	// Making sure that the code above has no bugs
-	for (int i = 0; i < outArrIndices.size(); ++i)
-	{
-		if (outArrIndices[i] < 0)
-		{
-			return false;
-		}
 	}
 
 	return true;

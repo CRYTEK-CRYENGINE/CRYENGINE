@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 /*=============================================================================
 
@@ -73,9 +73,6 @@ CTiledShading::CTiledShading()
 	m_dispatchSizeX = 0;
 	m_dispatchSizeY = 0;
 
-	m_samplerTrilinearClamp = 0xFFFFFFFF;
-	m_samplerCompare = 0xFFFFFFFF;
-
 	m_numAtlasUpdates = 0;
 	m_numValidLights = 0;
 	m_numSkippedLights = 0;
@@ -92,7 +89,7 @@ void CTiledShading::CreateResources()
 
 	if (m_dispatchSizeX == dispatchSizeX && m_dispatchSizeY == dispatchSizeY)
 	{
-		assert(m_lightCullInfoBuf.GetBuffer() && m_specularProbeAtlas.texArray);
+		assert(m_lightCullInfoBuf.GetDevBuffer() && m_specularProbeAtlas.texArray);
 		return;
 	}
 	else
@@ -103,31 +100,32 @@ void CTiledShading::CreateResources()
 	m_dispatchSizeX = dispatchSizeX;
 	m_dispatchSizeY = dispatchSizeY;
 
-	if (!m_lightCullInfoBuf.GetBuffer())
+	if (!m_lightCullInfoBuf.IsAvailable())
 	{
-		m_lightCullInfoBuf.Create(MaxNumTileLights, sizeof(STiledLightCullInfo), DXGI_FORMAT_UNKNOWN, DX11BUF_DYNAMIC | DX11BUF_STRUCTURED | DX11BUF_BIND_SRV, NULL);
+		m_lightCullInfoBuf.Create(MaxNumTileLights, sizeof(STiledLightCullInfo), DXGI_FORMAT_UNKNOWN, CDeviceObjectFactory::USAGE_CPU_WRITE | CDeviceObjectFactory::USAGE_STRUCTURED | CDeviceObjectFactory::BIND_SHADER_RESOURCE, NULL);
 	}
 
-	if (!m_LightShadeInfoBuf.GetBuffer())
+	if (!m_lightShadeInfoBuf.IsAvailable())
 	{
-		m_LightShadeInfoBuf.Create(MaxNumTileLights, sizeof(STiledLightShadeInfo), DXGI_FORMAT_UNKNOWN, DX11BUF_DYNAMIC | DX11BUF_STRUCTURED | DX11BUF_BIND_SRV, NULL);
+		m_lightShadeInfoBuf.Create(MaxNumTileLights, sizeof(STiledLightShadeInfo), DXGI_FORMAT_UNKNOWN, CDeviceObjectFactory::USAGE_CPU_WRITE | CDeviceObjectFactory::USAGE_STRUCTURED | CDeviceObjectFactory::BIND_SHADER_RESOURCE, NULL);
 	}
 
-	if (!m_tileOpaqueLightMaskBuf.GetBuffer())
+	if (!m_tileOpaqueLightMaskBuf.IsAvailable())
 	{
-		m_tileOpaqueLightMaskBuf.Create(dispatchSizeX * dispatchSizeY * 8, 4, DXGI_FORMAT_R32_UINT, DX11BUF_BIND_SRV | DX11BUF_BIND_UAV, NULL);
+		m_tileOpaqueLightMaskBuf.Create(dispatchSizeX * dispatchSizeY * 8, 4, DXGI_FORMAT_R32_UINT, CDeviceObjectFactory::BIND_SHADER_RESOURCE | CDeviceObjectFactory::BIND_UNORDERED_ACCESS, NULL);
 	}
 
-	if (!m_tileTranspLightMaskBuf.GetBuffer())
+	if (!m_tileTranspLightMaskBuf.IsAvailable())
 	{
-		m_tileTranspLightMaskBuf.Create(dispatchSizeX * dispatchSizeY * 8, 4, DXGI_FORMAT_R32_UINT, DX11BUF_BIND_SRV | DX11BUF_BIND_UAV, NULL);
+		m_tileTranspLightMaskBuf.Create(dispatchSizeX * dispatchSizeY * 8, 4, DXGI_FORMAT_R32_UINT, CDeviceObjectFactory::BIND_SHADER_RESOURCE | CDeviceObjectFactory::BIND_UNORDERED_ACCESS, NULL);
 	}
 
-	if (!m_clipVolumeInfoBuf.GetBuffer())
+	if (!m_clipVolumeInfoBuf.IsAvailable())
 	{
-		m_clipVolumeInfoBuf.Create(MaxNumClipVolumes, sizeof(STiledClipVolumeInfo), DXGI_FORMAT_UNKNOWN, DX11BUF_DYNAMIC | DX11BUF_STRUCTURED | DX11BUF_BIND_SRV, NULL);
+		m_clipVolumeInfoBuf.Create(MaxNumClipVolumes, sizeof(STiledClipVolumeInfo), DXGI_FORMAT_UNKNOWN, CDeviceObjectFactory::USAGE_CPU_WRITE | CDeviceObjectFactory::USAGE_STRUCTURED | CDeviceObjectFactory::BIND_SHADER_RESOURCE, NULL);
 	}
-#if defined(OPENGL_ES)
+
+#if CRY_RENDERER_OPENGLES || CRY_PLATFORM_ANDROID
 	ETEX_Format textureAtlasFormatSpecDiff = eTF_R16G16B16A16F;
 	ETEX_Format textureAtlasFormatSpot = eTF_EAC_R11;
 #else
@@ -137,52 +135,46 @@ void CTiledShading::CreateResources()
 
 	if (!m_specularProbeAtlas.texArray)
 	{
-		m_specularProbeAtlas.texArray = CTexture::CreateTextureArray("$TiledSpecProbeTexArr", eTT_Cube, SpecProbeSize, SpecProbeSize, AtlasArrayDim, IntegerLog2(SpecProbeSize) - 1, 0, textureAtlasFormatSpecDiff);
+		m_specularProbeAtlas.texArray = CTexture::GetOrCreateTextureArray("$TiledSpecProbeTexArr", SpecProbeSize, SpecProbeSize, AtlasArrayDim * 6, IntegerLog2(SpecProbeSize) - 1, eTT_CubeArray, FT_DONT_STREAM, textureAtlasFormatSpecDiff);
 		m_specularProbeAtlas.items.resize(AtlasArrayDim);
 
 		if (m_specularProbeAtlas.texArray->GetFlags() & FT_FAILED)
 			CryFatalError("Couldn't allocate specular probe texture atlas");
 
-#if CRY_PLATFORM_DURANGO
+#if DEVRES_USE_PINNING
 		// Perma-pin, as they need to be pinned each frame anyway, and doing it upfront avoids the cost of doing it each frame.
-		//m_specularProbeAtlas.texArray->GetDevTexture()->Pin();
+		m_specularProbeAtlas.texArray->GetDevTexture()->Pin();
 #endif
 	}
 
 	if (!m_diffuseProbeAtlas.texArray)
 	{
-		m_diffuseProbeAtlas.texArray = CTexture::CreateTextureArray("$TiledDiffuseProbeTexArr", eTT_Cube, DiffuseProbeSize, DiffuseProbeSize, AtlasArrayDim, 1, 0, textureAtlasFormatSpecDiff);
+		m_diffuseProbeAtlas.texArray = CTexture::GetOrCreateTextureArray("$TiledDiffuseProbeTexArr", DiffuseProbeSize, DiffuseProbeSize, AtlasArrayDim * 6, 1, eTT_CubeArray, FT_DONT_STREAM, textureAtlasFormatSpecDiff);
 		m_diffuseProbeAtlas.items.resize(AtlasArrayDim);
 
 		if (m_diffuseProbeAtlas.texArray->GetFlags() & FT_FAILED)
 			CryFatalError("Couldn't allocate diffuse probe texture atlas");
 
-#if CRY_PLATFORM_DURANGO
+#if DEVRES_USE_PINNING
 		// Perma-pin, as they need to be pinned each frame anyway, and doing it upfront avoids the cost of doing it each frame.
-		//m_diffuseProbeAtlas.texArray->GetDevTexture()->Pin();
+		m_diffuseProbeAtlas.texArray->GetDevTexture()->Pin();
 #endif
 	}
 
 	if (!m_spotTexAtlas.texArray)
 	{
 		// Note: BC4 has 4x4 as lowest mipmap
-		m_spotTexAtlas.texArray = CTexture::CreateTextureArray("$TiledSpotTexArr", eTT_2D, SpotTexSize, SpotTexSize, AtlasArrayDim, IntegerLog2(SpotTexSize) - 1, 0, textureAtlasFormatSpot);
+		m_spotTexAtlas.texArray = CTexture::GetOrCreateTextureArray("$TiledSpotTexArr", SpotTexSize, SpotTexSize, AtlasArrayDim * 1, IntegerLog2(SpotTexSize) - 1, eTT_2DArray, FT_DONT_STREAM, textureAtlasFormatSpot);
 		m_spotTexAtlas.items.resize(AtlasArrayDim);
 
 		if (m_spotTexAtlas.texArray->GetFlags() & FT_FAILED)
 			CryFatalError("Couldn't allocate spot texture atlas");
 
-#if CRY_PLATFORM_DURANGO
+#if DEVRES_USE_PINNING
 		// Perma-pin, as they need to be pinned each frame anyway, and doing it upfront avoids the cost of doing it each frame.
-		//m_spotTexAtlas.texArray->GetDevTexture()->Pin();
+		m_spotTexAtlas.texArray->GetDevTexture()->Pin();
 #endif
 	}
-
-	STexState ts0(FILTER_TRILINEAR, true);
-	STexState ts1(FILTER_LINEAR, true);
-	ts1.SetComparisonFilter(true);
-	m_samplerTrilinearClamp = CTexture::GetTexState(ts0);
-	m_samplerCompare = CTexture::GetTexState(ts1);
 }
 
 void CTiledShading::DestroyResources(bool destroyResolutionIndependentResources)
@@ -191,7 +183,7 @@ void CTiledShading::DestroyResources(bool destroyResolutionIndependentResources)
 	m_dispatchSizeY = 0;
 
 	m_lightCullInfoBuf.Release();
-	m_LightShadeInfoBuf.Release();
+	m_lightShadeInfoBuf.Release();
 	m_tileOpaqueLightMaskBuf.Release();
 	m_tileTranspLightMaskBuf.Release();
 	m_clipVolumeInfoBuf.Release();
@@ -221,16 +213,16 @@ void CTiledShading::Clear()
 	m_numSkippedLights = 0;
 }
 
-int CTiledShading::InsertTexture(CTexture* texture, TextureAtlas& atlas, int arrayIndex)
+int CTiledShading::InsertTexture(CTexture* pTexInput, TextureAtlas& atlas, int arrayIndex)
 {
 	CD3D9Renderer* const __restrict rd = gcpRendD3D;
 	const int frameID = rd->GetFrameID(false);
 
-	if (texture == NULL)
+	if (pTexInput == NULL)
 		return -1;
 
 	// Make sure the texture is loaded already
-	if (texture->GetWidthNonVirtual() == 0 && texture->GetHeightNonVirtual() == 0)
+	if (pTexInput->GetWidthNonVirtual() == 0 && pTexInput->GetHeightNonVirtual() == 0)
 		return -1;
 
 	bool isEditor = gEnv->IsEditor();
@@ -238,9 +230,9 @@ int CTiledShading::InsertTexture(CTexture* texture, TextureAtlas& atlas, int arr
 	// Check if texture is already in atlas
 	for (uint32 i = 0, si = atlas.items.size(); i < si; ++i)
 	{
-		if (atlas.items[i].texture == texture)
+		if (atlas.items[i].texture == pTexInput)
 		{
-			bool textureUpToDate = !isEditor ? true : (texture->GetUpdateFrameID() == abs(atlas.items[i].updateFrameID) || texture->GetUpdateFrameID() == 0);
+			bool textureUpToDate = !isEditor ? true : (pTexInput->GetUpdateFrameID() == abs(atlas.items[i].updateFrameID) || pTexInput->GetUpdateFrameID() == 0);
 
 			if (textureUpToDate)
 			{
@@ -275,62 +267,76 @@ int CTiledShading::InsertTexture(CTexture* texture, TextureAtlas& atlas, int arr
 		arrayIndex = minIndex;
 	}
 
-	atlas.items[arrayIndex].texture = texture;
+	atlas.items[arrayIndex].texture = pTexInput;
 	atlas.items[arrayIndex].accessFrameID = frameID;
-	atlas.items[arrayIndex].updateFrameID = texture->GetUpdateFrameID();
+	atlas.items[arrayIndex].updateFrameID = pTexInput->GetUpdateFrameID();
 	atlas.items[arrayIndex].invalid = false;
 
 	// Check if texture is valid
-	if (!texture->IsLoaded() ||
-	    texture->GetWidthNonVirtual() < atlas.texArray->GetWidthNonVirtual() ||
-	    texture->GetWidthNonVirtual() != texture->GetHeightNonVirtual() ||
-	    texture->GetPixelFormat() != atlas.texArray->GetPixelFormat() ||
-	    (texture->IsStreamed() && texture->IsPartiallyLoaded()))
+	if (!pTexInput->IsLoaded() ||
+	    pTexInput->GetWidthNonVirtual() < atlas.texArray->GetWidthNonVirtual() ||
+	    pTexInput->GetWidthNonVirtual() != pTexInput->GetHeightNonVirtual() ||
+	    pTexInput->GetPixelFormat() != atlas.texArray->GetPixelFormat() ||
+	    (pTexInput->IsStreamed() && pTexInput->IsPartiallyLoaded()))
 	{
 		atlas.items[arrayIndex].invalid = true;
 
-		if (!texture->IsLoaded())
+		if (!pTexInput->IsLoaded())
 		{
-			iLog->LogError("TiledShading: Texture not found: %s", texture->GetName());
+			iLog->LogError("TiledShading: Texture not found: %s", pTexInput->GetName());
 		}
-		else if (texture->IsStreamed() && texture->IsPartiallyLoaded())
+		else if (pTexInput->IsStreamed() && pTexInput->IsPartiallyLoaded())
 		{
 			iLog->LogError("TiledShading: Texture not fully streamed so impossible to add: %s (W:%i H:%i F:%s)",
-			               texture->GetName(), texture->GetWidth(), texture->GetHeight(), texture->GetFormatName());
+			               pTexInput->GetName(), pTexInput->GetWidth(), pTexInput->GetHeight(), pTexInput->GetFormatName());
 		}
-		else if (texture->GetPixelFormat() != atlas.texArray->GetPixelFormat())
+		else if (pTexInput->GetPixelFormat() != atlas.texArray->GetPixelFormat())
 		{
 			iLog->LogError("TiledShading: Unsupported texture format: %s (W:%i H:%i F:%s), it has to be equal to the tile-atlas (F:%s), please change the texture's preset by re-exporting with CryTif",
-			               texture->GetName(), texture->GetWidth(), texture->GetHeight(), texture->GetFormatName(), atlas.texArray->GetFormatName());
+			               pTexInput->GetName(), pTexInput->GetWidth(), pTexInput->GetHeight(), pTexInput->GetFormatName(), atlas.texArray->GetFormatName());
 		}
 		else
 		{
 			iLog->LogError("TiledShading: Unsupported texture properties: %s (W:%i H:%i F:%s)",
-			               texture->GetName(), texture->GetWidth(), texture->GetHeight(), texture->GetFormatName());
+			               pTexInput->GetName(), pTexInput->GetWidth(), pTexInput->GetHeight(), pTexInput->GetFormatName());
 		}
 		return -1;
 	}
 
 	// Update atlas
-	uint32 numSrcMips = (uint32)texture->GetNumMipsNonVirtual();
+	uint32 numSrcMips = (uint32)pTexInput->GetNumMipsNonVirtual();
 	uint32 numDstMips = (uint32)atlas.texArray->GetNumMipsNonVirtual();
-	uint32 firstSrcMip = IntegerLog2((uint32)texture->GetWidthNonVirtual() / atlas.texArray->GetWidthNonVirtual());
-	uint32 numFaces = atlas.texArray->GetTexType() == eTT_Cube ? 6 : 1;
+	uint32 firstSrcMip = IntegerLog2((uint32)pTexInput->GetWidthNonVirtual() / atlas.texArray->GetWidthNonVirtual());
+	uint32 numFaces = atlas.texArray->GetTexType() == eTT_CubeArray ? 6 : 1;
 
+	CDeviceTexture* pTexInputDevTex = pTexInput->GetDevTexture();
 	CDeviceTexture* pTexArrayDevTex = atlas.texArray->GetDevTexture();
 
-	//ASSERT_DEVICE_TEXTURE_IS_FIXED(pTexArrayDevTex);
+	ASSERT_DEVICE_TEXTURE_IS_FIXED(pTexArrayDevTex);
 
-	if ((numDstMips == numSrcMips) && (firstSrcMip == 0))
+	UINT w = atlas.texArray->GetWidthNonVirtual();
+	UINT h = atlas.texArray->GetHeightNonVirtual();
+	UINT d = atlas.texArray->GetDepthNonVirtual();
+
+	if ((numDstMips == numSrcMips) && (firstSrcMip == 0) && 0 && "TODO: kill this branch, after taking a careful look for side-effects")
 	{
 		// MipMaps are laid out consecutively in the sub-resource specification, which allows us to issue a batch-copy for N sub-resources
 		const UINT NumSubresources = numDstMips * numFaces;
-		const UINT SrcSubresource = D3D11CalcSubresource(0, arrayIndex * numFaces, numDstMips);
-		const UINT DstSubresource = D3D11CalcSubresource(0, 0, numSrcMips);
+		const UINT SrcSubresource = D3D11CalcSubresource(0, 0, numSrcMips);
+		const UINT DstSubresource = D3D11CalcSubresource(0, arrayIndex * numFaces, numDstMips);
 
-		rd->GetDeviceContext().CopySubresourcesRegion(
-		  pTexArrayDevTex->GetBaseTexture(), SrcSubresource, 0, 0, 0,
-		  texture->GetDevTexture()->GetBaseTexture(), DstSubresource, NULL, NumSubresources);
+		const SResourceRegionMapping mapping =
+		{
+			{ 0, 0, 0, SrcSubresource  }, // src position
+			{ 0, 0, 0, DstSubresource  }, // dst position
+			{ w, h, d, NumSubresources }, // size
+			D3D11_COPY_NO_OVERWRITE_REVERT
+		};
+
+		GetDeviceObjectFactory().GetCoreCommandList().GetCopyInterface()->Copy(
+			pTexInputDevTex,
+			pTexArrayDevTex,
+			mapping);
 	}
 	else
 	{
@@ -338,12 +344,21 @@ int CTiledShading::InsertTexture(CTexture* texture, TextureAtlas& atlas, int arr
 		{
 			// MipMaps are laid out consecutively in the sub-resource specification, which allows us to issue a batch-copy for N sub-resources
 			const UINT NumSubresources = numDstMips;
-			const UINT SrcSubresource = D3D11CalcSubresource(0, arrayIndex * numFaces + i, numDstMips);
-			const UINT DstSubresource = D3D11CalcSubresource(0 + firstSrcMip, i, numSrcMips);
+			const UINT SrcSubresource = D3D11CalcSubresource(0 + firstSrcMip, i, numSrcMips);
+			const UINT DstSubresource = D3D11CalcSubresource(0, arrayIndex * numFaces + i, numDstMips);
+			
+			const SResourceRegionMapping mapping =
+			{
+				{ 0, 0, 0, SrcSubresource  }, // src position
+				{ 0, 0, 0, DstSubresource  }, // dst position
+				{ w, h, d, NumSubresources }, // size
+				D3D11_COPY_NO_OVERWRITE_REVERT
+			};
 
-			rd->GetDeviceContext().CopySubresourcesRegion(
-			  pTexArrayDevTex->GetBaseTexture(), SrcSubresource, 0, 0, 0,
-			  texture->GetDevTexture()->GetBaseTexture(), DstSubresource, NULL, NumSubresources);
+			GetDeviceObjectFactory().GetCoreCommandList().GetCopyInterface()->Copy(
+				pTexInputDevTex,
+				pTexArrayDevTex,
+				mapping);
 		}
 	}
 
@@ -739,22 +754,7 @@ void CTiledShading::PrepareLightList(CRenderView* pRenderView)
 	const size_t tileLightsShadeUploadSize = CDeviceBufferManager::AlignBufferSizeForStreaming(sizeof(STiledLightShadeInfo) * std::min(MaxNumTileLights, Align(numTileLights, 64) + 64));
 
 	m_lightCullInfoBuf.UpdateBufferContent(tileLightsCull, tileLightsCullUploadSize);
-	m_LightShadeInfoBuf.UpdateBufferContent(tileLightsShade, tileLightsShadeUploadSize);
-}
-
-void CTiledShading::PrepareShadowCastersList(CRenderView* pRenderView)
-{
-	uint32 firstShadowLight = CDeferredShading::Instance().m_nFirstCandidateShadowPoolLight;
-	uint32 curShadowPoolLight = CDeferredShading::Instance().m_nCurrentShadowPoolLight;
-
-	m_arrShadowCastingLights.SetUse(0);
-
-	for (int lightIdx = firstShadowLight; lightIdx < curShadowPoolLight; ++lightIdx)
-	{
-		const SRenderLight& light = pRenderView->GetLight(eDLT_DeferredLight, lightIdx);
-		if (light.m_Flags & DLF_CASTSHADOW_MAPS)
-			m_arrShadowCastingLights.Add(lightIdx);
-	}
+	m_lightShadeInfoBuf.UpdateBufferContent(tileLightsShade, tileLightsShadeUploadSize);
 }
 
 void CTiledShading::PrepareClipVolumeList(Vec4* clipVolumeParams)
@@ -772,9 +772,6 @@ void CTiledShading::Render(CRenderView* pRenderView, Vec4* clipVolumeParams)
 {
 	CD3D9Renderer* const __restrict rd = gcpRendD3D;
 
-	if (!CTexture::s_ptexHDRTarget)  // Sketch mode
-		return;
-
 	// Temporary hack until tiled shading has proper MSAA support
 	if (CRenderer::CV_r_DeferredShadingTiled >= 2 && CRenderer::CV_r_msaa)
 		CRenderer::CV_r_DeferredShadingTiled = 1;
@@ -782,17 +779,6 @@ void CTiledShading::Render(CRenderView* pRenderView, Vec4* clipVolumeParams)
 	auto& defLights = pRenderView->GetLightsArray(eDLT_DeferredLight);
 	auto& envProbes = pRenderView->GetLightsArray(eDLT_DeferredCubemap);
 	auto& ambientLights = pRenderView->GetLightsArray(eDLT_DeferredAmbientLight);
-
-	// Generate shadow mask. Note that in tiled forward only mode the shadow mask is generated in CDeferredShading::DeferredShadingPass()
-	if (CRenderer::CV_r_DeferredShadingTiled > 1)
-	{
-		PrepareShadowCastersList(pRenderView);
-
-		rd->GetGraphicsPipeline().SwitchFromLegacyPipeline();
-		rd->GetGraphicsPipeline().GetShadowMaskStage()->Prepare(pRenderView);
-		rd->GetGraphicsPipeline().GetShadowMaskStage()->Execute();
-		rd->GetGraphicsPipeline().SwitchToLegacyPipeline();
-	}
 
 	PROFILE_LABEL_SCOPE("TILED_SHADING");
 
@@ -861,16 +847,16 @@ void CTiledShading::Render(CRenderView* pRenderView, Vec4* clipVolumeParams)
 	if (shaderAvailable)  // Temporary workaround for PS4 shader cache issue
 	{
 		D3DShaderResource* pTiledBaseRes[8] = {
-			m_LightShadeInfoBuf.GetSRV(),
-			m_specularProbeAtlas.texArray->GetShaderResourceView(),
-			m_diffuseProbeAtlas.texArray->GetShaderResourceView(),
-			m_spotTexAtlas.texArray->GetShaderResourceView(),
-			CTexture::s_ptexRT_ShadowPool->GetShaderResourceView(),
-			CTexture::s_ptexShadowJitterMap->GetShaderResourceView(),
-			m_lightCullInfoBuf.GetSRV(),
-			m_clipVolumeInfoBuf.GetSRV(),
+			m_lightShadeInfoBuf.             GetDevBuffer ()->LookupSRV(EDefaultResourceViews::Default),
+			m_specularProbeAtlas.texArray->  GetDevTexture()->LookupSRV(EDefaultResourceViews::Default),
+			m_diffuseProbeAtlas.texArray->   GetDevTexture()->LookupSRV(EDefaultResourceViews::Default),
+			m_spotTexAtlas.texArray->        GetDevTexture()->LookupSRV(EDefaultResourceViews::Default),
+			CTexture::s_ptexRT_ShadowPool->  GetDevTexture()->LookupSRV(EDefaultResourceViews::Default),
+			CTexture::s_ptexShadowJitterMap->GetDevTexture()->LookupSRV(EDefaultResourceViews::Default),
+			m_lightCullInfoBuf.              GetDevBuffer ()->LookupSRV(EDefaultResourceViews::Default),
+			m_clipVolumeInfoBuf.             GetDevBuffer ()->LookupSRV(EDefaultResourceViews::Default),
 		};
-		rd->m_DevMan.BindSRV(CDeviceManager::TYPE_CS, pTiledBaseRes, 16, 8);
+		rd->m_DevMan.BindSRV(CSubmissionQueue_DX11::TYPE_CS, pTiledBaseRes, 16, 8);
 
 		CTexture* texClipVolumeIndex = CTexture::s_ptexVelocity;
 		CTexture* pTexCaustics = m_bApplyCaustics ? CTexture::s_ptexSceneTargetR11G11B10F[1] : CTexture::s_ptexBlack;
@@ -887,27 +873,28 @@ void CTiledShading::Render(CRenderView* pRenderView, Vec4* clipVolumeParams)
 #endif
 
 		D3DShaderResource* pDeferredShadingRes[13] = {
-			CTexture::s_ptexZTarget->GetShaderResourceView(),
-			CTexture::s_ptexSceneNormalsMap->GetShaderResourceView(),
-			CTexture::s_ptexSceneSpecular->GetShaderResourceView(),
-			CTexture::s_ptexSceneDiffuse->GetShaderResourceView(),
-			CTexture::s_ptexShadowMask->GetShaderResourceView(),
-			CTexture::s_ptexSceneNormalsBent->GetShaderResourceView(),
-			CTexture::s_ptexHDRTargetScaledTmp[0]->GetShaderResourceView(),
-			CTexture::s_ptexEnvironmentBRDF->GetShaderResourceView(),
-			texClipVolumeIndex->GetShaderResourceView(),
-			CRenderer::CV_r_ssdoColorBleeding ? CTexture::s_ptexAOColorBleed->GetShaderResourceView() : CTexture::s_ptexBlack->GetShaderResourceView(),
-			ptexGiDiff->GetShaderResourceView(),
-			ptexGiSpec->GetShaderResourceView(),
-			pTexCaustics->GetShaderResourceView(),
+			CTexture::s_ptexZTarget->                                         GetDevTexture()->LookupSRV(EDefaultResourceViews::Default),
+			CTexture::s_ptexSceneNormalsMap->                                 GetDevTexture()->LookupSRV(EDefaultResourceViews::Default),
+			CTexture::s_ptexSceneSpecular->                                   GetDevTexture()->LookupSRV(EDefaultResourceViews::Default),
+			CTexture::s_ptexSceneDiffuse->                                    GetDevTexture()->LookupSRV(EDefaultResourceViews::Default),
+			CTexture::s_ptexShadowMask->                                      GetDevTexture()->LookupSRV(EDefaultResourceViews::Default),
+			CTexture::s_ptexSceneNormalsBent->                                GetDevTexture()->LookupSRV(EDefaultResourceViews::Default),
+			CTexture::s_ptexHDRTargetScaledTmp[0]->                           GetDevTexture()->LookupSRV(EDefaultResourceViews::Default),
+			CTexture::s_ptexEnvironmentBRDF->                                 GetDevTexture()->LookupSRV(EDefaultResourceViews::Default),
+			texClipVolumeIndex->                                              GetDevTexture()->LookupSRV(EDefaultResourceViews::Default),
+			CRenderer::CV_r_ssdoColorBleeding ? CTexture::s_ptexAOColorBleed->GetDevTexture()->LookupSRV(EDefaultResourceViews::Default)
+			                                  : CTexture::s_ptexBlack->       GetDevTexture()->LookupSRV(EDefaultResourceViews::Default),
+			ptexGiDiff->                                                      GetDevTexture()->LookupSRV(EDefaultResourceViews::Default),
+			ptexGiSpec->                                                      GetDevTexture()->LookupSRV(EDefaultResourceViews::Default),
+			pTexCaustics->                                                    GetDevTexture()->LookupSRV(EDefaultResourceViews::Default),
 		};
-		rd->m_DevMan.BindSRV(CDeviceManager::TYPE_CS, pDeferredShadingRes, 0, 13);
+		rd->m_DevMan.BindSRV(CSubmissionQueue_DX11::TYPE_CS, pDeferredShadingRes, 0, 13);
 
 		// Samplers
 		D3DSamplerState* pSamplers[1] = {
-			(D3DSamplerState*)CTexture::s_TexStates[m_samplerTrilinearClamp].m_pDeviceState,
+			(D3DSamplerState*)CDeviceObjectFactory::LookupSamplerState(EDefaultSamplerStates::TrilinearClamp).second,
 		};
-		rd->m_DevMan.BindSampler(CDeviceManager::TYPE_CS, pSamplers, 0, 1);
+		rd->m_DevMan.BindSampler(CSubmissionQueue_DX11::TYPE_CS, pSamplers, 0, 1);
 
 		static CCryNameR paramProj("ProjParams");
 		Vec4 vParamProj(rd->m_ProjMatrix.m00, rd->m_ProjMatrix.m11, rd->m_ProjMatrix.m20, rd->m_ProjMatrix.m21);
@@ -945,25 +932,29 @@ void CTiledShading::Render(CRenderView* pRenderView, Vec4* clipVolumeParams)
 		rd->FX_Commit();
 
 		D3DUAV* pUAV[3] = {
-			m_tileTranspLightMaskBuf.GetDeviceUAV(),
-			CTexture::s_ptexHDRTarget->GetDeviceUAV(),
-			CTexture::s_ptexSceneTargetR11G11B10F[0]->GetDeviceUAV(),
+			m_tileTranspLightMaskBuf.                 GetDevBuffer ()->LookupUAV(EDefaultResourceViews::UnorderedAccess),
+			CTexture::s_ptexHDRTarget->               GetDevTexture()->LookupUAV(EDefaultResourceViews::UnorderedAccess),
+			CTexture::s_ptexSceneTargetR11G11B10F[0]->GetDevTexture()->LookupUAV(EDefaultResourceViews::UnorderedAccess),
 		};
+#ifdef RENDERER_ENABLE_LEGACY_PIPELINE
 		rd->GetDeviceContext().CSSetUnorderedAccessViews(0, 3, pUAV, NULL);
 
 		rd->m_DevMan.Dispatch(dispatchSizeX, dispatchSizeY, 1);
+#endif
 		SD3DPostEffectsUtils::ShEndPass();
 	}
 
 	D3DUAV* pUAVNull[3] = { NULL };
+#ifdef RENDERER_ENABLE_LEGACY_PIPELINE
 	rd->GetDeviceContext().CSSetUnorderedAccessViews(0, 3, pUAVNull, NULL);
+#endif
 
 	D3DShaderResource* pSRVNull[13] = { NULL };
-	rd->m_DevMan.BindSRV(CDeviceManager::TYPE_CS, pSRVNull, 0, 13);
-	rd->m_DevMan.BindSRV(CDeviceManager::TYPE_CS, pSRVNull, 16, 8);
+	rd->m_DevMan.BindSRV(CSubmissionQueue_DX11::TYPE_CS, pSRVNull, 0, 13);
+	rd->m_DevMan.BindSRV(CSubmissionQueue_DX11::TYPE_CS, pSRVNull, 16, 8);
 
 	D3DSamplerState* pNullSamplers[1] = { NULL };
-	rd->m_DevMan.BindSampler(CDeviceManager::TYPE_CS, pNullSamplers, 0, 1);
+	rd->m_DevMan.BindSampler(CSubmissionQueue_DX11::TYPE_CS, pNullSamplers, 0, 1);
 
 	rd->FX_PopRenderTarget(0);
 
@@ -980,68 +971,77 @@ void CTiledShading::Render(CRenderView* pRenderView, Vec4* clipVolumeParams)
 	m_bApplyCaustics = false;  // Reset flag
 }
 
-void CTiledShading::BindForwardShadingResources(CShader*, CDeviceManager::SHADER_TYPE shaderType)
+const CTiledShading::SGPUResources CTiledShading::GetTiledShadingResources()
+{
+	CTiledShading::SGPUResources resources;
+
+	resources.lightCullInfoBuf = &m_lightCullInfoBuf;
+	resources.lightShadeInfoBuf = &m_lightShadeInfoBuf;
+	resources.tileOpaqueLightMaskBuf = &m_tileOpaqueLightMaskBuf;
+	resources.tileTranspLightMaskBuf = &m_tileTranspLightMaskBuf;
+	resources.clipVolumeInfoBuf = &m_clipVolumeInfoBuf;
+	
+	resources.specularProbeAtlas = CRenderer::CV_r_DeferredShadingTiled > 0 ? m_specularProbeAtlas.texArray : CTexture::s_ptexBlack;
+	resources.diffuseProbeAtlas = CRenderer::CV_r_DeferredShadingTiled > 0 ? m_diffuseProbeAtlas.texArray : CTexture::s_ptexBlack;
+	resources.spotTexAtlas = CRenderer::CV_r_DeferredShadingTiled > 0 ? m_spotTexAtlas.texArray : CTexture::s_ptexBlack;
+
+	return resources;
+}
+
+void CTiledShading::BindForwardShadingResources(CShader*, CSubmissionQueue_DX11::SHADER_TYPE shaderType)
 {
 	CD3D9Renderer* const __restrict rd = gcpRendD3D;
 
 	CTexture* ptexGiDiff = CTexture::s_ptexBlack;
 	CTexture* ptexGiSpec = CTexture::s_ptexBlack;
-	CTexture* ptexRsmCol = CTexture::s_ptexBlack;
-	CTexture* ptexRsmNor = CTexture::s_ptexBlack;
 
 #if defined(FEATURE_SVO_GI)
 	if (CSvoRenderer::GetInstance()->IsActive() && CSvoRenderer::GetInstance()->GetSpecularFinRT())
 	{
 		ptexGiDiff = (CTexture*)CSvoRenderer::GetInstance()->GetDiffuseFinRT();
 		ptexGiSpec = (CTexture*)CSvoRenderer::GetInstance()->GetSpecularFinRT();
-		if(CSvoRenderer::GetInstance()->GetRsmPoolCol())
-			ptexRsmCol = (CTexture*)CSvoRenderer::GetInstance()->GetRsmPoolCol();
-		if(CSvoRenderer::GetInstance()->GetRsmPoolNor())
-			ptexRsmNor = (CTexture*)CSvoRenderer::GetInstance()->GetRsmPoolNor();
 	}
 #endif
 
+	// bind GI SRV
+	rd->m_DevMan.BindSRV(shaderType, ptexGiDiff->GetDevTexture()->LookupSRV(EDefaultResourceViews::Default), 46);
+	rd->m_DevMan.BindSRV(shaderType, ptexGiSpec->GetDevTexture()->LookupSRV(EDefaultResourceViews::Default), 47);
+
 	if (!CRenderer::CV_r_DeferredShadingTiled)
 	{
-		rd->m_DevMan.BindSRV(shaderType, ptexGiDiff->GetShaderResourceView(), 24);
-		rd->m_DevMan.BindSRV(shaderType, ptexGiSpec->GetShaderResourceView(), 25);
-		rd->m_DevMan.BindSRV(shaderType, ptexRsmCol->GetShaderResourceView(), 26);
-		rd->m_DevMan.BindSRV(shaderType, ptexRsmNor->GetShaderResourceView(), 27);
-
 		return;
 	}
 
-	D3DShaderResource* pTiledBaseRes[12] = {
-		m_LightShadeInfoBuf.GetSRV(),
-		m_specularProbeAtlas.texArray->GetShaderResourceView(),
-		m_diffuseProbeAtlas.texArray->GetShaderResourceView(),
-		m_spotTexAtlas.texArray->GetShaderResourceView(),
-		CTexture::s_ptexRT_ShadowPool->GetShaderResourceView(),
-		CTexture::s_ptexShadowJitterMap->GetShaderResourceView(),
-		m_tileTranspLightMaskBuf.GetSRV(),
-		m_clipVolumeInfoBuf.GetSRV(),
-		ptexGiDiff->GetShaderResourceView(),
-		ptexGiSpec->GetShaderResourceView(),
-		ptexRsmCol->GetShaderResourceView(),
-		ptexRsmNor->GetShaderResourceView(),
+	D3DShaderResource* pTiledBaseRes[8] = {
+		m_tileTranspLightMaskBuf.        GetDevBuffer() ->LookupSRV(EDefaultResourceViews::Default),
+		m_lightShadeInfoBuf.             GetDevBuffer() ->LookupSRV(EDefaultResourceViews::Default),
+		m_clipVolumeInfoBuf.             GetDevBuffer() ->LookupSRV(EDefaultResourceViews::Default),
+		m_specularProbeAtlas.texArray->  GetDevTexture()->LookupSRV(EDefaultResourceViews::Default),
+		m_diffuseProbeAtlas.texArray->   GetDevTexture()->LookupSRV(EDefaultResourceViews::Default),
+		m_spotTexAtlas.texArray->        GetDevTexture()->LookupSRV(EDefaultResourceViews::Default),
+		CTexture::s_ptexRT_ShadowPool->  GetDevTexture()->LookupSRV(EDefaultResourceViews::Default),
+		CTexture::s_ptexShadowJitterMap->GetDevTexture()->LookupSRV(EDefaultResourceViews::Default),
 	};
-	rd->m_DevMan.BindSRV(shaderType, pTiledBaseRes, 16, 12);
+	rd->m_DevMan.BindSRV(shaderType, pTiledBaseRes, 17, 8);
 
 	D3DSamplerState* pSamplers[1] = {
-		(D3DSamplerState*)CTexture::s_TexStates[m_samplerCompare].m_pDeviceState,
+		(D3DSamplerState*)CDeviceObjectFactory::LookupSamplerState(EDefaultSamplerStates::LinearCompare).second,
 	};
 	rd->m_DevMan.BindSampler(shaderType, pSamplers, 14, 1);
 }
 
-void CTiledShading::UnbindForwardShadingResources(CDeviceManager::SHADER_TYPE shaderType)
+void CTiledShading::UnbindForwardShadingResources(CSubmissionQueue_DX11::SHADER_TYPE shaderType)
 {
 	if (!CRenderer::CV_r_DeferredShadingTiled)
 		return;
 
 	CD3D9Renderer* const __restrict rd = gcpRendD3D;
 
-	D3DShaderResource* pNullViews[12] = { NULL };
-	rd->m_DevMan.BindSRV(shaderType, pNullViews, 16, 12);
+	D3DShaderResource* pNullViews[8] = { NULL };
+	rd->m_DevMan.BindSRV(shaderType, pNullViews, 17, 8);
+	
+	// unbind GI SRV
+	rd->m_DevMan.BindSRV(shaderType, pNullViews, 46, 2);
 
 #ifndef _RELEASE
 	// Verify that the sampler states did not get overwritten
@@ -1056,76 +1056,19 @@ void CTiledShading::UnbindForwardShadingResources(CDeviceManager::SHADER_TYPE sh
 	rd->m_DevMan.BindSampler(shaderType, pNullSamplers, 14, 1);
 
 	// reset sampler state cache because we accessed states directly
-	if(shaderType == CDeviceManager::TYPE_VS)
-		CTexture::s_TexStateIDs[eHWSC_Vertex][14] = -1;
-	else if (shaderType == CDeviceManager::TYPE_PS)
-		CTexture::s_TexStateIDs[eHWSC_Pixel][14] = -1;
-	else if (shaderType == CDeviceManager::TYPE_GS)
-		CTexture::s_TexStateIDs[eHWSC_Geometry][14] = -1;
-	else if (shaderType == CDeviceManager::TYPE_DS)
-		CTexture::s_TexStateIDs[eHWSC_Domain][14] = -1;
-	else if (shaderType == CDeviceManager::TYPE_HS)
-		CTexture::s_TexStateIDs[eHWSC_Hull][14] = -1;
-	else if (shaderType == CDeviceManager::TYPE_CS)
-		CTexture::s_TexStateIDs[eHWSC_Compute][14] = -1;
+	if(shaderType == CSubmissionQueue_DX11::TYPE_VS)
+		CTexture::s_TexStateIDs[eHWSC_Vertex][14] = EDefaultSamplerStates::Unspecified;
+	else if (shaderType == CSubmissionQueue_DX11::TYPE_PS)
+		CTexture::s_TexStateIDs[eHWSC_Pixel][14] = EDefaultSamplerStates::Unspecified;
+	else if (shaderType == CSubmissionQueue_DX11::TYPE_GS)
+		CTexture::s_TexStateIDs[eHWSC_Geometry][14] = EDefaultSamplerStates::Unspecified;
+	else if (shaderType == CSubmissionQueue_DX11::TYPE_DS)
+		CTexture::s_TexStateIDs[eHWSC_Domain][14] = EDefaultSamplerStates::Unspecified;
+	else if (shaderType == CSubmissionQueue_DX11::TYPE_HS)
+		CTexture::s_TexStateIDs[eHWSC_Hull][14] = EDefaultSamplerStates::Unspecified;
+	else if (shaderType == CSubmissionQueue_DX11::TYPE_CS)
+		CTexture::s_TexStateIDs[eHWSC_Compute][14] = EDefaultSamplerStates::Unspecified;
 }
-
-template<class RenderPassType>
-void CTiledShading::BindForwardShadingResources(RenderPassType& pass)
-{
-	CTexture* ptexGiDiff = CTexture::s_ptexBlack;
-	CTexture* ptexGiSpec = CTexture::s_ptexBlack;
-	CTexture* ptexRsmCol = CTexture::s_ptexBlack;
-	CTexture* ptexRsmNor = CTexture::s_ptexBlack;
-
-#if defined(FEATURE_SVO_GI)
-	if(CSvoRenderer::GetInstance()->IsActive() && CSvoRenderer::GetInstance()->GetSpecularFinRT())
-	{
-		ptexGiDiff = (CTexture*)CSvoRenderer::GetInstance()->GetDiffuseFinRT();
-		ptexGiSpec = (CTexture*)CSvoRenderer::GetInstance()->GetSpecularFinRT();
-		if(CSvoRenderer::GetInstance()->GetRsmPoolCol())
-			ptexRsmCol = (CTexture*)CSvoRenderer::GetInstance()->GetRsmPoolCol();
-		if(CSvoRenderer::GetInstance()->GetRsmPoolNor())
-			ptexRsmNor = (CTexture*)CSvoRenderer::GetInstance()->GetRsmPoolNor();
-	}
-#endif
-
-	if(CRenderer::CV_r_DeferredShadingTiled > 0)
-	{
-		pass.SetBuffer(16, &(this->m_LightShadeInfoBuf));
-		pass.SetTexture(17, this->m_specularProbeAtlas.texArray);
-		pass.SetTexture(18, this->m_diffuseProbeAtlas.texArray);
-		pass.SetTexture(19, this->m_spotTexAtlas.texArray);
-		pass.SetTexture(20, CTexture::s_ptexRT_ShadowPool);
-		pass.SetTexture(21, CTexture::s_ptexShadowJitterMap);
-		pass.SetBuffer(22, &(this->m_tileTranspLightMaskBuf));
-		pass.SetBuffer(23, &(this->m_clipVolumeInfoBuf));
-	}
-	else
-	{
-		pass.SetBuffer(16, &(this->m_LightShadeInfoBuf));
-		pass.SetTexture(17, CTexture::s_ptexBlack);
-		pass.SetTexture(18, CTexture::s_ptexBlack);
-		pass.SetTexture(19, CTexture::s_ptexBlack);
-		pass.SetTexture(20, CTexture::s_ptexBlack);
-		pass.SetTexture(21, CTexture::s_ptexBlack);
-		pass.SetBuffer(22, &(this->m_tileTranspLightMaskBuf));
-		pass.SetBuffer(23, &(this->m_clipVolumeInfoBuf));
-	}
-
-	pass.SetTexture(24, ptexGiDiff);
-	pass.SetTexture(25, ptexGiSpec);
-	pass.SetTexture(26, ptexRsmCol);
-	pass.SetTexture(27, ptexRsmNor);
-
-	pass.SetSampler(14, m_samplerCompare);
-}
-
-// explicit instantiation
-template
-void CTiledShading::BindForwardShadingResources(CComputeRenderPass& pass);
-template
-void CTiledShading::BindForwardShadingResources(CFullscreenPass& pass);
 
 struct STiledLightCullInfo* CTiledShading::GetTiledLightCullInfo()
 {
@@ -1135,4 +1078,20 @@ struct STiledLightCullInfo* CTiledShading::GetTiledLightCullInfo()
 struct STiledLightShadeInfo* CTiledShading::GetTiledLightShadeInfo()
 {
 	return &tileLightsShade[0];
+}
+
+uint32 CTiledShading::GetLightShadeIndexBySpecularTextureId(int textureId) const
+{
+	CTexture* pTexture = CTexture::GetByID(textureId);
+	auto begin = tileLightsShade;
+	auto end = tileLightsShade + m_numValidLights;
+	auto it = std::find_if(begin, end, [this, pTexture](const STiledLightShadeInfo& light)
+	{
+		if (light.lightType != tlTypeProbe)
+			return false;
+		return m_specularProbeAtlas.items[light.resIndex].texture == pTexture;
+	});
+	if (it == end)
+		return -1;
+	return uint32(it - begin);
 }

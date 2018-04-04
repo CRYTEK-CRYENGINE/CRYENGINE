@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #include "StdAfx.h"
 
@@ -39,11 +39,9 @@ static CSystemEventListner_Physics g_system_event_listener_physics;
 
 CRYPHYSICS_API IPhysicalWorld *CreatePhysicalWorld(ISystem *pSystem)
 {
-	ModuleInitISystem(pSystem, "CryPhysics");
-	
 	if (pSystem)
 	{
-		pSystem->GetISystemEventDispatcher()->RegisterListener(&g_system_event_listener_physics);
+		pSystem->GetISystemEventDispatcher()->RegisterListener(&g_system_event_listener_physics, "CSystemEventListner_Physics");
 		return new PhysXWorld(pSystem->GetILog());
 	}
 
@@ -54,14 +52,18 @@ CRYPHYSICS_API IPhysicalWorld *CreatePhysicalWorld(ISystem *pSystem)
 
 #ifndef STANDALONE_PHYSICS
 //////////////////////////////////////////////////////////////////////////
-class CEngineModule_CryPhysics : public IEngineModule
+class CEngineModule_CryPhysics : public IPhysicsEngineModule
 {
-	CRYINTERFACE_SIMPLE(IEngineModule)
-		CRYGENERATE_SINGLETONCLASS(CEngineModule_CryPhysics, "EngineModule_CryPhysics", 0x526cabf3d776407f, 0xaa2338545bb6ae7f)
+	CRYINTERFACE_BEGIN()
+		CRYINTERFACE_ADD(Cry::IDefaultModule)
+		CRYINTERFACE_ADD(IPhysicsEngineModule)
+	CRYINTERFACE_END()
+
+	CRYGENERATE_SINGLETONCLASS_GUID(CEngineModule_CryPhysics, "EngineModule_CryPhysics", "526cabf3-d776-407f-aa23-38545bb6ae7f"_cry_guid)
 
 		//////////////////////////////////////////////////////////////////////////
-		virtual const char *GetName() override { return "CryPhysics"; };
-	virtual const char *GetCategory() override { return "CryEngine"; };
+		virtual const char *GetName() const override { return "CryPhysics"; };
+	virtual const char *GetCategory() const override { return "CryEngine"; };
 
 	//////////////////////////////////////////////////////////////////////////
 	virtual bool Initialize(SSystemGlobalEnvironment &env, const SSystemInitParams &initParams) override
@@ -69,7 +71,7 @@ class CEngineModule_CryPhysics : public IEngineModule
 		ISystem* pSystem = env.pSystem;
 
 		if (pSystem)
-			pSystem->GetISystemEventDispatcher()->RegisterListener(&g_system_event_listener_physics);
+			pSystem->GetISystemEventDispatcher()->RegisterListener(&g_system_event_listener_physics, "CSystemEventListner_Physics");
 
 		env.pPhysicalWorld = new PhysXWorld(pSystem ? pSystem->GetILog() : 0);
 

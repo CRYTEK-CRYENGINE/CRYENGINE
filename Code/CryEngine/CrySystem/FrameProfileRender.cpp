@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 // -------------------------------------------------------------------------
 //  File name:   frameprofilerender.cpp
@@ -1826,12 +1826,7 @@ void CFrameProfileSystem::RenderMemoryInfo()
 			fpCryModuleGetAllocatedMemory(&memInfo);
 		}
 		#else
-
-			#if CRY_PLATFORM_LINUX || CRY_PLATFORM_ANDROID || CRY_PLATFORM_APPLE
 			fpCryModuleGetAllocatedMemory(&memInfo);
-			#else
-			fpCryModuleGetAllocatedMemory(&memInfo, (ECryModule)i);
-			#endif
 		#endif
 
 		int usedInModule = (int)(memInfo.allocated - memInfo.freed);

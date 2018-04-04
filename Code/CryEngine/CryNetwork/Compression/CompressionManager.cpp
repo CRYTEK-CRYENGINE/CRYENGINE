@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #include "StdAfx.h"
 #include "CompressionManager.h"
@@ -98,7 +98,7 @@ void CCompressionManager::Reset(bool useCompression, bool unloading)
 		m_compressionPolicies.insert(std::make_pair(0, m_pDefaultPolicy));
 
 		// Start by loading the engine defaults
-		const char* fileName = "Config/DefaultScripts/CompressionPolicy.xml";
+		const char* fileName = "%engine%/Config/DefaultScripts/CompressionPolicy.xml";
 		XmlNodeRef config = gEnv->pSystem->LoadXmlFromFile(fileName);
 		if (config)
 		{

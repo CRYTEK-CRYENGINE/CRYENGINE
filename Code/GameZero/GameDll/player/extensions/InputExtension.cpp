@@ -43,7 +43,7 @@ void CInputExtension::PostInit(IGameObject* pGameObject)
 
 	if (gEnv->IsEditor())
 	{
-		gEnv->pSystem->GetISystemEventDispatcher()->RegisterListener(this);
+		gEnv->pSystem->GetISystemEventDispatcher()->RegisterListener(this,"CInputExtension");
 	}
 
 	REGISTER_CVAR2("gamezero_mouse_sensitivity", &m_mouseSensitivity, 0.002f, VF_NULL, "Mouse Sensitivity.");

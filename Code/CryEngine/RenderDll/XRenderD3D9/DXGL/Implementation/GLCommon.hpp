@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 // -------------------------------------------------------------------------
 //  File name:   GLCommon.hpp
@@ -49,7 +49,7 @@
 		#define DXGLES_REQUIRED_VERSION DXGLES_VERSION_31
 	#endif
 #elif CRY_PLATFORM_LINUX || CRY_PLATFORM_ANDROID || CRY_PLATFORM_WINDOWS
-	#if defined(OPENGL_ES)
+	#if CRY_RENDERER_OPENGLES
 		#define DXGL_USE_GLAD
 //		#define DXGL_ES_SUBSET
 		#define DXGLES_REQUIRED_VERSION DXGLES_VERSION_31
@@ -70,7 +70,7 @@
 	#include <WinGDI.h>
 #endif
 
-#if CRY_PLATFORM_MOBILE && defined(DXGL_USE_SDL)
+#if CRY_PLATFORM_MOBILE && defined(USE_SDL2_VIDEO)
 	#define DXGL_SINGLEWINDOW
 #endif
 
@@ -97,10 +97,6 @@
 
 #include "GLFeatures.hpp"
 
-#if defined(DXGL_USE_SDL)
-	#include <SDL.h>
-#endif
-
 namespace NCryOpenGL
 {
 
@@ -108,7 +104,7 @@ namespace NCryOpenGL
 struct SDisplayConnection;
 typedef _smart_ptr<SDisplayConnection> TWindowContext;
 typedef EGLContext                     TRenderingContext;
-#elif defined(DXGL_USE_SDL)
+#elif defined(USE_SDL2_VIDEO)
 typedef SDL_Window*                    TWindowContext;
 typedef SDL_GLContext                  TRenderingContext;
 #elif CRY_PLATFORM_WINDOWS

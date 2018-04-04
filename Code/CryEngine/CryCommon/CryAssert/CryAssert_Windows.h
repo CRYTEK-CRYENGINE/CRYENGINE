@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #pragma once
 #if defined(USE_CRY_ASSERT) && CRY_PLATFORM_WINDOWS
@@ -259,12 +259,12 @@ static THREADLOCAL char gs_szMessage[MAX_PATH];
 
 void CryAssertTrace(const char* _pszFormat, ...)
 {
-	if (gEnv == 0)
+	if (!gEnv)
 	{
 		return;
 	}
 
-	if (NULL == _pszFormat)
+	if (_pszFormat == nullptr || _pszFormat[0] == '\0')
 	{
 		gs_szMessage[0] = '\0';
 	}
@@ -357,7 +357,18 @@ void CryLogAssert(const char* _pszCondition, const char* _pszFile, unsigned int 
 			return;
 	}
 
+#ifdef _RELEASE
 	GetISystem()->WarningV(VALIDATOR_MODULE_UNKNOWN, VALIDATOR_ASSERT, 0, _pszFile, gs_szMessage, va_list());
+#else
+	if (gs_szMessage == nullptr || gs_szMessage[0] == '\0')
+	{
+		GetISystem()->Warning(VALIDATOR_MODULE_UNKNOWN, VALIDATOR_ASSERT, 0, _pszFile, "Condition: %s [line %u]", _pszCondition, _uiLine);
+	}
+	else
+	{
+		GetISystem()->Warning(VALIDATOR_MODULE_UNKNOWN, VALIDATOR_ASSERT, 0, _pszFile, "%s (Condition: %s)[line %u]", gs_szMessage, _pszCondition, _uiLine);
+	}
+#endif
 }
 
 bool CryAssert(const char* _pszCondition, const char* _pszFile, unsigned int _uiLine, bool* _pbIgnore)

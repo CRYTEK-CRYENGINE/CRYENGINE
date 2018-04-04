@@ -4,9 +4,9 @@
 
 // *INDENT-OFF* - <hard to read code and declarations due to inconsistent indentation>
 
-namespace uqs
+namespace UQS
 {
-	namespace core
+	namespace Core
 	{
 
 		//===================================================================================
@@ -20,10 +20,10 @@ namespace uqs
 		public:
 			explicit                                   CItemList();
 			                                           ~CItemList();
-			virtual void                               SetItemFactory(client::IItemFactory& itemFactory) override;
+			virtual void                               SetItemFactory(Client::IItemFactory& itemFactory) override;
 			virtual void                               CreateItemsByItemFactory(size_t numItemsToCreate) override;
 			virtual size_t                             GetItemCount() const override;
-			virtual client::IItemFactory&              GetItemFactory() const override;
+			virtual Client::IItemFactory&              GetItemFactory() const override;
 			virtual void*                              GetItems() const override;
 			virtual void                               CopyOtherToSelf(const IItemList& other) override;
 
@@ -34,7 +34,7 @@ namespace uqs
 			                                           UQS_NON_COPYABLE(CItemList);
 
 		private:
-			client::IItemFactory*                      m_pItemFactory;
+			Client::IItemFactory*                      m_pItemFactory;
 			void*                                      m_pItems;
 			size_t                                     m_numItems;
 		};

@@ -4,11 +4,6 @@
 #include "QToolWindowManagerCommon.h"
 #include <QFrame>
 
-#if (defined(_WIN32) || defined(_WIN64))
-#include <windows.h>
-#include <dwmapi.h>
-#endif
-
 class QPushButton;
 class QToolButton;
 class QGridLayout;
@@ -68,11 +63,12 @@ public:
 public:
 	QCustomWindowFrame();
 	virtual ~QCustomWindowFrame();
-	virtual void setContents(QWidget* widget, bool useContentsGeometry = true);
 
 	virtual void ensureTitleBar();
 
 protected:
+	virtual void internalSetContents(QWidget* widget, bool useContentsGeometry = true);
+
 #if QT_VERSION >= 0x050000
 	virtual bool nativeEvent(const QByteArray &eventType, void *message, long *result) Q_DECL_OVERRIDE;
 #endif
@@ -95,15 +91,15 @@ protected slots:
 	void onIconChange();
 
 protected:
+
 	QWidget* m_contents;
 	QCustomTitleBar* m_titleBar;
 	QGridLayout* m_grid;
 
 #if (defined(_WIN32) || defined(_WIN64))
 	// DWM library
-	HMODULE m_dwm;
+	/*HMODULE*/ void* m_dwm;
 	// Pointers to DWM functions
-	typedef HRESULT(WINAPI *dwmExtendFrameIntoClientArea_t)(HWND hwnd, const MARGINS* pMarInset);
-	dwmExtendFrameIntoClientArea_t dwmExtendFrameIntoClientArea;
+	void* dwmExtendFrameIntoClientArea;
 #endif
 };

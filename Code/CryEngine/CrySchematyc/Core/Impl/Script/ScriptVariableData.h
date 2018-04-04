@@ -1,16 +1,16 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 // #SchematycTODO : Move contents of ScriptVariableData namespace to separate file and separate namespace? ScriptTypeUtils perhaps?
 
 #pragma once
 
 #include <CrySerialization/Forward.h>
-#include <Schematyc/FundamentalTypes.h>
-#include <Schematyc/Script/ScriptDependencyEnumerator.h>
-#include <Schematyc/SerializationUtils/SerializationQuickSearch.h>
-#include <Schematyc/Utils/Delegate.h>
-#include <Schematyc/Utils/EnumFlags.h>
-#include <Schematyc/Utils/GUID.h>
+#include <CrySchematyc/FundamentalTypes.h>
+#include <CrySchematyc/Script/ScriptDependencyEnumerator.h>
+#include <CrySchematyc/SerializationUtils/SerializationQuickSearch.h>
+#include <CrySchematyc/Utils/Delegate.h>
+#include <CrySchematyc/Utils/EnumFlags.h>
+#include <CrySchematyc/Utils/GUID.h>
 
 namespace Schematyc
 {
@@ -54,9 +54,9 @@ private:
 
 namespace ScriptVariableData
 {
-typedef CDelegate<bool (const IEnvDataType&)>  EnvDataTypeFilter;
-typedef CDelegate<bool (const IScriptEnum&)>   ScriptEnumsFilter;
-typedef CDelegate<bool (const IScriptStruct&)> ScriptStructFilter;
+typedef std::function<bool (const IEnvDataType&)>  EnvDataTypeFilter;
+typedef std::function<bool (const IScriptEnum&)>   ScriptEnumsFilter;
+typedef std::function<bool (const IScriptStruct&)> ScriptStructFilter;
 
 class CScopedSerializationConfig
 {
@@ -64,9 +64,9 @@ public:
 
 	CScopedSerializationConfig(Serialization::IArchive& archive, const char* szHeader = nullptr);
 
-	void DeclareEnvDataTypes(const SGUID& scopeGUID, const EnvDataTypeFilter& filter = EnvDataTypeFilter());
-	void DeclareScriptEnums(const SGUID& scopeGUID, const ScriptEnumsFilter& filter = ScriptEnumsFilter());
-	void DeclareScriptStructs(const SGUID& scopeGUID, const ScriptStructFilter& filter = ScriptStructFilter());
+	void DeclareEnvDataTypes(const CryGUID& scopeGUID, const EnvDataTypeFilter& filter = EnvDataTypeFilter());
+	void DeclareScriptEnums(const CryGUID& scopeGUID, const ScriptEnumsFilter& filter = ScriptEnumsFilter());
+	void DeclareScriptStructs(const CryGUID& scopeGUID, const ScriptStructFilter& filter = ScriptStructFilter());
 
 private:
 

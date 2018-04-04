@@ -663,6 +663,8 @@ private:
 
 	void InitializeAnimations();
 
+	static std::unique_ptr<CScene> ImportFileInternal(SFileImportDescriptor desc);
+
 	SFileImportDescriptor m_fileImportDesc;
 
 	// Owned state from FBX

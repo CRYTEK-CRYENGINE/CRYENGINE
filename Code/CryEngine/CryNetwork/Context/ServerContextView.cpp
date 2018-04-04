@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 /*************************************************************************
    -------------------------------------------------------------------------
@@ -470,43 +470,35 @@ private:
 CServerContextView::CServerContextView(CNetChannel* pChannel, CNetContext* pContext)
 {
 	SetMMM(pChannel->GetChannelMMM());
-	SContextViewConfiguration config = {
-		CClientContextView::FlushMsgs,
-		CClientContextView::ChangeState,
-		CClientContextView::ForceNextState,
-		CClientContextView::FinishState,
-		CClientContextView::BeginUpdateObject,
-		CClientContextView::EndUpdateObject,
-		CClientContextView::ReconfigureObject,
-		CClientContextView::SetAuthority,
+
+	SContextViewConfiguration cfg = { 0 };
+	cfg.pFlushMsgsMsg		= CClientContextView::FlushMsgs;
+	cfg.pChangeStateMsg		= CClientContextView::ChangeState;
+	cfg.pForceStateMsg		= CClientContextView::ForceNextState;
+	cfg.pFinishStateMsg		= CClientContextView::FinishState;
+	cfg.pUpdateMsg			= CClientContextView::BeginUpdateObject;
+	cfg.pEndUpdateMsg		= CClientContextView::EndUpdateObject;
+	cfg.pReconfigureMsg		= CClientContextView::ReconfigureObject;
+	cfg.pSetAuthorityMsg	= CClientContextView::SetAuthority;
 #ifndef OLD_VOICE_SYSTEM_DEPRECATED
-		CClientContextView::VoiceData,
-#else
-		NULL,
+	cfg.pVoiceDataMsg		= CClientContextView::VoiceData;
 #endif
-		CClientContextView::RemoveStaticObject,
-		CClientContextView::UpdatePhysicsTime,
-		IF_SERVER_FILE_SYNC(CClientContextView::BeginSyncFiles,NULL),
-		IF_SERVER_FILE_SYNC(CClientContextView::BeginSyncFile, NULL),
-		IF_SERVER_FILE_SYNC(CClientContextView::AddFileData,   NULL),
-		IF_SERVER_FILE_SYNC(CClientContextView::EndSyncFile,   NULL),
-		IF_SERVER_FILE_SYNC(CClientContextView::AllFilesSynced,NULL),
-		static_array<CClientContextView::msgPartialAspect, NumAspects>::value,
-		static_array<CClientContextView::msgSetAspectProfile, NumAspects>::value,
-		static_array<CClientContextView::msgUpdateAspect, NumAspects>::value,
-#if ENABLE_ASPECT_HASHING
-		static_array<CClientContextView::msgHashAspect, NumAspects>::value,
-#endif
-		// rmi messages
-		{
-			CClientContextView::RMI_ReliableOrdered,
-			CClientContextView::RMI_ReliableUnordered,
-			CClientContextView::RMI_UnreliableOrdered,
-			NULL,
-			// must be last
-			CClientContextView::RMI_Attachment,
-		}
-	};
+	cfg.pRemoveStaticEntity	= CClientContextView::RemoveStaticObject;
+	cfg.pUpdatePhysicsTime	= CClientContextView::UpdatePhysicsTime;
+	cfg.pBeginSyncFiles		= IF_SERVER_FILE_SYNC(CClientContextView::BeginSyncFiles, NULL);
+	cfg.pBeginSyncFile		= IF_SERVER_FILE_SYNC(CClientContextView::BeginSyncFile, NULL);
+	cfg.pAddFileData		= IF_SERVER_FILE_SYNC(CClientContextView::AddFileData, NULL);
+	cfg.pEndSyncFile		= IF_SERVER_FILE_SYNC(CClientContextView::EndSyncFile, NULL);
+	cfg.pAllFilesSynced		= IF_SERVER_FILE_SYNC(CClientContextView::AllFilesSynced, NULL);
+	cfg.pPartialUpdate			= static_array<CClientContextView::msgPartialAspect, NumAspects>::value;
+	cfg.pSetAspectProfileMsgs	= static_array<CClientContextView::msgSetAspectProfile, NumAspects>::value;
+	cfg.pUpdateAspectMsgs		= static_array<CClientContextView::msgUpdateAspect, NumAspects>::value;
+	cfg.pRMIMsgs[eNRT_ReliableOrdered]			= CClientContextView::RMI_ReliableOrdered;
+	cfg.pRMIMsgs[eNRT_ReliableUnordered]		= CClientContextView::RMI_ReliableUnordered;
+	cfg.pRMIMsgs[eNRT_UnreliableOrdered]		= CClientContextView::RMI_UnreliableOrdered;
+	cfg.pRMIMsgs[eNRT_UnreliableUnordered]		= NULL;
+	cfg.pRMIMsgs[eNRT_UnreliableUnordered + 1]	= CClientContextView::RMI_Attachment;
+
 
 	MMM_REGION(m_pMMM);
 
@@ -524,7 +516,7 @@ CServerContextView::CServerContextView(CNetChannel* pChannel, CNetContext* pCont
 	m_clientHasPunkBuster = false;
 #endif
 
-	Init(pChannel, pContext, &config);
+	Init(pChannel, pContext, &cfg);
 }
 
 CServerContextView::~CServerContextView()
@@ -1047,13 +1039,6 @@ void CServerContextView::SendUnbindMessage(SNetObjectID netID, bool bFromBind, C
 	{
 		NET_ASSERT(m_dependencyStaging.empty());
 		m_dependencyStaging.push_back(m_objects[netID.id].msgHandle);
-#if ENABLE_ASPECT_HASHING
-		if (Context()->IsMultiplayer())
-		{
-			for (NetworkAspectID i = 0; i < NumAspects; i++)
-				m_dependencyStaging.push_back(m_objectsEx[netID.id].hashMsgHandles[i]);
-		}
-#endif
 		GetSendablesDependentOnObject(netID, m_dependencyStaging);
 
 		Parent()->AddSendable(new CUnbindObjectMessage(netID, this, lk), m_dependencyStaging.size(), m_dependencyStaging.empty() ? NULL : &m_dependencyStaging[0], NULL);

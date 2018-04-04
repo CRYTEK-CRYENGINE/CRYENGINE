@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #include "StdAfx.h"
 #include <CryCore/smartptr.h>
@@ -16,8 +16,9 @@
 
 #ifndef OPTIMIZED_READONLY_ZIP_ENTRY
 
-	#include <zlib.h> // declaration of Z_OK for ZipRawDecompress
-	#include <CryCore/Platform/CryWindows.h>
+#include <zlib.h> // declaration of Z_OK for ZipRawDecompress
+#include <CryCore/Platform/CryWindows.h>
+#include <CryMath/Random.h>
 
 using namespace ZipFile;
 
@@ -679,9 +680,11 @@ ZipDir::FileEntry* ZipDir::CacheRW::FindFile(const char* szPathSrc, bool bFullIn
 	ZipDir::FindFileRW fd(GetRoot());
 	if (!fd.FindExact(szPath))
 	{
+		// cppcheck-suppress assertWithSideEffect
 		assert(!fd.GetFileEntry());
 		return NULL;
 	}
+	// cppcheck-suppress assertWithSideEffect
 	assert(fd.GetFileEntry());
 	return fd.GetFileEntry();
 }

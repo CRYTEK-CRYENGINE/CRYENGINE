@@ -16,8 +16,9 @@
 #include "StdAfx.h"
 #include <CryMath/Cry_Color.h>
 #include "ConvertContext.h"
-#include "iconfig.h"
 #include "CharacterCompiler.h"
+#include "IConfig.h"
+#include "IAssetManager.h"
 #include "../CryEngine/Cry3DEngine/CGF/CGFLoader.h"
 #include "CGF/CGFSaver.h"
 #include "CGF/CgfUtil.h"
@@ -30,7 +31,6 @@
 #include "StaticObjectCompiler.h"
 #include "StringHelpers.h"
 #include "FileUtil.h"
-#include "Metadata/MetadataHelpers.h"
 #include "UpToDateFileHelpers.h"
 #include <CryAnimation/IAttachment.h>
 #include "CGF\CGFNodeMerger.h"
@@ -731,7 +731,7 @@ bool CharacterCompiler::ProcessInternal(CLoaderCGF* cgfLoader, CContentCGF* pCGF
 			return false;
 		}
 		m_CC.pRC->AddInputOutputFilePair(m_CC.GetSourcePath(), GetOutputPath());
-		ok = AssetManager::SaveAsset(m_CC.pRC, m_CC.config, m_CC.GetSourcePath(), { GetOutputPath() });
+		ok = m_CC.pRC->GetAssetManager()->SaveCryasset(m_CC.config, m_CC.GetSourcePath(), { GetOutputPath() });
 	}
 
 	return ok;

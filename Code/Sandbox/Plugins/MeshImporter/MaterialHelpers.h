@@ -30,3 +30,5 @@ typedef std::function<void(CMaterial*, const FbxTool::SMaterial&)> SubMaterialIn
 void CreateMaterial(CMaterial* pParentMaterial, FbxTool::CScene* pFbxScene, const SubMaterialInitializer& initializer = SubMaterialInitializer());
 
 string GetMaterialNameFromFilePath(const string& filePath);
+
+const char* GetTextureSemanticFromChannelType(FbxTool::EMaterialChannelType channelType);

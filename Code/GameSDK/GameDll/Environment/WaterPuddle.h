@@ -61,7 +61,6 @@ public:
 	virtual void HandleEvent(const SGameObjectEvent& gameObjectEvent);
 	virtual void ProcessEvent(SEntityEvent& entityEvent);
 	virtual void SetChannelId(uint16 id);
-	virtual void SetAuthority(bool auth);
 	virtual void PostUpdate(float frameTime);
 	virtual void PostRemoteSpawn();
 	virtual void GetMemoryUsage(ICrySizer *pSizer) const;

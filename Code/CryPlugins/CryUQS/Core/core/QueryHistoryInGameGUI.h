@@ -6,9 +6,9 @@
 
 // *INDENT-OFF* - <hard to read code and declarations due to inconsistent indentation>
 
-namespace uqs
+namespace UQS
 {
-	namespace core
+	namespace Core
 	{
 
 		//===================================================================================
@@ -28,13 +28,13 @@ namespace uqs
 			                                             ~CQueryHistoryInGameGUI();
 
 			// IQueryHistoryListener
-			virtual void                                 OnQueryHistoryEvent(EEvent ev) override;
+			virtual void                                 OnQueryHistoryEvent(const IQueryHistoryListener::SEvent& ev) override;
 			// ~IQueryHistoryListener
 
 			// IQueryHistoryConsumer
-			virtual void                                 AddHistoricQuery(const SHistoricQueryOverview& overview) override;
-			virtual void                                 AddTextLineToCurrentHistoricQuery(const ColorF& color, const char* fmt, ...) override;
-			virtual void                                 AddTextLineToFocusedItem(const ColorF& color, const char* fmt, ...) override;
+			virtual void                                 AddOrUpdateHistoricQuery(const SHistoricQueryOverview& overview) override;
+			virtual void                                 AddTextLineToCurrentHistoricQuery(const ColorF& color, const char* szFormat, ...) override;
+			virtual void                                 AddTextLineToFocusedItem(const ColorF& color, const char* szFormat, ...) override;
 			virtual void                                 AddInstantEvaluatorName(const char* szInstantEvaluatorName) override;
 			virtual void                                 AddDeferredEvaluatorName(const char* szDeferredEvaluatorName) override;
 			// ~IQueryHistoryConsumer
@@ -54,7 +54,7 @@ namespace uqs
 			void                                         RefreshDetailedInfoAboutFocusedItem();
 			void                                         FindScrollIndexInHistoricQueries();
 
-			int                                          DrawQueryHistoryOverview(IQueryHistoryManager::EHistoryOrigin whichHistory, const char* descriptiveHistoryName, float xPos, int row) const;
+			int                                          DrawQueryHistoryOverview(IQueryHistoryManager::EHistoryOrigin whichHistory, const char* szDescriptiveHistoryName, float xPos, int row) const;
 			int                                          DrawListOfHistoricQueries(float xPos, int row) const;
 			int                                          DrawDetailsAboutCurrentHistoricQuery(float xPos, int row) const;
 			int                                          DrawDetailsAboutFocusedItem(float xPos, int row) const;

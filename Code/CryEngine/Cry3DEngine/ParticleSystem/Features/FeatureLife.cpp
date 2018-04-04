@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 // -------------------------------------------------------------------------
 //  Created:     29/09/2014 by Filipe amim
@@ -33,9 +33,9 @@ public:
 	}
 
 	virtual void AddToComponent(CParticleComponent* pComponent, SComponentParams* pParams) override
-	{
-		pParams->m_baseParticleLifeTime = m_lifeTime.GetBaseValue();
+	{		
 		m_lifeTime.AddToComponent(pComponent, this, EPDT_LifeTime);
+		pParams->m_maxParticleLifeTime = m_lifeTime.GetValueRange().end;
 
 		if (auto pInt = GetGpuInterface())
 		{
@@ -56,6 +56,23 @@ public:
 		CRY_PFX2_PROFILE_DETAIL;
 
 		m_lifeTime.InitParticles(context, EPDT_LifeTime);
+
+		if (m_lifeTime.HasModifiers())
+			ClampNegativeLifetimes(context);
+	}
+
+private:
+	void ClampNegativeLifetimes(const SUpdateContext& context)
+	{
+		const floatv minimum = ToFloatv(std::numeric_limits<float>::min());
+		IOFStream lifeTimes = context.m_container.GetIOFStream(EPDT_LifeTime);
+		CRY_PFX2_FOR_SPAWNED_PARTICLEGROUP(context)
+		{
+			const floatv lifetime = lifeTimes.Load(particleGroupId);
+			const floatv maxedLifeTime = max(lifetime, minimum);
+			lifeTimes.Store(particleGroupId, maxedLifeTime);
+		}
+		CRY_PFX2_FOR_END;
 	}
 
 private:
@@ -76,7 +93,7 @@ public:
 
 	virtual void AddToComponent(CParticleComponent* pComponent, SComponentParams* pParams) override
 	{
-		pParams->m_baseParticleLifeTime = gInfinity;
+		pParams->m_maxParticleLifeTime = gInfinity;
 		pComponent->AddToUpdateList(EUL_InitUpdate, this);
 		pComponent->AddToUpdateList(EUL_Update, this);
 	}

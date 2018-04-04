@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #pragma once
 
@@ -43,7 +43,7 @@ public:
 	typedef std::reverse_iterator<iterator>       reverse_iterator;
 	typedef std::reverse_iterator<const_iterator> const_reverse_iterator;
 
-	enum _npos_type
+	enum _npos_type : size_type
 	{
 		npos = (size_type) ~0
 	};
@@ -1536,10 +1536,6 @@ inline typename CryStringT<T>::size_type CryStringT<T >::rfind(value_type ch, si
 	}
 	else
 	{
-		if (pos == npos)
-		{
-			pos = length();
-		}
 		if (pos > length())
 		{
 			return npos;

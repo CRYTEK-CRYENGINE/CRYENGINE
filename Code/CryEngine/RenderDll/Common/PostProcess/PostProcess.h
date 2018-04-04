@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 /*=============================================================================
    PostProcess.h : Post processing techniques base interface
@@ -20,12 +20,9 @@ class CTexture;
 enum EPostEffectID
 {
 	ePFX_Invalid     = -1,
-	ePFX_WaterVolume = 0,
-
-	ePFX_SceneRain,
 
 	// Don't change order of post processes before sunshafts (on pc we doing some trickery to avoid redundant stretchrects)
-	ePFX_SunShafts,
+	ePFX_SunShafts = 0,
 	ePFX_eMotionBlur,
 	ePFX_ColorGrading,
 	ePFX_eDepthOfField,
@@ -34,7 +31,6 @@ enum EPostEffectID
 	ePFX_eSoftAlphaTest,
 
 	ePFX_PostAA,
-	ePFX_SceneSnow,
 
 	ePFX_eUnderwaterGodRays,
 	ePFX_eVolumetricScattering,
@@ -101,8 +97,8 @@ public:
 	virtual void ResetParamVec4(const Vec4& pParam)                         { SetParamVec4(pParam, true); }
 
 	// Get parameters
-	virtual float       GetParam()             { return 1.0f; }
-	virtual Vec4        GetParamVec4()         { return Vec4(1.0f, 1.0f, 1.0f, 1.0f); }
+	virtual float       GetParam()       const { return 1.0f; }
+	virtual Vec4        GetParamVec4()   const { return Vec4(1.0f, 1.0f, 1.0f, 1.0f); }
 	virtual const char* GetParamString() const { return 0; }
 
 	// Sync main thread data with render thread data
@@ -132,7 +128,7 @@ public:
 	}
 
 	virtual void  SetParam(float fParam, bool bForceValue);
-	virtual float GetParam();
+	virtual float GetParam() const;
 	virtual void  SyncMainWithRender();
 
 private:
@@ -163,7 +159,7 @@ public:
 	}
 
 	virtual void  SetParam(float fParam, bool bForceValue);
-	virtual float GetParam();
+	virtual float GetParam() const;
 	virtual void  SyncMainWithRender();
 
 private:
@@ -198,7 +194,7 @@ public:
 	}
 
 	virtual void  SetParam(float fParam, bool bForceValue);
-	virtual float GetParam();
+	virtual float GetParam() const;
 	virtual void  SyncMainWithRender();
 
 private:
@@ -238,7 +234,7 @@ public:
 	}
 
 	virtual void SetParamVec4(const Vec4& vParam, bool bForceValue);
-	virtual Vec4 GetParamVec4();
+	virtual Vec4 GetParamVec4() const;
 	virtual void SyncMainWithRender();
 
 private:

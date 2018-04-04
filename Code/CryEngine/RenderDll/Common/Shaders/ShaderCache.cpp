@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 /*=============================================================================
    ShaderCache.cpp : implementation of the Shaders cache management.
@@ -1118,9 +1118,10 @@ string CShaderMan::mfGetShaderCompileFlags(EHWShaderClass eClass, UPipelineState
 #define STRICT_MODE		" /Ges"
 #define COMPATIBLE_MODE	" /Gec"
 	// NOTE: when updating remote compiler folders, please ensure folders path is matching
-	const char* pCompilerOrbis   = "ORBIS/V031/DXOrbisShaderCompiler.exe %s %s %s %s";
-	const char* pCompilerDurango = "Durango/March2016QFE3/fxc.exe /nologo /E %s /T %s /Zpr" COMPATIBLE_MODE "" STRICT_MODE " /Fo %s %s";
+	const char* pCompilerOrbis   = "ORBIS/V033/DXOrbisShaderCompiler.exe %s %s %s %s";
+	const char* pCompilerDurango = "Durango/March2017/fxc.exe /nologo /E %s /T %s /Zpr" COMPATIBLE_MODE "" STRICT_MODE " /Fo %s %s";
 	const char* pCompilerD3D11   = "PCD3D11/v007/fxc.exe /nologo /E %s /T %s /Zpr" COMPATIBLE_MODE "" STRICT_MODE " /Fo %s %s";
+	const char *pCompilerSPIRV   = "SPIRV/V001/HLSL2SPIRV.exe %s %s %s %s";
 
 #define ESSL_VERSION   "es310"
 #if DXGL_REQUIRED_VERSION >= DXGL_VERSION_45
@@ -1148,21 +1149,20 @@ string CShaderMan::mfGetShaderCompileFlags(EHWShaderClass eClass, UPipelineState
 	{
 		// Set debug information
 		pCompilerD3D11   = "PCD3D11/v007/fxc.exe /nologo /E %s /T %s /Zpr" COMPATIBLE_MODE "" STRICT_MODE " /Zi /Od /Fo %s %s";
-		pCompilerDurango = "Durango/March2016QFE3/fxc.exe /nologo /E %s /T %s /Zpr" COMPATIBLE_MODE "" STRICT_MODE " /Zi /Od /Fo %s %s";
+		pCompilerDurango = "Durango/March2017/fxc.exe /nologo /E %s /T %s /Zpr" COMPATIBLE_MODE "" STRICT_MODE " /Zi /Od /Fo %s %s";
 	}
 	else if (CRenderer::CV_r_shadersdebug == 4)
 	{
 		// Set debug information, optimized shaders
 		pCompilerD3D11   = "PCD3D11/v007/fxc.exe /nologo /E %s /T %s /Zpr" COMPATIBLE_MODE "" STRICT_MODE " /Zi /O3 /Fo %s %s";
-		pCompilerDurango = "Durango/March2016QFE3/fxc.exe /nologo /E %s /T %s /Zpr" COMPATIBLE_MODE "" STRICT_MODE " /Zi /O3 /Fo %s %s";
+		pCompilerDurango = "Durango/March2017/fxc.exe /nologo /E %s /T %s /Zpr" COMPATIBLE_MODE "" STRICT_MODE " /Zi /O3 /Fo %s %s";
 	}
 
 	if (pipelineState.opaque != 0)
 	{
-#if defined(CRY_GNM_SHADER_COMPILER_VERSION)
 		if (CParserBin::m_nPlatform == SF_ORBIS)
 		{
-			const char* const pCompilerGnm = CRY_GNM_SHADER_COMPILER_VERSION "/GnmShaderCompiler.exe %s %s %s %s --RowMajorMatrixStorage --UpgradeLegacySamplers --DebugHelperFiles";
+			const char* const pCompilerGnm = "ORBIS/V033/GnmShaderCompiler.exe %s %s %s %s --RowMajorMatrixStorage --UpgradeLegacySamplers --DebugHelperFiles";
 
 			static const char* kVsStages[] =
 			{
@@ -1193,43 +1193,39 @@ string CShaderMan::mfGetShaderCompileFlags(EHWShaderClass eClass, UPipelineState
 			switch (eClass)
 			{
 			case eHWSC_Vertex:
-				result.Format("%s -HwStage=%s -HwISA=%c", pCompilerGnm, kVsStages[pipelineState.VS.targetStage & 7], kISA[(pipelineState.VS.targetStage >> 5) & 3]);
+				result.Format("%s -HwStage=%s -HwISA=%c", pCompilerGnm, kVsStages[pipelineState.GNM.VS.targetStage & 7], kISA[(pipelineState.GNM.VS.targetStage >> 5) & 3]);
 				break;
 			case eHWSC_Hull:
-				result.Format("%s -HwStage=%s -HwISA=%c", pCompilerGnm, "H2D", kISA[(pipelineState.HS.targetStage >> 5) & 3]);
+				result.Format("%s -HwStage=%s -HwISA=%c", pCompilerGnm, (pipelineState.GNM.HS.targetStage & 1) ? "H2D" : "H2M", kISA[(pipelineState.GNM.HS.targetStage >> 5) & 3]);
 				break;
 			case eHWSC_Domain:
-				result.Format("%s -HwStage=%s -HwISA=%c", pCompilerGnm, (pipelineState.DS.targetStage & 1) ? "D2G" : "D2P", kISA[(pipelineState.DS.targetStage >> 5) & 3]);
+				result.Format("%s -HwStage=%s -HwISA=%c", pCompilerGnm, (pipelineState.GNM.DS.targetStage & 1) ? "D2P" : "M2P", kISA[(pipelineState.GNM.DS.targetStage >> 5) & 3]);
 				break;
 			case eHWSC_Geometry:
-				result.Format("%s -HwStage=%s -HwISA=%c", pCompilerGnm, (pipelineState.GS.targetStage & 1) ? "G2P" : "L2P", kISA[(pipelineState.GS.targetStage >> 5) & 3]);
+				result.Format("%s -HwStage=%s -HwISA=%c", pCompilerGnm, (pipelineState.GNM.GS.targetStage & 1) ? "L2C2P" : "G2C2P", kISA[(pipelineState.GNM.GS.targetStage >> 5) & 3]);
 				break;
 			case eHWSC_Pixel:
-				result.Format("%s -HwStage=%s -HwISA=%c -PsColor=0x%x -PsDepth=%d -PsStencil=%d", pCompilerGnm, "P", kISA[(pipelineState.PS.depthStencilInfo >> 29) & 3], pipelineState.PS.targetFormats, kPsDepthBits[(pipelineState.PS.depthStencilInfo >> 1) & 3], pipelineState.PS.depthStencilInfo & 1 ? 8 : 0);
+				result.Format("%s -HwStage=%s -HwISA=%c -PsColor=0x%x -PsDepth=%d -PsStencil=%d", pCompilerGnm, "P", kISA[(pipelineState.GNM.PS.depthStencilInfo >> 29) & 3], pipelineState.GNM.PS.targetFormats, kPsDepthBits[(pipelineState.GNM.PS.depthStencilInfo >> 1) & 3], pipelineState.GNM.PS.depthStencilInfo & 1 ? 8 : 0);
 				break;
 			case eHWSC_Compute:
-				result.Format("%s -HwStage=%s -HwISA=%c", pCompilerGnm, "C", kISA[(pipelineState.CS.targetStage >> 5) & 3]);
+				result.Format("%s -HwStage=%s -HwISA=%c", pCompilerGnm, "C", kISA[(pipelineState.GNM.CS.targetStage >> 5) & 3]);
 				break;
 			default:
 				CRY_ASSERT(false && "Unknown stage");
 				break;
 			}
+			
+			return result;
 		}
-		else
-#endif
-		{
-			CRY_ASSERT(false && "PipelineState only supported for GNM backend at this time");
-		}
-		return result;
 	}
 
 #if CRY_PLATFORM_ORBIS
 	result = pCompilerOrbis;
 #elif CRY_PLATFORM_DURANGO
 	result = pCompilerDurango;
-#elif defined(OPENGL_ES) && DXGL_INPUT_GLSL
+#elif CRY_RENDERER_OPENGLES && DXGL_INPUT_GLSL
 	result = pCompilerGLES3;
-#elif defined(OPENGL) && DXGL_INPUT_GLSL
+#elif CRY_RENDERER_OPENGL && DXGL_INPUT_GLSL
 	result = pCompilerGL4;
 #else
 	if (CParserBin::m_nPlatform == SF_D3D11)
@@ -1242,6 +1238,8 @@ string CShaderMan::mfGetShaderCompileFlags(EHWShaderClass eClass, UPipelineState
 		result = pCompilerGL4;
 	else if (CParserBin::m_nPlatform == SF_GLES3)
 		result = pCompilerGLES3;
+	else if (CParserBin::m_nPlatform == SF_VULKAN)
+		result = pCompilerSPIRV;
 	else
 	{
 		CryFatalError("Compiling shaders for unsupported platform");
@@ -1471,6 +1469,8 @@ void CShaderMan::AddRTCombinations(FXShaderCacheCombinations& CmbsMap, CHWShader
 		nBitsPlatform |= SHGD_HW_GL4;
 	else if (CParserBin::m_nPlatform == SF_GLES3)
 		nBitsPlatform |= SHGD_HW_GLES3;
+	else if (CParserBin::m_nPlatform == SF_VULKAN)
+		nBitsPlatform |= SHGD_HW_VULKAN;
 
 	uint64 BitMask[64];
 	memset(BitMask, 0, sizeof(BitMask));
@@ -1722,7 +1722,7 @@ void CShaderMan::_PrecacheShaderList(bool bStatsOnly)
 			CmbsMapRTDst.clear();
 			CmbsMapRTSrc.clear();
 			uint32 nFlags = HWSF_PRECACHE;
-			if (CParserBin::m_nPlatform == SF_D3D11 || CParserBin::m_nPlatform == SF_DURANGO || CParserBin::m_nPlatform == SF_ORBIS || CParserBin::m_nPlatform == SF_GL4 || CParserBin::m_nPlatform == SF_GLES3)
+			if (CParserBin::m_nPlatform & (SF_D3D11 | SF_DURANGO | SF_ORBIS | SF_GL4 | SF_GLES3 | SF_VULKAN))
 				nFlags |= HWSF_STOREDATA;
 			if (bStatsOnly)
 				nFlags |= HWSF_FAKE;
@@ -1785,7 +1785,7 @@ void CShaderMan::_PrecacheShaderList(bool bStatsOnly)
 							}
 						}
 
-						if (CParserBin::m_nPlatform == SF_D3D11 || CParserBin::m_nPlatform == SF_DURANGO || CParserBin::m_nPlatform == SF_ORBIS || CParserBin::m_nPlatform == SF_GL4)
+						if (CParserBin::m_nPlatform & (SF_D3D11 | SF_DURANGO |  SF_ORBIS | SF_GL4 | SF_VULKAN))
 						{
 							CHWShader* d3d11Shaders[] = { pPass->m_GShader, pPass->m_HShader, pPass->m_CShader, pPass->m_DShader };
 							for (int i = 0; i < 4; i++)

@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 /************************************************************************
 
@@ -23,7 +23,7 @@ class CResponseInstance;
 class CVariable final : public DRS::IVariable
 {
 public:
-	CVariable() {}
+	CVariable() = default;
 	CVariable(const CHashedString& name) : m_name(name) {}
 	CVariable(const CHashedString& name, const CVariableValue& value) : m_name(name), m_value(value) {}
 
@@ -70,14 +70,14 @@ class CResponseInstance;
 struct IVariableUsingBase
 {
 	static bool s_bDoDisplayCurrentValueInDebugOutput;
-	IVariableUsingBase();
+	virtual ~IVariableUsingBase() = default;
 
-protected:
 	void                  _Serialize(Serialization::IArchive& ar, const char* szVariableDisplayName = "^Variable", const char* szCollectionDisplayName = "^Collection");
 	string                GetVariableVerboseName() const;
 	const CVariableValue& GetCurrentVariableValue(CResponseInstance* pResponseInstance);
 	CVariableCollection*  GetCurrentCollection(CResponseInstance* pResponseInstance);
 	CVariable*            GetCurrentVariable(CResponseInstance* pResponseInstance);
+	CVariable*            GetOrCreateCurrentVariable(CResponseInstance* pResponseInstance);
 
 	CHashedString         m_collectionName;
 	CHashedString         m_variableName;

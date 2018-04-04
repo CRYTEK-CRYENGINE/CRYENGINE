@@ -1,0 +1,95 @@
+{
+  "Name": "mesh",
+  "Features": [
+    {
+      "RenderMeshes": {
+        "Scale": [ 1.0, 1.0, 1.0 ],
+        "PiecesMode": "RandomPiece",
+        "PiecePlacement": "Standard",
+        "SizeMode": "Scale",
+        "Mesh": "objects/default/primitive_sphere.cgf",
+        "OriginMode": "Origin"
+      }
+    },
+    {
+      "SpawnRate": {
+        "Delay": {
+          "modifiers": [ ],
+          "value": 0.0
+        },
+        "Duration": {
+          "State": false,
+          "Value": {
+            "modifiers": [ ],
+            "value": 0.0
+          }
+        },
+        "Amount": {
+          "modifiers": [ ],
+          "value": 1.0
+        },
+        "Mode": "ParticlesPerSecond"
+      }
+    },
+    {
+      "SpawnCount": {
+        "Delay": {
+          "modifiers": [ ],
+          "value": 0.0
+        },
+        "Duration": {
+          "State": true,
+          "Value": {
+            "modifiers": [ ],
+            "value": 0.0
+          }
+        },
+        "Amount": {
+          "modifiers": [ ],
+          "value": 1.0
+        },
+        "Enabled": false,
+        "Restart": {
+          "State": false,
+          "Value": {
+            "modifiers": [ ],
+            "value": 1.0
+          }
+        }
+      }
+    },
+    {
+      "LifeTime": {
+        "LifeTime": {
+          "modifiers": [ ],
+          "value": 1.0
+        }
+      }
+    },
+    {
+      "FieldSize": {
+        "value": {
+          "modifiers": [ ],
+          "value": 1.0
+        }
+      }
+    },
+    {
+      "MotionPhysics": {
+        "AngularDragMultiplier": 0.0,
+        "UniformAcceleration": [ 0.0, 0.0, 0.0 ],
+        "UniformWind": [ 0.0, 0.0, 0.0 ],
+        "gravity": {
+          "modifiers": [ ],
+          "value": 0.0
+        },
+        "drag": {
+          "modifiers": [ ],
+          "value": 0.0
+        },
+        "windMultiplier": 1.0,
+        "localEffectors": [ ]
+      }
+    }
+  ]
+}

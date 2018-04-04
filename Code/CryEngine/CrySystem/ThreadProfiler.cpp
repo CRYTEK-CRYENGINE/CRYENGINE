@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 // -------------------------------------------------------------------------
 //  File name:   frameprofilerender.cpp
@@ -27,11 +27,11 @@ int profile_threads = 0;
 }
 
 CThreadProfiler::CThreadProfiler()
+	: m_bRenderEnabled(false)
+	, m_nUsers(0)
+	, m_nDisplayedThreads(0)
+	, m_pSampler(nullptr)
 {
-	m_bRenderEnabled = false;
-	m_nUsers = 0;
-	m_pSampler = 0;
-
 	// Register console var.
 	REGISTER_CVAR(profile_threads, 0, 0,
 	              "Enables Threads Profiler (should be deactivated for final product)\n"

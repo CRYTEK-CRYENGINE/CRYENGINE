@@ -2869,10 +2869,11 @@ void CEnvironmentalWeapon::DelegateAuthorityOnOwnershipChanged(EntityId prevOwne
 			// If new owner is a remote player
 			IActor* pActor = g_pGame->GetIGameFramework()->GetIActorSystem()->GetActor(newOwnerId);
 			CRY_ASSERT_MESSAGE(pActor, "CEnvironmentalWeapon::DelegateAuthorityOnOwnershipChanged < Something has gone wrong here - perhaps trying to hand ownership to a player that has left the game?"); 
-			if(pActor) 
+			INetChannel *pNetChannel = gEnv->pGameFramework->GetNetChannel(pActor->GetChannelId());
+			if (pActor && pNetChannel)
 			{
 				// If somebody picked it up that wasn't the server.. hand over control. 
-				pNetContext->DelegateAuthority( GetEntityId(), pActor->GetGameObject()->GetNetChannel() );
+				pNetContext->DelegateAuthority(GetEntityId(), pNetChannel);
 			}
 		}
 	}	

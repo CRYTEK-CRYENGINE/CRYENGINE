@@ -173,7 +173,7 @@ class CProceduralContextTurretAimPose
 	: public IProceduralContext
 {
 public:
-	PROCEDURAL_CONTEXT( CProceduralContextTurretAimPose, "ProceduralContextTurretAimPose", 0xc47e5db73d574ae5, 0x8efe04de2442ed8f );
+	PROCEDURAL_CONTEXT(CProceduralContextTurretAimPose, "ProceduralContextTurretAimPose", "c47e5db7-3d57-4ae5-8efe-04de2442ed8f"_cry_guid);
 
 	CProceduralContextTurretAimPose();
 	virtual ~CProceduralContextTurretAimPose() {}

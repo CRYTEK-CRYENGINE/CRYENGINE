@@ -7,24 +7,29 @@
 
 namespace ACE
 {
-enum EACEControlType
+
+enum EItemType
 {
-	eACEControlType_Trigger = 0,
-	eACEControlType_RTPC,
-	eACEControlType_Switch,
-	eACEControlType_State,
-	eACEControlType_Environment,
-	eACEControlType_Preload,
-	eACEControlType_NumTypes
+	eItemType_Invalid = -1,
+
+	// controls
+	eItemType_Trigger,
+	eItemType_RTPC,
+	eItemType_Switch,
+	eItemType_State,
+	eItemType_Environment,
+	eItemType_Preload,
+
+	eItemType_Folder,
+	eItemType_Library,
+	eItemType_NumTypes
 };
 
 typedef unsigned int ItemType;
 static const ItemType AUDIO_SYSTEM_INVALID_TYPE = 0;
 
-typedef unsigned int CID;
+typedef unsigned int CID; // TOdo: do we need this?
 static const CID ACE_INVALID_ID = 0;
-
-typedef std::vector<CID> ControlList;
 
 class IAudioConnection;
 typedef std::shared_ptr<IAudioConnection> ConnectionPtr;

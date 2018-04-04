@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 /*************************************************************************
    -------------------------------------------------------------------------
@@ -116,12 +116,12 @@ struct InterpolatedQuatHelper
 	typedef float                 DeltaType;
 	static DeltaType Delta(const T& a, const T& b)
 	{
-		float cosine = MIN(1.0f, a | b);
+		float cosine = std::min(1.0f, a | b);
 		return 2.0f * fabs_tpl(acos_tpl(cosine));
 	}
 	static float Interpolate(T& a, const T& b, float dist, float change)
 	{
-		float t = MIN(1.0f, change / dist);
+		float t = std::min(1.0f, change / dist);
 		a = Quat::CreateSlerp(a, b, t).GetNormalized();
 		return t * dist;
 	}
@@ -178,7 +178,7 @@ struct InterpolatedFloatHelper : public InterpolateHelper<float>
 	}
 	static DeltaType Interpolate(float& a, float b, float dist, float change)
 	{
-		float t = MIN(1.0f, change / dist);
+		float t = std::min(1.0f, change / dist);
 		a = a + (b - a) * t;
 		return t * dist;
 	}

@@ -4,9 +4,11 @@
 
 #include <CrySerialization/BlackBox.h>
 #include <CrySerialization/Forward.h>
-#include <Schematyc/Script/IScriptElement.h>
-#include <Schematyc/SerializationUtils/ISerializationContext.h>
-#include <Schematyc/Utils/Delegate.h>
+#include <CrySchematyc/Script/IScriptElement.h>
+#include <CrySchematyc/SerializationUtils/ISerializationContext.h>
+#include <CrySchematyc/Utils/Delegate.h>
+
+#include "Script/Script.h"
 
 namespace Schematyc
 {
@@ -15,18 +17,48 @@ struct SScriptInputElement;
 // Forward declare classes.
 class CScript;
 
-typedef CDelegate<void (IScriptElement&)> ScriptElementSerializeCallback;
+//////////////////////////////////////////////////////////////////////////
+// FILE FORMAT
+//////////////////////////////////////////////////////////////////////////
+// <CrySchematyc>
+//  <version value="..."/>
+//  <guid value="..."/>
+//  <scope value="..."/>
+//  <root>
+//   <elementType value="..."/>
+//   <guid value="..."/>
+//   <name value="..."/>
+//   <extensions />
+//   <children>
+//    <Element>
+//     <elementType value="..."/>
+//     <guid value="..."/>
+//     <name value="..."/>
+//     <inputs />
+//     <userDocumentation>
+//      <author value="..."/>
+//     </userDocumentation>
+//     <extensions />
+//     <children />
+//    </Element>
+//    <Element>
+//			...
+//    </Element>
+//   </children>
+//  </root>
+// </schematyc>
+//////////////////////////////////////////////////////////////////////////
+typedef std::function<void (IScriptElement&)> ScriptElementSerializeCallback;
+
 
 class CScriptInputElementSerializer
 {
 public:
-
 	CScriptInputElementSerializer(IScriptElement& element, ESerializationPass serializationPass, const ScriptElementSerializeCallback& callback = ScriptElementSerializeCallback());
 
 	void Serialize(Serialization::IArchive& archive);
 
 private:
-
 	IScriptElement&                m_element;
 	ESerializationPass             m_serializationPass;
 	ScriptElementSerializeCallback m_callback;
@@ -42,7 +74,7 @@ struct SScriptInputElement
 	void Serialize(Serialization::IArchive& archive);
 
 	Serialization::SBlackBox blackBox;
-	IScriptElementPtr        ptr;
+	IScriptElementPtr        instance;
 	ScriptInputElements      children;
 	ScriptInputElementPtrs   dependencies;
 	uint32                   sortPriority;
@@ -50,11 +82,10 @@ struct SScriptInputElement
 
 struct SScriptInputBlock
 {
-	SGUID               guid;
-	SGUID               scopeGUID;
+	CryGUID               guid;
+	CryGUID               scopeGUID;
 	SScriptInputElement rootElement;
 };
-
 typedef std::vector<SScriptInputBlock> ScriptInputBlocks;
 
 class CScriptLoadSerializer

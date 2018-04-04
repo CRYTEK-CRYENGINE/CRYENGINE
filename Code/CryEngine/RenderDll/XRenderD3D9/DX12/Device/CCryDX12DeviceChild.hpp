@@ -1,19 +1,8 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
-// -------------------------------------------------------------------------
-//  File name:
-//  Version:     v1.00
-//  Created:     03/02/2015 by Jan Pinter
-//  Description:
-// -------------------------------------------------------------------------
-//  History:
-//
-////////////////////////////////////////////////////////////////////////////
 #pragma once
-#ifndef __CCRYDX12DEVICECHILD__
-	#define __CCRYDX12DEVICECHILD__
 
-	#include "DX12/CCryDX12Object.hpp"
+#include "DX12/CCryDX12Object.hpp"
 
 DEFINE_GUID(WKPDID_D3DDebugObjectName, 0x429b8c22, 0x9188, 0x4b0c, 0x87, 0x42, 0xac, 0xb0, 0xbf, 0x85, 0xc2, 0x00);
 DEFINE_GUID(WKPDID_D3DDebugObjectNameW, 0x4cca5fd8, 0x921f, 0x42c8, 0x85, 0x66, 0x70, 0xca, 0xf2, 0xa9, 0xb7, 0x41);
@@ -40,11 +29,6 @@ class CCryDX12DeviceChild : public CCryDX12Object<T>
 {
 public:
 	DX12_OBJECT(CCryDX12DeviceChild, CCryDX12Object<T> );
-
-	virtual ~CCryDX12DeviceChild()
-	{
-
-	}
 
 	#if !defined(RELEASE)
 	std::string GetName()
@@ -108,16 +92,16 @@ public:
 
 	#pragma region /* ID3D11DeviceChild implementation */
 
-	virtual void STDMETHODCALLTYPE GetDevice(
-	  _Out_ ID3D11Device** ppDevice)
+	VIRTUALGFX void STDMETHODCALLTYPE GetDevice(
+	  _Out_ ID3D11Device** ppDevice) FINALGFX
 	{
 		*ppDevice = nullptr;
 	}
 
-	virtual HRESULT STDMETHODCALLTYPE GetPrivateData(
+	VIRTUALGFX HRESULT STDMETHODCALLTYPE GetPrivateData(
 	  _In_ REFGUID guid,
 	  _Inout_ UINT* pDataSize,
-	  _Out_writes_bytes_opt_(*pDataSize)  void* pData)
+	  _Out_writes_bytes_opt_(*pDataSize)  void* pData) FINALGFX
 	{
 	#if !defined(RELEASE)
 		if (m_pChild)
@@ -131,10 +115,10 @@ public:
 	#endif
 	}
 
-	virtual HRESULT STDMETHODCALLTYPE SetPrivateData(
+	VIRTUALGFX HRESULT STDMETHODCALLTYPE SetPrivateData(
 	  _In_ REFGUID guid,
 	  _In_ UINT DataSize,
-	  _In_reads_bytes_opt_(DataSize)  const void* pData)
+	  _In_reads_bytes_opt_(DataSize)  const void* pData) FINALGFX
 	{
 	#if !defined(RELEASE)
 		if (m_pChild)
@@ -161,9 +145,9 @@ public:
 	#endif
 	}
 
-	virtual HRESULT STDMETHODCALLTYPE SetPrivateDataInterface(
+	VIRTUALGFX HRESULT STDMETHODCALLTYPE SetPrivateDataInterface(
 	  _In_ REFGUID guid,
-	  _In_opt_ const IUnknown* pData)
+	  _In_opt_ const IUnknown* pData) FINALGFX
 	{
 	#if !defined(RELEASE)
 		if (m_pChild)
@@ -193,5 +177,3 @@ private:
 	ID3D12DeviceChild* m_pChild;
 	#endif
 };
-
-#endif

@@ -1,20 +1,9 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
-// -------------------------------------------------------------------------
-//  File name:
-//  Version:     v1.00
-//  Created:     08/05/2015 by Jan Pinter
-//  Description:
-// -------------------------------------------------------------------------
-//  History:
-//
-////////////////////////////////////////////////////////////////////////////
 #pragma once
-#ifndef __DX12RESOURCE__
-	#define __DX12RESOURCE__
 
-	#include "DX12Base.hpp"
-	#include "DX12SwapChain.hpp"
+#include "DX12Base.hpp"
+#include "DX12SwapChain.hpp"
 
 namespace NCryDX12
 {
@@ -101,6 +90,11 @@ public:
 	{
 		return m_pSwapChainOwner != NULL;
 	}
+	ILINE void VerifyBackBuffer() const
+	{
+		DX12_ASSERT((!IsBackBuffer() || !GetDX12SwapChain()->IsPresentScheduled()), "Flush didn't dry out all outstanding Present() calls!");
+		DX12_ASSERT((!IsBackBuffer() || GetD3D12Resource() == GetDX12SwapChain()->GetCurrentBackBuffer().GetD3D12Resource()), "Resource is referring to old swapchain index!");
+	}
 
 	// Utility functions
 	ILINE bool IsCompressed() const
@@ -177,33 +171,33 @@ public:
 	// Overrides current resource barrier state (be careful with this!)
 	ILINE void SetState(D3D12_RESOURCE_STATES state)
 	{
-		m_CurrentState = state;
+		m_eCurrentState = state;
 	}
 	// Get current known resource barrier state
 	ILINE D3D12_RESOURCE_STATES GetState() const
 	{
-		return m_CurrentState;
+		return m_eCurrentState;
 	}
 
 	// Overrides announced resource barrier state (be careful with this!)
 	ILINE void SetAnnouncedState(D3D12_RESOURCE_STATES state)
 	{
-		m_AnnouncedState = state;
+		m_eAnnouncedState = state;
 	}
 	// Get announced resource barrier state
 	ILINE D3D12_RESOURCE_STATES GetAnnouncedState() const
 	{
-		return m_AnnouncedState;
+		return m_eAnnouncedState;
 	}
 
 	ILINE D3D12_RESOURCE_STATES GetMergedState() const
 	{
-		return D3D12_RESOURCE_STATES(m_CurrentState | (m_AnnouncedState != (D3D12_RESOURCE_STATES)-1 ? m_AnnouncedState : 0));
+		return D3D12_RESOURCE_STATES(m_eCurrentState | (m_eAnnouncedState != (D3D12_RESOURCE_STATES)-1 ? m_eAnnouncedState : 0));
 	}
 
 	ILINE D3D12_RESOURCE_STATES GetTargetState() const
 	{
-		return D3D12_RESOURCE_STATES(m_AnnouncedState != (D3D12_RESOURCE_STATES)-1 ? m_AnnouncedState : m_CurrentState);
+		return D3D12_RESOURCE_STATES(m_eAnnouncedState != (D3D12_RESOURCE_STATES)-1 ? m_eAnnouncedState : m_eCurrentState);
 	}
 	
 	template<const bool bCheckCVar = true>
@@ -214,6 +208,15 @@ public:
 	ILINE void MakeConcurrentWritable(bool bCW)
 	{
 		m_bConcurrentWritable = bCW;
+	}
+
+	ILINE bool IsReusableResource() const
+	{
+		return m_bReusableResource;
+	}
+	ILINE void MakeReusableResource(bool bRR)
+	{
+		m_bReusableResource = bRR;
 	}
 
 	// Transition resource to desired state
@@ -231,7 +234,7 @@ public:
 
 	ILINE bool            HasSubresourceTransitionBarriers() const
 	{
-		return m_CurrentState == D3D12_RESOURCE_STATES(-1);
+		return m_eCurrentState == D3D12_RESOURCE_STATES(-1);
 	}
 
 	void   EnableSubresourceTransitionBarriers();
@@ -282,7 +285,7 @@ public:
 		return m_FenceValues[type][id];
 	}
 
-	ILINE const FVAL64(& GetFenceValues(const int type)threadsafe_const)[CMDQUEUE_NUM]
+	ILINE const FVAL64 (&GetFenceValues(const int type) threadsafe_const)[CMDQUEUE_NUM]
 	{
 		return m_FenceValues[type];
 	}
@@ -366,8 +369,7 @@ public:
 		pCmdListPool.WaitForFenceOnCPU(m_FenceValues[type]);
 	}
 
-	void MapDiscard();
-	void CopyDiscard();
+	bool SubstituteUsed();
 
 	HRESULT MappedWriteToSubresource(UINT Subresource, const D3D12_RANGE* Range, const void* pInData);
 	HRESULT MappedReadFromSubresource(UINT Subresource, const D3D12_RANGE* Range, void* pOutData);
@@ -388,10 +390,11 @@ protected:
 	bool m_bCompressed;
 	uint8 m_PlaneCount;
 	bool m_bConcurrentWritable;
+	bool m_bReusableResource;
 
 	// Potentially changes on every resource-use
-	D3D12_RESOURCE_STATES m_CurrentState;
-	D3D12_RESOURCE_STATES m_AnnouncedState;
+	D3D12_RESOURCE_STATES m_eCurrentState;
+	D3D12_RESOURCE_STATES m_eAnnouncedState;
 	std::vector<D3D12_RESOURCE_STATES> m_SubresourceStates;
 	mutable FVAL64 m_FenceValues[CMDTYPE_NUM][CMDQUEUE_NUM];
 
@@ -402,5 +405,3 @@ protected:
 };
 
 }
-
-#endif // __DX12RESOURCE__

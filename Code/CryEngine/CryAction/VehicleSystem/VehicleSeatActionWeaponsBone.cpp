@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #include "StdAfx.h"
 #include "VehicleSeatActionWeaponsBone.h"
@@ -13,7 +13,7 @@ CVehicleSeatActionWeaponsBone::CVehicleSeatActionWeaponsBone()
 	, m_positionBoneId(-1)
 	, m_forwardOffset(0.f)
 {
-	CryCreateClassInstance("AnimationPoseModifier_OperatorQueue", m_poseModifier);
+	CryCreateClassInstanceForInterface(cryiidof<IAnimationOperatorQueue>(), m_poseModifier);
 }
 
 CVehicleSeatActionWeaponsBone::~CVehicleSeatActionWeaponsBone()

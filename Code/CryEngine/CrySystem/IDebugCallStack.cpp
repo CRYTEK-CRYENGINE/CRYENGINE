@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 /*************************************************************************
    -------------------------------------------------------------------------
@@ -212,14 +212,13 @@ void IDebugCallStack::FatalError(const char* description)
 #endif
 
 #if CRY_PLATFORM_WINDOWS || !defined(_RELEASE)
-	int* p = 0x0;
-	PREFAST_SUPPRESS_WARNING(6011) * p = 1; // we're intentionally crashing here
+	__debugbreak(); // We're intentionally stopping execution and crashing here.
 #endif
 }
 
 void IDebugCallStack::WriteLineToLog(const char* format, ...)
 {
-	CDebugAllowFileAccess allowFileAccess;
+	SCOPED_ALLOW_FILE_ACCESS_FROM_THIS_THREAD();
 
 	if (gEnv && gEnv->pLog)
 	{

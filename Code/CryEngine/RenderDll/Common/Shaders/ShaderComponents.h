@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 /*=============================================================================
    ShaderComponents.h : FX Shaders semantic components declarations.
@@ -239,12 +239,6 @@ struct SCGParamsPF
 public:
 	int      nFrameID;
 
-	Matrix44 pProjMatrix;      //ECGP_Matr_PB_ProjMatrix
-	Matrix44 pUnProjMatrix;    //ECGP_Matr_PB_UnProjMatrix
-	Matrix44 pMatrixComposite; //ECGP_Matr_PI_Composite
-
-	Matrix44 pViewProjZeroMatrix; //ECGP_Matr_PF_ViewProjZeroMatrix
-
 	Vec3     vWaterLevel;           // ECGP_PB_WaterLevel *
 	float    fHDRDynamicMultiplier; // ECGP_PB_HDRDynamicMultiplier *
 
@@ -257,18 +251,7 @@ public:
 	Vec4     pVolumetricFogRampParams; // ECGP_PB_VolumetricFogRampParams *
 	Vec4     pVolumetricFogSunDir;     // ECGP_PB_VolumetricFogSunDir *
 
-	Vec3     pCameraFront; // ECGP_PB_CameraFront
-	Vec3     pCameraRight; // ECGP_PB_CameraRight
-	Vec3     pCameraUp;    // ECGP_PB_CameraUp
 	Vec3     pCameraPos;   //ECGP_PF_CameraPos
-
-	Vec4     pScreenSize;  //ECGP_PF_ScreenSize
-	Vec4     pNearFarDist; //ECGP_PF_NearFarDist
-
-	Vec3     pDecalZFightingRemedy; //ECGP_PB_DecalZFightingRemedy
-
-	Vec4     pLightningColSize; // ECGP_PB_LightningColSize
-	Vec3     pLightningPos;     //ECGP_PB_LightningPos
 
 	Vec3     pCausticsParams; //ECGP_PB_CausticsParams *
 	Vec3     pSunColor;       //ECGP_PF_SunColor *
@@ -286,10 +269,6 @@ public:
 
 	Vec3     vCausticsCurrSunDir;
 	int      nCausticsFrameID;
-
-	float    e_vegetation_alpha_blend_near;
-
-	bool     bPE_NVActive;
 
 	Vec3     pVolCloudTilingSize;
 	Vec3     pVolCloudTilingOffset;
@@ -350,6 +329,22 @@ struct SCGBind
 		return sizeof(SCGBind);
 	}
 	void GetMemoryUsage(ICrySizer* pSizer) const {}
+};
+
+struct SVertexInputStream
+{
+	char  semanticName[14];
+	uint8 semanticIndex;
+	uint8 attributeLocation;
+
+	SVertexInputStream(const char* streamSemanticName, uint8 streamSemanticIndex, uint8 streamAttributeLocation)
+	{
+		CRY_ASSERT(strlen(streamSemanticName) < CRY_ARRAY_COUNT(semanticName));
+
+		strncpy(semanticName, streamSemanticName, CRY_ARRAY_COUNT(semanticName));
+		semanticIndex = streamSemanticIndex;
+		attributeLocation = streamAttributeLocation;
+	}
 };
 
 struct SParamData
@@ -490,11 +485,11 @@ enum ECGSampler
 
 struct SCGSampler : SCGBind
 {
-	int        m_nStateHandle;
+	SamplerStateHandle m_nStateHandle;
 	ECGSampler m_eCGSamplerType;
 	SCGSampler()
 	{
-		m_nStateHandle = -1;
+		m_nStateHandle = EDefaultSamplerStates::Unspecified;
 		m_eCGSamplerType = ECGS_Unknown;
 	}
 	~SCGSampler()
@@ -608,7 +603,6 @@ enum ECGTexture : uint8
 	ECGT_VolumetricFogShadow1,
 
 	ECGT_WaterOceanMap,
-	ECGT_WaterRipplesDDN,
 	ECGT_WaterVolumeDDN,
 	ECGT_WaterVolumeCaustics,
 	ECGT_WaterVolumeRefl,

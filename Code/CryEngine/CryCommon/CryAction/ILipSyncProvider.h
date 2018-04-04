@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 // -------------------------------------------------------------------------
 //  File name:   ILipSyncProvider.h
@@ -25,13 +25,13 @@ struct ILipSyncProvider
 	virtual ~ILipSyncProvider() {}
 
 	//! Use this to start loading as soon as the sound gets requested (this can be safely ignored).
-	virtual void RequestLipSync(IEntityAudioComponent* pProxy, const AudioControlId audioTriggerId, const ELipSyncMethod lipSyncMethod) = 0;
+	virtual void RequestLipSync(IEntityAudioComponent* pProxy, const CryAudio::ControlId audioTriggerId, const ELipSyncMethod lipSyncMethod) = 0;
 
-	virtual void StartLipSync(IEntityAudioComponent* pProxy, const AudioControlId audioTriggerId, const ELipSyncMethod lipSyncMethod) = 0;
-	virtual void PauseLipSync(IEntityAudioComponent* pProxy, const AudioControlId audioTriggerId, const ELipSyncMethod lipSyncMethod) = 0;
-	virtual void UnpauseLipSync(IEntityAudioComponent* pProxy, const AudioControlId audioTriggerId, const ELipSyncMethod lipSyncMethod) = 0;
-	virtual void StopLipSync(IEntityAudioComponent* pProxy, const AudioControlId audioTriggerId, const ELipSyncMethod lipSyncMethod) = 0;
-	virtual void UpdateLipSync(IEntityAudioComponent* pProxy, const AudioControlId audioTriggerId, const ELipSyncMethod lipSyncMethod) = 0;
+	virtual void StartLipSync(IEntityAudioComponent* pProxy, const CryAudio::ControlId audioTriggerId, const ELipSyncMethod lipSyncMethod) = 0;
+	virtual void PauseLipSync(IEntityAudioComponent* pProxy, const CryAudio::ControlId audioTriggerId, const ELipSyncMethod lipSyncMethod) = 0;
+	virtual void UnpauseLipSync(IEntityAudioComponent* pProxy, const CryAudio::ControlId audioTriggerId, const ELipSyncMethod lipSyncMethod) = 0;
+	virtual void StopLipSync(IEntityAudioComponent* pProxy, const CryAudio::ControlId audioTriggerId, const ELipSyncMethod lipSyncMethod) = 0;
+	virtual void UpdateLipSync(IEntityAudioComponent* pProxy, const CryAudio::ControlId audioTriggerId, const ELipSyncMethod lipSyncMethod) = 0;
 };
 
 DECLARE_SHARED_POINTERS(ILipSyncProvider);

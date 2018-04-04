@@ -1,13 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
-
-/*=============================================================================
-   D3DTexturesStreaming.cpp : Direct3D9 specific texture streaming technology.
-
-   Revision history:
-* Created by Honitch Andrey
-   - 19:8:2008   12:14 : Refactored by Kaplanyan Anton
-
-   =============================================================================*/
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #include "StdAfx.h"
 #include "DriverD3D.h"
@@ -23,13 +14,13 @@ DECLARE_JOB("Texture_StreamOutCopy", TTexture_StreamOutCopy, STexStreamOutState:
 
 // checks for MT-safety of called functions
 #if !defined(CHK_RENDTH)
-	#define CHK_RENDTH assert(gRenDev->m_pRT->IsRenderThread())
+	#define CHK_RENDTH assert(gRenDev->m_pRT->IsRenderThread(true))
 #endif
 #if !defined(CHK_MAINTH)
-	#define CHK_MAINTH assert(gRenDev->m_pRT->IsMainThread())
+	#define CHK_MAINTH assert(gRenDev->m_pRT->IsMainThread(true))
 #endif
 #if !defined(CHK_MAINORRENDTH)
-	#define CHK_MAINORRENDTH assert(gRenDev->m_pRT->IsMainThread() || gRenDev->m_pRT->IsRenderThread() || gRenDev->m_pRT->IsLevelLoadingThread())
+	#define CHK_MAINORRENDTH assert(gRenDev->m_pRT->IsMainThread(true) || gRenDev->m_pRT->IsRenderThread(true) || gRenDev->m_pRT->IsLevelLoadingThread(true))
 #endif
 
 void CTexture::InitStreamingDev()
@@ -37,7 +28,7 @@ void CTexture::InitStreamingDev()
 #if defined(TEXSTRM_DEFERRED_UPLOAD)
 	if (CRenderer::CV_r_texturesstreamingDeferred)
 	{
-		if (!s_pStreamDeferredCtx)
+		if (gcpRendD3D->GetDevice().IsValid() && !s_pStreamDeferredCtx)
 		{
 			gcpRendD3D->GetDevice().CreateDeferredContext(0, &s_pStreamDeferredCtx);
 		}
@@ -47,6 +38,7 @@ void CTexture::InitStreamingDev()
 
 bool CTexture::IsStillUsedByGPU()
 {
+	// TODO: add tracked resource check
 	CDeviceTexture* pDeviceTexture = m_pDevTexture;
 	if (pDeviceTexture)
 	{
@@ -56,230 +48,10 @@ bool CTexture::IsStillUsedByGPU()
 	return false;
 }
 
-#if CRY_PLATFORM_DURANGO
-
-bool CTexture::StreamPrepare_Platform()
-{
-	if (m_eSrcTileMode == eTM_LinearPadded)
-	{
-		int nSides = StreamGetNumSlices();
-
-		// Determine which mips are in place streamable - those whose linear tiled layout sizes are <= the optimal tiled layout size
-
-		XG_TEXTURE2D_DESC desc;
-		ZeroStruct(desc);
-		desc.Width = m_nWidth;
-		desc.Height = m_nHeight;
-		desc.MipLevels = m_nMips;
-		desc.ArraySize = nSides;
-		desc.Format = (XG_FORMAT)m_pPixelFormat->DeviceFormat,
-		desc.SampleDesc.Count = 1;
-		desc.Usage = XG_USAGE_STAGING;
-		desc.BindFlags = XG_BIND_SHADER_RESOURCE;
-		desc.TileMode = XG_TILE_MODE_LINEAR;
-
-		XG_RESOURCE_LAYOUT linLayout;
-		XGComputeTexture2DLayout(&desc, &linLayout);
-
-		STexStreamingInfo* pSI = m_pFileTexMips;
-
-		for (int nMip = 0; nMip < m_nMips; ++nMip)
-		{
-			STexMipHeader& mh = pSI->m_pMipHeader[nMip];
-			mh.m_InPlaceStreamable = linLayout.Plane[0].MipLayout[nMip].Slice2DSizeBytes >= 16384; // Tested in RC - all surfaces larger fit in their optimal counterparts
-		}
-	}
-
-	return true;
-}
-
-#else
-
+#if !(CRY_PLATFORM_DURANGO && (CRY_RENDERER_DIRECT3D >= 110) && (CRY_RENDERER_DIRECT3D < 120))
 bool CTexture::StreamPrepare_Platform()
 {
 	return true;
-}
-
-#endif
-
-#if CRY_PLATFORM_DURANGO
-void CTexture::StreamUploadMip_Durango(const void* pSurfaceData,
-                                       int nMip, int nBaseMipOffset,
-                                       STexPoolItem* pNewPoolItem, STexStreamInMipState& mipState)
-{
-	FUNCTION_PROFILER_RENDERER;
-
-	CDeviceTexture* pDevTex = pNewPoolItem->m_pDevTexture;
-	bool bStreamInPlace = mipState.m_bStreamInPlace;
-
-	if (pDevTex->IsInPool())
-	{
-		if (m_eSrcTileMode == eTM_LinearPadded)
-		{
-			// Is tileable by the move engine, but not just yet, as the CPU may still be using the texture
-			// memory. Copy out of the way for the moment.
-
-			StreamExpandMip(pSurfaceData, nMip, nBaseMipOffset, mipState.m_nSideDelta);
-		}
-		else if (m_eSrcTileMode == eTM_None)
-		{
-			// Linear general - can't use the move engine, so tile on the CPU :(. As the src mode is untiled,
-			// all subresources for this texture will be using the CPU, so we can do this now.
-
-			bool isBlockCompressed = IsBlockCompressed(m_eTFSrc);
-			int numMips = pNewPoolItem->m_pOwner->m_nMips;
-			const int numSides = StreamGetNumSlices();
-			int nTexMip = nMip + nBaseMipOffset;
-
-			XG_TEXTURE2D_DESC xgDesc;
-			ZeroStruct(xgDesc);
-
-			xgDesc.Width = pNewPoolItem->m_pOwner->m_Width;
-			xgDesc.Height = pNewPoolItem->m_pOwner->m_Height;
-			xgDesc.MipLevels = numMips;
-			xgDesc.ArraySize = numSides;
-			xgDesc.Format = (XG_FORMAT)m_pPixelFormat->DeviceFormat;
-			xgDesc.SampleDesc.Count = 1;
-			xgDesc.Usage = XG_USAGE_DEFAULT;
-			xgDesc.BindFlags = XG_BIND_SHADER_RESOURCE;
-			xgDesc.CPUAccessFlags = 0;            // Any of XG_CPU_ACCESS_FLAG.
-			xgDesc.MiscFlags = ((m_eTT == eTT_Cube) ? XG_RESOURCE_MISC_TEXTURECUBE : 0);
-			xgDesc.TileMode = pDevTex->GetXGTileMode();
-
-			XGTextureAddressComputer* pComputer = NULL;
-			HRESULT hr = XGCreateTexture2DComputer(&xgDesc, &pComputer);
-			if (FAILED(hr))
-			{
-	#ifndef _RELEASE
-				__debugbreak();
-	#endif
-				return;
-			}
-
-			char* pDevTexBase = (char*)pDevTex->GetBasePointer();
-
-			const XG_RESOURCE_LAYOUT* pLyt = &pDevTex->GetLayout()->layout;
-			char* pAllocBase = (char*)CryModuleMemalign(pLyt->SizeBytes, pLyt->BaseAlignmentBytes);
-			char* pBase = pAllocBase ? pAllocBase : pDevTexBase;
-			// Expecting that the data has been expanded, or that the src format is an inplace format (expansion is a nop)
-			int nSrcSurfaceSize = TextureDataSize(m_nWidth >> nTexMip, m_nHeight >> nTexMip, 1, 1, 1, m_eTFDst);
-			int nSrcSidePitch = nSrcSurfaceSize + mipState.m_nSideDelta;
-			int nSrcRowPitch = TextureDataSize(m_nWidth >> nTexMip, 1, 1, 1, 1, m_eTFDst);
-
-			for (int nSlice = 0; nSlice < numSides; ++nSlice)
-			{
-				int nDstSubResIdx = nMip + numMips * nSlice;
-				const char* pSRSrc = pSurfaceData
-				                     ? static_cast<const char*>(pSurfaceData) + nSlice * nSrcSidePitch
-				                     : reinterpret_cast<const char*>(m_pFileTexMips->m_pMipHeader[nTexMip].m_Mips[nSlice].DataArray);
-
-	#ifndef _RELEASE
-				if (!pSRSrc)
-					__debugbreak();
-	#endif
-
-				pComputer->CopyIntoSubresource(pBase, 0, nDstSubResIdx, pSRSrc, nSrcRowPitch, 0);
-
-				if (pBase != pDevTexBase)
-				{
-					size_t sliceSize = +pLyt->Plane[0].MipLayout[nMip].Slice2DSizeBytes;
-					size_t offs = pLyt->Plane[0].MipLayout[nMip].OffsetBytes + sliceSize * nSlice;
-					memcpy(pDevTexBase + offs, pBase + offs, sliceSize);
-				}
-			}
-
-			if (pAllocBase)
-				CryModuleMemalignFree(pAllocBase);
-
-			mipState.m_bUploaded = true;
-			mipState.m_bExpanded = false;
-
-			pComputer->Release();
-		}
-		else
-		{
-	#ifndef _RELEASE
-			__debugbreak();
-	#endif
-		}
-	}
-	else
-	{
-	#ifndef _RELEASE
-		__debugbreak();
-	#endif
-	}
-}
-
-void CTexture::StreamUploadMips_Durango(int nBaseMip, int nMipCount, STexPoolItem* pNewPoolItem, STexStreamInState& streamState)
-{
-	FUNCTION_PROFILER_RENDERER;
-
-	CDeviceTexture* pDevTex = pNewPoolItem->m_pDevTexture;
-
-	if (pDevTex->IsInPool())
-	{
-		if (m_eSrcTileMode == eTM_LinearPadded)
-		{
-			// Data is in a format that the move engine can tile, wrap it in a placement texture
-			// and move it.
-
-			const int numSides = StreamGetNumSlices();
-
-			CDeviceManager::STileRequest subRes[g_nD3D10MaxSupportedSubres];
-			size_t nSubRes = 0;
-
-			for (int nMip = nBaseMip; nMip < (nBaseMip + nMipCount); ++nMip)
-			{
-				STexStreamInMipState& ms = streamState.m_mips[nMip - nBaseMip];
-				int nDstMip = nMip - nBaseMip;
-
-				if (!ms.m_bUploaded)
-				{
-					for (int nSide = 0; nSide < numSides; ++nSide)
-					{
-						CDeviceManager::STileRequest& sr = subRes[nSubRes++];
-
-						sr.nDstSubResource = D3D11CalcSubresource(nDstMip, nSide, pNewPoolItem->m_pOwner->m_nMips);
-						if (ms.m_bStreamInPlace)
-						{
-							void* pSurface = pDevTex->GetSurfacePointer(nDstMip, nSide);
-							size_t nSurfaceSize = pDevTex->GetSurfaceSize(nDstMip);
-
-	#if defined(TEXTURES_IN_CACHED_MEM)
-							D3DFlushCpuCache((void*)pSurface, nSurfaceSize);
-	#endif
-
-							sr.pLinSurfaceSrc = pSurface;
-							sr.bSrcInGPUMemory = true;
-						}
-						else
-						{
-							sr.pLinSurfaceSrc = m_pFileTexMips->m_pMipHeader[nMip].m_Mips[nSide].DataArray;
-							sr.bSrcInGPUMemory = false;
-						}
-
-	#ifndef _RELEASE
-						if (!sr.pLinSurfaceSrc)
-							__debugbreak();
-	#endif
-					}
-
-					ms.m_bUploaded = true;
-					ms.m_bExpanded = false;
-				}
-			}
-
-			if (nSubRes > 0)
-				gcpRendD3D->m_DevMan.BeginTileFromLinear2D(pDevTex, subRes, nSubRes, streamState.m_tileFence);
-		}
-	}
-	else
-	{
-	#ifndef _RELEASE
-		__debugbreak();
-	#endif
-	}
 }
 #endif
 
@@ -287,7 +59,7 @@ void CTexture::StreamExpandMip(const void* vpRawData, int nMip, int nBaseMipOffs
 {
 	FUNCTION_PROFILER_RENDERER;
 
-	const uint32 nCurMipWidth = (m_nWidth >> (nMip + nBaseMipOffset));
+	const uint32 nCurMipWidth  = (m_nWidth >> (nMip + nBaseMipOffset));
 	const uint32 nCurMipHeight = (m_nHeight >> (nMip + nBaseMipOffset));
 
 	const STexMipHeader& mh = m_pFileTexMips->m_pMipHeader[nBaseMipOffset + nMip];
@@ -295,10 +67,10 @@ void CTexture::StreamExpandMip(const void* vpRawData, int nMip, int nBaseMipOffs
 	const byte* pRawData = (const byte*)vpRawData;
 
 	const int nSides = StreamGetNumSlices();
-	const bool bIsDXT = CTexture::IsBlockCompressed(m_eTFSrc);
+	const bool bIsDXT = CTexture::IsBlockCompressed(m_eSrcFormat);
 	const int nMipAlign = bIsDXT ? 4 : 1;
 
-	const int nSrcSurfaceSize = CTexture::TextureDataSize(nCurMipWidth, nCurMipHeight, 1, 1, 1, m_eTFSrc, m_eSrcTileMode);
+	const int nSrcSurfaceSize = CTexture::TextureDataSize(nCurMipWidth, nCurMipHeight, 1, 1, 1, m_eSrcFormat, m_eSrcTileMode);
 	const int nSrcSidePitch = nSrcSurfaceSize + nSideDelta;
 
 	SRenderThread* pRT = gRenDev->m_pRT;
@@ -310,7 +82,7 @@ void CTexture::StreamExpandMip(const void* vpRawData, int nMip, int nBaseMipOffs
 			mp->Init(mh.m_SideSize, Align(max(1, m_nWidth >> nMip), nMipAlign), Align(max(1, m_nHeight >> nMip), nMipAlign));
 
 		const byte* pRawSideData = pRawData + nSrcSidePitch * iSide;
-		CTexture::ExpandMipFromFile(&mp->DataArray[0], mh.m_SideSize, pRawSideData, nSrcSurfaceSize, m_eTFSrc);
+		CTexture::ExpandMipFromFile(&mp->DataArray[0], mh.m_SideSize, pRawSideData, nSrcSurfaceSize, m_eSrcFormat, m_eDstFormat);
 	}
 }
 
@@ -323,7 +95,7 @@ void STexStreamOutState::CopyMips()
 	{
 		const int nOldMipOffset = m_nStartMip - tp->m_nMinMipVidUploaded;
 		const int nNumMips = tp->GetNumMipsNonVirtual() - m_nStartMip;
-	#if CRY_PLATFORM_DURANGO
+	#if CRY_PLATFORM_DURANGO && (CRY_RENDERER_DIRECT3D >= 110) && (CRY_RENDERER_DIRECT3D < 120)
 		m_pNewPoolItem->m_pDevTexture->InitD3DTexture();
 		m_copyFence = CTexture::StreamCopyMipsTexToTex_MoveEngine(tp->m_pFileTexMips->m_pPoolItem, 0 + nOldMipOffset, m_pNewPoolItem, 0, nNumMips);
 	#else
@@ -354,7 +126,7 @@ int CTexture::StreamTrim(int nToMip)
 	if (m_nMinMipVidUploaded >= nToMip)
 		return 0;
 
-	int nFreeSize = StreamComputeDevDataSize(m_nMinMipVidUploaded) - StreamComputeDevDataSize(nToMip);
+	int nFreeSize = StreamComputeSysDataSize(m_nMinMipVidUploaded) - StreamComputeSysDataSize(nToMip);
 
 #ifndef _RELEASE
 	if (CRenderer::CV_r_TexturesStreamingDebug == 2)
@@ -404,7 +176,7 @@ int CTexture::StreamTrim(int nToMip)
 		if (!bCopying)
 #endif
 		{
-#if CRY_PLATFORM_DURANGO
+#if CRY_PLATFORM_DURANGO && (CRY_RENDERER_DIRECT3D >= 110) && (CRY_RENDERER_DIRECT3D < 120)
 			pNewPoolItem->m_pDevTexture->InitD3DTexture();
 #endif
 			// it is a sync operation anyway, so we do it in the render thread
@@ -430,7 +202,7 @@ int CTexture::StreamUnload()
 	AbortStreamingTasks(this);
 	assert(!IsStreaming());
 
-	int nDevSize = m_nActualSize;
+	int nDevSize = m_nDevTextureSize;
 
 #ifdef TEXSTRM_ASYNC_TEXCOPY
 	bool bCopying = false;
@@ -499,13 +271,11 @@ void CTexture::StreamCopyMipsTexToMem(int nStartMip, int nEndMip, bool bToDevice
 {
 	PROFILE_FRAME(Texture_StreamUpload);
 
-	CD3D9Renderer* r = gcpRendD3D;
-	CDeviceManager* pDevMan = &r->m_DevMan;
 	HRESULT h = S_OK;
 	nEndMip = min(nEndMip + 1, (int)m_nMips) - 1;//+1 -1 needed as the compare is <=
 	STexMipHeader* mh = m_pFileTexMips->m_pMipHeader;
 
-	const bool bIsDXT = CTexture::IsBlockCompressed(m_eTFSrc);
+	const bool bIsDXT = CTexture::IsBlockCompressed(m_eSrcFormat);
 	const int nMipAlign = bIsDXT ? 4 : 1;
 
 	const int nOldMinMipVidUploaded = m_nMinMipVidUploaded;
@@ -513,9 +283,9 @@ void CTexture::StreamCopyMipsTexToMem(int nStartMip, int nEndMip, bool bToDevice
 	if (bToDevice && !pNewPoolItem)
 		SetMinLoadedMip(nStartMip);
 
-	D3DFormat fmt = DeviceFormatFromTexFormat(GetDstFormat());
+	D3DFormat fmt = DeviceFormats::ConvertFromTexFormat(GetDstFormat());
 	if (m_bIsSRGB)
-		fmt = ConvertToSRGBFmt(fmt);
+		fmt = DeviceFormats::ConvertToSRGB(fmt);
 
 	CDeviceTexture* pDevTexture = m_pDevTexture;
 	uint32 nTexMips = m_nMips;
@@ -527,23 +297,34 @@ void CTexture::StreamCopyMipsTexToMem(int nStartMip, int nEndMip, bool bToDevice
 	}
 	if (bToDevice && pNewPoolItem)
 	{
+		if (m_pDevTexture)
+			m_pDevTexture->SetOwner(NULL);
+
 		assert(pNewPoolItem->m_pDevTexture);
 		pDevTexture = pNewPoolItem->m_pDevTexture;
 		nTexMips = pNewPoolItem->m_pOwner->m_nMips;
+
+		if (m_pDevTexture)
+			m_pDevTexture->SetOwner(this);
 	}
 
 	if (!pDevTexture)
 	{
-		if (m_eTT != eTT_Cube)
-			h = pDevMan->Create2DTexture(m_nWidth, m_nHeight, m_nMips, m_nArraySize, STREAMED_TEXTURE_USAGE, m_cClearColor, fmt, (D3DPOOL)0, &pDevTexture);
-		else
-			h = pDevMan->CreateCubeTexture(m_nWidth, m_nMips, 1, STREAMED_TEXTURE_USAGE, m_cClearColor, fmt, (D3DPOOL)0, &pDevTexture);
+		STextureLayout Layout = GetLayout();
 
-		assert(h == S_OK);
+#if CRY_PLATFORM_DURANGO && DURANGO_USE_ESRAM
+		Layout.m_nESRAMOffset = SKIP_ESRAM;
+#endif
+		Layout.m_eFlags |= FT_STREAMED_FADEIN /* CDeviceObjectFactory::USAGE_STREAMING */;
+		Layout.m_eDstFormat = CTexture::GetClosestFormatSupported(Layout.m_eDstFormat, Layout.m_pPixelFormat);
+
+		pDevTexture = CDeviceTexture::Create(Layout, nullptr);
+		assert(!!pDevTexture);
 
 		// If a pool item was provided, it would have a valid dev texture, so we shouldn't have ended up here..
 		assert(!bToDevice || !pNewPoolItem);
 		SetDevTexture(pDevTexture);
+		m_pDevTexture->SetOwner(this);
 	}
 
 	if (CRenderer::CV_r_texturesstreamingnoupload && bToDevice)
@@ -573,20 +354,27 @@ void CTexture::StreamCopyMipsTexToMem(int nStartMip, int nEndMip, bool bToDevice
 				if (mp->DataArray)
 				{
 					CryInterlockedAdd(&CTexture::s_nTexturesDataBytesUploaded, mh[nLod].m_SideSize);
-					const int nRowPitch = CTexture::TextureDataSize(nMipW, 1, 1, 1, 1, m_eTFDst);
-					const int nSlicePitch = CTexture::TextureDataSize(nMipW, nMipH, 1, 1, 1, m_eTFDst);
 					STALL_PROFILER("update texture");
 
-					gcpRendD3D->GetDeviceContext().UpdateSubresource(pID3DTexture, D3D11CalcSubresource(nDevTexMip, iSide, nTexMips), NULL, &mp->DataArray[0], nRowPitch, nSlicePitch);
+					// TODO: batch upload (instead of loop)
+					const SResourceMemoryMapping mapping =
+					{
+						pDevTexture->GetAlignment(nDevTexMip),                          // src alignment == hardware alignment
+						{ 0, 0, 0, D3D11CalcSubresource(nDevTexMip, iSide, nTexMips) }, // dst position
+						{ nMipW, nMipH, 1, 1 }                                          // dst size
+					};
+
+					GetDeviceObjectFactory().GetCoreCommandList().GetCopyInterface()->Copy(&mp->DataArray[0], pDevTexture, mapping);
 				}
 				else
 					assert(0);
 			}
 			else
 			{
+				// TODO: the local memory layout matches the hardware layout, remove the row-wise copying
 				const int nMipSize = mh[nLod].m_SideSize;
 				mp->Init(nMipSize, Align(max(1, nMipW), nMipAlign), Align(max(1, nMipH), nMipAlign));
-				const int nRowPitch = CTexture::TextureDataSize(nMipW, 1, 1, 1, 1, m_eTFDst);
+				const int nRowPitch = CTexture::TextureDataSize(nMipW, 1, 1, 1, 1, m_eDstFormat);
 				const int nRows = nMipSize / nRowPitch;
 				assert(nMipSize % nRowPitch == 0);
 
@@ -627,17 +415,15 @@ ID3D11CommandList* CTexture::StreamCreateDeferred(int nStartMip, int nEndMip, ST
 
 	if (CTexture::s_pStreamDeferredCtx)
 	{
-		CD3D9Renderer* r = gcpRendD3D;
-		CDeviceManager* pDevMan = &r->m_DevMan;
 		HRESULT h = S_OK;
 		nEndMip = min(nEndMip + 1, (int)m_nMips) - 1;//+1 -1 needed as the compare is <=
 		STexMipHeader* mh = m_pFileTexMips->m_pMipHeader;
 
 		const int nOldMinMipVidUploaded = m_nMinMipVidUploaded;
 
-		D3DFormat fmt = DeviceFormatFromTexFormat(GetDstFormat());
+		D3DFormat fmt = DeviceFormats::ConvertFromTexFormat(GetDstFormat());
 		if (m_bIsSRGB)
-			fmt = ConvertToSRGBFmt(fmt);
+			fmt = DeviceFormats::ConvertToSRGB(fmt);
 
 		CDeviceTexture* pDevTexture = pNewPoolItem->m_pDevTexture;
 		uint32 nTexMips = pNewPoolItem->m_pOwner->m_nMips;
@@ -650,7 +436,6 @@ ID3D11CommandList* CTexture::StreamCreateDeferred(int nStartMip, int nEndMip, ST
 		int SizeToLoad = 0;
 		for (int32 iSide = 0; iSide < nSides; ++iSide)
 		{
-			const int32 iSideLockIndex = m_eTT != eTT_Cube ? -1 : iSide;
 			for (int nLod = nStartMip; nLod <= nEndMip; nLod++)
 			{
 				SMipData* mp = &mh[nLod].m_Mips[iSide];
@@ -662,8 +447,8 @@ ID3D11CommandList* CTexture::StreamCreateDeferred(int nStartMip, int nEndMip, ST
 					CryInterlockedAdd(&CTexture::s_nTexturesDataBytesUploaded, mh[nLod].m_SideSize);
 					const int nUSize = m_nWidth >> nLod;
 					const int nVSize = m_nHeight >> nLod;
-					const int nRowPitch = CTexture::TextureDataSize(nUSize, 1, 1, 1, 1, m_eTFDst);
-					const int nSlicePitch = CTexture::TextureDataSize(nUSize, nVSize, 1, 1, 1, m_eTFDst);
+					const int nRowPitch = CTexture::TextureDataSize(nUSize, 1, 1, 1, 1, m_eDstFormat, m_eSrcTileMode);
+					const int nSlicePitch = CTexture::TextureDataSize(nUSize, nVSize, 1, 1, 1, m_eDstFormat, m_eSrcTileMode);
 					STALL_PROFILER("update texture");
 					{
 						s_pStreamDeferredCtx->UpdateSubresource(pID3DTexture, D3D11CalcSubresource(nDevTexMip, iSide, nTexMips), NULL, &mp->DataArray[0], nRowPitch, nSlicePitch);
@@ -709,42 +494,6 @@ void CTexture::StreamApplyDeferred(ID3D11CommandList* pCmdList)
 
 #endif
 
-#if CRY_PLATFORM_DURANGO
-bool CTexture::StreamInCheckComplete_Durango(STexStreamInState& state)
-{
-	if (state.m_tileFence)
-	{
-		if (!gcpRendD3D->GetPerformanceDevice().IsFencePending(state.m_tileFence))
-			state.m_tileFence = 0;
-		else
-			return false;
-	}
-
-	if (state.m_copyMipsFence)
-	{
-		if (!gcpRendD3D->GetPerformanceDevice().IsFencePending(state.m_copyMipsFence))
-			state.m_copyMipsFence = 0;
-		else
-			return false;
-	}
-
-	return true;
-}
-
-bool CTexture::StreamOutCheckComplete_Durango(STexStreamOutState& state)
-{
-	if (state.m_copyFence)
-	{
-		if (!gcpRendD3D->GetPerformanceDevice().IsFencePending(state.m_copyFence))
-			state.m_copyFence = 0;
-		else
-			return false;
-	}
-
-	return true;
-}
-#endif
-
 // Just remove item from the texture object and keep Item in Pool list for future use
 // This function doesn't release API texture
 void CTexture::StreamRemoveFromPool()
@@ -756,22 +505,16 @@ void CTexture::StreamRemoveFromPool()
 
 	AUTO_LOCK(STexPoolItem::s_sSyncLock);
 
-	m_pDeviceRTV = nullptr;
-	m_pDeviceRTVMS = nullptr;
-	m_pDeviceShaderResource = nullptr;
-	m_pDeviceShaderResourceSRGB = nullptr;
-
-	assert(m_pRenderTargetData == nullptr);
-	SAFE_DELETE(m_pResourceViewData);
-
-	ptrdiff_t nSize = (ptrdiff_t)m_nActualSize;
+	ptrdiff_t nSize = (ptrdiff_t)m_nDevTextureSize;
 	ptrdiff_t nPersSize = (ptrdiff_t)m_nPersistentSize;
 
 	s_pPoolMgr->ReleaseItem(m_pFileTexMips->m_pPoolItem);
 
 	m_pFileTexMips->m_pPoolItem = NULL;
-	m_nActualSize = 0;
+	m_nDevTextureSize = 0;
 	m_nPersistentSize = 0;
+	if (m_pDevTexture)
+		m_pDevTexture->SetOwner(NULL);
 	m_pDevTexture = NULL;
 
 	SetMinLoadedMip(MAX_MIP_LEVELS);
@@ -790,7 +533,7 @@ void CTexture::StreamAssignPoolItem(STexPoolItem* pItem, int nMinMip)
 
 	if (m_pFileTexMips->m_pPoolItem == pItem)
 	{
-		assert(m_nActualSize == m_pFileTexMips->m_pPoolItem->m_pOwner->m_Size);
+		assert(m_nDevTextureSize == m_pFileTexMips->m_pPoolItem->m_pOwner->m_nDevTextureSize);
 		assert(m_pFileTexMips->m_pPoolItem->m_pTex == this);
 		assert(m_pDevTexture == m_pFileTexMips->m_pPoolItem->m_pDevTexture);
 		return;
@@ -803,7 +546,7 @@ void CTexture::StreamAssignPoolItem(STexPoolItem* pItem, int nMinMip)
 	}
 
 	int nPersMip = m_nMips - m_CacheFileHeader.m_nMipsPersistent;
-	size_t nPersSize = StreamComputeDevDataSize(nPersMip);
+	size_t nPersSize = StreamComputeSysDataSize(nPersMip);
 
 	// Assign a new pool item
 	{
@@ -811,43 +554,54 @@ void CTexture::StreamAssignPoolItem(STexPoolItem* pItem, int nMinMip)
 		StreamRemoveFromPool();
 
 		m_pFileTexMips->m_pPoolItem = pItem;
-		m_nActualSize = pItemOwner->m_Size;
+		m_nDevTextureSize = pItemOwner->m_nDevTextureSize;
 		m_nPersistentSize = nPersSize;
 		pItem->m_pTex = this;
 	}
 
-#if CRY_PLATFORM_DURANGO
+#if CRY_PLATFORM_DURANGO && (CRY_RENDERER_DIRECT3D >= 110) && (CRY_RENDERER_DIRECT3D < 120)
 	pItem->m_pDevTexture->InitD3DTexture();
 #endif
 
-	assert(m_pDeviceRTV == nullptr);
-	assert(m_pDeviceRTVMS == nullptr);
-	assert(m_pDeviceShaderResource == nullptr);
-	assert(m_pDeviceShaderResourceSRGB == nullptr);
-
-	assert(m_pRenderTargetData == nullptr);
-	SAFE_DELETE(m_pResourceViewData);
 	SAFE_RELEASE(m_pDevTexture);
-
-	m_pResourceViewData = new ResourceViewData();
 	m_pDevTexture = pItem->m_pDevTexture;
-	SetShaderResourceView((D3DShaderResource*)GetResourceView(SResourceView::ShaderResourceView(GetDstFormat(), 0, m_nArraySize, 0, -1, m_bIsSRGB, false)), false);
+	if (m_pDevTexture)
+		m_pDevTexture->SetOwner(this);
+
+#if CRY_PLATFORM_DURANGO && (CRY_RENDERER_DIRECT3D >= 110) && (CRY_RENDERER_DIRECT3D < 120)
+	m_nDeviceAddressInvalidated = m_pDevTexture->GetBaseAddressInvalidated();
+#endif
 
 	SetMinLoadedMip(m_nMips - pItemOwner->m_nMips);
 	StreamActivateLod(nMinMip);
 
-	CryInterlockedAdd(&s_nStatsStreamPoolBoundMem, pItem->m_nDeviceTexSize);
+	CryInterlockedAdd(&s_nStatsStreamPoolBoundMem, pItem->m_nDevTextureSize);
 	CryInterlockedAdd(&s_nStatsStreamPoolBoundPersMem, nPersSize);
+
+	InvalidateDeviceResource(this, eDeviceResourceDirty | eDeviceResourceViewDirty);
 }
 
 STexPool* CTexture::StreamGetPool(int nStartMip, int nMips)
 {
-	const bool bIsDXT = CTexture::IsBlockCompressed(m_eTFSrc);
-	const int nMipAlign = bIsDXT ? 4 : 1;
-	int uSize = Align(max(1, m_nWidth >> nStartMip), nMipAlign);
+	// depth is not 4x4x4 compressed, but 4x4x1
+	const bool bIsBC = CTexture::IsBlockCompressed(m_eSrcFormat);
+	const int nMipAlign = bIsBC ? 4 : 1;
+	int uSize = Align(max(1, m_nWidth  >> nStartMip), nMipAlign);
 	int vSize = Align(max(1, m_nHeight >> nStartMip), nMipAlign);
+	int wSize = Align(max(1, m_nDepth  >> nStartMip), 1);
+	int nArraySize = m_nArraySize;
 
-	return s_pPoolMgr->GetPool(uSize, vSize, nMips, m_nArraySize, m_eTFDst, m_bIsSRGB, m_eTT);
+	STextureLayout pLayout = GetLayout();
+
+	// Specify sub-set of sub-resources
+	pLayout.m_nWidth     = uSize;
+	pLayout.m_nHeight    = vSize;
+	pLayout.m_nDepth     = wSize;
+	pLayout.m_nArraySize = nArraySize;
+	pLayout.m_nMips      = nMips;
+	pLayout.m_eDstFormat     = CTexture::GetClosestFormatSupported(pLayout.m_eDstFormat, pLayout.m_pPixelFormat);
+
+	return s_pPoolMgr->GetPool(pLayout);
 }
 
 STexPoolItem* CTexture::StreamGetPoolItem(int nStartMip, int nMips, bool bShouldBeCreated, bool bCreateFromMipData, bool bCanCreate, bool bForStreamOut)
@@ -862,19 +616,21 @@ STexPoolItem* CTexture::StreamGetPoolItem(int nStartMip, int nMips, bool bShould
 
 	SCOPED_RENDERER_ALLOCATION_NAME_HINT(GetSourceName());
 
-	const bool bIsBC = CTexture::IsBlockCompressed(m_eTFSrc);
+	// depth is not 4x4x4 compressed, but 4x4x1
+	const bool bIsBC = CTexture::IsBlockCompressed(m_eSrcFormat);
 	const int nMipAlign = bIsBC ? 4 : 1;
-	int uSize = Align(max(1, m_nWidth >> nStartMip), nMipAlign);
+	int uSize = Align(max(1, m_nWidth  >> nStartMip), nMipAlign);
 	int vSize = Align(max(1, m_nHeight >> nStartMip), nMipAlign);
+	int wSize = Align(max(1, m_nDepth  >> nStartMip), 1);
 	int nArraySize = m_nArraySize;
-	ETEX_Type texType = m_eTT;
 
 	if (m_pFileTexMips->m_pPoolItem && m_pFileTexMips->m_pPoolItem->m_pOwner)
 	{
 		STexPoolItem* pPoolItem = m_pFileTexMips->m_pPoolItem;
-		if (pPoolItem->m_pOwner->m_nMips == nMips &&
-		    pPoolItem->m_pOwner->m_Width == uSize &&
-		    pPoolItem->m_pOwner->m_Height == vSize &&
+		if (pPoolItem->m_pOwner->m_nMips      == nMips &&
+		    pPoolItem->m_pOwner->m_Width      == uSize &&
+		    pPoolItem->m_pOwner->m_Height     == vSize &&
+		//	pPoolItem->m_pOwner->m_Depth      == wSize &&
 		    pPoolItem->m_pOwner->m_nArraySize == nArraySize)
 		{
 			return NULL;
@@ -882,58 +638,62 @@ STexPoolItem* CTexture::StreamGetPoolItem(int nStartMip, int nMips, bool bShould
 	}
 
 	MEMSTAT_CONTEXT(EMemStatContextTypes::MSC_Texture, 0, "Creating Texture");
-	MEMSTAT_CONTEXT_FMT(EMemStatContextTypes::MSC_Texture, 0, "%s %ix%ix%i %08x", m_SrcName.c_str(), m_nWidth, m_nHeight, m_nMips, m_nFlags);
+	MEMSTAT_CONTEXT_FMT(EMemStatContextTypes::MSC_Texture, 0, "%s %ix%ix%i %08x", m_SrcName.c_str(), m_nWidth, m_nHeight, m_nMips, m_eFlags);
 
-	STextureInfo ti;
-	std::vector<STextureInfoData> srti;
-	STextureInfo* pTI = NULL;
+	STextureLayout pLayout = GetLayout();
+	STexturePayload pPayload;
 
 	if (bCreateFromMipData)
 	{
-		uint32 nSlices = StreamGetNumSlices();
+		const int nSlices = nArraySize;
 
-		ti.m_nMSAAQuality = 0;
-		ti.m_nMSAASamples = 1;
-		srti.resize(nSlices * nMips);
-		ti.m_pData = &srti[0];
+		SSubresourcePayload* InitData = new SSubresourcePayload[nMips * nSlices];
 
-		for (int nSide = 0; nSide < nSlices; ++nSide)
+		// Contrary to hardware here the sub-resources are sorted by mips, then by slices.
+		// In hardware it's sorted by slices, then by mips (so same mips are consecutive).
+		for (int nSlice = 0, nSubresource = 0; nSlice < nSlices; nSlice++)
 		{
-			for (int nMip = nStartMip, nEndMip = nStartMip + nMips; nMip != nEndMip; ++nMip)
+			int w = uSize;
+			int h = vSize;
+			int d = wSize;
+
+			for (int nMip = nStartMip, nEndMip = nStartMip + nMips; nMip != nEndMip; ++nMip, ++nSubresource)
 			{
-				int nSRIdx = nSide * nMips + (nMip - nStartMip);
+				if (!w) w = 1;
+				if (!h) h = 1;
+				if (!d) d = 1;
+
 				STexMipHeader& mmh = m_pFileTexMips->m_pMipHeader[nMip];
-				SMipData& md = mmh.m_Mips[nSide];
+				SMipData& md = mmh.m_Mips[nSlice];
 
-				if (md.m_bNative)
-				{
-					ti.m_pData[nSRIdx].pSysMem = md.DataArray;
-					ti.m_pData[nSRIdx].SysMemPitch = 0;
-					ti.m_pData[nSRIdx].SysMemSlicePitch = 0;
-					ti.m_pData[nSRIdx].SysMemTileMode = m_eSrcTileMode;
-				}
-				else
-				{
-					int nMipW = m_nWidth >> nMip;
-					int nMipH = m_nHeight >> nMip;
-					int nRowPitch = TextureDataSize(nMipW, 1, 1, 1, 1, m_eTFSrc);
-					int nSlicePitch = TextureDataSize(nMipW, nMipH, 1, 1, 1, m_eTFSrc, m_eSrcTileMode);
+				InitData[nSubresource].m_pSysMem = md.DataArray;
+				InitData[nSubresource].m_sSysMemAlignment.typeStride   = CTexture::TextureDataSize(1, 1, 1, 1, 1, pLayout.m_eSrcFormat, m_eSrcTileMode);
+				InitData[nSubresource].m_sSysMemAlignment.rowStride    = CTexture::TextureDataSize(w, 1, 1, 1, 1, pLayout.m_eSrcFormat, m_eSrcTileMode);
+				InitData[nSubresource].m_sSysMemAlignment.planeStride  = CTexture::TextureDataSize(w, h, 1, 1, 1, pLayout.m_eSrcFormat, m_eSrcTileMode);
+				InitData[nSubresource].m_sSysMemAlignment.volumeStride = CTexture::TextureDataSize(w, h, d, 1, 1, pLayout.m_eSrcFormat, m_eSrcTileMode);
 
-					ti.m_pData[nSRIdx].pSysMem = md.DataArray;
-					ti.m_pData[nSRIdx].SysMemPitch = nRowPitch;
-					ti.m_pData[nSRIdx].SysMemSlicePitch = nSlicePitch;
-					ti.m_pData[nSRIdx].SysMemTileMode = eTM_None;
-				}
+				w >>= 1;
+				h >>= 1;
+				d >>= 1;
 			}
 		}
 
-		pTI = &ti;
+		pPayload.m_pSysMemSubresourceData = InitData;
+		pPayload.m_eSysMemTileMode = m_eSrcTileMode;
 	}
+
+	// Specify sub-set of sub-resources
+	pLayout.m_nWidth     = uSize;
+	pLayout.m_nHeight    = vSize;
+	pLayout.m_nDepth     = wSize;
+	pLayout.m_nArraySize = nArraySize;
+	pLayout.m_nMips      = nMips;
+	pLayout.m_eDstFormat     = CTexture::GetClosestFormatSupported(pLayout.m_eDstFormat, pLayout.m_pPixelFormat);
 
 	// For end of C3, preserve existing (idle wait) console behaviour
 	bool bGPIMustWaitForIdle = !bForStreamOut;
 
-	STexPoolItem* pItem = s_pPoolMgr->GetPoolItem(uSize, vSize, nMips, nArraySize, GetDstFormat(), m_bIsSRGB, texType, bShouldBeCreated, m_SrcName.c_str(), pTI, bCanCreate, bGPIMustWaitForIdle);
+	STexPoolItem* pItem = s_pPoolMgr->GetItem(pLayout, bShouldBeCreated, m_SrcName.c_str(), bCreateFromMipData ? &pPayload : nullptr, bCanCreate, bGPIMustWaitForIdle);
 	if (pItem)
 		return pItem;
 
@@ -941,54 +701,41 @@ STexPoolItem* CTexture::StreamGetPoolItem(int nStartMip, int nMips, bool bShould
 	return NULL;
 }
 
-void CTexture::StreamCopyMipsTexToTex(STexPoolItem* pSrcItem, int nMipSrc, STexPoolItem* pDestItem, int nMipDest, int nNumMips)
+void CTexture::StreamCopyMipsTexToTex(STexPoolItem* const pSrcItem, int nSrcMipOffset,
+                                      STexPoolItem* const pDstItem, int nDstMipOffset, int nNumMips)
 {
 	CHK_RENDTH;
 
-	uint32 nSides = pDestItem->m_pOwner->GetNumSlices();
+	CDeviceTexture* pSrcDevTexture = pSrcItem->m_pDevTexture;
+	CDeviceTexture* pDstDevTexture = pDstItem->m_pDevTexture;
 
-	for (uint32 iSide = 0; iSide < nSides; ++iSide)
-		CopySliceChain(pDestItem->m_pDevTexture, pDestItem->m_pOwner->m_nMips, iSide, nMipDest, pSrcItem->m_pDevTexture, iSide, nMipSrc, pSrcItem->m_pOwner->m_nMips, nNumMips);
-}
+	const uint32 nDstNumSlices = pDstItem->m_pOwner->GetNumSlices();
+	const uint32 nSrcNumSlices = pSrcItem->m_pOwner->GetNumSlices();
+	assert(nDstNumSlices == nSrcNumSlices && "Can't stream individual slices!");
 
-#if CRY_PLATFORM_DURANGO
-
-UINT64 CTexture::StreamCopyMipsTexToTex_MoveEngine(STexPoolItem* pSrcItem, int nMipSrc, STexPoolItem* pDestItem, int nMipDest, int nNumMips)
-{
-	D3DBaseTexture* pDstResource = pDestItem->m_pDevTexture->GetBaseTexture();
-	D3DBaseTexture* pSrcResource = pSrcItem->m_pDevTexture->GetBaseTexture();
-
-	const int32 nSides = pDestItem->m_pOwner->GetNumSlices();
-
-	CryAutoLock<CryCriticalSection> dmaLock(gcpRendD3D->m_dma1Lock);
-
-	ID3D11DmaEngineContextX* pDMA = gcpRendD3D->m_pDMA1;
-
-	for (int32 iSide = 0; iSide < nSides; ++iSide)
+	if (0)
 	{
-		for (int nMip = 0; nMip < nNumMips; ++nMip)
-		{
-			pDMA->CopySubresourceRegion(
-			  pDstResource,
-			  D3D11CalcSubresource(nMipDest + nMip, iSide, pDestItem->m_pOwner->m_nMips),
-			  0, 0, 0,
-			  pSrcResource,
-			  D3D11CalcSubresource(nMipSrc + nMip, iSide, pSrcItem->m_pOwner->m_nMips),
-			  NULL,
-			  D3D11_COPY_NO_OVERWRITE);
-		}
 	}
-
-	#ifdef DURANGO_MONOD3D_DRIVER
-	UINT64 fence = pDMA->InsertFence(D3D11_INSERT_FENCE_NO_KICKOFF);
-	#else
-	UINT64 fence = pDMA->InsertFence();
-	#endif
-	pDMA->Submit();
-	return fence;
-}
-
+#if CRY_PLATFORM_DURANGO && (CRY_RENDERER_DIRECT3D >= 110) && (CRY_RENDERER_DIRECT3D < 120)
+	else if (!gcpRendD3D->m_pRT->IsRenderThread(true))
+	{
+		// We can use the move engine!
+		UINT64 fence = StreamCopyMipsTexToTex_MoveEngine(pSrcItem, nSrcMipOffset, pDstItem, nDstMipOffset, nNumMips);
+		while (gcpRendD3D->GetPerformanceDevice().IsFencePending(fence))
+			CrySleep(1);
+	}
 #endif
+	else
+	{
+		GPUPIN_DEVICE_TEXTURE(gcpRendD3D->GetPerformanceDeviceContext(), pDstDevTexture);
+
+		for (uint32 iSlice = 0; iSlice < nSrcNumSlices; ++iSlice)
+			CopySliceChain(
+				pDstItem->m_pDevTexture, pDstItem->m_pOwner->m_nMips, iSlice, nDstMipOffset, 
+				pSrcItem->m_pDevTexture, pSrcItem->m_pOwner->m_nMips, iSlice, nSrcMipOffset,
+				1, nNumMips);
+	}
+}
 
 // Debug routines /////////////////////////////////////////////////////////////////////////////////////////////////////////////
 #ifndef _RELEASE
@@ -1011,10 +758,10 @@ struct StreamDebugSortWantedFunc
 	bool operator()(const CTexture* p1, const CTexture* p2) const
 	{
 		int nP1ReqMip = p1->GetRequiredMipNonVirtual();
-		int nP1Size = p1->StreamComputeDevDataSize(nP1ReqMip);
+		int nP1Size = p1->StreamComputeSysDataSize(nP1ReqMip);
 
 		int nP2ReqMip = p2->GetRequiredMipNonVirtual();
-		int nP2Size = p2->StreamComputeDevDataSize(nP2ReqMip);
+		int nP2Size = p2->StreamComputeSysDataSize(nP2ReqMip);
 
 		if (nP1Size != nP2Size)
 			return nP1Size < nP2Size;
@@ -1025,8 +772,6 @@ struct StreamDebugSortWantedFunc
 
 void CTexture::OutputDebugInfo()
 {
-	CD3D9Renderer* r = gcpRendD3D;
-
 	int nX = 40;
 	int nY = 30;
 
@@ -1078,10 +823,10 @@ void CTexture::OutputDebugInfo()
 		// name filter
 		if (bNameFilter && !strstr(tp->m_SrcName.c_str(), sTexFilter))
 			continue;
-		if (tp->m_nActualSize / 1024 < CRenderer::CV_r_TexturesStreamingDebugMinSize)
+		if (tp->m_nDevTextureSize / 1024 < CRenderer::CV_r_TexturesStreamingDebugMinSize)
 			continue;
 
-		ColorF color = (tp->m_nActualSize / 1024 >= CRenderer::CV_r_TexturesStreamingDebugMinSize * 2) ? Col_Red : Col_Green;
+		ColorF color = (tp->m_nDevTextureSize / 1024 >= CRenderer::CV_r_TexturesStreamingDebugMinSize * 2) ? Col_Red : Col_Green;
 
 		// compute final mip factor
 		bool bHighPriority = false;
@@ -1103,17 +848,17 @@ void CTexture::OutputDebugInfo()
 
 		int nPersMip = tp->m_nMips - tp->m_CacheFileHeader.m_nMipsPersistent;
 		int nMipReq = min(tp->GetRequiredMipNonVirtual(), nPersMip);
-		const int nWantedSize = tp->StreamComputeDevDataSize(nMipReq);
+		const int nWantedSize = tp->StreamComputeSysDataSize(nMipReq);
 
 		assert(tp->m_pFileTexMips);
 		PREFAST_ASSUME(tp->m_pFileTexMips);
 		cry_sprintf(szText, "%.2f | %.2f |%6.2f | %1d | %2d/%d/%d | %i/%i | %i | %s",
-		            (float)tp->m_nActualSize / (1024 * 1024.0f),
+		            (float)tp->m_nDevTextureSize / (1024 * 1024.0f),
 		            (float)nWantedSize / (1024 * 1024.0f),
 		            sqrtf(fFinalMipFactor),
 		            (int)bHighPriority,
 		            tp->GetNumMipsNonVirtual() - nMipIdSigned, tp->GetNumMipsNonVirtual() - tp->m_nMinMipVidUploaded, tp->GetNumMipsNonVirtual(),
-		            tp->m_streamRounds[0].nRoundUpdateId, tp->m_streamRounds[MAX_PREDICTION_ZONES - 1].nRoundUpdateId,
+		            tp->m_streamRounds[0].nRoundUpdateId, tp->m_streamRounds[MAX_STREAM_PREDICTION_ZONES - 1].nRoundUpdateId,
 		            tp->m_nAccessFrameID >= (int)ti.m_nFrameUpdateID - 8,
 		            tp->m_SrcName.c_str());
 

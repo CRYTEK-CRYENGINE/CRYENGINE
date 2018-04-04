@@ -67,9 +67,6 @@ pixout NightVisionPS(vtxOutNightVision IN)
   half fLum = dot(cScreen.xyz, 0.33);
 
   float fSceneLum = 0.5;
-//#if %_RT_HDR_MODE  
-// fSceneLum = tex2D(_tex4, IN.baseTC.xy).x *0.125;
-//#endif
 
   // add noisy glow
   half fNoise = dot(tex2D(_tex2, IN.noiseTC.xy).xy, 0.5);
@@ -108,11 +105,7 @@ pixout NightVisionPS(vtxOutNightVision IN)
   // Output final color and add grainy noise on top
   OUT.Color = cScreen * fDarken;
 
-//if %_RT_HDR_MODE  
   OUT.Color.xyz =   (1 - exp( -  4*( OUT.Color.xyz+ saturate(cScreenBlurred*1.25  -fNoise))));
-//else
-  //OUT.Color.xyz = fSceneLum *(fSceneLum * 0.25 + saturate(cScreenBlurred * 2 -(fNoise)   )) + (1 - exp( -4*(OUT.Color.xyz  )));
-//endif
   
   // get absolute value, stuff totaly black will get whitish
 

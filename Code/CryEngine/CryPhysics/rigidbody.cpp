@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #include "StdAfx.h"
 
@@ -686,6 +686,239 @@ void InvokeDelayedContactSolver(CMemStream &stm)
 }
 
 
+struct SEntityGrid;
+#ifdef MULTI_GRID
+SEntityGrid *GetGridFromEntity(const CPhysicalEntity*);
+QuatT GetGridTransform(const SEntityGrid *src, const SEntityGrid *dst);
+Vec3 GetGridRelVel(const SEntityGrid *src, const SEntityGrid *dst);
+#else
+SEntityGrid *GetGridFromEntity(const CPhysicalEntity*) { return nullptr; }
+QuatT GetGridTransform(const SEntityGrid *src, const SEntityGrid *dst) { return QuatT(IDENTITY); }
+Vec3 GetGridRelVel(const SEntityGrid *src, const SEntityGrid *dst) { return Vec3(ZERO); }
+#endif
+
+struct noGridTrans {
+	noGridTrans(const CPhysicalEntity *srcEnt, const SEntityGrid *dstGrid) {}
+	noGridTrans(const SEntityGrid *srcGrid, const CPhysicalEntity *dstEnt) {}
+	noGridTrans(const CPhysicalEntity *srcEnt, const CPhysicalEntity *dstEnt) {}
+	template<typename T> const T& operator()(const T& op) const { return op; }
+	template<typename T> const T& operator()(const T& op,bool) const { return op; }
+};
+struct GridTransFull {
+	QuatT trans;
+	GridTransFull(const CPhysicalEntity *srcEnt, const CPhysicalEntity *dstEnt) { trans = ::GetGridTransform(::GetGridFromEntity(srcEnt),::GetGridFromEntity(dstEnt)); }
+	Vec3 operator()(const Vec3& pt) const { return trans*pt; }
+};
+struct GridTransRot {
+	Quat q;
+	GridTransRot(const CPhysicalEntity *srcEnt, const SEntityGrid *dstGrid) { q = ::GetGridTransform(::GetGridFromEntity(srcEnt),dstGrid).q; }
+	Vec3 operator()(const Vec3& dir) const { return q*dir; }
+	Matrix33 operator()(const Matrix33 &M) const { return Matrix33(q)*M*Matrix33(!q); }
+};
+struct GridTransDyn {
+	Quat q;
+	Vec3 dv;
+	GridTransDyn(const SEntityGrid *srcGrid, const SEntityGrid *dstGrid) { 
+		q = ::GetGridTransform(srcGrid,dstGrid).q; 
+		dv = ::GetGridRelVel(srcGrid,dstGrid);
+	}
+	GridTransDyn(const CPhysicalEntity *srcEnt, const SEntityGrid *dstGrid) : GridTransDyn(::GetGridFromEntity(srcEnt),dstGrid) {} 
+	GridTransDyn(const SEntityGrid *srcGrid, const CPhysicalEntity *dstEnt) : GridTransDyn(srcGrid,::GetGridFromEntity(dstEnt)) {} 
+	Vec3 operator()(const Vec3& dir) const { return q*dir; }
+	Vec3 operator()(const Vec3& dir, bool addVel) const { return q*dir+dv; }
+	Matrix33 operator()(const Matrix33 &M) const { return Matrix33(q)*M*Matrix33(!q); }
+};
+
+template<typename TransFull, typename TransRot, int ipass>
+int PrepContacts(int iCaller, int &nConstraintsRes, SEntityGrid* &pgridRes, int &bMultigridRes)
+{
+	int nBodies=0, nConstraints=0, bMultigrid=0;
+	SEntityGrid *pgrid = ipass==0 ? GetGridFromEntity(g_pContacts[0]->pent[0]) : pgridRes;
+	RigidBody *pbodyGrid = g_pContacts[0]->pbody[0];
+	Matrix33 Ctmp;
+
+	for(int i=0,j,iop; i<g_nContacts; i++) {
+		entity_contact &cnt = *g_pContacts[i];
+		if (ipass==0) {
+			for(iop=0;iop<2;iop++) {
+				if (!(j = cnt.pbody[iop]->bProcessed[iCaller])) {
+					g_pBodies[nBodies++] = cnt.pbody[iop];
+					cnt.pbody[iop]->bProcessed[iCaller] = j=nBodies;
+				}
+				g_ContactsRB[i].iBody[iop] = j-1;
+				if (GetGridFromEntity(cnt.pent[iop]) != pgrid) {
+					bMultigrid = 1;
+					if (cnt.pbody[iop]->flags & rb_articulated || cnt.pbody[iop]->Minv < pbodyGrid->Minv) {
+						pbodyGrid = cnt.pbody[iop]; pgrid = GetGridFromEntity(cnt.pent[iop]);
+					}
+				}
+			}
+			if (!(cnt.flags & contact_rope))
+				cnt.iCount = 0;
+			else for(rope_solver_vtx *prope=(rope_solver_vtx*)g_pContacts[iop=0,i]->pBounceCount; iop<cnt.iCount; iop++) {
+				if (!(j = prope[iop].pbody->bProcessed[iCaller])) {
+					*(CPhysicalEntity**)&g_Bodies[nBodies].Iinv = prope[iop].pent;
+					g_pBodies[nBodies++] = prope[iop].pbody;
+					prope[iop].pbody->bProcessed[iCaller] = j=nBodies;
+					if (GetGridFromEntity(prope[iop].pent) != pgrid) {
+						bMultigrid = 1;
+						if (prope[iop].pbody->flags & rb_articulated || prope[iop].pbody->Minv < pbodyGrid->Minv) {
+							pbodyGrid = prope[iop].pbody; pgrid = GetGridFromEntity(prope[iop].pent);
+						}
+					}
+				}
+				prope[iop].iBody = j-1;
+			}
+
+			if (!(cnt.flags & contact_preserve_Pspare))
+				cnt.Pspare = 0;
+			nConstraints -= -(cnt.flags & contact_constraint)>>31;
+			g_ContactsCG[i].P.zero();
+			cnt.bProcessed = i;
+			g_ContactsC[i].C.SetIdentity();
+			if (bMultigrid)
+				continue;
+		}	else for(iop=0;iop<2;iop++)
+			*(CPhysicalEntity**)&g_Bodies[cnt.pbody[iop]->bProcessed[iCaller]-1].Iinv = cnt.pent[iop];
+
+		TransRot AtoG(cnt.pent[0],pgrid), BtoG(cnt.pent[1],pgrid);
+		TransFull AtoB(cnt.pent[0], cnt.pent[1]);
+
+		if (cnt.flags & contact_use_C_1dof)	{
+			Vec3 nloc = AtoG(cnt.nloc);
+			dotproduct_matrix(nloc,nloc, g_ContactsC[i].C);
+		} else if (cnt.flags & contact_use_C_2dof) {
+			Vec3 nloc = AtoG(cnt.nloc);
+			g_ContactsC[i].C -= dotproduct_matrix(nloc,nloc,Ctmp);
+		}
+
+		if (cnt.flags & contact_rope) {
+			g_ContactsRB[i].K(0,0) = cnt.nloc.x;
+			g_ContactsRB[i].K(0,1) = cnt.nloc.y;
+			g_ContactsRB[i].K(0,2) = cnt.nloc.z;
+			g_ContactsRB[i].K(1,0) = isneg(1e-8f-cnt.nloc.z);
+		} else {
+			Matrix33 K0(ZERO), K1(ZERO);
+			if (!(cnt.flags & contact_angular)) {
+				cnt.pbody[0]->GetContactMatrix(cnt.pt[0]-cnt.pbody[0]->pos, K0);
+				cnt.pbody[1]->GetContactMatrix(AtoB(cnt.pt[1])-cnt.pbody[1]->pos, K1);
+			} else {
+				K0 = cnt.pbody[0]->Iinv;
+				K1 = cnt.pbody[1]->Iinv;
+			}
+			g_ContactsRB[i].K = AtoG(K0) + BtoG(K1);
+		}
+
+		if (cnt.flags & contact_constraint_3dof)
+			(g_ContactsC[i].Kinv=g_ContactsRB[i].K).Invert();
+		else {
+			Vec3 n = AtoG(cnt.n);
+			if (cnt.flags & contact_constraint_1dof) {
+				Vec3 axes[2]; int k; float mtx[2][2]; Matrix33 mtx1;
+				axes[0] = n.GetOrthogonal().normalized();
+				axes[1] = n ^ axes[0];
+				for(j=0;j<2;j++) for(k=0;k<2;k++) mtx[j][k] = axes[j]*g_ContactsRB[i].K*axes[k];
+				matrixf(2,2,0,mtx[0]).invert();
+				g_ContactsC[i].Kinv.SetZero();
+				for(j=0;j<2;j++) for(k=0;k<2;k++) 
+					g_ContactsC[i].Kinv += dotproduct_matrix(axes[j],axes[k],mtx1)*mtx[j][k];
+				dotproduct_matrix(n,n, g_ContactsC[i].C) *= -1.0f;
+				g_ContactsC[i].C(0,0)+=1.0f; g_ContactsC[i].C(1,1)+=1.0f; g_ContactsC[i].C(2,2)+=1.0f; 
+			}	else if (cnt.flags & contact_constraint_2dof) {
+				float t = n*g_ContactsRB[i].K*n;
+				dotproduct_matrix(n,n, g_ContactsC[i].C);
+				(g_ContactsC[i].Kinv = g_ContactsC[i].C) /= t;
+			} else if (cnt.friction<0.01f)
+				dotproduct_matrix(n,n, g_ContactsC[i].C);
+		}
+	}
+
+	if (ipass==0) {
+		nConstraintsRes=nConstraints; pgridRes=pgrid; bMultigridRes=bMultigrid;
+	}
+	return nBodies;
+}
+
+template<typename TransFull,typename TransRot>
+void PrepContactsMore(int iCaller, SEntityGrid *pgrid=nullptr)
+{
+	for(int i=0; i<g_nContacts; i++) {
+		entity_contact &cnt = *g_pContacts[i];
+		TransRot AtoG(cnt.pent[0], pgrid);
+		TransFull BtoA(cnt.pent[1], cnt.pent[0]);
+		Vec3 com0 = cnt.pbody[0]->pos;
+		if (sizeof(TransFull)>sizeof(noGridTrans) && cnt.flags & contact_rope) {
+			CPhysicalEntity *prope = (CPhysicalEntity*)cnt.nextAux;
+			AtoG = TransRot(prope, pgrid);
+			BtoA = TransFull(cnt.pent[1], prope);
+			com0 = TransFull(cnt.pent[0],prope)(com0);
+			rope_solver_vtx *pvtx = (rope_solver_vtx*)cnt.pBounceCount;
+			for(int j=0; j<cnt.iCount; j++)	{
+				pvtx[j].r = AtoG(pvtx[j].r);
+				pvtx[j].P = AtoG(pvtx[j].P);
+				pvtx[j].v = AtoG(pvtx[j].v);
+			}
+		}
+		g_ContactsRB[i].r0 = AtoG(cnt.pt[0]-com0);
+		g_ContactsRB[i].r1 = AtoG(cnt.pt[1]-BtoA(cnt.pbody[1]->pos));
+		g_ContactsRB[i].n = AtoG(cnt.n);
+		g_ContactsRB[i].vreq = AtoG(cnt.vreq);
+		g_ContactsRB[i].Pspare = cnt.Pspare;
+		g_ContactsRB[i].flags = cnt.flags;
+		g_ContactsRB[i].friction = cnt.friction;
+		g_ContactsRB[i].iCount = cnt.iCount;
+		g_ContactsRB[i].iCountDst = ((entity_contact*)((char*)cnt.pBounceCount-
+			((char*)&cnt.iCount-(char*)g_pContacts[i])))->bProcessed;
+		g_ContactsRB[i].Pn = 0;
+	}
+}
+
+template<typename TransDyn>
+int PrepBodies(int iCaller, SEntityGrid *pgrid=nullptr)
+{
+	int nArtic=0, nBodies=g_nBodies;
+	for(int i=0;i<nBodies;i++) {
+		TransDyn toG(*(CPhysicalEntity**)&g_Bodies[i].Iinv, pgrid);
+		g_pBodies[i]->Fcollision = g_pBodies[i]->P; g_pBodies[i]->Tcollision = g_pBodies[i]->L;
+		g_Bodies[i].L = toG(g_pBodies[i]->L);
+		g_Bodies[i].v = toG(g_pBodies[i]->v,true); g_Bodies[i].w = toG(g_pBodies[i]->w);
+		if (!(g_pBodies[i]->flags & rb_articulated)) {
+			g_Bodies[i].Minv = g_pBodies[i]->Minv; g_Bodies[i].Iinv = toG(g_pBodies[i]->Iinv); g_Bodies[i].M = g_pBodies[i]->M;
+		} else {
+			g_Bodies[i].M=-1e20f; g_Bodies[i].Minv=0.0f;
+			*((ArticulatedBody**)&g_Bodies[i].Iinv) = (ArticulatedBody*)g_pBodies[i];
+			nArtic++;
+		}
+	}
+	return nArtic;
+}
+
+template<typename TransDyn>
+void UpdateBodies(int iCaller, SEntityGrid *pgrid=nullptr)
+{
+	int nBodies = g_nBodies;
+	if (sizeof(TransDyn) > sizeof(noGridTrans))
+		for(int i=0;i<g_nContacts;i++) {
+			for(int iop=0;iop<2;iop++)
+				*(CPhysicalEntity**)&g_Bodies[g_pContacts[i]->pbody[iop]->bProcessed[iCaller]-1].Iinv = g_pContacts[i]->pent[iop];
+			if (g_pContacts[i]->flags & contact_rope) {
+				rope_solver_vtx *pvtx = (rope_solver_vtx*)g_pContacts[i]->pBounceCount;
+				for(int j=0; j<g_pContacts[i]->iCount; j++)
+					*(CPhysicalEntity**)&g_Bodies[pvtx[j].pbody->bProcessed[iCaller]-1].Iinv = pvtx[j].pent;
+			}
+		}
+	for(int i=0; i<nBodies; i++) {
+		if (sizeof(TransDyn)==sizeof(noGridTrans) || g_pBodies[i]->Minv>0) {
+			TransDyn fromG(pgrid, *(CPhysicalEntity**)&g_Bodies[i].Iinv);
+			g_pBodies[i]->P = (g_pBodies[i]->v=fromG(g_Bodies[i].v,true))*g_pBodies[i]->M; 
+			g_pBodies[i]->L = g_pBodies[i]->q*(g_pBodies[i]->Ibody*(!g_pBodies[i]->q*(g_pBodies[i]->w = fromG(g_Bodies[i].w))));
+		}
+		g_pBodies[i]->bProcessed[iCaller] = 0; 
+		g_pBodies[i]->Eunproj = 0;
+	}
+}
+
+
 int InvokeContactSolver(float time_interval, SolverSettings *pss, float Ebefore, entity_contact **&pContactsOut,int &nContactsOut)
 {
 	FUNCTION_PROFILER( GetISystem(),PROFILE_PHYSICS );
@@ -697,77 +930,20 @@ int InvokeContactSolver(float time_interval, SolverSettings *pss, float Ebefore,
 	RigidBody *body0,*body1;
 	rope_solver_vtx *prope;
 	Vec3 r0,r1,n,dp,dP;
-	float t,vrel,Eafter,dPn,dPtang,rtime_interval=1/time_interval;
+	float vrel,Eafter,dPn,dPtang,rtime_interval=1/time_interval;
 	float e = pss->accuracyMC;
 	Matrix33 Ctmp;
 	buddy_info *pbuddy0,*pbuddy1;
+	SEntityGrid *pgrid;
+	int bMultigrid = 0;
 __solver_step++;
 	nContactsOut = g_nContacts;
 
-	for(i=nConstraints=nBodies=0; i<g_nContacts; i++) {
-		for(iop=0;iop<2;iop++) {
-			if (!(j = g_pContacts[i]->pbody[iop]->bProcessed[iCaller])) {
-				g_pBodies[nBodies++] = g_pContacts[i]->pbody[iop];
-				g_pContacts[i]->pbody[iop]->bProcessed[iCaller] = j=nBodies;
-			}
-			g_ContactsRB[i].iBody[iop] = j-1;
-		}
-		if (!(g_pContacts[i]->flags & contact_rope))
-			g_pContacts[i]->iCount = 0;
-		else for(iop=0,prope=(rope_solver_vtx*)g_pContacts[i]->pBounceCount; iop<g_pContacts[i]->iCount; iop++) {
-			if (!(j = prope[iop].pbody->bProcessed[iCaller])) {
-				g_pBodies[nBodies++] = prope[iop].pbody;
-				prope[iop].pbody->bProcessed[iCaller] = j=nBodies;
-			}
-			prope[iop].iBody = j-1;
-		}
+	nBodies = PrepContacts<noGridTrans,noGridTrans,0>(iCaller,nConstraints,pgrid,bMultigrid);
+	if (bMultigrid)
+		PrepContacts<GridTransFull,GridTransRot,1>(iCaller,nConstraints,pgrid,bMultigrid);
 
-		if (!(g_pContacts[i]->flags & contact_preserve_Pspare))
-			g_pContacts[i]->Pspare = 0;
-		g_ContactsC[i].C.SetIdentity();
-		if (g_pContacts[i]->flags & contact_use_C_1dof)
-			dotproduct_matrix(g_pContacts[i]->nloc,g_pContacts[i]->nloc, g_ContactsC[i].C);
-		else if (g_pContacts[i]->flags & contact_use_C_2dof)
-			g_ContactsC[i].C -= dotproduct_matrix(g_pContacts[i]->nloc,g_pContacts[i]->nloc,Ctmp);
-		nConstraints -= -(g_pContacts[i]->flags & contact_constraint)>>31;
-		g_ContactsCG[i].P.zero();
-		g_pContacts[i]->bProcessed = i;
-
-		if (g_pContacts[i]->flags & contact_rope) {
-			g_ContactsRB[i].K(0,0) = g_pContacts[i]->nloc.x;
-			g_ContactsRB[i].K(0,1) = g_pContacts[i]->nloc.y;
-			g_ContactsRB[i].K(0,2) = g_pContacts[i]->nloc.z;
-			g_ContactsRB[i].K(1,0) = isneg(1e-8f-g_pContacts[i]->nloc.z);
-		} else if (!(g_pContacts[i]->flags & contact_angular)) {
-			g_ContactsRB[i].K.SetZero();
-			g_pContacts[i]->pbody[0]->GetContactMatrix(g_pContacts[i]->pt[0]-g_pContacts[i]->pbody[0]->pos, g_ContactsRB[i].K);
-			g_pContacts[i]->pbody[1]->GetContactMatrix(g_pContacts[i]->pt[1]-g_pContacts[i]->pbody[1]->pos, g_ContactsRB[i].K);
-		} else {
-			g_ContactsRB[i].K = g_pContacts[i]->pbody[0]->Iinv+g_pContacts[i]->pbody[1]->Iinv;
-		}
-
-		if (g_pContacts[i]->flags & contact_constraint_3dof)
-			(g_ContactsC[i].Kinv=g_ContactsRB[i].K).Invert();
-		else if (g_pContacts[i]->flags & contact_constraint_1dof) {
-			Vec3 axes[2]; int k; float mtx[2][2]; Matrix33 mtx1;
-			axes[0] = g_pContacts[i]->n.GetOrthogonal().normalized();
-			axes[1] = g_pContacts[i]->n ^ axes[0];
-			for(j=0;j<2;j++) for(k=0;k<2;k++) mtx[j][k] = axes[j]*g_ContactsRB[i].K*axes[k];
-			matrixf(2,2,0,mtx[0]).invert();
-			g_ContactsC[i].Kinv.SetZero();
-			for(j=0;j<2;j++) for(k=0;k<2;k++) 
-				g_ContactsC[i].Kinv += dotproduct_matrix(axes[j],axes[k],mtx1)*mtx[j][k];
-			dotproduct_matrix(g_pContacts[i]->n, g_pContacts[i]->n, g_ContactsC[i].C) *= -1.0f;
-			g_ContactsC[i].C(0,0)+=1.0f; g_ContactsC[i].C(1,1)+=1.0f; g_ContactsC[i].C(2,2)+=1.0f; 
-		}	else if (g_pContacts[i]->flags & contact_constraint_2dof) {
-			t = g_pContacts[i]->n*g_ContactsRB[i].K*g_pContacts[i]->n;
-			dotproduct_matrix(g_pContacts[i]->n, g_pContacts[i]->n, g_ContactsC[i].C);
-			(g_ContactsC[i].Kinv = g_ContactsC[i].C) /= t;
-		} else if (g_pContacts[i]->friction<0.01f)
-			dotproduct_matrix(g_pContacts[i]->n, g_pContacts[i]->n, g_ContactsC[i].C);
-	}
-
-	if (pss->nMaxLCPCGiters>0) {
+	if (pss->nMaxLCPCGiters>0 && !bMultigrid) {
 		for(i=0;i<nBodies;i++) {
 			g_infos[i].pbuddy=0; g_infos[i].iLevel=-1; 
 			bNeedLCPCG |= isneg(sqr(pss->maxMCVel)-g_pBodies[i]->v.len2());
@@ -808,7 +984,7 @@ __solver_step++;
 	nMaxIters = max(pss->nMinMCiters*g_nContacts, pss->nMaxMCiters);
 	g_nBodies = nBodies;
 
-	if (g_bUsePreCG && g_nContacts<16) {
+	if (g_bUsePreCG && g_nContacts<16 && !bMultigrid) {
 		FRAME_PROFILER( "PreCG",GetISystem(),PROFILE_PHYSICS );
 
 		real a,b,r2,r2new,pAp,vmax,vdiff;
@@ -915,41 +1091,21 @@ __solver_step++;
 		}
 	}
 
-	for(i=0; i<g_nContacts; i++) {
-		g_ContactsRB[i].r0 = g_pContacts[i]->pt[0]-g_pContacts[i]->pbody[0]->pos;
-		g_ContactsRB[i].r1 = g_pContacts[i]->pt[1]-g_pContacts[i]->pbody[1]->pos;
-		//g_ContactsRB[i].K = g_pContacts[i]->K;
-		g_ContactsRB[i].n = g_pContacts[i]->n;
-		g_ContactsRB[i].vreq = g_pContacts[i]->vreq;
-		g_ContactsRB[i].Pspare = g_pContacts[i]->Pspare;
-		g_ContactsRB[i].flags = g_pContacts[i]->flags;
-		g_ContactsRB[i].friction = g_pContacts[i]->friction;
-		g_ContactsRB[i].iCount = g_pContacts[i]->iCount;
-		g_ContactsRB[i].iCountDst = ((entity_contact*)((char*)g_pContacts[i]->pBounceCount-
-			((char*)&g_pContacts[i]->iCount-(char*)g_pContacts[i])))->bProcessed;
-		g_ContactsRB[i].Pn = 0;
-	}
 	int nArtic = 0;
-	for(i=0;i<nBodies;i++) {
-		g_pBodies[i]->Fcollision = g_pBodies[i]->P; g_pBodies[i]->Tcollision = g_Bodies[i].L = g_pBodies[i]->L;
-		g_Bodies[i].v = g_pBodies[i]->v; g_Bodies[i].w = g_pBodies[i]->w;
-		if (!(g_pBodies[i]->flags & rb_articulated)) {
-			g_Bodies[i].Minv = g_pBodies[i]->Minv; g_Bodies[i].Iinv = g_pBodies[i]->Iinv; g_Bodies[i].M = g_pBodies[i]->M;
-		} else {
-			g_Bodies[i].M=-1e20f; g_Bodies[i].Minv=0.0f;
-			*((ArticulatedBody**)&g_Bodies[i].Iinv) = (ArticulatedBody*)g_pBodies[i];
-			nArtic++;
-		}
+	if (!bMultigrid) {
+		PrepContactsMore<noGridTrans,noGridTrans>(iCaller);
+		nArtic = PrepBodies<noGridTrans>(iCaller);
+	} else {
+		PrepContactsMore<GridTransFull,GridTransRot>(iCaller,pgrid);
+		nArtic = PrepBodies<GridTransDyn>(iCaller,pgrid);
 	}
 
 	bBounced = InvokeContactSolverMC(g_ContactsRB,g_ContactsC,g_Bodies, g_nContacts,nBodies, Ebefore, nMaxIters,e,pss->minSeparationSpeed);
 
-	for(i=0; i<nBodies; i++) {
-		g_pBodies[i]->P = (g_pBodies[i]->v=g_Bodies[i].v)*g_pBodies[i]->M; 
-		g_pBodies[i]->L = g_pBodies[i]->q*(g_pBodies[i]->Ibody*(!g_pBodies[i]->q*(g_pBodies[i]->w = g_Bodies[i].w)));
-		g_pBodies[i]->bProcessed[iCaller] = 0; 
-		g_pBodies[i]->Eunproj = 0;
-	}
+	if (!bMultigrid)
+		UpdateBodies<noGridTrans>(iCaller);
+	else
+		UpdateBodies<GridTransDyn>(iCaller,pgrid);
 	for(i=0; i<g_nContacts; i++)
 		g_pContacts[i]->Pspare = g_ContactsRB[i].Pspare;
 

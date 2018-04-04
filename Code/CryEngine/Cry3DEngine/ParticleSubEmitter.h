@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
 // -------------------------------------------------------------------------
 //  File name:   ParticleSubEmitter.h
@@ -108,11 +108,11 @@ private:
 	CParticleContainer* m_pContainer;         // Direct or shared container to emit particles into.
 	_smart_ptr<CParticleSource> m_pSource;
 
-	AudioControlId m_startAudioTriggerId;
-	AudioControlId m_stopAudioTriggerId;
-	AudioControlId m_audioRtpcId;
-	IAudioProxy* m_pIAudioProxy;
-	EAudioOcclusionType m_currentAudioOcclusionType;
+	CryAudio::ControlId m_startAudioTriggerId;
+	CryAudio::ControlId m_stopAudioTriggerId;
+	CryAudio::ControlId m_audioParameterId;
+	CryAudio::IObject* m_pIAudioObject;
+	CryAudio::EOcclusionType m_currentAudioOcclusionType;
 	bool m_bExecuteAudioTrigger;
 
 	// State.
