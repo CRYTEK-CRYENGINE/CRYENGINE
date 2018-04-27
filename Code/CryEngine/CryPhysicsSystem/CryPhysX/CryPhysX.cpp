@@ -1,3 +1,5 @@
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
+
 //////////////////////////////////////////////////////////////////////////
 #include "StdAfx.h"
 //////////////////////////////////////////////////////////////////////////
@@ -32,12 +34,16 @@
 #define USE_PHYSX_PROFILE
 #endif
 
+// NOTE: when compiling libs from PhysX 3.4 sources,
+// switch PhysXExtensions, PhysXVehicle, and PhysXCharacterKinematic 
+// to Multi-theread DLL runtime library (in C++/Code Generation)
+
 #if defined(_DEBUG)
 #pragma comment(lib, "PhysX3DEBUG_x64.lib")
 #pragma comment(lib, "PhysX3CommonDEBUG_x64.lib")
 #pragma comment(lib, "PhysX3ExtensionsDEBUG.lib")
-#pragma comment(lib, "PhysXProfileSDKDEBUG.lib")
-#pragma comment(lib, "PhysXVisualDebuggerSDKDEBUG.lib")
+#pragma comment(lib, "PxFoundationDEBUG_x64.lib")
+#pragma comment(lib, "PxPvdSDKDEBUG_x64.lib")
 #pragma comment(lib, "PhysX3CookingDEBUG_x64.lib")
 #pragma comment(lib, "PhysX3VehicleDEBUG.lib")
 #else
@@ -45,16 +51,16 @@
 #pragma comment(lib, "PhysX3PROFILE_x64.lib")
 #pragma comment(lib, "PhysX3CommonPROFILE_x64.lib")
 #pragma comment(lib, "PhysX3ExtensionsPROFILE.lib")
-#pragma comment(lib, "PhysXProfileSDKPROFILE.lib")
-#pragma comment(lib, "PhysXVisualDebuggerSDKPROFILE.lib")
+#pragma comment(lib, "PxFoundationPROFILE_x64.lib")
+#pragma comment(lib, "PxPvdSDKPROFILE_x64.lib")
 #pragma comment(lib, "PhysX3CookingPROFILE_x64.lib")
 #pragma comment(lib, "PhysX3VehiclePROFILE.lib")
 #else
 #pragma comment(lib, "PhysX3_x64.lib")
 #pragma comment(lib, "PhysX3Common_x64.lib")
 #pragma comment(lib, "PhysX3Extensions.lib")
-#pragma comment(lib, "PhysXProfileSDK.lib")
-#pragma comment(lib, "PhysXVisualDebuggerSDK.lib")
+#pragma comment(lib, "PxFoundation_x64.lib")
+#pragma comment(lib, "PxPvdSDK_x64.lib")
 #pragma comment(lib, "PhysX3Cooking_x64.lib")
 #pragma comment(lib, "PhysX3Vehicle.lib")
 #endif
@@ -71,7 +77,7 @@
 #include "extensions/PxDefaultAllocator.h"
 #include "foundation/PxMat33.h"
 #include "foundation/PxMat44.h"
-#include "pvd/PxVisualDebugger.h"
+#include "pvd/PxPvd.h"
 
 using namespace physx;
 
@@ -107,11 +113,12 @@ namespace cpx // CryPhysX helper
 	CryPhysX::CryPhysX() :
 		m_dt(PHYSX_TIMESTEP),
 		m_Scene(nullptr),
-		m_VSDConnection(nullptr),
 		m_Cooking(nullptr),
 		m_Foundation(nullptr),
 		m_Physics(nullptr),
-		m_ProfileZoneManager(nullptr),
+		m_CpuDispatcher(nullptr),
+		m_PvdTransport(nullptr),
+ 		m_Pvd(nullptr),
 		m_DebugVisualizationForAllSceneElements(false)
 	{
 	}
@@ -148,7 +155,7 @@ namespace cpx // CryPhysX helper
 		isInitialized = true;
 
 		// create foundation
-		m_Foundation = PxCreateFoundation(PX_PHYSICS_VERSION, m_DefaultAllocatorCallback, m_DefaultErrorCallback);
+		m_Foundation = PxCreateFoundation(PX_FOUNDATION_VERSION, m_DefaultAllocatorCallback, m_DefaultErrorCallback);
 		if (!m_Foundation)
 		{
 			fatalError("PxCreateFoundation failed!");
@@ -163,19 +170,19 @@ namespace cpx // CryPhysX helper
 
 		// create physics context
 		bool recordMemoryAllocations = false;
-		m_ProfileZoneManager = &PxProfileZoneManager::createProfileZoneManager(m_Foundation);
-		if (!m_ProfileZoneManager)
+		m_Pvd = PxCreatePvd(*m_Foundation);
+		if (!m_Pvd)
 		{
-			fatalError("PxProfileZoneManager::createProfileZoneManager failed!");
+			fatalError("PxCreatePvd failed!");
 		}
 
-		m_Physics = PxCreatePhysics(PX_PHYSICS_VERSION, *m_Foundation, PxTolerancesScale(), recordMemoryAllocations, m_ProfileZoneManager);
+		m_Physics = PxCreatePhysics(PX_PHYSICS_VERSION, *m_Foundation, PxTolerancesScale(), recordMemoryAllocations, m_Pvd);
 		if (!m_Physics)
 		{
 			fatalError("PxCreatePhysics failed!");
 		}
 
-		if (!PxInitExtensions(*m_Physics))
+		if (!PxInitExtensions(*m_Physics, m_Pvd))
 		{
 			fatalError("PxInitExtensions failed!");
 		}
@@ -183,41 +190,35 @@ namespace cpx // CryPhysX helper
 		// finished
 		Helper::Log("PhysX - initialized.\n");
 
-		// PhysX Visual Debugger - connection
-#if defined(USE_PHYSX_VISUALDEBUGGER)
-		{
-			// check if PvdConnection manager is available on this platform
-			if (m_Physics->getPvdConnectionManager() != NULL)
-			{
-				// setup connection parameters
-				const char* pvd_host_ip = "localhost"; // IP of the PC which is running PVD
-				int port = 5425;                       // TCP port to connect to, where PVD is listening
-				//unsigned int timeout = 100;          // timeout in milliseconds to wait for PVD to respond,
-				unsigned int timeout = 10000;           // timeout in milliseconds to wait for PVD to respond,
-													   // consoles and remote PCs need a higher timeout.
-				PxVisualDebuggerConnectionFlags connectionFlags = PxVisualDebuggerExt::getAllConnectionFlags();	//PxVisualDebuggerConnectionFlag::ePROFILE
-				// and now try to connect
-				m_VSDConnection = PxVisualDebuggerExt::createConnection(m_Physics->getPvdConnectionManager(), pvd_host_ip, port, timeout, connectionFlags);
-
-				if (m_VSDConnection) {
-					Helper::Log("PhysX VSD Connection - initialized.\n");
-					m_Physics->getVisualDebugger()->setVisualDebuggerFlag(PxVisualDebuggerFlag::eTRANSMIT_CONSTRAINTS, true);
-				}
-			}
-		}
-#endif
-
 		PxRegisterUnifiedHeightFields(*m_Physics);
 
 		PxSceneDesc sceneDesc(m_Physics->getTolerancesScale());
 
-		const int noOfThreads = 8; // 1
+		// PhysX Visual Debugger - connection
+ #if defined(USE_PHYSX_VISUALDEBUGGER)
+		{
+			// setup connection parameters
+			const char* pvd_host_ip = "localhost";  // IP of the PC which is running PVD
+			int port = 5425;                        // TCP port to connect to, where PVD is listening
+ 													//unsigned int timeout = 100;          // timeout in milliseconds to wait for PVD to respond,
+			unsigned int timeout = 10000;           // timeout in milliseconds to wait for PVD to respond,
+ 													// consoles and remote PCs need a higher timeout.
+			m_PvdTransport = PxDefaultPvdSocketTransportCreate(pvd_host_ip, port, timeout);
+			if (!m_PvdTransport) fatalError("PxDefaultPvdSocketTransportCreate failed!");
+
+			// and now try to connect
+			m_Pvd->connect(*m_PvdTransport, PxPvdInstrumentationFlag::eALL);
+			if (m_Pvd->isConnected()) Helper::Log("PhysX Visual Debugger Connection - initialized.\n");
+		}
+#endif
+
+		const int noOfThreads = 3; // 1
 		const PxVec3 gravity = PxVec3(0.0f, 0.0f, -9.81f);
 
 		sceneDesc.gravity = gravity;
-		PxDefaultCpuDispatcher* mCpuDispatcher = PxDefaultCpuDispatcherCreate(noOfThreads);
-		if (!mCpuDispatcher) fatalError("PxDefaultCpuDispatcherCreate failed!");
-		sceneDesc.cpuDispatcher = mCpuDispatcher;
+		m_CpuDispatcher = PxDefaultCpuDispatcherCreate(noOfThreads);
+		if (!m_CpuDispatcher) fatalError("PxDefaultCpuDispatcherCreate failed!");
+		sceneDesc.cpuDispatcher = m_CpuDispatcher;
 		sceneDesc.filterShader = CollFilter;
 		sceneDesc.broadPhaseType = PxBroadPhaseType::eMBP;
 		sceneDesc.flags |= PxSceneFlag::eENABLE_CCD;
@@ -226,6 +227,8 @@ namespace cpx // CryPhysX helper
 
 		m_Scene = m_Physics->createScene(sceneDesc);
 		if (!m_Scene) fatalError("createScene failed!");
+
+		m_Scene->getScenePvdClient()->setScenePvdFlag(PxPvdSceneFlag::eTRANSMIT_CONSTRAINTS, true);
 
 		if (USE_PHYSX_DEBUGDRAW)
 		{
@@ -253,10 +256,14 @@ namespace cpx // CryPhysX helper
 	CryPhysX::~CryPhysX()
 	{
 		// shutdown PhysX
-		if (m_VSDConnection) m_VSDConnection->release();
 		PxCloseVehicleSDK();
+		m_Cooking->release();
 		m_Scene->release();
+		m_CpuDispatcher->release();
 		m_Physics->release();
+		m_Pvd->release();
+		if (m_PvdTransport) m_PvdTransport->release();
+		PxCloseExtensions();
 		m_Foundation->release();
 	}
 
@@ -313,6 +320,10 @@ namespace cpx // CryPhysX helper
 		_SceneResetEntities(m_Scene, PxActorTypeFlag::eRIGID_DYNAMIC);
 	}
 
+	void CryPhysX::DisconnectPhysicsDebugger()
+	{
+		if (m_Pvd->isConnected()) m_Pvd->disconnect();
+	}
 }
 
 //////////////////////////////////////////////////////////////////////////

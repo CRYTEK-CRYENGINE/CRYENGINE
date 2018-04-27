@@ -12,6 +12,7 @@ add_sources("CryAudioImpl_uber_0.cpp"
 		"AudioImplCVars.h"
 		"AudioObject.h"
 		"Common.h"
+		"GlobalData.h"
 		"resource.h"
 		"stdafx.h"
 	SOURCE_GROUP "Source Files"
@@ -33,9 +34,48 @@ end_sources()
 #END-FILE-LIST
 
 if(AUDIO_FMOD)
-	CryEngineModule(CryAudioImplFmod FORCE_SHARED PCH "stdafx.cpp" SOLUTION_FOLDER "CryEngine/Audio/Implementations")
+	CryEngineModule(CryAudioImplFmod FORCE_SHARED_WIN PCH "stdafx.cpp" SOLUTION_FOLDER "CryEngine/Audio/Implementations")
 	target_include_directories(CryAudioImplFmod PRIVATE ../../Common)
 	target_link_libraries(CryAudioImplFmod PRIVATE fmod fmodstudio)
 else()
 	CryFileContainer(CryAudioImplFmod SOLUTION_FOLDER "CryEngine/Audio/Implementations")
+endif()
+if (ORBIS OR CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+	target_compile_options(${THIS_PROJECT} PRIVATE
+		-Wno-unknown-pragmas
+		-Wno-unused-variable
+		-Wno-reorder
+		-Wno-parentheses
+		-Wno-format
+		-Wno-switch
+		-Wno-unused-value
+		-Wno-comment
+		-Wno-empty-body
+		-Wno-format-security
+		-Wno-unused-function
+		-Wno-multichar
+		-Wno-unused-private-field
+	)
+elseif(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+	target_compile_options(${THIS_PROJECT} PRIVATE
+		-Wno-unused-function
+		-Wno-unused-value
+		-Wno-unused-variable
+		-Wno-sign-compare
+		-Wno-ignored-attributes
+		-Wno-int-in-bool-context
+		-Wno-unused-but-set-variable
+		-Wno-misleading-indentation
+		-Wno-unknown-pragmas
+		-Wno-unused-const-variable
+		-Wno-strict-aliasing
+		-Wno-maybe-uninitialized
+		-Wno-multichar
+		-Wno-char-subscripts
+		-Wno-parentheses
+		-Wno-comment
+		-Wno-address
+		-Wno-format
+		-Wno-switch
+	)
 endif()

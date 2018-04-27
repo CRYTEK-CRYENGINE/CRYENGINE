@@ -34,7 +34,7 @@ namespace Cry
 			// IEntityComponent
 			virtual void Initialize() final;
 
-			virtual void ProcessEvent(SEntityEvent& event) final;
+			virtual void ProcessEvent(const SEntityEvent& event) final;
 			virtual uint64 GetEventMask() const final;
 			// ~IEntityComponent
 
@@ -53,6 +53,8 @@ namespace Cry
 				desc.AddMember(&CFogComponent::m_type, 'type', "Type", "Type", "Type of shape to use for rendering the fog volume", IFogVolumeRenderNode::eFogVolumeType_Ellipsoid);
 				desc.AddMember(&CFogComponent::m_size, 'size', "Size", "Size", "Size of the fog volume", Vec3(1.f));
 				desc.AddMember(&CFogComponent::m_color, 'col', "Color", "Color", "Color of the fog volume", ColorF(1.f));
+				desc.AddMember(&CFogComponent::m_emission, 'emi', "Emission", "Emission", "Emissive Color of the fog volume", ColorF(0.f));
+				desc.AddMember(&CFogComponent::m_EmissionIntensity, 'emii', "EmissionIntensity", "Emission Intensity", "Specifies how much luminance (kcd/m2) the fog emits.", 0.0f);
 
 				desc.AddMember(&CFogComponent::m_options, 'opti', "Options", "Options", nullptr, CFogComponent::SOptions());
 			}
@@ -71,40 +73,43 @@ namespace Cry
 					desc.AddMember(&CFogComponent::SOptions::m_globalDensity, 'glde', "GlobalDensity", "Global Density", nullptr, 1.f);
 					desc.AddMember(&CFogComponent::SOptions::m_densityOffset, 'deno', "DensityOffset", "Density Offset", nullptr, 0.f);
 
-					//desc.AddMember(&CFogComponent::SOptions::m_nearCutoff, 'necu', "NearCutoff", "Near Cutoff", nullptr, 0.f);
-					//desc.AddMember(&CFogComponent::SOptions::m_softEdges, 'soed', "SoftEdges", "Soft Edges", nullptr, 1.f);
+					desc.AddMember(&CFogComponent::SOptions::m_nearCutoff, 'necu', "NearCutoff", "Near Cutoff", nullptr, 0.f);
+					desc.AddMember(&CFogComponent::SOptions::m_softEdges, 'soed', "SoftEdges", "Soft Edges", nullptr, 1.f);
 					desc.AddMember(&CFogComponent::SOptions::m_heightFallOffDirLong, 'helo', "HeightFalloffDirLong", "Height Falloff Longitude", nullptr, 0.f);
 					desc.AddMember(&CFogComponent::SOptions::m_heightFallOffDirLati, 'hela', "HeightFalloffDirLati", "Height Falloff Latitude", nullptr, 0.f);
 					desc.AddMember(&CFogComponent::SOptions::m_heightFallOffShift, 'hesh', "HeightFalloffShift", "Height Falloff Shift", nullptr, 0.f);
 					desc.AddMember(&CFogComponent::SOptions::m_heightFallOffScale, 'hesc', "HeightFalloffScale", "Height Falloff Scale", nullptr, 1.f);
-					//desc.AddMember(&CFogComponent::SOptions::m_rampStart, 'rast', "RampStart", "Ramp Start", nullptr, 0.f);
-					//desc.AddMember(&CFogComponent::SOptions::m_rampEnd, 'raen', "RampEnd", "Ramp End", nullptr, 50.f);
-					//desc.AddMember(&CFogComponent::SOptions::m_rampInfluence, 'rain', "RampInfluence", "Ramp Influence", nullptr, 0.f);
-					//desc.AddMember(&CFogComponent::SOptions::m_windInfluence, 'wiin', "WindInfluence", "Wind Influence", nullptr, 1.f);
-					//desc.AddMember(&CFogComponent::SOptions::m_densityNoiseScale, 'dens', "DensityNoiseScale", "Density Noise Scale", nullptr, 0.f);
-					//desc.AddMember(&CFogComponent::SOptions::m_densityNoiseOffset, 'deof', "DensityNoiseOffset", "Density Noise Offset", nullptr, 0.f);
-					//desc.AddMember(&CFogComponent::SOptions::m_densityNoiseTimeFrequency, 'denf', "DensityNoiseTimeFrequency", "Density Noise Time Frequency", nullptr, 0.f);
-					//desc.AddMember(&CFogComponent::SOptions::m_densityNoiseFrequency, 'defn', "DensityNoiseFrequence", "Density Noise Frequenc", nullptr, Vec3(1.f));
+					desc.AddMember(&CFogComponent::SOptions::m_rampStart, 'rast', "RampStart", "Ramp Start", nullptr, 0.f);
+					desc.AddMember(&CFogComponent::SOptions::m_HDRDynamic, 'hdrd', "HDRDynamic", "HDR Dynamic", nullptr, 0.f);
+					desc.AddMember(&CFogComponent::SOptions::m_rampEnd, 'raen', "RampEnd", "Ramp End", nullptr, 50.f);
+					desc.AddMember(&CFogComponent::SOptions::m_rampInfluence, 'rain', "RampInfluence", "Ramp Influence", nullptr, 0.f);
+					desc.AddMember(&CFogComponent::SOptions::m_windInfluence, 'wiin', "WindInfluence", "Wind Influence", nullptr, 1.f);
+					desc.AddMember(&CFogComponent::SOptions::m_densityNoiseScale, 'dens', "DensityNoiseScale", "Density Noise Scale", nullptr, 0.f);
+					desc.AddMember(&CFogComponent::SOptions::m_densityNoiseOffset, 'deof', "DensityNoiseOffset", "Density Noise Offset", nullptr, 0.f);
+					desc.AddMember(&CFogComponent::SOptions::m_densityNoiseTimeFrequency, 'denf', "DensityNoiseTimeFrequency", "Density Noise Time Frequency", nullptr, 0.f);
+					desc.AddMember(&CFogComponent::SOptions::m_densityNoiseFrequency, 'defn', "DensityNoiseFrequence", "Density Noise Frequenc", nullptr, Vec3(1.f));
 				}
 
 				bool m_bUseGlobalFogColor = false;
 				bool m_bIgnoreVisAreas = false;
 				bool m_bAffectsOnlyThisArea = false;
 				Schematyc::Range<0, 10000> m_globalDensity = 1.f;
+				Schematyc::Range<0, 10000> m_HDRDynamic = 0.f;
 				Schematyc::Range<0, 100> m_densityOffset = 0.f;
 				Schematyc::Range<0, 100> m_nearCutoff = 0.f;
-				Schematyc::Range<0, 1> m_softEdges = 1.f;
+				Schematyc::Range<0, 1, 0, 1, float> m_softEdges = 1.f;
 				Schematyc::Range<0, 100> m_heightFallOffDirLong = 0.f;
 				Schematyc::Range<0, 100> m_heightFallOffDirLati = 0.f;
 				Schematyc::Range<0, 100> m_heightFallOffShift = 0.f;
 				Schematyc::Range<0, 100> m_heightFallOffScale = 1.f;
 				Schematyc::Range<0, 30000> m_rampStart = 0.f;
 				Schematyc::Range<0, 30000> m_rampEnd = 50.f;
-				Schematyc::Range<0, 1> m_rampInfluence = 0.f;
+				Schematyc::Range<0, 1, 0, 1, float> m_rampInfluence = 0.f;
 				Schematyc::Range<0, 20> m_windInfluence = 1.f;
 				Schematyc::Range<0, 20> m_densityNoiseScale = 0.f;
-				Schematyc::Range<-20, 20> m_densityNoiseOffset = 0.f;
+				Schematyc::Range<-20, 20, -20, 20, float> m_densityNoiseOffset = 0.f;
 				Schematyc::Range<0, 10> m_densityNoiseTimeFrequency = 0.f;
+
 				Vec3 m_densityNoiseFrequency = Vec3(1.f);
 			};
 
@@ -116,9 +121,11 @@ namespace Cry
 					fogProperties.m_volumeType = m_type;
 					fogProperties.m_size = m_size;
 					fogProperties.m_color = m_color;
-
 					fogProperties.m_useGlobalFogColor = m_options.m_bUseGlobalFogColor;
-					fogProperties.m_fHDRDynamic = 0.f;
+					fogProperties.m_fHDRDynamic = m_options.m_HDRDynamic;
+
+					fogProperties.m_affectsThisAreaOnly = m_options.m_bAffectsOnlyThisArea;
+					fogProperties.m_ignoresVisAreas = m_options.m_bIgnoreVisAreas;
 
 					fogProperties.m_globalDensity = m_options.m_globalDensity;
 					fogProperties.m_densityOffset = m_options.m_densityOffset;
@@ -140,6 +147,10 @@ namespace Cry
 					const float kiloScale = 1000.0f;
 					const float toLightUnitScale = kiloScale / RENDERER_LIGHT_UNIT_SCALE;
 
+					m_emission.adjust_luminance(m_EmissionIntensity * toLightUnitScale);
+
+					fogProperties.m_emission = m_emission.toVec3();
+
 					m_pEntity->LoadFogVolume(GetOrMakeEntitySlotId(), fogProperties);
 				}
 				else
@@ -160,6 +171,9 @@ namespace Cry
 			virtual void SetColor(const ColorF& color) { m_color = color; }
 			const ColorF& GetColor() const { return m_color; }
 
+			virtual void SetEmission(const ColorF& color) { m_emission = color; }
+			const ColorF& GetEmission() const { return m_emission; }
+
 			virtual SOptions& GetOptions() { return m_options; }
 			const SOptions& GetOptions() const { return m_options; }
 
@@ -168,6 +182,8 @@ namespace Cry
 			IFogVolumeRenderNode::eFogVolumeType m_type = IFogVolumeRenderNode::eFogVolumeType_Ellipsoid;
 			Vec3 m_size = Vec3(1.f);
 			ColorF m_color = ColorF(1.f);
+			ColorF m_emission = ColorF(0.f);
+			Schematyc::Range<0, 100> m_EmissionIntensity = 0.f;
 
 			SOptions m_options;
 		};

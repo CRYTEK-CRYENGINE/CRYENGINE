@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 
@@ -49,10 +49,11 @@ float CSphereGeom::GetExtent(EGeomForm eForm) const
 	return SphereExtent(eForm, m_sphere.r);
 }
 
-void CSphereGeom::GetRandomPos(PosNorm& ran, CRndGen& seed, EGeomForm eForm) const
+void CSphereGeom::GetRandomPoints(Array<PosNorm> points, CRndGen& seed, EGeomForm eForm) const
 {
-	SphereRandomPos(ran, seed, eForm, m_sphere.r);
-	ran.vPos += m_sphere.center;
+	SphereRandomPoints(points, seed, eForm, m_sphere.r);
+	for (auto& ran : points)
+		ran.vPos += m_sphere.center;
 }
 
 static CRY_ALIGN(16) char g_SphIdBuf[1];

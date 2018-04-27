@@ -1,4 +1,6 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
+
+//! \cond INTERNAL
 
 #pragma once
 #include "UnicodeBinding.h"
@@ -20,7 +22,7 @@ struct SAnalysisResult
 	size_type cpInvalid;        //!< The number of invalid UCS code-point encountered (or 0xFFFFFFFF if not available).
 
 	//! Default constructor, initialize everything to zero.
-	SAnalysisResult() : inputUnits(0), outputUnits8(0), outputUnits16(0), outputUnits32(0), cpInvalid(0), cpNonAscii(0) {}
+	SAnalysisResult() : inputUnits(0), outputUnits8(0), outputUnits16(0), outputUnits32(0), cpNonAscii(0), cpInvalid(0) {}
 
 	//! Check if the input range was empty.
 	bool IsEmpty() const { return inputUnits == 0; }
@@ -1136,3 +1138,5 @@ inline size_t AppendSafe(OutputCharType* buffer, size_t length, InputIteratorTyp
 	return Detail::Convert<InputEncoding, OutputEncoding, true, InputStringType, OutputStringType>(result, its) + 1;
 }
 }
+
+//! \endcond

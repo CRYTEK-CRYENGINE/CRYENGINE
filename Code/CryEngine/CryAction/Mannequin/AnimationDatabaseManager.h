@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 //
 ////////////////////////////////////////////////////////////////////////////
@@ -153,23 +153,24 @@ public:
 		return NULL;
 	}
 
-	const IAnimationDatabase* Load(const char* filename);
-	const SControllerDef*     LoadControllerDef(const char* filename);
-	const CTagDefinition*     LoadTagDefs(const char* filename, bool isTags);
+	virtual const IAnimationDatabase* Load(const char* filename);
+	virtual const SControllerDef*     LoadControllerDef(const char* filename);
+	virtual const CTagDefinition*     LoadTagDefs(const char* filename, bool isTags);
+	virtual void                      SaveAll(IMannequinWriter* pWriter) const;
 
-	const IAnimationDatabase* FindDatabase(const uint32 crcFilename) const;
+	virtual const IAnimationDatabase* FindDatabase(const uint32 crcFilename) const; 
 
-	const SControllerDef*     FindControllerDef(const uint32 crcFilename) const;
-	const SControllerDef*     FindControllerDef(const char* filename) const;
+	virtual const SControllerDef*     FindControllerDef(const uint32 crcFilename) const;
+	virtual const SControllerDef*     FindControllerDef(const char* filename) const;
 
-	const CTagDefinition*     FindTagDef(const uint32 crcFilename) const;
-	const CTagDefinition*     FindTagDef(const char* filename) const;
+	virtual const CTagDefinition*     FindTagDef(const uint32 crcFilename) const;
+	virtual const CTagDefinition*     FindTagDef(const char* filename) const;
 
-	IAnimationDatabase*       Create(const char* filename, const char* defFilename);
-	CTagDefinition*           CreateTagDefinition(const char* filename);
+	virtual IAnimationDatabase*       Create(const char* filename, const char* defFilename);
+	virtual CTagDefinition*           CreateTagDefinition(const char* filename);
 
-	void                      ReloadAll();
-	void                      UnloadAll();
+	virtual void                      ReloadAll();
+	virtual void                      UnloadAll();
 
 	// IMannequinEditorManager
 	void                    GetAffectedFragmentsString(const CTagDefinition* pQueryTagDef, TagID tagID, char* buffer, int bufferSize);
@@ -193,7 +194,6 @@ public:
 	void                    GetLoadedDatabases(DynArray<const IAnimationDatabase*>& animDatabases) const;
 	void                    GetLoadedControllerDefs(DynArray<const SControllerDef*>& controllerDefs) const;
 
-	void                    SaveAll(IMannequinWriter* pWriter) const;
 	void                    RevertDatabase(const char* szFilename);
 	void                    RevertControllerDef(const char* szFilename);
 	void                    RevertTagDef(const char* szFilename);

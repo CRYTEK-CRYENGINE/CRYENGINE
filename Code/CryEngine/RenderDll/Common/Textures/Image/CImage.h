@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #ifndef CIMAGE_H
 #define CIMAGE_H
@@ -22,7 +22,7 @@ struct SRGBPixel
 	uint8 blue, green, red, alpha;
 	SRGBPixel()  /* : red(0), green(0), blue(0), alpha(255) {} */
 	{ *(unsigned int*)this = (unsigned int)~RGB_MASK; }
-	SRGBPixel(int r, int g, int b) : red(r), green(g), blue(b), alpha(255) {}
+	SRGBPixel(int r, int g, int b) : blue(b), green(g), red(r), alpha(255) {}
 	//bool eq (const SRGBPixel& p) const { return ((*(unsigned int *)this) & RGB_MASK) == ((*(unsigned int *)&p) & RGB_MASK); }
 };
 
@@ -180,9 +180,23 @@ public:
 	virtual DDSSplitted::DDSDesc mfGet_DDSDesc() const = 0;
 
 public:
-	static _smart_ptr<CImageFile> mfLoad_file(const string& filename, const uint32 nFlags);
-	static _smart_ptr<CImageFile> mfStream_File(const string& filename, const uint32 nFlags, IImageFileStreamCallback* pCallback);
-	static bool                   mfInvokeRC(const string& fileToLoad, const string& filename, char* extOut, size_t extOutCapacity);
+	enum class EResourceCompilerResult
+	{
+		//! Texture was already compiled, no need to run RC
+		AlreadyCompiled,
+		//! Texture was queued for compilation, will not be available immediately
+		Queued,
+		//! Texture was compiled immediately, and can be loaded right away.
+		Available,
+		//! Texture compilation failed
+		Failed,
+		//! RC invoke was disabled, or image format was not supported
+		Skipped,
+	};
+
+	static _smart_ptr<CImageFile>  mfLoad_file(const string& filename, const uint32 nFlags);
+	static _smart_ptr<CImageFile>  mfStream_File(const string& filename, const uint32 nFlags, IImageFileStreamCallback* pCallback);
+	static EResourceCompilerResult mfInvokeRC(const string& fileToLoad, const string& filename, char* extOut, size_t extOutCapacity, bool immediate);
 };
 
 #endif

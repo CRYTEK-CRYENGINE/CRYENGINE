@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 /*************************************************************************
    -------------------------------------------------------------------------
@@ -77,7 +77,7 @@ bool CLanQueryListener::IsSuicidal()
 	return false;
 }
 
-void CLanQueryListener::DeleteThis()
+void CLanQueryListener::DeleteThis() const
 {
 	delete this;
 }
@@ -109,7 +109,7 @@ void CLanQueryListener::OnError(const TNetAddress& addr, ESocketError error)
 
 void CLanQueryListener::TimerCallback(NetTimerId id, void* pUser, CTimeValue time)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_NETWORK);
+	CRY_PROFILE_FUNCTION(PROFILE_NETWORK);
 
 	CLanQueryListener* pThis = static_cast<CLanQueryListener*>(pUser);
 	NET_ASSERT(pThis->m_timer == id);
@@ -157,7 +157,7 @@ void CLanQueryListener::DeleteNetQueryListener()
 
 void CLanQueryListener::ProcessPongFrom(const uint8* buffer, size_t bufferLength, const TNetAddress& addr)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_NETWORK);
+	CRY_PROFILE_FUNCTION(PROFILE_NETWORK);
 
 	// only accept pongs for which we have pinged
 	TOutstandingPings::const_iterator iter = m_outstandingPings.find(addr);
@@ -206,7 +206,7 @@ void CLanQueryListener::ProcessPongFrom(const uint8* buffer, size_t bufferLength
 
 void CLanQueryListener::ProcessResultFrom(const uint8* buffer, size_t bufferLength, const TNetAddress& addr)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_NETWORK);
+	CRY_PROFILE_FUNCTION(PROFILE_NETWORK);
 
 	if (IsDead())
 		return;
@@ -276,7 +276,7 @@ void CLanQueryListener::GQ_Lazy_PrepareSendPingTo(CNameRequestPtr pReq)
 
 void CLanQueryListener::GQ_SendPingTo(CNameRequestPtr pReq)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_NETWORK);
+	CRY_PROFILE_FUNCTION(PROFILE_NETWORK);
 
 	TNetAddressVec addrVec;
 	if (pReq->GetResult(addrVec) != eNRR_Succeeded)

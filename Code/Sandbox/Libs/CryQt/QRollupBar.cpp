@@ -1,3 +1,5 @@
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
+
 #include <StdAfx.h>
 #include <QVBoxLayout>
 #include "QScrollableBox.h"
@@ -181,7 +183,7 @@ QWidget* QRollupBar::widget(int index) const
 void QRollupBar::SetRollupsClosable(bool closable)
 {
 	m_rollupsClosable = closable;
-	for each (auto var in m_subFrames)
+	for (auto var : m_subFrames)
 	{
 		var->SetClosable(closable);
 	}
@@ -302,5 +304,6 @@ bool QRollupBar::eventFilter(QObject * o, QEvent * e)
 	}
 	return QWidget::eventFilter(o, e);
 }
+
 
 

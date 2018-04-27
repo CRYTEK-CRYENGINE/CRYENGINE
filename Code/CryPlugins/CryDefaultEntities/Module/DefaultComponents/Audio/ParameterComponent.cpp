@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "ParameterComponent.h"
@@ -29,7 +29,7 @@ void CParameterComponent::ReflectType(Schematyc::CTypeDesc<CParameterComponent>&
 	desc.SetEditorCategory("Audio");
 	desc.SetLabel("Parameter");
 	desc.SetDescription("Allows for setting a parameter on all audio audio objects created by the component this component is attached to.");
-	desc.SetIcon("icons:Audio/parameter.ico");
+	desc.SetIcon("icons:Audio/component_parameter.ico");
 	desc.SetComponentFlags({ IEntityComponent::EFlags::Attach, IEntityComponent::EFlags::ClientOnly, IEntityComponent::EFlags::HideFromInspector });
 
 	desc.AddMember(&CParameterComponent::m_parameter, 'para', "parameter", "Parameter", "The parameter which value is applied to all audio objects.", SParameterSerializeHelper());
@@ -58,7 +58,7 @@ uint64 CParameterComponent::GetEventMask() const
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CParameterComponent::ProcessEvent(SEntityEvent& event)
+void CParameterComponent::ProcessEvent(const SEntityEvent& event)
 {
 #if defined(INCLUDE_DEFAULT_PLUGINS_PRODUCTION_CODE)
 	if (m_pIEntityAudioComponent != nullptr)

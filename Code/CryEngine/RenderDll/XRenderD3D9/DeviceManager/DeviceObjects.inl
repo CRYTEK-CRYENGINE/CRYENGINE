@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -145,6 +145,8 @@ inline void CDeviceObjectFactory::ExtractBasePointer(D3DBuffer* buffer, D3D11_MA
 	base_ptr = CDeviceObjectFactory::Map(buffer, 0, 0, 0, mode /* MAP_DISCARD could affect the ptr */);
 #elif CRY_RENDERER_VULKAN
 	base_ptr = (uint8*)buffer->Map();
+#else
+	base_ptr = NULL;
 #endif
 #else
 	base_ptr = NULL;
@@ -184,4 +186,28 @@ inline uint8 CDeviceObjectFactory::MarkWriteRange(D3DBuffer* buffer, buffer_size
 #endif
 
 	return uint8(marker);
+}
+
+// Local helper function to erase items with refcount 1 from some cache of shared pointers
+template<typename TCache>
+inline void EraseUnusedEntriesFromCache(TCache& cache)
+{
+	for (auto it = cache.begin(); it != cache.end(); )
+	{
+		it = it->second.use_count() == 1 ?
+			cache.erase(it) :
+			std::next(it);
+	}
+}
+
+// Local helper function to erase expired-items from some cache of weak pointers
+template<typename TCache>
+inline void EraseExpiredEntriesFromCache(TCache& cache)
+{
+	for (auto it = cache.begin(); it != cache.end(); )
+	{
+		it = it->second.expired() ?
+			cache.erase(it) :
+			std::next(it);
+	}
 }

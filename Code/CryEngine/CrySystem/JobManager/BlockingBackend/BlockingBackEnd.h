@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 // -------------------------------------------------------------------------
 //  File name:   ThreadBackEnd.h
@@ -65,7 +65,7 @@ private:
 // the implementation of the PC backend
 // has n-worker threads which use atomic operations to pull from the job queue
 // and uses a semaphore to signal the workers if there is work requiered
-class CBlockingBackEnd : public IBackend
+class CBlockingBackEnd final : public IBackend
 {
 public:
 	CBlockingBackEnd(JobManager::SInfoBlock** pRegularWorkerFallbacks, uint32 nRegularWorkerThreads);
@@ -76,6 +76,8 @@ public:
 	void           Update() {}
 
 	virtual void   AddJob(JobManager::CJobDelegator& crJob, const JobManager::TJobHandle cJobHandle, JobManager::SInfoBlock& rInfoBlock);
+
+	virtual bool   AddTempWorkerUntilJobStateIsComplete(JobManager::SJobState& pJobState) { return false; }
 
 	virtual uint32 GetNumWorkerThreads() const { return m_nNumWorker; }
 

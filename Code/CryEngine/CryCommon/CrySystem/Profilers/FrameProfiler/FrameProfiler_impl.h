@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 // -------------------------------------------------------------------------
 //  File name:   FrameProfiler_impl.pc.h
@@ -60,7 +60,7 @@ ColorF profile_colors[] =
 /* inline */ void CryProfile::detail::SetThreadName(const char* pName)                           {}
 /* inline */ void CryProfile::detail::SetProfilingEvent(const BYTE colorId, const char* Name)    {}
 /* inline */ void CryProfile::detail::PushProfilingMarker(const BYTE colorId, const char* pName) {}
-/* inline */ void CryProfile::detail::PopProfilingMarker()                                       {}
+/* inline */ void CryProfile::detail::PopProfilingMarker(const BYTE colorId, const char* pName)  {}
 /* inline */ void CryProfile::detail::ProfilerPause()                                            {}
 /* inline */ void CryProfile::detail::ProfilerResume()                                           {}
 /* inline */ void CryProfile::detail::ProfilerFrameStart(int nFrameId)                           {}
@@ -91,7 +91,7 @@ void CryProfile::PushProfilingMarker(const EProfileDescription desc, const char*
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CryProfile::PopProfilingMarker()
+void CryProfile::PopProfilingMarker(const EProfileDescription desc, const char* pName)
 {
 	gEnv->pJobManager->PopProfilingMarker();
 }

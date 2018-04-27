@@ -1,10 +1,13 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 using System;
 using CryEngine.Common;
 
 namespace CryEngine.Animations
 {
+	/// <summary>
+	/// Handles advanced character animations in the CRYENGINE.
+	/// </summary>
 	public class Mannequin
 	{
 		#region singleton properties and fields

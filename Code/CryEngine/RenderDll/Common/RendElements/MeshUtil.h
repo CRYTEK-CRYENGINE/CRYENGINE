@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -22,15 +22,15 @@ struct SpritePoint
 
 	SpritePoint(const Vec2& _pos, float _brightness) :
 		pos(_pos),
-		brightness(_brightness),
 		size(0.1f),
+		brightness(_brightness),
 		rotation(0)
 	{
 		color.set(1, 1, 1, 1);
 	}
 	SpritePoint() :
-		brightness(1),
 		size(0.1f),
+		brightness(1),
 		rotation(0)
 	{
 		pos.set(0, 0);

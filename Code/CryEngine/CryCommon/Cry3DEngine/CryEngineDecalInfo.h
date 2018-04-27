@@ -1,23 +1,6 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
-//
-//	File:CryEngineDecalInfo.h
-//	Description: declaration of struct CryEngineDecalInfo.
-//
-//	History:
-//	-Sep 23, 2002: Created by Ivo Herzeg
-//
-//	Note:
-//    3D Engine and Character Animation subsystems (as well as perhaps
-//    some others) transfer data about the decals that need to be spawned
-//    via this structure. This is to avoid passing many parameters through
-//    each function call, and to save on copying these parameters when just
-//    simply passing the structure from one function to another.
-//
-//////////////////////////////////////////////////////////////////////
-
-#ifndef _CRY_ENGINE_DECAL_INFO_HDR_
-#define _CRY_ENGINE_DECAL_INFO_HDR_
+#pragma once
 
 //! Structure containing common parameters that describe a decal.
 struct SDecalOwnerInfo
@@ -64,5 +47,3 @@ struct CryEngineDecalInfo
 		sortPrio = 255;
 	}
 };
-
-#endif

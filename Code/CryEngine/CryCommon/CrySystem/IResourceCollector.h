@@ -1,7 +1,6 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
-#ifndef _CRY_COMMON_CRY_RESOURCECOLLECTOR_INTERFACE_HDR_
-#define _CRY_COMMON_CRY_RESOURCECOLLECTOR_INTERFACE_HDR_
+//! \cond INTERNAL
 
 #pragma once
 
@@ -41,4 +40,4 @@ public:
 	virtual ~NullResCollector() {}
 };
 
-#endif // _CRY_COMMON_CRY_RESOURCECOLLECTOR_INTERFACE_HDR_
+//! \endcond

@@ -1,7 +1,7 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
-#ifndef __IShaderParamCallback_h__
-#define __IShaderParamCallback_h__
+//! \cond INTERNAL
+
 #pragma once
 
 #include <CryExtension/ICryUnknown.h>
@@ -31,4 +31,4 @@ struct IShaderParamCallback : public ICryUnknown
 
 DECLARE_SHARED_POINTERS(IShaderParamCallback);                                                                \
 
-#endif //__IShaderParamCallback_h__
+//! \endcond

@@ -1,8 +1,8 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
-#include <CrySystem\File\CryFile.h>  // Includes CryPath.h in correct order. 
+#include <CrySystem/File/CryFile.h>  // Includes CryPath.h in correct order.
 
 struct IResourceCompiler;
 class IConfig;

@@ -1,0 +1,14 @@
+<AssetMetadata version="0" type="Texture" guid="fc26cf0c-3a9a-9d0b-136d-0a90d9865203" source="ripple18_ddn.tif">
+ <Files>
+  <File path="ripple18_ddn.dds"/>
+  <File path="ripple18_ddn.dds.1"/>
+  <File path="ripple18_ddn.dds.2"/>
+  <File path="ripple18_ddn.dds.3"/>
+  <File path="ripple18_ddn.dds.4"/>
+ </Files>
+ <Details>
+  <Detail name="width">256</Detail>
+  <Detail name="height">256</Detail>
+  <Detail name="mipCount">7</Detail>
+ </Details>
+</AssetMetadata>

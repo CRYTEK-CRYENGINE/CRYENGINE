@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 /********************************************************************
    -------------------------------------------------------------------------
@@ -153,14 +153,6 @@ public:
 	//	(see CLeader::GetAttentionTarget()
 	CAIObject* GetEnemyLeader() const;
 
-	// <Title GetHidePoint>
-	// Description: Find the point to hide for a unit, given the obstacle, using the enemy position as a reference
-	// Arguments:
-	//	CAIObject* pAIObject - unit's AI object
-	//  const CObstacleRef& obstacle - obstacle reference
-	// TODO : this method should be moved to the graph
-	Vec3 GetHidePoint(const CAIObject* pAIObject, const CObstacleRef& obstacle) const;
-
 	// <Title ShootSpotsAvailable>
 	// Description: returns true if there are active shoot spots available
 	inline bool ShootSpotAvailable() { return false; }
@@ -208,7 +200,7 @@ public:
 	// FORMATION RELATED FUNCTIONS
 	////////////////////////////////////////////////////////////////////////////////////////////////
 
-	bool                       LeaderCreateFormation(const char* szFormationName, const Vec3& vTargetPos, bool bIncludeLeader = true, uint32 unitProp = UNIT_ALL, CAIObject* pOwner = NULL);
+	bool                       LeaderCreateFormation(const char* szFormationName, const Vec3& vTargetPos, bool bIncludeLeader = true, uint32 unitProp = UPR_ALL, CAIObject* pOwner = NULL);
 	bool                       ReleaseFormation();
 
 	CWeakRef<CAIObject>        GetNewFormationPoint(CWeakRef<CAIObject> refRequester, int iPointType = 0);

@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "Config.h"
@@ -289,7 +289,7 @@ void CNetContext::ActivateDemoPlayback(const char* filename, INetChannel* pClien
 void CNetContext::SyncWithGame(ENetworkGameSync type)
 {
 	ASSERT_GLOBAL_LOCK;
-	FUNCTION_PROFILER(GetISystem(), PROFILE_NETWORK);
+	CRY_PROFILE_FUNCTION(PROFILE_NETWORK);
 	ENSURE_REALTIME;
 
 	SNetObjectEvent syncEvent;

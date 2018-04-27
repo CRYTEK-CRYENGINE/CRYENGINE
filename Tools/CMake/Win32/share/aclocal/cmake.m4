@@ -24,10 +24,10 @@ AC_ARG_VAR([$1][_LIBS], [linker flags for $1. This overrides the cmake output])d
 
 failed=false
 AC_MSG_CHECKING([for $1])
-if test -n "$1[]_$2[]FLAGS"; then
+if test -z "${$1[]_$2[]FLAGS}"; then
     $1[]_$2[]FLAGS=`$CMAKE_BINARY --find-package "-DNAME=$1" "-DCOMPILER_ID=m4_default([$3], [GNU])" "-DLANGUAGE=$2" -DMODE=COMPILE $4` || failed=true
 fi
-if test -n "$1[]_LIBS"; then
+if test -z "${$1[]_LIBS}"; then
     $1[]_LIBS=`$CMAKE_BINARY --find-package "-DNAME=$1" "-DCOMPILER_ID=m4_default([$3], [GNU])" "-DLANGUAGE=$2" -DMODE=LINK $4` || failed=true
 fi
 

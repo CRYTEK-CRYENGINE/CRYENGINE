@@ -1,7 +1,9 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "stdafx.h"
 #include "AudioImplCVars.h"
+
+#include "AudioImpl.h"
 #include <CrySystem/IConsole.h>
 
 namespace CryAudio
@@ -10,6 +12,19 @@ namespace Impl
 {
 namespace Wwise
 {
+CImpl* CCVars::s_pImpl = nullptr;
+
+//////////////////////////////////////////////////////////////////////////
+void SetPanningRule(ICVar* const pPanningRule)
+{
+	pPanningRule->Set(crymath::clamp(pPanningRule->GetIVal(), 0, 1));
+
+	if (CCVars::s_pImpl != nullptr)
+	{
+		CCVars::s_pImpl->SetPanningRule(pPanningRule->GetIVal());
+	}
+}
+
 //////////////////////////////////////////////////////////////////////////
 void CCVars::RegisterVariables()
 {
@@ -26,6 +41,7 @@ void CCVars::RegisterVariables()
 	#if defined(INCLUDE_WWISE_IMPL_PRODUCTION_CODE)
 	m_monitorMemoryPoolSize = 256;     // 256 KiB
 	m_monitorQueueMemoryPoolSize = 64; // 64 KiB
+	m_panningRule = 0;                 // Speakers
 	#endif                             // INCLUDE_WWISE_IMPL_PRODUCTION_CODE
 #elif CRY_PLATFORM_DURANGO
 	m_secondaryMemoryPoolSize = 32 << 10;          // 32 MiB
@@ -40,6 +56,7 @@ void CCVars::RegisterVariables()
 	#if defined(INCLUDE_WWISE_IMPL_PRODUCTION_CODE)
 	m_monitorMemoryPoolSize = 256;     // 256 KiB
 	m_monitorQueueMemoryPoolSize = 64; // 64 KiB
+	m_panningRule = 0;                 // Speakers
 	#endif                             // INCLUDE_WWISE_IMPL_PRODUCTION_CODE
 #elif CRY_PLATFORM_ORBIS
 	m_secondaryMemoryPoolSize = 0;
@@ -54,6 +71,7 @@ void CCVars::RegisterVariables()
 	#if defined(INCLUDE_WWISE_IMPL_PRODUCTION_CODE)
 	m_monitorMemoryPoolSize = 256;     // 256 KiB
 	m_monitorQueueMemoryPoolSize = 64; // 64 KiB
+	m_panningRule = 0;                 // Speakers
 	#endif                             // INCLUDE_WWISE_IMPL_PRODUCTION_CODE
 #elif CRY_PLATFORM_MAC
 	m_secondaryMemoryPoolSize = 0;
@@ -68,6 +86,7 @@ void CCVars::RegisterVariables()
 	#if defined(INCLUDE_WWISE_IMPL_PRODUCTION_CODE)
 	m_monitorMemoryPoolSize = 256;     // 256 KiB
 	m_monitorQueueMemoryPoolSize = 64; // 64 KiB
+	m_panningRule = 0;                 // Speakers
 	#endif                             // INCLUDE_WWISE_IMPL_PRODUCTION_CODE
 #elif CRY_PLATFORM_LINUX
 	m_secondaryMemoryPoolSize = 0;
@@ -82,6 +101,7 @@ void CCVars::RegisterVariables()
 	#if defined(INCLUDE_WWISE_IMPL_PRODUCTION_CODE)
 	m_monitorMemoryPoolSize = 256;     // 256 KiB
 	m_monitorQueueMemoryPoolSize = 64; // 64 KiB
+	m_panningRule = 0;                 // Speakers
 	#endif                             // INCLUDE_WWISE_IMPL_PRODUCTION_CODE
 #elif defined(CRY_PLATFORM_IOS)
 	m_secondaryMemoryPoolSize = 0;
@@ -96,6 +116,7 @@ void CCVars::RegisterVariables()
 	#if defined(INCLUDE_WWISE_IMPL_PRODUCTION_CODE)
 	m_monitorMemoryPoolSize = 256;     // 256 KiB
 	m_monitorQueueMemoryPoolSize = 64; // 64 KiB
+	m_panningRule = 1;                 // Headphones
 	#endif                             // INCLUDE_WWISE_IMPL_PRODUCTION_CODE
 #elif CRY_PLATFORM_ANDROID
 	m_secondaryMemoryPoolSize = 0;
@@ -110,6 +131,7 @@ void CCVars::RegisterVariables()
 	#if defined(INCLUDE_WWISE_IMPL_PRODUCTION_CODE)
 	m_monitorMemoryPoolSize = 256;     // 256 KiB
 	m_monitorQueueMemoryPoolSize = 64; // 64 KiB
+	m_panningRule = 1;                 // Headphones
 	#endif                             // INCLUDE_WWISE_IMPL_PRODUCTION_CODE
 #else
 	#error "Undefined platform."
@@ -160,6 +182,14 @@ void CCVars::RegisterVariables()
 	               "Usage: s_WwiseEnableSoundBankManagerThread [0/1]\n"
 	               "Default: 1 (on)\n");
 
+	REGISTER_CVAR2_CB("s_WwisePanningRule", &m_panningRule, m_panningRule, VF_NULL,
+	                  "Specifies the Wwise panning rule.\n"
+	                  "Usage: s_WwisePanningRule [0/1]\n"
+	                  "Default PC: 0, XboxOne: 0, PS4: 0, Mac: 0, Linux: 0, iOS: 1, Android: 1\n"
+	                  "0: Speakers\n"
+	                  "1: Headphones\n",
+	                  SetPanningRule);
+
 #if defined(INCLUDE_WWISE_IMPL_PRODUCTION_CODE)
 	REGISTER_CVAR2("s_WwiseEnableCommSystem", &m_enableCommSystem, 0, VF_REQUIRE_APP_RESTART,
 	               "Specifies whether Wwise should initialize using its Comm system or not.\n"
@@ -201,6 +231,7 @@ void CCVars::UnregisterVariables()
 		pConsole->UnregisterVariable("s_WwiseLowerEngineDefaultPoolSize");
 		pConsole->UnregisterVariable("s_WwiseEnableEventManagerThread");
 		pConsole->UnregisterVariable("s_WwiseEnableSoundBankManagerThread");
+		pConsole->UnregisterVariable("s_WwisePanningRule");
 
 #if defined(INCLUDE_WWISE_IMPL_PRODUCTION_CODE)
 		pConsole->UnregisterVariable("s_WwiseEnableCommSystem");

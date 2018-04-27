@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 //  (c) 2002-2012 Crytek GmbH 
 //  Created 24.1.2002 by Sergiy
 

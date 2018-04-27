@@ -1,0 +1,27 @@
+# Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+
+def build(bld):	
+
+	bld.CryEngineStaticModule( 
+		target    = 'cpprest', 
+		vs_filter = 'Libs',
+		file_list = 'cpprest.waf_files',
+		win_file_list = 'cpprest_win.waf_files',
+		linux_file_list = 'cpprest_posix.waf_files',
+		pch = '../../SDKs/cpprest/src/pch/stdafx.cpp',
+		exclude_from_static_code_analyzer = True,
+
+		includes = [ Path('Code/SDKs/cpprest/include'), Path('Code/SDKs/cpprest/src/pch') ],
+
+		defines   = [ 'CPPREST_EXCLUDE_WEBSOCKETS', '_NO_ASYNCRTIMP' ],
+
+		win_cxxflags  = [ '/EHsc' ],
+		linux_cxxflags = [ '-fexceptions' ],
+
+		module_provides = dict(
+			includes = [ Path('Code/SDKs/cpprest/include'), Path('Code/SDKs/cpprest/src/pch') ],
+			defines   = [ 'CPPREST_EXCLUDE_WEBSOCKETS', '_NO_ASYNCRTIMP' ],
+			win_lib = [ 'bcrypt', 'crypt32', 'httpapi', 'Winhttp' ],
+			linux_lib = [ 'boost_system', 'crypto', 'ssl', 'boost_thread' ]
+		),
+	)

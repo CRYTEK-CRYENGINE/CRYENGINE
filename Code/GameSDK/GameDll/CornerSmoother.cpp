@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 /*************************************************************************
 *************************************************************************/
@@ -521,9 +521,6 @@ namespace CornerSmoothing
 			IRenderAuxGeom* pAux = gEnv->pRenderer->GetIRenderAuxGeom();
 
 			pAux->SetRenderFlags(flags2D);
-
-			float screenWidth = float(gEnv->pRenderer->GetWidth());
-			float screenHeight = float(gEnv->pRenderer->GetHeight());
 
 			int numSamples = 50;
 

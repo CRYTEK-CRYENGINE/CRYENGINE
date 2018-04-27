@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "stdafx.h"
 
@@ -17,13 +17,13 @@ using Serialization::IArchive;
 
 void IAnimationFilterCondition::Serialize(Serialization::IArchive& ar)
 {
-	if (not)
+	if (invert)
 	{
-		if (!ar(not, "not", "^^Not"))
-			not = false;
+		if (!ar(invert, "not", "^^Not"))
+			invert = false;
 	}
 	else if (ar.isEdit() || ar.isInput() || ar.caps(ar.BINARY))
-		ar(not, "not", "^^");
+		ar(invert, "not", "^^");
 }
 
 SERIALIZATION_CLASS_NULL(IAnimationFilterCondition, "Empty Filter")
@@ -41,10 +41,10 @@ struct SAnimationFilterAnd : IAnimationFilterCondition
 			if (!conditions[i])
 				continue;
 			if (!conditions[i]->Check(item))
-				return not;
+				return invert;
 			++conditionsChecked;
 		}
-		return conditionsChecked != 0 ? !not : not;
+		return conditionsChecked != 0 ? !invert : invert;
 	}
 
 	void FindTags(std::vector<string>* tags) const override
@@ -54,7 +54,7 @@ struct SAnimationFilterAnd : IAnimationFilterCondition
 				conditions[i]->FindTags(tags);
 	}
 
-	void Serialize(IArchive& ar)
+	void Serialize(IArchive& ar) override
 	{
 		IAnimationFilterCondition::Serialize(ar);
 		ar(conditions, "conditions", "[<>]^");
@@ -73,15 +73,15 @@ struct SAnimationFilterOr : IAnimationFilterCondition
 	{
 		size_t numConditions = conditions.size();
 		if (numConditions == 0)
-			return not;
+			return invert;
 		for (size_t i = 0; i < numConditions; ++i)
 		{
 			if (!conditions[i])
 				continue;
 			if (conditions[i]->Check(item))
-				return !not;
+				return !invert;
 		}
-		return not;
+		return invert;
 	}
 
 	void FindTags(std::vector<string>* tags) const override
@@ -91,7 +91,7 @@ struct SAnimationFilterOr : IAnimationFilterCondition
 				conditions[i]->FindTags(tags);
 	}
 
-	void Serialize(Serialization::IArchive& ar)
+	void Serialize(Serialization::IArchive& ar) override
 	{
 		IAnimationFilterCondition::Serialize(ar);
 		ar(conditions, "conditions", "[<>]^");
@@ -127,12 +127,12 @@ struct SAnimationFilterInFolder : IAnimationFilterCondition
 		{
 			//if (context.log)
 			//  gEnv->pLog->Log( " + '%s' is located in folder '%s'", item.path.c_str(), m_path.c_str() );
-			return !not;
+			return !invert;
 		}
-		return not;
+		return invert;
 	}
 
-	void Serialize(Serialization::IArchive& ar)
+	void Serialize(Serialization::IArchive& ar) override
 	{
 		IAnimationFilterCondition::Serialize(ar);
 		ar(path, "path", "^<");
@@ -150,7 +150,7 @@ struct SAnimationFilterHasTags : IAnimationFilterCondition
 	bool Check(const SAnimationFilterItem& item) const override
 	{
 		if (tags.empty())
-			return not;
+			return invert;
 
 		size_t numTags = tags.size();
 		for (size_t i = 0; i < numTags; ++i)
@@ -167,10 +167,10 @@ struct SAnimationFilterHasTags : IAnimationFilterCondition
 			}
 
 			if (!hasTag)
-				return not;
+				return invert;
 		}
 
-		return !not;
+		return !invert;
 	}
 
 	void FindTags(std::vector<string>* tags) const override
@@ -178,7 +178,7 @@ struct SAnimationFilterHasTags : IAnimationFilterCondition
 		tags->insert(tags->end(), this->tags.begin(), this->tags.end());
 	}
 
-	void Serialize(IArchive& ar)
+	void Serialize(IArchive& ar) override
 	{
 		IAnimationFilterCondition::Serialize(ar);
 		ar(tags, "tags", "^");
@@ -205,12 +205,12 @@ struct SAnimationFilterNameContains : IAnimationFilterCondition
 		//if (match && context.log)
 		//	gEnv->pLog->Log( " + name '%s' contains '%s'", name.c_str(), m_nameContains.c_str() );
 		if (match)
-			return !not;
+			return !invert;
 		else
-			return not;
+			return invert;
 	}
 
-	void Serialize(IArchive& ar)
+	void Serialize(IArchive& ar) override
 	{
 		IAnimationFilterCondition::Serialize(ar);
 		ar(substring, "substring", "^<");
@@ -240,12 +240,12 @@ struct SAnimationFilterPathContains : IAnimationFilterCondition
 
 		bool match = normalizedItemPath.find(normalizedPath) != string::npos;
 		if (match)
-			return !not;
+			return !invert;
 		else
-			return not;
+			return invert;
 	}
 
-	void Serialize(Serialization::IArchive& ar)
+	void Serialize(Serialization::IArchive& ar) override
 	{
 		IAnimationFilterCondition::Serialize(ar);
 		ar(path, "path", "^<");
@@ -263,12 +263,12 @@ struct SAnimationFilterSkeletonAlias : IAnimationFilterCondition
 	bool Check(const SAnimationFilterItem& item) const override
 	{
 		if (stricmp(item.skeletonAlias.c_str(), skeletonAlias.c_str()) == 0)
-			return !not;
+			return !invert;
 		else
-			return not;
+			return invert;
 	}
 
-	void Serialize(IArchive& ar)
+	void Serialize(IArchive& ar) override
 	{
 		IAnimationFilterCondition::Serialize(ar);
 		ar(skeletonAlias, "alias", "^<");
@@ -329,3 +329,4 @@ void SAnimationFilter::FindTags(std::vector<string>* tags) const
 		condition->FindTags(tags);
 	tags->erase(std::unique(tags->begin(), tags->end()), tags->end());
 }
+

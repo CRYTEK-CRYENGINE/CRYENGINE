@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 using System;
 using System.Runtime.CompilerServices;
@@ -23,9 +23,9 @@ namespace CryEngine
 		internal AudioObjectTransformation(Matrix3x4 managedMatrix)
 		{
 			_matrix3x4 = managedMatrix;
-			_objectTransformationPtr = new System.Runtime.InteropServices.HandleRef(this, NativeAudioSystem.CreateAudioTransformation(_matrix3x4.m00, _matrix3x4.m01, _matrix3x4.m02, _matrix3x4.m03,
-																																																	_matrix3x4.m10, _matrix3x4.m11, _matrix3x4.m12, _matrix3x4.m13,
-																																																	_matrix3x4.m20, _matrix3x4.m21, _matrix3x4.m22, _matrix3x4.m23));
+			_objectTransformationPtr = new System.Runtime.InteropServices.HandleRef(this, NativeAudioSystem.CreateAudioTransformation(_matrix3x4[0, 0], _matrix3x4[0, 1], _matrix3x4[0, 2], _matrix3x4[0, 3],
+			                                                                                                                          _matrix3x4[1, 0], _matrix3x4[1, 1], _matrix3x4[1, 2], _matrix3x4[1, 3],
+			                                                                                                                          _matrix3x4[2, 0], _matrix3x4[2, 1], _matrix3x4[2, 2], _matrix3x4[2, 3]));
 		}
 
 		internal IntPtr NativePtr
@@ -67,9 +67,9 @@ namespace CryEngine
 			{
 				NativeAudioSystem.ReleaseAudioTransformation(_objectTransformationPtr.Handle);
 			}
-			_objectTransformationPtr = new System.Runtime.InteropServices.HandleRef(this, NativeAudioSystem.CreateAudioTransformation(_matrix3x4.m00, _matrix3x4.m01, _matrix3x4.m02, _matrix3x4.m03,
-																																																	_matrix3x4.m10, _matrix3x4.m11, _matrix3x4.m12, _matrix3x4.m13,
-																																																	_matrix3x4.m20, _matrix3x4.m21, _matrix3x4.m22, _matrix3x4.m23));
+			_objectTransformationPtr = new System.Runtime.InteropServices.HandleRef(this, NativeAudioSystem.CreateAudioTransformation(_matrix3x4[0, 0], _matrix3x4[0, 1], _matrix3x4[0, 2], _matrix3x4[0, 3],
+			                                                                                                                          _matrix3x4[1, 0], _matrix3x4[1, 1], _matrix3x4[1, 2], _matrix3x4[1, 3],
+			                                                                                                                          _matrix3x4[2, 0], _matrix3x4[2, 1], _matrix3x4[2, 2], _matrix3x4[2, 3]));
 		}
 
 		public void Dispose()

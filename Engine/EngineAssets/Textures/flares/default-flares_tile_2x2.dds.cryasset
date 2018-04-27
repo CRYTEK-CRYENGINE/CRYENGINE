@@ -1,0 +1,10 @@
+<AssetMetadata version="0" type="Texture" guid="c26f5451-49a5-3294-bc46-6e6f1b8b2a36" source="default-flares_tile_2x2.tif">
+ <Files>
+  <File path="default-flares_tile_2x2.dds"/>
+ </Files>
+ <Details>
+  <Detail name="width">4</Detail>
+  <Detail name="height">4</Detail>
+  <Detail name="mipCount">1</Detail>
+ </Details>
+</AssetMetadata>

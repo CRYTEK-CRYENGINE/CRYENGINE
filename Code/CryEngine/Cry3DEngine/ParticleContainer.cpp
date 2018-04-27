@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 // -------------------------------------------------------------------------
 //  File name:   ParticleContainer.h
@@ -153,7 +153,7 @@ CParticleSubEmitter* CParticleContainer::AddEmitter(CParticleSource* pSource)
 
 CParticle* CParticleContainer::AddParticle(SParticleUpdateContext& context, const CParticle& part)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_PARTICLE);
+	CRY_PROFILE_FUNCTION(PROFILE_PARTICLE);
 
 	const ResourceParticleParams& params = GetParams();
 
@@ -265,7 +265,7 @@ void CParticleContainer::EmitParticle(const EmitParticleData* pData)
 
 void CParticleContainer::ComputeStaticBounds(AABB& bb, bool bWithSize, float fMaxLife)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_PARTICLE);
+	CRY_PROFILE_FUNCTION(PROFILE_PARTICLE);
 
 	const ResourceParticleParams& params = GetParams();
 
@@ -319,7 +319,7 @@ void CParticleContainer::ComputeStaticBounds(AABB& bb, bool bWithSize, float fMa
 
 void CParticleContainer::UpdateState()
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_PARTICLE);
+	CRY_PROFILE_FUNCTION(PROFILE_PARTICLE);
 
 	UpdateContainerLife();
 
@@ -567,7 +567,7 @@ void CParticleContainer::UpdateParticleStates(SParticleUpdateContext& context)
 			else
 			{
 				part.Hide();
-				m_Counts.ParticlesReject++;
+				m_Counts.particles.reject++;
 			}
 		}
 		else
@@ -764,7 +764,7 @@ void CParticleContainer::Render(SRendParams const& RenParams, SPartRenderParams 
 		CRenderObject* pRenderObject = pCachedRO[threadId];
 		if (!pRenderObject)
 		{
-			pRenderObject = CreateRenderObject(nObjFlags);
+			pRenderObject = CreateRenderObject(nObjFlags, passInfo);
 			pCachedRO[threadId] = pRenderObject;
 		}
 
@@ -783,16 +783,16 @@ void CParticleContainer::Render(SRendParams const& RenParams, SPartRenderParams 
 		}
 		
 		job.pRenderObject->m_ObjFlags = (nObjFlags & ~0xFF) | RenParams.dwFObjFlags;
+		job.pRenderObject->SetInstanceDataDirty();
 
 		pOD->m_FogVolumeContribIdx = PRParams.m_nFogVolumeContribIdx;
 
 		pOD->m_LightVolumeId = PRParams.m_nDeferredLightVolumeId;
 
-		if (GetMain().m_pTempData)
-			*((Vec4f*)&pOD->m_fTempVars[0]) = (const Vec4f&)(GetMain().m_pTempData->userData.vEnvironmentProbeMults);
+		if (const auto pTempData = GetMain().m_pTempData.load())
+			*((Vec4f*)&pOD->m_fTempVars[0]) = Vec4f(pTempData->userData.vEnvironmentProbeMults);
 		else
 			*((Vec4f*)&pOD->m_fTempVars[0]) = Vec4f(1.0f, 1.0f, 1.0f, 1.0f);
-		;
 
 		// Set sort distance based on params and bounding box.
 		if (pParams->fSortBoundsScale == PRParams.m_fMainBoundsScale)
@@ -813,20 +813,24 @@ void CParticleContainer::Render(SRendParams const& RenParams, SPartRenderParams 
 
 		job.nCustomTexId = RenParams.nTextureID;
 
+		int passId = passInfo.IsShadowPass() ? 1 : 0;
+		int passMask = BIT(passId);
+		pRenderObject->m_passReadyMask |= passMask;
+
 		passInfo.GetIRenderView()->AddPermanentObject(
 			pRenderObject,
 			passInfo);
 	}
 }
 
-CRenderObject* CParticleContainer::CreateRenderObject(uint64 nObjFlags)
+CRenderObject* CParticleContainer::CreateRenderObject(uint64 nObjFlags, const SRenderingPassInfo& passInfo)
 {
 	const ResourceParticleParams* pParams = m_pParams;
 	CRenderObject* pRenderObject = gEnv->pRenderer->EF_GetObject();
 	SRenderObjData* pOD = pRenderObject->GetObjData();
 
 	pRenderObject->m_pRE = gEnv->pRenderer->EF_CreateRE(eDATA_Particle);
-	pRenderObject->m_II.m_Matrix.SetIdentity();
+	pRenderObject->SetMatrix(Matrix34::CreateIdentity(), passInfo);
 	pRenderObject->m_RState = uint8(nObjFlags);
 	pRenderObject->m_pCurrMaterial = pParams->pMaterial;
 	pOD->m_pParticleShaderData = &GetEffect()->GetParams().ShaderData;
@@ -1022,33 +1026,29 @@ void CParticleContainer::Reset()
 // Stat functions.
 void CParticleContainer::GetCounts(SParticleCounts& counts) const
 {
-	counts.EmittersAlloc += 1.f;
-	counts.ParticlesAlloc += m_Particles.size();
+	counts.components.alloc += 1.f;
+	counts.components.alive += GetContainerLife() <= GetAge();
+	counts.particles.alloc += m_Particles.size();
+	counts.particles.alive += m_Particles.size();
 
 	if (GetTimeToUpdate() == 0.f)
 	{
 		// Was updated this frame.
-		AddArray(FloatArray(counts), FloatArray(m_Counts));
-		counts.EmittersActive += 1.f;
-		counts.ParticlesActive += m_Particles.size();
-		counts.SubEmittersActive += m_Emitters.size();
-
-		if (m_Counts.ParticlesCollideTest)
-		{
-			counts.nCollidingEmitters += 1;
-			counts.nCollidingParticles += (int)m_Counts.ParticlesCollideTest;
-		}
+		reinterpret_cast<SContainerCounts&>(counts) += m_Counts;
+		counts.components.updated += 1.f;
+		counts.particles.updated += m_Particles.size();
+		counts.subemitters.updated += m_Emitters.size();
 
 		if ((m_nEnvFlags & REN_ANY) && !m_bbWorldDyn.IsReset())
 		{
-			counts.DynamicBoundsVolume += m_bbWorldDyn.GetVolume();
-			counts.StaticBoundsVolume += m_bbWorld.GetVolume();
+			counts.volume.dyn += m_bbWorldDyn.GetVolume();
+			counts.volume.stat += m_bbWorld.GetVolume();
 			if (!m_bbWorld.ContainsBox(m_bbWorldDyn))
 			{
 				AABB bbDynClip = m_bbWorldDyn;
 				bbDynClip.ClipToBox(m_bbWorld);
 				float fErrorVol = m_bbWorldDyn.GetVolume() - bbDynClip.GetVolume();
-				counts.ErrorBoundsVolume += fErrorVol;
+				counts.volume.error += fErrorVol;
 			}
 		}
 	}

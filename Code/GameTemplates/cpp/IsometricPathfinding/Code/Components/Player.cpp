@@ -40,12 +40,20 @@ void CPlayerComponent::Initialize()
 
 	// Get the input component, wraps access to action mapping so we can easily get callbacks when inputs are triggered
 	m_pInputComponent = m_pEntity->GetOrCreateComponent<Cry::DefaultComponents::CInputComponent>();
-	// Get and initialize the pathfinding component
-	m_pPathfindingComponent = m_pEntity->GetOrCreateComponent<Cry::DefaultComponents::CPathfindingComponent>();
+	
+	// Get and initialize the navigation component
+	m_pNavigationComponent = m_pEntity->GetOrCreateComponent<IEntityNavigationComponent>();
 
-	m_pPathfindingComponent->SetMovementRecommendationCallback( [this](const Vec3& recommendedVelocity)
+	IEntityNavigationComponent::SMovementProperties movementProperties;
+	movementProperties.normalSpeed = m_movementSpeed;
+	movementProperties.maxSpeed = m_movementSpeed;
+	movementProperties.maxAcceleration = m_movementSpeed * 1.5f;
+	m_pNavigationComponent->SetMovementProperties(movementProperties);
+	m_pNavigationComponent->SetNavigationAgentType("MediumSizedCharacters");
+
+	m_pNavigationComponent->SetStateUpdatedCallback([this](const Vec3& recommendedVelocity)
 	{
-		m_pCharacterController->SetVelocity(recommendedVelocity);
+		m_pCharacterController->ChangeVelocity(recommendedVelocity, Cry::DefaultComponents::CCharacterControllerComponent::EChangeVelocityMode::SetAsTarget);
 	});
 
 	// Register the walk action
@@ -53,12 +61,7 @@ void CPlayerComponent::Initialize()
 	{
 		if (m_pCursorEntity != nullptr && activationMode == eAAM_OnPress)
 		{
-			if (m_pPathfindingComponent->IsProcessingRequest())
-			{
-				m_pPathfindingComponent->CancelCurrentRequest();
-			}
-
-			m_pPathfindingComponent->RequestMoveTo(m_pCursorEntity->GetWorldPos());
+			m_pNavigationComponent->NavigateTo(m_pCursorEntity->GetWorldPos());
 		}
 	});
 
@@ -112,7 +115,7 @@ uint64 CPlayerComponent::GetEventMask() const
 	return BIT64(ENTITY_EVENT_RESET) | BIT64(ENTITY_EVENT_START_GAME) | BIT64(ENTITY_EVENT_UPDATE);
 }
 
-void CPlayerComponent::ProcessEvent(SEntityEvent& event)
+void CPlayerComponent::ProcessEvent(const SEntityEvent& event)
 {
 	switch (event.event)
 	{
@@ -169,7 +172,7 @@ void CPlayerComponent::SpawnCursorEntity()
 
 	// Load geometry
 	const int geometrySlot = 0;
-	m_pCursorEntity->LoadGeometry(geometrySlot, "Objects/Default/primitive_sphere.cgf");
+	m_pCursorEntity->LoadGeometry(geometrySlot, "%ENGINE%/EngineAssets/Objects/primitive_sphere.cgf");
 
 	// Scale the cursor down a bit
 	m_pCursorEntity->SetScale(Vec3(0.1f));
@@ -268,7 +271,7 @@ void CPlayerComponent::Revive()
 void CPlayerComponent::SpawnAtSpawnPoint()
 {
 	// Spawn at first default spawner
-	auto *pEntityIterator = gEnv->pEntitySystem->GetEntityIterator();
+	IEntityItPtr pEntityIterator = gEnv->pEntitySystem->GetEntityIterator();
 	pEntityIterator->MoveFirst();
 
 	while (!pEntityIterator->IsEnd())

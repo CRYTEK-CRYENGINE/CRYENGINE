@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "DebugOutput.h"
@@ -69,7 +69,7 @@ void CDebugOutput::Run(CRYSOCKET sock)
 		}
 		if (sleep)
 		{
-			Sleep(1000);
+			CrySleep(1000);
 		}
 	}
 }

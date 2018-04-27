@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "ChromaticRing.h"
@@ -35,9 +35,9 @@ void ChromaticRing::InitEditorParamGroups(DynArray<FuncVariableGroup>& groups)
 ChromaticRing::ChromaticRing(const char* name)
 	: COpticsElement(name)
 	, m_bUseSpectrumTex(false)
-	, m_fWidth(0.5f)
 	, m_nPolyComplexity(160)
 	, m_nColorComplexity(2)
+	, m_fWidth(0.5f)
 	, m_fNoiseStrength(0.0f)
 	, m_fCompletionStart(90.f)
 	, m_fCompletionEnd(270.f)

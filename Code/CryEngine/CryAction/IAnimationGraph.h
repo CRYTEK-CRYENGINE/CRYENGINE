@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #ifndef __IANIMATIONGRAPH_H__
 #define __IANIMATIONGRAPH_H__
@@ -52,7 +52,7 @@ enum EMovementControlMethod
 };
 AUTO_TYPE_INFO(EMovementControlMethod);
 
-extern char* g_szMCMString[eMCM_COUNT];
+extern const char* g_szMCMString[eMCM_COUNT];
 
 enum EColliderMode
 {
@@ -71,7 +71,7 @@ enum EColliderMode
 	eColliderMode_COUNT,
 	eColliderMode_FF = 0xFF
 };
-extern char* g_szColliderModeString[eColliderMode_COUNT];
+extern const char* g_szColliderModeString[eColliderMode_COUNT];
 
 AUTO_TYPE_INFO(EColliderMode);
 
@@ -94,7 +94,7 @@ enum EColliderModeLayer
 	eColliderModeLayer_FF = 0xFF
 };
 
-extern char* g_szColliderModeLayerString[eColliderModeLayer_COUNT];
+extern const char* g_szColliderModeLayerString[eColliderModeLayer_COUNT];
 
 enum EAnimationGraphUserData
 {

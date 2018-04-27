@@ -1,15 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
-
-// -------------------------------------------------------------------------
-//  File name:   TimeOfDay.cpp
-//  Version:     v1.00
-//  Created:     25/10/2005 by Timur.
-//  Compilers:   Visual Studio.NET 2003
-//  Description:
-// -------------------------------------------------------------------------
-//  History:
-//
-////////////////////////////////////////////////////////////////////////////
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "TimeOfDay.h"
@@ -324,7 +313,7 @@ void ReadCTimeOfDayVariableFromXmlNode(CTimeOfDayVariable* pVar, XmlNodeRef varN
 			var.GetSpline(1)->GetKey(k) = key;
 			key.m_controlPoint.m_value = fValue[2];
 			var.GetSpline(2)->GetKey(k) = key;
-		}   //for k
+		}
 	}
 }
 
@@ -343,8 +332,8 @@ void ReadPresetFromToDXMLNode(CEnvironmentPreset& pPreset, XmlNodeRef node)
 			continue;
 
 		ReadCTimeOfDayVariableFromXmlNode(pVar, varNode);
-	} // for i
-}   //void ReadWeatherPresetFromToDXMLNode
+	}
+}
 
 void MigrateLegacyData(CEnvironmentPreset& preset, bool bSunIntensity)
 {
@@ -470,8 +459,9 @@ Vec3 ConvertIlluminanceToLightColor(float illuminance, Vec3 colorRGB)
 //////////////////////////////////////////////////////////////////////////
 CTimeOfDay::CTimeOfDay()
 	: m_timeOfDayRtpcId(CryAudio::InvalidControlId)
+	, m_listeners(16)
 {
-	m_pTimer = 0;
+	m_pTimer = nullptr;
 	SetTimer(gEnv->pTimer);
 	m_fTime = 12;
 	m_bEditMode = false;
@@ -480,10 +470,7 @@ CTimeOfDay::CTimeOfDay()
 	m_advancedInfo.fEndTime = 24;
 	m_fHDRMultiplier = 1.f;
 	m_pTimeOfDaySpeedCVar = gEnv->pConsole->GetCVar("e_TimeOfDaySpeed");
-	m_sunRotationLatitude = 0;
-	m_sunRotationLongitude = 0;
 	m_bPaused = false;
-	m_bSunLinkedToTOD = true;
 	memset(m_vars, 0, sizeof(SVariableInfo) * ITimeOfDay::PARAM_TOTAL);
 
 	// fill local var list so, sandbox can access var list without level being loaded
@@ -516,15 +503,9 @@ CTimeOfDay::CTimeOfDay()
 		}
 	}
 
-	m_pCurrentPreset = NULL;
+	m_pCurrentPreset = nullptr;
 
 	m_timeOfDayRtpcId = CryAudio::StringToId("time_of_day");
-}
-
-//////////////////////////////////////////////////////////////////////////
-CTimeOfDay::~CTimeOfDay()
-{
-	//delete m_pCurrentPreset;
 }
 
 void CTimeOfDay::SetTimer(ITimer* pTimer)
@@ -561,17 +542,27 @@ bool CTimeOfDay::GetPresetsInfos(SPresetInfo* resultArray, unsigned int arraySiz
 bool CTimeOfDay::SetCurrentPreset(const char* szPresetName)
 {
 	TPresetsSet::iterator it = m_presets.find(szPresetName);
-	if (it != m_presets.end())
+	if (it == m_presets.end())
 	{
-		CEnvironmentPreset* newPreset = &(it->second);
-		if (m_pCurrentPreset != newPreset)
-		{
-			m_pCurrentPreset = newPreset;
-			Update(true, true);
-		}
-		return true;
+		return false;
 	}
-	return false;
+
+	CEnvironmentPreset* newPreset = &(it->second);
+	if (m_pCurrentPreset != newPreset)
+	{
+		m_pCurrentPreset = newPreset;
+		m_currentPresetName = szPresetName;
+		m_consts = m_pCurrentPreset->GetConstants();
+		Update(true, true);
+		ConstantsChanged();
+		NotifyOnChange(IListener::EChangeType::CurrentPresetChanged, szPresetName);
+	}
+	return true;
+}
+
+const char* CTimeOfDay::GetCurrentPresetName() const
+{
+	return m_currentPresetName.c_str();
 }
 
 bool CTimeOfDay::AddNewPreset(const char* szPresetName)
@@ -585,7 +576,11 @@ bool CTimeOfDay::AddNewPreset(const char* szPresetName)
 		if (insertResult.second)
 		{
 			m_pCurrentPreset = &(insertResult.first->second);
+			m_currentPresetName = szPresetName;
+			m_consts = m_pCurrentPreset->GetConstants();
 			Update(true, true);
+			ConstantsChanged();
+			NotifyOnChange(IListener::EChangeType::PresetAdded, szPresetName);
 		}
 		return true;
 	}
@@ -598,14 +593,25 @@ bool CTimeOfDay::RemovePreset(const char* szPresetName)
 	if (it != m_presets.end())
 	{
 		if (m_pCurrentPreset == &(it->second))
-			m_pCurrentPreset = NULL;
+		{
+			m_pCurrentPreset = nullptr;
+			m_currentPresetName.clear();
+		}
 
 		m_presets.erase(it);
 
 		if (!m_pCurrentPreset && m_presets.size())
-			m_pCurrentPreset = &(m_presets.begin()->second);
+		{
+			const auto it = m_presets.begin();
+			m_pCurrentPreset = &(it->second);
+			m_currentPresetName = it->first;
+			m_consts = m_pCurrentPreset->GetConstants();
+		}
 
 		Update(true, true);
+		ConstantsChanged();
+
+		NotifyOnChange(IListener::EChangeType::PresetRemoved, szPresetName);
 	}
 	return true;
 }
@@ -646,7 +652,13 @@ bool CTimeOfDay::LoadPreset(const char* szFilePath)
 		}
 
 		m_pCurrentPreset = &preset;
+		m_currentPresetName = insertResult.first->first;
+		m_consts = m_pCurrentPreset->GetConstants();
+
 		Update(true, true);
+		ConstantsChanged();
+
+		NotifyOnChange(IListener::EChangeType::PresetLoaded, m_currentPresetName.c_str());
 		return true;
 	}
 
@@ -659,6 +671,12 @@ void CTimeOfDay::ResetPreset(const char* szPresetName)
 	if (it != m_presets.end())
 	{
 		it->second.ResetVariables();
+		if (&it->second == m_pCurrentPreset)
+		{
+			m_consts.ResetVariables();
+			ConstantsChanged();
+		}
+
 		Update(true, true);
 	}
 }
@@ -682,7 +700,7 @@ bool CTimeOfDay::ImportPreset(const char* szPresetName, const char* szFilePath)
 	{
 		LoadPresetFromOldFormatXML(preset, root);
 	}
-	//preset.SetDirty(true);
+
 	Update(true, true);
 
 	return true;
@@ -707,7 +725,6 @@ bool CTimeOfDay::ExportPreset(const char* szPresetName, const char* szFilePath) 
 //////////////////////////////////////////////////////////////////////////
 bool CTimeOfDay::GetVariableInfo(int nIndex, SVariableInfo& varInfo)
 {
-
 	if (nIndex < 0 || nIndex >= (int)ITimeOfDay::PARAM_TOTAL)
 		return false;
 
@@ -805,7 +822,7 @@ void CTimeOfDay::ResetVariables()
 
 		var.nParamId = i;
 		var.type = presetVar->GetType();
-		var.pInterpolator = NULL;
+		var.pInterpolator = nullptr;
 
 		Vec3 presetVal = presetVar->GetValue();
 		var.fValue[0] = presetVal.x;
@@ -821,17 +838,10 @@ void CTimeOfDay::ResetVariables()
 			var.fValue[2] = presetVal.z;
 		}
 	}
+
+	m_consts = m_pCurrentPreset->GetConstants();
 }
 
-//////////////////////////////////////////////////////////////////////////
-void CTimeOfDay::SetEnvironmentSettings(const SEnvironmentInfo& envInfo)
-{
-	m_sunRotationLongitude = envInfo.sunRotationLongitude;
-	m_sunRotationLatitude = envInfo.sunRotationLatitude;
-	m_bSunLinkedToTOD = envInfo.bSunLinkedToTOD;
-}
-
-//////////////////////////////////////////////////////////////////////////
 void CTimeOfDay::SaveInternalState(struct IDataWriteStream& writer)
 {
 	// current time
@@ -869,6 +879,17 @@ void CTimeOfDay::LoadInternalState(struct IDataReadStream& reader)
 }
 
 //////////////////////////////////////////////////////////////////////////
+bool CTimeOfDay::RegisterListenerImpl(IListener* const pListener, const char* const szDbgName, const bool staticName)
+{
+	return m_listeners.Add(pListener, szDbgName, staticName);
+}
+
+void CTimeOfDay::UnRegisterListenerImpl(IListener* const pListener)
+{
+	m_listeners.Remove(pListener);
+}
+
+//////////////////////////////////////////////////////////////////////////
 // Time of day is specified in hours.
 void CTimeOfDay::SetTime(float fHour, bool bForceUpdate)
 {
@@ -889,44 +910,54 @@ void CTimeOfDay::SetTime(float fHour, bool bForceUpdate)
 	gEnv->pSystem->GetISystemEventDispatcher()->OnSystemEvent(ESYSTEM_EVENT_TIME_OF_DAY_SET, 0, 0);
 }
 
-//////////////////////////////////////////////////////////////////////////
-void CTimeOfDay::SetSunPos(float longitude, float latitude)
-{
-	m_sunRotationLongitude = longitude;
-	m_sunRotationLatitude = latitude;
-}
-
-//////////////////////////////////////////////////////////////////////////
 void CTimeOfDay::Update(bool bInterpolate, bool bForceUpdate)
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_3DENGINE);
+	CRY_PROFILE_FUNCTION(PROFILE_3DENGINE);
 
-	if (bInterpolate)
+	if (bInterpolate && m_pCurrentPreset)
 	{
 		// normalized time for interpolation
 		float t = m_fTime / 24.0f;
 
-		if (m_pCurrentPreset)
-		{
-			m_pCurrentPreset->Update(t);
+		m_pCurrentPreset->Update(t);
 
-			for (int i = 0; i < PARAM_TOTAL; ++i)
+		for (int i = 0; i < PARAM_TOTAL; ++i)
+		{
+			const CTimeOfDayVariable* pVar = m_pCurrentPreset->GetVar((ETimeOfDayParamID)i);
+			const Vec3 varValue = pVar->GetValue();
+			float* pDst = m_vars[i].fValue;
+			pDst[0] = varValue.x;
+			if (pVar->GetType() == TYPE_COLOR)
 			{
-				const CTimeOfDayVariable* pVar = m_pCurrentPreset->GetVar((ETimeOfDayParamID)i);
-				const Vec3 varValue = pVar->GetValue();
-				float* pDst = m_vars[i].fValue;
-				pDst[0] = varValue.x;
-				if (pVar->GetType() == TYPE_COLOR)
-				{
-					pDst[1] = varValue.y;
-					pDst[2] = varValue.z;
-				}
+				pDst[1] = varValue.y;
+				pDst[2] = varValue.z;
 			}
 		}
-	}//if(bInterpolate)
+	}
 
 	// update environment lighting according to new interpolated values
 	UpdateEnvLighting(bForceUpdate);
+}
+
+void CTimeOfDay::ConstantsChanged()
+{
+	if (m_pCurrentPreset)
+	{
+		m_pCurrentPreset->GetConstants() = m_consts;
+	}
+
+	C3DEngine* p3DEngine((C3DEngine*)gEnv->p3DEngine);
+
+	p3DEngine->UpdateMoonParams();
+	p3DEngine->UpdateWindParams();
+	p3DEngine->UpdateCloudShadows();
+
+#if defined(FEATURE_SVO_GI)
+	p3DEngine->UpdateTISettings();
+#endif
+
+	//Will update sun params, and recalculate dependent on it lighting
+	UpdateEnvLighting(true);
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -983,27 +1014,27 @@ void CTimeOfDay::UpdateEnvLighting(bool forceUpdate)
 		pRenderer->SetShadowJittering(GetVar(PARAM_SHADOW_JITTERING).fValue[0]);
 	}
 
-	float skyBrightMultiplier(GetVar(PARAM_TERRAIN_OCCL_MULTIPLIER).fValue[0]);
-	float GIMultiplier(GetVar(PARAM_GI_MULTIPLIER).fValue[0]);
-	float sunMultiplier(1.0f);
-	float sunSpecMultiplier(GetVar(PARAM_SUN_SPECULAR_MULTIPLIER).fValue[0]);
-	float fogMultiplier(GetVar(PARAM_FOG_COLOR_MULTIPLIER).fValue[0] * m_fHDRMultiplier);
-	float fogMultiplier2(GetVar(PARAM_FOG_COLOR2_MULTIPLIER).fValue[0] * m_fHDRMultiplier);
-	float fogMultiplierRadial(GetVar(PARAM_FOG_RADIAL_COLOR_MULTIPLIER).fValue[0] * m_fHDRMultiplier);
-	float nightSkyHorizonMultiplier(GetVar(PARAM_NIGHSKY_HORIZON_COLOR_MULTIPLIER).fValue[0] * m_fHDRMultiplier);
-	float nightSkyZenithMultiplier(GetVar(PARAM_NIGHSKY_ZENITH_COLOR_MULTIPLIER).fValue[0] * m_fHDRMultiplier);
-	float nightSkyMoonMultiplier(GetVar(PARAM_NIGHSKY_MOON_COLOR_MULTIPLIER).fValue[0] * m_fHDRMultiplier);
-	float nightSkyMoonInnerCoronaMultiplier(GetVar(PARAM_NIGHSKY_MOON_INNERCORONA_COLOR_MULTIPLIER).fValue[0] * m_fHDRMultiplier);
-	float nightSkyMoonOuterCoronaMultiplier(GetVar(PARAM_NIGHSKY_MOON_OUTERCORONA_COLOR_MULTIPLIER).fValue[0] * m_fHDRMultiplier);
+	float skyBrightMultiplier = GetVar(PARAM_TERRAIN_OCCL_MULTIPLIER).fValue[0];
+	float GIMultiplier = GetVar(PARAM_GI_MULTIPLIER).fValue[0];
+	float sunMultiplier = 1.0f;
+	float sunSpecMultiplier = GetVar(PARAM_SUN_SPECULAR_MULTIPLIER).fValue[0];
+	float fogMultiplier = GetVar(PARAM_FOG_COLOR_MULTIPLIER).fValue[0] * m_fHDRMultiplier;
+	float fogMultiplier2 = GetVar(PARAM_FOG_COLOR2_MULTIPLIER).fValue[0] * m_fHDRMultiplier;
+	float fogMultiplierRadial = GetVar(PARAM_FOG_RADIAL_COLOR_MULTIPLIER).fValue[0] * m_fHDRMultiplier;
+	float nightSkyHorizonMultiplier = GetVar(PARAM_NIGHSKY_HORIZON_COLOR_MULTIPLIER).fValue[0] * m_fHDRMultiplier;
+	float nightSkyZenithMultiplier = GetVar(PARAM_NIGHSKY_ZENITH_COLOR_MULTIPLIER).fValue[0] * m_fHDRMultiplier;
+	float nightSkyMoonMultiplier = GetVar(PARAM_NIGHSKY_MOON_COLOR_MULTIPLIER).fValue[0] * m_fHDRMultiplier;
+	float nightSkyMoonInnerCoronaMultiplier = GetVar(PARAM_NIGHSKY_MOON_INNERCORONA_COLOR_MULTIPLIER).fValue[0] * m_fHDRMultiplier;
+	float nightSkyMoonOuterCoronaMultiplier = GetVar(PARAM_NIGHSKY_MOON_OUTERCORONA_COLOR_MULTIPLIER).fValue[0] * m_fHDRMultiplier;
 
 	// set sun position
 	Vec3 sunPos;
 
-	if (m_bSunLinkedToTOD)
+	if (m_consts.sun.sunLinkedToTOD)
 	{
 		float timeAng(((m_fTime + 12.0f) / 24.0f) * gf_PI * 2.0f);
-		float sunRot = gf_PI * (-m_sunRotationLatitude) / 180.0f;
-		float longitude = 0.5f * gf_PI - gf_PI * m_sunRotationLongitude / 180.0f;
+		float sunRot = gf_PI * (-m_consts.sun.latitude) / 180.0f;
+		float longitude = 0.5f * gf_PI - gf_PI * m_consts.sun.longitude / 180.0f;
 
 		Matrix33 a, b, c, m;
 
@@ -1020,8 +1051,8 @@ void CTimeOfDay::UpdateEnvLighting(bool forceUpdate)
 	}
 	else // when not linked, it behaves like the moon
 	{
-		float sunLati(-gf_PI + gf_PI * m_sunRotationLatitude / 180.0f);
-		float sunLong(0.5f * gf_PI - gf_PI * m_sunRotationLongitude / 180.0f);
+		float sunLati(-gf_PI + gf_PI * m_consts.sun.latitude / 180.0f);
+		float sunLong(0.5f * gf_PI - gf_PI * m_consts.sun.longitude / 180.0f);
 
 		float sinLon(sinf(sunLong));
 		float cosLon(cosf(sunLong));
@@ -1101,16 +1132,14 @@ void CTimeOfDay::UpdateEnvLighting(bool forceUpdate)
 	p3DEngine->SetSunDir(sunPos);
 
 	// set sun, sky, and fog color
-	Vec3 sunColor(Vec3(GetVar(PARAM_SUN_COLOR).fValue[0],
-	                   GetVar(PARAM_SUN_COLOR).fValue[1], GetVar(PARAM_SUN_COLOR).fValue[2]));
+	Vec3 sunColor(Vec3(GetVar(PARAM_SUN_COLOR).fValue[0], GetVar(PARAM_SUN_COLOR).fValue[1], GetVar(PARAM_SUN_COLOR).fValue[2]));
 	float sunIntensityLux(GetVar(PARAM_SUN_INTENSITY).fValue[0] * sunMultiplier);
 	p3DEngine->SetSunColor(ConvertIlluminanceToLightColor(sunIntensityLux, sunColor));
 	p3DEngine->SetGlobalParameter(E3DPARAM_SUN_SPECULAR_MULTIPLIER, Vec3(sunSpecMultiplier, 0, 0));
 	p3DEngine->SetSkyBrightness(skyBrightMultiplier);
 	p3DEngine->SetGIAmount(GIMultiplier);
 
-	Vec3 fogColor(fogMultiplier * Vec3(GetVar(PARAM_FOG_COLOR).fValue[0],
-	                                   GetVar(PARAM_FOG_COLOR).fValue[1], GetVar(PARAM_FOG_COLOR).fValue[2]));
+	Vec3 fogColor(fogMultiplier * Vec3(GetVar(PARAM_FOG_COLOR).fValue[0], GetVar(PARAM_FOG_COLOR).fValue[1], GetVar(PARAM_FOG_COLOR).fValue[2]));
 	p3DEngine->SetFogColor(fogColor);
 
 	const Vec3 fogColor2 = fogMultiplier2 * Vec3(GetVar(PARAM_FOG_COLOR2).fValue[0], GetVar(PARAM_FOG_COLOR2).fValue[1], GetVar(PARAM_FOG_COLOR2).fValue[2]);
@@ -1318,6 +1347,47 @@ void CTimeOfDay::UpdateEnvLighting(bool forceUpdate)
 	p3DEngine->SetGlobalParameter(E3DPARAM_VOLFOG2_COLOR2, Vec3(GetVar(PARAM_VOLFOG2_COLOR2).fValue[0], GetVar(PARAM_VOLFOG2_COLOR2).fValue[1], GetVar(PARAM_VOLFOG2_COLOR2).fValue[2]));
 }
 
+ITimeOfDay::Sun& CTimeOfDay::GetSunParams()
+{
+	return m_consts.sun;
+}
+
+ITimeOfDay::Moon& CTimeOfDay::GetMoonParams()
+{
+	return m_consts.moon;
+}
+
+ITimeOfDay::Wind& CTimeOfDay::GetWindParams()
+{
+	return m_consts.wind;
+}
+
+ITimeOfDay::CloudShadows& CTimeOfDay::GetCloudShadowsParams()
+{
+	return m_consts.cloudShadows;
+}
+
+ITimeOfDay::TotalIllum& CTimeOfDay::GetTotalIlluminationParams()
+{
+	return m_consts.totalIllumination;
+}
+
+ITimeOfDay::TotalIllumAdv& CTimeOfDay::GetTotalIlluminationAdvParams()
+{
+	return m_consts.totalIlluminationAdvanced;
+}
+
+Serialization::SStruct CTimeOfDay::GetConstantParams()
+{
+	return Serialization::SStruct(m_consts);
+}
+
+void CTimeOfDay::ResetConstants(const DynArray<char>& binaryBuffer)
+{
+	gEnv->pSystem->GetArchiveHost()->LoadBinaryBuffer(Serialization::SStruct(m_consts), &binaryBuffer[0], binaryBuffer.size());
+	ConstantsChanged();
+}
+
 //////////////////////////////////////////////////////////////////////////
 void CTimeOfDay::SetAdvancedInfo(const SAdvancedInfo& advInfo)
 {
@@ -1346,7 +1416,8 @@ void CTimeOfDay::Serialize(XmlNodeRef& node, bool bLoading)
 		if (m_pTimeOfDaySpeedCVar->GetFVal() != m_advancedInfo.fAnimSpeed)
 			m_pTimeOfDaySpeedCVar->Set(m_advancedInfo.fAnimSpeed);
 
-		m_pCurrentPreset = NULL;
+		m_pCurrentPreset = nullptr;
+		m_currentPresetName.clear();
 		m_presets.clear();
 		if (XmlNodeRef presetsNode = node->findChild("Presets"))
 		{
@@ -1371,7 +1442,11 @@ void CTimeOfDay::Serialize(XmlNodeRef& node, bool bLoading)
 						if (LoadPresetFromXML(preset, name))
 						{
 							if (presetNode->haveAttr("Default"))
+							{
 								m_pCurrentPreset = &preset;
+								m_currentPresetName = presetName;
+								m_consts = m_pCurrentPreset->GetConstants();
+							}
 						}
 						else
 						{
@@ -1403,9 +1478,14 @@ void CTimeOfDay::Serialize(XmlNodeRef& node, bool bLoading)
 		}
 
 		if (!m_pCurrentPreset && m_presets.size())
-			m_pCurrentPreset = &(m_presets.begin()->second);
+		{
+			const auto it = m_presets.begin();
+			m_pCurrentPreset = &(it->second);
+			m_currentPresetName = it->first;
+		}
 
 		SetTime(m_fTime, false);
+		NotifyOnChange(IListener::EChangeType::CurrentPresetChanged, m_currentPresetName.c_str());
 	}
 	else //if (bLoading)
 	{
@@ -1440,8 +1520,11 @@ void CTimeOfDay::Serialize(TSerialize ser)
 
 	ser.Value("time", m_fTime);
 	ser.Value("mode", m_bEditMode);
-	ser.Value("m_sunRotationLatitude", m_sunRotationLatitude);
-	ser.Value("m_sunRotationLongitude", m_sunRotationLongitude);
+
+	//Serialize only sun constants, because they can be modified in runtime by artists
+	ser.Value("m_sunRotationLatitude", m_consts.sun.latitude);
+	ser.Value("m_sunRotationLongitude", m_consts.sun.longitude);
+
 	const int size = GetVariableCount();
 	ser.BeginGroup("VariableValues");
 	for (int v = 0; v < size; v++)
@@ -1551,4 +1634,13 @@ void CTimeOfDay::Tick()
 			SetTime(fTime);
 		}
 	}
+}
+
+//////////////////////////////////////////////////////////////////////////
+void CTimeOfDay::NotifyOnChange(const IListener::EChangeType changeType, const char* const szPresetName)
+{
+	m_listeners.ForEachListener([changeType, szPresetName](IListener* pListener)
+	{
+		pListener->OnChange(changeType, szPresetName);
+	});
 }

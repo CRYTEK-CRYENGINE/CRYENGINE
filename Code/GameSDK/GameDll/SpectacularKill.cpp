@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "SpectacularKill.h"
@@ -29,7 +29,7 @@ namespace
 }
 
 //-----------------------------------------------------------------------
-struct CSpectacularKill::SPredNotValidAnim : public std::unary_function<bool, const SSpectacularKillAnimation&>
+struct CSpectacularKill::SPredNotValidAnim
 {
 	SPredNotValidAnim(const CSpectacularKill& spectacularKill, const CActor* pTarget) : m_spectacularKill(spectacularKill), m_pTarget(pTarget) {}
 
@@ -411,7 +411,7 @@ bool CSpectacularKill::StartOnTarget(EntityId targetId)
 //-----------------------------------------------------------------------
 bool CSpectacularKill::StartOnTarget(CActor* pTargetActor)
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_GAME);
+	CRY_PROFILE_FUNCTION(PROFILE_GAME);
 
 	CRY_ASSERT(pTargetActor);
 	CRY_ASSERT_MESSAGE(!IsBusy(), "spectacular kill should not be initiated while a spectacular kill is already in progress");

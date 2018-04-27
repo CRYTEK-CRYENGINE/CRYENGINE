@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 // -------------------------------------------------------------------------
 //  File name:   ThreadBackEnd.h
@@ -200,29 +200,47 @@ class CThreadBackEnd;
 // class to represent a worker thread for the PC backend
 class CThreadBackEndWorkerThread : public IThread
 {
+	struct STempWorkerInfo
+	{
+		STempWorkerInfo()
+			: pJobStateToCheck(nullptr)
+		{
+		};
+
+		JobManager::SJobState* pJobStateToCheck;
+		CryConditionVariable doWorkCnd;
+		CryMutexFast  doWorkLock;
+	};
+
 public:
-	CThreadBackEndWorkerThread(CThreadBackEnd* pThreadBackend, detail::CWaitForJobObject& rSemaphore, JobManager::SJobQueue_ThreadBackEnd& rJobQueue, uint32 nId);
+	CThreadBackEndWorkerThread(CThreadBackEnd* pThreadBackend, detail::CWaitForJobObject& rSemaphore, JobManager::SJobQueue_ThreadBackEnd& rJobQueue, uint32 nId, bool bIsTempWorker);
 	~CThreadBackEndWorkerThread();
 
 	// Start accepting work on thread
 	virtual void ThreadEntry();
+
+	bool KickTempWorker(JobManager::SJobState* pJobState);
+	bool IsTempWorker() { return m_pTempWorkerInfo ? true : false; }
 
 	// Signals the thread that it should not accept anymore work and exit
 	void SignalStopWork();
 private:
 	void DoWorkProducerConsumerQueue(SInfoBlock& rInfoBlock);
 
-	uint32                               m_nId;                   // id of the worker thread
-	volatile bool                        m_bStop;
 	detail::CWaitForJobObject&           m_rSemaphore;
 	JobManager::SJobQueue_ThreadBackEnd& m_rJobQueue;
 	CThreadBackEnd*                      m_pThreadBackend;
+
+	STempWorkerInfo*                   m_pTempWorkerInfo;
+
+	uint32                               m_nId;                   // id of the worker thread
+	volatile bool                        m_bStop;
 };
 
 // the implementation of the PC backend
 // has n-worker threads which use atomic operations to pull from the job queue
 // and uses a semaphore to signal the workers if there is work required
-class CThreadBackEnd : public IBackend
+class CThreadBackEnd final : public IBackend
 {
 public:
 	CThreadBackEnd();
@@ -232,9 +250,9 @@ public:
 	bool           ShutDown();
 	void           Update() {}
 
-	virtual void   AddJob(JobManager::CJobDelegator& crJob, const JobManager::TJobHandle cJobHandle, JobManager::SInfoBlock& rInfoBlock);
-
-	virtual uint32 GetNumWorkerThreads() const { return m_nNumWorkerThreads; }
+	void   AddJob(JobManager::CJobDelegator& crJob, const JobManager::TJobHandle cJobHandle, JobManager::SInfoBlock& rInfoBlock);
+	bool   AddTempWorkerUntilJobStateIsComplete(JobManager::SJobState& pJobState);
+	uint32 GetNumWorkerThreads() const { return m_nNumWorkerThreads; }
 
 	// returns the index to use for the frame profiler
 	uint32 GetCurrentFrameBufferIndex() const;

@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "stdafx.h"
 
@@ -269,6 +269,7 @@ static void FormatPreviewName(string* name, string* path, int index)
 CompressionMachine::CompressionMachine()
 	: m_state(eState_Idle)
 	, m_showOriginalAnimation(false)
+	, m_loop(false)
 	, m_previewReloadListener(new AnimationSetExtender(this))
 	, m_referenceReloadListener(new AnimationSetExtender(this))
 	, m_normalizedStartTime(0.0f)
@@ -908,3 +909,4 @@ const char* CompressionMachine::AnimationPathConsideringPreview(const char* inpu
 	return inputCaf;
 }
 }
+

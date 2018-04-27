@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 //
 //	File: CTPEndpoint.cpp
@@ -954,7 +954,7 @@ void CCTPEndpoint::Reset()
 
 void CCTPEndpoint::PerformRegularCleanup()
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_NETWORK);
+	CRY_PROFILE_FUNCTION(PROFILE_NETWORK);
 	MMM_REGION(m_pMMM);
 
 	m_bigStateMgrInput.PerformRegularCleanup();
@@ -1185,7 +1185,7 @@ void CCTPEndpoint::SendPacketsIfNecessary(CTimeValue nTime, bool isDisconnecting
 void CCTPEndpoint::Update(CTimeValue nTime, bool isDisconnecting, bool bAllowUserSend, bool bForce, bool bFlush)
 {
 	ASSERT_GLOBAL_LOCK;
-	FRAME_PROFILER("CCTPEndpoint:Update", GetISystem(), PROFILE_NETWORK);
+	CRY_PROFILE_REGION(PROFILE_NETWORK, "CCTPEndpoint:Update");
 
 	if (m_emptyMode)
 		return;
@@ -1615,7 +1615,7 @@ void CCTPEndpoint::ProcessPacket(CTimeValue nTime, CAutoFreeHandle& hdl, bool bQ
 #endif
 
 	ASSERT_GLOBAL_LOCK;
-	FRAME_PROFILER("CCTPEndpoint:ProcessPacket", GetISystem(), PROFILE_NETWORK);
+	CRY_PROFILE_REGION(PROFILE_NETWORK, "CCTPEndpoint:ProcessPacket");
 
 #if ENABLE_CORRUPT_PACKET_DUMP
 	CAutoSetCorruptPacketDumpData autoSetCorruptPacketDumpData(m_corruptPacketDumpData, hdl.Peek(), inSync);
@@ -1806,7 +1806,7 @@ void CCTPEndpoint::ProcessPacket(CTimeValue nTime, CAutoFreeHandle& hdl, bool bQ
 
 void CCTPEndpoint::ProcessPacket_OneMessage(CParsePacketContext& ppctx)
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_NETWORK);
+	CRY_PROFILE_FUNCTION(PROFILE_NETWORK);
 	// read a message id and process it - we have some internal messages
 	// handled by a switch, and anything higher-level is dispatched through
 	// our message mapper
@@ -2255,7 +2255,7 @@ uint32 CCTPEndpoint::SendPacket(CTimeValue nTime, const SSendPacketParams& param
 	ASSERT_GLOBAL_LOCK;
 	MMM_REGION(m_pMMM);
 
-	FRAME_PROFILER("CCTPEndpoint:SendPacket", GetISystem(), PROFILE_NETWORK);
+	CRY_PROFILE_REGION(PROFILE_NETWORK, "CCTPEndpoint:SendPacket");
 
 	SSchedulingParams schedParams;
 	schedParams.now = nTime;

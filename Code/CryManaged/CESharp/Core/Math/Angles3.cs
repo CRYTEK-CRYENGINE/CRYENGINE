@@ -53,11 +53,9 @@ namespace CryEngine
 			{
 				int hash = 17;
 
-#pragma warning disable RECS0025 // Non-readonly field referenced in 'GetHashCode()'
 				hash = hash * 23 + _x.GetHashCode();
 				hash = hash * 23 + _y.GetHashCode();
 				hash = hash * 23 + _z.GetHashCode();
-#pragma warning restore RECS0025 // Non-readonly field referenced in 'GetHashCode()'
 
 				return hash;
 			}
@@ -76,7 +74,7 @@ namespace CryEngine
 
 		public bool Equals(Angles3 other)
 		{
-			return MathHelpers.Approximately(_x, other.x) && MathHelpers.Approximately(_y, other.y) && MathHelpers.Approximately(_z, other.z);
+			return MathHelpers.IsEqual(_x, other.x) && MathHelpers.IsEqual(_y, other.y) && MathHelpers.IsEqual(_z, other.z);
 		}
 
 		public override string ToString()
@@ -93,15 +91,11 @@ namespace CryEngine
 
 		public static implicit operator Ang3(Angles3 angles)
 		{
-			return new Ang3(angles.x, angles.y, angles.z);
-		}
-		public static implicit operator Angles3(Ang3 angles)
-		{
-			if (angles == null)
-			{
-				return new Angles3();
-			}
-			return new Angles3(angles.x, angles.y, angles.z);
+			var ang3 = new Ang3();
+			ang3.x = angles.x;
+			ang3.y = angles.y;
+			ang3.z = angles.z;
+			return ang3;
 		}
 
 		public static implicit operator Angles3(Vec3 nativeAngles)
@@ -190,21 +184,6 @@ namespace CryEngine
 				return new Angles3(-_x, -_y, -_z);
 			}
 		}
-
-		/// <summary>
-		/// Converts the yaw and pitch to a view direction.
-		/// x=yaw
-		/// y=pitch
-		/// z=roll (we ignore this element, since its not possible to convert the roll-component into a vector)
-		/// </summary>
-		/// <value>The view direction.</value>
-		public Vector3 ViewDirection
-		{
-			get
-			{
-				return CCamera.CreateViewdir(this);
-			}
-		}
 		
 		public Quaternion Quaternion { get { return new Quaternion(this); } }
 
@@ -227,7 +206,7 @@ namespace CryEngine
 						return _z;
 
 					default:
-						throw new ArgumentOutOfRangeException(nameof(index), "Indices must run from 0 to 2!");
+						throw new ArgumentOutOfRangeException("index", "Indices must run from 0 to 2!");
 				}
 			}
 			set
@@ -245,7 +224,7 @@ namespace CryEngine
 						break;
 
 					default:
-						throw new ArgumentOutOfRangeException(nameof(index), "Indices must run from 0 to 2!");
+						throw new ArgumentOutOfRangeException("index", "Indices must run from 0 to 2!");
 				}
 			}
 		}

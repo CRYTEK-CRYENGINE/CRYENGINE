@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 /*************************************************************************
  -------------------------------------------------------------------------
@@ -31,6 +31,7 @@ public:
 	virtual bool Init(IGameObject *pGameObject);
 	virtual void GetMemoryUsage(ICrySizer *pSizer) const;
 	virtual void PostInit(IGameObject *pGameObject);
+	virtual uint64 GetEventMask() const { return 0; }
 	// ~IGameObjectExtension
 
 	void SetSpawnedWeaponId(EntityId weaponId);

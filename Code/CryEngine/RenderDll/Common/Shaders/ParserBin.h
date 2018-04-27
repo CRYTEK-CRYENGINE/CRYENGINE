@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 /*=============================================================================
    ParserBin.h : Script parser declarations.
@@ -497,7 +497,6 @@ enum EToken
 	eT_Glass,
 	eT_Vegetation,
 	eT_Particle,
-	eT_GenerateSprites,
 	eT_GenerateClouds,
 	eT_ScanWater,
 
@@ -510,7 +509,6 @@ enum EToken
 	eT_TechniqueCustomRender,
 	eT_TechniqueEffectLayer,
 	eT_TechniqueDebug,
-	eT_TechniqueSoftAlphaTest,
 	eT_TechniqueWaterRefl,
 	eT_TechniqueWaterCaustic,
 	eT_TechniqueZPrepass,
@@ -733,7 +731,7 @@ struct SFXTokenBin
 
 #define FX_REGISTER_TOKEN(id) fxTokenKey( # id, eT_ ## id);
 
-extern char* g_KeyTokens[];
+extern const char* g_KeyTokens[];
 
 struct SMacroBinFX
 {
@@ -980,18 +978,12 @@ public:
 	bool                 JumpSemicolumn(uint32& nStart, uint32 nEnd);
 
 	static uint32        fxToken(const char* szToken, bool* bKey = NULL);
-	static uint32        fxTokenKey(char* szToken, EToken eT = eT_unknown);
+	static uint32        fxTokenKey(const char* szToken, EToken eT = eT_unknown);
 	static uint32        GetCRC32(const char* szStr);
 	static uint32        NextToken(char*& buf, char* com, bool& bKey);
 	static void          Init();
 	static void          RemovePlatformDefines();
-	static void          SetupForOrbis();
-	static void          SetupForD3D9();
-	static void          SetupForD3D11();
-	static void          SetupForGL4();
-	static void          SetupForGLES3();
-	static void          SetupForDurango();
-	static void          SetupForVulkan();
+	static void          SetupForPlatform(uint32 nPlatform);
 	static void          SetupFeatureDefines();
 	static CCryNameTSCRC GetPlatformSpecName(CCryNameTSCRC orgName);
 	static const char*   GetPlatformShaderlistName();

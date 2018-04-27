@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "AnimatedCharacter.h"
@@ -498,8 +498,10 @@ void CAnimatedCharacter::RefreshAnimTarget()
 		assert(pActorSystem != NULL);
 		IActor* pActor = pActorSystem->GetActor(GetEntity()->GetId());
 		IMovementController* pMovementController = pActor->GetMovementController();
-
-		m_pAnimTarget = pMovementController->GetExactPositioningTarget();
+		if (pMovementController)
+		{
+			m_pAnimTarget = pMovementController->GetExactPositioningTarget();
+		}
 	}
 }
 

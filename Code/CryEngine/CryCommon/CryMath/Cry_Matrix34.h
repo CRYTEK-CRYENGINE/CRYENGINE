@@ -1,14 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
-
-//
-//	File:Cry_Matrix.h
-//	Description: Common matrix class
-//
-//	History:
-//	-Feb 27,2003: Created by Ivo Herzeg
-//
-//
-//////////////////////////////////////////////////////////////////////
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -19,6 +9,8 @@ template<typename F> struct QuatTNS_tpl;
 template<typename F> struct DualQuat_tpl;
 template<typename F> struct Matrix34H;
 
+//! Represents a 3x4 matrix
+//! \see Matrix34
 template<typename F> struct Matrix34_tpl
 	: INumberArray<F, 12>
 {
@@ -562,6 +554,9 @@ template<typename F> struct Matrix34_tpl
 	// Gets the transformation's scale if it is uniform
 	ILINE F GetUniformScale() const  { return GetColumn0().GetLength(); }
 
+	// Gets the transformation's scale
+	ILINE Vec3 GetScale() const { return Vec3(GetColumn0().GetLength(), GetColumn1().GetLength(), GetColumn2().GetLength()); }
+
 	// helper functions to access matrix-members
 
 	F*                       GetData()                              { return &m00; }
@@ -888,14 +883,15 @@ ILINE Vec3_tpl<F> operator*(const Matrix34_tpl<F>& m, const Vec3_tpl<F>& p)
 
 //! Multiplication of a (row) Vec3 by a Matrix34.
 template<class F>
-ILINE Vec3_tpl<F> operator*(const Vec3_tpl<F>& p, const Matrix34_tpl<F>& m)
+ILINE Vec4_tpl<F> operator*(const Vec3_tpl<F>& p, const Matrix34_tpl<F>& m)
 {
 	CRY_MATH_ASSERT(m.IsValid());
 	CRY_MATH_ASSERT(p.IsValid());
-	Vec3_tpl<F> tp;
+	Vec4_tpl<F> tp;
 	tp.x = m.m00 * p.x + m.m10 * p.y + m.m20 * p.z;
 	tp.y = m.m01 * p.x + m.m11 * p.y + m.m21 * p.z;
 	tp.z = m.m02 * p.x + m.m12 * p.y + m.m22 * p.z;
+	tp.w = m.m03 * p.x + m.m13 * p.y + m.m23 * p.z;
 	return tp;
 }
 

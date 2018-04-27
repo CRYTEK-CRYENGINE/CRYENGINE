@@ -1,10 +1,9 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include <CryCore/Platform/platform_impl.inl>
 #include "resource.h"
 #include <CryCore/Platform/CryLibrary.h>
-#include <CryGame/IGameFramework.h>
 #include <CrySystem/IConsole.h>
 
 #include <CryCore/Platform/CryWindows.h>
@@ -17,10 +16,6 @@
 static unsigned key[4] = {1339822019,3471820962,4179589276,4119647811};
 static unsigned text[4] = {4114048726,1217549643,1454516917,859556405};
 static unsigned hash[4] = {324609294,3710280652,1292597317,513556273};
-
-#ifdef _LIB
-extern "C" IGameFramework* CreateGameFramework();
-#endif //_LIB
 
 // src and trg can be the same pointer (in place encryption)
 // len must be in bytes and must be multiple of 8 byts (64bits).
@@ -59,124 +54,31 @@ ILINE unsigned Hash( unsigned a )
 
 // encode size ignore last 3 bits of size in bytes. (encode by 8bytes min)
 #define TEA_GETSIZE( len ) ((len) & (~7))
-
-ILINE int RunGame(const char* szCommandLine)
-{
-	SSystemInitParams startupParams;
-	const char* frameworkDLLName = "CryAction.dll";
-
-	CryFindRootFolderAndSetAsCurrentWorkingDirectory();
-
-	//restart parameters
-	static const char logFileName[] = "Server.log";
-
-	unsigned buf[4];
-	TEA_DECODE((unsigned*)text,buf,16,(unsigned*)key);
-
-	HMODULE frameworkDll = 0;
-
-#if !defined(_LIB)
-	// load the framework dll
-	frameworkDll = CryLoadLibrary(frameworkDLLName);
-
-	if (!frameworkDll)
-	{
-		string errorStr;
-		errorStr.Format("Failed to load the Game DLL! %s", frameworkDLLName);
-
-		MessageBox(0, errorStr.c_str(), "Error", MB_OK | MB_DEFAULT_DESKTOP_ONLY);
-		// failed to load the dll
-
-		return EXIT_FAILURE;
-	}
-
-	// get address of startup function
-	IGameFramework::TEntryFunction CreateGameFramework = (IGameFramework::TEntryFunction)CryGetProcAddress(frameworkDll, "CreateGameFramework");
-
-	if (!CreateGameFramework)
-	{
-		// dll is not a compatible game dll
-		CryFreeLibrary(frameworkDll);
-
-		MessageBox(0, "Specified Game DLL is not valid! Please make sure you are running the correct executable", "Error", MB_OK | MB_DEFAULT_DESKTOP_ONLY);
-
-		return EXIT_FAILURE;
-	}
-#endif //!defined(_LIB)
-
-	cry_strcpy(startupParams.szSystemCmdLine, szCommandLine);
-	cry_strcat(startupParams.szSystemCmdLine, (const char*)buf);
-
-	startupParams.sLogFileName = logFileName;
-
-	for (int i=0; i<4; i++)
-		if (Hash(buf[i])!=hash[i])
-			return EXIT_FAILURE;
-
-	// create the startup interface
-	IGameFramework* pFramework = CreateGameFramework();
-	if (!pFramework)
-	{
-		// failed to create the startup interface
-		CryFreeLibrary(frameworkDll);
-
-		MessageBox(0, "Failed to create the GameStartup Interface!", "Error", MB_OK | MB_DEFAULT_DESKTOP_ONLY);
-
-		return EXIT_FAILURE;
-	}
-
-	// main game loop
-	pFramework->StartEngine(startupParams);
-
-	// The main engine loop has exited at this point, shut down
-	pFramework->ShutdownEngine();
-
-	CryFreeLibrary(frameworkDll);
-
-	return EXIT_SUCCESS;
-}
-
-
 ///////////////////////////////////////////////
 int APIENTRY WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow)
 {
-	// we need pass the full command line, including the filename
-	// lpCmdLine does not contain the filename.
-	string cmdLine = CryStringUtils::ANSIToUTF8(lpCmdLine);
-#if CAPTURE_REPLAY_LOG
-#ifndef _LIB
-	CryLoadLibrary("CrySystem.dll");
-#endif
-	CryGetIMemReplay()->StartOnCommandLine(cmdLine.c_str());
-#endif
+	// Note: lpCmdLine does not contain the filename.
+	string cmdLine = CryStringUtils::ANSIToUTF8(GetCommandLineA());
 
-	// Read the full command line, including executable line
-	cmdLine = CryStringUtils::ANSIToUTF8(GetCommandLineA());
-	
-/*
+	SSystemInitParams startupParams;
+	startupParams.sLogFileName = "Server.log";
+	startupParams.bDedicatedServer = true;
+	startupParams.bSkipInput = true;
+	cry_strcpy(startupParams.szSystemCmdLine, cmdLine.c_str());
+
 	unsigned buf[4];
-                 //  0123456789abcdef
-	char secret[16] = "  -dedicated   ";
-	TEA_ENCODE((unsigned int*)secret, (unsigned int*)buf, 16, key);
-	for (int i=0; i<4; i++)
-		hash[i] = Hash(((unsigned*)secret)[i]);
-*/
+	TEA_DECODE((unsigned*)text, buf, 16, (unsigned*)key);
 
-	return RunGame(cmdLine.c_str());
+	cry_strcat(startupParams.szSystemCmdLine, (const char*)buf);
+
+	for (int i = 0; i < 4; i++)
+		if (Hash(buf[i]) != hash[i])
+			return EXIT_FAILURE;
+
+	if (CryInitializeEngine(startupParams))
+	{
+		return EXIT_SUCCESS;
+	}
+
+	return EXIT_FAILURE;
 }
-
-#ifdef _LIB
-// Include common type defines for static linking
-// Manually instantiate templates as needed here.
-#include <CryCore/Common_TypeInfo.h>
-STRUCT_INFO_T_INSTANTIATE(Vec2_tpl, <float>)
-STRUCT_INFO_T_INSTANTIATE(Vec2_tpl, <int>)
-STRUCT_INFO_T_INSTANTIATE(Vec4_tpl, <short>)
-STRUCT_INFO_T_INSTANTIATE(Vec3_tpl, <int>)
-STRUCT_INFO_T_INSTANTIATE(Ang3_tpl, <float>)
-STRUCT_INFO_T_INSTANTIATE(Quat_tpl, <float>)
-STRUCT_INFO_T_INSTANTIATE(Plane_tpl, <float>)
-STRUCT_INFO_T_INSTANTIATE(Matrix33_tpl, <float>)
-STRUCT_INFO_T_INSTANTIATE(Color_tpl, <float>)
-STRUCT_INFO_T_INSTANTIATE(Color_tpl, <uint8>)
-#endif

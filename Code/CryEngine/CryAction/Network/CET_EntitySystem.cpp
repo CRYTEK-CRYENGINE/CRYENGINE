@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "CET_EntitySystem.h"
@@ -15,7 +15,7 @@
  * Reset entity system
  */
 
-class CCET_EntitySystemReset : public CCET_Base
+class CCET_EntitySystemReset final : public CCET_Base
 {
 public:
 	CCET_EntitySystemReset(bool skipPlayers, bool skipGameRules) : m_skipPlayers(skipPlayers), m_skipGameRules(skipGameRules) {}
@@ -58,8 +58,6 @@ public:
 				gEnv->pEntitySystem->Reset();
 		}
 
-		CActionGame::Get()->OnEntitySystemReset();
-
 		return eCETR_Ok;
 	}
 
@@ -77,7 +75,7 @@ void AddEntitySystemReset(IContextEstablisher* pEst, EContextViewState state, bo
  * Random system reset
  */
 
-class CCET_RandomSystemReset : public CCET_Base
+class CCET_RandomSystemReset final : public CCET_Base
 {
 public:
 	CCET_RandomSystemReset(bool loadingNewLevel) : m_loadingNewLevel(loadingNewLevel) {}
@@ -129,7 +127,7 @@ void AddRandomSystemReset(IContextEstablisher* pEst, EContextViewState state, bo
  * Fake some spawns
  */
 
-class CCET_FakeSpawns : public CCET_Base
+class CCET_FakeSpawns final : public CCET_Base
 {
 public:
 	CCET_FakeSpawns(unsigned what) : m_what(what) {}
@@ -207,7 +205,7 @@ void AddFakeSpawn(IContextEstablisher* pEst, EContextViewState state, unsigned w
  * load entities from the mission file
  */
 
-class CCET_LoadLevelEntities : public CCET_Base
+class CCET_LoadLevelEntities final : public CCET_Base
 {
 public:
 	const char*                 GetName() { return "LoadLevelEntities"; }
@@ -250,8 +248,7 @@ public:
 		else
 			return eCETR_Failed;
 
-		SEntityEvent loadingCompleteEvent(ENTITY_EVENT_LEVEL_LOADED);
-		gEnv->pEntitySystem->SendEventToAll(loadingCompleteEvent);
+		gEnv->pEntitySystem->OnLevelLoaded();
 
 		return eCETR_Ok;
 	}
@@ -266,7 +263,7 @@ void AddLoadLevelEntities(IContextEstablisher* pEst, EContextViewState state)
  * send an event
  */
 
-class CCET_EntitySystemEvent : public CCET_Base, private SEntityEvent
+class CCET_EntitySystemEvent final : public CCET_Base, private SEntityEvent
 {
 public:
 	CCET_EntitySystemEvent(const SEntityEvent& evt) : SEntityEvent(evt) {}
@@ -283,4 +280,22 @@ public:
 void AddEntitySystemEvent(IContextEstablisher* pEst, EContextViewState state, const SEntityEvent& evt)
 {
 	pEst->AddTask(state, new CCET_EntitySystemEvent(evt));
+}
+
+// Notify gameplay start
+class CCET_EntitySystemGameplayStart final : public CCET_Base
+{
+public:
+	const char*                 GetName() { return "EntitySystemGameplayStart"; }
+
+	EContextEstablishTaskResult OnStep(SContextEstablishState& state)
+	{
+		gEnv->pEntitySystem->OnLevelGameplayStart();
+		return eCETR_Ok;
+	}
+};
+
+void AddEntitySystemGameplayStart(IContextEstablisher* pEst, EContextViewState state)
+{
+	pEst->AddTask(state, new CCET_EntitySystemGameplayStart());
 }

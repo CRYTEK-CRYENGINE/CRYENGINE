@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -11,7 +11,6 @@ class QViewport;
 class QMainWindow;
 class QSplitter;
 class QToolButton;
-class QTreeView;
 class QPropertyTree;
 class QBoxLayout;
 class QToolBar;
@@ -62,7 +61,6 @@ public:
 	~CharacterToolForm();
 
 	void Serialize(Serialization::IArchive& ar);
-	void ExecuteExplorerAction(const ExplorerAction& action, const vector<_smart_ptr<ExplorerEntry>>& entries);
 
 	//////////////////////////////////////////////////////////
 	// CDockableWidget implementation
@@ -71,64 +69,68 @@ public:
 	//////////////////////////////////////////////////////////
 
 public slots:
-	void                OnExportAnimationLayers();
-	void                OnImportAnimationLayers();
-	void                OnFileSaveAll();
-	void                OnFileRecent();
-	void                OnFileRecentAboutToShow(QMenu* menu);
-	void                OnFileNewCharacter();
-	void                OnFileOpenCharacter();
-	void                OnFileCleanAnimations();
-	void                OnFileResaveAnimSettings();
-	void                OnLayoutReset();
-	void                OnLayoutSave();
-	void                OnLayoutSet();
-	void                OnLayoutRemove();
+	void             OnExportAnimationLayers();
+	void             OnImportAnimationLayers();
+	void             OnFileSaveAll();
+	void             OnFileRecent();
+	void             OnFileRecentAboutToShow(QMenu* menu);
+	void             OnFileNewCharacter();
+	void             OnFileOpenCharacter();
+	void             OnFileCleanAnimations();
+	void             OnFileResaveAnimSettings();
+	void             OnLayoutReset();
+	void             OnLayoutSave();
+	void             OnLayoutSet();
+	void             OnLayoutRemove();
 
-	void                OnIdleUpdate();
-	void                OnPreRenderCompressed(const SRenderContext& context);
-	void                OnRenderCompressed(const SRenderContext& context);
-	void                OnPreRenderOriginal(const SRenderContext& context);
-	void                OnRenderOriginal(const SRenderContext& context);
-	void                OnViewportUpdate();
-	void                OnViewportOptionsChanged();
-	void                OnDisplayOptionsChanged(const DisplayOptions& displayOptions);
-	void                OnDisplayParametersButton();
-	void                OnExplorerSelectionChanged();
-	void                OnDockWidgetsChanged();
-	void                OnCharacterLoaded();
-	void                OnPanelDestroyed(QObject* obj);
-	void				OnFocusChanged(QWidget *old, QWidget *now);
+	void             OnIdleUpdate();
+	void             OnPreRenderCompressed(const SRenderContext& context);
+	void             OnRenderCompressed(const SRenderContext& context);
+	void             OnPreRenderOriginal(const SRenderContext& context);
+	void             OnRenderOriginal(const SRenderContext& context);
+	void             OnViewportUpdate();
+	void             OnViewportOptionsChanged();
+	void             OnDisplayOptionsChanged(const DisplayOptions& displayOptions);
+	void             OnDisplayParametersButton();
+	void             OnExplorerSelectionChanged();
+	void             OnDockWidgetsChanged();
+	void             OnCharacterLoaded();
+	void             OnPanelDestroyed(QObject* obj);
+	void             OnFocusChanged(QWidget* old, QWidget* now);
+	void             OnClearProxiesButton();
 
-	void                OnAnimEventPresetPanelPutEvent();
+	void             OnAnimEventPresetPanelPutEvent();
 
-	bool                TryToClose()         { return true; }
+	bool             TryToClose()         { return true; }
 
-	IViewportMode*      ViewportMode() const { return m_mode; }
-	PlaybackPanel*      GetPlaybackPanel()   { return m_playbackPanel; }
+	IViewportMode*   ViewportMode() const { return m_mode; }
+	PlaybackPanel*   GetPlaybackPanel()   { return m_playbackPanel; }
+	bool             ProxyMakingMode()    { return m_createProxyModeButton->isChecked(); }
+	PropertiesPanel* GetPropertiesPanel() { return m_propertiesPanel; }
 protected:
-	bool                event(QEvent* ev) override;
-	void                closeEvent(QCloseEvent* ev);
-	bool                eventFilter(QObject* sender, QEvent* ev) override;
+	bool             event(QEvent* ev) override;
+	void             closeEvent(QCloseEvent* ev);
+	bool             eventFilter(QObject* sender, QEvent* ev) override;
+	void             customEvent(QEvent* event) override;
 private:
 
-	virtual QRect       GetPaneRect() override;
+	virtual QRect  GetPaneRect() override;
 
-	ExplorerPanel*      CreateExplorerPanel();
-	void                SerializeLayout(Serialization::IArchive& ar);
-	void                SaveLayoutToFile(const char* filename);
-	void                LoadLayoutFromFile(const char* filename);
-	void                ResetLayout();
-	void                Initialize();
-	void                UpdateLayoutMenu();
-	void                UpdatePanesMenu();
-	void                UpdateViewportMode(ExplorerEntry* newEntry);
-	void                InstallMode(IViewportMode* mode, ExplorerEntry* modeEntry);
-	void                ResetDockWidgetsToDefault();
-	void                ReadViewportOptions(const ViewportOptions& options, const DisplayAnimationOptions& animationOptions);
-	void                LeaveMode();
-	void                OnMainFrameAboutToQuit(BroadcastEvent& event);
-	void				LoadGlobalData();
+	ExplorerPanel* CreateExplorerPanel();
+	void           SerializeLayout(Serialization::IArchive& ar);
+	void           SaveLayoutToFile(const char* filename);
+	void           LoadLayoutFromFile(const char* filename);
+	void           ResetLayout();
+	void           Initialize();
+	void           UpdateLayoutMenu();
+	void           UpdatePanesMenu();
+	void           UpdateViewportMode(ExplorerEntry* newEntry);
+	void           InstallMode(IViewportMode* mode, ExplorerEntry* modeEntry);
+	void           ResetDockWidgetsToDefault();
+	void           ReadViewportOptions(const ViewportOptions& options, const DisplayAnimationOptions& animationOptions);
+	void           LeaveMode();
+	void           OnMainFrameAboutToQuit(BroadcastEvent& event);
+	void           LoadGlobalData();
 
 	struct SPrivate;
 	System*                                    m_system;
@@ -147,9 +149,11 @@ private:
 	SceneParametersPanel*                      m_sceneParametersPanel;
 	DisplayParametersPanel*                    m_displayParametersPanel;
 	AnimEventPresetPanel*                      m_animEventPresetPanel;
-	QTreeView*                                 m_characterTree;
 	QToolBar*                                  m_modeToolBar;
 	QToolButton*                               m_displayParametersButton;
+	QToolButton*                               m_createProxyModeButton;
+	QToolButton*                               m_clearProxiesButton;
+	QToolButton*                               m_testRagdollButton;
 	TransformPanel*                            m_transformPanel;
 
 	QMenu*                                     m_menuView;
@@ -170,9 +174,7 @@ private:
 	std::vector<char>                          m_defaultLayoutSnapshot;
 
 	bool                                       m_closed;
-	bool									   m_bHasFocus;
+	bool                                       m_bHasFocus;
 };
-
-void ShowCharacterToolForm();
 
 }

@@ -1,27 +1,33 @@
 {
-    "toolBar": {
-        "Commands": [
-            {
-                "command": "ui_action.actionLock_X_Axis",
-                "custom": false,
-                "uiName": "Lock on X Axis"
-            },
-            {
-                "command": "ui_action.actionLock_Y_Axis",
-                "custom": false,
-                "uiName": "Lock on Y Axis"
-            },
-            {
-                "command": "ui_action.actionLock_Z_Axis",
-                "custom": false,
-                "uiName": "Lock on Z Axis"
-            },
-            {
-                "command": "ui_action.actionLock_XY_Axis",
-                "custom": false,
-                "uiName": "Lock on XY Plane"
-            }
-        ]
-    },
-    "version": 1
+    "toolBar": [
+        {
+            "command": "tools.enable_x_axis_contraint",
+            "iconPath": "icons:Navigation/Axis_X.ico",
+            "m_IsCustom": false,
+            "name": "enable_x_axis_contraint",
+            "type": 0
+        },
+        {
+            "command": "tools.enable_y_axis_contraint",
+            "iconPath": "icons:Navigation/Axis_Y.ico",
+            "m_IsCustom": false,
+            "name": "enable_y_axis_contraint",
+            "type": 0
+        },
+        {
+            "command": "tools.enable_z_axis_contraint",
+            "iconPath": "icons:Navigation/Axis_Z.ico",
+            "m_IsCustom": false,
+            "name": "enable_z_axis_contraint",
+            "type": 0
+        },
+        {
+            "command": "tools.enable_xy_axis_contraint",
+            "iconPath": "icons:Navigation/Axis_XY.ico",
+            "m_IsCustom": false,
+            "name": "enable_xy_axis_contraint",
+            "type": 0
+        }
+    ],
+    "version": 2
 }

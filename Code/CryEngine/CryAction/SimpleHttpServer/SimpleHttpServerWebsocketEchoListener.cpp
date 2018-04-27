@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include <CryNetwork/ISimpleHttpServer.h>
@@ -20,7 +20,7 @@ void CSimpleHttpServerWebsocketEchoListener::OnUpgrade(int connectionID)
 
 	SMessageData data;
 	data.m_eType = eMT_Text;
-	data.m_pBuffer = "Upgraded connection to Websocket.\n";
+	data.m_pBuffer = const_cast<char*>("Upgraded connection to Websocket.\n");
 	data.m_bufferSize = 35;
 
 	gEnv->pNetwork->GetSimpleHttpServerSingleton()->SendWebsocketData(connectionID, data, false);

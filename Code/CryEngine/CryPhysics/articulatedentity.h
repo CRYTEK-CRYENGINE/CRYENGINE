@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #ifndef articulatedentity_h
 #define articulatedentity_h
@@ -138,6 +138,10 @@ class CArticulatedEntity : public CRigidEntity {
 	virtual float CalcEnergy(float time_interval);
 	virtual float GetDamping(float time_interval);
 	virtual void GetSleepSpeedChange(int ipart, Vec3 &v,Vec3 &w) { int i=m_infos[ipart].iJoint; v=m_joints[i].vSleep; w=m_joints[i].wSleep; }
+	virtual void OnHostSync(CPhysicalEntity *pHost);
+	virtual int HasConstraintContactsWith(const CPhysicalEntity *pent, int flagsIgnore=0) const { 
+		return pent==m_pHost && !(flagsIgnore & constraint_inactive) ? true : CRigidEntity::HasConstraintContactsWith(pent,flagsIgnore); 
+	}
 
 	virtual int GetPotentialColliders(CPhysicalEntity **&pentlist, float dt=0);
 	virtual int CheckSelfCollision(int ipart0,int ipart1);

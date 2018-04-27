@@ -1,34 +1,9 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include <CryRenderer/RenderElements/RendElement.h>
 #include "XRenderD3D9/DriverD3D.h"
 
-void CREOcclusionQuery::mfPrepare(bool bCheckOverflow)
-{
-	if (bCheckOverflow)
-		gRenDev->FX_CheckOverflow(0, 0, this);
-
-	mfSetType(eDATA_OcclusionQuery);
-	mfUpdateFlags(FCEF_TRANSFORM);
-	//  m_matWSInv.SetIdentity();
-
-	gRenDev->m_RP.m_pRE = this;
-	gRenDev->m_RP.m_RendNumIndices = 0;
-	gRenDev->m_RP.m_FirstVertex = 0;
-	gRenDev->m_RP.m_RendNumVerts = 4;
-
-	if (m_pRMBox && m_pRMBox->m_Chunks.size())
-	{
-		CRenderChunk* pChunk = &m_pRMBox->m_Chunks[0];
-		if (pChunk)
-		{
-			gRenDev->m_RP.m_RendNumIndices = pChunk->nNumIndices;
-			gRenDev->m_RP.m_FirstVertex = 0;
-			gRenDev->m_RP.m_RendNumVerts = pChunk->nNumVerts;
-		}
-	}
-}
 
 CREOcclusionQuery::~CREOcclusionQuery()
 {
@@ -51,6 +26,8 @@ uint32 CREOcclusionQuery::m_nQueriesPerFrameCounter = 0;
 uint32 CREOcclusionQuery::m_nReadResultNowCounter = 0;
 uint32 CREOcclusionQuery::m_nReadResultTryCounter = 0;
 
+// OLD PIPELINE
+/*
 bool CREOcclusionQuery::mfDraw(CShader* ef, SShaderPass* sfm)
 {
 	PROFILE_FRAME(CREOcclusionQuery::mfDraw);
@@ -100,13 +77,13 @@ bool CREOcclusionQuery::mfDraw(CShader* ef, SShaderPass* sfm)
 			//allocate indices
 			TempDynIB16::CreateFillAndBind(&arrDeferredInds[0], arrDeferredInds.size());
 
-			r->m_RP.m_TI[r->m_RP.m_nProcessThreadID].m_matView->Push();
+			gRenDev->m_renderThreadInfo[gRenDev->GetRenderThreadID()].m_matView->Push();
 			Matrix34 mat;
 			mat.SetIdentity();
 			mat.SetScale(m_vBoxMax - m_vBoxMin, m_vBoxMin);
 
 			const Matrix44 cTransPosed = Matrix44(mat).GetTransposed();
-			r->m_RP.m_TI[r->m_RP.m_nProcessThreadID].m_matView->MultMatrixLocal(&cTransPosed);
+			gRenDev->m_renderThreadInfo[gRenDev->GetRenderThreadID()].m_matView->MultMatrixLocal(&cTransPosed);
 			r->EF_DirtyMatrix();
 
 			uint32 nPasses;
@@ -114,20 +91,20 @@ bool CREOcclusionQuery::mfDraw(CShader* ef, SShaderPass* sfm)
 			pSh->FXBegin(&nPasses, FEF_DONTSETTEXTURES | FEF_DONTSETSTATES);
 			pSh->FXBeginPass(0);
 
-			int nPersFlagsSave = r->m_RP.m_TI[r->m_RP.m_nProcessThreadID].m_PersFlags;
-			uint64 nObjFlagsSave = r->m_RP.m_ObjFlags;
-			CRenderObject* pCurObjectSave = r->m_RP.m_pCurObject;
-			CShader* pShaderSave = r->m_RP.m_pShader;
-			SShaderTechnique* pCurTechniqueSave = r->m_RP.m_pCurTechnique;
+			int nPersFlagsSave = gRenDev->m_renderThreadInfo[gRenDev->GetRenderThreadID()].m_PersFlags;
+			uint64 nObjFlagsSave = gRenDev->m_RP.m_ObjFlags;
+			CRenderObject* pCurObjectSave = gRenDev->m_RP.m_pCurObject;
+			CShader* pShaderSave = gRenDev->m_RP.m_pShader;
+			SShaderTechnique* pCurTechniqueSave = gRenDev->m_RP.m_pCurTechnique;
 
 			if (r->FX_SetVertexDeclaration(0, EDefaultInputLayouts::P3F_C4B_T2F) == S_OK)
 			{
-				r->m_RP.m_TI[r->m_RP.m_nProcessThreadID].m_PersFlags &= ~RBPF_FP_DIRTY | RBPF_FP_MATRIXDIRTY;
-				r->m_RP.m_ObjFlags &= ~FOB_TRANS_MASK;
-				r->m_RP.m_pCurObject = r->m_RP.m_pIdendityRenderObject;
-				r->m_RP.m_pShader = pSh;
-				r->m_RP.m_pCurTechnique = pSh->m_HWTechniques[0];
-				r->FX_SetState(GS_COLMASK_NONE | GS_DEPTHFUNC_LEQUAL);
+				gRenDev->m_renderThreadInfo[gRenDev->GetRenderThreadID()].m_PersFlags &= ~RBPF_FP_DIRTY | RBPF_FP_MATRIXDIRTY;
+				gRenDev->m_RP.m_ObjFlags &= ~FOB_TRANS_MASK;
+				gRenDev->m_RP.m_pCurObject = gRenDev->m_RP.m_pIdendityRenderObject;
+				gRenDev->m_RP.m_pShader = pSh;
+				gRenDev->m_RP.m_pCurTechnique = pSh->m_HWTechniques[0];
+				r->FX_SetState(GS_NOCOLMASK_RGBA | GS_DEPTHFUNC_LEQUAL);
 				r->SetCullMode(R_CULL_NONE);
 
 				r->FX_Commit();
@@ -138,12 +115,12 @@ bool CREOcclusionQuery::mfDraw(CShader* ef, SShaderPass* sfm)
 			pSh->FXEndPass();
 			pSh->FXEnd();
 
-			r->m_RP.m_TI[r->m_RP.m_nProcessThreadID].m_matView->Pop();
-			r->m_RP.m_TI[r->m_RP.m_nProcessThreadID].m_PersFlags = nPersFlagsSave;
-			r->m_RP.m_ObjFlags = nObjFlagsSave;
-			r->m_RP.m_pCurObject = pCurObjectSave;
-			r->m_RP.m_pShader = pShaderSave;
-			r->m_RP.m_pCurTechnique = pCurTechniqueSave;
+			gRenDev->m_renderThreadInfo[gRenDev->GetRenderThreadID()].m_matView->Pop();
+			gRenDev->m_renderThreadInfo[gRenDev->GetRenderThreadID()].m_PersFlags = nPersFlagsSave;
+			gRenDev->m_RP.m_ObjFlags = nObjFlagsSave;
+			gRenDev->m_RP.m_pCurObject = pCurObjectSave;
+			gRenDev->m_RP.m_pShader = pShaderSave;
+			gRenDev->m_RP.m_pCurTechnique = pCurTechniqueSave;
 
 			commandList.GetGraphicsInterface()->EndOcclusionQuery(pVizQuery);
 
@@ -157,45 +134,20 @@ bool CREOcclusionQuery::mfDraw(CShader* ef, SShaderPass* sfm)
 
 	return true;
 }
+*/
 
-bool CREOcclusionQuery::mfReadResult_Now()
+void CREOcclusionQuery::mfReadResult_Try(uint32 nDefaultNumSamples)
 {
-	int nFrame = gcpRendD3D->GetFrameID();
-
-	D3DOcclusionQuery* pVizQuery = (D3DOcclusionQuery*)m_nOcclusionID;
-	if (pVizQuery)
-	{
-		HRESULT hRes = S_FALSE;
-		uint64 samplesPassed;
-		while (hRes == S_FALSE)
-		{
-			hRes = GetDeviceObjectFactory().GetOcclusionQueryResults(pVizQuery, samplesPassed) ? S_OK : S_FALSE;
-		}
-		m_nVisSamples = (int)samplesPassed;
-
-		if (hRes == S_OK)
-		{
-			m_nDrawFrame = 0;
-			m_nCheckFrame = nFrame;
-		}
-
-	}
-
-	m_nReadResultNowCounter++;
-
-	m_bSucceeded = (m_nCheckFrame == nFrame);
-	return m_bSucceeded;
+	gRenDev->ExecuteRenderThreadCommand( [=]{ this->RT_ReadResult_Try(nDefaultNumSamples); },
+		ERenderCommandFlags::SkipDuringLoading
+	);
 }
 
-bool CREOcclusionQuery::mfReadResult_Try(uint32 nDefaultNumSamples)
-{
-	return gRenDev->m_pRT->RC_OC_ReadResult_Try(nDefaultNumSamples, this);
-}
 bool CREOcclusionQuery::RT_ReadResult_Try(uint32 nDefaultNumSamples)
 {
-	PROFILE_FRAME(CREOcclusionQuery::mfReadResult_Try);
+	PROFILE_FRAME(CREOcclusionQuery::RT_ReadResult_Try);
 
-	int nFrame = gcpRendD3D->GetFrameID();
+	int nFrame = gcpRendD3D->GetRenderFrameID();
 
 	D3DOcclusionQuery* pVizQuery = (D3DOcclusionQuery*)m_nOcclusionID;
 	if (pVizQuery)

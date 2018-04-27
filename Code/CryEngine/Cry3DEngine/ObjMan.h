@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 // -------------------------------------------------------------------------
 //  File name:   statobjman.h
@@ -28,7 +28,7 @@
 
 #define ENTITY_MAX_DIST_FACTOR  100
 #define MAX_VALID_OBJECT_VOLUME (10000000000.f)
-#define DEFAULT_CGF_NAME        ("%ENGINE%\\EngineAssets\\Objects\\Default.cgf")
+#define DEFAULT_CGF_NAME        ("%ENGINE%\\EngineAssets\\Objects\\primitive_sphere.cgf")
 
 struct CStatObj;
 struct IIndoorBase;
@@ -227,16 +227,12 @@ public:
 	// Only should be called by Release function of CStatObj.
 	bool InternalDeleteObject(CStatObj* pObject);
 
-	PodArray<PodArray<StatInstGroup>> m_lstStaticTypes;
-
-	uint64 GetShadowFrustumsList(PodArray<CDLight*>* pAffectingLights, const AABB& aabbReceiver,
-	                             float fObjDistance, uint32 nDLightMask, bool bIncludeNearFrustums,
-	                             const SRenderingPassInfo& passInfo);
+	PodArray<StatInstGroup> m_lstStaticTypes;
 
 	CThreadSafeRendererContainer<SVegetationSpriteInfo> m_arrVegetationSprites[MAX_RECURSION_LEVELS][nThreadsNum];
 
 	void MakeShadowCastersList(CVisArea* pReceiverArea, const AABB& aabbReceiver,
-	                           int dwAllowedTypes, int32 nRenderNodeFlags, Vec3 vLightPos, CDLight* pLight, ShadowMapFrustum* pFr, PodArray<struct SPlaneObject>* pShadowHull, const SRenderingPassInfo& passInfo);
+	                           int dwAllowedTypes, int32 nRenderNodeFlags, Vec3 vLightPos, SRenderLight* pLight, ShadowMapFrustum* pFr, PodArray<struct SPlaneObject>* pShadowHull, const SRenderingPassInfo& passInfo);
 
 	int MakeStaticShadowCastersList(IRenderNode* pIgnoreNode, ShadowMapFrustum* pFrustum, const PodArray<struct SPlaneObject>* pShadowHull, int renderNodeExcludeFlags, int nMaxNodes, const SRenderingPassInfo& passInfo);
 
@@ -259,8 +255,6 @@ public:
 	LoadedObjects m_lstLoadedObjects;
 
 protected:
-	CREFarTreeSprites* m_REFarTreeSprites;
-
 #if CRY_PLATFORM_WINDOWS && CRY_PLATFORM_64BIT
 	#pragma warning( push )               //AMD Port
 	#pragma warning( disable : 4267 )
@@ -275,9 +269,9 @@ public:
 
 	uint16 CheckCachedNearestCubeProbe(IRenderNode* pEnt, Vec4* pEnvProbMults = nullptr)
 	{
-		if (pEnt->m_pTempData)
+		if (const auto tempDataPtr = pEnt->m_pTempData.load())
 		{
-			SRenderNodeTempData::SUserData& pUserDataRN = pEnt->m_pTempData->userData;
+			SRenderNodeTempData::SUserData& pUserDataRN = tempDataPtr->userData;
 
 			const uint16 nCacheClearThreshold = 32;
 			++pUserDataRN.nCubeMapIdCacheClearCounter;
@@ -287,6 +281,7 @@ public:
 			{
 				if (pEnvProbMults)
 					*pEnvProbMults = pUserDataRN.vEnvironmentProbeMults;
+
 				return pUserDataRN.nCubeMapId;
 			}
 		}
@@ -295,40 +290,40 @@ public:
 		return 0;
 	}
 
-	int16 GetNearestCubeProbe(PodArray<CDLight*>* pAffectingLights, IVisArea* pVisArea, const AABB& objBox, bool bSpecular = true, Vec4* pEnvProbeMults = nullptr);
+	int16 GetNearestCubeProbe(PodArray<SRenderLight*>* pAffectingLights, IVisArea* pVisArea, const AABB& objBox, bool bSpecular = true, Vec4* pEnvProbeMults = nullptr);
 
 	void  RenderObject(IRenderNode* o,
-	                   PodArray<CDLight*>* pAffectingLights,
+	                   PodArray<SRenderLight*>* pAffectingLights,
 	                   const Vec3& vAmbColor,
 	                   const AABB& objBox,
 	                   float fEntDistance,
-	                   bool bSunOnly,
 	                   EERType eERType,
-	                   const SRenderingPassInfo& passInfo);
+	                   const SRenderingPassInfo& passInfo,
+	                   uint32 passCullMask);
 
-	void RenderVegetation(class CVegetation* pEnt, PodArray<CDLight*>* pAffectingLights,
-													const AABB &objBox, float fEntDistance, bool bSunOnly,
-													SSectorTextureSet * pTerrainTexInfo, bool nCheckOcclusion, const SRenderingPassInfo &passInfo);
-	void RenderBrush(class CBrush* pEnt, PodArray<CDLight*>* pAffectingLights,
+	void RenderVegetation(class CVegetation* pEnt, PodArray<SRenderLight*>* pAffectingLights,
+													const AABB &objBox, float fEntDistance,
+													SSectorTextureSet * pTerrainTexInfo, bool nCheckOcclusion, const SRenderingPassInfo &passInfo, uint32 passCullMask);
+	void RenderBrush(class CBrush* pEnt, PodArray<SRenderLight*>* pAffectingLights,
 										 SSectorTextureSet * pTerrainTexInfo,
-										 const AABB &objBox, float fEntDistance, bool bSunOnly,
-										 CVisArea * pVisArea, bool nCheckOcclusion, const SRenderingPassInfo &passInfo);
+										 const AABB &objBox, float fEntDistance,
+										 bool nCheckOcclusion, const SRenderingPassInfo &passInfo, uint32 passCullMask);
 
-	int  ComputeDissolve(const CLodValue& lodValueIn, IRenderNode* pEnt, float fEntDistance, CLodValue arrlodValuesOut[2]);
+	int  ComputeDissolve(const CLodValue& lodValueIn, SRenderNodeTempData* pTempData, IRenderNode* pEnt, float fEntDistance, CLodValue arrlodValuesOut[2]);
 
-	void RenderDecalAndRoad(IRenderNode* pEnt, PodArray<CDLight*>* pAffectingLights,
+	void RenderDecalAndRoad(IRenderNode* pEnt, PodArray<SRenderLight*>* pAffectingLights,
 	                        const Vec3& vAmbColor, const AABB& objBox, float fEntDistance,
-	                        bool bSunOnly, bool nCheckOcclusion, const SRenderingPassInfo& passInfo);
+	                        bool nCheckOcclusion, const SRenderingPassInfo& passInfo);
 
 	void      RenderObjectDebugInfo(IRenderNode* pEnt, float fEntDistance, const SRenderingPassInfo& passInfo);
 	void      RenderAllObjectDebugInfo();
 	void      RenderObjectDebugInfo_Impl(IRenderNode* pEnt, float fEntDistance);
 	void      RemoveFromRenderAllObjectDebugInfo(IRenderNode* pEnt);
 
-	float     GetXYRadius(int nType, int nSID = GetDefSID());
-	bool      GetStaticObjectBBox(int nType, Vec3& vBoxMin, Vec3& vBoxMax, int nSID = GetDefSID());
+	float     GetXYRadius(int nType);
+	bool      GetStaticObjectBBox(int nType, Vec3& vBoxMin, Vec3& vBoxMax);
 
-	IStatObj* GetStaticObjectByTypeID(int nTypeID, int nSID = GetDefSID());
+	IStatObj* GetStaticObjectByTypeID(int nTypeID);
 	IStatObj* FindStaticObjectByFilename(const char* filename);
 
 	float     GetBendingRandomFactor();
@@ -343,9 +338,9 @@ public:
 	// tmp containers (replacement for local static vars)
 
 	//  void DrawObjSpritesSorted(PodArray<CVegetation*> *pList, float fMaxViewDist, int useBending);
-	//	void ProcessActiveShadowReceiving(IRenderNode * pEnt, float fEntDistance, CDLight * pLight, bool bFocusOnHead);
+	//	void ProcessActiveShadowReceiving(IRenderNode * pEnt, float fEntDistance, SRenderLight * pLight, bool bFocusOnHead);
 
-	//	void SetupEntityShadowMapping( IRenderNode * pEnt, SRendParams * pDrawParams, float fEntDistance, CDLight * pLight );
+	//	void SetupEntityShadowMapping( IRenderNode * pEnt, SRendParams * pDrawParams, float fEntDistance, SRenderLight * pLight );
 	//////////////////////////////////////////////////////////////////////////
 
 	void RegisterForStreaming(IStreamable* pObj);
@@ -359,7 +354,7 @@ public:
 	//  PodArray<class CVegetation*> m_lstVegetContainer;
 	void       LoadBrushes();
 	//  void MergeBrushes();
-	void       ReregisterEntitiesInArea(Vec3 vBoxMin, Vec3 vBoxMax);
+	void       ReregisterEntitiesInArea(AABB* pBox, bool bCleanUpTree = false);
 	//	void ProcessEntityParticles(IRenderNode * pEnt, float fEntDistance);
 	void       UpdateObjectsStreamingPriority(bool bSyncLoad, const SRenderingPassInfo& passInfo);
 	ILINE void SetCurrentTime(float fCurrentTime) { m_fCurrTime = fCurrentTime; }
@@ -381,11 +376,11 @@ public:
 	static bool IsAfterWater(const Vec3& vPos, const Vec3& vCamPos, const SRenderingPassInfo& passInfo, float fUserWaterLevel = WATER_LEVEL_UNKNOWN);
 
 	void        GetObjectsStreamingStatus(I3DEngine::SObjectsStreamingStatus& outStatus);
-	//	bool ProcessShadowMapCasting(IRenderNode * pEnt, CDLight * pLight);
+	//	bool ProcessShadowMapCasting(IRenderNode * pEnt, SRenderLight * pLight);
 
-	//	bool IsSphereAffectedByShadow(IRenderNode * pCaster, IRenderNode * pReceiver, CDLight * pLight);
+	//	bool IsSphereAffectedByShadow(IRenderNode * pCaster, IRenderNode * pReceiver, SRenderLight * pLight);
 	//	void MakeShadowCastersListInArea(CBasicArea * pArea, const AABB & boxReceiver,
-	//		int dwAllowedTypes, Vec3 vLightPos, CDLight * pLight, ShadowMapFrustum * pFr, PodArray<struct SPlaneObject> * pShadowHull );
+	//		int dwAllowedTypes, Vec3 vLightPos, SRenderLight * pLight, ShadowMapFrustum * pFr, PodArray<struct SPlaneObject> * pShadowHull );
 	//	void DrawEntityShadowFrustums(IRenderNode * pEnt);
 
 	void FreeNotUsedCGFs();
@@ -394,7 +389,7 @@ public:
 	//	const CCamera & EntViewCamera,
 	//bool bAllInside, float fMaxViewDist, IRenderNodeInfo * pEntInfo);
 	//	void InitEntityShadowMapInfoStructure(IRenderNode * pEnt);
-	//	float CalculateEntityShadowVolumeExtent(IRenderNode * pEntity, CDLight * pLight);
+	//	float CalculateEntityShadowVolumeExtent(IRenderNode * pEntity, SRenderLight * pLight);
 	//	void MakeShadowBBox(Vec3 & vBoxMin, Vec3 & vBoxMax, const Vec3 & vLightPos, float fLightRadius, float fShadowVolumeExtent);
 	void MakeUnitCube();
 
@@ -452,49 +447,57 @@ public:
 	void         PrepareCullbufferAsync(const CCamera& rCamera);
 	void         BeginOcclusionCulling(const SRenderingPassInfo& passInfo);
 	void         EndOcclusionCulling();
-	void         RenderBufferedRenderMeshes(const SRenderingPassInfo& passInfo);
+	void         RenderNonJobObjects(const SRenderingPassInfo& passInfo);
 	uint32       GetResourcesModificationChecksum(IRenderNode* pOwnerNode) const;
-	bool         AddOrCreatePersistentRenderObject(SRenderNodeTempData* pTempData, CRenderObject*& pRenderObject, const CLodValue* pLodValue, const SRenderingPassInfo& passInfo) const;
+	bool         AddOrCreatePersistentRenderObject(SRenderNodeTempData* pTempData, CRenderObject*& pRenderObject, const CLodValue* pLodValue, const Matrix34& transformationMatrix, const SRenderingPassInfo& passInfo) const;
 	IRenderMesh* GetBillboardRenderMesh(IMaterial* pMaterial);
 
 public:
 	//////////////////////////////////////////////////////////////////////////
-	// Public Member variables (need to be cleaned).
+	// Public Member variables.
 	//////////////////////////////////////////////////////////////////////////
 
-	static int  m_nUpdateStreamingPrioriryRoundId;
-	static int  m_nUpdateStreamingPrioriryRoundIdFast;
-	static int  s_nLastStreamingMemoryUsage;        //For streaming tools in editor
+	static int                      m_nUpdateStreamingPrioriryRoundId;
+	static int                      m_nUpdateStreamingPrioriryRoundIdFast;
+	static int                      s_nLastStreamingMemoryUsage; //For streaming tools in editor
 
-	Vec3        m_vSkyColor;          //
-	Vec3        m_vSunColor;          //
-	float       m_fSunSkyRel;         //relation factor of sun sky, 1->sun has full part of brightness, 0->sky has full part
-	float       m_fILMul;
-	float       m_fSkyBrightMul;
-	float       m_fSSAOAmount;
-	float       m_fSSAOContrast;
-	float       m_fGIAmount;
-	SRainParams m_rainParams;
-	SSnowParams m_snowParams;
+	Vec3                            m_vSkyColor;
+	Vec3                            m_vSunColor;
+	float                           m_fSunSkyRel; //relation factor of sun sky, 1->sun has full part of brightness, 0->sky has full part
+	float                           m_fILMul;
+	float                           m_fSkyBrightMul;
+	float                           m_fSSAOAmount;
+	float                           m_fSSAOContrast;
+	float                           m_fGIAmount;
+	SRainParams                     m_rainParams;
+	SSnowParams                     m_snowParams;
 
-	int         m_bLockCGFResources;
+	int                             m_bLockCGFResources;
 
-	float       m_fMaxViewDistanceScale;
-	float       m_fGSMMaxDistance;
+	float                           m_fMaxViewDistanceScale;
+	float                           m_fGSMMaxDistance;
 
-public:
+	_smart_ptr<CStatObj>            m_pDefaultCGF;
+	PodArray<SStreamAbleObject>     m_arrStreamableObjects;
+	PodArray<COctreeNode*>          m_arrStreamingNodeStack;
+	PodArray<SObjManPrecachePoint>  m_vStreamPreCachePointDefs;
+	PodArray<SObjManPrecacheCamera> m_vStreamPreCacheCameras;
+	int                             m_nNextPrecachePointId;
+	bool                            m_bCameraPrecacheOverridden;
+	NAsyncCull::CCullThread         m_CullThread;
+
+private:
 	//////////////////////////////////////////////////////////////////////////
 	// Private Member variables.
 	//////////////////////////////////////////////////////////////////////////
-	PodArray<IStreamable*> m_arrStreamableToRelease;
-	PodArray<IStreamable*> m_arrStreamableToLoad;
-	PodArray<IStreamable*> m_arrStreamableToDelete;
-	bool                   m_bNeedProcessObjectsStreaming_Finish;
 
-	float                  m_fCurrTime;
+	PodArray<IStreamable*>  m_arrStreamableToRelease;
+	PodArray<IStreamable*>  m_arrStreamableToLoad;
+	PodArray<IStreamable*>  m_arrStreamableToDelete;
+	bool                    m_bNeedProcessObjectsStreaming_Finish;
 
-	//	bool LoadStaticObjectsFromXML(XmlNodeRef xmlVegetation);
-	_smart_ptr<CStatObj>    m_pDefaultCGF;
+	float                   m_fCurrTime;
+
 	_smart_ptr<IRenderMesh> m_pRMBox;
 	_smart_ptr<IRenderMesh> m_pBillboardMesh;
 
@@ -502,18 +505,12 @@ public:
 	std::vector<_smart_ptr<IStatObj>> m_lockedObjects;
 
 	//////////////////////////////////////////////////////////////////////////
-	CryMT::vector<CStatObj*>        m_checkForGarbage;
-	bool                            m_bGarbageCollectionEnabled;
+	CryMT::vector<CStatObj*> m_checkForGarbage;
+	bool                     m_bGarbageCollectionEnabled;
 
-	PodArray<SStreamAbleObject>     m_arrStreamableObjects;
-	NCullQueue::SCullQueue          m_cullQueue;
-	PodArray<COctreeNode*>          m_arrStreamingNodeStack;
-	PodArray<SObjManPrecachePoint>  m_vStreamPreCachePointDefs;
-	PodArray<SObjManPrecacheCamera> m_vStreamPreCacheCameras;
-	int                             m_nNextPrecachePointId;
-	bool                            m_bCameraPrecacheOverridden;
+	NCullQueue::SCullQueue   m_cullQueue;
 
-	PodArray<CTerrainNode*>         m_lstTmpCastingNodes;
+	PodArray<CTerrainNode*>  m_lstTmpCastingNodes;
 
 #ifdef POOL_STATOBJ_ALLOCS
 	stl::PoolAllocator<sizeof(CStatObj), stl::PSyncMultiThread, alignof(CStatObj)>* m_statObjPool;
@@ -521,7 +518,6 @@ public:
 
 	CThreadSafeRendererContainer<SObjManRenderDebugInfo>             m_arrRenderDebugInfo;
 
-	NAsyncCull::CCullThread                                          m_CullThread;
 	CryMT::SingleProducerSingleConsumerQueue<SCheckOcclusionJobData> m_CheckOcclusionQueue;
 	CryMT::N_ProducerSingleConsumerQueue<SCheckOcclusionOutput>      m_CheckOcclusionOutputQueue;
 };

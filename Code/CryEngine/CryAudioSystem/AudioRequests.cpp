@@ -1,7 +1,8 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "stdafx.h"
 #include "AudioInternalInterfaces.h"
+#include "Common/Logger.h"
 
 namespace CryAudio
 {
@@ -36,10 +37,6 @@ SAudioRequestData* AllocateRequestData(SAudioRequestData const* const pRequestDa
 				AM_REQUEST_BLOCK(EAudioManagerRequestType::SetAudioImpl)
 				AM_REQUEST_BLOCK(EAudioManagerRequestType::ReleaseAudioImpl)
 				AM_REQUEST_BLOCK(EAudioManagerRequestType::RefreshAudioSystem)
-				AM_REQUEST_BLOCK(EAudioManagerRequestType::LoseFocus)
-				AM_REQUEST_BLOCK(EAudioManagerRequestType::GetFocus)
-				AM_REQUEST_BLOCK(EAudioManagerRequestType::MuteAll)
-				AM_REQUEST_BLOCK(EAudioManagerRequestType::UnmuteAll)
 				AM_REQUEST_BLOCK(EAudioManagerRequestType::StopAllSounds)
 				AM_REQUEST_BLOCK(EAudioManagerRequestType::ParseControlsData)
 				AM_REQUEST_BLOCK(EAudioManagerRequestType::ParsePreloadsData)
@@ -56,9 +53,10 @@ SAudioRequestData* AllocateRequestData(SAudioRequestData const* const pRequestDa
 				AM_REQUEST_BLOCK(EAudioManagerRequestType::ReleasePendingRays)
 				AM_REQUEST_BLOCK(EAudioManagerRequestType::ReloadControlsData)
 				AM_REQUEST_BLOCK(EAudioManagerRequestType::GetAudioFileData)
+				AM_REQUEST_BLOCK(EAudioManagerRequestType::GetImplInfo)
 			default:
 				{
-					g_logger.Log(ELogType::Error, "Unknown audio manager request type (%u)", pBase->type);
+					Cry::Audio::Log(ELogType::Error, "Unknown audio manager request type (%u)", pBase->type);
 					CRY_ASSERT(false);
 
 					break;
@@ -93,7 +91,7 @@ SAudioRequestData* AllocateRequestData(SAudioRequestData const* const pRequestDa
 				AO_REQUEST_BLOCK(EAudioObjectRequestType::SetName)
 			default:
 				{
-					g_logger.Log(ELogType::Error, "Unknown audio object request type (%u)", pBase->type);
+					Cry::Audio::Log(ELogType::Error, "Unknown audio object request type (%u)", pBase->type);
 					CRY_ASSERT(false);
 
 					break;
@@ -110,9 +108,10 @@ SAudioRequestData* AllocateRequestData(SAudioRequestData const* const pRequestDa
 				AL_REQUEST_BLOCK(EAudioListenerRequestType::SetTransformation)
 				AL_REQUEST_BLOCK(EAudioListenerRequestType::RegisterListener)
 				AL_REQUEST_BLOCK(EAudioListenerRequestType::ReleaseListener)
+				AL_REQUEST_BLOCK(EAudioListenerRequestType::SetName)
 			default:
 				{
-					g_logger.Log(ELogType::Error, "Unknown audio listener request type (%u)", pBase->type);
+					Cry::Audio::Log(ELogType::Error, "Unknown audio listener request type (%u)", pBase->type);
 					CRY_ASSERT(false);
 
 					break;
@@ -136,7 +135,7 @@ SAudioRequestData* AllocateRequestData(SAudioRequestData const* const pRequestDa
 				ACM_REQUEST_BLOCK(EAudioCallbackManagerRequestType::ReportPhysicalizedEvent)
 			default:
 				{
-					g_logger.Log(ELogType::Error, "Unknown audio callback manager request type (%u)", pBase->type);
+					Cry::Audio::Log(ELogType::Error, "Unknown audio callback manager request type (%u)", pBase->type);
 					CRY_ASSERT(false);
 
 					break;
@@ -147,7 +146,7 @@ SAudioRequestData* AllocateRequestData(SAudioRequestData const* const pRequestDa
 		}
 	default:
 		{
-			g_logger.Log(ELogType::Error, "Unknown audio request type (%u)", requestType);
+			Cry::Audio::Log(ELogType::Error, "Unknown audio request type (%u)", requestType);
 			CRY_ASSERT(false);
 
 			break;

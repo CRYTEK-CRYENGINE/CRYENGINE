@@ -1,3 +1,5 @@
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
+
 #pragma once
 
 #include <AssetSystem/AssetEditor.h>
@@ -26,7 +28,6 @@ namespace EditorSubstance
 		virtual bool OnSaveAsset(CEditableAsset& editAsset) override;
 		virtual void OnCloseAsset() override;
 
-		virtual bool CanQuit(std::vector<string>& unsavedChanges) override;
 	protected:
 		void PushPresetToRender();
 		void SetPreviewResolution();

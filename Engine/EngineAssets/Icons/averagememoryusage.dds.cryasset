@@ -1,0 +1,10 @@
+<AssetMetadata version="0" type="Texture" guid="d6889943-7570-f94b-4125-b34ac816fa81" source="AverageMemoryUsage.TIF">
+ <Files>
+  <File path="AverageMemoryUsage.dds"/>
+ </Files>
+ <Details>
+  <Detail name="width">16</Detail>
+  <Detail name="height">16</Detail>
+  <Detail name="mipCount">3</Detail>
+ </Details>
+</AssetMetadata>

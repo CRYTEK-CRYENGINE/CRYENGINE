@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 void CD3DOculusRenderer::CopyMultiGPUFrameData()
 {
@@ -9,8 +9,8 @@ void CD3DOculusRenderer::CopyMultiGPUFrameData()
 	//	ID3D12GraphicsCommandList* pCL1 = *(*((BroadcastableD3D12GraphicsCommandList<2>*)pCLA->GetCommandList()->GetD3D12CommandList()))[1];
 
 	// Scene3D layer
-	CCryDX12Texture2D* lRV = (CCryDX12Texture2D*)m_pStereoRenderer->GetEyeTarget(LEFT_EYE)->GetDevTexture()->GetBaseTexture();
-	CCryDX12Texture2D* rRV = (CCryDX12Texture2D*)m_pStereoRenderer->GetEyeTarget(RIGHT_EYE)->GetDevTexture()->GetBaseTexture();
+	CCryDX12Texture2D* lRV = (CCryDX12Texture2D*)m_pStereoRenderer->GetEyeDisplayContext(CCamera::eEye_Left).first->GetCurrentBackBuffer()->GetDevTexture()->GetBaseTexture();
+	CCryDX12Texture2D* rRV = (CCryDX12Texture2D*)m_pStereoRenderer->GetEyeDisplayContext(CCamera::eEye_Right).first->GetCurrentBackBuffer()->GetDevTexture()->GetBaseTexture();
 
 	NCryDX12::CResource& lRVResource = lRV->GetDX12Resource(); lRVResource.VerifyBackBuffer();
 	NCryDX12::CResource& rRVResource = rRV->GetDX12Resource(); rRVResource.VerifyBackBuffer();
@@ -66,7 +66,7 @@ void CD3DOculusRenderer::CopyMultiGPUFrameData()
 	// Quad layers
 	for (uint32 i = 0; i < RenderLayer::eQuadLayers_Total; ++i)
 	{
-		CCryDX12Texture2D* qRV = (CCryDX12Texture2D*)CTexture::s_ptexQuadLayers[i]->GetDevTexture()->GetBaseTexture();
+		CCryDX12Texture2D* qRV = (CCryDX12Texture2D*)m_pStereoRenderer->GetVrQuadLayerDisplayContext(static_cast<RenderLayer::EQuadLayers>(i)).first->GetCurrentBackBuffer()->GetDevTexture()->GetBaseTexture();
 
 		NCryDX12::CResource& qRVResource = qRV->GetDX12Resource(); qRVResource.VerifyBackBuffer();
 
@@ -105,7 +105,7 @@ void CD3DOculusRenderer::CopyMultiGPUFrameData()
 
 	for (uint32 i = 0; i < RenderLayer::eQuadLayers_Total; ++i)
 	{
-		CCryDX12Texture2D* qRV = (CCryDX12Texture2D*)CTexture::s_ptexQuadLayers[i]->GetDevTexture()->GetBaseTexture();
+		CCryDX12Texture2D* qRV = (CCryDX12Texture2D*)m_pStereoRenderer->GetVrQuadLayerDisplayContext(static_cast<RenderLayer::EQuadLayers>(i)).first->GetCurrentBackBuffer()->GetDevTexture()->GetBaseTexture();
 
 		NCryDX12::CResource& qRVResource = qRV->GetDX12Resource(); qRVResource.VerifyBackBuffer();
 

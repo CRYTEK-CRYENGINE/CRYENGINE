@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "FlowFadeNode.h"
@@ -143,8 +143,11 @@ void CHUDFader::Draw()
 	if (m_bActive == false)
 		return;
 
-	m_pRenderer->SetState(GS_BLSRC_SRCALPHA | GS_BLDST_ONEMINUSSRCALPHA | GS_NODEPTHTEST);
-	m_pRenderer->Draw2dImage(0.0f, 0.0f, 800.0f, 600.0f,
+	IRenderAuxGeom *pAux = gEnv->pRenderer->GetIRenderAuxGeom();
+	const CCamera& rCamera = pAux->GetCamera();
+
+	IRenderAuxGeom::GetAux()->SetRenderFlags(e_Mode2D | e_AlphaBlended | e_CullModeBack | e_DepthTestOff);
+	IRenderAuxImage::Draw2dImage(0.0f, 0.0f, float(rCamera.GetViewSurfaceX()), float(rCamera.GetViewSurfaceZ()),
 	                         m_pTexture ? m_pTexture->GetTextureID() : -1,
 	                         0.0f, 1.0f, 1.0f, 0.0f, // tex coords
 	                         0.0f,                   // angle

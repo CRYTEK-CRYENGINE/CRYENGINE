@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 
@@ -512,7 +512,7 @@ void CVehicleSeatActionWeapons::UpdateFromPassenger(const float frameTime, Entit
 //------------------------------------------------------------------------
 void CVehicleSeatActionWeapons::DoUpdate(float frameTime)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_ACTION);
+	CRY_PROFILE_FUNCTION(PROFILE_ACTION);
 
 	bool distant = m_pVehicle->IsProbablyDistant();
 	bool visible = m_pVehicle->GetGameObject()->IsProbablyVisible();
@@ -908,7 +908,7 @@ void CVehicleSeatActionWeapons::ClSetupWeapon(unsigned int index, EntityId weapo
 //------------------------------------------------------------------------
 void CVehicleSeatActionWeapons::UpdateWeaponTM(SVehicleWeapon& weapon)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_ACTION);
+	CRY_PROFILE_FUNCTION(PROFILE_ACTION);
 
 	if (IEntity* pEntityWeapon = GetEntity(weapon))
 	{
@@ -981,7 +981,7 @@ bool CVehicleSeatActionWeapons::GetProbableHit(EntityId weaponId, const IFireMod
 //------------------------------------------------------------------------
 bool CVehicleSeatActionWeapons::GetFiringPos(EntityId weaponId, const IFireMode* pFireMode, Vec3& pos)
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_ACTION);
+	CRY_PROFILE_FUNCTION(PROFILE_ACTION);
 
 	for (TVehicleWeaponVector::iterator ite = m_weapons.begin(); ite != m_weapons.end(); ++ite)
 	{
@@ -1027,7 +1027,7 @@ bool CVehicleSeatActionWeapons::GetFiringPos(EntityId weaponId, const IFireMode*
 //------------------------------------------------------------------------
 bool CVehicleSeatActionWeapons::GetFiringDir(EntityId weaponId, const IFireMode* pFireMode, Vec3& dir, const Vec3& probableHit, const Vec3& firingPos)
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_ACTION);
+	CRY_PROFILE_FUNCTION(PROFILE_ACTION);
 
 	IActor* pActor = GetUserActor();
 
@@ -1078,7 +1078,7 @@ bool CVehicleSeatActionWeapons::GetFiringDir(EntityId weaponId, const IFireMode*
 //------------------------------------------------------------------------
 bool CVehicleSeatActionWeapons::GetActualWeaponDir(EntityId weaponId, const IFireMode* pFireMode, Vec3& dir, const Vec3& probableHit, const Vec3& firingPos)
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_ACTION);
+	CRY_PROFILE_FUNCTION(PROFILE_ACTION);
 
 	IActor* pActor = GetUserActor();
 
@@ -1315,7 +1315,7 @@ void CVehicleSeatActionWeapons::OnShoot(IWeapon* pWeapon, EntityId shooterId, En
 //------------------------------------------------------------------------
 Vec3 CVehicleSeatActionWeapons::GetAverageFiringPos()
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_ACTION);
+	CRY_PROFILE_FUNCTION(PROFILE_ACTION);
 
 	AABB bounds;
 	bounds.Reset();

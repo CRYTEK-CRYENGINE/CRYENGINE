@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #if !defined(AFX_STDAFX_H__4AA14050_1B79_4A11_9D24_4E209BF87E2C__INCLUDED_)
 #define AFX_STDAFX_H__4AA14050_1B79_4A11_9D24_4E209BF87E2C__INCLUDED_
@@ -73,7 +73,7 @@ class CStream;
 #endif
 
 #define ENTGRID_2LEVEL
-//#define MULTI_GRID
+#define MULTI_GRID
 
 // uncomment the following block to effectively disable validations
 /*#define VALIDATOR_LOG(pLog,str)
@@ -152,15 +152,20 @@ public:
 #endif
 #include "utils.h"
 
-#if MAX_PHYS_THREADS<=1
+#define MAX_TOT_THREADS (MAX_PHYS_THREADS+MAX_EXT_THREADS)
+
+#if MAX_TOT_THREADS<=2
 extern threadID g_physThreadId;
 inline int IsPhysThread() { return iszero((int)(CryGetCurrentThreadId()-g_physThreadId)); }
 inline void MarkAsPhysThread() { g_physThreadId = CryGetCurrentThreadId(); }
 inline void MarkAsPhysWorkerThread(int*) {}
-inline int get_iCaller() { return IsPhysThread()^1; }
+inline int get_iCaller(int allocIfExt = 0) { return IsPhysThread()^1; }
 inline int get_iCaller_int() { return 0; }
-#else // MAX_PHYS_THREADS>1
+inline int alloc_extCaller() { return 0; }
+inline int set_extCaller(int slot) { return slot; }
+#else // MAX_PHYS_THREADS>1	or MAX_EXT_THREADS>1
 TLS_DECLARE(int*,g_pidxPhysThread)
+TLS_DECLARE(int,g_idxExtThread)
 inline int IsPhysThread() {
 	int dummy = 0;
 	INT_PTR ptr = (INT_PTR)TLS_GET(INT_PTR, g_pidxPhysThread);
@@ -169,13 +174,23 @@ inline int IsPhysThread() {
 }
 void MarkAsPhysThread();
 void MarkAsPhysWorkerThread(int*);
-inline int get_iCaller() {
+inline int set_extCaller(int slot) { TLS_SET(g_idxExtThread, slot); return slot; }
+inline int alloc_extCaller() {
+	extern volatile int *g_pLockIntersect;
+	return set_extCaller(-(-*g_pLockIntersect>>31));
+}
+inline int get_iCaller_int() {
 	int dummy = MAX_PHYS_THREADS;
 	INT_PTR ptr = (INT_PTR)TLS_GET(INT_PTR,g_pidxPhysThread);
 	ptr += (INT_PTR)&dummy-ptr & (ptr-1>>sizeof(INT_PTR)*8-1 ^ ptr>>sizeof(INT_PTR)*8-1);
 	return *(int*)ptr;
 }
-#define get_iCaller_int get_iCaller
+inline int get_iCaller(int allocIfExternal = 0) {
+	int iCaller = get_iCaller_int();
+	if (iCaller >= (MAX_PHYS_THREADS + (1-allocIfExternal<<20)))
+		return iCaller + alloc_extCaller();
+	return iCaller + TLS_GET(int, g_idxExtThread);
+}
 #endif
 
 

@@ -9,23 +9,23 @@ add_sources("NoUberFile"
 		"cry_ftoption.h"
 		"cry_ftmodule.h"
 	SOURCE_GROUP "Root"
-		"../../SDKs/freetype/src/autofit/autofit.c"
-		"../../SDKs/freetype/src/base/ftbase.c"
-		"../../SDKs/freetype/src/base/ftbbox.c"
-		"../../SDKs/freetype/src/base/ftbitmap.c"
-		"../../SDKs/freetype/src/base/ftglyph.c"
-		"../../SDKs/freetype/src/base/ftinit.c"
-		"../../SDKs/freetype/src/base/ftmm.c"
-		"../../SDKs/freetype/src/base/ftsystem.c"
-		"../../SDKs/freetype/src/base/ftwinfnt.c"
-		"../../SDKs/freetype/src/cache/ftcache.c"
-		"../../SDKs/freetype/src/psaux/psaux.c"
-		"../../SDKs/freetype/src/pshinter/pshinter.c"
-		"../../SDKs/freetype/src/raster/raster.c"
-		"../../SDKs/freetype/src/sfnt/sfnt.c"
-		"../../SDKs/freetype/src/smooth/smooth.c"
-		"../../SDKs/freetype/src/truetype/truetype.c"
-		"../../SDKs/freetype/src/winfonts/winfnt.c"
+		"${SDK_DIR}/freetype/src/autofit/autofit.c"
+		"${SDK_DIR}/freetype/src/base/ftbase.c"
+		"${SDK_DIR}/freetype/src/base/ftbbox.c"
+		"${SDK_DIR}/freetype/src/base/ftbitmap.c"
+		"${SDK_DIR}/freetype/src/base/ftglyph.c"
+		"${SDK_DIR}/freetype/src/base/ftinit.c"
+		"${SDK_DIR}/freetype/src/base/ftmm.c"
+		"${SDK_DIR}/freetype/src/base/ftsystem.c"
+		"${SDK_DIR}/freetype/src/base/ftwinfnt.c"
+		"${SDK_DIR}/freetype/src/cache/ftcache.c"
+		"${SDK_DIR}/freetype/src/psaux/psaux.c"
+		"${SDK_DIR}/freetype/src/pshinter/pshinter.c"
+		"${SDK_DIR}/freetype/src/raster/raster.c"
+		"${SDK_DIR}/freetype/src/sfnt/sfnt.c"
+		"${SDK_DIR}/freetype/src/smooth/smooth.c"
+		"${SDK_DIR}/freetype/src/truetype/truetype.c"
+		"${SDK_DIR}/freetype/src/winfonts/winfnt.c"
 )
 
 end_sources()
@@ -34,3 +34,14 @@ end_sources()
 CryEngineStaticModule(freetype SOLUTION_FOLDER "Libs")
 target_include_directories(${THIS_PROJECT} PUBLIC "${SDK_DIR}/freetype/include")
 target_compile_definitions(${THIS_PROJECT} PRIVATE -DFT_CONFIG_OPTIONS_H="cry_ftoption.h" -DFT_CONFIG_MODULES_H="cry_ftmodule.h" -DFT2_BUILD_LIBRARY)
+if (ORBIS OR CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+	target_compile_options(${THIS_PROJECT} PRIVATE
+		-Wno-unused-function
+	)
+elseif(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+	target_compile_options(${THIS_PROJECT} PRIVATE
+		-Wno-unused-function
+		-Wno-stringop-overflow
+		-Wno-maybe-uninitialized
+	)
+endif()

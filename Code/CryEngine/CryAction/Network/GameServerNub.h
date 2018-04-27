@@ -1,30 +1,14 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
-/*************************************************************************
-   -------------------------------------------------------------------------
-   $Id$
-   $DateTime$
-   Description: Implements the IGameNub interface for the server side.
-
-   -------------------------------------------------------------------------
-   History:
-   - 11:8:2004   11:30 : Created by Marcio Martins
-
-*************************************************************************/
-#ifndef __GAMESERVERNUB_H__
-#define __GAMESERVERNUB_H__
-
-#if _MSC_VER > 1000
-	#pragma once
-#endif
+#pragma once
 
 #include <map>
 
 typedef std::map<uint16, class CGameServerChannel*> TServerChannelMap;
 class CGameContext;
 
-class CGameServerNub :
-	public IGameNub
+class CGameServerNub final :
+	public IGameServerNub
 {
 	typedef std::map<INetChannel*, uint16> TNetServerChannelMap;
 	typedef struct SHoldChannel
@@ -57,6 +41,10 @@ public:
 	virtual SCreateChannelResult CreateChannel(INetChannel* pChannel, const char* pRequest);
 	virtual void                 FailedActiveConnect(EDisconnectionCause cause, const char* description);
 	// ~IGameNub
+
+	// IGameServerNub
+	virtual void AddSendableToRemoteClients(INetSendablePtr pMsg, int numAfterHandle, const SSendableHandle* afterHandle, SSendableHandle* handle);
+	// ~IGameServerNub
 
 	void                SetGameContext(CGameContext* pGameContext) { m_pGameContext = pGameContext; };
 	TServerChannelMap*  GetServerChannelMap()                      { return &m_channels; };
@@ -98,5 +86,3 @@ private:
 	static ICVar*        sv_timeout_disconnect;
 	bool                 m_allowRemoveChannel;
 };
-
-#endif // __GAMESERVERNUB_H__

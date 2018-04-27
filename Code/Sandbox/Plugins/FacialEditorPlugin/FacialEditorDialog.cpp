@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "Util/Image.h"
@@ -1105,7 +1105,7 @@ struct LoadGroupFileSkeletonAnimationEntry
 	string animationName;
 	float  time;
 };
-struct LoadGroupFileSoundEntryExistingPositionOrderingPredicate : public std::binary_function<bool, LoadGroupFileSoundEntry, LoadGroupFileSoundEntry>
+struct LoadGroupFileSoundEntryExistingPositionOrderingPredicate
 {
 	bool operator()(const LoadGroupFileSoundEntry& left, const LoadGroupFileSoundEntry& right) const
 	{
@@ -2991,3 +2991,4 @@ void CFacialEditorDialog::OnImportShortcuts()
 {
 	CMFCUtils::ImportShortcuts(GetCommandBars()->GetShortcutManager(), "FacialEditor");
 }
+

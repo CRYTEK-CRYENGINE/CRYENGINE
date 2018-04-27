@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 /*************************************************************************
 -------------------------------------------------------------------------
@@ -89,7 +89,7 @@ void CPlayerStateSwim_WaterTestProxy::OnExitWater(const CPlayer& player)
 
 void CPlayerStateSwim_WaterTestProxy::Update(const CPlayer& player, const float frameTime)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_GAME);
+	CRY_PROFILE_FUNCTION(PROFILE_GAME);
 
 	if( gEnv->IsEditor() && !gEnv->IsEditorGameMode() )
 	{
@@ -172,7 +172,7 @@ void CPlayerStateSwim_WaterTestProxy::PreUpdateSwimming(const CPlayer& player, c
 
 void CPlayerStateSwim_WaterTestProxy::UpdateOutOfWater(const CPlayer& player, const float frameTime)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_GAME);
+	CRY_PROFILE_FUNCTION(PROFILE_GAME);
 
 	//Out of water, only query water level to figure out if player/ai is in contact with a water volume
 	const Matrix34& playerWorldTM = player.GetEntity()->GetWorldTM();
@@ -198,7 +198,7 @@ void CPlayerStateSwim_WaterTestProxy::UpdateOutOfWater(const CPlayer& player, co
 
 void CPlayerStateSwim_WaterTestProxy::UpdateInWater(const CPlayer& player, const float frameTime)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_GAME);
+	CRY_PROFILE_FUNCTION(PROFILE_GAME);
 
 	const Matrix34& playerWorldTM = player.GetEntity()->GetWorldTM();
 	const Vec3 playerWorldPos = playerWorldTM.GetTranslation();
@@ -359,7 +359,7 @@ void CPlayerStateSwim_WaterTestProxy::OnRayCastBottomLevelDataReceived(const Que
 ///////////////////////////////////////////////////////////////////////////
 void CPlayerStateSwim_WaterTestProxy::RayTestBottomLevel( const CPlayer& player, const Vec3& referencePosition, float maxRelevantDepth )
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_GAME);
+	CRY_PROFILE_FUNCTION(PROFILE_GAME);
 
 	const float terrainWorldZ = gEnv->p3DEngine->GetTerrainElevation(referencePosition.x, referencePosition.y);
 

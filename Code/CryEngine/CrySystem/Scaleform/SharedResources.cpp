@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 
@@ -448,5 +448,10 @@ void MeshCacheResetThread::IssueReset()
 {
 	m_awakeThread.Set();
 }
+
+#if defined(USE_GFX_VIDEO) && CRY_COMPILER_MSVC && CRY_COMPILER_VERSION >= 1900 && defined(CRY_FEATURE_SCALEFORM_HELPER)
+// We need this to link the CRI library inside GfxVideo when using compiler VC14 or newer.
+auto* g_ignore = static_cast<int(*)(char*, size_t, const char*, va_list)>(&vsprintf_s);
+#endif
 
 #endif // #ifdef INCLUDE_SCALEFORM_SDK

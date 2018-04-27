@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 /*************************************************************************
 -------------------------------------------------------------------------
@@ -900,7 +900,7 @@ void CVehicleMovementStdWheeled::DebugDrawMovement(const float deltaTime)
 //------------------------------------------------------------------------
 void CVehicleMovementStdWheeled::Update(const float deltaTime)
 {
-  FUNCTION_PROFILER( GetISystem(), PROFILE_GAME );
+  CRY_PROFILE_FUNCTION( PROFILE_GAME );
 
   IPhysicalEntity* pPhysics = GetPhysics();
 	if(!pPhysics)
@@ -994,7 +994,7 @@ void CVehicleMovementStdWheeled::Update(const float deltaTime)
 //------------------------------------------------------------------------
 void CVehicleMovementStdWheeled::UpdateSounds(const float deltaTime)
 { 
-  FUNCTION_PROFILER( gEnv->pSystem, PROFILE_GAME );
+  CRY_PROFILE_FUNCTION( PROFILE_GAME );
 
   // engine load  
   float loadTarget = -1.f;
@@ -1152,7 +1152,7 @@ void CVehicleMovementStdWheeled::UpdateSounds(const float deltaTime)
 //------------------------------------------------------------------------
 void CVehicleMovementStdWheeled::UpdateSuspension(const float deltaTime)
 {
-  FUNCTION_PROFILER( gEnv->pSystem, PROFILE_GAME );
+  CRY_PROFILE_FUNCTION( PROFILE_GAME );
 
   float dt = max( deltaTime, 0.005f);
 
@@ -1446,7 +1446,7 @@ void CVehicleMovementStdWheeled::UpdateBrakes(const float deltaTime)
 //------------------------------------------------------------------------
 void CVehicleMovementStdWheeled::UpdateSuspensionSound(const float deltaTime)
 {
-  FUNCTION_PROFILER( gEnv->pSystem, PROFILE_GAME );
+  CRY_PROFILE_FUNCTION( PROFILE_GAME );
 
   if (m_pVehicle->GetStatus().health <= 0.f)
     return;
@@ -1536,7 +1536,7 @@ void CVehicleMovementStdWheeled::UpdateSuspensionSound(const float deltaTime)
 // NOTE: This function must be thread-safe. Before adding stuff contact MarcoC.
 void CVehicleMovementStdWheeled::ProcessAI(const float deltaTime)
 {
-	FUNCTION_PROFILER( GetISystem(), PROFILE_GAME );
+	CRY_PROFILE_FUNCTION( PROFILE_GAME );
 
 	float dt = max( deltaTime,0.005f);
 
@@ -1653,7 +1653,7 @@ void CVehicleMovementStdWheeled::ProcessAI(const float deltaTime)
 // NOTE: This function must be thread-safe. Before adding stuff contact MarcoC.
 void CVehicleMovementStdWheeled::ProcessMovement(const float deltaTime)
 {
-	FUNCTION_PROFILER( GetISystem(), PROFILE_GAME );
+	CRY_PROFILE_FUNCTION( PROFILE_GAME );
   
 	m_netActionSync.UpdateObject(this);
 
@@ -1914,7 +1914,7 @@ void CVehicleMovementStdWheeled::Boost(bool enable)
 //------------------------------------------------------------------------
 bool CVehicleMovementStdWheeled::RequestMovement(CMovementRequest& movementRequest)
 {
-	FUNCTION_PROFILER( gEnv->pSystem, PROFILE_GAME );
+	CRY_PROFILE_FUNCTION( PROFILE_GAME );
  
 	m_movementAction.isAI = true;
 	if (!m_isEnginePowered)
@@ -2008,7 +2008,7 @@ void CVehicleMovementStdWheeled::Serialize(TSerialize ser, EEntityAspects aspect
 //------------------------------------------------------------------------
 void CVehicleMovementStdWheeled::UpdateSurfaceEffects(const float deltaTime)
 { 
-  FUNCTION_PROFILER( GetISystem(), PROFILE_GAME );
+  CRY_PROFILE_FUNCTION( PROFILE_GAME );
   
   if (0 == g_pGameCVars->v_pa_surface)
   {
@@ -2020,7 +2020,7 @@ void CVehicleMovementStdWheeled::UpdateSurfaceEffects(const float deltaTime)
   if (status.speed < 0.01f)
     return;
 
-  float distSq = m_pVehicle->GetEntity()->GetWorldPos().GetSquaredDistance(gEnv->pRenderer->GetCamera().GetPosition());
+  float distSq = m_pVehicle->GetEntity()->GetWorldPos().GetSquaredDistance(GetISystem()->GetViewCamera().GetPosition());
   if (distSq > sqr(300.f) || (distSq > sqr(50.f) && !m_pVehicle->GetGameObject()->IsProbablyVisible()))
     return;
 

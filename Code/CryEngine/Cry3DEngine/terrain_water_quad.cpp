@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 // -------------------------------------------------------------------------
 //  File name:   terrain_water_quad.cpp
@@ -371,10 +371,10 @@ void COcean::Update(const SRenderingPassInfo& passInfo)
 			if (!m_pREOcclusionQueries[nBufID]->m_nDrawFrame || m_pREOcclusionQueries[nBufID]->HasSucceeded())
 			{
 				SShaderItem shItem(m_pShaderOcclusionQuery);
-				CRenderObject* pObj = GetIdentityCRenderObject(passInfo.ThreadID());
+				CRenderObject* pObj = GetIdentityCRenderObject(passInfo);
 				if (!pObj)
 					return;
-				GetRenderer()->EF_AddEf(m_pREOcclusionQueries[nBufID], shItem, pObj, passInfo, EFSLIST_WATER_VOLUMES, 0);
+				passInfo.GetIRenderView()->AddRenderObject(m_pREOcclusionQueries[nBufID], shItem, pObj, passInfo, EFSLIST_WATER_VOLUMES, 0);
 			}
 		}
 	}
@@ -391,12 +391,12 @@ void COcean::Update(const SRenderingPassInfo& passInfo)
 		// lazy mesh creation
 		if (bWaterVisible)
 		{
-			Create();
+			Create(passInfo);
 		}
 	}
 }
 
-void COcean::Create()
+void COcean::Create(const SRenderingPassInfo& passInfo)
 {
 	// Calculate water geometry and update vertex buffers
 	int32 nScrGridSizeX = 20 * GetCVars()->e_WaterTessellationAmount;
@@ -420,6 +420,8 @@ void COcean::Create()
 	// Generate screen space grid
 	if ((m_bOceanFFT && bUsingFFT != m_bOceanFFT) || bUseTessHW != bUseWaterTessHW || swathWidth != currentSwathWidth || !m_nVertsCount || !m_nIndicesCount || nScrGridSizeX * nScrGridSizeY != m_nPrevGridDim)
 	{
+		const CCamera& pCam = passInfo.GetCamera();
+
 		m_nPrevGridDim = nScrGridSizeX * nScrGridSizeY;
 		m_nVertsCount = 0;
 		m_nIndicesCount = 0;
@@ -430,14 +432,10 @@ void COcean::Create()
 		swathWidth = currentSwathWidth;
 
 		// Render ocean with screen space tessellation
-
-		int32 nScreenY = GetRenderer()->GetHeight();
-		int32 nScreenX = GetRenderer()->GetWidth();
-
+		const int32 nScreenY = pCam.GetViewSurfaceX();
+		const int32 nScreenX = pCam.GetViewSurfaceZ();
 		if (!nScreenY || !nScreenX)
-		{
 			return;
-		}
 
 		const float fRcpScrGridSizeX = 1.0f / ((float) nScrGridSizeX - 1);
 		const float fRcpScrGridSizeY = 1.0f / ((float) nScrGridSizeY - 1);
@@ -445,7 +443,7 @@ void COcean::Create()
 		SVF_P3F_C4B_T2F* pReqVertices = nullptr;
 		vtx_idx* pReqIndices = nullptr;
 		const uint32 reqVerticesCount = nScrGridSizeX * nScrGridSizeY;
-		const uint32 reqIndicesCount = nScrGridSizeX * nScrGridSizeY * 6;
+		const uint32 reqIndicesCount  = nScrGridSizeX * nScrGridSizeY * 6;
 		const bool result = m_pOceanRE->RequestVerticesBuffer(&pReqVertices, (uint8**)&pReqIndices, reqVerticesCount, reqIndicesCount, sizeof(vtx_idx));
 
 		if (!result)
@@ -479,10 +477,10 @@ void COcean::Render(const SRenderingPassInfo& passInfo)
 
 	const int fillThreadID = passInfo.ThreadID();
 
-	CRenderObject* pObject = GetRenderer()->EF_GetObject_Temp(fillThreadID);
+	CRenderObject* pObject = passInfo.GetIRenderView()->AllocateTemporaryRenderObject();
 	if (!pObject)
 		return;
-	pObject->m_II.m_Matrix.SetIdentity();
+	pObject->SetMatrix(Matrix34::CreateIdentity(), passInfo);
 	pObject->m_pRenderNode = this;
 
 	m_fLastFov = passInfo.GetCamera().GetFov();
@@ -543,7 +541,7 @@ void COcean::Render(const SRenderingPassInfo& passInfo)
 	pObject->m_pCurrMaterial = m_pMaterial;
 	SShaderItem& shaderItem(m_pMaterial->GetShaderItem(0));
 	m_pOceanRE->m_CustomData = &m_fRECustomData[0];
-	pRenderer->EF_AddEf(m_pOceanRE, shaderItem, pObject, passInfo, EFSLIST_WATER, 0);
+	passInfo.GetIRenderView()->AddRenderObject(m_pOceanRE, shaderItem, pObject, passInfo, EFSLIST_WATER, 0);
 
 	if (GetCVars()->e_WaterOceanBottom)
 		RenderBottomCap(passInfo);
@@ -556,13 +554,12 @@ void COcean::RenderBottomCap(const SRenderingPassInfo& passInfo)
 {
 	C3DEngine* p3DEngine = (C3DEngine*)Get3DEngine();
 
-	Vec3 vCamPos = passInfo.GetCamera().GetPosition();
+	const CCamera& pCam = passInfo.GetCamera();
+	Vec3 vCamPos = pCam.GetPosition();
 
 	// Render ocean with screen space tessellation
-
-	int32 nScreenY = GetRenderer()->GetHeight();
-	int32 nScreenX = GetRenderer()->GetWidth();
-
+	const int32 nScreenY = pCam.GetViewSurfaceX();
+	const int32 nScreenX = pCam.GetViewSurfaceZ();
 	if (!nScreenY || !nScreenX)
 		return;
 
@@ -622,10 +619,10 @@ void COcean::RenderBottomCap(const SRenderingPassInfo& passInfo)
 		m_pBottomCapRenderMesh->SetChunk(m_pBottomCapMaterial, 0, m_pBottomCapVerts.Count(), 0, m_pBottomCapIndices.Count(), 1.0f);
 	}
 
-	CRenderObject* pObject = GetRenderer()->EF_GetObject_Temp(passInfo.ThreadID());
+	CRenderObject* pObject = passInfo.GetIRenderView()->AllocateTemporaryRenderObject();
 	if (!pObject)
 		return;
-	pObject->m_II.m_Matrix.SetIdentity();
+	pObject->SetMatrix(Matrix34::CreateIdentity(), passInfo);
 	pObject->m_pRenderNode = this;
 
 	// make distance to water level near to zero
@@ -647,7 +644,7 @@ void COcean::RenderFog(const SRenderingPassInfo& passInfo)
 
 	const int fillThreadID = passInfo.ThreadID();
 
-	CRenderObject* pROVol(pRenderer->EF_GetObject_Temp(fillThreadID));
+	CRenderObject* pROVol(passInfo.GetIRenderView()->AllocateTemporaryRenderObject());
 	if (!pROVol)
 		return;
 
@@ -745,7 +742,7 @@ void COcean::RenderFog(const SRenderingPassInfo& passInfo)
 			}
 
 			// fill in data for render object
-			pROVol->m_II.m_Matrix.SetIdentity();
+			pROVol->SetMatrix(Matrix34::CreateIdentity(), passInfo);
 			pROVol->m_fSort = 0;
 
 			auto pMaterial =
@@ -759,7 +756,7 @@ void COcean::RenderFog(const SRenderingPassInfo& passInfo)
 			SShaderItem& shaderItem(pMaterial->GetShaderItem(0));
 
 			// add to renderer
-			pRenderer->EF_AddEf(m_pWVRE[fillThreadID], shaderItem, pROVol, passInfo, EFSLIST_WATER_VOLUMES, distCamToFogPlane < -0.1f);
+			passInfo.GetIRenderView()->AddRenderObject(m_pWVRE[fillThreadID], shaderItem, pROVol, passInfo, EFSLIST_WATER_VOLUMES, distCamToFogPlane < -0.1f);
 		}
 	}
 }
@@ -897,9 +894,6 @@ uint32 COcean::GetVisiblePixelsCount()
 
 void COcean::OffsetPosition(const Vec3& delta)
 {
-#ifdef SEG_WORLD
-	if (m_pTempData) m_pTempData->OffsetPosition(delta);
-#endif
 }
 
 void COcean::FillBBox(AABB& aabb)

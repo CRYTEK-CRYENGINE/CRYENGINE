@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 /*************************************************************************
    -------------------------------------------------------------------------
@@ -172,13 +172,13 @@ void CVehiclePartMassBox::Update(const float frameTime)
 }
 
 //------------------------------------------------------------------------
-const Matrix34& CVehiclePartMassBox::GetLocalTM(bool relativeToParentPart, bool forced)
+Matrix34 CVehiclePartMassBox::GetLocalTM(bool relativeToParentPart, bool forced)
 {
 	return m_localTM;
 }
 
 //------------------------------------------------------------------------
-const Matrix34& CVehiclePartMassBox::GetWorldTM()
+Matrix34 CVehiclePartMassBox::GetWorldTM()
 {
 	m_worldTM = GetEntity()->GetWorldTM() * GetLocalTM(false);
 	return m_worldTM;

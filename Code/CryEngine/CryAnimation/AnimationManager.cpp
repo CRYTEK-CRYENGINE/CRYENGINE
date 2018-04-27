@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "stdafx.h"
 #include "AnimationManager.h"
@@ -1068,6 +1068,11 @@ void CAnimationManager::DebugAnimUsage(uint32 printtxt)
 		g_YLine += 16.0f;
 	}
 
+	constexpr uint32 kDisplayCafUsageMask    = BIT(1);
+	constexpr uint32 kDumpCafUsageMask       = BIT(2);
+	constexpr uint32 kDisplayBSpaceUsageMask = BIT(3);
+	constexpr uint32 kDumpBSpaceUsageMask    = BIT(4);
+
 	uint32 nUsedCAFs = 0;
 	{
 		uint32 numCAF = m_arrGlobalCAF.size();
@@ -1092,13 +1097,13 @@ void CAnimationManager::DebugAnimUsage(uint32 printtxt)
 
 				uint32 nRef_at_Runtime = m_arrGlobalCAF[i].m_nRef_at_Runtime;
 
-				if (printtxt && Console::GetInst().ca_DebugAnimUsage == 2)
+				if (printtxt && Console::GetInst().ca_DebugAnimUsage & kDisplayCafUsageMask)
 				{
 					g_pAuxGeom->Draw2dLabel(1, g_YLine, 1.1f, fGreen, false, "CafInMemory: %7d ref: %5d FilePath: %s", nSizeOfCAF, nRef_at_Runtime, m_arrGlobalCAF[i].GetFilePath());
 					g_YLine += 11.0f;
 				}
 
-				if (printtxt && Console::GetInst().ca_DebugAnimUsage & 4)
+				if (printtxt && Console::GetInst().ca_DebugAnimUsage & kDumpCafUsageMask)
 				{
 					CryLogAlways("CafInMemory: %07u FilePath: %s", nSizeOfCAF, m_arrGlobalCAF[i].GetFilePath());
 				}
@@ -1106,10 +1111,10 @@ void CAnimationManager::DebugAnimUsage(uint32 printtxt)
 			nUsedCAFs += (m_arrGlobalCAF[i].m_nTouchedCounter != 0);
 		}
 
-		if (printtxt && Console::GetInst().ca_DebugAnimUsage & 4)
+		if (printtxt && Console::GetInst().ca_DebugAnimUsage & kDumpCafUsageMask)
 		{
 			CryLogAlways("nSizeOfLoadedKeys: %07u", nSizeOfLoadedKeys);
-			Console::GetInst().ca_DebugAnimUsage &= 3;
+			Console::GetInst().ca_DebugAnimUsage &= ~kDumpCafUsageMask;
 		}
 		if (printtxt)
 		{
@@ -1159,6 +1164,28 @@ void CAnimationManager::DebugAnimUsage(uint32 printtxt)
 		{
 			g_pAuxGeom->Draw2dLabel(1, g_YLine, 2.0f, fRed, false, "Blendspace: %04d    Loaded: %04d    Used: %04d  Memory: %05" PRISIZE_T "KBytes", nNumHeaders, nLoaded, nUsed, nSize / 1024);
 			g_YLine += 16.0f;
+
+			if (Console::GetInst().ca_DebugAnimUsage & kDisplayBSpaceUsageMask || Console::GetInst().ca_DebugAnimUsage & kDumpBSpaceUsageMask)
+			{
+				for (uint32 i = 0; i < nNumHeaders; i++)
+				{
+					if (m_arrGlobalLMG[i].m_nTouchedCounter != 0)
+					{
+						g_pAuxGeom->Draw2dLabel(1, g_YLine, 1.1f, fGreen, false, "FilePath: %s  ref: %5d  Memory: %05 KBytes", m_arrGlobalLMG[i].GetFilePath(), m_arrGlobalLMG[i].m_nTouchedCounter, m_arrGlobalLMG[i].SizeOfLMG() / 1024);
+						g_YLine += 11.0f;
+
+						if (Console::GetInst().ca_DebugAnimUsage & kDumpBSpaceUsageMask)
+						{
+							CryLogAlways("FilePath: %s  ref: %5d  Memory: %05 KBytes", m_arrGlobalLMG[i].GetFilePath(), m_arrGlobalLMG[i].m_nTouchedCounter, m_arrGlobalLMG[i].SizeOfLMG() / 1024);
+						}
+					}
+				}
+
+				if (Console::GetInst().ca_DebugAnimUsage & kDumpBSpaceUsageMask)
+				{
+					Console::GetInst().ca_DebugAnimUsage &= ~kDumpBSpaceUsageMask;
+				}
+			}
 		}
 		nAnimationManager += nSize;
 	}

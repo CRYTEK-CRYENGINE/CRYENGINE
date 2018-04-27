@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "stdafx.h"
 #include "FaceAnimSequence.h"
@@ -916,7 +916,7 @@ void CFacialAnimSequence::MergeSequence(IFacialAnimSequence* pMergeSequence, con
 void CFacialAnimSequence::StreamAsyncOnComplete(IReadStream* pStream, unsigned nError)
 {
 	//	MEMSTAT_CONTEXT(EMemStatContextTypes::MSC_FSQ, 0, GetName());
-	//	FUNCTION_PROFILER(GetISystem(), PROFILE_ANIMATION);
+	//	CRY_PROFILE_FUNCTION(PROFILE_ANIMATION);
 
 	if (pStream->IsError())
 	{
@@ -944,7 +944,7 @@ void CFacialAnimSequence::StreamOnComplete(IReadStream* pStream, unsigned nError
 {
 	using std::swap;
 
-	FUNCTION_PROFILER(GetISystem(), PROFILE_ANIMATION);
+	CRY_PROFILE_FUNCTION(PROFILE_ANIMATION);
 
 	const char* file = pStream->GetName();
 

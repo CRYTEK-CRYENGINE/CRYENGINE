@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #ifndef _BASICAREA_H_
 #define _BASICAREA_H_
@@ -49,52 +49,6 @@ struct SRNInfo
 	 #endif*/
 };
 
-struct SCasterInfo
-{
-	SCasterInfo()
-	{
-		memset(this, 0, sizeof(*this));
-	}
-
-	SCasterInfo(IRenderNode* _pNode, float fMaxDist)
-	{
-		fMaxCastingDist = fMaxDist;
-		objBox = _pNode->GetBBox();
-		objSphere.center = objBox.GetCenter();
-		objSphere.radius = objBox.GetRadius();
-		pNode = _pNode;
-		nRType = _pNode->GetRenderNodeType();
-		nRenderNodeFlags = _pNode->GetRndFlags();
-		bCanExecuteAsRenderJob = _pNode->CanExecuteRenderAsJob();
-	}
-
-	SCasterInfo(IRenderNode* _pNode, float fMaxDist, EERType renderNodeType)
-	{
-		fMaxCastingDist = fMaxDist;
-		_pNode->FillBBox(objBox);
-		objSphere.center = objBox.GetCenter();
-		objSphere.radius = objBox.GetRadius();
-		pNode = _pNode;
-		nRType = renderNodeType;
-		nRenderNodeFlags = _pNode->GetRndFlags();
-		bCanExecuteAsRenderJob = _pNode->CanExecuteRenderAsJob();
-	}
-
-	bool operator==(const IRenderNode* _pNode) const { return (pNode == _pNode); }
-	bool operator==(const SCasterInfo& rOther) const { return (pNode == rOther.pNode); }
-
-	void GetMemoryUsage(ICrySizer* pSizer) const     { /*nothing*/ }
-
-	float        fMaxCastingDist;
-	Sphere       objSphere;
-	AABB         objBox;
-	IRenderNode* pNode;
-	uint32       nGSMFrameId;
-	EERType      nRType;
-	bool         bCanExecuteAsRenderJob;
-	uint64       nRenderNodeFlags;
-};
-
 #define UPDATE_PTR_AND_SIZE(_pData, _nDataSize, _SIZE_PLUS) \
   {                                                         \
     _pData += (_SIZE_PLUS);                                 \
@@ -119,12 +73,18 @@ struct CBasicArea : public Cry3DEngineBase
 
 	~CBasicArea();
 
-	void CompileObjects(int nListId); // optimize objects lists for rendering
+	void               CompileObjects(int nListId); // optimize objects lists for rendering
+
+	bool               IsObjectsTreeValid()                    { return m_pObjectsTree != nullptr; }
+	class COctreeNode* GetObjectsTree()                        { return m_pObjectsTree; }
+	void               SetObjectsTree(class COctreeNode* node) { m_pObjectsTree = node; }
+
+	AABB m_boxArea;                  // bbox containing everything in sector including child sectors
+	AABB m_boxStatics;               // bbox containing only objects in STATIC_OBJECTS list of this node and height-map
+
+private:
 
 	class COctreeNode* m_pObjectsTree;
-
-	AABB               m_boxArea;    // bbox containing everything in sector including child sectors
-	AABB               m_boxStatics; // bbox containing only objects in STATIC_OBJECTS list of this node and height-map
 
 };
 

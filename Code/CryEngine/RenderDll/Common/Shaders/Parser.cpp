@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 /*=============================================================================
    Parser.cpp : Script parser implementations.
@@ -370,10 +370,10 @@ void shGetVector4(char* buf, Vec4& v)
 
 static struct SColAsc
 {
-	char*  nam;
+	const char*  nam;
 	ColorF col;
 
-	SColAsc(char* name, const ColorF& c)
+	SColAsc(const char* name, const ColorF& c)
 	{
 		nam = name;
 		col = c;

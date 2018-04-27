@@ -1,0 +1,14 @@
+<AssetMetadata version="0" type="Texture" guid="14170b3f-9c55-782f-efaf-3a57da0cba12" source="UV.tif">
+ <Files>
+  <File path="UV.dds"/>
+  <File path="UV.dds.1"/>
+  <File path="UV.dds.2"/>
+  <File path="UV.dds.3"/>
+  <File path="UV.dds.4"/>
+ </Files>
+ <Details>
+  <Detail name="width">256</Detail>
+  <Detail name="height">256</Detail>
+  <Detail name="mipCount">7</Detail>
+ </Details>
+</AssetMetadata>

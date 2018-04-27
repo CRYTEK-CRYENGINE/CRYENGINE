@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 
@@ -283,8 +283,8 @@ int CLivingEntity::SetParams(pe_params *_params, int bThreadSafe)
 	ChangeRequest<pe_params> req(this,m_pWorld,_params,bThreadSafe);
 	if (req.IsQueued()) {
 		if (_params->type==pe_player_dimensions::type_id && (unsigned int)m_iSimClass<7u) {
-			int iter=0,iCaller=get_iCaller();
-			WriteLockCond lockc(m_pWorld->m_lockCaller[iCaller], iCaller==MAX_PHYS_THREADS);
+			int iter=0,iCaller=get_iCaller(1);
+			WriteLockCond lockc(m_pWorld->m_lockCaller[iCaller], iCaller>=MAX_PHYS_THREADS);
 			float hCyl,hPivot;	
 			Vec3 size,pos;
 			quaternionf qrot;
@@ -813,6 +813,20 @@ void SLivingEntityNetSerialize::Serialize( TSerialize ser )
 	ser.Value( "pos", pos, 'wrld');
 	ser.Value( "vel", vel, 'pLVl');
 	ser.Value( "velRequested", velRequested, 'pLVl');
+	ser.Value( "bFlying", bFlying);
+	ser.Value( "bJumpRequested", bJumpRequested);
+	ser.Value( "dh", dh);
+	ser.Value( "dhSpeed", dhSpeed);
+	ser.Value( "stablehTime", stablehTime);
+	if (ser.BeginOptionalGroup("groundColl", idEntGroundCollider>0)) {
+		ser.Value("idEnt", idEntGroundCollider);
+		ser.Value("ipart", ipartGroundCollider);
+		ser.Value("posGround", posOnGroundCollider);
+		ser.EndGroup();
+	}	else {
+		idEntGroundCollider = -1;
+		posOnGroundCollider.zero();
+	}
 }
 
 int CLivingEntity::GetStateSnapshot(TSerialize ser, float time_back, int flags)
@@ -823,6 +837,10 @@ int CLivingEntity::GetStateSnapshot(TSerialize ser, float time_back, int flags)
 		m_pos,
 		m_vel,
 		m_velRequested,
+		m_bFlying,
+		m_bJumpRequested,
+		m_dh, m_dhSpeed, m_stablehTime,
+		m_pWorld->GetPhysicalEntityId(m_pLastGroundCollider), m_iLastGroundColliderPart, m_posLastGroundColl
 	};
 	helper.Serialize( ser );
 
@@ -957,11 +975,20 @@ int CLivingEntity::SetStateFromSnapshot(TSerialize ser, int flags)
 		float distance = m_pos.GetDistance(helper.pos);
 		setpos.pos = helper.pos;
 
-		SetParams( &setpos,0 );
+		SetParams( &setpos, (m_flags & pef_update)!=0 || get_iCaller()<MAX_PHYS_THREADS);	// apply changes immediately for custom-step entities	or if called from a phys thread
 
 		WriteLock lock1(m_lockLiving);
 		m_vel = helper.vel;
 		m_velRequested = helper.velRequested;
+		m_bFlying = helper.bFlying;
+		m_bJumpRequested = helper.bJumpRequested;
+		m_dh = helper.dh;
+		m_dhSpeed = helper.dhSpeed;
+		m_stablehTime = helper.stablehTime;
+
+		SetGroundCollider((CPhysicalEntity*)m_pWorld->GetPhysicalEntityById(helper.idEntGroundCollider));
+		m_iLastGroundColliderPart = helper.ipartGroundCollider;
+		m_posLastGroundColl = helper.posOnGroundCollider;
 	}
 
 	return 1;
@@ -1326,7 +1353,7 @@ int CLivingEntity::Step(float time_interval)
 			(!(vel.len2()==0 && m_velRequested.len2()==0 && (!bFlying || m_gravity.len2()==0) && m_dhSpeed==0 && m_dhAcc==0) || 
 			m_bActiveEnvironment || m_nslope.z<m_slopeSlide || m_velGround.len2()>0))	
 	{
-		FUNCTION_PROFILER( GetISystem(),PROFILE_PHYSICS );
+		CRY_PROFILE_FUNCTION(PROFILE_PHYSICS );
 		PHYS_ENTITY_PROFILER
 
 		m_bActiveEnvironment = 0;
@@ -1396,7 +1423,7 @@ int CLivingEntity::Step(float time_interval)
 			nents = m_pWorld->GetEntitiesAround(BBoxOuter0,BBoxOuter1, 
 				pentlist, m_collTypes|ent_independent|ent_triggers|ent_sort_by_mass, this, 0,iCaller);
 
-			if (m_vel.len2()) for(i=0;i<m_nColliders;i++) if (m_pColliders[i]->HasConstraintContactsWith(this,constraint_inactive))
+			if (m_vel.len2()>sqr(0.01f) || m_velRequested.len2()) for(i=0;i<m_nColliders;i++) if (m_pColliders[i]->HasConstraintContactsWith(this,constraint_inactive))
 				m_pColliders[i]->Awake();
 
 			const float fMassInv = m_massinv;
@@ -1450,7 +1477,7 @@ int CLivingEntity::Step(float time_interval)
 				ent.entType=pentlist[i]->GetType(); 
 				ent.iSimClass=pentlist[i]->m_iSimClass; 
 				ent.pent=pentlist[i]; 
-				ent.nParts=pentlist[i]->m_nParts;
+				ent.nParts=0;
 				ent.ignoreCollisionsWith=pentlist[i]->IgnoreCollisionsWith(this,1);
 				ent.iPartsBegin=nPrecompParts; 
 				ent.iPartsEnd=nPrecompParts+(nUsedPartsCount=pentlist[i]->GetUsedPartsCount(iCaller));
@@ -1466,7 +1493,7 @@ int CLivingEntity::Step(float time_interval)
 					part.partflags=pentlist[i]->m_parts[j].flags; 
 					part.pgeom=pentlist[i]->m_parts[j].pPhysGeomProxy->pGeom; 
 					part.surface_idx=pentlist[i]->m_parts[j].surface_idx;
-					ent.iLastPart=nPrecompParts-1; 
+					ent.nParts+=1-iszero(-j1>>31 & part.partflags & (int)collider_flags);
 				}
 			}
 		
@@ -1684,7 +1711,7 @@ int CLivingEntity::Step(float time_interval)
 					pNRC = pNoResponseContactLE; pNRC->pent = NULL; pNRC->tmin = tmin;
 					for(i=0; i<nents; ++i) {
 						if (pPrecompEnts[i].entType!=PE_LIVING || 
-								pPrecompEnts[i].nParts - iszero((int)(pPrecompParts[pPrecompEnts[i].iLastPart].partflags & collider_flags)) > 1-bHasExtraParts || 
+								pPrecompEnts[i].nParts+bHasExtraParts > 0 || 
 								max(sqr(m_qrot.v.x)+sqr(m_qrot.v.y),sqr(pPrecompEnts[i].pent->m_qrot.v.x)+sqr(pPrecompEnts[i].pent->m_qrot.v.y))>0.001f) 
 						{
 							CPhysicalEntity *const pent=pPrecompEnts[i].pent;
@@ -1790,7 +1817,7 @@ int CLivingEntity::Step(float time_interval)
 						if (!bFlying && inrange(ncontact*axis, 0.85f,-0.1f) && (unsigned int)pentmin->m_iSimClass-1u<2u && 
 							pentmin->GetMassInv()>m_massinv*0.25f)
 							ncontact.z=0, ncontact.normalize();
-						int bPush = pentmin->m_iSimClass>0 || isneg(min(m_slopeClimb-ncontact*axis, ncontact*axis+m_slopeFall)) | bFlying;
+						int bPush = pentmin->m_iSimClass>0 || isneg(min(m_slopeClimb-ncontact*axis, ncontact*axis+m_slopeFall));
 						int bUnmovable = isneg(-pentmin->m_iSimClass>>31 & ~(-((int)m_flags & pef_pushable_by_players)>>31));
 						bPush &= bUnmovable^1;
 						{
@@ -2076,7 +2103,7 @@ int CLivingEntity::Step(float time_interval)
 		}
 
 		if (m_flags & (pef_monitor_poststep | pef_log_poststep)) {
-			EventPhysPostStep epps; InitEvent(&epps,this);
+			EventPhysPostStep epps; InitEvent(&epps,this,iCaller);
 			epps.dt=time_interval; epps.pos=m_pos; epps.q=m_qrot; epps.idStep=m_pWorld->m_idStep;
 			epps.pos -= m_qrot*Vec3(0,0,m_dh);
 			m_pWorld->OnEvent(m_flags,&epps);
@@ -2151,7 +2178,7 @@ int CLivingEntity::RegisterContacts(float time_interval,int nMaxPlaneContacts)
 			pcontact->ipart[1] = -1;
 		}
 		pcontact->pbody[1] = pcontact->pent[1]->GetRigidBody(pcontact->ipart[1]);
-		pcontact->friction = 0;
+		pcontact->friction = m_velRequested.len2() || m_slopeClimb<=0 ? 0.0f : (1-sqr(m_slopeClimb))/m_slopeClimb;
 		pcontact->pt[0]=pcontact->pt[1] = m_pos;
 		pcontact->n = m_bFlying ? m_qrot*Vec3(0,0,1):m_nslope;
 		//pcontact->K.SetZero();

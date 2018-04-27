@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "CCryDX12GIOutput.hpp"
@@ -8,7 +8,9 @@
 CCryDX12GIOutput* CCryDX12GIOutput::Create(CCryDX12GIAdapter* pAdapter, UINT Output)
 {
 	IDXGIOutputToCall* pOutput;
-	pAdapter->GetDXGIAdapter()->EnumOutputs(Output, &pOutput);
+	if (!SUCCEEDED(pAdapter->GetDXGIAdapter()->EnumOutputs(Output, &pOutput)))
+		return nullptr;
+
 	IDXGIOutput4ToCall* pOutput4;
 	pOutput->QueryInterface(__uuidof(IDXGIOutput4ToCall), (void**)&pOutput4);
 

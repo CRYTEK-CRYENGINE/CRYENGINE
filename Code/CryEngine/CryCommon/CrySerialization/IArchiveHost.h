@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -36,7 +36,7 @@ enum class ECryXmlVersion : uint32
 struct IArchiveHost
 {
 	virtual ~IArchiveHost() {}
-	virtual bool LoadJsonFile(const SStruct& outObj, const char* filename) = 0;
+	virtual bool LoadJsonFile(const SStruct& outObj, const char* filename, bool bCanBeOnDisk) = 0;
 	virtual bool SaveJsonFile(const char* filename, const SStruct& obj) = 0;
 	virtual bool LoadJsonBuffer(const SStruct& outObj, const char* buffer, size_t bufferLength) = 0;
 	virtual bool SaveJsonBuffer(DynArray<char>& outBuffer, const SStruct& obj) = 0;
@@ -62,7 +62,7 @@ struct IArchiveHost
 //! Syntactic sugar.
 template<class T> bool LoadJsonFile(T& instance, const char* filename)
 {
-	return gEnv->pSystem->GetArchiveHost()->LoadJsonFile(Serialization::SStruct(instance), filename);
+	return gEnv->pSystem->GetArchiveHost()->LoadJsonFile(Serialization::SStruct(instance), filename, false);
 }
 
 template<class T> bool SaveJsonFile(const char* filename, const T& instance)

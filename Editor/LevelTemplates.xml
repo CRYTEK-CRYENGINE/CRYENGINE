@@ -9,30 +9,20 @@
 
 		<Terrain>
 			<DetailLayersViewDistRatio type="Float" value="1.0"/>
-      <HeightMapAO type="BOOL" value="0"/>
-      <IntegrateObjects type="BOOL" value="0"/>
-    </Terrain>
+			<HeightMapAO type="BOOL" value="0"/>
+			<IntegrateObjects type="BOOL" value="0"/>
+			<AutoGenerateBaseTexture type="BOOL" value="0"/>
+		</Terrain>
 
 		<EnvState>
-			<WindVector type="Vector" value="1,0,0"/>
-			<BreezeGeneration type="BOOL" value="0"/>
-			<BreezeStrength type="Float" value="1.f"/>
-			<BreezeMovementSpeed type="Float" value="8.f"/>
-			<BreezeVariation type="Float" value="1.f"/>
-			<BreezeLifeTime type="Float" value="15.f"/>
-			<BreezeCount type="Int" value="4"/>
-			<BreezeSpawnRadius type="Float" value="25.f"/>
-			<BreezeSpread type="Float" value="0.f"/>
-			<BreezeRadius type="Float" value="5.f"/>
-			<BreezeAwakeThreshold type="Float" value="0"/>
 			<ConsoleMergedMeshesPool type="Int" value="2750" />
 			<ShowTerrainSurface type="BOOL" value="1"/>
 			<SunShadowsMinSpec type="Int" value="1"/>
 			<SunShadowsAdditionalCascadeMinSpec type="Int" value="0"/>
 			<SunShadowsClipPlaneRange type="Float" value="256.0f"/>
 			<SunShadowsClipPlaneRangeShift type="Float" value="0.0f"/>
-      <SunShadowsFromTerrain type="BOOL" value="0"/>
-      <UseLayersActivation type="BOOL" value="0"/>
+			<SunShadowsFromTerrain type="BOOL" value="0"/>
+			<UseLayersActivation type="BOOL" value="0"/>
 			<SunLinkedToTOD type="BOOL" value="1"/>
 		</EnvState>
 
@@ -40,14 +30,6 @@
 			<Enable type="BOOL" value="0"/>
 			<EnableForClouds type="BOOL" value="0"/>
 		</VolFogShadows>
-
-		<CloudShadows>
-			<CloudShadowTexture type="Texture" value="" />
-			<CloudShadowSpeed type="Vector" value="0,0,0"/>
-			<CloudShadowTiling type="Float" value="1.0"/>
-			<CloudShadowBrightness type="Float" value="1.0"/>
-			<CloudShadowInvert type="BOOL" value="0"/>
-		</CloudShadows>
 
 		<VolumetricCloud>
 			<HorizonHeight type="Float" value="-1000.0"/>
@@ -91,57 +73,10 @@
 			<WavesSize type="Float" value="0.4"/>
 		</OceanAnimation>
 
-		<Moon>
-			<Latitude type="Float" value="240.0"/>
-			<Longitude type="Float" value="45.0"/>
-			<Size type="Float" value="0.5"/>
-			<Texture type="Texture" value="%ENGINE%/EngineAssets/Textures/Skys/Night/half_moon.dds"/>
-		</Moon>
-
 		<DynTexSource>
 			<Width type="Int" value="256"/>
 			<Height type="Int" value="256"/>
 		</DynTexSource>
-
-    <Total_Illumination_v2>
-      <Active type="BOOL" value="0" TipCVar="e_svoTI_*"/>
-      <IntegrationMode type="Int" value="0" min="0" max="2" TipCVar="e_svoTI_*"/>
-      <InjectionMultiplier type="Float" value="1.0"  min="0" max="32" TipCVar="e_svoTI_*"/>
-      <SkyColorMultiplier type="Float" value="1.0"  min="0" max="32" TipCVar="e_svoTI_*"/>
-      <UseTODSkyColor type="Float" value="0.5"  min="0" max="1" TipCVar="e_svoTI_*"/>
-      <PortalsDeform type="Float" value="0"  min="0" max="1" TipCVar="e_svoTI_*"/>
-      <PortalsInject type="Float" value="0"  min="0" max="10" TipCVar="e_svoTI_*"/>
-      <DiffuseAmplifier type="Float" value="1.0" min="0" max="10" TipCVar="e_svoTI_*"/>
-      <SpecularAmplifier type="Float" value="1.0" min="0" max="10" TipCVar="e_svoTI_*"/>
-      <NumberOfBounces type="Int" value="1" min="0" max="3" TipCVar="e_svoTI_*"/>
-      <Saturation type="Float" value="0.8"  min="0" max="4" TipCVar="e_svoTI_*"/>
-      <PropagationBooster type="Float" value="1.5" min="0" max="4" TipCVar="e_svoTI_*"/>
-      <DiffuseBias type="Float" value="0.05"  min="-4" max="4" TipCVar="e_svoTI_*"/>
-      <DiffuseConeWidth type="Float" value="24" min="1" max="36" TipCVar="e_svoTI_*"/>
-      <ConeMaxLength type="Float" value="12.0"  min="2" max="100" TipCVar="e_svoTI_*"/>
-      <UpdateLighting type="BOOL" value="0" TipCVar="e_svoTI_*"/>
-      <UpdateGeometry type="BOOL" value="0" TipCVar="e_svoTI_*"/>
-      <MinNodeSize type="Float" value="8.0" min="0.5" max="512" TipCVar="e_svo*"/>
-      <SkipNonGILights type="BOOL" value="0" TipCVar="e_svoTI_*"/>
-      <LowSpecMode type="Int" value="-2" min="-2" max="14" TipCVar="e_svoTI_*"/>
-      <HalfresKernelPrimary type="BOOL" value="0" TipCVar="e_svoTI_*"/>
-      <HalfresKernelSecondary type="BOOL" value="1" TipCVar="e_svoTI_*"/>
-      <UseLightProbes type="BOOL" value="0" TipCVar="e_svoTI_*"/>
-      <VoxelizaionLODRatio type="Float" value="1" min="0.5" max="4" TipCVar="e_svoTI_*"/>
-      <VoxelPoolResolution type="Int" value="128" min="128" max="256" TipCVar="e_svo*"/>
-      <SSAOAmount type="Float" value="0.7" min="0" max="1" TipCVar="e_svoTI_*"/>
-      <ObjectsMaxViewDistance type="Float" value="48" min="0" max="128" TipCVar="e_svoTI_*"/>
-      <SunRSMInject type="Int" value="0" min="0" max="16" TipCVar="e_svoTI_*"/>
-      <SSDepthTrace type="Float" value="0" min="0" max="1.4" TipCVar="e_svoTI_*"/>
-      <HighGlossOcclusion type="Float" value="0" min="-100" max="1" TipCVar="e_svoTI_*"/>
-      <Troposphere_Active type="BOOL" value="0" TipCVar="e_svoTI_*"/>
-      <Troposphere_Density type="Float" value="1" TipCVar="e_svoTI_*"/>
-      <Troposphere_Brightness type="Float" value="1.0" TipCVar="e_svoTI_*"/>
-      <AnalyticalOccluders type="BOOL" value="0" TipCVar="e_svoTI_*"/>
-      <AnalyticalGI type="BOOL" value="0" TipCVar="e_svoTI_*"/>
-      <TraceVoxels type="BOOL" value="1" TipCVar="e_svoTI_*"/>
-      <TranslucentBrightness type="Float" value="2.5"  min="0" max="8" TipCVar="e_svoTI_*"/>
-    </Total_Illumination_v2>
 
   </Environment>
 </Templates>

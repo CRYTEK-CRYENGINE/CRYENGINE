@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 // -------------------------------------------------------------------------
 //  File name:   terrain_compile.cpp
@@ -41,6 +41,8 @@
 #define SIGC_CASTSHADOW_MINSPEC_SHIFT (15)
 #define SIGC_CASTSHADOW_MINSPEC_MASK  ((END_CONFIG_SPEC_ENUM - 1) << SIGC_CASTSHADOW_MINSPEC_SHIFT)
 
+#define SIGC_INSTANCING               BIT(16)
+
 void CTerrain::GetVegetationMaterials(std::vector<IMaterial*>*& pMatTable)
 {
 	if (!pMatTable)
@@ -48,7 +50,7 @@ void CTerrain::GetVegetationMaterials(std::vector<IMaterial*>*& pMatTable)
 
 	{
 		// get vegetation objects materials
-		PodArray<StatInstGroup>& rTable = GetObjManager()->m_lstStaticTypes[0];
+		PodArray<StatInstGroup>& rTable = GetObjManager()->m_lstStaticTypes;
 		int nObjectsCount = rTable.size();
 
 		// init struct values and load cgf's
@@ -68,7 +70,7 @@ void CTerrain::GetVegetationMaterials(std::vector<IMaterial*>*& pMatTable)
 	}
 }
 
-int CTerrain::GetTablesSize(SHotUpdateInfo* pExportInfo, int nSID)
+int CTerrain::GetTablesSize(SHotUpdateInfo* pExportInfo)
 {
 	int nDataSize = 0;
 
@@ -82,7 +84,7 @@ int CTerrain::GetTablesSize(SHotUpdateInfo* pExportInfo, int nSID)
 	std::vector<IMaterial*>* pMatTable = &usedMats;
 	GetVegetationMaterials(pMatTable);
 
-	Get3DEngine()->m_pObjectsTree[nSID]->GenerateStatObjAndMatTables(&brushTypes, &usedMats, &instGroups, pExportInfo);
+	Get3DEngine()->m_pObjectsTree->GenerateStatObjAndMatTables(&brushTypes, &usedMats, &instGroups, pExportInfo);
 	GetVisAreaManager()->GenerateStatObjAndMatTables(&brushTypes, &usedMats, &instGroups, pExportInfo);
 
 	nDataSize += instGroups.size() * sizeof(StatInstGroupChunk);
@@ -98,7 +100,7 @@ int CTerrain::GetTablesSize(SHotUpdateInfo* pExportInfo, int nSID)
 	return nDataSize;
 }
 
-int CTerrain::GetCompiledDataSize(SHotUpdateInfo* pExportInfo, int nSID)
+int CTerrain::GetCompiledDataSize(SHotUpdateInfo* pExportInfo)
 {
 #if !ENGINE_ENABLE_COMPILATION
 	CryFatalError("serialization code removed, please enable ENGINE_ENABLE_COMPILATION in Cry3DEngine/StdAfx.h");
@@ -106,20 +108,19 @@ int CTerrain::GetCompiledDataSize(SHotUpdateInfo* pExportInfo, int nSID)
 #else
 	int nDataSize = 0;
 	byte* pData = NULL;
-	Vec3 segmentOffset(0, 0, 0);
 
 	bool bHMap(!pExportInfo || pExportInfo->nHeigtmap);
 	bool bObjs(!pExportInfo || pExportInfo->nObjTypeMask);
 
 	if (bObjs)
 	{
-		assert(nSID >= 0 && nSID < Get3DEngine()->m_pObjectsTree.Count() && Get3DEngine()->m_pObjectsTree[nSID]);
-		Get3DEngine()->m_pObjectsTree[nSID]->CleanUpTree();
-		Get3DEngine()->m_pObjectsTree[nSID]->GetData(pData, nDataSize, NULL, NULL, NULL, eLittleEndian, pExportInfo, segmentOffset);
+		assert(Get3DEngine()->m_pObjectsTree);
+		Get3DEngine()->m_pObjectsTree->CleanUpTree();
+		Get3DEngine()->m_pObjectsTree->GetData(pData, nDataSize, NULL, NULL, NULL, eLittleEndian, pExportInfo);
 	}
 
 	if (bHMap)
-		GetParentNode(nSID)->GetData(pData, nDataSize, GetPlatformEndian(), pExportInfo);
+		GetParentNode()->GetData(pData, nDataSize, GetPlatformEndian(), pExportInfo);
 
 	// get header size
 	nDataSize += sizeof(STerrainChunkHeader);
@@ -127,14 +128,14 @@ int CTerrain::GetCompiledDataSize(SHotUpdateInfo* pExportInfo, int nSID)
 	// get vegetation objects table size
 	if (bObjs)
 	{
-		nDataSize += GetTablesSize(pExportInfo, nSID);
+		nDataSize += GetTablesSize(pExportInfo);
 	}
 
 	return nDataSize;
 #endif
 }
 
-void CTerrain::SaveTables(byte*& pData, int& nDataSize, std::vector<struct IStatObj*>*& pStatObjTable, std::vector<IMaterial*>*& pMatTable, std::vector<IStatInstGroup*>*& pStatInstGroupTable, EEndian eEndian, SHotUpdateInfo* pExportInfo, int nSID)
+void CTerrain::SaveTables(byte*& pData, int& nDataSize, std::vector<struct IStatObj*>*& pStatObjTable, std::vector<IMaterial*>*& pMatTable, std::vector<IStatInstGroup*>*& pStatInstGroupTable, EEndian eEndian, SHotUpdateInfo* pExportInfo)
 {
 	pMatTable = new std::vector<struct IMaterial*>;
 	pStatObjTable = new std::vector<struct IStatObj*>;
@@ -142,7 +143,7 @@ void CTerrain::SaveTables(byte*& pData, int& nDataSize, std::vector<struct IStat
 
 	GetVegetationMaterials(pMatTable);
 
-	Get3DEngine()->m_pObjectsTree[nSID]->GenerateStatObjAndMatTables(pStatObjTable, pMatTable, pStatInstGroupTable, pExportInfo);
+	Get3DEngine()->m_pObjectsTree->GenerateStatObjAndMatTables(pStatObjTable, pMatTable, pStatInstGroupTable, pExportInfo);
 	GetVisAreaManager()->GenerateStatObjAndMatTables(pStatObjTable, pMatTable, pStatInstGroupTable, pExportInfo);
 
 	{
@@ -185,6 +186,8 @@ void CTerrain::SaveTables(byte*& pData, int& nDataSize, std::vector<struct IStat
 					lstFileChunks[i].nFlags |= SIGC_PROCEDURALLYANIMATED;
 				if (rTable[i]->bGIMode)
 					lstFileChunks[i].nFlags |= SIGC_GI_MODE;
+				if (rTable[i]->bInstancing)
+					lstFileChunks[i].nFlags |= SIGC_INSTANCING;
 				if (rTable[i]->bDynamicDistanceShadows)
 					lstFileChunks[i].nFlags |= SIGC_DYNAMICDISTANCESHADOWS;
 				if (rTable[i]->bUseSprites)
@@ -272,7 +275,7 @@ void CTerrain::SaveTables(byte*& pData, int& nDataSize, std::vector<struct IStat
 	}
 }
 
-bool CTerrain::GetCompiledData(byte* pData, int nDataSize, std::vector<struct IStatObj*>** ppStatObjTable, std::vector<IMaterial*>** ppMatTable, std::vector<struct IStatInstGroup*>** ppStatInstGroupTable, EEndian eEndian, SHotUpdateInfo* pExportInfo, int nSID, const Vec3& segmentOffset)
+bool CTerrain::GetCompiledData(byte* pData, int nDataSize, std::vector<struct IStatObj*>** ppStatObjTable, std::vector<IMaterial*>** ppMatTable, std::vector<struct IStatInstGroup*>** ppStatInstGroupTable, EEndian eEndian, SHotUpdateInfo* pExportInfo)
 {
 #if !ENGINE_ENABLE_COMPILATION
 	CryFatalError("serialization code removed, please enable ENGINE_ENABLE_COMPILATION in Cry3DEngine/StdAfx.h");
@@ -295,12 +298,12 @@ bool CTerrain::GetCompiledData(byte* pData, int nDataSize, std::vector<struct IS
 
 	pTerrainChunkHeader->nFlags2 = (Get3DEngine()->m_bAreaActivationInUse ? TCH_FLAG2_AREA_ACTIVATION_IN_USE : 0);
 	pTerrainChunkHeader->nChunkSize = nDataSize;
-	pTerrainChunkHeader->TerrainInfo.nHeightMapSize_InUnits = m_nSectorSize * GetSectorsTableSize(nSID) / m_nUnitSize;
-	pTerrainChunkHeader->TerrainInfo.nUnitSize_InMeters = m_nUnitSize;
-	pTerrainChunkHeader->TerrainInfo.nSectorSize_InMeters = m_nSectorSize;
-	pTerrainChunkHeader->TerrainInfo.nSectorsTableSize_InSectors = GetSectorsTableSize(nSID);
-	pTerrainChunkHeader->TerrainInfo.fHeightmapZRatio = m_fHeightmapZRatio;
-	pTerrainChunkHeader->TerrainInfo.fOceanWaterLevel = (m_fOceanWaterLevel > WATER_LEVEL_UNKNOWN) ? m_fOceanWaterLevel : 0;
+	pTerrainChunkHeader->TerrainInfo.heightMapSize_InUnits = int(m_nSectorSize * GetSectorsTableSize() * m_fInvUnitSize);
+	pTerrainChunkHeader->TerrainInfo.unitSize_InMeters = m_fUnitSize;
+	pTerrainChunkHeader->TerrainInfo.sectorSize_InMeters = m_nSectorSize;
+	pTerrainChunkHeader->TerrainInfo.sectorsTableSize_InSectors = GetSectorsTableSize();
+	pTerrainChunkHeader->TerrainInfo.heightmapZRatio = m_fHeightmapZRatio;
+	pTerrainChunkHeader->TerrainInfo.oceanWaterLevel = (m_fOceanWaterLevel > WATER_LEVEL_UNKNOWN) ? m_fOceanWaterLevel : 0;
 
 	SwapEndian(*pTerrainChunkHeader, eEndian);
 	UPDATE_PTR_AND_SIZE(pData, nDataSize, sizeof(STerrainChunkHeader));
@@ -311,17 +314,17 @@ bool CTerrain::GetCompiledData(byte* pData, int nDataSize, std::vector<struct IS
 
 	if (bObjs)
 	{
-		SaveTables(pData, nDataSize, pStatObjTable, pMatTable, pStatInstGroupTable, eEndian, pExportInfo, nSID);
+		SaveTables(pData, nDataSize, pStatObjTable, pMatTable, pStatInstGroupTable, eEndian, pExportInfo);
 	}
 
 	// get nodes data
-	int nNodesLoaded = bHMap ? GetParentNode(nSID)->GetData(pData, nDataSize, eEndian, pExportInfo) : 1;
+	int nNodesLoaded = bHMap ? GetParentNode()->GetData(pData, nDataSize, eEndian, pExportInfo) : 1;
 
 	if (bObjs)
 	{
-		Get3DEngine()->m_pObjectsTree[nSID]->CleanUpTree();
+		Get3DEngine()->m_pObjectsTree->CleanUpTree();
 
-		Get3DEngine()->m_pObjectsTree[nSID]->GetData(pData, nDataSize, pStatObjTable, pMatTable, pStatInstGroupTable, eEndian, pExportInfo, segmentOffset);
+		Get3DEngine()->m_pObjectsTree->GetData(pData, nDataSize, pStatObjTable, pMatTable, pStatInstGroupTable, eEndian, pExportInfo);
 
 		if (ppStatObjTable)
 			*ppStatObjTable = pStatObjTable;
@@ -346,7 +349,7 @@ bool CTerrain::GetCompiledData(byte* pData, int nDataSize, std::vector<struct IS
 #endif
 }
 
-void CTerrain::GetStatObjAndMatTables(DynArray<IStatObj*>* pStatObjTable, DynArray<IMaterial*>* pMatTable, DynArray<IStatInstGroup*>* pStatInstGroupTable, uint32 nObjTypeMask, int nSID)
+void CTerrain::GetStatObjAndMatTables(DynArray<IStatObj*>* pStatObjTable, DynArray<IMaterial*>* pMatTable, DynArray<IStatInstGroup*>* pStatInstGroupTable, uint32 nObjTypeMask)
 {
 	SHotUpdateInfo exportInfo;
 	exportInfo.nObjTypeMask = nObjTypeMask;
@@ -355,11 +358,11 @@ void CTerrain::GetStatObjAndMatTables(DynArray<IStatObj*>* pStatObjTable, DynArr
 	std::vector<IMaterial*> matTable;
 	std::vector<IStatInstGroup*> statInstGroupTable;
 
-	if (Get3DEngine() && Get3DEngine()->m_pObjectsTree[nSID])
-		Get3DEngine()->m_pObjectsTree[nSID]->GenerateStatObjAndMatTables((pStatObjTable != NULL) ? &statObjTable : NULL,
-		                                                                 (pMatTable != NULL) ? &matTable : NULL,
-		                                                                 (pStatInstGroupTable != NULL) ? &statInstGroupTable : NULL,
-		                                                                 &exportInfo);
+	if (Get3DEngine() && Get3DEngine()->m_pObjectsTree)
+		Get3DEngine()->m_pObjectsTree->GenerateStatObjAndMatTables((pStatObjTable != NULL) ? &statObjTable : NULL,
+		                                                           (pMatTable != NULL) ? &matTable : NULL,
+		                                                           (pStatInstGroupTable != NULL) ? &statInstGroupTable : NULL,
+		                                                           &exportInfo);
 
 	if (GetVisAreaManager())
 		GetVisAreaManager()->GenerateStatObjAndMatTables((pStatObjTable != NULL) ? &statObjTable : NULL,
@@ -422,6 +425,7 @@ void CTerrain::LoadVegetationData(PodArray<StatInstGroup>& rTable, PodArray<Stat
 	rTable[i].bPickable = (lstFileChunks[i].nFlags & SIGC_PICKABLE) != 0;
 	rTable[i].bAutoMerged = (lstFileChunks[i].nFlags & SIGC_PROCEDURALLYANIMATED) != 0;  // && GetCVars()->e_MergedMeshes;
 	rTable[i].bGIMode = (lstFileChunks[i].nFlags & SIGC_GI_MODE) != 0;
+	rTable[i].bInstancing = (lstFileChunks[i].nFlags & SIGC_INSTANCING) != 0;
 	rTable[i].bDynamicDistanceShadows = (lstFileChunks[i].nFlags & SIGC_DYNAMICDISTANCESHADOWS) != 0;
 	rTable[i].bUseSprites = (lstFileChunks[i].nFlags & SIGC_USESPRITES) != 0;
 	rTable[i].bRandomRotation = (lstFileChunks[i].nFlags & SIGC_RANDOMROTATION) != 0;
@@ -463,13 +467,11 @@ void CTerrain::LoadVegetationData(PodArray<StatInstGroup>& rTable, PodArray<Stat
 
 	rTable[i].Update(GetCVars(), Get3DEngine()->GetGeomDetailScreenRes());
 
-#ifndef SEG_WORLD
 	SLICE_AND_SLEEP();
-#endif
 }
 
 template<class T>
-bool CTerrain::Load_T(T*& f, int& nDataSize, STerrainChunkHeader* pTerrainChunkHeader, std::vector<struct IStatObj*>** ppStatObjTable, std::vector<IMaterial*>** ppMatTable, bool bHotUpdate, SHotUpdateInfo* pExportInfo, int nSID, Vec3 vSegmentOrigin)
+bool CTerrain::Load_T(T*& f, int& nDataSize, STerrainChunkHeader* pTerrainChunkHeader, std::vector<struct IStatObj*>** ppStatObjTable, std::vector<IMaterial*>** ppMatTable, bool bHotUpdate, SHotUpdateInfo* pExportInfo)
 {
 	LOADING_TIME_PROFILE_SECTION;
 
@@ -483,7 +485,6 @@ bool CTerrain::Load_T(T*& f, int& nDataSize, STerrainChunkHeader* pTerrainChunkH
 	EEndian eEndian = (pTerrainChunkHeader->nFlags & SERIALIZATION_FLAG_BIG_ENDIAN) ? eBigEndian : eLittleEndian;
 	bool bSectorPalettes = (pTerrainChunkHeader->nFlags & SERIALIZATION_FLAG_SECTOR_PALETTES) != 0;
 
-	bool bSW = Get3DEngine()->IsSegmentOperationInProgress();
 	bool bHMap(!pExportInfo || pExportInfo->nHeigtmap);
 	bool bObjs(!pExportInfo || pExportInfo->nObjTypeMask);
 	AABB* pBox = (pExportInfo && !pExportInfo->areaBox.IsReset()) ? &pExportInfo->areaBox : NULL;
@@ -496,18 +497,15 @@ bool CTerrain::Load_T(T*& f, int& nDataSize, STerrainChunkHeader* pTerrainChunkH
 		return 0;
 
 	// get terrain settings
-	m_nUnitSize = pTerrainChunkHeader->TerrainInfo.nUnitSize_InMeters;
-	m_fInvUnitSize = 1.f / m_nUnitSize;
-	if (!Get3DEngine()->m_pSegmentsManager)
-		m_nTerrainSize = pTerrainChunkHeader->TerrainInfo.nHeightMapSize_InUnits * pTerrainChunkHeader->TerrainInfo.nUnitSize_InMeters;
+	m_fUnitSize = pTerrainChunkHeader->TerrainInfo.unitSize_InMeters;
+	m_fInvUnitSize = 1.f / m_fUnitSize;
+	m_nTerrainSize = int(pTerrainChunkHeader->TerrainInfo.heightMapSize_InUnits * pTerrainChunkHeader->TerrainInfo.unitSize_InMeters);
 
-	m_nTerrainSizeDiv = (m_nTerrainSize >> m_nBitShift) - 1;
-	m_nSectorSize = pTerrainChunkHeader->TerrainInfo.nSectorSize_InMeters;
-#ifndef SEG_WORLD
-	m_nSectorsTableSize = pTerrainChunkHeader->TerrainInfo.nSectorsTableSize_InSectors;
-#endif
-	m_fHeightmapZRatio = pTerrainChunkHeader->TerrainInfo.fHeightmapZRatio;
-	m_fOceanWaterLevel = pTerrainChunkHeader->TerrainInfo.fOceanWaterLevel ? pTerrainChunkHeader->TerrainInfo.fOceanWaterLevel : WATER_LEVEL_UNKNOWN;
+	m_nTerrainSizeDiv = int((m_nTerrainSize * m_fInvUnitSize) - 1);
+	m_nSectorSize = pTerrainChunkHeader->TerrainInfo.sectorSize_InMeters;
+	m_nSectorsTableSize = pTerrainChunkHeader->TerrainInfo.sectorsTableSize_InSectors;
+	m_fHeightmapZRatio = pTerrainChunkHeader->TerrainInfo.heightmapZRatio;
+	m_fOceanWaterLevel = pTerrainChunkHeader->TerrainInfo.oceanWaterLevel ? pTerrainChunkHeader->TerrainInfo.oceanWaterLevel : WATER_LEVEL_UNKNOWN;
 
 	if (bHotUpdate)
 		Get3DEngine()->m_bAreaActivationInUse = false;
@@ -518,24 +516,26 @@ bool CTerrain::Load_T(T*& f, int& nDataSize, STerrainChunkHeader* pTerrainChunkH
 		PrintMessage("Object layers control in use");
 
 	m_nUnitsToSectorBitShift = 0;
-	while (m_nSectorSize >> m_nUnitsToSectorBitShift > m_nUnitSize)
+	float nSecSize = (float)m_nSectorSize;
+	while (nSecSize > m_fUnitSize)
+	{
+		nSecSize /= 2;
 		m_nUnitsToSectorBitShift++;
+	}
 
-	if (bHMap && !m_pParentNodes[nSID])
+	if (bHMap && !m_pParentNode)
 	{
 		LOADING_TIME_PROFILE_SECTION_NAMED("BuildSectorsTree");
 
-		m_arrSegmentOrigns[nSID] = vSegmentOrigin;
-
 		// build nodes tree in fast way
-		BuildSectorsTree(false, nSID);
+		BuildSectorsTree(false);
 
 		// pass heightmap to the physics
-		InitHeightfieldPhysics(nSID);
+		InitHeightfieldPhysics();
 	}
 
 	// setup physics grid
-	if (!m_bEditor && !bHotUpdate && !bSW)
+	if (!m_bEditor && !bHotUpdate)
 	{
 		LOADING_TIME_PROFILE_SECTION_NAMED("SetupEntityGrid");
 
@@ -579,7 +579,7 @@ bool CTerrain::Load_T(T*& f, int& nDataSize, STerrainChunkHeader* pTerrainChunkH
 			if (!m_bEditor || bHotUpdate)
 			{
 				// preallocate real array
-				PodArray<StatInstGroup>& rTable = GetObjManager()->m_lstStaticTypes[nSID];
+				PodArray<StatInstGroup>& rTable = GetObjManager()->m_lstStaticTypes;
 				rTable.resize(nObjectsCount);//,nObjectsCount);
 
 				// init struct values and load cgf's
@@ -664,7 +664,7 @@ bool CTerrain::Load_T(T*& f, int& nDataSize, STerrainChunkHeader* pTerrainChunkH
 				}
 
 				// assign real material to vegetation group
-				PodArray<StatInstGroup>& rStaticTypes = GetObjManager()->m_lstStaticTypes[nSID];
+				PodArray<StatInstGroup>& rStaticTypes = GetObjManager()->m_lstStaticTypes;
 				for (uint32 i = 0; i < rStaticTypes.size(); i++)
 				{
 					if (lstStatInstGroupChunkFileChunks[i].nMaterialId >= 0)
@@ -693,7 +693,7 @@ bool CTerrain::Load_T(T*& f, int& nDataSize, STerrainChunkHeader* pTerrainChunkH
 
 		if (!bHotUpdate)
 			PrintMessage("===== Initializing terrain nodes ===== ");
-		nNodesLoaded = bHMap ? GetParentNode(nSID)->Load(f, nDataSize, eEndian, bSectorPalettes, pExportInfo) : 1;
+		nNodesLoaded = bHMap ? GetParentNode()->Load(f, nDataSize, eEndian, bSectorPalettes, pExportInfo) : 1;
 	}
 
 	if (bObjs)
@@ -704,7 +704,7 @@ bool CTerrain::Load_T(T*& f, int& nDataSize, STerrainChunkHeader* pTerrainChunkH
 		LOADING_TIME_PROFILE_SECTION_NAMED("ObjectInstances");
 
 		PodArray<IRenderNode*> arrUnregisteredObjects;
-		Get3DEngine()->m_pObjectsTree[nSID]->UnregisterEngineObjectsInArea(pExportInfo, arrUnregisteredObjects, true);
+		Get3DEngine()->m_pObjectsTree->UnregisterEngineObjectsInArea(pExportInfo, arrUnregisteredObjects, true);
 
 		// load object instances (in case of editor just check input data do no create object instances)
 		int nOcNodesLoaded = 0;
@@ -713,11 +713,11 @@ bool CTerrain::Load_T(T*& f, int& nDataSize, STerrainChunkHeader* pTerrainChunkH
 			SLayerVisibility visInfo;
 			visInfo.pLayerIdTranslation = pExportInfo->pLayerIdTranslation;
 			visInfo.pLayerVisibilityMask = pExportInfo->pVisibleLayerMask;
-			nOcNodesLoaded = Get3DEngine()->m_pObjectsTree[nSID]->Load(f, nDataSize, pStatObjTable, pMatTable, eEndian, pBox, &visInfo, vSegmentOrigin);
+			nOcNodesLoaded = Get3DEngine()->m_pObjectsTree->Load(f, nDataSize, pStatObjTable, pMatTable, eEndian, pBox, &visInfo);
 		}
 		else
 		{
-			nOcNodesLoaded = Get3DEngine()->m_pObjectsTree[nSID]->Load(f, nDataSize, pStatObjTable, pMatTable, eEndian, pBox, NULL, vSegmentOrigin);
+			nOcNodesLoaded = Get3DEngine()->m_pObjectsTree->Load(f, nDataSize, pStatObjTable, pMatTable, eEndian, pBox, NULL);
 		}
 
 		for (int i = 0; i < arrUnregisteredObjects.Count(); i++)
@@ -725,12 +725,12 @@ bool CTerrain::Load_T(T*& f, int& nDataSize, STerrainChunkHeader* pTerrainChunkH
 		arrUnregisteredObjects.Reset();
 	}
 
-	if (m_bEditor && !bHotUpdate && !bSW && Get3DEngine()->m_pObjectsTree[nSID])
+	if (m_bEditor && !bHotUpdate && Get3DEngine()->m_pObjectsTree)
 	{
 		// editor will re-insert all objects
-		AABB aabb = Get3DEngine()->m_pObjectsTree[nSID]->GetNodeBox();
-		delete Get3DEngine()->m_pObjectsTree[nSID];
-		Get3DEngine()->m_pObjectsTree[nSID] = COctreeNode::Create(nSID, aabb, 0);
+		AABB aabb = Get3DEngine()->m_pObjectsTree->GetNodeBox();
+		delete Get3DEngine()->m_pObjectsTree;
+		Get3DEngine()->m_pObjectsTree = COctreeNode::Create(aabb, 0);
 	}
 
 	if (bObjs)
@@ -752,32 +752,27 @@ bool CTerrain::Load_T(T*& f, int& nDataSize, STerrainChunkHeader* pTerrainChunkH
 	{
 		LOADING_TIME_PROFILE_SECTION_NAMED("PostTerrain");
 
-		GetParentNode(nSID)->UpdateRangeInfoShift();
-		ResetTerrainVertBuffers(NULL, nSID);
+		GetParentNode()->UpdateRangeInfoShift();
+		ResetTerrainVertBuffers(NULL);
 	}
 
 	Get3DEngine()->m_bAreaActivationInUse = (pTerrainChunkHeader->nFlags2 & TCH_FLAG2_AREA_ACTIVATION_IN_USE) != 0;
-
-	// delete neighbours corner nodes
-	//UpdateSectorMeshes();
-
-	ReleaseHeightmapGeometryAroundSegment(nSID);
 
 	assert(nNodesLoaded && nDataSize == 0);
 	return (nNodesLoaded && nDataSize == 0);
 }
 
-bool CTerrain::SetCompiledData(byte* pData, int nDataSize, std::vector<struct IStatObj*>** ppStatObjTable, std::vector<IMaterial*>** ppMatTable, bool bHotUpdate, SHotUpdateInfo* pExportInfo, int nSID, Vec3 vSegmentOrigin)
+bool CTerrain::SetCompiledData(byte* pData, int nDataSize, std::vector<struct IStatObj*>** ppStatObjTable, std::vector<IMaterial*>** ppMatTable, bool bHotUpdate, SHotUpdateInfo* pExportInfo)
 {
 	STerrainChunkHeader* pTerrainChunkHeader = (STerrainChunkHeader*)pData;
 	SwapEndian(*pTerrainChunkHeader, eLittleEndian);
 
 	pData += sizeof(STerrainChunkHeader);
 	nDataSize -= sizeof(STerrainChunkHeader);
-	return Load_T(pData, nDataSize, pTerrainChunkHeader, ppStatObjTable, ppMatTable, bHotUpdate, pExportInfo, nSID, vSegmentOrigin);
+	return Load_T(pData, nDataSize, pTerrainChunkHeader, ppStatObjTable, ppMatTable, bHotUpdate, pExportInfo);
 }
 
-bool CTerrain::Load(FILE* f, int nDataSize, STerrainChunkHeader* pTerrainChunkHeader, std::vector<struct IStatObj*>** ppStatObjTable, std::vector<IMaterial*>** ppMatTable, int nSID, Vec3 vSegmentOrigin)
+bool CTerrain::Load(FILE* f, int nDataSize, STerrainChunkHeader* pTerrainChunkHeader, std::vector<struct IStatObj*>** ppStatObjTable, std::vector<IMaterial*>** ppMatTable)
 {
 	bool bRes;
 
@@ -792,428 +787,26 @@ bool CTerrain::Load(FILE* f, int nDataSize, STerrainChunkHeader* pTerrainChunkHe
 		if (GetPak()->FReadRaw(pPtr, 1, nDataSize, f) != nDataSize)
 			return false;
 
-		bRes = Load_T(pPtr, nDataSize, pTerrainChunkHeader, ppStatObjTable, ppMatTable, 0, 0, nSID, vSegmentOrigin);
+		bRes = Load_T(pPtr, nDataSize, pTerrainChunkHeader, ppStatObjTable, ppMatTable, 0, 0);
 	}
 	else
 	{
 		// in case of big data files - load data in many small blocks
-		bRes = Load_T(f, nDataSize, pTerrainChunkHeader, ppStatObjTable, ppMatTable, 0, 0, nSID, vSegmentOrigin);
+		bRes = Load_T(f, nDataSize, pTerrainChunkHeader, ppStatObjTable, ppMatTable, 0, 0);
 	}
 
-	if (GetParentNode(nSID))
+	if (GetParentNode())
 	{
 		// reopen texture file if needed, texture pack may be randomly closed by editor so automatic reopening used
-		if (!m_arrBaseTexInfos[nSID].m_nDiffTexIndexTableSize)
-			OpenTerrainTextureFile(m_arrBaseTexInfos[nSID].m_hdrDiffTexHdr, m_arrBaseTexInfos[nSID].m_hdrDiffTexInfo,
-			                       COMPILED_TERRAIN_TEXTURE_FILE_NAME, m_arrBaseTexInfos[nSID].m_ucpDiffTexTmpBuffer, m_arrBaseTexInfos[nSID].m_nDiffTexIndexTableSize, nSID);
+		if (!m_arrBaseTexInfos.m_nDiffTexIndexTableSize)
+			OpenTerrainTextureFile(m_arrBaseTexInfos.m_hdrDiffTexHdr, m_arrBaseTexInfos.m_hdrDiffTexInfo,
+			                       COMPILED_TERRAIN_TEXTURE_FILE_NAME, m_arrBaseTexInfos.m_ucpDiffTexTmpBuffer, m_arrBaseTexInfos.m_nDiffTexIndexTableSize);
 	}
+
+	// make sure physics is updated
+	InitHeightfieldPhysics();
 
 	return bRes;
-}
-
-//////////////////////////////////////////////////////////////////////
-// Segmented World
-void CTerrain::GetTables(std::vector<struct IStatObj*>*& pStatObjTable, std::vector<IMaterial*>*& pMatTable, std::vector<struct IStatInstGroup*>*& pStatInstGroupTable, int nSID)
-{
-	SAFE_DELETE(pStatObjTable);
-	SAFE_DELETE(pMatTable);
-	SAFE_DELETE(pStatInstGroupTable);
-
-	pStatObjTable = new std::vector<struct IStatObj*>;
-	pMatTable = new std::vector<struct IMaterial*>;
-	pStatInstGroupTable = new std::vector<struct IStatInstGroup*>;
-
-	if (m_bEditor)
-	{
-		if (nSID < 0 || nSID >= Get3DEngine()->m_pObjectsTree.Count())
-		{
-			return;
-		}
-
-		GetVegetationMaterials(pMatTable);
-
-		Get3DEngine()->m_pObjectsTree[nSID]->GenerateStatObjAndMatTables(pStatObjTable, pMatTable, pStatInstGroupTable, NULL);
-		GetVisAreaManager()->GenerateStatObjAndMatTables(pStatObjTable, pMatTable, pStatInstGroupTable, NULL);
-	}
-	else
-	{
-		if (nSID < 0 || nSID >= (int)m_arrLoadStatuses.size())
-		{
-			return;
-		}
-
-		STerrainDataLoadStatus& status = m_arrLoadStatuses[nSID];
-		for (size_t j = 0; j < status.statObjTable.size(); j++)
-			pStatObjTable->push_back(status.statObjTable[j]);
-		for (size_t k = 0; k < status.matTable.size(); k++)
-			pMatTable->push_back(status.matTable[k]);
-	}
-}
-
-void CTerrain::ReleaseTables(std::vector<struct IStatObj*>*& pStatObjTable, std::vector<IMaterial*>*& pMatTable, std::vector<struct IStatInstGroup*>*& pStatInstGroupTable)
-{
-	SAFE_DELETE(pStatObjTable);
-	SAFE_DELETE(pMatTable);
-	SAFE_DELETE(pStatInstGroupTable);
-}
-
-bool CTerrain::StreamCompiledData(byte* pData, int nDataSize, int nSID, const Vec3& vSegmentOrigin)
-{
-	//SetCompiledData(pData, nDataSize, 0, 0, false, 0, nSID, vSegmentOrigin);
-	//return false;
-
-	if (nSID < 0 || nSID >= (int)m_arrLoadStatuses.size())
-		return false;
-
-	bool result = true;
-
-	//Timer timer;
-
-	STerrainDataLoadStatus& status = m_arrLoadStatuses[nSID];
-	int step = status.loadingStep;
-	switch (step)
-	{
-	case eTDLS_NotStarted:
-		status.loadingStep = eTDLS_Initialize;
-		break;
-	case eTDLS_Initialize:
-		StreamStep_Initialize(status, pData, nDataSize, nSID, vSegmentOrigin);
-		break;
-	case eTDLS_BuildSectorsTree:
-		StreamStep_BuildSectorsTree(status, pData, nDataSize, nSID, vSegmentOrigin);
-		break;
-	case eTDLS_SetupEntityGrid:
-		StreamStep_SetupEntityGrid(status, pData, nDataSize, nSID, vSegmentOrigin);
-		break;
-	case eTDLS_ReadTables:
-		StreamStep_ReadTables(status, pData, nDataSize, nSID, vSegmentOrigin);
-		break;
-	case eTDLS_LoadTerrainNodes:
-		StreamStep_LoadTerrainNodes(status, pData, nDataSize, nSID, vSegmentOrigin);
-		break;
-	case eTDLS_LoadVegetationStatObjs:
-		StreamStep_LoadVegetationStatObjs(status, pData, nDataSize, nSID, vSegmentOrigin);
-		break;
-	case eTDLS_LoadBrushStatObjs:
-		StreamStep_LoadBrushStatObjs(status, pData, nDataSize, nSID, vSegmentOrigin);
-		break;
-	case eTDLS_LoadMaterials:
-		StreamStep_LoadMaterials(status, pData, nDataSize, nSID, vSegmentOrigin);
-		break;
-	case eTDLS_StartLoadObjectTree:
-		StreamStep_StartLoadObjectTree(status, pData, nDataSize, nSID, vSegmentOrigin);
-		break;
-	case eTDLS_LoadObjectTree:
-		StreamStep_LoadObjectTree(status, pData, nDataSize, nSID, vSegmentOrigin);
-		break;
-	case eTDLS_FinishUp:
-		StreamStep_FinishUp(status, pData, nDataSize, nSID, vSegmentOrigin);
-		break;
-	case eTDLS_Complete:
-	case eTDLS_Error:
-	default:
-		result = false;
-		break;
-	}
-	//const char* stepNames[] =
-	//{
-	//	"eTDLS_NotStarted",
-	//	"eTDLS_Initialize",
-	//	"eTDLS_BuildSectorsTree",
-	//	"eTDLS_SetupEntityGrid",
-	//	"eTDLS_ReadTables",
-	//	"eTDLS_LoadTerrainNodes",
-	//	"eTDLS_LoadVegetationStatObjs",
-	//	"eTDLS_LoadBrushStatObjs",
-	//	"eTDLS_LoadMaterials",
-	//	"eTDLS_StartLoadObjectTree",
-	//	"eTDLS_LoadObjectTree",
-	//	"eTDLS_FinishUp",
-	//	"eTDLS_Complete",
-	//	"eTDLS_Error"
-	//};
-
-	//if (timer.TotalElapsed() > 5)
-	//	(void)0;//timer.Dumpf("%s", stepNames[step]);
-
-	return result;
-}
-
-void CTerrain::CancelStreamCompiledData(int nSID)
-{
-}
-
-void CTerrain::StreamStep_Initialize(STerrainDataLoadStatus& status, byte* pData, int nDataSize, int nSID, const Vec3& vSegmentOrigin)
-{
-	byte* pOrigData = pData;
-
-	STerrainChunkHeader* pTerrainChunkHeader = (STerrainChunkHeader*)pData;
-	pData += sizeof(STerrainChunkHeader);
-	nDataSize -= sizeof(STerrainChunkHeader);
-
-	assert(pTerrainChunkHeader->nVersion == TERRAIN_CHUNK_VERSION);
-	if (pTerrainChunkHeader->nVersion != TERRAIN_CHUNK_VERSION)
-	{
-		Error("CTerrain::SetCompiledData: version of file is %d, expected version is %d", pTerrainChunkHeader->nVersion, (int)TERRAIN_CHUNK_VERSION);
-		status.loadingStep = eTDLS_Error;
-		return;
-	}
-
-	EEndian eEndian = (pTerrainChunkHeader->nFlags & SERIALIZATION_FLAG_BIG_ENDIAN) ? eBigEndian : eLittleEndian;
-	bool bSectorPalettes = (pTerrainChunkHeader->nFlags & SERIALIZATION_FLAG_SECTOR_PALETTES) != 0;
-
-	if (pTerrainChunkHeader->nChunkSize != nDataSize + sizeof(STerrainChunkHeader))
-	{
-		status.loadingStep = eTDLS_Error;
-		return;
-	}
-
-	// get terrain settings
-	m_nUnitSize = pTerrainChunkHeader->TerrainInfo.nUnitSize_InMeters;
-	m_fInvUnitSize = 1.f / m_nUnitSize;
-	if (!Get3DEngine()->m_pSegmentsManager)
-		m_nTerrainSize = pTerrainChunkHeader->TerrainInfo.nHeightMapSize_InUnits * pTerrainChunkHeader->TerrainInfo.nUnitSize_InMeters;
-
-	m_nTerrainSizeDiv = (m_nTerrainSize >> m_nBitShift) - 1;
-	m_nSectorSize = pTerrainChunkHeader->TerrainInfo.nSectorSize_InMeters;
-	//m_nSectorsTableSize = pTerrainChunkHeader->TerrainInfo.nSectorsTableSize_InSectors;
-	m_fHeightmapZRatio = pTerrainChunkHeader->TerrainInfo.fHeightmapZRatio;
-	m_fOceanWaterLevel = pTerrainChunkHeader->TerrainInfo.fOceanWaterLevel ? pTerrainChunkHeader->TerrainInfo.fOceanWaterLevel : WATER_LEVEL_UNKNOWN;
-
-	Get3DEngine()->m_bAreaActivationInUse = (pTerrainChunkHeader->nFlags2 & TCH_FLAG2_AREA_ACTIVATION_IN_USE) != 0;
-
-	if (Get3DEngine()->IsAreaActivationInUse())
-		PrintMessage("Object layers control in use");
-
-	m_nUnitsToSectorBitShift = 0;
-	while (m_nSectorSize >> m_nUnitsToSectorBitShift > m_nUnitSize)
-		m_nUnitsToSectorBitShift++;
-
-	status.loadingStep = eTDLS_BuildSectorsTree;
-}
-void CTerrain::StreamStep_BuildSectorsTree(STerrainDataLoadStatus& status, byte* pData, int nDataSize, int nSID, const Vec3& vSegmentOrigin)
-{
-	if (!m_pParentNodes[nSID])
-	{
-		LOADING_TIME_PROFILE_SECTION_NAMED("BuildSectorsTree");
-
-		m_arrSegmentOrigns[nSID] = vSegmentOrigin;
-
-		// build nodes tree in fast way
-		BuildSectorsTree(false, nSID);
-
-		// pass heightmap to the physics
-		SetMaterialMapping(nSID);
-	}
-
-	status.loadingStep = eTDLS_ReadTables;
-}
-void CTerrain::StreamStep_SetupEntityGrid(STerrainDataLoadStatus& status, byte* pData, int nDataSize, int nSID, const Vec3& vSegmentOrigin)
-{
-	// setup physics grid
-	if (!m_bEditor && !gEnv->p3DEngine->IsSegmentOperationInProgress())
-	{
-		LOADING_TIME_PROFILE_SECTION_NAMED("SetupEntityGrid");
-
-		int nCellSize = CTerrain::GetTerrainSize() > 2048 ? CTerrain::GetTerrainSize() >> 10 : 2;
-		nCellSize = max(nCellSize, GetCVars()->e_PhysMinCellSize);
-		int log2PODGridSize = 0;
-		if (nCellSize == 2)
-			log2PODGridSize = 2;
-		else if (nCellSize == 4)
-			log2PODGridSize = 1;
-		GetPhysicalWorld()->SetupEntityGrid(2, Vec3(0, 0, 0), // this call will destroy all physicalized stuff
-		                                    CTerrain::GetTerrainSize() / nCellSize, CTerrain::GetTerrainSize() / nCellSize, (float)nCellSize, (float)nCellSize, log2PODGridSize);
-	}
-
-	status.loadingStep = eTDLS_ReadTables;
-}
-void CTerrain::StreamStep_ReadTables(STerrainDataLoadStatus& status, byte* pData, int nDataSize, int nSID, const Vec3& vSegmentOrigin)
-{
-	STerrainChunkHeader* pTerrainChunkHeader = (STerrainChunkHeader*)pData;
-	pData += sizeof(STerrainChunkHeader);
-	nDataSize -= sizeof(STerrainChunkHeader);
-	EEndian eEndian = (pTerrainChunkHeader->nFlags & SERIALIZATION_FLAG_BIG_ENDIAN) ? eBigEndian : eLittleEndian;
-
-	byte* pDataStart = pData;
-
-	// -- load vegetation table
-	int nObjectsCount = 0;
-	if (!LoadDataFromFile(&nObjectsCount, 1, pData, nDataSize, eEndian))
-	{
-		status.loadingStep = eTDLS_Error;
-		return;
-	}
-
-	status.lstVegetation.PreAllocate(nObjectsCount, nObjectsCount);
-	if (!LoadDataFromFile(status.lstVegetation.GetElements(), status.lstVegetation.Count(), pData, nDataSize, eEndian))
-	{
-		status.loadingStep = eTDLS_Error;
-		return;
-	}
-	if (nObjectsCount)
-		GetObjManager()->m_lstStaticTypes[nSID].resize(nObjectsCount);
-
-	status.vegetationIndex = 0;
-
-	// -- load brushes table
-	if (!LoadDataFromFile(&nObjectsCount, 1, pData, nDataSize, eEndian))
-	{
-		status.loadingStep = eTDLS_Error;
-		return;
-	}
-
-	status.lstBrushes.PreAllocate(nObjectsCount, nObjectsCount);
-	if (!LoadDataFromFile(status.lstBrushes.GetElements(), status.lstBrushes.Count(), pData, nDataSize, eEndian))
-	{
-		status.loadingStep = eTDLS_Error;
-		return;
-	}
-	if (nObjectsCount)
-		status.statObjTable.resize(nObjectsCount);
-
-	status.brushesIndex = 0;
-
-	// -- load materials table
-	if (!LoadDataFromFile(&nObjectsCount, 1, pData, nDataSize, eEndian))
-	{
-		status.loadingStep = eTDLS_Error;
-		return;
-	}
-
-	status.lstMaterials.PreAllocate(nObjectsCount, nObjectsCount);
-	if (!LoadDataFromFile(status.lstMaterials.GetElements(), status.lstMaterials.Count(), pData, nDataSize, eEndian))
-	{
-		status.loadingStep = eTDLS_Error;
-		return;
-	}
-	if (nObjectsCount)
-		status.matTable.resize(nObjectsCount);
-
-	status.materialsIndex = 0;
-
-	status.loadingStep = eTDLS_LoadTerrainNodes;
-	status.offset = pData - pDataStart;
-}
-void CTerrain::StreamStep_LoadTerrainNodes(STerrainDataLoadStatus& status, byte* pData, int nDataSize, int nSID, const Vec3& vSegmentOrigin)
-{
-	STerrainChunkHeader* pTerrainChunkHeader = (STerrainChunkHeader*)pData;
-	pData += sizeof(STerrainChunkHeader);
-	nDataSize -= sizeof(STerrainChunkHeader);
-	EEndian eEndian = (pTerrainChunkHeader->nFlags & SERIALIZATION_FLAG_BIG_ENDIAN) ? eBigEndian : eLittleEndian;
-	bool bSectorPalettes = (pTerrainChunkHeader->nFlags & SERIALIZATION_FLAG_SECTOR_PALETTES) != 0;
-
-	byte* pDataStart = pData;
-	pData += status.offset;
-
-	ReleaseHeightmapGeometryAroundSegment(nSID);
-
-	GetParentNode(nSID)->Load(pData, nDataSize, eEndian, bSectorPalettes, 0);
-	GetParentNode(nSID)->UpdateRangeInfoShift();
-	ResetTerrainVertBuffers(NULL, nSID);
-
-	status.offset = pData - pDataStart;
-	status.loadingStep = eTDLS_LoadVegetationStatObjs;
-}
-void CTerrain::StreamStep_LoadVegetationStatObjs(STerrainDataLoadStatus& status, byte* pData, int nDataSize, int nSID, const Vec3& vSegmentOrigin)
-{
-	if (status.vegetationIndex >= status.lstVegetation.Count())
-	{
-		status.loadingStep = eTDLS_LoadBrushStatObjs;
-		return;
-	}
-
-	int i = status.vegetationIndex;
-	PodArray<StatInstGroup>& rTable = GetObjManager()->m_lstStaticTypes[nSID];
-
-	LoadVegetationData(rTable, status.lstVegetation, i);
-
-	++status.vegetationIndex;
-}
-void CTerrain::StreamStep_LoadBrushStatObjs(STerrainDataLoadStatus& status, byte* pData, int nDataSize, int nSID, const Vec3& vSegmentOrigin)
-{
-	if (status.brushesIndex >= status.lstBrushes.Count())
-	{
-		status.loadingStep = eTDLS_LoadMaterials;
-		return;
-	}
-
-	if (status.lstBrushes[status.brushesIndex].szFileName[0])
-		status.statObjTable[status.brushesIndex] = GetObjManager()->LoadStatObj(status.lstBrushes[status.brushesIndex].szFileName, NULL, NULL, true, 0, 0, 0, m_arrSegmentPaths[nSID]);
-	++status.brushesIndex;
-}
-void CTerrain::StreamStep_LoadMaterials(STerrainDataLoadStatus& status, byte* pData, int nDataSize, int nSID, const Vec3& vSegmentOrigin)
-{
-	if (status.materialsIndex >= status.lstMaterials.Count())
-	{
-		status.loadingStep = eTDLS_StartLoadObjectTree;
-		return;
-	}
-
-	SNameChunk& matName = status.lstMaterials[status.materialsIndex];
-	status.matTable[status.materialsIndex] = matName.szFileName[0] ? GetMatMan()->LoadMaterial(matName.szFileName) : NULL;
-	if (status.matTable[status.materialsIndex])
-		status.matTable[status.materialsIndex]->AddRef();
-	++status.materialsIndex;
-
-	if (status.materialsIndex >= status.lstMaterials.Count())
-	{
-		// assign real material to vegetation group
-		PodArray<StatInstGroup>& rStaticTypes = GetObjManager()->m_lstStaticTypes[nSID];
-		for (uint32 i = 0; i < rStaticTypes.size(); i++)
-		{
-			if (status.lstVegetation[i].nMaterialId >= 0)
-				rStaticTypes[i].pMaterial = status.matTable[status.lstVegetation[i].nMaterialId];
-			else
-				rStaticTypes[i].pMaterial = NULL;
-		}
-	}
-}
-void CTerrain::StreamStep_StartLoadObjectTree(STerrainDataLoadStatus& status, byte* pData, int nDataSize, int nSID, const Vec3& vSegmentOrigin)
-{
-	Get3DEngine()->m_pObjectsTree[nSID]->UnregisterEngineObjectsInArea(0, status.arrUnregisteredObjects, true);
-	status.loadingStep = eTDLS_LoadObjectTree;
-}
-
-void CTerrain::StreamStep_LoadObjectTree(STerrainDataLoadStatus& status, byte* pData, int nDataSize, int nSID, const Vec3& vSegmentOrigin)
-{
-	STerrainChunkHeader* pTerrainChunkHeader = (STerrainChunkHeader*)pData;
-	pData += sizeof(STerrainChunkHeader);
-	nDataSize -= sizeof(STerrainChunkHeader);
-	EEndian eEndian = (pTerrainChunkHeader->nFlags & SERIALIZATION_FLAG_BIG_ENDIAN) ? eBigEndian : eLittleEndian;
-	bool bSectorPalettes = (pTerrainChunkHeader->nFlags & SERIALIZATION_FLAG_SECTOR_PALETTES) != 0;
-
-	byte* pDataStart = pData;
-	pData += status.offset;
-
-	// load object instances (in case of editor just check input data do no create object instances)
-	bool stillStreaming = Get3DEngine()->m_pObjectsTree[nSID]->StreamLoad(pData, nDataSize, &status.statObjTable, &status.matTable, eEndian, 0);
-
-	if (!stillStreaming)
-	{
-		for (int i = 0; i < status.arrUnregisteredObjects.Count(); i++)
-			status.arrUnregisteredObjects[i]->ReleaseNode();
-		status.arrUnregisteredObjects.Reset();
-
-		for (int i = 0; i < (int)status.matTable.size(); ++i)
-			if (status.matTable[i])
-				status.matTable[i]->Release();
-
-		status.loadingStep = eTDLS_FinishUp;
-	}
-}
-void CTerrain::StreamStep_FinishUp(STerrainDataLoadStatus& status, byte* pData, int nDataSize, int nSID, const Vec3& vSegmentOrigin)
-{
-	if (GetParentNode(nSID))
-	{
-		// reopen texture file if needed, texture pack may be randomly closed by editor so automatic reopening used
-		if (!m_arrBaseTexInfos[nSID].m_nDiffTexIndexTableSize)
-			OpenTerrainTextureFile(m_arrBaseTexInfos[nSID].m_hdrDiffTexHdr, m_arrBaseTexInfos[nSID].m_hdrDiffTexInfo,
-			                       m_arrSegmentPaths[nSID] + COMPILED_TERRAIN_TEXTURE_FILE_NAME, m_arrBaseTexInfos[nSID].m_ucpDiffTexTmpBuffer, m_arrBaseTexInfos[nSID].m_nDiffTexIndexTableSize, nSID);
-	}
-
-	status.Clear();
-	status.loadingStep = eTDLS_Complete;
 }
 
 #include <CryCore/TypeInfo_impl.h>

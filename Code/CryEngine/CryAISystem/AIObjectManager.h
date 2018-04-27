@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #ifndef AIOBJECTMANAGER
 #define AIOBJECTMANAGER
@@ -58,7 +58,8 @@ public:
 	//IAIObjectManager/////////////////////////////////////////////////////////////////////////////////////////////
 
 	virtual IAIObject* CreateAIObject(const AIObjectParams& params);
-	virtual void       RemoveObject(tAIObjectID objectID);
+	virtual void       RemoveObject(const tAIObjectID objectID);
+	virtual void       RemoveObjectByEntityId(const EntityId entityId);
 
 	virtual IAIObject* GetAIObject(tAIObjectID aiObjectID);
 	virtual IAIObject* GetAIObjectByName(unsigned short type, const char* pName) const;

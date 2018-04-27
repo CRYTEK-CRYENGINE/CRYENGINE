@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "VKDevice.hpp"
@@ -11,7 +11,7 @@ static int g_cvar_vk_heap_summary;
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-_smart_ptr<CDevice> CDevice::Create(const SPhysicalDeviceInfo* pDeviceInfo, VkAllocationCallbacks* hostAllocator, VkSurfaceKHR Surface, const std::vector<const char*>& layersToEnable, const std::vector<const char*>& extensionsToEnable)
+_smart_ptr<CDevice> CDevice::Create(const SPhysicalDeviceInfo* pDeviceInfo, VkAllocationCallbacks* hostAllocator, const std::vector<const char*>& layersToEnable, const std::vector<const char*>& extensionsToEnable)
 {
 	std::vector<VkDeviceQueueCreateInfo> queueRequests;
 	std::vector<float> queuePriorities(64, 1.0f);
@@ -62,16 +62,15 @@ _smart_ptr<CDevice> CDevice::Create(const SPhysicalDeviceInfo* pDeviceInfo, VkAl
 	}
 
 	_smart_ptr<CDevice> pSmart;
-	pSmart.Assign_NoAddRef(new CDevice(pDeviceInfo, hostAllocator, Device, Surface));
+	pSmart.Assign_NoAddRef(new CDevice(pDeviceInfo, hostAllocator, Device));
 	return pSmart;
 }
 
 //---------------------------------------------------------------------------------------------------------------------
-CDevice::CDevice(const SPhysicalDeviceInfo* pDeviceInfo, VkAllocationCallbacks* hostAllocator, VkDevice Device, VkSurfaceKHR surface)
+CDevice::CDevice(const SPhysicalDeviceInfo* pDeviceInfo, VkAllocationCallbacks* hostAllocator, VkDevice Device)
 	: m_pDeviceInfo(pDeviceInfo)
 	, m_Allocator(*hostAllocator)
 	, m_device(Device)
-	, m_surface(surface)
 	, m_pipelineCache(VK_NULL_HANDLE)
 	// Must be constructed last as it relies on functionality from the heaps
 	, m_Scheduler(this)

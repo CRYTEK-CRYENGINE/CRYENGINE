@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 ////////////////////////////////////////////////////////////////////////////
@@ -12,9 +12,10 @@ struct IEditorMaterial;
 struct IRenderNode;
 struct IStatObj;
 struct SRenderingPassInfo;
-class CDLight;
 
 #include <CryMath/Cry_Camera.h>
+#include <CryRenderer/IRenderer.h>
+#include "Objects/DisplayContext.h"
 
 class PLUGIN_API CPreviewModelCtrl : public CWnd, public IEditorNotifyListener
 {
@@ -90,9 +91,11 @@ public:
 public:
 	virtual ~CPreviewModelCtrl();
 
-	bool CreateContext();
+	bool CreateRenderContext();
+	void DestroyRenderContext();
+	void InitDisplayContext(HWND hWnd);
+
 	void ReleaseObject();
-	void DeleteRenderContex();
 
 protected:
 	//{{AFX_MSG(CPreviewModelCtrl)
@@ -119,11 +122,14 @@ protected:
 	virtual bool Render();
 	virtual void SetCamera(CCamera& cam);
 
-	virtual void RenderObject(IMaterial* pMaterial, SRenderingPassInfo& passInfo);
+	virtual void RenderObject(IMaterial* pMaterial, const SRenderingPassInfo& passInfo);
+	virtual void RenderEffect(IMaterial* pMaterial, const SRenderingPassInfo& passInfo);
 
-	CCamera m_camera;
-	float   m_fov;
+	float          m_fov;
+	CCamera        m_camera;
+	DisplayContext m_displayContext;
 
+	bool RenderInternal();
 	void SetOrbitAngles(const Ang3& ang);
 	void DrawGrid();
 	void DrawBackground();
@@ -133,14 +139,14 @@ protected:
 
 	IRenderer*               m_pRenderer;
 	ICharacterManager*       m_pAnimationSystem;
-	bool                     m_bContextCreated;
+	bool                     m_renderContextCreated;
 
 	Vec3                     m_size;
 	Vec3                     m_pos;
 	int                      m_nTimer;
 
 	CString                  m_loadedFile;
-	std::vector<CDLight>     m_lights;
+	std::vector<SRenderLight> m_lights;
 
 	AABB                     m_aabb;
 	Vec3                     m_cameraTarget;
@@ -177,6 +183,10 @@ protected:
 	void*                    m_pCameraChangeUserData;
 	int                      m_physHelpers0;
 
+private:
+	SDisplayContextKey m_displayContextKey;
+
 protected:
 	virtual void PreSubclassWindow();
 };
+

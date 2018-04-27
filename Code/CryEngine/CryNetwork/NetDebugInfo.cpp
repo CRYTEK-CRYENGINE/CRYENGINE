@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 
@@ -158,7 +158,7 @@ CNetDebugInfo* CNetDebugInfo::Get()
 
 void CNetDebugInfo::Tick()
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_NETWORK);
+	CRY_PROFILE_FUNCTION(PROFILE_NETWORK);
 	if (CNetCVars::Get().netDebugInfo != 0)
 	{
 		SNetworkProfilingStats debugStats;

@@ -1,5 +1,4 @@
-// CRYENGINE Source Code File
-// Copyright 2001-2015 Crytek GmbH. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 // todo: 
 //  - optimization pass
@@ -140,7 +139,7 @@ pixout Common_EffectLayerPassPS(vert2fragEffectLayer IN)
 
   half fFresnel = 0;
   
-  half3 cDiffuseAccRT = DecodeLightBuffer( GetSceneTexProj( sceneDiffuseAccTex, IN.screenProj.xyzw) ); 
+  half3 cDiffuseAccRT = DecodeLightBuffer( GetSceneTexProj( _tex0, IN.screenProj.xyzw) ); 
 
   // Apply light accumulation
   cFinal.xyz *= cDiffuseAccRT;

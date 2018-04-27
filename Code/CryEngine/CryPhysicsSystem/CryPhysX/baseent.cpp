@@ -1,3 +1,5 @@
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
+
 #include "StdAfx.h"
 
 #include "geometries.h"
@@ -59,9 +61,10 @@ int PhysXEnt::AddGeometry(phys_geometry* pgeom, pe_geomparams* params, int id, i
 		pMatMapping=params->pMatMapping, nMats=params->nMats;
 	PxMaterial *const mtl = g_pPhysWorld->GetSurfaceType(pMatMapping ? pMatMapping[max(0,min(nMats-1,pgeom->surface_idx))] : pgeom->surface_idx);
 
-	newPart.shape = pGeom->CreateAndUse(trans,scale, [this,mtl,&trans](const PxGeometry &geom) { return m_actor->createShape(geom,*mtl,T(trans)); });
+	newPart.shape = pGeom->CreateAndUse(trans, scale, [this, mtl](const PxGeometry &geom) { return PxRigidActorExt::createExclusiveShape(*m_actor, geom, *mtl); });
 	if (!newPart.shape)
 		return -1;
+	newPart.shape->setLocalPose(T(trans));
 	
 	if (pGeom->GetType()== GEOM_HEIGHTFIELD) newPart.shape->setFlag(physx::PxShapeFlag::eVISUALIZATION, false); // disable debug vis for heightfield (performance)
 
@@ -330,7 +333,7 @@ int PhysXEnt::GetParams(pe_params* _params) const
 
 	if (_params->type==pe_params_part::type_id) {
 		pe_params_part *params = (pe_params_part*)_params;
-		int i;
+		int i = 0;
 		if (!is_unused(params->partid))
 			i = idxPart(params->partid);
 		else if (!is_unused(params->ipart))
@@ -353,6 +356,7 @@ int PhysXEnt::GetParams(pe_params* _params) const
 			g_pPhysWorld->AddRefGeometry(params->pPhysGeom);	
 		params->pMatMapping = 0;
 		params->nMats = 0;
+		params->pLattice = 0;
 		return 1;
 	}
 
@@ -394,7 +398,7 @@ int PhysXEnt::GetStatus(pe_status* _status) const
 		if (status->pMtx3x4)
 			*status->pMtx3x4 = Matrix34(Matrix33(trans.q)*scale, trans.t);
 		status->iSimClass = 0;
-		if (PxRigidDynamic *pRD = m_actor->isRigidDynamic())
+		if (m_actor) if (PxRigidDynamic *pRD = m_actor->isRigidDynamic())
 			status->iSimClass = 2-pRD->isSleeping();
 		getBBox(status->BBox);
 		status->BBox[0]-=status->pos; status->BBox[1]-=status->pos;

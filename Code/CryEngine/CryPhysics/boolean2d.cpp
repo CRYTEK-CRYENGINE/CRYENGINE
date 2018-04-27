@@ -1,18 +1,18 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 
 #include "utils.h"
 
-Vec2 g_BoolPtBufThread[MAX_PHYS_THREADS+1][4096];
-int g_BoolIdBufThread[MAX_PHYS_THREADS+1][4096];
-int g_BoolGridThread[MAX_PHYS_THREADS+1][4096];
-unsigned int g_BoolHashThread[MAX_PHYS_THREADS+1][8192];
+Vec2 g_BoolPtBufThread[MAX_TOT_THREADS][4096];
+int g_BoolIdBufThread[MAX_TOT_THREADS][4096];
+int g_BoolGridThread[MAX_TOT_THREADS][4096];
+unsigned int g_BoolHashThread[MAX_TOT_THREADS][8192];
 struct inters2d {
 	Vec2 pt;
 	int iedge[2];
 };
-inters2d g_BoolIntersThread[MAX_PHYS_THREADS+1][256];
+inters2d g_BoolIntersThread[MAX_TOT_THREADS][256];
 
 #undef S
 

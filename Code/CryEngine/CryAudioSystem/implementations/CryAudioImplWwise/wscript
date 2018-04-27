@@ -1,4 +1,4 @@
-# Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+# Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 import os
 from waflib import Logs
@@ -31,36 +31,37 @@ def build(bld):
 		'AkPeakLimiterFX',
 		'AkPitchShifterFX',
 		'AkRecorderFX',
+		'AkReflectFX',
 		'AkRoomVerbFX',
 		'AkSilenceSource',
 		'AkSineSource',
 		'AkSoundSeedImpactFX',
 		'AkSoundSeedWind',
 		'AkSoundSeedWoosh',
+		'AkSpatialAudio',
 		'AkStereoDelayFX',
+		'AkSynthOne',
 		'AkTimeStretchFX',
 		'AkToneSource',
 		'AkTremoloFX',
 		'AkVorbisDecoder',
 		'McDSPFutzBoxFX',
-		'McDSPLimiterFX',
-		'AkSynthOne'
+		'McDSPLimiterFX'
 	]
 
 	wwise_extra_plugins_libs    = [
+		'CrankcaseAudioREVModelPlayerFX',
+		'iZHybridReverbFX',
 		'iZTrashBoxModelerFX',
+		'iZTrashDelayFX',
 		'iZTrashDistortionFX',
 		'iZTrashDynamicsFX',
-		'iZTrashDelayFX',
-		'iZHybridReverbFX',
-		'CrankcaseAudioREVModelPlayerFX',
-		'iZTrashMultibandDistortionFX',
 		'iZTrashFiltersFX',
+		'iZTrashMultibandDistortionFX',
 		'AkMotionGenerator',
 		'AkRumble',
-		'IOSONOProximityMixer',
 		'AuroHeadphoneFX',
-		'AuroPannerMixer'
+		'AuroPannerMixer'		
 	]
 
 	# CommunicationCentral must be the linked before other wwise libraries on gcc-based linkers

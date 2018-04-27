@@ -1,10 +1,10 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include <CryCore/smartptr.h>
 #include "Util.h"
 #include "ZipFileFormat.h"
-#include "ZipDirStructures.h"
+#include "zipdirstructures.h"
 #include "ZipDirTree.h"
 #include "ZipDirList.h"
 #include "ZipDirCache.h"
@@ -159,7 +159,7 @@ public:
 		while(true)
 		{
 			{
-				ThreadUtils::AutoLock lock(m_filesLock);
+				std::lock_guard<std::recursive_mutex> lock(m_filesMutex);
 				m_awaitedFile = index;
 				if (size_t(index) >= m_files.size())
 					return 0;
@@ -202,7 +202,7 @@ public:
 		{
 			if (m_memoryLimit != 0)
 			{
-				ThreadUtils::AutoLock lock(m_filesLock);
+				std::lock_guard<std::recursive_mutex> lock(m_filesMutex);
 
 				m_allocatedMemory -= m_files[index]->uncompressedSize;
 				m_allocatedMemory -= m_files[index]->compressedSize;
@@ -229,7 +229,7 @@ private:
 					size_t allocatedMemory = 0;
 					int awaitedFile = 0;
 					{
-						ThreadUtils::AutoLock lock(self->m_filesLock);
+						std::lock_guard<std::recursive_mutex> lock(self->m_filesMutex);
 						allocatedMemory = self->m_allocatedMemory;
 						awaitedFile = self->m_awaitedFile;
 					}
@@ -250,7 +250,7 @@ private:
 	// called from non-main thread
 	void FileCompleted(PackFileJob* job)
 	{
-		ThreadUtils::AutoLock lock(m_filesLock);
+		std::lock_guard<std::recursive_mutex> lock(m_filesMutex);
 
 		assert(job);
 		assert(job->index < m_files.size());
@@ -266,7 +266,7 @@ private:
 
 	size_t m_memoryLimit;
 
-	ThreadUtils::CriticalSection m_filesLock;
+	std::recursive_mutex m_filesMutex;
 	std::vector<PackFileJob*> m_files;
 	int m_awaitedFile;
 	size_t m_allocatedMemory;
@@ -1467,7 +1467,7 @@ bool ZipDir::CacheRW::WriteCDR(FILE* fTarget, bool encryptCDR)
 	//arrFiles.SortByFileOffset();
 	size_t nSizeCDR = arrFiles.GetStats().nSizeCDR;
 	void* pCDR = malloc(nSizeCDR);
-  size_t nSizeCDRSerialized = arrFiles.MakeZipCDR(m_lCDROffset, pCDR, encryptCDR);
+	size_t nSizeCDRSerialized = arrFiles.MakeZipCDR(m_lCDROffset, pCDR, encryptCDR);
 	assert (nSizeCDRSerialized == nSizeCDR);
 	
 	if (encryptCDR)

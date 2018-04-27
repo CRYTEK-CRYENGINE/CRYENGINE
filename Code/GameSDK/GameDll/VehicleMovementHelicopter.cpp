@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 /*************************************************************************
 -------------------------------------------------------------------------
@@ -461,7 +461,7 @@ float CVehicleMovementHelicopter::GetAdditionalSlopePitch(const Vec3 &desiredMov
 
 void CVehicleMovementHelicopter::ProcessAI(const float deltaTime)
 {
-	FUNCTION_PROFILER( GetISystem(), PROFILE_GAME );
+	CRY_PROFILE_FUNCTION( PROFILE_GAME );
 
 	CryAutoCriticalSection lk(m_lock);
 	SVehiclePhysicsStatus* physStatus = &m_physStatus[k_physicsThread];
@@ -676,7 +676,7 @@ void CVehicleMovementHelicopter::PreProcessMovement(const float deltaTime)
 // NOTE: This function must be thread-safe. Before adding stuff contact MarcoC.
 void CVehicleMovementHelicopter::ProcessMovement(const float deltaTime)
 {
-	FUNCTION_PROFILER( GetISystem(), PROFILE_GAME );
+	CRY_PROFILE_FUNCTION( PROFILE_GAME );
 
 	IPhysicalEntity* pPhysics = GetPhysics();
 	assert(pPhysics);
@@ -784,7 +784,7 @@ void CVehicleMovementHelicopter::UpdateEngine(float deltaTime)
 //------------------------------------------------------------------------
 void CVehicleMovementHelicopter::Update(const float deltaTime)
 {
-  FUNCTION_PROFILER( GetISystem(), PROFILE_GAME );
+  CRY_PROFILE_FUNCTION( PROFILE_GAME );
 
 	CVehicleMovementBase::Update(deltaTime);
 
@@ -839,7 +839,7 @@ float CVehicleMovementHelicopter::GetEnginePower()
 //------------------------------------------------------------------------
 bool CVehicleMovementHelicopter::RequestMovement(CMovementRequest& movementRequest)
 {
-	FUNCTION_PROFILER( gEnv->pSystem, PROFILE_GAME );
+	CRY_PROFILE_FUNCTION( PROFILE_GAME );
  
 	m_movementAction.isAI = true;
 

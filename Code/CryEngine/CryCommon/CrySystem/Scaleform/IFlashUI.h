@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -14,6 +14,7 @@
 ////////////////////////////////////////// UI variant data /////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
+//! \cond INTERNAL
 typedef CryVariant<
 	int,
 	float,
@@ -509,6 +510,7 @@ template<> struct SUIParamTypeHelper<TUIData>
 		return (EUIDataTypes) d.GetType();
 	}
 };
+//! \endcond
 
 struct SUIArguments
 {
@@ -886,6 +888,7 @@ typedef SUIArguments SUIArgumentsRet;
 
 /////////////////////////////////////////// Lookup Table ///////////////////////////////////////////
 
+//! \cond INTERNAL
 //! This type is not implemented!
 template<class T> struct SUIItemLookupIDD
 {
@@ -1050,6 +1053,9 @@ typedef SUIItemLookupSet<SUIEventDesc>     TUIEventsLookup;
 //! Since those are not shared between DLL boundaries we can use the impl directly.
 typedef SUIItemLookupSet_Impl<IUIElement> TUIElementsLookup;
 typedef SUIItemLookupSet_Impl<IUIAction>  TUIActionsLookup;
+
+//! \endcond
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////// UI Descriptions /////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1066,8 +1072,8 @@ struct SUIParameterDesc
 		eUIPT_WString
 	};
 
-	SUIParameterDesc() : sName("undefined"), sDisplayName("undefined"), sDesc("undefined"), eType(eUIPT_Any), pParent(NULL) {}
-	SUIParameterDesc(const char* name, const char* displ, const char* desc, EUIParameterType type = eUIPT_Any, const SUIParameterDesc* parent = NULL) : sName(name), sDisplayName(displ), sDesc(desc), eType(type), pParent(parent) { CRY_ASSERT_MESSAGE(strstr(sName, " ") == NULL, "Name with whitespaces not allowed! Use display name for descriptive names!"); }
+	SUIParameterDesc() : sName("undefined"), sDisplayName("undefined"), sDesc("undefined"), pParent(NULL), eType(eUIPT_Any) {}
+	SUIParameterDesc(const char* name, const char* displ, const char* desc, EUIParameterType type = eUIPT_Any, const SUIParameterDesc* parent = NULL) : sName(name), sDisplayName(displ), sDesc(desc), pParent(parent), eType(type) { CRY_ASSERT_MESSAGE(strstr(sName, " ") == NULL, "Name with whitespaces not allowed! Use display name for descriptive names!"); }
 	const char*             sName;
 	const char*             sDisplayName;
 	const char*             sDesc;
@@ -1836,6 +1842,7 @@ enum EUIObjectType
 	eUOT_Events,
 };
 
+//! \cond INTERNAL
 template<EUIObjectType type> struct SUIDescTypeOf
 {
 	typedef int TType;
@@ -2017,6 +2024,7 @@ template<> struct SUIGetTypeStr<eUOT_Events>
 		return "event";
 	}
 };
+//! \endcond
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////// UIEvent Dispatch helper //////////////////////////////////////
@@ -2063,6 +2071,7 @@ template<> struct SUIGetTypeStr<eUOT_Events>
 #define UIEVENT_ASSERT_ARG(index) \
   CRY_ASSERT_MESSAGE(SUIEventArgumentCheck<T ## index>::Check(event.InputParams.Params[index].eType), "Template argument not compatible! Index: " # index);
 
+//! \cond INTERNAL
 //! Deref for T&, const T& and special case for const char* and const wchar_t*.
 template<class T> struct deref_t
 {
@@ -2100,6 +2109,7 @@ template<class T> struct deref_t<const T*>
 		return v.c_str();
 	}
 };
+//! \endcond
 
 // Argument check
 template<class T> struct SUIEventArgumentCheck
@@ -2135,6 +2145,7 @@ template<> inline bool SUIEventArgumentCheck<string        >::Check(SUIParameter
 template<> inline bool SUIEventArgumentCheck<wstring       >::Check(SUIParameterDesc::EUIParameterType type) { return type == SUIParameterDesc::eUIPT_WString; }
 template<> inline bool SUIEventArgumentCheck<TUIData       >::Check(SUIParameterDesc::EUIParameterType type) { return true; }
 
+//! \cond INTERNAL
 //! Dispatcher function interface.
 struct IUIEventDispatchFct
 {
@@ -2885,3 +2896,4 @@ struct SPerInstanceCall4
 private:
 	void _cb(IUIElement* pInstance, const SCallData& data) { data.cb(pInstance, data.arg1, data.arg2, data.arg3, data.arg4); }
 };
+//! \endcond

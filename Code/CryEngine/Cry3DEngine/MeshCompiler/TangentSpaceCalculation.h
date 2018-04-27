@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 //
 // Used with permission to distribute for non-commercial purposes.
@@ -88,7 +88,7 @@ private:
 		uint32 m_normIndex;
 	};
 
-	struct CBaseIndexOrder : public std::binary_function<CBaseIndex, CBaseIndex, bool>
+	struct CBaseIndexOrder
 	{
 		bool operator()(const CBaseIndex& a, const CBaseIndex& b) const;
 	};

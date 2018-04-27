@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #ifndef WORLD_COLLISION_H
 #define WORLD_COLLISION_H
@@ -7,22 +7,25 @@
 	#pragma once
 #endif
 
-extern const float WalkabilityFloorUpDist;
-extern const float WalkabilityFloorDownDist;
+//TODO: Use actual agent's parameters instead of this constants if possible
+
+// for finding the start/end positions
+const float WalkabilityFloorUpDist = 0.25f;
+const float WalkabilityFloorDownDist = 2.0f;
+
 // assume character is this fat
-extern const float WalkabilityRadius;
+const float WalkabilityRadius = 0.25f;
+
 // radius of the swept sphere down to find the floor
-extern const float WalkabilityDownRadius;
+const float WalkabilityDownRadius = 0.06f;
+
 // assume character is this tall
-extern const float WalkabilityTotalHeight;
-extern const float WalkabilityCritterTotalHeight;
-extern const float WalkabilityTorsoOffset;
-extern const float WalkabilityCritterTorsoOffset;
+const float WalkabilityTotalHeight = 1.8f;
 
 // maximum allowed floor height change from one to the next
-extern const float WalkabilityMaxDeltaZ;
+const float WalkabilityMaxDeltaZ = 0.6f;
 // height of the torso capsule above foot
-extern const Vec3 WalkabilityTorsoBaseOffset;
+const Vec3 WalkabilityTorsoBaseOffset(0.0f, 0.0f, WalkabilityMaxDeltaZ);
 
 // Simple auto_ptr to allow thread-safe and efficient use of GetEntitiesInBox while not encouraging memory leaks
 class PhysicalEntityListAutoPtr
@@ -143,53 +146,13 @@ inline void ConvexHull2D(std::vector<Vec3>& ptsOut, const std::vector<Vec3>& pts
 bool IntersectSweptSphere(Vec3* hitPos, float& hitDist, const Lineseg& lineseg,
                           float radius, EAICollisionEntities aiCollisionEntities, IPhysicalEntity** pSkipEnts = 0, int nSkipEnts = 0, int geomFlagsAny = geom_colltype0);
 
-#ifdef CRYAISYSTEM_DEBUG
-/// Count of calls to CheckWalkability - for profiling
-extern unsigned g_CheckWalkabilityCalls;
-#endif //CRYAISYSTEM_DEBUG
-
-// NOTE Mai 24, 2007: <pvl> not really pretty, but this is a way of telling
-// the CheckWalkability*() functions if the expensive floor position check needs
-// to be performed.  If it doesn't (because m_pos already is a floor position),
-// m_isFloor is set to true.
-// Default ctor is done so that existing callers (that expect the floor check
-// to be done) can remain as they are.
-//
-// TODO Mai 24, 2007: <pvl> CheckWalkability() interface is starting to show its
-// age - most likely it should be changed to a class with state.
-struct SWalkPosition
-{
-	Vec3 m_pos;
-	bool m_isFloor;
-	SWalkPosition(const Vec3& pos, bool isFloor = false) :
-		m_pos(pos), m_isFloor(isFloor)
-	{}
-};
 
 const size_t GetPhysicalEntitiesInBoxMaxResultCount = 2048;
 // multiply the number by two to get it more safe, since it looks like physics can allocate its own list in case more entities are in such a box
 typedef StaticDynArray<AABB, GetPhysicalEntitiesInBoxMaxResultCount>             StaticAABBArray;
 typedef StaticDynArray<IPhysicalEntity*, GetPhysicalEntitiesInBoxMaxResultCount> StaticPhysEntityArray;
 
-/**
- * If a human waypoint link goes over flat ground without any significant
- * bumps or holes, walkability checking of this link can be reduced just to
- * intersecting a box (an approximation of volume created by sweeping
- * simplified human body shape along the link) with non-static world.
- */
-bool FindFloor(const Vec3& position, const StaticPhysEntityArray& entities, const StaticAABBArray& aabbs, Vec3& floor);
 bool FindFloor(const Vec3& position, Vec3& floor);
-
-bool CheckWalkabilitySimple(/*Vec3 from, Vec3 to,*/ SWalkPosition fromPos, SWalkPosition toPos, float radius,
-                                                    EAICollisionEntities aiCollisionEntities = AICE_ALL);
-
-// Faster and more accurate version of walkability check
-// radius is now the agent radius instead of a padding radius
-bool CheckWalkability(const Vec3& origin, const Vec3& target, float radius, Vec3* finalFloor = 0, bool* flatFloor = 0);
-bool CheckWalkability(const Vec3& origin, const Vec3& target, float radius, const StaticPhysEntityArray& entities,
-                      const StaticAABBArray& aabbs, Vec3* finalFloor = 0, bool* flatFloor = 0);
-bool CheckWalkability(const Vec3& origin, const Vec3& target, float radius, const ListPositions& boundary,
-                      Vec3* finalFloor = 0, bool* flatFloor = 0, const AABB* boundaryAABB = 0);
 
 //====================================================================
 // GetEntitiesFromAABB
@@ -380,7 +343,7 @@ inline bool GetFloorPos(Vec3& floorPos, const Vec3& pos, float upDist, float dow
 {
 	// (MATT) This function doesn't have the behaviour you might expect. It only searches up by radius amount, and checks down by
 	// upDist + downDist + rad. Might or might not be safe to fix, but this code is being superseded. {2009/07/01}
-	FUNCTION_PROFILER(GetISystem(), PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 	Vec3 delta = Vec3(0, 0, -downDist - upDist);
 	Vec3 capStart = pos + Vec3(0, 0, upDist);
 	const Vec3 vRad(0, 0, radius);

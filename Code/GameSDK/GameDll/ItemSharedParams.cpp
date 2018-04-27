@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 /*************************************************************************
 -------------------------------------------------------------------------
@@ -427,7 +427,7 @@ int GetItemCategoryTypeByClass( IEntityClass* pClass )
 //------------------------------------------------------------------------
 bool CItemSharedParams::ReadGeometry(const XmlNodeRef& paramsNode)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_GAME);
+	CRY_PROFILE_FUNCTION(PROFILE_GAME);
 
 	// read the helpers
 	helpers.resize(0);

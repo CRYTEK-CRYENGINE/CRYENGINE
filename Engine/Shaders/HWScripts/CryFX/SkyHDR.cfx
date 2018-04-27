@@ -1,5 +1,4 @@
-// CRYENGINE Source Code File
-// Copyright 2001-2015 Crytek GmbH. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "Common.cfi"
 #include "ModificatorVT.cfi"
@@ -34,7 +33,7 @@ struct a2v
 
 struct v2f_hdr
 {
-  float4 Position   : POSITION;  //in projection space
+  float4 Position   : SV_POSITION;  //in projection space
 
 #if !%NO_DAY_SKY_GRADIENT && !%NO_MOON
   float4 packedTC   : TEXCOORDN;
@@ -227,7 +226,7 @@ v2fZ SkyZVS(a2v IN)
 
   // Position in screen space.
   float4 vPos = IN.Position;
-  OUT.Position = mul(vpMatrix, vPos);
+  OUT.Position = mul(CV_ViewProjMatr, vPos);
   OUT.Position.z = OUT.Position.w;
 
   return OUT;

@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 /*************************************************************************
    -------------------------------------------------------------------------
@@ -28,22 +28,22 @@ public:
 	virtual ~CVehiclePartTread() {}
 
 	// IVehiclePart
-	virtual bool            Init(IVehicle* pVehicle, const CVehicleParams& table, IVehiclePart* parent, CVehicle::SPartInitInfo& initInfo, int partType) override;
-	virtual void            InitGeometry();
-	virtual void            Reset() override;
+	virtual bool        Init(IVehicle* pVehicle, const CVehicleParams& table, IVehiclePart* parent, CVehicle::SPartInitInfo& initInfo, int partType) override;
+	virtual void        InitGeometry();
+	virtual void        Reset() override;
 
-	virtual bool            ChangeState(EVehiclePartState state, int flags = 0) override;
+	virtual bool        ChangeState(EVehiclePartState state, int flags = 0) override;
 
-	virtual void            Physicalize() override;
+	virtual void        Physicalize() override;
 
-	virtual const Matrix34& GetLocalTM(bool relativeToParentPart, bool forced = false) override;
-	virtual const Matrix34& GetWorldTM() override;
-	virtual const AABB&     GetLocalBounds() override;
+	virtual Matrix34    GetLocalTM(bool relativeToParentPart, bool forced = false) override;
+	virtual Matrix34    GetWorldTM() override;
+	virtual const AABB& GetLocalBounds() override;
 
-	virtual void            Update(const float frameTime) override;
+	virtual void        Update(const float frameTime) override;
 
-	virtual void            RegisterSerializer(IGameObjectExtension* gameObjectExt) override {}
-	virtual void            GetMemoryUsage(ICrySizer* s) const override
+	virtual void        RegisterSerializer(IGameObjectExtension* gameObjectExt) override {}
+	virtual void        GetMemoryUsage(ICrySizer* s) const override
 	{
 		s->Add(*this);
 		s->AddObject(m_wheels);

@@ -1,0 +1,12 @@
+# Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
+
+	
+def build(bld):
+
+	bld.CryConsoleApplication(
+		target      = 'ShaderCacheGen',
+		vs_filter   = 'Tools',		
+		file_list   = 'shader_cache_gen.waf_files',
+	)
+
+	

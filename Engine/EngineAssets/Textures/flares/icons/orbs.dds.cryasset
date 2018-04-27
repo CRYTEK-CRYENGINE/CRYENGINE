@@ -1,0 +1,10 @@
+<AssetMetadata version="0" type="Texture" guid="55ac4d3f-6659-95e7-db77-674a5864ef08" source="orbs.tif">
+ <Files>
+  <File path="orbs.dds"/>
+ </Files>
+ <Details>
+  <Detail name="width">96</Detail>
+  <Detail name="height">96</Detail>
+  <Detail name="mipCount">1</Detail>
+ </Details>
+</AssetMetadata>

@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 /********************************************************************
    -------------------------------------------------------------------------
@@ -39,6 +39,7 @@
 #include <CryAISystem/IPerceptionHandlerModifier.h>
 
 #include "Navigation/NavigationSystem/NavigationSystem.h"
+#include "Formation/FormationManager.h"
 
 //#pragma optimize("", off)
 //#pragma inline_depth(0)
@@ -105,11 +106,6 @@ template<class Value> void SerializeWeakRefMap(TSerialize& ser, const char* sNam
 
 	ser.EndGroup();
 }
-
-std::vector<CAIActor*> CPuppet::s_enemies;
-std::vector<SSortedHideSpot> CPuppet::s_sortedHideSpots;
-MultimapRangeHideSpots CPuppet::s_hidespots;
-MapConstNodesDistance CPuppet::s_traversedNodes;
 
 SSoundPerceptionDescriptor CPuppet::s_DefaultSoundPerceptionDescriptor[AISOUND_LAST] =
 {
@@ -243,10 +239,6 @@ CPuppet::~CPuppet()
 void CPuppet::ClearStaticData()
 {
 	stl::free_container(s_weights);
-	stl::free_container(s_sortedHideSpots);
-	stl::free_container(s_enemies);
-	stl::free_container(s_traversedNodes);
-	s_hidespots.clear();
 }
 
 //===================================================================
@@ -438,7 +430,7 @@ float CPuppet::AdjustTargetVisibleRange(const CAIActor& observer, float fVisible
 void CPuppet::Update(EUpdateType type)
 {
 	CCCPOINT(CPuppet_Update);
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 	m_bDryUpdate = (type != EUpdateType::Full);
 
@@ -1000,7 +992,7 @@ bool CPuppet::GetTargetTrackBestTarget(CWeakRef<CAIObject>& refBestTarget, SAIPo
 //===================================================================
 void CPuppet::UpdatePuppetInternalState()
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 	CCCPOINT(CPuppet_UpdatePuppetInternalState);
 
 	CAIObject* pAttentionTarget = m_refAttentionTarget.GetAIObject();
@@ -1255,7 +1247,7 @@ void CPuppet::Event(unsigned short eType, SAIEVENT* pEvent)
 
 			ClearActiveGoals();
 			m_bLooseAttention = false;
-			pAISystem->FreeFormationPoint(GetWeakRef(this));
+			gAIEnv.pFormationManager->FreeFormationPoint(GetWeakRef(this));
 			SetAttentionTarget(NILREF);
 			m_bBlocked = false;
 			m_bCanReceiveSignals = true;
@@ -1330,10 +1322,9 @@ void CPuppet::Event(unsigned short eType, SAIEVENT* pEvent)
 		{
 			SetNavSOFailureStates();
 
-			if (m_inCover || m_movingToCover)
+			if (m_pCoverUser)
 			{
-				SetCoverRegister(CoverID());
-				m_coverUser.SetCoverID(CoverID());
+				m_pCoverUser->Reset();
 			}
 
 			ResetModularBehaviorTree(AIOBJRESET_SHUTDOWN);
@@ -1346,7 +1337,7 @@ void CPuppet::Event(unsigned short eType, SAIEVENT* pEvent)
 
 			pAISystem->RemoveFromGroup(GetGroupId(), this);
 
-			pAISystem->ReleaseFormationPoint(this);
+			gAIEnv.pFormationManager->ReleaseFormationPoint(this);
 			CancelRequestedPath(false);
 			ReleaseFormation();
 
@@ -1391,7 +1382,7 @@ void CPuppet::Event(unsigned short eType, SAIEVENT* pEvent)
 //===================================================================
 void CPuppet::HandleVisualStimulus(SAIEVENT* pAIEvent)
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 	const float fGlobalVisualPerceptionScale = gEnv->pAISystem->GetGlobalVisualScale(this);
 	const float fVisualPerceptionScale = m_Parameters.m_PerceptionParams.perceptionScale.visual * fGlobalVisualPerceptionScale;
@@ -1424,7 +1415,7 @@ CPersonalInterestManager* CPuppet::GetPersonalInterestManager()
 void CPuppet::UpdateLookTarget(CAIObject* pTarget)
 {
 	CCCPOINT(CPuppet_UpdateLookTarget);
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 #ifdef AI_STRIP_OUT_LEGACY_LOOK_TARGET_CODE
 
@@ -1931,7 +1922,7 @@ void CPuppet::UpTargetPriority(const IAIObject* pTarget, float fPriorityIncremen
 //===================================================================
 void CPuppet::HandleSoundEvent(SAIEVENT* pEvent)
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 	const float fGlobalAudioPerceptionScale = gEnv->pAISystem->GetGlobalAudioScale(this);
 	const float fAudioPerceptionScale = m_Parameters.m_PerceptionParams.perceptionScale.audio * fGlobalAudioPerceptionScale;
@@ -1957,7 +1948,7 @@ void CPuppet::HandleSoundEvent(SAIEVENT* pEvent)
 //===================================================================
 void CPuppet::HandleBulletRain(SAIEVENT* pEvent)
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 	CPipeUser::HandleBulletRain(pEvent);
 
@@ -2070,7 +2061,7 @@ bool CPuppet::NavigateAroundObjectsInternal(const Vec3& targetPos, const Vec3& m
 //===================================================================
 bool CPuppet::NavigateAroundObjects(const Vec3& targetPos, bool fullUpdate)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 	bool in3D = IsUsing3DNavigation();
 	const Vec3 myPos = GetPhysicsPos();
 
@@ -2085,7 +2076,7 @@ bool CPuppet::NavigateAroundObjects(const Vec3& targetPos, bool fullUpdate)
 
 	if (steeringEnabled && (deltaTime > timeForUpdate || !lastSteeringEnabled))
 	{
-		FRAME_PROFILER("NavigateAroundObjects Gather Objects", gEnv->pSystem, PROFILE_AI)
+		CRY_PROFILE_REGION(PROFILE_AI, "NavigateAroundObjects Gather Objects");
 
 		m_lastSteerTime = curTime;
 		m_steeringObjects.clear();
@@ -2128,7 +2119,7 @@ bool CPuppet::NavigateAroundObjects(const Vec3& targetPos, bool fullUpdate)
 	{
 		if ((GetType() == AIOBJECT_ACTOR) && !in3D)
 		{
-			FRAME_PROFILER("NavigateAroundObjects Update Steering", gEnv->pSystem, PROFILE_AI)
+			CRY_PROFILE_REGION(PROFILE_AI, "NavigateAroundObjects Update Steering");
 
 			bool check = fullUpdate;
 			if (m_updatePriority == AIPUP_VERY_HIGH || m_updatePriority == AIPUP_HIGH)
@@ -2291,7 +2282,7 @@ bool CPuppet::NavigateAroundObjects(const Vec3& targetPos, bool fullUpdate)
 		}
 		else
 		{
-			FRAME_PROFILER("NavigateAroundObjects Update Steering Old", gEnv->pSystem, PROFILE_AI)
+			CRY_PROFILE_REGION(PROFILE_AI, "NavigateAroundObjects Update Steering Old");
 			// Old type steering for the rest of the objects.
 			unsigned nObj = m_steeringObjects.size();
 			for (unsigned i = 0; i < nObj; ++i)
@@ -2314,7 +2305,7 @@ bool CPuppet::NavigateAroundObjects(const Vec3& targetPos, bool fullUpdate)
 bool CPuppet::NavigateAroundAIObject(const Vec3& targetPos, const CAIObject* obstacle, const Vec3& myPos,
                                      const Vec3& objectPos, bool steer, bool in3D)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 	if (steer)
 	{
 		if (in3D)
@@ -2348,8 +2339,8 @@ bool CPuppet::SteerAroundPuppet(const Vec3& targetPos, const CAIObject* object, 
 	Vec3 steerOffset(ZERO);
 
 	bool outside = true;
-	if (m_lastNavNodeIndex && (gAIEnv.pGraph->GetNodeManager().GetNode(m_lastNavNodeIndex)->navType & (IAISystem::NAV_TRIANGULAR | IAISystem::NAV_ROAD)) == 0)
-		outside = false;
+	//if (m_lastNavNodeIndex && (gAIEnv.pGraph->GetNodeManager().GetNode(m_lastNavNodeIndex)->navType & (IAISystem::NAV_TRIANGULAR | IAISystem::NAV_ROAD)) == 0)
+	//	outside = false;
 
 	Vec3 delta = objectPos - myPos;
 	// skip if we're not close
@@ -2515,7 +2506,7 @@ bool CPuppet::SteerAroundVehicle(const Vec3& targetPos, const CAIObject* object,
 	// if vehicle is in the same formation (convoy) - don't steer around it, otherwise can't stay in formation
 	if (const CAIVehicle* pVehicle = object->CastToCAIVehicle())
 	{
-		if (GetAISystem()->SameFormation(this, pVehicle))
+		if (gAIEnv.pFormationManager->SameFormation(this, pVehicle))
 			return false;
 	}
 	// currently puppet algorithm seems to work ok.
@@ -2605,8 +2596,6 @@ void CPuppet::Reset(EObjectResetType type)
 		m_pFireCmdHandler->Reset();
 	if (m_pFireCmdGrenade)
 		m_pFireCmdGrenade->Reset();
-
-	m_PFBlockers.clear();
 
 	m_CurrentHideObject.Set(0, Vec3Constants<float>::fVec3_Zero, Vec3Constants<float>::fVec3_Zero);
 	m_InitialPath.clear();
@@ -2935,7 +2924,7 @@ void CPuppet::RequestThrowGrenade(ERequestedGrenadeType eGrenadeType, int iRegTy
 void CPuppet::FireCommand(float updateTime)
 {
 	CCCPOINT(CPuppet_FireCommand);
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 	m_timeSinceTriggerPressed += updateTime;
 
@@ -4524,161 +4513,11 @@ void CPuppet::ResetSpeedControl()
 }
 
 //===================================================================
-// GetPathAgentNavigationBlockers
-//===================================================================
-// (MATT) This method is very nearly const - just the GetRefPoint call prevents that {2009/04/02}
-void CPuppet::GetPathAgentNavigationBlockers(NavigationBlockers& navigationBlockers, const struct PathfindRequest* pRequest)
-{
-	CCCPOINT(CPuppet_AddNavigationBlockers);
-	CAIObject* pAttentionTarget = m_refAttentionTarget.GetAIObject();
-
-	static float cost = 5.0f; //1000.0f;
-	static bool radialDecay = true;
-	static bool directional = true;
-
-	TMapBlockers::const_iterator itr(m_PFBlockers.find(PFB_ATT_TARGET));
-	float curRadius(itr != m_PFBlockers.end() ? (*itr).second : 0.f);
-	float sign(1.0f);
-	if (curRadius < 0.0f) { sign = -1.0f; curRadius = -curRadius; }
-	// see if attention target needs to be avoided
-	if (curRadius > 0.f &&
-	    pAttentionTarget && IsHostile(pAttentionTarget))
-	{
-		float r(curRadius);
-		if (pRequest)
-		{
-			static float extra = 1.5f;
-			float d1 = extra * Distance::Point_Point(pAttentionTarget->GetPos(), pRequest->startPos);
-			float d2 = extra * Distance::Point_Point(pAttentionTarget->GetPos(), pRequest->endPos);
-			r = min(min(d1, d2), curRadius);
-		}
-		NavigationBlocker enemyBlocker(pAttentionTarget->GetPos(), r * sign, 0.f, cost, radialDecay, directional);
-		navigationBlockers.push_back(enemyBlocker);
-	}
-
-	// avoid player
-	itr = m_PFBlockers.find(PFB_PLAYER);
-	curRadius = itr != m_PFBlockers.end() ? (*itr).second : 0.f;
-	sign = 1.0f;
-	if (curRadius < 0.0f) { sign = -1.0f; curRadius = -curRadius; }
-	if (curRadius > 0.0f)
-	{
-		CAIPlayer* pPlayer = CastToCAIPlayerSafe(GetAISystem()->GetPlayer());
-		if (pPlayer)
-		{
-			NavigationBlocker blocker(pPlayer->GetPos() + pPlayer->GetEntityDir() * curRadius / 2, curRadius * sign, 0.f, cost, radialDecay, directional);
-			navigationBlockers.push_back(blocker);
-		}
-	}
-
-	// avoid player
-	itr = m_PFBlockers.find(PFB_BETWEEN_NAV_TARGET);
-	curRadius = itr != m_PFBlockers.end() ? (*itr).second : 0.f;
-	sign = 1.0f;
-	if (curRadius < 0.0f) { sign = -1.0f; curRadius = -curRadius; }
-	if (curRadius > 0.0f)
-	{
-		float biasTowardsTarget = 0.7f;
-		Vec3 mid = pRequest->endPos * biasTowardsTarget + GetPos() * (1 - biasTowardsTarget);
-		curRadius = min(curRadius, Distance::Point_Point(pRequest->endPos, GetPos()) * 0.8f);
-		NavigationBlocker blocker(mid, curRadius * sign, 0.f, cost, radialDecay, directional);
-		navigationBlockers.push_back(blocker);
-	}
-
-	// see if ref point needs to be avoided
-	itr = m_PFBlockers.find(PFB_REF_POINT);
-	curRadius = itr != m_PFBlockers.end() ? (*itr).second : 0.f;
-	sign = 1.0f;
-	if (curRadius < 0.0f) { sign = -1.0f; curRadius = -curRadius; }
-	if (curRadius > 0.f)
-	{
-		Vec3 vRefPointPos = GetRefPoint()->GetPos();
-		float r(curRadius);
-		if (pRequest)
-		{
-			static float extra = 1.5f;
-			float d1 = extra * Distance::Point_Point(vRefPointPos, pRequest->startPos);
-			float d2 = extra * Distance::Point_Point(vRefPointPos, pRequest->endPos);
-			r = min(min(d1, d2), curRadius);
-		}
-		NavigationBlocker enemyBlocker(vRefPointPos, r, 0.f, cost * sign, radialDecay, directional);
-		navigationBlockers.push_back(enemyBlocker);
-	}
-
-	itr = m_PFBlockers.find(PFB_BEACON);
-	curRadius = itr != m_PFBlockers.end() ? (*itr).second : 0.f;
-	sign = 1.0f;
-	if (curRadius < 0.0f) { sign = -1.0f; curRadius = -curRadius; }
-	IAIObject* pBeacon;
-	if (curRadius > 0.f && (pBeacon = GetAISystem()->GetBeacon(GetGroupId())))
-	{
-		float r(curRadius);
-		if (pRequest)
-		{
-			static float extra = 1.5f;
-			float d1 = extra * Distance::Point_Point(pBeacon->GetPos(), pRequest->startPos);
-			float d2 = extra * Distance::Point_Point(pBeacon->GetPos(), pRequest->endPos);
-			r = min(min(d1, d2), curRadius);
-
-		}
-		NavigationBlocker enemyBlocker(pBeacon->GetPos(), r, 0.f, cost * sign, radialDecay, directional);
-		navigationBlockers.push_back(enemyBlocker);
-	}
-
-	// Avoid dead bodies
-	float deadRadius = 0.0f;
-	const int ignoreDeadBodies = false;
-	if (!ignoreDeadBodies)
-	{
-		itr = m_PFBlockers.find(PFB_DEAD_BODIES);
-		deadRadius = itr != m_PFBlockers.end() ? (*itr).second : 0.f;
-	}
-
-	itr = m_PFBlockers.find(PFB_EXPLOSIVES);
-	float explosiveRadius = itr != m_PFBlockers.end() ? (*itr).second : 0.f;
-
-	if (fabsf(deadRadius) > 0.01f || fabsf(explosiveRadius) > 0.01f)
-	{
-		const unsigned int maxn = 3;
-		Vec3 positions[maxn];
-		unsigned int types[maxn];
-		unsigned int n = GetAISystem()->GetDangerSpots(static_cast<const IAIObject*>(this), 40.0f, positions, types, maxn, CAISystem::DANGER_ALL);
-		for (unsigned i = 0; i < n; i++)
-		{
-			float r = explosiveRadius;
-			if (types[i] == CAISystem::DANGER_DEADBODY)
-			{
-				if (ignoreDeadBodies)
-					continue;
-
-				r = deadRadius;
-			}
-
-			// Skip completely blocking blocking blockers which are too close.
-			if (r < 0.0f && Distance::Point_PointSq(GetPos(), positions[i]) < sqr(fabsf(r) + 2.0f))
-				continue;
-			sign = 1.0f;
-			if (r < 0.0f) { sign = -1.0f; r = -r; }
-			NavigationBlocker enemyBlocker(positions[i], r, 0.f, cost * sign, radialDecay, directional);
-			navigationBlockers.push_back(enemyBlocker);
-		}
-	}
-}
-
-//===================================================================
-// SetPFBlockerRadius
-//===================================================================
-void CPuppet::SetPFBlockerRadius(int blockerType, float radius)
-{
-	m_PFBlockers[blockerType] = radius;
-}
-
-//===================================================================
 // CheckFriendsInLineOfFire
 //===================================================================
 bool CPuppet::CheckFriendsInLineOfFire(const Vec3& fireDirection, bool cheapTest)
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 	ActorLookUp& lookUp = *gAIEnv.pActorLookUp;
 	lookUp.Prepare(ActorLookUp::Position | ActorLookUp::Proxy);
@@ -5167,7 +5006,7 @@ bool CPuppet::GetValidPositionNearby(const Vec3& proposedPosition, Vec3& adjuste
 		return false;
 
 	const Vec3 pushUp(.0f, .0f, .2f);
-	return gAIEnv.pNavigationSystem->IsLocationValidInNavigationMesh(GetNavigationTypeID(), adjustedPosition + pushUp);
+	return gAIEnv.pNavigationSystem->IsLocationValidInNavigationMesh(GetNavigationTypeID(), adjustedPosition + pushUp, nullptr);
 }
 
 //===================================================================

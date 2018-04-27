@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 //
 // Crytek Engine Source File.
 // Copyright (C), Crytek Studios, 2001-2006.
@@ -13,6 +13,8 @@
 //
 ////////////////////////////////////////////////////////////////////////////
 #pragma once
+
+#include <mutex>
 
 #include "AnimationLoader.h"
 
@@ -146,5 +148,5 @@ public:
 	bool m_bBigEndianOutput;
 
 	DBStatistics m_Statistics;
-	ThreadUtils::CriticalSection m_lock;
+	std::recursive_mutex m_lock;
 };

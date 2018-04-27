@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 /*************************************************************************
 -------------------------------------------------------------------------
@@ -43,7 +43,7 @@ public:
 	virtual void PickUp(EntityId pickerId, bool sound, bool select/* =true */, bool keepHistory/* =true */, const char* setup);
 	virtual void Drop(float impulseScale, bool selectNext/* =true */, bool byDeath/* =false */);
 	virtual bool ShouldDoPostSerializeReset() const;
-	virtual void ProcessEvent(SEntityEvent& event);
+	virtual void ProcessEvent(const SEntityEvent& event);
 	virtual void OnShoot(EntityId shooterId, EntityId ammoId, IEntityClass* pAmmoType, const Vec3 &pos, const Vec3 &dir, const Vec3 &vel);
 	virtual void OnAction(EntityId actorId, const ActionId& actionId, int activationMode, float value);
 	virtual bool OutOfAmmo(bool allFireModes) const;

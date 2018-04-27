@@ -1,8 +1,8 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include <assert.h>             // assert()
-#include "weightfilterset.h"    // CWeightFilter
+#include "WeightFilterSet.h"    // CWeightFilter
 #include "IRCLog.h"             // RCLog()
 #include "StringHelpers.h"
 #include <CryString/StringUtils.h>        // cry_strcpy()

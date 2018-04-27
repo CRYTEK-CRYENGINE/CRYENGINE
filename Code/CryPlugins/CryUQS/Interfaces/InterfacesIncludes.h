@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -8,6 +8,8 @@
 #include <CrySchematyc/CoreAPI.h>
 #endif
 
+#include <CrySchematyc/Utils/EnumFlags.h>
+
 #include "shared/TypeInfo.h"
 #include "shared/DataTypeHelper.h"
 #include "shared/IUqsString.h"
@@ -15,6 +17,7 @@
 #include "shared/GUIDHelper.h"
 
 #include "core/IDebugRenderWorld.h"
+#include "core/IDebugMessageCollection.h"
 #include "core/IFactoryDatabase.h"
 #include "core/IItemDebugProxies.h"
 #include "core/IItemDebugProxyFactory.h"
@@ -77,6 +80,9 @@
 #include "core/QueryResult.h"
 
 #include "client/QueryRequest.h"
+#include "client/IQueryVisitor.h"
+#include "client/IQueryFinishedListener.h"
+#include "client/IQueryWarningListener.h"
 
 #include "core/IQueryManager.h"
 #include "core/IQueryHistoryListener.h"
@@ -90,5 +96,6 @@
 #include "core/IItemSerializationSupport.h"
 #include "core/IEditorService.h"
 #include "core/IUtils.h"
+#include "core/ISettingsManager.h"
 #include "core/IHub.h"
 #include "core/IHubPlugin.h"

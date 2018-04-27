@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -8,10 +8,9 @@
 class CToneMappingStage : public CGraphicsPipelineStage
 {
 public:
-	void Init();
 	void Execute();
 	void ExecuteDebug();
-	void ExecuteFixedExposure();
+	void ExecuteFixedExposure(CTexture* pColorTex, CTexture* pDepthTex);
 	void DisplayDebugInfo();
 
 private:

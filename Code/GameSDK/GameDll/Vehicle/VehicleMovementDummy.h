@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 /*************************************************************************
 -------------------------------------------------------------------------
@@ -69,7 +69,7 @@ public:
 	virtual void RegisterActionFilter(IVehicleMovementActionFilter* pActionFilter) {}
 	virtual void UnregisterActionFilter(IVehicleMovementActionFilter* pActionFilter) {}
 
-	virtual void ProcessEvent(SEntityEvent& event) {} 
+	virtual void ProcessEvent(const SEntityEvent& event) {} 
 	virtual CryCriticalSection* GetNetworkLock() { return NULL; }
 
 	virtual void PostUpdateView(SViewParams &viewParams, EntityId playerId) {}

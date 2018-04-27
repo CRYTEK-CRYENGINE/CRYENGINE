@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "EntityAssetType.h"
@@ -110,7 +110,7 @@ bool CEntityAssetType::OnCreate(CEditableAsset& editAsset, const void* /*pTypeSp
 
 CAssetEditor* CEntityAssetType::Edit(CAsset* pAsset) const
 {
-	return CAssetEditor::OpenAssetForEdit("Schematyc Editor", pAsset);
+	return CAssetEditor::OpenAssetForEdit("Schematyc Editor (Experimental)", pAsset);
 }
 
 bool CEntityAssetType::RenameAsset(CAsset* pAsset, const char* szNewName) const
@@ -195,3 +195,4 @@ Schematyc::IScript* CEntityAssetType::GetScript(const CAsset& asset) const
 }
 
 }
+

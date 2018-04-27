@@ -1,0 +1,10 @@
+<AssetMetadata version="0" type="Texture" guid="4d22dd67-bc80-f7b8-631a-b0f343610463" source="pentagon_ghost_cellular.tif">
+ <Files>
+  <File path="pentagon_ghost_cellular.dds"/>
+ </Files>
+ <Details>
+  <Detail name="width">4</Detail>
+  <Detail name="height">4</Detail>
+  <Detail name="mipCount">1</Detail>
+ </Details>
+</AssetMetadata>

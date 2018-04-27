@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 // -------------------------------------------------------------------------
 //  File name:   FlowWeaponCustomizationNodes.h
@@ -38,7 +38,7 @@ public:
 
 private:
 	CMenuRender3DModelMgr::TAddedModelIndex characterModelIndex;
-	char*  playerModelName;
+	const char*  playerModelName;
 	string sUIElement;
 	string sMovieClipName;
 };
@@ -68,7 +68,7 @@ public:
 
 private:
 	CMenuRender3DModelMgr::TAddedModelIndex characterModelIndex;
-	char*  playerModelName;
+	const char*  playerModelName;
 	string sUIElement;
 	string sMovieClipName;
 };

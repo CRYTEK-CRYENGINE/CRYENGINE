@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #ifndef __VehicleDialogComponent_h__
 #define __VehicleDialogComponent_h__
@@ -112,7 +112,7 @@ protected:
 	void         DisableUpdateObjectOnVarChange(const string& childVarName);
 
 private:
-	void OnObjectEventCallback(CBaseObject* pObject, int eventId);
+	void OnObjectEventCallback(const CBaseObject* pObject, const CObjectEvent& event);
 
 protected:
 	IVariable* m_pVar;
@@ -123,3 +123,4 @@ protected:
 };
 
 #endif // __VehicleDialogComponent_h__
+

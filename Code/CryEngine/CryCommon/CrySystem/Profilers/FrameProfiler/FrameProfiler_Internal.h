@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -18,16 +18,16 @@
 		  CBootProfileFrameScope bootProfilerFrameScope;
 
 		#define INTERNAL_PROFILER_REGION(subsystem, szName)                                                              \
-		  static CFrameProfiler staticFrameProfiler(subsystem, EProfileDescription::REGION, szName, __FILE__, __LINE__); \
-		  CFrameProfilerSection frameProfilerSection(&staticFrameProfiler, szName, nullptr, EProfileDescription::REGION);
+		  static CFrameProfiler staticFrameProfilerRegion(subsystem, EProfileDescription::REGION, szName, __FILE__, __LINE__); \
+		  CFrameProfilerSection frameProfilerSectionRegion(&staticFrameProfilerRegion, szName, nullptr, EProfileDescription::REGION);
 
 		#define INTERNAL_PROFILER_REGION_ARG(subsystem, szName, szArgument)                                              \
-		  static CFrameProfiler staticFrameProfiler(subsystem, EProfileDescription::REGION, szName, __FILE__, __LINE__); \
-		  CFrameProfilerSection frameProfilerSection(&staticFrameProfiler, szName, szArgument, EProfileDescription::REGION);
+		  static CFrameProfiler staticFrameProfilerRegion(subsystem, EProfileDescription::REGION, szName, __FILE__, __LINE__); \
+		  CFrameProfilerSection frameProfilerSectionRegion(&staticFrameProfilerRegion, szName, szArgument, EProfileDescription::REGION);
 
 		#define INTERNAL_PROFILER_REGION_WAITING(subsystem, szName)                                                                                                            \
-		  static CFrameProfiler staticFrameProfiler(subsystem, (EProfileDescription)(EProfileDescription::REGION | EProfileDescription::WAITING), szName, __FILE__, __LINE__); \
-		  CFrameProfilerSection frameProfilerSection(&staticFrameProfiler, szName, nullptr, EProfileDescription::REGION);
+		  static CFrameProfiler staticFrameProfilerRegion(subsystem, (EProfileDescription)(EProfileDescription::REGION | EProfileDescription::WAITING), szName, __FILE__, __LINE__); \
+		  CFrameProfilerSection frameProfilerSectionRegion(&staticFrameProfilerRegion, szName, nullptr, EProfileDescription::REGION);
 
 		#define INTERNAL_PROFILER_FUNCTION(subsystem, szName)                                                                   \
 		  static CFrameProfiler staticFrameProfiler(subsystem, EProfileDescription::FUNCTIONENTRY, szName, __FILE__, __LINE__); \
@@ -49,9 +49,14 @@
 		  static CFrameProfiler staticFrameProfiler(subsystem, (EProfileDescription)(EProfileDescription::SECTION | EProfileDescription::WAITING), szName, __FILE__, __LINE__); \
 		  CFrameProfilerSection frameProfilerSection(&staticFrameProfiler, szName, nullptr);
 
-		#define INTERNAL_PROFILER_MARKER(szName)          /*not implemented*/
-		#define INTERNAL_PROFILER_PUSH(subsystem, szName) /*not implemented*/
-		#define INTERNAL_PROFILER_POP()                   /*not implemented*/
+		#define INTERNAL_PROFILER_MARKER(szLabel) \
+			{ if (gEnv && gEnv->bBootProfilerEnabledFrames) gEnv->pSystem->StartBootSectionProfiler(szLabel,nullptr,EProfileDescription::MARKER); };
+
+		#define INTERNAL_PROFILER_PUSH(szLabel) \
+			{ if (gEnv && gEnv->bBootProfilerEnabledFrames) gEnv->pSystem->StartBootSectionProfiler(szLabel,nullptr,EProfileDescription::PUSH_MARKER); };
+
+		#define INTERNAL_PROFILER_POP(szLabel) \
+			{ if (gEnv && gEnv->bBootProfilerEnabledFrames) gEnv->pSystem->StartBootSectionProfiler(szLabel,nullptr,EProfileDescription::POP_MARKER); };
 
 	#else
 
@@ -65,9 +70,9 @@
 		#define INTERNAL_PROFILER_FUNCTION_WAITING(subsystem, szName)       /*do nothing*/
 		#define INTERNAL_PROFILER_SECTION(subsystem, szName)                /*do nothing*/
 		#define INTERNAL_PROFILER_SECTION_WAITING(subsystem, szName)        /*do nothing*/
-		#define INTERNAL_PROFILER_MARKER(szName)                            /*do nothing*/
-		#define INTERNAL_PROFILER_PUSH(subsystem, szName)                   /*do nothing*/
-		#define INTERNAL_PROFILER_POP()                                     /*do nothing*/
+		#define INTERNAL_PROFILER_MARKER(szLabel)                           /*do nothing*/
+		#define INTERNAL_PROFILER_PUSH(szLabel)                             /*do nothing*/
+		#define INTERNAL_PROFILER_POP(szLabel)                              /*do nothing*/
 
 	#endif
 
@@ -82,8 +87,8 @@
 	#define INTERNAL_PROFILER_FUNCTION_WAITING(subsystem, szName)       /*do nothing*/
 	#define INTERNAL_PROFILER_SECTION(subsystem, szName)                /*do nothing*/
 	#define INTERNAL_PROFILER_SECTION_WAITING(subsystem, szName)        /*do nothing*/
-	#define INTERNAL_PROFILER_MARKER(szName)                            /*do nothing*/
-	#define INTERNAL_PROFILER_PUSH(subsystem, szName)                   /*do nothing*/
-	#define INTERNAL_PROFILER_POP()                                     /*do nothing*/
+	#define INTERNAL_PROFILER_MARKER(szLabel)                           /*do nothing*/
+	#define INTERNAL_PROFILER_PUSH(szLabel)                             /*do nothing*/
+	#define INTERNAL_PROFILER_POP(szLabel)                              /*do nothing*/
 
 #endif

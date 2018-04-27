@@ -1,0 +1,37 @@
+# Meta
+set(AM_MULTI_CONFIG @_multi_config@)
+# Directories and files
+set(AM_CMAKE_BINARY_DIR "@CMAKE_BINARY_DIR@/")
+set(AM_CMAKE_SOURCE_DIR "@CMAKE_SOURCE_DIR@/")
+set(AM_CMAKE_CURRENT_SOURCE_DIR "@CMAKE_CURRENT_SOURCE_DIR@/")
+set(AM_CMAKE_CURRENT_BINARY_DIR "@CMAKE_CURRENT_BINARY_DIR@/")
+set(AM_CMAKE_INCLUDE_DIRECTORIES_PROJECT_BEFORE "@CMAKE_INCLUDE_DIRECTORIES_PROJECT_BEFORE@")
+set(AM_BUILD_DIR @_build_dir@)
+set(AM_SOURCES @_sources@)
+set(AM_HEADERS @_headers@)
+# Qt environment
+set(AM_QT_VERSION_MAJOR @_qt_version_major@)
+set(AM_QT_VERSION_MINOR @_qt_version_minor@)
+set(AM_QT_MOC_EXECUTABLE @_qt_moc_executable@)
+set(AM_QT_UIC_EXECUTABLE @_qt_uic_executable@)
+set(AM_QT_RCC_EXECUTABLE @_qt_rcc_executable@)
+# MOC settings
+set(AM_MOC_SKIP @_moc_skip@)
+set(AM_MOC_DEFINITIONS @_moc_compile_defs@)
+set(AM_MOC_INCLUDES @_moc_include_dirs@)
+set(AM_MOC_OPTIONS @_moc_options@)
+set(AM_MOC_RELAXED_MODE @_moc_relaxed_mode@)
+set(AM_MOC_MACRO_NAMES @_moc_macro_names@)
+set(AM_MOC_DEPEND_FILTERS @_moc_depend_filters@)
+set(AM_MOC_PREDEFS_CMD @_moc_predefs_cmd@)
+# UIC settings
+set(AM_UIC_SKIP @_uic_skip@)
+set(AM_UIC_TARGET_OPTIONS @_uic_target_options@)
+set(AM_UIC_OPTIONS_FILES @_qt_uic_options_files@)
+set(AM_UIC_OPTIONS_OPTIONS @_qt_uic_options_options@)
+set(AM_UIC_SEARCH_PATHS @_uic_search_paths@)
+# RCC settings
+set(AM_RCC_SOURCES @_rcc_files@)
+set(AM_RCC_BUILDS @_rcc_builds@)
+set(AM_RCC_OPTIONS @_rcc_options@)
+set(AM_RCC_INPUTS @_rcc_inputs@)

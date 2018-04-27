@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 /********************************************************************
    -------------------------------------------------------------------------
@@ -32,13 +32,13 @@ class CAIDebugRenderer : public IAIDebugRenderer
 public:
 	CAIDebugRenderer(IRenderer* pRenderer);
 
-	virtual float GetCameraFOV() { return m_pRenderer->GetCamera().GetFov(); }
+	virtual float GetCameraFOV() { return GetISystem()->GetViewCamera().GetFov(); }
 
 	virtual Vec3  GetCameraPos();
 	virtual float GetDebugDrawZ(const Vec3& vPoint, bool bUseTerrainOrWater);
 
-	virtual int   GetWidth()  { return m_pRenderer->GetWidth(); }
-	virtual int   GetHeight() { return m_pRenderer->GetHeight(); }
+	virtual int   GetWidth()  { return m_pRenderer->GetOverlayWidth(); }
+	virtual int   GetHeight() { return m_pRenderer->GetOverlayHeight(); }
 
 	virtual void  DrawAABB(const AABB& aabb, bool bSolid, const ColorB& color, const EBoundingBoxDrawStyle& bbDrawStyle);
 	virtual void  DrawAABB(const AABB& aabb, const Matrix34& matWorld, bool bSolid, const ColorB& color, const EBoundingBoxDrawStyle& bbDrawStyle);
@@ -93,8 +93,6 @@ public:
 	virtual void         SetDepthTest(bool bOn);
 	virtual void         SetDepthWrite(bool bOn);
 	virtual void         SetDrawInFront(bool bOn);
-
-	virtual void         SetMaterialColor(float fRed, float fGreen, float fBlue, float fAlpha);
 
 	virtual unsigned int PopState();
 	virtual unsigned int PushState();

@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -10,7 +10,6 @@
 
 class QBoxLayout;
 class QLineEdit;
-class QParentWndWidget;
 class QPlainTextEdit;
 class QAdvancedPropertyTree;
 class QPushButton;
@@ -89,3 +88,4 @@ private:
 	CConnectionScope    m_connectionScope;
 };
 } // Schematyc
+

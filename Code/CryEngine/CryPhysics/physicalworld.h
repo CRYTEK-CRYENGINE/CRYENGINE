@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #ifndef physicalworld_h
 #define physicalworld_h
@@ -26,6 +26,7 @@ struct le_precomp_entity;
 struct le_precomp_part;
 struct le_tmp_contact;
 enum { pef_step_requested = 0x40000000 };
+enum entity_query_flags_aux { ent_GEA_recursive = ent_reserved1, ent_GEA_external = ent_reserved2 };
 
 template <class T> T *CONTACT_END(T *const &pnext) { return (T*)((INT_PTR)&pnext-(INT_PTR)&((T*)0)->next); }
 
@@ -421,8 +422,14 @@ public:
 	virtual void RasterizeEntities(const grid3d& grid, uchar *rbuf, int objtypes, float massThreshold, const Vec3& offsBBox, const Vec3& sizeBBox, int flags);
 
 	virtual int GetEntitiesInBox(Vec3 ptmin,Vec3 ptmax, IPhysicalEntity **&pList, int objtypes, int szListPrealloc) {
-		WriteLock lock(m_lockCaller[MAX_PHYS_THREADS]);
-		return GetEntitiesAround(ptmin,ptmax, (CPhysicalEntity**&)pList, objtypes, 0, szListPrealloc, MAX_PHYS_THREADS);
+		int iCaller;
+		Vec3 gBBox[2]; m_entgrid.BBoxToGrid(ptmin,ptmax, gBBox);
+		if ((gBBox[1].x-gBBox[0].x)*(gBBox[1].y-gBBox[0].y) > m_entgrid.step.x*m_entgrid.step.y*sqr(50)) {
+			iCaller = MAX_PHYS_THREADS; set_extCaller(0);	// for large boxes (and thus potentially lots on ents) always use external caller 0
+		}	else
+			iCaller = get_iCaller(1);
+		WriteLock lock(m_lockCaller[iCaller]);
+		return GetEntitiesAround(ptmin,ptmax, (CPhysicalEntity**&)pList, objtypes, 0, szListPrealloc, iCaller);
 	}
 	int GetEntitiesAround(const Vec3 &ptmin,const Vec3 &ptmax, CPhysicalEntity **&pList, int objtypes, CPhysicalEntity *pPetitioner=0,
 		int szListPrealoc=0, int iCaller=get_iCaller());
@@ -448,8 +455,9 @@ public:
 			case PLOCK_WORLD_STEP: return &m_lockStep;
 			case PLOCK_QUEUE: return &m_lockQueue;
 			case PLOCK_AREAS: return &m_lockAreas;
+			case PLOCK_TRACE_PENDING_RAYS: return &m_lockTPR;
 			default:
-				if ((unsigned int)(idx-PLOCK_CALLER0)<=(unsigned int)MAX_PHYS_THREADS)
+				if ((unsigned int)(idx-PLOCK_CALLER0)<(unsigned int)MAX_TOT_THREADS)
 					return m_lockCaller+(idx-PLOCK_CALLER0);
 		}
 		return 0;
@@ -492,14 +500,15 @@ public:
 		}
 		return res;
 	}
-	template<class Etype> int SignalEvent(Etype *pEvent, int bLogged) {
+	int SignalEvent(EventPhys *pEvent, int bLogged) {
 		int nres = 0;
 		EventClient *pClient;
 		ReadLock lock(m_lockEventClients);
-		for(pClient = m_pEventClients[Etype::id][bLogged]; pClient; pClient=pClient->next)
+		for(pClient = m_pEventClients[pEvent->idval][bLogged]; pClient; pClient=pClient->next)
 			nres += pClient->OnEvent(pEvent);
 		return nres;
 	}
+	virtual int NotifyEventClients(EventPhys *pEvent, int bLogged) { return SignalEvent(pEvent,bLogged); }
 
 	virtual int SerializeWorld(const char *fname, int bSave);
 	virtual int SerializeGeometries(const char *fname, int bSave);
@@ -585,7 +594,7 @@ public:
 
 	int GetTmpEntList(CPhysicalEntity **&pEntList, int iCaller)	{
 		INT_PTR plist = (INT_PTR)m_threadData[iCaller].pTmpEntList;
-		int is0=iCaller-1>>31, isN=MAX_PHYS_THREADS-iCaller-1>>31;
+		int is0=iszero(iCaller), isN=iszero(MAX_PHYS_THREADS-iCaller);
 		plist += (INT_PTR)m_pTmpEntList -plist & is0;
 		plist += (INT_PTR)m_pTmpEntList2-plist & isN;
 		m_threadData[iCaller].pTmpEntList = (CPhysicalEntity**)plist;
@@ -757,14 +766,14 @@ public:
 	int m_nTypeEnts[10];
 	int m_bEntityCountReserved;
 #ifndef _RELEASE
-	volatile int m_nGEA[MAX_PHYS_THREADS+1];
+	volatile int m_nGEA[MAX_TOT_THREADS];
 #endif
 	int m_nEntListAllocs;
 	int m_nOnDemandListFailures;
 	int m_iLastPODUpdate;
-	Vec3 m_prevGEABBox[MAX_PHYS_THREADS+1][2];
-	int m_prevGEAobjtypes[MAX_PHYS_THREADS+1];
-	int m_nprevGEAEnts[MAX_PHYS_THREADS+1];
+	Vec3 m_prevGEABBox[MAX_TOT_THREADS][2];
+	int m_prevGEAobjtypes[MAX_TOT_THREADS];
+	int m_nprevGEAEnts[MAX_TOT_THREADS];
 
 	int m_nPlaceholders,m_nPlaceholderChunks,m_iLastPlaceholder;
 	CPhysicalPlaceholder **m_pPlaceholders;
@@ -779,7 +788,7 @@ public:
 	Vec3 *m_pExplVictimsImp;
 	int m_nExplVictims,m_nExplVictimsAlloc;
 
-	CPhysicalEntity *m_pHeightfield[MAX_PHYS_THREADS+2];
+	CPhysicalEntity *m_pHeightfield[MAX_TOT_THREADS+1];
 	Matrix33 m_HeightfieldBasis;
 	Vec3 m_HeightfieldOrigin;
 
@@ -866,9 +875,9 @@ public:
 
 	SThreadTaskRequest m_rq;
 	CryEvent m_threadStart[MAX_PHYS_THREADS],m_threadDone[MAX_PHYS_THREADS];
-	SThreadData m_threadData[MAX_PHYS_THREADS+1];
+	SThreadData m_threadData[MAX_TOT_THREADS];
 	SPhysTask *m_threads[MAX_PHYS_THREADS];
-	Vec3 m_BBoxPlayerGroup[MAX_PHYS_THREADS+1][2];
+	Vec3 m_BBoxPlayerGroup[MAX_TOT_THREADS][2];
 	int m_nGroups;
 	float m_maxGroupMass;
 	volatile int m_nWorkerThreads;
@@ -882,7 +891,7 @@ public:
 	volatile int m_lockGrid;
 	volatile int m_lockPODGrid;
 	volatile int m_lockEntIdList;
-	volatile int m_lockStep, m_lockCaller[MAX_PHYS_THREADS+1],m_lockQueue,m_lockList;
+	volatile int m_lockStep, m_lockCaller[MAX_TOT_THREADS],m_lockQueue,m_lockList;
 	volatile int m_lockAreas;
 	volatile int m_lockActiveAreas;
 	volatile int m_lockEventsQueue,m_iLastLogPump, m_lockEventClients;
@@ -974,7 +983,7 @@ public:
 	static int OnBBoxOverlap(const EventPhysBBoxOverlap*);
 
 	float GetExtent(EGeomForm eForm) const;
-	void GetRandomPos(PosNorm& ran, CRndGen& seed, EGeomForm eForm) const;
+	void GetRandomPoints(Array<PosNorm> points, CRndGen& seed, EGeomForm eForm) const;
 
 	virtual void GetMemoryStatistics(ICrySizer *pSizer) const;
 
@@ -1180,12 +1189,13 @@ template<class T> struct ChangeRequest {
 	T *GetQueuedStruct() { return m_pQueued; }
 };
 
-inline void InitEvent(EventPhysMono *ev, CPhysicalEntity *pent)	{
+inline void InitEventBase(EventPhysMono *ev, CPhysicalEntity *pent)	{
 	ev->pEntity = pent; ev->pForeignData = pent->m_pForeignData; ev->iForeignData = pent->m_iForeignData;
 }
-inline void InitEvent(EventPhysPostStep *ev, CPhysicalEntity *pent)	{
-	InitEvent((EventPhysMono*)ev, pent);
+inline void InitEvent(EventPhysPostStep *ev, CPhysicalEntity *pent, int iCaller)	{
+	InitEventBase((EventPhysMono*)ev, pent);
 	ev->pGrid = pent->m_pWorld->GetGrid(pent);
+	ev->iCaller = iCaller;
 }
 
 class CRayGeom;

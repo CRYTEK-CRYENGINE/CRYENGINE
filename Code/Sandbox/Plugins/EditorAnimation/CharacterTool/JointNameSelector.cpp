@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "stdafx.h"
 
@@ -9,7 +9,7 @@
 #include <CrySystem/File/ICryPak.h>
 #include <QDialogButtonBox>
 #include <QBoxLayout>
-#include <QTreeView>
+#include <QAdvancedTreeView.h>
 #include <QStandardItemModel>
 #include <QHeaderView>
 #include <QLabel>
@@ -20,7 +20,6 @@
 #include <QKeyEvent>
 #include <QCoreApplication>
 #include <CryAnimation/ICryAnimation.h>
-#include <QParentWndWidget.h>
 #include "IResourceSelectorHost.h"
 
 #include <ProxyModels/DeepFilterProxyModel.h>
@@ -31,7 +30,7 @@ JointSelectionDialog::JointSelectionDialog(QWidget* parent)
 	: CEditorDialog("JointSelectionDialog")
 {
 	setWindowTitle("Choose Joint...");
-	setWindowIcon(QIcon("icons:Animation/Bone.ico"));
+	setWindowIcon(QIcon("icons:common/animation_bone.ico"));
 	setWindowModality(Qt::ApplicationModal);
 
 	QBoxLayout* layout = new QBoxLayout(QBoxLayout::TopToBottom);
@@ -72,7 +71,7 @@ JointSelectionDialog::JointSelectionDialog(QWidget* parent)
 	m_filterModel->setSourceModel(m_model);
 	m_filterModel->setDynamicSortFilter(true);
 
-	m_tree = new QTreeView(this);
+	m_tree = new QAdvancedTreeView(QAdvancedTreeView::Behavior(QAdvancedTreeView::PreserveExpandedAfterReset| QAdvancedTreeView::PreserveSelectionAfterReset),this);
 	//m_tree->setColumnCount(3);
 	m_tree->setModel(m_filterModel);
 
@@ -224,10 +223,9 @@ bool JointSelectionDialog::chooseJoint(string* name, IDefaultSkeleton* skeleton)
 // ---------------------------------------------------------------------------
 dll_string JointNameSelector(const SResourceSelectorContext& x, const char* previousValue, ICharacterInstance* characterInstance)
 {
-	QParentWndWidget parent(x.parentWindow);
-	parent.center();
-	parent.setWindowModality(Qt::ApplicationModal);
-	JointSelectionDialog dialog(&parent);
+	JointSelectionDialog dialog(x.parentWidget);
+	dialog.setModal(true);
+
 	IDefaultSkeleton* skeleton = 0;
 	if (characterInstance)
 		skeleton = &characterInstance->GetIDefaultSkeleton();
@@ -236,4 +234,5 @@ dll_string JointNameSelector(const SResourceSelectorContext& x, const char* prev
 	dialog.chooseJoint(&jointName, skeleton);
 	return jointName.c_str();
 }
-REGISTER_RESOURCE_SELECTOR("Joint", JointNameSelector, "icons:Animation/Bone.ico")
+REGISTER_RESOURCE_SELECTOR("Joint", JointNameSelector, "icons:common/animation_bone.ico")
+

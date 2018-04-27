@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 // -------------------------------------------------------------------------
 //  File name:   FlashUIDisplayNodes.cpp
@@ -799,7 +799,7 @@ public:
 								Vec3 hitpos;
 
 								// calculate ray dir
-								CCamera cam = gEnv->pRenderer->GetCamera();
+								CCamera cam = GetISystem()->GetViewCamera();
 								if (pEntity->GetSlotFlags(m_dynTexGeomSlot) & ENTITY_SLOT_RENDER_NEAREST)
 								{
 									ICVar* r_drawnearfov = gEnv->pConsole->GetCVar("r_DrawNearFoV");

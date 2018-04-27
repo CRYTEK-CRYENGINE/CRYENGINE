@@ -1,27 +1,33 @@
 {
-    "toolBar": {
-        "Commands": [
-            {
-                "command": "ui_action.actionReset_Physics_State",
-                "custom": false,
-                "uiName": "Reset Physics State"
-            },
-            {
-                "command": "ui_action.actionGet_Physics_State",
-                "custom": false,
-                "uiName": "Get Physics State"
-            },
-            {
-                "command": "ui_action.actionPhysics_Simulate_Objects",
-                "custom": false,
-                "uiName": "Simulate Objects"
-            },
-            {
-                "command": "physics.set_physics_tool",
-                "custom": false,
-                "uiName": "Turns on physics tool mode (Ctrl/Shift modify)"
-            }
-        ]
-    },
-    "version": 1
+    "toolBar": [
+        {
+            "command": "physics.reset_state_selection",
+            "iconPath": "icons:General/Reset_Physics.ico",
+            "m_IsCustom": false,
+            "name": "reset_state_selection",
+            "type": 0
+        },
+        {
+            "command": "physics.get_state_selection",
+            "iconPath": "icons:General/Get_Physics.ico",
+            "m_IsCustom": false,
+            "name": "get_state_selection",
+            "type": 0
+        },
+        {
+            "command": "physics.simulate_objects",
+            "iconPath": "icons:General/Simulate_Physics.ico",
+            "m_IsCustom": false,
+            "name": "simulate_objects",
+            "type": 0
+        },
+        {
+            "command": "physics.set_physics_tool",
+            "iconPath": "",
+            "m_IsCustom": false,
+            "name": "Turns on physics tool mode (Ctrl/Shift modify)",
+            "type": 0
+        }
+    ],
+    "version": 2
 }

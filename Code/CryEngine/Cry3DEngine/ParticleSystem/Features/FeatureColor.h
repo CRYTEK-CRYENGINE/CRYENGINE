@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -34,7 +34,7 @@ public:
 	virtual void AddToComponent(CParticleComponent* pComponent, SComponentParams* pParams) override;
 	virtual void Serialize(Serialization::IArchive& ar) override;
 	virtual void InitParticles(const SUpdateContext& context) override;
-	virtual void Update(const SUpdateContext& context) override;
+	virtual void UpdateParticles(const SUpdateContext& context) override;
 	virtual void AddToInitParticles(IColorModifier* pMod);
 	virtual void AddToUpdate(IColorModifier* pMod);
 

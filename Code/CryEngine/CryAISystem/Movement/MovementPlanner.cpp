@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "MovementPlanner.h"
@@ -8,10 +8,7 @@
 
 #include "MovementBlock_FollowPath.h"
 #include "MovementBlock_HarshStop.h"
-#include "MovementBlock_InstallAgentInCover.h"
-#include "MovementBlock_SetupPipeUserCoverInformation.h"
 #include "MovementBlock_TurnTowardsPosition.h"
-#include "MovementBlock_UninstallAgentFromCover.h"
 #include "MovementBlock_UseSmartObject.h"
 #include "MovementBlock_UseExactPositioning.h"
 
@@ -24,12 +21,6 @@ GenericPlanner::GenericPlanner(NavigationAgentTypeID navigationAgentTypeID)
 	, m_pendingPathReplanning()
 	, m_pathfinderRequestQueued(false)
 {
-	gAIEnv.pNavigationSystem->AddMeshChangeCallback(m_navigationAgentTypeID, functor(*this, &GenericPlanner::OnNavigationMeshChanged));
-}
-
-GenericPlanner::~GenericPlanner()
-{
-	gAIEnv.pNavigationSystem->RemoveMeshChangeCallback(m_navigationAgentTypeID, functor(*this, &GenericPlanner::OnNavigationMeshChanged));
 }
 
 bool GenericPlanner::IsUpdateNeeded() const
@@ -57,7 +48,7 @@ void GenericPlanner::StartWorkingOnRequest_Internal(const MovementRequestID& req
 		{
 			// Future: We could path find from a bit further along the current plan.
 
-			context.actor.RequestPathTo(request.destination, request.lengthToTrimFromThePathEnd, request.dangersFlags, request.considerActorsAsPathObstacles);
+			context.actor.RequestPathTo(request.destination, request.lengthToTrimFromThePathEnd, request.snappingRules, request.dangersFlags, request.considerActorsAsPathObstacles, request.pCustomPathCostComputer);
 			m_pathfinderRequestQueued = true;
 
 			//
@@ -94,11 +85,11 @@ void GenericPlanner::StartWorkingOnRequest_Internal(const MovementRequestID& req
 	}
 }
 
-void GenericPlanner::CancelCurrentRequest(MovementActor& actor)
+void GenericPlanner::CancelCurrentRequest(IMovementActor& actor)
 {
 	//
 	// The request has been canceled but the plan remains intact.
-	// This means that if the actor is running along a path he will keep
+	// This means that if the actor is running along a path he will
 	// keep running along that path.
 	//
 	// The idea is that an actor should only stop if a stop is
@@ -124,9 +115,9 @@ IPlanner::Status GenericPlanner::Update(const MovementUpdateContext& context)
 		}
 	}
 
-	if (!m_pendingPathReplanning.bNavMeshChanged)
+	if (!m_pendingPathReplanning.bSomeBlockNeedsReplanning)
 	{
-		CheckForNeedToPathReplanningDueToNavMeshChanges(context);
+		m_pendingPathReplanning.bSomeBlockNeedsReplanning = m_plan.CheckForNeedToReplan(context);
 	}
 
 	if (m_pendingPathReplanning.IsPending())
@@ -141,74 +132,6 @@ IPlanner::Status GenericPlanner::Update(const MovementUpdateContext& context)
 	ExecuteCurrentPlan(context, OUT status);
 
 	return status;
-}
-
-void GenericPlanner::OnNavigationMeshChanged(NavigationAgentTypeID navigationAgentTypeID, NavigationMeshID meshID, uint32 tileID)
-{
-	if (gAIEnv.CVars.MovementSystemPathReplanningEnabled)
-	{
-		//
-		// We're interested in the NavMesh-change only when we have a plan that we're executing or are still path-finding.
-		//
-		// Notice: The case where we're still waiting for the MNMPathfinder to find us a path is already handled by the MNMPathfinder itself.
-		//         The NavigationSystem::Update() method is carefully designed such that the order of [MNMPathfinder gets notified of NavMesh-changes],
-		//         [re-plans], [notifies of his found path] and the [time until GenericPlanner builds the plan by a call from MovementSystem::Update()] is even handling
-		//         the case where a freshly found path would immediately become invalid on the next update loop and get detected by GenericPlanner as he already has
-		//         a plan by that time.
-		//         In other words: an extra OR-check for "m_pathfinderRequestQueued == true" is not necessary here.
-		//
-		if (m_plan.HasBlocks())
-		{
-			//
-			// Ignore NavMesh changes when moving along a designer-placed path. It's the responsibility of the
-			// level designer to place paths such that they will not interfere with (his scripted) NavMesh changes.
-			//
-			if (!m_request.style.IsMovingAlongDesignedPath())
-			{
-				// extra check for whether we're already aware of some previous NavMesh-change having invalidated our path (we're just waiting for the SmartObject-traversal to finish before re-planning)
-				if (!m_pendingPathReplanning.bNavMeshChanged)
-				{
-					stl::push_back_unique(m_queuedNavMeshChanges, MeshIDAndTileID(meshID, tileID));
-				}
-			}
-		}
-	}
-}
-
-void GenericPlanner::CheckForNeedToPathReplanningDueToNavMeshChanges(const MovementUpdateContext& context)
-{
-	AIAssert(!m_pendingPathReplanning.bNavMeshChanged);
-
-	//
-	// React to NavMesh changes:
-	// If we're no longer path-finding, we must have a plan that we might be executing already, so check with the path-follower if any NavMesh change will affect the path that
-	// is being traversed by the plan.
-	//
-
-	if (!m_pathfinderRequestQueued && m_plan.HasBlocks())
-	{
-		if (!m_pendingPathReplanning.bNavMeshChanged && !m_queuedNavMeshChanges.empty())
-		{
-			//
-			// Check with the path-follower for whether any of the NavMesh changes affects the path we're traversing.
-			//
-
-			for (std::vector<MeshIDAndTileID>::const_iterator it = m_queuedNavMeshChanges.begin(), end = m_queuedNavMeshChanges.end(); it != end; ++it)
-			{
-				if (context.pathFollower.IsRemainingPathAffectedByNavMeshChange(it->meshID, it->tileID))
-				{
-					m_pendingPathReplanning.bNavMeshChanged = true;
-					break;
-				}
-			}
-		}
-
-		//
-		// Now, we don't need the collected NavMesh changes anymore.
-		//
-
-		stl::free_container(m_queuedNavMeshChanges);
-	}
 }
 
 bool GenericPlanner::IsReadyForNewRequest() const
@@ -292,7 +215,7 @@ void GenericPlanner::CheckOnPathfinder(const MovementUpdateContext& context, OUT
 				m_pendingPathReplanning.bSuddenNonInterruptibleBlock = true;
 			}
 		}
-		else
+		else /*state == CouldNotFindPath || state == Canceled*/
 		{
 			status.SetPathfinderFailed(m_requestId);
 		}
@@ -389,7 +312,9 @@ void GenericPlanner::ProduceMoveToPlan(const MovementUpdateContext& context)
 		TPathPoints fullPath(designedPath.shape.begin(), designedPath.shape.end());
 		CNavPath navPath;
 		navPath.SetPathPoints(fullPath);
-		m_plan.AddBlock(BlockPtr(new FollowPath(navPath, .0f, m_request.style, false)));
+		const float endDistance = 0.0f;
+		const bool bLastFollowBlock = false;
+		m_plan.AddBlock(BlockPtr(new FollowPath(m_plan, m_navigationAgentTypeID, navPath, endDistance, m_request.style, bLastFollowBlock)));
 	}
 	else
 	{
@@ -426,15 +351,10 @@ void GenericPlanner::ProduceMoveToPlan(const MovementUpdateContext& context)
 			}
 		}
 
-		if (context.actor.GetAdapter().IsInCover())
+		context.actor.GetActionAbilities().CreateStartBlocksForPlanner(m_request, [this](BlockPtr block)
 		{
-			m_plan.AddBlock(BlockPtr(new UninstallAgentFromCover(m_request.style.GetStance())));
-		}
-
-		if (m_request.style.IsMovingToCover())
-		{
-			m_plan.AddBlock<SetupActorCoverInformation>();
-		}
+			m_plan.AddBlock(block);
+		});
 
 		// Go through the full path from start to end and split it up into
 		// FollowPath & UseSmartObject blocks.
@@ -466,12 +386,12 @@ void GenericPlanner::ProduceMoveToPlan(const MovementUpdateContext& context)
 				TPathPoints points;
 				points.assign(first, next);
 				path.SetPathPoints(points);
+				path.GetParams().meshID = pNavPath->GetParams().meshID;
 
 				const bool blockAfterThisIsUseExactPositioning = isLastNode && (m_request.style.GetExactPositioningRequest() != 0);
 				const bool blockAfterThisUsesSomeFormOfExactPositioning = isSmartObject || isCustomObject || blockAfterThisIsUseExactPositioning;
 				const float endDistance = blockAfterThisUsesSomeFormOfExactPositioning ? 2.5f : 0.0f;   // The value 2.5 meters was used prior to Crysis 3
-				const bool endsInCover = isLastNode && m_request.style.IsMovingToCover();
-				m_plan.AddBlock(BlockPtr(new FollowPath(path, endDistance, m_request.style, endsInCover)));
+				m_plan.AddBlock(BlockPtr(new FollowPath(m_plan, m_navigationAgentTypeID, path, endDistance, m_request.style, isLastNode)));
 
 				if (lastAddedSmartObjectBlock)
 				{
@@ -511,10 +431,10 @@ void GenericPlanner::ProduceMoveToPlan(const MovementUpdateContext& context)
 			}
 		}
 
-		if (m_request.style.IsMovingToCover())
+		context.actor.GetActionAbilities().CreateEndBlocksForPlanner(m_request, [this](BlockPtr block)
 		{
-			m_plan.AddBlock<InstallAgentInCover>();
-		}
+			m_plan.AddBlock(block);
+		});
 	}
 }
 

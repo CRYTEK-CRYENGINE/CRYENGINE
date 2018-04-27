@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "stdafx.h"
 #include "CharacterInstanceProcessing.h"
@@ -258,7 +258,7 @@ void CJob::Job_Execute()
 	Execute(false);
 	if (gEnv->pRenderer)
 	{
-		gEnv->pRenderer->GetIRenderAuxGeom()->Commit(1);
+		//gEnv->pRenderer->GetIRenderAuxGeom()->Submit(1);
 	}
 }
 

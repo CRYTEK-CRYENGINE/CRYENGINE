@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -111,7 +111,7 @@ public:
 
 	virtual void EntityEnter(EntityId entityID)
 	{
-		FUNCTION_PROFILER(gEnv->pSystem, PROFILE_AI);
+		CRY_PROFILE_FUNCTION(PROFILE_AI);
 		if (IEntity* entity = gEnv->pEntitySystem->GetEntity(entityID))
 		{
 			EntityLeave(entityID);
@@ -137,7 +137,7 @@ public:
 
 	virtual void EntityLeave(EntityId entityID)
 	{
-		FUNCTION_PROFILER(gEnv->pSystem, PROFILE_AI);
+		CRY_PROFILE_FUNCTION(PROFILE_AI);
 
  		EntityLeaveFrom(*m_running, entityID);
  		EntityLeaveFrom(*m_paused, entityID);
@@ -218,7 +218,7 @@ private:
 private:
 	InstanceID AllocateInstance(EntityId entityID, Instance** instanceOut)
 	{
-		FUNCTION_PROFILER(gEnv->pSystem, PROFILE_AI);
+		CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 		Instance* instance = NULL;
 		InstanceID instanceID;
@@ -271,7 +271,7 @@ private:
 
 	void DeallocateInstance(InstanceID instanceID)
 	{
-		FUNCTION_PROFILER(gEnv->pSystem, PROFILE_AI);
+		CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 		Instance* instance = GetInstanceFromID(instanceID);
 
@@ -328,7 +328,7 @@ private:
 
 	void LeaveAllInstances()
 	{
-		FUNCTION_PROFILER(gEnv->pSystem, PROFILE_AI);
+		CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 		typename Instances::iterator it;
 		typename Instances::iterator end;
@@ -392,7 +392,7 @@ protected:
 private:
 	virtual void Update(float frameTime)
 	{
-		FUNCTION_PROFILER(gEnv->pSystem, PROFILE_AI);
+		CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 		if (BaseClass::m_running.get())
 		{

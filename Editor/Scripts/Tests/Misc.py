@@ -7,6 +7,6 @@ class TestMiscFunctions(unittest.TestCase):
         general.open_level_no_prompt("gamesdk/Levels/_TestMaps/Sandbox_Tests/Sandbox_Tests.cry")        
 
     def test_add_entity_link(self):
-        general.add_entity_link("AnimObject1", "AnimObject2", "TestLink")
+        entity.add_entity_link("AnimObject1", "AnimObject2", "TestLink")
         
 unittest.main(exit = False, verbosity = 2, defaultTest="TestMiscFunctions")

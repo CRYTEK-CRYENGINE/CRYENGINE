@@ -52,3 +52,41 @@ elseif(APPLE)
 	find_library(APPLICATION_SERVICES ApplicationServices)
 	target_link_libraries(${THIS_PROJECT} PRIVATE "${CORE_SERVICES}" "${CARBON}" "${APPLICATION_SERVICES}")
 endif()
+
+if (ORBIS OR CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+	target_compile_options(${THIS_PROJECT} PRIVATE
+		-Wno-unused-variable
+		-Wno-reorder
+		-Wno-unknown-pragmas
+		-Wno-parentheses
+		-Wno-format
+		-Wno-switch
+		-Wno-unused-function
+		-Wno-unused-private-field
+		-Wno-empty-body
+		-Wno-unused-value
+	)
+elseif(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+	target_compile_options(${THIS_PROJECT} PRIVATE
+		-Wno-unused-function
+		-Wno-unused-value
+		-Wno-unused-variable
+		-Wno-sign-compare
+		-Wno-ignored-attributes
+		-Wno-int-in-bool-context
+		-Wno-unused-but-set-variable
+		-Wno-misleading-indentation
+		-Wno-unknown-pragmas
+		-Wno-unused-const-variable
+		-Wno-strict-aliasing
+		-Wno-maybe-uninitialized
+		-Wno-multichar
+		-Wno-char-subscripts
+		-Wno-parentheses
+		-Wno-comment
+		-Wno-address
+		-Wno-format
+		-Wno-switch
+	)
+endif()
+

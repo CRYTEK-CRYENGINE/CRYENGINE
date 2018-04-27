@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "stdafx.h"
 #include "SkeletonPose.h"
@@ -87,6 +87,8 @@ Skeleton::CPoseData& CSkeletonPose::GetPoseDataForceWriteable()
 
 bool CSkeletonPose::PreparePoseDataAndLocatorWriteables(Memory::CPool& memoryPool)
 {
+	DEFINE_PROFILER_FUNCTION();
+
 	if (m_pPoseDataWriteable)
 	{
 		m_poseDataWriteable.Initialize(GetPoseDataDefault());
@@ -320,19 +322,21 @@ float CSkeletonPose::GetExtent(EGeomForm eForm)
 	return extent.TotalExtent();
 }
 
-void CSkeletonPose::GetRandomPos(PosNorm& ran, CRndGen& seed, EGeomForm eForm) const
+void CSkeletonPose::GetRandomPoints(Array<PosNorm> points, CRndGen& seed, EGeomForm eForm) const
 {
 	CGeomExtent const& ext = m_Extents[eForm];
-	int iPart = ext.RandomPart(seed);
-	if ((uint)iPart < (uint)m_arrCGAJoints.size())
+	for (auto part : ext.RandomPartsAliasSum(points, seed))
 	{
-		CCGAJoint const* pJoint = &m_arrCGAJoints[iPart];
-		pJoint->m_CGAObjectInstance->GetRandomPos(ran, seed, eForm);
-		ran <<= QuatTS(GetPoseData().GetJointAbsolute(iPart));
-		return;
+		if (part.iPart < m_arrCGAJoints.size())
+		{
+			CCGAJoint const* pJoint = &m_arrCGAJoints[part.iPart];
+			pJoint->m_CGAObjectInstance->GetRandomPoints(part.aPoints, seed, eForm);
+			for (auto& point : part.aPoints)
+				point <<= QuatTS(GetPoseData().GetJointAbsolute(part.iPart));
+		}
+		else
+			part.aPoints.fill(ZERO);
 	}
-
-	ran.zero();
 }
 
 //--------------------------------------------------------------------

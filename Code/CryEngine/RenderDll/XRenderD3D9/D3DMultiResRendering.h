@@ -1,3 +1,5 @@
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
+
 #ifndef _MULTIRESRENDERING_H_
 #define _MULTIRESRENDERING_H_
 

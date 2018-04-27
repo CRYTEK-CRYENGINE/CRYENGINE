@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "stdafx.h"
 #include "GlobalAnimationHeaderLMG.h"
@@ -675,6 +675,7 @@ bool GlobalAnimationHeaderLMG::LoadFromXML(CAnimationSet* pAnimationSet, XmlNode
 						m_arrBSAnnotations.push_back(face);
 					}
 				}
+
 				continue;
 			}
 

@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 /*
    definitions for job manager
@@ -28,6 +28,7 @@ namespace detail {
 // function to manipulate the per thread fallback job freelist
 void                    PushToFallbackJobList(JobManager::SInfoBlock* pInfoBlock);
 JobManager::SInfoBlock* PopFromFallbackJobList();
+constexpr int    GetFallbackJobListSize() { return 4096; }
 
 // functions to access the per thread worker thread id
 void   SetWorkerThreadId(uint32 nWorkerThreadId);
@@ -126,7 +127,7 @@ public:
 };
 
 // singleton managing the job queues
-class CRY_ALIGN(128) CJobManager: public IJobManager, public IInputEventListener
+class CRY_ALIGN(128) CJobManager final: public IJobManager, public IInputEventListener
 {
 public:
 	// singleton stuff
@@ -267,6 +268,8 @@ public:
 
 private:
 	static ColorB GenerateColorBasedOnName(const char* name);
+
+	void ActiveWaitOnJobState(JobManager::SJobState& jobState) const;
 
 	CryCriticalSection m_JobManagerLock;                             // lock to protect non-performance critical parts of the jobmanager
 	JobManager::Invoker m_arrJobInvokers[JOBSYSTEM_INVOKER_COUNT];   // support 128 jobs for now

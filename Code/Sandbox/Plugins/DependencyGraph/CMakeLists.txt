@@ -28,3 +28,4 @@ end_sources()
 #END-FILE-LIST
 
 CryEditorPlugin(DependencyGraph PCH "StdAfx.cpp" SOLUTION_FOLDER "Sandbox/Plugins")
+

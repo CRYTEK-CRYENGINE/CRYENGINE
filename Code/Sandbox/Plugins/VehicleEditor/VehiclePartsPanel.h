@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #ifndef __VehiclePartsPanel_h__
 #define __VehiclePartsPanel_h__
@@ -107,7 +107,7 @@ public:
 	void          UpdateVariables();
 	void          ReloadTreeCtrl();
 	void          OnApplyChanges(IVariable* pVar);
-	void          OnObjectEvent(CBaseObject* object, int event);
+	void          OnObjectEvent(const CBaseObject* pObject, const CObjectEvent& event);
 	void          DeleteTreeObjects(const CRuntimeClass* pClass);
 	CVehiclePart* GetPartForHelper(CVehicleHelper* pHelper);
 
@@ -211,3 +211,4 @@ protected:
 };
 
 #endif // __VehiclePartsPanel_h__
+

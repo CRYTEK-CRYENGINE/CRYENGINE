@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 /*=============================================================================
    ShaderFXParseBin.cpp : implementation of the Shaders parser using FX language.
@@ -12,7 +12,6 @@
 #include <CryCore/Platform/IPlatformOS.h>
 #include <CryCore/AlignmentTools.h>
 #include "../Textures/TextureHelpers.h"
-#include "DriverD3D.h"
 
 extern CD3D9Renderer gcpRendD3D;
 
@@ -169,7 +168,7 @@ SShaderBin* CShaderManBin::SaveBinShader(
 				++buf;
 			com[n] = 0;
 
-			fpStripExtension(com, com);
+			PathUtil::RemoveExtension(com);
 
 			SShaderBin* pBIncl = GetBinShader(com, true, 0);
 			//
@@ -1013,7 +1012,7 @@ SShaderBin* CShaderManBin::GetBinShader(const char* szName, bool bInclude, uint3
 	if (!fpSrc)
 	{
 		// Second look in Engine folder
-		nameFile.Format("%sCryFX/%s.%s", gRenDev->m_cEF.m_ShadersPath, szName, szExt);
+		nameFile.Format("%s/%sCryFX/%s.%s", "%ENGINE%", gRenDev->m_cEF.m_ShadersPath, szName, szExt);
 #if !defined(_RELEASE)
 		{
 			fpSrc = gEnv->pCryPak->FOpen(nameFile.c_str(), "rb");
@@ -1023,7 +1022,7 @@ SShaderBin* CShaderManBin::GetBinShader(const char* szName, bool bInclude, uint3
 	}
 	//char szPath[1024];
 	//getcwd(szPath, 1024);
-	nameBin.Format("%s%s.%s", m_pCEF->m_ShadersCache, szName, bInclude ? "cfib" : "cfxb");
+	nameBin.Format("%s/%s%s.%s", "%ENGINE%", m_pCEF->m_ShadersCache, szName, bInclude ? "cfib" : "cfxb");
 	FILE* fpDst = NULL;
 	int i = 0, n = 2;
 
@@ -1031,7 +1030,7 @@ SShaderBin* CShaderManBin::GetBinShader(const char* szName, bool bInclude, uint3
 	if (CRenderer::CV_r_shadersediting)
 		i = 1;
 
-	string szDst = m_pCEF->m_szUserPath + nameBin;
+	string szDst = m_pCEF->m_szUserPath + (nameBin.c_str() + 9); // skip '%ENGINE%/'
 	byte bValid = 0;
 	float fVersion = (float)FX_CACHE_VER;
 	for (; i < n; i++)
@@ -1105,15 +1104,15 @@ SShaderBin* CShaderManBin::GetBinShader(const char* szName, bool bInclude, uint3
 
 			if (bValid & 2)
 			{
-				cry_sprintf(acTemp, "WARNING: Bin FXShader USER '%s' source crc mismatch", nameBin.c_str());
+				cry_sprintf(acTemp, "WARNING: Bin FXShader USER '%s' source crc mismatch", szDst.c_str());
 			}
 			if (bValid & 8)
 			{
-				cry_sprintf(acTemp, "WARNING: Bin FXShader USER '%s' version mismatch (Cache: %u.%u, Expected: %.1f)", nameBin.c_str(), Header[1].m_VersionHigh, Header[1].m_VersionLow, fVersion);
+				cry_sprintf(acTemp, "WARNING: Bin FXShader USER '%s' version mismatch (Cache: %u.%u, Expected: %.1f)", szDst.c_str(), Header[1].m_VersionHigh, Header[1].m_VersionLow, fVersion);
 			}
 			if (bValid & 0x20)
 			{
-				cry_sprintf(acTemp, "WARNING: Bin FXShader USER '%s' CRC mismatch", nameBin.c_str());
+				cry_sprintf(acTemp, "WARNING: Bin FXShader USER '%s' CRC mismatch", szDst.c_str());
 			}
 
 			if (bValid)
@@ -1145,27 +1144,9 @@ SShaderBin* CShaderManBin::GetBinShader(const char* szName, bool bInclude, uint3
 
 						if (bShowMessageBox)
 						{
-							IPlatformOS::EMsgBoxResult result;
-
-							IPlatformOS* pOS = gEnv->pSystem->GetPlatformOS();
-							if (pOS)
-							{
-								result = pOS->DebugMessageBox(acTemp, "Invalid ShaderCache");
-
-								if (result == IPlatformOS::eMsgBox_Cancel)
-								{
-									CryDebugBreak();
-								}
-								else
-								{
-									bShowMessageBox = false;
-									Sleep(33);
-								}
-							}
-							else
-							{
-								Warning("Invalid ShaderCache");
-							}
+							CryMessageBox(acTemp, "Invalid ShaderCache", eMB_Error);
+							bShowMessageBox = false;
+							CrySleep(33);
 						}
 					}
 				}
@@ -1633,9 +1614,7 @@ bool CShaderManBin::ParseBinFX_Global_Annotations(CParserBin& Parser, SParserFra
 				if (!ef)
 					break;
 				eT = Parser.GetToken(Parser.m_Data);
-				if (eT == eT_GenerateSprites)
-					ef->m_Flags2 |= EF2_PREPR_GENSPRITES;
-				else if (eT == eT_ScanWater)
+				if (eT == eT_ScanWater)
 					ef->m_Flags2 |= EF2_PREPR_SCANWATER;
 				else
 				{
@@ -1733,10 +1712,10 @@ void STexSamplerFX::PostLoad()
 	{
 		if (pRt->m_nIDInPool >= 0)
 		{
-			if ((int)CTexture::s_CustomRT_2D.Num() <= pRt->m_nIDInPool)
-				CTexture::s_CustomRT_2D.Expand(pRt->m_nIDInPool + 1);
+			if ((int)CRendererResources::s_CustomRT_2D.Num() <= pRt->m_nIDInPool)
+				CRendererResources::s_CustomRT_2D.Expand(pRt->m_nIDInPool + 1);
 		}
-		pRt->m_pTarget[0] = CTexture::s_ptexRT_2D;
+		pRt->m_pTarget = CRendererResources::s_ptexRT_2D;
 	}
 }
 
@@ -1827,7 +1806,7 @@ bool CShaderManBin::ParseBinFX_Sampler_Annotations_Script(CParserBin& Parser, SP
 			{
 				eT = Parser.GetToken(Parser.m_Data);
 				if (eT == eT_CurObject)
-					pRt->m_nFlags |= FRT_RENDTYPE_CUROBJECT;
+					pRt->m_nFlags |= 0;
 				else if (eT == eT_CurScene)
 					pRt->m_nFlags |= FRT_RENDTYPE_CURSCENE;
 				else if (eT == eT_RecursiveScene)
@@ -3509,9 +3488,7 @@ bool CShaderManBin::ParseBinFX_Technique_Pass_LoadShader(CParserBin& Parser, FXM
 	CHWShader* pSH = NULL;
 	bool bValidShader = false;
 
-	CShader* efSave = gRenDev->m_RP.m_pShader;
-	gRenDev->m_RP.m_pShader = Parser.m_pCurShader;
-	assert(gRenDev->m_RP.m_pShader != 0);
+	assert(Parser.m_pCurShader != nullptr);
 	if (bRes && (!CParserBin::m_bParseFX || !SHData.empty() || szName[0] == '$'))
 	{
 		char str[1024];
@@ -3542,8 +3519,6 @@ bool CShaderManBin::ParseBinFX_Technique_Pass_LoadShader(CParserBin& Parser, FXM
 		else
 			CryLog("Unsupported/unrecognised shader: %s[%d]", pSH->m_Name.c_str(), eSHClass);
 	}
-
-	gRenDev->m_RP.m_pShader = efSave;
 
 	return bRes;
 }
@@ -3658,29 +3633,29 @@ bool CShaderManBin::ParseBinFX_Technique_Pass(CParserBin& Parser, SParserFrame& 
 			break;
 		case eT_ColorWriteEnable:
 			{
-				if (ColorWriteMask == 0xff)
-					ColorWriteMask = 0;
-				uint32 nCur = Parser.m_Data.m_nFirstToken;
-				while (nCur <= Parser.m_Data.m_nLastToken)
+			if (ColorWriteMask == 0xff)
+				ColorWriteMask = 0;
+			uint32 nCur = Parser.m_Data.m_nFirstToken;
+			while (nCur <= Parser.m_Data.m_nLastToken)
+			{
+				uint32 nT = Parser.m_Tokens[nCur++];
+				if (nT == eT_or)
+					continue;
+				if (nT == eT_0)
+					ColorWriteMask |= 0;
+				else if (nT == eT_RED)
+					ColorWriteMask |= 1;
+				else if (nT == eT_GREEN)
+					ColorWriteMask |= 2;
+				else if (nT == eT_BLUE)
+					ColorWriteMask |= 4;
+				else if (nT == eT_ALPHA)
+					ColorWriteMask |= 8;
+				else
 				{
-					uint32 nT = Parser.m_Tokens[nCur++];
-					if (nT == eT_or)
-						continue;
-					if (nT == eT_0)
-						ColorWriteMask |= 0;
-					else if (nT == eT_RED)
-						ColorWriteMask |= 1;
-					else if (nT == eT_GREEN)
-						ColorWriteMask |= 2;
-					else if (nT == eT_BLUE)
-						ColorWriteMask |= 4;
-					else if (nT == eT_ALPHA)
-						ColorWriteMask |= 8;
-					else
-					{
-						Warning("unknown WriteMask parameter '%s' (Skipping)\n", Parser.GetString(eT));
-					}
+					Warning("unknown WriteMask parameter '%s' (Skipping)\n", Parser.GetString(eT));
 				}
+			}
 			}
 			break;
 		case eT_ZFunc:
@@ -3721,10 +3696,19 @@ bool CShaderManBin::ParseBinFX_Technique_Pass(CParserBin& Parser, SParserFrame& 
 	}
 	if (ColorWriteMask != 0xff)
 	{
-		for (int i = 0; i < 4; i++)
+		ColorWriteMask = (~ColorWriteMask) & 0xf;
+		auto it = std::find_if(AvailableColorMasks.cbegin(), AvailableColorMasks.cend(), [ColorWriteMask](const uint32 &bitmask)
 		{
-			if (!(ColorWriteMask & (1 << i)))
-				State |= GS_NOCOLMASK_R << i;
+			return (ColorWriteMask == bitmask);
+		});
+
+		if (it != AvailableColorMasks.cend())
+		{
+			State |= (std::distance(AvailableColorMasks.cbegin(), it) << GS_COLMASK_SHIFT);
+		}
+		else
+		{
+			iLog->LogError("Unsupported/unrecognized ColorWriteMask in shader: %s", Parser.m_pCurShader->m_NameShader.c_str());
 		}
 	}
 
@@ -3971,7 +3955,6 @@ bool CShaderManBin::ParseBinFX_Technique_Annotations_String(CParserBin& Parser, 
 	FX_TOKEN(TechniqueCustomRender)
 	FX_TOKEN(TechniqueEffectLayer)
 	FX_TOKEN(TechniqueDebug)
-	FX_TOKEN(TechniqueSoftAlphaTest)
 	FX_TOKEN(TechniqueWaterRefl)
 	FX_TOKEN(TechniqueWaterCaustic)
 	FX_TOKEN(TechniqueThickness)
@@ -4018,7 +4001,6 @@ bool CShaderManBin::ParseBinFX_Technique_Annotations_String(CParserBin& Parser, 
 		case eT_TechniqueMotionBlur:
 		case eT_TechniqueCustomRender:
 		case eT_TechniqueEffectLayer:
-		case eT_TechniqueSoftAlphaTest:
 		case eT_TechniqueWaterRefl:
 		case eT_TechniqueWaterCaustic:
 		case eT_TechniqueThickness:
@@ -4034,7 +4016,6 @@ bool CShaderManBin::ParseBinFX_Technique_Annotations_String(CParserBin& Parser, 
 					TTYPE_CUSTOMRENDERPASS,     //eT_TechniqueCustomRender
 					TTYPE_EFFECTLAYER,          //eT_TechniqueEffectLayer
 					TTYPE_DEBUG,                //eT_TechniqueDebug
-					TTYPE_SOFTALPHATESTPASS,    //eT_TechniqueSoftAlphaTest
 					TTYPE_WATERREFLPASS,        //eT_TechniqueWaterRefl
 					TTYPE_WATERCAUSTICPASS,     //eT_TechniqueWaterCaustic
 					TTYPE_ZPREPASS,             //eT_TechniqueZPrepass
@@ -4099,14 +4080,12 @@ bool CShaderManBin::ParseBinFX_Technique_CustomRE(CParserBin& Parser, SParserFra
 	if (nName == eT_LensOptics)
 	{
 		CRELensOptics* ps = new CRELensOptics;
-		if (ps->mfCompile(Parser, Frame))
+
 		{
 			pShTech->m_REs.AddElem(ps);
 			pShTech->m_Flags |= FHF_RE_LENSOPTICS;
 			return true;
 		}
-		else
-			delete ps;
 	}
 	else if (nName == eT_Ocean)
 	{
@@ -5212,8 +5191,9 @@ bool STexSamplerRT::Update()
 {
 	if (m_pAnimInfo && m_pAnimInfo->m_Time && gRenDev->m_bPauseTimer == 0)
 	{
-		assert(gRenDev->m_RP.m_TI[gRenDev->m_RP.m_nProcessThreadID].m_RealTime >= 0);
-		uint32 m = (uint32)(gRenDev->m_RP.m_TI[gRenDev->m_RP.m_nProcessThreadID].m_RealTime / m_pAnimInfo->m_Time) % (m_pAnimInfo->m_NumAnimTexs);
+		float time = gRenDev->GetFrameSyncTime().GetSeconds();
+		assert(time >= 0);
+		uint32 m = (uint32)(time / m_pAnimInfo->m_Time) % (m_pAnimInfo->m_NumAnimTexs);
 		assert(m < (uint32)m_pAnimInfo->m_TexPics.Num());
 
 		if (m_pTex != m_pAnimInfo->m_TexPics[m])

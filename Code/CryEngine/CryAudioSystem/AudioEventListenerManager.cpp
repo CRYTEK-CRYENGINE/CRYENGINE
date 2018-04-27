@@ -1,7 +1,8 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "stdafx.h"
 #include "AudioEventListenerManager.h"
+#include "Common/Logger.h"
 
 namespace CryAudio
 {
@@ -65,7 +66,7 @@ ERequestStatus CAudioEventListenerManager::RemoveRequestListener(void (* func)(S
 #if defined(INCLUDE_AUDIO_PRODUCTION_CODE)
 	if (result == ERequestStatus::Failure)
 	{
-		g_logger.Log(ELogType::Warning, "Failed to remove a request listener!");
+		Cry::Audio::Log(ELogType::Warning, "Failed to remove a request listener!");
 	}
 #endif // INCLUDE_AUDIO_PRODUCTION_CODE
 

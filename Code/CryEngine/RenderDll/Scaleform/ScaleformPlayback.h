@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #ifndef _GRENDERER_XRENDER_H_
 #define _GRENDERER_XRENDER_H_
@@ -13,6 +13,8 @@
 #include "../XRenderD3D9/GraphicsPipeline/Common/PrimitiveRenderPass.h"
 #include "../XRenderD3D9/GraphicsPipeline/Common/UtilityPasses.h"
 
+#include <Common/Textures/TempDepthTexture.h>
+
 #define ENABLE_FLASH_FILTERS
 
 struct IRenderer;
@@ -24,6 +26,7 @@ struct SSF_GlobalDrawParams;
 struct GRendererCommandBuffer;
 class CD3D9Renderer;
 class CCachedData;
+class CRenderOutput;
 
 //////////////////////////////////////////////////////////////////////
 struct SSF_GlobalDrawParams
@@ -168,6 +171,7 @@ struct SSF_GlobalDrawParams
 		int key;
 
 		// Backups for GraphicsPipeline = 0
+		CResourcePool<STempDepthTexture>::value_type tempDepthTexture;
 		CTexture* pRenderTarget;
 		CTexture* pStencilTarget;
 		Matrix44 oldViewMat;
@@ -355,6 +359,7 @@ public:
 	virtual void ReleaseDeviceData(DeviceData* pData) override;
 
 	// IFlashPlayer
+	virtual void SetClearFlags(uint32 clearFlags, ColorF clearColor = Clr_Transparent) override;
 	virtual void SetCompositingDepth(float depth) override;
 
 	virtual void SetStereoMode(bool stereo, bool isLeft) override;
@@ -376,9 +381,17 @@ public:
 
 	virtual std::vector<ITexture*> GetTempRenderTargets() const override;
 
+	// Helper functions
+	static void RenderFlashPlayerToTexture(IFlashPlayer* pFlashPlayer, CTexture* pOutput);
+	static void RenderFlashPlayerToOutput(IFlashPlayer* pFlashPlayer, const std::shared_ptr<CRenderOutput> &output);
+
+	void SetRenderOutput(std::shared_ptr<CRenderOutput> pRenderOutput);
+	
 private:
-	void PushExternalRenderTarget();
-	void PopExternalRenderTarget();
+	std::shared_ptr<CRenderOutput> GetRenderOutput() const;
+
+	void PushOutputTarget(const Viewport &viewport);
+	void PopOutputTarget();
 
 	void Clear(const ColorF& backgroundColor);
 
@@ -463,6 +476,8 @@ private:
 
 	RectF m_canvasRect;
 
+	uint32 m_clearFlags;
+	ColorF m_clearColor;
 	float m_compDepth;
 
 	// stereo support
@@ -483,6 +498,8 @@ private:
 
 	// Render target management
 	std::list<SSF_GlobalDrawParams::OutputParams> m_renderTargetStack;
+
+	std::shared_ptr<CRenderOutput> m_pRenderOutput;
 };
 
 #endif // #if RENDERER_SUPPORT_SCALEFORM
@@ -546,6 +563,7 @@ public:
 	virtual DeviceData* CreateDeviceData(const BitmapDesc* pBitmapList, int numBitmaps, bool bTemp = false) override { return nullptr; }
 	virtual void ReleaseDeviceData(DeviceData* pData) override {}
 
+	virtual void SetClearFlags(uint32 clearFlags, ColorF clearColor = Clr_Transparent) override {}
 	virtual void SetCompositingDepth(float depth) override {}
 
 	virtual void SetStereoMode(bool stereo, bool isLeft) override {}

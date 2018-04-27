@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "FileUtil.h"
@@ -135,7 +135,7 @@ bool CAnimationManager::AddAIMHeaderOnly(const GlobalAnimationHeaderAIM& header)
 		newHeader.m_arrController[i].reset(); // release controllers
 	}
 
-	ThreadUtils::AutoLock lock(m_lockAIMs);
+	std::lock_guard<std::recursive_mutex> lock(m_lockAIMs);
 	if (HasAIM(header.m_FilePathCRC32))
 		return false;
 	m_arrGlobalAIM.push_back(header);
@@ -153,7 +153,7 @@ bool CAnimationManager::AddCAFHeaderOnly(const GlobalAnimationHeaderCAF& header)
 		return false;
 	}
 
-	ThreadUtils::AutoLock lock(m_lockCAFs);
+	std::lock_guard<std::recursive_mutex> lock(m_lockCAFs);
 	if (HasCAF(header.m_FilePathCRC32))
 	{
 		return false;

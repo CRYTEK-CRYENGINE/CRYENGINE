@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 /*************************************************************************
    -------------------------------------------------------------------------
@@ -49,7 +49,7 @@ bool CJiraClient::ReportBug()
 	if (!FileExists(crashHandlerPath.c_str()))
 	{
 		static const char* szErrorMessage = "Couldn't find the crash handler! (looking for Tools/CrashHandler/CrashHandler.exe)";
-		MessageBox(NULL, szErrorMessage, "Couldn't find the crash handler", MB_OK | MB_ICONWARNING);
+		CryMessageBox(szErrorMessage, "Couldn't find the crash handler", eMB_Error);
 		return false;
 	}
 

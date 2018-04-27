@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "FlareSoftOcclusionQuery.h"
@@ -84,10 +84,10 @@ void CFlareSoftOcclusionQuery::InitGlobalResources()
 	if (g_bCreatedGlobalResources)
 		return;
 
-	const uint32 numGPUs = (gRenDev->GetActiveGPUCount() <= MAX_OCCLUSION_READBACK_TEXTURES / 2) ? gRenDev->GetActiveGPUCount() : 1;
+	const uint32 numGPUs = gRenDev->GetActiveGPUCount();
 	s_ringWriteIdx = 0;
-	s_ringReadIdx = numGPUs;
-	s_ringSize = numGPUs * 2;
+	s_ringReadIdx  = numGPUs;
+	s_ringSize     = numGPUs * MAX_FRAMES_IN_FLIGHT;
 
 	memset(s_idHashTable, 0, sizeof(s_idHashTable));
 	memset(s_paletteRawCache, 0, sizeof(s_paletteRawCache));
@@ -117,12 +117,13 @@ void CFlareSoftOcclusionQuery::GetSectorSize(float& width, float& height)
 	height = s_fSectorWidth;
 }
 
-void CFlareSoftOcclusionQuery::GetOcclusionSectorInfo(SOcclusionSectorInfo& out_Info)
+void CFlareSoftOcclusionQuery::GetOcclusionSectorInfo(SOcclusionSectorInfo& out_Info,const SRenderViewInfo& viewInfo)
 {
 	Vec3 vProjectedPos;
-	if (ComputeProjPos(m_PosToBeChecked, gRenDev->m_ViewMatrix, gRenDev->m_ProjMatrix, vProjectedPos) == false)
+	if (ComputeProjPos(m_PosToBeChecked, viewInfo.viewMatrix, viewInfo.projMatrix, vProjectedPos) == false)
 		return;
-	out_Info.lineardepth = clamp_tpl(ComputeLinearDepth(m_PosToBeChecked, gRenDev->m_CameraMatrix, gRenDev->GetRCamera().fNear, gRenDev->GetRCamera().fFar), -1.0f, 0.99f);
+
+	out_Info.lineardepth = clamp_tpl(ComputeLinearDepth(m_PosToBeChecked, viewInfo.viewMatrix, viewInfo.nearClipPlane, viewInfo.farClipPlane), -1.0f, 0.99f);
 
 	out_Info.u0 = vProjectedPos.x - m_fOccPlaneWidth / 2;
 	out_Info.v0 = vProjectedPos.y - m_fOccPlaneHeight / 2;
@@ -147,8 +148,8 @@ float CFlareSoftOcclusionQuery::ComputeLinearDepth(const Vec3& worldPos, const M
 	Vec4 out = Vec4(worldPos, 1) * cameraMat;
 	if (out.w == 0.0f)
 		return 0;
-	const CRenderCamera& rc = gRenDev->GetRCamera();
-	float linearDepth = (-out.z - rc.fNear) / (farDist - nearDist);
+
+	float linearDepth = (-out.z - nearDist) / (farDist - nearDist);
 
 	return linearDepth;
 }
@@ -163,7 +164,7 @@ void CFlareSoftOcclusionQuery::UpdateCachedResults()
 
 CTexture* CFlareSoftOcclusionQuery::GetGatherTexture() const
 {
-	return CTexture::s_ptexFlaresGather;
+	return CRendererResources::s_ptexFlaresGather;
 }
 
 void CFlareSoftOcclusionQuery::BatchReadResults()
@@ -171,7 +172,9 @@ void CFlareSoftOcclusionQuery::BatchReadResults()
 	if (!g_bCreatedGlobalResources)
 		return;
 
-	CTexture::s_ptexFlaresOcclusionRing[s_ringReadIdx]->GetDevTexture()->AccessCurrStagingResource(0, false, [=](void* pData, uint32 rowPitch, uint32 slicePitch)
+	CRY_PROFILE_REGION_WAITING(PROFILE_RENDERER, "CFlareSoftOcclusionQuery::BatchReadResults");
+
+	CRendererResources::s_ptexFlaresOcclusionRing[s_ringReadIdx]->GetDevTexture()->AccessCurrStagingResource(0, false, [=](void* pData, uint32 rowPitch, uint32 slicePitch)
 	{
 		unsigned char* pTexBuf = reinterpret_cast<unsigned char*>(pData);
 		int validLineStrideBytes = s_nIDColMax * 4;
@@ -186,16 +189,16 @@ void CFlareSoftOcclusionQuery::BatchReadResults()
 
 void CFlareSoftOcclusionQuery::ReadbackSoftOcclQuery()
 {
-	CTexture::s_ptexFlaresOcclusionRing[s_ringWriteIdx]->GetDevTexture()->DownloadToStagingResource(0);
+	CRendererResources::s_ptexFlaresOcclusionRing[s_ringWriteIdx]->GetDevTexture()->DownloadToStagingResource(0);
 
 	// sync point. Move to next texture to read and write
-	s_ringReadIdx = (s_ringReadIdx + 1) % s_ringSize;
+	s_ringReadIdx  = (s_ringReadIdx  + 1) % s_ringSize;
 	s_ringWriteIdx = (s_ringWriteIdx + 1) % s_ringSize;
 }
 
 CTexture* CFlareSoftOcclusionQuery::GetOcclusionTex()
 {
-	return CTexture::s_ptexFlaresOcclusionRing[s_ringWriteIdx];
+	return CRendererResources::s_ptexFlaresOcclusionRing[s_ringWriteIdx];
 }
 
 CSoftOcclusionManager::CSoftOcclusionManager()
@@ -212,7 +215,7 @@ CSoftOcclusionManager::~CSoftOcclusionManager()
 	if (m_gatherVertexBuffer != ~0u)    gcpRendD3D->m_DevBufMan.Destroy(m_gatherVertexBuffer);
 }
 
-bool CSoftOcclusionManager::PrepareOcclusionPrimitive(CRenderPrimitive& primitive, const CPrimitiveRenderPass& targetPass)
+bool CSoftOcclusionManager::PrepareOcclusionPrimitive(CRenderPrimitive& primitive, const CPrimitiveRenderPass& targetPass,const SRenderViewInfo& viewInfo)
 {
 	if (m_indexBuffer == ~0u || m_occlusionVertexBuffer == ~0u)
 		return false;
@@ -231,7 +234,7 @@ bool CSoftOcclusionManager::PrepareOcclusionPrimitive(CRenderPrimitive& primitiv
 		int offset = i * 4;
 
 		CFlareSoftOcclusionQuery::SOcclusionSectorInfo sInfo;
-		pSoftOcclusion->GetOcclusionSectorInfo(sInfo);
+		pSoftOcclusion->GetOcclusionSectorInfo(sInfo,viewInfo);
 
 		for (int k = 0; k < 4; ++k)
 			pDeviceVBAddr[offset + k].color.dcolor = 0xFFFFFFFF;
@@ -253,7 +256,7 @@ bool CSoftOcclusionManager::PrepareOcclusionPrimitive(CRenderPrimitive& primitiv
 
 	primitive.SetTechnique(CShaderMan::s_ShaderSoftOcclusionQuery, techRenderPlane, 0);
 	primitive.SetRenderState(GS_NODEPTHTEST);
-	primitive.SetTexture(0, CTexture::s_ptexZTargetScaled);
+	primitive.SetTexture(0, CRendererResources::s_ptexLinearDepthScaled[0]);
 	primitive.SetSampler(0, EDefaultSamplerStates::PointBorder_Black);
 	primitive.SetPrimitiveType(CRenderPrimitive::ePrim_Triangle);
 	primitive.SetCustomIndexStream(m_indexBuffer, Index16);
@@ -293,7 +296,7 @@ void CSoftOcclusionManager::Init()
 	}
 }
 
-bool CSoftOcclusionManager::PrepareGatherPrimitive(CRenderPrimitive& primitive, const CPrimitiveRenderPass& targetPass, CStandardGraphicsPipeline::SViewInfo* pViewInfo, int viewInfoCount)
+bool CSoftOcclusionManager::PrepareGatherPrimitive(CRenderPrimitive& primitive, const CPrimitiveRenderPass& targetPass, SRenderViewInfo* pViewInfo, int viewInfoCount)
 {
 	CRY_ASSERT(viewInfoCount >= 0);
 
@@ -338,7 +341,7 @@ bool CSoftOcclusionManager::PrepareGatherPrimitive(CRenderPrimitive& primitive, 
 	primitive.SetFlags(CRenderPrimitive::eFlags_ReflectShaderConstants_PS);
 	primitive.SetTechnique(CShaderMan::s_ShaderSoftOcclusionQuery, techGatherPlane, 0);
 	primitive.SetRenderState(GS_NODEPTHTEST);
-	primitive.SetTexture(0, CTexture::s_ptexFlaresGather);
+	primitive.SetTexture(0, CRendererResources::s_ptexFlaresGather);
 	primitive.SetSampler(0, EDefaultSamplerStates::PointClamp);
 	primitive.SetPrimitiveType(CRenderPrimitive::ePrim_Triangle);
 	primitive.SetCustomIndexStream(m_indexBuffer, Index16);
@@ -349,14 +352,16 @@ bool CSoftOcclusionManager::PrepareGatherPrimitive(CRenderPrimitive& primitive, 
 	auto& constantManager = primitive.GetConstantManager();
 	constantManager.BeginNamedConstantUpdate();
 	{
-		static CCryNameR occlusionNormalizedSizeName("occlusionNormalizedSize");
-		const Vec4 occlusionSizeParam(CFlareSoftOcclusionQuery::s_fSectorWidth, CFlareSoftOcclusionQuery::s_fSectorHeight, 0, 0);
-		constantManager.SetNamedConstant(occlusionNormalizedSizeName, occlusionSizeParam);
+		static CCryNameR occlusionParamsName("occlusionParams");
+		const Vec4 occlusionSizeParams(
+			CFlareSoftOcclusionQuery::s_fSectorWidth, 
+			CFlareSoftOcclusionQuery::s_fSectorHeight,
+			pViewInfo[0].downscaleFactor.x,
+			pViewInfo[0].downscaleFactor.y);
 
-		static CCryNameR hPosScaleName("PS_HPosScale");
-		constantManager.SetNamedConstant(hPosScaleName, pViewInfo[0].downscaleFactor);
+		constantManager.SetNamedConstant(occlusionParamsName, occlusionSizeParams);
 	}
-	constantManager.EndNamedConstantUpdate();
+	constantManager.EndNamedConstantUpdate(&targetPass.GetViewport());
 
 	return true;
 }
@@ -382,16 +387,15 @@ void CSoftOcclusionManager::Reset()
 	m_nPos = 0;
 }
 
-bool CSoftOcclusionManager::Update(CStandardGraphicsPipeline::SViewInfo* pViewInfo, int viewInfoCount)
+bool CSoftOcclusionManager::Update(SRenderViewInfo* pViewInfo, int viewInfoCount)
 {
 	if (GetSize() > 0)
 	{
-		CTexture* pOcclusionRT = CTexture::s_ptexFlaresGather;
+		CTexture* pOcclusionRT = CRendererResources::s_ptexFlaresGather;
 		CTexture* pGatherRT = CFlareSoftOcclusionQuery::GetOcclusionTex();
 
-		CDeviceCommandListRef commandList = GetDeviceObjectFactory().GetCoreCommandList();
-		commandList.GetGraphicsInterface()->ClearSurface(pOcclusionRT->GetSurface(0, 0), Clr_Transparent);
-		commandList.GetGraphicsInterface()->ClearSurface(pGatherRT->GetSurface(0, 0), Clr_Transparent);
+		CClearSurfacePass::Execute(pOcclusionRT, Clr_Transparent);
+		CClearSurfacePass::Execute(pGatherRT, Clr_Transparent);
 
 		// occlusion pass
 		{
@@ -406,7 +410,7 @@ bool CSoftOcclusionManager::Update(CStandardGraphicsPipeline::SViewInfo* pViewIn
 			m_occlusionPass.SetViewport(viewport);
 			m_occlusionPass.BeginAddingPrimitives();
 
-			if (PrepareOcclusionPrimitive(m_occlusionPrimitive, m_occlusionPass))
+			if (PrepareOcclusionPrimitive(m_occlusionPrimitive, m_occlusionPass,*pViewInfo))
 			{
 				m_occlusionPass.AddPrimitive(&m_occlusionPrimitive);
 				m_occlusionPass.Execute();

@@ -86,3 +86,4 @@ target_link_libraries(${THIS_PROJECT} PRIVATE Sandbox Substance MFCToolsPlugin C
 
 copy_substance()
 #target_compile_definitions(${THIS_PROJECT} PRIVATE -DBUILDING_FBX_TOOL)
+

@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 
@@ -100,7 +100,7 @@ void CIntroMovieRenderer::WaitForCompletion()
 			break;
 		}
 		gEnv->pLog->UpdateLoadingScreen(0);
-		Sleep(1);
+		CrySleep(1);
 	}
 }
 
@@ -138,7 +138,7 @@ void CIntroMovieRenderer::LoadtimeUpdate(float deltaTime)
 void CIntroMovieRenderer::LoadtimeRender()
 {
 	if (m_pFlashPlayer)
-		m_pFlashPlayer->Render(true);
+		m_pFlashPlayer->Render();
 }
 
 void CIntroMovieRenderer::UpdateViewport()
@@ -146,15 +146,15 @@ void CIntroMovieRenderer::UpdateViewport()
 	if (!m_pFlashPlayer)
 		return;
 
-	int videoWidth(m_pFlashPlayer->GetWidth());
+	int videoWidth (m_pFlashPlayer->GetWidth());
 	int videoHeight(m_pFlashPlayer->GetHeight());
 
-	const int screenWidth(gEnv->pRenderer->GetOverlayWidth());
-	const int screenHeight(gEnv->pRenderer->GetOverlayHeight());
+	const int screenWidth (gEnv->pRenderer->GetWidth ());
+	const int screenHeight(gEnv->pRenderer->GetHeight());
 
 	const float pixelAR = gEnv->pRenderer->GetPixelAspectRatio();
 
-	const float scaleX((float)screenWidth / (float)videoWidth);
+	const float scaleX((float)screenWidth  / (float)videoWidth);
 	const float scaleY((float)screenHeight / (float)videoHeight);
 
 	float scale(scaleY);

@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "stdafx.h"
 
@@ -6,6 +6,7 @@
 #include "CafCompressionHelper.h"
 #include "Shared/AnimSettings.h"
 
+#include <FilePathUtil.h>
 #include <CrySystem/ISystem.h>
 #include <CrySystem/File/ICryPak.h>
 #include <CryCore/ToolsHelpers/ResourceCompilerHelper.h>
@@ -47,7 +48,7 @@ bool CafCompressionHelper::CompressAnimation(const string& animationPath, string
 		return false;
 	}
 
-	const string gameFolderPath = PathUtil::AddSlash(PathUtil::GetGameFolder());
+	const string gameFolderPath = PathUtil::AddSlash(PathUtil::GetGameProjectAssetsPath());
 	string additionalSettings;
 	additionalSettings += " /animConfigFolder=Animations";
 	additionalSettings += " /SkipDba=1";
@@ -134,7 +135,7 @@ bool CafCompressionHelper::CompressAnimationForPreview(string* outputCafPath, st
 	outputFilename += animationPath;
 	*outputCafPath = outputFilename;
 
-	const string gameFolderPath = PathUtil::AddSlash(PathUtil::GetGameFolder());
+	const string gameFolderPath = PathUtil::AddSlash(PathUtil::GetGameProjectAssetsPath());
 	string additionalSettings;
 	additionalSettings += " /animConfigFolder=Animations";
 	additionalSettings += " /SkipDba=1";
@@ -298,3 +299,4 @@ void CafCompressionHelper::CleanUpCompressionResult(const char* createdFile)
 		path = createdFolder;
 	}
 }
+

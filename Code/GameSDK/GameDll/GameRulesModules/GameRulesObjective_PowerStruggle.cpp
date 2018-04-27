@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 /*************************************************************************
 	-------------------------------------------------------------------------
@@ -1314,7 +1314,7 @@ void CGameRulesObjective_PowerStruggle::OnEntitySignal(EntityId entityId, int si
 }
 
 //------------------------------------------------------------------------
-void CGameRulesObjective_PowerStruggle::OnEntityEvent( IEntity *pEntity, SEntityEvent &event )
+void CGameRulesObjective_PowerStruggle::OnEntityEvent( IEntity *pEntity, const SEntityEvent& event )
 {
 	EntityId insideId = (EntityId) event.nParam[0];
 	EntityId entityId = pEntity->GetId();

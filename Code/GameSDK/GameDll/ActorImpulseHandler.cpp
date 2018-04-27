@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "ActorImpulseHandler.h"
@@ -66,7 +66,7 @@ bool CActorImpulseHandler::SImpulseSet::MatchesHitInfo(const HitInfo& hitInfo) c
 
 //////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////
-struct CActorImpulseHandler::SFindMatchingSet : public std::unary_function<bool, const SImpulseSet&>
+struct CActorImpulseHandler::SFindMatchingSet
 {
 	SFindMatchingSet(const HitInfo& hitInfo) : hitInfo(hitInfo) {}
 

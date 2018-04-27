@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 /*************************************************************************
    -------------------------------------------------------------------------
@@ -107,27 +107,27 @@ public:
 	virtual void              Physicalize() override                                      {}
 	virtual void              SetMoveable(bool allowTranslationMovement = false) override {}
 
-	virtual const Matrix34& GetLocalTM(bool relativeToParentPart, bool forced = false) override;
-	virtual const Matrix34& GetWorldTM() override;
-	virtual void            SetLocalTM(const Matrix34& localTM) override;
-	virtual const AABB&     GetLocalBounds() override;
+	virtual Matrix34          GetLocalTM(bool relativeToParentPart, bool forced = false) override;
+	virtual Matrix34          GetWorldTM() override;
+	virtual void              SetLocalTM(const Matrix34& localTM) override;
+	virtual const AABB&       GetLocalBounds() override;
 
 	// set & get baseTM. for standard parts, this just forwards to LocalTM
-	virtual const Matrix34& GetLocalBaseTM() override                   { return GetLocalTM(true); }
-	virtual void            SetLocalBaseTM(const Matrix34& tm) override { SetLocalTM(tm); }
+	virtual Matrix34       GetLocalBaseTM() override                   { return GetLocalTM(true); }
+	virtual void           SetLocalBaseTM(const Matrix34& tm) override { SetLocalTM(tm); }
 
-	virtual void            ResetLocalTM(bool recursive);
+	virtual void           ResetLocalTM(bool recursive);
 
-	virtual const Matrix34& GetLocalInitialTM() override { return GetLocalTM(true); }
+	virtual Matrix34       GetLocalInitialTM() override { return GetLocalTM(true); }
 
-	virtual void            Update(const float deltaTime) override;
-	virtual void            Serialize(TSerialize ser, EEntityAspects aspects) override;
-	virtual void            PostSerialize() override                                         {}
+	virtual void           Update(const float deltaTime) override;
+	virtual void           Serialize(TSerialize ser, EEntityAspects aspects) override;
+	virtual void           PostSerialize() override                                         {}
 
-	virtual void            RegisterSerializer(IGameObjectExtension* gameObjectExt) override {}
-	virtual int             GetType() override                                               { return m_pSharedParameters->m_typeId; }
+	virtual void           RegisterSerializer(IGameObjectExtension* gameObjectExt) override {}
+	virtual int            GetType() override                                               { return m_pSharedParameters->m_typeId; }
 
-	virtual IVehicleWheel*  GetIWheel() override                                             { return nullptr; }
+	virtual IVehicleWheel* GetIWheel() override                                             { return nullptr; }
 
 	virtual const Vec3& GetDetachBaseForce() override                                    { return m_pSharedParameters->m_detachBaseForce; }
 	virtual float       GetDetachProbability()                                           { return m_pSharedParameters->m_detachProbability; }

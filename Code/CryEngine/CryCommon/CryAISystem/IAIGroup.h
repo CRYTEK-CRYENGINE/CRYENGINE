@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 /********************************************************************
    -------------------------------------------------------------------------
@@ -14,7 +14,6 @@
 
 #pragma once
 
-#include "AIFormationDescriptor.h"
 #include <CryAISystem/IAISystem.h> // <> required for Interfuscator
 #include <CryNetwork/SerializeFwd.h>
 
@@ -46,7 +45,7 @@ struct IAIGroup
 	//! Sets specified unit's properties, see EUnitProperties.
 	virtual void       SetUnitProperties(const IAIObject* obj, uint32 properties) = 0;
 	virtual IAIObject* GetAttentionTarget(bool bHostileOnly, bool bLiveOnly) const = 0;
-	virtual Vec3       GetAveragePosition(eAvPositionMode mode = AVMODE_ANY, uint32 unitClass = UNIT_ALL) const = 0;
+	virtual Vec3       GetAveragePosition(eAvPositionMode mode = AVMODE_ANY, uint32 unitClassOrProperties = -1) const = 0;
 	virtual int        GetUnitCount(uint32 unitPropMask = UPR_ALL) const = 0;
 
 	//! Gets the number of attention targets in the group.

@@ -1,27 +1,33 @@
 {
-    "toolBar": {
-        "Commands": [
-            {
-                "command": "general.set_view_coordinates",
-                "custom": false,
-                "uiName": "View"
-            },
-            {
-                "command": "general.set_local_coordinates",
-                "custom": false,
-                "uiName": "Local"
-            },
-            {
-                "command": "general.set_parent_coordinates",
-                "custom": false,
-                "uiName": "Parent"
-            },
-            {
-                "command": "general.set_world_coordinates",
-                "custom": false,
-                "uiName": "World"
-            }
-        ]
-    },
-    "version": 1
+    "toolBar": [
+        {
+            "command": "level.set_world_coordinate_system",
+            "iconPath": "icons:Navigation/Coordinates_World.ico",
+            "m_IsCustom": false,
+            "name": "set_world_coordinate_system",
+            "type": 0
+        },
+        {
+            "command": "level.set_local_coordinate_system",
+            "iconPath": "icons:Navigation/Coordinates_Local.ico",
+            "m_IsCustom": false,
+            "name": "set_local_coordinate_system",
+            "type": 0
+        },
+        {
+            "command": "level.set_view_coordinate_system",
+            "iconPath": "icons:Navigation/Coordinates_View.ico",
+            "m_IsCustom": false,
+            "name": "set_view_coordinate_system",
+            "type": 0
+        },
+        {
+            "command": "level.set_parent_coordinate_system",
+            "iconPath": "icons:Navigation/Coordinates_Parent.ico",
+            "m_IsCustom": false,
+            "name": "set_parent_coordinate_system",
+            "type": 0
+        }
+    ],
+    "version": 2
 }

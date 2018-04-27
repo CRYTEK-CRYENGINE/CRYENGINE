@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 	
@@ -35,7 +35,7 @@ public:
 		return m_nodeMask;
 	}
 
-	ILINE bool CCryDX12DeviceContext::RecreateCommandListPool(int nPoolId)
+	ILINE bool RecreateCommandListPool(int nPoolId)
 	{
 		return m_Scheduler.RecreateCommandListPool(nPoolId, m_nodeMask);
 	}

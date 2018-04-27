@@ -41,3 +41,41 @@ PUBLIC
 if(LINUX)
         target_compile_options(${THIS_PROJECT} PRIVATE -fPIC)
 endif()
+
+if (ORBIS OR CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+	target_compile_options(${THIS_PROJECT} PRIVATE
+		-Wno-unused-variable
+		-Wno-reorder
+		-Wno-unknown-pragmas
+		-Wno-parentheses
+		-Wno-format
+		-Wno-switch
+		-Wno-unused-value
+		-Wno-c++11-narrowing
+		-Wno-unused-private-field
+		-Wno-empty-body
+		-Wno-unused-function
+	)
+elseif(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+	target_compile_options(${THIS_PROJECT} PRIVATE
+		-Wno-unused-function
+		-Wno-unused-value
+		-Wno-unused-variable
+		-Wno-sign-compare
+		-Wno-ignored-attributes
+		-Wno-int-in-bool-context
+		-Wno-unused-but-set-variable
+		-Wno-misleading-indentation
+		-Wno-unknown-pragmas
+		-Wno-unused-const-variable
+		-Wno-strict-aliasing
+		-Wno-maybe-uninitialized
+		-Wno-multichar
+		-Wno-char-subscripts
+		-Wno-parentheses
+		-Wno-comment
+		-Wno-address
+		-Wno-format
+		-Wno-switch
+	)
+endif()

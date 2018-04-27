@@ -1,8 +1,9 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "stdafx.h"
 #include "AudioEvent.h"
 #include "AudioObject.h"
+#include <Logger.h>
 #include <CryAudio/IAudioSystem.h>
 #include <CrySystem/ISystem.h> // needed for gEnv in Release builds
 #include <portaudio.h>
@@ -27,61 +28,65 @@ static int StreamCallback(
   void* pUserData)
 {
 	CRY_ASSERT(framesPerBuffer == s_bufferLength);
-	sf_count_t numFramesRead = 0;
-	CEvent* const pAudioEvent = static_cast<CEvent*>(pUserData);
+	auto const pEvent = static_cast<CEvent*>(pUserData);
 
-	switch (pAudioEvent->sampleFormat)
+	if (pEvent->state == EEventState::Playing)
 	{
-	case paInt16:
-		{
-			short* pStreamData = static_cast<short*>(pOutputBuffer);
-			numFramesRead = sf_readf_short(pAudioEvent->pSndFile, static_cast<short*>(pAudioEvent->pData), static_cast<sf_count_t>(s_bufferLength));
+		sf_count_t numFramesRead = 0;
 
-			for (sf_count_t i = 0; i < numFramesRead; ++i)
+		switch (pEvent->sampleFormat)
+		{
+		case paInt16:
 			{
-				for (int j = 0; j < pAudioEvent->numChannels; ++j)
+				auto pStreamData = static_cast<short*>(pOutputBuffer);
+				numFramesRead = sf_readf_short(pEvent->pSndFile, static_cast<short*>(pEvent->pData), static_cast<sf_count_t>(s_bufferLength));
+
+				for (sf_count_t i = 0; i < numFramesRead; ++i)
 				{
-					*pStreamData++ = static_cast<short*>(pAudioEvent->pData)[i * pAudioEvent->numChannels + j];
+					for (int j = 0; j < pEvent->numChannels; ++j)
+					{
+						*pStreamData++ = static_cast<short*>(pEvent->pData)[i * pEvent->numChannels + j];
+					}
 				}
 			}
-		}
-		break;
-	case paInt32:
-		{
-			int* pStreamData = static_cast<int*>(pOutputBuffer);
-			numFramesRead = sf_readf_int(pAudioEvent->pSndFile, static_cast<int*>(pAudioEvent->pData), static_cast<sf_count_t>(s_bufferLength));
-
-			for (sf_count_t i = 0; i < numFramesRead; ++i)
+			break;
+		case paInt32:
 			{
-				for (int j = 0; j < pAudioEvent->numChannels; ++j)
+				auto pStreamData = static_cast<int*>(pOutputBuffer);
+				numFramesRead = sf_readf_int(pEvent->pSndFile, static_cast<int*>(pEvent->pData), static_cast<sf_count_t>(s_bufferLength));
+
+				for (sf_count_t i = 0; i < numFramesRead; ++i)
 				{
-					*pStreamData++ = static_cast<int*>(pAudioEvent->pData)[i * pAudioEvent->numChannels + j];
+					for (int j = 0; j < pEvent->numChannels; ++j)
+					{
+						*pStreamData++ = static_cast<int*>(pEvent->pData)[i * pEvent->numChannels + j];
+					}
 				}
 			}
-		}
-		break;
-	case paFloat32:
-		{
-			float* pStreamData = static_cast<float*>(pOutputBuffer);
-			numFramesRead = sf_readf_float(pAudioEvent->pSndFile, static_cast<float*>(pAudioEvent->pData), static_cast<sf_count_t>(s_bufferLength));
-
-			for (sf_count_t i = 0; i < numFramesRead; ++i)
+			break;
+		case paFloat32:
 			{
-				for (int j = 0; j < pAudioEvent->numChannels; ++j)
+				auto pStreamData = static_cast<float*>(pOutputBuffer);
+				numFramesRead = sf_readf_float(pEvent->pSndFile, static_cast<float*>(pEvent->pData), static_cast<sf_count_t>(s_bufferLength));
+
+				for (sf_count_t i = 0; i < numFramesRead; ++i)
 				{
-					*pStreamData++ = static_cast<float*>(pAudioEvent->pData)[i * pAudioEvent->numChannels + j];
+					for (int j = 0; j < pEvent->numChannels; ++j)
+					{
+						*pStreamData++ = static_cast<float*>(pEvent->pData)[i * pEvent->numChannels + j];
+					}
 				}
 			}
+			break;
 		}
-		break;
+
+		if (numFramesRead != framesPerBuffer)
+		{
+			pEvent->state = EEventState::Done;
+		}
 	}
 
-	if (numFramesRead != framesPerBuffer)
-	{
-		pAudioEvent->bDone = true;
-	}
-
-	return 0;
+	return PaStreamCallbackResult::paContinue;
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -93,36 +98,21 @@ CEvent::CEvent(CATLEvent& event_)
 	, numChannels(0)
 	, remainingLoops(0)
 	, event(event_)
-	, bDone(false)
+	, state(EEventState::None)
 {
 }
 
 //////////////////////////////////////////////////////////////////////////
 CEvent::~CEvent()
 {
-	if (pStream != nullptr)
-	{
-		PaError const err = Pa_CloseStream(pStream);
-
-		if (err != paNoError)
-		{
-			g_implLogger.Log(ELogType::Error, "CloseStream failed: %s", Pa_GetErrorText(err));
-		}
-	}
-
-	if (pSndFile != nullptr)
-	{
-		sf_close(pSndFile);
-	}
-
-	if (pData != nullptr)
-	{
-		delete pData;
-	}
+	CRY_ASSERT_MESSAGE(pStream == nullptr, "PortAudio pStream hasn't been closed on event destruction.");
+	CRY_ASSERT_MESSAGE(pSndFile == nullptr, "PortAudio pSndFile hasn't been closed on event destruction.");
+	CRY_ASSERT_MESSAGE(pData == nullptr, "PortAudio pData hasn't been freed on event destruction.");
 
 	if (pObject != nullptr)
 	{
 		pObject->UnregisterEvent(this);
+		pObject = nullptr;
 	}
 }
 
@@ -133,7 +123,11 @@ bool CEvent::Execute(
   CryFixedStringT<MaxFilePathLength> const& filePath,
   PaStreamParameters const& streamParameters)
 {
-	bool bSuccess = false;
+	CRY_ASSERT_MESSAGE(state == EEventState::None, "PortAudio event is not in None state during Execute.");
+	CRY_ASSERT_MESSAGE(pStream == nullptr, "PortAudio pStream is valid during event execution.");
+	CRY_ASSERT_MESSAGE(pSndFile == nullptr, "PortAudio pSndFile is valid during event execution.");
+	CRY_ASSERT_MESSAGE(pData == nullptr, "PortAudio pData is valid during event execution.");
+
 	SF_INFO sfInfo;
 	ZeroStruct(sfInfo);
 	pSndFile = sf_open(filePath.c_str(), SFM_READ, &sfInfo);
@@ -155,26 +149,26 @@ bool CEvent::Execute(
 			numChannels = streamParameters.channelCount;
 			remainingLoops = numLoops;
 			sampleFormat = streamParameters.sampleFormat;
-			long unsigned const numEntries = s_bufferLength * numChannels;
+			auto const numEntries = static_cast<size_t>(s_bufferLength * numChannels);
 
 			switch (sampleFormat)
 			{
 			case paInt16:
 				{
-					pData = CryModuleMalloc(sizeof(short) * static_cast<size_t>(numEntries));
-					std::memset(pData, 0, sizeof(short) * static_cast<size_t>(numEntries));
+					pData = CryModuleMalloc(sizeof(short) * numEntries);
+					std::fill(static_cast<short*>(pData), static_cast<short*>(pData) + numEntries, 0);
 				}
 				break;
 			case paInt32:
 				{
-					pData = CryModuleMalloc(sizeof(int) * static_cast<size_t>(numEntries));
-					std::memset(pData, 0, sizeof(int) * static_cast<size_t>(numEntries));
+					pData = CryModuleMalloc(sizeof(int) * numEntries);
+					std::fill(static_cast<int*>(pData), static_cast<int*>(pData) + numEntries, 0);
 				}
 				break;
 			case paFloat32:
 				{
-					pData = CryModuleMalloc(sizeof(float) * static_cast<size_t>(numEntries));
-					std::memset(pData, 0, sizeof(float) * static_cast<size_t>(numEntries));
+					pData = CryModuleMalloc(sizeof(float) * numEntries);
+					std::fill(static_cast<float*>(pData), static_cast<float*>(pData) + numEntries, 0.0f);
 				}
 				break;
 			}
@@ -183,50 +177,108 @@ bool CEvent::Execute(
 
 			if (err == paNoError)
 			{
-				bSuccess = true;
+				state = EEventState::Playing;
 			}
 			else
 			{
-				g_implLogger.Log(ELogType::Error, "StartStream failed: %s", Pa_GetErrorText(err));
+				Cry::Audio::Log(ELogType::Error, "StartStream failed: %s", Pa_GetErrorText(err));
+				Reset();
+
+				// This event instance will be immediately destructed so this isn't really necessary but to make things more obvious and to help debugging.
+				state = EEventState::WaitingForDestruction;
 			}
 		}
 		else
 		{
-			g_implLogger.Log(ELogType::Error, "OpenStream failed: %s", Pa_GetErrorText(err));
+			Cry::Audio::Log(ELogType::Error, "OpenStream failed: %s", Pa_GetErrorText(err));
 		}
 	}
 
-	return bSuccess;
+	return state == EEventState::Playing;
 }
 
 //////////////////////////////////////////////////////////////////////////
 void CEvent::Update()
 {
-	if (bDone)
-	{
-		if (remainingLoops != 0 && pStream != nullptr && pSndFile != nullptr)
-		{
-			sf_seek(pSndFile, 0, SEEK_SET);
+	CRY_ASSERT(state != EEventState::None);
 
-			if (remainingLoops > 0)
-			{
-				--remainingLoops;
-			}
-		}
-		else
+	if (state != EEventState::WaitingForDestruction)
+	{
+		if (state == EEventState::Stopped)
 		{
+			CRY_ASSERT_MESSAGE(pStream == nullptr, "PortAudio pStream still valid during event update.");
+			CRY_ASSERT_MESSAGE(pSndFile == nullptr, "PortAudio pSndFile still valid during event update.");
+			CRY_ASSERT_MESSAGE(pData == nullptr, "PortAudio pData still valid during event update.");
+			state = EEventState::WaitingForDestruction;
 			gEnv->pAudioSystem->ReportFinishedEvent(event, true);
 		}
+		else if (state == EEventState::Done)
+		{
+			CRY_ASSERT_MESSAGE(pStream != nullptr, "PortAudio pStream not valid during event update.");
+			CRY_ASSERT_MESSAGE(pSndFile != nullptr, "PortAudio pSndFile not valid during event update.");
+			CRY_ASSERT_MESSAGE(pData != nullptr, "PortAudio pData not valid during event update.");
 
-		bDone = false;
+			if (remainingLoops != 0)
+			{
+				sf_seek(pSndFile, 0, SEEK_SET);
+
+				if (remainingLoops > 0)
+				{
+					--remainingLoops;
+				}
+
+				state = EEventState::Playing;
+			}
+			else
+			{
+				Reset();
+				state = EEventState::WaitingForDestruction;
+				gEnv->pAudioSystem->ReportFinishedEvent(event, true);
+			}
+		}
 	}
 }
 
 //////////////////////////////////////////////////////////////////////////
 ERequestStatus CEvent::Stop()
 {
-	gEnv->pAudioSystem->ReportFinishedEvent(event, true);
+	Reset();
+	state = EEventState::Stopped;
 	return ERequestStatus::Success;
+}
+
+//////////////////////////////////////////////////////////////////////////
+void CEvent::Reset()
+{
+	if (pStream != nullptr)
+	{
+		PaError const err = Pa_AbortStream(pStream);
+
+		if (err != paNoError)
+		{
+			Cry::Audio::Log(ELogType::Error, "Pa_AbortStream failed: %s", Pa_GetErrorText(err));
+		}
+
+		pStream = nullptr;
+	}
+
+	if (pSndFile != nullptr)
+	{
+		int const result = sf_close(pSndFile);
+
+		if (result != 0)
+		{
+			Cry::Audio::Log(ELogType::Error, "sf_close failed: %n", result);
+		}
+
+		pSndFile = nullptr;
+	}
+
+	if (pData != nullptr)
+	{
+		CryModuleFree(pData);
+		pData = nullptr;
+	}
 }
 } // namespace PortAudio
 } // namespace Impl

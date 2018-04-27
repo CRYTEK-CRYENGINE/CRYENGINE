@@ -1,3 +1,5 @@
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
+
 #pragma once
 #include "CrySerialization/Serializer.h"
 #include "CrySerialization/ClassFactory.h"
@@ -66,4 +68,5 @@ class CSubstanceManager: public ISubstanceManager
 		std::map<std::type_index, ISubstanceInstanceRenderer* > m_renderers;
 		friend void CRY_SUBSTANCE_API InitCrySubstanceLib(IFileManipulator* fileManipulator);
 };
+
 

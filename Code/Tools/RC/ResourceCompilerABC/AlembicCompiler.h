@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 //
 //  Crytek Engine Source File.
 //  Copyright (C), Crytek Studios, 2012.
@@ -15,6 +15,8 @@
 #include "ThreadUtils.h"
 #include "StealingThreadPool.h"
 #include "../ResourceCompilerPC/PhysWorld.h"
+
+#include <condition_variable>
 
 class ICryXML;
 class GeomCacheEncoder;
@@ -300,14 +302,14 @@ private:
 	// Number of frame job groups running
 	uint m_numJobGroupsRunning;	
 	volatile uint m_numJobsFinished;
-	ThreadUtils::CriticalSection m_jobFinishedCS;
-	ThreadUtils::ConditionVariable m_jobFinishedCV;
+	std::recursive_mutex m_jobFinishedMutex;
+	std::condition_variable_any m_jobFinishedCV;
 
 	// Data for each frame job group
 	std::vector<FrameJobGroupData> m_jobGroupData;	
 
 	// Transform update lock (ABC library is sometimes not thread safe)
-	ThreadUtils::CriticalSection m_abcLock;
+	std::recursive_mutex m_abcMutex;
 
 	// Error count
 	volatile uint m_errorCount;

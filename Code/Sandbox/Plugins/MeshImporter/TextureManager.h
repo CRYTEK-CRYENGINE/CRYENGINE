@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -54,3 +54,4 @@ private:
 	string m_sourceDirectory; // Directory of source FBX file.
 	std::vector<std::unique_ptr<STexture>> m_textures;
 };
+

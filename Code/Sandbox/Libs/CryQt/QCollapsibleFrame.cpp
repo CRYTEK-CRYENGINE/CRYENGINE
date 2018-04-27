@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 #include <StdAfx.h>
 #include "QCollapsibleFrame.h"
 
@@ -44,10 +44,10 @@ void QCollapsibleFrame::SetWidget(QWidget* pWidget)
 
 	auto pMainLayout = m_pContentsFrame->layout();
 
-	// remove old widget
 	if (m_pWidget)
 	{
 		pMainLayout->removeWidget(m_pWidget);
+		m_pWidget->deleteLater();
 	}
 
 	m_pWidget = pWidget;

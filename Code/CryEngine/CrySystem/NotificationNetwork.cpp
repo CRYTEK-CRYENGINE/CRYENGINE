@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "NotificationNetwork.h"
@@ -1261,7 +1261,7 @@ void CNotificationNetwork::ProcessSockets()
 	if (r < 0)
 	{
 		// So we force the sleep here for now.
-		Sleep(1000);
+		CrySleep(1000);
 		return;
 	}
 

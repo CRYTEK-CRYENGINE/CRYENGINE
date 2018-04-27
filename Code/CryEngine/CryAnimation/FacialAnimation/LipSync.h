@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -51,7 +51,7 @@ private:
 class CFacialSentence : public IFacialSentence, public _reference_target_t
 {
 public:
-	struct SFaceIdentifierHandleLess : public std::binary_function<CFaceIdentifierHandle, CFaceIdentifierHandle, bool>
+	struct SFaceIdentifierHandleLess
 	{
 		bool operator()(const CFaceIdentifierHandle& left, const CFaceIdentifierHandle& right) const
 		{

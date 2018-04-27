@@ -134,6 +134,7 @@ add_sources("CrySystem_uber_0.cpp"
 		"XConsole.h"
 		"XConsoleVariable.h"
 		"BootProfiler.h"
+		"ManualFrameStep.h"
 	SOURCE_GROUP "Source Files"
 		"AutoDetectCPUTestSuit.cpp"
 		"AutoDetectSpec.cpp"
@@ -163,6 +164,7 @@ add_sources("CrySystem_uber_0.cpp"
 		"Log.cpp"
 		"MemReplay.cpp"
 		"BootProfiler.cpp"
+		"ManualFrameStep.cpp"
 )
 
 add_sources("CrySystem_uber_1.cpp"
@@ -296,6 +298,8 @@ add_sources("CrySystem_uber_4.cpp"
 		"LocalizedStringManager.h"
 	SOURCE_GROUP "Profiler"
 		"DiskProfiler.cpp"
+		"DiskProfilerWindowsSpecific.cpp"
+		"DiskProfilerWindowsSpecific.h"
 		"FrameProfileRender.cpp"
 		"FrameProfileSystem.cpp"
 		"LoadingProfiler.cpp"
@@ -308,6 +312,8 @@ add_sources("CrySystem_uber_4.cpp"
 		"PerfHUD.h"
 		"ProfileLogSystem.h"
 		"Sampler.h"
+		"Watchdog.h"
+		"Watchdog.cpp"
 	SOURCE_GROUP "Windows"
 		"WindowsErrorReporting.cpp"
 )
@@ -442,7 +448,6 @@ add_sources("CrySystem_uber_9.cpp"
 		"RemoteConsole/RemoteConsole.h"
 	SOURCE_GROUP "Serialization"
 		"Serialization/ArchiveHost.cpp"
-		"Serialization/Test_ArchiveHost.cpp"
 		"Serialization/Token.h"
 		"Serialization/XmlIArchive.cpp"
 		"Serialization/XmlIArchive.h"
@@ -511,41 +516,100 @@ add_sources("NoUberFile"
 	SOURCE_GROUP "PlatformOS"
 		"PlatformOS/PlatformOS_PC.cpp"
 		"PlatformOS/PlatformOS_PC.h"
-		"PlatformOS/SaveReaderWriter_Steam.h"
-		"PlatformOS/SaveReaderWriter_Steam.cpp"
 )
 
 end_sources()
 #END-FILE-LIST
 
-CryEngineModule(CrySystem PCH "StdAfx.cpp" SOLUTION_FOLDER "CryEngine")
+MACRO(setup_crysystem)
+    target_link_libraries( ${THIS_PROJECT} PRIVATE zlib expat lz4 md5 tomcrypt )
+    use_scaleform()
+    if (WIN32)
+		set_property(TARGET ${THIS_PROJECT} APPEND_STRING PROPERTY LINK_FLAGS " /NODEFAULTLIB:libcmt.lib /NODEFAULTLIB:libcpmt.lib")
+	    target_link_libraries(${THIS_PROJECT} PRIVATE wininet Shell32 Ole32 Gdi32)
+    elseif(LINUX)
+	    target_link_libraries( ${THIS_PROJECT} PRIVATE ncursesw m )
+    elseif(APPLE)
+	    target_link_libraries( ${THIS_PROJECT} PRIVATE ncurses m )
+    elseif(ORBIS)
+	    target_link_libraries( ${THIS_PROJECT} PRIVATE SceMsgDialog_stub_weak SceImeDialog_stub_weak )
+	    target_link_libraries( ${THIS_PROJECT} PRIVATE $<$<NOT:$<CONFIG:Release>>:SceDbg_stub_weak> )
+    elseif(DURANGO)
+	    set_property(TARGET ${THIS_PROJECT} APPEND PROPERTY COMPILE_FLAGS "\"/AI${DURANGO_PLATFORM_SDK}/ExtensionSDKs/Xbox Services API/8.0/References/CommonConfiguration/neutral\"")	
+	    target_link_libraries( ${THIS_PROJECT} PRIVATE uuid acphal )
+    elseif(ANDROID)
+	    target_include_directories( ${THIS_PROJECT} PRIVATE "${SDK_DIR}/SDL2/include/linux" "${SDK_DIR}/SDL2/include/SDL" )
+    endif()
 
-target_link_libraries( ${THIS_PROJECT} PRIVATE zlib expat lz4 md5 tomcrypt )
-use_scaleform()
-if (WIN32)
-	set_target_properties(${THIS_PROJECT} PROPERTIES LINK_FLAGS "/NODEFAULTLIB:libcmt.lib /NODEFAULTLIB:libcpmt.lib")
-	target_link_libraries(${THIS_PROJECT} PRIVATE wininet Shell32 Ole32 Gdi32)
-elseif(LINUX)
-	target_link_libraries( ${THIS_PROJECT} PRIVATE ncursesw m )
-elseif(APPLE)
-	target_link_libraries( ${THIS_PROJECT} PRIVATE ncurses m )
-elseif(ORBIS)
-	target_link_libraries( ${THIS_PROJECT} PRIVATE SceMsgDialog_stub_weak SceImeDialog_stub_weak )
-	target_link_libraries( ${THIS_PROJECT} PRIVATE $<$<NOT:$<CONFIG:Release>>:SceDbg_stub_weak> )
-elseif(DURANGO)
-	set_property(TARGET ${THIS_PROJECT} APPEND PROPERTY COMPILE_FLAGS "\"/AI${DURANGO_PLATFORM_SDK}/ExtensionSDKs/Xbox Services API/8.0/References/CommonConfiguration/neutral\"")	
-	target_link_libraries( ${THIS_PROJECT} PRIVATE uuid acphal )
-elseif(ANDROID)
-	target_include_directories( ${THIS_PROJECT} PRIVATE "${SDK_DIR}/SDL2/include/linux" "${SDK_DIR}/SDL2/include/SDL" )
-endif()
+    if (OPTION_ENABLE_CRASHRPT)
+	    target_compile_definitions(${THIS_PROJECT} PRIVATE CRY_USE_CRASHRPT=1)
+	    target_link_libraries( ${THIS_PROJECT} PRIVATE crashrpt )
+    endif()
+
+	if (ORBIS OR CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+		target_compile_options(${THIS_PROJECT} PRIVATE
+			-Wno-unused-variable
+			-Wno-array-bounds
+			-Wno-parentheses
+			-Wno-reorder
+			-Wno-unused-value
+			-Wno-unknown-pragmas
+			-Wno-format
+			-Wno-unused-private-field
+			-Wno-multichar
+			-Wno-empty-body
+			-Wno-unused-const-variable
+			-Wno-switch
+			-Wno-unused-function
+			-Wno-char-subscripts
+			-Wno-c++11-narrowing
+			-Wno-address-of-packed-member
+			-Wno-invalid-offsetof
+			-Wno-dynamic-class-memaccess
+			-Wno-comment
+		)
+    elseif(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+		target_compile_options(${THIS_PROJECT} PRIVATE
+			-Wno-unused-function
+			-Wno-unused-value
+			-Wno-array-bounds
+			-Wno-unused-variable
+			-Wno-sign-compare
+			-Wno-ignored-attributes
+			-Wno-int-in-bool-context
+			-Wno-unused-but-set-variable
+			-Wno-misleading-indentation
+			-Wno-unknown-pragmas
+			-Wno-unused-const-variable
+			-Wno-multichar
+			-Wno-return-type
+			-Wno-strict-aliasing
+			-Wno-maybe-uninitialized
+			-Wno-unused-result
+			-Wno-char-subscripts
+			-Wno-parentheses
+			-Wno-comment
+			-Wno-address
+			-Wno-format
+			-Wno-switch
+		)
+    endif()
+ENDMACRO()
 
 if (OPTION_ENABLE_CRASHRPT)
 	add_subdirectory( "${CRY_LIBS_DIR}/crashrpt" "${CMAKE_CURRENT_BINARY_DIR}/crashrpt")
-	target_compile_definitions(${THIS_PROJECT} PRIVATE CRY_USE_CRASHRPT=1)
-	target_link_libraries( ${THIS_PROJECT} PRIVATE crashrpt )
 endif()
 
 if (ANDROID)
 	#Force comping "CryDLMalloc.c" as C++
 	set_source_files_properties("CryDLMalloc.c" PROPERTIES LANGUAGE CXX)
 endif()
+
+CryEngineModule(CrySystem PCH "StdAfx.cpp" SOLUTION_FOLDER "CryEngine")
+setup_crysystem()
+
+if (OPTION_UNIT_TEST AND NOT OPTION_STATIC_LINKING) #Currently an additional static lib is only used by unit testing under non-monolithic mode
+	CryEngineModule(CrySystemLib PCH "StdAfx.cpp" SOLUTION_FOLDER "CryEngine" FORCE_STATIC)
+	setup_crysystem()
+endif()
+

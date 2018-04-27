@@ -90,10 +90,10 @@ add_sources("NoUberFile"
 		"../../SDKs/OculusSDK/LibOVR/Include/Extras/OVR_Math.h"
 		"../../SDKs/OculusSDK/LibOVR/Include/Extras/OVR_CAPI_Util.h"
 		"../../SDKs/OculusSDK/LibOVR/Include/Extras/OVR_StereoProjection.h"
-		"../../SDKs/OculusSDK/LibOVR/Src/OVR_CAPIShim.c"
-		"../../SDKs/OculusSDK/LibOVR/Src/OVR_CAPI_Util.cpp"
-		"../../SDKs/OculusSDK/LibOVR/Src/OVR_StereoProjection.cpp"
-		"../../SDKs/OculusSDK/LibOVR/Src/OVR_CAPI_Prototypes.h"
+		"../../SDKs/OculusSDK/LibOVR/Shim/OVR_CAPIShim.c"
+		"../../SDKs/OculusSDK/LibOVR/Shim/OVR_CAPI_Util.cpp"
+		"../../SDKs/OculusSDK/LibOVR/Shim/OVR_StereoProjection.cpp"
+		"../../SDKs/OculusSDK/LibOVR/Shim/OVR_CAPI_Prototypes.h"
 		"../../SDKs/OculusSDK/LibOVR/Src/Resources/Windows/LibOVR.rc"
 		"../../SDKs/OculusSDK/LibOVR/Src/Resources/Windows/Oculus.ico"
 		"../../SDKs/OculusSDK/LibOVR/Src/Resources/Windows/resource.h"
@@ -122,7 +122,7 @@ end_sources()
 #END-FILE-LIST
 
 if(NOT MSVC_VERSION LESS 1900 AND (WIN32 OR WIN64))
-	CryEngineStaticModule(oculus SOLUTION_FOLDER "Libs")
+	CryEngineStaticModule(oculus SOLUTION_FOLDER "Libs" MSVC_PERMISSIVE)
 	if(WIN32 OR WIN64)
 		target_compile_options(${THIS_PROJECT} PRIVATE /EHsc /W0 /Wv:18)
 		target_include_directories(${THIS_PROJECT} PRIVATE "${SDK_DIR}/OculusSDK/LibOVRKernel/Src" "${SDK_DIR}/OculusSDK/LibOVR/Include" "${SDK_DIR}/OculusSDK/Logging/Include")

@@ -1,19 +1,6 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
-// -------------------------------------------------------------------------
-//  File name:   cry3denginebase.h
-//  Version:     v1.00
-//  Created:     28/5/2001 by Vladimir Kajalin
-//  Compilers:   Visual Studio.NET
-//  Description: Access to external stuff used by 3d engine. Most 3d engine classes
-//               are derived from this base class to access other interfaces
-// -------------------------------------------------------------------------
-//  History:
-//
-////////////////////////////////////////////////////////////////////////////
-
-#ifndef _Cry3DEngineBase_h_
-#define _Cry3DEngineBase_h_
+#pragma once
 
 #include "3DEngineMemory.h"
 
@@ -51,6 +38,9 @@ class CClipVolumeManager;
 	#define OBJMAN_STREAM_STATS
 #endif
 
+
+//  Access to external stuff used by 3d engine. Most 3d engine classes
+//  are derived from this base class to access other interfaces
 struct Cry3DEngineBase
 {
 	static ISystem*                               m_pSystem;
@@ -110,15 +100,16 @@ struct Cry3DEngineBase
 	inline static IPhysicalWorld*    GetPhysicalWorld()          { return m_pPhysicalWorld; }
 	inline static IConsole*          GetConsole()                { return m_pConsole; }
 	inline static C3DEngine*         Get3DEngine()               { return m_p3DEngine; }
-	inline static CObjManager*       GetObjManager()             { return m_pObjManager; };
-	inline static CTerrain*          GetTerrain()                { return m_pTerrain; };
+	inline static CObjManager*       GetObjManager()             { return m_pObjManager; }
+	inline static CTerrain*          GetTerrain()                { return m_pTerrain; }
 	inline static CVars*             GetCVars()                  { return m_pCVars; }
 	inline static CVisAreaManager*   GetVisAreaManager()         { return m_pVisAreaManager; }
 	inline static ICryPak*           GetPak()                    { return m_pCryPak; }
 	inline static CMatMan*           GetMatMan()                 { return m_pMatMan; }
-	inline static CWaterWaveManager* GetWaterWaveManager()       { return m_pWaterWaveManager; };
-	inline static CRenderMeshMerger* GetSharedRenderMeshMerger() { return m_pRenderMeshMerger; };
-	inline static CTemporaryPool*    GetTemporaryPool()          { return CTemporaryPool::Get(); };
+	inline static CWaterWaveManager* GetWaterWaveManager()       { return m_pWaterWaveManager; }
+	inline static CBreezeGenerator*  GetBreezeGenerator()        { return m_pBreezeGenerator; }
+	inline static CRenderMeshMerger* GetSharedRenderMeshMerger() { return m_pRenderMeshMerger; }
+	inline static CTemporaryPool*    GetTemporaryPool()          { return CTemporaryPool::Get(); }
 
 #if defined(USE_GEOM_CACHES)
 	inline static CGeomCacheManager* GetGeomCacheManager() { return m_pGeomCacheManager; };
@@ -127,8 +118,6 @@ struct Cry3DEngineBase
 	inline static int GetMergedMeshesPoolSize()                               { return m_mergedMeshesPoolSize; }
 	ILINE static bool IsRenderNodeTypeEnabled(EERType rnType)                 { return m_bRenderTypeEnabled[(int)rnType]; }
 	ILINE static void SetRenderNodeTypeEnabled(EERType rnType, bool bEnabled) { m_bRenderTypeEnabled[(int)rnType] = bEnabled; }
-
-	inline static int GetDefSID()                                             { return DEFAULT_SID; };
 
 	static float      GetCurTimeSec();
 	static float      GetCurAsyncTimeSec();
@@ -142,12 +131,12 @@ struct Cry3DEngineBase
 	static void    Error(const char* format, ...) PRINTF_PARAMS(1, 2);
 	static void    FileWarning(int flags, const char* file, const char* format, ...) PRINTF_PARAMS(3, 4);
 
-	CRenderObject* GetIdentityCRenderObject(int nThreadID)
+	CRenderObject* GetIdentityCRenderObject(const SRenderingPassInfo &passInfo)
 	{
-		CRenderObject* pCRenderObject = GetRenderer()->EF_GetObject_Temp(nThreadID);
+		CRenderObject* pCRenderObject = passInfo.GetIRenderView()->AllocateTemporaryRenderObject();
 		if (!pCRenderObject)
 			return NULL;
-		pCRenderObject->m_II.m_Matrix.SetIdentity();
+		pCRenderObject->SetMatrix(Matrix34::CreateIdentity(), passInfo);
 		return pCRenderObject;
 	}
 
@@ -196,5 +185,3 @@ struct Cry3DEngineBase
 	}
 
 };
-
-#endif // _Cry3DEngineBase_h_

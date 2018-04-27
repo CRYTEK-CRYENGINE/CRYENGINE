@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #ifndef __TURRET__H__
 #define __TURRET__H__
@@ -54,7 +54,7 @@ public:
 
 	// IEntityEvent
 	virtual uint64 GetEventMask() const { return ~(0); } // All events
-	virtual	void ProcessEvent( SEntityEvent &event );
+	virtual	void ProcessEvent( const SEntityEvent &event );
 	// ~IEntityEvent
 
 	// IGameObjectExtension

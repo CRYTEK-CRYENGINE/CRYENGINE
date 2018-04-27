@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 // -------------------------------------------------------------------------
 //  File name:   CGFLoader.cpp
@@ -2674,7 +2674,7 @@ bool CLoaderCGF::LoadGeomChunk(CNodeCGF* pNode, IChunkFile::ChunkDesc* pChunkDes
 
 				int32* pNumLinks;
 				StepData(pNumLinks, pMeshChunkData, 1, bSwapEndianness);
-				if (pNumLinks <= 0)
+				if (!pNumLinks)
 				{
 					m_LastError.Format("%s: Number of links for vertex is invalid: %i", __FUNCTION__, pNumLinks);
 					return false;

@@ -45,7 +45,7 @@ void CLocalGridEntity::OnResetState()
 	m_shouldApply = true;
 }
 
-void CLocalGridEntity::ProcessEvent(SEntityEvent& event)
+void CLocalGridEntity::ProcessEvent(const SEntityEvent& event)
 {
 	CDesignerEntityComponent::ProcessEvent(event);
 

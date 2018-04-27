@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #ifndef __ICoverSystem_h__
 #define __ICoverSystem_h__
@@ -21,6 +21,11 @@ struct CoverID
 	{
 		id = other.id;
 		return *this;
+	}
+
+	ILINE bool operator==(const CoverID& other) const
+	{
+		return id == other.id;
 	}
 
 	ILINE operator uint32() const
@@ -184,6 +189,68 @@ struct ICoverSampler
 	// </interfuscator:shuffle>
 };
 
+struct ICoverUser
+{
+	typedef Functor2<CoverID, ICoverUser*> CoverInvalidatedCallback;
+	typedef Functor1<DynArray<Vec3>&> FillCoverEyesCustomMethod;
+
+	enum EStateFlags : uint8
+	{
+		None = 0,
+		MovingToCover = BIT(0),
+		InCover = BIT(1),
+	};
+	typedef CEnumFlags<EStateFlags> StateFlags;
+
+	struct Params
+	{
+		Params()
+			: distanceToCover(0.4f)
+			, inCoverRadius(0.3f)
+			, minEffectiveCoverHeight(0.85f)
+			, userID(0)
+		{
+		}
+
+		float                     distanceToCover;
+		float                     inCoverRadius;
+		float                     minEffectiveCoverHeight;
+		EntityId                  userID;
+		FillCoverEyesCustomMethod fillCoverEyesCustomMethod;
+		CoverInvalidatedCallback  activeCoverCompromisedCallback;
+		CoverInvalidatedCallback  activeCoverInvalidateCallback;
+	};
+
+	virtual ~ICoverUser() {}
+	virtual void           Reset() = 0;
+
+	virtual void           SetCoverID(const CoverID& coverID) = 0;
+	virtual const CoverID& GetCoverID() const = 0;
+
+	virtual void           SetNextCoverID(const CoverID& coverID) = 0;
+	virtual const CoverID& GetNextCoverID() const = 0;
+
+	virtual void           SetParams(const Params& params) = 0;
+	virtual const Params&  GetParams() const = 0;
+
+	virtual StateFlags     GetState() const = 0;
+	virtual void           SetState(const StateFlags& stateFlags) = 0;
+
+	virtual bool           IsCompromised() const = 0;
+	virtual float          CalculateEffectiveHeightAt(const Vec3& pos, const CoverID& coverId) const = 0;
+	virtual float          GetLocationEffectiveHeight() const = 0;
+
+	virtual void SetCoverBlacklisted(const CoverID& coverID, bool blacklist, float time) = 0;
+	virtual bool IsCoverBlackListed(const CoverID& coverId) const = 0;
+
+	// normal pointing out of the cover surface
+	virtual Vec3        GetCoverNormal(const Vec3& position) const = 0;
+	virtual Vec3        GetCoverLocation(const CoverID& coverID) const = 0;
+
+	virtual void UpdateCoverEyes() = 0;
+	virtual const DynArray<Vec3>& GetCoverEyes() const = 0;
+};
+
 struct ICoverSystem
 {
 	struct SurfaceInfo
@@ -208,6 +275,10 @@ struct ICoverSystem
 	// <interfuscator:shuffle>
 	virtual ~ICoverSystem(){}
 	virtual ICoverSampler* CreateCoverSampler(const char* samplerName = "default") = 0;
+
+	virtual ICoverUser*    RegisterEntity(const EntityId entityId, const ICoverUser::Params& params) = 0;
+	virtual void           UnregisterEntity(const EntityId entityId) = 0;
+	virtual ICoverUser*    GetRegisteredCoverUser(const EntityId entityId) const = 0;
 
 	virtual void           Clear() = 0;
 	virtual bool           ReadSurfacesFromFile(const char* fileName) = 0;

@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 //
 //  Crytek Engine Source File.
 //  Copyright (C), Crytek Studios, 2012.
@@ -85,21 +85,21 @@ void GeomCacheEncoder::AddFrame(const Alembic::Abc::chrono_t frameTime, const AA
 {
 	// Wait for last frame job group to finish
 	{
-		ThreadUtils::AutoLock jobLock(m_jobGroupDoneCS);
+		std::unique_lock<std::recursive_mutex> jobMutex(m_jobGroupDoneCS);
 
 		while (!m_jobGroupDone)
 		{
-			m_jobGroupDoneCV.Sleep(m_jobGroupDoneCS);
+			m_jobGroupDoneCV.wait(m_jobGroupDoneCS);
 		}
 
 		m_jobGroupDone = false;
 	}
 
 	// Check if there is enough space left in frames deque, otherwise wait until there is again	
-	ThreadUtils::AutoLock lockFrames(m_framesCS);
+	std::unique_lock<std::recursive_mutex> lockFrames(m_framesCS);
 	while (m_frames.size() > g_kMaxBufferedFrames)
 	{
-		m_frameRemovedCV.Sleep(m_framesCS);
+		m_frameRemovedCV.wait(m_framesCS);
 	}
 	
 	GeomCacheEncoderFrameInfo *pFrame = new GeomCacheEncoderFrameInfo(this, m_nextFrameIndex, frameTime, aabb, bIsLastFrame);
@@ -120,17 +120,17 @@ void GeomCacheEncoder::AddFrame(const Alembic::Abc::chrono_t frameTime, const AA
 
 GeomCacheEncoderFrameInfo &GeomCacheEncoder::GetInfoFromFrameIndex(const uint index)
 {
-	ThreadUtils::AutoLock lock(m_framesCS);
+	std::lock_guard<std::recursive_mutex> lock(m_framesCS);
 	const uint frameInfoOffset = index - m_firstInfoFrameIndex;	
 	return *m_frames[frameInfoOffset].get();
 }
 
 void GeomCacheEncoder::Flush()
 {	
-	ThreadUtils::AutoLock lock(m_framesCS);
+	std::unique_lock<std::recursive_mutex> lock(m_framesCS);
 	while (m_frames.size() > 0)
 	{
-		m_frameRemovedCV.Sleep(m_framesCS);
+		m_frameRemovedCV.wait(m_framesCS);
 	}
 }
 
@@ -174,7 +174,7 @@ void GeomCacheEncoder::FrameGroupFinished(GeomCacheEncoderFrameInfo *pFrame)
 	bool bFramePopped = false;
 
 	{
-		ThreadUtils::AutoLock framesLock(m_framesCS);
+		std::lock_guard<std::recursive_mutex> framesMutex(m_framesCS);
 
 		// Write ready frames
 		const uint numFrames = m_frames.size();
@@ -198,15 +198,15 @@ void GeomCacheEncoder::FrameGroupFinished(GeomCacheEncoderFrameInfo *pFrame)
 	}
 
 	{
-		ThreadUtils::AutoLock jobLock(m_jobGroupDoneCS);
+		std::lock_guard<std::recursive_mutex> jobLock(m_jobGroupDoneCS);
 		m_jobGroupDone = true;
 	}
 
-	m_jobGroupDoneCV.Wake();
+	m_jobGroupDoneCV.notify_one();
 
 	if (bFramePopped)
 	{
-		m_frameRemovedCV.WakeAll();
+		m_frameRemovedCV.notify_all();
 	}
 }
 
@@ -221,15 +221,15 @@ void GeomCacheEncoder::EncodeNodesRec(GeomCache::Node &currentNode, GeomCacheEnc
 	const uint frameIndex = pFrame->m_frameIndex;
 
 	// Get frame to process
-	currentNode.m_animatedNodeDataCS.Lock();		
+	currentNode.m_animatedNodeDataCS.lock();
 	GeomCache::NodeData &rawFrame = currentNode.m_animatedNodeData.front();
-	currentNode.m_animatedNodeDataCS.Unlock();
+	currentNode.m_animatedNodeDataCS.unlock();
 
 	// Add encoded frame
-	currentNode.m_encodedFramesCS.Lock();
+	currentNode.m_encodedFramesMutex.lock();
 	currentNode.m_encodedFrames.push_back(std::vector<uint8>());
 	std::vector<uint8> &output = currentNode.m_encodedFrames.back();
-	currentNode.m_encodedFramesCS.Unlock();
+	currentNode.m_encodedFramesMutex.unlock();
 
 	// Encode index frame
 	EncodeNodeIFrame(currentNode, rawFrame, output);
@@ -239,9 +239,9 @@ void GeomCacheEncoder::EncodeNodesRec(GeomCache::Node &currentNode, GeomCacheEnc
 	InterlockedDecrement(&pFrame->m_doneCountdown);
 
 	// Remove processed raw frame
-	currentNode.m_animatedNodeDataCS.Lock();		
+	currentNode.m_animatedNodeDataCS.lock();
 	currentNode.m_animatedNodeData.pop_front();			
-	currentNode.m_animatedNodeDataCS.Unlock();
+	currentNode.m_animatedNodeDataCS.unlock();
 
 	const uint numChildren = currentNode.m_children.size();
 	for (uint i = 0; i < numChildren; ++i)
@@ -284,7 +284,7 @@ void GeomCacheEncoder::EncodeMesh(GeomCache::Mesh *pMesh, GeomCacheEncoderFrameI
 	const Alembic::Abc::chrono_t frameTime = pFrame->m_frameTime;
 
 	// Get frame and last index frame to process
-	pMesh->m_rawFramesCS.Lock();
+	pMesh->m_rawFramesMutex.lock();
 
 	// Get raw mesh frame for current frame index
 	const uint offset = frameIndex - pMesh->m_firstRawFrameIndex;	
@@ -314,7 +314,7 @@ void GeomCacheEncoder::EncodeMesh(GeomCache::Mesh *pMesh, GeomCacheEncoderFrameI
 		}
 	}
 
-	pMesh->m_rawFramesCS.Unlock();
+	pMesh->m_rawFramesMutex.unlock();
 
 	if(pLastIFrameInfo && pLastIFrameRawFrame)
 	{
@@ -333,10 +333,10 @@ void GeomCacheEncoder::EncodeMesh(GeomCache::Mesh *pMesh, GeomCacheEncoderFrameI
 			{
 				assert(m_bUseBFrames);
 
-				pMesh->m_encodedFramesCS.Lock();
+				pMesh->m_encodedFramesMutex.lock();
 				pMesh->m_encodedFrames.push_back(std::vector<uint8>());
 				std::vector<uint8> &output = pMesh->m_encodedFrames.back();
-				pMesh->m_encodedFramesCS.Unlock();
+				pMesh->m_encodedFramesMutex.unlock();
 
 				const uint offset = bFrameIndex - pMesh->m_firstRawFrameIndex;
 				GeomCache::RawMeshFrame &rawMeshBFrame = pMesh->m_rawFrames[offset];
@@ -352,10 +352,10 @@ void GeomCacheEncoder::EncodeMesh(GeomCache::Mesh *pMesh, GeomCacheEncoderFrameI
 			}
 
 			// Encode current frame as index frame
-			pMesh->m_encodedFramesCS.Lock();
+			pMesh->m_encodedFramesMutex.lock();
 			pMesh->m_encodedFrames.push_back(std::vector<uint8>());
 			std::vector<uint8> &output = pMesh->m_encodedFrames.back();
-			pMesh->m_encodedFramesCS.Unlock();
+			pMesh->m_encodedFramesMutex.unlock();
 
 			EncodeMeshIFrame(*pMesh, rawMeshFrame, output);
 			GeomCacheEncoderFrameInfo &frameInfo = GetInfoFromFrameIndex(frameIndex);
@@ -371,7 +371,7 @@ void GeomCacheEncoder::EncodeMesh(GeomCache::Mesh *pMesh, GeomCacheEncoderFrameI
 			// Don't need to care if there are frames left in the end, it will be killed with the mesh data structure.
 			if (frameIndex > 1)
 			{
-				pMesh->m_rawFramesCS.Lock();		
+				pMesh->m_rawFramesMutex.lock();
 				for(uint i = 0; (m_firstInfoFrameIndex + i) < (frameIndex - 2); ++i)
 				{
 					if (pMesh->m_rawFrames.front().m_bDone)
@@ -380,7 +380,7 @@ void GeomCacheEncoder::EncodeMesh(GeomCache::Mesh *pMesh, GeomCacheEncoderFrameI
 						++pMesh->m_firstRawFrameIndex;
 					}
 				}
-				pMesh->m_rawFramesCS.Unlock();
+				pMesh->m_rawFramesMutex.unlock();
 			}
 		}
 	}
@@ -389,10 +389,10 @@ void GeomCacheEncoder::EncodeMesh(GeomCache::Mesh *pMesh, GeomCacheEncoderFrameI
 		// No previous index frame, encode as first index frame
 		assert(frameIndex == 0);
 
-		pMesh->m_encodedFramesCS.Lock();
+		pMesh->m_encodedFramesMutex.lock();
 		pMesh->m_encodedFrames.push_back(std::vector<uint8>());
 		std::vector<uint8> &output = pMesh->m_encodedFrames.back();
-		pMesh->m_encodedFramesCS.Unlock();
+		pMesh->m_encodedFramesMutex.unlock();
 
 		EncodeMeshIFrame(*pMesh, rawMeshFrame, output);
 		InterlockedDecrement(&GetInfoFromFrameIndex(frameIndex).m_encodeCountdown);

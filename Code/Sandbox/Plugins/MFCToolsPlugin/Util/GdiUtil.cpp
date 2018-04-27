@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "GdiUtil.h"
@@ -291,8 +291,8 @@ COLORREF CGdiCanvas::ScaleColor(COLORREF aColor, float aScale)
 }
 
 void CGdiCanvas::DrawBox(int aLeft, int aTop, int aWidth, int aHeight, COLORREF aFillColor1, COLORREF aFillColor2,
-                         bool bDrawBorder, bool b3DLitBorder, bool b1PixelRoundCorner, float aBorderLightPower,
-                         float aBorderShadowPower, COLORREF aCustomBorderColor)
+						 bool bDrawBorder, bool b3DLitBorder, bool b1PixelRoundCorner, float aBorderLightPower,
+						 float aBorderShadowPower, COLORREF aCustomBorderColor)
 {
 	CRect rc;
 
@@ -437,6 +437,7 @@ bool CAlphaBitmap::Load(const char* pFilename, bool bVerticalFlip)
 		dc.Detach();
 		ReleaseDC(GetDesktopWindow(), hDC);
 		img.UnlockBits(&bmData);
+		DeleteObject(hBmp);
 		return false;
 	}
 
@@ -761,3 +762,4 @@ bool GradientFillRect(HDC hDC, CRect& rRect, COLORREF aStartColor, COLORREF aEnd
 
 	return TRUE == GradientFill(hDC, vert, 2, &gRect, 1, aFillType);
 }
+

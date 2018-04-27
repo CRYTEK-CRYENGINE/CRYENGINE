@@ -31,7 +31,7 @@ void CCommentEntity::Initialize()
 	m_pEnableCommentsVar = gEnv->pConsole->GetCVar("cl_comment");
 }
 
-void CCommentEntity::ProcessEvent(SEntityEvent& event)
+void CCommentEntity::ProcessEvent(const SEntityEvent& event)
 {
 	if (event.event == ENTITY_EVENT_UPDATE)
 	{

@@ -1,6 +1,4 @@
-// CryEngine Source File
-// Copyright (C), Crytek, 1999-2016
-
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -76,7 +74,7 @@ public:
 	}
 
 	//IEntityEventListener
-	virtual void OnEntityEvent(IEntity* pEntity, SEntityEvent& event) override;
+	virtual void OnEntityEvent(IEntity* pEntity, const SEntityEvent& event) override;
 	//~IEntityEventListener
 
 protected:

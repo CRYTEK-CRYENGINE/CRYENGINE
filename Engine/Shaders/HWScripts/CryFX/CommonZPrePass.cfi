@@ -1,12 +1,11 @@
-// CRYENGINE Source Code File
-// Copyright 2001-2015 Crytek GmbH. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 
 // Lean zprepass for most expensive cases, skips tessellated geom
 
 struct vert2fragZPrepass
 {
-	OUT_P
+	OUT_HPOS_IN_WPOS
 #if %_RT_ALPHATEST
 	float4 baseTC     : TEXCOORDN;
 #endif
@@ -37,20 +36,39 @@ vert2fragZPrepass Common_ZPrepassVS(app2vertZGeneral IN_common)
 	OUT.HPosition = Pos_VS_General(g_VS_ViewProjZeroMatr, vertPassPos);
 #endif
 
-#if %_RT_ALPHATEST
-	_TCModify(vertPassPos.baseTC, OUT.baseTC, vertPassPos.Position, vertPassPos.ObjToTangentSpace[2], TS_DIFFUSE);
-	OUT.baseTC.wz = float2(Get_MaterialAlphaTest(), Get_SPI_Dissolve());
+#if %_RT_ALPHATEST	
+	float3 worldTangentS = mul((const float3x3)vertPassPos.InstMatrix, vertPassPos.ObjToTangentSpace[0]);
+	float3 worldTangentT = mul((const float3x3)vertPassPos.InstMatrix, vertPassPos.ObjToTangentSpace[1]);
+	float3 worldTangentN = mul((const float3x3)vertPassPos.InstMatrix, vertPassPos.ObjToTangentSpace[2]);
+	
+	float4 baseTC = vertPassPos.baseTC;  
 
-	// todo: generalize alpha testing code
-	#if %LEAVES
-		float3 worldTangentS = mul((const float3x3)vertPassPos.InstMatrix, vertPassPos.ObjToTangentSpace[0]);
-		float3 worldTangentT = mul((const float3x3)vertPassPos.InstMatrix, vertPassPos.ObjToTangentSpace[1]);
-		float3 worldTangentN = mul((const float3x3)vertPassPos.InstMatrix, vertPassPos.ObjToTangentSpace[2]);
-		OUT.baseTC.w = ParallelOpacityFalloff(vertPassPos.WorldPos.xyz, worldTangentN.xyz, CapOpacityFalloff, OUT.baseTC.w);
-	#endif
+	////////////////////////////////////////////////////////////////////////////////////////////////
+	// Output uv coordinates
+
+#if %_RT_DECAL_TEXGEN_2D 
+	float3 DistAtten;
+	_TCModifyDecal( vertPassPos, baseTC, DistAtten );
 #endif 
+	
+	_TCModify(baseTC, OUT.baseTC, vertPassPos.Position, vertPassPos.ObjToTangentSpace[2], TS_DIFFUSE);
 
-  return OUT;
+	#if %SILHOUETTE_PARALLAX_OCCLUSION_MAPPING
+		OUT.baseTC.xy *= CM_SilPomDetailParams.xy;
+	#endif
+	
+	float fAlphaTest = 0.0f;
+	#if %_RT_ALPHATEST	
+		fAlphaTest = Get_MaterialAlphaTest();
+		#if %LEAVES
+			fAlphaTest = ParallelOpacityFalloff(vertPassPos.WorldPos.xyz, worldTangentN.xyz, CapOpacityFalloff, fAlphaTest);
+		#endif
+	#endif
+	
+	OUT.baseTC.w = fAlphaTest;
+#endif
+
+	return OUT;
 }
 
 pixout_zprepass Common_ZPrepassPS(vert2fragZPrepass IN)
@@ -58,12 +76,19 @@ pixout_zprepass Common_ZPrepassPS(vert2fragZPrepass IN)
 	pixout_zprepass OUT = (pixout_zprepass) 0;
 
 #if %_RT_ALPHATEST
-	half fDiffuseAlpha = GetAlphaTex(diffuseTex, IN.baseTC.xy);
+	half diffuseMapAlpha = GetAlphaTex(diffuseTex, IN.baseTC.xy);
 	#if (%_RT_MSAA_QUALITY || %_RT_MSAA_QUALITY1) && %_RT_ALPHATEST
-		 GetAlphaCoverageMask( diffuseTex, IN.baseTC.xy, IN.baseTC.w, fDiffuseAlpha, OUT.uCoverageMask);
+		 GetAlphaCoverageMask( diffuseTex, IN.baseTC.xy, IN.baseTC.w, diffuseMapAlpha, OUT.uCoverageMask);
 	#endif
 
-	clip(fDiffuseAlpha - IN.baseTC.w);
+	clip(diffuseMapAlpha - IN.baseTC.w);
+#endif
+	
+#if %_RT_DISSOLVE
+	float fDissolve = Get_SPI_Dissolve();
+	const int2 vPixQuadIdx = (int2)IN.WPos.xy % 2; // 4 transparency levels for a 2x2 quad. We're using dot/abs instead, since rsx doens't support array indexing.
+
+	clip((fDissolve > 0 ? 1 : -1) * (abs(dot(half4(0.0h, 0.76h, 0.5h,-1.0h), vPixQuadIdx.xxyy)) - abs(fDissolve))); // todo: try using coverage mask when in MSAA mode.
 #endif
 
 	return OUT;

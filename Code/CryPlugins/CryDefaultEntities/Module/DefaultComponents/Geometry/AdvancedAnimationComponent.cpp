@@ -89,7 +89,7 @@ namespace Cry
 			ResetCharacter();
 		}
 
-		void CAdvancedAnimationComponent::ProcessEvent(SEntityEvent& event)
+		void CAdvancedAnimationComponent::ProcessEvent(const SEntityEvent& event)
 		{
 			if (event.event == ENTITY_EVENT_UPDATE)
 			{
@@ -182,9 +182,15 @@ namespace Cry
 			return bitFlags;
 		}
 
-		void CAdvancedAnimationComponent::SetCharacterFile(const char* szPath)
+		void CAdvancedAnimationComponent::SetCharacterFile(const char* szPath, bool applyImmediately)
 		{
 			m_characterFile = szPath;
+			LoadFromDisk();
+
+			if (applyImmediately)
+			{
+				ResetCharacter();
+			}
 		}
 
 		void CAdvancedAnimationComponent::SetMannequinAnimationDatabaseFile(const char* szPath)

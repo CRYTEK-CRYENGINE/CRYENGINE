@@ -1,5 +1,4 @@
-// CRYENGINE Source Code File
-// Copyright 2001-2015 Crytek GmbH. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 /////////////////////////////////////////////
 // Has to be included after VolumetricFog.cfi
@@ -82,8 +81,37 @@ cbuffer CBPerPassForward : register(b5)
 	{
 		float4 CloudShadingColorSun;
 		float4 CloudShadingColorSky;
-	} cbMisc;
+	} cbClouds;
+	
+	struct
+	{
+		float4 IntegrationMode;
+	} cbSVOGI;
 };
+
+#include "TiledShading.cfi"
+
+SShadowSamplingParams GetShadowSamplingParams()
+{
+	SShadowSamplingParams s;
+
+    s.TexGen0 = cbShadowSampling.TexGen0;
+    s.TexGen1 = cbShadowSampling.TexGen1;
+    s.TexGen2 = cbShadowSampling.TexGen2;
+    s.TexGen3 = cbShadowSampling.TexGen3;
+
+    s.vInvShadowMapSize = cbShadowSampling.vInvShadowMapSize;
+    s.fDepthTestBias = cbShadowSampling.fDepthTestBias; // defines how hard depth test is (default is 100 - hard test)
+    s.fOneDivFarDist = cbShadowSampling.fOneDivFarDist;
+    s.fKernelRadius = cbShadowSampling.fKernelRadius;
+
+    s.CloudShadowParams = cbShadowSampling.CloudShadowParams;
+    s.CloudShadowAnimParams = cbShadowSampling.CloudShadowAnimParams;
+
+    s.irreg_kernel_2d = cbShadowSampling.irreg_kernel_2d;
+
+    return s;
+}
 
 float Fwd_SampleSunShadowMaps(float3 worldPos)
 {
@@ -101,7 +129,7 @@ float Fwd_SampleSunShadowMaps(float3 worldPos)
 	samplingContext.bilinearSamplerWrap = ssFwdBilinearWrap;
 	samplingContext.noiseTex = Fwd_ShadowNoise;
 	
-	return 1 - ShadowDepthTest((SShadowSamplingParams)cbShadowSampling, shadowCascades, samplingContext, worldPos);
+	return 1 - ShadowDepthTest(GetShadowSamplingParams(), shadowCascades, samplingContext, worldPos);
 }
 
 SFogParams GetFogParams()
@@ -299,9 +327,7 @@ void Fwd_StandardOpaqueShading(in MaterialAttribsCommon commonAttribs, inout For
 #endif
 	
 #if %_RT_TILED_SHADING
-	#if %_RT_PER_INSTANCE_CB_TEMP
-		TiledForwardShading(fwdAttribs, diffuseAcc, specularAcc, ssFwdBilinearWrap, ssFwdComparison, true, true, true, false, true);
-	#endif
+	TiledForwardShading(fwdAttribs, diffuseAcc, specularAcc, ssFwdBilinearWrap, ssFwdComparison, true, true, true, false, true);
 #endif
 
 	// Apply albedo (using simple energy conservation between specular and diffuse)

@@ -1,4 +1,4 @@
-// Copyright 2001-2015 Crytek GmbH. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 // Sandbox plugin wrapper.
 #include "StdAfx.h"
 #include "SandboxPlugin.h"
@@ -147,5 +147,6 @@ void Log(const char* szFormat, ...)
 
 } // namespace Detail
 } // namespace EditorSubstance
+
 
 

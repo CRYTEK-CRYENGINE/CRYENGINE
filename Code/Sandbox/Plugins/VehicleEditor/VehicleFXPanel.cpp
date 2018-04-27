@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "stdafx.h"
 #include "VehicleFXPanel.h"
@@ -98,3 +98,4 @@ void CVehicleFXPanel::OnSize(UINT nType, int cx, int cy)
 	if (m_propsCtrl.m_hWnd)
 		m_propsCtrl.MoveWindow(0, 0, rc.right, rc.bottom, true);
 }
+

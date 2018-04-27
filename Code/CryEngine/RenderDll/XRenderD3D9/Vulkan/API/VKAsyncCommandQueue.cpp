@@ -1,9 +1,8 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "VKAsyncCommandQueue.hpp"
 #include "VKCommandList.hpp"
-#include "DriverD3D.h"
 
 #ifdef VK_LINKEDADAPTER
 	#include "Redirections/VkDevice.inl"
@@ -75,9 +74,9 @@ bool CAsyncCommandQueue::IsSynchronous()
 }
 
 CAsyncCommandQueue::CAsyncCommandQueue()
-	: m_pCmdListPool(nullptr)
-	, m_QueuedFramesCounter(0)
+	: m_QueuedFramesCounter(0)
 	, m_bStopRequested(false)
+	, m_pCmdListPool(nullptr)
 	, m_TaskEvent(INT_MAX, 0)
 {
 }

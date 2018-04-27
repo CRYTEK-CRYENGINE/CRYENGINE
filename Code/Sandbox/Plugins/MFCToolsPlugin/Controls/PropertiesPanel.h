@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #if !defined(AFX_PROPERTIESPANEL_H__AD3E2ECE_EFEB_4A4C_81A7_216B2BC11BC5__INCLUDED_)
 #define AFX_PROPERTIESPANEL_H__AD3E2ECE_EFEB_4A4C_81A7_216B2BC11BC5__INCLUDED_
@@ -102,7 +102,7 @@ protected:
 	DECLARE_MESSAGE_MAP()
 
 protected:
-	std::auto_ptr<CPropertyCtrl> m_pWndProps;
+	std::unique_ptr<CPropertyCtrl> m_pWndProps;
 	XmlNodeRef                   m_template;
 	bool                         m_multiSelect;
 	_smart_ptr<CVarBlock>        m_varBlock;
@@ -112,3 +112,4 @@ protected:
 };
 
 #endif // !defined(AFX_PROPERTIESPANEL_H__AD3E2ECE_EFEB_4A4C_81A7_216B2BC11BC5__INCLUDED_)
+

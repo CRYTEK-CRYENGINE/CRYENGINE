@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "MTSafeAllocator.h"
@@ -230,7 +230,7 @@ void ZlibInflateElementPartial_Impl(
 // function to do the zlib decompression, on SPU, we use ZlibInflateElement, which is defined in zlib_spu (which in case only forward to edge zlib decompression)
 void ZlibInflateElement_Impl(const void* pCompressed, void* pUncompressed, unsigned long compressedSize, unsigned long nUnCompressedSize, unsigned long* pUncompressedSize, int* pReturnCode, CMTSafeHeap* pHeap) PREFAST_SUPPRESS_WARNING(6262)
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_SYSTEM);
+	CRY_PROFILE_FUNCTION(PROFILE_SYSTEM);
 	int err;
 	z_stream stream;
 

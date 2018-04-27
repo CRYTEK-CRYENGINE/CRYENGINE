@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "SplineCtrl.h"
@@ -863,3 +863,4 @@ void CSplineCtrl::SetTimelineCtrl(CTimelineCtrl* pTimelineCtrl)
 	if (m_pTimelineCtrl)
 		m_pTimelineCtrl->SetParent(this);
 }
+

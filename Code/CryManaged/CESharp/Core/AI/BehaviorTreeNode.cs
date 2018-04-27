@@ -4,6 +4,9 @@ using CryEngine.Common.BehaviorTree;
 
 namespace CryEngine
 {
+	/// <summary>
+	/// Context of a behavior tree.
+	/// </summary>
 	public class BehaviorTreeContext
 	{
 		#region Fields
@@ -13,7 +16,13 @@ namespace CryEngine
 		#endregion
 
 		#region Properties
+		/// <summary>
+		/// ID of the node.
+		/// </summary>
 		public uint NodeId { get { return _nodeId; } }
+		/// <summary>
+		/// ID of the entity.
+		/// </summary>
 		public uint EntityId { get { return _entityId; } }
 		#endregion
 
@@ -33,6 +42,10 @@ namespace CryEngine
 		#endregion
 
 		#region Methods
+		/// <summary>
+		/// Adds the message to the behavior log.
+		/// </summary>
+		/// <param name="message"></param>
 		public void Log(string message)
 		{
 #if(!RELEASE && (WIN32 || WIN64))
@@ -45,6 +58,10 @@ namespace CryEngine
 		#endregion
 	}
 
+	/// <summary>
+	/// Generic context of a behavior tree.
+	/// </summary>
+	/// <typeparam name="TRuntimeData"></typeparam>
 	public class BehaviorTreeContext<TRuntimeData> : BehaviorTreeContext
 	{
 		#region Fields
@@ -52,6 +69,9 @@ namespace CryEngine
 		#endregion
 
 		#region Properties
+		/// <summary>
+		/// The generic runtime data of the context.
+		/// </summary>
 		public TRuntimeData RuntimeData { get { return _runtimeData; } }
 		#endregion
 
@@ -68,15 +88,19 @@ namespace CryEngine
 		#endregion
 	}
 
+	/// <summary>
+	/// Internal base class of a behavior tree node.
+	/// </summary>
 	public abstract class BehaviorTreeNodeBase : NodeProxy
 	{
 		internal BehaviorTreeNodeBase() { } // Make sure only types inside the Core assembly can inherit from it 
 	}
 
+	/// <summary>
+	/// Base class for a behavior tree node.
+	/// </summary>
 	public abstract class BehaviorTreeNode : BehaviorTreeNodeBase
 	{
-
-
 		#region Static fields
 		private static uint _nodeIdCount = 0;
 		#endregion
@@ -91,10 +115,16 @@ namespace CryEngine
 		#endregion
 
 		#region Properties
+		/// <summary>
+		/// ID of this node.
+		/// </summary>
 		public uint NodeId { get { return _nodeId; } }
 		#endregion
 
 		#region Constructors
+		/// <summary>
+		/// Constructor for a base behavior tree node.
+		/// </summary>
 		protected BehaviorTreeNode()
 		{
 			_nodeId = _nodeIdCount++;
@@ -102,6 +132,11 @@ namespace CryEngine
 		#endregion
 
 		#region Methods
+		/// <summary>
+		/// Updates this node one tick.
+		/// </summary>
+		/// <param name="unmodifiedContext"></param>
+		/// <returns></returns>
 		public sealed override Status Tick(UpdateContext unmodifiedContext)
 		{
 			Status returnStatus = Status.Running;
@@ -140,6 +175,10 @@ namespace CryEngine
 			return returnStatus;
 		}
 
+		/// <summary>
+		/// Terminate this node.
+		/// </summary>
+		/// <param name="unmodifiedContext"></param>
 		public sealed override void Terminate(UpdateContext unmodifiedContext)
 		{
 			var runtimeDataId = MakeRuntimeDataId(unmodifiedContext.entityId, _nodeId);
@@ -156,6 +195,11 @@ namespace CryEngine
 			}
 		}
 
+		/// <summary>
+		/// Handles events for this node.
+		/// </summary>
+		/// <param name="context"></param>
+		/// <param name="arg1"></param>
 		public sealed override void HandleEvent(EventContext context, Event arg1)
 		{
 			var runtimeDataId = MakeRuntimeDataId(context.entityId, _nodeId);
@@ -166,6 +210,12 @@ namespace CryEngine
 			}
 		}
 
+		/// <summary>
+		/// Loads data from an XML node.
+		/// </summary>
+		/// <param name="xml"></param>
+		/// <param name="context"></param>
+		/// <returns></returns>
 		public sealed override LoadResult LoadFromXml(XmlNodeRef xml, LoadContext context)
 		{
 			_startLog = xml.getAttr("_startLog");
@@ -175,20 +225,54 @@ namespace CryEngine
 
 			return OnLoadFromXml(xml, context);
 		}
-
+		
 		private static ulong MakeRuntimeDataId(uint entityId, uint nodeId)
 		{
 			return entityId | ((ulong)nodeId) << 32;
 		}
 
+		/// <summary>
+		/// Called when this node is initialized.
+		/// </summary>
+		/// <param name="updateContext"></param>
+		/// <returns></returns>
 		protected virtual bool OnInitialize(BehaviorTreeContext updateContext) { return true; }
+
+		/// <summary>
+		/// Called when this node is being updated.
+		/// </summary>
+		/// <param name="updateContext"></param>
+		/// <returns></returns>
 		protected virtual Status OnUpdate(BehaviorTreeContext updateContext) { return Status.Success; }
+
+		/// <summary>
+		/// Called when this node is being terminated.
+		/// </summary>
+		/// <param name="updateContext"></param>
+		/// <param name="interrupted"></param>
 		protected virtual void OnTerminate(BehaviorTreeContext updateContext, bool interrupted = false) { }
+
+		/// <summary>
+		/// Called when this node is loading from an XML node.
+		/// </summary>
+		/// <param name="xml"></param>
+		/// <param name="context"></param>
+		/// <returns></returns>
 		protected virtual LoadResult OnLoadFromXml(XmlNodeRef xml, LoadContext context) { return LoadResult.LoadSuccess; }
+		
+		/// <summary>
+		/// Called when this node needs to handle an event.
+		/// </summary>
+		/// <param name="updateContext"></param>
+		/// <param name="e"></param>
 		protected virtual void HandleEvent(BehaviorTreeContext updateContext, Event e) { }
 		#endregion
 	}
 
+	/// <summary>
+	/// Generic base for a behavior tree node.
+	/// </summary>
+	/// <typeparam name="TRuntimeData"></typeparam>
 	public abstract class BehaviorTreeNode<TRuntimeData> : BehaviorTreeNodeBase where TRuntimeData : class, new()
 	{
 		#region Static fields
@@ -206,10 +290,16 @@ namespace CryEngine
 		#endregion
 
 		#region Properties
+		/// <summary>
+		/// ID of this node.
+		/// </summary>
 		public uint NodeId { get { return _nodeId; } }
 		#endregion
 
 		#region Constructors
+		/// <summary>
+		/// Constructor for a generic behavior tree node.
+		/// </summary>
 		protected BehaviorTreeNode()
 		{
 			_nodeId = _nodeIdCount++;
@@ -217,6 +307,11 @@ namespace CryEngine
 		#endregion
 
 		#region Methods
+		/// <summary>
+		/// Updates this node one tick.
+		/// </summary>
+		/// <param name="unmodifiedContext"></param>
+		/// <returns></returns>
 		public sealed override Status Tick(UpdateContext unmodifiedContext)
 		{
 			Status returnStatus = Status.Running;
@@ -266,6 +361,10 @@ namespace CryEngine
 			return returnStatus;
 		}
 
+		/// <summary>
+		/// Terminates this node.
+		/// </summary>
+		/// <param name="unmodifiedContext"></param>
 		public sealed override void Terminate(UpdateContext unmodifiedContext)
 		{
 			var runtimeDataId = MakeRuntimeDataId(unmodifiedContext.entityId, _nodeId);
@@ -283,6 +382,11 @@ namespace CryEngine
 			}
 		}
 
+		/// <summary>
+		/// Handles events for this node.
+		/// </summary>
+		/// <param name="context"></param>
+		/// <param name="arg1"></param>
 		public sealed override void HandleEvent(EventContext context, Event arg1)
 		{
 			var runtimeDataId = MakeRuntimeDataId(context.entityId, _nodeId);
@@ -294,6 +398,12 @@ namespace CryEngine
 			}
 		}
 
+		/// <summary>
+		/// Loads data from an XML node.
+		/// </summary>
+		/// <param name="xml"></param>
+		/// <param name="context"></param>
+		/// <returns></returns>
 		public sealed override LoadResult LoadFromXml(XmlNodeRef xml, LoadContext context)
 		{
 			_startLog = xml.getAttr("_startLog");
@@ -320,10 +430,40 @@ namespace CryEngine
 			return _runtimeData[runtimeDataId];
 		}
 
+		/// <summary>
+		/// Called when this node is initialized.
+		/// </summary>
+		/// <param name="updateContext"></param>
+		/// <returns></returns>
 		protected virtual bool OnInitialize(BehaviorTreeContext<TRuntimeData> updateContext) { return true; }
+		
+		/// <summary>
+		/// Called when this node is being updated.
+		/// </summary>
+		/// <param name="updateContext"></param>
+		/// <returns></returns>
 		protected virtual Status OnUpdate(BehaviorTreeContext<TRuntimeData> updateContext) { return Status.Success; }
+		
+		/// <summary>
+		/// Called when this node is being terminated.
+		/// </summary>
+		/// <param name="updateContext"></param>
+		/// <param name="interrupted"></param>
 		protected virtual void OnTerminate(BehaviorTreeContext<TRuntimeData> updateContext, bool interrupted = false) { }
+
+		/// <summary>
+		/// Called when this node is loading from an XML node.
+		/// </summary>
+		/// <param name="xml"></param>
+		/// <param name="context"></param>
+		/// <returns></returns>
 		protected virtual LoadResult OnLoadFromXml(XmlNodeRef xml, LoadContext context) { return LoadResult.LoadSuccess; }
+
+		/// <summary>
+		/// Called when this node needs to handle an event.
+		/// </summary>
+		/// <param name="updateContext"></param>
+		/// <param name="e"></param>
 		protected virtual void HandleEvent(BehaviorTreeContext<TRuntimeData> updateContext, Event e) { }
 		#endregion
 	}

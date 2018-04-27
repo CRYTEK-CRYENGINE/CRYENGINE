@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -18,18 +18,6 @@ static constexpr float FadeValueEpsilon = 0.025f;
 
 class CAreaComponent final : public IEntityComponent
 {
-protected:
-
-	friend CPlugin_CryDefaultEntities;
-	static void Register(Schematyc::CEnvRegistrationScope& componentScope);
-
-	// IEntityComponent
-	virtual void   Initialize() override;
-	virtual void   OnShutDown() override;
-	virtual uint64 GetEventMask() const override;
-	virtual void   ProcessEvent(SEntityEvent& event) override;
-	// ~IEntityComponent
-
 public:
 
 	CAreaComponent() = default;
@@ -64,19 +52,31 @@ public:
 		SOnNearToFarSignal() = default;
 	};
 
-	static void ReflectType(Schematyc::CTypeDesc<CAreaComponent>& desc)
+	enum class ETriggeringObjects
 	{
-		desc.SetGUID("E57B86BA-9F4D-4EDA-94D2-1E20E4CAE94F"_cry_guid);
-		desc.SetEditorCategory("Audio");
-		desc.SetLabel("Area");
-		desc.SetDescription("Area component which delivers positional data in regards to entities interacting with the area this component is attached to.");
-		desc.SetIcon("icons:Audio/component_area.ico");
-		desc.SetComponentFlags({ IEntityComponent::EFlags::Transform, IEntityComponent::EFlags::Attach, IEntityComponent::EFlags::ClientOnly, IEntityComponent::EFlags::HideFromInspector });
+		None,
+		AudioListeners,
+		Entities,
+	};
 
-		desc.AddMember(&CAreaComponent::m_fadeDistance, 'fade', "fadeDistance", "FadeDistance", "The distance over which is faded.", 0.0f);
-	}
+	static void ReflectType(Schematyc::CTypeDesc<CAreaComponent>& desc);
+	void        SetTriggeringObjects(ETriggeringObjects const triggeringObjects);
+	void        SetActive(bool const bValue);
 
-	void SetActive(bool const bValue);
+protected:
+
+	friend CPlugin_CryDefaultEntities;
+	static void Register(Schematyc::CEnvRegistrationScope& componentScope);
+
+	// IEntityComponent
+	virtual void   Initialize() override;
+	virtual void   OnShutDown() override {}
+	virtual uint64 GetEventMask() const override;
+	virtual void   ProcessEvent(const SEntityEvent& event) override;
+	// ~IEntityComponent
+
+	// Properties exposed to UI
+	float m_fadeDistance = 0.0f;
 
 private:
 
@@ -87,11 +87,11 @@ private:
 		Inside,
 	};
 
-	EState m_state = EState::None;
-	EState m_previousState = EState::None;
-	bool   m_bActive = true;
-	float  m_fadeDistance = 0.0f;
-	float  m_fadeValue = 0.0f;
+	EState             m_state = EState::None;
+	EState             m_previousState = EState::None;
+	ETriggeringObjects m_triggeringObjects = ETriggeringObjects::None;
+	float              m_fadeValue = 0.0f;
+	bool               m_bActive = true;
 };
 } // namespace DefaultComponents
 } // namespace Audio

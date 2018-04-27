@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 /*************************************************************************
 	-------------------------------------------------------------------------
@@ -1992,7 +1992,7 @@ void CGameRulesObjective_Extraction::PickupReturnsCommon(SPickup *pickup, IEntit
 	UpdateGameStateText(eGameStateUpdate_TickReturned, pickup);
 }
 
-void CGameRulesObjective_Extraction::OnEntityEvent( IEntity *pEntity, SEntityEvent &event )
+void CGameRulesObjective_Extraction::OnEntityEvent( IEntity *pEntity, const SEntityEvent& event )
 {
 	if (gEnv->IsClient() && event.event == ENTITY_EVENT_DONE)
 	{

@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "AudioAreaRandom.h"
@@ -27,7 +27,7 @@ CAudioAreaRandomRegistrator g_audioAreaRandomRegistrator;
 
 CRYREGISTER_CLASS(CAudioAreaRandom);
 
-void CAudioAreaRandom::ProcessEvent(SEntityEvent& event)
+void CAudioAreaRandom::ProcessEvent(const SEntityEvent& event)
 {
 	if (gEnv->IsDedicated())
 		return;
@@ -180,7 +180,7 @@ void CAudioAreaRandom::OnResetState()
 		if (!m_bPlaying)
 		{
 			// Entity was enabled
-			entity.KillTimer(m_timerId);
+			KillTimer(m_timerId);
 			m_timerId = 0;
 
 			Play();
@@ -222,7 +222,7 @@ void CAudioAreaRandom::Play()
 
 		m_currentlyPlayingTriggerId = m_playTriggerId;
 
-		GetEntity()->SetTimer(m_timerId, static_cast<int>(cry_random(m_minDelay, m_maxDelay)));
+		SetTimer(m_timerId, static_cast<int>(cry_random(m_minDelay, m_maxDelay)));
 		m_bPlaying = true;
 	}
 }
@@ -230,7 +230,7 @@ void CAudioAreaRandom::Play()
 void CAudioAreaRandom::Stop()
 {
 	IEntity& entity = *GetEntity();
-	entity.KillTimer(m_timerId);
+	KillTimer(m_timerId);
 
 	if (auto pAudioProxy = entity.GetComponent<IEntityAudioComponent>())
 	{

@@ -1,0 +1,14 @@
+<AssetMetadata version="0" type="Texture" guid="cb716f3b-90b4-3e4b-205e-6a89c7add029" source="ReplaceMeCm.tif">
+ <Files>
+  <File path="ReplaceMeCm.dds"/>
+  <File path="ReplaceMeCm.dds.1"/>
+  <File path="ReplaceMeCm.dds.2"/>
+  <File path="ReplaceMeCm.dds.3"/>
+  <File path="ReplaceMeCm.dds.4"/>
+ </Files>
+ <Details>
+  <Detail name="width">1536</Detail>
+  <Detail name="height">256</Detail>
+  <Detail name="mipCount">7</Detail>
+ </Details>
+</AssetMetadata>

@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 // -------------------------------------------------------------------------
 //  File name:   Linux32Specific.h
@@ -32,10 +32,12 @@
 #include <vector>
 #include <string>
 
+typedef const void* LPCVOID;
 typedef void* LPVOID;
 #define VOID  void
 #define PVOID void*
 
+typedef int          INT;
 typedef unsigned int UINT;
 typedef char         CHAR;
 typedef float        FLOAT;
@@ -105,6 +107,7 @@ typedef int      BOOL;
 typedef int32_t  LONG;
 typedef uint32_t ULONG;
 typedef int      HRESULT;
+typedef uint32_t HMONITOR;
 
 #if !_MSC_EXTENSIONS
 typedef int32    __int32;

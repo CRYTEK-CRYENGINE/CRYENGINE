@@ -1,3 +1,5 @@
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
+
 #include "StdAfx.h"
 #include "GpuHeap.h"
 #include <type_traits>
@@ -1302,6 +1304,7 @@ CGpuHeap::THandle CGpuHeap::AllocateLarge(uint32_t memoryType, uint32_t bin, uin
 
 CGpuHeap::THandle CGpuHeap::AllocateHuge(uint32_t memoryType, uint32_t bytes, uint32_t align, bool bCommit)
 {
+	MEMSTAT_CONTEXT(EMemStatContextTypes::MSC_Other, 0, " GPU Heap");
 	SHugePage* const pPage = AllocatePage<SHugePage>(m_pPages);
 	if (!pPage)
 	{

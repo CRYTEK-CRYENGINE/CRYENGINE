@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 
@@ -20,7 +20,7 @@ CTrackStorage::~CTrackStorage(void)
 
 uint32 CTrackStorage::FindAnimation(const string& name)
 {
-	ThreadUtils::AutoLock lock(m_lock);
+	std::lock_guard<std::recursive_mutex> lock(m_lock);
 	const size_t count = m_arrAnimNames.size();
 	const char * pName = name.c_str();
 	for (size_t i = 0; i < count; ++i)
@@ -42,7 +42,7 @@ uint32 CTrackStorage::FindOrAddAnimationHeader(const GlobalAnimationHeaderCAF& h
 		RCLogError("Internal error: malformed animation file path: %s", name.c_str());
 	}
 
-	ThreadUtils::AutoLock lock(m_lock);
+	std::lock_guard<std::recursive_mutex> lock(m_lock);
 	// add new animation;
 	const uint32 num = FindAnimation(name);
 	if (num == -1)
@@ -57,7 +57,7 @@ uint32 CTrackStorage::FindOrAddAnimationHeader(const GlobalAnimationHeaderCAF& h
 
 void CTrackStorage::AddAnimation(const GlobalAnimationHeaderCAF& header)
 {
-	ThreadUtils::AutoLock lock(m_lock);
+	std::lock_guard<std::recursive_mutex> lock(m_lock);
 
 	const uint32 index = FindOrAddAnimationHeader(header, header.m_FilePath);
 
@@ -255,7 +255,7 @@ bool CTrackStorage::IsKeyTimesIdentical(const KeyTimesInformationPtr& track1, co
 // worse method. only for testing purposes
 void CTrackStorage::Analyze(uint32& TrackShared, uint32& SizeDataShared, uint32& TotalTracks, uint32& TotalMemory,  CSkeletonInfo * currentSkeleton)
 {
-	ThreadUtils::AutoLock lock(m_lock);
+	std::lock_guard<std::recursive_mutex> lock(m_lock);
 
 	std::map<uint32, uint32> m_BonesCount;
 
@@ -433,7 +433,7 @@ void CTrackStorage::Analyze(uint32& TrackShared, uint32& SizeDataShared, uint32&
 // trying compress keytimes information
 void CTrackStorage::AnalyzeKeyTimes()
 {
-	ThreadUtils::AutoLock lock(m_lock);
+	std::lock_guard<std::recursive_mutex> lock(m_lock);
 	size_t keyTimes =  m_arrKeyTimes.size();
 
 	for (uint32 k = 0; k < keyTimes; ++k)
@@ -462,7 +462,7 @@ void CTrackStorage::AnalyzeKeyTimes()
 
 void CTrackStorage::CreateBitsetKeyTimes(int k)
 {
-	ThreadUtils::AutoLock lock(m_lock);
+	std::lock_guard<std::recursive_mutex> lock(m_lock);
 	DynArray<uint16> data;
 	uint16 start = uint16(m_arrKeyTimes[k]->GetKeyValueFloat(0));
 	uint16 stop = uint16(m_arrKeyTimes[k]->GetKeyValueFloat(m_arrKeyTimes[k]->GetNumKeys()-1));
@@ -553,7 +553,7 @@ void CTrackStorage::SaveDataBase905(const char* name, bool bPrepareForInPlaceStr
 
 	SEndiannessSwapper swapEndiannes(bSwapEndian);
 
-	ThreadUtils::AutoLock lock(m_lock);
+	std::lock_guard<std::recursive_mutex> lock(m_lock);
 
 	// Save Controllers 
 	std::vector<uint16> sizesKeyTimes;
@@ -1040,7 +1040,7 @@ void CTrackStorage::SaveDataBase905(const char* name, bool bPrepareForInPlaceStr
 
 	saver.SaveControllerDB905(bSwapEndian, chunk0905, &storage[0], storage.size());
 
-	if (!FileUtil::EnsureDirectoryExists(PathHelpers::GetDirectory(name).c_str()))
+	if (!FileUtil::EnsureDirectoryExists(PathUtil::GetPathWithoutFilename(name).c_str()))
 	{
 		RCLogError("Failed creating directory for %s", name);
 	}

@@ -1,0 +1,15 @@
+<AssetMetadata version="0" type="Texture" guid="689cd6db-4776-16d7-8d40-d41d2afbf1ce" source="spot_005.tif">
+ <Files>
+  <File path="spot_005.dds"/>
+  <File path="spot_005.dds.1"/>
+  <File path="spot_005.dds.2"/>
+  <File path="spot_005.dds.3"/>
+  <File path="spot_005.dds.4"/>
+  <File path="spot_005.dds.5"/>
+ </Files>
+ <Details>
+  <Detail name="width">512</Detail>
+  <Detail name="height">512</Detail>
+  <Detail name="mipCount">8</Detail>
+ </Details>
+</AssetMetadata>

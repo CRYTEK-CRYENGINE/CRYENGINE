@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 //
 // Description: EyeTracker for Windows (covering EyeX)
 // - 20/04/2016 Created by Benjamin Peters
@@ -29,6 +29,8 @@ void DeinitializeEyeX();
 
 CEyeTrackerInput::CEyeTrackerInput() 
 	: m_bProjectionChanged(false)
+	, m_fEyeX(0)
+	, m_fEyeY(0)
 {
 	g_pEyeTrackerInstance = this;
 

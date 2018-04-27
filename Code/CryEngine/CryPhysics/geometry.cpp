@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 
@@ -20,14 +20,14 @@ class CPhysicalWorld;
 extern CPhysicalWorld* g_pPhysWorlds[]; 
 
 
-CRY_ALIGN(128) intersData g_idata[MAX_PHYS_THREADS+1];
+CRY_ALIGN(128) intersData g_idata[MAX_TOT_THREADS];
 
 #undef g_Overlapper
 #define g_Overlapper (g_idata[pGTest->iCaller].Overlapper)
 
 
 InitGeometryGlobals::InitGeometryGlobals() {
-  for(int iCaller=0; iCaller<=MAX_PHYS_THREADS; iCaller++) {
+  for(int iCaller=0; iCaller<MAX_TOT_THREADS; iCaller++) {
     memset(G(UsedNodesMap), 0, sizeof(G(UsedNodesMap)));
     G(EdgeDescBufPos) = 0; G(IdBufPos) = 0;	g_IdxTriBufPos = 0;
     G(SurfaceDescBufPos) = 0; G(UsedNodesMapPos) = 0;	G(UsedNodesIdxPos) = 0;
@@ -277,7 +277,7 @@ void GTestPrepPartDeux(geometry_under_test *gtest, Vec3r &offsetWorld)
 
 int CGeometry::Intersect(IGeometry *pCollider, geom_world_data *pdata1,geom_world_data *pdata2, intersection_params *pparams, geom_contact *&pcontacts)
 {
-	//FUNCTION_PROFILER( GetISystem(),PROFILE_PHYSICS );
+	//CRY_PROFILE_FUNCTION(PROFILE_PHYSICS );
 	geometry_under_test gtest[2];
 	geom_world_data *pdata[2] = { pdata1,pdata2 };
 	int i,j,jmax,mask,nContacts=0,iStartNode[2],bActive=0,iCaller;
@@ -561,17 +561,19 @@ float CGeometry::GetExtent(EGeomForm eForm) const
 	return BoxExtent(eForm, box.size);
 }
 
-void CGeometry::GetRandomPos(PosNorm& ran, CRndGen& seed, EGeomForm eForm) const
+void CGeometry::GetRandomPoints(Array<PosNorm> points, CRndGen& seed, EGeomForm eForm) const
 {
 	primitives::box box;
 	non_const(*this).GetBBox(&box);
-	BoxRandomPos(ran, seed, eForm, box.size);
-	if (box.bOriented) {
-		// Transform by transpose of Basis (Vec * Matrix)
-		ran.vPos = ran.vPos * box.Basis;
-		ran.vNorm = ran.vNorm * box.Basis;
+	BoxRandomPoints(points, seed, eForm, box.size);
+	for (auto& ran : points) {
+		if (box.bOriented) {
+			// Transform by transpose of Basis (Vec * Matrix)
+			ran.vPos = ran.vPos * box.Basis;
+			ran.vNorm = ran.vNorm * box.Basis;
+		}
+		ran.vPos += box.center;
 	}
-	ran.vPos += box.center;
 }
 
 void DrawBBox(IPhysRenderer *pRenderer, int idxColor, geom_world_data *gwd, CBVTree *pTree,BBox *pbbox,int maxlevel,int level, int iCaller)
@@ -607,7 +609,7 @@ int CPrimitive::Intersect(IGeometry *_pCollider, geom_world_data *pdata1, geom_w
 	if (!pCollider->IsAPrimitive())
 		return CGeometry::Intersect(pCollider,pdata1,pdata2,pparams,pcontacts);
 
-	//FUNCTION_PROFILER( GetISystem(),PROFILE_PHYSICS );
+	//CRY_PROFILE_FUNCTION(PROFILE_PHYSICS );
 	pdata1 = (geom_world_data*)((intptr_t)pdata1 | -iszero((intptr_t)pdata1) & (intptr_t)&defgwd);
 	pdata2 = (geom_world_data*)((intptr_t)pdata2 | -iszero((intptr_t)pdata2) & (intptr_t)&defgwd);
 	//pparams = (intersection_params*)((intptr_t)pparams | -iszero((intptr_t)pparams) & (intptr_t)&defip);
@@ -884,8 +886,10 @@ int CGeometry::IntersectLocked(IGeometry *pCollider, geom_world_data *pdata1,geo
 		WriteLockCond &lock,int iCaller)
 {
 #if !defined(WriteLockCond)
-	if (iCaller==MAX_PHYS_THREADS && (!IsPODThread(g_pPhysWorlds[0]) || !*g_pLockIntersect))
-		SpinLock(lock.prw=g_pLockIntersect, 0,lock.iActive=WRITE_LOCK_VAL);
+	if (iCaller==MAX_PHYS_THREADS)
+		iCaller = get_iCaller();
+	if (iCaller>=MAX_PHYS_THREADS && (!IsPODThread(g_pPhysWorlds[0]) || !g_pLockIntersect[iCaller-MAX_PHYS_THREADS]))
+		SpinLock(lock.prw=g_pLockIntersect+(iCaller-MAX_PHYS_THREADS), 0,lock.iActive=WRITE_LOCK_VAL);
 	int res = Intersect(pCollider, pdata1,pdata2, pparams, pcontacts);
 	if (!res) {
 		AtomicAdd(lock.prw,-lock.iActive); 
@@ -917,14 +921,14 @@ int SanityCheckTree(CBVTree* pBVtree, int maxDepth)
 {
 	BV* pBV;
 	bool okay = true;
-	int iCaller = get_iCaller(), locked=0;
-	if (iCaller==MAX_PHYS_THREADS && (!IsPODThread(g_pPhysWorlds[0]) || !*g_pLockIntersect))
-		SpinLock(g_pLockIntersect, 0,locked=WRITE_LOCK_VAL);
+	int iCaller = get_iCaller(1), locked=0;
+	if (iCaller>=MAX_PHYS_THREADS && (!IsPODThread(g_pPhysWorlds[0]) || !g_pLockIntersect[iCaller-MAX_PHYS_THREADS]))
+		SpinLock(g_pLockIntersect+(iCaller-MAX_PHYS_THREADS), 0,locked=WRITE_LOCK_VAL);
 	ResetGlobalPrimsBuffers(iCaller);
 	pBVtree->GetNodeBV(pBV, 0, iCaller);
 	TestBV(pBVtree, pBV, iCaller, 0, okay, maxDepth);
 	if (locked)
-		AtomicAdd(g_pLockIntersect, -locked);
+		AtomicAdd(g_pLockIntersect+(iCaller-MAX_PHYS_THREADS), -locked);
 	return okay?1:0;
 }
 

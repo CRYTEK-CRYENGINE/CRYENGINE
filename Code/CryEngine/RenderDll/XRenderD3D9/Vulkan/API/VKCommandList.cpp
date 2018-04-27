@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "VKCommandList.hpp"
@@ -13,19 +13,19 @@ namespace NCryVulkan
 CCommandList::CCommandList(CCommandListPool& rPool)
 	: CDeviceObject(rPool.GetDevice())
 	, m_rPool(rPool)
-	, m_CmdQueue(VK_NULL_HANDLE)
-	, m_CmdAllocator(VK_NULL_HANDLE)
-	, m_CmdList(VK_NULL_HANDLE)
 	, m_VkDevice(VK_NULL_HANDLE)
+	, m_CmdList(VK_NULL_HANDLE)
+	, m_CmdAllocator(VK_NULL_HANDLE)
+	, m_CmdQueue(VK_NULL_HANDLE)
 	, m_CurrentNumPendingWSemaphores(0)
 	, m_CurrentNumPendingSSemaphores(0)
 	, m_CurrentNumPendingWFences(0)
 	, m_CurrentNumPendingSFences(0)
+	, m_CurrentFenceValue(0)
+	, m_eListType(rPool.GetVkQueueType())
 	, m_CurrentNumPendingMBarriers(0)
 	, m_CurrentNumPendingBBarriers(0)
 	, m_CurrentNumPendingIBarriers(0)
-	, m_CurrentFenceValue(0)
-	, m_eListType(rPool.GetVkQueueType())
 	, m_eState(CLSTATE_FREE)
 {
 	for (int i = 0; i < 64; ++i)

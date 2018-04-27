@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "Game.h"
@@ -84,7 +84,7 @@ void CVehicleMovementTank::Reset()
 // NOTE: This function must be thread-safe. Before adding stuff contact MarcoC.
 void CVehicleMovementTank::ProcessMovement(const float deltaTime)
 { 
-	FUNCTION_PROFILER( gEnv->pSystem, PROFILE_GAME );
+	CRY_PROFILE_FUNCTION( PROFILE_GAME );
 
 	m_currPedal = fabsf(m_movementAction.power) > 0.05f ? m_movementAction.power : 0.f;
 
@@ -221,7 +221,7 @@ void CVehicleMovementTank::DebugDrawMovement(const float deltaTime)
 // NOTE: This function must be thread-safe. Before adding stuff contact MarcoC.
 void CVehicleMovementTank::ProcessAI(const float deltaTime)
 {
-	FUNCTION_PROFILER( GetISystem(), PROFILE_GAME );
+	CRY_PROFILE_FUNCTION( PROFILE_GAME );
 
 	float dt = max( deltaTime, 0.005f);
 	SVehiclePhysicsStatus* physStatus = &m_physStatus[k_physicsThread];

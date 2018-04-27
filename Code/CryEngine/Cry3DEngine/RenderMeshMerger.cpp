@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 
@@ -203,7 +203,7 @@ void CRenderMeshMerger::MakeListOfAllCRenderChunks(SMergeInfo& info)
 
 		// get vertices's
 		{
-			FRAME_PROFILER("CRenderMeshMerger::MakeListOfAllCRenderChunks_GetPosPtr", GetSystem(), PROFILE_3DENGINE);
+			CRY_PROFILE_REGION(PROFILE_3DENGINE, "CRenderMeshMerger::MakeListOfAllCRenderChunks_GetPosPtr");
 
 			pPos = reinterpret_cast<Vec3*>(pRM->GetPosPtr(nPosStride, FSL_READ));
 			pTex = reinterpret_cast<Vec2*>(pRM->GetUVPtr(nTexStride, FSL_READ));

@@ -1,0 +1,15 @@
+<AssetMetadata version="0" type="Texture" guid="7f3a8e02-badb-254d-88d9-08784b47dc21" source="snow_spatter.tif">
+ <Files>
+  <File path="snow_spatter.dds"/>
+  <File path="snow_spatter.dds.1"/>
+  <File path="snow_spatter.dds.2"/>
+  <File path="snow_spatter.dds.3"/>
+  <File path="snow_spatter.dds.4"/>
+  <File path="snow_spatter.dds.5"/>
+ </Files>
+ <Details>
+  <Detail name="width">512</Detail>
+  <Detail name="height">512</Detail>
+  <Detail name="mipCount">8</Detail>
+ </Details>
+</AssetMetadata>

@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "CET_LevelLoading.h"
@@ -103,11 +103,19 @@ public:
 	virtual void ThreadEntry() override
 	{
 		const threadID levelLoadingThreadId = CryGetCurrentThreadId();
-		gEnv->pRenderer->SetLevelLoadingThreadId(levelLoadingThreadId);
+
+		if (gEnv->pRenderer) //Renderer may be unavailable when turned off
+		{
+			gEnv->pRenderer->SetLevelLoadingThreadId(levelLoadingThreadId);
+		}
 
 		const ILevelInfo* pLoadedLevelInfo = m_pLevelSystem->LoadLevel(m_levelName.c_str());
 		const bool bResult = (pLoadedLevelInfo != NULL);
-		gEnv->pRenderer->SetLevelLoadingThreadId(0);
+
+		if (gEnv->pRenderer) //Renderer may be unavailable when turned off
+		{
+			gEnv->pRenderer->SetLevelLoadingThreadId(0);
+		}
 
 		m_state = bResult ? eState_Succeeded : eState_Failed;
 	}

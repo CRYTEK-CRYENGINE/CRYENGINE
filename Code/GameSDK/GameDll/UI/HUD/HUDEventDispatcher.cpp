@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "HUDEventDispatcher.h"
@@ -470,7 +470,7 @@ static THUDEventLookup s_eventLookUpTable[] = {
 /*static*/ void CHUDEventDispatcher::CallEvent( const SHUDEvent& event )
 {
 #if !defined(DEDICATED_SERVER)
-	FUNCTION_PROFILER(GetISystem(), PROFILE_GAME);
+	CRY_PROFILE_FUNCTION(PROFILE_GAME);
 	CRY_ASSERT_MESSAGE(s_safe, "HUD: Can't send HUDEvent whilst initialising the HUD! i.e. from CHUDObject() or CHUDObject::Init()!" );
 	if(s_safe && !gEnv->pSystem->IsQuitting() && !s_eventVec.empty())
 	{

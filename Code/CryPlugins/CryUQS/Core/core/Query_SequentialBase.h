@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -25,8 +25,7 @@ namespace UQS
 			explicit                                 CQuery_SequentialBase(const SCtorContext& ctorContext);
 			                                         ~CQuery_SequentialBase();
 			bool                                     HasMoreChildrenLeftToInstantiate() const;
-			void                                     StoreResultSetForUseInNextChildQuery(const IQueryResultSet& resultSetOfPreviousChildQuery);
-			void                                     InstantiateNextChildQueryBlueprint();
+			void                                     InstantiateNextChildQueryBlueprint(const std::shared_ptr<CItemList>& pResultingItemsOfPotentialPreviousChildQuery);
 
 		private:
 			// CQueryBase
@@ -43,7 +42,6 @@ namespace UQS
 			Shared::CVariantDict                     m_runtimeParams;
 			size_t                                   m_indexOfNextChildToInstantiate;
 			CQueryID                                 m_queryIDOfCurrentlyRunningChild;
-			std::unique_ptr<CItemList>               m_pResultingItemsOfLastChildQuery;
 			bool                                     m_bExceptionOccurredInChild;
 			Shared::CUqsString                       m_exceptionMessageFromChild;
 		};

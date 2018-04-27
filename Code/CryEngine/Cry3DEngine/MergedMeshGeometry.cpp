@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include <CryMath/Cry_Geo.h>
@@ -6,15 +6,16 @@
 #include "MergedMeshGeometry.h"
 #include "VMath.hpp"
 
+#pragma warning(push)
 #pragma warning(disable: 6001)
 #pragma warning(disable: 4101)
 
 #if MMRM_ENABLE_PROFILER
-	#define MMRM_PROFILE_FUNCTION(x, y)  FUNCTION_PROFILER_3DENGINE(x, y)
-	#define MMRM_FRAME_PROFILER(x, y, z) FRAME_PROFILER(x, y, z)
+	#define MMRM_PROFILE_FUNCTION()  FUNCTION_PROFILER_3DENGINE(PROFILE_3DENGINE)
+	#define MMRM_FRAME_PROFILER(x) CRY_PROFILE_REGION(PROFILE_3DENGINE, x)
 #else
-	#define MMRM_PROFILE_FUNCTION(x, y)  (void)0
-	#define MMRM_FRAME_PROFILER(x, y, z) (void)0
+	#define MMRM_PROFILE_FUNCTION(x)  (void)0
+	#define MMRM_FRAME_PROFILER(x) (void)0
 #endif
 
 namespace
@@ -606,7 +607,7 @@ static inline void UpdateGeneral(
   , Matrix34 tmat
   , size_t count)
 {
-	MMRM_PROFILE_FUNCTION(gEnv->pSystem, PROFILE_3DENGINE);
+	MMRM_PROFILE_FUNCTION();
 	for (size_t i = 0; i < count; ++i)
 	{
 		out[i].xyz = tmat * deform[mapping[i]].pos[0];
@@ -622,7 +623,7 @@ static inline void UpdateGeneral(
   , SVF_P3F_C4B_T2F* in
   , const Matrix34& wmat)
 {
-	MMRM_PROFILE_FUNCTION(gEnv->pSystem, PROFILE_3DENGINE);
+	MMRM_PROFILE_FUNCTION();
 	out->xyz = wmat * in->xyz;
 	out->color = in->color;
 	out->st = in->st;
@@ -663,7 +664,7 @@ static inline void UpdateNormals(
   , Vec3* in
   , size_t count)
 {
-	MMRM_PROFILE_FUNCTION(gEnv->pSystem, PROFILE_3DENGINE);
+	MMRM_PROFILE_FUNCTION();
 	for (size_t i = 0; i < (count & ~3); i += 4)
 	{
 		out[i + 0] = in[i + 0];
@@ -685,7 +686,7 @@ static inline void UpdateNormals(
   , size_t maxSpines
   , size_t count)
 {
-	MMRM_PROFILE_FUNCTION(gEnv->pSystem, PROFILE_3DENGINE);
+	MMRM_PROFILE_FUNCTION();
 #if MMRM_USE_VECTORIZED_SSE_INSTRUCTIONS
 	using namespace NVMath;
 	DualQuatA wq[4];
@@ -884,7 +885,7 @@ static inline void UpdateGeneral(
   , const float fScale
   , size_t maxSpines)
 {
-	MMRM_PROFILE_FUNCTION(gEnv->pSystem, PROFILE_3DENGINE);
+	MMRM_PROFILE_FUNCTION();
 	Vec3 vpos = Vec3(0, 0, 0);
 	const Vec3 xyz = in->xyz * fScale;
 	switch (maxSpines)
@@ -911,7 +912,7 @@ static inline void UpdateGeneral(
   , size_t maxSpines
   , size_t count)
 {
-	MMRM_PROFILE_FUNCTION(gEnv->pSystem, PROFILE_3DENGINE);
+	MMRM_PROFILE_FUNCTION();
 #if MMRM_USE_VECTORIZED_SSE_INSTRUCTIONS
 	using namespace NVMath;
 	DualQuatA wq[4];
@@ -1148,7 +1149,7 @@ static inline void UpdateTangents(
   , size_t maxSpines
   , size_t count)
 {
-	MMRM_PROFILE_FUNCTION(gEnv->pSystem, PROFILE_3DENGINE);
+	MMRM_PROFILE_FUNCTION();
 #if MMRM_USE_VECTORIZED_SSE_INSTRUCTIONS
 	using namespace NVMath;
 	Quat out_tangents[4];
@@ -1406,7 +1407,7 @@ static inline void UpdateTangents(
 }
 static inline void UpdateTangents(SPipTangents* out, SPipQTangents* in, const Matrix34& mat, size_t count)
 {
-	MMRM_PROFILE_FUNCTION(gEnv->pSystem, PROFILE_3DENGINE);
+	MMRM_PROFILE_FUNCTION();
 	Quat out_tangents[4];
 	Quat in_tangents[4];
 	int16 flip[4];
@@ -1465,7 +1466,7 @@ static inline void UpdateGeneralTangents(
   , size_t maxSpines
   , size_t count)
 {
-	MMRM_PROFILE_FUNCTION(gEnv->pSystem, PROFILE_3DENGINE);
+	MMRM_PROFILE_FUNCTION();
 #if MMRM_USE_VECTORIZED_SSE_INSTRUCTIONS
 	using namespace NVMath;
 	DualQuatA wq[4];
@@ -1782,7 +1783,7 @@ static inline void UpdateGeneralTangentsNormals(
   , size_t maxSpines
   , size_t count)
 {
-	MMRM_PROFILE_FUNCTION(gEnv->pSystem, PROFILE_3DENGINE);
+	MMRM_PROFILE_FUNCTION();
 #if MMRM_USE_VECTORIZED_SSE_INSTRUCTIONS
 	using namespace NVMath;
 	DualQuatA wq[4];
@@ -2113,7 +2114,7 @@ static inline void UpdateGeneralTangents(
   , size_t maxSpines
   , size_t count)
 {
-	MMRM_PROFILE_FUNCTION(gEnv->pSystem, PROFILE_3DENGINE);
+	MMRM_PROFILE_FUNCTION();
 #if MMRM_USE_VECTORIZED_SSE_INSTRUCTIONS
 	using namespace NVMath;
 	DualQuatA wq[4];
@@ -2433,7 +2434,7 @@ static inline void UpdateGeneralTangentsNormals(
   , size_t maxSpines
   , size_t count)
 {
-	MMRM_PROFILE_FUNCTION(gEnv->pSystem, PROFILE_3DENGINE);
+	MMRM_PROFILE_FUNCTION();
 #if MMRM_USE_VECTORIZED_SSE_INSTRUCTIONS
 	using namespace NVMath;
 	DualQuatA wq[4];
@@ -2768,7 +2769,7 @@ static inline void UpdateGeneralTangentsNormals(
   , size_t count
   , const Matrix34& wmat)
 {
-	MMRM_PROFILE_FUNCTION(gEnv->pSystem, PROFILE_3DENGINE);
+	MMRM_PROFILE_FUNCTION();
 	Quat out_tangents[4];
 	Quat in_tangents[4];
 	int16 flip[4];
@@ -2844,7 +2845,7 @@ static inline void UpdateGeneralTangents(
   , size_t count
   , const Matrix34& wmat)
 {
-	MMRM_PROFILE_FUNCTION(gEnv->pSystem, PROFILE_3DENGINE);
+	MMRM_PROFILE_FUNCTION();
 	Quat out_tangents[4];
 	Quat in_tangents[4];
 	int16 flip[4];
@@ -2912,7 +2913,7 @@ static inline void UpdateGeneralTangentsNormals(
   , size_t count
   , const Matrix34& wmat)
 {
-	MMRM_PROFILE_FUNCTION(gEnv->pSystem, PROFILE_3DENGINE);
+	MMRM_PROFILE_FUNCTION();
 	Quat out_tangents[4];
 	Quat in_tangents[4];
 	int16 flip[4];
@@ -2984,7 +2985,7 @@ static inline void UpdateGeneralTangents(
   , size_t count
   , const Matrix34& wmat)
 {
-	MMRM_PROFILE_FUNCTION(gEnv->pSystem, PROFILE_3DENGINE);
+	MMRM_PROFILE_FUNCTION();
 	Quat out_tangents[4];
 	Quat in_tangents[4];
 	int16 flip[4];
@@ -3053,7 +3054,7 @@ static inline void UpdateGeneralTangents(
   , const Matrix34& wmat
   , size_t count)
 {
-	MMRM_PROFILE_FUNCTION(gEnv->pSystem, PROFILE_3DENGINE);
+	MMRM_PROFILE_FUNCTION();
 	Quat out_tangents[4];
 	Quat in_tangents[4];
 	int16 flip[4];
@@ -3117,13 +3118,13 @@ static inline void UpdateGeneralTangents(
 // Update a set of indices to be relative to a base vertext
 static inline void UpdateIndex(vtx_idx* out, vtx_idx* in, uint32 base)
 {
-	MMRM_PROFILE_FUNCTION(gEnv->pSystem, PROFILE_3DENGINE);
+	MMRM_PROFILE_FUNCTION();
 	*out = *in + base;
 	mmrm_assert(*out <= 0xffff);
 }
 static inline void UpdateIndices(vtx_idx* out, vtx_idx* in, uint32 base, size_t count)
 {
-	MMRM_PROFILE_FUNCTION(gEnv->pSystem, PROFILE_3DENGINE);
+	MMRM_PROFILE_FUNCTION();
 	for (size_t i = 0; i < (count & ~7); i += 8)
 	{
 		out[i + 0] = in[i + 0] + base;
@@ -3375,7 +3376,7 @@ static void MergeInstanceList(SMMRMInstanceContext& context)
 		// Spine based simulation performed here
 		if (spines)
 		{
-			MMRM_FRAME_PROFILER("PVRN SPINES", GetISystem(), PROFILE_3DENGINE);
+			MMRM_FRAME_PROFILER("PVRN SPINES");
 			bones[0] = wq;
 			boneIdx = 1;
 			for (j = 0, off = 0; j < nspines; ++j)
@@ -3472,7 +3473,7 @@ static void MergeInstanceList(SMMRMInstanceContext& context)
 						// collision plane (normal of sphere at intersection point) as a
 						// constraint.
 						{
-							/*MMRM_FRAME_PROFILER("mmrm colliders", gEnv->pSystem, PROFILE_3DENGINE); */
+							/*MMRM_FRAME_PROFILER("mmrm colliders"); */
 							for (i = 0; i < ncolliders; ++i)
 							{
 								const primitives::sphere& sph = colliders[i];
@@ -3556,7 +3557,7 @@ static void MergeInstanceList(SMMRMInstanceContext& context)
 						}
 						// Perform (simple) swept checks for projectiles
 						{
-							/*MMRM_FRAME_PROFILER("mmrm projectiles ", gEnv->pSystem, PROFILE_3DENGINE);*/
+							/*MMRM_FRAME_PROFILER("mmrm projectiles ");*/
 							for (i = 0; i < nprojectiles; ++i)
 							{
 								const SMMRMProjectile& projectile = projectiles[i];
@@ -3601,7 +3602,7 @@ static void MergeInstanceList(SMMRMInstanceContext& context)
 						// Enforce contact planes, project back out of contact plane if
 						// vertex was moved inside
 						{
-							/*MMRM_FRAME_PROFILER("mmrm contacts ", gEnv->pSystem, PROFILE_3DENGINE); */
+							/*MMRM_FRAME_PROFILER("mmrm contacts "); */
 							for (i = 0; i < (int)geom->numSpineVtx; ++i)
 								if (contacts[i].i >= 0 && (c = contacts[i].p | npt[contacts[i].i]) <= 0.f)
 									npt[contacts[i].i] += contacts[i].p.n * -c * kL;
@@ -3885,7 +3886,7 @@ static void MergeInstanceList(SMMRMInstanceContext& context)
 
 		// Bake the geometry into the buffer
 		{
-			MMRM_FRAME_PROFILER("PVRN BAKING", GetISystem(), PROFILE_3DENGINE);
+			MMRM_FRAME_PROFILER("PVRN BAKING");
 			for (size_t n = 0; n < geom->numChunks[nLod]; ++n)
 			{
 				const SMMRMChunk& chunk = geom->pChunks[nLod][n];
@@ -4162,7 +4163,7 @@ static inline void MergeInstanceListDeform(SMMRMInstanceContext& context)
 void SMMRMGroupHeader::CullInstances(CCamera* cam, Vec3* origin, Vec3* rotationOrigin, float zRotation, int flags)
 {
 	MEMORY_SCOPE_CHECK_HEAP();
-	MMRM_PROFILE_FUNCTION(gEnv->pSystem, PROFILE_3DENGINE);
+	MMRM_PROFILE_FUNCTION();
 
 	SMMRMGroupHeader* header = this;
 	size_t numSamplesVisible = 0, j = 0;
@@ -4281,7 +4282,7 @@ void SMMRMUpdateContext::MergeInstanceMeshesDeform(
 	mmrm_printf("deform begin\n");
 
 	MEMORY_SCOPE_CHECK_HEAP();
-	MMRM_PROFILE_FUNCTION(gEnv->pSystem, PROFILE_3DENGINE);
+	MMRM_PROFILE_FUNCTION();
 
 	SMMRMUpdateContext* update = this;
 	const SMMRMGroupHeader* header = update->group;
@@ -4520,12 +4521,7 @@ void CMergedMeshRenderNode::CalculateDensity()
 	{
 		SMMRMGroupHeader* header = &m_groups[i];
 		SMMRMGeometry* geom = header->procGeom;
-		StatInstGroup& instGroup =
-#ifdef SEG_WORLD
-		  GetObjManager()->m_lstStaticTypes[geom->m_nStaticTypeSlot][geom->srcGroupId];
-#else
-		  GetObjManager()->m_lstStaticTypes[0][geom->srcGroupId];
-#endif
+		StatInstGroup& instGroup = GetObjManager()->m_lstStaticTypes[geom->srcGroupId];
 		// Hopefully correctly extract the surface type of the material
 		IMaterial* material = NULL;
 		if (instGroup.pMaterial)
@@ -4680,3 +4676,5 @@ void CMergedMeshRenderNode::InitializeSpines()
 	}
 	m_SpinesActive = true;
 }
+
+#pragma warning(pop)

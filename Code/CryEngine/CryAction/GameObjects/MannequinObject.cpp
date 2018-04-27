@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "MannequinObject.h"
@@ -62,7 +62,7 @@ void CMannequinObject::OnShutDown()
 	}
 }
 
-void CMannequinObject::ProcessEvent(SEntityEvent& event)
+void CMannequinObject::ProcessEvent(const SEntityEvent& event)
 {
 	switch (event.event)
 	{

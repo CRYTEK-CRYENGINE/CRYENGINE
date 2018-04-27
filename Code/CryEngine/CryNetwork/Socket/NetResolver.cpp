@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "NetResolver.h"
@@ -149,7 +149,7 @@ public:
 
 	void Visit(SIPv4Addr addr)
 	{
-		FUNCTION_PROFILER(gEnv->pSystem, PROFILE_NETWORK);
+		CRY_PROFILE_FUNCTION(PROFILE_NETWORK);
 		uint32 a = (addr.addr >> 24) & 0xff;
 		uint32 b = (addr.addr >> 16) & 0xff;
 		uint32 c = (addr.addr >> 8) & 0xff;

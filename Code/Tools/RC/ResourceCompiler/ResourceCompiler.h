@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 //
 //  Crytek Engine Source File.
 //  Copyright (C), Crytek Studios, 2002.
@@ -32,6 +32,7 @@
 #include "IProgress.h"
 
 #include <map>                 // stl multimap<>
+#include <mutex>
 
 class CPropertyVars;
 class XmlNodeRef;
@@ -39,8 +40,7 @@ class CDigest;
 class FilesToConvert;
 struct IAssetManager;
 
-/** Implementation of IResCompiler interface.
-*/
+/** Implementation of IResCompiler interface. */
 class ResourceCompiler :
 	public IResourceCompiler,
 	public IProgress,
@@ -59,68 +59,71 @@ public:
 
 	// interface IProgress --------------------------------------------------
 
-	virtual void StartProgress();
-	virtual void ShowProgress(const char* pMessage, size_t progressValue, size_t maxProgressValue);
-	virtual void FinishProgress();
+	virtual void StartProgress() override;
+	virtual void ShowProgress(const char* pMessage, size_t progressValue, size_t maxProgressValue) override;
+	virtual void FinishProgress() override;
 
 	// interface IConfigKeyRegistry ------------------------------------------
 
-	virtual void VerifyKeyRegistration( const char *szKey ) const;
-	virtual bool HasKeyRegistered( const char *szKey ) const;
+	virtual void VerifyKeyRegistration( const char *szKey ) const override;
+	virtual bool HasKeyRegistered( const char *szKey ) const override;
 	// -----------------------------------------------------------------------
 
 	// interface IResourceCompiler -------------------------------------------
 
-	virtual void RegisterKey( const char *key, const char *helptxt );
+	virtual void RegisterKey( const char *key, const char *helptxt ) override;
 	
-	virtual const char* GetExePath() const;
-	virtual const char* GetTmpPath() const;
-	virtual const char* GetInitialCurrentDir() const;
+	virtual const char* GetExePath() const override;
 
-	virtual void RegisterConverter(const char* name, IConverter* conv);
+	//! Return path to RC's 'temp' directory, where it places processed files before packaging.
+	//! The removal of this path results in a clean build, which can take some time.
+	virtual const char* GetTmpPath() const override;
+	virtual const char* GetInitialCurrentDir() const override;
 
-	virtual IPakSystem* GetPakSystem();
+	virtual void RegisterConverter(const char* name, IConverter* conv) override;
 
-	virtual const ICfgFile* GetIniFile() const;
+	virtual IPakSystem* GetPakSystem() override;
 
-	virtual int GetPlatformCount() const;
-	virtual const PlatformInfo* GetPlatformInfo(int index) const;
-	virtual int FindPlatform(const char* name) const;
+	virtual const ICfgFile* GetIniFile() const override;
 
-	virtual XmlNodeRef LoadXml(const char* filename);
-	virtual XmlNodeRef CreateXml(const char* tag);
+	virtual int GetPlatformCount() const override;
+	virtual const PlatformInfo* GetPlatformInfo(int index) const override;
+	virtual int FindPlatform(const char* name) const override;
 
-	virtual void AddInputOutputFilePair(const char* inputFilename, const char* outputFilename);
-	virtual void MarkOutputFileForRemoval(const char* sOutputFilename);
+	virtual XmlNodeRef LoadXml(const char* filename) override;
+	virtual XmlNodeRef CreateXml(const char* tag) override;
 
-	virtual void AddExitObserver( IExitObserver* p );
-	virtual void RemoveExitObserver( IExitObserver* p );
+	virtual void AddInputOutputFilePair(const char* inputFilename, const char* outputFilename) override;
+	virtual void MarkOutputFileForRemoval(const char* sOutputFilename) override;
+
+	virtual void AddExitObserver( IExitObserver* p ) override;
+	virtual void RemoveExitObserver( IExitObserver* p ) override;
 
 	virtual IAssetManager* GetAssetManager() const override;
 
-	virtual IRCLog* GetIRCLog()
+	virtual IRCLog* GetIRCLog() override
 	{
 		return this;
 	}
 
-	virtual int GetVerbosityLevel() const
+	virtual int GetVerbosityLevel() const override
 	{
 		return m_verbosityLevel;
 	}
 
-	virtual const SFileVersion& GetFileVersion() const
+	virtual const SFileVersion& GetFileVersion() const override
 	{ 
 		return m_fileVersion; 
 	}
 
-	virtual const void GetGenericInfo(char* buffer, size_t bufferSize, const char* rowSeparator) const;
+	virtual const void GetGenericInfo(char* buffer, size_t bufferSize, const char* rowSeparator) const override;
 
-	virtual bool CompileSingleFileBySingleProcess(const char* filename);
+	virtual bool CompileSingleFileBySingleProcess(const char* filename) override;
 	// -----------------------------------------------------------------------
 
 	// interface IRCLog ------------------------------------------------------
 
-	virtual void LogV(const IRCLog::EType eType, const char* szFormat, va_list args);
+	virtual void LogV(const IRCLog::EType eType, const char* szFormat, va_list args) override;
 	// -----------------------------------------------------------------------
 
 	//////////////////////////////////////////////////////////////////////////
@@ -232,22 +235,22 @@ private:
 
 	ExtensionManager        m_extensionManager;
 
-	ThreadUtils::CriticalSection m_inputOutputFilesLock;
-	CDependencyList         m_inputOutputFileList;
+	std::recursive_mutex m_inputOutputFilesMutex;
+	CDependencyList              m_inputOutputFileList;
 
-	std::vector<IExitObserver*> m_exitObservers;
-	ThreadUtils::CriticalSection m_exitObserversLock;
+	std::vector<IExitObserver*>  m_exitObservers;
+	std::recursive_mutex m_exitObserversMutex;
 
 	float                   m_memorySizePeakMb;
-	ThreadUtils::CriticalSection m_memorySizeLock;
+	std::recursive_mutex              m_memorySizeMutex;
 
 	// log files
-	string                  m_logPrefix;
-	string                  m_mainLogFileName;      //!< for all messages, might be empty (no file logging)
-	string                  m_warningLogFileName;   //!< for warnings only, might be empty (no file logging)
-	string                  m_errorLogFileName;     //!< for errors only, might be empty (no file logging)
-	string                  m_logHeaderLine;
-	ThreadUtils::CriticalSection m_logLock;
+	string                       m_logPrefix;
+	string                       m_mainLogFileName;      //!< for all messages, might be empty (no file logging)
+	string                       m_warningLogFileName;   //!< for warnings only, might be empty (no file logging)
+	string                       m_errorLogFileName;     //!< for errors only, might be empty (no file logging)
+	string                       m_logHeaderLine;
+	std::recursive_mutex m_logMutex;
 
 	clock_t                 m_startTime;
 	bool                    m_bTimeLogging;
@@ -269,8 +272,8 @@ private:
 	int                     m_maxThreads;           //!< max number of threads (set by /threads command-line option)
 
 	SFileVersion            m_fileVersion;
-	string                  m_exePath;
-	string                  m_tempPath;
+	string                  m_exePath;              //!< Absolute path to the RC executable.
+	string                  m_tempPath;				//!< Absolute path to the intermediate directory, where processed files are stored before being packaged.
 	string                  m_initialCurrentDir;
 
 	std::map<string,string> m_KeyHelp;              // [lower key] = help, created from RegisterKey

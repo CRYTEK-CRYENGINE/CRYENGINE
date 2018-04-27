@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -30,6 +30,7 @@ public:
 	void ExchangeDepthTarget(CTexture* pNewDepthTarget, ResourceViewHandle hDepthStencilView = EDefaultResourceViews::DepthStencil);
 	void SetFlags(EPassFlags flags)  { m_passFlags = flags; }
 	void SetViewport(const D3DViewPort& viewport);
+	void SetViewport(const SRenderViewport& viewport);
 	void SetDepthBias(float constBias, float slopeBias, float biasClamp);
 
 	void BeginExecution();
@@ -75,9 +76,9 @@ protected:
 	uint32                   m_numRenderItemGroups;
 	uint32                   m_profilerSectionIndex;
 
-	float                    m_depthConstBias;
-	float                    m_depthSlopeBias;
-	float                    m_depthBiasClamp;
+	float                    m_depthConstBias = 0.0f;
+	float                    m_depthSlopeBias = 0.0f;
+	float                    m_depthBiasClamp = 0.0f;
 
 	std::vector<SGraphicsPipelinePassContext> m_passContexts;
 

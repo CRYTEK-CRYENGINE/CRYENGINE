@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #ifndef __CET_GAMERULES_H__
 #define __CET_GAMERULES_H__
@@ -17,5 +17,6 @@ void AddPauseGame(IContextEstablisher* pEst, EContextViewState state, bool pause
 void AddWaitForPrecachingToFinish(IContextEstablisher* pEst, EContextViewState state, bool* pGameStart);
 void AddInitialSaveGame(IContextEstablisher* pEst, EContextViewState state);
 void AddClientTimeSync(IContextEstablisher* pEst, EContextViewState state);
+void AddGameChannelLoadingTasks(IContextEstablisher* pEst, bool isServer);
 
 #endif

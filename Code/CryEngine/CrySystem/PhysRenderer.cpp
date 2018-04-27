@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "System.h"
@@ -8,6 +8,7 @@
 #include <Cry3DEngine/IRenderNode.h>
 #include <Cry3DEngine/IStatObj.h>
 
+#pragma warning(push)
 #pragma warning(disable: 4244)
 
 ColorB CPhysRenderer::g_colorTab[9] = {
@@ -214,43 +215,31 @@ void CPhysRenderer::DrawFrame(const Vec3& pnt, const Vec3* axes, const float sca
 	renderFlags.SetDepthTestFlag(e_DepthTestOn);
 	renderFlags.SetDrawInFrontMode(e_DrawInFrontOff);
 	renderFlags.SetAlphaBlendMode(e_AlphaNone);
+	renderFlags.SetCullMode(e_CullModeNone);
 	aux->SetRenderFlags(renderFlags);
 
 	ColorB clr[3] = { ColorB(255, 0, 0), ColorB(0, 255, 0), ColorB(0, 0, 255) };
 	float fclr[4][4] = {
 		{ 1.f, 0.f, 0.f, 1.f }, { 0.f, 1.f, 0.f, 1.f }, { 0.f, 0.f, 1.f, 1.f }, { 1.f, 1.f, 1.f, 1.f }
 	};
-	char str[128];
-	const unsigned int num_arc_pnts = 12;
-	Vec3 arc_pnts[num_arc_pnts];
 
 	for (int j = 0; j < 3; ++j)
-	{
-		aux->DrawLine(pnt, clr[j], pnt + axes[j] * scale, clr[j], 1.f);
-		aux->DrawCone(pnt + axes[j] * scale, axes[j], 0.001f, 0.01f, clr[j]);
-		if (limits && (axes_locked & (1 << j)))
+		if (axes_locked & 1 << j)
 		{
-			Quat qmin, qmax;
-			qmin.SetRotationAA(limits[0][j], axes[j]);
-			qmax.SetRotationAA(limits[1][j], axes[j]);
-			Vec3 p1 = pnt + (axes[inc_mod3[j]] * qmin);
-			Vec3 p2 = pnt + (axes[inc_mod3[j]] * qmax);
-			Vec3 p1_dir = (p1 - pnt).GetNormalized() * scale;
-			Vec3 p2_dir = (p2 - pnt).GetNormalized() * scale;
-
-			cry_sprintf(str, "%.1f", RAD2DEG(limits[0][j]));
-			IRenderAuxText::DrawLabelEx(pnt + p1_dir, 1.5f, fclr[j], true, true, str);
-			cry_sprintf(str, "%.1f", RAD2DEG(limits[1][j]));
-			IRenderAuxText::DrawLabelEx(pnt + p2_dir, 1.5f, fclr[j], true, true, str);
-
-			arc_pnts[0] = p1_dir;
-			for (int k = 1; k < num_arc_pnts; ++k)
+			float lim[2] = { max(-gf_PI*2, limits[0][j]), min(gf_PI*2, limits[1][j]) };
+			const float step = 0.2f;
+			float cosa, sina, cstep = 0.499f * step / max(0.001f, lim[1] - lim[0]);
+			sincos_tpl(step, &sina, &cosa);
+			// axes0 is conventionally the "twist", aka "prinpical" axis for a bone
+			// use axes0 to show rotation ranges around axes1 and 2, and axes1 for rotation around axes0
+			Vec3 axort = axes[(j | j >> 1) & 1 ^ 1], axis = axort.GetRotated(axes[j], lim[0]), axis1;
+			for(float a = lim[0], c = 0.5f; a < lim[1]; a += step, axis = axis1, c += cstep)
 			{
-				arc_pnts[k] = Vec3::CreateSlerp(p1_dir, p2_dir, float(k + 1) / num_arc_pnts).GetNormalized() * scale;
-				aux->DrawTriangle(pnt, clr[j], pnt + arc_pnts[k - 1], clr[j], pnt + arc_pnts[k], clr[j]);
+				axis1 = a + step < lim[1] ? axis.GetRotated(axes[j], cosa, sina) : axort.GetRotated(axes[j], lim[1]);
+				ColorB cb = ColorB(ColorF(clr[j]) * c);
+				aux->DrawTriangle(pnt, cb, pnt + axis * scale, cb, pnt + axis1 * scale, cb);
 			}
 		}
-	}
 
 	aux->SetRenderFlags(oldFlags);
 }
@@ -380,10 +369,6 @@ void CPhysRenderer::DrawGeometry(int itype, const void* pGeomData, geom_world_da
 	primitives::box bbox;
 	ColorB clrlit[4], clr = clr0;
 	IRenderAuxGeom* aux = IRenderAuxGeom::GetAux();
-	SAuxGeomRenderFlags rflags = aux->GetRenderFlags();
-	EAuxGeomPublicRenderflags_DrawInFrontMode difmode = rflags.GetDrawInFrontMode();
-	rflags.SetDrawInFrontMode(e_DrawInFrontOn);
-	aux->SetRenderFlags(rflags);
 	int i, j;
 #define FIAT_LUX(color)                                                                                                  \
   t = (n * ldir0) * -0.5f; l = t + fabs_tpl(t); t = (n * ldir1) * -0.1f; l += t + fabs_tpl(t); l = min(1.0f, l + 0.05f); \
@@ -685,6 +670,6 @@ void CPhysRenderer::DrawGeometry(int itype, const void* pGeomData, geom_world_da
 			break;
 		}
 	}
-	rflags.SetDrawInFrontMode(difmode);
-	aux->SetRenderFlags(rflags);
 }
+
+#pragma warning(pop)

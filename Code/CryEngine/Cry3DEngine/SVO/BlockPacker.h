@@ -1,7 +1,6 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
-#ifndef __POWEROF2BLOCKPACKER_H__
-#define __POWEROF2BLOCKPACKER_H__
+#pragma once
 
 #if defined(FEATURE_SVO_GI)
 
@@ -39,7 +38,7 @@ struct SBlockMinMax
 		m_nDataSize = m_nLastVisFrameId = 0;
 	}
 };
-
+      
 class CBlockPacker3D
 {
 public:
@@ -110,7 +109,5 @@ private: // ----------------------------------------------------------
 	//
 	uint32 FindFreeBlockIDOrCreateNew();
 };
-
-#endif
 
 #endif

@@ -81,23 +81,23 @@ bool QMfcAppEventFilter::nativeEventFilter(const QByteArray&, void* message, lon
 #endif
 
 /*! \class QMfcApp qmfcapp.h
-    \brief The QMfcApp class provides merging of the MFC and Qt event loops.
+	\brief The QMfcApp class provides merging of the MFC and Qt event loops.
 
-    QMfcApp is responsible for driving both the Qt and MFC event loop.
-    It replaces the standard MFC event loop provided by
-    CWinApp::Run(), and is used instead of the QApplication parent
-    class.
+	QMfcApp is responsible for driving both the Qt and MFC event loop.
+	It replaces the standard MFC event loop provided by
+	CWinApp::Run(), and is used instead of the QApplication parent
+	class.
 
-    To replace the MFC event loop reimplement the CWinApp::Run()
-    function in the CWinApp subclass usually created by the MFC
-    Application Wizard, and use either the static run() function, or
-    an instance of QMfcApp created earlier through the static
-    instance() function or the constructor.
+	To replace the MFC event loop reimplement the CWinApp::Run()
+	function in the CWinApp subclass usually created by the MFC
+	Application Wizard, and use either the static run() function, or
+	an instance of QMfcApp created earlier through the static
+	instance() function or the constructor.
 
-    The QMfcApp class also provides a static API pluginInstance() that
-    drives the Qt event loop when loaded into an MFC or Win32 application.
-    This is useful for developing Qt based DLLs or plugins, or if the
-    MFC application's event handling can not be modified.
+	The QMfcApp class also provides a static API pluginInstance() that
+	drives the Qt event loop when loaded into an MFC or Win32 application.
+	This is useful for developing Qt based DLLs or plugins, or if the
+	MFC application's event handling can not be modified.
  */
 
 static int modalLoopCount = 0;
@@ -118,14 +118,14 @@ LRESULT CALLBACK QtFilterProc(int nCode, WPARAM wParam, LPARAM lParam)
 }
 
 /*!
-    Inform Qt that a modal loop is about to be entered, and that DeferredDelete
-    events should not be processed. Call this function before calling Win32
-    or MFC functions that enter a modal event loop (i.e. MessageBox).
+	Inform Qt that a modal loop is about to be entered, and that DeferredDelete
+	events should not be processed. Call this function before calling Win32
+	or MFC functions that enter a modal event loop (i.e. MessageBox).
 
-    This is only required if the Qt UI code hooks into an existing Win32
-    event loop using QMfcApp::pluginInstance.
+	This is only required if the Qt UI code hooks into an existing Win32
+	event loop using QMfcApp::pluginInstance.
 
-    \sa exitModalLoop()
+	\sa exitModalLoop()
  */
 void QMfcApp::enterModalLoop()
 {
@@ -133,14 +133,14 @@ void QMfcApp::enterModalLoop()
 }
 
 /*!
-    Inform Qt that a modal loop has been exited, and that DeferredDelete
-    events should not be processed. Call this function after the blocking
-    Win32 or MFC function (i.e. MessageBox) returned.
+	Inform Qt that a modal loop has been exited, and that DeferredDelete
+	events should not be processed. Call this function after the blocking
+	Win32 or MFC function (i.e. MessageBox) returned.
 
-    This is only required if the Qt UI code hooks into an existing Win32
-    event loop using QMfcApp::pluginInstance.
+	This is only required if the Qt UI code hooks into an existing Win32
+	event loop using QMfcApp::pluginInstance.
 
-    \sa enterModalLoop()
+	\sa enterModalLoop()
  */
 void QMfcApp::exitModalLoop()
 {
@@ -149,44 +149,44 @@ void QMfcApp::exitModalLoop()
 }
 
 /*!
-    If there is no global QApplication object (i.e. qApp is null) this
-    function creates a QApplication instance and returns true;
-    otherwise it does nothing and returns false.
+	If there is no global QApplication object (i.e. qApp is null) this
+	function creates a QApplication instance and returns true;
+	otherwise it does nothing and returns false.
 
-    The application installs an event filter that drives the Qt event
-    loop while the MFC or Win32 application continues to own the event
-    loop.
+	The application installs an event filter that drives the Qt event
+	loop while the MFC or Win32 application continues to own the event
+	loop.
 
-    Use this static function if the application event loop code can not be
-    easily modified, or when developing a plugin or DLL that will be loaded
-    into an existing Win32 or MFC application. If \a plugin is non-null then
-    the function loads the respective DLL explicitly to avoid unloading from
-    memory.
+	Use this static function if the application event loop code can not be
+	easily modified, or when developing a plugin or DLL that will be loaded
+	into an existing Win32 or MFC application. If \a plugin is non-null then
+	the function loads the respective DLL explicitly to avoid unloading from
+	memory.
 
-    \code
-    BOOL WINAPI DllMain(HINSTANCE hInstance, DWORD dwReason, LPVOID lpvReserved)
-    {
-   if (dwReason == DLL_PROCESS_ATTACH)
-      QMfcApp::pluginInstance(hInstance);
+	\code
+	BOOL WINAPI DllMain(HINSTANCE hInstance, DWORD dwReason, LPVOID lpvReserved)
+	{
+	if (dwReason == DLL_PROCESS_ATTACH)
+		QMfcApp::pluginInstance(hInstance);
 
-   return TRUE;
-    }
-    \endcode
+	return TRUE;
+	}
+	\endcode
 
-    Set \a plugin to 0 when calling this function from within the same executable
-    module.
+	Set \a plugin to 0 when calling this function from within the same executable
+	module.
 
-    If this function is used, call enterModalLoop and exitModalLoop whenever you
-    call a Win32 or MFC function that opens a local event loop.
+	If this function is used, call enterModalLoop and exitModalLoop whenever you
+	call a Win32 or MFC function that opens a local event loop.
 
-    \code
-    void Dialog::someSlot()
-    {
-        QMfcApp::enterModalLoop();
-        MessageBox(...);
-        QMfcApp::exitModalLoop();
-    }
-    \endcode
+	\code
+	void Dialog::someSlot()
+	{
+		QMfcApp::enterModalLoop();
+		MessageBox(...);
+		QMfcApp::exitModalLoop();
+	}
+	\endcode
  */
 bool QMfcApp::pluginInstance(Qt::HANDLE plugin)
 {
@@ -218,35 +218,34 @@ Q_GLOBAL_STATIC(QMfcAppEventFilter, qmfcEventFilter);
 
 #ifdef QTWINMIGRATE_WITHMFC
 /*!
-    Runs the event loop for both Qt and the MFC application object \a
-    mfcApp, and returns the result. This function calls \c instance()
-    if no QApplication object exists and deletes the object it
-    created.
+	Runs the event loop for both Qt and the MFC application object \a
+	mfcApp, and returns the result. This function calls \c instance()
+	if no QApplication object exists and deletes the object it
+	created.
 
-    Calling this static function in a reimplementation of
-    CWinApp::Run() is the simpliest way to use the QMfcApp class:
+	Calling this static function in a reimplementation of
+	CWinApp::Run() is the simpliest way to use the QMfcApp class:
 
-    \code
-    int MyMfcApp::Run()
-    {
-        return QMfcApp::run(this);
-    }
-    \endcode
+	\code
+	int MyMfcApp::Run()
+	{
+		return QMfcApp::run(this);
+	}
+	\endcode
 
-    Since a QApplication object must exist before Qt widgets can be
-    created you cannot use this function if you want to use Qt-based
-    user interface elements in, for example, the InitInstance()
-    function of CWinApp. In such cases, create an instance of
-    QApplication explicitly using instance() or the constructor.
+	Since a QApplication object must exist before Qt widgets can be
+	created you cannot use this function if you want to use Qt-based
+	user interface elements in, for example, the InitInstance()
+	function of CWinApp. In such cases, create an instance of
+	QApplication explicitly using instance() or the constructor.
 
-    \sa instance()
+	\sa instance()
  */
 int QMfcApp::run(CWinApp* mfcApp)
 {
-	bool ownInstance = !qApp;
-	if (ownInstance)
-		instance(mfcApp);
-	int result = qApp->exec();
+	bool isOwnInstance = !qApp;
+	QApplication* pApplication = isOwnInstance ? instance(mfcApp) : qApp;
+	int result = pApplication->exec();
 
 	if (mfcApp)
 	{
@@ -255,43 +254,43 @@ int QMfcApp::run(CWinApp* mfcApp)
 			result = mfcRes;
 	}
 
-	if (ownInstance)
-		delete qApp;
+	if (isOwnInstance)
+		delete pApplication;
 
 	return result;
 }
 
 /*!
-    Creates an instance of QApplication, passing the command line of
-    \a mfcApp to the QApplication constructor, and returns the new
-    object. The returned object must be destroyed by the caller.
+	Creates an instance of QApplication, passing the command line of
+	\a mfcApp to the QApplication constructor, and returns the new
+	object. The returned object must be destroyed by the caller.
 
-    Use this static function if you want to perform additional
-    initializations after creating the application object, or if you
-    want to create Qt GUI elements in the InitInstance()
-    reimplementation of CWinApp:
+	Use this static function if you want to perform additional
+	initializations after creating the application object, or if you
+	want to create Qt GUI elements in the InitInstance()
+	reimplementation of CWinApp:
 
-    \code
-    BOOL MyMfcApp::InitInstance()
-    {
-   // standard MFC initialization
-   // ...
+	\code
+	BOOL MyMfcApp::InitInstance()
+	{
+		// standard MFC initialization
+		// ...
 
-   // This sets the global qApp pointer
-   QMfcApp::instance(this);
+		// This sets the global qApp pointer
+		QMfcApp::instance(this);
 
-   // Qt GUI initialization
-    }
+		// Qt GUI initialization
+	}
 
-    BOOL MyMfcApp::Run()
-    {
-   int result = QMfcApp::run(this);
-   delete qApp;
-   return result;
-    }
-    \endcode
+	BOOL MyMfcApp::Run()
+	{
+		int result = QMfcApp::run(this);
+		delete qApp;
+		return result;
+	}
+	\endcode
 
-    \sa run()
+	\sa run()
  */
 QApplication* QMfcApp::instance(CWinApp* mfcApp)
 {
@@ -306,39 +305,39 @@ static bool qmfc_eventFilter(void* message)
 }
 
 /*!
-    Creates an instance of QMfcApp. \a mfcApp must point to the
-    existing instance of CWinApp. \a argc and \a argv are passed on
-    to the QApplication constructor.
+	Creates an instance of QMfcApp. \a mfcApp must point to the
+	existing instance of CWinApp. \a argc and \a argv are passed on
+	to the QApplication constructor.
 
-    Use the static function instance() to automatically use the
-    command line passed to the CWinApp.
+	Use the static function instance() to automatically use the
+	command line passed to the CWinApp.
 
-    \code
-    QMfcApp *qtApp;
+	\code
+	QMfcApp *qtApp;
 
-    BOOL MyMfcApp::InitInstance()
-    {
-   // standard MFC initialization
+	BOOL MyMfcApp::InitInstance()
+	{
+		// standard MFC initialization
 
-   int argc = ...
-   char **argv = ...
+		int argc = ...
+		char **argv = ...
 
-   qtApp = new QMfcApp(this, argc, argv);
+		qtApp = new QMfcApp(this, argc, argv);
 
-   // Qt GUI initialization
-    }
+		// Qt GUI initialization
+	}
 
-    BOOL MyMfcApp::Run()
-    {
-   int result = qtApp->exec();
-   delete qtApp;
-   qtApp = 0;
+	BOOL MyMfcApp::Run()
+	{
+		int result = qtApp->exec();
+		delete qtApp;
+		qtApp = 0;
 
-   return result;
-    }
-    \endcode
+		return result;
+	}
+	\endcode
 
-    \sa instance() run()
+	\sa instance() run()
  */
 QMfcApp::QMfcApp(CWinApp* mfcApp, int& argc, char** argv)
 	: QApplication(argc, argv), idleCount(0), doIdle(FALSE)
@@ -360,7 +359,7 @@ QMfcApp::QMfcApp(int& argc, char** argv) : QApplication(argc, argv)
 #endif
 }
 /*!
-    Destroys the QMfcApp object, freeing all allocated resources.
+	Destroys the QMfcApp object, freeing all allocated resources.
  */
 QMfcApp::~QMfcApp()
 {
@@ -378,7 +377,7 @@ QMfcApp::~QMfcApp()
 }
 
 /*!
-    \reimp
+	\reimp
  */
 bool QMfcApp::winEventFilter(MSG* msg, long* result)
 {
@@ -453,3 +452,4 @@ bool QMfcApp::winEventFilter(MSG* msg, long* result)
 	return false;
 #endif
 }
+

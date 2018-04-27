@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 /********************************************************************
    ---------------------------------------------------------------------
@@ -302,47 +302,52 @@ public:
 	static void RegisterCVars();
 
 public:
-	// ---------- ITacticalPointSystem methods ----------
-	// Separate this out completely into an adaptor?
 
 	void Reset();
 
+	// ---------- ITacticalPointSystem methods ----------
+	// Separate this out completely into an adaptor?
+
+	// Timesliced update within the main AI thread
+	// Ideally performs just housekeeping and manages the asynchronous subtasks
+	virtual void Update(const float fBudgetSeconds) override;
+
 	// Get a new query ID, to allow us to build a new query
-	TPSQueryID  CreateQueryID(const char* psName);
+	virtual TPSQueryID  CreateQueryID(const char* psName) override;
 	// Destroy a query ID and release all resources associated with it
-	bool        DestroyQueryID(TPSQueryID queryID);
+	virtual bool        DestroyQueryID(TPSQueryID queryID) override;
 	// Get the Name of a query by ID
-	const char* GetQueryName(TPSQueryID queryID);
+	virtual const char* GetQueryName(TPSQueryID queryID) override;
 	// Get the query ID of a query by name
-	TPSQueryID  GetQueryID(const char* psName);
+	virtual TPSQueryID  GetQueryID(const char* psName) override;
 	// Returns a pointer to indexed option of a given query
-	const char* GetOptionLabel(TPSQueryID queryID, int option);
+	virtual const char* GetOptionLabel(TPSQueryID queryID, int option) override;
 
 	// Build up a query
 	// The "option" parameter allows you to build up fallback options
-	bool AddToParameters(TPSQueryID queryID, const char* sSpec, float fValue, int option = 0);
-	bool AddToParameters(TPSQueryID queryID, const char* sSpec, bool bValue, int option = 0);
-	bool AddToParameters(TPSQueryID queryID, const char* sSpec, const char* sValue, int option = 0);
-	bool AddToGeneration(TPSQueryID queryID, const char* sSpec, float fValue, int option = 0);
-	bool AddToGeneration(TPSQueryID queryID, const char* sSpec, const char* sValue, int option = 0);
-	bool AddToConditions(TPSQueryID queryID, const char* sSpec, float fValue, int option = 0);
-	bool AddToConditions(TPSQueryID queryID, const char* sSpec, bool bValue, int option = 0);
-	bool AddToWeights(TPSQueryID queryID, const char* sSpec, float fValue, int option = 0);
-
-	// Test a given point if it fulfills conditions of a given query.
-	int TestConditions(TPSQueryID queryID, const QueryContext& context, Vec3& point, bool& bValid) const;
+	virtual bool AddToParameters(TPSQueryID queryID, const char* sSpec, float fValue, int option = 0) override;
+	virtual bool AddToParameters(TPSQueryID queryID, const char* sSpec, bool bValue, int option = 0) override;
+	virtual bool AddToParameters(TPSQueryID queryID, const char* sSpec, const char* sValue, int option = 0) override;
+	virtual bool AddToGeneration(TPSQueryID queryID, const char* sSpec, float fValue, int option = 0) override;
+	virtual bool AddToGeneration(TPSQueryID queryID, const char* sSpec, const char* sValue, int option = 0) override;
+	virtual bool AddToConditions(TPSQueryID queryID, const char* sSpec, float fValue, int option = 0) override;
+	virtual bool AddToConditions(TPSQueryID queryID, const char* sSpec, bool bValue, int option = 0) override;
+	virtual bool AddToWeights(TPSQueryID queryID, const char* sSpec, float fValue, int option = 0) override;
 
 	// Start a new asynchronous query. Returns the id "ticket" for this query instance.
 	// Types needed to avoid confusion?
-	TPSQueryTicket AsyncQuery(TPSQueryID queryID, const QueryContext& m_context, int flags, int nPoints, ITacticalPointResultsReceiver* pReciever);
+	virtual TPSQueryTicket AsyncQuery(TPSQueryID queryID, const QueryContext& m_context, int flags, int nPoints, ITacticalPointResultsReceiver* pReciever) override;
 
-	void           UnlockResults(TPSQueryTicket queryTicket);
-	bool           HasLockedResults(TPSQueryTicket queryTicket) const;
+	virtual void           UnlockResults(TPSQueryTicket queryTicket) override;
+	virtual bool           HasLockedResults(TPSQueryTicket queryTicket) const override;
 
 	// Cancel an asynchronous query.
-	bool CancelAsyncQuery(TPSQueryTicket ticket);
+	virtual bool CancelAsyncQuery(TPSQueryTicket ticket) override;
 
 	// ---------- ~ End of ITacticalPointSystem methods ~ ----------
+
+	// Test a given point if it fulfills conditions of a given query.
+	int TestConditions(TPSQueryID queryID, const QueryContext& context, Vec3& point, bool& bValid) const;
 
 	// Make a synchronous query for one point
 	// Returns: query option used, or -1 if there was an error or no points found
@@ -357,22 +362,18 @@ public:
 	// Destroy all stored queries, usually on AI reload
 	void DestroyAllQueries();
 
-	// Timesliced update within the main AI thread
-	// Ideally performs just housekeeping and manages the asynchronous subtasks
-	void Update(float fMaxTime);
-
 	void Serialize(TSerialize ser);
 
 	void DebugDraw() const;
 
 	// Extend the language by adding new keywords
-	virtual bool ExtendQueryLanguage(const char* szName, ETacticalPointQueryType eType, ETacticalPointQueryCost eCost);
+	virtual bool ExtendQueryLanguage(const char* szName, ETacticalPointQueryType eType, ETacticalPointQueryCost eCost) override;
 
 	// Language extenders
-	virtual bool       AddLanguageExtender(ITacticalPointLanguageExtender* pExtender);
-	virtual bool       RemoveLanguageExtender(ITacticalPointLanguageExtender* pExtender);
-	virtual IAIObject* CreateExtenderDummyObject(const char* szDummyName);
-	virtual void       ReleaseExtenderDummyObject(tAIObjectID id);
+	virtual bool       AddLanguageExtender(ITacticalPointLanguageExtender* pExtender) override;
+	virtual bool       RemoveLanguageExtender(ITacticalPointLanguageExtender* pExtender) override;
+	virtual IAIObject* CreateExtenderDummyObject(const char* szDummyName) override;
+	virtual void       ReleaseExtenderDummyObject(tAIObjectID id) override;
 
 private:
 	struct SQueryInstance

@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 // Async tasks used by FbxTool.
 #pragma once
 #include "AsyncHelper.h"
@@ -52,3 +52,4 @@ private:
 	Callback                         m_callback;
 	void*                            m_pUserData;
 };
+

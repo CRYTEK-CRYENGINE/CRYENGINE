@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 
@@ -98,7 +98,7 @@ static void RegisterFunctions(IEnvRegistrar& registrar)
 		scope.Register(pFunction);
 	}
 	{
-		auto pFunction = SCHEMATYC_MAKE_ENV_FUNCTION(&NotEqual, "v"_cry_guid, "NotEqual");
+		auto pFunction = SCHEMATYC_MAKE_ENV_FUNCTION(&NotEqual, "{C40AFA65-409B-4C69-922E-88F119DE18F4}"_cry_guid, "NotEqual");
 		pFunction->SetDescription("Checks whether A and B are not equal");
 		pFunction->BindInput(1, 'a', "A");
 		pFunction->BindInput(2, 'b', "B");
@@ -794,12 +794,12 @@ void Append(const CSharedString& a, const CSharedString& b, CSharedString& resul
 
 bool Equal(const CSharedString& a, const CSharedString& b)
 {
-	return strcmp(a.c_str(), b.c_str()) != 0;
+	return strcmp(a.c_str(), b.c_str()) == 0;
 }
 
 bool NotEqual(const CSharedString& a, const CSharedString& b)
 {
-	return strcmp(a.c_str(), b.c_str()) == 0;
+	return strcmp(a.c_str(), b.c_str()) != 0;
 }
 
 static void RegisterFunctions(IEnvRegistrar& registrar)

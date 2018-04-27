@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 #ifdef INCLUDE_VR_RENDERING
@@ -9,27 +9,25 @@
 
 class CD3D9Renderer;
 class CTexture;
-namespace CryVR
-{
-namespace Osvr
-{
+
 class CD3DOsvrRenderer : public IHmdRenderer
 {
 public:
 
-	CD3DOsvrRenderer(IOsvrDevice* pDevice, CD3D9Renderer* pRenderer, CD3DStereoRenderer* pStereoRenderer);
+	CD3DOsvrRenderer(CryVR::Osvr::IOsvrDevice* pDevice, CD3D9Renderer* pRenderer, CD3DStereoRenderer* pStereoRenderer);
 	virtual ~CD3DOsvrRenderer();
 
 	// IHDMRenderer implementation
-	virtual bool                      Initialize() override;
-	virtual void                      Shutdown() override;
-	virtual void                      OnResolutionChanged() override;
-	virtual void                      ReleaseBuffers() override;
-	virtual void                      PrepareFrame() override;
-	virtual void                      SubmitFrame() override;
-	virtual void                      RenderSocialScreen() override;
-	virtual RenderLayer::CProperties* GetQuadLayerProperties(RenderLayer::EQuadLayers id) override   { return nullptr; }
-	virtual RenderLayer::CProperties* GetSceneLayerProperties(RenderLayer::ESceneLayers id) override { return nullptr; }
+	virtual bool                      Initialize(int initialWidth, int initialHeight) final;
+	virtual void                      Shutdown() final;
+	virtual void                      OnResolutionChanged(int newWidth, int newHeight) final;
+	virtual void                      ReleaseBuffers() final;
+	virtual void                      PrepareFrame(int frameId) final;
+	virtual void                      SubmitFrame() final;
+	// TODO
+	virtual RenderLayer::CProperties*  GetQuadLayerProperties(RenderLayer::EQuadLayers id) final   { return nullptr; }
+	virtual RenderLayer::CProperties*  GetSceneLayerProperties(RenderLayer::ESceneLayers id) final { return nullptr; }
+	virtual std::pair<CTexture*, Vec4> GetMirrorTexture(EEyeType eye) const final { return { nullptr, Vec4{} }; }
 private:
 
 	static const uint32 EyeCount = 2;
@@ -57,6 +55,5 @@ private:
 	void RestoreDeviceStateAfterFrameSubmit();
 
 };
-}
-}
+
 #endif

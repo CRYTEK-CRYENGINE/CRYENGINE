@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 //
 //	File:Log.cpp
@@ -21,10 +21,15 @@
 #include <CryString/CryPath.h>          // PathUtil::ReplaceExtension()
 #include <CryGame/IGameFramework.h>
 #include <CryString/UnicodeFunctions.h>
+#include <CryString/StringUtils.h>
 
 #if CRY_PLATFORM_WINDOWS
 	#include <time.h>
 #endif
+
+#if !defined(CRY_PLATFORM_ORBIS) && !defined(CRY_PLATFORM_ANDROID)
+#include <sys/timeb.h>
+#endif //!defined(CRY_PLATFORM_ORBIS) && !defined(CRY_PLATFORM_ANDROID)
 
 #if CRY_PLATFORM_LINUX || CRY_PLATFORM_ANDROID || CRY_PLATFORM_APPLE
 	#include <syslog.h>
@@ -143,6 +148,7 @@ CLog::CLog(ISystem* pSystem)
 	, m_pLogSpamDelay(nullptr)
 	, m_pLogModule(nullptr)
 	, m_eLogMode(eLogMode_Normal)
+	, m_logFormat("%Y-%m-%dT%H:%M:%S:fffzzz")
 {
 	memset(m_szFilename, 0, MAX_FILENAME_SIZE);
 	memset(m_sBackupFilename, 0, MAX_FILENAME_SIZE);
@@ -164,6 +170,12 @@ void CLog::RegisterConsoleVariables()
 	#endif
 #else
 	#define DEFAULT_VERBOSITY 3
+#endif
+
+#if defined(DEDICATED_SERVER) && defined(CRY_PLATFORM_LINUX)
+	#define DEFAULT_LOG_INCLUDE_TIME (0)
+#else
+	#define DEFAULT_LOG_INCLUDE_TIME (1)
 #endif
 
 	if (console)
@@ -192,7 +204,7 @@ void CLog::RegisterConsoleVariables()
 		m_pLogVerbosityOverridesWriteToFile = REGISTER_INT("log_VerbosityOverridesWriteToFile", 1, VF_DUMPTODISK, "when enabled, setting log_verbosity to 0 will stop all logging including writing to file");
 
 		// put time into begin of the string if requested by cvar
-		m_pLogIncludeTime = REGISTER_INT("log_IncludeTime", 1, 0,
+		m_pLogIncludeTime = REGISTER_INT("log_IncludeTime", DEFAULT_LOG_INCLUDE_TIME, 0,
 		                                 "Toggles time stamping of log entries.\n"
 		                                 "Usage: log_IncludeTime [0/1/2/3/4/5]\n"
 		                                 "  0=off (default)\n"
@@ -200,7 +212,8 @@ void CLog::RegisterConsoleVariables()
 		                                 "  2=relative time\n"
 		                                 "  3=current+relative time\n"
 		                                 "  4=absolute time in seconds since this mode was started\n"
-		                                 "  5=current time+server time");
+		                                 "  5=current time+server time\n"
+		                                 "  6=ISO8601 time formatting");
 
 		m_pLogSpamDelay = REGISTER_FLOAT("log_SpamDelay", 0.0f, 0, "Sets the minimum time interval between messages classified as spam");
 
@@ -432,7 +445,7 @@ void CLog::LogV(const ELogType type, int flags, const char* szFormat, va_list ar
 		}
 	}
 
-	FUNCTION_PROFILER(GetISystem(), PROFILE_SYSTEM);
+	CRY_PROFILE_FUNCTION(PROFILE_SYSTEM);
 	//LOADING_TIME_PROFILE_SECTION(GetISystem());
 
 	bool bfile = false, bconsole = false;
@@ -875,6 +888,60 @@ const char* CLog::GetAssetScopeString()
 };
 #endif
 
+void CLog::SetLogFormat(const char* format)
+{
+	m_logFormat.clear();
+	m_logFormat.assign(format);
+}
+
+void CLog::FormatTimestampInternal(stack_string& timeStr, const string& logFormat)
+{
+#if !defined(CRY_PLATFORM_ORBIS) && !defined(CRY_PLATFORM_ANDROID)
+	bool isUtC = logFormat.find("Z") != string::npos;
+
+	char sTime[128];
+	stack_string tmpStr;
+	stack_string formatStr;
+	struct timeb now;
+
+	ftime(&now);
+
+	time_t ltime = now.time;
+	struct tm* today = isUtC ? gmtime(&ltime) : localtime(&ltime);
+	size_t actualLength = strftime(sTime, 128, logFormat.c_str(), today);
+
+	timeStr.Format("%s", sTime);
+
+	int pos = timeStr.find("f");
+	if (pos != string::npos)
+	{
+		int count = strspn(&(timeStr.c_str()[pos]), "f");
+
+		formatStr.Format("%%0%iu", count);
+		tmpStr.Format(formatStr.c_str(), now.millitm);
+		timeStr.replace(pos, count, tmpStr.c_str());
+	}
+
+	if (!isUtC)
+	{
+		tmpStr.clear();
+		formatStr.clear();
+
+		int pos = timeStr.find("z");
+		if (pos != string::npos)
+		{
+			int count = strspn(&(timeStr.c_str()[pos]), "z");
+
+			short timezone = -(now.timezone / 60) + now.dstflag;
+
+			formatStr.Format(now.timezone > 0 ? "-%%0%ii" : "+%%0%ii", count - 1);
+			tmpStr.Format(formatStr.c_str(), timezone);
+			timeStr.replace(pos, count, tmpStr.c_str());
+		}
+	}
+#endif //!defined(CRY_PLATFORM_ORBIS) && !defined(CRY_PLATFORM_ANDROID)
+}
+
 //////////////////////////////////////////////////////////////////////
 #if !defined(EXCLUDE_NORMAL_LOG)
 void CLog::LogStringToFile(const char* szString, bool bAdd, bool bError)
@@ -936,6 +1003,15 @@ void CLog::LogStringToFile(const char* szString, bool bAdd, bool bError)
 	if (m_pLogIncludeTime && gEnv->pTimer)
 	{
 		uint32 dwCVarState = m_pLogIncludeTime->GetIVal();
+		if (dwCVarState == 6)
+		{
+			// ISO8601 date/time formatting
+			stack_string timeStr, formattedTimeStr;
+			FormatTimestampInternal(timeStr, m_logFormat);
+			formattedTimeStr.Format("<%s> ", timeStr.c_str());
+			tempString = LogStringType(formattedTimeStr.c_str()) + tempString;
+		}
+
 		char sTime[21];
 		if (dwCVarState == 5) // Log_IncludeTime
 		{
@@ -1039,6 +1115,11 @@ void CLog::LogStringToFile(const char* szString, bool bAdd, bool bError)
 			}
 
 			fputs(tempString.c_str(), m_pLogFile);
+
+			if (m_pLogFile)
+			{
+				fflush(m_pLogFile); // Flush or the changes will only show up on shutdown.
+			}
 		}
 	#else
 		if (bAdd)
@@ -1071,13 +1152,15 @@ void CLog::LogStringToFile(const char* szString, bool bAdd, bool bError)
 	}
 
 	#if !defined(_RELEASE)
-	// Note: OutputDebugString(A) only accepts current ANSI code-page, and the W variant will call the A variant internally.
-	// Here we replace non-ASCII characters with '?', which is the same as OutputDebugStringW will do for non-ANSI.
-	// Thus, we discard slightly more characters (ie, those inside the current ANSI code-page, but outside ASCII).
-	// In exchange, we save double-converting that would have happened otherwise (UTF-8 -> UTF-16 -> ANSI).
-	string asciiString;
-	Unicode::Convert<Unicode::eEncoding_ASCII, Unicode::eEncoding_UTF8>(asciiString, tempString);
-	OutputDebugString(asciiString.c_str());
+		#if CRY_PLATFORM_WINDOWS || CRY_PLATFORM_DURANGO
+	// Note: OutputDebugStringW will not actually output Unicode unless the attached debugger has explicitly opted in to this behavior.
+	// This is only possible on Windows 10; on older operating systems the W variant internally converts the input to the local codepage (ANSI) and calls the A variant.
+	// Both VS2015 and VS2017 do opt-in to this behavior on Windows 10, so we use the W variant despite the slight overhead on older Windows versions.
+	wstring tempWString = CryStringUtils::UTF8ToWStr(tempString);
+	OutputDebugStringW(tempWString.c_str());
+		#else
+	OutputDebugString(tempString.c_str());
+		#endif
 	#endif
 }
 
@@ -1143,62 +1226,35 @@ void CLog::CreateBackupFile() const
 {
 	LOADING_TIME_PROFILE_SECTION;
 #if CRY_PLATFORM_WINDOWS || CRY_PLATFORM_LINUX || CRY_PLATFORM_ANDROID || CRY_PLATFORM_APPLE || CRY_PLATFORM_DURANGO
-	// simple:
-	//		string bakpath = PathUtil::ReplaceExtension(m_szFilename,"bak");
-	//		CopyFile(m_szFilename,bakpath.c_str(),false);
-
-	// advanced: to backup directory
-	char temppath[_MAX_PATH];
-	char szPath[MAX_FILENAME_SIZE];
-
-	string sExt = PathUtil::GetExt(m_szFilename);
-	string sFileWithoutExt = PathUtil::GetFileName(m_szFilename);
-
-	{
-		assert(::strstr(sFileWithoutExt, ":") == 0);
-		assert(::strstr(sFileWithoutExt, "\\") == 0);
-	}
-
-	PathUtil::RemoveExtension(sFileWithoutExt);
-
-	#define LOG_BACKUP_PATH "LogBackups"
-
-	const char* path = LOG_BACKUP_PATH;
-
-	string szBackupPath;
-	string sLogFilename;
-
-	string temp = m_pSystem->GetRootFolder();
-	temp += path;
-	if (temp.size() < sizeof(szPath))
-		cry_strcpy(szPath, temp.c_str());
-	else
-		cry_strcpy(szPath, path);
 
 	if (!gEnv->pCryPak)
 	{
 		return;
 	}
-	szBackupPath = gEnv->pCryPak->AdjustFileName(szPath, temppath, ICryPak::FLAGS_FOR_WRITING | ICryPak::FLAGS_PATH_REAL);
-	gEnv->pCryPak->MakeDir(szBackupPath);
-	sLogFilename = gEnv->pCryPak->AdjustFileName(m_szFilename, temppath, ICryPak::FLAGS_FOR_WRITING | ICryPak::FLAGS_PATH_REAL);
+
+	const string srcFilePath = m_szFilename;
+	const string srcFileName = PathUtil::GetFileName(srcFilePath);
+	const string srcFileExt = PathUtil::GetExt(srcFilePath);
+	const string srcFileDir = PathUtil::GetParentDirectory(srcFilePath);
+	const string logBackupFolder = PathUtil::Make(srcFileDir, "LogBackups");
+	gEnv->pCryPak->MakeDir(logBackupFolder);
 
 	LockNoneExclusiveAccess(&m_exclusiveLogFileThreadAccessLock);
-	FILE* in = fxopen(sLogFilename, "rb");
+	FILE* src = fxopen(srcFilePath, "rb");
 	UnlockNoneExclusiveAccess(&m_exclusiveLogFileThreadAccessLock);
 
 	string sBackupNameAttachment;
 
 	// parse backup name attachment
 	// e.g. BackupNameAttachment="attachment name"
-	if (in)
+	if (src)
 	{
 		bool bKeyFound = false;
 		string sName;
 
-		while (!feof(in))
+		while (!feof(src))
 		{
-			uint8 c = fgetc(in);
+			uint8 c = fgetc(src);
 
 			if (c == '\"')
 			{
@@ -1231,86 +1287,32 @@ void CLog::CreateBackupFile() const
 				break;
 		}
 		LockNoneExclusiveAccess(&m_exclusiveLogFileThreadAccessLock);
-		fclose(in);
+		fclose(src);
 		UnlockNoneExclusiveAccess(&m_exclusiveLogFileThreadAccessLock);
 	}
 
-	#if CRY_PLATFORM_DURANGO
-
+	const string dstFilePath = PathUtil::Make(logBackupFolder, srcFileName + sBackupNameAttachment + "." + srcFileExt);
+	
+#if CRY_PLATFORM_DURANGO
 	// Xbox has some limitation in file names. No spaces in file name are allowed. The full path is limited by MAX_PATH, etc.
 	// I change spaces with underscores here for valid name and cut it if it exceed a limit.
-	string bakdest = PathUtil::Make(szBackupPath, sFileWithoutExt + sBackupNameAttachment + "." + sExt);
-	if (bakdest.size() > MAX_PATH)
-		bakdest.resize(MAX_PATH);
-	sLogFilename = PathUtil::ToDosPath(sLogFilename);
-	bakdest = PathUtil::ToDosPath(bakdest);
-	bakdest.replace(' ', '_');
-
-	cry_strcpy(m_sBackupFilename, bakdest.c_str());
-
-	// Durango XDK does not provide CopyFile or CopyFileEx
-	const int BUFFER_SIZE = 1024;
-	const char* pBuffer[BUFFER_SIZE];
-	FILE* pSrcFile = 0;
-	FILE* pDstFile = 0;
-	int numr, numw;
-
-	// Open files
-	if (!(pSrcFile = fopen(sLogFilename, "rb")) || !(pDstFile = fopen(bakdest, "wb")))
+	auto processDurangoPath = [](const string& path)
 	{
-		DWORD errCode = GetLastError();
-		char tmp[128];
-		cry_sprintf(tmp, "Error backup log file:%u", errCode);
-		OutputDebugString(tmp);
-	}
-
-	// Copy file
-	if (pSrcFile && pDstFile)
-	{
-		while (!feof(pSrcFile))
-		{
-			numr = fread(pBuffer, sizeof(char), BUFFER_SIZE, pSrcFile); // Read
-			if (numr != BUFFER_SIZE && ferror(pSrcFile))
-			{
-				DWORD errCode = GetLastError();
-				char tmp[128];
-				cry_sprintf(tmp, "Error backup log file:%u", errCode);
-				OutputDebugString(tmp);
-				break;
-			}
-
-			numw = fwrite(pBuffer, sizeof(char), numr, pDstFile); // Write
-			if (numw != numr && ferror(pDstFile))
-			{
-				DWORD errCode = GetLastError();
-				char tmp[128];
-				cry_sprintf(tmp, "Error backup log file:%u", errCode);
-				OutputDebugString(tmp);
-				break;
-			}
-		}
-	}
-
-	// Close files
-	if (pSrcFile)
-	{
-		LockNoneExclusiveAccess(&m_exclusiveLogFileThreadAccessLock);
-		fclose(pSrcFile);
-		UnlockNoneExclusiveAccess(&m_exclusiveLogFileThreadAccessLock);
-	}
-
-	if (pDstFile)
-	{
-		LockNoneExclusiveAccess(&m_exclusiveLogFileThreadAccessLock);
-		fclose(pDstFile);
-		UnlockNoneExclusiveAccess(&m_exclusiveLogFileThreadAccessLock);
-	}
-
-	#else
-	string bakdest = PathUtil::Make(szBackupPath, sFileWithoutExt + sBackupNameAttachment + "." + sExt);
-	cry_strcpy(m_sBackupFilename, bakdest.c_str());
-	CopyFile(sLogFilename, bakdest, false);
-	#endif
+		// AdjustFileName to handle %ALIAS%
+		char adjusted[_MAX_PATH];
+		const char* szAdjustedPath = gEnv->pCryPak->AdjustFileName(path, adjusted, ICryPak::FLAGS_FOR_WRITING | ICryPak::FLAGS_PATH_REAL);
+		string durangoPath = PathUtil::ToDosPath(szAdjustedPath);
+		durangoPath.replace(' ', '_');
+		CRY_ASSERT_MESSAGE(durangoPath.size() <= MAX_PATH, "Log backup path is larger than MAX_PATH");
+		return CryStringUtils::UTF8ToWStrSafe(durangoPath);
+	};
+	const wstring durangoSrcFilePath = processDurangoPath(srcFilePath);
+	const wstring durangosDstFilePath = processDurangoPath(dstFilePath);
+	HRESULT result = CopyFile2(durangoSrcFilePath, durangosDstFilePath, nullptr);
+	CRY_ASSERT_MESSAGE(result == S_OK, "Error copying log backup file");
+#else
+	CopyFile(srcFilePath, dstFilePath, false);
+#endif
 
 #endif
 }
@@ -1324,9 +1326,16 @@ bool CLog::SetFileName(const char* filename)
 		return false;
 	}
 
-	string temp = PathUtil::Make(m_pSystem->GetRootFolder(), PathUtil::GetFile(filename));
+	string temp = filename;
 	if (temp.empty() || temp.size() >= sizeof(m_szFilename))
 		return false;
+
+#if !defined(CRY_PLATFORM_CONSOLE)
+	if (PathUtil::IsRelativePath(filename))
+	{
+		temp = PathUtil::Make(PathUtil::GetProjectFolder(), filename);
+	}
+#endif
 
 	cry_strcpy(m_szFilename, temp.c_str());
 
@@ -1444,7 +1453,7 @@ void CLog::RemoveCallback(ILogCallback* pCallback)
 //////////////////////////////////////////////////////////////////////////
 void CLog::Update()
 {
-	FUNCTION_PROFILER(m_pSystem, PROFILE_SYSTEM);
+	CRY_PROFILE_FUNCTION(PROFILE_SYSTEM);
 
 	if (CryGetCurrentThreadId() == m_nMainThreadId)
 	{

@@ -1,10 +1,12 @@
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
+
 #pragma once
 
 #include "ObjMan.h"
 
 struct ICharacterInstance;
 
-class CCharacterRenderNode : public ICharacterRenderNode, private Cry3DEngineBase
+class CCharacterRenderNode final : public ICharacterRenderNode, private Cry3DEngineBase
 {
 	friend class COctreeNode;
 
@@ -25,12 +27,12 @@ public:
 	virtual void SetMatrix(const Matrix34& transform) final;
 
 	//! Gets local bounds of the render node.
-	virtual void       GetLocalBounds(AABB& bbox) final           { bbox = m_boundsLocal; }
+	virtual void       GetLocalBounds(AABB& bbox) final;
 
 	virtual Vec3       GetPos(bool bWorldOnly = true) const final { return m_matrix.GetTranslation(); };
-	virtual const AABB GetBBox() const final                      { return m_boundsWorld; }
+	virtual const AABB GetBBox() const final;
 	virtual void       FillBBox(AABB& aabb) final                 { aabb = GetBBox(); }
-	virtual void       SetBBox(const AABB& WSBBox) final          { m_boundsWorld = WSBBox; };
+	virtual void       SetBBox(const AABB& WSBBox) final          {}
 	virtual void       OffsetPosition(const Vec3& delta) final;
 	virtual void       Render(const struct SRendParams& EntDrawParams, const SRenderingPassInfo& passInfo) final;
 
@@ -71,7 +73,6 @@ public:
 	// Implement ICharacterRenderNode
 	//////////////////////////////////////////////////////////////////////////
 	virtual void SetCharacter(ICharacterInstance* pCharacter) final;
-	virtual void SetCharacterRenderOffset(const QuatTS& renderOffset) final;
 	//////////////////////////////////////////////////////////////////////////
 
 	static void PrecacheCharacter(const float fImportance, ICharacterInstance* pCharacter, IMaterial* pSlotMat,
@@ -91,14 +92,13 @@ private:
 	// Override Material used to render node
 	_smart_ptr<IMaterial> m_pMaterial;
 
-	// World space tranformation
+	// World space transformation
 	Matrix34 m_matrix;
-	// World space bounding box
-	AABB     m_boundsWorld;
-	// Local space bounding box
-	AABB     m_boundsLocal;
 
-	QuatTS   m_renderOffset;
+	// Cached World space bounding box
+	mutable AABB m_cachedBoundsWorld;
+	// Cached Local space bounding box
+	mutable AABB m_cachedBoundsLocal;
 
 	Vec3*    m_pCameraSpacePos = nullptr;
 

@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #ifndef _PRIMATIVES_H_
 #define _PRIMATIVES_H_
@@ -198,6 +198,7 @@ struct contact
 
 const int NPRIMS = 8; //!< Since plane is currently not supported in collision checks.
 
+//! \cond INTERNAL
 //! Used in qhull2d.
 struct ptitem2d
 {
@@ -205,6 +206,8 @@ struct ptitem2d
 	ptitem2d* next, * prev;
 	int       iContact;
 };
+//! \endcond
+
 struct edgeitem
 {
 	ptitem2d* pvtx;

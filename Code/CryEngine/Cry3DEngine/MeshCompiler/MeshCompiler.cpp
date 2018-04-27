@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 // -------------------------------------------------------------------------
 //  File name:   MeshCompiler.cpp
@@ -468,7 +468,7 @@ static void VerifyTangentSpace(SMeshTangents& rTangents, const SMeshNormal& rNor
 	{
 		//fix case where tangent is zero
 		bitangent.Normalize();//just to make sure
-		if (abs(bitangent * normal) > 0.9f)//if angle between both vecs is to low, calc new one for both
+		if (abs(bitangent * normal) > 0.9f)//if angle between both vecs is too low, calc new one for both
 			GetOtherBaseVec(normal, tangent, bitangent);
 		else
 			tangent = CrossProd(normal, bitangent);
@@ -477,7 +477,7 @@ static void VerifyTangentSpace(SMeshTangents& rTangents, const SMeshNormal& rNor
 	{
 		//fix case where bitangent is zero
 		tangent.Normalize();//just to make sure
-		if (abs(tangent * normal) > 0.9f)//if angle between both vecs is to low, calc new one for both
+		if (abs(tangent * normal) > 0.9f)//if angle between both vecs is too low, calc new one for both
 			GetOtherBaseVec(normal, tangent, bitangent);
 		else
 			bitangent = CrossProd(tangent, normal);

@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 /*************************************************************************
 Crytek Source File.
 Copyright (C), Crytek Studios, 2001-2008.
@@ -102,17 +102,17 @@ public:
 	CTextureSplitter();
 	~CTextureSplitter();
 
-	virtual void Release();
+	virtual void Release() override;
 
-	virtual void BeginProcessing(const IConfig* config) { }
-	virtual void EndProcessing() { }
-	virtual IConvertContext* GetConvertContext() { return &m_CC; }
-	virtual bool Process();
+	virtual void BeginProcessing(const IConfig* config) override { }
+	virtual void EndProcessing() override { }
+	virtual IConvertContext* GetConvertContext() override { return &m_CC; }
+	virtual bool Process() override;
 
-	virtual void DeInit();
-	virtual ICompiler* CreateCompiler();
-	virtual bool SupportsMultithreading() const;
-	virtual const char* GetExt(int index) const;
+	virtual void DeInit() override;
+	virtual ICompiler* CreateCompiler() override;
+	virtual bool SupportsMultithreading() const override;
+	virtual const char* GetExt(int index) const override;
 
 	// Used to override reported name of the source file.
 	void SetOverrideSourceFileName( const string &srcFilename );

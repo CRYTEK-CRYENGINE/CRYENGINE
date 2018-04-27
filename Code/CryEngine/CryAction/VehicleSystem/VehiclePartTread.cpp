@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 /*************************************************************************
    -------------------------------------------------------------------------
@@ -83,7 +83,7 @@ bool CVehiclePartTread::Init(IVehicle* pVehicle, const CVehicleParams& table, IV
 
 		// find tread material
 		IEntityRender* pIEntityRender = GetEntity()->GetRenderInterface();
-		
+
 		{
 			pMaterial = pIEntityRender->GetRenderMaterial(m_slot);
 			if (pMaterial)
@@ -234,13 +234,13 @@ void CVehiclePartTread::Physicalize()
 }
 
 //------------------------------------------------------------------------
-const Matrix34& CVehiclePartTread::GetLocalTM(bool relativeToParentPart, bool forced)
+Matrix34 CVehiclePartTread::GetLocalTM(bool relativeToParentPart, bool forced)
 {
 	return GetEntity()->GetSlotLocalTM(m_slot, relativeToParentPart);
 }
 
 //------------------------------------------------------------------------
-const Matrix34& CVehiclePartTread::GetWorldTM()
+Matrix34 CVehiclePartTread::GetWorldTM()
 {
 	return GetEntity()->GetSlotWorldTM(m_slot);
 }
@@ -262,7 +262,7 @@ const AABB& CVehiclePartTread::GetLocalBounds()
 //------------------------------------------------------------------------
 void CVehiclePartTread::Update(const float frameTime)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_ACTION);
+	CRY_PROFILE_FUNCTION(PROFILE_ACTION);
 
 	if (!m_pCharInstance)
 		return;
@@ -327,7 +327,7 @@ void CVehiclePartTread::Update(const float frameTime)
 		if (VehicleCVars().v_debugdraw == 4)
 		{
 			Vec3 local = GetEntity()->GetWorldTM().GetInverted() * slotTM.GetTranslation();
-			gEnv->pRenderer->GetIRenderAuxGeom()->DrawSphere(GetEntity()->GetWorldTM() * (local + Vec3((float)sgn(local.x) * 0.5f, 0.f, 0.f)), 0.1f, ColorB(0, 0, 255, 255));
+			gEnv->pAuxGeomRenderer->DrawSphere(GetEntity()->GetWorldTM() * (local + Vec3((float)sgn(local.x) * 0.5f, 0.f, 0.f)), 0.1f, ColorB(0, 0, 255, 255));
 		}
 #endif
 	}

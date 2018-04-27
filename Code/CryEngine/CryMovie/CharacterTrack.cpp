@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "CharacterTrack.h"
@@ -70,7 +70,7 @@ float CCharacterTrack::GetKeyDuration(int key) const
 	if (m_keys[key].m_bLoop)
 	{
 		SAnimTime lastTime = m_timeRange.end;
-		if (key + 1 < (int)m_keys.size() && m_keys[key + 1].m_animDuration > SAnimTime(0.0f))
+		if (key + 1 < (int)m_keys.size() && m_keys[key + 1].GetAnimDuration() > SAnimTime(0.0f))
 		{
 			lastTime = m_keys[key + 1].m_time + min(LOOP_TRANSITION_TIME, SAnimTime(GetKeyDuration(key + 1)));
 		}
@@ -79,6 +79,6 @@ float CCharacterTrack::GetKeyDuration(int key) const
 	}
 	else
 	{
-		return m_keys[key].m_animDuration;
+		return m_keys[key].GetCroppedAnimDuration();
 	}
 }

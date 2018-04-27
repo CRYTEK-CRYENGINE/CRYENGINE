@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 //
 //  Crytek Engine Source File.
 //  Copyright (C), Crytek Studios, 2002.
@@ -17,7 +17,7 @@
 #define __config_h__
 #pragma once
 
-#include "iconfig.h"
+#include "IConfig.h"
 #include <CryCore/StlUtils.h>
 #include "StringHelpers.h"
 

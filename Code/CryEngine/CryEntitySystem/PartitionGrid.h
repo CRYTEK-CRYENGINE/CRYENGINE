@@ -1,18 +1,5 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
-// -------------------------------------------------------------------------
-//  File name:   PartitionGrid.h
-//  Version:     v1.00
-//  Created:     27/11/2005 by Timur.
-//  Compilers:   Visual Studio.NET 2003
-//  Description:
-// -------------------------------------------------------------------------
-//  History:
-//
-////////////////////////////////////////////////////////////////////////////
-
-#ifndef __PartitionGrid_h__
-#define __PartitionGrid_h__
 #pragma once
 
 #include <CryMemory/PoolAllocator.h>
@@ -246,5 +233,3 @@ inline void SGridLocation::operator delete(void* ptr)
 	if (ptr)
 		CPartitionGrid::g_GridLocationPoolAlloc->Deallocate(ptr);
 }
-
-#endif // __PartitionGrid_h__

@@ -1,9 +1,10 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 // Description: Nodes related to Entity Containers
 // - 10/02/2016 Created by Dario Sancho
 
 #include "StdAfx.h"
+#include <random>
 
 #include "EntityContainers/EntityContainerMgr.h"
 #include "EntityContainers/IEntityContainerListener.h"
@@ -662,8 +663,8 @@ public:
 	{
 		static const SInputPortConfig inputs[] =
 		{
-			InputPortConfig_AnyType("DoQuery", _HELP("Checks if the given Entity ID belonga to the selected container")),
-			InputPortConfig<EntityId>("EntityId", 0, _HELP("Entity ID to check")),
+			InputPortConfig_AnyType("DoQuery", _HELP("Checks if the given Entity ID belongs to the selected container")),
+			InputPortConfig<EntityId>("Id", 0, _HELP("Entity ID to check")),
 			InputPortConfig<bool>("AutomaticCheck", false, _HELP("If True, the node will automatically fire its outputs if the selected entity is added/removed to the given container")),
 			{ 0 }
 		};
@@ -1161,7 +1162,8 @@ public:
 					// Filtering Random
 					else if (filterType == eFT_Random && kSelectedOutputSize != 0)
 					{
-						std::random_shuffle(ids.begin(), ids.end());
+						static std::mt19937 urng(std::random_device{}());
+						std::shuffle(ids.begin(), ids.end(), urng);;
 					}
 
 					// Output filter results into a container

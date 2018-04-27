@@ -1,0 +1,13 @@
+<AssetMetadata version="0" type="Texture" guid="73a66fe4-e034-4079-94ef-66be36db9aba" source="TextureCompiling_a.tif">
+ <Files>
+  <File path="TextureCompiling_a.dds"/>
+  <File path="TextureCompiling_a.dds.1"/>
+  <File path="TextureCompiling_a.dds.2"/>
+  <File path="TextureCompiling_a.dds.3"/>
+ </Files>
+ <Details>
+  <Detail name="width">128</Detail>
+  <Detail name="height">128</Detail>
+  <Detail name="mipCount">6</Detail>
+ </Details>
+</AssetMetadata>

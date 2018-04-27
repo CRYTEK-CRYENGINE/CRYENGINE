@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 /*=============================================================================
    CPUDetect.cpp : CPU detection.
@@ -14,7 +14,7 @@
 //-------------------------------------------------------
 /// Cpu class
 //-------------------------------------------------------
-#if CRY_PLATFORM_WINDOWS && CRY_PLATFORM_64BIT
+#if CRY_PLATFORM_64BIT
 	#define MAX_CPU 64
 #else
 	#define MAX_CPU 32

@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "DangerousRigidBody.h"
@@ -54,7 +54,7 @@ bool CDangerousRigidBody::NetSerialize( TSerialize ser, EEntityAspects aspect, u
 	return true;
 }
 
-void CDangerousRigidBody::ProcessEvent( SEntityEvent& event )
+void CDangerousRigidBody::ProcessEvent( const SEntityEvent& event )
 {
 	switch(event.event)
 	{
@@ -99,6 +99,11 @@ void CDangerousRigidBody::ProcessEvent( SEntityEvent& event )
 		}
 		break;
 	}
+}
+
+uint64 CDangerousRigidBody::GetEventMask() const
+{
+	return BIT64(ENTITY_EVENT_COLLISION) | BIT64(ENTITY_EVENT_RESET);
 }
 
 void CDangerousRigidBody::GetMemoryUsage( ICrySizer *pSizer ) const

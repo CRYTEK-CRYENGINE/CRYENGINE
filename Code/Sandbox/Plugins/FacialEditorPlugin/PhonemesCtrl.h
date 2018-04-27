@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #ifndef __PhonemesCtrl_h__
 #define __PhonemesCtrl_h__
@@ -213,3 +213,4 @@ private:
 };
 
 #endif // __PhonemesCtrl_h__
+

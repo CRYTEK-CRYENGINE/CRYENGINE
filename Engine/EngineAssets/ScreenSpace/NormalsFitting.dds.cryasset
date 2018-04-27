@@ -1,0 +1,10 @@
+<AssetMetadata version="0" type="Texture" guid="83d37254-0096-bd19-6b4d-ac126a26b38e">
+ <Files>
+  <File path="NormalsFitting.dds"/>
+ </Files>
+ <Details>
+  <Detail name="width">512</Detail>
+  <Detail name="height">512</Detail>
+  <Detail name="mipCount">10</Detail>
+ </Details>
+</AssetMetadata>

@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -50,6 +50,12 @@ struct PosNorm
 {
 	Vec3 vPos;
 	Vec3 vNorm;
+
+	PosNorm() {}
+	PosNorm(type_zero)
+		: vPos(ZERO), vNorm(ZERO) {}
+	PosNorm(const Vec3& pos, const Vec3& norm)
+		: vPos(pos), vNorm(norm) {}
 
 	void zero()
 	{
@@ -177,6 +183,7 @@ struct Cone
 		: mTip(tip), mDir(dir), mBase(tip + dir * height), mHeight(height), mBaseRadius(baseRadius) {}
 };
 
+//! Represents an axis-aligned bounding box
 struct AABB
 {
 
@@ -528,6 +535,7 @@ ILINE bool IsEquivalent(const AABB& a, const AABB& b, float epsilon = VEC_EPSILO
 	return IsEquivalent(a.min, b.min, epsilon) && IsEquivalent(a.max, b.max, epsilon);
 }
 
+//! Exposes oriented bounding box functionality
 template<typename F> struct OBB_tpl
 {
 
@@ -650,10 +658,14 @@ struct TRect_tpl
 
 	Vec Min, Max;
 
-	inline TRect_tpl() {}
-	inline TRect_tpl(Num x1, Num y1, Num x2, Num y2) : Min(x1, y1), Max(x2, y2) {}
-	inline TRect_tpl(const TRect_tpl<Num>& rc) : Min(rc.Min), Max(rc.Max) {}
-	inline TRect_tpl(const Vec& min, const Vec& max) : Min(min), Max(max) {}
+	TRect_tpl() = default;
+	TRect_tpl(Num x1, Num y1, Num x2, Num y2) : Min(x1, y1), Max(x2, y2) {}
+	TRect_tpl(const Vec& min, const Vec& max) : Min(min), Max(max) {}
+
+	TRect_tpl(const TRect_tpl& rc) = default;
+	TRect_tpl(TRect_tpl&& rc) = default;
+	TRect_tpl &operator=(const TRect_tpl& rc) = default;
+	TRect_tpl &operator=(TRect_tpl&& rc) = default;
 
 	inline TRect_tpl<Num> operator*(Num k) const
 	{
@@ -683,6 +695,9 @@ struct TRect_tpl
 		else if (pt.y > Max.y) pt.y = Max.y;
 		return pt;
 	}
+
+	inline bool operator==(const TRect_tpl& rc)const { return this->IsEqual(rc); }
+	inline bool operator!=(const TRect_tpl& rc)const { return !this->IsEqual(rc); }
 
 	inline bool Intersects(const TRect_tpl<Num>& rc) const
 	{

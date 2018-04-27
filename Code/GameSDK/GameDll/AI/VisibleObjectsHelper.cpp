@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 /*************************************************************************
  -------------------------------------------------------------------------
@@ -193,7 +193,7 @@ void CVisibleObjectsHelper::UnregisterVisibility(SVisibleObject &visibleObject) 
 //////////////////////////////////////////////////////////////////////////
 bool CVisibleObjectsHelper::IsObjectVisible(const Agent& agent, EntityId objectId) const
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_GAME);
+	CRY_PROFILE_FUNCTION(PROFILE_GAME);
 
 	assert(agent.IsValid());
 
@@ -212,7 +212,7 @@ bool CVisibleObjectsHelper::IsObjectVisible(const Agent& agent, EntityId objectI
 //////////////////////////////////////////////////////////////////////////
 bool CVisibleObjectsHelper::IsObjectVisible(const Agent& agent, const SVisibleObject &visibleObject) const
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_GAME);
+	CRY_PROFILE_FUNCTION(PROFILE_GAME);
 
 	assert(agent.IsValid());
 
@@ -234,7 +234,7 @@ bool CVisibleObjectsHelper::IsObjectVisible(const Agent& agent, const SVisibleOb
 //////////////////////////////////////////////////////////////////////////
 bool CVisibleObjectsHelper::CheckObjectViewDist(const Agent& agent, const SVisibleObject &visibleObject) const
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_GAME);
+	CRY_PROFILE_FUNCTION(PROFILE_GAME);
 
 	assert(agent.IsValid());
 
@@ -285,7 +285,7 @@ void CVisibleObjectsHelper::Reset()
 //////////////////////////////////////////////////////////////////////////
 void CVisibleObjectsHelper::Update()
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_GAME);
+	CRY_PROFILE_FUNCTION(PROFILE_GAME);
 
 	const float fCurrTime = gEnv->pTimer->GetFrameStartTime().GetSeconds();
 	IVisionMap& visionMap = *gEnv->pAISystem->GetVisionMap();

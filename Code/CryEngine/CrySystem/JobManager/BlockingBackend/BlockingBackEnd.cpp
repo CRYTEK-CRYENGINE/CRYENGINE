@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 // -------------------------------------------------------------------------
 //  File name:   BlockingBackEnd.h
@@ -16,7 +16,7 @@
 
 ///////////////////////////////////////////////////////////////////////////////
 JobManager::BlockingBackEnd::CBlockingBackEnd::CBlockingBackEnd(JobManager::SInfoBlock** pRegularWorkerFallbacks, uint32 nRegularWorkerThreads) :
-	m_Semaphore(SJobQueue_BlockingBackEnd::eMaxWorkQueueJobsRegularPriority),
+	m_Semaphore(SJobQueue_BlockingBackEnd::eMaxWorkQueueJobsSize + JobManager::detail::GetFallbackJobListSize()),
 	m_pRegularWorkerFallbacks(pRegularWorkerFallbacks),
 	m_nRegularWorkerThreads(nRegularWorkerThreads),
 	m_pWorkerThreads(NULL),
@@ -196,10 +196,10 @@ void JobManager::BlockingBackEnd::CBlockingBackEnd::AddJob(JobManager::CJobDeleg
 		//CryLogAlways("Add Job to Slot 0x%x, priority 0x%x", jobSlot, nJobPriority );
 		MemoryBarrier();
 		m_JobQueue.jobInfoBlockStates[nJobPriority][jobSlot].SetReady();
-
-		// Release semaphore count to signal the workers that work is available
-		m_Semaphore.Release();
 	}
+
+	// Release semaphore count to signal the workers that work is available
+	m_Semaphore.Release();
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -217,9 +217,17 @@ void JobManager::BlockingBackEnd::CBlockingBackEndWorkerThread::ThreadEntry()
 	{
 		SInfoBlock infoBlock;
 		CJobManager* __restrict pJobManager = CJobManager::Instance();
-		JobManager::SInfoBlock* pFallbackInfoBlock = JobManager::detail::PopFromFallbackJobList();
+		///////////////////////////////////////////////////////////////////////////
+		// wait for new work
+		{			
+			//CRY_PROFILE_REGION_WAITING(PROFILE_SYSTEM, "Wait - JobWorkerThread");
+			m_rSemaphore.Acquire();		
+		}		
 
-		IF (pFallbackInfoBlock, 0)
+		IF(m_bStop == true, 0)
+			break;
+
+		if (JobManager::SInfoBlock* pFallbackInfoBlock = JobManager::detail::PopFromFallbackJobList())
 		{
 			CRY_PROFILE_REGION(PROFILE_SYSTEM, "JobWorkerThread: Fallback");
 
@@ -235,16 +243,6 @@ void JobManager::BlockingBackEnd::CBlockingBackEndWorkerThread::ThreadEntry()
 		}
 		else
 		{
-			///////////////////////////////////////////////////////////////////////////
-			// wait for new work
-
-			//CRY_PROFILE_REGION_WAITING(PROFILE_SYSTEM, "Wait - JobWorkerThread");
-
-			m_rSemaphore.Acquire();
-
-			IF (m_bStop == true, 0)
-				break;
-
 			bool bFoundBlockingFallbackJob = false;
 
 			// handle fallbacks added by other worker threads

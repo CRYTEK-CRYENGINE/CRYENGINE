@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #ifndef __FLY_HELPERS__TACTICAL_POINT_LANGUAGE_EXTENDER__H__
 #define __FLY_HELPERS__TACTICAL_POINT_LANGUAGE_EXTENDER__H__

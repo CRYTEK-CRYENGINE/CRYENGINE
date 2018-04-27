@@ -1,5 +1,4 @@
-// CRYENGINE Source Code File
-// Copyright 2001-2015 Crytek GmbH. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 
 // This is a direct port from CommonCausticsPass into a deferred pass - this will need some optimization
@@ -15,11 +14,11 @@ float Script : STANDARDSGLOBAL
            "NoPreview;"
            "ShaderDrawType = Custom;"
            "ShaderType = PostProcess;"
->; 
+>;
 
-half4 CausticParams : PB_CausticsParams;
-half4 CausticSmoothSunDir : PB_CausticsSmoothSunDirection;
-half4 g_fWaterLevel : PB_WaterLevel;
+float4 CausticParams : PB_CausticsParams;
+float4 CausticSmoothSunDir : PB_CausticsSmoothSunDirection;
+float4 g_fWaterLevel : PB_WaterLevel;
 float4 CausticsAnimGenParams = { PB_time 1.0, PB_time 0.5, PB_time 0.25, PB_time 0.125};
 
 float4x4 mLightView;
@@ -150,14 +149,14 @@ cbuffer CBDeferredOceanStencil : register(b0)
 	float4x4 transformMatrix;
 };
 
-float4 DeferredOceanCausticsStencilVS(in float4 pos : POSITION) : POSITION
+float4 DeferredOceanCausticsStencilVS(in float3 pos : POSITION) : SV_POSITION
 {
-	float4 worldPos = mul(transformMatrix, pos);
+    float4 worldPos = mul(transformMatrix, float4(pos, 1));
 	float4 outPos = mul(CV_ViewProjMatr, worldPos);
 	return outPos;
 }
 
-float4 DeferredOceanCausticsStencilPS() : COLOR0
+float4 DeferredOceanCausticsStencilPS() : SV_Target0
 {
 	return float4(0.0f, 0.0f, 0.0f, 0.0f);
 }
@@ -190,9 +189,9 @@ technique DeferredOceanCausticsStencil
 // Structs
 struct vtxOutCaustic
 {
-	float4 HPosition : POSITION; 
-	float4 vOldPos	: TEXCOORD0;
-	float3 vNewPos	: TEXCOORD1;
+	float4 HPosition : SV_POSITION; 
+	float4 vOldPos   : TEXCOORD0;
+	float3 vNewPos   : TEXCOORD1;
 };
 
 ////////////////////////////////////
@@ -337,8 +336,6 @@ pixout DeferredWaterVolumeCausticsPS( vtxOut IN )
 	float fDepth = GetLinearDepth( sceneDepthTexture, IN.baseTC.xy );
 	float3 vPosition = ReconstructWorldPos(IN.WPos.xy, fDepth, false);
 	half3 vNormal = DecodeGBufferNormal( wcSceneNormalsTex.Sample(pointClampSState, IN.baseTC.xy) );
-
-	//half4 cDiffuseAccRT = DecodeLightBuffer( GetSceneTex( sceneDiffuseAccTex, IN.baseTC.xy) ); 
 
 	float4 vInfoTC = mul(mLightView, float4(vPosition.xyz, 1.0f));
 	vInfoTC.xy /= vInfoTC.w;

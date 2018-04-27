@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -13,7 +13,8 @@
 template<class T, class U>
 class InterpolatedValue_tpl;
 
-// Unfortunately this needs to be here - should be in CryNetwork somewhere.
+//! Network identifier for an object that has been bound to the network
+//! Each application instance will maintain a map to look up entity identifiers to their networked identifiers.
 struct SNetObjectID
 {
 	static const uint16 InvalidId = ~uint16(0);
@@ -87,6 +88,7 @@ struct SNetObjectID
 	AUTO_STRUCT_INFO;
 };
 
+//! \cond INTERNAL
 //! This enumeration details what "kind" of serialization we are performing.
 //! It does this so that classes can (if they want to) tailor the data they present
 //! depending on to where the data is being written.
@@ -168,6 +170,7 @@ struct SSerializeString
 private:
 	string m_str;
 };
+//! \endcond
 
 //! ISerialize is intended to be implemented by objects that need to read and write from various data sources in such a way that
 //! different tradeoffs can be balanced by the object that is being serialized, and so that objects being serialized need only write
@@ -235,6 +238,7 @@ struct ISerialize
 	void ValueWithDefault(const char* name, B& x, const B& defaultValue);
 };
 
+//! \cond INTERNAL
 //! Provide a wrapper around ISerialize to allow easy changing of our Interface, and easy implementation of our details.
 //! It is a template so that we can wrap a more specific ISerialize implementation if necessary.
 //! Some of the wrappers are trivial, however for consistency, they have been made to follow the trend.
@@ -394,8 +398,8 @@ public:
 		Value(name, any);
 		if (IsReading())
 		{
-			if (any.type == ANY_TTABLE)
-				pTable = any.table;
+			if (any.GetType() == EScriptAnyType::Table)
+				pTable = any.GetScriptTable();
 			else
 				pTable = SmartScriptTable();
 		}
@@ -820,9 +824,11 @@ public:
 	ILINE void EnumValue(const char* szName, T_Value& value,
 	                     T_Value first, T_Value last)
 	{
-		int32 nValue = int32(value) - first;
-		Value(szName, nValue, ISerialize::ENUM_POLICY_TAG | (last - first));
-		value = T_Value(nValue + first);
+		using TUnderlyingType = typename std::underlying_type<T_Value>::type;
+
+		TUnderlyingType nValue = TUnderlyingType(value) - TUnderlyingType(first);
+		Value(szName, nValue, ISerialize::ENUM_POLICY_TAG | (TUnderlyingType(last) - TUnderlyingType(first)));
+		value = T_Value(nValue + TUnderlyingType(first));
 	}
 	template<typename T_Value, class T_Class>
 	ILINE void EnumValue(const char* szName,
@@ -837,6 +843,16 @@ public:
 		if (!w)
 			(pClass->*SetValue)(T_Value(nValue + first));
 	}
+
+	// Ranged Integer, (Using similar to enum compression policy)
+	template<typename T_Value>
+	ILINE void IntegerWithRangeValue(const char* szName, T_Value& value,T_Value first, T_Value last)
+	{
+		int32 nValue = int32(value) - first;
+		Value(szName, nValue, ISerialize::ENUM_POLICY_TAG | (last - first));
+		value = T_Value(nValue + first);
+	}
+
 	/*
 	   //! We can request that a functor be called whenever our values are being updated by calling this function.
 	   template <class F_Update>
@@ -949,6 +965,7 @@ public:
 private:
 	TISerialize* m_pSerialize;
 };
+//! \endcond
 
 //! Default serialize class to use.
 typedef CSerializeWrapper<ISerialize> TSerialize;
@@ -985,6 +1002,7 @@ void ISerialize::ValueWithDefault(const char* name, B& x, const B& defaultValue)
 	}
 }
 
+//! \cond INTERNAL
 //! Used to automatically Begin/End group in serialization stream.
 struct SSerializeScopedBeginGroup
 {
@@ -1000,3 +1018,4 @@ struct SSerializeScopedBeginGroup
 private:
 	TSerialize* m_pSer;
 };
+//! \endcond

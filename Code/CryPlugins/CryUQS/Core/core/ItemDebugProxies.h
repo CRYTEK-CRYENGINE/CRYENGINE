@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -38,7 +38,7 @@ namespace UQS
 		//
 		//===================================================================================
 
-		class CItemDebugProxy_Sphere : public IItemDebugProxy_Sphere, public CItemDebugProxyBase
+		class CItemDebugProxy_Sphere : public CItemDebugProxyBase, public IItemDebugProxy_Sphere
 		{
 		public:
 			explicit              CItemDebugProxy_Sphere();
@@ -57,15 +57,14 @@ namespace UQS
 			Vec3                  m_pos;
 			float                 m_radius;
 		};
-		SERIALIZATION_CLASS_NAME(CItemDebugProxyBase, CItemDebugProxy_Sphere, "CItemDebugProxy_Sphere", "");
-
+		
 		//===================================================================================
 		//
 		// CItemDebugProxy_Path
 		//
 		//===================================================================================
 
-		class CItemDebugProxy_Path : public IItemDebugProxy_Path, public CItemDebugProxyBase
+		class CItemDebugProxy_Path : public CItemDebugProxyBase, public IItemDebugProxy_Path
 		{
 		public:
 			explicit              CItemDebugProxy_Path();
@@ -85,7 +84,6 @@ namespace UQS
 			std::vector<Vec3>     m_pathPoints;
 			bool                  m_bClosed;
 		};
-		SERIALIZATION_CLASS_NAME(CItemDebugProxyBase, CItemDebugProxy_Path, "CItemDebugProxy_Path", "");
 
 		//===================================================================================
 		//
@@ -93,7 +91,7 @@ namespace UQS
 		//
 		//===================================================================================
 
-		class CItemDebugProxy_AABB : public IItemDebugProxy_AABB, public CItemDebugProxyBase
+		class CItemDebugProxy_AABB : public CItemDebugProxyBase, public IItemDebugProxy_AABB
 		{
 		public:
 			explicit              CItemDebugProxy_AABB();
@@ -111,7 +109,5 @@ namespace UQS
 		private:
 			AABB                  m_aabb;
 		};
-		SERIALIZATION_CLASS_NAME(CItemDebugProxyBase, CItemDebugProxy_AABB, "CItemDebugProxy_AABB", "");
-
 	}
 }

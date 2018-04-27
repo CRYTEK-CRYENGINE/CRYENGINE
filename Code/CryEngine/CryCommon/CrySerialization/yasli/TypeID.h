@@ -32,8 +32,8 @@ class TypeID{
 	friend class TypesFactory;
 public:
 	TypeID()
-	: module_(0)
-	, typeInfo_(0)
+	: typeInfo_(0)
+	, module_(0)
 	{}
 
 	TypeID(const TypeID& original)

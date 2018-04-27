@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 /*=============================================================================
    CImage.cpp : Common Image class implementation.
@@ -89,7 +89,8 @@ _smart_ptr<CImageFile> CImageFile::mfLoad_file(const string& filename, const uin
 	}
 
 	char ext[16];
-	if (!mfInvokeRC(sFileToLoad, filename, ext, 16))
+	EResourceCompilerResult result = mfInvokeRC(sFileToLoad, filename, ext, 16, (nFlags & FIM_IMMEDIATE_RC) != 0);
+	if (result == EResourceCompilerResult::Failed || result == EResourceCompilerResult::Queued)
 		return NULL;
 
 	_smart_ptr<CImageFile> pImageFile;
@@ -137,8 +138,8 @@ _smart_ptr<CImageFile> CImageFile::mfStream_File(const string& filename, const u
 	}
 
 	char ext[16];
-
-	if (!mfInvokeRC(sFileToLoad, filename, ext, 16))
+	EResourceCompilerResult result = mfInvokeRC(sFileToLoad, filename, ext, 16, true);
+	if (result == EResourceCompilerResult::Failed || result == EResourceCompilerResult::Queued)
 		return NULL;
 
 	_smart_ptr<CImageFile> pImageFile;
@@ -156,7 +157,7 @@ _smart_ptr<CImageFile> CImageFile::mfStream_File(const string& filename, const u
 	return pImageFile;
 }
 
-bool CImageFile::mfInvokeRC(const string& sFileToLoad, const string& filename, char* extOut, size_t extOutCapacity)
+CImageFile::EResourceCompilerResult CImageFile::mfInvokeRC(const string& sFileToLoad, const string& filename, char* extOut, size_t extOutCapacity, bool immediate)
 {
 	cry_strcpy(extOut, extOutCapacity, PathUtil::GetExt(sFileToLoad));
 
@@ -169,14 +170,27 @@ bool CImageFile::mfInvokeRC(const string& sFileToLoad, const string& filename, c
 			CTextureCompiler& txCompiler = CTextureCompiler::GetInstance();
 			char buffer[512];
 
-			if (!txCompiler.ProcessTextureIfNeeded(filename, buffer, sizeof(buffer)))
-			{
-				gEnv->pLog->LogError("ProcessTextureIfNeeded() failed (missing rc.exe?)");
-				return false;
-			}
+			CTextureCompiler::EResult result = txCompiler.ProcessTextureIfNeeded(filename, buffer, sizeof(buffer), immediate);
 
 			string sFileToLoad_enable_rc_helper = buffer;
 			cry_strcpy(extOut, extOutCapacity, PathUtil::GetExt(sFileToLoad_enable_rc_helper)); // update extension
+
+			switch(result)
+			{
+				case CTextureCompiler::EResult::AlreadyCompiled:
+					return EResourceCompilerResult::AlreadyCompiled;
+				case CTextureCompiler::EResult::Available:
+					return EResourceCompilerResult::Available;
+				case CTextureCompiler::EResult::Queued:
+					return EResourceCompilerResult::Queued;
+				case CTextureCompiler::EResult::Failed:
+				default:
+				{
+					gEnv->pLog->LogError("ProcessTextureIfNeeded() failed (missing rc.exe?)");
+					return EResourceCompilerResult::Failed;
+				}
+				break;
+			}
 		}
 		else
 		{
@@ -185,7 +199,7 @@ bool CImageFile::mfInvokeRC(const string& sFileToLoad, const string& filename, c
 	}
 #endif //CRY_ENABLE_RC_HELPER
 
-	return true;
+	return EResourceCompilerResult::Skipped;
 }
 
 void CImageFile::mfFree_image(const int nSide)

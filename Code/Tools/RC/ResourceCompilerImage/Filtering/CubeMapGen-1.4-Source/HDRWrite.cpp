@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 // Radiance format .HDR  write routines
 //
 //  based loosely on RGBE conversion code by Bruce Walter and Greg Ward
@@ -78,7 +78,7 @@ static void rgbe2float(float32 *a_Red, float32 *a_Green, float32 *a_Blue, uint8 
 //--------------------------------------------------------------------------------------
 void HDR_WriteHeader(FILE *fp, int32 a_Width, int32 a_Height)
 {
-   char *programtype = "RADIANCE";
+   const char *programtype = "RADIANCE";
 
    // The #? is to identify file type, the programtype is optional. 
    fprintf(fp,"#?%s%c", programtype, 10);

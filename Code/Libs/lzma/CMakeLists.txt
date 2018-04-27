@@ -6,30 +6,33 @@ start_sources()
 sources_platform(ALL)
 add_sources("NoUberFile"
 	SOURCE_GROUP "Root"
-		"../../SDKs/lzma/Alloc.c"
-		"../../SDKs/lzma/Bra.c"
-		"../../SDKs/lzma/Bra86.c"
-		"../../SDKs/lzma/LzFind.c"
-		"../../SDKs/lzma/Lzma2Dec.c"
-		"../../SDKs/lzma/Lzma2Enc.c"
-		"../../SDKs/lzma/Lzma86Dec.c"
-		"../../SDKs/lzma/Lzma86Enc.c"
-		"../../SDKs/lzma/LzmaDec.c"
-		"../../SDKs/lzma/LzmaEnc.c"
-		"../../SDKs/lzma/Alloc.h"
-		"../../SDKs/lzma/Bra.h"
-		"../../SDKs/lzma/LzFind.h"
-		"../../SDKs/lzma/LzHash.h"
-		"../../SDKs/lzma/Lzma2Dec.h"
-		"../../SDKs/lzma/Lzma2Enc.h"
-		"../../SDKs/lzma/Lzma86.h"
-		"../../SDKs/lzma/LzmaDec.h"
-		"../../SDKs/lzma/LzmaEnc.h"
-		"../../SDKs/lzma/Types.h"
+		"${SDK_DIR}/lzma/Alloc.c"
+		"${SDK_DIR}/lzma/Bra.c"
+		"${SDK_DIR}/lzma/Bra86.c"
+		"${SDK_DIR}/lzma/LzFind.c"
+		"${SDK_DIR}/lzma/Lzma2Dec.c"
+		"${SDK_DIR}/lzma/Lzma2Enc.c"
+		"${SDK_DIR}/lzma/Lzma86Dec.c"
+		"${SDK_DIR}/lzma/Lzma86Enc.c"
+		"${SDK_DIR}/lzma/LzmaDec.c"
+		"${SDK_DIR}/lzma/LzmaEnc.c"
+		"${SDK_DIR}/lzma/Alloc.h"
+		"${SDK_DIR}/lzma/Bra.h"
+		"${SDK_DIR}/lzma/LzFind.h"
+		"${SDK_DIR}/lzma/LzHash.h"
+		"${SDK_DIR}/lzma/Lzma2Dec.h"
+		"${SDK_DIR}/lzma/Lzma2Enc.h"
+		"${SDK_DIR}/lzma/Lzma86.h"
+		"${SDK_DIR}/lzma/LzmaDec.h"
+		"${SDK_DIR}/lzma/LzmaEnc.h"
+		"${SDK_DIR}/lzma/Types.h"
 )
 
 end_sources()
 #END-FILE-LIST
 
 CryEngineStaticModule(lzma SOLUTION_FOLDER "Libs")
+if (ORBIS OR CMAKE_CXX_COMPILER_ID STREQUAL "Clang" OR CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+	target_compile_options(${THIS_PROJECT} PRIVATE -w)
+endif()
 target_include_directories(${THIS_PROJECT} INTERFACE "${SDK_DIR}")

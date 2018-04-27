@@ -1,0 +1,10 @@
+<AssetMetadata version="0" type="Texture" guid="959e505a-221e-f49e-77cf-43fdf0846ffb">
+ <Files>
+  <File path="WaterVolume.dds"/>
+ </Files>
+ <Details>
+  <Detail name="width">64</Detail>
+  <Detail name="height">64</Detail>
+  <Detail name="mipCount">1</Detail>
+ </Details>
+</AssetMetadata>

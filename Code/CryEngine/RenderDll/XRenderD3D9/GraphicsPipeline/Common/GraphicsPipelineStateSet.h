@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 #include "../../DeviceManager/DeviceObjects.h" // CDeviceGraphicsPSOPtr, CDeviceGraphicsPSOWPtr
@@ -20,14 +20,14 @@ struct SGraphicsPipelineStateDescription
 
 	SGraphicsPipelineStateDescription()
 		: technique(TTYPE_Z)
-		, renderState(0)
-		, objectFlags(0)
 		, objectFlags_MDV(0)
+		, objectFlags(0)
 		, objectRuntimeMask(0)
-		, vertexFormat(InputLayoutHandle::Unspecified)
 		, streamMask(0)
 		, primitiveType(eptUnknown)
-	{};
+		, renderState(0)
+		, vertexFormat(InputLayoutHandle::Unspecified)
+	{}
 	SGraphicsPipelineStateDescription(CRenderObject* pObj, CRenderElement* pRE, const SShaderItem& shaderItem, EShaderTechniqueID technique, InputLayoutHandle vertexFormat, uint32 streamMask, ERenderPrimitiveType primitiveType);
 
 	bool operator==(const SGraphicsPipelineStateDescription& other) const

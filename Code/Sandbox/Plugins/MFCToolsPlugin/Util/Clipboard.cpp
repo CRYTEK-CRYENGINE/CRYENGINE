@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "Clipboard.h"
@@ -7,6 +7,25 @@
 
 XmlNodeRef CClipboard::m_node;
 string CClipboard::m_title;
+
+namespace Private_Clipboard
+{
+	class CBitmapHolder
+	{
+	public:
+		CBitmapHolder(HBITMAP bitmap)
+			: m_bitmap(bitmap)
+		{}
+
+		~CBitmapHolder()
+		{
+			DeleteObject(m_bitmap);
+		}
+
+	private:
+		HBITMAP m_bitmap;
+	};
+};
 
 //////////////////////////////////////////////////////////////////////////
 // Clipboard implementation.
@@ -159,6 +178,8 @@ void CClipboard::PutImage(const CImageEx& img)
 		return;
 	}
 
+	Private_Clipboard::CBitmapHolder bh(hBm);
+
 	if (!OpenClipboard(NULL))
 	{
 		CQuestionDialog::SCritical(QObject::tr(""), QObject::tr("Cannot open the Clipboard"));
@@ -173,8 +194,6 @@ void CClipboard::PutImage(const CImageEx& img)
 
 	SetClipboardData(CF_BITMAP, hBm);
 	CloseClipboard();
-
-	DeleteObject(hBm);
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -219,3 +238,4 @@ bool CClipboard::GetImage(CImageEx& img)
 
 	return true;
 }
+

@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #if !defined(AFX_STDAFX_H__D3D35062_283E_4DF2_A9C4_9AE0A1B082A8__INCLUDED_)
 #define AFX_STDAFX_H__D3D35062_283E_4DF2_A9C4_9AE0A1B082A8__INCLUDED_
@@ -10,7 +10,7 @@
 //#define NOT_USE_CRY_MEMORY_MANAGER
 
 #include <CryCore/Project/CryModuleDefs.h>
-#define eCryModule eCryM_Lobby
+#define eCryModule eCryM_EnginePlugin
 #define CRYLOBBY_EXPORTS
 #include <CryCore/Platform/platform.h>
 
@@ -35,8 +35,10 @@
 #include <CryMath/Cry_Math.h>
 #include <CryMemory/CrySizer.h>
 #include <CryCore/StlUtils.h>
+#include <CryCore/CryVariant.h>
 
 #include <CryRenderer/IRenderer.h>
+
 
 #if CRY_PLATFORM_LINUX || CRY_PLATFORM_ANDROID
 	#include <unistd.h>

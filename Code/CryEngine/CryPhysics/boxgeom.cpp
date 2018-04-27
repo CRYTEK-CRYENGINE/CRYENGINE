@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 
@@ -379,7 +379,7 @@ int CBoxGeom::FindClosestPoint(geom_world_data *pgwd, int &iPrim,int &iFeature, 
 void CBoxGeom::BuildTriMesh(CTriMesh &mesh, int bStaticArrays)
 {
 	static index_t idx[36] = { 0,4,6, 6,2,0,  1,3,7, 7,5,1,  0,1,5, 5,4,0,  2,6,7, 7,3,2,  0,2,3, 3,1,0,  4,5,7, 7,6,4 };
-	static Vec3 normals[MAX_PHYS_THREADS+1][12],vtx[MAX_PHYS_THREADS+1][8];
+	static Vec3 normals[MAX_TOT_THREADS][12],vtx[MAX_TOT_THREADS][8];
 
 	mesh.m_nTris = 12;
 	mesh.m_nVertices = 8;

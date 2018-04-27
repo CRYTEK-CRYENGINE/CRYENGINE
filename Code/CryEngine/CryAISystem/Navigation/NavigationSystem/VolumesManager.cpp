@@ -1,7 +1,44 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "VolumesManager.h"
+
+#include "Navigation/NavigationSystem/NavigationSystem.h"
+
+CVolumesManager::CVolumesManager()
+{
+	gEnv->pSystem->GetISystemEventDispatcher()->RegisterListener(this, "NavigationVolumesManager");
+}
+
+CVolumesManager::~CVolumesManager()
+{
+	gEnv->pSystem->GetISystemEventDispatcher()->RemoveListener(this);
+}
+
+void CVolumesManager::OnSystemEvent(ESystemEvent event, UINT_PTR wparam, UINT_PTR lparam)
+{
+	if (event == ESYSTEM_EVENT_LEVEL_LOAD_END)
+	{
+		// Check if all loaded markups have still their owning entity in a level		
+		for (auto iter = m_registeredEntityMarkupsMap.cbegin(); iter != m_registeredEntityMarkupsMap.cend();)
+		{
+			if (gEnv->pEntitySystem->FindEntityByGuid(iter->first) == INVALID_ENTITYID)
+			{
+				// Entity doesn't exist, remove markups
+				for (const auto& nameAndId : iter->second)
+				{
+					gEnv->pAISystem->GetNavigationSystem()->DestroyMarkupVolume(nameAndId.second);
+				}
+
+				iter = m_registeredEntityMarkupsMap.erase(iter);
+			}
+			else
+			{
+				++iter;
+			}
+		}
+	}
+}
 
 bool CVolumesManager::RegisterArea(const char* volumeName, NavigationVolumeID& outVolumeId)
 {
@@ -51,7 +88,7 @@ void CVolumesManager::ClearLoadedAreas()
 	m_loadedVolumeAreas.clear();
 }
 
-void CVolumesManager::ValidateAndSanitizeLoadedAreas(const INavigationSystem& navigationSystem)
+void CVolumesManager::ValidateAndSanitizeLoadedAreas(INavigationSystem& navigationSystem)
 {
 	for (auto iter = m_loadedVolumeAreas.begin(); iter != m_loadedVolumeAreas.end(); )
 	{
@@ -94,6 +131,8 @@ void CVolumesManager::Clear()
 {
 	m_volumeAreas.clear();
 	m_loadedVolumeAreas.clear();
+
+	m_registeredEntityMarkupsMap.clear();
 }
 
 bool CVolumesManager::IsAreaPresent(const char* volumeName) const
@@ -196,6 +235,168 @@ void CVolumesManager::GetLoadedUnregisteredVolumes(std::vector<NavigationVolumeI
 		if (m_volumeAreas.find(name) == m_volumeAreas.end())
 		{
 			volumes.push_back(volumeNameIdPair.second);
+		}
+	}
+}
+
+bool CVolumesManager::RegisterEntityMarkups(INavigationSystem& navigationSystem, const IEntity& entity, const char** pShapeNamesArray, const size_t count, NavigationVolumeID* pOutIds)
+{
+	if (count == 0)
+		return false;
+	
+	const EntityGUID entityGuid = entity.GetGuid();
+	if (entityGuid.IsNull())
+		return false;
+
+	VolumesMap& shapeNameToIdMap = m_registeredEntityMarkupsMap[entityGuid];
+
+	// Remove markup volumes with names, that aren't in pShapeNamesArray
+	for (VolumesMap::const_iterator it = shapeNameToIdMap.cbegin(); it != shapeNameToIdMap.cend();)
+	{
+		bool isRegistering = false;
+		for (size_t i = 0; i < count; ++i)
+		{
+			if (it->first.compare(pShapeNamesArray[i]) == 0)
+			{
+				isRegistering = true;
+				break;
+			}
+		}
+		if (!isRegistering)
+		{
+			navigationSystem.DestroyMarkupVolume(it->second);
+			it = shapeNameToIdMap.erase(it);
+		}
+		else
+		{
+			++it;
+		}
+	}
+
+	for (size_t i = 0; i < count; ++i)
+	{
+		NavigationVolumeID volumeId = NavigationVolumeID();
+		
+		bool isDuplicate = false;
+		const char* szShapeName = pShapeNamesArray[i];
+		for (size_t j = 0; j < i; ++j)
+		{
+			if (strcmp(szShapeName, pShapeNamesArray[j]) == 0)
+			{
+				isDuplicate = true;
+				break;
+			}
+		}
+		if (!isDuplicate)
+		{
+			const VolumesMap::const_iterator findIt = shapeNameToIdMap.find(szShapeName);
+			if (findIt != shapeNameToIdMap.end())
+			{
+				volumeId = findIt->second;
+			}
+			else
+			{
+				volumeId = navigationSystem.CreateMarkupVolume(NavigationVolumeID());
+				shapeNameToIdMap[szShapeName] = volumeId;
+			}
+		}
+		pOutIds[i] = volumeId;
+	}
+	return true;
+}
+
+bool CVolumesManager::UnregisterEntityMarkups(INavigationSystem& navigationSystem, const IEntity& entity)
+{
+	const EntityGUID entityGuid = entity.GetGuid();
+	if (entityGuid.IsNull())
+		return false;
+
+	const EntitiesWithMarkupsMap::const_iterator findIt = m_registeredEntityMarkupsMap.find(entityGuid);
+	if (findIt == m_registeredEntityMarkupsMap.end())
+		return false;
+
+	const VolumesMap& namesAndIds = findIt->second;
+	for (const auto& nameAndId : namesAndIds)
+	{
+		navigationSystem.DestroyMarkupVolume(nameAndId.second);
+	}
+	m_registeredEntityMarkupsMap.erase(findIt);
+
+	return true;
+}
+
+void CVolumesManager::SaveData(CCryFile& file, const uint16 version) const
+{
+	// Note: change eBAINavigationFileVersion in NavigationSystem.cpp after any new change
+	if (version >= NavigationSystem::eBAINavigationFileVersion::ENTITY_MARKUP_GUIDS)
+	{
+		const uint32 entitiesCount = static_cast<uint32>(m_registeredEntityMarkupsMap.size());
+
+		file.WriteType(&entitiesCount);
+		for (const auto& guidAndMarkups : m_registeredEntityMarkupsMap)
+		{
+			const EntityGUID& guid = guidAndMarkups.first;
+
+			file.WriteType(&guid);
+
+			const uint32 shapesCount = static_cast<uint32>(guidAndMarkups.second.size());
+			file.WriteType(&shapesCount);
+
+			for (const auto& nameAndId : guidAndMarkups.second)
+			{
+				const string& name = nameAndId.first;
+				const uint32 nameSize = static_cast<uint32>(name.size());
+
+				file.WriteType(&nameSize);
+				file.WriteType(name.c_str(), nameSize);
+
+				const uint32 volumeId = static_cast<uint32>(nameAndId.second);
+				file.WriteType(&volumeId);
+			}
+		}
+	}
+}
+
+void CVolumesManager::LoadData(CCryFile& file, const uint16 version)
+{
+	if (version >= NavigationSystem::eBAINavigationFileVersion::ENTITY_MARKUP_GUIDS)
+	{
+		std::vector<char> nameBuffer;
+		string name;
+		uint32 nameSize;
+
+		uint32 entitiesCount = 0;
+		file.ReadType(&entitiesCount);
+		for (uint32 eIdx = 0; eIdx < entitiesCount; ++eIdx)
+		{
+			EntityGUID entityGuid;
+			file.ReadTypeRaw(&entityGuid);
+
+			VolumesMap& namesAndIds = m_registeredEntityMarkupsMap[entityGuid];
+
+			uint32 shapesCount = 0;
+			file.ReadType(&shapesCount);
+
+			for (uint32 sIdx = 0; sIdx < shapesCount; ++sIdx)
+			{
+				file.ReadType(&nameSize);
+				if (nameSize > 0)
+				{
+					nameBuffer.resize(nameSize, '\0');
+					file.ReadType(&nameBuffer.front(), nameSize);
+
+					name.assign(&nameBuffer.front(), (&nameBuffer.back()) + 1);
+				}
+				else
+				{
+					name.clear();
+				}
+
+				uint32 volumeId = 0;
+				file.ReadType(&volumeId);
+
+				namesAndIds.emplace(name, NavigationVolumeID(volumeId));
+			}
 		}
 	}
 }

@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #ifndef __POWEROF2BLOCKPACKER_H__
 #define __POWEROF2BLOCKPACKER_H__
@@ -9,7 +9,7 @@ class CPowerOf2BlockPacker
 {
 public:
 	CTexture* m_pTexture;
-	float     m_fLastUsed;
+	CTimeValue m_timeLastUsed;
 
 public:
 	// constructor

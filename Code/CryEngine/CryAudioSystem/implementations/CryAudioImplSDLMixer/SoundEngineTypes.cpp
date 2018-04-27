@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "stdafx.h"
 #include "SoundEngineTypes.h"
@@ -42,13 +42,36 @@ ERequestStatus CObject::SetEnvironment(IEnvironment const* const pIEnvironment, 
 //////////////////////////////////////////////////////////////////////////
 ERequestStatus CObject::SetParameter(IParameter const* const pIParameter, float const value)
 {
-	return ERequestStatus::Success;
+	ERequestStatus result = ERequestStatus::Failure;
+
+	if (pIParameter != nullptr)
+	{
+		auto const pParameter = static_cast<CParameter const* const>(pIParameter);
+		float parameterValue = pParameter->GetMultiplier() * crymath::clamp(value, 0.0f, 1.0f) + pParameter->GetShift();
+		parameterValue = crymath::clamp(parameterValue, 0.0f, 1.0f);
+		SampleId const sampleId = pParameter->GetSampleId();
+		m_volumeMultipliers[sampleId] = parameterValue;
+		result = SoundEngine::SetVolume(this, sampleId);
+	}
+
+	return result;
 }
 
 //////////////////////////////////////////////////////////////////////////
 ERequestStatus CObject::SetSwitchState(ISwitchState const* const pISwitchState)
 {
-	return ERequestStatus::Success;
+	ERequestStatus result = ERequestStatus::Failure;
+
+	if (pISwitchState != nullptr)
+	{
+		auto const pSwitchState = static_cast<CSwitchState const* const>(pISwitchState);
+		float const switchValue = pSwitchState->GetValue();
+		SampleId const sampleId = pSwitchState->GetSampleId();
+		m_volumeMultipliers[sampleId] = switchValue;
+		result = SoundEngine::SetVolume(this, sampleId);
+	}
+
+	return result;
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -64,12 +87,9 @@ ERequestStatus CObject::ExecuteTrigger(ITrigger const* const pITrigger, IEvent* 
 	{
 		CTrigger const* const pTrigger = static_cast<CTrigger const* const>(pITrigger);
 		CEvent* const pEvent = static_cast<CEvent* const>(pIEvent);
-
-		if (SoundEngine::ExecuteEvent(this, pTrigger, pEvent))
-		{
-			return ERequestStatus::Success;
-		}
+		return SoundEngine::ExecuteEvent(this, pTrigger, pEvent);
 	}
+
 	return ERequestStatus::Failure;
 }
 

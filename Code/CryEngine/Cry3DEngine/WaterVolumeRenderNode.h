@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #ifndef _WATERVOLUME_RENDERNODE_
 #define _WATERVOLUME_RENDERNODE_
@@ -94,8 +94,8 @@ public:
 	virtual void             SetAuxPhysParams(pe_params_area* pa) { m_auxPhysParams = *pa; if (m_pPhysArea) m_pPhysArea->SetParams(pa); }
 
 	virtual void             CreateOcean(uint64 volumeID, /* TBD */ bool keepSerializationParams = false);
-	virtual void             CreateArea(uint64 volumeID, const Vec3* pVertices, unsigned int numVertices, const Vec2& surfUVScale, const Plane& fogPlane, bool keepSerializationParams = false, int nSID = GetDefSID());
-	virtual void             CreateRiver(uint64 volumeID, const Vec3* pVertices, unsigned int numVertices, float uTexCoordBegin, float uTexCoordEnd, const Vec2& surfUVScale, const Plane& fogPlane, bool keepSerializationParams = false, int nSID = GetDefSID());
+	virtual void             CreateArea(uint64 volumeID, const Vec3* pVertices, unsigned int numVertices, const Vec2& surfUVScale, const Plane& fogPlane, bool keepSerializationParams = false);
+	virtual void             CreateRiver(uint64 volumeID, const Vec3* pVertices, unsigned int numVertices, float uTexCoordBegin, float uTexCoordEnd, const Vec2& surfUVScale, const Plane& fogPlane, bool keepSerializationParams = false);
 
 	virtual void             SetAreaPhysicsArea(const Vec3* pVertices, unsigned int numVertices, bool keepSerializationParams = false);
 	virtual void             SetRiverPhysicsArea(const Vec3* pVertices, unsigned int numVertices, bool keepSerializationParams = false);
@@ -141,6 +141,7 @@ public:
 	virtual uint16       GetLayerId()                { return m_nLayerId; }
 
 	void                 Render_JobEntry(SRendParams rParam, SRenderingPassInfo passInfo);
+	virtual bool         CanExecuteRenderAsJob() final;
 
 	void                 Transform(const Vec3& localOrigin, const Matrix34& l2w);
 	virtual IRenderNode* Clone() const;

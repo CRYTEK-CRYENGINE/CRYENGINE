@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "stdafx.h"
 #include "SkeletonEffectManager.h"
@@ -18,9 +18,9 @@ CSkeletonEffectManager::~CSkeletonEffectManager()
 
 void CSkeletonEffectManager::Update(ISkeletonAnim* pSkeleton, ISkeletonPose* pSkeletonPose, const QuatTS& entityLoc)
 {
-	for (int i = 0; i < m_effects.size(); )
+	for (int i = 0; i < m_particlesEffects.size(); )
 	{
-		EffectEntry& entry = m_effects[i];
+		EffectEntry& entry = m_particlesEffects[i];
 
 		// If the animation has stopped, kill the effect.
 		const bool effectStillPlaying = (entry.pEmitter ? entry.pEmitter->IsAlive() : false);
@@ -28,7 +28,7 @@ void CSkeletonEffectManager::Update(ISkeletonAnim* pSkeleton, ISkeletonPose* pSk
 		{
 			// Update the effect position.
 			QuatTS loc;
-			GetEffectLoc(pSkeletonPose, loc, entry.boneID, entry.offset, entry.dir, entityLoc);
+			GetEffectJointLocation(pSkeletonPose, loc, entry.boneID, entry.offset, entry.dir, entityLoc);
 			if (entry.pEmitter)
 				entry.pEmitter->SetLocation(loc);
 
@@ -39,11 +39,11 @@ void CSkeletonEffectManager::Update(ISkeletonAnim* pSkeleton, ISkeletonPose* pSk
 			if (Console::GetInst().ca_DebugSkeletonEffects > 0)
 			{
 				CryLogAlways("CSkeletonEffectManager::Update(this=%p): Killing effect \"%s\" because %s.", this,
-				             (m_effects[i].pEffect ? m_effects[i].pEffect->GetName() : "<EFFECT NULL>"), (effectStillPlaying ? "animation has ended" : "effect has ended"));
+				             (m_particlesEffects[i].pEffect ? m_particlesEffects[i].pEffect->GetName() : "<EFFECT NULL>"), (effectStillPlaying ? "animation has ended" : "effect has ended"));
 			}
-			if (m_effects[i].pEmitter)
-				m_effects[i].pEmitter->Activate(false);
-			m_effects.erase(m_effects.begin() + i);
+			if (m_particlesEffects[i].pEmitter)
+				m_particlesEffects[i].pEmitter->Activate(false);
+			m_particlesEffects.erase(m_particlesEffects.begin() + i);
 		}
 	}
 }
@@ -52,31 +52,72 @@ void CSkeletonEffectManager::KillAllEffects()
 {
 	if (Console::GetInst().ca_DebugSkeletonEffects)
 	{
-		for (int effectIndex = 0, effectCount = m_effects.size(); effectIndex < effectCount; ++effectIndex)
+		for (int effectIndex = 0, effectCount = m_particlesEffects.size(); effectIndex < effectCount; ++effectIndex)
 		{
-			IParticleEffect* pEffect = m_effects[effectIndex].pEffect;
+			IParticleEffect* pEffect = m_particlesEffects[effectIndex].pEffect;
 			CryLogAlways("CSkeletonEffectManager::KillAllEffects(this=%p): Killing effect \"%s\" because animated character is in simplified movement.", this, (pEffect ? pEffect->GetName() : "<EFFECT NULL>"));
 		}
 	}
 
-	for (int i = 0, count = m_effects.size(); i < count; ++i)
+	for (int i = 0, count = m_particlesEffects.size(); i < count; ++i)
 	{
-		if (m_effects[i].pEmitter)
-			m_effects[i].pEmitter->Activate(false);
+		if (m_particlesEffects[i].pEmitter)
+			m_particlesEffects[i].pEmitter->Activate(false);
 	}
 
-	m_effects.clear();
+	m_particlesEffects.clear();
 }
 
-void CSkeletonEffectManager::SpawnEffect(CCharInstance* pCharInstance, const char* effectName, const char* boneName, const Vec3& offset, const Vec3& dir, const QuatTS& entityLoc)
+void CSkeletonEffectManager::SpawnEffect(CCharInstance* pCharInstance, const AnimEventInstance& animEvent, const QuatTS& entityLoc)
 {
+	const unsigned char& firstLetter = animEvent.m_EventName[0];
+	switch (firstLetter)
+	{
+	case 'a':
+		if (strcmp(animEvent.m_EventName, "audio_trigger") == 0) { SpawnEffectAudio(pCharInstance, animEvent, entityLoc); }
+		break;
+	case 'e':
+		if (strcmp(animEvent.m_EventName, "effect") == 0) { SpawnEffectParticles(pCharInstance, animEvent, entityLoc); }
+		break;
+	}
+}
+
+void CSkeletonEffectManager::SpawnEffectAudio(CCharInstance* pCharInstance, const AnimEventInstance& animEvent, const QuatTS& entityLoc)
+{
+	const char* triggerName = animEvent.m_CustomParameter;
+	const char* boneName = animEvent.m_BonePathName;
+	const Vec3& offset = animEvent.m_vOffset;
+	const Vec3& dir = animEvent.m_vDir;
+
+	ISkeletonPose* pISkeletonPose = pCharInstance->GetISkeletonPose();
+	const IDefaultSkeleton& rIDefaultSkeleton = pCharInstance->GetIDefaultSkeleton();
+
+	// Determine position
+	int boneID = (boneName && boneName[0] ? rIDefaultSkeleton.GetJointIDByName(boneName) : -1);
+	boneID = (boneID == -1 ? 0 : boneID);
+	QuatTS loc;
+	GetEffectJointLocation(pISkeletonPose, loc, boneID, offset, dir, entityLoc);
+
+	// Spawn audio
+	CryAudio::ControlId const triggerId = CryAudio::StringToId(triggerName);
+	CryAudio::SExecuteTriggerData triggerData(triggerId, triggerName, CryAudio::EOcclusionType::Ignore, loc.t, INVALID_ENTITYID, true);
+	gEnv->pAudioSystem->ExecuteTriggerEx(triggerData);
+}
+
+void CSkeletonEffectManager::SpawnEffectParticles(CCharInstance* pCharInstance, const AnimEventInstance& animEvent, const QuatTS& entityLoc)
+{
+	const char* effectName = animEvent.m_CustomParameter;
+	const char* boneName = animEvent.m_BonePathName;
+	const Vec3& offset = animEvent.m_vOffset;
+	const Vec3& dir = animEvent.m_vDir;
+
 	ISkeletonPose* pISkeletonPose = pCharInstance->GetISkeletonPose();
 	const IDefaultSkeleton& rIDefaultSkeleton = pCharInstance->GetIDefaultSkeleton();
 
 	// Check whether we are already playing this effect, and if so dont restart it.
 	bool alreadyPlayingEffect = false;
 	if (!Console::GetInst().ca_AllowMultipleEffectsOfSameName)
-		alreadyPlayingEffect = IsPlayingEffect(effectName);
+		alreadyPlayingEffect = IsPlayingParticlesEffect(effectName);
 
 	if (alreadyPlayingEffect)
 	{
@@ -96,7 +137,7 @@ void CSkeletonEffectManager::SpawnEffect(CCharInstance* pCharInstance, const cha
 		int boneID = (boneName && boneName[0] ? rIDefaultSkeleton.GetJointIDByName(boneName) : -1);
 		boneID = (boneID == -1 ? 0 : boneID);
 		QuatTS loc;
-		GetEffectLoc(pISkeletonPose, loc, boneID, offset, dir, entityLoc);
+		GetEffectJointLocation(pISkeletonPose, loc, boneID, offset, dir, entityLoc);
 		IParticleEmitter* pEmitter = (pEffect ? pEffect->Spawn(false, loc) : 0);
 		if (pEffect && pEmitter)
 		{
@@ -104,7 +145,7 @@ void CSkeletonEffectManager::SpawnEffect(CCharInstance* pCharInstance, const cha
 			{
 				CryLogAlways("CSkeletonEffectManager::SpawnEffect(this=%p): starting effect \"%s\", requested by an animation event", this, (effectName ? effectName : "<MISSING EFFECT NAME>"));
 			}
-			m_effects.push_back(EffectEntry(pEffect, pEmitter, boneID, offset, dir));
+			m_particlesEffects.push_back(EffectEntry(pEffect, pEmitter, boneID, offset, dir));
 		}
 	}
 }
@@ -118,7 +159,7 @@ CSkeletonEffectManager::EffectEntry::~EffectEntry()
 {
 }
 
-void CSkeletonEffectManager::GetEffectLoc(ISkeletonPose* pSkeletonPose, QuatTS& loc, int boneID, const Vec3& offset, const Vec3& dir, const QuatTS& entityLoc)
+void CSkeletonEffectManager::GetEffectJointLocation(ISkeletonPose* pSkeletonPose, QuatTS& loc, int boneID, const Vec3& offset, const Vec3& dir, const QuatTS& entityLoc)
 {
 	if (dir.len2() > 0)
 		loc.q = Quat::CreateRotationXYZ(Ang3(dir * 3.14159f / 180.0f));
@@ -132,12 +173,12 @@ void CSkeletonEffectManager::GetEffectLoc(ISkeletonPose* pSkeletonPose, QuatTS& 
 	loc = entityLoc * loc;
 }
 
-bool CSkeletonEffectManager::IsPlayingEffect(const char* effectName)
+bool CSkeletonEffectManager::IsPlayingParticlesEffect(const char* effectName)
 {
 	bool isPlaying = false;
-	for (int effectIndex = 0, effectCount = m_effects.size(); effectIndex < effectCount; ++effectIndex)
+	for (int effectIndex = 0, effectCount = m_particlesEffects.size(); effectIndex < effectCount; ++effectIndex)
 	{
-		IParticleEffect* pEffect = m_effects[effectIndex].pEffect;
+		IParticleEffect* pEffect = m_particlesEffects[effectIndex].pEffect;
 		if (pEffect && stricmp(pEffect->GetName(), effectName) == 0)
 			isPlaying = true;
 	}

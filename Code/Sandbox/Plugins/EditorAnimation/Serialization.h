@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -9,7 +9,6 @@
 struct SkeletonAlias;
 bool Serialize(Serialization::IArchive& ar, SkeletonAlias& value, const char* name, const char* label);
 
-#include <CrySerialization/Decorators/Slider.h>
 #include <CrySerialization/Decorators/Resources.h>
 #include <CrySerialization/Decorators/ResourceFilePath.h>
 #include <CrySerialization/Decorators/ResourceFolderPath.h>
@@ -23,10 +22,11 @@ bool Serialize(Serialization::IArchive& ar, SkeletonAlias& value, const char* na
 using Serialization::AttachmentName;
 using Serialization::ResourceFilePath;
 using Serialization::MaterialPicker;
-using Serialization::SkeletonPath;
+using Serialization::SkeletonOrCgaPath;
 using Serialization::SkeletonParamsPath;
 using Serialization::AnimationAlias;
 using Serialization::AnimationPath;
+using Serialization::AnimationOrBlendSpacePath;
 using Serialization::AnimationPathWithId;
 using Serialization::CharacterPath;
 using Serialization::CharacterPhysicsPath;
@@ -34,10 +34,10 @@ using Serialization::CharacterRigPath;
 using Serialization::ResourceFolderPath;
 using Serialization::JointName;
 using Serialization::BitFlags;
-using Serialization::Decorators::Slider;
 using Serialization::LocalToJoint;
 using Serialization::ToggleButton;
 using Serialization::SerializeToMemory;
 using Serialization::SerializeToMemory;
 using Serialization::SerializeFromMemory;
 using Serialization::SerializeFromMemory;
+

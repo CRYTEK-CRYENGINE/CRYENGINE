@@ -1,0 +1,15 @@
+<AssetMetadata version="0" type="Texture" guid="841d8d12-6bb7-279d-433c-98ccfa577a86" source="donut_light.tif">
+ <Files>
+  <File path="donut_light.dds"/>
+  <File path="donut_light.dds.1"/>
+  <File path="donut_light.dds.2"/>
+  <File path="donut_light.dds.3"/>
+  <File path="donut_light.dds.4"/>
+  <File path="donut_light.dds.5"/>
+ </Files>
+ <Details>
+  <Detail name="width">512</Detail>
+  <Detail name="height">512</Detail>
+  <Detail name="mipCount">8</Detail>
+ </Details>
+</AssetMetadata>

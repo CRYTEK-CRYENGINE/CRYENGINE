@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 // #SchematycTODO : How can we reduce duplication of functionality between persistent state and intermittent states?
 // #SchematycTODO : Create lightweight runtime element id system to replace guids? We can always build an id to guid map (or vice-versa) if we need access to guids at runtime (e.g. for debugging).

@@ -1,9 +1,12 @@
-﻿// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 using System;
 
 namespace CryEngine
 {
+	/// <summary>
+	/// The type of asset or value the EntityProperty is exposing to the Sandbox.
+	/// </summary>
 	public enum EntityPropertyType : uint
 	{
 		/// <summary>
@@ -35,6 +38,9 @@ namespace CryEngine
 		/// </summary>
 		Material,
 		//FIXME Animation property is not working properly in the Sandbox.
+		/// <summary>
+		/// The property is a path to an animation file.
+		/// </summary>
 		Animation
 	}
 
@@ -56,6 +62,11 @@ namespace CryEngine
 		#endregion
 
 		#region Constructors
+		/// <summary>
+		/// Adding this attribute to a property of an <see cref="EntityComponent"/> exposes the property to the properties panel in the Sandbox.
+		/// </summary>
+		/// <param name="type">The value type of the property. This can change the way the property behaves in the Sandbox.</param>
+		/// <param name="description">Mouse-over description of the property in the Sandbox.</param>
 		public EntityPropertyAttribute(EntityPropertyType type = EntityPropertyType.Primitive, string description = null)
 		{
 			Description = description;

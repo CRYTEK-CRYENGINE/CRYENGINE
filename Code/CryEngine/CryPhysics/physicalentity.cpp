@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 
@@ -73,6 +73,7 @@ CPhysicalEntity::CPhysicalEntity(CPhysicalWorld *pworld, IGeneralMemoryHeap* pHe
 	, m_pColliders(nullptr)
 	, m_nColliders(0)
 	, m_nCollidersAlloc(0)
+	, m_nSyncColliders(0)
 	, m_lockColliders(0)
 	, m_pOuterEntity(nullptr)
 	, m_bProcessed_aux(0)
@@ -110,7 +111,7 @@ CPhysicalEntity::CPhysicalEntity(CPhysicalWorld *pworld, IGeneralMemoryHeap* pHe
 	//CPhysicalEntity
 	m_parts = &m_defpart;
 	m_parts[0].pNewCoords = (coord_block_BBox*)&m_parts[0].pos;
-	m_pNewCoords = (coord_block*)&m_pos;
+	m_pNewCoords = m_pSyncCoords = (coord_block*)&m_pos;
 
 	m_collisionClass.type = m_collisionClass.ignore = 0;
 }
@@ -158,6 +159,7 @@ CPhysicalEntity::~CPhysicalEntity()
 		if (m_pStructure->Lexpl) delete[] m_pStructure->Lexpl;
 		delete m_pStructure; m_pStructure = 0;
 	}
+	if (m_pSyncCoords!=(coord_block*)&m_pos) delete m_pSyncCoords;
 	if(m_pOuterEntity && !m_pWorld->m_bMassDestruction)m_pOuterEntity->Release();
 	if(m_pWorld && !m_pWorld->m_bMassDestruction)assert(!m_nRefCount && !m_nRefCountPOD);
 }
@@ -305,26 +307,29 @@ int CPhysicalEntity::SetParams(pe_params *_params, int bThreadSafe)
 		if (!is_unused(params->pPhysGeomProxy) && params->pPhysGeomProxy && params->pPhysGeomProxy->pGeom)
 			m_pWorld->GetGeomManager()->AddRefGeometry(params->pPhysGeomProxy);
 	}
-	int bRecalcBounds = 0;
-#ifdef SEG_WORLD
-	int bForcePosChange = 0;
-	if (_params->type==pe_params_pos::type_id)
-	{
-		pe_params_pos *params = (pe_params_pos*)_params;
-		bRecalcBounds = params->bRecalcBounds&2;
-		bForcePosChange = (params->bRecalcBounds == 3) ? 1 : 0;
-	}
-#endif
 	ChangeRequest<pe_params> req(this,m_pWorld,_params,bThreadSafe);
-	if (req.IsQueued() && !bRecalcBounds)
+	if (req.IsQueued())	{
+		if (_params->type==pe_params_pos::type_id && m_pSyncCoords!=(coord_block*)&m_pos) {
+			pe_params_pos *params = (pe_params_pos*)_params;
+			if (!is_unused(params->pos)) m_pSyncCoords->pos = params->pos;
+			if (!is_unused(params->q)) m_pSyncCoords->q = params->q;
+			Vec3 mcol[3]; int i=0;
+			if (!is_unused(params->pMtx3x3) && params->pMtx3x3) 
+				for(i=0;i<3;i++) mcol[i] = params->pMtx3x3->GetColumn(i);
+			if (!is_unused(params->pMtx3x4) && params->pMtx3x4) {
+				for(i=0;i<3;i++) mcol[i] = params->pMtx3x4->GetColumn(i);
+				m_pSyncCoords->pos = params->pMtx3x4->GetTranslation();
+			}
+			if (i)
+				m_pSyncCoords->q = Quat(fabs(mcol[0].len2()-1)+fabs(mcol[1].len2()-1)+fabs(mcol[2].len2()-1) < 0.01f ? 
+					Matrix33(mcol[0],mcol[1],mcol[2]) : Matrix33(mcol[0].normalized(),mcol[1].normalized(),mcol[2].normalized()));
+		}
 		return 1+(m_bProcessed>>PENT_QUEUED_BIT);
+	}
 
 	if (_params->type==pe_params_pos::type_id) {
 		pe_params_pos *params = (pe_params_pos*)_params;
 		int i,j,bPosChanged=0,bBBoxReady=0;
-#ifdef SEG_WORLD
-		bPosChanged = bForcePosChange;
-#endif
 		SEntityGrid *pgridCur = m_pWorld->GetGrid(this), *pgridNew = is_unused(params->pGridRefEnt) ? pgridCur : 
 			(!params->pGridRefEnt || params->pGridRefEnt==WORLD_ENTITY ? &m_pWorld->m_entgrid : m_pWorld->GetGrid(params->pGridRefEnt));
 		if (pgridNew != pgridCur) {
@@ -383,6 +388,11 @@ int CPhysicalEntity::SetParams(pe_params *_params, int bThreadSafe)
 			m_iSimClass = params->iSimClass;
 			m_pWorld->RepositionEntity(this,2);
 		}
+		if (!is_unused(params->doubleBufCoords) && params->doubleBufCoords!=(m_pSyncCoords!=(coord_block*)&m_pos))
+			if (!params->doubleBufCoords) {
+				delete m_pSyncCoords; m_pSyncCoords = (coord_block*)&m_pos;
+			}	else
+				*(m_pSyncCoords = new coord_block) = { m_pos,m_qrot };
 
 		if (!is_unused(params->scale)) {
 			if (params->bRecalcBounds) {
@@ -427,6 +437,7 @@ int CPhysicalEntity::SetParams(pe_params *_params, int bThreadSafe)
 
 			{ WriteLock lock(m_lockUpdate);
 				m_pos=m_pNewCoords->pos = cnew.pos; m_qrot=m_pNewCoords->q = cnew.q;
+				m_pSyncCoords->pos = cnew.pos; m_pSyncCoords->q = cnew.q;
 				if (!is_unused(params->scale)) for(i=0;i<m_nParts;i++) {
 					float dscale = params->scale/m_parts[i].scale;
 					m_parts[i].mass *= cube(dscale);
@@ -900,6 +911,17 @@ int CPhysicalEntity::GetParams(pe_params *_params) const
 		return 1;
 	}
 
+	if (_params->type==pe_params_pos::type_id) {
+		pe_params_pos *params = (pe_params_pos*)_params;
+		params->pos = m_pos;
+		params->q = m_qrot;
+		params->scale = 1;
+		params->iSimClass = m_iSimClass;
+		params->pGridRefEnt = m_pWorld->GetGrid(this);
+		params->doubleBufCoords = m_pSyncCoords!=(coord_block*)&m_pos;
+		return 1;
+	}
+
 	if (_params->type==pe_params_part::type_id) {
 		pe_params_part *params = (pe_params_part*)_params;
 		ReadLockCond lock(m_lockUpdate,m_pWorld->m_vars.bLogStructureChanges);
@@ -1076,6 +1098,15 @@ int CPhysicalEntity::GetStatus(pe_status *_status) const
 		}	else
 			return 0;
 
+		if (status->flags & status_use_sync_coords && m_pSyncCoords!=(coord_block*)&m_pos && (i<0 || !(status->flags & status_local))) {
+			QuatT diff = QuatT(m_pSyncCoords->q,m_pSyncCoords->pos) * QuatT(m_qrot,m_pos).GetInverted();
+			respos = diff*respos;
+			resq = diff.q*resq;
+			Vec3 center = diff*(status->BBox[0]+status->BBox[1])*0.5f;
+			Vec3 sz = Matrix33(diff.q).Fabs()*(status->BBox[1]-status->BBox[0])*0.5f;
+			status->BBox[0] = center-sz; status->BBox[1] = center+sz;
+		}
+
 		if (!is_unused(status->pGridRefEnt)) {
 			if (status->pGridRefEnt && m_pWorld->GetGrid(this)!=m_pWorld->GetGrid(status->pGridRefEnt) && (i<0 || !(status->flags & status_local)))
 				transformBBox(status->BBox[0],status->BBox[1], status->BBox, 
@@ -1127,6 +1158,11 @@ int CPhysicalEntity::GetStatus(pe_status *_status) const
 		return 1;
 	}
 
+	if (_status->type==pe_status_constraint::type_id && IsPortal(this)) {
+		((pe_status_constraint*)_status)->pBuddyEntity = m_pEntBuddy;
+		return 1;
+	}
+
 	if (_status->type==pe_status_extent::type_id)
 	{
 		pe_status_extent *status = (pe_status_extent*)_status;
@@ -1137,7 +1173,7 @@ int CPhysicalEntity::GetStatus(pe_status *_status) const
 	if (_status->type==pe_status_random::type_id)
 	{
 		pe_status_random *status = (pe_status_random*)_status;
-		GetRandomPos(status->ran, status->seed, status->eForm);
+		GetRandomPoints(status->points, status->seed, status->eForm);
 		return 1;
 	}
 
@@ -1363,6 +1399,12 @@ int CPhysicalEntity::Action(pe_action *_action, int bThreadSafe)
 		m_pEntBuddy->m_pEntBuddy = this;
 		return 1;
 	}
+
+	if (_action->type==pe_action_update_constraint::type_id && ((pe_action_update_constraint*)_action)->bRemove && IsPortal(this)) {
+		m_pEntBuddy = nullptr; 
+		m_iForeignFlags &= ~(TRIGGER_PORTAL | TRIGGER_PORTAL_INV);
+		return 1;
+	}
 	
 	return 0;
 }
@@ -1384,16 +1426,18 @@ float CPhysicalEntity::GetExtent(EGeomForm eForm) const
 	return ext.TotalExtent();
 }
 
-void CPhysicalEntity::GetRandomPos(PosNorm& ran, CRndGen& seed, EGeomForm eForm) const
+void CPhysicalEntity::GetRandomPoints(Array<PosNorm> points, CRndGen& seed, EGeomForm eForm) const
 {
 	// choose sub-part, get random pos, transform to world
 	const CGeomExtent& ext = m_Extents[eForm];
-	int iPart = ext.RandomPart(seed);
-	if (iPart >= 0 && iPart < m_nParts) {
-		geom const& part = m_parts[iPart];
-		part.pPhysGeom->pGeom->GetRandomPos(ran, seed, eForm);
-		QuatTS qts(m_qrot * part.q, m_qrot * part.pos + m_pos, part.scale);
-		ran <<= qts;
+	for (auto subPoints : ext.RandomPartsAliasSum(points, seed)) {
+		if (subPoints.iPart >= 0 && subPoints.iPart < m_nParts) {
+			geom const& part = m_parts[subPoints.iPart];
+			part.pPhysGeom->pGeom->GetRandomPoints(subPoints.aPoints, seed, eForm);
+			QuatTS qts(m_qrot * part.q, m_qrot * part.pos + m_pos, part.scale);
+			for (auto& ran : subPoints.aPoints)
+				ran <<= qts;
+		}
 	}
 }
 
@@ -1805,7 +1849,7 @@ void CPhysicalEntity::DrawHelperInformation(IPhysRenderer *pRenderer, int flags)
 	}
 
 	if (flags & (pe_helper_geometry|pe_helper_lattice)) {
-		int iLevel = flags>>16, mask=0, bTransp=m_pStructure && (flags & 16 || m_pWorld->m_vars.bLogLatticeTension);
+		int iLevel = flags>>16 & 0xFFF, mask=0, bTransp=(m_pStructure && (flags & 16 || m_pWorld->m_vars.bLogLatticeTension)) | flags>>29 & 1;
 		if (iLevel & 1<<11)
 			mask=iLevel&0xF7FF,iLevel=0;
 		for(i=0;i<m_nParts;i++) if ((m_parts[i].flags & mask)==mask && (m_parts[i].flags || m_parts[i].flagsCollider || m_parts[i].mass>0)) {
@@ -1920,10 +1964,14 @@ void CPhysicalEntity::GetMemoryStatistics(ICrySizer *pSizer) const
 	if (m_pWorld->m_vars.iDrawHelpers & 1<<31 && m_ig[0].x>-1)
 		pSizer->AddObject(&m_iGThunk0, (m_ig[1].x-m_ig[0].x+1)*(m_ig[1].y-m_ig[0].y+1)*sizeof(pe_gridthunk));
 	pSizer->AddObject(m_parts, m_nPartsAlloc*sizeof(m_parts[0]));
-	for(int i=0;i<m_nParts;i++) if (CPhysicalPlaceholder *ppc=m_parts[i].pPlaceholder) {
-		//pSizer->AddObject(ppc, sizeof(CPhysicalPlaceholder));
-		if (m_pWorld->m_vars.iDrawHelpers & 1<<31 && ppc->m_ig[0].x>-1)
-			pSizer->AddObject(&ppc->m_iGThunk0, (ppc->m_ig[1].x-ppc->m_ig[0].x+1)*(ppc->m_ig[1].y-ppc->m_ig[0].y+1)*sizeof(pe_gridthunk));
+	for(int i=0;i<m_nParts;i++) {
+		if (CPhysicalPlaceholder *ppc=m_parts[i].pPlaceholder) {
+			//pSizer->AddObject(ppc, sizeof(CPhysicalPlaceholder));
+			if (m_pWorld->m_vars.iDrawHelpers & 1<<31 && ppc->m_ig[0].x>-1)
+				pSizer->AddObject(&ppc->m_iGThunk0, (ppc->m_ig[1].x-ppc->m_ig[0].x+1)*(ppc->m_ig[1].y-ppc->m_ig[0].y+1)*sizeof(pe_gridthunk));
+		}
+		int nMats = m_parts[i].pMatMapping && m_parts[i].pMatMapping!=m_parts[i].pPhysGeom->pMatMapping ? m_parts[i].nMats : 0;
+		pSizer->AddObject(m_parts[i].pMatMapping, nMats*sizeof(int), nMats);
 	}
 	if(m_pColliders)
 		pSizer->AddObject(m_pColliders, m_nCollidersAlloc*sizeof(m_pColliders[0]));
@@ -1946,7 +1994,7 @@ void CPhysicalEntity::GetMemoryStatistics(ICrySizer *pSizer) const
 	}
 	pSizer->AddObject(m_ground, m_nGroundPlanes*sizeof(m_ground[0]));
 	if (m_pUsedParts)
-		pSizer->AddObject(m_pUsedParts, (MAX_PHYS_THREADS+1)*sizeof(m_pUsedParts[0]));
+		pSizer->AddObject(m_pUsedParts, MAX_TOT_THREADS*sizeof(m_pUsedParts[0]));
 }
 
 struct SMemSerializer : ISerialize {
@@ -3745,9 +3793,9 @@ void CPhysicalEntity::RepositionParts()
 	}
 	if (!m_pUsedParts) {
 		if (m_pHeap)
-			m_pUsedParts = (int(*)[16])m_pHeap->Malloc(sizeof(int) * (MAX_PHYS_THREADS+1) * 16, "Used parts");
+			m_pUsedParts = (int(*)[16])m_pHeap->Malloc(sizeof(int) * MAX_TOT_THREADS * 16, "Used parts");
 		else
-			m_pUsedParts = new int[MAX_PHYS_THREADS+1][16];
+			m_pUsedParts = new int[MAX_TOT_THREADS][16];
 		memset(m_pUsedParts, 0, sizeof(*m_pUsedParts));
 	}
 

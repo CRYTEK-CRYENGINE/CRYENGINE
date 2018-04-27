@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 // -------------------------------------------------------------------------
 //  File name:   UIEntityDynTexTag.cpp
@@ -136,7 +136,7 @@ void CUIEntityDynTexTag::OnInstanceDestroyed( IUIElement* pSender, IUIElement* p
 }
 
 ////////////////////////////////////////////////////////////////////////////
-void CUIEntityDynTexTag::OnEntityEvent( IEntity *pEntity,SEntityEvent &event )
+void CUIEntityDynTexTag::OnEntityEvent( IEntity *pEntity, const SEntityEvent& event )
 {
 	assert(event.event == ENTITY_EVENT_DONE);
 	RemoveAllEntityTags( pEntity->GetId(), false );

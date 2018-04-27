@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -84,6 +84,7 @@ protected slots:
 	void      OnEventsImport();
 	void      OnEventsExport();
 private:
+	void      ResetTimelineZoom();
 	void      WriteTimeline();
 	void      ReadTimeline();
 
@@ -126,3 +127,4 @@ private:
 };
 
 }
+

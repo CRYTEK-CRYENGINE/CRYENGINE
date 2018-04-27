@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "VehiclePart.h"
@@ -369,7 +369,7 @@ void CVehiclePart::UpdateObjectFromVar()
 		OnSetClass(m_pPartClass);
 	}
 
-	SetModified(false);
+	SetModified(false, false);
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -452,19 +452,19 @@ void CVehiclePart::Done()
 //////////////////////////////////////////////////////////////////////////
 void CVehiclePart::AttachChild(CBaseObject* child, bool bKeepPos, bool bInvalidateTM)
 {
-	child->AddEventListener(functor(*this, &CVehiclePart::OnObjectEvent));
+	child->signalChanged.Connect(this, &CVehiclePart::OnObjectEvent);
 
 	CBaseObject::AttachChild(child, bKeepPos, bInvalidateTM);
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CVehiclePart::OnObjectEvent(CBaseObject* node, int event)
+void CVehiclePart::OnObjectEvent(const CBaseObject* pObject, const CObjectEvent& event)
 {
-	if (event == OBJECT_ON_DELETE)
+	if (event.m_type == OBJECT_ON_DELETE)
 	{
-		VeedLog("[CVehiclePart]: ON_DELETE for %s", node->GetName());
+		VeedLog("[CVehiclePart]: ON_DELETE for %s", pObject->GetName());
 		// delete variable
-		if (IVeedObject* pVO = IVeedObject::GetVeedObject(node))
+		if (IVeedObject* pVO = IVeedObject::GetVeedObject(const_cast<CBaseObject*>(pObject)))
 		{
 			if (pVO->DeleteVar())
 			{
@@ -475,7 +475,7 @@ void CVehiclePart::OnObjectEvent(CBaseObject* node, int event)
 					m_pVehicle->GetVariable()->DeleteVariable(pVO->GetVariable(), true);
 				}
 				pVO->SetVariable(0);
-				VeedLog("[CVehiclePart] deleting var for %s", node->GetName());
+				VeedLog("[CVehiclePart] deleting var for %s", pObject->GetName());
 			}
 		}
 	}
@@ -592,3 +592,4 @@ void CVehiclePart::UpdateScale(float scale)
 void CVehiclePart::OnTreeSelection()
 {
 }
+

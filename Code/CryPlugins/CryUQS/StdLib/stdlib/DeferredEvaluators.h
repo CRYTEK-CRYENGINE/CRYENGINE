@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -16,9 +16,7 @@ namespace UQS
 		// - Tests a raycast between 2 given positions.
 		// - Whether success or failure of the raycast counts as overall success or failure of the evalutor can be specified by a parameter.
 		//
-		// - NOTICE: The underlying raycaster uses the *renderer* to limit the number of raycasts per frame!
-		//           As such, it will not work on a dedicated server as there is no renderer (!) (Read: a null-pointer crash would occur!)
-		//           You should rather consider this evaluator as a reference for your own implementation.
+		// - NOTICE: The underlying raycaster uses global timer to limit the number of raycasts per second!
 		//
 		//===================================================================================
 
@@ -42,13 +40,12 @@ namespace UQS
 			class CRaycastRegulator
 			{
 			public:
-				explicit               CRaycastRegulator(int maxRequestsPerFrame);
+				explicit               CRaycastRegulator(int maxRequestsPerSecond);
 				bool                   RequestRaycast();
 
 			private:
-				const int              m_maxRequestsPerFrame;
-				int                    m_currentFrame;
-				int                    m_numRequestsInCurrentFrame;
+				const int              m_maxRequestsPerSecond;
+				float                  m_timeLastFiredRaycast;
 			};
 
 		private:

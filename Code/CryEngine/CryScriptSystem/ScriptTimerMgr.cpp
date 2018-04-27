@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 //
 // ScriptTimerMgr.cpp: implementation of the CScriptTimerMgr class.
@@ -131,7 +131,7 @@ void CScriptTimerMgr::Reset()
 // Update all managed timers.
 void CScriptTimerMgr::Update(int64 nCurrentTime)
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_SCRIPT);
+	CRY_PROFILE_FUNCTION(PROFILE_SCRIPT);
 
 	ScriptTimerMapItor itor;
 

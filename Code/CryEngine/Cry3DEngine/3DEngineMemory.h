@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 // -------------------------------------------------------------------------
 //  File name:   3DEngineMemory.h
@@ -52,6 +52,7 @@ private:
 	// cachelines crossed by the temporary pool
 	static bool Initialize(size_t poolSize)
 	{
+		MEMSTAT_CONTEXT(EMemStatContextTypes::MSC_Other, 0, "Init 3dEngine Temporary Pool");
 		// Create the object instance
 		s_Instance = new CTemporaryPool();
 		if (!s_Instance)

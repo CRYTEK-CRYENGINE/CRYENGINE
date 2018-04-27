@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include <StdAfx.h>
 
@@ -980,7 +980,11 @@ bool CXmlNode::saveToFile( const char *fileName )
 	CrySetFileAttributes( fileName,0x00000080 ); // FILE_ATTRIBUTE_NORMAL
 #endif // CRY_PLATFORM_WINDOWS && !defined(CRYTOOLS)
 	XmlString xml = getXML();
-	FILE *file = fopen( fileName,"wt" );
+
+	wstring widePath;
+	Unicode::Convert(widePath, fileName);
+
+	FILE *file = _wfopen(widePath.c_str(), L"wt");
 	if (file)
 	{
 		const char *sxml = (const char*)xml;

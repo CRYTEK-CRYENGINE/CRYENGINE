@@ -1,0 +1,13 @@
+<AssetMetadata version="0" type="Texture" guid="1f01975e-8a95-c390-f989-fafa1f107b75" source="ShaderCompiling.tif">
+ <Files>
+  <File path="ShaderCompiling.dds"/>
+  <File path="ShaderCompiling.dds.1"/>
+  <File path="ShaderCompiling.dds.2"/>
+  <File path="ShaderCompiling.dds.3"/>
+ </Files>
+ <Details>
+  <Detail name="width">128</Detail>
+  <Detail name="height">128</Detail>
+  <Detail name="mipCount">6</Detail>
+ </Details>
+</AssetMetadata>

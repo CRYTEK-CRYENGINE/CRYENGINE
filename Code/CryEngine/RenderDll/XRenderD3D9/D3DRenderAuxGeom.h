@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -7,24 +7,127 @@
 #include "../Common/RenderAuxGeom.h"
 #include "../Common/Shaders/Shader.h" // CShader
 
+#include "Common/Include_HLSL_CPP_Shared.h"
+
 #if defined(ENABLE_RENDER_AUX_GEOM)
 
 class CD3D9Renderer;
 class ICrySizer;
+class CTexture;
+
+//////////////////////////////////////////////////////////////////////////
+hlsl_cbuffer_register(AuxGeomConstantBuffer, register (b0), 0)
+{
+	hlsl_matrix44(matViewProj);
+	hlsl_float2(invScreenDim);
+};
+
+//////////////////////////////////////////////////////////////////////////
+hlsl_cbuffer_register(AuxGeomObjectConstantBuffer, register (b0), 0)
+{
+	hlsl_matrix44(matViewProj);
+	hlsl_float4(auxGeomObjColor);
+	hlsl_float2(auxGeomObjShading);
+	hlsl_float3(globalLightLocal);
+};
+
+template <int BufferSize>
+struct TTransientConstantBufferHeap
+{
+	typedef std::forward_list<CConstantBufferPtr> TransientCBList;
+
+	TransientCBList m_freeList;
+	TransientCBList m_useList;
+	CryCriticalSectionNonRecursive m_lock;
+
+public:
+	~TTransientConstantBufferHeap()
+	{
+		CRY_ASSERT(m_useList.empty());
+	}
+
+	//! Get or Allocates new free usable constant buffer
+	CConstantBuffer* GetUsableConstantBuffer()
+	{
+		CryAutoCriticalSectionNoRecursive threadSafe(m_lock);
+
+		if (m_freeList.begin() == m_freeList.end())
+			m_useList.emplace_front(gRenDev->m_DevBufMan.CreateConstantBuffer(BufferSize));
+		else
+			m_useList.splice_after(m_useList.before_begin(), m_freeList, m_freeList.before_begin());
+		return *m_useList.begin();
+	}
+
+	void FreeUsedConstantBuffers()
+	{
+		CryAutoCriticalSectionNoRecursive threadSafe(m_lock);
+
+		m_freeList.splice_after(m_freeList.before_begin(), m_useList);
+	}
+};
+
+class CRenderAuxGeomD3D;
+
+class CAuxGeomCBCollector
+{
+public:
+	using AUXJobs = std::vector<CAuxGeomCB*>;
+
+private:
+	class SThread;
+	using AUXThreadMap = std::map<threadID, SThread*>;
+	using AUXThreads = std::vector<SThread*>;
+	
+
+	class SThread
+	{
+		friend class CAuxGeomCBCollector;
+		using AUXJobMap = std::vector<CAuxGeomCB*>;
+		CAuxGeomCB*       m_cbCurrent;
+		AUXJobMap         m_auxJobMap;
+		CCamera			  m_camera;
+
+		SDisplayContextKey displayContextKey;
+
+		mutable CryRWLock m_rwlLocal;
+	public:
+		SThread();
+		~SThread();
+		CAuxGeomCB* Get(int jobID, threadID tid);
+		void Add(CAuxGeomCB* newAuxGeomCB);
+		//void AppendJob(AUXJobs& auxJobs);
+		void FreeMemory();
+		void SetDefaultCamera(const CCamera& camera);
+		void SetDisplayContextKey(const SDisplayContextKey& displayContextKey);
+		void GetMemoryUsage(ICrySizer* pSizer) const;
+	};
+	AUXThreadMap      m_auxThreadMap;
+	mutable CryRWLock m_rwGlobal;
+	CCamera           m_camera;
+
+	SDisplayContextKey m_displayContextKey;
+public:
+	~CAuxGeomCBCollector();
+	CAuxGeomCB* Get(int jobID);
+	void Add(CAuxGeomCB* newAuxGeomCB);
+	void FreeMemory();
+	AUXJobs SubmitAuxGeomsAndPrepareForRendering();
+	void SetDefaultCamera(const CCamera& camera);
+	void SetDisplayContextKey(const SDisplayContextKey& displayContextKey);
+	CCamera                 GetCamera() const;
+	const SDisplayContextKey& GetDisplayContextKey() const;
+	void GetMemoryUsage(ICrySizer* pSizer) const;
+};
 
 class CRenderAuxGeomD3D final : public IRenderAuxGeomImpl
 {
 public:
-	virtual void Flush(SAuxGeomCBRawDataPackaged& data, size_t begin, size_t end, bool reset = false) override;
-	virtual void RT_Flush(SAuxGeomCBRawDataPackaged& data, size_t begin, size_t end, bool reset = false) override;
+	virtual void RT_Flush(const SAuxGeomCBRawDataPackagedConst& data) override;
+	void RT_Render(const CAuxGeomCBCollector::AUXJobs& auxGeoms);
+	void RT_Reset(CAuxGeomCBCollector::AUXJobs& auxGeoms);
 
-	virtual void DrawStringImmediate(IFFont_RenderProxy* pFont, float x, float y, float z, const char* pStr, const bool asciiMultiLine, const STextDrawContext& ctx) override;
-
-	virtual void DrawBufferRT(const SAuxVertex* data, int numVertices, int blendMode, const Matrix44* matViewProj, int texID) override;
-
-	virtual void FlushTextMessages(CTextMessages& tMessages, bool reset) override;
-
-	void         Process();
+private:
+	void RenderAuxGeom(const CAuxGeomCB* pAuxGeom);
 
 public:
 	static CRenderAuxGeomD3D* Create(CD3D9Renderer& renderer)
@@ -37,7 +140,6 @@ public:
 
 	void        FreeMemory();
 
-	CAuxGeomCB* GetRenderAuxGeom(void* jobID = nullptr);
 	int         GetDeviceDataSize();
 	void        ReleaseDeviceObjects();
 	HRESULT     RestoreDeviceObjects();
@@ -81,6 +183,7 @@ private:
 		uint32          m_numFaces;
 		buffer_handle_t m_pVB;
 		buffer_handle_t m_pIB;
+		SCompiledRenderPrimitive m_primitive;
 	};
 
 	enum EAuxObjNumLOD
@@ -104,7 +207,7 @@ private:
 			                         -1, 1, 0, 1);
 		}
 
-		void UpdateMatrices(CD3D9Renderer& renderer);
+		void UpdateMatrices(const CCamera& camera);
 
 		Matrix44A        m_matView;
 		Matrix44A        m_matViewInv;
@@ -114,201 +217,19 @@ private:
 		const Matrix44A* m_pCurTransMat;
 	};
 
-	class CAuxGeomCBCollector
-	{
-		class SThread;
-
-		using AUXThreadMap = std::map<threadID, SThread*>;
-		using AUXThreads = std::vector<SThread*>;
-		using AUXJobs = std::vector<CAuxGeomCB*>;
-
-		class SThread
-		{
-			using AUXJobMap = std::map<void*, CAuxGeomCB*>;
-
-			CAuxGeomCB*       m_cbCurrent;
-			AUXJobMap         m_auxJobMap;
-
-			mutable CryRWLock m_rwlLocal;
-
-		public:
-			SThread() : m_cbCurrent() {}
-
-			CAuxGeomCB* Get(IRenderAuxGeomImpl* pRenderAuxGeomImpl, void* jobID, threadID tid)
-			{
-				if (jobID == nullptr && m_cbCurrent)
-				{
-					return m_cbCurrent;
-				}
-
-				m_rwlLocal.RLock();
-
-				AUXJobMap::const_iterator it = m_auxJobMap.find(jobID);
-				CAuxGeomCB* pAuxGeomCB = m_auxJobMap.end() != it ? it->second : nullptr;
-
-				m_rwlLocal.RUnlock();
-
-				if (!pAuxGeomCB)
-				{
-					threadID mainThreadID, renderThreadID;
-
-					gRenDev->GetThreadIDs(mainThreadID, renderThreadID);
-
-					if (tid == renderThreadID) pAuxGeomCB = new CAuxGeomCB(pRenderAuxGeomImpl);
-					else                       pAuxGeomCB = new CAuxGeomCBWorkerThread(pRenderAuxGeomImpl);
-
-					m_rwlLocal.WLock();
-					m_auxJobMap.insert(AUXJobMap::value_type(jobID, pAuxGeomCB));
-					m_rwlLocal.WUnlock();
-				}
-
-				return pAuxGeomCB;
-			}
-
-			~SThread()
-			{
-				for (auto const& cbit : m_auxJobMap)
-				{
-					delete cbit.second;
-				}
-			}
-
-			void Process(AUXJobs& auxJobs)
-			{
-				m_rwlLocal.RLock();
-
-				for (SThread::AUXJobMap::const_iterator job = m_auxJobMap.begin(); job != m_auxJobMap.end(); ++job)
-				{
-					auxJobs.push_back(job->second);
-				}
-
-				m_rwlLocal.RUnlock();
-			}
-
-			void FreeMemory()
-			{
-				m_rwlLocal.WLock();
-				for (AUXJobMap::const_iterator job = m_auxJobMap.begin(); job != m_auxJobMap.end(); ++job)
-				{
-					// MUST BE called after final CAuxGeomCB::Commit()
-					// adding data (issuing render commands) is not thread safe !!!
-					job->second->FreeMemory();
-				}
-				m_rwlLocal.WUnlock();
-			}
-
-			void GetMemoryUsage(ICrySizer* pSizer) const
-			{
-				m_rwlLocal.RLock();
-				for (auto const& job : m_auxJobMap)
-				{
-					// MUST BE called after final CAuxGeomCB::Commit()
-					// adding data (issuing render commands) is not thread safe !!!
-					job.second->GetMemoryUsage(pSizer);
-				}
-				m_rwlLocal.RUnlock();
-			}
-		};
-
-		AUXThreadMap      m_auxThreadMap;
-		AUXThreads        m_tmpThreads;
-		AUXJobs           m_tmpJobs;
-
-		mutable CryRWLock m_rwGlobal;
-
-	public:
-		~CAuxGeomCBCollector()
-		{
-			for (auto const& cbit : m_auxThreadMap)
-			{
-				delete cbit.second;
-			}
-		}
-
-		CAuxGeomCB* Get(IRenderAuxGeomImpl* pRenderAuxGeomImpl, void* jobID)
-		{
-			threadID tid = CryGetCurrentThreadId();
-
-			m_rwGlobal.RLock();
-
-			AUXThreadMap::const_iterator it = m_auxThreadMap.find(tid);
-			SThread* auxThread = m_auxThreadMap.end() != it ? it->second : nullptr;
-
-			m_rwGlobal.RUnlock();
-
-			if (!auxThread)
-			{
-				auxThread = new SThread;
-
-				m_rwGlobal.WLock();
-				m_auxThreadMap.insert(AUXThreadMap::value_type(tid, auxThread));
-				m_rwGlobal.WUnlock();
-			}
-
-			return auxThread->Get(pRenderAuxGeomImpl, jobID, tid);
-		}
-
-		void FreeMemory()
-		{
-			m_rwGlobal.WLock();
-			for (AUXThreadMap::const_iterator cbit = m_auxThreadMap.begin(); cbit != m_auxThreadMap.end(); ++cbit)
-			{
-				cbit->second->FreeMemory();
-			}
-			m_rwGlobal.WUnlock();
-		}
-
-		void Process()
-		{
-			FUNCTION_PROFILER_RENDERER
-
-			m_rwGlobal.RLock();
-			for (AUXThreadMap::const_iterator it = m_auxThreadMap.begin(); it != m_auxThreadMap.end(); ++it)
-			{
-				m_tmpThreads.push_back(it->second);
-			}
-			m_rwGlobal.RUnlock();
-
-			for (auto const pTmpThread : m_tmpThreads)
-			{
-				pTmpThread->Process(m_tmpJobs);
-			}
-
-			for (auto const pTmpJob : m_tmpJobs)
-			{
-				pTmpJob->Process();
-			}
-
-			m_tmpThreads.clear();
-			m_tmpJobs.clear();
-		}
-
-		void GetMemoryUsage(ICrySizer* pSizer) const
-		{
-			m_rwGlobal.RLock();
-			for (auto const& it : m_auxThreadMap)
-			{
-				it.second->GetMemoryUsage(pSizer);
-			}
-			m_rwGlobal.RUnlock();
-		}
-	};
-
 private:
 	CRenderAuxGeomD3D(CD3D9Renderer& renderer);
 
-	void              FlushTextMessagesInternal(CTextMessages& tMessages, bool reset);
+	bool              PreparePass(const CCamera& camera, const SDisplayContextKey& displayContextKey, CPrimitiveRenderPass& pass, SRenderViewport* getViewport);
 
-	bool              PreparePass(CPrimitiveRenderPass& pass, SViewport* getViewport = nullptr);
-	CRenderPrimitive& PrepareTextPrimitive(int blendMode, SViewport* viewport, bool& depthreversed);
-	CRenderPrimitive& PrepareGeomPrimitive(const SAuxGeomRenderFlags& flags, const CCryNameTSCRC& techique, ERenderPrimitiveType topology, InputLayoutHandle format, size_t stride, buffer_handle_t vb, buffer_handle_t ib);
+	CDeviceGraphicsPSOPtr GetGraphicsPSO(const SAuxGeomRenderFlags& flags, const CCryNameTSCRC& techique, ERenderPrimitiveType topology, InputLayoutHandle format);
 
-	void              DrawAuxPrimitives(CAuxGeomCB::AuxSortedPushBuffer::const_iterator itBegin, CAuxGeomCB::AuxSortedPushBuffer::const_iterator itEnd, const Matrix44& mViewProj, int texID);
-	void              DrawAuxIndexedPrimitives(CAuxGeomCB::AuxSortedPushBuffer::const_iterator itBegin, CAuxGeomCB::AuxSortedPushBuffer::const_iterator itEnd, const Matrix44& mViewProj);
-	void              DrawAuxObjects(CAuxGeomCB::AuxSortedPushBuffer::const_iterator itBegin, CAuxGeomCB::AuxSortedPushBuffer::const_iterator itEnd, const Matrix44& mViewProj);
+	void              DrawAuxPrimitives(const CAuxGeomCB::SAuxGeomCBRawData& rawData,CAuxGeomCB::AuxSortedPushBuffer::const_iterator itBegin, CAuxGeomCB::AuxSortedPushBuffer::const_iterator itEnd, const Matrix44& mViewProj, const SRenderViewport& vp, int texID);
 
-	void              PrepareRendering();
-	void              Prepare(const SAuxGeomRenderFlags& renderFlags, Matrix44A& mat);
+	bool              PrepareRendering(const CAuxGeomCB::SAuxGeomCBRawData* pAuxGeomData, SRenderViewport* viewportOut);
+	void              Prepare(const SAuxGeomRenderFlags& renderFlags, Matrix44A& mat, const SDisplayContextKey& displayContextKey);
+	void              FinishRendering();
+	void              ClearCaches();
 
 	template<typename TMeshFunc>
 	HRESULT                                  CreateMesh(SDrawObjMesh& mesh, TMeshFunc meshFunc);
@@ -318,6 +239,7 @@ private:
 	const Matrix44A&                         GetCurrentProj() const;
 	const Matrix44A&                         GetCurrentTrans3D() const;
 	const Matrix44A&                         GetCurrentTrans2D() const;
+	const Matrix44A&                         GetCurrentTransUnit() const;
 
 	bool                                     IsOrthoMode() const;
 	bool                                     HasWorldMatrix() const;
@@ -348,18 +270,57 @@ private:
 		buffer_handle_t GetIB()                              { return ibAux; }
 	};
 
-	CD3D9Renderer&                                   m_renderer;
+	class CAuxPrimitiveHeap
+	{
+		typedef std::forward_list<SCompiledRenderPrimitive> CompiledRPList;
+		CompiledRPList m_freeList;
+		CompiledRPList m_useList;
 
-	CBufferManager                                   m_bufman;
-	CPrimitiveRenderPass                             m_geomPass;
-	CPrimitiveRenderPass                             m_textPass;
-	std::map<ERenderPrimitiveType, CRenderPrimitive> m_geomPrimitiveCache;
-	std::map<int, CRenderPrimitive>                  m_textPrimitiveCache;
+	public:
+		SCompiledRenderPrimitive* GetUsablePrimitive();
+		void FreeUsedPrimitives();
+		void Clear();
+	};
 
-	uint32                                    m_wndXRes;
-	uint32                                    m_wndYRes;
-	float                                     m_aspect;
-	float                                     m_aspectInv;
+	class CAuxPSOCache
+	{
+		std::unordered_map<CDeviceGraphicsPSODesc,CDeviceGraphicsPSOPtr> m_cache;
+
+	public:
+		CDeviceGraphicsPSOPtr GetOrCreatePSO(const CDeviceGraphicsPSODesc &psoDesc);
+		void                  Clear();
+	};
+
+	class CAuxDeviceResourceSetCacheForTexture : NoCopy
+	{
+		CDeviceResourceSetPtr m_pDefaultWhite;
+		std::unordered_map<int,std::pair<CDeviceResourceSetPtr,_smart_ptr<CTexture>>> m_cache;
+
+	public:
+		~CAuxDeviceResourceSetCacheForTexture();
+
+		CDeviceResourceSetPtr GetOrCreateResourceSet(int textureId);
+		void                  Clear();
+
+	private:
+		static bool OnTextureInvalidated(void* pListener, SResourceBindPoint bindPoint, UResourceReference resource, uint32 invalidationFlags);
+	};
+
+	struct SAuxCurrentState
+	{
+		const CDeviceInputStream*  m_pVertexInputSet = nullptr;
+		const CDeviceInputStream*  m_pIndexInputSet = nullptr;
+		uint8                      m_stencilRef = 0;
+		CDeviceResourceLayoutPtr   m_pResourceLayout_WithTexture;
+	};
+
+	CD3D9Renderer&                            m_renderer;
+
+	CBufferManager                            m_bufman;
+	CPrimitiveRenderPass                      m_geomPass;
+	CPrimitiveRenderPass                      m_textPass;
+
+	SAuxCurrentState                          m_currentState;
 
 	SMatrices                                 m_matrices;
 
@@ -374,14 +335,21 @@ private:
 	EAuxGeomPublicRenderflags_DrawInFrontMode m_curDrawInFrontMode;
 
 	CAuxGeomCB::AuxSortedPushBuffer           m_auxSortedPushBuffer;
-	const CAuxGeomCB::SAuxGeomCBRawData*      m_pCurCBRawData;
-	CAuxGeomCBCollector                       m_auxGeomCBCol;
+	const CAuxGeomCB::SAuxGeomCBRawData*      m_pCurCBRawData;              //!< Helper raw data pointer to currently used data in RT_Flush. 
+	                                                                        //!< It is used to reduce data pass
 
 	int                                       CV_r_auxGeom;
 
 	SDrawObjMesh                              m_sphereObj[e_auxObjNumLOD];
 	SDrawObjMesh                              m_coneObj[e_auxObjNumLOD];
 	SDrawObjMesh                              m_cylinderObj[e_auxObjNumLOD];
+
+	CAuxPSOCache                              m_auxPsoCache;
+	CAuxDeviceResourceSetCacheForTexture      m_auxTextureCache;
+	CAuxPrimitiveHeap                         m_auxRenderPrimitiveHeap;
+
+	// Buffer Heaps
+	TTransientConstantBufferHeap<sizeof(sizeof(HLSL_AuxGeomObjectConstantBuffer))> m_auxConstantBufferHeap;
 };
 
 #endif // #if defined(ENABLE_RENDER_AUX_GEOM)

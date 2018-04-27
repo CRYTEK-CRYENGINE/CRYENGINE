@@ -1,16 +1,8 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
-//
-//  File:CryHeaders.h
-//  Definition of cgf, caf file chunks
-//
-//  History:
-//  -:Created by Vladimir Kajalin
-//
-//////////////////////////////////////////////////////////////////////
+//! \cond INTERNAL
 
-#ifndef __CS_HEADERS_H__
-#define __CS_HEADERS_H__
+#pragma once
 
 #include <CryCore/BaseTypes.h>
 #include <CryMath/Cry_Math.h>
@@ -1296,4 +1288,4 @@ struct VCLOTH_CHUNK
 
 };
 
-#endif
+//! \endcond

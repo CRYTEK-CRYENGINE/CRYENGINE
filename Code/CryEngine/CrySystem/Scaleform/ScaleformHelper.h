@@ -1,3 +1,5 @@
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
+
 #pragma once
 #ifdef INCLUDE_SCALEFORM_SDK
 
@@ -18,6 +20,7 @@ class CScaleformHelper final : public IScaleformHelper
 public:
 	virtual bool Init() override
 	{
+		MEMSTAT_CONTEXT(EMemStatContextTypes::MSC_Other, 0, "Init Scaleform Helper");
 		CFlashPlayer::InitCVars();
 		CSharedFlashPlayerResources::Init();
 		return true;

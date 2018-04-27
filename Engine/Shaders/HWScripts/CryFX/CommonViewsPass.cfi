@@ -1,18 +1,9 @@
-// CRYENGINE Source Code File
-// Copyright 2001-2015 Crytek GmbH. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 
 //////////////////////////////////////////////////////////////////////////
 
-sampler2D PNoiseSampler = sampler_state
-{
-  Texture = %ENGINE%/EngineAssets/Textures/perlinNoise2D.dds;
-  MinFilter = LINEAR;
-  MagFilter = LINEAR;
-  MipFilter = LINEAR;
-  AddressU = Wrap;
-  AddressV = Wrap;
-};
+SamplerState            ssTrilinearWrap      : register(s14);
 
 float4 VisionParams : PI_VisionParams;
 float4 VisionMtlParams : PB_VisionMtlParams;
@@ -48,11 +39,7 @@ vert2fragCustomRender Common_CustomRenderPassVS(app2vertCustomViews IN)
   streamPos vertPassPos = (streamPos)0;
   streamPos_FromCustomViews(IN, vertPassPos);
 
-#if %_RT_PER_INSTANCE_CB_TEMP
-   OUT.cVision = PerInstanceCustomData1;
-#else
-  OUT.cVision = VisionParams;
-#endif
+  OUT.cVision = PerInstanceCustomData1;
 
   float4 HPosition = Pos_VS_General(g_VS_ViewProjZeroMatr, vertPassPos);
 
@@ -139,7 +126,7 @@ half4 SilhoueteGeometryHighlights( vert2fragCustomRender IN )
   half fInterlace = abs( frac( (IN.screenProj.y / IN.screenProj.w )  * PS_ScreenSize.y * 0.35 ) *2-1 )*0.5+0.5;
 
   // Test using inverse cloud noise for interesting electrical look
-  half fNoise = tex2D(PNoiseSampler, IN.baseTC.xy).x; 
+  half fNoise = GetTexture2D(perlinNoiseTex, ssMaterialTrilinear, IN.baseTC.xy).x;
   half fAnimNoise = abs( frac( fNoise + IN.cVision.w ) - 0.5 ); 
 
   return half4( fInterlace * IN.cVision.xyz * fEdotN *  fAnimNoise, 1 );

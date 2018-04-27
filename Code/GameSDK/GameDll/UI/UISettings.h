@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 // -------------------------------------------------------------------------
 //  File name:   UISettings.h
@@ -34,6 +34,14 @@ struct SNullCVar : public ICVar
 	virtual void ForceSet(const char* s) override { return; }
 	virtual void Set(const float f) override { return; }
 	virtual void Set(const int i) override { return; }
+	virtual void SetMinValue(int min) override { return; }
+	virtual void SetMinValue(float min) override { return; }
+	virtual void SetMaxValue(int max) override { return; }
+	virtual void SetMaxValue(float max) override { return; }
+
+	virtual void SetAllowedValues(std::initializer_list<int> values) override { return; }
+	virtual void SetAllowedValues(std::initializer_list<float> values) override { return; }
+	virtual void SetAllowedValues(std::initializer_list<string> values) override { return; }
 	virtual void ClearFlags (int flags) override { return; }
 	virtual int GetFlags() const override { return 0; }
 	virtual int SetFlags(int flags) override { return 0; }

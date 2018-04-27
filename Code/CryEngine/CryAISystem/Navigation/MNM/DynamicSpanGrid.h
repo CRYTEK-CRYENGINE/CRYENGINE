@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #ifndef __MNM_DYNAMIC_SPAN_GRID_H
 #define __MNM_DYNAMIC_SPAN_GRID_H

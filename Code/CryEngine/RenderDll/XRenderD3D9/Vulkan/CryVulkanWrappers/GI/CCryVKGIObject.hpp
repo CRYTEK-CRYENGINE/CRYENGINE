@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 #pragma once
 
 //Adapted from DX12 implementation. CCRYVK* objects are refcounted and mimic DXGI/DX behavior
@@ -12,7 +12,7 @@
     REFIID riid,                                                          \
     void** ppvObject)                                                     \
   {                                                                       \
-    bool found = checkInterfaces<__VA_ARGS__>(this, riid, ppvObject); \
+	bool found = checkInterfaces<__VA_ARGS__>(this, riid, ppvObject);     \
     return found ? S_OK : E_NOINTERFACE;                                  \
   }
 
@@ -21,6 +21,7 @@
 template<typename Interface>
 bool checkInterfaces(void* instance, REFIID riid, void** ppvObject)
 {
+#if CRY_PLATFORM_WINDOWS
 	if (riid == __uuidof(Interface))
 	{
 		if (ppvObject)
@@ -34,6 +35,14 @@ bool checkInterfaces(void* instance, REFIID riid, void** ppvObject)
 			return false;
 		}
 	}
+#else
+	if (ppvObject)
+	{
+		*reinterpret_cast<Interface**>(ppvObject) = static_cast<Interface*>(instance);
+		static_cast<Interface*>(instance)->AddRef();
+		return true;
+	}
+#endif
 	return false;
 }
 //---------------------------------------------------------------------------------------------------------------------
@@ -78,7 +87,7 @@ static T* PassAddRef(const _smart_ptr<T>& ptr)
 //-- CCryVK* Base types
 //---------------------------------------------------------------------------------------------------------------------
 #ifndef CRY_PLATFORM_WINDOWS
-#include "DX12\Includes\Unknwn_empty.h"
+#include "DX12/Includes/Unknwn_empty.h"
 #else
 #include <Unknwnbase.h>
 #endif

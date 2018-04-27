@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -144,12 +144,15 @@ private:
 		string                   uncompressedAnimationPath;
 
 		Animation()
-			: state(eAnimationState_NotSet)
-			, enabled(true)
+			: enabled(true)
+			, state(eAnimationState_NotSet)
+			, type(UNKNOWN)
 			, hasSourceFile(true)
 			, hasReferenceCompressed(false)
 			, hasPreviewCompressed(false)
-			, type(UNKNOWN)
+			, previewTask(nullptr)
+			, referenceTask(nullptr)
+			, compressionSessionIndex(0)
 		{}
 
 	};
@@ -184,3 +187,4 @@ private:
 };
 
 }
+

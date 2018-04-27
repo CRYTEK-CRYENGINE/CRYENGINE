@@ -1,18 +1,8 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
-// -------------------------------------------------------------------------
-//  File name:   IChunkFile.h
-//  Version:     v1.00
-//  Created:     22/11/2004 by Timur.
-//  Compilers:   Visual Studio.NET 2003
-//  Description:
-// -------------------------------------------------------------------------
-//  History:
-//
-////////////////////////////////////////////////////////////////////////////
+//! \cond INTERNAL
 
-#ifndef __IChunkFile_h__
-#define __IChunkFile_h__
+#pragma once
 
 #include "CryHeaders.h"
 
@@ -92,4 +82,4 @@ struct IChunkFile : _reference_target_t
 	// </interfuscator:shuffle>
 };
 
-#endif // __IChunkFile_h__
+//! \endcond

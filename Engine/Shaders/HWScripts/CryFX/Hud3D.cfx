@@ -1,5 +1,4 @@
-// CRYENGINE Source Code File
-// Copyright 2001-2015 Crytek GmbH. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "Common.cfi"
 #include "PostEffectsLib.cfi"
@@ -18,7 +17,7 @@ struct app2Vert
 {
   IN_P
   float2 baseTC  : TEXCOORDN; 
-	float4 Color   : COLOR;
+  float4 Color   : COLOR;
 };
 
 struct vert2Frag
@@ -30,9 +29,9 @@ struct vert2Frag
 
 struct pixoutHUD
 {
-  half4 Color  : COLOR0;
+  half4 Color   : SV_Target0;
 #if %_RT_SAMPLE0
-	half4 Color1  : COLOR1;
+  half4 Color1  : SV_Target1;
 #endif
 };
 
@@ -62,6 +61,9 @@ vert2Frag Downsample4x4_VS(app2Vert IN)
   return OUT;
 }
 
+Texture2D<float4> Down4x4_Tex           : register(t0);
+SamplerState Down4x4_SState             : register(s0);   //LinearClamp
+
 ///////////////// pixel shader //////////////////
 
 pixout Downsample4x4_PS(vert2Frag IN)
@@ -85,11 +87,11 @@ pixout Downsample4x4_PS(vert2Frag IN)
   half4 cSum=0;
 
 	// quincux downsample
-	cSum+=tex2D(_tex0,tcBase );
-  cSum+=tex2D(_tex0,tcBase + vBlurSamples[0] * ScrSize.zw );
-  cSum+=tex2D(_tex0,tcBase + vBlurSamples[1] * ScrSize.zw );
-  cSum+=tex2D(_tex0,tcBase + vBlurSamples[2] * ScrSize.zw );
-  cSum+=tex2D(_tex0,tcBase + vBlurSamples[3] * ScrSize.zw );
+	cSum+=GetTexture2D(Down4x4_Tex,Down4x4_SState,tcBase );
+  cSum+=GetTexture2D(Down4x4_Tex,Down4x4_SState,tcBase + vBlurSamples[0] * ScrSize.zw );
+  cSum+=GetTexture2D(Down4x4_Tex,Down4x4_SState,tcBase + vBlurSamples[1] * ScrSize.zw );
+  cSum+=GetTexture2D(Down4x4_Tex,Down4x4_SState,tcBase + vBlurSamples[2] * ScrSize.zw );
+  cSum+=GetTexture2D(Down4x4_Tex,Down4x4_SState,tcBase + vBlurSamples[3] * ScrSize.zw );
 
 	// Use alpha as a mask - 0 means it is allowed glow/dof geometry area
 	// this allows us to save 1 clear and artefacts (since destination target reused for other processes)
@@ -129,19 +131,29 @@ vert2Frag HUD3D_VS(app2Vert IN)
 
 ///////////////// pixel shader //////////////////
 
+Texture2D<float4> UpBloom_Tex           : register(t0);
+SamplerState UpBloomSState              : register(s0);   //LinearClamp
+
 pixoutHUD UpdateBloomRT_PS(vert2Frag IN)
 {
   pixoutHUD OUT = (pixoutHUD) 1;  
 	
 #if %_RT_SAMPLE1
 	// HUD mask for Nano Glass
-	OUT.Color.w = (dot(tex2D(_tex0, IN.baseTC.zw),1.0) > 0) ? 1.0 : 0.0;
+	OUT.Color.w = (dot(GetTexture2D(UpBloom_Tex,UpBloomSState, IN.baseTC.zw),1.0) > 0) ? 1.0 : 0.0;
 #else
-	OUT.Color = tex2D(_tex0, IN.baseTC.zw);
+	OUT.Color = GetTexture2D(UpBloom_Tex,UpBloomSState, IN.baseTC.zw);
 #endif
 
 	return OUT;
 }
+
+Texture2D<float4> HUD3D_Tex            : register(t0);
+Texture2D<float4> HUD3D_BBuf           : register(t1);
+SamplerState HUD3D_SSTex               : register(s0);   //LinearClamp
+
+Texture2D<float4> HUD3D_Noise          : register(t2);
+SamplerState HUD3D_SSNoise             : register(s2);   //LinearClamp
 
 pixoutHUD HUD3D_PS(vert2Frag IN)
 {
@@ -166,7 +178,7 @@ pixoutHUD HUD3D_PS(vert2Frag IN)
 
 	// Disruption
 	float disruptionSizeTC = (baseTC.y + randTexLookup.y) * disruptionScale;
-	half3 disruptionCol = tex2Dlod(_tex2, float4(disruptionSizeTC,disruptionSizeTC,0.0,0.0));
+	half3 disruptionCol = GetTexture2DLod(HUD3D_Noise,HUD3D_SSNoise, float4(disruptionSizeTC,disruptionSizeTC,0.0,0.0));
 	
 	half disruptionMovement = interferanceScale * disruptionMovementScale;
 	float2 disruptionTC = baseTC + (disruptionCol * signedRand * disruptionMovement);
@@ -183,10 +195,10 @@ pixoutHUD HUD3D_PS(vert2Frag IN)
 
 	float2 tcHalfTexOffset = PS_ScreenSize.zw*4;
 
-	half4 cDiffuseDownsampled  = tex2D(_tex1, (IN.tcProj.xy/IN.tcProj.w) + tcHalfTexOffset); //baseTC.zw);
+	half4 cDiffuseDownsampled  = GetTexture2D(HUD3D_BBuf,HUD3D_SSTex, (IN.tcProj.xy/IN.tcProj.w) + tcHalfTexOffset); //baseTC.zw);
 	cDiffuseDownsampled *= saturate(1-8 *cDiffuseDownsampled.w); // apply masking
 
-	half4 cDiffuse = tex2D(_tex0, baseTC);
+	half4 cDiffuse = GetTexture2D(HUD3D_Tex,HUD3D_SSTex, baseTC);
 	
 	OUT.Color = lerp(cDiffuse * (1 + glowAmount), cDiffuseDownsampled , saturate( max(0.45, dofAmount)) /** hudItemDofStrength */);  // simple 2d dof
 	
@@ -222,7 +234,7 @@ pixoutHUD HUD3D_PS(vert2Frag IN)
 	
 	// Grain
     float2 grainTC = (IN.baseTC.xy * (PS_ScreenSize.xy/64.0)) + randTexLookup.xy;
-    half2 grainCol = tex2Dlod(_tex2, float4(grainTC,0.0,0.0));
+    half2 grainCol = GetTexture2DLod(HUD3D_Noise,HUD3D_SSNoise, float4(grainTC,0.0,0.0));
 	half grain = 1.0 - (grainCol.x * grainStrength);
 	
 	// Fade original color
@@ -230,7 +242,7 @@ pixoutHUD HUD3D_PS(vert2Frag IN)
 	
 	// Horizontal Bars
 	float barSizeTC = (baseTC.y + randTexLookup.y) * barScale;
-	half3 barNoise = tex2Dlod(_tex2, float4(barSizeTC,barSizeTC,0.0,0.0));
+	half3 barNoise = GetTexture2DLod(HUD3D_Noise,HUD3D_SSNoise, float4(barSizeTC,barSizeTC,0.0,0.0));
 	float3 barNoiseColor = barColor * barNoise.y * barNoise.y * interferanceScale;
 
 	// Noise
@@ -241,9 +253,9 @@ pixoutHUD HUD3D_PS(vert2Frag IN)
 	half2 shift = randTexLookup.xy * interferanceScale * chromaShiftDist;
 	 
     half3 chromaShiftCol;
-    chromaShiftCol.x = tex2D(_tex0, disruptionTC + shift).x;
-    chromaShiftCol.y = tex2D(_tex0, disruptionTC + half2(shift.x,0.0)).y;
-    chromaShiftCol.z = tex2D(_tex0, disruptionTC + half2(0.0,shift.y)).z;
+    chromaShiftCol.x = GetTexture2D(HUD3D_Tex,HUD3D_SSTex, disruptionTC + shift).x;
+    chromaShiftCol.y = GetTexture2D(HUD3D_Tex,HUD3D_SSTex, disruptionTC + half2(shift.x,0.0)).y;
+    chromaShiftCol.z = GetTexture2D(HUD3D_Tex,HUD3D_SSTex, disruptionTC + half2(0.0,shift.y)).z;
     OUT.Color.xyz += chromaShiftCol.xyz * noise * chromaShiftStrength * dofInterferenceStrength * dofInterferenceStrength;
 
 #endif

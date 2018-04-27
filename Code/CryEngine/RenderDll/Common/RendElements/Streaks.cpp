@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "Streaks.h"
@@ -29,12 +29,12 @@ void Streaks::InitEditorParamGroups(DynArray<FuncVariableGroup>& groups)
 
 Streaks::Streaks(const char* name)
 	: COpticsElement(name, 0.5f)
-	, m_fThickness(0.3f)
-	, m_nNoiseSeed(81)
+	, m_bUseSpectrumTex(false)
 	, m_fSizeNoiseStrength(0.8f)
 	, m_fThicknessNoiseStrength(0.6f)
 	, m_fSpacingNoiseStrength(0.2f)
-	, m_bUseSpectrumTex(false)
+	, m_fThickness(0.3f)
+	, m_nNoiseSeed(81)
 {
 	m_vMovement.x = 1.f;
 	m_vMovement.y = 1.f;
@@ -117,7 +117,7 @@ CTexture* Streaks::GetTexture()
 		return m_pSpectrumTex;
 	}
 
-	return CTexture::s_ptexBlack;
+	return CRendererResources::s_ptexBlack;
 }
 
 void Streaks::UpdateMeshes()

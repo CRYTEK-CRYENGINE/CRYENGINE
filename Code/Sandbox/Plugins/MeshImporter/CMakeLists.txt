@@ -95,8 +95,8 @@ add_sources("NoUberFile"
 		"../../../CryEngine/Cry3DEngine/MeshCompiler/MeshCompiler.cpp"
 		"../../../CryEngine/Cry3DEngine/MeshCompiler/ForsythFaceReorderer.h"
 		"../../../CryEngine/Cry3DEngine/MeshCompiler/ForsythFaceReorderer.cpp"
-		"../../../SDKs/TangentBasisComputation/mikkelsen/mikktspace.cpp"
-		"../../../SDKs/TangentBasisComputation/mikkelsen/mikktspace.h"
+		"${SDK_DIR}/TangentBasisComputation/mikkelsen/mikktspace.cpp"
+		"${SDK_DIR}//TangentBasisComputation/mikkelsen/mikktspace.h"
 	SOURCE_GROUP "Model"
 		"SceneModelCommon.h"
 		"SceneModelCommon.cpp"
@@ -198,5 +198,8 @@ target_include_directories(${THIS_PROJECT} PRIVATE ../../EditorQt)
 target_include_directories(${THIS_PROJECT} PRIVATE ../../EditorQt/Include)
 target_include_directories(${THIS_PROJECT} PRIVATE ../MFCToolsPlugin)	
 
+target_include_directories(${THIS_PROJECT} PRIVATE "${SDK_DIR}/TangentBasisComputation")
+
 target_link_libraries(${THIS_PROJECT} PRIVATE Sandbox MFCToolsPlugin FbxSdk)
 target_compile_definitions(${THIS_PROJECT} PRIVATE -DBUILDING_FBX_TOOL)
+

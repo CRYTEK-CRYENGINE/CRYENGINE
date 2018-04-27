@@ -1,0 +1,15 @@
+<AssetMetadata version="0" type="Texture" guid="49cafdc9-2c7f-99bd-5624-de0ffcc641dc" source="scratch_ddn.tif">
+ <Files>
+  <File path="scratch_ddn.dds"/>
+  <File path="scratch_ddn.dds.1"/>
+  <File path="scratch_ddn.dds.2"/>
+  <File path="scratch_ddn.dds.3"/>
+  <File path="scratch_ddn.dds.4"/>
+  <File path="scratch_ddn.dds.5"/>
+ </Files>
+ <Details>
+  <Detail name="width">512</Detail>
+  <Detail name="height">512</Detail>
+  <Detail name="mipCount">8</Detail>
+ </Details>
+</AssetMetadata>

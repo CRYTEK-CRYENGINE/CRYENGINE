@@ -1,19 +1,8 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
-/*************************************************************************
-   -------------------------------------------------------------------------
-   $Id$
-   $DateTime$
-   Description: Interface for the AI target track manager
+//! \cond INTERNAL
 
-   -------------------------------------------------------------------------
-   History:
-   - 02:25:2010: Created by Kevin Kirst
-
-*************************************************************************/
-
-#ifndef __ITARGET_TRACK_MANAGER_H__
-#define __ITARGET_TRACK_MANAGER_H__
+#pragma once
 
 #include <CryAISystem/IAISystem.h> // <> required for Interfuscator
 #include <CryAISystem/IAgent.h>    // <> required for Interfuscator
@@ -102,4 +91,4 @@ struct ITargetTrackManager
 	// </interfuscator:shuffle>
 };
 
-#endif //__ITARGET_TRACK_MANAGER_H__
+//! \endcond

@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 // Note: The utilities in this file should typically not be used directly,
 // consider including UnicodeFunctions.h or UnicodeIterator.h instead.
@@ -91,6 +91,7 @@ struct SValidChar
 	static const bool isQChar = is_same<BaseType, QChar>::value;
 	static const bool isUsable = isArithmeticType || isQChar;
 	static const bool isValidQualified = !is_const<T>::value || Input;
+	PREFAST_SUPPRESS_WARNING(6285)
 	static const bool isKnownSize = sizeof(T) == 1 || sizeof(T) == 2 || sizeof(T) == 4;
 	static const bool isValidInferred = isKnownSize || !InferEncoding;
 	static const bool value = isUsable && isValidQualified && isValidInferred;

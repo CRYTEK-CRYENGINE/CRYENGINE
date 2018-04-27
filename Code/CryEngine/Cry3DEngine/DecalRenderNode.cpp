@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "DecalRenderNode.h"
@@ -83,9 +83,9 @@ void CDecalRenderNode::CreateDecalOnStaticObjects()
 	CVisAreaManager* pVisAreaManager(GetVisAreaManager());
 	PodArray<SRNInfo> decalReceivers;
 
-	if (pTerrain && m_pOcNode && !m_pOcNode->m_pVisArea)
+	if (pTerrain && m_pOcNode && !m_pOcNode->GetVisArea())
 		pTerrain->GetObjectsAround(m_decalProperties.m_pos, m_decalProperties.m_radius, &decalReceivers, true, false);
-	else if (pVisAreaManager && m_pOcNode && m_pOcNode->m_pVisArea)
+	else if (pVisAreaManager && m_pOcNode && m_pOcNode->GetVisArea())
 		pVisAreaManager->GetObjectsAround(m_decalProperties.m_pos, m_decalProperties.m_radius, &decalReceivers, true);
 
 	// delete vegetations
@@ -177,7 +177,7 @@ void CDecalRenderNode::CreateDecalOnStaticObjects()
 
 void CDecalRenderNode::CreateDecalOnTerrain()
 {
-	float terrainHeight(GetTerrain()->GetZApr(m_decalProperties.m_pos.x, m_decalProperties.m_pos.y, m_nSID));
+	float terrainHeight(GetTerrain()->GetZApr(m_decalProperties.m_pos.x, m_decalProperties.m_pos.y));
 	float terrainDelta(m_decalProperties.m_pos.z - terrainHeight);
 	if (terrainDelta < m_decalProperties.m_radius && terrainDelta > -0.5f)
 	{
@@ -554,7 +554,11 @@ IRenderNode* CDecalRenderNode::Clone() const
 
 void CDecalRenderNode::SetMatrix(const Matrix34& mat)
 {
-	m_pos = mat.GetTranslation();
+	Vec3 translation = mat.GetTranslation();
+	if (m_pos == translation)
+		return;
+
+	m_pos = translation;
 
 	if (m_decalProperties.m_projectionType == SDecalProperties::ePlanar)
 		m_WSBBox.SetTransformedAABB(m_Matrix, AABB(-Vec3(1, 1, 0.5f), Vec3(1, 1, 0.5f)));
@@ -566,6 +570,9 @@ void CDecalRenderNode::SetMatrix(const Matrix34& mat)
 
 void CDecalRenderNode::SetMatrixFull(const Matrix34& mat)
 {
+	if (m_Matrix == mat)
+		return;
+
 	m_Matrix = mat;
 	m_pos = mat.GetTranslation();
 
@@ -693,7 +700,7 @@ void CDecalRenderNode::CleanUpOldDecals()
 
 void CDecalRenderNode::OffsetPosition(const Vec3& delta)
 {
-	if (m_pTempData) m_pTempData->OffsetPosition(delta);
+	if (const auto pTempData = m_pTempData.load()) pTempData->OffsetPosition(delta);
 	m_pos += delta;
 	m_WSBBox.Move(delta);
 	m_Matrix.SetTranslation(m_Matrix.GetTranslation() + delta);

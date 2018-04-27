@@ -1,0 +1,13 @@
+<AssetMetadata version="0" type="Texture" guid="209267db-a865-cbe4-47da-633255968eb2" source="PhysProxyTooBig.tif">
+ <Files>
+  <File path="PhysProxyTooBig.dds"/>
+  <File path="PhysProxyTooBig.dds.1"/>
+  <File path="PhysProxyTooBig.dds.2"/>
+  <File path="PhysProxyTooBig.dds.3"/>
+ </Files>
+ <Details>
+  <Detail name="width">128</Detail>
+  <Detail name="height">128</Detail>
+  <Detail name="mipCount">6</Detail>
+ </Details>
+</AssetMetadata>

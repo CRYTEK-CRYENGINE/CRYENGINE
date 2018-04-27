@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 
@@ -36,7 +36,7 @@ public:
 	virtual int AddGeometry(phys_geometry *pgeom, pe_geomparams* params,int id=-1,int bThreadSafe=1) { return -1; }
 	virtual void RemoveGeometry(int id,int bThreadSafe=1) {}
 	virtual float GetExtent(EGeomForm eForm) const { return 0.f; }
-	virtual void GetRandomPos(PosNorm& ran, CRndGen& seed, EGeomForm eForm) const {}
+	virtual void GetRandomPoints(Array<PosNorm> points, CRndGen& seed, EGeomForm eForm) const {}
 
 	virtual void *GetForeignData(int itype=0) const { return 0; }
 	virtual int GetiForeignData() const { return 0; }
@@ -328,7 +328,7 @@ int CPhysArea::ApplyParams(const Vec3& pt, Vec3& gravity, const Vec3 &vel, pe_pa
 								if (fabs(det)>fabs(maxdet)) 
 									maxdet=det, j=i;
 							}
-							if (j>=0 && maxz<10000.0f) {
+							if (fabs(maxdet)>=FLT_EPSILON && maxz<10000.0f) {
 								det = 1.0/maxdet;
 								n[j] = 1;
 								n[inc_mod3[j]] = -(C(inc_mod3[j],j)*C(dec_mod3[j],dec_mod3[j]) - C(dec_mod3[j],j)*C(inc_mod3[j],dec_mod3[j]))*det;
@@ -639,58 +639,63 @@ float CPhysArea::GetExtent(EGeomForm eForm) const
 	return extent * ScaleExtent(eForm, m_scale);
 }
 
-void CPhysArea::GetRandomPos(PosNorm& ran, CRndGen& seed, EGeomForm eForm)	const
+void CPhysArea::GetRandomPoints(Array<PosNorm> points, CRndGen& seed, EGeomForm eForm)	const
 {
-	ran.zero();
 	if (m_pGeom && !m_debugGeomHash) {
-		m_pGeom->GetRandomPos(ran, seed, eForm);
+		m_pGeom->GetRandomPoints(points, seed, eForm);
 	}
 	else if (m_ptSpline && m_Extents[GeomForm_Edges].NumParts()) {
-		// choose random segment, and fractional distance therein
-		int i = m_Extents[GeomForm_Edges].RandomPart(seed);
-		float t = seed.GetRandom(0.0f, 1.0f);
-		if (t <= 0.5f)
-			i++;
+		for (auto& ran : points) {
+			// choose random segment, and fractional distance therein
+			int i = m_Extents[GeomForm_Edges].RandomPart(seed);
+			float t = seed.GetRandom(0.0f, 1.0f);
+			if (t <= 0.5f)
+				i++;
 
-		Vec3 tang;
-		if (i==0)
-		{
-			tang = m_ptSpline[1]-m_ptSpline[0];
-			ran.vPos = m_ptSpline[0] + tang * (t-0.5f);
+			Vec3 tang;
+			if (i == 0)
+			{
+				tang = m_ptSpline[1] - m_ptSpline[0];
+				ran.vPos = m_ptSpline[0] + tang * (t - 0.5f);
+			}
+			else if (i == m_npt - 1)
+			{
+				tang = m_ptSpline[m_npt - 1] - m_ptSpline[m_npt - 2];
+				ran.vPos = m_ptSpline[m_npt - 2] + tang * (t + 0.5f);
+			}
+			else
+			{
+				Vec3 const& p0 = m_ptSpline[i - 1];
+				Vec3 const& p1 = m_ptSpline[i];
+				Vec3 const& p2 = m_ptSpline[i + 1];
+				Vec3 v2 = (p0 + p2)*0.5f - p1,
+					v1 = p1 - p0,
+					v0 = (p0 + p1)*0.5f;
+				ran.vPos = (v2*t + v1)*t + v0;
+				tang = v2*(2.f*t) + v1;
+			}
+
+			// compute radial axes from tangent
+			Vec3 x(max(abs(tang.y), abs(tang.z)), max(abs(tang.z), abs(tang.x)), max(abs(tang.x), abs(tang.y)));
+			Vec3 y = tang ^ x;
+			x.Normalize();
+			y.Normalize();
+
+			// generate random displacement from spline.
+			Vec2 xy = CircleRandomPoint(seed, EGeomForm(eForm - 1), m_zlim[0]);
+			Vec3 dis = x * xy.x + y * xy.y;
+
+			ran.vPos += dis;
+			ran.vNorm = dis.normalized();
 		}
-		else if (i==m_npt-1)
-		{
-			tang = m_ptSpline[m_npt-1]-m_ptSpline[m_npt-2];
-			ran.vPos = m_ptSpline[m_npt-2] + tang * (t+0.5f);
-		}
-		else
-		{
-			Vec3 const& p0 = m_ptSpline[i-1];
-			Vec3 const& p1 = m_ptSpline[i];
-			Vec3 const& p2 = m_ptSpline[i+1];
-			Vec3 v2 = (p0+p2)*0.5f-p1,
-					 v1 = p1-p0,
-					 v0 = (p0+p1)*0.5f;
-			ran.vPos = (v2*t+v1)*t+v0;
-			tang = v2*(2.f*t)+v1;
-		}
-
-		// compute radial axes from tangent
-		Vec3 x( max(abs(tang.y),abs(tang.z)), max(abs(tang.z),abs(tang.x)), max(abs(tang.x),abs(tang.y)) );
-		Vec3 y = tang ^ x;
-		x.Normalize();
-		y.Normalize();
-
-		// generate random displacement from spline.
-		Vec2 xy = CircleRandomPoint(seed, EGeomForm(eForm-1), m_zlim[0]);
-		Vec3 dis = x * xy.x + y * xy.y;
-
-		ran.vPos += dis;
-		ran.vNorm = dis.normalized();
 	}
+	else
+		return points.fill(ZERO);
 
-	ran.vPos = m_R*ran.vPos * m_scale + m_offset;
-	ran.vNorm = m_R*ran.vNorm;
+	for (auto& ran : points) {
+		ran.vPos = m_R*ran.vPos * m_scale + m_offset;
+		ran.vNorm = m_R*ran.vNorm;
+	}
 }
 
 
@@ -922,6 +927,10 @@ int CPhysArea::GetStatus(pe_status *_status) const
 		if (status->pMtx3x3)
 			(Matrix33&)*status->pMtx3x3 = m_R*m_scale;
 		status->pGeom=status->pGeomProxy = m_pGeom;
+		if (status->flags & status_addref_geoms) {
+			if (status->pGeom) status->pGeom->AddRef();
+			if (status->pGeomProxy) status->pGeomProxy->AddRef();
+		}
 		return 1;
 	}
 
@@ -1062,7 +1071,7 @@ int CPhysArea::GetStatus(pe_status *_status) const
 
 	if (_status->type==pe_status_random::type_id) {
 		pe_status_random *status = (pe_status_random*)_status;
-		GetRandomPos(status->ran, status->seed, status->eForm);
+		GetRandomPoints(status->points, status->seed, status->eForm);
 		return 1;
 	}
 
@@ -1088,7 +1097,7 @@ void CPhysArea::Update(float dt)
 	Release(); // since it was addreffed by an update request
 	if (m_bDeleted)
 		return;
-	FUNCTION_PROFILER( GetISystem(),PROFILE_PHYSICS );
+	CRY_PROFILE_FUNCTION(PROFILE_PHYSICS );
 	PHYS_AREA_PROFILER(this)
 	int bAwakeEnv = 0;
 
@@ -1482,7 +1491,7 @@ void CPhysArea::GetMemoryStatistics(ICrySizer *pSizer) const
 		pSizer->AddObject(m_pt, sizeof(m_pt[0])*(m_npt+1));
 		pSizer->AddObject(m_idxSort[0], sizeof(m_idxSort[0][0])*m_npt);
 		pSizer->AddObject(m_idxSort[1], sizeof(m_idxSort[1][0])*m_npt);
-		pSizer->AddObject(m_pMask, sizeof(m_pMask[0])*((m_npt-1>>5)+1)*(MAX_PHYS_THREADS+1));
+		pSizer->AddObject(m_pMask, sizeof(m_pMask[0])*((m_npt-1>>5)+1)*MAX_TOT_THREADS);
 	}
 	if (m_ptSpline)
 		pSizer->AddObject(m_ptSpline, sizeof(m_ptSpline[0])*m_npt);
@@ -1522,7 +1531,7 @@ void CPhysArea::ProcessBorder()
 		if (m_pMask) delete[] m_pMask;
 		m_idxSort[0] = new int[m_npt];
 		m_idxSort[1] = new int[m_npt];
-		memset(m_pMask = new unsigned int[((m_npt-1>>5)+1)*(MAX_PHYS_THREADS+1)],0,((m_npt-1>>5)+1)*(MAX_PHYS_THREADS+1)*sizeof(int));
+		memset(m_pMask = new unsigned int[((m_npt-1>>5)+1)*MAX_TOT_THREADS],0,((m_npt-1>>5)+1)*MAX_TOT_THREADS*sizeof(int));
 		float *xstart = new float[m_npt];
 
 		for(int iend=0; iend<2; iend++)	{
@@ -1618,7 +1627,7 @@ IPhysicalEntity *CPhysicalWorld::AddArea(Vec3 *pt,int npt, float zmin,float zmax
 
 	pArea->m_offset = pArea->m_offset0+pos;
 	pArea->m_R = Matrix33(q)*pArea->m_R0;
-	memset(pArea->m_pMask = new unsigned int[((npt-1>>5)+1)*(MAX_PHYS_THREADS+1)],0,((npt-1>>5)+1)*(MAX_PHYS_THREADS+1)*sizeof(int));
+	memset(pArea->m_pMask = new unsigned int[((npt-1>>5)+1)*MAX_TOT_THREADS],0,((npt-1>>5)+1)*MAX_TOT_THREADS*sizeof(int));
 
 	sz = Matrix33(pArea->m_R).Fabs()*pArea->m_size0*scale;
 	center = pArea->m_offset+pArea->m_R*(BBox[0]+BBox[1])*(pArea->m_scale*0.5f);
@@ -1808,7 +1817,7 @@ void CPhysicalWorld::RemoveArea(IPhysicalEntity *_pArea)
 	DetachEntityGridThunks(pArea);
 	m_nAreas--;	m_nTypeEnts[PE_AREA]--;
 	pArea->m_next=m_pDeletedAreas; m_pDeletedAreas=pArea;
-	for(int i=0;i<=MAX_PHYS_THREADS;i++)
+	for(int i=0;i<MAX_TOT_THREADS;i++)
 		m_prevGEAobjtypes[i] = -1;
 }
 
@@ -1847,7 +1856,7 @@ int CPhysicalWorld::CheckAreas(const Vec3 &ptc, Vec3 &gravity, pe_params_buoyanc
 	}
 
 	if (m_vars.bMultithreaded+iCaller>MAX_PHYS_THREADS)
-		iCaller = get_iCaller();
+		iCaller = get_iCaller(1);
 	WriteLock lock0(m_lockCaller[iCaller]);
 	ReadLock lock1(m_lockAreas);
 

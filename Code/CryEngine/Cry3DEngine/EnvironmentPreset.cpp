@@ -1,32 +1,28 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 
-#include <Cry3DEngine/ITimeOfDay.h>
 #include "EnvironmentPreset.h"
 
+#include <Cry3DEngine/ITimeOfDay.h>
 #include <CrySerialization/IArchive.h>
 #include <CrySerialization/IArchiveHost.h>
 #include <CrySerialization/ClassFactory.h>
+#include <CrySerialization/Decorators/Range.h>
 #include <CrySerialization/Enum.h>
 #include <CryMath/Bezier_impl.h>
 
 namespace
 {
-static const unsigned int sCurrentPresetVersion = 2;
-static const float sAnimTimeSecondsIn24h = 24.0f;   // 24 hours = (sAnimTimeSecondsIn24h * SAnimTime::numTicksPerSecond) ticks
+const unsigned int sCurrentPresetVersion = 3;
+const float sAnimTimeSecondsIn24h = 24.0f;   // 24 hours = (sAnimTimeSecondsIn24h * SAnimTime::numTicksPerSecond) ticks
 
-static const float sBezierSplineKeyValueEpsilon = 0.001f;
+const float sBezierSplineKeyValueEpsilon = 0.001f;
 }
 
 CBezierSpline::CBezierSpline()
 {
 	m_keys.reserve(2);
-}
-
-CBezierSpline::~CBezierSpline()
-{
-
 }
 
 void CBezierSpline::Init(float fDefaultValue)
@@ -134,14 +130,7 @@ void CBezierSpline::Serialize(Serialization::IArchive& ar)
 CTimeOfDayVariable::CTimeOfDayVariable() : m_id(ITimeOfDay::PARAM_TOTAL), m_type(ITimeOfDay::TYPE_FLOAT),
 	m_name(NULL), m_displayName(NULL), m_group(NULL),
 	m_minValue(0.0f), m_maxValue(0.0f), m_value(ZERO)
-{
-
-}
-
-CTimeOfDayVariable::~CTimeOfDayVariable()
-{
-
-}
+{}
 
 void CTimeOfDayVariable::Init(const char* group, const char* displayName, const char* name, ITimeOfDay::ETimeOfDayParamID nParamId, ITimeOfDay::EVariableType type, float defVal0, float defVal1, float defVal2)
 {
@@ -247,11 +236,6 @@ void CTimeOfDayVariable::Serialize(Serialization::IArchive& ar)
 CEnvironmentPreset::CEnvironmentPreset()
 {
 	ResetVariables();
-}
-
-CEnvironmentPreset::~CEnvironmentPreset()
-{
-
 }
 
 void CEnvironmentPreset::ResetVariables()
@@ -392,7 +376,7 @@ void CEnvironmentPreset::ResetVariables()
 	AddVar("Advanced", "", "Ocean fog color multiplier", ITimeOfDay::PARAM_OCEANFOG_COLOR_MULTIPLIER, ITimeOfDay::TYPE_FLOAT, 1.0f, 0.0f, 1.0f);
 	AddVar("Advanced", "", "Ocean fog density", ITimeOfDay::PARAM_OCEANFOG_DENSITY, ITimeOfDay::TYPE_FLOAT, 0.2f, 0.0f, 1.0f);
 
-	AddVar("Advanced", "", "Skybox multiplier", ITimeOfDay::PARAM_SKYBOX_MULTIPLIER, ITimeOfDay::TYPE_FLOAT, 1.0f, 0.0f, 1.0f);
+	AddVar("Advanced", "", "Skybox multiplier", ITimeOfDay::PARAM_SKYBOX_MULTIPLIER, ITimeOfDay::TYPE_FLOAT, 1.0f, 0.0f, 10.0f);
 
 	const float arrDepthConstBias[] = { 1.0f, 1.0f, 1.9f, 3.0f, 2.0f, 2.0f, 2.0f, 2.0f };
 	const float arrDepthSlopeBias[] = { 4.0f, 2.0f, 0.24f, 0.24f, 0.5f, 0.5f, 0.5f, 0.5f };
@@ -419,6 +403,8 @@ void CEnvironmentPreset::ResetVariables()
 	AddVar("Obsolete", "", "Global illumination multiplier", ITimeOfDay::PARAM_GI_MULTIPLIER, ITimeOfDay::TYPE_FLOAT, 1.f, 0.f, 100.f);
 	AddVar("Obsolete", "", "Sky brightening (terrain occlusion)", ITimeOfDay::PARAM_TERRAIN_OCCL_MULTIPLIER, ITimeOfDay::TYPE_FLOAT, 0.3f, 0.f, 1.f);
 	AddVar("Obsolete", "", "Sun color multiplier", ITimeOfDay::PARAM_SUN_COLOR_MULTIPLIER, ITimeOfDay::TYPE_FLOAT, 1.0f, 0.0f, 16.0f);
+
+	m_consts.ResetVariables();
 }
 
 void CEnvironmentPreset::Serialize(Serialization::IArchive& ar)
@@ -434,6 +420,16 @@ void CEnvironmentPreset::Serialize(Serialization::IArchive& ar)
 			{
 				ar(m_vars[i], "var");
 			}
+			//Root node is for XML-header only. PropertyTree will have no root node
+			ar(m_consts, "Constants");
+		}
+		else if (bReadResult && (2 == version))
+		{
+			for (size_t i = 0; i < ITimeOfDay::PARAM_TOTAL; ++i)
+			{
+				ar(m_vars[i], "var");
+			}
+			m_consts.ResetVariables();
 		}
 		else
 		{
@@ -470,7 +466,10 @@ void CEnvironmentPreset::Serialize(Serialization::IArchive& ar)
 
 				const ITimeOfDay::ETimeOfDayParamID id = tempVar.GetId();
 				if (id < ITimeOfDay::PARAM_TOTAL)
+				{
 					m_vars[id] = tempVar; //update the actual var
+				}
+				m_consts.ResetVariables();
 			}
 		}
 	}
@@ -481,6 +480,7 @@ void CEnvironmentPreset::Serialize(Serialization::IArchive& ar)
 		{
 			ar(m_vars[i], "var");
 		}
+		ar(m_consts, "Constants");
 	}
 }
 
@@ -503,6 +503,11 @@ CTimeOfDayVariable* CEnvironmentPreset::GetVar(const char* varName)
 		}
 	}
 	return NULL;
+}
+
+CTimeOfDayConstants& CEnvironmentPreset::GetConstants()
+{
+	return m_consts;
 }
 
 bool CEnvironmentPreset::InterpolateVarInRange(ITimeOfDay::ETimeOfDayParamID id, float fMin, float fMax, unsigned int nCount, Vec3* resultArray) const

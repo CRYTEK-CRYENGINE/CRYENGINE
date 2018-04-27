@@ -1,0 +1,14 @@
+<AssetMetadata version="0" type="Texture" guid="be435db8-939f-e752-0535-bd49bbbd3acf" source="hiteffect_veinsblood.tif">
+ <Files>
+  <File path="hiteffect_veinsblood.dds"/>
+  <File path="hiteffect_veinsblood.dds.1"/>
+  <File path="hiteffect_veinsblood.dds.2"/>
+  <File path="hiteffect_veinsblood.dds.3"/>
+  <File path="hiteffect_veinsblood.dds.4"/>
+ </Files>
+ <Details>
+  <Detail name="width">256</Detail>
+  <Detail name="height">256</Detail>
+  <Detail name="mipCount">7</Detail>
+ </Details>
+</AssetMetadata>

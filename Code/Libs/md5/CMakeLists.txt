@@ -6,8 +6,8 @@ start_sources()
 sources_platform(ALL)
 add_sources("NoUberFile"
 	SOURCE_GROUP "Root"
-		"../../SDKs/md5/md5.c"
-		"../../SDKs/md5/md5.h"
+		"${SDK_DIR}/md5/md5.c"
+		"${SDK_DIR}/md5/md5.h"
 )
 
 end_sources()
@@ -15,3 +15,6 @@ end_sources()
 
 CryEngineStaticModule(md5 SOLUTION_FOLDER "Libs")
 target_include_directories(${THIS_PROJECT} INTERFACE "${SDK_DIR}")
+if (ORBIS OR CMAKE_CXX_COMPILER_ID STREQUAL "Clang" OR CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+	target_compile_options(${THIS_PROJECT} PRIVATE -w)
+endif()

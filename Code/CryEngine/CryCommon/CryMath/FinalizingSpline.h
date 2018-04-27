@@ -1,21 +1,11 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
-// -------------------------------------------------------------------------
-//  File name:   IFacialAnimation.h
-//  Version:     v1.00
-//  Created:     7/10/2005 by Timur.
-//  Compilers:   Visual Studio.NET 2003
-//  Description:
-// -------------------------------------------------------------------------
-//  History:
-//
-////////////////////////////////////////////////////////////////////////////
-
-#ifndef __FinalizingSpline_h__
-#define __FinalizingSpline_h__
+#pragma once
 
 #include <CryMath/ISplines.h> // <> required for Interfuscator
 #include <CryCore/CryCustomTypes.h>
+
+//! \cond INTERNAL
 
 namespace spline
 {
@@ -686,4 +676,4 @@ public:
 };
 };
 
-#endif // __FinalizingSpline_h__
+//! \endcond

@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "ViewSystem.h"
@@ -79,7 +79,7 @@ CViewSystem::~CViewSystem()
 //------------------------------------------------------------------------
 void CViewSystem::Update(float frameTime)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_ACTION);
+	CRY_PROFILE_FUNCTION(PROFILE_ACTION);
 
 	if (gEnv->IsDedicated())
 		return;

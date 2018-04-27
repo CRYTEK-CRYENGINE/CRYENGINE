@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -12,11 +12,6 @@ struct lockfree_add_vector
 	enum { safety_preallocated_items = 128 }; // if array size grows to the capacity - safety_preallocated_items array is locked and resized
 
 	lockfree_add_vector()
-		: m_lastIndex(0)
-		, m_new_capacity(0)
-		, m_capacity(0)
-		, m_pCurrentBuffer(0)
-		, m_safe_capacity(0)
 	{
 		//static_assert(std::is_trivially_copyable<T>::value, "Item type must be a Trivial Copyabale type.");
 		reserve(safety_preallocated_items * 2);
@@ -24,7 +19,7 @@ struct lockfree_add_vector
 
 	void push_back(const T& value) { lockfree_push_back(value);  }
 
-	void lockfree_push_back(const T& value)
+	size_t lockfree_push_back(const T& value)
 	{
 		//CryAutoLock<CryCriticalSectionNonRecursive> lock_temp(m_temp_lock);
 
@@ -65,6 +60,7 @@ struct lockfree_add_vector
 				m_pCurrentBuffer[newIndex - 1] = value;
 			}
 		}
+		return (size_t)(newIndex-1);
 	}
 
 	void reserve(size_t sz)
@@ -140,11 +136,11 @@ private:
 	};
 	typedef std::shared_ptr<SMemoryBuffer> SMemoryBufferPtr;
 private:
-	volatile int                   m_capacity;
-	volatile int                   m_safe_capacity;
-	volatile int                   m_lastIndex;
-	volatile int                   m_new_capacity;
-	T*                             m_pCurrentBuffer;
+	volatile int                   m_capacity = 0;
+	volatile int                   m_safe_capacity = 0;
+	volatile int                   m_lastIndex = 0;
+	volatile int                   m_new_capacity = 0;
+	T*                             m_pCurrentBuffer = nullptr;
 
 	SMemoryBufferPtr               m_pMemoryBuffer;
 	std::vector<SMemoryBufferPtr>  m_freeList;

@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 using System;
 using CryEngine.Attributes;
@@ -39,7 +39,7 @@ namespace CryEngine
 		#region Constructors
 
 		/// <summary>
-		/// Initializes a new instance of the <see cref="T:CryEngine.EntityClassAttribute"/> class.
+		/// Initializes a new instance of the obsolete <see cref="T:CryEngine.EntityClassAttribute"/> class.
 		/// </summary>
 		/// <param name="name">Display name inside CRYENGINE's EntitySystem as well as Sandbox..</param>
 		/// <param name="category">Entity category inside Sandbox..</param>
@@ -56,6 +56,14 @@ namespace CryEngine
 			Hide = hide;
 		}
 
+		/// <summary>
+		/// Initializes a new instance of the obsolete <see cref="T:CryEngine.EntityClassAttribute"/> class.
+		/// </summary>
+		/// <param name="name"></param>
+		/// <param name="category"></param>
+		/// <param name="helper"></param>
+		/// <param name="icon"></param>
+		/// <param name="hide"></param>
 		[Obsolete("EntityClassAttribute is obsolete and will be removed. Use EntityComponentAttribute instead")]
 		public EntityClassAttribute(string name = "", string category = "Game", string helper = null, IconType icon = IconType.None, bool hide = false)
 		{

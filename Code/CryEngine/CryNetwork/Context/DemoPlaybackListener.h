@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 /*************************************************************************
    -------------------------------------------------------------------------
@@ -59,7 +59,7 @@ public:
 	}
 
 private:
-	std::auto_ptr<CSimpleInputStream> m_pInput;
+	std::unique_ptr<CSimpleInputStream> m_pInput;
 	CNetContext*                      m_pContext;
 	CNetChannel*                      m_pServerChannel;
 	CNetChannel*                      m_pClientChannel;

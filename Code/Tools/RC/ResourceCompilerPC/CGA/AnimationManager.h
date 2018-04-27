@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #ifndef _ANIMATION_MANAGER
 #define _ANIMATION_MANAGER
@@ -6,7 +6,7 @@
 
 #include "GlobalAnimationHeaderAIM.h"
 #include "GlobalAnimationHeaderCAF.h"
-#include "ResourceCompiler.h" // CryCriticalSectionRC
+#include <mutex>
 
 class CAnimationManager
 {
@@ -33,11 +33,11 @@ private:
 
 	typedef std::vector<GlobalAnimationHeaderCAF> GlobalAnimationHeaderCAFs;
 	GlobalAnimationHeaderCAFs m_arrGlobalAnimations; 
-	ThreadUtils::CriticalSection m_lockCAFs;
+	std::recursive_mutex m_lockCAFs;
 
 	typedef std::vector<GlobalAnimationHeaderAIM> GlobalAnimationHeaderAIMs;
 	GlobalAnimationHeaderAIMs m_arrGlobalAIM;
-	ThreadUtils::CriticalSection m_lockAIMs;
+	std::recursive_mutex m_lockAIMs;
 };
 
 

@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -103,7 +103,7 @@ private:
 		{
 			m_pArray = std::make_shared<Array>();
 		}
-		else if (!m_pArray.unique())
+		else if (!(m_pArray.use_count() == 1)) // Not thread safe!
 		{
 			m_pArray = std::make_shared<Array>(*m_pArray);
 		}

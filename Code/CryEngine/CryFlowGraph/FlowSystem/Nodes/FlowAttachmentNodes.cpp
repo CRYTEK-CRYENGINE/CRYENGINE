@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "FlowEntityNode.h"
@@ -226,7 +226,7 @@ public:
 		}
 	}
 
-	void OnEntityEvent(IEntity* pEntity, SEntityEvent& event)
+	void OnEntityEvent(IEntity* pEntity, const SEntityEvent& event)
 	{
 		if (event.event == m_event)
 		{

@@ -31,7 +31,6 @@
 			"CryFriendsManagement.cpp",
 			"CryHostMigration.cpp",
 			"CryLobby.cpp",
-			"CryLobbyDLL.cpp",
 			"CryLobbyUI.cpp",
 			"CryMatchMaking.cpp",
 			"CryReward.cpp",

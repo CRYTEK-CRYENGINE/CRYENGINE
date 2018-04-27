@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -17,7 +17,7 @@ class CCryVKSwapChain : public CCryVKGIObject
 public:
 	IMPLEMENT_INTERFACES(CCryVKSwapChain)
 
-	static _smart_ptr<CCryVKSwapChain> Create(_smart_ptr<NCryVulkan::CDevice> pDevice, CONST DXGI_SWAP_CHAIN_DESC * pDesc);
+	static _smart_ptr<CCryVKSwapChain> Create(_smart_ptr<NCryVulkan::CDevice> pDevice, CONST DXGI_SWAP_CHAIN_DESC * pDesc, VkSurfaceKHR surface);
 
 	virtual ~CCryVKSwapChain();
 

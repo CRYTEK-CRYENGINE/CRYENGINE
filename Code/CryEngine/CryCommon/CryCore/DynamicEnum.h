@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -36,10 +36,14 @@ public:
 		Container(Serialization::EnumDescription& desc)
 			: _desc(desc), _nextValue(0) {}
 
-		Value add(Value value, cstr name, cstr label = 0, const Info& info = Info())
+		Value add(Value value, cstr nameInput, cstr label = 0, const Info& info = Info())
 		{
-			if (name)
+			if (nameInput)
 			{
+				// Store name into our own container to make sure that it's not destroyed by caller
+				std::pair<Names::iterator, bool> namesInsertRes = _names.insert(nameInput);
+				string& name = *namesInsertRes.first;
+
 				if (!label)
 				{
 					string labelStr = Serialization::NameToLabel(name);
@@ -114,9 +118,12 @@ public:
 		        FullInfos
 		        >::type;
 
+		using Names = VectorSet<string>;
+
 		Serialization::EnumDescription& _desc;
 		Value                           _nextValue;
 		Infos                           _infos;
+		Names                           _names;
 		std::vector<string>             _customLabels;
 	};
 

@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "GameSerialize.h"
@@ -180,7 +180,7 @@ CGameSerialize::CGameSerialize()
 {
 	if (!gEnv->IsEditor())
 	{
-		gEnv->pEntitySystem->AddSink(this, IEntitySystem::OnSpawn | IEntitySystem::OnRemove, 0);
+		gEnv->pEntitySystem->AddSink(this, IEntitySystem::OnSpawn | IEntitySystem::OnRemove);
 
 		if (ILevelSystem* pLS = CCryAction::GetCryAction()->GetILevelSystem())
 			pLS->AddListener(this);
@@ -720,8 +720,17 @@ ELoadGameResult CGameSerialize::LoadGame(CCryAction* pCryAction, const char* met
 		gEnv->pEntitySystem->SendEventToAll(resetEvent);
 
 	//tell existing entities that serialization starts
+	IEntityItPtr pEntityIterator = gEnv->pEntitySystem->GetEntityIterator();
+	pEntityIterator->MoveFirst();
+
 	SEntityEvent serializeEvent(ENTITY_EVENT_PRE_SERIALIZE);
-	gEnv->pEntitySystem->SendEventToAll(serializeEvent);
+	while (IEntity* pEntity = pEntityIterator->Next())
+	{
+		if (gEnv->pEntitySystem->ShouldSerializedEntity(pEntity))
+		{
+			pEntity->SendEvent(serializeEvent);
+		}
+	}
 
 	loadEnvironment.m_checkpoint.Check("PreSerialize Event");
 
@@ -1131,7 +1140,6 @@ bool CGameSerialize::SaveEntities(SSaveEnvironment& savEnv)
 				}
 				bed.scale = pEntity->GetScale();
 				bed.flags = flags;
-				bed.updatePolicy = (uint32)pEntity->GetUpdatePolicy();
 				bed.isHidden = pEntity->IsHidden();
 				bed.isInvisible = pEntity->IsInvisible();
 
@@ -1564,8 +1572,17 @@ bool CGameSerialize::LoadLevel(SLoadEnvironment& loadEnv, SGameStartParams& star
 	loadEnv.m_bHaveReserved = true;
 	ReserveEntityIds(loadEnv.m_basicEntityData);
 
+	IEntityItPtr pEntityIterator = gEnv->pEntitySystem->GetEntityIterator();
+	pEntityIterator->MoveFirst();
+
 	SEntityEvent serializeEvent(ENTITY_EVENT_PRE_SERIALIZE);
-	gEnv->pEntitySystem->SendEventToAll(serializeEvent);
+	while (IEntity* pEntity = pEntityIterator->Next())
+	{
+		if (gEnv->pEntitySystem->ShouldSerializedEntity(pEntity))
+		{
+			pEntity->SendEvent(serializeEvent);
+		}
+	}
 
 	return true;
 }
@@ -1762,12 +1779,7 @@ void CGameSerialize::LoadGameData(SLoadEnvironment& loadEnv)
 
 		pEntity->SetFlags(iter->flags);
 
-		// unhide and activate so that physicalization works (will be corrected after extra entity data is loaded)
-		pEntity->SetUpdatePolicy((EEntityUpdatePolicy) iter->updatePolicy);
-
-		{
-			pEntity->EnablePhysics(true);
-		}
+		pEntity->EnablePhysics(true);
 
 		pEntity->Hide(false);
 		pEntity->Invisible(false);

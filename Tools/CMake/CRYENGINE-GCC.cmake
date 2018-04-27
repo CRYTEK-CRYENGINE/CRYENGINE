@@ -1,58 +1,24 @@
-set(GCC_COMMON_FLAGS 
+set(GCC_COMMON_FLAGS
 	-Wall
 	-Werror
+
 	-ffast-math
 	-flax-vector-conversions
-
 	-fvisibility=hidden
 	-fPIC
+	-fno-exceptions
 
-	-Wno-char-subscripts
-	-Wno-unknown-pragmas
-	-Wno-unused-variable
-	-Wno-unused-value
-	-Wno-parentheses
-	-Wno-switch
-	-Wno-unused-function
-	-Wno-unused-result
-	-Wno-multichar
-	-Wno-format-security
-	-Wno-empty-body
-	-Wno-comment
-	-Wno-char-subscripts
-	-Wno-sign-compare
-	-Wno-narrowing
-	-Wno-write-strings
-	-Wno-format
-
-	-Wno-return-type
-
-	-Wno-strict-aliasing
-	-Wno-unused-but-set-variable
-	-Wno-maybe-uninitialized
-	-Wno-strict-overflow
-	-Wno-uninitialized
-	-Wno-unused-local-typedefs
-	-Wno-deprecated
-
-	-Wno-unused-result
-	-Wno-sizeof-pointer-memaccess
-	-Wno-array-bounds
-
-	-Wno-address
-
-	-fno-exceptions 
+	-Wno-unknown-warning
 )
 
 set(GCC_CPP_COMMON_FLAGS
-	-fno-rtti 
+	-fno-rtti
 	-std=c++11
 	-Wno-invalid-offsetof
-	-Wno-reorder
+	-Wno-aligned-new
 	-Wno-conversion-null
-	-Wno-overloaded-virtual
-	-Wno-c++0x-compat
-	-Wno-non-template-friend
+	-Wno-unused-result
+	-Wno-reorder
 )
 
 string(REPLACE ";" " " GCC_COMMON_FLAGS "${GCC_COMMON_FLAGS}")

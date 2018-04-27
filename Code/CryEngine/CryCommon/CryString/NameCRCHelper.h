@@ -1,11 +1,8 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
-#ifndef _NAMECRCHELPER
-#define _NAMECRCHELPER
+//! \cond INTERNAL
 
-#if _MSC_VER > 1000
-	#pragma once
-#endif // _MSC_VER > 1000
+#pragma once
 
 // Class with CRC sum. Used for optimizations  s
 
@@ -168,4 +165,4 @@ struct SCRCName
 	}
 };
 
-#endif
+//! \endcond

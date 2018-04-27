@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -25,9 +25,8 @@ public:
 	};
 
 public:
-	void Init() override;
-	void Prepare(CRenderView* pRenderView) override;
-
+	void Init() final;
+	void Update() final;
 	void Execute();
 
 	void FillForwardParams(SForwardParams& forwardParams, bool enable = true) const;

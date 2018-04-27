@@ -1,0 +1,10 @@
+<AssetMetadata version="0" type="Texture" guid="303dff69-2c5c-dfde-722f-7db56cb22dc8" source="lens_flare1-wide.tif">
+ <Files>
+  <File path="lens_flare1-wide.dds"/>
+ </Files>
+ <Details>
+  <Detail name="width">4</Detail>
+  <Detail name="height">4</Detail>
+  <Detail name="mipCount">1</Detail>
+ </Details>
+</AssetMetadata>

@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 //
 //  Crytek Engine Source File.
 //  Copyright (C), Crytek Studios, 2012.
@@ -78,12 +78,12 @@ namespace GeomCache
 		std::vector<RawMeshFrame> m_meshDataBuffer;		
 		
 		// Raw animated data frames for encoder		
-		mutable ThreadUtils::CriticalSection m_rawFramesCS;
+		mutable std::recursive_mutex m_rawFramesMutex;
 		uint m_firstRawFrameIndex;
 		std::deque<RawMeshFrame> m_rawFrames;		
 
 		// Encoded animated data frames for writer
-		mutable ThreadUtils::CriticalSection m_encodedFramesCS;
+		mutable std::recursive_mutex m_encodedFramesMutex;
 		std::deque<std::vector<uint8>> m_encodedFrames;
 
 		// Material ID -> material indices. Needs to be std::map, because materials need to be sorted by their id.
@@ -141,11 +141,11 @@ namespace GeomCache
 		std::vector<NodeData> m_nodeDataBuffer;
 		
 		// Animated data frames for encoder
-		mutable ThreadUtils::CriticalSection m_animatedNodeDataCS;
+		mutable std::recursive_mutex m_animatedNodeDataCS;
 		std::deque<NodeData> m_animatedNodeData;
 
 		// Encoded animated data frames for writer
-		mutable ThreadUtils::CriticalSection m_encodedFramesCS;
+		mutable std::recursive_mutex m_encodedFramesMutex;
 		std::deque<std::vector<uint8>> m_encodedFrames;
 
 		// Mesh (if mesh node)

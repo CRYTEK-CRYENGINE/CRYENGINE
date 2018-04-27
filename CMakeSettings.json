@@ -33,14 +33,14 @@
 	"configurationType": "Profile",
     "generator": "Visual Studio 15 2017",
     "buildRoot": "${projectDir}\\Solutions\\Win32_Profile",
-	"cmakeCommandArgs": "-D CMAKE_TOOLCHAIN_FILE=Tools\\CMake\\toolchain\\windows\\WindowsPC-MSVC.cmake"
+    "cmakeCommandArgs": "-D CMAKE_TOOLCHAIN_FILE=Tools\\CMake\\toolchain\\windows\\WindowsPC-MSVC.cmake"
    },
    {
     "name": "Windows x86 Release",
 	"configurationType": "Release",
     "generator": "Visual Studio 15 2017",
     "buildRoot": "${projectDir}\\Solutions\\Win32_Release",
-	"cmakeCommandArgs": "-D CMAKE_TOOLCHAIN_FILE=Tools\\CMake\\toolchain\\windows\\WindowsPC-MSVC.cmake"
+    "cmakeCommandArgs": "-D CMAKE_TOOLCHAIN_FILE=Tools\\CMake\\toolchain\\windows\\WindowsPC-MSVC.cmake"
    }
  ]
 }

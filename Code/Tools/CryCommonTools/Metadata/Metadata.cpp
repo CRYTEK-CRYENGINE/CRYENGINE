@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "Metadata.h"
@@ -144,7 +144,7 @@ void AddDetails(XmlNodeRef& xml, const std::vector<std::pair<string, string>>& d
 	}
 }
 
-void AddDependencies(XmlNodeRef & xml, const std::vector<string>& dependencies)
+void AddDependencies(XmlNodeRef & xml, const std::vector<std::pair<string,int32>>& dependencies)
 {
 	if (dependencies.empty())
 	{
@@ -161,18 +161,23 @@ void AddDependencies(XmlNodeRef & xml, const std::vector<string>& dependencies)
 		pDependencies = xml->newChild("Dependencies");
 	}
 
-	for (const auto& detail : dependencies)
+	for (const auto& item : dependencies)
 	{
 		XmlNodeRef pPath = pDependencies->newChild("Path");
 
-		// There is an agreement in the sandbox dependency tracking system that local paths have to start with "./"
-		if (detail.FindOneOf("/\\") != string::npos)
+		if (item.second)
 		{
-			pPath->setContent(detail);
+			pPath->setAttr("usageCount", item.second);
+		}
+
+		// There is an agreement in the sandbox dependency tracking system that local paths have to start with "./"
+		if (item.first.FindOneOf("/\\") != string::npos)
+		{
+			pPath->setContent(item.first);
 		}
 		else // Folow the engine rules: if no slashes in the name assume it is in same folder as the cryasset.
 		{
-			pPath->setContent(string().Format("./%s", detail.c_str()));
+			pPath->setContent(string().Format("./%s", item.first.c_str()));
 		}
 	}
 }

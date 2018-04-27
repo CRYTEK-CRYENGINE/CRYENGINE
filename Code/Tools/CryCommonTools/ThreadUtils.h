@@ -1,116 +1,15 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #ifndef __ThreadUtils_h__
 #define __ThreadUtils_h__
 
 #pragma once
 
-#include <CryCore/Platform/CryWindows.h>   // CRITICAL_SECTION
-
+#include <CryCore/Platform/platform.h>
+#include <mutex>
 
 namespace ThreadUtils 
 {
-
-class CriticalSection
-{
-	friend class ConditionVariable;
-
-public:
-	CriticalSection() 
-	{ 
-		memset(&m_cs, 0, sizeof(m_cs));
-		InitializeCriticalSection(&m_cs); 
-	}
-
-	~CriticalSection() 
-	{ 
-		DeleteCriticalSection(&m_cs); 
-	}
-
-	void Lock() 
-	{ 
-		EnterCriticalSection(&m_cs); 
-	}
-	void Unlock() 
-	{ 
-		LeaveCriticalSection(&m_cs); 
-	}
-	bool TryLock() 
-	{ 
-		return TryEnterCriticalSection(&m_cs) != FALSE; 
-	}
-
-	/*
-#ifndef NDEBUG
-	bool IsLocked() 
-	{ 
-		return m_cs.RecursionCount > 0 && (DWORD)m_cs.OwningThread == GetCurrentThreadId(); 
-	}
-#endif
-	*/
-
-private:
-	// You are not allowed to copy or move a CRITICAL_SECTION 
-	// handle, so make this class non-copyable
-	CriticalSection(const CriticalSection &cs);
-	CriticalSection &operator=(const CriticalSection &cs);
-
-	CRITICAL_SECTION m_cs;
-};
-
-class ConditionVariable
-{
-public:
-	ConditionVariable()
-	{
-		InitializeConditionVariable(&m_cv);
-	}
-
-	void Wake()
-	{
-		WakeConditionVariable(&m_cv);
-	}
-
-	void WakeAll()
-	{
-		WakeAllConditionVariable(&m_cv);
-	}
-
-	void Sleep(CriticalSection &cs, DWORD milliseconds = INFINITE)
-	{
-		SleepConditionVariableCS(&m_cv, &cs.m_cs, milliseconds);
-	}
-
-private:
-	// You are not allowed to copy or move a CONDITION_VARIABLE 
-	// handle, so make this class non-copyable
-	ConditionVariable(const ConditionVariable &cs);
-	ConditionVariable &operator=(const ConditionVariable &cs);
-
-	CONDITION_VARIABLE m_cv;
-};
-
-class AutoLock
-{
-private:
-	CriticalSection &m_lock;
-
-	AutoLock();
-	AutoLock(const AutoLock&);
-	AutoLock& operator = (const AutoLock&);
-
-public:
-	explicit AutoLock(CriticalSection &lock) 
-		: m_lock(lock) 
-	{ 
-		m_lock.Lock(); 
-	}
-	~AutoLock() 
-	{ 
-		m_lock.Unlock(); 
-	}
-};
-
 
 typedef void(*JobFunc)(void*);
 
@@ -186,7 +85,7 @@ private:
 	std::vector<JobTraces> m_threadTraces;
 
 	int m_numProcessedJobs;
-	CriticalSection m_lockJobs;
+	std::recursive_mutex m_lockJobs;
 	std::vector<Job> m_jobs;
 };
 

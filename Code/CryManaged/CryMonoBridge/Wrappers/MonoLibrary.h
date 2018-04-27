@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -21,10 +21,11 @@ class CMonoLibrary
 	// Start public API below
 public:
 	CMonoLibrary(const char* filePath, CMonoDomain* pDomain);
-	CMonoLibrary(MonoInternals::MonoAssembly* pAssembly, const char* filePath, CMonoDomain* pDomain);
+	CMonoLibrary(MonoInternals::MonoAssembly* pAssembly, MonoInternals::MonoImage* pImage, const char* filePath, CMonoDomain* pDomain);
 	~CMonoLibrary();
 	
 	bool IsLoaded() const { return m_pAssembly != nullptr; }
+	virtual bool WasCompiledAtRuntime() { return false; }
 
 	const char* GetFilePath();
 
@@ -54,13 +55,15 @@ public:
 
 	std::shared_ptr<CMonoClass> GetClassFromMonoClass(MonoInternals::MonoClass* pClass);
 
+	void SetAssembly(MonoInternals::MonoAssembly* pAssembly) { m_pAssembly = pAssembly; }
 	MonoInternals::MonoAssembly* GetAssembly() const { return m_pAssembly; }
 	MonoInternals::MonoImage* GetImage() const { return m_pImage; }
 
 	MonoInternals::MonoObject* GetManagedObject();
 
 protected:
-	bool Load();
+	virtual bool Load(int loadIndex = -1);
+	bool LoadLibraryFile(string& assemblyPath, int loadIndex = -1);
 	void Unload();
 	void Reload();
 
@@ -72,7 +75,14 @@ protected:
 	const char* GetPath() const { return m_assemblyPath; }
 	const char* GetImageName() const;
 
-private:
+	// Removes the file at targetFile, and copies the sourceFile to targetFile.
+	// Returns false if copying failed.
+	bool RemoveAndCopyFile(string& sourceFile, string& targetFile) const;
+	
+	// Returns true if fileA is newer that fileB, false otherwise.
+	bool IsFileNewer(string& fileA, string& fileB) const;
+
+protected:
 	MonoInternals::MonoAssembly* m_pAssembly;
 	MonoInternals::MonoImage* m_pImage;
 

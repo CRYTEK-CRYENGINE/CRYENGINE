@@ -1,19 +1,10 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
 #include <CryGame/IGameFramework.h>
+#include <CryGame/IGameStartup.h>
 #include <CrySystem/IWindowMessageHandler.h>
-
-#if defined(CVARS_WHITELIST)
-class CCVarsWhiteList : public ICVarsWhitelist
-{
-public:
-	// ICVarsWhiteList
-	bool IsWhiteListed(const string& command, bool silent);
-	// ~ICVarsWhiteList
-};
-#endif // defined(CVARS_WHITELIST)
 
 class GameStartupErrorObserver : public IErrorObserver
 {

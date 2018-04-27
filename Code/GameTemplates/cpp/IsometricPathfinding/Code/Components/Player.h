@@ -9,7 +9,7 @@
 #include <DefaultComponents/Physics/CharacterControllerComponent.h>
 #include <DefaultComponents/Geometry/AdvancedAnimationComponent.h>
 #include <DefaultComponents/Input/InputComponent.h>
-#include <DefaultComponents/AI/PathfindingComponent.h>
+#include <CryAISystem/Components/IEntityNavigationComponent.h>
 
 ////////////////////////////////////////////////////////
 // Represents a player participating in gameplay
@@ -24,7 +24,7 @@ public:
 	virtual void Initialize() override;
 
 	virtual uint64 GetEventMask() const override;
-	virtual void ProcessEvent(SEntityEvent& event) override;
+	virtual void ProcessEvent(const SEntityEvent& event) override;
 	// ~IEntityComponent
 
 	// Reflect type to set a unique identifier for this component
@@ -50,9 +50,11 @@ protected:
 	Cry::DefaultComponents::CCharacterControllerComponent* m_pCharacterController = nullptr;
 	Cry::DefaultComponents::CAdvancedAnimationComponent* m_pAnimationComponent = nullptr;
 	Cry::DefaultComponents::CInputComponent* m_pInputComponent = nullptr;
-	Cry::DefaultComponents::CPathfindingComponent* m_pPathfindingComponent = nullptr;
+	IEntityNavigationComponent* m_pNavigationComponent = nullptr;
 
 	TagID m_walkTagId;
+
+	const float m_movementSpeed = 5.0f;
 
 	IEntity* m_pCursorEntity = nullptr;
 };

@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -140,6 +140,33 @@ public:
 	ILINE bool operator<=(const CTimeValue& inRhs) const { return m_lValue <= inRhs.m_lValue; };
 	ILINE bool operator==(const CTimeValue& inRhs) const { return m_lValue == inRhs.m_lValue; };
 	ILINE bool operator!=(const CTimeValue& inRhs) const { return m_lValue != inRhs.m_lValue; };
+
+	//! Splits the time value into hours, minutes, seconds, milliseconds.
+	//! All output parameters are optional (can be nullptr).
+	ILINE void Split(int* pHours, int* pMinutes, int* pSeconds, int* pMilliseconds) const
+	{
+		const int64 totalMilliseconds = GetMilliSecondsAsInt64();
+
+		if (pHours)
+		{
+			*pHours = (int)(totalMilliseconds / (1000 * 60 * 60));
+		}
+
+		if (pMinutes)
+		{
+			*pMinutes = (int)((totalMilliseconds / (1000 * 60)) % 60);
+		}
+
+		if (pSeconds)
+		{
+			*pSeconds = (int)((totalMilliseconds / 1000) % 60);
+		}
+
+		if (pMilliseconds)
+		{
+			*pMilliseconds = (int)(totalMilliseconds % 1000);
+		}
+	}
 
 	AUTO_STRUCT_INFO;
 

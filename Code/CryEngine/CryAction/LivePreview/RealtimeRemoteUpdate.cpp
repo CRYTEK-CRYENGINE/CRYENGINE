@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 /*************************************************************************
    -------------------------------------------------------------------------
@@ -292,7 +292,7 @@ void CRealtimeRemoteUpdateListener::LoadTerrainLayer(XmlNodeRef& root, unsigned 
 
 	if (gEnv->pRenderer && gEnv->p3DEngine)
 	{
-		texId = gEnv->pRenderer->DownLoadToVideoMemory(uchData, w, h, eTFSrc, eTFSrc, 0, false, FILTER_NONE, 0, NULL, FT_USAGE_ALLOWREADSRGB);
+		texId = gEnv->pRenderer->UploadToVideoMemory(uchData, w, h, eTFSrc, eTFSrc, 0, false, FILTER_NONE, 0, NULL, FT_USAGE_ALLOWREADSRGB);
 		// Swapped x & y for historical reasons.
 		gEnv->p3DEngine->SetTerrainSectorTexture(posy, posx, texId);
 	}

@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "MFXLibrary.h"
@@ -20,7 +20,7 @@ CMFXContainer* CreateContainer()
 
 void CMFXLibrary::LoadFromXml(SLoadingEnvironment& loadingEnvironment)
 {
-	CryLogAlways("[MFX] Loading FXLib '%s' ...", loadingEnvironment.libraryName.c_str());
+	CryComment("[MFX] Loading FXLib '%s' ...", loadingEnvironment.libraryName.c_str());
 
 	INDENT_LOG_DURING_SCOPE();
 

@@ -1,3 +1,5 @@
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
+
 #pragma once
 
 #include <CrySerialization/IArchive.h>
@@ -195,8 +197,8 @@ inline void ExplicitEntityIdToString(IString& output, const ExplicitEntityId& in
 inline void ReflectType(CTypeDesc<ExplicitEntityId>& desc)
 {
 	desc.SetGUID("00782e22-3188-4538-b4f2-8749b8a9dc48"_cry_guid);
-	desc.SetLabel("EntityId");
-	desc.SetDescription("Entity Identifier - Uniquely identifies an entity over the current session on a machine, is not unique over the network.");
+	desc.SetLabel("Entity");
+	desc.SetDescription("An entity instance present in the current scene");
 	desc.SetDefaultValue(ExplicitEntityId::Invalid);
 	desc.SetToStringOperator<&ExplicitEntityIdToString>();
 }

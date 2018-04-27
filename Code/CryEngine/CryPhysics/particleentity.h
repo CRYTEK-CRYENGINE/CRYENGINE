@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #ifndef particleentity_h
 #define particleentity_h
@@ -67,7 +67,7 @@ class CParticleEntity : public CPhysicalEntity {
 	unsigned int m_bDontPlayHitEffect : 1;
 
 	mutable volatile int m_lockParticle;
-	static CParticleEntity *g_pCurParticle[MAX_PHYS_THREADS+1];
+	static CParticleEntity *g_pCurParticle[MAX_TOT_THREADS];
 };
 
 #endif

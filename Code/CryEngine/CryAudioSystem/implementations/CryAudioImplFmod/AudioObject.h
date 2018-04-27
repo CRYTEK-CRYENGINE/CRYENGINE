@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -43,7 +43,7 @@ public:
 
 protected:
 
-	void StopEvent(uint32 const eventPathId);
+	void StopEvent(uint32 const id);
 	bool SetEvent(CEvent* const pEvent);
 
 	std::vector<CEvent*>                        m_events;

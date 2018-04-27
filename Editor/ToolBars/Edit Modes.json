@@ -2,22 +2,22 @@
     "toolBar": {
         "Commands": [
             {
-                "command": "ui_action.actionSelect_Mode",
+                "command": "tools.select",
                 "custom": false,
                 "uiName": "Select Mode"
             },
             {
-                "command": "ui_action.actionMove",
+                "command": "tools.move",
                 "custom": false,
                 "uiName": "Move"
             },
             {
-                "command": "ui_action.actionRotate",
+                "command": "tools.rotate",
                 "custom": false,
                 "uiName": "Rotate"
             },
             {
-                "command": "ui_action.actionScale",
+                "command": "tools.scale",
                 "custom": false,
                 "uiName": "Scale"
             }

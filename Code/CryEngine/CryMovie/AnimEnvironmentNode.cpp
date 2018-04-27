@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "AnimEnvironmentNode.h"
@@ -43,8 +43,8 @@ void CAnimEnvironmentNode::Animate(SAnimContext& ac)
 {
 	ITimeOfDay* pTimeOfDay = gEnv->p3DEngine->GetTimeOfDay();
 
-	float sunLongitude = pTimeOfDay->GetSunLongitude();
-	float sunLatitude = pTimeOfDay->GetSunLatitude();
+	float sunLongitude = pTimeOfDay->GetSunParams().longitude;
+	float sunLatitude = pTimeOfDay->GetSunParams().latitude;
 
 	Vec3 v;
 	gEnv->p3DEngine->GetGlobalParameter(E3DPARAM_SKY_MOONROTATION, v);
@@ -85,7 +85,8 @@ void CAnimEnvironmentNode::Animate(SAnimContext& ac)
 
 	if (bUpdateSun)
 	{
-		pTimeOfDay->SetSunPos(sunLongitude, sunLatitude);
+		pTimeOfDay->GetSunParams().longitude = sunLongitude;
+		pTimeOfDay->GetSunParams().latitude = sunLatitude;
 	}
 
 	if (bUpdateMoon)
@@ -148,9 +149,9 @@ bool CAnimEnvironmentNode::GetParamInfoFromType(const CAnimParamType& paramId, S
 
 void CAnimEnvironmentNode::InitializeTrackDefaultValue(IAnimTrack* pTrack, const CAnimParamType& paramType)
 {
-	ITimeOfDay* pTimeOfDay = gEnv->p3DEngine->GetTimeOfDay();
-	const float sunLongitude = pTimeOfDay->GetSunLongitude();
-	const float sunLatitude = pTimeOfDay->GetSunLatitude();
+	const auto& sunParams = gEnv->p3DEngine->GetTimeOfDay()->GetSunParams();
+	const float sunLongitude = sunParams.longitude;
+	const float sunLatitude = sunParams.latitude;
 
 	Vec3 v;
 	gEnv->p3DEngine->GetGlobalParameter(E3DPARAM_SKY_MOONROTATION, v);
@@ -182,9 +183,9 @@ void CAnimEnvironmentNode::InitializeTrackDefaultValue(IAnimTrack* pTrack, const
 
 void CAnimEnvironmentNode::StoreCelestialPositions()
 {
-	ITimeOfDay* pTimeOfDay = gEnv->p3DEngine->GetTimeOfDay();
-	m_oldSunLongitude = pTimeOfDay->GetSunLongitude();
-	m_oldSunLatitude = pTimeOfDay->GetSunLatitude();
+	const auto& sunParams = gEnv->p3DEngine->GetTimeOfDay()->GetSunParams();
+	m_oldSunLongitude = sunParams.longitude;
+	m_oldSunLatitude = sunParams.latitude;
 
 	Vec3 v;
 	gEnv->p3DEngine->GetGlobalParameter(E3DPARAM_SKY_MOONROTATION, v);
@@ -195,7 +196,8 @@ void CAnimEnvironmentNode::StoreCelestialPositions()
 void CAnimEnvironmentNode::RestoreCelestialPositions()
 {
 	ITimeOfDay* pTimeOfDay = gEnv->p3DEngine->GetTimeOfDay();
-	pTimeOfDay->SetSunPos(m_oldSunLongitude, m_oldSunLatitude);
+	pTimeOfDay->GetSunParams().longitude = m_oldSunLongitude;
+	pTimeOfDay->GetSunParams().latitude = m_oldSunLatitude;
 
 	Vec3 v;
 	v.y = m_oldMoonLongitude;

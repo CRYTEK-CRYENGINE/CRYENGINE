@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -72,13 +72,8 @@ public:
 	virtual VkResult          Init(VkBuffer buffer, const VkBufferCreateInfo& createInfo) override;
 	
 	VkResult                  CreateDynamicDescriptorSet(VkDescriptorSetLayout layout, uint32_t bufferSize);
-	VkDescriptorSet           GetDynamicDescriptorSet(uint32_t bufferSize) const
+	VkDescriptorSet           GetDynamicDescriptorSet() const
 	{
-		CRY_ASSERT(bufferSize >= 256 && bufferSize <= 32768);
-#ifndef _RELEASE
-	if (!m_bufferSizeLog2) { m_bufferSizeLog2 =  uint32(IntegerLog2(NextPower2(bufferSize))); }
-	CRY_ASSERT(              m_bufferSizeLog2 == uint32(IntegerLog2(NextPower2(bufferSize))));
-#endif // !_RELEASE
 		return m_dynamicDescriptorSet;
 	}
 

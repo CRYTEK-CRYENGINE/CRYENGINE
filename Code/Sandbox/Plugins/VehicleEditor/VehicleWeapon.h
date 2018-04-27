@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #ifndef __VehicleWeapon_h__
 #define __VehicleWeapon_h__
@@ -30,7 +30,6 @@ public:
 	void Done();
 
 	void Display(DisplayContext& dc);
-	void BeginEditParams(int flags);
 
 	void GetBoundBox(AABB& box);
 	void GetLocalBounds(AABB& box);
@@ -72,3 +71,4 @@ public:
 };
 
 #endif // __VehicleWeapon_h__
+

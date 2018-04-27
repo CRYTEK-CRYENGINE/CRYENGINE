@@ -1,0 +1,10 @@
+<AssetMetadata version="0" type="Texture" guid="ae664aac-ddbe-9bae-f253-5b41ef6ae9be">
+ <Files>
+  <File path="frost_noise3.dds"/>
+ </Files>
+ <Details>
+  <Detail name="width">64</Detail>
+  <Detail name="height">64</Detail>
+  <Detail name="mipCount">7</Detail>
+ </Details>
+</AssetMetadata>

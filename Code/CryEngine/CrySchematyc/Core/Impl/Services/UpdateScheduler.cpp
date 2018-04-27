@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "UpdateScheduler.h"
@@ -241,7 +241,7 @@ bool CUpdateScheduler::BeginFrame(float frameTime)
 
 bool CUpdateScheduler::Update(UpdatePriority beginPriority, UpdatePriority endPriority)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_GAME);
+	CRY_PROFILE_FUNCTION(PROFILE_GAME);
 	if (m_bInFrame)
 	{
 		// Calculate cumulative frame times.

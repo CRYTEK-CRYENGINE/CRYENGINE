@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 /*************************************************************************
    -------------------------------------------------------------------------
@@ -167,12 +167,12 @@ bool CVehiclePartLight::Init(IVehicle* pVehicle, const CVehicleParams& table, IV
 
 	float specularMul = 1.0f;
 
-	m_light.m_nLightStyle = 0;
-	m_light.SetPosition(Vec3(ZERO));
-	m_light.m_fRadius = 5.0f;
-
 	m_light.m_Flags |= DLF_DEFERRED_LIGHT;
 	m_light.m_Flags &= ~DLF_DISABLED;
+
+	m_light.m_nLightStyle = 0;
+	m_light.SetPosition(Vec3(ZERO));
+	m_light.SetRadius(5.0f);
 
 	if (CVehicleParams lightTable = table.findChild("Light"))
 	{
@@ -191,7 +191,7 @@ bool CVehiclePartLight::Init(IVehicle* pVehicle, const CVehicleParams& table, IV
 
 		if (pVehicleLightParams)
 		{
-			m_light.m_fRadius = pVehicleLightParams->radius;
+			m_light.SetRadius(pVehicleLightParams->radius);
 			m_diffuseCol = pVehicleLightParams->diffuse;
 			m_diffuseMult[1] = pVehicleLightParams->diffuseMult;
 			m_diffuseMult[0] = pVehicleLightParams->diffuseMult_fp;
@@ -228,7 +228,7 @@ bool CVehiclePartLight::Init(IVehicle* pVehicle, const CVehicleParams& table, IV
 
 			if (pVehicleLightParams->texture.empty() == false && gEnv->pRenderer)
 			{
-				m_light.m_pLightImage = gEnv->pRenderer->EF_LoadTexture(pVehicleLightParams->texture.c_str(), FT_DONT_STREAM);
+				m_light.m_pLightImage = gEnv->pRenderer->EF_LoadTexture(pVehicleLightParams->texture.c_str(), 0);
 			}
 
 			if (pVehicleLightParams->material.empty() == false)
@@ -404,7 +404,7 @@ void CVehiclePartLight::UpdateLight(const float frameTime)
 		SEntitySlotInfo info;
 		if (m_pVehicle->GetEntity()->GetSlotInfo(m_slot, info) && info.pLight)
 		{
-			CDLight& light = info.pLight->GetLightProperties();
+			SRenderLight& light = info.pLight->GetLightProperties();
 
 			IActor* pActor = CCryAction::GetCryAction()->GetClientActor();
 			bool localPlayer = (pActor != NULL) && (pActor->GetLinkedVehicle() == m_pVehicle);

@@ -1,0 +1,10 @@
+<AssetMetadata version="0" type="Texture" guid="6e2197a0-9f22-8c87-d3ed-7675d3f74af0">
+ <Files>
+  <File path="screen_noisy_bump.dds"/>
+ </Files>
+ <Details>
+  <Detail name="width">256</Detail>
+  <Detail name="height">256</Detail>
+  <Detail name="mipCount">1</Detail>
+ </Details>
+</AssetMetadata>

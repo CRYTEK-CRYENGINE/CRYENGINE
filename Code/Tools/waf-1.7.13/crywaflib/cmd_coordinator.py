@@ -1,4 +1,4 @@
-# Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+# Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 from waflib.Errors import BuildError, WafError
 from waflib.Configure import conf
 from waflib import Errors, Logs, Utils
@@ -34,6 +34,16 @@ class Local_CommandCoordinator(object):
 		except Exception as e:
 			raise Errors.WafError('Execution failure: %s (%s)' % (str(e), cmd), ex=e)
 
+		# strip IB xgTaskTags (temp, Xoreax is aware and is fixing the issue)
+		task_id = '{{xgTaskID=00000000}}\r\n'
+		task_id_len = len(task_id)		
+		
+		if out.endswith(task_id):
+			out = out[:-task_id_len]
+
+		if err.endswith(task_id):
+			err = err[:-task_id_len]
+	
 		return (ret, out, err)
 		
 ###########################################
@@ -149,10 +159,6 @@ def handle_connection_thread(client_connection):
 	command_coordinator = Local_CommandCoordinator()
 	(ret, out, err) = command_coordinator.execute_command(cmd, **kw)
 	
-	# strip IB xgTaskTags
-	task_id_len = len('{{xgTaskID=00000000}}')
-	out = out.strip()[task_id_len:-task_id_len].strip()
-	
 	# Sent executed command reponse
 	pickle_str = pickle.dumps((ret, out, err))
 	client_connection.sendall(pickle_str)
@@ -182,7 +188,6 @@ class IB_CommandCoordinator_Client(Local_CommandCoordinator):
 		}	
 
 	def execute_command(self, cmd, **kw):	
-	
 		# Commands that can be executed remotly
 		if self.ib_remote_executables.get(os.path.basename(cmd[0]), False): 
 			(ret, out, err) = self.submit_remote_command(cmd, **kw)
@@ -266,6 +271,7 @@ def set_cmd_coordinator(conf, coordinator_name):
 			conf.cmd_coordinator.enter_command_loop(conf)
 		else:
 			conf.is_build_master = True
+			conf.cmd_coordinator = Local_CommandCoordinator()
 
 @conf
 def instance_is_build_master(conf):

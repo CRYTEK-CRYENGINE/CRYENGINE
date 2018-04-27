@@ -6,15 +6,15 @@ start_sources()
 sources_platform(ALL)
 add_sources("NoUberFile"
 	SOURCE_GROUP "Root"
-		"../../SDKs/BigDigits/bigd.c"
-		"../../SDKs/BigDigits/bigdigits.c"
-		"../../SDKs/BigDigits/bigdRand.c"
-		"../../SDKs/BigDigits/spBigdigits.c"
-		"../../SDKs/BigDigits/spRandom.c"
-		"../../SDKs/BigDigits/bigd.h"
-		"../../SDKs/BigDigits/bigdigits.h"
-		"../../SDKs/BigDigits/bigdRand.h"
-		"../../SDKs/BigDigits/spRandom.h"
+		"${SDK_DIR}/BigDigits/bigd.c"
+		"${SDK_DIR}/BigDigits/bigdigits.c"
+		"${SDK_DIR}/BigDigits/bigdRand.c"
+		"${SDK_DIR}/BigDigits/spBigdigits.c"
+		"${SDK_DIR}/BigDigits/spRandom.c"
+		"${SDK_DIR}/BigDigits/bigd.h"
+		"${SDK_DIR}/BigDigits/bigdigits.h"
+		"${SDK_DIR}/BigDigits/bigdRand.h"
+		"${SDK_DIR}/BigDigits/spRandom.h"
 )
 
 end_sources()
@@ -22,3 +22,18 @@ end_sources()
 
 CryEngineStaticModule(bigdigits SOLUTION_FOLDER "Libs")
 target_include_directories(${THIS_PROJECT} INTERFACE "${SDK_DIR}")
+
+if (ORBIS OR CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+	target_compile_options(${THIS_PROJECT} PRIVATE
+		-Wno-tautological-compare
+		-Wno-unknown-pragmas
+	)
+elseif(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+	target_compile_options(${THIS_PROJECT} PRIVATE
+		-Wno-tautological-compare
+		-Wno-unknown-pragmas
+		-Wno-unused-variable
+		-Wno-unused-but-set-variable
+		-Wno-parentheses
+	)
+endif()

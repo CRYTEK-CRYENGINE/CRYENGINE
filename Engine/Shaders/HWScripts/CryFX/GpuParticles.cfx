@@ -1,5 +1,4 @@
-// CRYENGINE Source Code File
-// Copyright 2001-2016 Crytek GmbH. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 float Script : STANDARDSGLOBAL<string Script = "NoPreview;"
                                                "ShaderType = Compute;"
@@ -353,19 +352,17 @@ void FeatureUpdateCS(uint3 DTid : SV_DispatchThreadID)
 		size = (1.0 - mix) * sizeTable[normAgeBaseSlot] + mix * sizeTable[normAgeNextSlot];
 #endif
 
-#if %PFX_UPDATE_MOTION_LINEARINTEGRAL
-		float3 p0 = defaultParticleData[i].position;
-		float3 v0 = defaultParticleData[i].velocity;
-		float3 p1 = v0 * dT + p0;
-		defaultParticleData[i].position = p1;
-#endif
-
-#if %PFX_UPDATE_MOTION_DRAGFAST
+#if %PFX_UPDATE_MOTION_DRAGFAST 
 		float3 physAccel = c_physAccel;
 		float3 physWind = c_physWind * c_windMultiplier + c_uniformWind;
 
 		float3 p0 = defaultParticleData[i].position;
 		float3 v0 = defaultParticleData[i].velocity;
+#else
+		float3 p0 = defaultParticleData[i].position;
+		float3 v0 = defaultParticleData[i].velocity;
+		float3 p1 = v0 * dT + p0;
+		defaultParticleData[i].position = p1;
 #endif
 		
 		float3 partAccel = float3(0.0, 0.0, 0.0);

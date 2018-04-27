@@ -1,5 +1,4 @@
-// CRYENGINE Source Code File
-// Copyright 2001-2015 Crytek GmbH. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 
 // WaterOceanBottom: used as closing cap for missing terrain until horizon
@@ -19,15 +18,6 @@ float Script : STANDARDSGLOBAL
 >;
 
 /// Un-Tweakables //////////////////////
-float4x4 mWorldT : PI_TransObjMatrix < vsregister = c4; >;
-float4x4 mCamera : PB_CameraMatrix_I;
-
-float4 g_fWaterLevel : PB_WaterLevel;
-
-float4x4 mReflProj : PI_TexMatrix
-<
-  string 'Sampler' (envMapSamplerRefl)
->;
 
 struct a2vWater
 {

@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "DX12SwapChain.hpp"
@@ -148,6 +148,8 @@ HRESULT CSwapChain::ResizeTarget(const DXGI_MODE_DESC* pNewTargetParameters)
 HRESULT CSwapChain::ResizeBuffers(UINT BufferCount, UINT Width, UINT Height, DXGI_FORMAT NewFormat, UINT SwapChainFlags)
 {
 	m_bChangedBackBufferIndex = true;
+
+	m_pDXGISwapChain->GetDesc(&m_Desc);
 
 	// DXGI ERROR: IDXGISwapChain::ResizeBuffers: Cannot add or remove the DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING flag using ResizeBuffers. 
 	m_Desc.BufferCount = BufferCount ? BufferCount : m_Desc.BufferCount;

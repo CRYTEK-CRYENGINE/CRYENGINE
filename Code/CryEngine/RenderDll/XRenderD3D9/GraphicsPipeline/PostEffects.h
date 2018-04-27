@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -10,6 +10,8 @@
 class CRenderView;
 class CEffectParam;
 
+//////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////
 class CPostEffectContext : private NoCopy
 {
 public:
@@ -20,11 +22,15 @@ public:
 
 	void EnableAltBackBuffer(bool enable);
 
+	void         SetRenderView( CRenderView *pRenderView ) { m_pRenderView = pRenderView; }
+	CRenderView* GetRenderView() const { return m_pRenderView; };
+
 public:
 	uint64              GetShaderRTMask() const;
 
 	CTexture*           GetSrcBackBufferTexture() const;
-	CTexture*           GetDestBackBufferTexture() const;
+	CTexture*           GetDstBackBufferTexture() const;
+	CTexture*           GetDstDepthStencilTexture() const;
 
 	CPostEffect*        GetPostEffect(EPostEffectID nID) const;
 	const CEffectParam* GetEffectParamByName(const char* pszParam) const;
@@ -33,7 +39,7 @@ private:
 	CPostEffectsMgr* m_pPostEffectsMgr = nullptr;
 	uint64           m_shaderRTMask = 0;
 	bool             m_bUseAltBackBuffer = false;
-
+	CRenderView*     m_pRenderView = nullptr;
 };
 
 struct IPostEffectPass : private NoCopy
@@ -50,16 +56,16 @@ public:
 	CPostEffectStage();
 	virtual ~CPostEffectStage();
 
-	virtual void Init() override;
-	virtual void Prepare(CRenderView* pRenderView) override;
+	void Init() final;
+	void Update() final;
 
-	void         Execute();
-
-private:
-	void Execute3DHudFlashUpdate(const CPostEffectContext& context);
+	bool Execute();
 
 private:
-	std::array<std::unique_ptr<IPostEffectPass>, ePFX_Max> m_postEffectArray;
+	void Execute3DHudFlashUpdate();
+
+private:
+	std::array<std::unique_ptr<IPostEffectPass>, EPostEffectID::Num> m_postEffectArray;
 	CPostEffectContext m_context;
 
 	CStretchRectPass   m_passCopyScreenToTex;
@@ -70,7 +76,7 @@ private:
 };
 
 //////////////////////////////////////////////////////////////////////////
-
+//////////////////////////////////////////////////////////////////////////
 class CUnderwaterGodRaysPass : public IPostEffectPass
 {
 public:
@@ -92,6 +98,7 @@ private:
 	CTexture*       m_pUnderwaterBumpTex = nullptr;
 };
 
+//////////////////////////////////////////////////////////////////////////
 class CWaterDropletsPass : public IPostEffectPass
 {
 public:
@@ -108,6 +115,7 @@ private:
 
 };
 
+//////////////////////////////////////////////////////////////////////////
 class CWaterFlowPass : public IPostEffectPass
 {
 public:
@@ -124,7 +132,8 @@ private:
 
 };
 
-class CFilterSharpeningPass : public IPostEffectPass
+//////////////////////////////////////////////////////////////////////////
+class CSharpeningPass : public IPostEffectPass
 {
 public:
 	virtual void Init() override;
@@ -136,7 +145,8 @@ private:
 
 };
 
-class CFilterBlurringPass : public IPostEffectPass
+//////////////////////////////////////////////////////////////////////////
+class CBlurringPass : public IPostEffectPass
 {
 public:
 	virtual void Init() override;
@@ -149,6 +159,7 @@ private:
 
 };
 
+//////////////////////////////////////////////////////////////////////////
 class CUberGamePostEffectPass : public IPostEffectPass
 {
 public:
@@ -160,6 +171,7 @@ private:
 
 };
 
+//////////////////////////////////////////////////////////////////////////
 class CFlashBangPass : public IPostEffectPass
 {
 public:
@@ -172,6 +184,7 @@ private:
 
 };
 
+//////////////////////////////////////////////////////////////////////////
 class CPostStereoPass : public IPostEffectPass
 {
 public:
@@ -186,6 +199,7 @@ private:
 
 };
 
+//////////////////////////////////////////////////////////////////////////
 class CKillCameraPass : public IPostEffectPass
 {
 public:
@@ -202,6 +216,7 @@ private:
 
 };
 
+//////////////////////////////////////////////////////////////////////////
 class CScreenBloodPass : public IPostEffectPass
 {
 public:
@@ -218,6 +233,21 @@ private:
 
 };
 
+//////////////////////////////////////////////////////////////////////////
+class CScreenFaderPass : public IPostEffectPass
+{
+public:
+	CScreenFaderPass() = default;
+
+	virtual void Init() override;
+	virtual void Execute(const CPostEffectContext& context) override;
+
+private:
+	CFullscreenPass m_passScreenFader;
+
+};
+
+//////////////////////////////////////////////////////////////////////////
 class CHudSilhouettesPass : public IPostEffectPass
 {
 public:
@@ -233,24 +263,25 @@ private:
 
 };
 
-class C3DHudPass : public IPostEffectPass
+//////////////////////////////////////////////////////////////////////////
+class CHud3DPass : public IPostEffectPass
 {
 public:
-	C3DHudPass();
-	~C3DHudPass();
+	CHud3DPass();
+	~CHud3DPass();
 
 	virtual void Init() override;
 	virtual void Execute(const CPostEffectContext& context) override;
 
-	void ExecuteFlashUpdate(const CPostEffectContext &context, class C3DHud & hud3d);
+	void ExecuteFlashUpdate(const CPostEffectContext &context, class CHud3D & hud3d);
 
 private:
-	void ExecuteDownsampleHud4x4(const CPostEffectContext &context, class C3DHud & hud3d, CTexture * pDstRT);
-	void ExecuteBloomTexUpdate(const CPostEffectContext &context, class C3DHud & hud3d);
-	void ExecuteFinalPass(const CPostEffectContext &context, CTexture* pOutputRT, class C3DHud & hud3d);
+	void ExecuteDownsampleHud4x4(const CPostEffectContext &context, class CHud3D & hud3d, CTexture * pDstRT);
+	void ExecuteBloomTexUpdate(const CPostEffectContext &context, class CHud3D & hud3d);
+	void ExecuteFinalPass(const CPostEffectContext &context, CTexture* pOutputRT, CTexture* pOutputDS, class CHud3D & hud3d);
 
 	bool SetVertex(CRenderPrimitive& prim, struct SHudData& pData) const;
-	void SetShaderParams(EShaderStage shaderStages, CRenderPrimitive::ConstantManager& constantManager, const struct SHudData& data, const class C3DHud& hud3d) const;
+	void SetShaderParams(const CPostEffectContext &context, EShaderStage shaderStages, CRenderPrimitive::ConstantManager& constantManager, const struct SHudData& data, const class CHud3D& hud3d) const;
 
 private:
 	CPrimitiveRenderPass          m_passDownsampleHud4x4;
@@ -261,5 +292,4 @@ private:
 	std::vector<CRenderPrimitive*> m_downsamplePrimitiveArray;
 	std::vector<CRenderPrimitive*> m_bloomPrimitiveArray;
 	std::vector<CRenderPrimitive*> m_hudPrimitiveArray;
-
 };

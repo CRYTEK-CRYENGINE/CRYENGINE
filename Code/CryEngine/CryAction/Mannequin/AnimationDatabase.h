@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 //
 ////////////////////////////////////////////////////////////////////////////
@@ -417,7 +417,7 @@ private:
 
 	static const SSubADB* FindSubADB(const TSubADBList& subAdbList, const char* szSubADBFilename, bool recursive);
 
-	struct SCompareBlendVariantFunctor : public std::binary_function<const SFragmentBlendVariant&, const SFragmentBlendVariant&, bool>
+	struct SCompareBlendVariantFunctor
 	{
 		SCompareBlendVariantFunctor(const CTagDefinition& tagDefs, const CTagDefinition* pFragTagDefsFrom, const CTagDefinition* pFragTagDefsTo)
 			:

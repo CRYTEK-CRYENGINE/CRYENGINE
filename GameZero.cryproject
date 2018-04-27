@@ -13,11 +13,12 @@
 		]
 	},
 	"require": {
-		"engine": "engine-5.4",
+		"engine": ".",
 		"plugins": [
 			{ "type": "EPluginType::Native", "path": "CryDefaultEntities" },
 			{ "type": "EPluginType::Native", "path": "CrySensorSystem" },
-			{ "type": "EPluginType::Native", "path": "CryPerceptionSystem" }
+			{ "type": "EPluginType::Native", "path": "CryPerceptionSystem" },
+			{ "type": "EPluginType::Native", "path": "CryUQS_Core" }
 		]
 	},
 	"console_variables": [

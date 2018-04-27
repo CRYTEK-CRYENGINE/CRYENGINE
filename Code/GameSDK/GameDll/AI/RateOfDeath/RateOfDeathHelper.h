@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #ifndef __RATE_OF_DEATH_HELPER__H__
 #define __RATE_OF_DEATH_HELPER__H__

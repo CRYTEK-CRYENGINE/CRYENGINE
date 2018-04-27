@@ -1,27 +1,33 @@
 {
-    "toolBar": {
-        "Commands": [
-            {
-                "command": "ui_action.actionSwitch_to_Game",
-                "custom": false,
-                "uiName": "Switch to Game"
-            },
-            {
-                "command": "ui_action.actionEnable_Physics_AI",
-                "custom": false,
-                "uiName": "Enable Physics/AI"
-            },
-            {
-                "command": "physics.single_step",
-                "custom": false,
-                "uiName": "Toggle single-step mode in physics"
-            },
-            {
-                "command": "physics.step",
-                "custom": false,
-                "uiName": "Do a single physics step"
-            }
-        ]
-    },
-    "version": 1
+    "toolBar": [
+        {
+            "command": "game.toggle_game_mode",
+            "iconPath": "icons:Game/Game_Play.ico",
+            "m_IsCustom": false,
+            "name": "toggle_game_mode",
+            "type": 0
+        },
+        {
+            "command": "game.toggle_simulate_physics_ai",
+            "iconPath": "icons:common/general_physics_play.ico",
+            "m_IsCustom": false,
+            "name": "toggle_simulate_physics_ai",
+            "type": 0
+        },
+        {
+            "command": "physics.single_step",
+            "iconPath": "",
+            "m_IsCustom": false,
+            "name": "Toggle single-step mode in physics",
+            "type": 0
+        },
+        {
+            "command": "physics.step",
+            "iconPath": "",
+            "m_IsCustom": false,
+            "name": "Do a single physics step",
+            "type": 0
+        }
+    ],
+    "version": 2
 }

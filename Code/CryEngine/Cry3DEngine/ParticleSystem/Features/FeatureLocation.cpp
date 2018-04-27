@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 // -------------------------------------------------------------------------
 //  Created:     29/09/2014 by Filipe amim
@@ -11,12 +11,9 @@
 #include <CrySystem/CryUnitTest.h>
 #include <CryMath/SNoise.h>
 #include <CrySerialization/Math.h>
-#include "ParticleSystem/ParticleFeature.h"
-#include "ParticleSystem/ParticleEmitter.h"
+#include "ParticleSystem/ParticleSystem.h"
 #include "ParamMod.h"
 #include "Target.h"
-
-CRY_PFX2_DBG
 
 namespace pfx2
 {
@@ -32,23 +29,15 @@ public:
 	CFeatureLocationOffset()
 		: m_offset(ZERO)
 		, m_scale(1.0f)
-		, CParticleFeature(gpu_pfx2::eGpuFeatureType_LocationOffset)
 	{}
 
 	virtual void AddToComponent(CParticleComponent* pComponent, SComponentParams* pParams) override
 	{
-		pComponent->AddToUpdateList(EUL_GetExtents, this);
-		pComponent->AddToUpdateList(EUL_GetEmitOffset, this);
-		pComponent->AddToUpdateList(EUL_InitUpdate, this);
+		pComponent->GetSpatialExtents.add(this);
+		pComponent->GetEmitOffset.add(this);
+		pComponent->InitParticles.add(this);
+		pComponent->UpdateGPUParams.add(this);
 		m_scale.AddToComponent(pComponent, this);
-
-		if (auto pInt = GetGpuInterface())
-		{
-			gpu_pfx2::SFeatureParametersLocationOffset params;
-			params.offset = m_offset;
-			params.scale = m_scale.GetBaseValue();
-			pInt->SetParameters(params);
-		}
 	}
 
 	virtual void Serialize(Serialization::IArchive& ar) override
@@ -63,11 +52,11 @@ public:
 		if (!m_scale.HasModifiers())
 			return;
 
-		TFloatArray sizes(*context.m_pMemHeap, context.m_parentContainer.GetLastParticleId());
+		TFloatArray sizes(*context.m_pMemHeap, context.m_parentContainer.GetMaxParticles());
 		auto modRange = m_scale.GetValues(context, sizes, EMD_PerInstance, true);
 
-		const size_t numInstances = context.m_runtime.GetNumInstances();
-		for (size_t i = 0; i < numInstances; ++i)
+		const uint numInstances = context.m_runtime.GetNumInstances();
+		for (uint i = 0; i < numInstances; ++i)
 		{
 			const TParticleId parentId = context.m_runtime.GetInstance(i).m_parentId;
 			float e = abs(sizes[parentId]) * modRange.Length();
@@ -76,14 +65,14 @@ public:
 		}
 	}
 
-	virtual Vec3 GetEmitOffset(const SUpdateContext& context, TParticleId parentId) override
+	virtual void GetEmitOffset(const SUpdateContext& context, TParticleId parentId, Vec3& offset) override
 	{
 		TFloatArray scales(*context.m_pMemHeap, parentId + 1);
 		const SUpdateRange range(parentId, parentId + 1);
 
 		auto modRange = m_scale.GetValues(context, scales.data(), range, EMD_PerInstance, true);
 		const float scale = scales[parentId] * (modRange.start + modRange.end) * 0.5f;
-		return m_offset * scale;
+		offset += m_offset * scale;
 	}
 
 	virtual void InitParticles(const SUpdateContext& context) override
@@ -96,21 +85,26 @@ public:
 		IPidStream parentIds = container.GetIPidStream(EPDT_ParentId);
 		IQuatStream parentQuats = parentContainer.GetIQuatStream(EPQF_Orientation, defaultQuat);
 		IOVec3Stream positions = container.GetIOVec3Stream(EPVF_Position);
-		STempModBuffer scales(context, m_scale);
-		scales.ModifyInit(context, m_scale, container.GetSpawnedRange());
+		STempInitBuffer<float> scales(context, m_scale);
 
 		Vec3 oOffset = m_offset;
-		CRY_PFX2_FOR_SPAWNED_PARTICLES(context)
+		for (auto particleId : context.GetSpawnedRange())
 		{
 			const TParticleId parentId = parentIds.Load(particleId);
-			const float scale = scales.m_stream.SafeLoad(particleId);
+			const float scale = scales.SafeLoad(particleId);
 			const Vec3 wPosition0 = positions.Load(particleId);
 			const Quat wQuat = parentQuats.SafeLoad(parentId);
 			const Vec3 wOffset = wQuat * oOffset;
 			const Vec3 wPosition1 = wPosition0 + wOffset * scale;
 			positions.Store(particleId, wPosition1);
 		}
-		CRY_PFX2_FOR_END;
+	}
+
+	virtual void UpdateGPUParams(const SUpdateContext& context, gpu_pfx2::SUpdateParams& params) override
+	{
+		params.offset = m_offset;
+		params.scale.x = m_scale.GetValueRange(context)(0.5f);
+		params.initFlags |= gpu_pfx2::eFeatureInitializationFlags_LocationOffset;
 	}
 
 private:
@@ -128,23 +122,12 @@ class CFeatureLocationBox : public CParticleFeature
 public:
 	CRY_PFX2_DECLARE_FEATURE
 
-	CFeatureLocationBox()
-		: m_box(ZERO)
-		, CParticleFeature(gpu_pfx2::eGpuFeatureType_LocationBox)
-	{}
-
 	virtual void AddToComponent(CParticleComponent* pComponent, SComponentParams* pParams) override
 	{
-		pComponent->AddToUpdateList(EUL_InitUpdate, this);
-		pComponent->AddToUpdateList(EUL_GetExtents, this);
+		pComponent->InitParticles.add(this);
+		pComponent->GetSpatialExtents.add(this);
+		pComponent->UpdateGPUParams.add(this);
 		m_scale.AddToComponent(pComponent, this);
-		if (auto pInt = GetGpuInterface())
-		{
-			gpu_pfx2::SFeatureParametersLocationBox params;
-			params.box = m_box;
-			params.scale = m_scale.GetBaseValue();
-			pInt->SetParameters(params);
-		}
 	}
 
 	virtual void Serialize(Serialization::IArchive& ar) override
@@ -156,12 +139,12 @@ public:
 
 	virtual void GetSpatialExtents(const SUpdateContext& context, TConstArray<float> scales, TVarArray<float> extents) override
 	{
-		size_t numInstances = context.m_runtime.GetNumInstances();
-		TFloatArray sizes(*context.m_pMemHeap, context.m_parentContainer.GetLastParticleId());
+		uint numInstances = context.m_runtime.GetNumInstances();
+		TFloatArray sizes(*context.m_pMemHeap, context.m_parentContainer.GetMaxParticles());
 		auto modRange = m_scale.GetValues(context, sizes, EMD_PerInstance, true);
 		float avg = (modRange.start + modRange.end) * 0.5f;
 
-		for (size_t i = 0; i < numInstances; ++i)
+		for (uint i = 0; i < numInstances; ++i)
 		{
 			// Increase each dimension by 1 to include boundaries; works properly for boxes, rects, and lines
 			const TParticleId parentId = context.m_runtime.GetInstance(i).m_parentId;
@@ -180,13 +163,12 @@ public:
 		IPidStream parentIds = container.GetIPidStream(EPDT_ParentId);
 		IQuatStream parentQuats = parentContainer.GetIQuatStream(EPQF_Orientation, defaultQuat);
 		IOVec3Stream positions = container.GetIOVec3Stream(EPVF_Position);
-		STempModBuffer scales(context, m_scale);
-		scales.ModifyInit(context, m_scale, container.GetSpawnedRange());
+		STempInitBuffer<float> scales(context, m_scale);
 
-		CRY_PFX2_FOR_SPAWNED_PARTICLES(context)
+		for (auto particleId : context.GetSpawnedRange())
 		{
 			const TParticleId parentId = parentIds.Load(particleId);
-			const float scale = scales.m_stream.SafeLoad(particleId);
+			const float scale = scales.SafeLoad(particleId);
 			const Vec3 wPosition0 = positions.Load(particleId);
 			const Quat wQuat = parentQuats.SafeLoad(parentId);
 			const Vec3 oOffset = Vec3(
@@ -197,11 +179,17 @@ public:
 			const Vec3 wPosition1 = wPosition0 + wOffset * scale;
 			positions.Store(particleId, wPosition1);
 		}
-		CRY_PFX2_FOR_END;
+	}
+
+	virtual void UpdateGPUParams(const SUpdateContext& context, gpu_pfx2::SUpdateParams& params) override
+	{
+		params.box = m_box;
+		params.scale.x = m_scale.GetValueRange(context)(0.5f);
+		params.initFlags |= gpu_pfx2::eFeatureInitializationFlags_LocationBox;
 	}
 
 private:
-	Vec3 m_box;
+	Vec3 m_box = ZERO;
 	CParamMod<SModParticleSpawnInit, UFloat10> m_scale;
 };
 
@@ -219,23 +207,15 @@ public:
 		: m_radius(0.0f)
 		, m_velocity(0.0f)
 		, m_axisScale(1.0f, 1.0f, 1.0f)
-		, CParticleFeature(gpu_pfx2::eGpuFeatureType_LocationSphere)
 	{}
 
 	virtual void AddToComponent(CParticleComponent* pComponent, SComponentParams* pParams) override
 	{
-		pComponent->AddToUpdateList(EUL_InitUpdate, this);
-		pComponent->AddToUpdateList(EUL_GetExtents, this);
+		pComponent->InitParticles.add(this);
+		pComponent->GetSpatialExtents.add(this);
+		pComponent->UpdateGPUParams.add(this);
 		m_radius.AddToComponent(pComponent, this);
 		m_velocity.AddToComponent(pComponent, this);
-		if (auto pInt = GetGpuInterface())
-		{
-			gpu_pfx2::SFeatureParametersLocationSphere params;
-			params.scale = m_axisScale;
-			params.radius = m_radius.GetBaseValue();
-			params.velocity = m_velocity.GetBaseValue();
-			pInt->SetParameters(params);
-		}
 	}
 
 	virtual void Serialize(Serialization::IArchive& ar) override
@@ -262,13 +242,21 @@ public:
 			SphericalDist<false, true>(context);
 	}
 
+	virtual void UpdateGPUParams(const SUpdateContext& context, gpu_pfx2::SUpdateParams& params) override
+	{
+		params.scale = m_axisScale;
+		params.radius = m_radius.GetValueRange(context)(0.5f);
+		params.velocity = m_velocity.GetValueRange(context)(0.5f);
+		params.initFlags |= gpu_pfx2::eFeatureInitializationFlags_LocationSphere;
+	}
+
 	virtual void GetSpatialExtents(const SUpdateContext& context, TConstArray<float> scales, TVarArray<float> extents) override
 	{
-		size_t numInstances = context.m_runtime.GetNumInstances();
-		TFloatArray sizes(*context.m_pMemHeap, context.m_parentContainer.GetLastParticleId());
+		uint numInstances = context.m_runtime.GetNumInstances();
+		TFloatArray sizes(*context.m_pMemHeap, context.m_parentContainer.GetMaxParticles());
 		auto modRange = m_radius.GetValues(context, sizes, EMD_PerInstance, true);
 
-		for (size_t i = 0; i < numInstances; ++i)
+		for (uint i = 0; i < numInstances; ++i)
 		{
 			// Increase each dimension by 1 to include sphere bounds; works properly for spheres and circles
 			const TParticleId parentId = context.m_runtime.GetInstance(i).m_parentId;
@@ -289,17 +277,15 @@ private:
 		const float baseRadius = m_radius.GetBaseValue();
 		const float invBaseRadius = __fres(baseRadius);
 
-		STempModBuffer radii(context, m_radius);
-		STempModBuffer velocityMults(context, m_velocity);
-		radii.ModifyInit(context, m_radius, container.GetSpawnedRange());
-		velocityMults.ModifyInit(context, m_velocity, container.GetSpawnedRange());
+		STempInitBuffer<float> radii(context, m_radius);
+		STempInitBuffer<float> velocityMults(context, m_velocity);
 
-		CRY_PFX2_FOR_SPAWNED_PARTICLES(context)
+		for (auto particleId : context.GetSpawnedRange())
 		{
 			const Vec3 sphere = context.m_spawnRng.RandSphere();
 			const Vec3 sphereDist = sphere.CompMul(m_axisScale);
-			const float radiusMult = abs(radii.m_stream.SafeLoad(particleId));
-			const float velocityMult = velocityMults.m_stream.SafeLoad(particleId);
+			const float radiusMult = abs(radii.SafeLoad(particleId));
+			const float velocityMult = velocityMults.SafeLoad(particleId);
 
 			if (UseRadius)
 			{
@@ -316,7 +302,6 @@ private:
 				velocities.Store(particleId, wVelocity1);
 			}
 		}
-		CRY_PFX2_FOR_END;
 	}
 
 	CParamMod<SModParticleSpawnInit, UFloat10> m_radius;
@@ -339,23 +324,15 @@ public:
 		, m_velocity(0.0f)
 		, m_axisScale(1.0f, 1.0f)
 		, m_axis(0.0f, 0.0f, 1.0f)
-		, CParticleFeature(gpu_pfx2::eGpuFeatureType_LocationCircle)
 	{}
 
 	virtual void AddToComponent(CParticleComponent* pComponent, SComponentParams* pParams) override
 	{
-		pComponent->AddToUpdateList(EUL_InitUpdate, this);
-		pComponent->AddToUpdateList(EUL_GetExtents, this);
+		pComponent->InitParticles.add(this);
+		pComponent->GetSpatialExtents.add(this);
+		pComponent->UpdateGPUParams.add(this);
 		m_radius.AddToComponent(pComponent, this);
 		m_velocity.AddToComponent(pComponent, this);
-		if (auto pInt = GetGpuInterface())
-		{
-			gpu_pfx2::SFeatureParametersLocationCircle params;
-			params.scale = m_axisScale;
-			params.radius = m_radius.GetBaseValue();
-			params.velocity = m_velocity.GetBaseValue();
-			pInt->SetParameters(params);
-		}
 	}
 
 	virtual void Serialize(Serialization::IArchive& ar) override
@@ -383,13 +360,22 @@ public:
 			CircularDist<false, true>(context);
 	}
 
+	virtual void UpdateGPUParams(const SUpdateContext& context, gpu_pfx2::SUpdateParams& params) override
+	{
+		params.scale.x = m_axisScale.x;
+		params.scale.y = m_axisScale.y;
+		params.radius = m_radius.GetValueRange(context)(0.5f);
+		params.velocity = m_velocity.GetValueRange(context)(0.5f);
+		params.initFlags |= gpu_pfx2::eFeatureInitializationFlags_LocationCircle;
+	}
+
 	virtual void GetSpatialExtents(const SUpdateContext& context, TConstArray<float> scales, TVarArray<float> extents) override
 	{
-		const size_t numInstances = context.m_runtime.GetNumInstances();
-		TFloatArray sizes(*context.m_pMemHeap, context.m_parentContainer.GetLastParticleId());
+		const uint numInstances = context.m_runtime.GetNumInstances();
+		TFloatArray sizes(*context.m_pMemHeap, context.m_parentContainer.GetMaxParticles()); 
 		auto modRange = m_radius.GetValues(context, sizes, EMD_PerInstance, true);
 
-		for (size_t i = 0; i < numInstances; ++i)
+		for (uint i = 0; i < numInstances; ++i)
 		{
 			const TParticleId parentId = context.m_runtime.GetInstance(i).m_parentId;
 			const Vec2 axisMax = m_axisScale * abs(scales[i] * sizes[parentId] * modRange.end) + Vec2(1.0f),
@@ -414,16 +400,14 @@ private:
 		IOVec3Stream positions = container.GetIOVec3Stream(EPVF_Position);
 		IOVec3Stream velocities = container.GetIOVec3Stream(EPVF_Velocity);
 
-		STempModBuffer radii(context, m_radius);
-		STempModBuffer velocityMults(context, m_velocity);
-		radii.ModifyInit(context, m_radius, container.GetSpawnedRange());
-		velocityMults.ModifyInit(context, m_velocity, container.GetSpawnedRange());
+		STempInitBuffer<float> radii(context, m_radius);
+		STempInitBuffer<float> velocityMults(context, m_velocity);
 
-		CRY_PFX2_FOR_SPAWNED_PARTICLES(context)
+		for (auto particleId : context.GetSpawnedRange())
 		{
 			TParticleId parentId = parentIds.Load(particleId);
-			const float radiusMult = abs(radii.m_stream.SafeLoad(particleId));
-			const float velocityMult = velocityMults.m_stream.SafeLoad(particleId);
+			const float radiusMult = abs(radii.SafeLoad(particleId));
+			const float velocityMult = velocityMults.SafeLoad(particleId);
 			const Quat wQuat = parentQuats.SafeLoad(parentId);
 
 			const Vec2 disc2 = context.m_spawnRng.RandCircle();
@@ -445,7 +429,6 @@ private:
 				velocities.Store(particleId, wVelocity1);
 			}
 		}
-		CRY_PFX2_FOR_END;
 	}
 
 private:
@@ -460,7 +443,8 @@ CRY_PFX2_IMPLEMENT_FEATURE(CParticleFeature, CFeatureLocationCircle, "Location",
 //////////////////////////////////////////////////////////////////////////
 // CFeatureLocationGeometry
 
-extern EParticleDataType EPDT_MeshGeometry, EPDT_PhysicalEntity;
+extern TDataType<IMeshObj*>        EPDT_MeshGeometry;
+extern TDataType<IPhysicalEntity*> EPDT_PhysicalEntity;
 
 SERIALIZATION_DECLARE_ENUM(EGeometrySource,
                            Render = GeomType_Render,
@@ -479,50 +463,79 @@ class CFeatureLocationGeometry : public CParticleFeature
 public:
 	CRY_PFX2_DECLARE_FEATURE
 
-	CFeatureLocationGeometry()
-		: m_offset(0.0f)
-		, m_velocity(0.0f)
-		, m_source(EGeometrySource::Render)
-		, m_location(EGeometryLocation::Surface)
-		, m_orientToNormal(false) {}
-
 	virtual void AddToComponent(CParticleComponent* pComponent, SComponentParams* pParams) override
 	{
-		pComponent->AddToUpdateList(EUL_MainPreUpdate, this);
-		pComponent->AddToUpdateList(EUL_GetExtents, this);
+		pComponent->MainPreUpdate.add(this);
+		pComponent->GetSpatialExtents.add(this);
 		m_offset.AddToComponent(pComponent, this);
 		m_velocity.AddToComponent(pComponent, this);
 		if (m_orientToNormal)
 			pComponent->AddParticleData(EPQF_Orientation);
-
-		if (CParticleComponent* pParentComponent = pComponent->GetParentComponent())
-		{
-			if (IMeshObj* pMesh = pParentComponent->GetComponentParams().m_pMesh)
-				pMesh->GetExtent((EGeomForm)m_location);
-		}
 	}
 
 	virtual void Serialize(Serialization::IArchive& ar) override
 	{
 		CParticleFeature::Serialize(ar);
-		ar(m_source, "Source", "Source");
-		ar(m_location, "Location", "Location");
-		ar(m_offset, "Offset", "Offset");
-		ar(m_velocity, "Velocity", "Velocity");
-		ar(m_orientToNormal, "OrientParticles", "Orient Particles");
+		SERIALIZE_VAR(ar, m_source);
+		SERIALIZE_VAR(ar, m_location);
+		SERIALIZE_VAR(ar, m_offset);
+		SERIALIZE_VAR(ar, m_velocity);
+		SERIALIZE_VAR(ar, m_orientToNormal);
+		SERIALIZE_VAR(ar, m_augmentLocation);
 	}
 
 	virtual void MainPreUpdate(CParticleComponentRuntime* pComponentRuntime) override
 	{
 		CRY_PROFILE_FUNCTION(PROFILE_PARTICLE);
 
-		if (CParticleEmitter* pEmitter = pComponentRuntime->GetEmitter())
+		if (CParticleComponent* pParentComponent = pComponentRuntime->GetComponent()->GetParentComponent())
+		{
+			if (IMeshObj* pMesh = pParentComponent->GetComponentParams().m_pMesh)
+				pMesh->GetExtent((EGeomForm)m_location);
+		}
+		else if (CParticleEmitter* pEmitter = pComponentRuntime->GetEmitter())
 		{
 			pEmitter->UpdateEmitGeomFromEntity();
 			const GeomRef& emitterGeometry = pEmitter->GetEmitterGeometry();
 			const EGeomType geomType = (EGeomType)m_source;
 			const EGeomForm geomForm = (EGeomForm)m_location;
 			emitterGeometry.GetExtent(geomType, geomForm);
+		}
+	}
+
+	virtual void GetSpatialExtents(const SUpdateContext& context, TConstArray<float> scales, TVarArray<float> extents) override
+	{
+		if (!context.m_runtime.GetEmitter())
+			return;
+
+		GeomRef emitterGeometry = context.m_runtime.GetEmitter()->GetEmitterGeometry();
+		CParticleComponent* pParentComponent = context.m_runtime.GetComponent()->GetParentComponent();
+		if (pParentComponent)
+		{
+			if (IMeshObj* pMesh = pParentComponent->GetComponentParams().m_pMesh)
+				emitterGeometry.Set(pMesh);
+		}
+		const TIStream<IMeshObj*> parentMeshes = context.m_parentContainer.IStream(EPDT_MeshGeometry, +emitterGeometry.m_pMeshObj);
+		const TIStream<IPhysicalEntity*> parentPhysics = context.m_parentContainer.IStream(EPDT_PhysicalEntity);
+
+		uint numInstances = context.m_runtime.GetNumInstances();
+		for (uint i = 0; i < numInstances; ++i)
+		{
+			if (pParentComponent)
+			{
+				TParticleId parentId = context.m_runtime.GetInstance(i).m_parentId;
+				if (IMeshObj* mesh = parentMeshes.Load(parentId))
+					emitterGeometry.Set(mesh);
+				if (m_source == EGeometrySource::Physics)
+				{
+					if (IPhysicalEntity* pPhysics = parentPhysics.Load(parentId))
+						emitterGeometry.Set(pPhysics);
+				}
+			}
+			float extent = emitterGeometry.GetExtent((EGeomType)m_source, (EGeomForm)m_location);
+			for (int dim = (int)m_location; dim > 0; --dim)
+				extent *= scales[i];
+			extents[i] += extent;
 		}
 	}
 
@@ -533,61 +546,6 @@ public:
 		const float EPSILON = 1.0f / 2048.0f;
 		const bool useVelocity = abs(m_velocity.GetBaseValue()) > EPSILON;
 
-		if (useVelocity)
-			SampleGeometry<true>(context);
-		else
-			SampleGeometry<false>(context);
-	}
-
-	virtual void GetSpatialExtents(const SUpdateContext& context, TConstArray<float> scales, TVarArray<float> extents) override
-	{
-		if (CParticleEmitter* pEmitter = context.m_runtime.GetEmitter())
-		{
-			GeomRef emitterGeometry = pEmitter->GetEmitterGeometry();
-			if (CParticleComponent* pParentComponent = context.m_runtime.GetComponent()->GetParentComponent())
-			{
-				if (IMeshObj* pMesh = pParentComponent->GetComponentParams().m_pMesh)
-					emitterGeometry.Set(pMesh);
-			}
-			const bool hasParentParticles = context.m_params.m_parentId != gInvalidId;
-			const TIStream<IMeshObj*> parentMeshes = context.m_parentContainer.GetTIStream<IMeshObj*>(EPDT_MeshGeometry, emitterGeometry.m_pMeshObj);
-			const TIStream<IPhysicalEntity*> parentPhysics = context.m_parentContainer.GetTIStream<IPhysicalEntity*>(EPDT_PhysicalEntity);
-
-			size_t numInstances = context.m_runtime.GetNumInstances();
-			for (size_t i = 0; i < numInstances; ++i)
-			{
-				if (hasParentParticles)
-				{
-					TParticleId parentId = context.m_runtime.GetInstance(i).m_parentId;
-					if (IMeshObj* mesh = parentMeshes.Load(parentId))
-						emitterGeometry.Set(mesh);
-					if (m_source == EGeometrySource::Physics)
-					{
-						if (IPhysicalEntity* pPhysics = parentPhysics.Load(parentId))
-							emitterGeometry.Set(pPhysics);
-					}
-				}
-				float extent = emitterGeometry.GetExtent((EGeomType)m_source, (EGeomForm)m_location);
-				for (int dim = (int)m_location; dim > 0; --dim)
-					extent *= scales[i];
-				extents[i] += extent;
-			}
-		}
-	}
-
-private:
-	template<const bool UseVelocity>
-	ILINE void SampleGeometry(const SUpdateContext& context)
-	{
-		if (m_orientToNormal)
-			SampleGeometry<UseVelocity, true>(context);
-		else
-			SampleGeometry<UseVelocity, false>(context);
-	}
-
-	template<const bool UseVelocity, const bool OrientToNormal>
-	void SampleGeometry(const SUpdateContext& context)
-	{
 		const CParticleEmitter* pEmitter = context.m_runtime.GetEmitter();
 		const CParticleComponent* pParentComponent = context.m_runtime.GetComponent()->GetParentComponent();
 
@@ -606,33 +564,58 @@ private:
 		const EGeomType geomType = (EGeomType)m_source;
 		const EGeomForm geomForm = (EGeomForm)m_location;
 		QuatTS geomLocation = pEmitter->GetEmitterGeometryLocation();
+		const QuatTS emitterLocation = pEmitter->GetLocation();
 		CParticleContainer& container = context.m_container;
 		const CParticleContainer& parentContainer = context.m_parentContainer;
 		const IPidStream parentIds = container.GetIPidStream(EPDT_ParentId);
 		const IVec3Stream parentPositions = parentContainer.GetIVec3Stream(EPVF_Position, geomLocation.t);
 		const IQuatStream parentQuats = parentContainer.GetIQuatStream(EPQF_Orientation, geomLocation.q);
 		const IFStream parentSizes = parentContainer.GetIFStream(EPDT_Size, geomLocation.s);
-		const TIStream<IMeshObj*> parentMeshes = parentContainer.GetTIStream<IMeshObj*>(EPDT_MeshGeometry, emitterGeometry.m_pMeshObj);
-		const TIStream<IPhysicalEntity*> parentPhysics = parentContainer.GetTIStream<IPhysicalEntity*>(EPDT_PhysicalEntity);
+		const TIStream<IMeshObj*> parentMeshes = parentContainer.IStream(EPDT_MeshGeometry, +emitterGeometry.m_pMeshObj);
+		const TIStream<IPhysicalEntity*> parentPhysics = parentContainer.IStream(EPDT_PhysicalEntity);
 		IOVec3Stream positions = container.GetIOVec3Stream(EPVF_Position);
 		IOVec3Stream velocities = container.GetIOVec3Stream(EPVF_Velocity);
 		IOQuatStream orientations = container.GetIOQuatStream(EPQF_Orientation);
-		const bool hasParentParticles = context.m_params.m_parentId != gInvalidId;
 
-		STempModBuffer offsets(context, m_offset);
-		STempModBuffer velocityMults(context, m_velocity);
-		offsets.ModifyInit(context, m_offset, container.GetSpawnedRange());
-		velocityMults.ModifyInit(context, m_velocity, container.GetSpawnedRange());
+		STempInitBuffer<float> offsets(context, m_offset);
+		STempInitBuffer<float> velocityMults(context, m_velocity);
 
-		CRY_PFX2_FOR_SPAWNED_PARTICLES(context)
+		auto spawnRange = container.GetSpawnedRange();
+		TParticleHeap::Array<PosNorm> randomPoints(*context.m_pMemHeap, spawnRange.size());
+
+		// Count children for each parent attachment object
+		struct GeomChildren
 		{
-			GeomRef particleGeometry = emitterGeometry;
-			if (hasParentParticles)
+			GeomRef geom;
+			uint pos;
+		};
+		THeapArray<GeomChildren*> parentGeom(*context.m_pMemHeap);
+		THeapArray<GeomChildren> mapGeomChildren(*context.m_pMemHeap);
+
+		if (!pParentComponent)
+		{
+			emitterGeometry.GetRandomPoints(
+				randomPoints,
+				context.m_spawnRng.Rand(), geomType, geomForm,
+				&geomLocation, geometryCentered);
+		}
+		else
+		{
+			auto FindGeomChildren = [&mapGeomChildren](const GeomRef& geom) -> GeomChildren&
 			{
+				for (auto& elem : mapGeomChildren)
+					if (elem.geom == geom)
+						return elem;
+				mapGeomChildren.push_back(GeomChildren{geom, 0});
+				return mapGeomChildren.back();
+			};
+
+			parentGeom.resize(spawnRange.size());
+			mapGeomChildren.reserve(parentContainer.GetNumParticles());
+			for (auto particleId : context.GetSpawnedRange())
+			{
+				GeomRef particleGeometry = emitterGeometry;
 				TParticleId parentId = parentIds.Load(particleId);
-				geomLocation.t = parentPositions.SafeLoad(parentId);
-				geomLocation.q = parentQuats.SafeLoad(parentId);
-				geomLocation.s = parentSizes.SafeLoad(parentId);
 				if (IMeshObj* mesh = parentMeshes.SafeLoad(parentId))
 					particleGeometry.Set(mesh);
 				if (m_source == EGeometrySource::Physics)
@@ -640,27 +623,67 @@ private:
 					if (IPhysicalEntity* pPhysics = parentPhysics.SafeLoad(parentId))
 						particleGeometry.Set(pPhysics);
 				}
+
+				auto& geom = FindGeomChildren(particleGeometry);
+
+				parentGeom[particleId - spawnRange.m_begin] = &geom;
+				geom.pos++;
 			}
 
-			CRndGen rng(context.m_spawnRng.Rand());
-			PosNorm randPositionNormal;
-			particleGeometry.GetRandomPos(
-			  randPositionNormal, rng, geomType, geomForm,
-			  geomLocation, geometryCentered);
+			// Assign geom position, and get random points
+			uint pos = 0;
+			for (auto& elem : mapGeomChildren)
+			{
+				uint count = elem.pos;
+				elem.pos = pos;
 
-			const float offset = offsets.m_stream.SafeLoad(particleId);
+				elem.geom.GetRandomPoints(
+					randomPoints(pos, count),
+					context.m_spawnRng.Rand(), geomType, geomForm,
+					nullptr, geometryCentered);
+				pos += count;
+			}
+		}
+
+		for (auto particleId : context.GetSpawnedRange())
+		{
+			PosNorm randPositionNormal;
+			
+			if (!pParentComponent)
+			{
+				randPositionNormal = randomPoints[particleId - spawnRange.m_begin];
+				if (m_augmentLocation)
+				{
+					Vec3 wPosition = positions.Load(particleId);
+					randPositionNormal.vPos += wPosition - emitterLocation.t;
+				}
+			}
+			else
+			{
+				TParticleId parentId = parentIds.Load(particleId);
+				geomLocation.t = parentPositions.SafeLoad(parentId);
+				geomLocation.q = parentQuats.SafeLoad(parentId);
+				geomLocation.s = parentSizes.SafeLoad(parentId);
+
+				auto& geom = *parentGeom[particleId - spawnRange.m_begin];
+				randPositionNormal = randomPoints[geom.pos++];
+				randPositionNormal <<= geomLocation;
+			}
+			
+			const float offset = offsets.SafeLoad(particleId);
 			const Vec3 wPosition = randPositionNormal.vPos + randPositionNormal.vNorm * offset;
+			assert((wPosition - geomLocation.t).len() < 100000);
 			positions.Store(particleId, wPosition);
 
-			if (UseVelocity)
+			if (useVelocity)
 			{
-				const float velocityMult = velocityMults.m_stream.SafeLoad(particleId);
+				const float velocityMult = velocityMults.SafeLoad(particleId);
 				const Vec3 wVelocity0 = velocities.Load(particleId);
 				const Vec3 wVelocity1 = wVelocity0 + randPositionNormal.vNorm * velocityMult;
 				velocities.Store(particleId, wVelocity1);
 			}
 
-			if (OrientToNormal)
+			if (m_orientToNormal)
 			{
 				const Quat wOrient0 = orientations.Load(particleId);
 				const Quat oOrient = Quat::CreateRotationV0V1(randPositionNormal.vNorm, Vec3(0.0f, 0.0f, 1.0f));
@@ -668,14 +691,14 @@ private:
 				orientations.Store(particleId, wOrient1);
 			}
 		}
-		CRY_PFX2_FOR_END;
 	}
 
-	CParamMod<SModParticleSpawnInit, SFloat10> m_offset;
-	CParamMod<SModParticleSpawnInit, SFloat10> m_velocity;
-	EGeometrySource                            m_source;
-	EGeometryLocation                          m_location;
-	bool m_orientToNormal;
+	EGeometrySource                            m_source          = EGeometrySource::Render;
+	EGeometryLocation                          m_location        = EGeometryLocation::Surface;
+	CParamMod<SModParticleSpawnInit, SFloat10> m_offset = 0;
+	CParamMod<SModParticleSpawnInit, SFloat10> m_velocity = 0;
+	bool                                       m_orientToNormal  = true;
+	bool                                       m_augmentLocation = false;
 };
 
 CRY_PFX2_IMPLEMENT_FEATURE(CParticleFeature, CFeatureLocationGeometry, "Location", "Geometry", colorLocation);
@@ -696,21 +719,13 @@ public:
 		, m_size(1.0f)
 		, m_rate(0.0f)
 		, m_octaves(1)
-		, CParticleFeature(gpu_pfx2::eGpuFeatureType_LocationNoise) {}
+	{}
 
 	virtual void AddToComponent(CParticleComponent* pComponent, SComponentParams* pParams) override
 	{
-		pComponent->AddToUpdateList(EUL_InitUpdate, this);
+		pComponent->InitParticles.add(this);
+		pComponent->UpdateGPUParams.add(this);
 		m_amplitude.AddToComponent(pComponent, this);
-		if (auto pInt = GetGpuInterface())
-		{
-			gpu_pfx2::SFeatureParametersLocationNoise params;
-			params.amplitude = m_amplitude.GetBaseValue();
-			params.size = m_size;
-			params.rate = m_rate;
-			params.octaves = m_octaves;
-			pInt->SetParameters(params);
-		}
 	}
 
 	virtual void Serialize(Serialization::IArchive& ar) override
@@ -733,28 +748,37 @@ public:
 		const float delta = m_rate * context.m_deltaTime;
 		CParticleContainer& container = context.m_container;
 		const IFStream ages = container.GetIFStream(EPDT_NormalAge);
+		const IFStream lifeTimes = container.GetIFStream(EPDT_LifeTime);
 		IOVec3Stream positions = container.GetIOVec3Stream(EPVF_Position);
 
-		STempModBuffer sizes(context, m_amplitude);
-		sizes.ModifyInit(context, m_amplitude, container.GetSpawnedRange());
+		STempInitBuffer<float> sizes(context, m_amplitude);
 
-		CRY_PFX2_FOR_SPAWNED_PARTICLES(context)
+		for (auto particleId : context.GetSpawnedRange())
 		{
-			const float amplitude = sizes.m_stream.SafeLoad(particleId);
+			const float amplitude = sizes.SafeLoad(particleId);
 			const Vec3 wPosition0 = positions.Load(particleId);
 			const float age = ages.Load(particleId);
+			const float lifeTime = lifeTimes.Load(particleId);
 			Vec4 sample;
 			sample.x = wPosition0.x * invSize;
 			sample.y = wPosition0.y * invSize;
 			sample.z = wPosition0.z * invSize;
-			sample.w = StartTime(time, delta, age);
+			sample.w = StartTime(time, delta, age * lifeTime);
 			const Vec3 potential = Fractal(sample, m_octaves);
 			const Vec3 wPosition1 = potential * amplitude + wPosition0;
 			positions.Store(particleId, wPosition1);
 		}
-		CRY_PFX2_FOR_END;
 	}
 
+	virtual void UpdateGPUParams(const SUpdateContext& context, gpu_pfx2::SUpdateParams& params) override
+	{
+		params.amplitude = m_amplitude.GetValueRange(context)(0.5f);
+		params.noiseSize = m_size;
+		params.rate = m_rate;
+		params.octaves = m_octaves;
+		params.initFlags |= gpu_pfx2::eFeatureInitializationFlags_LocationNoise;
+	}
+	
 private:
 	// non-inline version with Vec4f conversion
 	ILINE static float SNoise(const Vec4 v)
@@ -816,8 +840,8 @@ public:
 
 	virtual void AddToComponent(CParticleComponent* pComponent, SComponentParams* pParams) override
 	{
-		pComponent->AddToUpdateList(EUL_InitUpdate, this);
-		pComponent->AddToUpdateList(EUL_GetExtents, this);
+		pComponent->InitParticles.add(this);
+		pComponent->GetSpatialExtents.add(this);
 		pComponent->AddParticleData(EPDT_SpawnFraction);
 	}
 
@@ -842,7 +866,7 @@ public:
 		const IFStream fractions = container.GetIFStream(EPDT_SpawnFraction);
 		IOVec3Stream positions = container.GetIOVec3Stream(EPVF_Position);
 
-		CRY_PFX2_FOR_SPAWNED_PARTICLES(context)
+		for (auto particleId : context.GetSpawnedRange())
 		{
 			const Vec3 wSource = m_source.GetTarget(context, particleId);
 			const Vec3 wDestination = m_destination.GetTarget(context, particleId);
@@ -850,13 +874,12 @@ public:
 			const Vec3 wPosition = wSource + (wDestination - wSource) * fraction;
 			positions.Store(particleId, wPosition);
 		}
-		CRY_PFX2_FOR_END;
 	}
 
 	virtual void GetSpatialExtents(const SUpdateContext& context, TConstArray<float> scales, TVarArray<float> extents) override
 	{
-		size_t numInstances = context.m_runtime.GetNumInstances();
-		for (size_t i = 0; i < numInstances; ++i)
+		uint numInstances = context.m_runtime.GetNumInstances();
+		for (uint i = 0; i < numInstances; ++i)
 		{
 			TParticleId parentId = context.m_runtime.GetInstance(i).m_parentId;
 			const Vec3 wSource = m_source.GetTarget(context, parentId, true);
@@ -885,9 +908,9 @@ public:
 
 	virtual void AddToComponent(CParticleComponent* pComponent, SComponentParams* pParams) override
 	{
-		pComponent->AddToUpdateList(EUL_PostInitUpdate, this);
+		pComponent->PostInitParticles.add(this);
 		if (!m_spawnOnly)
-			pComponent->AddToUpdateList(EUL_PreUpdate, this);
+			pComponent->PreUpdateParticles.add(this);
 	}
 
 	virtual void Serialize(Serialization::IArchive& ar) override
@@ -911,7 +934,7 @@ public:
 		IOVec3Stream positions = container.GetIOVec3Stream(EPVF_Position);
 		IOVec3Stream velocities = container.GetIOVec3Stream(EPVF_Velocity);
 
-		CRY_PFX2_FOR_SPAWNED_PARTICLES(context)
+		for (auto particleId : context.GetSpawnedRange())
 		{
 			const TParticleId parentId = parentIds.Load(particleId);
 			const Vec3 wParentPosition = parentPositions.Load(parentId);
@@ -926,10 +949,9 @@ public:
 			const Vec3 wVelocity1 = wCameraPose.q * (worldToParent.q * wVelocity0);
 			velocities.Store(particleId, wVelocity1);
 		}
-		CRY_PFX2_FOR_END;
 	}
 
-	virtual void PreUpdate(const SUpdateContext& context) override
+	virtual void PreUpdateParticles(const SUpdateContext& context) override
 	{
 		CRY_PFX2_PROFILE_DETAIL;
 
@@ -942,16 +964,11 @@ public:
 		const CParticleContainer& parentContainer = context.m_parentContainer;
 		const IPidStream parentIds = container.GetIPidStream(EPDT_ParentId);
 		const IVec3Stream parentPositions = parentContainer.GetIVec3Stream(EPVF_Position);
-		const TIStream<uint8> states = container.GetTIStream<uint8>(EPDT_State);
 		IOVec3Stream positions = container.GetIOVec3Stream(EPVF_Position);
 		IOVec3Stream velocities = container.GetIOVec3Stream(EPVF_Velocity);
 
-		CRY_PFX2_FOR_ACTIVE_PARTICLES(context)
+		for (auto particleId : container.GetNonSpawnedRange())
 		{
-			const uint8 state = states.Load(particleId);
-			if (state == ES_NewBorn)
-				continue;
-
 			const Vec3 wPosition0 = positions.Load(particleId);
 			const Vec3 cPosition0 = wPrevCameraPoseInv * wPosition0;
 			const Vec3 wPosition1 = wCurCameraPose * cPosition0;
@@ -961,7 +978,6 @@ public:
 			const Vec3 wVelocity1 = cameraMotion.q * wVelocity0;
 			velocities.Store(particleId, wVelocity1);
 		}
-		CRY_PFX2_FOR_END;
 	}
 
 private:
@@ -975,7 +991,9 @@ CRY_PFX2_IMPLEMENT_FEATURE(CParticleFeature, CFeatureLocationBindToCamera, "Loca
 
 namespace
 {
+//
 // Box
+//
 ILINE Vec3 RandomPosZBox(SChaosKey& chaosKey)
 {
 	return Vec3(chaosKey.RandSNorm(), chaosKey.RandSNorm(), chaosKey.RandUNorm());
@@ -990,30 +1008,31 @@ ILINE bool WrapPosZBox(Vec3& pos)
 	return pos != pos0;
 }
 
+//
 // Sector
-ILINE bool InPosZSector(const Vec3& pos, Vec2 scrWidth, float epsilon = 0.0f)
+//
+ILINE bool InScreen(const Vec3& pos, Vec2 scrWidth, float epsilon = 0.0f)
 {
 	return abs(pos.x) <= pos.z * scrWidth.x + epsilon
-	       && abs(pos.y) <= pos.z * scrWidth.y + epsilon;
+	    && abs(pos.y) <= pos.z * scrWidth.y + epsilon;
 }
 
-ILINE bool InUnitZSector(const Vec3& pos, Vec2 scrWidth, float epsilon = 0.0f)
+ILINE bool InSector(const Vec3& pos, Vec2 scrWidth, float epsilon = 0.0f)
 {
-	return InPosZSector(pos, scrWidth, epsilon)
-	       && pos.GetLengthSquared() <= 1.0f + epsilon * 2.0f;
+	return InScreen(pos, scrWidth, epsilon)
+	       && pos.len2() <= 1.0f + epsilon * 2.0f;
 }
 
-ILINE Vec3 RandomUnitZSector(SChaosKey& chaosKey, Vec2 scrWidth)
+ILINE Vec3 RandomSector(SChaosKey& chaosKey, Vec2 scrWidth)
 {
-	Vec3 pos(chaosKey.RandSNorm() * scrWidth.x, chaosKey.RandSNorm() * scrWidth.y, chaosKey.RandUNorm());
-	float r = pow(pos.z, 0.333333f);
-	pos.z = 1.0f;
-	pos *= r * rsqrt_fast(pos.GetLengthSquared());
-	assert(InUnitZSector(pos, scrWidth, 0.0001f));
+	Vec3 pos(chaosKey.RandSNorm() * scrWidth.x, chaosKey.RandSNorm() * scrWidth.y, 1.0f);
+	float r = pow(chaosKey.RandUNorm(), 0.333333f);
+	pos *= r * pos.GetInvLengthFast();
+	assert(InSector(pos, scrWidth, 0.001f));
 	return pos;
 }
 
-void WrapUnitZSector(Vec3& pos, const Vec3& posPrev, Vec2 scrWidth)
+void WrapSector(Vec3& pos, const Vec3& posPrev, Vec2 scrWidth)
 {
 	Vec3 delta = posPrev - pos;
 
@@ -1054,13 +1073,13 @@ void WrapUnitZSector(Vec3& pos, const Vec3& posPrev, Vec2 scrWidth)
 			minMoveOut = min(minMoveOut, dists[n]);
 	}
 
-	if (maxMoveIn > 0.0f)
+	if (maxMoveIn > 0.0f && maxMoveIn < minMoveOut)
 	{
 		const float moveDist = (minMoveOut - maxMoveIn) * trunc(minMoveOut / (minMoveOut - maxMoveIn));
 		if (moveDist < 1e6f)
 			pos += delta * moveDist;
 	}
-	assert(InUnitZSector(pos, scrWidth, 0.001f));
+	assert(InSector(pos, scrWidth, 0.001f));
 }
 
 CRY_UNIT_TEST(WrapSectorTest)
@@ -1069,49 +1088,31 @@ CRY_UNIT_TEST(WrapSectorTest)
 	for (int i = 0; i < 100; ++i)
 	{
 		Vec2 scrWidth(chaosKey.Rand(SChaosKey::Range(0.1f, 3.0f)), chaosKey.Rand(SChaosKey::Range(0.1f, 3.0f)));
-		Vec3 pos = RandomUnitZSector(chaosKey, scrWidth);
+		Vec3 pos = RandomSector(chaosKey, scrWidth);
 		Vec3 pos2 = pos + chaosKey.RandSphere();
-		if (!InUnitZSector(pos2, scrWidth))
+		if (!InSector(pos2, scrWidth))
 		{
 			Vec3 pos3 = pos2;
-			WrapUnitZSector(pos3, pos, scrWidth);
+			WrapSector(pos3, pos, scrWidth);
 		}
 	}
 };
 
-template<int A>
-ILINE void RotateZ(Vec3& pos, float s, float c)
-{
-	float z = c * pos.z + s * pos[A];
-	pos[A] = c * pos[A] - s * pos.z;
-	pos.z = z;
-}
-
-template<int A>
-ILINE bool WrapRotation(Vec3& pos, Vec3& posPrev, Vec3& posRot, Vec2 scrWidth)
-{
-	if (abs(posRot[A]) > posRot.z * scrWidth[A])
-	{
-		float angScr = atan(scrWidth[A]);
-		float ang = atan2(abs(posRot[A]), posRot.z);
-		float angRot = (angScr + angScr) * trunc((angScr + ang) / (angScr + angScr)) * fsgnf(posRot[A]);
-		float s, c;
-		sincos(angRot, &s, &c);
-		RotateZ<A>(posRot, s, c);
-		posPrev = posRot;
-		RotateZ<A>(pos, s, c);
-		return true;
-	}
-	return false;
-}
-
 ILINE int WrapRotation(Vec3& pos, Vec3& posPrev, const Matrix33& camRot, Vec2 scrWidth)
 {
 	Vec3 posRot = camRot * posPrev;
-	int wrapped = WrapRotation<0>(pos, posPrev, posRot, scrWidth)
-	              + WrapRotation<1>(pos, posPrev, posRot, scrWidth);
-	assert(InPosZSector(posRot, scrWidth, 0.001f));
-	return wrapped;
+	if (InScreen(posRot, scrWidth))
+		return false;
+
+	if (abs(posRot.x) > posRot.z * scrWidth.x)
+		posPrev.x = -posPrev.x;
+	if (abs(posRot.y) > posRot.z * scrWidth.y)
+		posPrev.y = -posPrev.y;
+
+	pos += posPrev - posRot;
+	assert(InScreen(pos, scrWidth, 0.001f));
+
+	return true;
 }
 
 CRY_UNIT_TEST(WrapRotationTest)
@@ -1120,16 +1121,16 @@ CRY_UNIT_TEST(WrapRotationTest)
 	for (int i = 0; i < 100; ++i)
 	{
 		Vec2 scrWidth(chaosKey.Rand(SChaosKey::Range(0.1f, 3.0f)), chaosKey.Rand(SChaosKey::Range(0.1f, 3.0f)));
-		Vec3 pos = RandomUnitZSector(chaosKey, scrWidth);
+		Vec3 pos = RandomSector(chaosKey, scrWidth);
 		if (i % 4 == 0)
 			pos.x = 0;
 		else if (i % 4 == 1)
 			pos.y = 0;
 		AngleAxis rot;
 		rot.axis = i % 4 == 0 ? Vec3(1, 0, 0) : i % 4 == 1 ? Vec3(0, 1, 0) : Vec3(chaosKey.RandCircle());
-		rot.angle = chaosKey.RandUNorm() * gf_PI;
+		rot.angle = (i+1) * 0.01f * gf_PI;
 		Vec3 pos2 = AngleAxis(-rot.angle, rot.axis) * pos;
-		if (!InPosZSector(pos2, scrWidth))
+		if (!InScreen(pos2, scrWidth))
 		{
 			Vec3 pos1 = pos;
 			Vec3 pos3 = pos2;
@@ -1139,7 +1140,7 @@ CRY_UNIT_TEST(WrapRotationTest)
 };
 }
 
-EParticleDataType PDT(EPVF_AuxPosition, float, 3);
+MakeDataType(EPVF_AuxPosition, Vec3);
 
 class CFeatureLocationOmni : public CParticleFeature
 {
@@ -1149,32 +1150,52 @@ public:
 	virtual void AddToComponent(CParticleComponent* pComponent, SComponentParams* pParams) override
 	{
 		pComponent->AddParticleData(EPVF_AuxPosition);
-		pComponent->AddToUpdateList(EUL_GetExtents, this);
-		pComponent->AddToUpdateList(EUL_InitUpdate, this);
-		pComponent->AddToUpdateList(EUL_Update, this);
+		pComponent->GetSpatialExtents.add(this);
+		pComponent->InitParticles.add(this);
+		pComponent->UpdateParticles.add(this);
 		m_visibility.AddToComponent(pComponent, this);
+
+		if (!m_useEmitterLocation)
+		{
+			// auto-set distance culling
+			const float visibility = m_visibility.GetValueRange().end;
+			auto& maxCamDistance = pParams->m_visibility.m_maxCameraDistance;
+			if (visibility < maxCamDistance)
+				maxCamDistance = visibility;
+		}
 	}
 
 	virtual void Serialize(Serialization::IArchive& ar) override
 	{
 		CParticleFeature::Serialize(ar);
 		SERIALIZE_VAR(ar, m_visibility);
+	#ifndef _RELEASE
 		SERIALIZE_VAR(ar, m_wrapSector);
 		SERIALIZE_VAR(ar, m_wrapRotation);
+		SERIALIZE_VAR(ar, m_wrapTranslation);
 		SERIALIZE_VAR(ar, m_useEmitterLocation);
+	#endif
 	}
 
 	virtual void GetSpatialExtents(const SUpdateContext& context, TConstArray<float> scales, TVarArray<float> extents) override
 	{
 		UpdateCameraData(context);
-		const float visibility = m_visibility.GetValueRange(context).end;
-		const size_t numInstances = context.m_runtime.GetNumInstances();
-		for (size_t i = 0; i < numInstances; ++i)
+		const uint numInstances = context.m_runtime.GetNumInstances();
+		for (uint i = 0; i < numInstances; ++i)
 		{
-			const Vec3 box = Vec3(m_camData.scrWidth.x, m_camData.scrWidth.y, 1.0f) * (visibility * scales[i]);
-			float extent = (box.x * 2.0f + 1.0f) * (box.y * 2.0f + 1.0f) * (box.z + 1.0f);
+			float scale = m_camData.maxDistance * scales[i];
+			const Vec3 boxUnit(m_camData.scrWidth.x, m_camData.scrWidth.y, 1.0f);
+			float extent;
 			if (m_wrapSector)
-				extent *= 0.25f;
+			{
+				float capHeight = 1.0f - rsqrt(boxUnit.len2());
+				extent = (capHeight * scale) * sqr(scale + 1.0f) * 4.0f / 3.0f;
+			}
+			else
+			{
+				const Vec3 box = boxUnit * scale;
+				extent = (box.x * 2.0f + 1.0f) * (box.y * 2.0f + 1.0f) * (box.z + 1.0f);
+			}
 			extents[i] += extent;
 		}
 	}
@@ -1191,14 +1212,14 @@ public:
 
 		UpdateCameraData(context);
 
-		CRY_PFX2_FOR_SPAWNED_PARTICLES(context)
+		for (auto particleId : context.GetSpawnedRange())
 		{
 			// Overwrite position
 			Vec3 pos;
 			if (m_wrapSector)
 			{
-				pos = RandomUnitZSector(context.m_spawnRng, m_camData.scrWidth);
-				auxPositions.Store(particleId, pos);   // in unit-camera space
+				pos = RandomSector(context.m_spawnRng, m_camData.scrWidth);
+				auxPositions.Store(particleId, pos);
 			}
 			else
 			{
@@ -1207,10 +1228,9 @@ public:
 			pos = m_camData.toWorld * pos;
 			positions.Store(particleId, pos);
 		}
-		CRY_PFX2_FOR_END;
 	}
 
-	virtual void Update(const SUpdateContext& context) override
+	virtual void UpdateParticles(const SUpdateContext& context) override
 	{
 		CRY_PFX2_PROFILE_DETAIL;
 
@@ -1227,37 +1247,37 @@ public:
 		// Wrap positions
 		if (m_wrapSector)
 		{
-			CRY_PFX2_FOR_ACTIVE_PARTICLES(context)
+			for (auto particleId : context.GetUpdateRange())
 			{
 				Vec3 pos = positions.Load(particleId);
 				Vec3 posCam = m_camData.fromWorld * pos;
 
-				if (!InUnitZSector(posCam, m_camData.scrWidth /*, 0.002f*/))
+				if (!InSector(posCam, m_camData.scrWidth))
 				{
 					Vec3 posCamPrev = auxPositions.Load(particleId);
 
 					// Adjust for camera rotation
 					if (doCamRot && WrapRotation(posCam, posCamPrev, camMat, m_camData.scrWidth))
 					{
-						if (!InUnitZSector(posCam, m_camData.scrWidth /*, 0.002f*/))
-							WrapUnitZSector(posCam, posCamPrev, m_camData.scrWidth);
+						if (m_wrapTranslation && !InSector(posCam, m_camData.scrWidth))
+							WrapSector(posCam, posCamPrev, m_camData.scrWidth);
 					}
-					else
+					else if (m_wrapTranslation)
 					{
 						// Adjust for translation
-						WrapUnitZSector(posCam, posCamPrev, m_camData.scrWidth);
+						WrapSector(posCam, posCamPrev, m_camData.scrWidth);
 					}
 
+					assert(InSector(posCam, m_camData.scrWidth, 0.001f));
 					pos = m_camData.toWorld * posCam;
 					positions.Store(particleId, pos);
 				}
 				auxPositions.Store(particleId, posCam);
 			}
-			CRY_PFX2_FOR_END;
 		}
 		else
 		{
-			CRY_PFX2_FOR_ACTIVE_PARTICLES(context)
+			if (m_wrapTranslation) for (auto particleId : context.GetUpdateRange())
 			{
 				Vec3 pos = positions.Load(particleId);
 				Vec3 posCam = m_camData.fromWorld * pos;
@@ -1268,7 +1288,6 @@ public:
 					positions.Store(particleId, pos);
 				}
 			}
-			CRY_PFX2_FOR_END;
 		}
 	}
 
@@ -1277,15 +1296,12 @@ private:
 	// Camera data is shared per-effect, based on the global render camera and effect params
 	struct SCameraData
 	{
-		int32     nFrameId;
-		Vec2      scrWidth;
-		float     maxDistance;
-		Matrix34  toWorld;
-		Matrix34  fromWorld;
-		AngleAxis camRot;
-
-		SCameraData()
-			: nFrameId(-1), camRot(0, Vec3(0)) {}
+		int32     nFrameId    {-1};
+		Vec2      scrWidth    {0};
+		float     maxDistance {0};
+		Matrix34  toWorld     {IDENTITY};
+		Matrix34  fromWorld   {IDENTITY};
+		AngleAxis camRot      {0, Vec3(0)};
 	};
 	SCameraData m_camData;
 
@@ -1346,13 +1362,15 @@ private:
 	static Vec2 ScreenWidth(const CCamera& cam)
 	{
 		Vec3 corner = cam.GetEdgeF();
-		return Vec2(abs(corner.x / corner.y), abs(corner.z / corner.y));
+		return Vec2(abs(corner.x), abs(corner.z)) / corner.y;
 	}
 
+	// Parameters
 	CParamMod<SModEffectField, UFloat100> m_visibility;
 
 	// Debugging and profiling options
 	bool m_wrapSector         = true;
+	bool m_wrapTranslation    = true;
 	bool m_wrapRotation       = true;
 	bool m_useEmitterLocation = false;
 };

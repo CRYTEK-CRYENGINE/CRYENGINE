@@ -1,5 +1,4 @@
-// CRYENGINE Source Code File
-// Copyright 2001-2015 Crytek GmbH. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "Common.cfi"
 #include "ShadeLib.cfi"
@@ -135,7 +134,10 @@ pixout LightingMobilePS(vtxOutWPOS IN)
 				if (projTC.w < 0 || min(projTC.x, projTC.y) < 0 || max(projTC.x, projTC.y) > 1)  // Avoid back-projection
 					illuminance = 0;
 				else
-					illuminance *= SpotTexArray.SampleLevel(ssTrilinearClamp, float3(projTC.xy, light.resIndex), 0).xxx;
+				{
+					uint4 resIndexClamps = GetResourceIndexAndMipClamps(light.resIndex);
+					illuminance *= SpotTexArray.SampleLevel(ssTrilinearClamp, float3(projTC.xy, resIndexClamps.x), resIndexClamps.y).xxx;
+				}
 			}
 			
 			lightVec = normalize(lightVec);

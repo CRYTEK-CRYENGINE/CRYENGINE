@@ -1,0 +1,17 @@
+<AssetMetadata version="0" type="Texture" guid="95e9a8a8-b0df-b00a-b931-13f46b45196a" source="RCError_ddna.tif">
+ <Files>
+  <File path="RCError_ddna.dds"/>
+  <File path="RCError_ddna.dds.a"/>
+  <File path="RCError_ddna.dds.1"/>
+  <File path="RCError_ddna.dds.1a"/>
+  <File path="RCError_ddna.dds.2"/>
+  <File path="RCError_ddna.dds.2a"/>
+  <File path="RCError_ddna.dds.3"/>
+  <File path="RCError_ddna.dds.3a"/>
+ </Files>
+ <Details>
+  <Detail name="width">128</Detail>
+  <Detail name="height">128</Detail>
+  <Detail name="mipCount">6</Detail>
+ </Details>
+</AssetMetadata>

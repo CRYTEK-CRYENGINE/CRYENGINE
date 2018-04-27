@@ -1,16 +1,6 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
-// -------------------------------------------------------------------------
-//  File name:   ivalidator.h
-//  Version:     v1.00
-//  Created:     3/6/2003 by Timur.
-//  Compilers:   Visual Studio.NET
-//  Description: IValidator interface used to check objects for warnings and errors
-//               Report missing resources or invalid files.
-// -------------------------------------------------------------------------
-//  History:
-//
-////////////////////////////////////////////////////////////////////////////
+//! \cond INTERNAL
 
 #pragma once
 
@@ -109,3 +99,5 @@ struct IValidator
 	virtual void Report(SValidatorRecord& record) = 0;
 	// </interfuscator:shuffle>
 };
+
+//! \endcond

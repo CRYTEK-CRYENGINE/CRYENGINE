@@ -1,10 +1,18 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
+#include <CryCore/BaseTypes.h>
+#include <CryCore/Platform/platform.h>
+#include <CryMath/Cry_Vector3.h>
+#include <CryMath/ISplines.h>
+#include <CryNetwork/SerializeFwd.h>
 #include <CrySerialization/Forward.h>
+#include <CryString/CryString.h>
+
 
 struct SBezierKey;
+class XmlNodeRef;
 
 //! Interface to the Time Of Day functionality.
 struct ITimeOfDay
@@ -210,28 +218,147 @@ struct ITimeOfDay
 		float fEndTime;
 		float fAnimSpeed;
 	};
-	struct SEnvironmentInfo
+
+	// Non-dependent on time of a day parameters. Stored per-preset
+	struct Sun
 	{
-		SEnvironmentInfo() : bSunLinkedToTOD(true), sunRotationLatitude(0), sunRotationLongitude(0){}
-		bool  bSunLinkedToTOD;
-		float sunRotationLatitude;
-		float sunRotationLongitude;
+		float latitude;
+		float longitude;
+		bool  sunLinkedToTOD;
+	};
+
+	struct Moon
+	{
+		float  latitude;
+		float  longitude;
+		float  size;
+		string texture;
+	};
+
+	struct Wind
+	{
+		Vec3     windVector;
+		bool     breezeGenerationEnabled;
+		float    breezeStrength;
+		float    breezeVariance;
+		float    breezeLifeTime;
+		unsigned breezeCount;
+		float    breezeRadius;
+		float    breezeSpawnRadius;
+		float    breezeSpread;
+		float    breezeMovementSpeed;
+		float    breezeAwakeThreshold;
+		float    breezeFixedHeight;
+	};
+
+	struct CloudShadows
+	{
+		string texture;
+		Vec3   speed;
+		float  tiling;
+		float  brightness;
+		bool   invert;
+	};
+
+	struct TotalIllum
+	{
+		bool  active;
+		float injectionMultiplier;
+		float skyColorMultiplier;
+		float useTodSkyColor;
+		float specularAmplifier;
+		float diffuseBias;
+		float pointLightsBias;
+		float coneMaxLength;
+		float ssaoAmount;
+		float highGlossOcclusion;
+		float translucentBrightness;
+		float minNodeSize;
+	};
+
+	//Experimental params
+	struct TotalIllumAdv
+	{
+		int   integrationMode;
+		float portalsDeform;
+		float portalsInject;
+		float diffuseAmplifier;
+		bool  specularFromDiffuse;
+		int   numberOfBounces;
+		float saturation;
+		float propagationBooster;
+		float diffuseConeWidth;
+		bool  updateLighting;
+		bool  updateGeometry;
+		bool  skipNonGiLights;
+		bool  forceGIForAllLights;
+		int   lowSpecMode;
+		bool  halfResKernelPrimary;
+		bool  halfresKernelSecondary;
+		bool  useLightProbes;
+		float voxelizationLodRatio;
+		int   voxelizationMapBorder;
+		int   voxelPoolResolution;
+		float objectsMaxViewDistance;
+		int   sunRSMInject;
+		float SSDepthTrace;
+		bool  shadowsFromSun;
+		float shadowsSoftness;
+		bool  shadowsFromHeightmap;
+		bool  troposphere_Active;
+		float troposphere_Brightness;
+		float troposphere_Ground_Height;
+		float troposphere_Layer0_Height;
+		float troposphere_Layer1_Height;
+		float troposphere_Snow_Height;
+		float troposphere_Layer0_Rand;
+		float troposphere_Layer1_Rand;
+		float troposphere_Layer0_Dens;
+		float troposphere_Layer1_Dens;
+		float troposphere_CloudGen_Height;
+		float troposphere_CloudGen_Freq;
+		float troposphere_CloudGen_FreqStep;
+		float troposphere_CloudGen_Scale;
+		float troposphere_CloudGenTurb_Freq;
+		float troposphere_CloudGenTurb_Scale;
+		float troposphere_Density;
+		bool  analyticalOccluders;
+		bool  analyticalGI;
+		bool  traceVoxels;
+		float rtMaxDist;
+		float constantAmbientDebug;
+		bool  streamVoxels;
+	};
+
+	struct IListener
+	{
+		enum class EChangeType
+		{
+			CurrentPresetChanged,
+			PresetAdded,
+			PresetRemoved,
+			PresetLoaded
+		};
+
+		virtual ~IListener() {}
+		virtual void OnChange(const EChangeType changeType, const char* const szPresetName) = 0;
 	};
 
 	// <interfuscator:shuffle>
 	virtual ~ITimeOfDay(){}
 
-	virtual int  GetPresetCount() const = 0;
-	virtual bool GetPresetsInfos(SPresetInfo* resultArray, unsigned int arraySize) const = 0;
-	virtual bool SetCurrentPreset(const char* szPresetName) = 0;
-	virtual bool AddNewPreset(const char* szPresetName) = 0;
-	virtual bool RemovePreset(const char* szPresetName) = 0;
-	virtual bool SavePreset(const char* szPresetName) const = 0;
-	virtual bool LoadPreset(const char* szFilePath) = 0;
-	virtual void ResetPreset(const char* szPresetName) = 0;
+	virtual int         GetPresetCount() const = 0;
+	virtual bool        GetPresetsInfos(SPresetInfo* resultArray, unsigned int arraySize) const = 0;
+	virtual bool        SetCurrentPreset(const char* szPresetName) = 0;
+	virtual const char* GetCurrentPresetName() const = 0;
+	virtual bool        AddNewPreset(const char* szPresetName) = 0;
+	virtual bool        RemovePreset(const char* szPresetName) = 0;
+	virtual bool        SavePreset(const char* szPresetName) const = 0;
+	virtual bool        LoadPreset(const char* szFilePath) = 0;
+	virtual void        ResetPreset(const char* szPresetName) = 0;
 
-	virtual bool ImportPreset(const char* szPresetName, const char* szFilePath) = 0;
-	virtual bool ExportPreset(const char* szPresetName, const char* szFilePath) const = 0;
+	virtual bool        ImportPreset(const char* szPresetName, const char* szFilePath) = 0;
+	virtual bool        ExportPreset(const char* szPresetName, const char* szFilePath) const = 0;
 
 	//! Access to variables that control time of the day appearance.
 	virtual int  GetVariableCount() = 0;
@@ -252,11 +379,6 @@ struct ITimeOfDay
 	virtual void  SetTime(float fHour, bool bForceUpdate = false) = 0;
 	virtual float GetTime() = 0;
 
-	//! Sun position.
-	virtual void  SetSunPos(float longitude, float latitude) = 0;
-	virtual float GetSunLatitude() = 0;
-	virtual float GetSunLongitude() = 0;
-
 	//! Updates the current ToD.
 	virtual void Tick() = 0;
 
@@ -268,14 +390,26 @@ struct ITimeOfDay
 	//! Updates engine parameters after variable values have been changed.
 	virtual void Update(bool bInterpolate = true, bool bForceUpdate = false) = 0;
 
-	virtual void BeginEditMode() = 0;
-	virtual void EndEditMode() = 0;
+	//! Updates engine parameters after constant values have been changed
+	virtual void ConstantsChanged() = 0;
 
-	virtual void Serialize(XmlNodeRef& node, bool bLoading) = 0;
-	virtual void Serialize(TSerialize ser) = 0;
+	//! Constant data, that is not dependent on time change
+	virtual Sun&                   GetSunParams() = 0;
+	virtual Moon&                  GetMoonParams() = 0;
+	virtual Wind&                  GetWindParams() = 0;
+	virtual CloudShadows&          GetCloudShadowsParams() = 0;
+	virtual TotalIllum&            GetTotalIlluminationParams() = 0;
+	virtual TotalIllumAdv&         GetTotalIlluminationAdvParams() = 0;
+	virtual Serialization::SStruct GetConstantParams() = 0;
+	virtual void                   ResetConstants(const DynArray<char>& binaryBuffer) = 0;
 
-	virtual void SetTimer(ITimer* pTimer) = 0;
-	virtual void SetEnvironmentSettings(const SEnvironmentInfo& envInfo) = 0;
+	virtual void                   BeginEditMode() = 0;
+	virtual void                   EndEditMode() = 0;
+
+	virtual void                   Serialize(XmlNodeRef& node, bool bLoading) = 0;
+	virtual void                   Serialize(TSerialize ser) = 0;
+
+	virtual void                   SetTimer(ITimer* pTimer) = 0;
 
 	//! Multiplayer serialization.
 	static const int NETSER_FORCESET = BIT(0);
@@ -287,4 +421,13 @@ struct ITimeOfDay
 	virtual void SaveInternalState(struct IDataWriteStream& writer) = 0;
 	virtual void LoadInternalState(struct IDataReadStream& reader) = 0;
 	// </interfuscator:shuffle>
+
+	//! Listener registration
+	bool RegisterListener(IListener* const pListener)                                                     { return RegisterListenerImpl(pListener, "", true); }
+	bool RegisterListener(IListener* const pListener, const char* const szDbgName, const bool staticName) { return RegisterListenerImpl(pListener, szDbgName, staticName); }
+	void UnRegisterListener(IListener* const pListener)                                                   { return UnRegisterListenerImpl(pListener); }
+
+protected:
+	virtual bool RegisterListenerImpl(IListener* const pListener, const char* const szDbgName, const bool staticName) = 0;
+	virtual void UnRegisterListenerImpl(IListener* const pListener) = 0;
 };

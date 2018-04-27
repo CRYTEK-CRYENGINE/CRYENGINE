@@ -108,23 +108,64 @@ add_sources("UQS_uber_core.cpp"
 		"core/TextualEvaluatorBlueprint.h"
 		"core/EvaluatorBlueprintBase.h"
 		"core/EvaluatorBlueprintBase.cpp"
+		"core/SettingsManager.h"
+		"core/SettingsManager.cpp"
+		"core/DebugMessageCollection.h"
+		"core/DebugMessageCollection.cpp"
 )
 
 end_sources()
 #END-FILE-LIST
 
-CryEngineModule(CryUQS_Core PCH "core/StdAfx.cpp" SOLUTION_FOLDER "CryPlugins/CryUQS")
-target_link_libraries (${THIS_PROJECT} PRIVATE CryUQS_Shared)
+CryEngineModule(CryUQS_Core FORCE_SHARED PCH "core/StdAfx.cpp" SOLUTION_FOLDER "CryPlugins/CryUQS")
+target_link_libraries (${THIS_PROJECT} PRIVATE CryUQS_DataSource_XML_shareable)
+target_link_libraries (${THIS_PROJECT} PRIVATE CryUQS_StdLib_shareable)
 
 target_include_directories(${THIS_PROJECT}
 	PRIVATE core
 	PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}"
-	INTERFACE "${CMAKE_CURRENT_SOURCE_DIR}/../.."
+	PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/../.."
 )
 
 if(OPTION_UQS_SCHEMATYC_SUPPORT)
 	target_include_directories(${THIS_PROJECT}
 		PUBLIC "${CRYENGINE_DIR}/Code/CryEngine/CrySchematyc/Core/Interface"
 		PUBLIC "${CRYENGINE_DIR}/Code/CryEngine/CrySchematyc/STDEnv/Interface"
+	)
+endif()
+
+if (ORBIS OR CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+	target_compile_options(${THIS_PROJECT} PRIVATE
+		-Wno-unused-variable
+		-Wno-parentheses
+		-Wno-reorder
+		-Wno-unused-value
+		-Wno-unknown-pragmas
+		-Wno-format
+		-Wno-unused-private-field
+		-Wno-empty-body
+		-Wno-multichar
+		-Wno-switch
+		-Wno-unused-function
+		-Wno-char-subscripts
+		-Wno-c++11-narrowing
+	)
+elseif(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+	target_compile_options(${THIS_PROJECT} PRIVATE
+		-Wno-unused-function
+		-Wno-unused-value
+		-Wno-unused-variable
+		-Wno-sign-compare
+		-Wno-unused-but-set-variable
+		-Wno-misleading-indentation
+		-Wno-unknown-pragmas
+		-Wno-strict-aliasing
+		-Wno-maybe-uninitialized
+		-Wno-multichar
+		-Wno-reorder
+		-Wno-parentheses
+		-Wno-char-subscripts
+		-Wno-format
+		-Wno-switch
 	)
 endif()

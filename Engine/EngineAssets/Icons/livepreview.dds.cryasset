@@ -1,0 +1,10 @@
+<AssetMetadata version="0" type="Texture" guid="6756ef09-7f45-ef6d-79d6-f4c9502448ab" source="LivePreview.TIF">
+ <Files>
+  <File path="LivePreview.dds"/>
+ </Files>
+ <Details>
+  <Detail name="width">16</Detail>
+  <Detail name="height">16</Detail>
+  <Detail name="mipCount">3</Detail>
+ </Details>
+</AssetMetadata>

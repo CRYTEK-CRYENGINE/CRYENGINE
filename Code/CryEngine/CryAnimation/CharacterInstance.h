@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -53,9 +53,9 @@ public:
 	virtual void StartAnimationProcessing(const SAnimationProcessParams &params) override;
 	virtual AABB                    GetAABB() const override                    { return m_SkeletonPose.GetAABB(); }
 	virtual float GetExtent(EGeomForm eForm) override;
-	virtual void GetRandomPos(PosNorm & ran, CRndGen & seed, EGeomForm eForm) const override;
+	virtual void GetRandomPoints(Array<PosNorm> points, CRndGen& seed, EGeomForm eForm) const override;
 	virtual CLodValue ComputeLod(int wantedLod, const SRenderingPassInfo &passInfo) override;
-	virtual void Render(const SRendParams &rParams, const QuatTS &Offset, const SRenderingPassInfo &passInfo) override;
+	virtual void Render(const SRendParams &rParams, const SRenderingPassInfo &passInfo) override;
 	virtual void                   SetFlags(int nFlags) override                        { m_rpFlags = nFlags; }
 	virtual int                    GetFlags() const override                            { return m_rpFlags; }
 	virtual int                    GetObjectType() const override                       { return m_pDefaultSkeleton->m_ObjectType; }
@@ -76,7 +76,7 @@ public:
 	virtual void   SetPlaybackScale(f32 speed) override { m_fPlaybackScale = max(0.0f, speed); }
 	virtual f32    GetPlaybackScale() const override    { return m_fPlaybackScale; }
 	virtual uint32 IsCharacterVisible() const override  { return m_SkeletonPose.m_bInstanceVisible; };
-	virtual void SpawnSkeletonEffect(const char* effectName, const char* boneName, const Vec3 &offset, const Vec3 &dir, const QuatTS &entityLoc) override;
+	virtual void SpawnSkeletonEffect(const AnimEventInstance& animEvent, const QuatTS &entityLoc) override;
 	virtual void KillAllSkeletonEffects() override;
 	virtual void  SetViewdir(const Vec3& rViewdir) override                                     { m_Viewdir = rViewdir; }
 	virtual float GetUniformScale() const override                                              { return m_location.s; }
@@ -105,7 +105,7 @@ public:
 
 	void RuntimeInit(CDefaultSkeleton * pExtDefaultSkeleton);
 
-	SSkinningData* GetSkinningData();
+	SSkinningData* GetSkinningData(const SRenderingPassInfo& passInfo);
 
 	void           SetFilePath(const string& filePath) { m_strFilePath = filePath; }
 
@@ -211,6 +211,8 @@ private:
 
 	f32 m_skinningTransformationsMovement;
 
+	f32 m_fZoomDistanceSq;
+
 	bool m_bHasVertexAnimation;
 
 	bool m_bWasVisible;
@@ -252,9 +254,9 @@ inline int CCharInstance::Release()
 	return m_nRefCounter;
 }
 
-inline void CCharInstance::SpawnSkeletonEffect(const char* effectName, const char* boneName, const Vec3& offset, const Vec3& dir, const QuatTS& entityLoc)
+inline void CCharInstance::SpawnSkeletonEffect(const AnimEventInstance& animEvent, const QuatTS &entityLoc)
 {
-	m_skeletonEffectManager.SpawnEffect(this, effectName, boneName, offset, dir, entityLoc);
+	m_skeletonEffectManager.SpawnEffect(this, animEvent, entityLoc);
 }
 
 inline void CCharInstance::KillAllSkeletonEffects()

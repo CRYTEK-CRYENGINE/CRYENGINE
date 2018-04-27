@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 // Permission to distribute for commercial and non-commercial purposes.
 // This source code is provided "as it" without support and any warranty.

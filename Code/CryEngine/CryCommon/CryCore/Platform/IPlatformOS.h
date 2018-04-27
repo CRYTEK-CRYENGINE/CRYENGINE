@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 // -------------------------------------------------------------------------
 //  File name:   IPlatformOS.h
@@ -128,8 +128,7 @@ struct IPlatformOS
 
 	enum ECreateFlags
 	{
-		eCF_EarlyCorruptionDetected = BIT(1),
-		eCF_NoDialogs               = BIT(2)
+		eCF_EarlyCorruptionDetected = BIT(1)
 	};
 
 	enum
@@ -220,13 +219,6 @@ struct IPlatformOS
 		eFOC_ReadMask  = 0x10,          //!< Error reading.
 		eFOC_WriteMask = 0x20,          //!< Error writing.
 		eFOC_OpenMask  = 0x02,          //!< Error opening files/content.
-	};
-
-	enum EMsgBoxResult
-	{
-		eMsgBox_OK,
-		eMsgBox_Cancel,
-		eMsgBoxNumButtons
 	};
 
 	enum
@@ -742,13 +734,6 @@ struct IPlatformOS
 	//! This is used to determine the overlap between languages supplied in a SKU and languages available on a system.
 	//! Some platforms like the PS3 have TRCs relating to whether or not you should show a language select screen based on this information.
 	virtual ILocalizationManager::TLocalizationBitfield GetSystemSupportedLanguages() = 0;
-
-	//! Displays an OS dialog box for debugging messages.
-	//! A modal (blocking) dialog box with OK and Cancel options.
-	//! \param body   Text body of the message.
-	//! \param title  Title text of the message.
-	//! \param flags  Reserved for future use.
-	virtual IPlatformOS::EMsgBoxResult DebugMessageBox(const char* body, const char* title, unsigned int flags = 0) const = 0;
 
 	//! Begin platform specific boot checks to meet TRCs/TCRs.
 	//! Call after localization has been initialized and chosen to meet TCG's guidance.

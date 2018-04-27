@@ -1,0 +1,13 @@
+<AssetMetadata version="0" type="Texture" guid="85900253-b008-d4c7-0e57-8e3b9927f9d3" source="hex_grad.tif">
+ <Files>
+  <File path="hex_grad.dds"/>
+  <File path="hex_grad.dds.1"/>
+  <File path="hex_grad.dds.2"/>
+  <File path="hex_grad.dds.3"/>
+ </Files>
+ <Details>
+  <Detail name="width">128</Detail>
+  <Detail name="height">128</Detail>
+  <Detail name="mipCount">6</Detail>
+ </Details>
+</AssetMetadata>

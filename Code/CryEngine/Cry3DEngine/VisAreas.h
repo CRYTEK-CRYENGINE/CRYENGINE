@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 // -------------------------------------------------------------------------
 //  File name:   visareas.h
@@ -104,7 +104,7 @@ struct CVisArea : public IVisArea, public CBasicArea
 	void                    UpdateGeometryBBox();
 	void                    UpdateClipVolume();
 	void                    UpdatePortalBlendInfo(const SRenderingPassInfo& passInfo);
-	void DrawAreaBoundsIntoCBuffer(class CCullBuffer* pCBuffer);
+	void                    DrawAreaBoundsIntoCBuffer(class CCullBuffer* pCBuffer);
 	void                    ClipPortalVerticesByCameraFrustum(PodArray<Vec3>* pPolygon, const CCamera& cam);
 	void                    GetMemoryUsage(ICrySizer* pSizer);
 	bool                    IsConnectedToOutdoor() const;
@@ -114,38 +114,38 @@ struct CVisArea : public IVisArea, public CBasicArea
 	const char*             GetName()                   { return m_pVisAreaColdData->m_sName; }
 #if ENGINE_ENABLE_COMPILATION
 	int                     SaveHeader(byte*& pData, int& nDataSize);
-	int                     SaveObjetsTree(byte*& pData, int& nDataSize, std::vector<IStatObj*>* pStatObjTable, std::vector<IMaterial*>* pMatTable, std::vector<IStatInstGroup*>* pStatInstGroupTable, EEndian eEndian, SHotUpdateInfo* pExportInfo, byte* pHead, const Vec3& segmentOffset);
+	int                     SaveObjetsTree(byte*& pData, int& nDataSize, std::vector<IStatObj*>* pStatObjTable, std::vector<IMaterial*>* pMatTable, std::vector<IStatInstGroup*>* pStatInstGroupTable, EEndian eEndian, SHotUpdateInfo* pExportInfo, byte* pHead);
 	int                     GetData(byte*& pData, int& nDataSize, std::vector<IStatObj*>* pStatObjTable, std::vector<IMaterial*>* pMatTable, std::vector<IStatInstGroup*>* pStatInstGroupTable, EEndian eEndian, SHotUpdateInfo* pExportInfo);
-	int                     GetSegmentData(byte*& pData, int& nDataSize, std::vector<IStatObj*>* pStatObjTable, std::vector<IMaterial*>* pMatTable, std::vector<IStatInstGroup*>* pStatInstGroupTable, EEndian eEndian, SHotUpdateInfo* pExportInfo, const Vec3& segmentOffset);
+	int                     GetSegmentData(byte*& pData, int& nDataSize, std::vector<IStatObj*>* pStatObjTable, std::vector<IMaterial*>* pMatTable, std::vector<IStatInstGroup*>* pStatInstGroupTable, EEndian eEndian, SHotUpdateInfo* pExportInfo);
 #endif
 	template<class T>
-	int                LoadHeader_T(T*& f, int& nDataSizeLeft, EEndian eEndian, int& objBlockSize);
+	int                 LoadHeader_T(T*& f, int& nDataSizeLeft, EEndian eEndian, int& objBlockSize);
 	template<class T>
-	int                LoadObjectsTree_T(T*& f, int& nDataSizeLeft, int nSID, std::vector<IStatObj*>* pStatObjTable, std::vector<IMaterial*>* pMatTable, EEndian eEndian, SHotUpdateInfo* pExportInfo, const int objBlockSize, const Vec3& segmentOffset);
+	int                 LoadObjectsTree_T(T*& f, int& nDataSizeLeft, std::vector<IStatObj*>* pStatObjTable, std::vector<IMaterial*>* pMatTable, EEndian eEndian, SHotUpdateInfo* pExportInfo, const int objBlockSize);
 	template<class T>
-	int                Load_T(T*& f, int& nDataSize, std::vector<IStatObj*>* pStatObjTable, std::vector<IMaterial*>* pMatTable, EEndian eEndian, SHotUpdateInfo* pExportInfo);
-	int                Load(byte*& f, int& nDataSizeLeft, std::vector<IStatObj*>* pStatObjTable, std::vector<IMaterial*>* pMatTable, EEndian eEndian, SHotUpdateInfo* pExportInfo);
-	int                Load(FILE*& f, int& nDataSizeLeft, std::vector<IStatObj*>* pStatObjTable, std::vector<IMaterial*>* pMatTable, EEndian eEndian, SHotUpdateInfo* pExportInfo);
-	const AABB*        GetAABBox() const;
-	const AABB*        GetStaticObjectAABBox() const;
-	void               UpdateOcclusionFlagInTerrain();
-	void               AddConnectedAreas(PodArray<CVisArea*>& lstAreas, int nMaxRecursion);
-	void               GetShapePoints(const Vec3*& pPoints, size_t& nPoints);
-	float              GetHeight();
-	float              CalcSignedArea();
+	int                 Load_T(T*& f, int& nDataSize, std::vector<IStatObj*>* pStatObjTable, std::vector<IMaterial*>* pMatTable, EEndian eEndian, SHotUpdateInfo* pExportInfo);
+	int                 Load(byte*& f, int& nDataSizeLeft, std::vector<IStatObj*>* pStatObjTable, std::vector<IMaterial*>* pMatTable, EEndian eEndian, SHotUpdateInfo* pExportInfo);
+	int                 Load(FILE*& f, int& nDataSizeLeft, std::vector<IStatObj*>* pStatObjTable, std::vector<IMaterial*>* pMatTable, EEndian eEndian, SHotUpdateInfo* pExportInfo);
+	const AABB*         GetAABBox() const;
+	const AABB*         GetStaticObjectAABBox() const;
+	void                UpdateOcclusionFlagInTerrain();
+	void                AddConnectedAreas(PodArray<CVisArea*>& lstAreas, int nMaxRecursion);
+	void                GetShapePoints(const Vec3*& pPoints, size_t& nPoints);
+	float               GetHeight();
+	float               CalcSignedArea();
 
-	bool               CalcPortalBlendPlanes(Vec3 camPos);
-	virtual void       GetClipVolumeMesh(_smart_ptr<IRenderMesh>& renderMesh, Matrix34& worldTM) const;
-	virtual AABB       GetClipVolumeBBox() const                       { return *GetStaticObjectAABBox(); }
-	virtual uint8      GetStencilRef() const                           { return m_nStencilRef; }
-	virtual uint       GetClipVolumeFlags() const;
-	virtual bool       IsPointInsideClipVolume(const Vec3& vPos) const { return IsPointInsideVisArea(vPos); }
+	bool                CalcPortalBlendPlanes(Vec3 camPos);
+	virtual void        GetClipVolumeMesh(_smart_ptr<IRenderMesh>& renderMesh, Matrix34& worldTM) const;
+	virtual const AABB& GetClipVolumeBBox() const                       { return *GetStaticObjectAABBox(); }
+	virtual uint8       GetStencilRef() const                           { return m_nStencilRef; }
+	virtual uint        GetClipVolumeFlags() const;
+	virtual bool        IsPointInsideClipVolume(const Vec3& vPos) const { return IsPointInsideVisArea(vPos); }
 
-	void               OffsetPosition(const Vec3& delta);
-	static VisAreaGUID GetGUIDFromFile(byte* f, EEndian eEndian);
-	VisAreaGUID        GetGUID() const { return m_nVisGUID; }
+	void                OffsetPosition(const Vec3& delta);
+	static VisAreaGUID  GetGUIDFromFile(byte* f, EEndian eEndian);
+	VisAreaGUID         GetGUID() const { return m_nVisGUID; }
 
-	const Vec3         GetFinalAmbientColor();
+	const Vec3          GetFinalAmbientColor();
 
 	static PodArray<CVisArea*>     m_lUnavailableAreas;
 	static PodArray<Vec3>          s_tmpLstPortVertsClipped;
@@ -190,26 +190,6 @@ struct CVisArea : public IVisArea, public CBasicArea
 	bool                           m_bActive;
 	bool                           m_bIgnoreGI;
 	bool                           m_bIgnoreOutdoorAO;
-};
-
-struct CSWVisArea : public CVisArea, public _i_reference_target_t
-{
-	CSWVisArea() : CVisArea(), m_nSlotID(-1) {}
-	~CSWVisArea() {}
-
-	void Release()
-	{
-		--m_nRefCounter;
-		if (m_nRefCounter < 0)
-		{
-			assert(0);
-			CryFatalError("Deleting Reference Counted Object Twice");
-		}
-	}
-
-	int Load(byte*& f, int& nDataSizeLeft, int nSID, std::vector<IStatObj*>* pStatObjTable, std::vector<IMaterial*>* pMatTable, EEndian eEndian, SHotUpdateInfo* pExportInfo, const Vec3& segmentOffset, const Vec2& indexOffset);
-
-	int m_nSlotID;
 };
 
 struct SAABBTreeNode
@@ -273,16 +253,16 @@ struct CVisAreaManager : public IVisAreaManager, Cry3DEngineBase
 	bool                 DeleteVisArea(CVisArea* pVisArea);
 	bool                 SetEntityArea(IRenderNode* pEnt, const AABB& objBox, const float fObjRadiusSqr);
 	void                 CheckVis(const SRenderingPassInfo& passInfo);
-	void                 DrawVisibleSectors(const SRenderingPassInfo& passInfo);
+	void                 DrawVisibleSectors(const SRenderingPassInfo& passInfo, uint32 passCullMask);
 	void                 ActivatePortal(const Vec3& vPos, bool bActivate, const char* szEntityName);
 	void                 ActivateOcclusionAreas(IVisAreaTestCallback* pTest, bool bActivate);
 	void                 UpdateVisArea(CVisArea* pArea, const Vec3* pPoints, int nCount, const char* szName, const SVisAreaInfo& info);
 	virtual void         UpdateConnections();
-	void                 MoveObjectsIntoList(PodArray<SRNInfo>* plstVisAreasEntities, const AABB& boxArea, bool bRemoveObjects = false);
+	void                 MoveObjectsIntoList(PodArray<SRNInfo>* plstVisAreasEntities, const AABB* boxArea, bool bRemoveObjects = false);
 	IVisArea*            GetVisAreaFromPos(const Vec3& vPos);
 	bool                 IntersectsVisAreas(const AABB& box, void** pNodeCache = 0);
 	bool                 ClipOutsideVisAreas(Sphere& sphere, Vec3 const& vNormal, void* pNodeCache = 0);
-	bool                 IsEntityVisAreaVisible(IRenderNode* pEnt, int nMaxReqursion, const CDLight* pLight, const SRenderingPassInfo& passInfo);
+	bool                 IsEntityVisAreaVisible(IRenderNode* pEnt, int nMaxReqursion, const SRenderLight* pLight, const SRenderingPassInfo& passInfo);
 	void                 MakeActiveEntransePortalsList(const CCamera* pCamera, PodArray<CVisArea*>& lstActiveEntransePortals, CVisArea* pThisPortal, const SRenderingPassInfo& passInfo);
 	void                 MergeCameras(CCamera& cam, const CCamera& camPlus, const SRenderingPassInfo& passInfo);
 	void                 DrawOcclusionAreasIntoCBuffer(const SRenderingPassInfo& passInfo);
@@ -295,14 +275,14 @@ struct CVisAreaManager : public IVisAreaManager, Cry3DEngineBase
 	template<class T>
 	bool                 Load_T(T*& f, int& nDataSize, struct SVisAreaManChunkHeader* pVisAreaManagerChunkHeader, std::vector<struct IStatObj*>* pStatObjTable, std::vector<IMaterial*>* pMatTable, bool bHotUpdate, SHotUpdateInfo* pExportInfo);
 	virtual bool         Load(FILE*& f, int& nDataSize, struct SVisAreaManChunkHeader* pVisAreaManagerChunkHeader, std::vector<struct IStatObj*>* pStatObjTable, std::vector<IMaterial*>* pMatTable);
-	virtual bool         SetCompiledData(byte* pData, int nDataSize, std::vector<struct IStatObj*>** ppStatObjTable, std::vector<IMaterial*>** ppMatTable, bool bHotUpdate, SHotUpdateInfo* pExportInfo, const Vec3& vSegmentOrigin);
-	virtual bool         GetCompiledData(byte* pData, int nDataSize, std::vector<struct IStatObj*>** ppStatObjTable, std::vector<IMaterial*>** ppMatTable, std::vector<struct IStatInstGroup*>** ppStatInstGroupTable, EEndian eEndian, SHotUpdateInfo* pExportInfo, const Vec3& segmentOffset);
+	virtual bool         SetCompiledData(byte* pData, int nDataSize, std::vector<struct IStatObj*>** ppStatObjTable, std::vector<IMaterial*>** ppMatTable, bool bHotUpdate, SHotUpdateInfo* pExportInfo);
+	virtual bool         GetCompiledData(byte* pData, int nDataSize, std::vector<struct IStatObj*>** ppStatObjTable, std::vector<IMaterial*>** ppMatTable, std::vector<struct IStatInstGroup*>** ppStatInstGroupTable, EEndian eEndian, SHotUpdateInfo* pExportInfo);
 	virtual int          GetCompiledDataSize(SHotUpdateInfo* pExportInfo);
 	void                 UnregisterEngineObjectsInArea(const SHotUpdateInfo* pExportInfo, PodArray<IRenderNode*>& arrUnregisteredObjects, bool bOnlyEngineObjects);
 	void                 PrecacheLevel(bool bPrecacheAllVisAreas, Vec3* pPrecachePoints, int nPrecachePointsNum);
-	void                 AddLightSource(CDLight* pLight, const SRenderingPassInfo& passInfo);
-	void                 AddLightSourceReqursive(CDLight* pLight, CVisArea* pArea, const int32 nDeepness, const SRenderingPassInfo& passInfo);
-	bool                 IsEntityVisAreaVisibleReqursive(CVisArea* pVisArea, int nMaxReqursion, PodArray<CVisArea*>* pUnavailableAreas, const CDLight* pLight, const SRenderingPassInfo& passInfo);
+	void                 AddLightSource(SRenderLight* pLight, const SRenderingPassInfo& passInfo);
+	void                 AddLightSourceReqursive(SRenderLight* pLight, CVisArea* pArea, const int32 nDeepness, const SRenderingPassInfo& passInfo);
+	bool                 IsEntityVisAreaVisibleReqursive(CVisArea* pVisArea, int nMaxReqursion, PodArray<CVisArea*>* pUnavailableAreas, const SRenderLight* pLight, const SRenderingPassInfo& passInfo);
 	bool                 IsAABBVisibleFromPoint(AABB& aabb, Vec3 vPos);
 	bool                 FindShortestPathToVisArea(CVisArea* pThisArea, CVisArea* pTargetArea, PodArray<CVisArea*>& arrVisitedAreas, int& nRecursion, const struct Shadowvolume& sv);
 
@@ -315,7 +295,7 @@ struct CVisAreaManager : public IVisAreaManager, Cry3DEngineBase
 	virtual void         CloneRegion(const AABB& region, const Vec3& offset, float zRotation);
 	virtual void         ClearRegion(const AABB& region);
 
-	void                 MarkAllSectorsAsUncompiled(const IRenderNode* pRenderNode = NULL);
+	void                 MarkAllSectorsAsUncompiled();
 	void                 InitAABBTree();
 
 	// -------------------------------------
@@ -334,30 +314,19 @@ struct CVisAreaManager : public IVisAreaManager, Cry3DEngineBase
 	void         ActivateObjectsLayer(uint16 nLayerId, bool bActivate, bool bPhys, IGeneralMemoryHeap* pHeap, const AABB& layerBox);
 	void         PhysicalizeInBox(const AABB&);
 	void         DephysicalizeInBox(const AABB&);
-
-	virtual void PrepareSegmentData(const AABB& box);
-	virtual void ReleaseInactiveSegments();
-	virtual bool CreateSegment(int nSID);
-	virtual bool DeleteSegment(int nSID, bool bDeleteNow);
-	virtual bool StreamCompiledData(uint8* pData, int nDataSize, int nSID, std::vector<struct IStatObj*>* pStatObjTable, std::vector<IMaterial*>* pMatTable, std::vector<struct IStatInstGroup*>* pStatInstGroupTable, const Vec3& vSegmentOrigin, const Vec2& vIndexOffset);
 	virtual void OffsetPosition(const Vec3& delta);
+	void         CleanUpTrees();
 
 private:
-	void        DeleteAllVisAreas();
+	void      DeleteAllVisAreas();
 
-	CVisArea*   CreateTypeVisArea();
-	CVisArea*   CreateTypePortal();
-	CVisArea*   CreateTypeOcclArea();
+	CVisArea* CreateTypeVisArea();
+	CVisArea* CreateTypePortal();
+	CVisArea* CreateTypeOcclArea();
 
-	void        DeleteVisAreaSegment(int nSID, PodArray<CVisAreaSegmentData>& visAreaSegmentData, PodArray<CVisArea*>& lstVisAreas, PodArray<CVisArea*, ReservedVisAreaBytes>& visAreas, PodArray<int>& deletedVisAreas);
-	CVisArea*   FindVisAreaByGuid(VisAreaGUID guid, PodArray<CVisArea*>& lstVisAreas);
-	CSWVisArea* FindFreeVisAreaFromPool(PodArray<CVisArea*, ReservedVisAreaBytes>& visAreas);
+	CVisArea* FindVisAreaByGuid(VisAreaGUID guid, PodArray<CVisArea*>& lstVisAreas);
 	template<class T>
-	CSWVisArea* CreateVisAreaFromPool(PodArray<CVisArea*>& lstVisAreas, PodArray<CVisArea*, ReservedVisAreaBytes>& visAreas, PodArray<T>& visAreaColdData, bool bIsPortal);
-	template<class T>
-	void        ResetVisAreaList(PodArray<CVisArea*>& lstVisAreas, PodArray<CVisArea*, ReservedVisAreaBytes>& visAreas, PodArray<T>& visAreaColdData);
-	template<class T>
-	CSWVisArea* CreateTypeArea(PodArray<CVisArea*, ReservedVisAreaBytes>& visAreas, PodArray<T>& visAreaColdData, bool bIsPortal);
+	void      ResetVisAreaList(PodArray<CVisArea*>& lstVisAreas, PodArray<CVisArea*, ReservedVisAreaBytes>& visAreas, PodArray<T>& visAreaColdData);
 
 	PodArray<CVisArea*, ReservedVisAreaBytes> m_portals;
 	PodArray<CVisArea*, ReservedVisAreaBytes> m_visAreas;
@@ -366,10 +335,6 @@ private:
 	PodArray<SGenericColdData>                m_visAreaColdData;
 	PodArray<SPortalColdData>                 m_portalColdData;
 	PodArray<SGenericColdData>                m_occlAreaColdData;
-
-	PodArray<CVisAreaSegmentData>             m_visAreaSegmentData;
-	PodArray<CVisAreaSegmentData>             m_portalSegmentData;
-	PodArray<CVisAreaSegmentData>             m_occlAreaSegmentData;
 
 	PodArray<int>                             m_arrDeletedVisArea;
 	PodArray<int>                             m_arrDeletedPortal;

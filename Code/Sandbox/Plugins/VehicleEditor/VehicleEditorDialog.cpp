@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 
@@ -338,11 +338,11 @@ void CVehicleEditorDialog::SetVehiclePrototype(CVehiclePrototype* pProt)
 	assert(pProt && pProt->GetVariable());
 	m_pVehicle = pProt;
 
-	m_pVehicle->AddEventListener(functor(*this, &CVehicleEditorDialog::OnPrototypeEvent));
+	m_pVehicle->signalChanged.Connect(this, &CVehicleEditorDialog::OnPrototypeEvent);
 
 	if (m_pVehicle->GetCEntity())
 	{
-		m_pVehicle->GetCEntity()->AddEventListener(functor(*this, &CVehicleEditorDialog::OnEntityEvent));
+		m_pVehicle->GetCEntity()->signalChanged.Connect(this, &CVehicleEditorDialog::OnEntityEvent);
 	}
 
 	for (TVeedComponent::iterator it = m_panels.begin(); it != m_panels.end(); ++it)
@@ -363,24 +363,21 @@ void CVehicleEditorDialog::SetVehiclePrototype(CVehiclePrototype* pProt)
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CVehicleEditorDialog::OnPrototypeEvent(CBaseObject* object, int event)
+void CVehicleEditorDialog::OnPrototypeEvent(const CBaseObject* pObject, const CObjectEvent& event)
 {
 	// called upon prototype deletion
-	if (event == OBJECT_ON_DELETE)
+	if (event.m_type == OBJECT_ON_DELETE)
 	{
 		m_pVehicle = 0;
 		EnableEditingLinks(false);
 	}
-	else if (event == OBJECT_ON_SELECT)
-	{
-	}
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CVehicleEditorDialog::OnEntityEvent(CBaseObject* object, int event)
+void CVehicleEditorDialog::OnEntityEvent(const CBaseObject* pObject, const CObjectEvent& event)
 {
 	// called upon deletion of the entity the prototype points to
-	if (event == OBJECT_ON_DELETE)
+	if (event.m_type == OBJECT_ON_DELETE)
 	{
 		// delete prototype
 		if (m_pVehicle)
@@ -781,11 +778,11 @@ void CVehicleEditorDialog::DestroyVehiclePrototype()
 
 	VehicleXml::CleanUp(m_pVehicle->GetVariable());
 
-	m_pVehicle->RemoveEventListener(functor(*this, &CVehicleEditorDialog::OnPrototypeEvent));
+	m_pVehicle->signalChanged.DisconnectObject(this);
 
 	if (m_pVehicle->GetCEntity() != NULL)
 	{
-		m_pVehicle->GetCEntity()->RemoveEventListener(functor(*this, &CVehicleEditorDialog::OnEntityEvent));
+		m_pVehicle->GetCEntity()->signalChanged.DisconnectObject(this);
 	}
 
 	GetIEditor()->DeleteObject(m_pVehicle);
@@ -1101,4 +1098,5 @@ void CVehicleEditorDialog::OnPaintsEdit()
 
 	GetDockingPaneManager()->ShowPane(IDW_VEED_PAINTS_PANE);
 }
+
 

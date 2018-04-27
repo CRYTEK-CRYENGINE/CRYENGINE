@@ -1,0 +1,10 @@
+<AssetMetadata version="0" type="Texture" guid="7234bdde-aeee-d5f0-8189-82eb642ec49d">
+ <Files>
+  <File path="noise3d.dds"/>
+ </Files>
+ <Details>
+  <Detail name="width">64</Detail>
+  <Detail name="height">64</Detail>
+  <Detail name="mipCount">7</Detail>
+ </Details>
+</AssetMetadata>

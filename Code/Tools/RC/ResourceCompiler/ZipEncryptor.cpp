@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "ResourceCompiler.h"
@@ -32,7 +32,7 @@ string ZipEncryptor::GetOutputFileNameOnly() const
 
 string ZipEncryptor::GetOutputPath() const
 {
-	return PathHelpers::Join(m_CC.GetOutputFolder(), GetOutputFileNameOnly());
+	return PathUtil::Make(m_CC.GetOutputFolder(), GetOutputFileNameOnly());
 }
 
 const char* ZipEncryptor::GetExt(int index) const

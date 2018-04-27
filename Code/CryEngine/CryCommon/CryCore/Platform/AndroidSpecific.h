@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 // -------------------------------------------------------------------------
 //  File name:   AndroidSpecific.h
@@ -93,9 +93,9 @@ extern int wcsnicmp(const wchar_t* s1, const wchar_t* s2, size_t count);
 
 #define __debugbreak() __builtin_trap()
 
-// There is no __finite in android, only __isfinite.
+// There is no __finite in android, only isfinite.
 #undef __finite
-#define __finite  __isfinite
+#define __finite  isfinite
 
 #define S_IWRITE  S_IWUSR
 

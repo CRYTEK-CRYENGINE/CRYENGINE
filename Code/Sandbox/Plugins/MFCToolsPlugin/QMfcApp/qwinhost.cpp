@@ -389,3 +389,4 @@ bool QWinHost::winEvent(MSG* msg, long* result)
 	return QWidget::winEvent(msg, result);
 #endif
 }
+

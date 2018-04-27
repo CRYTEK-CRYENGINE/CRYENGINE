@@ -1,5 +1,4 @@
-// CRYENGINE Source Code File
-// Copyright 2001-2015 Crytek GmbH. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "Common.cfi"
 #include "PostEffectsLib.cfi"
@@ -24,26 +23,27 @@ float4 nightVisionParamsPS;
 
 struct vtxOutNightVision
 {
-  float4 HPosition  : POSITION;
+  float4 HPosition  : SV_POSITION;
   float2 baseTC    : TEXCOORDN;
   float4 noiseTC    : TEXCOORDN;  
   
 };
 
-vtxOutNightVision NightVisionVS(vtxIn IN)
+vtxOutNightVision NightVisionVS(uint VertexID : SV_VertexID)
 {
   vtxOutNightVision OUT = (vtxOutNightVision)0; 
-  OUT.HPosition = Get2dHPos(IN.Position);
-  OUT.baseTC.xy = IN.baseTC.xy;
+  OUT.HPosition = GetHPos_FromTriVertexID(VertexID);
+  float2 baseTC = GetBaseTC_FromTriVertexID(VertexID);
+  OUT.baseTC.xy = baseTC;
   
   
   float2 scale = g_VS_ScreenSize.xy / 128.0;      
   float2 pixScale = 128.0 / g_VS_ScreenSize.xy;      
           
   // make sure noise is correctly texel to pixel mapped 
-  IN.baseTC.xy *= scale;          
-  OUT.noiseTC.xy = IN.baseTC.xy + (nightVisionParamsVS.xy ) * pixScale;              
-  OUT.noiseTC.wz = IN.baseTC.xy + (nightVisionParamsVS.zw + 0.333) * pixScale ;              
+  baseTC.xy *= scale;          
+  OUT.noiseTC.xy = baseTC + (nightVisionParamsVS.xy ) * pixScale;              
+  OUT.noiseTC.wz = baseTC + (nightVisionParamsVS.zw + 0.333) * pixScale ;              
   
   return OUT;
 }
@@ -126,15 +126,15 @@ pixout NightVisionPS(vtxOutNightVision IN)
 
 ////////////////// technique /////////////////////
 
-technique NightVision
-{
-  pass p0
-  {
-    VertexShader = NightVisionVS() PostRenderModesVS;
-    PixelShader = NightVisionPS() PostRenderModesPS;
-    CullMode = None;    
-  }
-}
+//technique NightVision
+//{
+//  pass p0
+//  {
+//    VertexShader = NightVisionVS() PostRenderModesVS;
+//    PixelShader = NightVisionPS() PostRenderModesPS;
+//    CullMode = None;    
+//  }
+//}
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 /// "Night vision" ghosthing technique /////////////////////////////////////////////////////////////
@@ -144,7 +144,7 @@ float4 NightVisionParamsPS;
 ///////////////// vertex shader //////////////////
 struct vtxOutNightVisionGhosting
 {
-  float4 HPosition  : POSITION;
+  float4 HPosition  : SV_POSITION;
   float2 baseTC			: TEXCOORDN;
 };
 
@@ -169,15 +169,15 @@ pixout NightVisionGhostingPS(vtxOutNightVisionGhosting IN)
   return OUT;
 }
 
-technique NightVisionGhosting
-{
-  pass p0
-  {
-    VertexShader = NightVisionGhostingVS();
-    PixelShader = NightVisionGhostingPS();
-    CullMode = None;    
-  }
-}
+//technique NightVisionGhosting
+//{
+//  pass p0
+//  {
+//    VertexShader = NightVisionGhostingVS();
+//    PixelShader = NightVisionGhostingPS();
+//    CullMode = None;    
+//  }
+//}
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 /// "Sonar vision" technique /////////////////////////////////////////////////////////////////////////
@@ -195,7 +195,7 @@ float4 SonarVisionParamsPS;
 
 struct vtxOutSonarVision
 {
-  float4 HPosition  : POSITION;
+  float4 HPosition  : SV_POSITION;
   float2 baseTC			: TEXCOORDN;
   float4 noiseTC		: TEXCOORDN;  
 	float3 CamVec			: TEXCOORDN;  
@@ -332,45 +332,45 @@ pixout SonarVisionGhostingPS(vtxOutSonarVision IN)
 
 ////////////////// technique /////////////////////
 
-technique SonarVisionAmbient
-{
-  pass p0
-  {
-    VertexShader = SonarVisionVS();
-    PixelShader = SonarVisionAmbientPS();
-    CullMode = None;    
-  }
-}
-
-technique SonarVisionSoundHint
-{
-  pass p0
-  {
-    VertexShader = SonarVisionVS();
-    PixelShader = SonarVisionSoundHintPS();
-    CullMode = None;    
-  }
-}
-
-technique SonarVisionFinalComposition
-{
-  pass p0
-  {
-    VertexShader = SonarVisionVS();
-    PixelShader = SonarVisionFinalCompositionPS();
-    CullMode = None;    
-  }
-}
-
-technique SonarVisionGhosting
-{
-  pass p0
-  {
-    VertexShader = SonarVisionVS();
-    PixelShader = SonarVisionGhostingPS();
-    CullMode = None;    
-  }
-}
+//technique SonarVisionAmbient
+//{
+//  pass p0
+//  {
+//    VertexShader = SonarVisionVS();
+//    PixelShader = SonarVisionAmbientPS();
+//    CullMode = None;    
+//  }
+//}
+//
+//technique SonarVisionSoundHint
+//{
+//  pass p0
+//  {
+//    VertexShader = SonarVisionVS();
+//    PixelShader = SonarVisionSoundHintPS();
+//    CullMode = None;    
+//  }
+//}
+//
+//technique SonarVisionFinalComposition
+//{
+//  pass p0
+//  {
+//    VertexShader = SonarVisionVS();
+//    PixelShader = SonarVisionFinalCompositionPS();
+//    CullMode = None;    
+//  }
+//}
+//
+//technique SonarVisionGhosting
+//{
+//  pass p0
+//  {
+//    VertexShader = SonarVisionVS();
+//    PixelShader = SonarVisionGhostingPS();
+//    CullMode = None;    
+//  }
+//}
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 /// "Thermal vision" technique /////////////////////////////////////////////////////////////////////
@@ -391,7 +391,7 @@ float4 ThermalVisionParamsPS;
 
 struct vtxOutThermalVision
 {
-  float4 HPosition  : POSITION;
+  float4 HPosition  : SV_POSITION;
   float4 baseTC			: TEXCOORDN;
   float4 noiseTC		: TEXCOORDN;  
 	float3 CamVec			: TEXCOORDN;  
@@ -557,35 +557,36 @@ pixout ThermalVisionGhostingPS(vtxOutThermalVision IN)
 
 ////////////////// technique /////////////////////
 
-technique ThermalVisionAmbient
-{
-  pass p0
-  {
-    VertexShader = ThermalVisionVS();
-    PixelShader = ThermalVisionAmbientPS();
-    CullMode = None;    
-  }
-}
 
-technique ThermalVisionComposition
-{
-  pass p0
-  {
-    VertexShader = ThermalVisionVS();
-    PixelShader = ThermalVisionCompositionPS() ThermalVisionPS;
-    CullMode = None;    
-  }
-}
-
-technique ThermalVisionGhosting
-{
-  pass p0
-  {
-    VertexShader = ThermalVisionVS();
-    PixelShader = ThermalVisionGhostingPS();
-    CullMode = None;    
-  }
-}
+//technique ThermalVisionAmbient
+//{
+//  pass p0
+//  {
+//    VertexShader = ThermalVisionVS();
+//    PixelShader = ThermalVisionAmbientPS();
+//    CullMode = None;    
+//  }
+//}
+//
+//technique ThermalVisionComposition
+//{
+//  pass p0
+//  {
+//    VertexShader = ThermalVisionVS();
+//    PixelShader = ThermalVisionCompositionPS() ThermalVisionPS;
+//    CullMode = None;    
+//  }
+//}
+//
+//technique ThermalVisionGhosting
+//{
+//  pass p0
+//  {
+//    VertexShader = ThermalVisionVS();
+//    PixelShader = ThermalVisionGhostingPS();
+//    CullMode = None;    
+//  }
+//}
 
 /////////////////////// eof ///
 

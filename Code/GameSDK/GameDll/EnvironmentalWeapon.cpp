@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "EnvironmentalWeapon.h"
@@ -1171,7 +1171,12 @@ void CEnvironmentalWeapon::RenderDebugStats() const
 }
 #endif // #ifndef _RELEASE
 
-void CEnvironmentalWeapon::ProcessEvent(SEntityEvent& event)
+uint64 CEnvironmentalWeapon::GetEventMask() const
+{
+	return BIT64(ENTITY_EVENT_LEVEL_LOADED) | BIT64(ENTITY_EVENT_RESET) | BIT64(ENTITY_EVENT_LINK) | BIT64(ENTITY_EVENT_DELINK) | BIT64(ENTITY_EVENT_START_LEVEL) | BIT64(ENTITY_EVENT_XFORM);
+}
+
+void CEnvironmentalWeapon::ProcessEvent(const SEntityEvent& event)
 {
 	switch(event.event)
 	{

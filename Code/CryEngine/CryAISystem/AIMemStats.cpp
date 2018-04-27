@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include <CryMemory/CrySizer.h>
@@ -8,10 +8,10 @@
 #include "AIPlayer.h"
 #include "GoalPipe.h"
 #include "GoalOp.h"
-#include "AStarSolver.h"
 #include "WorldOctree.h"
 #include "ObjectContainer.h"
 #include "Navigation/NavigationSystem/NavigationSystem.h"
+#include "Formation/FormationManager.h"
 
 void CAISystem::GetMemoryStatistics(ICrySizer* pSizer)
 {
@@ -78,13 +78,6 @@ void CAISystem::GetMemoryStatistics(ICrySizer* pSizer)
 
 	{
 		SIZER_SUBCOMPONENT_NAME(pSizer, "NavGraph");
-
-		if (m_pGraph)
-		{
-			pSizer->AddObject(m_pGraph, sizeof(*m_pGraph));
-			m_pGraph->GetMemoryStatistics(pSizer);
-		}
-
 		if (m_pNavigation)
 		{
 			m_pNavigation->GetMemoryStatistics(pSizer);
@@ -111,16 +104,10 @@ void CAISystem::GetMemoryStatistics(ICrySizer* pSizer)
 		pSizer->AddObject(gAIEnv.pObjectContainer, sizeof(*gAIEnv.pObjectContainer));
 	}
 
-	size = 0;
-	FormationDescriptorMap::iterator fItr = m_mapFormationDescriptors.begin();
-	for (; fItr != m_mapFormationDescriptors.end(); ++fItr)
+	if (gAIEnv.pFormationManager)
 	{
-		size += (fItr->first).capacity();
-		size += sizeof((fItr->second));
-		size += (fItr->second).m_sName.capacity();
-		size += (fItr->second).m_Nodes.size() * sizeof(FormationNode);
+		gAIEnv.pFormationManager->GetMemoryStatistics(pSizer);
 	}
-	pSizer->AddObject(&m_mapFormationDescriptors, size);
 
 	size = m_mapGroups.size() * (sizeof(unsigned short) + sizeof(CAIObject*));
 	pSizer->AddObject(&m_mapGroups, size);
@@ -134,131 +121,6 @@ void CAISystem::GetMemoryStatistics(ICrySizer* pSizer)
 			gAIEnv.pNavigationSystem->GetMemoryStatistics(pSizer);
 		}
 	}
-}
-
-size_t GraphNode::MemStats()
-{
-	size_t size = 0;
-
-	switch (navType)
-	{
-	case IAISystem::NAV_UNSET:
-		size += sizeof(GraphNode_Unset);
-		break;
-	case IAISystem::NAV_TRIANGULAR:
-		size += sizeof(GraphNode_Triangular);
-		size += (GetTriangularNavData()->vertices.capacity() ? GetTriangularNavData()->vertices.capacity() * sizeof(int) + 2 * sizeof(int) : 0);
-		break;
-	case IAISystem::NAV_WAYPOINT_HUMAN:
-		size += sizeof(GraphNode_WaypointHuman);
-		break;
-	case IAISystem::NAV_WAYPOINT_3DSURFACE:
-		size += sizeof(GraphNode_Waypoint3DSurface);
-		break;
-	case IAISystem::NAV_FLIGHT:
-		size += sizeof(GraphNode_Flight);
-		break;
-	case IAISystem::NAV_VOLUME:
-		size += sizeof(GraphNode_Volume);
-		break;
-	case IAISystem::NAV_ROAD:
-		size += sizeof(GraphNode_Road);
-		break;
-	case IAISystem::NAV_SMARTOBJECT:
-		size += sizeof(GraphNode_SmartObject);
-		break;
-	case IAISystem::NAV_FREE_2D:
-		size += sizeof(GraphNode_Free2D);
-		break;
-	default:
-		break;
-	}
-
-	//size += links.capacity()*sizeof(unsigned);
-
-	return size;
-}
-
-//====================================================================
-// MemStats
-//====================================================================
-size_t CGraph::MemStats()
-{
-	size_t size = sizeof *this;
-	size += sizeof(GraphNode*) * m_taggedNodes.capacity();
-	size += sizeof(GraphNode*) * m_markedNodes.capacity();
-
-	size += m_allNodes.MemStats();
-	//size += NodesPool.MemStats();
-	size += mBadGraphData.capacity() * sizeof(SBadGraphData);
-	size += m_mapEntrances.size() * sizeof(bool) + sizeof(void*) * 3 + sizeof(EntranceMap::value_type);
-	size += m_mapExits.size() * sizeof(bool) + sizeof(void*) * 3 + sizeof(EntranceMap::value_type);
-
-	return size;
-}
-
-void CGraph::GetMemoryStatistics(ICrySizer* pSizer)
-{
-	pSizer->AddContainer(m_taggedNodes);
-	pSizer->AddContainer(m_markedNodes);
-
-	pSizer->AddContainer(mBadGraphData);
-
-	pSizer->AddContainer(m_mapEntrances);
-	pSizer->AddContainer(m_mapExits);
-
-	pSizer->AddObject(&m_allNodes, m_allNodes.MemStats());
-
-	pSizer->AddObject(m_pGraphLinkManager, sizeof(*m_pGraphLinkManager));
-	m_pGraphLinkManager->GetMemoryStatistics(pSizer);
-
-	pSizer->AddObject(m_pGraphNodeManager, sizeof(*m_pGraphNodeManager));
-	m_pGraphNodeManager->GetMemoryStatistics(pSizer);
-}
-
-//====================================================================
-// NodeMemStats
-//====================================================================
-size_t CGraph::NodeMemStats(unsigned navTypeMask)
-{
-	size_t nodesSize = 0;
-	size_t linksSize = 0;
-
-	CAllNodesContainer::Iterator it(m_allNodes, navTypeMask);
-	while (unsigned nodeIndex = it.Increment())
-	{
-		GraphNode* pNode = GetNodeManager().GetNode(nodeIndex);
-
-		if (navTypeMask & pNode->navType)
-		{
-			nodesSize += pNode->MemStats();
-			/*
-			      nodesSize += sizeof(GraphNode);
-			      linksSize += pNode->links.capacity() * sizeof(GraphLink);
-			      for (unsigned i = 0 ; i < pNode->links.size() ; ++i)
-			      {
-			        if (pNode->links[i].GetCachedPassabilityResult())
-			          linksSize += sizeof(GraphLink::SCachedPassabilityResult);
-			      }
-			      switch (pNode->navType)
-			      {
-			        case IAISystem::NAV_TRIANGULAR:
-			          nodesSize += sizeof(STriangularNavData);
-			          nodesSize += pNode->GetTriangularNavData()->vertices.capacity() * sizeof(int);
-			          break;
-			        case IAISystem::NAV_WAYPOINT_3DSURFACE:
-			        case IAISystem::NAV_WAYPOINT_HUMAN:
-			          nodesSize += sizeof(SWaypointNavData);
-			          break;
-			        case IAISystem::NAV_SMARTOBJECT: nodesSize += sizeof(SSmartObjectNavData);
-			          break;
-			        default:
-			          break;
-			      }
-			 */
-		}
-	}
-	return nodesSize + linksSize;
 }
 
 //====================================================================
@@ -338,19 +200,6 @@ size_t CPuppet::MemStats()
 }
 //
 //----------------------------------------------------------------------------------
-
-//====================================================================
-// MemStats
-//====================================================================
-size_t CAStarSolver::MemStats()
-{
-	size_t size = sizeof(*this);
-
-	size += (sizeof(GraphNode*) + 4) * m_pathNodes.size();
-	size += m_AStarNodeManager.MemStats();
-
-	return size;
-}
 
 //====================================================================
 // MemStats

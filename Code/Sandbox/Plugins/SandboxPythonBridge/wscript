@@ -1,19 +1,27 @@
 
+PySide2_dir = 'Code/SDKs/Qt/5.6/msvc2015_64/PySide/PySide2/'
+
 def build(bld): 
 	bld.CryPlugin(
 		target = 'SandboxPythonBridge',
 		vs_filter = 'Sandbox/Plugins',
 		file_list = 'sandboxpythonbridge.waf_files',
 		pch = 'StdAfx.cpp',
+
+		features = ['qt'],
+		module_extensions = ['python27'],
 		
 		win_includes = [
-			bld.CreateRootRelativePath('Code/SDKs/Qt/5.6/msvc2015_64/PySide/PySide2/include/shiboken2'),
-			bld.CreateRootRelativePath('Code/SDKs/Qt/5.6/msvc2015_64/PySide/PySide2/include/PySide2'),
-			bld.CreateRootRelativePath('Code/SDKs/Qt/5.6/msvc2015_64/PySide/PySide2/include/PySide2/QtWidgets'),
-			bld.CreateRootRelativePath('Code/SDKs/Qt/5.6/msvc2015_64/PySide/PySide2/include/PySide2/QtGui'),
-			bld.CreateRootRelativePath('Code/SDKs/Qt/5.6/msvc2015_64/PySide/PySide2/include/PySide2/QtCore'),
+			Path(PySide2_dir + 'include/shiboken2'),
+			Path(PySide2_dir + 'include/PySide2'),
+			Path(PySide2_dir + 'include/PySide2/QtWidgets'),
+			Path(PySide2_dir + 'include/PySide2/QtGui'),
+			Path(PySide2_dir + 'include/PySide2/QtCore'),
+			Path('Code/SDKs/Qt/5.6/msvc2015_64/Qt/include/QtANGLE'),
 		],
-       
+
+		defines = ['BOOST_ALL_NO_LIB'],		
+
 		win_x64_debug_libpath = Path('Code/SDKs/Qt/5.6/msvc2015_64/PySide/PySide2'),
 		win_x64_profile_libpath = Path('Code/SDKs/Qt/5.6/msvc2015_64/PySide/PySide2'),
         win_x64_performance_libpath = Path('Code/SDKs/Qt/5.6/msvc2015_64/PySide/PySide2'),

@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "ThreadUtils.h"
@@ -147,7 +147,7 @@ void SimpleThreadPool::Submit(const Job& job)
 
 bool SimpleThreadPool::GetJob(Job& job, int threadIndex)
 {
-	AutoLock lock(m_lockJobs);
+	std::lock_guard<std::recursive_mutex> lock(m_lockJobs);
 
 	if (m_numProcessedJobs >= m_jobs.size())
 		return false;

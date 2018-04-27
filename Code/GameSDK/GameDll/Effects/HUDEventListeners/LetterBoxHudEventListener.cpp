@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 // Renders Letter box bars.
 
@@ -76,7 +76,7 @@ void CLetterBoxHudEventListener::Draw()
 	ScreenLayoutStates prevLayoutState = pLayoutManager->GetState();
 	pLayoutManager->SetState(eSLO_DoNotAdaptToSafeArea|eSLO_ScaleMethod_None);
 
-	gEnv->pRenderer->SetState(GS_NODEPTHTEST);
+	//gEnv->pRenderer->SetState(GS_NODEPTHTEST);
 
 	// Apply overscan borders to bars
 	Vec2 overscanBorders = Vec2(0.0f,0.0f);

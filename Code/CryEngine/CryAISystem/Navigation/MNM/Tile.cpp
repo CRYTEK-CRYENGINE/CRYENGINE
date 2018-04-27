@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "Tile.h"
@@ -321,12 +321,12 @@ void STile::Destroy()
 	hashValue = 0;
 }
 
-ColorF CalculateColorForIsland(StaticIslandID islandID, uint16 totalIslands)
+ColorF CalculateColorFromMultipleItems(uint32 itemIdx, uint32 itemsCount)
 {
-	if (totalIslands == 0)
+	if (itemsCount == 0)
 		return Col_White;
 
-	const float hueValue = islandID / (float) totalIslands;
+	const float hueValue = itemIdx / (float)itemsCount;
 
 	ColorF color;
 	color.fromHSV(hueValue, 1.0f, 1.0f);
@@ -334,7 +334,7 @@ ColorF CalculateColorForIsland(StaticIslandID islandID, uint16 totalIslands)
 	return color;
 }
 
-void STile::Draw(size_t drawFlags, vector3_t origin, TileID tileID, const std::vector<float>& islandAreas) const
+void STile::Draw(size_t drawFlags, vector3_t origin, TileID tileID, const std::vector<float>& islandAreas, const ITriangleColorSelector& colorSelector) const
 {
 	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
@@ -342,7 +342,6 @@ void STile::Draw(size_t drawFlags, vector3_t origin, TileID tileID, const std::v
 	const size_t expectedMaxOffmeshTriCount = 8;
 
 	const ColorB triangleColorConnected(Col_Azure, 0.65f);
-	const ColorB triangleColorExternalMesh(Col_LimeGreen, 0.5f);
 	const ColorB triangleColorBackface(Col_Gray, 0.65f);
 	const ColorB triangleColorDisconnected(Col_Red, 0.65f);
 	const ColorB boundaryColor(Col_Black);
@@ -388,15 +387,11 @@ void STile::Draw(size_t drawFlags, vector3_t origin, TileID tileID, const std::v
 
 			if (!(drawFlags & DrawAccessibility))
 			{
-				// #MNM_TODO pavloi 2016.07.21: implement flag to color table lookup, which can be set from outside of the system.
-				if (triangle.triangleFlags & Tile::STriangle::eFlags_ExternalMesh)
-				{
-					triangleColor = triangleColorExternalMesh;
-				}
+				triangleColor = colorSelector.GetAnnotationColor(triangle.areaAnnotation);
 			}
 			if (drawFlags & DrawIslandsId)
 			{
-				triangleColor = CalculateColorForIsland(triangle.islandID, static_cast<uint16>(islandAreas.size()));
+				triangleColor = CalculateColorFromMultipleItems(triangle.islandID, static_cast<uint32>(islandAreas.size()));
 			}
 
 			if (triangleColor != currentColor)
@@ -623,7 +618,11 @@ void STile::ValidateTriangles() const
 vector3_t::value_type STile::GetTriangleArea(const TriangleID triangleID) const
 {
 	const Tile::STriangle& triangle = triangles[ComputeTriangleIndex(triangleID)];
+	return GetTriangleArea(triangle);
+}
 
+vector3_t::value_type STile::GetTriangleArea(const Tile::STriangle& triangle) const
+{
 	const vector3_t v0 = vector3_t(vertices[triangle.vertex[0]]);
 	const vector3_t v1 = vector3_t(vertices[triangle.vertex[1]]);
 	const vector3_t v2 = vector3_t(vertices[triangle.vertex[2]]);

@@ -1,13 +1,13 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include <array>
 #include <d3d12.h>
 
-template<const int numTargets>
+template<int numTargets>
 class BroadcastableD3D12CommandAllocator : public ID3D12CommandAllocator
 {
-	template<const int numTargets> friend class BroadcastableD3D12CommandQueue;
-	template<const int numTargets> friend class BroadcastableD3D12GraphicsCommandList;
+	template<int numTargets> friend class BroadcastableD3D12CommandQueue;
+	template<int numTargets> friend class BroadcastableD3D12GraphicsCommandList;
 
 	int m_RefCount;
 	std::array<ID3D12CommandAllocator*, numTargets> m_Targets;

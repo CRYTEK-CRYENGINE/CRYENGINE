@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 // Declaration of the class that will keep the ZipDir Cache object
 // and will provide all its services to access Zip file, plus it will

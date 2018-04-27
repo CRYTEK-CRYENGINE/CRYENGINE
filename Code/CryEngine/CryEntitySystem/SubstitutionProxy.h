@@ -1,18 +1,5 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
-// -------------------------------------------------------------------------
-//  File name:   SubstitutionProxy.h
-//  Version:     v1.00
-//  Created:     7/6/2005 by Timur.
-//  Compilers:   Visual Studio.NET 2003
-//  Description:
-// -------------------------------------------------------------------------
-//  History:
-//
-////////////////////////////////////////////////////////////////////////////
-
-#ifndef __SubstitutionProxy_h__
-#define __SubstitutionProxy_h__
 #pragma once
 
 //////////////////////////////////////////////////////////////////////////
@@ -30,16 +17,17 @@ public:
 	//////////////////////////////////////////////////////////////////////////
 	// IEntityComponent interface implementation.
 	//////////////////////////////////////////////////////////////////////////
-	virtual void Initialize() final {};
-	virtual void ProcessEvent(SEntityEvent& event) final;
-	virtual uint64 GetEventMask() const final;; // Need nothing
+	virtual void   Initialize() final {};
+	virtual void   ProcessEvent(const SEntityEvent& event) final;
+	virtual uint64 GetEventMask() const final;
+	;                                           // Need nothing
 	//////////////////////////////////////////////////////////////////////////
 
 	//////////////////////////////////////////////////////////////////////////
 	// IEntityComponent interface implementation.
 	//////////////////////////////////////////////////////////////////////////
-	virtual EEntityProxy GetProxyType() const final                                     { return ENTITY_PROXY_SUBSTITUTION; }
-	virtual void         Release() final                                          { delete this; }
+	virtual EEntityProxy GetProxyType() const final { return ENTITY_PROXY_SUBSTITUTION; }
+	virtual void         Release() final            { delete this; }
 	virtual void         GameSerialize(TSerialize ser) final;
 	virtual bool         NeedGameSerialize() final;
 	//////////////////////////////////////////////////////////////////////////
@@ -61,5 +49,3 @@ private:
 private:
 	IRenderNode* m_pSubstitute = nullptr;
 };
-
-#endif // __SubstitutionProxy_h__

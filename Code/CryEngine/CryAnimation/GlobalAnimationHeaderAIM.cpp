@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "stdafx.h"
 #include "GlobalAnimationHeaderAIM.h"
@@ -880,9 +880,6 @@ uint32 GlobalAnimationHeaderAIM::Debug_AnnotateExamples2(uint32 numPoses, QuadIn
 	if (numPoses != 9)
 		return q * 2;
 
-	uint32 i = -1;
-	f32 t = 0;
-
 	f32 diag = 1.70f;
 
 	f32 eup = 1.60f;
@@ -894,25 +891,25 @@ uint32 GlobalAnimationHeaderAIM::Debug_AnnotateExamples2(uint32 numPoses, QuadIn
 	f32 edown = 1.6f;
 	f32 mdown = 1.20f;
 
-	i = 4;
+	uint32 i = 4;
 	arrQuat[i].i0 = 3;
-	t = eup;
+	f32 t = eup;
 	arrQuat[i].w0 = Vec4(1 - t, 0, 0, t);                           //3-mirrored 0-scaled
 	arrQuat[i].i1 = 4;
 	t = mup;
 	arrQuat[i].w1 = Vec4(0, 1 - t, t, 0);                           //4-mirrored 1-scaled
 	arrQuat[i].i2 = 1;
-	t = 1.00f;
+
 	arrQuat[i].w2 = Vec4(0, 0, 1, 0);
 	arrQuat[i].i3 = 0;
-	t = 1.00f;
+
 	arrQuat[i].w3 = Vec4(0, 0, 0, 1);
 	arrQuat[i].col = RGBA8(0xff, 0x00, 0x00, 0xff);
 	arrQuat[i].height = Vec3(0, 0, 0.001f);
 
 	i = 5;
 	arrQuat[i].i0 = 3;
-	t = 1.00f;
+
 	arrQuat[i].w0 = Vec4(1, 0, 0, 0);
 	arrQuat[i].i1 = 4;
 	t = mside;
@@ -921,7 +918,7 @@ uint32 GlobalAnimationHeaderAIM::Debug_AnnotateExamples2(uint32 numPoses, QuadIn
 	t = eside;
 	arrQuat[i].w2 = Vec4(0, 0, 1 - t, t);                           //1-mirrored 0-scaled
 	arrQuat[i].i3 = 0;
-	t = 1.00f;
+
 	arrQuat[i].w3 = Vec4(0, 0, 0, 1);
 	arrQuat[i].col = RGBA8(0xff, 0x00, 0x00, 0xff);
 	arrQuat[i].height = Vec3(0, 0, 0.001f);
@@ -934,7 +931,7 @@ uint32 GlobalAnimationHeaderAIM::Debug_AnnotateExamples2(uint32 numPoses, QuadIn
 	t = eup;
 	arrQuat[i].w1 = Vec4(0, 1 - t, t, 0);                           //3-mirrored 0-scaled
 	arrQuat[i].i2 = 0;
-	t = 1.00f;
+
 	arrQuat[i].w2 = Vec4(0, 0, 1, 0);
 	arrQuat[i].i3 = 1;
 	t = eside;
@@ -944,7 +941,7 @@ uint32 GlobalAnimationHeaderAIM::Debug_AnnotateExamples2(uint32 numPoses, QuadIn
 
 	i = 7;
 	arrQuat[i].i0 = 2;
-	t = 1.00f;
+
 	arrQuat[i].w0 = Vec4(1, 0, 0, 0);
 	arrQuat[i].i1 = 1;
 	t = eside;
@@ -953,7 +950,7 @@ uint32 GlobalAnimationHeaderAIM::Debug_AnnotateExamples2(uint32 numPoses, QuadIn
 	t = mside;
 	arrQuat[i].w2 = Vec4(0, 0, 1 - t, t);                           //4-mirrored 5-scaled
 	arrQuat[i].i3 = 5;
-	t = 1.00f;
+
 	arrQuat[i].w3 = Vec4(0, 0, 0, 1);
 	arrQuat[i].col = RGBA8(0xff, 0x00, 0x00, 0xff);
 	arrQuat[i].height = Vec3(0, 0, 0.001f);
@@ -966,10 +963,10 @@ uint32 GlobalAnimationHeaderAIM::Debug_AnnotateExamples2(uint32 numPoses, QuadIn
 	t = eup;
 	arrQuat[i].w1 = Vec4(0, 1 - t, t, 0);                           //5-mirrored 2-scaled
 	arrQuat[i].i2 = 2;
-	t = 1.00f;
+
 	arrQuat[i].w2 = Vec4(0, 0, 1, 0);
 	arrQuat[i].i3 = 1;
-	t = 1.00f;
+
 	arrQuat[i].w3 = Vec4(0, 0, 0, 1);
 	arrQuat[i].col = RGBA8(0xff, 0x00, 0x00, 0xff);
 	arrQuat[i].height = Vec3(0, 0, 0.001f);
@@ -985,7 +982,7 @@ uint32 GlobalAnimationHeaderAIM::Debug_AnnotateExamples2(uint32 numPoses, QuadIn
 	t = eside;
 	arrQuat[i].w2 = Vec4(0, 0, 1 - t, t);                           //1-mirrored 2-scaled
 	arrQuat[i].i3 = 2;
-	t = 1.0f;
+
 	arrQuat[i].w3 = Vec4(0, 0, 0, 1);
 	arrQuat[i].col = RGBA8(0xff, 0x00, 0x00, 0xff);
 	arrQuat[i].height = Vec3(0, 0, 0.001f);
@@ -995,10 +992,10 @@ uint32 GlobalAnimationHeaderAIM::Debug_AnnotateExamples2(uint32 numPoses, QuadIn
 	t = mside;
 	arrQuat[i].w0 = Vec4(1 - t, t, 0, 0);                           //4-mirrored 3-scaled
 	arrQuat[i].i1 = 3;
-	t = 1.00f;
+
 	arrQuat[i].w1 = Vec4(0, 1, 0, 0);
 	arrQuat[i].i2 = 6;
-	t = 1.00f;
+
 	arrQuat[i].w2 = Vec4(0, 0, 1, 0);
 	arrQuat[i].i3 = 7;
 	t = eside;
@@ -1007,10 +1004,10 @@ uint32 GlobalAnimationHeaderAIM::Debug_AnnotateExamples2(uint32 numPoses, QuadIn
 	arrQuat[i].height = Vec3(0, 0, 0.001f);
 	i = 11;
 	arrQuat[i].i0 = 6;
-	t = 1.00f;
+
 	arrQuat[i].w0 = Vec4(1, 0, 0, 0);
 	arrQuat[i].i1 = 7;
-	t = 1.00f;
+
 	arrQuat[i].w1 = Vec4(0, 1, 0, 0);
 	arrQuat[i].i2 = 4;
 	t = mdown;
@@ -1025,7 +1022,7 @@ uint32 GlobalAnimationHeaderAIM::Debug_AnnotateExamples2(uint32 numPoses, QuadIn
 	t = eside;
 	arrQuat[i].w0 = Vec4(1 - t, t, 0, 0);                           //7-mirrored 6-scaled
 	arrQuat[i].i1 = 6;
-	t = 1.00f;
+
 	arrQuat[i].w1 = Vec4(0, 1, 0, 0);
 	arrQuat[i].i2 = 3;
 	t = edown;
@@ -1038,7 +1035,7 @@ uint32 GlobalAnimationHeaderAIM::Debug_AnnotateExamples2(uint32 numPoses, QuadIn
 
 	i = 13;
 	arrQuat[i].i0 = 5;
-	t = 1.00f;
+
 	arrQuat[i].w0 = Vec4(1, 0, 0, 0);
 	arrQuat[i].i1 = 4;
 	t = mside;
@@ -1047,16 +1044,16 @@ uint32 GlobalAnimationHeaderAIM::Debug_AnnotateExamples2(uint32 numPoses, QuadIn
 	t = eside;
 	arrQuat[i].w2 = Vec4(0, 0, 1 - t, t);                            //7 mirrored 8-scaled
 	arrQuat[i].i3 = 8;
-	t = 1.00f;
+
 	arrQuat[i].w3 = Vec4(0, 0, 0, 1);
 	arrQuat[i].col = RGBA8(0xff, 0x00, 0x00, 0xff);
 	arrQuat[i].height = Vec3(0, 0, 0.001f);
 	i = 14;
 	arrQuat[i].i0 = 7;
-	t = 1.00f;
+
 	arrQuat[i].w0 = Vec4(1, 0, 0, 0);
 	arrQuat[i].i1 = 8;
-	t = 1.00f;
+
 	arrQuat[i].w1 = Vec4(0, 1, 0, 0);
 	arrQuat[i].i2 = 5;
 	t = edown;
@@ -1068,7 +1065,7 @@ uint32 GlobalAnimationHeaderAIM::Debug_AnnotateExamples2(uint32 numPoses, QuadIn
 	arrQuat[i].height = Vec3(0, 0, 0.001f);
 	i = 15;
 	arrQuat[i].i0 = 8;
-	t = 1.00f;
+
 	arrQuat[i].w0 = Vec4(1, 0, 0, 0);
 	arrQuat[i].i1 = 7;
 	t = eside;
@@ -2097,9 +2094,6 @@ uint32 VExampleInit::AnnotateExamples(uint32 numPoses, QuadIndices* arrQuat)
 	if (numPoses != 9)
 		return q * 2;
 
-	uint32 i = -1;
-	f32 t = 0;
-
 	f32 diag = 1.70f;
 
 	f32 eup = 1.60f;
@@ -2111,25 +2105,25 @@ uint32 VExampleInit::AnnotateExamples(uint32 numPoses, QuadIndices* arrQuat)
 	f32 edown = 1.6f;
 	f32 mdown = 1.20f;
 
-	i = 4;
+	uint32 i = 4;
 	arrQuat[i].i0 = 3;
-	t = eup;
+	f32 t = eup;
 	arrQuat[i].w0 = Vec4(1 - t, 0, 0, t);                           //3-mirrored 0-scaled
 	arrQuat[i].i1 = 4;
 	t = mup;
 	arrQuat[i].w1 = Vec4(0, 1 - t, t, 0);                           //4-mirrored 1-scaled
 	arrQuat[i].i2 = 1;
-	t = 1.00f;
+
 	arrQuat[i].w2 = Vec4(0, 0, 1, 0);
 	arrQuat[i].i3 = 0;
-	t = 1.00f;
+
 	arrQuat[i].w3 = Vec4(0, 0, 0, 1);
 	arrQuat[i].col = RGBA8(0xff, 0x00, 0x00, 0xff);
 	arrQuat[i].height = Vec3(0, 0, 0.001f);
 
 	i = 5;
 	arrQuat[i].i0 = 3;
-	t = 1.00f;
+
 	arrQuat[i].w0 = Vec4(1, 0, 0, 0);
 	arrQuat[i].i1 = 4;
 	t = mside;
@@ -2138,7 +2132,7 @@ uint32 VExampleInit::AnnotateExamples(uint32 numPoses, QuadIndices* arrQuat)
 	t = eside;
 	arrQuat[i].w2 = Vec4(0, 0, 1 - t, t);                           //1-mirrored 0-scaled
 	arrQuat[i].i3 = 0;
-	t = 1.00f;
+
 	arrQuat[i].w3 = Vec4(0, 0, 0, 1);
 	arrQuat[i].col = RGBA8(0xff, 0x00, 0x00, 0xff);
 	arrQuat[i].height = Vec3(0, 0, 0.001f);
@@ -2151,7 +2145,7 @@ uint32 VExampleInit::AnnotateExamples(uint32 numPoses, QuadIndices* arrQuat)
 	t = eup;
 	arrQuat[i].w1 = Vec4(0, 1 - t, t, 0);                           //3-mirrored 0-scaled
 	arrQuat[i].i2 = 0;
-	t = 1.00f;
+
 	arrQuat[i].w2 = Vec4(0, 0, 1, 0);
 	arrQuat[i].i3 = 1;
 	t = eside;
@@ -2161,7 +2155,7 @@ uint32 VExampleInit::AnnotateExamples(uint32 numPoses, QuadIndices* arrQuat)
 
 	i = 7;
 	arrQuat[i].i0 = 2;
-	t = 1.00f;
+
 	arrQuat[i].w0 = Vec4(1, 0, 0, 0);
 	arrQuat[i].i1 = 1;
 	t = eside;
@@ -2170,7 +2164,7 @@ uint32 VExampleInit::AnnotateExamples(uint32 numPoses, QuadIndices* arrQuat)
 	t = mside;
 	arrQuat[i].w2 = Vec4(0, 0, 1 - t, t);                           //4-mirrored 5-scaled
 	arrQuat[i].i3 = 5;
-	t = 1.00f;
+
 	arrQuat[i].w3 = Vec4(0, 0, 0, 1);
 	arrQuat[i].col = RGBA8(0xff, 0x00, 0x00, 0xff);
 	arrQuat[i].height = Vec3(0, 0, 0.001f);
@@ -2183,10 +2177,10 @@ uint32 VExampleInit::AnnotateExamples(uint32 numPoses, QuadIndices* arrQuat)
 	t = eup;
 	arrQuat[i].w1 = Vec4(0, 1 - t, t, 0);                           //5-mirrored 2-scaled
 	arrQuat[i].i2 = 2;
-	t = 1.00f;
+
 	arrQuat[i].w2 = Vec4(0, 0, 1, 0);
 	arrQuat[i].i3 = 1;
-	t = 1.00f;
+
 	arrQuat[i].w3 = Vec4(0, 0, 0, 1);
 	arrQuat[i].col = RGBA8(0xff, 0x00, 0x00, 0xff);
 	arrQuat[i].height = Vec3(0, 0, 0.001f);
@@ -2202,7 +2196,7 @@ uint32 VExampleInit::AnnotateExamples(uint32 numPoses, QuadIndices* arrQuat)
 	t = eside;
 	arrQuat[i].w2 = Vec4(0, 0, 1 - t, t);                           //1-mirrored 2-scaled
 	arrQuat[i].i3 = 2;
-	t = 1.0f;
+
 	arrQuat[i].w3 = Vec4(0, 0, 0, 1);
 	arrQuat[i].col = RGBA8(0xff, 0x00, 0x00, 0xff);
 	arrQuat[i].height = Vec3(0, 0, 0.001f);
@@ -2212,10 +2206,10 @@ uint32 VExampleInit::AnnotateExamples(uint32 numPoses, QuadIndices* arrQuat)
 	t = mside;
 	arrQuat[i].w0 = Vec4(1 - t, t, 0, 0);                           //4-mirrored 3-scaled
 	arrQuat[i].i1 = 3;
-	t = 1.00f;
+
 	arrQuat[i].w1 = Vec4(0, 1, 0, 0);
 	arrQuat[i].i2 = 6;
-	t = 1.00f;
+
 	arrQuat[i].w2 = Vec4(0, 0, 1, 0);
 	arrQuat[i].i3 = 7;
 	t = eside;
@@ -2224,10 +2218,10 @@ uint32 VExampleInit::AnnotateExamples(uint32 numPoses, QuadIndices* arrQuat)
 	arrQuat[i].height = Vec3(0, 0, 0.001f);
 	i = 11;
 	arrQuat[i].i0 = 6;
-	t = 1.00f;
+
 	arrQuat[i].w0 = Vec4(1, 0, 0, 0);
 	arrQuat[i].i1 = 7;
-	t = 1.00f;
+
 	arrQuat[i].w1 = Vec4(0, 1, 0, 0);
 	arrQuat[i].i2 = 4;
 	t = mdown;
@@ -2242,7 +2236,7 @@ uint32 VExampleInit::AnnotateExamples(uint32 numPoses, QuadIndices* arrQuat)
 	t = eside;
 	arrQuat[i].w0 = Vec4(1 - t, t, 0, 0);                           //7-mirrored 6-scaled
 	arrQuat[i].i1 = 6;
-	t = 1.00f;
+
 	arrQuat[i].w1 = Vec4(0, 1, 0, 0);
 	arrQuat[i].i2 = 3;
 	t = edown;
@@ -2255,7 +2249,7 @@ uint32 VExampleInit::AnnotateExamples(uint32 numPoses, QuadIndices* arrQuat)
 
 	i = 13;
 	arrQuat[i].i0 = 5;
-	t = 1.00f;
+
 	arrQuat[i].w0 = Vec4(1, 0, 0, 0);
 	arrQuat[i].i1 = 4;
 	t = mside;
@@ -2264,16 +2258,16 @@ uint32 VExampleInit::AnnotateExamples(uint32 numPoses, QuadIndices* arrQuat)
 	t = eside;
 	arrQuat[i].w2 = Vec4(0, 0, 1 - t, t);                            //7 mirrored 8-scaled
 	arrQuat[i].i3 = 8;
-	t = 1.00f;
+
 	arrQuat[i].w3 = Vec4(0, 0, 0, 1);
 	arrQuat[i].col = RGBA8(0xff, 0x00, 0x00, 0xff);
 	arrQuat[i].height = Vec3(0, 0, 0.001f);
 	i = 14;
 	arrQuat[i].i0 = 7;
-	t = 1.00f;
+
 	arrQuat[i].w0 = Vec4(1, 0, 0, 0);
 	arrQuat[i].i1 = 8;
-	t = 1.00f;
+
 	arrQuat[i].w1 = Vec4(0, 1, 0, 0);
 	arrQuat[i].i2 = 5;
 	t = edown;
@@ -2285,7 +2279,7 @@ uint32 VExampleInit::AnnotateExamples(uint32 numPoses, QuadIndices* arrQuat)
 	arrQuat[i].height = Vec3(0, 0, 0.001f);
 	i = 15;
 	arrQuat[i].i0 = 8;
-	t = 1.00f;
+
 	arrQuat[i].w0 = Vec4(1, 0, 0, 0);
 	arrQuat[i].i1 = 7;
 	t = eside;

@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #if !defined(AFX_FUNCTIONHANDLER_H__CB02D9A1_DFAA_4DA3_8DF7_E2E8769F4ECE__INCLUDED_)
 #define AFX_FUNCTIONHANDLER_H__CB02D9A1_DFAA_4DA3_8DF7_E2E8769F4ECE__INCLUDED_

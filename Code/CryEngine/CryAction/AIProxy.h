@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 /********************************************************************
    CryGame Source File.
@@ -81,7 +81,7 @@ public:
 	virtual bool                     SetCharacter(const char* character, const char* behaviour = NULL);
 	virtual const char*              GetCharacter();
 #endif
-	virtual void                     QueryBodyInfo(SAIBodyInfo& bodyInfo);
+	virtual bool                     QueryBodyInfo(SAIBodyInfo& bodyInfo);
 	virtual bool                     QueryBodyInfo(const SAIBodyInfoQuery& query, SAIBodyInfo& bodyInfo);
 	virtual void                     QueryWeaponInfo(SAIWeaponInfo& weaponInfo);
 	virtual EntityId                 GetLinkedDriverEntityId();
@@ -146,6 +146,8 @@ public:
 	virtual const char*               GetPreviousBehaviorName() const;
 	virtual void                      UpdateMeAlways(bool doUpdateMeAlways);
 	virtual void                      ResendTargetSignalsNextFrame();
+
+	virtual void                      OnActorRemoved();
 	//------------------  ~IAIActorProxy
 
 	void        SetMinFireTime(float fTime) { m_fMinFireTime = fTime; }
@@ -200,6 +202,11 @@ protected:
 	static Vec3      GetPointOnParabula(const Vec3& A, const Vec3& V, float t, float g);
 	static bool      IntersectSweptSphereWrapper(Vec3* hitPos, float& hitDist, const Lineseg& lineseg, float radius, IPhysicalEntity** pSkipEnts = 0, int nSkipEnts = 0, int additionalFilter = 0);
 
+private:
+	static EntityId GetActorCurrentWeapon(IActor& actor);
+	static IWeapon* GetWeaponByEntityId(EntityId eid);
+
+private:
 	// (MATT) We currently have no way to serialise this. It may be possible to recovery from the entity. Currently must keep between serialisations {2009/04/30}
 	IGameObject* m_pGameObject;
 

@@ -1,0 +1,15 @@
+<AssetMetadata version="0" type="Texture" guid="a32c2cb5-b5f0-14a2-e29c-2fd99d1f1344" source="hiteffect_blurmask_ddn.tif">
+ <Files>
+  <File path="hiteffect_blurmask_ddn.dds"/>
+  <File path="hiteffect_blurmask_ddn.dds.1"/>
+  <File path="hiteffect_blurmask_ddn.dds.2"/>
+  <File path="hiteffect_blurmask_ddn.dds.3"/>
+  <File path="hiteffect_blurmask_ddn.dds.4"/>
+  <File path="hiteffect_blurmask_ddn.dds.5"/>
+ </Files>
+ <Details>
+  <Detail name="width">512</Detail>
+  <Detail name="height">512</Detail>
+  <Detail name="mipCount">8</Detail>
+ </Details>
+</AssetMetadata>

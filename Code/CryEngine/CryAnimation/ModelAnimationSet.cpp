@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "stdafx.h"
 #include "ModelAnimationSet.h"
@@ -1130,8 +1130,9 @@ const char* CAnimationSet::GetDBAFilePath(const uint32 nAnimationId) const
 	int32 globalID = header.m_nGlobalAnimId;
 	if (header.m_nAssetType == CAF_File)
 	{
+		const CAnimationManager& animationManager = g_pCharacterManager->GetAnimationManager();
 		assert(globalID >= 0);
-		assert(globalID < g_AnimationManager.m_arrGlobalCAF.size());
+		assert(globalID < animationManager.m_arrGlobalCAF.size());
 		return g_pCharacterManager->GetDBAFilePathByGlobalID(globalID);
 	}
 	else
@@ -1150,9 +1151,10 @@ uint32 CAnimationSet::GetTotalPosKeys(const uint32 nAnimationId) const
 
 	if (header.m_nAssetType == CAF_File)
 	{
+		const CAnimationManager& animationManager = g_pCharacterManager->GetAnimationManager();
 		assert(globalID >= 0);
-		assert(globalID < g_AnimationManager.m_arrGlobalCAF.size());
-		return g_AnimationManager.m_arrGlobalCAF[globalID].GetTotalPosKeys();
+		assert(globalID < animationManager.m_arrGlobalCAF.size());
+		return animationManager.m_arrGlobalCAF[globalID].GetTotalPosKeys();
 	}
 	return 0;
 }
@@ -1167,9 +1169,10 @@ uint32 CAnimationSet::GetTotalRotKeys(const uint32 nAnimationId) const
 
 	if (header.m_nAssetType == CAF_File)
 	{
+		const CAnimationManager& animationManager = g_pCharacterManager->GetAnimationManager();
 		assert(globalID >= 0);
-		assert(globalID < g_AnimationManager.m_arrGlobalCAF.size());
-		return g_AnimationManager.m_arrGlobalCAF[globalID].GetTotalRotKeys();
+		assert(globalID < animationManager.m_arrGlobalCAF.size());
+		return animationManager.m_arrGlobalCAF[globalID].GetTotalRotKeys();
 	}
 	return 0;
 }

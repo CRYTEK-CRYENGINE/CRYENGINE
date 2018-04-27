@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 /*************************************************************************
    -------------------------------------------------------------------------
@@ -45,11 +45,7 @@ void CRConServerListener::Update()
 	for (TCommandsMap::const_iterator it = m_commands.begin(); it != m_commands.end(); ++it)
 	{
 		gEnv->pConsole->AddOutputPrintSink(this);
-#if defined(CVARS_WHITELIST)
-		ICVarsWhitelist* pCVarsWhitelist = gEnv->pSystem->GetCVarsWhiteList();
-		bool execute = (pCVarsWhitelist) ? pCVarsWhitelist->IsWhiteListed(it->second.c_str(), false) : true;
-		if (execute)
-#endif // defined(CVARS_WHITELIST)
+		if (gEnv->pSystem->IsCVarWhitelisted(it->second.c_str(), false))
 		{
 			gEnv->pConsole->ExecuteString(it->second.c_str());
 		}

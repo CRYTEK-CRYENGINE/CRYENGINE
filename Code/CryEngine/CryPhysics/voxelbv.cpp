@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 
@@ -11,7 +11,7 @@
 
 struct InitVoxgridGlobals {
 	InitVoxgridGlobals() {
-		for(int iCaller=0; iCaller<=MAX_PHYS_THREADS; iCaller++) {
+		for(int iCaller=0; iCaller<MAX_TOT_THREADS; iCaller++) {
 			g_BVvox.iNode = 0;
 			g_BVvox.type = voxelgrid::type;
 		}

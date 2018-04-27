@@ -1,4 +1,4 @@
-# Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+# Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 from waflib.Configure import conf
 from waflib.TaskGen import feature, after_method, before_method, extension

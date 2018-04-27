@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 // stdafx.h : include file for standard system include files,
 // or project specific include files that are used frequently, but
@@ -39,5 +39,5 @@ typedef string tstring;
 
 #include <CryRenderer/VertexFormats.h>
 
-#include "..\ResourceCompiler\IRCLog.h"
-#include "..\ResourceCompiler\SwapEndianness.h"
+#include <IRCLog.h>
+#include <SwapEndianness.h>

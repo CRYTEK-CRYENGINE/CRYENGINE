@@ -36,7 +36,8 @@ end_sources()
 
 if (PHYSICS_PHYSX)
 
-	link_directories( "${SDK_DIR}/PhysX/Lib/vc14win64" )
+	link_directories( "${SDK_DIR}/PhysX/SDK/Lib/vc14win64" )
+	link_directories( "${SDK_DIR}/PhysX/Shared/Lib/vc14win64" )
 	# if (MSVC_VERSION EQUAL 1900)     # Visual Studio 2015
 		# link_directories( ${SDK_DIR}/PhysX-3.3/PhysXSDK/Lib/vc14win64 )
 	# elseif (MSVC_VERSION EQUAL 1800) # Visual Studio 2013
@@ -47,7 +48,8 @@ if (PHYSICS_PHYSX)
 
 
 	CryEngineModule(CryPhysX PCH "StdAfx.cpp" SOLUTION_FOLDER "CryEngine")
-	target_include_directories( ${THIS_PROJECT} PRIVATE "${SDK_DIR}/PhysX/Include" )
+	target_include_directories( ${THIS_PROJECT} PRIVATE "${SDK_DIR}/PhysX/SDK/Include" )
+	target_include_directories( ${THIS_PROJECT} PRIVATE "${SDK_DIR}/PhysX/Shared/Include" )
 
 else()
 	CryFileContainer(CryPhysX SOLUTION_FOLDER "CryEngine")

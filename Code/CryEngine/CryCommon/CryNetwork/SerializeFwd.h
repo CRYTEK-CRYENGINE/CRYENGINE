@@ -1,13 +1,8 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
-//
-//	File: SerializeFwd.h
-//  Description: forward declaration of TSerialize
-//
-//	History:
-//	-12/05/2005: Kirill Bulatsev, Created
-//
-//////////////////////////////////////////////////////////////////////
+#pragma once
+
+//  Description: Forward declaration of TSerialize
 
 template<class T> class CSerializeWrapper;
 struct ISerialize;

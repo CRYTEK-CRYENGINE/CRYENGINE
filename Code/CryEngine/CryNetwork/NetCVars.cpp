@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "NetCVars.h"
@@ -14,6 +14,7 @@ CNetCVars* CNetCVars::s_pThis;
 void DumpMessageApproximations(IConsoleCmdArgs* pArgs);
 #endif
 
+#if USE_NETID_PACKING
 static void OnNetIDBitsChanged(ICVar* pCVar)
 {
 	CNetCVars& netCVars = CNetCVars::Get();
@@ -25,6 +26,7 @@ static void OnNetIDBitsChanged(ICVar* pCVar)
 	netCVars.net_numNetIDs = netCVars.net_netIDHighBitStart + netCVars.net_numNetIDHighBitIDs;
 	netCVars.net_invalidNetID = netCVars.net_numNetIDLowBitIDs;
 }
+#endif // USE_NETID_PACKING
 
 CNetCVars::CNetCVars()
 {
@@ -41,7 +43,8 @@ CNetCVars::CNetCVars()
 	#endif
 #endif
 
-	REGISTER_CVAR2_DEV_ONLY("cl_tokenid", &TokenId, 0, 0, "Token id expected from client player during connection");
+	REGISTER_CVAR2("cl_profile", &ProfileId, 0, 0, "Profile id expected from client player during connection");
+	REGISTER_CVAR2("cl_tokenid", &TokenId, 0, 0, "Token id expected from client player during connection");
 
 	//	REGISTER_CVAR2( "sys_network_CPU", &CPU, 1, 0, "Run network multithreaded" );
 	REGISTER_CVAR2("net_log", &LogLevel, 0, 0, "Logging level of network system");
@@ -265,11 +268,13 @@ CNetCVars::CNetCVars()
 	REGISTER_COMMAND_DEV_ONLY("net_DumpMessageApproximations", DumpMessageApproximations, VF_NULL, "Dumps the statistics used for message queue limit avoidance");
 #endif
 
+#if USE_NETID_PACKING
 	REGISTER_CVAR_CB(net_numNetIDLowBitBits, 5, VF_CHEAT, "Number of bits used for low bit NetIDs. By default players start allocating from low bit NetIDs.", OnNetIDBitsChanged);
 	REGISTER_CVAR_CB(net_numNetIDMediumBitBits, 9, VF_CHEAT, "Number of bits used for medium bit NetIDs. By default dynamic entities start allocating from medium bit NetIDs.", OnNetIDBitsChanged);
-	REGISTER_CVAR_CB(net_numNetIDHighBitBits, 11, VF_CHEAT, "Number of bits used for high bit NetIDs. By default static entities start allocating from high bit NetIDs.", OnNetIDBitsChanged);
+	REGISTER_CVAR_CB(net_numNetIDHighBitBits, 13, VF_CHEAT, "Number of bits used for high bit NetIDs. By default static entities start allocating from high bit NetIDs.", OnNetIDBitsChanged);
 
 	OnNetIDBitsChanged(NULL);
+#endif // USE_NETID_PACKING
 
 	REGISTER_CVAR2_DEDI_ONLY("net_dedi_scheduler_server_port", &net_dedi_scheduler_server_port, 47264, VF_NULL, "Dedi scheduler server port");
 	REGISTER_CVAR2_DEDI_ONLY("net_dedi_scheduler_client_base_port", &net_dedi_scheduler_client_base_port, 47265, VF_NULL, "Dedi scheduler client base port");
@@ -323,7 +328,7 @@ void CNetCVars::Stall(IConsoleCmdArgs* pArgs)
 	{
 		NetLogAlways("Sleeping for %f seconds", -stallTime);
 		SCOPED_GLOBAL_LOCK;
-		Sleep((DWORD)(-1000.0f * stallTime));
+		CrySleep((DWORD)(-1000.0f * stallTime));
 	}
 }
 #endif

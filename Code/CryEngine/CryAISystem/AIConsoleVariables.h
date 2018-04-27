@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #ifndef AICONSOLEVARIABLES_H
 #define AICONSOLEVARIABLES_H
@@ -13,11 +13,10 @@ struct AIConsoleVars
 	DeclareConstIntCVar(UseCalculationStopperCounter, 0);
 	DeclareConstIntCVar(DebugDraw, -1);
 
-	DeclareConstIntCVar(CoverMaxEyeCount, 2);
 	DeclareConstIntCVar(DebugDrawCover, 0);
 	DeclareConstIntCVar(DebugDrawCoverOccupancy, 0);
 	DeclareConstIntCVar(DebugDrawNavigation, 0);
-	DeclareConstIntCVar(IslandConnectionsSystemProfileMemory, 0);
+	DeclareConstIntCVar(DebugTriangleOnCursor, 0);
 	DeclareConstIntCVar(DebugDrawNavigationWorldMonitor, 0);
 	DeclareConstIntCVar(NavigationSystemMT, 1);
 	DeclareConstIntCVar(NavGenThreadJobs, 1);
@@ -30,47 +29,33 @@ struct AIConsoleVars
 	DeclareConstIntCVar(CoverSystem, 1);
 	DeclareConstIntCVar(CoverExactPositioning, 0);
 	DeclareConstIntCVar(NetworkDebug, 0);
-	DeclareConstIntCVar(DebugDrawHideSpotRange, 0);
 	DeclareConstIntCVar(DebugDrawDynamicHideObjectsRange, 0);
-	DeclareConstIntCVar(DebugDrawVolumeVoxels, 0);
 	DeclareConstIntCVar(DebugPathFinding, 0);
-	DeclareConstIntCVar(DebugCheckWalkability, 0);
-	DeclareConstIntCVar(DebugWalkabilityCache, 0);
 	DeclareConstIntCVar(DebugDrawBannedNavsos, 0);
 	DeclareConstIntCVar(DebugDrawGroups, 0);
 	DeclareConstIntCVar(DebugDrawCoolMisses, 0);
 	DeclareConstIntCVar(DebugDrawFireCommand, 0);
-	DeclareConstIntCVar(UseSimplePathfindingHeuristic, 0);
 
 	DeclareConstIntCVar(DebugDrawCommunication, 0);
 	DeclareConstIntCVar(DebugDrawCommunicationHistoryDepth, 5);
 	DeclareConstIntCVar(RecordCommunicationStats, 0);
 	DeclareConstIntCVar(CommunicationForceTestVoicePack, 0);
-	DeclareConstIntCVar(SoundPerception, 1);
 	DeclareConstIntCVar(IgnorePlayer, 0);
 	DeclareConstIntCVar(IgnoreVisibilityChecks, 0);
-	DeclareConstIntCVar(DrawModifiers, 0);
-	DeclareConstIntCVar(AllTime, 0);
-	DeclareConstIntCVar(ProfileGoals, 0);
 	DeclareConstIntCVar(BeautifyPath, 1);
 	DeclareConstIntCVar(PathStringPullingIterations, 5);
 	DeclareConstIntCVar(AttemptStraightPath, 1);
 	DeclareConstIntCVar(PredictivePathFollowing, 1);
-	DeclareConstIntCVar(CrowdControlInPathfind, 0);
 	DeclareConstIntCVar(DebugDrawCrowdControl, 0);
 	DeclareConstIntCVar(UpdateProxy, 1);
 	DeclareConstIntCVar(DrawType, -1);
 	DeclareConstIntCVar(AdjustPathsAroundDynamicObstacles, 1);
 	DeclareConstIntCVar(DrawFormations, 0);
 	DeclareConstIntCVar(DrawSmartObjects, 0);
-	DeclareConstIntCVar(DrawReadibilities, 0);
 	DeclareConstIntCVar(DrawGoals, 0);
-	DeclareConstIntCVar(DrawNodeLinkType, 0);
 	DeclareConstIntCVar(DrawTargets, 0);
-	DeclareConstIntCVar(DrawBadAnchors, -1);
 	DeclareConstIntCVar(DrawStats, 0);
 	DeclareConstIntCVar(DrawAttentionTargetsPosition, 0);
-	DeclareConstIntCVar(DrawHideSpotSearchRays, 0);
 
 	DeclareConstIntCVar(DebugDrawVegetationCollisionDist, 0);
 	DeclareConstIntCVar(RecordLog, 0);
@@ -120,11 +105,8 @@ struct AIConsoleVars
 	DeclareConstIntCVar(DebugDrawReinforcements, -1);
 	DeclareConstIntCVar(DebugDrawPlayerActions, 0);
 
-	DeclareConstIntCVar(SimpleWayptPassability, 1);
-
 	DeclareConstIntCVar(WaterOcclusionEnable, 1);
 
-	DeclareConstIntCVar(EnablePerceptionStanceVisibleRange, 0);
 	DeclareConstIntCVar(IgnoreVisualStimulus, 0);
 	DeclareConstIntCVar(IgnoreSoundStimulus, 0);
 	DeclareConstIntCVar(IgnoreBulletRainStimulus, 0);
@@ -134,12 +116,8 @@ struct AIConsoleVars
 	DeclareConstIntCVar(DebugInterest, 0);
 	DeclareConstIntCVar(InterestSystemCastRays, 1);
 
-	// Code coverage
-	DeclareConstIntCVar(CodeCoverage, 0);
-
 	// Path Follower
 	DeclareConstIntCVar(UseSmartPathFollower, 1);
-	DeclareConstIntCVar(SmartpathFollower_UseAABB_CheckWalkibility, 1);
 	DeclareConstIntCVar(SmartPathFollower_useAdvancedPathShortcutting, 1);
 	DeclareConstIntCVar(SmartPathFollower_useAdvancedPathShortcutting_debug, 0);
 
@@ -171,8 +149,6 @@ struct AIConsoleVars
 	DeclareConstIntCVar(AllowedToHitPlayer, 1);
 	DeclareConstIntCVar(AllowedToHit, 1);
 	DeclareConstIntCVar(EnableCoolMisses, 1);
-
-	DeclareConstIntCVar(DynamicHidespotsEnabled, 0);
 
 	DeclareConstIntCVar(ForceSerializeAllObjects, 0);
 
@@ -206,19 +182,14 @@ struct AIConsoleVars
 	const char* DrawPath;
 	const char* DrawPathAdjustment;
 
-	float       CheckWalkabilityOptimalSectionLength;
 	float       TacticalPointUpdateTime;
 	const char* CompatibilityMode;
 	float       AllowedTimeForPathfinding;
-	float       PathfinderUpdateTime;
 	float       DrawAgentFOV;
 	const char* FilterAgentName;
 	float       AgentStatsDist;
 	int         AiSystem;
 	float       DebugDrawArrowLabelsVisibilityDistance;
-	const char* DebugDrawAStarOpenList;
-	float       DebugDrawAStarOpenListTime;
-	float       DebugCheckWalkabilityRadius;
 
 	float       CoverPredictTarget;
 	float       CoverSpacing;
@@ -241,8 +212,6 @@ struct AIConsoleVars
 	const char* DebugDrawCollisionAvoidanceAgentName;
 
 	const char* DrawRefPoints;
-	const char* DrawNode;
-	float       DrawNodeLinkCutoff;
 	const char* DrawLocate;
 	float       DebugDrawOffset;
 	float       SteepSlopeUpValue;
@@ -250,13 +219,7 @@ struct AIConsoleVars
 	float       ExtraRadiusDuringBeautification;
 	float       ExtraForbiddenRadiusDuringBeautification;
 	const char* DrawShooting;
-	float       BurstWhileMovingDestinationRange;
 	const char* DrawAgentStats;
-
-	const char* DebugHideSpotName;
-
-	float       SOMSpeedRelaxed;
-	float       SOMSpeedCombat;
 
 	float       SightRangeSuperDarkIllumMod;
 	float       SightRangeDarkIllumMod;
@@ -307,13 +270,9 @@ struct AIConsoleVars
 	float       ExtraVehicleAvoidanceRadiusBig;
 	float       ExtraVehicleAvoidanceRadiusSmall;
 	float       ObstacleSizeThreshold;
-	float       DrawGetEnclosingFailures;
-
-	// Perception handler override
-	float       CrouchVisibleRange;
-	float       ProneVisibleRange;
 
 	int         MNMDebugAccessibility; // TODO: remove
+	const char* MNMDebugDrawFlag;
 
 	int         MNMEditorBackgroundUpdate;
 

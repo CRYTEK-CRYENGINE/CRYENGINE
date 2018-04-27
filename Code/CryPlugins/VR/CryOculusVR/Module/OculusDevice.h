@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -25,21 +25,20 @@ public:
 	virtual void                    GetDeviceInfo(HmdDeviceInfo& info) const override { info = m_devInfo; }
 
 	virtual void                    GetCameraSetupInfo(float& fov, float& aspectRatioFactor) const override;
-	virtual void                    GetAsymmetricCameraSetupInfo(int nEye, float& fov, float& aspectRatio, float& asymH, float& asymV, float& eyeDist) const;
+	virtual HMDCameraSetup GetHMDCameraSetup(int nEye, float projRatio, float fnear) const;
 	virtual void                    UpdateInternal(EInternalUpdate type) override;
 	virtual void                    RecenterPose() override;
-	virtual void                    UpdateTrackingState(EVRComponent type) override;
+	virtual void                    UpdateTrackingState(EVRComponent type, int frameId) override;
 	virtual const HmdTrackingState& GetNativeTrackingState() const override;
 	virtual const HmdTrackingState& GetLocalTrackingState() const override;
-	virtual Quad GetPlayArea() const override { return Quad(ZERO); }
-	virtual Vec2 GetPlayAreaSize() const override { return Vec2(ZERO); }
+	virtual Quad                    GetPlayArea() const override { return Quad(ZERO); }
+	virtual Vec2                    GetPlayAreaSize() const override { return Vec2(ZERO); }
 	virtual const IHmdController*   GetController() const override { return &m_controller; }
-	virtual const EHmdSocialScreen  GetSocialScreenType(bool* pKeepAspect = nullptr) const override;
 	virtual void                    DisableHMDTracking(bool disable) override;
 	virtual void                    GetPreferredRenderResolution(unsigned int& width, unsigned int& height) override;
 	virtual int                     GetControllerCount() const override;
-	virtual void                    SetAsynCameraCallback(IAsyncCameraCallback* pCallback) override;
-	virtual bool                    RequestAsyncCameraUpdate(AsyncCameraContext& context) override;
+
+	virtual stl::optional<Matrix34> RequestAsyncCameraUpdate(int frameId, const Quat& q, const Vec3 &p) override;
 	// ~IHMDDevice interface
 
 	// IOculusDevice interface
@@ -51,10 +50,23 @@ public:
 
 	virtual void DestroySwapTextureSet(STextureSwapChain* set) override;
 	virtual void DestroyMirrorTexture(STexture* texture) override;
-	virtual void PrepareTexture(STextureSwapChain* set, uint32 frameIndex) override {}; // dario: integration: still needed?
-	virtual void SubmitFrame(const SHmdSubmitFrameData pData) override;
+
+	/* 
+	 *	Rendering order: 
+	 * 1. UpdateTrackingState() should be called from main thread.
+	 * 2. PrepareFrame() should be called first and can be called from any thread.
+	 * 3. BeginFrame() should be called from render thread before submitting any rendering commands.
+	 * 4. SubmitFrame() should be called from render thread to finiliaze a frame.
+	 *
+	 *	If the return is DeviceLost. Device needs to be destroyed and recreated along with all textures and swapchains.
+	*/	
+	virtual OculusStatus PrepareFrame(int frameId) override;
+	virtual OculusStatus BeginFrame() override;
+	virtual OculusStatus SubmitFrame(const SHmdSubmitFrameData& data) override;
 
 	virtual int  GetCurrentSwapChainIndex(void* pSwapChain) const override;
+
+	virtual void CreateDevice() override;
 	// ~IOculusDevice interface
 
 	// IVRCmdListener
@@ -77,7 +89,6 @@ private:
 	Device();
 	virtual ~Device();
 
-	void CreateDevice();
 	void PrintHmdInfo();
 
 private:
@@ -98,7 +109,7 @@ private:
 
 private:
 	SRenderParameters& GetFrameRenderParameters();
-	float              UpdateCurrentIPD();
+	float              GetCurrentIPD() const;
 	void               DebugDraw(float& xPosLabel, float& yPosLabel) const;
 	bool               UpdateEyeFovLayer(ovrLayerEyeFov& layer, const SHmdSwapChainInfo* pEyeTarget, const SRenderParameters& frameParams);
 	bool               UpdateQuadLayer(ovrLayerQuad& layer, const SHmdSwapChainInfo* pEyeTarget);
@@ -122,10 +133,11 @@ private:
 
 	enum { BUFFER_SIZE_RENDER_PARAMS = 2 };
 	SRenderParameters     m_frameRenderParams[BUFFER_SIZE_RENDER_PARAMS]; // double buffer params since write happens in main thread and read in render thread
+	int                   m_currentFrameId;
 
 	ovrFovPort            m_eyeFovSym;
 
-	ovrVector3f           m_eyeRenderHmdToEyeOffset[ovrEye_Count];
+	ovrPosef              m_eyeRenderHmdToEyeOffset[ovrEye_Count];
 
 	SDeviceLayers         m_layers;
 
@@ -134,8 +146,6 @@ private:
 	ovrSizei              m_preferredSize; //query & cache preferred texture size to map the texture/screen resolution 1:1
 
 	bool                  m_disableHeadTracking;
-
-	IAsyncCameraCallback* m_pAsyncCameraCallback;
 
 	ICVar*                m_pHmdInfoCVar;
 	ICVar*                m_pHmdSocialScreenKeepAspectCVar;

@@ -1,16 +1,6 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
-// -------------------------------------------------------------------------
-//  File name:   TypeList.h
-//  Version:     v1.00
-//  Created:     02/25/2009 by CarstenW
-//  Description: Part of CryEngine's extension framework.
-// -------------------------------------------------------------------------
-//
-////////////////////////////////////////////////////////////////////////////
-
-#ifndef _TYPELIST_H_
-#define _TYPELIST_H_
+//! \cond INTERNAL
 
 #pragma once
 
@@ -195,4 +185,4 @@ public:
 
 }
 
-#endif // #ifndef _TYPELIST_H_
+//! \endcond

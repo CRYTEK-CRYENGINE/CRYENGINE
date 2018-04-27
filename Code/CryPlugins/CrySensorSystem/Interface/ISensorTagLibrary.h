@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -6,15 +6,22 @@
 
 #include "ISensorSystem.h"
 
-enum class ESensorTags : uint32 {};
-
-typedef CEnumFlags<ESensorTags> SensorTags;
-
-struct ISensorTagLibrary
+namespace Cry
 {
-	virtual ~ISensorTagLibrary() {}
+	namespace SensorSystem
+	{
+		enum class ESensorTags : uint32 {};
 
-	virtual SensorTags CreateTag(const char* szTagName) = 0;
-	virtual SensorTags GetTag(const char* szTagName) const = 0;
-	virtual void GetTagNames(DynArray<const char*>& tagNames, SensorTags tags) const = 0;
-};
+		typedef CEnumFlags<ESensorTags> SensorTags;
+
+		struct ISensorTagLibrary
+		{
+			virtual ~ISensorTagLibrary() {}
+
+			virtual SensorTags CreateTag(const char* szTagName) = 0;
+			virtual SensorTags GetTag(const char* szTagName) const = 0;
+			virtual void GetTagNames(DynArray<const char*>& tagNames, SensorTags tags) const = 0;
+		};
+
+	}
+}

@@ -10,6 +10,7 @@ add_sources("CryAudioImpl_uber_0.cpp"
 		"AudioImpl.h"
 		"AudioImplCVars.h"
 		"Common.h"
+		"GlobalData.h"
 		"resource.h"
 		"SoundEngine.h"
 		"SoundEngineTypes.h"
@@ -33,17 +34,18 @@ end_sources()
 #END-FILE-LIST
 
 if(AUDIO_SDL_MIXER)
-	CryEngineModule(CryAudioImplSDLMixer FORCE_SHARED PCH "stdafx.cpp" SOLUTION_FOLDER "CryEngine/Audio/Implementations")
+	CryEngineModule(CryAudioImplSDLMixer FORCE_SHARED_WIN PCH "stdafx.cpp" SOLUTION_FOLDER "CryEngine/Audio/Implementations")
 	target_link_libraries(${THIS_PROJECT} PRIVATE
 		SDL2
 		sdl_mixer_static
 		timidity
 		native_midi
 		flac_static
+		libogg_static
 		libmikmod_static
 		libvorbis_static
 		libvorbisfile
-	)
+		)
 
 	if(LINUX OR ANDROID)
 		target_link_libraries(${THIS_PROJECT} PRIVATE libmodplug_static)
@@ -52,4 +54,43 @@ if(AUDIO_SDL_MIXER)
 	target_include_directories(${THIS_PROJECT} PRIVATE ../../Common)
 else()
 	CryFileContainer(CryAudioImplSDLMixer SOLUTION_FOLDER "CryEngine/Audio/Implementations")
+endif()
+if (ORBIS OR CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+	target_compile_options(${THIS_PROJECT} PRIVATE
+		-Wno-unknown-pragmas
+		-Wno-unused-variable
+		-Wno-reorder
+		-Wno-parentheses
+		-Wno-format
+		-Wno-switch
+		-Wno-unused-value
+		-Wno-comment
+		-Wno-empty-body
+		-Wno-format-security
+		-Wno-unused-function
+		-Wno-multichar
+		-Wno-unused-private-field
+	)
+elseif(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+	target_compile_options(${THIS_PROJECT} PRIVATE
+		-Wno-unused-function
+		-Wno-unused-value
+		-Wno-unused-variable
+		-Wno-sign-compare
+		-Wno-ignored-attributes
+		-Wno-int-in-bool-context
+		-Wno-unused-but-set-variable
+		-Wno-misleading-indentation
+		-Wno-strict-aliasing
+		-Wno-maybe-uninitialized
+		-Wno-unknown-pragmas
+		-Wno-unused-const-variable
+		-Wno-multichar
+		-Wno-char-subscripts
+		-Wno-parentheses
+		-Wno-comment
+		-Wno-address
+		-Wno-format
+		-Wno-switch
+	)
 endif()

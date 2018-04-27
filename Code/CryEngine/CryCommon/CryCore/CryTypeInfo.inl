@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 //
 //	File: CryTypeInfo.cpp
@@ -432,7 +432,7 @@ inline cstr DisplayName(cstr name)
 }
 
 CStructInfo::CStructInfo(cstr name, size_t size, size_t align, Array<CVarInfo> vars, Array<CTypeInfo const*> templates)
-	: CTypeInfo(name, size, align), Vars(vars), TemplateTypes(templates), HasBitfields(false)
+	: CTypeInfo(name, size, align), Vars(vars), HasBitfields(false), TemplateTypes(templates)
 {
 	// Process and validate offsets and sizes.
 	if (Vars.size() > 0)

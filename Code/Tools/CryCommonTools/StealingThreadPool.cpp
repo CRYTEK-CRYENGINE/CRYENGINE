@@ -1,15 +1,17 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
-#include "stdafx.h"
+#include "StdAfx.h"
 #include "StealingThreadPool.h"
 #include "ResourceCompiler.h"
+
+#include <condition_variable>
 
 namespace ThreadUtils {
 
 class StealingWorker
 {
 public:
-	StealingWorker(StealingThreadPool* pool, int index, bool trace, ConditionVariable &jobsCV)
+	StealingWorker(StealingThreadPool* pool, int index, bool trace, std::condition_variable_any &jobsCV)
 	: m_pool(pool)
 	, m_index(index)
 	, m_handle(0)
@@ -50,7 +52,7 @@ public:
 
 	bool GetJob(Job& job)
 	{
-		AutoLock lock(m_lockJobs);
+		std::lock_guard<std::recursive_mutex> lock(m_lockJobs);
 		return GetJobLockless(job);
 	}
 
@@ -73,7 +75,7 @@ public:
 		}
 				
 		InterlockedDecrement(&m_pool->m_numJobs);
-		m_pool->m_jobFinishedCV.WakeAll();
+		m_pool->m_jobFinishedCV.notify_all();
 	}
 
 	bool TryToStealJob(Job& job)
@@ -95,14 +97,14 @@ public:
 	void Work()
 	{
 		Job job;
+		std::recursive_mutex cs;
+		std::unique_lock<std::recursive_mutex> lock(cs);
 
 		while (true)
 		{
-			CriticalSection cs;
-
 			while (m_pool->m_numJobsWaitingForExecution == 0)
 			{
-				m_jobsCV.Sleep(cs);
+				m_jobsCV.wait(cs);
 
 				if (m_exitFlag == 1)
 				{
@@ -131,8 +133,8 @@ public:
 		}
 
 		bool order = m_index < victim->m_index;
-		AutoLock lock1(order ? m_lockJobs : victim->m_lockJobs);
-		AutoLock lock2(order ? victim->m_lockJobs : m_lockJobs);
+		std::lock_guard<std::recursive_mutex> lock1(order ? m_lockJobs : victim->m_lockJobs);
+		std::lock_guard<std::recursive_mutex> lock2(order ? victim->m_lockJobs : m_lockJobs);
 
 		if (victim->m_jobs.empty())
 		{
@@ -153,12 +155,12 @@ public:
 	// Called from any thread
 	void Submit(const Job& job)
 	{
-		AutoLock lock(m_lockJobs);
+		std::lock_guard<std::recursive_mutex> lock(m_lockJobs);
 
 		m_jobs.push_back(job);
 		m_jobs.back().m_debugInitialThread = m_index;		
 
-		m_jobsCV.Wake();
+		m_jobsCV.notify_one();
 	}
 
 	// Called from any thread
@@ -166,20 +168,22 @@ public:
 	{
 		const size_t numJobs = jobs.size();
 
-		AutoLock lock(m_lockJobs);
-				
-		m_jobs.insert(m_jobs.begin(), jobs.begin(), jobs.end());		
-		for(size_t i = 0; i < numJobs; ++i)
 		{
-			m_jobs[i].m_debugInitialThread = m_index;
+			std::lock_guard<std::recursive_mutex> lock(m_lockJobs);
+
+			m_jobs.insert(m_jobs.begin(), jobs.begin(), jobs.end());
+			for (size_t i = 0; i < numJobs; ++i)
+			{
+				m_jobs[i].m_debugInitialThread = m_index;
+			}
 		}
 
-		m_jobsCV.Wake();
+		m_jobsCV.notify_one();
 	}
 
 	long NumJobsPending() const 
 	{ 
-		AutoLock lock(m_lockJobs);
+		std::lock_guard<std::recursive_mutex> lock(m_lockJobs);
 		return m_jobs.size();
 	}
 
@@ -206,8 +210,8 @@ private:
 	JobTraces m_traces;
 
 	Jobs m_jobs;
-	mutable CriticalSection m_lockJobs;
-	ConditionVariable &m_jobsCV;
+	mutable std::recursive_mutex m_lockJobs;
+	std::condition_variable_any &m_jobsCV;
 	
 	LONG m_exitFlag;
 	friend class StealingThreadPool;
@@ -237,7 +241,7 @@ StealingThreadPool::~StealingThreadPool()
 	{		
 		m_workers[i]->SignalExit();
 	}
-	m_jobsCV.WakeAll();	
+	m_jobsCV.notify_all();
 
 	m_threadTraces.resize(numThreads);
 	for (size_t i = 0; i < numThreads; ++i)
@@ -258,19 +262,23 @@ void StealingThreadPool::Start()
 
 void StealingThreadPool::WaitAllJobs()
 {
-	CriticalSection cs;
+	std::recursive_mutex cs;
+	std::unique_lock<std::recursive_mutex> lock(cs);
+
 	while (m_numJobs > 0)
 	{
-	 	m_jobFinishedCV.Sleep(cs);
+		m_jobFinishedCV.wait(cs);
 	}
 }
 
 void StealingThreadPool::WaitAllJobsTemporary()
 {
-	CriticalSection cs;
+	std::recursive_mutex cs;
+	std::lock_guard<std::recursive_mutex> lock(cs);
+
 	while (m_numJobs > 0)
 	{
-//		m_jobFinishedCV.Sleep(cs);
+//		m_jobFinishedCV.wait(cs);
 	}
 }
 

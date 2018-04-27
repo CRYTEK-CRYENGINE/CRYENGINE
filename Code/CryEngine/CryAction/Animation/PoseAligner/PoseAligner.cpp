@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 
@@ -613,7 +613,7 @@ void CPose::SetupPoseModifiers(const QuatT& location)
 		m_operatorQueue->PushComputeAbsolute();
 	}
 
-	m_pSkeletonAnim->PushPoseModifier(0, m_operatorQueue);
+	m_pSkeletonAnim->PushPoseModifier(0, m_operatorQueue, "PoseAligner");
 
 	for (uint i = 0; i < chainCount; ++i)
 		m_chains[i]->SetupTargetPoseModifiers(chainsLocation, m_rootOffsetDirection * rootOffset, *m_pSkeletonAnim);

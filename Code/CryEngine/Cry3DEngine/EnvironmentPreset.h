@@ -1,16 +1,14 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
-#ifndef _environment_preset_h_
-#define _environment_preset_h_
 #pragma once
 
+#include "TimeOfDayConstants.h"
 #include <CryMath/Bezier.h>
 
 class CBezierSpline
 {
 public:
 	CBezierSpline();
-	~CBezierSpline();
 
 	void              Init(float fDefaultValue);
 	float             Evaluate(float t) const;
@@ -45,7 +43,6 @@ class CTimeOfDayVariable
 {
 public:
 	CTimeOfDayVariable();
-	~CTimeOfDayVariable();
 
 	void                          Init(const char* group, const char* displayName, const char* name, ITimeOfDay::ETimeOfDayParamID nParamId, ITimeOfDay::EVariableType type, float defVal0, float defVal1, float defVal2);
 	void                          Update(float time);
@@ -104,7 +101,6 @@ class CEnvironmentPreset
 {
 public:
 	CEnvironmentPreset();
-	~CEnvironmentPreset();
 
 	void                      ResetVariables();
 	void                      Update(float t);
@@ -112,15 +108,17 @@ public:
 	const CTimeOfDayVariable* GetVar(ITimeOfDay::ETimeOfDayParamID id) const { return &m_vars[id]; }
 	CTimeOfDayVariable*       GetVar(ITimeOfDay::ETimeOfDayParamID id)       { return &m_vars[id]; }
 	CTimeOfDayVariable*       GetVar(const char* varName);
-	bool                      InterpolateVarInRange(ITimeOfDay::ETimeOfDayParamID id, float fMin, float fMax, unsigned int nCount, Vec3* resultArray) const;
+	CTimeOfDayConstants&      GetConstants();
 
-	void                      Serialize(Serialization::IArchive& ar);
+	bool                 InterpolateVarInRange(ITimeOfDay::ETimeOfDayParamID id, float fMin, float fMax, unsigned int nCount, Vec3* resultArray) const;
 
-	static float              GetAnimTimeSecondsIn24h();
+	void                 Serialize(Serialization::IArchive& ar);
+
+	static float         GetAnimTimeSecondsIn24h();
+
 private:
-	void                      AddVar(const char* group, const char* displayName, const char* name, ITimeOfDay::ETimeOfDayParamID nParamId, ITimeOfDay::EVariableType type, float defVal0, float defVal1, float defVal2);
+	void AddVar(const char* group, const char* displayName, const char* name, ITimeOfDay::ETimeOfDayParamID nParamId, ITimeOfDay::EVariableType type, float defVal0, float defVal1, float defVal2);
 
-	CTimeOfDayVariable m_vars[ITimeOfDay::PARAM_TOTAL];
+	CTimeOfDayVariable  m_vars[ITimeOfDay::PARAM_TOTAL];
+	CTimeOfDayConstants m_consts;
 };
-
-#endif //_environment_preset_h_

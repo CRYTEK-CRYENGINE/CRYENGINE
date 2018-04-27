@@ -1,4 +1,4 @@
-﻿using CryEngine.Common;
+using CryEngine.Common;
 
 namespace CryEngine.Debugging
 {

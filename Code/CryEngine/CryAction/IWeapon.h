@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -614,3 +614,5 @@ struct IWeapon
 	//virtual void AdjustPosition(float time, bool zoomIn, int currentStep) = 0;
 	//virtual void SetScopeOffset(const Vec3& offset) = 0;
 };
+
+struct IWeaponProxyExtension : public IWeapon, public IGameObjectExtension {};

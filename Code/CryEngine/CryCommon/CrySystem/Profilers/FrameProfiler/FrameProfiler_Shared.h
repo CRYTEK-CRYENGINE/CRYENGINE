@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -27,6 +27,7 @@ enum EProfiledSubsystem
 	PROFILE_ACTION,
 	PROFILE_GAME,
 	PROFILE_INPUT,
+	PROFILE_LOADING_ONLY,
 
 	//////////////////////////////////////////////////////////////////////////
 	// This enumes used for Network traffic profilers.
@@ -48,22 +49,18 @@ enum EProfileDescription
 	UNDEFINED = 0,
 
 	// ----------------------------
-	// Three different profile types are supported - stored in two least significant bits
+	// Three different profile types are supported - stored in 3 least significant bits
 	FUNCTIONENTRY = 1,
 	SECTION       = 2,
 	REGION        = 3,
-
-	// Waiting bit - can be combined with one of the three above
-	WAITING = BIT(2),
-
-	// Do not any new types here
-
-	// ----------------------------
-
 	// Optional types - without special coloring
-	MARKER  = BIT(3),
-	PUSHPOP = BIT(4)
+	MARKER        = 4,
+	PUSH_MARKER   = 5,
+	POP_MARKER    = 6,
 
+	TYPE_MASK     = 0x7,
+	// Waiting bit - can be combined with one of the three above
+	WAITING       = BIT(7),
 	          // Add new types here
 };
 

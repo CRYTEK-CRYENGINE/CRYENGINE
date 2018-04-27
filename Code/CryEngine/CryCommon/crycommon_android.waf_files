@@ -8,8 +8,8 @@
         "Platform":[
           "CryCore/Platform/AndroidSpecific.h",
           "CryCore/Platform/Android32Specific.h",
-          "CryCore/Platform/Android64Specific.h"
-
+          "CryCore/Platform/Android64Specific.h",
+		  "CryCore/Platform/platform_impl_android.inl"
         ]
       }
     ]

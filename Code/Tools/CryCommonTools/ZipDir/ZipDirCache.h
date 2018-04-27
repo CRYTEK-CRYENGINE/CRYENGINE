@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 // Declarations of the class used to parse and cache Zipped directory.
 // This class is actually an auto-pointer to the instance of the cache, so it can 

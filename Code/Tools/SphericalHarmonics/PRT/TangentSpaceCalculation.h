@@ -157,7 +157,7 @@ private:	// -----------------------------------------------------------------
 	};
 
 	// helper to get order for CVertexLoadHelper
-	struct CBaseIndexOrder: public std::binary_function< CBaseIndex, CBaseIndex, bool>
+	struct CBaseIndexOrder
 	{
 		bool operator() ( const CBaseIndex &a, const CBaseIndex &b ) const
 		{

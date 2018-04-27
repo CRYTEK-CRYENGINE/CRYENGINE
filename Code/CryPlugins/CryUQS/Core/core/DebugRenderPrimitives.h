@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -57,8 +57,7 @@ namespace UQS
 			float              m_radius;
 			ColorF             m_color;
 		};
-		SERIALIZATION_CLASS_NAME(CDebugRenderPrimitiveBase, CDebugRenderPrimitive_Sphere, "CDebugRenderPrimitive_Sphere", "");
-
+		
 		//===================================================================================
 		//
 		// CDebugRenderPrimitive_Direction
@@ -86,8 +85,7 @@ namespace UQS
 			float              m_coneHeight;
 			ColorF             m_color;
 		};
-		SERIALIZATION_CLASS_NAME(CDebugRenderPrimitiveBase, CDebugRenderPrimitive_Direction, "CDebugRenderPrimitive_Direction", "");
-
+		
 		//===================================================================================
 		//
 		// CDebugRenderPrimitive_Line
@@ -113,7 +111,6 @@ namespace UQS
 			Vec3               m_pos2;
 			ColorF             m_color;
 		};
-		SERIALIZATION_CLASS_NAME(CDebugRenderPrimitiveBase, CDebugRenderPrimitive_Line, "CDebugRenderPrimitive_Line", "");
 
 		//===================================================================================
 		//
@@ -142,7 +139,6 @@ namespace UQS
 			float              m_height;
 			ColorF             m_color;
 		};
-		SERIALIZATION_CLASS_NAME(CDebugRenderPrimitiveBase, CDebugRenderPrimitive_Cone, "CDebugRenderPrimitive_Cone", "");
 
 		//===================================================================================
 		//
@@ -171,7 +167,6 @@ namespace UQS
 			float              m_height;
 			ColorF             m_color;
 		};
-		SERIALIZATION_CLASS_NAME(CDebugRenderPrimitiveBase, CDebugRenderPrimitive_Cylinder, "CDebugRenderPrimitive_Cylinder", "");
 
 		//===================================================================================
 		//
@@ -199,7 +194,6 @@ namespace UQS
 			stack_string       m_text;
 			ColorF             m_color;
 		};
-		SERIALIZATION_CLASS_NAME(CDebugRenderPrimitiveBase, CDebugRenderPrimitive_Text, "CDebugRenderPrimitive_Text", "");
 
 		//===================================================================================
 		//
@@ -227,7 +221,6 @@ namespace UQS
 			float              m_radius;
 			ColorF             m_color;
 		};
-		SERIALIZATION_CLASS_NAME(CDebugRenderPrimitiveBase, CDebugRenderPrimitive_Quat, "CDebugRenderPrimitive_Quat", "");
 
 		//===================================================================================
 		//
@@ -253,7 +246,6 @@ namespace UQS
 			AABB               m_aabb;
 			ColorF             m_color;
 		};
-		SERIALIZATION_CLASS_NAME(CDebugRenderPrimitiveBase, CDebugRenderPrimitive_AABB, "CDebugRenderPrimitive_AABB", "");
 
 		//===================================================================================
 		//
@@ -279,7 +271,5 @@ namespace UQS
 			OBB                m_obb;
 			ColorF             m_color;
 		};
-		SERIALIZATION_CLASS_NAME(CDebugRenderPrimitiveBase, CDebugRenderPrimitive_OBB, "CDebugRenderPrimitive_OBB", "");
-
 	}
 }

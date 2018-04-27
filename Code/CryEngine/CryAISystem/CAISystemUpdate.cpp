@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 /********************************************************************
    -------------------------------------------------------------------------
@@ -38,9 +38,6 @@
 #include "CAISystem.h"
 #include "CryAISystem.h"
 #include "AILog.h"
-#include "Free2DNavRegion.h"
-#include "Graph.h"
-#include "AStarSolver.h"
 #include "Puppet.h"
 #include "AIVehicle.h"
 #include "GoalOp.h"
@@ -51,14 +48,10 @@
 #include "AIActions.h"
 #include "AICollision.h"
 #include "AIRadialOcclusion.h"
-#include "GraphNodeManager.h"
 #include "CentralInterestManager.h"
-#include "CodeCoverageManager.h"
-#include "CodeCoverageGUI.h"
 #include "StatsManager.h"
 #include "TacticalPointSystem/TacticalPointSystem.h"
 #include "Communication/CommunicationManager.h"
-#include "Walkability/WalkabilityCacheManager.h"
 #include "Navigation/NavigationSystem/NavigationSystem.h"
 
 #include "DebugDrawContext.h"
@@ -135,150 +128,13 @@ void CAISystem::UpdateDebugStuff()
 {
 	#if CRY_PLATFORM_WINDOWS
 
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 	// Delete the debug lines if the debug draw is not on.
 	if ((gAIEnv.CVars.DebugDraw == 0))
 	{
 		m_vecDebugLines.clear();
 		m_vecDebugBoxes.clear();
 	}
-
-	bool drawCover = (gAIEnv.CVars.DebugDraw != 0) && (gAIEnv.CVars.DebugDrawCover != 0);
-
-	const char* debugHideSpotName = gAIEnv.CVars.DebugHideSpotName;
-	drawCover &= (debugHideSpotName && debugHideSpotName[0] && strcmp(debugHideSpotName, "0"));
-
-	if (drawCover)
-	{
-		uint32 anchorTypes[2] =
-		{
-			AIANCHOR_COMBAT_HIDESPOT,
-			AIANCHOR_COMBAT_HIDESPOT_SECONDARY
-		};
-
-		uint32 anchorTypeCount = CRY_ARRAY_COUNT(anchorTypes);
-
-		bool all = !stricmp(debugHideSpotName, "all");
-		if (!all && (m_DebugHideObjects.size() > 1))
-			m_DebugHideObjects.clear();
-
-		const float maxDistanceSq = sqr(75.0f);
-		const CCamera& camera = gEnv->pSystem->GetViewCamera();
-
-		bool found = false;
-		for (uint32 at = 0; at < anchorTypeCount; ++at)
-		{
-			const AIObjectOwners::const_iterator itEnd = gAIEnv.pAIObjectManager->m_Objects.end();
-			for (AIObjectOwners::const_iterator it = gAIEnv.pAIObjectManager->m_Objects.find(anchorTypes[at]); it != itEnd; ++it)
-			{
-				CAIObject* pObject = it->second.GetAIObject();
-				if (pObject->GetType() != anchorTypes[at])
-					break;
-
-				if (!pObject->IsEnabled())
-					continue;
-
-				const GraphNode* pNode = gAIEnv.pGraph->GetNode(pObject->GetNavNodeIndex());
-				if (!pNode)
-					continue;
-
-				if (all)
-				{
-					if ((pObject->GetPos() - camera.GetPosition()).GetLengthSquared() > maxDistanceSq)
-					{
-						DebugHideObjectMap::iterator delIt = m_DebugHideObjects.find(pObject->GetAIObjectID());
-						if (delIt != m_DebugHideObjects.end())
-							m_DebugHideObjects.erase(delIt);
-
-						continue;
-					}
-
-					// Marcio: Assume max radius for now!
-					Sphere sphere(pObject->GetPos(), 12.0f);
-
-					if (!camera.IsSphereVisible_F(sphere))
-					{
-						DebugHideObjectMap::iterator delIt = m_DebugHideObjects.find(pObject->GetAIObjectID());
-						if (delIt != m_DebugHideObjects.end())
-							m_DebugHideObjects.erase(delIt);
-
-						continue;
-					}
-				}
-				else
-				{
-					if (stricmp(pObject->GetName(), debugHideSpotName))
-						continue;
-				}
-
-				SHideSpot hideSpot(SHideSpotInfo::eHST_ANCHOR, pObject->GetPos(), pObject->GetMoveDir());
-				hideSpot.pNavNode = pNode;
-				hideSpot.pAnchorObject = pObject;
-
-				std::pair<DebugHideObjectMap::iterator, bool> result = m_DebugHideObjects.insert(
-				  DebugHideObjectMap::value_type(pObject->GetAIObjectID(), CAIHideObject()));
-
-				CAIHideObject& hideObject = result.first->second;
-				hideObject.Set(&hideSpot, pObject->GetPos(), pObject->GetMoveDir());
-
-				if (!all)
-				{
-					found = true;
-					break;
-				}
-			}
-
-			if (!all && found)
-				break;
-		}
-
-		// clean up removed objects
-		{
-			DebugHideObjectMap::iterator it = m_DebugHideObjects.begin();
-			DebugHideObjectMap::iterator itEnd = m_DebugHideObjects.end();
-
-			while (it != itEnd)
-			{
-				CAIObject* pAIObject = gAIEnv.pObjectContainer->GetAIObject(it->first);
-
-				bool ok = false;
-				if (pAIObject && pAIObject->IsEnabled())
-				{
-					for (uint32 at = 0; at < anchorTypeCount; ++at)
-					{
-						if (pAIObject->GetType() == anchorTypes[at])
-						{
-							ok = true;
-							break;
-						}
-					}
-				}
-
-				DebugHideObjectMap::iterator toErase = it++;
-				if (!ok)
-					m_DebugHideObjects.erase(toErase);
-			}
-		}
-
-		// update and draw them
-		DebugHideObjectMap::iterator it = m_DebugHideObjects.begin();
-		DebugHideObjectMap::iterator itEnd = m_DebugHideObjects.end();
-
-		for (; it != itEnd; ++it)
-		{
-			CAIHideObject& debugHideObject = it->second;
-
-			if (debugHideObject.IsValid())
-			{
-				debugHideObject.HurryUpCoverPathGen();
-				while (!debugHideObject.IsCoverPathComplete())
-					debugHideObject.Update(0);
-				debugHideObject.DebugDraw();
-			}
-		}
-	}
-	else
-		m_DebugHideObjects.clear();
 
 	// Update fake tracers
 	if (gAIEnv.CVars.DrawFakeTracers > 0)
@@ -346,65 +202,6 @@ void CAISystem::UpdateDebugStuff()
 		m_DEBUG_screenFlash = 0.0f;
 	}
 
-	if (gAIEnv.CVars.DebugCheckWalkability)
-	{
-		CAIObject* startObject = gAIEnv.pAIObjectManager->GetAIObjectByName("CheckWalkabilityTestStart");
-		CAIObject* endObject = gAIEnv.pAIObjectManager->GetAIObjectByName("CheckWalkabilityTestEnd");
-
-		if (startObject && endObject)
-		{
-			bool result = false;
-			const float radius = gAIEnv.CVars.DebugCheckWalkabilityRadius;
-
-			if (gAIEnv.CVars.DebugCheckWalkability == 1)
-			{
-				// query all entities in this path as well as their bounding boxes from physics
-				AABB enclosingAABB(AABB::RESET);
-
-				enclosingAABB.Add(startObject->GetPos());
-				enclosingAABB.Add(endObject->GetPos());
-				enclosingAABB.Expand(Vec3(radius));
-
-				StaticAABBArray aabbs;
-				StaticPhysEntityArray entities;
-
-				size_t entityCount = GetPhysicalEntitiesInBox(enclosingAABB.min, enclosingAABB.max, entities, AICE_ALL);
-				entities.resize(entityCount);
-				aabbs.resize(entityCount);
-
-				// get all aabbs
-				pe_status_pos status;
-
-				for (size_t i = 0; i < entityCount; ++i)
-				{
-					if (entities[i]->GetStatus(&status))
-					{
-						const Vec3 aabbMin = status.BBox[0];
-						const Vec3 aabbMax = status.BBox[1];
-
-						// some aabbs strangely return all zero from physics, thus use the enclosingAABB for the whole path
-						if (aabbMin.IsZero() && aabbMax.IsZero())
-							aabbs[i] = enclosingAABB;
-						else
-							aabbs[i] = AABB(aabbMin + status.pos, aabbMax + status.pos);
-					}
-				}
-
-				result = CheckWalkability(startObject->GetPos(), endObject->GetPos(), radius, entities, aabbs);
-			}
-			else if (gAIEnv.CVars.DebugCheckWalkability == 2)
-				result = CheckWalkability(startObject->GetPos(), endObject->GetPos(), radius);
-
-			CDebugDrawContext dc;
-			dc->Draw2dLabel(400.0f, 100.0f, 5.0f, result ? Col_Green : Col_Red, true, "%s %s!", "CheckWalkability ", result ? "passed" : "failed");
-		}
-	}
-
-	if (gAIEnv.CVars.DebugWalkabilityCache)
-	{
-		gAIEnv.pWalkabilityCacheManager->Draw();
-	}
-
 	#endif // #if CRY_PLATFORM_WINDOWS
 }
 #endif //CRYAISYSTEM_DEBUG
@@ -431,7 +228,7 @@ struct SSortedPuppetB
 //-----------------------------------------------------------------------------------------------------------
 void CAISystem::UpdateAmbientFire()
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 	if (gAIEnv.CVars.AmbientFireEnable == 0)
 		return;
@@ -603,7 +400,7 @@ inline bool PuppetFloatSorter(const std::pair<CPuppet*, float>& lhs, const std::
 //-----------------------------------------------------------------------------------------------------------
 void CAISystem::UpdateExpensiveAccessoryQuota()
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 	for (unsigned i = 0; i < m_delayedExpAccessoryUpdates.size(); )
 	{
@@ -715,33 +512,9 @@ void CAISystem::UpdateExpensiveAccessoryQuota()
 //-----------------------------------------------------------------------------------------------------------
 void CAISystem::SingleDryUpdate(CAIActor* pAIActor)
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 	if (pAIActor->IsEnabled())
 		pAIActor->Update(IAIObject::EUpdateType::Dry);
 	else
 		pAIActor->UpdateDisabled(IAIObject::EUpdateType::Dry);
-}
-
-//
-//-----------------------------------------------------------------------------------------------------------
-void CAISystem::UpdateAuxSignalsMap()
-{
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_AI);
-
-	if (!m_mapAuxSignalsFired.empty())
-	{
-		MapSignalStrings::iterator mss = m_mapAuxSignalsFired.begin();
-		while (mss != m_mapAuxSignalsFired.end())
-		{
-			(mss->second).fTimeout -= m_frameDeltaTime;
-			if ((mss->second).fTimeout < 0)
-			{
-				MapSignalStrings::iterator mss_to_erase = mss;
-				++mss;
-				m_mapAuxSignalsFired.erase(mss_to_erase);
-			}
-			else
-				++mss;
-		}
-	}
 }

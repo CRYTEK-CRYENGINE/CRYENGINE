@@ -1,5 +1,4 @@
-// CRYENGINE Source Code File
-// Copyright 2001-2015 Crytek GmbH. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "Common.cfi"
 #include "TerrainValidations.cfi"
@@ -35,22 +34,31 @@ SCENE_DEPTH_MAP
 
 /// Un-Tweakables //////////////////////
 
-float4 BlendTerrainColInfo : PB_BlendTerrainColInfo;
-float4x4 LayerTexGen       : PB_TerrainLayerGen;
-
 //=========================================================================
 
 // Tweakables /////////////////
 
+#if !%USE_ORIGINAL_DIFFUSE_MAP
 half DetailTextureStrength
 <
 	register = REG_PM_PARAM_0.x;
 	string UIWidget = "slider";
 	float UIMin = 0.0;
-	float UIMax = 2.0;
+	float UIMax = 4.0;
 	float UIStep = 0.05;
+	string UIHelp = "Controls Detail Texture Strength"; 
 > = 1;
 
+half DetailTextureStrengthFade
+<
+	register = REG_PM_PARAM_2.w;
+	string UIWidget = "slider";
+	float UIMin = 0.0;
+	float UIMax = 1.0;
+	float UIStep = 0.05;
+	string UIHelp = "Controls fading of Detail Texture depending on terrain base texture darkness"; 
+> = 1;
+#endif
 
 #if %OFFSET_BUMP_MAPPING
 half ObmDisplacement
@@ -265,9 +273,12 @@ vert2fragTerrain TerrainVS(app2vertGeneral IN_common)
 	float4 blendColInfo = Get_SPI_BlendWithTerrainColInfo();
 	OUT.basesectorTC.xyz = float3(blendColInfo.zz * vertPassPos.WorldPos.yx + blendColInfo.xy, 1);
 
-	// Allow normal map only in distance or only for mesh-instanced sectors
+	// Allow normal map only in distance (mainly for hiding DXT compression artifacts) or only for mesh-instanced sectors
 	if (blendColInfo.w >= 0)
-		OUT.basesectorTC.z = saturate(length(GetWorldViewPos().xyz - vertPassPos.WorldPos.xyz) / 1024.0 - 1.0);
+	{
+		const float terrainBaseNormalMapFadeInDistance = 768; 
+		OUT.basesectorTC.z = saturate(length(GetWorldViewPos().xyz - vertPassPos.WorldPos.xyz) / terrainBaseNormalMapFadeInDistance - 1.0);
+	}
 
 	OUT.normal = vertPassPos.Normal;
 
@@ -297,11 +308,24 @@ vert2fragTerrain TerrainVS(app2vertGeneral IN_common)
 	OUT.tangent.xyz = normalize(tangent);
 	OUT.bitangent.xyz = normalize(bitangent);
 
-	half colorG = vertPassPos.Color.y;           
-	if (colorG > 127.f / 255.f)
-		colorG -= 128.f / 255.f;
+	// decode 3 weights
+	int arrWeights[3];
+	int nW = int(vertPassPos.Color.w * 255);
+	arrWeights[2] = ((nW >> 4) & 15);
+	arrWeights[1] = (nW & 15);
+	arrWeights[0] = 15 - arrWeights[1] - arrWeights[2];
 
-	float weight = saturate(1 - abs(colorG * 255 - terrainLayerInfo[2].w));
+	// find weight of current material
+	float weight = 0;
+	for (int c = 0; c < 3; c++)
+	{
+		half colorG = vertPassPos.Color[2-c];
+		if (colorG > 127.f / 255.f)
+			colorG -= 128.f / 255.f;
+
+		weight = max(weight, saturate(1 - abs(colorG * 255 - terrainLayerInfo[2].w)) / 15.f * arrWeights[c]);
+	}
+
 	float3 normalAbs = abs(vertPassPos.Normal.xyz); 
 	if (normalAbs.x >= normalAbs.y && normalAbs.x >= normalAbs.z)
 		weight *= terrainLayerInfo[2].x;
@@ -399,15 +423,15 @@ void GatherMaterialAttribs(in half3x3 mTangentToWS, in float2 baseTC, in float2 
 
 	//TODO: try to remove unnecessary space conversions, here is reference code
 	//half4 baseColor = GetTerrainTex(terrainBaseTex, basesectorTC);
-	//half3 albedoMipN = GetDiffuseTexLod(diffuseTex, float4(baseTC.xy, 0, DetailTextureHighPassRange));
+	//half3 albedoMipN = GetDiffuseTexBias(diffuseTex, float4(baseTC.xy, 0, DetailTextureHighPassRange));
 	//attribs.Albedo = saturate(baseColor.xyz + ((attribs.Albedo - albedoMipN) * DetailTextureStrength * baseColor.xyz));
 
 	half4 baseColor = GetTerrainTex(terrainBaseTex, basesectorTC);		
 	baseColor.xyz = sqrt(baseColor.xyz); // put into gamma space (to keep the look of old blending modes)
 
 	// automatic high pass, controlled by DetailTextureHighPassRange
-	half3 AlbedoMipN = GetDiffuseTexLod(diffuseTex, float4(baseTC.xy, 0, DetailTextureHighPassRange));
-	attribs.Albedo = saturate(baseColor.xyz + ((attribs.Albedo - AlbedoMipN) * DetailTextureStrength));
+	half3 AlbedoMipN = GetDiffuseTexBias(diffuseTex, float4(baseTC.xy, 0, DetailTextureHighPassRange));
+	attribs.Albedo = saturate(baseColor.xyz + ((attribs.Albedo - AlbedoMipN) * lerp(DetailTextureStrengthFade*DetailTextureStrength, DetailTextureStrength, baseColor.xyz)));
 
 	attribs.Albedo *= attribs.Albedo;  // put back into linear space
 
@@ -489,7 +513,6 @@ void Callback_ShadingDirect(in ForwardShadingAttribs attribs, in ForwardLightPar
 	specularAcc = specularAcc * light.illuminance;
 }
 
-#include "TiledShading.cfi"
 #include "ForwardShading.cfi"
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

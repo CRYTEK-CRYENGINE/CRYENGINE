@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 // -------------------------------------------------------------------------
 //  File name:   terrain_node.cpp
@@ -17,7 +17,7 @@
 #include "ObjMan.h"
 #include "VisAreas.h"
 
-#define TERRAIN_NODE_CHUNK_VERSION 7
+#define TERRAIN_NODE_CHUNK_VERSION 8
 
 int CTerrainNode::Load(uint8*& f, int& nDataSize, EEndian eEndian, bool bSectorPalettes, SHotUpdateInfo* pExportInfo) { return Load_T(f, nDataSize, eEndian, bSectorPalettes, pExportInfo); }
 int CTerrainNode::Load(FILE*& f, int& nDataSize, EEndian eEndian, bool bSectorPalettes, SHotUpdateInfo* pExportInfo)  { return Load_T(f, nDataSize, eEndian, bSectorPalettes, pExportInfo); }
@@ -37,8 +37,8 @@ int CTerrainNode::Load_T(T*& f, int& nDataSize, EEndian eEndian, bool bSectorPal
 	STerrainNodeChunk chunk;
 	if (!CTerrain::LoadDataFromFile(&chunk, 1, f, nDataSize, eEndian))
 		return 0;
-	assert(chunk.nChunkVersion >= 5 && chunk.nChunkVersion <= TERRAIN_NODE_CHUNK_VERSION);
-	if (chunk.nChunkVersion < 5 || chunk.nChunkVersion > TERRAIN_NODE_CHUNK_VERSION)
+	assert(chunk.nChunkVersion == TERRAIN_NODE_CHUNK_VERSION);
+	if (chunk.nChunkVersion != TERRAIN_NODE_CHUNK_VERSION)
 		return 0;
 
 	// set error levels, bounding boxes and some flags
@@ -53,46 +53,24 @@ int CTerrainNode::Load_T(T*& f, int& nDataSize, EEndian eEndian, bool bSectorPal
 	m_rangeInfo.UpdateBitShift(GetTerrain()->m_nUnitsToSectorBitShift);
 	m_rangeInfo.nModified = false;
 
-	{
-		float fMin = m_rangeInfo.fOffset;
-		float fMax = m_rangeInfo.fOffset + 0xFFF0 * m_rangeInfo.fRange;
-
-		const unsigned mask12bit = (1 << 12) - 1;
-		const int inv5cm = 20;
-
-		int iOffset = int(fMin * inv5cm);
-		int iRange = int((fMax - fMin) * inv5cm);
-		int iStep = iRange ? (iRange + mask12bit - 1) / mask12bit : 1;
-
-		iRange /= iStep;
-
-		m_rangeInfo.iOffset = iOffset;
-		m_rangeInfo.iRange = iRange;
-		m_rangeInfo.iStep = iStep;
-	}
-
 	m_nNodeHMDataOffset = -1;
 	if (m_rangeInfo.nSize)
 	{
-		m_rangeInfo.pHMData = new uint16[((m_rangeInfo.nSize * m_rangeInfo.nSize + 7) / 8) * 8];  // Align up to 16 bytes for console unaligned vector loads
+		m_rangeInfo.pHMData = new SHeightMapItem[m_rangeInfo.nSize * m_rangeInfo.nSize];
 		m_nNodeHMDataOffset = FTell(f);
 		if (!CTerrain::LoadDataFromFile(m_rangeInfo.pHMData, m_rangeInfo.nSize * m_rangeInfo.nSize, f, nDataSize, eEndian))
 			return 0;
-		if (chunk.nChunkVersion != 5)
-			CTerrain::LoadDataFromFile_FixAllignemt(f, nDataSize);
 
-		if (chunk.nChunkVersion < 7)
-		{
-			RescaleToInt();
-		}
+		CTerrain::LoadDataFromFile_FixAllignemt(f, nDataSize);
 	}
 
-	// load LOD errors
-	delete[] m_pGeomErrors;
-	m_pGeomErrors = new float[GetTerrain()->m_nUnitsToSectorBitShift];
-	if (!CTerrain::LoadDataFromFile(m_pGeomErrors, GetTerrain()->m_nUnitsToSectorBitShift, f, nDataSize, eEndian))
+	// load sector error metric, we load more floats for back compatibility with old levels
+	// TODO: switch to single float on next file format change
+	float* pTmp = new float[GetTerrain()->m_nUnitsToSectorBitShift];
+	if (!CTerrain::LoadDataFromFile(pTmp, GetTerrain()->m_nUnitsToSectorBitShift, f, nDataSize, eEndian))
 		return 0;
-	assert(m_pGeomErrors[0] == 0);
+	m_geomError = pTmp[0];
+	SAFE_DELETE_ARRAY(pTmp);
 
 	// load used surf types
 	for (int i = 0; i < m_lstSurfaceTypeInfo.Count(); i++)
@@ -109,7 +87,7 @@ int CTerrainNode::Load_T(T*& f, int& nDataSize, EEndian eEndian, bool bSectorPal
 			return 0;
 
 		for (int i = 0; i < m_lstSurfaceTypeInfo.Count() && i < SRangeInfo::e_hole; i++)
-			m_lstSurfaceTypeInfo[i].pSurfaceType = &GetTerrain()->m_SSurfaceType[m_nSID][min((int)pTypes[i], (int)SRangeInfo::e_undefined)];
+			m_lstSurfaceTypeInfo[i].pSurfaceType = &GetTerrain()->m_SSurfaceType[min((int)pTypes[i], (int)SRangeInfo::e_undefined)];
 
 		if (!m_pChilds)
 		{
@@ -130,7 +108,18 @@ int CTerrainNode::Load_T(T*& f, int& nDataSize, EEndian eEndian, bool bSectorPal
 				for (int i = 0; i < nDataCount; i++)
 				{
 					if ((i + 1) % m_rangeInfo.nSize)
-						UsedPaletteEntries[m_rangeInfo.GetSurfaceTypeByIndex(i)] = true;
+					{
+						SSurfaceTypeLocal si;
+						si.DecodeFromUint32(m_rangeInfo.pHMData[i].surface, si);
+
+						for (int s = 0; s < SSurfaceTypeLocal::kMaxSurfaceTypesNum; s++)
+						{
+							if(si.we[s])
+							{
+								UsedPaletteEntries[si.ty[s]] = true;
+							}
+						}
+					}
 				}
 			}
 
@@ -144,32 +133,23 @@ int CTerrainNode::Load_T(T*& f, int& nDataSize, EEndian eEndian, bool bSectorPal
 			// of the palette, skipping the unused entries.
 			int nCurrentListEntry = 0;
 			assert(nUsedPaletteEntriesCount <= m_lstSurfaceTypeInfo.Count());
-			if (m_rangeInfo.pHMData && bSectorPalettes)
+			assert(m_rangeInfo.pHMData && bSectorPalettes);
+
+			for (int i = 0; i < SRangeInfo::e_index_undefined; i++)
 			{
-				for (int i = 0; i < SRangeInfo::e_index_undefined; i++)
+				if (UsedPaletteEntries[i])
 				{
-					if (UsedPaletteEntries[i])
-					{
-						m_rangeInfo.pSTPalette[i] = pTypes[nCurrentListEntry];
-						//!!! shielding a problem
-						if (nCurrentListEntry + 1 < chunk.nSurfaceTypesNum)
-							++nCurrentListEntry;
-					}
+					m_rangeInfo.pSTPalette[i] = pTypes[nCurrentListEntry];
+					//!!! shielding a problem
+					if (nCurrentListEntry + 1 < chunk.nSurfaceTypesNum)
+						++nCurrentListEntry;
 				}
 			}
-			else
-				// In old levels, no palette had been saved, so create a trivial palette (trying to decode will yield garbage).
-				for (int i = 0; i < SRangeInfo::e_index_undefined; i++)
-				{
-					if (UsedPaletteEntries[i])
-						m_rangeInfo.pSTPalette[i] = i;
-				}
 		}
 
 		delete[] pTypes;
 
-		if (chunk.nChunkVersion != 5)
-			CTerrain::LoadDataFromFile_FixAllignemt(f, nDataSize);
+		CTerrain::LoadDataFromFile_FixAllignemt(f, nDataSize);
 	}
 
 	// count number of nodes saved
@@ -180,29 +160,6 @@ int CTerrainNode::Load_T(T*& f, int& nDataSize, EEndian eEndian, bool bSectorPal
 		nNodesNum += m_pChilds[i].Load_T(f, nDataSize, eEndian, bSectorPalettes, pExportInfo);
 
 	return nNodesNum;
-}
-
-void CTerrainNode::RescaleToInt()
-{
-	if (m_rangeInfo.nSize && m_rangeInfo.pHMData)
-	{
-		const float fRange = m_rangeInfo.fRange;
-		const float fMin = m_rangeInfo.fOffset;
-
-		const int step = m_rangeInfo.iStep;
-		const int inv5cm = 20;
-
-		uint16* hmap = m_rangeInfo.pHMData;
-
-		for (int i = 0, size = m_rangeInfo.nSize * m_rangeInfo.nSize; i < size; i++)
-		{
-			uint16 hraw = hmap[i];
-			float height = fMin + (0xFFF0 & hraw) * fRange;
-			uint16 hdec = int((height - fMin) * inv5cm) / step;
-
-			hmap[i] = (hraw & 0xF) | (hdec << 4);
-		}
-	}
 }
 
 void CTerrainNode::ReleaseHoleNodes()
@@ -254,11 +211,7 @@ int CTerrainNode::GetData(byte*& pData, int& nDataSize, EEndian eEndian, SHotUpd
 		// get node data
 		STerrainNodeChunk* pCunk = (STerrainNodeChunk*)pData;
 		pCunk->nChunkVersion = TERRAIN_NODE_CHUNK_VERSION;
-#ifdef SEG_WORLD
-		pCunk->boxHeightmap = this->m_boxHeigtmapLocal;
-#else
 		pCunk->boxHeightmap = boxWS;
-#endif
 		pCunk->bHasHoles = m_bHasHoles;
 		pCunk->fOffset = m_rangeInfo.fOffset;
 		pCunk->fRange = m_rangeInfo.fRange;
@@ -270,13 +223,14 @@ int CTerrainNode::GetData(byte*& pData, int& nDataSize, EEndian eEndian, SHotUpd
 
 		// get heightmap data
 		AddToPtr(pData, nDataSize, m_rangeInfo.pHMData, m_rangeInfo.nSize * m_rangeInfo.nSize, eEndian, true);
-		//		memcpy(pData, m_rangeInfo.pHMData, nBlockSize);
-		//	UPDATE_PTR_AND_SIZE(pData,nDataSize,nBlockSize);
 
-		// get heightmap error data
-		AddToPtr(pData, nDataSize, m_pGeomErrors, GetTerrain()->m_nUnitsToSectorBitShift, eEndian);
-		//		memcpy(pData, m_pGeomErrors, GetTerrain()->m_nUnitsToSectorBitShift*sizeof(m_pGeomErrors[0]));
-		//	UPDATE_PTR_AND_SIZE(pData,nDataSize,GetTerrain()->m_nUnitsToSectorBitShift*sizeof(m_pGeomErrors[0]));
+		// get heightmap error data, we store more floats for back compatibility
+		// TODO: switch to single float on next file format change
+		float* pTmp = new float[GetTerrain()->m_nUnitsToSectorBitShift];
+		memset(pTmp, 0, sizeof(pTmp[0]) * GetTerrain()->m_nUnitsToSectorBitShift);
+		pTmp[0] = m_geomError;
+		AddToPtr(pData, nDataSize, pTmp, GetTerrain()->m_nUnitsToSectorBitShift, eEndian);
+		SAFE_DELETE_ARRAY(pTmp);
 
 		// get used surf types
 		CRY_ASSERT(m_lstSurfaceTypeInfo.Count() <= SRangeInfo::e_max_surface_types);
@@ -302,7 +256,18 @@ int CTerrainNode::GetData(byte*& pData, int& nDataSize, EEndian eEndian, SHotUpd
 			for (int i = 0; i < nDataCount; i++)
 			{
 				if ((i + 1) % m_rangeInfo.nSize) // Ignore sector's last column
-					UsedPaletteEntries[m_rangeInfo.GetSurfaceTypeByIndex(i)] = true;
+				{
+					SSurfaceTypeLocal si;
+					si.DecodeFromUint32(m_rangeInfo.pHMData[i].surface, si);
+
+					for (int s = 0; s < SSurfaceTypeLocal::kMaxSurfaceTypesNum; s++)
+					{
+						if (si.we[s])
+						{
+							UsedPaletteEntries[si.ty[s]] = true;
+						}
+					}
+				}
 			}
 
 			// Clear any palette entries whose indices do not occur in the data (set them to 127). They are not present in
@@ -355,7 +320,7 @@ int CTerrainNode::GetData(byte*& pData, int& nDataSize, EEndian eEndian, SHotUpd
 		nDataSize += m_rangeInfo.nSize * m_rangeInfo.nSize * sizeof(m_rangeInfo.pHMData[0]);
 		while (nDataSize & 3)
 			nDataSize++;
-		nDataSize += GetTerrain()->m_nUnitsToSectorBitShift * sizeof(m_pGeomErrors[0]);
+		nDataSize += GetTerrain()->m_nUnitsToSectorBitShift * sizeof(float);
 		nDataSize += m_lstSurfaceTypeInfo.Count() * sizeof(uint8);
 		while (nDataSize & 3)
 			nDataSize++;
@@ -369,4 +334,47 @@ int CTerrainNode::GetData(byte*& pData, int& nDataSize, EEndian eEndian, SHotUpd
 		nNodesNum += m_pChilds[i].GetData(pData, nDataSize, eEndian, pExportInfo);
 
 	return nNodesNum;
+}
+
+void CTerrainNode::UpdateGeomError()
+{
+	FUNCTION_PROFILER_3DENGINE;
+
+	// all (x,y) values are INT in hm units
+
+	const int hmSize = int(CTerrain::GetTerrainSize() * CTerrain::GetHeightMapUnitSizeInverted());
+	const int sectorSize = int((CTerrain::GetSectorSize() << m_nTreeLevel) * CTerrain::GetHeightMapUnitSizeInverted());
+	const int meshDim = int(float(CTerrain::GetSectorSize()) / CTerrain::GetHeightMapUnitSize());
+	const int x1 = int(m_nOriginX * CTerrain::GetHeightMapUnitSizeInverted());
+	const int x2 = x1 + sectorSize;
+	const int y1 = int(m_nOriginY * CTerrain::GetHeightMapUnitSizeInverted());
+	const int y2 = y1 + sectorSize;
+	const int halfStep = sectorSize / meshDim / 2;
+
+	m_geomError = 0;
+
+	if (!halfStep)
+		return; // leaf node = no error
+
+	int mapBorder = 8;
+
+	for (int X = x1; X < x2; X += halfStep)
+	{
+		for (int Y = y1; Y < y2; Y += halfStep)
+		{
+			float z1 = .5f * GetTerrain()->GetZfromUnits(X - halfStep, Y - halfStep) + .5f * GetTerrain()->GetZfromUnits(X + halfStep, Y - halfStep);
+			float z2 = .5f * GetTerrain()->GetZfromUnits(X - halfStep, Y + halfStep) + .5f * GetTerrain()->GetZfromUnits(X + halfStep, Y + halfStep);
+
+			// skip map borders
+			if (X < mapBorder || X > (hmSize - mapBorder) || Y < mapBorder || Y > (hmSize - mapBorder))
+				continue;
+
+			float interpolatedZ = .5f * z1 + .5f * z2;
+			float realZ = GetTerrain()->GetZfromUnits(X, Y);
+			float zDiff = fabs(realZ - interpolatedZ);
+
+			if (zDiff > m_geomError)
+				m_geomError = zDiff;
+		}
+	}
 }

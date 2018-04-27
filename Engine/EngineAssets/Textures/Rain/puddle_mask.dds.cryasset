@@ -1,0 +1,15 @@
+<AssetMetadata version="0" type="Texture" guid="75fe0090-f4d8-ca89-0149-7e0592324006" source="puddle_mask.tif">
+ <Files>
+  <File path="puddle_mask.dds"/>
+  <File path="puddle_mask.dds.1"/>
+  <File path="puddle_mask.dds.2"/>
+  <File path="puddle_mask.dds.3"/>
+  <File path="puddle_mask.dds.4"/>
+  <File path="puddle_mask.dds.5"/>
+ </Files>
+ <Details>
+  <Detail name="width">512</Detail>
+  <Detail name="height">512</Detail>
+  <Detail name="mipCount">8</Detail>
+ </Details>
+</AssetMetadata>

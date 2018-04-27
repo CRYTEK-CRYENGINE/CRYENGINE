@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 /*************************************************************************
    -------------------------------------------------------------------------
@@ -15,7 +15,7 @@
 
 #ifdef USE_DXINPUT
 
-int CKeyboard::s_disableWinKeys = 1;
+int CKeyboard::s_disableWinKeys = 0;
 CKeyboard* CKeyboard::s_instance = NULL;
 
 //////////////////////////////////////////////////////////////////////
@@ -28,6 +28,7 @@ CKeyboard::CKeyboard(CDXInput& input) :
 	CDXInputDevice(input, "keyboard", GUID_SysKeyboard)
 {
 	m_deviceType = eIDT_Keyboard;
+	m_baseflags = DISCL_NONEXCLUSIVE | DISCL_FOREGROUND;
 	s_instance = this;
 }
 
@@ -505,7 +506,7 @@ void CKeyboard::ProcessKey(uint32 devSpecId, bool pressed)
 //////////////////////////////////////////////////////////////////////////
 void CKeyboard::Update(bool bFocus)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_INPUT);
+	CRY_PROFILE_FUNCTION(PROFILE_INPUT);
 	HRESULT hr;
 	DIDEVICEOBJECTDATA rgdod[256];
 	DWORD dwItems = 256;

@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 
@@ -11,6 +11,8 @@
 #include "StringHelpers.h"                  // StringHelpers
 
 #include "Cubemap.h"
+#include <CryString/UnicodeFunctions.h>
+#include <mutex>
 
 // we can't build debug-builds with the concurrency-runtime,
 // as _CRT_DBG_MALLOC interferes with concurrency-runtime's alloca/freea
@@ -22,14 +24,16 @@
 #define PROCESS_IN_PARALLEL
 #endif
 
-static ThreadUtils::CriticalSection s_atiCubemapLock;
+static std::recursive_mutex s_atiCubemapMutex;
 
 ///////////////////////////////////////////////////////////////////////////////////
 
 static void AtiCubeMapGen_MessageOutputFunc(WCHAR* pTitle, WCHAR* pMessage)
 {
-	const string t = StringHelpers::ConvertAsciiUtf16ToAscii(pTitle);
-	const string m = StringHelpers::ConvertAsciiUtf16ToAscii(pMessage);
+	string t, m;
+	Unicode::Convert(t, pTitle);
+	Unicode::Convert(m, pTitle);
+
 	RCLogWarning("ATI CubeMapGen: %s: %s", t.c_str(), m.c_str());
 }
 
@@ -205,7 +209,7 @@ void CImageCompiler::CreateCubemapMipMaps(
 
 	if (m_AtiCubemanGen.m_NumFilterThreads > 0)
 	{
-		s_atiCubemapLock.Lock();
+		s_atiCubemapMutex.lock();
 	}
 
 	//Filter cubemap
@@ -223,7 +227,7 @@ void CImageCompiler::CreateCubemapMipMaps(
 
 	if (m_AtiCubemanGen.m_NumFilterThreads > 0)
 	{
-		s_atiCubemapLock.Unlock();
+		s_atiCubemapMutex.unlock();
 
 		//Report status of filtering , and loop until filtering is complete
 		while (m_AtiCubemanGen.GetStatus() == CP_STATUS_PROCESSING)

@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -38,9 +38,9 @@ protected:
 	};
 
 public:
-	static _smart_ptr<CDevice> Create(const SPhysicalDeviceInfo* pDeviceInfo, VkAllocationCallbacks* hostAllocator, VkSurfaceKHR Surface, const std::vector<const char*>& layersToEnable, const std::vector<const char*>& extensionsToEnable);
+	static _smart_ptr<CDevice> Create(const SPhysicalDeviceInfo* pDeviceInfo, VkAllocationCallbacks* hostAllocator, const std::vector<const char*>& layersToEnable, const std::vector<const char*>& extensionsToEnable);
 
-	CDevice(const SPhysicalDeviceInfo* pDeviceInfo, VkAllocationCallbacks* hostAllocator, VkDevice Device, VkSurfaceKHR Surface);
+	CDevice(const SPhysicalDeviceInfo* pDeviceInfo, VkAllocationCallbacks* hostAllocator, VkDevice Device);
 	~CDevice();
 
 	CCommandScheduler& GetScheduler() { return m_Scheduler; }
@@ -50,7 +50,6 @@ public:
 	const VkPipelineCache& GetVkPipelineCache() const { return m_pipelineCache; }
 
 	const SPhysicalDeviceInfo* GetPhysicalDeviceInfo() const { return m_pDeviceInfo; }
-	VkSurfaceKHR GetSurface() const { return m_surface; }
 
 	VkDescriptorPool GetDescriptorPool() const { return m_descriptorPool; }
 	CHeap& GetHeap() { return m_heap; }
@@ -96,7 +95,6 @@ public:
 private:
 	const SPhysicalDeviceInfo* m_pDeviceInfo;
 	VkAllocationCallbacks m_Allocator;
-	VkSurfaceKHR m_surface;
 	VkDevice m_device;
 	VkPipelineCache m_pipelineCache;
 	VkDescriptorPool m_descriptorPool;

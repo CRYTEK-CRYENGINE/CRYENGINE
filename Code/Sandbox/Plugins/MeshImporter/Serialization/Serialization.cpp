@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 #include "StdAfx.h"
 #include "Serialization.h"
 #include "FbxScene.h"
@@ -46,3 +46,4 @@ void SMeshInfo::Serialize(Serialization::IArchive& ar)
 	ar(pMesh->numTriangles, "tri", "!Number of triangles");
 	ar(pMesh->numVertices, "vtc", "!Number of vertices");
 }
+

@@ -1,0 +1,63 @@
+// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+
+#pragma once
+
+#include "PluginUtils.h"
+#include "Resource.h"
+
+namespace Schematyc2
+{
+	namespace BrowserIcon
+	{
+		enum EValue
+		{
+			INVALID = -1,
+			FOLDER,
+			DOC,
+			BRANCH,
+			FUNCTION_GRAPH,
+			ENV_ACTION,
+			ENV_SIGNAL,
+			ENV_GLOBAL_FUNCTION,
+			ENV_COMPONENT,
+			ENV_COMPONENT_FUNCTION,
+			ENUMERATION,
+			VARIABLE,
+			GROUP,
+			FOR_LOOP,
+			SIGNAL,
+			CLASS,
+			COMPONENT_INSTANCE,
+			ACTION_INSTANCE,
+			STATE,
+			STATE_MACHINE,
+			TIMER,
+			SIGNAL_RECEIVER,
+			CONSTRUCTOR,
+			CONDITION_GRAPH,
+			RETURN,
+			ENV_ACTION_FUNCTION,
+			ABSTRACT_INTERFACE_IMPLEMENTATION,
+			ABSTRACT_INTERFACE_FUNCTION_IMPLEMENTATION,
+			INCLUDE,
+			INPUT,
+			OUTPUT,
+			STRUCTURE,
+			DESTRUCTOR,
+			SETTINGS_FOLDER,
+			SETTINGS_DOC,
+			CONTAINER,
+			ABSTRACT_INTERFACE,
+			ABSTRACT_INTERFACE_FUNCTION,
+			ABSTRACT_INTERFACE_TASK,
+			PROPERTY,
+			CLASS_BASE,
+			COUNT
+		};
+	};
+
+	inline void LoadBrowserIcons(CImageList& imageList)
+	{
+		PluginUtils::LoadTrueColorImageList(IDB_SCHEMATYC_BROWSER_ICONS, 16, RGB(0, 0, 0), imageList);
+	}
+}

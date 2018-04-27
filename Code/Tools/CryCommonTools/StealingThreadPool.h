@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #ifndef __ThreadPool_h__
 #define __ThreadPool_h__
@@ -6,6 +6,7 @@
 #pragma once
 
 #include "ThreadUtils.h"
+#include <condition_variable>
 
 namespace ThreadUtils {
 
@@ -60,8 +61,8 @@ private:
 
 	volatile long m_numJobsWaitingForExecution;
 	volatile long m_numJobs;
-	ConditionVariable m_jobsCV;
-	ConditionVariable m_jobFinishedCV;
+	std::condition_variable_any m_jobsCV;
+	std::condition_variable_any m_jobFinishedCV;
 
 	friend class JobGroup;
 	friend class StealingWorker;

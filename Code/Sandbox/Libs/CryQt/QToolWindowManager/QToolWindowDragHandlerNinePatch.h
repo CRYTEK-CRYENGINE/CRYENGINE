@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 #include "QToolWindowManagerCommon.h"
@@ -17,4 +17,5 @@ public:
 	QRect getRectFromCursorPos(QWidget* previewArea, IToolWindowArea* area) const Q_DECL_OVERRIDE;
 
 };
+
 

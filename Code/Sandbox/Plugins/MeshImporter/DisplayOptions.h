@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -107,3 +107,4 @@ private:
 	QPropertyTree*                   m_pPropertyTree;
 	std::unique_ptr<SDisplayOptions> m_pOptions;
 };
+

@@ -53,5 +53,5 @@ inline bool assertionDialog(const char* function, const char* fileName, int line
 // use YASLI_CHECK instead
 #define YASLI_ESCAPE(x, action) if(!(x)) { YASLI_ASSERT(0 && #x); action; } 
 
-#pragma warning(disable:4127)
+#pragma warning(disable:4127) // conditional expression is constant
 #endif

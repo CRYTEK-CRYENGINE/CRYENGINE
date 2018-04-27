@@ -1,3 +1,5 @@
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
+
 #pragma once
 
 #include "ISubstanceInstanceRenderer.h"
@@ -40,4 +42,5 @@ protected:
 
 } // END namespace Renderers
 } // END namespace EditorSubstance
+
 

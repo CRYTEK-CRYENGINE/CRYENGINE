@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 /*=============================================================================
    DDSImage.cpp : DDS image file format implementation.
@@ -92,8 +92,6 @@ bool CImageDDSFile::Load(const string& filename, uint32 nFlags)
 	AdjustFirstFileName(nFlags, filename.c_str(), adjustedFileName);
 
 	// load file content
-	SCOPED_ALLOW_FILE_ACCESS_FROM_THIS_THREAD();
-
 	CCryFile file(adjustedFileName.c_str(), "rb");
 
 	DDSSplitted::RequestInfo otherMips[64];
@@ -417,11 +415,6 @@ bool CImageDDSFile::SetHeaderFromMemory(byte* pFileStart, byte* pFileAfterHeader
 
 	// check for nativeness of texture
 	const uint32 imageFlags = CImageExtensionHelper::GetImageFlags(&m_DDSHeader);
-	if (!CImageExtensionHelper::IsImageNative(imageFlags))
-	{
-		mfSet_error(eIFE_BadFormat, "Not converted for this platform");
-		return false;
-	}
 
 	// setup texture properties
 	m_Width  = m_DDSHeader.dwWidth;
@@ -519,8 +512,6 @@ bool CImageDDSFile::SetHeaderFromMemory(byte* pFileStart, byte* pFileAfterHeader
 		m_Flags |= FIM_GREYSCALE;
 	if (imageFlags & CImageExtensionHelper::EIF_FileSingle)
 		m_Flags |= FIM_FILESINGLE;
-	if (imageFlags & CImageExtensionHelper::EIF_X360NotPretiled)
-		m_Flags |= FIM_X360_NOT_PRETILED;
 	if (imageFlags & CImageExtensionHelper::EIF_AttachedAlpha)
 		m_Flags |= FIM_HAS_ATTACHED_ALPHA;
 	if (imageFlags & CImageExtensionHelper::EIF_SupressEngineReduce)
@@ -540,7 +531,7 @@ bool CImageDDSFile::SetHeaderFromMemory(byte* pFileStart, byte* pFileAfterHeader
 			m_cMinColor = ColorF(-1.0f, -1.0f, -1.0f, -1.0f);
 			m_cMaxColor = ColorF(1.0f, 1.0f, 1.0f, 1.0f);
 
-			//			mfSet_error(eIFE_BadFormat, "Texture has to have a signed format");
+//			mfSet_error(eIFE_BadFormat, "Texture has to have a signed format");
 		}
 	}
 
@@ -763,7 +754,7 @@ TPath& MakeName(TPath& sOut, const char* sOriginalName, const uint32 nChunk, con
 
 size_t GetFilesToRead_Split(ChunkInfo* pFiles, size_t nFilesCapacity, const DDSDesc& desc, uint32 nStartMip, uint32 nEndMip)
 {
-	FUNCTION_PROFILER_RENDERER;
+	FUNCTION_PROFILER_RENDERER();
 
 	assert(nStartMip <= nEndMip);
 	assert(nEndMip < desc.nMips);
@@ -826,7 +817,7 @@ size_t GetFilesToRead_Split(ChunkInfo* pFiles, size_t nFilesCapacity, const DDSD
 
 size_t GetFilesToRead_UnSplit(ChunkInfo* pFiles, size_t nFilesCapacity, const DDSDesc& desc, uint32 nStartMip, uint32 nEndMip)
 {
-	FUNCTION_PROFILER_RENDERER;
+	FUNCTION_PROFILER_RENDERER();
 
 	assert(nStartMip <= nEndMip);
 	assert(nEndMip < desc.nMips);

@@ -1,3 +1,5 @@
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
+
 #include "StdAfx.h"
 
 #include "geometries.h"
@@ -157,9 +159,10 @@ int PhysXArticulation::SetParams(pe_params* _params, int bThreadSafe)
 			for(int i=n=0; i<m_parts.size(); i++) if (JointId(m_parts[i].shape)==params->op[1]) {
 				PxMaterial *mtl; m_parts[i].shape->getMaterials(&mtl,1);
 				QuatT poseNew = pose.GetInverted()*T(m_parts[i].shape->getLocalPose());
-				PxShape *shape = link->createShape(m_parts[i].shape->getGeometry().any(), *mtl, T(poseNew));
+				PxShape *shape = PxRigidActorExt::createExclusiveShape(*link, m_parts[i].shape->getGeometry().any(), *mtl);
 				if (!shape)
 					continue;
+				shape->setLocalPose(T(poseNew));
 				shape->userData = m_parts[i].shape->userData;
 				shape->setSimulationFilterData(m_parts[i].shape->getSimulationFilterData());
 				shape->setQueryFilterData(m_parts[i].shape->getQueryFilterData());

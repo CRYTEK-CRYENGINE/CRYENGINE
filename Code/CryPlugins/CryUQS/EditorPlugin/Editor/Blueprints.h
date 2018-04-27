@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -182,7 +182,7 @@ public:
 
 	void SetOwner(CQueryBlueprint* pOwner) { m_pOwner = pOwner; }
 
-	void SetParamsChanged(bool value)      { m_bParamsChanged = value; }
+	void SetParamsChanged();
 	bool GetParamsChanged() const          { return m_bParamsChanged; }
 
 	void BuildFunctionListForAvailableParameters(
@@ -521,6 +521,13 @@ enum class EEvaluatorType
 	Deferred
 };
 
+enum class EEvaluatorCost
+{
+	Undefined,
+	Cheap,
+	Expensive
+};
+
 class CEvaluator
 {
 public:
@@ -580,6 +587,7 @@ private:
 	mutable std::shared_ptr<CErrorCollector>    m_pErrorCollector;
 
 	EEvaluatorType                              m_evaluatorType;
+	EEvaluatorCost                              m_evaluatorCost;
 	std::unique_ptr<SEvaluatorBlueprintAdapter> m_interfaceAdapter;
 };
 
@@ -671,6 +679,11 @@ public:
 
 	void          PrepareHelpers(CUqsDocSerializationContext& context);
 	void          ClearErrors();
+
+	const CRuntimeParamBlueprint& GetRuntimeParamsBlueprint() const { return m_runtimeParams; }
+
+	size_t                 GetChildCount() const { return m_queryChildren.size(); }
+	const CQueryBlueprint& GetChild(size_t index) const { return m_queryChildren[index]; }
 
 private:
 

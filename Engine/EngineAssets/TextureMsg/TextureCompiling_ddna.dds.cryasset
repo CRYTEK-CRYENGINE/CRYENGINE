@@ -1,0 +1,17 @@
+<AssetMetadata version="0" type="Texture" guid="6f5470f4-f782-7561-160f-f4e246d63461" source="TextureCompiling_ddna.tif">
+ <Files>
+  <File path="TextureCompiling_ddna.dds"/>
+  <File path="TextureCompiling_ddna.dds.a"/>
+  <File path="TextureCompiling_ddna.dds.1"/>
+  <File path="TextureCompiling_ddna.dds.1a"/>
+  <File path="TextureCompiling_ddna.dds.2"/>
+  <File path="TextureCompiling_ddna.dds.2a"/>
+  <File path="TextureCompiling_ddna.dds.3"/>
+  <File path="TextureCompiling_ddna.dds.3a"/>
+ </Files>
+ <Details>
+  <Detail name="width">128</Detail>
+  <Detail name="height">128</Detail>
+  <Detail name="mipCount">6</Detail>
+ </Details>
+</AssetMetadata>

@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "SkeletonManager.h"
@@ -120,7 +120,7 @@ const CSkeletonInfo* SkeletonManager::LoadSkeletonInfo(const string& name, const
 		return 0;
 	}
 
-	string fullFile = PathHelpers::Join(m_rootPath, file);
+	string fullFile = PathUtil::Make(m_rootPath, file);
 	RCLog("Loading skeleton with alias '%s' from file '%s'.", name.c_str(), fullFile.c_str());
 
 	SkeletonLoader& skeletonInfo = m_nameToSkeletonInfo[name];

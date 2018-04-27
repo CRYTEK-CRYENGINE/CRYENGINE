@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 /********************************************************************
    -------------------------------------------------------------------------
@@ -54,7 +54,7 @@ public:
 
 	//////////////////////////////////////////////////////////////////////////
 	// IEntityEventListener
-	virtual void OnEntityEvent(IEntity* pEntity, SEntityEvent& event);
+	virtual void OnEntityEvent(IEntity* pEntity, const SEntityEvent& event);
 
 	void         RegisterEvents();
 	virtual void UnregisterEvents();

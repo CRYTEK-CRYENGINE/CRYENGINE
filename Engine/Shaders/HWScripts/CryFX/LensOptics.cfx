@@ -1,5 +1,4 @@
-// CRYENGINE Source Code File
-// Copyright 2001-2015 Crytek GmbH. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "Common.cfi"
 #include "ShadeLib.cfi"
@@ -30,7 +29,7 @@ struct InputScreenVS
 
 struct OutputVS
 {
-	half4 hpos:POSITION;
+	half4 hpos:SV_POSITION;
 	half4 uv:TEXCOORD0;
 	half3 center:TEXCOORD1;
 	half4 color:COLOR0;
@@ -38,20 +37,20 @@ struct OutputVS
 
 struct OutputScreenVS
 {
-	half4 hpos : POSITION;
+	half4 hpos : SV_POSITION;
 	half2 uv : TEXCOORD0;
 };
 
 struct OutputGhostVS
 {
-	half4 hpos : POSITION;
+	half4 hpos : SV_POSITION;
 	half2 uv : TEXCOORD0;
 	half4 color : COLOR0;
 };
 
 struct OutputCameraOrbsVS
 {
-	half4 hpos : POSITION;
+	half4 hpos : SV_POSITION;
 	half2 uv : TEXCOORD0;
 	half3 litVec:TEXCOORD1;
 	half4 color : COLOR0;
@@ -59,7 +58,7 @@ struct OutputCameraOrbsVS
 
 struct OutputShaftOcclusionVS
 {
-	half4 hpos:POSITION;
+	half4 hpos:SV_POSITION;
 	half3 uvz:TEXCOORD0;
 	half2 fsuv:TEXCOORD1;
 	half4 color:COLOR0;
@@ -67,7 +66,7 @@ struct OutputShaftOcclusionVS
 
 struct OutputShaftVS
 {
-	half4 hpos:POSITION;
+	half4 hpos:SV_POSITION;
 	half2 uv:TEXCOORD0;
 	half4 center:TEXCOORD1;
 	half4 color:COLOR0;
@@ -223,7 +222,7 @@ Texture2D    ghostTex              : register(t0);
 Texture2D    ghostOcclusionTex     : register(t5);
 SamplerState ssGhost               : register(s0); 
 
-half4 lensGhostPS(  OutputGhostVS IN ) : COLOR
+half4 lensGhostPS(  OutputGhostVS IN ) : SV_Target0
 {
 	half4 color = DecodeRGBK( GetTexture2D( ghostTex, ssGhost, IN.uv ), 32, false );
 #if %_RT_SAMPLE3
@@ -265,7 +264,7 @@ OutputVS GlowVS( InpuptVS IN )
 	return commonMeshTransform(IN, context);
 }
 
-half4 GlowPS( OutputVS IN ) : COLOR
+half4 GlowPS( OutputVS IN ) : SV_Target0
 {
 	#define thou IN.uv.x
 	#define theta IN.uv.y
@@ -313,7 +312,7 @@ OutputVS ChromaticRingVS( InpuptVS IN )
 Texture2D    spectrumTex : register(t0);
 SamplerState ssSpectrum  : register(s0);
 
-half4 ChromaticRingPS( OutputVS IN ) : COLOR
+half4 ChromaticRingPS( OutputVS IN ) : SV_Target0
 {
 	#define thou IN.uv.x
 	half dist = (thou*2-1);
@@ -330,7 +329,7 @@ Texture2D    irisSpectrumTex    : register(t0);
 Texture2D    irisTex            : register(t1);
 SamplerState ssIrisShafts       : register(s0);
 
-half4 IrisShaftsGlowPS( OutputVS IN ) : COLOR
+half4 IrisShaftsGlowPS( OutputVS IN ) : SV_Target0
 {
 	half3 color = GetTexture2D( irisTex, ssIrisShafts, half2( IN.uv.x, 1-IN.uv.y ) ).rgb;
 
@@ -345,7 +344,7 @@ half4 IrisShaftsGlowPS( OutputVS IN ) : COLOR
 Texture2D     streaksTex    : register(t0);
 SamplerState  ssStreaks     : register(s0);
 
-half4 StreaksPS( OutputVS IN ) : COLOR
+half4 StreaksPS( OutputVS IN ) : SV_Target0
 {
 	half3 color = saturate( exp( -8*IN.uv.x*IN.uv.x ) );
 #if %_RT_SAMPLE2
@@ -462,12 +461,12 @@ half4 ComputeCameraOrbsColor( OutputCameraOrbsVS IN, half4 orbClr, float4 lensDe
 #endif
 }
 
-half4 CameraOrbsPS( OutputCameraOrbsVS IN ) : COLOR
+half4 CameraOrbsPS( OutputCameraOrbsVS IN ) : SV_Target0
 {
 	return ComputeCameraOrbsColor( IN, GetTexture2D( orbTex, ssOrb, IN.uv ), cbCameraOrbs.lensDetailParams );
 }
 
-half4 CameraLensPS( OutputCameraOrbsVS IN ) : COLOR
+half4 CameraLensPS( OutputCameraOrbsVS IN ) : SV_Target0
 {
 	return ComputeCameraOrbsColor( IN, GetTexture2D( lensTex, ssOrb, IN.uv ), cbCameraOrbs.lensDetailParams2 );
 }
@@ -518,7 +517,7 @@ Texture2D    shaftTex   : register(t0);
 Texture2D    depthTex   : register(t1);
 SamplerState ssShafts   : register(s0);
 
-half4 shaftsOccPS( OutputShaftOcclusionVS IN ) : COLOR
+half4 shaftsOccPS( OutputShaftOcclusionVS IN ) : SV_Target0
 {
 	float depth = GetTexture2D(depthTex, ssShafts, IN.fsuv);
 	half4 baseClr = GetTexture2D(shaftTex, ssShafts, IN.uvz.xy );
@@ -557,7 +556,7 @@ OutputShaftVS shaftsVS( InpuptVS IN )
 
 Texture2D shaftOcclusionTex : register(t0)
 
-half4 shaftsPS( OutputShaftVS IN ) : COLOR
+half4 shaftsPS( OutputShaftVS IN ) : SV_Target0
 {
 	const int N_SAMPLE = 30;
 	half2 duv = (IN.center.zw - IN.center.xy) / N_SAMPLE;
@@ -590,7 +589,7 @@ OutputScreenVS shaftBlendVS( InputScreenVS IN )
 	return OUT;
 }
 
-half4 shaftBlendPS( OutputScreenVS IN ) : COLOR
+half4 shaftBlendPS( OutputScreenVS IN ) : SV_Target0
 {
 	half4 shaftColor = GetTexture2D(shaftTex, ssShafts, IN.uv );
 	half4 finalBlendColor = half4( shaftColor.rgb*shaftColor.a, 1 );

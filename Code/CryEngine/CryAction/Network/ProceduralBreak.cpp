@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 /*************************************************************************
    -------------------------------------------------------------------------
@@ -42,8 +42,8 @@ void SJointBreakRec::SerializeWith(TSerialize ser)
 	ser.Value("epicenter", epicenter);
 }
 
-	#pragma warning(push)
-	#pragma warning(disable : 6262)// 32k of stack space of CBitArray
+#pragma warning(push)
+#pragma warning(disable : 6262)// 32k of stack space of CBitArray
 void SJointBreakParticleRec::SerializeWith(TSerialize ser)
 {
 	LOGBREAK("SJointBreakParticleRec");
@@ -51,7 +51,7 @@ void SJointBreakParticleRec::SerializeWith(TSerialize ser)
 	SerializeDirVector(array, vel, 20.f, 8, 8, 8);
 	if (ser.IsWriting()) array.WriteToSerializer();
 }
-	#pragma warning(pop)
+#pragma warning(pop)
 
 void SProceduralBreak::AddProceduralSendables(int breakId, INetSendableSink* pSink)
 {

@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #if !defined(AFX_STDAFX_H__81DAABA0_0054_42BF_8696_D99BA6832D03__INCLUDED_)
 #define AFX_STDAFX_H__81DAABA0_0054_42BF_8696_D99BA6832D03__INCLUDED_
@@ -61,10 +61,19 @@
 #include <CryNetwork/ISerialize.h>
 #include <CryRenderer/IRenderAuxGeom.h>
 #include <CryMath/Random.h>
+#include <CrySystem/ICodeCheckpointMgr.h>
+
+#include "CryAISystem/NavigationSystem/NavigationIdTypes.h"
+
 #include "XMLUtils.h"
 
+//Schematyc includes
+#include <CrySchematyc/CoreAPI.h>
+
 #include "Environment.h"
-#include "CodeCoverageTracker.h"
+
+// Hijack the old CCCPOINT definition (and add a semi-colon to allow compilation)
+#define CCCPOINT(x) CODECHECKPOINT(x);
 
 #include <CrySystem/Profilers/FrameProfiler/FrameProfiler_JobSystem.h>  // to be removed
 

@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #ifndef _SHARED_STATES_H_
 #define _SHARED_STATES_H_
@@ -81,6 +81,10 @@ public:
 
 private:
 	CryGFxTextClipboard();
+
+#if CRY_PLATFORM_WINDOWS
+	bool m_bSyncingClipboardFromWindows;
+#endif // CRY_PLATFORM_WINDOWS
 };
 
 //////////////////////////////////////////////////////////////////////////

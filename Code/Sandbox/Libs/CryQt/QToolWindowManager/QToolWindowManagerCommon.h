@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 // Configuration option names - descriptions below are based on default implementations
@@ -7,6 +7,8 @@
 #define QTWM_AREA_IMAGE_HANDLE "areaUseImageHandle"
 // This should provide a path which will be loaded into a QImage to generate area image handle
 #define QTWM_AREA_IMAGE_HANDLE_IMAGE "areaImageHandle"
+// If true, shows Drag Handle on mutli-tab areas
+#define QTWM_AREA_SHOW_DRAG_HANDLE "areaImageHandle"
 // If true, sets document mode on areas.
 #define QTWM_AREA_DOCUMENT_MODE "areaUseDocumentMode"
 // If true, tabs have a close button.

@@ -1,25 +1,21 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #ifndef __BoundingVolume_h__
 #define __BoundingVolume_h__
 
 #pragma once
 
+#include <CryAISystem/NavigationSystem/MNMBoundingVolume.h>
+
 namespace MNM
 {
-struct BoundingVolume
+struct BoundingVolume : MNM::SBoundingVolume
 {
-	BoundingVolume()
-		: aabb(AABB::RESET)
-		, height(0.0f)
-	{
-	}
-
 	typedef std::vector<Vec3> Boundary;
-	Boundary vertices;
-	AABB     aabb;
 
-	float    height;
+	const Boundary& GetBoundaryVertices() const { return vertices; }
+
+	void Set(const Vec3* pVertices, const size_t verticesCount, const float height);
 
 	void Swap(BoundingVolume& other);
 
@@ -38,6 +34,9 @@ struct BoundingVolume
 	bool            IntersectLineSeg(const Vec3& start, const Vec3& end, float* t, size_t* segment) const;
 
 	void            OffsetVerticesAndAABB(const Vec3& delta);
+
+private:
+	Boundary vertices;
 };
 
 struct HashBoundingVolume

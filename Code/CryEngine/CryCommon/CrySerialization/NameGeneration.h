@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -8,19 +8,15 @@ namespace Serialization
 {
 
 //! Skip underscores and prefixes in identifier.
-inline string ToDisplayName(cstr name)
+inline cstr VarToName(char* name)
 {
 	if (name[0] == 'm' && name[1] == '_')
 		name += 2;
 	while (*name == '_')
 		name++;
-	string disp;
 	if (*name)
-	{
-		disp += toupper(*name);
-		disp += name + 1;
-	}
-	return disp;
+		*name = toupper(*name);
+	return name;
 }
 
 //! Convert label to name: remove spaces.
@@ -67,7 +63,11 @@ inline string NameToLabel(cstr name)
 
 }
 
-#define SERIALIZE_VAR(ar, var)                                            \
-  static string var ## _Name = Serialization::ToDisplayName( # var);      \
-  static string var ## _Label = Serialization::NameToLabel(var ## _Name); \
-  ar(var, var ## _Name, var ## _Label)
+#define SERIALIZE_VAR(ar, var)                                  \
+	do {                                                        \
+	  static char _var[] = # var;                               \
+	  static cstr _name = Serialization::VarToName(_var);       \
+	  static string _label = Serialization::NameToLabel(_name); \
+	  ar(var, _name, _label);                                   \
+	} while (false)                                             \
+

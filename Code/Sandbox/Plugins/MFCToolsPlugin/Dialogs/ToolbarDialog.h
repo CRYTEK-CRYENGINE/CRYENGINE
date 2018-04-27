@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #if !defined(AFX_TOOLBARDIALOG_H__31620F0B_DB2D_45BA_A86B_E71BD4F79414__INCLUDED_)
 #define AFX_TOOLBARDIALOG_H__31620F0B_DB2D_45BA_A86B_E71BD4F79414__INCLUDED_
@@ -86,3 +86,4 @@ protected:
 };
 
 #endif // !defined(AFX_TOOLBARDIALOG_H__31620F0B_DB2D_45BA_A86B_E71BD4F79414__INCLUDED_)
+

@@ -99,6 +99,10 @@ void CDefaultLightEntity::OnResetState()
 	{
 		m_light.m_Flags |= DLF_IGNORES_VISAREAS;
 	}
+	if (m_bLinkToSkyColor)
+	{
+		m_light.m_Flags |= DLF_LINK_TO_SKY_COLOR;
+	}
 	if (m_bAmbient)
 	{
 		m_light.m_Flags |= DLF_AMBIENT;
@@ -151,14 +155,14 @@ void CDefaultLightEntity::OnResetState()
 		}
 		else
 		{
-			m_light.m_pLightImage = gEnv->pRenderer->EF_LoadTexture(m_projectorTexturePath, FT_DONT_STREAM);
+			m_light.m_pLightImage = gEnv->pRenderer->EF_LoadTexture(m_projectorTexturePath, 0);
 		}
 
 		if ((!m_light.m_pLightImage || !m_light.m_pLightImage->IsTextureLoaded()) && !m_light.m_pLightDynTexSource)
 		{
 			CryWarning(VALIDATOR_MODULE_ENTITYSYSTEM, VALIDATOR_WARNING, 0, m_projectorTexturePath.c_str(),
 				"Light projector texture not found: %s", m_projectorTexturePath.c_str());
-			m_light.m_pLightImage = gEnv->pRenderer->EF_LoadTexture("Textures/defaults/red.dds", FT_DONT_STREAM);
+			m_light.m_pLightImage = gEnv->pRenderer->EF_LoadTexture("Textures/defaults/red.dds", 0);
 		}
 	}
 

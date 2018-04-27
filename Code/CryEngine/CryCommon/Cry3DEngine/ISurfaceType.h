@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 // -------------------------------------------------------------------------
 //  File name:   ISurfaceType.h
@@ -23,6 +23,7 @@ enum ESurfaceTypeFlags
 	SURFACE_TYPE_BULLET_PIERCEABLE      = BIT(5), //!< This surface is pierceable by bullets (used by MFX system to spawn front/back FX).
 };
 
+//! \cond INTERNAL
 //! Parameter structure passed to ISurfaceType::Execute.
 struct SSurfaceTypeExecuteParams
 {
@@ -30,6 +31,7 @@ struct SSurfaceTypeExecuteParams
 	Vec3 hitNormal;
 	int  hitType;
 };
+//! \endcond
 
 #define SURFACE_BREAKAGE_TYPE(x) x
 
@@ -101,9 +103,9 @@ struct ISurfaceType
 		float  destroy_timeout;
 		float  destroy_timeout_spread;
 
-		SBreakable2DParams() : blast_radius(0), rigid_body(0), life_time(0), cell_size(0), max_patch_tris(0), shard_density(0), crack_decal_scale(0),
-			max_fracture(1.0f), vert_size_spread(0), filter_angle(0), use_edge_alpha(0), blast_radius_first(0), no_procedural_full_fracture(0),
-			destroy_timeout(0), destroy_timeout_spread(0) {}
+		SBreakable2DParams() : blast_radius(0), blast_radius_first(0), vert_size_spread(0), rigid_body(0), life_time(0), cell_size(0),
+			max_patch_tris(0), filter_angle(0), shard_density(0), use_edge_alpha(0), crack_decal_scale(0),
+			max_fracture(1.0f), no_procedural_full_fracture(0), destroy_timeout(0), destroy_timeout_spread(0) {}
 	};
 	struct SBreakageParticles
 	{

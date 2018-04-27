@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 /********************************************************************
    -------------------------------------------------------------------------
@@ -155,8 +155,7 @@ void CAIDbgRecorder::Record(const IAIObject* pTarget, IAIRecordable::e_AIDbgEven
 void CAIDbgRecorder::InitFile() const
 {
 	// Set the string
-	m_sFile = gEnv->pSystem->GetRootFolder();
-	m_sFile += AIRECORDER_FILENAME;
+	m_sFile = PathUtil::Make(gEnv->pSystem->GetRootFolder(), AIRECORDER_FILENAME);
 
 	// Open to wipe and write any preamble
 	FILE* pFile = fxopen(m_sFile.c_str(), "wt");
@@ -180,8 +179,7 @@ void CAIDbgRecorder::InitFile() const
 //----------------------------------------------------------------------------------------------
 void CAIDbgRecorder::InitFileSecondary() const
 {
-	m_sFileSecondary = gEnv->pSystem->GetRootFolder();
-	m_sFileSecondary += AIRECORDER_SECONDARYFILENAME;
+	m_sFileSecondary = PathUtil::Make(gEnv->pSystem->GetRootFolder(), AIRECORDER_SECONDARYFILENAME);
 
 	FILE* pFileSecondary = fxopen(m_sFileSecondary.c_str(), "wt");
 	fputs("Function,Time,Page faults,Entity\n", pFileSecondary);

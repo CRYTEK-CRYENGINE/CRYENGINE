@@ -74,15 +74,16 @@ void CAnimatedMeshComponent::ResetObject()
 		return;
 	}
 
-	m_pEntity->SetCharacter(m_pCachedCharacter, GetOrMakeEntitySlotId() | ENTITY_SLOT_ACTUAL, false);
+	m_pEntity->SetCharacter(m_pCachedCharacter, GetOrMakeEntitySlotId(), false);
 
 	if (m_defaultAnimation.value.size() > 0)
 	{
+		m_animationParams.m_fPlaybackSpeed = m_defaultAnimationSpeed;
 		PlayAnimation(m_defaultAnimation, m_bLoopDefaultAnimation);
 	}
 }
 
-void CAnimatedMeshComponent::ProcessEvent(SEntityEvent& event)
+void CAnimatedMeshComponent::ProcessEvent(const SEntityEvent& event)
 {
 	if (event.event == ENTITY_EVENT_COMPONENT_PROPERTY_CHANGED)
 	{

@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "XConsole.h"
@@ -151,6 +151,184 @@ void CXConsoleVariableBase::CallOnChangeFunctions()
 	{
 		m_cpChangeFunctors[nCount].Call();
 	}
+}
+
+int CXConsoleVariableBase::m_sys_cvar_logging = 1;
+
+void CXConsoleVariableFloat::SetInternal(float value)
+{
+	if (!m_allowedValues.empty())
+	{
+		if (std::find(m_allowedValues.cbegin(), m_allowedValues.cend(), value) == m_allowedValues.cend())
+		{
+			if (m_sys_cvar_logging > 0)
+			{
+				CryWarning(VALIDATOR_MODULE_SYSTEM, VALIDATOR_ERROR, "'%f' is not a valid value of '%s'", value, GetName());
+			}
+
+			if (std::find(m_allowedValues.cbegin(), m_allowedValues.cend(), m_fValue) != m_allowedValues.cend())
+			{
+				value = m_fValue;
+			}
+			else
+			{
+				value = m_allowedValues[0];
+			}
+		}
+	}
+	else
+	{
+		if (value > m_maxValue || value < m_minValue)
+		{
+			if (m_sys_cvar_logging > 0)
+			{
+				CryWarning(VALIDATOR_MODULE_SYSTEM, VALIDATOR_ERROR, "'%f' is not in the allowed range of '%s' (%f-%f)", value, GetName(), m_minValue, m_maxValue);
+			}
+			value = clamp_tpl(value, m_minValue, m_maxValue);
+		}
+	}
+
+	m_fValue = value;
+}
+
+void CXConsoleVariableFloatRef::SetInternal(float value)
+{
+	if (!m_allowedValues.empty())
+	{
+		if (std::find(m_allowedValues.cbegin(), m_allowedValues.cend(), value) == m_allowedValues.cend())
+		{
+			if (m_sys_cvar_logging > 0)
+			{
+				CryWarning(VALIDATOR_MODULE_SYSTEM, VALIDATOR_ERROR, "'%f' is not a valid value of '%s'", value, GetName());
+			}
+			if (std::find(m_allowedValues.cbegin(), m_allowedValues.cend(), m_fValue) != m_allowedValues.cend())
+			{
+				value = m_fValue;
+			}
+			else
+			{
+				value = m_allowedValues[0];
+			}
+		}
+	}
+	else
+	{
+		if (value > m_maxValue || value < m_minValue)
+		{
+			if (m_sys_cvar_logging > 0)
+			{
+				CryWarning(VALIDATOR_MODULE_SYSTEM, VALIDATOR_ERROR, "'%f' is not in the allowed range of '%s' (%f-%f)", value, GetName(), m_minValue, m_maxValue);
+			}
+			value = clamp_tpl(value, m_minValue, m_maxValue);
+		}
+	}
+
+	m_fValue = value;
+}
+
+void CXConsoleVariableInt64::SetInternal(int64 value)
+{
+	if (!m_allowedValues.empty())
+	{
+		if (std::find(m_allowedValues.cbegin(), m_allowedValues.cend(), value) == m_allowedValues.cend())
+		{
+			if (m_sys_cvar_logging > 0)
+			{
+				CryWarning(VALIDATOR_MODULE_SYSTEM, VALIDATOR_ERROR, "'%lli' is not a valid value of '%s'", value, GetName());
+			}
+			if (std::find(m_allowedValues.cbegin(), m_allowedValues.cend(), m_iValue) != m_allowedValues.cend())
+			{
+				value = m_iValue;
+			}
+			else
+			{
+				value = m_allowedValues[0];
+			}
+		}
+	}
+	else
+	{
+		if (value > m_maxValue || value < m_minValue)
+		{
+			if (m_sys_cvar_logging > 0)
+			{
+				CryWarning(VALIDATOR_MODULE_SYSTEM, VALIDATOR_ERROR, "'%lli' is not in the allowed range of '%s' (%lli-%lli)", value, GetName(), m_minValue, m_maxValue);
+			}
+			value = clamp_tpl(value, m_minValue, m_maxValue);
+		}
+	}
+
+	m_iValue = value;
+}
+
+void CXConsoleVariableInt::SetInternal(int value)
+{
+	if (!m_allowedValues.empty())
+	{
+		if (std::find(m_allowedValues.cbegin(), m_allowedValues.cend(), value) == m_allowedValues.cend())
+		{
+			if (m_sys_cvar_logging > 0)
+			{
+				CryWarning(VALIDATOR_MODULE_SYSTEM, VALIDATOR_ERROR, "'%d' is not a valid value of '%s'", value, GetName());
+			}
+			if (std::find(m_allowedValues.cbegin(), m_allowedValues.cend(), m_iValue) != m_allowedValues.cend())
+			{
+				value = m_iValue;
+			}
+			else
+			{
+				value = m_allowedValues[0];
+			}
+		}
+	}
+	else
+	{
+		if (value > m_maxValue || value < m_minValue)
+		{
+			if (m_sys_cvar_logging > 0)
+			{
+				CryWarning(VALIDATOR_MODULE_SYSTEM, VALIDATOR_ERROR, "'%d' is not in the allowed range of '%s' (%d-%d)", value, GetName(), m_minValue, m_maxValue);
+			}
+			value = clamp_tpl(value, m_minValue, m_maxValue);
+		}
+	}
+
+	m_iValue = value;
+}
+
+void CXConsoleVariableIntRef::SetInternal(int value)
+{
+	if (!m_allowedValues.empty())
+	{
+		if (std::find(m_allowedValues.cbegin(), m_allowedValues.cend(), value) == m_allowedValues.cend())
+		{
+			if (m_sys_cvar_logging > 0)
+			{
+				CryWarning(VALIDATOR_MODULE_SYSTEM, VALIDATOR_ERROR, "'%d' is not a valid value of '%s'", value, GetName());
+			}
+			if (std::find(m_allowedValues.cbegin(), m_allowedValues.cend(), m_iValue) != m_allowedValues.cend())
+			{
+				value = m_iValue;
+			}
+			else
+			{
+				value = m_allowedValues[0];
+			}
+		}
+	}
+	else
+	{
+		if (value > m_maxValue || value < m_minValue)
+		{
+			if (m_sys_cvar_logging > 0)
+			{
+				CryWarning(VALIDATOR_MODULE_SYSTEM, VALIDATOR_ERROR, "'%d' is not in the allowed range of '%s' (%d-%d)", value, GetName(), m_minValue, m_maxValue);
+			}
+			value = clamp_tpl(value, m_minValue, m_maxValue);
+		}
+	}
+
+	m_iValue = value;
 }
 
 void CXConsoleVariableCVarGroup::OnLoadConfigurationEntry(const char* szKey, const char* szValue, const char* szGroup)

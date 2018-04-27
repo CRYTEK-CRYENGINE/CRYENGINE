@@ -1,8 +1,8 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "stdafx.h"
 #include "XMLSerializer.h"
-#include "xml/xml.h"
+#include "XML/xml.h"
 #include "IXMLSerializer.h"
 #include <CryString/StringUtils.h>
 

@@ -11,22 +11,20 @@ class CPlayerComponent;
 // An instance of CGamePlugin is automatically created when the library is loaded
 // We then construct the local player entity and CPlayerComponent instance when OnClientConnectionReceived is first called.
 class CGamePlugin 
-	: public ICryPlugin
+	: public Cry::IEnginePlugin
 	, public ISystemEventListener
 	, public INetworkedClientListener
 {
 public:
-	CRYINTERFACE_SIMPLE(ICryPlugin)
-	CRYGENERATE_SINGLETONCLASS_GUID(CGamePlugin, "Game_Blank", "{24FE22B8-4592-440B-8E9C-BA5E6F22F721}"_cry_guid)
+	CRYINTERFACE_SIMPLE(Cry::IEnginePlugin)
+	CRYGENERATE_SINGLETONCLASS_GUID(CGamePlugin, "RollingBall", "{24FE22B8-4592-440B-8E9C-BA5E6F22F721}"_cry_guid)
 
 	virtual ~CGamePlugin();
 	
-	// ICryPlugin
-	virtual const char* GetName() const override { return "GamePlugin"; }
+	// Cry::IEnginePlugin
 	virtual const char* GetCategory() const override { return "Game"; }
 	virtual bool Initialize(SSystemGlobalEnvironment& env, const SSystemInitParams& initParams) override;
-	virtual void OnPluginUpdate(EPluginUpdateType updateType) override {}
-	// ~ICryPlugin
+	// ~Cry::IEnginePlugin
 
 	// ISystemEventListener
 	virtual void OnSystemEvent(ESystemEvent event, UINT_PTR wparam, UINT_PTR lparam) override;

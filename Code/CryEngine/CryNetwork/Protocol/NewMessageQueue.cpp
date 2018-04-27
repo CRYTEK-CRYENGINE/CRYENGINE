@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include <StdAfx.h>
 #include "MessageQueue.h"
@@ -225,6 +225,12 @@ bool CMessageQueue::CConfig::Read(XmlNodeRef n)
 					"Scheduler policy name should not exceed 4 characters.");
 				return false;
 			}
+			if (key == ~uint32(0))
+			{
+				CryWarning(VALIDATOR_MODULE_NETWORK, VALIDATOR_ERROR,
+					"Invalid scheduler policy name '%s'.", name);
+				return false;
+			}
 			m_policy[key] = pol;
 		}
 		else
@@ -434,7 +440,7 @@ class CMessageQueue::CIncrementalSorter
 public:
 	CIncrementalSorter(CMessageQueue* pQ) : m_liveList(pQ->m_liveList), m_pSlots(&pQ->m_slots)
 	{
-		FUNCTION_PROFILER(gEnv->pSystem, PROFILE_NETWORK);
+		CRY_PROFILE_FUNCTION(PROFILE_NETWORK);
 
 		m_liveList.resize(0);
 
@@ -459,7 +465,7 @@ public:
 
 	uint32 Next()
 	{
-		FUNCTION_PROFILER(gEnv->pSystem, PROFILE_NETWORK);
+		CRY_PROFILE_FUNCTION(PROFILE_NETWORK);
 
 		while (m_curLiveListElem == m_liveList.size())
 		{
@@ -867,7 +873,7 @@ void CMessageQueue::AddToQueue(SSendableHandle hdl)
 
 bool CMessageQueue::RemoveSendable(SSendableHandle handle)
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_NETWORK);
+	CRY_PROFILE_FUNCTION(PROFILE_NETWORK);
 
 	if (m_inWrite)
 	{
@@ -936,7 +942,7 @@ void CMessageQueue::BeginAccountingFrame()
 
 void CMessageQueue::PrepareLiveList()
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_NETWORK);
+	CRY_PROFILE_FUNCTION(PROFILE_NETWORK);
 	CActiveElemIterator iter(this, eMSS_Active);
 	uint32 activeRoot = m_rootSlots[eMSS_Active].id;
 	m_slotState[activeRoot].nextTop = m_slotState[activeRoot].next;
@@ -953,7 +959,7 @@ void CMessageQueue::PrepareLiveList()
 
 void CMessageQueue::CalculatePerFrameData(const SSchedulingParams& params)
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_NETWORK);
+	CRY_PROFILE_FUNCTION(PROFILE_NETWORK);
 
 	#if FULL_ON_SCHEDULING
 	float drawDistanceScale = 1.0f;
@@ -1142,7 +1148,7 @@ void CMessageQueue::PatchObjectGroupings()
 
 void CMessageQueue::PatchOrderedPriorities()
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_NETWORK);
+	CRY_PROFILE_FUNCTION(PROFILE_NETWORK);
 	NET_ASSERT(m_recurseCache.empty());
 
 	CCompareMsgEnts compare(&m_slots);
@@ -1189,7 +1195,7 @@ void CMessageQueue::PatchOrderedPriorities()
 
 bool CMessageQueue::AreMessagesToWrite(const SSchedulingParams& params)
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_NETWORK);
+	CRY_PROFILE_FUNCTION(PROFILE_NETWORK);
 
 	PrepareMessageList(params);
 
@@ -1263,7 +1269,8 @@ bool CMessageQueue::AreMessagesToWrite(const SSchedulingParams& params)
 
 	#if DEEP_BANDWIDTH_ANALYSIS
 
-uint32 g_DBASizePriorToUpdate;
+bool g_DBAEnabled = false;
+uint32 g_DBASizePriorToUpdate = 0;
 CryStringLocal g_DBAMainProfileBuffer;
 CryStringLocal g_DBASmallProfileBuffer;
 CryStringLocal g_DBALargeProfileBuffer;
@@ -1371,6 +1378,11 @@ struct SNetMessageProfileLogger
 		return fout;
 	}
 
+	static bool IsDumpEnabled()
+	{
+		return CNetCVars::Get().net_profile_deep_bandwidth_logging != 0;
+	}
+
 	void Dump()
 	{
 		static int firstTimeLogging = 1;
@@ -1381,7 +1393,7 @@ struct SNetMessageProfileLogger
 			lastPacketsSent = g_socketBandwidth.bandwidthStats.m_total.m_totalPacketsSent;
 			lastBandwidthSent = g_socketBandwidth.bandwidthStats.m_total.m_totalBandwidthSent;
 		}
-		if (CNetCVars::Get().net_profile_deep_bandwidth_logging)
+		if (IsDumpEnabled())
 		{
 			static ICVar* pName = gEnv->pConsole->GetCVar("net_profile_deep_bandwidth_logname");
 
@@ -1436,10 +1448,12 @@ struct SNetMessageProfileLogger
 
 void CMessageQueue::WriteMessages(IMessageOutput* pOut, const SSchedulingParams& params)
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_NETWORK);
+	CRY_PROFILE_FUNCTION(PROFILE_NETWORK);
 
 	#if DEEP_BANDWIDTH_ANALYSIS
 	static SNetMessageProfileLogger profiler;
+	g_DBAEnabled = SNetMessageProfileLogger::IsDumpEnabled();
+	const bool DBAEnabled = g_DBAEnabled;
 	#endif
 
 	VerifyBlocking();
@@ -1462,7 +1476,10 @@ void CMessageQueue::WriteMessages(IMessageOutput* pOut, const SSchedulingParams&
 	#endif // ENABLE_PACKET_PREDICTION
 
 	#if DEEP_BANDWIDTH_ANALYSIS
-	profiler.OnWriteMessages(params.now, params.pChannel);
+	IF_UNLIKELY (DBAEnabled)
+	{
+		profiler.OnWriteMessages(params.now, params.pChannel);
+	}
 	#endif
 
 	#if ENABLE_URGENT_RMIS
@@ -1545,8 +1562,11 @@ void CMessageQueue::WriteMessages(IMessageOutput* pOut, const SSchedulingParams&
 			writtenHeader = true;
 			debugPacketDataSizeEndData(eDPDST_MessagesHeader, pStm->GetBitSize());
 	#if DEEP_BANDWIDTH_ANALYSIS
-			uint32 sizeHeader = (uint32)pStm->GetBitSize();
-			profiler.OnMessage(params.pChannel, 'prel', "Packet prelude", sizeHeader);
+			IF_UNLIKELY (DBAEnabled)
+			{
+				uint32 sizeHeader = (uint32)pStm->GetBitSize();
+				profiler.OnMessage(params.pChannel, 'prel', "Packet prelude", sizeHeader);
+			}
 	#endif
 		}
 
@@ -1564,9 +1584,12 @@ void CMessageQueue::WriteMessages(IMessageOutput* pOut, const SSchedulingParams&
 
 		uint32 sizeBefore = pStm->GetApproximateSize();
 	#if DEEP_BANDWIDTH_ANALYSIS
-		float accSizeBefore = pStm->GetBitSize();
-		g_DBASizePriorToUpdate = accSizeBefore;
-		g_DBAMainProfileBuffer = "";
+		const float accSizeBefore = pStm->GetBitSize();
+		IF_UNLIKELY (DBAEnabled)
+		{
+			g_DBASizePriorToUpdate = accSizeBefore;
+			g_DBAMainProfileBuffer = "";
+		}
 	#endif
 	#if ENABLE_PACKET_PREDICTION
 		MessageTagMap::iterator prevTagValues;
@@ -1634,7 +1657,7 @@ void CMessageQueue::WriteMessages(IMessageOutput* pOut, const SSchedulingParams&
 
 		if (doWrite)
 		{
-			//FRAME_PROFILER("CMessageQueue::WriteMessages.EncodeMessage", gEnv->pSystem, PROFILE_NETWORK);
+			//CRY_PROFILE_REGION(PROFILE_NETWORK, "CMessageQueue::WriteMessages.EncodeMessage");
 			debugPacketDataSizeStartData(eDPDST_MessageBody, pStm->GetBitSize());
 			writeResult = pOut->WriteMessage(pEntSend->msg, HandleFromPointer(pEntSend));
 			debugPacketDataSizeEndData(eDPDST_MessageBody, pStm->GetBitSize());
@@ -1644,9 +1667,12 @@ void CMessageQueue::WriteMessages(IMessageOutput* pOut, const SSchedulingParams&
 		}
 		uint32 sizeAfter = pStm->GetApproximateSize();
 	#if DEEP_BANDWIDTH_ANALYSIS
-		g_DBALargeProfileBuffer.Format("%s%s", pEntSend->msg.pSendable ? pEntSend->msg.pSendable->GetDescription() : "<null>", g_DBAMainProfileBuffer.c_str());
-		g_DBAMainProfileBuffer = "";
-		profiler.OnMessage(params.pChannel, pEntSend->pAG ? pEntSend->pAG->id : 'none', g_DBALargeProfileBuffer.c_str(), ((float)pStm->GetBitSize()) - accSizeBefore);
+		IF_UNLIKELY (DBAEnabled)
+		{
+			g_DBALargeProfileBuffer.Format("%s%s", pEntSend->msg.pSendable ? pEntSend->msg.pSendable->GetDescription() : "<null>", g_DBAMainProfileBuffer.c_str());
+			g_DBAMainProfileBuffer = "";
+			profiler.OnMessage(params.pChannel, pEntSend->pAG ? pEntSend->pAG->id : 'none', g_DBALargeProfileBuffer.c_str(), ((float)pStm->GetBitSize()) - accSizeBefore);
+		}
 	#endif
 	#if ENABLE_PACKET_PREDICTION
 		if (mTag.messageId != 0xFFFFFFFF)
@@ -1915,7 +1941,7 @@ void CMessageQueue::WriteMessages(IMessageOutput* pOut, const SSchedulingParams&
 
 void CMessageQueue::FinishFrame(const SSchedulingParams* pParams)
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_NETWORK);
+	CRY_PROFILE_FUNCTION(PROFILE_NETWORK);
 
 	VerifyBlocking();
 
@@ -1990,7 +2016,7 @@ void CMessageQueue::SetConfig(CConfig* pConfig, int version)
 	m_nAccountingGroups = 0;
 	for (std::map<uint32, SAccountingGroupPolicy>::iterator iter = pConfig->m_policy.begin(); iter != pConfig->m_policy.end(); ++iter)
 	{
-		NET_ASSERT(iter->first > SNetObjectID::InvalidId);
+		NET_ASSERT(iter->first != ~uint32(0));
 		SAccountingGroup* pGrp = &m_accountingGroups[m_nAccountingGroups++];
 		pGrp->policy = iter->second;
 		pGrp->totBandwidthUsed = 0;
@@ -2003,7 +2029,7 @@ void CMessageQueue::SetConfig(CConfig* pConfig, int version)
 	#if HIGH_PRIORITY_LOGGING
 		for (uint32 index = 0; index < m_nAccountingGroups; ++index)
 		{
-			NetLog("[Accounting Group] : index %d id %x", index, m_accountingGroups[index].id);
+			NetLog("[Accounting Group] : index %d id %x key %s", index, m_accountingGroups[index].id, KeyToString(m_accountingGroups[index].id).c_str());
 		}
 	#endif // HIGH_PRIORITY_LOGGING
 	}
@@ -2039,7 +2065,7 @@ ILINE CMessageQueue::SAccountingGroup* CMessageQueue::GetAccountingGroup(uint32 
 
 void CMessageQueue::RegularCleanup(const SSchedulingParams& params)
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_NETWORK);
+	CRY_PROFILE_FUNCTION(PROFILE_NETWORK);
 
 	CTimeValue oldTime = params.now - 0.5f;
 

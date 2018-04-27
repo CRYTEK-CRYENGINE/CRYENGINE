@@ -1,7 +1,9 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "ObjectContainer.h"
+
+#include "AIEntityComponent.h"
 
 // Annoying...
 #include "AIVehicle.h"
@@ -191,7 +193,7 @@ bool CObjectContainer::DeregisterObjectUntyped(CAbstractUntypedRef* ref)
 int CObjectContainer::ReleaseDeregisteredObjects(bool checkForLeaks)
 {
 	CCCPOINT(ReleaseDeregisteredObjects);
-	FUNCTION_PROFILER(GetISystem(), PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 	int nReleased = 0;
 
@@ -373,10 +375,12 @@ void CObjectContainer::Serialize(TSerialize ser)
 		objHeader.Serialize(ser);
 		assert(id == objHeader.objectId);
 
+		bool bHadObject = object != nullptr && m_objects.get(id) != nullptr;
+
 		if (bReading)
 		{
 			//Read type for creation, skipping if the object already exists
-			if (!object && m_objects.get(id) == NULL)
+			if (!bHadObject)
 			{
 				object = objHeader.RecreateObject();
 
@@ -398,6 +402,15 @@ void CObjectContainer::Serialize(TSerialize ser)
 
 			// (MATT) Note that this call may reach CAIActor, which currently handles serialising the proxies {2009/04/30}
 			object->Serialize(ser);
+
+			if (bReading && !bHadObject)
+			{
+				if (IEntity* pEntity = object->GetEntity())
+				{
+					// Re-create the associated AI entity component
+					pEntity->GetOrCreateComponentClass<CAIEntityComponent>(GetWeakRef(object));
+				}
+			}
 		}
 		totalSerialised++;
 

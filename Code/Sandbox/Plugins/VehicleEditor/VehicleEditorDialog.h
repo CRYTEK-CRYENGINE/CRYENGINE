@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #ifndef __VehicleEditorDialog_h__
 #define __VehicleEditorDialog_h__
@@ -43,8 +43,8 @@ public:
 
 	bool               ApplyToVehicle(string filename = "", bool mergeFile = true);
 
-	void               OnPrototypeEvent(CBaseObject* object, int event);
-	void               OnEntityEvent(CBaseObject* object, int event);
+	void               OnPrototypeEvent(const CBaseObject* pObject, const CObjectEvent& event);
+	void               OnEntityEvent(const CBaseObject* pObject, const CObjectEvent& event);
 
 	void               RecalcLayout(BOOL bNotify = TRUE);
 	void               Close();
@@ -116,3 +116,4 @@ private:
 };
 
 #endif // __VehicleEditorDialog_h__
+

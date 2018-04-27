@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 /********************************************************************
    -------------------------------------------------------------------------
@@ -134,7 +134,7 @@ public:
 	//				AVMODE_PROPERTIES - unit properties will be used for filter
 	//				AVMODE_CLASS - unit class will be used for filter
 	//	(optional) uint32 unitFilter - filter value (UPR_* if properties, UNIT_CLASS_* if class)
-	Vec3 GetAveragePosition(eAvPositionMode mode = AVMODE_ANY, uint32 unitClass = UNIT_ALL) const;
+	Vec3 GetAveragePosition(eAvPositionMode mode = AVMODE_ANY, uint32 unitClassOrProperties = -1) const;
 
 	// <Title GetForemostUnit>
 	// gets the foremost unit in the given direction. starting from the average position

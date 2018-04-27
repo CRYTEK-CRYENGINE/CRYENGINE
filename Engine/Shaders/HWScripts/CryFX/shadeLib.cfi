@@ -18,8 +18,6 @@ SCENEDEPTHMAP
 
 SCENE_NORMALS_MAP
 SCENE_NORMALS_BENT
-SCENE_DIFFUSEACC_MAP
-SCENE_SPECULARACC_MAP
 #endif
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -86,15 +84,6 @@ half3 GetEnvmapFresnel(half3 specCol0, half gloss, half fNdotE)
 
 	// Empirical approximation to the reduced gain at grazing angles for rough materials
 	return lerp( specCol0, specCol90, pow( 1 - saturate( fNdotE ), 5 ) / (40 - 39 * gloss) );
-}
-
-half3 GetEnvBRDFFresnel(half3 specCol0, half gloss, half fNdotV, in sampler2D sampEnvBRDF)
-{
-	// Use a LUT that contains the numerically integrated BRDF for given N.V and smoothness parameters
-	// x: integral for base reflectance 0.0, y: integral for base reflectance 1.0
-	
-	half2 envBRDF = GetTexture2DLod( sampEnvBRDF, float4( fNdotV, gloss, 0, 0 ) ).xy;
-	return lerp( envBRDF.xxx, envBRDF.yyy, specCol0 );
 }
 
 half GetAttenuation(half3 L, half fInvRadius, bool bUserFalloff = false, half fFalloffMax = 1.0h)
@@ -453,6 +442,11 @@ half OrenNayarBRDF(half3 N, half3 V, half3 L, half Gloss, half NdotL)
 	return NdotL * max(A + B * (s / t), 0);
 }
 
+half Pow5(half v)
+{
+	return v * v * v * v * v;
+}
+
 half BurleyBRDF(half3 NdotL, half3 NdotV, half3 VdotH, half roughness)
 {
 	NdotV = max(NdotV, 0.1);  // Prevent overly dark edges
@@ -461,8 +455,8 @@ half BurleyBRDF(half3 NdotL, half3 NdotV, half3 VdotH, half roughness)
 	half energyBias = 0.5 * roughness;
 	half energyFactor = lerp(1, 1 / 1.51, roughness);
 	half fd90 = energyBias + 2.0 * VdotH * VdotH * roughness;
-	half scatterL = lerp(1, fd90, pow(1 - NdotL, 5));
-	half scatterV = lerp(1, fd90, pow(1 - NdotV, 5));
+	half scatterL = lerp(1, fd90, Pow5(1 - NdotL));
+	half scatterV = lerp(1, fd90, Pow5(1 - NdotV));
 	
 	return scatterL * scatterV * energyFactor * NdotL;
 }
@@ -905,16 +899,6 @@ void GetMicroDetailParams(out int mdQuality, out half mdDisplacement, out half m
 half4 DecodeHDRCubemap(half4 color)
 {
 	return color;
-}
-
-half4 GetEnvironmentCMap(samplerCUBE envMap, in half3 envTC, in half fGloss)
-{
-	const half numCMapMips = 6.0;  // TODO: Use real cubemap size
-	
-	half fGlossinessLod = numCMapMips - fGloss * numCMapMips;
-	half4 envColor = DecodeHDRCubemap(texCUBElod( envMap, half4(envTC, fGlossinessLod) ));
-    
-	return envColor;
 }
 
 half4 GetEnvironmentCMap(TextureCube envCubeTex, in half3 envTC, in half fGloss)

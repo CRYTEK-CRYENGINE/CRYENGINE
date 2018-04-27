@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -26,6 +26,15 @@ struct IListener
 	 * @return void
 	 */
 	virtual void SetTransformation(CObjectTransformation const& transformation, SRequestUserData const& userData = SRequestUserData::GetEmptyObject()) = 0;
+
+	/**
+	 * Sets this audio listener's name.
+	 * Is used only during production whenever the owning entity's name is changed to adjust corresponding audio listeners as well.
+	 * @param szName - name to set.
+	 * @param userData - optional struct used to pass additional data to the internal request.
+	 * @return void
+	 */
+	virtual void SetName(char const* const szName, SRequestUserData const& userData = SRequestUserData::GetEmptyObject()) = 0;
 	// </interfuscator:shuffle>
 };
 } // namespace CryAudio

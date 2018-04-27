@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 //
 // -------------------------------------------------------------------------
@@ -91,7 +91,7 @@ struct SCrySteamSessionID : public SCrySharedSessionID
 		, m_fromInvite(false)
 	{}
 
-	SCrySteamSessionID(CSteamID& id, bool fromInvite)
+	SCrySteamSessionID(const CSteamID& id, bool fromInvite)
 		: m_steamID(id)
 		, m_fromInvite(fromInvite)
 	{}
@@ -151,7 +151,7 @@ struct SCrySteamUserID : public SCrySharedUserID
 		: m_steamID(CSteamID())
 	{}
 
-	SCrySteamUserID(CSteamID& steamID)
+	SCrySteamUserID(const CSteamID& steamID)
 		: m_steamID(steamID)
 	{}
 

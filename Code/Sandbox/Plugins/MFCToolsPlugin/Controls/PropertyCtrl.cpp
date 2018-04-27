@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "PropertyCtrl.h"
@@ -7,7 +7,6 @@
 #include "Controls/SharedFonts.h"
 #include "MemDC.h"
 #include "Util/Clipboard.h"
-#include <Preferences/LightingPreferences.h>
 #include "Util/MFCUtil.h"
 
 #define PROPERTY_LEFT_BORDER (m_nFlags & F_NOBITMAPS ? 5 : 30)
@@ -864,10 +863,10 @@ void CPropertyCtrl::DrawItem(CPropertyItem* item, CDC& dc, CRect& itemRect)
 			pPrevFont = dc.SelectObject(m_pBoldFont);
 		}
 
-		// Indicate that the item is dirty by making the text orange
+		// Indicate that the item is dirty by making the text light grey
 		if (item->IsModified())
 		{
-			dc.SetTextColor(RGB(192, 100, 0));
+			dc.SetTextColor(RGB(192, 192, 192));
 		}
 
 		// Draw text label.
@@ -1062,12 +1061,6 @@ void CPropertyCtrl::CreateItems(XmlNodeRef& node, CVarBlockPtr& outBlockPtr, IVa
 					if (!strDescription.IsEmpty())
 						strDescription += CString("\r\n");
 					strDescription = pCVar->GetHelp();
-
-#ifdef FEATURE_SVO_GI
-					// Hide or unlock experimental items
-					if ((pCVar->GetFlags() & VF_EXPERIMENTAL) && !gLightingPreferences.bTotalIlluminationEnabled && strstr(groupNode->getTag(), "Total_Illumination"))
-						continue;
-#endif
 				}
 			}
 
@@ -2180,3 +2173,4 @@ void CPropertyCtrl::RemoveCustomPopupMenuPopup(const CString& text)
 {
 	RemoveCustomPopup(text, m_customPopupMenuPopups);
 }
+

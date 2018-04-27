@@ -1,0 +1,10 @@
+<AssetMetadata version="0" type="Texture" guid="c497050e-9872-3a9e-5ac8-074af935917e" source="grain_bayer_mul.tif">
+ <Files>
+  <File path="grain_bayer_mul.dds"/>
+ </Files>
+ <Details>
+  <Detail name="width">64</Detail>
+  <Detail name="height">64</Detail>
+  <Detail name="mipCount">1</Detail>
+ </Details>
+</AssetMetadata>

@@ -1,1 +1,114 @@
-{"Name": "sprite", "Features": [{"RenderSprites": {"SortBias": 0.0, "FlipU": false, "FlipV": false, "FacingMode": "Screen", "Offset": [0.0, 0.0], "SortMode": "None", "CameraOffset": 0.0, "SphericalProjection": 0.0, "AspectRatio": 1.0}}, {"SpawnRate": {"Delay": {"modifiers": [], "value": 0.0}, "Duration": {"State": false, "Value": {"modifiers": [], "value": 0.0}}, "Amount": {"modifiers": [], "value": 1.0}, "Mode": "ParticlesPerSecond"}}, {"SpawnCount": {"Delay": {"modifiers": [], "value": 0.0}, "Duration": {"State": true, "Value": {"modifiers": [], "value": 0.0}}, "Amount": {"modifiers": [], "value": 1.0}, "Enabled": false, "Restart": {"State": false, "Value": {"modifiers": [], "value": 1.0}}}}, {"LifeTime": {"LifeTime": {"modifiers": [], "value": 1.0}}}, {"FieldSize": {"value": {"modifiers": [], "value": 1.0}}}, {"FieldOpacity": {"AlphaScale": [0.0, 1.0], "ClipRange": [1.0, 1.0], "ClipLow": [0.0, 0.0], "Enabled": false, "value": {"modifiers": [], "value": 1.0}}}, {"AppearanceLighting": {"AffectedByFog": true, "Emissive": 0.0, "Curvature": 0.5, "ReceiveShadows": false, "Albedo": 100.0, "BackLight": 0.5}}, {"AppearanceMaterial": {"Material": "", "Texture": ""}}, {"MotionPhysics": {"AngularDragMultiplier": 0.0, "UniformAcceleration": [0.0, 0.0, 0.0], "UniformWind": [0.0, 0.0, 0.0], "gravity": {"modifiers": [], "value": 0.0}, "drag": {"modifiers": [], "value": 0.0}, "windMultiplier": 1.0, "localEffectors": []}}]}
+{
+  "Name": "sprite",
+  "Features": [
+    {
+      "RenderSprites": {
+        "SortBias": 0.0,
+        "FlipU": false,
+        "FlipV": false,
+        "FacingMode": "Screen",
+        "Offset": [ 0.0, 0.0 ],
+        "SortMode": "None",
+        "CameraOffset": 0.0,
+        "SphericalProjection": 0.0,
+        "AspectRatio": 1.0
+      }
+    },
+    {
+      "SpawnRate": {
+        "Delay": {
+          "value": 0.0
+        },
+        "Duration": {
+          "State": false,
+          "Value": {
+            "value": 0.0
+          }
+        },
+        "Amount": {
+          "value": 1.0
+        },
+        "Mode": "ParticlesPerSecond"
+      }
+    },
+    {
+      "SpawnCount": {
+        "Delay": {
+          "value": 0.0
+        },
+        "Duration": {
+          "State": true,
+          "Value": {
+            "value": 0.0
+          }
+        },
+        "Amount": {
+          "value": 1.0
+        },
+        "Enabled": false,
+        "Restart": {
+          "State": false,
+          "Value": {
+            "value": 1.0
+          }
+        }
+      }
+    },
+    {
+      "LifeTime": {
+        "LifeTime": {
+          "value": 1.0
+        }
+      }
+    },
+    {
+      "FieldSize": {
+        "value": {
+          "value": 1.0
+        }
+      }
+    },
+    {
+      "FieldOpacity": {
+        "AlphaScale": [ 0.0, 1.0 ],
+        "ClipRange": [ 1.0, 1.0 ],
+        "ClipLow": [ 0.0, 0.0 ],
+        "Enabled": false,
+        "value": {
+          "value": 1.0
+        }
+      }
+    },
+    {
+      "AppearanceLighting": {
+        "AffectedByFog": true,
+        "Emissive": 0.0,
+        "Curvature": 1.0,
+        "ReceiveShadows": false,
+        "Diffuse": 1.0,
+        "BackLight": 0.5
+      }
+    },
+    {
+      "AppearanceMaterial": {
+        "Material": "",
+        "Texture": ""
+      }
+    },
+    {
+      "MotionPhysics": {
+        "AngularDragMultiplier": 0.0,
+        "UniformAcceleration": [ 0.0, 0.0, 0.0 ],
+        "UniformWind": [ 0.0, 0.0, 0.0 ],
+        "gravity": {
+          "value": 0.0
+        },
+        "drag": {
+          "value": 0.0
+        },
+        "windMultiplier": 1.0,
+        "localEffectors": []
+      }
+    }
+  ]
+}

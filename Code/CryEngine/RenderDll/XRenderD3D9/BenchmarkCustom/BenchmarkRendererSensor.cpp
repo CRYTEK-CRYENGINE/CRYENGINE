@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 
@@ -154,7 +154,7 @@ void BenchmarkRendererSensor::submitResults()
 {
 	if (m_resultObserver)
 	{
-
+		CRY_ASSERT(!m_samples.empty());
 		BenchmarkFramework::TimeStamp currentTime = m_timer->getTimestamp();
 		BenchmarkFramework::RenderResultsStruct results;
 		results.framesCount = m_currentFrameCount;
@@ -435,38 +435,31 @@ void BenchmarkRendererSensor::forceFlush(CCryDeviceWrapper& device, CCryDeviceCo
  */
 void BenchmarkRendererSensor::copyFrameToScreen(CTexture* texture)
 {
-
-	m_renderer->RT_SetViewport(0, 0, m_renderer->GetBackbufferWidth(), m_renderer->GetBackbufferHeight());
-	PostProcessUtils().CopyTextureToScreen(texture);
-
+	// TODO: Check if this still works with the new pipeline
+	m_strechRectPass.Execute(texture, m_renderer->GetActiveColorOutput());
 }
+
 void BenchmarkRendererSensor::copyStereoFrameToScreen(CTexture* left, CTexture* right)
 {
+	// TODO: Check if this still works with the new pipeline
 	m_renderer->m_cEF.mfRefreshSystemShader("Stereo", CShaderMan::s_ShaderStereo);
-	CShader* shader = m_renderer->m_cEF.s_ShaderStereo;
-
-	m_renderer->RT_SetViewport(0, 0, m_renderer->GetBackbufferWidth(), m_renderer->GetBackbufferHeight());
-
-	shader->FXSetTechnique("SideBySide");
-	uint32 nPasses = 0;
-	shader->FXBegin(&nPasses, FEF_DONTSETSTATES);
-	shader->FXBeginPass(0);
-
-	m_renderer->FX_SetState(GS_NODEPTHTEST);
+	CShader* pShader = m_renderer->m_cEF.s_ShaderStereo;
 
 	int width = m_renderer->GetWidth();
 	int height = m_renderer->GetHeight();
-
+	
 	Vec4 pParams = Vec4((float)width, (float)height, 0, 0);
-	CShaderMan::s_shPostEffects->FXSetPSFloat(m_shaderUniformName, &pParams, 1);
 
-	GetUtils().SetTexture(left, 0, FILTER_LINEAR);
-	GetUtils().SetTexture(right, 1, FILTER_LINEAR);
-
-	GetUtils().DrawFullScreenTri(width, height);
-
-	shader->FXEndPass();
-	shader->FXEnd();
+	m_copyPass.SetTechnique(pShader, "SideBySide", 0);
+	m_copyPass.SetRenderTarget(0, m_renderer->GetActiveColorOutput());
+	m_copyPass.SetState(GS_NODEPTHTEST);
+	m_copyPass.SetTextureSamplerPair(0, left, EDefaultSamplerStates::LinearClamp);
+	m_copyPass.SetTextureSamplerPair(1, right, EDefaultSamplerStates::LinearClamp);
+	m_copyPass.SetPrimitiveType(CRenderPrimitive::ePrim_ProceduralTriangle);
+	
+	m_copyPass.BeginConstantUpdate();
+	m_copyPass.SetConstant(m_shaderUniformName, pParams);
+	m_copyPass.Execute();
 }
 
 bool BenchmarkRendererSensor::isActive()
@@ -484,15 +477,18 @@ void BenchmarkRendererSensor::applyFlicker(CTexture* left, CTexture* right, bool
 
 void BenchmarkRendererSensor::blendTextureWithColor(CTexture* tex, float r, float g, float b, float a)
 {
+	ASSERT_LEGACY_PIPELINE
+		/*
 	m_renderer->FX_PushRenderTarget(0, tex, 0, 0);
 	m_renderer->FX_SetActiveRenderTargets();
-	SStateBlend blendState;
+	//SStateBlend blendState;
 
 	//apply blending to see a little bit of the original rendertarget data
-	m_renderer->FX_SetState(GS_BLSRC_SRCALPHA | GS_BLDST_ONEMINUSSRCALPHA);
+	//m_renderer->FX_SetState(GS_BLSRC_SRCALPHA | GS_BLDST_ONEMINUSSRCALPHA);
 	GetUtils().ClearScreen(r, g, b, a);
 
 	m_renderer->FX_PopRenderTarget(0);
+	*/
 }
 
 void BenchmarkRendererSensor::afterSwapBuffers(CCryDeviceWrapper& device, CCryDeviceContextWrapper& context)

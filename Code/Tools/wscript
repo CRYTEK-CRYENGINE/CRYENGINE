@@ -1,0 +1,17 @@
+# Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
+
+SUBFOLDERS = [
+	'CryTIFPlugin',
+	'CryXML',
+	'MaxCryExport',
+	'MayaCryExport2',
+	'MBCryExport',
+	'RC',
+	'ShaderCacheGen',
+	'PakEncrypt',
+	'HLSLCrossCompiler'
+]
+	
+def build(bld):
+	# Recursive into all sub projects
+	bld.recurse(SUBFOLDERS)

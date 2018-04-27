@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "SplineCtrlEx.h"
@@ -64,8 +64,7 @@ protected:
 			entry.keySelectionFlags.push_back(pSpline->GetKeyFlags(i) & ESPLINE_KEY_UI_SELECTED_MASK);
 	}
 
-	virtual int         GetSize()        { return sizeof(*this); }
-	virtual const char* GetDescription() { return "UndoSplineCtrlEx"; };
+	virtual const char* GetDescription() { return "UndoSplineCtrlEx"; }
 
 	virtual void        Undo(bool bUndo)
 	{
@@ -3409,3 +3408,4 @@ void CSplineCtrlEx::OnCaptureChanged(CWnd* pWnd)
 {
 	StopTracking();
 }
+

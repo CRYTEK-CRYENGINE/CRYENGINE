@@ -1,3 +1,5 @@
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
+
 #ifndef geometries_h
 #define geometries_h
 #pragma once
@@ -52,7 +54,7 @@ public:
 	virtual void RemapForeignIdx(int* pCurForeignIdx, int* pNewForeignIdx, int nTris) {}
 	virtual void AppendVertices(Vec3* pVtx, int* pVtxMap, int nVtx) {}
 	virtual float GetExtent(EGeomForm eForm) const { return 0; }
-	virtual void GetRandomPos(PosNorm& ran, CRndGen& seed, EGeomForm eForm) const {}
+	virtual void GetRandomPoints(Array<PosNorm> points, CRndGen& seed, EGeomForm eForm) const {}
 	virtual void CompactMemory() {}
 	virtual int Boxify(primitives::box* pboxes, int nMaxBoxes, const SBoxificationParams& params) { return 0; }
 	virtual int Proxify(IGeometry**& pOutGeoms, SProxifyParams* pparams = 0) { return 0; }
@@ -112,7 +114,8 @@ template<typename Func> auto PhysXGeom::CreateAndUse(QuatT& trans, const Diag33&
 				func(PxConvexMeshGeometry(g_cylMesh,PxMeshScale(PxVec3(hh,r,r),PxQuat0)));
 		}
 		case GEOM_BOX: {
-			Vec3 sz = max(max(scale.x,scale.y),scale.z)-min(min(scale.x,scale.y),scale.z)>0.001f ? m_geom.box.Basis*scale*m_geom.box.size : m_geom.box.size*scale.x;
+			// non-uniform scaling is supported for axis-ligned Basis only (scale can be projected into the box's frame)
+			Vec3 sz = max(max(scale.x,scale.y),scale.z)-min(min(scale.x,scale.y),scale.z)>0.001f ? (m_geom.box.Basis*(scale*(m_geom.box.size*m_geom.box.Basis))).abs() : m_geom.box.size*scale.x;
 			trans = trans*QuatT(!Quat(m_geom.box.Basis), scale*m_geom.box.center);
 			return func(PxBoxGeometry(V(sz)));
 		}

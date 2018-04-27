@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #ifndef __ColorGradientCtrl_h__
 #define __ColorGradientCtrl_h__
@@ -153,3 +153,4 @@ private:
 };
 
 #endif // __ColorGradientCtrl_h__
+

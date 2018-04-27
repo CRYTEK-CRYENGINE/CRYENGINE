@@ -1,0 +1,9 @@
+# Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
+def build(bld):	
+	
+	bld.CryPlugin(
+		target      = 'DependencyGraph',
+		vs_filter	= 'Sandbox/Plugins',
+		file_list   = 'dependencygraph.waf_files',
+		pch			= 'StdAfx.cpp'
+	)

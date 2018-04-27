@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 // -------------------------------------------------------------------------
 //  File name:   BoidsProxy.h
@@ -45,7 +45,7 @@ public:
 	//////////////////////////////////////////////////////////////////////////
 	virtual EEntityProxy GetProxyType() const final { return ENTITY_PROXY_BOIDS; }
 	virtual void Release() final;
-	virtual	void ProcessEvent(SEntityEvent &event) final;
+	virtual	void ProcessEvent(const SEntityEvent& event) final;
 	virtual uint64 GetEventMask() const final;
 	virtual bool Init(IEntity *pEntity, SEntitySpawnParams &params) final { return true; }
 	virtual void Reload(IEntity *pEntity, SEntitySpawnParams &params) final;
@@ -55,7 +55,7 @@ public:
 	//////////////////////////////////////////////////////////////////////////
 	void SetFlock(CFlock *pFlock);
 	CFlock* GetFlock() { return m_pFlock; }
-	void OnTrigger(bool bEnter, SEntityEvent &event);
+	void OnTrigger(bool bEnter, const SEntityEvent &event);
 
 	virtual void GetMemoryUsage(ICrySizer *pSizer)const final
 	{
@@ -99,7 +99,7 @@ public:
 	// IEntityComponent interface implementation.
 	//////////////////////////////////////////////////////////////////////////
 	virtual EEntityProxy GetProxyType() const override { return ENTITY_PROXY_BOID_OBJECT; }
-	virtual	void ProcessEvent(SEntityEvent &event) override;
+	virtual	void ProcessEvent(const SEntityEvent& event) override;
 	virtual uint64 GetEventMask() const final;
 	virtual void GameSerialize(TSerialize ser) override;
 	virtual bool NeedGameSerialize() override { return false; };

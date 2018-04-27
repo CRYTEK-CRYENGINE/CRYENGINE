@@ -1,18 +1,5 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
-// -------------------------------------------------------------------------
-//  File name:   FlowGraphProxy.h
-//  Version:     v1.00
-//  Created:     6/6/2005 by Timur.
-//  Compilers:   Visual Studio.NET 2003
-//  Description:
-// -------------------------------------------------------------------------
-//  History:
-//
-////////////////////////////////////////////////////////////////////////////
-
-#ifndef __FlowGraphProxy_h__
-#define __FlowGraphProxy_h__
 #pragma once
 
 #include <CryNetwork/ISerialize.h>
@@ -32,8 +19,8 @@ public:
 	//////////////////////////////////////////////////////////////////////////
 	// IEntityComponent interface implementation.
 	//////////////////////////////////////////////////////////////////////////
-	virtual void Initialize() final;
-	virtual void ProcessEvent(SEntityEvent& event) final;
+	virtual void   Initialize() final;
+	virtual void   ProcessEvent(const SEntityEvent& event) final;
 	virtual uint64 GetEventMask() const final; // Need all events except pre physics update
 	//////////////////////////////////////////////////////////////////////////
 
@@ -41,7 +28,7 @@ public:
 	// IEntityComponent interface implementation.
 	//////////////////////////////////////////////////////////////////////////
 	virtual EEntityProxy GetProxyType() const final { return ENTITY_PROXY_FLOWGRAPH; }
-	virtual void         Release() final { delete this; };
+	virtual void         Release() final            { delete this; };
 	virtual void         LegacySerializeXML(XmlNodeRef& entityNode, XmlNodeRef& componentNode, bool bLoading) override final;
 	virtual void         GameSerialize(TSerialize ser) final;
 	virtual bool         NeedGameSerialize() final;
@@ -52,8 +39,6 @@ public:
 	//////////////////////////////////////////////////////////////////////////
 	virtual void        SetFlowGraph(IFlowGraph* pFlowGraph) final;
 	virtual IFlowGraph* GetFlowGraph() final;
-	virtual void        AddEventListener(IEntityEventListener* pListener) final;
-	virtual void        RemoveEventListener(IEntityEventListener* pListener) final;
 	//////////////////////////////////////////////////////////////////////////
 
 	virtual void GetMemoryUsage(ICrySizer* pSizer) const final
@@ -65,9 +50,4 @@ private:
 
 private:
 	IFlowGraph* m_pFlowGraph;
-
-	typedef std::list<IEntityEventListener*> Listeners;
-	Listeners m_listeners;
 };
-
-#endif // __FlowGraphProxy_h__

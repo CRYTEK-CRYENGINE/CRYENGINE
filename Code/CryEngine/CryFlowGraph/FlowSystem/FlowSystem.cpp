@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 
@@ -533,7 +533,7 @@ void CFlowSystem::Update()
 #endif
 
 	{
-		FRAME_PROFILER("CFlowSystem::Update()", gEnv->pSystem, PROFILE_ACTION);
+		CRY_PROFILE_REGION(PROFILE_ACTION, "CFlowSystem::Update()");
 		if (m_cVars.m_enableUpdates == 0)
 		{
 			/*
@@ -549,13 +549,13 @@ void CFlowSystem::Update()
 			// call pre updates
 
 			// 1. system inspectors
-			std::for_each(m_systemInspectors.begin(), m_systemInspectors.end(), std::bind2nd(std::mem_fun(&IFlowGraphInspector::PreUpdate), (IFlowGraph*) 0));
+			std::for_each(m_systemInspectors.begin(), m_systemInspectors.end(), [](const IFlowGraphInspectorPtr& ptr) {ptr->PreUpdate(nullptr);});
 
 			// 2. graph inspectors TODO: optimize not to go over all graphs ;-)
 			for (TGraphs::Notifier itGraph(m_graphs); itGraph.IsValid(); itGraph.Next())
 			{
 				const std::vector<IFlowGraphInspectorPtr>& graphInspectors(itGraph->GetInspectors());
-				std::for_each(graphInspectors.begin(), graphInspectors.end(), std::bind2nd(std::mem_fun(&IFlowGraphInspector::PreUpdate), *itGraph));
+				std::for_each(graphInspectors.begin(), graphInspectors.end(), [&itGraph](const IFlowGraphInspectorPtr& ptr) {ptr->PreUpdate(*itGraph);});
 			}
 		}
 
@@ -566,13 +566,13 @@ void CFlowSystem::Update()
 			// call post updates
 
 			// 1. system inspectors
-			std::for_each(m_systemInspectors.begin(), m_systemInspectors.end(), std::bind2nd(std::mem_fun(&IFlowGraphInspector::PostUpdate), (IFlowGraph*) 0));
+			std::for_each(m_systemInspectors.begin(), m_systemInspectors.end(), [](const IFlowGraphInspectorPtr& ptr) {ptr->PostUpdate(nullptr);});
 
 			// 2. graph inspectors TODO: optimize not to go over all graphs ;-)
 			for (TGraphs::Notifier itGraph(m_graphs); itGraph.IsValid(); itGraph.Next())
 			{
 				const std::vector<IFlowGraphInspectorPtr>& graphInspectors(itGraph->GetInspectors());
-				std::for_each(graphInspectors.begin(), graphInspectors.end(), std::bind2nd(std::mem_fun(&IFlowGraphInspector::PostUpdate), *itGraph));
+				std::for_each(graphInspectors.begin(), graphInspectors.end(), [&itGraph](const IFlowGraphInspectorPtr& ptr) {ptr->PostUpdate(*itGraph);});
 			}
 		}
 	}
@@ -659,7 +659,7 @@ void CFlowSystem::Reset(bool unload)
 void CFlowSystem::Init()
 {
 	if (gEnv->pEntitySystem)
-		gEnv->pEntitySystem->AddSink(this, IEntitySystem::OnReused | IEntitySystem::OnSpawn, 0);
+		gEnv->pEntitySystem->AddSink(this, IEntitySystem::OnReused | IEntitySystem::OnSpawn);
 }
 
 //////////////////////////////////////////////////////////////////////////

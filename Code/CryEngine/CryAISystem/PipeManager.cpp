@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 /********************************************************************
    -------------------------------------------------------------------------
@@ -158,8 +158,8 @@ void CPipeManager::Serialize(TSerialize ser)
 //-----------------------------------------------------------------------------------------------------------
 struct CheckFuncCallScanDef
 {
-	int   p;    // compare iterator
-	char* str;  // function name to detect
+	int         p;    // compare iterator
+	const char* str;  // function name to detect
 };
 
 struct CheckFuncCall
@@ -533,8 +533,7 @@ static void MarkUsedEmbeddedPipe(CheckGoalpipe* pipe, CheckPipeMap& createdPipes
 void CPipeManager::CheckGoalpipes()
 {
 	// Find all calls to goalpipes
-	string path = gEnv->pSystem->GetRootFolder();
-	path += "Game/Scripts";
+	string path = PathUtil::Make(gEnv->pSystem->GetRootFolder(), "Game/Scripts");
 
 	// Collect all scrip files.
 	CryLog("- Collecting files...");

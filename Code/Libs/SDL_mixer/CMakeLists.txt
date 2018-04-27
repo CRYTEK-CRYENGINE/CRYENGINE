@@ -6,15 +6,11 @@ add_sources("NoUberFile"
 	SOURCE_GROUP "Root"
 		"../../SDKs/SDL_mixer/timidity/common.c"
 		"../../SDKs/SDL_mixer/timidity/common.h"
-		"../../SDKs/SDL_mixer/timidity/config.h"
-		"../../SDKs/SDL_mixer/timidity/ctrlmode.c"
-		"../../SDKs/SDL_mixer/timidity/ctrlmode.h"
-		"../../SDKs/SDL_mixer/timidity/filter.c"
-		"../../SDKs/SDL_mixer/timidity/filter.h"
 		"../../SDKs/SDL_mixer/timidity/instrum.c"
 		"../../SDKs/SDL_mixer/timidity/instrum.h"
 		"../../SDKs/SDL_mixer/timidity/mix.c"
 		"../../SDKs/SDL_mixer/timidity/mix.h"
+		"../../SDKs/SDL_mixer/timidity/options.h"
 		"../../SDKs/SDL_mixer/timidity/output.c"
 		"../../SDKs/SDL_mixer/timidity/output.h"
 		"../../SDKs/SDL_mixer/timidity/playmidi.c"
@@ -23,8 +19,6 @@ add_sources("NoUberFile"
 		"../../SDKs/SDL_mixer/timidity/readmidi.h"
 		"../../SDKs/SDL_mixer/timidity/resample.c"
 		"../../SDKs/SDL_mixer/timidity/resample.h"
-		"../../SDKs/SDL_mixer/timidity/sdl_a.c"
-		"../../SDKs/SDL_mixer/timidity/sdl_c.c"
 		"../../SDKs/SDL_mixer/timidity/tables.c"
 		"../../SDKs/SDL_mixer/timidity/tables.h"
 		"../../SDKs/SDL_mixer/timidity/timidity.c"
@@ -39,6 +33,9 @@ add_sources("NoUberFile"
 		"../../SDKs/SDL_mixer/native_midi/native_midi.h"
 		"../../SDKs/SDL_mixer/native_midi/native_midi_common.c"
 		"../../SDKs/SDL_mixer/native_midi/native_midi_common.h"
+		"../../SDKs/SDL_mixer/native_midi/native_midi_haiku.cpp"
+		"../../SDKs/SDL_mixer/native_midi/native_midi_mac.c"
+		"../../SDKs/SDL_mixer/native_midi/native_midi_macosx.c"
 		"../../SDKs/SDL_mixer/native_midi/native_midi_win32.c"
 )
 
@@ -47,51 +44,45 @@ sources_platform(ALL)
 add_sources("NoUberFile"
 	PROJECTS sdl_mixer_dynamic sdl_mixer_static
 	SOURCE_GROUP "Root"
-		"../../SDKs/SDL_mixer/SDL_mixer.h"
-		"../../SDKs/SDL_mixer/dynamic_flac.c"
-		"../../SDKs/SDL_mixer/dynamic_flac.h"
-		"../../SDKs/SDL_mixer/dynamic_fluidsynth.c"
-		"../../SDKs/SDL_mixer/dynamic_fluidsynth.h"
-		"../../SDKs/SDL_mixer/dynamic_mod.c"
-		"../../SDKs/SDL_mixer/dynamic_mod.h"
-		"../../SDKs/SDL_mixer/dynamic_modplug.c"
-		"../../SDKs/SDL_mixer/dynamic_modplug.h"
-		"../../SDKs/SDL_mixer/dynamic_mp3.c"
-		"../../SDKs/SDL_mixer/dynamic_mp3.h"
-		"../../SDKs/SDL_mixer/dynamic_ogg.c"
-		"../../SDKs/SDL_mixer/dynamic_ogg.h"
 		"../../SDKs/SDL_mixer/effect_position.c"
-		"../../SDKs/SDL_mixer/effect_stereoreverse.c"
 		"../../SDKs/SDL_mixer/effects_internal.c"
 		"../../SDKs/SDL_mixer/effects_internal.h"
-		"../../SDKs/SDL_mixer/fluidsynth.c"
-		"../../SDKs/SDL_mixer/fluidsynth.h"
+		"../../SDKs/SDL_mixer/effect_stereoreverse.c"
 		"../../SDKs/SDL_mixer/load_aiff.c"
 		"../../SDKs/SDL_mixer/load_aiff.h"
-		"../../SDKs/SDL_mixer/load_flac.c"
-		"../../SDKs/SDL_mixer/load_flac.h"
-		"../../SDKs/SDL_mixer/load_mp3.c"
-		"../../SDKs/SDL_mixer/load_mp3.h"
-		"../../SDKs/SDL_mixer/load_ogg.c"
-		"../../SDKs/SDL_mixer/load_ogg.h"
 		"../../SDKs/SDL_mixer/load_voc.c"
 		"../../SDKs/SDL_mixer/load_voc.h"
 		"../../SDKs/SDL_mixer/mixer.c"
+		"../../SDKs/SDL_mixer/mixer.h"
 		"../../SDKs/SDL_mixer/music.c"
+		"../../SDKs/SDL_mixer/music.h"
 		"../../SDKs/SDL_mixer/music_cmd.c"
 		"../../SDKs/SDL_mixer/music_cmd.h"
 		"../../SDKs/SDL_mixer/music_flac.c"
 		"../../SDKs/SDL_mixer/music_flac.h"
+		"../../SDKs/SDL_mixer/music_fluidsynth.c"
+		"../../SDKs/SDL_mixer/music_fluidsynth.h"
 		"../../SDKs/SDL_mixer/music_mad.c"
 		"../../SDKs/SDL_mixer/music_mad.h"
-		"../../SDKs/SDL_mixer/music_mod.c"
-		"../../SDKs/SDL_mixer/music_mod.h"
+		"../../SDKs/SDL_mixer/music_mikmod.c"
+		"../../SDKs/SDL_mixer/music_mikmod.h"
 		"../../SDKs/SDL_mixer/music_modplug.c"
 		"../../SDKs/SDL_mixer/music_modplug.h"
+		"../../SDKs/SDL_mixer/music_mpg123.c"
+		"../../SDKs/SDL_mixer/music_mpg123.h"
+		"../../SDKs/SDL_mixer/music_nativemidi.c"
+		"../../SDKs/SDL_mixer/music_nativemidi.h"
 		"../../SDKs/SDL_mixer/music_ogg.c"
 		"../../SDKs/SDL_mixer/music_ogg.h"
-		"../../SDKs/SDL_mixer/wavestream.c"
-		"../../SDKs/SDL_mixer/wavestream.h"
+		"../../SDKs/SDL_mixer/music_smpeg.c"
+		"../../SDKs/SDL_mixer/music_smpeg.h"
+		"../../SDKs/SDL_mixer/music_timidity.c"
+		"../../SDKs/SDL_mixer/music_timidity.h"
+		"../../SDKs/SDL_mixer/music_wav.c"
+		"../../SDKs/SDL_mixer/music_wav.h"
+		"../../SDKs/SDL_mixer/playmus.c"
+		"../../SDKs/SDL_mixer/playwave.c"
+		"../../SDKs/SDL_mixer/SDL_mixer.h"
 )
 
 end_sources()
@@ -112,28 +103,26 @@ target_link_libraries(${THIS_PROJECT} PRIVATE
 	libvorbisfile
 )
 target_compile_definitions(${THIS_PROJECT} PRIVATE
-	-DOGG_MUSIC
-	-DMID_MUSIC
-	-DMOD_MUSIC
-	-DFLAC_MUSIC
-	-DMODPLUG_MUSIC
-	-DUSE_TIMIDITY_MIDI
+	-DMUSIC_OGG
+	-DMUSIC_FLAC
+	-DMUSIC_MID_NATIVE
+	-DMUSIC_MOD_MIKMOD
+	-DMUSIC_MOD_MODPLUG
+	-DMUSIC_MID_TIMIDITY
 )
 
 if(WIN32 OR WIN64)
 	target_compile_definitions(${THIS_PROJECT} PRIVATE
-		-DWAV_MUSIC
-		-DMP3_MUSIC
+		-DMUSIC_WAV
 		-DMODPLUG_DYNAMIC="libmodplug-1.dll"
-		-DMP3_DYNAMIC="smpeg2.dll"
-		-DUSE_NATIVE_MIDI
+		-DMUSIC_MP3_SMPEG="smpeg2.dll"
 	)
-	target_link_libraries(${THIS_PROJECT} PUBLIC Winmm native_midi)
+    target_link_libraries(${THIS_PROJECT}      PUBLIC Winmm native_midi smpeg)
 	target_include_directories(${THIS_PROJECT} PUBLIC "${SDK_DIR}/SDL_mixer/VisualC/external/include")
-	target_compile_options(${THIS_PROJECT} PRIVATE /W0)
+	target_compile_options(${THIS_PROJECT}     PRIVATE /W0)
 elseif(LINUX OR ANDROID)
-	target_link_libraries(${THIS_PROJECT} PRIVATE libmodplug_static)
-	target_compile_options(${THIS_PROJECT} PRIVATE -w)
+	target_link_libraries(${THIS_PROJECT}      PRIVATE libmodplug_static)
+	target_compile_options(${THIS_PROJECT}     PRIVATE -w)
 endif()
 
 

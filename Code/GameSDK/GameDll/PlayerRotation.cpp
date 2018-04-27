@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "PlayerRotation.h"
@@ -246,7 +246,7 @@ static void GetTalosInput(CPlayerRotation * pPlayerRotation, const CPlayer& rPla
 
 void CPlayerRotation::Process(IItem* pCurrentItem, const SActorFrameMovementParams& movement, const SAimAccelerationParams& verticalAcceleration, float frameTime)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_GAME);
+	CRY_PROFILE_FUNCTION(PROFILE_GAME);
 
 	// reset to the new impulse.
 	m_angularImpulseDelta = m_angularImpulse;
@@ -605,7 +605,7 @@ static void DrawDisc(const Vec3& center, Vec3 axis, float innerRadius, float out
 
 void CPlayerRotation::TargetAimAssistance(CWeapon* pWeapon, float& followH, float& followV, float& scale, float& _fZoomAmount, const Vec3 playerView[4])
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_GAME);
+	CRY_PROFILE_FUNCTION(PROFILE_GAME);
 
 	CRY_ASSERT(m_player.IsClient());
 

@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -25,7 +25,6 @@ public:
 
 	void create(const char* registeredTypeName) const override
 	{
-		CRY_ASSERT(!m_ptr || m_ptr->Unique());
 		if (registeredTypeName && registeredTypeName[0] != '\0')
 			m_ptr.reset(Serialization::ClassFactory<T>::the().create(registeredTypeName));
 		else

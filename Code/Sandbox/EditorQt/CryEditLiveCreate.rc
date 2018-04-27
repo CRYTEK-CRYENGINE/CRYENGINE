@@ -1,0 +1,214 @@
+// Microsoft Visual C++ generated resource script.
+//
+#include "resource.h"
+
+#define APSTUDIO_READONLY_SYMBOLS
+/////////////////////////////////////////////////////////////////////////////
+//
+// Generated from the TEXTINCLUDE 2 resource.
+//
+#include "winres.h"
+#include "resource.h"
+
+/////////////////////////////////////////////////////////////////////////////
+#undef APSTUDIO_READONLY_SYMBOLS
+
+/////////////////////////////////////////////////////////////////////////////
+// English (United States) resources
+
+#if !defined(AFX_RESOURCE_DLL) || defined(AFX_TARG_ENU)
+LANGUAGE LANG_ENGLISH, SUBLANG_ENGLISH_US
+
+#ifdef APSTUDIO_INVOKED
+/////////////////////////////////////////////////////////////////////////////
+//
+// TEXTINCLUDE
+//
+
+2 TEXTINCLUDE 
+BEGIN
+    "#include ""winres.h""\r\n"
+    "#include ""resource.h""\r\n"
+    "\0"
+END
+
+3 TEXTINCLUDE 
+BEGIN
+    "\r\n"
+    "\0"
+END
+
+1 TEXTINCLUDE 
+BEGIN
+    "resource.h\0"
+END
+
+#endif    // APSTUDIO_INVOKED
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Menu
+//
+
+IDR_MENU_LIVECREATE MENU
+BEGIN
+    POPUP "&File"
+    BEGIN
+        MENUITEM "Save settings",               ID_FILE_SAVESETTINGS
+        MENUITEM "Close",                       ID_FILE_CLOSE_LIVECREATE_VIEW
+    END
+    POPUP "&View"
+    BEGIN
+        MENUITEM "LiveCreate Logger",           ID_VIEW_LIVECREATELOGGER, CHECKED
+        MENUITEM "LiveCreate Profile Editor",   ID_VIEW_LIVECREATEPROFILEEDITOR, CHECKED
+        MENUITEM "LiveCreate File Sync Settings", ID_VIEW_LIVECREATEFILESYNCSETTINGS, CHECKED
+    END
+END
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Dialog
+//
+
+IDD_LIVECREATE_PICKER DIALOGEX 0, 0, 316, 259
+STYLE DS_SETFONT | DS_MODALFRAME | DS_FIXEDSYS | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "Select game build directory"
+FONT 8, "MS Shell Dlg", 400, 0, 0x1
+BEGIN
+    DEFPUSHBUTTON   "OK",IDOK,200,238,50,14
+    PUSHBUTTON      "Cancel",IDCANCEL,259,238,50,14
+    CONTROL         "",IDC_DIRECTORY_TREE,"SysTreeView32",TVS_HASBUTTONS | TVS_HASLINES | TVS_LINESATROOT | TVS_SHOWSELALWAYS | WS_BORDER | WS_HSCROLL | WS_TABSTOP,7,7,302,227
+END
+
+IDD_LIVECREATE_ADD_TARGETS DIALOGEX 0, 0, 500, 400
+STYLE DS_SETFONT | DS_MODALFRAME | DS_FIXEDSYS | DS_CENTER | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "Discover LiveCreate targets"
+FONT 8, "MS Shell Dlg", 400, 0, 0x1
+BEGIN
+    PUSHBUTTON      "Refresh",IDC_REFRESH,8,8,70,18
+    PUSHBUTTON      "Add custom...",IDC_BUTTON_ADD_PEER,82,8,70,18
+    CONTROL         "Use wider search (broadcast)",IDC_CHECK_ENABLED,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,233,12,200,10
+    CONTROL         "",IDC_LIST_PEERS,"XTPReport",WS_TABSTOP,8,32,484,342,WS_EX_STATICEDGE
+    DEFPUSHBUTTON   "Use selected",IDOK,180,379,70,18
+    PUSHBUTTON      "Cancel",IDCANCEL,259,379,70,18
+    PUSHBUTTON      "Add by IP...",IDC_BUTTON_ADD_MATERIAL,157,8,70,18
+END
+
+IDD_LIVECREATE_PEER_LIST DIALOGEX 0, 0, 395, 213
+STYLE DS_SETFONT | DS_FIXEDSYS | DS_CENTER | WS_CHILD | WS_VISIBLE | WS_BORDER | WS_SYSMENU
+FONT 8, "MS Shell Dlg", 400, 0, 0x1
+BEGIN
+    LTEXT           "Peers:",IDC_STATIC,17,27,22,8
+    PUSHBUTTON      "Add...",IDC_BUTTON_ADD_PEER,56,24,56,16
+    PUSHBUTTON      "Edit...",IDC_BUTTON_EDIT_PEER,116,24,56,16
+    PUSHBUTTON      "Remove",IDC_BUTTON_DELETE_PEER,176,24,52,16
+    DEFPUSHBUTTON   "Start All",IDC_BUTTON_START_ALL,4,4,48,16
+    PUSHBUTTON      "Reset All",IDC_BUTTON_RESET_ALL,176,4,52,16
+    PUSHBUTTON      "Force Sync All",IDC_BUTTON_FORCE_SYNC_ALL,56,4,56,16
+    PUSHBUTTON      "Clean All",IDC_BUTTON_CLEAN_ALL,232,4,52,16
+    PUSHBUTTON      "Screenshot All",IDC_BUTTON_SCREENSHOT_ALL,116,4,56,16
+    CONTROL         "",IDC_LIST_PEERS,"XTPReport",WS_TABSTOP,4,44,386,164,WS_EX_STATICEDGE
+    CHECKBOX        "LiveCreate",IDC_BUTTON_ENABLE_LIVECREATE,288,4,52,36,BS_PUSHLIKE | BS_MULTILINE
+    CHECKBOX        "Sync\nCamera",IDC_BUTTON_CAMERA_SYNC,345,4,52,36,BS_PUSHLIKE | BS_MULTILINE
+    PUSHBUTTON      "Discover",IDC_BUTTON_DISCOVER_PEERS,232,24,52,16
+END
+
+IDD_IDD_LIVECREATE_SETTINGS_PANEL DIALOGEX 0, 0, 156, 204
+STYLE DS_SETFONT | WS_CHILD
+FONT 8, "MS Shell Dlg 2", 400, 0, 0x1
+BEGIN
+    PUSHBUTTON      "Add targets...",IDC_BUTTON_DISCOVER_PEERS,4,4,80,16
+END
+
+IDD_LIVECREATE_EDIT_CONNECTION DIALOGEX 0, 0, 288, 183
+STYLE DS_SETFONT | DS_MODALFRAME | DS_FIXEDSYS | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "LiveCreate host settings"
+FONT 8, "MS Shell Dlg", 400, 0, 0x1
+BEGIN
+    DEFPUSHBUTTON   "OK",IDOK,158,154,58,20
+    PUSHBUTTON      "Cancel",IDCANCEL,221,154,58,20
+    LTEXT           "Name:",IDC_STATIC,16,46,22,8
+    EDITTEXT        IDC_EDIT_TARGET_NAME,44,44,100,14,ES_AUTOHSCROLL
+    LTEXT           "IP:",IDC_STATIC,152,46,10,8
+    CONTROL         "",IDC_TARGET_IPADDRESS,"SysIPAddress32",WS_TABSTOP,168,44,100,15
+    LTEXT           "Platform:",IDC_STATIC,8,26,30,8
+    LTEXT           "Build path (automatic):",IDC_STATIC,19,120,74,8
+    PUSHBUTTON      "Test IP",IDC_BUTTON_TEST_CONNECTION,168,60,100,16
+    COMBOBOX        IDC_COMBO_PLATFORM,44,24,100,88,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+    PUSHBUTTON      "Resovle name to IP",IDC_BUTTON_REFRESH_IP,44,60,100,16
+    CONTROL         "Enable this peer",IDC_CHECK_ENABLED,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,8,8,67,10
+    GROUPBOX        "Build settings",IDC_STATIC,7,80,272,71
+    LTEXT           "Build executable:",IDC_STATIC,19,92,56,8
+    PUSHBUTTON      "...",IDC_BUTTON_PICK_GAME_DIRECTORY,249,104,22,14
+    EDITTEXT        IDC_EDIT_BUILD_ROOT_PATH,20,104,226,14,ES_AUTOHSCROLL
+    EDITTEXT        IDC_EDIT_BUILD_EXECUTABLE,20,131,249,14,ES_AUTOHSCROLL
+END
+
+IDD_LIVECREATE_TASK_WAIT DIALOGEX 0, 0, 238, 41
+STYLE DS_SETFONT | DS_MODALFRAME | DS_FIXEDSYS | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "Dialog"
+FONT 8, "MS Shell Dlg", 400, 0, 0x1
+BEGIN
+    PUSHBUTTON      "Cancel",IDCANCEL,94,20,50,14
+    LTEXT           "Static",IDC_TASK_PROGRESS_TEXT,7,7,224,8
+END
+
+IDD_LIVECREATE_ADD_BY_IP DIALOGEX 0, 0, 137, 75
+STYLE DS_SETFONT | DS_MODALFRAME | DS_FIXEDSYS | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "Add LiveCreate by IP"
+FONT 8, "MS Shell Dlg", 400, 0, 0x1
+BEGIN
+    DEFPUSHBUTTON   "OK",IDOK,7,48,58,20
+    PUSHBUTTON      "Cancel",IDCANCEL,71,48,58,20
+    LTEXT           "IP:",-1,9,12,10,8
+    EDITTEXT         IDC_TARGET_IPADDRESS,25,10,100,15,WS_TABSTOP
+    PUSHBUTTON      "Test IP",IDC_BUTTON_TEST_CONNECTION,25,27,100,16
+END
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// DESIGNINFO
+//
+
+#ifdef APSTUDIO_INVOKED
+GUIDELINES DESIGNINFO
+BEGIN
+    IDD_LIVECREATE_ADD_TARGETS, DIALOG
+    BEGIN
+    END
+
+    IDD_LIVECREATE_EDIT_CONNECTION, DIALOG
+    BEGIN
+    END
+
+    IDD_LIVECREATE_TASK_WAIT, DIALOG
+    BEGIN
+        LEFTMARGIN, 7
+        RIGHTMARGIN, 231
+        TOPMARGIN, 7
+        BOTTOMMARGIN, 34
+    END
+
+    IDD_LIVECREATE_ADD_BY_IP, DIALOG
+    BEGIN
+    END
+END
+#endif    // APSTUDIO_INVOKED
+
+#endif    // English (United States) resources
+/////////////////////////////////////////////////////////////////////////////
+
+
+
+#ifndef APSTUDIO_INVOKED
+/////////////////////////////////////////////////////////////////////////////
+//
+// Generated from the TEXTINCLUDE 3 resource.
+//
+
+
+/////////////////////////////////////////////////////////////////////////////
+#endif    // not APSTUDIO_INVOKED
+

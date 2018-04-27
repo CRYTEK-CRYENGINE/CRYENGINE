@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 #include "StdAfx.h"
 #include "FbxScene.h"
 #include <CryMath/Cry_Geo.h>
@@ -807,3 +807,4 @@ void SCreateMeshStats::Log(const SCreateMeshStats& stats)
 
 	SCreateEngineMeshStats::Log(stats.createEngineMesh);
 }
+

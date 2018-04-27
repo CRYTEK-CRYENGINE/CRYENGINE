@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 // -------------------------------------------------------------------------
 //  File name:   dllmain.cpp
@@ -103,7 +103,7 @@ extern void EnableDynamicBucketCleanups(bool enable);
 #endif
 
 //////////////////////////////////////////////////////////////////////////
-struct CSystemEventListner_System : public ISystemEventListener
+struct CSystemEventListener_System : public ISystemEventListener
 {
 public:
 	virtual void OnSystemEvent(ESystemEvent event, UINT_PTR wparam, UINT_PTR lparam)
@@ -165,15 +165,23 @@ public:
 	}
 };
 
-static CSystemEventListner_System g_system_event_listener_system;
+static CSystemEventListener_System g_system_event_listener_system;
 
 extern "C"
 {
-	CRYSYSTEM_API ISystem* CreateSystemInterface(const SSystemInitParams& startupParams)
+	CRYSYSTEM_API ISystem* CreateSystemInterface(SSystemInitParams& startupParams, bool bManualEngineLoop)
 	{
+#if CAPTURE_REPLAY_LOG
+		CryGetIMemReplay()->StartOnCommandLine(startupParams.szSystemCmdLine);
+#endif
+
+#if CRY_PLATFORM_DURANGO && defined(ENABLE_PROFILING_CODE)
+		DurangoDebugCallStack::InstallExceptionHandler();
+#endif
+
 		std::unique_ptr<CSystem> pSystem = stl::make_unique<CSystem>(startupParams);
-		// Note: This constructs an object on the stack that relies on pSystem, thus it has to be destroyed before the system.
-		// This is fine in this case since pSystem scope local objects will be destroyed in reverse order of construction.
+		startupParams.pSystem = pSystem.get();
+
 		LOADING_TIME_PROFILE_SECTION_NAMED("CreateSystemInterface");
 		ModuleInitISystem(pSystem.get(), "CrySystem");
 #if CRY_PLATFORM_DURANGO
@@ -183,7 +191,10 @@ extern "C"
 		gEnv->pWindow = startupParams.hWnd;
 #endif
 
-		gEnv->pGameFramework = startupParams.pGameFramework;
+#if CRY_PLATFORM_WINDOWS
+		// Install exception handler in Release modes.
+		((DebugCallStack*)IDebugCallStack::instance())->installErrorHandler(pSystem.get());
+#endif
 
 		ICryFactoryRegistryImpl* pCryFactoryImpl = static_cast<ICryFactoryRegistryImpl*>(pSystem->GetCryFactoryRegistry());
 		pCryFactoryImpl->RegisterFactories(g_pHeadToRegFactories);
@@ -192,29 +203,23 @@ extern "C"
 		if (startupParams.pUserCallback)
 			startupParams.pUserCallback->OnSystemConnect(pSystem.get());
 
-#if CRY_PLATFORM_WINDOWS
-		// Install exception handler in Release modes.
-		((DebugCallStack*)IDebugCallStack::instance())->installErrorHandler(pSystem.get());
-#elif CRY_PLATFORM_DURANGO && defined(ENABLE_PROFILING_CODE)
-		DurangoDebugCallStack::InstallExceptionHandler();
-#endif
-
-		if (!pSystem->Init())
+		if (!pSystem->Initialize(startupParams))
 		{
+			CryMessageBox("CrySystem initialization failed!", "Engine initialization failed!");
+
 			return nullptr;
 		}
 
 		pSystem->GetISystemEventDispatcher()->OnSystemEvent(ESYSTEM_EVENT_CRYSYSTEM_INIT_DONE, 0, 0);
-		pSystem->GetISystemEventDispatcher()->RegisterListener(&g_system_event_listener_system,"CSystemEventListner_System");
+		pSystem->GetISystemEventDispatcher()->RegisterListener(&g_system_event_listener_system,"CSystemEventListener_System");
 
+		// run main loop
+		if (!bManualEngineLoop)
+		{
+			pSystem->RunMainLoop();
+			return nullptr;
+		}
 		return pSystem.release();
-	}
-
-	CRYSYSTEM_API void WINAPI CryInstallUnhandledExceptionHandler()
-	{
-#if CRY_PLATFORM_DURANGO && defined(ENABLE_PROFILING_CODE)
-		DurangoDebugCallStack::InstallExceptionHandler();
-#endif
 	}
 
 #if defined(ENABLE_PROFILING_CODE) && !CRY_PLATFORM_LINUX && !CRY_PLATFORM_ANDROID && !CRY_PLATFORM_APPLE

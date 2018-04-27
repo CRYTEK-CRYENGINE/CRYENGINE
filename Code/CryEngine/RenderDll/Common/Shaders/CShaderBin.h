@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #ifndef __CSHADERBIN_H__
 #define __CSHADERBIN_H__
@@ -71,7 +71,7 @@ struct SParamCacheInfo
 	}
 };
 
-#define MAX_FXBIN_CACHE 32
+#define MAX_FXBIN_CACHE 200
 
 struct SShaderBin
 {
@@ -104,7 +104,7 @@ struct SShaderBin
 		, m_Prev(nullptr)
 		, m_CRC32(0)
 		, m_dwName(0)
-		, m_szName("")
+		, m_szName(const_cast<char*>(""))
 		, m_SourceCRC32(0)
 		, m_bLocked(false)
 		, m_bReadOnly(true)
@@ -131,7 +131,7 @@ struct SShaderBin
 		if (m_szName[0])
 		{
 			g_shaderBucketAllocator.deallocate((void*) m_szName);
-			m_szName = "";
+			m_szName = const_cast<char*>("");
 		}
 
 		if (name[0])

@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 /*************************************************************************
 -------------------------------------------------------------------------
@@ -558,7 +558,7 @@ void CEntityTimerEffect::Enter()
 
 	if(gEnv->bServer)
 	{
-		m_ownerActor->GetEntity()->SetTimer(m_entityTimerID, (int)(m_initialTime*1000.f));
+		m_ownerActor->SetTimer(m_entityTimerID, (int)(m_initialTime*1000.f));
 	}
 }
 

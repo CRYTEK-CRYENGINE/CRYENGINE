@@ -1,0 +1,32 @@
+/******************** COPYRIGHT AND LICENCE NOTICE ********************
+This source code is part of the BIGDIGITS multiple-precision
+arithmetic library Version 2.1 originally written by David Ireland,
+copyright (c) 2001-6 D.I. Management Services Pty Limited, all rights
+reserved. You are permitted to use compiled versions of this code at
+no charge as part of your own executable files and to distribute
+unlimited copies of such executable files for any purposes including
+commercial ones provided you agree to these terms and conditions and 
+keep the copyright notices intact in the source code and you ensure 
+that the following characters remain in any object or executable files
+you distribute AND clearly in any accompanying documentation:
+
+"Contains BIGDIGITS multiple-precision arithmetic code originally
+written by David Ireland, copyright (c) 2001-6 by D.I. Management
+Services Pty Limited <www.di-mgt.com.au>, and is used with
+permission."
+
+David Ireland and DI Management Services Pty Limited make no
+representations concerning either the merchantability of this software
+or the suitability of this software for any particular purpose. It is
+provided "as is" without express or implied warranty of any kind. Our
+liability will be limited exclusively to the refund of the money you
+paid us for the software, namely nothing. By using the software you
+expressly agree to such a waiver. If you do not agree to the terms, do
+not use the software.
+
+Please forward any comments and bug reports to <www.di-mgt.com.au>.
+The latest version of the source code can be downloaded from
+<www.di-mgt.com.au/bigdigits.html>.
+
+Last updated: 19 August 2006.
+*************** END OF COPYRIGHT AND LICENCE NOTICE ******************/

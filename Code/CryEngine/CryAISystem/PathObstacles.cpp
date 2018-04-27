@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 /********************************************************************
    -------------------------------------------------------------------------
@@ -18,6 +18,7 @@
 #include "DebugDrawContext.h"
 #include "PipeUser.h"
 #include "NavPath.h"
+#include "AIHash.h"
 
 #include <Cry3DEngine/I3DEngine.h>
 
@@ -385,7 +386,7 @@ static bool CombineObstaclePair(CPathObstaclePtr ob1, CPathObstaclePtr ob2)
 //===================================================================
 static void CombineObstacles(TPathObstacles& combinedObstacles, const TPathObstacles& obstacles)
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 	combinedObstacles = obstacles;
 
@@ -415,7 +416,7 @@ StartAgain:
 //===================================================================
 static void SimplifyObstacle(CPathObstaclePtr ob)
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 	if (ob->GetType() == CPathObstacle::ePOT_Circle2D)
 	{
@@ -474,7 +475,7 @@ struct AssignZValueToVector
 bool CPathObstacles::AddEntityBoxesToObstacles(IPhysicalEntity* entity, TPathObstacles& obstacles,
                                                float extraRadius, float terrainZ, const bool debug) const
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 	static int cacheHits = 0;
 	static int cacheMisses = 0;
@@ -650,7 +651,7 @@ struct SSphereEq
 //===================================================================
 bool IsInNavigationMesh(const NavigationMeshID meshID, const Vec3& point, const float verticalRangeMeters, const float horizontalRangeMeters)
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 	return gAIEnv.pNavigationSystem->IsLocationInMesh(meshID, point);
 }
@@ -742,7 +743,7 @@ void CPathObstacles::GetPathObstacles_PhysicalEntity(IPhysicalEntity* pPhysicalE
                                                      SPathObstaclesInfo& pathObstaclesInfo, bool bIsPushable, float fCullShapeScale,
                                                      const CNavPath& navPath) const
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 	assert(pPhysicalEntity);
 
 	if (pPhysicalEntity && !stl::find(pathObstaclesInfo.checkedPhysicsEntities, pPhysicalEntity))
@@ -772,7 +773,7 @@ void CPathObstacles::GetPathObstacles_PhysicalEntity(IPhysicalEntity* pPhysicalE
 			const float downwardsCheckDistance = (params_bbox.BBox[1].z - params_bbox.BBox[0].z) + 0.1f;  // allow checking further 10cm into the ground, just to be on the safe side
 
 			Vec3 closestPointOnMesh(ZERO);
-			if (!gAIEnv.pNavigationSystem->GetGroundLocationInMesh(meshID, testPosition, downwardsCheckDistance, 2 * boxRadius, &closestPointOnMesh))
+			if (!gAIEnv.pNavigationSystem->GetClosestMeshLocation(meshID, testPosition, downwardsCheckDistance, 2 * boxRadius, nullptr, &closestPointOnMesh, nullptr))
 				return;
 
 			const float groundZ = closestPointOnMesh.z; // p3DEngine->GetTerrainEleva|tion(testPosition.x, testPosition.y);
@@ -887,7 +888,7 @@ bool CPathObstacles::IsObstaclePushable(const CAIActor* pAIActor, IPhysicalEntit
 
 bool CPathObstacles::IsPhysicalEntityUsedAsDynamicObstacle(IPhysicalEntity* pPhysicalEntity) const
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 	assert(pPhysicalEntity);
 	bool usedAsDynamicObstacle = true;
@@ -931,7 +932,7 @@ bool CPathObstacles::IsPhysicalEntityUsedAsDynamicObstacle(IPhysicalEntity* pPhy
 void CPathObstacles::GetPathObstacles(TPathObstacles& obstacles, const AgentMovementAbility& movementAbility,
                                       const CNavPath* pNavPath, const CAIActor* pAIActor)
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 	AIAssert(pNavPath);
 
 	ClearObstacles(obstacles);
@@ -1080,7 +1081,7 @@ CPathObstacles::~CPathObstacles()
 //===================================================================
 void CPathObstacles::CalculateObstaclesAroundActor(const CPipeUser* pPipeUser)
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 	IF_UNLIKELY (!pPipeUser)
 		return;
@@ -1241,7 +1242,7 @@ bool CPathObstacles::IsLineSegmentIntersectingObstaclesOrCloseToThem(const Lines
 bool CPathObstacles::IsPathIntersectingObstacles(const NavigationMeshID meshID, const Vec3& start,
                                                  const Vec3& end, float radius) const
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 	bool bResult = false;
 
@@ -1267,7 +1268,7 @@ bool CPathObstacles::IsPathIntersectingObstacles(const NavigationMeshID meshID, 
 			// we need to check if the position on the ground of the intersection with the polygon is at than approximate
 			// ground height as the obstacle itself
 			Vec3 groundPointOnMesh(vIntersectionPoint);
-			gAIEnv.pNavigationSystem->GetGroundLocationInMesh(meshID, vIntersectionPoint, 1.5f, 0.5f, &groundPointOnMesh);
+			gAIEnv.pNavigationSystem->GetClosestMeshLocation(meshID, vIntersectionPoint, 1.5f, 0.5f, nullptr, &groundPointOnMesh, nullptr);
 			const float obstacleZ = shape2D.aabb.min.z;
 			const float intersectionPointZ = groundPointOnMesh.z;
 			const float maxZDifference = 0.5f;
@@ -1299,7 +1300,7 @@ bool CPathObstacles::IsPathIntersectingObstacles(const NavigationMeshID meshID, 
 //===================================================================
 Vec3 CPathObstacles::GetPointOutsideObstacles(const Vec3& pt, float extraDist) const
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 	Vec3 newPos = pt;
 

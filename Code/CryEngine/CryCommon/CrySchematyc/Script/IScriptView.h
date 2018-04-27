@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 // IScripView is a utility interface intended to define the rules of what is visible/available to a given scope within a script
 // e.g. when advertising nodes in a graph we use the script view to determine which types, functions and signals are available to the owner of that graph.

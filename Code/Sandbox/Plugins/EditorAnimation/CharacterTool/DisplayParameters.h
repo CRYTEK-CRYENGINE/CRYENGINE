@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -68,11 +68,13 @@ struct DisplaySkeletonOptions
 	string jointFilter;
 	bool   showJoints;
 	bool   showJointNames;
+	float  showJointNamesFontSize;
 	bool   showSkeletonBoundingBox;
 
 	DisplaySkeletonOptions()
 		: showJoints(false)
 		, showJointNames(false)
+		, showJointNamesFontSize(1.0f)
 		, showSkeletonBoundingBox(false)
 	{
 	}
@@ -100,12 +102,17 @@ struct DisplaySecondaryAnimationOptions
 
 struct DisplayPhysicsOptions
 {
-	bool showPhysicalProxies;
-	bool showRagdollJointLimits;
+	enum EDbgRenderProxy	{ DISABLED, SOLID, TRANSLUCENT };
+	enum EDbgRenderLimits	{ NONE, ALL, SELECTED };
+
+	EDbgRenderProxy  showPhysicalProxies;
+	EDbgRenderLimits showRagdollJointLimits;
+	int              selectedBone;
 
 	DisplayPhysicsOptions()
-		: showPhysicalProxies(false)
-		, showRagdollJointLimits(false)
+		: showPhysicalProxies(DISABLED)
+		, showRagdollJointLimits(NONE)
+		, selectedBone(-1)
 	{
 	}
 
@@ -151,3 +158,4 @@ struct DisplayOptions
 };
 
 }
+

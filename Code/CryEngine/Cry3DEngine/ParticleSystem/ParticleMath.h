@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -66,6 +66,11 @@ template<typename T, typename U> T ILINE Mul(const T& a, const U& b)            
 
 template<typename T, typename U> T ILINE MAdd(const T& a, const U& b, const T& c) { return a * b + c; }
 
+template<typename T> T& SetMax(T& var, T const& value)                            { return var = std::max(var, value); };
+template<typename T> T& SetMin(T& var, T const& value)                            { return var = std::min(var, value); };
+
+template<typename T> T FiniteOr(T val, T alt)                                     { return std::isfinite(val) ? val : alt; }
+
 ///////////////////////////////////////////////////////////////////////////
 // Vector functions
 
@@ -105,7 +110,7 @@ T DeltaTime(T frameTime, T normAge, T lifeTime);
 
 // Return the start-time of a particle in the previous frame
 template<typename T>
-T StartTime(T curTime, T frameTime, T normAge);
+T StartTime(T curTime, T frameTime, T absAge);
 
 
 // non vectorized
@@ -114,5 +119,13 @@ void RotateAxes(Vec3* v0, Vec3* v1, const float angle);
 Vec3 PolarCoordToVec3(float azimuth, float altitude);
 
 }
+
+// Cry_Math_SSE extension
+template<> struct SIMD_traits<UCol>
+{
+	using scalar_t  = UCol;
+	using vector4_t = pfx2::UColv;
+};
+
 
 #include "ParticleMathImpl.h"

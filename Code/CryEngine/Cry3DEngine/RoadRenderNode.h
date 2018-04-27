@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -52,7 +52,7 @@ public:
 	virtual void SetVertices(const Vec3* pVerts, int nVertsNum, float fTexCoordBegin, float fTexCoordEnd, float fTexCoordBeginGlobal, float fTexCoordEndGlobal);
 	virtual void SetSortPriority(uint8 sortPrio);
 	virtual void SetIgnoreTerrainHoles(bool bVal);
-	virtual void SetPhysicalize(bool bVal) { if (m_bPhysicalize != bVal) { m_bPhysicalize = bVal; ScheduleRebuild(false); } }
+	virtual void SetPhysicalize(bool bVal) { if (m_bPhysicalize != bVal) { m_bPhysicalize = bVal; ScheduleRebuild(true); } }
 
 	// IRenderNode implementation
 	virtual const char*         GetEntityClassName(void) const { return "RoadObjectClass"; }
@@ -76,7 +76,8 @@ public:
 	virtual void                OffsetPosition(const Vec3& delta);
 	virtual void                GetClipPlanes(Plane* pPlanes, int nPlanesNum, int nVertId);
 	virtual void                GetTexCoordInfo(float* pTexCoordInfo);
-	virtual uint8               GetSortPriority()           { return m_sortPrio; }
+	virtual uint8               GetSortPriority() { return m_sortPrio; }
+	virtual bool                CanExecuteRenderAsJob() final;
 
 	virtual void                SetLayerId(uint16 nLayerId) { m_nLayerId = nLayerId; Get3DEngine()->C3DEngine::UpdateObjectsLayerAABB(this); }
 	virtual uint16              GetLayerId()                { return m_nLayerId; }

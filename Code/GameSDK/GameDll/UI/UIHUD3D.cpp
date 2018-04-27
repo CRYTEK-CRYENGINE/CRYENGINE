@@ -1,10 +1,10 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 // -------------------------------------------------------------------------
 //  File name:   UIHUD3D.cpp
 //  Version:     v1.00
 //  Created:     22/11/2011 by Paul Reindell.
-//  Description: 
+//  Description:
 // -------------------------------------------------------------------------
 //  History:
 //
@@ -27,15 +27,15 @@
 #include <IGameRulesSystem.h>
 #include "Player.h"
 
-#define HUD3D_PREFAB_LIB   "Prefabs/HUD.xml"
-#define HUD3D_PREFAB_NAME  "HUD.HUD_3D"
+#define HUD3D_PREFAB_LIB  "Prefabs/HUD.xml"
+#define HUD3D_PREFAB_NAME "HUD.HUD_3D"
 
 ////////////////////////////////////////////////////////////////////////////
 CUIHUD3D::CUIHUD3D()
-: m_pHUDRootEntity(NULL)
-, m_fHudDist(1.1f)
-, m_fHudZOffset(-0.1f)
-, m_HUDRootEntityId(0)
+	: m_pHUDRootEntity(NULL)
+	, m_fHudDist(1.1f)
+	, m_fHudZOffset(-0.1f)
+	, m_HUDRootEntityId(0)
 {
 
 }
@@ -50,19 +50,19 @@ void CUIHUD3D::InitEventSystem()
 {
 	assert(gEnv->pSystem);
 	if (gEnv->pSystem)
-		gEnv->pSystem->GetISystemEventDispatcher()->RegisterListener( this, "CUIHUD3D");
+		gEnv->pSystem->GetISystemEventDispatcher()->RegisterListener(this, "CUIHUD3D");
 
-	if(gEnv->pFlashUI)
+	if (gEnv->pFlashUI)
 		gEnv->pFlashUI->RegisterModule(this, "CUIHUD3D");
 
-	m_Offsets.push_back( SHudOffset(1.2f,  1.4f, -0.2f) );
-	m_Offsets.push_back( SHudOffset(1.33f, 1.3f, -0.1f) );
-	m_Offsets.push_back( SHudOffset(1.6f,  1.1f, -0.1f) );
-	m_Offsets.push_back( SHudOffset(1.77f, 1.0f,  0.0f) );
+	m_Offsets.push_back(SHudOffset(1.2f, 1.4f, -0.2f));
+	m_Offsets.push_back(SHudOffset(1.33f, 1.3f, -0.1f));
+	m_Offsets.push_back(SHudOffset(1.6f, 1.1f, -0.1f));
+	m_Offsets.push_back(SHudOffset(1.77f, 1.0f, 0.0f));
 
 	ICVar* pShowHudVar = gEnv->pConsole->GetCVar("hud_hide");
 	if (pShowHudVar)
-		pShowHudVar->SetOnChangeCallback( &OnVisCVarChange );
+		pShowHudVar->SetOnChangeCallback(&OnVisCVarChange);
 }
 
 ////////////////////////////////////////////////////////////////////////////
@@ -70,7 +70,7 @@ void CUIHUD3D::UnloadEventSystem()
 {
 	if (gEnv->pSystem)
 	{
-		gEnv->pSystem->GetISystemEventDispatcher()->RemoveListener( this );
+		gEnv->pSystem->GetISystemEventDispatcher()->RemoveListener(this);
 		gEnv->pEntitySystem->RemoveEntityEventListener(m_HUDRootEntityId, ENTITY_EVENT_DONE, this);
 	}
 
@@ -79,9 +79,9 @@ void CUIHUD3D::UnloadEventSystem()
 }
 
 ////////////////////////////////////////////////////////////////////////////
-void CUIHUD3D::OnSystemEvent( ESystemEvent event, UINT_PTR wparam, UINT_PTR lparam )
+void CUIHUD3D::OnSystemEvent(ESystemEvent event, UINT_PTR wparam, UINT_PTR lparam)
 {
-	switch ( event )
+	switch (event)
 	{
 	case ESYSTEM_EVENT_LEVEL_GAMEPLAY_START:
 		SpawnHudEntities();
@@ -94,9 +94,9 @@ void CUIHUD3D::OnSystemEvent( ESystemEvent event, UINT_PTR wparam, UINT_PTR lpar
 }
 
 ////////////////////////////////////////////////////////////////////////////
-void CUIHUD3D::OnEntityEvent( IEntity *pEntity, SEntityEvent &event )
+void CUIHUD3D::OnEntityEvent(IEntity* pEntity, const SEntityEvent& event)
 {
-	if(event.event == ENTITY_EVENT_DONE)
+	if (event.event == ENTITY_EVENT_DONE)
 	{
 		/* NOTE: atm it's not safe to remove the listener here already */
 		//gEnv->pEntitySystem->RemoveEntityEventListener(pEntity->GetId(), ENTITY_EVENT_DONE, this);
@@ -108,10 +108,10 @@ void CUIHUD3D::OnEntityEvent( IEntity *pEntity, SEntityEvent &event )
 }
 
 ////////////////////////////////////////////////////////////////////////////
-void CUIHUD3D::UpdateView(const SViewParams &viewParams)
+void CUIHUD3D::UpdateView(const SViewParams& viewParams)
 {
 	CActor* pLocalPlayer = (CActor*)g_pGame->GetIGameFramework()->GetClientActor();
-	
+
 	if (gEnv->IsEditor() && !gEnv->IsEditing() && !m_pHUDRootEntity)
 		SpawnHudEntities();
 
@@ -124,11 +124,11 @@ void CUIHUD3D::UpdateView(const SViewParams &viewParams)
 
 		SpawnHudEntities();
 	}
-	
+
 	const CUICVars* pCVars = g_pGame->GetUI()->GetCVars();
 	if (m_pHUDRootEntity && pLocalPlayer)
 	{
-		if(pCVars->hud_detach)
+		if (pCVars->hud_detach)
 			return;
 
 		const QuatT& cameraTran = pLocalPlayer->GetCameraTran();
@@ -142,11 +142,11 @@ void CUIHUD3D::UpdateView(const SViewParams &viewParams)
 		if (pLocalPlayer->IsThirdPerson())
 			deltaHudRotation.SetIdentity();
 
-		if(pCVars->hud_bobHud > 0.0f && !pLocalPlayer->IsDead())
+		if (pCVars->hud_bobHud > 0.0f && !pLocalPlayer->IsDead())
 		{
 			deltaHudRotation.w *= (float)__fres(pCVars->hud_bobHud);
 
-			// Avoid divide by 0  
+			// Avoid divide by 0
 			if (!(fabs(deltaHudRotation.w) < FLT_EPSILON)) // IsValid() doesn't catch it
 			{
 				deltaHudRotation.Normalize();
@@ -160,17 +160,17 @@ void CUIHUD3D::UpdateView(const SViewParams &viewParams)
 		// In general use the player position + viewparams override
 		Vec3 viewPosition = pLocalPlayer->GetEntity()->GetPos() + viewParams.position;
 		Quat clientRotation = viewParams.rotation * deltaHudRotation;
-		
+
 		// Override special cases: Third person should use camera-oriented HUD instead of HUD-bone oriented
 		// Sliding should use the Bone instead of the viewParams solution
-		if(pLocalPlayer->IsThirdPerson() || pLocalPlayer->GetLinkedVehicle() != NULL)
+		if (pLocalPlayer->IsThirdPerson() || pLocalPlayer->GetLinkedVehicle() != NULL)
 		{
 			viewPosition = viewParams.position;
 		}
 		else
 		{
 			CPlayer* player = (CPlayer*)pLocalPlayer;
-			if(player && player->IsSliding())
+			if (player && player->IsSliding())
 			{
 				viewPosition = pLocalPlayer->GetEntity()->GetWorldTM().TransformPoint(hudTran.t);
 			}
@@ -182,41 +182,41 @@ void CUIHUD3D::UpdateView(const SViewParams &viewParams)
 		const Vec3 right(-(up % forward));
 
 		const float distance = pCVars->hud_cameraOverride ? pCVars->hud_cameraDistance : m_fHudDist;
-		const float offset = pCVars->hud_cameraOverride ? pCVars->hud_cameraOffsetZ  : m_fHudZOffset;
+		const float offset = pCVars->hud_cameraOverride ? pCVars->hud_cameraOffsetZ : m_fHudZOffset;
 
 		float offsetScale = 1.0f;
-		if(viewParams.fov > 0.0f)
+		if (viewParams.fov > 0.0f)
 		{
-			offsetScale = (pCVars->hud_cgf_positionScaleFOV * __fres(viewParams.fov )) + distance;
+			offsetScale = (pCVars->hud_cgf_positionScaleFOV * __fres(viewParams.fov)) + distance;
 		}
-		
+
 		// Allow overscanBorders to control safe zones
 		Vec2 overscanBorders = ZERO;
-		if(gEnv->pRenderer)
-		{	
+		if (gEnv->pRenderer)
+		{
 			gEnv->pRenderer->EF_Query(EFQ_OverscanBorders, overscanBorders);
 		}
 		const float viewDepth = 1.0f + (pCVars->hud_overscanBorder_depthScale * overscanBorders.y);
-		viewPosition += forward*viewDepth*offsetScale;
+		viewPosition += forward * viewDepth * offsetScale;
 
 		viewPosition += (up * offset);
 		viewPosition += (right * pCVars->hud_cgf_positionRightScale);
 		const Vec3 posVec(viewPosition + (forward * 0.001f));
 
-		static const Quat rot90Deg = Quat::CreateRotationXYZ( Ang3(gf_PI * 0.5f, 0, 0) );
+		static const Quat rot90Deg = Quat::CreateRotationXYZ(Ang3(gf_PI * 0.5f, 0, 0));
 		const Quat rotation = clientRotation * rot90Deg; // rotate 90 degrees around X-Axis
 
-		m_pHUDRootEntity->SetPosRotScale(posVec, rotation, m_pHUDRootEntity->GetScale(), ENTITY_XFORM_NO_SEND_TO_ENTITY_SYSTEM);
+		m_pHUDRootEntity->SetPosRotScale(posVec, rotation, m_pHUDRootEntity->GetScale());
 	}
 
 	if (gEnv->pRenderer && m_pHUDRootEntity && pCVars->hud_debug3dpos > 0)
 	{
-		gEnv->pRenderer->GetIRenderAuxGeom()->DrawSphere(m_pHUDRootEntity->GetWorldPos(), 0.2f, ColorB(255,0,0));
+		gEnv->pRenderer->GetIRenderAuxGeom()->DrawSphere(m_pHUDRootEntity->GetWorldPos(), 0.2f, ColorB(255, 0, 0));
 		const int children = m_pHUDRootEntity->GetChildCount();
 		for (int i = 0; i < children && pCVars->hud_debug3dpos > 1; ++i)
 		{
 			IEntity* pChild = m_pHUDRootEntity->GetChild(i);
-			gEnv->pRenderer->GetIRenderAuxGeom()->DrawSphere(pChild->GetWorldPos(), 0.1f, ColorB(255,255,0));
+			gEnv->pRenderer->GetIRenderAuxGeom()->DrawSphere(pChild->GetWorldPos(), 0.1f, ColorB(255, 255, 0));
 		}
 	}
 }
@@ -244,8 +244,8 @@ void CUIHUD3D::Update(float fDeltaTime)
 
 	if (gEnv->IsEditor())
 	{
-		int x, y;
-		gEnv->pRenderer->GetViewport( &x, &y, &currWidth, &currHeight );
+		currWidth = gEnv->pRenderer->GetOverlayWidth();
+		currHeight = gEnv->pRenderer->GetOverlayHeight();
 	}
 	else
 	{
@@ -253,6 +253,11 @@ void CUIHUD3D::Update(float fDeltaTime)
 		static ICVar* pCVarHeight = gEnv->pConsole->GetCVar("r_Height");
 		currWidth = pCVarWidth ? pCVarWidth->GetIVal() : 1;
 		currHeight = pCVarHeight ? pCVarHeight->GetIVal() : 1;
+
+		CRY_ASSERT(currWidth == gEnv->pRenderer->GetOverlayWidth());
+		CRY_ASSERT(currHeight == gEnv->pRenderer->GetOverlayHeight());
+
+		__debugbreak();
 	}
 
 	if (currWidth != width || currHeight != height)
@@ -317,7 +322,7 @@ void CUIHUD3D::SpawnHudEntities()
 			XmlNodeRef pivotNode = NULL;
 			std::vector<XmlNodeRef> childs;
 			const int count = prefab->getChildCount();
-			childs.reserve(count-1);
+			childs.reserve(count - 1);
 
 			for (int i = 0; i < count; ++i)
 			{
@@ -332,11 +337,11 @@ void CUIHUD3D::SpawnHudEntities()
 					childs.push_back(prefab->getChild(i));
 				}
 			}
-			
+
 			if (pivotNode)
 			{
 				// spawn pivot entity
-				IEntityClass* pEntClass = gEnv->pEntitySystem->GetClassRegistry()->FindClass( pivotNode->getAttr("EntityClass") );
+				IEntityClass* pEntClass = gEnv->pEntitySystem->GetClassRegistry()->FindClass(pivotNode->getAttr("EntityClass"));
 				if (pEntClass)
 				{
 					SEntitySpawnParams params;
@@ -354,7 +359,7 @@ void CUIHUD3D::SpawnHudEntities()
 				for (std::vector<XmlNodeRef>::iterator it = childs.begin(); it != childs.end(); ++it)
 				{
 					XmlNodeRef child = *it;
-					pEntClass = gEnv->pEntitySystem->GetClassRegistry()->FindClass( child->getAttr("EntityClass") );
+					pEntClass = gEnv->pEntitySystem->GetClassRegistry()->FindClass(child->getAttr("EntityClass"));
 					if (pEntClass)
 					{
 						const char* material = child->getAttr("Material");
@@ -392,7 +397,7 @@ void CUIHUD3D::SpawnHudEntities()
 									}
 								}
 								if (pScriptTable->HaveValue("OnPropertyChange"))
-									Script::CallMethod(pScriptTable,"OnPropertyChange");
+									Script::CallMethod(pScriptTable, "OnPropertyChange");
 							}
 
 							if (material)
@@ -402,7 +407,7 @@ void CUIHUD3D::SpawnHudEntities()
 									pEntity->SetMaterial(pMat);
 							}
 							m_pHUDRootEntity->AttachChild(pEntity);
-							m_HUDEnties.push_back( pEntity->GetId() );
+							m_HUDEnties.push_back(pEntity->GetId());
 						}
 					}
 				}
@@ -411,13 +416,13 @@ void CUIHUD3D::SpawnHudEntities()
 	}
 
 	// Register as ViewSystem listener (for cut-scenes, ...)
-	IViewSystem *pViewSystem = g_pGame->GetIGameFramework()->GetIViewSystem();
+	IViewSystem* pViewSystem = g_pGame->GetIGameFramework()->GetIViewSystem();
 	if (pViewSystem)
 	{
 		pViewSystem->AddListener(this);
 	}
 
-	OnVisCVarChange( NULL );
+	OnVisCVarChange(NULL);
 
 	CHUDEventDispatcher::CallEvent(SHUDEvent(eHUDEvent_OnHUDLoadDone));
 }
@@ -426,7 +431,7 @@ void CUIHUD3D::SpawnHudEntities()
 void CUIHUD3D::RemoveHudEntities()
 {
 	// Unregister as ViewSystem listener (for cut-scenes, ...)
-	IViewSystem *pViewSystem = g_pGame->GetIGameFramework()->GetIViewSystem();
+	IViewSystem* pViewSystem = g_pGame->GetIGameFramework()->GetIViewSystem();
 	if (pViewSystem)
 	{
 		pViewSystem->RemoveListener(this);
@@ -443,7 +448,7 @@ void CUIHUD3D::RemoveHudEntities()
 }
 
 ////////////////////////////////////////////////////////////////////////////
-void CUIHUD3D::SetVisible( bool visible )
+void CUIHUD3D::SetVisible(bool visible)
 {
 	IEntity* pHUDRootEntity = gEnv->pEntitySystem->GetEntity(m_HUDRootEntityId);
 	if (pHUDRootEntity)
@@ -463,7 +468,7 @@ bool CUIHUD3D::IsVisible() const
 }
 
 ////////////////////////////////////////////////////////////////////////////
-void CUIHUD3D::OnVisCVarChange( ICVar * )
+void CUIHUD3D::OnVisCVarChange(ICVar*)
 {
 	if (!g_pGame || !g_pGame->GetUI() || !g_pGame->GetUI()->GetCVars())
 		return;
@@ -473,7 +478,7 @@ void CUIHUD3D::OnVisCVarChange( ICVar * )
 	CUIHUD3D* pHud3D = UIEvents::Get<CUIHUD3D>();
 	if (pHud3D)
 	{
-		pHud3D->SetVisible( bVisible );
+		pHud3D->SetVisible(bVisible);
 	}
 
 	if (gEnv->pFlashUI)
@@ -483,7 +488,7 @@ void CUIHUD3D::OnVisCVarChange( ICVar * )
 ////////////////////////////////////////////////////////////////////////////
 bool CUIHUD3D::OnCameraChange(const SCameraParams& cameraParams)
 {
-	IViewSystem *pViewSystem = g_pGame->GetIGameFramework()->GetIViewSystem();
+	IViewSystem* pViewSystem = g_pGame->GetIGameFramework()->GetIViewSystem();
 	if (pViewSystem)
 	{
 		if (gEnv->pFlashUI)
@@ -496,4 +501,4 @@ bool CUIHUD3D::OnCameraChange(const SCameraParams& cameraParams)
 }
 
 ////////////////////////////////////////////////////////////////////////////
-REGISTER_UI_EVENTSYSTEM( CUIHUD3D );
+REGISTER_UI_EVENTSYSTEM(CUIHUD3D);

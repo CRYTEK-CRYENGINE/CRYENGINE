@@ -26,10 +26,12 @@ add_sources("Cry3DEngine_main_0_uber.cpp"
 		"SkyLightNishita.h"
 		"SkyLightNishita_info.h"
 	SOURCE_GROUP "Environment"
-		"TimeOfDay.cpp"
-		"TimeOfDay.h"
 		"EnvironmentPreset.cpp"
 		"EnvironmentPreset.h"
+		"TimeOfDay.cpp"
+		"TimeOfDay.h"
+		"TimeOfDayConstants.cpp"
+		"TimeOfDayConstants.h"
 	SOURCE_GROUP "Light Entity"
 		"LightEntity.cpp"
 		"LightEntity.h"
@@ -107,7 +109,7 @@ add_sources("Cry3DEngine_main_2_uber.cpp"
 	SOURCE_GROUP "Brush"
 		"Brush.cpp"
 		"Brush.h"
-	SOURCE_GROUP "CFG"
+	SOURCE_GROUP "CGF"
 		"CGF/CGFLoader.cpp"
 		"CGF/CGFSaver.cpp"
 		"CGF/ChunkFile.cpp"
@@ -126,7 +128,7 @@ add_sources("Cry3DEngine_main_2_uber.cpp"
 	SOURCE_GROUP "CVars"
 		"cvars.cpp"
 		"cvars.h"
-	SOURCE_GROUP "Effects\\\\Clounds"
+	SOURCE_GROUP "Effects\\\\Clouds"
 		"CloudBlockerRenderNode.cpp"
 		"DistanceCloudRenderNode.cpp"
 		"CloudBlockerRenderNode.h"
@@ -139,8 +141,6 @@ add_sources("Cry3DEngine_main_2_uber.cpp"
 		"MeshCompiler/MeshCompiler.h"
 		"MeshCompiler/TangentSpaceCalculation.h"
 		"MeshCompiler/TransformHelpers.h"
-		"../../SDKs/TangentBasisComputation/mikkelsen/mikktspace.cpp"
-		"../../SDKs/TangentBasisComputation/mikkelsen/mikktspace.h"
 )
 
 add_sources("Cry3DEngine_main_3_uber.cpp"
@@ -290,6 +290,9 @@ add_sources("NoUberFile"
 	SOURCE_GROUP "Root"
 		"StdAfx.cpp"
 		"StdAfx.h"
+	SOURCE_GROUP "Mesh Compiler"
+		"${SDK_DIR}/TangentBasisComputation/mikkelsen/mikktspace.cpp"
+		"${SDK_DIR}/TangentBasisComputation/mikkelsen/mikktspace.h"
 )
 
 add_sources("ParticleFeatures_uber.cpp"
@@ -301,21 +304,18 @@ add_sources("ParticleFeatures_uber.cpp"
 		"ParticleSystem/Features/FeatureAppearance.cpp"
 		"ParticleSystem/Features/FeatureColor.h"
 		"ParticleSystem/Features/FeatureColor.cpp"
+		"ParticleSystem/Features/FeatureChild.cpp"
 		"ParticleSystem/Features/FeatureCollision.cpp"
 		"ParticleSystem/Features/FeatureCollision.h"
-		"ParticleSystem/Features/FeatureCommon.h"
-		"ParticleSystem/Features/FeatureCommonImpl.h"
 		"ParticleSystem/Features/FeatureComponent.cpp"
 		"ParticleSystem/Features/FeatureField.cpp"
 		"ParticleSystem/Features/FeatureFluidDynamics.cpp"
 		"ParticleSystem/Features/FeatureLife.cpp"
 		"ParticleSystem/Features/FeatureLightSource.cpp"
 		"ParticleSystem/Features/FeatureLocation.cpp"
-		"ParticleSystem/Features/Featurekill.cpp"
 		"ParticleSystem/Features/FeatureMotion.h"
 		"ParticleSystem/Features/FeatureMotion.cpp"
 		"ParticleSystem/Features/FeatureRenderDecal.cpp"
-		"ParticleSystem/Features/FeatureRenderGpuSprites.h"
 		"ParticleSystem/Features/FeatureRenderGpuSprites.cpp"
 		"ParticleSystem/Features/FeatureRenderMeshes.cpp"
 		"ParticleSystem/Features/FeatureRenderRibbon.cpp"
@@ -333,9 +333,9 @@ add_sources("ParticleFeatures_uber.cpp"
 		"ParticleSystem/Features/Target.h"
 		"ParticleSystem/Features/Target.cpp"
 		"ParticleSystem/Features/TargetImpl.h"
-		"ParticleSystem/Features/TimeSource.h"
-		"ParticleSystem/Features/TimeSource.cpp"
-		"ParticleSystem/Features/TimeSourceImpl.h"
+		"ParticleSystem/Features/Domain.h"
+		"ParticleSystem/Features/Domain.cpp"
+		"ParticleSystem/Features/DomainImpl.h"
 )
 
 add_sources("ParticleSystem_uber.cpp"
@@ -348,7 +348,6 @@ add_sources("ParticleSystem_uber.cpp"
 		"ParticleSystem/ParticleDebug.h"
 		"ParticleSystem/ParticleDebug.cpp"
 		"ParticleSystem/ParticleComponent.h"
-		"ParticleSystem/ParticleComponentImpl.h"
 		"ParticleSystem/ParticleComponent.cpp"
 		"ParticleSystem/ParticleComponentRuntime.h"
 		"ParticleSystem/ParticleComponentRuntime.cpp"
@@ -389,5 +388,62 @@ add_sources("ParticleSystem_uber.cpp"
 end_sources()
 #END-FILE-LIST
 
+MACRO(setup_Cry3DEngine)
+	target_link_libraries( ${THIS_PROJECT} PRIVATE lz4 )
+	target_include_directories(${THIS_PROJECT} PRIVATE "${SDK_DIR}/TangentBasisComputation")
+
+	if (ORBIS OR CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+		target_compile_options(${THIS_PROJECT} PRIVATE
+			-Wno-reorder
+			-Wno-unknown-pragmas
+			-Wno-unused-variable
+			-Wno-undefined-var-template
+			-Wno-parentheses
+			-Wno-unused-private-field
+			-Wno-switch
+			-Wno-empty-body
+			-Wno-format
+			-Wno-logical-op-parentheses
+			-Wno-multichar
+			-Wno-invalid-offsetof
+			-Wno-unused-function
+			-Wno-unused-value
+			-Wno-sometimes-uninitialized
+			-Wno-tautological-constant-out-of-range-compare
+		)
+    elseif(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+		target_compile_options(${THIS_PROJECT} PRIVATE
+			-Wno-unused-function
+			-Wno-unused-value
+			-Wno-unused-variable
+			-Wno-strict-overflow
+			-Wno-sign-compare
+			-Wno-ignored-attributes
+			-Wno-invalid-offsetof
+			-Wno-aligned-new
+			-Wno-int-in-bool-context
+			-Wno-unused-but-set-variable
+			-Wno-misleading-indentation
+			-Wno-strict-aliasing
+			-Wno-maybe-uninitialized
+			-Wno-unknown-pragmas
+			-Wno-multichar
+			-Wno-char-subscripts
+			-Wno-conversion-null
+			-Wno-parentheses
+			-Wno-stringop-overflow
+			-Wno-comment
+			-Wno-reorder
+			-Wno-address
+			-Wno-format
+			-Wno-switch
+		)
+    endif()
+ENDMACRO()
+
 CryEngineModule(Cry3DEngine PCH "StdAfx.cpp" SOLUTION_FOLDER "CryEngine")
-target_link_libraries( ${THIS_PROJECT} PRIVATE lz4 )
+setup_Cry3DEngine()
+if (OPTION_UNIT_TEST AND NOT OPTION_STATIC_LINKING) #Currently an additional static lib is only used by unit testing under non-monolithic mode
+	CryEngineModule(Cry3DEngineLib PCH "StdAfx.cpp" SOLUTION_FOLDER "CryEngine" FORCE_STATIC)
+	setup_Cry3DEngine()
+endif()

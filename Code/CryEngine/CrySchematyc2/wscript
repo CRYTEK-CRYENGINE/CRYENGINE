@@ -1,0 +1,24 @@
+# Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
+
+def build(bld):
+
+	bld.CryEngineStaticModule(
+		target = 'CrySchematycLegacyCore',
+		vs_filter = 'Projects/Hunt/Plugins/CrySchematycLegacy',
+		file_list = 'cryschematyc.waf_files',
+
+		pch = 'StdAfx.cpp',
+		defines = 'SCHEMATYC_EXPORTS',
+		includes = [ 
+			'.', 
+			'../TemplateUtils', 
+			'../Interface', 
+			Path('Code/CryEngine/CryCommon'),
+			Path('Code/CryExtensions/CryLink/Interface')],
+		module_provides = dict(
+			includes = [ Path('Code/Game_Hunt/Plugins/CrySchematycLegacy/TemplateUtils'), Path('Code/Game_Hunt/Plugins/CrySchematycLegacy/Interface')],
+			defines = [ 'USE_SCHEMATYC_CORE' ],
+		),
+		
+		linux_cxxflags = '-fPIC',
+	)	

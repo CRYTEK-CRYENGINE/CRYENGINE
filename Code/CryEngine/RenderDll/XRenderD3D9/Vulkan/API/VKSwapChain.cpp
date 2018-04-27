@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "VKSwapChain.hpp"
@@ -43,14 +43,13 @@ bool CSwapChain::GetSupportedPresentModes(VkPhysicalDevice& physicalDevice, VkSu
 	return true;
 }
 
-_smart_ptr<CSwapChain> CSwapChain::Create(CCommandListPool& commandQueue, VkSwapchainKHR KHRSwapChain, uint32_t numberOfBuffers, uint32_t width, uint32_t height, VkFormat format, VkPresentModeKHR presentMode, VkImageUsageFlags imageUsage)
+_smart_ptr<CSwapChain> CSwapChain::Create(CCommandListPool& commandQueue, VkSwapchainKHR KHRSwapChain, uint32_t numberOfBuffers, uint32_t width, uint32_t height, VkSurfaceKHR surface, VkFormat format, VkPresentModeKHR presentMode, VkImageUsageFlags imageUsage)
 {
 	std::vector<VkSurfaceFormatKHR> supportedFormats;
 	std::vector<VkPresentModeKHR> supportedPresentModes;
 	VkSurfaceCapabilitiesKHR surfaceCapabilites;
 
 	VkPhysicalDevice physicalDevice = commandQueue.GetDevice()->GetPhysicalDeviceInfo()->device;
-	VkSurfaceKHR surface = commandQueue.GetDevice()->GetSurface();
 	VkBool32 bSupported = false;
 
 	auto a = GetSupportedSurfaceFormats(physicalDevice, surface, supportedFormats); VK_ASSERT(a);
@@ -144,17 +143,17 @@ _smart_ptr<CSwapChain> CSwapChain::Create(CCommandListPool& commandQueue, VkSwap
 		preTransform = surfaceCapabilites.currentTransform;
 	}
 
-	return Create(commandQueue, KHRSwapChain, numberOfImagesToRequest, w, h, formatToRequest, swapchainPresentMode, imageUsage, preTransform);
+	return Create(commandQueue, KHRSwapChain, numberOfImagesToRequest, w, h, surface, formatToRequest, swapchainPresentMode, imageUsage, preTransform);
 }
 
-_smart_ptr<CSwapChain> CSwapChain::Create(CCommandListPool& commandQueue, VkSwapchainKHR KHRSwapChain, uint32_t numberOfBuffers, uint32_t width, uint32_t height, VkFormat format, VkPresentModeKHR presentMode, VkImageUsageFlags imageUsage, VkSurfaceTransformFlagBitsKHR transform)
+_smart_ptr<CSwapChain> CSwapChain::Create(CCommandListPool& commandQueue, VkSwapchainKHR KHRSwapChain, uint32_t numberOfBuffers, uint32_t width, uint32_t height, VkSurfaceKHR surface, VkFormat format, VkPresentModeKHR presentMode, VkImageUsageFlags imageUsage, VkSurfaceTransformFlagBitsKHR transform)
 {
 	VkSwapchainCreateInfoKHR Info;
 	ZeroStruct(Info);
 
 	Info.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
 	Info.pNext = NULL;
-	Info.surface = commandQueue.GetDevice()->GetSurface();
+	Info.surface = surface;
 	Info.minImageCount = numberOfBuffers;
 	Info.imageFormat = format;
 	Info.imageExtent.width = width;
@@ -184,7 +183,7 @@ _smart_ptr<CSwapChain> CSwapChain::Create(CCommandListPool& commandQueue, VkSwap
 
 	if (result == VK_SUCCESS && KHRSwapChain)
 	{
-		CSwapChain* pRaw = new CSwapChain(commandQueue, KHRSwapChain, pInfo); // Has ref-count 1
+		CSwapChain* pRaw = new CSwapChain(commandQueue, pInfo->surface, KHRSwapChain, pInfo); // Has ref-count 1
 		_smart_ptr<CSwapChain> smart;
 		smart.Assign_NoAddRef(pRaw);
 		return smart;
@@ -196,15 +195,15 @@ _smart_ptr<CSwapChain> CSwapChain::Create(CCommandListPool& commandQueue, VkSwap
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 //---------------------------------------------------------------------------------------------------------------------
-CSwapChain::CSwapChain(CCommandListPool& commandQueue, VkSwapchainKHR KHRSwapChain, VkSwapchainCreateInfoKHR* pInfo)
+CSwapChain::CSwapChain(CCommandListPool& commandQueue, VkSurfaceKHR KHRSurface, VkSwapchainKHR KHRSwapChain, VkSwapchainCreateInfoKHR* pInfo)
 	: CRefCounted()
 	, m_pDevice(commandQueue.GetDevice())
+	, m_asyncQueue(commandQueue.GetAsyncCommandQueue())
+	, m_pCommandQueue(commandQueue)
+	, m_presentFence(commandQueue.GetDevice())
 	, m_NumBackbuffers(0)
 	, m_bChangedBackBufferIndex(true)
 	, m_nCurrentBackBufferIndex(0)
-	, m_pCommandQueue(commandQueue)
-	, m_presentFence(commandQueue.GetDevice())
-	, m_asyncQueue(commandQueue.GetAsyncCommandQueue())
 {
 	VK_ASSERT(pInfo);
 	{
@@ -213,6 +212,7 @@ CSwapChain::CSwapChain(CCommandListPool& commandQueue, VkSwapchainKHR KHRSwapCha
 
 	m_presentFence.Init();
 	m_presentResult = VK_SUCCESS;
+	m_KHRSurface = KHRSurface;
 	m_KHRSwapChain = KHRSwapChain;
 
 	AcquireBuffers();

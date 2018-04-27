@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -25,3 +25,4 @@ struct SDBATable
 	bool Load(const char* dbaTablePath);
 	bool Save(const char* dbaTablePath);
 };
+

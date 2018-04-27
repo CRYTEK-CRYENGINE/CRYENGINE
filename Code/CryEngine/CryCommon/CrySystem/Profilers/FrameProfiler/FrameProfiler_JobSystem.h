@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -19,8 +19,10 @@ namespace CryProfile
 // class to define a profile scope, to represent time events in profile tools
 class CScopedProfileMarker
 {
+	EProfileDescription m_desc;
+	const char* m_name;
 public:
-	inline CScopedProfileMarker(const EProfileDescription desc, const char* pName, ...)
+	inline CScopedProfileMarker(const EProfileDescription desc, const char* pName, ...) : m_desc(desc), m_name(pName)
 	{
 		va_list args;
 		va_start(args, pName);
@@ -38,7 +40,7 @@ public:
 		CryProfile::PushProfilingMarker(desc, markerName);
 		va_end(args);
 	}
-	inline ~CScopedProfileMarker() { CryProfile::PopProfilingMarker(); }
+	inline ~CScopedProfileMarker() { CryProfile::PopProfilingMarker(m_desc,m_name); }
 };
 
 } // namespace CryProfile

@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -9,6 +9,33 @@
 #ifdef _WINDOWS_
 	#error windows.h should not be included prior to platform.h
 #endif
+
+enum class EPlatform
+{
+	Windows,
+	Linux,
+	MacOS,
+	XboxOne,
+	PS4,
+	Android,
+	iOS,
+
+#ifdef CRY_PLATFORM_WINDOWS
+	Current = Windows
+#elif defined(CRY_PLATFORM_LINUX)
+	Current = Linux
+#elif defined(CRY_PLATFORM_APPLE) && !defined(CRY_PLATFORM_MOBILE)
+	Current = MacOS
+#elif defined(CRY_PLATFORM_DURANGO)
+	Current = XboxOne
+#elif defined(CRY_PLATFORM_ORBIS)
+	Current = PS4
+#elif defined(CRY_PLATFORM_ANDROID)
+	Current = Android
+#elif defined(CRY_PLATFORM_APPLE) && defined(CRY_PLATFORM_MOBILE)
+	Current = iOS
+#endif
+};
 
 // Alignment|InitializerList support.
 #if CRY_COMPILER_MSVC && (_MSC_VER >= 1800)
@@ -47,6 +74,7 @@
 #define RESTRICT_POINTER __restrict
 
 // Safe memory helpers
+#define SAFE_ACQUIRE(p)       { if (p) (p)->AddRef(); }
 #define SAFE_DELETE(p)        { if (p) { delete (p);          (p) = NULL; } }
 #define SAFE_DELETE_ARRAY(p)  { if (p) { delete[] (p);        (p) = NULL; } }
 #define SAFE_RELEASE(p)       { if (p) { (p)->Release();      (p) = NULL; } }
@@ -359,9 +387,12 @@ inline int IsHeapValid()
 enum EQuestionResult
 {
 	eQR_None,
-	eQR_Cancel = eQR_None,
+	eQR_Cancel,
 	eQR_Yes,
-	eQR_No
+	eQR_No,
+	eQR_Abort,
+	eQR_Retry,
+	eQR_Ignore
 };
 
 enum EMessageBox
@@ -370,13 +401,19 @@ enum EMessageBox
 	eMB_YesCancel,
 	eMB_YesNoCancel,
 	eMB_Error,
+	eMB_AbortRetryIgnore
 };
 
+//! Loads CrySystem from disk and initializes the engine, commonly called from the Launcher implementation
+//! \param bManualEngineLoop Whether or not the caller will start and maintain the engine loop themselves. Otherwise the loop is started and engine shut down automatically inside the function.
+bool			CryInitializeEngine(struct SSystemInitParams& startupParams, bool bManualEngineLoop = false);
 void            CryDebugBreak();
 void            CrySleep(unsigned int dwMilliseconds);
 void            CryLowLatencySleep(unsigned int dwMilliseconds);
 EQuestionResult CryMessageBox(const char* lpText, const char* lpCaption, EMessageBox uType = eMB_Info);
+EQuestionResult CryMessageBox(const wchar_t* lpText, const wchar_t* lpCaption, EMessageBox uType = eMB_Info);
 bool            CryCreateDirectory(const char* lpPathName);
+bool            CryDirectoryExists(const char* szPath);
 void            CryGetCurrentDirectory(unsigned int pathSize, char* szOutPath);
 short           CryGetAsyncKeyState(int vKey);
 unsigned int    CryGetFileAttributes(const char* lpFileName);
@@ -410,6 +447,7 @@ inline void ZeroStruct(T& t)
 template<class T>
 inline void ZeroArray(T& t)
 {
+	PREFAST_SUPPRESS_WARNING(6260)
 	memset(&t, 0, sizeof(t[0]) * CRY_ARRAY_COUNT(t));
 }
 
@@ -477,13 +515,24 @@ inline CheckConvert<D> check_convert(D& d)
 	return d;
 }
 
-//! Use NoCopy as a base class to easily prevent copy init & assign for any class.
+//! Use NoCopy as a base class to easily prevent copy ctor & operator for any class.
 struct NoCopy
 {
-	NoCopy() {}
-private:
-	NoCopy(const NoCopy&);
-	NoCopy& operator=(const NoCopy&);
+	NoCopy() = default;
+	NoCopy(const NoCopy&) = delete;
+	NoCopy& operator=(const NoCopy&) = delete;
+	NoCopy(NoCopy&&) = default;
+	NoCopy& operator=(NoCopy&&) = default;
+};
+
+//! Use NoMove as a base class to easily prevent move ctor & operator for any class.
+struct NoMove
+{
+	NoMove() = default;
+	NoMove(const NoMove&) = default;
+	NoMove& operator=(const NoMove&) = default;
+	NoMove(NoMove&&) = delete;
+	NoMove& operator=(NoMove&&) = delete;
 };
 
 //! ZeroInit: base class to zero the memory of the derived class before initialization, so local objects initialize the same as static.

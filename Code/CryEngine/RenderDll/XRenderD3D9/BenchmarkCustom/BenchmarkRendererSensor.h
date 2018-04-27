@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #ifndef __Basemark_BenchmarkRendererSensor__
 #define __Basemark_BenchmarkRendererSensor__
@@ -88,6 +88,9 @@ protected:
 
 	int      m_frameSampleInterval;
 	int      m_frameSampleFlags;
+
+	CFullscreenPass m_copyPass;
+	CStretchRectPass m_strechRectPass;
 
 	//		bool m_matrixTexNeedsRefresh;
 	//		bool m_matrixTexNeedsClear;

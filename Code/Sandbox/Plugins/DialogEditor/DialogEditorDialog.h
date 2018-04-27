@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -106,7 +106,6 @@ public:
 	BOOL           Create(DWORD dwStyle, const RECT& rect, CWnd* pParentWnd);
 	CXTPTaskPanel& GetTaskPanel() { return m_taskPanel; }
 
-	void           OnObjectEvent(CBaseObject* object, int event);
 	void           RecalcLayout(BOOL bNotify = TRUE);
 
 protected:
@@ -195,3 +194,4 @@ protected:
 	CImageList      m_imageList;
 	CDialogManager* m_pDM;
 };
+

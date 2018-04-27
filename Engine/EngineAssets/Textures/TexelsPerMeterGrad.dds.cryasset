@@ -1,0 +1,10 @@
+<AssetMetadata version="0" type="Texture" guid="2f0e2fd8-8a95-1f7b-df25-d3857e952939" source="TexelsPerMeterGrad.tif">
+ <Files>
+  <File path="TexelsPerMeterGrad.dds"/>
+ </Files>
+ <Details>
+  <Detail name="width">512</Detail>
+  <Detail name="height">1</Detail>
+  <Detail name="mipCount">1</Detail>
+ </Details>
+</AssetMetadata>

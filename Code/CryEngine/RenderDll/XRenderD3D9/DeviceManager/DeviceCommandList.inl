@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -53,6 +53,8 @@ inline void CDeviceCommandList::Reset()
 	m_primitiveTypeForProfiling = eptUnknown;
 	m_profilingStats.Reset();
 #endif
+
+	ClearStateImpl(false);
 }
 
 inline void CDeviceCommandList::LockToThread()
@@ -269,7 +271,7 @@ inline void CDeviceGraphicsCommandInterface::Draw(uint32 VertexCountPerInstance,
 		DrawImpl(VertexCountPerInstance, InstanceCount, StartVertexLocation, StartInstanceLocation);
 
 #if defined(ENABLE_PROFILING_CODE)
-		int nPrimitives;
+		int nPrimitives = VertexCountPerInstance;
 
 		switch (m_primitiveTypeForProfiling)
 		{
@@ -321,7 +323,7 @@ inline void CDeviceGraphicsCommandInterface::DrawIndexed(uint32 IndexCountPerIns
 		DrawIndexedImpl(IndexCountPerInstance, InstanceCount, StartIndexLocation, BaseVertexLocation, StartInstanceLocation);
 
 #if defined(ENABLE_PROFILING_CODE)
-		int nPrimitives;
+		int nPrimitives = IndexCountPerInstance;
 
 		switch (m_primitiveTypeForProfiling)
 		{
@@ -461,14 +463,14 @@ inline void CDeviceComputeCommandInterface::Dispatch(uint32 X, uint32 Y, uint32 
 	DispatchImpl(X, Y, Z);
 }
 
-inline void CDeviceComputeCommandInterface::ClearUAV(D3DUAV* pView, const FLOAT Values[4], UINT NumRects, const D3D11_RECT* pRects)
+inline void CDeviceComputeCommandInterface::ClearUAV(D3DUAV* pView, const ColorF& Values, UINT NumRects, const D3D11_RECT* pRects)
 {
-	ClearUAVImpl(pView, Values, NumRects, pRects);
+	ClearUAVImpl(pView, (float*)&Values, NumRects, pRects);
 }
 
-inline void CDeviceComputeCommandInterface::ClearUAV(D3DUAV* pView, const UINT Values[4], UINT NumRects, const D3D11_RECT* pRects)
+inline void CDeviceComputeCommandInterface::ClearUAV(D3DUAV* pView, const ColorI& Values, UINT NumRects, const D3D11_RECT* pRects)
 {
-	ClearUAVImpl(pView, Values, NumRects, pRects);
+	ClearUAVImpl(pView, (UINT*)&Values, NumRects, pRects);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

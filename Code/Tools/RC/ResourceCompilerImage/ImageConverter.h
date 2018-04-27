@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -19,11 +19,11 @@ public:
 	~CImageConverter();
 
 	// interface IConverter ----------------------------------------------------
-	virtual void Release();
-	virtual void Init(const ConverterInitContext& context);
-	virtual ICompiler* CreateCompiler();
-	virtual bool SupportsMultithreading() const;
-	virtual const char* GetExt(int index) const;
+	virtual void Release() override;
+	virtual void Init(const ConverterInitContext& context) override;
+	virtual ICompiler* CreateCompiler() override;
+	virtual bool SupportsMultithreading() const override;
+	virtual const char* GetExt(int index) const override;
 	virtual bool IsCacheable() const override { return true; }
 	// -------------------------------------------------------------------------
 

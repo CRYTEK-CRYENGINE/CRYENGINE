@@ -1,12 +1,10 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "NULLRenderAuxGeom.h"
 #include <CryCore/Platform/CryLibrary.h>
 
 CNULLRenderAuxGeom* CNULLRenderAuxGeom::s_pThis = NULL;
-
-#pragma warning(disable: 4244)
 
 #ifdef ENABLE_WGL_DEBUG_RENDERER
 
@@ -443,12 +441,14 @@ bool CNULLRenderAuxGeom::EnableOpenGL()
 		return false;
 	}
 
-	CCamera& camera = gEnv->pSystem->GetViewCamera();
-	camera.SetFrustum(W, H);
+	CCamera camera = gEnv->pSystem->GetViewCamera();
+	camera.SetFrustum(static_cast<int>(W), static_cast<int>(H));
 
 	const float FOV = camera.GetFov() / PI * 180.0f;
 	const float PNR = camera.GetNearPlane();
 	const float PFR = camera.GetFarPlane();
+
+	gEnv->pSystem->SetViewCamera(camera);
 
 	PIXELFORMATDESCRIPTOR pfd;
 	int format;
@@ -476,7 +476,7 @@ bool CNULLRenderAuxGeom::EnableOpenGL()
 	cry_glPolygonMode(GL_FRONT, GL_FILL);
 	cry_glEnable(GL_DEPTH_TEST);
 
-	cry_glViewport(0, 0, W, H);
+	cry_glViewport(0, 0, static_cast<GLsizei>(W), static_cast<GLsizei>(H));
 	cry_glMatrixMode(GL_PROJECTION);
 	cry_glLoadIdentity();
 	cry_gluPerspective(FOV, W / H, PNR, PFR);
@@ -524,7 +524,7 @@ CNULLRenderAuxGeom::CNULLRenderAuxGeom()
 	m_hwnd = CreateWindow(
 	  wndClassName, wndClassName,
 	  WS_CAPTION | WS_POPUP,
-	  0, 0, W, H,
+	  0, 0, static_cast<int>(W), static_cast<int>(H),
 	  NULL, NULL, wc.hInstance, NULL);
 
 	ShowWindow(m_hwnd, SW_HIDE);
@@ -558,7 +558,7 @@ CNULLRenderAuxGeom::~CNULLRenderAuxGeom()
 void CNULLRenderAuxGeom::BeginFrame()
 {
 #ifdef ENABLE_WGL_DEBUG_RENDERER
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_RENDERER);
+	CRY_PROFILE_FUNCTION(PROFILE_RENDERER);
 
 	gEnv->pSystem->PumpWindowMessage(false);
 
@@ -599,7 +599,9 @@ void CNULLRenderAuxGeom::BeginFrame()
 		if (m_updateSystemView)
 		{
 			Matrix34 m(Matrix33::CreateOrientation(m_dir, m_up, 0), m_eye);
-			gEnv->pSystem->GetViewCamera().SetMatrix(m);
+			CCamera cam = gEnv->pSystem->GetViewCamera();
+			cam.SetMatrix(m);
+			gEnv->pSystem->SetViewCamera(cam);
 		}
 		else
 		{
@@ -616,7 +618,7 @@ void CNULLRenderAuxGeom::BeginFrame()
 void CNULLRenderAuxGeom::EndFrame()
 {
 #ifdef ENABLE_WGL_DEBUG_RENDERER
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_RENDERER);
+	CRY_PROFILE_FUNCTION(PROFILE_RENDERER);
 
 	if (!s_hidden)
 	{
@@ -703,7 +705,7 @@ void CNULLRenderAuxGeom::DrawLine(const Vec3& v0, const ColorB& colV0, const Vec
 void CNULLRenderAuxGeom::DrawLines(const Vec3* v, uint32 numPoints, const ColorB& col, float thickness /* = 1::0f  */)
 {
 #ifdef ENABLE_WGL_DEBUG_RENDERER
-	assert((numPoints >= 2) && (0 == (numPoints & 1)));
+	assert((numPoints >= 2) && !(numPoints & 1));
 	for (uint32 i = 0; i < numPoints; i += 2)
 		m_lines.push_back(SLine(SPoint(v[i], col), SPoint(v[i + 1], col)));
 #endif
@@ -712,9 +714,18 @@ void CNULLRenderAuxGeom::DrawLines(const Vec3* v, uint32 numPoints, const ColorB
 void CNULLRenderAuxGeom::DrawLines(const Vec3* v, uint32 numPoints, const ColorB* col, float thickness /* = 1::0f  */)
 {
 #ifdef ENABLE_WGL_DEBUG_RENDERER
-	assert((numPoints >= 2) && (0 == (numPoints & 1)));
+	assert((numPoints >= 2) && !(numPoints & 1));
 	for (uint32 i = 0; i < numPoints; i += 2)
 		m_lines.push_back(SLine(SPoint(v[i], *col), SPoint(v[i + 1], *col)));
+#endif
+}
+
+void CNULLRenderAuxGeom::DrawLines(const Vec3* v, const uint32* packedColorARGB8888, uint32 numPoints, float thickness, bool alphaFlag)
+{
+#ifdef ENABLE_WGL_DEBUG_RENDERER
+	assert((numPoints >= 2) && !(numPoints & 1));
+	for (uint32 i = 0; i < numPoints; i += 2)
+		m_lines.push_back(SLine(SPoint(v[i], packedColorARGB8888[i]), SPoint(v[i + 1], packedColorARGB8888[i + 1])));
 #endif
 }
 
@@ -722,13 +733,20 @@ void CNULLRenderAuxGeom::DrawLines(const Vec3* v, uint32 numPoints, const vtx_id
 {
 #ifdef ENABLE_WGL_DEBUG_RENDERER
 	assert(numPoints >= 2);
-	assert((numIndices >= 2) && (0 == (numIndices & 1)));
+	assert((numIndices >= 2) && !(numIndices & 1));
 	for (uint32 i = 0; i < numIndices; i += 2)
 	{
 		vtx_idx i0 = ind[i], i1 = ind[i + 1];
-		assert(i0 < numPoints && i1 < numPoints);
+		assert((i0 < numPoints) && (i1 < numPoints));
 		m_lines.push_back(SLine(SPoint(v[i0], col), SPoint(v[i1], col)));
 	}
+#endif
+}
+
+void CNULLRenderAuxGeom::DrawLineStrip(const Vec3* v, uint32 numPoints, const ColorB* col, float thickness /* = 1.0f*/)
+{
+#ifdef ENABLE_WGL_DEBUG_RENDERER
+	assert(false && "ToDo: Not implemented.");
 #endif
 }
 
@@ -736,11 +754,11 @@ void CNULLRenderAuxGeom::DrawLines(const Vec3* v, uint32 numPoints, const vtx_id
 {
 #ifdef ENABLE_WGL_DEBUG_RENDERER
 	assert(numPoints >= 2);
-	assert((numIndices >= 2) && (0 == (numIndices & 1)));
+	assert((numIndices >= 2) && !(numIndices & 1));
 	for (uint32 i = 0; i < numIndices; i += 2)
 	{
 		vtx_idx i0 = ind[i], i1 = ind[i + 1];
-		assert(i0 < numPoints && i1 < numPoints);
+		assert((i0 < numPoints) && (i1 < numPoints));
 		m_lines.push_back(SLine(SPoint(v[i0], *col), SPoint(v[i1], *col)));
 	}
 #endif
@@ -750,7 +768,7 @@ void CNULLRenderAuxGeom::DrawPolyline(const Vec3* v, uint32 numPoints, bool clos
 {
 #ifdef ENABLE_WGL_DEBUG_RENDERER
 	assert(numPoints >= 2);
-	assert(!closed || numPoints >= 3);   // if "closed" then we need at least three vertices
+	assert(!closed || (numPoints >= 3));   // if "closed" then we need at least three vertices
 	m_polyLines.resize(m_polyLines.size() + 1);
 	SPolyLine& polyline = m_polyLines[m_polyLines.size() - 1];
 	for (uint32 i = 0; i < numPoints; ++i)
@@ -764,7 +782,7 @@ void CNULLRenderAuxGeom::DrawPolyline(const Vec3* v, uint32 numPoints, bool clos
 {
 #ifdef ENABLE_WGL_DEBUG_RENDERER
 	assert(numPoints >= 2);
-	assert(!closed || numPoints >= 3);   // if "closed" then we need at least three vertices
+	assert(!closed || (numPoints >= 3));   // if "closed" then we need at least three vertices
 	m_polyLines.resize(m_polyLines.size() + 1);
 	SPolyLine& polyline = m_polyLines[m_polyLines.size() - 1];
 	for (uint32 i = 0; i < numPoints; ++i)
@@ -777,7 +795,7 @@ void CNULLRenderAuxGeom::DrawPolyline(const Vec3* v, uint32 numPoints, bool clos
 void CNULLRenderAuxGeom::DrawTriangle(const Vec3& v0, const ColorB& colV0, const Vec3& v1, const ColorB& colV1, const Vec3& v2, const ColorB& colV2)
 {
 #ifdef ENABLE_WGL_DEBUG_RENDERER
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_RENDERER);
+	CRY_PROFILE_FUNCTION(PROFILE_RENDERER);
 	m_triangles.push_back(STriangle(SPoint(v0, colV0), SPoint(v1, colV1), SPoint(v2, colV2)));
 #endif
 }
@@ -785,8 +803,8 @@ void CNULLRenderAuxGeom::DrawTriangle(const Vec3& v0, const ColorB& colV0, const
 void CNULLRenderAuxGeom::DrawTriangles(const Vec3* v, uint32 numPoints, const ColorB& col)
 {
 #ifdef ENABLE_WGL_DEBUG_RENDERER
-	assert((numPoints >= 3) && (0 == (numPoints % 3)));
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_RENDERER);
+	assert((numPoints >= 3) && !(numPoints % 3));
+	CRY_PROFILE_FUNCTION(PROFILE_RENDERER);
 	for (size_t i = 0; i < numPoints; i += 3)
 		m_triangles.push_back(STriangle(SPoint(v[i], col), SPoint(v[i + 1], col), SPoint(v[i + 2], col)));
 #endif
@@ -795,8 +813,8 @@ void CNULLRenderAuxGeom::DrawTriangles(const Vec3* v, uint32 numPoints, const Co
 void CNULLRenderAuxGeom::DrawTriangles(const Vec3* v, uint32 numPoints, const ColorB* col)
 {
 #ifdef ENABLE_WGL_DEBUG_RENDERER
-	assert((numPoints >= 3) && (0 == (numPoints % 3)));
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_RENDERER);
+	assert((numPoints >= 3) && !(numPoints % 3));
+	CRY_PROFILE_FUNCTION(PROFILE_RENDERER);
 	for (size_t i = 0; i < numPoints; i += 3)
 		m_triangles.push_back(STriangle(SPoint(v[i], *col), SPoint(v[i + 1], *col), SPoint(v[i + 2], *col)));
 #endif
@@ -806,12 +824,12 @@ void CNULLRenderAuxGeom::DrawTriangles(const Vec3* v, uint32 numPoints, const vt
 {
 #ifdef ENABLE_WGL_DEBUG_RENDERER
 	assert(numPoints >= 3);
-	assert((numIndices >= 3) && (0 == (numIndices % 3)));
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_RENDERER);
+	assert((numIndices >= 3) && !(numIndices % 3));
+	CRY_PROFILE_FUNCTION(PROFILE_RENDERER);
 	for (size_t i = 0; i < numIndices; i += 3)
 	{
 		vtx_idx i0 = ind[i], i1 = ind[i + 1], i2 = ind[i + 2];
-		assert(i0 < numPoints && i1 < numPoints && i2 < numPoints);
+		assert((i0 < numPoints) && (i1 < numPoints) && (i2 < numPoints));
 		m_triangles.push_back(STriangle(SPoint(v[i0], col), SPoint(v[i1], col), SPoint(v[i2], col)));
 	}
 #endif
@@ -821,12 +839,12 @@ void CNULLRenderAuxGeom::DrawTriangles(const Vec3* v, uint32 numPoints, const vt
 {
 #ifdef ENABLE_WGL_DEBUG_RENDERER
 	assert(numPoints >= 3);
-	assert((numIndices >= 3) && (0 == (numIndices % 3)));
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_RENDERER);
+	assert((numIndices >= 3) && !(numIndices % 3));
+	CRY_PROFILE_FUNCTION(PROFILE_RENDERER);
 	for (size_t i = 0; i < numIndices; i += 3)
 	{
 		vtx_idx i0 = ind[i], i1 = ind[i + 1], i2 = ind[i + 2];
-		assert(i0 < numPoints && i1 < numPoints && i2 < numPoints);
+		assert((i0 < numPoints) && (i1 < numPoints) && (i2 < numPoints));
 		m_triangles.push_back(STriangle(SPoint(v[i0], *col), SPoint(v[i1], *col), SPoint(v[i2], *col)));
 	}
 #endif
@@ -837,4 +855,9 @@ void CNULLRenderAuxGeom::DrawSphere(const Vec3& pos, float radius, const ColorB&
 #ifdef ENABLE_WGL_DEBUG_RENDERER
 	m_spheres.push_back(SSphere(SPoint(pos, col), radius));
 #endif
+}
+
+void CNULLRenderAuxGeom::PushImage(const SRender2DImageDescription &image)
+{
+
 }

@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -10,6 +10,7 @@ struct MovementUpdateContext;
 
 	#include <CryAISystem/MovementBlock.h>
 	#include <CryAISystem/MovementRequestID.h>
+	#include <CryAISystem/IMovementPlan.h>
 
 namespace Movement
 {
@@ -22,7 +23,7 @@ namespace Movement
 // As an example a plan to satisfy the request "move to this cover" could
 // be comprised of the following movement blocks:
 // [FollowPath] -> [UseSmartObject] -> [FollowPath] -> [InstallInCover]
-class Plan
+class Plan : public IPlan
 {
 public:
 	static const uint32 NoBlockIndex = ~0u;
@@ -41,6 +42,11 @@ public:
 	{
 	}
 
+	// IPlan
+	virtual void             InstallPlanMonitor(IPlanMonitor* pMonitorToInstall) override;
+	virtual void             UninstallPlanMonitor(IPlanMonitor* pMonitorToUninstall) override;
+	// ~IPlan
+
 	template<typename BlockType>
 	void AddBlock()
 	{
@@ -52,6 +58,7 @@ public:
 		m_blocks.push_back(block);
 	}
 
+	bool                     CheckForNeedToReplan(const MovementUpdateContext& context) const;
 	Status                   Execute(const MovementUpdateContext& context);
 	void                     ChangeToIndex(const uint newIndex, IMovementActor& actor);
 	bool                     HasBlocks() const { return !m_blocks.empty(); }
@@ -68,7 +75,10 @@ public:
 	Status                   GetLastStatus() const { return m_lastStatus; }
 
 private:
-	typedef std::vector<std::shared_ptr<Block>> Blocks;
+	typedef std::vector<IPlanMonitor*> PlanMonitors;
+	typedef std::vector<BlockPtr> Blocks;
+
+	PlanMonitors      m_monitors;
 	Blocks            m_blocks;
 	uint32            m_current;
 	MovementRequestID m_requestId;

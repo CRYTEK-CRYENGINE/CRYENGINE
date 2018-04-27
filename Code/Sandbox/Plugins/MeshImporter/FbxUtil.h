@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 // Utilities for FbxTool.
 #pragma once
 #if !defined(BUILDING_FBX_TOOL)
@@ -121,3 +121,4 @@ inline void StoreTransform(T* pResult, const FbxAMatrix& transform)
 	pResult->scale[3] = 0.0;
 }
 }
+

@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "BreezeGenerator.h"
@@ -116,7 +116,7 @@ void CBreezeGenerator::Shutdown()
 
 void CBreezeGenerator::Update()
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_3DENGINE);
+	CRY_PROFILE_FUNCTION(PROFILE_3DENGINE);
 	if (!m_enabled)
 		return;
 

@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 // -------------------------------------------------------------------------
 //  File name:   Material.cpp
@@ -152,7 +152,7 @@ void CMatInfo::Release()
 
 //////////////////////////////////////////////////////////////////////////
 
-bool CMatInfo::IsValid()
+bool CMatInfo::IsValid() const
 {
 	return !m_bDeletePending && !m_bDeleted;
 }
@@ -227,7 +227,7 @@ void CMatInfo::SetName(const char* sName)
 }
 
 //////////////////////////////////////////////////////////////////////////
-bool CMatInfo::IsDefault()
+bool CMatInfo::IsDefault() const
 {
 	return this == GetMatMan()->GetDefaultMaterial();
 }
@@ -266,7 +266,7 @@ void CMatInfo::UpdateMaterialFlags()
 		static int nLastUpdateFrameId = 0;
 		if (gEnv->IsEditing() && GetTerrain() && GetVisAreaManager() && nLastUpdateFrameId != GetRenderer()->GetFrameID())
 		{
-			GetTerrain()->MarkAllSectorsAsUncompiled(0);
+			GetTerrain()->MarkAllSectorsAsUncompiled();
 			GetVisAreaManager()->MarkAllSectorsAsUncompiled();
 			nLastUpdateFrameId = GetRenderer()->GetFrameID();
 		}

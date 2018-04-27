@@ -1,0 +1,10 @@
+<AssetMetadata version="0" type="Texture" guid="2d4da467-2608-1153-8f98-c6a49b0e0e6d" source="arc_full.tif">
+ <Files>
+  <File path="arc_full.dds"/>
+ </Files>
+ <Details>
+  <Detail name="width">4</Detail>
+  <Detail name="height">4</Detail>
+  <Detail name="mipCount">1</Detail>
+ </Details>
+</AssetMetadata>

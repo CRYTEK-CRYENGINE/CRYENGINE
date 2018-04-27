@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 /*************************************************************************
 -------------------------------------------------------------------------
@@ -215,7 +215,7 @@ void CGamePhysicsSettings::Debug( const IPhysicalEntity& physEnt, const bool dra
 
 							pRender->DrawOBB( obb, center, false, ColorB(40, 200, 40), eBBD_Faceted);
 
-							const float distSqr = gEnv->pRenderer->GetCamera().GetPosition().GetSquaredDistance(center);
+							const float distSqr = GetISystem()->GetViewCamera().GetPosition().GetSquaredDistance(center);
 							const float drawColor[4] = {0.15f, 0.8f, 0.15f, clamp_tpl(1.f-((distSqr-100.f)/(10000.f-100.f)), 0.f, 1.f)};
 							cry_sprintf(buf,"%d",p);
 							IRenderAuxText::DrawLabelEx(center, 1.2f, drawColor, true, true, &buf[0]);

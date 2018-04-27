@@ -47,6 +47,18 @@ elseif(LINUX32)
 	set(FMODSTUDIO_DLL "${FMOD_DIR}/linux/api/studio/lib/x86/libfmodstudio.so")
 	set_target_properties(fmodstudio PROPERTIES IMPORTED_LOCATION "${FMODSTUDIO_DLL}")
 	set_target_properties(fmodstudio PROPERTIES INTERFACE_INCLUDE_DIRECTORIES "${FMOD_DIR}/linux/api/studio/inc")
+
+elseif(ANDROID)
+	add_library(fmod SHARED IMPORTED GLOBAL)
+	set(FMOD_DLL "${FMOD_DIR}/android/api/lowlevel/lib/x86_64/libfmod.so")
+	set_target_properties(fmod PROPERTIES IMPORTED_LOCATION "${FMOD_DLL}")
+	set_target_properties(fmod PROPERTIES INTERFACE_INCLUDE_DIRECTORIES "${FMOD_DIR}/android/api/lowlevel/inc")
+
+	add_library(fmodstudio SHARED IMPORTED GLOBAL)
+	set(FMODSTUDIO_DLL "${FMOD_DIR}/android/api/studio/lib/x86_64/libfmodstudio.so")
+	set_target_properties(fmodstudio PROPERTIES IMPORTED_LOCATION "${FMODSTUDIO_DLL}")
+	set_target_properties(fmodstudio PROPERTIES INTERFACE_INCLUDE_DIRECTORIES "${FMOD_DIR}/android/api/studio/inc")
+
 endif()
 
 if(AUDIO_FMOD AND FMOD_DLL)

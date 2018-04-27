@@ -1,0 +1,10 @@
+<AssetMetadata version="0" type="Texture" guid="4088a666-8ef6-fd0f-8108-f2511f9381d9" source="BlackCM.tif">
+ <Files>
+  <File path="BlackCM_diff.dds"/>
+ </Files>
+ <Details>
+  <Detail name="width">192</Detail>
+  <Detail name="height">32</Detail>
+  <Detail name="mipCount">1</Detail>
+ </Details>
+</AssetMetadata>

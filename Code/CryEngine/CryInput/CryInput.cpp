@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 
@@ -46,7 +46,9 @@ class CEngineModule_CryInput : public IInputEngineModule
 		ISystem* pSystem = env.pSystem;
 
 		IInput* pInput = 0;
-		if (!gEnv->IsDedicated())
+
+		//Specific input systems only make sense in 'normal' mode when renderer is on
+		if (gEnv->pRenderer)
 		{
 #if defined(USE_DXINPUT)
 			pInput = new CDXInput(pSystem, (HWND) initParams.hWnd);
@@ -61,7 +63,9 @@ class CEngineModule_CryInput : public IInputEngineModule
 #endif
 		}
 		else
+		{
 			pInput = new CBaseInput();
+		}
 
 		if (!pInput->Init())
 		{

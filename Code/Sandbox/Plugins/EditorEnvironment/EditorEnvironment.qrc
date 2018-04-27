@@ -1,0 +1,13 @@
+<RCC>
+	<qresource>
+		<file>icons/undo.png</file>
+		<file>icons/redo.png</file>
+		<file>icons/save.png</file>
+		<file>icons/refresh.png</file>
+		<file>icons/in_pak.png</file>
+		<file>icons/in_folder.png</file>
+		<file>icons/in_folder_and_pak.png</file>
+		<file>icons/add.png</file>
+	</qresource>
+</RCC>
+

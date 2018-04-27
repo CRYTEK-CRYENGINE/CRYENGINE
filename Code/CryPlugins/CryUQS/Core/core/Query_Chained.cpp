@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 
@@ -23,6 +23,8 @@ namespace UQS
 
 		void CQuery_Chained::HandleChildQueryFinishedWithSuccess(const CQueryID& childQueryID, QueryResultSetUniquePtr&& pResultSet)
 		{
+			CRY_PROFILE_FUNCTION_ARG(UQS_PROFILED_SUBSYSTEM_TO_USE, m_pQueryBlueprint->GetName());	// mainly for keeping an eye on the copy operation of the items below
+
 			assert(pResultSet != nullptr);
 
 			// * if there are more queries in chain, then do the following:
@@ -34,8 +36,12 @@ namespace UQS
 
 			if (HasMoreChildrenLeftToInstantiate())
 			{
-				StoreResultSetForUseInNextChildQuery(*pResultSet);
-				InstantiateNextChildQueryBlueprint();
+				// TODO: copying the items from the result set to a separate list is not very efficient
+				//       -> would be better to somehow move-transfer what is in the underlying CItemList
+
+				const std::shared_ptr<CItemList> pResultingItemsFromChild(new CItemList);
+				pResultingItemsFromChild->CopyOtherToSelf(pResultSet->GetImplementation().GetItemList());
+				InstantiateNextChildQueryBlueprint(pResultingItemsFromChild);
 			}
 			else
 			{

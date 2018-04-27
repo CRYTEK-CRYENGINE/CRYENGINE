@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -9,6 +9,7 @@ class XmlNodeRef;
 
 // Localized strings manager interface.
 
+//! \cond INTERNAL
 //! Localization Info structure.
 struct SLocalizedInfoGame
 {
@@ -93,6 +94,7 @@ struct ILocalizationPostProcessor
 	virtual ~ILocalizationPostProcessor() {}
 	virtual void PostProcessString(string& inout) const = 0;
 };
+//! \endcond
 
 //! Interface to the Localization Manager.
 struct ILocalizationManager
@@ -228,6 +230,7 @@ struct ILocalizationManager
 	virtual void LocalizeDuration(int seconds, string& outDurationString) = 0;
 	virtual void LocalizeNumber(int number, string& outNumberString) = 0;
 	virtual void LocalizeNumber(float number, int decimals, string& outNumberString) = 0;
+	virtual void AddLocalizationEntry(const string& token, const string& translation) = 0;
 	// </interfuscator:shuffle>
 
 	static ILINE TLocalizationBitfield LocalizationBitfieldFromPILID(EPlatformIndependentLanguageID pilid)

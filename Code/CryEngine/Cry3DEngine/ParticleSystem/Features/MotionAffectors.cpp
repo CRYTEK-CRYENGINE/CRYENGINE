@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "FeatureMotion.h"
@@ -58,7 +58,7 @@ public:
 		ar(m_scale, "scale", "Scale");
 	}
 
-	virtual void SetParameters(gpu_pfx2::IParticleFeatureGpuInterface* gpuInterface) const override
+	virtual void SetParameters(gpu_pfx2::IParticleFeature* gpuInterface) const override
 	{
 
 		switch (m_mode)
@@ -98,20 +98,21 @@ public:
 		}
 	}
 
-	virtual void ComputeEffector(const SUpdateContext& context, IOVec3Stream localVelocities, IOVec3Stream localAccelerations) override
+	virtual uint ComputeEffector(const SUpdateContext& context, IOVec3Stream localVelocities, IOVec3Stream localAccelerations) override
 	{
 		switch (m_mode)
 		{
 		case ETurbulenceMode::Brownian:
 			Brownian(context, localAccelerations);
-			break;
+			return ENV_GRAVITY;
 		case ETurbulenceMode::Simplex:
 			ComputeSimplex(context, localVelocities, &Potential);
-			break;
+			return ENV_WIND;
 		case ETurbulenceMode::SimplexCurl:
 			ComputeSimplex(context, localVelocities, &Curl);
-			break;
+			return ENV_WIND;
 		}
+		return 0;
 	}
 
 private:
@@ -124,17 +125,16 @@ private:
 		const float time = max(1.0f / 1024.0f, context.m_deltaTime);
 		const floatv speed = ToFloatv(m_speed * isqrt_tpl(time));
 
-		CRY_PFX2_FOR_ACTIVE_PARTICLESGROUP(context)
+		for (auto particleGroupId : context.GetUpdateGroupRange())
 		{
 			const Vec3v position = positions.Load(particleGroupId);
 			const Vec3v accel0 = localAccelerations.Load(particleGroupId);
-			const floatv keyX = context.m_updateRngv.RandSNorm();
-			const floatv keyY = context.m_updateRngv.RandSNorm();
-			const floatv keyZ = context.m_updateRngv.RandSNorm();
+			const floatv keyX = context.m_spawnRngv.RandSNorm();
+			const floatv keyY = context.m_spawnRngv.RandSNorm();
+			const floatv keyZ = context.m_spawnRngv.RandSNorm();
 			const Vec3v accel1 = MAdd(Vec3v(keyX, keyY, keyZ), speed, accel0);
 			localAccelerations.Store(particleGroupId, accel1);
 		}
-		CRY_PFX2_FOR_END;
 	}
 
 	template<typename FieldFn>
@@ -153,10 +153,12 @@ private:
 		const uint octaves = m_octaves;
 		const Vec3v scale = ToVec3v(m_scale);
 		const IFStream ages = container.GetIFStream(EPDT_NormalAge);
+		const IFStream lifeTimes = container.GetIFStream(EPDT_LifeTime);
 
-		CRY_PFX2_FOR_ACTIVE_PARTICLESGROUP(context)
+		for (auto particleGroupId : context.GetUpdateGroupRange())
 		{
 			const floatv age = ages.Load(particleGroupId);
+			const floatv lifeTime = lifeTimes.Load(particleGroupId);
 			const Vec3v position = positions.Load(particleGroupId);
 			const Vec3v velocity0 = localVelocities.Load(particleGroupId);
 
@@ -164,7 +166,7 @@ private:
 			sample.x = Mul(position.x, invSize);
 			sample.y = Mul(position.y, invSize);
 			sample.z = Mul(position.z, invSize);
-			sample.w = StartTime(time, delta, age);
+			sample.w = StartTime(time, delta, age * lifeTime);
 
 			Vec3v fieldSample = Fractal(sample, octaves, fieldFn);
 			fieldSample.x *= scale.x;
@@ -173,7 +175,6 @@ private:
 			const Vec3v velocity1 = MAdd(fieldSample, speed, velocity0);
 			localVelocities.Store(particleGroupId, velocity1);
 		}
-		CRY_PFX2_FOR_END;
 	}
 
 	ILINE static Vec3v Potential(const Vec4v sample)
@@ -275,7 +276,7 @@ public:
 			ar(m_axis, "Axis", "Axis");
 	}
 
-	virtual void SetParameters(gpu_pfx2::IParticleFeatureGpuInterface* gpuInterface) const override
+	virtual void SetParameters(gpu_pfx2::IParticleFeature* gpuInterface) const override
 	{
 		gpu_pfx2::SFeatureParametersMotionPhysicsGravity params;
 		params.gravityType =
@@ -290,17 +291,18 @@ public:
 		gpuInterface->SetParameters(params);
 	}
 
-	virtual void ComputeEffector(const SUpdateContext& context, IOVec3Stream localVelocities, IOVec3Stream localAccelerations) override
+	virtual uint ComputeEffector(const SUpdateContext& context, IOVec3Stream localVelocities, IOVec3Stream localAccelerations) override
 	{
 		switch (m_type)
 		{
 		case EGravityType::Spherical:
 			ComputeGravity<false>(context, localAccelerations);
-			break;
+			return ENV_GRAVITY;
 		case EGravityType::Cylindrical:
 			ComputeGravity<true>(context, localAccelerations);
-			break;
+			return ENV_GRAVITY;
 		}
+		return 0;
 	}
 
 private:
@@ -319,7 +321,7 @@ private:
 		// m_decay is actually the distance at which gravity is halved.
 		const float decay = rcp_fast(m_decay * m_decay);
 
-		CRY_PFX2_FOR_ACTIVE_PARTICLES(context)
+		for (auto particleId : context.GetUpdateRange())
 		{
 			const TParticleId parentId = parentIds.Load(particleId);
 			if (parentId != gInvalidId)
@@ -346,7 +348,6 @@ private:
 				localAccelerations.Store(particleId, accel1);
 			}
 		}
-		CRY_PFX2_FOR_END;
 	}
 
 	CTargetSource m_targetSource;
@@ -391,7 +392,7 @@ public:
 		ar(m_axis, "Axis", "Axis");
 	}
 
-	virtual void SetParameters(gpu_pfx2::IParticleFeatureGpuInterface* gpuInterface) const override
+	virtual void SetParameters(gpu_pfx2::IParticleFeature* gpuInterface) const override
 	{
 		gpu_pfx2::SFeatureParametersMotionPhysicsVortex params;
 		params.vortexDirection =
@@ -406,7 +407,7 @@ public:
 		gpuInterface->SetParameters(params);
 	}
 
-	virtual void ComputeEffector(const SUpdateContext& context, IOVec3Stream localVelocities, IOVec3Stream localAccelerations) override
+	virtual uint ComputeEffector(const SUpdateContext& context, IOVec3Stream localVelocities, IOVec3Stream localAccelerations) override
 	{
 		CRY_PFX2_PROFILE_DETAIL;
 
@@ -420,7 +421,7 @@ public:
 		const float decay = rcp_fast(m_decay * m_decay);
 		const float speed = m_speed * (m_direction == EVortexDirection::ClockWise ? -1.0f : 1.0f);
 
-		CRY_PFX2_FOR_ACTIVE_PARTICLES(context)
+		for (auto particleId : context.GetUpdateRange())
 		{
 			const TParticleId parentId = parentIds.Load(particleId);
 			if (parentId != gInvalidId)
@@ -438,7 +439,7 @@ public:
 				localVelocities.Store(particleId, velocity1);
 			}
 		}
-		CRY_PFX2_FOR_END;
+		return ENV_WIND;
 	}
 
 private:
@@ -485,11 +486,10 @@ public:
 		const float speed = m_speed.Get();
 		const float size = m_size;
 
-		CRY_PFX2_FOR_ACTIVE_PARTICLES(context)
+		for (auto particleId : context.GetUpdateRange())
 		{
 			const Vec3 velocity = velocities.Load(particleId);
 			const float age = normAges.Load(particleId) * lifeTimes.Load(particleId);
-
 			const float angle = speed * (age + fTime);
 			const float rotateSin = sin_tpl(angle) * size;
 			const float rotateCos = cos_tpl(angle) * size;
@@ -498,7 +498,6 @@ public:
 			const Vec3 move = xAxis * rotateCos + yAxis * rotateSin;
 			localMoves.Store(particleId, move);
 		}
-		CRY_PFX2_FOR_END;
 	}
 
 private:

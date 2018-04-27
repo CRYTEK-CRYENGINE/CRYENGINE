@@ -1,4 +1,4 @@
-# Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+# Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 from waflib.Configure import conf
 from waflib import Logs, Node, Errors
 from waflib.Scripting import _is_option_true

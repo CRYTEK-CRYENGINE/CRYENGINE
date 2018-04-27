@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -15,19 +15,19 @@ namespace UQS
 		//
 		//===================================================================================
 
-		class CQueryResultSet : public IQueryResultSet
+		class CQueryResultSet final : public IQueryResultSet
 		{
 		public:
-			explicit                          CQueryResultSet();
+			explicit                          CQueryResultSet(const IItemList& generatedItems, std::vector<size_t>&& itemIndexes, std::vector<float>&& itemScores);
 
 			// IQueryResultSet
 			virtual Client::IItemFactory&     GetItemFactory() const override;
 			virtual size_t                    GetResultCount() const override;
 			virtual SResultSetEntry           GetResult(size_t index) const override;
+			virtual const CQueryResultSet&    GetImplementation() const override;
 			// ~IQueryResultSet
 
-			void                              SetItemFactoryAndCreateItems(Client::IItemFactory& itemFactory, size_t numItemsToCreate);
-			void                              SetItemAndScore(size_t index, const void* pSourceItem, float score);
+			const CItemList&                  GetItemList() const;
 
 		private:
 			                                  UQS_NON_COPYABLE(CQueryResultSet);
@@ -37,7 +37,6 @@ namespace UQS
 			// ~IQueryResultSet
 
 		private:
-			Client::IItemFactory*             m_pItemFactory;
 			CItemList                         m_items;
 			std::vector<float>                m_scores;
 		};

@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "stdafx.h"
 #include "JoystickCtrl.h"
@@ -41,11 +41,6 @@ public:
 	}
 
 	// IUndoObject
-	virtual int GetSize()
-	{
-		return sizeof(*this);
-	}
-
 	virtual const char* GetDescription()
 	{
 		return "JoystickCtrl";
@@ -147,11 +142,6 @@ public:
 			m_pContext->SerializeJoystickSet(m_pJoystickSet, m_undo, false);
 	}
 	// IUndoObject
-	virtual int GetSize()
-	{
-		return sizeof(*this);
-	}
-
 	virtual const char* GetDescription()
 	{
 		return "JoystickCtrl";
@@ -1684,3 +1674,4 @@ void CJoystickCtrl::UpdateDocumentRect()
 
 	OnClientSizeUpdated();
 }
+

@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 //
 //  Crytek Engine Source File.
 //  Copyright (C), Crytek Studios, 2012.
@@ -13,6 +13,9 @@
 #include "GeomCache.h"
 #include "GeomCacheWriter.h"
 #include "StealingThreadPool.h"
+
+#include <mutex>
+#include <condition_variable>
 
 class GeomCacheEncoder;
 
@@ -97,14 +100,14 @@ private:
 
 	// The job group status for the currently processed frame
 	bool m_jobGroupDone;
-	ThreadUtils::CriticalSection m_jobGroupDoneCS;
-	ThreadUtils::ConditionVariable m_jobGroupDoneCV;
+	std::recursive_mutex m_jobGroupDoneCS;
+	std::condition_variable_any m_jobGroupDoneCV;
 
 	// Frame data
 	uint m_firstInfoFrameIndex;
 	uint m_nextFrameIndex;
-	ThreadUtils::CriticalSection m_framesCS;
-	ThreadUtils::ConditionVariable m_frameRemovedCV;
+	std::recursive_mutex m_framesCS;
+	std::condition_variable_any m_frameRemovedCV;
 	std::deque<std::unique_ptr<GeomCacheEncoderFrameInfo>> m_frames;	
 
 	// Global scene structure handles from alembic compiler

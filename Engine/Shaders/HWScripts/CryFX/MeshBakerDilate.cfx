@@ -1,5 +1,4 @@
-// CRYENGINE Source Code File
-// Copyright 2001-2015 Crytek GmbH. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "Common.cfi"
 
@@ -17,7 +16,7 @@ struct a2v
 
 struct v2f
 {
-  float4 pos	   : POSITION;
+  float4 pos	   : SV_POSITION;
   float2 texCoord  : TEXCOORD0;
 };
 
@@ -75,8 +74,9 @@ pixout MeshBakerDilate_PS(v2f IN)
 
 pixout MeshBakerDilateThresholdAlpha_PS(v2f IN)
 {
-  pixout OUT=MeshBakerDilate_PS(IN);
-  OUT.Color.w=round(OUT.Color.w);
+  pixout OUT;
+  OUT.Color = Dilate(IN);
+  OUT.Color.w = tex2D(SrcTexture, IN.texCoord).w;
   return OUT;
 }
 

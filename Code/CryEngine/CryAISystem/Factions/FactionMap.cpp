@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "FactionMap.h"
@@ -67,6 +67,16 @@ void CFactionMap::Reload()
 			AILogAlways("[FactionMap] Failed to load factions from data source!");
 		}
 	}
+}
+
+void CFactionMap::RegisterFactionReactionChangedCallback(const FactionReactionChangedCallback& callback)
+{
+	m_factionReactionChangedCallback.Add(callback);
+}
+
+void CFactionMap::UnregisterFactionReactionChangedCallback(const FactionReactionChangedCallback& callback)
+{
+	m_factionReactionChangedCallback.Remove(callback);
 }
 
 uint8 CFactionMap::CreateOrUpdateFaction(const char* szName, uint32 reactionsCount, const uint8* pReactions)
@@ -182,28 +192,7 @@ void CFactionMap::SetReaction(uint8 factionOne, uint8 factionTwo, IFactionMap::R
 	{
 		m_reactions[factionOne][factionTwo] = reaction;
 
-		// TODO: We should use callbacks instead.
-		AIObjects::iterator it = GetAISystem()->m_mapFaction.find(factionOne);
-		const AIObjects::iterator end = GetAISystem()->m_mapFaction.end();
-
-		for (; it != end; ++it)
-		{
-			if (it->first == factionOne)
-			{
-				if (CAIObject* pObject = it->second.GetAIObject())
-				{
-					if (CAIActor* pAIActor = pObject->CastToCAIActor())
-					{
-						pAIActor->ReactionChanged(factionTwo, reaction);
-					}
-				}
-			}
-			else
-			{
-				break;
-			}
-		}
-		// ~TODO
+		m_factionReactionChangedCallback.Call(factionOne, factionTwo, reaction);
 	}
 }
 

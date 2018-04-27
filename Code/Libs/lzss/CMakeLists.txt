@@ -6,8 +6,8 @@ start_sources()
 sources_platform(ALL)
 add_sources("NoUberFile"
 	SOURCE_GROUP "Root"
-		"../../SDKs/lzss/lzss.cpp"
-		"../../SDKs/lzss/LZSS.H"
+		"${SDK_DIR}/lzss/lzss.cpp"
+		"${SDK_DIR}/lzss/LZSS.H"
 )
 
 end_sources()

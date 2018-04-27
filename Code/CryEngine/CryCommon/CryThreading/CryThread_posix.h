@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -136,7 +136,7 @@ public:
 protected:
 	pthread_mutex_t m_posix_mutex;
 #ifndef _RELEASE
-	volatile uint   m_LockCount;
+	volatile uint   m_LockCount = 0;
 #endif
 };
 

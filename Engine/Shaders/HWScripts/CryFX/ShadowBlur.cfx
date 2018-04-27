@@ -1,5 +1,4 @@
-// CRYENGINE Source Code File
-// Copyright 2001-2015 Crytek GmbH. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "Common.cfi"
 #include "ShadeLib.cfi"
@@ -40,19 +39,20 @@ struct app2vertShadow
 
 struct vtxOut
 {
-  float4 HPosition  : POSITION;
+  float4 HPosition  : SV_POSITION;
   float4 baseTC     : TEXCOORD0;
 };
 
 float4 SSAO_BlurKernel;
 
-vtxOut SSDO_Blur_VS(app2vertShadow IN)
+vtxOut SSDO_Blur_VS(uint VertexID : SV_VertexID)
 {
   vtxOut OUT = (vtxOut)0; 
-  OUT.HPosition = Get2dHPos(IN.Position);
+  OUT.HPosition = GetHPos_FromTriVertexID(VertexID);
+  float2 baseTC = GetBaseTC_FromTriVertexID(VertexID);
 
   // output texture coordinates
-  OUT.baseTC.xy = IN.baseTC.xy + PixelOffset.xy;
+  OUT.baseTC.xy = baseTC + PixelOffset.xy;
   OUT.baseTC.zw = OUT.baseTC.xy * PixelOffset.zw;
 
   return OUT;

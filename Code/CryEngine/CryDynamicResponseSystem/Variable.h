@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 /************************************************************************
 
@@ -19,7 +19,6 @@ namespace CryDRS
 class CVariableCollection;
 class CResponseInstance;
 
-//one concrete running instance of the actions. (There might be actions that dont need instances, because their action is instantaneously.
 class CVariable final : public DRS::IVariable
 {
 public:
@@ -55,15 +54,18 @@ public:
 
 	bool operator==(const CVariable& other) const         { return m_name == other.m_name && m_value == other.m_value; }
 
+	CVariable& operator= (const CVariable& other) { m_name = other.m_name; m_value = other.m_value; return *this; }
+
 	void Serialize(Serialization::IArchive& ar);
 
 	//protected:
-	const CHashedString m_name;
+	CHashedString		m_name;
 	CVariableValue      m_value;
 };
 
 //--------------------------------------------------------------------------------------------------
 
+//one concrete running instance of the actions. (There might be actions that dont need instances, because their action is instantaneously.
 class CResponseInstance;
 
 // a basis class for every condition and action that requires a variable as an input

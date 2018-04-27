@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -29,8 +29,10 @@ class CStaticDeviceObjectStorage
 public:
 	typedef std::pair<SDescription, CDeviceObject*> Element;
 
-	THandle GetHandle(const SDescription& pDescr) const
+	THandle GetHandle(const SDescription& pDescr) threadsafe
 	{
+		CryAutoReadLock<CryRWLock> lock(m_accessLock);
+		m_accessLock.RLock();
 		const uint32 nContainerSize = m_Container.size();
 		for (uint32 i = 0; i < nContainerSize; i++)
 		{
@@ -42,8 +44,10 @@ public:
 		return THandle(THandle::Unspecified);
 	}
 
-	THandle ReserveHandle(const SDescription& pDescr)
+	THandle ReserveHandle(const SDescription& pDescr) threadsafe
 	{
+		CryAutoWriteLock<CryRWLock> lock(m_accessLock);
+
 		const uint32 nContainerSize = m_Container.size();
 
 		// Reservation is unfailable
@@ -52,8 +56,10 @@ public:
 		return THandle(nContainerSize);
 	}
 
-	THandle GetOrCreateHandle(const SDescription& pDescr)
+	THandle GetOrCreateHandle(const SDescription& pDescr) threadsafe
 	{
+		CryAutoWriteLock<CryRWLock> lock(m_accessLock);
+
 		const uint32 nContainerSize = m_Container.size();
 		for (uint32 i = 0; i < nContainerSize; i++)
 		{
@@ -77,32 +83,42 @@ public:
 		return THandle(nContainerSize);
 	}
 
-	const Element& Lookup(const THandle hState) const
+	const Element& Lookup(const THandle hState) const threadsafe
 	{
+		CryAutoReadLock<CryRWLock> lock(m_accessLock);
+
 		assert(hState != THandle::Unspecified);
 		assert(hState >= THandle(0) && hState < THandle(static_cast<typename THandle::ValueType>(m_Container.size())));
 		return m_Container[uint32(hState)];
 	}
 
-	Element& Lookup(const THandle hState)
+	Element& Lookup(const THandle hState) threadsafe
 	{
+		CryAutoReadLock<CryRWLock> lock(m_accessLock);
+
 		assert(hState != THandle::Unspecified);
 		assert(hState >= THandle(0) && hState < THandle(static_cast<typename THandle::ValueType>(m_Container.size())));
 		return m_Container[uint32(hState)];
 	}
 
-	size_t Size() const
+	size_t Size() const threadsafe
 	{
+		CryAutoReadLock<CryRWLock> lock(m_accessLock);
+
 		return m_Container.size();
 	}
 
-	void Reserve(uint32 hNum)
+	void Reserve(uint32 hNum) threadsafe
 	{
+		CryAutoWriteLock<CryRWLock> lock(m_accessLock);
+
 		m_Container.reserve(hNum);
 	}
 
-	void Release(THandle hFirst)
+	void Release(THandle hFirst) threadsafe
 	{
+		CryAutoWriteLock<CryRWLock> lock(m_accessLock);
+
 		const uint32 nContainerSize = m_Container.size();
 		for (uint32 i = uint32(hFirst); i < nContainerSize; i++)
 			SAFE_RELEASE(m_Container[i].second);
@@ -112,6 +128,7 @@ public:
 
 private:
 	std::vector<Element> m_Container;
+	CryRWLock            m_accessLock;
 };
 
 /* Helper macro which will create the following API block:
@@ -191,6 +208,8 @@ public:
 
 	THandle GetHandle(const SDescription pDescr) const
 	{
+		CryAutoReadLock<CryRWLock> lock(m_accessLock);
+
 		const uint32 nContainerSize = m_Container.size();
 		for (uint32 i = 0; i < nContainerSize; i++)
 		{
@@ -204,6 +223,8 @@ public:
 
 	THandle ReserveHandle(const SDescription pDescr)
 	{
+		CryAutoWriteLock<CryRWLock> lock(m_accessLock);
+
 		const uint32 nContainerSize = m_Container.size();
 
 		// Reservation is unfailable
@@ -214,6 +235,8 @@ public:
 
 	THandle GetOrCreateHandle(const SDescription pDescr)
 	{
+		CryAutoWriteLock<CryRWLock> lock(m_accessLock);
+
 		// Curiously recurring composition pattern (derive base-class not from template argument, but from statically evaluated offset)
 		CDeviceObjectCreator* base = CreatorStorage_Tag::rebase(this);
 
@@ -242,6 +265,8 @@ public:
 
 	const Element& Lookup(const THandle hState) const
 	{
+		CryAutoReadLock<CryRWLock> lock(m_accessLock);
+
 		assert(hState != THandle::Unspecified);
 		assert(hState >= THandle(0) && hState < THandle(static_cast<typename THandle::ValueType>(m_Container.size())));
 		return m_Container[uint32(hState)];
@@ -249,6 +274,8 @@ public:
 
 	Element& Lookup(const THandle hState)
 	{
+		CryAutoReadLock<CryRWLock> lock(m_accessLock);
+
 		assert(hState != THandle::Unspecified);
 		assert(hState >= THandle(0) && hState < THandle(static_cast<typename THandle::ValueType>(m_Container.size())));
 		return m_Container[uint32(hState)];
@@ -256,16 +283,22 @@ public:
 
 	size_t Size() const
 	{
+		CryAutoReadLock<CryRWLock> lock(m_accessLock);
+
 		return m_Container.size();
 	}
 
 	void Reserve(uint32 hNum)
 	{
+		CryAutoWriteLock<CryRWLock> lock(m_accessLock);
+
 		m_Container.reserve(hNum);
 	}
 
 	void Release(THandle hFirst)
 	{
+		CryAutoWriteLock<CryRWLock> lock(m_accessLock);
+
 		const uint32 nContainerSize = m_Container.size();
 		for (uint32 i = uint32(hFirst); i < nContainerSize; i++)
 			SAFE_RELEASE(m_Container[i].second);
@@ -275,6 +308,7 @@ public:
 
 private:
 	std::vector<Element> m_Container;
+	CryRWLock            m_accessLock;
 };
 
 /* Helper macro which will create the following API block:
@@ -350,8 +384,8 @@ struct SDeviceObjectHelpers
 
 	struct SConstantBufferBindInfo
 	{
-		EConstantBufferShaderSlot   shaderSlot;
-		EShaderStage                shaderStages;
+		EConstantBufferShaderSlot   shaderSlot   = eConstantBufferShaderSlot_PerBatch;
+		EShaderStage                shaderStages = EShaderStage_All;
 		_smart_ptr<CConstantBuffer> pBuffer;
 
 		void                        swap(SConstantBufferBindInfo& other)
@@ -370,16 +404,16 @@ struct SDeviceObjectHelpers
 
 	public:
 		STypedConstants(CConstantBufferPtr pBuffer)
-			: m_pBuffer(pBuffer)
-			, m_pCachedData(AlignCachedData())
+			: m_pCachedData(AlignCachedData())
+			, m_pBuffer(pBuffer)
 			, m_CurrentBufferIndex(0)
 		{
 			ZeroStruct(m_pCachedData[0]);
 		}
 
 		STypedConstants(STypedConstants&& other)
-			: m_pBuffer(std::move(other.m_pBuffer))
-			, m_pCachedData(AlignCachedData())
+			: m_pCachedData(AlignCachedData())
+			, m_pBuffer(std::move(other.m_pBuffer))
 			, m_CurrentBufferIndex(std::move(other.m_CurrentBufferIndex))
 		{
 			*m_pCachedData = *other.m_pCachedData;
@@ -436,7 +470,7 @@ struct SDeviceObjectHelpers
 		void ReleaseShaderReflection();
 
 		void BeginNamedConstantUpdate();
-		void EndNamedConstantUpdate();
+		void EndNamedConstantUpdate(const D3DViewPort* pVP);
 
 		bool SetNamedConstant(const CCryNameR& paramName, const Vec4 param, EHWShaderClass shaderClass = eHWSC_Pixel);
 		bool SetNamedConstantArray(const CCryNameR& paramName, const Vec4 params[], uint32 numParams, EHWShaderClass shaderClass = eHWSC_Pixel);
@@ -480,7 +514,8 @@ struct SDeviceObjectHelpers
 	};
 
 	// Get shader instances for each shader stage
-	static std::array<SShaderInstanceInfo, eHWSC_Num> GetShaderInstanceInfo(::CShader* pShader, const CCryNameTSCRC& technique, uint64 rtFlags, uint32 mdFlags, uint32 mdvFlags, const UPipelineState pipelineState[eHWSC_Num], bool bAllowTesselation);
+	typedef std::array<SShaderInstanceInfo, eHWSC_Num> THwShaderInfo;
+	static EShaderStage GetShaderInstanceInfo(THwShaderInfo& result, ::CShader* pShader, const CCryNameTSCRC& technique, uint64 rtFlags, uint32 mdFlags, uint32 mdvFlags, const UPipelineState pipelineState[eHWSC_Num], bool bAllowTesselation);
 
 	// Check if shader has tessellation support
 	static bool CheckTessellationSupport(SShaderItem& shaderItem);

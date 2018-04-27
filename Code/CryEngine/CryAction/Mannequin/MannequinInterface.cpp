@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 //
 ////////////////////////////////////////////////////////////////////////////
@@ -110,7 +110,7 @@ void CMannequinInterface::RegisterCVars()
 	mannequin::debug::RegisterCommands();
 	CAnimationDatabase::RegisterCVars();
 #ifndef _RELEASE
-	REGISTER_STRING("mn_sequence_path", "Animations/Mannequin/FragmentSequences/", VF_CHEAT, "Default path for CryMannequin sequence files");
-	REGISTER_STRING("mn_override_preview_file", "", VF_CHEAT, "Default CryMannequin preview file to use. When set it overrides the corresponding sandbox setting.");
+	REGISTER_STRING("mn_sequence_path", "Animations/Mannequin/FragmentSequences/", VF_NULL, "Default path for CryMannequin sequence files");
+	REGISTER_STRING("mn_override_preview_file", "", VF_NULL, "Default CryMannequin preview file to use. When set it overrides the corresponding sandbox setting.");
 #endif
 }

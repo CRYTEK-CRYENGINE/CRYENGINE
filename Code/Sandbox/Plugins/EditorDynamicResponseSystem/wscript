@@ -1,0 +1,13 @@
+# Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
+	
+def build(bld):	
+	bld.CryPlugin(
+		target       = 'EditorDynamicResponseSystem',
+		vs_filter    = 'Sandbox/Plugins',
+		pch          = 'StdAfx.cpp',
+		file_list    = 'editordynamicresponsesystem.waf_files',
+		includes     = [ Path('Code/Sandbox/EditorQt'), Path('Code/Sandbox/Plugins/MFCToolsPlugin') ],
+		use          = ['Sandbox', 'MFCToolsPlugin'],
+
+	)
+

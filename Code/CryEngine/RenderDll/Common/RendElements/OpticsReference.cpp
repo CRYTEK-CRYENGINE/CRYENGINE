@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "OpticsReference.h"
@@ -66,8 +66,13 @@ void COpticsReference::Invalidate()
 		m_OpticsList[i]->Invalidate();
 }
 
-void COpticsReference::RenderPreview(SLensFlareRenderParam* pParam, const Vec3& vPos)
+void COpticsReference::RenderPreview(const SLensFlareRenderParam* pParam, const Vec3& vPos)
 {
 	for (int i = 0, iSize(m_OpticsList.size()); i < iSize; ++i)
 		m_OpticsList[i]->RenderPreview(pParam, vPos);
+}
+
+void COpticsReference::DeleteThis()
+{
+	delete this;
 }

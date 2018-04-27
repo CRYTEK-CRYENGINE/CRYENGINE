@@ -1,0 +1,10 @@
+<AssetMetadata version="0" type="Texture" guid="abe31460-a1a3-8b8b-5396-254c88f2f3c0" source="RCError_cm.tif">
+ <Files>
+  <File path="RCError_cm_diff.dds"/>
+ </Files>
+ <Details>
+  <Detail name="width">192</Detail>
+  <Detail name="height">32</Detail>
+  <Detail name="mipCount">1</Detail>
+ </Details>
+</AssetMetadata>

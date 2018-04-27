@@ -332,7 +332,7 @@ protected:
 	};
 	void* callee;
 
-	FunctorBase() : callee(0), func(0) {}
+	FunctorBase() :func(0),  callee(0) {}
 	FunctorBase(const void* c, PtrToFunc f, const void* mf, size_t sz) : callee((void*)c)
 	{
 		if (c)  //must be callee/memfunc
@@ -341,7 +341,7 @@ protected:
 			memcpy(memFunc, mf, sz);
 			if (sz < MEM_FUNC_SIZE)  //zero-out the rest, if any, so comparisons work
 			{
-				memset(memFunc + sz, 0, MEM_FUNC_SIZE - sz);
+				std::fill(memFunc + sz, memFunc + MEM_FUNC_SIZE * 2, '\0');
 			}
 		}
 		else  //must be ptr-to-func
@@ -1493,6 +1493,13 @@ public:
 	{
 		m_functors.push_back(f);
 	}
+
+	// Add unique functor to the list, returning true if the functor was added to the list or false when the functor was already present.
+	bool AddUnique(const FUNCTOR& f)
+	{
+		return stl::push_back_unique(m_functors, f);
+	}
+
 	// Remove functor from list.
 	void Remove(const FUNCTOR& f)
 	{
@@ -1505,41 +1512,27 @@ public:
 	}
 
 	//////////////////////////////////////////////////////////////////////////
-	// Call all functors in this list.
-	// Also several template functions for multiple parameters.
+	// Call all functors in this list. Functors shouldn't be added or removed during inside the calls.
 	//////////////////////////////////////////////////////////////////////////
-	void Call()
+	template<class... TArgs>
+	void Call(TArgs... args)
 	{
 		for (typename Container::iterator it = m_functors.begin(); it != m_functors.end(); ++it)
 		{
-			(*it)();
+			(*it)(args...);
 		}
 	}
 
-	template<class T1>
-	void Call(const T1& param1)
+	//////////////////////////////////////////////////////////////////////////
+	// Call all functors in this list. It is possible to add or remove functors inside the calls.
+	//////////////////////////////////////////////////////////////////////////
+	template<class... TArgs>
+	void CallSafe(TArgs... args)
 	{
-		for (typename Container::iterator it = m_functors.begin(); it != m_functors.end(); ++it)
+		Container temp(m_functors);
+		for (typename Container::iterator it = temp.begin(); it != temp.end(); ++it)
 		{
-			(*it)(param1);
-		}
-	}
-
-	template<class T1, class T2>
-	void Call(const T1& param1, const T2& param2)
-	{
-		for (typename Container::iterator it = m_functors.begin(); it != m_functors.end(); ++it)
-		{
-			(*it)(param1, param2);
-		}
-	}
-
-	template<class T1, class T2, class T3>
-	void Call(const T1& param1, const T2& param2, const T3& param3)
-	{
-		for (typename Container::iterator it = m_functors.begin(); it != m_functors.end(); ++it)
-		{
-			(*it)(param1, param2, param3);
+			(*it)(args...);
 		}
 	}
 

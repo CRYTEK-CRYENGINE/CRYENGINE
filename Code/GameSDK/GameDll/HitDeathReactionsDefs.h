@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 /*************************************************************************
 -------------------------------------------------------------------------
@@ -81,10 +81,12 @@ struct SRandomGeneratorFunct
 {
 	SRandomGeneratorFunct(CMTRand_int32& pseudoRandomGenerator);
 
-	template <typename Distance>
-	Distance operator () (const Distance& n)
+	using result_type = uint32;
+	static constexpr result_type min() { return std::numeric_limits<result_type>::lowest(); }
+	static constexpr result_type max() { return std::numeric_limits<result_type>::max(); }
+	result_type operator()()
 	{
-		return static_cast<Distance>(m_pseudoRandomGenerator.GenerateUint32() % n);
+		return static_cast<result_type>(m_pseudoRandomGenerator.GenerateUint32());
 	}
 
 	CMTRand_int32& m_pseudoRandomGenerator;

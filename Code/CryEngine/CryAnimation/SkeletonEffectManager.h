@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -12,15 +12,16 @@ public:
 	~CSkeletonEffectManager();
 
 	void   Update(ISkeletonAnim* pSkeletonAnim, ISkeletonPose* pSkeletonPose, const QuatTS& entityLoc);
-	void   SpawnEffect(CCharInstance* pCharInstance, const char* effectName, const char* boneName, const Vec3& offset, const Vec3& dir, const QuatTS& entityLoc);
+	void   SpawnEffect(CCharInstance* pCharInstance, const AnimEventInstance& animEvent, const QuatTS& entityLoc);
+
 	void   KillAllEffects();
 	size_t SizeOfThis()
 	{
-		return m_effects.capacity() * sizeof(EffectEntry);
+		return m_particlesEffects.capacity() * sizeof(EffectEntry);
 	}
 	void GetMemoryUsage(ICrySizer* pSizer) const
 	{
-		pSizer->AddObject(m_effects);
+		pSizer->AddObject(m_particlesEffects);
 	}
 
 private:
@@ -37,8 +38,11 @@ private:
 		Vec3                         dir;
 	};
 
-	void GetEffectLoc(ISkeletonPose* pSkeletonPose, QuatTS& loc, int boneID, const Vec3& offset, const Vec3& dir, const QuatTS& entityLoc);
-	bool IsPlayingEffect(const char* effectName);
+	void SpawnEffectParticles(CCharInstance* pCharInstance, const AnimEventInstance& animEvent, const QuatTS& entityLoc);
+	void SpawnEffectAudio(CCharInstance* pCharInstance, const AnimEventInstance& animEvent, const QuatTS& entityLoc);
 
-	DynArray<EffectEntry> m_effects;
+	void GetEffectJointLocation(ISkeletonPose* pSkeletonPose, QuatTS& loc, int boneID, const Vec3& offset, const Vec3& dir, const QuatTS& entityLoc);
+
+	bool IsPlayingParticlesEffect(const char* effectName);
+	DynArray<EffectEntry> m_particlesEffects;
 };

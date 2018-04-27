@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "GameVolume_Water.h"
@@ -156,7 +156,7 @@ void CGameVolume_Water::HandleEvent(const SGameObjectEvent& gameObjectEvent)
 	}
 }
 
-void CGameVolume_Water::ProcessEvent(SEntityEvent& event)
+void CGameVolume_Water::ProcessEvent(const SEntityEvent& event)
 {
 	switch (event.event)
 	{

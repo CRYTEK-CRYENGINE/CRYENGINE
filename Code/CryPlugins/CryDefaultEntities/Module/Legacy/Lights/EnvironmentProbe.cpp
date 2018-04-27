@@ -58,6 +58,9 @@ void CEnvironmentProbeEntity::OnResetState()
 	if (m_bIgnoreVisAreas)
 		m_light.m_Flags |= DLF_IGNORES_VISAREAS;
 
+	if (m_bLinkToSkyColor)
+		m_light.m_Flags |= DLF_LINK_TO_SKY_COLOR;
+
 	if (m_bBoxProjection)
 		m_light.m_Flags |= DLF_BOX_PROJECTED_CM;
 
@@ -124,6 +127,6 @@ void CEnvironmentProbeEntity::GetCubemapTextures(const char* path, ITexture** pS
 	stack_string specularCubemapUnix = PathUtil::ToUnixPath(specularCubemap.c_str());
 	stack_string diffuseCubemapUnix = PathUtil::ToUnixPath(diffuseCubemap);
 
-	*pSpecular = gEnv->pRenderer->EF_LoadTexture(specularCubemapUnix, FT_DONT_STREAM);
-	*pDiffuse = gEnv->pRenderer->EF_LoadTexture(diffuseCubemapUnix, FT_DONT_STREAM);
+	*pSpecular = gEnv->pRenderer->EF_LoadTexture(specularCubemapUnix, 0);
+	*pDiffuse = gEnv->pRenderer->EF_LoadTexture(diffuseCubemapUnix, 0);
 }

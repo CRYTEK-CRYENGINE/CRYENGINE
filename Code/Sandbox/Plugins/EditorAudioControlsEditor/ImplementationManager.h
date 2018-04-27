@@ -1,30 +1,33 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 #include <QObject>
 #include <CrySandbox/CrySignal.h>
 
+#include <IImpl.h>
+
 namespace ACE
 {
-class IAudioSystemEditor;
+extern Impl::IImpl* g_pIImpl;
 
 class CImplementationManager final : public QObject
 {
 	Q_OBJECT
 
 public:
+
 	CImplementationManager();
 	virtual ~CImplementationManager() override;
 
-	bool                     LoadImplementation();
-	void                     Release();
-	ACE::IAudioSystemEditor* GetImplementation();
+	bool LoadImplementation();
+	void Release();
 
-	CCrySignal<void()> signalImplementationAboutToChange;
-	CCrySignal<void()> signalImplementationChanged;
+	CCrySignal<void()> SignalImplementationAboutToChange;
+	CCrySignal<void()> SignalImplementationChanged;
 
 private:
-	ACE::IAudioSystemEditor* ms_pAudioSystemImpl;
-	HMODULE                  ms_hMiddlewarePlugin;
+
+	HMODULE m_hMiddlewarePlugin;
 };
 } // namespace ACE
+

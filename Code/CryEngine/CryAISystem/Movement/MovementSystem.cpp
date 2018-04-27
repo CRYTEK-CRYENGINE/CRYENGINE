@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "MovementSystem.h"
@@ -73,6 +73,12 @@ void MovementSystem::RegisterEntity(const EntityId entityId, MovementActorCallba
 void MovementSystem::UnregisterEntity(const EntityId entityId)
 {
 	m_actors.erase(std::remove_if(m_actors.begin(), m_actors.end(), ActorMatchesIdPredicate(entityId)), m_actors.end());
+}
+
+bool MovementSystem::IsEntityRegistered(const EntityId entityId)
+{
+	Actors::const_iterator actorIt = std::find_if(m_actors.begin(), m_actors.end(), ActorMatchesIdPredicate(entityId));
+	return actorIt != m_actors.end();
 }
 
 MovementRequestID MovementSystem::QueueRequest(const MovementRequest& request)
@@ -215,6 +221,26 @@ void MovementSystem::RegisterFunctionToConstructMovementBlockForCustomNavigation
 	m_createMovementBlockToHandleCustomNavigationType = blockFactoryFunction;
 }
 
+//////////////////////////////////////////////////////////////////////////
+bool MovementSystem::AddActionAbilityCallbacks(const EntityId entityId, const SMovementActionAbilityCallbacks& ability)
+{
+	MovementActor* pActor = GetExistingActor(entityId);
+	if (!pActor)
+		return false;
+
+	return pActor->AddActionAbilityCallbacks(ability);
+}
+
+bool MovementSystem::RemoveActionAbilityCallbacks(const EntityId entityId, const SMovementActionAbilityCallbacks& ability)
+{
+	MovementActor* pActor = GetExistingActor(entityId);
+	if (!pActor)
+		return false;
+
+	return pActor->RemoveActionAbilityCallbacks(ability);
+}
+//////////////////////////////////////////////////////////////////////////
+
 Movement::BlockPtr MovementSystem::CreateCustomBlock(const CNavPath& path, const PathPointDescriptor::OffMeshLinkData& mnmData, const MovementStyle& style)
 {
 	if (m_createMovementBlockToHandleCustomNavigationType)
@@ -315,7 +341,15 @@ MovementActor& MovementSystem::GetExistingActorOrCreateNewOne(const EntityId ent
 	{
 		// Create new actor
 		MovementActor actor(entityId, &adapter);
-		actor.planner.reset(new Movement::GenericPlanner(adapter.GetNavigationAgentTypeID()));
+		if (actor.callbacks.getMovementPlanner)
+		{
+			actor.planner = actor.callbacks.getMovementPlanner(adapter.GetNavigationAgentTypeID());
+			assert(actor.planner);
+		}
+		else
+		{
+			actor.planner.reset(new Movement::GenericPlanner(adapter.GetNavigationAgentTypeID()));
+		}
 		m_actors.push_back(actor);
 		return m_actors.back();
 	}

@@ -1,8 +1,7 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
-#include "DriverD3D.h"
 #include "Common/TypedConstantBuffer.h"
 
 // forward declarations
@@ -214,11 +213,11 @@ public:
 	{
 		UpdateBufferContent(m_hostData.Get(), m_size);
 	};
-	void UpdateBufferContent(void* pData, size_t nSize)
+	void UpdateBufferContent(const void* pData, size_t nSize)
 	{
 		m_buffer.UpdateBufferContent(pData, sizeof(T) * nSize);
 	};
-	void UpdateBufferContentAligned(void* pData, size_t nSize)
+	void UpdateBufferContentAligned(const void* pData, size_t nSize)
 	{
 		m_buffer.UpdateBufferContent(pData, Align(sizeof(T) * nSize, CRY_PLATFORM_ALIGNMENT));
 	};
@@ -240,9 +239,9 @@ private:
 	HostData        m_hostData;
 };
 
-template<typename T> class CTypedConstantBuffer : public ::CTypedConstantBuffer<T>
+template<typename T> class CTypedConstantBuffer : public ::CTypedConstantBuffer<T, 256>
 {
-	typedef typename ::CTypedConstantBuffer<T> TBase;
+	typedef typename ::CTypedConstantBuffer<T, 256> TBase;
 public:
 	bool IsDeviceBufferAllocated() { return TBase::m_constantBuffer != nullptr; }
 	T&   operator=(const T& hostData)

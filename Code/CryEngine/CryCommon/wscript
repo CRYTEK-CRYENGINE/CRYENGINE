@@ -1,17 +1,12 @@
-# Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+# Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
-
-third_party_waf_files = [
-'3rdParty/concqueue/concqueue.waf_files', 
-'3rdParty/fasthash/fasthash.waf_files'
-]
 
 def build(bld):
 
 	bld.CryFileContainer( 
 		target     = 'CryCommon', 
 		vs_filter  = 'Common',
-		file_list  = ['crycommon.waf_files'] + third_party_waf_files,
+		file_list  = ['crycommon.waf_files'],
 		
 		includes = [ '3rdParty' ],
 

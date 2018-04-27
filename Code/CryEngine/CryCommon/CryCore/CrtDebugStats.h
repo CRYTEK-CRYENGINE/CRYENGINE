@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -40,21 +40,21 @@ struct SFileInfo
 };
 }      // namespace Cry
 
-_CrtMemState lastcheckpoint;
-bool checkpointset = false;
+static _CrtMemState lastcheckpoint;
+static bool checkpointset = false;
 
-extern "C" void __declspec(dllexport) CheckPoint()
+extern "C" inline void __declspec(dllexport) CheckPoint()
 {
 	_CrtMemCheckpoint(&lastcheckpoint);
 	checkpointset = true;
 };
 
-bool pairgreater(const std::pair<string, Cry::SFileInfo>& elem1, const std::pair<string, Cry::SFileInfo>& elem2)
+inline bool pairgreater(const std::pair<string, Cry::SFileInfo>& elem1, const std::pair<string, Cry::SFileInfo>& elem2)
 {
 	return elem1.second.bytes > elem2.second.bytes;
 }
 
-extern "C" void __declspec(dllexport) UsageSummary(ILog * log, char* modulename, int* extras)
+extern "C" inline void __declspec(dllexport) UsageSummary(ILog * log, char* modulename, int* extras)
 {
 	_CrtMemState state;
 

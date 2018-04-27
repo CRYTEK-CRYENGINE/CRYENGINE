@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -210,6 +210,9 @@ namespace UQS
 
 			// phase 2
 			CItemList                                             m_generatedItems;                                        // all the items that are being evaluated; this is kind of a read-only storage after they have been generated
+
+			// phase 3
+			size_t                                                m_currentItemIndexForCreatingDebugRepresentations;       // for continuing with creating debug-visualization and debug-proxies of all generated items in the next frame (in case we run out of time)
 
 			// phase 4
 			std::unique_ptr<SItemIterationContext>                m_pItemIterationContext;                                 // this gets instantiated right after all items got generated; it's used to provide the functions in the evaluation phase with the current item we're iterating on

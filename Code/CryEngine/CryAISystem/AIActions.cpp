@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 
@@ -756,7 +756,7 @@ void CAIActionManager::ExecuteAIAction(const char* sActionName, IEntity* pUser, 
 // removes deleted AI Action from the list of active actions
 void CAIActionManager::Update()
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_AI)
+	CRY_PROFILE_FUNCTION(PROFILE_AI)
 
 	TActiveActions::iterator it = m_ActiveActions.begin();
 	while (it != m_ActiveActions.end())

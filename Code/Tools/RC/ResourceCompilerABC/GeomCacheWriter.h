@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 //
 //  Crytek Engine Source File.
 //  Copyright (C), Crytek Studios, 2012.
@@ -69,16 +69,16 @@ private:
 
 	bool m_bExit;
 	
-	ThreadUtils::ConditionVariable m_dataAvailableCV;	
-	ThreadUtils::ConditionVariable m_dataWrittenCV;	
+	std::condition_variable_any m_dataAvailableCV;
+	std::condition_variable_any m_dataWrittenCV;
 	
 	unsigned int m_currentReadBuffer;
 	unsigned int m_currentWriteBuffer;	
 	
-	ThreadUtils::CriticalSection m_outstandingWritesCS;
+	std::recursive_mutex m_outstandingWritesMutex;
 	LONG m_outstandingWrites;
 
-	ThreadUtils::CriticalSection m_criticalSections[m_kNumBuffers];
+	std::recursive_mutex m_criticalSections[m_kNumBuffers];
 	std::vector<char> m_buffers[m_kNumBuffers];
 	DiskWriteFuture *m_futures[m_kNumBuffers];
 	long m_offsets[m_kNumBuffers];
@@ -149,7 +149,7 @@ private:
 	GeomCacheDiskWriteThread &m_diskWriteThread;
 	std::vector<char> m_data;
 	
-	ThreadUtils::CriticalSection m_lockWriter;
+	std::recursive_mutex m_lockWriter;
 
 	// Next block index hat will be used
 	uint m_nextBlockIndex; 
@@ -161,8 +161,8 @@ private:
 	uint m_nextBlockToWrite;
 
 	volatile uint m_numJobsRunning;	
-	ThreadUtils::CriticalSection m_jobFinishedCS;
-	ThreadUtils::ConditionVariable m_jobFinishedCV;
+	std::recursive_mutex m_jobFinishedCS;
+	std::condition_variable_any m_jobFinishedCV;
 
 	// The job data
 	std::vector<JobData> m_jobData;

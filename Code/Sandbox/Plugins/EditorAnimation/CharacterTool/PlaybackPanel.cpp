@@ -1,9 +1,9 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "stdafx.h"
 
-#include "../EditorCommon/Timeline.h"
-#include "../EditorCommon/TimelineContent.h"
+#include "Timeline.h"
+#include "TimelineContent.h"
 #include "PlaybackPanel.h"
 #include "CharacterDocument.h"
 #include "Controls/QMenuComboBox.h"
@@ -161,8 +161,10 @@ PlaybackPanel::PlaybackPanel(QWidget* parent, System* system, AnimEventPresetPan
 		connect(m_timeline, &CTimeline::SignalNumberHotkey, this, &PlaybackPanel::OnTimelineHotkey);
 		connect(m_timeline, &CTimeline::SignalUndo, this, &PlaybackPanel::OnTimelineUndo);
 		connect(m_timeline, &CTimeline::SignalRedo, this, &PlaybackPanel::OnTimelineRedo);
-		m_playIcon = CryIcon("icons:Animation/Play.ico");
-		m_pauseIcon = CryIcon("icons:Animation/Pause.ico");
+		m_playIcon = CryIcon("icons:common/animation_play.ico");
+		m_pauseIcon = CryIcon("icons:common/animation_pause.ico");
+		m_timeline->SetKeySize(16);
+		m_timeline->SetTimelinePadding(10);
 		m_timeline->SetSizeToContent(true);
 		topHBox->addWidget(m_timeline, 1);
 		m_activeControls.push_back(m_timeline);
@@ -419,6 +421,7 @@ void PlaybackPanel::OnPlaybackTimeChanged()
 	{
 		m_duration = duration;
 		durationChanged = true;
+		ResetTimelineZoom();
 	}
 
 	UpdateTimeUnitsUI(timeChanged, durationChanged);
@@ -581,6 +584,11 @@ void PlaybackPanel::Serialize(Serialization::IArchive& ar)
 	}
 }
 
+void PlaybackPanel::ResetTimelineZoom()
+{
+	m_timeline->ZoomToTimeRange(0.0f, m_duration);
+}
+
 void PlaybackPanel::WriteTimeline()
 {
 	m_timelineContent->track.tracks.resize(1, new STimelineTrack());
@@ -629,7 +637,7 @@ void PlaybackPanel::WriteTimeline()
 			eventCopy.startTime = -1.0f;
 			eventCopy.endTime = -1.0f;
 			SerializeToMemory(&e.userSideLoad, Serialization::SStruct(eventCopy));
-			unsigned int hash = CCrc32::Compute(e.userSideLoad.data(), e.userSideLoad.size());
+			unsigned int hash = CCrc32::Compute(static_cast<void*>(e.userSideLoad.data()), e.userSideLoad.size());
 			EventContentToColorMap::const_iterator it = std::lower_bound(eventContentToColor.begin(), eventContentToColor.end(), std::make_pair(hash, ColorB()),
 			                                                             [&](const std::pair<unsigned int, ColorB>& a, const std::pair<unsigned int, ColorB>& b) { return a.first < b.first; }
 			                                                             );
@@ -642,7 +650,6 @@ void PlaybackPanel::WriteTimeline()
 		}
 	}
 
- 	m_timeline->ZoomToTimeRange(track.startTime, track.endTime);
 	m_timeline->ContentUpdated();
 }
 
@@ -758,3 +765,4 @@ float PlaybackPanel::TimelineTimeToAnimEventTime(const SAnimTime timelineTime) c
 }
 
 }
+

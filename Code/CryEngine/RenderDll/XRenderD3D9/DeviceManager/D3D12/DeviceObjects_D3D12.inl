@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 class CDeviceTimestampGroup : public CDeviceTimestampGroup_Base<CDeviceTimestampGroup>
 {
@@ -145,7 +145,76 @@ inline D3DResource* CDeviceObjectFactory::GetNullResource(D3D11_RESOURCE_DIMENSI
 inline CDeviceCommandListRef CDeviceObjectFactory::GetCoreCommandList() const
 {
 	// Sanity check
-	CRY_ASSERT(m_pCoreCommandList->m_sharedState.pCommandList == m_pDX12Scheduler->GetCommandList(CMDQUEUE_GRAPHICS));
+	CRY_ASSERT(
+		m_pCoreCommandList->m_sharedState.pCommandList == m_pDX12Scheduler->GetCommandList(CMDQUEUE_GRAPHICS) ||
+		m_pCoreCommandList->m_sharedState.pCommandList == nullptr
+	);
 
 	return *m_pCoreCommandList.get();
 }
+
+inline NCryDX12::CDevice* GetDevice()
+{
+	return GetDeviceObjectFactory().GetDX12Device();
+}
+
+inline NCryDX12::CCommandScheduler* GetScheduler()
+{
+	return GetDeviceObjectFactory().GetDX12Scheduler();
+}
+
+inline D3D12_SHADER_VISIBILITY GetShaderVisibility(::EShaderStage shaderStages)
+{
+	static D3D12_SHADER_VISIBILITY shaderVisibility[eHWSC_Num + 1] =
+	{
+		D3D12_SHADER_VISIBILITY_VERTEX,     // eHWSC_Vertex
+		D3D12_SHADER_VISIBILITY_PIXEL,      // eHWSC_Pixel
+		D3D12_SHADER_VISIBILITY_GEOMETRY,   // eHWSC_Geometry
+		D3D12_SHADER_VISIBILITY_ALL,        // eHWSC_Compute
+		D3D12_SHADER_VISIBILITY_DOMAIN,     // eHWSC_Domain
+		D3D12_SHADER_VISIBILITY_HULL,       // eHWSC_Hull
+		D3D12_SHADER_VISIBILITY_ALL,        // eHWSC_Num
+	};
+
+	EHWShaderClass shaderClass = eHWSC_Num;
+
+	if ((int(shaderStages) & (int(shaderStages) - 1)) == 0) // only bound to a single shader stage?
+	{
+		for (shaderClass = eHWSC_Vertex; shaderClass != eHWSC_Num; shaderClass = EHWShaderClass(shaderClass + 1))
+		{
+			if (shaderStages & SHADERSTAGE_FROM_SHADERCLASS(shaderClass))
+				break;
+		}
+	}
+
+	return shaderVisibility[shaderClass];
+};
+
+inline CD3DX12_DESCRIPTOR_RANGE GetDescriptorRange(SResourceBindPoint bindPoint, int descriptorIndex)
+{
+	CD3DX12_DESCRIPTOR_RANGE result;
+	result.BaseShaderRegister = bindPoint.slotNumber;
+	result.NumDescriptors = 1;
+	result.OffsetInDescriptorsFromTableStart = descriptorIndex;
+	result.RegisterSpace = 0;
+
+	switch (bindPoint.slotType)
+	{
+	case SResourceBindPoint::ESlotType::ConstantBuffer:      result.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_CBV;     break;
+	case SResourceBindPoint::ESlotType::TextureAndBuffer:    result.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;     break;
+	case SResourceBindPoint::ESlotType::UnorderedAccessView: result.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_UAV;     break;
+	case SResourceBindPoint::ESlotType::Sampler:             result.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER; break;
+	};
+
+	return result;
+}
+
+#define GET_DX12_SHADER_VIEW(uniformBufferOrTexture, rView)    reinterpret_cast<CCryDX12ShaderResourceView*>((uniformBufferOrTexture)->LookupSRV(rView))
+#define GET_DX12_UNORDERED_VIEW(uniformBufferOrTexture, rView) reinterpret_cast<CCryDX12UnorderedAccessView*>((uniformBufferOrTexture)->LookupUAV(rView))
+#define GET_DX12_DEPTHSTENCIL_VIEW(dsTarget, dView)            reinterpret_cast<CCryDX12DepthStencilView*>((dsTarget)->LookupDSV(dView));
+#define GET_DX12_RENDERTARGET_VIEW(rTarget, rView)             reinterpret_cast<CCryDX12RenderTargetView*>((rTarget)->LookupRTV(rView))
+#define GET_DX12_SAMPLERSTATE(uniformSamplerState)             reinterpret_cast<CCryDX12SamplerState*>(CDeviceObjectFactory::LookupSamplerState(uniformSamplerState).second)
+
+#define GET_DX12_TEXTURE_RESOURCE(uniformTexture)              reinterpret_cast<CCryDX12Resource<ID3D11Resource>*>((uniformTexture)->GetDevTexture()->GetBaseTexture())
+#define GET_DX12_BUFFER_RESOURCE(uniformBuffer)                reinterpret_cast<CCryDX12Resource<ID3D11Resource>*>((uniformBuffer).GetDevBuffer()->GetBaseBuffer())
+#define GET_DX12_CONSTANTBUFFER_RESOURCE(constantBuffer)       reinterpret_cast<CCryDX12Buffer*>((constantBuffer)->GetD3D())

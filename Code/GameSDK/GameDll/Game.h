@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 /*************************************************************************
    -------------------------------------------------------------------------
@@ -224,17 +224,6 @@ enum EDifficulty
 	eDifficulty_PostHuman,
 
 	eDifficulty_COUNT,
-};
-
-//! Platform defines
-enum EPlatform
-{
-	ePlatform_Unknown = 0,
-	ePlatform_PC,
-	ePlatform_XBoxOne,
-	ePlatform_PS4,
-
-	ePlatform_COUNT,
 };
 
 //! Controller layout types
@@ -692,7 +681,7 @@ protected:
 		EPlatform platformId;
 		BYTE      devices;      // Devices to use when registering actions
 
-		SPlatformInfo(EPlatform _platformId = ePlatform_Unknown) : platformId(_platformId), devices(eAID_KeyboardMouse | eAID_XboxPad | eAID_PS4Pad) {}
+		SPlatformInfo(EPlatform _platformId = EPlatform::Current) : platformId(_platformId), devices(eAID_KeyboardMouse | eAID_XboxPad | eAID_PS4Pad) {}
 	};
 	SPlatformInfo m_platformInfo;
 
@@ -752,7 +741,9 @@ protected:
 	static void CmdFlyCamSetPoint(IConsoleCmdArgs* pArgs);
 	static void CmdFlyCamPlay(IConsoleCmdArgs* pArgs);
 
+#if defined(USE_CRY_ASSERT)
 	static void CmdIgnoreAllAsserts(IConsoleCmdArgs* pArgs);
+#endif
 
 	static void CmdReloadPlayer(IConsoleCmdArgs* cmdArgs);
 

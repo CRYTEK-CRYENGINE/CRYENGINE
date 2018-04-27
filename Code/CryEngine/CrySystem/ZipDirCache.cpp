@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "MTSafeAllocator.h"
@@ -213,7 +213,7 @@ ZipDir::ErrorEnum ZipDir::Cache::ReadFile(FileEntry* pFileEntry, void* pCompress
 
 	{
 		CryAutoCriticalSection lock(m_pCacheData->m_csCacheIOLock); // guarantees that fseek() and fread() will be executed together
-		FRAME_PROFILER("ZipDir_Cache_ReadFile", gEnv->pSystem, PROFILE_SYSTEM);
+		CRY_PROFILE_REGION(PROFILE_SYSTEM, "ZipDir_Cache_ReadFile");
 
 		{
 			int64 nSeekRes = ZipDir::FSeek(&m_zipFile, nFileOffset + pFileEntry->nFileDataOffset, SEEK_SET);
@@ -379,7 +379,7 @@ ZipDir::ErrorEnum ZipDir::Cache::ReadFileStreaming(FileEntry* pFileEntry, void* 
 	if (!m_zipFile.IsInMemory() && g_cvars.pakVars.nUncachedStreamReads)
 	{
 		CryAutoCriticalSection lock(m_pCacheData->m_csCacheIOLock); // guarantees that fseek() and fread() will be executed together
-		FRAME_PROFILER("ZipDir_Cache_ReadFile", gEnv->pSystem, PROFILE_SYSTEM);
+		CRY_PROFILE_REGION(PROFILE_SYSTEM, "ZipDir_Cache_ReadFile");
 
 		if (m_zipFile.m_unbufferedFile != INVALID_HANDLE_VALUE)
 		{
@@ -447,7 +447,7 @@ ZipDir::ErrorEnum ZipDir::Cache::ReadFileStreaming(FileEntry* pFileEntry, void* 
 // decompress compressed file
 ZipDir::ErrorEnum ZipDir::Cache::DecompressFile(FileEntry* pFileEntry, void* pCompressed, void* pUncompressed, CryCriticalSection& csDecmopressLock)
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_SYSTEM);
+	CRY_PROFILE_FUNCTION(PROFILE_SYSTEM);
 	if (pUncompressed == NULL)
 		return ZD_ERROR_INVALID_CALL;
 

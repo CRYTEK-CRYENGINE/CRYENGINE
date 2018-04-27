@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 /*************************************************************************
    -------------------------------------------------------------------------
@@ -33,7 +33,6 @@ CCinematicInput::CCinematicInput()
 	: m_controllerAccumulatedAngles(ZERO)
 	, m_cutsceneRunningCount(0)
 	, m_cutscenesNoPlayerRunningCount(0)
-	, m_bMutedAudioForCutscene(false)
 	, m_bPlayerIsThirdPerson(false)
 	, m_bPlayerWasInvisible(false)
 	, m_bCutsceneDisabledUISystem(false)
@@ -381,12 +380,6 @@ void CCinematicInput::ReEnablePlayerAfterCutscenes()
 		CPlayer* pClientPlayer = static_cast<CPlayer*>(pClientActor);
 		IEntity* pPlayerEntity = pClientPlayer->GetEntity();
 
-		if (m_bMutedAudioForCutscene)
-		{
-			uint32 playerFlags = pClientPlayer->GetEntity()->GetFlagsExtended();
-			pPlayerEntity->SetFlagsExtended(playerFlags & ~ENTITY_FLAG_EXTENDED_AUDIO_DISABLED);
-		}
-
 		if (!m_bPlayerWasInvisible && pPlayerEntity->IsInvisible())
 		{
 			pPlayerEntity->Invisible(false);
@@ -421,13 +414,6 @@ void CCinematicInput::DisablePlayerForCutscenes()
 		CRY_ASSERT(pClientActor->GetActorClass() == CPlayer::GetActorClassType());
 		CPlayer* pClientPlayer = static_cast<CPlayer*>(pClientActor);
 		IEntity* pPlayerEntity = pClientPlayer->GetEntity();
-		uint32 playerFlags = pClientPlayer->GetEntity()->GetFlagsExtended();
-
-		m_bMutedAudioForCutscene = !(playerFlags & ENTITY_FLAG_EXTENDED_AUDIO_DISABLED);
-		if (m_bMutedAudioForCutscene)
-		{
-			pPlayerEntity->SetFlagsExtended(playerFlags | ENTITY_FLAG_EXTENDED_AUDIO_DISABLED);
-		}
 
 		m_bPlayerWasInvisible = pPlayerEntity->IsInvisible();
 		if (!m_bPlayerWasInvisible)

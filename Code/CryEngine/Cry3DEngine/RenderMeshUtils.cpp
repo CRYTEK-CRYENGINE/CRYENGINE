@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 // -------------------------------------------------------------------------
 //  File name:   RenderMeshUtils.cpp
@@ -713,7 +713,6 @@ bool CRenderMeshUtils::ProcessBoxIntersection(Ray& inRay, SRayHitInfo& hitInfo, 
 						ht.t[2] = *((Vec2*)&pUV[nUVStride * I2]);
 
 						ht.pMat = pMtl->GetSafeSubMtl(nChunkMatID);
-						pMtl->AddRef();
 
 						ht.c[0] = (*(ColorB*)&pCol[nColStride * I0]);
 						ht.c[1] = (*(ColorB*)&pCol[nColStride * I1]);

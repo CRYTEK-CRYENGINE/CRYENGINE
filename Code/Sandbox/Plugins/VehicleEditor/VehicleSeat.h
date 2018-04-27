@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #ifndef __VehicleSeat_h__
 #define __VehicleSeat_h__
@@ -73,7 +73,7 @@ public:
 	//! Add Weapon to Seat
 	void AddWeapon(int weaponType, CVehicleWeapon* pWeap, IVariable* pVar = 0);
 
-	void OnObjectEvent(CBaseObject* node, int event);
+	void OnObjectEvent(const CBaseObject* pObject, const CObjectEvent& event);
 
 	void OnSetPart(IVariable* pVar);
 
@@ -102,3 +102,4 @@ public:
 };
 
 #endif // __VehicleSeat_h__
+

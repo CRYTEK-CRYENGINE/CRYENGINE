@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "stdafx.h"
 #include "ThreadUtils.h"
@@ -18,7 +18,7 @@
 #define PROCESS_IN_PARALLEL
 #endif
 
-static ThreadUtils::CriticalSection s_squishLock;
+static std::recursive_mutex s_squishMutex;
 
 // preserve the ability to link with the old squish (which is in NvTT)
 #define squish	squishccr
@@ -26,8 +26,8 @@ static ThreadUtils::CriticalSection s_squishLock;
 #define	SQUISH_USE_SSE	3
 #define SQUISH_USE_XSSE	0
 #define	SQUISH_USE_CCR
-#include "../../SDKs/squish-ccr/squish.h"
-#include "../../SDKs/squish-ccr/squish.inl"
+#include <squish.h>
+#include <squish-ccr/squish.inl>
 
 // number of bytes per block per type
 #define BLOCKSIZE_BC1   8
@@ -341,7 +341,7 @@ void CryTextureSquisher::Compress(const CryTextureSquisher::CompressorParameters
 	const struct squish::sqio sqio = squish::GetSquishIO(w, h, datatype, flags);
 
 	if (compress.perceptual && (flags & squish::kColourMetricPerceptual))
-		s_squishLock.Lock();
+		s_squishMutex.lock();
 	if (compress.perceptual && (flags & squish::kColourMetricPerceptual))
 		squish::SetWeights(sqio.flags, &compress.weights[0]);
 
@@ -478,7 +478,7 @@ void CryTextureSquisher::Compress(const CryTextureSquisher::CompressorParameters
 	}
 
 	if (compress.perceptual && (flags & squish::kColourMetricPerceptual))
-		s_squishLock.Unlock();
+		s_squishMutex.unlock();
 
 	MathHelpers::EnableFloatingPointExceptions(savedFpeMask);
 }

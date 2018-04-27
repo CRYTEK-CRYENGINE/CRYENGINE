@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "AbstractVariableTypesModel.h"
@@ -81,3 +81,4 @@ void CDataTypesModel::GenerateTypeInfo()
 	CREATE_TYPE_ITEM(Schematyc::ObjectId, QColor(0, 156, 255));
 	//CREATE_TYPE_ITEM(Schematyc::ExplicitEntityId, QColor(110, 180, 160));
 }
+

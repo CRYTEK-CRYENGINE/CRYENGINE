@@ -1,0 +1,10 @@
+<AssetMetadata version="0" type="Texture" guid="0b0a45fc-cf39-005c-d0a0-1126afe45f50" source="FogVolShadowJitter.tif">
+ <Files>
+  <File path="FogVolShadowJitter.dds"/>
+ </Files>
+ <Details>
+  <Detail name="width">64</Detail>
+  <Detail name="height">64</Detail>
+  <Detail name="mipCount">1</Detail>
+ </Details>
+</AssetMetadata>

@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 // ------------------------------------------------------------------------
 //  File name:   GeomCacheManager.cpp
@@ -310,7 +310,7 @@ void CGeomCacheManager::StreamingUpdate()
 
 		if (streamInfo.m_fillRenderNodeJobState.IsRunning())
 		{
-			FRAME_PROFILER("CGeomCacheManager::StreamingUpdate_WaitForLastFillJob", GetSystem(), PROFILE_3DENGINE);
+			CRY_PROFILE_REGION(PROFILE_3DENGINE, "CGeomCacheManager::StreamingUpdate_WaitForLastFillJob");
 			gEnv->pJobManager->WaitForJob(streamInfo.m_fillRenderNodeJobState);
 		}
 
@@ -543,13 +543,13 @@ void CGeomCacheManager::AbortStream(SGeomCacheStreamInfo& streamInfo)
 	streamInfo.m_bAbort = true;
 
 	{
-		FRAME_PROFILER("CGeomCacheManager::AbortStream_LockFillRenderNode", GetSystem(), PROFILE_3DENGINE);
+		CRY_PROFILE_REGION(PROFILE_3DENGINE, "CGeomCacheManager::AbortStream_LockFillRenderNode");
 		streamInfo.m_abortCS.Lock();
 	}
 
 	if (streamInfo.m_pNewestReadRequestHandle)
 	{
-		FRAME_PROFILER("CGeomCacheManager::AbortStream_AbortReads", GetSystem(), PROFILE_3DENGINE);
+		CRY_PROFILE_REGION(PROFILE_3DENGINE, "CGeomCacheManager::AbortStream_AbortReads");
 
 		assert(streamInfo.m_pOldestReadRequestHandle != NULL);
 
@@ -575,7 +575,7 @@ void CGeomCacheManager::AbortStream(SGeomCacheStreamInfo& streamInfo)
 
 	if (streamInfo.m_pOldestDecompressHandle)
 	{
-		FRAME_PROFILER("CGeomCacheManager::AbortStream_AbortDecompress", GetSystem(), PROFILE_3DENGINE);
+		CRY_PROFILE_REGION(PROFILE_3DENGINE, "CGeomCacheManager::AbortStream_AbortDecompress");
 
 		assert(streamInfo.m_pOldestDecompressHandle != NULL);
 
@@ -1318,13 +1318,10 @@ template<class TBufferHandleType> TBufferHandleType* CGeomCacheManager::NewBuffe
 
 	size_t pointerSize = (sizeof(SGeomCacheBufferHandle*) + 15) & ~15;
 
-	#if !defined(DEDICATED_SERVER)
+#if !defined(DEDICATED_SERVER)
 	// Try to allocate requested size in the buffer, otherwise return NULL
-	{
-		FRAME_PROFILER("CGeomCacheManager::NewBufferHandle_Malloc", GetSystem(), PROFILE_3DENGINE);
-		pBlock = reinterpret_cast<char*>(m_pPool->Memalign(16, pointerSize + size, "geom cache block"));
-	}
-	#endif
+	pBlock = reinterpret_cast<char*>(m_pPool->Memalign(16, pointerSize + size, "geom cache block"));
+#endif
 
 	if (!pBlock)
 	{
@@ -1514,13 +1511,9 @@ template<class TBufferHandleType> void CGeomCacheManager::RetireBufferHandle(TBu
 	{
 		CryFatalError("Trying to retire handle with jobs still running");
 	}
-
-	{
-		FRAME_PROFILER("CGeomCacheManager::RetireBufferHandle_Free", GetSystem(), PROFILE_3DENGINE);
-		size_t pointerSize = (sizeof(SGeomCacheBufferHandle*) + 15) & ~15;
-		m_pPool->Free(pHandle->m_pBuffer - pointerSize);
-	}
-
+	
+	size_t pointerSize = (sizeof(SGeomCacheBufferHandle*) + 15) & ~15;
+	m_pPool->Free(pHandle->m_pBuffer - pointerSize);
 	delete pHandle;
 }
 
@@ -1673,8 +1666,8 @@ void CGeomCacheManager::DrawDebugInfo()
 	flags.SetAlphaBlendMode(e_AlphaNone);
 	pRenderAuxGeom->SetRenderFlags(flags);
 
-	const float screenHeight = (float)gEnv->pRenderer->GetHeight();
-	const float screenWidth = (float)gEnv->pRenderer->GetWidth();
+	const float screenWidth  = float(pRenderAuxGeom->GetCamera().GetViewSurfaceX());
+	const float screenHeight = float(pRenderAuxGeom->GetCamera().GetViewSurfaceZ());
 
 	const float topOffset = screenHeight * 0.01f;
 	const float sideOffset = screenWidth * 0.01f;

@@ -1,17 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
-
-/*************************************************************************
--------------------------------------------------------------------------
-$Id$
-$DateTime$
-Description: Checkpoint Save/Load system for Game04
-
--------------------------------------------------------------------------
-History:
-- 10:07:2008 : Created By Jan Müller
-- 05:02:2009 : Renamed to CheckpointGame for game-specific usage
-
-*************************************************************************/
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "CheckpointGame.h"
@@ -68,12 +55,7 @@ void CCheckpointGame::OnPreResetEngine()
 //////////////////////////////////////////////////////////////////////////
 void CCheckpointGame::OnPostResetEngine()
 {
-	//send "game start" event
-	SEntityEvent event;
-	event.event = ENTITY_EVENT_START_GAME;
-	event.nParam[0] = 0;
-	gEnv->pEntitySystem->SendEventToAll( event );
-
+	gEnv->pEntitySystem->OnLevelGameplayStart();
 }
 
 //////////////////////////////////////////////////////////////////////////

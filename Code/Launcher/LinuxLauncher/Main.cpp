@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include <CrySystem/ISystem.h>
@@ -14,12 +14,11 @@
 #include <SDL.h>
 #endif
 
-#include <CryGame/IGameStartup.h>
 #include <CryEntitySystem/IEntity.h>
-#include <CryGame/IGameFramework.h>
 #include <CrySystem/IConsole.h>
 #include <sys/types.h>
 #include <netdb.h>
+#include <unistd.h>				// used for crash handling
 #include <sys/resource.h>
 #include <sys/prctl.h>
 #include <libgen.h>
@@ -30,10 +29,6 @@
 // by the build environment?
 #undef VERSION_STRING
 #define VERSION_STRING "0.0.1"
-
-size_t linux_autoload_level_maxsize = PATH_MAX;
-char linux_autoload_level_buf[PATH_MAX];
-char *linux_autoload_level = linux_autoload_level_buf;
 
 bool GetDefaultThreadStackSize(size_t* pStackSize)
 {
@@ -96,75 +91,7 @@ bool IncreaseStackSizeToMax()
 	return true;
 }
 
-
-extern "C" DLL_IMPORT IGameStartup* CreateGameStartup();
-
-size_t fopenwrapper_basedir_maxsize = MAX_PATH;
-namespace { char fopenwrapper_basedir_buffer[MAX_PATH] = ""; }
-char * fopenwrapper_basedir = fopenwrapper_basedir_buffer;
-bool fopenwrapper_trace_fopen = false;
-
 #define RunGame_EXIT(exitCode) (exit(exitCode))
-
-#define LINUX_LAUNCHER_CONF "launcher.cfg"
-
-static void strip(char *s)
-{
-	char *p = s, *p_end = s + strlen(s);
-
-	while (*p && isspace(*p)) ++p;
-	if (p > s) { memmove(s, p, p_end - s + 1); p_end -= p - s; }
-	for (p = p_end; p > s && isspace(p[-1]); --p);
-	*p = 0;
-}
-
-static void LoadLauncherConfig(void)
-{
-	char conf_filename[MAX_PATH];
-	char line[1024], *eq = 0;
-	int n = 0;
-
-	cry_sprintf(conf_filename,
-		"%s/%s", fopenwrapper_basedir, LINUX_LAUNCHER_CONF);
-	conf_filename[sizeof conf_filename - 1] = 0;
-	FILE *fp = fopen(conf_filename, "r");
-	if (!fp) return;
-	while (true)
-	{
-		++n;
-		if (!fgets(line, sizeof line - 1, fp)) break;
-		line[sizeof line - 1] = 0;
-		strip(line);
-		if (!line[0] || line[0] == '#') continue;
-		eq = strchr(line, '=');
-		if (!eq)
-		{
-			fprintf(stderr, "'%s': syntax error in line %i\n",
-				conf_filename, n);
-			exit(EXIT_FAILURE);
-		}
-		*eq = 0;
-		strip(line);
-		strip(++eq);
-
-		if (!strcasecmp(line, "autoload"))
-		{
-			if (strlen(eq) >= linux_autoload_level_maxsize)
-			{
-				fprintf(stderr, "'%s', line %i: autoload value too long\n",
-					conf_filename, n);
-				exit(EXIT_FAILURE);
-			}
-			strcpy(linux_autoload_level, eq);
-		} else
-		{
-			fprintf(stderr, "'%s': unrecognized config variable '%s' in line %i\n",
-				conf_filename, line, n);
-			exit(EXIT_FAILURE);
-		}
-	}
-	fclose(fp);
-}
 
 //-------------------------------------------------------------------------------------
 // Backtrace + core dump
@@ -222,6 +149,21 @@ static void SignalHandler(int sig, siginfo_t* info, void* secret)
 			system(cmd);
 		}
 	}
+
+	// If the Linux crash handler exists, use it.
+	if(!access("Tools/CrashHandler/LinuxCrashUploader.py", R_OK))
+	{
+		pid_t thispid = fork();
+		if (thispid == 0)			// we're the child process
+		{
+			char pid_arg[MAX_PATH];
+			char sig_arg[MAX_PATH];
+			cry_sprintf(pid_arg, "--pid=%d", pid);
+			cry_sprintf(sig_arg, "--signal=%d", sig);
+			int rval = execlp("python3", "python3", "Tools/CrashHandler/LinuxCrashUploader.py", pid_arg, sig_arg, NULL);
+			CryLogAlways("Error number = %d (rval = %d)", errno, rval);
+		}
+	}
 	abort();
 }
 
@@ -254,6 +196,14 @@ int RunGame(const char *commandLine, int argc, char* argv[])
 	if (!IncreaseResourceMaxLimit(RLIMIT_CORE, RLIM_INFINITY) || !IncreaseStackSizeToMax())
 		RunGame_EXIT(1);
 
+#if !defined(DEDICATED_SERVER)
+	if (SDL_Init(SDL_INIT_VIDEO) < 0)
+	{
+		fprintf(stderr, "SDL initialization failed: %s\n", SDL_GetError());
+		exit(1);
+	}
+#endif
+
 	SSystemInitParams startupParams;
 	memset(&startupParams, 0, sizeof(SSystemInitParams));
 
@@ -268,67 +218,13 @@ int RunGame(const char *commandLine, int argc, char* argv[])
 
 #if !defined(_LIB)
 	SetModulePath(absPath);
-	HMODULE systemlib = CryLoadLibraryDefName("CrySystem");
-	if(!systemlib)
-	{
-		printf("Failed to load CrySystem: %s", dlerror());
-		exit(1);
-	}
 #endif
 	
-	CryFindRootFolderAndSetAsCurrentWorkingDirectory();
-
-	// We need pass the full command line, including the filename
-	// lpCmdLine does not contain the filename.
-#if CAPTURE_REPLAY_LOG
-	CryGetIMemReplay()->StartOnCommandLine(commandLine);
-#endif
-
-	HMODULE frameworkDll = 0;
-
-#ifndef _LIB
-	frameworkDll = CryLoadLibrary("libCryAction" CrySharedLibraryExtension);
-	if( !frameworkDll)
+	if (!CryInitializeEngine(startupParams))
 	{
-		fprintf(stderr, "ERROR: failed to load CryAction DLL (%s)\n", dlerror());
+		fprintf(stderr, "Failed to initialize engine!!\n");
 		RunGame_EXIT(1);
 	}
-	// get address of startup function
-	IGameFramework::TEntryFunction CreateGameFramework = (IGameFramework::TEntryFunction)CryGetProcAddress(frameworkDll, "CreateGameFramework");
-	if (!CreateGameFramework)
-	{
-		// dll is not a compatible game dll
-		CryFreeLibrary(frameworkDll);
-		fprintf(stderr, "Specified CryAction DLL is not valid!\n");
-		RunGame_EXIT(1);
-	}
-#endif //_LIB
-
-#if !defined(DEDICATED_SERVER)
-	if (SDL_Init(SDL_INIT_VIDEO) < 0)
-	{
-		fprintf(stderr, "SDL initialization failed: %s\n", SDL_GetError());
-		exit(1);
-	}
-#endif
-	const char *const szAutostartLevel
-		= linux_autoload_level[0] ? linux_autoload_level : NULL;
-
-	// create the startup interface
-	IGameFramework* pFramework = CreateGameFramework();
-	if (!pFramework)
-	{
-		CryFreeLibrary(frameworkDll);
-		fprintf(stderr, "ERROR: Failed to create the GameFramework Interface!\n");
-		RunGame_EXIT(1);
-	}
-
-	pFramework->StartEngine(startupParams);
-
-	// The main engine loop has exited at this point, shut down
-	pFramework->ShutdownEngine();
-
-	CryFreeLibrary(frameworkDll);
 
 	RunGame_EXIT(0);
 }
@@ -416,8 +312,6 @@ int main(int argc, char **argv)
 		}
 	}
 #endif
-
-  LoadLauncherConfig();
 
 	// Build the command line.
 	// We'll attempt to re-create the argument quoting that was used in the

@@ -1,0 +1,10 @@
+<AssetMetadata version="0" type="Texture" guid="c84d6d88-aede-9189-699c-413fe8536c9d" source="default-flare.tif">
+ <Files>
+  <File path="default-flare.dds"/>
+ </Files>
+ <Details>
+  <Detail name="width">4</Detail>
+  <Detail name="height">4</Detail>
+  <Detail name="mipCount">1</Detail>
+ </Details>
+</AssetMetadata>

@@ -1,20 +1,8 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
-// -------------------------------------------------------------------------
-//  File name:   IMiniLog.h
-//  Version:     v1.00
-//  Created:     03/6/2003 by Sergiy.
-//  Compilers:   Visual Studio.NET
-//  Description: This is the smallest possible interface to the Log -
-//               it's independent and small, so that it can be easily moved
-//               across the engine and test applications, to test engine
-//               parts that need logging (e.g. Streaming Engine) separately
-// -------------------------------------------------------------------------
-//  History:
-//
-////////////////////////////////////////////////////////////////////////////
-#ifndef _CRY_ENGINE_MINI_LOG_HDR_
-#define _CRY_ENGINE_MINI_LOG_HDR_
+//! \cond INTERNAL
+
+#pragma once
 
 struct IMiniLog
 {
@@ -104,4 +92,4 @@ struct CNullMiniLog : public IMiniLog
 	//! ##@}.
 };
 
-#endif //_CRY_ENGINE_MINI_LOG_HDR_
+//! \endcond

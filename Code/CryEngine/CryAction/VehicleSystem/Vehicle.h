@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 /*************************************************************************
    -------------------------------------------------------------------------
@@ -177,7 +177,7 @@ public:
 	};
 
 	//IEntityEvent
-	virtual void                   ProcessEvent(SEntityEvent& entityEvent) final;
+	virtual void                   ProcessEvent(const SEntityEvent& entityEvent) final;
 	virtual uint64                 GetEventMask() const final;
 	virtual ComponentEventPriority GetEventPriority() const final;
 	//~IEntityEvent
@@ -662,7 +662,6 @@ protected:
 
 	void                             OnPhysPostStep(const EventPhys* pEvent, bool logged);
 	void                             OnPhysStateChange(EventPhysStateChange* pEvent);
-	void                             OnMaterialLayerChanged(const SEntityEvent& event);
 	bool                             InitParticles(const CVehicleParams& table);
 	void                             InitModification(const CVehicleParams& data, const char* modification);
 	void                             OnTimer(int timerId);

@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "stdafx.h"
 #include "AudioEventManager.h"
@@ -13,7 +13,7 @@
 namespace CryAudio
 {
 //////////////////////////////////////////////////////////////////////////
-CAudioEventManager::~CAudioEventManager()
+CEventManager::~CEventManager()
 {
 	if (m_pIImpl != nullptr)
 	{
@@ -22,109 +22,134 @@ CAudioEventManager::~CAudioEventManager()
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CAudioEventManager::Init(Impl::IImpl* const pIImpl)
+void CEventManager::Init(uint32 const poolSize)
 {
-	m_pIImpl = pIImpl;
-	CRY_ASSERT(m_constructedAudioEvents.empty());
+	m_constructedEvents.reserve(static_cast<std::size_t>(poolSize));
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CAudioEventManager::Release()
+void CEventManager::SetImpl(Impl::IImpl* const pIImpl)
+{
+	m_pIImpl = pIImpl;
+	CRY_ASSERT(m_constructedEvents.empty());
+}
+
+//////////////////////////////////////////////////////////////////////////
+void CEventManager::Release()
 {
 	// Events cannot survive a middleware switch because we cannot
 	// know which event types the new middleware backend will support so
 	// the existing ones have to be destroyed now and new ones created
 	// after the switch.
-	if (!m_constructedAudioEvents.empty())
+	if (!m_constructedEvents.empty())
 	{
-		for (auto const pEvent : m_constructedAudioEvents)
+		for (auto const pEvent : m_constructedEvents)
 		{
 			m_pIImpl->DestructEvent(pEvent->m_pImplData);
+			pEvent->Release();
 			delete pEvent;
 		}
 
-		m_constructedAudioEvents.clear();
+		m_constructedEvents.clear();
 	}
 
 	m_pIImpl = nullptr;
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CAudioEventManager::Update(float const deltaTime)
+CATLEvent* CEventManager::ConstructEvent()
 {
-}
-
-//////////////////////////////////////////////////////////////////////////
-CATLEvent* CAudioEventManager::ConstructAudioEvent()
-{
-	CATLEvent* pEvent = new CATLEvent();
+	auto const pEvent = new CATLEvent;
 	pEvent->m_pImplData = m_pIImpl->ConstructEvent(*pEvent);
-	m_constructedAudioEvents.push_back(pEvent);
+	m_constructedEvents.push_back(pEvent);
 
 	return pEvent;
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CAudioEventManager::ReleaseEvent(CATLEvent* const pEvent)
+void CEventManager::DestructEvent(CATLEvent* const pEvent)
 {
-	CRY_ASSERT(pEvent != nullptr);
+	CRY_ASSERT(pEvent != nullptr && pEvent->m_pImplData != nullptr);
 
-	m_constructedAudioEvents.remove(pEvent);
+	auto iter(m_constructedEvents.begin());
+	auto const iterEnd(m_constructedEvents.cend());
+
+	for (; iter != iterEnd; ++iter)
+	{
+		if ((*iter) == pEvent)
+		{
+			if (iter != (iterEnd - 1))
+			{
+				(*iter) = m_constructedEvents.back();
+			}
+
+			m_constructedEvents.pop_back();
+			break;
+		}
+	}
+
 	m_pIImpl->DestructEvent(pEvent->m_pImplData);
+	pEvent->Release();
 	delete pEvent;
 }
 
 //////////////////////////////////////////////////////////////////////////
-size_t CAudioEventManager::GetNumConstructed() const
+size_t CEventManager::GetNumConstructed() const
 {
-	return m_constructedAudioEvents.size();
+	return m_constructedEvents.size();
 }
 
 #if defined(INCLUDE_AUDIO_PRODUCTION_CODE)
 //////////////////////////////////////////////////////////////////////////
-void CAudioEventManager::DrawDebugInfo(IRenderAuxGeom& auxGeom, float posX, float posY) const
+void CEventManager::DrawDebugInfo(IRenderAuxGeom& auxGeom, Vec3 const& listenerPosition, float const posX, float posY) const
 {
-	static float const headerColor[4] = { 1.0f, 1.0f, 1.0f, 0.9f };
-	static float const itemPlayingColor[4] = { 0.1f, 0.6f, 0.1f, 0.9f };
+	static float const headerColor[4] = { 1.0f, 0.5f, 0.0f, 0.7f };
+	static float const itemPlayingColor[4] = { 0.1f, 0.7f, 0.1f, 0.9f };
 	static float const itemLoadingColor[4] = { 0.9f, 0.2f, 0.2f, 0.9f };
 	static float const itemVirtualColor[4] = { 0.1f, 0.8f, 0.8f, 0.9f };
 	static float const itemOtherColor[4] = { 0.8f, 0.8f, 0.8f, 0.9f };
 
-	auxGeom.Draw2dLabel(posX, posY, 1.6f, headerColor, false, "Audio Events [%" PRISIZE_T "]", m_constructedAudioEvents.size());
-	posX += 20.0f;
-	posY += 17.0f;
+	CryFixedStringT<MaxControlNameLength> lowerCaseSearchString(g_cvars.m_pDebugFilter->GetString());
+	lowerCaseSearchString.MakeLower();
 
-	for (auto const pEvent : m_constructedAudioEvents)
+	auxGeom.Draw2dLabel(posX, posY, 1.5f, headerColor, false, "Audio Events [%" PRISIZE_T "]", m_constructedEvents.size());
+	posY += 16.0f;
+
+	for (auto const pEvent : m_constructedEvents)
 	{
 		if (pEvent->m_pTrigger != nullptr)
 		{
-			char const* const szOriginalName = pEvent->m_pTrigger->m_name.c_str();
-			CryFixedStringT<MaxControlNameLength> lowerCaseAudioTriggerName(szOriginalName);
-			lowerCaseAudioTriggerName.MakeLower();
-			CryFixedStringT<MaxControlNameLength> lowerCaseSearchString(g_cvars.m_pAudioTriggersDebugFilter->GetString());
-			lowerCaseSearchString.MakeLower();
-			bool const bDraw = (lowerCaseSearchString.empty() || (lowerCaseSearchString == "0")) || (lowerCaseAudioTriggerName.find(lowerCaseSearchString) != CryFixedStringT<MaxControlNameLength>::npos);
+			Vec3 const& position = pEvent->m_pAudioObject->GetTransformation().GetPosition();
+			float const distance = position.GetDistance(listenerPosition);
 
-			if (bDraw)
+			if (g_cvars.m_debugDistance <= 0.0f || (g_cvars.m_debugDistance > 0.0f && distance < g_cvars.m_debugDistance))
 			{
-				float const* pColor = itemOtherColor;
+				char const* const szTriggerName = pEvent->m_pTrigger->m_name.c_str();
+				CryFixedStringT<MaxControlNameLength> lowerCaseTriggerName(szTriggerName);
+				lowerCaseTriggerName.MakeLower();
+				bool const bDraw = ((lowerCaseSearchString.empty() || (lowerCaseSearchString == "0")) || (lowerCaseTriggerName.find(lowerCaseSearchString) != CryFixedStringT<MaxControlNameLength>::npos));
 
-				if (pEvent->IsPlaying())
+				if (bDraw)
 				{
-					pColor = itemPlayingColor;
-				}
-				else if (pEvent->m_state == EEventState::Loading)
-				{
-					pColor = itemLoadingColor;
-				}
-				else if (pEvent->m_state == EEventState::Virtual)
-				{
-					pColor = itemVirtualColor;
-				}
+					float const* pColor = itemOtherColor;
 
-				auxGeom.Draw2dLabel(posX, posY, 1.2f, pColor, false, "%s on %s", szOriginalName, pEvent->m_pAudioObject->m_name.c_str());
+					if (pEvent->IsPlaying())
+					{
+						pColor = itemPlayingColor;
+					}
+					else if (pEvent->m_state == EEventState::Loading)
+					{
+						pColor = itemLoadingColor;
+					}
+					else if (pEvent->m_state == EEventState::Virtual)
+					{
+						pColor = itemVirtualColor;
+					}
 
-				posY += 10.0f;
+					auxGeom.Draw2dLabel(posX, posY, 1.25f, pColor, false, "%s on %s", szTriggerName, pEvent->m_pAudioObject->m_name.c_str());
+
+					posY += 11.0f;
+				}
 			}
 		}
 	}

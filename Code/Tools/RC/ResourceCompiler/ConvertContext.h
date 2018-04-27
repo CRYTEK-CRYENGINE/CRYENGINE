@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 //
 //  Crytek Engine Source File.
 //  Copyright (C), Crytek Studios, 2002.
@@ -21,6 +21,7 @@
 #include "string.h"
 #include "IMultiplatformConfig.h"
 #include "IResCompiler.h"
+#include <CryString/CryPath.h>
 
 class IConfig;
 
@@ -95,7 +96,7 @@ struct ConvertContext
 
 	const string GetSourcePath() const
 	{
-		return PathHelpers::Join(sourceFolder, sourceFileNameOnly).c_str();
+		return PathUtil::Make(sourceFolder, sourceFileNameOnly);
 	}
 
 	const string& GetOutputFolder() const

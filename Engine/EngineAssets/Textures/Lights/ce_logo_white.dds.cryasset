@@ -1,0 +1,15 @@
+<AssetMetadata version="0" type="Texture" guid="c5f6834d-cbff-cd35-6bee-589b05d91c2a" source="ce_logo_white.tif">
+ <Files>
+  <File path="ce_logo_white.dds"/>
+  <File path="ce_logo_white.dds.1"/>
+  <File path="ce_logo_white.dds.2"/>
+  <File path="ce_logo_white.dds.3"/>
+  <File path="ce_logo_white.dds.4"/>
+  <File path="ce_logo_white.dds.5"/>
+ </Files>
+ <Details>
+  <Detail name="width">512</Detail>
+  <Detail name="height">512</Detail>
+  <Detail name="mipCount">8</Detail>
+ </Details>
+</AssetMetadata>

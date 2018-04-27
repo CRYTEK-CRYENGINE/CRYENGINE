@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -27,7 +27,7 @@
 namespace physics_editor {
 using std::vector;
 using std::pair;
-using std::auto_ptr;
+using std::unique_ptr;
 };
 
 /////////////////////////////////////////////////////////////////////////////
@@ -54,3 +54,4 @@ void     Log(const char* format, ...);
 #include <CryRenderer/VertexFormats.h>
 
 #include <qt_windows.h>
+

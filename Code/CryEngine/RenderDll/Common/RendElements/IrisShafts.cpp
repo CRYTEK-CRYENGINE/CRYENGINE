@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "IrisShafts.h"
@@ -33,21 +33,24 @@ void IrisShafts::InitEditorParamGroups(DynArray<FuncVariableGroup>& groups)
 
 IrisShafts::IrisShafts(const char* name)
 	: COpticsElement(name, 0.5f)
-	, m_fThickness(0.3f)
-	, m_fSpread(0.2f)
-	, m_nSmoothLevel(2)
-	, m_nNoiseSeed(81)
 	, m_pBaseTex(0)
-	, m_fSizeNoiseStrength(0.8f)
-	, m_fThicknessNoiseStrength(0.6f)
-	, m_fSpacingNoiseStrength(0.2f)
-	, m_fSpreadNoiseStrength(0.0f)
 	, m_bUseSpectrumTex(false)
+
+	, m_nSmoothLevel(2)
+	, m_fPrevOcc(-1.f)
 	, m_fPrimaryDir(0)
 	, m_fAngleRange(1)
 	, m_fConcentrationBoost(0)
-	, m_fPrevOcc(-1.f)
 	, m_fBrightnessBoost(0)
+
+	, m_fSizeNoiseStrength(0.8f)
+	, m_fThicknessNoiseStrength(0.6f)
+	, m_fSpreadNoiseStrength(0.0f)
+	, m_fSpacingNoiseStrength(0.2f)
+	
+	, m_fSpread(0.2f)
+	, m_fThickness(0.3f)
+	, m_nNoiseSeed(81)
 	, m_MaxNumberOfPolygon(0)
 {
 	m_vMovement.x = 1.f;
@@ -252,8 +255,8 @@ bool IrisShafts::PreparePrimitives(const SPreparePrimitivesContext& context)
 
 	m_primitive.SetTechnique(CShaderMan::s_ShaderLensOptics, techName, rtFlags);
 	m_primitive.SetRenderState(GS_NODEPTHTEST | GS_BLSRC_ONE | GS_BLDST_ONE);
-	m_primitive.SetTexture(0, (m_bUseSpectrumTex && m_pSpectrumTex) ? m_pSpectrumTex.get() : CTexture::s_ptexBlack);
-	m_primitive.SetTexture(1, m_pBaseTex ? m_pBaseTex.get() : CTexture::s_ptexBlack);
+	m_primitive.SetTexture(0, (m_bUseSpectrumTex && m_pSpectrumTex) ? m_pSpectrumTex.get() : CRendererResources::s_ptexBlack);
+	m_primitive.SetTexture(1, m_pBaseTex ? m_pBaseTex.get() : CRendererResources::s_ptexBlack);
 	m_primitive.SetSampler(0, EDefaultSamplerStates::LinearBorder_Black);
 
 	// update constants

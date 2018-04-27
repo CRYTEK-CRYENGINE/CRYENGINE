@@ -1,5 +1,3 @@
-﻿// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
-
 using System;
 
 namespace CryEngine.Game
@@ -29,16 +27,16 @@ namespace CryEngine.Game
 			//Invert the mouseDelte to have proper third-person camera-control.
 			mouseDelta = -mouseDelta;
 
-			var ypr = rotation.YawPitchRoll;
+			var ypr = Camera.CreateAnglesYPR(new Matrix3x4(rotation));
 
-			ypr.X += mouseDelta.x * yawSpeed;
+			ypr.X += mouseDelta.x * yawSpeed * frameTime;
 
-			float pitchDelta = mouseDelta.Y * pitchSpeed;
+			float pitchDelta = mouseDelta.Y * pitchSpeed * frameTime;
 			ypr.Y = MathHelpers.Clamp(ypr.Y + pitchDelta, pitchMin, pitchMax);
 
 			ypr.Z = 0;
 
-			rotation.YawPitchRoll = ypr;
+			rotation = Camera.CreateOrientationYPR(ypr);
 
 			var position = _player.Entity.Position;
 			var forward = rotation.Forward;

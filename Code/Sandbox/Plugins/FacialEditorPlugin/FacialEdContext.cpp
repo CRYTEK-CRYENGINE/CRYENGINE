@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "FacialEdContext.h"
@@ -33,11 +33,6 @@ public:
 	}
 
 	// IUndoObject
-	virtual int GetSize()
-	{
-		return sizeof(*this);
-	}
-
 	virtual const char* GetDescription()
 	{
 		return "Library Change";
@@ -86,11 +81,6 @@ public:
 	}
 
 	// IUndoObject
-	virtual int GetSize()
-	{
-		return sizeof(*this);
-	}
-
 	virtual const char* GetDescription()
 	{
 		return "Sequence Change";
@@ -1907,3 +1897,4 @@ void CFacialVideoFrameReader::FindAVIFrame(float time, IAVI_Reader*& pAVI, int& 
 		}
 	}
 }
+

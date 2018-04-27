@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "VehiclePartsPanel.h"
@@ -689,7 +689,7 @@ void CVehiclePartsPanel::OnPartNew()
 			m_treeCtrl.EditLabel(hItem);
 		}
 
-		pObj->AddEventListener(functor(*this, &CVehiclePartsPanel::OnObjectEvent));
+		pObj->signalChanged.Connect(this, &CVehiclePartsPanel::OnObjectEvent);
 
 		GetIEditor()->SetModifiedFlag();
 	}
@@ -723,7 +723,7 @@ void CVehiclePartsPanel::OnComponentNew()
 
 		pComp->UpdateObjectFromVar();
 
-		pComp->AddEventListener(functor(*this, &CVehiclePartsPanel::OnObjectEvent));
+		pComp->signalChanged.Connect(this, &CVehiclePartsPanel::OnObjectEvent);
 
 		GetIEditor()->SetModifiedFlag();
 	}
@@ -756,7 +756,7 @@ void CVehiclePartsPanel::OnSeatNew()
 			m_treeCtrl.EditLabel(hItem);
 		}
 
-		pSeat->AddEventListener(functor(*this, &CVehiclePartsPanel::OnObjectEvent));
+		pSeat->signalChanged.Connect(this, &CVehiclePartsPanel::OnObjectEvent);
 
 		GetIEditor()->SetModifiedFlag();
 	}
@@ -892,7 +892,7 @@ void CVehiclePartsPanel::DeleteObject(CBaseObject* pObj)
 {
 	CScopedSuspendUndo susp;
 	// delete editor object
-	pObj->RemoveEventListener(functor(*this, &CVehiclePartsPanel::OnObjectEvent));
+	pObj->signalChanged.DisconnectObject(this);
 	GetIEditor()->DeleteObject(pObj);
 }
 
@@ -984,7 +984,7 @@ void CVehiclePartsPanel::UpdateVehiclePrototype(CVehiclePrototype* pProt)
 
 	ShowAssetHelpers(m_toolsPanel.m_bAssetHelpers);
 
-	m_pVehicle->AddEventListener(functor(*this, &CVehiclePartsPanel::OnObjectEvent));
+	m_pVehicle->signalChanged.Connect(this, &CVehiclePartsPanel::OnObjectEvent);
 
 	GetIEditor()->SetModifiedFlag();
 
@@ -1139,7 +1139,7 @@ CVehicleHelper* CVehiclePartsPanel::CreateHelperObject(const Vec3& pos, const Ve
 
 		m_pVehicle->AddHelper(pObj, pHelperVar);
 
-		pObj->AddEventListener(functor(*this, &CVehiclePartsPanel::OnObjectEvent));
+		pObj->signalChanged.Connect(this, &CVehiclePartsPanel::OnObjectEvent);
 
 		return pObj;
 	}
@@ -1498,7 +1498,7 @@ void CVehiclePartsPanel::FillSeats()
 			}
 
 			HTREEITEM hItem = InsertTreeItem(pSeatObj, hParentItem);
-			pSeatObj->AddEventListener(functor(*this, &CVehiclePartsPanel::OnObjectEvent));
+			pSeatObj->signalChanged.Connect(this, &CVehiclePartsPanel::OnObjectEvent);
 
 			// create weapon objects
 			if (IVariable* pWeapons = GetChildVar(pSeatVar, "Weapons", true))
@@ -1536,7 +1536,7 @@ CVehicleWeapon* CVehiclePartsPanel::CreateWeapon(int weaponType, CVehicleSeat* p
 
 		ReloadPropsCtrl();
 
-		pObj->AddEventListener(functor(*this, &CVehiclePartsPanel::OnObjectEvent));
+		pObj->signalChanged.Connect(this, &CVehiclePartsPanel::OnObjectEvent);
 		return pObj;
 	}
 
@@ -1576,7 +1576,7 @@ void CVehiclePartsPanel::DeleteTreeObjects(const CRuntimeClass* pClass)
 		{
 			// delete tree item, delete editor object, erase from map
 			m_treeCtrl.DeleteItem((*it).second.item);
-			(*it).first->RemoveEventListener(functor(*this, &CVehiclePartsPanel::OnObjectEvent));
+			(*it).first->signalChanged.DisconnectObject(this);
 			m_pObjMan->DeleteObject(it->first);
 			m_partToTree.erase(it++);
 		}
@@ -1658,7 +1658,7 @@ void CVehiclePartsPanel::FillComps(IVariablePtr pData)
 			pComp->SetVariable(pVar);
 
 			HTREEITEM hItem = InsertTreeItem(pComp, hRoot);
-			pComp->AddEventListener(functor(*this, &CVehiclePartsPanel::OnObjectEvent));
+			pComp->signalChanged.Connect(this, &CVehiclePartsPanel::OnObjectEvent);
 		}
 	}
 
@@ -1775,7 +1775,7 @@ void CVehiclePartsPanel::AddParts(IVariable* pParts, CBaseObject* pParent)
 		m_treeCtrl.SetItemData(hNewItem, (DWORD_PTR)pPartObj);
 		m_partToTree[pPartObj] = STreeItem(hNewItem, hParentItem);
 
-		pPartObj->AddEventListener(functor(*this, &CVehiclePartsPanel::OnObjectEvent));
+		pPartObj->signalChanged.Connect(this, &CVehiclePartsPanel::OnObjectEvent);
 
 		// check if the part has a child parts table
 		if (IVariable* pChildParts = GetChildVar(pPartVar, pParts->GetName(), false))
@@ -1878,11 +1878,11 @@ void CVehiclePartsPanel::OnPaneClose()
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CVehiclePartsPanel::OnObjectEvent(CBaseObject* object, int event)
+void CVehiclePartsPanel::OnObjectEvent(const CBaseObject* pObject, const CObjectEvent& event)
 {
-	if (object == m_pVehicle)
+	if (pObject == m_pVehicle)
 	{
-		if (event == OBJECT_ON_DELETE)
+		if (event.m_type == OBJECT_ON_DELETE)
 		{
 			m_treeCtrl.DeleteItem(TVI_ROOT);
 			m_propsCtrl.DeleteAllItems();
@@ -1891,47 +1891,22 @@ void CVehiclePartsPanel::OnObjectEvent(CBaseObject* object, int event)
 		return;
 	}
 
-	if (event == OBJECT_ON_RENAME)
+	if (event.m_type == OBJECT_ON_RENAME)
 	{
-		if (HTREEITEM hItem = (stl::find_in_map(m_partToTree, object, STreeItem())).item)
+		if (HTREEITEM hItem = (stl::find_in_map(m_partToTree, const_cast<CBaseObject*>(pObject), STreeItem())).item)
 		{
-			m_treeCtrl.SetItemText(hItem, object->GetName());
+			m_treeCtrl.SetItemText(hItem, pObject->GetName());
 		}
 	}
-	else if (event == OBJECT_ON_DELETE)
+	else if (event.m_type == OBJECT_ON_DELETE)
 	{
 		// remove from tree
-		if (HTREEITEM hItem = (stl::find_in_map(m_partToTree, object, STreeItem())).item)
+		if (HTREEITEM hItem = (stl::find_in_map(m_partToTree, const_cast<CBaseObject*>(pObject), STreeItem())).item)
 		{
 			m_treeCtrl.DeleteItem(hItem);
 		}
 
-		m_partToTree.erase(object);
-	}
-	else if (event == OBJECT_ON_SELECT)
-	{
-		if (HTREEITEM hItem = (stl::find_in_map(m_partToTree, object, STreeItem())).item)
-		{
-			m_treeCtrl.SelectItem(hItem);
-			m_pSelItem = object;
-		}
-	}
-	else if (event == OBJECT_ON_CHILDATTACHED)
-	{
-		// check if we created this child ourself (then we know it already)
-		CBaseObject* pChild = object->GetChild(object->GetChildCount() - 1);
-
-		if (m_partToTree.find(pChild) == m_partToTree.end())
-		{
-			// currently only helpers need to be handled
-			if (object->IsKindOf(RUNTIME_CLASS(CVehiclePart)) && pChild->IsKindOf(RUNTIME_CLASS(CVehicleHelper)))
-			{
-				HTREEITEM hItem = InsertTreeItem(pChild, object, false);
-				pChild->AddEventListener(functor(*this, &CVehiclePartsPanel::OnObjectEvent));
-			}
-
-			UpdateVariables();
-		}
+		m_partToTree.erase(const_cast<CBaseObject*>(pObject));
 	}
 }
 
@@ -1980,7 +1955,7 @@ void CVehiclePartsPanel::DeleteParts()
 		if ((*it).first->GetParent() == (CBaseObject*)m_pVehicle)
 		{
 			VeedLog("[CVehiclePartsPanel]: calling delete for %s", it->first->GetName());
-			(*it).first->RemoveEventListener(functor(*this, &CVehiclePartsPanel::OnObjectEvent));
+			(*it).first->signalChanged.DisconnectObject(this);
 			m_pObjMan->DeleteObject(it->first);
 		}
 	}
@@ -2071,7 +2046,7 @@ void CVehiclePartsPanel::NotifyObjectsDeletion(CVehiclePrototype* pProt)
 {
 	for (TPartToTreeMap::iterator it = m_partToTree.begin(); it != m_partToTree.end(); ++it)
 	{
-		(*it).first->RemoveEventListener(functor(*this, &CVehiclePartsPanel::OnObjectEvent));
+		(*it).first->signalChanged.DisconnectObject(this);
 	}
 }
 
@@ -2104,3 +2079,4 @@ void CVehiclePartsPanel::OnScaleHelpers()
 		}
 	}
 }
+

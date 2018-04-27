@@ -1,10 +1,10 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "CCryVKSwapChain.hpp"
 #include "../../API/VKSwapChain.hpp"
 
-_smart_ptr<CCryVKSwapChain> CCryVKSwapChain::Create(_smart_ptr<NCryVulkan::CDevice> pDevice, CONST DXGI_SWAP_CHAIN_DESC* pDesc)
+_smart_ptr<CCryVKSwapChain> CCryVKSwapChain::Create(_smart_ptr<NCryVulkan::CDevice> pDevice, CONST DXGI_SWAP_CHAIN_DESC* pDesc, VkSurfaceKHR surface)
 {
 	// We might not be able to create the swapchain with the desired values. Copy desired desc and update to actual values.
 	DXGI_SWAP_CHAIN_DESC correctedDesc = *pDesc;
@@ -19,7 +19,7 @@ _smart_ptr<CCryVKSwapChain> CCryVKSwapChain::Create(_smart_ptr<NCryVulkan::CDevi
 	VkPresentModeKHR presentMode = GetPresentMode(correctedDesc.SwapEffect, bVsync);
 
 	_smart_ptr<NCryVulkan::CSwapChain> pVKSwapChain = NCryVulkan::CSwapChain::Create(pDevice->GetScheduler().GetCommandListPool(CMDQUEUE_GRAPHICS), VK_NULL_HANDLE,
-		pDesc->BufferCount, pDesc->BufferDesc.Width, pDesc->BufferDesc.Height, NCryVulkan::DXGIFormatToVKFormat(pDesc->BufferDesc.Format),
+		pDesc->BufferCount, pDesc->BufferDesc.Width, pDesc->BufferDesc.Height, surface, NCryVulkan::DXGIFormatToVKFormat(pDesc->BufferDesc.Format),
 		presentMode, NCryVulkan::DXGIUsagetoVkUsage((DXGI_USAGE)pDesc->BufferUsage));
 
 	if (pVKSwapChain)
@@ -111,7 +111,7 @@ HRESULT STDMETHODCALLTYPE CCryVKSwapChain::ResizeBuffers(
 	NCryVulkan::CDevice* pVKDevice = m_pDevice.get();
 
 	_smart_ptr<NCryVulkan::CSwapChain> pVKSwapChain = NCryVulkan::CSwapChain::Create(pVKDevice->GetScheduler().GetCommandListPool(CMDQUEUE_GRAPHICS), m_pVKSwapChain->GetKHRSwapChain(),
-		Desc.BufferCount, Desc.BufferDesc.Width, Desc.BufferDesc.Height, NCryVulkan::DXGIFormatToVKFormat(Desc.BufferDesc.Format),
+		Desc.BufferCount, Desc.BufferDesc.Width, Desc.BufferDesc.Height, m_pVKSwapChain->GetKHRSurface(), NCryVulkan::DXGIFormatToVKFormat(Desc.BufferDesc.Format),
 		presentMode, NCryVulkan::DXGIUsagetoVkUsage((DXGI_USAGE)Desc.BufferUsage));
 
 	m_pDevice->FlushAndWaitForGPU();
@@ -150,6 +150,7 @@ VkPresentModeKHR CCryVKSwapChain::GetPresentMode(DXGI_SWAP_EFFECT swapEffect, bo
 
 bool CCryVKSwapChain::ApplyFullscreenState(bool bFullscreen, uint32_t width, uint32_t height)
 {
+#if CRY_PLATFORM_WINDOWS
 	int result = DISP_CHANGE_FAILED;
 
 	if (bFullscreen)
@@ -174,6 +175,13 @@ bool CCryVKSwapChain::ApplyFullscreenState(bool bFullscreen, uint32_t width, uin
 	}
 
 	return result == DISP_CHANGE_SUCCESSFUL;
+#elif CRY_PLATFORM_LINUX
+	CryWarning(EValidatorModule::VALIDATOR_MODULE_RENDERER, EValidatorSeverity::VALIDATOR_WARNING,
+			   "CCryVKSwapChain::ApplyFullscreenState not implemented on Linux.");
+	return false;
+#else
+	#error "Unknown platform in CCryVKSwapChain::ApplyFullscreenState."
+#endif
 }
 
 /* IDXGISwapChain1 implementation */

@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "AudioEntitiesUtils.h"
@@ -48,7 +48,7 @@ const std::array<const char*, numOcclusionTypes>& AudioEntitiesUtils::GetObstruc
 void AudioEntitiesUtils::Init()
 {
 	// Update the switch ID
-	m_obstructionOcclusionSwitch = CryAudio::StringToId("ObstrOcclCalcType");
+	m_obstructionOcclusionSwitch = CryAudio::StringToId(CryAudio::s_szOcclCalcSwitchName);
 
 	// Update the state IDs
 	for (int i = 0; i < numOcclusionTypes; ++i)
@@ -58,7 +58,7 @@ void AudioEntitiesUtils::Init()
 }
 
 std::array<const char*, numOcclusionTypes> AudioEntitiesUtils::m_obstructionNames = {
-	{ CryAudio::IgnoreStateName, CryAudio::AdaptiveStateName, CryAudio::LowStateName, CryAudio::MediumStateName, CryAudio::HighStateName }
+	{ CryAudio::s_szIgnoreStateName, CryAudio::s_szAdaptiveStateName, CryAudio::s_szLowStateName, CryAudio::s_szMediumStateName, CryAudio::s_szHighStateName }
 };
 
 std::array<CryAudio::ControlId, numOcclusionTypes> AudioEntitiesUtils::m_obstructionStateIds = {

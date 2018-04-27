@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -36,9 +36,9 @@ public:
 	CFileCacheManager& operator=(CFileCacheManager&&) = delete;
 
 	// Public methods
-	void           Init(Impl::IImpl* const pIImpl);
+	void           Init();
+	void           SetImpl(Impl::IImpl* const pIImpl);
 	void           Release();
-	void           Update();
 	FileEntryId    TryAddFileCacheEntry(XmlNodeRef const pFileNode, EDataScope const dataScope, bool const bAutoLoad);
 	bool           TryRemoveFileCacheEntry(FileEntryId const audioFileEntryId, EDataScope const dataScope);
 	void           UpdateLocalizedFileCacheEntries();
@@ -47,7 +47,7 @@ public:
 	ERequestStatus UnloadDataByScope(EDataScope const dataScope);
 
 #if defined(INCLUDE_AUDIO_PRODUCTION_CODE)
-	void DrawDebugInfo(IRenderAuxGeom& auxGeom, float const posX, float const posY);
+	void DrawDebugInfo(IRenderAuxGeom& auxGeom, float const posX, float posY);
 #endif // INCLUDE_AUDIO_PRODUCTION_CODE
 
 private:

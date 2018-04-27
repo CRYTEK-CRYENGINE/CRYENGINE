@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 //
 //  Crytek Engine Source File.
 //  Copyright (C), Crytek Studios, 2012.
@@ -595,12 +595,12 @@ bool AlembicCompiler::Process()
 string AlembicCompiler::GetOutputFileNameOnly() const
 {
 	const string sourceFileFinal = m_CC.config->GetAsString("overwritefilename", m_CC.sourceFileNameOnly.c_str(), m_CC.sourceFileNameOnly.c_str());
-	return PathHelpers::ReplaceExtension(sourceFileFinal, CRY_GEOM_CACHE_FILE_EXT);
+	return PathUtil::ReplaceExtension(sourceFileFinal, CRY_GEOM_CACHE_FILE_EXT);
 }
 
 string AlembicCompiler::GetOutputPath() const
 {
-	return PathHelpers::Join(m_CC.GetOutputFolder(), GetOutputFileNameOnly());
+	return PathUtil::Make(m_CC.GetOutputFolder(), GetOutputFileNameOnly());
 }
 
 bool AlembicCompiler::CheckTimeSampling(Alembic::Abc::IArchive &archive)
@@ -1453,10 +1453,10 @@ bool AlembicCompiler::CompileAnimationData(Alembic::Abc::IArchive &archive, Geom
 	for (size_t currentFrame = 0; currentFrame < numFrames; ++currentFrame)
 	{
 		{
-			ThreadUtils::AutoLock lock(m_jobFinishedCS);
+			std::unique_lock<std::recursive_mutex> lock(m_jobFinishedMutex);
 			while(m_numJobGroupsRunning == numJobGroups)
 			{			
-				m_jobFinishedCV.Sleep(m_jobFinishedCS);
+				m_jobFinishedCV.wait(m_jobFinishedMutex);
 				PushCompletedFrames(geomCacheEncoder, numJobGroups);			
 			}
 		}
@@ -1499,14 +1499,14 @@ bool AlembicCompiler::CompileAnimationData(Alembic::Abc::IArchive &archive, Geom
 	}	
 
 	// Flush
-	ThreadUtils::AutoLock lock(m_jobFinishedCS);
+	std::unique_lock<std::recursive_mutex> lock(m_jobFinishedMutex);
 	while(m_numJobGroupsRunning > 0)
 	{	
 		PushCompletedFrames(geomCacheEncoder, numJobGroups);
 		
 		if (m_numJobGroupsRunning > 0)
 		{
-			m_jobFinishedCV.Sleep(m_jobFinishedCS);		
+			m_jobFinishedCV.wait(m_jobFinishedMutex);
 		}		
 	}
 
@@ -1530,7 +1530,7 @@ void AlembicCompiler::PushCompletedFrames(GeomCacheEncoder &geomCacheEncoder, co
 				unwrittenFinishedGroups.push_back(&jobGroupData);
 			}
 		}
-		m_jobFinishedCS.Unlock();
+		m_jobFinishedMutex.unlock();
 
 		std::sort(unwrittenFinishedGroups.begin(), unwrittenFinishedGroups.end(), 
 			[=](const FrameJobGroupData *pA, const FrameJobGroupData *pB) {
@@ -1549,9 +1549,9 @@ void AlembicCompiler::PushCompletedFrames(GeomCacheEncoder &geomCacheEncoder, co
 				{
 					GeomCache::Mesh &mesh = *m_meshes[i];
 
-					mesh.m_rawFramesCS.Lock();
+					mesh.m_rawFramesMutex.lock();
 					mesh.m_rawFrames.push_back(std::move(mesh.m_meshDataBuffer[jobGroupData.m_jobIndex]));
-					mesh.m_rawFramesCS.Unlock();
+					mesh.m_rawFramesMutex.unlock();
 				}
 
 				AppendTransformFrameDataRec(m_rootNode, jobGroupData.m_jobIndex);
@@ -1569,7 +1569,7 @@ void AlembicCompiler::PushCompletedFrames(GeomCacheEncoder &geomCacheEncoder, co
 			}
 		}
 		
-		m_jobFinishedCS.Lock();		
+		m_jobFinishedMutex.lock();
 	}
 }
 
@@ -1580,7 +1580,7 @@ void AlembicCompiler::UpdateTransformsJob(FrameJobGroupData *pData)
 
 	try
 	{
-		ThreadUtils::AutoLock lock(pSelf->m_abcLock);
+		std::lock_guard<std::recursive_mutex> lock(pSelf->m_abcMutex);
 		TMatrixMap matrixMap;
 		TVisibilityMap visibilityMap;
 		pSelf->UpdateTransformsRec(pSelf->m_rootNode, pData->m_jobIndex, pData->m_frameTime, 
@@ -1711,7 +1711,7 @@ void AlembicCompiler::UpdateVertexDataJob(struct CompileMeshJobData *pData)
 
 	try
 	{
-		ThreadUtils::AutoLock lock(pSelf->m_abcLock);
+		std::lock_guard<std::recursive_mutex> lock(pSelf->m_abcMutex);
 		if (!pSelf->UpdateVertexData(pData->m_mesh, pJobGroupData->m_jobIndex, pJobGroupData->m_frameIndex))
 		{
 			InterlockedIncrement(&pJobGroupData->m_errorCount);
@@ -1745,12 +1745,12 @@ void AlembicCompiler::FrameGroupFinished(FrameJobGroupData *pData)
 	}
 
 	// Set finished flag and wakeup compiler main thread
-	pSelf->m_jobFinishedCS.Lock();
+	pSelf->m_jobFinishedMutex.lock();
 	pData->m_bFinished = true;
 	InterlockedIncrement(&pSelf->m_numJobsFinished);
-	pSelf->m_jobFinishedCS.Unlock();
+	pSelf->m_jobFinishedMutex.unlock();
 
-	pSelf->m_jobFinishedCV.Wake();
+	pSelf->m_jobFinishedCV.notify_one();
 }
 
 std::unordered_map<uint32, uint16> AlembicCompiler::GetMeshMaterialMap(const Alembic::AbcGeom::IPolyMesh& mesh, const Alembic::Abc::chrono_t frameTime)
@@ -2600,9 +2600,9 @@ bool AlembicCompiler::CompileVertices(std::vector<AlembicCompilerVertex> &vertic
 
 void AlembicCompiler::AppendTransformFrameDataRec(GeomCache::Node &node, const uint bufferIndex) const
 {	
-	node.m_animatedNodeDataCS.Lock();
+	node.m_animatedNodeDataCS.lock();
 	node.m_animatedNodeData.push_back(std::move(node.m_nodeDataBuffer[bufferIndex]));
-	node.m_animatedNodeDataCS.Unlock();
+	node.m_animatedNodeDataCS.unlock();
 
 	const size_t numChildren = node.m_children.size();
 	for (size_t i = 0; i < numChildren; ++i)

@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 // -------------------------------------------------------------------------
 //  File name:   terrain_load.cpp
@@ -40,44 +40,38 @@ CTerrain::CTerrain(const STerrainInfo& TerrainInfo)
 	m_nBlackTexId = Get3DEngine()->GetBlackTexID();
 
 	// set params
-	m_nUnitSize = TerrainInfo.nUnitSize_InMeters;
-	m_fInvUnitSize = 1.f / TerrainInfo.nUnitSize_InMeters;
-	m_nTerrainSize = TerrainInfo.nHeightMapSize_InUnits * TerrainInfo.nUnitSize_InMeters;
-	m_nSectorSize = TerrainInfo.nSectorSize_InMeters;
-#ifndef SEG_WORLD
-	m_nSectorsTableSize = TerrainInfo.nSectorsTableSize_InSectors;
-#endif
-	m_fHeightmapZRatio = TerrainInfo.fHeightmapZRatio;
-	m_fOceanWaterLevel = TerrainInfo.fOceanWaterLevel;
+	m_fUnitSize = TerrainInfo.unitSize_InMeters;
+
+	if (m_fUnitSize <= 0 || m_fUnitSize > GetSectorSize())
+	{
+		m_fUnitSize = (float)*((int32*)&TerrainInfo.unitSize_InMeters);
+	}
+
+	m_fInvUnitSize = 1.f / m_fUnitSize;
+	m_nTerrainSize = int(TerrainInfo.heightMapSize_InUnits * m_fUnitSize);
+	m_nSectorSize = TerrainInfo.sectorSize_InMeters;
+	m_nSectorsTableSize = TerrainInfo.sectorsTableSize_InSectors;
+	m_fHeightmapZRatio = TerrainInfo.heightmapZRatio;
+	m_fOceanWaterLevel = TerrainInfo.oceanWaterLevel;
 
 	m_nUnitsToSectorBitShift = 0;
-	while (m_nSectorSize >> m_nUnitsToSectorBitShift > m_nUnitSize)
-		m_nUnitsToSectorBitShift++;
-
-	// make flat 0 level heightmap
-	//	m_arrusHightMapData.Allocate(TerrainInfo.nHeightMapSize_InUnits+1);
-	//	m_arrHightMapRangeInfo.Allocate((TerrainInfo.nHeightMapSize_InUnits>>m_nRangeBitShift)+1);
-
-#ifndef SEG_WORLD
-	assert(m_nSectorsTableSize == m_nTerrainSize / m_nSectorSize);
-#endif
-
-	m_nBitShift = 0;
-	while ((128 >> m_nBitShift) != 128 / CTerrain::GetHeightMapUnitSize())
-		m_nBitShift++;
-
-	m_nTerrainSizeDiv = (m_nTerrainSize >> m_nBitShift) - 1;
-
-	m_lstSectors.reserve(512); // based on inspection in MemReplay
-
-	// create default segment
-	ISegmentsManager* pSM = Get3DEngine()->m_pSegmentsManager;
-	if (!pSM || !pSM->CreateSegments(this))
+	float nSecSize = (float)m_nSectorSize;
+	while (nSecSize > m_fUnitSize)
 	{
-		float f = (float) GetTerrainSize();
-		CreateSegment(Vec3(f, f, f));
+		nSecSize /= 2;
+		m_nUnitsToSectorBitShift++;
 	}
-	InitHeightfieldPhysics(0);
+
+	assert(m_nSectorsTableSize == m_nTerrainSize / m_nSectorSize);
+
+	m_nTerrainSizeDiv = int(m_nTerrainSize * m_fInvUnitSize) - 1;
+
+	assert(!Get3DEngine()->m_pObjectsTree);
+	Get3DEngine()->m_pObjectsTree = COctreeNode::Create(AABB(Vec3(0,0,0), Vec3((float)GetTerrainSize())), NULL);
+
+	m_SSurfaceType.PreAllocate(SRangeInfo::e_max_surface_types, SRangeInfo::e_max_surface_types);
+
+	InitHeightfieldPhysics();
 
 	if (GetRenderer())
 	{
@@ -91,7 +85,7 @@ CTerrain::CTerrain(const STerrainInfo& TerrainInfo)
 
 	m_StoredModifications.SetTerrain(*this);
 
-	assert(m_SSurfaceType[0].GetDataSize() < SRangeInfo::e_max_surface_types * 1000);
+	assert(m_SSurfaceType.GetDataSize() < SRangeInfo::e_max_surface_types * 1000);
 
 	m_pTerrainUpdateDispatcher = GetRenderer() ? new CTerrainUpdateDispatcher() : nullptr;
 
@@ -100,47 +94,24 @@ CTerrain::CTerrain(const STerrainInfo& TerrainInfo)
 #endif
 }
 
-void CTerrain::CloseTerrainTextureFile(int nSID)
+void CTerrain::CloseTerrainTextureFile()
 {
-	if (nSID < 0)
-	{
-		int nEndSID = GetMaxSegmentsCount();
-		for (nSID = 0; nSID < nEndSID; ++nSID)
-		{
-			AABB aabb;
-			if (!GetSegmentBounds(nSID, aabb))
-				continue;
-			CloseTerrainTextureFile(nSID);
-		}
-		return;
-	}
-
-	m_arrBaseTexInfos[nSID].m_nDiffTexIndexTableSize = 0;
+	m_arrBaseTexInfos.m_nDiffTexIndexTableSize = 0;
 
 	for (int i = m_lstActiveTextureNodes.size() - 1; i >= 0; --i)
 	{
-#ifdef SEG_WORLD
-		if (m_lstActiveTextureNodes[i]->m_nSID == nSID)
-#endif
-		{
-			m_lstActiveTextureNodes[i]->UnloadNodeTexture(false);
-			m_lstActiveTextureNodes.Delete(i);
-		}
+		m_lstActiveTextureNodes[i]->UnloadNodeTexture(false);
+		m_lstActiveTextureNodes.Delete(i);
 	}
 
 	for (int i = m_lstActiveProcObjNodes.size() - 1; i >= 0; --i)
 	{
-#ifdef SEG_WORLD
-		if (m_lstActiveProcObjNodes[i]->m_nSID == nSID)
-#endif
-		{
-			m_lstActiveProcObjNodes[i]->RemoveProcObjects(false);
-			m_lstActiveProcObjNodes.Delete(i);
-		}
+		m_lstActiveProcObjNodes[i]->RemoveProcObjects(false);
+		m_lstActiveProcObjNodes.Delete(i);
 	}
 
-	if (GetParentNode(nSID))
-		GetParentNode(nSID)->UnloadNodeTexture(true);
+	if (GetParentNode())
+		GetParentNode()->UnloadNodeTexture(true);
 
 	m_bOpenTerrainTextureFileNoLog = false;
 }
@@ -156,20 +127,45 @@ CTerrain::~CTerrain()
 	SAFE_DELETE(m_pTerrainRgbLowResSystemCopy);
 #endif
 
-	for (int nSID = 0; nSID < m_SSurfaceType.Count(); nSID++)
-		DeleteSegment(nSID, true);
+	// terrain texture file info
+	CloseTerrainTextureFile();
+	SAFE_DELETE_ARRAY(m_arrBaseTexInfos.m_ucpDiffTexTmpBuffer);
+	ZeroStruct(m_arrBaseTexInfos);
+
+	// surface types
+	for (int i = 0; i < m_SSurfaceType.Count(); i++)
+	{
+		m_SSurfaceType[i].lstnVegetationGroups.Reset();
+		m_SSurfaceType[i].pLayerMat = NULL;
+	}
+
+	m_SSurfaceType.Reset();
+	ZeroStruct(m_SSurfaceType);
+
+	// terrain nodes tree
+	SAFE_DELETE(m_pParentNode);
+
+	// terrain nodes pyramid
+	int cnt = m_arrSecInfoPyramid.Count();
+	assert(!cnt || cnt == TERRAIN_NODE_TREE_DEPTH);
+	for (int i = 0; i < cnt; i++)
+		m_arrSecInfoPyramid[i].Reset();
+	m_arrSecInfoPyramid.Reset();
+
+	// objects tree
+	SAFE_DELETE(Get3DEngine()->m_pObjectsTree);
 
 	CTerrainNode::ResetStaticData();
 }
 
-void CTerrain::InitHeightfieldPhysics(int nSID)
+void CTerrain::InitHeightfieldPhysics()
 {
 	// for phys engine
 	primitives::heightfield hf;
 	hf.Basis.SetIdentity();
 	hf.origin.zero();
 	hf.step.x = hf.step.y = (float)CTerrain::GetHeightMapUnitSize();
-	hf.size.x = hf.size.y = CTerrain::GetTerrainSize() / CTerrain::GetHeightMapUnitSize();
+	hf.size.x = hf.size.y = int(CTerrain::GetTerrainSize() * CTerrain::GetHeightMapUnitSizeInverted());
 	hf.stride.set(hf.size.y + 1, 1);
 	hf.heightscale = 1.0f;//m_fHeightmapZRatio;
 	hf.typemask = SRangeInfo::e_hole | SRangeInfo::e_undefined;
@@ -182,7 +178,7 @@ void CTerrain::InitHeightfieldPhysics(int nSID)
 	int arrMatMapping[SRangeInfo::e_max_surface_types];
 	memset(arrMatMapping, 0, sizeof(arrMatMapping));
 	for (int i = 0; i < SRangeInfo::e_max_surface_types; i++)
-		if (IMaterial* pMat = m_SSurfaceType[nSID][i].pLayerMat)
+		if (IMaterial* pMat = m_SSurfaceType[i].pLayerMat)
 		{
 			if (pMat->GetSubMtlCount() > 2)
 				pMat = pMat->GetSubMtl(2);
@@ -196,12 +192,12 @@ void CTerrain::InitHeightfieldPhysics(int nSID)
 	pPhysTerrain->SetParams(&pfd);
 }
 
-void CTerrain::SetMaterialMapping(int nSID)
+void CTerrain::SetMaterialMapping()
 {
 	int arrMatMapping[SRangeInfo::e_max_surface_types];
 	memset(arrMatMapping, 0, sizeof(arrMatMapping));
 	for (int i = 0; i < SRangeInfo::e_max_surface_types; i++)
-		if (IMaterial* pMat = m_SSurfaceType[nSID][i].pLayerMat)
+		if (IMaterial* pMat = m_SSurfaceType[i].pLayerMat)
 		{
 			if (pMat->GetSubMtlCount() > 2)
 				pMat = pMat->GetSubMtl(2);
@@ -210,187 +206,29 @@ void CTerrain::SetMaterialMapping(int nSID)
 
 	GetPhysicalWorld()->SetHeightfieldMatMapping(arrMatMapping, SRangeInfo::e_undefined);
 }
-/*
-   int __cdecl CTerrain__Cmp_CVegetationForLoading_Size(const void* v1, const void* v2)
-   {
-   CVegetationForLoading * p1 = ((CVegetationForLoading*)v1);
-   CVegetationForLoading * p2 = ((CVegetationForLoading*)v2);
-
-   PodArray<StatInstGroup> & lstStaticTypes = CStatObj::GetObjManager()->m_lstStaticTypes;
-
-   CStatObj * pStatObj1 = (p1->GetID()<lstStaticTypes.Count()) ? lstStaticTypes[p1->GetID()].GetStatObj() : 0;
-   CStatObj * pStatObj2 = (p2->GetID()<lstStaticTypes.Count()) ? lstStaticTypes[p2->GetID()].GetStatObj() : 0;
-
-   if(!pStatObj1)
-    return 1;
-   if(!pStatObj2)
-    return -1;
-
-   int nSecId1 = 0;
-   {  // get pos
-    Vec3 vCenter = Vec3(p1->GetX(),p1->GetY(),p1->GetZ()) + (pStatObj1->GetBoxMin()+pStatObj1->GetBoxMax())*0.5f*p1->GetScale();
-    // get sector ids
-    int x = (int)(((vCenter.x)/CTerrain::GetSectorSize()));
-    int y = (int)(((vCenter.y)/CTerrain::GetSectorSize()));
-    // get obj bbox
-    Vec3 vBMin = pStatObj1->GetBoxMin()*p1->GetScale();
-    Vec3 vBMax = pStatObj1->GetBoxMax()*p1->GetScale();
-    // if outside of the map, or too big - register in sector (0,0)
-   //    if( x<0 || x>=CTerrain::GetSectorsTableSize() || y<0 || y>=CTerrain::GetSectorsTableSize() ||
-   //    (vBMax.x - vBMin.x)>TERRAIN_SECTORS_MAX_OVERLAPPING*2 || (vBMax.y - vBMin.y)>TERRAIN_SECTORS_MAX_OVERLAPPING*2)
-    //  x = y = 0;
-
-    // get sector id
-    nSecId1 = (x)*CTerrain::GetSectorsTableSize() + (y);
-   }
-
-   int nSecId2 = 0;
-   {  // get pos
-    Vec3 vCenter = Vec3(p2->GetX(),p2->GetY(),p2->GetZ()) + (pStatObj2->GetBoxMin()+pStatObj2->GetBoxMax())*0.5f*p2->GetScale();
-    // get sector ids
-    int x = (int)(((vCenter.x)/CTerrain::GetSectorSize()));
-    int y = (int)(((vCenter.y)/CTerrain::GetSectorSize()));
-    // get obj bbox
-    Vec3 vBMin = pStatObj2->GetBoxMin()*p2->GetScale();
-    Vec3 vBMax = pStatObj2->GetBoxMax()*p2->GetScale();
-    // if outside of the map, or too big - register in sector (0,0)
-   //    if( x<0 || x>=CTerrain::GetSectorsTableSize() || y<0 || y>=CTerrain::GetSectorsTableSize() ||
-   //    (vBMax.x - vBMin.x)>TERRAIN_SECTORS_MAX_OVERLAPPING*2 || (vBMax.y - vBMin.y)>TERRAIN_SECTORS_MAX_OVERLAPPING*2)
-    //  x = y = 0;
-
-    // get sector id
-    nSecId2 = (x)*CTerrain::GetSectorsTableSize() + (y);
-   }
-
-   if(nSecId1 > nSecId2)
-    return -1;
-   if(nSecId1 < nSecId2)
-    return 1;
-
-   if(p1->GetScale()*pStatObj1->GetRadius() > p2->GetScale()*pStatObj2->GetRadius())
-    return 1;
-   if(p1->GetScale()*pStatObj1->GetRadius() < p2->GetScale()*pStatObj2->GetRadius())
-    return -1;
-
-   return 0;
-   }
-
-   int __cdecl CTerrain__Cmp_Int(const void* v1, const void* v2)
-   {
-   if(*(uint32*)v1 > *(uint32*)v2)
-    return 1;
-   if(*(uint32*)v1 < *(uint32*)v2)
-    return -1;
-
-   return 0;
-   }
-
-   void CTerrain::LoadVegetationances()
-   {
-   assert(this); if(!this) return;
-
-   PrintMessage("Loading static object positions ...");
-
-
-   for( int x=0; x<CTerrain::GetSectorsTableSize(); x++)
-   for( int y=0; y<CTerrain::GetSectorsTableSize(); y++)
-    assert(!m_arrSecInfoPyramid[nSID][0][x][y]->m_lstEntities[STATIC_OBJECTS].Count());
-
-
-   // load static object positions list
-   PodArray<CVegetationForLoading> static_objects;
-   static_objects.Load(Get3DEngine()->GetLevelFilePath("objects.lst"), gEnv->pCryPak);
-
-   // todo: sorting in not correct for hierarchical system
-   qsort(static_objects.GetElements(), static_objects.Count(),
-    sizeof(static_objects[0]), CTerrain__Cmp_CVegetationForLoading_Size);
-
-   // put objects into sectors depending on object position and fill lstUsedCGFs
-   PodArray<CStatObj*> lstUsedCGFs;
-   for(int i=0; i<static_objects.Count(); i++)
-   {
-    float x       = static_objects[i].GetX();
-    float y       = static_objects[i].GetY();
-    float z       = static_objects[i].GetZ()>0 ? static_objects[i].GetZ() : GetZApr(x,y);
-    int  nId      = static_objects[i].GetID();
-    uint8 ucBr    = static_objects[i].GetBrightness();
-    uint8 ucAngle = static_objects[i].GetAngle();
-    float fScale  = static_objects[i].GetScale();
-
-    if( nId>=0 && nId<GetObjManager()->m_lstStaticTypes.Count() &&
-        fScale>0 &&
-        x>=0 && x<CTerrain::GetTerrainSize() && y>=0 && y<CTerrain::GetTerrainSize() &&
-        GetObjManager()->m_lstStaticTypes[nId].GetStatObj() )
-    {
-      if(GetObjManager()->m_lstStaticTypes[nId].GetStatObj()->GetRadius()*fScale < GetCVars()->e_VegetationMinSize)
-        continue; // skip creation of very small objects
-
-      if(lstUsedCGFs.Find(GetObjManager()->m_lstStaticTypes[nId].GetStatObj())<0)
-        lstUsedCGFs.Add(GetObjManager()->m_lstStaticTypes[nId].GetStatObj());
-
-      CVegetation * pEnt = (CVegetation*)Get3DEngine()->CreateRenderNode( eERType_Vegetation );
-      pEnt->m_fScale = fScale;
-      pEnt->m_vPos = Vec3(x,y,z);
-      pEnt->SetStatObjGroupId(nId);
-      pEnt->m_ucBright = ucBr;
-      pEnt->CalcBBox();
-      pEnt->Physicalize( );
-    }
-   }
-
-   // release not used CGF's
-   int nGroupsReleased=0;
-   for(int i=0; i<GetObjManager()->m_lstStaticTypes.Count(); i++)
-   {
-    CStatObj * pStatObj = GetObjManager()->m_lstStaticTypes[i].GetStatObj();
-    if(pStatObj && lstUsedCGFs.Find(pStatObj)<0)
-    {
-      Get3DEngine()->ReleaseObject(pStatObj);
-      GetObjManager()->m_lstStaticTypes[i].pStatObj = NULL;
-      nGroupsReleased++;
-    }
-   }
-
-   PrintMessagePlus(" %d objects created", static_objects.Count());
-   }
-
-   void CTerrain::CompileObjects()
-   {
-   // set max view distance and sort by size
-   for(int nTreeLevel=0; nTreeLevel<TERRAIN_NODE_TREE_DEPTH; nTreeLevel++)
-   for( int x=0; x<m_arrSecInfoPyramid[nSID][nTreeLevel].GetSize(); x++)
-   for( int y=0; y<m_arrSecInfoPyramid[nSID][nTreeLevel].GetSize(); y++)
-    m_arrSecInfoPyramid[nSID][nTreeLevel][x][y]->CompileObjects(STATIC_OBJECTS);
-   }*/
 
 void CTerrain::GetStreamingStatus(int& nLoadedSectors, int& nTotalSectors)
 {
 	nLoadedSectors = m_nLoadedSectors;
 	nTotalSectors = 0;
-	int nSegs = GetMaxSegmentsCount();
-	for (int nSID = 0; nSID < nSegs; ++nSID)
-	{
-		if (!m_pParentNodes[nSID])
-			continue;
-		int nSectors = CTerrain::GetSectorsTableSize(nSID);
-		nTotalSectors = nSectors * nSectors;
-	}
+
+	int nSectors = CTerrain::GetSectorsTableSize();
+	nTotalSectors = nSectors * nSectors;
 }
 
 bool CTerrain::m_bOpenTerrainTextureFileNoLog = false;
 
-bool CTerrain::OpenTerrainTextureFile(SCommonFileHeader& hdrDiffTexHdr, STerrainTextureFileHeader& hdrDiffTexInfo, const char* szFileName, uint8*& ucpDiffTexTmpBuffer, int& nDiffTexIndexTableSize, int nSID)
+bool CTerrain::OpenTerrainTextureFile(SCommonFileHeader& hdrDiffTexHdr, STerrainTextureFileHeader& hdrDiffTexInfo, const char* szFileName, uint8*& ucpDiffTexTmpBuffer, int& nDiffTexIndexTableSize)
 {
 	if (!GetRenderer())
 		return false;
 
 	FUNCTION_PROFILER_3DENGINE;
-	assert(nSID >= 0);
 
-	m_arrBaseTexInfos[nSID].m_nDiffTexIndexTableSize = 0;
+	m_arrBaseTexInfos.m_nDiffTexIndexTableSize = 0;
 
-	if (GetParentNode(nSID))
-		GetParentNode(nSID)->UnloadNodeTexture(true);
+	if (GetParentNode())
+		GetParentNode()->UnloadNodeTexture(true);
 	else
 		return false;
 
@@ -414,7 +252,7 @@ bool CTerrain::OpenTerrainTextureFile(SCommonFileHeader& hdrDiffTexHdr, STerrain
 	{
 		gEnv->pCryPak->FClose(fpDiffTexFile);
 		fpDiffTexFile = 0;
-		CloseTerrainTextureFile(nSID);
+		CloseTerrainTextureFile();
 		if (!bNoLog)
 			PrintMessage("Error opening terrain texture file: header not found (file is broken)");
 		return false;
@@ -428,7 +266,7 @@ bool CTerrain::OpenTerrainTextureFile(SCommonFileHeader& hdrDiffTexHdr, STerrain
 	{
 		gEnv->pCryPak->FClose(fpDiffTexFile);
 		fpDiffTexFile = 0;
-		CloseTerrainTextureFile(nSID);
+		CloseTerrainTextureFile();
 		PrintMessage("Error opening terrain texture file: invalid signature");
 		return false;
 	}
@@ -437,7 +275,7 @@ bool CTerrain::OpenTerrainTextureFile(SCommonFileHeader& hdrDiffTexHdr, STerrain
 	{
 		gEnv->pCryPak->FClose(fpDiffTexFile);
 		fpDiffTexFile = 0;
-		CloseTerrainTextureFile(nSID);
+		CloseTerrainTextureFile();
 		if (!bNoLog)
 			Error("Error opening terrain texture file: version error (you might need to regenerate the surface texture)");
 		return false;
@@ -445,7 +283,7 @@ bool CTerrain::OpenTerrainTextureFile(SCommonFileHeader& hdrDiffTexHdr, STerrain
 
 	gEnv->pCryPak->FRead(&hdrDiffTexInfo, 1, fpDiffTexFile, m_eEndianOfTexture != GetPlatformEndian());
 
-	memset(m_arrBaseTexInfos[nSID].m_TerrainTextureLayer, 0, sizeof(m_arrBaseTexInfos[nSID].m_TerrainTextureLayer));
+	memset(m_arrBaseTexInfos.m_TerrainTextureLayer, 0, sizeof(m_arrBaseTexInfos.m_TerrainTextureLayer));
 
 	// layers
 	for (uint32 dwI = 0; dwI < hdrDiffTexInfo.nLayerCount; ++dwI)
@@ -453,26 +291,25 @@ bool CTerrain::OpenTerrainTextureFile(SCommonFileHeader& hdrDiffTexHdr, STerrain
 		assert(dwI <= 2);
 		if (dwI > 2) break;                     // too many layers
 
-		gEnv->pCryPak->FRead(&m_arrBaseTexInfos[nSID].m_TerrainTextureLayer[dwI], 1, fpDiffTexFile, m_eEndianOfTexture != GetPlatformEndian());
+		gEnv->pCryPak->FRead(&m_arrBaseTexInfos.m_TerrainTextureLayer[dwI], 1, fpDiffTexFile, m_eEndianOfTexture != GetPlatformEndian());
 
 		PrintMessage("  TerrainLayer %d: TexFormat: %s, SectorTextureSize: %dx%d, SectorTextureDataSizeBytes: %d",
-		             dwI, GetRenderer()->GetTextureFormatName(m_arrBaseTexInfos[nSID].m_TerrainTextureLayer[dwI].eTexFormat),
-		             m_arrBaseTexInfos[nSID].m_TerrainTextureLayer[dwI].nSectorSizePixels, m_arrBaseTexInfos[nSID].m_TerrainTextureLayer[dwI].nSectorSizePixels,
-		             m_arrBaseTexInfos[nSID].m_TerrainTextureLayer[dwI].nSectorSizeBytes);
+		             dwI, GetRenderer()->GetTextureFormatName(m_arrBaseTexInfos.m_TerrainTextureLayer[dwI].eTexFormat),
+		             m_arrBaseTexInfos.m_TerrainTextureLayer[dwI].nSectorSizePixels, m_arrBaseTexInfos.m_TerrainTextureLayer[dwI].nSectorSizePixels,
+		             m_arrBaseTexInfos.m_TerrainTextureLayer[dwI].nSectorSizeBytes);
 	}
 
 	// unlock all nodes
 	for (int nTreeLevel = 0; nTreeLevel < TERRAIN_NODE_TREE_DEPTH; nTreeLevel++)
-		for (int x = 0; x < m_arrSecInfoPyramid[nSID][nTreeLevel].GetSize(); x++)
-			for (int y = 0; y < m_arrSecInfoPyramid[nSID][nTreeLevel].GetSize(); y++)
+		for (int x = 0; x < m_arrSecInfoPyramid[nTreeLevel].GetSize(); x++)
+			for (int y = 0; y < m_arrSecInfoPyramid[nTreeLevel].GetSize(); y++)
 			{
 #ifndef _RELEASE
-				m_arrSecInfoPyramid[nSID][nTreeLevel][x][y]->m_eTextureEditingState = eTES_SectorIsUnmodified;
-				m_arrSecInfoPyramid[nSID][nTreeLevel][x][y]->m_eElevTexEditingState = eTES_SectorIsUnmodified;
+				m_arrSecInfoPyramid[nTreeLevel][x][y]->m_eTextureEditingState = eTES_SectorIsUnmodified;
+				m_arrSecInfoPyramid[nTreeLevel][x][y]->m_eElevTexEditingState = eTES_SectorIsUnmodified;
 #endif // _RELEASE
 
-				m_arrSecInfoPyramid[nSID][nTreeLevel][x][y]->m_nNodeTextureOffset = -1;
-				m_arrSecInfoPyramid[nSID][nTreeLevel][x][y]->m_bMergeNotAllowed = false;
+				m_arrSecInfoPyramid[nTreeLevel][x][y]->m_nNodeTextureOffset = -1;
 			}
 
 	// index block
@@ -494,7 +331,7 @@ bool CTerrain::OpenTerrainTextureFile(SCommonFileHeader& hdrDiffTexHdr, STerrain
 
 		if (wSize > 0 && pIndices[0] >= 0)
 		{
-			CTerrainNode* const p = GetParentNode(nSID);
+			CTerrainNode* const p = GetParentNode();
 			if (p)
 			{
 				p->AssignTextureFileOffset(pIndices, nElementsLeft);
@@ -506,27 +343,27 @@ bool CTerrain::OpenTerrainTextureFile(SCommonFileHeader& hdrDiffTexHdr, STerrain
 
 		if (!m_bEditor)
 		{
-			FRAME_PROFILER("CTerrain::OpenTerrainTextureFile: ReleaseHoleNodes & UpdateTerrainNodes", GetSystem(), PROFILE_3DENGINE);
+			CRY_PROFILE_REGION(PROFILE_3DENGINE, "CTerrain::OpenTerrainTextureFile: ReleaseHoleNodes & UpdateTerrainNodes");
 
 			int nNodesCounterBefore = CTerrainNode::m_nNodesCounter;
-			GetParentNode(nSID)->ReleaseHoleNodes();
+			GetParentNode()->ReleaseHoleNodes();
 			PrintMessage("  %d out of %d nodes cleaned", nNodesCounterBefore - CTerrainNode::m_nNodesCounter, nNodesCounterBefore);
 
-			if (Get3DEngine()->m_pObjectsTree[nSID])
-				Get3DEngine()->m_pObjectsTree[nSID]->UpdateTerrainNodes();
+			if (Get3DEngine()->m_pObjectsTree)
+				Get3DEngine()->m_pObjectsTree->UpdateTerrainNodes();
 		}
 	}
 
-	int nSectorHeightMapTextureDim = m_arrBaseTexInfos[nSID].m_TerrainTextureLayer[1].nSectorSizePixels;
+	int nSectorHeightMapTextureDim = m_arrBaseTexInfos.m_TerrainTextureLayer[1].nSectorSizePixels;
 
 	delete[] ucpDiffTexTmpBuffer;
-	ucpDiffTexTmpBuffer = new uint8[m_arrBaseTexInfos[nSID].m_TerrainTextureLayer[0].nSectorSizeBytes + m_arrBaseTexInfos[nSID].m_TerrainTextureLayer[1].nSectorSizeBytes + sizeof(float)*nSectorHeightMapTextureDim*nSectorHeightMapTextureDim];
+	ucpDiffTexTmpBuffer = new uint8[m_arrBaseTexInfos.m_TerrainTextureLayer[0].nSectorSizeBytes + m_arrBaseTexInfos.m_TerrainTextureLayer[1].nSectorSizeBytes + sizeof(float)*nSectorHeightMapTextureDim*nSectorHeightMapTextureDim];
 
 	gEnv->pCryPak->FClose(fpDiffTexFile);
 	fpDiffTexFile = 0;
 
 	// if texture compression format is not supported by GPU - use uncompressed RGBA and decompress on CPU
-	ETEX_Format eTexPoolFormat = m_arrBaseTexInfos[nSID].m_TerrainTextureLayer[0].eTexFormat;
+	ETEX_Format eTexPoolFormat = m_arrBaseTexInfos.m_TerrainTextureLayer[0].eTexFormat;
 
 	if (!GetRenderer()->IsTextureFormatSupported(eTexPoolFormat))
 	{
@@ -536,8 +373,8 @@ bool CTerrain::OpenTerrainTextureFile(SCommonFileHeader& hdrDiffTexHdr, STerrain
 	}
 
 	// init texture pools
-	m_texCache[0].InitPool(0, m_arrBaseTexInfos[nSID].m_TerrainTextureLayer[0].nSectorSizePixels, eTexPoolFormat);
-	m_texCache[1].InitPool(0, m_arrBaseTexInfos[nSID].m_TerrainTextureLayer[1].nSectorSizePixels, eTexPoolFormat);
+	m_texCache[0].InitPool(0, m_arrBaseTexInfos.m_TerrainTextureLayer[0].nSectorSizePixels, eTexPoolFormat);
+	m_texCache[1].InitPool(0, m_arrBaseTexInfos.m_TerrainTextureLayer[1].nSectorSizePixels, eTexPoolFormat);
 	m_texCache[2].InitPool(0, nSectorHeightMapTextureDim, eTF_R32F);
 
 	return true;

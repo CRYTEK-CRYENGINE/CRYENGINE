@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "DX12Device.hpp"
@@ -15,6 +15,8 @@
 	#include "Redirections/D3D12Device.inl"
 #endif
 
+#include <atlbase.h>
+
 namespace NCryDX12 {
 
 //---------------------------------------------------------------------------------------------------------------------
@@ -28,6 +30,14 @@ CDevice* CDevice::Create(CCryDX12GIAdapter* pAdapter, D3D_FEATURE_LEVEL* pFeatur
 		if (SUCCEEDED(D3D12GetDebugInterface(IID_GFX_ARGS(&debugInterface))))
 		{
 			debugInterface->EnableDebugLayer();
+
+			if (CRenderer::CV_r_EnableDebugLayer == 2)
+			{
+				// Enable DX12 GBV as well
+				CComPtr<ID3D12Debug1> spDebugController1;
+				if (SUCCEEDED(debugInterface->QueryInterface(IID_PPV_ARGS(&spDebugController1))))
+					spDebugController1->SetEnableGPUBasedValidation(true);
+			}
 		}
 	}
 
@@ -67,7 +77,7 @@ CDevice* CDevice::Create(CCryDX12GIAdapter* pAdapter, D3D_FEATURE_LEVEL* pFeatur
 
 #ifdef DX12_LINKEDADAPTER
 	nodeCount = pDevice12->GetNodeCount();
-	if (!CRenderer::CV_r_StereoDevice || !CRenderer::CV_r_StereoEnableMgpu)
+	if (gcpRendD3D->GetS3DRend().GetDevice() != EStereoDevice::STEREO_DEVICE_NONE || !CRenderer::CV_r_StereoEnableMgpu)
 		nodeCount = 1;
 
 	if (CRenderer::CV_r_StereoEnableMgpu && int(nodeCount) > 1)

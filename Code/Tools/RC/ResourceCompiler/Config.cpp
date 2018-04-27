@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 //
 //  Crytek Engine Source File.
 //  Copyright (C), Crytek Studios, 2002.
@@ -14,7 +14,7 @@
 ////////////////////////////////////////////////////////////////////////////
 
 #include "StdAfx.h"
-#include "config.h"
+#include "Config.h"
 #include "PropertyVars.h"
 #include "StringHelpers.h"
 #include "IRCLog.h"
@@ -157,7 +157,7 @@ void Config::AddConfig(const IConfig* inpConfig)
 	for (Map::const_iterator it = pConfig->m_map.begin(); it != end; ++it)
 	{
 		const MapKey& mapKey = it->first;
-		const string value = it->second;
+		const string& value = it->second;
 
 		SetKeyValue(mapKey.m_eKeyPri, mapKey.m_sKeyName.c_str(), value.c_str());
 	}

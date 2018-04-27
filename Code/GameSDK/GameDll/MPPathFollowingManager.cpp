@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "MPPathFollowingManager.h"
@@ -164,7 +164,7 @@ void CMPPathFollowingManager::NotifyListenersOfPathCompletion(EntityId pathFollo
 	}
 }
 
- void CMPPathFollowingManager::OnEntityEvent( IEntity *pEntity,SEntityEvent &event )
+ void CMPPathFollowingManager::OnEntityEvent( IEntity *pEntity, const SEntityEvent& event )
  {
 		if(event.event == ENTITY_EVENT_RESET && event.nParam[0] == 0) //Only on leaving the editor gamemode
 		{

@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -365,6 +365,13 @@ public:
 		uint16               m_ObjectID;  // used by CGA
 	};
 
+	//! Compact helper structure used for efficient computation of joint<->controller mapping.
+	struct SJointDescriptor
+	{
+		JointIdType id; //!< Index of the joint within its skeleton.
+		uint32 crc32;   //!< Case-sensitive crc32 sum of the joint name.
+	};
+
 	virtual uint32 GetJointCount() const
 	{
 		return m_arrModelJoints.size();
@@ -464,6 +471,10 @@ public:
 	{
 		return m_arrModelJoints[jointIndex].m_PhysInfo.pPhysGeom;
 	}
+	virtual CryBonePhysics* GetJointPhysInfo(uint32 jointIndex)
+	{
+		return &m_arrModelJoints[jointIndex].m_PhysInfo;
+	}
 	virtual const DynArray<SBoneShadowCapsule>& GetShadowCapsules() const
 	{
 		return m_ShadowCapsulesList;
@@ -498,19 +509,30 @@ public:
 	}
 	const IKLimbType* GetLimbDefinition(int32 index) const { return &m_IKLimbTypes[index]; }
 
-	void              PrepareJointIDHash()
+	void              RebuildJointLookupCaches()
 	{
-		int numBones = m_arrModelJoints.size();
+		const int numBones = m_arrModelJoints.size();
 
 		if (m_pJointsCRCToIDMap)
+		{
 			delete m_pJointsCRCToIDMap;
+		}
 		m_pJointsCRCToIDMap = new CInt32HashMap<JointIdType, 512>(numBones);
 
 		for (int i = 0; i < numBones; ++i)
 		{
-			uint32 crc32Lower = m_arrModelJoints[i].m_nJointCRC32Lower;
+			const uint32 crc32Lower = m_arrModelJoints[i].m_nJointCRC32Lower;
 			m_pJointsCRCToIDMap->Insert(crc32Lower, i);
 		}
+
+		m_crcOrderedJointDescriptors.clear();
+		m_crcOrderedJointDescriptors.reserve(numBones);
+		for (int i = 0; i < numBones; ++i)
+		{
+			const uint32 crc32 = m_arrModelJoints[i].m_nJointCRC32;
+			m_crcOrderedJointDescriptors.push_back({ JointIdType(i), crc32 });
+		}
+		std::sort(m_crcOrderedJointDescriptors.begin(), m_crcOrderedJointDescriptors.end(), [](const SJointDescriptor& lhs, const SJointDescriptor& rhs) { return lhs.crc32 < rhs.crc32; });
 	}
 
 	void                       InitializeHardcodedJointsProperty();
@@ -521,6 +543,8 @@ public:
 
 	DynArray<SJoint>                 m_arrModelJoints;    // This is the bone hierarchy. All the bones of the hierarchy are present in this array
 	CInt32HashMap<JointIdType, 512>* m_pJointsCRCToIDMap; //this dramatically accelerates access to JointIDs by CRC - overall consumption should be less than 100 kb throughout the game (2-3 kb per ModelSkeleton)
+	std::vector<SJointDescriptor>    m_crcOrderedJointDescriptors; //!< Array of joint descriptors, sorted by crc32.
+
 	Skeleton::CPoseData              m_poseDefaultData;
 
 	string                           m_strFeetLockIKHandle[MAX_FEET_AMOUNT];
@@ -550,6 +574,10 @@ public:
 	const string         GetDefaultAnimDir();
 	uint32               LoadAnimationFiles(CParamLoader& paramLoader, uint32 listID);  // load animation files that were parsed from the param file into memory (That are not in DBA)
 	uint32               ReuseAnimationFiles(CParamLoader& paramLoader, uint32 listID); // files that are already in memory can be reused
+
+	//! Returns sorted range of crc32 identifiers representing joints belonging to the given animation lod. If the returned range is empty, it signifies that LoD includes all joints.
+	std::pair<const uint32*, const uint32*> FindClosestAnimationLod(const int lodValue) const;
+
 	_smart_ptr<CAnimationSet>  m_pAnimationSet;
 	DynArray<DynArray<uint32>> m_arrAnimationLOD;
 

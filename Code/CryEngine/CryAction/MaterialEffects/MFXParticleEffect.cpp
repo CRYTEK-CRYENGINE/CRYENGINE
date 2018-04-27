@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 
@@ -9,6 +9,33 @@
 #include "MFXParticleEffect.h"
 #include "MaterialEffectsCVars.h"
 #include "IActorSystem.h"
+
+IParticleAttributes::EType GetAttributeType(const char* szType)
+{
+	if(!cry_stricmp(szType, "bool"))
+	{ 
+		return IParticleAttributes::ET_Boolean;
+	}
+	else if(!cry_stricmp(szType, "int"))
+	{
+		return IParticleAttributes::ET_Integer;
+	}
+	else if (!cry_stricmp(szType, "float"))
+	{
+		return IParticleAttributes::ET_Float;
+	}
+	else if (!cry_stricmp(szType, "color"))
+	{
+		return IParticleAttributes::ET_Color;
+	}
+
+	return IParticleAttributes::ET_Count;
+}
+
+ColorF ColorBToColorF(const ColorB& colorB)
+{
+	return ColorF(colorB.r / 255.0f, colorB.g / 255.0f, colorB.b / 255.0f, colorB.a / 255.0f);
+}
 
 CMFXParticleEffect::CMFXParticleEffect()
 	: CMFXEffectBase(eMFXPF_Particles)
@@ -22,22 +49,32 @@ CMFXParticleEffect::~CMFXParticleEffect()
 
 void CMFXParticleEffect::Execute(const SMFXRunTimeEffectParams& params)
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_ACTION);
+	CRY_PROFILE_FUNCTION(PROFILE_ACTION);
 
 	Vec3 pos = params.pos;
 	Vec3 dir = ZERO;
-	Vec3 inDir = params.dir[0];
-	Vec3 reverso = inDir * -1.0f;
 	switch (m_particleParams.directionType)
 	{
 	case SMFXParticleParams::eDT_Normal:
 		dir = params.normal;
 		break;
 	case SMFXParticleParams::eDT_Ricochet:
-		dir = reverso.GetRotated(params.normal, gf_PI).normalize();
+		dir = (-params.dir[0]).GetRotated(params.normal, gf_PI).normalize();
 		break;
 	case SMFXParticleParams::eDT_ProjectileDir:
-		dir = -inDir;
+		dir = -params.dir[0];
+		break;
+	case SMFXParticleParams::eDT_ObjectDir:
+		dir = params.objectDir;
+		break;
+	case SMFXParticleParams::eDT_ObjectVelocityDir3D:
+		dir = params.objectVelocityDir;
+		break;
+	case SMFXParticleParams::eDT_ObjectVelocityDir2D:
+		dir = Vec2(params.objectVelocityDir);
+		break;
+	case SMFXParticleParams::eDT_JointDir:
+		dir = params.jointDir;
 		break;
 	default:
 		dir = params.normal;
@@ -74,7 +111,30 @@ void CMFXParticleEffect::Execute(const SMFXRunTimeEffectParams& params)
 				// If not attached, just spawn the particle
 				if (particleSpawnedAndAttached == false)
 				{
-					pParticle->Spawn(true, IParticleEffect::ParticleLoc(pos, dir, truscale));
+					if (IParticleEmitter* pEmitter = pParticle->Spawn(true, IParticleEffect::ParticleLoc(pos, dir, truscale)))
+					{
+						IParticleAttributes& particleAttributes = pEmitter->GetAttributes();
+						for (const SMFXEmitterParameter& emitterParameter : it->parameters)
+						{
+							int paramIdx = particleAttributes.FindAttributeIdByName(emitterParameter.name.c_str());
+							if (paramIdx != -1)
+							{
+								const SMFXEmitterParameter* paramToUse = &emitterParameter;
+
+								// Check if we have runtime param set and use it instead of the static one in the XML
+								for (const SMFXEmitterParameter& runtimeParam : params.particleParams)
+								{
+									if (runtimeParam == emitterParameter)
+									{
+										paramToUse = &runtimeParam;
+										break;
+									}
+								}
+
+								particleAttributes.SetValue(paramIdx, paramToUse->value);
+							}
+						}
+					}
 				}
 			}
 
@@ -208,7 +268,9 @@ void CMFXParticleEffect::LoadParamsFromXml(const XmlNodeRef& paramsNode)
 	// Xml data format
 	/*
 	   <Particle>
-	   <Name userdata="..." scale="..." maxdist="..." minscale="..." maxscale="..." maxscaledist="..." attach="...">particle.name</Name>
+	   <Name userdata="..." scale="..." maxdist="..." minscale="..." maxscale="..." maxscaledist="..." attach="...">particle.name
+	     <Attribute name="..." type="bool|float|int|color" value="..."/>
+	   </Name>
 	   <Direction>DirectionType</Direction>
 	   </Particle>
 	 */
@@ -242,6 +304,28 @@ void CMFXParticleEffect::LoadParamsFromXml(const XmlNodeRef& paramsNode)
 			if (child->haveAttr("attach"))
 				child->getAttr("attach", entry.attachToTarget);
 
+			entry.parameters.reserve(child->getChildCount());
+			for (int j = 0; j < child->getChildCount(); ++j)
+			{
+				XmlNodeRef attribute = child->getChild(j);
+				if (!strcmp(attribute->getTag(), "Attribute"))
+				{
+					SMFXEmitterParameter parameter;
+					if (attribute->haveAttr("name") && attribute->haveAttr("type") && attribute->haveAttr("value"))
+					{
+						parameter.name = attribute->getAttr("name");
+						IParticleAttributes::EType type = GetAttributeType(attribute->getAttr("type"));
+						DO_FOR_ATTRIBUTE_TYPE(type, T,
+						{
+							T val;
+							attribute->getAttr("value", val);
+							parameter.value = val;
+						});
+						entry.parameters.emplace_back(parameter);
+					}
+				}
+			}
+
 			m_particleParams.m_entries.push_back(entry);
 		}
 	}
@@ -262,6 +346,22 @@ void CMFXParticleEffect::LoadParamsFromXml(const XmlNodeRef& paramsNode)
 		else if (!strcmp(val, "ProjectileDir"))
 		{
 			directionType = SMFXParticleParams::eDT_ProjectileDir;
+		}
+		else if (!strcmp(val, "ObjectDir"))
+		{
+			directionType = SMFXParticleParams::eDT_ObjectDir;
+		}
+		else if (!strcmp(val, "ObjectVelocityDir3D"))
+		{
+			directionType = SMFXParticleParams::eDT_ObjectVelocityDir3D;
+		}
+		else if (!strcmp(val, "ObjectVelocityDir2D"))
+		{
+			directionType = SMFXParticleParams::eDT_ObjectVelocityDir2D;
+		}
+		else if (!strcmp(val, "JointDir"))
+		{
+			directionType = SMFXParticleParams::eDT_JointDir;
 		}
 	}
 	m_particleParams.directionType = directionType;

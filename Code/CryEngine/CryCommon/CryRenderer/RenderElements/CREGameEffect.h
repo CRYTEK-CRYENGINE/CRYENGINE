@@ -1,7 +1,6 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
-#ifndef _CREGameEffect_
-#define _CREGameEffect_
+//! \cond INTERNAL
 
 #pragma once
 
@@ -11,9 +10,6 @@
 struct IREGameEffect
 {
 	virtual ~IREGameEffect(){}
-
-	virtual void mfPrepare(bool bCheckOverflow) = 0;
-	virtual bool mfDraw(CShader* ef, SShaderPass* sfm, CRenderObject* renderObj) = 0;
 };
 
 //! Render element that uses the IREGameEffect interface for its functionality.
@@ -23,10 +19,6 @@ public:
 
 	CREGameEffect();
 	~CREGameEffect();
-
-	// CRenderElement interface
-	void mfPrepare(bool bCheckOverflow);
-	bool mfDraw(CShader* ef, SShaderPass* sfm);
 
 	// CREGameEffect interface
 	inline void           SetPrivateImplementation(IREGameEffect* pImpl) { m_pImpl = pImpl; }
@@ -41,5 +33,3 @@ private:
 	IREGameEffect* m_pImpl; //!< Implementation of of render element.
 
 };
-
-#endif // #ifndef _CREGameEffect_

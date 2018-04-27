@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 // -------------------------------------------------------------------------
 //  File name:   LocalMemoryUsage.cpp
@@ -290,7 +290,7 @@ void CLocalMemoryUsage::SResource::StartChecking()
 
 void CLocalMemoryUsage::SResource::CheckOnAllSectorsP1(const AABB& bounding, float maxViewDist, float scale, float mipFactor)
 {
-	//FRAME_PROFILER("! CLocalMemoryUsage::SResource::CheckOnAllSectorsP1", GetISystem(), PROFILE_SYSTEM);
+	//CRY_PROFILE_FUNCTION(PROFILE_SYSTEM);
 
 	float modifiedmaxViewDist = maxViewDist;
 	float modifiedmaxViewDistSqr = sqr(modifiedmaxViewDist);
@@ -865,13 +865,13 @@ void CLocalMemoryUsage::OnUpdate()
 	m_LastCallTime = actTime;
 
 	{
-		FRAME_PROFILER("! LocalMemoryUsege::Update - Start", GetISystem(), PROFILE_SYSTEM);
+		CRY_PROFILE_REGION(PROFILE_SYSTEM, "! LocalMemoryUsege::Update - Start");
 		//StartChecking(RectI(0,0,m_sectorNr.x, m_sectorNr.y));
 		StartChecking(m_actDrawedSectors);
 	}
 
 	{
-		FRAME_PROFILER("! LocalMemoryUsege::Update - CollectGeometry P1", GetISystem(), PROFILE_SYSTEM);
+		CRY_PROFILE_REGION(PROFILE_SYSTEM, "! LocalMemoryUsege::Update - CollectGeometry P1");
 		CollectGeometryP1();
 	}
 	{
@@ -898,7 +898,7 @@ void CLocalMemoryUsage::OnUpdate()
 	}
 
 	{
-		FRAME_PROFILER("! LocalMemoryUsege::Update - Materials P2", GetISystem(), PROFILE_SYSTEM);
+		CRY_PROFILE_REGION(PROFILE_SYSTEM, "! LocalMemoryUsege::Update - Materials P2");
 		//We must iterate on materials first
 		for (TMaterialMap::iterator it = m_globalMaterials.begin(); it != m_globalMaterials.end(); ++it)
 		{
@@ -906,14 +906,14 @@ void CLocalMemoryUsage::OnUpdate()
 		}
 	}
 	{
-		FRAME_PROFILER("! LocalMemoryUsege::Update - Textures P2", GetISystem(), PROFILE_SYSTEM);
+		CRY_PROFILE_REGION(PROFILE_SYSTEM, "! LocalMemoryUsege::Update - Textures P2");
 		for (TTextureMap::iterator it = m_globalTextures.begin(); it != m_globalTextures.end(); ++it)
 		{
 			it->second.CheckOnAllSectorsP2();
 		}
 	}
 	{
-		FRAME_PROFILER("! LocalMemoryUsege::Update - StatObjects P2", GetISystem(), PROFILE_SYSTEM);
+		CRY_PROFILE_REGION(PROFILE_SYSTEM, "! LocalMemoryUsege::Update - StatObjects P2");
 		for (TStatObjMap::iterator it = m_globalStatObjs.begin(); it != m_globalStatObjs.end(); ++it)
 		{
 			it->second.CheckOnAllSectorsP2();
@@ -928,7 +928,7 @@ void CLocalMemoryUsage::OnUpdate()
 
 void CLocalMemoryUsage::DeleteUnusedResources()
 {
-	FRAME_PROFILER("! LocalMemoryUsege::Update - Deleting unused resources", GetISystem(), PROFILE_SYSTEM);
+	CRY_PROFILE_REGION(PROFILE_SYSTEM, "! LocalMemoryUsege::Update - Deleting unused resources");
 
 	// Clear the used flags
 	for (TStatObjMap::iterator it = m_globalStatObjs.begin(); it != m_globalStatObjs.end(); ++it)
@@ -1047,21 +1047,21 @@ void CLocalMemoryUsage::StartChecking(const RectI& actProcessedSectors)
 	{
 		for (TTextureMap::iterator it = m_globalTextures.begin(); it != m_globalTextures.end(); ++it)
 		{
-			//FRAME_PROFILER("! LocalMemoryUsege::StartChecking - Textures", GetISystem(), PROFILE_SYSTEM);
+			//CRY_PROFILE_REGION(PROFILE_SYSTEM, "LocalMemoryUsege::StartChecking - Textures");
 			it->second.StartChecking();
 		}
 	}
 	{
 		for (TMaterialMap::iterator it = m_globalMaterials.begin(); it != m_globalMaterials.end(); ++it)
 		{
-			//FRAME_PROFILER("! LocalMemoryUsege::StartChecking - Materials", GetISystem(), PROFILE_SYSTEM);
+			//CRY_PROFILE_REGION(PROFILE_SYSTEM, "LocalMemoryUsege::StartChecking - Materials");
 			it->second.StartChecking();
 		}
 	}
 	{
 		for (TStatObjMap::iterator it = m_globalStatObjs.begin(); it != m_globalStatObjs.end(); ++it)
 		{
-			//FRAME_PROFILER("! LocalMemoryUsege::StartChecking - StatObjects", GetISystem(), PROFILE_SYSTEM);
+			//CRY_PROFILE_REGION(PROFILE_SYSTEM, "LocalMemoryUsege::StartChecking - StatObjects");
 			it->second.StartChecking();
 		}
 	}
@@ -1193,7 +1193,7 @@ CLocalMemoryUsage::SStatObjInfo* CLocalMemoryUsage::CheckStatObjP1(IStatObj* pSt
 	else
 	{
 		{
-			FRAME_PROFILER("! CLocalMemoryUsage::CheckStatObjP1 HASH", GetISystem(), PROFILE_SYSTEM);
+			CRY_PROFILE_REGION(PROFILE_SYSTEM, "! CLocalMemoryUsage::CheckStatObjP1 HASH");
 			PREFAST_SUPPRESS_WARNING(6262)
 			pStatObjInfo = &m_globalStatObjs[(INT_PTR)pStatObj];
 		}
@@ -1381,7 +1381,7 @@ void CLocalMemoryUsage::CheckMaterialP1(IMaterial* pMaterial, AABB bounding, flo
 		else
 		{
 			{
-				FRAME_PROFILER("! CLocalMemoryUsage::CheckMaterialP1 HASH", GetISystem(), PROFILE_SYSTEM);
+				CRY_PROFILE_REGION(PROFILE_SYSTEM, "! CLocalMemoryUsage::CheckMaterialP1 HASH");
 				PREFAST_SUPPRESS_WARNING(6262)
 				pMaterialInfo = &m_globalMaterials[(INT_PTR)pMaterial];
 			}
@@ -1514,10 +1514,10 @@ CLocalMemoryUsage::STextureInfo * CLocalMemoryUsage::GetTextureInfo(ITexture * p
 		return &iter->second;
 	}
 
-	//FUNCTION_PROFILER(GetISystem(), PROFILE_SYSTEM);
+	//CRY_PROFILE_FUNCTION(PROFILE_SYSTEM);
 	STextureInfo* pTextureInfo;
 	{
-		FRAME_PROFILER("! CLocalMemoryUsage::CheckStatObjP1 HASH", GetISystem(), PROFILE_SYSTEM);
+		CRY_PROFILE_REGION(PROFILE_SYSTEM, "! CLocalMemoryUsage::CheckStatObjP1 HASH");
 		PREFAST_SUPPRESS_WARNING(6262)
 		pTextureInfo = &m_globalTextures[(INT_PTR)pTexture];
 	}

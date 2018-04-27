@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -24,6 +24,15 @@ namespace UQS
 		public:
 			static void RegisterAllFactoryInstancesInHub(Core::IHub& hub);
 		};
+
+		inline void CFactoryRegistrationHelper::RegisterAllFactoryInstancesInHub(Core::IHub& hub)
+		{
+			Internal::CItemFactoryBase::RegisterAllInstancesInFactoryDatabase(hub.GetItemFactoryDatabase());
+			Internal::CFunctionFactoryBase::RegisterAllInstancesInFactoryDatabase(hub.GetFunctionFactoryDatabase());
+			Internal::CGeneratorFactoryBase::RegisterAllInstancesInFactoryDatabase(hub.GetGeneratorFactoryDatabase());
+			Internal::CInstantEvaluatorFactoryBase::RegisterAllInstancesInFactoryDatabase(hub.GetInstantEvaluatorFactoryDatabase());
+			Internal::CDeferredEvaluatorFactoryBase::RegisterAllInstancesInFactoryDatabase(hub.GetDeferredEvaluatorFactoryDatabase());
+		}
 
 	}
 }

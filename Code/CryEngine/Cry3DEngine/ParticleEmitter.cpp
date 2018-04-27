@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 // -------------------------------------------------------------------------
 //  File name:   ParticleEmitter.cpp
@@ -60,7 +60,7 @@ JobManager::SJobState* CParticleBatchDataManager::AddUpdateJob(CParticleEmitter*
 ///////////////////////////////////////////////////////////////////////////////////////////////
 void CParticleEmitter::AddUpdateParticlesJob()
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_PARTICLE);
+	CRY_PROFILE_FUNCTION(PROFILE_PARTICLE);
 
 	if (!GetCVars()->e_ParticlesThread)
 	{
@@ -89,7 +89,7 @@ void CParticleEmitter::SyncUpdateParticlesJob()
 {
 	if (m_pUpdateParticlesJobState)
 	{
-		FUNCTION_PROFILER(gEnv->pSystem, PROFILE_PARTICLE);
+		CRY_PROFILE_FUNCTION(PROFILE_PARTICLE);
 		PARTICLE_LIGHT_SYNC_PROFILER();
 		gEnv->GetJobManager()->WaitForJob(*m_pUpdateParticlesJobState);
 		m_pUpdateParticlesJobState = NULL;
@@ -134,7 +134,7 @@ bool CParticleEmitter::IsAlive() const
 
 void CParticleEmitter::UpdateState()
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_PARTICLE);
+	CRY_PROFILE_FUNCTION(PROFILE_PARTICLE);
 
 	uint32 nEnvFlags = GetEnvFlags();
 	Vec3 vPos = GetLocation().t;
@@ -325,7 +325,6 @@ CParticleEmitter::~CParticleEmitter()
 	}
 	m_p3DEngine->FreeRenderNodeState(this); // Also does unregister entity.
 	GetInstCount(GetRenderNodeType())--;
-	GetEmitGeom().Release();
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -351,14 +350,12 @@ void CParticleEmitter::Register(bool b, bool bImmediate)
 			if (!m_bbWorld.IsReset())
 			{
 				// Register node.
+				// Register node.
 				// Normally, use emitter's designated position for visibility.
 				// However, if all bounds are computed dynamically, they might not contain the origin, so use bounds for visibility.
-				if (m_bbWorld.IsContainPoint(GetPos()))
-					SetRndFlags(ERF_REGISTER_BY_POSITION, true);
-				else
-					SetRndFlags(ERF_REGISTER_BY_POSITION, false);
-				if (m_SpawnParams.bRegisterByBBox)
-					SetRndFlags(ERF_REGISTER_BY_BBOX, true);
+				SetRndFlags(ERF_REGISTER_BY_POSITION, m_bbWorld.IsContainPoint(GetPos()));
+				SetRndFlags(ERF_REGISTER_BY_BBOX, m_SpawnParams.bRegisterByBBox);
+				SetRndFlags(ERF_RENDER_ALWAYS, m_SpawnParams.bIgnoreVisAreas);
 				m_p3DEngine->RegisterEntity(this);
 				m_nEmitterFlags |= ePEF_Registered;
 			}
@@ -393,7 +390,7 @@ string CParticleEmitter::GetDebugString(char type) const
 	{
 		SParticleCounts counts;
 		GetCounts(counts);
-		s += string().Format(" E=%.0f P=%.0f R=%0.f", counts.EmittersActive, counts.ParticlesActive, counts.ParticlesRendered);
+		s += string().Format(" E=%.0f P=%.0f R=%0.f", counts.components.updated, counts.particles.updated, counts.particles.rendered);
 	}
 
 	s += string().Format(" age=%.3f", GetAge());
@@ -455,7 +452,7 @@ void CParticleEmitter::AddEffect(CParticleContainer* pParentContainer, const CPa
 
 void CParticleEmitter::RefreshEffect()
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_PARTICLE);
+	CRY_PROFILE_FUNCTION(PROFILE_PARTICLE);
 
 	if (!m_pTopEffect)
 		return;
@@ -510,6 +507,8 @@ void CParticleEmitter::RefreshEffect()
 	m_nEmitterFlags |= ePEF_NeedsEntityUpdate;
 
 	m_Vel = ZERO;
+
+	Register(false, true);
 }
 
 void CParticleEmitter::SetEffect(IParticleEffect const* pEffect)
@@ -608,19 +607,11 @@ void CParticleEmitter::UpdateContainers()
 		Register(false);
 }
 
-bool CParticleEmitter::IsInstant() const
-{
-	return GetStopAge() + GetSpawnParams().fPulsePeriod == 0.f;
-}
-
 void CParticleEmitter::SetEmitGeom(GeomRef const& geom)
 {
-	GeomRef emit_new(geom);
-	if (emit_new != GetEmitGeom())
+	if (geom != GetEmitGeom())
 	{
-		emit_new.AddRef();
-		GetEmitGeom().Release();
-		static_cast<GeomRef&>(*this) = emit_new;
+		static_cast<GeomRef&>(*this) = geom;
 		InvalidateStaticBounds();
 	}
 
@@ -680,7 +671,7 @@ bool GetPhysicalVelocity(Velocity3& Vel, IEntity* pEnt, const Vec3& vPos)
 
 void CParticleEmitter::UpdateFromEntity()
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_PARTICLE);
+	CRY_PROFILE_FUNCTION(PROFILE_PARTICLE);
 
 	m_nEmitterFlags &= ~(ePEF_HasPhysics | ePEF_HasTarget | ePEF_HasAttachment);
 
@@ -773,7 +764,7 @@ void CParticleEmitter::GetLocalBounds(AABB& bbox)
 
 void CParticleEmitter::Update()
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_PARTICLE);
+	CRY_PROFILE_FUNCTION(PROFILE_PARTICLE);
 
 	m_fAge += (GetParticleTimer()->GetFrameStartTime() - m_timeLastUpdate).GetSeconds() * m_SpawnParams.fTimeScale;
 	m_timeLastUpdate = GetParticleTimer()->GetFrameStartTime();
@@ -831,7 +822,7 @@ void CParticleEmitter::Update()
 
 void CParticleEmitter::UpdateEffects()
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_PARTICLE);
+	CRY_PROFILE_FUNCTION(PROFILE_PARTICLE);
 
 	if (!(GetRndFlags() & ERF_HIDDEN))
 	{
@@ -875,7 +866,7 @@ void CParticleEmitter::InvalidateCachedEntityData()
 
 void CParticleEmitter::Render(SRendParams const& RenParams, const SRenderingPassInfo& passInfo)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_PARTICLE);
+	CRY_PROFILE_FUNCTION(PROFILE_PARTICLE);
 	PARTICLE_LIGHT_PROFILER();
 
 	IF (!passInfo.RenderParticles(), 0)
@@ -926,7 +917,7 @@ void CParticleEmitter::Render(SRendParams const& RenParams, const SRenderingPass
 
 	ColorF fogVolumeContrib;
 	CFogVolumeRenderNode::TraceFogVolumes(GetPos(), fogVolumeContrib, passInfo);
-	PartParams.m_nFogVolumeContribIdx = GetRenderer()->PushFogVolumeContribution(fogVolumeContrib, passInfo);
+	PartParams.m_nFogVolumeContribIdx = passInfo.GetIRenderView()->PushFogVolumeContribution(fogVolumeContrib, passInfo);
 
 	// Compute camera distance with top effect's SortBoundsScale.
 	PartParams.m_fMainBoundsScale = m_pTopEffect->IsEnabled() ? +m_pTopEffect->GetParams().fSortBoundsScale : 1.f;
@@ -1075,7 +1066,7 @@ void CParticleEmitter::RenderDebugInfo()
 			AABB bbDyn;
 			GetDynamicBounds(bbDyn);
 
-			CCamera const& cam = GetRenderer()->GetCamera();
+			CCamera const& cam = GetISystem()->GetViewCamera();
 			ColorF color(1, 1, 1, 1);
 
 			// Compute label position, in bb clipped to camera.
@@ -1099,7 +1090,7 @@ void CParticleEmitter::RenderDebugInfo()
 
 			SParticleCounts counts;
 			GetCounts(counts);
-			float fPixToScreen = 1.f / ((float)GetRenderer()->GetWidth() * (float)GetRenderer()->GetHeight());
+			float fPixToScreen = 1.f / ((float)GetRenderer()->GetOverlayWidth() * (float)GetRenderer()->GetOverlayHeight());
 
 			if (!bSelected)
 			{
@@ -1111,11 +1102,11 @@ void CParticleEmitter::RenderDebugInfo()
 
 				// Modulate alpha by screen-space bounds extents.
 				int aiOut[4];
-				cam.CalcScreenBounds(aiOut, &bbDyn, GetRenderer()->GetWidth(), GetRenderer()->GetHeight());
+				cam.CalcScreenBounds(aiOut, &bbDyn, GetRenderer()->GetOverlayWidth(), GetRenderer()->GetOverlayHeight());
 				float fCoverage = (aiOut[2] - aiOut[0]) * (aiOut[3] - aiOut[1]) * fPixToScreen;
 
 				// And by pixel and particle counts.
-				float fWeight = sqrt_fast_tpl(fCoverage * counts.ParticlesRendered * counts.PixelsRendered * fPixToScreen);
+				float fWeight = sqrt_fast_tpl(fCoverage * counts.particles.rendered * counts.pixels.rendered * fPixToScreen);
 
 				color.a = clamp_tpl(fWeight, 0.2f, 1.f);
 			}
@@ -1125,21 +1116,21 @@ void CParticleEmitter::RenderDebugInfo()
 
 			stack_string sLabel = GetName();
 			sLabel += stack_string().Format(" P=%.0f F=%.3f S/D=",
-			                                counts.ParticlesRendered,
-			                                counts.PixelsRendered * fPixToScreen);
-			if (counts.DynamicBoundsVolume > 0.f)
+			                                counts.particles.rendered,
+			                                counts.pixels.rendered * fPixToScreen);
+			if (counts.volume.dyn > 0.f)
 			{
-				sLabel += stack_string().Format("%.2f", counts.StaticBoundsVolume / counts.DynamicBoundsVolume);
-				if (counts.ErrorBoundsVolume > 0.f)
-					sLabel += stack_string().Format(" E/D=%3f", counts.ErrorBoundsVolume / counts.DynamicBoundsVolume);
+				sLabel += stack_string().Format("%.2f", counts.volume.stat / counts.volume.dyn);
+				if (counts.volume.error > 0.f)
+					sLabel += stack_string().Format(" E/D=%3f", counts.volume.error / counts.volume.dyn);
 			}
 			else
 				sLabel += "~0";
 
-			if (counts.ParticlesCollideTest)
-				sLabel += stack_string().Format(" Col=%.0f/%.0f", counts.ParticlesCollideHit, counts.ParticlesCollideTest);
-			if (counts.ParticlesClip)
-				sLabel += stack_string().Format(" Clip=%.0f", counts.ParticlesClip);
+			if (counts.particles.collideTest)
+				sLabel += stack_string().Format(" Col=%.0f/%.0f", counts.particles.collideHit, counts.particles.collideTest);
+			if (counts.particles.clip)
+				sLabel += stack_string().Format(" Clip=%.0f", counts.particles.clip);
 
 			ColorF colLabel = color;
 			if (!bb.ContainsBox(bbDyn))
@@ -1332,26 +1323,27 @@ void CParticleEmitter::GetMemoryUsage(ICrySizer* pSizer) const
 	m_PhysEnviron.GetMemoryUsage(pSizer);
 }
 
-bool CParticleEmitter::UpdateStreamableComponents(float fImportance, const Matrix34A& objMatrix, IRenderNode* pRenderNode, float fEntDistance, bool bFullUpdate, int nLod)
+void CParticleEmitter::UpdateStreamingPriority(const SUpdateStreamingPriorityContext& context)
 {
 	FUNCTION_PROFILER_3DENGINE;
 
-	IRenderer* pRenderer = GetRenderer();
 	for (const auto& c : m_Containers)
 	{
 		ResourceParticleParams const& params = c.GetParams();
-		if (params.pStatObj)
+		const float normalizedDist = context.distance * crymath::rcp_safe(params.fSize.GetMaxValue());
+		if (CMatInfo* pMatInfo  = static_cast<CMatInfo*>(params.pMaterial.get()))
 		{
-			CStatObj* pStatObj = static_cast<CStatObj*>(params.pStatObj.get());
-			IMaterial* pMaterial = pStatObj->GetMaterial();
-			m_pObjManager->PrecacheStatObj(pStatObj, nLod, objMatrix, pMaterial, fImportance, fEntDistance, bFullUpdate, false);
+			const float adjustedDist = normalizedDist
+				* min(params.ShaderData.m_tileSize[0], params.ShaderData.m_tileSize[1]);
+			pMatInfo->PrecacheMaterial(adjustedDist, nullptr, context.bFullUpdate, params.bDrawNear);
 		}
 
-		if (CMatInfo* pMatInfo = (CMatInfo*)(IMaterial*)params.pMaterial)
-			pMatInfo->PrecacheMaterial(fEntDistance, NULL, bFullUpdate);
+		if (CStatObj* pStatObj = static_cast<CStatObj*>(params.pStatObj.get()))
+		{
+			m_pObjManager->PrecacheStatObj(pStatObj, context.lod, Matrix34A(m_Loc), pStatObj->GetMaterial(),
+				context.importance, normalizedDist, context.bFullUpdate, params.bDrawNear);
+		}
 	}
-
-	return true;
 }
 
 EntityId CParticleEmitter::GetAttachedEntityId()
@@ -1369,7 +1361,7 @@ IParticleAttributes& CParticleEmitter::GetAttributes()
 void CParticleEmitter::OffsetPosition(const Vec3& delta)
 {
 	SMoveState::OffsetPosition(delta);
-	if (m_pTempData) m_pTempData->OffsetPosition(delta);
+	if (const auto pTempData = m_pTempData.load()) pTempData->OffsetPosition(delta);
 	m_Target.vTarget += delta;
 	m_bbWorld.Move(delta);
 

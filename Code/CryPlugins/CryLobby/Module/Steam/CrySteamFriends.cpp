@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 //
 // -------------------------------------------------------------------------
@@ -281,9 +281,17 @@ void CCrySteamFriends::StopTaskRunning(CryFriendsTaskID fTaskID)
 void CCrySteamFriends::StartFriendsGetFriendsList(CryFriendsTaskID fTaskID)
 {
 	STask* pTask = &m_task[fTaskID];
+	ISteamFriends* pSteamFriends = SteamFriends();
+	if (!pSteamFriends)
+	{
+		CryWarning(VALIDATOR_MODULE_SYSTEM, VALIDATOR_WARNING, "Steam friends service not available");
+		UpdateTaskError(fTaskID, eCLE_SteamInitFailed);
+		StopTaskRunning(fTaskID);
+		return;
+	}
 
 	// Get the list of actual (rather than pending) friends
-	int friendCount = SteamFriends()->GetFriendCount(k_EFriendFlagImmediate);
+	int friendCount = pSteamFriends->GetFriendCount(k_EFriendFlagImmediate);
 	if (friendCount > pTask->paramsNum[FRIENDS_LIST_PARAM_MAX_FRIENDS])
 	{
 		friendCount = pTask->paramsNum[FRIENDS_LIST_PARAM_MAX_FRIENDS];
@@ -301,9 +309,9 @@ void CCrySteamFriends::StartFriendsGetFriendsList(CryFriendsTaskID fTaskID)
 
 		for (uint32 index = 0; index < friendCount; ++index)
 		{
-			CSteamID friendID = SteamFriends()->GetFriendByIndex(index, k_EFriendFlagImmediate);
+			CSteamID friendID = pSteamFriends->GetFriendByIndex(index, k_EFriendFlagImmediate);
 			pFriendInfo[index].userID = new SCrySteamUserID(friendID);
-			cry_strcpy(pFriendInfo[index].name, SteamFriends()->GetFriendPersonaName(friendID));
+			cry_strcpy(pFriendInfo[index].name, pSteamFriends->GetFriendPersonaName(friendID));
 		}
 	}
 
@@ -355,8 +363,10 @@ void CCrySteamFriends::StartFriendsSendGameInvite(CryFriendsTaskID fTaskID)
 	STask* pTask = &m_task[fTaskID];
 
 	CCrySteamMatchMaking* pMatchMaking = (CCrySteamMatchMaking*)m_pLobby->GetMatchMaking();
+	ISteamMatchmaking* pSteamMatchmaking = SteamMatchmaking();
+	ISteamFriends* pSteamFriends = SteamFriends();
 
-	if (pMatchMaking != NULL)
+	if (pMatchMaking != NULL && pSteamMatchmaking != NULL && pSteamFriends != NULL)
 	{
 		SCrySteamSessionID sessionID(pMatchMaking->GetSteamSessionIDFromSession(pTask->session));
 
@@ -364,8 +374,8 @@ void CCrySteamFriends::StartFriendsSendGameInvite(CryFriendsTaskID fTaskID)
 		CSteamID* pSteamID = (CSteamID*)m_pLobby->MemGetPtr(pTask->paramsMem[FRIENDS_INVITE_PARAM_FRIENDS_LIST]);
 		for (uint32 index = 0; index < numUserIDs; ++index)
 		{
-			bool inviteSent = SteamMatchmaking()->InviteUserToLobby(sessionID.m_steamID, pSteamID[index]);
-			NetLog("[STEAM]: %s to [%s] : [%s]", (inviteSent) ? "Invite sent" : "Failed to send", CSteamIDAsString(pSteamID[index]).c_str(), SteamFriends()->GetFriendPersonaName(pSteamID[index]));
+			bool inviteSent = pSteamMatchmaking->InviteUserToLobby(sessionID.m_steamID, pSteamID[index]);
+			NetLog("[STEAM]: %s to [%s] : [%s]", (inviteSent) ? "Invite sent" : "Failed to send", CSteamIDAsString(pSteamID[index]).c_str(), pSteamFriends->GetFriendPersonaName(pSteamID[index]));
 		}
 	}
 
@@ -380,7 +390,8 @@ void CCrySteamFriends::StartFriendsSendGameInvite(CryFriendsTaskID fTaskID)
 
 void CCrySteamFriends::OnFriendRichPresenceUpdate(FriendRichPresenceUpdate_t* pParam)
 {
-	if (m_SteamOnFriendRichPresenceUpdate.m_taskID != CryFriendsInvalidTaskID)
+	ISteamFriends* pSteamFriends = SteamFriends();
+	if (pSteamFriends && m_SteamOnFriendRichPresenceUpdate.m_taskID != CryFriendsInvalidTaskID)
 	{
 		STask* pTask = &m_task[m_SteamOnFriendRichPresenceUpdate.m_taskID];
 
@@ -395,7 +406,7 @@ void CCrySteamFriends::OnFriendRichPresenceUpdate(FriendRichPresenceUpdate_t* pP
 				const SCrySteamUserID* pID = static_cast<const SCrySteamUserID*>(pFriendInfo[index].userID.get());
 				if (pID->m_steamID == pParam->m_steamIDFriend)
 				{
-					cry_strcpy(pFriendInfo[index].presence, SteamFriends()->GetFriendRichPresence(pParam->m_steamIDFriend, STEAM_RICH_PRESENCE_STATUS_KEY));
+					cry_strcpy(pFriendInfo[index].presence, pSteamFriends->GetFriendRichPresence(pParam->m_steamIDFriend, STEAM_RICH_PRESENCE_STATUS_KEY));
 
 					if (--pTask->paramsNum[FRIENDS_LIST_PARAM_FRIENDS_REMAINING] == 0)
 					{
@@ -417,13 +428,20 @@ void CCrySteamFriends::OnGameLobbyJoinRequested(GameLobbyJoinRequested_t* pParam
 	SCryLobbyInviteAcceptedData inviteAcceptedData;
 	data.pInviteAcceptedData = &inviteAcceptedData;
 
+	ISteamFriends* pSteamFriends = SteamFriends();
+	if (!pSteamFriends)
+	{
+		CryWarning(VALIDATOR_MODULE_SYSTEM, VALIDATOR_WARNING, "Steam friends service not available");
+		return;
+	}
+
 	CrySessionID sessionID = new SCrySteamSessionID(pParam->m_steamIDLobby, true);
 	;
 	inviteAcceptedData.m_user = 0;
 	inviteAcceptedData.m_id = sessionID;
 	inviteAcceptedData.m_service = eCLS_Online;
 
-	NetLog("[STEAM]: received invite to [%s] from [%s]", CSteamIDAsString(pParam->m_steamIDLobby).c_str(), SteamFriends()->GetFriendPersonaName(pParam->m_steamIDFriend));
+	NetLog("[STEAM]: received invite to [%s] from [%s]", CSteamIDAsString(pParam->m_steamIDLobby).c_str(), pSteamFriends->GetFriendPersonaName(pParam->m_steamIDFriend));
 
 	m_pLobby->DispatchEvent(eCLSE_InviteAccepted, data);
 }

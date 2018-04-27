@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 using System;
 using System.Collections.Generic;
@@ -121,7 +121,7 @@ namespace CryEngine.UI
 		/// <summary>
 		/// Called by framework. Do not call directly.
 		/// </summary>
-		public override void OnUpdate()
+		protected override void OnRender()
 		{
 			CurrentAlpha = _currentAlpha * 0.8f + SBCtrl.TargetAlpha * 0.2f;
 		}
@@ -129,7 +129,7 @@ namespace CryEngine.UI
 		/// <summary>
 		/// Called by framework. Do not call directly.
 		/// </summary>
-		public override void OnAwake()
+		protected override void OnAwake()
 		{
 			base.OnAwake();
 			Background.Color = Color.White.WithAlpha(0.5f);
@@ -186,7 +186,7 @@ namespace CryEngine.UI
 		/// <summary>
 		/// Called by framework. Do not call directly.
 		/// </summary>
-		public override void OnAwake()
+		protected override void OnAwake()
 		{
 			RectTransform.ClampMode = ClampMode.Full;
 

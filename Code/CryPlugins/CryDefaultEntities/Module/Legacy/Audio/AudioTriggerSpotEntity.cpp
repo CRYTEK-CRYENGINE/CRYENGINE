@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "AudioTriggerSpotEntity.h"
@@ -47,7 +47,7 @@ CAudioTriggerSpotEntity::~CAudioTriggerSpotEntity()
 	Stop();
 }
 
-void CAudioTriggerSpotEntity::ProcessEvent(SEntityEvent& event)
+void CAudioTriggerSpotEntity::ProcessEvent(const SEntityEvent& event)
 {
 	if (gEnv->IsDedicated())
 		return;
@@ -64,7 +64,7 @@ void CAudioTriggerSpotEntity::ProcessEvent(SEntityEvent& event)
 
 				if (m_behavior == ePlayBehavior_TriggerRate)
 				{
-					GetEntity()->SetTimer(DELAY_TIMER_ID, static_cast<int>(cry_random(m_minDelay, m_maxDelay)));
+					SetTimer(DELAY_TIMER_ID, static_cast<int>(cry_random(m_minDelay, m_maxDelay)));
 				}
 			}
 
@@ -85,7 +85,7 @@ void CAudioTriggerSpotEntity::TriggerFinished(const CryAudio::ControlId trigger)
 	// playing, that instance we need to ignore.
 	if (m_bEnabled && trigger == m_playTriggerId && m_behavior == ePlayBehavior_Delay)
 	{
-		GetEntity()->SetTimer(DELAY_TIMER_ID, static_cast<int>(cry_random(m_minDelay, m_maxDelay)));
+		SetTimer(DELAY_TIMER_ID, static_cast<int>(cry_random(m_minDelay, m_maxDelay)));
 	}
 }
 
@@ -153,14 +153,13 @@ void CAudioTriggerSpotEntity::OnResetState()
 
 void CAudioTriggerSpotEntity::StartPlayingBehaviour()
 {
-	IEntity& entity = *GetEntity();
-	entity.KillTimer(DELAY_TIMER_ID);
+	KillTimer(DELAY_TIMER_ID);
 
 	Play();
 
 	if (m_behavior == ePlayBehavior_TriggerRate)
 	{
-		entity.SetTimer(DELAY_TIMER_ID, static_cast<int>(cry_random(m_minDelay, m_maxDelay)));
+		SetTimer(DELAY_TIMER_ID, static_cast<int>(cry_random(m_minDelay, m_maxDelay)));
 	}
 }
 
@@ -189,7 +188,7 @@ void CAudioTriggerSpotEntity::Play()
 void CAudioTriggerSpotEntity::Stop()
 {
 	IEntity& entity = *GetEntity();
-	entity.KillTimer(DELAY_TIMER_ID);
+	KillTimer(DELAY_TIMER_ID);
 
 	if (auto pAudioProxy = entity.GetComponent<IEntityAudioComponent>())
 	{
@@ -240,10 +239,6 @@ void CAudioTriggerSpotEntity::DebugDraw()
 				gEnv->pAudioSystem->GetTriggerData(triggerId, triggerData);
 
 				pRenderAuxGeom->DrawSphere(pos, triggerData.radius, ColorB(250, 100, 100, 100), false);
-				if (triggerData.occlusionFadeOutDistance > 0.0f)
-				{
-					pRenderAuxGeom->DrawSphere(pos, triggerData.radius - triggerData.occlusionFadeOutDistance, ColorB(200, 200, 255, 100), false);
-				}
 			}
 
 			// Randomization Area

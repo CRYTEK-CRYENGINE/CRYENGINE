@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 // -------------------------------------------------------------------------
 //  File name:   FallBackBackEnd.h
@@ -17,7 +17,7 @@
 namespace JobManager {
 namespace FallBackBackEnd {
 
-class CFallBackBackEnd : public IBackend
+class CFallBackBackEnd final : public IBackend
 {
 public:
 	CFallBackBackEnd();
@@ -28,6 +28,8 @@ public:
 	void   Update()                   {}
 
 	void   AddJob(JobManager::CJobDelegator& crJob, const JobManager::TJobHandle cJobHandle, JobManager::SInfoBlock& rInfoBlock);
+
+	bool   AddTempWorkerUntilJobStateIsComplete(JobManager::SJobState& pJobState) { return false; }
 
 	uint32 GetNumWorkerThreads() const { return 0; }
 

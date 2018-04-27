@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 /*************************************************************************
    -------------------------------------------------------------------------
@@ -113,8 +113,8 @@ private:
 ///////////////////////////////////////////////////////////////////////////////
 template<typename T>
 inline CThreadSafeWorkerContainer<T>::CThreadSafeWorkerContainer()
-	: m_nNumWorkers(0)
-	, m_workers(0)
+	: m_workers(0)
+	, m_nNumWorkers(0)
 	, m_coalescedArrCapacity(0)
 	, m_coalescedArr(0)
 	, m_isCoalesced(false)

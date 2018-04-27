@@ -1,11 +1,12 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
-#include "stdafx.h"
+#include "StdAfx.h"
 
 #include "Digest.h"
 #include <md5/md5.h>
 #include <array>
 #include <thread>
+#include <mutex>
 #include <condition_variable>
 
 namespace Digest_Private
@@ -20,7 +21,7 @@ namespace Digest_Private
 		void Push(const T& value)
 		{
 			{
-				std::unique_lock<std::mutex> lock(m_mutex);
+				std::lock_guard<std::mutex> lock(m_mutex);
 				assert(!m_bCompleted);
 				m_container.push_front(value);
 			}
@@ -30,7 +31,7 @@ namespace Digest_Private
 		void Complete()
 		{
 			{
-				std::unique_lock<std::mutex> lock(m_mutex);
+				std::lock_guard<std::mutex> lock(m_mutex);
 				m_bCompleted = true;
 			}
 			m_condition.notify_one();
@@ -50,7 +51,7 @@ namespace Digest_Private
 		}
 
 	private:
-		bool IsCompleted() const { return m_bCompleted && m_container.empty(); };
+		bool IsCompleted() const { return m_bCompleted && m_container.empty(); }
 
 	private:
 		std::mutex              m_mutex;

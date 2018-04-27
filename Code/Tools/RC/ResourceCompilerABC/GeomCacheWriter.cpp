@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 //
 //  Crytek Engine Source File.
 //  Copyright (C), Crytek Studios, 2012.
@@ -49,16 +49,15 @@ void GeomCacheDiskWriteThread::Run()
 
 	while(true)
 	{
-		ThreadUtils::CriticalSection &criticalSection = m_criticalSections[m_currentReadBuffer];		
-		criticalSection.Lock();
+		std::unique_lock<std::recursive_mutex> readbufferMutex(m_criticalSections[m_currentReadBuffer]);
 
 		// Wait until the current read buffer becomes filled or we need to exit
 		while(m_buffers[m_currentReadBuffer].empty() && !IsReadyToExit())
 		{
-			m_dataAvailableCV.Sleep(criticalSection);
+			m_dataAvailableCV.wait(readbufferMutex);
 		}
 
-		m_outstandingWritesCS.Lock();
+		m_outstandingWritesMutex.lock();
 
 		if (!IsReadyToExit())
 		{
@@ -94,14 +93,14 @@ void GeomCacheDiskWriteThread::Run()
 		}
 		else
 		{		
-			m_outstandingWritesCS.Unlock();
-			criticalSection.Unlock();
+			m_outstandingWritesMutex.unlock();
+			readbufferMutex.unlock();
 			break;
 		}		
 		
-		m_outstandingWritesCS.Unlock();
-		criticalSection.Unlock();
-		m_dataWrittenCV.WakeAll();
+		m_outstandingWritesMutex.unlock();
+		readbufferMutex.unlock();
+		m_dataWrittenCV.notify_all();
 	}
 
 	fclose(pFileHandle);	
@@ -117,12 +116,11 @@ void GeomCacheDiskWriteThread::Write(std::vector<char> &buffer, DiskWriteFuture 
 
 	InterlockedIncrement(&m_outstandingWrites);
 
-	ThreadUtils::CriticalSection &criticalSection = m_criticalSections[m_currentWriteBuffer];
-	criticalSection.Lock();
+	std::unique_lock<std::recursive_mutex> criticalSection(m_criticalSections[m_currentWriteBuffer]);
 
 	while(!m_buffers[m_currentWriteBuffer].empty())
 	{
-		m_dataWrittenCV.Sleep(criticalSection);
+		m_dataWrittenCV.wait(criticalSection);
 	}	
 
 	assert(!buffer.empty());
@@ -135,16 +133,16 @@ void GeomCacheDiskWriteThread::Write(std::vector<char> &buffer, DiskWriteFuture 
 
 	m_currentWriteBuffer = (m_currentWriteBuffer + 1) % m_kNumBuffers;
 
-	criticalSection.Unlock();
-	m_dataAvailableCV.Wake();
+	criticalSection.unlock();
+	m_dataAvailableCV.notify_one();
 }
 
 void GeomCacheDiskWriteThread::Flush()
 {
-	ThreadUtils::AutoLock lock(m_outstandingWritesCS);
+	std::unique_lock<std::recursive_mutex> lock(m_outstandingWritesMutex);
 	while(InterlockedCompareExchange(&m_outstandingWrites, 0, 0) != 0)
 	{
-		m_dataWrittenCV.Sleep(m_outstandingWritesCS);
+		m_dataWrittenCV.wait(m_outstandingWritesMutex);
 	}	
 }
 
@@ -152,17 +150,17 @@ void GeomCacheDiskWriteThread::EndThread()
 {
 	for (unsigned int i = 0; i < m_kNumBuffers; ++i)
 	{
-		m_criticalSections[m_currentReadBuffer].Lock();
+		m_criticalSections[m_currentReadBuffer].lock();
 	}
 
 	m_bExit = true;
 
 	for (unsigned int i = 0; i < m_kNumBuffers; ++i)
 	{
-		m_criticalSections[m_currentReadBuffer].Unlock();
+		m_criticalSections[m_currentReadBuffer].unlock();
 	}
 
-	m_dataAvailableCV.Wake();
+	m_dataAvailableCV.notify_one();
 
 	WaitForSingleObject(m_threadHandle, INFINITE);
 	CloseHandle(m_threadHandle);
@@ -199,7 +197,7 @@ GeomCacheBlockCompressionWriter::~GeomCacheBlockCompressionWriter()
 	Flush();
 
 	m_bExit = true;
-	m_jobFinishedCV.WakeAll();	
+	m_jobFinishedCV.notify_all();
 
 	WaitForSingleObject(m_threadHandle, INFINITE);
 }
@@ -213,31 +211,31 @@ unsigned int __stdcall GeomCacheBlockCompressionWriter::ThreadFunc(void *pParam)
 
 void GeomCacheBlockCompressionWriter::Run()
 {
-	ThreadUtils::AutoLock lock(m_jobFinishedCS);
+	std::unique_lock<std::recursive_mutex> lock(m_jobFinishedCS);
 	while(!m_bExit || m_numJobsRunning > 0)
 	{
 		PushCompletedBlocks();
 
 		if (!m_bExit || m_numJobsRunning > 0)
 		{
-			m_jobFinishedCV.Sleep(m_jobFinishedCS);		
+			m_jobFinishedCV.wait(m_jobFinishedCS);
 		}
 	}	
 }
 
 void GeomCacheBlockCompressionWriter::Flush()
 {
-	ThreadUtils::AutoLock writeBlockLock(m_lockWriter);
+	std::lock_guard<std::recursive_mutex> writeBlockMutex(m_lockWriter);
 		
 	// Just wait until write thread has no more jobs running
-	ThreadUtils::AutoLock lock(m_jobFinishedCS);
+	std::unique_lock<std::recursive_mutex> lock(m_jobFinishedCS);
 	while(m_numJobsRunning > 0)
 	{
 		PushCompletedBlocks();
 		
 		if (m_numJobsRunning > 0)
 		{
-			m_jobFinishedCV.Sleep(m_jobFinishedCS);		
+			m_jobFinishedCV.wait(m_jobFinishedCS);
 		}
 	}
 }
@@ -272,7 +270,7 @@ void GeomCacheBlockCompressionWriter::PushCompletedBlocks()
 			InterlockedDecrement(&m_numJobsRunning);
 			jobData.m_bWritten = true;			
 			++m_nextBlockToWrite;		
-			m_jobFinishedCV.WakeAll();
+			m_jobFinishedCV.notify_all();
 		}
 		else
 		{
@@ -290,7 +288,7 @@ void GeomCacheBlockCompressionWriter::PushData(const void *data, size_t size)
 
 uint64 GeomCacheBlockCompressionWriter::WriteBlock(bool bCompress, DiskWriteFuture *pFuture, long offset, int origin)
 {
-	ThreadUtils::AutoLock writeBlockLock(m_lockWriter);
+	std::lock_guard<std::recursive_mutex> writeBlockLock(m_lockWriter);
 
 	uint64 blockSize = m_data.size();
 
@@ -299,11 +297,14 @@ uint64 GeomCacheBlockCompressionWriter::WriteBlock(bool bCompress, DiskWriteFutu
 		return blockSize;
 	}
 
-	ThreadUtils::CriticalSection cs;
 	const uint numJobs = m_jobData.size();
 	while(m_numJobsRunning == numJobs)
 	{
-		m_jobFinishedCV.Sleep(cs);
+		std::unique_lock<std::recursive_mutex> lock(m_jobFinishedCS);
+		while (m_numJobsRunning == numJobs)
+		{
+			m_jobFinishedCV.wait(m_jobFinishedCS);
+		}
 	}
 
 	// Fill job data
@@ -327,7 +328,7 @@ uint64 GeomCacheBlockCompressionWriter::WriteBlock(bool bCompress, DiskWriteFutu
 	{
 		// Just directly pass to write thread
 		jobData.m_bFinished = true;
-		m_jobFinishedCV.WakeAll();
+		m_jobFinishedCV.notify_all();
 	}
 
 	return blockSize;
@@ -359,10 +360,10 @@ void GeomCacheBlockCompressionWriter::CompressJob(JobData *pJobData)
 	dataBuffer.insert(dataBuffer.begin() + sizeof(GeomCacheFile::SCompressedBlockHeader), compressedData.begin(), compressedData.end());
 
 	pJobData->m_data = dataBuffer;
-	m_jobFinishedCS.Lock();
+	m_jobFinishedCS.lock();
 	pJobData->m_bFinished = true;
-	m_jobFinishedCS.Unlock();
-	m_jobFinishedCV.WakeAll();
+	m_jobFinishedCS.unlock();
+	m_jobFinishedCV.notify_all();
 }
 
 GeomCacheWriter::GeomCacheWriter(const string &filename, GeomCacheFile::EBlockCompressionFormat compressionFormat, 
@@ -654,7 +655,7 @@ void GeomCacheWriter::GetFrameData(GeomCacheFile::SFrameHeader &header, const st
 		
 		if (mesh.m_animatedStreams != 0)
 		{
-			ThreadUtils::AutoLock jobLock(mesh.m_encodedFramesCS);
+			std::lock_guard<std::recursive_mutex> jobLock(mesh.m_encodedFramesMutex);
 			dataOffset += mesh.m_encodedFrames.front().size();
 		}
 	}
@@ -664,7 +665,7 @@ void GeomCacheWriter::GetFrameData(GeomCacheFile::SFrameHeader &header, const st
 
 void GeomCacheWriter::WriteNodeFrameRec(GeomCache::Node &node, const std::vector<GeomCache::Mesh*> &meshes, uint32 &bytesWritten)
 {
-	ThreadUtils::AutoLock jobLock(node.m_encodedFramesCS);
+	std::lock_guard<std::recursive_mutex> jobLock(node.m_encodedFramesMutex);
 	m_pCompressionWriter->PushData(node.m_encodedFrames.front().data(), 
 		node.m_encodedFrames.front().size());
 	bytesWritten += node.m_encodedFrames.front().size();
@@ -680,7 +681,7 @@ void GeomCacheWriter::WriteMeshFrameData(GeomCache::Mesh &mesh)
 {
 	if (mesh.m_animatedStreams != 0)
 	{		
-		ThreadUtils::AutoLock jobLock(mesh.m_encodedFramesCS);
+		std::lock_guard<std::recursive_mutex> jobLock(mesh.m_encodedFramesMutex);
 		m_pCompressionWriter->PushData(mesh.m_encodedFrames.front().data(), mesh.m_encodedFrames.front().size());
 		mesh.m_encodedFrames.pop_front();
 	}
