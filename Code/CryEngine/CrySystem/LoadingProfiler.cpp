@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 // -------------------------------------------------------------------------
 //  File name:   loadingprofiler.cpp
@@ -193,13 +193,13 @@ void CLoadingProfilerSystem::OutputLoadingTimeStats(ILog* pLog, int nMode)
 
 }
 
-struct CSystemEventListner_LoadingProfiler : public ISystemEventListener
+struct CSystemEventListener_LoadingProfiler : public ISystemEventListener
 {
 private:
 	CLoadingTimeProfiler* m_pPrecacheProfiler;
 	ESystemEvent          lastEvent;
 public:
-	CSystemEventListner_LoadingProfiler() : m_pPrecacheProfiler(NULL) {}
+	CSystemEventListener_LoadingProfiler() : m_pPrecacheProfiler(NULL) {}
 
 	virtual void OnSystemEvent(ESystemEvent event, UINT_PTR wparam, UINT_PTR lparam)
 	{
@@ -262,11 +262,11 @@ public:
 	}
 };
 
-static CSystemEventListner_LoadingProfiler g_system_event_listener_loadingProfiler;
+static CSystemEventListener_LoadingProfiler g_system_event_listener_loadingProfiler;
 
 void CLoadingProfilerSystem::Init()
 {
-	gEnv->pSystem->GetISystemEventDispatcher()->RegisterListener(&g_system_event_listener_loadingProfiler, "CSystemEventListner_LoadingProfiler");
+	gEnv->pSystem->GetISystemEventDispatcher()->RegisterListener(&g_system_event_listener_loadingProfiler, "CSystemEventListener_LoadingProfiler");
 }
 
 //////////////////////////////////////////////////////////////////////////

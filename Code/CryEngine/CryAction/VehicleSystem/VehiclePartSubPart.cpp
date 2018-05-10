@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 /*************************************************************************
    -------------------------------------------------------------------------
@@ -312,7 +312,7 @@ void CVehiclePartSubPart::GetMemoryUsageInternal(ICrySizer* pSizer) const
 }
 
 //------------------------------------------------------------------------
-const Matrix34& CVehiclePartSubPart::GetLocalInitialTM()
+Matrix34 CVehiclePartSubPart::GetLocalInitialTM()
 {
 	return m_savedTM;
 }

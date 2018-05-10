@@ -66,27 +66,6 @@ StructuredBuffer<SParticleAxes>        axesSRV        : register(t36);
 StructuredBuffer<SParticleColorST>     colorSTsSRV    : register(t37);
 StructuredBuffer<SDefaultParticleData> gpuParticleSRV : register(t14);
 
-// #PFX2_TODO make a tile shader header file to not duplicate this
-
-#define TILED_SHADING_MAX_NUM_LIGHTS  255
-
-struct STiledLightShadeInfo
-{
-	uint      lightType;
-	uint      resIndex;
-	uint      shadowMaskIndex;
-	uint      stencilID;
-	float4    posRad;
-	float2    attenuationParams;
-	float2    shadowParams;
-	float4    color;
-	float4x4  projectorMatrix;
-	float4x4  shadowMatrix;
-};
-StructuredBuffer<STiledLightShadeInfo> Fwd_TiledLightsShadeInfo : register(t18);
-TextureCubeArray<float4>               Fwd_SpecCubeArray        : register(t20);
-TextureCubeArray<float4>               Fwd_DiffuseCubeArray     : register(t21);
-
 // #PFX2_TODO add this to an include file for re-use
 Texture2D               texSceneTarget        : register(t25);
 SamplerState            ssForwardBilinearWrap : register(s10);

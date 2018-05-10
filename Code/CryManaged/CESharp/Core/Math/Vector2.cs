@@ -38,10 +38,8 @@ namespace CryEngine
 			{
 				int hash = 17;
 
-#pragma warning disable RECS0025 // Non-readonly field referenced in 'GetHashCode()'
 				hash = hash * 23 + _x.GetHashCode();
 				hash = hash * 23 + _y.GetHashCode();
-#pragma warning restore RECS0025 // Non-readonly field referenced in 'GetHashCode()'
 
 				return hash;
 			}
@@ -61,7 +59,7 @@ namespace CryEngine
 
 		public bool Equals(Vector2 other)
 		{
-			return MathHelpers.Approximately(_x, other.x) && MathHelpers.Approximately(_y, other.y);
+			return MathHelpers.IsEqual(_x, other.x) && MathHelpers.IsEqual(_y, other.y);
 		}
 
 		public override string ToString()
@@ -80,28 +78,10 @@ namespace CryEngine
 		{
 			if(nativeVector == null)
 			{
-				return Zero;
+				return Vector2.Zero;
 			}
 
 			return new Vector2(nativeVector.x, nativeVector.y);
-		}
-
-		public static explicit operator Vector2(Vector3 vector)
-		{
-			return new Vector2
-			{
-				X = vector.X,
-				Y = vector.Y
-			};
-		}
-
-		public static explicit operator Vector2(Vector4 vector)
-		{
-			return new Vector2
-			{
-				X = vector.X,
-				Y = vector.Y
-			};
 		}
 		#endregion
 
@@ -155,29 +135,9 @@ namespace CryEngine
 		#endregion
 
 		#region Functions
-		/// <summary>
-		/// Returns the dot product of this Vector2 and Vector2 v.
-		/// If the vectors are normalized the value will always be between 1 (vectors are the same) and -1 (vectors are opposites).
-		/// </summary>
-		/// <returns>The dot product.</returns>
-		/// <param name="v">Other direction vector.</param>
-		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		public float Dot(Vector2 v)
 		{
-			return Dot(this, v);
-		}
-
-		/// <summary>
-		/// Returns the dot product of Vector2 a and b.
-		/// If the vectors are normalized the value will always be between 1 (vectors are the same) and -1 (vectors are opposites).
-		/// </summary>
-		/// <returns>The dot product.</returns>
-		/// <param name="a">Direction vector a.</param>
-		/// <param name="b">Direction vector b.</param>
-		[MethodImpl(MethodImplOptions.AggressiveInlining)]
-		public static float Dot(Vector2 a, Vector2 b)
-		{
-			return a._x * b._x + a._y * b._y;
+			return _x * v.X + _y * v.Y;
 		}
 
 		[Obsolete("Please use IsNearlyZero")]
@@ -188,13 +148,13 @@ namespace CryEngine
 
 		public bool IsNearlyZero()
 		{
-			return (Math.Abs(_x) <= MathHelpers.Epsilon && Math.Abs(_y) <= MathHelpers.Epsilon);
+			return (Math.Abs(_x) <= MathHelpers.FloatEpsilon && Math.Abs(_y) <= MathHelpers.FloatEpsilon);
 		}
 		
 		public static Vector2 Lerp(Vector2 p, Vector2 q, float t)
 		{
 			t = Math.Max(Math.Min(1.0f, t), 0f);
-			return LerpUnclamped(p, q, t);
+			return Vector2.LerpUnclamped(p, q, t);
 		}
 
 		public static Vector2 LerpUnclamped(Vector2 p, Vector2 q, float t)
@@ -214,41 +174,27 @@ namespace CryEngine
 			CheckUnitVector(q, "q is not unit vector :"+q.ToString());
 			float cosine = (p.x * q.x) + (p.y * q.y);
 
-			if (MathHelpers.Approximately(cosine, 0.999999f, 0.000001f)) // vectors are almost parallel
+			if (MathHelpers.IsEqual(cosine, 0.999999f, MathHelpers.Precision.Precision_6)) // vectors are almost parallel
 			{
 				// use lerp
-				var result = Lerp(p, q, t);
+				Vector2 result = Lerp(p, q, t);
 				return result.Normalized;
 			}
-			var radians = (float)Math.Acos(cosine);
-			var scale_0 = (float)Math.Sin((1 - t) * radians);
-			var scale_1 = (float)Math.Sin(t * radians);
+			float radians = (float)Math.Acos(cosine);
+			float scale_0 = (float)Math.Sin((1 - t) * radians);
+			float scale_1 = (float)Math.Sin(t * radians);
 			Vector2 result2 = (p * scale_0 + q * scale_1) / (float)Math.Sin(radians);
 			return result2.Normalized;
 		}
 
 		[Conditional("DEBUG")]
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
-		private static void CheckUnitVector(Vector2 vector, string messageIfFalse)
+		private static void CheckUnitVector(Vector2 vector, String messageIfFalse)
 		{
 			if (1.0f - (vector.x * vector.x + vector.y * vector.y) > 0.005f)
 			{
-				Log.Always<Vector2>(messageIfFalse);
+				Log.Always(messageIfFalse);
 			}
-		}
-
-		/// <summary>
-		/// Returns the angle between Vector3 a and Vector3 b in radians.
-		/// </summary>
-		/// <returns>The angle in radians.</returns>
-		/// <param name="a">The first Vector3.</param>
-		/// <param name="b">The second Vector3.</param>
-		[MethodImpl(MethodImplOptions.AggressiveInlining)]
-		public static float Angle(Vector2 a, Vector2 b)
-		{
-			var normA = (1.0f - a.LengthSquared) > 0.005f ? a.Normalized : a;
-			var normB = (1.0f - b.LengthSquared) > 0.005f ? b.Normalized : b;
-			return (float)Math.Acos(Dot(normA, normB));
 		}
 		#endregion
 
@@ -324,7 +270,7 @@ namespace CryEngine
 						return _y;
 
 					default:
-					throw new ArgumentOutOfRangeException(nameof(index), "Indices must run from 0 to 1!");
+						throw new ArgumentOutOfRangeException("index", "Indices must run from 0 to 1!");
 				}
 			}
 			set
@@ -339,7 +285,7 @@ namespace CryEngine
 						break;
 
 					default:
-					throw new ArgumentOutOfRangeException(nameof(index), "Indices must run from 0 to 1!");
+						throw new ArgumentOutOfRangeException("index", "Indices must run from 0 to 1!");
 				}
 			}
 		}

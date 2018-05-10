@@ -1,6 +1,6 @@
 #pragma once
 
-#define eCryModule eCryM_EnginePlugin
+#define eCryModule eCryM_Legacy
 
 #include <CryCore/Project/CryModuleDefs.h>
 #include <CryCore/Platform/platform.h>

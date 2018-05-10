@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 /*************************************************************************
    -------------------------------------------------------------------------
@@ -77,7 +77,7 @@ bool CSDLMouse::Init()
 
 	#if defined(LINUXINPUT_AUTOGRAB)
 	GrabInput();
-	//SDL_SetWindowGrab(static_cast<SDL_Window*>(gEnv->pRenderer->GetCurrentContextHWND()),SDL_TRUE);
+	//SDL_SetWindowGrab(static_cast<SDL_Window*>(gEnv->pRenderer->GetHWND()),SDL_TRUE);
 	//m_bGrabInput = true;RUE
 	#endif
 	return true;
@@ -296,7 +296,7 @@ void CSDLMouse::GrabInput()
 
 	if (m_bGrabInput)
 		return;
-	SDL_Window* pWindow = *static_cast<SDL_Window**>(m_pRenderer->GetCurrentContextHWND());
+	SDL_Window* pWindow = *static_cast<SDL_Window**>(m_pRenderer->GetHWND());
 	if (!pWindow) return;
 	SDL_SetWindowGrab(pWindow, SDL_TRUE);
 
@@ -399,7 +399,7 @@ void CSDLMouse::UngrabInput()
 		return;
 	m_bGrabInput = false;
 
-	SDL_SetWindowGrab(*static_cast<SDL_Window**>(m_pRenderer->GetCurrentContextHWND()), SDL_FALSE);
+	SDL_SetWindowGrab(*static_cast<SDL_Window**>(m_pRenderer->GetHWND()), SDL_FALSE);
 	if (SDL_SetRelativeMouseMode(SDL_FALSE) != 0)
 		CryLogAlways("SDL: Could not unset relative mouse mode: %s", SDL_GetError());
 	SDL_ShowCursor(SDL_ENABLE);

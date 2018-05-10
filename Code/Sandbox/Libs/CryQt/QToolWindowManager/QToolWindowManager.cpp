@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 
@@ -1085,6 +1085,14 @@ IToolWindowWrapper* QToolWindowManager::restoreWrapperState(const QVariantMap &d
 
 	if (data.contains("geometry"))
 	{
+		// Adjust position of frameless non-maximized windows since Qt will otherwise adjust for a non-existant frame (as of Qt 5.6)
+		if (wrapper->getWidget()->windowFlags().testFlag(Qt::FramelessWindowHint) && !wrapper->getWidget()->windowState().testFlag(Qt::WindowMaximized))
+		{
+			QWidget* w = wrapper->getWidget();
+			QRect r = w->geometry();
+			r.translate(QPoint(w->x() - r.x(), w->y() - r.y()));
+			w->setGeometry(r);
+		}
 		// If geometry was not saved, do not show.
 		wrapper->getWidget()->show();
 	}
@@ -1190,6 +1198,27 @@ QSplitter *QToolWindowManager::restoreSplitterState(const QVariantMap &data, int
 		break;
 	}
 	return splitter;
+}
+
+void QToolWindowManager::resizeSplitter(QWidget* widget, QList<int> sizes)
+{
+	QSplitter* s = qobject_cast<QSplitter*>(widget);
+	if (!s)
+	{
+		s = findClosestParent<QSplitter*>(widget);
+	}
+	if (!s)
+	{
+		qWarning("Could not find a matching splitter!");
+		return;
+	}
+
+	int scaleFactor = s->orientation() == Qt::Horizontal ? s->width() : s->height();
+	for (auto it = sizes.begin(); it != sizes.end(); it++)
+	{
+		*it *= scaleFactor;
+	}
+	s->setSizes(sizes);
 }
 
 QString QToolWindowManager::textForPosition(QToolWindowAreaReference reference)
@@ -1426,3 +1455,4 @@ QToolWindowManager::QTWMNotifyLock::~QTWMNotifyLock()
 		m_parent->notifyLayoutChange();
 	}
 }
+

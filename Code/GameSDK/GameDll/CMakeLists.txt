@@ -1359,7 +1359,6 @@ end_sources()
 #END-FILE-LIST
 
 add_subdirectory(${CRYENGINE_DIR}/Code/CryPlugins/CryLobby "${CMAKE_CURRENT_BINARY_DIR}/CryLobby")
-add_subdirectory(${CRYENGINE_DIR}/Code/CryPlugins/CryPerceptionSystem/Module "${CMAKE_CURRENT_BINARY_DIR}/CryPerceptionSystem")
 
 CryGameModule(CryGameSDK PCH "StdAfx.cpp" SOLUTION_FOLDER "Projects/GameSDK")
 
@@ -1395,4 +1394,54 @@ elseif(DURANGO)
 	)
 elseif(ANDROID)
 	target_link_libraries(${THIS_PROJECT} PRIVATE CryAction)
+endif()
+
+if (ORBIS OR CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+	target_compile_options(${THIS_PROJECT} PRIVATE
+		-Wno-unused-variable
+		-Wno-parentheses
+		-Wno-reorder
+		-Wno-unused-value
+		-Wno-unknown-pragmas
+		-Wno-format
+		-Wno-unused-private-field
+		-Wno-multichar
+		-Wno-empty-body
+		-Wno-unused-const-variable
+		-Wno-switch
+		-Wno-unused-function
+		-Wno-char-subscripts
+		-Wno-c++11-narrowing
+		-Wno-address-of-packed-member
+		-Wno-invalid-offsetof
+		-Wno-dynamic-class-memaccess
+		-Wno-overloaded-virtual
+		-Wno-writable-strings
+		-Wno-comment
+	)
+elseif(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+	target_compile_options(${THIS_PROJECT} PRIVATE
+		-Wno-unused-function
+		-Wno-unused-value
+		-Wno-unused-variable
+		-Wno-sign-compare
+		-Wno-ignored-attributes
+		-Wno-int-in-bool-context
+		-Wno-unused-but-set-variable
+		-Wno-misleading-indentation
+		-Wno-logical-not-parentheses
+		-Wno-unknown-pragmas
+		-Wno-maybe-uninitialized
+		-Wno-strict-aliasing
+		-Wno-uninitialized
+		-Wno-unused-const-variable
+		-Wno-multichar
+		-Wno-char-subscripts
+		-Wno-narrowing
+		-Wno-parentheses
+		-Wno-comment
+		-Wno-address
+		-Wno-format
+		-Wno-switch
+	)
 endif()

@@ -1,15 +1,5 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved.
 
-/*************************************************************************
-   -------------------------------------------------------------------------
-   $Id$
-   $DateTime$
-
-   -------------------------------------------------------------------------
-   History:
-   - 22:1:2007   11:07 : Created by Marcio Martins
-
-*************************************************************************/
 #include "StdAfx.h"
 #include "CryAction.h"
 #include "GameplayRecorder.h"
@@ -21,7 +11,7 @@ CGameplayRecorder::CGameplayRecorder(CCryAction* pGameFramework)
 	: m_pGameFramework(pGameFramework),
 	m_lastdiscreet(0.0f),
 	m_sampleinterval(0.5f),
-	m_pGameStateRecorder(NULL)
+	m_pGameStateRecorder(nullptr)
 {
 	//m_pMetadataRecorder->InitSave("GameData.meta");
 	m_listeners.reserve(12);
@@ -141,7 +131,7 @@ void CGameplayRecorder::CExampleMetadataListener::RecordGameData()
 			pActorMetadata->AddField(eDT_name, eBT_str, (uint8*)sActorName.data(), static_cast<uint8>(sActorName.size()));
 			Vec3 pos = pActor->GetEntity()->GetWorldPos();
 			pActorMetadata->AddField(eDT_position, eBT_vec3, (uint8*)&pos, sizeof(pos));
-			if (pActor != NULL)
+			if (pActor != nullptr)
 			{
 				uint8 health = pActor->GetHealthAsRoundedPercentage();
 				pActorMetadata->AddField(eDT_health, eBT_i08, &health, 1);
@@ -210,43 +200,26 @@ void CGameplayRecorder::CExampleMetadataListener::OnData(const IMetadata* metada
 	{
 	case eDT_frame:
 		{
-			CTimeValue tv;
-			if (const int64* temp = boost::get<const int64>(&data.GetValue()))
-				tv = *temp;
+			const CTimeValue& tv = stl::get<int64>(data.GetValue());
 			CryLog("frame %f", tv.GetSeconds());
 		}
 		break;
 
 	case eDT_entity:
 		{
-			string name;
-			if (const string* temp = boost::get<const string>(&data.GetField(eDT_name).GetValue()))
-				name = *temp;
-			string type;
-			if (const string* temp = boost::get<const string>(&data.GetField(eDT_type).GetValue()))
-				type = *temp;
-			Vec3 pos;
-			if (const Vec3* temp = boost::get<const Vec3>(&data.GetField(eDT_position).GetValue()))
-				pos = *temp;
-
+			const auto& name = stl::get<string>(data.GetField(eDT_name).GetValue());
+			const auto& type = stl::get<string>(data.GetField(eDT_type).GetValue());
+			const auto& pos = stl::get<Vec3>(data.GetField(eDT_position).GetValue());
 			CryLog("entity [%s] [%s] [%f,%f,%f]", name.c_str(), type.c_str(), pos.x, pos.y, pos.z);
 		}
 		break;
 
 	case eDT_actor:
 		{
-			string name;
-			if (const string* temp = boost::get<const string>(&data.GetField(eDT_name).GetValue()))
-				name = *temp;
-			Vec3 pos;
-			if (const Vec3* temp = boost::get<const Vec3>(&data.GetField(eDT_position).GetValue()))
-				pos = *temp;
-			string item;
-			if (const string* temp = boost::get<const string>(&data.GetField(eDT_item).GetField(eDT_name).GetValue()))
-				item = *temp;
-			string firemode;
-			if (const string* temp = boost::get<const string>(&data.GetField(eDT_item).GetField(eDT_weapon).GetField(eDT_firemode).GetValue()))
-				firemode = *temp;
+			const auto& name = stl::get<string>(data.GetField(eDT_name).GetValue());
+			const auto& pos = stl::get<Vec3>(data.GetField(eDT_position).GetValue());
+			const auto& item = stl::get<string>(data.GetField(eDT_item).GetField(eDT_name).GetValue());
+			const auto& firemode = stl::get<string>(data.GetField(eDT_item).GetField(eDT_weapon).GetField(eDT_firemode).GetValue());
 			CryLog("actor [%s] [%s] [%s] [%f,%f,%f]", name.c_str(), item.c_str(), firemode.c_str(), pos.x, pos.y, pos.z);
 		}
 		break;

@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 // ------------------------------------------------------------------------
 //  File name:   WaterWavesRenderNode.cpp
@@ -248,7 +248,7 @@ void CWaterWaveRenderNode::Update(float fDistanceToCamera)
 
 	// Check distance to terrain
 	Vec3 pCenterPos = m_pParams.m_pPos;
-	float fTerrainZ(GetTerrain()->GetZApr(pCenterPos.x, pCenterPos.y, m_nSID));
+	float fTerrainZ(GetTerrain()->GetZApr(pCenterPos.x, pCenterPos.y));
 	m_fCurrTerrainDepth = max(pCenterPos.z - fTerrainZ, 0.0f);
 
 	float fDepthAttenuation = clamp_tpl<float>(m_fCurrTerrainDepth * 0.2f, 0.0f, 1.0f);
@@ -305,7 +305,7 @@ void CWaterWaveRenderNode::Render(const SRendParams& rParam, const SRenderingPas
 	IRenderer* pRenderer(GetRenderer());
 
 	// get render objects
-	CRenderObject* pRenderObj(pRenderer->EF_GetObject_Temp(passInfo.ThreadID()));
+	CRenderObject* pRenderObj(passInfo.GetIRenderView()->AllocateTemporaryRenderObject());
 	if (!pRenderObj)
 		return; // false;
 
@@ -318,7 +318,7 @@ void CWaterWaveRenderNode::Render(const SRendParams& rParam, const SRenderingPas
 
 	// Fill in data for render object
 
-	pRenderObj->m_II.m_Matrix = m_pWorldTM;
+	pRenderObj->SetMatrix(m_pWorldTM, passInfo);
 	pRenderObj->m_fSort = 0;
 	pRenderObj->m_ObjFlags |= FOB_TRANS_MASK;
 	SRenderObjData* pOD = pRenderObj->GetObjData();
@@ -385,7 +385,7 @@ void CWaterWaveRenderNode::SetRenderMesh(IRenderMesh* pRenderMesh)
 
 void CWaterWaveRenderNode::OffsetPosition(const Vec3& delta)
 {
-	if (m_pTempData) m_pTempData->OffsetPosition(delta);
+	if (const auto pTempData = m_pTempData.load()) pTempData->OffsetPosition(delta);
 	m_pOrigPos += delta;
 	m_pWorldTM.SetTranslation(m_pWorldTM.GetTranslation() + delta);
 	m_pMin += delta;

@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 /********************************************************************
    ---------------------------------------------------------------------
@@ -131,7 +131,7 @@ void CPersonalInterestManager::Assign(CWeakRef<CAIActor> refAIActor)
 
 bool CPersonalInterestManager::Update(bool bCloseToCamera)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 	if (m_bIsPlayingAction)
 		return false;
@@ -259,7 +259,7 @@ void CPersonalInterestManager::SetSettings(bool bEnablePIM, float fInterestFilte
 //------------------------------------------------------------------------------------------------------------------------
 const SEntityInterest* CPersonalInterestManager::PickMostInteresting() const
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 	CAIActor* pAIActor = m_refAIActor.GetAIObject();
 	if (!pAIActor)
@@ -344,7 +344,7 @@ IEntity* CPersonalInterestManager::GetInterestEntity() const
 //------------------------------------------------------------------------------------------------------------------------
 bool CPersonalInterestManager::CheckVisibility(const SEntityInterest& interestingRef) const
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 	CAIActor* pAIActor = m_refAIActor.GetAIObject();
 	if (pAIActor)

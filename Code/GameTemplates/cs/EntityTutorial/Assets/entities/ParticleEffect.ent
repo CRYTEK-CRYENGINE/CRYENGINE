@@ -1,5 +1,0 @@
-<Entity
- Name="ParticleEffect" 
- Script="Scripts/Entities/Particle/ParticleEffect.lua"
- Invisible="1"
-/>

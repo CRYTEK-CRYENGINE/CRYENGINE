@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 #pragma once
 
 #include "CommonICryLobby.h"
@@ -75,15 +75,14 @@ struct CryUserID
 
 const CryUserID CryUserInvalidID = NULL;
 
-#if USE_STEAM
 class CLobbyString : public string
 {
 public:
 	CLobbyString() : string() {}
-	CLobbyString(uint32 n) : string() { char buff[32]; cry_sprintf(buff, "%u", n); assign(buff); }
+	CLobbyString(uint32 n) : string() { Format("%u", n); }
 	CLobbyString(string s) : string(s) {}
-	CLobbyString(uint16 n) : string() { char buff[32]; cry_sprintf(buff, "%u", n); assign(buff); }
-	CLobbyString(int n) : string() { char buff[32]; cry_sprintf(buff, "%i", n); assign(buff); }
+	CLobbyString(uint16 n) : string() { Format("%u", n); }
+	CLobbyString(int n) : string() { Format("%i", n); }
 	bool operator==(const CLobbyString& other) { return compare(other) == 0; }
 	bool operator==(CLobbyString& other) { return compare(other) == 0; }
 	CLobbyString(const CLobbyString& s) : string(s) {}
@@ -91,9 +90,6 @@ private:
 	CLobbyString(const char* p) {}
 };
 typedef CLobbyString CryLobbyUserDataID;
-#else
-typedef uint32       CryLobbyUserDataID;
-#endif
 
 enum ECryLobbyUserDataType
 {

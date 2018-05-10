@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #ifndef __MAXHELPERS_H__
 #define __MAXHELPERS_H__
@@ -103,7 +103,8 @@ namespace MaxHelpers
 		{
 			return string();
 		}
-		return PathHelpers::GetAbsoluteAsciiPath(StringHelpers::ConvertAnsiToUtf16(s_ansi).c_str());
+
+		return CreateAsciiString(PathHelpers::GetAbsolutePath(StringHelpers::ConvertAnsiToUtf16(s_ansi).c_str()).c_str());
 	}
 
 
@@ -113,7 +114,7 @@ namespace MaxHelpers
 		{
 			return string();
 		}
-		return PathHelpers::GetAbsoluteAsciiPath(s_utf16);
+		return CreateAsciiString(PathHelpers::GetAbsolutePath(s_utf16).c_str());
 	}
 }
 

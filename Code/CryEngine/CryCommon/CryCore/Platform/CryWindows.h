@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 // -------------------------------------------------------------------------
 //  File name:   CryWindows.h
@@ -45,6 +45,9 @@
 		#undef GetCharWidth
 		#undef GetUserName
 		#undef LoadLibrary
+#if !defined(RESOURCE_COMPILER)
+		#undef MessageBox // Disable usage of MessageBox, we want CryMessageBox to be used instead
+#endif
 	#endif
 
 	#ifdef CRY_PLATFORM_DURANGO

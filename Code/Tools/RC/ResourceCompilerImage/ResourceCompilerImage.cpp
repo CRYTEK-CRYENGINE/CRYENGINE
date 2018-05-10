@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 // ResourceCompilerImage.cpp : Defines the entry point for the DLL application.
 //
@@ -250,5 +250,14 @@ void __stdcall RegisterConverters(IResourceCompiler* pRC)
 		pRC->RegisterKey("decompress", "[DDS] 0/1 to decompress dds to tif");
 		pRC->RegisterKey("dont_split","[DDS] don't split the file for streaming layout");	
 		pRC->RegisterKey("numstreamablemips", "[DDS] Number of mips that should be available for streaming - defaults to all");
+	}
+
+	// Old RC (before 2013) incorrectly saved 16-bit float TIFF.
+	{
+		pRC->RegisterKey("CryTIF2012", 
+			"[TIF] Preventing interpretation of old CryTif 16-bit float images as 16-bit uint images\n"
+			"      0 - disabled (default)\n"
+			"      1 - CryTIF 2012 compatibility mode"
+		);
 	}
 }

@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -200,6 +200,7 @@ public:
 private:
 	int    getBonePhysChildIndex(int nBoneIndex, int nLod = 0) const;
 	uint32 getBoneParentIndex(uint32 nBoneIndex) const;
+	int    GetPhysRoot() const;
 
 	int    GetModelJointChildIndex(int nBone, int i) const
 	{

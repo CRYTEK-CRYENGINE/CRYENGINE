@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 //////////////////////////////////////////////////////////////////////////
 
@@ -144,7 +144,7 @@ void CPlatformService::ThreadEntry()
 			if (errCode == CrySock::eCSE_EWOULDBLOCK || errCode == CrySock::eCSE_ETIMEDOUT)
 			{
 				// just a timeout
-				Sleep(500);
+				CrySleep(500);
 				continue;
 			}
 

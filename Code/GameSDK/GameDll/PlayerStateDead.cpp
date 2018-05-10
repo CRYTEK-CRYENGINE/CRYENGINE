@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 /*************************************************************************
 -------------------------------------------------------------------------
@@ -100,7 +100,7 @@ void CPlayerStateDead::OnEnter( CPlayer& player )
 
 void CPlayerStateDead::OnLeave( CPlayer& player )
 {
-	player.GetEntity()->KillTimer( RECYCLE_AI_ACTOR_TIMER_ID );
+	player.KillTimer( RECYCLE_AI_ACTOR_TIMER_ID );
 }
 
 void CPlayerStateDead::OnPrePhysicsUpdate( CPlayer& player, const SActorFrameMovementParams& movement, float frameTime ) 
@@ -187,7 +187,7 @@ void CPlayerStateDead::UpdateAICorpseStatus( CPlayer& player, const CPlayerState
 			}
 
 			// Schedule recycling (doing during update might end in a crash)
-			player.GetEntity()->SetTimer( RECYCLE_AI_ACTOR_TIMER_ID, 1000 );
+			player.SetTimer( RECYCLE_AI_ACTOR_TIMER_ID, 1000 );
 
 			m_corpseUpdateStatus = eCorpseStatus_SwapDone;
 		}

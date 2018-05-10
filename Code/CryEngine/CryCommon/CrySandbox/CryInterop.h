@@ -1,4 +1,6 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
+ 
+//! \cond INTERNAL
 
 #pragma once
 
@@ -109,3 +111,5 @@ private:
 	TQueries m_queries;
 	string   m_uri;
 };
+
+//! \endcond

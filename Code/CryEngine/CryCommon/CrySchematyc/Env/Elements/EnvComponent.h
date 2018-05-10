@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -8,7 +8,6 @@
 #include "CrySchematyc/FundamentalTypes.h"
 #include "CrySchematyc/Env/EnvElementBase.h"
 #include "CrySchematyc/Env/Elements/IEnvComponent.h"
-
 
 #define SCHEMATYC_MAKE_ENV_COMPONENT(component) Schematyc::EnvComponent::MakeShared<component>(SCHEMATYC_SOURCE_FILE_INFO)
 
@@ -58,6 +57,25 @@ public:
 	virtual std::shared_ptr<IEntityComponent> CreateFromPool() const override
 	{
 		return std::allocate_shared<COMPONENT>(m_allocator);
+	}
+
+	virtual size_t GetSize() const override
+	{
+		return sizeof(COMPONENT);
+	}
+
+	virtual std::shared_ptr<IEntityComponent> CreateFromBuffer(void* pBuffer) const override
+	{
+		struct CustomDeleter
+		{
+			void operator()(COMPONENT* pComponent)
+			{
+				// Explicit call to the destructor
+				pComponent->~COMPONENT();
+			}
+		};
+
+		return std::shared_ptr<COMPONENT>(new(pBuffer) COMPONENT(), CustomDeleter());
 	}
 
 	// ~IEnvComponent

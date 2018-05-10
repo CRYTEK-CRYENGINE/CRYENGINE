@@ -427,7 +427,7 @@ float2 ClampScreenTC(float2 TC, float2 maxTC)
 
 float2 ClampScreenTC(float2 TC)
 {
-	return clamp(TC, 0, PS_HPosScale.xy);
+	return clamp(TC, 0, CV_HPosScale.xy);
 }
 
 NORMALS_FITTING_MAP
@@ -626,6 +626,22 @@ half DecodeGBufferTransmittanceLum( half4 bufferA )
 {
 	half lightingModel = floor( bufferA.w * TWO_BITS_EXTRACTION_FACTOR );
 	return (lightingModel == LIGHTINGMODEL_TRANSMITTANCE) ? frac( bufferA.w * TWO_BITS_EXTRACTION_FACTOR ) : 0;
+}
+
+uint selectCubeFace(in float3 lightVec)
+{
+	float3 dir = abs(lightVec);
+
+	bool3 pmag = bool3(dir.x > dir.y, dir.y > dir.z, dir.x > dir.z);
+	bool3 nmag = bool3(dir.x <= dir.y, dir.y <= dir.z, dir.x <= dir.z); 
+	bool3 flp  = bool3(lightVec.x == dir.x, lightVec.y == dir.y, lightVec.z == dir.z); 
+
+	uint cubeFace = 
+		(pmag.x) * (pmag.z) * (0 + flp.x) +
+		(nmag.x) * (pmag.y) * (2 + flp.y) +
+		(nmag.z) * (nmag.y) * (4 + flp.z); 
+		
+	return cubeFace;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -921,4 +937,17 @@ float2 MapUnnormalizedRasterToViewport(float2 unnormalizedRasterPos)
 	#else
 		return NV_VR_MapWindowToUV(NvGetProjectionData(), unnormalizedRasterPos);
 	#endif
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+// Full screen triangle creation from vertexID.
+
+float4 GetHPos_FromTriVertexID(uint vertexID)
+{
+	return float4(float2(((vertexID << 1) & 2) * 2.0, (vertexID == 0) ? -4.0 : 0.0) + float2(-1.0, 1.0), 0.0, 1.0);
+}
+
+float2 GetBaseTC_FromTriVertexID(uint vertexID)
+{
+	return float2((vertexID << 1) & 2, (vertexID == 0) ? 2.0 : 0.0);
 }

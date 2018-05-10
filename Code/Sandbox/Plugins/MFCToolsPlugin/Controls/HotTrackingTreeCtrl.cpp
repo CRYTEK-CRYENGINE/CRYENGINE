@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "HotTrackingTreeCtrl.h"
@@ -38,3 +38,4 @@ BOOL CHotTrackingTreeCtrl::OnMouseWheel(UINT nFlags, short zDelta, CPoint pt)
 	}
 	return CTreeCtrl::OnMouseWheel(nFlags, zDelta, pt);
 }
+

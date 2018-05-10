@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 /*************************************************************************
    -------------------------------------------------------------------------
@@ -28,19 +28,19 @@ public:
 	~CVehiclePartMassBox();
 
 	// IVehiclePart
-	virtual bool            Init(IVehicle* pVehicle, const CVehicleParams& table, IVehiclePart* parent, CVehicle::SPartInitInfo& initInfo, int partType) override;
-	virtual void            Reset() override;
+	virtual bool        Init(IVehicle* pVehicle, const CVehicleParams& table, IVehiclePart* parent, CVehicle::SPartInitInfo& initInfo, int partType) override;
+	virtual void        Reset() override;
 
-	virtual void            Physicalize() override;
+	virtual void        Physicalize() override;
 
-	virtual const Matrix34& GetLocalTM(bool relativeToParentPart, bool forced = false) override;
-	virtual const Matrix34& GetWorldTM() override;
-	virtual const AABB&     GetLocalBounds() override;
+	virtual Matrix34    GetLocalTM(bool relativeToParentPart, bool forced = false) override;
+	virtual Matrix34    GetWorldTM() override;
+	virtual const AABB& GetLocalBounds() override;
 
-	virtual void            Update(const float frameTime) override;
-	virtual void            Serialize(TSerialize ser, EEntityAspects aspects) override;
+	virtual void        Update(const float frameTime) override;
+	virtual void        Serialize(TSerialize ser, EEntityAspects aspects) override;
 
-	virtual void            GetMemoryUsage(ICrySizer* s) const override
+	virtual void        GetMemoryUsage(ICrySizer* s) const override
 	{
 		s->Add(*this);
 		CVehiclePartBase::GetMemoryUsageInternal(s);

@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "LipSync_FacialInstance.h"
@@ -176,7 +176,7 @@ void CLipSync_FacialInstance::HandleEvent(const SGameObjectEvent& event)
 {
 }
 
-void CLipSync_FacialInstance::ProcessEvent(SEntityEvent& event)
+void CLipSync_FacialInstance::ProcessEvent(const SEntityEvent& event)
 {
 }
 

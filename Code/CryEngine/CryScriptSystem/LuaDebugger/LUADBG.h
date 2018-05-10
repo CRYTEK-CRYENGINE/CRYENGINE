@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -89,12 +89,12 @@ public:
 		*pppText = &pszText;
 		strm.dwCookie = (DWORD_PTR) pppText;
 		strm.dwError = 0;
-		strm.pfnCallback = EditStreamCallback;
+		strm.pfnCallback = &CSourceEdit::EditStreamCallback;
 		m_wEditWindow.SendMessage(EM_LIMITTEXT, 0x7FFFFFF, 0);
 		return (BOOL)m_wEditWindow.SendMessage(EM_STREAMIN, SF_RTF, (LPARAM) &strm);
 	};
 
-	friend DWORD CALLBACK EditStreamCallback(DWORD_PTR dwCookie, LPBYTE pbBuff, LONG cb, LONG* pcb)
+	static DWORD CALLBACK EditStreamCallback(DWORD_PTR dwCookie, LPBYTE pbBuff, LONG cb, LONG* pcb)
 	{
 		char*** pppText = reinterpret_cast<char***>(dwCookie);
 		char** ppText = *pppText;
@@ -116,12 +116,12 @@ public:
 		EDITSTREAM stream;
 		stream.dwCookie = (DWORD_PTR) &result;
 		stream.dwError = 0;
-		stream.pfnCallback = EditStreamCallbackOut;
+		stream.pfnCallback = &CSourceEdit::EditStreamCallbackOut;
 		m_wEditWindow.SendMessage(EM_STREAMOUT, SF_TEXT, (LPARAM) &stream);
 		return result;
 	}
 
-	friend DWORD CALLBACK EditStreamCallbackOut(DWORD_PTR dwCookie, LPBYTE pbBuff, LONG cb, LONG* pcb)
+	static DWORD CALLBACK EditStreamCallbackOut(DWORD_PTR dwCookie, LPBYTE pbBuff, LONG cb, LONG* pcb)
 	{
 		string* str = reinterpret_cast<string*>(dwCookie);
 		str->append((const char*)pbBuff, cb);

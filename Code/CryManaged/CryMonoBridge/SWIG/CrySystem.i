@@ -10,7 +10,6 @@
 %import <CryDynamicResponseSystem.i>
 %import <CryEntitySystem.i>
 %import <CryFont.i>
-%import <CryGame.i>
 %import <CryInput.i>
 %import <CryMonoBridge.i>
 %import <CryLobby.i>
@@ -47,6 +46,7 @@
 #include <CrySystem/ZLib/IZLibCompressor.h>
 #include <CrySystem/ZLib/IZlibDecompressor.h>
 #include <CrySystem/ICryMiniGUI.h>
+#include <CrySystem/ICmdLine.h>
 #include <CryThreading/IThreadManager.h>
 #include <CryThreading/IJobManager.h>
 

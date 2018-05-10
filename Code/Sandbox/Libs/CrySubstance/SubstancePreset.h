@@ -91,3 +91,4 @@ private:
 	bool m_uniformResolution;
 };
 
+

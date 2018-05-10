@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "ParticleSubEmitter.h"
@@ -297,7 +297,7 @@ void CParticleSubEmitter::EmitParticles(SParticleUpdateContext& context)
 
 							if (!EmitParticle(context, data, fPast))
 							{
-								GetContainer().GetCounts().ParticlesReject += (fPast - fMinPast) / fAgeIncrement;
+								GetContainer().GetCounts().particles.reject += (fPast - fMinPast) / fAgeIncrement;
 								break;
 							}
 						}
@@ -310,7 +310,7 @@ void CParticleSubEmitter::EmitParticles(SParticleUpdateContext& context)
 						{
 							if (!EmitParticle(context, data, fAge - m_fStartAge))
 							{
-								GetContainer().GetCounts().ParticlesReject += nEmit;
+								GetContainer().GetCounts().particles.reject += nEmit;
 								break;
 							}
 						}
@@ -369,7 +369,7 @@ bool CParticleSubEmitter::GetMoveRelative(Vec3& vPreTrans, QuatTS& qtsMove) cons
 
 void CParticleSubEmitter::UpdateForce()
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_PARTICLE);
+	CRY_PROFILE_FUNCTION(PROFILE_PARTICLE);
 
 	// Set or clear physical force.
 
@@ -581,7 +581,7 @@ void CParticleSubEmitter::UpdateForce()
 
 void CParticleSubEmitter::UpdateAudio()
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_PARTICLE);
+	CRY_PROFILE_FUNCTION(PROFILE_PARTICLE);
 	SpawnParams const& spawnParams = GetMain().GetSpawnParams();
 
 	if (spawnParams.bEnableAudio && GetCVars()->e_ParticlesAudio > 0)

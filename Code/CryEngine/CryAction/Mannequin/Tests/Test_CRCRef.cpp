@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include <ICryMannequinDefs.h>
@@ -109,8 +109,6 @@ CRY_UNIT_TEST(SCRCRef_Serialization_NotStoreString)
 
 //// Currently broken. (June 2017)
 //// Serialization::SaveXmlNode should produce xmlnode with 2 attributes ("CryXmlVersion" + "Wrapped") but somehow only "CryXmlVersion" was there.
-//// Disabled as it takes too much effort to figure out.
-
 //CRY_UNIT_TEST(SCRCRef_Serialization_NotStoreString_Empty)
 //{
 //	const SCRCRefWrapper<SCRCRef<0>> src;

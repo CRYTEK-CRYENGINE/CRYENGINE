@@ -23,14 +23,10 @@
  <Job input="*.lua" assettypes="lua,Script" />
  <Job input="*.pfx" assettypes="pfx,Particles" />
  <Job input="*.xml" assettypes="xml,Xml" />
+ <Job input="*.cs" assettypes="cs,CSharpScript" />
+ <Job input="*.schematyc_ent" assettypes="schematyc_ent,SchematycEntity" />
 </AssetsJob>
 
- <!-- Levels -->
-<LevelsJob>
- <Job overwriteextension="cryasset" sourceroot="${src}/levels" input="*.cry" assettypes="cry,Level" />
-</LevelsJob>
-
 <Run Job="AssetsJob"/>
-<Run Job="LevelsJob"/>
 
 </RCJobs>

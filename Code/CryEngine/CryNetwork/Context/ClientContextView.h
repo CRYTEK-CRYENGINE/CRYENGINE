@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 /*************************************************************************
    -------------------------------------------------------------------------
@@ -207,7 +207,7 @@ private:
 	std::set<EntityId> m_predictedSpawns;
 
 #if ENABLE_DEBUG_KIT
-	std::auto_ptr<CNetVis> m_pNetVis;
+	std::unique_ptr<CNetVis> m_pNetVis;
 	float                  m_startUpdate;
 	Vec3                   m_curWorldPos;
 #endif

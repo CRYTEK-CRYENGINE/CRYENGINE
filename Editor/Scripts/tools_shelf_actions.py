@@ -398,15 +398,15 @@ def toggleHideByT(mode, type, onValue, offValue, ctrlFile):
 						hideByType(type)
 
 def hideByType(type):	
-	typeList = general.get_all_objects(str(type), "")
+	typeList = object.get_all_objects(str(type), "")
 	#print typeList
-	#general.select_objects(typeList)
+	#selection.select_objects(typeList)
 	for x in typeList:
-		general.hide_object(x)
+		object.hide(x)
 			
 def unHideByType(type):				
-	typeList = general.get_all_objects(str(type), "")
+	typeList = object.get_all_objects(str(type), "")
 	#print typeList
-	#general.select_objects(typeList)
+	#selection.select_objects(typeList)
 	for x in typeList:
-		general.unhide_object(x)
+		object.show(x)

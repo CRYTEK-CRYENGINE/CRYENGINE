@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 #include "StdAfx.h"
 #include "SceneView.h"
 #include "SceneModel.h"
@@ -85,7 +85,7 @@ CSceneViewCgf::~CSceneViewCgf()
 ////////////////////////////////////////////////////
 // CSceneViewContainer
 
-CSceneViewContainer::CSceneViewContainer(QAbstractItemModel* pModel, QTreeView* pView, QWidget* pParent)
+CSceneViewContainer::CSceneViewContainer(QAbstractItemModel* pModel, QAdvancedTreeView* pView, QWidget* pParent)
 	: QWidget(pParent)
 	, m_pFilterModel()
 	, m_pModel(pModel)
@@ -115,7 +115,7 @@ const QAbstractItemModel* CSceneViewContainer::GetModel() const
 	return m_pModel;
 }
 
-const QTreeView* CSceneViewContainer::GetView() const
+const QAdvancedTreeView* CSceneViewContainer::GetView() const
 {
 	return m_pView;
 }
@@ -134,3 +134,4 @@ const QAttributeFilterProxyModel* CSceneViewContainer::GetFilter() const
 {
 	return m_pFilterModel.get();
 }
+

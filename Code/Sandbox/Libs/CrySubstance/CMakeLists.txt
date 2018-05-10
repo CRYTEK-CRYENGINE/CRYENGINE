@@ -13,8 +13,8 @@ add_sources("NoUberFile"
     "RCConfigParser.inl"
     "ISubstanceInstanceRenderer.h" 
 	SOURCE_GROUP "Root"
-		"stdafx.cpp"
-		"stdafx.h"
+		"StdAfx.cpp"
+		"StdAfx.h"
         "CrySubstanceAPI.h"
    
 )
@@ -22,11 +22,11 @@ add_sources("NoUberFile"
 end_sources()
 
 if(NOT RESOURCE_COMPILER)
-    CreateDynamicModule(CrySubstance PCH stdafx.cpp SOLUTION_FOLDER "Sandbox/Libs")
+    CreateDynamicModule(CrySubstance PCH StdAfx.cpp SOLUTION_FOLDER "Sandbox/Libs")
     target_link_libraries(CrySubstance PRIVATE Substance)
     target_compile_definitions(${THIS_PROJECT} PRIVATE -DCrySubstanceEXPORTS -DWIN32 -DNOT_USE_CRY_MEMORY_MANAGER)
 else()
-    CommonLib(CrySubstance PCH stdafx.cpp SOLUTION_FOLDER "RC")
+    CommonLib(CrySubstance PCH StdAfx.cpp SOLUTION_FOLDER "RC")
     SET(LIB_DIR "${SDK_DIR}/SubstanceEngines/lib/win32-msvc2015-64")
     SET(DLL_DIR "${SDK_DIR}/SubstanceEngines/bin/win32-msvc2015-64")
     SET(TINYXML_LIB_DIR "${SDK_DIR}/SubstanceEngines/3rdparty/tinyxml/lib/win32-msvc2015-64")
@@ -44,5 +44,6 @@ target_compile_options(${THIS_PROJECT} PRIVATE
 	/wd4251
 	/wd4275
 )
+
 
 

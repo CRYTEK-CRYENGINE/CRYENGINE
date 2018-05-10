@@ -1,0 +1,10 @@
+<AssetMetadata version="0" type="Texture" guid="57a72375-3926-28be-0b2a-37901e40adc3" source="nightvis_grad.tif">
+ <Files>
+  <File path="nightvis_grad.dds"/>
+ </Files>
+ <Details>
+  <Detail name="width">512</Detail>
+  <Detail name="height">4</Detail>
+  <Detail name="mipCount">1</Detail>
+ </Details>
+</AssetMetadata>

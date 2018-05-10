@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #ifndef __animnode_h__
 #define __animnode_h__
@@ -49,8 +49,6 @@ public:
 
 public:
 	CAnimNode(const int id);
-
-	virtual void                            Release() override                    { if (--IAnimNode::m_nRefCounter <= 0) { delete this; } }
 
 	virtual void                            SetName(const char* name) override    { m_name = name; };
 	virtual const char*                     GetName() override                    { return m_name; };

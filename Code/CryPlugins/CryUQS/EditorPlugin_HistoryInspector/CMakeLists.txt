@@ -21,11 +21,10 @@ CryEditorPlugin(EditorUQS_HistoryInspector PCH "StdAfx.cpp" SOLUTION_FOLDER "Cry
 target_link_libraries (${THIS_PROJECT} PRIVATE
 	Sandbox
 	EditorCommon
-	CryUQS_Shared
 )
 
 target_include_directories(${THIS_PROJECT}
-	PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}" "${CMAKE_CURRENT_SOURCE_DIR}/.." "${CMAKE_CURRENT_SOURCE_DIR}/GeneratedFiles"
+	PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}" "${CMAKE_CURRENT_SOURCE_DIR}/../.." "${CMAKE_CURRENT_SOURCE_DIR}/GeneratedFiles"
 )
 
 if(OPTION_UQS_SCHEMATYC_SUPPORT)

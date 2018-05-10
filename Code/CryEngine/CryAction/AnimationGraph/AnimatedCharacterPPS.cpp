@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include <CryExtension/CryCreateClassInstance.h>
@@ -278,8 +278,8 @@ void CAnimatedCharacter::AcquireRequestedBehaviourMovement()
 		Ang3 requestedEntityRot(m_requestedEntityMovement.q);
 		const ColorF cWhite = ColorF(1, 1, 1, 1);
 		IRenderAuxText::Draw2dLabel(350, 50, 2.0f, (float*)&cWhite, false, "Req Movement[%.2f, %.2f, %.2f | %.2f, %.2f, %.2f]",
-		                             m_requestedEntityMovement.t.x / m_curFrameTime, m_requestedEntityMovement.t.y / m_curFrameTime, m_requestedEntityMovement.t.z / m_curFrameTime,
-		                             RAD2DEG(requestedEntityRot.x), RAD2DEG(requestedEntityRot.y), RAD2DEG(requestedEntityRot.z));
+		                            m_requestedEntityMovement.t.x / m_curFrameTime, m_requestedEntityMovement.t.y / m_curFrameTime, m_requestedEntityMovement.t.z / m_curFrameTime,
+		                            RAD2DEG(requestedEntityRot.x), RAD2DEG(requestedEntityRot.y), RAD2DEG(requestedEntityRot.z));
 	}
 #endif
 
@@ -548,7 +548,7 @@ QuatT CAnimatedCharacter::CalculateDesiredAnimMovement() const
 		desiredAnimMovement = assetAnimMovement;
 
 		/*{
-		   IRenderAuxGeom*	pAuxGeom	= gEnv->pRenderer->GetIRenderAuxGeom();
+		   IRenderAuxGeom*	pAuxGeom	= gEnv->pAuxGeomRenderer;
 		   pAuxGeom->SetRenderFlags( e_Def3DPublicRenderflags );
 		   pAuxGeom->DrawLine( desiredAnimMovement.t,RGBA8(0x00,0xff,0x00,0x00),desiredAnimMovement.t+Vec3(0,0,+20),RGBA8(0xff,0xff,0xff,0x00) );
 		   }*/
@@ -664,7 +664,7 @@ QuatT CAnimatedCharacter::CalculateWantedEntityMovement(const QuatT& desiredAnim
 	{
 		EMovementControlMethod mcmh = GetMCMH();
 		EMovementControlMethod mcmv = GetMCMV();
-		char* szMcmH = "???";
+		const char* szMcmH = "???";
 		switch (mcmh)
 		{
 		case eMCM_Entity:
@@ -686,7 +686,7 @@ QuatT CAnimatedCharacter::CalculateWantedEntityMovement(const QuatT& desiredAnim
 			szMcmH = "ANM_HC";
 			break;
 		}
-		char* szMcmV = "???";
+		const char* szMcmV = "???";
 		switch (mcmv)
 		{
 		case eMCM_Entity:
@@ -921,7 +921,11 @@ void CAnimatedCharacter::RequestPhysicalEntityMovement(const QuatT& wantedEntMov
 			{
 				m_entLocation.q = newRotation;
 
-				pEntity->SetRotation(newRotation, ENTITY_XFORM_USER | ENTITY_XFORM_NOT_REREGISTER);
+				// don't call SetRotation() no change required since this call dirties eEA_Physics network aspect and produces unneeded spikes in network traffic
+				if (pEntity->GetRotation() != newRotation)
+				{
+					pEntity->SetRotation(newRotation, { ENTITY_XFORM_USER, ENTITY_XFORM_NOT_REREGISTER });
+				}
 			}
 		}
 

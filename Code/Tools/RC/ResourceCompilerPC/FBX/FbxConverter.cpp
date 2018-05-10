@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "stdafx.h"
 
@@ -862,7 +862,7 @@ public:
 			RCLogWarning("Missing material infos in JSON data.");
 		}
 
-		CExportMaterial exportMaterial(PathHelpers::RemoveExtension(ir.materialFilename));
+		CExportMaterial exportMaterial(PathUtil::RemoveExtension(ir.materialFilename));
 		if (!exportMaterial.PrepareMaterials(m_pScene, ir, m_pRc))
 		{
 			return false;
@@ -1707,7 +1707,7 @@ private:
 
 		compressor.m_GlobalAnimationHeader.m_nCompressedControllerCount = compressor.m_GlobalAnimationHeader.CountCompressedControllers();
 
-		if (!FileUtil::EnsureDirectoryExists(PathHelpers::GetDirectory(cgf.GetFilename())))
+		if (!FileUtil::EnsureDirectoryExists(PathUtil::GetPathWithoutFilename(cgf.GetFilename())))
 		{
 			RCLogError("Failed to create directory for '%s'.", cgf.GetFilename());
 			return false;
@@ -2744,13 +2744,13 @@ bool CFbxConverter::Process()
 
 	if (ir.sourceFilename.empty())
 	{
-		sourceSceneFilename = PathHelpers::ReplaceExtension(inputFilepath, "fbx");
+		sourceSceneFilename = PathUtil::ReplaceExtension(inputFilepath, "fbx");
 	}
 	else
 	{
 		if (PathHelpers::IsRelative(ir.sourceFilename))
 		{
-			sourceSceneFilename = PathHelpers::Join(PathHelpers::GetDirectory(inputFilepath), ir.sourceFilename);
+			sourceSceneFilename = PathUtil::Make(PathUtil::GetPathWithoutFilename(inputFilepath), ir.sourceFilename);
 		}
 		else
 		{
@@ -2764,7 +2764,7 @@ bool CFbxConverter::Process()
 		sourceSceneFilename = overwriteSource;
 	}
 
-	const string outputFilename = PathHelpers::ReplaceExtension(inputFilepath, ir.outputFilenameExt).c_str();
+	const string outputFilename = PathUtil::ReplaceExtension(inputFilepath, ir.outputFilenameExt).c_str();
 	const bool bVerboseLog = m_CC.pRC->GetVerbosityLevel() > 0;
 	const bool bCollectSkinningInfo = ir.outputFilenameExt != "cgf";
 	const bool bGenerateTextureCoordinates = ir.bIgnoreTextureCoordinates;

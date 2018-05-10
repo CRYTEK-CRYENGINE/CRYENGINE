@@ -19,6 +19,7 @@ namespace EditorSubstance
 	{
 	public:
 		CPressetCreator(CAsset* asset, const string& graphName, std::vector<SSubstanceOutput>& outputs, const Vec2i& resolution, QWidget* parent = nullptr);
+		virtual ~CPressetCreator();
 		const string& GetTargetFileName() const;
 		const string& GetGraphName() const { return m_graphName; };
 		const string& GetSubstanceArchive() const { return m_substanceArchive; }

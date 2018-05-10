@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -23,7 +23,7 @@ namespace UQS
 			// IQueryHistoryManager
 			virtual void                       RegisterQueryHistoryListener(IQueryHistoryListener* pListener) override;
 			virtual void                       UnregisterQueryHistoryListener(IQueryHistoryListener* pListener) override;
-			virtual void                       UpdateDebugRendering3D(const SDebugCameraView& view, const SEvaluatorDrawMasks& evaluatorDrawMasks) override;
+			virtual void                       UpdateDebugRendering3D(const SDebugCameraView* pOptionalView, const SEvaluatorDrawMasks& evaluatorDrawMasks) override;
 			virtual bool                       SerializeLiveQueryHistory(const char* szXmlFilePath, Shared::IUqsString& error) override;
 			virtual bool                       DeserializeQueryHistory(const char* szXmlFilePath, Shared::IUqsString& error) override;
 			virtual void                       MakeQueryHistoryCurrent(EHistoryOrigin whichHistory) override;
@@ -46,6 +46,9 @@ namespace UQS
 			void                               UnderlyingQueryJustGotCreated(const CQueryID& queryID);
 			void                               UnderlyingQueryIsGettingDestroyed(const CQueryID& queryID);
 
+			void                               AutomaticUpdateDebugRendering3DBegin();
+			void                               AutomaticUpdateDebugRendering3DEnd();
+
 		private:
 			                                   UQS_NON_COPYABLE(CQueryHistoryManager);
 
@@ -58,6 +61,7 @@ namespace UQS
 			EHistoryOrigin                     m_historyToManage;                    // used as index into m_queryHistories[] and m_queryIDOfCurrentHistoricQuery[]
 			size_t                             m_indexOfFocusedItem;
 			std::list<IQueryHistoryListener*>  m_listeners;
+			bool                               m_bAutomaticUpdateDebugRendering3DInProgress;
 
 			static const size_t                s_noItemFocusedIndex = (size_t)-1;
 		};

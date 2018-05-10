@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 /*=============================================================================
    ShaderScript.cpp : loading/reloading/hashing of shader scipts.
@@ -96,7 +96,8 @@ bool CShaderMan::mfReloadShaderIncludes(const char* szPath, int nFlags)
 				continue;
 			if (!stricmp(&nmf[len], ".cfi"))
 			{
-				fpStripExtension(fileinfo.name, nmf);
+				cry_strcpy(nmf, fileinfo.name);
+				PathUtil::RemoveExtension(nmf);
 				bool bCh = false;
 				SShaderBin* pBin = m_Bin.GetBinShader(nmf, true, 0, &bCh);
 				if (bCh)
@@ -124,7 +125,6 @@ bool CShaderMan::mfReloadAllShaders(int nFlags, uint32 nFlagsHW)
 
 	if (!gRenDev->IsShaderCacheGenMode())
 	{
-		gRenDev->m_pRT->RC_ResetToDefault();
 		gRenDev->FlushRTCommands(true, true, true);
 	}
 
@@ -254,8 +254,8 @@ bool CShaderMan::mfReloadFile(const char* szPath, const char* szName, int nFlags
 
 	m_nFrameForceReload++;
 
-	const char* szExt = fpGetExtension(szName);
-	if (!stricmp(szExt, ".cfx"))
+	const char* szExt = PathUtil::GetExt(szName);
+	if (!stricmp(szExt, "cfx"))
 	{
 		m_bReload = true;
 		char szShaderName[256];
@@ -271,7 +271,7 @@ bool CShaderMan::mfReloadFile(const char* szPath, const char* szName, int nFlags
 		}
 		m_bReload = false;
 	}
-	else if (!stricmp(szExt, ".cfi"))
+	else if (!stricmp(szExt, "cfi"))
 	{
 		CCryNameTSCRC Name = CShader::mfGetClassName();
 		SResourceContainer* pRL = CBaseResource::GetResourcesForClass(Name);
@@ -763,8 +763,13 @@ CShader* CShaderMan::mfForName(const char* nameSh, int flags, const CShaderResou
 	cry_sprintf(nameNew, "%sCryFX/%s.cfx", m_ShadersPath, nameEf);
 	ef->m_NameFile = nameNew;
 	ef->m_Flags |= flags;
-	gRenDev->m_pRT->RC_ParseShader(ef, nMaskGen | nMaskGenHW, flags, (CShaderResources*)Res);
-	return ef;
+	
+	_smart_ptr<CShader> pShader(ef);
+	_smart_ptr<CShaderResources> pResources( const_cast<CShaderResources*>(Res) );
+	gRenDev->ExecuteRenderThreadCommand(
+		[=]{ this->RT_ParseShader(pShader, nMaskGen | nMaskGenHW, flags, pResources); },
+		ERenderCommandFlags::LevelLoadingThread_defer
+	);
 
 	return ef;
 }

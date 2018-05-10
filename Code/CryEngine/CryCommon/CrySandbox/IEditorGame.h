@@ -1,36 +1,17 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
-/*************************************************************************
-   -------------------------------------------------------------------------
-   $Id$
-   $DateTime$
-   Description: The Editor->Game communication interface.
-
-   -------------------------------------------------------------------------
-   History:
-   - 30:8:2004   11:11 : Created by Márcio Martins
-
-*************************************************************************/
+//! \cond INTERNAL
 
 #pragma once
 
 #include <CryEntitySystem/IEntityBasicTypes.h>
+#include <CryGame/IGame.h>
 
 struct IFlowSystem;
 struct IGameTokenSystem;
 namespace Telemetry {
 struct ITelemetryRepository;
 }
-
-enum EReloadScriptsType
-{
-	eReloadScriptsType_None   = 0,
-	eReloadScriptsType_Entity = BIT(0),
-	eReloadScriptsType_Actor  = BIT(1),
-	eReloadScriptsType_Item   = BIT(2),
-	eReloadScriptsType_AI     = BIT(3),
-	eReloadScriptsType_UI     = BIT(4),
-};
 
 //! For game to access Editor functionality.
 struct IGameToEditorInterface
@@ -108,6 +89,7 @@ struct IEditorGame
 	};
 
 	// <interfuscator:shuffle>
+	CRY_DEPRECATED_GAME_DLL IEditorGame() = default;
 	virtual ~IEditorGame(){}
 	virtual bool                       Init(ISystem* pSystem, IGameToEditorInterface* pEditorInterface) = 0;
 	virtual void                       Update(bool haveFocus, unsigned int updateFlags) = 0;
@@ -134,8 +116,8 @@ struct IEditorGame
 
 	virtual void OnDisplayRenderUpdated(bool displayHelpers) = 0;
 	virtual void OnEntitySelectionChanged(EntityId entityId, bool isSelected) = 0;
-	virtual void OnReloadScripts(EReloadScriptsType scriptsType) = 0;
 
 	virtual IGamePhysicsSettings* GetIGamePhysicsSettings() = 0;
 	// </interfuscator:shuffle>
 };
+//! \endcond

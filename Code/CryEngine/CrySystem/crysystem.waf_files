@@ -28,7 +28,8 @@
       "AsyncPakManager.cpp",
       "Log.cpp",
       "MemReplay.cpp",
-      "BootProfiler.cpp"
+      "BootProfiler.cpp",
+	  "ManualFrameStep.cpp"
     ],
     "Header Files":[
       "SystemInit.h",
@@ -65,7 +66,8 @@
       "Validator.h",
       "XConsole.h",
       "XConsoleVariable.h",
-      "BootProfiler.h"
+      "BootProfiler.h",
+	  "ManualFrameStep.h"
     ]
   },
   "CrySystem_uber_1.cpp":{
@@ -208,7 +210,9 @@
       "LoadingProfiler.h",
       "PerfHUD.h",
       "ProfileLogSystem.h",
-      "Sampler.h"
+      "Sampler.h",
+      "Watchdog.h",
+      "Watchdog.cpp"
     ],
     "Localization":[
       "LocalizedStringManager.cpp",

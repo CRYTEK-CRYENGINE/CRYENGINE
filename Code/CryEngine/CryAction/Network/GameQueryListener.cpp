@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 /*************************************************************************
    -------------------------------------------------------------------------
@@ -113,7 +113,7 @@ void CGameQueryListener::AddPong(string address, uint32 ping)
 
 void CGameQueryListener::GetServer(int number, char** server, char** data, int& ping)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_NETWORK);
+	CRY_PROFILE_FUNCTION(PROFILE_NETWORK);
 	if (number >= m_servers.size())
 	{
 		server = NULL;
@@ -129,7 +129,7 @@ void CGameQueryListener::GetServer(int number, char** server, char** data, int& 
 
 void CGameQueryListener::GetCurrentServers(char*** pastrServers, int& o_amount)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_NETWORK);
+	CRY_PROFILE_FUNCTION(PROFILE_NETWORK);
 	if (m_servers.size() == 0)
 	{
 		o_amount = 0;
@@ -203,7 +203,7 @@ const char* CGameQueryListener::GetServerData(const char* server, int& o_ping)
 
 void CGameQueryListener::RefreshPings()
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_NETWORK);
+	CRY_PROFILE_FUNCTION(PROFILE_NETWORK);
 
 	std::vector<SGameServer>::iterator it = m_servers.begin();
 	ILanQueryListener* pLQL = static_cast<ILanQueryListener*>(m_pNetListener);

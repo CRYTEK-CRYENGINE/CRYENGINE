@@ -29,6 +29,8 @@ void DeinitializeEyeX();
 
 CEyeTrackerInput::CEyeTrackerInput() 
 	: m_bProjectionChanged(false)
+	, m_fEyeX(0)
+	, m_fEyeY(0)
 {
 	g_pEyeTrackerInstance = this;
 

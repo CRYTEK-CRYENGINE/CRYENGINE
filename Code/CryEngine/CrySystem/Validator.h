@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 //
 //	File: Validator.h
@@ -41,21 +41,22 @@ struct SDefaultValidator : public IValidator
 				{
 					::ShowWindow((HWND)gEnv->pRenderer->GetHWND(), SW_MINIMIZE);
 				}
+#endif
+
 				string strMessage = record.text;
 				strMessage += "\n---------------------------------------------\nAbort - terminate application\nRetry - continue running the application\nIgnore - don't show this message box any more";
-				switch (::MessageBox(NULL, strMessage.c_str(), "CryEngine Warning", MB_ABORTRETRYIGNORE | MB_DEFBUTTON2 | MB_ICONWARNING | MB_SYSTEMMODAL))
+				switch (CryMessageBox(strMessage.c_str(), "CryEngine Warning", eMB_AbortRetryIgnore))
 				{
-				case IDABORT:
+				case eQR_Abort:
 					m_pSystem->GetIConsole()->Exit("User abort requested during showing the warning box with the following message: %s", record.text);
 					break;
-				case IDRETRY:
+				case eQR_Retry:
 					break;
-				case IDIGNORE:
+				case eQR_Ignore:
 					bNoMsgBoxOnWarnings = true;
 					m_pSystem->m_sysWarnings->Set(0);
 					break;
 				}
-#endif
 			}
 		}
 	}

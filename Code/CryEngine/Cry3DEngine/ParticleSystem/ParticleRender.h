@@ -1,14 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
-
-// -------------------------------------------------------------------------
-//  Created:     26/11/2014 by Filipe amim
-//  Description:
-// -------------------------------------------------------------------------
-//
-////////////////////////////////////////////////////////////////////////////
-
-#ifndef PARTICLERENDER_H
-#define PARTICLERENDER_H
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -46,28 +36,22 @@ private:
 class CParticleRenderBase : public CParticleFeature, public Cry3DEngineBase
 {
 public:
-	CParticleRenderBase(gpu_pfx2::EGpuFeatureType type = gpu_pfx2::eGpuFeatureType_None);
-
 	virtual EFeatureType GetFeatureType() override;
 	virtual void         AddToComponent(CParticleComponent* pComponent, SComponentParams* pParams) override;
-	virtual void         PrepareRenderObjects(CParticleEmitter* pEmitter, CParticleComponent* pComponent) override;
-	virtual void         ResetRenderObjects(CParticleEmitter* pEmitter, CParticleComponent* pComponent) override;
-	virtual void         Render(CParticleEmitter* pEmitter, ICommonParticleComponentRuntime* pComponentRuntime, CParticleComponent* pComponent, const SRenderContext& renderContext) override;
+	virtual void         Render(CParticleEmitter* pEmitter, CParticleComponentRuntime* pComponentRuntime, CParticleComponent* pComponent, const SRenderContext& renderContext) override;
 
 protected:
 	virtual bool     SupportsWaterCulling() const { return false; }
 	void             PrepareRenderObject(CParticleEmitter* pEmitter, CParticleComponent* pComponent, uint renderObjectId, uint threadId, uint64 objFlags);
-	void             ResetRenderObject(CParticleEmitter* pEmitter, CParticleComponent* pComponent, uint renderObjectId, uint threadId);
-	void             AddRenderObject(CParticleEmitter* pEmitter, ICommonParticleComponentRuntime* pComponentRuntime, CParticleComponent* pComponent, const SRenderContext& renderContext, uint renderObjectId, uint threadId, uint64 objFlags);
+	void             AddRenderObject(CParticleEmitter* pEmitter, CParticleComponentRuntime* pComponentRuntime, CParticleComponent* pComponent, const SRenderContext& renderContext, uint renderObjectId, uint threadId, uint64 objFlags);
+	ILINE C3DEngine* Get3DEngine() const          { return static_cast<C3DEngine*>(gEnv->p3DEngine); }
 
 private:
-	uint m_renderObjectBeforeWaterId;
-	uint m_renderObjectAfterWaterId;
-	bool m_waterCulling;
+	uint m_renderObjectBeforeWaterId = -1;
+	uint m_renderObjectAfterWaterId  = -1;
+	bool m_waterCulling              = false;
 };
 
 }
 
 #include "ParticleRenderImpl.h"
-
-#endif // PARTICLERENDER_H

@@ -80,6 +80,7 @@
 		"DialogEditorPlugin",
 		"VehicleEditorPlugin",
 		"SmartObjectEditorPlugin",
+		"MaterialEditorPlugin",
 		
 		"zlib",
 		"tiff",

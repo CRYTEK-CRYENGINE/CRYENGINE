@@ -11,6 +11,7 @@
 			<DetailLayersViewDistRatio type="Float" value="1.0"/>
       <HeightMapAO type="BOOL" value="0"/>
       <IntegrateObjects type="BOOL" value="0"/>
+      <AutoGenerateBaseTexture type="BOOL" value="0"/>
     </Terrain>
 
 		<EnvState>
@@ -113,10 +114,12 @@
       <PortalsInject type="Float" value="0"  min="0" max="10" TipCVar="e_svoTI_*"/>
       <DiffuseAmplifier type="Float" value="1.0" min="0" max="10" TipCVar="e_svoTI_*"/>
       <SpecularAmplifier type="Float" value="1.0" min="0" max="10" TipCVar="e_svoTI_*"/>
+      <SpecularFromDiffuse type="BOOL" value="0" TipCVar="e_svoTI_*"/>
       <NumberOfBounces type="Int" value="1" min="0" max="3" TipCVar="e_svoTI_*"/>
       <Saturation type="Float" value="0.8"  min="0" max="4" TipCVar="e_svoTI_*"/>
       <PropagationBooster type="Float" value="1.5" min="0" max="4" TipCVar="e_svoTI_*"/>
       <DiffuseBias type="Float" value="0.05"  min="-4" max="4" TipCVar="e_svoTI_*"/>
+      <PointLightsBias type="Float" value="0.2"  min="0" max="1" TipCVar="e_svoTI_*"/>
       <DiffuseConeWidth type="Float" value="24" min="1" max="36" TipCVar="e_svoTI_*"/>
       <ConeMaxLength type="Float" value="12.0"  min="2" max="100" TipCVar="e_svoTI_*"/>
       <UpdateLighting type="BOOL" value="0" TipCVar="e_svoTI_*"/>
@@ -127,13 +130,17 @@
       <HalfresKernelPrimary type="BOOL" value="0" TipCVar="e_svoTI_*"/>
       <HalfresKernelSecondary type="BOOL" value="1" TipCVar="e_svoTI_*"/>
       <UseLightProbes type="BOOL" value="0" TipCVar="e_svoTI_*"/>
-      <VoxelizaionLODRatio type="Float" value="1" min="0.5" max="4" TipCVar="e_svoTI_*"/>
+      <VoxelizationLODRatio type="Float" value="1" min="0.5" max="4" TipCVar="e_svoTI_*"/>
+      <VoxelizationMapBorder type="Int" value="0" min="0" TipCVar="e_svoTI_*"/>
       <VoxelPoolResolution type="Int" value="128" min="128" max="256" TipCVar="e_svo*"/>
       <SSAOAmount type="Float" value="0.7" min="0" max="1" TipCVar="e_svoTI_*"/>
       <ObjectsMaxViewDistance type="Float" value="48" min="0" max="128" TipCVar="e_svoTI_*"/>
       <SunRSMInject type="Int" value="0" min="0" max="16" TipCVar="e_svoTI_*"/>
       <SSDepthTrace type="Float" value="0" min="0" max="1.4" TipCVar="e_svoTI_*"/>
       <HighGlossOcclusion type="Float" value="0" min="-100" max="1" TipCVar="e_svoTI_*"/>
+      <ShadowsFromSun type="BOOL" value="0" TipCVar="e_svoTI_*"/>
+      <ShadowsSoftness type="Float" value="1.25" min="0.2" max="5" TipCVar="e_svoTI_*"/>
+      <ShadowsFromHeightmap type="BOOL" value="0" TipCVar="e_svoTI_*"/>
       <Troposphere_Active type="BOOL" value="0" TipCVar="e_svoTI_*"/>
       <Troposphere_Density type="Float" value="1" TipCVar="e_svoTI_*"/>
       <Troposphere_Brightness type="Float" value="1.0" TipCVar="e_svoTI_*"/>
@@ -141,6 +148,7 @@
       <AnalyticalGI type="BOOL" value="0" TipCVar="e_svoTI_*"/>
       <TraceVoxels type="BOOL" value="1" TipCVar="e_svoTI_*"/>
       <TranslucentBrightness type="Float" value="2.5"  min="0" max="8" TipCVar="e_svoTI_*"/>
+      <StreamVoxels type="BOOL" value="0" TipCVar="e_svo*"/>
     </Total_Illumination_v2>
 
   </Environment>

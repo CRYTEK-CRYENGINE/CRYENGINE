@@ -44,7 +44,7 @@ sampler2D chartSampler = sampler_state
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 /// Alien Interference techniques //////////////////////////////////////////////////////////////////
 
-half4 AlienInterferenceTint;
+float4 AlienInterferenceTint;
 
 ///////////////// vertex shader //////////////////
 
@@ -58,11 +58,12 @@ struct vtxOutAlienInterference
 };
 
 
-vtxOutAlienInterference AlienInterferenceVS(vtxIn IN)
+vtxOutAlienInterference AlienInterferenceVS(uint VertexID : SV_VertexID)
 {
   vtxOutAlienInterference OUT = (vtxOutAlienInterference)0; 
-  OUT.HPosition = Get2dHPos(IN.Position);
-  OUT.baseTC0.xy = IN.baseTC.xy;
+  OUT.HPosition = GetHPos_FromTriVertexID(VertexID);
+  float2 baseTC = GetBaseTC_FromTriVertexID(VertexID);
+  OUT.baseTC0.xy = baseTC;
       
   float2 scale=float2(g_VS_ScreenSize.x, g_VS_ScreenSize.y)/256;      
   float2 pixScale=1/float2(g_VS_ScreenSize.x, g_VS_ScreenSize.y);      
@@ -70,7 +71,7 @@ vtxOutAlienInterference AlienInterferenceVS(vtxIn IN)
   float anim=g_VS_AnimGenParams.z;
   
   // make sure noise is correctly texel to pixel mapped 
-  IN.baseTC.xy*=scale;  
+  baseTC.xy*=scale;  
   return OUT;
 }
 
@@ -368,15 +369,16 @@ struct vtxOutScreenFrost
   float2 noiseTC2    : TEXCOORDN;  
 };
 
-vtxOutScreenFrost ScreenFrostVS(vtxIn IN)
+vtxOutScreenFrost ScreenFrostVS(uint VertexID : SV_VertexID)
 {
   vtxOutScreenFrost OUT = (vtxOutScreenFrost)0; 
-  OUT.HPosition = Get2dHPos(IN.Position);
-  OUT.baseTC.xy = IN.baseTC.xy;
+  OUT.HPosition = GetHPos_FromTriVertexID(VertexID);
+  float2 baseTC = GetBaseTC_FromTriVertexID(VertexID);
+  OUT.baseTC.xy = baseTC;
   
-  OUT.noiseTC0 = IN.baseTC.xy + float2(frac(screenFrostParamsVS.ww)); 
-  OUT.noiseTC1 = IN.baseTC.xy*2 + float2(frac(screenFrostParamsVS.ww));  
-  OUT.noiseTC2 = IN.baseTC.xy*4 + float2(frac(screenFrostParamsVS.ww));
+  OUT.noiseTC0 = baseTC + float2(frac(screenFrostParamsVS.ww)); 
+  OUT.noiseTC1 = baseTC*2 + float2(frac(screenFrostParamsVS.ww));  
+  OUT.noiseTC2 = baseTC*4 + float2(frac(screenFrostParamsVS.ww));
   return OUT;
 }
 
@@ -514,29 +516,31 @@ struct vtxOutRainDropsExtinction
   float2 tcNormal3 : TEXCOORDN;   
 };
 
-vtxOutRainDropsExtinction RainDropsExtinctionVS(vtxIn IN)
+vtxOutRainDropsExtinction RainDropsExtinctionVS(uint VertexID : SV_VertexID)
 {
   vtxOutRainDropsExtinction OUT = (vtxOutRainDropsExtinction)0; 
-  OUT.HPosition = Get2dHPos(IN.Position);
+  OUT.HPosition = GetHPos_FromTriVertexID(VertexID);
+  float2 baseTC = GetBaseTC_FromTriVertexID(VertexID);
   
-  OUT.tcNormal0.xy = IN.baseTC.xy + (vRainNormalMapParams.xw - vRainNormalMapParams.yz)/ScrSize.xy;
-  OUT.tcNormal1.xy = IN.baseTC.xy - (vRainNormalMapParams.xw - vRainNormalMapParams.yz)/ScrSize.xy;
-  OUT.tcNormal2.xy = IN.baseTC.xy + (vRainNormalMapParams.wx - vRainNormalMapParams.yz)/ScrSize.xy;
-  OUT.tcNormal3.xy = IN.baseTC.xy - (vRainNormalMapParams.wx - vRainNormalMapParams.yz)/ScrSize.xy;
+  OUT.tcNormal0.xy = baseTC + (vRainNormalMapParams.xw - vRainNormalMapParams.yz)/ScrSize.xy;
+  OUT.tcNormal1.xy = baseTC - (vRainNormalMapParams.xw - vRainNormalMapParams.yz)/ScrSize.xy;
+  OUT.tcNormal2.xy = baseTC + (vRainNormalMapParams.wx - vRainNormalMapParams.yz)/ScrSize.xy;
+  OUT.tcNormal3.xy = baseTC - (vRainNormalMapParams.wx - vRainNormalMapParams.yz)/ScrSize.xy;
       
   return OUT;
 }
 
-vtxOutRainDrops RainDropsFinalVS(vtxIn IN)
+vtxOutRainDrops RainDropsFinalVS(uint VertexID : SV_VertexID)
 {
-  vtxOutRainDrops OUT = (vtxOutRainDrops)0; 
-  OUT.HPosition = Get2dHPos(IN.Position);
+    vtxOutRainDrops OUT = (vtxOutRainDrops) 0;
+    OUT.HPosition = GetHPos_FromTriVertexID(VertexID);
+    
+    float2 baseTC = GetBaseTC_FromTriVertexID(VertexID);
+    OUT.tcBase0.xy = baseTC.xy;
+    OUT.tcBase1.xy = baseTC.xy + float2(1.0, 0.0) * ScrSize.zw * 4;
+    OUT.tcBase2.xy = baseTC.xy + float2(0.0, 1.0) * ScrSize.zw * 4;
 
-  OUT.tcBase0.xy = IN.baseTC.xy;  
-  OUT.tcBase1.xy = IN.baseTC.xy + float2(1.0, 0.0) * ScrSize.zw*4;
-  OUT.tcBase2.xy = IN.baseTC.xy + float2(0.0, 1.0) * ScrSize.zw*4;
-
-  return OUT;
+    return OUT;
 }
 
 ///////////////// pixel shader //////////////////
@@ -607,7 +611,7 @@ pixout RainDropsFinalPS(vtxOutRainDrops IN)
   float3 vNormal = float3( vWeights.x - vWeights.y, vWeights.x - vWeights.z, 0.5);	// 2 adds 
   vNormal = normalize(vNormal.xyz);													// 1 nrm
 
-  float3x3 tangentToWorld = float3x3( CameraRight.xyz, CameraUp.xyz, CamFront.xyz );
+  float3x3 tangentToWorld = float3x3( CV_CameraRightVector.xyz, CV_CameraUpVector.xyz, CV_CameraFrontVector.xyz );
   float3 vSunTangent = normalize( mul( tangentToWorld, g_PS_SunLightDir.xyz ) );
 
   float3 vHalf = normalize( float3(0, 0, 1) + vSunTangent.xyz);
@@ -678,25 +682,26 @@ struct vtxOutBinocularView
   float4 baseTC3     : TEXCOORD3;
 };
 
-vtxOutBinocularView BinocularViewVS(vtxIn IN)
+vtxOutBinocularView BinocularViewVS(uint VertexID : SV_VertexID)
 {
 	const half uvOffsetScale = vsParams[0].x;
 
   vtxOutBinocularView OUT = (vtxOutBinocularView)0; 
-	OUT.HPosition = Get2dHPos(IN.Position);
+  OUT.HPosition = GetHPos_FromTriVertexID(VertexID);
+  float2 baseTC = GetBaseTC_FromTriVertexID(VertexID);
 
-  OUT.baseTC0.xy = IN.baseTC.xy;
-	OUT.baseTC1.xy = IN.baseTC.xy + uvOffsetScale*float2(0, -1) * ScrSize.zw;
-	OUT.baseTC2.xy = IN.baseTC.xy + uvOffsetScale*float2(-1, 1) * ScrSize.zw;
-	OUT.baseTC3.xy = IN.baseTC.xy + uvOffsetScale*float2(1, 1) * ScrSize.zw;
+	OUT.baseTC0.xy = baseTC;
+	OUT.baseTC1.xy = baseTC + uvOffsetScale*float2(0, -1) * ScrSize.zw;
+	OUT.baseTC2.xy = baseTC + uvOffsetScale*float2(-1, 1) * ScrSize.zw;
+	OUT.baseTC3.xy = baseTC + uvOffsetScale*float2(1, 1) * ScrSize.zw;
 
 #if %_RT_SAMPLE0
 	// Sample points with inverse offset
 	if (GetShaderQuality() >= QUALITY_HIGH)
 	{
-		OUT.baseTC1.zw = IN.baseTC.xy + uvOffsetScale*float2(0, 1) * ScrSize.zw;
-		OUT.baseTC2.zw = IN.baseTC.xy + uvOffsetScale*float2(1, -1) * ScrSize.zw;
-		OUT.baseTC3.zw = IN.baseTC.xy + uvOffsetScale*float2(-1, -1) * ScrSize.zw;
+		OUT.baseTC1.zw = baseTC + uvOffsetScale*float2(0, 1) * ScrSize.zw;
+		OUT.baseTC2.zw = baseTC + uvOffsetScale*float2(1, -1) * ScrSize.zw;
+		OUT.baseTC3.zw = baseTC + uvOffsetScale*float2(-1, -1) * ScrSize.zw;
 	}
 #endif
 
@@ -984,13 +989,13 @@ technique DeferredSilhouettesOptimised
 /// Color grading technique /////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-half4 ColorGradingParams0;
-half4 ColorGradingParams1;
-half4 ColorGradingParams2;
-half4 ColorGradingParams3;
-half4 ColorGradingParams4;
-half4 ColorGradingParams5;
-half4 mColorGradingMatrix[3];
+float4 ColorGradingParams0;
+float4 ColorGradingParams1;
+float4 ColorGradingParams2;
+float4 ColorGradingParams3;
+float4 ColorGradingParams4;
+float4 ColorGradingParams5;
+float4 mColorGradingMatrix[3];
 
 sampler2D grainSampler = sampler_state
 {
@@ -1093,44 +1098,6 @@ void SelectiveColor( inout half3 cImage )
   cImage =lerp( cImage, CMYKtoRGB( cmyk ), fColorPickRange);
 }
 
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-pixout ColorGradingPS(vtxOut IN)
-{
-  pixout OUT = (pixout) 0;
-
-  half4 cImage = half4( tex2D(screenMapSampler, IN.baseTC.xy).xyz, 1.0);
-
-
-#if %_RT_SAMPLE1 
-
-  // Unsharpening
-  half4 cImageScaledDown = tex2D( screenMapScaledSampler_d2, IN.baseTC.xy );
-  cImage = lerp(cImageScaledDown, cImage, ColorGradingParams3.w);
-
-  // Noise filter
-  AddNoise( IN.baseTC.xy, cImage.xyz );
-
-#endif
-
-	// Always using color charts
-	TexColorChart2D(chartSampler, cImage.xyz);
-
-  OUT.Color.xyz = cImage;
-  return OUT;
-}
-
-////////////////// technique /////////////////////
-
-technique ColorGrading
-{
-  pass p0
-  {
-    VertexShader = BaseVS() PostProcessGameVS;
-    PixelShader = ColorGradingPS() PostProcessGamePS;
-    CullMode = None;        
-  }
-}
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 /// Water volume texgen technique //////////////////////////////////////////////////////////////////////////
@@ -1409,7 +1376,7 @@ pixout SceneRainOccAccumulatePS(vtxOutRainOcc IN)
 {
 	pixout OUT = (pixout)0;
 
-	const float fDepth = CV_NearFarClipDist.y * roDepthTex.Load(int3(IN.HPosition.xy, 0)).x;
+	const float fDepth = CV_NearFarClipDist.y * roDepthTex.Load(int3(IN.HPosition.xy, 0)).y;
 	const half fNoise = roNoiseTex.SampleLevel(roTrilinearWrapSampler, IN.baseTC.zw, 0.0f).x;
 
 	const int nNumSamples = 40;
@@ -1612,7 +1579,7 @@ struct vtxInSnow
 
 struct vtxOutSnow
 {
-  float4 HPosition  : POSITION;
+  float4 HPosition  : SV_POSITION;
   float4 baseTC     : TEXCOORDN;
   float4 screenProj : TEXCOORDN;
   float4 vVelocity	: TEXCOORDN;
@@ -1624,8 +1591,8 @@ struct vtxOutSnow
 
 struct pixoutSnow
 {
-  float4 Color		: COLOR0;
-  float4 Velocity	: COLOR1;
+  float4 Color      : SV_Target0;
+  float4 Velocity   : SV_Target1;
 };
 
 void SnowParticle_ApplyTurbulence( inout float4 vPos, inout float4 vPosPrev, in half fRandPhase )

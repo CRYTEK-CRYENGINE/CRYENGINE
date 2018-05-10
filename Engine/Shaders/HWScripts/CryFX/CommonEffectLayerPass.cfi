@@ -140,7 +140,7 @@ pixout Common_EffectLayerPassPS(vert2fragEffectLayer IN)
 
   half fFresnel = 0;
   
-  half3 cDiffuseAccRT = DecodeLightBuffer( GetSceneTexProj( sceneDiffuseAccTex, IN.screenProj.xyzw) ); 
+  half3 cDiffuseAccRT = DecodeLightBuffer( GetSceneTexProj( _tex0, IN.screenProj.xyzw) ); 
 
   // Apply light accumulation
   cFinal.xyz *= cDiffuseAccRT;

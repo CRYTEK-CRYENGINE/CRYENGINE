@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #define IDB_MAIL                                                                             2
 #define IDEDIT                                                                               3
@@ -3094,3 +3094,4 @@
 		#define _APS_NEXT_SYMED_VALUE    2616
 	#endif
 #endif
+

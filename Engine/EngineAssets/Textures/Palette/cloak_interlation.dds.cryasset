@@ -1,0 +1,10 @@
+<AssetMetadata version="0" type="Texture" guid="c84ef06f-d2fd-8af2-529b-61ddd21277ec">
+ <Files>
+  <File path="cloak_interlation.dds"/>
+ </Files>
+ <Details>
+  <Detail name="width">256</Detail>
+  <Detail name="height">1</Detail>
+  <Detail name="mipCount">1</Detail>
+ </Details>
+</AssetMetadata>

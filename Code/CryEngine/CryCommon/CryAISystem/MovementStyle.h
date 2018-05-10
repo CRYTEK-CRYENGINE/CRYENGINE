@@ -1,4 +1,6 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
+
+//! \cond INTERNAL
 
 #pragma once
 
@@ -138,3 +140,5 @@ inline void MovementStyle::ReadFromXml(const XmlNodeRef& node)
 	movementStyleDictionaryCollection.booleans.Get(node, "strafe", m_strafe);
 	movementStyleDictionaryCollection.booleans.Get(node, "glanceInMovementDirection", m_glanceInMovementDirection);
 }
+
+//! \endcond INTERNAL

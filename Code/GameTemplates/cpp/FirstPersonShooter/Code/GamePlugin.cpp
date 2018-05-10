@@ -16,7 +16,11 @@
 CGamePlugin::~CGamePlugin()
 {
 	// Remove any registered listeners before 'this' becomes invalid
-	gEnv->pGameFramework->RemoveNetworkedClientListener(*this);
+	if (gEnv->pGameFramework != nullptr)
+	{
+		gEnv->pGameFramework->RemoveNetworkedClientListener(*this);
+	}
+
 	gEnv->pSystem->GetISystemEventDispatcher()->RemoveListener(this);
 
 	if (gEnv->pSchematyc)
@@ -29,9 +33,7 @@ bool CGamePlugin::Initialize(SSystemGlobalEnvironment& env, const SSystemInitPar
 {
 	// Register for engine system events, in our case we need ESYSTEM_EVENT_GAME_POST_INIT to load the map
 	gEnv->pSystem->GetISystemEventDispatcher()->RegisterListener(this, "CGamePlugin");
-	// Listen for client connection events, in order to create the local player
-	gEnv->pGameFramework->AddNetworkedClientListener(*this);
-
+	
 	return true;
 }
 
@@ -39,39 +41,43 @@ void CGamePlugin::OnSystemEvent(ESystemEvent event, UINT_PTR wparam, UINT_PTR lp
 {
 	switch (event)
 	{
-	case ESYSTEM_EVENT_REGISTER_SCHEMATYC_ENV:
-	{
-		// Register all components that belong to this plug-in
-		auto staticAutoRegisterLambda = [](Schematyc::IEnvRegistrar& registrar)
-		{
-			// Call all static callback registered with the CRY_STATIC_AUTO_REGISTER_WITH_PARAM
-			Detail::CStaticAutoRegistrar<Schematyc::IEnvRegistrar&>::InvokeStaticCallbacks(registrar);
-		};
-
-		if (gEnv->pSchematyc)
-		{
-			gEnv->pSchematyc->GetEnvRegistry().RegisterPackage(
-				stl::make_unique<Schematyc::CEnvPackage>(
-					CGamePlugin::GetCID(),
-					"EntityComponents",
-					"Crytek GmbH",
-					"Components",
-					staticAutoRegisterLambda
-					)
-			);
-		}
-	}
-	break;
 		// Called when the game framework has initialized and we are ready for game logic to start
-	case ESYSTEM_EVENT_GAME_POST_INIT:
-	{
-		// Don't need to load the map in editor
-		if (!gEnv->IsEditor())
+		case ESYSTEM_EVENT_GAME_POST_INIT:
 		{
-			gEnv->pConsole->ExecuteString("map example", false, true);
+			// Listen for client connection events, in order to create the local player
+			gEnv->pGameFramework->AddNetworkedClientListener(*this);
+
+			// Don't need to load the map in editor
+			if (!gEnv->IsEditor())
+			{
+				gEnv->pConsole->ExecuteString("map example", false, true);
+			}
 		}
-	}
-	break;
+		break;
+
+		case ESYSTEM_EVENT_REGISTER_SCHEMATYC_ENV:
+		{
+			// Register all components that belong to this plug-in
+			auto staticAutoRegisterLambda = [](Schematyc::IEnvRegistrar& registrar)
+			{
+				// Call all static callback registered with the CRY_STATIC_AUTO_REGISTER_WITH_PARAM
+				Detail::CStaticAutoRegistrar<Schematyc::IEnvRegistrar&>::InvokeStaticCallbacks(registrar);
+			};
+
+			if (gEnv->pSchematyc)
+			{
+				gEnv->pSchematyc->GetEnvRegistry().RegisterPackage(
+					stl::make_unique<Schematyc::CEnvPackage>(
+						CGamePlugin::GetCID(),
+						"EntityComponents",
+						"Crytek GmbH",
+						"Components",
+						staticAutoRegisterLambda
+						)
+				);
+			}
+		}
+		break;
 	}
 }
 

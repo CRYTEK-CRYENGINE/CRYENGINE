@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #ifndef __BREAK_REP_GAME_OBJECT__H__
 #define __BREAK_REP_GAME_OBJECT__H__
@@ -28,7 +28,7 @@ public:
 	virtual inline ISerializableInfoPtr GetSpawnInfo()                                                                  { return NULL; }
 	virtual inline void                 Update(SEntityUpdateContext& ctx, int)                                          {}
 	virtual inline void                 HandleEvent(const SGameObjectEvent& event)                                      {}
-	virtual inline void                 ProcessEvent(SEntityEvent& event)                                               {}
+	virtual inline void                 ProcessEvent(const SEntityEvent& event)                                               {}
 	virtual uint64                      GetEventMask() const final { return 0; };
 	virtual inline void                 SetChannelId(uint16 id)                                                         {}
 	virtual inline void                 PostUpdate(float frameTime)                                                     {}

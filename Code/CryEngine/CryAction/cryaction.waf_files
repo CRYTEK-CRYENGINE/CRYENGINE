@@ -1,6 +1,9 @@
 {
   "CryAction_flowsystem_uber.cpp":{
     "Flow System/Nodes":[
+      "FlowSystem/Nodes/FlowEngineCustomNodes.cpp",
+      "FlowSystem/Nodes/FlowEntityCustomNodes.h",
+      "FlowSystem/Nodes/FlowEntityCustomNodes.cpp",
       "FlowSystem/Nodes/FlowGameNodes.cpp",
       "FlowSystem/Nodes/FlowWeaponNodes.cpp",
       "FlowSystem/Nodes/FlowInventoryNodes.cpp",
@@ -725,9 +728,7 @@
     "Debug Helpers": [
       "EntityTags.cpp",
       "PersistantDebug.cpp",
-      "PersistantDebug.h",
-      "ManualFrameStep.cpp",
-      "ManualFrameStep.h"
+      "PersistantDebug.h"
     ],
     "Graphics": [
       "ColorGradientManager.cpp",
@@ -850,12 +851,6 @@
       "SharedParams/ISharedParams.h",
       "SharedParams/SharedParamsManager.h",
       "SharedParams/SharedParamsTypeInfo.h"
-    ],
-    "SegmentedWorld":[
-      "SegmentedWorld/SegmentNode.h",
-      "SegmentedWorld/SegmentNode.cpp",
-      "SegmentedWorld/SegmentedWorld.h",
-      "SegmentedWorld/SegmentedWorld.cpp"
     ],
     "EffectSystem":[
       "EffectSystem/BloodSplats.h",

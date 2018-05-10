@@ -1,17 +1,16 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "FeatureCollision.h"
-
-CRY_PFX2_DBG
+#include "ParticleSystem/ParticleComponentRuntime.h"
 
 namespace pfx2
 {
 
-EParticleDataType PDT(EPDT_ContactPoint, SContactPoint);
-EParticleDataType PDT(EPDT_CollideSpeed, float);
+MakeDataType(EPDT_ContactPoint, SContactPoint);
+MakeDataType(EPDT_CollideSpeed, float);
 
-extern EParticleDataType EPVF_PositionPrev;
+extern TDataType<Vec3>   EPVF_PositionPrev;
 
 //////////////////////////////////////////////////////////////////////////
 // CFeatureCollision
@@ -24,8 +23,8 @@ CFeatureCollision::CFeatureCollision()
 
 void CFeatureCollision::AddToComponent(CParticleComponent* pComponent, SComponentParams* pParams)
 {
-	pComponent->AddToUpdateList(EUL_InitUpdate, this);
-	pComponent->AddToUpdateList(EUL_PostUpdate, this);
+	pComponent->InitParticles.add(this);
+	pComponent->PostUpdateParticles.add(this);
 	pComponent->AddParticleData(EPVF_PositionPrev);
 	pComponent->AddParticleData(EPDT_ContactPoint);
 	if (m_rotateToNormal)
@@ -61,7 +60,7 @@ int CFeatureCollision::GetRayTraceFilter() const
 struct SCollisionLimitIgnore
 {
 	SCollisionLimitIgnore(CParticleContainer& container)
-		: m_contactPoints(container.GetTIOStream<SContactPoint>(EPDT_ContactPoint)) {}
+		: m_contactPoints(container.IOStream(EPDT_ContactPoint)) {}
 	void CollisionLimit(TParticleId particleId)
 	{
 		SContactPoint contact = m_contactPoints.Load(particleId);
@@ -74,7 +73,7 @@ struct SCollisionLimitIgnore
 struct SCollisionLimitStop
 {
 	SCollisionLimitStop(CParticleContainer& container)
-		: m_contactPoints(container.GetTIOStream<SContactPoint>(EPDT_ContactPoint))
+		: m_contactPoints(container.IOStream(EPDT_ContactPoint))
 		, m_positions(container.GetIOVec3Stream(EPVF_Position))
 		, m_velocities(container.GetIOVec3Stream(EPVF_Velocity)) {}
 	void CollisionLimit(TParticleId particleId)
@@ -221,11 +220,12 @@ bool RayWorldIntersection(SContactPoint& contact, const Vec3& startIn, const Vec
 	start -= ray * kExpandBack;
 	ray *= (1.0f + kExpandBack + kExpandFront);
 
-	if (bTraceTerrain && (objectFilter & ent_terrain))
+	// Use more reliable Terrain::Raytrace, controllable by debug cvar
+	if ((objectFilter & ent_terrain) && !(C3DEngine::GetCVars()->e_ParticlesDebug & AlphaBit('t')))
 	{
 		objectFilter &= ~ent_terrain;
 		CHeightMap::SRayTrace rt;
-		if (Cry3DEngineBase::GetTerrain()->RayTrace(start, start + ray, &rt, 0))
+		if (Cry3DEngineBase::GetTerrain()->RayTrace(start, start + ray, &rt, false))
 		{
 			contact.m_point = rt.vHit;
 			contact.m_normal = rt.vNorm;
@@ -452,9 +452,9 @@ void CFeatureCollision::DoCollisions(const SUpdateContext& context) const
 	IOQuatStream orientations = container.GetIOQuatStream(EPQF_Orientation);
 	IOVec3Stream velocities = container.GetIOVec3Stream(EPVF_Velocity);
 	IOFStream collideSpeeds = container.GetIOFStream(EPDT_CollideSpeed);
-	TIOStream<SContactPoint> contactPoints = container.GetTIOStream<SContactPoint>(EPDT_ContactPoint);
+	TIOStream<SContactPoint> contactPoints = container.IOStream(EPDT_ContactPoint);
 
-	CRY_PFX2_FOR_ACTIVE_PARTICLES(context)
+	for (auto particleId : context.GetUpdateRange())
 	{
 		SContactPoint contact = contactPoints.Load(particleId);
 		if (contact.m_state.ignore)
@@ -508,10 +508,9 @@ void CFeatureCollision::DoCollisions(const SUpdateContext& context) const
 
 		contactPoints.Store(particleId, contact);
 	}
-	CRY_PFX2_FOR_END;
 }
 
-void CFeatureCollision::PostUpdate(const SUpdateContext& context)
+void CFeatureCollision::PostUpdateParticles(const SUpdateContext& context)
 {
 	CRY_PFX2_PROFILE_DETAIL;
 
@@ -536,15 +535,14 @@ void CFeatureCollision::UpdateCollisionLimit(const SUpdateContext& context) cons
 {
 	CParticleContainer& container = context.m_container;
 	TCollisionLimit limiter(container);
-	const TIStream<SContactPoint> contactPoints = container.GetTIStream<SContactPoint>(EPDT_ContactPoint);
+	const auto contactPoints = container.IStream(EPDT_ContactPoint);
 
-	CRY_PFX2_FOR_ACTIVE_PARTICLES(context)
+	for (auto particleId : context.GetUpdateRange())
 	{
 		const SContactPoint contact = contactPoints.Load(particleId);
 		if (contact.m_totalCollisions >= m_maxCollisions)
 			limiter.CollisionLimit(particleId);
 	}
-	CRY_PFX2_FOR_END;
 }
 
 CRY_PFX2_IMPLEMENT_FEATURE(CParticleFeature, CFeatureCollision, "Motion", "Collisions", colorMotion);
@@ -554,9 +552,9 @@ CRY_PFX2_IMPLEMENT_FEATURE(CParticleFeature, CFeatureCollision, "Motion", "Colli
 
 void CFeatureGPUCollision::AddToComponent(CParticleComponent* pComponent, SComponentParams* pParams)
 {
-	pComponent->AddToUpdateList(EUL_Update, this);
+	pComponent->UpdateParticles.add(this);
 
-	if (auto pInt = GetGpuInterface())
+	if (auto pInt = MakeGpuInterface(pComponent, gpu_pfx2::eGpuFeatureType_Collision))
 	{
 		gpu_pfx2::SFeatureParametersCollision params;
 		params.offset = m_offset;
@@ -574,7 +572,7 @@ void CFeatureGPUCollision::Serialize(Serialization::IArchive& ar)
 	ar(m_restitution, "Restitution", "Restitution");
 }
 
+CRY_PFX2_LEGACY_FEATURE(CFeatureGPUCollision, "Motion", "Collision");
 CRY_PFX2_IMPLEMENT_FEATURE(CParticleFeature, CFeatureGPUCollision, "GPU Particles", "Collision", colorGPU);
-CRY_PFX2_LEGACY_FEATURE(CParticleFeature, CFeatureGPUCollision, "MotionCollision");
 
 }

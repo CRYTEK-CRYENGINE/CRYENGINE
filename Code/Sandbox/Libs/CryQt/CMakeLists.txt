@@ -60,9 +60,12 @@ end_sources()
 
 CreateDynamicModule(CryQt PCH "stdafx.cpp" SOLUTION_FOLDER "Sandbox/Libs")
 
+set_property(TARGET ${THIS_PROJECT} PROPERTY EXCLUDE_FROM_DEFAULT_BUILD_RELEASE TRUE)
+
 target_compile_definitions(${THIS_PROJECT} PRIVATE -DCryQT_EXPORTS -DWIN32)
 target_link_libraries(${THIS_PROJECT} PRIVATE dwmapi gdi32 Ole32 qtmain$<$<CONFIG:Debug>:d>)
 set_target_properties(${THIS_PROJECT} PROPERTIES DEBUG_POSTFIX "d")
+set_property(TARGET ${THIS_PROJECT} PROPERTY EXCLUDE_FROM_DEFAULT_BUILD_RELEASE TRUE)
 use_qt()
 
 # Wrapping with shiboken requires Run-Time Type Information to be enabled.

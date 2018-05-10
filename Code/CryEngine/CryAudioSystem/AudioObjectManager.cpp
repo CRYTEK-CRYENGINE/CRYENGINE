@@ -1,14 +1,12 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "stdafx.h"
 #include "AudioObjectManager.h"
-#include "AudioEventManager.h"
-#include "AudioStandaloneFileManager.h"
-#include "AudioListenerManager.h"
 #include "ATLAudioObject.h"
 #include "AudioCVars.h"
 #include "IAudioImpl.h"
 #include "SharedAudioData.h"
+#include "Common/Logger.h"
 
 #if defined(INCLUDE_AUDIO_PRODUCTION_CODE)
 	#include <CryRenderer/IRenderAuxGeom.h>
@@ -17,39 +15,33 @@
 namespace CryAudio
 {
 //////////////////////////////////////////////////////////////////////////
-CAudioObjectManager::CAudioObjectManager(
-  CAudioEventManager& audioEventMgr,
-  CAudioStandaloneFileManager& audioStandaloneFileMgr,
-  CAudioListenerManager const& listenerManager)
-	: m_pIImpl(nullptr)
-	, m_timeSinceLastControlsUpdate(0.0f)
-	, m_audioEventMgr(audioEventMgr)
-	, m_audioStandaloneFileMgr(audioStandaloneFileMgr)
-	, m_listenerManager(listenerManager)
-{}
-
-//////////////////////////////////////////////////////////////////////////
-CAudioObjectManager::~CAudioObjectManager()
+CObjectManager::~CObjectManager()
 {
 	if (m_pIImpl != nullptr)
 	{
 		Release();
 	}
 
-	for (auto const pObject : m_constructedAudioObjects)
+	for (auto const pObject : m_constructedObjects)
 	{
 		delete pObject;
 	}
 
-	m_constructedAudioObjects.clear();
+	m_constructedObjects.clear();
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CAudioObjectManager::Init(Impl::IImpl* const pIImpl)
+void CObjectManager::Init(uint32 const poolSize)
+{
+	m_constructedObjects.reserve(static_cast<std::size_t>(poolSize));
+}
+
+//////////////////////////////////////////////////////////////////////////
+void CObjectManager::SetImpl(Impl::IImpl* const pIImpl)
 {
 	m_pIImpl = pIImpl;
 
-	for (auto const pObject : m_constructedAudioObjects)
+	for (auto const pObject : m_constructedObjects)
 	{
 		CRY_ASSERT(pObject->GetImplDataPtr() == nullptr);
 #if defined(INCLUDE_AUDIO_PRODUCTION_CODE)
@@ -61,99 +53,104 @@ void CAudioObjectManager::Init(Impl::IImpl* const pIImpl)
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CAudioObjectManager::Release()
+void CObjectManager::Release()
 {
-	for (auto const pAudioObject : m_constructedAudioObjects)
+	// Don't clear m_constructedObjects here as we need the objects to survive a middleware switch!
+	for (auto const pObject : m_constructedObjects)
 	{
-		m_pIImpl->DestructObject(pAudioObject->GetImplDataPtr());
-		pAudioObject->Release();
+		m_pIImpl->DestructObject(pObject->GetImplDataPtr());
+		pObject->Release();
 	}
 
 	m_pIImpl = nullptr;
 }
 
-float CAudioObjectManager::s_controlsUpdateInterval = 10.0f;
-
 //////////////////////////////////////////////////////////////////////////
-void CAudioObjectManager::Update(float const deltaTime, Impl::SObject3DAttributes const& listenerAttributes)
+void CObjectManager::Update(float const deltaTime, Impl::SObject3DAttributes const& listenerAttributes)
 {
 #if defined(INCLUDE_AUDIO_PRODUCTION_CODE)
 	CPropagationProcessor::s_totalAsyncPhysRays = 0;
 	CPropagationProcessor::s_totalSyncPhysRays = 0;
 #endif // INCLUDE_AUDIO_PRODUCTION_CODE
 
-	m_timeSinceLastControlsUpdate += deltaTime;
-	bool const bUpdateControls = m_timeSinceLastControlsUpdate > s_controlsUpdateInterval;
-
-	auto iterEnd = m_constructedAudioObjects.cend();
-	for (auto iter = m_constructedAudioObjects.begin(); iter != iterEnd; )
+	if (deltaTime > 0.0f)
 	{
-		CATLAudioObject* const pObject = *iter;
+		bool const listenerMoved = listenerAttributes.velocity.GetLengthSquared() > FloatEpsilon;
 
-		CObjectTransformation const& transformation = pObject->GetTransformation();
+		auto iter = m_constructedObjects.begin();
+		auto iterEnd = m_constructedObjects.end();
 
-		float const distance = transformation.GetPosition().GetDistance(listenerAttributes.transformation.GetPosition());
-		float const radius = pObject->GetMaxRadius();
-
-		if (radius <= 0.0f || distance < radius)
+		while (iter != iterEnd)
 		{
-			if ((pObject->GetFlags() & EObjectFlags::Virtual) > 0)
+			CATLAudioObject* const pObject = *iter;
+
+			CObjectTransformation const& transformation = pObject->GetTransformation();
+
+			float const distance = transformation.GetPosition().GetDistance(listenerAttributes.transformation.GetPosition());
+			float const radius = pObject->GetMaxRadius();
+
+			if (radius <= 0.0f || distance < radius)
 			{
-				pObject->RemoveFlag(EObjectFlags::Virtual);
+				if ((pObject->GetFlags() & EObjectFlags::Virtual) != 0)
+				{
+					pObject->RemoveFlag(EObjectFlags::Virtual);
+				}
 			}
-		}
-		else
-		{
-			if ((pObject->GetFlags() & EObjectFlags::Virtual) == 0)
+			else
 			{
-				pObject->SetFlag(EObjectFlags::Virtual);
+				if ((pObject->GetFlags() & EObjectFlags::Virtual) == 0)
+				{
+					pObject->SetFlag(EObjectFlags::Virtual);
 #if defined(INCLUDE_AUDIO_PRODUCTION_CODE)
-				pObject->ResetObstructionRays();
-#endif    // INCLUDE_AUDIO_PRODUCTION_CODE
-			}
-		}
-
-		if (IsActive(pObject))
-		{
-			pObject->Update(deltaTime, distance, listenerAttributes.transformation.GetPosition());
-
-			if (bUpdateControls)
-			{
-				pObject->UpdateControls(m_timeSinceLastControlsUpdate, listenerAttributes);
+					pObject->ResetObstructionRays();
+#endif      // INCLUDE_AUDIO_PRODUCTION_CODE
+				}
 			}
 
-			pObject->GetImplDataPtr()->Update();
-		}
-		else
-		{
-			if (pObject->CanBeReleased())
+			if (IsActive(pObject))
 			{
-				iter = m_constructedAudioObjects.erase(iter);
-				iterEnd = m_constructedAudioObjects.cend();
+				pObject->Update(deltaTime, distance, listenerAttributes.transformation.GetPosition(), listenerAttributes.velocity, listenerMoved);
+			}
+			else if (pObject->CanBeReleased())
+			{
 				m_pIImpl->DestructObject(pObject->GetImplDataPtr());
 				pObject->SetImplDataPtr(nullptr);
-
 				delete pObject;
+
+				if (iter != (iterEnd - 1))
+				{
+					(*iter) = m_constructedObjects.back();
+				}
+
+				m_constructedObjects.pop_back();
+				iter = m_constructedObjects.begin();
+				iterEnd = m_constructedObjects.end();
 				continue;
 			}
+
+			++iter;
 		}
-		++iter;
 	}
-
-	if (bUpdateControls)
+	else
 	{
-		m_timeSinceLastControlsUpdate = 0.0f;
+		for (auto const pObject : m_constructedObjects)
+		{
+			if (IsActive(pObject))
+			{
+				pObject->GetImplDataPtr()->Update();
+			}
+		}
 	}
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CAudioObjectManager::RegisterObject(CATLAudioObject* const pObject)
+void CObjectManager::RegisterObject(CATLAudioObject* const pObject)
 {
-	m_constructedAudioObjects.push_back(pObject);
+	m_constructedObjects.push_back(pObject);
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CAudioObjectManager::ReportStartedEvent(CATLEvent* const pEvent)
+void CObjectManager::ReportStartedEvent(CATLEvent* const pEvent)
 {
 	if (pEvent != nullptr)
 	{
@@ -163,12 +160,12 @@ void CAudioObjectManager::ReportStartedEvent(CATLEvent* const pEvent)
 	}
 	else
 	{
-		g_logger.Log(ELogType::Warning, "NULL pEvent in CAudioObjectManager::ReportStartedEvent");
+		Cry::Audio::Log(ELogType::Warning, "NULL pEvent in CObjectManager::ReportStartedEvent");
 	}
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CAudioObjectManager::ReportFinishedEvent(CATLEvent* const pEvent, bool const bSuccess)
+void CObjectManager::ReportFinishedEvent(CATLEvent* const pEvent, bool const bSuccess)
 {
 	if (pEvent != nullptr)
 	{
@@ -178,12 +175,12 @@ void CAudioObjectManager::ReportFinishedEvent(CATLEvent* const pEvent, bool cons
 	}
 	else
 	{
-		g_logger.Log(ELogType::Warning, "NULL pEvent in CAudioObjectManager::ReportFinishedEvent");
+		Cry::Audio::Log(ELogType::Warning, "NULL pEvent in CObjectManager::ReportFinishedEvent");
 	}
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CAudioObjectManager::GetStartedStandaloneFileRequestData(CATLStandaloneFile* const pStandaloneFile, CAudioRequest& request)
+void CObjectManager::GetStartedStandaloneFileRequestData(CATLStandaloneFile* const pStandaloneFile, CAudioRequest& request)
 {
 	if (pStandaloneFile != nullptr)
 	{
@@ -193,12 +190,12 @@ void CAudioObjectManager::GetStartedStandaloneFileRequestData(CATLStandaloneFile
 	}
 	else
 	{
-		g_logger.Log(ELogType::Warning, "NULL _pStandaloneFile in CAudioObjectManager::GetStartedStandaloneFileRequestData");
+		Cry::Audio::Log(ELogType::Warning, "NULL _pStandaloneFile in CObjectManager::GetStartedStandaloneFileRequestData");
 	}
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CAudioObjectManager::ReportFinishedStandaloneFile(CATLStandaloneFile* const pStandaloneFile)
+void CObjectManager::ReportFinishedStandaloneFile(CATLStandaloneFile* const pStandaloneFile)
 {
 	if (pStandaloneFile != nullptr)
 	{
@@ -208,14 +205,14 @@ void CAudioObjectManager::ReportFinishedStandaloneFile(CATLStandaloneFile* const
 	}
 	else
 	{
-		g_logger.Log(ELogType::Warning, "NULL _pStandaloneFile in CAudioObjectManager::ReportFinishedStandaloneFile");
+		Cry::Audio::Log(ELogType::Warning, "NULL _pStandaloneFile in CObjectManager::ReportFinishedStandaloneFile");
 	}
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CAudioObjectManager::ReleasePendingRays()
+void CObjectManager::ReleasePendingRays()
 {
-	for (auto const pObject : m_constructedAudioObjects)
+	for (auto const pObject : m_constructedObjects)
 	{
 		if (pObject != nullptr)
 		{
@@ -225,13 +222,13 @@ void CAudioObjectManager::ReleasePendingRays()
 }
 
 //////////////////////////////////////////////////////////////////////////
-bool CAudioObjectManager::IsActive(CATLAudioObject const* const pAudioObject) const
+bool CObjectManager::IsActive(CATLAudioObject const* const pAudioObject) const
 {
 	return HasActiveData(pAudioObject);
 }
 
 //////////////////////////////////////////////////////////////////////////
-bool CAudioObjectManager::HasActiveData(CATLAudioObject const* const pAudioObject) const
+bool CObjectManager::HasActiveData(CATLAudioObject const* const pAudioObject) const
 {
 	for (auto const pEvent : pAudioObject->GetActiveEvents())
 	{
@@ -256,28 +253,29 @@ bool CAudioObjectManager::HasActiveData(CATLAudioObject const* const pAudioObjec
 
 #if defined(INCLUDE_AUDIO_PRODUCTION_CODE)
 //////////////////////////////////////////////////////////////////////////
-size_t CAudioObjectManager::GetNumAudioObjects() const
+size_t CObjectManager::GetNumAudioObjects() const
 {
-	return m_constructedAudioObjects.size();
+	return m_constructedObjects.size();
 }
 
 //////////////////////////////////////////////////////////////////////////
-size_t CAudioObjectManager::GetNumActiveAudioObjects() const
+size_t CObjectManager::GetNumActiveAudioObjects() const
 {
-	size_t numActiveAudioObjects = 0;
-	for (auto pAudioObject : m_constructedAudioObjects)
+	size_t numActiveObjects = 0;
+
+	for (auto const pObject : m_constructedObjects)
 	{
-		if (IsActive(pAudioObject))
+		if (IsActive(pObject))
 		{
-			++numActiveAudioObjects;
+			++numActiveObjects;
 		}
 	}
 
-	return numActiveAudioObjects;
+	return numActiveObjects;
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CAudioObjectManager::DrawPerObjectDebugInfo(
+void CObjectManager::DrawPerObjectDebugInfo(
   IRenderAuxGeom& auxGeom,
   Vec3 const& listenerPos,
   AudioTriggerLookup const& triggers,
@@ -286,11 +284,11 @@ void CAudioObjectManager::DrawPerObjectDebugInfo(
   AudioPreloadRequestLookup const& preloadRequests,
   AudioEnvironmentLookup const& environments) const
 {
-	for (auto pAudioObject : m_constructedAudioObjects)
+	for (auto const pObject : m_constructedObjects)
 	{
-		if (IsActive(pAudioObject))
+		if (IsActive(pObject))
 		{
-			pAudioObject->DrawDebugInfo(
+			pObject->DrawDebugInfo(
 			  auxGeom,
 			  listenerPos,
 			  triggers,
@@ -303,45 +301,52 @@ void CAudioObjectManager::DrawPerObjectDebugInfo(
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CAudioObjectManager::DrawDebugInfo(IRenderAuxGeom& auxGeom, float posX, float posY) const
+void CObjectManager::DrawDebugInfo(IRenderAuxGeom& auxGeom, Vec3 const& listenerPosition, float const posX, float posY) const
 {
-	static float const headerColor[4] = { 1.0f, 1.0f, 1.0f, 0.9f };
-	static float const itemActiveColor[4] = { 0.1f, 0.6f, 0.1f, 0.9f };
+	static float const headerColor[4] = { 1.0f, 0.5f, 0.0f, 0.7f };
+	static float const itemActiveColor[4] = { 0.1f, 0.7f, 0.1f, 0.9f };
 	static float const itemInactiveColor[4] = { 0.8f, 0.8f, 0.8f, 0.9f };
 	static float const itemVirtualColor[4] = { 0.1f, 0.8f, 0.8f, 0.9f };
 
 	size_t numAudioObjects = 0;
 	float const headerPosY = posY;
-	posX += 20.0f;
-	posY += 17.0f;
+	CryFixedStringT<MaxControlNameLength> lowerCaseSearchString(g_cvars.m_pDebugFilter->GetString());
+	lowerCaseSearchString.MakeLower();
 
-	for (auto pAudioObject : m_constructedAudioObjects)
+	posY += 16.0f;
+
+	for (auto const pObject : m_constructedObjects)
 	{
-		char const* const szOriginalName = pAudioObject->m_name.c_str();
-		CryFixedStringT<MaxControlNameLength> lowerCaseAudioObjectName(szOriginalName);
-		lowerCaseAudioObjectName.MakeLower();
-		CryFixedStringT<MaxControlNameLength> lowerCaseSearchString(g_cvars.m_pAudioObjectsDebugFilter->GetString());
-		lowerCaseSearchString.MakeLower();
-		bool const bHasActiveData = HasActiveData(pAudioObject);
-		bool const bIsVirtual = (pAudioObject->GetFlags() & EObjectFlags::Virtual) > 0;
-		bool const bStringFound = (lowerCaseSearchString.empty() || (lowerCaseSearchString.compareNoCase("0") == 0)) || (lowerCaseAudioObjectName.find(lowerCaseSearchString) != CryFixedStringT<MaxControlNameLength>::npos);
-		bool const bDraw = bStringFound && ((g_cvars.m_showActiveAudioObjectsOnly == 0) || (g_cvars.m_showActiveAudioObjectsOnly > 0 && bHasActiveData && !bIsVirtual));
+		Vec3 const& position = pObject->GetTransformation().GetPosition();
+		float const distance = position.GetDistance(listenerPosition);
 
-		if (bDraw)
+		if (g_cvars.m_debugDistance <= 0.0f || (g_cvars.m_debugDistance > 0.0f && distance < g_cvars.m_debugDistance))
 		{
-			auxGeom.Draw2dLabel(posX, posY, 1.2f,
-			                    bIsVirtual ? itemVirtualColor : (bHasActiveData ? itemActiveColor : itemInactiveColor),
-			                    false,
-			                    "%s : %.2f",
-			                    szOriginalName, pAudioObject->GetMaxRadius());
+			char const* const szObjectName = pObject->m_name.c_str();
+			CryFixedStringT<MaxControlNameLength> lowerCaseObjectName(szObjectName);
+			lowerCaseObjectName.MakeLower();
+			bool const hasActiveData = HasActiveData(pObject);
+			bool const stringFound = (lowerCaseSearchString.empty() || (lowerCaseSearchString.compareNoCase("0") == 0)) || (lowerCaseObjectName.find(lowerCaseSearchString) != CryFixedStringT<MaxControlNameLength>::npos);
+			bool const draw = stringFound && ((g_cvars.m_hideInactiveAudioObjects == 0) || ((g_cvars.m_hideInactiveAudioObjects > 0) && hasActiveData));
 
-			posY += 10.0f;
-			++numAudioObjects;
+			if (draw)
+			{
+				bool const isVirtual = (pObject->GetFlags() & EObjectFlags::Virtual) != 0;
+
+				auxGeom.Draw2dLabel(posX, posY, 1.25f,
+				                    isVirtual ? itemVirtualColor : (hasActiveData ? itemActiveColor : itemInactiveColor),
+				                    false,
+				                    "%s : %.2f",
+				                    szObjectName,
+				                    pObject->GetMaxRadius());
+
+				posY += 11.0f;
+				++numAudioObjects;
+			}
 		}
 	}
 
-	auxGeom.Draw2dLabel(posX, headerPosY, 1.6f, headerColor, false, "Audio Objects [%" PRISIZE_T "]", numAudioObjects);
+	auxGeom.Draw2dLabel(posX, headerPosY, 1.5f, headerColor, false, "Audio Objects [%" PRISIZE_T "]", numAudioObjects);
 }
-
 #endif // INCLUDE_AUDIO_PRODUCTION_CODE
 }      // namespace CryAudio

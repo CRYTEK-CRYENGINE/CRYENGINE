@@ -131,10 +131,10 @@ bool CSubstanceManager::GetArchiveContents(const string& archiveName, std::map<s
 	if (!package)
 		return false;
 
-	for each (const SubstanceAir::GraphDesc& graph in package->getGraphs())
+	for (const SubstanceAir::GraphDesc& graph : package->getGraphs())
 	{
 		string graphName = graph.mLabel.c_str();
-		for each (SubstanceAir::OutputDesc output in graph.mOutputs)
+		for (SubstanceAir::OutputDesc output : graph.mOutputs)
 		{
 			contents[graphName].push_back(output.mIdentifier.c_str());
 		}
@@ -223,4 +223,5 @@ SubstanceAir::PackageDesc* CSubstanceManager::LoadPackage(const string& archiveN
 	m_loadedPackages.emplace(CCrc32::ComputeLowercase(archiveName), package);
 	return package;
 }
+
 

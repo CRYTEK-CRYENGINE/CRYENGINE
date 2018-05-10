@@ -13,7 +13,7 @@ public:
 	{
 		// Set the model
 		const int geometrySlot = 0;
-		m_pEntity->LoadGeometry(geometrySlot, "Objects/Default/primitive_sphere.cgf");
+		m_pEntity->LoadGeometry(geometrySlot, "%ENGINE%/EngineAssets/Objects/primitive_sphere.cgf");
 
 		// Load the custom bullet material.
 		// This material has the 'mat_bullet' surface type applied, which is set up to play sounds on collision with 'mat_default' objects in Libs/MaterialEffects
@@ -52,7 +52,7 @@ public:
 	}
 
 	virtual uint64 GetEventMask() const override { return BIT64(ENTITY_EVENT_COLLISION); }
-	virtual void ProcessEvent(SEntityEvent& event) override
+	virtual void ProcessEvent(const SEntityEvent& event) override
 	{
 		// Handle the OnCollision event, in order to have the entity removed on collision
 		if (event.event == ENTITY_EVENT_COLLISION)

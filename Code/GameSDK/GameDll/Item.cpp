@@ -1,4 +1,4 @@
-﻿// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 /*************************************************************************
  -------------------------------------------------------------------------
@@ -366,7 +366,7 @@ bool CItem::ResetParams()
 //------------------------------------------------------------------------
 void CItem::Reset()
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_GAME);
+	CRY_PROFILE_FUNCTION(PROFILE_GAME);
 
 	if (IScriptTable* pScriptTable = gEnv->pEntitySystem->GetEntity(GetEntityId())->GetScriptTable())
 	{
@@ -496,7 +496,7 @@ void CItem::Release()
 //------------------------------------------------------------------------
 void CItem::Update( SEntityUpdateContext& ctx, int slot )
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_GAME);
+	CRY_PROFILE_FUNCTION(PROFILE_GAME);
 
 	if (!IsDestroyed())
 	{
@@ -720,9 +720,9 @@ void CItem::HandleEvent( const SGameObjectEvent &evt )
 }
 
 //------------------------------------------------------------------------
-void CItem::ProcessEvent(SEntityEvent &event)
+void CItem::ProcessEvent(const SEntityEvent& event)
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_GAME);
+	CRY_PROFILE_FUNCTION(PROFILE_GAME);
 
 	switch (event.event)
 	{
@@ -820,6 +820,11 @@ void CItem::ProcessEvent(SEntityEvent &event)
 		}
 		break;
 	}
+}
+
+uint64 CItem::GetEventMask() const
+{
+	return BIT64(ENTITY_EVENT_ANIM_EVENT) | BIT64(ENTITY_EVENT_TIMER) | BIT64(ENTITY_EVENT_RESET) | BIT64(ENTITY_EVENT_PRE_SERIALIZE) | BIT64(ENTITY_EVENT_DEACTIVATED);
 }
 
 //------------------------------------------------------------------------
@@ -2113,8 +2118,8 @@ void CItem::Pickalize(bool enable, bool dropped)
 		if(dropped)
 		{
 			const int dropFlyTimeout = 750;
-			GetEntity()->KillTimer(eIT_Flying);
-			GetEntity()->SetTimer(eIT_Flying, dropFlyTimeout);
+			KillTimer(eIT_Flying);
+			SetTimer(eIT_Flying, dropFlyTimeout);
 		}
 
 		if(GetEntity()->IsSlotValid(eIGS_Aux0))

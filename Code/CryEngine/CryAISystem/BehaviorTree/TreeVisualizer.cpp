@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "TreeVisualizer.h"
@@ -84,6 +84,10 @@ void TreeVisualizer::Draw(
 
 void TreeVisualizer::DrawNode(const DebugNode& node, const uint32 depth)
 {
+	// only show currently running nodes
+	if (node.nodeStatus != Running)
+		return;
+
 	// Construct a nice readable debug text for this node
 	stack_string str;
 
@@ -111,17 +115,9 @@ void TreeVisualizer::DrawNode(const DebugNode& node, const uint32 depth)
 
 	#ifdef USING_BEHAVIOR_TREE_NODE_CUSTOM_DEBUG_TEXT
 	// Custom debug text from the node
-	stack_string customDebugText;
-
-	UpdateContext updateContext = m_updateContext;
-	const Node* nodeToDraw = static_cast<const Node*>(node.node);
-	const RuntimeDataID runtimeDataID = MakeRuntimeDataID(updateContext.entityId, nodeToDraw->m_id);
-	updateContext.runtimeData = nodeToDraw->GetCreator()->GetRuntimeData(runtimeDataID);
-
-	nodeToDraw->GetCustomDebugText(updateContext, customDebugText);
-	if (!customDebugText.empty())
+	if (!node.customDebugText.empty())
 	{
-		str += " - " + customDebugText;
+		str += " - " + node.customDebugText;
 		hasCustomText = true;
 	}
 	#endif // USING_BEHAVIOR_TREE_NODE_CUSTOM_DEBUG_TEXT
@@ -314,6 +310,10 @@ void DebugTreeSerializer::Serialize(Serialization::IArchive& archive)
 
 void DebugTreeSerializer::CollectTreeNodeInfo(const DebugNode& debugNode, const UpdateContext& updateContext, TreeNode& outNode)
 {
+	// only show currently running nodes
+	if (debugNode.nodeStatus != Running)
+		return;
+
 	const uint32 xmlLine = static_cast<const Node*>(debugNode.node)->GetXmlLine();
 
 	stack_string tempOutput;
@@ -322,17 +322,9 @@ void DebugTreeSerializer::CollectTreeNodeInfo(const DebugNode& debugNode, const 
 
 	#ifdef USING_BEHAVIOR_TREE_NODE_CUSTOM_DEBUG_TEXT
 	// Custom debug text from the node
-	stack_string customDebugText;
-
-	UpdateContext updateContextCopy = updateContext;
-	const Node* pNodeToDraw = static_cast<const Node*>(debugNode.node);
-	const RuntimeDataID runtimeDataID = MakeRuntimeDataID(updateContext.entityId, pNodeToDraw->m_id);
-	updateContextCopy.runtimeData = pNodeToDraw->GetCreator()->GetRuntimeData(runtimeDataID);
-
-	pNodeToDraw->GetCustomDebugText(updateContextCopy, customDebugText);
-	if (!customDebugText.empty())
+	if (!debugNode.customDebugText.empty())
 	{
-		tempOutput += " - " + customDebugText;
+		tempOutput += " - " + debugNode.customDebugText;
 	}
 	#endif // USING_BEHAVIOR_TREE_NODE_CUSTOM_DEBUG_TEXT
 

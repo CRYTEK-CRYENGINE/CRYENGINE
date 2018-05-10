@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -50,14 +50,12 @@ namespace UQS
 			virtual QueryBaseUniquePtr          CreateQuery(const CQueryBase::SCtorContext& ctorContext) = 0;
 			virtual const Shared::CTypeInfo&    GetQueryBlueprintType(const CQueryBlueprint& queryBlueprint) const = 0;
 			virtual bool                        CheckOutputTypeCompatibilityAmongChildQueryBlueprints(const CQueryBlueprint& parentQueryBlueprint, string& error, size_t& childIndexCausingTheError) const = 0;
+			virtual const Shared::CTypeInfo*    GetShuttleTypeFromPrecedingQuery(const CQueryBlueprint& childQueryBlueprint) const = 0;
 
 			const Shared::CTypeInfo*            GetTypeOfShuttledItemsToExpect(const CQueryBlueprint& queryBlueprintAskingForThis) const;
 
 			static void                         InstantiateFactories();
 			static const CQueryFactoryBase&     GetDefaultQueryFactory();  // this may only be called after InstantiateFactories(); will assert() and crash otherwise
-
-		private:
-			virtual const Shared::CTypeInfo*    GetShuttleTypeFromPrecedingSibling(const CQueryBlueprint& childQueryBlueprint) const = 0;
 
 		protected:
 			explicit                            CQueryFactoryBase(const char* szName, const CryGUID& guid, const char* szDescription, bool bSupportsParameters, bool bRequiresGenerator, bool bSupportsEvaluators, size_t minRequiredChildren, size_t maxAllowedChildren);
@@ -88,11 +86,7 @@ namespace UQS
 			virtual QueryBaseUniquePtr          CreateQuery(const CQueryBase::SCtorContext& ctorContext) override;
 			virtual const Shared::CTypeInfo&    GetQueryBlueprintType(const CQueryBlueprint& queryBlueprint) const override;
 			virtual bool                        CheckOutputTypeCompatibilityAmongChildQueryBlueprints(const CQueryBlueprint& parentQueryBlueprint, string& error, size_t& childIndexCausingTheError) const override;
-			// ~CQueryFactoryBase
-
-		private:
-			// CQueryFactoryBase
-			virtual const Shared::CTypeInfo*    GetShuttleTypeFromPrecedingSibling(const CQueryBlueprint& childQueryBlueprint) const override;
+			virtual const Shared::CTypeInfo*    GetShuttleTypeFromPrecedingQuery(const CQueryBlueprint& childQueryBlueprint) const override;
 			// ~CQueryFactoryBase
 		};
 

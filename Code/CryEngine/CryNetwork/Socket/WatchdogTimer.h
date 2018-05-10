@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 //
 //	File: CTPEndpoint.cpp
@@ -48,5 +48,5 @@ public:
 	void ClearStalls();
 
 private:
-	std::auto_ptr<detail::CTimerThread> m_pThread;
+	std::unique_ptr<detail::CTimerThread> m_pThread;
 };

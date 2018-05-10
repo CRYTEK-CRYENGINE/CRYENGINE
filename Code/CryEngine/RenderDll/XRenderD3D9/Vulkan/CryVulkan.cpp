@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 #include "StdAfx.h"
 #include "CryVulkan.hpp"
 #include "API/VKInstance.hpp"
@@ -6,6 +6,11 @@
 #if VK_USE_DXGI
 	#include "CryVulkanWrappers/GI/DXGI/CCryVKGIFactory_DXGI.hpp"
 #endif
+
+#if USE_SDL2 && (CRY_PLATFORM_ANDROID || CRY_PLATFORM_IOS || CRY_PLATFORM_LINUX)
+	#include <SDL_syswm.h>
+#endif
+
 
 
 HRESULT WINAPI D3DCreateBlob(SIZE_T NumBytes, ID3DBlob** ppBuffer)
@@ -38,14 +43,13 @@ HRESULT WINAPI VKCreateDevice(
 	D3D_FEATURE_LEVEL* pFeatureLevel,
 	ID3D11DeviceContext** ppImmediateContext)
 {
-
 	NCryVulkan::SSurfaceCreationInfo surfaceInfo;
 
-#ifdef CRY_PLATFORM_WINDOWS
+#if CRY_PLATFORM_WINDOWS
 	surfaceInfo.windowHandle = outputWindow;
 	surfaceInfo.appHandle = (HINSTANCE)GetWindowLongPtr(surfaceInfo.windowHandle, GWLP_HINSTANCE);
 #else
-	SDL_Window* pWindowContext = reinterpret_cast<SDL_Window*>(pSwapChainDesc->OutputWindow);
+	SDL_Window* pWindowContext = reinterpret_cast<SDL_Window*>(outputWindow);
 	struct SDL_SysWMinfo info;
 	ZeroStruct(info);
 	info.version.major = SDL_MAJOR_VERSION;
@@ -56,8 +60,13 @@ HRESULT WINAPI VKCreateDevice(
 	}
 
 	surfaceInfo.pWindow = pWindowContext;
+#if CRY_PLATFORM_ANDROID
 	surfaceInfo.pNativeWindow = info.info.android.window;
-//	surfaceInfo.hNativeSurface = info.info.android.surface;
+	//	surfaceInfo.hNativeSurface = info.info.android.surface;
+#elif CRY_PLATFORM_LINUX
+	surfaceInfo.window = static_cast<xcb_window_t>(info.info.x11.window);
+#endif  // CRY_PLATFORM_ANDROID
+
 #endif
 
 	_smart_ptr<NCryVulkan::CDevice> pDevice = pAdapter->GetFactory()->GetVkInstance()->CreateDevice(pAdapter->GetDeviceIndex(), surfaceInfo);

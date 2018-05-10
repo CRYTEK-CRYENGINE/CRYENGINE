@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 /********************************************************************
    -------------------------------------------------------------------------
@@ -17,12 +17,10 @@
 #include "Puppet.h"
 #include "AILog.h"
 #include "GoalOp.h"
-#include "Graph.h"
 #include "AIPlayer.h"
 #include "Leader.h"
 #include "CAISystem.h"
 #include "AICollision.h"
-#include "VertexList.h"
 #include "SmartObjects.h"
 #include "PathFollower.h"
 #include "AIVehicle.h"
@@ -89,7 +87,7 @@ bool CPuppet::ActorObstructingAim(const CAIActor* pActor, const Vec3& firePos, c
 //====================================================================
 bool CPuppet::CanAimWithoutObstruction(const Vec3& vTargetPos)
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 	if (m_bDryUpdate)
 		return m_lastAimObstructionResult;
@@ -264,7 +262,7 @@ ILINE Vec3 JitterVector(Vec3 v, Vec3 amount)
 bool CPuppet::AdjustFireTarget(CAIObject* targetObject, const Vec3& target, bool hit, float missExtraOffset,
                                float clampAngle, Vec3* posOut)
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 	Vec3 out(target);
 
@@ -352,7 +350,7 @@ inline float DeltaAngle(float a, float b)
 bool CPuppet::CalculateMissPointOutsideTargetSilhouette(CAIObject* targetObject, const Vec3& target, float missExtraOffset,
                                                         Vec3* posOut)
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 	if (m_targetSilhouette.valid)
 	{
@@ -412,7 +410,7 @@ bool CPuppet::CalculateMissPointOutsideTargetSilhouette(CAIObject* targetObject,
 //====================================================================
 bool CPuppet::CalculateHitPointOnTarget(CAIObject* targetObject, const Vec3& target, float clampAngle, Vec3* posOut)
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 	if (!targetObject->IsAgent())
 		return false;
@@ -548,7 +546,7 @@ void CPuppet::AdjustWithPrediction(CAIObject* pTarget, Vec3& posOut)
 
 bool CPuppet::IsFireTargetValid(const Vec3& targetPos, const CAIObject* pTargetObject)
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 	// Accept the point if:
 	// 1) Shooting in the direction hits something relatively far away

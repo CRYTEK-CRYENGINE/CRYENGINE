@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 // -------------------------------------------------------------------------
 //  File name:   LipSync_FacialInstance.h
@@ -56,7 +56,7 @@ public:
 	virtual ISerializableInfoPtr GetSpawnInfo() override;
 	virtual void                 Update(SEntityUpdateContext& ctx, int updateSlot) override;
 	virtual void                 HandleEvent(const SGameObjectEvent& event) override;
-	virtual void                 ProcessEvent(SEntityEvent& event) override;
+	virtual void                 ProcessEvent(const SEntityEvent& event) override;
 	virtual uint64               GetEventMask() const override;
 	virtual void                 SetChannelId(uint16 id) override;
 	virtual void                 PostUpdate(float frameTime) override;

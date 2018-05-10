@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #ifndef __DynamicCoverManager_h__
 #define __DynamicCoverManager_h__
@@ -47,7 +47,7 @@ public:
 	DynamicCoverManager();
 
 	// IEntityEventListener
-	virtual void OnEntityEvent(IEntity* entity, SEntityEvent& event);
+	virtual void OnEntityEvent(IEntity* entity, const SEntityEvent& event);
 	//~IEntityEventListener
 
 	void AddValidationSegment(const ValidationSegment& segment);

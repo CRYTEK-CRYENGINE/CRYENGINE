@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "Log.h"
@@ -156,7 +156,7 @@ public:
 
 	void FlushMessages()
 	{
-		FUNCTION_PROFILER(GetISystem(), PROFILE_GAME);
+		CRY_PROFILE_FUNCTION(PROFILE_GAME);
 
 		const uint32 valueSize = sizeof(MessageString::CharTraits::value_type);
 		CryAutoCriticalSection lock(m_criticalSection);
@@ -412,7 +412,7 @@ void CLog::PopScope(SLogScope* pScope)
 
 void CLog::Comment(LogStreamId streamId, const char* szFormat, va_list va_args)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_GAME);
+	CRY_PROFILE_FUNCTION(PROFILE_GAME);
 
 	char messageBuffer[1024] = "";
 	LogUtils::FormatMessage(messageBuffer, szFormat, va_args);
@@ -421,7 +421,7 @@ void CLog::Comment(LogStreamId streamId, const char* szFormat, va_list va_args)
 
 void CLog::Warning(LogStreamId streamId, const char* szFormat, va_list va_args)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_GAME);
+	CRY_PROFILE_FUNCTION(PROFILE_GAME);
 
 	char messageBuffer[1024] = "";
 	LogUtils::FormatMessage(messageBuffer, szFormat, va_args);
@@ -435,7 +435,7 @@ void CLog::Warning(LogStreamId streamId, const char* szFormat, va_list va_args)
 
 void CLog::Error(LogStreamId streamId, const char* szFormat, va_list va_args)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_GAME);
+	CRY_PROFILE_FUNCTION(PROFILE_GAME);
 
 	char messageBuffer[1024] = "";
 	LogUtils::FormatMessage(messageBuffer, szFormat, va_args);

@@ -1,0 +1,10 @@
+<AssetMetadata version="0" type="Texture" guid="741f7e26-6f26-e1c8-3503-ddf94e9d8b93" source="GreyAlpha.tif">
+ <Files>
+  <File path="GreyAlpha.dds"/>
+ </Files>
+ <Details>
+  <Detail name="width">4</Detail>
+  <Detail name="height">4</Detail>
+  <Detail name="mipCount">1</Detail>
+ </Details>
+</AssetMetadata>

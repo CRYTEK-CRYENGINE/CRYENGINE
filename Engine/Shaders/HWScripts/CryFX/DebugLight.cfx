@@ -14,7 +14,7 @@ float Script : STANDARDSGLOBAL
 // Non-Tweakables
 
 
-float4 objColor : PI_ObjColor;
+//float4 objColor : PI_ObjColor;
 
 
 // Structs
@@ -39,8 +39,8 @@ SDebugLightVS2PS
 DebugLightVS( SDebugLightApp2VS IN )
 {
   SDebugLightVS2PS OUT = (SDebugLightVS2PS) 0;
-  OUT.pos = mul( vpMatrix, IN.pos );
-  OUT.col = objColor;
+  OUT.pos = mul( CV_ViewProjMatr, IN.pos );
+  OUT.col *= Get_SPI_Dissolve();
   return OUT;
 }
 
@@ -77,7 +77,7 @@ SDebugLightVS2PS
 DebugLightZVS( SDebugLightApp2VS IN )
 {
   SDebugLightVS2PS OUT = (SDebugLightVS2PS) 0;
-  OUT.pos = mul( vpMatrix, IN.pos );
+  OUT.pos = mul( CV_ViewProjMatr, IN.pos );
   return OUT;
 }
 

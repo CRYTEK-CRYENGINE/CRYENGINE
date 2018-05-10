@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "ModelProperties.h"
@@ -51,7 +51,7 @@ std::unique_ptr<CModelProperties::SSerializer> CModelProperties::GetSerializer(Q
 	for (const auto& createSerializerFunc : m_createSerializerFuncs)
 	{
 		std::unique_ptr<SSerializer> pSerializer(createSerializerFunc(pModel, modelIndex));
-		if (pSerializer)
+		if (pSerializer && pSerializer->m_pObject)
 		{
 			return pSerializer;
 		}
@@ -99,3 +99,4 @@ void CModelProperties::ConnectViewToPropertyObject(QAbstractItemView* pView)
 		}
 	});
 }
+

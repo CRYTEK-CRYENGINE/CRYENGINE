@@ -1,0 +1,12 @@
+<AssetMetadata version="0" type="Material" guid="7ad84ecb-4402-2d7a-288c-d5ce7e1e75a2">
+ <Files>
+  <File path="material_terrain_default.mtl"/>
+ </Files>
+ <Details>
+  <Detail name="subMaterialCount">0</Detail>
+  <Detail name="textureCount">1</Detail>
+ </Details>
+ <Dependencies>
+  <Path usageCount="1">%ENGINE%/EngineAssets/TextureMsg/DefaultNoUVs.dds</Path>
+ </Dependencies>
+</AssetMetadata>

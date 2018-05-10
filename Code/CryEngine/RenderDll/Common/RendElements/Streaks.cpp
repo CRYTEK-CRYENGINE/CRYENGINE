@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "Streaks.h"
@@ -117,7 +117,7 @@ CTexture* Streaks::GetTexture()
 		return m_pSpectrumTex;
 	}
 
-	return CTexture::s_ptexBlack;
+	return CRendererResources::s_ptexBlack;
 }
 
 void Streaks::UpdateMeshes()

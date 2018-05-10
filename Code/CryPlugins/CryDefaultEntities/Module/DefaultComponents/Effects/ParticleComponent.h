@@ -8,6 +8,7 @@
 #include <CrySchematyc/Env/IEnvRegistrar.h>
 
 #include <CryParticleSystem/IParticlesPfx2.h>
+#include <CrySerialization/SmartPtr.h>
 
 class CPlugin_CryDefaultEntities;
 
@@ -25,7 +26,7 @@ namespace Cry
 			// IEntityComponent
 			virtual void Initialize() final;
 
-			virtual void ProcessEvent(SEntityEvent& event) final;
+			virtual void ProcessEvent(const SEntityEvent& event) final;
 			virtual uint64 GetEventMask() const final;
 			// ~IEntityComponent
 
@@ -44,6 +45,8 @@ namespace Cry
 				desc.AddMember(&CParticleComponent::m_bEnabled, 'actv', "Enabled", "Enabled", "Whether or not the particle should emit by default", true);
 				desc.AddMember(&CParticleComponent::m_effectName, 'file', "FilePath", "Effect", "Determines the particle effect to load", "");
 
+				desc.AddMember(&CParticleComponent::m_attributes, 'attr', "Attributes", "Emitter Attributes", nullptr, CParticleComponent::SAttributes());
+				desc.AddMember(&CParticleComponent::m_features, 'feat', "Features", "Emitter Features", nullptr, CParticleComponent::SFeatures());
 				desc.AddMember(&CParticleComponent::m_spawnParams, 'spaw', "SpawnParams", "Spawn Parameters", nullptr, CParticleComponent::SSpawnParameters());
 			}
 
@@ -60,13 +63,23 @@ namespace Cry
 
 					if (!pEmitter && bActivate)
 					{
-						m_pEntity->LoadParticleEmitter(GetOrMakeEntitySlotId(), pEffect, &m_spawnParams.m_spawnParams);
+						m_pEntity->LoadParticleEmitter(GetOrMakeEntitySlotId(), pEffect, &m_spawnParams);
 						pEmitter = m_pEntity->GetParticleEmitter(GetEntitySlotId());
+						if (pEmitter)
+							pEmitter->GetAttributes().TransferInto(m_attributes.get());
 					}
 					else if (pEmitter)
 					{
-						pEmitter->GetAttributes().Reset(m_attributes.m_pAttributes.get());
-						pEmitter->Activate(bActivate);
+						pEmitter->SetSpawnParams(m_spawnParams);
+						if (!bActivate && m_spawnParams.bPrime)
+							pEmitter->Kill();
+						else
+							pEmitter->Activate(bActivate);
+					}
+					if (pEmitter)
+					{
+						pEmitter->GetAttributes().Reset(m_attributes.get());
+						pEmitter->SetEmitterFeatures(m_features);
 					}
 					m_bCurrentlyActive = bActivate;
 				}
@@ -92,7 +105,7 @@ namespace Cry
 				{
 					if (IParticleEffect* pEffect = gEnv->pParticleManager->FindEffect(m_effectName.value, "CParticleComponent"))
 					{
-						m_pEntity->LoadParticleEmitter(GetOrMakeEntitySlotId(), pEffect, &m_spawnParams.m_spawnParams);
+						m_pEntity->LoadParticleEmitter(GetOrMakeEntitySlotId(), pEffect, &m_spawnParams);
 						m_bCurrentlyActive = true;
 					}
 				}
@@ -104,52 +117,56 @@ namespace Cry
 
 			bool IsActive() const { return m_bCurrentlyActive; }
 			
-			struct SAttributes
+			struct SAttributes: TParticleAttributesPtr
 			{
 				SAttributes()
-				{
-					m_pAttributes = pfx2::GetIParticleSystem()->CreateParticleAttributes();
-				}
+					: TParticleAttributesPtr(pfx2::GetIParticleSystem()->CreateParticleAttributes())
+				{}
 
-				inline bool operator==(const SAttributes &rhs) const { return 0 == memcmp(this, &rhs, sizeof(rhs)); }
+				inline bool operator==(const SAttributes &rhs) const { return 0 == memcmp(this, &rhs, sizeof(rhs)); }  // Todo: Deep compare
 				
 				static void ReflectType(Schematyc::CTypeDesc<SAttributes>& desc)
 				{
 					desc.SetGUID("{24AE6687-F855-4736-9C71-3419083BAECB}"_cry_guid);
-					desc.SetLabel("Particle Attributes");
+					desc.SetLabel("Emitter Attributes");
 				}
-
-				TParticleAttributesPtr m_pAttributes;
+				void Serialize(Serialization::IArchive& archive)
+				{
+					return get()->Serialize(archive);
+				}
 			};
 
-			struct SSpawnParameters
+			struct SFeatures: pfx2::TParticleFeatures
+			{
+				inline bool operator==(const SFeatures &rhs) const { return 0 == memcmp(this, &rhs, sizeof(rhs)); } // Todo: Deep compare
+				static void ReflectType(Schematyc::CTypeDesc<SFeatures>& desc)
+				{
+					desc.SetGUID("{CAB0D3B2-D3F5-4F47-AA50-32BCED2C42A7}"_cry_guid);
+					desc.SetLabel("Emitter Features");
+				}
+			};
+
+			struct SSpawnParameters: SpawnParams
 			{
 				inline bool operator==(const SSpawnParameters &rhs) const { return 0 == memcmp(this, &rhs, sizeof(rhs)); }
 
 				static void ReflectType(Schematyc::CTypeDesc<SSpawnParameters>& desc)
 				{
 					desc.SetGUID("{9E4544F0-3E5A-4479-B618-E9CB46905149}"_cry_guid);
-					desc.SetLabel("Particle Spawn Parameters");
+					desc.SetLabel("Emitter Spawn Parameters");
 				}
-
-				SpawnParams m_spawnParams;
 			};
 
-			virtual SSpawnParameters& GetSpawnParameters() { return m_spawnParams; }
-			const SSpawnParameters& GetSpawnParameters() const { return m_spawnParams; }
-
-			virtual SAttributes& GetAttributes() { return m_attributes; }
-			const SAttributes& GetAttributes() const { return m_attributes; }
-
-			virtual void SetEffectName(const char* szPath);
-			const char* GetEffectName() const { return m_effectName.value.c_str(); }
+ 			virtual void SetEffectName(const char* szPath);
+ 			const char* GetEffectName() const { return m_effectName.value.c_str(); }
 			
 		protected:
 			bool m_bEnabled = true;
 			bool m_bCurrentlyActive = false;
 			
-			SSpawnParameters m_spawnParams;
 			SAttributes m_attributes;
+			SFeatures m_features;
+			SSpawnParameters m_spawnParams;
 
 			Schematyc::ParticleEffectName m_effectName;
 		};

@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #ifndef __NETCONTEXTSTATE_H__
 #define __NETCONTEXTSTATE_H__
@@ -438,9 +438,13 @@ private:
 	CChangeList<SNetObjectAspectChange>    m_vGameChangedObjects;
 	std::vector<SChannelChange>            m_vNetChangeLog;
 	std::vector<SChannelChange>            m_vNetChangeLogUnique;
+#if USE_NETID_PACKING
 	std::priority_queue<uint16, std::vector<uint16>, std::greater<uint16>> m_freeLowBitObjects;
 	std::priority_queue<uint16, std::vector<uint16>, std::greater<uint16>> m_freeMediumBitObjects;
 	std::priority_queue<uint16, std::vector<uint16>, std::greater<uint16>> m_freeHighBitObjects;
+#else // USE_NETID_PACKING
+	std::priority_queue<uint16, std::vector<uint16>, std::greater<uint16>> m_freeObjects;
+#endif // USE_NETID_PACKING
 	TChangedProfiles          m_changedProfiles;
 	std::vector<EntityId>     m_removedStaticEntities;
 #if RESERVE_UNBOUND_ENTITIES
@@ -464,6 +468,7 @@ private:
 	mutable SContextObjectRef m_cacheObjectRef;
 	void ClearContextObjectCache() { m_cacheObjectID = SNetObjectID(); m_cacheObjectRef = SContextObjectRef(); }
 
+	SNetObjectID AllocateNetObjectID(ESpawnType spawnType, EntityId userID);
 	void AddToFreeObjects(uint16 id);
 	void ClearFreeObjects();
 
@@ -472,7 +477,7 @@ private:
 #else
 	typedef std::unordered_map<EntityId, SNetObjectID, stl::hash_uint32, std::equal_to<uint32>, STLMementoAllocator<std::pair<const EntityId, SNetObjectID>>> TNetIDMap;
 #endif
-	std::auto_ptr<TNetIDMap> m_pNetIDs;
+	std::unique_ptr<TNetIDMap> m_pNetIDs;
 
 	CTimeValue               m_localPhysicsTime;
 
@@ -487,7 +492,7 @@ private:
 	EntityId m_spawnedObjectId;
 
 	typedef std::list<SNetIntBreakDescription, STLMementoAllocator<SNetIntBreakDescription>> TNetIntBreakDescriptionList;
-	std::auto_ptr<TNetIntBreakDescriptionList> m_pLoggedBreakage;
+	std::unique_ptr<TNetIntBreakDescriptionList> m_pLoggedBreakage;
 
 	// called by the view when the object is really destroyed remotely
 	// (so we can wait for all objects before resetting)

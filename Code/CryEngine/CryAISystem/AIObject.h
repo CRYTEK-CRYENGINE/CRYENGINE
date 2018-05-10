@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #ifndef AIOBJECT_H
 #define AIOBJECT_H
@@ -7,7 +7,6 @@
 	#pragma once
 #endif // _MSC_VER > 1000
 
-#include "AStarSolver.h"
 #include <CryPhysics/IPhysics.h>
 #include <CryAISystem/IAIObject.h>
 #include "Reference.h"
@@ -98,7 +97,6 @@ public:
 	virtual void        SetMoveDir(const Vec3& dir) override;
 	virtual Vec3        GetVelocity() const override;
 
-	virtual size_t      GetNavNodeIndex() const;
 	//Basic properties//////////////////////////////////////////////////////////////////////
 	////////////////////////////////////////////////////////////////////////////////////////
 
@@ -260,9 +258,6 @@ private:
 	Vec3                m_vBodyDir; // direction of AI body, animated body direction if available
 	Vec3                m_vMoveDir; // last move direction of the entity
 	Vec3                m_vView;    // view direction (where my head is looking at, tank turret turned, etc)
-
-protected:
-	mutable size_t m_lastNavNodeIndex;
 
 public:
 	bool         m_bUpdatedOnce;

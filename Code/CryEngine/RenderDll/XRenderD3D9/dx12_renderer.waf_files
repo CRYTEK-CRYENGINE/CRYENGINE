@@ -1,32 +1,28 @@
 {
-  "CryRenderer_uber_5_dx12_dx11.cpp": 
-  {
-    "DeviceManager/D3D11": 
-    [
+  "CryRenderer_uber_5_dx12_dx11.cpp":{
+    "DeviceManager/D3D11":[
       "DeviceManager/D3D11/DeviceSubmissionQueue_D3D11.h",
       "DeviceManager/D3D11/DeviceSubmissionQueue_D3D11.inl",
       "DeviceManager/D3D11/DeviceSubmissionQueue_D3D11.cpp"
     ]
   },
-  "CryRenderer_uber_5_dx12_dx12.cpp": 
-  {
-    "DeviceManager/D3D12": 
-    [
+  "CryRenderer_uber_5_dx12_dx12.cpp":{
+    "DeviceManager/D3D12":[
       "DeviceManager/D3D12/DeviceObjects_D3D12.inl",
       "DeviceManager/D3D12/DeviceObjects_D3D12.cpp",
       "DeviceManager/D3D12/DeviceResources_D3D12.inl",
       "DeviceManager/D3D12/DeviceCommandList_D3D12.h"
     ]
   },
-  "NoUberFile": {
-    "DX12": [
+  "NoUberFile":{
+    "DX12":[
       "DX12/CCryDX12Object.cpp",
       "DX12/CCryDX12Object.hpp",
       "DX12/CryDX12.cpp",
       "DX12/CryDX12.hpp",
       "DX12/CryDX12Guid.hpp"
     ],
-    "DX12/API": [
+    "DX12/API":[
       "DX12/API/DX12Base.cpp",
       "DX12/API/DX12CommandScheduler.cpp",
       "DX12/API/DX12CommandList.cpp",
@@ -58,7 +54,7 @@
       "DX12/API/DX12AsyncCommandQueue.hpp",
       "DX12/API/DX12AsyncCommandQueue.cpp"
     ],
-    "DX12/API/Redirections": [
+    "DX12/API/Redirections":[
       "DX12/API/Redirections/D3D12Device.inl",
       "DX12/API/Redirections/D3D12CommandAllocator.inl",
       "DX12/API/Redirections/D3D12CommandQueue.inl",
@@ -69,7 +65,7 @@
       "DX12/API/Redirections/D3D12Fence.inl",
       "DX12/API/Redirections/D3D12Resource.inl"
     ],
-    "DX12/Device": [
+    "DX12/Device":[
       "DX12/Device/CCryDX12Device.cpp",
       "DX12/Device/CCryDX12DeviceChild.cpp",
       "DX12/Device/CCryDX12DeviceContext.cpp",
@@ -77,7 +73,7 @@
       "DX12/Device/CCryDX12DeviceChild.hpp",
       "DX12/Device/CCryDX12DeviceContext.hpp"
     ],
-    "DX12/GI": [
+    "DX12/GI":[
       "DX12/GI/CCryDX12GIAdapter.cpp",
       "DX12/GI/CCryDX12GIDevice.cpp",
       "DX12/GI/CCryDX12GIFactory.cpp",
@@ -89,11 +85,11 @@
       "DX12/GI/CCryDX12GIOutput.hpp",
       "DX12/GI/CCryDX12SwapChain.hpp"
     ],
-    "DX12/Misc": [
+    "DX12/Misc":[
       "DX12/Misc/SCryDX11PipelineState.cpp",
       "DX12/Misc/SCryDX11PipelineState.hpp"
     ],
-    "DX12/Resource": [
+    "DX12/Resource":[
       "DX12/Resource/CCryDX12Asynchronous.cpp",
       "DX12/Resource/CCryDX12Resource.cpp",
       "DX12/Resource/CCryDX12View.cpp",
@@ -101,7 +97,7 @@
       "DX12/Resource/CCryDX12Resource.hpp",
       "DX12/Resource/CCryDX12View.hpp"
     ],
-    "DX12/Resource/Misc": [
+    "DX12/Resource/Misc":[
       "DX12/Resource/Misc/CCryDX12Buffer.cpp",
       "DX12/Resource/Misc/CCryDX12InputLayout.cpp",
       "DX12/Resource/Misc/CCryDX12Query.cpp",
@@ -111,7 +107,7 @@
       "DX12/Resource/Misc/CCryDX12Query.hpp",
       "DX12/Resource/Misc/CCryDX12Shader.hpp"
     ],
-    "DX12/Resource/State": [
+    "DX12/Resource/State":[
       "DX12/Resource/State/CCryDX12BlendState.cpp",
       "DX12/Resource/State/CCryDX12DepthStencilState.cpp",
       "DX12/Resource/State/CCryDX12RasterizerState.cpp",
@@ -121,7 +117,7 @@
       "DX12/Resource/State/CCryDX12RasterizerState.hpp",
       "DX12/Resource/State/CCryDX12SamplerState.hpp"
     ],
-    "DX12/Resource/Texture": [
+    "DX12/Resource/Texture":[
       "DX12/Resource/Texture/CCryDX12Texture1D.cpp",
       "DX12/Resource/Texture/CCryDX12Texture2D.cpp",
       "DX12/Resource/Texture/CCryDX12Texture3D.cpp",
@@ -131,7 +127,7 @@
       "DX12/Resource/Texture/CCryDX12Texture3D.hpp",
       "DX12/Resource/Texture/CCryDX12TextureBase.hpp"
     ],
-    "DX12/Resource/View": [
+    "DX12/Resource/View":[
       "DX12/Resource/View/CCryDX12DepthStencilView.cpp",
       "DX12/Resource/View/CCryDX12RenderTargetView.cpp",
       "DX12/Resource/View/CCryDX12ShaderResourceView.cpp",
@@ -141,8 +137,8 @@
       "DX12/Resource/View/CCryDX12ShaderResourceView.hpp",
       "DX12/Resource/View/CCryDX12UnorderedAccessView.hpp"
     ],
-    "DX12/3rdParty": [
-      "DX12/Includes/d3d11tokenizedprogramformat.hpp",
+    "DX12/3rdParty":[
+      "DX12/Includes/d3d11TokenizedProgramFormat.hpp",
       "DX12/Includes/d3dx12.h"
     ]
   }

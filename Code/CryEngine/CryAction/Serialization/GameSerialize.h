@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #ifndef __GAME_SERIALIZE_H__
 #define __GAME_SERIALIZE_H__
@@ -98,7 +98,6 @@ public:
 	virtual void OnSpawn(IEntity* pEntity, SEntitySpawnParams&);
 	virtual bool OnRemove(IEntity* pEntity);
 	virtual void OnReused(IEntity* pEntity, SEntitySpawnParams& entitySpawnParams) {}
-	virtual void OnEvent(IEntity* pEntity, SEntityEvent& entityEvent)              {}
 	// ~IEntitySystemSink
 
 	// ILevelSystemListener

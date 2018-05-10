@@ -30,20 +30,21 @@ struct vtxOutNightVision
   
 };
 
-vtxOutNightVision NightVisionVS(vtxIn IN)
+vtxOutNightVision NightVisionVS(uint VertexID : SV_VertexID)
 {
   vtxOutNightVision OUT = (vtxOutNightVision)0; 
-  OUT.HPosition = Get2dHPos(IN.Position);
-  OUT.baseTC.xy = IN.baseTC.xy;
+  OUT.HPosition = GetHPos_FromTriVertexID(VertexID);
+  float2 baseTC = GetBaseTC_FromTriVertexID(VertexID);
+  OUT.baseTC.xy = baseTC;
   
   
   float2 scale = g_VS_ScreenSize.xy / 128.0;      
   float2 pixScale = 128.0 / g_VS_ScreenSize.xy;      
           
   // make sure noise is correctly texel to pixel mapped 
-  IN.baseTC.xy *= scale;          
-  OUT.noiseTC.xy = IN.baseTC.xy + (nightVisionParamsVS.xy ) * pixScale;              
-  OUT.noiseTC.wz = IN.baseTC.xy + (nightVisionParamsVS.zw + 0.333) * pixScale ;              
+  baseTC.xy *= scale;          
+  OUT.noiseTC.xy = baseTC + (nightVisionParamsVS.xy ) * pixScale;              
+  OUT.noiseTC.wz = baseTC + (nightVisionParamsVS.zw + 0.333) * pixScale ;              
   
   return OUT;
 }

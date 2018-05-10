@@ -366,10 +366,52 @@ target_link_libraries(${THIS_PROJECT} PRIVATE bigdigits)
 
 if(WIN32)
 	# Exclude Default libcmt.lib library
-	set_target_properties( ${THIS_PROJECT} PROPERTIES LINK_FLAGS "/NODEFAULTLIB:libcmt.lib") 
+	set_property(TARGET ${THIS_PROJECT} APPEND_STRING PROPERTY LINK_FLAGS " /NODEFAULTLIB:libcmt.lib") 
 	target_link_libraries( ${THIS_PROJECT} PRIVATE Ws2_32 Mswsock "${SPEEX}" )
 endif(WIN32)
 
 if(DURANGO)
 	target_link_libraries( ${THIS_PROJECT} PRIVATE Ws2_32 )
 endif(DURANGO)
+
+if (ORBIS OR CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+	target_compile_options(${THIS_PROJECT} PRIVATE
+		-Wno-unused-variable
+		-Wno-parentheses
+		-Wno-reorder
+		-Wno-unused-value
+		-Wno-unknown-pragmas
+		-Wno-format
+		-Wno-empty-body
+		-Wno-unused-private-field
+		-Wno-multichar
+		-Wno-switch
+		-Wno-unused-function
+		-Wno-c++11-narrowing
+		-Wno-comment
+	)
+elseif(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+	target_compile_options(${THIS_PROJECT} PRIVATE
+		-Wno-unused-function
+		-Wno-unused-value
+		-Wno-unused-variable
+		-Wno-sign-compare
+		-Wno-ignored-attributes
+		-Wno-int-in-bool-context
+		-Wno-unused-but-set-variable
+		-Wno-misleading-indentation
+		-Wno-unknown-pragmas
+		-Wno-strict-aliasing
+		-Wno-maybe-uninitialized
+		-Wno-uninitialized
+		-Wno-narrowing
+		-Wno-unused-const-variable
+		-Wno-multichar
+		-Wno-char-subscripts
+		-Wno-parentheses
+		-Wno-comment
+		-Wno-address
+		-Wno-format
+		-Wno-switch
+	)
+endif()

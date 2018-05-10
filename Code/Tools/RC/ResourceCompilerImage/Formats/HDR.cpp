@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 #include "StdAfx.h"
 
 #include "../ImageObject.h"  // ImageToProcess
@@ -101,7 +101,7 @@ enum rgbe_error_codes {
 };
 
 /* default error routine.  change this to change error handling */
-static int rgbe_error(int rgbe_error_code, char *msg)
+static int rgbe_error(int rgbe_error_code, const char *msg)
 {
   switch (rgbe_error_code) {
 	case rgbe_read_error:
@@ -163,7 +163,7 @@ rgbe2float(float *red, float *green, float *blue, unsigned char rgbe[4])
 /* default minimal header. modify if you want more information in header */
 int RGBE_WriteHeader(FILE *fp, uint32 width, uint32 height, rgbe_header_info *info)
 {
-  char *programtype = "RGBE";
+  const char *programtype = "RGBE";
 
   if (info && (info->valid & RGBE_VALID_PROGRAMTYPE))
     programtype = info->programtype;

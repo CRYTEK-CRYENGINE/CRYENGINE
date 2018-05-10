@@ -1,0 +1,10 @@
+<AssetMetadata version="0" type="Texture" guid="6f48b33a-acfe-aac7-6281-74dd263481ce">
+ <Files>
+  <File path="cloak_transition.dds"/>
+ </Files>
+ <Details>
+  <Detail name="width">256</Detail>
+  <Detail name="height">8</Detail>
+  <Detail name="mipCount">1</Detail>
+ </Details>
+</AssetMetadata>

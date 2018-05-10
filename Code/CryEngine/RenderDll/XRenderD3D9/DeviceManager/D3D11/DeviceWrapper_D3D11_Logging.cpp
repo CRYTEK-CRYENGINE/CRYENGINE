@@ -1,7 +1,6 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
-#include "DriverD3D.h"
 
 #ifdef DO_RENDERLOG
 
@@ -12,7 +11,7 @@ static char sLogStr[1024];
 	#define edefault(e) default: \
 	  cry_sprintf(sLogStr, "0x%x", e); return sLogStr;
 
-static char* sD3DFMT(DXGI_FORMAT Value)
+static const char* sD3DFMT(DXGI_FORMAT Value)
 {
 	switch (Value)
 	{
@@ -128,7 +127,7 @@ static char* sD3DFMT(DXGI_FORMAT Value)
 	}
 }
 
-static char* sD3DPRIM_TOPLOGY(D3D11_PRIMITIVE_TOPOLOGY Topology)
+static const char* sD3DPRIM_TOPLOGY(D3D11_PRIMITIVE_TOPOLOGY Topology)
 {
 	switch (Topology)
 	{
@@ -145,7 +144,7 @@ static char* sD3DPRIM_TOPLOGY(D3D11_PRIMITIVE_TOPOLOGY Topology)
 	}
 }
 
-static char* sD3DBlendOP(DWORD Value)
+static const char* sD3DBlendOP(DWORD Value)
 {
 	switch (Value)
 	{
@@ -158,7 +157,7 @@ static char* sD3DBlendOP(DWORD Value)
 	}
 }
 
-static char* sD3DBLEND(DWORD Value)
+static const char* sD3DBLEND(DWORD Value)
 {
 	switch (Value)
 	{
@@ -183,7 +182,7 @@ static char* sD3DBLEND(DWORD Value)
 	}
 }
 
-static char* sD3DCompareFunc(DWORD Value)
+static const char* sD3DCompareFunc(DWORD Value)
 {
 	switch (Value)
 	{
@@ -199,7 +198,7 @@ static char* sD3DCompareFunc(DWORD Value)
 	}
 }
 
-static char* sD3DStencilOp(DWORD Value)
+static const char* sD3DStencilOp(DWORD Value)
 {
 	switch (Value)
 	{
@@ -215,7 +214,7 @@ static char* sD3DStencilOp(DWORD Value)
 	}
 }
 
-static char* sD3DCull(DWORD Value)
+static const char* sD3DCull(DWORD Value)
 {
 	switch (Value)
 	{
@@ -226,7 +225,7 @@ static char* sD3DCull(DWORD Value)
 	}
 }
 
-static char* sD3DTAddress(D3D11_TEXTURE_ADDRESS_MODE Value)
+static const char* sD3DTAddress(D3D11_TEXTURE_ADDRESS_MODE Value)
 {
 	switch (Value)
 	{
@@ -239,7 +238,7 @@ static char* sD3DTAddress(D3D11_TEXTURE_ADDRESS_MODE Value)
 	}
 }
 
-static char* sD3DTFilter(D3D11_FILTER Value)
+static const char* sD3DTFilter(D3D11_FILTER Value)
 {
 	switch (Value)
 	{
@@ -1312,24 +1311,15 @@ void CCryDeviceLoggingHook::CheckCounterInfo_PreCallHook(
 }
 
 void CCryDeviceLoggingHook::CheckCounter_PreCallHook(
-  /*  */
-  __in const D3D11_COUNTER_DESC* pDesc,
-  /*  */
-  __out D3D11_COUNTER_TYPE* pType,
-  /*  */
-  __out UINT* pActiveCounters,
-  /*  */
-  __out_ecount_opt(*pNameLength)  LPSTR wszName,
-  /*  */
-  __inout_opt UINT* pNameLength,
-  /*  */
-  __out_ecount_opt(*pUnitsLength)  LPSTR wszUnits,
-  /*  */
-  __inout_opt UINT* pUnitsLength,
-  /*  */
-  __out_ecount_opt(*pDescriptionLength)  LPSTR wszDescription,
-  /*  */
-  __inout_opt UINT* pDescriptionLength)
+  const D3D11_COUNTER_DESC* pDesc,
+  D3D11_COUNTER_TYPE* pType,
+  UINT* pActiveCounters,
+  LPSTR wszName,
+  UINT* pNameLength,
+  LPSTR wszUnits,
+  UINT* pUnitsLength,
+  LPSTR wszDescription,
+  UINT* pDescriptionLength)
 {
 	gRenDev->Logv("%s(0x%x)\n", "D3DDevice::CheckCounter", pDesc);
 }

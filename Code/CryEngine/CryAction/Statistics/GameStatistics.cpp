@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "GameStatistics.h"
@@ -194,7 +194,7 @@ size_t CGameStatistics::GetScopeCount() const
 
 IStatsTracker* CGameStatistics::PushGameScope(size_t scopeID)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_ACTION);
+	CRY_PROFILE_FUNCTION(PROFILE_ACTION);
 
 	CStatsTracker* tracker = m_gameScopes.PushGameScope(scopeID, ++m_currTimeStamp, this);
 	if (tracker == 0)
@@ -218,7 +218,7 @@ IStatsTracker* CGameStatistics::PushGameScope(size_t scopeID)
 
 void CGameStatistics::PopGameScope(size_t checkScopeID)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_ACTION);
+	CRY_PROFILE_FUNCTION(PROFILE_ACTION);
 
 	if (!ValidatePopScope(checkScopeID))
 		return;
@@ -346,7 +346,7 @@ bool CGameStatistics::RegisterGameElements(const SGameElementDesc* elemDescs, si
 
 IStatsTracker* CGameStatistics::AddGameElement(const SNodeLocator& locator, IScriptTable* pTable)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_ACTION);
+	CRY_PROFILE_FUNCTION(PROFILE_ACTION);
 
 	if (!ValidateAddElement(locator))
 		return 0;
@@ -406,7 +406,7 @@ bool CGameStatistics::ValidateAddElement(const SNodeLocator& locator)
 
 void CGameStatistics::RemoveElement(const SNodeLocator& locator)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_ACTION);
+	CRY_PROFILE_FUNCTION(PROFILE_ACTION);
 
 	size_t stackPos = m_gameScopes.FindScopePos(locator.scopeID);
 
@@ -567,7 +567,7 @@ IXMLSerializable* CGameStatistics::WrapXMLNode(const XmlNodeRef& node)
 
 void CGameStatistics::PreprocessScriptedEventParameter(size_t eventID, SStatAnyValue& value)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_ACTION);
+	CRY_PROFILE_FUNCTION(PROFILE_ACTION);
 
 	if (m_gsCallback)
 		m_gsCallback->PreprocessScriptedEventParameter(eventID, value);
@@ -575,7 +575,7 @@ void CGameStatistics::PreprocessScriptedEventParameter(size_t eventID, SStatAnyV
 
 void CGameStatistics::PreprocessScriptedStateParameter(size_t stateID, SStatAnyValue& value)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_ACTION);
+	CRY_PROFILE_FUNCTION(PROFILE_ACTION);
 
 	if (m_gsCallback)
 		m_gsCallback->PreprocessScriptedStateParameter(stateID, value);
@@ -657,7 +657,7 @@ void CGameStatistics::GetMemoryStatistics(ICrySizer* pSizer) const
 
 void CGameStatistics::CheckMemoryOverflow()
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_ACTION);
+	CRY_PROFILE_FUNCTION(PROFILE_ACTION);
 
 	size_t totalMemory = m_cachedDeadMemory + m_cachedLiveUnloadableMemory;
 
@@ -683,7 +683,7 @@ const char* CGameStatistics::GetSerializeName(const SNodeLocator& locator) const
 
 void CGameStatistics::SaveDeadNodesRec(SDeadStatNode* node)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_ACTION);
+	CRY_PROFILE_FUNCTION(PROFILE_ACTION);
 
 	const char* serializeName = GetSerializeName(node->locator);
 
@@ -702,7 +702,7 @@ void CGameStatistics::SaveDeadNodesRec(SDeadStatNode* node)
 
 void CGameStatistics::SaveScopesRec(size_t scopePos)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_ACTION);
+	CRY_PROFILE_FUNCTION(PROFILE_ACTION);
 
 	SScopeData& sd = m_gameScopes.GetScopeAt(scopePos);
 	IStatsContainer& scopeCont = *sd.tracker->GetStatsContainer();
@@ -748,7 +748,7 @@ void CGameStatistics::SaveScopesRec(size_t scopePos)
 
 void CGameStatistics::NotifyVisitNode(const SNodeLocator& locator, const char* serializeName, IStatsContainer& container, EStatNodeState state)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_ACTION);
+	CRY_PROFILE_FUNCTION(PROFILE_ACTION);
 
 	for (size_t i = 0; i != m_serializers.size(); ++i)
 		m_serializers[i]->VisitNode(locator, serializeName, container, state);
@@ -756,7 +756,7 @@ void CGameStatistics::NotifyVisitNode(const SNodeLocator& locator, const char* s
 
 void CGameStatistics::NotifyLeaveNode(const SNodeLocator& locator, const char* serializeName, IStatsContainer& container, EStatNodeState state)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_ACTION);
+	CRY_PROFILE_FUNCTION(PROFILE_ACTION);
 
 	for (size_t i = 0; i != m_serializers.size(); ++i)
 		m_serializers[i]->LeaveNode(locator, serializeName, container, state);

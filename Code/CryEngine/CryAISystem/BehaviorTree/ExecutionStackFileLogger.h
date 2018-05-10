@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #ifndef ExecutionStackFileLogger_h
 #define ExecutionStackFileLogger_h
@@ -29,7 +29,7 @@ private:
 	ExecutionStackFileLogger(const ExecutionStackFileLogger&);
 	ExecutionStackFileLogger& operator=(const ExecutionStackFileLogger&);
 
-	void                      LogNodeRecursively(const DebugNode& debugNode, const UpdateContext& updateContext, const BehaviorTreeInstance& instance, const int indentLevel);
+	void                      LogNodeRecursively(const DebugNode& debugNode, const int indentLevel);
 
 	string           m_agentName;
 	char             m_logFilePath[ICryPak::g_nMaxPath];

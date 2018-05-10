@@ -1,4 +1,4 @@
-# Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+# Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 def build(bld):	
 	# Compile Java files /d/NVPACK/jdk1.7.0_45/bin/javac.exe -d build -classpath /d/NVPACK/android-sdk-windows/platforms/android-19/android.jar ../Code/Launcher/AndroidLauncher/SDLActivity.java ../Code/Launcher/AndroidLauncher/CryEngineActivity.java -Xlint:deprecation

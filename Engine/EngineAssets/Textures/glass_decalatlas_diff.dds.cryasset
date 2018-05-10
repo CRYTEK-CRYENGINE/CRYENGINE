@@ -1,0 +1,16 @@
+<AssetMetadata version="0" type="Texture" guid="742a9bca-9223-b4b6-0b2d-bb00e7289106" source="glass_decalatlas_diff.tif">
+ <Files>
+  <File path="glass_decalatlas_diff.dds"/>
+  <File path="glass_decalatlas_diff.dds.1"/>
+  <File path="glass_decalatlas_diff.dds.2"/>
+  <File path="glass_decalatlas_diff.dds.3"/>
+  <File path="glass_decalatlas_diff.dds.4"/>
+  <File path="glass_decalatlas_diff.dds.5"/>
+  <File path="glass_decalatlas_diff.dds.6"/>
+ </Files>
+ <Details>
+  <Detail name="width">2048</Detail>
+  <Detail name="height">1024</Detail>
+  <Detail name="mipCount">9</Detail>
+ </Details>
+</AssetMetadata>

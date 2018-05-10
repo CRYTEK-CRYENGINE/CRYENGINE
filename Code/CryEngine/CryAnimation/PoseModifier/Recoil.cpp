@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "stdafx.h"
 #include "Recoil.h"
@@ -41,6 +41,8 @@ bool CRecoil::Prepare(const SAnimationPoseModifierParams& params)
 
 bool CRecoil::Execute(const SAnimationPoseModifierParams& params)
 {
+	DEFINE_PROFILER_FUNCTION();
+
 	if (m_stateExecute.time >= m_stateExecute.duration * 2.0f)
 		return false;
 

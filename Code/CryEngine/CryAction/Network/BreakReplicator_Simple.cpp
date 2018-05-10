@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "BreakReplicator.h"
@@ -727,8 +727,8 @@ void PartBreak::OnEndFrame()
 	}
 }
 
-	#pragma warning(push)
-	#pragma warning(disable : 6262)// 32k of stack space of CBitArray
+#pragma warning(push)
+#pragma warning(disable : 6262)// 32k of stack space of CBitArray
 void PartBreak::SerializeWith(CBitArray& array)
 {
 	SerializeWith_Begin(array, true);
@@ -782,7 +782,7 @@ void PartBreak::SerializeWith(CBitArray& array)
 	LOGBREAK("#   numJointBreaks: %d", m_numJointsBroken);
 	#endif
 }
-	#pragma warning(pop)
+#pragma warning(pop)
 
 void PartBreak::Playback()
 {

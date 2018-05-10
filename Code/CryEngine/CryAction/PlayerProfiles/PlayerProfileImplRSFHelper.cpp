@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include <CryCore/Platform/platform.h>
@@ -774,9 +774,9 @@ public:
 
 			const bool bAlpha = m_thumbnailDepth == 4;
 			const int bpl = m_thumbnailWidth * m_thumbnailDepth;
-			uint8* pBuf = m_thumbnailData.begin() + captureDestOffY * bpl + captureDestOffX * m_thumbnailDepth;
-			gEnv->pRenderer->ReadFrameBufferFast(pBuf, m_thumbnailWidth, w, h, eRB_BackBuffer, bAlpha, captureDestWidth, captureDestHeight); // no inverse needed
-			// gEnv->pRenderer->ReadFrameBufferFast((uint32*)pBuf, m_thumbnailWidth, m_thumbnailHeight); // needs inverse
+			uint32* pBuf = static_cast<uint32*>(m_thumbnailData.begin() + captureDestOffY * bpl + captureDestOffX * m_thumbnailDepth);
+			gEnv->pRenderer->ReadFrameBuffer(pBuf, captureDestWidth, captureDestHeight); // no inverse needed
+			// gEnv->pRenderer->ReadFrameBuffer(pBuf, m_thumbnailWidth, m_thumbnailHeight); // needs inverse
 			// bFlipImage = true;
 		}
 #endif

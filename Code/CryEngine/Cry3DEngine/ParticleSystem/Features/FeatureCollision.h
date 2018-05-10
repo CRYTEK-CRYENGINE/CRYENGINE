@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 // -------------------------------------------------------------------------
 //  Created:     22/10/2015 by Benjamin Block
@@ -11,8 +11,6 @@
 
 #include "StdAfx.h"
 #include "ParticleSystem/ParticleFeature.h"
-
-CRY_PFX2_DBG
 
 namespace pfx2
 {
@@ -37,7 +35,7 @@ struct SContactPoint
 template<typename T, typename F = float> struct QuadPathT;
 typedef QuadPathT<Vec3> QuadPath;
 
-extern EParticleDataType EPDT_ContactPoint;
+extern TDataType<SContactPoint> EPDT_ContactPoint;
 
 SERIALIZATION_ENUM_DECLARE(ECollisionLimitMode, ,
 	Unlimited,
@@ -60,7 +58,7 @@ public:
 	virtual void AddToComponent(CParticleComponent* pComponent, SComponentParams* pParams) override;
 	virtual void Serialize(Serialization::IArchive& ar) override;
 	virtual void InitParticles(const SUpdateContext& context) override;
-	virtual void PostUpdate(const SUpdateContext& context) override;
+	virtual void PostUpdateParticles(const SUpdateContext& context) override;
 
 	bool  IsActive() const           { return m_terrain || m_staticObjects || m_dynamicObjects; }
 	float GetElasticity() const      { return m_elasticity; }
@@ -92,8 +90,7 @@ public:
 	CRY_PFX2_DECLARE_FEATURE
 
 	CFeatureGPUCollision()
-		: CParticleFeature(gpu_pfx2::eGpuFeatureType_Collision)
-		, m_offset(0.5f)
+		: m_offset(0.5f)
 		, m_radius(0.5f)
 		, m_restitution(0.5f)
 	{}

@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -80,6 +80,7 @@ namespace UQS
 		public:
 			explicit                  CItemListProxy_Writable(Core::IItemList& itemList);
 			void                      CreateItemsByItemFactory(size_t numItemsToCreate);
+			void                      CloneItems(const TItem* pOriginalItems, size_t numItemsToClone);
 			TItem&                    GetItemAtIndex(size_t index);
 			Core::IItemList&          GetUnderlyingItemList();
 
@@ -116,6 +117,18 @@ namespace UQS
 			// retrieve the items in case they hadn't been created in a previous roundtrip
 			m_pItems = m_itemList.GetItems();
 			m_itemCount = numItemsToCreate;
+		}
+
+		template <class TItem>
+		void CItemListProxy_Writable<TItem>::CloneItems(const TItem* pOriginalItems, size_t numItemsToClone)
+		{
+			assert(pOriginalItems);
+
+			m_itemList.CloneItems(pOriginalItems, numItemsToClone);
+
+			// retrieve the items in case they hadn't been created in a previous roundtrip
+			m_pItems = m_itemList.GetItems();
+			m_itemCount = numItemsToClone;
 		}
 
 		template <class TItem>

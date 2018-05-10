@@ -1,15 +1,6 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
-/*************************************************************************
-   -------------------------------------------------------------------------
-   $Id$
-   $DateTime$
-   Description:  Network services interface
-   -------------------------------------------------------------------------
-   History:
-   - 11/01/2006   : Dima Kukushkin, Created
-
-*************************************************************************/
+//! \cond INTERNAL
 
 #pragma once
 
@@ -642,3 +633,5 @@ struct INetworkProfile : public INetworkInterface
 	virtual void RetrievePassword(const char* email) = 0;
 	// </interfuscator:shuffle>
 };
+
+//! \endcond

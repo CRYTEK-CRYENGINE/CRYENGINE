@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 // -------------------------------------------------------------------------
 //  File name:   BoidObject.h
@@ -190,7 +190,7 @@ public:
 	virtual void Kill( const Vec3 &hitPoint,const Vec3 &force ) {};
 
 	virtual void OnFlockMove( SBoidContext &bc ) {};
-	virtual void OnEntityEvent( SEntityEvent &event );
+	virtual void OnEntityEvent( const SEntityEvent &event );
 	virtual void CalcOrientation( Quat &qOrient );
 	virtual void Render( SRendParams &rp,CCamera &cam,SBoidContext &bc );
 	void CalcFlockBehavior( SBoidContext &bc,Vec3 &vAlignment,Vec3 &vCohesion,Vec3 &vSeparation );
@@ -206,7 +206,7 @@ public:
 	int GetGeometrySurfaceType();
 
 	virtual void OnPickup( bool bPickup,float fSpeed ) {};
-	virtual void OnCollision( SEntityEvent &event );
+	virtual void OnCollision( const SEntityEvent &event );
 	
 	const Vec3& GetPos() const {return m_pos;}
 	const EntityId& GetId() const {return m_entity;}

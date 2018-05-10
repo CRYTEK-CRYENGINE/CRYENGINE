@@ -1,11 +1,6 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
-
-#ifndef __VolumesManager_h__
-#define __VolumesManager_h__
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
-
-#include <CryAISystem/INavigationSystem.h>
 
 /*
    This class is needed to keep track of the navigation shapes created in Sandbox and their
@@ -13,10 +8,15 @@
    since the AISystem has no knowledge of the Editor's shape
  */
 
-class CVolumesManager
+class CVolumesManager : public ISystemEventListener
 {
 public:
-	CVolumesManager() {}
+	CVolumesManager();
+	~CVolumesManager();
+
+	// ISystemEventListener
+	virtual void OnSystemEvent(ESystemEvent event, UINT_PTR wparam, UINT_PTR lparam) override;
+	// ~ISystemEventListener
 
 	bool               RegisterArea(const char* volumeName, NavigationVolumeID& outVolumeId);
 	void               UnRegisterArea(const char* volumeName);
@@ -25,7 +25,7 @@ public:
 
 	void               RegisterAreaFromLoadedData(const char* szVolumeName, NavigationVolumeID id);
 	void               ClearLoadedAreas();
-	void               ValidateAndSanitizeLoadedAreas(const INavigationSystem& navigationSystem);
+	void               ValidateAndSanitizeLoadedAreas(INavigationSystem& navigationSystem);
 
 	bool               SetAreaID(const char* volumeName, NavigationVolumeID id);
 	void               InvalidateID(NavigationVolumeID id);
@@ -40,10 +40,19 @@ public:
 	bool               IsLoadedAreaPresent(const char* volumeName) const;
 	NavigationVolumeID GetLoadedAreaID(const char* volumeName) const;
 	void               GetLoadedUnregisteredVolumes(std::vector<NavigationVolumeID>& volumes) const;
+
+	bool               RegisterEntityMarkups(INavigationSystem& navigationSystem, const IEntity& entity, const char** pShapeNamesArray, const size_t count, NavigationVolumeID* pOutIds);
+	bool               UnregisterEntityMarkups(INavigationSystem& navigationSystem, const IEntity& entity);
+
+	void               SaveData(CCryFile& file, const uint16 version) const;
+	void               LoadData(CCryFile& file, const uint16 version);
+
 private:
 	typedef std::map<string, NavigationVolumeID> VolumesMap;
+	typedef std::unordered_map<EntityGUID, VolumesMap> EntitiesWithMarkupsMap;
 	VolumesMap m_volumeAreas;
 	VolumesMap m_loadedVolumeAreas;
+
+	EntitiesWithMarkupsMap m_registeredEntityMarkupsMap;
 };
 
-#endif // __VolumesManager_h__

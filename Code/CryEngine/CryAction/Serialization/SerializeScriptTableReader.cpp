@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "SerializeScriptTableReader.h"
@@ -87,7 +87,7 @@ void CSerializeScriptTableReaderImpl::Value(const char* name, ScriptAnyValue& va
 	IScriptTable* pTbl = CurTable();
 	if (pTbl)
 		if (pTbl->GetValueAny(name, temp))
-			if (temp.type != ANY_TNIL)
+			if (temp.GetType() != EScriptAnyType::Nil)
 				value = temp;
 }
 
@@ -136,15 +136,15 @@ bool CSerializeScriptTableReaderImpl::BeginGroup(const char* szName)
 	{
 		ScriptAnyValue val;
 		pTbl->GetValueAny(szName, val);
-		switch (val.type)
+		switch (val.GetType())
 		{
-		case ANY_TTABLE:
-			m_tables.push(val.table);
+		case EScriptAnyType::Table:
+			m_tables.push(val.GetScriptTable());
 			break;
 		default:
 			GameWarning("Expected %s to be a table, but it wasn't", szName);
 			Failed();
-		case ANY_TNIL:
+		case EScriptAnyType::Nil:
 			m_nSkip++;
 			break;
 		}

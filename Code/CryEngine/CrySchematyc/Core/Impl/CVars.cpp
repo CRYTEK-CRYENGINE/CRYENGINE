@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "CVars.h"
@@ -18,12 +18,14 @@ ICVar* CVars::sc_LogFileMessageTypes = nullptr;
 #ifdef _RELEASE
 int CVars::sc_DisplayCriticalErrors = 0;
 #else //_RELEASE
-int CVars::sc_DisplayCriticalErrors = 1;
+int CVars::sc_DisplayCriticalErrors = 0;
 #endif
 
 int CVars::sc_RunUnitTests = 0;
 ICVar* CVars::sc_ExperimentalFeatures = nullptr;
 int CVars::sc_allowFlowGraphNodes = 0;
+
+int CVars::sc_SettingsNotFoundWarning = 1;
 
 void CVars::Register()
 {
@@ -41,6 +43,8 @@ void CVars::Register()
 	sc_ExperimentalFeatures = REGISTER_STRING("sc_ExperimentalFeatures", "", VF_NULL, "CrySchematyc - Enable one or more experimental features");
 
 	REGISTER_CVAR(sc_allowFlowGraphNodes, sc_allowFlowGraphNodes, VF_EXPERIMENTAL, "CrySchematyc - Allows wrapped FlowGraph nodes in Schematyc.");
+
+	REGISTER_CVAR(sc_SettingsNotFoundWarning, sc_SettingsNotFoundWarning, VF_NULL, "CrySchematyc - Warning is not displayed when settings are not found");
 }
 
 void CVars::Unregister()

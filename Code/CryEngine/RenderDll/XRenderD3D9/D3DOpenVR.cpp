@@ -1,13 +1,14 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 
 #if defined(INCLUDE_VR_RENDERING)
 
 	#include "D3DOpenVR.h"
-	#include "DriverD3D.h"
 	#include "D3DPostProcess.h"
 	#include "DeviceInfo.h"
+
+	#include <Common/RenderDisplayContext.h>
 
 	#include <CrySystem/VR/IHMDManager.h>
 	#include <CrySystem/VR/IHMDDevice.h>
@@ -45,12 +46,12 @@ CD3DOpenVRRenderer::~CD3DOpenVRRenderer()
 {
 }
 
-bool CD3DOpenVRRenderer::Initialize()
+bool CD3DOpenVRRenderer::Initialize(int initialWidth, int initialeight)
 {
 	D3DDevice* d3d11Device = m_pRenderer->GetDevice_Unsynchronized().GetRealDevice();
 
-	m_eyeWidth = m_pRenderer->GetWidth();
-	m_eyeHeight = m_pRenderer->GetHeight();
+	m_eyeWidth  = initialWidth;
+	m_eyeHeight = initialeight;
 
 	CryVR::OpenVR::TextureDesc eyeTextureDesc;
 	eyeTextureDesc.width = m_eyeWidth;
@@ -211,13 +212,13 @@ void CD3DOpenVRRenderer::Shutdown()
 	ReleaseBuffers();
 }
 
-void CD3DOpenVRRenderer::OnResolutionChanged()
+void CD3DOpenVRRenderer::OnResolutionChanged(int newWidth, int newHeight)
 {
-	if (m_eyeWidth != m_pRenderer->GetWidth() ||
-	    m_eyeHeight != m_pRenderer->GetHeight())
+	if (m_eyeWidth  != newWidth ||
+	    m_eyeHeight != newHeight)
 	{
 		Shutdown();
-		Initialize();
+		Initialize(newWidth, newHeight);
 	}
 }
 
@@ -233,6 +234,8 @@ void CD3DOpenVRRenderer::PrepareFrame()
 	// Quad layers
 	for (int i = 0; i < RenderLayer::eQuadLayers_Total; i++)
 		m_pStereoRenderer->SetVrQuadLayerTexture(static_cast<RenderLayer::EQuadLayers>(i), m_quadLayerRenderData[i].texture);
+
+	m_pOpenVRDevice->OnPrepare();
 }
 
 void CD3DOpenVRRenderer::SubmitFrame()
@@ -244,9 +247,11 @@ void CD3DOpenVRRenderer::SubmitFrame()
 	// Quad layers
 	for (uint32 i = 0; i < RenderLayer::eQuadLayers_Total; ++i)
 	{
-		if (GetQuadLayerProperties(static_cast<RenderLayer::EQuadLayers>(i))->IsActive())
+		const RenderLayer::CProperties* pQuadProperties = GetQuadLayerProperties(static_cast<RenderLayer::EQuadLayers>(i));
+
+		if (pQuadProperties->IsActive())
 		{
-			m_pOpenVRDevice->SubmitOverlay(i);
+			m_pOpenVRDevice->SubmitOverlay(i, pQuadProperties);
 		}
 	}
 
@@ -262,16 +267,91 @@ void CD3DOpenVRRenderer::SubmitFrame()
 	GetQuadLayerProperties(RenderLayer::eQuadLayers_1)->SetActive(false);
 }
 
+void CD3DOpenVRRenderer::OnPostPresent()
+{
+	m_pOpenVRDevice->OnPostPresent();
+}
+
+struct CD3DOpenVRRenderer::SSocialScreenRenderAutoRestore
+{
+	SSocialScreenRenderAutoRestore(CTexture* pRenderTarget)
+	{
+		ASSERT_LEGACY_PIPELINE
+
+		#if 0
+		shaderFlags = gRenDev->m_RP.m_FlagsShader_RT;
+		gRenDev->GetViewport(&x, &y, &w, &h);
+
+		gRenDev->m_RP.m_FlagsShader_RT &= ~g_HWSR_MaskBit[HWSR_SAMPLE0];
+		gRenDev->m_RP.m_FlagsShader_RT &= ~g_HWSR_MaskBit[HWSR_SAMPLE2];
+		gRenDev->m_RP.m_FlagsShader_RT &= ~g_HWSR_MaskBit[HWSR_SAMPLE5];
+
+		gcpRendD3D->FX_PushRenderTarget(0, pRenderTarget, nullptr);
+		gcpRendD3D->FX_SetActiveRenderTargets();
+
+		gcpRendD3D->FX_SetState(GS_NODEPTHTEST);
+		#endif
+	}
+	~SSocialScreenRenderAutoRestore()
+	{
+		ASSERT_LEGACY_PIPELINE
+
+		#if 0
+		gRenDev->m_RP.m_FlagsShader_RT = shaderFlags;
+
+		gcpRendD3D->FX_PopRenderTarget(0);
+		gcpRendD3D->SetViewport(x, y, w, h);
+		#endif
+	}
+
+	int x;
+	int y;
+	int w;
+	int h;
+	uint64 shaderFlags;
+};
+
+void CD3DOpenVRRenderer::RenderQuadLayers()
+{
+	// Since Quad layers do not get rendered (yet) with orientation in the social screen, we will render only the first quad layer which is the one that contains the Flash textures
+	const uint32 numQuadLayersToRender = 2;
+
+	for (uint32 layerIdx = 0; layerIdx < numQuadLayersToRender; ++layerIdx)
+	{
+		if (m_pOpenVRDevice->IsActiveOverlay(layerIdx))
+		{
+			if (CTexture* pQuadTex = m_quadLayerRenderData[layerIdx].texture)
+			{
+				ASSERT_LEGACY_PIPELINE
+
+				#if 0
+				GetUtils().ShBeginPass(CShaderMan::s_shPostEffects, m_textureToTexture, FEF_DONTSETTEXTURES | FEF_DONTSETSTATES);
+
+				gRenDev->FX_SetState(GS_NODEPTHTEST | GS_BLSRC_SRCALPHA | GS_BLDST_ONEMINUSSRCALPHA);
+				pQuadTex->Apply(0, EDefaultSamplerStates::LinearClamp);
+
+				GetUtils().DrawFullScreenTri(0, 0);
+				GetUtils().ShEndPass();
+				#endif
+			}
+		}
+	}
+}
+
 void CD3DOpenVRRenderer::RenderSocialScreen()
 {
-	CTexture* pBackbufferTexture = gcpRendD3D->GetCurrentBackBuffer(gcpRendD3D->GetActiveDisplayContext());
+	CTexture* pBackbufferTexture = gcpRendD3D->GetActiveDisplayContext()->GetCurrentBackBuffer();
 	
 	if (const IHmdManager* pHmdManager = gEnv->pSystem->GetHmdManager())
 	{
 		if (const IHmdDevice* pDev = pHmdManager->GetHmdDevice())
 		{
+			const int backBufferWidth = pBackbufferTexture->GetWidth();
+			const int backBufferHeight = pBackbufferTexture->GetHeight();
+
 			bool bKeepAspect = false;
 			const EHmdSocialScreen socialScreen = pDev->GetSocialScreenType(&bKeepAspect);
+
 			switch (socialScreen)
 			{
 			case EHmdSocialScreen::Off:
@@ -282,9 +362,37 @@ void CD3DOpenVRRenderer::RenderSocialScreen()
 			case EHmdSocialScreen::UndistortedLeftEye:
 			case EHmdSocialScreen::UndistortedRightEye:
 				{
-					CTexture* pTex = socialScreen == EHmdSocialScreen::UndistortedLeftEye ? m_mirrorTextures[LEFT_EYE] : m_mirrorTextures[RIGHT_EYE];
-					if (CShaderMan::s_shPostEffects)
+				ASSERT_LEGACY_PIPELINE
+
+				#if 0
+				if (CShaderMan::s_shPostEffects)
+				{
+					CTexture* pTex = m_pStereoRenderer->GetEyeTarget(socialScreen == EHmdSocialScreen::UndistortedLeftEye ? LEFT_EYE : RIGHT_EYE);
+					if (bKeepAspect)
+					{
+						const SSocialScreenRenderAutoRestore renderStateAutoRestore(pBackbufferTexture);
+
+						gcpRendD3D->RT_SetViewport(backBufferWidth >> 2, 0, backBufferWidth >> 1, backBufferHeight);
+						gcpRendD3D->FX_ClearTarget(pBackbufferTexture, Clr_Empty);
+
+						uint nPasses;
+						CShaderMan::s_shPostEffects->FXSetTechnique(m_textureToTexture); // TextureToTexture technique
+						CShaderMan::s_shPostEffects->FXBegin(&nPasses, FEF_DONTSETTEXTURES | FEF_DONTSETSTATES);
+						CShaderMan::s_shPostEffects->FXBeginPass(0);
+						pTex->Apply(0, EDefaultSamplerStates::LinearClamp); // Bind left-eye texture for rendering
+						GetUtils().DrawFullScreenTri(pTex->GetWidth(), pTex->GetHeight(), 0);
+						CShaderMan::s_shPostEffects->FXEndPass();
+						CShaderMan::s_shPostEffects->FXEnd();
+
+						RenderQuadLayers();
+					}
+					else
+					{
 						GetUtils().StretchRect(pTex, pBackbufferTexture);
+					}
+				}
+				#endif
+
 				}
 				break;
 
@@ -293,48 +401,51 @@ void CD3DOpenVRRenderer::RenderSocialScreen()
 			default:
 				if (CShaderMan::s_shPostEffects)
 				{
+					ASSERT_LEGACY_PIPELINE
+
+				#if 0
+					const bool bUseMirrorTexture = socialScreen == EHmdSocialScreen::DistortedDualImage;
+
 					// Get eye textures
-					uint64 nSaveFlagsShader_RT = gRenDev->m_RP.m_FlagsShader_RT;
-					gRenDev->m_RP.m_FlagsShader_RT &= ~(g_HWSR_MaskBit[HWSR_SAMPLE0] | g_HWSR_MaskBit[HWSR_SAMPLE1] | g_HWSR_MaskBit[HWSR_SAMPLE2] | g_HWSR_MaskBit[HWSR_SAMPLE4] | g_HWSR_MaskBit[HWSR_SAMPLE5] | g_HWSR_MaskBit[HWSR_REVERSE_DEPTH]);
+					CTexture* pTexLeft = bUseMirrorTexture ? m_mirrorTextures[LEFT_EYE] : m_pStereoRenderer->GetEyeTarget(LEFT_EYE);
+					CTexture* pTexRight = bUseMirrorTexture ? m_mirrorTextures[RIGHT_EYE] : m_pStereoRenderer->GetEyeTarget(RIGHT_EYE);
 
-					// Store current viewport
-					int iTempX, iTempY, iWidth, iHeight;
-					gRenDev->GetViewport(&iTempX, &iTempY, &iWidth, &iHeight);
+					// Store previous viewport and set new render target. Use RAII to restore previous state.
+					const SSocialScreenRenderAutoRestore renderStateAutoRestore(pBackbufferTexture);
 
-					if (bKeepAspect)
+					// Left-Eye Pass
+					gcpRendD3D->RT_SetViewport(0, 0, backBufferWidth >> 1, backBufferHeight); // Set viewport (left half of backbuffer)
+
+					uint nPasses;
+					CShaderMan::s_shPostEffects->FXSetTechnique(m_textureToTexture); // TextureToTexture technique
+					CShaderMan::s_shPostEffects->FXBegin(&nPasses, FEF_DONTSETTEXTURES | FEF_DONTSETSTATES);
+					CShaderMan::s_shPostEffects->FXBeginPass(0);
+					pTexLeft->Apply(0, EDefaultSamplerStates::LinearClamp); // Bind left-eye texture for rendering
+					GetUtils().DrawFullScreenTri(pTexLeft->GetWidth(), pTexLeft->GetHeight(), 0);
+					CShaderMan::s_shPostEffects->FXEndPass();
+					CShaderMan::s_shPostEffects->FXEnd();
+
+					if (!bUseMirrorTexture)
 					{
-						gcpRendD3D->FX_ClearTarget(pBackbufferTexture, Clr_Empty);
+						RenderQuadLayers();
 					}
 
-					// Set backbuffer texture as renter target
-					gcpRendD3D->FX_PushRenderTarget(0, pBackbufferTexture, nullptr);
-					gcpRendD3D->FX_SetActiveRenderTargets();
+					// Right-Eye Pass
+					gcpRendD3D->RT_SetViewport(backBufferWidth >> 1, 0, backBufferWidth >> 1, backBufferHeight); // set viewport (right half of backbuffer)
 
-					for (uint32 eye = 0; eye < 2; ++eye)
+					CShaderMan::s_shPostEffects->FXSetTechnique(m_textureToTexture); // TextureToTexture technique
+					CShaderMan::s_shPostEffects->FXBegin(&nPasses, FEF_DONTSETTEXTURES | FEF_DONTSETSTATES);
+					CShaderMan::s_shPostEffects->FXBeginPass(0);
+					pTexRight->Apply(0, EDefaultSamplerStates::LinearClamp); // Bind right-eye texture for rendering
+					GetUtils().DrawFullScreenTri(pTexRight->GetWidth(), pTexRight->GetHeight(), 1);
+					CShaderMan::s_shPostEffects->FXEndPass();
+					CShaderMan::s_shPostEffects->FXEnd();
+
+					if (!bUseMirrorTexture)
 					{
-						if (CTexture* pSrcTex = m_mirrorTextures[eye])
-						{
-					// Set rendering and shader flags
-							if (eye == LEFT_EYE)
-					gcpRendD3D->RT_SetViewport(0, 0, pBackbufferTexture->GetWidth() >> 1, pBackbufferTexture->GetHeight()); // Set viewport (left half of backbuffer)
-							else if (eye == RIGHT_EYE)
-								gcpRendD3D->RT_SetViewport(pBackbufferTexture->GetWidth() >> 1, 0, pBackbufferTexture->GetWidth() >> 1, pBackbufferTexture->GetHeight()); // set viewport (right half of backbuffer)
-
-							GetUtils().ShBeginPass(CShaderMan::s_shPostEffects, m_textureToTexture, FEF_DONTSETTEXTURES | FEF_DONTSETSTATES);
-
-							gcpRendD3D->FX_SetState(GS_NODEPTHTEST);
-							pSrcTex->Apply(0, EDefaultSamplerStates::LinearClamp); // Bind left-eye texture for rendering
-
-							GetUtils().DrawFullScreenTri(0, 0);
-							GetUtils().ShEndPass();
-						}
+						RenderQuadLayers();
 					}
-
-					// Restore previous viewport
-					gcpRendD3D->FX_PopRenderTarget(0);
-					gcpRendD3D->SetViewport(iTempX, iTempY, iWidth, iHeight);
-
-					gRenDev->m_RP.m_FlagsShader_RT = nSaveFlagsShader_RT;
+				#endif
 				}
 				break;
 			}

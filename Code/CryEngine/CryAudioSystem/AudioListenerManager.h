@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -26,7 +26,7 @@ public:
 	CAudioListenerManager&           operator=(CAudioListenerManager const&) = delete;
 	CAudioListenerManager&           operator=(CAudioListenerManager&&) = delete;
 
-	void                             Init(Impl::IImpl* const pIImpl);
+	void                             SetImpl(Impl::IImpl* const pIImpl);
 	void                             Release();
 	void                             Update(float const deltaTime);
 	CATLListener*                    CreateListener(char const* const szName = nullptr);

@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "stdafx.h"
 #include "GlobalAnimationHeaderCAF.h"
@@ -380,14 +380,15 @@ uint32 GlobalAnimationHeaderCAF::DoesExistCAF()
 
 void GlobalAnimationHeaderCAF::ControllerInit()
 {
-	uint32 numController = m_arrController.size();
-	assert(numController);
+	const uint32 numController = m_arrController.size();
 	std::sort(m_arrController.begin(), m_arrController.end(), AnimCtrlSortPred());
 	InitControllerLookup(numController);
 	m_nControllers = numController;
 	m_nControllers2 = numController;
 	if (m_nControllers2 == 0)
-		CryWarning(VALIDATOR_MODULE_3DENGINE, VALIDATOR_WARNING, "CryAnimation CAF: Assets has no controllers. Probably compressed to death: %s", GetFilePath());
+	{
+		CryWarning(VALIDATOR_MODULE_ANIMATION, VALIDATOR_WARNING, "CryAnimation: CAF file has no controllers: %s", GetFilePath());
+	}
 
 	ClearAssetRequested();
 	ClearAssetNotFound();

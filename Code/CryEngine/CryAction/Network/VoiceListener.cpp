@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "GameContext.h"
@@ -65,9 +65,9 @@ void CVoiceListener::HandleEvent(const SGameObjectEvent& event)
 {
 }
 
-void CVoiceListener::ProcessEvent(SEntityEvent& evt)
+void CVoiceListener::ProcessEvent(const SEntityEvent& evt)
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_ACTION);
+	CRY_PROFILE_FUNCTION(PROFILE_ACTION);
 
 	if (evt.event != ENTITY_EVENT_START_GAME || m_pSound)
 		return;

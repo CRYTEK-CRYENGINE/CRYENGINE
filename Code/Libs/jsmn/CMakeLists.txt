@@ -6,8 +6,8 @@ start_sources()
 sources_platform(ALL)
 add_sources("NoUberFile"
 	SOURCE_GROUP "Root"
-		"../../SDKs/jsmn/jsmn.c"
-		"../../SDKs/jsmn/jsmn.h"
+		"${SDK_DIR}/jsmn/jsmn.c"
+		"${SDK_DIR}/jsmn/jsmn.h"
 		"jsmnutil.h"
 		"jsmnutil.c"
 )
@@ -19,3 +19,12 @@ CryEngineStaticModule(jsmn SOLUTION_FOLDER "Libs")
 
 target_include_directories(${THIS_PROJECT} PUBLIC "${SDK_DIR}/jsmn" INTERFACE .)
 target_compile_definitions(${THIS_PROJECT} PRIVATE -DJSMN_STRICT PUBLIC -DJSMN_PARENT_LINKS)
+if (ORBIS OR CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+	target_compile_options(${THIS_PROJECT} PRIVATE
+		-Wno-switch
+	)
+elseif(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+	target_compile_options(${THIS_PROJECT} PRIVATE
+		-Wno-switch
+	)
+endif()

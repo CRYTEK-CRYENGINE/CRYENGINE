@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #ifndef PROJECTDEFINES_H
 #define PROJECTDEFINES_H
@@ -76,8 +76,9 @@ typedef uint32 vtx_idx;
 
 #if CRY_PLATFORM_WINDOWS || CRY_PLATFORM_APPLE || CRY_PLATFORM_LINUX || CRY_PLATFORM_ANDROID
 	#if defined(DEDICATED_SERVER)
-//! Enable/disable map load slicing functionality from the build.
-		#define MAP_LOADING_SLICING
+		//! Map Loading Slicing is by default disabled.
+		//! Enable/disable map load slicing functionality from the ProjectDefinesInclude.h.
+		//#define MAP_LOADING_SLICING
 	#endif
 #endif
 
@@ -109,7 +110,9 @@ extern void SliceAndSleep(const char* pFunc, int line);
 	#define USE_HTTP_WEBSOCKETS 0
 #endif
 
-#if (CRY_PLATFORM_WINDOWS || CRY_PLATFORM_ORBIS || CRY_PLATFORM_DURANGO) && !defined(RESOURCE_COMPILER)
+#if (CRY_PLATFORM_WINDOWS || CRY_PLATFORM_ORBIS || CRY_PLATFORM_DURANGO) && \
+	!defined(RESOURCE_COMPILER) &&											\
+	!defined(NOT_USE_CRY_MEMORY_MANAGER)
 	#define CAPTURE_REPLAY_LOG 1
 #endif
 
@@ -196,9 +199,6 @@ extern void SliceAndSleep(const char* pFunc, int line);
 #if !defined(_RELEASE) || defined(ENABLE_STATOSCOPE_RELEASE)
 #define ENABLE_FLASH_INFO
 #endif
-
-// Remove the line below to disable the console in release builds
-#define ENABLE_DEVELOPER_CONSOLE_IN_RELEASE
 
 #if !defined(ENABLE_LW_PROFILERS) && !defined(ENABLE_DEVELOPER_CONSOLE_IN_RELEASE)
 	#ifndef USE_NULLFONT
@@ -316,10 +316,6 @@ extern void SliceAndSleep(const char* pFunc, int line);
 //# define CRY_PROFILE_MARKERS_USE_NVTOOLSEXT
 #endif
 
-#if CRY_PLATFORM_WINDOWS
-//#define SEG_WORLD
-#endif
-
 #ifdef SEG_WORLD
 	#define SW_STRIP_LOADING_MSG
 	#define SW_ENTITY_ID_USE_GUID
@@ -327,6 +323,11 @@ extern void SliceAndSleep(const char* pFunc, int line);
 #endif
 
 #include "ProjectDefinesInclude.h"
+
+#ifdef RELEASE
+// Forces the .cryproject file to be read from a .pak file instead of directly from disk.
+#define CRY_FORCE_CRYPROJECT_IN_PAK
+#endif
 
 //Encryption & security defines
 

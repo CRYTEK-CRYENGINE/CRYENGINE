@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 // -------------------------------------------------------------------------
 //  File name:   LocalizedStringManager.h
@@ -38,6 +38,8 @@
 // CVAR names
 const char c_sys_localization_debug[] = "sys_localization_debug";
 const char c_sys_localization_encode[] = "sys_localization_encode";
+const char c_sys_localization_test[] = "sys_localization_test";
+const char c_sys_localization_pak_suffix[] = "sys_localization_pak_suffix";
 
 enum ELocalizedXmlColumns
 {
@@ -194,7 +196,7 @@ void CLocalizedStringsManager::LocalizationDumpLoadedInfo(IConsoleCmdArgs* pArgs
 		}
 
 		// *INDENT-OFF* - Space between closing quote and PRISIZE_T needs to be preserved
-		CryLogAlways("		Entries %d, Approx Size %" PRISIZE_T "Kb", entries, pSizer->GetTotalSize() / 1024);
+		CryLogAlways("		Entries %d, Approx Size %" PRISIZE_T "Kb", entries, pSizer->GetTotalSize()/1024);
 		// *INDENT-ON*
 
 		SAFE_RELEASE(pSizer);
@@ -212,6 +214,7 @@ CLocalizedStringsManager::CLocalizedStringsManager(ISystem* pSystem)
 	: m_postProcessors(1)
 	, m_cvarLocalizationDebug(0)
 	, m_cvarLocalizationEncode(1)
+	, m_cvarLocalizationTest(0)
 	, m_availableLocalizations(0)
 {
 	m_pSystem = pSystem;
@@ -243,6 +246,13 @@ CLocalizedStringsManager::CLocalizedStringsManager(ISystem* pSystem)
 	               "1: Huffman encode translated text, saves approx 30% with a small runtime performance cost\n"
 	               "Default is 1.");
 
+	REGISTER_CVAR2(c_sys_localization_test, &m_cvarLocalizationTest, m_cvarLocalizationTest, VF_CHEAT,
+	               "Toggles test mode of the Localization Manager.\n"
+	               "Usage: sys_localization_test [0..2]\n"
+	               "1: disables localization\n"
+	               "2: localizes everything as @test_<language>, where language is set to current language\n"
+	               "Default is 0 (off).");
+
 	REGISTER_COMMAND("LocalizationDumpLoadedInfo", LocalizationDumpLoadedInfo, VF_NULL, "Dump out into about the loaded localization files");
 #endif //#if !defined(_RELEASE)
 
@@ -262,22 +272,22 @@ CLocalizedStringsManager::CLocalizedStringsManager(ISystem* pSystem)
 
 		if (handle > -1)
 		{
-			const char szLocalizationXmlPostfix[] = "_xml";
-			const size_t localizationXmlPostfixLength = sizeof(szLocalizationXmlPostfix) - 1; // -1 for null-terminator
+			stack_string pakSuffix = GetPakSuffix();
+
 			do
 			{
-				// drop files with too short name
-				stack_string const szLanguageName = fd.name;
-
-				if (szLanguageName.length() <= localizationXmlPostfixLength + extensionLength)
+				// drop files with not pak extension
+				if (0 != cry_stricmp(PathUtil::GetExt(fd.name),"pak"))
 				{
 					continue;
 				}
-
-				// drop files that don't match the pattern "name_xml.pak"
-				size_t const languageLength = szLanguageName.length() - localizationXmlPostfixLength - extensionLength;
-
-				if (szLanguageName.compareNoCase(languageLength, localizationXmlPostfixLength, szLocalizationXmlPostfix))
+				stack_string szLanguageName = PathUtil::GetFileName(fd.name);
+				
+				if (pakSuffix.length() < szLanguageName.length())
+				{
+					szLanguageName = szLanguageName.substr(0,szLanguageName.length()-pakSuffix.length());
+				}
+				else
 				{
 					continue;
 				}
@@ -287,7 +297,7 @@ CLocalizedStringsManager::CLocalizedStringsManager(ISystem* pSystem)
 				{
 					char const* const szCurrentLanguage = LangNameFromPILID((ILocalizationManager::EPlatformIndependentLanguageID)i);
 
-					if (szLanguageName.compareNoCase(0, languageLength, szCurrentLanguage) == 0)
+					if (szLanguageName.compareNoCase(szCurrentLanguage) == 0)
 					{
 						availableLanguages |= ILocalizationManager::LocalizationBitfieldFromPILID((ILocalizationManager::EPlatformIndependentLanguageID)i);
 
@@ -714,7 +724,7 @@ bool CLocalizedStringsManager::LoadLocalizationDataByTag(
 	}
 
 	bool bResult = true;
-	stack_string const szLocalizationFolderPath(PathUtil::GetLocalizationFolder() + CRY_NATIVE_PATH_SEPSTR + m_pLanguage->sLanguage + "_xml" + CRY_NATIVE_PATH_SEPSTR);
+	stack_string const szLocalizationFolderPath(PathUtil::GetLocalizationFolder() + CRY_NATIVE_PATH_SEPSTR + m_pLanguage->sLanguage + GetPakSuffix() + CRY_NATIVE_PATH_SEPSTR);
 	TStringVec& vEntries = it->second.filenames;
 
 	for (TStringVec::iterator it2 = vEntries.begin(); it2 != vEntries.end(); ++it2)
@@ -1551,6 +1561,13 @@ bool CLocalizedStringsManager::DoLoadExcelXmlSpreadsheet(const char* sFileName, 
 }
 
 //////////////////////////////////////////////////////////////////////////
+string CLocalizedStringsManager::GetPakSuffix()
+{
+	string suffix = (g_cvars.sys_localization_pak_suffix) ? g_cvars.sys_localization_pak_suffix->GetString() : "";
+	return suffix;
+}
+
+//////////////////////////////////////////////////////////////////////////
 void CLocalizedStringsManager::ReloadData()
 {
 	tmapFilenames temp = m_loadedTables;
@@ -1560,6 +1577,28 @@ void CLocalizedStringsManager::ReloadData()
 	{
 		DoLoadExcelXmlSpreadsheet((*it).first, (*it).second.nTagID, true);
 	}
+}
+
+void CLocalizedStringsManager::AddLocalizationEntry(const string& token, const string& translation)
+{
+	SLocalizedStringEntry* pEntry;
+
+	MEMSTAT_CONTEXT(EMemStatContextTypes::MSC_Other, 0, "New SLocalizedStringEntry");
+	pEntry = new SLocalizedStringEntry;
+	pEntry->flags = 0;
+
+	// key CRC
+	uint32 keyCRC = CCrc32::Compute(token);
+
+	MEMSTAT_CONTEXT(EMemStatContextTypes::MSC_Other, 0, "pEntry->sUtf8TranslatedText");
+	CryFixedStringT<LOADING_FIXED_STRING_LENGTH> sTmp;
+
+	sTmp.assign(translation, translation.size());
+	ReplaceEndOfLine(sTmp);
+
+	pEntry->TranslatedText.psUtf8Uncompressed = new string(sTmp.c_str(), sTmp.c_str() + sTmp.length());
+
+	AddLocalizedString(m_pLanguage, pEntry, keyCRC);
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -1699,7 +1738,7 @@ static void LogDecompTimer(__int64 nTotalTicks, __int64 nDecompTicks, __int64 nA
 
 string CLocalizedStringsManager::SLocalizedStringEntry::GetTranslatedText(const SLanguage* pLanguage) const
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_SYSTEM);
+	CRY_PROFILE_FUNCTION(PROFILE_SYSTEM);
 	if ((flags & IS_COMPRESSED) != 0)
 	{
 #if defined(LOG_DECOMP_TIMES)
@@ -1797,6 +1836,20 @@ bool CLocalizedStringsManager::LocalizeLabel(const char* sLabel, string& outLoca
 	// Label sign.
 	if (sLabel[0] == '@')
 	{
+		if (m_cvarLocalizationTest)
+		{
+			if (m_cvarLocalizationTest < 2)
+			{
+				outLocalString = sLabel;
+			}
+			else
+			{
+				outLocalString = "test_" + m_pLanguage->sLanguage;
+			}
+
+			return true;
+		}
+
 		uint32 labelCRC32 = CCrc32::ComputeLowercase(sLabel + 1);
 		{
 			AutoLock lock(m_cs);                                                                       //Lock here, to prevent strings etc being modified underneath this lookup
@@ -2156,13 +2209,17 @@ void _InternalFormatStringMessage(StringClass& outString, const StringClass& sSt
 					}
 					else
 					{
-						StringClass tmp(sString);
-						tmp.replace(tokens1, tokens2);
-						if (sizeof(*tmp.c_str()) == sizeof(char))
-							CryWarning(VALIDATOR_MODULE_SYSTEM, VALIDATOR_WARNING, "Parameter for argument %d is missing. [%s]", nArg + 1, (const char*)tmp.c_str());
-						else
-							CryWarning(VALIDATOR_MODULE_SYSTEM, VALIDATOR_WARNING, "Parameter for argument %d is missing. [%S]", nArg + 1, (const wchar_t*)tmp.c_str());
-						curPos = foundPos + 1;
+						ICVar* pVar = gEnv->pConsole->GetCVar(c_sys_localization_test);
+						if (!pVar || pVar->GetIVal() == 0)
+						{
+							StringClass tmp(sString);
+							tmp.replace(tokens1, tokens2);
+							if (sizeof(*tmp.c_str()) == sizeof(char))
+								CryWarning(VALIDATOR_MODULE_SYSTEM, VALIDATOR_WARNING, "Parameter for argument %d is missing. [%s]", nArg + 1, (const char*)tmp.c_str());
+							else
+								CryWarning(VALIDATOR_MODULE_SYSTEM, VALIDATOR_WARNING, "Parameter for argument %d is missing. [%S]", nArg + 1, (const wchar_t*)tmp.c_str());
+							curPos = foundPos + 1;
+						}
 					}
 				}
 				else

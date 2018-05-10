@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 /*************************************************************************
 -------------------------------------------------------------------------
@@ -217,7 +217,7 @@ bool CGrenade::ShouldCollisionsDamageTarget() const
 }
 
 //------------------------------------------------------------------------
-void CGrenade::ProcessEvent(SEntityEvent &event)
+void CGrenade::ProcessEvent(const SEntityEvent& event)
 {
 	if (event.event == ENTITY_EVENT_TIMER && event.nParam[0] == ePTIMER_LIFETIME)
 	{

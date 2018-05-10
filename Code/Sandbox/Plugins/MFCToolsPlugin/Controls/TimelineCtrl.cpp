@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "TimelineCtrl.h"
@@ -746,3 +746,4 @@ void CTimelineCtrl::SetPlayCallback(const std::function<void()>& callback)
 {
 	m_playCallback = callback;
 }
+

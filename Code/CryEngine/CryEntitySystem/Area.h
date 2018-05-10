@@ -1,9 +1,10 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
 #include "AreaManager.h"
 #include "EntitySystem.h"
+#include <CryMath/GeomQuery.h>
 
 #define INVALID_AREA_GROUP_ID -1
 
@@ -58,25 +59,7 @@ class CArea final : public IArea
 
 public:
 
-	struct a2DPoint
-	{
-		float x, y;
-		a2DPoint() : x(0.0f), y(0.0f) {}
-		explicit a2DPoint(const Vec3& pos3D) { x = pos3D.x; y = pos3D.y; }
-		a2DPoint(float x, float y) : x(x), y(y){}
-		float DistSqr(const struct a2DPoint& point) const
-		{
-			float xx = x - point.x;
-			float yy = y - point.y;
-			return (xx * xx + yy * yy);
-		}
-		float DistSqr(const float px, const float py) const
-		{
-			float xx = x - px;
-			float yy = y - py;
-			return (xx * xx + yy * yy);
-		}
-	};
+	using a2DPoint = Vec2;
 
 	struct a2DBBox
 	{
@@ -154,6 +137,7 @@ public:
 		bool    isHorizontal;   // horizontal flag
 		float   k, b;           // line parameters y=kx+b
 		a2DBBox bbox;           // segment's BBox
+		Vec2    normal;         // 2D outward facing normal
 	};
 
 	struct SBoxHolder
@@ -172,18 +156,13 @@ public:
 	//IArea
 	virtual size_t         GetEntityAmount() const override                  { return m_entityIds.size(); }
 	virtual const EntityId GetEntityByIdx(size_t const index) const override { return m_entityIds[index]; }
-	virtual void           GetMinMax(Vec3** min, Vec3** max) const override
-	{
-		(*min)->x = m_areaBBox.min.x;
-		(*min)->y = m_areaBBox.min.y;
-		(*min)->z = m_origin;
-		(*max)->x = m_areaBBox.max.x;
-		(*max)->y = m_areaBBox.max.y;
-		(*max)->z = m_origin + m_height;
-	}
 	virtual int GetGroup() const override    { return m_areaGroupId; }
 	virtual int GetPriority() const override { return m_priority; }
 	virtual int GetID() const override       { return m_areaId; }
+	virtual AABB GetAABB() const override;
+	virtual float GetExtent(EGeomForm eForm) override;
+	virtual void GetRandomPoints(Array<PosNorm> points, CRndGen seed, EGeomForm eForm) const override;
+	virtual bool IsPointInside(Vec3 const& pointToTest) const override;
 	//~IArea
 
 	void     Release();
@@ -203,7 +182,7 @@ public:
 	//////////////////////////////////////////////////////////////////////////
 	// These functions also switch area type.
 	//////////////////////////////////////////////////////////////////////////
-	void SetPoints(Vec3 const* const pPoints, bool const* const pSoundObstructionSegments, size_t const numLocalPoints);
+	void SetPoints(Vec3 const* const pPoints, bool const* const pSoundObstructionSegments, size_t const numLocalPoints, bool const bClosed);
 	void SetBox(const Vec3& min, const Vec3& max, const Matrix34& tm);
 	void SetSphere(const Vec3& vCenter, float fRadius);
 	void BeginSettingSolid(const Matrix34& worldTM);
@@ -256,6 +235,7 @@ public:
 	EAreaPosType CalcPosType(EntityId const nEntityID, Vec3 const& rPos, bool const bCacheResult = true);
 	float        CalcPointWithinDist(EntityId const nEntityID, Vec3 const& point3d, bool const bIgnoreSoundObstruction = true, bool const bCacheResult = true);
 	bool         CalcPointWithin(EntityId const nEntityID, Vec3 const& point3d, bool const bIgnoreHeight = false, bool const bCacheResult = true);
+	bool         CalcPointWithinNonCached(Vec3 const& point3d, bool const bIgnoreHeight) const;
 	float        CalcDistToPoint(a2DPoint const& point) const;
 
 	// Squared-distance returned works only if point32 is not within the area
@@ -349,7 +329,6 @@ private:
 	const a2DBBox& GetBBox() const;
 	a2DBBox&       GetBBox();
 	void           ClearPoints();
-	IEntitySystem* GetEntitySystem() { return m_pAreaManager->GetEntitySystem(); }
 	void           CalcClosestPointToObstructedShape(EntityId const nEntityID, Vec3& rv3ClosestPos, float& rfClosestDistSq, Vec3 const& rv3SourcePos);
 	void           CalcClosestPointToObstructedBox(Vec3& rv3ClosestPos, float& rfClosestDistSq, Vec3 const& rv3SourcePos) const;
 	void           CalcClosestPointToSolid(Vec3 const& rv3SourcePos, bool bIgnoreSoundObstruction, float& rfClosestDistSq, Vec3* rv3ClosestPos) const;
@@ -389,8 +368,16 @@ private:
 	a2DBBox m_areaBBox;
 	size_t  m_bbox_holder;
 	// the area segments
+	std::vector<Vec3> m_areaPoints;
 	using AreaSegments = std::vector<a2DSegment*>;
 	AreaSegments m_areaSegments;
+	CGeomExtents m_extents;
+	float m_area = 0;
+	bool m_bClosed = true;
+	std::vector<int> m_triIndices;
+
+	size_t PrevPoint(size_t i) const { return i > 0 ? i - 1 : m_areaPoints.size() - 1; }
+	size_t NextPoint(size_t i) const { return i < m_areaPoints.size() - 1 ? i + 1 : 0; }
 
 	// for sector areas ----------------------------------------------------------------------
 	//	int	m_Building;
@@ -429,7 +416,7 @@ private:
 	float m_origin;
 	//  area height (vertical size). If (m_height<=0) - not used, only 2D check is done. Otherwise
 	//  additional check for Z to be in [m_origin, m_origin + m_height] range is done
-	float                        m_height;
+	float m_height;
 
 	Cry::AreaManager::EAreaState m_state = Cry::AreaManager::EAreaState::None;
 };

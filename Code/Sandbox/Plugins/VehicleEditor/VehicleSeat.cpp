@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "VehicleSeat.h"
@@ -271,3 +271,4 @@ void CVehicleSeat::AttachChild(CBaseObject* child, bool bKeepPos, bool bInvalida
 
 	CBaseObject::AttachChild(child, bKeepPos, bInvalidateTM);
 }
+

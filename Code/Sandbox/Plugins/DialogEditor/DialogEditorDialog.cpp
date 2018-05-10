@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 
@@ -639,7 +639,6 @@ REGISTER_CLASS_DESC(CDialogEditorDialogViewClass)
 CDialogEditorDialog::CDialogEditorDialog()
 {
 	GetIEditor()->RegisterNotifyListener(this);
-	GetIEditor()->GetObjectManager()->AddObjectEventListener(functor(*this, &CDialogEditorDialog::OnObjectEvent));
 
 	//! This callback will be called on response to object event.
 	typedef Functor2<CBaseObject*, int> EventCallback;
@@ -677,7 +676,6 @@ CDialogEditorDialog::CDialogEditorDialog()
 //////////////////////////////////////////////////////////////////////////
 CDialogEditorDialog::~CDialogEditorDialog()
 {
-	GetIEditor()->GetObjectManager()->RemoveObjectEventListener(functor(*this, &CDialogEditorDialog::OnObjectEvent));
 	GetIEditor()->UnregisterNotifyListener(this);
 	SaveCurrent();
 	SAFE_DELETE(m_pDM);
@@ -953,7 +951,8 @@ void CDialogEditorDialog::OnEditorNotifyEvent(EEditorNotifyEvent event)
 	// Editing events.
 	//////////////////////////////////////////////////////////////////////////
 	case eNotify_OnEditModeChange:          // Sent when editing mode change (move,rotate,scale,....)
-	case eNotify_OnEditToolChange:          // Sent when edit tool is changed (ObjectMode,TerrainModify,....)
+	case eNotify_OnEditToolBeginChange:     // Sent when edit tool is about to be changed (ObjectMode,TerrainModify,....)
+	case eNotify_OnEditToolEndChange:       // Sent when edit tool has been changed (ObjectMode,TerrainModify,....)
 		break;
 
 	// Game related events.
@@ -976,28 +975,6 @@ void CDialogEditorDialog::OnEditorNotifyEvent(EEditorNotifyEvent event)
 	case eNotify_OnPlaySequence:            // Sent when editor start playing animation sequence.
 	case eNotify_OnStopSequence:            // Sent when editor stop playing animation sequence.
 		break;
-	}
-}
-
-//////////////////////////////////////////////////////////////////////////
-void CDialogEditorDialog::OnObjectEvent(CBaseObject* object, int event)
-{
-	// if ( !m_bIgnoreNotifications )
-	{
-		switch (event)
-		{
-		case OBJECT_ON_DELETE:     // Sent after object was deleted from object manager.
-			break;
-		case OBJECT_ON_SELECT:     // Sent when objects becomes selected.
-		case OBJECT_ON_UNSELECT:   // Sent when objects unselected.
-			break;
-		case OBJECT_ON_TRANSFORM:  // Sent when object transformed.
-			break;
-		case OBJECT_ON_VISIBILITY: // Sent when object visibility changes.
-		case OBJECT_ON_RENAME:     // Sent when object changes name.
-		case OBJECT_ON_ADD:        // Sent after object was added to object manager.
-			break;
-		}
 	}
 }
 
@@ -1613,3 +1590,4 @@ bool CDialogEditorDialog::DoSourceControlOp(CEditorDialogScript* pScript, ESourc
 	}
 	return bRes;
 }
+

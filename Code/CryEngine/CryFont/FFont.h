@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #ifndef CRYFONT_FFONT_H
 #define CRYFONT_FFONT_H
@@ -16,7 +16,7 @@ struct ISystem;
 class CCryFont;
 class CFontTexture;
 
-class CFFont : public IFFont, public IFFont_RenderProxy
+class CFFont : public IFFont
 {
 public:
 	struct SRenderingPass
@@ -84,7 +84,7 @@ public:
 	virtual unsigned int GetEffectId(const char* pEffectName) const;
 
 public:
-	virtual void RenderCallback(float x, float y, float z, const char* pStr, const bool asciiMultiLine, const STextDrawContext& ctx);
+	virtual void RenderCallback(float x, float y, float z, const char* pStr, const bool asciiMultiLine, const STextDrawContext& ctx, IRenderAuxGeom *pAux);
 
 public:
 	CFFont(ISystem* pSystem, CCryFont* pCryFont, const char* pFontName);
@@ -122,7 +122,6 @@ private:
 
 	Effects          m_effects;
 
-	SVF_P3F_C4B_T2F* m_pDrawVB;
 };
 
 #endif

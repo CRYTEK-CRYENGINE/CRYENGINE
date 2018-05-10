@@ -1,9 +1,11 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "ParticleSystem/ParticleFeature.h"
 #include <CrySerialization/Decorators/ResourcesAudio.h>
 #include <CryAudio/IObject.h>
+#include "../ParticleComponentRuntime.h"
+#include "../ParticleEffect.h"
 #include "ParamMod.h"
 
 namespace CryAudio
@@ -19,9 +21,8 @@ namespace CryAudio
 namespace pfx2
 {
 static const ColorB audioColor = ColorB(172, 196, 138);
-using IOAudioObjects = TIOStream<CryAudio::IObject*>;
 
-EParticleDataType PDT(EPDT_AudioObject, CryAudio::IObject*);
+MakeDataType(EPDT_AudioObject, CryAudio::IObject*);
 
 class CFeatureAudioTrigger final : public CParticleFeature
 {
@@ -34,12 +35,13 @@ public:
 		m_stopTrigger.Resolve();
 		if (GetNumResources())
 		{
-			pComponent->AddToUpdateList(EUL_MainPreUpdate, this);
+			pComponent->MainPreUpdate.add(this);
 			pComponent->AddParticleData(EPVF_Position);
 			if (m_followParticle || m_stopOnDeath)
 			{
 				pComponent->AddParticleData(EPDT_AudioObject);
-				pComponent->AddToUpdateList(EUL_InitUpdate, this);
+				pComponent->InitParticles.add(this);
+				pComponent->DestroyParticles.add(this);
 			}
 		}
 	}
@@ -71,11 +73,7 @@ public:
 	{
 		CRY_PFX2_PROFILE_DETAIL;
 
-		IOAudioObjects audioObjects = context.m_container.GetTIOStream<CryAudio::IObject*>(EPDT_AudioObject);
-
-		CRY_PFX2_FOR_SPAWNED_PARTICLES(context)
-			audioObjects.Store(particleId, nullptr);
-		CRY_PFX2_FOR_END;
+		context.m_container.FillData(EPDT_AudioObject, (CryAudio::IObject*)0, context.GetSpawnedRange());
 	}
 
 	void MainPreUpdate(CParticleComponentRuntime* pComponentRuntime) override
@@ -89,6 +87,16 @@ public:
 			TriggerFollowAudioEvents(pComponentRuntime, proxyName);
 		else
 			TriggerSingleAudioEvents(pComponentRuntime, proxyName);
+	}
+
+	void DestroyParticles(const SUpdateContext& context) override
+	{
+		auto audioObjects = context.m_container.IStream(EPDT_AudioObject);
+		for (auto particleId : context.GetUpdateRange())
+		{
+			if (auto pIObject = audioObjects.Load(particleId))
+				gEnv->pAudioSystem->ReleaseObject(pIObject);
+		}
 	}
 
 	uint GetNumResources() const override
@@ -131,21 +139,19 @@ private:
 		const SUpdateContext context(pComponentRuntime);
 		CParticleContainer& container = context.m_container;
 		const IVec3Stream positions = container.GetIVec3Stream(EPVF_Position);
-		const auto states = container.GetTIStream<uint8>(EPDT_State);
+		const auto normAges = container.GetIFStream(EPDT_NormalAge);
 
-		CRY_PFX2_FOR_ACTIVE_PARTICLES(context)
+		for (auto particleId : context.GetUpdateRange())
 		{
-			const uint8 state = states.Load(particleId);
-			if (m_playTrigger && state == ES_NewBorn)
+			if (m_playTrigger && container.IsNewBorn(particleId))
 			{
 				Trigger(m_playTrigger, proxyName, positions.Load(particleId));
 			}
-			else if (m_stopTrigger && state == ES_Expired)
+			if (m_stopTrigger && IsExpired(normAges.Load(particleId)))
 			{
 				Trigger(m_stopTrigger, proxyName, positions.Load(particleId));
 			}
 		}
-		CRY_PFX2_FOR_END;
 	}
 
 	void TriggerFollowAudioEvents(CParticleComponentRuntime* pComponentRuntime, cstr proxyName)
@@ -155,47 +161,41 @@ private:
 		const SUpdateContext context(pComponentRuntime);
 		CParticleContainer& container = context.m_container;
 		const IVec3Stream positions = container.GetIVec3Stream(EPVF_Position);
-		const auto states = container.GetTIStream<uint8>(EPDT_State);
-		IOAudioObjects audioObjects = container.GetTIOStream<CryAudio::IObject*>(EPDT_AudioObject);
+		const auto normAges = container.GetIFStream(EPDT_NormalAge);
+		auto audioObjects = container.IOStream(EPDT_AudioObject);
 
-		CRY_PFX2_FOR_ACTIVE_PARTICLES(context)
+		for (auto particleId : context.GetUpdateRange())
 		{
 			CryAudio::IObject* pIObject = audioObjects.Load(particleId);
-			const uint8 state = states.Load(particleId);
-			switch (state)
+			if (container.IsNewBorn(particleId))
 			{
-			case ES_NewBorn:
 				if (m_playTrigger && !pIObject)
 				{
 					pIObject = MakeAudioObject(proxyName, positions.Load(particleId));
 					audioObjects.Store(particleId, pIObject);
 					pIObject->ExecuteTrigger(m_playTrigger);
 				}
-				break;
-			case ES_Alive:
-				if (m_followParticle && pIObject)
+			}
+			if (pIObject)
+			{
+				if (m_followParticle)
 					pIObject->SetTransformation(positions.Load(particleId));
-				break;
-			case ES_Expired:
-				if (m_stopTrigger && pIObject)
-					pIObject->ExecuteTrigger(m_stopTrigger);
-				break;
-			case ES_Dead:
-				if (pIObject)
+				if (IsExpired(normAges.Load(particleId)))
 				{
 					if (m_stopOnDeath)
 						pIObject->StopTrigger(m_playTrigger);
+					if (m_stopTrigger)
+						pIObject->ExecuteTrigger(m_stopTrigger);
 					gEnv->pAudioSystem->ReleaseObject(pIObject);
 					audioObjects.Store(particleId, nullptr);
 				}
 			}
 		}
-		CRY_PFX2_FOR_END;
 	}
 
 	void Trigger(CryAudio::ControlId id, cstr proxyName, const Vec3& position)
 	{
-		const CryAudio::SExecuteTriggerData data(proxyName, m_occlusionType, position, true, id);
+		const CryAudio::SExecuteTriggerData data(id, proxyName, m_occlusionType, position, INVALID_ENTITYID, true);
 		gEnv->pAudioSystem->ExecuteTriggerEx(data);
 	}
 
@@ -247,7 +247,7 @@ public:
 		if (!m_parameterName.empty())
 		{
 			m_parameterId = CryAudio::StringToId(m_parameterName.c_str());
-			pComponent->AddToUpdateList(EUL_MainPreUpdate, this);
+			pComponent->MainPreUpdate.add(this);
 			m_value.AddToComponent(pComponent, this);
 		}
 	}
@@ -265,21 +265,17 @@ public:
 		CParticleContainer& container = context.m_container;
 		if (!container.HasData(EPDT_AudioObject))
 			return;
-		IOAudioObjects audioObjects = container.GetTIOStream<CryAudio::IObject*>(EPDT_AudioObject);
 
-		STempModBuffer values(context, m_value);
-		values.ModifyUpdate(context, m_value, container.GetFullRange());
+		auto audioObjects = container.IOStream(EPDT_AudioObject);
+		STempUpdateBuffer<float> values(context, m_value, context.GetUpdateRange());
 
-		CRY_PFX2_FOR_ACTIVE_PARTICLES(context)
+		for (auto particleId : context.GetUpdateRange())
 		{
-			const float value = values.m_stream.Load(particleId);
-			CryAudio::IObject* const pIObject = audioObjects.Load(particleId);
-			if (pIObject != nullptr)
+			if (auto* pIObject = audioObjects.Load(particleId))
 			{
-				pIObject->SetParameter(m_parameterId, value);
+				pIObject->SetParameter(m_parameterId, values[particleId]);
 			}
 		}
-		CRY_PFX2_FOR_END;
 	}
 
 private:

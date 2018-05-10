@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "stdafx.h"
 #include "FileIOHandler.h"
@@ -91,7 +91,7 @@ AKRESULT CFileIOHandler::Open(AkOSChar const* sFileName, AkOpenMode eOpenMode, A
 		rSyncOpen = true;
 		AkOSChar finalFilePath[AK_MAX_PATH] = { '\0' };
 		AKPLATFORM::SafeStrCpy(finalFilePath, m_sBankPath, AK_MAX_PATH);
-		char* szTemp = "Init.bnk";
+		char const* szTemp = "Init.bnk";
 		AkOSChar* pTemp = nullptr;
 		CONVERT_CHAR_TO_OSCHAR(szTemp, pTemp);
 		bool const bIsInitBank = (AKPLATFORM::OsStrCmp(pTemp, sFileName) == 0);
@@ -107,8 +107,8 @@ AKRESULT CFileIOHandler::Open(AkOSChar const* sFileName, AkOpenMode eOpenMode, A
 
 		AKPLATFORM::SafeStrCat(finalFilePath, sFileName, AK_MAX_PATH);
 
-		szTemp = nullptr;
-		CONVERT_OSCHAR_TO_CHAR(finalFilePath, szTemp);
+		char* szFileName = nullptr;
+		CONVERT_OSCHAR_TO_CHAR(finalFilePath, szFileName);
 		char const* sOpenMode = nullptr;
 
 		switch (eOpenMode)
@@ -145,11 +145,11 @@ AKRESULT CFileIOHandler::Open(AkOSChar const* sFileName, AkOpenMode eOpenMode, A
 			}
 		}
 
-		FILE* const pFile = gEnv->pCryPak->FOpen(szTemp, sOpenMode, ICryPak::FOPEN_HINT_DIRECT_OPERATION);
+		FILE* const pFile = gEnv->pCryPak->FOpen(szFileName, sOpenMode, ICryPak::FOPEN_HINT_DIRECT_OPERATION);
 
 		if (pFile != nullptr)
 		{
-			rFileDesc.iFileSize = static_cast<AkInt64>(gEnv->pCryPak->FGetSize(szTemp));
+			rFileDesc.iFileSize = static_cast<AkInt64>(gEnv->pCryPak->FGetSize(szFileName));
 			rFileDesc.hFile = GetFileHandle(pFile);
 			rFileDesc.uSector = 0;
 			rFileDesc.deviceID = m_nDeviceID;

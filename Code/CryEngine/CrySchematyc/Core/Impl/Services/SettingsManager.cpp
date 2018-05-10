@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "SettingsManager.h"
@@ -6,6 +6,7 @@
 #include <CrySerialization/IArchiveHost.h>
 #include <CrySchematyc/Utils/Assert.h>
 #include <CrySchematyc/Utils/StackString.h>
+#include "CVars.h"
 
 namespace Schematyc
 {
@@ -53,7 +54,10 @@ namespace Schematyc
 			fileName.append(".sc_settings");
 			fileName.MakeLower();
 
-			Serialization::LoadXmlFile(*settings.second, fileName);
+			if (CVars::sc_SettingsNotFoundWarning != 0 || gEnv->pCryPak->IsFileExist(fileName))
+			{
+				Serialization::LoadXmlFile(*settings.second, fileName);
+			}
 		}
 	}
 

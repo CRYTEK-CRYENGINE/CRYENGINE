@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 /*************************************************************************
 -------------------------------------------------------------------------
@@ -462,7 +462,7 @@ void CLaserBeam::OnRayCastDataReceived( const QueuedRayID& rayID, const RayCastR
 		laserLength = range + 0.1f;
 	}
 
-	const CCamera& camera = gEnv->pRenderer->GetCamera();
+	const CCamera& camera = GetISystem()->GetViewCamera();
 
 	// Hit near plane
 	if (m_lastLaserUpdateDirection.Dot(camera.GetViewdir()) < 0.0f)
@@ -709,7 +709,7 @@ void CLaser::TurnOffLaser(bool manual /*= false*/)
 //-------------------------------------------
 void CLaser::Update(SEntityUpdateContext& ctx, int slot)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_GAME);
+	CRY_PROFILE_FUNCTION(PROFILE_GAME);
 
 	if((slot == eIUS_General) && m_laserBeam.IsLaserActivated())
 	{

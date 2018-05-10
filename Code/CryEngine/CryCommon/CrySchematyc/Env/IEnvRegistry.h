@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -24,6 +24,7 @@ struct IEnvRegistrar;
 struct IEnvSignal;
 
 typedef std::unique_ptr<IEnvPackage>                          IEnvPackagePtr;
+typedef std::shared_ptr<IEnvElement>                          IEnvElementPtr;
 
 typedef std::function<EVisitStatus(const IEnvPackage&)>           EnvPackageConstVisitor;
 typedef std::function<EVisitStatus(const IEnvModule&)>            EnvModuleConstVisitor;
@@ -36,9 +37,21 @@ typedef std::function<EVisitStatus(const IEnvInterfaceFunction&)> EnvInterfaceFu
 typedef std::function<EVisitStatus(const IEnvComponent&)>         EnvComponentConstVisitor;
 typedef std::function<EVisitStatus(const IEnvAction&)>            EnvActionConstVisitor;
 
+struct IEnvRegistryListener
+{
+	virtual ~IEnvRegistryListener() {}
+	virtual void OnEnvElementAdd(IEnvElementPtr pElement) = 0;
+	virtual void OnEnvElementDelete(IEnvElementPtr pElement) = 0;
+};
+
+typedef std::vector<IEnvRegistryListener*> TEnvRegistryListeners;
+
 struct IEnvRegistry
 {
 	virtual ~IEnvRegistry() {}
+
+	virtual void                         RegisterListener(IEnvRegistryListener* pListener) = 0;
+	virtual void                         UnregisterListener(IEnvRegistryListener* pListener) = 0;
 
 	virtual bool                         RegisterPackage(IEnvPackagePtr&& pPackage) = 0;
 	virtual void                         DeregisterPackage(const CryGUID& guid) = 0;

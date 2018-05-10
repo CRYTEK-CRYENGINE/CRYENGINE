@@ -73,6 +73,7 @@
 		<DefaultProperties AnimConfigFolder="Animations" />
 		<Job Input="*.i_caf" Refresh="1" />
 		<Job Input="*.anm" CopyOnly="1" />
+		<Job Input="*.caf" CopyOnly="1" />
 	</AnimationsJob>
 
 	<!-- Convert alembic template -->
@@ -174,7 +175,7 @@
 		<!-- Conversion -->
 		<Properties SourceRoot="${InputPath}/${DataFolder}" />
 		<Properties TargetRoot="${TempPath}/${DataFolder}_Assets" />
-		<Properties AllExtensions="*.bank;*.bnk;*.cal;*.cfg;*.dat;*.dialog;*.fdp;*.fev;*.fsb;*.gfx;*.grd;*.grp;*.lua;*.lut;*.ogg;*.pfx2;*.pfx;*.pfxp;*.response;*.thread_config;*.txt;*.usm;*.wem;*.xls;" />
+		<Properties AllExtensions="*.bank;*.bnk;*.cal;*.cfg;*.schematyc_ent;*.dat;*.dialog;*.fdp;*.fev;*.fsb;*.gfx;*.grd;*.grp;*.lua;*.lut;*.ogg;*.pfx2;*.pfx;*.pfxp;*.response;*.thread_config;*.txt;*.usm;*.wem;*.xls;" />
 		
 		<Run Job="AnimationsJob" />
 		<Run Job="MeshesJob" />

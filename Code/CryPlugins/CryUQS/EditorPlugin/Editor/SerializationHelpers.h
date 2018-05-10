@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -179,8 +179,25 @@ public:
 		int newIndex;
 	};
 
-	SSerializeResult Serialize(Serialization::IArchive& archive, const char* szName, const char* szLabel, const TData& oldValue, const std::function<void(const TData&)>& setterFunc, const SValidatorKey* pRecord = nullptr) const
+	SSerializeResult SerializeByData(Serialization::IArchive& archive, const char* szName, const char* szLabel, const TData& oldValue, const std::function<void(const TData&)>& setterFunc) const
 	{
+		return SerializeInternal(archive, szName, szLabel, &oldValue, setterFunc, nullptr, nullptr);
+	}
+
+	SSerializeResult SerializeByLabelForDisplayInDropDownList(Serialization::IArchive& archive, const char* szName, const char* szLabel, const SValidatorKey* pRecord, const string& labelForDisplayInDropDownList) const
+	{
+		return SerializeInternal(archive, szName, szLabel, nullptr, nullptr, pRecord, &labelForDisplayInDropDownList);
+	}
+
+private:
+
+	SSerializeResult SerializeInternal(Serialization::IArchive& archive, const char* szName, const char* szLabel, const TData* pOldValue, const std::function<void(const TData&)>& setterFunc, const SValidatorKey* pRecord, const string* pLabelForDisplayInDropDownList) const
+	{
+		assert( (pOldValue && !pLabelForDisplayInDropDownList ||
+				(!pOldValue && pLabelForDisplayInDropDownList)));
+
+		const bool bSerializeByData = (pOldValue != nullptr);
+
 		Serialization::StringList strList;
 
 		for (const auto& pair : m_entries)
@@ -188,13 +205,14 @@ public:
 			strList.push_back(pair.first.c_str());
 		}
 
-		const int oldValueIdx = FindIndexByData(oldValue);
+		const int oldValueIdx = bSerializeByData ? FindIndexByData(*pOldValue) : FindIndexByLabel(pLabelForDisplayInDropDownList->c_str());
+
 		const bool bIsNpos = (oldValueIdx == -1);
 
 		const SValidatorKey validatorKey =
 			pRecord
 			? *pRecord
-			: SValidatorKey(&oldValue, Serialization::TypeID::get<TData>());
+			: SValidatorKey(bSerializeByData ? static_cast<const void*>(pOldValue) : static_cast<const void*>(pLabelForDisplayInDropDownList), Serialization::TypeID::get<TData>());
 
 		Serialization::StringListValue strValue(strList, !bIsNpos ? oldValueIdx : 0, validatorKey.pHandle, validatorKey.typeId);
 		const int oldStrValueIndex = strValue.index();
@@ -223,8 +241,6 @@ public:
 		SSerializeResult res = { bRes, strValue.index() };
 		return res;
 	}
-
-private:
 
 	int FindIndexByData(const TData& dataToSearchFor) const
 	{

@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -38,7 +38,7 @@ public:
 	virtual void                    DisableHMDTracking(bool disable) override;
 	virtual void                    GetPreferredRenderResolution(unsigned int& width, unsigned int& height) override;
 	virtual int                     GetControllerCount() const override;
-	virtual void                    SetAsynCameraCallback(IAsyncCameraCallback* pCallback) override;
+	virtual void                    SetAsyncCameraCallback(IAsyncCameraCallback* pCallback) override;
 	virtual bool                    RequestAsyncCameraUpdate(AsyncCameraContext& context) override;
 	// ~IHMDDevice interface
 

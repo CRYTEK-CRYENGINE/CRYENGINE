@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -10,6 +10,7 @@ struct IHmdEventListener
 	virtual void OnRecentered() = 0;
 };
 
+//! Main interface to the engine's head-mounted device manager, responsible for maintaining VR devices connected to the system
 struct IHmdManager
 {
 public:

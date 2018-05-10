@@ -84,31 +84,31 @@ struct a2v_XY_C_F
 // PS
 struct v2f_XY
 {
-	float4 pos  : POSITION;
+	float4 pos  : SV_POSITION;
 	float2 tex0 : TEXCOORD0;
 };
 
 struct v2f_XY_noTex
 {
-	float4 pos  : POSITION;
+	float4 pos  : SV_POSITION;
 };
 
 struct v2f_Glyph
 {
-	float4 pos  : POSITION;
+	float4 pos  : SV_POSITION;
 	float2 tex0 : TEXCOORD0;
 	float4 col0 : COLOR0;
 };
 
 struct v2f_XY_C
 {
-	float4 pos  : POSITION;
+	float4 pos  : SV_POSITION;
 	float4 diff : COLOR;
 };
 
 struct v2f_XY_C_F
 {
-	float4 pos  : POSITION;
+	float4 pos  : SV_POSITION;
 	float2 tex0 : TEXCOORD0;
 	float4 diff : COLOR0;
 	float4 spec : COLOR1;
@@ -116,14 +116,14 @@ struct v2f_XY_C_F
 
 struct v2f_XY_C_F_noTex
 {
-	float4 pos  : POSITION;
+	float4 pos  : SV_POSITION;
 	float4 diff : COLOR0;
 	float4 spec : COLOR1;
 };
 
 struct v2f_XY_C_F_T2
 {
-	float4 pos  : POSITION;
+	float4 pos  : SV_POSITION;
 	float2 tex0 : TEXCOORD0;
 	float2 tex1 : TEXCOORD1;
 	float4 diff : COLOR0;

@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #ifndef __CRECLIENTPOLY_H__
 #define __CRECLIENTPOLY_H__
@@ -68,7 +68,6 @@ public:
 
 	virtual ~CREClientPoly() {};
 
-	virtual void              mfPrepare(bool bCheckOverflow) final;
 	virtual CRenderElement*     mfCopyConstruct(void) final;
 
 	virtual bool              GetGeometryInfo(SGeometryInfo& geomInfo, bool bSupportTessellation = false) final;

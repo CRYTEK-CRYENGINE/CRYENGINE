@@ -28,30 +28,64 @@ add_sources("UQS_uber_stdlib.cpp"
 		"stdlib/ItemDebugRendering.h"
 		"stdlib/ItemDebugRendering.cpp"
 		"stdlib/Items.cpp"
-		"stdlib/ItemStringConversions.cpp"
-		"stdlib/ItemStringConversions.h"
 		"stdlib/ItemMonitors.h"
 		"stdlib/ItemMonitors.cpp"
-		"stdlib/SchematycSupport.cpp"
 )
 
 end_sources()
 #END-FILE-LIST
 
 CryEngineStaticModule(CryUQS_StdLib PCH "stdlib/StdAfx.cpp" SOLUTION_FOLDER "CryPlugins/CryUQS")
-target_link_libraries (${THIS_PROJECT} PRIVATE
-	CryUQS_Shared
-	CryUQS_Client
-)
 
 target_include_directories(${THIS_PROJECT}
 	PRIVATE "stdlib"
 	PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}"
+	PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/../.."
 )
 
 if(OPTION_UQS_SCHEMATYC_SUPPORT)
 	target_include_directories(${THIS_PROJECT}
 		PRIVATE "${CRYENGINE_DIR}/Code/CryEngine/CrySchematyc/Core/Interface"
 		PRIVATE "${CRYENGINE_DIR}/Code/CryEngine/CrySchematyc/STDEnv/Interface"
+	)
+endif()
+
+if (ORBIS OR CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+	target_compile_options(${THIS_PROJECT} PRIVATE
+		-Wno-unused-variable
+		-Wno-parentheses
+		-Wno-reorder
+		-Wno-unused-value
+		-Wno-unknown-pragmas
+		-Wno-format
+		-Wno-unused-private-field
+		-Wno-multichar
+		-Wno-empty-body
+		-Wno-switch
+		-Wno-unused-function
+		-Wno-char-subscripts
+		-Wno-c++11-narrowing
+	)
+elseif(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+	target_compile_options(${THIS_PROJECT} PRIVATE
+		-Wno-unused-function
+		-Wno-unused-value
+		-Wno-unused-variable
+		-Wno-sign-compare
+		-Wno-ignored-attributes
+		-Wno-int-in-bool-context
+		-Wno-unused-but-set-variable
+		-Wno-misleading-indentation
+		-Wno-logical-not-parentheses
+		-Wno-strict-aliasing
+		-Wno-unknown-pragmas
+		-Wno-unused-const-variable
+		-Wno-multichar
+		-Wno-char-subscripts
+		-Wno-parentheses
+		-Wno-comment
+		-Wno-address
+		-Wno-format
+		-Wno-switch
 	)
 endif()

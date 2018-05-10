@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 
@@ -36,7 +36,7 @@ public:
 	virtual int AddGeometry(phys_geometry *pgeom, pe_geomparams* params,int id=-1,int bThreadSafe=1) { return -1; }
 	virtual void RemoveGeometry(int id,int bThreadSafe=1) {}
 	virtual float GetExtent(EGeomForm eForm) const { return 0.f; }
-	virtual void GetRandomPos(PosNorm& ran, CRndGen& seed, EGeomForm eForm) const {}
+	virtual void GetRandomPoints(Array<PosNorm> points, CRndGen& seed, EGeomForm eForm) const {}
 
 	virtual void *GetForeignData(int itype=0) const { return 0; }
 	virtual int GetiForeignData() const { return 0; }
@@ -328,7 +328,7 @@ int CPhysArea::ApplyParams(const Vec3& pt, Vec3& gravity, const Vec3 &vel, pe_pa
 								if (fabs(det)>fabs(maxdet)) 
 									maxdet=det, j=i;
 							}
-							if (j>=0 && maxz<10000.0f) {
+							if (fabs(maxdet)>=FLT_EPSILON && maxz<10000.0f) {
 								det = 1.0/maxdet;
 								n[j] = 1;
 								n[inc_mod3[j]] = -(C(inc_mod3[j],j)*C(dec_mod3[j],dec_mod3[j]) - C(dec_mod3[j],j)*C(inc_mod3[j],dec_mod3[j]))*det;
@@ -639,58 +639,63 @@ float CPhysArea::GetExtent(EGeomForm eForm) const
 	return extent * ScaleExtent(eForm, m_scale);
 }
 
-void CPhysArea::GetRandomPos(PosNorm& ran, CRndGen& seed, EGeomForm eForm)	const
+void CPhysArea::GetRandomPoints(Array<PosNorm> points, CRndGen& seed, EGeomForm eForm)	const
 {
-	ran.zero();
 	if (m_pGeom && !m_debugGeomHash) {
-		m_pGeom->GetRandomPos(ran, seed, eForm);
+		m_pGeom->GetRandomPoints(points, seed, eForm);
 	}
 	else if (m_ptSpline && m_Extents[GeomForm_Edges].NumParts()) {
-		// choose random segment, and fractional distance therein
-		int i = m_Extents[GeomForm_Edges].RandomPart(seed);
-		float t = seed.GetRandom(0.0f, 1.0f);
-		if (t <= 0.5f)
-			i++;
+		for (auto& ran : points) {
+			// choose random segment, and fractional distance therein
+			int i = m_Extents[GeomForm_Edges].RandomPart(seed);
+			float t = seed.GetRandom(0.0f, 1.0f);
+			if (t <= 0.5f)
+				i++;
 
-		Vec3 tang;
-		if (i==0)
-		{
-			tang = m_ptSpline[1]-m_ptSpline[0];
-			ran.vPos = m_ptSpline[0] + tang * (t-0.5f);
+			Vec3 tang;
+			if (i == 0)
+			{
+				tang = m_ptSpline[1] - m_ptSpline[0];
+				ran.vPos = m_ptSpline[0] + tang * (t - 0.5f);
+			}
+			else if (i == m_npt - 1)
+			{
+				tang = m_ptSpline[m_npt - 1] - m_ptSpline[m_npt - 2];
+				ran.vPos = m_ptSpline[m_npt - 2] + tang * (t + 0.5f);
+			}
+			else
+			{
+				Vec3 const& p0 = m_ptSpline[i - 1];
+				Vec3 const& p1 = m_ptSpline[i];
+				Vec3 const& p2 = m_ptSpline[i + 1];
+				Vec3 v2 = (p0 + p2)*0.5f - p1,
+					v1 = p1 - p0,
+					v0 = (p0 + p1)*0.5f;
+				ran.vPos = (v2*t + v1)*t + v0;
+				tang = v2*(2.f*t) + v1;
+			}
+
+			// compute radial axes from tangent
+			Vec3 x(max(abs(tang.y), abs(tang.z)), max(abs(tang.z), abs(tang.x)), max(abs(tang.x), abs(tang.y)));
+			Vec3 y = tang ^ x;
+			x.Normalize();
+			y.Normalize();
+
+			// generate random displacement from spline.
+			Vec2 xy = CircleRandomPoint(seed, EGeomForm(eForm - 1), m_zlim[0]);
+			Vec3 dis = x * xy.x + y * xy.y;
+
+			ran.vPos += dis;
+			ran.vNorm = dis.normalized();
 		}
-		else if (i==m_npt-1)
-		{
-			tang = m_ptSpline[m_npt-1]-m_ptSpline[m_npt-2];
-			ran.vPos = m_ptSpline[m_npt-2] + tang * (t+0.5f);
-		}
-		else
-		{
-			Vec3 const& p0 = m_ptSpline[i-1];
-			Vec3 const& p1 = m_ptSpline[i];
-			Vec3 const& p2 = m_ptSpline[i+1];
-			Vec3 v2 = (p0+p2)*0.5f-p1,
-					 v1 = p1-p0,
-					 v0 = (p0+p1)*0.5f;
-			ran.vPos = (v2*t+v1)*t+v0;
-			tang = v2*(2.f*t)+v1;
-		}
-
-		// compute radial axes from tangent
-		Vec3 x( max(abs(tang.y),abs(tang.z)), max(abs(tang.z),abs(tang.x)), max(abs(tang.x),abs(tang.y)) );
-		Vec3 y = tang ^ x;
-		x.Normalize();
-		y.Normalize();
-
-		// generate random displacement from spline.
-		Vec2 xy = CircleRandomPoint(seed, EGeomForm(eForm-1), m_zlim[0]);
-		Vec3 dis = x * xy.x + y * xy.y;
-
-		ran.vPos += dis;
-		ran.vNorm = dis.normalized();
 	}
+	else
+		return points.fill(ZERO);
 
-	ran.vPos = m_R*ran.vPos * m_scale + m_offset;
-	ran.vNorm = m_R*ran.vNorm;
+	for (auto& ran : points) {
+		ran.vPos = m_R*ran.vPos * m_scale + m_offset;
+		ran.vNorm = m_R*ran.vNorm;
+	}
 }
 
 
@@ -1062,7 +1067,7 @@ int CPhysArea::GetStatus(pe_status *_status) const
 
 	if (_status->type==pe_status_random::type_id) {
 		pe_status_random *status = (pe_status_random*)_status;
-		GetRandomPos(status->ran, status->seed, status->eForm);
+		GetRandomPoints(status->points, status->seed, status->eForm);
 		return 1;
 	}
 
@@ -1088,7 +1093,7 @@ void CPhysArea::Update(float dt)
 	Release(); // since it was addreffed by an update request
 	if (m_bDeleted)
 		return;
-	FUNCTION_PROFILER( GetISystem(),PROFILE_PHYSICS );
+	CRY_PROFILE_FUNCTION(PROFILE_PHYSICS );
 	PHYS_AREA_PROFILER(this)
 	int bAwakeEnv = 0;
 

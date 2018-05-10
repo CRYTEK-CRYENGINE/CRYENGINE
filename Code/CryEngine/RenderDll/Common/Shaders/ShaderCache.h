@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 /*=============================================================================
    ShaderCache.h : Shaders cache related declarations.
@@ -94,12 +94,6 @@ struct SPreprocessTree
 };
 
 //=======================================================================================================
-
-struct SShaderLevelPolicies
-{
-	std::vector<string> m_WhiteGlobalList;
-	std::vector<string> m_WhitePerLevelList;
-};
 
 union UPipelineState // Pipeline state relevant for shader instantiation
 {
@@ -356,6 +350,9 @@ struct SShaderCache
 	bool            m_bReadOnly[2];
 	bool            m_bValid[2];
 	bool            m_bNeedPrecache;
+
+	std::unique_ptr<byte[]> m_pBinary[2] = { nullptr, nullptr };
+
 	SShaderCache()
 	{
 		m_nPlatform = 0;
@@ -366,6 +363,8 @@ struct SShaderCache
 		m_bReadOnly[0] = m_bReadOnly[1] = false;
 		m_bNeedPrecache = false;
 	}
+	bool ReadResource(CResFile* rf, int i);
+	std::pair<std::unique_ptr<byte[]>, uint32> DecompressResource(int resVersion, int i, size_t offset, size_t size, bool swapEndian = false);
 	bool isValid();
 	int  Size();
 	void GetMemoryUsage(ICrySizer* pSizer) const;

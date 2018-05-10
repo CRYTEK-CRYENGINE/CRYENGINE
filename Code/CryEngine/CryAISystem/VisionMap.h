@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 /*************************************************************************
    -------------------------------------------------------------------------
@@ -44,6 +44,7 @@ public:
 	virtual void                    ObservableChanged(const ObservableID& observableID, const ObservableParams& newObservableParams, uint32 hint);
 
 	virtual bool                    IsVisible(const ObserverID& observerID, const ObservableID& observableID) const;
+	virtual float                   GetNormalizedVisibiliy(const ObserverID& observerID, const ObservableID& observableID) const;
 
 	virtual const ObserverParams*   GetObserverParams(const ObserverID& observerID) const;
 	virtual const ObservableParams* GetObservableParams(const ObservableID& observableID) const;
@@ -85,9 +86,12 @@ private:
 			: pendingRayID(0)
 			, observableInfo(_observableInfo)
 			, visible(false)
+			, numberOfSucceededRaycasts(0)
+			, numberOfCompletedRaycasts(0)
 			, currentTestPositionIndex(0)
 			, priority(_priority)
 			, needsUpdate(true)
+			, lastComputedNormalizedVisibility(0.0f)
 #if VISIONMAP_DEBUG
 			, obstructionPosition(ZERO)
 			, lastObserverPositionChecked(ZERO)
@@ -101,9 +105,12 @@ private:
 		const ObservableInfo&    observableInfo;
 
 		bool                     visible;
+		int8                     numberOfSucceededRaycasts;
+		int8                     numberOfCompletedRaycasts;
 		bool                     needsUpdate;
 		int8                     currentTestPositionIndex;
 		int8                     firstVisPos;
+		float                    lastComputedNormalizedVisibility;
 
 #if VISIONMAP_DEBUG
 		Vec3  obstructionPosition;
@@ -193,6 +200,7 @@ private:
 	bool                     ShouldObserve(const ObserverInfo& observerInfo, const ObservableInfo& observableInfo) const;
 	bool                     IsInSightRange(const ObserverInfo& observerInfo, const ObservableInfo& observableInfo) const;
 	bool                     IsInFoV(const ObserverInfo& observerInfo, const ObservableInfo& observableInfo) const;
+	bool                     IsInStatisticalAnalysisSightRange(const ObserverInfo& observerInfo, const ObservableInfo& observableInfo) const;
 	bool                     IsUserConditionSatisfied(const ObserverInfo& observerInfo, const ObservableInfo& observableInfo) const;
 
 	void                     QueueRay(const ObserverInfo& observerInfo, PVSEntry& pvsEntry);

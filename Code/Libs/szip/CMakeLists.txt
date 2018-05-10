@@ -6,21 +6,27 @@ start_sources()
 sources_platform(ALL)
 add_sources("NoUberFile"
 	SOURCE_GROUP "Root"
-		"../../SDKs/szip/src/encoding.c"
-		"../../SDKs/szip/src/rice.c"
-		"../../SDKs/szip/src/sz_api.c"
-		"../../SDKs/szip/src/rice.h"
-		"../../SDKs/szip/src/ricehdf.h"
-		"../../SDKs/szip/src/szip_adpt.h"
-		"../../SDKs/szip/src/szlib.h"
+		"${SDK_DIR}/szip/src/encoding.c"
+		"${SDK_DIR}/szip/src/rice.c"
+		"${SDK_DIR}/szip/src/sz_api.c"
+		"${SDK_DIR}/szip/src/rice.h"
+		"${SDK_DIR}/szip/src/ricehdf.h"
+		"${SDK_DIR}/szip/src/szip_adpt.h"
+		"${SDK_DIR}/szip/src/szlib.h"
 		"SZconfig.h"
 )
 
 end_sources()
 #END-FILE-LIST
 
+if (WIN32)
+	set(DISABLE_WARNINGS /W0)  # Disable warnings from 3rdParty code.
+else()
+	set(DISABLE_WARNINGS -w)
+endif()
+
 CryEngineStaticModule(szip SOLUTION_FOLDER "Libs")
 target_include_directories(${THIS_PROJECT} PRIVATE "${SDK_DIR}szip/src")
-target_compile_options(${THIS_PROJECT} PRIVATE /W0) # Disable warnings for 3rdParty code.
+target_compile_options(${THIS_PROJECT} PRIVATE ${DISABLE_WARNINGS})
 target_compile_definitions(${THIS_PROJECT} PRIVATE -DHDF) # Because we want to support HDF in this library
 target_include_directories(${THIS_PROJECT} INTERFACE "${SDK_DIR}/szip/src")

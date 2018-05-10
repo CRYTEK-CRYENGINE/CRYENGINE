@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include <CryCore/CryCustomTypes.h>
@@ -26,7 +26,7 @@
 #endif
 
 #if ENABLE_CORRUPT_PACKET_DUMP
-static char* eOpNames[] =
+static const char* eOpNames[] =
 {
 	"eO_NoOp",
 	#define SERIALIZATION_TYPE(T) "eO_" # T,
@@ -349,6 +349,12 @@ class CSerializationChunk::CBuildImpl : public CSimpleSerializeImpl<false, eST_N
 {
 public:
 	CBuildImpl(CSerializationChunk* pChunk) : m_pChunk(pChunk) {}
+	~CBuildImpl()
+	{
+		// If these asserts fire, then there is likely a mismatch between BeginOptionalGroup() and EndGroup()
+		NET_ASSERT(m_resolveConditions.empty());
+		NET_ASSERT(m_inOptionalGroup.empty());
+	}
 
 	template<class T>
 	void Value(const char* name, T& value, uint32 policy)

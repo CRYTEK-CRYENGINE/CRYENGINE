@@ -1,10 +1,11 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 
 #include "D3DOculus.h"
-#include "DriverD3D.h"
 #include "D3DPostProcess.h"
+
+#include <Common/RenderDisplayContext.h>
 
 #include <CrySystem/VR/IHMDManager.h>
 #include <CrySystem/VR/IHMDDevice.h>
@@ -146,12 +147,12 @@ CD3DOculusRenderer::~CD3DOculusRenderer()
 {
 }
 
-bool CD3DOculusRenderer::Initialize()
+bool CD3DOculusRenderer::Initialize(int initialWidth, int initialeight)
 {
 	ID3D11Device* pD3d11Device = m_pRenderer->GetDevice_Unsynchronized().GetRealDevice();
 
-	m_eyeWidth = m_pRenderer->GetWidth();
-	m_eyeHeight = m_pRenderer->GetHeight();
+	m_eyeWidth  = initialWidth;
+	m_eyeHeight = initialeight;
 
 	CryVR::Oculus::TextureDesc eyeTextureDesc;
 	eyeTextureDesc.width = m_eyeWidth;
@@ -315,13 +316,13 @@ void CD3DOculusRenderer::Shutdown()
 	ReleaseBuffers();
 }
 
-void CD3DOculusRenderer::OnResolutionChanged()
+void CD3DOculusRenderer::OnResolutionChanged(int newWidth, int newHeight)
 {
-	if (m_eyeWidth != m_pRenderer->GetWidth() ||
-		m_eyeHeight != m_pRenderer->GetHeight())
+	if (m_eyeWidth  != newWidth ||
+		m_eyeHeight != newHeight)
 	{
 		Shutdown();
-		Initialize();
+		Initialize(newWidth, newHeight);
 	}
 }
 
@@ -345,14 +346,14 @@ void CD3DOculusRenderer::PrepareFrame()
 	{
 		m_pStereoRenderer->SetEyeTextures
 		(
-			CTexture::s_ptexStereoL,
-			CTexture::s_ptexStereoR
+			CRendererResources::s_ptexStereoL,
+			CRendererResources::s_ptexStereoR
 		);
 
 		// Quad layers
 		for (uint32 i = 0; i < RenderLayer::eQuadLayers_Total; ++i)
 		{
-			m_pStereoRenderer->SetVrQuadLayerTexture(static_cast<RenderLayer::EQuadLayers>(i), CTexture::s_ptexQuadLayers[i]);
+			m_pStereoRenderer->SetVrQuadLayerTexture(static_cast<RenderLayer::EQuadLayers>(i), CRendererResources::s_ptexQuadLayers[i]);
 		}
 	}
 	else
@@ -383,7 +384,7 @@ void CD3DOculusRenderer::PrepareFrame()
 
 void CD3DOculusRenderer::SubmitFrame()
 {
-	FUNCTION_PROFILER_RENDERER
+	FUNCTION_PROFILER_RENDERER();
 
 	// Update swap chain info with the latest render and layer properties
 	m_layerManager.UpdateSwapChainData(m_pStereoRenderer, m_scene3DRenderData, m_quadLayerRenderData);
@@ -451,7 +452,7 @@ void CD3DOculusRenderer::SubmitFrame()
 
 void CD3DOculusRenderer::RenderSocialScreen()
 {
-	CTexture* pBackbufferTexture = gcpRendD3D->GetCurrentBackBuffer(gcpRendD3D->GetActiveDisplayContext());
+	CTexture* pBackbufferTexture = gcpRendD3D->GetActiveDisplayContext()->GetCurrentBackBuffer();
 	
 	if (const IHmdManager* pHmdManager = gEnv->pSystem->GetHmdManager())
 	{
@@ -470,6 +471,8 @@ void CD3DOculusRenderer::RenderSocialScreen()
 			case EHmdSocialScreen::UndistortedRightEye:
 			case EHmdSocialScreen::UndistortedDualImage:
 				{
+					ASSERT_LEGACY_PIPELINE;
+					/*
 					static CCryNameTSCRC pTechTexToTex("TextureToTexture");
 					const auto frameData = m_layerManager.ConstructFrameData();
 					const bool bRenderBothEyes = socialScreen == EHmdSocialScreen::UndistortedDualImage;
@@ -586,6 +589,7 @@ void CD3DOculusRenderer::RenderSocialScreen()
 					gcpRendD3D->RT_SetViewport(iTempX, iTempY, iWidth, iHeight);
 
 					gRenDev->m_RP.m_FlagsShader_RT = nSaveFlagsShader_RT;
+					*/
 				}
 				break;
 

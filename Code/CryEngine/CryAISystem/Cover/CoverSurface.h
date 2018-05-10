@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #ifndef __CoverSurface_h__
 #define __CoverSurface_h__
@@ -152,7 +152,7 @@ private:
 
 	bool ILINE GetOcclusionBehindSegment(const Vec3& eye, const Vec3& point, const Segment& segment, float* heightSq) const
 	{
-		FUNCTION_PROFILER(gEnv->pSystem, PROFILE_AI);
+		CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 		const Sample& left = m_samples[segment.leftIdx];
 		const Sample& right = m_samples[segment.rightIdx];

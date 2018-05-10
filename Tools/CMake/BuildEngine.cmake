@@ -6,6 +6,8 @@ option(PLUGIN_SCHEMATYC "Enables compilation of the Schematyc plugin" ON)
 option(OPTION_PAKTOOLS "Build .pak encryption tools" OFF)
 option(OPTION_RC "Include RC in the build" OFF)
 
+option(OPTION_DOXYGEN_EXAMPLES "Build Doxygen examples with the engine" OFF)
+
 if (WIN32 OR WIN64)
 	option(OPTION_ENABLE_CRASHRPT "Enable CrashRpt crash reporting library" ON)
 endif()
@@ -16,13 +18,44 @@ else()
 	set(OPTION_SCALEFORMHELPER ON)
 endif()
 
+if(OPTION_DEDICATED_SERVER)
+	set(OPTION_SCALEFORMHELPER OFF)
+endif()
+
+option(OPTION_DEVELOPER_CONSOLE_IN_RELEASE "Enables the developer console in Release builds" ON)
+
+if(EXISTS "${SDK_DIR}/googletest_CE_Support")
+	option(OPTION_UNIT_TEST "Unit Tests" ON)
+elseif(OPTION_UNIT_TEST)
+	message(STATUS "Google Test not found in ${SDK_DIR}/googletest_CE_Support - disabling unit tests.")
+
+	# Disables the OPTION_UNIT_TEST option but also updates the message in the cache that is then used in the GUI as a tooltip.
+	set(OPTION_UNIT_TEST OFF CACHE BOOL "OPTION_UNIT_TEST was previously set but Google Test is not available. Check bootstrap settings." FORCE)
+endif()
+
 #Plugins
 option(PLUGIN_FPSPLUGIN "Frames per second sample plugin" OFF)
 if(WIN32 OR WIN64)
 	option(PLUGIN_USERANALYTICS "Enable User Analytics" ON)
-	option(PLUGIN_VR_OCULUS "Oculus support" ON)
-	option(PLUGIN_VR_OSVR "OSVR support" ON)
-	option(PLUGIN_VR_OPENVR "OpenVR support" ON)
+	
+	if(EXISTS "${SDK_DIR}/OculusSDK")
+		option(PLUGIN_VR_OCULUS "Oculus support" ON)
+	else()
+		option(PLUGIN_VR_OCULUS "Oculus support" OFF)
+	endif()
+
+	if(EXISTS "${SDK_DIR}/OSVR")
+		option(PLUGIN_VR_OSVR "OSVR support" ON)
+	else()
+		option(PLUGIN_VR_OSVR "OSVR support" OFF)
+	endif()
+
+	if(EXISTS "${SDK_DIR}/OpenVR")
+		option(PLUGIN_VR_OPENVR "OpenVR support" ON)
+	else()
+		option(PLUGIN_VR_OPENVR "OpenVR support" OFF)
+	endif()
+
 	option(OPTION_CRYMONO "C# support" OFF)
 	
 	if (OPTION_CRYMONO)
@@ -39,16 +72,8 @@ if(WIN64 AND EXISTS "${CRYENGINE_DIR}/Code/Sandbox/EditorQt")
 	if (EXISTS "${SDK_DIR}/SubstanceEngines")
 		option(OPTION_SANDBOX_SUBSTANCE "Enable Sandbox Substance Integration" ON)
 	endif()
-	if ("${CMAKE_BUILD_TYPE}" STREQUAL "Release")
-		set(OPTION_SANDBOX OFF)
-	endif()
-	if(OPTION_SANDBOX)
-		# Sandbox cannot be built in release mode
-		set(CMAKE_CONFIGURATION_TYPES Debug Profile CACHE STRING "Reset the configurations to what we need" FORCE)
-	else()
-		if(OPTION_SANDBOX_SUBSTANCE)
-			set(OPTION_SANDBOX_SUBSTANCE OFF)
-		endif()
+	if(NOT OPTION_SANDBOX AND OPTION_SANDBOX_SUBSTANCE)
+		set(OPTION_SANDBOX_SUBSTANCE OFF)
 	endif()
 endif()
 
@@ -79,11 +104,11 @@ if(ORBIS)
 	endif()
 endif()
 
-if(WIN64)
+if(WIN64 OR LINUX)
 	option(RENDERER_VULKAN "Renderer for Vulkan API" ON)
 	if (RENDERER_VULKAN AND NOT EXISTS "${SDK_DIR}/VulkanSDK")
 		message(STATUS "Vulkan SDK not found in ${SDK_DIR}/VulkanSDK - disabling Vulkan renderer.")
-		
+
 		# Disables the RENDERER_VULKAN option but also updates the message in the cache that is then used in the GUI as a tooltip.
 		set(RENDERER_VULKAN OFF CACHE BOOL "Disabled Vulkan renderer due to absent Vulkan SDK. Must reside in ${SDK_DIR}/VulkanSDK" FORCE)
 	endif()
@@ -185,7 +210,7 @@ endif()
 endfunction(try_to_enable_portaudio)
 
 function(try_to_enable_sdl_mixer)
-if (ANDROID OR WIN32 OR WIN64)
+if (LINUX OR ANDROID OR WIN32 OR WIN64)
 	# We build SDL_mixer ourselves for these platforms.
 	option(AUDIO_SDL_MIXER "SDL_mixer support" ON)
 	
@@ -314,9 +339,13 @@ if (OPTION_SCALEFORMHELPER AND NOT (OPTION_ENGINE OR OPTION_SHADERCACHEGEN))
 	add_subdirectory ("Code/CryEngine/CrySystem/Scaleform")
 endif()
 
+if (OPTION_ENGINE OR OPTION_SHADERCACHEGEN OR OPTION_DOXYGEN_EXAMPLES)
+	add_subdirectory ("Code/CryEngine/CryCommon")
+endif()
+	
 if (OPTION_ENGINE OR OPTION_SHADERCACHEGEN)
 	add_subdirectory ("Code/CryEngine/CrySystem")
-	add_subdirectory ("Code/CryEngine/CryCommon")
+	add_subdirectory ("Code/CryEngine/CryReflection")
 	add_subdirectory ("Code/CryEngine/RenderDll/XRenderD3D9")
 	
 	# Shaders custom project
@@ -337,7 +366,9 @@ if (OPTION_ENGINE)
 	add_subdirectory ("Code/CryEngine/CryInput")
 	add_subdirectory ("Code/CryEngine/CryMovie")
 	add_subdirectory ("Code/CryEngine/CryNetwork")
+	#add_subdirectory ("Code/CryEngine/CryReflection")
 	add_subdirectory ("Code/CryEngine/CrySchematyc")
+	add_subdirectory ("Code/CryEngine/CrySchematyc2")
 	add_subdirectory ("Code/CryEngine/CryScriptSystem")
 	add_subdirectory ("Code/CryEngine/CryFlowGraph")
 
@@ -376,11 +407,74 @@ if (OPTION_ENGINE)
 
 	#libs
 	add_subdirectory ("Code/Libs/bigdigits")
+	
+	if(PLUGIN_VR_OCULUS)
+		add_subdirectory("Code/Libs/oculus")
+	endif()
+	
 	if (WIN32)
 		add_subdirectory ("Code/Libs/curl")
 	endif ()
 	add_subdirectory ("Code/Libs/freetype")
 	add_subdirectory ("Code/Libs/lua")
+
+    if (OPTION_UNIT_TEST)
+	    set(TEST_MODULES "" CACHE INTERNAL "List of test modules being built" FORCE)	
+        set(temp ${BUILD_SHARED_LIBS})
+        set(gtest_force_shared_crt TRUE CACHE INTERNAL "" FORCE)
+        set(BUILD_SHARED_LIBS FALSE CACHE INTERNAL "" FORCE)
+        set(INSTALL_GTEST FALSE CACHE INTERNAL "" FORCE)
+        set(INSTALL_GMOCK FALSE CACHE INTERNAL "" FORCE)
+	    if(ORBIS)
+		    set(MSVC_TEMP ${MSVC})
+		    set(MSVC FALSE)
+	    endif()
+	    add_subdirectory ("${SDK_DIR}/googletest_CE_Support")
+		# Guard against wrongly setup bootstrap not finding gtest and gmock targets
+		if (NOT (TARGET gtest AND TARGET gmock))
+			message(FATAL_ERROR "Error adding google test. This could be caused by Bootstrap, please check Bootstrap.")
+		endif()
+        mark_as_advanced(FORCE BUILD_GTEST BUILD_GMOCK BUILD_SHARED_LIBS INSTALL_GTEST INSTALL_GMOCK gtest_build_samples gtest_build_tests gtest_disable_pthreads gtest_force_shared_crt gtest_hide_internal_symbols gmock_build_tests)
+	    if(ORBIS)
+		    set(MSVC ${MSVC_TEMP})
+		    target_compile_definitions(gtest PRIVATE GTEST_HAS_DEATH_TEST=0)
+		    target_compile_definitions(gmock PRIVATE GTEST_HAS_DEATH_TEST=0)
+	    endif()
+        set(BUILD_SHARED_LIBS ${temp} CACHE INTERNAL "" FORCE)
+        set_solution_folder("Libs" gtest)
+	    set_solution_folder("Libs" gmock)
+        set_solution_folder("Libs" gtest_main)
+        set_solution_folder("Libs" gmock_main)
+        set(CMAKE_DEBUG_POSTFIX "" CACHE STRING "Set debug library postfix" FORCE)
+	    if (DURANGO OR ORBIS)
+		    set(THIS_PROJECT gtest)
+		    SET_PLATFORM_TARGET_PROPERTIES(gtest)
+		    set(THIS_PROJECT gmock)
+		    SET_PLATFORM_TARGET_PROPERTIES(gmock)
+	    endif()
+
+		# We want to hide gtest_main and gmock_main because we are not using these
+		# Only do so when these targets are defined
+		if (TARGET gmock_main)
+			set_property(TARGET gmock_main PROPERTY EXCLUDE_FROM_DEFAULT_BUILD TRUE)
+			set_property(TARGET gmock_main PROPERTY EXCLUDE_FROM_ALL TRUE)	
+		endif()
+        
+		if (TARGET gtest_main)
+			set_property(TARGET gtest_main PROPERTY EXCLUDE_FROM_DEFAULT_BUILD TRUE)
+			set_property(TARGET gtest_main PROPERTY EXCLUDE_FROM_ALL TRUE)
+		endif()
+
+	    add_subdirectory("${CRYENGINE_DIR}/Code/CryEngine/UnitTests/CryCommonUnitTest")
+        add_subdirectory("${CRYENGINE_DIR}/Code/CryEngine/UnitTests/CrySystemUnitTest")
+        add_subdirectory("${CRYENGINE_DIR}/Code/CryEngine/UnitTests/CryEntitySystemUnitTest")
+		add_subdirectory("${CRYENGINE_DIR}/Code/CryEngine/UnitTests/CryAnimationUnitTest")
+		add_subdirectory("${CRYENGINE_DIR}/Code/CryEngine/UnitTests/Cry3DEngineUnitTest")
+		add_subdirectory("${CRYENGINE_DIR}/Code/CryEngine/UnitTests/CryAudioSystemUnitTest")
+	    if (ORBIS)
+		    add_subdirectory("${CRYENGINE_DIR}/Code/CryEngine/UnitTests/CryUnitTestOrbisMain")
+	    endif()
+    endif()
 endif()
 
 if (OPTION_SCALEFORMHELPER OR OPTION_ENGINE OR OPTION_SHADERCACHEGEN)

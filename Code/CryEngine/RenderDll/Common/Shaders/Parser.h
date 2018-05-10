@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 /*=============================================================================
    Parser.h : Script parser declarations.
@@ -14,7 +14,7 @@
 struct STokenDesc
 {
 	int   id;
-	char* token;
+	const char* token;
 };
 int shGetObject(char** buf, STokenDesc* tokens, char** name, char** data);
 

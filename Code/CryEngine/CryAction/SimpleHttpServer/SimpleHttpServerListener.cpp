@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include <CryNetwork/ISimpleHttpServer.h>
@@ -143,11 +143,7 @@ void CSimpleHttpServerListener::Update()
 	for (size_t i = 0; i < m_commands.size(); ++i)
 	{
 		gEnv->pConsole->AddOutputPrintSink(this);
-#if defined(CVARS_WHITELIST)
-		ICVarsWhitelist* pCVarsWhitelist = gEnv->pSystem->GetCVarsWhiteList();
-		bool execute = (pCVarsWhitelist) ? pCVarsWhitelist->IsWhiteListed(m_commands[i].c_str(), false) : true;
-		if (execute)
-#endif // defined(CVARS_WHITELIST)
+		if (gEnv->pSystem->IsCVarWhitelisted(m_commands[i].c_str(), false))
 		{
 			gEnv->pConsole->ExecuteString(m_commands[i].c_str());
 		}

@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 /*************************************************************************
    -------------------------------------------------------------------------
@@ -73,6 +73,13 @@ inline void Interpolate(Ang3& actual, const Ang3& goal, float speed, float frame
 	}
 
 	actual += delta * min(frameTime * speed, 1.0f);
+}
+
+//! Interpolate quaternion.
+inline void Interpolate(Quat& actual, const Quat& goal, float speed, float frameTime)
+{
+	const Quat delta(goal - actual);
+	actual += delta * std::min<float>(frameTime * speed, 1.0f);
 }
 
 //! Interpolate 3-vector.

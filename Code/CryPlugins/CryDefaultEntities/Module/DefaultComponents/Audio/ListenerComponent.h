@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -27,7 +27,8 @@ protected:
 	virtual void   Initialize() override;
 	virtual void   OnShutDown() override;
 	virtual uint64 GetEventMask() const override;
-	virtual void   ProcessEvent(SEntityEvent& event) override;
+	virtual void   ProcessEvent(const SEntityEvent& event) override;
+	virtual void   OnTransformChanged() override;
 	// ~IEntityComponent
 
 public:
@@ -44,7 +45,15 @@ public:
 		desc.SetComponentFlags({ IEntityComponent::EFlags::Transform, IEntityComponent::EFlags::Attach, IEntityComponent::EFlags::ClientOnly });
 	}
 
-	inline void SetActive(bool const bValue) { m_bActive = bValue; }
+	inline void SetActive(bool const bValue)
+	{ 
+		m_bActive = bValue;
+
+		if (!m_bActive)
+		{
+			gEnv->pEntitySystem->GetAreaManager()->ExitAllAreas(GetEntityId());
+		}
+	}
 
 private:
 

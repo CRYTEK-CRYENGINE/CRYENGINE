@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 /*************************************************************************
    -------------------------------------------------------------------------
@@ -33,12 +33,12 @@ public:
 	// IInputDevice
 	virtual const char*         GetDeviceName() const                       { return m_deviceName.c_str(); }
 	virtual bool                IsOfDeviceType(EInputDeviceType type) const { return type == GetDeviceType(); }
-	virtual EInputDeviceType    GetDeviceType() const                       { return m_deviceType; };
-	virtual TInputDeviceId      GetDeviceId() const                         { return m_deviceId; };
+	virtual EInputDeviceType    GetDeviceType() const                       { return m_deviceType; }
+	virtual TInputDeviceId      GetDeviceId() const                         { return m_deviceId; }
 	virtual bool                Init()                                      { return true;  }
 	virtual void                PostInit()                                  {}
 	virtual void                Update(bool bFocus);
-	virtual bool                SetForceFeedback(IFFParams params)          { return false; };
+	virtual bool                SetForceFeedback(IFFParams params)          { return false; }
 	virtual bool                InputState(const TKeyName& key, EInputState state);
 	virtual bool                SetExclusiveMode(bool value)                { return true;  }
 	virtual void                ClearKeyState();
@@ -52,9 +52,9 @@ public:
 	virtual const SInputSymbol* GetSymbolByName(const char* name) const;
 	virtual void                Enable(bool enable);
 	virtual bool                IsEnabled() const             { return m_enabled; }
-	virtual void                OnLanguageChange()            {};
-	virtual void                SetDeadZone(float fThreshold) {};
-	virtual void                RestoreDefaultDeadZone()      {};
+	virtual void                OnLanguageChange()            {}
+	virtual void                SetDeadZone(float fThreshold) {}
+	virtual void                RestoreDefaultDeadZone()      {}
 	// ~IInputDevice
 
 protected:

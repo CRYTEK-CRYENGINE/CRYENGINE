@@ -1,0 +1,13 @@
+<AssetMetadata version="0" type="Texture" guid="f57d034c-fb71-d14b-f15a-1169278af12d" source="hex_rand.tif">
+ <Files>
+  <File path="hex_rand.dds"/>
+  <File path="hex_rand.dds.1"/>
+  <File path="hex_rand.dds.2"/>
+  <File path="hex_rand.dds.3"/>
+ </Files>
+ <Details>
+  <Detail name="width">128</Detail>
+  <Detail name="height">128</Detail>
+  <Detail name="mipCount">6</Detail>
+ </Details>
+</AssetMetadata>

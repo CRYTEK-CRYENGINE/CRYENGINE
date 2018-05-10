@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #if !defined(AFX_XCONSOLEVARIABLE_H__AB510BA3_4D53_4C45_A2A0_EA15BABE0C34__INCLUDED_)
 #define AFX_XCONSOLEVARIABLE_H__AB510BA3_4D53_4C45_A2A0_EA15BABE0C34__INCLUDED_
@@ -8,6 +8,7 @@
 #endif // _MSC_VER > 1000
 
 #include <CrySystem/ISystem.h>
+#include <CrySystem/CVarOverride.h>
 #include <CryCore/BitFiddling.h>
 #include <CryCore/SFunctor.h>
 
@@ -140,8 +141,8 @@ public:
 	// constructor
 	CXConsoleVariableString(CXConsole* pConsole, const char* sName, const char* szDefault, int nFlags, const char* help)
 		: CXConsoleVariableBase(pConsole, sName, nFlags, help)
+		, m_sValue(GetCVarOverride(sName, szDefault))
 	{
-		m_sValue = szDefault;
 	}
 
 	// interface ICVar --------------------------------------------------------------------------------------
@@ -206,7 +207,8 @@ class CXConsoleVariableInt : public CXConsoleVariableBase
 public:
 	// constructor
 	CXConsoleVariableInt(CXConsole* pConsole, const char* sName, const int iDefault, int nFlags, const char* help)
-		: CXConsoleVariableBase(pConsole, sName, nFlags, help), m_iValue(iDefault)
+		: CXConsoleVariableBase(pConsole, sName, nFlags, help)
+		, m_iValue(GetCVarOverride(sName, iDefault))
 	{
 	}
 
@@ -263,7 +265,8 @@ class CXConsoleVariableInt64 : public CXConsoleVariableBase
 public:
 	// constructor
 	CXConsoleVariableInt64(CXConsole* pConsole, const char* sName, const int64 iDefault, int nFlags, const char* help)
-		: CXConsoleVariableBase(pConsole, sName, nFlags, help), m_iValue(iDefault)
+		: CXConsoleVariableBase(pConsole, sName, nFlags, help)
+		, m_iValue(GetCVarOverride(sName, iDefault))
 	{
 	}
 
@@ -324,7 +327,8 @@ class CXConsoleVariableFloat : public CXConsoleVariableBase
 public:
 	// constructor
 	CXConsoleVariableFloat(CXConsole* pConsole, const char* sName, const float fDefault, int nFlags, const char* help)
-		: CXConsoleVariableBase(pConsole, sName, nFlags, help), m_fValue(fDefault)
+		: CXConsoleVariableBase(pConsole, sName, nFlags, help)
+		, m_fValue(GetCVarOverride(sName, fDefault))
 	{
 	}
 
@@ -418,9 +422,11 @@ public:
 	//! constructor
 	//!\param pVar must not be 0
 	CXConsoleVariableIntRef(CXConsole* pConsole, const char* sName, int32* pVar, int nFlags, const char* help)
-		: CXConsoleVariableBase(pConsole, sName, nFlags, help), m_iValue(*pVar)
+		: CXConsoleVariableBase(pConsole, sName, nFlags, help)
+		, m_iValue(*pVar)
 	{
 		assert(pVar);
+		*pVar = GetCVarOverride(sName, m_iValue);
 	}
 
 	// interface ICVar --------------------------------------------------------------------------------------
@@ -496,9 +502,11 @@ public:
 	//! constructor
 	//!\param pVar must not be 0
 	CXConsoleVariableFloatRef(CXConsole* pConsole, const char* sName, float* pVar, int nFlags, const char* help)
-		: CXConsoleVariableBase(pConsole, sName, nFlags, help), m_fValue(*pVar)
+		: CXConsoleVariableBase(pConsole, sName, nFlags, help)
+		, m_fValue(*pVar)
 	{
 		assert(pVar);
+		*pVar = GetCVarOverride(sName, m_fValue);
 	}
 
 	// interface ICVar --------------------------------------------------------------------------------------
@@ -587,7 +595,9 @@ public:
 	//! constructor
 	//!\param userBuf must not be 0
 	CXConsoleVariableStringRef(CXConsole* pConsole, const char* sName, const char** userBuf, const char* defaultValue, int nFlags, const char* help)
-		: CXConsoleVariableBase(pConsole, sName, nFlags, help), m_sValue(defaultValue), m_userPtr(*userBuf)
+		: CXConsoleVariableBase(pConsole, sName, nFlags, help)
+		, m_sValue(GetCVarOverride(sName, defaultValue))
+		, m_userPtr(*userBuf)
 	{
 		m_userPtr = m_sValue.c_str();
 		assert(userBuf);

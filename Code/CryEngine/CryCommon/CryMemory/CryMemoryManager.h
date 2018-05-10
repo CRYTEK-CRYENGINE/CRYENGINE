@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 // -------------------------------------------------------------------------
 //  File name:   CryMemoryManager.h
@@ -190,18 +190,18 @@ public:
 	pointer       address(reference x) const       { return &x; }
 	const_pointer address(const_reference x) const { return &x; }
 
-	value_type*   allocate(size_type n, const void* hint = 0)
+	value_type*   allocate(size_type n)
 	{
 		if (stack_memory == nullptr)
 		{
 			// allocating something else than the main block
-			return fallback_allocator_type().allocate(n, hint);
+			return fallback_allocator_type().allocate(n);
 		}
 		if (n != max_size())
 		{
 			// main block allocation is of the wrong size, this is a performance hazard, but not fatal
 			assert(0 && "Only a reserve of the correct size is possible on the stack, falling back to heap memory.");
-			return fallback_allocator_type().allocate(n, hint);
+			return fallback_allocator_type().allocate(n);
 		}
 		return stack_memory;
 	}
@@ -661,10 +661,16 @@ CRY_MEM_USAGE_API void CryModuleGetMemoryInfo(CryModuleMemoryInfo* pMemInfo);
 
 #if !defined(NOT_USE_CRY_MEMORY_MANAGER)
 // Note: No need to override placement new, new[], delete, delete[]
+PREFAST_SUPPRESS_WARNING(28251)
 void* __cdecl operator new(std::size_t size);
+
+PREFAST_SUPPRESS_WARNING(28251)
 void* __cdecl operator new(std::size_t size, const std::nothrow_t& nothrow_value) noexcept;
 
+PREFAST_SUPPRESS_WARNING(28251)
 void* __cdecl operator new[](std::size_t size);
+
+PREFAST_SUPPRESS_WARNING(28251)
 void* __cdecl operator new[](std::size_t size, const std::nothrow_t& nothrow_value) noexcept;
 
 

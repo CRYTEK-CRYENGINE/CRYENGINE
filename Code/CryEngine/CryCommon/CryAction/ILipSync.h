@@ -1,7 +1,8 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
-#ifndef ILIPSYNC_H
-#define ILIPSYNC_H
+//! \cond INTERNAL
+
+#pragma once
 
 struct CryCharMorphParams;
 
@@ -59,4 +60,4 @@ struct ILipSync
 	// </interfuscator:shuffle>
 };
 
-#endif // ILIPSYNC_H
+//! \endcond

@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -17,12 +17,6 @@ namespace UQS
 
 		class CQueryBlueprintLibrary : public IQueryBlueprintLibrary
 		{
-		private:
-			struct SCaseInsensitiveStringLess
-			{
-				bool operator()(const string& a, const string& b) const { return a.compareNoCase(b) < 0; }
-			};
-
 		public:
 			explicit                                              CQueryBlueprintLibrary();
 
@@ -43,7 +37,7 @@ namespace UQS
 
 		private:
 			std::vector<std::shared_ptr<CQueryBlueprint>>                    m_queryBlueprintsVector;  // "master" list of blueprints; whenever a blueprints gets removed, its shared_ptr will simply get reset to nullptr
-			std::map<string, CQueryBlueprintID, SCaseInsensitiveStringLess>  m_queryBlueprintsMap;     // key = blueprint name, value = index into m_queryBlueprints
+			std::map<string, CQueryBlueprintID, stl::less_stricmp<string>>   m_queryBlueprintsMap;     // key = blueprint name, value = index into m_queryBlueprints
 		};
 
 	}

@@ -1,0 +1,12 @@
+<AssetMetadata version="0" type="Material" guid="3fe97c97-34f4-18e4-bcaf-f14a4dd48b12">
+ <Files>
+  <File path="PhysProxyTooBig.mtl"/>
+ </Files>
+ <Details>
+  <Detail name="subMaterialCount">0</Detail>
+  <Detail name="textureCount">1</Detail>
+ </Details>
+ <Dependencies>
+  <Path usageCount="1">%ENGINE%/EngineAssets/TextureMsg/PhysProxyTooBig.dds</Path>
+ </Dependencies>
+</AssetMetadata>

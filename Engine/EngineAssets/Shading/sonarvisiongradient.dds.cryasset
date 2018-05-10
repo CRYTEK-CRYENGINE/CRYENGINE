@@ -1,0 +1,10 @@
+<AssetMetadata version="0" type="Texture" guid="9de60313-e84b-4dc5-630a-ee2d477431d8" source="SonarVisionGradient.TIF">
+ <Files>
+  <File path="SonarVisionGradient.dds"/>
+ </Files>
+ <Details>
+  <Detail name="width">256</Detail>
+  <Detail name="height">4</Detail>
+  <Detail name="mipCount">1</Detail>
+ </Details>
+</AssetMetadata>

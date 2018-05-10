@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #ifndef __DEBUGKIT_H__
 #define __DEBUGKIT_H__
@@ -74,6 +74,7 @@ public:
 	void SetKey(uint32 key)          { m_curDataEnt.key = key; }
 
 	void AddDataEnt(const Vec3& v);
+	void AddDataEnt(const Vec2& v)       { AddDataEnt(Vec3(v)); }
 	void AddDataEnt(const Ang3& v)       { AddDataEnt(Vec3(v)); }
 	void AddDataEnt(SNetObjectID id)     { AddDataEnt(Vec3(id.id, id.salt, 0.0f)); }
 	void AddDataEnt(float x)             { AddDataEnt(Vec3(x, 0.0f, 0.0f));    }

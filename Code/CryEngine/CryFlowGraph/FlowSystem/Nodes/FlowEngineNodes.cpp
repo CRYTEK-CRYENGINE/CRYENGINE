@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 
@@ -838,18 +838,17 @@ public:
 		{
 		case eFE_Activate:
 			{
-				if (IsPortActive(pActInfo, eIn_Get))
+				if (IsPortActive(pActInfo, eIn_Get) && gEnv->pRenderer)
 				{
-					int x = 0;
-					int y = 0;
-					int width = 0;
-					int height = 0;
-					gEnv->pRenderer->GetViewport(&x, &y, &width, &height);
+					const int x = 0;
+					const int y = 0;
+					const int w = IRenderAuxGeom::GetAux()->GetCamera().GetViewSurfaceX();
+					const int h = IRenderAuxGeom::GetAux()->GetCamera().GetViewSurfaceZ();
 
 					ActivateOutput(pActInfo, eOut_X, x);
 					ActivateOutput(pActInfo, eOut_Y, y);
-					ActivateOutput(pActInfo, eOut_Width, width);
-					ActivateOutput(pActInfo, eOut_Height, height);
+					ActivateOutput(pActInfo, eOut_Width, w);
+					ActivateOutput(pActInfo, eOut_Height, h);
 				}
 			}
 			break;

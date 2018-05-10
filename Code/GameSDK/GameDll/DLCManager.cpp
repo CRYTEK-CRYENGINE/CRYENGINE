@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 /*************************************************************************
 -------------------------------------------------------------------------
@@ -95,7 +95,10 @@ CDLCManager::CDLCManager()
 
 CDLCManager::~CDLCManager()
 {
-	gEnv->pSystem->GetPlatformOS()->RemoveListener(this);
+	if (IPlatformOS* pPlatformOS = gEnv->pSystem->GetPlatformOS())
+	{
+		gEnv->pSystem->GetPlatformOS()->RemoveListener(this);
+	}
 }
 
 void CDLCManager::LoadDownloadableContent( uint32 userIdOveride /*= INVALID_CONTROLLER_INDEX*/ )

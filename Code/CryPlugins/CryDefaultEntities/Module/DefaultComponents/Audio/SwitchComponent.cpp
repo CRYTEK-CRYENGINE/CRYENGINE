@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "SwitchComponent.h"
@@ -28,7 +28,7 @@ void CSwitchComponent::ReflectType(Schematyc::CTypeDesc<CSwitchComponent>& desc)
 	desc.SetEditorCategory("Audio");
 	desc.SetLabel("Switch");
 	desc.SetDescription("Allows for setting a switch on all audio audio objects created by the component this component is attached to.");
-	desc.SetIcon("icons:Audio/switch.ico");
+	desc.SetIcon("icons:Audio/component_switch.ico");
 	desc.SetComponentFlags({ IEntityComponent::EFlags::Attach, IEntityComponent::EFlags::ClientOnly, IEntityComponent::EFlags::HideFromInspector });
 
 	desc.AddMember(&CSwitchComponent::m_switch, 'swit', "switch", "Switch", "The switch which value is applied to all audio objects.", SSwitchWithStateSerializeHelper());
@@ -57,7 +57,7 @@ uint64 CSwitchComponent::GetEventMask() const
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CSwitchComponent::ProcessEvent(SEntityEvent& event)
+void CSwitchComponent::ProcessEvent(const SEntityEvent& event)
 {
 #if defined(INCLUDE_DEFAULT_PLUGINS_PRODUCTION_CODE)
 	if (m_pIEntityAudioComponent != nullptr)

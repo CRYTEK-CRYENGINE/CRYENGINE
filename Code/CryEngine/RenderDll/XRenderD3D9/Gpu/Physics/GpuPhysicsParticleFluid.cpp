@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "GpuPhysicsParticleFluid.h"
@@ -230,7 +230,7 @@ void CParticleFluidSimulation::FluidCollisions(CDeviceCommandListRef RESTRICT_RE
 {
 	const uint blocks = gpu::GetNumberOfBlocksForArbitaryNumberOfThreads(m_params->numberOfBodies, kThreadsInBlock);
 	m_passCollisionsScreenSpace.SetBuffer(0, &m_pData->adjacencyList.GetBuffer());
-	m_passCollisionsScreenSpace.SetTexture(1, CTexture::s_ptexZTarget);
+	m_passCollisionsScreenSpace.SetTexture(1, CRendererResources::s_ptexLinearDepth);
 	m_passCollisionsScreenSpace.SetOutputUAV(0, &m_pData->bodies.GetBuffer());
 	m_passCollisionsScreenSpace.SetOutputUAV(1, &m_pData->bodiesTemp.GetBuffer());
 	m_passCollisionsScreenSpace.SetOutputUAV(2, &m_pData->bodiesOffsets.GetBuffer());

@@ -58,7 +58,6 @@ float3 ComputeWaterFogShadow(
 	float2 screenTC)
 {
 	SWaterVolumeParams params = GetWaterVolumeParams();
-	SShadowSamplingParams shadowParams = GetShadowSamplingParams();
 
 	ShadowSamplingContext samplingContext;
 	samplingContext.comparisonSampler   = linearClampCompSState;
@@ -74,7 +73,7 @@ float3 ComputeWaterFogShadow(
 	shadowCascades.shadowMap3 = shadowMapTex3;
 	//shadowCascades.cloudShadowTex // not needed because of bSampleCloudShadows = false.
 
-	float shadowSample = ShadowDepthTest(shadowParams, shadowCascades, samplingContext, worldPos, false, true);
+    float shadowSample = ShadowDepthTest(GetShadowSamplingParams(), shadowCascades, samplingContext, worldPos, false, true);
 
 	const bool belowSurface = sceneDepth < waterDepth;
 	shadowSample = belowSurface ? 1.0h : shadowSample; // depth test
@@ -228,13 +227,12 @@ technique Into
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Case: Looking out of water volume
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-v2fOutof WaterVolumeOutofVS( a2v IN )
+v2fOutof WaterVolumeOutofVS( uint VertexID : SV_VertexID )
 {
 	v2fOutof OUT = (v2fOutof) 0;
 
-	OUT.hPos = Get2dHPos(IN.Position);
-
-	OUT.baseTC.xy = IN.baseTC.xy;
+	OUT.hPos = GetHPos_FromTriVertexID(VertexID);
+	OUT.baseTC.xy = GetBaseTC_FromTriVertexID(VertexID);
 
 	return OUT;
 }

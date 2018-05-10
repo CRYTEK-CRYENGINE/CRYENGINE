@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -63,7 +63,7 @@ public:
 		CPrimitiveRenderPass&                       pass;
 		std::vector<CPrimitiveRenderPass*>&         prePasses;
 
-		const CStandardGraphicsPipeline::SViewInfo* pViewInfo;
+		const SRenderViewInfo* pViewInfo;
 		int                                         viewInfoCount;
 
 		Vec3                                        lightWorldPos;
@@ -197,12 +197,14 @@ public:
 		return m_globalColor.a > LensOpConst::_LO_MIN && m_globalFlareBrightness > LensOpConst::_LO_MIN;
 	}
 
-	virtual void RenderPreview(SLensFlareRenderParam* pParam, const Vec3& vPos) { assert(0); }
+	virtual void RenderPreview(const SLensFlareRenderParam* pParam, const Vec3& vPos) { assert(0); }
 	virtual bool PreparePrimitives(const SPreparePrimitivesContext& context) { assert(0); return false; }
 
 protected:
 	void         updateXformMatrix();
 	virtual void Invalidate() {}
+
+	virtual void DeleteThis();
 
 public:
 	void SetScale(Vec2 scale)
@@ -280,7 +282,7 @@ public:
 	void              ApplyGeneralFlags(uint64& rtFlags);
 	void              ApplyOcclusionBokehFlag(uint64& rtFlags);
 	void              ApplySpectrumTexFlag(uint64& rtFlags, bool enabled);
-	void              ApplyCommonParams(SShaderParamsBase& shaderParams, const SViewport& viewport, const Vec3& lightProjPos, const Vec2& size);
+	void              ApplyCommonParams(SShaderParamsBase& shaderParams, const SRenderViewport& viewport, const Vec3& lightProjPos, const Vec2& size);
 
 
 	virtual EFlareType GetType()       { return eFT__Base__; }

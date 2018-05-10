@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -23,8 +23,6 @@ public:
 	CREWaterOcean();
 	virtual ~CREWaterOcean();
 
-	virtual void Release(bool bForce = false) override;
-
 	virtual void mfGetPlane(Plane& pl) override;
 
 	virtual void GetMemoryUsage(ICrySizer* pSizer) const override
@@ -32,7 +30,7 @@ public:
 		pSizer->AddObject(this, sizeof(*this));
 	}
 
-	virtual bool            Compile(CRenderObject* pObj) override;
+	virtual bool            Compile(CRenderObject* pObj, CRenderView *pRenderView, bool updateInstanceDataOnly) override;
 	virtual void            DrawToCommandList(CRenderObject* pObj, const struct SGraphicsPipelinePassContext& ctx) override;
 
 	virtual bool            RequestVerticesBuffer(SVF_P3F_C4B_T2F** pOutputVertices, uint8** pOutputIndices, uint32 nVerticesCount, uint32 nIndicesCount, uint32 nIndexSizeof);

@@ -1,6 +1,6 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
-#include "StdAfx.h"
+#include "stdafx.h"
 
 #include <assert.h>                         // assert()
 #include <algorithm>                        // std::max()

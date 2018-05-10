@@ -13,63 +13,76 @@ namespace Math.Tests
 		public void ConversionFromNativeToManaged()
 		{
 			Matrix34 nativeMatrix = new Matrix34(0,1,2,3,10,11,12,13,20,21,22,23);
-			Matrix3x4 managedmatrix = nativeMatrix;
-			Assert.That(true, Is.EqualTo(managedmatrix == nativeMatrix));
-			Assert.That(nativeMatrix.m00, Is.EqualTo(managedmatrix.m00));
-			Assert.That(nativeMatrix.m01, Is.EqualTo(managedmatrix.m01));
-			Assert.That(nativeMatrix.m02, Is.EqualTo(managedmatrix.m02));
-			Assert.That(nativeMatrix.m03, Is.EqualTo(managedmatrix.m03));
-			Assert.That(nativeMatrix.m10, Is.EqualTo(managedmatrix.m10));
-			Assert.That(nativeMatrix.m11, Is.EqualTo(managedmatrix.m11));
-			Assert.That(nativeMatrix.m12, Is.EqualTo(managedmatrix.m12));
-			Assert.That(nativeMatrix.m13, Is.EqualTo(managedmatrix.m13));
-			Assert.That(nativeMatrix.m20, Is.EqualTo(managedmatrix.m20));
-			Assert.That(nativeMatrix.m21, Is.EqualTo(managedmatrix.m21));
-			Assert.That(nativeMatrix.m22, Is.EqualTo(managedmatrix.m22));
-			Assert.That(nativeMatrix.m23, Is.EqualTo(managedmatrix.m23));
-			Assert.IsTrue(nativeMatrix == managedmatrix);
+			Matrix3x4 managedMatrix = nativeMatrix;
+
+			Assert.That(nativeMatrix.m00, Is.EqualTo(managedMatrix[0, 0]));
+			Assert.That(nativeMatrix.m01, Is.EqualTo(managedMatrix[0, 1]));
+			Assert.That(nativeMatrix.m02, Is.EqualTo(managedMatrix[0, 2]));
+			Assert.That(nativeMatrix.m03, Is.EqualTo(managedMatrix[0, 3]));
+			Assert.That(nativeMatrix.m10, Is.EqualTo(managedMatrix[1, 0]));
+			Assert.That(nativeMatrix.m11, Is.EqualTo(managedMatrix[1, 1]));
+			Assert.That(nativeMatrix.m12, Is.EqualTo(managedMatrix[1, 2]));
+			Assert.That(nativeMatrix.m13, Is.EqualTo(managedMatrix[1, 3]));
+			Assert.That(nativeMatrix.m20, Is.EqualTo(managedMatrix[2, 0]));
+			Assert.That(nativeMatrix.m21, Is.EqualTo(managedMatrix[2, 1]));
+			Assert.That(nativeMatrix.m22, Is.EqualTo(managedMatrix[2, 2]));
+			Assert.That(nativeMatrix.m23, Is.EqualTo(managedMatrix[2, 3]));
 		}
 
 		[Test, Description("Convert from managed to native")]
 		public void ConversionFromManagedToNative()
 		{
-			Matrix3x4 managedmatrix = new Matrix3x4(0, 1, 2, 3, 10, 11, 12, 13, 20, 21, 22, 23);
-			Matrix34 nativeMatrix = managedmatrix;
-			Assert.That(true, Is.EqualTo(managedmatrix == nativeMatrix));
-			Assert.That(nativeMatrix.m00, Is.EqualTo(managedmatrix.m00));
-			Assert.That(nativeMatrix.m01, Is.EqualTo(managedmatrix.m01));
-			Assert.That(nativeMatrix.m02, Is.EqualTo(managedmatrix.m02));
-			Assert.That(nativeMatrix.m03, Is.EqualTo(managedmatrix.m03));
-			Assert.That(nativeMatrix.m10, Is.EqualTo(managedmatrix.m10));
-			Assert.That(nativeMatrix.m11, Is.EqualTo(managedmatrix.m11));
-			Assert.That(nativeMatrix.m12, Is.EqualTo(managedmatrix.m12));
-			Assert.That(nativeMatrix.m13, Is.EqualTo(managedmatrix.m13));
-			Assert.That(nativeMatrix.m20, Is.EqualTo(managedmatrix.m20));
-			Assert.That(nativeMatrix.m21, Is.EqualTo(managedmatrix.m21));
-			Assert.That(nativeMatrix.m22, Is.EqualTo(managedmatrix.m22));
-			Assert.That(nativeMatrix.m23, Is.EqualTo(managedmatrix.m23));
-			Assert.IsTrue(managedmatrix == nativeMatrix);
+			Matrix3x4 managedMatrix = new Matrix3x4(0, 1, 2, 3, 10, 11, 12, 13, 20, 21, 22, 23);
+			Matrix34 nativeMatrix = managedMatrix;
+
+			Assert.That(nativeMatrix.m00, Is.EqualTo(managedMatrix[0, 0]));
+			Assert.That(nativeMatrix.m01, Is.EqualTo(managedMatrix[0, 1]));
+			Assert.That(nativeMatrix.m02, Is.EqualTo(managedMatrix[0, 2]));
+			Assert.That(nativeMatrix.m03, Is.EqualTo(managedMatrix[0, 3]));
+			Assert.That(nativeMatrix.m10, Is.EqualTo(managedMatrix[1, 0]));
+			Assert.That(nativeMatrix.m11, Is.EqualTo(managedMatrix[1, 1]));
+			Assert.That(nativeMatrix.m12, Is.EqualTo(managedMatrix[1, 2]));
+			Assert.That(nativeMatrix.m13, Is.EqualTo(managedMatrix[1, 3]));
+			Assert.That(nativeMatrix.m20, Is.EqualTo(managedMatrix[2, 0]));
+			Assert.That(nativeMatrix.m21, Is.EqualTo(managedMatrix[2, 1]));
+			Assert.That(nativeMatrix.m22, Is.EqualTo(managedMatrix[2, 2]));
+			Assert.That(nativeMatrix.m23, Is.EqualTo(managedMatrix[2, 3]));
+
 		}
 
 		[Test]
 		public void TestIdentity()
 		{
-			Assert.That(true,Is.EqualTo(Matrix3x4.Identity == Matrix34.CreateIdentity()));
-			
-			Matrix3x4 managedmatrix = Matrix3x4.Identity;
-			Assert.That(true, Is.EqualTo(managedmatrix == Matrix3x4.Identity));
-			Assert.That(managedmatrix.m00, Is.EqualTo(1));
-			Assert.That(managedmatrix.m01, Is.EqualTo(0));
-			Assert.That(managedmatrix.m02, Is.EqualTo(0));
-			Assert.That(managedmatrix.m03, Is.EqualTo(0));
-			Assert.That(managedmatrix.m10, Is.EqualTo(0));
-			Assert.That(managedmatrix.m11, Is.EqualTo(1));
-			Assert.That(managedmatrix.m12, Is.EqualTo(0));
-			Assert.That(managedmatrix.m13, Is.EqualTo(0));
-			Assert.That(managedmatrix.m20, Is.EqualTo(0));
-			Assert.That(managedmatrix.m21, Is.EqualTo(0));
-			Assert.That(managedmatrix.m22, Is.EqualTo(1));
-			Assert.That(managedmatrix.m23, Is.EqualTo(0));
+			Matrix34 nativeMatrix = Matrix34.CreateIdentity();
+			Matrix3x4 managedMatrix = Matrix3x4.Identity;
+
+			// Compare native to managed identity
+			Assert.That(nativeMatrix.m00, Is.EqualTo(managedMatrix[0, 0]));
+			Assert.That(nativeMatrix.m01, Is.EqualTo(managedMatrix[0, 1]));
+			Assert.That(nativeMatrix.m02, Is.EqualTo(managedMatrix[0, 2]));
+			Assert.That(nativeMatrix.m03, Is.EqualTo(managedMatrix[0, 3]));
+			Assert.That(nativeMatrix.m10, Is.EqualTo(managedMatrix[1, 0]));
+			Assert.That(nativeMatrix.m11, Is.EqualTo(managedMatrix[1, 1]));
+			Assert.That(nativeMatrix.m12, Is.EqualTo(managedMatrix[1, 2]));
+			Assert.That(nativeMatrix.m13, Is.EqualTo(managedMatrix[1, 3]));
+			Assert.That(nativeMatrix.m20, Is.EqualTo(managedMatrix[2, 0]));
+			Assert.That(nativeMatrix.m21, Is.EqualTo(managedMatrix[2, 1]));
+			Assert.That(nativeMatrix.m22, Is.EqualTo(managedMatrix[2, 2]));
+			Assert.That(nativeMatrix.m23, Is.EqualTo(managedMatrix[2, 3]));
+
+			// Compare managed matrix to real values.
+			Assert.That(managedMatrix[0, 0], Is.EqualTo(1));
+			Assert.That(managedMatrix[0, 1], Is.EqualTo(0));
+			Assert.That(managedMatrix[0, 2], Is.EqualTo(0));
+			Assert.That(managedMatrix[0, 3], Is.EqualTo(0));
+			Assert.That(managedMatrix[1, 0], Is.EqualTo(0));
+			Assert.That(managedMatrix[1, 1], Is.EqualTo(1));
+			Assert.That(managedMatrix[1, 2], Is.EqualTo(0));
+			Assert.That(managedMatrix[1, 3], Is.EqualTo(0));
+			Assert.That(managedMatrix[2, 0], Is.EqualTo(0));
+			Assert.That(managedMatrix[2, 1], Is.EqualTo(0));
+			Assert.That(managedMatrix[2, 2], Is.EqualTo(1));
+			Assert.That(managedMatrix[2, 3], Is.EqualTo(0));
 		}
 
 		[Test] 
@@ -158,16 +171,27 @@ namespace Math.Tests
 			//managed operation
 			Vector3 point = new Vector3(1f, -1f, 0.5f);
 			Matrix3x4 matrix34 = new Matrix3x4(0f, 1f, 2f, 3f, 10f, 11f, 12f, 13f, 20f, 21f, 22f, 23f);
-			Matrix3x4 newMatrix = matrix34;
-			Assert.IsTrue(!ReferenceEquals(matrix34, newMatrix));
-			newMatrix.AddTranslation(point);
+			Matrix3x4 managedMatrix = matrix34;
+			Assert.IsTrue(!ReferenceEquals(matrix34, managedMatrix));
+			managedMatrix.AddTranslation(point);
 
 			//native operation
 			Vec3 point2 = new Vec3(point.x, point.y, point.z);
 			Matrix34 nativeMatrix = new Matrix34(0f, 1f, 2f, 3f, 10f, 11f, 12f, 13f, 20f, 21f, 22f, 23f);
 			nativeMatrix.AddTranslation(point2);
 
-			Assert.IsTrue(newMatrix == nativeMatrix);
+			Assert.That(nativeMatrix.m00, Is.EqualTo(managedMatrix[0, 0]));
+			Assert.That(nativeMatrix.m01, Is.EqualTo(managedMatrix[0, 1]));
+			Assert.That(nativeMatrix.m02, Is.EqualTo(managedMatrix[0, 2]));
+			Assert.That(nativeMatrix.m03, Is.EqualTo(managedMatrix[0, 3]));
+			Assert.That(nativeMatrix.m10, Is.EqualTo(managedMatrix[1, 0]));
+			Assert.That(nativeMatrix.m11, Is.EqualTo(managedMatrix[1, 1]));
+			Assert.That(nativeMatrix.m12, Is.EqualTo(managedMatrix[1, 2]));
+			Assert.That(nativeMatrix.m13, Is.EqualTo(managedMatrix[1, 3]));
+			Assert.That(nativeMatrix.m20, Is.EqualTo(managedMatrix[2, 0]));
+			Assert.That(nativeMatrix.m21, Is.EqualTo(managedMatrix[2, 1]));
+			Assert.That(nativeMatrix.m22, Is.EqualTo(managedMatrix[2, 2]));
+			Assert.That(nativeMatrix.m23, Is.EqualTo(managedMatrix[2, 3]));
 		}
 
 		[Test]

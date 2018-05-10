@@ -1,0 +1,10 @@
+<AssetMetadata version="0" type="Texture" guid="943a5ecf-3f4a-4128-17e8-5f404383f2e7" source="spectrum_full.tif">
+ <Files>
+  <File path="spectrum_full.dds"/>
+ </Files>
+ <Details>
+  <Detail name="width">4</Detail>
+  <Detail name="height">4</Detail>
+  <Detail name="mipCount">1</Detail>
+ </Details>
+</AssetMetadata>

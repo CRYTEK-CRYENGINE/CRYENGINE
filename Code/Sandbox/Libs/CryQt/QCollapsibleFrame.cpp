@@ -44,10 +44,10 @@ void QCollapsibleFrame::SetWidget(QWidget* pWidget)
 
 	auto pMainLayout = m_pContentsFrame->layout();
 
-	// remove old widget
 	if (m_pWidget)
 	{
 		pMainLayout->removeWidget(m_pWidget);
+		m_pWidget->deleteLater();
 	}
 
 	m_pWidget = pWidget;

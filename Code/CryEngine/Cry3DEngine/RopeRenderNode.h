@@ -1,9 +1,10 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
 #include <CryMath/ISplines.h>
 #include <CryPhysics/IDeferredCollisionEvent.h>
+#include <Cry3DEngine/IIndexedMesh.h>
 
 class CRopeRenderNode : public IRopeRenderNode, public Cry3DEngineBase
 {
@@ -102,8 +103,18 @@ private:
 
 	std::vector<Vec3> m_points;
 	std::vector<Vec3> m_physicsPoints;
+	std::vector<Vec3> m_filteredPoints;
+
+	std::vector<DualQuat>                m_bones;
+	float                                m_lenSkin = 0;
+	std::vector<SMeshBoneMapping_uint16> m_tmpSkin;
+	std::vector< Vec3_tpl<vtx_idx> >     m_tmpIdx;
+	_smart_ptr<IStatObj>                 m_segObj;
+	SSkinningData*                       m_skinDataHist[3] = {};
+	uint                                 m_idSkinFrame = ~0u;
 
 	SRopeParams       m_params;
+	bool              m_paramsChanged = true;
 
 	typedef spline::CatmullRomSpline<Vec3> SplineType;
 	SplineType         m_spline;

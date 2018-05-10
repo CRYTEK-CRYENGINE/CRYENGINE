@@ -1,0 +1,12 @@
+<AssetMetadata version="0" type="Texture" guid="3e45921a-a85f-6a6a-5992-f12c7d69fc4a" source="MidGray.tif">
+ <Files>
+  <File path="MidGray.dds"/>
+  <File path="MidGray.dds.1"/>
+  <File path="MidGray.dds.2"/>
+ </Files>
+ <Details>
+  <Detail name="width">64</Detail>
+  <Detail name="height">64</Detail>
+  <Detail name="mipCount">5</Detail>
+ </Details>
+</AssetMetadata>

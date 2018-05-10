@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "stdafx.h"
 #include "SchematycEntityDrsComponent.h"
@@ -7,10 +7,6 @@
 //////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////
-
-using Schematyc::CSharedString;
-using namespace DRS;
-
 void CSchematycEntityDrsComponent::Initialize()
 {
 	IEntity& entity = *GetEntity();
@@ -102,9 +98,9 @@ void CSchematycEntityDrsComponent::Register(Schematyc::IEnvRegistrar& registrar)
 	}
 }
 
-void CSchematycEntityDrsComponent::SendSignal(const CSharedString& signalName, const CSharedString& contextFloatName, float contextFloatValue, const CSharedString& contextStringName, const CSharedString& contextStringValue)
+void CSchematycEntityDrsComponent::SendSignal(const Schematyc::CSharedString& signalName, const Schematyc::CSharedString& contextFloatName, float contextFloatValue, const Schematyc::CSharedString& contextStringName, const Schematyc::CSharedString& contextStringValue)
 {
-	IVariableCollectionSharedPtr pCollection = nullptr;
+	DRS::IVariableCollectionSharedPtr pCollection = nullptr;
 	if (!contextFloatName.empty() || !contextStringName.empty())
 	{
 		pCollection = gEnv->pDynamicResponseSystem->CreateContextCollection();
@@ -121,9 +117,9 @@ void CSchematycEntityDrsComponent::SendSignal(const CSharedString& signalName, c
 	m_pDrsEntityComp->GetResponseActor()->QueueSignal(signalName.c_str(), pCollection, this);
 }
 
-void CSchematycEntityDrsComponent::SetFloatVariable(const CSharedString& collectionName, const CSharedString& variableName, float value)
+void CSchematycEntityDrsComponent::SetFloatVariable(const Schematyc::CSharedString& collectionName, const Schematyc::CSharedString& variableName, float value)
 {
-	IVariableCollection* pCollection = GetVariableCollection(collectionName);
+	DRS::IVariableCollection* pCollection = GetVariableCollection(collectionName);
 
 	if (pCollection)
 	{
@@ -131,25 +127,25 @@ void CSchematycEntityDrsComponent::SetFloatVariable(const CSharedString& collect
 	}
 }
 
-void CSchematycEntityDrsComponent::SetStringVariable(const CSharedString& collectionName, const CSharedString& variableName, const CSharedString& value)
+void CSchematycEntityDrsComponent::SetStringVariable(const Schematyc::CSharedString& collectionName, const Schematyc::CSharedString& variableName, const Schematyc::CSharedString& value)
 {
-	IVariableCollection* pCollection = GetVariableCollection(collectionName);
+	DRS::IVariableCollection* pCollection = GetVariableCollection(collectionName);
 	if (pCollection)
 	{
 		pCollection->SetVariableValue(variableName.c_str(), CHashedString(value.c_str()));
 	}
 }
 
-void CSchematycEntityDrsComponent::SetIntVariable(const CSharedString& collectionName, const CSharedString& variableName, int value)
+void CSchematycEntityDrsComponent::SetIntVariable(const Schematyc::CSharedString& collectionName, const Schematyc::CSharedString& variableName, int value)
 {
-	IVariableCollection* pCollection = GetVariableCollection(collectionName);
+	DRS::IVariableCollection* pCollection = GetVariableCollection(collectionName);
 	if (pCollection)
 	{
 		pCollection->SetVariableValue(variableName.c_str(), value);
 	}
 }
 
-IVariableCollection* CSchematycEntityDrsComponent::GetVariableCollection(const CSharedString& collectionName)
+DRS::IVariableCollection* CSchematycEntityDrsComponent::GetVariableCollection(const Schematyc::CSharedString& collectionName)
 {
 	if (collectionName == "Local" || collectionName == "local")
 		return m_pDrsEntityComp->GetLocalVariableCollection();
@@ -157,31 +153,31 @@ IVariableCollection* CSchematycEntityDrsComponent::GetVariableCollection(const C
 		return gEnv->pDynamicResponseSystem->GetCollection(collectionName.c_str());
 }
 
-void CSchematycEntityDrsComponent::OnSignalProcessingStarted(SSignalInfos& signal, IResponseInstance* pStartedResponse)
+void CSchematycEntityDrsComponent::OnSignalProcessingStarted(SSignalInfos& signal, DRS::IResponseInstance* pStartedResponse)
 {
 	OutputSignal(SResponseStartedSignal { (int)signal.id });
 }
 
-void CSchematycEntityDrsComponent::OnSignalProcessingFinished(SSignalInfos& signal, IResponseInstance* pFinishedResponse, eProcessingResult outcome)
+void CSchematycEntityDrsComponent::OnSignalProcessingFinished(SSignalInfos& signal, DRS::IResponseInstance* pFinishedResponse, eProcessingResult outcome)
 {
 	OutputSignal(SResponseFinishedSignal { signal.id, outcome });
 }
 
-void CSchematycEntityDrsComponent::OnLineEvent(const IResponseActor* pSpeaker, const CHashedString& lineID, eLineEvent lineEvent, const IDialogLine* pLine)
+void CSchematycEntityDrsComponent::OnLineEvent(const DRS::IResponseActor* pSpeaker, const CHashedString& lineID, eLineEvent lineEvent, const DRS::IDialogLine* pLine)
 {
 	//remark: every DRS Component will currently receive events for any Speaker
 	const Schematyc::CSharedString text = (pLine) ? pLine->GetText() : lineID.GetText();
 	const Schematyc::CSharedString speakerName = (pSpeaker) ? pSpeaker->GetName() : "No Actor";
 
-	if (lineEvent == ISpeakerManager::IListener::eLineEvent_HasEndedInAnyWay)
+	if (lineEvent == DRS::ISpeakerManager::IListener::eLineEvent_HasEndedInAnyWay)
 	{
 		OutputSignal(SLineEndedSignal {
 			text,
 			speakerName,
-			(lineEvent == ISpeakerManager::IListener::eLineEvent_Canceled)
+			(lineEvent == DRS::ISpeakerManager::IListener::eLineEvent_Canceled)
 		});
 	}
-	else if (lineEvent == ISpeakerManager::IListener::eLineEvent_Started)
+	else if (lineEvent == DRS::ISpeakerManager::IListener::eLineEvent_Started)
 	{
 		OutputSignal(SLineStartedSignal {
 			text,

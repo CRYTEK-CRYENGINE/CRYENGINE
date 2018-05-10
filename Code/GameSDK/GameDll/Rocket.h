@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 /*************************************************************************
 -------------------------------------------------------------------------
@@ -41,7 +41,7 @@ protected:
 	void EnableTrail();
 	void DisableTrail();
 	virtual bool ShouldCollisionsDamageTarget() const;
-	virtual void ProcessEvent(SEntityEvent &event);
+	virtual void ProcessEvent(const SEntityEvent& event);
 
 	Vec3			m_launchLoc;
 	bool			m_detonatorFired;

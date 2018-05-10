@@ -1,68 +1,73 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #ifndef _BREEZEGENERATOR_H
 #define _BREEZEGENERATOR_H
 
 #include "Cry3DEngineBase.h"
+#include <Cry3DEngine/IBreezeGenerator.h>
 
 struct SBreeze;
 
 // Spawns wind volumes around the camera to emulate breezes
-class CBreezeGenerator : public Cry3DEngineBase
+class CBreezeGenerator : public IBreezeGenerator, public Cry3DEngineBase
 {
 	friend class C3DEngine;
+public:
+	CBreezeGenerator();
+	~CBreezeGenerator();
+
+	void Initialize() override;
+	void Shutdown() override;
+
+	virtual void SetEnabled(bool enabled) override { m_enabled = enabled; }
+	virtual bool GetEnabled() const override { return m_enabled;  }
+
+	virtual void SetStrength(float strength) override { m_strength = strength; }
+	virtual float GetStrength() const override { return m_strength; }
+
+	virtual void SetMovementSpeed(float movementSpeed) override { m_movement_speed = movementSpeed; }
+	virtual float GetMovementSpeed() const override { return m_movement_speed; }
+
+	virtual void SetVariance(float variance) override { m_variance = variance; }
+	virtual float GetVariance() const override { return m_variance; }
+
+	virtual void SetLifetime(float lifetime) override { m_lifetime = lifetime; }
+	virtual float GetLifetime() const override { return m_lifetime; }
+
+	virtual void SetCount(uint32 count) override { m_count = count; }
+	virtual uint32 GetCount() const override { return m_count; }
+
+	virtual void SetSpawnRadius(float spawnRadius) override { m_spawn_radius = spawnRadius; }
+	virtual float GetSpawnRadius() const override { return m_spawn_radius; }
+
+	virtual void SetSpread(float spread) override { m_spread = spread; }
+	virtual float GetSpread() const override { return m_spread; }
+
+	virtual void SetRadius(float radius) override { m_radius = radius; }
+	virtual float GetRadius() const override { return m_radius; }
+
+	virtual void SetAwakeThreshold(float awakeThreshSpeed) override { m_awake_thresh = awakeThreshSpeed; }
+	virtual float GetAwakeThreshold() const override { return m_awake_thresh; }
+
+private:
+	void Reset();
+	void Update();
 
 	// The array of active breezes
 	SBreeze* m_breezes;
 
-	// The radius around the camera where the breezes will be spawned
 	float m_spawn_radius;
-
-	// The spread (variation in direction on spawn)
 	float m_spread;
-
-	// The max. number of wind areas active at the same time
 	uint32 m_count;
-
-	// The max. extents of each breeze
 	float m_radius;
-
-	// The max. life of each breeze
 	float m_lifetime;
-
-	// The random variance of each breeze in respect to it's other attributes
 	float m_variance;
-
-	// The strength of the breeze (as a factor of the original wind vector)
 	float m_strength;
-
-	// The speed of the breeze movement (not coupled to the wind speed)
 	float m_movement_speed;
-
-	// The global direction of the environment wind
 	Vec3 m_wind_speed;
-
-	// Set a fixed height for the breeze, for levels without terrain. -1 uses the terrain height
 	float m_fixed_height;
-
-	// Approximate threshold velocity that the wind can add to an entity part per second that will awake it (0 disables)
 	float m_awake_thresh;
-
-	// breeze generation enabled?
 	bool m_enabled;
-
-public:
-
-	CBreezeGenerator();
-	~CBreezeGenerator();
-
-	void Initialize();
-
-	void Reset();
-
-	void Shutdown();
-
-	void Update();
 };
 
 #endif

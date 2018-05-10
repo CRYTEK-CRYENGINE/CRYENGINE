@@ -1,11 +1,8 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
-#ifndef   __IGAMESTATISTICS_H__
-#define   __IGAMESTATISTICS_H__
+//! \cond INTERNAL
 
-#if _MSC_VER > 1000
-	#pragma once
-#endif
+#pragma once
 
 #include <CryScriptSystem/IScriptSystem.h> // <> required for Interfuscator
 
@@ -171,23 +168,23 @@ struct SStatAnyValue
 
 	SStatAnyValue(const ScriptAnyValue& value)
 	{
-		switch (value.type)
+		switch (value.GetType())
 		{
-		case ANY_TBOOLEAN:
+		case EScriptAnyType::Boolean:
 			type = eSAT_TINT;
-			iNumber = value.b ? 1 : 0;
+			iNumber = value.GetBool() ? 1 : 0;
 			break;
-		case ANY_THANDLE:
+		case EScriptAnyType::Handle:
 			type = eSAT_THANDLE;
-			ptr = (UINT_PTR)(value.ptr);
+			ptr = reinterpret_cast<INT_PTR>(value.GetScriptHandle().ptr);
 			break;
-		case ANY_TNUMBER:
+		case EScriptAnyType::Number:
 			type = eSAT_TFLOAT;
-			fNumber = value.number;
+			fNumber = value.GetNumber();
 			break;
-		case ANY_TSTRING:
+		case EScriptAnyType::String:
 			type = eSAT_TSTRING;
-			str = value.str;
+			str = value.GetString();
 			break;
 		default:
 			CRY_ASSERT_MESSAGE(false, "Invalid type for stat value");
@@ -726,6 +723,4 @@ struct IGameStatistics
 	// </interfuscator:shuffle>
 };
 
-//////////////////////////////////////////////////////////////////////////
-
-#endif
+//! \endcond

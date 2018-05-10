@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #ifndef BUCKETALLOCATOR_H
 #define BUCKETALLOCATOR_H
@@ -16,6 +16,7 @@
 		#define BUCKET_ALLOCATOR_CHECK_DEALLOCATE_ADDRESS
 		#define BUCKET_ALLOCATOR_TRACK_CONSUMED
 		#define BUCKET_ALLOCATOR_TRAP_BAD_SIZE_ALLOCS
+		#define BUCKET_ALLOCATOR_TRAP_CLEANUP_OOM
 	#endif
 
 	#define BUCKET_ALLOCATOR_DEBUG 0
@@ -35,7 +36,7 @@ struct SystemAllocator
 	class CleanupAllocator
 	{
 	public:
-		CleanupAllocator();
+		CleanupAllocator(size_t reserveCapacity);
 		~CleanupAllocator();
 
 		bool  IsValid() const;
@@ -43,19 +44,15 @@ struct SystemAllocator
 		void* Calloc(size_t num, size_t sz);
 		void  Free(void* ptr);
 
-	private:
-		enum
-		{
-			ReserveCapacity = 4 * 1024 * 1024
-		};
 
 	private:
-		CleanupAllocator(const CleanupAllocator&);
-		CleanupAllocator& operator=(const CleanupAllocator&);
+		CleanupAllocator(const CleanupAllocator&) = delete;
+		CleanupAllocator& operator=(const CleanupAllocator&) = delete;
 
 	private:
 		void* m_base;
 		void* m_end;
+		const size_t m_reserveCapacity;
 	};
 
 	static UINT_PTR ReserveAddressSpace(size_t numPages, size_t pageLen);

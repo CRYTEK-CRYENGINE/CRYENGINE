@@ -24,7 +24,6 @@ add_sources("CryAudioSystem_uber_0.cpp"
 		"AudioEventListenerManager.h"
 		"AudioXMLProcessor.h"
 		"InternalEntities.h"
-		"ProfileData.h"
 	SOURCE_GROUP "Source Files"
 		"ATL.cpp"
 		"ATLAudioObject.cpp"
@@ -43,7 +42,6 @@ add_sources("CryAudioSystem_uber_0.cpp"
 		"AudioEventListenerManager.cpp"
 		"AudioXMLProcessor.cpp"
 		"InternalEntities.cpp"
-		"ProfileData.cpp"
 )
 
 add_sources("NoUberFile"
@@ -55,8 +53,58 @@ add_sources("NoUberFile"
 end_sources()
 #END-FILE-LIST
 
+MACRO(setup_cryaudio)
+	target_include_directories(${THIS_PROJECT} PRIVATE Common)
+	if(DURANGO)
+		target_link_libraries(${THIS_PROJECT} PRIVATE acphal)
+	endif()
+	if (ORBIS OR CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+		target_compile_options(${THIS_PROJECT} PRIVATE
+			-Wno-unknown-pragmas
+			-Wno-unused-variable
+			-Wno-reorder
+			-Wno-parentheses
+			-Wno-format
+			-Wno-switch
+			-Wno-unused-value
+			-Wno-comment
+			-Wno-empty-body
+			-Wno-format-security
+			-Wno-unused-function
+			-Wno-multichar
+			-Wno-unused-private-field
+		)
+    elseif(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+		target_compile_options(${THIS_PROJECT} PRIVATE
+			-Wno-unused-function
+			-Wno-unused-value
+			-Wno-unused-variable
+			-Wno-sign-compare
+			-Wno-ignored-attributes
+			-Wno-invalid-offsetof
+			-Wno-aligned-new
+			-Wno-int-in-bool-context
+			-Wno-unused-but-set-variable
+			-Wno-misleading-indentation
+			-Wno-unknown-pragmas
+			-Wno-strict-aliasing
+			-Wno-maybe-uninitialized
+			-Wno-multichar
+			-Wno-char-subscripts
+			-Wno-conversion-null
+			-Wno-parentheses
+			-Wno-comment
+			-Wno-reorder
+			-Wno-address
+			-Wno-format
+			-Wno-switch
+		)
+    endif()
+ENDMACRO()
+
 CryEngineModule(CryAudioSystem PCH "stdafx.cpp" SOLUTION_FOLDER "CryEngine/Audio")
-target_include_directories(${THIS_PROJECT} PRIVATE Common)
-if(DURANGO)
-	target_link_libraries(${THIS_PROJECT} PRIVATE acphal)
+setup_cryaudio()
+if (OPTION_UNIT_TEST AND NOT OPTION_STATIC_LINKING) #Currently an additional static lib is only used by unit testing under non-monolithic mode
+	CryEngineModule(CryAudioSystemLib PCH "stdafx.cpp" SOLUTION_FOLDER "CryEngine/Audio" FORCE_STATIC)
+	setup_cryaudio()
 endif()

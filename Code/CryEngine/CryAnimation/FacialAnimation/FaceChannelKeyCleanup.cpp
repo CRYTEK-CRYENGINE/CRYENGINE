@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "stdafx.h"
 #include "FaceChannelKeyCleanup.h"
@@ -67,7 +67,12 @@ void VerifyStructure(int numKeys, FaceChannelCleanupKeysKeyEntry* keyEntries)
 	for (int listIndex = 0; listIndex < LIST_DEF_COUNT; ++listIndex)
 	{
 		int startIndex = listDefs[listIndex].startIndex;
-		int (FaceChannelCleanupKeysKeyEntry::* links)[2] = listDefs[listIndex].links;
+
+		// Using pointer to data member array type alias to avoid CppCheck error message about missing initialization from
+		//     int (FaceChannelCleanupKeysKeyEntry::* links)[2] = listDefs[listIndex].links;
+		using PtrToIntMemArr = int (FaceChannelCleanupKeysKeyEntry::*)[2];
+		PtrToIntMemArr links = listDefs[listIndex].links;
+
 		for (int index = (keyEntries[startIndex].*links)[NEXT]; index >= 0; index = (keyEntries[index].*links)[NEXT])
 		{
 			assert((keyEntries[(keyEntries[index].*links)[NEXT]].*links)[PREVIOUS] == index);
@@ -434,7 +439,12 @@ void FaceChannel::CleanupKeys(CFacialAnimChannelInterpolator* pSpline, float err
 			for (int treeIndex = 0; treeIndex < NUM_TREE_REMOVAL_ENTRIES; ++treeIndex)
 			{
 				int (FaceChannelCleanupKeysKeyEntry::* const parentPtr) = treeRemovalEntries[treeIndex].parent;
-				int (FaceChannelCleanupKeysKeyEntry::* const childrenPtr)[2] = treeRemovalEntries[treeIndex].children;
+
+				// Using const pointer to data member array type alias to avoid CppCheck error message about missing initialization from
+				//     int (FaceChannelCleanupKeysKeyEntry::* const childrenPtr)[2] = treeRemovalEntries[treeIndex].children;
+				using ConstPtrToIntMemArr = int (FaceChannelCleanupKeysKeyEntry::* const)[2];
+				ConstPtrToIntMemArr childrenPtr = treeRemovalEntries[treeIndex].children;
+
 				const int numKeysToRemove = treeRemovalEntries[treeIndex].numItemsToRemove;
 				const int* const keysToRemove = treeRemovalEntries[treeIndex].itemsToRemove;
 

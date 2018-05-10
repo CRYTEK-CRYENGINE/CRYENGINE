@@ -14,6 +14,8 @@ set(MSVC_COMMON_FLAGS
 
 	/WX         # Treat warnings as errors
 	/wd4653     # Ignore PCH for any individual file that has different optimization settings
+    /wd4275     # non dll-interface class '' used as base for dll-interface class ''
+	/wd4961     # No profile data was merged into '', profile-guided optimizations disabled
 )
 string(REPLACE ";" " " MSVC_COMMON_FLAGS "${MSVC_COMMON_FLAGS}")
  
@@ -31,8 +33,8 @@ set(CMAKE_CXX_FLAGS_DEBUG "/MDd /Zi /Zo /Od /Ob0 /Oy- /RTC1 /GS /DDEBUG /D_DEBUG
 set(CMAKE_C_FLAGS_PROFILE "/Zi /Zo /MD /Ox /Oy- /GS- /DNDEBUG /D_PROFILE" CACHE STRING "C Flags" FORCE)
 set(CMAKE_CXX_FLAGS_PROFILE "/Zi /Zo /MD /Ox /Oy- /GS- /DNDEBUG /D_PROFILE" CACHE STRING "C++ Flags" FORCE)
 
-set(CMAKE_C_FLAGS_RELEASE "/Zi /Zo /MD /Ox /GS- /DNDEBUG /D_RELEASE /DPURE_CLIENT" CACHE STRING "C Flags" FORCE)
-set(CMAKE_CXX_FLAGS_RELEASE "/Zi /Zo /MD /Ox /GS- /DNDEBUG /D_RELEASE /DPURE_CLIENT" CACHE STRING "C++ Flags" FORCE)
+set(CMAKE_C_FLAGS_RELEASE "/Zi /Zo /MD /Ox /GS- /DNDEBUG /D_RELEASE" CACHE STRING "C Flags" FORCE)
+set(CMAKE_CXX_FLAGS_RELEASE "/Zi /Zo /MD /Ox /GS- /DNDEBUG /D_RELEASE" CACHE STRING "C++ Flags" FORCE)
 
 set(CMAKE_SHARED_LINKER_FLAGS_PROFILE "/debug" CACHE STRING "Profile link flags" FORCE)
 set(CMAKE_EXE_LINKER_FLAGS_PROFILE    "/debug" CACHE STRING "Profile link flags" FORCE)
@@ -40,7 +42,7 @@ set(CMAKE_MODULE_LINKER_FLAGS_PROFILE "/debug /INCREMENTAL" CACHE STRING "Profil
 
 set(CMAKE_SHARED_LINKER_FLAGS_RELEASE "/debug" CACHE STRING "Release link flags" FORCE)
 set(CMAKE_EXE_LINKER_FLAGS_RELEASE    "/debug" CACHE STRING "Release link flags" FORCE)
-set(CMAKE_MODULE_LINKER_FLAGS_RELEASE "/debug /INCREMENTAL" CACHE STRING "Release link flags" FORCE)
+set(CMAKE_MODULE_LINKER_FLAGS_RELEASE "/debug  /OPT:REF /OPT:ICF" CACHE STRING "Release link flags" FORCE)
 
 function (wrap_whole_archive project target source)
 	set(${target} "${${source}}" PARENT_SCOPE)

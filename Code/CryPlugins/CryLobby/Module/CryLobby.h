@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #ifndef __CRYLOBBY_H__
 #define __CRYLOBBY_H__
@@ -447,8 +447,19 @@ class CCryLobby : public ICryLobbyPrivate, public IDatagramListener
 #endif
 {
 public:
+	CRYINTERFACE_BEGIN()
+		CRYINTERFACE_ADD(ICryLobby)
+		CRYINTERFACE_ADD(Cry::IEnginePlugin)
+	CRYINTERFACE_END()
+
+	CRYGENERATE_SINGLETONCLASS_GUID(CCryLobby, "Plugin_CryLobby", "31A1557A-0DBA-4CF8-AD79-86E97CD47A4B"_cry_guid);
+
 	CCryLobby();
-	~CCryLobby();
+	virtual ~CCryLobby();
+
+	// Cry::IEnginePlugin
+	virtual bool Initialize(SSystemGlobalEnvironment& env, const SSystemInitParams& initParams) override;
+	// ~Cry::IEnginePlugin
 
 	static ICryLobby*                  GetLobby() { return m_pLobby; }
 

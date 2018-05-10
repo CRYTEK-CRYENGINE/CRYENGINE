@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 // -------------------------------------------------------------------------
 //  File name:   ActorsPresenceAwarenessModule.cpp
@@ -27,7 +27,7 @@ void AloneDetectorContainer::SetupDetector(const AloneDetectorSetup& setup)
 
 void AloneDetectorContainer::Update(float frameTime)
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 	if(m_entityClassNames.empty())
 		return;

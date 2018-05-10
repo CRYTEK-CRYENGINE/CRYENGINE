@@ -1,54 +1,70 @@
 {
-    "toolBar": {
-        "Commands": [
-            {
-                "command": "level.go_to_selection",
-                "custom": false,
-                "uiName": "Go to Selection"
-            },
-            {
-                "command": "general.find",
-                "custom": false,
-                "uiName": "Find..."
-            },
-            "separator",
-            {
-                "command": "ui_action.actionGroup",
-                "custom": false,
-                "uiName": "Group"
-            },
-            {
-                "command": "ui_action.actionUngroup",
-                "custom": false,
-                "uiName": "Ungroup"
-            },
-            {
-                "command": "ui_action.actionLink",
-                "custom": false,
-                "uiName": "Link"
-            },
-            {
-                "command": "ui_action.actionUnlink",
-                "custom": false,
-                "uiName": "Unlink"
-            },
-            {
-                "command": "ui_action.actionCreate_Prefab_fom_Selected_Objects",
-                "custom": false,
-                "uiName": "Create Prefab from Selected Objects"
-            },
-            "separator",
-            {
-                "command": "ui_action.actionFreeze_Selection",
-                "custom": false,
-                "uiName": "Freeze Selection"
-            },
-            {
-                "command": "ui_action.actionUnfreeze_All",
-                "custom": false,
-                "uiName": "Unfreeze All"
-            }
-        ]
-    },
-    "version": 1
+    "toolBar": [
+        {
+            "command": "selection.go_to",
+            "iconPath": "",
+            "m_IsCustom": false,
+            "name": "Go to Selection",
+            "type": 0
+        },
+        {
+            "command": "general.find",
+            "iconPath": "",
+            "m_IsCustom": false,
+            "name": "Find...",
+            "type": 0
+        },
+        "separator",
+        {
+            "command": "group.create_from_selection",
+            "iconPath": "icons:General/Group.ico",
+            "m_IsCustom": false,
+            "name": "create_from_selection",
+            "type": 0
+        },
+        {
+            "command": "group.ungroup",
+            "iconPath": "icons:General/UnGroup.ico",
+            "m_IsCustom": false,
+            "name": "ungroup",
+            "type": 0
+        },
+        {
+            "command": "tools.link",
+            "iconPath": "",
+            "m_IsCustom": false,
+            "name": "Link",
+            "type": 0
+        },
+        {
+            "command": "tools.unlink",
+            "iconPath": "",
+            "m_IsCustom": false,
+            "name": "Unlink",
+            "type": 0
+        },
+        {
+            "command": "prefab.create_from_selection",
+            "iconPath": "",
+            "m_IsCustom": false,
+            "name": "Create Prefab from Selected Objects",
+            "type": 0
+        },
+        "separator",
+        {
+            "command": "selection.make_objects_uneditable",
+            "iconPath": "",
+            "m_IsCustom": false,
+            "name": "Freeze Selection",
+            "type": 0
+        },
+        {
+            "command": "object.make_all_editable",
+            "iconPath": "",
+            "m_IsCustom": false,
+            "name": "Unfreeze All",
+            "type": 0
+        }
+    ],
+    "version": 2
 }

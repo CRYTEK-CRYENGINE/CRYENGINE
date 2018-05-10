@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -167,17 +167,18 @@ struct IHmdRenderer
 	// <interfuscator:shuffle>
 	virtual ~IHmdRenderer() {};
 
-	virtual bool Initialize() = 0;
+	virtual bool Initialize(int initialWidth, int initialeight) = 0;
 	virtual void Shutdown() = 0;
 
 	virtual void ReleaseBuffers() = 0;
-	virtual void OnResolutionChanged() = 0;
+	virtual void OnResolutionChanged(int newWidth, int newHeight) = 0;
 
 	// Called at the beginning of the render frame
 	virtual void PrepareFrame() = 0;
 
 	// Submits the frame to the Hmd device
 	virtual void                      SubmitFrame() = 0;
+	virtual void                      OnPostPresent() {}
 
 	virtual void                      RenderSocialScreen() = 0;
 

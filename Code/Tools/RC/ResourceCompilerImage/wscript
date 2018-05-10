@@ -1,4 +1,4 @@
-# Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved.
+# Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 	
 def build(bld):
 	bld.CryResourceCompilerModule(
@@ -28,7 +28,7 @@ def build(bld):
 
 		libpath = [
 			Path('Code/SDKs/Orbis/host_tools/lib'),
-			Path('Code/SDKs/DurangoSDK/170300/PC/Lib/amd64'),
+			Path('Code/SDKs/DurangoSDK/171100/PC/Lib/amd64'),
 			Path('Code/SDKs/DurangoSDK/PC/Lib/amd64'),
 			Path('Code/SDKs/POWERVR/PVRTexLib/Windows_x86_64'),
 		],

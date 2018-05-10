@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 /*=============================================================================
    Shader.h : Shaders declarations.
@@ -19,8 +19,8 @@
 
 // bump this value up if you want to invalidate shader cache (e.g. changed some code or .ext file)
 // #### VIP NOTE ####: DON'T USE MORE THAN ONE DECIMAL PLACE!!!! else it doesn't work...
-#define FX_CACHE_VER     9.9
-#define FX_SER_CACHE_VER 1.0    // Shader serialization version (FX_CACHE_VER + FX_SER_CACHE_VER)
+#define FX_CACHE_VER     0.1
+#define FX_SER_CACHE_VER 1.1    // Shader serialization version (FX_CACHE_VER + FX_SER_CACHE_VER)
 
 // Maximum 1 digit here
 // The version determines the parse logic in the shader cache gen, these values cannot overlap
@@ -73,6 +73,8 @@ struct SSFXParam;
 struct SSFXSampler;
 struct SSFXTexture;
 class CShaderResources;
+struct SShaderCombIdent;
+struct SCacheCombination;
 
 enum eCompareFunc
 {
@@ -415,7 +417,7 @@ struct SHRenderTarget : public IRenderTarget
 	ETEX_Format  m_eTF;
 	int          m_nIDInPool;
 	ERTUpdate    m_eUpdateType;
-	CTexture*    m_pTarget[2];
+	CTexture*    m_pTarget;
 	bool         m_bTempDepth;
 	ColorF       m_ClearColor;
 	float        m_fClearDepth;
@@ -427,8 +429,7 @@ struct SHRenderTarget : public IRenderTarget
 	{
 		m_nRefCount = 1;
 		m_eOrder = eRO_PreProcess;
-		m_pTarget[0] = NULL;
-		m_pTarget[1] = NULL;
+		m_pTarget = nullptr;
 		m_bTempDepth = true;
 		m_ClearColor = Col_Black;
 		m_fClearDepth = 1.f;
@@ -582,7 +583,6 @@ enum EHWSRMaskBit
 	HWSR_NEAREST,
 	HWSR_DISSOLVE,
 	HWSR_NO_TESSELLATION,
-	HWSR_PER_INSTANCE_CB_TEMP,
 
 	HWSR_QUALITY,
 	HWSR_QUALITY1,
@@ -593,6 +593,7 @@ enum EHWSRMaskBit
 	HWSR_SAMPLE3,
 	HWSR_SAMPLE4,
 	HWSR_SAMPLE5,
+	HWSR_SAMPLE6,
 
 	HWSR_DEBUG0,
 	HWSR_DEBUG1,
@@ -694,13 +695,6 @@ public:
 	//EHWSProfile m_eHWProfile;
 	SShaderCache*             m_pGlobalCache;
 
-	static struct SD3DShader* s_pCurPS;
-	static struct SD3DShader* s_pCurVS;
-	static struct SD3DShader* s_pCurGS;
-	static struct SD3DShader* s_pCurDS;
-	static struct SD3DShader* s_pCurHS;
-	static struct SD3DShader* s_pCurCS;
-
 	static class CHWShader* s_pCurHWVS;
 	static char *s_GS_MultiRes_NV;
 
@@ -750,14 +744,17 @@ public:
 	virtual int         Size() = 0;
 	virtual void        GetMemoryUsage(ICrySizer* Sizer) const = 0;
 	virtual void        mfReset(uint32 CRC32) {}
-	virtual bool        mfSetV(int nFlags = 0) = 0;
-	virtual bool        mfAddEmptyCombination(CShader* pSH, uint64 nRT, uint64 nGL, uint32 nLT) = 0;
-	virtual bool        mfStoreEmptyCombination(SEmptyCombination& Comb) = 0;
+
+	virtual bool        mfAddEmptyCombination(CShader* pSH, uint64 nRT, uint64 nGL, uint32 nLT, const SCacheCombination& cmbSaved) = 0;
+	virtual bool        mfStoreEmptyCombination(CShader* pSH, SEmptyCombination& Comb) = 0;
 	virtual const char* mfGetCurScript() { return NULL; }
 	virtual const char* mfGetEntryName() = 0;
 	virtual void        mfUpdatePreprocessFlags(SShaderTechnique* pTech) = 0;
 	virtual bool        mfFlushCacheFile() = 0;
 	virtual bool        mfPrecache(SShaderCombination& cmb, bool bForce, bool bFallback, CShader* pSH, CShaderResources* pRes) = 0;
+
+	// Used to precache shader combination during shader cache generation.
+	virtual bool        PrecacheShader(CShader* pSH, const SShaderCombIdent &cacheIdent,uint32 nFlags) = 0;
 
 	virtual bool        Export(SShaderSerializeContext& SC) = 0;
 	static CHWShader*   Import(SShaderSerializeContext& SC, int nOffs, uint32 CRC32, CShader* pSH);
@@ -784,7 +781,7 @@ public:
 			return s_sClassNamePS;
 	}
 
-	static const char*      GetCurrentShaderCombinations(bool bForLevel);
+	static const char*      GetCurrentShaderCombinations(bool bForLevel) threadsafe;
 
 	static byte*            mfIgnoreRemapsFromCache(int nRemaps, byte* pP);
 	static byte*            mfIgnoreBindsFromCache(int nParams, byte* pP);
@@ -796,6 +793,7 @@ public:
 	static bool             _OpenCacheFile(float fVersion, SShaderCache* pCache, CHWShader* pSH, bool bCheckValid, uint32 CRC32, int nCache, CResFile* pRF, bool bReadOnly);
 	static bool             mfOpenCacheFile(const char* szName, float fVersion, SShaderCache* pCache, CHWShader* pSH, bool bCheckValid, uint32 CRC32, bool bReadOnly);
 	static void             mfValidateTokenData(CResFile* pRF);
+	static void             mfValidateDirEntries(CResFile* pRF);
 	static FXShaderCacheNames m_ShaderCacheList;
 	static FXShaderCache      m_ShaderCache;
 	static FXShaderDevCache   m_ShaderDevCache;
@@ -1178,6 +1176,9 @@ public:
 	uint32                    m_SourceCRC32;
 	uint32                    m_CRC32;
 
+	//! Minimal known distance to the object using this shader
+	float                     m_fMinVisibleDistance;
+
 	//============================================================================
 
 	inline int mfGetID() { return CBaseResource::GetID(); }
@@ -1200,6 +1201,7 @@ public:
 		, m_nRefreshFrame(0)
 		, m_SourceCRC32(0)
 		, m_CRC32(0)
+		, m_fMinVisibleDistance(FLT_MAX)
 	{
 		memset(m_ShaderTexSlots, 0, sizeof(m_ShaderTexSlots));
 	}
@@ -1236,18 +1238,6 @@ public:
 	virtual int         GetRefCounter() const { return CBaseResource::GetRefCounter(); }
 	virtual const char* GetName()             { return m_NameShader.c_str(); }
 	virtual const char* GetName() const       { return m_NameShader.c_str(); }
-
-	// D3D Effects interface
-	bool         FXSetTechnique(const CCryNameTSCRC& Name);
-	bool         FXSetPSFloat(const CCryNameR& NameParam, const Vec4 fParams[], int nParams);
-	bool         FXSetCSFloat(const CCryNameR& NameParam, const Vec4 fParams[], int nParams);
-	bool         FXSetVSFloat(const CCryNameR& NameParam, const Vec4 fParams[], int nParams);
-	bool         FXSetGSFloat(const CCryNameR& NameParam, const Vec4 fParams[], int nParams);
-	bool         FXBegin(uint32* uiPassCount, uint32 nFlags);
-	bool         FXBeginPass(uint32 uiPass);
-	bool         FXCommit(const uint32 nFlags);
-	bool         FXEndPass();
-	bool         FXEnd();
 
 	virtual int  GetFlags() const       { return m_Flags; }
 	virtual int  GetFlags2() const      { return m_Flags2; }
@@ -1325,7 +1315,6 @@ public:
 		}
 		return NULL;
 	}
-	SShaderTechnique* mfGetStartTechnique(int nTechnique);
 
 	SShaderTechnique* GetTechnique(int nStartTechnique, int nRequestedTechnique, bool bSilent = false);
 
@@ -1352,6 +1341,14 @@ public:
 	static CCryNameTSCRC mfGetClassName()
 	{
 		return s_sClassName;
+	}
+
+	void UpdateMinVisibleDistance(float fMinDistance)
+	{
+		if (fMinDistance < m_fMinVisibleDistance)
+		{
+			m_fMinVisibleDistance = fMinDistance;
+		}
 	}
 };
 

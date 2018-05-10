@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 /**
  *	Contains source code from the article "Radix Sort Revisited".
@@ -77,12 +77,12 @@
 	  /* Prepare to count */                                                               \
 	  uint8* p = (uint8*)input;                                                            \
 	  uint8* pe = &p[nb * 4];                                                              \
-	  uint32* h0 = &mHistogram[0];       /* Histogram for first pass (LSB) */              \
-	  uint32* h1 = &mHistogram[256];     /* Histogram for second pass */                   \
-	  uint32* h2 = &mHistogram[512];     /* Histogram for third pass */                    \
-	  uint32* h3 = &mHistogram[768];     /* Histogram for last pass (MSB) */               \
+	  uint32* h0 = &mHistogram[0];         /* Histogram for first pass (LSB) */            \
+	  uint32* h1 = &mHistogram[256];       /* Histogram for second pass */                 \
+	  uint32* h2 = &mHistogram[512];       /* Histogram for third pass */                  \
+	  uint32* h3 = &mHistogram[768];       /* Histogram for last pass (MSB) */             \
 	                                                                                       \
-	  bool AlreadySorted = true;      /* Optimism... */                                    \
+	  bool AlreadySorted = true;        /* Optimism... */                                  \
 	                                                                                       \
 	  if (INVALID_RANKS)                                                                   \
 	  {                                                                                    \
@@ -95,7 +95,7 @@
 	      /* Read input buffer in previous sorted order */                                 \
 	      type Val = *Running++;                                                           \
 	      /* Check whether already sorted or not */                                        \
-	      if (Val < PrevVal) { AlreadySorted = false; break; }     /* Early out */         \
+	      if (Val < PrevVal) { AlreadySorted = false; break; }       /* Early out */       \
 	      /* Update for next iteration */                                                  \
 	      PrevVal = Val;                                                                   \
 	                                                                                       \
@@ -125,7 +125,7 @@
 	      /* Read input buffer in previous sorted order */                                 \
 	      type Val = (type)buffer[*Indices++];                                             \
 	      /* Check whether already sorted or not */                                        \
-	      if (Val < PrevVal) { AlreadySorted = false; break; }     /* Early out */         \
+	      if (Val < PrevVal) { AlreadySorted = false; break; }       /* Early out */       \
 	      /* Update for next iteration */                                                  \
 	      PrevVal = Val;                                                                   \
 	                                                                                       \
@@ -622,7 +622,7 @@ struct CompareSigned
 {
 	const uint32* mValues;
 
-	CompareSigned(const uint32* values) : mValues(values) {}
+	explicit CompareSigned(const uint32* values) : mValues(values) {}
 
 	bool operator()(uint32 index1, uint32 index2)
 	{
@@ -634,7 +634,7 @@ struct CompareUnsigned
 {
 	const uint32* mValues;
 
-	CompareUnsigned(const uint32* values) : mValues(values) {}
+	explicit CompareUnsigned(const uint32* values) : mValues(values) {}
 
 	bool operator()(uint32 index1, uint32 index2)
 	{
@@ -646,7 +646,7 @@ struct CompareFloat
 {
 	const float* mValues;
 
-	CompareFloat(const float* values) : mValues(values) {}
+	explicit CompareFloat(const float* values) : mValues(values) {}
 
 	bool operator()(uint32 index1, uint32 index2)
 	{

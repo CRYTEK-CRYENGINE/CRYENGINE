@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -35,23 +35,28 @@ class CSceneGBufferStage : public CGraphicsPipelineStage
 public:
 	CSceneGBufferStage();
 
-	virtual void Init() override;
-	virtual void Prepare(CRenderView* pRenderView) override;
-	void         Execute();
-	void         ExecuteMicroGBuffer();
-	void         ExecuteLinearizeDepth();
+	void Init() final;
+	void Update() final;
+	void Prepare(bool bPostLinearize);
 
-	bool         CreatePipelineStates(DevicePipelineStatesArray* pStateArray, const SGraphicsPipelineStateDescription& stateDesc, CGraphicsPipelineStateLocalCache* pStateCache);
+	void Execute();
+	void ExecuteMicroGBuffer();
+	void ExecuteLinearizeDepth();
+	void ExecuteGBufferVisualization();
+
+	bool CreatePipelineStates(DevicePipelineStatesArray* pStateArray, const SGraphicsPipelineStateDescription& stateDesc, CGraphicsPipelineStateLocalCache* pStateCache);
+
+	bool IsDepthLinearizationPassDirty()  const { return m_passDepthLinearization.IsDirty(); }
+	bool IsBufferVisualizationPassDirty() const { return m_passBufferVisualization.IsDirty(); }
 
 private:
 	bool CreatePipelineState(const SGraphicsPipelineStateDescription& desc, EPass passID, CDeviceGraphicsPSOPtr& outPSO);
 
 	bool SetAndBuildPerPassResources(bool bOnInit);
 
-	void OnResolutionChanged();
-	void RenderDepthPrepass();
-	void RenderSceneOpaque();
-	void RenderSceneOverlays();
+	void ExecuteDepthPrepass();
+	void ExecuteSceneOpaque();
+	void ExecuteSceneOverlays();
 
 private:
 	CDeviceResourceSetPtr    m_pPerPassResourceSet;

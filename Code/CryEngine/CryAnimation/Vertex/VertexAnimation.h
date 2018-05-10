@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -14,6 +14,7 @@ class CAttachmentSKIN;
 class CAttachmentVCLOTH;
 class CClothPiece;
 struct SSoftwareVertexFrame;
+struct SVertexAnimationJob;
 struct RecTangents;
 
 enum VA_FRAME_FLAGS
@@ -136,6 +137,8 @@ public:
 
 	void                         CreateFrameStates(const CSoftwareVertexFrames& vertexFrames, const CDefaultSkeleton& skeleton);
 	void                         UpdateFrameWeightsFromPose(const Skeleton::CPoseData& pose);
+
+	void                         DrawVertexDebug(IRenderMesh* pRenderMesh, const QuatT& location, const SVertexAnimationJob* pVertexAnimation) const;
 
 private:
 	bool CompileAdds(CVertexCommandBuffer& commandBuffer);

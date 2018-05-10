@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 // -------------------------------------------------------------------------
 //  File name:   cry3denginebase.h
@@ -117,6 +117,7 @@ struct Cry3DEngineBase
 	inline static ICryPak*           GetPak()                    { return m_pCryPak; }
 	inline static CMatMan*           GetMatMan()                 { return m_pMatMan; }
 	inline static CWaterWaveManager* GetWaterWaveManager()       { return m_pWaterWaveManager; };
+	inline static CBreezeGenerator*  GetBreezeGenerator()        { return m_pBreezeGenerator; };
 	inline static CRenderMeshMerger* GetSharedRenderMeshMerger() { return m_pRenderMeshMerger; };
 	inline static CTemporaryPool*    GetTemporaryPool()          { return CTemporaryPool::Get(); };
 
@@ -127,8 +128,6 @@ struct Cry3DEngineBase
 	inline static int GetMergedMeshesPoolSize()                               { return m_mergedMeshesPoolSize; }
 	ILINE static bool IsRenderNodeTypeEnabled(EERType rnType)                 { return m_bRenderTypeEnabled[(int)rnType]; }
 	ILINE static void SetRenderNodeTypeEnabled(EERType rnType, bool bEnabled) { m_bRenderTypeEnabled[(int)rnType] = bEnabled; }
-
-	inline static int GetDefSID()                                             { return DEFAULT_SID; };
 
 	static float      GetCurTimeSec();
 	static float      GetCurAsyncTimeSec();
@@ -142,12 +141,12 @@ struct Cry3DEngineBase
 	static void    Error(const char* format, ...) PRINTF_PARAMS(1, 2);
 	static void    FileWarning(int flags, const char* file, const char* format, ...) PRINTF_PARAMS(3, 4);
 
-	CRenderObject* GetIdentityCRenderObject(int nThreadID)
+	CRenderObject* GetIdentityCRenderObject(const SRenderingPassInfo &passInfo)
 	{
-		CRenderObject* pCRenderObject = GetRenderer()->EF_GetObject_Temp(nThreadID);
+		CRenderObject* pCRenderObject = passInfo.GetIRenderView()->AllocateTemporaryRenderObject();
 		if (!pCRenderObject)
 			return NULL;
-		pCRenderObject->m_II.m_Matrix.SetIdentity();
+		pCRenderObject->SetMatrix(Matrix34::CreateIdentity(), passInfo);
 		return pCRenderObject;
 	}
 

@@ -3,7 +3,7 @@
 block_cipher = None
 
 
-a = Analysis(['cry_cmake.py'],
+a = Analysis(['wrapper.py'],
              pathex=['cry_cmake'],
              binaries=[],
              datas=[('icon.ico', '.')],

@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "Plugin.h"
@@ -32,7 +32,39 @@ CryGUID GenerateGUID()
 	return guid;
 }
 
-REGISTER_PLUGIN(CSchematycPlugin);
+//REGISTER_PLUGIN(CSchematycPlugin);
+	
+// TODO: Temp solution for the case experimental Schematyc plugin was not loaded.
+static IEditor* g_pEditor = nullptr;                                                    
+IEditor* GetIEditor() { return g_pEditor; }                                             
+                                                                                        
+DLL_EXPORT IPlugin* CreatePluginInstance(PLUGIN_INIT_PARAM* pInitParam)                 
+{ 
+	if (pInitParam->pluginVersion != SANDBOX_PLUGIN_SYSTEM_VERSION)                     
+	{                                                                                   
+		pInitParam->outErrorCode = IPlugin::eError_VersionMismatch;                     
+		return nullptr;
+	}                                                                                   
+                                                                                        
+	g_pEditor = pInitParam->pIEditor;													
+	ModuleInitISystem(g_pEditor->GetSystem(), "CSchematycPlugin");
+	if (gEnv->pSchematyc == nullptr)
+	{
+		return nullptr;
+	}
+	CSchematycPlugin* pPlugin = new CSchematycPlugin();
+                                                                                        
+	RegisterPlugin();                                                                   
+                                                                                        
+	return pPlugin;                                                                     
+}                                                                                       
+                                                                                        
+DLL_EXPORT void DeletePluginInstance(IPlugin* pPlugin)                                  
+{                                                                                       
+	UnregisterPlugin();                                                                 
+	delete pPlugin;                                                                     
+}
+// ~TODO
 
 CSchematycPlugin::CSchematycPlugin()
 {
@@ -67,5 +99,6 @@ const char* CSchematycPlugin::GetPluginDescription()
 {
 	return g_szPluginDesc;
 }
+
 
 

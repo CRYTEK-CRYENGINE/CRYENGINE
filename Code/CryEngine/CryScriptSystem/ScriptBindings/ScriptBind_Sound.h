@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -59,10 +59,4 @@ public:
 	//!		<param name="hTriggerID">the audio trigger ID handle</param>
 	//! <returns>ScriptHandle with the radius value (float), or nil if the hTriggerID is not found</returns>
 	int GetAudioTriggerRadius(IFunctionHandler* pH, ScriptHandle const hTriggerID);
-
-	//! <code>Sound.GetAudioTriggerRadius( hTriggerID )</code>
-	//! <description>Get the fade out area before reaching the end of the activity radius where the occlusion is faded out. Outside the activity radius the occlusion will be 0.</description>
-	//!		<param name="hTriggerID">the audio trigger ID handle</param>
-	//! <returns>ScriptHandle with the fade out area value (float), or nil if the hTriggerID is not found</returns>
-	int GetAudioTriggerOcclusionFadeOutDistance(IFunctionHandler* pH, ScriptHandle const hTriggerID);
 };

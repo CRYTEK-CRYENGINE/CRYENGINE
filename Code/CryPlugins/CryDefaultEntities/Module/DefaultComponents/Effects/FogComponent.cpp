@@ -23,7 +23,7 @@ namespace Cry
 			Enable(m_bActive);
 		}
 
-		void CFogComponent::ProcessEvent(SEntityEvent& event)
+		void CFogComponent::ProcessEvent(const SEntityEvent& event)
 		{
 			switch (event.event)
 			{

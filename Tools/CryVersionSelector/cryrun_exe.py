@@ -12,6 +12,7 @@ from win32com.shell import shell
 import ctypes
 import tkinter as tk
 from tkinter import ttk
+from tkinter import filedialog
 import configparser
 import admin
 import distutils.dir_util, distutils.file_util

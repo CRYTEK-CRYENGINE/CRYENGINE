@@ -67,3 +67,4 @@ class CSubstanceManager: public ISubstanceManager
 		friend void CRY_SUBSTANCE_API InitCrySubstanceLib(IFileManipulator* fileManipulator);
 };
 
+

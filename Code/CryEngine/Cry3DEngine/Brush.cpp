@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 // -------------------------------------------------------------------------
 //  File name:   brush.cpp
@@ -64,11 +64,7 @@ CBrush::~CBrush()
 		m_pCameraSpacePos = nullptr;
 	}
 
-	if (m_pTempData)
-	{
-		m_pTempData->MarkForDelete();
-		m_pTempData = nullptr;
-	}
+	RemoveAndMarkForAutoDeleteTempData();
 
 	GetInstCount(GetRenderNodeType())--;
 }
@@ -113,7 +109,7 @@ CLodValue CBrush::ComputeLod(int wantedLod, const SRenderingPassInfo& passInfo)
 		nLodA = CLAMP(wantedLod, pStatObj->GetMinUsableLod(), (int)pStatObj->m_nMaxUsableLod);
 
 		if (!(pStatObj->m_nFlags & STATIC_OBJECT_COMPOUND))
-			nLodA = pStatObj->FindNearesLoadedLOD(nLodA, true);
+			nLodA = pStatObj->FindNearestLoadedLOD(nLodA, true);
 	}
 
 	return CLodValue(nLodA, 0, -1);
@@ -147,7 +143,6 @@ void CBrush::Render(const struct SRendParams& _EntDrawParams, const SRenderingPa
 	rParms.nEditorSelectionID = m_nEditorSelectionID;
 
 	rParms.dwFObjFlags |= (m_dwRndFlags & ERF_FOB_RENDER_AFTER_POSTPROCESSING) ? FOB_RENDER_AFTER_POSTPROCESSING : 0;
-	//rParms.dwFObjFlags |= (m_dwRndFlags & ERF_FOB_NEAREST) ? FOB_NEAREST : 0;
 	rParms.dwFObjFlags |= FOB_TRANS_MASK;
 
 	rParms.nHUDSilhouettesParams = m_nHUDSilhouettesParam;
@@ -159,6 +154,21 @@ void CBrush::Render(const struct SRendParams& _EntDrawParams, const SRenderingPa
 		rParms.dwFObjFlags |= FOB_DYNAMIC_OBJECT;
 	}
 
+	if ((m_dwRndFlags & ERF_FOB_NEAREST) != 0)
+	{
+		if (passInfo.IsRecursivePass()) // Nearest objects are not rendered in the recursive passes.
+			return;
+
+		rParms.dwFObjFlags |= FOB_NEAREST;
+		if (rParms.dwFObjFlags & FOB_DYNAMIC_OBJECT)
+		{
+			rParms.pInstance = this;
+		}
+
+		// Nearest objects recalculate instance matrix every frame
+		CalcNearestTransform(m_Matrix, passInfo);
+	}
+
 	m_pStatObj->Render(rParms, passInfo);
 }
 
@@ -168,23 +178,24 @@ void CBrush::Render(const struct SRendParams& _EntDrawParams, const SRenderingPa
 
 void CBrush::SetMatrix(const Matrix34& mat)
 {
-	Get3DEngine()->UnRegisterEntityAsJob(this);
-
-	bool replacePhys = false;
-
 	if (!IsMatrixValid(mat))
 	{
-		Warning("Error: IRenderNode::SetMatrix: Invalid matrix passed from the editor - ignored, reset to identity: %s", GetName());
-		replacePhys = true;
-		m_Matrix.SetIdentity();
+		const Vec3 pos = mat.GetTranslation();
+		stack_string message;
+		message.Format("Error: IRenderNode::SetMatrix: Invalid matrix ignored (name=\"%s\", position=[%.2f,%.2f,%.2f])", GetName(), pos.x, pos.y, pos.z);
+		Warning(message.c_str());
+		return;
 	}
-	else
-	{
-		replacePhys = fabs(mat.GetColumn(0).len() - m_Matrix.GetColumn(0).len())
-		              + fabs(mat.GetColumn(1).len() - m_Matrix.GetColumn(1).len())
-		              + fabs(mat.GetColumn(2).len() - m_Matrix.GetColumn(2).len()) > FLT_EPSILON;
-		m_Matrix = mat;
-	}
+
+	if (m_Matrix == mat)
+		return;
+
+	m_Matrix = mat;
+
+	bool replacePhys = fabs(mat.GetColumn(0).len() - m_Matrix.GetColumn(0).len())
+	                   + fabs(mat.GetColumn(1).len() - m_Matrix.GetColumn(1).len())
+	                   + fabs(mat.GetColumn(2).len() - m_Matrix.GetColumn(2).len()) > FLT_EPSILON;
+
 	InvalidatePermanentRenderObjectMatrix();
 
 	pe_params_foreign_data foreignData;
@@ -197,7 +208,9 @@ void CBrush::SetMatrix(const Matrix34& mat)
 
 	CalcBBox();
 
+	Get3DEngine()->UnRegisterEntityAsJob(this);
 	Get3DEngine()->RegisterEntity(this);
+
 	if (replacePhys)
 		Dephysicalize();
 	if (!m_pPhysEnt)
@@ -641,32 +654,20 @@ void CBrush::SetStatObj(IStatObj* pStatObj)
 	if (pStatObj == m_pStatObj)
 		return;
 
-	if (m_pTempData)
-	{
-		m_pTempData->MarkForDelete();
-		m_pTempData = nullptr;
-	}
+	RemoveAndMarkForAutoDeleteTempData();
 
 	m_pStatObj = (CStatObj*)pStatObj;
 	if (m_pStatObj && m_pStatObj->IsDeformable())
 	{
 		if (!m_pDeform)
-			m_pDeform = new CDeformableNode(m_nSID);
+			m_pDeform = new CDeformableNode();
 		m_pDeform->SetStatObj(static_cast<CStatObj*>(m_pStatObj.get()));
 		m_pDeform->BakeDeform(GetMatrix());
 	}
 	else
 		SAFE_DELETE(m_pDeform);
 
-	if (m_pTempData)
-	{
-		m_pTempData->MarkForDelete();
-		m_pTempData = nullptr;
-	}
-
 	m_nInternalFlags |= UPDATE_DECALS;
-
-	InvalidatePermanentRenderObject();
 }
 
 IRenderNode* CBrush::Clone() const
@@ -712,7 +713,7 @@ IRenderMesh* CBrush::GetRenderMesh(int nLod)
 
 void CBrush::OffsetPosition(const Vec3& delta)
 {
-	if (m_pTempData) m_pTempData->OffsetPosition(delta);
+	if (const auto pTempData = m_pTempData.load()) pTempData->OffsetPosition(delta);
 	m_Matrix.SetTranslation(m_Matrix.GetTranslation() + delta);
 	InvalidatePermanentRenderObjectMatrix();
 	m_WSBBox.Move(delta);
@@ -772,7 +773,7 @@ bool CBrush::GetLodDistances(const SFrameLodInfo& frameLodInfo, float* distances
 }
 
 ///////////////////////////////////////////////////////////////////////////////
-void CBrush::Render(const CLodValue& lodValue, const SRenderingPassInfo& passInfo, SSectorTextureSet* pTerrainTexInfo, PodArray<CDLight*>* pAffectingLights)
+void CBrush::Render(const CLodValue& lodValue, const SRenderingPassInfo& passInfo, SSectorTextureSet* pTerrainTexInfo, PodArray<SRenderLight*>* pAffectingLights)
 {
 	FUNCTION_PROFILER_3DENGINE;
 
@@ -802,37 +803,42 @@ void CBrush::Render(const CLodValue& lodValue, const SRenderingPassInfo& passInf
 	 */
 
 	Matrix34 transformMatrix = m_Matrix;
-
-	if (GetRndFlags() & ERF_FOB_NEAREST)
+	bool isNearestObject = (GetRndFlags() & ERF_FOB_NEAREST) != 0;
+	if (isNearestObject)
 	{
 		if (passInfo.IsRecursivePass()) // Nearest objects are not rendered in the recursive passes.
 			return;
 
-		// Nearest objects recalculate instance matrix every frame
-		CalcNearestTransform(transformMatrix, passInfo);
-	}
-
-	CRenderObject* pObj = 0;
-
-	if (m_pFoliage || m_pDeform)
-	{
-		// Foliage and deform do not support permanent render objects
-		pObj = gEnv->pRenderer->EF_GetObject_Temp(passInfo.ThreadID());
-	}
-
-	if (!pObj)
-	{
-		if (GetObjManager()->AddOrCreatePersistentRenderObject(m_pTempData, pObj, &lodValue, passInfo))
+		bool isNearestShadowPass = passInfo.IsShadowPass() && passInfo.GetIRenderView()->GetShadowFrustumOwner()->m_eFrustumType == ShadowMapFrustum::e_Nearest;
+		if (passInfo.IsGeneralPass() || isNearestShadowPass)
 		{
-			if (pObj && pObj->m_bInstanceDataDirty)
-			{
-				pObj->m_II.m_Matrix = transformMatrix;
-			}
-			return;
+			// Nearest objects recalculate instance matrix every frame
+			CalcNearestTransform(transformMatrix, passInfo);
 		}
 	}
 
-	SRenderNodeTempData::SUserData& userData = m_pTempData->userData;
+	auto pTempData = m_pTempData.load();
+	if (!pTempData)
+	{
+		CRY_ASSERT(false);
+		return;
+	}
+
+	CRenderObject* pObj = nullptr;
+	if (m_pFoliage || m_pDeform || (m_dwRndFlags & ERF_HUD) || isNearestObject)
+	{
+		// Foliage and deform do not support permanent render objects
+		// HUD is managed in custom render-lists and also doesn't support it
+		pObj = passInfo.GetIRenderView()->AllocateTemporaryRenderObject();
+		pObj->SetMatrix(transformMatrix, passInfo);
+	}
+	if (!pObj)
+	{
+		if (GetObjManager()->AddOrCreatePersistentRenderObject(pTempData, pObj, &lodValue, transformMatrix, passInfo))
+			return;
+	}
+
+	const auto& userData = pTempData->userData;
 
 	const Vec3 vCamPos = passInfo.GetCamera().GetPosition();
 	const Vec3 vObjCenter = CBrush::GetBBox().GetCenter();
@@ -841,7 +847,6 @@ void CBrush::Render(const CLodValue& lodValue, const SRenderingPassInfo& passInf
 	pObj->m_fDistance = pObj->m_bPermanent ? 0 : sqrt_tpl(Distance::Point_AABBSq(vCamPos, CBrush::GetBBox())) * passInfo.GetZoomFactor();
 
 	pObj->m_pRenderNode = this;
-	pObj->m_II.m_Matrix = transformMatrix;
 	pObj->m_fAlpha = 1.f;
 	IF (!m_bDrawLast, 1)
 		pObj->m_nSort = fastround_positive(pObj->m_fDistance * 2.0f);
@@ -859,6 +864,11 @@ void CBrush::Render(const CLodValue& lodValue, const SRenderingPassInfo& passInf
 		pObj->m_ObjFlags |= FOB_DYNAMIC_OBJECT;
 	}
 
+	if (m_dwRndFlags & ERF_HUD_REQUIRE_DEPTHTEST)
+	{
+		pObj->m_ObjFlags |= FOB_HUD_REQUIRE_DEPTHTEST;
+	}
+
 	if (uint8 nMaterialLayers = IRenderNode::GetMaterialLayers())
 	{
 		uint8 nFrozenLayer = (nMaterialLayers & MTL_LAYER_FROZEN) ? MTL_LAYER_FROZEN_MASK : 0;
@@ -871,18 +881,18 @@ void CBrush::Render(const CLodValue& lodValue, const SRenderingPassInfo& passInf
 	if (!passInfo.IsShadowPass() && m_nInternalFlags & IRenderNode::REQUIRES_NEAREST_CUBEMAP)
 	{
 		if (!(pObj->m_nTextureID = GetObjManager()->CheckCachedNearestCubeProbe(this)) || !GetCVars()->e_CacheNearestCubePicking)
-			pObj->m_nTextureID = GetObjManager()->GetNearestCubeProbe(pAffectingLights, m_pOcNode->m_pVisArea, CBrush::GetBBox());
+			pObj->m_nTextureID = GetObjManager()->GetNearestCubeProbe(pAffectingLights, m_pOcNode->GetVisArea(), CBrush::GetBBox());
 
-		m_pTempData->userData.nCubeMapId = pObj->m_nTextureID;
+		pTempData->userData.nCubeMapId = pObj->m_nTextureID;
 	}
 
 	//////////////////////////////////////////////////////////////////////////
 	// temp fix to update ambient color (Vlad please review!)
 	pObj->m_nClipVolumeStencilRef = userData.m_pClipVolume ? userData.m_pClipVolume->GetStencilRef() : 0;
-	if (m_pOcNode && m_pOcNode->m_pVisArea)
-		pObj->m_II.m_AmbColor = m_pOcNode->m_pVisArea->GetFinalAmbientColor();
+	if (m_pOcNode && m_pOcNode->GetVisArea())
+		pObj->SetAmbientColor(m_pOcNode->GetVisArea()->GetFinalAmbientColor(), passInfo);
 	else
-		pObj->m_II.m_AmbColor = Get3DEngine()->GetSkyColor();
+		pObj->SetAmbientColor(Get3DEngine()->GetSkyColor(), passInfo);
 	//////////////////////////////////////////////////////////////////////////
 	pObj->m_editorSelectionID = m_nEditorSelectionID;
 
@@ -897,7 +907,8 @@ void CBrush::Render(const CLodValue& lodValue, const SRenderingPassInfo& passInf
 
 		if (bUseTerrainColor)
 		{
-			m_pTempData->userData.bTerrainColorWasUsed = true;
+			pTempData->userData.bTerrainColorWasUsed = true;
+
 			pObj->m_ObjFlags |= FOB_BLEND_WITH_TERRAIN_COLOR;
 
 			pObj->m_data.m_pTerrainSectorTextureInfo = pTerrainTexInfo;
@@ -974,7 +985,7 @@ void CBrush::Render(const CLodValue& lodValue, const SRenderingPassInfo& passInf
 
 		if (lodValue.LodA() <= 0 && Cry3DEngineBase::GetCVars()->e_MergedMeshes != 0 && m_pDeform && m_pDeform->HasDeformableData())
 		{
-			if (Get3DEngine()->IsStatObjBufferRenderTasksAllowed() && GetCVars()->e_StatObjBufferRenderTasks == 1 && passInfo.IsGeneralPass() && JobManager::InvokeAsJob("CheckOcclusion"))
+			if (Get3DEngine()->IsStatObjBufferRenderTasksAllowed() && passInfo.IsGeneralPass() && JobManager::InvokeAsJob("CheckOcclusion"))
 			{
 				GetObjManager()->PushIntoCullOutputQueue(SCheckOcclusionOutput::CreateDeformableBrushOutput(this, gEnv->pRenderer->EF_DuplicateRO(pObj, passInfo), lodValue.LodA(), passInfo));
 			}
@@ -1000,12 +1011,10 @@ IStatObj* CBrush::GetEntityStatObj(unsigned int nSubPartId, Matrix34A* pMatrix, 
 }
 
 ///////////////////////////////////////////////////////////////////////////////
-void CBrush::OnRenderNodeBecomeVisibleAsync(const SRenderingPassInfo& passInfo)
+void CBrush::OnRenderNodeBecomeVisibleAsync(SRenderNodeTempData* pTempData, const SRenderingPassInfo& passInfo)
 {
 	// Not reentrant, multiple simultaneous calls to this method on the same Render Node from multiple threads is not supported
-
-	assert(m_pTempData);
-	SRenderNodeTempData::SUserData& userData = m_pTempData->userData;
+	SRenderNodeTempData::SUserData& userData = pTempData->userData;
 
 	userData.objMat = m_Matrix;
 	const Vec3 vCamPos = passInfo.GetCamera().GetPosition();
@@ -1029,6 +1038,7 @@ void CBrush::CalcNearestTransform(Matrix34& transformMatrix, const SRenderingPas
 		// (This will not have the precision advantages of camera space rendering)
 		transformMatrix.AddTranslation(-passInfo.GetCamera().GetPosition());
 	}
+
 	InvalidatePermanentRenderObjectMatrix();
 }
 
@@ -1039,17 +1049,17 @@ void CBrush::InvalidatePermanentRenderObjectMatrix()
 		// Compound unmerged stat objects create duplicate sub render objects and do not support fast matrix only instance update for PermanentRenderObject
 		InvalidatePermanentRenderObject();
 	}
-	else if (m_pTempData)
+	else if (const auto pTempData = m_pTempData.load())
 	{
 		// Special optimization when only matrix change, we invalidate render object instance data flag
-		m_pTempData->InvalidateRenderObjectsInstanceData();
+		pTempData->InvalidateRenderObjectsInstanceData();
 	}
 }
 
 ///////////////////////////////////////////////////////////////////////////////
 bool CBrush::CanExecuteRenderAsJob()
 {
-	return false;
+	return (GetCVars()->e_ExecuteRenderAsJobMask & BIT(GetRenderNodeType())) != 0;
 }
 
 //////////////////////////////////////////////////////////////////////////

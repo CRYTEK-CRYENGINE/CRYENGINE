@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #ifndef __OVERWRITECONFIRMDIALOG_H__
 #define __OVERWRITECONFIRMDIALOG_H__
@@ -23,3 +23,4 @@ private:
 };
 
 #endif //__OVERWRITECONFIRMDIALOG_H__
+

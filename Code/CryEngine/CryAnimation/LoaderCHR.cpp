@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "stdafx.h"
 #include "LoaderCHR.h"
@@ -152,25 +152,25 @@ void CryCHRLoader::StreamOnComplete(IReadStream* pStream, unsigned nError)
 		pModelMesh->InitRenderMeshSync(m_arrNewRenderChunks, m_pNewRenderMesh);
 		m_pNewRenderMesh = nullptr;
 		m_arrNewRenderChunks.clear();
-
-		pModelMesh->m_stream.pStreamer = nullptr;
 	}
 	else if (m_pModelSkin)
 	{
 		EndStreamSkinSync(pStream);
 
 		int nRenderLod = (int)pStream->GetParams().dwUserData;
-		m_pModelSkin->m_arrModelMeshes[nRenderLod].m_stream.pStreamer = NULL;
 	}
-	m_pStream = NULL;
-	delete this;
+
+	ClearModel();
 }
 
 // cleans up the resources allocated during load
 void CryCHRLoader::ClearModel()
 {
 	m_strGeomFileNameNoExt = "";
-	//	m_animListIDs.clear();
+	m_pStream = nullptr;
+	m_arrNewRenderChunks.clear();
+	m_pNewRenderMesh = nullptr;
+	m_RefByInstances.clear();
 }
 
 //----------------------------------------------------------------------------------
@@ -517,7 +517,7 @@ bool CDefaultSkeleton::LoadNewSKEL(const char* szFilePath, uint32 nLoadingFlags)
 	//---------------------------------------------------------------------------------------------------------------
 
 	InitializeHardcodedJointsProperty();
-	PrepareJointIDHash();
+	RebuildJointLookupCaches();
 	stack_string paramFileName = strGeomFileNameNoExt + "." + CRY_CHARACTER_PARAM_FILE_EXT;
 	uint32 isPrevMode = nLoadingFlags & CA_PreviewMode;
 	if (isPrevMode == 0)
@@ -559,7 +559,7 @@ bool CDefaultSkeleton::LoadAnimations(CParamLoader& paramLoader)
 
 	int32 numAnims = 0;
 
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_ANIMATION);
+	CRY_PROFILE_FUNCTION(PROFILE_ANIMATION);
 
 	if (m_animListIDs.size() == 0)
 	{

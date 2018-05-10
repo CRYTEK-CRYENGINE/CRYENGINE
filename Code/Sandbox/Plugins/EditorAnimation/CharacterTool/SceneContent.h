@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -80,7 +80,6 @@ public:
 	void              CharacterChanged();
 	void              PlaybackLayersChanged(bool continuous);
 	void              LayerActivated();
-	void              MotionParametersChanged(bool continuousChange);
 	AimParameters&    GetAimParameters();
 	AimParameters&    GetLookParameters();
 	MotionParameters& GetMotionParameters();
@@ -96,3 +95,4 @@ signals:
 };
 
 }
+

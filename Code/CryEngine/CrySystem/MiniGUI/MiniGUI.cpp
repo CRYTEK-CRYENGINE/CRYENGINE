@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 // -------------------------------------------------------------------------
 //  File name:   MiniGUI.cpp
@@ -147,7 +147,7 @@ void CMiniGUI::Done()
 //////////////////////////////////////////////////////////////////////////
 void CMiniGUI::Draw()
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_SYSTEM);
+	CRY_PROFILE_FUNCTION(PROFILE_SYSTEM);
 
 	// When console opened hide MiniGui
 	bool bConsoleOpened = gEnv->pConsole->IsOpened();

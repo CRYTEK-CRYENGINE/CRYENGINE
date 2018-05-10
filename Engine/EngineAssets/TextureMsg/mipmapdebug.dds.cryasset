@@ -1,0 +1,10 @@
+<AssetMetadata version="0" type="Texture" guid="cb8b0646-a82d-bbcd-0836-9c228b698396" source="mipmapdebug.tif">
+ <Files>
+  <File path="mipmapdebug.dds"/>
+ </Files>
+ <Details>
+  <Detail name="width">4</Detail>
+  <Detail name="height">4</Detail>
+  <Detail name="mipCount">1</Detail>
+ </Details>
+</AssetMetadata>

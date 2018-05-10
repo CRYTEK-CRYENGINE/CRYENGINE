@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #ifndef _PROCEDURALVEGETATION_RENDERNODE_
 #define _PROCEDURALVEGETATION_RENDERNODE_
@@ -347,10 +347,6 @@ class CMergedMeshRenderNode
 	// Only walid if we are currently streaming in data
 	IReadStream_AutoPtr m_pReadStream;
 
-#ifdef SEG_WORLD
-	uint16 m_nStaticTypeSlot;
-#endif
-
 	// Are spines active and present in memory?
 	bool m_SpinesActive : 1;
 
@@ -482,7 +478,7 @@ public:
 	bool StreamedIn() const { return m_State == STREAMED_IN; }
 
 	// Update streamable components
-	bool UpdateStreamableComponents(float fImportance, float fEntDistance, bool bFullUpdate);
+	void UpdateStreamingPriority(const SUpdateStreamingPriorityContext& streamingContext);
 
 	Vec3 GetSamplePos(size_t, size_t) const;
 	AABB GetSampleAABB(size_t, size_t) const;
@@ -527,19 +523,11 @@ public:
 
 	ILINE StatInstGroup&    GetStatObjGroup(const int index) const
 	{
-#ifdef SEG_WORLD
-		return GetObjManager()->m_lstStaticTypes[m_nStaticTypeSlot][index];
-#else
-		return GetObjManager()->m_lstStaticTypes[0][index];
-#endif
+		return GetObjManager()->m_lstStaticTypes[index];
 	}
 	ILINE CStatObj* GetStatObj(const int index) const
 	{
-#ifdef SEG_WORLD
-		return GetObjManager()->m_lstStaticTypes[m_nStaticTypeSlot][index].GetStatObj();
-#else
-		return GetObjManager()->m_lstStaticTypes[0][index].GetStatObj();
-#endif
+		return GetObjManager()->m_lstStaticTypes[index].GetStatObj();
 	}
 };
 
@@ -636,7 +624,6 @@ class CMergedMeshesManager
 	NodeArrayT       m_ActiveNodes;
 	NodeArrayT       m_StreamedOutNodes;
 	NodeArrayT       m_VisibleNodes;
-	NodeArrayT       m_SegNodes;
 	NodeArrayT       m_PostRenderNodes;
 	ProjectileArrayT m_Projectiles;
 	InstanceSectors  m_InstanceSectors;
@@ -727,11 +714,6 @@ public:
 	size_t ActiveNodes() const                { return m_nActiveNodes; }
 	size_t StreamedOutNodes() const           { return m_nStreamedOutNodes; }
 	bool   PoolOverFlow() const               { return m_PoolOverFlow; }
-
-	void   PrepareSegmentData(const AABB& aabb);
-	int    GetSegmentNodeCount() { return m_SegNodes.size(); }
-	int    GetCompiledDataSize(uint32 index);
-	bool   GetCompiledData(uint32 index, byte* pData, int nSize, string* pName, std::vector<struct IStatInstGroup*>** ppStatInstGroupTable, const Vec3& segmentOffset);
 };
 
 #endif

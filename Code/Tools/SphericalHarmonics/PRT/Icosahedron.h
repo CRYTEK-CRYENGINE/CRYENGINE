@@ -62,7 +62,7 @@ namespace NSH
 		};
 
 		//!< cos angle from center to each vertex of a certain face (constant throughout the regular isocahedron)
-		static const double s_cCenterDiffCosine = Abs(Normalize((s_cVertices[s_cIndices[0][0]] + s_cVertices[s_cIndices[0][1]] + s_cVertices[s_cIndices[0][2]]) * 1./3.) * s_cVertices[s_cIndices[0][0]]);
+		static const double s_cCenterDiffCosine = Abs(GetNormalized((s_cVertices[s_cIndices[0][0]] + s_cVertices[s_cIndices[0][1]] + s_cVertices[s_cIndices[0][2]]) * 1./3.) * s_cVertices[s_cIndices[0][0]]);
 
 		//!< class managing the bins for isocahedron hierarchy
 		class CIsocahedronManager

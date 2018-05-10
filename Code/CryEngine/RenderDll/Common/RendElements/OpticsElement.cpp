@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "OpticsElement.h"
@@ -272,6 +272,12 @@ void COpticsElement::updateXformMatrix()
 	SetTransform(combine);
 }
 
+//////////////////////////////////////////////////////////////////////////
+void COpticsElement::DeleteThis()
+{
+	gRenDev->ExecuteRenderThreadCommand( [=] { delete this; },ERenderCommandFlags::LevelLoadingThread_defer );
+}
+
 const Vec3 COpticsElement::computeOrbitPos(const Vec3& vSrcProjPos, float orbitAngle)
 {
 	if (orbitAngle < 0.01f && orbitAngle > -0.01f)
@@ -306,7 +312,7 @@ void COpticsElement::ApplyOcclusionPattern(SShaderParamsBase& shaderParams, CRen
 	else
 	{
 		shaderParams.occPatternInfo = Vec4(ZERO);
-		primitive.SetTexture(5, CTexture::s_ptexBlack);
+		primitive.SetTexture(5, CRendererResources::s_ptexBlack);
 		primitive.SetSampler(5, EDefaultSamplerStates::LinearClamp);
 	}
 }
@@ -331,9 +337,9 @@ void COpticsElement::ApplyGeneralFlags(uint64& rtFlags)
 		rtFlags |= g_HWSR_MaskBit[HWSR_SAMPLE5];
 }
 
-void COpticsElement::ApplyCommonParams(SShaderParamsBase& shaderParams, const SViewport& viewport, const Vec3& lightProjPos, const Vec2& size)
+void COpticsElement::ApplyCommonParams(SShaderParamsBase& shaderParams, const SRenderViewport& viewport, const Vec3& lightProjPos, const Vec2& size)
 {
-	shaderParams.outputDimAndSize = Vec4(float(viewport.nWidth), float(viewport.nHeight), size.x, size.y);
+	shaderParams.outputDimAndSize = Vec4(float(viewport.width), float(viewport.height), size.x, size.y);
 	shaderParams.xform = Matrix34(m_globalTransform.GetTransposed());
 
 	// dynamics

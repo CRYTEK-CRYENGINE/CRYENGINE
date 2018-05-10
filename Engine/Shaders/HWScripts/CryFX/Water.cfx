@@ -29,12 +29,6 @@ float Script : STANDARDSGLOBAL
 //////////////////////////////////////////////////////////////////////////
 // TODO: remove after old graphics pipeline is removed.
 
-// getting a warning here
-float4x4 mReflProj : PI_TexMatrix
-<
-  string 'Sampler' (ReflectionSampler)
->;
-
 // Fog parameters
 // For ocean comes from render element
 float4 cOceanFogColorDensity = { PB_FromRE[8], PB_FromRE[9], PB_FromRE[10], PB_FromRE[11] };
@@ -662,11 +656,11 @@ v2f WaterVS(a2v IN)
 
 	// Output texture coordinates for water - don't touch texture scales
 	OUT.baseTC.xywz = vTex.xyxy * float4(1, 1, 2, 2) * Tilling + vTranslation.xyxy * float4(1, 1, 2, 2);
-
+	float localDetailTiling =  DetailTilling;
 #if %WATER_TESSELLATION_DX11 && !%_RT_NO_TESSELLATION
-	DetailTilling = max(2, DetailTilling);
+	localDetailTiling = max(2, DetailTilling);
 #endif
-	OUT.baseTC.wz *= DetailTilling;
+	OUT.baseTC.wz *= localDetailTiling;
 #endif
   
 //////////////////////////////////////////////////////////////////////////////////////////////////

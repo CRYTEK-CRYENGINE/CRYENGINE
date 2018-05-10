@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 //
 //	Description: Misc mathematical functions
@@ -108,6 +108,29 @@ inline void mathMatrixOrthoOffCenterLH(Matrix44A* pMatr, f32 l, f32 r, f32 b, f3
 {
 	f32 m22 = f32(1.0 / (f64(zf) - f64(zn)));
 	f32 m32 = f32(f64(zn) / (f64(zn) - f64(zf)));
+
+	(*pMatr)(0, 0) = 2.0f / (r - l);
+	(*pMatr)(0, 1) = 0;
+	(*pMatr)(0, 2) = 0;
+	(*pMatr)(0, 3) = 0;
+	(*pMatr)(1, 0) = 0;
+	(*pMatr)(1, 1) = 2.0f / (t - b);
+	(*pMatr)(1, 2) = 0;
+	(*pMatr)(1, 3) = 0;
+	(*pMatr)(2, 0) = 0;
+	(*pMatr)(2, 1) = 0;
+	(*pMatr)(2, 2) = m22;
+	(*pMatr)(2, 3) = 0;
+	(*pMatr)(3, 0) = (l + r) / (l - r);
+	(*pMatr)(3, 1) = (t + b) / (b - t);
+	(*pMatr)(3, 2) = m32;
+	(*pMatr)(3, 3) = 1.0f;
+}
+
+inline void mathMatrixOrthoOffCenterLHReverseDepth(Matrix44A* pMatr, f32 l, f32 r, f32 b, f32 t, f32 zn, f32 zf)
+{
+	f32 m22 = f32(-1.0 / (f64(zf) - f64(zn)));
+	f32 m32 = f32(f64(zf) / (f64(zf) - f64(zn)));
 
 	(*pMatr)(0, 0) = 2.0f / (r - l);
 	(*pMatr)(0, 1) = 0;

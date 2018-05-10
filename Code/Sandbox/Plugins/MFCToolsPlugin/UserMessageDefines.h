@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #ifndef USERMESSAGEDEFINES_H
 #define USERMESSAGEDEFINES_H
@@ -50,3 +50,4 @@ enum ESandboxUserMessages
 	WM_VIEWPORT_ON_TITLE_CHANGE,
 };
 #endif
+

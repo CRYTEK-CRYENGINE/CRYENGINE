@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "ComponentsDictionaryModel.h"
@@ -45,6 +45,7 @@ QString CComponentDictionaryEntry::GetToolTip() const
 }
 
 CComponentsDictionary::CComponentsDictionary(const Schematyc::IScriptElement* pScriptScope)
+	: m_pScriptScope(nullptr)
 {
 	if (pScriptScope)
 		Load(pScriptScope);
@@ -55,38 +56,15 @@ CComponentsDictionary::~CComponentsDictionary()
 
 }
 
-const CAbstractDictionaryEntry* CComponentsDictionary::GetEntry(int32 index) const
+void CComponentsDictionary::ResetEntries()
 {
-	if (index < m_components.size())
-	{
-		return &m_components[index];
-	}
-
-	return nullptr;
-}
-
-QString CComponentsDictionary::GetColumnName(int32 index) const
-{
-	switch (index)
-	{
-	case Column_Name:
-		return QString("Name");
-	default:
-		break;
-	}
-
-	return QString();
-}
-
-void CComponentsDictionary::Load(const Schematyc::IScriptElement* pScriptScope)
-{
-	if (pScriptScope)
+	if (m_pScriptScope)
 	{
 		m_components.reserve(100);
 
 		bool bAttach = false;
 
-		const Schematyc::IScriptComponentInstance* pScriptComponentInstance = Schematyc::DynamicCast<Schematyc::IScriptComponentInstance>(pScriptScope);
+		const Schematyc::IScriptComponentInstance* pScriptComponentInstance = Schematyc::DynamicCast<Schematyc::IScriptComponentInstance>(m_pScriptScope);
 		if (pScriptComponentInstance)
 		{
 			Schematyc::IEnvRegistry& registry = gEnv->pSchematyc->GetEnvRegistry();
@@ -104,7 +82,7 @@ void CComponentsDictionary::Load(const Schematyc::IScriptElement* pScriptScope)
 			}
 		}
 
-		Schematyc::IScriptViewPtr pScriptView = gEnv->pSchematyc->CreateScriptView(pScriptScope->GetGUID());
+		Schematyc::IScriptViewPtr pScriptView = gEnv->pSchematyc->CreateScriptView(m_pScriptScope->GetGUID());
 
 		VectorSet<CryGUID> singletonExclusions;
 		auto visitScriptComponentInstance = [this, &singletonExclusions](const Schematyc::IScriptComponentInstance& scriptComponentInstance) -> Schematyc::EVisitStatus
@@ -138,6 +116,36 @@ void CComponentsDictionary::Load(const Schematyc::IScriptElement* pScriptScope)
 		};
 		pScriptView->VisitEnvComponents(visitEnvComponentFactory);
 	}
+}
+
+const CAbstractDictionaryEntry* CComponentsDictionary::GetEntry(int32 index) const
+{
+	if (index < m_components.size())
+	{
+		return &m_components[index];
+	}
+
+	return nullptr;
+}
+
+QString CComponentsDictionary::GetColumnName(int32 index) const
+{
+	switch (index)
+	{
+	case Column_Name:
+		return QString("Name");
+	default:
+		break;
+	}
+
+	return QString();
+}
+
+void CComponentsDictionary::Load(const Schematyc::IScriptElement* pScriptScope)
+{
+	m_pScriptScope = pScriptScope;
+	Reset();
+	m_pScriptScope = nullptr;
 }
 
 }

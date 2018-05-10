@@ -1,11 +1,11 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
 #include "Common/GraphicsPipelineStage.h"
 #include "Common/FullscreenPass.h"
 
-class CColorGradingControllerD3D;
+class CColorGradingController;
 struct SColorGradingMergeParams;
 
 class CColorGradingStage : public CGraphicsPipelineStage
@@ -28,8 +28,10 @@ public:
 	const std::array<_smart_ptr<CTexture>, 2>& GetMergeLayers() const { return m_pMergeLayers;  }
 	CVertexBuffer                              GetSlicesVB()    const;
 
+	bool IsRenderPassesDirty() ;
+
 private:
-	void PreparePrimitives(CColorGradingControllerD3D& controller, const SColorGradingMergeParams& mergeParams);
+	void PreparePrimitives(CColorGradingController& controller, const SColorGradingMergeParams& mergeParams);
 
 	CryCriticalSectionNonRecursive      m_lock;
 	

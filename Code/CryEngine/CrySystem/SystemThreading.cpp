@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "System.h"
@@ -164,12 +164,14 @@ unsigned __stdcall CThreadManager::RunThread(void* thisPtr)
 		CryFatalError("[Error]: CThreadManager::RunThread requires gEnv->pSystem to be initialized.");
 	}
 
-	PLATFORM_PROFILER_MARKER("Thread_Run");
+	CRY_PROFILE_MARKER("Thread_Run");
 
 	IThreadConfigManager* pThreadConfigMngr = gEnv->pThreadManager->GetThreadConfigManager();
 
 	SThreadMetaData* pThreadData = reinterpret_cast<SThreadMetaData*>(thisPtr);
 	pThreadData->m_threadId = CryThreadUtil::CryGetCurrentThreadId();
+
+	MEMSTAT_CONTEXT_FMT(EMemStatContextTypes::MSC_Other, 0, "Thread \"%s\" (%" PRI_THREADID ")", pThreadData->m_threadName.c_str(), pThreadData->m_threadId);
 
 	// Apply config
 	const SThreadConfig* pThreadConfig = pThreadConfigMngr->GetThreadConfig(pThreadData->m_threadName.c_str());
@@ -228,7 +230,7 @@ unsigned __stdcall CThreadManager::RunThread(void* thisPtr)
 	// Note: Unregister after m_threadExitCondition.Notify() to ensure pThreadData is still valid
 	pThreadData->m_pThreadMngr->UnregisterThread(pThreadData->m_pThreadTask);
 
-	PLATFORM_PROFILER_MARKER("Thread_Stop");
+	CRY_PROFILE_MARKER("Thread_Stop");
 	CryThreadUtil::CryThreadExitCall();
 
 	return NULL;
@@ -264,6 +266,17 @@ bool CThreadManager::JoinThread(IThread* pThreadTask, EJoinMode eJoinMode)
 	pThreadImpl->m_threadExitMutex.Lock();
 	while (pThreadImpl->m_isRunning)
 	{
+		// Ensure thread is still alive.
+		// Handle special case where engine shutdown is using exit(1) e.g. CrashHandler.
+		// Exit(1) force terminates all threads so they don't reach the cleanup code at the end of the RunThread() function.		
+		// 1) Thread must be running as we hold the m_threadExitMutex and pThreadImpl->m_isRunning == true. 
+		// 2) If pThreadImpl->m_isRunning == false we would not be in this loop. Hence there is no double call of UnregisterThread()
+		if (!CryThreadUtil::CryIsThreadAlive(pThreadImpl->m_threadHandle))
+		{
+			pThreadImpl->m_threadExitMutex.Unlock();
+			pThreadImpl->m_pThreadMngr->UnregisterThread(pThreadImpl->m_pThreadTask);
+			break;
+		}
 		pThreadImpl->m_threadExitCondition.Wait(pThreadImpl->m_threadExitMutex);
 	}
 	pThreadImpl->m_threadExitMutex.Unlock();

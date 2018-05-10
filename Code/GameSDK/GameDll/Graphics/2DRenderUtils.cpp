@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 /*************************************************************************
 -------------------------------------------------------------------------
@@ -71,11 +71,6 @@ void C2DRenderUtils::PreRender()
 		return;
 	}
 
-	m_pRenderer->SetCullMode(R_CULL_DISABLE);
-	m_pRenderer->Set2DMode(true,m_pRenderer->GetOverlayWidth(),m_pRenderer->GetOverlayHeight());
-	m_pRenderer->SetColorOp(eCO_MODULATE,eCO_MODULATE,DEF_TEXARG0,DEF_TEXARG0);
-	m_pRenderer->SetState(GS_BLSRC_SRCALPHA|GS_BLDST_ONEMINUSSRCALPHA|GS_NODEPTHTEST);
-
 	m_prevAuxRenderFlags	= m_pAuxGeom->GetRenderFlags().m_renderFlags;
 	m_pAuxGeom->SetRenderFlags( e_Mode2D|e_AlphaBlended|e_FillModeSolid|e_CullModeNone|e_DepthWriteOff|e_DepthTestOff );
 }
@@ -88,8 +83,6 @@ void C2DRenderUtils::PostRender()
 	{
 		return;
 	}
-
-	m_pRenderer->Set2DMode(false,0,0);
 
 	//reset render settings (aux geometry)
 	m_pAuxGeom->SetRenderFlags(m_prevAuxRenderFlags);
@@ -118,7 +111,7 @@ void C2DRenderUtils::InternalDrawRect( const float x, const float y, const float
 	float x2 = x + fSizeX;
 	float y2 = y + fSizeY;
 
-	m_pRenderer->SetState(GS_BLSRC_SRCALPHA | GS_BLDST_ONEMINUSSRCALPHA | GS_NODEPTHTEST);
+	//m_pRenderer->SetState(GS_BLSRC_SRCALPHA | GS_BLDST_ONEMINUSSRCALPHA | GS_NODEPTHTEST);
 	InternalDrawQuad( x1, y1, fSizeX+width, width,        screen_edge_color );//top
 	InternalDrawQuad( x2, y1, width,        fSizeY+width, screen_edge_color );//right
 	InternalDrawQuad( x1, y2, fSizeX+width, width,        screen_edge_color );//bottom
@@ -144,46 +137,6 @@ void C2DRenderUtils::InternalDrawLine(float fX1, float fY1, float fX2, float fY2
 		return;
 	}
 
-#if C2DRU_USE_DVN_VB
-	m_pLayoutManager->ConvertFromVirtualToRenderScreenSpace( &fX1, &fY1 );
-	m_pLayoutManager->ConvertFromVirtualToRenderScreenSpace( &fX2, &fY2 );
-
-	SVF_P3F_C4B_T2F aVertices[2];
-
-	uint32 uiDiffuse = cfDiffuse.pack_argb8888();
-
-	const float fOff = -0.5f;
-
-	aVertices[0].color.dcolor = uiDiffuse;
-	aVertices[0].xyz = Vec3(fX1+fOff, fY1+fOff, 0.0f);
-	aVertices[0].st = Vec2(0, 0);
-
-	aVertices[1].color.dcolor = uiDiffuse;
-	aVertices[1].xyz = Vec3(fX2+fOff, fY2+fOff, 0.0f);
-	aVertices[1].st = Vec2(1, 1);
-
-	m_pRenderer->SelectTMU(0);
-
-	/*
-	if(iTextureID)
-	{
-	m_pRenderer->EnableTMU(true);  
-	m_pRenderer->SetColorOp(eCO_MODULATE, eCO_MODULATE, DEF_TEXARG0, DEF_TEXARG0);
-	m_pRenderer->SetTexture(iTextureID);
-	}
-	else
-	*/	
-	{
-		m_pRenderer->EnableTMU(false);
-		m_pRenderer->SetWhiteTexture();
-	}
-
-	uint16 ausIndices[] = {0,1};
-
-	m_pRenderer->DrawDynVB(aVertices,ausIndices,2,2,eptLineList);
-
-#else
-
 	const float fOff = 0.0f;
 
 	m_pLayoutManager->ConvertFromVirtualToNormalisedScreenSpace( &fX1, &fY1 );
@@ -195,7 +148,7 @@ void C2DRenderUtils::InternalDrawLine(float fX1, float fY1, float fX2, float fY2
 	const ColorB lineCol = cfDiffuse;
 
 	m_pAuxGeom->DrawLine( p1, lineCol, p2, lineCol, 1.0f );
-#endif 
+
 }
 
 //-----------------------------------------------------------------------------------------------------
@@ -216,38 +169,6 @@ void C2DRenderUtils::InternalDrawTriangle(float fX0,float fY0,float fX1,float fY
 		return;
 	}
 
-#if C2DRU_USE_DVN_VB
-
-	m_pLayoutManager->ConvertFromVirtualToRenderScreenSpace( &fX0, &fY0 );
-	m_pLayoutManager->ConvertFromVirtualToRenderScreenSpace( &fX1, &fY1 );
-	m_pLayoutManager->ConvertFromVirtualToRenderScreenSpace( &fX2, &fY2 );
-
-	SVF_P3F_C4B_T2F aVertices[3];
-
-	uint32 uiColor = cfColor.pack_argb8888();
-
-	const float fOff = -0.5f;
-
-	aVertices[0].color.dcolor = uiColor;
-	aVertices[0].xyz = Vec3(fX0+fOff, fY0+fOff, 0.0f);
-	aVertices[0].st = Vec2(0, 0);
-
-	aVertices[1].color.dcolor = uiColor;
-	aVertices[1].xyz = Vec3(fX1+fOff, fY1+fOff, 0.0f);
-	aVertices[1].st = Vec2(0, 0);
-
-	aVertices[2].color.dcolor = uiColor;
-	aVertices[2].xyz = Vec3(fX2+fOff, fY2+fOff, 0.0f);
-	aVertices[2].st = Vec2(0, 0);
-
-	uint16 ausIndices[] = {0,1,2};
-
-	m_pRenderer->SetWhiteTexture();
-	m_pRenderer->SetState(GS_BLSRC_SRCALPHA | GS_BLDST_ONEMINUSSRCALPHA | GS_NODEPTHTEST);
-	m_pRenderer->DrawDynVB(aVertices,ausIndices,3,CRY_ARRAY_COUNT(ausIndices),eptTriangleList);
-
-#else // C2DRU_USE_DVN_VB
-
 	const float fOff = 0.0;
 
 	m_pLayoutManager->ConvertFromVirtualToNormalisedScreenSpace( &fX0, &fY0 );
@@ -257,75 +178,34 @@ void C2DRenderUtils::InternalDrawTriangle(float fX0,float fY0,float fX1,float fY
 	Vec3 p0(fX0+fOff, fY0+fOff, 0.0f);
 	Vec3 p1(fX1+fOff, fY1+fOff, 0.0f);
 	Vec3 p2(fX2+fOff, fY2+fOff, 0.0f);
-	//std::swap(p0.y,p0.z);
-	//std::swap(p1.y,p1.z);
-	//std::swap(p2.y,p2.z);
+
 	m_pAuxGeom->DrawTriangle( p0, cfColor, p1, cfColor, p2, cfColor );
-#endif // C2DRU_USE_DVN_VB
 }
 
 //-----------------------------------------------------------------------------------------------------
-void C2DRenderUtils::DrawQuad(	float fX, float fY,
-															float fSizeX, float fSizeY,
-															const ColorF& cfDiffuse,
-#                          if C2DRU_USE_DVN_VB
-															const ColorF& cfDiffuseTL,
-															const ColorF& cfDiffuseTR,
-															const ColorF& cfDiffuseDL,
-															const ColorF& cfDiffuseDR,
-#                          endif // C2DRU_USE_DVN_VB
-															int iTextureID
-#                          if C2DRU_USE_DVN_VB
-															,
-															float fUTexCoordsTL, float fVTexCoordsTL,
-															float fUTexCoordsTR, float fVTexCoordsTR,
-															float fUTexCoordsDL, float fVTexCoordsDL,
-															float fUTexCoordsDR, float fVTexCoordsDR
-#                          endif // C2DRU_USE_DVN_VB
-															)
+void C2DRenderUtils::DrawQuad( float fX, float fY,
+                               float fSizeX, float fSizeY,
+                               const ColorF& cfDiffuse,
+                               int iTextureID
+                               )
 {
 	m_pLayoutManager->AdjustToSafeArea( &fX, &fY, &fSizeX, &fSizeY );
 
-	InternalDrawQuad(	fX, fY, fSizeX, fSizeY, cfDiffuse, 
-#if C2DRU_USE_DVN_VB
-	                   cfDiffuseTL, cfDiffuseTR, cfDiffuseDL, cfDiffuseDR, 
-#endif
-										 iTextureID
-#if C2DRU_USE_DVN_VB
-										 , fUTexCoordsTL, fVTexCoordsTL, fUTexCoordsTR, fVTexCoordsTR, fUTexCoordsDL, fVTexCoordsDL,fUTexCoordsDR, fVTexCoordsDR
-#endif
-										 );
+	InternalDrawQuad(fX, fY, fSizeX, fSizeY, cfDiffuse);
 }
 
 //-----------------------------------------------------------------------------------------------------
-void C2DRenderUtils::InternalDrawQuad(	float fX, float fY,
-																			float fSizeX, float fSizeY,
-																			const ColorF& cfDiffuse,
-#                                   if C2DRU_USE_DVN_VB
-																			const ColorF& cfDiffuseTL,
-																			const ColorF& cfDiffuseTR,
-																			const ColorF& cfDiffuseDL,
-																			const ColorF& cfDiffuseDR,
-#                                   endif // C2DRU_USE_DVN_VB
-																			int iTextureID
-#                                   if C2DRU_USE_DVN_VB
-																			,
-																			float fUTexCoordsTL, float fVTexCoordsTL,
-																			float fUTexCoordsTR, float fVTexCoordsTR,
-																			float fUTexCoordsDL, float fVTexCoordsDL,
-																			float fUTexCoordsDR, float fVTexCoordsDR
-#                                    endif
-																			)
+void C2DRenderUtils::InternalDrawQuad( float fX, float fY,
+                                       float fSizeX, float fSizeY,
+                                       const ColorF& cfDiffuse,
+                                       int iTextureID
+)
 {
 
 	if (!m_pRenderer)
 	{
 		return;
 	}
-
-#if C2DRU_USE_DVN_VB
-	SVF_P3F_C4B_T2F aVertices[4];
-#endif
 
 	const float fOff = 0.0f;//-0.5f;
 
@@ -336,49 +216,9 @@ void C2DRenderUtils::InternalDrawQuad(	float fX, float fY,
 	const float z  = 0.0f;
 
 	uint32 uiDiffuse = cfDiffuse.pack_argb8888();
-#if C2DRU_USE_DVN_VB
-	uint32 uiDiffuseTL = cfDiffuseTL.pack_argb8888();
-	uint32 uiDiffuseTR = cfDiffuseTR.pack_argb8888();
-	uint32 uiDiffuseDL = cfDiffuseDL.pack_argb8888();
-	uint32 uiDiffuseDR = cfDiffuseDR.pack_argb8888();
 
-	aVertices[0].color.dcolor = uiDiffuse ? uiDiffuse : uiDiffuseTL;
-	aVertices[0].xyz = Vec3( p1.x, p1.y, z );
-	aVertices[0].st = Vec2(fUTexCoordsTL, fVTexCoordsTL);
-
-	aVertices[1].color.dcolor = uiDiffuse ? uiDiffuse : uiDiffuseTR;
-	aVertices[1].xyz = Vec3( p2.x, p1.y, z );
-	aVertices[1].st = Vec2(fUTexCoordsTR, fVTexCoordsTR);
-
-	aVertices[2].color.dcolor = uiDiffuse ? uiDiffuse : uiDiffuseDL;
-	aVertices[2].xyz = Vec3( p1.x, p2.y, z );
-	aVertices[2].st = Vec2(fUTexCoordsDL, fVTexCoordsDL);
-
-	aVertices[3].color.dcolor = uiDiffuse ? uiDiffuse : uiDiffuseDR;
-	aVertices[3].xyz = Vec3( p2.x, p2.y, z );
-	aVertices[3].st = Vec2(fUTexCoordsDR, fVTexCoordsDR);
-
-	m_pRenderer->SelectTMU(0);
-
-	if(iTextureID >= 0)
-	{
-		m_pRenderer->EnableTMU(true);  
-		m_pRenderer->SetColorOp(eCO_MODULATE, eCO_MODULATE, DEF_TEXARG0, DEF_TEXARG0);
-		m_pRenderer->SetTexture(iTextureID);
-	}
-	else
-	{
-		m_pRenderer->EnableTMU(false);
-		m_pRenderer->SetWhiteTexture(); // needed for XBox? Seems to use previous texture otherwise.
-	}
-
-	uint16 ausIndices[] = {0,1,2,3};
-
-	m_pRenderer->SetState(GS_BLSRC_SRCALPHA | GS_BLDST_ONEMINUSSRCALPHA | GS_NODEPTHTEST);
-	//m_pRenderer->DrawDynVB(aVertices,ausIndices,4,4,R_PRIMV_TRIANGLE_STRIP);
-#else
 	InternalDrawImage(iTextureID,fX,fY,fSizeX,fSizeY,0.0f,cfDiffuse,0,0,1,1);
-#endif //C2DRU_USE_DVN_VB
+
 }
 
 //-----------------------------------------------------------------------------------------------------
@@ -389,9 +229,6 @@ void C2DRenderUtils::Draw2dImageList()
 	{
 		return;
 	}
-
-	m_pRenderer->SetState(GS_BLSRC_SRCALPHA | GS_BLDST_ONEMINUSSRCALPHA | GS_NODEPTHTEST);
-	m_pRenderer->Draw2dImageList();
 }
 
 //-----------------------------------------------------------------------------------------------------
@@ -457,25 +294,12 @@ void C2DRenderUtils::InternalDrawImage(int iTextureID,
 		return;
 	}
 
-	if(pushToList)
-	{
-		m_pRenderer->Push2dImage(	fX, fY,
+		IRenderAuxImage::Draw2dImage(	fX, fY,
 			fSizeX, fSizeY,
 			iTextureID,
 			fS0,fT0,fS1,fT1,
 			fAngleInDegrees,
 			cfColor.r, cfColor.g, cfColor.b, cfColor.a);
-	}
-	else
-	{
-		m_pRenderer->SetState(GS_BLSRC_SRCALPHA | GS_BLDST_ONEMINUSSRCALPHA | GS_NODEPTHTEST);
-		m_pRenderer->Draw2dImage(	fX, fY,
-			fSizeX, fSizeY,
-			iTextureID,
-			fS0,fT0,fS1,fT1,
-			fAngleInDegrees,
-			cfColor.r, cfColor.g, cfColor.b, cfColor.a);
-	}
 }
 
 void C2DRenderUtils::InternalDrawImageStereo(int iTextureID,	
@@ -492,7 +316,7 @@ void C2DRenderUtils::InternalDrawImageStereo(int iTextureID,
 		return;
 	}
 
-	m_pRenderer->Push2dImage(	fX, fY,
+	IRenderAuxImage::Draw2dImage(	fX, fY,
 		fSizeX, fSizeY,
 		iTextureID,
 		fS0,fT0,fS1,fT1,
@@ -565,7 +389,7 @@ void C2DRenderUtils::InternalDrawText(const float fX, const float fY,
 	m_pFont->DrawString(drawX, drawY, strText, true, m_ctx);
 	
 	// Font drawing reset the no-depth test flag.
-	m_pRenderer->SetState(GS_BLSRC_SRCALPHA | GS_BLDST_ONEMINUSSRCALPHA | GS_NODEPTHTEST);
+	//m_pRenderer->SetState(GS_BLSRC_SRCALPHA | GS_BLDST_ONEMINUSSRCALPHA | GS_NODEPTHTEST);
 }
 
 //-----------------------------------------------------------------------------------------------------
@@ -815,7 +639,7 @@ void C2DRenderUtils::RenderTest_Text( float fTime, const ColorF& color )
 		CUIManager* pHud = g_pGame->GetUI();
 		ScreenLayoutManager* pLayoutManager = pHud->GetLayoutManager();
 		ScreenLayoutStates prevStates = pLayoutManager->GetState();
-		gEnv->pRenderer->SetState(GS_NODEPTHTEST);
+		//gEnv->pRenderer->SetState(GS_NODEPTHTEST);
 		DrawQuad(  posx,    0.f,   1.f,  600.f, dbgColour); // T2B
 		DrawQuad(     0.f, posy, 800.f,    1.f, dbgColour); // L2R
 		pLayoutManager->SetState(prevStates);
@@ -998,7 +822,7 @@ void C2DRenderUtils::RenderTest( float fTime )
 
 	ScreenLayoutStates prev_state = m_pLayoutManager->GetState();
 	ColorF activeColor( 1.0f, 0.0f, 0.0f, 0.3f );
-	m_pRenderer->SetState(GS_BLSRC_SRCALPHA|GS_BLDST_ONEMINUSSRCALPHA|GS_NODEPTHTEST);
+	//m_pRenderer->SetState(GS_BLSRC_SRCALPHA|GS_BLDST_ONEMINUSSRCALPHA|GS_NODEPTHTEST);
 
 	switch(which)
 	{

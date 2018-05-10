@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -63,6 +63,7 @@ public:
 	virtual ~CTypesDictionary();
 
 	// CAbstractDictionary
+	virtual void                            ResetEntries() override;
 	virtual int32                           GetNumEntries() const override { return m_types.size(); }
 	virtual const CAbstractDictionaryEntry* GetEntry(int32 index) const override;
 
@@ -75,7 +76,9 @@ public:
 	void Load(const Schematyc::IScriptElement* pScriptScope);
 
 private:
+	const Schematyc::IScriptElement*  m_pScriptScope;
 	std::vector<CTypeDictionaryEntry> m_types;
 };
 
 }
+

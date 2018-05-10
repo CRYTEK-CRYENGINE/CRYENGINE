@@ -9,8 +9,6 @@ float Script : STANDARDSGLOBAL
   string Script = "ShaderDrawType = Custom;";
 >;
 
-float4x4 CompMatrix  : PI_Composite < vsregister = c0; >;
-
 struct a2v
 {
   float4 Position : POSITION; 
@@ -28,7 +26,7 @@ struct v2f
 v2f OcclusionTestVS(a2v IN)
 {
   v2f OUT = (v2f)0; 
-  OUT.Position = mul(CompMatrix, IN.Position);
+  OUT.Position = mul(CV_ViewProjMatr, IN.Position);
   return OUT;
 }
 

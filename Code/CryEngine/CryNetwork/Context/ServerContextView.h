@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 /*************************************************************************
    -------------------------------------------------------------------------
@@ -133,7 +133,7 @@ private:
 
 	void GC_BindObject( SNetObjectID, CNetObjectBindLock lk, CChangeStateLock cslk, bool levelInit);
 
-	typedef std::auto_ptr<SAuthenticationSalt> TAuthPtr;
+	typedef std::unique_ptr<SAuthenticationSalt> TAuthPtr;
 
 	class CBindObjectMessage;
 	class CDeclareBrokenProductMessage;
@@ -181,7 +181,7 @@ private:
 		}
 	};
 	typedef std::map<BreakSegmentID, SSendableHandle, CompareBreakSegmentIDs, STLMementoAllocator<std::pair<const BreakSegmentID, SSendableHandle>>> TBreakSegmentStreams;
-	std::auto_ptr<TBreakSegmentStreams> m_pBreakSegmentStreams;
+	std::unique_ptr<TBreakSegmentStreams> m_pBreakSegmentStreams;
 
 	TAuthPtr                            m_pAuth;
 
@@ -190,14 +190,14 @@ private:
 	CChangeStateLock m_lockLocalMapLoaded;
 
 	typedef std::map<EntityId, EntityId, std::less<EntityId>, STLMementoAllocator<std::pair<const EntityId, EntityId>>> TValidatedPredictionMap;
-	std::auto_ptr<TValidatedPredictionMap> m_pValidatedPredictions;
+	std::unique_ptr<TValidatedPredictionMap> m_pValidatedPredictions;
 
 #if USE_SYSTEM_ALLOCATOR
 	typedef std::map<SNetObjectID, CNetObjectBindLock, std::less<SNetObjectID>>                                                                   TPendingUnbinds;
 #else
 	typedef std::map<SNetObjectID, CNetObjectBindLock, std::less<SNetObjectID>, STLMementoAllocator<std::pair<const SNetObjectID, CNetObjectBindLock>>> TPendingUnbinds;
 #endif
-	std::auto_ptr<TPendingUnbinds> m_pPendingUnbinds;
+	std::unique_ptr<TPendingUnbinds> m_pPendingUnbinds;
 
 #if !defined(OLD_VOICE_SYSTEM_DEPRECATED)
 	std::vector<INetChannel*>                             m_pVoiceListeners;

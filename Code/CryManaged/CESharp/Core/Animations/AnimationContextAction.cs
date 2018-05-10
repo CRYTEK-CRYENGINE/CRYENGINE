@@ -1,9 +1,12 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 using CryEngine.Common;
 
 namespace CryEngine.Animations
 {
+	/// <summary>
+	/// Defines an action of an animation context.
+	/// </summary>
 	public sealed class AnimationContextAction
 	{
 		internal AnimationContextActionList NativeHandle { get; private set; }

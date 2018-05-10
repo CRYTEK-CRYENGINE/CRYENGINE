@@ -1,9 +1,7 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "SceneRenderPass.h"
-
-#include "DriverD3D.h"
 
 #include "Common/RenderView.h"
 #include "Common/ReverseDepth.h"
@@ -46,11 +44,11 @@ void CSceneRenderPass::SetPassResources(CDeviceResourceLayoutPtr pResourceLayout
 
 void CSceneRenderPass::SetRenderTargets(CTexture* pDepthTarget, CTexture* pColorTarget0, CTexture* pColorTarget1, CTexture* pColorTarget2, CTexture* pColorTarget3)
 {
-	m_renderPassDesc.SetDepthTarget(pDepthTarget);
 	m_renderPassDesc.SetRenderTarget(0, pColorTarget0);
 	m_renderPassDesc.SetRenderTarget(1, pColorTarget1);
 	m_renderPassDesc.SetRenderTarget(2, pColorTarget2);
 	m_renderPassDesc.SetRenderTarget(3, pColorTarget3);
+	m_renderPassDesc.SetDepthTarget(pDepthTarget);
 
 	CRY_ASSERT_MESSAGE(
 		(!pColorTarget0 || !pColorTarget1 || pColorTarget0->GetWidth() == pColorTarget1->GetWidth()) &&
@@ -78,7 +76,8 @@ void CSceneRenderPass::SetViewport(const D3DViewPort& viewport)
 			m_viewPort[1] = ReverseDepthHelper::Convert(m_viewPort[1]);
 	}
 
-	D3DRectangle scissorRect = {
+	D3DRectangle scissorRect =
+	{
 		LONG(m_viewPort[0].TopLeftX),
 		LONG(m_viewPort[0].TopLeftY),
 		LONG(m_viewPort[0].TopLeftX + m_viewPort[0].Width),
@@ -86,6 +85,11 @@ void CSceneRenderPass::SetViewport(const D3DViewPort& viewport)
 	};
 
 	m_scissorRect = scissorRect;
+}
+
+void CSceneRenderPass::SetViewport(const SRenderViewport& viewport)
+{
+	SetViewport(RenderViewportToD3D11Viewport(viewport));
 }
 
 void CSceneRenderPass::SetDepthBias(float constBias, float slopeBias, float biasClamp)
@@ -237,23 +241,21 @@ void CSceneRenderPass::DrawRenderItems(CRenderView* pRenderView, ERenderListID l
 	passContext.stageID = m_stageID;
 	passContext.passID = m_passID;
 
-	const bool bNearest = (list == EFSLIST_NEAREST_OBJECTS) || (list == EFSLIST_FORWARD_OPAQUE_NEAREST);
+	const bool bNearest = (list == EFSLIST_NEAREST_OBJECTS) || (list == EFSLIST_FORWARD_OPAQUE_NEAREST) || (list == EFSLIST_TRANSP_NEAREST);
 
 	passContext.renderNearest = bNearest && (m_passFlags & CSceneRenderPass::ePassFlags_RenderNearest);
 	passContext.renderListId = list;
 	passContext.renderItemGroup = m_numRenderItemGroups++;
 	passContext.profilerSectionIndex = m_profilerSectionIndex;
 
-#if !defined(_RELEASE)
-	if (CRenderer::CV_r_stats == 6)
-	{
-		passContext.pDrawCallInfoPerMesh = gcpRendD3D->GetGraphicsPipeline().GetDrawCallInfoPerMesh();
-		passContext.pDrawCallInfoPerNode = gcpRendD3D->GetGraphicsPipeline().GetDrawCallInfoPerNode();
-	}
-#endif
+#if defined(DO_RENDERSTATS)
+	CD3D9Renderer* pRenderer = gcpRendD3D;
 
-	gcpRendD3D.m_RP.m_nPassGroupID = profilingListID < 0 ? list : profilingListID;
-	gcpRendD3D.m_RP.m_nPassGroupDIP = profilingListID < 0 ? list : profilingListID;
+	if (pRenderer->CV_r_stats == 6 || pRenderer->m_pDebugRenderNode || pRenderer->m_bCollectDrawCallsInfoPerNode)
+		passContext.pDrawCallInfoPerNode = gcpRendD3D->GetGraphicsPipeline().GetDrawCallInfoPerNode();
+	if (pRenderer->m_bCollectDrawCallsInfo)
+		passContext.pDrawCallInfoPerMesh = gcpRendD3D->GetGraphicsPipeline().GetDrawCallInfoPerMesh();
+#endif
 	
 	if (gcpRendD3D->GetGraphicsPipeline().GetRenderPassScheduler().IsActive())
 	{
@@ -269,8 +271,6 @@ void CSceneRenderPass::DrawRenderItems(CRenderView* pRenderView, ERenderListID l
 
 void CSceneRenderPass::Execute()
 {
-	CHWShader_D3D::mfCommitParamsGlobal();
-
 	for (auto& passContext : m_passContexts)
 	{
 		passContext.pRenderView->DrawCompiledRenderItems(passContext);

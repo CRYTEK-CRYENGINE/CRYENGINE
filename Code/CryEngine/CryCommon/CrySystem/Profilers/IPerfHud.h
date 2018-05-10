@@ -1,16 +1,8 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
+ 
+//! \cond INTERNAL
 
-// -------------------------------------------------------------------------
-//  File name:   ICryPerHud.h
-//  Created:     19/11/2009 by Timur.
-//  Description: Interface to the Performance HUD
-// -------------------------------------------------------------------------
-//  History:
-//
-////////////////////////////////////////////////////////////////////////////
-
-#ifndef __IPERFHUD_H_
-#define __IPERFHUD_H_
+#pragma once
 
 #include <CryExtension/ICryUnknown.h>
 #include <CryExtension/ClassWeaver.h>
@@ -132,4 +124,4 @@ inline void CryPerfHUDWarning(float duration, const char* format, ...)
 	}
 }
 
-#endif
+//! \endcond

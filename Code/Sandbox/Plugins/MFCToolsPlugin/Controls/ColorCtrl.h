@@ -865,3 +865,4 @@ void CColorPushButton<BASE_TYPE >::DrawItem(LPDRAWITEMSTRUCT lpDrawItemStruct)
 // Microsoft Developer Studio will insert additional declarations immediately before the previous line.
 
 #endif // !defined(AFX_COLORCTRL_H__CA4DE73C_CDC9_11D3_B261_00104BB13A66__INCLUDED_)
+

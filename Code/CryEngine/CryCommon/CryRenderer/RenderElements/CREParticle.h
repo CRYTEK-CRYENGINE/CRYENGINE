@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #ifndef __CREPARTICLE_H__
 #define __CREPARTICLE_H__
@@ -108,7 +108,7 @@ public:
 		return sizeof(*this);
 	}
 
-	virtual bool Compile(CRenderObject* pRenderObject) override;
+	virtual bool Compile(CRenderObject* pObj, CRenderView *pRenderView, bool updateInstanceDataOnly) override;
 	virtual void DrawToCommandList(CRenderObject* pRenderObject, const struct SGraphicsPipelinePassContext& context) override;
 
 	// Additional methods.
@@ -124,7 +124,7 @@ public:
 
 private:
 	CDeviceGraphicsPSOPtr GetGraphicsPSO(CRenderObject* pRenderObject, const struct SGraphicsPipelinePassContext& context) const;
-	void                  PrepareDataToRender(CRenderObject* pRenderObject);
+	void                  PrepareDataToRender(CRenderView *pRenderView,CRenderObject* pRenderObject);
 	void                  BindPipeline(CRenderObject* pRenderObject, CDeviceGraphicsCommandInterface& commandInterface, CDeviceGraphicsPSOPtr pGraphicsPSO);
 	void                  DrawParticles(CRenderObject* pRenderObject, CDeviceGraphicsCommandInterface& commandInterface);
 	void                  DrawParticlesLegacy(CRenderObject* pRenderObject, CDeviceGraphicsCommandInterface& commandInterface);

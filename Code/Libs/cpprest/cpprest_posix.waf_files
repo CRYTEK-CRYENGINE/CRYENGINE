@@ -1,0 +1,13 @@
+{
+	"NoUberFile": 
+	{
+		"Root":
+		[
+			"../../SDKs/cpprest/src/streams/fileio_posix.cpp",
+			"../../SDKs/cpprest/src/pplx/threadpool.cpp",
+			"../../SDKs/cpprest/src/http/client/http_client_asio.cpp",
+			"../../SDKs/cpprest/src/http/listener/http_server_asio.cpp",
+			"../../SDKs/cpprest/src/pplx/pplxlinux.cpp"
+		]
+	}
+}

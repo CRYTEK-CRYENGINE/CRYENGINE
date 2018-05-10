@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 /*
  * Interfaces for the FlowGraph Modules System.
@@ -199,7 +199,7 @@ struct IFlowGraphModuleManager
 	//! Unload only the loaded level modules, not the global ones
 	virtual void               ClearLevelModules() = 0;
 
-	virtual void               ScanAndReloadModules(bool bScanGlobalModules, bool bScanLevelModules) = 0;
+	virtual void               ScanAndReloadModules(bool bScanGlobalModules, bool bScanLevelModules, const char* szLoadedLevelName) = 0;
 
 	virtual bool               CreateModuleNodes(const char* moduleName, TModuleId moduleId) = 0;
 

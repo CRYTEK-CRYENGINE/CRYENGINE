@@ -1,7 +1,7 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
-#ifndef _CRE_BREAKABLE_GLASS_HELPERS_
-#define _CRE_BREAKABLE_GLASS_HELPERS_
+//! \cond INTERNAL
+
 #pragma once
 
 #include "CREBreakableGlassConfig.h"
@@ -14,6 +14,7 @@ struct IParticleEffect;
 struct IPhysicalEntity;
 struct phys_geometry;
 struct IRenderNode;
+struct IStatObj;
 
 //! Breakable glass sim initialisation params.
 struct SBreakableGlassInitParams
@@ -285,4 +286,4 @@ struct SBreakableGlassCVars
 	float m_particleFXScale;
 };
 
-#endif // _CRE_BREAKABLE_GLASS_HELPERS_
+//! \endcond

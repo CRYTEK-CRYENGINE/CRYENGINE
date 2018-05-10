@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 /*************************************************************************
    -------------------------------------------------------------------------
@@ -135,7 +135,7 @@ bool CCooperativeAnimationManager::StartExactPositioningAnimation(const SCharact
 
 void CCooperativeAnimationManager::Update(float dt)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_GAME);
+	CRY_PROFILE_FUNCTION(PROFILE_GAME);
 
 	// if there are no active animations get right back
 	if (m_activeAnimations.empty())

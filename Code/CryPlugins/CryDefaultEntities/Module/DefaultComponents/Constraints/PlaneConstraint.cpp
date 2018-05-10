@@ -14,14 +14,12 @@ namespace Cry
 				pFunction->SetFlags(Schematyc::EEnvFunctionFlags::Construction);
 				pFunction->BindInput(1, 'enti', "Target Entity", "Defines the entity we want to be constrained to, or the point itself if id is 0", Schematyc::ExplicitEntityId());
 				pFunction->BindInput(2, 'igno', "Ignore Collisions With", "Whether or not to ignore collisions between this entity and the target", false);
-				pFunction->BindInput(3, 'arot', "Allow Rotation", "Whether or not to allow rotations when the constraint is active", true);
 				componentScope.Register(pFunction);
 			}
 			{
 				auto pFunction = SCHEMATYC_MAKE_ENV_FUNCTION(&CPlaneConstraintComponent::ConstrainToPoint, "{2A1E5BF3-C98F-40B3-86C6-FF21CB35F4A9}"_cry_guid, "ConstrainToPoint");
 				pFunction->SetDescription("Adds a constraint, tying this component's physical entity to the point");
 				pFunction->SetFlags(Schematyc::EEnvFunctionFlags::Construction);
-				pFunction->BindInput(1, 'arot', "Allow Rotation", "Whether or not to allow rotations when the constraint is active", true);
 				componentScope.Register(pFunction);
 			}
 			{
@@ -32,21 +30,21 @@ namespace Cry
 			}
 		}
 
-		CPlaneConstraintComponent::~CPlaneConstraintComponent()
-		{
-			Remove();
-		}
-
 		void CPlaneConstraintComponent::Initialize()
 		{
 			Reset();
+		}
+
+		void CPlaneConstraintComponent::OnShutDown()
+		{
+			Remove();
 		}
 
 		void CPlaneConstraintComponent::Reset()
 		{
 			if (m_bActive)
 			{
-				ConstrainToPoint(true);
+				ConstrainToPoint();
 			}
 			else
 			{
@@ -54,7 +52,7 @@ namespace Cry
 			}
 		}
 
-		void CPlaneConstraintComponent::ProcessEvent(SEntityEvent& event)
+		void CPlaneConstraintComponent::ProcessEvent(const SEntityEvent& event)
 		{
 			if (event.event == ENTITY_EVENT_START_GAME)
 			{

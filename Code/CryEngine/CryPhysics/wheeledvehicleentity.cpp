@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 
@@ -34,7 +34,7 @@ CWheeledVehicleEntity::CWheeledVehicleEntity(CPhysicalWorld *pworld, IGeneralMem
 	, m_steer(0.0f)
 	, m_ackermanOffset(0.0f)
 	, m_clutch(0.0f)
-	, m_nGears(2)
+	, m_nGears(3)
 	, m_iCurGear(1)
 	, m_maxGear(127)
 	, m_minGear(0)
@@ -59,7 +59,8 @@ CWheeledVehicleEntity::CWheeledVehicleEntity(CPhysicalWorld *pworld, IGeneralMem
 	m_engineShiftDownw = m_engineMaxw*0.2f;	
 
 	m_gears[0] = -1.0f;
-	m_gears[1] = 1.0f;
+	m_gears[1] = 1.0f; // neutral, unused
+	m_gears[2] = 1.0f;
 
 	m_EminRigid = m_Emin;
 	m_maxAllowedStepRigid = m_maxAllowedStep;
@@ -203,7 +204,6 @@ int CWheeledVehicleEntity::GetParams(pe_params *_params) const
 		params->engineIdleRPM = m_engineIdlew*(60.0/(2*g_PI));
 		params->engineShiftUpRPM = m_engineShiftUpw*(60.0/(2*g_PI));
 		params->engineShiftDownRPM = m_engineShiftDownw*(60.0/(2*g_PI));
-		params->engineIdleRPM = m_engineIdlew*(60.0/(2*g_PI));
 		params->engineStartRPM = m_engineStartw*(60.0/(2*g_PI));
 		params->clutchSpeed = m_clutchSpeed;
 		params->nGears = m_nGears;
@@ -713,7 +713,7 @@ void CWheeledVehicleEntity::ComputeBBox(Vec3 *BBox, int flags)
 
 void CWheeledVehicleEntity::CheckAdditionalGeometry(float time_interval)
 {
-	FUNCTION_PROFILER( GetISystem(),PROFILE_PHYSICS );
+	CRY_PROFILE_FUNCTION(PROFILE_PHYSICS );
 
 	int iCaller = get_iCaller_int();
 	int i,j,nents,ient,iwheel,ncontacts,icont,bRayCast,bHasContacts,ient1,j1,bHasMatSubst=0;

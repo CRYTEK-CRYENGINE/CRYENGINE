@@ -27,6 +27,12 @@
 %template(IReadStreamPtr) _smart_ptr<IReadStream>;
 %template(IRenderMeshPtr) _smart_ptr<IRenderMesh>;
 
+%ignore CryRWLock;
+%ignore SRenderNodeTempData;
+%ignore IRenderNode::m_pTempData;
+%ignore IRenderNode::m_manipulationFrame;
+%ignore IRenderNode::m_manipulationLock;
+
 %typemap(cscode) IParticleEffect
 %{
 	public string Name { get { return GetName (); } }

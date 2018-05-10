@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 /*=============================================================================
    ShaderSerialize.h : Shaders serialization declarations.
@@ -14,30 +14,6 @@
 #if defined(SHADERS_SERIALIZING)
 
 	#include "../ResFile.h"
-
-//
-//	console enums taken from d3d9types.h
-//
-
-enum X360AddressModes
-{
-	X360TADDRESS_WRAP                   = 0,
-	X360TADDRESS_MIRROR                 = 1,
-	X360TADDRESS_CLAMP                  = 2,
-	X360TADDRESS_MIRRORONCE             = 3,
-	X360TADDRESS_BORDER_HALF            = 4,
-	X360TADDRESS_MIRRORONCE_BORDER_HALF = 5,
-	X360TADDRESS_BORDER                 = 6,
-	X360TADDRESS_MIRRORONCE_BORDER      = 7,
-};
-
-enum X360FilterType
-{
-	X360TEXF_NONE        = 2,
-	X360TEXF_POINT       = 0,
-	X360TEXF_LINEAR      = 1,
-	X360TEXF_ANISOTROPIC = 4,
-};
 
 inline void sAlignData(TArray<byte>& Dst, uint32 align)
 {
@@ -1053,7 +1029,6 @@ private:
 	bool         CheckFXBExists(CShader* pSH);
 
 	FXSShaderRes m_SShaderResources;
-	string       m_customSerialisePath;
 };
 
 inline const char* sString(int nOffs, TArray<char>& Strings)

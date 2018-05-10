@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "VKCommandScheduler.hpp"
@@ -15,8 +15,8 @@ CCommandScheduler::CCommandScheduler(CDevice* pDevice)
 	, m_CmdListPools
 {
 	{ pDevice, m_CmdFenceSet, CMDQUEUE_GRAPHICS },
-	{ pDevice, m_CmdFenceSet, CMDQUEUE_COMPUTE },
-	{ pDevice, m_CmdFenceSet, CMDQUEUE_COPY }
+	{ pDevice, m_CmdFenceSet, CMDQUEUE_COMPUTE  },
+	{ pDevice, m_CmdFenceSet, CMDQUEUE_COPY     }
 }
 // *INDENT-ON*
 #endif
@@ -168,7 +168,8 @@ void CCommandScheduler::EndOfFrame(bool bWait)
 	    m_FrameFenceValuesSubmitted[(m_FrameFenceCursor + (FRAME_FENCES - max(1, FRAME_FENCE_INFLIGHT - 1))) % FRAME_FENCES]);
 	   }*/
 
-	m_FrameFenceCursor = ((++m_FrameFenceCursor) % FRAME_FENCES);
+	++m_FrameFenceCursor;
+	m_FrameFenceCursor %= FRAME_FENCES;
 
 #ifdef VK_STATS
 	m_NumCommandListOverflows = 0;

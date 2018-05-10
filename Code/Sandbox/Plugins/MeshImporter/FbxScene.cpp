@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 // Tools for FBX file importing.
 
 #include "StdAfx.h"
@@ -1564,3 +1564,4 @@ string GetFormattedAxes(FbxTool::Axes::EAxis up, FbxTool::Axes::EAxis fwd)
 {
 	return string(GetFormattedAxis(fwd)) + string(GetFormattedAxis(up));
 }
+

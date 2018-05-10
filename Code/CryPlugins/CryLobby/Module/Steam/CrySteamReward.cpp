@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 // -------------------------------------------------------------------------
 //  File name:   CrySteamReward.cpp
@@ -17,7 +17,7 @@
 
 #if USE_STEAM
 
-	#include "steam/steam_api.h"
+#include "steam/steam_api.h"
 
 // Achievement array which will hold data about the achievements and their state
 // Make sure the names in EAchievement match the API Name of the achievements
@@ -77,7 +77,14 @@ CCrySteamReward::CCrySteamReward(CCryLobby* pLobby)
 void CCrySteamReward::OnUserStatsReceived(UserStatsReceived_t* pParam)
 {
 	// we may get callbacks for other games' stats arriving, ignore them
-	if (SteamUtils()->GetAppID() == pParam->m_nGameID)
+	ISteamUtils* pSteamUtils = SteamUtils();
+	ISteamUserStats* pSteamUserStats = SteamUserStats();
+	if (!pSteamUtils || !pSteamUserStats)
+	{
+		return;
+	}
+
+	if (pSteamUtils->GetAppID() == pParam->m_nGameID)
 	{
 		if (k_EResultOK == pParam->m_eResult)
 		{
@@ -88,12 +95,12 @@ void CCrySteamReward::OnUserStatsReceived(UserStatsReceived_t* pParam)
 			{
 				CrySteamReward& ach = m_achievements[iAch];
 
-				SteamUserStats()->GetAchievement(ach.m_pchAchievementID, &ach.m_bAchieved);
+				pSteamUserStats->GetAchievement(ach.m_pchAchievementID, &ach.m_bAchieved);
 				cry_sprintf(ach.m_sName, "%s",
-				            SteamUserStats()->GetAchievementDisplayAttribute(ach.m_pchAchievementID,
+				            pSteamUserStats->GetAchievementDisplayAttribute(ach.m_pchAchievementID,
 				                                                             "name"));
 				cry_sprintf(ach.m_sDescription, "%s",
-				            SteamUserStats()->GetAchievementDisplayAttribute(ach.m_pchAchievementID,
+				            pSteamUserStats->GetAchievementDisplayAttribute(ach.m_pchAchievementID,
 				                                                             "desc"));
 			}
 
@@ -135,14 +142,15 @@ void CCrySteamReward::OnUserStatsReceived(UserStatsReceived_t* pParam)
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 bool CCrySteamReward::InternalAward(int achievementID)
 {
-	if (m_bInitialized)
+	ISteamUserStats* pSteamUserStats = SteamUserStats();
+	if (m_bInitialized && pSteamUserStats)
 	{
 		for (int i = 0; i < m_iNumAchievements; i++)
 		{
 			if (m_achievements[i].m_eAchievementID == achievementID)
 			{
-				SteamUserStats()->SetAchievement(m_achievements[i].m_pchAchievementID);
-				return SteamUserStats()->StoreStats();
+				pSteamUserStats->SetAchievement(m_achievements[i].m_pchAchievementID);
+				return pSteamUserStats->StoreStats();
 			}
 		}
 	}
@@ -156,17 +164,22 @@ bool CCrySteamReward::InternalAward(int achievementID)
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 bool CCrySteamReward::ClearAwards(CrySteamRewardTaskId taskId)
 {
+	ISteamUserStats* pSteamUserStats = SteamUserStats();
+	if (!pSteamUserStats)
+	{
+		return false;
+	}
 	if (m_bInitialized)
 	{
 		for (int i = 0; i < m_iNumAchievements; i++)
 		{
-			SteamUserStats()->ClearAchievement(m_achievements[i].m_pchAchievementID);
+			pSteamUserStats->ClearAchievement(m_achievements[i].m_pchAchievementID);
 		}
 	}
 
 	m_CallbackUserStatsStored.m_taskID = taskId;
 
-	return SteamUserStats()->StoreStats();
+	return pSteamUserStats->StoreStats();
 }
 	#endif
 
@@ -197,18 +210,20 @@ void CCrySteamReward::OnAchievementStored(UserAchievementStored_t* pParam)
 bool CCrySteamReward::RequestStats()
 {
 	// Is Steam loaded? If not we can't get stats.
-	if (NULL == SteamUserStats() || NULL == SteamUser())
+	ISteamUser* pSteamUser = SteamUser();
+	ISteamUserStats* pSteamUserStats = SteamUserStats();
+	if (NULL == pSteamUserStats || NULL == pSteamUser)
 	{
 		return false;
 	}
 	// Is the user logged on?  If not we can't get stats.
-	if (!SteamUser()->BLoggedOn())
+	if (!pSteamUser->BLoggedOn())
 	{
 		return false;
 	}
 
 	// Request user stats.
-	return SteamUserStats()->RequestCurrentStats();
+	return pSteamUserStats->RequestCurrentStats();
 }
 
 CCrySteamReward::~CCrySteamReward(void)

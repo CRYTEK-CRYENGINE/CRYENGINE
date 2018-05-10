@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 // #SchematycTODO : Move serialization utils to separate header?
 
@@ -13,48 +13,39 @@
 namespace CryTransform
 {
 
-// Specialized class to represent an angle, used to avoid converting back and forth between radians and degrees
-// The type stores the angle in radians internally, since this is what the majority of engine systems need
+//! Specialized class to represent an angle, used to avoid converting back and forth between radians and degrees
+//! The type stores the angle in radians internally, since this is what the majority of engine systems need
 class CAngle
 {
 public:
-	CAngle() : m_value(0.f) {}
+	constexpr CAngle() : m_value(0.f) {}
 
-	enum class EFormat : uint32
-	{
-		Radians,
-		Degrees
-	};
+	constexpr static CAngle FromDegrees(float value)      { return CAngle(DEG2RAD(value)); }
+	constexpr static CAngle FromRadians(float value)      { return CAngle(value); }
 
-	constexpr static CAngle FromDegrees(float value) { return CAngle(DEG2RAD(value)); }
-	constexpr static CAngle FromRadians(float value) { return CAngle(value); }
+	float&                  GetUnderlyingValueAsRadians() { return m_value; }
 
-	float& GetUnderlyingValueAsRadians() { return m_value; }
+	constexpr float         ToDegrees() const             { return RAD2DEG(m_value); }
+	constexpr float         ToRadians() const             { return m_value; }
+	constexpr CAngle        Absolute() const              { return CAngle(m_value < 0 ? -m_value : m_value); }
 
-	constexpr float ToDegrees() const { return RAD2DEG(m_value); }
-	constexpr float ToRadians() const { return m_value; }
-	constexpr CAngle Absolute() const { return CAngle(m_value < 0 ? -m_value : m_value); }
-
-	constexpr bool   operator<(CAngle rhs) const { return m_value < rhs.m_value; }
-	constexpr bool   operator>(CAngle rhs) const { return m_value > rhs.m_value; }
-	constexpr bool   operator<=(CAngle rhs) const { return m_value <= rhs.m_value; }
-	constexpr bool   operator>=(CAngle rhs) const { return m_value >= rhs.m_value; }
-	constexpr bool   operator==(CAngle rhs) const { return m_value == rhs.m_value; }
-	constexpr CAngle operator-(CAngle rhs) const { return CAngle(m_value - rhs.m_value); }
-	constexpr CAngle operator+(CAngle rhs) const { return CAngle(m_value + rhs.m_value); }
-	constexpr CAngle operator*(CAngle rhs) const { return CAngle(m_value * rhs.m_value); }
-	constexpr CAngle operator/(CAngle rhs) const { return CAngle(m_value / rhs.m_value); }
-	constexpr CAngle operator*(float rhs) const { return CAngle(m_value * rhs); }
-	constexpr CAngle operator/(float rhs) const { return CAngle(m_value / rhs); }
-	constexpr CAngle operator-() const { return CAngle(-m_value); }
+	constexpr bool          operator<(CAngle rhs) const   { return m_value < rhs.m_value; }
+	constexpr bool          operator>(CAngle rhs) const   { return m_value > rhs.m_value; }
+	constexpr bool          operator<=(CAngle rhs) const  { return m_value <= rhs.m_value; }
+	constexpr bool          operator>=(CAngle rhs) const  { return m_value >= rhs.m_value; }
+	constexpr bool          operator==(CAngle rhs) const  { return m_value == rhs.m_value; }
+	constexpr bool          operator!=(CAngle rhs) const  { return m_value != rhs.m_value; }
+	constexpr CAngle        operator-(CAngle rhs) const   { return CAngle(m_value - rhs.m_value); }
+	constexpr CAngle        operator+(CAngle rhs) const   { return CAngle(m_value + rhs.m_value); }
+	constexpr CAngle        operator*(float rhs) const    { return CAngle(m_value * rhs); }
+	constexpr CAngle        operator/(float rhs) const    { return CAngle(m_value / rhs); }
+	constexpr CAngle        operator-() const             { return CAngle(-m_value); }
 
 	// These should be constexpr when we migrate to C++14
-	CAngle operator-=(const CAngle rhs) { *this = *this - rhs; return *this; }
-	CAngle operator+=(const CAngle rhs) { *this = *this + rhs; return *this; }
-	CAngle operator*=(const CAngle rhs) { *this = *this * rhs; return *this; }
-	CAngle operator/=(const CAngle rhs) { *this = *this / rhs; return *this; }
-	CAngle operator*=(const float rhs)  { *this = *this * rhs; return *this; }
-	CAngle operator/=(const float rhs)  { *this = *this / rhs; return *this; }
+	CAngle&     operator-=(CAngle rhs) { m_value -= rhs.m_value; return *this; }
+	CAngle&     operator+=(CAngle rhs) { m_value += rhs.m_value; return *this; }
+	CAngle&     operator*=(float rhs)  { m_value *= rhs; return *this; }
+	CAngle&     operator/=(float rhs)  { m_value /= rhs; return *this; }
 
 	static void ReflectType(Schematyc::CTypeDesc<CAngle>& desc)
 	{
@@ -74,12 +65,22 @@ inline bool Serialize(Serialization::IArchive& archive, CAngle& value, const cha
 	return archive(Serialization::RadiansAsDeg(value.GetUnderlyingValueAsRadians()), szName, szLabel);
 }
 
-constexpr CAngle operator"" _radians(unsigned long long int value)
+constexpr CAngle operator"" _radians(unsigned long long value)
 {
 	return CAngle::FromRadians((float)value);
 }
 
-constexpr CAngle operator"" _degrees(unsigned long long int value)
+constexpr CAngle operator"" _degrees(unsigned long long value)
+{
+	return CAngle::FromDegrees((float)value);
+}
+
+constexpr CAngle operator"" _radians(long double value)
+{
+	return CAngle::FromRadians((float)value);
+}
+
+constexpr CAngle operator"" _degrees(long double value)
 {
 	return CAngle::FromDegrees((float)value);
 }
@@ -111,14 +112,28 @@ public:
 		z *= vec.z;
 	}
 
-	inline bool operator==(const CAngles3 &rhs) const { return 0 == memcmp(this, &rhs, sizeof(rhs)); }
+	constexpr bool operator==(const CAngles3& rhs) const
+	{
+		return x == rhs.x && y == rhs.y && z == rhs.z;
+	}
+
+	constexpr bool operator!=(const CAngles3& rhs) const
+	{
+		return !(*this == rhs);
+	}
 
 	constexpr CAngles3 operator*(float rhs) const { return CAngles3(x * rhs, y * rhs, z * rhs); }
-	constexpr CAngles3 operator-() const { return CAngles3(-x, -y, -z); }
+	constexpr CAngles3 operator-() const          { return CAngles3(-x, -y, -z); }
 
-	CAngles3 operator*=(float rhs) { *this = *this * rhs; return *this; }
+	CAngles3&          operator*=(float rhs)      { x *= rhs; y *= rhs; z *= rhs; return *this; }
 
-	Ang3 ToAng3() const { return Ang3(x.ToRadians(), y.ToRadians(), z.ToRadians()); }
+	Ang3               ToAng3() const             { return Ang3(x.ToRadians(), y.ToRadians(), z.ToRadians()); }
+
+	// Converts the angles to degree
+	inline Vec3 ToDegrees() const
+	{
+		return Vec3(x.ToDegrees(), y.ToDegrees(), z.ToDegrees());
+	}
 
 	inline void Serialize(Serialization::IArchive& archive)
 	{
@@ -140,32 +155,29 @@ public:
 template<int TMinDegrees = -360, int TMaxDegrees = 360>
 struct CClampedAngle : public CAngle
 {
-	CClampedAngle() 
+	constexpr CClampedAngle() = default;
+
+	// Implicit
+	constexpr CClampedAngle(CAngle angle)
+		: CAngle(ClampedAngle(angle.ToRadians()))
 	{
-		Clamp();
 	}
 
-	CClampedAngle(CAngle value)
-		: CAngle(value)
-	{
-		Clamp();
-	}
-
-	void   operator=(const CAngle& other) { m_value = other.ToRadians(); Clamp(); }
-	bool   operator==(CAngle rhs) const { return ToRadians() == rhs.ToRadians(); }
-	bool   operator==(CClampedAngle rhs) const { return ToRadians() == rhs.ToRadians(); }
-	bool   operator>(CAngle rhs) const { return ToRadians() > rhs.ToRadians(); }
-	CAngle operator-(CAngle rhs) const { return CAngle(ToRadians() - rhs.ToRadians()); Clamp(); }
-	CAngle operator+(CAngle rhs) const { return CAngle(ToRadians() + rhs.ToRadians()); Clamp(); }
-	void   operator-=(CAngle rhs) { m_value -= rhs.ToRadians(); Clamp(); }
-	void   operator+=(CAngle rhs) { m_value += rhs.ToRadians(); Clamp(); }
-	CAngle operator*(CAngle rhs) const { return CAngle(ToRadians() * rhs.ToRadians()); Clamp(); }
-	CAngle operator/(CAngle rhs) const { return CAngle(ToRadians() / rhs.ToRadians()); Clamp(); }
+	CClampedAngle& operator=(CAngle other)  { m_value = other.ToRadians(); Clamp(); return *this; }
+	CClampedAngle& operator-=(CAngle rhs)   { m_value -= rhs.ToRadians(); Clamp(); return *this; }
+	CClampedAngle& operator+=(CAngle rhs)   { m_value += rhs.ToRadians(); Clamp(); return *this; }
+	CClampedAngle& operator*=(float factor) { m_value *= factor; Clamp(); return *this; }
+	CClampedAngle& operator/=(float factor) { m_value /= factor; Clamp(); return *this; }
 
 protected:
 	inline void Clamp()
 	{
-		m_value = clamp_tpl(m_value, DEG2RAD(TMinDegrees), DEG2RAD(TMaxDegrees));
+		m_value = ClampedAngle(m_value);
+	}
+
+	constexpr static float ClampedAngle(float value)
+	{
+		return clamp_tpl(value, DEG2RAD(TMinDegrees), DEG2RAD(TMaxDegrees));
 	}
 };
 
@@ -189,12 +201,5 @@ inline bool Serialize(Serialization::IArchive& archive, CClampedAngle<TMinDegree
 
 } // CryTransform
 
-constexpr CryTransform::CAngle operator"" _radians(long double value)
-{
-	return CryTransform::CAngle::FromRadians((float)value);
-}
-
-constexpr CryTransform::CAngle operator"" _degrees(long double value)
-{
-	return CryTransform::CAngle::FromDegrees((float)value);
-}
+using CryTransform::operator"" _radians;
+using CryTransform::operator"" _degrees;

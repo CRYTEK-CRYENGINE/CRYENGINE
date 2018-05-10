@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -89,6 +89,7 @@ public:
 	virtual void                           RemoveGraphTokens();
 
 	virtual TFlowGraphId                   GetGraphId() const { return m_graphId; }
+	virtual bool                           IsInInitializationPhase() const { return m_bNeedsInitialize; }
 
 	virtual void                           EnsureSortedEdges()
 	{
@@ -432,7 +433,7 @@ ILINE void CFlowGraphBase::PerformActivation(const SFlowAddress addr, const T& v
 
 		int edgeIndex = 0;
 		const bool bFlowGraphDebuggerEnabled = (pToggleDebugger && pToggleDebugger->GetIVal() > 0);
-		const bool notify = gEnv->IsEditor() && m_pFlowGraphDebugger && bFlowGraphDebuggerEnabled && !m_bNeedsInitialize;
+		const bool notify = gEnv->IsEditor() && m_pFlowGraphDebugger && bFlowGraphDebuggerEnabled;
 		const int firstEdgeIndex = m_flowData[addr.node].GetOutputFirstEdge(addr.port);
 
 		// check activations even on unconnected outputs for trace and breakpoints

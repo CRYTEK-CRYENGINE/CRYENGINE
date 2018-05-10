@@ -1,11 +1,11 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
 #include <QWidget>
 
 class QFilteringPanel;
-class QTreeView;
+class QAdvancedTreeView;
 class QAttributeFilterProxyModel;
 class QToolButton;
 class QItemSelection;
@@ -57,7 +57,7 @@ private:
 	CAbstractComponentsModel*   m_pModel;
 
 	QFilteringPanel*            m_pFilter;
-	QTreeView*                  m_pComponentsList;
+	QAdvancedTreeView*          m_pComponentsList;
 	QAttributeFilterProxyModel* m_pFilterProxy;
 	QToolButton*                m_pAddButton;
 	QPopupWidget*               m_pContextMenu;
@@ -65,3 +65,4 @@ private:
 };
 
 }
+

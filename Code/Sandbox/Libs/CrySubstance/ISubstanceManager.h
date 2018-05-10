@@ -23,3 +23,4 @@ class CRY_SUBSTANCE_API ISubstanceManager
 };
 
 
+

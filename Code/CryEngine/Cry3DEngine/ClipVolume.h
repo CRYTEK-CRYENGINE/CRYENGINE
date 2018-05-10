@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #ifndef __INCLUDE_CRY3DENGINE_CLIPVOLUME_H
 #define __INCLUDE_CRY3DENGINE_CLIPVOLUME_H
@@ -9,7 +9,6 @@ class CClipVolume : public IClipVolume
 {
 public:
 	CClipVolume();
-	virtual ~CClipVolume();
 
 	////////////// IClipVolume implementation //////////////
 	virtual void  GetClipVolumeMesh(_smart_ptr<IRenderMesh>& renderMesh, Matrix34& worldTM) const;
@@ -25,9 +24,6 @@ public:
 
 	void Update(_smart_ptr<IRenderMesh> pRenderMesh, IBSPTree3D* pBspTree, const Matrix34& worldTM, uint32 flags);
 
-	void RegisterRenderNode(IRenderNode* pRenderNode);
-	void UnregisterRenderNode(IRenderNode* pRenderNode);
-
 	void GetMemoryUsage(class ICrySizer* pSizer) const;
 
 private:
@@ -41,9 +37,7 @@ private:
 	_smart_ptr<IRenderMesh> m_pRenderMesh;
 	IBSPTree3D*             m_pBspTree;
 
-	PodArray<IRenderNode*>  m_lstRenderNodes;
 	char                    m_sName[64];
-	CryCriticalSection      m_lstRenderNodesCritSection;
 };
 
 #endif //__INCLUDE_CRY3DENGINE_CLIPVOLUME_H

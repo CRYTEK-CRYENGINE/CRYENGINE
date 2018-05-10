@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 
@@ -277,7 +277,7 @@ void GTestPrepPartDeux(geometry_under_test *gtest, Vec3r &offsetWorld)
 
 int CGeometry::Intersect(IGeometry *pCollider, geom_world_data *pdata1,geom_world_data *pdata2, intersection_params *pparams, geom_contact *&pcontacts)
 {
-	//FUNCTION_PROFILER( GetISystem(),PROFILE_PHYSICS );
+	//CRY_PROFILE_FUNCTION(PROFILE_PHYSICS );
 	geometry_under_test gtest[2];
 	geom_world_data *pdata[2] = { pdata1,pdata2 };
 	int i,j,jmax,mask,nContacts=0,iStartNode[2],bActive=0,iCaller;
@@ -561,17 +561,19 @@ float CGeometry::GetExtent(EGeomForm eForm) const
 	return BoxExtent(eForm, box.size);
 }
 
-void CGeometry::GetRandomPos(PosNorm& ran, CRndGen& seed, EGeomForm eForm) const
+void CGeometry::GetRandomPoints(Array<PosNorm> points, CRndGen& seed, EGeomForm eForm) const
 {
 	primitives::box box;
 	non_const(*this).GetBBox(&box);
-	BoxRandomPos(ran, seed, eForm, box.size);
-	if (box.bOriented) {
-		// Transform by transpose of Basis (Vec * Matrix)
-		ran.vPos = ran.vPos * box.Basis;
-		ran.vNorm = ran.vNorm * box.Basis;
+	BoxRandomPoints(points, seed, eForm, box.size);
+	for (auto& ran : points) {
+		if (box.bOriented) {
+			// Transform by transpose of Basis (Vec * Matrix)
+			ran.vPos = ran.vPos * box.Basis;
+			ran.vNorm = ran.vNorm * box.Basis;
+		}
+		ran.vPos += box.center;
 	}
-	ran.vPos += box.center;
 }
 
 void DrawBBox(IPhysRenderer *pRenderer, int idxColor, geom_world_data *gwd, CBVTree *pTree,BBox *pbbox,int maxlevel,int level, int iCaller)
@@ -607,7 +609,7 @@ int CPrimitive::Intersect(IGeometry *_pCollider, geom_world_data *pdata1, geom_w
 	if (!pCollider->IsAPrimitive())
 		return CGeometry::Intersect(pCollider,pdata1,pdata2,pparams,pcontacts);
 
-	//FUNCTION_PROFILER( GetISystem(),PROFILE_PHYSICS );
+	//CRY_PROFILE_FUNCTION(PROFILE_PHYSICS );
 	pdata1 = (geom_world_data*)((intptr_t)pdata1 | -iszero((intptr_t)pdata1) & (intptr_t)&defgwd);
 	pdata2 = (geom_world_data*)((intptr_t)pdata2 | -iszero((intptr_t)pdata2) & (intptr_t)&defgwd);
 	//pparams = (intersection_params*)((intptr_t)pparams | -iszero((intptr_t)pparams) & (intptr_t)&defip);

@@ -1,9 +1,9 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
 #include <CryCore/Platform/CryWindows.h>  // DWORD
-
+#include <CryString/UnicodeFunctions.h>
 
 namespace FileUtil
 {
@@ -53,8 +53,11 @@ namespace FileUtil
 	// returns file time stamps
 	inline bool GetFileTimes(const char* filename, FILETIME* ftimeModify, FILETIME* ftimeCreate)
 	{
-		WIN32_FIND_DATAA FindFileData;
-		const HANDLE hFind = FindFirstFileA(filename, &FindFileData);
+		wstring widePath;
+		Unicode::Convert(widePath, filename);
+
+		WIN32_FIND_DATAW FindFileData;
+		const HANDLE hFind = FindFirstFileW(widePath.c_str(), &FindFileData);
 		if (hFind == INVALID_HANDLE_VALUE)
 		{
 			return false;
@@ -75,8 +78,11 @@ namespace FileUtil
 
 	inline FILETIME GetLastWriteFileTime(const char* filename)
 	{
-		WIN32_FIND_DATAA FindFileData;
-		const HANDLE hFind = FindFirstFileA(filename, &FindFileData);
+		wstring widePath;
+		Unicode::Convert(widePath, filename);
+
+		WIN32_FIND_DATAW FindFileData;
+		const HANDLE hFind = FindFirstFileW(widePath.c_str(), &FindFileData);
 
 		if (hFind == INVALID_HANDLE_VALUE)
 		{
@@ -106,7 +112,10 @@ namespace FileUtil
 
 	inline bool SetFileTimes(const char* const filename, const FILETIME& fileTime)
 	{
-		const HANDLE hf = CreateFileA(filename, FILE_WRITE_ATTRIBUTES, FILE_SHARE_WRITE, 0, OPEN_EXISTING, 0, 0);
+		wstring widePath;
+		Unicode::Convert(widePath, filename);
+
+		const HANDLE hf = CreateFileW(widePath.c_str(), FILE_WRITE_ATTRIBUTES, FILE_SHARE_WRITE, 0, OPEN_EXISTING, 0, 0);
 		if (hf != INVALID_HANDLE_VALUE)
 		{
 			if (SetFileTime(hf, &fileTime, &fileTime, &fileTime))
@@ -125,9 +134,11 @@ namespace FileUtil
 
 	inline __int64 GetFileSize(const char* const filename)
 	{
-		WIN32_FILE_ATTRIBUTE_DATA fileAttr;
+		wstring widePath;
+		Unicode::Convert(widePath, filename);
 
-		const BOOL ok = GetFileAttributesExA(filename, GetFileExInfoStandard, &fileAttr);
+		WIN32_FILE_ATTRIBUTE_DATA fileAttr;
+		const BOOL ok = GetFileAttributesExW(widePath.c_str(), GetFileExInfoStandard, &fileAttr);
 
 		const __int64 fileSize = (__int64)
 			((((unsigned __int64)((unsigned __int32)fileAttr.nFileSizeHigh)) << 32) | 
@@ -136,17 +147,25 @@ namespace FileUtil
 		return (ok && (fileSize >= 0)) ? fileSize : -1;
 	}
 
-	inline bool FileExists(const char* szPath)
-	{
-		const DWORD dwAttr = GetFileAttributesA(szPath);
-		return dwAttr != INVALID_FILE_ATTRIBUTES && !(dwAttr & FILE_ATTRIBUTE_DIRECTORY);
-	}
-
 	inline bool FileExists(const wchar_t* szPath)
 	{
 		const DWORD dwAttr = GetFileAttributesW(szPath);
 		return dwAttr != INVALID_FILE_ATTRIBUTES && !(dwAttr & FILE_ATTRIBUTE_DIRECTORY);
-	}	
+	}
+
+	inline bool FileExists(const char* szPath)
+	{
+		wstring widePath;
+		Unicode::Convert(widePath, szPath);
+
+		return FileExists(widePath.c_str());
+	}
+
+	inline bool DirectoryExists(const wchar_t* szPath)
+	{
+		const DWORD dwAttr = ::GetFileAttributesW(szPath);
+		return dwAttr != INVALID_FILE_ATTRIBUTES && (dwAttr & FILE_ATTRIBUTE_DIRECTORY) != 0;
+	}
 
 	// Examples of paths that will return true:
 	//   "existing_dir", "existing_dir/", "existing_dir/subdir", "e:", "e://", "e:.", "e:/a", ".", "..", "//storage/builds"
@@ -154,16 +173,18 @@ namespace FileUtil
 	//   "", "//storage", "//storage/.", "nonexisting_dir", "f:/" (if f: drive doesn't exist)
 	inline bool DirectoryExists(const char* szPath)
 	{
-		const DWORD dwAttr = GetFileAttributesA(szPath);
-		return (dwAttr != INVALID_FILE_ATTRIBUTES) && ((dwAttr & FILE_ATTRIBUTE_DIRECTORY) != 0);
+		wstring widePath;
+		Unicode::Convert(widePath, szPath);
+
+		return DirectoryExists(widePath.c_str());
 	}
 
 	void FindFiles(
-		std::vector<wstring>& resultFiles,
+		std::vector<string>& resultFiles,
 		const int maxFileCount,
-		const wstring& root,
-		const wstring& path,
+		const string& root,
+		const string& path,
 		bool recursive,
-		const wstring& fileMask,
-		const std::vector<wstring>& dirsToIgnore);
+		const string& fileMask,
+		const std::vector<string>& dirsToIgnore);
 };

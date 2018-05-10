@@ -1,29 +1,24 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
-#if CRY_PLATFORM_WINAPI || _MSC_EXTENSIONS
-	#if _MSC_VER
-		#define DX11_STRINGIFY(_STRING) # _STRING
+#if (CRY_PLATFORM_WINAPI || _MSC_EXTENSIONS) && _MSC_VER
+	#define DX11_STRINGIFY(_STRING) # _STRING
 
-		#define DX11_GUID_STRING(_D0, _W0, _W1, _B0, _B1, _B2, _B3, _B4, _B5, _B6, _B7) \
-			  DX11_STRINGIFY(_D0 ## - ## _W0 ## - ## _W1 ## - ## _B0 ## _B1 ## - ## _B2 ## _B3 ## _B4 ## _B5 ## _B6 ## _B7)
+	#define DX11_GUID_STRING(_D0, _W0, _W1, _B0, _B1, _B2, _B3, _B4, _B5, _B6, _B7) \
+		  DX11_STRINGIFY(_D0 ## - ## _W0 ## - ## _W1 ## - ## _B0 ## _B1 ## - ## _B2 ## _B3 ## _B4 ## _B5 ## _B6 ## _B7)
 
-		#define DX11_DEFINE_TYPE_GUID(_CLASS, _TYPE, _D0, _W0, _W1, _B0, _B1, _B2, _B3, _B4, _B5, _B6, _B7) \
-			  _CLASS __declspec(uuid(DX11_GUID_STRING(_D0, _W0, _W1, _B0, _B1, _B2, _B3, _B4, _B5, _B6, _B7))) _TYPE;
-	#else
-		#define DX11_GUID_QUOTE(_STRING) # _STRING
-		#define DX11_GUID_STRING(_D0, _W0, _W1, _B0, _B1, _B2, _B3, _B4, _B5, _B6, _B7) \
-				  DX11_GUID_QUOTE(_D0) "-"	\
-				  DX11_GUID_QUOTE(_W0) "-" DX11_GUID_QUOTE(_W1) "-"	\
-				  DX11_GUID_QUOTE(_B0) DX11_GUID_QUOTE(_B1) "-"	\
-				  DX11_GUID_QUOTE(_B2) DX11_GUID_QUOTE(_B3) DX11_GUID_QUOTE(_B4) DX11_GUID_QUOTE(_B5) DX11_GUID_QUOTE(_B6) DX11_GUID_QUOTE(_B7)
-		#define DX11_DEFINE_TYPE_GUID(_CLASS, _TYPE, _D0, _W0, _W1, _B0, _B1, _B2, _B3, _B4, _B5, _B6, _B7) \
-				  _CLASS __declspec(uuid(DX11_GUID_STRING(_D0, _W0, _W1, _B0, _B1, _B2, _B3, _B4, _B5, _B6, _B7))) _TYPE;
-	#endif
+	#define DX11_DEFINE_TYPE_GUID(_CLASS, _TYPE, _D0, _W0, _W1, _B0, _B1, _B2, _B3, _B4, _B5, _B6, _B7) \
+		  _CLASS __declspec(uuid(DX11_GUID_STRING(_D0, _W0, _W1, _B0, _B1, _B2, _B3, _B4, _B5, _B6, _B7))) _TYPE;
 #else
-	//implement GUID for other platforms
-	#error "NOT IMPLEMENTED!"
+	#define DX11_GUID_QUOTE(_STRING) # _STRING
+	#define DX11_GUID_STRING(_D0, _W0, _W1, _B0, _B1, _B2, _B3, _B4, _B5, _B6, _B7) \
+			  DX11_GUID_QUOTE(_D0) "-"	\
+			  DX11_GUID_QUOTE(_W0) "-" DX11_GUID_QUOTE(_W1) "-"	\
+			  DX11_GUID_QUOTE(_B0) DX11_GUID_QUOTE(_B1) "-"	\
+			  DX11_GUID_QUOTE(_B2) DX11_GUID_QUOTE(_B3) DX11_GUID_QUOTE(_B4) DX11_GUID_QUOTE(_B5) DX11_GUID_QUOTE(_B6) DX11_GUID_QUOTE(_B7)
+	#define DX11_DEFINE_TYPE_GUID(_CLASS, _TYPE, _D0, _W0, _W1, _B0, _B1, _B2, _B3, _B4, _B5, _B6, _B7) \
+			  _CLASS __declspec(uuid(DX11_GUID_STRING(_D0, _W0, _W1, _B0, _B1, _B2, _B3, _B4, _B5, _B6, _B7))) _TYPE;
 #endif
 
 #if !DX11_COM_INTERFACES

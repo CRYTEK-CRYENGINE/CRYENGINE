@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -22,7 +22,7 @@ struct GoalParams;
 class CScriptBind_Entity : public CScriptableBase
 {
 public:
-	CScriptBind_Entity(IScriptSystem* pSS, ISystem* pSystem, IEntitySystem* pEntitySystem);
+	CScriptBind_Entity(IScriptSystem* pSS, ISystem* pSystem);
 
 	void         DelegateCalls(IScriptTable* pInstanceTable);
 
@@ -1393,16 +1393,15 @@ private: // --------------------------------------------------------------------
 	friend class CEntityComponentLuaScript;
 
 	// Helper function to get IEntity pointer from IFunctionHandler
-	IEntity* GetEntity(IFunctionHandler* pH);
+	CEntity* GetEntity(IFunctionHandler* pH);
 	Vec3     GetGlobalGravity() const { return Vec3(0, 0, -9.81f); }
 	int      SetEntityPhysicParams(IFunctionHandler* pH, IPhysicalEntity* pe, int type, IScriptTable* pTable, ICharacterInstance* pIChar = nullptr);
 	EntityId GetEntityID(IScriptTable* pEntityTable);
 
-	IEntitySystem* m_pEntitySystem;
-	ISystem*       m_pISystem;
+	ISystem* m_pISystem;
 
-	bool ParseLightParams(IScriptTable* pLightTable, CDLight& light);
-	bool ParseFogVolumesParams(IScriptTable* pTable, IEntity* pEntity, SFogVolumeProperties& properties);
+	bool ParseLightParams(IScriptTable* pLightTable, SRenderLight& light);
+	bool ParseFogVolumesParams(IScriptTable* pTable, CEntity* pEntity, SFogVolumeProperties& properties);
 
 	// Parse script table to the entity physical params table.
 	bool ParsePhysicsParams(IScriptTable* pTable, SEntityPhysicalizeParams& params);

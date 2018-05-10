@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 /*************************************************************************
 -------------------------------------------------------------------------
@@ -41,7 +41,7 @@ void CRandomNumberDeck::Shuffle()
 
 	if(!m_deck.empty())
 	{
-		std::random_shuffle(m_deck.begin(), m_deck.end(), m_randomIntGenerator);
+		std::shuffle(m_deck.begin(), m_deck.end(), m_randomIntGenerator);
 	}
 }
 

@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 /*************************************************************************
 -------------------------------------------------------------------------
@@ -254,7 +254,7 @@ void CPlayerHealthGameEffect::Start()
 			assert(pMaterialEffects);
 
 			SMFXRunTimeEffectParams effectParams;
-			effectParams.pos = gEnv->pRenderer->GetCamera().GetPosition();
+			effectParams.pos = GetISystem()->GetViewCamera().GetPosition();
 			//effectParams.soundSemantic = eSoundSemantic_None;
 
 			pMaterialEffects->ExecuteEffect(m_playerHealthEffectId, effectParams);
@@ -349,7 +349,7 @@ void CPlayerHealthGameEffect::OnKill()
 			IMaterialEffects* pMaterialEffects = gEnv->pGameFramework->GetIMaterialEffects();
 
 			SMFXRunTimeEffectParams effectParams;
-			effectParams.pos = gEnv->pRenderer->GetCamera().GetPosition();
+			effectParams.pos = GetISystem()->GetViewCamera().GetPosition();
 			//effectParams.soundSemantic = eSoundSemantic_None;
 
 			pMaterialEffects->ExecuteEffect(m_playerDeathEffectId, effectParams);

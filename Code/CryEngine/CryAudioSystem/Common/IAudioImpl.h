@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -31,11 +31,10 @@ struct IImpl
 	/** @endcond */
 
 	/**
-	 * Update all of the internal components that require regular updates, update the audio middleware state.
-	 * @param deltaTime - Time since the last call to Update in milliseconds.
+	 * Is called at roughly the same rate as the external thread and a minimum rate if the external thread falls below a given threshold.
 	 * @return void
 	 */
-	virtual void Update(float const deltaTime) = 0;
+	virtual void Update() = 0;
 
 	/**
 	 * Initialize all internal components and the audio middleware.
@@ -102,6 +101,20 @@ struct IImpl
 	 * @see MuteAll
 	 */
 	virtual ERequestStatus UnmuteAll() = 0;
+
+	/**
+	 * Pauses playback of all audio events.
+	 * @return ERequestStatus::Success if the action was successful, ERequestStatus::Failure otherwise.
+	 * @see ResumeAll
+	 */
+	virtual ERequestStatus PauseAll() = 0;
+
+	/**
+	 * Resumes playback of all audio events.
+	 * @return ERequestStatus::Success if the action was successful, ERequestStatus::Failure otherwise.
+	 * @see PauseAll
+	 */
+	virtual ERequestStatus ResumeAll() = 0;
 
 	/**
 	 * Stop all currently playing sounds. Has no effect on anything triggered after this method is called.
@@ -337,21 +350,22 @@ struct IImpl
 	 */
 	virtual void SetLanguage(char const* const szLanguage) = 0;
 
+	/**
+	 * Return a string of the audio middeware folder name plus a separator. This string is used for building the path
+	 * to audio files and audio controls editor data.
+	 * @param[out] implInfo - a reference to an instance of SImplInfo
+	 * @return void
+	 */
+	virtual void GetInfo(SImplInfo& implInfo) const = 0;
+
 	//////////////////////////////////////////////////////////////////////////
 	// NOTE: The methods below are ONLY USED when INCLUDE_AUDIO_PRODUCTION_CODE is defined!
 	//////////////////////////////////////////////////////////////////////////
 
 	/**
-	 * Return a string describing the audio middleware used. This string is printed on
-	 * the first line of the AudioDebug header shown on the screen whenever s_DrawAudioDebug is not 0
-	 * @return A zero-terminated C-string with the description of the audio middleware used by this AudioImplementation.
-	 */
-	virtual char const* const GetName() const = 0;
-
-	/**
 	 * Fill in the memoryInfo describing the current memory usage of this AudioImplementation.
 	 * This data gets displayed in the AudioDebug header shown on the screen whenever s_DrawAudioDebug is not 0
-	 * @param memoryInfo - a reference to an instance of SMemoryInfo
+	 * @param[out] memoryInfo - a reference to an instance of SMemoryInfo
 	 * @return void
 	 */
 	virtual void GetMemoryInfo(SMemoryInfo& memoryInfo) const = 0;
@@ -359,8 +373,8 @@ struct IImpl
 	/**
 	 * Asks the audio implementation to fill the fileData structure with data (e.g. duration of track) relating to the
 	 * standalone file referenced in szName.
-	 * @param szName - filepath to the standalone file
-	 * @param fileData - a reference to an instance of SAudioFileData
+	 * @param[in] szName - filepath to the standalone file
+	 * @param[out] fileData - a reference to an instance of SAudioFileData
 	 * @return void
 	 */
 	virtual void GetFileData(char const* const szName, SFileData& fileData) const = 0;

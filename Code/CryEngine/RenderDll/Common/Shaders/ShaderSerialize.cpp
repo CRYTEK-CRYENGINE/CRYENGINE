@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 /*=============================================================================
    ShaderSerialize.cpp : implementation of the Shaders serialization manager.
@@ -90,9 +90,7 @@ bool CShaderSerialize::_OpenSResource(float fVersion, SSShaderRes* pSR, CShader*
 		if (!pRF->mfOpen(RA_CREATE | (CParserBin::m_bEndians ? RA_ENDIANS : 0), NULL, NULL))
 			return false;
 
-		SDirEntry de;
-		de.Name = CShaderMan::s_cNameHEAD;
-		de.size = sizeof(SSShaderCacheHeader);
+		CDirEntry de(CShaderMan::s_cNameHEAD ,sizeof(SSShaderCacheHeader));
 		hd.m_SizeOf = sizeof(SSShaderCacheHeader);
 		hd.m_MinorVer = (int)(((float)fVersion - (float)(int)fVersion) * 10.1f);
 		hd.m_MajorVer = (int)fVersion;
@@ -111,9 +109,9 @@ bool CShaderSerialize::_OpenSResource(float fVersion, SSShaderRes* pSR, CShader*
 		//create dir
 		pRF->mfFileAdd(&de);
 		//open dir and populate data
-		SDirEntryOpen* pOpenDir = pRF->mfOpenEntry(&de);
+		SDirEntryOpen* pOpenDir = pRF->mfOpenEntry(de.GetName());
 		pOpenDir->pData = pHD;
-		pOpenDir->nSize = de.size;
+		pOpenDir->nSize = de.GetSize();
 
 		pRF->mfFlush();
 		bValid = true;
@@ -136,20 +134,27 @@ bool CShaderSerialize::_OpenSResource(float fVersion, SSShaderRes* pSR, CShader*
 
 bool CShaderSerialize::OpenSResource(const char* szName, SSShaderRes* pSR, CShader* pSH, bool bDontUseUserFolder, bool bReadOnly)
 {
-	CResFile* rfRO = new CResFile(szName);
-	float fVersion = (float)FX_CACHE_VER + (float)(FX_SER_CACHE_VER);
-	bool bValidRO = _OpenSResource(fVersion, pSR, pSH, bDontUseUserFolder ? CACHE_READONLY : CACHE_USER, rfRO, bReadOnly);
-
+	bool bValidRO   = false;
 	bool bValidUser = false;
-	#if !defined(SHADER_NO_SOURCES)
-	CResFile* rfUser;
+
+	float fVersion = (float)FX_CACHE_VER + (float)(FX_SER_CACHE_VER);
+
+	// check %ENGINE% first
+	{
+		stack_string szEngine = stack_string("%ENGINE%/") + stack_string(szName);
+		CResFile* rfRO = new CResFile(szEngine.c_str());
+		bValidRO = _OpenSResource(fVersion, pSR, pSH, bDontUseUserFolder ? CACHE_READONLY : CACHE_USER, rfRO, bReadOnly);
+	}
+
+	// now %USER%
+#if !defined(SHADER_NO_SOURCES)
 	if (!bDontUseUserFolder)
 	{
 		stack_string szUser = stack_string(gRenDev->m_cEF.m_szUserPath.c_str()) + stack_string(szName);
-		rfUser = new CResFile(szUser.c_str());
+		CResFile* rfUser = new CResFile(szUser.c_str());
 		bValidUser = _OpenSResource(fVersion, pSR, pSH, CACHE_USER, rfUser, bReadOnly);
 	}
-	#endif
+#endif
 
 	return (bValidRO || bValidUser);
 }
@@ -158,12 +163,7 @@ bool CShaderSerialize::CreateSResource(CShader* pSH, SSShaderRes* pSR, CCryNameT
 {
 	string dstName;
 	dstName.reserve(512);
-
-	if (m_customSerialisePath.size())
-	{
-		dstName = m_customSerialisePath.c_str();
-	}
-	dstName += gRenDev->m_cEF.m_ShadersCache;
+	dstName  = gRenDev->m_cEF.m_ShadersCache;
 	dstName += pSH->GetName();
 	dstName += ".fxb";
 
@@ -466,23 +466,20 @@ bool CShaderSerialize::ExportShader(CShader* pSH, CShaderManBin& binShaderMgr)
 	}
 
 	int nLen = Data.Num();
-	SDirEntry de;
 	char sName[128];
 	#if defined(__GNUC__)
 	cry_sprintf(sName, "(%llx)", pSH->m_nMaskGenFX);
 	#else
 	cry_sprintf(sName, "(%I64x)", pSH->m_nMaskGenFX);
 	#endif
-	de.Name = CCryNameTSCRC(sName);
-	de.size = nLen;
 
-	de.flags |= RF_COMPRESS;
+	CDirEntry de(sName, nLen, RF_COMPRESS);
 	pSR->m_pRes[CACHE_USER]->mfFileAdd(&de);
 
 	//create open dir and populate data
-	SDirEntryOpen* pOpenDir = pSR->m_pRes[CACHE_USER]->mfOpenEntry(&de);
+	SDirEntryOpen* pOpenDir = pSR->m_pRes[CACHE_USER]->mfOpenEntry(de.GetName());
 	pOpenDir->pData = &Data[0];
-	pOpenDir->nSize = de.size;
+	pOpenDir->nSize = de.GetSize();
 
 	//Preserve modification time
 	uint64 modTime = pSR->m_pRes[CACHE_USER]->mfGetModifTime();
@@ -510,7 +507,7 @@ bool CShaderSerialize::CheckFXBExists(CShader* pSH)
 	#endif
 
 	CCryNameTSCRC CName = CCryNameTSCRC(sName);
-	SDirEntry* pDE = NULL;
+	CDirEntry* pDE = NULL;
 	CResFile* pRes = NULL;
 
 	for (int i = 0; i < 2; i++)
@@ -548,7 +545,7 @@ bool CShaderSerialize::ImportShader(CShader* pSH, CShaderManBin& binShaderMgr)
 	cry_sprintf(sName, "(%I64x)", pSH->m_nMaskGenFX);
 	#endif
 	CCryNameTSCRC CName = CCryNameTSCRC(sName);
-	SDirEntry* pDE = NULL;
+	CDirEntry* pDE = NULL;
 	CResFile* pRes = NULL;
 
 	// Not found yet
@@ -582,9 +579,7 @@ bool CShaderSerialize::ImportShader(CShader* pSH, CShaderManBin& binShaderMgr)
 		gRenDev->LogShaderImportMiss(pSH);
 	}
 
-	CShader* pSave = gRenDev->m_RP.m_pShader;
-	gRenDev->m_RP.m_pShader = pSH;
-	assert(gRenDev->m_RP.m_pShader != 0);
+	assert(pSH != nullptr);
 
 	int nSize = pRes->mfFileRead(pDE);
 	byte* pData = (byte*)pRes->mfFileGetBuf(pDE);
@@ -733,7 +728,7 @@ bool CShaderSerialize::ImportShader(CShader* pSH, CShaderManBin& binShaderMgr)
 		memcpy(&SC.Data[0], &pSrc[SC.SSR.m_nDataOffset], SC.SSR.m_nDataSize);
 	}
 
-	pRes->mfFileClose(pDE);
+	pRes->mfFileClose(pDE->GetName(), pDE->GetFlags());
 
 	g_fTime1 += iTimer->GetAsyncCurTime() - fTime1;
 
@@ -851,7 +846,6 @@ bool CShaderSerialize::ImportShader(CShader* pSH, CShaderManBin& binShaderMgr)
 
 		pSH->m_HWTechniques.AddElem(pT);
 	}
-	gRenDev->m_RP.m_pShader = pSave;
 
 	g_fTime2 += iTimer->GetAsyncCurTime() - fTime2;
 

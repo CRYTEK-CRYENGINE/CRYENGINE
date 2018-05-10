@@ -1,10 +1,9 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 
 #include <IResourceSelectorHost.h>
 #include <QtUtil.h>
-#include <QPointer>
 #include <Controls/DictionaryWidget.h>
 #include <Controls/QPopupWidget.h>
 #include <CrySchematyc/Utils/Assert.h>
@@ -115,6 +114,44 @@ public:
 
 	// CryGraphEditor::CAbstractDictionary
 
+	virtual void ResetEntries() override
+	{
+		m_rootEntries.clear();
+
+		const uint32 optionCount = m_pQuickSearchOptions->GetCount();
+		m_rootEntries.reserve(optionCount);
+
+		for (uint32 optionIdx = 0; optionIdx < optionCount; ++optionIdx)
+		{
+			QString fullName = m_pQuickSearchOptions->GetLabel(optionIdx);
+			QStringList names = fullName.split(m_pQuickSearchOptions->GetDelimiter());
+
+			CStringListDictionaryEntry* pParentEntry = nullptr;
+			for (uint32 nameIdx = 0, nameCount = names.size(); nameIdx < nameCount; ++nameIdx)
+			{
+				const QString& name = names[nameIdx];
+				CStringListDictionaryEntry* pEntry = FindStringListDictionaryEntry(pParentEntry ? pParentEntry->GetChildren() : m_rootEntries, name);
+				if (pEntry)
+				{
+					pParentEntry = pEntry;
+				}
+				else
+				{
+					const uint32 type = nameIdx < (nameCount - 1) ? CAbstractDictionaryEntry::Type_Folder : CAbstractDictionaryEntry::Type_Entry;
+					if (pParentEntry)
+					{
+						pParentEntry = pParentEntry->AddChild(type, name);
+					}
+					else
+					{
+						m_rootEntries.emplace_back(new CStringListDictionaryEntry(type, name));
+						pParentEntry = m_rootEntries.back().get();
+					}
+				}
+			}
+		}
+	}
+
 	virtual int32 GetNumEntries() const override
 	{
 		return m_rootEntries.size();
@@ -148,47 +185,17 @@ public:
 
 	void Load(const Schematyc::IQuickSearchOptions& quickSearchOptions)
 	{
-		m_rootEntries.clear();
-
-		const uint32 optionCount = quickSearchOptions.GetCount();
-		m_rootEntries.reserve(optionCount);
-
-		for (uint32 optionIdx = 0; optionIdx < optionCount; ++optionIdx)
-		{
-			QString fullName = quickSearchOptions.GetLabel(optionIdx);
-			QStringList names = fullName.split(quickSearchOptions.GetDelimiter());
-
-			CStringListDictionaryEntry* pParentEntry = nullptr;
-			for (uint32 nameIdx = 0, nameCount = names.size(); nameIdx < nameCount; ++nameIdx)
-			{
-				const QString& name = names[nameIdx];
-				CStringListDictionaryEntry* pEntry = FindStringListDictionaryEntry(pParentEntry ? pParentEntry->GetChildren() : m_rootEntries, name);
-				if (pEntry)
-				{
-					pParentEntry = pEntry;
-				}
-				else
-				{
-					const uint32 type = nameIdx < (nameCount - 1) ? CAbstractDictionaryEntry::Type_Folder : CAbstractDictionaryEntry::Type_Entry;
-					if (pParentEntry)
-					{
-						pParentEntry = pParentEntry->AddChild(type, name);
-					}
-					else
-					{
-						m_rootEntries.emplace_back(new CStringListDictionaryEntry(type, name));
-						pParentEntry = m_rootEntries.back().get();
-					}
-				}
-			}
-		}
+		m_pQuickSearchOptions = &quickSearchOptions;
+		Reset();
+		m_pQuickSearchOptions = nullptr;
 	}
 
 private:
 
-	static const uint32         s_invalidIdx = 0xffffffff;
+	static const uint32                   s_invalidIdx = 0xffffffff;
 
-	StringListDictionaryEntries m_rootEntries;
+	StringListDictionaryEntries           m_rootEntries;
+	const Schematyc::IQuickSearchOptions* m_pQuickSearchOptions;
 };
 
 namespace Schematyc
@@ -204,12 +211,12 @@ dll_string StringListStaticQuickSearchSelector(const SResourceSelectorContext& c
 		static CStringListDictionary dictionary;
 		dictionary.Load(*pOptions);
 
-		QPointer<CModalPopupDictionary> pPopup = new CModalPopupDictionary(pOptions->GetHeader(), dictionary);
+		CModalPopupDictionary popup(pOptions->GetHeader(), dictionary);
 
 		const QPoint pos = QCursor::pos();
-		pPopup->ExecAt(pos, QPopupWidget::TopRight);
+		popup.ExecAt(pos, QPopupWidget::TopRight);
 
-		CStringListDictionaryEntry* pEntry = static_cast<CStringListDictionaryEntry*>(pPopup->GetResult());
+		CStringListDictionaryEntry* pEntry = static_cast<CStringListDictionaryEntry*>(popup.GetResult());
 		if (pEntry)
 		{
 			return QtUtil::ToString(pEntry->GetName()).c_str();
@@ -227,12 +234,12 @@ dll_string StringListQuickSearchSelector(const SResourceSelectorContext& context
 		static CStringListDictionary dictionary;
 		dictionary.Load(*pOptions);
 
-		QPointer<CModalPopupDictionary> pPopup = new CModalPopupDictionary(pOptions->GetHeader(), dictionary);
+		CModalPopupDictionary popup(pOptions->GetHeader(), dictionary);
 
 		const QPoint pos = QCursor::pos();
-		pPopup->ExecAt(pos, QPopupWidget::TopRight);
+		popup.ExecAt(pos, QPopupWidget::TopRight);
 
-		CStringListDictionaryEntry* pEntry = static_cast<CStringListDictionaryEntry*>(pPopup->GetResult());
+		CStringListDictionaryEntry* pEntry = static_cast<CStringListDictionaryEntry*>(popup.GetResult());
 		if (pEntry)
 		{
 			return QtUtil::ToString(pEntry->GetName()).c_str();
@@ -241,7 +248,8 @@ dll_string StringListQuickSearchSelector(const SResourceSelectorContext& context
 	return "";
 }
 
-REGISTER_RESOURCE_SELECTOR("StringListStaticQuickSearch", StringListStaticQuickSearchSelector, "icons:General/Search.ico")
-REGISTER_RESOURCE_SELECTOR("StringListQuickSearch", StringListQuickSearchSelector, "icons:General/Search.ico")
+REGISTER_RESOURCE_SELECTOR("StringListStaticSearch", StringListStaticQuickSearchSelector, "icons:General/Search.ico")
+REGISTER_RESOURCE_SELECTOR("StringListSearch", StringListQuickSearchSelector, "icons:General/Search.ico")
 } // SerializationUtils
 } // Schematyc
+

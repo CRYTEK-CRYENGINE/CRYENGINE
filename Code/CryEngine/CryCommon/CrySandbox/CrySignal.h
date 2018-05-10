@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -29,6 +29,8 @@ struct Observer
 
 template<typename Signature> class CrySignalBase
 {
+protected:
+
 };
 
 template<typename... Args>
@@ -38,10 +40,10 @@ public:
 	void operator()(Args... args) const
 	{
 		//Iterating is done as such on purpose to avoid problems if the signal is resized during iteration
-		const int count = m_observers.size();
+		const int count = this->m_observers.size();
 		for (int i = count - 1; i >= 0; i--)
 		{
-			m_observers[i].m_function(args...);
+			this->m_observers[i].m_function(args...);
 		}
 	}
 
@@ -91,20 +93,20 @@ template<typename Signature>
 template<typename Object, typename MemberFunction, typename std::enable_if<CryMemFunTraits<MemberFunction>::isMemberFunction, int>::type*>
 void CCrySignal<Signature >::Connect(Object* pObject, MemberFunction function, uintptr_t forceId /*= 0*/)
 {
-	TObserver observer;
+	typename CCrySignal<Signature>::TObserver observer;
 	observer.m_id = forceId == 0 ? reinterpret_cast<uintptr_t>(pObject) : forceId;
 	observer.SetMemberFunction(pObject, function);
-	m_observers.push_back(observer);
+	this->m_observers.push_back(observer);
 }
 
 template<typename Signature>
 template<typename Function, typename std::enable_if<IsCallable<Function>::value, int>::type*>
 void CCrySignal<Signature >::Connect(const Function& function, uintptr_t id /*= 0*/)
 {
-	TObserver observer;
+	typename CCrySignal<Signature>::TObserver observer;
 	observer.m_id = id;
 	observer.SetFunction(function);
-	m_observers.push_back(observer);
+	this->m_observers.push_back(observer);
 }
 
 template<typename Signature>
@@ -116,10 +118,10 @@ void CCrySignal<Signature >::DisconnectObject(void* pObject)
 template<typename Signature>
 void CCrySignal<Signature >::DisconnectById(uintptr_t id)
 {
-	for (auto it = m_observers.begin(); it != m_observers.end(); )
+	for (auto it = this->m_observers.begin(); it != this->m_observers.end(); )
 	{
 		if (it->m_id == id)
-			it = m_observers.erase(it);
+			it = this->m_observers.erase(it);
 		else
 			++it;
 	}
@@ -128,5 +130,5 @@ void CCrySignal<Signature >::DisconnectById(uintptr_t id)
 template<typename Signature>
 void CCrySignal<Signature >::DisconnectAll()
 {
-	m_observers.clear();
+	this->m_observers.clear();
 }

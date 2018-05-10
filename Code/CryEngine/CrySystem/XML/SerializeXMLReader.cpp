@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "SerializeXMLReader.h"
@@ -110,8 +110,8 @@ bool CSerializeXMLReaderImpl::ReadScript(XmlNodeRef nodeRef, ScriptAnyValue& val
 			int childCount = nodeRef->getChildCount();
 			int arrayIndex = 0;
 			SmartScriptTable tbl;
-			if (value.type == ANY_TTABLE && value.table)
-				tbl = value.table;
+			if (value.GetType() == EScriptAnyType::Table && value.GetScriptTable())
+				tbl = value.GetScriptTable();
 			else
 				tbl = SmartScriptTable(gEnv->pScriptSystem);
 			int nCount = min(arrayCount, childCount);
@@ -134,8 +134,8 @@ bool CSerializeXMLReaderImpl::ReadScript(XmlNodeRef nodeRef, ScriptAnyValue& val
 		{
 			int childCount = nodeRef->getChildCount();
 			SmartScriptTable tbl;
-			if (value.type == ANY_TTABLE && value.table)
-				tbl = value.table;
+			if (value.GetType() == EScriptAnyType::Table && value.GetScriptTable())
+				tbl = value.GetScriptTable();
 			else
 				tbl = SmartScriptTable(gEnv->pScriptSystem);
 			for (int i = 0; i < childCount; i++)

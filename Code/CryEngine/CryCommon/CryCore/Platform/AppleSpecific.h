@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 // -------------------------------------------------------------------------
 //  File name:   MacSpecific.h
@@ -395,6 +395,7 @@ typedef struct in_addr_windows
 	#define __debugbreak() raise(SIGTRAP)
 
 	#define __assume(x)
+	#define __analysis_assume(x)
 	#define _flushall sync
 
 //! We take the definition of the pthread_t type directly from the pthread file.

@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -142,7 +142,7 @@ inline const char* strnstr(const char* szString, const char* szSubstring, int nS
 	if (!nSubstringLength)
 		return szString;
 
-	for (int nSubstringPos = 0; szString[nSubstringPos] && nSubstringPos < nSuperstringLength - nSubstringLength; ++nSubstringPos)
+	for (int nSubstringPos = 0; szString[nSubstringPos] && nSubstringPos <= nSuperstringLength - nSubstringLength; ++nSubstringPos)
 	{
 		if (strncmp(szString + nSubstringPos, szSubstring, nSubstringLength) == 0)
 			return szString + nSubstringPos;

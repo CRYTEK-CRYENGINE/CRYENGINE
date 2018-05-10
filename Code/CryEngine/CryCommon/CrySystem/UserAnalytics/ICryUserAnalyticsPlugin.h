@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -6,7 +6,7 @@
 
 struct IUserAnalytics;
 
-struct ICryUserAnalyticsPlugin : public ICryPlugin
+struct ICryUserAnalyticsPlugin : public Cry::IEnginePlugin
 {
 	CRYINTERFACE_DECLARE_GUID(ICryUserAnalyticsPlugin, "c97ad475-fd95-416d-9c30-48b2d2c5b7f6"_cry_guid);
 

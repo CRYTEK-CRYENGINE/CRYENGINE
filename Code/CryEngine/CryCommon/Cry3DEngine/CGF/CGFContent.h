@@ -1,20 +1,7 @@
-////////////////////////////////////////////////////////////////////////////
-//
-//  Crytek Engine Source File.
-//  Copyright (C), Crytek Studios, 2002.
-// -------------------------------------------------------------------------
-//  File name:   CGFContent.h
-//  Version:     v1.00
-//  Created:     7/11/2004 by Timur.
-//  Compilers:   Visual Studio.NET
-//  Description: Describe contents on CGF file.
-// -------------------------------------------------------------------------
-//  History:
-//
-////////////////////////////////////////////////////////////////////////////
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
-#ifndef __CGFContent_h__
-#define __CGFContent_h__
+//! \cond INTERNAL
+
 #pragma once
 
 #include <Cry3DEngine/IIndexedMesh.h>   // <> required for Interfuscator
@@ -814,4 +801,4 @@ private:
 	IChunkFile*                        m_pOwnChunkFile;
 };
 
-#endif //__CGFContent_h__
+//! \endcond

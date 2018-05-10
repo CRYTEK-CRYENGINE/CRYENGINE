@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "MoveOp.h"
@@ -214,7 +214,7 @@ Vec3               MoveOp::DestinationPositionFor(CPipeUser& pipeUser)
 							const float lookAheadDistance = 6.0f; // experimental value
 							const Vec3 positionToMoveTo = m_formationInfo.positionInFormation + dir * lookAheadDistance;
 
-							if (gAIEnv.pNavigationSystem->IsPointReachableFromPosition(pipeUser.GetNavigationTypeID(), pipeUser.GetPathAgentEntity(), pipeUser.GetEntity()->GetPos(), positionToMoveTo))
+							if (gAIEnv.pNavigationSystem->IsPointReachableFromPosition(pipeUser.GetNavigationTypeID(), pipeUser.GetPathAgentEntity(), pipeUser.GetEntity()->GetPos(), positionToMoveTo, nullptr))
 							{
 								m_formationInfo.positionInFormationIsReachable = true;
 								return positionToMoveTo;

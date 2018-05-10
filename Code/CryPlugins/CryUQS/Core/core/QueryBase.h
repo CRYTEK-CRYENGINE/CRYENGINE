@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -43,12 +43,12 @@ namespace UQS
 
 			struct SCtorContext
 			{
-				explicit                                SCtorContext(const CQueryID& _queryID, const char* _szQuerierName, const HistoricQuerySharedPtr& _pOptionalHistoryToWriteTo, std::unique_ptr<CItemList>& _pOptionalResultingItemsFromPreviousChainedQuery);
+				explicit                                SCtorContext(const CQueryID& _queryID, const char* _szQuerierName, const HistoricQuerySharedPtr& _pOptionalHistoryToWriteTo, const std::shared_ptr<CItemList>& _pOptionalResultingItemsFromPreviousQuery);
 
 				CQueryID                                queryID;
 				const char*                             szQuerierName;
 				HistoricQuerySharedPtr                  pOptionalHistoryToWriteTo;
-				std::unique_ptr<CItemList>&             optionalResultingItemsFromPreviousChainedQuery;     // this is how we pass items of a result set from one query to another
+				std::shared_ptr<CItemList>              pOptionalResultingItemsFromPreviousQuery;     // this is how we pass items of a result set from one query to another
 			};
 
 			//===================================================================================
@@ -100,14 +100,17 @@ namespace UQS
 				// this is stuff that CQueryManager::DebugDrawQueryStatistics() is partly interested in (but it's also interested in the number of items - hmmm, could we just display the elapsed frames instead?)
 				string                                  querierName;
 				string                                  queryBlueprintName;
-				size_t                                  totalElapsedFrames;
+				size_t                                  queryCreatedFrame;
+				CTimeValue                              queryCreatedTimestamp;
+				size_t                                  totalConsumedFrames;
 				CTimeValue                              totalConsumedTime;
 				std::vector<SGrantedAndUsedTime>        grantedAndUsedTimePerFrame;       // grows with each update call
 
 				// could be known to composite query classes that pass around the resulting items (but currently only known to + set by CQuery_Regular)
-				size_t                                  numGeneratedItems;
-				size_t                                  numRemainingItemsToInspect;
-				size_t                                  numItemsInFinalResultSet;
+				size_t                                  numDesiredItems;                  // number of items the user wants to find; this is often 1 (e. g. "give me *one* good shooting position"), but can be any number, whereas 0 has a special meaning: "give me all items you can find"
+				size_t                                  numGeneratedItems;                // number of items the generator has produced
+				size_t                                  numRemainingItemsToInspect;       // this number decreases with each finished item while the query is ongoing
+				size_t                                  numItemsInFinalResultSet;         // number of items that finally made it into the result set
 				size_t                                  memoryUsedByGeneratedItems;       // amount of memory used by all generated items; this memory is usually used on the client side (since they provide us with an item generator that we just call)
 				size_t                                  memoryUsedByItemsWorkingData;     // amount of memory used to keep track of the working state of all items throughout the evaluation phases
 
@@ -135,6 +138,10 @@ namespace UQS
 			// careful: using the result while the query is still in EUpdateState::StillRunning state is undefined behavior
 			QueryResultSetUniquePtr                     ClaimResultSet();
 
+			// debugging
+			const char*                                 GetQuerierName() const;
+			HistoricQuerySharedPtr                      GetHistoricQuery() const;   // might return a nullptr if history logging was not enabled
+
 		private:
 			virtual bool                                OnInstantiateFromQueryBlueprint(const Shared::IVariantDict& runtimeParams, Shared::CUqsString& error) = 0;
 			virtual EUpdateState                        OnUpdate(Shared::CUqsString& error) = 0;
@@ -151,18 +158,20 @@ namespace UQS
 
 			const CQueryID                              m_queryID;                        // the unique queryID that can be used to identify this instance from inside the CQueryManager
 			std::shared_ptr<const CQueryBlueprint>      m_pQueryBlueprint;                // we'll instantiate all query components (generator, evaluators, etc) via this blueprint
+			std::shared_ptr<CItemList>                  m_pOptionalShuttledItems;         // when queries are chained, the items in the result set of the previous query will be transferred to here (ready to get evaluated straight away)
 			QueryResultSetUniquePtr                     m_pResultSet;                     // once the query has finished evaluating all items (and hasn't bumped into a runtime exception), it will write the final items to here
 			CTimeBudget                                 m_timeBudgetForCurrentUpdate;     // this gets "restarted" on each Update() call with the amount of granted time that has been passed in by the caller
 
 		private:
 			// debugging
-			size_t                                      m_totalElapsedFrames;             // runaway-counter that increments on each Update() call
+			CTimeValue                                  m_queryCreatedTimestamp;          // timestamp of when the query was created (via its ctor)
+			size_t                                      m_queryCreatedFrame;              // system frame number in which the query was created (via its ctor)
+			size_t                                      m_totalConsumedFrames;            // runaway-counter that increments on each Update() call
 			CTimeValue                                  m_totalConsumedTime;              // run-away timer that increments on each Update() call
 			std::vector<SGrantedAndUsedTime>            m_grantedAndUsedTimePerFrame;     // keeps track of how much time we were given to do some work on each frame and how much time we actually spent; grows on each Update() call
 			// ~debugging
 
 			const bool                                  m_bRequiresSomeTimeBudgetForExecution;
-			std::unique_ptr<CItemList>                  m_pOptionalShuttledItems;         // when queries are chained, the items in the result set of the previous query will be transferred to here (ready to get evaluated straight away)
 			Shared::CVariantDict                        m_globalParams;                   // merge between constant- and runtime-params
 			std::vector<Client::ItemMonitorUniquePtr>   m_itemMonitors;                   // Update() checks these to ensure that no corruption of the reasoning space goes unnoticed; when the query finishes, these monitors may get transferred to the parent to carry on monitoring alongside further child queries
 

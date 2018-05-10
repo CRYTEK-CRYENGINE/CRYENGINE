@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 //
 //	File: Cry_Vector3.h
@@ -24,6 +24,8 @@ template<typename T> struct Vec3Constants
 	static const Vec3_tpl<T> fVec3_One;
 };
 
+//! General-purpose 3D vector implementation
+//! \see Vec3, Vec3i
 template<typename F> struct Vec3_tpl
 	: INumberVector<F, 3, Vec3_tpl<F>>
 {
@@ -58,8 +60,8 @@ template<typename F> struct Vec3_tpl
 	ILINE void         operator()(F vx, F vy, F vz)                  { x = vx; y = vy; z = vz; CRY_MATH_ASSERT(IsValid()); }
 	ILINE Vec3_tpl<F>& Set(const F xval, const F yval, const F zval) { x = xval; y = yval; z = zval; CRY_MATH_ASSERT(IsValid()); return *this; }
 
-	ILINE Vec3_tpl<F>(const Vec2_tpl<F> &v) { x = v.x; y = v.y; z = 0;  CRY_MATH_ASSERT(IsValid()); }
-	template<class T> ILINE Vec3_tpl<F>(const Vec2_tpl<T> &v) { x = F(v.x); y = F(v.y); z = 0;  CRY_MATH_ASSERT(IsValid()); }
+	ILINE Vec3_tpl<F>(const Vec2_tpl<F> &v, F vz = 0) { x = v.x; y = v.y; z = vz;  CRY_MATH_ASSERT(IsValid()); }
+	template<class F2> ILINE Vec3_tpl<F>(const Vec2_tpl<F2> &v, F2 vz = 0) { x = F(v.x); y = F(v.y); z = F(vz);  CRY_MATH_ASSERT(IsValid()); }
 
 	ILINE operator const Vec2_tpl<F> &() const { return reinterpret_cast<const Vec2_tpl<F>&>(*this); }
 
@@ -366,8 +368,8 @@ template<typename F> struct Vec3_tpl
 	}
 
 	//F* fptr = vec;
-	CRY_DEPRECATED(operator F*()) { return (F*)this; }
-	template<class T> explicit CRY_DEPRECATED(Vec3_tpl(const T* src)) { x = src[0]; y = src[1]; z = src[2]; }
+	CRY_DEPRECATED("Use begin() instead") operator F*() { return (F*)this; }
+	template<class T> CRY_DEPRECATED("Use Vec3_tpl(const Vec3_tpl&) instead") explicit Vec3_tpl(const T* src) { x = src[0]; y = src[1]; z = src[2]; }
 
 	ILINE Vec3_tpl& zero()                                 { x = y = z = 0; return *this; }
 	ILINE F         len() const
@@ -489,6 +491,8 @@ template<typename F> struct Matrix33_tpl;
 template<typename F> struct Matrix34_tpl;
 template<typename F> struct Matrix44_tpl;
 
+//! General-purpose 3D Euler angle container
+//! \see Ang3
 template<typename F> struct Ang3_tpl
 	: INumberVector<F, 3, Ang3_tpl<F>>
 {

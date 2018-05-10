@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 // -------------------------------------------------------------------------
 //  File name:   IJobManager.h
@@ -264,8 +264,8 @@ struct SJobSyncVariable
 
 	//! Interface, should only be used by the job manager or the job state classes.
 	void Wait() volatile;
-	void SetRunning() volatile;
-	bool SetStopped(struct SJobStateBase* pPostCallback = nullptr) volatile;
+	void SetRunning(uint16 count = 1) volatile;
+	bool SetStopped(struct SJobStateBase* pPostCallback = nullptr, uint16 count = 1) volatile;
 
 private:
 	friend class CJobManager;
@@ -292,13 +292,13 @@ struct SJobStateBase
 {
 public:
 	ILINE bool IsRunning() const { return syncVar.IsRunning(); }
-	ILINE void SetRunning()
+	ILINE void SetRunning(uint16 count = 1)
 	{
-		syncVar.SetRunning();
+		syncVar.SetRunning(count);
 	}
-	virtual bool SetStopped()
+	virtual bool SetStopped(uint16 count = 1)
 	{
-		return syncVar.SetStopped(this);
+		return syncVar.SetStopped(this, count);
 	}
 	virtual void AddPostJob() {};
 
@@ -315,14 +315,13 @@ struct CRY_ALIGN(16) SJobState: SJobStateBase
 {
 	//! When profiling, intercept the SetRunning() and SetStopped() functions for profiling informations.
 	ILINE SJobState()
-		: m_pFollowUpJob(NULL)
 #if defined(JOBMANAGER_SUPPORT_PROFILING)
-		  , nProfilerIndex(~0)
+		: nProfilerIndex(~0), m_pFollowUpJob(nullptr)
+#else
+		: m_pFollowUpJob(NULL)
 #endif
 	{
 	}
-
-	ILINE void SetRunning();
 
 	virtual void AddPostJob() override;
 
@@ -459,7 +458,7 @@ struct CRY_ALIGN(16) SJobFrameStatsSummary
 SJobFrameStats::SJobFrameStats(const char* cpJobName) : usec(0), count(0), cpName(cpJobName), usecLast(0)
 {}
 
-SJobFrameStats::SJobFrameStats() : cpName("Uninitialized"), usec(0), count(0), usecLast(0)
+SJobFrameStats::SJobFrameStats() : usec(0), count(0), cpName("Uninitialized"), usecLast(0)
 {}
 
 void SJobFrameStats::operator=(const SJobFrameStats& crFrom)
@@ -1035,12 +1034,6 @@ ILINE bool InvokeAsJob(const char* pJobName)
 #else
 	return gEnv->pJobManager->InvokeAsJob(pJobName);
 #endif
-}
-
-/////////////////////////////////////////////////////////////////////////////
-ILINE void SJobState::SetRunning()
-{
-	SJobStateBase::SetRunning();
 }
 
 /////////////////////////////////////////////////////////////////////////////
@@ -1688,7 +1681,7 @@ retry:
 }
 
 /////////////////////////////////////////////////////////////////////////////////
-inline void JobManager::SJobSyncVariable::SetRunning() volatile
+inline void JobManager::SJobSyncVariable::SetRunning(uint16 count) volatile
 {
 	SyncVar currentValue;
 	SyncVar newValue;
@@ -1699,19 +1692,18 @@ inline void JobManager::SJobSyncVariable::SetRunning() volatile
 		currentValue.wordValue = syncVar.wordValue;
 
 		newValue = currentValue;
-		newValue.nRunningCounter += 1;
+		newValue.nRunningCounter += count;
 
 		if (newValue.nRunningCounter == 0)
 		{
 			CRY_ASSERT_MESSAGE(0, "JobManager: Atomic counter overflow");
 		}
-
 	}
 	while (CryInterlockedCompareExchange((volatile LONG*)&syncVar.wordValue, newValue.wordValue, currentValue.wordValue) != currentValue.wordValue);
 }
 
 /////////////////////////////////////////////////////////////////////////////////
-inline bool JobManager::SJobSyncVariable::SetStopped(SJobStateBase* pPostCallback) volatile
+inline bool JobManager::SJobSyncVariable::SetStopped(SJobStateBase* pPostCallback, uint16 count) volatile
 {
 	SyncVar currentValue;
 	SyncVar newValue;
@@ -1730,10 +1722,9 @@ inline bool JobManager::SJobSyncVariable::SetStopped(SJobStateBase* pPostCallbac
 		}
 
 		newValue = currentValue;
-		newValue.nRunningCounter -= 1;
+		newValue.nRunningCounter -= count;
 
 		resValue.wordValue = CryInterlockedCompareExchange((volatile LONG*)&syncVar.wordValue, newValue.wordValue, currentValue.wordValue);
-
 	}
 	while (resValue.wordValue != currentValue.wordValue);
 

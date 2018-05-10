@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "CrySensorSystemPluginDLL.h"
@@ -8,41 +8,30 @@
 
 #include "SensorSystem.h"
 
-const char* CCrySensorSystemPlugin::GetName() const
+namespace Cry
 {
-	return "CrySensorSystem";
-}
-
-const char* CCrySensorSystemPlugin::GetCategory() const
-{
-	return "Plugin";
-}
-
-bool CCrySensorSystemPlugin::Initialize(SSystemGlobalEnvironment& env, const SSystemInitParams& initParams)
-{
-	m_pSensorSystem.reset(new CSensorSystem());
-	ICryPlugin::SetUpdateFlags(EUpdateType_Update);
-	return true;
-}
-
-ISensorSystem& CCrySensorSystemPlugin::GetSensorSystem() const
-{
-	CRY_ASSERT(m_pSensorSystem);
-	return *m_pSensorSystem.get();
-}
-
-void CCrySensorSystemPlugin::OnPluginUpdate(EPluginUpdateType updateType)
-{
-	switch (updateType)
+	namespace SensorSystem
 	{
-	case IPluginUpdateListener::EUpdateType_Update:
+		bool CCrySensorSystemPlugin::Initialize(SSystemGlobalEnvironment& env, const SSystemInitParams& initParams)
+		{
+			m_pSensorSystem.reset(new CSensorSystem());
+			EnableUpdate(EUpdateStep::MainUpdate, true);
+			return true;
+		}
+
+		ISensorSystem& CCrySensorSystemPlugin::GetSensorSystem() const
+		{
+			CRY_ASSERT(m_pSensorSystem);
+			return *m_pSensorSystem.get();
+		}
+
+		void CCrySensorSystemPlugin::MainUpdate(float frameTime)
 		{
 			m_pSensorSystem->Update();
-			break;
 		}
+
+		CRYREGISTER_SINGLETON_CLASS(CCrySensorSystemPlugin)
 	}
 }
-
-CRYREGISTER_SINGLETON_CLASS(CCrySensorSystemPlugin)
 
 #include <CryCore/CrtDebugStats.h>

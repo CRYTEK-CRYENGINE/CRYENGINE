@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 namespace pfx2
 {
@@ -7,6 +7,8 @@ namespace pfx2
 
 ILINE void CParticleProfiler::AddEntry(CParticleComponentRuntime* pRuntime, EProfileStat type, uint value)
 {
+	if (!IsEnabled())
+		return;
 	const uint32 threadId = JobManager::GetWorkerThreadId();
 	SEntry entry;
 	entry.m_pRuntime = pRuntime;

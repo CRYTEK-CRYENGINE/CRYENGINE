@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #ifndef __UTIL_H__
 #define __UTIL_H__
@@ -131,12 +131,16 @@ namespace Util
 
 #pragma warning(push)
 #pragma warning(disable : 4293)
+#pragma warning(push)
+#pragma warning(disable : 4068)			// MSVC gets upset if it doesn't recognise ALL THE PRAGMAS!
+#pragma clang diagnostic ignored "-Wshift-count-overflow"
 		if (sizeof(TInteger) > 0) x |= x >> 1;
 		if (sizeof(TInteger) > 0) x |= x >> 2;
 		if (sizeof(TInteger) > 0) x |= x >> 4;
 		if (sizeof(TInteger) > 1) x |= x >> 8;
 		if (sizeof(TInteger) > 2) x |= x >> 16;
 		if (sizeof(TInteger) > 4) x |= x >> 32;
+#pragma warning(pop)
 #pragma warning(pop)
 
 		return x + 1;

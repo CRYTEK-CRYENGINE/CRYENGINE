@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -20,33 +20,18 @@ class CAreaManager : public IAreaManager, public ISystemEventListener
 {
 	struct SAreaCacheEntry
 	{
-		SAreaCacheEntry()
-			: pArea(NULL),
-			bNear(false),
-			bInside(false),
-			bInGrid(true)
-		{};
+		SAreaCacheEntry() = default;
 
 		SAreaCacheEntry(CArea* const pPassedArea, bool const bIsNear, bool const bIsInside)
 			: pArea(pPassedArea),
 			bNear(bIsNear),
 			bInside(bIsInside),
-			bInGrid(true)
-		{};
+			bInGrid(true) {}
 
-		SAreaCacheEntry& operator=(SAreaCacheEntry const& rOther)
-		{
-			pArea = rOther.pArea;
-			bInGrid = rOther.bInGrid;
-			bInside = rOther.bInside;
-			bNear = rOther.bNear;
-			return *this;
-		}
-
-		CArea* pArea;
-		bool   bInGrid;
-		bool   bInside;
-		bool   bNear;
+		CArea* pArea = nullptr;
+		bool   bInGrid = true;
+		bool   bInside = false;
+		bool   bNear = false;
 	};
 
 	typedef std::vector<SAreaCacheEntry> TAreaCacheVector;
@@ -85,7 +70,7 @@ class CAreaManager : public IAreaManager, public ISystemEventListener
 
 public:
 
-	explicit CAreaManager(CEntitySystem* pEntitySystem);
+	explicit CAreaManager();
 	~CAreaManager(void);
 
 	//IAreaManager
@@ -102,9 +87,7 @@ public:
 	// ~ISystemEventListener
 
 	// Makes a new area.
-	CArea*         CreateArea();
-
-	CEntitySystem* GetEntitySystem() const { return m_pEntitySystem; };
+	CArea* CreateArea();
 
 	// Puts the passed entity ID into the update list for the next update.
 	virtual void MarkEntityForUpdate(EntityId const entityId) override;
@@ -150,11 +133,10 @@ protected:
 	void Unregister(CArea const* const pArea);
 
 	// Holds all registered areas.
-	TAreaPointers  m_areas;
+	TAreaPointers m_areas;
 
-	CEntitySystem* m_pEntitySystem;
-	bool           m_bAreasDirty;
-	CAreaGrid      m_areaGrid;
+	bool          m_bAreasDirty;
+	CAreaGrid     m_areaGrid;
 
 private:
 
@@ -187,9 +169,9 @@ private:
 		m_mapAreaCache.erase(nEntityId);
 	}
 
-	void UpdateEntity(Vec3 const& position, IEntity* const pIEntity);
+	void UpdateEntity(Vec3 const& position, CEntity* const pIEntity);
 	void UpdateDirtyAreas();
-	void ProcessArea(CArea* const pArea, SAreaCacheEntry& areaCacheEntry, SAreasCache* const pAreaCache, Vec3 const& pos, IEntity const* const pIEntity, AreaEnvironments& areaEnvironments);
+	void ProcessArea(CArea* const pArea, SAreaCacheEntry& areaCacheEntry, SAreasCache* const pAreaCache, Vec3 const& pos, CEntity const* const pIEntity, AreaEnvironments& areaEnvironments);
 	void ExitArea(EntityId const entityId, CArea const* const _pArea);
 	bool GetEnvFadeValue(SAreasCache const& areaCache, SAreaCacheEntry& areaCacheEntry, Vec3 const& entityPos, EntityId const envProvidingEntityId, AreaEnvironments& areaEnvironments);
 	bool GetEnvFadeValueInner(SAreasCache const& areaCache, SAreaCacheEntry const& areaCacheEntry, Vec3 const& entityPos, Vec3 const& posOnLowerArea, EntityId const envProvidingEntityId, AreaEnvironments& areaEnvironments);

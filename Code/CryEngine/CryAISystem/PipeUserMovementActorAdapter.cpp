@@ -1,18 +1,12 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "PipeUserMovementActorAdapter.h"
 #include "PipeUser.h"
-#include "Cover/CoverSystem.h"
 
 void PipeUserMovementActorAdapter::OnMovementPlanProduced()
 {
 	m_attachedPipeUser.SetSignal(AISIGNAL_DEFAULT, "MovementPlanProduced");
-}
-
-void PipeUserMovementActorAdapter::SetInCover(const bool inCover)
-{
-	m_attachedPipeUser.SetInCover(inCover);
 }
 
 bool PipeUserMovementActorAdapter::GetDesignedPath(SShape& pathShape) const
@@ -115,65 +109,6 @@ std::shared_ptr<Vec3> PipeUserMovementActorAdapter::CreateLookTarget()
 void PipeUserMovementActorAdapter::ResetMovementContext()
 {
 	m_attachedPipeUser.ResetMovementContext();
-}
-
-void PipeUserMovementActorAdapter::UpdateCoverLocations()
-{
-	CoverID coverID = m_attachedPipeUser.GetCoverID();
-	IF_UNLIKELY (coverID == 0)
-		return;
-
-	float radius = m_attachedPipeUser.GetParameters().distanceToCover;
-	Vec3 coverNormal(ZERO);
-	Vec3 coverPosition = gAIEnv.pCoverSystem->GetCoverLocation(coverID, radius, 0, &coverNormal);
-
-	SOBJECTSTATE& state = m_attachedPipeUser.GetState();
-	SAICoverRequest& coverRequest = state.coverRequest;
-
-	coverRequest.SetCoverLocation(coverPosition, -coverNormal);
-
-	const Vec3 agentPosition = m_attachedPipeUser.GetPhysicsPos();
-
-	if (m_attachedPipeUser.IsMovingInCover())
-	{
-		m_attachedPipeUser.SetDesiredBodyDirectionAtTarget(-coverNormal);
-
-		// Turn body to the direction we're moving
-		const Vec3 directionAgentIsMovingIn = (coverPosition - agentPosition).GetNormalized();
-		coverRequest.SetCoverBodyDirection(coverNormal, directionAgentIsMovingIn);
-	}
-	else
-	{
-		// Give hints to the animation system for sliding into cover
-		m_attachedPipeUser.SetDesiredBodyDirectionAtTarget(-coverNormal); // TODO: Change this to something like DesiredCoverLocation when old cover alignment method is not used anymore
-
-		// Update the desired cover body direction while we're further
-		// away from the cover than a certain threshold.
-		// The threshold is there to prevent us from setting the cover
-		// body direction while being very close, because we could
-		// by accident overshoot slightly and set the wrong direction.
-
-		if (agentPosition.GetSquaredDistance(coverPosition) > square(1.0f) ||
-		    coverRequest.coverBodyDirection == eCoverBodyDirection_Unspecified)
-		{
-			// Turn the body towards the direction we're coming from.
-			// This is because we know that the direction we're coming from
-			// was traversable and therefor makes somewhat sense to look
-			// towards. If we look in the direction we're running towards,
-			// or in the direction of our target we might end up with
-			// characters looking straight into the wall.
-
-			const Vec3 directionAgentIsComingFrom = (agentPosition - coverPosition).GetNormalized();
-			coverRequest.SetCoverBodyDirection(coverNormal, directionAgentIsComingFrom);
-		}
-
-		enum
-		{
-			MovingIntoLowCover = 1,
-		};
-
-		m_attachedPipeUser.SetMovementContext(MovingIntoLowCover);
-	}
 }
 
 void PipeUserMovementActorAdapter::SetLookTimeOffset(float lookTimeOffset)
@@ -318,69 +253,6 @@ bool PipeUserMovementActorAdapter::IsMoving() const
 	return bodyInfo.isMoving;
 }
 
-void PipeUserMovementActorAdapter::InstallInLowCover(const bool inCover)
-{
-	if (m_attachedPipeUser.GetCoverID() != 0)
-	{
-		m_attachedPipeUser.SetInCover(inCover);
-		m_attachedPipeUser.GetState().bodystate = STANCE_LOW_COVER;
-		m_attachedPipeUser.SetMovingToCover(false);
-	}
-}
-
-void PipeUserMovementActorAdapter::SetupCoverInformation()
-{
-	if (CoverID nextCoverID = m_attachedPipeUser.GetCoverRegister())
-	{
-		// The cover we are in or moving towards
-		CoverID currCoverID = m_attachedPipeUser.GetCoverID();
-
-		if (currCoverID && m_attachedPipeUser.IsInCover())
-		{
-			CCoverSystem& coverSystem = *gAIEnv.pCoverSystem;
-
-			bool movingInCover = false;
-
-			if (coverSystem.GetSurfaceID(currCoverID) == coverSystem.GetSurfaceID(nextCoverID))
-			{
-				movingInCover = true;
-			}
-			else
-			{
-				// Check if surfaces are neighbors (edges are close to each other)
-				const CoverSurface& currSurface = coverSystem.GetCoverSurface(currCoverID);
-				const CoverSurface& nextSurface = coverSystem.GetCoverSurface(nextCoverID);
-
-				const float neighborDistSq = square(0.3f);
-
-				ICoverSystem::SurfaceInfo currSurfaceInfo;
-				ICoverSystem::SurfaceInfo nextSurfaceInfo;
-
-				if (currSurface.GetSurfaceInfo(&currSurfaceInfo) && nextSurface.GetSurfaceInfo(&nextSurfaceInfo))
-				{
-					const Vec3& currLeft = currSurfaceInfo.samples[0].position;
-					const Vec3& currRight = currSurfaceInfo.samples[currSurfaceInfo.sampleCount - 1].position;
-					const Vec3& nextLeft = nextSurfaceInfo.samples[0].position;
-					const Vec3& nextRight = nextSurfaceInfo.samples[nextSurfaceInfo.sampleCount - 1].position;
-
-					if (Distance::Point_Point2DSq(currLeft, nextRight) < neighborDistSq ||
-					    Distance::Point_Point2DSq(currRight, nextLeft) < neighborDistSq)
-					{
-						movingInCover = true;
-					}
-				}
-			}
-
-			m_attachedPipeUser.SetMovingInCover(movingInCover);
-			m_attachedPipeUser.SetInCover(movingInCover);
-		}
-
-		m_attachedPipeUser.SetCoverID(nextCoverID);
-	}
-
-	m_attachedPipeUser.SetMovingToCover(true);
-}
-
 void PipeUserMovementActorAdapter::ResetBodyTarget()
 {
 	m_attachedPipeUser.ResetBodyTargetDir();
@@ -479,19 +351,12 @@ bool PipeUserMovementActorAdapter::PrepareNavigateSmartObject(CSmartObject* pSma
 
 void PipeUserMovementActorAdapter::InvalidateSmartObjectLink(CSmartObject* pSmartObject, OffMeshLink_SmartObject* pSmartObjectLink)
 {
-	assert(pSmartObject != NULL && pSmartObjectLink != NULL);
-	m_attachedPipeUser.InvalidateSOLink(pSmartObject, pSmartObjectLink->m_pFromHelper, pSmartObjectLink->m_pToHelper);
 }
 
 void PipeUserMovementActorAdapter::ResetActorTargetRequest()
 {
 	SAIActorTargetRequest& pipeUserActorTargetRequest = m_attachedPipeUser.GetState().actorTargetReq;
 	pipeUserActorTargetRequest.Reset();
-}
-
-bool PipeUserMovementActorAdapter::IsInCover() const
-{
-	return m_attachedPipeUser.IsInCover();
 }
 
 void PipeUserMovementActorAdapter::CancelRequestedPath()

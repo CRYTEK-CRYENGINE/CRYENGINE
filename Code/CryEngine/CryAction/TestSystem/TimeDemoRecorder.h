@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 // -------------------------------------------------------------------------
 //  File name:   timedemorecorder.h
@@ -60,7 +60,13 @@ struct STimeDemoGameEvent
 };
 typedef std::vector<STimeDemoGameEvent> TGameEventRecords;
 
-class CTimeDemoRecorder : public ITimeDemoRecorder, IFrameProfilePeakCallback, IInputEventListener, IEntitySystemSink, IGameplayListener
+class CTimeDemoRecorder 
+	: public ITimeDemoRecorder
+	, IFrameProfilePeakCallback
+	, IInputEventListener
+	, IEntitySystemSink
+	, IGameplayListener
+	, IEntityEventListener
 {
 public:
 	CTimeDemoRecorder();
@@ -105,12 +111,15 @@ private:
 	//////////////////////////////////////////////////////////////////////////
 	// IEntitySystemSink
 	//////////////////////////////////////////////////////////////////////////
-	virtual bool OnBeforeSpawn(SEntitySpawnParams& params) override;
+	virtual bool OnBeforeSpawn(SEntitySpawnParams& params) override { return true; }
 	virtual void OnSpawn(IEntity* pEntity, SEntitySpawnParams& params) override;
-	virtual bool OnRemove(IEntity* pEntity) override;
-	virtual void OnReused(IEntity* pEntity, SEntitySpawnParams& params) override;
-	virtual void OnEvent(IEntity* pEntity, SEntityEvent& event) override;
+	virtual bool OnRemove(IEntity* pEntity) override { return true; }
+	virtual void OnReused(IEntity* pEntity, SEntitySpawnParams& params) override {}
 	//////////////////////////////////////////////////////////////////////////
+
+	// IEntity::IEventListener
+	virtual void OnEntityEvent(IEntity* pEntity, const SEntityEvent& event) override;
+	// ~IEntity::IEventListener
 
 private:
 	// Input event list.

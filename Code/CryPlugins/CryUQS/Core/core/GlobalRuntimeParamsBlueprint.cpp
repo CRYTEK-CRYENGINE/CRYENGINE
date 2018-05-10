@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "GlobalRuntimeParamsBlueprint.h"
@@ -51,8 +51,6 @@ namespace UQS
 
 		bool CGlobalRuntimeParamsBlueprint::Resolve(const ITextualGlobalRuntimeParamsBlueprint& source, const CQueryBlueprint* pParentQueryBlueprint)
 		{
-			bool bResolveSucceeded = true;
-
 			//
 			// - parse the runtime-params from given source
 			// - we do this before inheriting from given parent because we wanna detect duplicates in the source, and not mistake an inherited from the parent for being a duplicate
@@ -71,8 +69,7 @@ namespace UQS
 					{
 						pSE->AddErrorMessage("Duplicate parameter: '%s'", p.szName);
 					}
-					bResolveSucceeded = false;
-					continue;
+					return false;
 				}
 
 				// find the item factory: first by GUID, then by name
@@ -87,8 +84,7 @@ namespace UQS
 							Shared::Internal::CGUIDHelper::ToString(p.typeGUID, typeGuidAsString);
 							pSE->AddErrorMessage("Unknown item type: GUID = %s, name = '%s'", typeGuidAsString.c_str(), p.szTypeName);
 						}
-						bResolveSucceeded = false;
-						continue;
+						return false;
 					}
 				}
 
@@ -122,8 +118,7 @@ namespace UQS
 							{
 								pSE->AddErrorMessage("Type mismatch: expected '%s' (since the parent's parameter is of that type), but got a '%s'", pParentItemFactory->GetItemType().name(), pItemFactory->GetItemType().name());
 							}
-							bResolveSucceeded = false;
-							continue;
+							return false;
 						}
 					}
 				}
@@ -131,7 +126,7 @@ namespace UQS
 				m_runtimeParameters.insert(std::map<string, SParamInfo>::value_type(p.szName, SParamInfo(pItemFactory, p.bAddToDebugRenderWorld)));
 			}
 
-			return bResolveSucceeded;
+			return true;
 		}
 
 		const std::map<string, CGlobalRuntimeParamsBlueprint::SParamInfo>& CGlobalRuntimeParamsBlueprint::GetParams() const

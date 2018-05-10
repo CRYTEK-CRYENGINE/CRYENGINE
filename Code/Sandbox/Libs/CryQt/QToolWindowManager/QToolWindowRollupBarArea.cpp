@@ -395,3 +395,4 @@ void QToolWindowRollupBarArea::setDraggable(bool draggable)
 		m_pTopWidget->setCursor(Qt::CursorShape::ArrowCursor);
 	}
 }
+

@@ -59,7 +59,7 @@ CCryVKShaderReflection::CCryVKShaderReflection(const void* pShaderBytecode, size
 		{
 			SInputParameter inputParam;
 
-			if (sscanf(input.name.c_str(), "dcl_Input%d_%[a-zA-Z]%d", &inputParam.attributeLocation, inputParam.semanticName, &inputParam.semanticIndex) == 3)
+			if (sscanf_s(input.name.c_str(), "dcl_Input%d_%[a-zA-Z]%d", &inputParam.attributeLocation, inputParam.semanticName, sizeof(inputParam.semanticName), &inputParam.semanticIndex) == 3)
 			{
 				UnformatVariableName(inputParam.semanticName);
 				m_shaderInputs.push_back(inputParam);
@@ -100,9 +100,9 @@ CCryVKShaderReflection::CCryVKShaderReflection(const void* pShaderBytecode, size
 			resourceBindingT.semanticType = D3D10_SIT_TEXTURE;
 			resourceBindingS.semanticType = D3D10_SIT_SAMPLER;
 
-			if (sscanf(resource.name.c_str(), "dcl_%[a-zA-Z]%d_%[a-zA-Z]_%[a-zA-Z]%d_%[a-zA-Z]",
-				semanticTypeT, &resourceBindingT.bindPoint, resourceBindingT.semanticName,
-				semanticTypeS, &resourceBindingS.bindPoint, resourceBindingS.semanticName) == 6)
+			if (sscanf_s(resource.name.c_str(), "dcl_%[a-zA-Z]%d_%[a-zA-Z]_%[a-zA-Z]%d_%[a-zA-Z]",
+				semanticTypeT, sizeof(semanticTypeT), &resourceBindingT.bindPoint, resourceBindingT.semanticName, sizeof(resourceBindingT.semanticName),
+				semanticTypeS, sizeof(semanticTypeS), &resourceBindingS.bindPoint, resourceBindingS.semanticName, sizeof(resourceBindingS.semanticName)) == 6)
 			{
 				UnformatVariableName(resourceBindingT.semanticName);
 				UnformatVariableName(resourceBindingS.semanticName);
@@ -113,8 +113,8 @@ CCryVKShaderReflection::CCryVKShaderReflection(const void* pShaderBytecode, size
 					m_shaderBindings.push_back(resourceBindingS);
 			}
 
-			else if (sscanf(resource.name.c_str(), "dcl_%[a-zA-Z]%d_%[a-zA-Z]",
-				semanticTypeT, &resourceBindingT.bindPoint, resourceBindingT.semanticName) == 3)
+			else if (sscanf_s(resource.name.c_str(), "dcl_%[a-zA-Z]%d_%[a-zA-Z]",
+				semanticTypeT, sizeof(semanticTypeT), &resourceBindingT.bindPoint, resourceBindingT.semanticName, sizeof(resourceBindingT.semanticName)) == 3)
 			{
 				UnformatVariableName(resourceBindingT.semanticName);
 
@@ -371,7 +371,7 @@ CCryVKShaderReflectionConstantBuffer::CCryVKShaderReflectionConstantBuffer(CCryV
 	std::string name = !m_resource.name.empty() ? m_resource.name : compiler.get_fallback_name(m_resource.base_type_id);
 	int bindPoint = 0;
 
-	if (sscanf(name.c_str(), "dcl_ConstantBuffer%d_%[a-zA-Z]", &bindPoint, m_name) == 2)
+	if (sscanf_s(name.c_str(), "dcl_ConstantBuffer%d_%[a-zA-Z]", &bindPoint, m_name, sizeof(m_name)) == 2)
 	{
 		UnformatVariableName(m_name);
 	}

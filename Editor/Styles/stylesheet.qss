@@ -100,74 +100,88 @@ QToolBar {
 	padding-bottom:0px;
 	padding-left:0px;
 	padding-right:0px;
-	icon-size: 24px;
 }
 
 QMainWindow > QToolBar {
-	icon-size: 24px;
 	min-height:35px;
+
+    background-color: rgb(77,77,77);
+    border: 2px solid rgb(35,35,35);
+    border-radius: 6px;
+    padding:0px 0px 0px 2px;
+    padding-right: 2px;
+    margin: 1px 0px 1px 2px;
+}
+
+QMainWindow > QToolBar > QToolButton{
+	width: 25;
+	height: 25;
 }
 
 QToolButton {
 	border-radius: 0px;
 	background-color: transparent;
 	margin-right: 2px;
-	margin-left:2px;
-	icon-size:24px;
+	margin-left: 2px;
+	icon-size:25px;
 }
 
 QToolButton::hover {
-	border-radius: 2px;
-	/*background-color: rgba(255,255,255,20);*/
-	background: qlineargradient(y1:1,
-				stop:1 rgba(255,255,255,20),
-				stop:0.7 rgba(255,255,255,15));
+	background-color: rgb(100,100,100);
+    border-radius: 2px;
 }
 
 QToolButton::checked {
-	/*background-color: rgb(35,35,35);*/
-	background: qlineargradient(y1:1,
-				stop:0.3 rgba(0,0,0,80),
-				stop:0 rgba(0,0,0,50));
+	background-color: rgb(35,35,35);
 	border-radius:2px;
 	color:rgb(97,172,236);
 }
 
+QToolButton::pressed {
+    background-color: rgb(20,20,20);
+}
+
+QViewportHeader
+{
+	min-height: 26;
+}
+
 QViewportHeader > QToolButton::menu-indicator {
-	image: none;
+	image: url("icons:common/general_dropdown_triangle.ico");
+	subcontrol-position: right bottom;
+}
+
+QViewportHeader > QToolButton[popupMode="InstantPopup"] {
+	padding-right: 13px;
+}
+
+QViewportHeader > QToolButton[popupMode="InstantPopup"]::menu-indicator  {
+	image: url("icons:common/general_dropdown_arrow.ico");
+	subcontrol-position: right center;
+	right: 3px;
 }
 
 QViewportHeader > QToolButton {
-	icon-size:16px;
-}
-
-QViewportHeader > QToolButton {
-	height:20px;
+	min-height: 17px;
+	min-width: 17px;
 	color:rgb(166,166,166);
 	border-radius:0px;
-	margin-bottom:2px;
-	margin-top:2px;
-}
+	
+	margin: 2px 3px 2px 3px;
 
-QToolButton::pressed {
-	/*background-color:transparent;*/
-	background: qlineargradient(y1:1,
-				stop:0.3 rgba(0,0,0,40),
-				stop:0 rgba(0,0,0,20));
-	/*border:2px solid rgb(97,172,236);*/
-	/*padding:-2px;*/
-}
-
-QViewportHeader > QToolButton::pressed {
-	color:rgb(97,172,236);
-	background: qlineargradient(y1:1,
-				stop:0.3 rgba(0,0,0,20),
-				stop:0 rgba(0,0,0,0));
-	border-radius:0px;
+    icon-size:16px;
 }
 
 QViewportHeader > QToolButton::checked{
-	background-color:transparent;
+	background-color: rgb(35,35,35);
+}
+
+QViewportHeader > QToolButton::pressed {
+    color:rgb(97,172,236);
+    background: qlineargradient(y1:1,
+                stop:0.3 rgba(0,0,0,20),
+                stop:0 rgba(0,0,0,0));
+    border-radius:0px;
 }
 
 /*QViewportHeader > QToolButton::hover {
@@ -327,9 +341,6 @@ QTabWidget > QTabBar > QToolButton:hover
 {
 	background-color:rgb(106,106,106);
 	color: rgb(255,255,255);
-	border: 0px;
-	border-radius: 0px;
-	margin-bottom: 2px;
 }
 
 QTabWidget > QTabBar > QToolButton:pressed
@@ -444,18 +455,17 @@ QPrecisionSlider#cameraSpeedPopupSlider {
 
 QMenu {
 	background-color: rgb(50,50,50);
-	color: rgb(166,166,166);
-	border:1px solid;
-	border-color:rgb(97,172,236);
+	color: rgb(255,255,255);
+	border:0px solid;
+	border-color:rgb(102,102,102);
 }
 
 QMenu::item:selected {
-	background-color:rgb(97,172,236);
-	color:black;
+	background-color:rgb(86,86,86);
 }
 
 QMenu:separator {
-	background-color:rgb(66,66,66);
+	background-color:rgb(64,64,64);
 	height:1px;
 }
 
@@ -578,8 +588,8 @@ QToolWindowArea > QTabBar {
 	background-color:rgb(35,35,35);
 }
 
- QToolWindowArea > QTabBar::tab {
-	background-color: rgb(35,35,35);               /*inactive tabs*/
+QToolWindowArea > QTabBar::tab {
+	background-color: transparent;               /*inactive tabs*/
 	color:rgb(166,166,166);
 	margin:0px;
 	border:0px;
@@ -592,40 +602,21 @@ QToolWindowArea > QTabBar {
 
 QToolWindowArea > QTabBar::tab:hover {
 	color:rgb(166,166,166);
-	/*background-color:rgb(78,78,78);*/
-	background: qlineargradient(y1:1,
-				stop:1 rgb(58,58,58),
-				stop:0.5 rgb(45,45,45));
+	background-color:rgb(45,45,45);
 	border: none;
-	border-top-left-radius: 0px;
-	border-top-right-radius: 0px;
-	border-bottom-left-radius: 0px;
-	border-bottom-right-radius: 0px;
-	border-top:0px solid rgb(78,78,78);
-	border-left:0px solid rgb(78,78,78);
-	border-right:0px solid rgb(78,78,78);
+	border-radius: 0px;
 }
 
 QToolWindowArea > QTabBar::tab:first, QToolWindowArea > QTabBar::tab:middle, QToolWindowArea > QTabBar::tab:last{
 	border-radius:0px;
 	margin:0px;
 	padding-bottom:0px;
-
 }
 
 QToolWindowArea > QTabBar::tab:selected {
-	border-bottom-color: black;
-	/*background-color: rgb(66,66,66);*/
-	background: qlineargradient(y1:1,
-				stop:1 rgb(70,70,70),
-				stop:0.1 rgb(66,66,66));
-	color: rgb(200,200,200);
+	background-color: rgb(66,66,66);
+	color: rgb(97,172,236);
 	border: none;
-	border-top-left-radius: 0px;
-	border-top-right-radius: 0px;
-	border-bottom:0px solid rgb(95,95,95);
-	border-top:2px solid rgb(97,172,236);
-	padding-top:-2px;
 }
 
 QTabWidget QMenuBar, CDockableDialog QMenuBar {
@@ -651,22 +642,31 @@ QTabWidget QMenuBar:item:pressed, CDockableDialog QMenuBar:item:pressed {
 	margin-bottom:0px;
 }
 
-QToolWindowArea > QTabBar > QToolButton { /* arrows on the right side of tabs when there are too many of them */
-	background-color:rgb(35,35,35);
-	border:0px;
-	color:rgb(166,166,166);
+QTabBar QToolButton::right-arrow, QToolButton::left-arrow
+{
+	image: none;
 }
 
-QToolWindowArea > QTabBar > QToolButton:hover { /* arrows on the right side of tabs when there are too many of them */
-	background-color:rgb(35,35,35);
-	border:0px solid;
-	color:rgb(220,220,220);
+QToolWindowArea > QTabBar > QToolButton {
+	background-color: rgb(35,35,35);
+	padding: 0px 0px 7px 0px;
+	margin: 0px 0px 0px 0px;
 }
 
-QToolWindowArea > QTabBar > QToolButton:pressed { /* arrows on the right side of tabs when there are too many of them */
-	background-color:rgb(35,35,35);
-	border:0px;
-	color:rgb(97,172,236);
+QToolWindowTabBar > QToolButton::menu-indicator  {
+	image: none;
+}
+
+QToolWindowTabBar > QToolButton::checked{
+	background-color: rgb(35,35,35);
+}
+
+QToolWindowTabBar > QToolButton::pressed {
+    color:rgb(97,172,236);
+    background: qlineargradient(y1:1,
+                stop:0.3 rgba(0,0,0,20),
+                stop:0 rgba(0,0,0,0));
+    border-radius:0px;
 }
 
 QScrollBar:vertical {
@@ -767,6 +767,42 @@ QPropertySplitter {
 	margin: -1px -3px -1px 7px;
 }
 
+/* Top widget of the property tree */
+QPropertyTree2 { 
+	qproperty-collapsedIcon: url(icons:General/Pointer_Right.ico);
+	qproperty-expandedIcon: url(icons:General/Pointer_Down_Expanded.ico);
+	qproperty-dragHandleIcon: url(icons:General/Drag_Handle.ico);
+}
+
+/* Inner widget of the property tree. Contains rows and possibly other FormWidgets inside. 
+Use the nesting property value to style differently for different nesting levels.*/
+PropertyTree2--CFormWidget {
+	qproperty-margins: rect(0 0 0 0);
+	alternate-background-color: rgb(110,110,110);
+	font-size: 12px;
+	qproperty-spacing: 4;
+	qproperty-iconSize: 16;
+	qproperty-minRowHeight: 20;
+	qproperty-nestingIndent: 10;
+}
+
+PropertyTree2--CFormWidget[nesting="1"] {
+	qproperty-margins: rect(2 4 2 4);
+}
+
+PropertyTree2--CFormWidget[nesting="0"] {
+	qproperty-groupBorderColor: rgb(102,102,102);
+	qproperty-groupBorderWidth: 4;
+	qproperty-margins: rect(2 4 2 4);
+}
+
+/* For e.g. array "add" button to have the same height as regular rows */
+PropertyTree2--CFormWidget QToolButton {
+	max-width: 20;
+	max-height: 20;
+	icon-size: 20px;
+}
+
 QPushButton {
     background-color: rgb(102,102,102);
     color: rgb(242,242,242);
@@ -813,6 +849,11 @@ QPushButton::pressed {
 QPushButton::disabled {
     background-color: rgb(45,45,45);
     color: rgb(120,120,120);
+}
+
+CColorButton {
+    border: none;
+    border-radius: 3px;
 }
 
 QSeparators {
@@ -922,7 +963,7 @@ QLineEdit {
 }
 
 QLineEdit:focus {
-	color:rgb(97,172,236);
+	border: 1px solid rgb(97,172,236) outset;
 }
 
 QSizeGrip {
@@ -971,73 +1012,101 @@ QCheckBox::indicator:checked {
 	image: url(icons:General/Tick_Tinted.ico);
 }
 
+QCheckBox::indicator:indeterminate {
+	image: url(icons:General/Tick_Box_On.ico);
+}
+
+QCheckBox::indicator:indeterminate::disabled {
+	image: url(icons:General/Tick_Box_On_disabled.ico);
+}
+
 QTreeView {                                 /* tree body*/
-	color:rgb(166,166,166);
-	background-color:rgb(35,35,35);
+	color:rgb(255,255,255);
+	background-color: rgb(77,77,77);
 	margin-top:0px;
 	margin-left:4px;
 	margin-right:2px;
 	margin-bottom:4px;
-	selection-background-color:rgb(97,172,236);
-	outline:none;
+	selection-background-color:rgb(51,51,51);
+	border:2px solid rgb(102,102,102);
+	border-top-left-radius: 2px;
+	border-top-right-radius: 2px;
+	outline: none;
 }
 
-QTreeView::item:hover {
-	color:rgb(230,230,230);
-	background-color:rgba(255,255,255,10);
+QTreeView::item{
+    padding-top: 2px;
+    height: 24px;
 }
 
-QTreeView::item:selected {
-	color:white;
-	background-color:rgb(97,172,236);
+QTreeView::branch {
+    color: rgb(229,229,229);
+   	image:none;
 }
 
-QTreeView::indicator:indeterminate
+QTreeView::item:hover, QTreeView::branch:hover {
+	padding-top: 0px;
+	color: rgb(255,255,255);
+	background-color: rgb(86,86,86);
+}
+
+QTreeView::item:selected, QTreeView::branch:selected {
+	padding-top: 0px;
+	color: rgb(255,255,255);
+	background-color: rgb(51,51,51);
+}
+
+CLevelExplorer QTreeView::indicator
 {
 	background-color: rgb(50,50,50);
 	border-radius: 2px;
-	image: url("icons:General/Tick_Box_Tinted.ico");
-}
-
-QTreeView::indicator:unchecked
-{
-	background-color: rgb(50,50,50);
-	border-radius: 2px;
-}
-
-QTreeView::indicator:checked
-{
-	background-color: rgb(50,50,50);
-	border-radius: 2px;
-	image: url("icons:General/Tick_Tinted.ico");
-}
-
-QTreeView::branch:has-children:closed
-{
-    image: url(icons:General/Pointer_Right_Tinted.ico);
-}
-
-QTreeView::branch:has-children::selected:closed
-{
-    image: url(icons:General/Pointer_Right.ico);
-}
-
-QTreeView::branch:has-children
-{
-    image: url(icons:General/Pointer_Down_Tinted.ico);
-}
-
-QTreeView::branch:has-children::selected
-{
-    image: url(icons:General/Pointer_Down.ico);
+    width: 16px;
+    height: 16px;
+    padding-left: 2px;
 }
 
 QTreeView QHeaderView {
 	color:rgb(166,166,166);
 	background-color:rgb(35,35,35);
 	image: none;
-	border-bottom: 2px solid rgb(66,66,66);
-	border-top: 2px solid rgb(66,66,66);
+	min-height: 28 px;
+}
+
+QTreeView QHeaderView::section {                /* the tree view header */
+	background-color: rgb(102,102,102);
+	color:rgb(190,190,190);
+	border: 0px;
+	border-right: 1px solid rgb(153,153,153);
+	border-left: 0px solid rgb(153,153,153);
+	font-size:12px;
+	font:bold;
+	padding-left:4px;
+}
+
+CLevelExplorer QTreeView::Item{
+	padding-top: 0px;
+}
+
+CLevelExplorer QTreeView::indicator QHeaderView::section:first {
+	border-right: 0px solid rgb(153,153,153);
+} 
+
+QTreeView QHeaderView::section:hover {    
+	background-color: rgb(110,110,110);
+}
+
+CLevelExplorer QTreeView::indicator QHeaderView::section:first:hover {    
+	background-color: rgb(102,102,102);
+}
+
+QTreeView QHeaderView::down-arrow {
+	image:  url(icons:common/general_sorting_descending.ico);
+	subcontrol-position: center top;
+}
+
+QTreeView QHeaderView::up-arrow {
+	image:  url(icons:common/general_sorting_ascending.ico);
+	subcontrol-position: center top;
 }
 
 QTreeView QScrollBar:vertical {
@@ -1050,19 +1119,6 @@ QTreeView QScrollBar:horizontal {
 	background-color:transparent;
 	margin-top:0px;
 	margin-bottom:0px;
-}
-
-QTreeView QHeaderView::section {                /* the tree view header */
-	background-color: rgb(35,35,35);
-	color:rgb(190,190,190);
-	border: 0px;
-	border-right: 2px solid rgb(66,66,66);
-	border-left: 0px solid rgb(66,66,66);
-	font-size:12px;
-	font:bold;
-	padding-top:3px;
-	padding-bottom:3px;
-	padding-left:4px;
 }
 
 QViewportHeader {
@@ -1177,33 +1233,22 @@ QWidget[maximized] QCustomTitleBar #sysMenu {
 
 
 QToolWindowSingleTabAreaFrame > QLabel {
-	/*background-color: rgb(66,66,66);     /*viewport label*/
-	background: qlineargradient(y1:1,
-				stop:1 rgb(70,70,70),
-				stop:0.1 rgb(66,66,66));
+	background-color: transparent;     /*viewport label */
 	margin-left:0px;
 	padding-left:2px;
-	color:rgb(200,200,200);
+	color: rgb(97,172,236);
 	margin-top:0px;
 	margin-bottom:0px;
-	border-top:0px solid rgb(35,35,35);
 	padding-top:-1px;
-	border-top-left-radius:2px;
-	border-top-right-radius:2px;
 }
 
 QToolWindowSingleTabAreaFrame > #closeButton {
-	border:0;
-	/*background-color: rgb(66,66,66);*/
-	background: qlineargradient(y1:1,
-				stop:1 rgb(70,70,70),
-				stop:0.1 rgb(66,66,66));
+	border: 0;
+	background-color: transparent;
 	qproperty-iconSize: 16px;
 	width:16px;
 	height:23px;
-	border-radius:0px;
 	padding-right:2px;
-	border-top:0px solid rgb(35,35,35);
 }
 
 QToolWindowSingleTabAreaFrame {
@@ -1252,17 +1297,17 @@ QTrackingTooltip {
 }
 
 QToolWindowArea > QTabBar > QPushButton, QToolWindowArea > QTabBar > QPushButton::hover {
-	background: transparent;
-	border:solid;
-	border:0px;
-	border-radius:0px;
-	margin:0px;
-	padding:0px;
-	qproperty-iconSize: 16px;
-	width:16px;
-	height:16px;
-	padding-top:-1px;                       /* its the X for tabs and its a hack but it works for now */
-	padding-left:5px;
+    background: transparent;
+    border:solid;
+    border:0px;
+    border-radius:0px;
+    margin:0px;
+    padding:0px;
+    qproperty-iconSize: 16px;
+    width:16px;
+    height:16px;
+    padding-top:-1px;                       /* its the X for tabs and its a hack but it works for now */
+    padding-left:5px;
 }
 
 QToolBarCreator QToolBar {
@@ -1354,12 +1399,16 @@ EditorStyleHelper {
 	qproperty-propertyRowCurveFill: rgb(223, 223, 223);
 
 	/* Icon tinting */
-	qproperty-iconTint: rgb(166, 166, 166);
+	qproperty-iconTint: rgb(209,209,209); /* normal */
 	qproperty-disabledIconTint: rgb(105, 105, 105);
-	qproperty-activeIconTint: rgb(190, 190, 190);
+	qproperty-activeIconTint: rgb(209,209,209);/* hover */
 	qproperty-selectedIconTint: rgb(97, 172, 236);
-	qproperty-alternateSelectedIconTint: rgb(255, 255, 255);
+	qproperty-alternateSelectedIconTint: rgb(0,0,0);
+	qproperty-alternateHoverIconTint: rgb(46,46,46); /* added to normal tint for QTreeView */
 	qproperty-contrastingIconTint: rgb(35, 35, 35);
+
+	/* QtreeView */
+	qproperty-treeViewItemMarginTop: 0;
 
 	/* Timeline colors */
 	qproperty-timelineTrackColor: rgb(68, 68, 68);
@@ -1373,7 +1422,8 @@ EditorStyleHelper {
 	qproperty-timelineBottomLines: rgb(50, 50, 50);
 	qproperty-timelineToggleColor: rgb(152, 152, 152);
 	qproperty-timelineClipPen: rgb(200, 200, 200);
-	qproperty-timelineClipBrush: rgb(220, 220, 220);
+	qproperty-timelineUnclipPen: rgb(200, 200, 200, 110);
+	qproperty-timelineClipBrush: rgba(220, 220, 220, 64);
 	qproperty-timelineSelectedClip: rgb(0, 0, 0);
 	qproperty-timelineSelectedClipFocused: rgb(0, 161, 222);
 	qproperty-timelineTreeLines: rgb(33, 33, 33);
@@ -1459,10 +1509,6 @@ EditorStyleHelper {
 
 QToolWindowSingleTabAreaFrame > QPushButton {
 	border-top:2px solid rgb(50,50,50);
-}
-
-QTabBar > QToolButton{
-	margin:0px;
 }
 
 QToolWindowCustomWrapper QTabWidget QSplitter{              /*vegetation inner frame*/
@@ -2030,4 +2076,48 @@ CEntityComponentCollapsibleFrameHeader QToolButton {
 
 QCollapsibleFrame QPushButton {
     border-radius: 0px;
+}
+
+QThumbnailsView > QToolButton{
+	icon-size: 17px;
+}
+
+CAssetBrowser CBreadcrumbsBar
+{
+    max-height: 22px;
+}
+
+CAssetBrowser CBreadcrumbsBar QToolButton
+{ 
+    margin-top: 2px;
+}
+
+CAssetBrowser CBreadcrumbsBar QLineEdit
+{
+    min-height: 20px;
+}
+
+CAssetBrowser CBreadcrumbsBar QLineEdit[error=true]
+{
+    border: 1px solid rgb(193,70,70) outset;
+}
+
+CAssetBrowser QToolButton::menu-indicator 
+{
+	image: url("icons:common/general_dropdown_triangle.ico");
+	subcontrol-position: right bottom;
+}
+
+QWidget#HoverWidget
+{
+	margin-top: 2px;
+	margin-left: 1px;
+	margin-right: 3px;
+	min-height: 18px;
+}
+
+QWidget#HoverWidget:hover
+{
+	background-color: rgb(86,86,86);
+    border-radius: 3px;
 }

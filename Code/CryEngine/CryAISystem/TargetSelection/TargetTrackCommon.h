@@ -1,19 +1,8 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
-/*************************************************************************
-   -------------------------------------------------------------------------
-   $Id$
-   $DateTime$
-   Description: Defines common helpers for the Target Track system
+//! \cond INTERNAL
 
-   -------------------------------------------------------------------------
-   History:
-   - 02:01:2010: Created by Kevin Kirst
-
-*************************************************************************/
-
-#ifndef __TARGET_TRACK_COMMON_H__
-#define __TARGET_TRACK_COMMON_H__
+#pragma once
 
 // Define if target track should determine the AI threat level for you
 #define TARGET_TRACK_DOTARGETTHREAT
@@ -178,4 +167,4 @@ struct ITargetTrackConfigProxy
 };
 }
 
-#endif //__TARGET_TRACK_COMMON_H__
+//! \endcond

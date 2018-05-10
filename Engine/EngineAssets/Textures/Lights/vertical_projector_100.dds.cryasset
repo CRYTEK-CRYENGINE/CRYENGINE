@@ -1,0 +1,15 @@
+<AssetMetadata version="0" type="Texture" guid="124042e5-1c66-8df2-6c90-6d3608a883fd" source="vertical_projector_100.tif">
+ <Files>
+  <File path="vertical_projector_100.dds"/>
+  <File path="vertical_projector_100.dds.1"/>
+  <File path="vertical_projector_100.dds.2"/>
+  <File path="vertical_projector_100.dds.3"/>
+  <File path="vertical_projector_100.dds.4"/>
+  <File path="vertical_projector_100.dds.5"/>
+ </Files>
+ <Details>
+  <Detail name="width">512</Detail>
+  <Detail name="height">512</Detail>
+  <Detail name="mipCount">8</Detail>
+ </Details>
+</AssetMetadata>

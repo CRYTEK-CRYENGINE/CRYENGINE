@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "AnimatedCharacter.h"
@@ -17,9 +17,9 @@
 
 #include <IViewSystem.h>
 
-char* g_szMCMString[eMCM_COUNT] = { "Undefined", "Entity", "Animation", "DecoupledCatchUp", "ClampedEntity", "SmoothedEntity", "AnimationHCollision" };
-char* g_szColliderModeString[eColliderMode_COUNT] = { "Undefined", "Disabled", "GroundedOnly", "Pushable", "NonPushable", "PushesPlayersOnly", "Spectator" };
-char* g_szColliderModeLayerString[eColliderModeLayer_COUNT] = { "AG", "Game", "Script", "FG", "Anim", "Sleep", "Debug" };
+const char* g_szMCMString[eMCM_COUNT] = { "Undefined", "Entity", "Animation", "DecoupledCatchUp", "ClampedEntity", "SmoothedEntity", "AnimationHCollision" };
+const char* g_szColliderModeString[eColliderMode_COUNT] = { "Undefined", "Disabled", "GroundedOnly", "Pushable", "NonPushable", "PushesPlayersOnly", "Spectator" };
+const char* g_szColliderModeLayerString[eColliderModeLayer_COUNT] = { "AG", "Game", "Script", "FG", "Anim", "Sleep", "Debug" };
 
 #define ANIMCHAR_MEM_DEBUG // Memory Allocation Tracking
 #undef  ANIMCHAR_MEM_DEBUG
@@ -322,6 +322,7 @@ void CAnimatedCharacter::InitVars()
 	m_bPendingRagdoll = false;
 	m_pMannequinAGState = NULL;
 	m_proxiesInitialized = false;
+	m_lastACFirstPerson = false;
 
 	for (int layer = 0; layer < eAnimationGraphLayer_COUNT; ++layer)
 	{
@@ -459,9 +460,18 @@ bool CAnimatedCharacter::InitializeMannequin()
 	if (m_pActionController)
 	{
 		IMannequin& mannequinSys = gEnv->pGameFramework->GetMannequinInterface();
-		m_pAnimDatabase3P = mannequinSys.GetAnimationDatabaseManager().Load(mannequinSetup.animDatabase3P);
-		m_pAnimDatabase1P = mannequinSys.GetAnimationDatabaseManager().Load(mannequinSetup.animDatabase1P);
-		m_pSoundDatabase = mannequinSys.GetAnimationDatabaseManager().Load(mannequinSetup.soundDatabase);
+		if (!mannequinSetup.animDatabase3P.empty())
+		{
+			m_pAnimDatabase3P = mannequinSys.GetAnimationDatabaseManager().Load(mannequinSetup.animDatabase3P);
+		}
+		if (!mannequinSetup.animDatabase1P.empty())
+		{
+			m_pAnimDatabase1P = mannequinSys.GetAnimationDatabaseManager().Load(mannequinSetup.animDatabase1P);
+		}
+		if (!mannequinSetup.soundDatabase.empty())
+		{
+			m_pSoundDatabase = mannequinSys.GetAnimationDatabaseManager().Load(mannequinSetup.soundDatabase);
+		}
 	}
 
 	m_useMannequinAGState = mannequinSetup.useMannequinAGState;
@@ -581,7 +591,7 @@ void CAnimatedCharacter::PostSerialize()
 
 void CAnimatedCharacter::Update(SEntityUpdateContext& ctx, int slot)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_ACTION);
+	CRY_PROFILE_FUNCTION(PROFILE_ACTION);
 
 	//assert(!m_simplifyMovement); // If we have simplified movement, the this GameObject extension should not be updated here.
 
@@ -1153,9 +1163,9 @@ void CAnimatedCharacter::UpdateCharacterPtrs()
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CAnimatedCharacter::ProcessEvent(SEntityEvent& event)
+void CAnimatedCharacter::ProcessEvent(const SEntityEvent& event)
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_ACTION);
+	CRY_PROFILE_FUNCTION(PROFILE_ACTION);
 
 	switch (event.event)
 	{
@@ -1277,6 +1287,11 @@ void CAnimatedCharacter::ProcessEvent(SEntityEvent& event)
 		}
 		break;
 	}
+}
+
+uint64 CAnimatedCharacter::GetEventMask() const
+{
+	return BIT64(ENTITY_EVENT_PRE_SERIALIZE) | BIT64(ENTITY_EVENT_ANIM_EVENT) | BIT64(ENTITY_EVENT_XFORM) | BIT64(ENTITY_EVENT_SCRIPT_REQUEST_COLLIDERMODE) | BIT64(ENTITY_EVENT_DONE) | BIT64(ENTITY_EVENT_INIT) | BIT64(ENTITY_EVENT_RESET);
 }
 
 float CAnimatedCharacter::FilterView(SViewParams& viewParams) const
@@ -1656,9 +1671,9 @@ bool CAnimatedCharacter::StartAnimationProcessing(const QuatT& entityLocation) c
 	if ((m_pCharacter != NULL) && (m_lastAnimationUpdateFrameId != currentFrameId))
 	{
 		// calculate the approximate distance from camera
-		CCamera* pCamera = &GetISystem()->GetViewCamera();
-		const float fDistance = ((pCamera ? pCamera->GetPosition() : entityLocation.t) - entityLocation.t).GetLength();
-		const float fZoomFactor = 0.001f + 0.999f * (RAD2DEG((pCamera ? pCamera->GetFov() : 60.0f)) / 60.f);
+		const CCamera& camera = GetISystem()->GetViewCamera();
+		const float fDistance = (camera.GetPosition() - entityLocation.t).GetLength();
+		const float fZoomFactor = 0.001f + 0.999f * (RAD2DEG(camera.GetFov()) / 60.f);
 
 		SAnimationProcessParams params;
 		params.locationAnimation = entityLocation;
@@ -1776,7 +1791,7 @@ void CAnimatedCharacter::UpdateGroundAlignment()
 		else
 		{
 			//check if player is close enough
-			CCamera& camera = gEnv->pSystem->GetViewCamera();
+			const CCamera& camera = gEnv->pSystem->GetViewCamera();
 			const float fDistanceSq = (camera.GetPosition() - m_entLocation.t).GetLengthSquared();
 
 			// check if the character is using an animAction

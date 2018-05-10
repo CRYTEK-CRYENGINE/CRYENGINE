@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 // -------------------------------------------------------------------------
 //  File name:   VisAreaCompile.cpp
@@ -54,8 +54,10 @@ struct SVisAreaChunk
 #if ENGINE_ENABLE_COMPILATION
 int CVisArea::GetData(byte*& pData, int& nDataSize, std::vector<IStatObj*>* pStatObjTable, std::vector<IMaterial*>* pMatTable, std::vector<IStatInstGroup*>* pStatInstGroupTable, EEndian eEndian, SHotUpdateInfo* pExportInfo)
 {
-	if (m_pObjectsTree)
-		m_pObjectsTree->CleanUpTree();
+	if (IsObjectsTreeValid())
+	{
+		GetObjectsTree()->CleanUpTree();
+	}
 
 	if (pData)
 	{
@@ -73,7 +75,7 @@ int CVisArea::GetData(byte*& pData, int& nDataSize, std::vector<IStatObj*>* pSta
 		SwapEndian((Vec3*)pData, m_lstShapePoints.Count(), eEndian);
 		UPDATE_PTR_AND_SIZE(pData, nDataSize, m_lstShapePoints.GetDataSize());
 
-		SaveObjetsTree(pData, nDataSize, pStatObjTable, pMatTable, pStatInstGroupTable, eEndian, pExportInfo, pHead, Vec3(ZERO));
+		SaveObjetsTree(pData, nDataSize, pStatObjTable, pMatTable, pStatInstGroupTable, eEndian, pExportInfo, pHead);
 	}
 	else // just count size
 	{
@@ -82,8 +84,10 @@ int CVisArea::GetData(byte*& pData, int& nDataSize, std::vector<IStatObj*>* pSta
 		nDataSize += sizeof(int);
 		nDataSize += m_lstShapePoints.GetDataSize();
 
-		if (m_pObjectsTree)
-			m_pObjectsTree->GetData(pData, nDataSize, NULL, NULL, NULL, eEndian, pExportInfo, Vec3(ZERO));
+		if (IsObjectsTreeValid())
+		{
+			GetObjectsTree()->GetData(pData, nDataSize, NULL, NULL, NULL, eEndian, pExportInfo);
+		}
 	}
 	return true;
 }
@@ -120,7 +124,7 @@ int CVisArea::Load_T(T*& f, int& nDataSizeLeft, std::vector<IStatObj*>* pStatObj
 		UpdateClipVolume();
 	}
 
-	if (!LoadObjectsTree_T(f, nDataSizeLeft, 0, pStatObjTable, pMatTable, eEndian, pExportInfo, objBlockSize, Vec3(ZERO)))
+	if (!LoadObjectsTree_T(f, nDataSizeLeft, pStatObjTable, pMatTable, eEndian, pExportInfo, objBlockSize))
 		return 0;
 
 	return true;
@@ -193,7 +197,7 @@ int CVisArea::SaveHeader(byte*& pData, int& nDataSize)
 	return true;
 }
 
-int CVisArea::SaveObjetsTree(byte*& pData, int& nDataSize, std::vector<IStatObj*>* pStatObjTable, std::vector<IMaterial*>* pMatTable, std::vector<IStatInstGroup*>* pStatInstGroupTable, EEndian eEndian, SHotUpdateInfo* pExportInfo, byte* pHead, const Vec3& segmentOffset)
+int CVisArea::SaveObjetsTree(byte*& pData, int& nDataSize, std::vector<IStatObj*>* pStatObjTable, std::vector<IMaterial*>* pMatTable, std::vector<IStatInstGroup*>* pStatInstGroupTable, EEndian eEndian, SHotUpdateInfo* pExportInfo, byte* pHead)
 {
 	SVisAreaChunk* pCunk = (SVisAreaChunk*)pHead;
 
@@ -201,11 +205,11 @@ int CVisArea::SaveObjetsTree(byte*& pData, int& nDataSize, std::vector<IStatObj*
 	pCunk->nObjectsBlockSize = 0;
 
 	// get data from objects tree
-	if (m_pObjectsTree)
+	if (IsObjectsTreeValid())
 	{
 		byte* pTmp = NULL;
-		m_pObjectsTree->GetData(pTmp, pCunk->nObjectsBlockSize, NULL, NULL, NULL, eEndian, pExportInfo, segmentOffset);
-		m_pObjectsTree->GetData(pData, nDataSize, pStatObjTable, pMatTable, pStatInstGroupTable, eEndian, pExportInfo, segmentOffset); // UPDATE_PTR_AND_SIZE is inside
+		GetObjectsTree()->GetData(pTmp, pCunk->nObjectsBlockSize, NULL, NULL, NULL, eEndian, pExportInfo);
+		GetObjectsTree()->GetData(pData, nDataSize, pStatObjTable, pMatTable, pStatInstGroupTable, eEndian, pExportInfo); // UPDATE_PTR_AND_SIZE is inside
 	}
 
 	SwapEndian(*pCunk, eEndian);
@@ -250,7 +254,6 @@ int CVisArea::LoadHeader_T(T*& f, int& nDataSizeLeft, EEndian eEndian, int& objB
 
 	objBlockSize = chunk.nObjectsBlockSize;
 
-#ifndef SEG_WORLD
 	// convert connections id into pointers
 	PodArray<CVisArea*>& rAreas = IsPortal() ? GetVisAreaManager()->m_lstVisAreas : GetVisAreaManager()->m_lstPortals;
 	for (int i = 0; i < MAX_VIS_AREA_CONNECTIONS_NUM && rAreas.Count(); i++)
@@ -259,13 +262,12 @@ int CVisArea::LoadHeader_T(T*& f, int& nDataSizeLeft, EEndian eEndian, int& objB
 		if (chunk.arrConnectionsId[i] >= 0)
 			m_lstConnections.Add(rAreas[chunk.arrConnectionsId[i]]);
 	}
-#endif
 
 	return true;
 }
 
 template<class T>
-int CVisArea::LoadObjectsTree_T(T*& f, int& nDataSizeLeft, int nSID, std::vector<IStatObj*>* pStatObjTable, std::vector<IMaterial*>* pMatTable, EEndian eEndian, SHotUpdateInfo* pExportInfo, const int objBlockSize, const Vec3& segmentOffset)
+int CVisArea::LoadObjectsTree_T(T*& f, int& nDataSizeLeft, std::vector<IStatObj*>* pStatObjTable, std::vector<IMaterial*>* pMatTable, EEndian eEndian, SHotUpdateInfo* pExportInfo, const int objBlockSize)
 {
 	// mark tree as invalid since new visarea was just added
 	SAFE_DELETE(GetVisAreaManager()->m_pAABBTree);
@@ -278,22 +280,21 @@ int CVisArea::LoadObjectsTree_T(T*& f, int& nDataSizeLeft, int nSID, std::vector
 		int nCurDataSize = nDataSizeLeft;
 		if (nCurDataSize > 0)
 		{
-			if (!m_pObjectsTree)
+			if (!IsObjectsTreeValid())
 			{
-				m_pObjectsTree = COctreeNode::Create(DEFAULT_SID, m_boxArea, this);
+				SetObjectsTree( COctreeNode::Create(m_boxArea, this) );
 			}
-			m_pObjectsTree->UpdateVisAreaSID(this, nSID);
 
 			if (pExportInfo != NULL && pExportInfo->pVisibleLayerMask != NULL && pExportInfo->pLayerIdTranslation)
 			{
 				SLayerVisibility visInfo;
 				visInfo.pLayerVisibilityMask = pExportInfo->pVisibleLayerMask;
 				visInfo.pLayerIdTranslation = pExportInfo->pLayerIdTranslation;
-				m_pObjectsTree->Load(f, nDataSizeLeft, pStatObjTable, pMatTable, eEndian, pBox, &visInfo, segmentOffset);
+				GetObjectsTree()->Load(f, nDataSizeLeft, pStatObjTable, pMatTable, eEndian, pBox, &visInfo);
 			}
 			else
 			{
-				m_pObjectsTree->Load(f, nDataSizeLeft, pStatObjTable, pMatTable, eEndian, pBox, NULL, segmentOffset);
+				GetObjectsTree()->Load(f, nDataSizeLeft, pStatObjTable, pMatTable, eEndian, pBox, NULL);
 			}
 
 			assert(nDataSizeLeft == (nCurDataSize - objBlockSize));
@@ -321,121 +322,6 @@ VisAreaGUID CVisArea::GetGUIDFromFile(byte* f, EEndian eEndian)
 	VisAreaGUID guid = *(VisAreaGUID*)(f + sizeof(SVisAreaChunk));
 	SwapEndian(&guid, sizeof(VisAreaGUID), eEndian);
 	return guid;
-}
-
-//////////////////////////////////////////////////////////////////////
-// Segmented World
-#if ENGINE_ENABLE_COMPILATION
-int CVisArea::GetSegmentData(byte*& pData, int& nDataSize, std::vector<IStatObj*>* pStatObjTable, std::vector<IMaterial*>* pMatTable, std::vector<IStatInstGroup*>* pStatInstGroupTable, EEndian eEndian, SHotUpdateInfo* pExportInfo, const Vec3& segmentOffset)
-{
-	if (m_pObjectsTree)
-		m_pObjectsTree->CleanUpTree();
-
-	ISegmentsManager* pSM = Get3DEngine()->m_pSegmentsManager;
-	assert(pSM);
-
-	if (pData)
-	{
-		byte* pHead = pData;
-		SaveHeader(pData, nDataSize);
-
-		PodArray<Vec3> lstSegPoints;
-		PodArray<Vec2> lstWorldCoords;
-
-		int nPointsCount = m_lstShapePoints.Count();
-
-		lstSegPoints.PreAllocate(nPointsCount, nPointsCount);
-		lstWorldCoords.PreAllocate(nPointsCount, nPointsCount);
-
-		for (int i = 0; i < nPointsCount; i++)
-		{
-			Vec3 vAbsPos = pSM->LocalToAbsolutePosition(m_lstShapePoints[i]);
-			pSM->WorldVecToGlobalSegVec(vAbsPos, lstSegPoints[i], lstWorldCoords[i]);
-		}
-
-		VisAreaGUID guid = m_nVisGUID;
-		SwapEndian(guid, eEndian);
-		memcpy(pData, &guid, sizeof(VisAreaGUID));
-		UPDATE_PTR_AND_SIZE(pData, nDataSize, sizeof(VisAreaGUID));
-
-		// save shape points num
-		SwapEndian(nPointsCount, eEndian);
-		memcpy(pData, &nPointsCount, sizeof(nPointsCount));
-		UPDATE_PTR_AND_SIZE(pData, nDataSize, sizeof(nPointsCount));
-
-		memcpy(pData, lstSegPoints.GetElements(), lstSegPoints.GetDataSize());
-		SwapEndian((Vec3*)pData, lstSegPoints.Count(), eEndian);
-		UPDATE_PTR_AND_SIZE(pData, nDataSize, lstSegPoints.GetDataSize());
-
-		memcpy(pData, lstWorldCoords.GetElements(), lstWorldCoords.GetDataSize());
-		SwapEndian((Vec2*)pData, lstWorldCoords.Count(), eEndian);
-		UPDATE_PTR_AND_SIZE(pData, nDataSize, lstWorldCoords.GetDataSize());
-
-		SaveObjetsTree(pData, nDataSize, pStatObjTable, pMatTable, pStatInstGroupTable, eEndian, pExportInfo, pHead, segmentOffset);
-	}
-	else // just count size
-	{
-		nDataSize += sizeof(SVisAreaChunk);
-
-		nDataSize += sizeof(VisAreaGUID);
-		nDataSize += sizeof(int);
-		nDataSize += m_lstShapePoints.GetDataSize();
-		nDataSize += sizeof(Vec2i) * m_lstShapePoints.Count();
-
-		if (m_pObjectsTree)
-			m_pObjectsTree->GetData(pData, nDataSize, NULL, NULL, NULL, eEndian, pExportInfo, segmentOffset);
-	}
-
-	return true;
-}
-#endif
-int CSWVisArea::Load(byte*& f, int& nDataSizeLeft, int nSID, std::vector<IStatObj*>* pStatObjTable, std::vector<IMaterial*>* pMatTable, EEndian eEndian, SHotUpdateInfo* pExportInfo, const Vec3& segmentOffset, const Vec2& indexOffset)
-{
-	int objBlockSize = 0;
-	if (!LoadHeader_T(f, nDataSizeLeft, eEndian, objBlockSize))
-		return 0;
-
-	ISegmentsManager* pSM = Get3DEngine()->m_pSegmentsManager;
-	assert(pSM);
-
-	if (!CTerrain::LoadDataFromFile(&m_nVisGUID, 1, f, nDataSizeLeft, eEndian))
-		return 0;
-
-	{
-		// get shape points
-		int nPointsCount = 0;
-		if (!CTerrain::LoadDataFromFile(&nPointsCount, 1, f, nDataSizeLeft, eEndian))
-			return 0;
-
-		// get shape points
-		m_lstShapePoints.PreAllocate(nPointsCount, nPointsCount);
-		if (!CTerrain::LoadDataFromFile(m_lstShapePoints.GetElements(), nPointsCount, f, nDataSizeLeft, eEndian))
-			return 0;
-
-		PodArray<Vec2> lstWorldCoords;
-		lstWorldCoords.PreAllocate(nPointsCount, nPointsCount);
-		if (!CTerrain::LoadDataFromFile(lstWorldCoords.GetElements(), nPointsCount, f, nDataSizeLeft, eEndian))
-			return 0;
-
-		m_boxArea.max = SetMinBB();
-		m_boxArea.min = SetMaxBB();
-		for (int i = 0; i < nPointsCount; i++)
-		{
-			lstWorldCoords[i] += indexOffset;
-			pSM->GlobalSegVecToLocalSegVec(m_lstShapePoints[i], lstWorldCoords[i], m_lstShapePoints[i]);
-
-			m_boxArea.max.CheckMax(m_lstShapePoints[i]);
-			m_boxArea.min.CheckMin(m_lstShapePoints[i]);
-			m_boxArea.max.CheckMax(m_lstShapePoints[i] + Vec3(0, 0, m_fHeight));
-			m_boxArea.min.CheckMin(m_lstShapePoints[i] + Vec3(0, 0, m_fHeight));
-		}
-		UpdateGeometryBBox();
-	}
-
-	if (!LoadObjectsTree_T(f, nDataSizeLeft, nSID, pStatObjTable, pMatTable, eEndian, pExportInfo, objBlockSize, segmentOffset))
-		return 0;
-
-	return true;
 }
 
 #include <CryCore/TypeInfo_impl.h>

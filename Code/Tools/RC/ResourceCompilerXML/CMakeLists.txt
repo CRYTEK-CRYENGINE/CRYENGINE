@@ -30,7 +30,7 @@ add_sources("NoUberFile"
 end_sources()
 #END-FILE-LIST
 
-CryResourceCompilerModule(ResourceCompilerXML PCH "StdAfx.cpp" SOLUTION_FOLDER "RC")
+CryResourceCompilerModule(ResourceCompilerXML PCH "stdafx.cpp" SOLUTION_FOLDER "RC")
 target_include_directories(${THIS_PROJECT} PRIVATE 
 	"${CMAKE_SOURCE_DIR}/ResourceCompiler" 
 	"${CRYENGINE_SOURCE_DIR}/Code/Tools" 

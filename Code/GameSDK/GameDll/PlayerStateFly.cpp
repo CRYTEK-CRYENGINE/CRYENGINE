@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 /*************************************************************************
 -------------------------------------------------------------------------
@@ -210,14 +210,14 @@ void CPlayerStateSpectate::DrawSpectatorFade()
 	C2DRenderUtils* pRenderUtils = g_pGame->GetUI()->Get2DRenderUtils();
 	ScreenLayoutManager* pLayoutManager = g_pGame->GetUI()->GetLayoutManager();
 
-	ScreenLayoutStates prevLayoutState = pLayoutManager->GetState();
+	ScreenLayoutStates prevLayoutState = pLayoutManager->GetState(); 
 	pLayoutManager->SetState(eSLO_DoNotAdaptToSafeArea|eSLO_ScaleMethod_None);
 
 	ColorF color(0.f, 0.f, 0.f, fCurrentFadeOut);
 	float width  = pLayoutManager->GetVirtualWidth();
 	float height = pLayoutManager->GetVirtualHeight();
 
-	gEnv->pRenderer->SetState(GS_NODEPTHTEST);
+	//gEnv->pRenderer->SetState(GS_NODEPTHTEST);
 	pRenderUtils->DrawQuad(0, 0, width, height, color);
 
 	pLayoutManager->SetState(prevLayoutState);

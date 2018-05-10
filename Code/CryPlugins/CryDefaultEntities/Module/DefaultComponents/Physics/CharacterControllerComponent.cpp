@@ -56,17 +56,6 @@ void CCharacterControllerComponent::Register(Schematyc::CEnvRegistrationScope& c
 		pFunction->BindOutput(0, 'vel', "Velocity");
 		componentScope.Register(pFunction);
 	}
-	{
-		auto pFunction = SCHEMATYC_MAKE_ENV_FUNCTION(&CCharacterControllerComponent::Ragdollize, "{1927B2CC-9CC0-4872-93C1-33A4BFC86145}"_cry_guid, "ActivateRagdoll");
-		pFunction->SetDescription("Turns the character into a ragdoll, and disables controlled movement");
-		pFunction->SetFlags(Schematyc::EEnvFunctionFlags::Construction);
-		componentScope.Register(pFunction);
-	}
-	{
-		auto pFunction = SCHEMATYC_MAKE_ENV_FUNCTION(&CCharacterControllerComponent::Physicalize, "{FA4C7D76-61BF-41DF-B14D-F72D161496EB}"_cry_guid, "DeactivateRagdoll");
-		pFunction->SetDescription("Disables ragdoll and allows the player to control movement again");
-		componentScope.Register(pFunction);
-	}
 	// Signals
 	{
 		auto pSignal = SCHEMATYC_MAKE_ENV_SIGNAL(SCollisionSignal);
@@ -100,7 +89,7 @@ void CCharacterControllerComponent::Initialize()
 	}
 }
 
-void CCharacterControllerComponent::ProcessEvent(SEntityEvent& event)
+void CCharacterControllerComponent::ProcessEvent(const SEntityEvent& event)
 {
 	if (event.event == ENTITY_EVENT_UPDATE)
 	{

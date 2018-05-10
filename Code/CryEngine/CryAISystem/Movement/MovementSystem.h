@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -19,12 +19,15 @@ public:
 	// IMovementSystem
 	virtual void              RegisterEntity(const EntityId entityId, MovementActorCallbacks callbacksConfiguration, IMovementActorAdapter& adapter) override;
 	virtual void              UnregisterEntity(const EntityId entityId) override;
+	virtual bool              IsEntityRegistered(const EntityId entityId) override;
 	virtual MovementRequestID QueueRequest(const MovementRequest& request) override;
 	virtual void              CancelRequest(const MovementRequestID& id) override;
 	virtual void              GetRequestStatus(const MovementRequestID& id, MovementRequestStatus& status) const override;
 	virtual void              Update(float updateTime) override;
 	virtual void              Reset() override;
 	virtual void              RegisterFunctionToConstructMovementBlockForCustomNavigationType(Movement::CustomNavigationBlockCreatorFunction blockFactoryFunction) override;
+	virtual bool              AddActionAbilityCallbacks(const EntityId entityId, const SMovementActionAbilityCallbacks& ability) override;
+	virtual bool              RemoveActionAbilityCallbacks(const EntityId entityId, const SMovementActionAbilityCallbacks& ability) override;
 	// ~IMovementSystem
 
 	Movement::BlockPtr CreateCustomBlock(const CNavPath& path, const PathPointDescriptor::OffMeshLinkData& mnmData, const MovementStyle& style);

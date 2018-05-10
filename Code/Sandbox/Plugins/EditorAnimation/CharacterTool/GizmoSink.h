@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 #include <vector>
@@ -36,7 +36,7 @@ enum GizmoLayer
 class GizmoSink : public Serialization::IGizmoSink
 {
 public:
-	GizmoSink() : m_lastIndex(0), m_scene(0) {}
+	GizmoSink() : m_lastIndex(0), m_currentLayer(0), m_scene(0) {}
 	void           SetScene(Manip::CScene* scene) { m_scene = scene; }
 	ExplorerEntry* ActiveEntry()                  { return m_activeEntry.get(); }
 
@@ -62,3 +62,4 @@ private:
 };
 
 }
+

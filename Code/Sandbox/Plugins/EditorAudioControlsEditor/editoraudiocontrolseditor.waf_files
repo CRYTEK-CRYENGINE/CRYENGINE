@@ -1,60 +1,67 @@
 {
-	"EditorAudioControlsEditor_uber_0.cpp":
-	{
-		"Root":
-		[
-			"AudioAssetsManager.cpp",
-			"AudioAssetsManager.h",
-			"AudioControlsEditorPlugin.cpp",
-			"AudioControlsEditorPlugin.h",
-			"AudioControlsEditorWindow.h",
-			"AudioControlsEditorWindow.cpp",
-			"AudioResourceSelectors.cpp",
-			"StdAfx.cpp",
-			"StdAfx.h",
-			"AudioControlsWriter.cpp",
-			"AudioControlsWriter.h",
-			"AudioControlsLoader.h",
-			"AudioControlsLoader.cpp",
-			"AudioAssets.h",
-			"AudioAssets.cpp",
-			"AudioControlsEditorUndo.h",
-			"AudioControlsEditorUndo.cpp",
-			"AudioAssetsExplorer.h",
-			"AudioAssetsExplorer.cpp",
-			"InspectorPanel.h",
-			"InspectorPanel.cpp",
-			"AudioSystemPanel.h",
-			"AudioSystemPanel.cpp",
-			"ATLControlsResourceDialog.cpp",
-			"ATLControlsResourceDialog.h",
-			"ImplementationManager.h",
-			"ImplementationManager.cpp"
-		],
-		"qt":
-		[
-			"QTreeWidgetFilter.cpp",
-			"QTreeWidgetFilter.h",
-			"QAudioControlEditorIcons.h",
-			"QAudioControlTreeWidget.h",
-			"QAudioControlTreeWidget.cpp",
-			"QConnectionsWidget.h",
-			"QConnectionsWidget.cpp",
-			"QConnectionsModel.h",
-			"QConnectionsModel.cpp",
-			"AudioAssetsExplorerModel.h",
-			"AudioAssetsExplorerModel.cpp",
-			"AudioSystemModel.h",
-			"AudioSystemModel.cpp",
-			"QAudioSystemSettingsDialog.h",
-			"QAudioSystemSettingsDialog.cpp"
-		]
-	},
-	"NoUberFile":
-	{
-		"qt":
-		[
-			"AudioControlsEditorUI.qrc"
-		]
-	}
+    "EditorAudioControlsEditor_uber_0.cpp": {
+        "Connections": [
+            "ConnectionsWidget.h", 
+            "ConnectionsWidget.cpp", 
+            "ConnectionsModel.h", 
+            "ConnectionsModel.cpp"
+        ], 
+        "MiddlewareData": [
+            "MiddlewareDataWidget.h", 
+            "MiddlewareDataWidget.cpp", 
+            "MiddlewareDataModel.h", 
+            "MiddlewareDataModel.cpp"
+        ], 
+        "Preferences": [
+            "PreferencesDialog.h", 
+            "PreferencesDialog.cpp"
+        ], 
+        "Properties": [
+            "PropertiesWidget.h", 
+            "PropertiesWidget.cpp"
+        ], 
+        "ResourceSelector": [
+            "ResourceSelectors.cpp", 
+            "ResourceSelectorDialog.cpp", 
+            "ResourceSelectorDialog.h", 
+            "ResourceSelectorModel.cpp", 
+            "ResourceSelectorModel.h"
+        ], 
+        "Root": [
+            "AudioAssetsManager.h", 
+            "AudioAssetsManager.cpp", 
+            "AudioControlsEditorPlugin.cpp", 
+            "AudioControlsEditorPlugin.h", 
+            "AudioControlsEditorWindow.h", 
+            "AudioControlsEditorWindow.cpp", 
+            "StdAfx.cpp", 
+            "StdAfx.h", 
+            "AudioControlsWriter.cpp", 
+            "AudioControlsWriter.h", 
+            "AudioControlsLoader.h", 
+            "AudioControlsLoader.cpp", 
+            "AudioAssets.h", 
+            "AudioAssets.cpp", 
+            "AudioControlsEditorUndo.h", 
+            "AudioControlsEditorUndo.cpp", 
+            "ImplementationManager.h", 
+            "ImplementationManager.cpp", 
+            "SystemControlsEditorIcons.h", 
+            "AudioTreeView.cpp", 
+            "AudioTreeView.h", 
+            "FileMonitor.cpp", 
+            "FileMonitor.h"
+        ], 
+        "SystemControls": [
+            "SystemControlsWidget.h", 
+            "SystemControlsWidget.cpp", 
+            "SystemControlsModel.cpp", 
+            "SystemControlsModel.h"
+        ]
+    }, 
+    "NoUberFile": {
+        "Resources": [
+            "AudioControlsEditorUI.qrc"
+        ]
+    }
 }

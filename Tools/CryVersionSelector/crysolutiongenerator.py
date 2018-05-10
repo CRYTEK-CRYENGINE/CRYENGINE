@@ -23,8 +23,8 @@ def generate_solution (project_file, code_directory, engine_root_directory):
 
 def generate_csharp_solution (project_name, project_file, code_directory, engine_root_directory):
     solution_file_template = Template("""Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio 14
-VisualStudioVersion = 14.0.25420.1
+# Visual Studio 15
+VisualStudioVersion = 15.0.27130.2003
 MinimumVisualStudioVersion = 10.0.40219.1
 $projects
 Global
@@ -66,7 +66,8 @@ EndGlobal""")
         solution_file_path = os.path.join(code_directory, project_name + ".sln")
         solution_file = open(solution_file_path, 'w')
         solution_file.write(solution_file_contents)
-        
+        create_shortcut(solution_file_path, project_file)
+
 def generate_csharp_project (project_file, code_directory, cs_source_directory, engine_root_directory, csproject_guid):
     cs_project_file_template = Template("""<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="14.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
@@ -89,7 +90,7 @@ def generate_csharp_project (project_file, code_directory, cs_source_directory, 
   </PropertyGroup>
   <PropertyGroup Condition=" '$$(Configuration)|$$(Platform)' == 'Debug|AnyCPU' ">
     <DebugSymbols>true</DebugSymbols>
-    <DebugType>full</DebugType>
+    <DebugType>portable</DebugType>
     <Optimize>false</Optimize>
     <OutputPath>$output_path</OutputPath>
     <DefineConstants>DEBUG;TRACE</DefineConstants>
@@ -97,7 +98,7 @@ def generate_csharp_project (project_file, code_directory, cs_source_directory, 
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
   <PropertyGroup Condition=" '$$(Configuration)|$$(Platform)' == 'Release|AnyCPU' ">
-    <DebugType>pdbonly</DebugType>
+    <DebugType>none</DebugType>
     <Optimize>true</Optimize>
     <OutputPath>$output_path</OutputPath>
     <DefineConstants>TRACE</DefineConstants>
@@ -111,7 +112,7 @@ def generate_csharp_project (project_file, code_directory, cs_source_directory, 
     $includes
   </ItemGroup>
   <Import Project="$$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
-  <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
+  <!-- To modify your build process, add your task inside one of the targets below and uncomment it.
        Other similar extension points exist, see Microsoft.Common.targets.
   <Target Name="BeforeBuild">
   </Target>
@@ -183,41 +184,30 @@ include("$${TOOLS_CMAKE_DIR}/Configure.cmake")"""
 
 sources_platform(ALL)
 $sources
+if(EXISTS "$${CMAKE_CURRENT_SOURCE_DIR}/CVarOverrides.h")
+    add_sources("NoUberFile"
+        PROJECTS Game
+        SOURCE_GROUP "Root"
+            "CVarOverrides.h"
+    )
+endif()
 end_sources()
 
-CryEngineModule($project_name PCH "StdAfx.cpp" SOLUTION_FOLDER "Project")
+CryGameModule($project_name FORCE_SHARED PCH "StdAfx.cpp" SOLUTION_FOLDER "Project")
 
 target_include_directories($${THIS_PROJECT}
-PRIVATE 
+PRIVATE
     "$${CRYENGINE_DIR}/Code/CryEngine/CryCommon"
     "$${CRYENGINE_DIR}/Code/CryEngine/CryAction"
-	"$${CRYENGINE_DIR}/Code/CryEngine/CrySchematyc/Core/Interface"
-	"$${CRYENGINE_DIR}/Code/CryPlugins/CryDefaultEntities/Module"
+    "$${CRYENGINE_DIR}/Code/CryEngine/CrySchematyc/Core/Interface"
+    "$${CRYENGINE_DIR}/Code/CryPlugins/CryDefaultEntities/Module"
 )
 """
 
     if is_default_project:
-        cmakelists_template.template += '''\n# Set StartUp project in Visual Studio
-
-add_library(GameLauncher STATIC "$${CRYENGINE_DIR}/Code/CryEngine/CryCommon/CryCore/Platform/platform.h")
-set_target_properties(GameLauncher PROPERTIES LINKER_LANGUAGE CXX)
-if (WIN32)
-    set_visual_studio_debugger_command(GameLauncher "$${CRYENGINE_DIR}/bin/win_x64/GameLauncher.exe" "-project \\"$projectfile\\"")
-endif()
-
-add_library(Sandbox STATIC "$${CRYENGINE_DIR}/Code/CryEngine/CryCommon/CryCore/Platform/platform.h")
-set_target_properties(Sandbox PROPERTIES LINKER_LANGUAGE CXX)
-if (WIN32)
-    set_visual_studio_debugger_command(Sandbox "$${CRYENGINE_DIR}/bin/win_x64/Sandbox.exe" "-project \\"$projectfile\\"")
-endif()
-
-add_library(GameServer STATIC "$${CRYENGINE_DIR}/Code/CryEngine/CryCommon/CryCore/Platform/platform.h")
-set_target_properties(GameServer PROPERTIES LINKER_LANGUAGE CXX)
-if (WIN32)
-    set_visual_studio_debugger_command(GameServer "$${CRYENGINE_DIR}/bin/win_x64/Game_Server.exe" "-project \\"$projectfile\\"")
-endif()
-
-set_solution_startup_target(GameLauncher)
+        cmakelists_template.template += '''\n$launcher_projects
+# Set StartUp project in Visual Studio
+set_solution_startup_target($startup_project)
 
 if (WIN32)
     set_visual_studio_debugger_command( $${THIS_PROJECT} "$${CRYENGINE_DIR}/bin/win_x64/GameLauncher.exe" "-project \\"$projectfile\\"" )
@@ -296,6 +286,8 @@ endif()\n'''
     if source_count == 0:
         return
 
+    startup_project, launcher_projects = get_startup_and_launcher_projects(project_name, project_file, engine_root_directory)
+
     output_path = os.path.abspath(os.path.join(code_directory, os.pardir, "bin", "win_x64"))
 
     cmakelists_contents = cmakelists_template.substitute({
@@ -304,13 +296,51 @@ endif()\n'''
         'project_name': project_name,
         'projectfile': project_file.replace('\\', '/'),
         'project_path': os.path.abspath(os.path.dirname(project_file)).replace('\\', '/'),
-		'output_path': output_path.replace('\\', '/') })
+        'startup_project': startup_project,
+        'launcher_projects': launcher_projects,
+        'output_path': output_path.replace('\\', '/') })
     cmakelists_contents += custom_contents
 
     cmakelists_file = open(cmakelists_path, 'w')
 
     cmakelists_file.write(cmakelists_contents)
 
+def get_startup_and_launcher_projects(project_name, project_file, engine_root_directory):
+    platform_file_path = os.path.join(engine_root_directory, "Code", "CryEngine", "CryCommon", "CryCore", "Platform", "platform.h")
+    if not os.path.isfile(platform_file_path):
+        print("File not found: {}".format(platform_file_path))
+        return (project_name, "")
+
+    launcher_projects = Template('''
+if(OPTION_ENGINE)
+    if(NOT EXISTS "$${CRYENGINE_DIR}/Code/Sandbox/EditorQt")
+		add_library(Editor STATIC "$${CRYENGINE_DIR}/Code/CryEngine/CryCommon/CryCore/Platform/platform.h")
+		set_target_properties(Editor PROPERTIES LINKER_LANGUAGE CXX)
+		if (WIN32)
+			set_visual_studio_debugger_command(Editor "$${CRYENGINE_DIR}/bin/win_x64/Sandbox.exe" "-project \\"$projectfile\\"")
+		endif()
+	endif()
+else()
+	add_library(GameLauncher STATIC "$${CRYENGINE_DIR}/Code/CryEngine/CryCommon/CryCore/Platform/platform.h")
+	set_target_properties(GameLauncher PROPERTIES LINKER_LANGUAGE CXX)
+	if (WIN32)
+		set_visual_studio_debugger_command(GameLauncher "$${CRYENGINE_DIR}/bin/win_x64/GameLauncher.exe" "-project \\"$projectfile\\"")
+	endif()
+
+    add_library(Editor STATIC "$${CRYENGINE_DIR}/Code/CryEngine/CryCommon/CryCore/Platform/platform.h")
+    set_target_properties(Editor PROPERTIES LINKER_LANGUAGE CXX)
+    if (WIN32)
+        set_visual_studio_debugger_command(Editor "$${CRYENGINE_DIR}/bin/win_x64/Sandbox.exe" "-project \\"$projectfile\\"")
+    endif()
+
+	add_library(GameServer STATIC "$${CRYENGINE_DIR}/Code/CryEngine/CryCommon/CryCore/Platform/platform.h")
+	set_target_properties(GameServer PROPERTIES LINKER_LANGUAGE CXX)
+	if (WIN32)
+		set_visual_studio_debugger_command(GameServer "$${CRYENGINE_DIR}/bin/win_x64/Game_Server.exe" "-project \\"$projectfile\\"")
+	endif()
+endif()\n''')
+    cmake_launcher_projects = launcher_projects.substitute({'projectfile' : project_file.replace('\\', '/')})
+    return "GameLauncher", cmake_launcher_projects
 
 def add_cpp_sources(directoryname, project_name, code_directory, skip_directories):
     source_count = 0

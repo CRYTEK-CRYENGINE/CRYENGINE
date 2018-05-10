@@ -55,7 +55,7 @@ namespace Cry
 			}
 		}
 
-		void CAlembicComponent::ProcessEvent(SEntityEvent& event)
+		void CAlembicComponent::ProcessEvent(const SEntityEvent& event)
 		{
 			if (event.event == ENTITY_EVENT_COMPONENT_PROPERTY_CHANGED)
 			{

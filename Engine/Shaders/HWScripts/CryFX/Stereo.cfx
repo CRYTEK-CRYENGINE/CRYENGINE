@@ -9,7 +9,6 @@ float Script : STANDARDSGLOBAL
   string Script = "ShaderDrawType = Custom;";
 >;
 
-float4x4 CompMatrix : PI_Composite < vsregister = c0; >;
 float2 ScreenSize : PB_ScreenSize;
 
 Texture2D StereoL : register(t0);
@@ -37,12 +36,12 @@ struct psout
 
 ///////////////// vertex shader //////////////////
 
-v2f StereoVS(a2v IN)
+v2f StereoVS(uint VertexID : SV_VertexID)
 {
 	v2f OUT = (v2f)0; 
 
-	OUT.Position = Get2dHPos(IN.Position);
-	OUT.baseTC.xy = IN.baseTC.xy;
+	OUT.Position = GetHPos_FromTriVertexID(VertexID);
+	OUT.baseTC.xy = GetBaseTC_FromTriVertexID(VertexID);
 	OUT.baseTC.zw = 2 * g_VS_ScreenSize.zw;
 	
 	return OUT;

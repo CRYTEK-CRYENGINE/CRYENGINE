@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 namespace detail
 {
@@ -75,12 +75,12 @@ void RadixSort(uint32* pRanksBegin, uint32* pRanksEnd, const TValue* pValuesBegi
 
 	if (sizeof(TValue) == 4)
 	{
-		detail::RadixSortTpl<uint32, uint8, TAllocator, 4>(
+		::detail::RadixSortTpl<uint32, uint8, TAllocator, 4>(
 		  pRanksBegin, reinterpret_cast<const uint32*>(pValuesBegin), count, allocator);
 	}
 	else if (sizeof(TValue) == 8)
 	{
-		detail::RadixSortTpl<uint64, uint8, TAllocator, 8>(
+		::detail::RadixSortTpl<uint64, uint8, TAllocator, 8>(
 		  pRanksBegin, reinterpret_cast<const uint64*>(pValuesBegin), count, allocator);
 	}
 }

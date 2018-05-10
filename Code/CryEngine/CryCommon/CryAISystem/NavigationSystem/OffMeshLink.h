@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -48,7 +48,7 @@ public:
 		return (m_linkType == LinkDataClass::GetType()) ? static_cast<const LinkDataClass*>(this) : NULL;
 	}
 
-	virtual bool         CanUse(IEntity* pRequester, float* costMultiplier) const = 0;
+	virtual bool         CanUse(const IEntity* pRequester, float* costMultiplier) const = 0;
 
 	virtual OffMeshLink* Clone() const = 0;
 	virtual Vec3         GetStartPosition() const = 0;

@@ -74,7 +74,7 @@ private:
 
 	typedef std::vector<Level> Stack;
 	Stack stack_;
-	std::auto_ptr<MemoryWriter> buffer_;
+	std::unique_ptr<MemoryWriter> buffer_;
 	const char* header_;
 	int textWidth_;
 	string fileName_;

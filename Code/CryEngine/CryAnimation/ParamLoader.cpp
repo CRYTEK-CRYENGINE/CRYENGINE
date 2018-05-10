@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "stdafx.h"
 #include "ParamLoader.h"
@@ -966,6 +966,8 @@ bool CParamLoader::LoadXML(CDefaultSkeleton* pDefaultSkeleton, string defaultAni
 
 bool CParamLoader::LoadLod(const XmlNodeRef lodNode)
 {
+	m_pDefaultSkeleton->m_arrAnimationLOD.clear();
+
 	if (!lodNode)
 		return false;
 

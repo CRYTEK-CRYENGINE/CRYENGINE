@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "RuntimeClass.h"
@@ -509,7 +509,8 @@ void CRuntimeClass::FinalizeComponentInstances()
 						m_componentInstances[otherComponentInstanceIdx].componentTypeGUID == componentInteraction.guid)
 					{
 						componentInstanceSortRef.dependencies.push_back(otherComponentInstanceIdx);
-						break;
+						if (componentInteraction.type == SEntityComponentRequirements::EType::HardDependency)
+							break;
 					}
 				}
 			}

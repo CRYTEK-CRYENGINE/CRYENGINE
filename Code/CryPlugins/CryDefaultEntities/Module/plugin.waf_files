@@ -1,78 +1,182 @@
 {
-	"NoUberFile" :
-	{
-		"Root" :
-		[
-		  "StdAfx.cpp"
-		]
-	},
-	"CryDefaultEntities_uber_0.cpp" :
-	{
-		"Root" :
-		[
-		  "PluginDll.cpp",
-		  "PluginDll.h",
-		  "resource.h",
-		  "StdAfx.cpp",
-		  "StdAfx.h"
-		],
-		"Helpers" :
-		[
-			"Helpers/DesignerEntityComponent.cpp",
-			"Helpers/DesignerEntityComponent.h",
-			"Helpers/EntityFlowNode.cpp",
-			"Helpers/EntityFlowNode.h"
-		],
-		"Lights" :
-		[
-			"Lights/EnvironmentProbe.cpp",
-			"Lights/EnvironmentProbe.h",
-			"Lights/LightEntity.cpp",
-			"Lights/LightEntity.h"
-		],
-		"Cameras" :
-		[
-			"Cameras/CameraSource.cpp",
-			"Cameras/CameraSource.h"
-		],
-		"Audio" :
-		[
-			"Audio/AudioAreaEntity.cpp",
-			"Audio/AudioAreaEntity.h",
-			"Audio/AudioAreaRandom.cpp",
-			"Audio/AudioAreaRandom.h",
-			"Audio/AudioAreaAmbienceEntity.cpp",
-			"Audio/AudioAreaAmbienceEntity.h",
-			"Audio/AudioTriggerSpotEntity.cpp",
-			"Audio/AudioTriggerSpotEntity.h",
-			"Audio/AudioEntitiesUtils.h",
-			"Audio/AudioEntitiesUtils.cpp"
-		],
-		"Particles" :
-		[
-			"Particles/ParticleEntity.cpp",
-			"Particles/ParticleEntity.h"
-		],
-		"Geometry" :
-		[
-			"Geometry/GeomEntity.cpp",
-			"Geometry/GeomEntity.h"
-		],
-		"Debug" :
-		[
-			"Debug/Comment.cpp",
-			"Debug/Comment.h"
-		],
-		"Physics" :
-		[
-			"Physics/RopeEntity.cpp",
-			"Physics/LocalGrid.cpp",
-			"Physics/LocalGrid.h"
-		],
-		"Triggers" :
-		[
-			"Triggers/TriggerEntity.cpp",
-			"Triggers/TriggerEntity.h"
-		]
-	}
+    "CryDefaultEntities_uber_0.cpp": {
+        "AI": [
+            "DefaultComponents/AI/PathfindingComponent.cpp", 
+            "DefaultComponents/AI/PathfindingComponent.h"
+        ], 
+        "Audio": [
+            "DefaultComponents/Audio/AreaComponent.cpp", 
+            "DefaultComponents/Audio/AreaComponent.h", 
+            "DefaultComponents/Audio/EnvironmentComponent.cpp", 
+            "DefaultComponents/Audio/EnvironmentComponent.h", 
+            "DefaultComponents/Audio/ListenerComponent.cpp", 
+            "DefaultComponents/Audio/ListenerComponent.h", 
+            "DefaultComponents/Audio/OcclusionComponent.cpp", 
+            "DefaultComponents/Audio/OcclusionComponent.h", 
+            "DefaultComponents/Audio/ParameterComponent.cpp", 
+            "DefaultComponents/Audio/ParameterComponent.h", 
+            "DefaultComponents/Audio/PreloadComponent.cpp", 
+            "DefaultComponents/Audio/PreloadComponent.h", 
+            "DefaultComponents/Audio/SwitchComponent.cpp", 
+            "DefaultComponents/Audio/SwitchComponent.h", 
+            "DefaultComponents/Audio/TriggerComponent.cpp", 
+            "DefaultComponents/Audio/TriggerComponent.h"
+        ], 
+        "Cameras": [
+            "DefaultComponents/Cameras/CameraComponent.cpp", 
+            "DefaultComponents/Cameras/CameraComponent.h", 
+            "DefaultComponents/Cameras/CameraManager.h", 
+            "DefaultComponents/Cameras/ICameraManager.h"
+        ], 
+        "Cameras/VirtualReality": [
+            "DefaultComponents/Cameras/VirtualReality/RoomscaleCamera.cpp", 
+            "DefaultComponents/Cameras/VirtualReality/RoomscaleCamera.h"
+        ], 
+        "Constraints": [
+            "DefaultComponents/Constraints/PointConstraint.cpp", 
+            "DefaultComponents/Constraints/PointConstraint.h", 
+            "DefaultComponents/Constraints/LineConstraint.cpp", 
+            "DefaultComponents/Constraints/LineConstraint.h", 
+            "DefaultComponents/Constraints/PlaneConstraint.cpp", 
+            "DefaultComponents/Constraints/PlaneConstraint.h", 
+            "DefaultComponents/Constraints/BreakableJoint.cpp", 
+            "DefaultComponents/Constraints/BreakableJoint.h"
+        ], 
+        "Debug": [
+            "DefaultComponents/Debug/DebugDrawComponent.cpp", 
+            "DefaultComponents/Debug/DebugDrawComponent.h"
+        ], 
+        "Effects": [
+            "DefaultComponents/Effects/ParticleComponent.cpp", 
+            "DefaultComponents/Effects/ParticleComponent.h", 
+            "DefaultComponents/Effects/FogComponent.cpp", 
+            "DefaultComponents/Effects/FogComponent.h", 
+            "DefaultComponents/Effects/DecalComponent.cpp", 
+            "DefaultComponents/Effects/DecalComponent.h", 
+            "DefaultComponents/Effects/WaterRippleComponent.cpp", 
+            "DefaultComponents/Effects/WaterRippleComponent.h", 
+            "DefaultComponents/Effects/RainComponent.cpp", 
+            "DefaultComponents/Effects/RainComponent.h"
+        ], 
+        "Geometry": [
+            "DefaultComponents/Geometry/BaseMeshComponent.h", 
+            "DefaultComponents/Geometry/StaticMeshComponent.cpp", 
+            "DefaultComponents/Geometry/StaticMeshComponent.h", 
+            "DefaultComponents/Geometry/AnimatedMeshComponent.cpp", 
+            "DefaultComponents/Geometry/AnimatedMeshComponent.h", 
+            "DefaultComponents/Geometry/AdvancedAnimationComponent.cpp", 
+            "DefaultComponents/Geometry/AdvancedAnimationComponent.h", 
+            "DefaultComponents/Geometry/AlembicComponent.cpp", 
+            "DefaultComponents/Geometry/AlembicComponent.h"
+        ], 
+        "Input": [
+            "DefaultComponents/Input/InputComponent.cpp", 
+            "DefaultComponents/Input/InputComponent.h"
+        ], 
+        "Legacy/Audio": [
+            "Legacy/Audio/AudioAreaEntity.cpp", 
+            "Legacy/Audio/AudioAreaEntity.h", 
+            "Legacy/Audio/AudioAreaRandom.cpp", 
+            "Legacy/Audio/AudioAreaRandom.h", 
+            "Legacy/Audio/AudioAreaAmbienceEntity.cpp", 
+            "Legacy/Audio/AudioAreaAmbienceEntity.h", 
+            "Legacy/Audio/AudioTriggerSpotEntity.cpp", 
+            "Legacy/Audio/AudioTriggerSpotEntity.h", 
+            "Legacy/Audio/AudioEntitiesUtils.h", 
+            "Legacy/Audio/AudioEntitiesUtils.cpp"
+        ], 
+        "Legacy/Cameras": [
+            "Legacy/Cameras/CameraSource.cpp", 
+            "Legacy/Cameras/CameraSource.h"
+        ], 
+        "Legacy/Debug": [
+            "Legacy/Debug/Comment.cpp", 
+            "Legacy/Debug/Comment.h"
+        ], 
+        "Legacy/Geometry": [
+            "Legacy/Geometry/GeomEntity.cpp", 
+            "Legacy/Geometry/GeomEntity.h"
+        ], 
+        "Legacy/Helpers": [
+            "Legacy/Helpers/DesignerEntityComponent.cpp", 
+            "Legacy/Helpers/DesignerEntityComponent.h", 
+            "Legacy/Helpers/EntityFlowNode.cpp", 
+            "Legacy/Helpers/EntityFlowNode.h"
+        ], 
+        "Legacy/Lights": [
+            "Legacy/Lights/EnvironmentProbe.cpp", 
+            "Legacy/Lights/EnvironmentProbe.h", 
+            "Legacy/Lights/LightEntity.cpp", 
+            "Legacy/Lights/LightEntity.h"
+        ], 
+        "Legacy/Particles": [
+            "Legacy/Particles/ParticleEntity.cpp", 
+            "Legacy/Particles/ParticleEntity.h"
+        ], 
+        "Legacy/Physics": [
+            "Legacy/Physics/RopeEntity.cpp", 
+            "Legacy/Physics/LocalGrid.cpp", 
+            "Legacy/Physics/LocalGrid.h"
+        ], 
+        "Legacy/Triggers": [
+            "Legacy/Triggers/TriggerEntity.cpp", 
+            "Legacy/Triggers/TriggerEntity.h"
+        ], 
+        "Lights": [
+            "DefaultComponents/Lights/EnvironmentProbeComponent.cpp", 
+            "DefaultComponents/Lights/EnvironmentProbeComponent.h", 
+            "DefaultComponents/Lights/PointLightComponent.cpp", 
+            "DefaultComponents/Lights/PointLightComponent.h", 
+            "DefaultComponents/Lights/ProjectorLightComponent.cpp", 
+            "DefaultComponents/Lights/ProjectorLightComponent.h"
+        ], 
+        "Physics": [
+            "DefaultComponents/Physics/CharacterControllerComponent.cpp", 
+            "DefaultComponents/Physics/CharacterControllerComponent.h", 
+            "DefaultComponents/Physics/RigidBodyComponent.cpp", 
+            "DefaultComponents/Physics/RigidBodyComponent.h", 
+            "DefaultComponents/Physics/PhysicsPrimitiveComponent.h", 
+            "DefaultComponents/Physics/BoxPrimitiveComponent.cpp", 
+            "DefaultComponents/Physics/BoxPrimitiveComponent.h", 
+            "DefaultComponents/Physics/SpherePrimitiveComponent.cpp", 
+            "DefaultComponents/Physics/SpherePrimitiveComponent.h", 
+            "DefaultComponents/Physics/CapsulePrimitiveComponent.cpp", 
+            "DefaultComponents/Physics/CapsulePrimitiveComponent.h", 
+            "DefaultComponents/Physics/CylinderPrimitiveComponent.cpp", 
+            "DefaultComponents/Physics/CylinderPrimitiveComponent.h", 
+            "DefaultComponents/Physics/ThrusterComponent.cpp", 
+            "DefaultComponents/Physics/ThrusterComponent.h", 
+            "DefaultComponents/Physics/AreaComponent.cpp", 
+            "DefaultComponents/Physics/AreaComponent.h", 
+            "DefaultComponents/Physics/SampleRigidbodyActorComponent.cpp", 
+            "DefaultComponents/Physics/SampleRigidbodyActorComponent.h"
+        ], 
+        "Physics/Vehicles": [
+            "DefaultComponents/Physics/Vehicles/VehicleComponent.cpp", 
+            "DefaultComponents/Physics/Vehicles/VehicleComponent.h", 
+            "DefaultComponents/Physics/Vehicles/WheelComponent.cpp", 
+            "DefaultComponents/Physics/Vehicles/WheelComponent.h"
+        ], 
+        "Physics/VirtualReality": [
+            "DefaultComponents/Physics/VirtualReality/VirtualRealityInteractionComponent.cpp", 
+            "DefaultComponents/Physics/VirtualReality/VirtualRealityInteractionComponent.h"
+        ], 
+        "Root": [
+            "PluginDll.cpp", 
+            "PluginDll.h", 
+            "IDefaultComponentsPlugin.h", 
+            "resource.h", 
+            "StdAfx.cpp", 
+            "StdAfx.h"
+        ], 
+        "Utilities": [
+            "DefaultComponents/Utilities/ChildEntityComponent.cpp", 
+            "DefaultComponents/Utilities/ChildEntityComponent.h"
+        ]
+    }, 
+    "NoUberFile": {
+        "Root": [
+            "StdAfx.cpp"
+        ]
+    }
 }

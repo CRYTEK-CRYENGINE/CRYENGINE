@@ -1,0 +1,10 @@
+<AssetMetadata version="0" type="Texture" guid="10651931-ee17-e1dd-a301-797a8d988599">
+ <Files>
+  <File path="film_grain.dds"/>
+ </Files>
+ <Details>
+  <Detail name="width">256</Detail>
+  <Detail name="height">256</Detail>
+  <Detail name="mipCount">1</Detail>
+ </Details>
+</AssetMetadata>

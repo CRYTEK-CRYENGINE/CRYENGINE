@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 /********************************************************************
    -------------------------------------------------------------------------
@@ -20,9 +20,7 @@
 #endif
 
 #include <CryAISystem/IAgent.h>
-#include <CryAISystem/AIFormationDescriptor.h>
 #include "AIObject.h"
-#include "Graph.h"
 #include "UnitAction.h"
 #include "UnitImg.h"
 #include <CrySystem/TimeValue.h>
@@ -180,8 +178,6 @@ protected:
 
 };
 
-typedef std::list<CObstacleRef> ListObstacleRefs;
-
 class CLeaderAction_Search : public CLeaderAction
 {
 public:
@@ -223,11 +219,9 @@ private:
 	Vec3                m_vEnemyPos;
 	float               m_fSearchDistance;
 	//SetObstacleRefs		m_Passed;
-	//ListObstacleRefs	m_Obstacles;
 	TPointMap m_HideSpots;
 	bool      m_bInitialized;
 	int       m_iSearchSpotAIObjectType;
-	bool      m_bUseHideSpots;
 	CAIActor* pSelectedUnit;
 
 };

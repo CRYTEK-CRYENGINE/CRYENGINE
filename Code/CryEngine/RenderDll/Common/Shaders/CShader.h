@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #ifndef __CSHADER_H__
 #define __CSHADER_H__
@@ -227,8 +227,6 @@ private:
 
 	CShader*       mfNewShader(const char* szName);
 
-	void           mfCompileLevelsList(std::vector<string>& List, char* scr);
-	bool           mfCompileShaderLevelPolicies(SShaderLevelPolicies* pPL, char* scr);
 	bool           mfCompileShaderGen(SShaderGen* shg, char* scr);
 	SShaderGenBit* mfCompileShaderGenProperty(char* scr);
 
@@ -247,7 +245,6 @@ private:
 
 	CShader*       mfCompile(CShader* ef, char* scr);
 
-	bool           mfUpdateMergeStatus(SShaderTechnique* hs, std::vector<SCGParam>* p);
 	void           mfRefreshResources(CShaderResources* Res, const IRenderer::SLoadShaderItemArgs* pArgs = 0);
 
 	bool           mfReloadShaderFile(const char* szName, int nFlags);
@@ -327,7 +324,6 @@ public:
 
 	static CShader*              s_ShaderFPEmu;
 	static CShader*              s_ShaderFallback;
-	static CShader*              s_ShaderTreeSprites;
 	static CShader*              s_ShaderScaleForm;
 	static CShader*              s_ShaderStars;
 	static CShader*              s_ShaderShadowBlur;
@@ -349,13 +345,11 @@ public:
 	static CShader*              s_ShaderStereo;
 	static CShader*              s_ShaderClouds;
 	static CShader*              s_ShaderMobileComposition;
+	static CShader*              s_ShaderGpuParticles;
 
 	const SInputShaderResources* m_pCurInputResources;
 	SShaderGen*                  m_pGlobalExt;
-	SShaderLevelPolicies*        m_pLevelsPolicies;
 
-	Vec4                         m_TempVecs[16];
-	Vec4                         m_RTRect;
 	std::vector<SShaderGenComb>  m_SGC;
 
 	int                          m_nCombinationsProcess;
@@ -365,7 +359,7 @@ public:
 
 	EShaderCacheMode             m_eCacheMode;
 
-	char*                        m_szShaderPrecache;
+	const char*                  m_szShaderPrecache;
 
 	FXShaderCacheCombinations    m_ShaderCacheCombinations[2];
 	FXShaderCacheCombinations    m_ShaderCacheExportCombinations;
@@ -410,8 +404,6 @@ public:
 	typedef ShaderExt::iterator                  ShaderExtItor;
 	ShaderExt   m_ShaderExts;
 
-	SCGParamsPF m_PF[RT_COMMAND_BUF_COUNT];
-
 	// Concatenated list of shader names using automatic masks generation
 	string m_pShadersRemapList;
 
@@ -426,23 +418,7 @@ public:
 	};
 
 public:
-	CShaderMan()
-	{
-		m_bInitialized = false;
-		m_bLoadedSystem = false;
-		s_DefaultShader = NULL;
-		m_pGlobalExt = NULL;
-		g_pShaderParserHelper = &m_shaderParserHelper;
-		m_nCombinationsProcess = -1;
-		m_nCombinationsProcessOverall = -1;
-		m_nCombinationsCompiled = -1;
-		m_nCombinationsEmpty = -1;
-		m_szShaderPrecache = NULL;
-		memset(m_TempVecs, 0, sizeof(Vec4) * 16);
-		memset(&m_RTRect, 0, sizeof(Vec4));
-		m_eCacheMode = eSC_Normal;
-		m_nFrameSubmit = 1;
-	}
+	CShaderMan();
 
 	void              ShutDown();
 	void              mfReleaseShaders();
@@ -458,7 +434,6 @@ public:
 	uint64            mfGetShaderGlobalMaskGenFromString(const char* szShaderGen);
 
 	void              mfInitGlobal(void);
-	void              mfInitLevelPolicies(void);
 	void              mfInitLookups(void);
 
 	void              mfPreloadShaderExts(void);
@@ -563,8 +538,6 @@ public:
 	void mfPrecacheShaders(bool bStatsOnly);
 	void _PrecacheShaderList(bool bStatsOnly);
 	void mfOptimiseShaders(const char* szFolder, bool bForce);
-	void mfMergeShaders();
-	void _MergeShaders();
 	void mfAddRTCombinations(FXShaderCacheCombinations& CmbsMapSrc, FXShaderCacheCombinations& CmbsMapDst, CHWShader* pSH, bool bListOnly);
 	void mfAddRTCombination_r(int nComb, FXShaderCacheCombinations& CmbsMapDst, SCacheCombination* cmb, CHWShader* pSH, bool bAutoPrecache);
 	void mfAddLTCombinations(SCacheCombination* cmb, FXShaderCacheCombinations& CmbsMapDst);

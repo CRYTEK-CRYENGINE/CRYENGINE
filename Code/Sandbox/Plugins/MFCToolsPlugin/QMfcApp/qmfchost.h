@@ -32,3 +32,4 @@ private:
 	CWnd* m_wnd;
 	int   m_width, m_height;
 };
+

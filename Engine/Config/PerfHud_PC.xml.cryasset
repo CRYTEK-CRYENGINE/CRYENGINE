@@ -1,0 +1,8 @@
+<AssetMetadata version="0" type="Xml" guid="585ca673-782a-d1c7-3b4c-8000029b8412">
+ <Files>
+  <File path="PerfHud_PC.xml"/>
+ </Files>
+ <Details>
+  <Detail name="rootTag">budgets</Detail>
+ </Details>
+</AssetMetadata>

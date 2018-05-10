@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 // -------------------------------------------------------------------------
 //  File name:   ParticleEnviron.cpp
@@ -11,12 +11,22 @@
 
 #include "StdAfx.h"
 #include "ParticleEnviron.h"
-#include "ParticleEmitter.h"
 #include "VisAreas.h"
 
 //////////////////////////////////////////////////////////////////////////
 // SPhysEnviron implementation.
 //////////////////////////////////////////////////////////////////////////
+
+void SPhysForces::Add(SPhysForces const& other, uint32 nEnvFlags)
+{
+	if (nEnvFlags & ENV_GRAVITY)
+		vAccel = other.vAccel;
+	if (nEnvFlags & ENV_WIND)
+		vWind += other.vWind;
+	if (nEnvFlags & ENV_WATER)
+		if (other.plWater.d < plWater.d)
+			plWater = other.plWater;
+}
 
 void SPhysEnviron::Clear()
 {
@@ -33,36 +43,9 @@ void SPhysEnviron::FreeMemory()
 	stl::free_container(m_NonUniformAreas);
 }
 
-void SPhysEnviron::OnPhysAreaChange(const EventPhysAreaChange& event)
-{
-	// Require re-querying of world physics areas
-	m_nNonUniformFlags &= ~EFF_LOADED;
-
-	EventPhysAreaChange* pepac = (EventPhysAreaChange*)&event;
-
-	SAreaChangeRecord rec;
-	rec.boxAffected = AABB(pepac->boxAffected[0], pepac->boxAffected[1]);
-	rec.uPhysicsMask = Area_Other;
-
-	// Determine area medium types
-	if (pepac->pEntity)
-	{
-		pe_simulation_params psim;
-		if (pepac->pEntity->GetParams(&psim) && !is_unused(psim.gravity))
-			rec.uPhysicsMask |= Area_Gravity;
-
-		pe_params_buoyancy pbuoy;
-		if (pepac->pEntity->GetParams(&pbuoy) && pbuoy.iMedium >= 0 && pbuoy.iMedium < 14)
-			rec.uPhysicsMask |= 1 << pbuoy.iMedium;
-	}
-
-	CParticleManager::Instance()->AddUpdatedPhysArea(rec);
-
-}
-
 void SPhysEnviron::GetWorldPhysAreas(uint32 nFlags, bool bNonUniformAreas)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_PARTICLE);
+	CRY_PROFILE_FUNCTION(PROFILE_PARTICLE);
 
 	// Recycle shared SArea objects
 	SmartPtrArray<SArea> aPrevAreas = m_NonUniformAreas;
@@ -221,7 +204,7 @@ void SPhysEnviron::GetWorldPhysAreas(uint32 nFlags, bool bNonUniformAreas)
 
 void SPhysEnviron::GetPhysAreas(SPhysEnviron const& envSource, AABB const& box, bool bIndoors, uint32 nFlags, bool bNonUniformAreas, const CParticleEmitter* pEmitterSkip)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_PARTICLE);
+	CRY_PROFILE_FUNCTION(PROFILE_PARTICLE);
 
 	Clear();
 
@@ -316,18 +299,9 @@ void SPhysEnviron::GetPhysAreas(SPhysEnviron const& envSource, AABB const& box, 
 	}
 }
 
-void SPhysEnviron::GetNonUniformForces(SPhysForces& forces, Vec3 const& vPos, uint32 nFlags) const
-{
-	for (auto& area : m_NonUniformAreas)
-	{
-		if (area.m_nFlags & nFlags)
-			area.GetForces(forces, vPos, nFlags);
-	}
-}
-
 bool SPhysEnviron::PhysicsCollision(ray_hit& hit, Vec3 const& vStart, Vec3 const& vEnd, float fRadius, uint32 nEnvFlags, IPhysicalEntity* pTestEntity)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_PARTICLE);
+	CRY_PROFILE_FUNCTION(PROFILE_PARTICLE);
 
 	bool bHit = false;
 	Vec3 vMove = vEnd - vStart;
@@ -349,7 +323,7 @@ bool SPhysEnviron::PhysicsCollision(ray_hit& hit, Vec3 const& vStart, Vec3 const
 	{
 		nEnvFlags &= ~ENV_TERRAIN;
 		CHeightMap::SRayTrace rt;
-		if (GetTerrain()->RayTrace(vStart, vStart + vMove, &rt, GetDefSID()))
+		if (GetTerrain()->RayTrace(vStart, vStart + vMove, &rt))
 		{
 			if ((fMoveNorm = rt.vNorm * vMove) < 0.f)
 			{
@@ -412,12 +386,13 @@ bool SPhysEnviron::PhysicsCollision(ray_hit& hit, Vec3 const& vStart, Vec3 const
 	return bHit;
 }
 
-void SPhysEnviron::SArea::GetForcesPhys(SPhysForces& forces, Vec3 const& vPos) const
+void SPhysEnviron::SArea::GetForcesPhys(SPhysForces& forces, AABB const& bb) const
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_PARTICLE);
+	CRY_PROFILE_FUNCTION(PROFILE_PARTICLE);
 
 	pe_status_area sarea;
-	sarea.ctr = vPos;
+	sarea.ctr = bb.GetCenter();
+	sarea.size = bb.GetSize() * 0.5f;
 	if (m_pArea->GetStatus(&sarea))
 	{
 		if (!is_unused(sarea.gravity))
@@ -427,35 +402,73 @@ void SPhysEnviron::SArea::GetForcesPhys(SPhysForces& forces, Vec3 const& vPos) c
 	}
 }
 
-void SPhysEnviron::SArea::GetForces(SPhysForces& forces, Vec3 const& vPos, uint32 nFlags) const
+void SPhysEnviron::SArea::GetForces(SPhysForces& forces, AABB const& bb, uint32 nFlags) const
 {
 	nFlags &= m_nFlags;
 
+	Vec3 vPos = bb.GetCenter();
 	if (nFlags & (ENV_GRAVITY | ENV_WIND))
 	{
 		if (!m_bCacheForce)
 		{
-			GetForcesPhys(forces, vPos);
+			GetForcesPhys(forces, bb);
 		}
 		else
 		{
-			FUNCTION_PROFILER(GetISystem(), PROFILE_PARTICLE);
+			CRY_PROFILE_FUNCTION(PROFILE_PARTICLE);
 
 #ifdef DEBUG_FORCES
 			// Compare locally computed results to physics system.
 			// Occasionally fails because of threaded physics area updates.
 			SPhysForces forcesPhys = forces;
-			GetForcesPhys(forcesPhys, vPos);
+			GetForcesPhys(forcesPhys, bb);
 #endif
 
-			Vec3 vPosRel = vPos - m_vCenter;
+			Vec3 vPosRel;
+			float fStrength;
 
-			// Update with current position.
-			if (!m_pEnviron->IsCurrent())
+			float fVolume = bb.GetVolume();
+			if (fVolume)
 			{
-				pe_status_pos spos;
-				if (m_pArea->GetStatus(&spos))
-					vPosRel = vPos - spos.pos;
+				// Get approx average force over box
+				Vec3 vCenter;
+				AABB bbClip;
+				if (m_pEnviron->IsCurrent())
+				{
+					vCenter = m_vCenter;
+					bbClip = m_bbArea;
+				}
+				else
+				{
+					pe_status_pos spos;
+					if (m_pArea->GetStatus(&spos))
+					{
+						vCenter = spos.pos;
+						bbClip.min = spos.BBox[0] + spos.pos;
+						bbClip.max = spos.BBox[1] + spos.pos;
+					}
+				}
+
+				bbClip.ClipToBox(bb);
+
+				vPosRel = bbClip.GetCenter() - vCenter;
+				fStrength = bbClip.GetVolume() / fVolume;
+			}
+			else
+			{
+				// Get force at point
+				Vec3 vCenter;
+				if (m_pEnviron->IsCurrent())
+					vCenter = m_vCenter;
+				else
+				{
+					pe_status_pos spos;
+					if (m_pArea->GetStatus(&spos))
+						vCenter = spos.pos;
+				}
+
+				vPosRel = vPos - vCenter;
+				fStrength = 1.0f;
 			}
 
 			Vec3 vDist = m_matToLocal * vPosRel;
@@ -463,7 +476,7 @@ void SPhysEnviron::SArea::GetForces(SPhysForces& forces, Vec3 const& vPos, uint3
 			              : vDist.GetLengthFast();
 			if (fDist <= 1.f)
 			{
-				float fStrength = min((1.f - fDist) * m_fFalloffScale, 1.f);
+				fStrength *= min((1.f - fDist) * m_fFalloffScale, 1.f);
 
 				if (m_bRadial && fDist > 0.f)
 				{
@@ -514,7 +527,7 @@ float SPhysEnviron::SArea::GetWaterPlane(Plane& plane, Vec3 const& vPos, float f
 
 float SPhysEnviron::GetNonUniformWaterPlane(Plane& plWater, Vec3 const& vPos, float fMaxDist) const
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_PARTICLE);
+	CRY_PROFILE_FUNCTION(PROFILE_PARTICLE);
 
 	for (auto& area : m_NonUniformAreas)
 	{
@@ -542,7 +555,7 @@ void SVisEnviron::Update(Vec3 const& vOrigin, AABB const& bb)
 	if (!m_bValid)
 	{
 		// Determine emitter's vis area, by origin.
-		FUNCTION_PROFILER(GetISystem(), PROFILE_PARTICLE);
+		CRY_PROFILE_FUNCTION(PROFILE_PARTICLE);
 
 		m_pVisArea = Get3DEngine()->GetVisAreaFromPos(vOrigin);
 		m_pVisNodeCache = 0;

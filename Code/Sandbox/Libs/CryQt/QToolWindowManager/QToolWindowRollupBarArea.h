@@ -71,3 +71,4 @@ private:
 	bool m_tabDragCanStart;
 	bool m_areaDragCanStart;
 };
+

@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -120,12 +120,13 @@ namespace UQS
 			explicit                                            CHistoricQuery(const CQueryID& queryID, const char* szQuerierName, const CQueryID& parentQueryID, CQueryHistoryManager* pOwningHistoryManager);
 
 			CDebugRenderWorldPersistent&                        GetDebugRenderWorldPersistent();
-			void                                                OnQueryCreated();
+			void                                                OnQueryCreated(size_t queryCreatedFrame, const CTimeValue& queryCreatedTimestamp);
 			void                                                OnQueryBlueprintInstantiationStarted(const char* szQueryBlueprintName);
 			void                                                OnQueryCanceled(const CQueryBase::SStatistics& finalStatistics);
 			void                                                OnQueryFinished(const CQueryBase::SStatistics& finalStatistics);
 			void                                                OnQueryDestroyed();
 			void                                                OnExceptionOccurred(const char* szExceptionMessage, const CQueryBase::SStatistics& finalStatistics);
+			void                                                OnWarningOccurred(const char* szWarningMessage);
 			void                                                OnGenerationPhaseFinished(size_t numGeneratedItems, const CQueryBlueprint& queryBlueprint);
 			void                                                OnInstantEvaluatorScoredItem(size_t instantEvaluatorIndex, size_t itemIndex, float nonWeightedSingleScore, float weightedSingleScore, float accumulatedAndWeightedScoreSoFar);
 			void                                                OnInstantEvaluatorDiscardedItem(size_t instantEvaluatorIndex, size_t itemIndex);
@@ -173,6 +174,7 @@ namespace UQS
 			};
 
 			static EItemAnalyzeStatus                           AnalyzeItemStatus(const SHistoricItem& itemToAnalyze, const IQueryHistoryManager::SEvaluatorDrawMasks& evaluatorDrawMasks, float& outAccumulatedAndWeightedScoreOfMaskedEvaluators, bool& outFoundScoreOutsideValidRange);
+			size_t                                              ComputeElapsedFramesFromQueryCreationToDestruction() const;
 			CTimeValue                                          ComputeElapsedTimeFromQueryCreationToDestruction() const;
 
 		private:
@@ -183,11 +185,14 @@ namespace UQS
 			string                                              m_querierName;
 			string                                              m_queryBlueprintName;
 			EQueryLifetimeStatus                                m_queryLifetimeStatus;
+			size_t                                              m_queryCreatedFrame;
+			size_t                                              m_queryDestroyedFrame;
 			CTimeValue                                          m_queryCreatedTimestamp;
 			CTimeValue                                          m_queryDestroyedTimestamp;
 			bool                                                m_bGotCanceledPrematurely;
 			bool                                                m_bExceptionOccurred;
 			string                                              m_exceptionMessage;
+			std::vector<string>                                 m_warningMessages;
 			CDebugRenderWorldPersistent                         m_debugRenderWorldPersistent;
 			std::vector<SHistoricItem>                          m_items;                            // counter-part of all the generated items
 			std::vector<string>                                 m_instantEvaluatorNames;            // cached names of all instant-evaluator factories; this is necessary in case query blueprints get reloaded at runtime to prevent dangling pointers

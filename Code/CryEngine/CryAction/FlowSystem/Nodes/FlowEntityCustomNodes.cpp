@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 // Custom nodes relating to general entity features
 
@@ -32,36 +32,36 @@ public:
 	{
 	}
 
-	virtual void GetMemoryUsage(ICrySizer * s) const override
+	virtual void GetMemoryUsage(ICrySizer* s) const override
 	{
 		s->Add(*this);
 	}
 
-	virtual void GetConfiguration(SFlowNodeConfig &config) override
+	virtual void GetConfiguration(SFlowNodeConfig& config) override
 	{
 		static const SInputPortConfig in_config[] = {
-			InputPortConfig<int>   ("CharacterSlot",  _HELP("Slot in which the character is loaded or -1 for all loaded characters.")),
+			InputPortConfig<int>("CharacterSlot",     _HELP("Slot in which the character is loaded or -1 for all loaded characters.")),
 			InputPortConfig<string>("AttachmentName", _HELP("Name of the attachment as specified in the .cdf")),
-			InputPortConfig_Void   ("Show",           _HELP("Show the specified attachment")),
-			InputPortConfig_Void   ("Hide",           _HELP("Hide the specified attachment")),
-			InputPortConfig_Void   ("Replace",        _HELP("Replace the specified attachment with the specified skin and/or replace the skin's material with the specified one")),
+			InputPortConfig_Void("Show",              _HELP("Show the specified attachment")),
+			InputPortConfig_Void("Hide",              _HELP("Hide the specified attachment")),
+			InputPortConfig_Void("Replace",           _HELP("Replace the specified attachment with the specified skin and/or replace the skin's material with the specified one")),
 			InputPortConfig<string>("ObjectName",     _HELP("Cgf or Skin file to be used on that attachment")),
 			InputPortConfig<string>("MaterialName",   _HELP("Material to be used on the attachment")),
-			{0}
+			{ 0 }
 		};
 		static const SOutputPortConfig out_config[] = {
 			OutputPortConfig_AnyType("Done",   _HELP("Triggered when at least partially succeeded.")),
 			OutputPortConfig_AnyType("Failed", _HELP("Triggered when at least partially failed.")),
-			{0}
+			{ 0 }
 		};
 		config.nFlags = EFLN_TARGET_ENTITY;
-		config.sDescription = _HELP( "This node lets you easily switch a skin attachment and/or its current material and control its visibility." );
+		config.sDescription = _HELP("This node lets you easily switch a skin attachment and/or its current material and control its visibility.");
 		config.pInputPorts = in_config;
 		config.pOutputPorts = out_config;
 		config.SetCategory(EFLN_APPROVED);
 	}
 
-	template<typename TCustomArgs, bool(CEntityAttachmentControlNode::*TFunc)(int slotId, ICharacterInstance*, const string&, const TCustomArgs&)>
+	template<typename TCustomArgs, bool(CEntityAttachmentControlNode::* TFunc)(int slotId, ICharacterInstance*, const string&, const TCustomArgs&)>
 	void ForRequiredCharacters(SActivationInfo* const pActInfo, const string& attachmentName, const TCustomArgs& customArguments)
 	{
 		const int characterSlot = GetPortInt(pActInfo, eIP_CharacterSlot);
@@ -134,20 +134,20 @@ public:
 						const string& attachmentName = GetPortString(pActInfo, eIP_AttachmentName);
 						if (!attachmentName.empty())
 						{
-							const string& objectName   = GetPortString(pActInfo, eIP_ObjectName);
+							const string& objectName = GetPortString(pActInfo, eIP_ObjectName);
 							const string& materialName = GetPortString(pActInfo, eIP_MaterialName);
 							TSlotAttachmentCache slotAttachmentCache;
 
 							if (!objectName.empty())
 							{
 								SUpdateAttachmentObjectArgs args(objectName, slotAttachmentCache);
-								ForRequiredCharacters<SUpdateAttachmentObjectArgs, &CEntityAttachmentControlNode::UpdateAttachmentObject>(pActInfo, attachmentName, args);
+								ForRequiredCharacters<SUpdateAttachmentObjectArgs, & CEntityAttachmentControlNode::UpdateAttachmentObject>(pActInfo, attachmentName, args);
 							}
 
 							if (!materialName.empty())
 							{
 								SUpdateAttachmentMaterialArgs args(materialName, slotAttachmentCache);
-								ForRequiredCharacters<SUpdateAttachmentMaterialArgs, &CEntityAttachmentControlNode::UpdateAttachmentMaterial>(pActInfo, attachmentName, args);
+								ForRequiredCharacters<SUpdateAttachmentMaterialArgs, & CEntityAttachmentControlNode::UpdateAttachmentMaterial>(pActInfo, attachmentName, args);
 							}
 						}
 					}
@@ -159,7 +159,7 @@ public:
 						const string& attachmentName = GetPortString(pActInfo, eIP_AttachmentName);
 						if (!attachmentName.empty())
 						{
-							ForRequiredCharacters<bool, &CEntityAttachmentControlNode::ChangeAttachmentVisibility>(pActInfo, attachmentName, bVisible);
+							ForRequiredCharacters<bool, & CEntityAttachmentControlNode::ChangeAttachmentVisibility>(pActInfo, attachmentName, bVisible);
 						}
 					}
 				}
@@ -171,7 +171,7 @@ public:
 	{
 		bool bSuccess = false;
 		IAttachmentManager* const pAttachmentManager = pCharacterInstance->GetIAttachmentManager();
-		IAttachment* const pAttachment               = pAttachmentManager ? pAttachmentManager->GetInterfaceByName(attachmentName.c_str()) : nullptr;
+		IAttachment* const pAttachment = pAttachmentManager ? pAttachmentManager->GetInterfaceByName(attachmentName.c_str()) : nullptr;
 		if (pAttachment)
 		{
 			switch (pAttachment->GetType())
@@ -186,7 +186,7 @@ public:
 					{
 						if (const _smart_ptr<ICharacterInstance> pCharacterInstance = gEnv->pCharacterManager->CreateInstance(args.objectName.c_str()))
 						{
-							CSKELAttachment *pChrAttachment = new CSKELAttachment();
+							CSKELAttachment* pChrAttachment = new CSKELAttachment();
 							pChrAttachment->m_pCharInstance = pCharacterInstance;
 							pAttachment->AddBinding(pChrAttachment);
 
@@ -259,8 +259,8 @@ public:
 		if (!pAttachmentObject)
 		{
 			IAttachmentManager* const pAttachmentManager = pCharacterInstance->GetIAttachmentManager();
-			IAttachment* const pAttachment               = pAttachmentManager ? pAttachmentManager->GetInterfaceByName(attachmentName.c_str()) : nullptr;
-			pAttachmentObject                            = pAttachment ? pAttachment->GetIAttachmentObject() : nullptr;
+			IAttachment* const pAttachment = pAttachmentManager ? pAttachmentManager->GetInterfaceByName(attachmentName.c_str()) : nullptr;
+			pAttachmentObject = pAttachment ? pAttachment->GetIAttachmentObject() : nullptr;
 			if (pAttachmentManager && !pAttachmentObject)
 			{
 				GameWarning("[CharacterAttachmentControl] At least one character instance didn't have the binding we were looking for :\n\tAttachmentName=%s", attachmentName.c_str());
@@ -414,7 +414,6 @@ void CEntityAttachmentExNodeRegistry::OnSystemEvent(ESystemEvent event, UINT_PTR
 	}
 }
 
-
 // ~AttachmentRegistry implementation
 
 class CEntityAttachmentExNode : public CFlowBaseNode<eNCT_Instanced>
@@ -470,7 +469,7 @@ public:
 		return *pRegistry;
 	}
 
-	template<bool (CEntityAttachmentExNode::*TFunc)(ICharacterInstance*, IAttachmentManager*, IAttachment*)>
+	template<bool(CEntityAttachmentExNode::* TFunc)(ICharacterInstance*, IAttachmentManager*, IAttachment*)>
 	bool ForRequiredCharacter()
 	{
 		bool bSuccess = false;
@@ -499,31 +498,31 @@ public:
 	{
 	}
 
-	virtual IFlowNodePtr Clone(SActivationInfo *pActInfo) override
+	virtual IFlowNodePtr Clone(SActivationInfo* pActInfo) override
 	{
 		return new CEntityAttachmentExNode(pActInfo);
 	}
 
-	virtual void GetMemoryUsage(ICrySizer * s) const override
+	virtual void GetMemoryUsage(ICrySizer* s) const override
 	{
 		s->Add(*this);
 	}
 
-	virtual void GetConfiguration(SFlowNodeConfig &config) override
+	virtual void GetConfiguration(SFlowNodeConfig& config) override
 	{
 		static const SInputPortConfig in_config[] = {
-			InputPortConfig<EntityId>("TargetId",                  _HELP("Entity to be attached.")),
-			InputPortConfig<string>  ("AttachmentName",            _HELP("Desired name of the attachment. Leave empty for using an automatically generated name. Don't change at runtime.")),
-			InputPortConfig<string>  ("bone_JointName",            _HELP("Name of the joint to attach to.")),
-			InputPortConfig<int>     ("JointId", INVALID_JOINT_ID, _HELP("Id of the joint to attach to (only used if the joint name is left empty).")),
-			InputPortConfig<Vec3>    ("TranslationOffset",         _HELP("Translation offset in joint space.")),
-			InputPortConfig<Vec3>    ("RotationOffset",            _HELP("Rotation offset in joint space. Angles are specified in degrees")),
-			InputPortConfig_Void     ("Attach",                    _HELP("Attach the specified entity to the specified joint with the specified attachment name (if names is already used, previous attachment with that name will be broken)")),
-			InputPortConfig_Void     ("Detach",                    _HELP("Detach the entity")),
-			InputPortConfig_Void     ("DetachAllOwned",            _HELP("Detaches all attachment created through this node from the selected entity.")),
-			InputPortConfig_Void     ("Show",                      _HELP("Show the specified attachment")),
-			InputPortConfig_Void     ("Hide",                      _HELP("Hide the specified attachment")),
-			{0}
+			InputPortConfig<EntityId>("TargetId",      _HELP("Entity to be attached.")),
+			InputPortConfig<string>("AttachmentName",  _HELP("Desired name of the attachment. Leave empty for using an automatically generated name. Don't change at runtime.")),
+			InputPortConfig<string>("bone_JointName",  _HELP("Name of the joint to attach to.")),
+			InputPortConfig<int>("JointId",            INVALID_JOINT_ID,                                                                                                                                                             _HELP("Id of the joint to attach to (only used if the joint name is left empty).")),
+			InputPortConfig<Vec3>("TranslationOffset", _HELP("Translation offset in joint space.")),
+			InputPortConfig<Vec3>("RotationOffset",    _HELP("Rotation offset in joint space. Angles are specified in degrees")),
+			InputPortConfig_Void("Attach",             _HELP("Attach the specified entity to the specified joint with the specified attachment name (if names is already used, previous attachment with that name will be broken)")),
+			InputPortConfig_Void("Detach",             _HELP("Detach the entity")),
+			InputPortConfig_Void("DetachAllOwned",     _HELP("Detaches all attachment created through this node from the selected entity.")),
+			InputPortConfig_Void("Show",               _HELP("Show the specified attachment")),
+			InputPortConfig_Void("Hide",               _HELP("Hide the specified attachment")),
+			{ 0 }
 		};
 		static const SOutputPortConfig out_config[] = {
 			OutputPortConfig_AnyType("Done",           _HELP("Triggered everytime an operation is done.")),
@@ -533,11 +532,11 @@ public:
 			OutputPortConfig_AnyType("Shown",          _HELP("Triggered when an entity attachment was successfully shown.")),
 			OutputPortConfig_AnyType("Hidden",         _HELP("Triggered when an entity attachment was successfully hidden.")),
 			OutputPortConfig<string>("AttachmentName", _HELP("Triggered when the attachment name changes and on initialization.")),
-			{0}
+			{ 0 }
 		};
-		config.nFlags       = EFLN_TARGET_ENTITY;
-		config.sDescription = _HELP( "This node lets you attach entities to other entities without requiring declaration of the attachment joint in a .cdf file." );
-		config.pInputPorts  = in_config;
+		config.nFlags = EFLN_TARGET_ENTITY;
+		config.sDescription = _HELP("This node lets you attach entities to other entities without requiring declaration of the attachment joint in a .cdf file.");
+		config.pInputPorts = in_config;
 		config.pOutputPorts = out_config;
 		config.SetCategory(EFLN_APPROVED);
 	}
@@ -573,7 +572,7 @@ public:
 
 					if (IsPortActive(pActInfo, eIP_Attach))
 					{
-						bFailed = !ForRequiredCharacter<&CEntityAttachmentExNode::Attach>() || bFailed;
+						bFailed = !ForRequiredCharacter<& CEntityAttachmentExNode::Attach>() || bFailed;
 						if (!bFailed)
 						{
 							ActivateOutput(&m_actInfo, eOP_Attached, true);
@@ -583,7 +582,7 @@ public:
 
 					if (IsPortActive(pActInfo, eIP_Detach))
 					{
-						bFailed = !ForRequiredCharacter<&CEntityAttachmentExNode::Detach>() || bFailed;
+						bFailed = !ForRequiredCharacter<& CEntityAttachmentExNode::Detach>() || bFailed;
 						if (!bFailed)
 						{
 							ActivateOutput(&m_actInfo, eOP_Detached, true);
@@ -599,7 +598,7 @@ public:
 
 					if (IsPortActive(pActInfo, eIP_Show))
 					{
-						bFailed = !ForRequiredCharacter<&CEntityAttachmentExNode::Show>() || bFailed;
+						bFailed = !ForRequiredCharacter<& CEntityAttachmentExNode::Show>() || bFailed;
 						if (!bFailed)
 						{
 							ActivateOutput(&m_actInfo, eOP_Shown, true);
@@ -609,7 +608,7 @@ public:
 
 					if (IsPortActive(pActInfo, eIP_Hide))
 					{
-						bFailed = !ForRequiredCharacter<&CEntityAttachmentExNode::Hide>() || bFailed;
+						bFailed = !ForRequiredCharacter<& CEntityAttachmentExNode::Hide>() || bFailed;
 						if (!bFailed)
 						{
 							ActivateOutput(&m_actInfo, eOP_Hidden, true);
@@ -619,7 +618,7 @@ public:
 
 					if (IsPortActive(pActInfo, eIP_TranslationOffset) || IsPortActive(pActInfo, eIP_RotationOffset))
 					{
-						ForRequiredCharacter<&CEntityAttachmentExNode::UpdateOffset>();
+						ForRequiredCharacter<& CEntityAttachmentExNode::UpdateOffset>();
 						bDone = true;
 					}
 
@@ -702,7 +701,7 @@ public:
 				if (oldJointId != desiredJointId)
 				{
 					// If it's not on the right joint and we created it, then we can destroy it.
-					EntityId      currentEntityId       = m_actInfo.pEntity->GetId();
+					EntityId currentEntityId = m_actInfo.pEntity->GetId();
 					const string& currentAttachmentName = m_currentAttachmentName;
 					if (attachmentRegistry.OwnsAttachment(m_actInfo.pEntity->GetId(), currentAttachmentName))
 					{
@@ -713,7 +712,7 @@ public:
 					{
 						const string& jointName = GetDesiredJointName(&m_actInfo, pCharacterInstance);
 						GameWarning("[CEntityAttachExNode] Found another attachment with name \"%s\" on joint \"%s\" when we try to attach to joint (name=\"%s\", id=%d)."
-							, m_currentAttachmentName.c_str(), defaultSkeleton.GetJointNameByID(oldJointId), jointName.c_str(), desiredJointId);
+						            , m_currentAttachmentName.c_str(), defaultSkeleton.GetJointNameByID(oldJointId), jointName.c_str(), desiredJointId);
 						bAbort = true;
 					}
 				}
@@ -764,7 +763,7 @@ public:
 		bool bSuccess = false;
 		if (pAttachment && (CA_BONE == pAttachment->GetType()))
 		{
-			EntityId      currentEntityId       = m_actInfo.pEntity->GetId();
+			EntityId currentEntityId = m_actInfo.pEntity->GetId();
 			const string& currentAttachmentName = m_currentAttachmentName;
 
 			CEntityAttachmentExNodeRegistry& attachmentRegistry = GetRegistry();
@@ -827,8 +826,6 @@ private:
 
 uint32 CEntityAttachmentExNode::s_instanceCounter = 0;
 
-
-
 class CEntityLinksGetNode : public CFlowBaseNode<eNCT_Singleton>
 {
 	enum INPUTS
@@ -856,33 +853,33 @@ public:
 	{
 	}
 
-	virtual void GetMemoryUsage(ICrySizer * s) const override
+	virtual void GetMemoryUsage(ICrySizer* s) const override
 	{
 		s->Add(*this);
 	}
 
-	virtual void GetConfiguration(SFlowNodeConfig &config) override
+	virtual void GetConfiguration(SFlowNodeConfig& config) override
 	{
 		static const SInputPortConfig in_config[] = {
-			InputPortConfig_Void   ("GetCount",       _HELP("Outputs the number of links available on the selected entity.")),
-			InputPortConfig_Void   ("GetLinkByIndex", _HELP("Outputs the details (name and target) of the link at the specified index on the selected entity.")),
-			InputPortConfig<int>   ("LinkIndex",      _HELP("Index of the link you want the details of. Should be in the range [0, LinkCount[")),
-			InputPortConfig_Void   ("GetLinkByName",  _HELP("Outputs the details (name and target) of the first link found with the specified name on the selected entity.")),
-			InputPortConfig<string>("LinkName",       _HELP("Name of the link you want details from (beware : it is case sensitive).")),
-			InputPortConfig<int>   ("NameIndex", 0,   _HELP("When multiple links have the same name, you can access the ones after the first one by increasing this value.")),
-			InputPortConfig_Void   ("GetNameCount",   _HELP("Outputs the number of links with that name to LinkCount.")),
-			{0}
+			InputPortConfig_Void("GetCount",       _HELP("Outputs the number of links available on the selected entity.")),
+			InputPortConfig_Void("GetLinkByIndex", _HELP("Outputs the details (name and target) of the link at the specified index on the selected entity.")),
+			InputPortConfig<int>("LinkIndex",      _HELP("Index of the link you want the details of. Should be in the range [0, LinkCount[")),
+			InputPortConfig_Void("GetLinkByName",  _HELP("Outputs the details (name and target) of the first link found with the specified name on the selected entity.")),
+			InputPortConfig<string>("LinkName",    _HELP("Name of the link you want details from (beware : it is case sensitive).")),
+			InputPortConfig<int>("NameIndex",      0,                                                                                                                      _HELP("When multiple links have the same name, you can access the ones after the first one by increasing this value.")),
+			InputPortConfig_Void("GetNameCount",   _HELP("Outputs the number of links with that name to LinkCount.")),
+			{ 0 }
 		};
 		static const SOutputPortConfig out_config[] = {
-			OutputPortConfig_Void     ("Failed",     _HELP("Triggered when getting the data you asked for failed (invalid entity selected or invalid index for that entity).")),
-			OutputPortConfig_Void     ("Succeeded",  _HELP("Triggered when succeeding to get the desired data.")),
-			OutputPortConfig<int>     ("LinkCount",  _HELP("Number of links available on the selected entity.")),
-			OutputPortConfig<string>  ("LinkName",   _HELP("Name of the link at the specified index.")),
+			OutputPortConfig_Void("Failed",          _HELP("Triggered when getting the data you asked for failed (invalid entity selected or invalid index for that entity).")),
+			OutputPortConfig_Void("Succeeded",       _HELP("Triggered when succeeding to get the desired data.")),
+			OutputPortConfig<int>("LinkCount",       _HELP("Number of links available on the selected entity.")),
+			OutputPortConfig<string>("LinkName",     _HELP("Name of the link at the specified index.")),
 			OutputPortConfig<EntityId>("LinkTarget", _HELP("Target of the link at the specified index.")),
-			{0}
+			{ 0 }
 		};
 		config.nFlags = EFLN_TARGET_ENTITY;
-		config.sDescription = _HELP( "This node lets you inspect the configuration of entity links." );
+		config.sDescription = _HELP("This node lets you inspect the configuration of entity links.");
 		config.pInputPorts = in_config;
 		config.pOutputPorts = out_config;
 		config.SetCategory(EFLN_APPROVED);
@@ -895,9 +892,9 @@ public:
 		{
 		case eFE_Activate:
 			{
-				const bool bGetCount     = IsPortActive(pActInfo, eIP_GetCount);
-				const bool bGetByIndex   = IsPortActive(pActInfo, eIP_GetByIndex);
-				const bool bGetByName    = IsPortActive(pActInfo, eIP_GetByName);
+				const bool bGetCount = IsPortActive(pActInfo, eIP_GetCount);
+				const bool bGetByIndex = IsPortActive(pActInfo, eIP_GetByIndex);
+				const bool bGetByName = IsPortActive(pActInfo, eIP_GetByName);
 				const bool bGetNameCount = IsPortActive(pActInfo, eIP_GetNameCount);
 
 				if (bGetCount || bGetByIndex || bGetByName || bGetNameCount)
@@ -914,7 +911,7 @@ public:
 							int linkCount = 0;
 
 							const IEntityLink* pLink = pFirstLink;
-							while(pLink)
+							while (pLink)
 							{
 								++linkCount;
 								pLink = pLink->next;
@@ -929,7 +926,7 @@ public:
 							int linkCount = 0;
 
 							const IEntityLink* pLink = pFirstLink;
-							while(pLink)
+							while (pLink)
 							{
 								if (linkName == pLink->name)
 								{
@@ -1015,7 +1012,6 @@ public:
 
 };
 
-
 class CEntityLinksSetNode : public CFlowBaseNode<eNCT_Singleton>, private ISystemEventListener
 {
 	enum INPUTS
@@ -1045,8 +1041,8 @@ class CEntityLinksSetNode : public CFlowBaseNode<eNCT_Singleton>, private ISyste
 			, targetGuid(targetGuid)
 		{
 		}
-		string linkName;
-		EntityId targetId;
+		string     linkName;
+		EntityId   targetId;
 		EntityGUID targetGuid;
 	};
 
@@ -1079,31 +1075,31 @@ public:
 		}
 	}
 
-	virtual void GetMemoryUsage(ICrySizer * s) const override
+	virtual void GetMemoryUsage(ICrySizer* s) const override
 	{
 		s->Add(*this);
 	}
 
-	virtual void GetConfiguration(SFlowNodeConfig &config) override
+	virtual void GetConfiguration(SFlowNodeConfig& config) override
 	{
 		static const SInputPortConfig in_config[] = {
-			InputPortConfig<string>  ("Name",       _HELP("Name of the link you want details from (beware : it is case sensitive). An empty name means the name is not relevant when removing or renaming. A name is mandatory for adding.")),
-			InputPortConfig<int>     ("Index", 0,   _HELP("When multiple links have the same name, you can access the ones after the first one by increasing this value. This is only used for Remove and Rename commands. -1 means all of them.")),
-			InputPortConfig<EntityId>("Target",     _HELP("Target Entity for Adding and Replacing a link.")),
-			InputPortConfig_Void     ("Add",        _HELP("Adds a new entity link from the selected entity to the target with the specified link name.")),
-			InputPortConfig_Void     ("Remove",     _HELP("Remove the link identified by its name, target and index.")),
-			InputPortConfig_Void     ("Reset",      _HELP("Restore all of the selected entity's links to their original state.")),
-			InputPortConfig_Void     ("Rename",     _HELP("Rename the link identified by its name, target and index.")),
-			InputPortConfig<string>  ("NewName", "",_HELP("New name to apply to the link when renaming."), _HELP("New Name"), NULL),
-			{0}
+			InputPortConfig<string>("Name",     _HELP("Name of the link you want details from (beware : it is case sensitive). An empty name means the name is not relevant when removing or renaming. A name is mandatory for adding.")),
+			InputPortConfig<int>("Index",       0,                                                                                                                                                                                        _HELP("When multiple links have the same name, you can access the ones after the first one by increasing this value. This is only used for Remove and Rename commands. -1 means all of them.")),
+			InputPortConfig<EntityId>("Target", _HELP("Target Entity for Adding and Replacing a link.")),
+			InputPortConfig_Void("Add",         _HELP("Adds a new entity link from the selected entity to the target with the specified link name.")),
+			InputPortConfig_Void("Remove",      _HELP("Remove the link identified by its name, target and index.")),
+			InputPortConfig_Void("Reset",       _HELP("Restore all of the selected entity's links to their original state.")),
+			InputPortConfig_Void("Rename",      _HELP("Rename the link identified by its name, target and index.")),
+			InputPortConfig<string>("NewName",  "",                                                                                                                                                                                       _HELP("New name to apply to the link when renaming."), _HELP("New Name"),NULL),
+			{ 0 }
 		};
 		static const SOutputPortConfig out_config[] = {
-			OutputPortConfig_Void     ("Failed",     _HELP("Triggered when getting the data you asked for failed (invalid entity selected or invalid index for that entity).")),
-			OutputPortConfig_Void     ("Succeeded",  _HELP("Triggered when succeeding to get the desired data.")),
-			{0}
+			OutputPortConfig_Void("Failed",    _HELP("Triggered when getting the data you asked for failed (invalid entity selected or invalid index for that entity).")),
+			OutputPortConfig_Void("Succeeded", _HELP("Triggered when succeeding to get the desired data.")),
+			{ 0 }
 		};
 		config.nFlags = EFLN_TARGET_ENTITY;
-		config.sDescription = _HELP( "This node lets you inspect the configuration of entity links." );
+		config.sDescription = _HELP("This node lets you inspect the configuration of entity links.");
 		config.pInputPorts = in_config;
 		config.pOutputPorts = out_config;
 		config.SetCategory(EFLN_APPROVED);
@@ -1118,10 +1114,10 @@ public:
 			{
 				if (IEntity* pEntity = pActInfo->pEntity)
 				{
-					const bool bAdd    = IsPortActive(pActInfo, eIP_Add);
+					const bool bAdd = IsPortActive(pActInfo, eIP_Add);
 					const bool bRemove = IsPortActive(pActInfo, eIP_Remove);
 					const bool bRename = IsPortActive(pActInfo, eIP_Rename);
-					const bool bReset  = IsPortActive(pActInfo, eIP_Reset);
+					const bool bReset = IsPortActive(pActInfo, eIP_Reset);
 
 					bool bSucceeded = false;
 					bool bFailed = false;
@@ -1130,8 +1126,8 @@ public:
 					{
 						StoreOriginalState(*pEntity);
 
-						const string&  linkName     = GetPortString(pActInfo, eIP_LinkName);
-						const int      linkIndex    = GetPortInt(pActInfo, eIP_Index);
+						const string& linkName = GetPortString(pActInfo, eIP_LinkName);
+						const int linkIndex = GetPortInt(pActInfo, eIP_Index);
 						const EntityId linkTargetId = GetPortEntityId(pActInfo, eIP_Target);
 
 						if (bRemove)
@@ -1258,7 +1254,7 @@ public:
 		while (pLink)
 		{
 			if ((linkName.empty() || linkName == pLink->name)
-				&&((linkTargetId == INVALID_ENTITYID) || (linkTargetId == pLink->entityId)))
+			    && ((linkTargetId == INVALID_ENTITYID) || (linkTargetId == pLink->entityId)))
 			{
 				if (--nameIndex < 0)
 				{
@@ -1338,18 +1334,11 @@ void CEntityLinksSetNode::CEntityOriginalLinks::ApplyStoredStateToEntity(IEntity
 	}
 }
 
-
-
 class CEntityLayerSwitchListenerNode final
 	: public CFlowBaseNode<eNCT_Instanced>
-	, private IEntityEventListener
-	, private ISystemEventListener
+	  , private IEntityEventListener
+	  , private ISystemEventListener
 {
-	enum INPUTS
-	{
-		eIP_ForceGet = 0,
-	};
-
 	enum OUTPUTS
 	{
 		eOP_HiddenByLayer = 0,
@@ -1376,30 +1365,29 @@ public:
 		}
 	}
 
-	virtual void GetMemoryUsage(ICrySizer * s) const override
+	virtual void GetMemoryUsage(ICrySizer* s) const override
 	{
 		s->Add(*this);
 	}
 
-	virtual IFlowNodePtr Clone( SActivationInfo *pActInfo ) override final
+	virtual IFlowNodePtr Clone(SActivationInfo* pActInfo) override final
 	{
 		return new CEntityLayerSwitchListenerNode(pActInfo);
 	}
 
-
-	virtual void GetConfiguration(SFlowNodeConfig &config) override
+	virtual void GetConfiguration(SFlowNodeConfig& config) override
 	{
-		static const SInputPortConfig in_config[] = {
-			InputPortConfig_Void("ForceGet", _HELP("Force activating the right output (outputs will be activated automatically when the state of the layer change anyway).")),
-			{0}
+		static const SInputPortConfig in_config[] =
+		{
+			{ 0 }
 		};
 		static const SOutputPortConfig out_config[] = {
 			OutputPortConfig_Void("HiddenByLayer",   _HELP("Triggered when the entity is hidden by its layer.")),
 			OutputPortConfig_Void("UnhiddenByLayer", _HELP("Triggered when the entity is unhidden by its layer.")),
-			{0}
+			{ 0 }
 		};
 		config.nFlags = EFLN_TARGET_ENTITY;
-		config.sDescription = _HELP( "This node lets you listen to layer hiding/unhiding events for a given entity." );
+		config.sDescription = _HELP("This node lets you listen to layer hiding/unhiding events for a given entity.");
 		config.pInputPorts = in_config;
 		config.pOutputPorts = out_config;
 		config.SetCategory(EFLN_APPROVED);
@@ -1417,14 +1405,6 @@ public:
 				RefreshListener();
 			}
 			break;
-		case eFE_Activate:
-			{
-				if (IsPortActive(pActInfo, eIP_ForceGet) && pActInfo->pEntity)
-				{
-					ActivateOutput(&m_actInfo, pActInfo->pEntity->IsInHiddenLayer() ? eOP_HiddenByLayer : eOP_UnhiddenByLayer, true);
-				}
-			}
-			break;
 		}
 	}
 
@@ -1433,9 +1413,9 @@ public:
 		if (m_currentlyRegisteredTo != INVALID_ENTITYID)
 		{
 			IEntitySystem* pEntitySystem = gEnv->pEntitySystem;
-			pEntitySystem->RemoveEntityEventListener(m_currentlyRegisteredTo, ENTITY_EVENT_LAYER_HIDE,   this);
+			pEntitySystem->RemoveEntityEventListener(m_currentlyRegisteredTo, ENTITY_EVENT_LAYER_HIDE, this);
 			pEntitySystem->RemoveEntityEventListener(m_currentlyRegisteredTo, ENTITY_EVENT_LAYER_UNHIDE, this);
-			pEntitySystem->RemoveEntityEventListener(m_currentlyRegisteredTo, ENTITY_EVENT_DONE,   this);
+			pEntitySystem->RemoveEntityEventListener(m_currentlyRegisteredTo, ENTITY_EVENT_DONE, this);
 
 			m_currentlyRegisteredTo = INVALID_ENTITYID;
 		}
@@ -1449,16 +1429,16 @@ public:
 
 			m_currentlyRegisteredTo = m_actInfo.pEntity->GetId();
 
-			pEntitySystem->AddEntityEventListener(m_currentlyRegisteredTo, ENTITY_EVENT_LAYER_HIDE,   this);
+			pEntitySystem->AddEntityEventListener(m_currentlyRegisteredTo, ENTITY_EVENT_LAYER_HIDE, this);
 			pEntitySystem->AddEntityEventListener(m_currentlyRegisteredTo, ENTITY_EVENT_LAYER_UNHIDE, this);
-			pEntitySystem->AddEntityEventListener(m_currentlyRegisteredTo, ENTITY_EVENT_DONE,   this);
+			pEntitySystem->AddEntityEventListener(m_currentlyRegisteredTo, ENTITY_EVENT_DONE, this);
 		}
 	}
 
 	void RefreshListener()
 	{
 		const bool bRegisteringToSame = (m_actInfo.pEntity && (m_actInfo.pEntity->GetId() == m_currentlyRegisteredTo))
-			|| (!m_actInfo.pEntity && (m_currentlyRegisteredTo == INVALID_ENTITYID));
+		                                || (!m_actInfo.pEntity && (m_currentlyRegisteredTo == INVALID_ENTITYID));
 
 		if (!bRegisteringToSame)
 		{
@@ -1467,9 +1447,9 @@ public:
 		}
 	}
 
-	virtual void OnEntityEvent(IEntity* pEntity, SEntityEvent& evt) override
+	virtual void OnEntityEvent(IEntity* pEntity, const SEntityEvent& evt) override
 	{
-		switch(evt.event)
+		switch (evt.event)
 		{
 		case ENTITY_EVENT_LAYER_HIDE:
 		case ENTITY_EVENT_LAYER_UNHIDE:
@@ -1488,8 +1468,8 @@ private:
 	{
 		switch (event)
 		{
-			case ESYSTEM_EVENT_EDITOR_GAME_MODE_CHANGED:
-			case ESYSTEM_EVENT_EDITOR_SIMULATION_MODE_CHANGED:
+		case ESYSTEM_EVENT_EDITOR_GAME_MODE_CHANGED:
+		case ESYSTEM_EVENT_EDITOR_SIMULATION_MODE_CHANGED:
 			{
 				if (wparam == 0)
 				{
@@ -1500,15 +1480,14 @@ private:
 		}
 	}
 
-	SActivationInfo                       m_actInfo;
-	EntityId                              m_currentlyRegisteredTo;
+	SActivationInfo m_actInfo;
+	EntityId        m_currentlyRegisteredTo;
 };
-
 
 class CEntityGlobalLayerSwitchListenerNode final
 	: public CFlowBaseNode<eNCT_Instanced>
-	, private ISystemEventListener
-	, private IEntityLayerListener
+	  , private ISystemEventListener
+	  , private IEntityLayerListener
 {
 	enum INPUTS
 	{
@@ -1542,30 +1521,29 @@ public:
 		}
 	}
 
-	virtual void GetMemoryUsage(ICrySizer * s) const override
+	virtual void GetMemoryUsage(ICrySizer* s) const override
 	{
 		s->Add(*this);
 	}
 
-	virtual IFlowNodePtr Clone( SActivationInfo *pActInfo ) override final
+	virtual IFlowNodePtr Clone(SActivationInfo* pActInfo) override final
 	{
 		return new CEntityGlobalLayerSwitchListenerNode(pActInfo);
 	}
 
-
-	virtual void GetConfiguration(SFlowNodeConfig &config) override
+	virtual void GetConfiguration(SFlowNodeConfig& config) override
 	{
 		static const SInputPortConfig in_config[] = {
 			InputPortConfig<string>("LayerName", _HELP("Name of the layer you want to know about.")),
-			InputPortConfig_Void   ("ForceGet",  _HELP("Force get the state of the layer (usually not necesary as the output should trigger automatically when the layer's activation state changes).")),
-			{0}
+			InputPortConfig_Void("ForceGet",     _HELP("Force get the state of the layer (usually not necesary as the output should trigger automatically when the layer's activation state changes).")),
+			{ 0 }
 		};
 		static const SOutputPortConfig out_config[] = {
 			OutputPortConfig_Void("Hidden",   _HELP("Triggered when the layer is hidden.")),
 			OutputPortConfig_Void("Unhidden", _HELP("Triggered when the layer is unhidden.")),
-			{0}
+			{ 0 }
 		};
-		config.sDescription = _HELP( "This node lets you listen to layer hiding/unhiding events." );
+		config.sDescription = _HELP("This node lets you listen to layer hiding/unhiding events.");
 		config.pInputPorts = in_config;
 		config.pOutputPorts = out_config;
 		config.SetCategory(EFLN_APPROVED);
@@ -1637,8 +1615,8 @@ private:
 	{
 		switch (event)
 		{
-			case ESYSTEM_EVENT_EDITOR_GAME_MODE_CHANGED:
-			case ESYSTEM_EVENT_EDITOR_SIMULATION_MODE_CHANGED:
+		case ESYSTEM_EVENT_EDITOR_GAME_MODE_CHANGED:
+		case ESYSTEM_EVENT_EDITOR_SIMULATION_MODE_CHANGED:
 			{
 				if (wparam == 0)
 				{
@@ -1649,12 +1627,9 @@ private:
 		}
 	}
 
-	SActivationInfo                       m_actInfo;
-	string                                m_currentlyRegisteredTo;
+	SActivationInfo m_actInfo;
+	string          m_currentlyRegisteredTo;
 };
-
-
-
 
 REGISTER_FLOW_NODE("Entity:CharacterAttachmentControl", CEntityAttachmentControlNode);
 REGISTER_FLOW_NODE("Entity:AttachmentEx", CEntityAttachmentExNode);
@@ -1662,4 +1637,3 @@ REGISTER_FLOW_NODE("Entity:LinksGet", CEntityLinksGetNode);
 REGISTER_FLOW_NODE("Entity:LinksSet", CEntityLinksSetNode);
 REGISTER_FLOW_NODE("Entity:LayerSwitchListener", CEntityLayerSwitchListenerNode);
 REGISTER_FLOW_NODE("Entity:GlobalLayerListener", CEntityGlobalLayerSwitchListenerNode);
-

@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -32,14 +32,16 @@ public:
 protected:
 	struct SProfilerSection
 	{
-		char            name[31];
-		int8            recLevel;   // Negative value means error in stack
-		uint8           flags;
-		CCryNameTSCRC   path;
-		int             numDIPs, numPolys;
+		char            name[31]; 
+		float           gpuTime;
+		float           gpuTimeSmoothed;
+		float           cpuTimeSmoothed;
 		CTimeValue      startTimeCPU, endTimeCPU;
 		uint32          startTimestamp, endTimestamp;
-		float           gpuTime;
+		CCryNameTSCRC   path;
+		int             numDIPs, numPolys;		
+		int8            recLevel;   // Negative value means error in stack
+		uint8           flags;
 	};
 
 	struct SFrameData
@@ -50,11 +52,11 @@ protected:
 		SProfilerSection       m_sections[kMaxNumSections];
 		CDeviceTimestampGroup  m_timestampGroup;
 
-		// Note: Use of m_sections is guarded by m_numSections, initialization of m_sections skipped for performance reasons
 		// cppcheck-suppress uninitMemberVar
 		SFrameData()
 			: m_numSections(0)
 		{
+			memset(m_sections, 0, sizeof(m_sections));
 		}
 	};
 
@@ -100,7 +102,7 @@ protected:
 	void UpdateThreadTimings();
 	
 	void ResetBasicStats(RPProfilerStats* pBasicStats, bool bResetAveragedStats);
-	void ComputeAverageStats();
+	void ComputeAverageStats(SFrameData& frameData);
 	void AddToStats(RPProfilerStats& outStats, SProfilerSection& section);
 	void SubtractFromStats(RPProfilerStats& outStats, SProfilerSection& section);
 	void UpdateBasicStats(uint32 frameDataIndex);
@@ -109,7 +111,7 @@ protected:
 	void DisplayDetailedPassStats(uint32 frameDataIndex);
 
 protected:
-	enum { kNumPendingFrames = MAX_FRAMES_IN_FLIGHT + 1 };
+	enum { kNumPendingFrames = MAX_FRAMES_IN_FLIGHT };
 
 	std::vector<uint32> m_stack;
 	SFrameData          m_frameData[kNumPendingFrames];

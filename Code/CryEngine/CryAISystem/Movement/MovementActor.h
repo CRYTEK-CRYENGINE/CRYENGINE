@@ -1,13 +1,52 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
-#ifndef MovementActor_h
-	#define MovementActor_h
+#include <CryAISystem/IMovementActor.h>
+#include <CryAISystem/MovementRequest.h>
+#include <CryAISystem/IPathfinder.h>
+#include <CryAISystem/MovementUpdateContext.h>
 
-	#include <CryAISystem/IMovementActor.h>
-	#include <CryAISystem/MovementRequest.h>
-	#include <CryAISystem/IPathfinder.h>
+class CMovementActionAbilities : public IMovementActionAbilities
+{
+	friend struct MovementActor;
+public:
+	virtual void CreateStartBlocksForPlanner(const MovementRequest& request, OnCreateFunction onCreateFnc) override
+	{
+		SMovementActionAbilityCallbacks::Blocks createdBlocks;
+		m_addStartMovementBlocksCallback.Call<SMovementActionAbilityCallbacks::Blocks&, const MovementRequest&>(createdBlocks, request);
+		for (const Movement::BlockPtr& block : createdBlocks)
+		{
+			onCreateFnc(block);
+		}
+	}
+
+	virtual void CreateEndBlocksForPlanner(const MovementRequest& request, OnCreateFunction onCreateFnc) override
+	{
+		SMovementActionAbilityCallbacks::Blocks createdBlocks;
+		m_addEndMovementBlocksCallback.Call<SMovementActionAbilityCallbacks::Blocks&, const MovementRequest&>(createdBlocks, request);
+		for (const Movement::BlockPtr& block : createdBlocks)
+		{
+			onCreateFnc(block);
+		}
+	}
+
+	virtual void PrePathFollowUpdateCall(const MovementUpdateContext& context, bool bIsLastBlock) override
+	{
+		m_prePathFollowingUpdateCallback.Call(context, bIsLastBlock);
+	}
+
+	virtual void PostPathFollowUpdateCall(const MovementUpdateContext& context, bool bIsLastBlock) override
+	{
+		m_postPathFollowingUpdateCallback.Call(context, bIsLastBlock);
+	}
+private:
+
+	CFunctorsList<SMovementActionAbilityCallbacks::MovementUpdateCallback> m_prePathFollowingUpdateCallback;
+	CFunctorsList<SMovementActionAbilityCallbacks::MovementUpdateCallback> m_postPathFollowingUpdateCallback;
+	CFunctorsList<SMovementActionAbilityCallbacks::CreateBlocksCallback> m_addStartMovementBlocksCallback;
+	CFunctorsList<SMovementActionAbilityCallbacks::CreateBlocksCallback> m_addEndMovementBlocksCallback;
+};
 
 // The movement system processes the movement requests for an actor
 // in the order they come. Eaten off front-to-back. This is the queue.
@@ -23,7 +62,6 @@ struct MovementActor : public IMovementActor
 	MovementActor(const EntityId _entityID, IMovementActorAdapter* _pAdapter)
 		: entityID(_entityID)
 		, requestIdCurrentlyInPlanner(0)
-		, lastPointInPathIsSmartObject(false)
 		, pAdapter(_pAdapter)
 	{
 		assert(pAdapter);
@@ -33,18 +71,19 @@ struct MovementActor : public IMovementActor
 
 	// IMovementActor
 	virtual IMovementActorAdapter&    GetAdapter() const override;
-	virtual void                      RequestPathTo(const Vec3& destination, float lengthToTrimFromThePathEnd, const MNMDangersFlags dangersFlags,
-	                                                const bool considerActorsAsPathObstacles) override;
+	virtual void                      RequestPathTo(const Vec3& destination, float lengthToTrimFromThePathEnd, const SSnapToNavMeshRulesInfo& snappingRules, const MNMDangersFlags dangersFlags,
+	                                                const bool considerActorsAsPathObstacles, const MNMCustomPathCostComputerSharedPtr& pCustomPathCostComputer) override;
 	virtual Movement::PathfinderState GetPathfinderState() const override;
 	virtual const char*               GetName() const override;
 	virtual void                      Log(const char* message) override;
 
-	virtual bool                      IsLastPointInPathASmartObject() const override { return lastPointInPathIsSmartObject; }
 	virtual EntityId                  GetEntityId() const override                   { return entityID; };
 	virtual MovementActorCallbacks    GetCallbacks() const override                  { return callbacks; };
+	virtual IMovementActionAbilities& GetActionAbilities() override                  { return actionAbilities; }
 	// ~IMovementActor
 
-	void      SetLowCoverStance();
+	bool AddActionAbilityCallbacks (const SMovementActionAbilityCallbacks& ability);
+	bool RemoveActionAbilityCallbacks(const SMovementActionAbilityCallbacks& ability);
 
 	CAIActor* GetAIActor();
 
@@ -52,11 +91,9 @@ struct MovementActor : public IMovementActor
 	EntityId                            entityID;
 	MovementRequestQueue                requestQueue;
 	MovementRequestID                   requestIdCurrentlyInPlanner;
-	bool                                lastPointInPathIsSmartObject;
 
 	MovementActorCallbacks              callbacks;
+	CMovementActionAbilities            actionAbilities;
 private:
 	IMovementActorAdapter*              pAdapter;
 };
-
-#endif // MovementActor_h

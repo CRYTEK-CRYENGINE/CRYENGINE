@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 
@@ -539,6 +539,10 @@ LRESULT CLUADbg::OnCreate(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 
 	string sUIFolder = "LIBS/UI/UIACTIONS/";
 	m_wFilesTree.ScanFiles((char*)sUIFolder.c_str());
+
+	string sUIScripts = "ui/";
+	m_wFilesTree.ScanFiles((char*)sUIScripts.c_str());
+
 	string sItemsFolder = "ITEMS/";
 	m_wFilesTree.ScanFiles((char*)sItemsFolder.c_str());
 
@@ -1233,8 +1237,8 @@ void CLUADbg::ShowSelf(IScriptTable* pFrame)
 			if (strcmp("self", pszText) == 0)
 			{
 				SmartScriptTable pIEntry(m_pScriptSystem, true);
-				if (iter.value.type == ANY_TTABLE)
-					m_pIVariable = iter.value.table;
+				if (iter.value.GetType() == EScriptAnyType::Table)
+					m_pIVariable = iter.value.GetScriptTable();
 				else
 					m_pIVariable = pIEntry;
 
@@ -1248,7 +1252,7 @@ void CLUADbg::ShowSelf(IScriptTable* pFrame)
 					m_iRecursionLevel = 0;
 
 					// Dump only works for tables, in case of values call the sink directly
-					if (iter.value.type == ANY_TTABLE)
+					if (iter.value.GetType() == EScriptAnyType::Table)
 						m_pIVariable->Dump((IScriptTableDumpSink*) this);
 					else
 					{
@@ -1509,7 +1513,7 @@ bool CLUADbg::InvokeDebugger(const char* pszSourceFile, int iLine, const char* p
 	::SetForegroundWindow(m_hWnd);
 	if (gEnv && gEnv->pSystem && gEnv->pSystem->GetIHardwareMouse())
 		gEnv->pSystem->GetIHardwareMouse()->IncrementCounter();
-	if (gEnv->IsDedicated())
+	if (gEnv->IsDedicated() && gEnv->pInput)
 		gEnv->pInput->ShowCursor(true);
 
 	if (pszSourceFile && pszSourceFile[0] == '@')

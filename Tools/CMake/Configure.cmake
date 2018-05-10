@@ -28,8 +28,6 @@ set(CMAKE_MODULE_PATH "${TOOLS_CMAKE_DIR}/modules")
 # C/C++ languages required.
 enable_language(C)
 enable_language(CXX)
-# Force C++11 support requirement
-set (CMAKE_CXX_STANDARD 11)
 
 if (DURANGO OR ORBIS OR ANDROID OR LINUX)
 	unset(WIN32)
@@ -62,8 +60,14 @@ if(OUTPUT_DIRECTORY_NAME)
 	set(OUTPUT_DIRECTORY_NAME "")
 endif()
 
-if("${CMAKE_BUILD_TYPE}" STREQUAL "Release")
-	set(OUTPUT_DIRECTORY "${OUTPUT_DIRECTORY}_release")
+set(BASE_OUTPUT_DIRECTORY         "${OUTPUT_DIRECTORY}")
+set(BASE_OUTPUT_DIRECTORY_DEBUG   "${OUTPUT_DIRECTORY}")
+set(BASE_OUTPUT_DIRECTORY_PROFILE "${OUTPUT_DIRECTORY}")
+set(BASE_OUTPUT_DIRECTORY_RELEASE "${OUTPUT_DIRECTORY}_release")
+
+set(OUTPUT_DIRECTORY_SUFFIX "" CACHE STRING "Optional suffix for the binary output directory")
+if(OUTPUT_DIRECTORY_SUFFIX)
+	set(OUTPUT_DIRECTORY "${OUTPUT_DIRECTORY}_${OUTPUT_DIRECTORY_SUFFIX}")
 endif()
 
 set(METADATA_PROJECT_NAME "CryEngine" CACHE STRING "Name of the solution project")
@@ -92,16 +96,6 @@ get_property(global_defines DIRECTORY "${CRYENGINE_DIR}" PROPERTY COMPILE_DEFINI
 get_property(global_includes DIRECTORY "${CRYENGINE_DIR}" PROPERTY INCLUDE_DIRECTORIES)
 get_property(global_links DIRECTORY "${CRYENGINE_DIR}" PROPERTY LINK_DIRECTORIES)
 
-# Print current project settings
-MESSAGE(STATUS "CMAKE_SYSTEM_NAME = ${CMAKE_SYSTEM_NAME}")
-MESSAGE(STATUS "CMAKE_GENERATOR = ${CMAKE_GENERATOR}")
-MESSAGE(STATUS "CMAKE_CONFIGURATION_TYPES = ${CMAKE_CONFIGURATION_TYPES}")
-MESSAGE(STATUS "BUILD_PLATFORM = ${BUILD_PLATFORM}")
-MESSAGE(STATUS "OPTION_PROFILE = ${OPTION_PROFILE}")
-MESSAGE(STATUS "OPTION_PCH = ${OPTION_PCH}")
-MESSAGE(STATUS "MSVC = ${MSVC}")
-MESSAGE(STATUS "CRYENGINE_DIR = ${CRYENGINE_DIR}")
-
 if (OPTION_PROFILE)
 	set_property( DIRECTORY PROPERTY COMPILE_DEFINITIONS $<$<CONFIG:Release>:_PROFILE> )
 else()
@@ -113,13 +107,34 @@ if(OPTION_UNITY_BUILD)
 endif()
 
 # SDK Directory
-set(SDK_DIR "${CRYENGINE_DIR}/Code/SDKs")
+if (LINUX AND LINUX_BOOTSTRAP_FOLDER)
+	set(SDK_DIR "${LINUX_BOOTSTRAP_FOLDER}")
+else()
+	set(SDK_DIR "${CRYENGINE_DIR}/Code/SDKs")
+endif()
+
 set(CRY_LIBS_DIR "${CRYENGINE_DIR}/Code/Libs")
 set(CRY_EXTENSIONS_DIR "${CRYENGINE_DIR}/Code/CryExtensions")
 
 set(WINSDK_SDK_DIR "${SDK_DIR}/Microsoft Windows SDK")
 set(WINSDK_SDK_LIB_DIR "${WINSDK_SDK_DIR}/V8.0/Lib/Win8/um")
 set(WINSDK_SDK_INCLUDE_DIR "${WINSDK_SDK_DIR}/V8.0/Include/um")
+
+if (NOT EXISTS "${CMAKE_BINARY_DIR}/ProjectCVarOverrides.h")
+	file(WRITE "${CMAKE_BINARY_DIR}/ProjectCVarOverrides.h" "")
+endif ()
+list(APPEND global_defines "CRY_CVAR_OVERRIDE_FILE=\"${CMAKE_BINARY_DIR}/ProjectCVarOverrides.h\"")
+
+# Print current project settings
+MESSAGE(STATUS "CMAKE_SYSTEM_NAME = ${CMAKE_SYSTEM_NAME}")
+MESSAGE(STATUS "CMAKE_GENERATOR = ${CMAKE_GENERATOR}")
+MESSAGE(STATUS "CMAKE_CONFIGURATION_TYPES = ${CMAKE_CONFIGURATION_TYPES}")
+MESSAGE(STATUS "BUILD_PLATFORM = ${BUILD_PLATFORM}")
+MESSAGE(STATUS "OPTION_PROFILE = ${OPTION_PROFILE}")
+MESSAGE(STATUS "OPTION_PCH = ${OPTION_PCH}")
+MESSAGE(STATUS "MSVC = ${MSVC}")
+MESSAGE(STATUS "CRYENGINE_DIR = ${CRYENGINE_DIR}")
+MESSAGE(STATUS "SDK_DIR = ${SDK_DIR}")
 
 # custom defines
 list(APPEND global_defines "CRYENGINE_DEFINE")
@@ -128,6 +143,28 @@ include("${TOOLS_CMAKE_DIR}/CommonOptions.cmake")
 
 # Must be included after SDK_DIR definition
 include("${TOOLS_CMAKE_DIR}/CopyFilesToBin.cmake")
+
+if(MSVC_VERSION AND NOT OPTION_PGO STREQUAL "Off")
+	if (OPTION_RECODE)
+		MESSAGE(STATUS "Cannot support Recode with PGO enabled - disabling Recode support")
+		set(OPTION_RECODE OFF CACHE BOOL "Enable support for Recode" FORCE)
+	endif()
+	if (NOT OPTION_LTCG)
+		MESSAGE(STATUS "OPTION_LTCG is required for PGO - enabling LTCG")
+		set(OPTION_LTCG ON CACHE BOOL "Enable link-time code generation/optimization" FORCE)
+	endif()
+endif()
+
+if (DURANGO)
+	if ("${CMAKE_BUILD_TYPE}" STREQUAL "Release")
+		MESSAGE(STATUS "OPTION_STATIC_LINKING required for this configuration")
+		set(OPTION_STATIC_LINKING ON CACHE BOOL "Required for Release build." FORCE)
+	endif()
+	if(NOT OPTION_STATIC_LINKING)
+		MESSAGE(STATUS "Disabling Release builds; OPTION_STATIC_LINKING required on this platform")
+		set(CMAKE_CONFIGURATION_TYPES Debug Profile CACHE STRING "Reset the configurations to what we need" FORCE)
+	endif()
+endif()
 
 if(OPTION_STATIC_LINKING)
 	# Enable static libraries
@@ -140,6 +177,10 @@ else()
 endif()
 
 if (OUTPUT_DIRECTORY)
+	if(OPTION_DEDICATED_SERVER)
+		set(OUTPUT_DIRECTORY "${OUTPUT_DIRECTORY}_dedicated")
+	endif()
+
 	message(STATUS "OUTPUT_DIRECTORY=${OUTPUT_DIRECTORY}")
 	set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${OUTPUT_DIRECTORY}")
 	set(CMAKE_LIBRARY_OUTPUT_DIRECTORY "${OUTPUT_DIRECTORY}")
@@ -161,6 +202,8 @@ endif()
 
 include("${TOOLS_CMAKE_DIR}/ConfigureChecks.cmake")
 include("${TOOLS_CMAKE_DIR}/CommonMacros.cmake")
+
+include("${TOOLS_CMAKE_DIR}/Recode.cmake")
 
 if(WIN32)
 	# Common Libriries linked to all targets
@@ -185,6 +228,10 @@ foreach( current_define ${platform_defines} )
 	list(APPEND global_defines "${current_define}")
 endforeach()
 
+if (OPTION_RELEASE_PROFILING)
+	list(APPEND global_defines  "$<$<CONFIG:Release>:PERFORMANCE_BUILD>")
+endif()
+
 if ((WIN32 OR WIN64) AND OPTION_ENABLE_BROFILER AND OPTION_ENGINE)
 	list(APPEND global_defines USE_BROFILER)
 	list(APPEND global_includes "${SDK_DIR}/Brofiler" )
@@ -204,14 +251,14 @@ endif()
 include("${TOOLS_CMAKE_DIR}/modules/Boost.cmake")
 include("${TOOLS_CMAKE_DIR}/modules/ncurses.cmake")
 
+# Apply global defines
 set_property(DIRECTORY "${CRYENGINE_DIR}" PROPERTY COMPILE_DEFINITIONS ${global_defines})
 set_property(DIRECTORY "${CRYENGINE_DIR}" PROPERTY INCLUDE_DIRECTORIES ${global_includes})
 set_property(DIRECTORY "${CRYENGINE_DIR}" PROPERTY LINK_DIRECTORIES ${global_links})
-
 # Used by game project when they share the solution with the engine.
-set_property(DIRECTORY ${CMAKE_SOURCE_DIR} PROPERTY COMPILE_DEFINITIONS ${global_defines})
-set_property(DIRECTORY ${CMAKE_SOURCE_DIR} PROPERTY INCLUDE_DIRECTORIES ${global_includes})
-set_property(DIRECTORY ${CMAKE_SOURCE_DIR} PROPERTY LINK_DIRECTORIES ${global_links}) 
+set_property(DIRECTORY "${CMAKE_SOURCE_DIR}" PROPERTY COMPILE_DEFINITIONS ${global_defines})
+set_property(DIRECTORY "${CMAKE_SOURCE_DIR}" PROPERTY INCLUDE_DIRECTORIES ${global_includes})
+set_property(DIRECTORY "${CMAKE_SOURCE_DIR}" PROPERTY LINK_DIRECTORIES ${global_links})
 
 if (MSVC_VERSION GREATER 1900) # Visual Studio > 2015
 	set(MSVC_LIB_PREFIX vc140)
@@ -226,6 +273,15 @@ else()
 endif()
 
 #rc
+if (NOT VERSION)
+	if (METADATA_VERSION)
+		set(VERSION ${METADATA_VERSION})
+	else()
+		set(VERSION "1.0.0.0")
+	endif()
+endif()
+set(METADATA_VERSION ${VERSION} CACHE STRING "Version number for executable metadata" FORCE)
+
 if(WIN32)
 	if (NOT METADATA_COMPANY)
 		set(METADATA_COMPANY "Crytek GmbH")
@@ -238,10 +294,6 @@ if(WIN32)
 	endif()
 	set(METADATA_COPYRIGHT "${METADATA_COPYRIGHT}" CACHE STRING "Copyright string for executable metadata")	
 
-	if (NOT VERSION)
-		set(VERSION "1.0.0.0")
-	endif()
-	set(METADATA_VERSION ${VERSION} CACHE STRING "Version number for executable metadata" FORCE)
 	string(REPLACE . , METADATA_VERSION_COMMA ${METADATA_VERSION})
 	set(METADATA_VERSION_COMMA ${METADATA_VERSION_COMMA} CACHE INTERNAL "" FORCE)
 endif(WIN32)

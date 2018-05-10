@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / CrytekGroup. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / CrytekGroup. All rights reserved.
 
 using System;
 using System.Collections.Generic;
@@ -33,14 +33,24 @@ namespace CryEngine
 			actionMapManager.Enable(true);
 			actionMapManager.EnableActionMap(actionMapName, true);
 
-			if (!actionMapManager.AddExtraActionListener(this, actionMapName))
+			if(!actionMapManager.AddExtraActionListener(this, actionMapName))
 			{
 				throw new ArgumentException(string.Format("Unable to get ActionMap {0} from {1}", actionMapName, actionMapPath), nameof(actionMapName));
 			}
 		}
 
 		//TODO The AfterAction and OnAction are now exposed to the user. It would make more sense if these were private or internal.
+		/// <summary>
+		/// Called after an action has been invoked.
+		/// </summary>
 		public override void AfterAction() { }
+
+		/// <summary>
+		/// Called when an action is invoked.
+		/// </summary>
+		/// <param name="action"></param>
+		/// <param name="activationMode"></param>
+		/// <param name="value"></param>
 		public override void OnAction(CCryName action, int activationMode, float value)
 		{
 			var actionName = action.c_str();

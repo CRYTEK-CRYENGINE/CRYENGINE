@@ -793,3 +793,4 @@ void CAssetImporterFBX::ReimportAsset(CAsset* pAsset)
 		MoveAsset(ctx, PathUtil::Make(outputDir, assetPath));
 	}
 }
+

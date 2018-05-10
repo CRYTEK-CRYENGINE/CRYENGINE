@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 /*
    implementation of job manager
@@ -16,6 +16,8 @@
 
 #include "../System.h"
 #include "../CPUDetect.h"
+
+#include <3rdParty/concqueue/concqueue.hpp>
 
 namespace JobManager {
 namespace Detail {
@@ -705,10 +707,10 @@ void Draw2DBox(float fX, float fY, float fHeigth, float fWidth, const ColorB& rC
 
 	// compute normalized position from absolute points
 	Vec3 vPosition[4] = {
-		Vec3(fPosition[0][0] / fScreenWidth, fPosition[0][1] / fScreenHeigth, 0.0f),
-		Vec3(fPosition[1][0] / fScreenWidth, fPosition[1][1] / fScreenHeigth, 0.0f),
-		Vec3(fPosition[2][0] / fScreenWidth, fPosition[2][1] / fScreenHeigth, 0.0f),
-		Vec3(fPosition[3][0] / fScreenWidth, fPosition[3][1] / fScreenHeigth, 0.0f)
+		Vec3(fPosition[0][0], fPosition[0][1], 0.0f),
+		Vec3(fPosition[1][0], fPosition[1][1], 0.0f),
+		Vec3(fPosition[2][0], fPosition[2][1], 0.0f),
+		Vec3(fPosition[3][0], fPosition[3][1], 0.0f)
 	};
 
 	vtx_idx const anTriangleIndices[6] = {
@@ -730,10 +732,10 @@ void Draw2DBoxOutLine(float fX, float fY, float fHeigth, float fWidth, const Col
 
 	// compute normalized position from absolute points
 	Vec3 vPosition[4] = {
-		Vec3(fPosition[0][0] / fScreenWidth, fPosition[0][1] / fScreenHeigth, 0.0f),
-		Vec3(fPosition[1][0] / fScreenWidth, fPosition[1][1] / fScreenHeigth, 0.0f),
-		Vec3(fPosition[2][0] / fScreenWidth, fPosition[2][1] / fScreenHeigth, 0.0f),
-		Vec3(fPosition[3][0] / fScreenWidth, fPosition[3][1] / fScreenHeigth, 0.0f)
+		Vec3(fPosition[0][0], fPosition[0][1], 0.0f),
+		Vec3(fPosition[1][0], fPosition[1][1], 0.0f),
+		Vec3(fPosition[2][0], fPosition[2][1], 0.0f),
+		Vec3(fPosition[3][0], fPosition[3][1], 0.0f)
 	};
 
 	pAuxRenderer->DrawLine(vPosition[0], rColor, vPosition[1], rColor);
@@ -776,12 +778,12 @@ void DrawGraph(ColorB* pGraph, int nGraphSize, float fBaseX, float fbaseY, float
 	}
 }
 
-void WriteShortLabel(float fTextSideOffset, float fTopOffset, float fTextSize, float* fTextColor, char* tmpBuffer, int nCapChars)
+void WriteShortLabel(float fTextSideOffset, float fTopOffset, float fTextSize, float* fTextColor, const char* tmpBuffer, int nCapChars)
 {
 	char textBuffer[512] = { 0 };
 	char* pDst = textBuffer;
 	char* pEnd = textBuffer + nCapChars;   // keep space for tailing '\0'
-	char* pSrc = tmpBuffer;
+	const char* pSrc = tmpBuffer;
 	while (*pSrc != '\0' && pDst < pEnd)
 	{
 		*pDst = *pSrc;
@@ -919,8 +921,8 @@ void JobManager::CJobManager::Update(int nJobSystemProfiler)
 	gEnv->pRenderer->GetThreadIDs(nMainThreadId, nRenderThreadId);
 
 	// now compute the relative screen size, and how many pixels are represented by a time value
-	int nScreenHeight = gEnv->IsEditor() ? gEnv->pRenderer->GetHeight() : gEnv->pRenderer->GetOverlayHeight();
-	int nScreenWidth = gEnv->IsEditor() ? gEnv->pRenderer->GetWidth() : gEnv->pRenderer->GetOverlayWidth();
+	int nScreenHeight = gEnv->pRenderer->GetOverlayHeight();
+	int nScreenWidth  = gEnv->pRenderer->GetOverlayWidth();
 
 	float fScreenHeight = (float)nScreenHeight;
 	float fScreenWidth = (float)nScreenWidth;
@@ -1591,7 +1593,6 @@ void JobManager::CJobManager::AddBlockingFallbackJob(JobManager::SInfoBlock* pIn
 ///////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////
 TLS_DEFINE(uint32, gWorkerThreadId);
-TLS_DEFINE(uintptr_t, gFallbackInfoBlocks);
 
 ///////////////////////////////////////////////////////////////////////////////
 namespace JobManager {
@@ -1617,19 +1618,17 @@ uint32 JobManager::detail::GetWorkerThreadId()
 	return is_marked_worker_thread_id(nID) ? unmark_worker_thread_id(nID) : ~0;
 }
 
+static BoundMPMC<JobManager::SInfoBlock*> gFallbackInfoBlocks(JobManager::detail::GetFallbackJobListSize());
+
 ///////////////////////////////////////////////////////////////////////////////
 void JobManager::detail::PushToFallbackJobList(JobManager::SInfoBlock* pInfoBlock)
 {
-	pInfoBlock->pNext = (JobManager::SInfoBlock*)TLS_GET(uintptr_t, gFallbackInfoBlocks);
-	TLS_SET(gFallbackInfoBlocks, (uintptr_t)pInfoBlock);
+	bool ret = gFallbackInfoBlocks.enqueue(pInfoBlock);
+	CRY_ASSERT_MESSAGE(ret, "JobSystem: Fallback info block limit reached");
 }
 
 JobManager::SInfoBlock* JobManager::detail::PopFromFallbackJobList()
 {
-	JobManager::SInfoBlock* pRet = (JobManager::SInfoBlock*)TLS_GET(uintptr_t, gFallbackInfoBlocks);
-	IF (pRet != NULL, 0)
-	{
-		TLS_SET(gFallbackInfoBlocks, (uintptr_t)pRet->pNext);
-	}
-	return pRet;
+	JobManager::SInfoBlock* pInfoBlock = nullptr;
+	return gFallbackInfoBlocks.dequeue(pInfoBlock) ? pInfoBlock : nullptr;
 }

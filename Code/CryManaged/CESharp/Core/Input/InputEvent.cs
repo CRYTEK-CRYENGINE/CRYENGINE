@@ -2,6 +2,9 @@
 
 namespace CryEngine
 {
+	/// <summary>
+	/// Data container for input events.
+	/// </summary>
 	public struct InputEvent
 	{
 		/// <summary>

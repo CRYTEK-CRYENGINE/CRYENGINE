@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 
@@ -155,11 +155,16 @@ void CryGFxURLBuilder::BuildURL(GString* pPath, const LocationInfo& loc)
 // CryGFxTextClipboard
 
 CryGFxTextClipboard::CryGFxTextClipboard()
+#if CRY_PLATFORM_WINDOWS
+	: m_bSyncingClipboardFromWindows(false)
+#endif // CRY_PLATFORM_WINDOWS
 {
 	if (auto pSystem = gEnv->pSystem)
 	{
 #if CRY_PLATFORM_WINDOWS
-		HandleMessage(reinterpret_cast<HWND>(pSystem->GetHWND()), WM_CLIPBOARDUPDATE, 0, 0, nullptr); // Sync current clipboard content with Scaleform
+		const HWND hWnd = reinterpret_cast<HWND>(pSystem->GetHWND());
+		AddClipboardFormatListener(hWnd);
+		HandleMessage(hWnd, WM_CLIPBOARDUPDATE, 0, 0, nullptr); // Sync current clipboard content with Scaleform
 #endif // CRY_PLATFORM_WINDOWS
 		pSystem->RegisterWindowMessageHandler(this);
 	}
@@ -170,6 +175,9 @@ CryGFxTextClipboard::~CryGFxTextClipboard()
 	if (gEnv && gEnv->pSystem)
 	{
 		gEnv->pSystem->UnregisterWindowMessageHandler(this);
+#if CRY_PLATFORM_WINDOWS
+		RemoveClipboardFormatListener(reinterpret_cast<HWND>(gEnv->pSystem->GetHWND()));
+#endif // CRY_PLATFORM_WINDOWS
 	}
 }
 
@@ -183,10 +191,12 @@ void CryGFxTextClipboard::OnTextStore(const wchar_t* szText, UPInt length)
 {
 #if CRY_PLATFORM_WINDOWS
 	// Copy to windows clipboard
-	if (OpenClipboard(nullptr) != 0)
+	if (!m_bSyncingClipboardFromWindows && OpenClipboard(nullptr) != 0)
 	{
+		const HWND hWnd = reinterpret_cast<HWND>(gEnv->pSystem->GetHWND());
+
 		// Avoid endless notification loop
-		RemoveClipboardFormatListener(reinterpret_cast<HWND>(gEnv->pSystem->GetHWND()));
+		RemoveClipboardFormatListener(hWnd);
 
 		static_assert(sizeof(wchar_t) == 2, "sizeof(wchar_t) needs to be 2 to be compatible with Scaleform.");
 		const HGLOBAL clipboardData = GlobalAlloc(GMEM_DDESHARE, sizeof(wchar_t) * (length + 1));
@@ -199,7 +209,7 @@ void CryGFxTextClipboard::OnTextStore(const wchar_t* szText, UPInt length)
 
 		CloseClipboard();
 
-		AddClipboardFormatListener(reinterpret_cast<HWND>(gEnv->pSystem->GetHWND()));
+		AddClipboardFormatListener(hWnd);
 	}
 #endif // CRY_PLATFORM_WINDOWS
 }
@@ -215,7 +225,7 @@ bool CryGFxTextClipboard::HandleMessage(HWND hWnd, UINT uMsg, WPARAM wParam, LPA
 			const HANDLE wideData = GetClipboardData(CF_UNICODETEXT);
 			if (wideData)
 			{
-				const LPCWSTR pWideData = (LPCWSTR)GlobalLock(wideData);
+				const LPCWSTR pWideData = reinterpret_cast<LPCWSTR>(GlobalLock(wideData));
 				if (pWideData)
 				{
 					// Note: This conversion is just to make sure we discard malicious or malformed data
@@ -225,7 +235,9 @@ bool CryGFxTextClipboard::HandleMessage(HWND hWnd, UINT uMsg, WPARAM wParam, LPA
 			}
 			CloseClipboard();
 
+			m_bSyncingClipboardFromWindows = true;
 			SetText(data.c_str(), data.size());
+			m_bSyncingClipboardFromWindows = false;
 		}
 	}
 

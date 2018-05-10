@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -57,8 +57,7 @@ namespace UQS
 			Vec3                  m_pos;
 			float                 m_radius;
 		};
-		SERIALIZATION_CLASS_NAME(CItemDebugProxyBase, CItemDebugProxy_Sphere, "CItemDebugProxy_Sphere", "");
-
+		
 		//===================================================================================
 		//
 		// CItemDebugProxy_Path
@@ -85,7 +84,6 @@ namespace UQS
 			std::vector<Vec3>     m_pathPoints;
 			bool                  m_bClosed;
 		};
-		SERIALIZATION_CLASS_NAME(CItemDebugProxyBase, CItemDebugProxy_Path, "CItemDebugProxy_Path", "");
 
 		//===================================================================================
 		//
@@ -111,7 +109,5 @@ namespace UQS
 		private:
 			AABB                  m_aabb;
 		};
-		SERIALIZATION_CLASS_NAME(CItemDebugProxyBase, CItemDebugProxy_AABB, "CItemDebugProxy_AABB", "");
-
 	}
 }

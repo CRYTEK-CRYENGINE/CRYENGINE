@@ -1,8 +1,10 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
 #include <CrySystem/VR/IHMDDevice.h>
+#include <CryRenderer/IRenderer.h>
+#include <CryRenderer/IStereoRenderer.h>
 
 namespace CryVR
 {
@@ -35,8 +37,11 @@ public:
 	virtual void OnSetupEyeTargets(ERenderAPI api, ERenderColorSpace colorSpace, void* leftEyeHandle, void* rightEyeHandle) = 0;
 	virtual void OnSetupOverlay(int id, ERenderAPI api, ERenderColorSpace colorSpace, void* overlayTextureHandle) = 0;
 	virtual void OnDeleteOverlay(int id) = 0;
-	virtual void SubmitOverlay(int id) = 0;
+	virtual void SubmitOverlay(int id, const RenderLayer::CProperties* pOverlayProperties) = 0;
 	virtual void SubmitFrame() = 0;
+	virtual void OnPrepare() = 0;
+	virtual void OnPostPresent() = 0;
+	virtual bool IsActiveOverlay(int id) const = 0;
 	virtual void GetRenderTargetSize(uint& w, uint& h) = 0;
 	virtual void GetMirrorImageView(EEyeType eye, void* resource, void** mirrorTextureView) = 0;
 protected:

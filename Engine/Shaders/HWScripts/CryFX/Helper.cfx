@@ -11,9 +11,6 @@ float Script : STANDARDSGLOBAL
            "ShaderDrawType = DebugHelper;"
 >;
 
-/// Un-Tweakables //////////////////////
-float4 ObjColor  : PI_AmbientOpacity;
-
 /////////////////////////////
 
 struct a2v
@@ -54,16 +51,13 @@ pixout HelperPS(v2f IN)
 	pixout OUT;
 
 	const float HDRDynamicMultiplier = 2.0f;
-#if %_RT_PER_INSTANCE_CB_TEMP
+
 	uint ambColorPacked = asuint(PerInstanceCustomData2.y);
 	float4 outputColor;
 	outputColor.r = saturate(((ambColorPacked >> 24) & 0xFF) / 255.0f);
 	outputColor.g = saturate(((ambColorPacked >> 16) & 0xFF) / 255.0f);
 	outputColor.b = saturate(((ambColorPacked >> 8) & 0xFF) / 255.0f);
 	outputColor.a = saturate((ambColorPacked & 0xFF) / 255.0f);
-#else
-	float4 outputColor = ObjColor.xyzw;
-#endif
 
 	// load the base
 	float3 LightVec = normalize( float3(1,1,1) );

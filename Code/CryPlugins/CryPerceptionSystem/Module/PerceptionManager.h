@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -44,8 +44,6 @@ private:
 	// !ISystemEventListener
 
 	// IAISystemComponent
-	virtual void Init() override;
-	virtual void PostInit() override;
 	virtual void Reset(IAISystem::EResetReason reason) override;
 	virtual void Update(float deltaTime) override;
 	virtual void Serialize(TSerialize ser) override;

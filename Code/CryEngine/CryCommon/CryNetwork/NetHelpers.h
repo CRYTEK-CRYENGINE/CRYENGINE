@@ -1,17 +1,6 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
-/*************************************************************************
-   -------------------------------------------------------------------------
-   $Id$
-   $DateTime$
-   Description:  contains helpers for implementing INetwork.h interfaces
-   -------------------------------------------------------------------------
-   History:
-   - 26/07/2004   10:34 : Created by Craig Tiller
-*************************************************************************/
-
-#ifndef __NET_HELPERS_H__
-#define __NET_HELPERS_H__
+//! \cond INTERNAL
 
 #include <CryNetwork/INetwork.h> // <> required for Interfuscator
 
@@ -323,16 +312,15 @@ private:
     TSerialize serialize,                                                                                                    \
     uint32 curSeq,                                                                                                           \
     uint32 oldSeq,                                                                                                           \
-    uint32 timeFraction32,                                                                                                           \
+    uint32 timeFraction32,                                                                                                   \
     EntityId * pEntityId, INetChannel * pChannel)                                                                            \
   {                                                                                                                          \
-    char* p = (char*) handler;                                                                                               \
-    p -= size_t((INetMessageSink*)(cls*)NULL);                                                                               \
+    cls* p = static_cast<cls*>(handler);                                                                                     \
     TParam ## name param;                                                                                                    \
     param.SerializeWith(serialize);                                                                                          \
     return TNetMessageCallbackResult(true,                                                                                   \
                                      new CNetSimpleAtSyncItem<TParam ## name, cls>(                                          \
-                                       (cls*)p, &cls::Handle ## name, param, *pEntityId,                                     \
+                                       p, &cls::Handle ## name, param, *pEntityId,                                           \
                                        curSeq == DEMO_PLAYBACK_SEQ_NUMBER && oldSeq == DEMO_PLAYBACK_SEQ_NUMBER, pChannel)); \
   }                                                                                                                          \
   inline bool cls::Handle ## name(const TParam ## name & param, EntityId entityId, bool bFromDemoSystem, INetChannel * pNetChannel, EDisconnectionCause & disconnectCause, string & disconnectMessage)
@@ -507,4 +495,4 @@ void AddCallMemberFunction(IContextEstablisher* pEst, EContextViewState state, T
 	pEst->AddTask(state, new CCET_CallMemberFunction<T>(pObj, memberFunc, name));
 }
 
-#endif
+//! \endcond

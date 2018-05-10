@@ -1,7 +1,8 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
+#include <StdAfx.h>
 #include "xxhash.h"
 #include <fasthash/fasthash.inl>
 #include <concqueue/concqueue.hpp>
@@ -21,7 +22,6 @@
 	  CRY_ASSERT_MESSAGE(cond, "VK_ASSERT " __VA_ARGS__)
 
 	#define VK_NOT_IMPLEMENTED //VK_ASSERT(0, "Not implemented!");
-
 #else
 
 	#define VK_LOG(cond, ...)     do {} while (0)
@@ -64,11 +64,15 @@ struct SSurfaceCreationInfo
 #ifdef CRY_PLATFORM_WINDOWS
 	HWND      windowHandle;
 	HINSTANCE appHandle;
-#elif USE_SDL2_VIDEO && CRY_PLATFORM_ANDROID
+#elif USE_SDL2_VIDEO
 	SDL_Window* pWindow;
-	ANativeWindow* pNativeWindow;
+	#if CRY_PLATFORM_ANDROID
+		ANativeWindow* pNativeWindow;
+	#elif CRY_PLATFORM_LINUX
+		xcb_window_t window;
+	#endif  //CRY_PLATFORM_ANDROID
 #else
-	#error  "Not implemented!""
+	#error  "Not implemented!"
 #endif
 };
 

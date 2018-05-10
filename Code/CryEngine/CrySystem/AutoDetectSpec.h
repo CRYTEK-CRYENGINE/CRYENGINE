@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #ifndef _AUTODETECTSPEC_
 #define _AUTODETECTSPEC_
@@ -57,7 +57,7 @@ bool          IsDX11Supported();
 bool          IsDX12Supported();
 bool          GetGPUInfo(char* pName, size_t bufferSize, unsigned int& vendorID, unsigned int& deviceID, unsigned int& totLocalVidMem, DXFeatureLevel& featureLevel);
 int           GetGPURating(unsigned int vendorId, unsigned int deviceId);
-void          GetOS(SPlatformInfo::EWinVersion& ver, bool& is64Bit, char* pName, size_t bufferSize);
+void          GetOS(SPlatformInfo::SWinInfo& win, char* pName, size_t bufferSize);
 bool          IsVistaKB940105Required();
 
 inline size_t SafeMemoryThreshold(size_t memMB)

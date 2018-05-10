@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 
@@ -1217,8 +1217,8 @@ public:
 	void Initialize(int nThreads);
 	void Shutdown();
 
-	SMMRMGeometry* GetGeometry(uint32, uint16);
-	SMMRMGeometry* GetGeometry(CStatObj*, uint16);
+	SMMRMGeometry* GetGeometry(uint32);
+	SMMRMGeometry* GetGeometry(CStatObj*);
 
 	void ReleaseGeometry(SMMRMGeometry*);
 
@@ -1236,19 +1236,11 @@ public:
 
 	ILINE StatInstGroup& GetStatObjGroup(const SMMRMGeometry* geometry) const
 	{
-#ifdef SEG_WORLD
-		return GetObjManager()->m_lstStaticTypes[geometry->m_nStaticTypeSlot][geometry->srcGroupId];
-#else
-		return GetObjManager()->m_lstStaticTypes[0][geometry->srcGroupId];
-#endif
+		return GetObjManager()->m_lstStaticTypes[geometry->srcGroupId];
 	}
 	ILINE CStatObj* GetStatObj(const SMMRMGeometry* geometry) const
 	{
-#ifdef SEG_WORLD
-		return GetObjManager()->m_lstStaticTypes[geometry->m_nStaticTypeSlot][geometry->srcGroupId].GetStatObj();
-#else
-		return GetObjManager()->m_lstStaticTypes[0][geometry->srcGroupId].GetStatObj();
-#endif
+		return GetObjManager()->m_lstStaticTypes[geometry->srcGroupId].GetStatObj();
 	}
 };
 
@@ -1823,9 +1815,9 @@ void CGeometryManager::PrepareGeometry(SMMRMGeometry* geometry)
 	}
 }
 
-SMMRMGeometry* CGeometryManager::GetGeometry(uint32 groupId, uint16 slot)
+SMMRMGeometry* CGeometryManager::GetGeometry(uint32 groupId)
 {
-	StatInstGroup* group = &GetObjManager()->m_lstStaticTypes[slot][groupId];
+	StatInstGroup* group = &GetObjManager()->m_lstStaticTypes[groupId];
 	CStatObj* statObj = group->GetStatObj();
 	if (!statObj)
 	{
@@ -1842,7 +1834,7 @@ SMMRMGeometry* CGeometryManager::GetGeometry(uint32 groupId, uint16 slot)
 		// keep an extra reference to the static geometry (needed because we want to extract material sometimes...)
 		statObj->AddRef();
 
-		it = m_geomMap.insert(it, std::make_pair(fileNameHash, SMMRMGeometry(groupId, slot)));
+		it = m_geomMap.insert(it, std::make_pair(fileNameHash, SMMRMGeometry(groupId)));
 		it->second.aabb = statObj->GetAABB();
 		if (!gEnv->IsEditor())
 		{
@@ -1862,7 +1854,7 @@ SMMRMGeometry* CGeometryManager::GetGeometry(uint32 groupId, uint16 slot)
 	return &it->second;
 }
 
-SMMRMGeometry* CGeometryManager::GetGeometry(CStatObj* statObj, uint16 slot)
+SMMRMGeometry* CGeometryManager::GetGeometry(CStatObj* statObj)
 {
 	string filename = (statObj->m_szFileName + "_" + statObj->m_szGeomName);
 	str_hash_t fileNameHash = hasher(filename.c_str(), filename.length());
@@ -1870,7 +1862,7 @@ SMMRMGeometry* CGeometryManager::GetGeometry(CStatObj* statObj, uint16 slot)
 	GeometryMapT::iterator it = m_geomMap.lower_bound(fileNameHash);
 	if (it == m_geomMap.end() || it->first != fileNameHash)
 	{
-		it = m_geomMap.insert(it, std::make_pair(fileNameHash, SMMRMGeometry(statObj, slot)));
+		it = m_geomMap.insert(it, std::make_pair(fileNameHash, SMMRMGeometry(statObj)));
 		it->second.aabb = statObj->GetAABB();
 
 		// keep an extra reference to the static geometry (needed because we want to extract material sometimes...)
@@ -1943,7 +1935,7 @@ void CGeometryManager::GetUsedMeshes(DynArray<string>& names)
 		CStatObj* pObj = NULL;
 		if (geom.is_obj)
 			pObj = geom.srcObj;
-		else
+		else if(geom.srcGroupId < (uint32)GetObjManager()->m_lstStaticTypes.Count())
 		{
 			pObj = GetStatObj(&geom);
 		}
@@ -2031,9 +2023,6 @@ CMergedMeshRenderNode::CMergedMeshRenderNode()
 	, m_renderMeshes()
 	, m_pReadStream()
 	, m_SpinesActive()
-#ifdef SEG_WORLD
-	, m_nStaticTypeSlot(0)
-#endif
 {
 	GetInstCount(GetRenderNodeType())++;
 
@@ -2258,12 +2247,7 @@ bool CMergedMeshRenderNode::AddGroup(uint32 statInstGroupId, uint32 numSamples)
 		resize_list(m_groups, m_nGroups + 1, 128);
 		header = new(&m_groups[m_nGroups++])SMMRMGroupHeader;
 
-#ifdef SEG_WORLD
-		header->procGeom = s_GeomManager.GetGeometry(statInstGroupId, m_nStaticTypeSlot);
-#else
-		header->procGeom = s_GeomManager.GetGeometry(statInstGroupId, 0);
-#endif
-
+		header->procGeom = s_GeomManager.GetGeometry(statInstGroupId);
 		header->instGroupId = statInstGroupId;
 		header->numSamples = min(numSamples - ic, MMRM_MAX_SAMPLES_PER_BATCH);
 		header->maxViewDistance = 0;
@@ -2315,11 +2299,7 @@ IRenderNode* CMergedMeshRenderNode::AddInstance(const SProcVegSample& sample)
 	const Vec3 origin = m_pos - extents;
 	size_t headerIndex = (size_t)-1;
 
-#ifdef SEG_WORLD
-	SMMRMGeometry* procGeom = s_GeomManager.GetGeometry(sample.InstGroupId, m_nStaticTypeSlot);
-#else
-	SMMRMGeometry* procGeom = s_GeomManager.GetGeometry(sample.InstGroupId, 0);
-#endif
+	SMMRMGeometry* procGeom = s_GeomManager.GetGeometry(sample.InstGroupId);
 
 	gEnv->pJobManager->WaitForJob(m_cullState);
 	for (size_t i = 0; i < m_nGroups; ++i)
@@ -2337,11 +2317,7 @@ IRenderNode* CMergedMeshRenderNode::AddInstance(const SProcVegSample& sample)
 	{
 		resize_list(m_groups, m_nGroups + 1, 128);
 		header = new(&m_groups[headerIndex = m_nGroups++])SMMRMGroupHeader;
-#ifdef SEG_WORLD
-		header->procGeom = s_GeomManager.GetGeometry(sample.InstGroupId, m_nStaticTypeSlot);
-#else
-		header->procGeom = s_GeomManager.GetGeometry(sample.InstGroupId, 0);
-#endif
+		header->procGeom = s_GeomManager.GetGeometry(sample.InstGroupId);
 		header->instGroupId = sample.InstGroupId;
 	}
 	else
@@ -2479,7 +2455,10 @@ bool CMergedMeshRenderNode::DeleteRenderMesh(RENDERMESH_UPDATE_TYPE type, bool b
 	m_SizeInVRam = 0u;
 
 	if (type == RUT_STATIC)
+	{
 		InvalidatePermanentRenderObject();
+		m_manipulationFrame = -1;
+	}		
 
 	return true;
 }
@@ -2651,7 +2630,7 @@ done:
 				tgtBuf.data = (SPipTangents*)rm->GetTangentPtr(tgtBuf.iStride, FSL_CREATE_MODE);
 			idxBuf = rm->GetIndexPtr(FSL_CREATE_MODE);
 
-			if (!rm->CanRender() || !vtxBuf || !idxBuf ||
+			if (!rm->CanUpdate() || !vtxBuf || !idxBuf ||
 			    (mesh->hasNormals && !nrmBuf) ||
 			    (mesh->hasTangents && (!tgtBuf)))
 			{
@@ -2729,7 +2708,10 @@ done:
 	m_LastUpdateFrame = passInfo.GetMainFrameID();
 
 	if (type == RUT_STATIC)
+	{
 		InvalidatePermanentRenderObject();
+		m_manipulationFrame = -1;
+	}	
 }
 
 void CMergedMeshRenderNode::Render(const struct SRendParams& EntDrawParams, const SRenderingPassInfo& passInfo)
@@ -2939,12 +2921,7 @@ bool CMergedMeshRenderNode::GroupsCastShadows(RENDERMESH_UPDATE_TYPE type)
 	{
 		if (m_groups[i].numSamples == 0u || m_groups[i].specMismatch || (type != (signed)m_groups[i].is_dynamic))
 			continue;
-		StatInstGroup& srcGroup =
-#ifdef SEG_WORLD
-		  GetObjManager()->m_lstStaticTypes[m_groups[i].procGeom->m_nStaticTypeSlot][m_groups[i].instGroupId];
-#else
-		  GetObjManager()->m_lstStaticTypes[0][m_groups[i].instGroupId];
-#endif
+		StatInstGroup& srcGroup = GetObjManager()->m_lstStaticTypes[m_groups[i].instGroupId];
 		if (srcGroup.nCastShadowMinSpec <= GetCVars()->e_ObjShadowCastSpec)
 			return true;
 	}
@@ -2957,13 +2934,21 @@ void CMergedMeshRenderNode::RenderRenderMesh(
   , const SRenderingPassInfo& passInfo
   )
 {
-	CRenderObject* ro = 0;
+	const auto pTempData = m_pTempData.load();
+	if (!pTempData)
+	{
+		CRY_ASSERT(false);
+		return;
+	}
 
-	if (GetObjManager()->AddOrCreatePersistentRenderObject((type == RUT_STATIC) ? m_pTempData : NULL, ro, NULL, passInfo))
+	// Prepare object model matrix
+	const auto objMat = Matrix34::CreateTranslationMat(m_pos);
+
+	CRenderObject* ro = nullptr;
+	if (GetObjManager()->AddOrCreatePersistentRenderObject(type == RUT_STATIC ? pTempData : nullptr, ro, nullptr, objMat, passInfo))
 		return;
 
-	std::vector<SMMRM>& renderMeshes = m_renderMeshes[type];
-	SSectorTextureSet* pTerrainTexInfo = NULL;
+	SSectorTextureSet* pTerrainTexInfo = nullptr;
 	byte ucSunDotTerrain = 255;
 	const float fRenderQuality = min(1.f, max(1.f - distance / (GetCVars()->e_MergedMeshesActiveDist * 0.3333f), 0.f));
 
@@ -2980,21 +2965,21 @@ void CMergedMeshRenderNode::RenderRenderMesh(
 		float fRadius = GetBBox().GetRadius();
 		Vec3 vTerrainNormal = GetTerrain()->GetTerrainSurfaceNormal(GetBBox().GetCenter(), fRadius);
 		ucSunDotTerrain = (uint8)(CLAMP((vTerrainNormal.Dot(Get3DEngine()->GetSunDirNormalized())) * 255.f, 0, 255));
-		GetObjManager()->FillTerrainTexInfo(
-		  static_cast<COctreeNode*>(m_pOcNode)
-		  , distance
-		  , pTerrainTexInfo
-		  , static_cast<COctreeNode*>(m_pOcNode)->GetObjectsBBox());
+		GetObjManager()->FillTerrainTexInfo(static_cast<COctreeNode*>(m_pOcNode),
+			distance,
+			pTerrainTexInfo,
+			static_cast<COctreeNode*>(m_pOcNode)->GetObjectsBBox());
 	}
 
-	ro->m_II.m_AmbColor = m_rendParams.AmbientColor;
-	ro->m_II.m_Matrix.SetTranslationMat(m_pos);
+	ColorF ambientColor = m_rendParams.AmbientColor;
+	ro->SetAmbientColor(ambientColor, passInfo);
 	ro->m_fAlpha = m_rendParams.fAlpha;
 	ro->m_ObjFlags = FOB_TRANS_MASK | FOB_INSHADOW | FOB_DYNAMIC_OBJECT;
 	if (pTerrainTexInfo)
 	{
-		m_pTempData->userData.bTerrainColorWasUsed = true;
-		ro->m_II.m_AmbColor.a = clamp_tpl((1.0f / 255.f * ucSunDotTerrain), 0.f, 1.f);
+		pTempData->userData.bTerrainColorWasUsed = true;
+		ambientColor.a = clamp_tpl((1.0f / 255.f * ucSunDotTerrain), 0.f, 1.f);
+		ro->SetAmbientColor(ambientColor, passInfo);
 		ro->m_ObjFlags |= FOB_BLEND_WITH_TERRAIN_COLOR;
 		ro->m_data.m_pTerrainSectorTextureInfo = pTerrainTexInfo;
 		ro->m_nTextureID = -(int)pTerrainTexInfo->nSlot0 - 1; // nTextureID is set only for proper batching, actual texture id is same for all terrain sectors
@@ -3021,22 +3006,22 @@ void CMergedMeshRenderNode::RenderRenderMesh(
 	if (Get3DEngine()->IsTessellationAllowed(ro, passInfo))
 		ro->m_ObjFlags |= FOB_ALLOW_TESSELLATION;
 
-	for (size_t i = 0; i < renderMeshes.size(); ++i)
+	bool first = true;
+	for (const auto& mesh : m_renderMeshes[type])
 	{
-		SMMRM& mesh = renderMeshes[i];
-
-		CRenderObject* roMat = i ? GetRenderer()->EF_DuplicateRO(ro, passInfo) : ro;
+		CRenderObject* roMat = first ? ro : GetRenderer()->EF_DuplicateRO(ro, passInfo);
 
 		roMat->m_pCurrMaterial = mesh.mat;
 
-		for (size_t j = 0; j < mesh.rms.size(); ++j)
+		for (auto& rm : mesh.rms)
 		{
-			IRenderMesh* rm = mesh.rms[j];
 			IF (!rm, 0)
 				continue;
 
 			rm->Render(roMat, passInfo);
 		}
+
+		first = false;
 	}
 }
 
@@ -3056,26 +3041,29 @@ bool CMergedMeshRenderNode::PostRender(const SRenderingPassInfo& passInfo)
 
 	if (m_needsStaticMeshUpdate)
 	{
-		FRAME_PROFILER("MMRM PR CR static", gEnv->pSystem, PROFILE_3DENGINE);
+		CRY_PROFILE_REGION(PROFILE_3DENGINE, "MMRM PR CR static");
 		CreateRenderMesh(RUT_STATIC, passInfo);
 		m_needsStaticMeshUpdate = false;
 	}
 	if (m_needsDynamicMeshUpdate)
 	{
-		FRAME_PROFILER("MMRM PR CR dynamic", gEnv->pSystem, PROFILE_3DENGINE);
+		CRY_PROFILE_REGION(PROFILE_3DENGINE, "MMRM PR CR dynamic");
 		CreateRenderMesh(RUT_DYNAMIC, passInfo);
 		m_needsDynamicMeshUpdate = false;
 	}
 
+	// Check tempData in case object was validated before
+	Get3DEngine()->CheckAndCreateRenderNodeTempData(this, passInfo);
+
 	if (m_needsPostRenderStatic)
 	{
-		FRAME_PROFILER("MMRM PR RR static", gEnv->pSystem, PROFILE_3DENGINE);
+		CRY_PROFILE_REGION(PROFILE_3DENGINE,"MMRM PR RR static");
 		RenderRenderMesh(RUT_STATIC, distance, passInfo);
 		m_needsPostRenderStatic = false;
 	}
 	if (m_needsPostRenderDynamic)
 	{
-		FRAME_PROFILER("MMRM PR RR dynamic", gEnv->pSystem, PROFILE_3DENGINE);
+		CRY_PROFILE_REGION(PROFILE_3DENGINE,"MMRM PR RR dynamic");
 		RenderRenderMesh(RUT_DYNAMIC, distance, passInfo);
 		m_needsPostRenderDynamic = false;
 	}
@@ -3329,17 +3317,7 @@ bool CMergedMeshRenderNode::StreamIn()
 		j = (int)floorf(abs(m_initPos.y) * fExtentsRec);
 		k = (int)floorf(abs(m_initPos.z) * fExtentsRec);
 		m_State = STREAMING;
-		if (!Get3DEngine()->m_pSegmentsManager)
-		{
-			cry_sprintf(szFileName, "%s%s\\sector_%d_%d_%d.dat", Get3DEngine()->GetLevelFolder(), COMPILED_MERGED_MESHES_BASE_NAME
-			            , i, j, k);
-		}
-		else
-		{
-			Get3DEngine()->m_pSegmentsManager->FindSegmentCoordByID(m_nSID, x, y);
-			cry_sprintf(szFileName, "%sseg\\seg%d_%d\\%s\\sector_%d_%d_%d.dat", Get3DEngine()->GetLevelFolder(), x, y, COMPILED_MERGED_MESHES_BASE_NAME
-			            , i, j, k);
-		}
+		cry_sprintf(szFileName, "%s%s\\sector_%d_%d_%d.dat", Get3DEngine()->GetLevelFolder(), COMPILED_MERGED_MESHES_BASE_NAME, i, j, k);
 		m_pReadStream = GetSystem()->GetStreamEngine()->StartRead(eStreamTaskTypeMergedMesh, szFileName, this);
 		return true;
 	default:
@@ -3708,10 +3686,7 @@ void CMergedMeshRenderNode::OverrideLodRatio(float value)
 
 }
 
-bool CMergedMeshRenderNode::UpdateStreamableComponents(
-  float fImportance
-  , float fEntDistance
-  , bool bFullUpdate)
+void CMergedMeshRenderNode::UpdateStreamingPriority(const SUpdateStreamingPriorityContext& context)
 {
 	CObjManager* pObjManager = GetObjManager();
 	IF (m_usedMaterials.size() == 0u, 0)
@@ -3739,11 +3714,10 @@ bool CMergedMeshRenderNode::UpdateStreamableComponents(
 	{
 		pObjManager->PrecacheStatObjMaterial(
 		  m_usedMaterials[i].first
-		  , fEntDistance
+		  , context.distance
 		  , m_usedMaterials[i].second
-		  , bFullUpdate, false);
+		  , context.bFullUpdate, false);
 	}
-	return true;
 }
 
 bool CMergedMeshRenderNode::SyncAllJobs()
@@ -4576,7 +4550,7 @@ void CMergedMeshesManager::Update(const SRenderingPassInfo& passInfo)
 
 		if (Cry3DEngineBase::GetCVars()->e_MergedMeshesClusterVisualization > 1 || CryGetAsyncKeyState(0x59))
 		{
-			Vec3 cpos = gEnv->pRenderer->GetCamera().GetPosition();
+			Vec3 cpos = passInfo.GetCamera().GetPosition();
 			//cpos.x = floorf(cpos.x);
 			//cpos.y = floorf(cpos.y);
 			//cpos.z = floorf(GetTerrain()->GetZApr(cpos.x, cpos.y, 0));
@@ -4716,7 +4690,7 @@ struct SDeformableData
 	~SDeformableData() {}
 };
 
-CDeformableNode::CDeformableNode(uint16 slot)
+CDeformableNode::CDeformableNode()
 	: m_pData()
 	, m_nData()
 	, m_wind()
@@ -4731,9 +4705,6 @@ CDeformableNode::CDeformableNode(uint16 slot)
 	, m_renderMesh()
 	, m_pStatObj()
 	, m_all_prepared()
-#ifdef SEG_WORLD
-	, m_nStaticTypeSlot(0)
-#endif
 {
 	m_bbox = AABB(Vec3(0, 0, 0));
 }
@@ -4806,11 +4777,7 @@ void CDeformableNode::ClearSimulationData()
 void CDeformableNode::CreateInstanceData(SDeformableData* pData, CStatObj* pStatObj)
 {
 	SMMRMGroupHeader* header = &pData->m_mmrmHeader;
-#ifdef SEG_WORLD
-	header->procGeom = s_GeomManager.GetGeometry(pStatObj, m_nStaticTypeSlot);
-#else
-	header->procGeom = s_GeomManager.GetGeometry(pStatObj, 0);
-#endif
+	header->procGeom = s_GeomManager.GetGeometry(pStatObj);
 	header->physConfig.Update(header->procGeom);
 	header->instGroupId = 0;
 	header->maxViewDistance = 0;
@@ -4887,7 +4854,7 @@ void CDeformableNode::UpdateInternalDeform(
   , size_t& iv
   , size_t& ii)
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_3DENGINE);
+	CRY_PROFILE_FUNCTION(PROFILE_3DENGINE);
 	SMMRMGroupHeader* group = &pData->m_mmrmHeader;
 	if (group == NULL)
 		return;
@@ -4899,7 +4866,7 @@ void CDeformableNode::UpdateInternalDeform(
 	if (pData->m_State == SDeformableData::READY)
 	{
 		FUNCTION_PROFILER_3DENGINE;
-		Matrix34 worldTM = pRenderObject->GetMatrix();
+		Matrix34 worldTM = pRenderObject->GetMatrix(passInfo);
 
 		// Create a new render mesh and dispatch the asynchronous updates
 		size_t indices = group->procGeom->numIdx, vertices = group->procGeom->numVtx;
@@ -4962,7 +4929,7 @@ void CDeformableNode::RenderInternalDeform(
   CRenderObject* pRenderObject, int nLod, const AABB& bbox
   , const SRenderingPassInfo& passInfo)
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_3DENGINE);
+	CRY_PROFILE_FUNCTION(PROFILE_3DENGINE);
 	if (nLod > 0 || m_nData == 0 || Cry3DEngineBase::GetCVars()->e_MergedMeshes == 0)
 		return;
 
@@ -4973,7 +4940,7 @@ void CDeformableNode::RenderInternalDeform(
 	if (passInfo.IsGeneralPass() && ((passInfo.GetCamera().GetPosition() - bbox.GetCenter()).len2() < sqr(((IRenderNode*)pRenderObject->m_pRenderNode)->GetMaxViewDist()) * Cry3DEngineBase::GetCVars()->e_MergedMeshesDeformViewDistMod))
 	{
 		{
-			FRAME_PROFILER("CDeformableNode::RenderInternalDeform JobSync", gEnv->pSystem, PROFILE_3DENGINE);
+			CRY_PROFILE_REGION(PROFILE_3DENGINE, "CDeformableNode::RenderInternalDeform JobSync");
 			gEnv->pJobManager->WaitForJob(m_cullState);
 			gEnv->pJobManager->WaitForJob(m_updateState);
 		}
@@ -4982,7 +4949,7 @@ void CDeformableNode::RenderInternalDeform(
 
 		if (m_bbox.IsReset() == false)
 		{
-			Matrix34 worldTM = pRenderObject->GetMatrix();
+			Matrix34 worldTM = pRenderObject->GetMatrix(passInfo);
 			AABB cbbox = AABB::CreateTransformedAABB(worldTM, m_bbox);
 			QueryColliders(m_Colliders, m_nColliders, cbbox);
 			QueryProjectiles(m_Projectiles, m_nProjectiles, cbbox);
@@ -5086,7 +5053,7 @@ void CDeformableNode::RenderInternalDeform(
 	if (!ro)
 		return;
 	ro->m_ObjFlags |= FOB_DYNAMIC_OBJECT;
-	ro->m_II.m_Matrix.SetTranslationMat(centre);
+	ro->SetMatrix(Matrix34::CreateTranslationMat(centre), passInfo);
 	m_renderMesh->Render(ro, passInfo);
 }
 
@@ -5133,46 +5100,6 @@ void CMergedMeshRenderNode::OffsetPosition(const Vec3& delta)
 	m_internalAABB.Move(delta);
 	m_visibleAABB.Move(delta);
 	m_pos += delta;
-}
-
-void CMergedMeshesManager::PrepareSegmentData(const AABB& aabb)
-{
-	m_SegNodes.clear();
-	for (size_t i = 0; i < HashDimXY; ++i)
-		for (size_t j = 0; j < HashDimXY; ++j)
-			for (size_t k = 0; k < HashDimZ; ++k)
-			{
-				NodeListT& list = m_Nodes[i][j][k];
-				for (NodeListT::iterator it = list.begin(); it != list.end(); ++it)
-					if (aabb.ContainsBox2D((*it)->m_internalAABB))
-						m_SegNodes.push_back((*it));
-			}
-}
-
-int CMergedMeshesManager::GetCompiledDataSize(uint32 index)
-{
-	if (!Get3DEngine()->m_pSegmentsManager)
-		return 0;
-
-	assert(index < m_SegNodes.size());
-
-	int nSize = 0;
-
-	m_SegNodes[index]->Compile(NULL, nSize, NULL, NULL);
-
-	return nSize;
-}
-
-bool CMergedMeshesManager::GetCompiledData(uint32 index, byte* pData, int nSize, string* pName, std::vector<struct IStatInstGroup*>** ppStatInstGroupTable, const Vec3& segmentOffset)
-{
-	if (!Get3DEngine()->m_pSegmentsManager)
-		return false;
-
-	assert(index < m_SegNodes.size());
-
-	m_SegNodes[index]->Compile(pData, nSize, pName, *ppStatInstGroupTable, segmentOffset);
-
-	return true;
 }
 
 void CMergedMeshRenderNode::FillBBox(AABB& aabb)

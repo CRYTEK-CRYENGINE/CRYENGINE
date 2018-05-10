@@ -1,0 +1,10 @@
+<AssetMetadata version="0" type="Texture" guid="e4846fef-c42f-73f3-2eaf-b9968a4eb0c1" source="TextureCompiling_cm.tif">
+ <Files>
+  <File path="TextureCompiling_cm_diff.dds"/>
+ </Files>
+ <Details>
+  <Detail name="width">192</Detail>
+  <Detail name="height">32</Detail>
+  <Detail name="mipCount">1</Detail>
+ </Details>
+</AssetMetadata>

@@ -1,9 +1,8 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
+
+//! \cond INTERNAL
 
 #pragma once
-
-#ifndef IMAGEEXTENSIONHELPER_H
-	#define IMAGEEXTENSIONHELPER_H
 
 	#include <CryRenderer/ITexture.h>
 	#include <CryCore/CryEndian.h>
@@ -185,6 +184,7 @@ const static uint32 FOURCC_AttC = MAKEFOURCC('A', 't', 't', 'C');               
 
 //! Flags to propagate from the RC to the engine through GetImageFlags() 32bit bitmask.
 //! Numbers should not change as engine relies on them.
+//! Free ones: 0x20, 0x80, 0x100, 0x1000, 0x2000, 0x4000
 const static uint32 EIF_Cubemap = 0x1;
 const static uint32 EIF_Volumetexture = 0x2;
 const static uint32 EIF_Decal = 0x4;                         //!< This is usually set through the preset.
@@ -194,9 +194,6 @@ const static uint32 EIF_FileSingle = 0x40;                   //!< Info for the e
 const static uint32 EIF_Compressed = 0x200;                  //!< Info for the engine: it's an MCT or PTC compressed texture for XBox.
 const static uint32 EIF_AttachedAlpha = 0x400;               //!< Info for the engine: it's a texture with attached alpha channel.
 const static uint32 EIF_SRGBRead = 0x800;                    //!< Info for the engine: if gamma corrected rendering is on, this texture requires SRGBRead (it's not stored in linear).
-const static uint32 EIF_XBox360Native = 0x1000;              //!< Info for the engine: native XBox360 texture format.
-const static uint32 EIF_PS3Native = 0x2000;                  //!< Info for the engine: native PS3 texture format.
-const static uint32 EIF_X360NotPretiled = 0x4000;            //!< Info for the engine: the texture cannot be pretiled.
 const static uint32 EIF_DontResize = 0x8000;                 //!< Info for the engine: for dds textures that shouldn't be resized with r_TexResolution.
 const static uint32 EIF_RenormalizedTexture = 0x10000;       //!< Info for the engine: for dds textures that have renormalized color range.
 const static uint32 EIF_CafeNative = 0x20000;                //!< Info for the engine: native Cafe texture format.
@@ -257,13 +254,6 @@ inline bool SetImageFlags(DDS_HEADER* pDDSHeader, uint32 flags)
 	}
 
 	return false;
-}
-
-//! \param nFlags Chunk flags (combined from EIF_Cubemap,EIF_Volumetexture,EIF_Decal,...).
-//! \return true if this texture is ready for this platform, false otherwise.
-inline const bool IsImageNative(const uint32 nFlags)
-{
-	return (nFlags & (EIF_XBox360Native | EIF_PS3Native)) == 0;
 }
 
 //! \param pMem Usually first byte behind DDS file data, can be 0 (e.g. in case there no more bytes than DDS file data).
@@ -791,7 +781,7 @@ inline ETEX_Format TextureFormatForName(const char* sETF)
 // Warning: duplicate code.
 inline const char* NameForTextureType(ETEX_Type eTT)
 {
-	char* sETT;
+	const char* sETT;
 	switch (eTT)
 	{
 	case eTT_1D:
@@ -1470,4 +1460,4 @@ inline const char* NameForDesc(const DDS_PIXELFORMAT& ddspf, DWORD /*DXGI_FORMAT
 }
 };
 
-#endif // IMAGEEXTENSIONHELPER
+//! \endcond

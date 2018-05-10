@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -52,13 +52,16 @@ enum ESpecType
 struct IArea
 {
 	// <interfuscator:shuffle>
-	virtual ~IArea()= default;
+	virtual ~IArea() = default;
 	virtual size_t         GetEntityAmount() const = 0;
 	virtual const EntityId GetEntityByIdx(size_t const index) const = 0;
-	virtual void           GetMinMax(Vec3** min, Vec3** max) const = 0;
 	virtual int            GetGroup() const = 0;
 	virtual int            GetPriority() const = 0;
 	virtual int            GetID() const = 0;
+	virtual AABB           GetAABB() const = 0;
+	virtual float          GetExtent(EGeomForm eForm) = 0;
+	virtual void           GetRandomPoints(Array<PosNorm> points, CRndGen seed, EGeomForm eForm) const = 0;
+	virtual bool           IsPointInside(Vec3 const& pointToTest) const = 0;
 	// </interfuscator:shuffle>
 };
 
@@ -71,26 +74,6 @@ struct IAreaManagerEventListener
 	//! Callback event.
 	virtual void OnAreaManagerEvent(EEntityEvent event, EntityId TriggerEntityID, IArea* pArea) = 0;
 	// </interfuscator:shuffle>
-};
-
-//! Structure for additional AreaManager queries.
-struct SAreaManagerResult
-{
-public:
-	SAreaManagerResult()
-	{
-		pArea = NULL;
-		fDistanceSq = 0.0f;
-		vPosOnHull = Vec3(0);
-		bInside = false;
-		bNear = false;
-	}
-
-	IArea* pArea;
-	float  fDistanceSq;
-	Vec3   vPosOnHull;
-	bool   bInside;
-	bool   bNear;
 };
 
 //! Structure for AudioArea AreaManager queries.
@@ -231,11 +214,6 @@ struct IEntitySystemSink
 	//! \param params The new params this entity is using.
 	virtual void OnReused(IEntity* pEntity, SEntitySpawnParams& params) = 0;
 
-	//! Called in response to an entity event.
-	//! \param pEntity Entity that is being removed. This entity is still fully valid.
-	//! \param event
-	virtual void OnEvent(IEntity* pEntity, SEntityEvent& event) = 0;
-
 	//! Collect memory informations
 	//! \param pSizer Sizer class used to collect the memory informations.
 	virtual void GetMemoryUsage(class ICrySizer* pSizer) const {};
@@ -261,6 +239,8 @@ struct IEntityArchetype
 //! Interface entity archetype manager extension. Allows to react to archetype changes.
 struct IEntityArchetypeManagerExtension
 {
+	CRY_DEPRECATED_ENTTIY_ARCHETYPE IEntityArchetypeManagerExtension() = default;
+
 	virtual ~IEntityArchetypeManagerExtension() = default;
 
 	//! Called when new archetype is added.
@@ -276,15 +256,6 @@ struct IEntityArchetypeManagerExtension
 	virtual void LoadFromXML(IEntityArchetype& archetype, XmlNodeRef& archetypeNode) = 0;
 	//! Called to save archetype extension data to the XML.
 	virtual void SaveToXML(IEntityArchetype& archetype, XmlNodeRef& archetypeNode) = 0;
-};
-
-//////////////////////////////////////////////////////////////////////////
-struct IEntityEventListener
-{
-	// <interfuscator:shuffle>
-	virtual ~IEntityEventListener(){}
-	virtual void OnEntityEvent(IEntity* pEntity, SEntityEvent& event) = 0;
-	// </interfuscator:shuffle>
 };
 
 struct IEntityLayerSetUpdateListener
@@ -341,14 +312,22 @@ struct IEntitySystem
 		OnSpawn       = BIT(1),
 		OnRemove      = BIT(2),
 		OnReused      = BIT(3),
-		OnEvent       = BIT(4),
+
+		Last          = OnReused,
+		Count         = 4,
 
 		AllSinkEvents = ~0u,
 	};
 
-	enum
+	//! Determines the state of simulation in the Editor, see OnEditorSimulationModeChanged
+	enum class EEditorSimulationMode
 	{
-		SinkMaxEventSubscriptionCount = 5,
+		//! User is in editing mode
+		Editing,
+		//! User is in game (ctrl + g / F5)
+		InGame,
+		// Entities are being simulated without player being active
+		Simulation
 	};
 
 	// <interfuscator:shuffle>
@@ -381,7 +360,9 @@ struct IEntitySystem
 	//! Spawns a new entity according to the data in the Entity Descriptor.
 	//! \param params		Entity descriptor structure that describes what kind of entity needs to be spawned.
 	//! \param bAutoInit	If true, automatically initialize entity.
-	//! \return If successful, the spawned entity, otherwise NULL.
+	//! \return If successful, the spawned entity, otherwise nullptr.
+	//! \par Example
+	//! \include CryEntitySystem/Examples/SpawnEntity.cpp
 	virtual IEntity* SpawnEntity(SEntitySpawnParams& params, bool bAutoInit = true) = 0;
 
 	//! Initialize entity if entity was spawned not initialized (with bAutoInit false in SpawnEntity).
@@ -390,15 +371,18 @@ struct IEntitySystem
 	//! \param params  Entity descriptor structure that describes what kind of entity needs to be spawned.
 	//! \return true if successfully initialized entity.
 	virtual bool InitEntity(IEntity* pEntity, SEntitySpawnParams& params) = 0;
-
 	//! Retrieves entity from its unique id.
 	//! \param id Unique ID of the entity required.
 	//! \return Entity if one with such an ID exists, and NULL if no entity could be matched with the id
+	//! \par Example
+	//! \include CryEntitySystem/Examples/GetEntity.cpp
 	virtual IEntity* GetEntity(EntityId id) const = 0;
 
 	//! Find first entity with given name.
 	//! \param sEntityName Name to look for.
 	//! \return The entity if found, 0 if failed.
+	//! \par Example
+	//! \include CryEntitySystem/Examples/FindEntityByName.cpp
 	virtual IEntity* FindEntityByName(const char* sEntityName) const = 0;
 
 	//! \note Might be needed to call before loading of entities to be sure we get the requested IDs.
@@ -418,11 +402,22 @@ struct IEntitySystem
 
 	//! Gets a entity iterator.
 	//! This iterator interface can be used to traverse all the entities in this entity system.
-	virtual IEntityIt* GetEntityIterator() = 0;
+	//! \par Example
+	//! \include CryEntitySystem/Examples/TraverseEntities.cpp
+	virtual IEntityItPtr GetEntityIterator() = 0;
 
 	//! Sends the same event to all entities in Entity System.
 	//! \param event Event to send.
 	virtual void SendEventToAll(SEntityEvent& event) = 0;
+
+	//! Sent when game mode in Editor is changed
+	virtual void OnEditorSimulationModeChanged(EEditorSimulationMode mode) = 0;
+
+	//! Sent after the level has finished loading
+	virtual void OnLevelLoaded() = 0;
+
+	//! Sent when level is loaded and gameplay can start, triggers start of simulation for entities
+	virtual void OnLevelGameplayStart() = 0;
 
 	//! Get all entities within proximity of the specified bounding box.
 	//! \note Query is not exact, entities reported can be a few meters away from the bounding box.
@@ -445,7 +440,7 @@ struct IEntitySystem
 	//! Adds the sink of the entity system. The sink is a class which implements IEntitySystemSink.
 	//! \param sink Pointer to the sink, must not be 0.
 	//! \param subscription - combination of SinkEventSubscriptions flags specifying which events to receive.
-	virtual void AddSink(IEntitySystemSink* sink, uint32 subscriptions, uint64 onEventSubscriptions) = 0;
+	virtual void AddSink(IEntitySystemSink* sink, std::underlying_type<SinkEventSubscriptions>::type subscriptions) = 0;
 
 	//! Removes listening sink from the entity system. The sink is a class which implements IEntitySystemSink.
 	//! \param sink Pointer to the sink, must not be 0.
@@ -486,11 +481,7 @@ struct IEntitySystem
 	//! Loads entities exported from Editor.
 	//! bIsLoadingLevelFile indicates if the loaded entities come from the original level file.
 	virtual void LoadEntities(XmlNodeRef& objectsNode, bool bIsLoadingLevelFile) = 0;
-	virtual void LoadEntities(XmlNodeRef& objectsNode, bool bIsLoadingLevelFile, const Vec3& segmentOffest, std::vector<IEntity*>* outGlobalEntityIds, std::vector<IEntity*>* outLocalEntityIds) = 0;
-
-	//! Registers Entity Event's listeners.
-	virtual void AddEntityEventListener(EntityId nEntity, EEntityEvent event, IEntityEventListener* pListener) = 0;
-	virtual void RemoveEntityEventListener(EntityId nEntity, EEntityEvent event, IEntityEventListener* pListener) = 0;
+	virtual void LoadEntities(XmlNodeRef& objectsNode, bool bIsLoadingLevelFile, const Vec3& segmentOffest) = 0;
 
 	//! Register entity layer listener
 	virtual void AddEntityLayerListener(const char* szLayerName, IEntityLayerListener* pListener, const bool bCaseSensitive = true) = 0;
@@ -500,9 +491,6 @@ struct IEntitySystem
 
 	//! Finds entity by Entity GUID.
 	virtual EntityId FindEntityByGuid(const EntityGUID& guid) const = 0;
-
-	//! Generates new entity id based on Entity GUID.
-	virtual EntityId GenerateEntityIdFromGuid(const EntityGUID& guid) = 0;
 
 	//! Gets a pointer to access to area manager.
 	virtual IAreaManager* GetAreaManager() const = 0;
@@ -567,7 +555,7 @@ struct IEntitySystem
 	virtual void EnableLayer(const char* layer, bool isEnable, bool isSerialized = true) = 0;
 
 	//! Enable entity layers specified in the layer set and hide all other known layers.
-	virtual void EnableLayerSet(const char* const * pLayers, size_t layerCount, bool isSerialized = true, IEntityLayerSetUpdateListener* pListener = nullptr) = 0;
+	virtual void EnableLayerSet(const char* const* pLayers, size_t layerCount, bool isSerialized = true, IEntityLayerSetUpdateListener* pListener = nullptr) = 0;
 
 	//! Find a layer with a given name.
 	virtual IEntityLayer* FindLayer(const char* szLayerName, const bool bCaseSensitive = true) const = 0;
@@ -583,11 +571,6 @@ struct IEntitySystem
 	virtual void UnregisterPhysicCallbacks() = 0;
 
 	virtual void PurgeDeferredCollisionEvents(bool bForce = false) = 0;
-
-	virtual bool EntitiesUseGUIDs() const = 0;
-	virtual void SetEntitiesUseGUIDs(const bool bEnable) = 0;
-
-	virtual void DebugDraw() = 0;
 
 	//! Resets physical simulation suppressed by LiveCreate during "edit mode".
 	//! Called by LiveCreate subsystem when user resumed normal game mode.
@@ -621,6 +604,23 @@ struct IEntitySystem
 	virtual IBSPTree3D* CreateBSPTree3D(const IBSPTree3D::FaceList& faceList) = 0;
 	virtual void        ReleaseBSPTree3D(IBSPTree3D*& pTree) = 0;
 	// </interfuscator:shuffle>
+
+	//! Registers Entity Event's listeners.
+	inline void AddEntityEventListener(EntityId entityId, EEntityEvent event, IEntityEventListener* pListener)
+	{
+		if (IEntity* pEntity = gEnv->pEntitySystem->GetEntity(entityId))
+		{
+			pEntity->AddEventListener(event, pListener);
+		}
+	}
+
+	inline void RemoveEntityEventListener(EntityId entityId, EEntityEvent event, IEntityEventListener* pListener)
+	{
+		if (IEntity* pEntity = gEnv->pEntitySystem->GetEntity(entityId))
+		{
+			pEntity->RemoveEventListener(event, pListener);
+		}
+	}
 };
 
 extern "C"
@@ -701,12 +701,12 @@ typedef struct IEntitySystem* (* PFNCREATEENTITYSYSTEM)(ISystem* pISystem);
 
 template<class T>
 inline IEntityClass* RegisterEntityClassWithDefaultComponent(
-	const char* name,
-	const CryGUID classGUID, // This is a guid for the Entity Class, not for component
-	const CryGUID componentUniqueGUID, // This is not a class type of component guid, but a unique guid of this unique component inside entity
-	bool bIconOnTop = false,
-	IFlowNodeFactory *pOptionalFlowNodeFactory = nullptr
-)
+  const char* name,
+  const CryGUID classGUID,           // This is a guid for the Entity Class, not for component
+  const CryGUID componentUniqueGUID, // This is not a class type of component guid, but a unique guid of this unique component inside entity
+  bool bIconOnTop = false,
+  IFlowNodeFactory* pOptionalFlowNodeFactory = nullptr
+  )
 {
 	const CEntityComponentClassDesc* pClassDesc = &Schematyc::GetTypeDesc<T>();
 
@@ -717,18 +717,18 @@ inline IEntityClass* RegisterEntityClassWithDefaultComponent(
 	clsDesc.editorClassInfo.sIcon = pClassDesc->GetIcon();
 	clsDesc.editorClassInfo.bIconOnTop = bIconOnTop;
 	clsDesc.pIFlowNodeFactory = pOptionalFlowNodeFactory;
-	
+
 	auto onSpawnLambda = [componentUniqueGUID, pClassDesc](IEntity& entity, SEntitySpawnParams& params) -> bool
 	{
 		string componentName = pClassDesc->GetName().c_str();
 		IEntityComponent::SInitParams initParams(
-			&entity,
-			componentUniqueGUID,
-			componentName,
-			pClassDesc,
-			EEntityComponentFlags::None,
-			nullptr,
-			nullptr);
+		  &entity,
+		  componentUniqueGUID,
+		  componentName,
+		  pClassDesc,
+		  EEntityComponentFlags::None,
+		  nullptr,
+		  nullptr);
 		entity.CreateComponentByInterfaceID(pClassDesc->GetGUID(), &initParams);
 		return true;
 	};

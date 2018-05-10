@@ -1,22 +1,34 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 using System;
-using System.Collections.Generic;
-using System.Runtime.CompilerServices;
 using CryEngine.Common;
-using CryEngine.Common.CryAudio;
 
 namespace CryEngine
 {
-	using NativeAudioSystem = CryEngine.NativeInternals.IAudioSystem;
+	using NativeAudioSystem = NativeInternals.IAudioSystem;
 
+	/// <summary>
+	/// State of an audio trigger.
+	/// </summary>
 	public enum AudioStateType
 	{
+		/// <summary>
+		/// Indicates the trigger has started.
+		/// </summary>
 		TriggerStarted,
+		/// <summary>
+		/// Indicates the trigger has ended.
+		/// </summary>
 		TriggerEnded,
+		/// <summary>
+		/// Indicates the current state is unknown.
+		/// </summary>
 		Unknown
 	}
 
+	/// <summary>
+	/// ID of an audio trigger.
+	/// </summary>
 	public struct AudioTriggerId
 	{
 		internal uint _id;
@@ -25,11 +37,18 @@ namespace CryEngine
 			_id = id;
 		}
 
+		/// <summary>
+		/// Returns the a string in the format of "AudioTriggerId: {id}".
+		/// </summary>
+		/// <returns></returns>
 		public override string ToString()
 		{
-			return "AudioTriggerId :" + _id;
+			return string.Format("AudioTriggerId: {0}", _id);
 		}
 
+		/// <summary>
+		/// Returns whether this ID is equal to the <see cref="Audio.InvalidControlId"/>.
+		/// </summary>
 		public bool IsValid
 		{
 			get
@@ -126,6 +145,11 @@ namespace CryEngine
 			return triggerId != InvalidControlId;
 		}
 
+		/// <summary>
+		/// Stops the specified audio trigger. Only audio triggers that have been "played" can be stopped.
+		/// </summary>
+		/// <param name="triggerId"></param>
+		/// <returns>True if the audio trigger is stopped</returns>
 		public static bool Stop(AudioTriggerId triggerId)
 		{
 			if(triggerId.IsValid)
@@ -154,7 +178,7 @@ namespace CryEngine
 		}
 
 		/// <summary>
-		/// Mute or Unmute all sounds 
+		/// Mute or unmute all sounds 
 		/// </summary>
 		/// <param name="enabled"></param>
 		public static void EnableAllSound(bool enabled)

@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -105,7 +105,7 @@ T DeltaTime(T frameTime, T normAge, T lifeTime);
 
 // Return the start-time of a particle in the previous frame
 template<typename T>
-T StartTime(T curTime, T frameTime, T normAge);
+T StartTime(T curTime, T frameTime, T absAge);
 
 
 // non vectorized
@@ -114,5 +114,13 @@ void RotateAxes(Vec3* v0, Vec3* v1, const float angle);
 Vec3 PolarCoordToVec3(float azimuth, float altitude);
 
 }
+
+// Cry_Math_SSE extension
+template<> struct SIMD_traits<UCol>
+{
+	using scalar_t  = UCol;
+	using vector4_t = pfx2::UColv;
+};
+
 
 #include "ParticleMathImpl.h"

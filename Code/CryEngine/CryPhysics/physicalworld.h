@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #ifndef physicalworld_h
 #define physicalworld_h
@@ -448,6 +448,7 @@ public:
 			case PLOCK_WORLD_STEP: return &m_lockStep;
 			case PLOCK_QUEUE: return &m_lockQueue;
 			case PLOCK_AREAS: return &m_lockAreas;
+			case PLOCK_TRACE_PENDING_RAYS: return &m_lockTPR;
 			default:
 				if ((unsigned int)(idx-PLOCK_CALLER0)<=(unsigned int)MAX_PHYS_THREADS)
 					return m_lockCaller+(idx-PLOCK_CALLER0);
@@ -492,14 +493,15 @@ public:
 		}
 		return res;
 	}
-	template<class Etype> int SignalEvent(Etype *pEvent, int bLogged) {
+	int SignalEvent(EventPhys *pEvent, int bLogged) {
 		int nres = 0;
 		EventClient *pClient;
 		ReadLock lock(m_lockEventClients);
-		for(pClient = m_pEventClients[Etype::id][bLogged]; pClient; pClient=pClient->next)
+		for(pClient = m_pEventClients[pEvent->idval][bLogged]; pClient; pClient=pClient->next)
 			nres += pClient->OnEvent(pEvent);
 		return nres;
 	}
+	virtual int NotifyEventClients(EventPhys *pEvent, int bLogged) { return SignalEvent(pEvent,bLogged); }
 
 	virtual int SerializeWorld(const char *fname, int bSave);
 	virtual int SerializeGeometries(const char *fname, int bSave);
@@ -974,7 +976,7 @@ public:
 	static int OnBBoxOverlap(const EventPhysBBoxOverlap*);
 
 	float GetExtent(EGeomForm eForm) const;
-	void GetRandomPos(PosNorm& ran, CRndGen& seed, EGeomForm eForm) const;
+	void GetRandomPoints(Array<PosNorm> points, CRndGen& seed, EGeomForm eForm) const;
 
 	virtual void GetMemoryStatistics(ICrySizer *pSizer) const;
 
@@ -1180,12 +1182,13 @@ template<class T> struct ChangeRequest {
 	T *GetQueuedStruct() { return m_pQueued; }
 };
 
-inline void InitEvent(EventPhysMono *ev, CPhysicalEntity *pent)	{
+inline void InitEventBase(EventPhysMono *ev, CPhysicalEntity *pent)	{
 	ev->pEntity = pent; ev->pForeignData = pent->m_pForeignData; ev->iForeignData = pent->m_iForeignData;
 }
-inline void InitEvent(EventPhysPostStep *ev, CPhysicalEntity *pent)	{
-	InitEvent((EventPhysMono*)ev, pent);
+inline void InitEvent(EventPhysPostStep *ev, CPhysicalEntity *pent, int iCaller)	{
+	InitEventBase((EventPhysMono*)ev, pent);
 	ev->pGrid = pent->m_pWorld->GetGrid(pent);
+	ev->iCaller = iCaller;
 }
 
 class CRayGeom;

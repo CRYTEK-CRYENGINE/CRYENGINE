@@ -1,0 +1,10 @@
+<AssetMetadata version="0" type="Texture" guid="c8bb1534-fd37-ab2e-d593-f01a756c9ab0" source="hiteffect_healthgradient.tif">
+ <Files>
+  <File path="hiteffect_healthgradient.dds"/>
+ </Files>
+ <Details>
+  <Detail name="width">128</Detail>
+  <Detail name="height">4</Detail>
+  <Detail name="mipCount">1</Detail>
+ </Details>
+</AssetMetadata>

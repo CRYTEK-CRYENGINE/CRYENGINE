@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 /*************************************************************************
    -------------------------------------------------------------------------
@@ -60,8 +60,8 @@ typename Map::iterator LookupAddress(const TNetAddress& addr, Map& m, uint32 fla
 		if (const SIPv4Addr* pAddr = stl::get_if<SIPv4Addr>(&addr))
 		{
 			int count = 0;
-			Map::iterator itOut = m.end();
-			for (typename Map::iterator it = m.begin(); it != m.end(); ++it)
+			auto itOut = m.end();
+			for (auto it = m.begin(); it != m.end(); ++it)
 			{
 				if (const SIPv4Addr* pKey = stl::get_if<SIPv4Addr>(&it->first))
 				{

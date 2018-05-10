@@ -1,14 +1,15 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include <array>
 #include <d3d12.h>
 
-template<const int numTargets>
+template<int numTargets>
 class BroadcastableD3D12Resource : public ID3D12Resource, public Handable<BroadcastableD3D12Resource<numTargets>*, numTargets>
 {
-	template<const int numTargets> friend class BroadcastableD3D12Device;
-	template<const int numTargets> friend class BroadcastableD3D12CommandQueue;
-	template<const int numTargets> friend class BroadcastableD3D12GraphicsCommandList;
+	template<int numTargets> friend class BroadcastableD3D12Device;
+	template<int numTargets> friend class BroadcastableD3D12CommandQueue;
+	template<int numTargets> friend class BroadcastableD3D12GraphicsCommandList;
+	typedef Handable<BroadcastableD3D12Resource<numTargets>*, numTargets> Handable;
 	friend Handable;
 
 public:
@@ -74,7 +75,7 @@ public:
 	  _In_opt_ const D3D12_CLEAR_VALUE* pOptimizedClearValue,
 	  REFIID riid) : m_RefCount(1), Handable(this)
 	{
-		D3D12_GPU_DELTA_ADDRESS deltaGPUAddresses = { 0ULL, 0ULL };
+		typename Handable::D3D12_GPU_DELTA_ADDRESS deltaGPUAddresses = { 0ULL, 0ULL };
 		D3D12_HEAP_PROPERTIES Properties = *pHeapProperties;
 		D3D12_RESOURCE_DESC Desc = *pResourceDesc;
 
@@ -93,7 +94,7 @@ public:
 		m_Buffer = nullptr;
 #endif
 
-		DX12_ASSERT(m_Handle < DX12_MULTIGPU_NUM_RESOURCES, "Too many resources allocated, adjust the vector-size!");
+		DX12_ASSERT(this->m_Handle < DX12_MULTIGPU_NUM_RESOURCES, "Too many resources allocated, adjust the vector-size!");
 		DX12_ASSERT(pHeapProperties->CreationNodeMask != 0, "Creation   of 0 is not allowed in the broadcaster!");
 		for (int i = 0; i < numTargets; ++i)
 		{
@@ -130,13 +131,13 @@ public:
 			else if (m_Targets[i] && (Desc.Dimension == D3D12_RESOURCE_DIMENSION_BUFFER))
 			{
 				DX12_ASSERT(!IsShared(i), "GetGPUVirtualAddress is not valid on a shared resource");
-				deltaGPUAddresses[i] = m_Targets[i]->GetGPUVirtualAddress() - (UINT64(m_Handle) << 32);
+				deltaGPUAddresses[i] = m_Targets[i]->GetGPUVirtualAddress() - (UINT64(this->m_Handle) << 32);
 			}
 		}
 
 		if (Desc.Dimension == D3D12_RESOURCE_DIMENSION_BUFFER)
 		{
-			AssignGPUDeltasToHandle(m_Handle, deltaGPUAddresses);
+			Handable::AssignGPUDeltasToHandle(this->m_Handle, deltaGPUAddresses);
 		}
 	}
 
@@ -145,7 +146,7 @@ public:
 		_In_ ID3D12Resource* pResource,
 		REFIID riid) : m_RefCount(1), Handable(this)
 	{
-		D3D12_GPU_DELTA_ADDRESS deltaGPUAddresses = { 0ULL, 0ULL };
+		typename Handable::D3D12_GPU_DELTA_ADDRESS deltaGPUAddresses = { 0ULL, 0ULL };
 		D3D12_HEAP_PROPERTIES Properties;
 		pResource->GetHeapProperties(&Properties, nullptr);
 		D3D12_RESOURCE_DESC Desc = pResource->GetDesc();
@@ -207,10 +208,10 @@ public:
 	  _In_ ID3D12Resource** pResources,
 	  REFIID riid) : m_RefCount(1), Handable(this)
 	{
-		D3D12_GPU_DELTA_ADDRESS deltaGPUAddresses = { 0ULL, 0ULL };
+		typename Handable::D3D12_GPU_DELTA_ADDRESS deltaGPUAddresses = { 0ULL, 0ULL };
 		D3D12_RESOURCE_DESC Desc;
 
-		DX12_ASSERT(m_Handle < DX12_MULTIGPU_NUM_RESOURCES, "Too many resources allocated, adjust the vector-size!");
+		DX12_ASSERT(this->m_Handle < DX12_MULTIGPU_NUM_RESOURCES, "Too many resources allocated, adjust the vector-size!");
 		for (int i = 0; i < numTargets; ++i)
 		{
 			m_Targets[i] = nullptr;
@@ -226,13 +227,13 @@ public:
 			if (m_Targets[i] && (Desc.Dimension == D3D12_RESOURCE_DIMENSION_BUFFER))
 			{
 				DX12_ASSERT(!IsShared(i), "GetGPUVirtualAddress is not valid on a shared resource");
-				deltaGPUAddresses[i] = m_Targets[i]->GetGPUVirtualAddress() - (UINT64(m_Handle) << 32);
+				deltaGPUAddresses[i] = m_Targets[i]->GetGPUVirtualAddress() - (UINT64(this->m_Handle) << 32);
 			}
 		}
 
 		if (Desc.Dimension == D3D12_RESOURCE_DIMENSION_BUFFER)
 		{
-			AssignGPUDeltasToHandle(m_Handle, deltaGPUAddresses);
+			Handable::AssignGPUDeltasToHandle(this->m_Handle, deltaGPUAddresses);
 		}
 
 #if DX12_MAP_STAGE_MULTIGPU
@@ -533,7 +534,7 @@ public:
 		// for anything else but CopyResource/Copy...Region/UpdateSubresource
 		DX12_ASSERT(!IsShared(), "GetGPUVirtualAddress is not valid on a shared resource");
 
-		return D3D12_GPU_VIRTUAL_ADDRESS(m_Handle) << 32;
+		return D3D12_GPU_VIRTUAL_ADDRESS(this->m_Handle) << 32;
 	}
 
 	virtual HRESULT STDMETHODCALLTYPE WriteToSubresource(

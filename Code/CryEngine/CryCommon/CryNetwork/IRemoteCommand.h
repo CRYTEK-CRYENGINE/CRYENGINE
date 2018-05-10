@@ -1,15 +1,8 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
-/*************************************************************************
-   -------------------------------------------------------------------------
-   Description:  Service network interface
-   -------------------------------------------------------------------------
-   History:
-   - 10/04/2013   : Tomasz Jonarski, Created
+//! \cond INTERNAL
 
-*************************************************************************/
-#ifndef __IREMOTENETWORK_H__
-#define __IREMOTENETWORK_H__
+#pragma once
 
 // Helpers for writing/reading command data stream from network message packets.
 // Those interfaces automatically handle byteswapping for big endian systems.
@@ -710,4 +703,4 @@ private:
 	TAutoDelete& operator=(const TAutoDelete& other) { return *this; }
 };
 
-#endif
+//! \endcond

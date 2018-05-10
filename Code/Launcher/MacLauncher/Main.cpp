@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include <CryCore/Platform/MacSpecific.h>
@@ -7,8 +7,6 @@
 
 
 #include <CryCore/Platform/CryLibrary.h>
-#include <CryGame/IGameStartup.h>
-#include <CryGame/IGameFramework.h>
 #include <CrySystem/IConsole.h>
 
 #include <sys/types.h>

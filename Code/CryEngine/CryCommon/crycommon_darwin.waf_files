@@ -11,7 +11,8 @@
           "CryCore/Platform/AppleSpecific.h",
           "CryCore/Platform/iOSSpecific.h",
           "CryCore/Platform/MacSpecific.h",
-          "CryCore/Platform/CryPlatform.Darwin.h"
+          "CryCore/Platform/CryPlatform.Darwin.h",
+		  "CryCore/Platform/platform_impl_mac.inl"
         ]
       }
     ]

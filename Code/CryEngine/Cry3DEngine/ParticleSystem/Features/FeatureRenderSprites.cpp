@@ -1,17 +1,17 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "ParticleSystem/ParticleRender.h"
-#include "ParticleSystem/ParticleEmitter.h"
+#include "ParticleSystem/ParticleSystem.h"
 #include <CrySerialization/Math.h>
 #include <CryMath/RadixSort.h>
-
-CRY_PFX2_DBG
 
 namespace pfx2
 {
 
-extern EParticleDataType EPDT_Alpha, EPDT_Color, EPDT_Angle2D, EPDT_Tile;
+extern TDataType<float> EPDT_Alpha, EPDT_Angle2D;
+extern TDataType<uint8> EPDT_Tile;
+extern TDataType<UCol>  EPDT_Color;
 
 SERIALIZATION_DECLARE_ENUM(ESortMode,
                            None,
@@ -41,6 +41,7 @@ struct SSpritesContext
 		, m_spriteAlphas(memHeap, numParticles)
 		, m_numParticles(numParticles)
 		, m_numSprites(0)
+		, m_fill(0)
 		, m_renderFlags(0)
 		, m_rangeId(0)
 	{
@@ -56,6 +57,7 @@ struct SSpritesContext
 	TFloatArray             m_spriteAlphas;
 	size_t                  m_numParticles;
 	size_t                  m_numSprites;
+	float                   m_fill;
 	uint64                  m_renderFlags;
 	size_t                  m_rangeId;
 };
@@ -149,14 +151,14 @@ void CFeatureRenderSprites::Serialize(Serialization::IArchive& ar)
 
 void CFeatureRenderSprites::ComputeVertices(CParticleComponentRuntime* pComponentRuntime, const SCameraInfo& camInfo, CREParticle* pRE, uint64 uRenderFlags, float fMaxPixels)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_PARTICLE);
+	CRY_PROFILE_FUNCTION(PROFILE_PARTICLE);
 	PARTICLE_LIGHT_PROFILER();
 
 	CParticleContainer& container = pComponentRuntime->GetContainer();
 	const CParticleEmitter* pEmitter = pComponentRuntime->GetEmitter();
 
-	TParticleId lastParticleId = container.GetLastParticleId();
-	if (lastParticleId == 0)
+	TParticleId numParticles = container.GetNumParticles();
+	if (numParticles == 0)
 		return;
 
 	const auto bounds = pComponentRuntime->GetBounds();
@@ -166,14 +168,13 @@ void CFeatureRenderSprites::ComputeVertices(CParticleComponentRuntime* pComponen
 	    (!isAfterWater && physEnv.m_tUnderWater.Value == ETrinaryNames::If_False))
 		return;
 
-	uint32 threadId = JobManager::GetWorkerThreadId();
-	TParticleHeap& memHeap = GetPSystem()->GetMemHeap(threadId);
+	auto& memHeap = GetPSystem()->GetThreadData().memHeap;
 
 	SSpritesContext spritesContext(
 	  pComponentRuntime, pComponentRuntime->GetComponentParams(),
 	  camInfo, pEmitter->GetVisEnv(),
 	  physEnv, pRE, memHeap,
-	  lastParticleId);
+		numParticles);
 	spritesContext.m_bounds = pEmitter->GetBBox();
 	spritesContext.m_renderFlags = uRenderFlags;
 
@@ -183,16 +184,16 @@ void CFeatureRenderSprites::ComputeVertices(CParticleComponentRuntime* pComponen
 	{
 		SortSprites(&spritesContext);
 		WriteToGPUMem(spritesContext);
-		pComponentRuntime->GetEmitter()->AddDrawCallCounts(
-		  spritesContext.m_numSprites,
-		  spritesContext.m_numParticles - spritesContext.m_numSprites);
+		auto& particleStats = pComponentRuntime->GetParticleStats();
+		particleStats.rendered += spritesContext.m_numSprites;
+		particleStats.clipped += spritesContext.m_numParticles - spritesContext.m_numSprites;
 		GetPSystem()->GetProfiler().AddEntry(pComponentRuntime, EPS_RendereredParticles, uint(spritesContext.m_numSprites));
 	}
 }
 
 void CFeatureRenderSprites::CullParticles(SSpritesContext* pSpritesContext)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_PARTICLE);
+	CRY_PROFILE_FUNCTION(PROFILE_PARTICLE);
 
 	const SUpdateContext& context = pSpritesContext->m_context;
 	const SVisibilityParams& visibility = context.m_params.m_visibility;
@@ -239,7 +240,6 @@ void CFeatureRenderSprites::CullParticles(SSpritesContext* pSpritesContext)
 	const bool culling = cullFrustum || cullNear || cullFar;
 
 	CParticleContainer& container = pSpritesContext->m_context.m_container;
-	TIOStream<uint8> states = container.GetTIOStream<uint8>(EPDT_State);
 	IFStream alphas = container.GetIFStream(EPDT_Alpha, 1.0f);
 	IFStream sizes = container.GetIFStream(EPDT_Size);
 	IVec3Stream positions = container.GetIVec3Stream(EPVF_Position);
@@ -247,12 +247,8 @@ void CFeatureRenderSprites::CullParticles(SSpritesContext* pSpritesContext)
 	auto& spriteAlphas = pSpritesContext->m_spriteAlphas;
 
 	// camera culling
-	CRY_PFX2_FOR_ACTIVE_PARTICLES(context)
+	for (auto particleId : context.GetUpdateRange())
 	{
-		const uint8 state = states.Load(particleId);
-		if (!(state & ESB_Alive))
-			continue;
-
 		float cull = 1.0f;
 		const float size = sizes.Load(particleId);
 		if (!cullFar)
@@ -282,28 +278,27 @@ void CFeatureRenderSprites::CullParticles(SSpritesContext* pSpritesContext)
 					const float ratio = min(size * invMinAng, maxCamDist) * invDist;
 					cull *= min((ratio - 1.0f) * 3.0f, 1.0f);
 				}
+				pSpritesContext->m_fill += sqr(size * invDist);
 			}
 		}
 
-		const float alpha = alphas.SafeLoad(particleId) * cull;
+		const float alpha = alphas.SafeLoad(particleId) * max(cull, 0.0f);
 		if (alpha > 0.0f)
 		{
 			particleIds[pSpritesContext->m_numSprites++] = particleId;
 			spriteAlphas[particleId] = alpha;
 		}
 	}
-	CRY_PFX2_FOR_END;
 
-	if ((GetCVars()->e_ParticlesDebug & AlphaBit('c')) == 0)
+	if (!emitter.GetSpawnParams().bIgnoreVisAreas)
 	{
 		// vis area clipping
-		CRY_PFX2_ASSERT(container.HasData(EPDT_Size));
-		Matrix34 viewTM = pSpritesContext->m_camInfo.pCamera->GetMatrix();
-		Vec3 normal = -viewTM.GetColumn0();
-		IVisArea* pVisArea = pSpritesContext->m_visEnviron.GetClipVisArea(pSpritesContext->m_camInfo.pCameraVisArea, pSpritesContext->m_bounds);
-
-		if (pVisArea)
+		if (IVisArea* pVisArea = pSpritesContext->m_visEnviron.GetClipVisArea(pSpritesContext->m_camInfo.pCameraVisArea, pSpritesContext->m_bounds))
 		{
+			CRY_PFX2_ASSERT(container.HasData(EPDT_Size));
+			Matrix34 viewTM = pSpritesContext->m_camInfo.pCamera->GetMatrix();
+			Vec3 normal = -viewTM.GetColumn0();
+
 			const uint count = pSpritesContext->m_numSprites;
 			for (uint i = 0, j = 0; i < count; ++i)
 			{
@@ -359,13 +354,12 @@ void CFeatureRenderSprites::CullParticles(SSpritesContext* pSpritesContext)
 
 void CFeatureRenderSprites::SortSprites(SSpritesContext* pSpritesContext)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_PARTICLE);
+	CRY_PROFILE_FUNCTION(PROFILE_PARTICLE);
 
 	if (m_sortMode == ESortMode::None || GetCVars()->e_ParticlesSortQuality == 0)
 		return;
 
-	uint32 threadId = JobManager::GetWorkerThreadId();
-	TParticleHeap& memHeap = GetPSystem()->GetMemHeap(threadId);
+	auto& memHeap = GetPSystem()->GetThreadData().memHeap;
 	const uint numSprites = pSpritesContext->m_numSprites;
 
 	THeapArray<uint32> indices(memHeap, numSprites);
@@ -531,7 +525,7 @@ private:
 
 void CFeatureRenderSprites::WriteToGPUMem(const SSpritesContext& spritesContext)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_PARTICLE);
+	CRY_PROFILE_FUNCTION(PROFILE_PARTICLE);
 
 	const CParticleContainer& container = spritesContext.m_context.m_container;
 	const CCamera& camera = *spritesContext.m_camInfo.pCamera;
@@ -566,7 +560,7 @@ void CFeatureRenderSprites::WriteToGPUMem(const SSpritesContext& spritesContext,
 	const IFStream lifetimes = container.GetIFStream(EPDT_LifeTime);
 	const IFStream angles = container.GetIFStream(EPDT_Angle2D, 0.0f);
 	const IColorStream colors = container.GetIColorStream(EPDT_Color);
-	const TIStream<uint8> tiles = container.GetTIStream<uint8>(EPDT_Tile);
+	const TIStream<uint8> tiles = container.IStream(EPDT_Tile);
 	const Vec3 camPos = spritesContext.m_camInfo.pCamera->GetPosition();
 	const Vec3 emitterPosition = spritesContext.m_context.m_runtime.GetEmitter()->GetPos();
 	const Vec3 cameraOffset = (emitterPosition - camPos).GetNormalized() * m_cameraOffset;

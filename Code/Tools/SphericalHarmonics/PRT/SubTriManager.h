@@ -127,7 +127,7 @@ namespace NSH
 
 		private:
 			typedef std::map<uint32, SLeafData*, std::less<uint32>, CSHAllocator<std::pair<const uint32, SLeafData*> > > TIndexLeafMap;
-			typedef std::map<SLeafData*, uint32, std::less<SLeafData*>, CSHAllocator<std::pair<const SLeafData*, uint32> > > TIndexLeafIndexMap;
+			typedef std::map<SLeafData*, uint32, std::less<SLeafData*>, CSHAllocator<std::pair<SLeafData* const, uint32> > > TIndexLeafIndexMap;
 
 			CNodeMemoryPool_tpl<SNodeData> m_NodeMemoryPool;		//!< memory pool for nodes, don't waste new's throughout the hierarchy
 			CNodeMemoryPool_tpl<SLeafData> m_LeafMemoryPool;		//!< memory pool for leafes, don't waste new's throughout the hierarchy

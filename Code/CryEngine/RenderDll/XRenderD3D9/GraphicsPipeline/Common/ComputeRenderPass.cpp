@@ -2,7 +2,6 @@
 
 #include "StdAfx.h"
 #include "ComputeRenderPass.h"
-#include "DriverD3D.h"
 
 CComputeRenderPass::CComputeRenderPass(EPassFlags flags)
 	: m_flags(flags)
@@ -17,7 +16,6 @@ CComputeRenderPass::CComputeRenderPass(EPassFlags flags)
 	, m_bCompiled(false)
 	, m_resourceDesc()
 {
-	m_inputVars[0] = m_inputVars[1] = m_inputVars[2] = m_inputVars[3] = 0;
 	m_pResourceSet = GetDeviceObjectFactory().CreateResourceSet(CDeviceResourceSet::EFlags_ForceSetAllState);
 
 	SetLabel("COMPUTE_PASS");
@@ -125,7 +123,7 @@ void CComputeRenderPass::PrepareResourcesForUse(CDeviceCommandListRef RESTRICT_R
 		}
 
 		// Unmap constant buffers and mark as bound
-		m_constantManager.EndNamedConstantUpdate();
+		m_constantManager.EndNamedConstantUpdate(nullptr);
 		m_bPendingConstantUpdate = false;
 	}
 	else
@@ -205,7 +203,6 @@ void CComputeRenderPass::Reset()
 	m_flags = eFlags_None;
 	m_dirtyMask = eDirty_All;
 
-	ZeroArray(m_inputVars);
 	m_bPendingConstantUpdate = true;
 	m_bCompiled = false;
 

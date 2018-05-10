@@ -294,6 +294,7 @@ public:
 	virtual IScaleformPlayback* GetPlayback() const override { return m_pPlayback; }
 
 	// IFlashPlayer
+	virtual void SetClearFlags(uint32 clearFlags, ColorF clearColor) override;
 	virtual void SetCompositingDepth(float depth) override;
 
 	virtual void SetStereoMode(bool stereo, bool isLeft) override;

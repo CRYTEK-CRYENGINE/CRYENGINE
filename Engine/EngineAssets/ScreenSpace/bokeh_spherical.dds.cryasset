@@ -1,0 +1,10 @@
+<AssetMetadata version="0" type="Texture" guid="b5038113-118d-faca-2fc7-bbf6bfa1165f" source="bokeh_spherical.TIF">
+ <Files>
+  <File path="bokeh_spherical.dds"/>
+ </Files>
+ <Details>
+  <Detail name="width">64</Detail>
+  <Detail name="height">64</Detail>
+  <Detail name="mipCount">1</Detail>
+ </Details>
+</AssetMetadata>

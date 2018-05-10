@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "CET_GameRules.h"
@@ -331,3 +331,59 @@ void AddClientTimeSync(IContextEstablisher* pEst, EContextViewState state)
 }
 
 #endif
+
+class CCET_GameChannelLoadingTask : public CCET_Base
+{
+public:
+	CCET_GameChannelLoadingTask (IGameLevelLoadListener *pLoader, EContextViewState state, const char* szStateSstr, bool isServer)
+	: m_pLoader(pLoader)
+	, m_state(state)
+	, m_name("GameChannelLoadingTask  ")
+	, m_server(isServer)
+	{
+		m_name += szStateSstr;
+	}
+
+	const char * GetName() { return m_name.c_str(); }
+
+	virtual EContextEstablishTaskResult OnStep(SContextEstablishState& state)
+	{
+		if (INetChannel * pNC = state.pSender)
+		{
+			if(m_server)
+			{
+				if(uint16 channelId = CCryAction::GetCryAction()->GetGameChannelId(pNC))
+				{
+					return m_pLoader->OnLoadingStepServer(m_state, channelId);
+				}
+			}
+			else
+			{
+				return m_pLoader->OnLoadingStepClient(m_state);
+			}
+		}
+
+		return eCETR_Ok;
+	}
+
+	virtual void OnFailLoading(bool hasEntered )
+	{
+		m_pLoader->OnLoadingFailed(m_server, hasEntered);
+	}
+
+private:
+
+	IGameLevelLoadListener *m_pLoader;
+	string						m_name;
+	bool							m_server;
+	EContextViewState m_state;
+};
+
+void AddGameChannelLoadingTasks(IContextEstablisher * pEst, bool isServer)
+{
+	if (IGameLevelLoadListener* pLoader = CCryAction::GetCryAction()->GetGameLevelLoadListener())
+	{
+		pEst->AddTask(eCVS_Begin,							new CCET_GameChannelLoadingTask(pLoader, eCVS_Begin,							"Begin",							isServer) );
+		pEst->AddTask(eCVS_EstablishContext,	new CCET_GameChannelLoadingTask(pLoader, eCVS_EstablishContext,		"EstablishContext",		isServer) );
+	}
+}

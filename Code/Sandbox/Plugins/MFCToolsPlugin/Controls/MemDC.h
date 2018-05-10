@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #if _MSC_VER > 1000
 	#pragma once
@@ -169,3 +169,4 @@ private:
 	#endif // _MSC_VER >= 1000
 
 #endif //ndef MemDCh
+

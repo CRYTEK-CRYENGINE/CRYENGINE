@@ -1,4 +1,4 @@
-﻿// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 using System;
 using System.Collections.Generic;
@@ -9,7 +9,7 @@ namespace CryEngine.Game
 	/// <summary>
 	/// Helper class for entities to easily manage animations.
 	/// </summary>
-	[EntityComponent(Category = "Animation")]
+	[EntityComponent(Category = "Animation", Guid = "78583bcc-4cc4-67e7-b83d-88a4bdc53e0f")]
 	public class CharacterAnimator : EntityComponent
 	{
 		private int _characterSlot = 0;

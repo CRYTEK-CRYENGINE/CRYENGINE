@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -17,6 +17,15 @@ namespace Impl
 {
 namespace PortAudio
 {
+enum class EEventState
+{
+	None                  = 0,
+	Playing               = BIT(0),
+	Stopped               = BIT(1),
+	Done                  = BIT(2),
+	WaitingForDestruction = BIT(3),
+};
+
 class CObject;
 
 class CEvent final : public IEvent, public CPoolObject<CEvent, stl::PSyncNone>
@@ -42,16 +51,20 @@ public:
 	virtual ERequestStatus Stop() override;
 	// ~CryAudio::Impl::IEvent
 
-	SNDFILE*          pSndFile;
-	PaStream*         pStream;
-	void*             pData;
-	CObject*          pObject;
-	int               numChannels;
-	int               remainingLoops;
-	CATLEvent&        event;
-	uint32            pathId;
-	PaSampleFormat    sampleFormat;
-	std::atomic<bool> bDone;
+	SNDFILE*                 pSndFile;
+	PaStream*                pStream;
+	void*                    pData;
+	CObject*                 pObject;
+	int                      numChannels;
+	int                      remainingLoops;
+	CATLEvent&               event;
+	uint32                   pathId;
+	PaSampleFormat           sampleFormat;
+	std::atomic<EEventState> state;
+
+private:
+
+	void Reset();
 };
 } // namespace PortAudio
 } // namespace Impl

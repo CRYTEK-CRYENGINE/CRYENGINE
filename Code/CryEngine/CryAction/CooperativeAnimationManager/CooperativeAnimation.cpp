@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 /*************************************************************************
    -------------------------------------------------------------------------
@@ -119,8 +119,7 @@ bool CCooperativeAnimation::AreActorsValid() const
 		return false;
 
 	TCharacterParams::const_iterator itEnd = m_paramsList.end();
-	TCharacterParams::const_iterator it = std::find_if(m_paramsList.begin(), itEnd,
-	                                                   std::not1(std::mem_fun_ref(&SCharacterParams::IsActorValid)));
+	TCharacterParams::const_iterator it = std::find_if(m_paramsList.begin(), itEnd,[](const SCharacterParams& p) { return !p.IsActorValid(); } );
 
 	return (it == itEnd);
 }
@@ -1194,7 +1193,7 @@ bool CCooperativeAnimation::UpdateAnimationsStreaming()
 	return (animsReady == m_paramsList.size());
 }
 
-void CCooperativeAnimation::OnEntityEvent(IEntity* pEntity, SEntityEvent& event)
+void CCooperativeAnimation::OnEntityEvent(IEntity* pEntity, const SEntityEvent& event)
 {
 	if (event.event == ENTITY_EVENT_DONE)
 	{

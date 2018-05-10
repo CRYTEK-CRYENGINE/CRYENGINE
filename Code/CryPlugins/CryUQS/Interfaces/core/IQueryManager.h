@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -25,6 +25,11 @@ namespace UQS
 			virtual CQueryID              StartQuery(const Client::SQueryRequest& request, Shared::IUqsString& errorMessage) = 0;
 			virtual void                  CancelQuery(const CQueryID& idOfQueryToCancel) = 0;
 			virtual void                  AddItemMonitorToQuery(const CQueryID& queryID, Client::ItemMonitorUniquePtr&& pItemMonitorToInstall) = 0;
+			virtual void                  RegisterQueryFinishedListener(Client::IQueryFinishedListener* pListenerToRegister) = 0;
+			virtual void                  UnregisterQueryFinishedListener(Client::IQueryFinishedListener* pListenerToUnregister) = 0;
+			virtual void                  RegisterQueryWarningListener(Client::IQueryWarningListener* pListenerToRegister) = 0;
+			virtual void                  UnregisterQueryWarningListener(Client::IQueryWarningListener* pListenerToUnregister) = 0;
+			virtual void                  VisitRunningQueries(Client::IQueryVisitor& visitor) = 0;
 		};
 
 	}

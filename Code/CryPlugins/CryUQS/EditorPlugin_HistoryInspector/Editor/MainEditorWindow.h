@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -14,7 +14,7 @@
 #include <Controls/EditorDialog.h>
 #include <IPostRenderer.h>
 
-#include <CryUQS/Interfaces/InterfacesIncludes.h>
+#include <CryUQS/Shared/SharedIncludes.h>
 #include <Serialization/QPropertyTree/QPropertyTree.h>
 
 struct SQuery;
@@ -64,6 +64,9 @@ public:
 	virtual void AddDeferredEvaluatorName(const char* szDeferredEvaluatorName) override;
 	// ~IQueryHistoryConsumer
 
+protected:
+	void customEvent(QEvent* event) override;
+
 private:
 	void OnHistoryOriginComboBoxSelectionChanged(int index);
 	void OnClearHistoryButtonClicked(bool checked);
@@ -72,6 +75,7 @@ private:
 	void OnTreeViewCurrentChanged(const QModelIndex &current, const QModelIndex &previous);
 
 private:
+	string                           m_windowTitle;
 	UQS::Core::IQueryHistoryManager* m_pQueryHistoryManager;
 	SQuery*                          m_pFreshlyAddedOrUpdatedQuery;
 	CHistoricQueryTreeView*          m_pTreeView;

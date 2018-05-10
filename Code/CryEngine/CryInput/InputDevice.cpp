@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "InputDevice.h"
@@ -15,10 +15,10 @@ extern CInputCVars* g_pInputCVars;
 #include <CrySystem/ISystem.h>
 
 CInputDevice::CInputDevice(IInput& input, const char* deviceName)
-	: m_input(input)
-	, m_deviceName(deviceName)
-	, m_deviceType(eIDT_Unknown)
+	: m_deviceType(eIDT_Unknown)
 	, m_enabled(true)
+	, m_input(input)
+	, m_deviceName(deviceName)
 {
 }
 

@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 /*************************************************************************
 -------------------------------------------------------------------------
@@ -229,15 +229,15 @@ int CScriptBind_ProtectedBinds::SetProfileAttribute( IFunctionHandler *pH, const
 
 		valueTab->GetValueAny( "value", scriptVal );
 
-		switch( scriptVal.type )
+		switch( scriptVal.GetType() )
 		{
-		case ANY_TBOOLEAN: 			{
+		case EScriptAnyType::Boolean: 			{
 															bool boolVal;
 															scriptVal.CopyTo( boolVal );
 															dataVal.Set( boolVal );
 															break;
 														}
-		case ANY_TNUMBER:				{
+		case EScriptAnyType::Number:				{
 															//numbers could be float or int in the profile
 															//get the attribute and try to match the current type if it exists
 															bool isInt = false;
@@ -266,14 +266,14 @@ int CScriptBind_ProtectedBinds::SetProfileAttribute( IFunctionHandler *pH, const
 															
 															break;
 														}
-		case ANY_TSTRING:				{
+		case EScriptAnyType::String:				{
 															const char* charVal;
 															scriptVal.CopyTo( charVal );
 															string stringVal( charVal );
 															dataVal.Set( stringVal );
 															break;
 														}
-		case ANY_TVECTOR:				{
+		case EScriptAnyType::Vector:				{
 															Vec3 vecVal;
 															scriptVal.CopyTo( vecVal );
 															dataVal.Set( vecVal );

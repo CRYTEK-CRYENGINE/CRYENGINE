@@ -152,3 +152,4 @@ ISubstancePreset* ISubstancePreset::Instantiate(const string& archiveName, const
 {
 	return CSubstancePreset::Instantiate(archiveName, graphName);
 }
+

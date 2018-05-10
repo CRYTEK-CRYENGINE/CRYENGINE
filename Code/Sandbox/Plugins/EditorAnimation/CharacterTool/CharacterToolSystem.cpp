@@ -1,8 +1,8 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "stdafx.h"
 
-#include "../EditorCommon/QPropertyTree/ContextList.h"
+#include "QPropertyTree/ContextList.h"
 #include "AnimationList.h"
 #include "AnimationTagList.h"
 #include "CharacterDocument.h"
@@ -27,7 +27,7 @@
 #include "SourceAssetContent.h"
 #include "AnimationCompressionManager.h"
 #include "CharacterGizmoManager.h"
-#include "../EditorCommon/Serialization/Decorators/INavigationProvider.h"
+#include "Serialization/Decorators/INavigationProvider.h"
 
 namespace CharacterTool
 {
@@ -64,7 +64,7 @@ void System::Initialize()
 	characterList->AddEntryType<CharacterContent>()
 	.AddFormat("cga", new CGALoader(), FORMAT_LIST | FORMAT_LOAD)
 	;
-	characterList->SetDataIcon("icons:Animation/Character.ico");
+	characterList->SetDataIcon("icons:common/animation_character.ico");
 
 	explorerData->AddProvider(characterList.get(), "Characters");
 
@@ -73,7 +73,7 @@ void System::Initialize()
 	.AddFormat("chrparams", new CHRParamsLoader(), FORMAT_MAIN | FORMAT_LIST | FORMAT_SAVE | FORMAT_LOAD)
 	.AddFormat("chr", 0, FORMAT_LIST)
 	;
-	skeletonList->SetDataIcon("icons:Animation/Skeleton.ico");
+	skeletonList->SetDataIcon("icons:common/animation_skeleton.ico");
 	explorerData->AddProvider(skeletonList.get(), "Skeletons");
 
 #if 0
@@ -82,14 +82,14 @@ void System::Initialize()
 	physicsList->AddEntryType<SCharacterPhysicsContent>()
 	.AddFormat("phys", new SJSONLoader())
 	;
-	physicsList->SetDataIcon("icons:Animation/Physics.ico");
+	physicsList->SetDataIcon("icons:common/animation_physics.ico");
 	explorerData->AddProvider(physicsList.get(), "Physics");
 
 	rigList.reset(new ExplorerFileList());
 	rigList->AddEntryType<SCharacterRigContent>()
 	.AddFormat("rig", new SJSONLoader())
 	;
-	rigList->SetDataIcon("icons:Animation/Rig.ico");
+	rigList->SetDataIcon("icons:common/animation_rig.ico");
 	explorerData->AddProvider(rigList.get(), "Rigs");
 #endif
 
@@ -114,6 +114,8 @@ void System::Initialize()
 	sourceAssetList->SetDataIcon("Animation/Source_Asset.ico");
 	explorerData->AddProvider(sourceAssetList.get(), "Source Assets");
 #endif
+
+	explorerData->Populate();
 
 	gizmoSink.reset(new GizmoSink());
 	characterSpaceProvider.reset(new CharacterSpaceProvider(document.get()));
@@ -163,3 +165,4 @@ void System::Serialize(Serialization::IArchive& ar)
 }
 
 }
+

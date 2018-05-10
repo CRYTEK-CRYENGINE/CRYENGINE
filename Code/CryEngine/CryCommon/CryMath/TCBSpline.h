@@ -1,11 +1,10 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
-#ifndef __TCBSPLINE_H__
-#define __TCBSPLINE_H__
 #pragma once
 
 #include <CryMath/ISplines.h>
 
+//! \cond INTERNAL
 namespace spline
 {
 static float calc_ease(float t, float a, float b);
@@ -376,5 +375,4 @@ struct TCBAngAxisKey : public TCBSplineKey<Quat>
 typedef TCBSpline<Quat, TCBAngAxisKey> TCBAngleAxisSpline;
 
 }; // namespace spline
-
-#endif // __TCBSPLINE_H__
+//! \endcond

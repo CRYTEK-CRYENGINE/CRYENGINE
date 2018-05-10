@@ -1,0 +1,10 @@
+<AssetMetadata version="0" type="Texture" guid="3ecf3f41-5416-629a-9eb1-867e5fb30e33" source="StreamingTerrain.tif">
+ <Files>
+  <File path="StreamingTerrain.dds"/>
+ </Files>
+ <Details>
+  <Detail name="width">32</Detail>
+  <Detail name="height">32</Detail>
+  <Detail name="mipCount">4</Detail>
+ </Details>
+</AssetMetadata>

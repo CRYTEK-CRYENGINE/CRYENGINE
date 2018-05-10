@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include <CrySerialization/IArchiveHost.h>
@@ -9,6 +9,7 @@
 #include "XmlOArchive.h"
 #include <CrySerialization/BlackBox.h>
 #include <CrySerialization/ClassFactory.h>
+#include <CrySystem/File/ICryPak.h>
 
 namespace Serialization
 {
@@ -18,9 +19,9 @@ constexpr ECryXmlVersion kXmlVersionCurrent = ECryXmlVersion::Version2;
 static int g_sys_archive_host_xml_version = (int)kXmlVersionCurrent;
 
 
-bool LoadFile(std::vector<char>& content, const char* filename)
+bool LoadFile(std::vector<char>& content, const char* filename, bool bFileCanBeOnDisk)
 {
-	FILE* f = gEnv->pCryPak->FOpen(filename, "rb");
+	FILE* f = gEnv->pCryPak->FOpen(filename, "rb", bFileCanBeOnDisk ? ICryPak::FOPEN_ONDISK : 0);
 	if (!f)
 		return false;
 
@@ -39,15 +40,15 @@ bool LoadFile(std::vector<char>& content, const char* filename)
 class CArchiveHost : public IArchiveHost
 {
 public:
-	bool LoadJsonFile(const SStruct& obj, const char* filename) override
+	bool LoadJsonFile(const SStruct& outObj, const char* filename, bool bCanBeOnDisk) override
 	{
 		std::vector<char> content;
-		if (!LoadFile(content, filename))
+		if (!LoadFile(content, filename, true))
 			return false;
 		yasli::JSONIArchive ia;
 		if (!ia.open(content.data(), content.size()))
 			return false;
-		return ia(obj);
+		return ia(outObj);
 	}
 
 	bool SaveJsonFile(const char* gameFilename, const SStruct& obj) override
@@ -82,7 +83,7 @@ public:
 	bool LoadBinaryFile(const SStruct& obj, const char* filename) override
 	{
 		std::vector<char> content;
-		if (!LoadFile(content, filename))
+		if (!LoadFile(content, filename, false))
 			return false;
 		yasli::BinIArchive ia;
 		if (!ia.open(content.data(), content.size()))

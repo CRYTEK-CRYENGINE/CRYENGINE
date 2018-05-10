@@ -1,10 +1,9 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include <CrySystem/Profilers/IStatoscope.h>
 #include <CryNetwork/INetwork.h>
 #include "StatoscopeRenderStats.h"
-#include "DriverD3D.h"
 
 #if ENABLE_STATOSCOPE
 
@@ -160,7 +159,7 @@ void CGraphicsDG::Write(IStatoscopeFrameRecord& fr)
 	m_pRenderer->EF_Query(EFQ_NumActivePostEffects, nNumActivePostEffects);
 	fr.AddValue(nNumActivePostEffects);
 
-	PodArray<CDLight*>* pLights = gEnv->p3DEngine->GetDynamicLightSources();
+	PodArray<SRenderLight*>* pLights = gEnv->p3DEngine->GetDynamicLightSources();
 	int nDynamicLights = (int)pLights->Count();
 	int nShadowCastingLights = 0;
 
@@ -172,7 +171,7 @@ void CGraphicsDG::Write(IStatoscopeFrameRecord& fr)
 
 	for (int i = 0; i < nDynamicLights; i++)
 	{
-		CDLight* pLight = pLights->GetAt(i);
+		SRenderLight* pLight = pLights->GetAt(i);
 
 		if (pLight->m_Flags & DLF_CASTSHADOW_MAPS)
 		{

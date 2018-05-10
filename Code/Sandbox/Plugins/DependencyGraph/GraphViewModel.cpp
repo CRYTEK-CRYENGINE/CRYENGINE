@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "Model.h"
@@ -137,7 +137,7 @@ public:
 
 protected:
 
-	void AddNodeStyle(const char* szStyleId, CryIcon& icon, QColor iconColor, QColor backgroundColor)
+	void AddNodeStyle(const char* szStyleId, const CryIcon& icon, QColor iconColor, QColor backgroundColor)
 	{
 		CryGraphEditor::CNodeWidgetStyle* pStyle = new CryGraphEditor::CNodeWidgetStyle(szStyleId, *(m_pStyle.get()));
 
@@ -641,3 +641,4 @@ void CGraphViewModel::OnEndModelChange()
 
 	SignalInvalidated();
 }
+

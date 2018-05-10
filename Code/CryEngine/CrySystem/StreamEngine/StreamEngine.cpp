@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 // -------------------------------------------------------------------------
 //  File name:   StreamEngine.cpp
@@ -141,7 +141,7 @@ IReadStreamPtr CStreamEngine::StartRead(const EStreamTaskType tSource, const cha
 
 size_t CStreamEngine::StartBatchRead(IReadStreamPtr* pStreamsOut, const StreamReadBatchParams* pReqs, size_t numReqs)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_SYSTEM);
+	CRY_PROFILE_FUNCTION(PROFILE_SYSTEM);
 
 	size_t nValidStreams = 0;
 
@@ -170,7 +170,7 @@ size_t CStreamEngine::StartBatchRead(IReadStreamPtr* pStreamsOut, const StreamRe
 				CReadStream* pStream;
 
 				{
-					FRAME_PROFILER("CStreamEngine::StartBatchRead_AllocReadStream", gEnv->pSystem, PROFILE_SYSTEM);
+					CRY_PROFILE_REGION(PROFILE_SYSTEM, "CStreamEngine::StartBatchRead_AllocReadStream");
 					pStream = CReadStream::Allocate(this, args.tSource, args.szFile, args.pCallback, &args.params);
 				}
 
@@ -198,7 +198,7 @@ size_t CStreamEngine::StartBatchRead(IReadStreamPtr* pStreamsOut, const StreamRe
 			}
 
 			{
-				FRAME_PROFILER("CStreamEngine::StartBatchRead_PushStreams", gEnv->pSystem, PROFILE_SYSTEM);
+				CRY_PROFILE_REGION(PROFILE_SYSTEM, "CStreamEngine::StartBatchRead_PushStreams");
 				CryMT::set<CReadStream_AutoPtr>::AutoLock lock(m_streams.get_lock());
 				for (size_t i = 0; i < nStreamsInBatch; ++i)
 					m_streams.insert(pStreams[i]);
@@ -207,13 +207,13 @@ size_t CStreamEngine::StartBatchRead(IReadStreamPtr* pStreamsOut, const StreamRe
 			CAsyncIOFileRequest* pFileReqs[MaxStreamsPerBatch];
 
 			{
-				FRAME_PROFILER("CStreamEngine::StartBatchRead_CreateRequests", gEnv->pSystem, PROFILE_SYSTEM);
+				CRY_PROFILE_REGION(PROFILE_SYSTEM, "CStreamEngine::StartBatchRead_CreateRequests");
 				for (size_t i = 0; i < nStreamsInBatch; ++i)
 					pFileReqs[i] = pStreams[i]->CreateFileRequest();
 			}
 
 			{
-				FRAME_PROFILER("CStreamEngine::StartBatchRead_PushRequests", gEnv->pSystem, PROFILE_SYSTEM);
+				CRY_PROFILE_REGION(PROFILE_SYSTEM, "CStreamEngine::StartBatchRead_PushRequests");
 				for (size_t i = 0; i < nStreamsInBatch; ++i)
 				{
 					CAsyncIOFileRequest* pFileRequest = pFileReqs[i];
@@ -390,7 +390,7 @@ void UpdateIOThreadStats(
 
 void CStreamEngine::Update(uint32 nUpdateTypesBitmask)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_SYSTEM);
+	CRY_PROFILE_FUNCTION(PROFILE_SYSTEM);
 
 	// Dispatch completed callbacks.
 	MainThread_FinalizeIOJobs(nUpdateTypesBitmask);
@@ -402,7 +402,7 @@ void CStreamEngine::Update(uint32 nUpdateTypesBitmask)
 //  - starts new jobs in the single-threaded model
 void CStreamEngine::Update()
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_SYSTEM);
+	CRY_PROFILE_FUNCTION(PROFILE_SYSTEM);
 
 	// Dispatch completed callbacks.
 	MainThread_FinalizeIOJobs();
@@ -576,7 +576,7 @@ void CStreamEngine::MainThread_FinalizeIOJobs(uint32 type)
 	{
 		bNoReentrant = true;
 
-		FUNCTION_PROFILER(GetISystem(), PROFILE_SYSTEM);
+		CRY_PROFILE_FUNCTION(PROFILE_SYSTEM);
 
 #ifdef STREAMENGINE_ENABLE_STATS
 		m_Statistics.nMainStreamingThreadWait = CryGetTicks();
@@ -638,7 +638,7 @@ void CStreamEngine::MainThread_FinalizeIOJobs()
 	{
 		bNoReentrant = true;
 
-		FUNCTION_PROFILER(GetISystem(), PROFILE_SYSTEM);
+		CRY_PROFILE_FUNCTION(PROFILE_SYSTEM);
 
 #ifdef STREAMENGINE_ENABLE_STATS
 		m_Statistics.nMainStreamingThreadWait = CryGetTicks();

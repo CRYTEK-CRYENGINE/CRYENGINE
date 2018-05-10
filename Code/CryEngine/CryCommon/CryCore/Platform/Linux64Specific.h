@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 // -------------------------------------------------------------------------
 //  File name:   Linux32Specific.h
@@ -45,6 +45,8 @@
 typedef double                        real;
 
 typedef uint32                        DWORD;
+typedef int32                         INT32;
+typedef uint32                        UINT32;
 typedef DWORD*                        LPDWORD;
 typedef uint64                        DWORD_PTR;
 typedef intptr_t INT_PTR, *           PINT_PTR;
@@ -78,4 +80,5 @@ typedef uint8                         byte;
 
 
 #define __assume(x)
+#define __analysis_assume(x)
 #define _msize(p) malloc_usable_size(p)

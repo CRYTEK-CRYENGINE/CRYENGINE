@@ -1,8 +1,8 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
-#include <CryAISystem/INavigationSystem.h>
+#include <CryAISystem/Serialization/NavigationSerialize.h>
 
 // *INDENT-OFF* - <hard to read code and declarations due to inconsistent indentation>
 

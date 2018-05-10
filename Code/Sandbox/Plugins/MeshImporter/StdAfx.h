@@ -1,12 +1,8 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 // Precompiled header.
 #pragma once
 
 #include <CryCore/Platform/platform.h>
-
-// TODO: Make sure this project compiles without this include.
-#include "FbxMetaData.h"
-#include "FbxScene.h"
 
 #define CRY_USE_MFC
 #include <CryCore/Platform/CryAtlMfc.h> // Required to use QtViewPort
@@ -19,6 +15,10 @@
 #include "SandboxAPI.h"
 #include "EditorCommonAPI.h"
 #include "Material/Material.h"
+
+// TODO: Make sure this project compiles without this include.
+#include "FbxMetaData.h"
+#include "FbxScene.h"
 
 // don't allow implicit string conversions in this project
 // NOTE: This does not play well with widgets from EditorCommon. So we disable this option for now.
@@ -146,3 +146,4 @@ inline _smart_ptr<T> MakeSmartFromUnique(std::unique_ptr<T, Detail::DeleteUsingR
 	pUnique.reset();                     // Calls Release()
 	return pSmart;
 }
+

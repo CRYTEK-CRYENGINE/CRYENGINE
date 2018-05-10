@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #ifndef __TINY_MAIN_H__
 #define __TINY_MAIN_H__
@@ -86,7 +86,7 @@ __inline void _TinyCheckLastError(const char* pszFile, int iLine)
 		cry_strcat(szMessageBuf, szLineFileInfo);
 
 #ifdef _DEBUG
-		MessageBox(NULL, szMessageBuf, "Tiny Framework Error", MB_OK | MB_ICONERROR);
+		CryMessageBox(szMessageBuf, "Tiny Framework Error", eMB_Error);
 #else
 		_TinyTrace(szMessageBuf);
 #endif

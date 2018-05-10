@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 
@@ -48,7 +48,7 @@ public:
 	{
 		if (PathHelpers::IsRelative(filename))
 		{
-			return PathHelpers::Join(m_root, filename);
+			return PathUtil::Make(m_root, filename);
 		}
 		return filename;
 	}
@@ -123,7 +123,10 @@ public:
 		dwWidth = substanceTexture.level0Width;
 		dwHeight = substanceTexture.level0Height;
 		
-		TIFF* const pTiffFile = TIFFOpen(filenameWrite, "w");
+		wstring widePath;
+		Unicode::Convert(widePath, filenameWrite);
+
+		TIFF* const pTiffFile = TIFFOpenW(widePath.c_str(), "w");
 		if (!pTiffFile)
 		{
 			return false;
@@ -207,22 +210,27 @@ public:
 			//{
 			//	// when writing directly dds, tif is generated to temp directory, and converted there
 			//	string tempFileName = std::to_string(gConverterRandomGenerator.GenerateUint64()).c_str();
-			//	string tempPath = PathHelpers::Join(m_pRC->GetTmpPath(), tempFileName + ".tif");
+			//	string tempPath = PathUtil::Make(m_pRC->GetTmpPath(), tempFileName + ".tif");
 			//	SaveByUsingTIFFSaver(tempPath, commandline, result->getTexture());
-			//	std::vector<string> args = { "/refresh", string().Format("/overwritefilename=%s", PathHelpers::GetFilename(data->path)), string().Format("/targetroot=%s", PathHelpers::GetDirectory(data->path)), string().Format("/sourceroot=%s", PathHelpers::GetDirectory(tempPath)) };
-			//	m_pRC->CompileSingleFileNested(PathHelpers::GetFilename(tempPath), args);
+			//	std::vector<string> args = { "/refresh", string().Format("/overwritefilename=%s", PathUtil::GetFile(data->path).c_str()), string().Format("/targetroot=%s", PathHelpers::GetDirectory(data->path)), string().Format("/sourceroot=%s", PathHelpers::GetDirectory(tempPath)) };
+			//	m_pRC->CompileSingleFileNested(PathUtil::GetFile(tempPath), args);
 			//	DeleteFile(tempPath);
 			//}
 			//else
 			{
-				SaveByUsingTIFFSaver(data->path + ".$tif", commandline, result->getTexture());
-				string finalPath(data->path + ".tif");
+				const string tempPath(data->path + ".$ti"); // using ".$tif" is unsafe, by mistake the engine can treat it as the final tif file.
+				const string finalPath(data->path + ".tif");
+				const string filename = PathUtil::GetFile(finalPath);
+				RCLog("Saving output from %s: %s", PathUtil::GetFile(data->texturePreset).c_str(), filename.c_str());
+
+				if (!SaveByUsingTIFFSaver(tempPath, commandline, result->getTexture()))
+				{
+					RCLogError("Failed to save temporary image file: %s", tempPath.c_str());
+				}
+
 				// Force remove of the read only flag.
 				SetFileAttributes(finalPath, FILE_ATTRIBUTE_ARCHIVE);
-				remove(finalPath);
-				rename(data->path + ".$tif", finalPath);
-				const string filename = PathHelpers::GetFilename(finalPath);			
-				RCLog("   Processed output from %s: %s", PathHelpers::GetFilename(data->texturePreset), filename.c_str());
+				MoveFileEx(tempPath, finalPath, MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH);
 				m_pRC->AddInputOutputFilePair(data->path, finalPath);
 			}
 		}
@@ -246,7 +254,7 @@ public:
 		if (!m_PresetOutputDataMap.count(preset->GetInstanceID()) || !m_PresetOutputDataMap[preset->GetInstanceID()].count(renderData.name))
 		{
 			std::shared_ptr<SGeneratedOutputData> generatedData = std::make_shared<SGeneratedOutputData>();
-			generatedData->source = PathHelpers::GetFilename(preset->GetFileName());
+			generatedData->source = PathUtil::GetFile(preset->GetFileName());
 			generatedData->path = preset->GetOutputPath(&output);
 			m_PresetOutputDataMap[preset->GetInstanceID()][renderData.name] = generatedData;
 		}
@@ -322,7 +330,7 @@ const SubstanceAir::InputImage::SPtr& CSubstanceConverter::GetInputImage(const I
 		// TODO this is pretty temp solution, but should work for basic implementation
 		// although path is dds, we try to search for tif with the same name, if tif not found, we will try to find different image extensions and if not
 		// try to convert the dds
-		string nameWithoutExtension = PathHelpers::Join(m_gameRootPath, PathHelpers::RemoveExtension(path));
+		string nameWithoutExtension = PathUtil::Make(m_gameRootPath, PathUtil::RemoveExtension(path));
 		nameWithoutExtension.Replace("/", "\\");
 		string tiffPath = nameWithoutExtension + ".tif";
 		std::vector<string> filesToRemove;
@@ -334,7 +342,7 @@ const SubstanceAir::InputImage::SPtr& CSubstanceConverter::GetInputImage(const I
 				string filePath = nameWithoutExtension + format;
 				PakSystemFile* textureFile = m_pRC->GetPakSystem()->Open(filePath, "r");
 				string srcPath, targetPath;
-				string tmpPath = PathUtil::Make(m_pRC->GetTmpPath(), PathHelpers::GetShortestRelativeAsciiPath(m_gameRootPath, filePath)).Replace("/", "\\");
+				string tmpPath = PathUtil::Make(m_pRC->GetTmpPath(), PathHelpers::GetShortestRelativePath(m_gameRootPath, filePath)).Replace("/", "\\");
 				targetPath = PathUtil::ReplaceExtension(tmpPath, "tif");
 				if (textureFile)
 				{
@@ -385,7 +393,10 @@ const SubstanceAir::InputImage::SPtr& CSubstanceConverter::GetInputImage(const I
 		bool dataLoaded = false;
 		if (FileUtil::FileExists(tiffPath))
 		{
-			TIFF* tif = TIFFOpen(tiffPath, "r");
+			wstring widePath;
+			Unicode::Convert(widePath, tiffPath);
+
+			TIFF* tif = TIFFOpenW(widePath.c_str(), "r");
 			if (tif) {
 				size_t npixels;
 

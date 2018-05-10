@@ -1,0 +1,13 @@
+<AssetMetadata version="0" type="Texture" guid="df3abaad-a30d-3454-120f-0f3645a48d3f" source="hex_ddn.tif">
+ <Files>
+  <File path="hex_ddn.dds"/>
+  <File path="hex_ddn.dds.1"/>
+  <File path="hex_ddn.dds.2"/>
+  <File path="hex_ddn.dds.3"/>
+ </Files>
+ <Details>
+  <Detail name="width">128</Detail>
+  <Detail name="height">128</Detail>
+  <Detail name="mipCount">6</Detail>
+ </Details>
+</AssetMetadata>

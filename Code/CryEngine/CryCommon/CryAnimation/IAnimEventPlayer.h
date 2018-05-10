@@ -1,4 +1,6 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
+
+//! \cond INTERNAL
 
 #pragma once
 
@@ -56,6 +58,7 @@ inline bool Serialize(Serialization::IArchive& ar, IAnimEventPlayerPtr& pointer,
 	Serialization::CryExtensionPointer<IAnimEventPlayer, IAnimEventPlayer> serializer(pointer);
 	return ar(serializer, name, label);
 }
+//! \endcond
 
 // Game-specific anim event player, will be automatically found by the character tool
 struct IAnimEventPlayerGame : public IAnimEventPlayer

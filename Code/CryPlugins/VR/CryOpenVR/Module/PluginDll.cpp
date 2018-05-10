@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "PluginDll.h"
@@ -13,13 +13,17 @@ namespace CryVR
 {
 namespace OpenVR {
 
-	float CPlugin_OpenVR::s_hmd_quad_distance = 0.25f;
-	float CPlugin_OpenVR::s_hmd_quad_width = 1.0f;
-	int CPlugin_OpenVR::s_hmd_quad_absolute = 1;
+	float CPlugin_OpenVR::s_hmd_quad_distance = 1.7f;
+	float CPlugin_OpenVR::s_hmd_quad_width = 2.8562;
+	int   CPlugin_OpenVR::s_hmd_quad_absolute = 0;
 
 CPlugin_OpenVR::~CPlugin_OpenVR()
 {
-	gEnv->pSystem->GetHmdManager()->UnregisterDevice(GetName());
+	ISystem* pSystem = GetISystem();
+	if (pSystem)
+	{
+		pSystem->GetHmdManager()->UnregisterDevice(GetName());
+	}
 
 	CryVR::OpenVR::Resources::Shutdown();
 
@@ -30,7 +34,10 @@ CPlugin_OpenVR::~CPlugin_OpenVR()
 		pConsole->UnregisterVariable("hmd_quad_absolute");
 	}
 
-	GetISystem()->GetISystemEventDispatcher()->RemoveListener(this);
+	if (pSystem)
+	{
+		pSystem->GetISystemEventDispatcher()->RemoveListener(this);
+	}
 }
 
 bool CPlugin_OpenVR::Initialize(SSystemGlobalEnvironment& env, const SSystemInitParams& initParams)

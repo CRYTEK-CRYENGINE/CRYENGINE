@@ -50,7 +50,7 @@ add_sources("NoUberFile"
 		"RcFile.h"
 		"resource.h"
 		"ResourceCompiler.h"
-		"stdafx.h"
+		"StdAfx.h"
 		"SwapEndianness.h"
 		"TextFileReader.h"
 		"UpToDateFileHelpers.h"
@@ -114,7 +114,7 @@ add_sources("NoUberFile"
 end_sources()
 #END-FILE-LIST
 
-CryResourceCompiler(ResourceCompiler PCH "StdAfx.cpp" SOLUTION_FOLDER "RC")
+CryResourceCompiler(ResourceCompiler PCH "stdafx.cpp" SOLUTION_FOLDER "RC")
 
 target_include_directories(${THIS_PROJECT} PRIVATE
 	"${CRYENGINE_SOURCE_DIR}/Code/Tools/CryCommonTools" 
@@ -134,4 +134,10 @@ set (RC_BINATY_DIR "${CRYENGINE_SOURCE_DIR}/Tools/rc")
 foreach(FILENAME ${FILES_TO_COPY})
 	MESSAGE("Copy Binary ${FILENAME} to ${RC_BINATY_DIR}")
 	file(COPY "${FILENAME}" DESTINATION "${RC_BINATY_DIR}")
+endforeach()
+
+file(GLOB NETGEN_FILES "${SDK_DIR}/netgen/*.*")
+MESSAGE("Copy Binary ${SDK_DIR}/netgen/*.* to ${RC_BINATY_DIR}/netgen")
+foreach(FILENAME ${NETGEN_FILES})
+	file(COPY "${FILENAME}" DESTINATION "${RC_BINATY_DIR}/netgen")
 endforeach()

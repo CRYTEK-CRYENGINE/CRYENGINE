@@ -7,7 +7,7 @@ sources_platform(ALL)
 add_sources("NoUberFile"
 	SOURCE_GROUP "Root"
 		"ATLEntityData.h"
-		"AudioLogger.h"
+		"Logger.h"
 		"IAudioImpl.h"
 		"SharedAudioData.h"
 		"PoolObject.h"

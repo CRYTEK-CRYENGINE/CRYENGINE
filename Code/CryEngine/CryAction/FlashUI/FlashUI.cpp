@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "FlashUI.h"
@@ -12,6 +12,7 @@
 #include <CryString/StringUtils.h>
 #include <CrySystem/VR/IHMDManager.h>
 #include <CryRenderer/IStereoRenderer.h>
+#include <CryRenderer/IScaleform.h>
 #include <CrySystem/Scaleform/IScaleformHelper.h>
 
 #define FLASH_UIELEMENTS_FOLDER "UIElements"
@@ -135,7 +136,6 @@ bool CFlashUI::PostInit()
 			notifier->Init();
 
 		PreloadTextures();
-		gEnv->pRenderer->InitSystemResources(FRR_SYSTEM_RESOURCES);
 	}
 	return res;
 }
@@ -166,6 +166,8 @@ void CFlashUI::Shutdown()
 
 	SAFE_DELETE(m_pUIActionManager);
 	SAFE_DELETE(m_pFlashUIActionEvents);
+
+	gEnv->pFlashUI = nullptr;
 }
 
 //------------------------------------------------------------------------------------
@@ -263,7 +265,7 @@ void CFlashUI::ReloadAll()
 //-------------------------------------------------------------------
 void CFlashUI::Update(float fDeltaTime)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_ACTION);
+	CRY_PROFILE_FUNCTION(PROFILE_ACTION);
 
 	if (m_bLoadtimeThread)
 		return;
@@ -272,7 +274,6 @@ void CFlashUI::Update(float fDeltaTime)
 
 	if (!isEditor || gEnv->pGameFramework->IsGameStarted())
 	{
-
 		if (CV_gfx_reloadonlanguagechange == 1)
 			CheckLanguageChanged();
 
@@ -468,7 +469,6 @@ void CFlashUI::OnSystemEvent(ESystemEvent event, UINT_PTR wparam, UINT_PTR lpara
 			if (m_systemState == eSS_Unloading)
 			{
 				StopRenderThread();
-				gEnv->pRenderer->InitSystemResources(FRR_SYSTEM_RESOURCES);
 				PreloadTextures();
 
 				m_pFlashUIActionEvents->OnUnloadComplete();
@@ -569,7 +569,9 @@ void CFlashUI::OnLoadingProgress(ILevelInfo* pLevel, int progressAmount)
 			gEnv->pRenderer->EF_Query(EFQ_RecurseLevel, nRecursionLevel);
 			const bool bStandAlone = (nRecursionLevel <= 0);
 			if (bStandAlone)
-				gEnv->pSystem->RenderBegin();
+			{
+				gEnv->pSystem->RenderBegin(SDisplayContextKey{});
+			}
 
 			const float currTime = gEnv->pTimer->GetAsyncCurTime();
 			OnPostUpdate(currTime - m_fLastAdvance);
@@ -630,8 +632,6 @@ void CFlashUI::LoadtimeRender()
 {
 	LOADING_TIME_PROFILE_SECTION
 
-	gEnv->pRenderer->ClearTargetsImmediately(FRT_CLEAR);
-
 	if (CV_gfx_draw == 1)
 	{
 		if (IStereoRenderer* pStereoRenderer = gEnv->pRenderer->GetIStereoRenderer())
@@ -644,7 +644,10 @@ void CFlashUI::LoadtimeRender()
 
 		for (TPlayerList::const_iterator it = m_loadtimePlayerList.begin(); it != m_loadtimePlayerList.end(); ++it)
 		{
-			(*it)->Render(gEnv->pRenderer->IsStereoEnabled());
+			IFlashPlayer* pFlashPlayer = (*it);
+
+			pFlashPlayer->SetClearFlags(FRT_CLEAR_COLOR, Clr_Transparent);
+			pFlashPlayer->Render(gEnv->pRenderer->IsStereoEnabled());
 		}
 	}
 }
@@ -750,7 +753,7 @@ void CFlashUI::SetHudElementsVisible(bool bVisible)
 //-------------------------------------------------------------------
 void CFlashUI::OnHardwareMouseEvent(int iX, int iY, EHARDWAREMOUSEEVENT eHardwareMouseEvent, int wheelDelta)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_ACTION);
+	CRY_PROFILE_FUNCTION(PROFILE_ACTION);
 
 	if (gEnv->pConsole->GetStatus())   // disable UI inputs when console is open
 		return;
@@ -785,7 +788,7 @@ void CFlashUI::OnHardwareMouseEvent(int iX, int iY, EHARDWAREMOUSEEVENT eHardwar
 //-------------------------------------------------------------------
 bool CFlashUI::OnInputEvent(const SInputEvent& event)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_ACTION);
+	CRY_PROFILE_FUNCTION(PROFILE_ACTION);
 
 	if (gEnv->pConsole->GetStatus())   // disable UI inputs when console is open
 		return false;
@@ -831,7 +834,7 @@ bool CFlashUI::OnInputEvent(const SInputEvent& event)
 //------------------------------------------------------------------------------------
 bool CFlashUI::OnInputEventUI(const SUnicodeEvent& event)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_ACTION);
+	CRY_PROFILE_FUNCTION(PROFILE_ACTION);
 
 	if (gEnv->pConsole->GetStatus())   // disable UI inputs when console is open
 		return false;
@@ -1527,7 +1530,6 @@ void CFlashUI::StartRenderThread()
 		}
 		m_bLoadtimeThread = true;
 		gEnv->pCryPak->LockReadIO(true);
-		gEnv->pRenderer->InitSystemResources(FRR_SYSTEM_RESOURCES);
 		gEnv->pRenderer->StartLoadtimeFlashPlayback(this);
 		UIACTION_LOG("Loadtime Render Thread: Started");
 	}
@@ -1697,10 +1699,11 @@ void CFlashUI::CheckLanguageChanged()
 //------------------------------------------------------------------------------------
 void CFlashUI::CheckResolutionChange()
 {
-	int width, height, x, y;
-	if (!gEnv->IsEditor())
+	int width = 0, height = 0;
+	if (!gEnv->IsEditor() && gEnv->pRenderer)
 	{
-		gEnv->pRenderer->GetViewport(&x, &y, &width, &height);
+		width  = gEnv->pRenderer->GetOverlayWidth();
+		height = gEnv->pRenderer->GetOverlayHeight();
 	}
 	else
 	{
@@ -1740,10 +1743,10 @@ void CFlashUI::GetScreenSize(int& width, int& height)
 	{
 		m_ScreenSizeCB(width, height);
 	}
-	else
+	else if (gEnv->pRenderer)
 	{
-		int x, y;
-		gEnv->pRenderer->GetViewport(&x, &y, &width, &height);
+		width  = gEnv->pRenderer->GetOverlayWidth();
+		height = gEnv->pRenderer->GetOverlayHeight();
 	}
 }
 
@@ -2091,7 +2094,7 @@ void RenderDebugInfo()
 		// Render debug view
 		if (pPost3DRendererTexture != NULL)
 		{
-			gEnv->pRenderer->Draw2dImage(0, 0, 200, 200, pPost3DRendererTexture->GetTextureID());
+			IRenderAuxImage::Draw2dImage(0, 0, 200, 200, pPost3DRendererTexture->GetTextureID());
 		}
 		/////////////////
 	}

@@ -1,0 +1,10 @@
+<AssetMetadata version="0" type="Texture" guid="1c56c6d2-af7c-0906-6770-0bb54c05695a" source="VisorFlare_square01.tif">
+ <Files>
+  <File path="VisorFlare_square01.dds"/>
+ </Files>
+ <Details>
+  <Detail name="width">4</Detail>
+  <Detail name="height">4</Detail>
+  <Detail name="mipCount">1</Detail>
+ </Details>
+</AssetMetadata>

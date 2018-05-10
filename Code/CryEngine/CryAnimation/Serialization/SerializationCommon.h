@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -8,7 +8,6 @@
 #include <CrySerialization/DynArray.h>
 #include <CrySerialization/CryExtension.h>
 #include <CrySerialization/Decorators/JointName.h>
-#include <CrySerialization/Decorators/Slider.h>
 #include <CrySerialization/Decorators/Range.h>
 #include <CrySerialization/Decorators/LocalFrame.h>
 #include <CrySerialization/ClassFactory.h>

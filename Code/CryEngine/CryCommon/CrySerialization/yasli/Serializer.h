@@ -41,7 +41,7 @@ public:
 	{
 	}
 
-	Serializer(TypeID type, void* object, size_t size, SerializeStructFunc serialize)
+	Serializer(const TypeID& type, void* object, size_t size, SerializeStructFunc serialize)
 	: type_(type)
 	, object_(object)
 	, size_(size)
@@ -98,7 +98,7 @@ public:
 	bool operator!=(const Serializer& rhs) { return !operator==(rhs); }
 	void* pointer() const{ return object_; }
 	void setPointer(void* p) { object_ = p; }
-	TypeID type() const{ return type_; }
+	const TypeID& type() const{ return type_; }
 	void setType(const TypeID& type) { type_ = type; }
 	size_t size() const{ return size_; }
 	SerializeStructFunc serializeFunc() const{ return serializeFunc_; }
@@ -131,17 +131,40 @@ public:
 
 	virtual size_t size() const = 0;
 	virtual size_t resize(size_t size) = 0;
+
 	virtual bool isFixedSize() const{ return false; }
+
+	//! Returns true if a container is ordered (not sorted), i.e. if order of elements is relevant and can be influenced. Array is ordered, hash map is not.
+	virtual bool isOrdered() const { return true; }
 
 	virtual void* pointer() const = 0;
 	virtual TypeID elementType() const = 0;
 	virtual TypeID containerType() const = 0;
+
+	//! Sets the internal iterator to the container's begin()
+	virtual void begin() = 0;
+
+	//! Advances the iterator, returns false when end() is reached.
 	virtual bool next() = 0;
 
 	virtual void* elementPointer() const = 0;
 
+	//! Serialize the element pointed by the iterator currently
 	virtual bool operator()(Archive& ar, const char* name, const char* label) = 0;
+
+	//! removes the element currently pointed by the iterator, iterator will point to the next element
+	virtual void remove() = 0;
+
+	//! Inserts an element before the currently pointed element. Iterator is not advanced
+	virtual void insert() = 0;
+
+	//! Moves the current element to a new position in the container. All other elements are shifted by one. Iterator is unchanged.
+	virtual void move(int index) = 0;
+
+	//! Is container valid
 	virtual operator bool() const = 0;
+
+	//! Used to compare with default value
 	virtual void serializeNewElement(Archive& ar, const char* name = "", const char* label = 0) const = 0;
 };
 
@@ -156,28 +179,50 @@ public:
 	}
 
 	// from ContainerInterface:
-	size_t size() const{ return Size; }
-	size_t resize(size_t size){
+	size_t size() const override { return Size; }
+	size_t resize(size_t size) override{
 		index_ = 0;
 		return Size;
 	}
 
-	void* pointer() const{ return reinterpret_cast<void*>(array_); }
-	TypeID containerType() const{ return TypeID::get<T[Size]>(); }
-	TypeID elementType() const{ return TypeID::get<T>(); }
-	void* elementPointer() const{ return &array_[index_]; }
-	virtual bool isFixedSize() const{ return true; }
+	void* pointer() const override { return reinterpret_cast<void*>(array_); }
+	TypeID containerType() const override { return TypeID::get<T[Size]>(); }
+	TypeID elementType() const override { return TypeID::get<T>(); }
+	void* elementPointer() const override { return &array_[index_]; }
+	virtual bool isFixedSize() const override { return true; }
 
-	bool operator()(Archive& ar, const char* name, const char* label){
+	bool operator()(Archive& ar, const char* name, const char* label) override {
 		YASLI_ESCAPE(size_t(index_) < Size, return false);
 		return ar(array_[index_], name, label);
 	}
-	operator bool() const{ return array_ != 0; }
-	bool next(){
+	operator bool() const override { return array_ != 0; }
+
+	void begin() override { index_ = 0; }
+	bool next() override {
 		++index_;
 		return size_t(index_) < Size;
 	}
-	void serializeNewElement(Archive& ar, const char* name, const char* label) const{
+
+	void remove() override {}
+	void insert() override {}
+	void move(int index) override 
+	{
+		auto distance = index_ - index;
+		if (distance > 0)
+		{
+			auto element = array_[index_];
+			std::copy_backward(&array_[index], &array_[index + distance], &array_[index_ + 1]);
+			array_[index] = element;
+		}
+		else if (distance < 0)
+		{
+			auto element = array_[index_];
+			std::copy(&array_[index_ + 1], &array_[index_ + 1 - distance], &array_[index_]);
+			array_[index] = element;
+		}
+	}
+
+	void serializeNewElement(Archive& ar, const char* name, const char* label) const override {
 		T element;
 		ar(element, name, label);
 	}

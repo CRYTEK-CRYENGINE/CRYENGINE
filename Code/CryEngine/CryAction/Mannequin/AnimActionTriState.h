@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 //
 //-------------------------------------------------------------------------
@@ -10,6 +10,9 @@
 #ifndef __ANIM_ACTION_TRI_STATE_H__
 #define __ANIM_ACTION_TRI_STATE_H__
 #pragma once
+
+#include "IAnimatedCharacter.h"
+#include <CryAnimation/ICryMannequin.h>
 
 //---------------------------------------------------------------------------------------------------
 

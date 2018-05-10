@@ -1,0 +1,10 @@
+<AssetMetadata version="0" type="Texture" guid="e815a499-e625-c7b8-6f7a-e6737209336b">
+ <Files>
+  <File path="AreaTex.dds"/>
+ </Files>
+ <Details>
+  <Detail name="width">160</Detail>
+  <Detail name="height">560</Detail>
+  <Detail name="mipCount">1</Detail>
+ </Details>
+</AssetMetadata>

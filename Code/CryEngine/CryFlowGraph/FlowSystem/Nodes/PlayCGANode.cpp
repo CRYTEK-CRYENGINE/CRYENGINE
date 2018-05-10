@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 
@@ -450,6 +450,10 @@ private:
 			m_bLooping = GetPortBool(pActInfo, IN_LOOP);
 			if (m_bLooping)
 				aparams.m_nFlags |= CA_LOOP_ANIMATION;
+
+			bool shouldRepeatLastKey = GetPortBool(pActInfo, IN_REPEAT_LAST_FRAME);
+			if (shouldRepeatLastKey)
+				aparams.m_nFlags |= CA_REPEAT_LAST_KEY;
 
 			m_playbackSpeedMultiplier = GetPortFloat(pActInfo, IN_PLAYBACK_SPEED_MULTIPLIER);
 			aparams.m_fPlaybackSpeed = m_playbackSpeedMultiplier;

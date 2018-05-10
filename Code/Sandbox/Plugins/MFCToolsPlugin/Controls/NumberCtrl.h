@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #if !defined(AFX_NUMBERCTRL_H__F928C7EC_F2C9_4272_B538_C670C0B2EF9F__INCLUDED_)
 #define AFX_NUMBERCTRL_H__F928C7EC_F2C9_4272_B538_C670C0B2EF9F__INCLUDED_
@@ -171,3 +171,4 @@ public:
 // Microsoft Visual C++ will insert additional declarations immediately before the previous line.
 
 #endif // !defined(AFX_NUMBERCTRL_H__F928C7EC_F2C9_4272_B538_C670C0B2EF9F__INCLUDED_)
+

@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "stdafx.h"
 #include "PoseBlenderLook.h"
@@ -212,6 +212,8 @@ bool CPoseBlenderLook::PrepareInternal(const SAnimationPoseModifierParams& param
 
 bool CPoseBlenderLook::Execute(const SAnimationPoseModifierParams& params)
 {
+	DEFINE_PROFILER_FUNCTION();
+
 	Skeleton::CPoseData* pPoseData = Skeleton::CPoseData::GetPoseData(params.pPoseData);
 	if (!pPoseData)
 		return false;

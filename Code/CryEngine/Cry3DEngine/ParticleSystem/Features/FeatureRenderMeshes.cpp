@@ -1,18 +1,17 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include <CrySerialization/Decorators/Resources.h>
 #include <CrySerialization/Math.h>
-#include "ParticleSystem/ParticleFeature.h"
-
-CRY_PFX2_DBG
+#include "ParticleSystem/ParticleSystem.h"
 
 namespace pfx2
 {
 
-EParticleDataType PDT(EPDT_MeshGeometry, IMeshObj*);
+MakeDataType(EPDT_MeshGeometry, IMeshObj*, EDataFlags::BNeedsClear); // Submesh pointers must be cleared on edit to avoid referencing freed parent mesh
 
-extern EParticleDataType EPDT_Alpha, EPDT_Color;
+extern TDataType<float> EPDT_Alpha;
+extern TDataType<UCol>  EPDT_Color;
 
 
 SERIALIZATION_ENUM_DEFINE(ESizeMode, : uint8,
@@ -65,11 +64,16 @@ public:
 
 	virtual void         AddToComponent(CParticleComponent* pComponent, SComponentParams* pParams) override
 	{
-		pParams->m_pMesh = m_pStaticObject = Get3DEngine()->LoadStatObj(m_meshName.c_str(), NULL, NULL, m_piecesMode == EPiecesMode::Whole);
+		if (!(m_pStaticObject = Get3DEngine()->FindStatObjectByFilename(m_meshName)))
+		{
+			GetPSystem()->CheckFileAccess(m_meshName);
+			m_pStaticObject = Get3DEngine()->LoadStatObj(m_meshName, NULL, NULL, m_piecesMode == EPiecesMode::Whole);
+		}
+		pParams->m_pMesh = m_pStaticObject;
 		pParams->m_meshCentered = m_originMode == EOriginMode::Center;
 		if (m_pStaticObject)
 		{
-			pComponent->AddToUpdateList(EUL_RenderDeferred, this);
+			pComponent->RenderDeferred.add(this);
 			pComponent->AddParticleData(EPVF_Position);
 			pComponent->AddParticleData(EPQF_Orientation);
 
@@ -92,7 +96,7 @@ public:
 				{
 					// Require per-particle sub-objects
 					assert(m_aSubObjects.size() < 256);
-					pComponent->AddToUpdateList(EUL_InitUpdate, this);
+					pComponent->InitParticles.add(this);
 					pComponent->AddParticleData(EPDT_MeshGeometry);
 					if (m_piecesMode == EPiecesMode::AllPieces)
 					{
@@ -109,15 +113,15 @@ public:
 		CRY_PROFILE_FUNCTION(PROFILE_PARTICLE);
 
 		CParticleContainer& container = context.m_container;
-		TIOStream<IMeshObj*> meshes = container.GetTIOStream<IMeshObj*>(EPDT_MeshGeometry);
-		TIStream<uint> spawnIds = container.GetTIStream<uint>(EPDT_SpawnId);
+		TIOStream<IMeshObj*> meshes = container.IOStream(EPDT_MeshGeometry);
+		TIStream<uint> spawnIds = container.IStream(EPDT_SpawnId);
 		IOVec3Stream positions = container.GetIOVec3Stream(EPVF_Position);
 		IOQuatStream orientations = container.GetIOQuatStream(EPQF_Orientation);
 		IFStream sizes = container.GetIFStream(EPDT_Size, 1.0f);
 		uint pieceCount = m_aSubObjects.size();
 		Vec3 center = m_pStaticObject->GetAABB().GetCenter();
 
-		CRY_PFX2_FOR_SPAWNED_PARTICLES(context)
+		for (auto particleId : context.GetSpawnedRange())
 		{
 			uint piece;
 			if (m_piecesMode == EPiecesMode::RandomPiece)
@@ -161,10 +165,9 @@ public:
 				orientations.Store(particleId, orientation);
 			}
 		}
-		CRY_PFX2_FOR_END;
 	}
 
-	virtual void Render(CParticleEmitter* pEmitter, ICommonParticleComponentRuntime* pCommonComponentRuntime, CParticleComponent* pComponent, const SRenderContext& renderContext) override
+	virtual void RenderDeferred(CParticleEmitter* pEmitter, CParticleComponentRuntime* pCommonComponentRuntime, CParticleComponent* pComponent, const SRenderContext& renderContext) override
 	{
 		CRY_PROFILE_FUNCTION(PROFILE_PARTICLE);
 
@@ -180,7 +183,7 @@ public:
 		const IQuatStream orientations = container.GetIQuatStream(EPQF_Orientation);
 		const IFStream alphas = container.GetIFStream(EPDT_Alpha, 1.0f);
 		const IFStream sizes = container.GetIFStream(EPDT_Size, 1.0f);
-		const TIStream<IMeshObj*> meshes = container.GetTIStream<IMeshObj*>(EPDT_MeshGeometry);
+		const TIStream<IMeshObj*> meshes = container.IStream(EPDT_MeshGeometry);
 		const Vec3 camPosition = passInfo.GetCamera().GetPosition();
 		const bool hasAlphas = container.HasData(EPDT_Alpha);
 		const bool hasPieces = container.HasData(EPDT_MeshGeometry);
@@ -193,7 +196,7 @@ public:
 
 		renderParams.dwFObjFlags |= FOB_TRANS_MASK;
 
-		CRY_PFX2_FOR_ACTIVE_PARTICLES(context)
+		for (auto particleId : context.GetUpdateRange())
 		{
 			const Vec3 position = positions.Load(particleId);
 			const Quat orientation = orientations.Load(particleId);
@@ -224,7 +227,6 @@ public:
 			renderParams.pInstance = &non_const(*this);
 			pMeshObj->Render(renderParams, passInfo);
 		}
-		CRY_PFX2_FOR_END;
 	}
 
 	virtual uint GetNumResources() const override

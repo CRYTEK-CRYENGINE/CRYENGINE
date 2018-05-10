@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -18,7 +18,7 @@ public:
 
 	// CNativeEntityBase
 	virtual uint64                GetEventMask() const override { return CDesignerEntityComponent::GetEventMask() | BIT64(ENTITY_EVENT_ENTERNEARAREA) | BIT64(ENTITY_EVENT_MOVENEARAREA) | BIT64(ENTITY_EVENT_ENTERAREA) | BIT64(ENTITY_EVENT_MOVEINSIDEAREA) | BIT64(ENTITY_EVENT_LEAVEAREA) | BIT64(ENTITY_EVENT_LEAVENEARAREA); }
-	virtual void                  ProcessEvent(SEntityEvent& event) override;
+	virtual void                  ProcessEvent(const SEntityEvent& event) override;
 
 	virtual IEntityPropertyGroup* GetPropertyGroup() final { return this; }
 
@@ -26,7 +26,7 @@ public:
 	// ~CNativeEntityBase
 
 	// IEntityPropertyGroup
-	virtual const char* GetLabel() const override { return "AudioAreaAmbience Properties"; }
+	virtual const char* GetLabel() const override { return "AudioAreaRandom Properties"; }
 
 	virtual void        SerializeProperties(Serialization::IArchive& archive) override;
 	// ~IEntityPropertyGroup

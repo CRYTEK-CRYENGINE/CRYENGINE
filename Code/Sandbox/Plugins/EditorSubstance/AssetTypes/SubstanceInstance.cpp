@@ -40,10 +40,13 @@ namespace EditorSubstance
 		{
 			const string relativeFileName = PathUtil::AbsolutePathToGamePath(editAsset.GetAsset().GetName());
 			editAsset.SetFiles("",{ relativeFileName + ".crysub" });
-			string* archiveName = (string*)(pTypeSpecificParameter);
-			editAsset.SetDependencies({*archiveName});
 
-
+			CRY_ASSERT(pTypeSpecificParameter);
+			if (pTypeSpecificParameter)
+			{
+				string& archiveName = *(string*)(pTypeSpecificParameter);
+				editAsset.SetDependencies({ {archiveName, 1} });
+			}
 			return true;
 		}
 

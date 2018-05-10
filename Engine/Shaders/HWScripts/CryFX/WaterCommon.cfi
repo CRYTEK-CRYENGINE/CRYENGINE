@@ -115,7 +115,7 @@ SPerPassWaterParams GetPerPassWaterParams()
 	params.causticViewProjMatr = cbPerPassWater.causticViewProjMatr;
 	params.waterRippleLookup = cbPerPassWater.waterRippleLookup;
 #else
-	params.causticViewProjMatr = vpMatrix;
+	params.causticViewProjMatr = CV_ViewProjMatr;
 	params.waterRippleLookup = WaterRipplesLookupParams;
 #endif
 
@@ -322,37 +322,7 @@ SVolumetricFogParams GetVolumetricFogParams()
 
 SShadowSamplingParams GetShadowSamplingParams()
 {
-	SShadowSamplingParams params;
-
-#if %_RT_COMPUTE_SKINNING
-	params.TexGen0 = cbShadowSampling.TexGen0;
-	params.TexGen1 = cbShadowSampling.TexGen1;
-	params.TexGen2 = cbShadowSampling.TexGen2;
-	params.TexGen3 = cbShadowSampling.TexGen3;
-	params.vInvShadowMapSize = cbShadowSampling.vInvShadowMapSize;
-	params.fDepthTestBias = cbShadowSampling.fDepthTestBias;
-	params.fOneDivFarDist = cbShadowSampling.fOneDivFarDist;
-
-	// NOTE: water fog volume doesn't need these because bForceSingleTap = true, bSampleCloudShadows = false.
-	params.fKernelRadius = cbShadowSampling.fKernelRadius;
-	params.CloudShadowParams = cbShadowSampling.CloudShadowParams;
-	params.CloudShadowAnimParams = cbShadowSampling.CloudShadowAnimParams;
-	params.irreg_kernel_2d = cbShadowSampling.irreg_kernel_2d;
-#else
-	params.TexGen0 = TexGen0;
-	params.TexGen1 = TexGen1;
-	params.TexGen2 = TexGen2;
-	params.TexGen3 = TexGen3;
-	params.vInvShadowMapSize = vInvShadowMapSize;
-	params.fDepthTestBias = fDepthTestBias;
-	params.fOneDivFarDist = fOneDivFarDist;
-	params.fKernelRadius = fKernelRadius;
-	params.CloudShadowParams = CloudShadowParams;
-	params.CloudShadowAnimParams = CloudShadowAnimParams;
-	params.irreg_kernel_2d = irreg_kernel_2d;
-#endif
-
-	return params;
+    return (SShadowSamplingParams)cbShadowSampling;
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -550,7 +520,7 @@ SWaterVolumeParams GetWaterVolumeParams()
 	params.volFogShadowRange = cbWaterVolume.volFogShadowRange;
 	params.vCausticParams = cbWaterVolume.vCausticParams;
 #else
-	params.PerInstanceWorldMatrix = float4x4(ObjWorldMatrix, float4(0.0f, 0.0f, 0.0f, 1.0f));
+	params.PerInstanceWorldMatrix = float4x4(Get_SPI_ObjWorldMat(0), float4(0.0f, 0.0f, 0.0f, 1.0f));
 	params.OceanParams0 = OceanParams0;
 	params.OceanParams1 = OceanParams1;
 	params.vBBoxMin = vBBoxMin;

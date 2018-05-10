@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "MannequinDebug.h"
@@ -231,7 +231,7 @@ void Log(const IActionController& actionControllerI, const char* format, ...)
 	{
 		savedMsgs[savedMsgIndex].savedMsgType = SMT_WARNING;
 		cry_strcpy(savedMsgs[savedMsgIndex].savedMsg, outputBufferLog);
-		savedMsgs[savedMsgIndex].renderFrame = gEnv->pRenderer->GetFrameID();
+		savedMsgs[savedMsgIndex].renderFrame = gEnv->pRenderer ? gEnv->pRenderer->GetFrameID() : 0;
 		savedMsgs[savedMsgIndex].isNew = true;
 		savedMsgs[savedMsgIndex].isUsed = true;
 		savedMsgIndex = (savedMsgIndex + 1) % maxSavedMsgs;
@@ -240,6 +240,9 @@ void Log(const IActionController& actionControllerI, const char* format, ...)
 
 void DrawDebug()
 {
+	if (!gEnv->pRenderer)
+		return;
+
 	const ColorF fNew(1.0f, 1.0f, 1.0f, 1.0f);
 	const ColorF fOld(0.6f, 0.6f, 0.6f, 1.0f);
 	const float xPosOrigin = 900.0f;

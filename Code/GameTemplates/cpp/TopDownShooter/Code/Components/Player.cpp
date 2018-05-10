@@ -109,7 +109,7 @@ uint64 CPlayerComponent::GetEventMask() const
 	return BIT64(ENTITY_EVENT_RESET) | BIT64(ENTITY_EVENT_START_GAME) | BIT64(ENTITY_EVENT_UPDATE);
 }
 
-void CPlayerComponent::ProcessEvent(SEntityEvent& event)
+void CPlayerComponent::ProcessEvent(const SEntityEvent& event)
 {
 	switch (event.event)
 	{
@@ -170,7 +170,7 @@ void CPlayerComponent::SpawnCursorEntity()
 
 	// Load geometry
 	const int geometrySlot = 0;
-	m_pCursorEntity->LoadGeometry(geometrySlot, "Objects/Default/primitive_sphere.cgf");
+	m_pCursorEntity->LoadGeometry(geometrySlot, "%ENGINE%/EngineAssets/Objects/primitive_sphere.cgf");
 
 	// Scale the cursor down a bit
 	m_pCursorEntity->SetScale(Vec3(0.1f));
@@ -217,6 +217,11 @@ void CPlayerComponent::UpdateAnimation(float frameTime)
 
 	// Update the Mannequin tags
 	m_pAnimationComponent->SetTagWithId(m_walkTagId, m_pCharacterController->IsWalking());
+
+	if (m_pCursorEntity == nullptr)
+	{
+		return;
+	}
 
 	Vec3 dir = m_pCursorEntity->GetWorldPos() - m_pEntity->GetWorldPos();
 	dir = dir.Normalize();
@@ -318,7 +323,7 @@ void CPlayerComponent::Revive()
 void CPlayerComponent::SpawnAtSpawnPoint()
 {
 	// Spawn at first default spawner
-	auto *pEntityIterator = gEnv->pEntitySystem->GetEntityIterator();
+	IEntityItPtr pEntityIterator = gEnv->pEntitySystem->GetEntityIterator();
 	pEntityIterator->MoveFirst();
 
 	while (!pEntityIterator->IsEnd())

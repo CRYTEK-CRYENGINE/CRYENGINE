@@ -2,20 +2,32 @@
 
 #include <CrySystem/ISystem.h>
 #include <CrySystem/IProjectManager.h>
-#include <CryExtension/ICryPluginManager.h>
+#include <CrySystem/ICryPluginManager.h>
 #include <CrySerialization/yasli/STL.h>
+
+YASLI_ENUM_BEGIN(EPlatform, "Platform")
+YASLI_ENUM(EPlatform::Windows, "Windows", "Windows")
+YASLI_ENUM(EPlatform::Linux, "Linux", "Linux")
+YASLI_ENUM(EPlatform::MacOS, "MacOS", "MacOS")
+YASLI_ENUM(EPlatform::XboxOne, "XboxOne", "XboxOne")
+YASLI_ENUM(EPlatform::PS4, "PS4", "PS4")
+YASLI_ENUM(EPlatform::Android, "Android", "Android")
+YASLI_ENUM(EPlatform::iOS, "iOS", "iOS")
+YASLI_ENUM_END()
 
 struct SPluginDefinition
 {
-	SPluginDefinition() {}
-	SPluginDefinition(ICryPluginManager::EPluginType pluginType, const char* szPath)
-		: type(pluginType)
-		, path(szPath) {}
+	SPluginDefinition() = default;
 
 	void Serialize(Serialization::IArchive& ar)
 	{
 		ar(type, "type", "type");
 		ar(path, "path", "path");
+
+		if (ar.isInput() || !platforms.empty())
+		{
+			ar(platforms, "platforms", "platforms");
+		}
 	}
 
 	bool operator==(const SPluginDefinition& rhs) const
@@ -27,8 +39,11 @@ struct SPluginDefinition
 		return !(*this == rhs);
 	}
 
-	ICryPluginManager::EPluginType type;
+	Cry::IPluginManager::EType type;
 	string path;
+	//! Determines the platforms for which this plug-in should be loaded
+	//! An empty vector indicates that we should always load
+	std::vector<EPlatform> platforms;
 };
 
 namespace Cry
@@ -40,11 +55,12 @@ namespace Cry
 			// Serialize the project file
 			bool Serialize(Serialization::IArchive& ar);
 
-			int version = 0;
+			unsigned int version = 0;
 			// why do we need this?
 			string type;
 			// Project name
 			string name;
+			CryGUID guid;
 			// Path to the .cryproject file
 			string filePath;
 			string engineVersionId;
@@ -64,32 +80,19 @@ namespace Cry
 
 			std::unordered_map<string, string, stl::hash_strcmp<string>> legacyGameDllPaths;
 
-			struct SConsoleInstruction
-			{
-				SConsoleInstruction() {}
-				SConsoleInstruction(const char* szKey, const char* szValue)
-					: key(szKey)
-					, value(szValue) {}
-
-				void Serialize(Serialization::IArchive& ar)
-				{
-					ar(key, "name", "name");
-					ar(value, "value", "value");
-				}
-
-				string key;
-				string value;
-			};
-
 			// Specialized CVar values for the project
-			std::vector<SConsoleInstruction> consoleVariables;
+			std::map<string, string> consoleVariables;
 			// Specialized console commands for the project
-			std::vector<SConsoleInstruction> consoleCommands;
+			std::map<string, string> consoleCommands;
 		};
 
-		template<int version> struct SProjectFileParser {};
+		template<unsigned int version> struct SProjectFileParser {};
 
-		constexpr int LatestProjectFileVersion = 1;
+		//! Latest version of the project syntax
+		//! Bump this when syntax changes, or default plug-ins are added
+		//! This allows us to automatically migrate and support older versions
+		//! Version 0 = pre-project system, allows for migrating from legacy (game.cfg etc) to .cryproject
+		constexpr unsigned int LatestProjectFileVersion = 4;
 
 		template<>
 		struct SProjectFileParser<LatestProjectFileVersion>
@@ -116,6 +119,7 @@ namespace Cry
 					void Serialize(Serialization::IArchive& ar)
 					{
 						ar(project.name, "name", "name");
+						ar(project.guid, "guid", "guid");
 					}
 
 					SProject& project;
@@ -194,6 +198,7 @@ namespace Cry
 				ar(SInfo(project), "info", "info");
 				ar(SContent(project), "content", "content");
 				ar(SRequire(project), "require", "require");
+				
 				ar(project.consoleVariables, "console_variables", "console_variables");
 				ar(project.consoleCommands, "console_commands", "console_commands");
 			}
@@ -209,23 +214,30 @@ public:
 	CProjectManager();
 	virtual ~CProjectManager() {}
 
-	bool ParseProjectFile();
-	void MigrateFromLegacyWorkflowIfNecessary();
+	bool                                  ParseProjectFile();
+	void                                  MigrateFromLegacyWorkflowIfNecessary();
 
 	// IProjectManager
-	virtual const char* GetCurrentProjectName() override;
+	virtual const char*                   GetCurrentProjectName() const override;
+	virtual CryGUID                       GetCurrentProjectGUID() const override;
 
-	virtual const char* GetCurrentProjectDirectoryAbsolute() override;
+	virtual const char*                   GetCurrentProjectDirectoryAbsolute() const override;
 
-	virtual const char* GetCurrentAssetDirectoryRelative() override;
-	virtual const char* GetCurrentAssetDirectoryAbsolute() override;
+	virtual const char*                   GetCurrentAssetDirectoryRelative() const override;
+	virtual const char*                   GetCurrentAssetDirectoryAbsolute() const override;
+	virtual const char*                   GetProjectFilePath() const override;
 
-	virtual void        StoreConsoleVariable(const char* szCVarName, const char* szValue) override;
-	virtual void        SaveProjectChanges() override;
+	virtual void                          StoreConsoleVariable(const char* szCVarName, const char* szValue) override;
+	virtual void                          SaveProjectChanges() override;
+
+	virtual const uint16                  GetPluginCount() const override { return static_cast<uint16>(m_project.plugins.size()); };
+	virtual void                          GetPluginInfo(uint16 index, Cry::IPluginManager::EType& typeOut, string& pathOut, DynArray<EPlatform>& platformsOut) const override;
+
+	virtual string                        LoadTemplateFile(const char* szPath, std::function<string(const char* szAlias)> aliasReplacementFunc) const override;
 	// ~IProjectManager
 
 	// ILoadConfigurationEntrySink
-	virtual void OnLoadConfigurationEntry(const char* szKey, const char* szValue, const char* szGroup) override;
+	virtual void                          OnLoadConfigurationEntry(const char* szKey, const char* szValue, const char* szGroup) override;
 	// ~ILoadConfigurationEntrySink
 
 	const std::vector<SPluginDefinition>& GetPluginDefinitions() const { return m_project.plugins; }
@@ -235,11 +247,13 @@ protected:
 
 	void LoadLegacyPluginCSV();
 	void LoadLegacyGameCfg();
-	void AddDefaultPlugins();
+	void AddDefaultPlugins(unsigned int previousVersion);
 
-	void AddPlugin(ICryPluginManager::EPluginType type, const char* szFileName);
+	void AddPlugin(const SPluginDefinition& definition);
 
-	bool CanMigrateFromLegacyWorkflow() const { return m_project.version == 0 && m_sys_game_folder->GetString()[0] != '\0'; }
+	void FindSourceFilesInDirectoryRecursive(const char* szDirectory, const char* szExtension, std::vector<string>& sourceFiles) const;
+
+	bool CanMigrateFromLegacyWorkflow() const { return m_project.version == 0 && m_sys_game_folder->GetString()[0] != '\0' && !m_project.filePath.empty(); }
 
 protected:
 	Cry::ProjectManagerInternals::SProject m_project;

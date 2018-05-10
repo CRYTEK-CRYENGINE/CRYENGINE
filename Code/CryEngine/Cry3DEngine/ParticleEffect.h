@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 // -------------------------------------------------------------------------
 //  File name:   ParticleEffect.h
@@ -11,14 +11,13 @@
 //
 ////////////////////////////////////////////////////////////////////////////
 
-#ifndef __particleeffect_h__
-#define __particleeffect_h__
 #pragma once
 
 #include <CryParticleSystem/IParticles.h>
 #include "Cry3DEngineBase.h"
 #include <CryParticleSystem/ParticleParams.h>
 #include "ParticleUtils.h"
+#include "ParticleEnviron.h"
 #include <CryCore/Containers/CryPtrArray.h>
 #include <CryParticleSystem/Options.h>
 #include <CrySystem/ICryMiniGUI.h>
@@ -67,25 +66,7 @@ struct TrinaryFlags
 // Requirements and attributes of particle effects
 enum EEffectFlags
 {
-	EFF_LOADED = BIT(0),
-
-	// Environmental requirements.
-	ENV_GRAVITY   = BIT(1),
-	ENV_WIND      = BIT(2),
-	ENV_WATER     = BIT(3),
-
-	ENV_PHYS_AREA = ENV_GRAVITY | ENV_WIND | ENV_WATER,
-
-	// Collision targets.
-	ENV_TERRAIN         = BIT(4),
-	ENV_STATIC_ENT      = BIT(5),
-	ENV_DYNAMIC_ENT     = BIT(6),
-	ENV_COLLIDE_INFO    = BIT(7),
-
-	ENV_COLLIDE_ANY     = ENV_TERRAIN | ENV_STATIC_ENT | ENV_DYNAMIC_ENT,
-	ENV_COLLIDE_PHYSICS = ENV_STATIC_ENT | ENV_DYNAMIC_ENT,
-	ENV_COLLIDE_CACHE   = ENV_TERRAIN | ENV_STATIC_ENT,
-
+	// also uses EEnvironFlags
 	// Additional effects.
 	EFF_AUDIO = BIT(8),           // Ensures execution of audio relevant code.
 	EFF_FORCE = BIT(9),           // Produces physical force.
@@ -114,36 +95,6 @@ struct STileInfo
 	Vec2  vSize;                      // Size of texture tile UVs.
 	float fTileCount, fTileStart;     // Range of tiles in texture for emitter.
 };
-
-struct SPhysForces
-{
-	Vec3  vAccel;
-	Vec3  vWind;
-	Plane plWater;
-
-	SPhysForces()
-	{}
-
-	SPhysForces(type_zero)
-		: vAccel(ZERO), vWind(ZERO), plWater(Vec3(0, 0, 1), -WATER_LEVEL_UNKNOWN)
-	{}
-
-	void Add(SPhysForces const& other, uint32 nEnvFlags)
-	{
-		if (nEnvFlags & ENV_GRAVITY)
-			vAccel = other.vAccel;
-		if (nEnvFlags & ENV_WIND)
-			vWind += other.vWind;
-		if (nEnvFlags & ENV_WATER)
-			if (other.plWater.d < plWater.d)
-				plWater = other.plWater;
-	}
-};
-
-inline bool HasWater(const Plane& pl)
-{
-	return pl.d < -WATER_LEVEL_UNKNOWN;
-}
 
 // Helper structures for emitter functions
 
@@ -282,6 +233,14 @@ struct FMaxEffectLife
 	OPT_VAR(float, fEmitterMaxLife)
 };
 
+struct SEffectCounts
+{
+	int nLoaded, nUsed, nEnabled, nActive;
+
+	SEffectCounts()	{ ZeroStruct(*this); }
+};
+
+
 /*!	CParticleEffect implements IParticleEffect interface and contain all components necessary to
     to create the effect
  */
@@ -294,63 +253,52 @@ public:
 	CParticleEffect(const ParticleParams& params);
 	~CParticleEffect();
 
-	void Release()
-	{
-		--m_nRefCounter;
-		if (m_nRefCounter <= 0)
-			delete this;
-	}
-
 	// IParticle interface.
-	virtual int               GetVersion() const
-	{ return 1; }
-	virtual IParticleEmitter* Spawn(const ParticleLoc& loc, const SpawnParams* pSpawnParams = NULL);
+	virtual int               GetVersion() const override { return 1; }
+	virtual IParticleEmitter* Spawn(const ParticleLoc& loc, const SpawnParams* pSpawnParams = NULL) override;
 
-	virtual void              SetName(const char* sFullName);
-	virtual const char*       GetName() const
-	{ return m_strName.c_str(); }
-	virtual stack_string      GetFullName() const;
+	virtual void              SetName(const char* sFullName) override;
+	virtual const char*       GetName() const override { return m_strName.c_str(); }
+	virtual stack_string      GetFullName() const override;
 
-	virtual void              SetEnabled(bool bEnabled);
-	virtual bool              IsEnabled() const
-	{ return m_pParticleParams && m_pParticleParams->bEnabled; };
-	virtual bool              IsTemporary() const;
+	virtual void              SetEnabled(bool bEnabled) override;
+	virtual bool              IsEnabled(uint options = 0) const override;
+
+	virtual bool              IsTemporary() const override;
 
 	//////////////////////////////////////////////////////////////////////////
 	//! Load resources, required by this particle effect (Textures and geometry).
-	virtual bool LoadResources()
-	{ return LoadResources(true); }
-	virtual void UnloadResources()
-	{ UnloadResources(true); }
+	virtual bool LoadResources() override { return LoadResources(true); }
+	virtual void UnloadResources() override	{ UnloadResources(true); }
 
 	//////////////////////////////////////////////////////////////////////////
 	// Child particle systems.
 	//////////////////////////////////////////////////////////////////////////
-	int              GetChildCount() const
+	virtual int              GetChildCount() const override
 	{ return m_children.size(); }
-	IParticleEffect* GetChild(int index) const
+	virtual IParticleEffect* GetChild(int index) const override
 	{ return &m_children[index]; }
 
-	virtual void             ClearChilds();
-	virtual void             InsertChild(int slot, IParticleEffect* pEffect);
-	virtual int              FindChild(IParticleEffect* pEffect) const;
+	virtual void             ClearChilds() override;
+	virtual void             InsertChild(int slot, IParticleEffect* pEffect) override;
+	virtual int              FindChild(IParticleEffect* pEffect) const override;
 
-	virtual void             SetParent(IParticleEffect* pParent);
-	virtual IParticleEffect* GetParent() const
+	virtual void             SetParent(IParticleEffect* pParent) override;
+	virtual IParticleEffect* GetParent() const override
 	{ return m_parent; }
 
 	//////////////////////////////////////////////////////////////////////////
-	virtual void                  SetParticleParams(const ParticleParams& params);
-	virtual const ParticleParams& GetParticleParams() const;
-	virtual const ParticleParams& GetDefaultParams() const;
+	virtual void                  SetParticleParams(const ParticleParams& params) override;
+	virtual const ParticleParams& GetParticleParams() const override;
+	virtual const ParticleParams& GetDefaultParams() const override;
 
-	virtual void                  Serialize(XmlNodeRef node, bool bLoading, bool bAll);
-	virtual void                  Serialize(Serialization::IArchive& ar);
-	virtual void                  Reload(bool bAll);
+	virtual void                  Serialize(XmlNodeRef node, bool bLoading, bool bAll) override;
+	virtual void                  Serialize(Serialization::IArchive& ar) override;
+	virtual void                  Reload(bool bAll) override;
 
-	virtual IParticleAttributes& GetAttributes();
+	virtual IParticleAttributes&  GetAttributes();
 
-	void                         GetMemoryUsage(ICrySizer* pSizer) const;
+	virtual void                  GetMemoryUsage(ICrySizer* pSizer) const override;
 
 	// Further interface.
 
@@ -374,8 +322,7 @@ public:
 	bool                   ResourcesLoaded(bool bAll) const;
 	bool                   LoadResources(bool bAll, cstr sSource = 0) const;
 	void                   UnloadResources(bool bAll) const;
-	bool                   IsActive(bool bAll = false) const;
-	uint32                 GetEnvironFlags(bool bAll) const;
+	bool                   IsActive() const { return IsEnabled(eCheckFeatures | eCheckConfig | eCheckChildren); }
 
 	CParticleEffect*       FindChild(const char* szChildName) const;
 	const CParticleEffect* FindActiveEffect(int nVersion) const;
@@ -484,5 +431,3 @@ float TravelVolume(const AABB& bbSource, const AABB& bbTravel, float fDist, floa
 
 IStatObj::SSubObject* GetSubGeometry(IStatObj* pParent, int i);
 int                   GetSubGeometryCount(IStatObj* pParent);
-
-#endif //__particleeffect_h__

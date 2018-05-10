@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 
@@ -84,7 +84,7 @@ QToolWindowAreaTarget QToolWindowDragHandlerDropTargets::getTargetFromPosition(I
 
 		if (area && result.reference == QToolWindowAreaReference::Floating)
 		{
-			QPoint& tabPos = area->mapCombineDropAreaFromGlobal(QCursor::pos());
+			QPoint tabPos = area->mapCombineDropAreaFromGlobal(QCursor::pos());
 			if (area->combineAreaRect().contains(tabPos))
 			{
 				result.reference = QToolWindowAreaReference::Combine;
@@ -114,7 +114,7 @@ QToolWindowAreaTarget QToolWindowDragHandlerDropTargets::finishDrag(QList<QWidge
 
 		if (result.reference == QToolWindowAreaReference::Floating)
 		{
-			QPoint& tabPos = destination->mapCombineDropAreaFromGlobal(QCursor::pos());
+			QPoint tabPos = destination->mapCombineDropAreaFromGlobal(QCursor::pos());
 			if (destination->combineAreaRect().contains(tabPos))
 			{
 				result.reference = QToolWindowAreaReference::Combine;

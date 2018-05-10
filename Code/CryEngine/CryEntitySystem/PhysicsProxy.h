@@ -1,18 +1,5 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
-// -------------------------------------------------------------------------
-//  File name:   PhysicsProxy.h
-//  Version:     v1.00
-//  Created:     25/5/2004 by Timur.
-//  Compilers:   Visual Studio.NET 2003
-//  Description:
-// -------------------------------------------------------------------------
-//  History:
-//
-////////////////////////////////////////////////////////////////////////////
-
-#ifndef __PhysicsProxy_h__
-#define __PhysicsProxy_h__
 #pragma once
 
 // forward declarations.
@@ -31,40 +18,20 @@ typedef uint32 attachMask, attachMaskLoc;
 #endif
 
 // Implements physical behavior of the entity.
-class CEntityPhysics
+class CEntityPhysics final : public ISimpleEntityEventListener
 {
 public:
-	enum EFlags
-	{
-		CHARACTER_SLOT_MASK = 0x000F,     // Slot Id, of physicalized character.
-		// When set Physical proxy will ignore incoming xform events from the entity.
-		// Needed to prevent cycle change, when physical entity change entity xform and recieve back an event about entity xform.
-		FLAG_IGNORE_XFORM_EVENT        = 1 << 4,
-		FLAG_IGNORE_BUOYANCY           = 1 << 5,
-		FLAG_PHYSICS_DISABLED          = 1 << 6,
-		FLAG_SYNC_CHARACTER            = 1 << 7,
-		FLAG_WAS_HIDDEN                = 1 << 8,
-		FLAG_PHYS_CHARACTER            = 1 << 9,
-		FLAG_PHYS_AWAKE_WHEN_VISIBLE   = 1 << 10,
-		FLAG_ATTACH_CLOTH_WHEN_VISIBLE = 1 << 11,
-		FLAG_POS_EXTRAPOLATED          = 1 << 12,
-		FLAG_DISABLE_ENT_SERIALIZATION = 1 << 13,
-		FLAG_PHYSICS_REMOVED           = 1 << 14,
-		// Whether or not the physics proxy currently requires that the entity is active / updated every frame.
-		FLAG_ACTIVE                    = 1 << 15,
-	};
+	CEntityPhysics() = default;
+	virtual ~CEntityPhysics();
 
-	CEntityPhysics();
-	~CEntityPhysics();
-	;
-	CEntity* GetEntity() const { return m_pEntity; };
+	// ISimpleEntityEventListener
+	virtual void ProcessEvent(const SEntityEvent& event) override;
+	// ~ISimpleEntityEventListener
 
-	void     ProcessEvent(SEntityEvent& event);
-
-	void     SerializeXML(XmlNodeRef& entityNode, bool bLoading);
-	bool     NeedNetworkSerialize();
-	void     SerializeTyped(TSerialize ser, int type, int flags);
-	void     EnableNetworkSerialization(bool enable);
+	void SerializeXML(XmlNodeRef& entityNode, bool bLoading);
+	bool NeedNetworkSerialize();
+	void SerializeTyped(TSerialize ser, int type, int flags);
+	void EnableNetworkSerialization(bool enable);
 	//////////////////////////////////////////////////////////////////////////
 
 	void             Serialize(TSerialize ser);
@@ -89,13 +56,9 @@ public:
 	void OnPhysicsPostStep(EventPhysPostStep* pEvent = 0);
 	void AttachToPhysicalEntity(IPhysicalEntity* pPhysEntity);
 	void CreateRenderGeometry(int nSlot, IGeometry* pFromGeom, bop_meshupdate* pLastUpdate = 0);
-	void OnContactWithEntity(CEntity* pEntity);
-	void OnCollision(CEntity* pTarget, int matId, const Vec3& pt, const Vec3& n, const Vec3& vel, const Vec3& targetVel, int partId, float mass);
+	void OnPhysicsStateChanged(int previousSimulationClass);
 	//////////////////////////////////////////////////////////////////////////
 
-	void              SetFlags(int nFlags)            { m_nFlags = nFlags; };
-	uint32            GetFlags() const                { return m_nFlags; };
-	bool              CheckFlags(uint32 nFlags) const { return (m_nFlags & nFlags) == nFlags; }
 	void              UpdateSlotGeometry(int nSlot, IStatObj* pStatObjNew = 0, float mass = -1.0f, int bNoSubslots = 1);
 	void              AssignPhysicalEntity(IPhysicalEntity* pPhysEntity, int nSlot = -1);
 
@@ -112,15 +75,18 @@ public:
 	void              ReattachSoftEntityVtx(IPhysicalEntity* pAttachToEntity, int nAttachToPart);
 
 #if !defined(_RELEASE)
-	static void EnableValidation();
-	static void DisableValidation();
+	static void       EnableValidation();
+	static void       DisableValidation();
 #endif
 
-	void               SetActive(bool bActive);
+	void              PrepareForDeletion();
+	void              OnCollision(const EventPhysCollision& collision, int sourceIndex);
+	void              SendBreakEvent(EventPhysJointBroken* pEvent);
+	void              OnGlobalEntityMaterialChanged(IMaterial* pMaterial);
 
 private:
 	IPhysicalWorld*  PhysicalWorld() const { return gEnv->pPhysicalWorld; }
-	void             OnEntityXForm(SEntityEvent& event);
+	void             OnEntityXForm(EntityTransformationFlagsMask transformReasons);
 	void             OnChangedPhysics(bool bEnabled);
 	void             DestroyPhysicalEntity(bool bDestroyCharacters = true, int iMode = 0);
 
@@ -152,14 +118,19 @@ private:
 	void             UpdateParamsFromRenderMaterial(int nSlot, IPhysicalEntity* pPhysEntity);
 
 	void             AwakeOnRender(bool vRender);
+	void             OnTimer(int id);
+	void             OnEntityHiddenOrMadeInvisible();
+	void             OnEntityUnhiddenOrMadeVisible();
+	void             OnEntityUnhidden();
+	void             OnChildEntityAttached(EntityId childEntityId);
+	void             OnChildEntityDetached(EntityId childEntityId);
+
+private:
+	CEntity* GetEntity() const;
 
 private:
 	friend class CEntity;
 
-	uint32           m_nFlags = 0;
-	CEntity*         m_pEntity = nullptr;
 	// Pointer to physical object.
 	IPhysicalEntity* m_pPhysicalEntity = nullptr;
 };
-
-#endif // __PhysicsProxy_h__

@@ -1,16 +1,9 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
-
-//
-//	File:Cry_Matrix33.h
-//	Description: Common matrix class
-//
-//	History:
-//	-Feb 20,2012: Created by Ivo Herzeg
-//
-//////////////////////////////////////////////////////////////////////
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
+//! Represents a 3x3 rotational matrix
+//! \see Matrix33
 template<typename F> struct Matrix33_tpl
 	: INumberArray<F, 9>
 {

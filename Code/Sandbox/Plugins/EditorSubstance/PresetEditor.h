@@ -26,7 +26,6 @@ namespace EditorSubstance
 		virtual bool OnSaveAsset(CEditableAsset& editAsset) override;
 		virtual void OnCloseAsset() override;
 
-		virtual bool CanQuit(std::vector<string>& unsavedChanges) override;
 	protected:
 		void PushPresetToRender();
 		void SetPreviewResolution();

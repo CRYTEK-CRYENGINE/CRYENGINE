@@ -1,12 +1,14 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include <array>
 #include <d3d12.h>
 
-template<const int numTargets>
+template<int numTargets> class BroadcastableD3D12Fence;
+
+template<int numTargets>
 class BroadcastableD3D12CommandQueue : public ID3D12CommandQueue
 {
-	template<const int numTargets> friend class BroadcastableD3D12GraphicsCommandList;
+	template<int numTargets> friend class BroadcastableD3D12GraphicsCommandList;
 	friend class NCryDX12::CDevice;
 
 public:
@@ -272,7 +274,6 @@ public:
 	  UINT64 Value) final
 	{
 		BroadcastableD3D12Fence<numTargets>* Fence = (BroadcastableD3D12Fence<numTargets>*)pFence;
-
 		ParallelizeWithFail(Signal(*(*Fence)[i], Value));
 	}
 
@@ -281,7 +282,6 @@ public:
 	  UINT64 Value) final
 	{
 		BroadcastableD3D12Fence<numTargets>* Fence = (BroadcastableD3D12Fence<numTargets>*)pFence;
-
 		ParallelizeWithFail(Wait(*(*Fence)[i], Value));
 	}
 

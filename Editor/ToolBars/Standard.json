@@ -12,7 +12,7 @@
                 "uiName": "&Open..."
             },
             {
-                "command": "ui_action.actionExport_to_Engine",
+                "command": "exporter.export_to_engine",
                 "custom": false,
                 "uiName": "Export to Engine"
             },

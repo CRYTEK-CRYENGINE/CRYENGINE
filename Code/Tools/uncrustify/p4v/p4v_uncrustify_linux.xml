@@ -20,7 +20,7 @@
     <Definition>
      <Name>Uncrustify: validate files</Name>
      <Command>python3</Command>
-     <Arguments>$r/Code/Tools/uncrustify/p4v/p4v_uncrustify.py --check --user=$u --client=$c %F</Arguments>
+     <Arguments>$r/Code/Tools/uncrustify/p4v/p4v_uncrustify.py --user=$u --client=$c %F</Arguments>
     </Definition>
     <Console>
      <CloseOnExit>false</CloseOnExit>
@@ -44,7 +44,7 @@
     <Definition>
      <Name>Uncrustify: validate changelist</Name>
      <Command>python3</Command>
-     <Arguments>$r/Code/Tools/uncrustify/p4v/p4v_uncrustify.py --check --user=$u --client=$c --changelist %P</Arguments>
+     <Arguments>$r/Code/Tools/uncrustify/p4v/p4v_uncrustify.py --user=$u --client=$c --changelist %P</Arguments>
     </Definition>
     <Console>
      <CloseOnExit>false</CloseOnExit>

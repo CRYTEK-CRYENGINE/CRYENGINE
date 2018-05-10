@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 //////////////////////////////////////////////////////////////////////////
 // NOTE: INTERNAL HEADER NOT FOR PUBLIC USE
@@ -198,6 +198,24 @@ void CryThreadExitCall()
 	// ExitThread is the preferred method of exiting a thread in C code.
 	// However, in C++ code, the thread is exited before any destructor can be called or any other automatic cleanup can be performed.
 	// Therefore, in C++ code, you should return from your thread function.
+}
+
+//////////////////////////////////////////////////////////////////////////
+bool CryIsThreadAlive(TThreadHandle pThreadHandle)
+{
+	DWORD ret = WaitForSingleObject(pThreadHandle, 0);
+
+	switch (ret)
+	{
+	case WAIT_OBJECT_0: // Thread has been signaled
+		return false;
+	case WAIT_ABANDONED:
+	case WAIT_TIMEOUT:
+	case WAIT_FAILED:
+	default:
+		break;
+	}
+	return true;
 }
 }
 

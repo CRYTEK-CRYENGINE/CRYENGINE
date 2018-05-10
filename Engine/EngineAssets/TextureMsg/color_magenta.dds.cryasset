@@ -1,0 +1,10 @@
+<AssetMetadata version="0" type="Texture" guid="afd3f168-2805-dddd-b7e8-e04fea042f4e" source="color_Magenta.tif">
+ <Files>
+  <File path="color_Magenta.dds"/>
+ </Files>
+ <Details>
+  <Detail name="width">4</Detail>
+  <Detail name="height">4</Detail>
+  <Detail name="mipCount">1</Detail>
+ </Details>
+</AssetMetadata>

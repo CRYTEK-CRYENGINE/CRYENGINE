@@ -56,9 +56,9 @@ float4x4 g_RainOcc_TransMat;
 
 struct pixoutRainGBuffer
 {
-	half4 Normal   : COLOR0;
-	half4 Specular : COLOR1;
-	half4 Diffuse  : COLOR2;
+	half4 Normal   : SV_Target0;
+	half4 Specular : SV_Target1;
+	half4 Diffuse  : SV_Target2;
 };
 
 pixoutRainGBuffer DeferredRainGBufferPS( vtxOut IN )

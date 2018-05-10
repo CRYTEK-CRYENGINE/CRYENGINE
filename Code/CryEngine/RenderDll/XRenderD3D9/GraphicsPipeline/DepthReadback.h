@@ -93,8 +93,8 @@ private:
 	void      ExecutePasses(float sourceWidth, float sourceHeight, float sampledWidth, float sampledHeight);
 	void      ReadbackLatestData();
 
-	static const uint32 kMaxDownsamplePasses = CRY_ARRAY_COUNT(CTexture::s_ptexZTargetDownSample);
-	static const uint32 kMaxReadbackPasses = CRY_ARRAY_COUNT(CTexture::s_ptexZTargetReadBack);
+	static const uint32 kMaxDownsamplePasses = CRY_ARRAY_COUNT(CRendererResources::s_ptexLinearDepthDownSample);
+	static const uint32 kMaxReadbackPasses = CRY_ARRAY_COUNT(CRendererResources::s_ptexLinearDepthReadBack);
 	static const uint32 kMaxResults = 2;
 
 	const ICVar*        m_pCheckOcclusion = nullptr;       // e_CheckOcclusion

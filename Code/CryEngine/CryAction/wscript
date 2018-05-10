@@ -1,4 +1,4 @@
-# Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+# Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 def build(bld):
 	bld.CryEngineModule(
@@ -17,7 +17,8 @@ def build(bld):
 		win_lib    = 'Shell32',
 
 		use_module = [
-			'md5'
+			'md5',
+			'CryDefaultEntities'
 		],
 		durango_use_module= [
 			'jsmn'

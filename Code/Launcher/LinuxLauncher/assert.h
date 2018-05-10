@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 // This is a hack to make __assert_fail and friends non-noreturn.
 // Whenever <assert.h> is included, we'll include this file (enforced via -I).

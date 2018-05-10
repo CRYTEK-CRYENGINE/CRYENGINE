@@ -1,0 +1,10 @@
+<AssetMetadata version="0" type="Texture" guid="32212618-9db4-cf3b-ff5f-961ea3560db4" source="Cursor_Green.tif">
+ <Files>
+  <File path="Cursor_Green.dds"/>
+ </Files>
+ <Details>
+  <Detail name="width">32</Detail>
+  <Detail name="height">32</Detail>
+  <Detail name="mipCount">4</Detail>
+ </Details>
+</AssetMetadata>

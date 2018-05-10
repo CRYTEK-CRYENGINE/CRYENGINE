@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 // -------------------------------------------------------------------------
 //  Created:     04/05/2015 by Filipe amim
@@ -9,18 +9,17 @@
 
 #include "StdAfx.h"
 #include "ParticleSystem/ParticleRender.h"
-#include "ParticleSystem/ParticleEmitter.h"
+#include "ParticleSystem/ParticleSystem.h"
 #include <CryMath/RadixSort.h>
-
-CRY_PFX2_DBG
 
 namespace pfx2
 {
 
 
-EParticleDataType PDT(EPDT_RibbonId, TParticleId);
+MakeDataType(EPDT_RibbonId, TParticleId);
 
-extern EParticleDataType EPDT_Alpha, EPDT_Color;
+extern TDataType<float> EPDT_Alpha;
+extern TDataType<UCol>  EPDT_Color;
 
 
 SERIALIZATION_DECLARE_ENUM(ERibbonMode,
@@ -34,7 +33,7 @@ SERIALIZATION_DECLARE_ENUM(ERibbonStreamSource,
                            )
 
 
-EParticleDataType DataType(ERibbonStreamSource source)
+TDataType<float> DataType(ERibbonStreamSource source)
 {
 	return source == ERibbonStreamSource::Spawn ? EPDT_SpawnFraction : EPDT_NormalAge;
 }
@@ -96,7 +95,7 @@ void CFeatureRenderRibbon::AddToComponent(CParticleComponent* pComponent, SCompo
 {
 	BaseClass::AddToComponent(pComponent, pParams);
 	CParticleComponent* pParent = pComponent->GetParentComponent();
-	pComponent->AddToUpdateList(EUL_InitUpdate, this);
+	pComponent->InitParticles.add(this);
 	pComponent->AddParticleData(EPDT_ParentId);
 	pComponent->AddParticleData(EPDT_SpawnId);
 	if (pParent)
@@ -126,46 +125,44 @@ void CFeatureRenderRibbon::Serialize(Serialization::IArchive& ar)
 
 void CFeatureRenderRibbon::InitParticles(const SUpdateContext& context)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_PARTICLE);
+	CRY_PROFILE_FUNCTION(PROFILE_PARTICLE);
 
 	CParticleContainer& container = context.m_container;
 	CParticleContainer& parentContainer = context.m_parentContainer;
-	IOUintStream ribbonIds = container.GetIOUintStream(EPDT_RibbonId);
-	IPidStream parentIds = container.GetIPidStream(EPDT_ParentId);
-	IUintStream parentSpawnIds = parentContainer.GetIUintStream(EPDT_SpawnId, 0);
+	IOUintStream ribbonIds = container.IOStream(EPDT_RibbonId);
+	IPidStream parentIds = container.IStream(EPDT_ParentId);
+	IPidStream parentSpawnIds = parentContainer.IStream(EPDT_SpawnId);
 
-	CRY_PFX2_FOR_SPAWNED_PARTICLES(context)
+	for (auto particleId : context.GetSpawnedRange())
 	{
 		const TParticleId parentId = parentIds.Load(particleId);
 		const uint32 parentSpawnId = parentSpawnIds.SafeLoad(parentId);
 		ribbonIds.Store(particleId, parentSpawnId);
 	}
-	CRY_PFX2_FOR_END;
 }
 
 void CFeatureRenderRibbon::ComputeVertices(CParticleComponentRuntime* pComponentRuntime, const SCameraInfo& camInfo, CREParticle* pRE, uint64 uRenderFlags, float fMaxPixels)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_PARTICLE);
+	CRY_PROFILE_FUNCTION(PROFILE_PARTICLE);
 	PARTICLE_LIGHT_PROFILER();
 
-	const uint32 threadId = JobManager::GetWorkerThreadId();
-	auto& memHep = GetPSystem()->GetMemHeap(threadId);
+	auto& memHeap = GetPSystem()->GetThreadData().memHeap;
 	const CParticleContainer& container = pComponentRuntime->GetContainer();
-	const TParticleId lastParticleId = container.GetLastParticleId();
+	const uint32 numParticles = container.GetNumParticles();
 
-	if (lastParticleId == 0)
+	if (numParticles == 0)
 		return;
 
 	uint numVertices;
-	TParticleIdArray sortEntries(memHep, lastParticleId);
-	TRibbons ribbons(memHep);
+	TParticleIdArray sortEntries(memHeap, numParticles);
+	TRibbons ribbons(memHeap);
 	MakeRibbons(pComponentRuntime, &sortEntries, &ribbons, &numVertices);
 	WriteToGPUMem(pComponentRuntime, camInfo, pRE, sortEntries, ribbons, numVertices);
 
 	int totalRenderedParticles = 0;
 	for (uint ribbonId = 0; ribbonId < uint(ribbons.size()); ++ribbonId)
 		totalRenderedParticles += ribbons[ribbonId].m_lastIdx - ribbons[ribbonId].m_firstIdx;
-	pComponentRuntime->GetEmitter()->AddDrawCallCounts(totalRenderedParticles, 0);
+	pComponentRuntime->GetParticleStats().rendered += totalRenderedParticles;
 	GetPSystem()->GetProfiler().AddEntry(pComponentRuntime, EPS_RendereredParticles, uint(totalRenderedParticles));
 }
 
@@ -173,33 +170,26 @@ void CFeatureRenderRibbon::MakeRibbons(CParticleComponentRuntime* pComponentRunt
 {
 	CRY_PFX2_PROFILE_DETAIL;
 
-	const uint32 threadId = JobManager::GetWorkerThreadId();
-	auto& memHep = GetPSystem()->GetMemHeap(threadId);
+	auto& memHeap = GetPSystem()->GetThreadData().memHeap;
 	const SUpdateContext context = SUpdateContext(pComponentRuntime);
 	const CParticleContainer& container = pComponentRuntime->GetContainer();
-	const IUintStream ribbonIds = container.GetIUintStream(EPDT_RibbonId);
-	const IUintStream spawnIds = container.GetIUintStream(EPDT_SpawnId);
-	const TIStream<uint8> states = container.GetTIStream<uint8>(EPDT_State);
-	const TParticleId lastParticleId = container.GetLastParticleId();
-	uint numValidParticles = 0;
+	const IUintStream ribbonIds = container.IStream(EPDT_RibbonId);
+	const IPidStream spawnIds = container.IStream(EPDT_SpawnId);
+	const uint32 numParticles = container.GetNumParticles();
+	uint numValidParticles = context.GetUpdateRange().size();
 
 	{
-		const uint64 noKey = uint64(-1);
-		THeapArray<uint64> sortEntries(memHep, lastParticleId);
-		CRY_PFX2_FOR_ACTIVE_PARTICLES(context)
+		THeapArray<uint64> sortEntries(memHeap, numParticles);
+		for (auto particleId : context.GetUpdateRange())
 		{
 			const TParticleId ribbonId = ribbonIds.Load(particleId);
 			const uint32 spawnId = spawnIds.Load(particleId);
 			const uint64 key = (uint64(ribbonId) << 32) | uint64(spawnId);
-			const uint8 state = states.Load(particleId);
-			const bool valid = (state & ESB_Dead) == 0;
-			numValidParticles += uint(valid);
-			sortEntries[particleId] = valid ? key : noKey;
+			sortEntries[particleId] = key;
 		}
-		CRY_PFX2_FOR_END;
 		RadixSort(
 		  pSortEntries->begin(), pSortEntries->end(),
-		  sortEntries.begin(), sortEntries.end(), memHep);
+		  sortEntries.begin(), sortEntries.end(), memHeap);
 	}
 
 	uint ribbonCount = 0;
@@ -368,7 +358,7 @@ ILINE void CFeatureRenderRibbon::WriteToGPUMem(CParticleComponentRuntime* pCompo
 
 	const IVec3Stream parentPositions = parentContainer.GetIVec3Stream(EPVF_Position);
 	const IVec3Stream positions = container.GetIVec3Stream(EPVF_Position);
-	const IPidStream parentIds = container.GetIPidStream(EPDT_ParentId);
+	const IPidStream parentIds = container.IStream(EPDT_ParentId);
 	const IFStream parentAges = parentContainer.GetIFStream(EPDT_NormalAge);
 	const uint extraVertices = m_connectToOrigin ? 2 : 1;
 	const CRibbonColorSTs colorSTsSampler = CRibbonColorSTs(container, m_streamSource);

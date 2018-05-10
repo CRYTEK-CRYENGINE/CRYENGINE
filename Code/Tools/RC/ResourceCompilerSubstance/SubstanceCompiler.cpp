@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include <assert.h>                         // assert()
@@ -27,6 +27,7 @@
 
 #include "FileUtil.h"                       // GetFileSize()
 
+#include <CryString/CryPath.h>
 #include "StringHelpers.h"
 
 #include <CryCore/ToolsHelpers/ResourceCompilerHelper.h>
@@ -35,23 +36,6 @@
 
 #include "ISubstanceManager.h"
 #include "ISubstanceInstanceRenderer.h"
-
-static ThreadUtils::CriticalSection s_initDiallogSystemLock;
-
-
-const char* stristr(const char* szString, const char* szSubstring)
-{
-	int nSuperstringLength = (int)strlen(szString);
-	int nSubstringLength = (int)strlen(szSubstring);
-
-	for(int nSubstringPos = 0; nSubstringPos <= nSuperstringLength - nSubstringLength; ++nSubstringPos)
-	{
-		if (strnicmp(szString+nSubstringPos, szSubstring, nSubstringLength) == 0)
-			return szString+nSubstringPos;
-	}
-
-	return NULL;
-}
 
 // checks if preset exists, reports warning or error if doesn't
 bool CSubstanceCompiler::CheckForExistingPreset(const ConvertContext& CC, const string& presetName, bool errorInsteadOfWarning)
@@ -71,18 +55,11 @@ bool CSubstanceCompiler::CheckForExistingPreset(const ConvertContext& CC, const 
 	return true;
 }
 
-
 // constructor
-#pragma warning(push)
-#pragma warning(disable:4355) // 'this': used in base member initializer list
 CSubstanceCompiler::CSubstanceCompiler(CSubstanceConverter* converter)
 	: m_pConverter(converter)
 {
-
-
 }
-#pragma warning(pop)
-
 
 // destructor
 CSubstanceCompiler::~CSubstanceCompiler()
@@ -160,8 +137,19 @@ static string AutoselectPreset(const ConvertContext& CC, const uint32 width, con
 bool CSubstanceCompiler::ProcessImplementation()
 {
 	const string sourceFile = m_CC.GetSourcePath();
-	ISubstancePreset* currentPreset = ISubstancePreset::Load(sourceFile);
-	ISubstanceManager::Instance()->GenerateOutputs(currentPreset, m_pConverter->GetRenderer());
+	if (m_CC.pRC->GetVerbosityLevel() > 0)
+	{
+		RCLog("Processing substance preset: %s", sourceFile.c_str());
+	}
+
+	ISubstancePreset* pCurrentPreset = ISubstancePreset::Load(sourceFile);
+	if (!pCurrentPreset || pCurrentPreset->GetSubstanceArchive().empty())
+	{
+		RCLogError("Can't load substance preset: %s", sourceFile.c_str());
+		return false;
+	}
+
+	ISubstanceManager::Instance()->GenerateOutputs(pCurrentPreset, m_pConverter->GetRenderer());
 	return true;
 }
 
@@ -191,16 +179,16 @@ string CSubstanceCompiler::GetOutputFileNameOnly() const
 	const string sourceFileFinal = m_CC.config->GetAsString("overwritefilename", m_CC.sourceFileNameOnly.c_str(), m_CC.sourceFileNameOnly.c_str());
 
 	const bool bUseTiffExtension = 
-		StringHelpers::EqualsIgnoreCase(PathHelpers::FindExtension(m_CC.sourceFileNameOnly), "tif") &&
+		StringHelpers::EqualsIgnoreCase(PathUtil::GetExt(m_CC.sourceFileNameOnly), "tif") &&
 		(m_CC.config->GetAsBool("cleansettings", false, true) || 
 		m_CC.config->HasKey("savesettings") || 
 		m_CC.config->HasKey("savepreset"));
 	const char* szExtension = "tif";
 
-	return PathHelpers::ReplaceExtension(sourceFileFinal, szExtension);
+	return PathUtil::ReplaceExtension(sourceFileFinal, szExtension);
 }
 
 string CSubstanceCompiler::GetOutputPath() const
 {
-	return PathHelpers::Join(m_CC.GetOutputFolder(), GetOutputFileNameOnly());
+	return PathUtil::Make(m_CC.GetOutputFolder(), GetOutputFileNameOnly());
 }

@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 
@@ -392,7 +392,7 @@ void CEnvironmentPreset::ResetVariables()
 	AddVar("Advanced", "", "Ocean fog color multiplier", ITimeOfDay::PARAM_OCEANFOG_COLOR_MULTIPLIER, ITimeOfDay::TYPE_FLOAT, 1.0f, 0.0f, 1.0f);
 	AddVar("Advanced", "", "Ocean fog density", ITimeOfDay::PARAM_OCEANFOG_DENSITY, ITimeOfDay::TYPE_FLOAT, 0.2f, 0.0f, 1.0f);
 
-	AddVar("Advanced", "", "Skybox multiplier", ITimeOfDay::PARAM_SKYBOX_MULTIPLIER, ITimeOfDay::TYPE_FLOAT, 1.0f, 0.0f, 1.0f);
+	AddVar("Advanced", "", "Skybox multiplier", ITimeOfDay::PARAM_SKYBOX_MULTIPLIER, ITimeOfDay::TYPE_FLOAT, 1.0f, 0.0f, 10.0f);
 
 	const float arrDepthConstBias[] = { 1.0f, 1.0f, 1.9f, 3.0f, 2.0f, 2.0f, 2.0f, 2.0f };
 	const float arrDepthSlopeBias[] = { 4.0f, 2.0f, 0.24f, 0.24f, 0.5f, 0.5f, 0.5f, 0.5f };

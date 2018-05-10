@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 //
 //  Crytek Engine Source File.
 //  Copyright (C), Crytek Studios, 2006.
@@ -16,7 +16,7 @@
 #include "stdafx.h"
 #include <CrySystem/XML/IXml.h>
 #include "../../CryXML/IXMLSerializer.h"
-#include "../../CryXML/Xml/xml.h"
+#include "../../CryXML/XML/xml.h"
 #include "../../CryEngine/Cry3DEngine/MeshCompiler/MeshCompiler.h"
 #include "../../CryEngine/Cry3DEngine/MeshCompiler/TransformHelpers.h"
 #include "IPakSystem.h"
@@ -6545,7 +6545,7 @@ bool ColladaScene::AddCollisionMeshesCGF(CContentCGF* cgf, const SceneTransform&
 					int nSubset = mesh->m_pFaces[faceIndex].nSubset;
 					if (nSubset >= mesh->m_subsets.size())
 					{
-						ReportError(pListener, "Wrong subset index in face (node \"%s\").", GetSafeBoneName(node->GetName()));
+						ReportError(pListener, "Wrong subset index in face (node \"%s\").", GetSafeBoneName(node->GetName()).c_str());
 						return false;
 					}
 					proxy.m_arrMaterials[faceIndex] = mesh->m_subsets[nSubset].nMatID;
@@ -6556,7 +6556,8 @@ bool ColladaScene::AddCollisionMeshesCGF(CContentCGF* cgf, const SceneTransform&
 						enum { kMaxIndex = (1 << 16) - 1 };
 						if (vIdx > kMaxIndex)
 						{
-							ReportError(pListener, "Too many vertices in collision mesh: found vertex index %d, max index is %d (node \"%s\").", vIdx, kMaxIndex, GetSafeBoneName(node->GetName()));
+							ReportError(pListener, "Too many vertices in collision mesh: found vertex index %d, max index is %d (node \"%s\").",
+										vIdx, kMaxIndex, GetSafeBoneName(node->GetName()).c_str());
 							return false;
 						}
 						proxy.m_arrIndices[faceIndex * 3 + vertex] = mesh->m_pFaces[faceIndex].v[vertex];
@@ -6644,12 +6645,14 @@ bool ColladaScene::AddMorphTargetsCGF(CContentCGF* cgf, const SceneTransform& sc
 
 			if (!readMorphVertexPositions)
 			{
-				ReportWarning(pListener, "Error reading vertex positions for morph \"%s\".", (controller ? controller->GetMorphTargetName(morphIndex) : "UNKNOWN"));
+				ReportWarning(pListener, "Error reading vertex positions for morph \"%s\".",
+							  (controller ? controller->GetMorphTargetName(morphIndex).c_str() : "UNKNOWN"));
 				continue;
 			}
 			if (readMorphVertexPositions && readBaseVertexPositions && baseVertexPositions.size() != morphVertexPositions.size())
 			{
-				ReportWarning(pListener, "Morph target \"%s\" has different topology to base mesh.", (controller ? controller->GetMorphTargetName(morphIndex) : "UNKNOWN"));
+				ReportWarning(pListener, "Morph target \"%s\" has different topology to base mesh.",
+							  (controller ? controller->GetMorphTargetName(morphIndex).c_str() : "UNKNOWN"));
 				continue;
 			}
 

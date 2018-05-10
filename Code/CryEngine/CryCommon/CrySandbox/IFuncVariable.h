@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -69,12 +69,12 @@ public:
 	float GetMin() const { return range.first; }
 	float GetMax() const { return range.second; }
 
-	MFPVariable(FuncParamType type, char* _humanname, char* _description, T* obj, OpticsBase_MFPtr setter, OpticsBase_MFPtr getter, float fMin = 0, float fMax = 1.0f)
+	MFPVariable(FuncParamType type, const char* _humanname, const char* _description, T* obj, OpticsBase_MFPtr setter, OpticsBase_MFPtr getter, float fMin = 0, float fMax = 1.0f)
 	{
 		Set(type, _humanname, _description, obj, setter, getter, fMin, fMax);
 	}
 
-	void Set(FuncParamType type, char* _humanname, char* _description, T* obj, OpticsBase_MFPtr setter, OpticsBase_MFPtr getter, float fMin = 0, float fMax = 1.0f)
+	void Set(FuncParamType type, const char* _humanname, const char* _description, T* obj, OpticsBase_MFPtr setter, OpticsBase_MFPtr getter, float fMin = 0, float fMax = 1.0f)
 	{
 		paramType = type;
 

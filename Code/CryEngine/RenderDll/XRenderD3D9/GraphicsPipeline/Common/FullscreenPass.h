@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -10,23 +10,11 @@ public:
 	CFullscreenPass(CRenderPrimitive::EPrimitiveFlags primitiveFlags = CRenderPrimitive::eFlags_ReflectShaderConstants);
 	~CFullscreenPass();
 
-	bool InputChanged(int var0 = 0, int var1 = 0, int var2 = 0, int var3 = 0)
+	bool InputChanged() const override final
 	{
-		bool bChanged = IsOutputDirty() || 
-		                m_primitive.IsDirty() ||
-		                var0 != m_inputVars[0] || var1 != m_inputVars[1] ||
-		                var2 != m_inputVars[2] || var3 != m_inputVars[3];
-
-		if (bChanged)
-		{
-			m_inputVars[0] = var0;
-			m_inputVars[1] = var1;
-			m_inputVars[2] = var2;
-			m_inputVars[3] = var3;
-		}
-
-		return bChanged;
+		return IsDirty();
 	}
+	using CRenderPassBase::InputChanged;
 
 	void SetPrimitiveFlags(CRenderPrimitive::EPrimitiveFlags flags);
 
@@ -82,9 +70,14 @@ public:
 		m_clipZ = clipSpaceZ;
 	}
 
-	void SetConstant(const CCryNameR& paramName, const Vec4 param, EHWShaderClass shaderClass = eHWSC_Pixel)
+	void SetConstant(const CCryNameR& paramName, const Vec4 &param, EHWShaderClass shaderClass = eHWSC_Pixel)
 	{
 		m_primitive.GetConstantManager().SetNamedConstant(paramName, param, shaderClass);
+	}
+
+	void SetConstant(const CCryNameR& paramName, const Matrix44 &param, EHWShaderClass shaderClass = eHWSC_Pixel)
+	{
+		SetConstantArray(paramName, reinterpret_cast<const Vec4*>(param.GetData()), 4, shaderClass);
 	}
 
 	void SetConstantArray(const CCryNameR& paramName, const Vec4 params[], uint32 numParams, EHWShaderClass shaderClass = eHWSC_Pixel)
@@ -119,10 +112,10 @@ public:
 
 	bool Execute();
 
+	bool IsDirty() const { return m_primitive.IsDirty(); }
+
 private:
 	void                     UpdatePrimitive();
-
-	int                      m_inputVars[4];
 
 	bool                     m_bRequirePerViewCB;
 	bool                     m_bRequireWorldPos;

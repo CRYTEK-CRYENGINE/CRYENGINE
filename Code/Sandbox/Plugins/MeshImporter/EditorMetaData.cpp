@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "EditorMetaData.h"
@@ -171,3 +171,4 @@ std::unique_ptr<FbxMetaData::IEditorMetaData> SEditorMetaData::Clone() const
 {
 	return std::make_unique<SEditorMetaData>(*this);
 }
+

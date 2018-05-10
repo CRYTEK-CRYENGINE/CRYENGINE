@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 /*
    declaration of job structures
@@ -73,7 +73,8 @@ struct SJobQueue
 		eMaxWorkQueueJobsHighPriority    = nMaxWorkQueueJobsHighPriority,
 		eMaxWorkQueueJobsRegularPriority = nMaxWorkQueueJobsRegularPriority,
 		eMaxWorkQueueJobsLowPriority     = nMaxWorkQueueJobsLowPriority,
-		eMaxWorkQueueJobsStreamPriority  = nMaxWorkQueueJobsStreamPriority
+		eMaxWorkQueueJobsStreamPriority  = nMaxWorkQueueJobsStreamPriority,
+		eMaxWorkQueueJobsSize            = nMaxWorkQueueJobsHighPriority + nMaxWorkQueueJobsRegularPriority + nMaxWorkQueueJobsLowPriority + nMaxWorkQueueJobsStreamPriority
 	};
 
 	CRY_ALIGN(128) JobManager::SJobQueuePos push;                     // position in which jobs are pushed by the PPU
@@ -165,6 +166,8 @@ inline JobManager::detail::EAddJobRes JobManager::SJobQueue<nMaxWorkQueueJobsHig
 template<int nMaxWorkQueueJobsHighPriority, int nMaxWorkQueueJobsRegularPriority, int nMaxWorkQueueJobsLowPriority, int nMaxWorkQueueJobsStreamPriority>
 inline void JobManager::SJobQueue<nMaxWorkQueueJobsHighPriority, nMaxWorkQueueJobsRegularPriority, nMaxWorkQueueJobsLowPriority, nMaxWorkQueueJobsStreamPriority >::Init()
 {
+	MEMSTAT_CONTEXT(EMemStatContextTypes::MSC_Other, 0, " Init JobManager: JobQueues ");
+
 	// verify assumation about queue size at compile time
 	STATIC_CHECK(IsPowerOfTwoCompileTime<eMaxWorkQueueJobsHighPriority>::IsPowerOfTwo, ERROR_MAX_JOB_QUEUE_SIZE__HIGH_PRIORITY_IS_NOT_POWER_OF_TWO);
 	STATIC_CHECK(IsPowerOfTwoCompileTime<eMaxWorkQueueJobsRegularPriority>::IsPowerOfTwo, ERROR_MAX_JOB_QUEUE_SIZE_REGULAR_PRIORITY_IS_NOT_POWER_OF_TWO);
@@ -172,25 +175,37 @@ inline void JobManager::SJobQueue<nMaxWorkQueueJobsHighPriority, nMaxWorkQueueJo
 	STATIC_CHECK(IsPowerOfTwoCompileTime<eMaxWorkQueueJobsStreamPriority>::IsPowerOfTwo, ERROR_MAX_JOB_QUEUE_SIZE__LOW_PRIORITY_IS_NOT_POWER_OF_TWO);
 
 	// init job queues
-	jobInfoBlocks[eHighPriority] = static_cast<JobManager::SInfoBlock*>(CryModuleMemalign(eMaxWorkQueueJobsHighPriority * sizeof(JobManager::SInfoBlock), 128));
-	jobInfoBlockStates[eHighPriority] = static_cast<JobManager::detail::SJobQueueSlotState*>(CryModuleMemalign(eMaxWorkQueueJobsHighPriority * sizeof(JobManager::detail::SJobQueueSlotState), 128));
-	memset(jobInfoBlocks[eHighPriority], 0, eMaxWorkQueueJobsHighPriority * sizeof(JobManager::SInfoBlock));
-	memset(jobInfoBlockStates[eHighPriority], 0, eMaxWorkQueueJobsHighPriority * sizeof(JobManager::detail::SJobQueueSlotState));
+	{
+		MEMSTAT_CONTEXT(EMemStatContextTypes::MSC_Other, 0, " High Prio Queue ");
+		jobInfoBlocks[eHighPriority] = static_cast<JobManager::SInfoBlock*>(CryModuleMemalign(eMaxWorkQueueJobsHighPriority * sizeof(JobManager::SInfoBlock), 128));
+		jobInfoBlockStates[eHighPriority] = static_cast<JobManager::detail::SJobQueueSlotState*>(CryModuleMemalign(eMaxWorkQueueJobsHighPriority * sizeof(JobManager::detail::SJobQueueSlotState), 128));
+		memset(jobInfoBlocks[eHighPriority], 0, eMaxWorkQueueJobsHighPriority * sizeof(JobManager::SInfoBlock));
+		memset(jobInfoBlockStates[eHighPriority], 0, eMaxWorkQueueJobsHighPriority * sizeof(JobManager::detail::SJobQueueSlotState));
+	}
 
-	jobInfoBlocks[eRegularPriority] = static_cast<JobManager::SInfoBlock*>(CryModuleMemalign(eMaxWorkQueueJobsRegularPriority * sizeof(JobManager::SInfoBlock), 128));
-	jobInfoBlockStates[eRegularPriority] = static_cast<JobManager::detail::SJobQueueSlotState*>(CryModuleMemalign(eMaxWorkQueueJobsRegularPriority * sizeof(JobManager::detail::SJobQueueSlotState), 128));
-	memset(jobInfoBlocks[eRegularPriority], 0, eMaxWorkQueueJobsRegularPriority * sizeof(JobManager::SInfoBlock));
-	memset(jobInfoBlockStates[eRegularPriority], 0, eMaxWorkQueueJobsRegularPriority * sizeof(JobManager::detail::SJobQueueSlotState));
+	{
+		MEMSTAT_CONTEXT(EMemStatContextTypes::MSC_Other, 0, " Regular Prio Queue ");
+		jobInfoBlocks[eRegularPriority] = static_cast<JobManager::SInfoBlock*>(CryModuleMemalign(eMaxWorkQueueJobsRegularPriority * sizeof(JobManager::SInfoBlock), 128));
+		jobInfoBlockStates[eRegularPriority] = static_cast<JobManager::detail::SJobQueueSlotState*>(CryModuleMemalign(eMaxWorkQueueJobsRegularPriority * sizeof(JobManager::detail::SJobQueueSlotState), 128));
+		memset(jobInfoBlocks[eRegularPriority], 0, eMaxWorkQueueJobsRegularPriority * sizeof(JobManager::SInfoBlock));
+		memset(jobInfoBlockStates[eRegularPriority], 0, eMaxWorkQueueJobsRegularPriority * sizeof(JobManager::detail::SJobQueueSlotState));
+	}
 
-	jobInfoBlocks[eLowPriority] = static_cast<JobManager::SInfoBlock*>(CryModuleMemalign(eMaxWorkQueueJobsLowPriority * sizeof(JobManager::SInfoBlock), 128));
-	jobInfoBlockStates[eLowPriority] = static_cast<JobManager::detail::SJobQueueSlotState*>(CryModuleMemalign(eMaxWorkQueueJobsLowPriority * sizeof(JobManager::detail::SJobQueueSlotState), 128));
-	memset(jobInfoBlocks[eLowPriority], 0, eMaxWorkQueueJobsLowPriority * sizeof(JobManager::SInfoBlock));
-	memset(jobInfoBlockStates[eLowPriority], 0, eMaxWorkQueueJobsLowPriority * sizeof(JobManager::detail::SJobQueueSlotState));
+	{
+		MEMSTAT_CONTEXT(EMemStatContextTypes::MSC_Other, 0, " Low Prio Queue ");
+		jobInfoBlocks[eLowPriority] = static_cast<JobManager::SInfoBlock*>(CryModuleMemalign(eMaxWorkQueueJobsLowPriority * sizeof(JobManager::SInfoBlock), 128));
+		jobInfoBlockStates[eLowPriority] = static_cast<JobManager::detail::SJobQueueSlotState*>(CryModuleMemalign(eMaxWorkQueueJobsLowPriority * sizeof(JobManager::detail::SJobQueueSlotState), 128));
+		memset(jobInfoBlocks[eLowPriority], 0, eMaxWorkQueueJobsLowPriority * sizeof(JobManager::SInfoBlock));
+		memset(jobInfoBlockStates[eLowPriority], 0, eMaxWorkQueueJobsLowPriority * sizeof(JobManager::detail::SJobQueueSlotState));
+	}
 
-	jobInfoBlocks[eStreamPriority] = static_cast<JobManager::SInfoBlock*>(CryModuleMemalign(eMaxWorkQueueJobsStreamPriority * sizeof(JobManager::SInfoBlock), 128));
-	jobInfoBlockStates[eStreamPriority] = static_cast<JobManager::detail::SJobQueueSlotState*>(CryModuleMemalign(eMaxWorkQueueJobsStreamPriority * sizeof(JobManager::detail::SJobQueueSlotState), 128));
-	memset(jobInfoBlocks[eStreamPriority], 0, eMaxWorkQueueJobsStreamPriority * sizeof(JobManager::SInfoBlock));
-	memset(jobInfoBlockStates[eStreamPriority], 0, eMaxWorkQueueJobsStreamPriority * sizeof(JobManager::detail::SJobQueueSlotState));
+	{
+		MEMSTAT_CONTEXT(EMemStatContextTypes::MSC_Other, 0, " Stream Prio Queue ");
+		jobInfoBlocks[eStreamPriority] = static_cast<JobManager::SInfoBlock*>(CryModuleMemalign(eMaxWorkQueueJobsStreamPriority * sizeof(JobManager::SInfoBlock), 128));
+		jobInfoBlockStates[eStreamPriority] = static_cast<JobManager::detail::SJobQueueSlotState*>(CryModuleMemalign(eMaxWorkQueueJobsStreamPriority * sizeof(JobManager::detail::SJobQueueSlotState), 128));
+		memset(jobInfoBlocks[eStreamPriority], 0, eMaxWorkQueueJobsStreamPriority * sizeof(JobManager::SInfoBlock));
+		memset(jobInfoBlockStates[eStreamPriority], 0, eMaxWorkQueueJobsStreamPriority * sizeof(JobManager::detail::SJobQueueSlotState));
+	}
 
 	// init queue pos objects
 	push.jobQueue[eHighPriority] = jobInfoBlocks[eHighPriority];

@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 using System;
 using System.Drawing;
@@ -63,7 +63,7 @@ namespace CryEngine.Resources
 		{
 			_path = "[Blank]";
 			_rawImage = bmp;
-			Texture = new Graphic(Width, Height, bmp.GetPixels());
+			Texture = new Graphic(Width, Height, bmp.GetPixels(), false, false, false, "BLANK_IMAGE");
 		}
 
 		/// <summary>
@@ -84,7 +84,8 @@ namespace CryEngine.Resources
 				_rawImage = new Bitmap(path);
 
 				Log.Info("Loaded '" + path + "' (" + Width + "x" + Height + ")");
-				Texture = new Graphic(Width, Height, _rawImage.GetPixels(), filtered);
+				string filename = System.IO.Path.GetFileNameWithoutExtension(path);
+				Texture = new Graphic(Width, Height, _rawImage.GetPixels(), false, false, false, filename + "_Image");
 			}
 			catch (Exception ex)
 			{

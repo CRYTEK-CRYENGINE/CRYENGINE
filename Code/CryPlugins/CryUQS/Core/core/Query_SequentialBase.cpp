@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 
@@ -38,7 +38,7 @@ namespace UQS
 			runtimeParams.AddSelfToOtherAndReplace(m_runtimeParams);
 
 			// instantiate the first child query
-			InstantiateNextChildQueryBlueprint();
+			InstantiateNextChildQueryBlueprint(m_pOptionalShuttledItems);
 			if (m_bExceptionOccurredInChild)
 			{
 				error = m_exceptionMessageFromChild;
@@ -119,50 +119,25 @@ namespace UQS
 			return (m_indexOfNextChildToInstantiate < m_pQueryBlueprint->GetChildCount());
 		}
 
-		void CQuery_SequentialBase::StoreResultSetForUseInNextChildQuery(const IQueryResultSet& resultSetOfPreviousChildQuery)
-		{
-			// TODO: copying the items from the result set to a separate list is not very efficient
-			//       -> would be better to somehow move-transfer what is in the underlying CItemList
-
-			Client::IItemFactory& itemFactory = resultSetOfPreviousChildQuery.GetItemFactory();
-			const size_t numItemsInResultSet = resultSetOfPreviousChildQuery.GetResultCount();
-
-			m_pResultingItemsOfLastChildQuery.reset(new CItemList);
-			m_pResultingItemsOfLastChildQuery->SetItemFactory(itemFactory);
-			m_pResultingItemsOfLastChildQuery->CreateItemsByItemFactory(numItemsInResultSet);
-
-			// copy all items from the child result set to the list which will act as input for the next query in the chain
-			for (size_t i = 0; i < numItemsInResultSet; ++i)
-			{
-				const void* pSourceItem = resultSetOfPreviousChildQuery.GetResult(i).pItem;
-				void* pTargetItem = m_pResultingItemsOfLastChildQuery->GetItemAtIndex(i);
-				itemFactory.CopyItem(pTargetItem, pSourceItem);
-			}
-		}
-
-		void CQuery_SequentialBase::InstantiateNextChildQueryBlueprint()
+		void CQuery_SequentialBase::InstantiateNextChildQueryBlueprint(const std::shared_ptr<CItemList>& pResultingItemsOfPotentialPreviousChildQuery)
 		{
 			assert(m_indexOfNextChildToInstantiate < m_pQueryBlueprint->GetChildCount());
 			assert(!m_queryIDOfCurrentlyRunningChild.IsValid());
 
 			const size_t indexOfChildToInstantiate = m_indexOfNextChildToInstantiate++;
-			std::shared_ptr<const CQueryBlueprint> childQueryBlueprintToInstantiate = m_pQueryBlueprint->GetChild(indexOfChildToInstantiate);
+			std::shared_ptr<const CQueryBlueprint> pChildQueryBlueprintToInstantiate = m_pQueryBlueprint->GetChild(indexOfChildToInstantiate);
 
 			stack_string querierName;
 			querierName.Format("%s::[childQuery_#%i]", m_querierName.c_str(), (int)indexOfChildToInstantiate);
 
 			m_queryIDOfCurrentlyRunningChild = g_pHub->GetQueryManager().StartQueryInternal(
 				m_queryID,
-				childQueryBlueprintToInstantiate,
+				pChildQueryBlueprintToInstantiate,
 				m_runtimeParams,
 				querierName.c_str(),
 				functor(*this, &CQuery_SequentialBase::OnChildQueryFinished),
-				m_pResultingItemsOfLastChildQuery,
+				pResultingItemsOfPotentialPreviousChildQuery,
 				m_exceptionMessageFromChild);
-
-			// - the query should have move-transferred the possibly existing items from the previous query
-			// - this assert() is just a convenience to ensure that CQueryBase's ctor really did that
-			assert(!m_pResultingItemsOfLastChildQuery);
 
 			if (!m_queryIDOfCurrentlyRunningChild.IsValid())
 			{

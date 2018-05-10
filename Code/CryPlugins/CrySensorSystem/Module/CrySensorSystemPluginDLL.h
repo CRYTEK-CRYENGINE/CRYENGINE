@@ -1,41 +1,40 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
 #include "../Interface/ICrySensorSystemPlugin.h"
 
-class CSensorSystem;
-
-class CCrySensorSystemPlugin : public ICrySensorSystemPlugin
+namespace Cry
 {
-	CRYINTERFACE_BEGIN()
-	CRYINTERFACE_ADD(ICrySensorSystemPlugin)
-	CRYINTERFACE_ADD(ICryPlugin)
-	CRYINTERFACE_END()
+	namespace SensorSystem
+	{
+		class CSensorSystem;
 
-	CRYGENERATE_SINGLETONCLASS_GUID(CCrySensorSystemPlugin, "Plugin_CrySensorSystem", "08a96846-8933-4211-913f-7a64c0bf9822"_cry_guid)
+		class CCrySensorSystemPlugin : public ICrySensorSystemPlugin
+		{
+			CRYINTERFACE_BEGIN()
+				CRYINTERFACE_ADD(ICrySensorSystemPlugin)
+				CRYINTERFACE_ADD(Cry::IEnginePlugin)
+			CRYINTERFACE_END()
 
-	virtual ~CCrySensorSystemPlugin() {}
+			CRYGENERATE_SINGLETONCLASS_GUID(CCrySensorSystemPlugin, "Plugin_CrySensorSystem", "08a96846-8933-4211-913f-7a64c0bf9822"_cry_guid)
 
-	// ICryPlugin
-	virtual const char* GetName() const override;
-	virtual const char* GetCategory() const override;
-	virtual bool        Initialize(SSystemGlobalEnvironment& env, const SSystemInitParams& initParams) override;
-	// ~ICryPlugin
+			virtual ~CCrySensorSystemPlugin() {}
 
-public:
+			// Cry::IEnginePlugin
+			virtual bool Initialize(SSystemGlobalEnvironment& env, const SSystemInitParams& initParams) override;
+			virtual void MainUpdate(float frameTime) override;
+			// ~Cry::IEnginePlugin
 
-	// ICrySensorSystemPlugin
-	virtual ISensorSystem& GetSensorSystem() const override;
-	// ~ICrySensorSystemPlugin
+		public:
 
-protected:
+			// ICrySensorSystemPlugin
+			virtual ISensorSystem& GetSensorSystem() const override;
+			// ~ICrySensorSystemPlugin
 
-	// IPluginUpdateListener
-	virtual void OnPluginUpdate(EPluginUpdateType updateType) override;
-	// ~IPluginUpdateListener
+		private:
 
-private:
-
-	std::unique_ptr<CSensorSystem> m_pSensorSystem;
-};
+			std::unique_ptr<CSensorSystem> m_pSensorSystem;
+		};
+	}
+}

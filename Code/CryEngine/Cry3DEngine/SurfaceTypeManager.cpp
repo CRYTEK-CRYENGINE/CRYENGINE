@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 // -------------------------------------------------------------------------
 //  File name:   SurfaceManager.cpp
@@ -406,6 +406,9 @@ void CSurfaceTypeManager::LoadSurfaceTypes()
 		}
 
 		int bManuallyBreakable = 0;
+		// The "important" value indicates if this surface has a high or low priority (default is high priority)
+		// Particles can do a ray world intersection based on priority
+		int important = sf_important;
 		bool bNoCollide = false;
 		bool vehicle_only_collisions = false;
 		bool nBreakable2d = 0;
@@ -453,6 +456,7 @@ void CSurfaceTypeManager::LoadSurfaceTypes()
 			physNode->getAttr("vehicle_only_collisions", vehicle_only_collisions);
 			physNode->getAttr("can_shatter", can_shatter);
 			physNode->getAttr("sound_obstruction", physParams.sound_obstruction);
+			physNode->getAttr("important", important);
 
 			string collTypeStr = physNode->getAttr("coll_types");
 			if (collTypeStr.length())
@@ -497,6 +501,10 @@ void CSurfaceTypeManager::LoadSurfaceTypes()
 				physParams.iBreakability = nBreakable2d ? 1 : 2;
 				bManuallyBreakable = sf_manually_breakable;
 			}
+			if (important != 0)
+			{
+				important = sf_important;
+			}
 
 			if (bNoCollide)
 				pSurfaceType->m_nFlags |= SURFACE_TYPE_NO_COLLIDE;
@@ -509,7 +517,7 @@ void CSurfaceTypeManager::LoadSurfaceTypes()
 			{
 				gEnv->pPhysicalWorld->SetSurfaceParameters(pSurfaceType->GetId(), physParams.bouncyness, physParams.friction, physParams.damage_reduction,
 				                                           physParams.ric_angle, physParams.ric_dam_reduction, physParams.ric_vel_reduction,
-				                                           sf_pierceability(physParams.pierceability) | sf_matbreakable(physParams.breakable_id) | bManuallyBreakable);
+				                                           sf_pierceability(physParams.pierceability) | sf_matbreakable(physParams.breakable_id) | bManuallyBreakable | important);
 			}
 		}
 

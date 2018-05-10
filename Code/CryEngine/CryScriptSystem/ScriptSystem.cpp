@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 
@@ -1452,41 +1452,41 @@ HSCRIPTFUNCTION CScriptSystem::GetFunctionPtr(const char* sTableName, const char
 //////////////////////////////////////////////////////////////////////////
 void CScriptSystem::PushAny(const ScriptAnyValue& var)
 {
-	switch (var.type)
+	switch (var.GetType())
 	{
-	case ANY_ANY:
-	case ANY_TNIL:
+	case EScriptAnyType::Any:
+	case EScriptAnyType::Nil:
 		lua_pushnil(L);
 		break;
 		;
-	case ANY_TBOOLEAN:
-		lua_pushboolean(L, var.b);
+	case EScriptAnyType::Boolean:
+		lua_pushboolean(L, var.GetBool());
 		break;
 		;
-	case ANY_THANDLE:
-		lua_pushlightuserdata(L, const_cast<void*>(var.ptr));
+	case EScriptAnyType::Handle:
+		lua_pushlightuserdata(L, var.GetScriptHandle().ptr);
 		break;
-	case ANY_TNUMBER:
-		lua_pushnumber(L, var.number);
+	case EScriptAnyType::Number:
+		lua_pushnumber(L, var.GetNumber());
 		break;
-	case ANY_TSTRING:
-		lua_pushstring(L, var.str);
+	case EScriptAnyType::String:
+		lua_pushstring(L, var.GetString());
 		break;
-	case ANY_TTABLE:
-		if (var.table)
-			PushTable(var.table);
+	case EScriptAnyType::Table:
+		if (var.GetScriptTable())
+			PushTable(var.GetScriptTable());
 		else
 			lua_pushnil(L);
 		break;
-	case ANY_TFUNCTION:
-		lua_getref(L, (int)(INT_PTR)var.function);
+	case EScriptAnyType::Function:
+		lua_getref(L, (int)(INT_PTR)var.GetScriptFunction());
 		assert(lua_type(L, -1) == LUA_TFUNCTION);
 		break;
-	case ANY_TUSERDATA:
-		lua_getref(L, var.ud.nRef);
+	case EScriptAnyType::UserData:
+		lua_getref(L, var.GetUserData().nRef);
 		break;
-	case ANY_TVECTOR:
-		PushVec3(Vec3(var.vec3.x, var.vec3.y, var.vec3.z));
+	case EScriptAnyType::Vector:
+		PushVec3(var.GetVector());
 		break;
 	default:
 		// Must handle everything.
@@ -1502,46 +1502,40 @@ bool CScriptSystem::ToAny(ScriptAnyValue& var, int index)
 
 	CHECK_STACK(L);
 
-	if (var.type == ANY_ANY)
+	if (var.GetType() == EScriptAnyType::Any)
 	{
 		switch (lua_type(L, index))
 		{
 		case LUA_TNIL:
-			var.type = ANY_TNIL;
+			var.SetNil();
 			break;
 		case LUA_TBOOLEAN:
-			var.b = lua_toboolean(L, index) != 0;
-			var.type = ANY_TBOOLEAN;
+			var.SetBool(lua_toboolean(L, index) != 0);
 			break;
 		case LUA_TLIGHTUSERDATA:
-			var.ptr = lua_topointer(L, index);
-			var.type = ANY_THANDLE;
+			var.SetScriptHandle(const_cast<void*>(lua_topointer(L, index)));
 			break;
 		case LUA_TNUMBER:
-			var.number = (float)lua_tonumber(L, index);
-			var.type = ANY_TNUMBER;
+			var.SetNumber(static_cast<float>(lua_tonumber(L, index)));
 			break;
 		case LUA_TSTRING:
-			var.str = lua_tostring(L, index);
-			var.type = ANY_TSTRING;
+			var.SetString(lua_tostring(L, index));
 			break;
 		case LUA_TTABLE:
 		case LUA_TUSERDATA:
-			if (!var.table)
+			if (var.GetType() != EScriptAnyType::Table || !var.GetScriptTable())
 			{
-				var.table = AllocTable();
-				var.table->AddRef();
+				var.SetScriptTable(AllocTable());
+				var.GetScriptTable()->AddRef();
 			}
 			lua_pushvalue(L, index);
-			AttachTable(var.table);
-			var.type = ANY_TTABLE;
+			AttachTable(var.GetScriptTable());
 			break;
 		case LUA_TFUNCTION:
 			{
-				var.type = ANY_TFUNCTION;
 				// Make reference to function.
 				lua_pushvalue(L, index);
-				var.function = (HSCRIPTFUNCTION)(INT_PTR)lua_ref(L, 1);
+				var.SetScriptFunction((HSCRIPTFUNCTION)(INT_PTR)lua_ref(L, 1));
 			}
 			break;
 		case LUA_TTHREAD:
@@ -1556,84 +1550,82 @@ bool CScriptSystem::ToAny(ScriptAnyValue& var, int index)
 		switch (lua_type(L, index))
 		{
 		case LUA_TNIL:
-			if (var.type == ANY_TNIL)
+			if (var.GetType() == EScriptAnyType::Nil)
 				res = true;
 			break;
 		case LUA_TBOOLEAN:
-			if (var.type == ANY_TBOOLEAN)
+			if (var.GetType() == EScriptAnyType::Boolean)
 			{
-				var.b = lua_toboolean(L, index) != 0;
+				var.SetBool(lua_toboolean(L, index) != 0);
 				res = true;
 			}
 			break;
 		case LUA_TLIGHTUSERDATA:
-			if (var.type == ANY_THANDLE)
+			if (var.GetType() == EScriptAnyType::Handle)
 			{
-				var.ptr = lua_topointer(L, index);
+				var.SetScriptHandle(const_cast<void*>(lua_topointer(L, index)));
 				res = true;
 			}
 			break;
 		case LUA_TNUMBER:
-			if (var.type == ANY_TNUMBER)
+			if (var.GetType() == EScriptAnyType::Number)
 			{
-				var.number = (float)lua_tonumber(L, index);
+				var.SetNumber(static_cast<float>(lua_tonumber(L, index)));
 				res = true;
 			}
-			else if (var.type == ANY_TBOOLEAN)
+			else if (var.GetType() == EScriptAnyType::Boolean)
 			{
-				var.b = lua_tonumber(L, index) != 0;
+				var.SetBool(lua_tonumber(L, index) != 0);
 				res = true;
 			}
 			break;
 		case LUA_TSTRING:
-			if (var.type == ANY_TSTRING)
+			if (var.GetType() == EScriptAnyType::String)
 			{
-				var.str = lua_tostring(L, index);
+				var.SetString(lua_tostring(L, index));
 				res = true;
 			}
 			break;
 		case LUA_TTABLE:
-			if (var.type == ANY_TTABLE)
+			if (var.GetType() == EScriptAnyType::Table)
 			{
-				if (!var.table)
+				if (!var.GetScriptTable())
 				{
-					var.table = AllocTable();
-					var.table->AddRef();
+					var.SetScriptTable(AllocTable());
+					var.GetScriptTable()->AddRef();
 				}
 				lua_pushvalue(L, index);
-				AttachTable(var.table);
+				AttachTable(var.GetScriptTable());
 				res = true;
 			}
-			else if (var.type == ANY_TVECTOR)
+			else if (var.GetType() == EScriptAnyType::Vector)
 			{
 				Vec3 v(0, 0, 0);
 				if (res = ToVec3(v, index))
 				{
-					var.vec3.x = v.x;
-					var.vec3.y = v.y;
-					var.vec3.z = v.z;
+					var.SetVector(v);
 				}
 			}
 			break;
 		case LUA_TUSERDATA:
-			if (var.type == ANY_TTABLE)
+			if (var.GetType() == EScriptAnyType::Table)
 			{
-				if (!var.table)
+				if (!var.GetScriptTable())
 				{
-					var.table = AllocTable();
-					var.table->AddRef();
+					var.SetScriptTable(AllocTable());
+					var.GetScriptTable()->AddRef();
 				}
 				lua_pushvalue(L, index);
-				AttachTable(var.table);
+				AttachTable(var.GetScriptTable());
 				res = true;
 			}
 			break;
 		case LUA_TFUNCTION:
-			if (var.type == ANY_TFUNCTION)
+			if (var.GetType() == EScriptAnyType::Function)
 			{
 				// Make reference to function.
 				lua_pushvalue(L, index);
-				var.function = (HSCRIPTFUNCTION)(INT_PTR)lua_ref(L, 1);
+				var.SetScriptFunction((HSCRIPTFUNCTION)(INT_PTR)lua_ref(L, 1));
 				res = true;
 			}
 			break;
@@ -1756,14 +1748,14 @@ bool CScriptSystem::GetRecursiveAny(IScriptTable* pTable, const char* sKey, Scri
 	if (!pTable->GetValueAny(key1, localAny))
 		return false;
 
-	if (localAny.type == ANY_TFUNCTION && NULL == sep)
+	if (localAny.GetType() == EScriptAnyType::Function && NULL == sep)
 	{
 		any = localAny;
 		return true;
 	}
-	else if (localAny.type == ANY_TTABLE && NULL != sep)
+	else if (localAny.GetType() == EScriptAnyType::Table && NULL != sep)
 	{
-		return GetRecursiveAny(localAny.table, key2, any);
+		return GetRecursiveAny(localAny.GetScriptTable(), key2, any);
 	}
 	return false;
 }
@@ -1780,9 +1772,9 @@ bool CScriptSystem::GetGlobalAny(const char* sKey, ScriptAnyValue& any)
 		cry_strcpy(key1, sKey);
 		key1[sep - sKey] = 0;
 		GetGlobalAny(key1, globalAny);
-		if (globalAny.type == ANY_TTABLE)
+		if (globalAny.GetType() == EScriptAnyType::Table)
 		{
-			return GetRecursiveAny(globalAny.table, sep + 1, any);
+			return GetRecursiveAny(globalAny.GetScriptTable(), sep + 1, any);
 		}
 		return false;
 	}
@@ -1924,43 +1916,50 @@ ScriptAnyValue CScriptSystem::CloneAny(const ScriptAnyValue& any)
 {
 	CHECK_STACK(L);
 
-	ScriptAnyValue result(any.type);
+	ScriptAnyValue result(any.GetType());
 
-	switch (any.type)
+	switch (any.GetType())
 	{
-	case ANY_ANY:
-	case ANY_TNIL:
-	case ANY_TBOOLEAN:
-		result.b = any.b;
+	case EScriptAnyType::Any:
+	case EScriptAnyType::Nil:
+		// TODO_janh
 		break;
-	case ANY_TNUMBER:
-		result.number = any.number;
+
+	case EScriptAnyType::Boolean:
+		result.SetBool(any.GetBool());
 		break;
-	case ANY_THANDLE:
-		result.ptr = any.ptr;
+	case EScriptAnyType::Number:
+		result.SetNumber(any.GetNumber());
 		break;
-	case ANY_TSTRING:
-		result.str = any.str;
+	case EScriptAnyType::Handle:
+		result.SetScriptHandle(any.GetScriptHandle());
 		break;
-	case ANY_TTABLE:
-		if (any.table)
+	case EScriptAnyType::String:
+		result.SetString(any.GetString());
+		break;
+	case EScriptAnyType::Table:
+		if (any.GetScriptTable())
 		{
-			result.table = any.table;
-			result.table->Release();
+			result.SetScriptTable(any.GetScriptTable());
+			result.GetScriptTable()->Release();
 		}
 		break;
-	case ANY_TFUNCTION:
-		lua_getref(L, (int)(INT_PTR)any.function);
+	case EScriptAnyType::Function:
+		lua_getref(L, (int)(INT_PTR)any.GetScriptFunction());
 		assert(lua_type(L, -1) == LUA_TFUNCTION);
-		result.function = (HSCRIPTFUNCTION)(EXPAND_PTR)lua_ref(L, 1);
+		result.SetScriptFunction((HSCRIPTFUNCTION)(EXPAND_PTR)lua_ref(L, 1));
 		break;
-	case ANY_TUSERDATA:
-		result.ud.ptr = any.ud.ptr;
-		lua_getref(L, any.ud.nRef);
-		result.ud.nRef = lua_ref(L, 1);
-		break;
-	case ANY_TVECTOR:
-		result.vec3 = any.vec3;
+	case EScriptAnyType::UserData:
+		{
+			ScriptUserData ud;
+			ud.ptr = any.GetUserData().ptr;
+			lua_getref(L, any.GetUserData().nRef);
+			ud.nRef = lua_ref(L, 1);
+			result.SetUserData(ud);
+			break;
+		}
+	case EScriptAnyType::Vector:
+		result.SetVector(any.GetVector());
 		break;
 	default:
 		assert(0);
@@ -1973,22 +1972,22 @@ void CScriptSystem::ReleaseAny(const ScriptAnyValue& any)
 {
 	CHECK_STACK(L);
 
-	switch (any.type)
+	switch (any.GetType())
 	{
-	case ANY_ANY:
-	case ANY_TNIL:
-	case ANY_TBOOLEAN:
-	case ANY_TNUMBER:
-	case ANY_THANDLE:
-	case ANY_TSTRING:
-	case ANY_TVECTOR:
+	case EScriptAnyType::Any:
+	case EScriptAnyType::Nil:
+	case EScriptAnyType::Boolean:
+	case EScriptAnyType::Number:
+	case EScriptAnyType::Handle:
+	case EScriptAnyType::String:
+	case EScriptAnyType::Vector:
 		break;
-	case ANY_TTABLE:
-	case ANY_TFUNCTION:
+	case EScriptAnyType::Table:
+	case EScriptAnyType::Function:
 		// will be freed on delete
 		break;
-	case ANY_TUSERDATA:
-		lua_unref(L, any.ud.nRef);
+	case EScriptAnyType::UserData:
+		lua_unref(L, any.GetUserData().nRef);
 		break;
 	default:
 		assert(0);
@@ -2181,7 +2180,7 @@ void CScriptSystem::Update()
 
 	//if(bKickIn)
 	{
-		FRAME_PROFILER("Lua GC", m_pSystem, PROFILE_SCRIPT);
+		CRY_PROFILE_REGION(PROFILE_SCRIPT, "Lua GC");
 
 		//CryLog( "Lua GC=%d",GetCGCount() );
 
@@ -2494,33 +2493,33 @@ struct SRecursiveLuaDumpToFile : public IRecursiveLuaDump
 			nSize += strlen(sKey) + 1;
 		else
 			nSize += sizeof(int);
-		switch (value.type)
+		switch (value.GetType())
 		{
-		case ANY_TBOOLEAN:
-			if (value.b)
+		case EScriptAnyType::Boolean:
+			if (value.GetBool())
 				fprintf(file, "[%6d] %s %s=true\n", nSize, GetOffsetStr(nLevel), GetKeyStr(sKey, nKey));
 			else
 				fprintf(file, "[%6d] %s %s=false\n", nSize, GetOffsetStr(nLevel), GetKeyStr(sKey, nKey));
 			break;
-		case ANY_THANDLE:
-			fprintf(file, "[%6d] %s %s=%p\n", nSize, GetOffsetStr(nLevel), GetKeyStr(sKey, nKey), value.ptr);
+		case EScriptAnyType::Handle:
+			fprintf(file, "[%6d] %s %s=%p\n", nSize, GetOffsetStr(nLevel), GetKeyStr(sKey, nKey), value.GetScriptHandle().ptr);
 			break;
-		case ANY_TNUMBER:
-			fprintf(file, "[%6d] %s %s=%g\n", nSize, GetOffsetStr(nLevel), GetKeyStr(sKey, nKey), value.number);
+		case EScriptAnyType::Number:
+			fprintf(file, "[%6d] %s %s=%g\n", nSize, GetOffsetStr(nLevel), GetKeyStr(sKey, nKey), value.GetNumber());
 			break;
-		case ANY_TSTRING:
-			fprintf(file, "[%6d] %s %s=%s\n", nSize, GetOffsetStr(nLevel), GetKeyStr(sKey, nKey), value.str);
-			nSize += strlen(value.str) + 1;
+		case EScriptAnyType::String:
+			fprintf(file, "[%6d] %s %s=%s\n", nSize, GetOffsetStr(nLevel), GetKeyStr(sKey, nKey), value.GetString());
+			nSize += strlen(value.GetString()) + 1;
 			break;
 		//case ANY_TTABLE:
-		case ANY_TFUNCTION:
+		case EScriptAnyType::Function:
 			fprintf(file, "[%6d] %s %s()\n", nSize, GetOffsetStr(nLevel), GetKeyStr(sKey, nKey));
 			break;
-		case ANY_TUSERDATA:
+		case EScriptAnyType::UserData:
 			fprintf(file, "[%6d] %s [userdata] %s\n", nSize, GetOffsetStr(nLevel), GetKeyStr(sKey, nKey));
 			break;
-		case ANY_TVECTOR:
-			fprintf(file, "[%6d] %s %s=%g,%g,%g\n", nSize, GetOffsetStr(nLevel), GetKeyStr(sKey, nKey), value.vec3.x, value.vec3.y, value.vec3.z);
+		case EScriptAnyType::Vector:
+			fprintf(file, "[%6d] %s %s=%g,%g,%g\n", nSize, GetOffsetStr(nLevel), GetKeyStr(sKey, nKey), value.GetVector().x, value.GetVector().y, value.GetVector().z);
 			nSize += sizeof(Vec3);
 			break;
 		}
@@ -2699,7 +2698,7 @@ int CScriptSystem::BeginPreCachedBuffer(int iIndex)
 
 		if (ScriptFunction.GetVarType() == svtFunction)
 		{
-			iRet = BeginCall(ScriptFunction.function);
+			iRet = BeginCall(ScriptFunction.GetScriptFunction());
 		}
 
 		if (iRet == 0)

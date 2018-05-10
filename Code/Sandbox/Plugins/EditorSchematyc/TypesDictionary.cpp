@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "TypesDictionary.h"
@@ -40,6 +40,7 @@ QVariant CTypeDictionaryEntry::GetColumnValue(int32 columnIndex) const
 }
 
 CTypesDictionary::CTypesDictionary(const Schematyc::IScriptElement* pScriptScope)
+	: m_pScriptScope(nullptr)
 {
 	Load(pScriptScope);
 }
@@ -49,36 +50,13 @@ CTypesDictionary::~CTypesDictionary()
 
 }
 
-const CAbstractDictionaryEntry* CTypesDictionary::GetEntry(int32 index) const
+void CTypesDictionary::ResetEntries()
 {
-	if (index < m_types.size())
-	{
-		return static_cast<const CAbstractDictionaryEntry*>(&m_types[index]);
-	}
-
-	return nullptr;
-}
-
-QString CTypesDictionary::GetColumnName(int32 index) const
-{
-	switch (index)
-	{
-	case Column_Name:
-		return QString("Name");
-	default:
-		break;
-	}
-
-	return QString();
-}
-
-void CTypesDictionary::Load(const Schematyc::IScriptElement* pScriptScope)
-{
-	if (pScriptScope)
+	if (m_pScriptScope)
 	{
 		m_types.reserve(50);
 
-		Schematyc::IScriptViewPtr pScriptView = gEnv->pSchematyc->CreateScriptView(pScriptScope->GetGUID());
+		Schematyc::IScriptViewPtr pScriptView = gEnv->pSchematyc->CreateScriptView(m_pScriptScope->GetGUID());
 
 		auto visitEnvType = [this, &pScriptView](const Schematyc::IEnvDataType& envType) -> Schematyc::EVisitStatus
 		{
@@ -120,6 +98,36 @@ void CTypesDictionary::Load(const Schematyc::IScriptElement* pScriptScope)
 		};
 		//pScriptView->VisitScriptStructs(visitScriptStruct, EDomainScope::Local);
 	}
+}
+
+const CAbstractDictionaryEntry* CTypesDictionary::GetEntry(int32 index) const
+{
+	if (index < m_types.size())
+	{
+		return static_cast<const CAbstractDictionaryEntry*>(&m_types[index]);
+	}
+
+	return nullptr;
+}
+
+QString CTypesDictionary::GetColumnName(int32 index) const
+{
+	switch (index)
+	{
+	case Column_Name:
+		return QString("Name");
+	default:
+		break;
+	}
+
+	return QString();
+}
+
+void CTypesDictionary::Load(const Schematyc::IScriptElement* pScriptScope)
+{
+	m_pScriptScope = pScriptScope;
+	Reset();
+	m_pScriptScope = nullptr;
 }
 
 }

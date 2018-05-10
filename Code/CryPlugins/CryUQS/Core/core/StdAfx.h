@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -74,6 +74,7 @@ namespace UQS
 #include "StartupConsistencyChecker.h"
 #include "EditorService.h"
 #include "Utils.h"
+#include "SettingsManager.h"
 #if UQS_SCHEMATYC_SUPPORT
 #include "SchematycSupport.h"
 #endif

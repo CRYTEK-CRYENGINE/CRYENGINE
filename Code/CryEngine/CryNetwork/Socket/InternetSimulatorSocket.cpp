@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "InternetSimulatorSocket.h"
@@ -215,7 +215,7 @@ void CInternetSimulatorSocket::SetProfile(EProfile profile)
 				CNetCVars::Get().net_PacketLossRate = fLoss;
 				CNetCVars::Get().net_PacketLagMin = pEntry->fLagMin;
 				CNetCVars::Get().net_PacketLagMax = pEntry->fLagMax;
-				CryLog("[LagProfiles] Using Profile %d settings. (%.2f%% chance of packet loss, %.2f-%.2f sec variable lag)", profile, fLoss, pEntry->fLagMin, pEntry->fLagMax);
+				CryLog("[LagProfiles] Profile %d: (%.2f%% chance of packet loss, %.2f-%.2fs variable lag) (%s)", profile, fLoss, pEntry->fLagMin, pEntry->fLagMax, pEntry->description.c_str());
 			}
 			else
 			{
@@ -269,6 +269,7 @@ void CInternetSimulatorSocket::LoadXMLProfiles(const char* pFileName)
 						profileNode->getAttr("maxPacketLoss", pProfile->fLossMax);
 						profileNode->getAttr("minPacketLag", pProfile->fLagMin);
 						profileNode->getAttr("maxPacketLag", pProfile->fLagMax);
+						pProfile->description = profileNode->getAttr("description");
 
 						pProfile++;
 					}

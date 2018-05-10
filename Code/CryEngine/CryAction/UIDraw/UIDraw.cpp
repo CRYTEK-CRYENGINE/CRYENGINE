@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 /*************************************************************************
    -------------------------------------------------------------------------
@@ -42,17 +42,13 @@ void CUIDraw::Release()
 
 void CUIDraw::PreRender()
 {
-	m_pRenderer->SetCullMode(R_CULL_DISABLE);
-	m_pRenderer->Set2DMode(true, m_pRenderer->GetOverlayWidth(), m_pRenderer->GetOverlayHeight());
-	m_pRenderer->SetColorOp(eCO_MODULATE, eCO_MODULATE, DEF_TEXARG0, DEF_TEXARG0);
-	m_pRenderer->SetState(GS_BLSRC_SRCALPHA | GS_BLDST_ONEMINUSSRCALPHA | GS_NODEPTHTEST);
+
 }
 
 //-----------------------------------------------------------------------------------------------------
 
 void CUIDraw::PostRender()
 {
-	m_pRenderer->Set2DMode(false, 0, 0);
 }
 
 //-----------------------------------------------------------------------------------------------------
@@ -155,7 +151,7 @@ void CUIDraw::DrawLine(float fX1, float fY1, float fX2, float fY2, uint32 uiDiff
 
 	uint16 ausIndices[] = { 0, 1 };
 
-	m_pRenderer->DrawDynVB(aVertices, ausIndices, 2, 2, prtLineList);
+	//m_pRenderer->DrawDynVB(aVertices, ausIndices, 2, 2, prtLineList);
 
 }
 
@@ -181,8 +177,8 @@ void CUIDraw::DrawTriangle(float fX0, float fY0, float fX1, float fY1, float fX2
 
 	uint16 ausIndices[] = { 0, 1, 2 };
 
-	m_pRenderer->SetWhiteTexture();
-	m_pRenderer->DrawDynVB(aVertices, ausIndices, 3, CRY_ARRAY_COUNT(ausIndices), prtTriangleList);
+	//m_pRenderer->SetWhiteTexture();
+	//m_pRenderer->DrawDynVB(aVertices, ausIndices, 3, CRY_ARRAY_COUNT(ausIndices), prtTriangleList);
 }
 
 //-----------------------------------------------------------------------------------------------------
@@ -211,8 +207,8 @@ void CUIDraw::DrawQuad(float fX,
 
 	if (bUse169)
 	{
-		float fWidth43 = m_pRenderer->GetHeight() * 4.0f / 3.0f;
-		float fScale = fWidth43 / (float) m_pRenderer->GetWidth();
+		float fWidth43 = m_pRenderer->GetOverlayHeight() * 4.0f / 3.0f;
+		float fScale = fWidth43 / (float) m_pRenderer->GetOverlayWidth();
 		float fOffset = (fSizeX - fSizeX * fScale);
 		fX += 0.5f * fOffset;
 		fSizeX -= fOffset;
@@ -238,8 +234,8 @@ void CUIDraw::DrawQuad(float fX,
 
 	if (iTextureID >= 0)
 	{
-		m_pRenderer->SetColorOp(eCO_MODULATE, eCO_MODULATE, DEF_TEXARG0, DEF_TEXARG0);
-		m_pRenderer->SetTexture(iTextureID);
+		//m_pRenderer->SetColorOp(eCO_MODULATE, eCO_MODULATE, DEF_TEXARG0, DEF_TEXARG0);
+		//m_pRenderer->SetTexture(iTextureID);
 	}
 	else
 	{
@@ -249,7 +245,9 @@ void CUIDraw::DrawQuad(float fX,
 
 	uint16 ausIndices[] = { 0, 1, 2, 3 };
 
-	m_pRenderer->DrawDynVB(aVertices, ausIndices, 4, 4, prtTriangleStrip);
+	//m_pRenderer->DrawDynVB(aVertices, ausIndices, 4, 4, prtTriangleStrip);
+
+	__debugbreak();
 }
 
 //-----------------------------------------------------------------------------------------------------
@@ -283,8 +281,8 @@ void CUIDraw::DrawQuadSimple(float fX,
 
 	if (iTextureID)
 	{
-		m_pRenderer->SetColorOp(eCO_MODULATE, eCO_MODULATE, DEF_TEXARG0, DEF_TEXARG0);
-		m_pRenderer->SetTexture(iTextureID);
+		//m_pRenderer->SetColorOp(eCO_MODULATE, eCO_MODULATE, DEF_TEXARG0, DEF_TEXARG0);
+		//m_pRenderer->SetTexture(iTextureID);
 	}
 	else
 	{
@@ -294,7 +292,9 @@ void CUIDraw::DrawQuadSimple(float fX,
 
 	uint16 ausIndices[] = { 0, 1, 2, 3 };
 
-	m_pRenderer->DrawDynVB(aVertices, ausIndices, 4, 4, prtTriangleStrip);
+	//m_pRenderer->DrawDynVB(aVertices, ausIndices, 4, 4, prtTriangleStrip);
+
+	__debugbreak();
 }
 
 //-----------------------------------------------------------------------------------------------------
@@ -313,13 +313,13 @@ void CUIDraw::DrawImage(int iTextureID, float fX,
                         float fS1,
                         float fT1)
 {
-	float fWidth43 = m_pRenderer->GetHeight() * 4.0f / 3.0f;
-	float fScale = fWidth43 / (float) m_pRenderer->GetWidth();
+	float fWidth43 = m_pRenderer->GetOverlayHeight() * 4.0f / 3.0f;
+	float fScale = fWidth43 / (float) m_pRenderer->GetOverlayWidth();
 	float fOffset = (fSizeX - fSizeX * fScale);
 	fX += 0.5f * fOffset;
 	fSizeX -= fOffset;
 
-	m_pRenderer->Draw2dImage(fX,
+	IRenderAuxImage::Draw2dImage(fX,
 	                         fY + fSizeY,
 	                         fSizeX,
 	                         -fSizeY,
@@ -460,20 +460,20 @@ void CUIDraw::InternalDrawText(IFFont* pFont,
 
 	if (UIDRAWHORIZONTAL_CENTER == eUIDrawHorizontalDocking)
 	{
-		fTextX += m_pRenderer->GetWidth() * 0.5f;
+		fTextX += m_pRenderer->GetOverlayWidth() * 0.5f;
 	}
 	else if (UIDRAWHORIZONTAL_RIGHT == eUIDrawHorizontalDocking)
 	{
-		fTextX += m_pRenderer->GetWidth();
+		fTextX += m_pRenderer->GetOverlayWidth();
 	}
 
 	if (UIDRAWVERTICAL_CENTER == eUIDrawVerticalDocking)
 	{
-		fTextY += m_pRenderer->GetHeight() * 0.5f;
+		fTextY += m_pRenderer->GetOverlayHeight() * 0.5f;
 	}
 	else if (UIDRAWVERTICAL_BOTTOM == eUIDrawVerticalDocking)
 	{
-		fTextY += m_pRenderer->GetHeight();
+		fTextY += m_pRenderer->GetOverlayHeight();
 	}
 
 	string wrappedStr;

@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 //
 // -------------------------------------------------------------------------
@@ -459,6 +459,15 @@ void CCrySteamStats::OnDownloadedLeaderboard(LeaderboardScoresDownloaded_t* pPar
 {
 	if (m_callResultDownloadLeaderboard.m_taskID != CryMatchMakingInvalidTaskID)
 	{
+		ISteamUserStats* pSteamUserStats = SteamUserStats();
+		ISteamFriends* pSteamFriends = SteamFriends();
+		if (!pSteamUserStats || !pSteamFriends)
+		{
+			UpdateTaskError(m_callResultDownloadLeaderboard.m_taskID, eCLE_SteamInitFailed);
+			StopTaskRunning(m_callResultDownloadLeaderboard.m_taskID);
+			return;
+		};
+
 		STask* pTask = &m_task[m_callResultDownloadLeaderboard.m_taskID];
 
 		if (!ioFailure)
@@ -477,7 +486,7 @@ void CCrySteamStats::OnDownloadedLeaderboard(LeaderboardScoresDownloaded_t* pPar
 			{
 				LeaderboardEntry_t leaderboardEntry;
 				int32 details[MAX_STEAM_COLUMNS];
-				SteamUserStats()->GetDownloadedLeaderboardEntry(pParam->m_hSteamLeaderboardEntries, i, &leaderboardEntry, details, MAX_STEAM_COLUMNS);
+				pSteamUserStats->GetDownloadedLeaderboardEntry(pParam->m_hSteamLeaderboardEntries, i, &leaderboardEntry, details, MAX_STEAM_COLUMNS);
 
 				result.pRows[i].data.numColumns = leaderboardEntry.m_cDetails;
 
@@ -488,7 +497,7 @@ void CCrySteamStats::OnDownloadedLeaderboard(LeaderboardScoresDownloaded_t* pPar
 					result.pRows[i].data.pColumns = &columns[colIdx];
 				}
 
-				const char* steamName = SteamFriends()->GetFriendPersonaName(leaderboardEntry.m_steamIDUser);
+				const char* steamName = pSteamFriends->GetFriendPersonaName(leaderboardEntry.m_steamIDUser);
 				cry_strcpy(result.pRows[i].name, steamName);
 				result.pRows[i].data.score.score.m_int32 = leaderboardEntry.m_nScore;
 				result.pRows[i].data.score.score.m_type = eCLUDT_Int32;
@@ -522,31 +531,38 @@ void CCrySteamStats::OnFindLeaderboard(LeaderboardFindResult_t* pParam, bool ioF
 	if (m_callResultFindLeaderboard.m_taskID != CryMatchMakingInvalidTaskID)
 	{
 		STask* pTask = &m_task[m_callResultFindLeaderboard.m_taskID];
-		if (!ioFailure && pParam->m_bLeaderboardFound)
+		ISteamUserStats* pSteamUserStats = SteamUserStats();
+		if (!pSteamUserStats)
 		{
-			// Success, manipulate or read the board here
-
-			switch (pTask->startedTask)
+			UpdateTaskError(m_callResultFindLeaderboard.m_taskID, eCLE_SteamInitFailed);
+		}
+		else
+		{
+			if (!ioFailure && pParam->m_bLeaderboardFound)
 			{
+				// Success, manipulate or read the board here
 
-			case eT_StatsReadLeaderBoardByUserID:
-			case eT_StatsReadLeaderBoardByRankForUser:
+				switch (pTask->startedTask)
 				{
-					SteamAPICall_t handleToDownloadLB = SteamUserStats()->DownloadLeaderboardEntries(pParam->m_hSteamLeaderboard, k_ELeaderboardDataRequestGlobalAroundUser, 0, pTask->paramsNum[STATS_PARAM_READ_LEADERBOARD_NUM]);
+
+				case eT_StatsReadLeaderBoardByUserID:
+				case eT_StatsReadLeaderBoardByRankForUser:
+				{
+					SteamAPICall_t handleToDownloadLB = pSteamUserStats->DownloadLeaderboardEntries(pParam->m_hSteamLeaderboard, k_ELeaderboardDataRequestGlobalAroundUser, 0, pTask->paramsNum[STATS_PARAM_READ_LEADERBOARD_NUM]);
 					m_callResultDownloadLeaderboard.m_callResult.Set(handleToDownloadLB, this, &CCrySteamStats::OnDownloadedLeaderboard);
 					m_callResultDownloadLeaderboard.m_taskID = m_callResultFindLeaderboard.m_taskID;
 				}
 				break;
 
-			case eT_StatsReadLeaderBoardByRankForRange:
+				case eT_StatsReadLeaderBoardByRankForRange:
 				{
-					SteamAPICall_t handleToDownloadLB = SteamUserStats()->DownloadLeaderboardEntries(pParam->m_hSteamLeaderboard, k_ELeaderboardDataRequestGlobal, pTask->paramsNum[STATS_PARAM_READ_LEADERBOARD_START], pTask->paramsNum[STATS_PARAM_READ_LEADERBOARD_NUM]);
+					SteamAPICall_t handleToDownloadLB = pSteamUserStats->DownloadLeaderboardEntries(pParam->m_hSteamLeaderboard, k_ELeaderboardDataRequestGlobal, pTask->paramsNum[STATS_PARAM_READ_LEADERBOARD_START], pTask->paramsNum[STATS_PARAM_READ_LEADERBOARD_NUM]);
 					m_callResultDownloadLeaderboard.m_callResult.Set(handleToDownloadLB, this, &CCrySteamStats::OnDownloadedLeaderboard);
 					m_callResultDownloadLeaderboard.m_taskID = m_callResultFindLeaderboard.m_taskID;
 				}
 				break;
 
-			case eT_StatsWriteLeaderBoards:
+				case eT_StatsWriteLeaderBoards:
 				{
 					SCryStatsLeaderBoardWrite* writeInfo = (SCryStatsLeaderBoardWrite*)m_pLobby->MemGetPtr(pTask->paramsMem[STATS_PARAM_READ_LEADERBOARD_BOARD]);
 					if (writeInfo->data.score.score.m_type != eCLUDT_Int32)
@@ -561,7 +577,7 @@ void CCrySteamStats::OnFindLeaderboard(LeaderboardFindResult_t* pParam, bool ioF
 						additionalInfo[i] = userColumns[i].data.m_int32;
 					}
 
-					SteamAPICall_t hUploadScore = SteamUserStats()->UploadLeaderboardScore(pParam->m_hSteamLeaderboard, k_ELeaderboardUploadScoreMethodForceUpdate, writeInfo->data.score.score.m_int32, additionalInfo, writeInfo->data.numColumns);
+					SteamAPICall_t hUploadScore = pSteamUserStats->UploadLeaderboardScore(pParam->m_hSteamLeaderboard, k_ELeaderboardUploadScoreMethodForceUpdate, writeInfo->data.score.score.m_int32, additionalInfo, writeInfo->data.numColumns);
 					m_callResultWriteLeaderboard.m_callResult.Set(hUploadScore, this, &CCrySteamStats::OnUploadedScore);
 					m_callResultWriteLeaderboard.m_taskID = m_callResultFindLeaderboard.m_taskID;
 
@@ -570,11 +586,12 @@ void CCrySteamStats::OnFindLeaderboard(LeaderboardFindResult_t* pParam, bool ioF
 				}
 				break;
 
+				}
 			}
-		}
-		else
-		{
-			UpdateTaskError(m_callResultFindLeaderboard.m_taskID, eCLE_InternalError);
+			else
+			{
+				UpdateTaskError(m_callResultFindLeaderboard.m_taskID, eCLE_InternalError);
+			}
 		}
 
 		if (pTask->error != eCLE_Success)
@@ -602,16 +619,24 @@ void CCrySteamStats::StartStatsReadLeaderBoardByRankForRange(CryStatsTaskID sTas
 		NetLog("[Steam]: StartStatsReadLeaderBoardByRankForRange() - cancelled previous request");
 	}
 
-	TIdToNameMap::iterator it = m_IdToNameMap.find(pTask->paramsNum[STATS_PARAM_READ_LEADERBOARD_BOARD]);
-	if (it != m_IdToNameMap.end())
+	ISteamUserStats* pSteamUserStats = SteamUserStats();
+	if (pSteamUserStats)
 	{
-		SteamAPICall_t handleToLB = SteamUserStats()->FindLeaderboard(it->second);
-		m_callResultFindLeaderboard.m_callResult.Set(handleToLB, this, &CCrySteamStats::OnFindLeaderboard);
-		m_callResultFindLeaderboard.m_taskID = sTaskID;
+		TIdToNameMap::iterator it = m_IdToNameMap.find(pTask->paramsNum[STATS_PARAM_READ_LEADERBOARD_BOARD]);
+		if (it != m_IdToNameMap.end())
+		{
+			SteamAPICall_t handleToLB = pSteamUserStats->FindLeaderboard(it->second);
+			m_callResultFindLeaderboard.m_callResult.Set(handleToLB, this, &CCrySteamStats::OnFindLeaderboard);
+			m_callResultFindLeaderboard.m_taskID = sTaskID;
+		}
+		else
+		{
+			UpdateTaskError(sTaskID, eCLE_LeaderBoardNotRegistered);
+		}
 	}
 	else
 	{
-		UpdateTaskError(sTaskID, eCLE_LeaderBoardNotRegistered);
+		UpdateTaskError(sTaskID, eCLE_SteamInitFailed);
 	}
 
 	NetLog("[Steam] StartStatsReadLeaderBoardByRankForRange result %d", pTask->error);
@@ -682,16 +707,24 @@ void CCrySteamStats::StartStatsReadLeaderBoardByRankForUser(CryStatsTaskID sTask
 		NetLog("[Steam]: StartStatsReadLeaderBoardByRankForUser() - cancelled previous request");
 	}
 
-	TIdToNameMap::iterator it = m_IdToNameMap.find(pTask->paramsNum[STATS_PARAM_READ_LEADERBOARD_BOARD]);
-	if (it != m_IdToNameMap.end())
+	ISteamUserStats* pSteamUserStats = SteamUserStats();
+	if (pSteamUserStats)
 	{
-		SteamAPICall_t handleToLB = SteamUserStats()->FindLeaderboard(it->second);
-		m_callResultFindLeaderboard.m_callResult.Set(handleToLB, this, &CCrySteamStats::OnFindLeaderboard);
-		m_callResultFindLeaderboard.m_taskID = sTaskID;
+		TIdToNameMap::iterator it = m_IdToNameMap.find(pTask->paramsNum[STATS_PARAM_READ_LEADERBOARD_BOARD]);
+		if (it != m_IdToNameMap.end())
+		{
+			SteamAPICall_t handleToLB = pSteamUserStats->FindLeaderboard(it->second);
+			m_callResultFindLeaderboard.m_callResult.Set(handleToLB, this, &CCrySteamStats::OnFindLeaderboard);
+			m_callResultFindLeaderboard.m_taskID = sTaskID;
+		}
+		else
+		{
+			UpdateTaskError(sTaskID, eCLE_LeaderBoardNotRegistered);
+		}
 	}
 	else
 	{
-		UpdateTaskError(sTaskID, eCLE_LeaderBoardNotRegistered);
+		UpdateTaskError(sTaskID, eCLE_SteamInitFailed);
 	}
 
 	NetLog("[Steam] StartStatsReadLeaderBoardByRankForUser result %d", pTask->error);
@@ -756,16 +789,24 @@ void CCrySteamStats::StartStatsWriteLeaderBoards(CryStatsTaskID sTaskID)
 
 	SCryStatsLeaderBoardWrite* writeInfo = (SCryStatsLeaderBoardWrite*)m_pLobby->MemGetPtr(pTask->paramsMem[STATS_PARAM_READ_LEADERBOARD_PTR]);
 
-	TIdToNameMap::iterator it = m_IdToNameMap.find(writeInfo->id);
-	if (it != m_IdToNameMap.end())
+	ISteamUserStats* pSteamUserStats = SteamUserStats();
+	if (pSteamUserStats)
 	{
-		SteamAPICall_t handleToLB = SteamUserStats()->FindLeaderboard(it->second);
-		m_callResultFindLeaderboard.m_callResult.Set(handleToLB, this, &CCrySteamStats::OnFindLeaderboard);
-		m_callResultFindLeaderboard.m_taskID = sTaskID;
+		TIdToNameMap::iterator it = m_IdToNameMap.find(writeInfo->id);
+		if (it != m_IdToNameMap.end())
+		{
+			SteamAPICall_t handleToLB = pSteamUserStats->FindLeaderboard(it->second);
+			m_callResultFindLeaderboard.m_callResult.Set(handleToLB, this, &CCrySteamStats::OnFindLeaderboard);
+			m_callResultFindLeaderboard.m_taskID = sTaskID;
+		}
+		else
+		{
+			UpdateTaskError(sTaskID, eCLE_LeaderBoardNotRegistered);
+		}
 	}
 	else
 	{
-		UpdateTaskError(sTaskID, eCLE_LeaderBoardNotRegistered);
+		UpdateTaskError(sTaskID, eCLE_SteamInitFailed);
 	}
 
 	NetLog("[Steam] StartStatsWriteLeaderBoards result %d", pTask->error);
@@ -909,18 +950,27 @@ void CCrySteamStats::StartStatsWriteUserData(CryStatsTaskID sTaskID)
 {
 	STask* pTask = &m_task[sTaskID];
 
-	NetLog("[Steam] Stats StartStatsWriteUserData result %d", pTask->error);
+	ISteamUserStats* pSteamUserStats = SteamUserStats();
 
-	SCryLobbyUserData* userData = (SCryLobbyUserData*)m_pLobby->MemGetPtr(pTask->paramsMem[STATS_PARAM_READ_USERDATA_PTR]);
-	int numData = pTask->paramsNum[STATS_PARAM_READ_USERDATA_NUM];
-
-	for (int i = 0; i < numData; i++)
+	if (pSteamUserStats)
 	{
-		SteamUserStats()->SetStat(userData[i].m_id, userData[i].m_int32);
-		NetLog("[Steam] Writing Stat: %s, val: %d", userData[i].m_id, userData[i].m_int32);
-	}
+		NetLog("[Steam] Stats StartStatsWriteUserData result %d", pTask->error);
 
-	SteamUserStats()->StoreStats();
+		SCryLobbyUserData* userData = (SCryLobbyUserData*)m_pLobby->MemGetPtr(pTask->paramsMem[STATS_PARAM_READ_USERDATA_PTR]);
+		int numData = pTask->paramsNum[STATS_PARAM_READ_USERDATA_NUM];
+
+		for (int i = 0; i < numData; i++)
+		{
+			pSteamUserStats->SetStat(userData[i].m_id, userData[i].m_int32);
+			NetLog("[Steam] Writing Stat: %s, val: %d", userData[i].m_id, userData[i].m_int32);
+		}
+
+		pSteamUserStats->StoreStats();
+	}
+	else
+	{
+		pTask->error = eCLE_SteamInitFailed;
+	}
 
 	if (pTask->error != eCLE_Success)
 	{
@@ -1014,10 +1064,18 @@ void CCrySteamStats::StartStatsReadUserData(CryStatsTaskID sTaskID)
 {
 	STask* pTask = &m_task[sTaskID];
 
-	NetLog("[Steam] Stats StartStatsReadUserData result %d", pTask->error);
+	ISteamUserStats* pSteamUserStats = SteamUserStats();
+	if (pSteamUserStats)
+	{
+		NetLog("[Steam] Stats StartStatsReadUserData result %d", pTask->error);
 
-	SteamUserStats()->RequestCurrentStats();
-	m_callUserStatsReceived.m_taskID = sTaskID;
+		pSteamUserStats->RequestCurrentStats();
+		m_callUserStatsReceived.m_taskID = sTaskID;
+	}
+	else
+	{
+		pTask->error = eCLE_SteamInitFailed;
+	}
 
 	if (pTask->error != eCLE_Success)
 	{
@@ -1056,7 +1114,18 @@ void CCrySteamStats::OnUserStatsStored(UserStatsStored_t* pParam)
 
 void CCrySteamStats::OnUserStatsReceived(UserStatsReceived_t* pParam)
 {
-	if (SteamUtils()->GetAppID() == pParam->m_nGameID && m_callUserStatsReceived.m_taskID != CryLobbyInvalidTaskID)
+	ISteamUtils* pSteamUtils = SteamUtils();
+	ISteamUserStats* pSteamUserStats = SteamUserStats();
+	if (!pSteamUserStats || !pSteamUtils)
+	{
+		if (m_callUserStatsReceived.m_taskID != CryLobbyInvalidTaskID)
+		{
+			UpdateTaskError(m_callUserStatsReceived.m_taskID, eCLE_SteamInitFailed);
+			StopTaskRunning(m_callUserStatsReceived.m_taskID);
+		}
+		return;
+	}
+	if (pSteamUtils->GetAppID() == pParam->m_nGameID && m_callUserStatsReceived.m_taskID != CryLobbyInvalidTaskID)
 	{
 		if (k_EResultOK == pParam->m_eResult)
 		{
@@ -1081,7 +1150,7 @@ void CCrySteamStats::OnUserStatsReceived(UserStatsReceived_t* pParam)
 					case eCLUDT_Int32:
 						{
 							int32 statVal = 0;
-							if (!SteamUserStats()->GetStat(m_userData[i].id, &statVal))
+							if (!pSteamUserStats->GetStat(m_userData[i].id, &statVal))
 							{
 								NetLog("[Steam] Reading Stat failed: %s (setting to 0)", m_userData[i].id);
 							}
@@ -1093,7 +1162,7 @@ void CCrySteamStats::OnUserStatsReceived(UserStatsReceived_t* pParam)
 					case eCLUDT_Float32:
 						{
 							float statVal = 0;
-							if (!SteamUserStats()->GetStat(m_userData[i].id, &statVal))
+							if (!pSteamUserStats->GetStat(m_userData[i].id, &statVal))
 							{
 								NetLog("[Steam] Reading Stat failed: %s (setting to 0)", m_userData[i].id);
 							}

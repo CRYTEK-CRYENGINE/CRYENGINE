@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -28,6 +28,7 @@ public:
 	virtual ~BehaviorTreeManager();
 
 	// IBehaviorTreeManager
+	virtual void                                Update() override;
 	virtual IMetaExtensionFactory&              GetMetaExtensionFactory() override;
 	virtual INodeFactory&                       GetNodeFactory() override;
 #ifdef USING_BEHAVIOR_TREE_SERIALIZATION
@@ -52,10 +53,12 @@ public:
 #endif
 
 	void                    Reset();
-	void                    Update();
 
 	size_t                  GetTreeInstanceCount() const;
 	EntityId                GetTreeInstanceEntityIdByIndex(const size_t index) const;
+
+	// Returns blackboard corresponding to behavior tree assigned to Entity with specified entityID.
+	BehaviorTree::Blackboard* GetBehaviorTreeBlackboard(const EntityId entityId);
 
 	BehaviorTreeInstancePtr CreateBehaviorTreeInstanceFromXml(const char* behaviorTreeName, XmlNodeRef behaviorTreeXmlNode);
 
@@ -68,10 +71,9 @@ private:
 	BehaviorTreeInstancePtr LoadFromCache(const char* behaviorTreeName);
 	bool                    StartBehaviorInstance(const EntityId entityId, BehaviorTreeInstancePtr instance, const char* treeName);
 	void                    StopAllBehaviorTreeInstances();
+	BehaviorTreeInstance*   GetBehaviorTree(const EntityId entityId) const;
 
 	bool                    LoadBehaviorTreeTemplate(const char* behaviorTreeName, XmlNodeRef behaviorTreeXmlNode, BehaviorTreeTemplate& behaviorTreeTemplate);
-
-	BehaviorTreeInstance*   GetBehaviorTree(const EntityId entityId) const;
 
 #if defined(DEBUG_MODULAR_BEHAVIOR_TREE)
 	void UpdateDebugVisualization(UpdateContext updateContext, const EntityId entityId, DebugTree debugTree, BehaviorTreeInstance& instance, IEntity* agentEntity);
@@ -85,7 +87,8 @@ private:
 	std::unique_ptr<MetaExtensionFactory> m_metaExtensionFactory;
 
 #if defined(DEBUG_MODULAR_BEHAVIOR_TREE_WEB)
-	void UpdateWebDebugChannel(const EntityId entityId, UpdateContext& updateContext, DebugTree& debugTree, BehaviorTreeInstance& instance, const bool bExecutionError);
+	bool DoesEntityWantToDoWebDebugging(const EntityId entityIdToCheckForWebDebugging, TGameWebDebugClientId* pOutClientId) const;
+	void UpdateWebDebugChannel(const TGameWebDebugClientId clientId, UpdateContext& updateContext, DebugTree& debugTree, BehaviorTreeInstance& instance, const bool bExecutionError);
 #endif
 
 	typedef string                                                                                                              BehaviorTreeName;

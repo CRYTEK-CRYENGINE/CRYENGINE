@@ -1,6 +1,9 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
+
+//! \cond INTERNAL
 
 #pragma once
+#include <limits>
 
 /*!
     Class TRange, can represent anything that is a range between two values.
@@ -26,7 +29,7 @@ public:
 	//! Get length of range.
 	T Length() const { return end - start; };
 
-	//! Check if range is empty.
+	bool IsValid()  const { return start <= end; }
 	bool IsEmpty()  const { return start >= end; }
 
 	//! Check if value is inside range.
@@ -105,7 +108,13 @@ public:
 	{
 		return TRange(start + r.start, end + r.end);
 	}
+	//! Interpolate range
+	T operator()(float f) const
+	{
+		return start + T(Length() * f);
+	}
 };
 
 //! Range if just TRange for floats..
 typedef TRange<float> Range;
+//! \endcond

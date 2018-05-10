@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "LipSync_TransitionQueue.h"
@@ -466,7 +466,7 @@ void CLipSync_TransitionQueue::HandleEvent(const SGameObjectEvent& event)
 {
 }
 
-void CLipSync_TransitionQueue::ProcessEvent(SEntityEvent& event)
+void CLipSync_TransitionQueue::ProcessEvent(const SEntityEvent& event)
 {
 }
 

@@ -81,6 +81,8 @@ add_sources("NoUberFile"
 		"physarea.cpp"
 		"physicalplaceholder.h"
 		"physicalplaceholder.cpp"
+		"walkingrigidentity.cpp"
+		"walkingrigidentity.h"
 	SOURCE_GROUP "Root"
 		"CryPhysics.cpp"
 		"resource.h"
@@ -102,30 +104,78 @@ add_sources("NoUberFile"
 end_sources()
 #END-FILE-LIST
 
+macro(setup_CryPhysics)
+	if (ORBIS OR CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+		target_compile_options(${THIS_PROJECT} PRIVATE
+			-Wno-shift-negative-value
+			-Wno-writable-strings
+			-Wno-c++11-narrowing
+			-Wno-unused-variable
+			-Wno-parentheses
+			-Wno-reorder
+			-Wno-unused-value
+			-Wno-unknown-pragmas
+			-Wno-format
+			-Wno-unused-private-field
+			-Wno-multichar
+			-Wno-switch
+			-Wno-unused-function
+			-Wno-char-subscripts
+			-Wno-constant-conversion
+			-Wno-null-dereference
+			-Wno-array-bounds
+			-Wno-shift-negative-value
+			-Wno-undefined-var-template
+			-Wno-empty-body
+		)
+    elseif(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+		target_compile_options(${THIS_PROJECT} PRIVATE
+			-Wno-unused-function
+			-Wno-unused-value
+			-Wno-unused-variable
+			-Wno-sign-compare
+			-Wno-ignored-attributes
+			-Wno-invalid-offsetof
+			-Wno-aligned-new
+			-Wno-int-in-bool-context
+			-Wno-unused-but-set-variable
+			-Wno-misleading-indentation
+			-Wno-unknown-pragmas
+			-Wno-narrowing
+			-Wno-strict-aliasing
+			-Wno-strict-overflow
+			-Wno-maybe-uninitialized
+			-Wno-array-bounds
+			-Wno-multichar
+			-Wno-char-subscripts
+			-Wno-conversion-null
+			-Wno-parentheses
+			-Wno-comment
+			-Wno-reorder
+			-Wno-address
+			-Wno-format
+			-Wno-switch
+		)
+    endif()
+endmacro()
+
 if(NOT RESOURCE_COMPILER)
 	if (PHYSICS_CRYPHYSICS)
 		CryEngineModule(CryPhysics PCH "StdAfx.cpp" SOLUTION_FOLDER "CryEngine")
-		if(ORBIS OR LINUX OR ANDROID)
-			target_compile_options(${THIS_PROJECT} PRIVATE
-				-Wno-constant-conversion
-				-Wno-null-dereference
-				-Wno-array-bounds
-				-Wno-shift-negative-value
-			)
-		endif()
+		setup_CryPhysics()
 		if(WIN32 OR WIN64)
 			target_compile_options(${THIS_PROJECT} PRIVATE $<$<CONFIG:Profile>:/GL /O2 /Ot> $<$<CONFIG:Release>:/GL /O2 /Ot> $<$<CONFIG:Debug>:/RTCu> )
-			set_property(TARGET ${THIS_PROJECT} APPEND_STRING PROPERTY LINK_FLAGS_PROFILE " /LTCG:incremental")
-			set_property(TARGET ${THIS_PROJECT} APPEND_STRING PROPERTY LINK_FLAGS_RELEASE " /LTCG:incremental")
 		endif() 
 	else()
 		CryFileContainer(CryPhysics SOLUTION_FOLDER "CryEngine")
 	endif()
 	if (OPTION_PHYSDBGR)
 		CryEngineStaticModule(CryPhysicsLib PCH "StdAfx.cpp" SOLUTION_FOLDER "PhysDebugger")
+		setup_CryPhysics()
 		target_include_directories(${THIS_PROJECT} BEFORE PRIVATE ../../Tools/PhysDebugger)
 		target_compile_options(${THIS_PROJECT} PRIVATE $<$<CONFIG:Profile>:/GL /O2 /Ot> $<$<CONFIG:Release>:/GL /O2 /Ot> $<$<CONFIG:Debug>:/RTCu> )
 	endif()
 else()
 	CryResourceCompilerModule(CryPhysicsRC PCH "StdAfx.cpp" SOLUTION_FOLDER "RC")
+	setup_CryPhysics()
 endif()

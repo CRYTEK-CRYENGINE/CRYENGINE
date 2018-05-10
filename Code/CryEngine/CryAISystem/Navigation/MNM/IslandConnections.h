@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #ifndef __IslandConnections_h__
 #define __IslandConnections_h__
@@ -15,16 +15,15 @@ struct OffMeshNavigation;
 class IslandConnections
 {
 public:
-	typedef stl::STLPoolAllocator<MNM::GlobalIslandID, stl::PoolAllocatorSynchronizationSinglethreaded> TIslandsWayAllocator;
-	typedef std::list<MNM::GlobalIslandID, TIslandsWayAllocator>                                        TIslandsWay;
-
 	struct Link
 	{
-		Link(const MNM::TriangleID _toTriangleID, const MNM::OffMeshLinkID _offMeshLinkID, const MNM::GlobalIslandID _toIsland, uint32 _objectIDThatCreatesTheConnection)
+		Link(const MNM::TriangleID _toTriangleID, const MNM::OffMeshLinkID _offMeshLinkID, const MNM::GlobalIslandID _toIsland, const MNM::AreaAnnotation toIslandAnnotation, uint32 _objectIDThatCreatesTheConnection, uint32 connectionsCount)
 			: toTriangleID(_toTriangleID)
 			, offMeshLinkID(_offMeshLinkID)
 			, toIsland(_toIsland)
+			, toIslandAnnotation(toIslandAnnotation)
 			, objectIDThatCreatesTheConnection(_objectIDThatCreatesTheConnection)
+			, connectionsCount(connectionsCount)
 		{
 		}
 
@@ -34,9 +33,12 @@ public:
 			       objectIDThatCreatesTheConnection == rhs.objectIDThatCreatesTheConnection;
 		}
 
+		MNM::GlobalIslandID toIsland;
+		MNM::AreaAnnotation toIslandAnnotation;
+		uint32              connectionsCount;
+
 		MNM::TriangleID     toTriangleID;
 		MNM::OffMeshLinkID  offMeshLinkID;
-		MNM::GlobalIslandID toIsland;
 		uint32              objectIDThatCreatesTheConnection;
 	};
 
@@ -44,11 +46,13 @@ public:
 
 	void Reset();
 
-	void SetOneWayConnectionBetweenIsland(const MNM::GlobalIslandID fromIsland, const Link& link);
-	void RemoveOneWayConnectionBetweenIsland(const MNM::GlobalIslandID fromIsland, const Link& link);
+	void SetOneWayOffmeshConnectionBetweenIslands(const MNM::GlobalIslandID fromIsland, const Link& link);
+	void RemoveOneWayConnectionBetweenIslands(const MNM::GlobalIslandID fromIsland, const Link& link);
 	void RemoveAllIslandConnectionsForObject(const NavigationMeshID& meshID, const uint32 objectId);
 
-	bool CanNavigateBetweenIslands(const IEntity* pEntityToTestOffGridLinks, const MNM::GlobalIslandID fromIsland, const MNM::GlobalIslandID toIsland, TIslandsWay& way) const;
+	void SetTwoWayConnectionBetweenIslands(const MNM::GlobalIslandID islandId1, const MNM::AreaAnnotation islandAnnotation1, const MNM::GlobalIslandID islandId2, const MNM::AreaAnnotation islandAnnotation2, const int connectionChange);
+	
+	bool CanNavigateBetweenIslands(const IEntity* pEntityToTestOffGridLinks, const MNM::GlobalIslandID fromIsland, const MNM::GlobalIslandID toIsland, const INavMeshQueryFilter* pFilter) const;
 
 #ifdef CRYAISYSTEM_DEBUG
 	void DebugDraw() const;
@@ -56,59 +60,39 @@ public:
 
 private:
 
-	struct IslandNode
+	struct GlobalIslandIDHasher
 	{
-		IslandNode()
-			: id(MNM::Constants::eGlobalIsland_InvalidIslandID)
-			, cost(.0f)
-		{}
-
-		IslandNode(const MNM::GlobalIslandID _id, const float _cost)
-			: id(_id)
-			, cost(_cost)
-		{}
-
-		IslandNode(const IslandNode& other)
-			: id(other.id)
-			, cost(other.cost)
-		{}
-
-		ILINE void operator=(const IslandNode& other)
+		size_t operator()(const MNM::GlobalIslandID& value) const
 		{
-			id = other.id;
-			cost = other.cost;
+			std::hash<uint64> hasher;
+			return hasher(value.id);
 		}
-
-		ILINE bool operator<(const IslandNode& other) const
-		{
-			return id < other.id;
-		}
-
-		ILINE bool operator==(const IslandNode& other) const
-		{
-			return id == other.id;
-		}
-
-		MNM::GlobalIslandID id;
-		float               cost;
 	};
 
-	struct IsNodeLessCostlyPredicate
+	enum class IslandNodeState : uint8
 	{
-		bool operator()(const IslandNode& firstNode, const IslandNode& secondNode) { return firstNode.cost < secondNode.cost; }
+		None = 0x00,
+		Opened = 0x01,
+		Closed = 0x02,
 	};
 
-	typedef OpenList<IslandNode, IsNodeLessCostlyPredicate>                                    IslandOpenList;
+	typedef stl::STLPoolAllocator_ManyElems<MNM::GlobalIslandID, stl::PoolAllocatorSynchronizationSinglethreaded> TIslandOpenListAllocator;
 
-	typedef stl::STLPoolAllocator<std::pair<const IslandNode, IslandNode>, stl::PoolAllocatorSynchronizationSinglethreaded> TCameFromMapAllocator;
-	typedef std::map<IslandNode, IslandNode, std::less<IslandNode>, TCameFromMapAllocator>     TCameFromMap;
-	typedef std::vector<MNM::GlobalIslandID>                                                   TIslandClosedSet;
+	typedef std::deque<MNM::GlobalIslandID, TIslandOpenListAllocator>                   TIslandOpenList;
+	typedef std::vector<Link>                                                           TLinksVector;
+	typedef std::unordered_map<MNM::GlobalIslandID, TLinksVector, GlobalIslandIDHasher> TIslandConnectionsMap;
+	typedef std::vector<IslandNodeState>                                                TIslandNodeStatesArray;
 
-	void ReconstructWay(const TCameFromMap& cameFromMap, const MNM::GlobalIslandID fromIsland, const MNM::GlobalIslandID toIsland, TIslandsWay& way) const;
+	template <typename TFilter>
+	bool CanNavigateBetweenIslandsInternal(const IEntity* pEntityToTestOffGridLinks, const MNM::GlobalIslandID fromIsland, const MNM::GlobalIslandID toIsland, const TFilter& filter) const;
 
-	typedef std::vector<Link>                           TLinksVector;
-	typedef std::map<MNM::GlobalIslandID, TLinksVector> TIslandConnectionsMap;
+	TIslandNodeStatesArray& PrepareIslandNodeStatesArray(const MNM::GlobalIslandID fromIsland) const;
+
 	TIslandConnectionsMap m_islandConnections;
+
+	// Cached array of island node states used in CanNavigateBetweenIslands function. Made as member variable to prevent allocation
+	// of possibly big sized array every time the function is called.
+	mutable TIslandNodeStatesArray m_islandNodeStatesArrayCache;
 };
 }
 

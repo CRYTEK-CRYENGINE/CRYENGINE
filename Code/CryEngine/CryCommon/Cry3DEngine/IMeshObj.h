@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -30,7 +30,7 @@ struct IMeshObj
 	virtual float GetExtent(EGeomForm eForm) = 0;
 
 	//! Generate a random point in the requested dimension
-	virtual void GetRandomPos(PosNorm& ran, CRndGen& seed, EGeomForm eForm) const = 0;
+	virtual void GetRandomPoints(Array<PosNorm> points, CRndGen& seed, EGeomForm eForm) const = 0;
 
 	//! Return the rendering material
 	virtual struct IMaterial* GetMaterial() const = 0;

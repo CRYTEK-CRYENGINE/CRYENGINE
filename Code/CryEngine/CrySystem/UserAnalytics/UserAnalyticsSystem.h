@@ -5,11 +5,11 @@
 #include <CrySystem/UserAnalytics/IUserAnalytics.h>
 
 #if !defined(_RELEASE) && CRY_PLATFORM_WINDOWS
-	#include <CryExtension/ICryPluginManager.h>
+#include <CrySystem/ICryPluginManager.h>
 
 struct ICryUserAnalyticsPlugin;
 
-class CUserAnalyticsSystem : public IUserAnalyticsSystem, public IPluginEventListener
+class CUserAnalyticsSystem : public IUserAnalyticsSystem, public Cry::IPluginManager::IEventListener
 {
 public:
 	CUserAnalyticsSystem();
@@ -21,7 +21,7 @@ public:
 	void         RegisterCVars();
 
 private:
-	virtual void OnPluginEvent(const CryClassID& pluginClassId, IPluginEventListener::EPluginEvent event) override;
+	virtual void OnPluginEvent(const CryClassID& pluginClassId, Cry::IPluginManager::IEventListener::EEvent event) override;
 
 	ICryUserAnalyticsPlugin* m_pUserAnalyticsPlugin;
 	IUserAnalytics*          m_pUserAnalytics;

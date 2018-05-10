@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "DeviceObjectHelpers.h"
@@ -10,13 +10,12 @@ extern CD3D9Renderer gcpRendD3D;
 #include "XRenderD3D9/D3DHWShader.h" // CHWShader_D3D
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-std::array<SDeviceObjectHelpers::SShaderInstanceInfo, eHWSC_Num> SDeviceObjectHelpers::GetShaderInstanceInfo(::CShader* pShader, const CCryNameTSCRC& technique, uint64 rtFlags, uint32 mdFlags, uint32 mdvFlags, const UPipelineState pipelineState[eHWSC_Num], bool bAllowTesselation)
+EShaderStage SDeviceObjectHelpers::GetShaderInstanceInfo(THwShaderInfo& result, ::CShader* pShader, const CCryNameTSCRC& technique, uint64 rtFlags, uint32 mdFlags, uint32 mdvFlags, const UPipelineState pipelineState[eHWSC_Num], bool bAllowTesselation)
 {
-	std::array<SDeviceObjectHelpers::SShaderInstanceInfo, eHWSC_Num> result;
 	if (SShaderTechnique* pShaderTechnique = pShader->mfFindTechnique(technique))
 	{
 		if (pShaderTechnique->m_Passes.empty())
-			return result;
+			return EShaderStage_None;
 
 		SShaderPass& shaderPass = pShaderTechnique->m_Passes[0];
 
@@ -29,6 +28,8 @@ std::array<SDeviceObjectHelpers::SShaderInstanceInfo, eHWSC_Num> SDeviceObjectHe
 			shaderPass.m_DShader,
 			shaderPass.m_HShader,
 		};
+
+		EShaderStage validShaderStages = EShaderStage_None;
 
 		for (EHWShaderClass shaderStage = eHWSC_Vertex; shaderStage < eHWSC_Num; shaderStage = EHWShaderClass(shaderStage + 1))
 		{
@@ -46,12 +47,12 @@ std::array<SDeviceObjectHelpers::SShaderInstanceInfo, eHWSC_Num> SDeviceObjectHe
 			{
 				if (shaderStage == eHWSC_Geometry && pHWShaderD3D)
 				{
-					// TODO: do this without global variables!!
-					CHWShader_D3D::s_pCurInstVS = reinterpret_cast<CHWShader_D3D::SHWSInstance*>(result[eHWSC_Vertex].pHwShaderInstance);
+					// TODO: do this without global variables!! (Needed in mfGenerateScript)
+					//CHWShader_D3D::s_pCurInstVS = reinterpret_cast<CHWShader_D3D::SHWSInstance*>(result[eHWSC_Vertex].pHwShaderInstance);
 					CHWShader_D3D::s_pCurHWVS = result[eHWSC_Vertex].pHwShader;
 
-					if (!CHWShader_D3D::s_pCurInstVS || !CHWShader_D3D::s_pCurHWVS)
-						continue;
+					//if (!CHWShader_D3D::s_pCurInstVS || !CHWShader_D3D::s_pCurHWVS)
+						//continue;
 				}
 			}
 
@@ -65,9 +66,10 @@ std::array<SDeviceObjectHelpers::SShaderInstanceInfo, eHWSC_Num> SDeviceObjectHe
 				Ident.m_GLMask = pHWShaderD3D->m_nMaskGenShader;
 				Ident.m_pipelineState = pipelineState ? pipelineState[shaderStage] : UPipelineState();
 
+				bool isShaderValid = false;
 				if (auto pInstance = pHWShaderD3D->mfGetInstance(pShader, Ident, 0))
 				{
-					if (pHWShaderD3D->mfCheckActivation(pShader, pInstance, 0))
+					if (pHWShaderD3D->CheckActivation(pShader, pInstance, 0))
 					{
 						if (pInstance->m_Handle.m_pShader->m_bDisabled)
 						{
@@ -77,14 +79,25 @@ std::array<SDeviceObjectHelpers::SShaderInstanceInfo, eHWSC_Num> SDeviceObjectHe
 						{
 							result[shaderStage].pHwShaderInstance = pInstance;
 							result[shaderStage].pDeviceShader = pInstance->m_Handle.m_pShader->m_pHandle;
+
+							validShaderStages |= SHADERSTAGE_FROM_SHADERCLASS(shaderStage);
 						}
+
+						isShaderValid = true;
 					}
+				}
+				
+				if (!isShaderValid)
+				{
+					return EShaderStage_None;
 				}
 			}
 		}
+
+		return validShaderStages;
 	}
 
-	return result;
+	return EShaderStage_None;
 }
 
 bool SDeviceObjectHelpers::CheckTessellationSupport(SShaderItem& shaderItem)
@@ -217,6 +230,7 @@ void SDeviceObjectHelpers::CShaderConstantManager::InitShaderReflection(CDeviceG
 	CryStackAllocWithSizeVectorCleared(Vec4, maxVectorCount, zeroMem, CDeviceBufferManager::AlignBufferSizeForStreaming);
 
 	// allocate constant buffers and fill with zeros
+	bool allBuffersValid = true;
 	for (int i = 0, end = m_pShaderReflection->bufferCount; i < end; ++i)
 	{
 		auto& updateContext = m_pShaderReflection->bufferUpdateContexts[i];
@@ -235,11 +249,11 @@ void SDeviceObjectHelpers::CShaderConstantManager::InitShaderReflection(CDeviceG
 		if (bufferSize)
 		{
 			m_constantBuffers[updateContext.bufferIndex].pBuffer = gcpRendD3D->m_DevBufMan.CreateConstantBuffer(bufferSize);
-			m_constantBuffers[updateContext.bufferIndex].pBuffer->UpdateBuffer(zeroMem, updateSize);
-
-			m_pShaderReflection->bValid = true;
+			allBuffersValid &= m_constantBuffers[updateContext.bufferIndex].pBuffer->UpdateBuffer(zeroMem, updateSize);
 		}
 	}
+
+	m_pShaderReflection->bValid = m_pShaderReflection->bufferCount > 0 && allBuffersValid;
 }
 
 void SDeviceObjectHelpers::CShaderConstantManager::InitShaderReflection(CDeviceComputePSO& pipelineState)
@@ -340,7 +354,7 @@ void SDeviceObjectHelpers::CShaderConstantManager::BeginNamedConstantUpdate()
 	}
 }
 
-void SDeviceObjectHelpers::CShaderConstantManager::EndNamedConstantUpdate()
+void SDeviceObjectHelpers::CShaderConstantManager::EndNamedConstantUpdate(const D3DViewPort* pVP)
 {
 	CRY_ASSERT(m_pShaderReflection);
 
@@ -358,7 +372,7 @@ void SDeviceObjectHelpers::CShaderConstantManager::EndNamedConstantUpdate()
 			if (pShaderInstance->m_nParams[0] >= 0)
 			{
 				SCGParamsGroup& Group = CGParamManager::s_Groups[pShaderInstance->m_nParams[0]];
-				CHWShader_D3D::mfSetParameters(Group.pParams, Group.nParams, eHWSC_Num, -1, (Vec4*)updateContext.pMappedData, cb.pBuffer->m_size);
+				CHWShader_D3D::mfSetParameters(Group.pParams, Group.nParams, eHWSC_Num, -1, (Vec4*)updateContext.pMappedData, cb.pBuffer->m_size, pVP);
 			}
 
 			cb.pBuffer->EndWrite();

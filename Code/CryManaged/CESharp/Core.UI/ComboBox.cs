@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 using System.IO;
 
@@ -28,7 +28,7 @@ namespace CryEngine.UI
         /// <summary>
         /// Called by framework. Do not call directly.
         /// </summary>
-        public override void OnAwake()
+        protected override void OnAwake()
 		{
 			BgPanel = Instantiate<Panel>(this);
 			BgPanel.Background.Source = ResourceManager.ImageFromFile(Path.Combine(DataDirectory, "button.png"), false);
@@ -72,7 +72,7 @@ namespace CryEngine.UI
 		{
 			_frame.Active = true;
 			BgPanel.Background.Source = ResourceManager.ImageFromFile(Path.Combine(DataDirectory, "button_inv.png"), false);
-			_button.Ctrl.OnEnterFocus();
+			_button.Ctrl.EnterFocusAction?.Invoke();
 		}
 
 		/// <summary>
@@ -82,7 +82,7 @@ namespace CryEngine.UI
 		{
 			_frame.Active = false;
 			BgPanel.Background.Source = ResourceManager.ImageFromFile(Path.Combine(DataDirectory, "button.png"), false);
-			_button.Ctrl.OnLeaveFocus();
+			_button.Ctrl.LeaveFocusAction?.Invoke();
 		}
 	}
 }

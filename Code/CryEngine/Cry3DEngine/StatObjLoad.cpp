@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 // -------------------------------------------------------------------------
 //  File name:   statobjconstr.cpp
@@ -59,7 +59,7 @@ void CStatObj::Refresh(int nFlags)
 			// load default in case of error
 			ShutDown();
 			Init();
-			LoadCGF("objects/default.cgf", 0, 0, 0, 0);
+			LoadCGF(DEFAULT_CGF_NAME, 0, 0, 0, 0);
 			m_bDefaultObject = true;
 		}
 
@@ -436,7 +436,7 @@ bool CStatObj::LoadStreamRenderMeshes(const char* filename, const void* pData, c
 			}
 		}
 	}
-	if (!bMeshAssigned)
+	if (!bMeshAssigned && gEnv->pRenderer)
 	{
 		Warning("RenderMesh not assigned %s", m_szFileName.c_str());
 	}
@@ -627,7 +627,11 @@ bool CStatObj::LoadCGF_Int(const char* filename, bool bLod, unsigned long nLoadi
 	}
 	if (!bLoaded)
 	{
-		FileWarning(0, filename, "CGF Loading Failed: %s", cgfLoader.GetLastError());
+		if (!(nLoadingFlags & IStatObj::ELoadingFlagsNoErrorIfFail))
+		{
+			FileWarning(0, filename, "CGF Loading Failed: %s", cgfLoader.GetLastError());
+		}
+
 		return false;
 	}
 	//////////////////////////////////////////////////////////////////////////

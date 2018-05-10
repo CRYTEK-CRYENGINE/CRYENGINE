@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 /*************************************************************************
    -------------------------------------------------------------------------
@@ -56,7 +56,7 @@ protected:
 	virtual void UpdateLight(const float frameTime);
 
 	string                          m_lightType;
-	CDLight                         m_light;
+	SRenderLight                         m_light;
 	int                             m_lightViewDistanceRatio;
 	_smart_ptr<IMaterial>           m_pMaterial;
 

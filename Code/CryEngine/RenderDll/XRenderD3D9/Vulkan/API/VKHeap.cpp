@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "VKHeap.hpp"
@@ -305,18 +305,17 @@ namespace Detail
 template<typename TFunctor>
 struct DeduceCFunctor
 {
-	template<typename ... TArgs>
-	static void WrappedCallback(void* pContext, TArgs ... args)
+	template<typename TResult, typename ... TArgs>
+	static TResult WrappedCallback(void* pContext, TArgs ... args)
 	{
 		TFunctor& functor = *static_cast<TFunctor*>(pContext);
-		functor(args ...);
+		return functor(args ...);
 	}
 
 	template<typename TResult, typename ... TArgs>
 	static auto Select(TResult (TFunctor::* pfnMember)(TArgs ...) const)
-	->decltype(&WrappedCallback<TArgs ...> )
 	{
-		return WrappedCallback<TArgs ...>;
+		return WrappedCallback<TResult, TArgs ...>;
 	}
 
 	static auto Deduce()

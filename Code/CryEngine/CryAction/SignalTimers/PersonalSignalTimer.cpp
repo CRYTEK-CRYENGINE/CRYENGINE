@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 /********************************************************************
    ---------------------------------------------------------------------
@@ -296,21 +296,7 @@ void CPersonalSignalTimer::DebugDraw(uint32 uOrder) const
 		b = 0.0f;
 	}
 
-	pUI->DrawText(
-	  m_pDefaultFont,
-	  x,
-	  y,
-	  13.0f,
-	  13.0f,
-	  txt,
-	  1.0f,
-	  r,
-	  g,
-	  b,
-	  UIDRAWHORIZONTAL_LEFT,
-	  UIDRAWVERTICAL_TOP,
-	  UIDRAWHORIZONTAL_LEFT,
-	  UIDRAWVERTICAL_TOP);
+	IRenderAuxText::Draw2dLabel( x,y, 13.0f, ColorF(r,g,b), false, "%s", txt);
 }
 
 // Description:

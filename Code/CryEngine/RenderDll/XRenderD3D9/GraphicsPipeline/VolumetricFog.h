@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -37,8 +37,8 @@ public:
 	CVolumetricFogStage();
 	virtual ~CVolumetricFogStage();
 
-	void Init() override;
-	void Prepare(CRenderView* pRenderView) override;
+	void Init() final;
+	void Update() final;
 
 	void Execute();
 
@@ -59,10 +59,10 @@ private:
 	static const int32 MaxFrameNum = 4;
 
 private:
-	bool      PreparePerPassResources(CRenderView* RESTRICT_POINTER pRenderView, bool bOnInit);
+	bool      PreparePerPassResources(bool bOnInit);
 
-	void      InjectParticipatingMedia(CRenderView* pRenderView, const SScopedComputeCommandList& commandList);
-	void      RenderVolumetricFog(CRenderView* pRenderView, const SScopedComputeCommandList& commandList);
+	void      ExecuteInjectParticipatingMedia(const SScopedComputeCommandList& commandList);
+	void      ExecuteVolumetricFog(const SScopedComputeCommandList& commandList);
 
 	uint32    GetTemporalBufferId() const;
 	CTexture* GetInscatterTex() const;
@@ -70,21 +70,23 @@ private:
 	CTexture* GetDensityTex() const;
 	CTexture* GetPrevDensityTex() const;
 
+	void      GenerateLightList();
+	void      GenerateFogVolumeList();
+
+	bool      ReplaceShadowMapWithStaticShadowMap(CShadowUtils::SShadowCascades& shadowCascades, uint32 shadowCascadeSlot) const;
+
 	bool      IsVisible() const;
 	bool      IsTexturesValid() const;
 	void      UpdateFrame();
-	void      RenderDownscaledShadowmap(CRenderView* pRenderView);
-	void      PrepareLightList(CRenderView* pRenderView);
-	void      BuildLightListGrid(const SScopedComputeCommandList& commandList);
-	void      RenderDownscaledDepth(const SScopedComputeCommandList& commandList);
-	void      PrepareFogVolumeList(CRenderView* pRenderView);
-	void      InjectFogDensity(const SScopedComputeCommandList& commandList);
-	bool      ReplaceShadowMapWithStaticShadowMap(CShadowUtils::SShadowCascades& shadowCascades, uint32 shadowCascadeSlot, CRenderView* pRenderView) const;
-	void      InjectInscatteringLight(CRenderView* pRenderView, const SScopedComputeCommandList& commandList);
-	void      BlurDensityVolume(const SScopedComputeCommandList& commandList);
-	void      BlurInscatterVolume(const SScopedComputeCommandList& commandList);
-	void      TemporalReprojection(const SScopedComputeCommandList& commandList);
-	void      RaymarchVolumetricFog(const SScopedComputeCommandList& commandList);
+	void      ExecuteDownscaleShadowmap();
+	void      ExecuteBuildLightListGrid(const SScopedComputeCommandList& commandList);
+	void      ExecuteDownscaledDepth(const SScopedComputeCommandList& commandList);
+	void      ExecuteInjectFogDensity(const SScopedComputeCommandList& commandList);
+	void      ExecuteInjectInscatteringLight(const SScopedComputeCommandList& commandList);
+	void      ExecuteBlurDensityVolume(const SScopedComputeCommandList& commandList);
+	void      ExecuteBlurInscatterVolume(const SScopedComputeCommandList& commandList);
+	void      ExecuteTemporalReprojection(const SScopedComputeCommandList& commandList);
+	void      ExecuteRaymarchVolumetricFog(const SScopedComputeCommandList& commandList);
 
 private:
 	_smart_ptr<CTexture>     m_pVolFogBufDensityColor;
@@ -136,7 +138,7 @@ private:
 	int32                    m_cleared;
 	uint32                   m_numTileLights;
 	uint32                   m_numFogVolumes;
-	int32                    m_frameID;
+	int64                    m_frameID;
 	int32                    m_tick;
 	int32                    m_resourceFrameID;
 };

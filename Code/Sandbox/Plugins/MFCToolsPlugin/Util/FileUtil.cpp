@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "FileUtil.h"
@@ -146,8 +146,8 @@ void OnFilePopupMenuPopulation(CFilePopupMenu* pMenu)
 		typedef CFilePopupMenu::SFilePopupMenuAction SFilePopupMenuAction;
 		if (bIsScEnabled)
 		{
-			pMenu->addAction(new SFilePopupMenuAction(QObject::tr("Copy Source Control Path To Clipboard"), pMenu, [&] { CopySourceControlPathToClipboard(filePath);
-			                                          }));
+			pMenu->addAction(new SFilePopupMenuAction(QObject::tr("Copy Source Control Path To Clipboard"), 
+				pMenu, [&] { CopySourceControlPathToClipboard(filePath); }));
 
 			const auto bIsScEnabledAndNotInPak = bIsScEnabled && !bIsInPak;
 			if (bIsScEnabledAndNotInPak)
@@ -378,7 +378,7 @@ static std::unique_ptr<CDynamicPopupMenu> CreateDynamicPopupMenu(const char* pFi
 	if (pIsSelected)
 	{
 		root.Add<bool*>(QObject::tr("Select").toStdString().c_str(), functor(&SelectFromPopup), pIsSelected);
-		pIsSelected = false;
+		*pIsSelected = false;
 	}
 
 	bool bHasExtraItems = pItems && (!pItems->names.empty());
@@ -453,8 +453,8 @@ void PyShowInExplorer(const char* path)
 }
 
 REGISTER_PYTHON_COMMAND_WITH_EXAMPLE(PyShowInExplorer, general, show_in_explorer,
-                                     "Shows a specified file in an OS browser and selects it.",
-                                     "general.show_in_explorer('C:/Sandbox/example.txt')");
+									 "Shows a specified file in an OS browser and selects it.",
+									 "general.show_in_explorer('C:/Sandbox/example.txt')");
 
 }
 
@@ -505,8 +505,8 @@ bool CFileUtil::CompileLuaFile(const char* luaFilename)
 		// Errors while compiling file.
 
 		// Show output from Lua compiler
-		if (MessageBox(NULL, (CString("Error output from Lua compiler:\r\n") + CompilerOutput.GetString() +
-		                      CString("\r\nDo you want to edit the file ?")), "Lua Compiler", MB_ICONERROR | MB_YESNO) == IDYES)
+		if (CryMessageBox((CString("Error output from Lua compiler:\r\n") + CompilerOutput.GetString() +
+							  CString("\r\nDo you want to edit the file ?")), "Lua Compiler", eMB_YesCancel) == eQR_Yes)
 		{
 			int line = 0;
 			string cmdLine = luaFile;
@@ -622,7 +622,7 @@ void CFileUtil::EditTextFile(const char* txtFile, int line, ETextFileType fileTy
 	{
 		// Failed.
 		file = file.SpanExcluding("/");
-		// Try standart open.
+		// Try standard open.
 		hInst = ShellExecute(NULL, "open", file, NULL, NULL, SW_SHOWNORMAL);
 		if ((DWORD_PTR)hInst <= 32)
 		{
@@ -855,7 +855,7 @@ bool CFileUtil::SelectFile(const CString& fileSpec, const CString& searchFolder,
 	}
 	dialogParams.extensionFilters = CExtensionFilter::Parse(fileSpec);
 	CSystemFileDialog fileDialog(dialogParams);
-	if (fileDialog.exec() == QDialog::Accepted)
+	if (fileDialog.Execute() == QDialog::Accepted)
 	{
 		auto files = fileDialog.GetSelectedFiles();
 		CRY_ASSERT(!files.empty());
@@ -872,7 +872,7 @@ bool CFileUtil::SelectFiles(const CString& fileSpec, const CString& searchFolder
 	dialogParams.extensionFilters = CExtensionFilter::Parse(fileSpec);
 	CSystemFileDialog fileDialog(dialogParams);
 	files.clear();
-	if (fileDialog.exec() == QDialog::Accepted)
+	if (fileDialog.Execute() == QDialog::Accepted)
 	{
 		auto filePathes = fileDialog.GetSelectedFiles();
 		CRY_ASSERT(!filePathes.empty());
@@ -886,32 +886,29 @@ bool CFileUtil::SelectFiles(const CString& fileSpec, const CString& searchFolder
 }
 
 //////////////////////////////////////////////////////////////////////////
-bool CFileUtil::SelectSaveFile(const char* fileFilter, const char* defaulExtension, const char* startFolder, string& fileName, bool bAllowCreateFolder /* = false */)
+bool CFileUtil::SelectSaveFile(const char* fileFilter, const char* defaulExtension, const char* startFolder, string& fileName)
 {
 	CString fF = fileFilter;
 	CString dE = defaulExtension;
 	CString sF = startFolder;
 	CString oF = fileName.GetString();
 
-	bool result = SelectSaveFile(fF, dE, sF, oF, bAllowCreateFolder);
+	bool result = SelectSaveFile(fF, dE, sF, oF);
 	fileName = oF.GetString();
 	return result;
 }
 
-bool CFileUtil::SelectSaveFile(const CString& fileFilter, const CString& defaulExtension, const CString& startFolder, CString& fileName, bool bAllowCreateFolder /* = false */)
+bool CFileUtil::SelectSaveFile(const CString& fileFilter, const CString& defaulExtension, const CString& startFolder, CString& fileName)
 {
 	CSystemFileDialog::OpenParams dialogParams(CSystemFileDialog::SaveFile);
 	dialogParams.initialDir = FormatInitialFolderForFileDialog(startFolder);
-	dialogParams.buttonLabel = QObject::tr("Save");
 	if (!fileName.IsEmpty())
 	{
 		dialogParams.initialFile = dialogParams.initialDir + fileName;
 	}
 	dialogParams.extensionFilters = CExtensionFilter::Parse(fileFilter);
-	dialogParams.defaultExtension = defaulExtension.GetString();
-	dialogParams.allowCreateFolder = bAllowCreateFolder;
 	CSystemFileDialog fileDialog(dialogParams);
-	if (fileDialog.exec() == QDialog::Accepted)
+	if (fileDialog.Execute() == QDialog::Accepted)
 	{
 		auto files = fileDialog.GetSelectedFiles();
 		CRY_ASSERT(!files.empty());
@@ -1004,49 +1001,6 @@ inline bool ScanDirectoryFiles(const CString& root, const CString& path, const C
 		pIPak->FindClose(fhandle);
 	}
 
-	/*
-	   CFileFind finder;
-	   BOOL bWorking = finder.FindFile( Path::Make(dir,fileSpec) );
-	   while (bWorking)
-	   {
-	   bWorking = finder.FindNextFile();
-
-	   if (finder.IsDots())
-	    continue;
-
-	   if (!finder.IsDirectory())
-	   {
-	    anyFound = true;
-
-	    CFileUtil::FileDesc fd;
-	    fd.filename = dir + finder.GetFileName();
-	    fd.nFileSize = finder.GetLength();
-
-	    finder.GetCreationTime( &fd.ftCreationTime );
-	    finder.GetLastAccessTime( &fd.ftLastAccessTime );
-	    finder.GetLastWriteTime( &fd.ftLastWriteTime );
-
-	    fd.dwFileAttributes = 0;
-	    if (finder.IsArchived())
-	      fd.dwFileAttributes |= FILE_ATTRIBUTE_ARCHIVE;
-	    if (finder.IsCompressed())
-	      fd.dwFileAttributes |= FILE_ATTRIBUTE_COMPRESSED;
-	    if (finder.IsNormal())
-	      fd.dwFileAttributes = FILE_ATTRIBUTE_NORMAL;
-	    if (finder.IsHidden())
-	      fd.dwFileAttributes = FILE_ATTRIBUTE_HIDDEN;
-	    if (finder.IsReadOnly())
-	      fd.dwFileAttributes = FILE_ATTRIBUTE_READONLY;
-	    if (finder.IsSystem())
-	      fd.dwFileAttributes = FILE_ATTRIBUTE_SYSTEM;
-	    if (finder.IsTemporary())
-	      fd.dwFileAttributes = FILE_ATTRIBUTE_TEMPORARY;
-
-	    files.push_back(fd);
-	   }
-	   }
-	 */
-
 	return anyFound;
 }
 
@@ -1071,25 +1025,6 @@ inline int ScanDirectoryRecursive(const CString& root, const CString& path, cons
 
 	if (recursive)
 	{
-		/*
-		   CFileFind finder;
-		   BOOL bWorking = finder.FindFile( Path::Make(dir,"*.*") );
-		   while (bWorking)
-		   {
-		   bWorking = finder.FindNextFile();
-
-		   if (finder.IsDots())
-		    continue;
-
-		   if (finder.IsDirectory())
-		   {
-		    // Scan directory.
-		    if (ScanDirectoryRecursive( root,Path::AddBackslash(path+finder.GetFileName()),fileSpec,files,recursive ))
-		      anyFound = true;
-		   }
-		   }
-		 */
-
 		ICryPak* pIPak = GetIEditor()->GetSystem()->GetIPak();
 
 		// Add all directories.
@@ -1201,86 +1136,9 @@ bool CFileUtil::OverwriteFile(const CString& filename)
 	return true;
 }
 
-/*
-   static bool CheckOutFile( const char *filename )
-   {
-   CString ssafeExe = "C:\\Program Files\\Microsoft Visual Studio\\VSS\\win32\\ss.exe";
-   SetEnvironmentVariable( "ssuser","timur" );
-   SetEnvironmentVariable( "ssdir","\\\\Server2\\XISLE\\ArtworkVss" );
-   //CString SSafeArtwork = "\\\\Server2\\XISLE\\ArtworkVss\\win32\\ss.exe";
-   //CString SSafeArtworkProject = "$/MASTERCD";
-
-   CString cmd = ssafeExe + " " + " checkout cg.dll";
-
-   char currDirectory[MAX_PATH];
-   GetCurrentDirectory( sizeof(currDirectory),currDirectory  );
-   char cmdLine[MAX_PATH];
-   cry_strcpy( cmdLine,cmd );
-
-   PROCESS_INFORMATION pi;
-   STARTUPINFO si;
-   memset( &si,0,sizeof(si) );
-   si.cb = sizeof(si);
-   memset( &pi,0,sizeof(pi) );
-   if (CreateProcess( NULL,cmdLine,NULL,NULL,FALSE,CREATE_NEW_CONSOLE,NULL,currDirectory,&si,&pi ))
-   {
-    // Wait until child process exits.
-    WaitForSingleObject( pi.hProcess, INFINITE );
-
-    // Close process and thread handles.
-    CloseHandle( pi.hProcess );
-    CloseHandle( pi.hThread );
-   }
-   }
- */
-
 //////////////////////////////////////////////////////////////////////////
 bool CFileUtil::CheckoutFile(const char* filename)
 {
-	/*
-	   if (gSettings.ssafeParams.user.IsEmpty())
-	   {
-	   CQuestionDialog::SWarning(QObject::tr(""),QObject::tr("Source Safe login user name must be configured."));
-
-	   // Source safe not configured.
-	   CSrcSafeSettingsDialog dlg;
-	   if (dlg.DoModal() != IDOK)
-	   {
-	    CQuestionDialog::SWarning(QObject::tr(""),QObject::tr("Checkout canceled"));
-	    return false;
-	   }
-	   }
-	   SetEnvironmentVariable( "ssuser",gSettings.ssafeParams.user );
-	   SetEnvironmentVariable( "ssdir",gSettings.ssafeParams.databasePath );
-
-	   CString relFile = Path::GetRelativePath(filename);
-	   if (relFile.IsEmpty())
-	   relFile = filename;
-
-	   CString cmd = gSettings.ssafeParams.exeFile + " checkout " + relFile;
-
-	   char currDirectory[MAX_PATH];
-	   GetCurrentDirectory( sizeof(currDirectory),currDirectory  );
-	   char cmdLine[MAX_PATH];
-	   cry_strcpy( cmdLine,cmd );
-
-	   PROCESS_INFORMATION pi;
-	   STARTUPINFO si;
-	   memset( &si,0,sizeof(si) );
-	   si.cb = sizeof(si);
-	   memset( &pi,0,sizeof(pi) );
-	   if (CreateProcess( NULL,cmdLine,NULL,NULL,FALSE,CREATE_NEW_CONSOLE,NULL,currDirectory,&si,&pi ))
-	   {
-	   // Wait until child process exits.
-	   WaitForSingleObject( pi.hProcess, INFINITE );
-
-	   // Close process and thread handles.
-	   CloseHandle( pi.hProcess );
-	   CloseHandle( pi.hThread );
-	   return true;
-	   }
-	 */
-
 	uint32 attr = CFileUtil::GetAttributes(filename);
 	if (GetIEditor()->IsSourceControlAvailable() && (attr & SCC_FILE_ATTRIBUTE_MANAGED))
 	{
@@ -1318,38 +1176,6 @@ bool CFileUtil::CheckoutFile(const char* filename)
 //////////////////////////////////////////////////////////////////////////
 bool CFileUtil::CheckinFile(const char* filename)
 {
-	/*
-	   SetEnvironmentVariable( "ssuser",gSettings.ssafeParams.user );
-	   SetEnvironmentVariable( "ssdir",gSettings.ssafeParams.databasePath );
-
-	   CString relFile = Path::GetRelativePath(filename);
-	   if (relFile.IsEmpty())
-	   relFile = filename;
-
-	   CString cmd = gSettings.ssafeParams.exeFile + " checkout " + relFile;
-
-	   char currDirectory[MAX_PATH];
-	   GetCurrentDirectory( sizeof(currDirectory),currDirectory  );
-	   char cmdLine[MAX_PATH];
-	   cry_strcpy( cmdLine,cmd );
-
-	   PROCESS_INFORMATION pi;
-	   STARTUPINFO si;
-	   memset( &si,0,sizeof(si) );
-	   si.cb = sizeof(si);
-	   memset( &pi,0,sizeof(pi) );
-	   if (CreateProcess( NULL,cmdLine,NULL,NULL,FALSE,CREATE_NEW_CONSOLE,NULL,currDirectory,&si,&pi ))
-	   {
-	   // Wait until child process exits.
-	   WaitForSingleObject( pi.hProcess, INFINITE );
-
-	   // Close process and thread handles.
-	   CloseHandle( pi.hProcess );
-	   CloseHandle( pi.hThread );
-	   return true;
-	   }
-	 */
-
 	if (GetIEditor()->IsSourceControlAvailable())
 	{
 		uint32 attr = CFileUtil::GetAttributes(filename);
@@ -2147,7 +1973,7 @@ CFileUtil::ECopyTreeResult CFileUtil::MoveTree(const CString& strSourceDirectory
 			}
 		}
 
-		bnLastFileWasCopied = ::MoveFileEx(name, strTargetName, MOVEFILE_REPLACE_EXISTING);
+		bnLastFileWasCopied = ::MoveFileEx(name, strTargetName, MOVEFILE_REPLACE_EXISTING | MOVEFILE_COPY_ALLOWED);
 		if (!bnLastFileWasCopied)
 		{
 			eCopyResult = ETREECOPYFAIL;
@@ -2342,7 +2168,7 @@ CFileUtil::ECopyTreeResult CFileUtil::MoveFile(const CString& strSourceFile, con
 		}
 	}
 
-	bnLastFileWasCopied = ::MoveFileEx(name, strFullStargetName, MOVEFILE_REPLACE_EXISTING);
+	bnLastFileWasCopied = ::MoveFileEx(name, strFullStargetName, MOVEFILE_REPLACE_EXISTING | MOVEFILE_COPY_ALLOWED);
 	if (!bnLastFileWasCopied)
 	{
 		eCopyResult = ETREECOPYFAIL;
@@ -2420,11 +2246,11 @@ bool CFileUtil::CustomSelectSingleFile(
 }
 
 void CFileUtil::PopupMenu(const char* filename, const char* fullGamePath, CWnd* wnd,
-                          bool* pIsSelected, CFileUtil::ExtraMenuItems* pItems)
+						  bool* pIsSelected, CFileUtil::ExtraMenuItems* pItems)
 {
 	std::function<void()> func([wnd]
 	{
-		MessageBox(wnd ? wnd->GetSafeHwnd() : nullptr, "Source Control Operation Failed.\r\nCheck if Source Control Provider correctly setup and working directory is correct.", "Error", MB_OK | MB_ICONERROR);
+		CryMessageBox("Source Control Operation Failed.\r\nCheck if Source Control Provider correctly setup and working directory is correct.", "Error", eMB_Error);
 	});
 	auto pMenu = Private_FileUtil::CreateDynamicPopupMenu(filename, fullGamePath, pIsSelected, pItems, func);
 	pMenu->SpawnAtCursor();
@@ -2820,3 +2646,4 @@ bool CTempFileHelper::UpdateFile(bool bBackup)
 		return true;
 	}
 }
+

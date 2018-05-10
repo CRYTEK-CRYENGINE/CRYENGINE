@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 // This file contains only the support definitions for CZipDir class
 // implementation. This it to unload the ZipDir.h from secondary stuff.

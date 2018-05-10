@@ -71,7 +71,6 @@ add_sources("CryLobby_uber_0.cpp"
 		"CryFriendsManagement.cpp"
 		"CryHostMigration.cpp"
 		"CryLobby.cpp"
-		"CryLobbyDLL.cpp"
 		"CryLobbyUI.cpp"
 		"CryMatchMaking.cpp"
 		"CryReward.cpp"
@@ -127,6 +126,10 @@ elseif(WIN32)
 endif()
 mark_as_advanced(FORCE SPEEX)
 
+if (EXISTS "${SDK_DIR}/Steamworks" AND WIN32)
+	target_link_libraries(${THIS_PROJECT} PRIVATE Steamworks)
+endif()
+
 if (WIN32 OR WIN64)
 	target_link_libraries(${THIS_PROJECT} PRIVATE Ws2_32 Mswsock "${SPEEX}")
 elseif(DURANGO)
@@ -136,4 +139,39 @@ elseif(DURANGO)
 elseif(ORBIS)
 	target_compile_options(${THIS_PROJECT} PRIVATE -Wno-deprecated-declarations)
 	target_link_libraries(${THIS_PROJECT} PRIVATE SceNpCommerce_stub_weak SceJson2_stub_weak)
+endif()
+
+if (ORBIS OR CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+	target_compile_options(${THIS_PROJECT} PRIVATE
+		-Wno-unused-function
+		-Wno-reorder
+		-Wno-multichar
+		-Wno-parentheses
+		-Wno-switch
+		-Wno-bitwise-op-parentheses
+		-Wno-logical-op-parentheses
+		-Wno-unknown-pragmas
+		-Wno-unused-variable
+		-Wno-unused-value
+		-Wno-unused-private-field
+		-Wno-format
+		-Wno-empty-body
+	)
+elseif(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+	target_compile_options(${THIS_PROJECT} PRIVATE
+		-Wno-unused-function
+		-Wno-unused-value
+		-Wno-unused-variable
+		-Wno-sign-compare
+		-Wno-unused-but-set-variable
+		-Wno-misleading-indentation
+		-Wno-unknown-pragmas
+		-Wno-strict-aliasing
+		-Wno-maybe-uninitialized
+		-Wno-multichar
+		-Wno-reorder
+		-Wno-parentheses
+		-Wno-format
+		-Wno-switch
+	)
 endif()

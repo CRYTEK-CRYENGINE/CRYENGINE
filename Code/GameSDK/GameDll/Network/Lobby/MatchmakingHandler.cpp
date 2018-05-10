@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 /*************************************************************************
 -------------------------------------------------------------------------
@@ -673,28 +673,28 @@ void CMatchMakingHandler::NewSessionParameter( ELOBBYIDS paramID, ScriptAnyValue
 	{
 		m_sessionParams[ m_nSessionParams ].m_id = paramID;
 
-		switch( valueVal.type )
+		switch (valueVal.GetType())
 		{
-		case ANY_TNUMBER:
+		case EScriptAnyType::Number:
 			m_sessionParams[ m_nSessionParams ].m_type = eCLUDT_Int32;
-			m_sessionParams[ m_nSessionParams ].m_int32 = (int32)valueVal.number;
+			m_sessionParams[ m_nSessionParams ].m_int32 = static_cast<int32>(valueVal.GetNumber());
 			break;
 
-		case ANY_TBOOLEAN:
+		case EScriptAnyType::Boolean:
 			m_sessionParams[ m_nSessionParams ].m_type = eCLUDT_Int32;
-			m_sessionParams[ m_nSessionParams ].m_int32 = (int32)valueVal.b;
+			m_sessionParams[ m_nSessionParams ].m_int32 = valueVal.GetBool() ? 1 : 0;
 			break;
 
-		case ANY_THANDLE:
+		case EScriptAnyType::Handle:
 			m_sessionParams[ m_nSessionParams ].m_type = eCLUDT_Int32;
-			m_sessionParams[ m_nSessionParams ].m_int32 = (int32)(TRUNCATE_PTR)valueVal.ptr;
+			m_sessionParams[ m_nSessionParams ].m_int32 = static_cast<int32>(valueVal.GetScriptHandle().n);
 			break;
 
 		default:
 			MMLog( "MMLua: Unsupported type in session data", true );
 		}
 
-		CryLog( "MMLua: Create Session Parameter, id %d, value %d", m_sessionParams[ m_nSessionParams ].m_id, m_sessionParams[ m_nSessionParams ].m_int32 );
+		CryLog( "MMLua: Create Session Parameter, id %s, value %d", m_sessionParams[ m_nSessionParams ].m_id.c_str(), m_sessionParams[ m_nSessionParams ].m_int32 );
 		m_nSessionParams++;
 	}
 	else

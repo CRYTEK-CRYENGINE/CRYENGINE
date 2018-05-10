@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 
@@ -275,6 +275,7 @@ phys_geometry *CGeomManager::LoadPhysGeometry(CMemStream &stm, strided_pointer<c
 	int ver; stm.Read(ver);
 	if (ver!=PHYS_GEOM_VER)
 		return 0;
+	WriteLock lock(m_lockGeoman);
 	phys_geometry *pgeom = GetFreeGeomSlot();
 	phys_geometry_serialize pgs;
 /*#if SIZEOF_PTR != 4

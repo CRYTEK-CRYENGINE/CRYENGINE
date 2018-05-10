@@ -150,6 +150,12 @@ namespace NSH
 		rVec.Normalize();
 		return rVec;
 	}
+	inline Vec3 GetNormalized(const Vec3& rVec)
+	{
+		Vec3 temp(rVec);
+		temp.Normalize();
+		return temp;
+	}
 
 	//!< normalizes a vector and returns it
 	template<class TFloatType>

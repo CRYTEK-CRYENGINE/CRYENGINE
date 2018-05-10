@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 /*************************************************************************
 -------------------------------------------------------------------------
@@ -3083,7 +3083,7 @@ void CPickAndThrowWeapon::DecideGrabType()
 				ScriptAnyValue grabTypeScript;
 				propsPlayerInteractions->GetValueAny("esGrabType", grabTypeScript);
 				if (grabTypeScript.GetVarType()==svtString)
-					grabType = grabTypeScript.str;
+					grabType = grabTypeScript.GetString();
 			}
 		}
 

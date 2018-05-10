@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -69,7 +69,7 @@ public:
 		m_bMapsFullResource = bMapsFullResource;
 	}
 
-	ILINE void SetMips(TRange<uint16>& mips)
+	ILINE void SetMips(const TRange<uint16>& mips)
 	{
 		m_mips = mips;
 	}

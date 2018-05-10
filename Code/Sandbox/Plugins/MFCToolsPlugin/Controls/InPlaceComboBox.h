@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #ifndef __inplacecombobox_h__
 #define __inplacecombobox_h__
@@ -216,3 +216,4 @@ inline int CInPlaceComboBox::GetCurrentSelection() const
 }
 
 #endif // __inplacecombobox_h__#pragma once
+

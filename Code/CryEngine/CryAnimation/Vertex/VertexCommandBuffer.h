@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -106,7 +106,7 @@ struct SVertexAnimationJob
 	_smart_ptr<IRenderMesh> m_previousRenderMesh;
 
 public:
-	SVertexAnimationJob() : pRenderMeshSyncVariable(nullptr) {}
+	SVertexAnimationJob() : commandBufferLength(0), pRenderMeshSyncVariable(nullptr), commandBuffer() {}
 
 	void Begin(JobManager::SJobState* pJob);
 	void Execute(int);

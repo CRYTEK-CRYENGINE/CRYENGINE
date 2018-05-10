@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "AudioAreaEntity.h"
@@ -54,7 +54,7 @@ CAudioAreaEntityRegistrator g_audioAreaEntityRegistrator;
 
 CRYREGISTER_CLASS(CAudioAreaEntity);
 
-void CAudioAreaEntity::ProcessEvent(SEntityEvent& event)
+void CAudioAreaEntity::ProcessEvent(const SEntityEvent& event)
 {
 	if (gEnv->IsDedicated())
 		return;

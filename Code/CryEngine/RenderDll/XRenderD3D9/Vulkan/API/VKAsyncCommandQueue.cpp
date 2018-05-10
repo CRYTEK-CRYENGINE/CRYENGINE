@@ -1,9 +1,8 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "VKAsyncCommandQueue.hpp"
 #include "VKCommandList.hpp"
-#include "DriverD3D.h"
 
 #ifdef VK_LINKEDADAPTER
 	#include "Redirections/VkDevice.inl"

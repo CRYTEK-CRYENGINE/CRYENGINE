@@ -183,18 +183,11 @@ struct HS_CONTROL_POINT_OUTPUT_ZPASS
 struct HS_CONTROL_POINT_OUTPUT_ILLUM
 {
 	hsControlPointShared controlPoint;
-
-#if %_RT_FOG || %ANISO_SPECULAR || %IRIS_PARALAX_MAPPING || %OFFSET_BUMP_MAPPING || %PARALLAX_OCCLUSION_MAPPING || %SILHOUETTE_PARALLAX_OCCLUSION_MAPPING || %_RT_PER_INSTANCE_CB_TEMP
 	float4 vTangent  : TEXCOORDN;
 	float4 vBinormal : TEXCOORDN;
-#endif
-
+	
 #if %_RT_FOG && !%_RT_DECAL_TEXGEN_2D
 	float4 AvgFogVolumeContrib : TEXCOORDN;
-#endif
-
-#if %_RT_FOG || %_RT_DECAL_TEXGEN_2D || %DECAL
-	float4 Ambient   : TEXCOORDN;
 #endif
 
 #if %VERTCOLORS || %DIRTLAYER || %BLENDLAYER
@@ -208,11 +201,7 @@ struct HS_CONTROL_POINT_OUTPUT_ILLUM
 //--------------------------------------------------------------------------------------
 int GetPatchIDOffset()
 {
-#if %_RT_PER_INSTANCE_CB_TEMP
 	return Get_PerInstanceTessellationPatchId();
-#else
-	return patchIDOffset.Load(0);
-#endif
 }
 
 HS_CONSTANT_DATA_OUTPUT CommonConstantsHS(float3 vWP0, float3 vWP1, float3 vWP2, float3 vViewPosition, float3 vCullPosition, uint PatchID, bool bCullFront = false)

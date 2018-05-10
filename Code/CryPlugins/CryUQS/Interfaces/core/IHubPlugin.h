@@ -1,9 +1,9 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
 #include <CrySystem/ICryPlugin.h>
-#include <CryExtension/ICryPluginManager.h>
+#include <CrySystem/ICryPluginManager.h>
 
 // *INDENT-OFF* - <hard to read code and declarations due to inconsistent indentation>
 
@@ -18,7 +18,7 @@ namespace UQS
 		//
 		//===================================================================================
 
-		class IHubPlugin : public ICryPlugin
+		class IHubPlugin : public Cry::IEnginePlugin
 		{
 			CRYINTERFACE_DECLARE_GUID(IHubPlugin, "de73f1db-0c37-498f-8396-d76e43988c60"_cry_guid)
 
@@ -61,7 +61,7 @@ namespace UQS
 			//
 			//===================================================================================
 
-			class CCachedHubPtr : public IPluginEventListener, public IHubPluginEventListener
+			class CCachedHubPtr : public Cry::IPluginManager::IEventListener, public IHubPluginEventListener
 			{
 			public:
 				explicit          CCachedHubPtr();
@@ -69,9 +69,9 @@ namespace UQS
 				IHub*             GetHubPtr();
 
 			private:
-				// IPluginEventListener
-				virtual void      OnPluginEvent(const CryClassID& pluginClassId, EPluginEvent event) override;
-				// ~IPluginEventListener
+				// Cry::IPluginManager::IEventListener
+				virtual void      OnPluginEvent(const CryClassID& pluginClassId, Cry::IPluginManager::IEventListener::EEvent event) override;
+				// ~Cry::IPluginManager::IEventListener
 
 				// IHubPluginEventListener
 				virtual void      OnHubPluginEvent(IHubPluginEventListener::EEvent ev) override;
@@ -93,14 +93,6 @@ namespace UQS
 			static void           TearDownHub();
 
 		private:
-
-			// ICryPlugin: forward these to the derived class
-			virtual const char*   GetName() const override = 0;      // this method might eventually get removed, since the "name" of the plugin will be read from the cryplugin.csv already
-			virtual const char*   GetCategory() const override = 0;  // (this as well, although the cryplugin.csv doesn't provide a "category")
-			virtual bool          Initialize(SSystemGlobalEnvironment& env, const SSystemInitParams& initParams) override = 0;
-			virtual void          OnPluginUpdate(EPluginUpdateType updateType) override = 0;
-			// ~ICryPlugin
-
 			virtual void          RegisterHubPluginEventListener(IHubPluginEventListener* pListenerToRegister) = 0;
 			virtual void          UnregisterHubPluginEventListener(IHubPluginEventListener* pListenerToUnregister) = 0;
 			virtual IHub&         GetHubImplementation() = 0;
@@ -138,14 +130,14 @@ namespace UQS
 		inline IHubPlugin::CCachedHubPtr::CCachedHubPtr()
 			: m_pHub(nullptr)
 		{
-			gEnv->pSystem->GetIPluginManager()->RegisterEventListener(cryiidof<IHubPlugin>(), this);
+			gEnv->pSystem->GetIPluginManager()->RegisterEventListener<IHubPlugin>(this);
 		}
 
 		inline IHubPlugin::CCachedHubPtr::~CCachedHubPtr()
 		{
 			if (gEnv && gEnv->pSystem && gEnv->pSystem->GetIPluginManager())
 			{
-				gEnv->pSystem->GetIPluginManager()->RemoveEventListener(cryiidof<IHubPlugin>(), this);
+				gEnv->pSystem->GetIPluginManager()->RemoveEventListener<IHubPlugin>(this);
 			}
 		}
 
@@ -162,12 +154,12 @@ namespace UQS
 			return m_pHub;  // might still be a nullptr
 		}
 
-		inline void IHubPlugin::CCachedHubPtr::OnPluginEvent(const CryClassID& pluginClassId, IPluginEventListener::EPluginEvent event)
+		inline void IHubPlugin::CCachedHubPtr::OnPluginEvent(const CryClassID& pluginClassId, Cry::IPluginManager::IEventListener::EEvent event)
 		{
 			if (pluginClassId == cryiidof<IHubPlugin>())
 			{
 				// reset the cached Hub pointer when the plugin gets unloaded
-				if (event == IPluginEventListener::EPluginEvent::Unloaded)
+				if (event == Cry::IPluginManager::IEventListener::EEvent::Unloaded)
 				{
 					m_pHub = nullptr;
 				}

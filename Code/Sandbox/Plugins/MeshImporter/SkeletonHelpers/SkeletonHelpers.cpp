@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "SkeletonHelpers.h"
@@ -230,3 +230,4 @@ void DrawHighlightedJoints(const ICharacterInstance& charIns, std::vector<float>
 		DrawHighlightedJoints(charIns.GetIDefaultSkeleton(), *charIns.GetISkeletonPose(), heat, eye);
 	}
 }
+

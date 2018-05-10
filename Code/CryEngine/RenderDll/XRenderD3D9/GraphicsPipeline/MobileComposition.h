@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -8,8 +8,8 @@
 class CMobileCompositionStage : public CGraphicsPipelineStage
 {
 public:
-	void Init();
-	void Execute(CRenderView* pCurrentRenderView);
+	void Init() final;
+	void Execute();
 
 private:
 	CDepthDownsamplePass m_passDepthDownsample2;

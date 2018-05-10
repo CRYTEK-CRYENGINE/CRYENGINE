@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "MonoObject.h"
@@ -39,8 +39,12 @@ void CMonoObject::ReleaseGCHandle()
 
 std::shared_ptr<CMonoString> CMonoObject::ToString() const
 {
-	MonoInternals::MonoObject* pException = nullptr;
+	if (MonoInternals::mono_object_get_class(m_pObject) == MonoInternals::mono_get_string_class())
+	{
+		return CMonoDomain::CreateString(reinterpret_cast<MonoInternals::MonoString*>(m_pObject));
+	}
 
+	MonoInternals::MonoObject* pException = nullptr;
 	MonoInternals::MonoString* pStr = MonoInternals::mono_object_to_string(m_pObject, &pException);
 	if (pException != nullptr)
 	{
@@ -72,6 +76,12 @@ void CMonoObject::AssignObject(MonoInternals::MonoObject* pObject)
 	m_gcHandle = MonoInternals::mono_gchandle_new(m_pObject, true);
 }
 
+void CMonoObject::InvalidateBeforeDeserialization()
+{
+	m_pObject = nullptr;
+	m_gcHandle = 0;
+}
+
 CMonoClass* CMonoObject::GetClass()
 {
 	if (m_pClass == nullptr)
@@ -80,9 +90,8 @@ CMonoClass* CMonoObject::GetClass()
 		MonoInternals::MonoImage* pImage = MonoInternals::mono_class_get_image(pClass);
 		MonoInternals::MonoAssembly* pAssembly = MonoInternals::mono_image_get_assembly(pImage);
 
-		CMonoLibrary* pLibrary = GetMonoRuntime()->GetActiveDomain()->GetLibraryFromMonoAssembly(pAssembly);
-
-		m_pClass = pLibrary->GetClassFromMonoClass(pClass);
+		CMonoLibrary& library = GetMonoRuntime()->GetActiveDomain()->GetLibraryFromMonoAssembly(pAssembly, pImage);
+		m_pClass = library.GetClassFromMonoClass(pClass);
 	}
 
 	return m_pClass.get();
@@ -115,4 +124,17 @@ std::shared_ptr<CMonoObject> CMonoObject::Clone()
 void* CMonoObject::UnboxObject()
 {
 	return mono_object_unbox(m_pObject);
+}
+
+bool CMonoObject::ReferenceEquals(const CMonoObject& other) const
+{
+	return ReferenceEquals(other.GetManagedObject());
+}
+
+bool CMonoObject::ReferenceEquals(MonoInternals::MonoObject* pOtherObject) const
+{
+	MonoInternals::MonoException* pException = nullptr;
+	MonoInternals::MonoBoolean isEqual = const_cast<CMonoObject*>(this)->GetClass()->GetAssembly()->GetDomain()->GetReferenceEqualsMethod()(m_pObject, pOtherObject, &pException);
+
+	return isEqual != 0 && pException == nullptr;
 }

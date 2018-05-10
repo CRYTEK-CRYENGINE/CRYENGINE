@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include <CrySystem/File/ICryPak.h>
@@ -81,14 +81,14 @@ bool CCompressingOutputStream::Init(const char* filename)
 
 void CCompressingOutputStream::Flush(const SStreamRecord* pRecords, size_t numRecords)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_NETWORK);
+	CRY_PROFILE_FUNCTION(PROFILE_NETWORK);
 
 	char* pBuffer = (char*)pRecords;
 	size_t nLength = numRecords * sizeof(SStreamRecord);
 
 	#if COMPRESSING_STREAM_DEBUG_WHAT_GETS_WRITTEN
 	//{
-	//	FRAME_PROFILER("CCompressingOutputStream::Flush.debug_write", GetISystem(), PROFILE_NETWORK);
+	//	CRY_PROFILE_REGION(PROFILE_NETWORK, "CCompressingOutputStream::Flush.debug_write");
 	//	char debug_fn[512];
 	//	cry_sprintf( debug_fn, "write.%.6d.txt", m_nLog++ );
 	//	FILE * debug_file = gEnv->pCryPak->FOpen(debug_fn, "wb");
@@ -116,7 +116,7 @@ void CCompressingOutputStream::Flush(const SStreamRecord* pRecords, size_t numRe
 		NBurrowsWheeler::Transform(input, input + nLength, output, nOffset, m_tempBW);
 		#if COMPRESSING_STREAM_SANITY_CHECK_EVERYTHING
 		{
-			FRAME_PROFILER("CCompressingOutputStream::Flush.sanity_xform", GetISystem(), PROFILE_NETWORK);
+			CRY_PROFILE_REGION(PROFILE_NETWORK, "CCompressingOutputStream::Flush.sanity_xform");
 			NBurrowsWheeler::Untransform(output, output + nLength, m_throwaway, nOffset, m_tempBW);
 			NET_ASSERT(0 == memcmp(input, m_throwaway, nLength));
 		}
@@ -125,7 +125,7 @@ void CCompressingOutputStream::Flush(const SStreamRecord* pRecords, size_t numRe
 		NBurrowsWheeler::MoveToFrontTransform((uint8*)input, (uint8*)input + nLength, (uint8*)output);
 		#if COMPRESSING_STREAM_SANITY_CHECK_EVERYTHING
 		{
-			FRAME_PROFILER("CCompressingOutputStream::Flush.sanity_mtf", GetISystem(), PROFILE_NETWORK);
+			CRY_PROFILE_REGION(PROFILE_NETWORK, "CCompressingOutputStream::Flush.sanity_mtf");
 			NBurrowsWheeler::MoveToFrontUntransform((uint8*)output, (uint8*)output + nLength, (uint8*)m_throwaway);
 			NET_ASSERT(0 == memcmp(input, m_throwaway, nLength));
 		}
@@ -136,7 +136,7 @@ void CCompressingOutputStream::Flush(const SStreamRecord* pRecords, size_t numRe
 		{
 		#if COMPRESSING_STREAM_SANITY_CHECK_EVERYTHING
 			{
-				FRAME_PROFILER("CCompressingOutputStream::Flush.sanity_rle", GetISystem(), PROFILE_NETWORK);
+				CRY_PROFILE_REGION(PROFILE_NETWORK, "CCompressingOutputStream::Flush.sanity_rle");
 				size_t delength = NBurrowsWheeler::UnRLE((uint8*)output, (uint8*)output + newLength, (uint8*)m_throwaway);
 				NET_ASSERT(delength == nLength);
 				NET_ASSERT(0 == memcmp(input, m_throwaway, nLength));
@@ -151,7 +151,7 @@ void CCompressingOutputStream::Flush(const SStreamRecord* pRecords, size_t numRe
 		CArithOutputStream cmp((uint8*)output, m_bufsz, flags);
 
 		{
-			FRAME_PROFILER("CCompressingOutputStream::Flush.encode", GetISystem(), PROFILE_NETWORK);
+			CRY_PROFILE_REGION(PROFILE_NETWORK, "CCompressingOutputStream::Flush.encode");
 
 			for (size_t i = 0; i < nLength; i++)
 			{
@@ -164,7 +164,7 @@ void CCompressingOutputStream::Flush(const SStreamRecord* pRecords, size_t numRe
 		}
 
 		{
-			FRAME_PROFILER("CCompressingOutputStream::Flush.write", GetISystem(), PROFILE_NETWORK);
+			CRY_PROFILE_REGION(PROFILE_NETWORK, "CCompressingOutputStream::Flush.write");
 
 			uint32 len = cmp.GetOutputSize();
 			gEnv->pCryPak->FWrite(&len, sizeof(len), 1, m_file);

@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #ifndef UiEnumerations_h__
 #define UiEnumerations_h__
@@ -23,3 +23,4 @@ private:
 };
 
 #endif // UiEnumerations_h__
+

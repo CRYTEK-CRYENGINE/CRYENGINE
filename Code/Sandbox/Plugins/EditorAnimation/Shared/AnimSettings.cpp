@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "stdafx.h"
 
@@ -14,8 +14,8 @@
 #include <CryString/CryPath.h>
 
 #ifdef RESOURCE_COMPILER
-	#include "../../../Tools/CryXml/ICryXML.h"
-	#include "../../../Tools/CryXml/IXMLSerializer.h"
+	#include "../../../Tools/CryXML/ICryXML.h"
+	#include "../../../Tools/CryXML/IXMLSerializer.h"
 	#include "../../../Tools/CryCommonTools/PakXmlFileBufferSource.h"
 #endif
 
@@ -80,7 +80,7 @@ string SAnimSettings::GetIntermediateFilename(const char* animationPath)
 
 bool SAnimSettings::Save(const char* filename) const
 {
-	string outputFilename = string(gEnv->pCryPak->GetGameFolder()) + "\\" + filename;
+	string outputFilename = string(gEnv->pCryPak->GetGameFolder()) + "/" + filename;
 	return SaveOutsideBuild(outputFilename.c_str());
 }
 
@@ -565,3 +565,4 @@ void SCompressionSettings::Serialize(Serialization::IArchive& ar)
 		ar(m_controllerCompressionSettings, "perJointSettings");
 	}
 }
+

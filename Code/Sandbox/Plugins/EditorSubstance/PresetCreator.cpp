@@ -62,7 +62,22 @@ namespace EditorSubstance
 			m_resolution = res;
 		});
 		
+		CAssetManager* pAssetManager = GetIEditor()->GetAssetManager();
+		pAssetManager->signalBeforeAssetsRemoved.Connect([this, asset](const std::vector<CAsset*>& assets)
+		{
+			if (std::find(assets.begin(), assets.end(), asset) != assets.end())
+			{
+				m_substanceArchive.clear();
+				m_pOutputsWidget->setDisabled(true);
+			}
+		}, (uintptr_t)this);
 	}
+
+	CPressetCreator::~CPressetCreator()
+	{
+		GetIEditor()->GetAssetManager()->signalBeforeAssetsRemoved.DisconnectById((uintptr_t)this);
+	}
+
 	const string& CPressetCreator::GetTargetFileName() const
 	{
 		return m_finalFileName;
@@ -100,6 +115,11 @@ namespace EditorSubstance
 
 	void CPressetCreator::OnEditOutputs()
 	{
+		if (m_substanceArchive.empty())
+		{
+			return;
+		}
+
 		if (m_pOutputsGraphEditor)
 		{
 			m_pOutputsGraphEditor->raise();

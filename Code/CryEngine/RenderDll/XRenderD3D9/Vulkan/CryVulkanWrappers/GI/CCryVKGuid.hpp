@@ -1,5 +1,7 @@
 #pragma once
 
+#include <CryCore/Platform/platform.h>
+
 #define VK_DEFINE_GUID(_NAME, _D0, _W0, _W1, _B0, _B1, _B2, _B3, _B4, _B5, _B6, _B7) \
   const GUID _NAME =                                                                 \
   {                                                                                  \
@@ -37,6 +39,28 @@
 		#define VK_DEFINE_TYPE_GUID(_CLASS, _TYPE, _D0, _W0, _W1, _B0, _B1, _B2, _B3, _B4, _B5, _B6, _B7) \
 				  _CLASS __declspec(uuid(VK_GUID_STRING(_D0, _W0, _W1, _B0, _B1, _B2, _B3, _B4, _B5, _B6, _B7))) _TYPE;
 	#endif
+#elif CRY_PLATFORM_LINUX
+	enum ECryGUID
+	{
+		ID3D11Texture1D__GUID,
+		ID3D11Texture2D__GUID,
+		ID3D11Texture3D__GUID,
+		IDXGIFactory1__GUID,
+		IDXGISwapChain__GUID,
+		IDXGIDevice__GUID,
+		ID3D11Debug__GUID,
+
+		DXGISwapChain__GUID = IDXGISwapChain__GUID,
+	};
+
+	typedef ECryGUID CRYIID;
+
+	#undef REFGUID
+	#undef REFIID
+	#define REFGUID const ECryGUID &
+	#define REFIID  const CRYIID &
+	#undef __uuidof
+	#define __uuidof(name) name ## __GUID
 #else
 	//implement GUID for other platforms
 	#error "NOT IMPLEMENTED!"

@@ -1,6 +1,7 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
+#include <IRCLog.h>
 #include "AutoGenerator.h"
 #include "AutoGeneratorDataBase.h"
 #include <Cry3DEngine/IIndexedMesh.h>
@@ -63,7 +64,7 @@ namespace LODGenerator
 		if(!m_AutoGeneratorDataBase.SetNodeList(nodeList))
 			return false;
 
-		for each (CNodeCGF* node in nodeList)
+		for (CNodeCGF* node : nodeList)
 		{
 			if (!m_AutoLodSettings->IncludeNode(node->name))
 				continue;

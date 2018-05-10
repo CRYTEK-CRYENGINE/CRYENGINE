@@ -1,9 +1,11 @@
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
+
 using System;
 using System.Runtime.CompilerServices;
 
 namespace CryEngine.NativeInternals
 {
-	public static class IConsole
+	internal static class IConsole
 	{
 		[MethodImpl(MethodImplOptions.InternalCall)]
 		extern public static void AddConsoleCommandFunction(IntPtr consoleCommandFunctionPtr, string functionName, uint nFlags, string sHelp, bool isManaged);

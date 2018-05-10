@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 /********************************************************************
    -------------------------------------------------------------------------
@@ -22,7 +22,7 @@
 //===================================================================
 float CAISystem::GetWaterOcclusionValue(const Vec3& targetPos) const
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 	float fResult = 0.0f;
 
@@ -143,7 +143,7 @@ bool CAISystem::CheckVisibilityToBody(CAIActor* pObserver, CAIActor* pBody, floa
 {
 	int newFlags = AI_VISION_RAY_CAST_FLAG_BLOCKED_BY_SOLID_COVER | AI_VISION_RAY_CAST_FLAG_BLOCKED_BY_SOFT_COVER;
 
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 	Vec3 bodyPos(pBody->GetPos());
 

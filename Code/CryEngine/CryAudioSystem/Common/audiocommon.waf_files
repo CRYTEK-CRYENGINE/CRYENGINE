@@ -1,14 +1,12 @@
 {
-	"NoUberFile":
-	{
-		"Root":
-		[
-			"ATLEntityData.h",
-			"AudioLogger.h",
-			"IAudioImpl.h",
-			"SharedAudioData.h",
-			"PoolObject.h",
-			"PoolObject_impl.h"
-		]
-	}
+  "NoUberFile": {
+    "Root": [
+      "ATLEntityData.h", 
+      "Logger.h", 
+      "IAudioImpl.h", 
+      "SharedAudioData.h", 
+      "PoolObject.h", 
+      "PoolObject_impl.h"
+    ]
+  }
 }

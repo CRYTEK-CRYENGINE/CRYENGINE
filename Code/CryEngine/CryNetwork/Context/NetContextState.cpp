@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "NetContextState.h"
@@ -37,9 +37,22 @@ static uint8 GetDefaultProfileForAspect(EntityId id, EEntityAspects aspectID)
 static void SetEntityAspectProfile(EntityId id, NetworkAspectType aspectBit, uint8 profile)
 {
 	CRY_ASSERT(0 == (aspectBit & (aspectBit - 1)));
-	IEntity* pEntity = gEnv->pEntitySystem->GetEntity(id);
-	if (INetEntity* pNetEntity = pEntity->GetNetEntity())
-		pNetEntity->SetAspectProfile(static_cast<EEntityAspects>(aspectBit), profile, true);
+
+	if (id == INVALID_ENTITYID)
+	{
+		// Object is unbound while waiting for profile change propagation
+		return;
+	}
+
+	if (IEntity* pEntity = gEnv->pEntitySystem->GetEntity(id))
+	{
+		if (INetEntity* pNetEntity = pEntity->GetNetEntity())
+		{
+			pNetEntity->SetAspectProfile(static_cast<EEntityAspects>(aspectBit), profile, true);
+			return;
+		}
+	}
+	NetWarning("SetEntityAspectProfile: unable to find entity %08x", id);
 }
 
 CNetContextState::CNetContextState(CNetContext* pContext, int token, CNetContextState* pPrev) : m_pMMM(new CMementoMemoryManager(string().Format("NetContextState[%d]", token)))
@@ -463,7 +476,7 @@ void CNetContextState::FetchAndPropogateChangesFromGame(bool allowFetch)
 	if (!changed.empty())
 	{
 		// fetch changes from game
-		FUNCTION_PROFILER(gEnv->pSystem, PROFILE_NETWORK);
+		CRY_PROFILE_FUNCTION(PROFILE_NETWORK);
 
 		// we'll need the timestamp (probably)
 		CTimeValue newPhysicsTime = m_pGameContext->GetPhysicsTime();
@@ -906,7 +919,7 @@ private:
 
 void CNetContextState::PropogateChangesToGame()
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_NETWORK);
+	CRY_PROFILE_FUNCTION(PROFILE_NETWORK);
 	MMM_REGION(m_pMMM);
 
 	if (!m_pContext || m_vNetChangeLog.empty())
@@ -1726,145 +1739,11 @@ bool CNetContextState::AllocateObject(EntityId userID, SNetObjectID netID, Netwo
 	// dense, so we try to keep a reflecting structure here)
 	if (!netID)
 	{
-		if (m_multiplayer)
+		netID = AllocateNetObjectID(spawnType, userID);
+		if (!netID)
 		{
-			CNetCVars& netCVars = CNetCVars::Get();
-			bool lowBitID = false;
-			int numObjects = m_vObjects.size();
-			const char* pName = "<no name>";
-
-			if (userID)
-			{
-				IEntity* pEntity = gEnv->pEntitySystem->GetEntity(userID);
-
-				if (pEntity)
-				{
-					IEntityClass* pClass = pEntity->GetClass();
-
-					pName = pEntity->GetName();
-
-					if (CryStringUtils::stristr(pClass->GetName(), "player"))
-					{
-						lowBitID = true;
-					}
-				}
-			}
-
-			if (lowBitID)
-			{
-				if (m_freeLowBitObjects.empty())
-				{
-					if (numObjects < netCVars.net_numNetIDLowBitIDs)
-					{
-						netID.id = numObjects;
-					}
-					else
-					{
-						NetLog("AllocateObject: Failed to allocate a low bit netid for %s try increasing net_numNetIDLowBitBits (Currently %d). Will try to allocate from medium bit netids.", pName, netCVars.net_numNetIDLowBitBits);
-					}
-				}
-				else
-				{
-					netID.id = m_freeLowBitObjects.top();
-					m_freeLowBitObjects.pop();
-				}
-			}
-
-			if (!netID && (spawnType != eST_Static))
-			{
-				if (m_freeMediumBitObjects.empty())
-				{
-					if (numObjects < netCVars.net_netIDHighBitStart)
-					{
-						if (numObjects > netCVars.net_numNetIDLowBitIDs)
-						{
-							netID.id = numObjects;
-						}
-						else
-						{
-							// netCVars.net_numNetIDLowBitIDs is used for invalid so start +1
-							netID.id = netCVars.net_numNetIDLowBitIDs + 1;
-						}
-					}
-					else
-					{
-						NetLog("AllocateObject: Failed to allocate a medium bit netid for %s try increasing net_numNetIDMediumBitBits (Currently %d). Will try to allocate from high bit netids.", pName, netCVars.net_numNetIDMediumBitBits);
-					}
-				}
-				else
-				{
-					netID.id = m_freeMediumBitObjects.top();
-					m_freeMediumBitObjects.pop();
-				}
-			}
-
-			if (!netID)
-			{
-				if (m_freeHighBitObjects.empty())
-				{
-					if (numObjects < netCVars.net_numNetIDs)
-					{
-						if (numObjects > netCVars.net_netIDHighBitStart)
-						{
-							netID.id = numObjects;
-						}
-						else
-						{
-							netID.id = netCVars.net_netIDHighBitStart;
-						}
-					}
-					else
-					{
-						NetLog("AllocateObject: Failed to allocate a high bit netid for %s try increasing net_numNetIDHighBitBits (Currently %d).", pName, netCVars.net_numNetIDHighBitBits);
-						CryFatalError("AllocateObject: Failed to allocate a netid for %s. See Game.log for details.", pName);
-						return false;
-					}
-				}
-				else
-				{
-					netID.id = m_freeHighBitObjects.top();
-					m_freeHighBitObjects.pop();
-				}
-			}
-
-			while (numObjects <= netID.id)
-			{
-				if (numObjects < netID.id)
-				{
-					AddToFreeObjects(numObjects);
-				}
-
-				m_vObjects.push_back(SContextObject());
-				m_vObjectsEx.push_back(SContextObjectEx());
-				numObjects = m_vObjects.size();
-			}
+			return false;
 		}
-		else
-		{
-			if (m_freeLowBitObjects.empty())
-			{
-				if (m_vObjects.size() == SNetObjectID::InvalidId)
-				{
-					CryFatalError("WAY too many synchronized objects");
-				}
-
-				netID.id = static_cast<uint16>(m_vObjects.size());
-				m_vObjects.push_back(SContextObject());
-			}
-			else
-			{
-				netID.id = m_freeLowBitObjects.top();
-				m_freeLowBitObjects.pop();
-			}
-		}
-
-		NET_ASSERT(!m_vObjects[netID.id].bAllocated);
-
-		do
-		{
-			netID.salt = ++m_vObjects[netID.id].salt;
-		}
-		while (!netID.salt);
 	}
 	else if (netID.id >= m_vObjects.size())
 	{
@@ -2463,7 +2342,7 @@ NetworkAspectType CNetContextState::UpdateAspectData(SNetObjectID id, NetworkAsp
 {
 	MMM_REGION(m_pMMM);
 
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_NETWORK);
+	CRY_PROFILE_FUNCTION(PROFILE_NETWORK);
 	ASSERT_GLOBAL_LOCK;
 	NET_ASSERT(GetContextObject(id).main);
 	if (!m_multiplayer || !m_pContext)
@@ -3199,9 +3078,13 @@ void CNetContextState::DrawDebugScreens()
 		SObjectMemUsage muAll;
 		static SObjectMemUsage muMax;
 
+#if USE_NETID_PACKING
 		muAll.required += sizeof(uint16) * m_freeLowBitObjects.size();                      //-- m_freeLowBitObjects vector approximate
 		muAll.required += sizeof(uint16) * m_freeMediumBitObjects.size();                   //-- m_freeMediumBitObjects vector approximate
 		muAll.required += sizeof(uint16) * m_freeHighBitObjects.size();                     //-- m_freeHighBitObjects vector approximate
+#else
+		muAll.required += sizeof(uint16) * m_freeObjects.size();                            //-- m_freeObjects vector approximate
+#endif
 		muAll.required += (sizeof(EntityId) + sizeof(SNetObjectID)) * m_pNetIDs->size();    //-- m_pNetIds hash_map approximate
 
 		for (ClassMap::const_iterator cmiter = cm.begin(); cmiter != cm.end(); ++cmiter)
@@ -3329,7 +3212,7 @@ void CNetContextState::DrawDebugScreens()
 							pRenderAuxGeom->DrawAABB(aabb, pEntity->GetWorldTM(), false, color, eBBD_Faceted);
 
 							Vec3 aabbCenterPos = pEntity->GetWorldTM() * aabb.GetCenter();
-							Vec3 viewPos = pRenderer->GetCamera().GetPosition();
+							Vec3 viewPos = GetISystem()->GetViewCamera().GetPosition();
 							Vec3 dir = (viewPos - aabbCenterPos).GetNormalized();
 							Vec3 textPos;
 
@@ -3349,8 +3232,182 @@ void CNetContextState::DrawDebugScreens()
 #endif
 }
 
+SNetObjectID CNetContextState::AllocateNetObjectID(ESpawnType spawnType, EntityId userID)
+{
+	SNetObjectID netID;
+
+#if USE_NETID_PACKING
+	if (m_multiplayer)
+	{
+		CNetCVars& netCVars = CNetCVars::Get();
+		bool lowBitID = false;
+		int numObjects = m_vObjects.size();
+		const char* pName = "<no name>";
+
+		if (userID)
+		{
+			IEntity* pEntity = gEnv->pEntitySystem->GetEntity(userID);
+
+			if (pEntity)
+			{
+				IEntityClass* pClass = pEntity->GetClass();
+
+				pName = pEntity->GetName();
+
+				if (CryStringUtils::stristr(pClass->GetName(), "player"))
+				{
+					lowBitID = true;
+				}
+			}
+		}
+
+		if (lowBitID)
+		{
+			if (m_freeLowBitObjects.empty())
+			{
+				if (numObjects < netCVars.net_numNetIDLowBitIDs)
+				{
+					netID.id = numObjects;
+				}
+				else
+				{
+					NetLog("AllocateObject: Failed to allocate a low bit netid for %s try increasing net_numNetIDLowBitBits (Currently %d). Will try to allocate from medium bit netids.", pName, netCVars.net_numNetIDLowBitBits);
+				}
+			}
+			else
+			{
+				netID.id = m_freeLowBitObjects.top();
+				m_freeLowBitObjects.pop();
+			}
+		}
+
+		if (!netID && (spawnType != eST_Static))
+		{
+			if (m_freeMediumBitObjects.empty())
+			{
+				if (numObjects < netCVars.net_netIDHighBitStart)
+				{
+					if (numObjects > netCVars.net_numNetIDLowBitIDs)
+					{
+						netID.id = numObjects;
+					}
+					else
+					{
+						// netCVars.net_numNetIDLowBitIDs is used for invalid so start +1
+						netID.id = netCVars.net_numNetIDLowBitIDs + 1;
+					}
+				}
+				else
+				{
+					NetLog("AllocateObject: Failed to allocate a medium bit netid for %s try increasing net_numNetIDMediumBitBits (Currently %d). Will try to allocate from high bit netids.", pName, netCVars.net_numNetIDMediumBitBits);
+				}
+			}
+			else
+			{
+				netID.id = m_freeMediumBitObjects.top();
+				m_freeMediumBitObjects.pop();
+			}
+		}
+
+		if (!netID)
+		{
+			if (m_freeHighBitObjects.empty())
+			{
+				if (numObjects < netCVars.net_numNetIDs)
+				{
+					if (numObjects > netCVars.net_netIDHighBitStart)
+					{
+						netID.id = numObjects;
+					}
+					else
+					{
+						netID.id = netCVars.net_netIDHighBitStart;
+					}
+				}
+				else
+				{
+					NetLog("AllocateObject: Failed to allocate a high bit netid for %s try increasing net_numNetIDHighBitBits (Currently %d).", pName, netCVars.net_numNetIDHighBitBits);
+					CryFatalError("AllocateObject: Failed to allocate a netid for %s. See Game.log for details.", pName);
+					return SNetObjectID();
+				}
+			}
+			else
+			{
+				netID.id = m_freeHighBitObjects.top();
+				m_freeHighBitObjects.pop();
+			}
+		}
+
+		while (numObjects <= netID.id)
+		{
+			if (numObjects < netID.id)
+			{
+				AddToFreeObjects(numObjects);
+			}
+
+			m_vObjects.push_back(SContextObject());
+			m_vObjectsEx.push_back(SContextObjectEx());
+			numObjects = m_vObjects.size();
+		}
+	}
+	else
+	{
+		if (m_freeLowBitObjects.empty())
+		{
+			if (m_vObjects.size() == SNetObjectID::InvalidId)
+			{
+				CryFatalError("AllocateObject: Failed to allocate a netid, too many synchronized objects.");
+			}
+
+			netID.id = static_cast<uint16>(m_vObjects.size());
+			m_vObjects.push_back(SContextObject());
+		}
+		else
+		{
+			netID.id = m_freeLowBitObjects.top();
+			m_freeLowBitObjects.pop();
+		}
+	}
+#else
+	if (m_freeObjects.empty())
+	{
+		if (m_vObjects.size() == SNetObjectID::InvalidId)
+		{
+			CryFatalError("AllocateObject: Failed to allocate a netid, too many synchronized objects.");
+			return SNetObjectID();
+		}
+
+		netID.id = static_cast<uint16>(m_vObjects.size());
+		m_vObjects.push_back(SContextObject());
+		if (m_multiplayer)
+		{
+			m_vObjectsEx.push_back(SContextObjectEx());
+		}
+	}
+	else
+	{
+		netID.id = m_freeObjects.top();
+		m_freeObjects.pop();
+	}
+#endif // USE_NETID_PACKING
+
+	NET_ASSERT(netID);
+	NET_ASSERT(netID.id < m_vObjects.size());
+	NET_ASSERT(!m_multiplayer || netID.id < m_vObjectsEx.size());
+	NET_ASSERT(!m_vObjects[netID.id].bAllocated);
+	
+	do
+	{
+		netID.salt = ++m_vObjects[netID.id].salt;
+	} while (!netID.salt);
+
+	return netID;
+}
+
+
 void CNetContextState::AddToFreeObjects(uint16 id)
 {
+#if USE_NETID_PACKING
 	CNetCVars& netCVars = CNetCVars::Get();
 
 	if (id != netCVars.net_invalidNetID)
@@ -3378,10 +3435,15 @@ void CNetContextState::AddToFreeObjects(uint16 id)
 			m_freeLowBitObjects.push(id);
 		}
 	}
+#else
+	NET_ASSERT(id != SNetObjectID::InvalidId);
+	m_freeObjects.push(id);
+#endif // USE_NETID_PACKING
 }
 
 void CNetContextState::ClearFreeObjects()
 {
+#if USE_NETID_PACKING
 	// Empty the free objects queue (no clear() member!)
 	while (!m_freeLowBitObjects.empty())
 	{
@@ -3397,4 +3459,10 @@ void CNetContextState::ClearFreeObjects()
 	{
 		m_freeHighBitObjects.pop();
 	}
+#else
+	while (!m_freeObjects.empty())
+	{
+		m_freeObjects.pop();
+	}
+#endif // USE_NETID_PACKING
 }

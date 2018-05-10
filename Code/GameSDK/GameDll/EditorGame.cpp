@@ -1,13 +1,13 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 /*************************************************************************
- -------------------------------------------------------------------------
-  $Id$
-  $DateTime$
-  
- -------------------------------------------------------------------------
-  History:
-  - 30:8:2004   11:19 : Created by Márcio Martins
+   -------------------------------------------------------------------------
+   $Id$
+   $DateTime$
+
+   -------------------------------------------------------------------------
+   History:
+   - 30:8:2004   11:19 : Created by Márcio Martins
 
 *************************************************************************/
 #include "StdAfx.h"
@@ -63,12 +63,12 @@ CEditorGame::~CEditorGame()
 
 //------------------------------------------------------------------------
 
-extern "C" 
+extern "C"
 {
-	GAME_API IGameStartup *CreateGameStartup();
+	GAME_API IGameStartup* CreateGameStartup();
 };
 
-bool CEditorGame::Init(ISystem *pSystem,IGameToEditorInterface *pGameToEditorInterface)
+bool CEditorGame::Init(ISystem* pSystem, IGameToEditorInterface* pGameToEditorInterface)
 {
 	assert(pSystem);
 
@@ -85,7 +85,7 @@ bool CEditorGame::Init(ISystem *pSystem,IGameToEditorInterface *pGameToEditorInt
 	SetGameMode(false);
 
 	g_pGame->OnEditorGameInitComplete();
-		
+
 	return true;
 }
 
@@ -97,7 +97,7 @@ void CEditorGame::Shutdown()
 //------------------------------------------------------------------------
 void CEditorGame::SetGameMode(bool bGameMode)
 {
-	CActor *pActor = static_cast<CActor*>(m_pGame->GetIGameFramework()->GetClientActor());
+	CActor* pActor = static_cast<CActor*>(m_pGame->GetIGameFramework()->GetClientActor());
 	if (pActor)
 	{
 		if (bGameMode)
@@ -116,29 +116,29 @@ void CEditorGame::SetGameMode(bool bGameMode)
 }
 
 //------------------------------------------------------------------------
-bool CEditorGame::SetPlayerPosAng(Vec3 pos,Vec3 viewDir)
+bool CEditorGame::SetPlayerPosAng(Vec3 pos, Vec3 viewDir)
 {
-	IActor * pClActor = m_pGame->GetIGameFramework()->GetClientActor();
+	IActor* pClActor = m_pGame->GetIGameFramework()->GetClientActor();
 
 	if (pClActor /*&& m_bGameMode*/)
 	{
 		// pos coming from editor is a camera position, we must convert it into the player position by subtructing eye height.
-		IEntity *myPlayer = pClActor->GetEntity();
+		IEntity* myPlayer = pClActor->GetEntity();
 		if (myPlayer)
 		{
 			pe_player_dimensions dim;
 			dim.heightEye = 0;
 			if (myPlayer->GetPhysics())
 			{
-				myPlayer->GetPhysics()->GetParams( &dim );
+				myPlayer->GetPhysics()->GetParams(&dim);
 				pos.z = pos.z - dim.heightEye;
 			}
 		}
 
-		pClActor->GetEntity()->SetPosRotScale( pos,Quat::CreateRotationVDir(viewDir),Vec3(1,1,1),ENTITY_XFORM_EDITOR|ENTITY_XFORM_POS|ENTITY_XFORM_ROT|ENTITY_XFORM_SCL);
+		pClActor->GetEntity()->SetPosRotScale(pos, Quat::CreateRotationVDir(viewDir), Vec3(1, 1, 1), { ENTITY_XFORM_EDITOR, ENTITY_XFORM_POS, ENTITY_XFORM_ROT, ENTITY_XFORM_SCL });
 		return true;
 	}
-	
+
 	return false;
 }
 
@@ -150,7 +150,7 @@ void CEditorGame::OnBeforeLevelLoad()
 }
 
 //------------------------------------------------------------------------
-void CEditorGame::OnAfterLevelInit(const char *levelName, const char *levelFolder)
+void CEditorGame::OnAfterLevelInit(const char* levelName, const char* levelFolder)
 {
 	InitEntityArchetypeEnums(m_pGTE, levelFolder, levelName);
 }
@@ -168,7 +168,6 @@ void CEditorGame::OnCloseLevel()
 	g_pGame->GetGameSharedParametersStorage()->GetItemResourceCache().FlushCaches();
 }
 
-
 void CEditorGame::RegisterTelemetryTimelineRenderers(Telemetry::ITelemetryRepository* pRepository)
 {
 	// pRepository->RegisterTimelineRenderer("shot", RenderShot);
@@ -179,15 +178,15 @@ IGamePhysicsSettings* CEditorGame::GetIGamePhysicsSettings()
 	return g_pGame->GetGamePhysicsSettings();
 }
 
-void CEditorGame::OnDisplayRenderUpdated( bool displayHelpers )
+void CEditorGame::OnDisplayRenderUpdated(bool displayHelpers)
 {
 	CLedgeManagerEdit* pLedgeManagerEdit = g_pGame->GetLedgeManager()->GetEditorManager();
-	if(pLedgeManagerEdit != NULL)
+	if (pLedgeManagerEdit != NULL)
 	{
-		pLedgeManagerEdit->OnDisplayHelpersChanged( displayHelpers );
+		pLedgeManagerEdit->OnDisplayHelpersChanged(displayHelpers);
 	}
 
-	g_pGame->OnEditorDisplayRenderUpdated( displayHelpers );
+	g_pGame->OnEditorDisplayRenderUpdated(displayHelpers);
 }
 
 //------------------------------------------------------------------------
@@ -218,7 +217,7 @@ void CEditorGame::InitGlobalFileEnums(IGameToEditorInterface* pGTE)
 	// <GlobalEnums>
 	//   <EnumName>
 	//     <entry enum="someName=someValue" />  <!-- displayed name != value -->
-	// 	   <entry enum="someNameValue" />       <!-- displayed name == value -->
+	//     <entry enum="someNameValue" />       <!-- displayed name == value -->
 	//   </EnumName>
 	// </GlobalEnums>
 	//
@@ -232,7 +231,7 @@ void CEditorGame::InitGlobalFileEnums(IGameToEditorInterface* pGTE)
 	{
 		XmlNodeRef enumNameNode = rootNode->getChild(i);
 		const char* enumId = enumNameNode->getTag();
-		if (enumId == 0 || *enumId=='\0')
+		if (enumId == 0 || *enumId == '\0')
 			continue;
 		int maxChilds = enumNameNode->getChildCount();
 		if (maxChilds > 0)
@@ -244,7 +243,7 @@ void CEditorGame::InitGlobalFileEnums(IGameToEditorInterface* pGTE)
 			{
 				XmlNodeRef enumNode = enumNameNode->getChild(j);
 				const char* nameValue = enumNode->getAttr("enum");
-				if (nameValue != 0 && *nameValue!='\0')
+				if (nameValue != 0 && *nameValue != '\0')
 				{
 					// put in the nameValue pair
 					nameValueStrings[curEntryIndex++] = nameValue;
@@ -257,7 +256,7 @@ void CEditorGame::InitGlobalFileEnums(IGameToEditorInterface* pGTE)
 			// be nice and free our array
 			delete[] nameValueStrings;
 		}
-	}	
+	}
 }
 
 void CEditorGame::InitEntityClassesEnums(IGameToEditorInterface* pGTE)
@@ -265,7 +264,7 @@ void CEditorGame::InitEntityClassesEnums(IGameToEditorInterface* pGTE)
 	// init ActionFilter enums
 	gEnv->pEntitySystem->GetClassRegistry()->IteratorMoveFirst();
 	IEntityClass* entClass = gEnv->pEntitySystem->GetClassRegistry()->IteratorNext();
-	const char** allEntities = new const char*[gEnv->pEntitySystem->GetClassRegistry()->GetClassCount()+2];
+	const char** allEntities = new const char*[gEnv->pEntitySystem->GetClassRegistry()->GetClassCount() + 2];
 
 	allEntities[0] = "AllClasses";
 	allEntities[1] = "CustomClasses";
@@ -286,7 +285,7 @@ void CEditorGame::InitLevelTypesEnums(IGameToEditorInterface* pGTE)
 {
 	DynArray<string>* levelTypes;
 	levelTypes = g_pGame->GetIGameFramework()->GetILevelSystem()->GetLevelTypeList();
-	
+
 	const char** allLevelTypes = new const char*[levelTypes->size()];
 	for (int i = 0; i < levelTypes->size(); i++)
 	{
@@ -298,14 +297,14 @@ void CEditorGame::InitLevelTypesEnums(IGameToEditorInterface* pGTE)
 	delete[] allLevelTypes;
 }
 
-void CEditorGame::InitDialogBuffersEnum( IGameToEditorInterface* pGTE )
+void CEditorGame::InitDialogBuffersEnum(IGameToEditorInterface* pGTE)
 {
 	static const char* BUFFERS_FILENAME = "Libs/FlowNodes/DialogFlowNodeBuffers.xml";
 
-	XmlNodeRef xmlNodeRoot = gEnv->pSystem->LoadXmlFromFile( BUFFERS_FILENAME );
-	if (xmlNodeRoot==NULL)
+	XmlNodeRef xmlNodeRoot = gEnv->pSystem->LoadXmlFromFile(BUFFERS_FILENAME);
+	if (xmlNodeRoot == NULL)
 	{
-		CryWarning( VALIDATOR_MODULE_GAME, VALIDATOR_WARNING, "CEditorGame::InitDialogBuffersEnum() - Failed to load '%s'. flownode dialog buffers drop down list will be empty.", BUFFERS_FILENAME);
+		CryWarning(VALIDATOR_MODULE_GAME, VALIDATOR_WARNING, "CEditorGame::InitDialogBuffersEnum() - Failed to load '%s'. flownode dialog buffers drop down list will be empty.", BUFFERS_FILENAME);
 		return;
 	}
 
@@ -314,13 +313,13 @@ void CEditorGame::InitDialogBuffersEnum( IGameToEditorInterface* pGTE )
 	const char** bufferNames = new const char*[count];
 	bool bOk = true;
 
-	for (uint32 i=0; i<count; ++i)
+	for (uint32 i = 0; i < count; ++i)
 	{
-		XmlNodeRef xmlNode = xmlNodeRoot->getChild( i );
+		XmlNodeRef xmlNode = xmlNodeRoot->getChild(i);
 		bufferNames[i] = xmlNode->getAttr("name");
 		if (!bufferNames[i])
 		{
-			CryWarning( VALIDATOR_MODULE_GAME, VALIDATOR_WARNING, "CEditorGame::InitDialogBuffersEnum() - file: '%s' child: %d is missing the 'name' field. flownode dialog buffers drop down list will be empty", BUFFERS_FILENAME, i);
+			CryWarning(VALIDATOR_MODULE_GAME, VALIDATOR_WARNING, "CEditorGame::InitDialogBuffersEnum() - file: '%s' child: %d is missing the 'name' field. flownode dialog buffers drop down list will be empty", BUFFERS_FILENAME, i);
 			bOk = false;
 		}
 	}
@@ -359,12 +358,12 @@ void GetArchetypesFromLevelLib(XmlNodeRef root, std::vector<string>* archetypeNa
 	sRootName = root->getTag();
 
 	XmlNodeRef pLevelNode = root->findChild("EntityPrototypesLibs");
-	
+
 	if (!pLevelNode)
 		return;
 
 	XmlNodeRef pLevelLibrary = pLevelNode->findChild("LevelLibrary");
-	
+
 	if (!pLevelLibrary)
 		return;
 
@@ -383,17 +382,14 @@ void CEditorGame::InitEntityArchetypeEnums(IGameToEditorInterface* pGTE, const c
 
 	if (levelFolder && levelName)
 	{
-		string levelPath = string(levelFolder) + "/" + string(levelName) + ".cry";
+		const string levelPath = string(levelFolder) + "/" + string(levelName) + ".level";
 
-		if (pCryPak && pCryPak->IsFileExist(levelPath) && pCryPak->OpenPack(levelPath))
+		if (pCryPak && pCryPak->IsFileExist(levelPath))
 		{
-			string editorXML = string(levelFolder) + "/Level.editor_xml";
-			XmlNodeRef pRoot = gEnv->pSystem->LoadXmlFromFile(editorXML);
+			XmlNodeRef pRoot = gEnv->pSystem->LoadXmlFromFile(levelPath.c_str());
 
 			if (pRoot)
 				GetArchetypesFromLevelLib(pRoot, &vecArchetypeNames);
-
-			pCryPak->ClosePack(levelPath);
 		}
 	}
 
@@ -410,10 +406,10 @@ void CEditorGame::InitEntityArchetypeEnums(IGameToEditorInterface* pGTE, const c
 			if (!pRoot || stricmp(pRoot->getTag(), "EntityPrototypeLibrary"))
 				continue;
 
-				XmlString sRootName;
-				pRoot->getAttr("Name", sRootName);
+			XmlString sRootName;
+			pRoot->getAttr("Name", sRootName);
 
-				GetArchetypesFromLib(pRoot, sRootName, &vecArchetypeNames);
+			GetArchetypesFromLib(pRoot, sRootName, &vecArchetypeNames);
 		}
 		while (pCryPak->FindNext(handle, &fd) >= 0);
 		pCryPak->FindClose(handle);
@@ -422,7 +418,7 @@ void CEditorGame::InitEntityArchetypeEnums(IGameToEditorInterface* pGTE, const c
 	if (!vecArchetypeNames.empty())
 	{
 		size_t numFilters = 0;
-		const int allArchetypeCount = vecArchetypeNames.size()+1;
+		const int allArchetypeCount = vecArchetypeNames.size() + 1;
 		const char** allArchetypeNames = new const char*[allArchetypeCount];
 		allArchetypeNames[numFilters++] = ""; // Blank entry at top
 		std::vector<string>::const_iterator iter = vecArchetypeNames.begin();
@@ -444,12 +440,12 @@ IEquipmentSystemInterface* CEditorGame::GetIEquipmentSystemInterface()
 	return m_pEquipmentSystemInterface;
 }
 
-const char * CEditorGame::GetGameRulesName()
+const char* CEditorGame::GetGameRulesName()
 {
 	return "SinglePlayer";
 }
 
-void CEditorGame::InitForceFeedbackEnums( IGameToEditorInterface* pGTE )
+void CEditorGame::InitForceFeedbackEnums(IGameToEditorInterface* pGTE)
 {
 	CRY_ASSERT(pGTE);
 
@@ -471,7 +467,7 @@ void CEditorGame::InitForceFeedbackEnums( IGameToEditorInterface* pGTE )
 			}
 
 			//IFFSPopulateCallBack
-			virtual void AddFFSEffectName( const char* const pName )
+			virtual void AddFFSEffectName(const char* const pName)
 			{
 				assert(m_nameCount < m_maxNumNames);
 
@@ -484,8 +480,8 @@ void CEditorGame::InitForceFeedbackEnums( IGameToEditorInterface* pGTE )
 			//~IFFSPopulateCallBack
 
 			const char** m_allEffectNames;
-			int m_maxNumNames;
-			int m_nameCount;
+			int          m_maxNumNames;
+			int          m_nameCount;
 		};
 
 		int effectCount = pForceFeedback->GetEffectNamesCount();
@@ -500,7 +496,7 @@ void CEditorGame::InitForceFeedbackEnums( IGameToEditorInterface* pGTE )
 	}
 }
 
-void CEditorGame::InitActionInputEnums( IGameToEditorInterface* pGTE )
+void CEditorGame::InitActionInputEnums(IGameToEditorInterface* pGTE)
 {
 	CRY_ASSERT(pGTE);
 
@@ -522,7 +518,7 @@ void CEditorGame::InitActionInputEnums( IGameToEditorInterface* pGTE )
 			}
 
 			//IActionMapPopulateCallBack
-			virtual void AddActionName( const char* const pName )
+			virtual void AddActionName(const char* const pName)
 			{
 				assert(m_nameCount < m_maxNumNames);
 
@@ -535,8 +531,8 @@ void CEditorGame::InitActionInputEnums( IGameToEditorInterface* pGTE )
 			//~IActionMapPopulateCallBack
 
 			const char** m_allActionNames;
-			int m_maxNumNames;
-			int m_nameCount;
+			int          m_maxNumNames;
+			int          m_nameCount;
 		};
 
 		int actionCount = pActionMapManager->GetActionsCount();
@@ -564,7 +560,7 @@ void CEditorGame::InitHUDEventEnums(IGameToEditorInterface* pGTE)
 	delete[] szNameValueStrings;
 }
 
-void CEditorGame::InitReadabilityEnums( IGameToEditorInterface* pGTE )
+void CEditorGame::InitReadabilityEnums(IGameToEditorInterface* pGTE)
 {
 	CRY_ASSERT(pGTE);
 
@@ -576,12 +572,12 @@ void CEditorGame::InitReadabilityEnums( IGameToEditorInterface* pGTE )
 			typedef std::vector<const char*> TNamesVec;
 			TNamesVec m_vecNames;
 
-			void AddName(const char* name)
+			void      AddName(const char* name)
 			{
 				m_vecNames.push_back(name);
 			}
 
-			void CreateEnum(IGameToEditorInterface *pGTEInterface, const char* enumName) const
+			void CreateEnum(IGameToEditorInterface* pGTEInterface, const char* enumName) const
 			{
 				assert(pGTEInterface);
 				assert(enumName && enumName[0]);
@@ -589,7 +585,7 @@ void CEditorGame::InitReadabilityEnums( IGameToEditorInterface* pGTE )
 				if (!m_vecNames.empty())
 				{
 					const size_t numNames = m_vecNames.size();
-					const char** pNameArray = new const char* [numNames];
+					const char** pNameArray = new const char*[numNames];
 
 					TNamesVec::const_iterator itName = m_vecNames.begin();
 					TNamesVec::const_iterator itNameEnd = m_vecNames.end();
@@ -602,7 +598,7 @@ void CEditorGame::InitReadabilityEnums( IGameToEditorInterface* pGTE )
 
 					pGTEInterface->SetUIEnums(enumName, pNameArray, numNames);
 
-					delete [] pNameArray;
+					delete[] pNameArray;
 				}
 			}
 		};
@@ -638,7 +634,7 @@ void CEditorGame::InitReadabilityEnums( IGameToEditorInterface* pGTE )
 	}
 }
 
-void CEditorGame::InitLedgeTypeEnums (IGameToEditorInterface* pGTE ) 
+void CEditorGame::InitLedgeTypeEnums(IGameToEditorInterface* pGTE)
 {
 	const int ledgeTypeCount = 3;
 	const char* ledgeTypeNames[ledgeTypeCount] =
@@ -648,10 +644,10 @@ void CEditorGame::InitLedgeTypeEnums (IGameToEditorInterface* pGTE )
 		"HighVault"
 	};
 
-	pGTE->SetUIEnums( "LedgeType", ledgeTypeNames, ledgeTypeCount );
+	pGTE->SetUIEnums("LedgeType", ledgeTypeNames, ledgeTypeCount);
 }
 
-void CEditorGame::InitSmartMineTypeEnums(IGameToEditorInterface* pGTE ) 
+void CEditorGame::InitSmartMineTypeEnums(IGameToEditorInterface* pGTE)
 {
 	const int smartMineTypeCount = 1;
 	const char* smartMineTypeNames[smartMineTypeCount] =
@@ -659,30 +655,30 @@ void CEditorGame::InitSmartMineTypeEnums(IGameToEditorInterface* pGTE )
 		"Cell",
 	};
 
-	pGTE->SetUIEnums( "SmartMineType", smartMineTypeNames, smartMineTypeCount );
+	pGTE->SetUIEnums("SmartMineType", smartMineTypeNames, smartMineTypeCount);
 }
 
-void CEditorGame::InitDamageTypeEnums(IGameToEditorInterface *pGTE)
+void CEditorGame::InitDamageTypeEnums(IGameToEditorInterface* pGTE)
 {
 	const int damageTypeCount = CGameRules::EHitType::Unreserved;
-	pGTE->SetUIEnums( "DamageType", CGameRules::s_reservedHitTypes, damageTypeCount);
+	pGTE->SetUIEnums("DamageType", CGameRules::s_reservedHitTypes, damageTypeCount);
 }
 
 void CEditorGame::InitTurretEnum(IGameToEditorInterface* pGTE)
 {
-	pGTE->SetUIEnums( "TurretState", TurretBehaviorStateNames::GetNames(), eTurretBehaviorState_Count );
+	pGTE->SetUIEnums("TurretState", TurretBehaviorStateNames::GetNames(), eTurretBehaviorState_Count);
 }
 
 void CEditorGame::InitDoorPanelEnum(IGameToEditorInterface* pGTE)
 {
-	pGTE->SetUIEnums( "DoorPanelState", DoorPanelBehaviorStateNames::GetNames(), eDoorPanelBehaviorState_Count );
+	pGTE->SetUIEnums("DoorPanelState", DoorPanelBehaviorStateNames::GetNames(), eDoorPanelBehaviorState_Count);
 }
 
 void CEditorGame::ScanBehaviorTrees(const string& folderName, std::vector<string>& behaviorTrees)
 {
 	_finddata_t fd;
 	intptr_t handle = 0;
-	ICryPak *pPak = gEnv->pCryPak;
+	ICryPak* pPak = gEnv->pCryPak;
 
 	string searchString = folderName;
 	searchString += "*.xml";
@@ -700,7 +696,8 @@ void CEditorGame::ScanBehaviorTrees(const string& folderName, std::vector<string
 			PathUtil::RemoveExtension(szFileName);
 			behaviorTrees.push_back(szFileName);
 
-		} while (pPak->FindNext(handle, &fd) >= 0);
+		}
+		while (pPak->FindNext(handle, &fd) >= 0);
 
 		pPak->FindClose(handle);
 	}
@@ -741,11 +738,11 @@ void CEditorGame::InitModularBehaviorTreeEnum(IGameToEditorInterface* pGTE)
 bool CEditorGame::GetAdditionalMinimapData(XmlNodeRef output)
 {
 	string classes = g_pGameCVars->g_telemetryEntityClassesToExport;
-	if(!classes.empty())
+	if (!classes.empty())
 	{
 		// additional data relating to StatsTool
 		XmlNodeRef statsNode = output->findChild("StatsTool");
-		if(!statsNode)
+		if (!statsNode)
 		{
 			statsNode = GetISystem()->CreateXmlNode("StatsTool");
 			output->addChild(statsNode);
@@ -758,28 +755,28 @@ bool CEditorGame::GetAdditionalMinimapData(XmlNodeRef output)
 		// first build a list of entity classes from the cvar
 		std::vector<IEntityClass*> interestingClasses;
 		int curPos = 0;
-		string currentClass = classes.Tokenize(",",curPos);
+		string currentClass = classes.Tokenize(",", curPos);
 		IEntitySystem* pES = GetISystem()->GetIEntitySystem();
-		if(IEntityClassRegistry* pClassReg = pES->GetClassRegistry())
+		if (IEntityClassRegistry* pClassReg = pES->GetClassRegistry())
 		{
 			while (!currentClass.empty())
 			{
-				if(IEntityClass* pClass = pClassReg->FindClass(currentClass.c_str()))
+				if (IEntityClass* pClass = pClassReg->FindClass(currentClass.c_str()))
 				{
 					interestingClasses.push_back(pClass);
 				}
 
-				currentClass = classes.Tokenize(",",curPos);
+				currentClass = classes.Tokenize(",", curPos);
 			}
 		}
 
 		// now iterate through all entities and save the ones which match the classes
-		if(interestingClasses.size() > 0)
+		if (interestingClasses.size() > 0)
 		{
 			IEntityItPtr it = pES->GetEntityIterator();
-			while(IEntity* pEntity = it->Next())
+			while (IEntity* pEntity = it->Next())
 			{
-				if(stl::find(interestingClasses, pEntity->GetClass()))
+				if (stl::find(interestingClasses, pEntity->GetClass()))
 				{
 					XmlNodeRef entityNode = GetISystem()->CreateXmlNode("Entity");
 					statsNode->addChild(entityNode);
@@ -804,19 +801,19 @@ bool CEditorGame::GetAdditionalMinimapData(XmlNodeRef output)
 //
 //////////////////////////////////////////////////////////////////////////
 
-#define SERIALIZATION_EXPORT_DEBUG 0	// set this to 1 for a lot of debug info about which entities will be saved
+#define SERIALIZATION_EXPORT_DEBUG 0  // set this to 1 for a lot of debug info about which entities will be saved
 
 enum ESerializeType
 {
-	eST_NotSerialized				= 0x00,		// don't serialize this entity
-	eST_FlowGraphContainer	= 0x01,		// entity contains a flowgraph
-	eST_FlowGraph						= 0x02,		// entity is referenced in a flowgraph
-	eST_Class								= 0x04,		// entity class means we always save it
-	eST_TrackView						= 0x08,		// entity is referenced in a trackview sequence
-	eST_Child								= 0x10,		// entity is a child of a serialized entity
-	eST_Parent							= 0x20,		// entity is a parent of a serialized entity
-	eST_Linked							= 0x40,		// entity is linked from/to a serialized entity
-	eST_ConstraintNeighbour	= 0x80,		// entity is near a constraint entity
+	eST_NotSerialized       = 0x00,   // don't serialize this entity
+	eST_FlowGraphContainer  = 0x01,   // entity contains a flowgraph
+	eST_FlowGraph           = 0x02,   // entity is referenced in a flowgraph
+	eST_Class               = 0x04,   // entity class means we always save it
+	eST_TrackView           = 0x08,   // entity is referenced in a trackview sequence
+	eST_Child               = 0x10,   // entity is a child of a serialized entity
+	eST_Parent              = 0x20,   // entity is a parent of a serialized entity
+	eST_Linked              = 0x40,   // entity is linked from/to a serialized entity
+	eST_ConstraintNeighbour = 0x80,   // entity is near a constraint entity
 };
 
 typedef std::map<EntityId, uint32> TSerializationData;
@@ -825,7 +822,7 @@ bool ShouldSaveEntityClass(IEntity* pEntity)
 {
 	typedef std::vector<string> TClassesToNotSave;
 	static TClassesToNotSave classList;
-	if(classList.empty())
+	if (classList.empty())
 	{
 		classList.reserve(12);
 		classList.push_back("AIAnchor");
@@ -842,7 +839,7 @@ bool ShouldSaveEntityClass(IEntity* pEntity)
 		classList.push_back("TagPoint");
 	}
 
-	if(stl::find(classList, CONST_TEMP_STRING(pEntity->GetClass()->GetName())))
+	if (stl::find(classList, CONST_TEMP_STRING(pEntity->GetClass()->GetName())))
 		return false;
 
 	// default to saving for now
@@ -851,7 +848,7 @@ bool ShouldSaveEntityClass(IEntity* pEntity)
 
 bool ShouldSaveTrackViewEntityClass(IEntity* pEntity)
 {
-	if(!strcmp(pEntity->GetClass()->GetName(), "ParticleEffect"))
+	if (!strcmp(pEntity->GetClass()->GetName(), "ParticleEffect"))
 		return true;
 	return false;
 }
@@ -859,19 +856,19 @@ bool ShouldSaveTrackViewEntityClass(IEntity* pEntity)
 void MarkEntityForSerialize(TSerializationData& data, IEntity* pEntity, int reason, bool markParent = true)
 {
 	assert(pEntity);
-	if(!pEntity)
+	if (!pEntity)
 		return;
 
 	// only need to save unremoveable entities.
 	//	(dynamic entities, including the player, are added to the list at runtime)
 	uint32 flags = pEntity->GetFlags();
-	if(!(flags & ENTITY_FLAG_UNREMOVABLE) || (flags & ENTITY_FLAG_LOCAL_PLAYER))
+	if (!(flags & ENTITY_FLAG_UNREMOVABLE) || (flags & ENTITY_FLAG_LOCAL_PLAYER))
 	{
 		return;
 	}
 
 	// skip if no-save flag is set on the entity itself, or if the entity is due to be pooled
-	if(!gEnv->pEntitySystem->ShouldSerializedEntity(pEntity))
+	if (!gEnv->pEntitySystem->ShouldSerializedEntity(pEntity))
 	{
 		return;
 	}
@@ -880,14 +877,14 @@ void MarkEntityForSerialize(TSerializationData& data, IEntity* pEntity, int reas
 	data[pEntity->GetId()] |= reason;
 
 	// then the parent
-	if(markParent && pEntity->GetParent())
+	if (markParent && pEntity->GetParent())
 	{
 		data[pEntity->GetParent()->GetId()] |= (reason | eST_Parent);
 	}
 
 	// repeat for all children
 	int count = pEntity->GetChildCount();
-	for(int i=0; i<count; ++i)
+	for (int i = 0; i < count; ++i)
 	{
 		IEntity* pChild = pEntity->GetChild(i);
 		assert(pChild);
@@ -910,21 +907,21 @@ void CEditorGame::OnSaveLevel()
 
 bool CEditorGame::BuildEntitySerializationList(XmlNodeRef output)
 {
-	if(!output)
+	if (!output)
 		return false;
 
 	typedef std::vector<IFlowGraph*> TFGVector;
 
-	TSerializationData entityData;	// all entities
-	TFGVector flowGraphs;						// all flowgraphs
+	TSerializationData entityData;  // all entities
+	TFGVector flowGraphs;           // all flowgraphs
 
-	// build the all-entity list, and keep a record of those entities 
+	// build the all-entity list, and keep a record of those entities
 	//	which have a flowgraph attached
-	IEntityIt* pIt = gEnv->pEntitySystem->GetEntityIterator();
-	while(IEntity* pEntity = pIt->Next())
+	IEntityItPtr pIt = gEnv->pEntitySystem->GetEntityIterator();
+	while (IEntity* pEntity = pIt->Next())
 	{
 		IEntityFlowGraphComponent* pFGProxy = static_cast<IEntityFlowGraphComponent*>(pEntity->GetProxy(ENTITY_PROXY_FLOWGRAPH));
-		if(pFGProxy)
+		if (pFGProxy)
 		{
 			flowGraphs.push_back(pFGProxy->GetFlowGraph());
 			MarkEntityForSerialize(entityData, pEntity, eST_FlowGraphContainer);
@@ -962,25 +959,25 @@ bool CEditorGame::BuildEntitySerializationList(XmlNodeRef output)
 			else
 			{
 				CryLogAlways("Failed to find a value radius property for constraint '%s'. "
-					"Serialization for this constraint might not work.", pEntity->GetName());
+				             "Serialization for this constraint might not work.", pEntity->GetName());
 			}
 		}
-		else if(ShouldSaveEntityClass(pEntity)) // some classes should always be saved
+		else if (ShouldSaveEntityClass(pEntity)) // some classes should always be saved
 			MarkEntityForSerialize(entityData, pEntity, eST_Class);
 	}
 
 	// for each FG, mark all entities referenced as needing saving
-	for(TFGVector::const_iterator it = flowGraphs.begin(); it != flowGraphs.end(); ++it)
+	for (TFGVector::const_iterator it = flowGraphs.begin(); it != flowGraphs.end(); ++it)
 	{
-		if(!*it)
+		if (!*it)
 			continue;
 
 		IFlowNodeIteratorPtr nodeIt = (*it)->CreateNodeIterator();
 		TFlowNodeId nodeId = 0;
-		while(IFlowNodeData* pNode = nodeIt->Next(nodeId))
+		while (IFlowNodeData* pNode = nodeIt->Next(nodeId))
 		{
 			EntityId nodeEntity = (*it)->GetEntityId(nodeId);
-			if(nodeEntity != 0)
+			if (nodeEntity != 0)
 			{
 				IEntity* pEntity = gEnv->pEntitySystem->GetEntity(nodeEntity);
 				MarkEntityForSerialize(entityData, pEntity, eST_FlowGraph);
@@ -988,28 +985,27 @@ bool CEditorGame::BuildEntitySerializationList(XmlNodeRef output)
 		}
 	}
 
-
 	// now do the same for entities moved by trackview
-	for(int i=0; i<gEnv->pMovieSystem->GetNumSequences(); ++i)
+	for (int i = 0; i < gEnv->pMovieSystem->GetNumSequences(); ++i)
 	{
 		IAnimSequence* pSeq = gEnv->pMovieSystem->GetSequence(i);
 		int nodeCount = pSeq->GetNodeCount();
-		for(int j=0; j<nodeCount; ++j)
+		for (int j = 0; j < nodeCount; ++j)
 		{
 			IAnimNode* pNode = pSeq->GetNode(j);
 			IAnimEntityNode* pEntityNode = pNode ? pNode->QueryEntityNodeInterface() : nullptr;
-			if(pEntityNode)
+			if (pEntityNode)
 			{
 				IEntity* pEntity = pEntityNode->GetEntity();
-				if(pEntity && ShouldSaveTrackViewEntityClass(pEntity)) 
+				if (pEntity && ShouldSaveTrackViewEntityClass(pEntity))
 				{
 					MarkEntityForSerialize(entityData, pEntity, eST_TrackView);
 				}
 
-				if(EntityGUID* pGuid = pEntityNode->GetEntityGuid())
+				if (EntityGUID* pGuid = pEntityNode->GetEntityGuid())
 				{
 					EntityId id = gEnv->pEntitySystem->FindEntityByGuid(*pGuid);
-					if(id != 0)
+					if (id != 0)
 					{
 						IEntity* pEntity2 = gEnv->pEntitySystem->GetEntity(id);
 						MarkEntityForSerialize(entityData, pEntity2, eST_TrackView);
@@ -1021,13 +1017,13 @@ bool CEditorGame::BuildEntitySerializationList(XmlNodeRef output)
 
 	// now check entity links: any entity linked to or from a serialized
 	//	entity must also be serialized
-	for(TSerializationData::iterator it = entityData.begin(), end = entityData.end(); it != end; ++it)
+	for (TSerializationData::iterator it = entityData.begin(), end = entityData.end(); it != end; ++it)
 	{
 		IEntity* pEntity = gEnv->pEntitySystem->GetEntity(it->first);
 		assert(pEntity);
 
 		IEntityLink* pLink = pEntity->GetEntityLinks();
-		while(pLink)
+		while (pLink)
 		{
 			IEntity* pLinkedEntity = gEnv->pEntitySystem->GetEntity(pLink->entityId);
 			assert(pLinkedEntity);
@@ -1064,7 +1060,7 @@ bool CEditorGame::BuildEntitySerializationList(XmlNodeRef output)
 #endif
 
 	output->setTag("EntitySerialization");
-	for(TSerializationData::const_iterator it = entityData.begin(); it != entityData.end(); ++it)
+	for (TSerializationData::const_iterator it = entityData.begin(); it != entityData.end(); ++it)
 	{
 		IEntity* pEntity = gEnv->pEntitySystem->GetEntity(it->first);
 
@@ -1073,7 +1069,7 @@ bool CEditorGame::BuildEntitySerializationList(XmlNodeRef output)
 		string reasons = "Saving: ";
 #endif
 
-		if(it->second != eST_NotSerialized)
+		if (it->second != eST_NotSerialized)
 		{
 			XmlNodeRef child = output->createNode("Entity");
 			child->setAttr("id", it->first);
@@ -1085,44 +1081,44 @@ bool CEditorGame::BuildEntitySerializationList(XmlNodeRef output)
 			classesSaved[pEntity->GetClass()->GetName()]++;
 
 			++saveCount;
-			if(it->second & eST_FlowGraphContainer)
+			if (it->second & eST_FlowGraphContainer)
 			{
 				reasons += "FG Container; ";
 				++fgCount;
 			}
-			if(it->second & eST_FlowGraph)
+			if (it->second & eST_FlowGraph)
 			{
 				reasons += "FG reference; ";
 				++fgRefCount;
 			}
-			if(it->second & eST_Class)
+			if (it->second & eST_Class)
 			{
 				reasons += "Class; ";
 				++classCount;
 			}
-			if(it->second & eST_TrackView)
+			if (it->second & eST_TrackView)
 			{
 				reasons += "Trackview; ";
 				++tvCount;
 			}
-			if(it->second & eST_Child)
+			if (it->second & eST_Child)
 			{
 				reasons += "Child; ";
 				++childCount;
 			}
-			if(it->second & eST_Parent)
+			if (it->second & eST_Parent)
 			{
 				reasons += "Parent; ";
 				++parentCount;
 			}
-			if(it->second & eST_Linked)
+			if (it->second & eST_Linked)
 			{
 				reasons += "Linked; ";
 				++linkCount;
 			}
 
 			// unique counts (things added as a result of only one condition)
-			switch(it->second)
+			switch (it->second)
 			{
 			case eST_FlowGraph:
 				++fgRefUnique;
@@ -1149,7 +1145,7 @@ bool CEditorGame::BuildEntitySerializationList(XmlNodeRef output)
 			classesNotSaved[pEntity->GetClass()->GetName()]++;
 		}
 
-		CryLogAlways("Entity %s (%d, class %s) : %s", pEntity->GetName(), it->first, pEntity->GetClass()->GetName(), reasons.c_str());		
+		CryLogAlways("Entity %s (%d, class %s) : %s", pEntity->GetName(), it->first, pEntity->GetClass()->GetName(), reasons.c_str());
 #endif
 		}
 	}
@@ -1166,13 +1162,13 @@ bool CEditorGame::BuildEntitySerializationList(XmlNodeRef output)
 	CryLogAlways("Linked entity count: %d (%d unique)", linkCount, linkUnique);
 	CryLogAlways("========================");
 	CryLogAlways("Serialized entity classes:");
-	for(TClassSaveInfo::const_iterator it = classesSaved.begin(), end = classesSaved.end(); it != end; ++it)
+	for (TClassSaveInfo::const_iterator it = classesSaved.begin(), end = classesSaved.end(); it != end; ++it)
 	{
 		CryLogAlways("%s (count %d)", it->first.c_str(), it->second);
 	}
 	CryLogAlways("========================");
 	CryLogAlways("Not-serialized entity classes:");
-	for(TClassSaveInfo::const_iterator it = classesNotSaved.begin(), end = classesNotSaved.end(); it != end; ++it)
+	for (TClassSaveInfo::const_iterator it = classesNotSaved.begin(), end = classesNotSaved.end(); it != end; ++it)
 	{
 		CryLogAlways("%s (count %d)", it->first.c_str(), it->second);
 	}

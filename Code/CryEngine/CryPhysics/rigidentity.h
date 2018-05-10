@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #ifndef rigidentity_h
 #define rigidentity_h
@@ -150,6 +150,11 @@ class CRigidEntity : public CPhysicalEntity {
 	virtual float GetMaxFriction() { return m_maxFriction; }
 	virtual void GetSleepSpeedChange(int ipart, Vec3 &v,Vec3 &w) { v=m_vSleep; w=m_wSleep; }
 
+	virtual bool OnSweepHit(geom_contact &cnt, int icnt, float &dt, Vec3 &vel, int &nsweeps) {
+		if (m_nColliders)
+			m_minFriction = 3.0f;
+		return false;
+	}
 	virtual void CheckAdditionalGeometry(float time_interval) {}
 	virtual void AddAdditionalImpulses(float time_interval) {}
 	virtual void RecomputeMassDistribution(int ipart=-1,int bMassChanged=1);
@@ -177,7 +182,7 @@ class CRigidEntity : public CPhysicalEntity {
 		entity_contact *&pResContact, Vec3 &n,float &maxDist, const Vec3 &ptTest, const Vec3 &dirTest) const;
 	void ComputeBBoxRE(coord_block_BBox *partCoord);
 	void UpdatePosition(int bGridLocked);
-	int PostStepNotify(float time_interval,pe_params_buoyancy *pb,int nMaxBuoys);
+	int PostStepNotify(float time_interval,pe_params_buoyancy *pb,int nMaxBuoys,int iCaller);
 	masktype MaskIgnoredColliders(int iCaller, int bScheduleForStep=0);
 	void UnmaskIgnoredColliders(masktype constraint_mask, int iCaller);
 	void FakeRayCollision(CPhysicalEntity *pent, float dt);
@@ -223,10 +228,11 @@ class CRigidEntity : public CPhysicalEntity {
 
 	unsigned int m_bAwake              : 8;
 	unsigned int m_nSleepFrames        : 5;
-	unsigned int m_nFutileUnprojFrames : 4;
+	unsigned int m_nFutileUnprojFrames : 3;
 	unsigned int m_nEvents             : 5;
 	unsigned int m_nMaxEvents          : 5;
 	unsigned int m_icollMin            : 5;
+	unsigned int m_alwaysSweep         : 1;
 
 	entity_contact **m_pColliderContacts;
 	masktype *m_pColliderConstraints;
@@ -272,6 +278,7 @@ class CRigidEntity : public CPhysicalEntity {
 	unsigned int m_hasAuthority : 1;
 	Vec3 m_Psoft,m_Lsoft;
 	Vec3 m_forcedMove;
+	float m_sweepGap;
 
 	EventPhysCollision **m_pEventsColl;
 	int m_iLastLogColl;

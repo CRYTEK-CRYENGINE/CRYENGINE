@@ -79,3 +79,4 @@ protected:
 };
 
 #endif // QWINHOST_H
+

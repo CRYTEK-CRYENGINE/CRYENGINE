@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -19,7 +19,6 @@ class QBoxLayout;
 class QItemSelection;
 class QLineEdit;
 class QMenu;
-class QParentWndWidget;
 class QPushButton;
 class QSplitter;
 class QToolBar;
@@ -312,3 +311,4 @@ private:
 	CAsset*                          m_pAsset;
 };
 } // Schematyc
+

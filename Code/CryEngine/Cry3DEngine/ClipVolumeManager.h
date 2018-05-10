@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #ifndef __INCLUDE_CRY3DENGINE_CLIPVOLUMEMANAGER_H
 #define __INCLUDE_CRY3DENGINE_CLIPVOLUMEMANAGER_H
@@ -10,15 +10,14 @@ class CClipVolumeManager : public Cry3DEngineBase
 	struct SClipVolumeInfo
 	{
 		CClipVolume* m_pVolume;
+		int          m_updateFrameId;
 		bool         m_bActive;
-
-		SClipVolumeInfo()
-			: m_pVolume(nullptr)
-			, m_bActive(false) {}
 
 		SClipVolumeInfo(CClipVolume* pVolume)
 			: m_pVolume(pVolume)
-			, m_bActive(false) {}
+			, m_updateFrameId(0)
+			, m_bActive(false)
+		{}
 
 		bool operator==(const SClipVolumeInfo& other) const { return m_pVolume == other.m_pVolume; }
 	};
@@ -32,20 +31,22 @@ public:
 	virtual IClipVolume* CreateClipVolume();
 	virtual bool         DeleteClipVolume(IClipVolume* pClipVolume);
 	virtual bool         UpdateClipVolume(IClipVolume* pClipVolume, _smart_ptr<IRenderMesh> pRenderMesh, IBSPTree3D* pBspTree, const Matrix34& worldTM, bool bActive, uint32 flags, const char* szName);
+	void                 TrimDeletedClipVolumes(int trimFrameId = std::numeric_limits<int>::max());
 
 	void                 PrepareVolumesForRendering(const SRenderingPassInfo& passInfo);
 
 	void                 UpdateEntityClipVolume(const Vec3& pos, IRenderNode* pRenderNode);
-	void                 UnregisterRenderNode(IRenderNode* pRenderNode);
 
 	bool                 IsClipVolumeRequired(IRenderNode* pRenderNode) const;
 	CClipVolume*         GetClipVolumeByPos(const Vec3& pos, const IClipVolume* pIgnoreVolume = NULL) const;
 
 	void GetMemoryUsage(class ICrySizer* pSizer) const;
-	size_t GetClipVolumeCount() const { return m_ClipVolumes.size(); }
+	size_t GetClipVolumeCount() const { return m_clipVolumes.size(); }
 
 private:
-	PodArray<SClipVolumeInfo> m_ClipVolumes;
+	std::vector<SClipVolumeInfo> m_clipVolumes;
+	std::vector<SClipVolumeInfo> m_deletedClipVolumes;
+
 };
 
 #endif //__INCLUDE_CRY3DENGINE_CLIPVOLUMEMANAGER_H

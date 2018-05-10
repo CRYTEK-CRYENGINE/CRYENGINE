@@ -1,23 +1,12 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
-
-// ------------------------------------------------------------------------
-//  File name:   GeomCacheAttachmentManager.h
-//  Created:     2013-6-12 by Axel Gneiting
-//  Description: Manages geometry cache attachments
-// -------------------------------------------------------------------------
-//
-////////////////////////////////////////////////////////////////////////////
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
-#ifndef _GEOMCACHE_ATTACHMENT_MANAGER_
-	#define _GEOMCACHE_ATTACHMENT_MANAGER_
-
-	#if defined(USE_GEOM_CACHES)
+#if defined(USE_GEOM_CACHES)
 struct IGeomCacheRenderNode;
 class CEntity;
 
-		#include <CryCore/Containers/VectorMap.h>
+	#include <CryCore/Containers/VectorMap.h>
 
 class CGeomCacheAttachmentManager
 {
@@ -50,5 +39,4 @@ private:
 	VectorMap<SBinding, SAttachmentData> m_attachments;
 };
 
-	#endif
 #endif

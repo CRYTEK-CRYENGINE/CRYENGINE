@@ -1,0 +1,10 @@
+<AssetMetadata version="0" type="Texture" guid="d16fdb5c-a892-b01b-abe0-c760d023dd47" source="hit.tif">
+ <Files>
+  <File path="hit.dds"/>
+ </Files>
+ <Details>
+  <Detail name="width">64</Detail>
+  <Detail name="height">32</Detail>
+  <Detail name="mipCount">4</Detail>
+ </Details>
+</AssetMetadata>

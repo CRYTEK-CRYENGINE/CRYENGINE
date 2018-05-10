@@ -1,33 +1,12 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "ParticleSystem/ParticleFeature.h"
 #include "ParticleSystem/ParticleEmitter.h"
-
-CRY_PFX2_DBG
+#include "ParticleSystem/ParticleComponentRuntime.h"
 
 namespace pfx2
 {
-
-class CEvaluator
-{
-public:
-	void SerializeInplace(Serialization::IArchive& ar)
-	{
-		ar(m_attributeName, "Attribute", "Attribute");
-	}
-
-	bool Evaluate(CParticleEmitter* pEmitter) const
-	{
-		const CAttributeInstance& attributes = pEmitter->GetAttributeInstance();
-		const auto attributeId = attributes.FindAttributeIdByName(m_attributeName.c_str());
-		const bool attributeValue = attributes.GetAsBoolean(attributeId, true);
-		return attributeValue;
-	}
-
-private:
-	string m_attributeName;
-};
 
 //////////////////////////////////////////////////////////////////////////
 // CFeatureComponentEnableIf
@@ -40,26 +19,25 @@ public:
 public:
 	virtual bool CanMakeRuntime(CParticleEmitter* pEmitter) const override
 	{
-		CRY_PFX2_PROFILE_DETAILS;
-		return m_evaluator.Evaluate(pEmitter);
+		return m_attribute.GetValueAs(pEmitter->GetAttributeInstance(), true);
 	}
 
 	virtual void Serialize(Serialization::IArchive& ar) override
 	{
 		CParticleFeature::Serialize(ar);
-		m_evaluator.SerializeInplace(ar);
+		ar(m_attribute, "Attribute", "Attribute");
 	}
 
 private:
-	CEvaluator m_evaluator;
+	CAttributeReference m_attribute;
 };
 
 CRY_PFX2_IMPLEMENT_FEATURE(CParticleFeature, CFeatureComponentEnableIf, "Component", "EnableIf", colorComponent);
 
 //////////////////////////////////////////////////////////////////////////
-// CFeatureComponentSpawnIf
+// CFeatureComponentActivateIf
 
-class CFeatureComponentSpawnIf : public CParticleFeature
+class CFeatureComponentActivateIf : public CParticleFeature
 {
 public:
 	CRY_PFX2_DECLARE_FEATURE
@@ -67,27 +45,89 @@ public:
 public:
 	virtual void AddToComponent(CParticleComponent* pComponent, SComponentParams* pParams) override
 	{
-		pComponent->AddToUpdateList(EUL_MainPreUpdate, this);
+		pComponent->MainPreUpdate.add(this);
 	}
 
 	virtual void Serialize(Serialization::IArchive& ar) override
 	{
 		CParticleFeature::Serialize(ar);
-		m_evaluator.SerializeInplace(ar);
+		ar(m_attribute, "Attribute", "Attribute");
 	}
 
 	virtual void MainPreUpdate(CParticleComponentRuntime* pComponentRuntime) override
 	{
-		CRY_PFX2_PROFILE_DETAILS;
-		if (!m_evaluator.Evaluate(pComponentRuntime->GetEmitter()))
+		CRY_PFX2_PROFILE_DETAIL;
+		if (!m_attribute.GetValueAs(pComponentRuntime->GetEmitter()->GetAttributeInstance(), true))
 			pComponentRuntime->RemoveAllSubInstances();
 	}
 
 private:
-	CEvaluator m_evaluator;
+	CAttributeReference m_attribute;
 };
 
-CRY_PFX2_IMPLEMENT_FEATURE(CParticleFeature, CFeatureComponentSpawnIf, "Component", "SpawnIf", colorComponent);
+CRY_PFX2_LEGACY_FEATURE(CFeatureComponentActivateIf, "Component", "SpawnIf");
+CRY_PFX2_IMPLEMENT_FEATURE(CParticleFeature, CFeatureComponentActivateIf, "Component", "ActivateIf", colorComponent);
+
+//////////////////////////////////////////////////////////////////////////
+// CFeatureComponentActivateRandom
+
+class CFeatureComponentActivateRandom : public CParticleFeature
+{
+public:
+	CRY_PFX2_DECLARE_FEATURE
+
+public:
+	virtual void AddToComponent(CParticleComponent* pComponent, SComponentParams* pParams) override
+	{
+		pComponent->CullSubInstances.add(this);
+	}
+
+	virtual void Serialize(Serialization::IArchive& ar) override
+	{
+		CParticleFeature::Serialize(ar);
+		SERIALIZE_VAR(ar, m_probability);
+		if (m_probability < 1.0f)
+		{
+			SERIALIZE_VAR(ar, m_siblingExclusive);
+			if (m_siblingExclusive)
+				SERIALIZE_VAR(ar, m_selectionRange);
+		}
+	}
+
+	virtual void CullSubInstances(const SUpdateContext& context, TVarArray<SInstance>& instances) override
+	{
+		if (m_probability < 1.0f && instances.size() > 0)
+		{
+			auto seed = context.m_runtime.GetEmitter()->GetCurrentSeed();
+			SChaosKey childKey(seed ^ instances[0].m_parentId);
+			uint i = 0;
+			for (const auto& instance : instances)
+			{
+				if (m_probability < 1.0f)
+				{
+					if (m_siblingExclusive)
+					{
+						SChaosKey parentKey(seed ^ instance.m_parentId);
+						float select = parentKey.RandUNorm();
+						if (select < m_selectionRange || select > m_selectionRange + m_probability)
+							continue;
+					}
+					else if (childKey.RandUNorm() > m_probability)
+						continue;
+					instances[i++] = instance;
+				}
+			}
+			instances.resize(i);
+		}
+	}
+
+private:
+	bool       m_siblingExclusive = false;
+	UUnitFloat m_selectionRange   = 0.0f;
+	UUnitFloat m_probability      = 1.0f;
+};
+
+CRY_PFX2_IMPLEMENT_FEATURE(CParticleFeature, CFeatureComponentActivateRandom, "Component", "ActivateRandom", colorComponent);
 
 //////////////////////////////////////////////////////////////////////////
 // CFeatureComponentEnableByConfig
@@ -112,14 +152,14 @@ public:
 
 	virtual bool CanMakeRuntime(CParticleEmitter* pEmitter) const override
 	{
-		CRY_PFX2_PROFILE_DETAILS;
+		CRY_PFX2_PROFILE_DETAIL;
 
 		const uint particleSpec = pEmitter->GetParticleSpec();
 		const bool isPc = particleSpec <= CONFIG_VERYHIGH_SPEC;
 
 		if (isPc)
 		{
-			return
+			return m_PC &&
 				(particleSpec >= uint(m_minimumConfig)) &&
 				(particleSpec <= uint(m_maximumConfig));
 		}

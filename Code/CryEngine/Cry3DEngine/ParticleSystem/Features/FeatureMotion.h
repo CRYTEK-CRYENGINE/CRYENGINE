@@ -1,9 +1,10 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
 #include "ParticleSystem/ParticleFeature.h"
 #include "ParamMod.h"
+#include "ParticleEnviron.h"
 
 namespace pfx2
 {
@@ -16,10 +17,10 @@ struct ILocalEffector : public _i_reference_target_t
 public:
 	bool         IsEnabled() const { return m_enabled; }
 	virtual void AddToMotionFeature(CParticleComponent* pComponent, IFeatureMotion* pFeature) = 0;
-	virtual void ComputeEffector(const SUpdateContext& context, IOVec3Stream localVelocities, IOVec3Stream localAccelerations) {}
+	virtual uint ComputeEffector(const SUpdateContext& context, IOVec3Stream localVelocities, IOVec3Stream localAccelerations) { return 0; }
 	virtual void ComputeMove(const SUpdateContext& context, IOVec3Stream localMoves, float fTime) {}
 	virtual void Serialize(Serialization::IArchive& ar);
-	virtual void SetParameters(gpu_pfx2::IParticleFeatureGpuInterface* gpuInterface) const {}
+	virtual void SetParameters(gpu_pfx2::IParticleFeature* gpuInterface) const {}
 private:
 	SEnable m_enabled;
 };
@@ -48,7 +49,7 @@ public:
 
 	virtual void Serialize(Serialization::IArchive& ar) override;
 	virtual void InitParticles(const SUpdateContext& context) override;
-	virtual void Update(const SUpdateContext& context) override;
+	virtual void UpdateParticles(const SUpdateContext& context) override;
 	// ~CParticleFeature
 
 	// IFeatureMotion
@@ -57,22 +58,24 @@ public:
 	// ~IFeatureMotion
 
 private:
+	using SArea = SPhysEnviron::SArea;
+	uint ComputeEffectors(const SUpdateContext& context, const SArea& area) const;
 	void Integrate(const SUpdateContext& context);
-	void LinearIntegral(const SUpdateContext& context);
-	void QuadraticIntegral(const SUpdateContext& context);
-	void DragFastIntegral(const SUpdateContext& context);
 	void AngularLinearIntegral(const SUpdateContext& context);
 	void AngularDragFastIntegral(const SUpdateContext& context);
 
-	std::vector<PLocalEffector>          m_localEffectors;
-	std::vector<ILocalEffector*>         m_computeList;
-	std::vector<ILocalEffector*>         m_moveList;
 	CParamMod<SModParticleField, SFloat> m_gravity;
 	CParamMod<SModParticleField, UFloat> m_drag;
-	Vec3        m_uniformAcceleration;
-	Vec3        m_uniformWind;
-	UFloat      m_windMultiplier;
-	UFloat      m_angularDragMultiplier;
+	UFloat                               m_windMultiplier;
+	UFloat                               m_angularDragMultiplier;
+	bool                                 m_perParticleForceComputation;
+	Vec3                                 m_uniformAcceleration;
+	Vec3                                 m_uniformWind;
+	std::vector<PLocalEffector>          m_localEffectors;
+
+	std::vector<ILocalEffector*>         m_computeList;
+	std::vector<ILocalEffector*>         m_moveList;
+	uint                                 m_environFlags;
 };
 
 //////////////////////////////////////////////////////////////////////////
@@ -97,10 +100,11 @@ public:
 	virtual void AddToComponent(CParticleComponent* pComponent, SComponentParams* pParams) override;
 	virtual void Serialize(Serialization::IArchive& ar) override;
 	virtual void PostInitParticles(const SUpdateContext& context) override;
-	virtual void Update(const SUpdateContext& context) override;
+	virtual void UpdateParticles(const SUpdateContext& context) override;
+	virtual void DestroyParticles(const SUpdateContext& context) override;
 
 private:
-	typedef TValue<float, USoftLimit<10>, ConvertScale<1000, 1>> UDensity;
+	typedef TValue<float, ConvertScale<1000, 1, THardMin<0>>> UDensity;
 
 	EPhysicsType m_physicsType;
 	ESurfaceType m_surfaceType;
@@ -111,8 +115,8 @@ private:
 	Vec3         m_uniformAcceleration;
 };
 
-extern EParticleDataType
-  EPVF_Acceleration,
-  EPVF_VelocityField;
+extern TDataType<Vec3>
+	EPVF_Acceleration,
+	EPVF_VelocityField;
 
 }

@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "stdafx.h"
 #include "Image_DXTC.h"
@@ -767,3 +767,4 @@ CImage_DXTC::COMPRESSOR_ERROR CImage_DXTC::CheckParameters(
 
 	return COMPRESSOR_ERROR_NONE;
 }
+

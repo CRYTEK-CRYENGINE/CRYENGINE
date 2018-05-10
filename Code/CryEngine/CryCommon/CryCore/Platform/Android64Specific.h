@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #define SIZEOF_PTR    8
 //#define TARGET_DEFAULT_ALIGN (0x8U)

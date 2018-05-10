@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -20,7 +20,7 @@ namespace CryVR
 namespace OpenVR
 {
 class Controller;
-class Device : public IOpenVRDevice, public IHmdEventListener, public ISystemEventListener
+class Device final : public IOpenVRDevice, public IHmdEventListener, public ISystemEventListener
 {
 public:
 	// IHmdDevice
@@ -44,15 +44,20 @@ public:
 	virtual int                     GetControllerCount() const override { __debugbreak(); return 2; /* OPENVR_TODO */ }
 	virtual void                    GetPreferredRenderResolution(unsigned int& width, unsigned int& height) override;
 	virtual void                    DisableHMDTracking(bool disable) override;
+	virtual void                    SetAsyncCameraCallback(IAsyncCameraCallback *pCallback) override;
+	virtual bool                    RequestAsyncCameraUpdate(AsyncCameraContext &context) override;
 	// ~IHmdDevice
 
 	// IOpenVRDevice
-	virtual void SubmitOverlay(int id);
-	virtual void SubmitFrame();
-	virtual void OnSetupEyeTargets(ERenderAPI api, ERenderColorSpace colorSpace, void* leftEyeHandle, void* rightEyeHandle);
-	virtual void OnSetupOverlay(int id, ERenderAPI api, ERenderColorSpace colorSpace, void* overlayTextureHandle);
-	virtual void OnDeleteOverlay(int id);
-	virtual void GetRenderTargetSize(uint& w, uint& h);
+	virtual void SubmitOverlay(int id, const RenderLayer::CProperties* pOverlayProperties) override;
+	virtual void SubmitFrame() override;
+	virtual void OnSetupEyeTargets(ERenderAPI api, ERenderColorSpace colorSpace, void* leftEyeHandle, void* rightEyeHandle) override;
+	virtual void OnSetupOverlay(int id, ERenderAPI api, ERenderColorSpace colorSpace, void* overlayTextureHandle) override;
+	virtual void OnDeleteOverlay(int id) override;
+	virtual void OnPrepare() override;
+	virtual void OnPostPresent() override;
+	virtual bool IsActiveOverlay(int id) const override;
+	virtual void GetRenderTargetSize(uint& w, uint& h) override;
 	virtual void GetMirrorImageView(EEyeType eye, void* resource, void** mirrorTextureView) override;
 	// ~IOpenVRDevice
 
@@ -158,6 +163,13 @@ private:
 	ICVar*                  m_pHmdSocialScreenKeepAspectCVar;
 	ICVar*                  m_pHmdSocialScreenCVar;
 	ICVar*                  m_pTrackingOriginCVar;
+
+	IAsyncCameraCallback* m_pAsyncCameraCallback;
+	vr::TrackedDevicePose_t m_predictedRenderPose[vr::k_unMaxTrackedDeviceCount];
+
+	double m_submitTimeStamp;
+	double m_poseTimestamp;
+	double m_predictedRenderPoseTimestamp;
 };
 } // namespace OpenVR
 } // namespace CryVR

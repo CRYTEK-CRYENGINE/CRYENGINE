@@ -26,3 +26,26 @@ if(OPTION_UQS_SCHEMATYC_SUPPORT)
 else()
 	list(APPEND global_defines UQS_SCHEMATYC_SUPPORT=0)
 endif()
+
+if (WIN32 OR WIN64 OR LINUX)
+	option(OPTION_DEDICATED_SERVER "Build engine in Dedicated Server mode" OFF)
+endif()
+
+option(OPTION_LTCG "Enable link-time code generation/optimization" OFF)
+set(OPTION_PGO "Off" CACHE STRING "Enable profile-guided optimization")
+set_property(CACHE OPTION_PGO PROPERTY STRINGS "Off" "Generate" "Use")
+
+if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+	option(OPTION_PGO_INSTRUMENT "Use instrumentation instead of sampling for PGO (more expensive, but better results)" OFF)
+endif()
+
+if (MSVC_VERSION)
+option(OPTION_SHOW_COMPILE_METRICS "Show MSVC compilation metrics" OFF)
+endif()
+
+if (MSVC_VERSION GREATER 1900) # Visual Studio > 2017
+	option(OPTION_MSVC_PERMISSIVE_MINUS "Enable Visual Studio C++ /permissive- compile option for the standards-conforming compiler behavior" ON)
+endif()
+
+
+option(OPTION_RELEASE_PROFILING "Enable basic profiling in Release builds" OFF)

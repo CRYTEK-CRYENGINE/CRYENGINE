@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 
@@ -907,7 +907,7 @@ public:
 		, m_capture(capture)
 	{
 		assert(m_pRenderer);
-		IF(m_capture, 0)
+		IF (m_capture, 0)
 		{
 			GRenderer::Stats stats;
 			m_pRenderer->GetRenderStats(&stats, false);
@@ -918,7 +918,7 @@ public:
 
 	~CCaptureDrawStats()
 	{
-		IF(m_capture, 0)
+		IF (m_capture, 0)
 		{
 			GRenderer::Stats stats;
 			m_pRenderer->GetRenderStats(&stats, false);
@@ -931,10 +931,10 @@ public:
 
 private:
 	IScaleformRecording* m_pRenderer;
-	SFlashProfilerData* m_pProfilerData;
-	uint32              m_drawCallsPrev;
-	uint32              m_triCountPrev;
-	bool                m_capture;
+	SFlashProfilerData*  m_pProfilerData;
+	uint32               m_drawCallsPrev;
+	uint32               m_triCountPrev;
+	bool                 m_capture;
 };
 
 		#define CAPTURE_DRAW_STATS_BEGIN \
@@ -944,20 +944,20 @@ private:
 		#define CAPTURE_DRAW_STATS_END \
 		  }
 
-		#define FREEZE_VAROBJ(defRet)                                     \
-		  IF(ms_sys_flash_info && SFlashProfilerData::DisplayFrozen(), 0) \
-		  return defRet;
+		#define FREEZE_VAROBJ(defRet)                                      \
+		  IF (ms_sys_flash_info && SFlashProfilerData::DisplayFrozen(), 0) \
+		    return defRet;
 
-		#define FLASH_PROFILE_FUNC_PRECOND(defRet, funcID)                                                                      \
-		  IF((funcID != eFncDisplay) && !IsFlashEnabled() || ms_sys_flash_info && m_pProfilerData &&                            \
-		     (m_pProfilerData->PreventFunctionExectution() || funcID != eFncDisplay && SFlashProfilerData::DisplayFrozen()), 0) \
-		  return defRet;
+		#define FLASH_PROFILE_FUNC_PRECOND(defRet, funcID)                                                                       \
+		  IF ((funcID != eFncDisplay) && !IsFlashEnabled() || ms_sys_flash_info && m_pProfilerData &&                            \
+		      (m_pProfilerData->PreventFunctionExectution() || funcID != eFncDisplay && SFlashProfilerData::DisplayFrozen()), 0) \
+		    return defRet;
 
 		#define FLASH_PROFILE_FUNC_BUILDPROFILER_BEGIN(numArgs)                \
 		  CFlashFunctionProfiler * pProfiler(0);                               \
 		  char memFlashProfiler[sizeof(CFlashFunctionProfiler)];               \
 		  char memFuncArgs[(numArgs > 0 ? numArgs : 1) * sizeof(SPODVariant)]; \
-		  IF(ms_sys_flash_info, 0)                                             \
+		  IF (ms_sys_flash_info, 0)                                            \
 		  {                                                                    \
 		    int numArgsInit(0);                                                \
 		    SPODVariant* pArg((SPODVariant*)memFuncArgs);
@@ -1076,8 +1076,7 @@ public:
 	CFlashFunctionProfilerLight()
 		: m_startTick(FlashTimer::GetTicks())
 	{
-		//CRY_PROFILE_PUSH(PROFILE_SYSTEM, "Flash");
-		CryProfile::PushProfilingMarker(EProfileDescription::PUSHPOP, "%s", "Flash");
+		CRY_PROFILE_PUSH_MARKER("Flash");
 	}
 
 	~CFlashFunctionProfilerLight()
@@ -1088,14 +1087,13 @@ public:
 		while (true)
 		{
 			const uint32 curAccum = ms_deltaTicksAccum;
-			IF(curAccum == (uint32) CryInterlockedCompareExchange(alias_cast<volatile LONG*>(&ms_deltaTicksAccum), (LONG) (curAccum + delta), (LONG) curAccum), 1)
-			break;
+			IF (curAccum == (uint32) CryInterlockedCompareExchange(alias_cast<volatile LONG*>(&ms_deltaTicksAccum), (LONG) (curAccum + delta), (LONG) curAccum), 1)
+				break;
 		}
 		#else
 		ms_deltaTicksAccum += delta;
 		#endif
-		//CRY_PROFILE_POP();
-		CryProfile::PopProfilingMarker();
+		CRY_PROFILE_POP_MARKER("Flash");
 	}
 
 	static void Update()
@@ -1107,8 +1105,8 @@ public:
 		while (true)
 		{
 			const uint32 curAccum = ms_deltaTicksAccum;
-			IF(curAccum == (uint32) CryInterlockedCompareExchange(alias_cast<volatile LONG*>(&ms_deltaTicksAccum), 0, (LONG) curAccum), 1)
-			break;
+			IF (curAccum == (uint32) CryInterlockedCompareExchange(alias_cast<volatile LONG*>(&ms_deltaTicksAccum), 0, (LONG) curAccum), 1)
+				break;
 		}
 		#else
 		ms_deltaTicksAccum = 0;
@@ -1190,8 +1188,8 @@ private:
 
 static CryCriticalSection s_displaySync;
 
-	#define SYNC_DISPLAY_BEGIN       \
-	  IF(s_displaySync.TryLock(), 1) \
+	#define SYNC_DISPLAY_BEGIN        \
+	  IF (s_displaySync.TryLock(), 1) \
 	  {
 
 	#define SYNC_DISPLAY_END  \
@@ -1225,7 +1223,7 @@ private:
 
 static inline GFxValue ConvertValue(const SFlashVarValue& src)
 {
-	//FUNCTION_PROFILER(GetISystem(), PROFILE_SYSTEM);
+	//CRY_PROFILE_FUNCTION(PROFILE_SYSTEM);
 	switch (src.GetType())
 	{
 	case SFlashVarValue::eBool:
@@ -1262,7 +1260,7 @@ static inline GFxValue ConvertValue(const SFlashVarValue& src)
 
 static inline SFlashVarValue ConvertValue(const GFxValue& src)
 {
-	//FUNCTION_PROFILER(GetISystem(), PROFILE_SYSTEM);
+	//CRY_PROFILE_FUNCTION(PROFILE_SYSTEM);
 	switch (src.GetType())
 	{
 	case GFxValue::VT_Boolean:
@@ -1299,7 +1297,7 @@ static inline SFlashVarValue ConvertValue(const GFxValue& src)
 
 static inline bool GetArrayType(EFlashVariableArrayType type, GFxMovie::SetArrayType& translatedType)
 {
-	//FUNCTION_PROFILER(GetISystem(), PROFILE_SYSTEM);
+	//CRY_PROFILE_FUNCTION(PROFILE_SYSTEM);
 	switch (type)
 	{
 	case FVAT_Int:
@@ -1345,6 +1343,7 @@ public:
 	virtual void                  VisitMembers(ObjectVisitor* pVisitor) const;
 	virtual bool                  DeleteMember(const char* pMemberName);
 	virtual bool                  Invoke(const char* pMethodName, const SFlashVarValue* pArgs, unsigned int numArgs, SFlashVarValue* pResult = 0);
+	virtual bool                  Invoke(const char* szMethodName, const IFlashVariableObject** pArgs, unsigned int numArgs, SFlashVarValue* pResult = 0);
 
 	virtual unsigned int          GetArraySize() const;
 	virtual bool                  SetArraySize(unsigned int size);
@@ -1608,7 +1607,12 @@ bool CFlashVariableObject::Invoke(const char* pMethodName, const SFlashVarValue*
 		if (pTranslatedArgs || !numArgs)
 		{
 			GFxValue retVal;
-			res = m_value.Invoke(pMethodName, &retVal, pTranslatedArgs, numArgs);
+			{
+				// This is needed to disable fp exception being triggered in Scaleform
+				CScopedFloatingPointException fpExceptionScope(eFPE_None);
+
+				res = m_value.Invoke(pMethodName, &retVal, pTranslatedArgs, numArgs);
+			}
 			if (pResult)
 			{
 				if (retVal.IsString() || retVal.IsStringW())
@@ -1618,6 +1622,49 @@ bool CFlashVariableObject::Invoke(const char* pMethodName, const SFlashVarValue*
 			for (unsigned int i(0); i < numArgs; ++i)
 				pTranslatedArgs[i].~GFxValue();
 		}
+	}
+	return res;
+}
+
+bool CFlashVariableObject::Invoke(const char* szMethodName, const IFlashVariableObject** pArgs, unsigned int numArgs, SFlashVarValue* pResult)
+{
+	FLASH_PROFILER_LIGHT;
+
+	SYNC_THREADS;
+
+	SET_LOG_CONTEXT(m_refFilePath);
+	m_retValRefHolder = GFxValue();
+	bool res(false);
+	if (m_value.IsObject() && pArgs)
+	{
+		assert(!pArgs || numArgs);
+		GFxValue* pTranslatedArgs(0);
+
+		if (pArgs && numArgs)
+		{
+			PREFAST_SUPPRESS_WARNING(6255)
+			pTranslatedArgs = (GFxValue*)alloca(numArgs * sizeof(GFxValue));
+			if (pTranslatedArgs)
+			{
+				for (unsigned int i(0); i < numArgs; ++i)
+				{
+					GFxValue inputObject = static_cast<const CFlashVariableObject*>(pArgs[i])->GetGFxValue();
+					new(&pTranslatedArgs[i])GFxValue(inputObject);
+				}
+			}
+		}
+
+		GFxValue retVal;
+		res = m_value.Invoke(szMethodName, &retVal, pTranslatedArgs, numArgs);
+		if (pResult)
+		{
+			if (retVal.IsString() || retVal.IsStringW())
+				m_retValRefHolder = retVal;
+			*pResult = ConvertValue(retVal);
+		}
+
+		for (unsigned int i(0); i < numArgs; ++i)
+			pTranslatedArgs[i].~GFxValue();
 	}
 	return res;
 }
@@ -2443,6 +2490,7 @@ int CFlashPlayer::ms_sys_flash_address_space_kb(DEFAULT_VA_SPACE_IN_KB);
 int CFlashPlayer::ms_sys_flash_allow_mesh_cache_reset(1);
 int CFlashPlayer::ms_sys_flash_reset_mesh_cache(0);
 int CFlashPlayer::ms_sys_flash_check_filemodtime(0);
+int CFlashPlayer::ms_sys_flash_mipmaps(0);
 
 CFlashPlayer::PlayerList CFlashPlayer::ms_playerList;
 IFlashLoadMovieHandler* CFlashPlayer::ms_pLoadMovieHandler(0);
@@ -2450,6 +2498,8 @@ IFlashLoadMovieHandler* CFlashPlayer::ms_pLoadMovieHandler(0);
 CFlashPlayer::CFlashPlayer()
 	: m_refCount(1)
 	, m_releaseGuardCount(0)
+	, m_clearFlags(0)
+	, m_clearColor(Clr_Transparent)
 	, m_compDepth(0)
 	, m_stereoCustomMaxParallax(-1.0f)
 	, m_allowEgdeAA(false)
@@ -2547,12 +2597,12 @@ void CFlashPlayer::Release()
 
 	LONG refCount(CryInterlockedDecrement(&m_refCount));
 	assert(refCount >= 0);
-	IF(refCount == 0, 0)
+	IF (refCount == 0, 0)
 	{
 	#if !defined(_RELEASE)
 		{
 			const int curRelaseGuardCount = m_releaseGuardCount;
-			IF(0 != CryInterlockedCompareExchange(alias_cast<volatile LONG*>(&m_releaseGuardCount), (LONG) curRelaseGuardCount, (LONG) curRelaseGuardCount), 0)
+			IF (0 != CryInterlockedCompareExchange(alias_cast<volatile LONG*>(&m_releaseGuardCount), (LONG) curRelaseGuardCount, (LONG) curRelaseGuardCount), 0)
 			{
 				SET_LOG_CONTEXT(m_filePath);
 				CryGFxLog::GetAccess().LogError("Releasing flash player object while in a guarded section (AS callbacks into C++ code, etc)! Enforce breaking into the debugger...");
@@ -2657,7 +2707,9 @@ void CFlashPlayer::InitCVars()
 	               "Cached resources with same filepath but different file modification time are treated as unique entities.");
 	#endif
 
-//	CScaleformRecording::InitCVars();
+	REGISTER_CVAR2("sys_flash_mipmaps", &ms_sys_flash_mipmaps, 0, 0, "Enables/disables mipmap support for flash ui icons");
+
+	//	CScaleformRecording::InitCVars();
 	#if defined(USE_GFX_VIDEO)
 	GFxVideoWrapper::InitCVars();
 	#endif
@@ -2750,7 +2802,7 @@ bool CFlashPlayer::Load(const char* pFilePath, unsigned int options, unsigned in
 
 	SYNC_THREADS;
 
-	FUNCTION_PROFILER(GetISystem(), PROFILE_SYSTEM);
+	CRY_PROFILE_FUNCTION(PROFILE_SYSTEM);
 
 	MEMSTAT_CONTEXT_FMT(EMemStatContextTypes::MSC_Other, 0, "FlashPlayer::Load(%s)", pFilePath);
 
@@ -2846,7 +2898,7 @@ bool CFlashPlayer::Bootstrap(GFxMovieDef* pMovieDef, unsigned int options, unsig
 
 	SYNC_THREADS;
 
-	FUNCTION_PROFILER(GetISystem(), PROFILE_SYSTEM);
+	CRY_PROFILE_FUNCTION(PROFILE_SYSTEM);
 
 	const char* pFilePath = pMovieDef->GetFileURL();
 
@@ -2878,7 +2930,7 @@ void CFlashPlayer::SetBackgroundColor(const ColorB& color)
 
 	SYNC_THREADS;
 
-	FUNCTION_PROFILER(GetISystem(), PROFILE_SYSTEM);
+	CRY_PROFILE_FUNCTION(PROFILE_SYSTEM);
 	SET_LOG_CONTEXT(m_filePath);
 	if (m_pMovieView)
 	{
@@ -2893,7 +2945,7 @@ void CFlashPlayer::SetBackgroundAlpha(float alpha)
 
 	SYNC_THREADS;
 
-	FUNCTION_PROFILER(GetISystem(), PROFILE_SYSTEM);
+	CRY_PROFILE_FUNCTION(PROFILE_SYSTEM);
 	SET_LOG_CONTEXT(m_filePath);
 	if (m_pMovieView)
 	{
@@ -2907,7 +2959,7 @@ float CFlashPlayer::GetBackgroundAlpha() const
 
 	SYNC_THREADS;
 
-	FUNCTION_PROFILER(GetISystem(), PROFILE_SYSTEM);
+	CRY_PROFILE_FUNCTION(PROFILE_SYSTEM);
 	SET_LOG_CONTEXT(m_filePath);
 	float res = 1.0f;
 	if (m_pMovieView)
@@ -2923,7 +2975,7 @@ void CFlashPlayer::SetViewport(int x0, int y0, int width, int height, float aspe
 
 	SYNC_THREADS;
 
-	FUNCTION_PROFILER(GetISystem(), PROFILE_SYSTEM);
+	CRY_PROFILE_FUNCTION(PROFILE_SYSTEM);
 	SET_LOG_CONTEXT(m_filePath);
 	if (m_pMovieView)
 	{
@@ -2939,7 +2991,7 @@ void CFlashPlayer::SetViewScaleMode(EScaleModeType scaleMode)
 
 	SYNC_THREADS;
 
-	FUNCTION_PROFILER(GetISystem(), PROFILE_SYSTEM);
+	CRY_PROFILE_FUNCTION(PROFILE_SYSTEM);
 	SET_LOG_CONTEXT(m_filePath);
 	if (m_pMovieView)
 	{
@@ -2973,7 +3025,7 @@ IFlashPlayer::EScaleModeType CFlashPlayer::GetViewScaleMode() const
 
 	SYNC_THREADS;
 
-	FUNCTION_PROFILER(GetISystem(), PROFILE_SYSTEM);
+	CRY_PROFILE_FUNCTION(PROFILE_SYSTEM);
 	SET_LOG_CONTEXT(m_filePath);
 	EScaleModeType scaleMode = eSM_NoScale;
 	if (m_pMovieView)
@@ -3008,7 +3060,7 @@ void CFlashPlayer::SetViewAlignment(EAlignType viewAlignment)
 
 	SYNC_THREADS;
 
-	FUNCTION_PROFILER(GetISystem(), PROFILE_SYSTEM);
+	CRY_PROFILE_FUNCTION(PROFILE_SYSTEM);
 	SET_LOG_CONTEXT(m_filePath);
 	if (m_pMovieView)
 	{
@@ -3057,7 +3109,7 @@ IFlashPlayer::EAlignType CFlashPlayer::GetViewAlignment() const
 
 	SYNC_THREADS;
 
-	FUNCTION_PROFILER(GetISystem(), PROFILE_SYSTEM);
+	CRY_PROFILE_FUNCTION(PROFILE_SYSTEM);
 	SET_LOG_CONTEXT(m_filePath);
 	EAlignType viewAlignment = eAT_Center;
 	if (m_pMovieView)
@@ -3107,7 +3159,7 @@ void CFlashPlayer::GetViewport(int& x0, int& y0, int& width, int& height, float&
 
 	SYNC_THREADS;
 
-	FUNCTION_PROFILER(GetISystem(), PROFILE_SYSTEM);
+	CRY_PROFILE_FUNCTION(PROFILE_SYSTEM);
 	SET_LOG_CONTEXT(m_filePath);
 	if (m_pMovieView)
 	{
@@ -3132,7 +3184,7 @@ void CFlashPlayer::SetScissorRect(int x0, int y0, int width, int height)
 
 	SYNC_THREADS;
 
-	FUNCTION_PROFILER(GetISystem(), PROFILE_SYSTEM);
+	CRY_PROFILE_FUNCTION(PROFILE_SYSTEM);
 	SET_LOG_CONTEXT(m_filePath);
 	if (m_pMovieView)
 	{
@@ -3149,7 +3201,7 @@ void CFlashPlayer::GetScissorRect(int& x0, int& y0, int& width, int& height) con
 
 	SYNC_THREADS;
 
-	FUNCTION_PROFILER(GetISystem(), PROFILE_SYSTEM);
+	CRY_PROFILE_FUNCTION(PROFILE_SYSTEM);
 	SET_LOG_CONTEXT(m_filePath);
 	if (m_pMovieView)
 	{
@@ -3173,7 +3225,7 @@ void CFlashPlayer::Advance(float deltaTime)
 
 	SYNC_THREADS;
 
-	FUNCTION_PROFILER(GetISystem(), PROFILE_SYSTEM);
+	CRY_PROFILE_FUNCTION(PROFILE_SYSTEM);
 	FLASH_PROFILE_FUNC_1ARG(eFncAdvance, VOID_RETURN, "Advance", deltaTime);
 	SET_LOG_CONTEXT(m_filePath);
 	MEMSTAT_CONTEXT_FMT(EMemStatContextTypes::MSC_Other, 0, "Flash Advance %s", m_filePath->c_str());
@@ -3185,7 +3237,7 @@ void CFlashPlayer::Advance(float deltaTime)
 	}
 }
 
-void CFlashPlayer::Render(bool stereo)
+void CFlashPlayer::Render(bool stereo, int textureId)
 {
 	//FLASH_PROFILER_LIGHT; // don't add profiling macro to this dispatch function (cost is neglectable and would be double counted if MT rendering is off), callback will measure real cost
 
@@ -3193,7 +3245,12 @@ void CFlashPlayer::Render(bool stereo)
 		return;
 
 	AddRef();
-	gEnv->pRenderer->RT_FlashRender(this, stereo);
+	gEnv->pRenderer->FlashRender(this, stereo,textureId);
+}
+
+IScaleformPlayback* CFlashPlayer::GetPlayback()
+{
+	return m_pRenderer->GetPlayback();
 }
 
 void CFlashPlayer::RenderCallback(EFrameType ft, bool releaseOnExit)
@@ -3210,7 +3267,7 @@ void CFlashPlayer::RenderCallback(EFrameType ft, bool releaseOnExit)
 		//			pXRender->SF_Flush();
 		//#endif
 		{
-			FUNCTION_PROFILER(GetISystem(), PROFILE_SYSTEM);
+			CRY_PROFILE_FUNCTION(PROFILE_SYSTEM);
 			FLASH_PROFILE_FUNC(eFncDisplay, VOID_RETURN, "Display");
 			SET_LOG_CONTEXT(m_filePath);
 			bool devLost = false;
@@ -3218,6 +3275,7 @@ void CFlashPlayer::RenderCallback(EFrameType ft, bool releaseOnExit)
 			if (m_pMovieView && !devLost)
 			{
 				UpdateRenderFlags();
+				m_pRenderer->SetClearFlags(m_clearFlags, m_clearColor);
 				m_pRenderer->SetCompositingDepth(m_compDepth);
 				m_pRenderer->SetStereoMode(ft != EFT_Mono, ft == EFT_StereoLeft);
 				m_pRenderer->StereoEnforceFixedProjectionDepth(m_stereoFixedProjDepth);
@@ -3252,7 +3310,7 @@ void CFlashPlayer::RenderPlaybackLocklessCallback(int cbIdx, EFrameType ft, bool
 		//			pXRender->SF_Flush();
 		//#endif
 		{
-			FUNCTION_PROFILER(GetISystem(), PROFILE_SYSTEM);
+			CRY_PROFILE_FUNCTION(PROFILE_SYSTEM);
 			FLASH_PROFILE_FUNC(eFncDisplay, VOID_RETURN, "Display Lockless (Playback)");
 			SET_LOG_CONTEXT(m_filePath);
 
@@ -3263,6 +3321,7 @@ void CFlashPlayer::RenderPlaybackLocklessCallback(int cbIdx, EFrameType ft, bool
 			if (!devLost)
 			{
 				// UpdateRenderFlags(); // not needed as we only play back the pre-recorded commands
+				m_pRenderer->SetClearFlags(m_clearFlags, m_clearColor);
 				m_pRenderer->SetCompositingDepth(m_compDepth);
 				m_pRenderer->SetStereoMode(ft != EFT_Mono, ft == EFT_StereoLeft);
 				m_pRenderer->StereoEnforceFixedProjectionDepth(m_stereoFixedProjDepth);
@@ -3277,8 +3336,8 @@ void CFlashPlayer::RenderPlaybackLocklessCallback(int cbIdx, EFrameType ft, bool
 
 			if (finalPlayback)
 			{
-				IF(devLost, 0)
-				cmdBuf.DropResourceRefs();
+				IF (devLost, 0)
+					cmdBuf.DropResourceRefs();
 				cmdBuf.Reset(0);
 			}
 
@@ -3294,6 +3353,14 @@ void CFlashPlayer::DummyRenderCallback(EFrameType ft, bool releaseOnExit)
 {
 	if (releaseOnExit)
 		Release();
+}
+
+void CFlashPlayer::SetClearFlags(uint32 clearFlags, ColorF clearColor)
+{
+	//SYNC_THREADS; //don't sync (should hardly produce read/write conflicts and thus rendering glitches, if ever)
+
+	m_clearFlags = clearFlags;
+	m_clearColor = clearColor;
 }
 
 void CFlashPlayer::SetCompositingDepth(float depth)
@@ -3344,7 +3411,7 @@ void CFlashPlayer::Restart()
 
 	SYNC_THREADS;
 
-	FUNCTION_PROFILER(GetISystem(), PROFILE_SYSTEM);
+	CRY_PROFILE_FUNCTION(PROFILE_SYSTEM);
 	SET_LOG_CONTEXT(m_filePath);
 	if (m_pMovieView)
 	{
@@ -3358,7 +3425,7 @@ bool CFlashPlayer::IsPaused() const
 
 	SYNC_THREADS;
 
-	FUNCTION_PROFILER(GetISystem(), PROFILE_SYSTEM);
+	CRY_PROFILE_FUNCTION(PROFILE_SYSTEM);
 	SET_LOG_CONTEXT(m_filePath);
 	bool res = false;
 	if (m_pMovieView)
@@ -3374,7 +3441,7 @@ void CFlashPlayer::Pause(bool pause)
 
 	SYNC_THREADS;
 
-	FUNCTION_PROFILER(GetISystem(), PROFILE_SYSTEM);
+	CRY_PROFILE_FUNCTION(PROFILE_SYSTEM);
 	SET_LOG_CONTEXT(m_filePath);
 	if (m_pMovieView)
 	{
@@ -3388,7 +3455,7 @@ void CFlashPlayer::GotoFrame(unsigned int frameNumber)
 
 	SYNC_THREADS;
 
-	FUNCTION_PROFILER(GetISystem(), PROFILE_SYSTEM);
+	CRY_PROFILE_FUNCTION(PROFILE_SYSTEM);
 	SET_LOG_CONTEXT(m_filePath);
 	if (m_pMovieView)
 	{
@@ -3402,7 +3469,7 @@ bool CFlashPlayer::GotoLabeledFrame(const char* pLabel, int offset)
 
 	SYNC_THREADS;
 
-	FUNCTION_PROFILER(GetISystem(), PROFILE_SYSTEM);
+	CRY_PROFILE_FUNCTION(PROFILE_SYSTEM);
 	SET_LOG_CONTEXT(m_filePath);
 	bool res = false;
 	if (m_pMovieView && pLabel)
@@ -3418,7 +3485,7 @@ unsigned int CFlashPlayer::GetCurrentFrame() const
 
 	SYNC_THREADS;
 
-	FUNCTION_PROFILER(GetISystem(), PROFILE_SYSTEM);
+	CRY_PROFILE_FUNCTION(PROFILE_SYSTEM);
 	SET_LOG_CONTEXT(m_filePath);
 	unsigned int res = 0;
 	if (m_pMovieView)
@@ -3434,7 +3501,7 @@ bool CFlashPlayer::HasLooped() const
 
 	SYNC_THREADS;
 
-	FUNCTION_PROFILER(GetISystem(), PROFILE_SYSTEM);
+	CRY_PROFILE_FUNCTION(PROFILE_SYSTEM);
 	SET_LOG_CONTEXT(m_filePath);
 	bool res = false;
 	if (m_pMovieView)
@@ -3448,7 +3515,7 @@ void CFlashPlayer::SetFSCommandHandler(IFSCommandHandler* pHandler, void* pUserD
 {
 	//SYNC_THREADS; //don't sync (handler needs to reside in same thread as flash player instance)
 
-	FUNCTION_PROFILER(GetISystem(), PROFILE_SYSTEM);
+	CRY_PROFILE_FUNCTION(PROFILE_SYSTEM);
 	m_pFSCmdHandler = pHandler;
 	m_pFSCmdHandlerUserData = pUserData;
 }
@@ -3457,7 +3524,7 @@ void CFlashPlayer::SetExternalInterfaceHandler(IExternalInterfaceHandler* pHandl
 {
 	//SYNC_THREADS; //don't sync (handler needs to reside in same thread as flash player instance)
 
-	FUNCTION_PROFILER(GetISystem(), PROFILE_SYSTEM);
+	CRY_PROFILE_FUNCTION(PROFILE_SYSTEM);
 	m_pEIHandler = pHandler;
 	m_pEIHandlerUserData = pUserData;
 }
@@ -3468,7 +3535,7 @@ void CFlashPlayer::SendCursorEvent(const SFlashCursorEvent& cursorEvent)
 
 	SYNC_THREADS;
 
-	FUNCTION_PROFILER(GetISystem(), PROFILE_SYSTEM);
+	CRY_PROFILE_FUNCTION(PROFILE_SYSTEM);
 	SET_LOG_CONTEXT(m_filePath);
 	if (m_pMovieView)
 	{
@@ -3508,7 +3575,7 @@ void CFlashPlayer::SendKeyEvent(const SFlashKeyEvent& keyEvent)
 
 	SYNC_THREADS;
 
-	FUNCTION_PROFILER(GetISystem(), PROFILE_SYSTEM);
+	CRY_PROFILE_FUNCTION(PROFILE_SYSTEM);
 	SET_LOG_CONTEXT(m_filePath);
 	if (m_pMovieView)
 	{
@@ -3532,7 +3599,7 @@ void CFlashPlayer::SendCharEvent(const SFlashCharEvent& charEvent)
 
 	SYNC_THREADS;
 
-	FUNCTION_PROFILER(GetISystem(), PROFILE_SYSTEM);
+	CRY_PROFILE_FUNCTION(PROFILE_SYSTEM);
 	SET_LOG_CONTEXT(m_filePath);
 
 	if ((gEnv->pInput->GetModifiers() & eMM_Ctrl) != 0)
@@ -3558,10 +3625,15 @@ void CFlashPlayer::SetImeFocus()
 
 	SYNC_THREADS;
 
-	FUNCTION_PROFILER(GetISystem(), PROFILE_SYSTEM);
+	CRY_PROFILE_FUNCTION(PROFILE_SYSTEM);
 	SET_LOG_CONTEXT(m_filePath);
 
 	CSharedFlashPlayerResources::GetAccess().SetImeFocus(m_pMovieView, true);
+}
+
+bool CFlashPlayer::HitTest(float x, float y) const
+{
+	return m_pMovieView && m_pMovieView->HitTest(x, y, GFxMovieView::HitTest_ShapesNoInvisible);
 }
 
 void CFlashPlayer::SetVisible(bool visible)
@@ -3570,7 +3642,7 @@ void CFlashPlayer::SetVisible(bool visible)
 
 	SYNC_THREADS;
 
-	FUNCTION_PROFILER(GetISystem(), PROFILE_SYSTEM);
+	CRY_PROFILE_FUNCTION(PROFILE_SYSTEM);
 	SET_LOG_CONTEXT(m_filePath);
 	if (m_pMovieView)
 		m_pMovieView->SetVisible(visible);
@@ -3582,7 +3654,7 @@ bool CFlashPlayer::GetVisible() const
 
 	SYNC_THREADS;
 
-	FUNCTION_PROFILER(GetISystem(), PROFILE_SYSTEM);
+	CRY_PROFILE_FUNCTION(PROFILE_SYSTEM);
 	SET_LOG_CONTEXT(m_filePath);
 	bool res(false);
 	if (m_pMovieView)
@@ -3596,7 +3668,7 @@ bool CFlashPlayer::SetOverrideTexture(const char* pResourceName, ITexture* pText
 
 	SYNC_THREADS;
 
-	FUNCTION_PROFILER(GetISystem(), PROFILE_SYSTEM);
+	CRY_PROFILE_FUNCTION(PROFILE_SYSTEM);
 
 	if (pTexture)
 	{
@@ -3609,8 +3681,8 @@ bool CFlashPlayer::SetOverrideTexture(const char* pResourceName, ITexture* pText
 		{
 			GImageInfoBase* pPrev = pimageRes->GetImageInfo();
 			GImageInfoBase* pimageInfo = resize
-				? new GImageInfoTextureXRender(pTexture, pPrev->GetWidth(), pPrev->GetHeight())
-				: new GImageInfoTextureXRender(pTexture);	
+			                             ? new GImageInfoTextureXRender(pTexture, pPrev->GetWidth(), pPrev->GetHeight())
+			                             : new GImageInfoTextureXRender(pTexture);
 			pimageRes->SetImageInfo(pimageInfo);
 			return true;
 		}
@@ -3624,7 +3696,7 @@ bool CFlashPlayer::SetVariable(const char* pPathToVar, const SFlashVarValue& val
 
 	SYNC_THREADS;
 
-	FUNCTION_PROFILER(GetISystem(), PROFILE_SYSTEM);
+	CRY_PROFILE_FUNCTION(PROFILE_SYSTEM);
 	FLASH_PROFILE_FUNC_2ARG(eFncSetVar, false, "SetVariable", pPathToVar, &value);
 	SET_LOG_CONTEXT(m_filePath);
 	bool res(false);
@@ -3639,7 +3711,7 @@ bool CFlashPlayer::SetVariable(const char* pPathToVar, const IFlashVariableObjec
 
 	SYNC_THREADS;
 
-	FUNCTION_PROFILER(GetISystem(), PROFILE_SYSTEM);
+	CRY_PROFILE_FUNCTION(PROFILE_SYSTEM);
 	FLASH_PROFILE_FUNC_2ARG(eFncSetVar, false, "SetVariable", pPathToVar, (void*) pVarObj);
 	SET_LOG_CONTEXT(m_filePath);
 	bool res(false);
@@ -3654,7 +3726,7 @@ bool CFlashPlayer::GetVariable(const char* pPathToVar, SFlashVarValue& value) co
 
 	SYNC_THREADS;
 
-	FUNCTION_PROFILER(GetISystem(), PROFILE_SYSTEM);
+	CRY_PROFILE_FUNCTION(PROFILE_SYSTEM);
 	FLASH_PROFILE_FUNC_2ARG(eFncGetVar, false, "GetVariable", pPathToVar, (void*) &value);
 	SET_LOG_CONTEXT(m_filePath);
 	m_retValRefHolder = GFxValue();
@@ -3676,7 +3748,7 @@ bool CFlashPlayer::GetVariable(const char* pPathToVar, IFlashVariableObject*& pV
 
 	SYNC_THREADS;
 
-	FUNCTION_PROFILER(GetISystem(), PROFILE_SYSTEM);
+	CRY_PROFILE_FUNCTION(PROFILE_SYSTEM);
 	FLASH_PROFILE_FUNC_2ARG(eFncGetVar, false, "GetVariable", pPathToVar, (void*) pVarObj);
 	SET_LOG_CONTEXT(m_filePath);
 	pVarObj = 0;
@@ -3698,7 +3770,7 @@ bool CFlashPlayer::IsAvailable(const char* pPathToVar) const
 
 	SYNC_THREADS;
 
-	FUNCTION_PROFILER(GetISystem(), PROFILE_SYSTEM);
+	CRY_PROFILE_FUNCTION(PROFILE_SYSTEM);
 	FLASH_PROFILE_FUNC_1ARG(eFncIsAvailable, false, "IsAvailable", pPathToVar);
 	SET_LOG_CONTEXT(m_filePath);
 	bool res(false);
@@ -3713,7 +3785,7 @@ bool CFlashPlayer::SetVariableArray(EFlashVariableArrayType type, const char* pP
 
 	SYNC_THREADS;
 
-	FUNCTION_PROFILER(GetISystem(), PROFILE_SYSTEM);
+	CRY_PROFILE_FUNCTION(PROFILE_SYSTEM);
 	FLASH_PROFILE_FUNC_5ARG(eFncSetVar, false, "SetVariableArray", type, pPathToVar, index, pData, count);
 	SET_LOG_CONTEXT(m_filePath);
 	GFxMovie::SetArrayType translatedType;
@@ -3729,7 +3801,7 @@ unsigned int CFlashPlayer::GetVariableArraySize(const char* pPathToVar) const
 
 	SYNC_THREADS;
 
-	FUNCTION_PROFILER(GetISystem(), PROFILE_SYSTEM);
+	CRY_PROFILE_FUNCTION(PROFILE_SYSTEM);
 	FLASH_PROFILE_FUNC_1ARG(eFncGetVar, 0, "GetVariableArraySize", pPathToVar);
 	SET_LOG_CONTEXT(m_filePath);
 	int res(0);
@@ -3744,7 +3816,7 @@ bool CFlashPlayer::GetVariableArray(EFlashVariableArrayType type, const char* pP
 
 	SYNC_THREADS;
 
-	FUNCTION_PROFILER(GetISystem(), PROFILE_SYSTEM);
+	CRY_PROFILE_FUNCTION(PROFILE_SYSTEM);
 	FLASH_PROFILE_FUNC_5ARG(eFncGetVar, false, "GetVariableArray", type, pPathToVar, index, pData, count);
 	SET_LOG_CONTEXT(m_filePath);
 	bool res(false);
@@ -3763,7 +3835,7 @@ bool CFlashPlayer::Invoke(const char* pMethodName, const SFlashVarValue* pArgs, 
 
 	SYNC_THREADS;
 
-	FUNCTION_PROFILER(GetISystem(), PROFILE_SYSTEM);
+	CRY_PROFILE_FUNCTION(PROFILE_SYSTEM);
 	FLASH_PROFILE_FUNC_1ARG_VALIST(eFncInvoke, false, "Invoke", pMethodName, pArgs, numArgs);
 	SET_LOG_CONTEXT(m_filePath);
 	m_retValRefHolder = GFxValue();
@@ -3786,7 +3858,12 @@ bool CFlashPlayer::Invoke(const char* pMethodName, const SFlashVarValue* pArgs, 
 		if (pTranslatedArgs || !numArgs)
 		{
 			GFxValue retVal;
-			res = m_pMovieView->Invoke(pMethodName, &retVal, pTranslatedArgs, numArgs);
+			{
+				// This is needed to disable fp exception being triggered in Scaleform
+				CScopedFloatingPointException fpExceptionScope(eFPE_None);
+
+				res = m_pMovieView->Invoke(pMethodName, &retVal, pTranslatedArgs, numArgs);
+			}
 			if (pResult)
 			{
 				if (retVal.IsString() || retVal.IsStringW())
@@ -3806,7 +3883,7 @@ bool CFlashPlayer::CreateString(const char* pString, IFlashVariableObject*& pVar
 
 	SYNC_THREADS;
 
-	FUNCTION_PROFILER(GetISystem(), PROFILE_SYSTEM);
+	CRY_PROFILE_FUNCTION(PROFILE_SYSTEM);
 	SET_LOG_CONTEXT(m_filePath);
 	pVarObj = 0;
 	if (m_pMovieView)
@@ -3825,7 +3902,7 @@ bool CFlashPlayer::CreateStringW(const wchar_t* pString, IFlashVariableObject*& 
 
 	SYNC_THREADS;
 
-	FUNCTION_PROFILER(GetISystem(), PROFILE_SYSTEM);
+	CRY_PROFILE_FUNCTION(PROFILE_SYSTEM);
 	SET_LOG_CONTEXT(m_filePath);
 	pVarObj = 0;
 	if (m_pMovieView)
@@ -3844,7 +3921,7 @@ bool CFlashPlayer::CreateObject(const char* pClassName, const SFlashVarValue* pA
 
 	SYNC_THREADS;
 
-	FUNCTION_PROFILER(GetISystem(), PROFILE_SYSTEM);
+	CRY_PROFILE_FUNCTION(PROFILE_SYSTEM);
 	SET_LOG_CONTEXT(m_filePath);
 	pVarObj = 0;
 	if (m_pMovieView && (pArgs || !numArgs))
@@ -3881,7 +3958,7 @@ bool CFlashPlayer::CreateArray(IFlashVariableObject*& pVarObj)
 
 	SYNC_THREADS;
 
-	FUNCTION_PROFILER(GetISystem(), PROFILE_SYSTEM);
+	CRY_PROFILE_FUNCTION(PROFILE_SYSTEM);
 	SET_LOG_CONTEXT(m_filePath);
 	pVarObj = 0;
 	if (m_pMovieView)
@@ -3906,6 +3983,12 @@ struct FunctionHandlerAdaptor : public GFxFunctionHandler
 
 		~ReturnValue()
 		{
+		}
+
+		void Set(const IFlashVariableObject* value)
+		{
+			assert(value);
+			m_value = GetGFxValue(value);
 		}
 
 		void Set(const SFlashVarValue& value, bool createManagedValue = true)
@@ -4008,7 +4091,7 @@ bool CFlashPlayer::CreateFunction(IFlashVariableObject*& pFuncVarObj, IActionScr
 
 	SYNC_THREADS;
 
-	FUNCTION_PROFILER(GetISystem(), PROFILE_SYSTEM);
+	CRY_PROFILE_FUNCTION(PROFILE_SYSTEM);
 	SET_LOG_CONTEXT(m_filePath);
 	pFuncVarObj = 0;
 	if (m_pMovieView && pFunc)
@@ -4048,7 +4131,7 @@ size_t CFlashPlayer::GetMetadata(char* pBuff, unsigned int buffSize) const
 
 	//SYNC_THREADS; // should be safe as meta data for the root is only assigned during Load()
 
-	FUNCTION_PROFILER(GetISystem(), PROFILE_SYSTEM);
+	CRY_PROFILE_FUNCTION(PROFILE_SYSTEM);
 	SET_LOG_CONTEXT(m_filePath);
 	size_t res(0);
 	if (m_pMovieDef)
@@ -4062,7 +4145,7 @@ bool CFlashPlayer::HasMetadata(const char* pTag) const
 
 	//SYNC_THREADS; // should be safe as meta data for the root is only assigned during Load()
 
-	FUNCTION_PROFILER(GetISystem(), PROFILE_SYSTEM);
+	CRY_PROFILE_FUNCTION(PROFILE_SYSTEM);
 	SET_LOG_CONTEXT(m_filePath);
 
 	bool bResult = false;
@@ -4085,7 +4168,7 @@ const char* CFlashPlayer::GetFilePath() const
 {
 	//SYNC_THREADS; // should be safe as m_filePath is only modified during Load()
 
-	//FUNCTION_PROFILER(GetISystem(), PROFILE_SYSTEM);
+	//CRY_PROFILE_FUNCTION(PROFILE_SYSTEM);
 	return m_filePath->c_str();
 }
 
@@ -4100,7 +4183,7 @@ void CFlashPlayer::ScreenToClient(int& x, int& y) const
 
 	SYNC_THREADS;
 
-	FUNCTION_PROFILER(GetISystem(), PROFILE_SYSTEM);
+	CRY_PROFILE_FUNCTION(PROFILE_SYSTEM);
 	SET_LOG_CONTEXT(m_filePath);
 	if (m_pMovieView)
 	{
@@ -4121,7 +4204,7 @@ void CFlashPlayer::ClientToScreen(int& x, int& y) const
 
 	SYNC_THREADS;
 
-	FUNCTION_PROFILER(GetISystem(), PROFILE_SYSTEM);
+	CRY_PROFILE_FUNCTION(PROFILE_SYSTEM);
 	SET_LOG_CONTEXT(m_filePath);
 	if (m_pMovieView)
 	{
@@ -4145,7 +4228,7 @@ void CFlashPlayer::LinkDynTextureSource(const struct IDynTextureSource* pDynTexS
 
 void CFlashPlayer::DelegateFSCommandCallback(const char* pCommand, const char* pArgs)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_SYSTEM);
+	CRY_PROFILE_FUNCTION(PROFILE_SYSTEM);
 	// delegate action script command to client
 	if (m_pFSCmdHandler)
 	{
@@ -4157,7 +4240,7 @@ void CFlashPlayer::DelegateFSCommandCallback(const char* pCommand, const char* p
 
 void CFlashPlayer::DelegateExternalInterfaceCallback(const char* pMethodName, const GFxValue* pArgs, UInt numArgs)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_SYSTEM);
+	CRY_PROFILE_FUNCTION(PROFILE_SYSTEM);
 	if (m_pMovieView)
 	{
 		// delegate action script command to client
@@ -4237,7 +4320,7 @@ size_t CFlashPlayer::GetCommandBufferSize() const
 
 	#if defined(ENABLE_FLASH_INFO)
 
-#include <CryRenderer/IRenderAuxGeom.h>
+		#include <CryRenderer/IRenderAuxGeom.h>
 
 static void Draw2dLabel(float x, float y, float fontSize, const float* pColor, const char* pText)
 {
@@ -4527,17 +4610,17 @@ void CFlashPlayer::RenderFlashInfo()
 
 	if (ms_sys_flash_info)
 	{
-		IF(ms_sys_flash_info == 3, 0)
+		IF (ms_sys_flash_info == 3, 0)
 		{
 			int fontCacheTexId = GTextureXRenderBase::GetFontCacheTextureID();
 			if (pRenderer->EF_GetTextureByID(fontCacheTexId))
 			{
-				pRenderer->SetState(GS_NODEPTHTEST);
-				pRenderer->Draw2dImage(0, 0, 450, 450, -1, 0.0f, 1.0f, 1.0f, 0.0f);
-				pRenderer->SetState(GS_NODEPTHTEST | GS_BLSRC_SRCALPHA | GS_BLDST_ONEMINUSSRCALPHA);
-				pRenderer->Draw2dImageStretchMode(true);
-				pRenderer->Draw2dImage(0, 0, 450, 450, fontCacheTexId, 0.0f, 1.0f, 1.0f, 0.0f);
-				pRenderer->Draw2dImageStretchMode(false);
+				//pRenderer->SetState(GS_NODEPTHTEST);
+				IRenderAuxImage::Draw2dImage(0, 0, 450, 450, -1, 0.0f, 1.0f, 1.0f, 0.0f);
+				//pRenderer->SetState(GS_NODEPTHTEST | GS_BLSRC_SRCALPHA | GS_BLDST_ONEMINUSSRCALPHA);
+				//pRenderer->Draw2dImageStretchMode(true);
+				IRenderAuxImage::Draw2dImage(0, 0, 450, 450, fontCacheTexId, 0.0f, 1.0f, 1.0f, 0.0f);
+				//pRenderer->Draw2dImageStretchMode(false);
 			}
 			return;
 		}
@@ -4548,8 +4631,8 @@ void CFlashPlayer::RenderFlashInfo()
 				s_dimBG = !s_dimBG;
 			if (s_dimBG)
 			{
-				pRenderer->SetState(GS_NODEPTHTEST | GS_BLSRC_SRCALPHA | GS_BLDST_ONEMINUSSRCALPHA);
-				pRenderer->Draw2dImage(0, 0, 800, 600, -1, 0.0f, 1.0f, 1.0f, 0.0f, 0, 0, 0, 0, 0.75f, 1);
+				//pRenderer->SetState(GS_NODEPTHTEST | GS_BLSRC_SRCALPHA | GS_BLDST_ONEMINUSSRCALPHA);
+				IRenderAuxImage::Draw2dImage(0, 0, 800, 600, -1, 0.0f, 1.0f, 1.0f, 0.0f, 0, 0, 0, 0, 0.75f, 1);
 			}
 		}
 
@@ -4564,7 +4647,7 @@ void CFlashPlayer::RenderFlashInfo()
 		float xAdj = 0.0f;
 		float yAdj = 0.0f;
 
-		IF(ms_sys_flash_info == 4 || ms_sys_flash_info == 5, 0)
+		IF (ms_sys_flash_info == 4 || ms_sys_flash_info == 5, 0)
 		{
 			struct PrintHeapInfo : public GMemoryHeap::HeapVisitor
 			{
@@ -4643,7 +4726,7 @@ void CFlashPlayer::RenderFlashInfo()
 				if (logToConsole)
 					gEnv->pLog->Log("Used (kb): %5" PRISIZE_T "\tFootprint (kb): %5" PRISIZE_T "\t[Heap] %s", InKB(totalUsed), InKB(totalFoot), pHeap->GetName());
 
-				PrintHeapInfo phi(xAdj + 10.0f, yAdj + 48.0f, (float) pRenderer->GetHeight(), s_startIdx, logToConsole);
+				PrintHeapInfo phi(xAdj + 10.0f, yAdj + 48.0f, (float) pRenderer->GetOverlayHeight(), s_startIdx, logToConsole);
 				pHeap->VisitChildHeaps(&phi);
 
 				DrawText(xAdj + 10.0f, yAdj + 24.0f, colorList, "Used (kb): %5" PRISIZE_T "\tFootprint (kb): %5" PRISIZE_T "\t[Heap] %s (self)", InKB(totalUsed - phi.GetSumTotalUsed()), InKB(totalFoot - phi.GetSumTotalFoot()), pHeap->GetName());

@@ -11,6 +11,7 @@
 #include "JSONOArchive.h"
 #include "MemoryWriter.h"
 #include <CrySerialization/yasli/KeyValue.h>
+#include <CrySerialization/yasli/KeyValueDictionary.h>
 #include <CrySerialization/yasli/ClassFactory.h>
 #include <math.h>
 #include <float.h>
@@ -659,14 +660,65 @@ bool JSONOArchive::operator()(const Serializer& ser, const char* name, const cha
 
 bool JSONOArchive::operator()(KeyValueInterface& keyValue, const char* name, const char* label)
 {
-    placeIndent();
-    placeName(keyValue.get());
+	placeIndent();
+	placeName(keyValue.get());
 	stack_.back().isKeyValue = true;
 	keyValue.serializeValue(*this, "", 0);
 	stack_.back().isKeyValue = false;
 	if (stack_.back().isContainer)
 		stack_.back().isDictionary = true;
-    return true;
+	return true;
+}
+
+bool JSONOArchive::operator()(KeyValueDictionaryInterface& ser, const char* name, const char* label)
+{
+	// JSON only supports strings as keys
+	if (ser.keyType() != TypeID::get<yasli::string>())
+	{
+		return ser.serializeAsVector(*this, name, label);
+	}
+
+	placeIndent();
+	placeName(name);
+	std::size_t position = buffer_->position();
+	openBracket();
+	stack_.push_back(Level(true, position, int(strlen(name) + 2 * (name[0] & 1) + stack_.size() - 1 * TAB_WIDTH + 2)));
+
+	if (ser.hasElements()) 
+	{
+		placeIndent(false);
+
+		while(true)
+		{
+			stack_.back().isKeyValue = true;
+			ser.serializeKey(*this);
+
+			*buffer_ << ": ";
+
+			ser.serializeValue(*this);
+			stack_.back().isKeyValue = false;
+
+			ser.nextElement();
+			if (!ser.reachedEnd())
+			{
+				placeIndent();
+			}
+			else
+			{
+				break;
+			}
+		}
+	}
+
+	bool joined = joinLinesIfPossible();
+	stack_.pop_back();
+	if (!joined)
+		placeIndent(false);
+	else
+		*buffer_ << " ";
+
+	closeBracket();
+	return true;
 }
 
 bool JSONOArchive::operator()(PointerInterface& ser, const char* name, const char* label)

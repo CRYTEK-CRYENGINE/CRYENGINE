@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "CCryVKSwapChain.hpp"
@@ -150,6 +150,7 @@ VkPresentModeKHR CCryVKSwapChain::GetPresentMode(DXGI_SWAP_EFFECT swapEffect, bo
 
 bool CCryVKSwapChain::ApplyFullscreenState(bool bFullscreen, uint32_t width, uint32_t height)
 {
+#if CRY_PLATFORM_WINDOWS
 	int result = DISP_CHANGE_FAILED;
 
 	if (bFullscreen)
@@ -174,6 +175,13 @@ bool CCryVKSwapChain::ApplyFullscreenState(bool bFullscreen, uint32_t width, uin
 	}
 
 	return result == DISP_CHANGE_SUCCESSFUL;
+#elif CRY_PLATFORM_LINUX
+	CryWarning(EValidatorModule::VALIDATOR_MODULE_RENDERER, EValidatorSeverity::VALIDATOR_WARNING,
+			   "CCryVKSwapChain::ApplyFullscreenState not implemented on Linux.");
+	return false;
+#else
+	#error "Unknown platform in CCryVKSwapChain::ApplyFullscreenState."
+#endif
 }
 
 /* IDXGISwapChain1 implementation */

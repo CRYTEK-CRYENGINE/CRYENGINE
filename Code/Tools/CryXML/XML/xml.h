@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #ifndef __XML_HEADER__
 #define __XML_HEADER__
@@ -279,7 +279,6 @@ private:
 
 
 
-/*
 class CXmlNode : public IXmlNode
 {
 public:

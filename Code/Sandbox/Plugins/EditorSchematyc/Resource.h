@@ -20,3 +20,4 @@
 #define _APS_NEXT_SYMED_VALUE           105
 #endif
 #endif
+

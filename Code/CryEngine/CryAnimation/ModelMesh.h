@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -41,9 +41,14 @@ struct RChunk
 
 struct MeshStreamInfo
 {
-	MeshStreamInfo()
+	MeshStreamInfo() : 
+		nRoundIds(),
+		nFrameId(0),
+		nKeepResidentRefs(0),
+		bHasMeshFile(false),
+		bIsUrgent(false),
+		pStreamer(nullptr)
 	{
-		memset(this, 0, sizeof(*this));
 	}
 
 	uint32        nRoundIds[MAX_STREAM_PREDICTION_ZONES];
@@ -51,7 +56,7 @@ struct MeshStreamInfo
 	uint32        nKeepResidentRefs;
 	bool          bHasMeshFile;
 	bool          bIsUrgent;
-	CryCHRLoader* pStreamer;
+	std::shared_ptr<CryCHRLoader> pStreamer;
 };
 
 //////////////////////////////////////////////////////////////////////////
@@ -79,7 +84,7 @@ public:
 	ClosestTri              GetAttachmentTriangle(const Vec3& RMWPosition, const JointIdType* const pRemapTable);
 
 	uint32                  InitSWSkinBuffer();
-	void                    DrawDebugInfo(CDefaultSkeleton* pCSkel, int nLOD, const Matrix34& rRenderMat34, int DebugMode, IMaterial* pMaterial, CRenderObject* pObj, const SRendParams& RendParams, bool isGeneralPass, IRenderNode* pRenderNode, const AABB& aabb);
+	void                    DrawDebugInfo(CDefaultSkeleton* pCSkel, int nLOD, const Matrix34& rRenderMat34, int DebugMode, IMaterial* pMaterial, CRenderObject* pObj, const SRendParams& RendParams, bool isGeneralPass, IRenderNode* pRenderNode, const AABB& aabb,const SRenderingPassInfo &passInfo);
 
 #ifdef EDITOR_PCDEBUGCODE
 	void ExportModel(IRenderMesh* pIRenderMesh);

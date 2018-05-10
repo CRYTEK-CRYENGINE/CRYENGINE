@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 /*************************************************************************
    -------------------------------------------------------------------------
@@ -28,7 +28,6 @@ struct INavigation
 
 	virtual float  GetNearestPointOnPath(const char* szPathName, const Vec3& vPos, Vec3& vResult, bool& bLoopPath, float& totalLength) const = 0;
 	virtual void   GetPointOnPathBySegNo(const char* szPathName, Vec3& vResult, float segNo) const = 0;
-	virtual bool   IsSegmentValid(IAISystem::tNavCapMask navCap, float rad, const Vec3& posFrom, Vec3& posTo, IAISystem::ENavigationType& navTypeFrom) const = 0;
 
 	//! Returns nearest designer created path/shape.
 	//! \param devalue Specifies how long the path will be unusable by others after the query.

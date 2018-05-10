@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -23,6 +23,12 @@ class CSharedString : public IString
 private:
 
 	typedef std::shared_ptr<string> StringPtr;
+
+	static bool IsUniqueSharedPtr( const StringPtr &ptr )
+	{
+		// Not thread Safe!
+		return (ptr.use_count() == 1);
+	}
 
 public:
 
@@ -64,7 +70,7 @@ public:
 
 	virtual void assign(const char* szInput) override
 	{
-		if (!m_pString || !m_pString.unique())
+		if (!m_pString || !IsUniqueSharedPtr(m_pString))
 		{
 			m_pString = std::make_shared<string>(szInput);
 		}
@@ -76,7 +82,7 @@ public:
 
 	virtual void assign(const char* szInput, uint32 offset, uint32 length) override
 	{
-		if (!m_pString || !m_pString.unique())
+		if (!m_pString || !IsUniqueSharedPtr(m_pString))
 		{
 			m_pString = std::make_shared<string>(szInput, offset, length);
 		}
@@ -92,7 +98,7 @@ public:
 		{
 			m_pString = std::make_shared<string>();
 		}
-		else if (!m_pString.unique())
+		else if (!IsUniqueSharedPtr(m_pString))
 		{
 			m_pString = std::make_shared<string>(*m_pString);
 		}
@@ -106,7 +112,7 @@ public:
 		{
 			m_pString = std::make_shared<string>();
 		}
-		else if (!m_pString.unique())
+		else if (!IsUniqueSharedPtr(m_pString))
 		{
 			m_pString = std::make_shared<string>(*m_pString);
 		}
@@ -120,7 +126,7 @@ public:
 		{
 			m_pString = std::make_shared<string>();
 		}
-		else if (!m_pString.unique())
+		else if (!IsUniqueSharedPtr(m_pString))
 		{
 			m_pString = std::make_shared<string>(*m_pString);
 		}
@@ -134,7 +140,7 @@ public:
 		{
 			m_pString = std::make_shared<string>();
 		}
-		else if (!m_pString.unique())
+		else if (!IsUniqueSharedPtr(m_pString))
 		{
 			m_pString = std::make_shared<string>(*m_pString);
 		}
@@ -144,7 +150,7 @@ public:
 
 	virtual void Format(const char* szFormat, ...) override
 	{
-		if (!m_pString || !m_pString.unique())
+		if (!m_pString || !IsUniqueSharedPtr(m_pString))
 		{
 			m_pString = std::make_shared<string>();
 		}
@@ -161,7 +167,7 @@ public:
 	{
 		if (m_pString)
 		{
-			if (!m_pString.unique())
+			if (!IsUniqueSharedPtr(m_pString))
 			{
 				m_pString = std::make_shared<string>();
 			}
@@ -174,7 +180,7 @@ public:
 	{
 		if (m_pString)
 		{
-			if (!m_pString.unique())
+			if (!IsUniqueSharedPtr(m_pString))
 			{
 				m_pString = std::make_shared<string>();
 			}
@@ -197,7 +203,7 @@ public:
 
 	inline void operator=(const char* szInput)
 	{
-		if (!m_pString || !m_pString.unique())
+		if (!m_pString || !IsUniqueSharedPtr(m_pString))
 		{
 			m_pString = std::make_shared<string>(szInput);
 		}
@@ -209,7 +215,7 @@ public:
 
 	inline void operator=(const string& rhs)
 	{
-		if (!m_pString || !m_pString.unique())
+		if (!m_pString || !IsUniqueSharedPtr(m_pString))
 		{
 			m_pString = std::make_shared<string>(rhs);
 		}

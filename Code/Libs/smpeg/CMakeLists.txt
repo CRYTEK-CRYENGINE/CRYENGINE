@@ -6,47 +6,47 @@ start_sources()
 sources_platform(ALL)
 add_sources("NoUberFile"
 	SOURCE_GROUP "Root"
-		"../../SDKs/smpeg/audio/bitwindow.cpp"
-		"../../SDKs/smpeg/video/decoders.cpp"
-		"../../SDKs/smpeg/video/decoders.h"
-		"../../SDKs/smpeg/video/dither.h"
-		"../../SDKs/smpeg/audio/filter.cpp"
-		"../../SDKs/smpeg/audio/filter_2.cpp"
-		"../../SDKs/smpeg/video/floatdct.cpp"
-		"../../SDKs/smpeg/video/gdith.cpp"
-		"../../SDKs/smpeg/audio/hufftable.cpp"
-		"../../SDKs/smpeg/video/jrevdct.cpp"
-		"../../SDKs/smpeg/video/motionvec.cpp"
-		"../../SDKs/smpeg/MPEG.cpp"
-		"../../SDKs/smpeg/MPEG.h"
-		"../../SDKs/smpeg/MPEGaction.h"
-		"../../SDKs/smpeg/audio/MPEGaudio.cpp"
-		"../../SDKs/smpeg/MPEGaudio.h"
-		"../../SDKs/smpeg/MPEGerror.h"
-		"../../SDKs/smpeg/audio/mpeglayer1.cpp"
-		"../../SDKs/smpeg/audio/mpeglayer2.cpp"
-		"../../SDKs/smpeg/audio/mpeglayer3.cpp"
-		"../../SDKs/smpeg/MPEGlist.cpp"
-		"../../SDKs/smpeg/MPEGlist.h"
-		"../../SDKs/smpeg/MPEGring.cpp"
-		"../../SDKs/smpeg/MPEGring.h"
-		"../../SDKs/smpeg/MPEGstream.cpp"
-		"../../SDKs/smpeg/MPEGstream.h"
-		"../../SDKs/smpeg/MPEGsystem.cpp"
-		"../../SDKs/smpeg/MPEGsystem.h"
-		"../../SDKs/smpeg/audio/mpegtable.cpp"
-		"../../SDKs/smpeg/audio/mpegtoraw.cpp"
-		"../../SDKs/smpeg/video/MPEGvideo.cpp"
-		"../../SDKs/smpeg/MPEGvideo.h"
-		"../../SDKs/smpeg/video/parseblock.cpp"
-		"../../SDKs/smpeg/video/proto.h"
-		"../../SDKs/smpeg/video/readfile.cpp"
-		"../../SDKs/smpeg/smpeg.cpp"
-		"../../SDKs/smpeg/smpeg.h"
-		"../../SDKs/smpeg/video/util.cpp"
-		"../../SDKs/smpeg/video/util.h"
-		"../../SDKs/smpeg/video/video.cpp"
-		"../../SDKs/smpeg/video/video.h"
+		"${SDK_DIR}/smpeg/audio/bitwindow.cpp"
+		"${SDK_DIR}/smpeg/video/decoders.cpp"
+		"${SDK_DIR}/smpeg/video/decoders.h"
+		"${SDK_DIR}/smpeg/video/dither.h"
+		"${SDK_DIR}/smpeg/audio/filter.cpp"
+		"${SDK_DIR}/smpeg/audio/filter_2.cpp"
+		"${SDK_DIR}/smpeg/video/floatdct.cpp"
+		"${SDK_DIR}/smpeg/video/gdith.cpp"
+		"${SDK_DIR}/smpeg/audio/hufftable.cpp"
+		"${SDK_DIR}/smpeg/video/jrevdct.cpp"
+		"${SDK_DIR}/smpeg/video/motionvec.cpp"
+		"${SDK_DIR}/smpeg/MPEG.cpp"
+		"${SDK_DIR}/smpeg/MPEG.h"
+		"${SDK_DIR}/smpeg/MPEGaction.h"
+		"${SDK_DIR}/smpeg/audio/MPEGaudio.cpp"
+		"${SDK_DIR}/smpeg/MPEGaudio.h"
+		"${SDK_DIR}/smpeg/MPEGerror.h"
+		"${SDK_DIR}/smpeg/audio/mpeglayer1.cpp"
+		"${SDK_DIR}/smpeg/audio/mpeglayer2.cpp"
+		"${SDK_DIR}/smpeg/audio/mpeglayer3.cpp"
+		"${SDK_DIR}/smpeg/MPEGlist.cpp"
+		"${SDK_DIR}/smpeg/MPEGlist.h"
+		"${SDK_DIR}/smpeg/MPEGring.cpp"
+		"${SDK_DIR}/smpeg/MPEGring.h"
+		"${SDK_DIR}/smpeg/MPEGstream.cpp"
+		"${SDK_DIR}/smpeg/MPEGstream.h"
+		"${SDK_DIR}/smpeg/MPEGsystem.cpp"
+		"${SDK_DIR}/smpeg/MPEGsystem.h"
+		"${SDK_DIR}/smpeg/audio/mpegtable.cpp"
+		"${SDK_DIR}/smpeg/audio/mpegtoraw.cpp"
+		"${SDK_DIR}/smpeg/video/MPEGvideo.cpp"
+		"${SDK_DIR}/smpeg/MPEGvideo.h"
+		"${SDK_DIR}/smpeg/video/parseblock.cpp"
+		"${SDK_DIR}/smpeg/video/proto.h"
+		"${SDK_DIR}/smpeg/video/readfile.cpp"
+		"${SDK_DIR}/smpeg/smpeg.cpp"
+		"${SDK_DIR}/smpeg/smpeg.h"
+		"${SDK_DIR}/smpeg/video/util.cpp"
+		"${SDK_DIR}/smpeg/video/util.h"
+		"${SDK_DIR}/smpeg/video/video.cpp"
+		"${SDK_DIR}/smpeg/video/video.h"
 )
 
 end_sources()
@@ -54,7 +54,7 @@ end_sources()
 
 ####################### smpeg #######################
 CreateDynamicModule(smpeg SOLUTION_FOLDER "Libs/Audio")
-target_include_directories(${THIS_PROJECT} PRIVATE "${SDK_DIR}/smpeg")
+target_include_directories(${THIS_PROJECT} PUBLIC "${SDK_DIR}/smpeg")
 target_compile_definitions(${THIS_PROJECT} PRIVATE
 	-DNOCONTROLS
 	-DTHREADED_AUDIO
@@ -89,4 +89,10 @@ elseif(LINUX)
 elseif(ANDROID)
 	target_compile_options(${THIS_PROJECT} PRIVATE -w)
 	target_link_libraries(${THIS_PROJECT} PRIVATE m)
+endif()
+
+if (ORBIS OR CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+	target_compile_options(${THIS_PROJECT} PRIVATE
+		-Wno-c++11-narrowing
+	)
 endif()

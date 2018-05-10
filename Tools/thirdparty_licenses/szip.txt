@@ -1,0 +1,42 @@
+
+SZIP Copyright and License Notice
+
+The SZIP Science Data Lossless Compression Program is Copyright (C) 2001 
+Science & Technology Corporation @ UNM.  All rights released.  
+
+Copyright (C) 2003-2005 Lowell H. Miles and Jack A. Venbrux.  
+Licensed to ICs, LLC, for distribution by the University of Illinois' 
+National Center for Supercomputing Applications as a part of the 
+HDF data storage and retrieval file format and software library
+products package.  All rights reserved.  Do not modify or use for other
+purposes.
+
+SZIP implements an extended Rice adaptive lossless compression algorithm
+for sample data.  The primary algorithm was developed by R. F. Rice at
+Jet Propulsion Laboratory.  
+
+SZIP embodies certain inventions patented by the National Aeronautics &
+Space Administration.  United States Patent Nos. 5,448,642, 5,687,255,
+and 5,822,457 have been licensed to ICs, LLC, for distribution with the
+HDF data storage and retrieval file format and software library products.
+All rights reserved.
+
+Revocable (in the event of breach by the user or if required by law), 
+royalty-free, nonexclusive sublicense to use SZIP decompression software 
+routines and underlying patents is hereby granted by ICs, LLC, to all users 
+of and in conjunction with HDF data storage and retrieval file format and 
+software library products.
+
+Revocable (in the event of breach by the user or if required by law), 
+royalty-free, nonexclusive sublicense to use SZIP compression software 
+routines and underlying patents for non-commercial, scientific use only 
+is hereby granted by ICs, LLC, to users of and in conjunction with HDF 
+data storage and retrieval file format and software library products.
+
+For commercial use license to SZIP compression software routines and 
+underlying patents, please contact ICs, LLC, at 
+    Address: ICs, LLC, 2040 Warren Wagon Road, P.O. Box 2236 
+             McCall, ID  83638
+    Phone: (208) 315-2877.  Fax: (208) 634-7720.
+    Email: support@ics4chips.com
+

@@ -19,7 +19,7 @@ namespace yasli{
 
 class Archive;
 
-struct LessStrCmp : std::binary_function<const char*, const char*, bool>
+struct LessStrCmp
 {
 	bool operator()(const char* l, const char* r) const{
 		return strcmp(l, r) < 0;

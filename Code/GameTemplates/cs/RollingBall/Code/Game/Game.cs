@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 using System;
 
@@ -13,19 +13,13 @@ namespace CryEngine.Game
 
 		private Game()
 		{
-			// The server doesn't support Input and doesn't need to load a map, so return early.
+			// The server doesn't support Input so return early.
 			if(Engine.IsDedicatedServer)
 			{
 				return;
 			}
 
 			Input.OnKey += OnKey;
-
-			//Only move to the map if we're not in the sandbox. The sandbox can open the map all by itself.
-			if(!Engine.IsSandbox)
-			{
-				Engine.Console.ExecuteString("map example", false, true);
-			}
 		}
 
 		public static void Initialize()

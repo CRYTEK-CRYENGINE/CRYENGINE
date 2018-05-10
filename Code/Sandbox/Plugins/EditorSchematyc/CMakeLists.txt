@@ -137,3 +137,4 @@ PRIVATE
 	"${CRYENGINE_DIR}/Code/Sandbox/EditorQt"
 )
 use_xt()
+

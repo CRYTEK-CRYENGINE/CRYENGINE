@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 // -------------------------------------------------------------------------
 //  File name:   ParticleContainer.h
@@ -25,7 +25,6 @@
 class CParticleEmitter;
 class CParticleSubEmitter;
 struct SParticleVertexContext;
-struct SContainerCounts;
 
 typedef ParticleList<CParticle>::Node TParticleElem;
 
@@ -326,7 +325,7 @@ private:
 	void  UpdateParticleStates(SParticleUpdateContext& context);
 	void  SetScreenBounds(const CCamera& cam, uint8 aScreenBounds[4]);
 
-	CRenderObject* CreateRenderObject(uint64 nObjFlags);
+	CRenderObject* CreateRenderObject(uint64 nObjFlags, const SRenderingPassInfo& passInfo);
 };
 
 #endif // __particlecontainer_h__

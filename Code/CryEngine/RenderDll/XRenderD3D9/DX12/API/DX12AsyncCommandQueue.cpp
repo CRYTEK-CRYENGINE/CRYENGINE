@@ -1,9 +1,8 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "DX12AsyncCommandQueue.hpp"
 #include "DX12CommandList.hpp"
-#include "DriverD3D.h"
 
 #ifdef DX12_LINKEDADAPTER
 	#include "Redirections/D3D12Device.inl"

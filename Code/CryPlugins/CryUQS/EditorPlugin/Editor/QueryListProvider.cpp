@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "QueryListProvider.h"
@@ -197,7 +197,7 @@ void CQueryListProvider::GetEntryActions(std::vector<Explorer::ExplorerAction>* 
 
 		pActions->push_back(Explorer::ExplorerAction("Delete", 0,
 		                                             [=](Explorer::ActionContext& x) { ActionDeleteQuery(x); },
-		                                             "General/Element_Remove.ico",
+		                                             "icons:General/Element_Remove.ico",
 		                                             "Remove query"));
 
 		pActions->push_back(Explorer::ExplorerAction("Show in Explorer", Explorer::ACTION_NOT_STACKABLE,

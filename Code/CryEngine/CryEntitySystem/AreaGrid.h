@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -12,7 +12,7 @@ class CAreaGrid
 {
 public:
 
-	CAreaGrid();
+	CAreaGrid() = default;
 	~CAreaGrid();
 
 	bool   ResetArea(CArea* pArea);
@@ -36,13 +36,13 @@ private:
 	void Debug_CheckBB(Vec2 const& vBBCentre, Vec2 const& vBBExtent, CArea const* const pArea);
 #endif // INCLUDE_ENTITYSYSTEM_PRODUCTION_CODE
 
-	uint32  m_numCellsPerAxis;
-	uint32* m_pbitFieldX;                  // start of the X bit field
-	uint32* m_pbitFieldY;                  // start of the Y bit field
-	uint32  m_bitFieldSizeU32;             // number of u32s per cell
-	uint32  m_maxNumAreas;                 // maximum number of areas compiled into the grid
-	Vec2i(*m_pAreaBounds)[2];              // Points to area bounds in the bit field array
+	uint32                            m_numCellsPerAxis = 0;
+	std::vector<uint32>               m_bitFieldX;           // start of the X bit field
+	std::vector<uint32>               m_bitFieldY;           // start of the Y bit field
+	uint32                            m_bitFieldSizeU32 = 0; // number of u32s per cell
+	uint32                            m_maxNumAreas = 0;     // maximum number of areas compiled into the grid
+	std::vector<std::array<Vec2i, 2>> m_areaBounds;          // Points to area bounds in the bit field array
 
 	// Points to area pointers array in AreaManager.
-	TAreaPointers const* m_pAreas;
+	TAreaPointers const* m_pAreas = nullptr;
 };

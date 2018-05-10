@@ -1,0 +1,14 @@
+<AssetMetadata version="0" type="Texture" guid="56a02183-0952-ce8c-95d4-f7d1d0885990" source="snowflakes.tif">
+ <Files>
+  <File path="snowflakes.dds"/>
+  <File path="snowflakes.dds.1"/>
+  <File path="snowflakes.dds.2"/>
+  <File path="snowflakes.dds.3"/>
+  <File path="snowflakes.dds.4"/>
+ </Files>
+ <Details>
+  <Detail name="width">256</Detail>
+  <Detail name="height">256</Detail>
+  <Detail name="mipCount">7</Detail>
+ </Details>
+</AssetMetadata>

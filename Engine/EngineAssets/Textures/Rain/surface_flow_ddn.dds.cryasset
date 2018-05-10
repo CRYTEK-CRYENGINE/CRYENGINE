@@ -1,0 +1,14 @@
+<AssetMetadata version="0" type="Texture" guid="7002e6d5-7bbc-3fd1-ab1c-10cfe5df24bd" source="surface_flow_ddn.tif">
+ <Files>
+  <File path="surface_flow_ddn.dds"/>
+  <File path="surface_flow_ddn.dds.1"/>
+  <File path="surface_flow_ddn.dds.2"/>
+  <File path="surface_flow_ddn.dds.3"/>
+  <File path="surface_flow_ddn.dds.4"/>
+ </Files>
+ <Details>
+  <Detail name="width">256</Detail>
+  <Detail name="height">256</Detail>
+  <Detail name="mipCount">7</Detail>
+ </Details>
+</AssetMetadata>

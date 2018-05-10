@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -24,7 +24,7 @@ struct lockfree_add_vector
 
 	void push_back(const T& value) { lockfree_push_back(value);  }
 
-	void lockfree_push_back(const T& value)
+	size_t lockfree_push_back(const T& value)
 	{
 		//CryAutoLock<CryCriticalSectionNonRecursive> lock_temp(m_temp_lock);
 
@@ -65,6 +65,7 @@ struct lockfree_add_vector
 				m_pCurrentBuffer[newIndex - 1] = value;
 			}
 		}
+		return (size_t)(newIndex-1);
 	}
 
 	void reserve(size_t sz)

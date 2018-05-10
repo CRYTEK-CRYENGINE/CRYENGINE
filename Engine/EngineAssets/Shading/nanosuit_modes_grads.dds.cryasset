@@ -1,0 +1,10 @@
+<AssetMetadata version="0" type="Texture" guid="477e8b10-c6fa-3bb4-a058-8304f967302b" source="nanosuit_modes_grads.TIF">
+ <Files>
+  <File path="nanosuit_modes_grads.dds"/>
+ </Files>
+ <Details>
+  <Detail name="width">256</Detail>
+  <Detail name="height">4</Detail>
+  <Detail name="mipCount">1</Detail>
+ </Details>
+</AssetMetadata>

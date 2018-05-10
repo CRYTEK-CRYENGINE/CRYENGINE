@@ -1,0 +1,14 @@
+<AssetMetadata version="0" type="Texture" guid="17621024-be61-9f43-3014-f64c572d3097" source="defaultProbe_cm.tif">
+ <Files>
+  <File path="defaultProbe_cm.dds"/>
+  <File path="defaultProbe_cm.dds.1"/>
+  <File path="defaultProbe_cm.dds.2"/>
+  <File path="defaultProbe_cm.dds.3"/>
+  <File path="defaultProbe_cm.dds.4"/>
+ </Files>
+ <Details>
+  <Detail name="width">1536</Detail>
+  <Detail name="height">256</Detail>
+  <Detail name="mipCount">7</Detail>
+ </Details>
+</AssetMetadata>

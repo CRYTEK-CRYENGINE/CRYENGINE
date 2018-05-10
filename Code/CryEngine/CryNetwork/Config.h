@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #ifndef __NET_CONFIG_H__
 #define __NET_CONFIG_H__
@@ -116,6 +116,12 @@
 // When not using the arith stream, the below will reduce memory/cpu footprint still further (seperate define at present
 //to aid finding bugs introduced)
 #define USE_MEMENTO_PREDICTORS (0 || USE_ARITHSTREAM)
+
+// When not using the arith stream, allocate netId values from separate ranges (low, medium, high) to be able to pack
+// values into lower amount of bits.
+// When using arith stream - no need for nedId ranges, as arith stream implements its own predictive model to compress netId values.
+#define USE_NETID_PACKING (!USE_ARITHSTREAM)
+
 // Turn off to simplify the scheduler to reduce time taken to schedule packets : Currently ignores bang/pulses
 #define FULL_ON_SCHEDULING     1
 

@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 // Tools for FBX scene importing.
 
@@ -767,3 +767,4 @@ const char* CreateEngineMesh(
 
 // TODO: Maybe put this somewhere else.
 string GetFormattedAxes(FbxTool::Axes::EAxis up, FbxTool::Axes::EAxis fwd);
+

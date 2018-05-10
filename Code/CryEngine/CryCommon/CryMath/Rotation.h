@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 // #SchematycTODO : Move serialization utils to separate header?
 
@@ -11,65 +11,40 @@ namespace CryTransform
 
 class CRotation
 {
-private:
-
-	enum class EFormat : uint32
-	{
-		Angles,
-		Quat
-	};
-
 public:
-
 	inline CRotation()
-		: m_format(EFormat::Angles)
-		, m_value(0.0f, 0.0f, 0.0f, 0.0f)
-	{}
+	{
+		m_value.SetIdentity();
+	}
 
 	explicit inline CRotation(const CAngles3& angles)
-		: m_format(EFormat::Angles)
-		, m_value(0.0f, angles.x.ToRadians(), angles.y.ToRadians(), angles.z.ToRadians())
-	{}
+	{
+		m_value = Quat(angles.ToAng3());
+	}
 
 	explicit inline CRotation(const Quat& rotation)
-		: m_format(EFormat::Quat)
-		, m_value(rotation)
+		: m_value(rotation)
 	{}
 
 	explicit inline CRotation(const Matrix33& rotation)
-		: m_format(EFormat::Quat)
-		, m_value(rotation)
-	{}
-
-	inline CRotation(const CRotation& rhs)
-		: m_format(rhs.m_format)
-		, m_value(rhs.m_value)
+		: m_value(rotation)
 	{}
 
 	inline CAngles3 ToAngles() const
 	{
-		if (m_format == EFormat::Quat)
-		{
-			Ang3 angles(m_value);
+		Ang3 ang(m_value);
 
-			return CAngles3(CAngle::FromRadians(angles.x), CAngle::FromRadians(angles.y), CAngle::FromRadians(angles.z));
-		}
-		else
-		{
-			return CAngles3(CAngle::FromRadians(m_value.v.x), CAngle::FromRadians(m_value.v.y), CAngle::FromRadians(m_value.v.z));
-		}
+		return CAngles3(CAngle::FromRadians(ang.x), CAngle::FromRadians(ang.y), CAngle::FromRadians(ang.z));
+	}
+
+	inline Matrix34 ToMatrix() const
+	{
+		return Matrix34(m_value);
 	}
 
 	inline Quat ToQuat() const
 	{
-		if (m_format == EFormat::Angles)
-		{
-			return Quat(Ang3(m_value.v.x, m_value.v.y, m_value.v.z));
-		}
-		else
-		{
-			return m_value;
-		}
+		return m_value;
 	}
 
 	inline Matrix33 ToMatrix33() const
@@ -79,25 +54,27 @@ public:
 
 	inline void operator=(const CAngles3& angles)
 	{
-		m_format = EFormat::Angles;
-		m_value = Quat(0.0f, angles.x.ToRadians(), angles.y.ToRadians(), angles.z.ToRadians());
+		m_value.SetRotationXYZ(angles.ToAng3());
 	}
 
 	inline void operator=(const Quat& rotation)
 	{
-		m_format = EFormat::Quat;
 		m_value = rotation;
 	}
 
 	inline void operator=(const Matrix33& rotation)
 	{
-		m_format = EFormat::Quat;
 		m_value = Quat(rotation);
 	}
 
 	inline bool operator==(const CRotation& rhs) const
 	{
-		return m_format == rhs.m_format && m_value == rhs.m_value;
+		return m_value == rhs.m_value;
+	}
+
+	inline bool operator!=(const CRotation& rhs) const
+	{
+		return m_value != rhs.m_value;
 	}
 
 	static inline void ReflectType(Schematyc::CTypeDesc<CRotation>& desc)
@@ -108,21 +85,19 @@ public:
 	}
 
 private:
-
-	EFormat m_format;
-	Quat    m_value;
+	Quat m_value;
 };
 
 inline bool Serialize(Serialization::IArchive& archive, CRotation& value, const char* szName, const char* szLabel)
 {
-	CAngles3 angles = archive.isOutput() ? value.ToAngles() : CAngles3();
+	Vec3 degree = value.ToAngles().ToDegrees();
 
 	typedef float(&Array)[3];
-	if ((archive.isEdit() && archive((Array)angles, szName, szLabel)) || archive(angles, szName, szLabel))
+	if ((archive.isEdit() && archive((Array)degree, szName, szLabel)) || archive(degree, szName, szLabel))
 	{
 		if (archive.isInput())
 		{
-			value = angles;
+			value = CRotation(CAngles3(CAngle::FromDegrees(degree.x), CAngle::FromDegrees(degree.y), CAngle::FromDegrees(degree.z)));
 		}
 		return true;
 	}

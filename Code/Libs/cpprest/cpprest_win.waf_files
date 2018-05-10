@@ -1,0 +1,13 @@
+{
+	"NoUberFile": 
+	{
+		"Root":
+		[
+			"../../SDKs/cpprest/src/http/client/http_client_winhttp.cpp",
+			"../../SDKs/cpprest/src/http/client/x509_cert_utilities_win32.cpp",
+			"../../SDKs/cpprest/src/http/listener/http_server_httpsys.cpp",
+			"../../SDKs/cpprest/src/pplx/pplxwin.cpp",
+			"../../SDKs/cpprest/src/streams/fileio_win32.cpp"
+		]
+	}
+}

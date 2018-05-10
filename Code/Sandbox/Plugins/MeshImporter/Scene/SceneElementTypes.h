@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -12,3 +12,4 @@ enum class ESceneElementType : int
 
 	Skin, // Each node of type SourceNode that has a mesh with a skin has a child node of type Skin.
 };
+

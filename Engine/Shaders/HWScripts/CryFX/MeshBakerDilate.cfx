@@ -75,8 +75,9 @@ pixout MeshBakerDilate_PS(v2f IN)
 
 pixout MeshBakerDilateThresholdAlpha_PS(v2f IN)
 {
-  pixout OUT=MeshBakerDilate_PS(IN);
-  OUT.Color.w=round(OUT.Color.w);
+  pixout OUT;
+  OUT.Color = Dilate(IN);
+  OUT.Color.w = tex2D(SrcTexture, IN.texCoord).w;
   return OUT;
 }
 

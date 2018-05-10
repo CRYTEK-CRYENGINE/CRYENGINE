@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "VehiclePart.h"
@@ -369,7 +369,7 @@ void CVehiclePart::UpdateObjectFromVar()
 		OnSetClass(m_pPartClass);
 	}
 
-	SetModified(false);
+	SetModified(false, false);
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -592,3 +592,4 @@ void CVehiclePart::UpdateScale(float scale)
 void CVehiclePart::OnTreeSelection()
 {
 }
+

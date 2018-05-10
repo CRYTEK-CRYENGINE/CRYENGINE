@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "AnimationCompressionManager.h"
@@ -86,7 +86,8 @@ class CAnimationCompressionManager::CBackgroundTaskUpdateLocalAnimations : publi
 {
 public:
 	CBackgroundTaskUpdateLocalAnimations(CAnimationCompressionManager* pManager)
-		: m_pManager(pManager)
+		: m_pManager(pManager),
+		m_totalFileCount(0)
 	{
 	}
 
@@ -348,3 +349,4 @@ void CAnimationCompressionManager::OnReloadCHRPARAMSComplete(CBackgroundTaskRelo
 	if (pTask == m_pReloadCHRPARAMSTask)
 		m_pReloadCHRPARAMSTask = 0;
 }
+

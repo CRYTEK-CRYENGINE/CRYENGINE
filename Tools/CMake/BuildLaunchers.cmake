@@ -1,6 +1,9 @@
 
 # For some projects (e.g. ScaleformHelper and ShaderCacheGen), we should not build the client launcher.
 if (OPTION_ENGINE)
+	if (NOT ANDROID)
+		set(OPTION_LAUNCHER_EXECUTABLE "GameLauncher" CACHE STRING "Base file name for the game executable (without file extension)")
+	endif()
 	if (DURANGO)
 		add_subdirectory("Code/Launcher/DurangoLauncher")
 	elseif (ORBIS)

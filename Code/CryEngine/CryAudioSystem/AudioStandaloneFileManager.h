@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -28,7 +28,7 @@ public:
 	CAudioStandaloneFileManager& operator=(CAudioStandaloneFileManager const&) = delete;
 	CAudioStandaloneFileManager& operator=(CAudioStandaloneFileManager&&) = delete;
 
-	void                         Init(Impl::IImpl* const pImpl);
+	void                         SetImpl(Impl::IImpl* const pIImpl);
 	void                         Release();
 
 	CATLStandaloneFile*          ConstructStandaloneFile(char const* const szFile, bool const bLocalized, Impl::ITrigger const* const pITrigger = nullptr);
@@ -42,7 +42,7 @@ private:
 #if defined(INCLUDE_AUDIO_PRODUCTION_CODE)
 public:
 
-	void DrawDebugInfo(IRenderAuxGeom& auxGeom, float posX, float posY) const;
+	void DrawDebugInfo(IRenderAuxGeom& auxGeom, Vec3 const& listenerPosition, float posX, float posY) const;
 
 #endif // INCLUDE_AUDIO_PRODUCTION_CODE
 };

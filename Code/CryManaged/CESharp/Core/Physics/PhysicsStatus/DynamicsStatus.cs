@@ -3,6 +3,9 @@ using CryEngine.Common;
 
 namespace CryEngine
 {
+	/// <summary>
+	///  Gets the dynamic state of an entity, such as its velocity, mass and angular velocity
+	/// </summary>
 	public class DynamicsStatus : BasePhysicsStatus<pe_status_dynamics>
 	{
 		//TODO confirm if PartId and PartIndex are indeed PartId's and PartIndices.

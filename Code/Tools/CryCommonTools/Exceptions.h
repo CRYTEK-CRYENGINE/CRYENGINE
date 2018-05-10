@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #ifndef __EXCEPTIONS_H__
 #define __EXCEPTIONS_H__
@@ -10,7 +10,7 @@ class BaseException : public std::exception
 {
 public:
 	explicit BaseException(const string& msg): msg(msg) {}
-	virtual const char* what() const {return msg.c_str();}
+	virtual const char* what() const noexcept {return msg.c_str();}
 
 private:
 	string msg;

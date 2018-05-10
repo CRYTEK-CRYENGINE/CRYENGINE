@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 #define _CRYQUAT_H
@@ -7,7 +7,8 @@
 
 const float RAD_EPSILON = 0.01f;
 
-//! Quaternion.
+//! General-purpose quaternion implementation
+//! \see Quat
 template<typename F> struct Quat_tpl
 	: INumberVector<F, 4, Quat_tpl<F>>
 {
@@ -893,6 +894,12 @@ ILINE bool IsEquivalent(const QuatT_tpl<F>& qt1, const QuatT_tpl<F>& qt2, f32 qe
 	return QuatT_tpl<F>::IsEquivalent(qt1, qt2, qe, ve);
 }
 
+template<class F1, class F2> ILINE bool operator==(const QuatT_tpl<F1>& p, const QuatT_tpl<F2>& q)
+{
+	CRY_MATH_ASSERT(p.IsValid());
+	CRY_MATH_ASSERT(q.IsValid());
+	return p.q == q.q && p.t == q.t;
+}
 
 //! Implements the multiplication operator: QuatT=Quatpos*Quat.
 //! AxB = operation B followed by operation A.

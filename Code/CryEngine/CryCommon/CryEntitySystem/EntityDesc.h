@@ -1,7 +1,8 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
-#ifndef GAME_ENTITYDESC_H
-#define GAME_ENTITYDESC_H
+//! \cond INTERNAL
+
+#pragma once
 
 typedef uint16 EntityClassId;
 
@@ -245,4 +246,4 @@ inline bool CEntityDesc::IsDirty()
 	return true;
 }
 
-#endif // GAME_ENTITYDESC_H
+//! \endcond

@@ -1,13 +1,12 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
+
+//! \cond INTERNAL
 
 #pragma once
 
-#ifndef MovementRequest_h
-	#define MovementRequest_h
-
-	#include <CryAISystem/MovementRequestID.h>
-	#include <CryAISystem/MovementStyle.h>
-	#include "IPathfinder.h" // MNMDangersFlags
+#include <CryAISystem/MovementRequestID.h>
+#include <CryAISystem/MovementStyle.h>
+#include "IPathfinder.h" // MNMDangersFlags, MNMCustomPathCostComputerSharedPtr
 
 //! Passed along as a parameter to movement request callbacks.
 struct MovementRequestResult
@@ -85,6 +84,7 @@ struct MovementRequest
 		, dangersFlags(eMNMDangers_None)
 		, considerActorsAsPathObstacles(false)
 		, lengthToTrimFromThePathEnd(0.0f)
+		, pCustomPathCostComputer(nullptr)
 	{
 	}
 
@@ -110,6 +110,8 @@ struct MovementRequest
 	MNMDangersFlags dangersFlags;
 	bool            considerActorsAsPathObstacles;
 	float           lengthToTrimFromThePathEnd;
+	MNMCustomPathCostComputerSharedPtr pCustomPathCostComputer;
+	SSnapToNavMeshRulesInfo snappingRules;
 };
 
 //! Contains information about the status of a request.
@@ -217,4 +219,4 @@ inline void ConstructHumanReadableText(IN const MovementRequestStatus& status, O
 }
 #endif // COMPILE_WITH_MOVEMENT_SYSTEM_DEBUG
 
-#endif // MovementRequest_h
+//! \endcond

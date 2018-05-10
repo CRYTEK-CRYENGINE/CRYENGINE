@@ -1,11 +1,8 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
-
-#ifndef __COMPOSITEDATA_H__
-#define __COMPOSITEDATA_H__
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
-#include <CryCore/BoostHelpers.h>
+#include <CryCore/CryVariant.h>
 
 // basic types are CONCRETE types which does NOT contain references like
 // pointers or references, or more specifically dynamically allocated strings
@@ -33,8 +30,7 @@ enum EBasicTypes4CC
 	eBT_qutt = 'qutt', // QuatT<f32>
 };
 
-typedef boost::mpl::vector<int8, uint8, int16, uint16, int32, uint32, int64, uint64, f32, f64, string, Vec3, Matrix34, Quat, QuatT> TBasicTypes;
-typedef boost::make_variant_over<TBasicTypes>::type                                                                                 TBasicType;
+using TBasicType = CryVariant<int8, uint8, int16, uint16, int32, uint32, int64, uint64, f32, f64, string, Vec3, Ang3, Matrix34, Quat, QuatT>;
 
 template<typename T>
 static inline T ComposeValue(const uint8* data, size_t size)
@@ -163,5 +159,3 @@ private:
 
 	std::vector<CCompositeData> m_fields;
 };
-
-#endif

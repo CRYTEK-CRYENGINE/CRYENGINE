@@ -1,21 +1,8 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
-/*************************************************************************
-   -------------------------------------------------------------------------
-   $Id$
-   $DateTime$
-   Description: Interface to describe the methods used for an AI puppet to
-         handle information coming from their perception for acquiring
-         attention targets
+//! \cond INTERNAL
 
-   -------------------------------------------------------------------------
-   History:
-   - 04:30:2009: Created by Kevin Kirst
-
-*************************************************************************/
-
-#ifndef __IPERCEPTIONHANDLER_H__
-#define __IPERCEPTIONHANDLER_H__
+#pragma once
 
 static const float PERCEPTION_SUSPECT_THR = 0.1f;
 static const float PERCEPTION_INTERESTING_THR = 0.3f;
@@ -169,4 +156,4 @@ struct IPerceptionHandler
 	// </interfuscator:shuffle>
 };
 
-#endif //__IPERCEPTIONHANDLER_H__
+//! \endcond

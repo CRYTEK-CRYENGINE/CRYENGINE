@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 //
 //  Crytek Engine Source File.
 //  Copyright (C), Crytek Studios, 2002.
@@ -33,7 +33,7 @@
 #include "FileUtil.h"
 #include "UpToDateFileHelpers.h"
 #include <CryAnimation/IAttachment.h>
-#include "CGF\CGFNodeMerger.h"
+#include "CGF/CGFNodeMerger.h"
 #include "RcFile.h"
 #include "../CryEngine/CryAnimation/AttachmentVClothPreProcess.h"
 
@@ -59,7 +59,7 @@ string CharacterCompiler::GetOutputFileNameOnly() const
 {
 	string sourceFileFinal = m_CC.config->GetAsString("overwritefilename", m_CC.sourceFileNameOnly.c_str(), m_CC.sourceFileNameOnly.c_str());
 	if (StringHelpers::EndsWith(sourceFileFinal, GetExt(eFileType_cdf)))
-		sourceFileFinal = PathHelpers::ReplaceExtension(sourceFileFinal, "skin");
+		sourceFileFinal = PathUtil::ReplaceExtension(sourceFileFinal, "skin");
 	if (m_CC.config->GetAsBool("StripNonMesh", false, true))
 	{
 		sourceFileFinal += "m";
@@ -71,7 +71,7 @@ string CharacterCompiler::GetOutputFileNameOnly() const
 ////////////////////////////////////////////////////////////
 string CharacterCompiler::GetOutputPath() const
 {
-	return PathHelpers::Join(m_CC.GetOutputFolder(), GetOutputFileNameOnly());
+	return PathUtil::Make(m_CC.GetOutputFolder(), GetOutputFileNameOnly());
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -922,7 +922,7 @@ bool CharacterCompiler::LoadCDFAssets(const char * sourceFile, const char * fina
 			string newext;
 			newext.Format("_lod%d.skin", item->first);
 			PathUtil::RemoveExtension(fullpath);
-			newlodpath.Format("%s%s", fullpath, newext);
+			newlodpath.Format("%s%s", fullpath.c_str(), newext.c_str());
 		}
 
 		pContent = MakeMergedCGF(newlodpath.c_str(), pMaterial, item->second, config, item->first != 0, basematerial);
@@ -1216,7 +1216,7 @@ CNodeCGF * CharacterCompiler::SetupNewMergeContents(CContentCGF * pCGF, CMateria
 	if (!pMaterial)
 	{
 		pMaterial = new CMaterialCGF();
-		cry_strcpy(pMaterial->name, PathUtil::GetFileName(pCGF->GetFilename()));
+		cry_strcpy(pMaterial->name, PathUtil::GetFile(pCGF->GetFilename()));
 	}
 	pNode->pMaterial = pMaterial;
 
@@ -1810,7 +1810,7 @@ XmlNodeRef CharacterCompiler::CreateTextureSetupFile(const char * filename, XmlN
 	}
 
 	string partname;
-	partname.Format("%s%s", relativePath.c_str(), PathUtil::GetFileName(filename));
+	partname.Format("%s%s", relativePath.c_str(), PathUtil::GetFile(filename));
 	string diffuse(partname);
 	string specular(partname);
 	string bumpmap(partname);
@@ -1921,7 +1921,7 @@ void CharacterCompiler::SaveTextureMergeSetup(const char * filename, XmlNodeRef 
 	}
 
 	string partname;
-	partname.Format("%s%s", relativePath.c_str(), PathUtil::GetFileName(filename));
+	partname.Format("%s%s", relativePath.c_str(), PathUtil::GetFile(filename));
 	string setupfile = partname.append("_setup.tmxs");
 	texMergeSetup->saveToFile(setupfile.c_str());
 

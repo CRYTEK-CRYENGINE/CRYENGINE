@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 /*************************************************************************
    -------------------------------------------------------------------------
@@ -25,8 +25,8 @@
 #include <CrySystem/ITimer.h>
 #include "HardwareMouse.h"
 #include <CryCore/Platform/WindowsUtils.h>
-
 #include <CryCore/Platform/CryLibrary.h>
+#include <CryRenderer/IRenderAuxGeom.h>
 
 #if CRY_PLATFORM_WINDOWS
 	#include <CryRenderer/IImage.h>
@@ -54,8 +54,9 @@ CHardwareMouse::CHardwareMouse(bool bVisibleByDefault)
 #else
 	, m_allowConfine(true)
 #endif // !defined(_RELEASE)
-	, m_shouldUseSystemCursor(gEnv->IsEditor())
+	, m_shouldUseSystemCursor(false)
 	, m_usingSystemCursor(true)
+	, m_confinedWnd(nullptr)
 #if CRY_PLATFORM_WINDOWS
 	, m_hCursor(nullptr)
 	, m_nCurIDCCursorId(~0)
@@ -63,6 +64,19 @@ CHardwareMouse::CHardwareMouse(bool bVisibleByDefault)
 {
 #if CRY_PLATFORM_WINDOWS
 	atexit(ReleaseCursor);
+
+	if (gEnv->IsEditor())
+	{
+		m_shouldUseSystemCursor = true;
+	}
+	else if (gEnv->pConsole)
+	{
+		ICVar* pUseSystemCursorCVar = gEnv->pConsole->GetCVar("r_MouseUseSystemCursor");
+		if (pUseSystemCursorCVar)
+		{
+			m_shouldUseSystemCursor = pUseSystemCursorCVar->GetIVal() != 0;
+		}
+	}
 #endif
 
 	if (gEnv->pConsole)
@@ -70,7 +84,11 @@ CHardwareMouse::CHardwareMouse(bool bVisibleByDefault)
 		ICVar* pCursorTexturePath = gEnv->pConsole->GetCVar("r_MouseCursorTexture");
 		if (pCursorTexturePath)
 		{
-			SetCursor(pCursorTexturePath->GetString());
+			const char* szCursorTexturePath = pCursorTexturePath->GetString();
+			if (szCursorTexturePath && *szCursorTexturePath)
+			{
+				SetCursor(pCursorTexturePath->GetString());
+			}
 		}
 	}
 
@@ -82,9 +100,6 @@ CHardwareMouse::CHardwareMouse(bool bVisibleByDefault)
 #endif
 
 	Reset(bVisibleByDefault);
-
-	if (gEnv->pSystem)
-		gEnv->pSystem->GetISystemEventDispatcher()->RegisterListener(this,"CHardwareMouse");
 
 #if !defined(_RELEASE)
 	if (gEnv->pConsole)
@@ -110,7 +125,6 @@ CHardwareMouse::~CHardwareMouse()
 	{
 		if (gEnv->pRenderer)
 		{
-			gEnv->pRenderer->RemoveListener(this);
 #if !defined(DEDICATED_SERVER)
 			SAFE_RELEASE(m_pCursorTexture);     // On dedicated server this texture is actually a static returned by NULL renderer.. can't release that.
 #endif
@@ -177,6 +191,7 @@ void CHardwareMouse::ShowHardwareMouse(bool bShow)
 	{
 		pInput->ShowCursor(bShow);
 		pInput->SetExclusiveMode(eIDT_Mouse, false);
+		m_bPrevShowState = bShow;
 	}
 
 	m_calledShowHWMouse = true;
@@ -193,32 +208,29 @@ void CHardwareMouse::ConfineCursor(bool confine)
 		return;
 
 #if CRY_PLATFORM_WINDOWS
-	HWND hWnd = 0;
-
-	if (gEnv->IsEditor())
-		hWnd = (HWND) gEnv->pRenderer->GetCurrentContextHWND();
-	else
-		hWnd = (HWND) gEnv->pRenderer->GetHWND();
-
+	HWND hWnd = GetConfinedWindowHandle();
 	if (hWnd)
 	{
+		RECT rcClient;
+		::GetClientRect(hWnd, &rcClient);
+		::ClientToScreen(hWnd, (LPPOINT)&rcClient.left);
+		::ClientToScreen(hWnd, (LPPOINT)&rcClient.right);
+
 		// It's necessary to call ClipCursor AFTER the calls to
 		// CreateDevice/ResetDevice otherwise the clip area is reseted.
 		if (confine && !gEnv->IsEditing())
 		{
 			if (m_debugHardwareMouse)
 				gEnv->pLog->Log("HM:   Confining cursor");
-			RECT rcClient;
-			::GetClientRect(hWnd, &rcClient);
-			::ClientToScreen(hWnd, (LPPOINT)&rcClient.left);
-			::ClientToScreen(hWnd, (LPPOINT)&rcClient.right);
+
 			::ClipCursor(&rcClient);
 		}
 		else
 		{
 			if (m_debugHardwareMouse)
 				gEnv->pLog->Log("HM:   Releasing cursor");
-			::ClipCursor(NULL);
+
+			::ClipCursor(nullptr);
 		}
 	}
 #elif CRY_PLATFORM_LINUX || CRY_PLATFORM_ANDROID || CRY_PLATFORM_MAC
@@ -230,18 +242,6 @@ void CHardwareMouse::ConfineCursor(bool confine)
 			gEnv->pInput->GrabInput(false);
 	}
 #endif
-}
-
-//-----------------------------------------------------------------------------------------------------
-
-void CHardwareMouse::OnPostCreateDevice()
-{
-}
-
-//-----------------------------------------------------------------------------------------------------
-
-void CHardwareMouse::OnPostResetDevice()
-{
 }
 
 //-----------------------------------------------------------------------------------------------------
@@ -410,6 +410,14 @@ void CHardwareMouse::OnSystemEvent(ESystemEvent event, UINT_PTR wparam, UINT_PTR
 	{
 		EvaluateCursorConfinement();
 	}
+	else if (event == ESYSTEM_EVENT_DISPLAY_CHANGED)
+	{
+		EvaluateCursorConfinement();
+	}
+	else if (event == ESYSTEM_EVENT_DEVICE_CHANGED)
+	{
+		EvaluateCursorConfinement();
+	}
 }
 
 //-----------------------------------------------------------------------------------------------------
@@ -423,10 +431,6 @@ void CHardwareMouse::Release()
 
 void CHardwareMouse::OnPreInitRenderer()
 {
-	CRY_ASSERT(gEnv->pRenderer);
-
-	if (gEnv->pRenderer)
-		gEnv->pRenderer->AddListener(this);
 }
 
 //-----------------------------------------------------------------------------------------------------
@@ -437,6 +441,9 @@ void CHardwareMouse::OnPostInitInput()
 
 	if (gEnv->pInput)
 		gEnv->pInput->AddEventListener(this);
+
+	if (gEnv->pSystem)
+		gEnv->pSystem->GetISystemEventDispatcher()->RegisterListener(this, "CHardwareMouse");
 }
 
 //-----------------------------------------------------------------------------------------------------
@@ -473,6 +480,23 @@ void CHardwareMouse::AddListener(IHardwareMouseEventListener* pHardwareMouseEven
 void CHardwareMouse::RemoveListener(IHardwareMouseEventListener* pHardwareMouseEventListener)
 {
 	stl::find_and_erase(m_listHardwareMouseEventListeners, pHardwareMouseEventListener);
+}
+
+//-----------------------------------------------------------------------------------------------------
+
+void CHardwareMouse::SetConfinedWnd(HWND wnd)
+{
+	m_confinedWnd = wnd;
+}
+
+//-----------------------------------------------------------------------------------------------------
+
+HWND CHardwareMouse::GetConfinedWindowHandle() const
+{
+	if (m_confinedWnd == nullptr)
+		return (HWND) gEnv->pRenderer->GetHWND();
+	else
+		return m_confinedWnd;
 }
 
 //-----------------------------------------------------------------------------------------------------
@@ -517,6 +541,11 @@ void CHardwareMouse::DecrementCounter()
 	EvaluateCursorConfinement();
 }
 
+bool CHardwareMouse::IsCursorVisible() const
+{
+	return m_iReferenceCounter > 0;
+}
+
 //-----------------------------------------------------------------------------------------------------
 
 void CHardwareMouse::GetHardwareMousePosition(float* pfX, float* pfY)
@@ -539,7 +568,7 @@ void CHardwareMouse::SetHardwareMousePosition(float fX, float fY)
 #if CRY_PLATFORM_WINDOWS
 	if (gEnv->pRenderer)
 	{
-		HWND hWnd = (HWND)gEnv->pRenderer->GetCurrentContextHWND();
+		HWND hWnd = GetConfinedWindowHandle();
 		if (hWnd == ::GetFocus() && m_allowConfine)
 		{
 			// Move cursor position only if our window is focused.
@@ -551,8 +580,8 @@ void CHardwareMouse::SetHardwareMousePosition(float fX, float fY)
 	m_fVirtualY = fY;
 	if (gEnv && gEnv->pRenderer)
 	{
-		float fWidth = float(gEnv->pRenderer->GetWidth());
-		float fHeight = float(gEnv->pRenderer->GetHeight());
+		float fWidth  = float(gEnv->pRenderer->GetOverlayWidth());
+		float fHeight = float(gEnv->pRenderer->GetOverlayHeight());
 
 		if (m_fVirtualX < 0.0f)
 		{
@@ -584,7 +613,7 @@ void CHardwareMouse::GetHardwareMouseClientPosition(float* pfX, float* pfY)
 	if (gEnv == NULL || gEnv->pRenderer == NULL)
 		return;
 
-	HWND hWnd = (HWND) gEnv->pRenderer->GetCurrentContextHWND();
+	HWND hWnd = GetConfinedWindowHandle();
 	CRY_ASSERT_MESSAGE(hWnd, "Impossible to get client coordinates from a non existing window!");
 
 	if (hWnd)
@@ -611,7 +640,7 @@ void CHardwareMouse::GetHardwareMouseClientPosition(float* pfX, float* pfY)
 void CHardwareMouse::SetHardwareMouseClientPosition(float fX, float fY)
 {
 #if CRY_PLATFORM_WINDOWS
-	HWND hWnd = (HWND) gEnv->pRenderer->GetCurrentContextHWND();
+	HWND hWnd = GetConfinedWindowHandle();
 	CRY_ASSERT_MESSAGE(hWnd, "Impossible to set position of the mouse relative to client coordinates from a non existing window!");
 
 	if (hWnd)
@@ -649,11 +678,9 @@ bool CHardwareMouse::SetCursor(int idc_cursor_id)
 
 		if (m_hCursor)
 		{
-			if (HCURSOR ret = ::SetCursor(m_hCursor))
-			{
-				m_nCurIDCCursorId = idc_cursor_id;
-				m_curCursorPath.clear();
-			}
+			::SetCursor(m_hCursor);
+			m_nCurIDCCursorId = idc_cursor_id;
+			m_curCursorPath.clear();
 		}
 	}
 	else // SW cursor
@@ -682,6 +709,12 @@ bool CHardwareMouse::SetCursor(const char* path)
 	// Update the CVar value to match, in case this function was not called through CVar-change-callback
 	gEnv->pConsole->GetCVar("r_MouseCursorTexture")->Set(path);
 
+	if (strlen(path) == 0)
+	{
+		// Empty cursor texture disables custom image cursor.
+		return true;
+	}
+
 	// Load cursor
 	if (m_shouldUseSystemCursor)
 	{
@@ -703,11 +736,9 @@ bool CHardwareMouse::SetCursor(const char* path)
 		// Set cursor
 		if (m_hCursor)
 		{
-			if (HCURSOR ret = ::SetCursor(m_hCursor))
-			{
-				m_nCurIDCCursorId = 0;
-				m_curCursorPath.assign(path);
-			}
+			::SetCursor(m_hCursor);
+			m_nCurIDCCursorId = 0;
+			m_curCursorPath.assign(path);
 		}
 		return m_hCursor != nullptr;
 #else
@@ -771,14 +802,14 @@ void CHardwareMouse::Render()
 
 	if (gEnv && gEnv->pRenderer && m_iReferenceCounter && m_pCursorTexture && !m_hide)
 	{
-		float fScalerX = gEnv->pRenderer->ScaleCoordX(1.f);
-		float fScalerY = gEnv->pRenderer->ScaleCoordY(1.f);
+		// TODO: relative/normalized coordinate system in screen-space
+		const float fScalerX = 1.0f; //800.0f / float(gEnv->pRenderer->GetOverlayWidth());
+		const float fScalerY = 1.0f; //600.0f / float(gEnv->pRenderer->GetOverlayHeight());
 		const float fSizeX = float(m_pCursorTexture->GetWidth());
 		const float fSizeY = float(m_pCursorTexture->GetHeight());
 		float fPosX, fPosY;
 		GetHardwareMouseClientPosition(&fPosX, &fPosY);
-		gEnv->pRenderer->SetState(GS_BLSRC_SRCALPHA | GS_BLDST_ONEMINUSSRCALPHA | GS_NODEPTHTEST);
-		gEnv->pRenderer->Draw2dImage(fPosX / fScalerX, fPosY / fScalerY, fSizeX / fScalerX, fSizeY / fScalerY, m_pCursorTexture->GetTextureID(), 0, 1, 1, 0, 0, 1, 1, 1, 1, 0);
+		IRenderAuxImage::Draw2dImage(fPosX * fScalerX, fPosY * fScalerY, fSizeX * fScalerX, fSizeY * fScalerY, m_pCursorTexture->GetTextureID(), 0, 1, 1, 0, 0, 1, 1, 1, 1, 0);
 	}
 }
 

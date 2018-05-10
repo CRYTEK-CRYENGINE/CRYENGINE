@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 // -------------------------------------------------------------------------
 //  File name:   DialogSession.cpp
@@ -507,7 +507,7 @@ bool CDialogSession::Validate()
 ////////////////////////////////////////////////////////////////////////////
 const char* CDialogSession::GetEventName(EDialogSessionEvent event)
 {
-	static char* names[] = {
+	static const char* names[] = {
 		"eDSE_SessionStart",
 		"eDSE_EndOfDialog",
 		"eDSE_UserStopped",

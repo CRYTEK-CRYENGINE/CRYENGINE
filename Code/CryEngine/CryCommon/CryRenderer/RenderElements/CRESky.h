@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #ifndef __CRESKY_H__
 #define __CRESKY_H__
@@ -15,6 +15,7 @@ public:
 
 	float m_fTerrainWaterLevel;
 	float m_fSkyBoxStretching;
+	float m_fSkyBoxAngle;
 	float m_fAlpha;
 	int   m_nSphereListId;
 
@@ -27,16 +28,15 @@ public:
 		m_fAlpha = 1;
 		m_nSphereListId = 0;
 		m_fSkyBoxStretching = 1.f;
+		m_fSkyBoxAngle = 0.0f;
 	}
 
 	virtual ~CRESky();
-	virtual void          mfPrepare(bool bCheckOverflow) override;
-	virtual bool          mfDraw(CShader* ef, SShaderPass* sfm) override;
 
 	virtual InputLayoutHandle GetVertexFormat() const override;
 	virtual bool          GetGeometryInfo(SGeometryInfo& streams, bool bSupportTessellation = false) override;
 
-	virtual bool          Compile(CRenderObject* pObj) override;
+	virtual bool          Compile(CRenderObject* pObj, CRenderView *pRenderView, bool updateInstanceDataOnly) override;
 	virtual void          DrawToCommandList(CRenderObject* pObj, const struct SGraphicsPipelinePassContext& ctx) override;
 
 	virtual void          GetMemoryUsage(ICrySizer* pSizer) const override
@@ -52,11 +52,11 @@ class CREHDRSky : public CRenderElement
 public:
 	CREHDRSky()
 		: m_pRenderParams(0)
+		, m_pSkyDomeTextureMie(0)
+		, m_pSkyDomeTextureRayleigh(0)
 		, m_skyDomeTextureLastTimeStamp(-1)
 		, m_frameReset(0)
 		, m_pStars(0)
-		, m_pSkyDomeTextureMie(0)
-		, m_pSkyDomeTextureRayleigh(0)
 	{
 		mfSetType(eDATA_HDRSky);
 		mfUpdateFlags(FCEF_TRANSFORM);
@@ -64,13 +64,11 @@ public:
 	}
 
 	virtual ~CREHDRSky();
-	virtual void          mfPrepare(bool bCheckOverflow) override;
-	virtual bool          mfDraw(CShader* ef, SShaderPass* sfm) override;
 
 	virtual InputLayoutHandle GetVertexFormat() const override;
 	virtual bool          GetGeometryInfo(SGeometryInfo& streams, bool bSupportTessellation = false) override;
 
-	virtual bool          Compile(CRenderObject* pObj) override;
+	virtual bool          Compile(CRenderObject* pObj, CRenderView *pRenderView, bool updateInstanceDataOnly) override;
 	virtual void          DrawToCommandList(CRenderObject* pObj, const struct SGraphicsPipelinePassContext& ctx) override;
 
 	virtual void          GetMemoryUsage(ICrySizer* pSizer) const override
@@ -86,7 +84,7 @@ public:
 	class CTexture*              m_pSkyDomeTextureMie;
 	class CTexture*              m_pSkyDomeTextureRayleigh;
 
-	static void SetCommonMoonParams(CShader* ef, bool bUseMoon = false);
+	//static void SetCommonMoonParams(CShader* ef, bool bUseMoon = false);
 
 private:
 	void Init();

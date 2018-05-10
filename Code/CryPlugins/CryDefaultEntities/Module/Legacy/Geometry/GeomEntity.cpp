@@ -80,7 +80,7 @@ uint64 CGeomEntity::GetEventMask() const
 		BIT64(ENTITY_EVENT_UNHIDE);
 }
 
-void CGeomEntity::ProcessEvent(SEntityEvent& event)
+void CGeomEntity::ProcessEvent(const SEntityEvent& event)
 {
 	CDesignerEntityComponent::ProcessEvent(event);
 

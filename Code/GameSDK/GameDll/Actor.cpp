@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 /*************************************************************************
  -------------------------------------------------------------------------
@@ -410,6 +410,14 @@ CActor::~CActor()
 	UnRegisterDBAGroups();
 	ReleaseLegsColliders();
 	CActorManager::GetActorManager()->ActorRemoved(this);
+
+	if (IAIObject *pAI = GetEntity()->GetAI())
+	{
+		if (pAI->GetProxy())
+		{
+			pAI->GetProxy()->OnActorRemoved();
+		}
+	}
 }
 
 //------------------------------------------------------------------------
@@ -1629,7 +1637,7 @@ IEntity *CActor::LinkToVehicle(EntityId vehicleId)
   if (pLinked)  
     pLinked->AttachChild(GetEntity(), ENTITY_XFORM_USER|IEntity::ATTACHMENT_KEEP_TRANSFORMATION);
   else
-    GetEntity()->DetachThis(IEntity::ATTACHMENT_KEEP_TRANSFORMATION,/*ENTITY_XFORM_USER*/0);
+    GetEntity()->DetachThis(IEntity::ATTACHMENT_KEEP_TRANSFORMATION);
   
 	return pLinked;
 }
@@ -1651,12 +1659,12 @@ IEntity *CActor::LinkToEntity(EntityId entityId, bool bKeepTransformOnDetach)
   if (pLinked)
     pLinked->AttachChild(GetEntity(), 0);
   else
-		GetEntity()->DetachThis(bKeepTransformOnDetach ? IEntity::ATTACHMENT_KEEP_TRANSFORMATION : 0, bKeepTransformOnDetach ? ENTITY_XFORM_USER : 0);
+		GetEntity()->DetachThis(bKeepTransformOnDetach ? IEntity::ATTACHMENT_KEEP_TRANSFORMATION : IEntity::EAttachmentFlags(), bKeepTransformOnDetach ? ENTITY_XFORM_USER : EEntityXFormFlags());
 
 	return pLinked;
 }
 
-void CActor::ProcessEvent(SEntityEvent& event)
+void CActor::ProcessEvent(const SEntityEvent& event)
 {
 	switch (event.event)
 	{
@@ -1799,21 +1807,22 @@ void CActor::ProcessEvent(SEntityEvent& event)
 			pBodyDamageManager->ReloadBodyDamage(*this);
 			break;
 		}
-	case ENTITY_EVENT_ADD_TO_RADAR:
-		{
-			SHUDEvent hudevent(eHUDEvent_AddEntity);
-			hudevent.AddData(SHUDEventData(static_cast<int>(GetEntityId())));
-			CHUDEventDispatcher::CallEvent(hudevent);
-			break;
-		}
-	case ENTITY_EVENT_REMOVE_FROM_RADAR:
-		{
-			SHUDEvent hudevent(eHUDEvent_RemoveEntity);
-			hudevent.AddData(SHUDEventData(static_cast<int>(GetEntityId())));
-			CHUDEventDispatcher::CallEvent(hudevent);
-			break;
-		}
   }  
+}
+
+uint64 CActor::GetEventMask() const
+{
+	return BIT64(ENTITY_EVENT_HIDE)
+		| BIT64(ENTITY_EVENT_INVISIBLE)
+		| BIT64(ENTITY_EVENT_UNHIDE)
+		| BIT64(ENTITY_EVENT_VISIBLE)
+		| BIT64(ENTITY_EVENT_RESET)
+		| BIT64(ENTITY_EVENT_ANIM_EVENT)
+		| BIT64(ENTITY_EVENT_DONE)
+		| BIT64(ENTITY_EVENT_TIMER)
+		| BIT64(ENTITY_EVENT_PREPHYSICSUPDATE)
+		| BIT64(ENTITY_EVENT_INIT)
+		| BIT64(ENTITY_EVENT_RELOAD_SCRIPT);
 }
 
 void CActor::BecomeRemotePlayer()
@@ -3668,7 +3677,7 @@ void CActor::AttemptToRecycleAIActor()
 	else
 	{
 		// Attempt later again
-		GetEntity()->SetTimer( RECYCLE_AI_ACTOR_TIMER_ID, 2000 );
+		SetTimer( RECYCLE_AI_ACTOR_TIMER_ID, 2000 );
 	}
 }
 
@@ -3747,7 +3756,7 @@ bool CActor::ScheduleItemSwitch(EntityId itemId, bool keepHistory, int category,
 			pActorStats->exchangeItemStats.switchingToItemID = itemId;
 			pActorStats->exchangeItemStats.keepHistory = keepHistory;
 
-			GetEntity()->SetTimer(ITEM_SWITCH_THIS_FRAME, deselectDelay);
+			SetTimer(ITEM_SWITCH_THIS_FRAME, deselectDelay);
 
 			return true;
 		}

@@ -181,7 +181,7 @@ QWidget* QRollupBar::widget(int index) const
 void QRollupBar::SetRollupsClosable(bool closable)
 {
 	m_rollupsClosable = closable;
-	for each (auto var in m_subFrames)
+	for (auto var : m_subFrames)
 	{
 		var->SetClosable(closable);
 	}
@@ -302,5 +302,6 @@ bool QRollupBar::eventFilter(QObject * o, QEvent * e)
 	}
 	return QWidget::eventFilter(o, e);
 }
+
 
 

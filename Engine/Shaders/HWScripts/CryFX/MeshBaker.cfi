@@ -106,7 +106,11 @@ pixout_mb MeshBakerComplex_PS(v2f IN)
 	GatherMaterialAttribs(mTangentToWS, realCoord, vertexColor, commonAttribs);
 	
 	OUT.Color.xyz = LinearToSRGB(commonAttribs.Albedo);
+#if %DECAL
 	OUT.Color.w = GatherAlpha(realCoord, vertexColor.w);
+#else
+	OUT.Color.w = GatherAlpha(realCoord, 1.0f);
+#endif  
 
   if (ZOFFSET.z>1.0f)
   {

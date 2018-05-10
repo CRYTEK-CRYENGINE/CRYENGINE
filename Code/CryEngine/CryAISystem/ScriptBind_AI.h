@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 /********************************************************************
    -------------------------------------------------------------------------
@@ -927,21 +927,6 @@ public:
 	//!		<param name="navtype">(optional) specify a navigation type ( default = IAISystem::NAV_FLIGHT )</param>
 	int SetPointListToFollow(IFunctionHandler* pH);
 
-	//! <code>AI.CanMoveStraightToPoint(entityId, position)</code>
-	//! <returns>true if the entity can move to the specified position in a straight line (no multiple segment path necessary)</returns>
-	//!		<param name="entityId">AI's entity id</param>
-	//!		<param name="position">the position to check</param>
-	//! <returns>true if the position can be reached in a straight line</returns>
-	int CanMoveStraightToPoint(IFunctionHandler* pH);
-
-	//! <code>AI.GetNearestHidespot(entityId, rangeMin, rangeMax [, center])</code>
-	//! <returns>position of a nearest hidepoint within specified range, returns nil if no hidepoint is found.</returns>
-	//!		<param name="entityId">AI's entity id</param>
-	//!		<param name="rangeMin">specifies the min range where the hidepoints are looked for.</param>
-	//!		<param name="rangeMax">specifies the max range where the hidepoints are looked for.</param>
-	//!		<param name="centre">(optional) specifies the centre of search. If not specified, the entity position is used.</param>
-	int GetNearestHidespot(IFunctionHandler* pH);
-
 	//! <code>AI.GetEnclosingGenericShapeOfType(position, type[, checkHeight])</code>
 	//! <returns>the name of the first shape that is enclosing the specified point and is of specified type</returns>
 	//!		<param name="position">the position to check</param>
@@ -1352,10 +1337,6 @@ public:
 
 	//! <description>Set agent's pathfinder properties, (normal, road, cover, ....).</description>
 	int SetPFProperties(IFunctionHandler* pH);
-
-	//! <code>AI.SetPFBlockerRadius(entityId, blocker, radius)</code>
-	//!		<param name="entityId">AI's entity id</param>
-	int SetPFBlockerRadius(IFunctionHandler* pH);
 
 	int SetRefPointToGrenadeAvoidTarget(IFunctionHandler* pH);
 

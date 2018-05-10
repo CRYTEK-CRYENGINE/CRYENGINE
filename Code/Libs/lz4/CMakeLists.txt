@@ -6,15 +6,15 @@ start_sources()
 sources_platform(ALL)
 add_sources("NoUberFile"
 	SOURCE_GROUP "Root"
-		"../../SDKs/lz4/lib/lz4.c"
-		"../../SDKs/lz4/lib/lz4.h"
-		"../../SDKs/lz4/lib/lz4frame.c"
-		"../../SDKs/lz4/lib/lz4frame.h"
-		"../../SDKs/lz4/lib/lz4frame_static.h"
-		"../../SDKs/lz4/lib/lz4hc.c"
-		"../../SDKs/lz4/lib/lz4hc.h"
-		"../../SDKs/lz4/lib/xxhash.c"
-		"../../SDKs/lz4/lib/xxhash.h"
+		"${SDK_DIR}/lz4/lib/lz4.c"
+		"${SDK_DIR}/lz4/lib/lz4.h"
+		"${SDK_DIR}/lz4/lib/lz4frame.c"
+		"${SDK_DIR}/lz4/lib/lz4frame.h"
+		"${SDK_DIR}/lz4/lib/lz4frame_static.h"
+		"${SDK_DIR}/lz4/lib/lz4hc.c"
+		"${SDK_DIR}/lz4/lib/lz4hc.h"
+		"${SDK_DIR}/lz4/lib/xxhash.c"
+		"${SDK_DIR}/lz4/lib/xxhash.h"
 )
 
 end_sources()

@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 #pragma once
 #include "FbxScene.h"
 #include "FbxMetaData.h"
@@ -46,3 +46,4 @@ private:
 
 FbxTool::EMaterialPhysicalizeSetting Convert(FbxMetaData::EPhysicalizeSetting setting);
 FbxMetaData::EPhysicalizeSetting     Convert(FbxTool::EMaterialPhysicalizeSetting setting);
+

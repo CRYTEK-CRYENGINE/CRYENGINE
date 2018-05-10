@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 // -------------------------------------------------------------------------
 //  File name:   ThreadBackEnd.h
@@ -16,7 +16,7 @@
 
 ///////////////////////////////////////////////////////////////////////////////
 JobManager::ThreadBackEnd::CThreadBackEnd::CThreadBackEnd()
-	: m_Semaphore(SJobQueue_ThreadBackEnd::eMaxWorkQueueJobsRegularPriority)
+	: m_Semaphore(SJobQueue_ThreadBackEnd::eMaxWorkQueueJobsSize + JobManager::detail::GetFallbackJobListSize())
 	, m_nNumWorkerThreads(0)
 {
 	m_JobQueue.Init();
@@ -40,7 +40,7 @@ bool JobManager::ThreadBackEnd::CThreadBackEnd::Init(uint32 nSysMaxWorker)
 	const uint32 nNumCores = 4;
 #else
 	CCpuFeatures* pCPU = ((CSystem*)gEnv->pSystem)->GetCPUFeatures();
-	const uint32 nNumCores = pCPU->GetLogicalCPUCount();
+	const uint32 nNumCores = std::max(pCPU->GetLogicalCPUCount() - 2u, 2u);
 #endif
 
 	uint32 nNumWorkerToCreate = 0;
@@ -193,9 +193,6 @@ void JobManager::ThreadBackEnd::CThreadBackEnd::AddJob(JobManager::CJobDelegator
 		if (crJob.IsBlocking())
 		{
 			pJobManager->AddBlockingFallbackJob(pFallbackInfoBlock, JobManager::GetWorkerThreadId());
-
-			// Release semaphore count to signal the workers that work is available
-			m_Semaphore.SignalNewJob();
 		}
 		else
 		{
@@ -205,11 +202,10 @@ void JobManager::ThreadBackEnd::CThreadBackEnd::AddJob(JobManager::CJobDelegator
 	else
 	{
 		MemoryBarrier();
-		m_JobQueue.jobInfoBlockStates[nJobPriority][jobSlot].SetReady();
-
-		// Release semaphore count to signal the workers that work is available
-		m_Semaphore.SignalNewJob();
+		m_JobQueue.jobInfoBlockStates[nJobPriority][jobSlot].SetReady();		
 	}
+	// Release semaphore count to signal the workers that work is available
+	m_Semaphore.SignalNewJob();
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -270,15 +266,38 @@ void JobManager::ThreadBackEnd::CThreadBackEndWorkerThread::ThreadEntry()
 	const float fMinTimeInJobExecution = 1.0f;
 
 	CJobManager* __restrict pJobManager = CJobManager::Instance();
-
 	do
 	{
 		SInfoBlock infoBlock;
 		CJobManager* __restrict pJobManager = CJobManager::Instance();
 		uint32 nPriorityLevel = ~0;
-		JobManager::SInfoBlock* pFallbackInfoBlock = JobManager::detail::PopFromFallbackJobList();
 
-		IF (pFallbackInfoBlock, 0)
+		///////////////////////////////////////////////////////////////////////////
+		// wait for new work
+		// we will only do a real wait if jobs accumulated time was more
+		// than fMinTimeInJobExecution ms, to prevent system calls when we
+		// execute a massive number of small jobs
+		{
+			//CRY_PROFILE_REGION_WAITING(PROFILE_SYSTEM, "Wait - JobWorkerThread");
+
+			float fMSInJobExecution = static_cast<float>(nTicksInJobExecution * 1000.0f * frequency);
+			if (fMSInJobExecution > fMinTimeInJobExecution || !m_rSemaphore.TryGetJob())
+			{
+#if defined(JOB_SPIN_DURING_IDLE)
+				SetThreadPriority(nThreadID, THREAD_PRIORITY_IDLE);
+#endif
+				m_rSemaphore.WaitForNewJob(m_nId);
+#if defined(JOB_SPIN_DURING_IDLE)
+				SetThreadPriority(nThreadID, THREAD_PRIORITY_TIME_CRITICAL);
+#endif
+				nTicksInJobExecution = 0;
+			}
+		}
+
+		IF(m_bStop == true, 0)
+			break;		
+		
+		if (JobManager::SInfoBlock* pFallbackInfoBlock = JobManager::detail::PopFromFallbackJobList())
 		{
 			CRY_PROFILE_REGION(PROFILE_SYSTEM, "JobWorkerThread: Fallback");
 
@@ -294,30 +313,6 @@ void JobManager::ThreadBackEnd::CThreadBackEndWorkerThread::ThreadEntry()
 		}
 		else
 		{
-			///////////////////////////////////////////////////////////////////////////
-			// wait for new work
-			// we will only do a real wait if jobs accumulated time was more
-			// than fMinTimeInJobExecution ms, to prevent system calls when we
-			// execute a massive number of small jobs
-
-			//CRY_PROFILE_REGION_WAITING(PROFILE_SYSTEM, "Wait - JobWorkerThread");
-
-			float fMSInJobExecution = static_cast<float>(nTicksInJobExecution * 1000.0f * frequency);
-			if (fMSInJobExecution > fMinTimeInJobExecution || !m_rSemaphore.TryGetJob())
-			{
-#if defined(JOB_SPIN_DURING_IDLE)
-				SetThreadPriority(nThreadID, THREAD_PRIORITY_IDLE);
-#endif
-				m_rSemaphore.WaitForNewJob(m_nId);
-#if defined(JOB_SPIN_DURING_IDLE)
-				SetThreadPriority(nThreadID, THREAD_PRIORITY_TIME_CRITICAL);
-#endif
-				nTicksInJobExecution = 0;
-			}
-
-			IF (m_bStop == true, 0)
-				break;
-
 			///////////////////////////////////////////////////////////////////////////
 			// multiple steps to get a job of the queue
 			// 1. get our job slot index

@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -20,13 +20,14 @@ public:
 	virtual ~CEntityComponentAudio() override;
 
 	// IEntityComponent
-	virtual void         ProcessEvent(SEntityEvent& event) override;
+	virtual void         ProcessEvent(const SEntityEvent& event) override;
 	virtual void         Initialize() override;
 	virtual uint64       GetEventMask() const override;
 	virtual EEntityProxy GetProxyType() const override                    { return ENTITY_PROXY_AUDIO; }
 	virtual void         GameSerialize(TSerialize ser) override;
 	virtual bool         NeedGameSerialize() override                     { return false; }
 	virtual void         GetMemoryUsage(ICrySizer* pSizer) const override { pSizer->AddObject(this, sizeof(*this)); }
+	virtual void		 OnTransformChanged() override;
 	// ~IEntityComponent
 
 	// IEntityAudioComponent
@@ -66,7 +67,7 @@ private:
 
 	struct SAuxObjectWrapper
 	{
-		SAuxObjectWrapper(CryAudio::IObject* const _pIObject)
+		explicit SAuxObjectWrapper(CryAudio::IObject* const _pIObject)
 			: pIObject(_pIObject)
 			, offset(IDENTITY)
 		{}
@@ -90,13 +91,13 @@ private:
 
 	static AuxObjectPair s_nullAuxObjectPair;
 
-	void           OnListenerEnter(IEntity const* const pEntity);
+	void           OnListenerEnter(CEntity const* const pEntity);
 	void           OnListenerMoveNear(Vec3 const& closestPointToArea);
 	void           OnListenerMoveInside(Vec3 const& listenerPos);
-	void           OnListenerExclusiveMoveInside(IEntity const* const __restrict pEntity, IEntity const* const __restrict pAreaHigh, IEntity const* const __restrict pAreaLow, float const fade);
+	void           OnListenerExclusiveMoveInside(CEntity const* const __restrict pEntity, CEntity const* const __restrict pAreaHigh, CEntity const* const __restrict pAreaLow, float const fade);
 	void           OnMove();
 	AuxObjectPair& GetAudioAuxObjectPair(CryAudio::AuxObjectId const audioAuxObjectId);
-	void           SetEnvironmentAmountInternal(IEntity const* const pIEntity, float const amount) const;
+	void           SetEnvironmentAmountInternal(CEntity const* const pIEntity, float const amount) const;
 
 	// Function objects
 	struct SReleaseAudioProxy
@@ -145,7 +146,7 @@ private:
 
 	struct SStopFile
 	{
-		SStopFile(char const* const _szFile)
+		explicit SStopFile(char const* const _szFile)
 			: szFile(_szFile)
 		{}
 
@@ -215,7 +216,7 @@ private:
 
 	struct SSetOcclusionType
 	{
-		SSetOcclusionType(CryAudio::EOcclusionType const _occlusionType)
+		explicit SSetOcclusionType(CryAudio::EOcclusionType const _occlusionType)
 			: occlusionType(_occlusionType)
 		{}
 
@@ -249,7 +250,7 @@ private:
 
 	struct SSetCurrentEnvironments
 	{
-		SSetCurrentEnvironments(EntityId const entityId)
+		explicit SSetCurrentEnvironments(EntityId const entityId)
 			: m_entityId(entityId)
 		{}
 

@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "PowerOf2BlockPacker.h"
@@ -10,7 +10,7 @@ CPowerOf2BlockPacker::CPowerOf2BlockPacker(const uint32 dwLogWidth, const uint32
 
 	m_nUsedBlocks = 0;
 	m_pTexture = NULL;
-	m_fLastUsed = 0.0f;
+	m_timeLastUsed = 0.0f;
 
 	m_BlockBitmap.resize(m_dwWidth * m_dwHeight, 0xffffffff);
 }
@@ -51,8 +51,6 @@ uint32 CPowerOf2BlockPacker::GetBlockInfo(const uint32 dwBlockID, uint32& dwMinX
 
 void CPowerOf2BlockPacker::UpdateSize(int nW, int nH)
 {
-	assert(m_nUsedBlocks == 0);
-
 	m_dwWidth = nW;
 	m_dwHeight = nH;
 

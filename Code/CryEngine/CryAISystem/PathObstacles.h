@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 /********************************************************************
    -------------------------------------------------------------------------
@@ -28,6 +28,8 @@
 #endif
 
 #include <CryAISystem/IPathfinder.h>
+
+class CAIObject;
 
 typedef std::vector<Vec3> TVectorOfVectors;
 

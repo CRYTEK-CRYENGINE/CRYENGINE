@@ -1,3 +1,0 @@
-@echo off
-call "@CMAKE_GNUtoMS_BAT@"
-lib /machine:"@CMAKE_GNUtoMS_ARCH@" %*

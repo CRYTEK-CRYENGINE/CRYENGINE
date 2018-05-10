@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "XMLWriter.h"
@@ -126,7 +126,7 @@ void XMLWriter::WriteText(const char* format, ...)
 	va_list args;
 	va_start(args, format);
 	char buffer[40000];
-	_vsnprintf_s(buffer, sizeof(buffer), sizeof(buffer) - 1, format, args);
+	_vsnprintf(buffer, sizeof(buffer), format, args);
 	m_sink->Write(buffer);
 	va_end(args);
 }

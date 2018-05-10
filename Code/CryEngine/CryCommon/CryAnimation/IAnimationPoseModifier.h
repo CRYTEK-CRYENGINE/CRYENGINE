@@ -1,17 +1,6 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
-// -------------------------------------------------------------------------
-//  File name:   AnimationPoseModifier.h
-//  Version:     v1.00
-//  Created:     30/7/2009 by Ivo Frey
-//  Compilers:   Visual Studio.NET
-//  Description: CryAnimation interfaces
-// -------------------------------------------------------------------------
-//  History:
-//
-////////////////////////////////////////////////////////////////////////////
-#ifndef AnimationPoseModifier_h
-#define AnimationPoseModifier_h
+#pragma once
 
 #include <CryExtension/ICryUnknown.h>
 
@@ -170,6 +159,7 @@ struct IAnimationPoseData
 
 //
 
+//! Interface used for modifying the animated pose of a character, for example for Inverse Kinematics 
 struct IAnimationPoseModifier :
 	public ICryUnknown
 {
@@ -211,6 +201,9 @@ DECLARE_SHARED_POINTERS(IAnimationPoseModifierSetup);
 
 //
 
+//! Animation pose modifier that allows for overriding the orientation of individual joints
+//! \par Example
+//! \include CryAnimation/Examples/OperatorQueue.cpp
 struct IAnimationOperatorQueue :
 	public IAnimationPoseModifier
 {
@@ -241,8 +234,11 @@ struct IAnimationOperatorQueue :
 
 DECLARE_SHARED_POINTERS(IAnimationOperatorQueue);
 
-//
-
+// Pose modifier that allows for directing a joint chain towards a target location
+//! \par Example (Look-IK)
+//! \include CryAnimation/Examples/LookIK.cpp
+//! \par Example (Aim-IK)
+//! \include CryAnimation/Examples/AimIK.cpp
 struct IAnimationPoseBlenderDir :
 	public IAnimationPoseModifier
 {
@@ -250,6 +246,7 @@ struct IAnimationPoseBlenderDir :
 
 	// <interfuscator:shuffle>
 	virtual void SetState(bool state) = 0;
+	//! Location of the target we want to aim at, in world coordinates
 	virtual void SetTarget(const Vec3& target) = 0;
 	virtual void SetLayer(uint32 nLayer) = 0;
 	virtual void SetFadeoutAngle(f32 angleRadians) = 0;
@@ -279,6 +276,7 @@ DECLARE_SHARED_POINTERS(IAnimationGroundAlignment);
 
 //
 
+//! Used to process more complex pose modifiers such as feet ground alignment.
 struct IAnimationPoseAlignerChain :
 	public IAnimationPoseModifier
 {
@@ -318,6 +316,7 @@ DECLARE_SHARED_POINTERS(IAnimationPoseAlignerChain);
 
 //
 
+//! Used to support blending from one state (such as ragdoll) to an animated pose
 struct IAnimationPoseMatching :
 	public IAnimationPoseModifier
 {
@@ -350,5 +349,3 @@ struct IAnimationPoseAligner :
 };
 
 DECLARE_SHARED_POINTERS(IAnimationPoseAligner);
-
-#endif // AnimationPoseModifier_h

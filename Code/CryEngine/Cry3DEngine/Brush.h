@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #ifndef _3DENGINE_BRUSH_H_
 #define _3DENGINE_BRUSH_H_
@@ -27,7 +27,7 @@ public:
 	virtual bool                HasChanged();
 	virtual void                Render(const struct SRendParams& EntDrawParams, const SRenderingPassInfo& passInfo) final;
 	virtual CLodValue           ComputeLod(int wantedLod, const SRenderingPassInfo& passInfo) final;
-	void                        Render(const CLodValue& lodValue, const SRenderingPassInfo& passInfo, SSectorTextureSet* pTerrainTexInfo, PodArray<CDLight*>* pAffectingLights);
+	void                        Render(const CLodValue& lodValue, const SRenderingPassInfo& passInfo, SSectorTextureSet* pTerrainTexInfo, PodArray<SRenderLight*>* pAffectingLights);
 
 	virtual struct IStatObj*    GetEntityStatObj(unsigned int nSubPartId = 0, Matrix34A* pMatrix = NULL, bool bReturnOnlyVisible = false) final;
 
@@ -90,7 +90,7 @@ public:
 	void CalcBBox();
 	void UpdatePhysicalMaterials(int bThreadSafe = 0);
 
-	virtual void OnRenderNodeBecomeVisibleAsync(const SRenderingPassInfo& passInfo) final;
+	virtual void OnRenderNodeBecomeVisibleAsync(SRenderNodeTempData* pTempData, const SRenderingPassInfo& passInfo) final;
 
 	bool HasDeformableData() const { return m_pDeform != NULL; }
 

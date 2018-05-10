@@ -1,15 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
-
-// -------------------------------------------------------------------------
-//  File name:   EntityObject.cpp
-//  Version:     v1.00
-//  Created:     18/5/2004 by Timur.
-//  Compilers:   Visual Studio.NET 2003
-//  Description:
-// -------------------------------------------------------------------------
-//  History:
-//
-////////////////////////////////////////////////////////////////////////////
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "stdafx.h"
 #include "EntitySlot.h"
@@ -51,7 +40,6 @@ void CEntitySlot::Clear()
 	m_pMaterial = nullptr;
 	SetFlags(0);
 	m_nSubObjHideMask = 0;
-	m_internalFlags = 0;
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -161,8 +149,7 @@ void CEntitySlot::UpdateRenderNode(bool bForceRecreateNode)
 			ICharacterRenderNode* pCharacterRenderNode = static_cast<ICharacterRenderNode*>(gEnv->p3DEngine->CreateRenderNode(eERType_Character));
 			pCharacterRenderNode->SetOwnerEntity(m_pEntity);
 			pCharacterRenderNode->SetCharacter(GetCharacter());
-			pCharacterRenderNode->SetCharacterRenderOffset(QuatTS(m_localTM));
-			pCharacterRenderNode->SetMatrix(m_pEntity->m_worldTM);
+			pCharacterRenderNode->SetMatrix(m_worldTM);
 			m_pRenderNode = pCharacterRenderNode;
 		}
 	}
@@ -181,7 +168,7 @@ void CEntitySlot::UpdateRenderNode(bool bForceRecreateNode)
 
 		{
 			uint32 entityFlags = m_pEntity->GetFlags();
-			SetRenderNodeFlags(renderNodeFlags, ERF_DYNAMIC_DISTANCESHADOWS, 0 != (m_pEntity->m_flagsExtended & ENTITY_FLAG_EXTENDED_DYNAMIC_DISTANCE_SHADOWS));
+			SetRenderNodeFlags(renderNodeFlags, ERF_DYNAMIC_DISTANCESHADOWS, 0 != (m_pEntity->m_flags & ENTITY_FLAG_DYNAMIC_DISTANCE_SHADOWS));
 
 			SetRenderNodeFlags(renderNodeFlags, ERF_CASTSHADOWMAPS, (0 != (entityFlags & ENTITY_FLAG_CASTSHADOW)) || (0 != (GetFlags() & ENTITY_SLOT_CAST_SHADOW)));
 			SetRenderNodeFlags(renderNodeFlags, ERF_GOOD_OCCLUDER, 0 != (entityFlags & ENTITY_FLAG_GOOD_OCCLUDER));
@@ -214,15 +201,7 @@ void CEntitySlot::UpdateRenderNode(bool bForceRecreateNode)
 		m_pRenderNode->SetRndFlags(renderNodeFlags);
 
 		// Update render node location
-		if (!GetCharacter())
-		{
-			m_pRenderNode->SetMatrix(m_worldTM);
-		}
-		else
-		{
-			// For characters local matrix is not used
-			m_pRenderNode->SetMatrix(m_pEntity->m_worldTM);
-		}
+		m_pRenderNode->SetMatrix(m_worldTM);
 
 		if (!m_bRegisteredRenderNode)
 		{
@@ -276,27 +255,13 @@ void CEntitySlot::UpdateRenderNode(bool bForceRecreateNode)
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CEntitySlot::OnXForm(int nWhyFlags)
+void CEntitySlot::OnXForm(EntityTransformationFlagsMask transformReasons)
 {
 	ComputeWorldTransform();
 
 	if (m_pRenderNode)
 	{
-		if (!GetCharacter())
-		{
-			m_pRenderNode->SetMatrix(m_worldTM);
-		}
-		else
-		{
-			// For characters local matrix is not used
-			m_pRenderNode->SetMatrix(m_pEntity->m_worldTM);
-		}
-
-		if (nWhyFlags & ENTITY_XFORM_EDITOR)
-		{
-			// When entity moved in editor,Force shadow cache re-compute
-			gEnv->p3DEngine->OnObjectModified(m_pRenderNode, m_pRenderNode->GetRndFlags());
-		}
+		m_pRenderNode->SetMatrix(m_worldTM);
 	}
 }
 
@@ -353,7 +318,7 @@ bool CEntitySlot::IsRendered() const
 	else if (m_pRenderNode)
 	{
 		// If node have temp data allocated for it, it is considered to be rendered by the 3dEngine
-		if (m_pRenderNode->m_pTempData)
+		if (m_pRenderNode->m_pTempData.load())
 			return true;
 
 		if (std::abs((int)m_pRenderNode->GetDrawFrame() - (int)gEnv->nMainFrameID) < 3)
@@ -420,12 +385,7 @@ void CEntitySlot::SetLocalTM(const Matrix34& localTM)
 	m_localTM = localTM;
 	ComputeWorldTransform();
 
-	if (GetCharacter() && m_pRenderNode)
-	{
-		ICharacterRenderNode* pCharacterRenderNode = static_cast<ICharacterRenderNode*>(m_pRenderNode);
-		pCharacterRenderNode->SetCharacterRenderOffset(QuatTS(m_localTM));
-	}
-	OnXForm(0);
+	OnXForm(EntityTransformationFlagsMask());
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -459,10 +419,6 @@ void CEntitySlot::GetCameraSpacePos(Vec3& cameraSpacePos)
      rParams.dwFObjFlags |= FOB_RENDER_AFTER_POSTPROCESSING;
      }
 
-   #ifdef SEG_WORLD
-     rParams.nCustomFlags |= (1 << (COB_SW_SHIFT + m_pEntity->GetSwObjDebugFlag()));
-   #endif // SEG_WORLD
-
    return CLodValue(wantedLod);
    }
 
@@ -482,10 +438,6 @@ void CEntitySlot::GetCameraSpacePos(Vec3& cameraSpacePos)
      {
      rParams.dwFObjFlags |= FOB_RENDER_AFTER_POSTPROCESSING;
      }
-
-   #ifdef SEG_WORLD
-     rParams.nCustomFlags |= (1 << (COB_SW_SHIFT + m_pEntity->GetSwObjDebugFlag()));
-   #endif // SEG_WORLD
 
      //////////////////////////////////////////////////////////////////////////
 
@@ -716,7 +668,7 @@ void CEntitySlot::GetSlotInfo(SEntitySlotInfo& slotInfo) const
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CEntitySlot::SetAsLight(const CDLight& lightData, uint16 layerId)
+void CEntitySlot::SetAsLight(const SRenderLight& lightData, uint16 layerId)
 {
 	if (m_pRenderNode && m_pRenderNode->GetRenderNodeType() != eERType_Light)
 	{
@@ -732,9 +684,13 @@ void CEntitySlot::SetAsLight(const CDLight& lightData, uint16 layerId)
 	pLightNode->SetLayerId(layerId);
 	pLightNode->SetLightProperties(lightData);
 
-	CDLight& newLightData = pLightNode->GetLightProperties();
+	SRenderLight& newLightData = pLightNode->GetLightProperties();
 	newLightData.m_sName = m_pEntity->GetName(); // For debugging only.
 	newLightData.m_nEntityId = m_pEntity->GetId();
+
+	auto lightNodeMatrix = pLightNode->GetMatrix();
+	newLightData.SetPosition(lightNodeMatrix.GetTranslation());
+	newLightData.SetMatrix(lightNodeMatrix);
 
 	m_flags |= ENTITY_SLOT_RENDER;
 

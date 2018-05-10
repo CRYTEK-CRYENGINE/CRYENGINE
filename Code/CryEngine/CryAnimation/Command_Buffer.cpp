@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "stdafx.h"
 #include "Command_Buffer.h"
@@ -21,6 +21,7 @@ bool CState::Initialize(CCharInstance* pInstance, const QuatTS& location)
 
 	m_location = location;
 
+	m_pFallbackPoseData = Console::GetInst().ca_ResetCulledJointsToBindPose ? &pInstance->m_SkeletonPose.GetPoseDataDefault() : &pInstance->m_SkeletonPose.GetPoseData();
 	m_pPoseData = pInstance->m_SkeletonPose.GetPoseDataWriteable();
 
 	m_jointCount = pInstance->m_pDefaultSkeleton->GetJointCount();
@@ -248,6 +249,14 @@ void CBuffer::Execute()
 
 void CBuffer::DebugDraw()
 {
+	if (Console::GetInst().ca_DebugCommandBufferFilter)
+	{
+		if ((strcmp(Console::GetInst().ca_DebugCommandBufferFilter, "") != 0) && (strstr(m_state.m_pInstance->m_strFilePath, Console::GetInst().ca_DebugCommandBufferFilter) == nullptr))
+		{
+			return;
+		}
+	}
+
 	float charsize = 1.4f;
 	uint32 yscan = 14;
 	float fColor2[4] = { 1, 0, 1, 1 };

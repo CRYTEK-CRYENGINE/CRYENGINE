@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 // These are helper classes for containing the data from the generic overwrite dialog.
 
@@ -67,3 +67,4 @@ private:
 	//////////////////////////////////////////////////////////////////////////
 };
 #endif // UserOptions_h__
+

@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #ifndef __MNM_H
 #define __MNM_H
@@ -30,6 +30,48 @@
 
 namespace MNM
 {
+
+//! Structure for storing agent setting used for NavMesh generation
+struct SAgentSettings
+{
+	SAgentSettings()
+		: radius(4)
+		, height(18)
+		, climbableHeight(4)
+		, maxWaterDepth(8)
+		, climbableInclineGradient(0.0f)
+		, climbableStepRatio(0.0f)
+	{}
+
+	//! Returns horizontal distance from any feature in voxels that could be affected during the generation process
+	size_t GetPossibleAffectedSizeH() const
+	{
+		// TODO pavloi 2016.03.16: inclineTestCount = (height + 1) comes from FilterWalkable
+		const size_t inclineTestCount = climbableHeight + 1;
+		return radius + inclineTestCount + 1;
+	}
+
+	//! Returns vertical distance from any feature in voxels that could be affected during the generation process
+	size_t GetPossibleAffectedSizeV() const
+	{
+		// TODO pavloi 2016.03.16: inclineTestCount = (height + 1) comes from FilterWalkable
+		const size_t inclineTestCount = climbableHeight + 1;
+		const size_t maxZDiffInWorstCase = inclineTestCount * climbableHeight;
+
+		// TODO pavloi 2016.03.16: agent.height is not applied here, because it's usually applied additionally in other places.
+		// Or such places just don't care.
+		// +1 just in case, I'm not fully tested this formula.
+		return maxZDiffInWorstCase + 1;
+	}
+
+	uint32 radius : 8; //!< Agent radius in voxels count
+	uint32 height : 8; //!< Agent height in voxels count
+	uint32 climbableHeight : 8; //!< Maximum step height that the agent can still walk through in voxels count
+	uint32 maxWaterDepth : 8; //!< Maximum walkable water depth in voxels count
+
+	float  climbableInclineGradient; //!< The steepness of a surface to still be climbable
+	float  climbableStepRatio;
+};
 
 struct WayTriangleData
 {
@@ -119,6 +161,12 @@ protected:
 	AStarContention(float frameTimeQuota = 0.001f)
 	{
 		m_frameTimeQuota.SetSeconds(frameTimeQuota);
+
+		m_consumedFrameTime.SetValue(0);
+		m_currentStepStartTime.SetValue(0);
+		m_currentSearchTime.SetValue(0);
+		m_currentSearchSteps = 0;
+
 		ResetContentionStats();
 	}
 
@@ -160,17 +208,12 @@ protected:
 
 	void ResetContentionStats()
 	{
-		m_consumedFrameTime.SetValue(0);
-		m_currentStepStartTime.SetValue(0);
-
 		m_totalSearchCount = 0;
 
-		m_currentSearchSteps = 0;
 		m_totalSearchSteps = 0;
 		m_peakSearchSteps = 0;
 
 		m_totalComputationTime = 0.0f;
-		m_currentSearchTime.SetValue(0);
 		m_peakSearchTime = 0.0f;
 	}
 
@@ -337,7 +380,11 @@ struct AStarOpenList
 
 	void Reset()
 	{
-		ResetContentionStats();
+		m_consumedFrameTime.SetValue(0);
+		m_currentStepStartTime.SetValue(0);
+		m_currentSearchTime.SetValue(0);
+
+		m_currentSearchSteps = 0;
 
 		stl::free_container(m_openList);
 		stl::free_container(m_nodeLookUp);

@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 // -------------------------------------------------------------------------
 //  File name:   Statoscope.cpp
@@ -933,23 +933,14 @@ struct SParticlesDG : public IStatoscopeDataGroup
 
 	virtual void Write(IStatoscopeFrameRecord& fr)
 	{
-		SParticleCounts particleCounts;
-		gEnv->pParticleManager->GetCounts(particleCounts);
+		SParticleCounts stats;
+		gEnv->pParticleManager->GetCounts(stats);
 
 		float fScreenPix = (float)(gEnv->pRenderer->GetWidth() * gEnv->pRenderer->GetHeight());
-		fr.AddValue(particleCounts.ParticlesRendered);
-		fr.AddValue(particleCounts.ParticlesActive);
-		fr.AddValue(particleCounts.ParticlesAlloc);
-		fr.AddValue(particleCounts.PixelsRendered / fScreenPix);
-		fr.AddValue(particleCounts.PixelsProcessed / fScreenPix);
-		fr.AddValue(particleCounts.EmittersRendered);
-		fr.AddValue(particleCounts.EmittersActive);
-		fr.AddValue(particleCounts.EmittersAlloc);
-		fr.AddValue(particleCounts.ParticlesReiterate);
-		fr.AddValue(particleCounts.ParticlesReject);
-		fr.AddValue(particleCounts.ParticlesCollideTest);
-		fr.AddValue(particleCounts.ParticlesCollideHit);
-		fr.AddValue(particleCounts.ParticlesClip);
+		stats.pixels.updated  /= fScreenPix;
+		stats.pixels.rendered /= fScreenPix;
+		for (auto stat: stats)
+			fr.AddValue(int(stat));
 	}
 };
 
@@ -960,7 +951,7 @@ struct SWavicleDG : public IStatoscopeDataGroup
 		return SDescription(
 			'P', "Wavicle", "['/Wavicle/'"
 			"(int emittersAlive)(int emittersUpdated)(int emittersRendererd)"
-			"(int componentAlive)(int componentUpdated)(int componentRendered)"
+			"(int componentsAlive)(int componentsUpdated)(int componentsRendered)"
 			"(int particlesAllocated)(int particlesAlive)(int particlesUpdated)(int particlesRendered)(int particlesClipped)"
 			"]");
 	}
@@ -972,17 +963,8 @@ struct SWavicleDG : public IStatoscopeDataGroup
 		SParticleStats stats;
 		GetIParticleSystem()->GetStats(stats);
 		
-		fr.AddValue(int(stats.m_emittersAlive));
-		fr.AddValue(int(stats.m_emittersUpdated));
-		fr.AddValue(int(stats.m_emittersRendererd));
-		fr.AddValue(int(stats.m_runtimesAlive));
-		fr.AddValue(int(stats.m_runtimesUpdated));
-		fr.AddValue(int(stats.m_runtimesRendered));
-		fr.AddValue(int(stats.m_particlesAllocated));
-		fr.AddValue(int(stats.m_particlesAlive));
-		fr.AddValue(int(stats.m_particlesUpdated));
-		fr.AddValue(int(stats.m_particlesRendered));
-		fr.AddValue(int(stats.m_particlesClipped));
+		for (auto stat: stats)
+			fr.AddValue(int(stat));
 	}
 };
 
@@ -995,8 +977,8 @@ struct SLocationDG : public IStatoscopeDataGroup
 
 	virtual void Write(IStatoscopeFrameRecord& fr)
 	{
-		Matrix33 m = Matrix33(gEnv->pRenderer->GetCamera().GetMatrix());
-		Vec3 pos = gEnv->pRenderer->GetCamera().GetPosition();
+		Matrix33 m = Matrix33(GetISystem()->GetViewCamera().GetMatrix());
+		Vec3 pos = GetISystem()->GetViewCamera().GetPosition();
 		Ang3 rot = RAD2DEG(Ang3::GetAnglesXYZ(m));
 
 		fr.AddValue(pos.x);
@@ -1037,8 +1019,8 @@ struct SPerCGFGPUProfilersDG : public IStatoscopeDataGroup
 
 		IRenderer::RNDrawcallsMapMesh& drawCallsInfo = gEnv->pRenderer->GetDrawCallsInfoPerMesh();
 
-		IRenderer::RNDrawcallsMapMeshItor pEnd = drawCallsInfo.end();
-		IRenderer::RNDrawcallsMapMeshItor pItor = drawCallsInfo.begin();
+		auto pEnd = drawCallsInfo.end();
+		auto pItor = drawCallsInfo.begin();
 
 		string sPathName;
 		sPathName.reserve(64);
@@ -1145,8 +1127,8 @@ struct SPerCGFGPUProfilersDG : public IStatoscopeDataGroup
 		IRenderer* pRenderer = gEnv->pRenderer;
 		pRenderer->CollectDrawCallsInfo(true);
 		IRenderer::RNDrawcallsMapMesh& drawCallsInfo = gEnv->pRenderer->GetDrawCallsInfoPerMesh();
-		IRenderer::RNDrawcallsMapMeshItor pEnd = drawCallsInfo.end();
-		IRenderer::RNDrawcallsMapMeshItor pItor = drawCallsInfo.begin();
+		auto pEnd = drawCallsInfo.end();
+		auto pItor = drawCallsInfo.begin();
 
 		//Per RenderNode Stats
 		for (; pItor != pEnd; ++pItor)
@@ -1808,7 +1790,7 @@ CStatoscope::CStatoscope()
 
 	gEnv->pSystem->GetISystemEventDispatcher()->RegisterListener(this, "CStatoscope");
 
-	CryCreateDirectory("%USER%/statoscope");
+	gEnv->pCryPak->MakeDir("%USER%/statoscope");
 
 	m_pServer = new CStatoscopeServer(this);
 
@@ -1828,7 +1810,7 @@ CStatoscope::~CStatoscope()
 
 static char* Base64Encode(const uint8* buffer, int len)
 {
-	FRAME_PROFILER("CStatoscope::Base64Encode", gEnv->pSystem, PROFILE_SYSTEM);
+	CRY_PROFILE_REGION(PROFILE_SYSTEM, "CStatoscope::Base64Encode");
 
 	static const char base64Dict[64] = {
 		'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P',
@@ -1922,7 +1904,7 @@ void CStatoscope::UnregisterDataGroup(IStatoscopeDataGroup* pDG)
 
 void CStatoscope::Tick()
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_SYSTEM);
+	CRY_PROFILE_FUNCTION(PROFILE_SYSTEM);
 
 	if (m_pStatoscopeEnabledCVar->GetIVal() != 0)
 	{
@@ -2138,10 +2120,14 @@ void CStatoscope::CloseTelemetryStream()
 
 void CStatoscope::PrepareScreenShot()
 {
-	const int widthDelta = m_lastScreenWidth - gEnv->pRenderer->GetWidth();
+	const int widthDelta  = m_lastScreenWidth  - gEnv->pRenderer->GetWidth();
 	const int heightDelta = m_lastScreenHeight - gEnv->pRenderer->GetHeight();
-	m_lastScreenWidth = gEnv->pRenderer->GetWidth();
+
+	m_lastScreenWidth  = gEnv->pRenderer->GetWidth();
 	m_lastScreenHeight = gEnv->pRenderer->GetHeight();
+
+	CRY_ASSERT(gEnv->pRenderer->GetWidth () == gEnv->pRenderer->GetOverlayWidth ());
+	CRY_ASSERT(gEnv->pRenderer->GetHeight() == gEnv->pRenderer->GetOverlayHeight());
 
 	const int shrunkenWidthNotAligned = OnGetFrameWidth();
 	const int shrunkenWidth = shrunkenWidthNotAligned - (shrunkenWidthNotAligned % 4);
@@ -2204,7 +2190,7 @@ uint8* CStatoscope::ProcessScreenShot()
 
 void CStatoscope::AddFrameRecord(bool bOutputHeader)
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_SYSTEM);
+	CRY_PROFILE_FUNCTION(PROFILE_SYSTEM);
 
 	float currentTime = gEnv->pTimer->GetAsyncTime().GetSeconds();
 
@@ -3018,7 +3004,7 @@ void CStatoscopeServer::SendData(const char* buffer, int bufferSize)
 		return;
 	}
 
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_SYSTEM);
+	CRY_PROFILE_FUNCTION(PROFILE_SYSTEM);
 
 	//float startTime = gEnv->pTimer->GetAsyncCurTime();
 	//int origBufferSize = bufferSize;
@@ -3175,7 +3161,7 @@ void CDataWriter::WriteData(const void* vpData, int vsize)
 				return;
 			}
 
-			Sleep(1);
+			CrySleep(1);
 		}
 		while (true);
 

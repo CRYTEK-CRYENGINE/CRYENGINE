@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "Cryasset.h"
@@ -56,17 +56,23 @@ bool CAsset::Save(const string& filename)
 {
 	const string tmpFilename = filename + ".$tmp$";
 
-	// Force remove of the read only flag.
-	SetFileAttributes(filename.c_str(), FILE_ATTRIBUTE_ARCHIVE);
+	wstring wideExistingFile, wideFile;
+	Unicode::Convert(wideExistingFile, tmpFilename);
+	Unicode::Convert(wideFile, filename);
 
-	if (!m_xml->saveToFile(tmpFilename))
+	// Force remove of the read only flag.
+	SetFileAttributesW(wideFile.c_str(), FILE_ATTRIBUTE_ARCHIVE);
+
+	string correctedOutputName;
+	Unicode::Convert<Unicode::eEncoding_UTF8, Unicode::eEncoding_UTF16>(correctedOutputName, wideExistingFile);
+
+	if (!m_xml->saveToFile(correctedOutputName))
 	{
 		return false;
 	}
 
-	if (!MoveFileExA(tmpFilename.c_str(), filename.c_str(), MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH))
+	if (!MoveFileExW(wideExistingFile, wideFile, MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH))
 	{
-
 		RCLogError("Can't rename '%s' to '%s'. Error code: %s.", tmpFilename.c_str(), filename.c_str(), Private_Cryasset::GetLastErrorString().c_str());
 		remove(tmpFilename.c_str());
 		return false;
@@ -113,7 +119,10 @@ bool CAsset::IsXml(const string& filename)
 {
 	typedef std::unique_ptr<FILE, int(*)(FILE*)> file_ptr;
 
-	file_ptr file(fopen(filename.c_str(), "rb"), fclose);
+	wstring widePath;
+	Unicode::Convert(widePath, filename);
+
+	file_ptr file(_wfopen(widePath.c_str(), L"rb"), fclose);
 
 	if (!file.get())
 		return false;

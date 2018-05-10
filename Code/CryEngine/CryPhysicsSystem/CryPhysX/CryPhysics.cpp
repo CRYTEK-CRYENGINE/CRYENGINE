@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 
@@ -28,6 +28,10 @@ public:
 		case ESYSTEM_EVENT_LEVEL_LOAD_END:
 			break;
 		case ESYSTEM_EVENT_3D_POST_RENDERING_END:
+			break;
+		case ESYSTEM_EVENT_FAST_SHUTDOWN:
+		case ESYSTEM_EVENT_FULL_SHUTDOWN:
+			cpx::g_cryPhysX.DisconnectPhysicsDebugger();
 			break;
 		}
 	}

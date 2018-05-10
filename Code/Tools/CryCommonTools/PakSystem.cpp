@@ -1,9 +1,11 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "stdafx.h"
 #include "PakSystem.h"
 #include "PathHelpers.h"
 #include "StringHelpers.h"
+
+#include <CryString/CryPath.h>
 
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>  // WIN32_FIND_DATA
@@ -39,7 +41,7 @@ PakSystemFile* PakSystem::Open(const char* a_path, const char* a_mode)
 	}
 
 	string zipPath = normalPath + zipExt;
-	string filename = PathHelpers::GetFilename(normalPath);
+	string filename = PathUtil::GetFile(normalPath);
 
 	if (!normalPath.empty() && normalPath[0] == '@')
 	{
@@ -99,7 +101,7 @@ PakSystemFile* PakSystem::Open(const char* a_path, const char* a_mode)
 		{
 			dirToSearch = PathHelpers::GetDirectory(dirToSearch);
 
-			const string search = PathHelpers::Join(dirToSearch, "*.pak");
+			const string search = PathUtil::Make(dirToSearch, string("*.pak"));
 
 			WIN32_FIND_DATAA FindFileData;
 
@@ -109,16 +111,16 @@ PakSystemFile* PakSystem::Open(const char* a_path, const char* a_mode)
 				do 
 				{
 					const string foundFilename(FindFileData.cFileName);
-					if (StringHelpers::EqualsIgnoreCase(PathHelpers::FindExtension(foundFilename), "pak"))
+					if (StringHelpers::EqualsIgnoreCase(PathUtil::GetExt(foundFilename.c_str()), string("pak")))
 					{
-						foundFileCountainer.push_back(PathHelpers::Join(dirToSearch, foundFilename));
+						foundFileCountainer.push_back(PathUtil::Make(dirToSearch, foundFilename));
 					}
 				} while (FindNextFileA(hFind, &FindFileData) != 0);
 
 				FindClose(hFind);
 			}
 
-			if (PathHelpers::GetFilename(dirToSearch).empty())
+			if (PathUtil::GetFile(dirToSearch).empty())
 			{
 				// We've reached the top of the path
 				break;
@@ -133,7 +135,7 @@ PakSystemFile* PakSystem::Open(const char* a_path, const char* a_mode)
 
 			// construct filename by removing path to zip from path to filename
 			string pathToFile = PathHelpers::GetDirectory( string( normalPath ) );
-			string pureFileName = PathHelpers::GetFilename( string( normalPath ) );
+			string pureFileName = PathUtil::GetFile( string( normalPath ) );
 			if (pathToFile.length() != pathToZip.length() && pathToZip.length() > 0)
 			{
 				pathToFile = pathToFile.substr( pathToZip.length() + 1 );

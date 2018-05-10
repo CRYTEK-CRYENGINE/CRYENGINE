@@ -27,4 +27,8 @@ if (WIN32 OR WIN64)
 		/wd4267 # 'initializing': conversion from 'size_t' to 'uint32_t', possible loss of data
 		/wd4244 # '=': conversion from '__int64' to 'uint32_t', possible loss of data
 	)
+elseif(LINUX)
+	target_compile_options(${THIS_PROJECT} PRIVATE
+		-Wno-return-type
+	)
 endif()

@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "GeneratorBlueprint.h"
@@ -89,6 +89,33 @@ namespace UQS
 						Shared::CUqsString guidAsString;
 						Shared::Internal::CGUIDHelper::ToString(generatorGUID, guidAsString);
 						pSE->AddErrorMessage("Unknown GeneratorFactory: GUID = %s, name = '%s'", guidAsString.c_str(), szGeneratorName);
+					}
+					return false;
+				}
+			}
+
+			//
+			// if the generator expects shuttled items of a certain type, then make sure the query will store such items at runtime on the blackboard
+			//
+
+			if (const Shared::CTypeInfo* pExpectedShuttleType = m_pGeneratorFactory->GetTypeOfShuttledItemsToExpect())
+			{
+				if (const Shared::CTypeInfo* pTypeOfPossiblyShuttledItems = queryBlueprintForGlobalParamChecking.GetTypeOfShuttledItemsToExpect())
+				{
+					if (*pExpectedShuttleType != *pTypeOfPossiblyShuttledItems)
+					{
+						if (DataSource::ISyntaxErrorCollector* pSE = source.GetSyntaxErrorCollector())
+						{
+							pSE->AddErrorMessage("Generator '%s' expects the shuttled items to be of type '%s', but they are actually of type '%s'", szGeneratorName, pExpectedShuttleType->name(), pTypeOfPossiblyShuttledItems->name());
+						}
+						return false;
+					}
+				}
+				else
+				{
+					if (DataSource::ISyntaxErrorCollector* pSE = source.GetSyntaxErrorCollector())
+					{
+						pSE->AddErrorMessage("Generator '%s' expects shuttled items, but the query does not support shuttled items in this context", szGeneratorName);
 					}
 					return false;
 				}

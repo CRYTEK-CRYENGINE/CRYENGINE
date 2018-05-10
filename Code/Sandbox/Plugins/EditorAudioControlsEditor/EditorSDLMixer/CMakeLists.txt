@@ -6,20 +6,32 @@ start_sources()
 sources_platform(ALL)
 add_sources("EditorSDLMixer_uber_0.cpp"
 	SOURCE_GROUP "Root"
-		"AudioSystemControl_sdlmixer.cpp"
-		"AudioSystemControl_sdlmixer.h"
-		"AudioSystemEditor_sdlmixer.cpp"
-		"AudioSystemEditor_sdlmixer.h"
+		"Impl.cpp"
+		"Impl.h"
+		"Item.cpp"
+		"Item.h"
 		"main.cpp"
-		"SDLMixerProjectLoader.h"
-		"SDLMixerProjectLoader.cpp"
-		"StdAfx.h"
+		"ProjectLoader.cpp"
+		"ProjectLoader.h"
+		"Settings.cpp"
+		"Settings.h"
 		"StdAfx.cpp"
+		"StdAfx.h"
+	SOURCE_GROUP "Connections"
+		"BaseConnection.cpp"
+		"BaseConnection.h"
+		"EventConnection.cpp"
+		"EventConnection.h"
+		"ParameterConnection.cpp"
+		"ParameterConnection.h"
+		"StateConnection.cpp"
+		"StateConnection.h"
 )
 
 end_sources()
 #END-FILE-LIST
 
-CreateDynamicModule(EditorCryAudioImplSDLMixer SOLUTION_FOLDER "Sandbox/Plugins/EditorAudioControlsEditor/Impl" OUTDIR EditorPlugins/ace)
-target_include_directories(${THIS_PROJECT} PRIVATE ../common GeneratedFiles)
-target_compile_definitions(${THIS_PROJECT} PRIVATE -DNOT_USE_CRY_MEMORY_MANAGER -DPLUGIN_EXPORTS)
+CryEditorPlugin(EditorCryAudioImplSDLMixer SOLUTION_FOLDER "Sandbox/Plugins/EditorAudioControlsEditor/Impl" OUTDIR EditorPlugins/ace)
+target_include_directories(${THIS_PROJECT} PRIVATE ../common "${CRYENGINE_DIR}/Code/CryEngine/CryAudioSystem/implementations")
+target_compile_definitions(${THIS_PROJECT} PRIVATE -DNOT_USE_CRY_MEMORY_MANAGER -DPLUGIN_EXPORTS -DUSE_BACKWARDS_COMPATIBILITY)
+

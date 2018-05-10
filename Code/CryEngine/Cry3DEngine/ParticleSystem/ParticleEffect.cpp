@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 // -------------------------------------------------------------------------
 //  Created:     23/09/2014 by Filipe amim
@@ -8,15 +8,12 @@
 ////////////////////////////////////////////////////////////////////////////
 
 #include "StdAfx.h"
+#include "ParticleEffect.h"
+#include "ParticleSystem.h"
 #include <CrySerialization/STL.h>
 #include <CrySerialization/IArchive.h>
 #include <CrySerialization/SmartPtr.h>
 #include <CryParticleSystem/ParticleParams.h>
-#include "ParticleEffect.h"
-#include "ParticleEmitter.h"
-#include "ParticleFeature.h"
-
-CRY_PFX2_DBG
 
 namespace pfx2
 {
@@ -27,6 +24,7 @@ namespace pfx2
 CParticleEffect::CParticleEffect()
 	: m_editVersion(0)
 	, m_dirty(true)
+	, m_substitutedPfx1(false)
 	, m_numRenderObjects(0)
 {
 	m_pAttributes = TAttributeTablePtr(new CAttributeTable);
@@ -39,48 +37,79 @@ cstr CParticleEffect::GetName() const
 
 void CParticleEffect::Compile()
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_PARTICLE);
+	CRY_PFX2_PROFILE_DETAIL;
 
 	if (!m_dirty)
 		return;
 
 	m_numRenderObjects = 0;
-	m_attributeInstance.Reset(m_pAttributes, EAttributeScope::PerEffect);
-	for (size_t i = 0; i < m_components.size(); ++i)
+	m_environFlags = 0;
+	for (auto& component : m_components)
 	{
-		m_components[i]->m_pEffect = this;
-		m_components[i]->m_componentId = i;
-		m_components[i]->SetChanged();
-		m_components[i]->m_componentParams.Reset();
-		m_components[i]->PreCompile();
+		component->m_pEffect = this;
+		component->SetChanged();
+		component->PreCompile();
 	}
 	for (auto& component : m_components)
 		component->ResolveDependencies();
+
+	Sort();
+
+	uint id = 0;
+	MainPreUpdate.clear();
 	for (auto& component : m_components)
+	{
+		component->m_componentId = id++;
 		component->Compile();
+		for (auto feature : component->MainPreUpdate)
+			MainPreUpdate.push_back( {component, feature} );
+	}
 	for (auto& component : m_components)
 		component->FinalizeCompile();
 
 	m_dirty = false;
 }
 
-TComponentId CParticleEffect::FindComponentIdByName(const char* name) const
+void CParticleEffect::Sort()
 {
-	const auto it = std::find_if(m_components.begin(), m_components.end(), [name](TComponentPtr pComponent)
+	struct SortedComponents: TComponents
 	{
-		if (!pComponent)
-			return false;
-		return strcmp(pComponent->GetName(), name) == 0;
-	});
-	if (it == m_components.end())
-		return gInvalidId;
-	return TComponentId(it - m_components.begin());
+		SortedComponents(const TComponents& src)
+		{
+			for (auto pComp : src)
+			{
+				if (!pComp->GetParentComponent())
+					AddTree(pComp);
+			}
+			assert(size() == src.size());
+		}
+
+		void AddTree(CParticleComponent* pComp)
+		{
+			push_back(pComp);
+			for (auto pChild : pComp->GetChildComponents())
+				AddTree(pChild);
+		}
+	};
+
+	SortedComponents sortedComponents(m_components);
+	std::swap(m_components, sortedComponents);
 }
 
-string CParticleEffect::MakeUniqueName(TComponentId forComponentId, const char* name)
+CParticleComponent* CParticleEffect::FindComponentByName(const char* name) const
 {
-	TComponentId foundId = FindComponentIdByName(name);
-	if (foundId == forComponentId || foundId == gInvalidId)
+	for (const auto& pComponent : m_components)
+	{
+		if (pComponent->m_name == name)
+			return pComponent;
+	}
+	return nullptr;
+}
+
+string CParticleEffect::MakeUniqueName(const CParticleComponent* forComponent, const char* name)
+{
+	CParticleComponent* found = FindComponentByName(name);
+	if (!found || found == forComponent)
 		return string(name);
 
 	string newName = name;
@@ -98,7 +127,7 @@ string CParticleEffect::MakeUniqueName(TComponentId forComponentId, const char* 
 		else
 			newName.replace(pos, 1, 1, newName[pos] + 1);
 	}
-	while (FindComponentIdByName(newName) != gInvalidId);
+	while (FindComponentByName(newName));
 
 	return newName;
 }
@@ -116,23 +145,33 @@ uint CParticleEffect::GetNumRenderObjectIds() const
 float CParticleEffect::GetEquilibriumTime() const
 {
 	float maxEqTime = 0.0f;
-	for (auto comp : m_components)
+	for (const auto& pComponent : m_components)
 	{
 		// Iterate top-level components
-		auto const& params = comp->GetComponentParams();
-		if (comp->IsEnabled() && !params.IsSecondGen() && params.IsImmortal())
+		auto const& params = pComponent->GetComponentParams();
+		if (pComponent->IsEnabled() && !pComponent->GetParentComponent() && params.IsImmortal())
 		{
-			float eqTime = comp->GetEquilibriumTime(Range(params.m_emitterLifeTime.start));
+			float eqTime = pComponent->GetEquilibriumTime(Range(params.m_emitterLifeTime.start));
 			maxEqTime = max(maxEqTime, eqTime);
 		}
 	}
 	return maxEqTime;
 }
 
+string CParticleEffect::GetShortName() const
+{
+	string name = m_name;
+	if (name.Right(4).MakeLower() == ".pfx")
+		name.resize(name.length() - 4);
+	if (name.Left(10).MakeLower() == "particles/")
+		name.erase(0, 10);
+	return name;
+}
+
 int CParticleEffect::GetEditVersion() const
 {
 	int version = m_editVersion + m_components.size();
-	for (auto pComponent : m_components)
+	for (const auto& pComponent : m_components)
 	{
 		const SComponentParams& params = pComponent->GetComponentParams();
 		const CMatInfo* pMatInfo = (CMatInfo*)params.m_pMaterial.get();
@@ -167,7 +206,12 @@ void CParticleEffect::Serialize(Serialization::IArchive& ar)
 			m_components.push_back(new CParticleComponent(oldComponent));
 	}
 	else
+	{
+		if (ar.isInput() && !ar.isEdit())
+			m_components.clear();
+		Serialization::SContext effectContext(ar, this);
 		ar(m_components, "Components", "+Components");
+	}
 
 	if (ar.isInput())
 	{
@@ -182,7 +226,7 @@ void CParticleEffect::Serialize(Serialization::IArchive& ar)
 
 IParticleEmitter* CParticleEffect::Spawn(const ParticleLoc& loc, const SpawnParams* pSpawnParams)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_PARTICLE);
+	CRY_PFX2_PROFILE_DETAIL;
 
 	PParticleEmitter pEmitter = GetPSystem()->CreateEmitter(this);
 	CParticleEmitter* pCEmitter = static_cast<CParticleEmitter*>(pEmitter.get());
@@ -193,15 +237,15 @@ IParticleEmitter* CParticleEffect::Spawn(const ParticleLoc& loc, const SpawnPara
 	return pEmitter;
 }
 
-void CParticleEffect::AddComponent(uint componentIdx)
+IParticleComponent* CParticleEffect::AddComponent()
 {
-	uint idx = m_components.size();
 	CParticleComponent* pNewComponent = new CParticleComponent();
 	pNewComponent->m_pEffect = this;
-	pNewComponent->m_componentId = componentIdx;
+	pNewComponent->m_componentId = m_components.size();
 	pNewComponent->SetName("Component01");
-	m_components.insert(m_components.begin() + componentIdx, pNewComponent);
+	m_components.push_back(pNewComponent);
 	SetChanged();
+	return pNewComponent;
 }
 
 void CParticleEffect::RemoveComponent(uint componentIdx)
@@ -220,6 +264,11 @@ void CParticleEffect::SetChanged()
 Serialization::SStruct CParticleEffect::GetEffectOptionsSerializer() const
 {
 	return Serialization::SStruct(*m_pAttributes);
+}
+
+TParticleAttributesPtr CParticleEffect::CreateAttributesInstance() const
+{
+	return TParticleAttributesPtr(new CAttributeInstance(m_pAttributes));
 }
 
 const ParticleParams& CParticleEffect::GetDefaultParams() const

@@ -1,17 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
-
-/*************************************************************************
-   -------------------------------------------------------------------------
-   $Id$
-   $DateTime$
-   Description:  Message definition to id management
-   -------------------------------------------------------------------------
-   History:
-   - 07/25/2001   : Alberto Demichelis, Created
-   - 07/20/2002   : Martin Mittring, Cleaned up
-   - 09/08/2004   : Craig Tiller, Refactored
-   - 17/09/2004   : Craig Tiller, Introduced contexts
-*************************************************************************/
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -233,6 +220,7 @@ static const char* LOCAL_CONNECTION_STRING = "<local>";
 static const char* NULL_CONNECTION_STRING = "<null>";
 static const size_t MaxProfilesPerAspect = 8;
 
+//! \cond INTERNAL
 //! Represents a message that has been added to the message queue.
 //! These cannot be shared between channels.
 struct SSendableHandle
@@ -336,9 +324,7 @@ struct INetBreakageSimplePlayback : public CMultiThreadRefCount
 	// </interfuscator:shuffle>
 };
 typedef _smart_ptr<INetBreakageSimplePlayback> INetBreakageSimplePlaybackPtr;
-
-struct ISerializableInfo : public CMultiThreadRefCount, public ISerializable {};
-typedef _smart_ptr<ISerializableInfo> ISerializableInfoPtr;
+//! \endcond
 
 struct INetSendableSink
 {
@@ -660,7 +646,7 @@ struct SBandwidthStatsSubset
 struct SBandwidthStats
 {
 	SBandwidthStats()
-		: m_total(), m_prev(), m_1secAvg(), m_10secAvg()
+		: m_total(), m_prev(), m_1secAvg(), m_10secAvg(), m_numChannels()
 	{
 	}
 
@@ -892,6 +878,7 @@ struct INetwork
 	// </interfuscator:shuffle>
 };
 
+//! \cond INTERNAL
 //! This interface is implemented by CryNetwork, and is used by INetMessageSink::DefineProtocol to find all of the message sinks that should be attached to a channel.
 struct IProtocolBuilder
 {
@@ -965,6 +952,7 @@ struct IVoiceContext
 	// </interfuscator:shuffle>
 };
 #endif
+//! \endcond
 
 //! An INetContext manages the list of objects synchronized over the network.
 //! \note Only to be implemented in CryNetwork.
@@ -1063,6 +1051,8 @@ struct INetContext
 	//! \param id The id of a *bound* object to change authority for.
 	//! \param pControlling	Channel who will now control the object (or NULL if we wish to take control).
 	//! \note Only those aspects marked as eAF_Delegatable are passed on.
+	//! \par Example
+	//! \include CryEntitySystem/Examples/AspectDelegation.cpp
 	virtual void DelegateAuthority(EntityId id, INetChannel* pControlling) = 0;
 
 	//! Changes the game context.
@@ -1137,6 +1127,7 @@ struct INetContext
 #endif
 };
 
+//! \cond INTERNAL
 struct INetSender
 {
 	INetSender(TSerialize sr, uint32 nCurrentSeq, uint32 nBasisSeq, uint32 timeFraction32, bool isServer) : ser(sr)
@@ -1340,6 +1331,7 @@ enum ESynchObjectResult
 	eSOR_Failed,
 	eSOR_Skip,
 };
+//! \endcond
 
 //! Interface for a channel to call in order to create/destroy objects, and when changing context, to properly configure that context.
 struct IGameContext
@@ -1420,6 +1412,16 @@ struct IGameNub
 	// </interfuscator:shuffle>
 };
 
+struct IGameServerNub : public IGameNub
+{
+	virtual void AddSendableToRemoteClients(INetSendablePtr pMsg, int numAfterHandle, const SSendableHandle* afterHandle, SSendableHandle* handle) = 0;
+};
+
+struct IGameClientNub : public IGameNub
+{
+	virtual INetChannel* GetNetChannel() = 0;
+};
+
 struct IGameChannel : public INetMessageSink
 {
 	// <interfuscator:shuffle>
@@ -1471,22 +1473,24 @@ struct INetNub
 	// </interfuscator:shuffle>
 };
 
-// Listener that allows for listening to client connection and disconnect events
+//! Listener that allows for listening to client connection and disconnect events
+//! \par Example
+//! \include CryNetwork/Examples/NetworkedClientListener.cpp
 struct INetworkedClientListener
 {
-	// Sent to the local client on disconnect
+	//! Sent to the local client on disconnect
 	virtual void OnLocalClientDisconnected(EDisconnectionCause cause, const char* description) = 0;
 
-	// Sent to the server when a new client has started connecting
-	// Return false to disallow the connection
+	//! Sent to the server when a new client has started connecting
+	//! Return false to disallow the connection
 	virtual bool OnClientConnectionReceived(int channelId, bool bIsReset) = 0;
-	// Sent to the server when a new client has finished connecting and is ready for gameplay
-	// Return false to disallow the connection and kick the player
+	//! Sent to the server when a new client has finished connecting and is ready for gameplay
+	//! Return false to disallow the connection and kick the player
 	virtual bool OnClientReadyForGameplay(int channelId, bool bIsReset) = 0;
-	// Sent to the server when a client is disconnected
+	//! Sent to the server when a client is disconnected
 	virtual void OnClientDisconnected(int channelId, EDisconnectionCause cause, const char* description, bool bKeepClient) = 0;
-	// Sent to the server when a client is timing out (no packets for X seconds)
-	// Return true to allow disconnection, otherwise false to keep client.
+	//! Sent to the server when a client is timing out (no packets for X seconds)
+	//! Return true to allow disconnection, otherwise false to keep client.
 	virtual bool OnClientTimingOut(int channelId, EDisconnectionCause cause, const char* description) = 0;
 };
 
@@ -1584,6 +1588,8 @@ struct SRMIBenchmarkParams
 
 #endif
 
+//! Main interface for a connection to another engine instance
+//! i.e. The server has one net channel per client, each client has a single net channel for the server.
 struct INetChannel : public INetMessageSink
 {
 	//! \note See CNetCVars - net_defaultChannel<xxx> for defaults.
@@ -1752,6 +1758,8 @@ struct INetChannel : public INetMessageSink
 	virtual bool IsMigratingChannel() const = 0;
 	// </interfuscator:shuffle>
 
+	virtual bool GetRemoteNetAddress(uint32& uip, uint16& port, bool firstLocal = true) = 0;
+
 #ifndef OLD_VOICE_SYSTEM_DEPRECATED
 	virtual CTimeValue TimeSinceVoiceTransmission() = 0;
 	virtual CTimeValue TimeSinceVoiceReceipt(EntityId id) = 0;
@@ -1804,6 +1812,7 @@ struct IGameSecurity
 	// </interfuscator:shuffle>
 };
 
+//! \cond INTERNAL
 //! This interface defines what goes into a CTP message.
 class INetMessage : public INetSendable
 {
@@ -2038,6 +2047,7 @@ struct ILanQueryListener : public INetQueryListener
 	virtual void                GetMemoryStatistics(ICrySizer* pSizer) = 0;
 	// </interfuscator:shuffle>
 };
+//! \endcond
 
 struct SContextEstablishState
 {
@@ -2095,12 +2105,11 @@ template<class T, int N>
 class CCyclicStatsBuffer
 {
 public:
-	CCyclicStatsBuffer() : m_count(0), m_total(T())
+	CCyclicStatsBuffer()
+		: m_count(0)
+		, m_total(T())
+		, m_index(N - 1)
 	{
-		for (size_t index = 0; index < N; ++index)
-		{
-			m_values[index] = T();
-		}
 	}
 
 	void Clear()
@@ -2166,7 +2175,7 @@ public:
 private:
 	size_t m_count;
 	size_t m_index;
-	T      m_values[N];
+	T      m_values[N]{};
 	T      m_total;
 };
 #else

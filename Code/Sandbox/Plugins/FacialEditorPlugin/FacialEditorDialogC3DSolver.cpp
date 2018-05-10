@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "Util/Image.h"
@@ -963,3 +963,4 @@ void CFacialEditorDialog::LoadC3DFile(const char* filename)
 	m_pContext->bSequenceModfied = true;
 	m_pContext->SendEvent(EFD_EVENT_SPLINE_CHANGE);
 }
+

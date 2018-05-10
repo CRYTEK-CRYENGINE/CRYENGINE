@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -17,18 +17,21 @@ public:
 	~CD3DOpenVRRenderer();
 
 	// IHDMRenderer
-	virtual bool                      Initialize() override;
-	virtual void                      Shutdown() override;
-	virtual void                      OnResolutionChanged() override;
-	virtual void                      ReleaseBuffers() override;
-	virtual void                      PrepareFrame() override;
-	virtual void                      SubmitFrame() override;
-	virtual void                      RenderSocialScreen() override;
-	virtual RenderLayer::CProperties* GetQuadLayerProperties(RenderLayer::EQuadLayers id) override;
-	virtual RenderLayer::CProperties* GetSceneLayerProperties(RenderLayer::ESceneLayers id) override { return nullptr; }
+	virtual bool                      Initialize(int initialWidth, int initialeight) final;
+	virtual void                      Shutdown() final;
+	virtual void                      OnResolutionChanged(int newWidth, int newHeight) final;
+	virtual void                      ReleaseBuffers() final;
+	virtual void                      PrepareFrame() final;
+	virtual void                      SubmitFrame() final;
+	virtual void                      OnPostPresent() final;
+	virtual void                      RenderSocialScreen() final;
+	virtual RenderLayer::CProperties* GetQuadLayerProperties(RenderLayer::EQuadLayers id) final;
+	virtual RenderLayer::CProperties* GetSceneLayerProperties(RenderLayer::ESceneLayers id) final { return nullptr; }
 	// ~IHDMRenderer
 
 protected:
+	struct SSocialScreenRenderAutoRestore;
+
 	struct Eye
 	{
 		CTexture* texture;
@@ -42,6 +45,8 @@ protected:
 	bool             InitializeEyeTarget(D3DDevice* d3dDevice, EEyeType eye, CryVR::OpenVR::TextureDesc desc, const char* name);
 	bool             InitializeQuadLayer(D3DDevice* d3dDevice, RenderLayer::EQuadLayers quadLayer, CryVR::OpenVR::TextureDesc desc, const char* name);
 	bool             InitializeMirrorTexture(D3DDevice* d3dDevice, EEyeType eye, CryVR::OpenVR::TextureDesc desc, const char* name);
+
+	void             RenderQuadLayers();
 
 protected:
 	CTexture*                     m_mirrorTextures[EEyeType::eEyeType_NumEyes];

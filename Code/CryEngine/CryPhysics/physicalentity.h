@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #ifndef physicalentity_h
 #define physicalentity_h
@@ -204,7 +204,7 @@ public:
 	virtual int AddGeometry(phys_geometry *pgeom, pe_geomparams* params,int id=-1,int bThreadSafe=1);
 	virtual void RemoveGeometry(int id,int bThreadSafe=1);
 	virtual float GetExtent(EGeomForm eForm) const;
-	virtual void GetRandomPos(PosNorm& ran, CRndGen& seed, EGeomForm eForm) const;
+	virtual void GetRandomPoints(Array<PosNorm> points, CRndGen& seed, EGeomForm eForm) const;
 	virtual IPhysicalWorld *GetWorld() const { return (IPhysicalWorld*)m_pWorld; }
   virtual CPhysicalEntity *GetEntity();
 	virtual CPhysicalEntity *GetEntityFast() { return this; }
@@ -223,6 +223,7 @@ public:
 	virtual float GetMaxFriction() { return 100.0f; }
 	virtual bool IgnoreCollisionsWith(const CPhysicalEntity *pent, int bCheckConstraints=0) const { return false; }
 	virtual void GetSleepSpeedChange(int ipart, Vec3 &v,Vec3 &w) { v.zero(); w.zero(); }
+	virtual void OnHostSync(CPhysicalEntity *pHost) {}
 
 	virtual int AddCollider(CPhysicalEntity *pCollider);
 	virtual int AddColliderNoLock(CPhysicalEntity *pCollider) { return AddCollider(pCollider); }
@@ -349,10 +350,11 @@ public:
 
 	Vec3 m_pos;
 	quaternionf m_qrot;
-	coord_block *m_pNewCoords;
+	coord_block *m_pNewCoords, *m_pSyncCoords;
 
 	CPhysicalEntity **m_pColliders;
 	int m_nColliders,m_nCollidersAlloc;
+	int m_nSyncColliders;
 	mutable volatile int m_lockColliders;
 
 	CPhysicalEntity *m_pOuterEntity;

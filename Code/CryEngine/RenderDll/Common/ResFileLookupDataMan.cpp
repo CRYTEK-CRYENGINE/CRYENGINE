@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "ResFileLookupDataMan.h"
@@ -11,7 +11,6 @@
 SResFileLookupDataDisk::SResFileLookupDataDisk(const struct SResFileLookupData& inLookup)
 {
 	m_NumOfFilesUnique = inLookup.m_NumOfFilesUnique;
-	m_NumOfFilesRef = inLookup.m_NumOfFilesRef;
 	m_OffsetDir = inLookup.m_OffsetDir;
 	m_CRC32 = inLookup.m_CRC32;
 	m_CacheMajorVer = inLookup.m_CacheMajorVer;
@@ -74,9 +73,13 @@ CResFileLookupDataMan::~CResFileLookupDataMan()
 CCryNameTSCRC CResFileLookupDataMan::AdjustName(const char* szName)
 {
 	char acTmp[1024];
-	int nSize = gRenDev->m_cEF.m_szUserPath.size();
-	if (!strnicmp(szName, gRenDev->m_cEF.m_szUserPath.c_str(), nSize))
-		cry_strcpy(acTmp, &szName[nSize]);
+	int userPathSize = gRenDev->m_cEF.m_szUserPath.size();
+	int enginePathSize = strlen("%ENGINE%/");
+
+	if (!strnicmp(szName, gRenDev->m_cEF.m_szUserPath.c_str(), userPathSize))
+		cry_strcpy(acTmp, &szName[userPathSize]);
+	else if (!strnicmp(szName, "%ENGINE%/", enginePathSize))
+		cry_strcpy(acTmp, &szName[enginePathSize]);
 	else if (!strnicmp(szName, "Levels", 6))
 	{
 		const char* acNewName = strstr(szName, "ShaderCache");
@@ -162,7 +165,7 @@ bool CResFileLookupDataMan::LoadData(
 	}
 
 	CCryNameTSCRC name;
-	SDirEntry dirEntry;
+	CDirEntry dirEntry;
 	CCryNameTSCRC dirEntryName;
 	unsigned int ui;
 	for (ui = 0; ui < uiCount; ++ui)
@@ -211,7 +214,7 @@ bool CResFileLookupDataMan::LoadData(
 			dirData.m_resdir.reserve(uiDirSize);
 			for (unsigned int uj = 0; uj < uiDirSize; ++uj)
 			{
-				gEnv->pCryPak->FReadRaw(&dirEntry, sizeof(SDirEntry), 1, handle);
+				gEnv->pCryPak->FReadRaw(&dirEntry, sizeof(CDirEntry), 1, handle);
 				if (bSwapEndianRead)
 				{
 					SwapEndian(dirEntry, eBigEndian);
@@ -341,12 +344,12 @@ void CResFileLookupDataMan::SaveData(
 
 			for (ResDir::const_iterator it2 = header.m_resdir.begin(); it2 != header.m_resdir.end(); ++it2)
 			{
-				SDirEntry dirEntry = *it2;
+				CDirEntry dirEntry = *it2;
 				if (bSwapEndianWrite)
 				{
 					SwapEndian(dirEntry, eBigEndian);
 				}
-				gEnv->pCryPak->FWrite(&dirEntry, sizeof(SDirEntry), 1, handle);
+				gEnv->pCryPak->FWrite(&dirEntry, sizeof(CDirEntry), 1, handle);
 			}
 		}
 		else
@@ -400,7 +403,6 @@ void CResFileLookupDataMan::AddData(const CResFile* pResFile, uint32 CRC)
 	// store the dir data
 	data.m_OffsetDir = pResFile->m_nOffsDir;
 	data.m_NumOfFilesUnique = pResFile->m_nNumFilesUnique;
-	data.m_NumOfFilesRef = pResFile->m_nNumFilesRef;
 
 	float fVersion = (float)FX_CACHE_VER;
 	uint32 nMinor = (int)(((float)fVersion - (float)(int)fVersion) * 10.1f);
@@ -426,7 +428,7 @@ void CResFileLookupDataMan::AddData(const CResFile* pResFile, uint32 CRC)
 		   {
 		   data.m_resdir.push_back(pResFile->m_Dir[0]);
 		   }
-		   memcpy(&data.m_resdir[0], &pResFile->m_Dir[0], sizeof(SDirEntry) * pResFile->m_Dir.size());
+		   memcpy(&data.m_resdir[0], &pResFile->m_Dir[0], sizeof(CDirEntry) * pResFile->m_Dir.size());
 		 */
 	}
 	else
@@ -434,7 +436,7 @@ void CResFileLookupDataMan::AddData(const CResFile* pResFile, uint32 CRC)
 		data.m_ContainsResDir = false;
 
 		unsigned int entries = 0;
-		unsigned int entriesPerSlice = MAX_DIR_BUFFER_SIZE / sizeof(SDirEntry);
+		unsigned int entriesPerSlice = MAX_DIR_BUFFER_SIZE / sizeof(CDirEntry);
 		while ((entries * entriesPerSlice) < pResFile->m_Dir.size())
 		{
 			data.m_resdirlookup.push_back(pResFile->m_Dir[entries * entriesPerSlice].Name);
@@ -500,18 +502,6 @@ SResFileLookupData* CResFileLookupDataMan::GetData(
 {
 	TFileResDirDataMap::iterator it = m_Data.find(name);
 	if (it == m_Data.end())
-		return 0;
-
-	return &it->second;
-}
-SCFXLookupData* CResFileLookupDataMan::GetDataCFX(
-  const char* szPath)
-{
-	char nm[256];
-	_splitpath(szPath, NULL, NULL, nm, NULL);
-	CCryNameTSCRC name = nm;
-	TFileCFXDataMap::iterator it = m_CFXData.find(name);
-	if (it == m_CFXData.end())
 		return 0;
 
 	return &it->second;

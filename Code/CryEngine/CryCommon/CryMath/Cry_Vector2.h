@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -13,6 +13,8 @@ template<typename T> struct Vec2Constants
 	static Vec2_tpl<T> fVec2_One;
 };
 
+//! General-purpose 2D vector implementation
+//! \see Vec2, Vec2i
 template<class F> struct Vec2_tpl
 	: INumberVector<F, 2, Vec2_tpl<F>>
 {

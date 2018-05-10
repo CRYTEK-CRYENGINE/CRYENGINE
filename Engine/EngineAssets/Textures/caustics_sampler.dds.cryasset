@@ -1,0 +1,10 @@
+<AssetMetadata version="0" type="Texture" guid="5cc9a1cb-0bd3-3b8c-bbbf-92edf952efb1">
+ <Files>
+  <File path="caustics_sampler.dds"/>
+ </Files>
+ <Details>
+  <Detail name="width">128</Detail>
+  <Detail name="height">128</Detail>
+  <Detail name="mipCount">1</Detail>
+ </Details>
+</AssetMetadata>

@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 /*************************************************************************
    -------------------------------------------------------------------------
@@ -33,7 +33,7 @@ void CVehicleHelper::GetVehicleTM(Matrix34& vehicleTM, bool forced) const
 //------------------------------------------------------------------------
 void CVehicleHelper::GetWorldTM(Matrix34& worldTM) const
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_ACTION);
+	CRY_PROFILE_FUNCTION(PROFILE_ACTION);
 
 	const Matrix34& partWorldTM = m_pParentPart->GetWorldTM();
 
@@ -44,7 +44,7 @@ void CVehicleHelper::GetWorldTM(Matrix34& worldTM) const
 //------------------------------------------------------------------------
 void CVehicleHelper::GetReflectedWorldTM(Matrix34& reflectedWorldTM) const
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_ACTION);
+	CRY_PROFILE_FUNCTION(PROFILE_ACTION);
 
 	Matrix34 tempMatrix = m_localTM;
 	tempMatrix.m03 = -tempMatrix.m03; // negate x coord of translation
