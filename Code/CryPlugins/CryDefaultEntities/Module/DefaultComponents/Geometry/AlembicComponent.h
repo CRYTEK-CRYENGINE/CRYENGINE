@@ -41,6 +41,7 @@ namespace Cry
 				desc.SetComponentFlags({ IEntityComponent::EFlags::Transform, IEntityComponent::EFlags::Socket, IEntityComponent::EFlags::Attach });
 
 				desc.AddMember(&CAlembicComponent::m_filePath, 'file', "FilePath", "File", "Determines the geom cache file (abc / cbc) to load", "%ENGINE%/EngineAssets/GeomCaches/default.cbc");
+				desc.AddMember(&CAlembicComponent::m_playSpeed, 'pspd', "PlaySpeed", "Speed", "Determines the play speed of the animation", 0.005f);
 			}
 
 			virtual void Enable(bool bEnable);
@@ -52,9 +53,17 @@ namespace Cry
 
 			virtual void SetFilePath(const char* szFilePath);
 			const char* GetFilePath() const { return m_filePath.value.c_str(); }
+			
+			virtual void Play();
+			virtual void Pause();
+			virtual void Stop();
 
 		protected:
 			Schematyc::GeomCacheFileName m_filePath;
+			
+			bool m_isPlayEnabled = false;
+			float m_playSpeed = 0.005f;
+			float m_currentTime = 0.01f;
 		};
 	}
 }

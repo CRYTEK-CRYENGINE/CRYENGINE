@@ -45,6 +45,24 @@ namespace Cry
 				pFunction->BindOutput(0, 'time', "Time");
 				componentScope.Register(pFunction);
 			}
+			{
+				auto pFunction = SCHEMATYC_MAKE_ENV_FUNCTION(&CAlembicComponent::Play, "{C91CB65E-4400-4382-A8C5-7C447A3A16E9}"_cry_guid, "Play");
+				pFunction->SetDescription("Plays the alembic animation");
+				pFunction->SetFlags(Schematyc::EEnvFunctionFlags::Construction);
+				componentScope.Register(pFunction);
+			}
+			{
+				auto pFunction = SCHEMATYC_MAKE_ENV_FUNCTION(&CAlembicComponent::Pause, "{34087A40-704B-44D4-A237-0F0A1EC34B69}"_cry_guid, "Pause");
+				pFunction->SetDescription("Pauses the alembic animation");
+				pFunction->SetFlags(Schematyc::EEnvFunctionFlags::Construction);
+				componentScope.Register(pFunction);
+			}
+			{
+				auto pFunction = SCHEMATYC_MAKE_ENV_FUNCTION(&CAlembicComponent::Stop, "{EC63B1C4-6A09-4F87-9B51-C1EA86EFC734}"_cry_guid, "Stop");
+				pFunction->SetDescription("Stops the alembic animation");
+				pFunction->SetFlags(Schematyc::EEnvFunctionFlags::Construction);
+				componentScope.Register(pFunction);
+			}
 		}
 
 		void CAlembicComponent::Initialize()
@@ -61,11 +79,18 @@ namespace Cry
 			{
 				Initialize();
 			}
+			else if (event.event == ENTITY_EVENT_UPDATE)
+			{
+				SetPlaybackTime(GetPlaybackTime() + m_playSpeed);
+			}
 		}
 
 		uint64 CAlembicComponent::GetEventMask() const
 		{
-			return BIT64(ENTITY_EVENT_COMPONENT_PROPERTY_CHANGED);
+			uint64 bitFlags = m_isPlayEnabled ? BIT64(ENTITY_EVENT_UPDATE) : 0;
+			bitFlags |= BIT64(ENTITY_EVENT_COMPONENT_PROPERTY_CHANGED);
+
+			return bitFlags;
 		}
 
 		void CAlembicComponent::Enable(bool bEnable)
@@ -115,6 +140,26 @@ namespace Cry
 		void CAlembicComponent::SetFilePath(const char* szFilePath)
 		{
 			m_filePath = szFilePath;
+		}
+		
+		void CAlembicComponent::Play()
+		{
+			m_isPlayEnabled = true;
+			m_pEntity->UpdateComponentEventMask(this);
+		}
+
+		void CAlembicComponent::Pause()
+		{
+			m_isPlayEnabled = false;
+			m_pEntity->UpdateComponentEventMask(this);
+		}
+
+		void CAlembicComponent::Stop()
+		{
+			m_isPlayEnabled = false;
+			m_currentTime = 0.01f;
+			SetPlaybackTime(0.f);
+			m_pEntity->UpdateComponentEventMask(this);
 		}
 	}
 }
