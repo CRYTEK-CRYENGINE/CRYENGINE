@@ -353,7 +353,7 @@ void C3DEngine::PrepareLightSourcesForRendering_0(const SRenderingPassInfo& pass
 	// update lmasks in terrain sectors
 	if (passInfo.IsRecursivePass())
 	{
-		// do not delete lsources during recursion, becasue hmap lpasses are shared between levels
+		// do not delete lsources during recursion, because hmap lpasses are shared between levels
 		for (int i = 0; i < m_nRealLightsNum && i < m_lstDynLights.Count(); i++)
 		{
 			m_lstDynLights[i]->m_Id = -1;
@@ -544,7 +544,7 @@ void C3DEngine::PrepareLightSourcesForRendering_1(const SRenderingPassInfo& pass
 	// reset lists of lsource pointers in sectors
 	if (passInfo.IsRecursivePass())
 	{
-		// do not delete lsources during recursion, becasue hmap lpasses are shared between levels
+		// do not delete lsources during recursion, because hmap lpasses are shared between levels
 		for (int i = 0; i < m_nRealLightsNum && i < m_lstDynLights.Count(); i++)
 		{
 			m_lstDynLights[i]->m_Id = -1;
