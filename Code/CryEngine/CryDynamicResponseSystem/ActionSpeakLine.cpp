@@ -26,6 +26,26 @@ static const CHashedString s_signalOnLineFinish = "LineFinished";
 static const CHashedString s_allKeyWord = "All";
 }
 
+CHashedString CActionSpeakLine::GetLineIdToSpeak(DRS::IResponseInstance* pResponseInstance) const
+{
+	const CHashedString magicNumber { "Context" };
+	CHashedString lineIdToSpeak = m_lineIDToSpeak;
+
+	// Provide the ability to use a context variable instead of directly entering the line to speak ID.
+	if (m_lineIDToSpeak == magicNumber)
+	{
+		if (auto pContextCollection = pResponseInstance->GetContextVariables())
+		{
+			if (auto pVariable = pContextCollection->GetVariable("LineToSpeak"))
+			{
+				return pVariable->GetValueAsHashedString();
+			}
+		}
+	}
+
+	return lineIdToSpeak;
+}
+
 //--------------------------------------------------------------------------------------------------
 DRS::IResponseActionInstanceUniquePtr CActionSpeakLine::Execute(DRS::IResponseInstance* pResponseInstance)
 {
@@ -36,14 +56,15 @@ DRS::IResponseActionInstanceUniquePtr CActionSpeakLine::Execute(DRS::IResponseIn
 
 	CResponseSystem* pDrs = CResponseSystem::GetInstance();
 	CResponseActor* pSpeaker = (!m_speakerOverrideName.IsValid()) ? pResponseInstanceImpl->GetCurrentActor() : pDrs->GetResponseActor(m_speakerOverrideName);
+	CHashedString lineToSpeak = GetLineIdToSpeak(pResponseInstance);
 
 	if (!pSpeaker)
 	{
-		CryWarning(VALIDATOR_MODULE_DRS, VALIDATOR_WARNING, "Triggered an SpeakLineAction, without a valid Speaker! LineID was: '%s', Speaker override was '%s'", m_lineIDToSpeak.GetText().c_str(), m_speakerOverrideName.GetText().c_str());
+		CryWarning(VALIDATOR_MODULE_DRS, VALIDATOR_WARNING, "Triggered an SpeakLineAction, without a valid Speaker! LineID was: '%s', Speaker override was '%s'", lineToSpeak.GetText().c_str(), m_speakerOverrideName.GetText().c_str());
 		return nullptr;
 	}
 
-	DRS::ISpeakerManager::IListener::eLineEvent result = pDrs->GetSpeakerManager()->StartSpeaking(pSpeaker, m_lineIDToSpeak);
+	DRS::ISpeakerManager::IListener::eLineEvent result = pDrs->GetSpeakerManager()->StartSpeaking(pSpeaker, lineToSpeak);
 
 	if (result == DRS::ISpeakerManager::IListener::eLineEvent_WasNotStartedForAnyReason)
 	{
@@ -51,7 +72,7 @@ DRS::IResponseActionInstanceUniquePtr CActionSpeakLine::Execute(DRS::IResponseIn
 		if ((m_flags& CActionSpeakLine::ESpeakLineFlags_SendSignalOnSkip) > 0)
 		{
 			DRS::IVariableCollectionSharedPtr contextVariablesPtr = CResponseSystem::GetInstance()->CreateContextCollection();
-			contextVariablesPtr->CreateVariable("Line", m_lineIDToSpeak);
+			contextVariablesPtr->CreateVariable("Line", lineToSpeak);
 			pSpeaker->QueueSignal(s_signalOnLineSkip, contextVariablesPtr);
 		}
 		if ((m_flags& CActionSpeakLine::eSpeakLineFlags_CancelResponseOnSkip) > 0)
@@ -67,11 +88,11 @@ DRS::IResponseActionInstanceUniquePtr CActionSpeakLine::Execute(DRS::IResponseIn
 		{
 			//remark: if the line is queued for now, then this signal will be send by the actionInstance when the line is actually started
 			DRS::IVariableCollectionSharedPtr contextVariablesPtr = CResponseSystem::GetInstance()->CreateContextCollection();
-			contextVariablesPtr->CreateVariable("Line", m_lineIDToSpeak);
+			contextVariablesPtr->CreateVariable("Line", lineToSpeak);
 			pSpeaker->QueueSignal(s_signalOnLineStart, contextVariablesPtr);
 		}
 
-		return DRS::IResponseActionInstanceUniquePtr(new CActionSpeakLineInstance(pSpeaker, m_lineIDToSpeak, pResponseInstanceImpl, m_flags));
+		return DRS::IResponseActionInstanceUniquePtr(new CActionSpeakLineInstance(pSpeaker, lineToSpeak, pResponseInstanceImpl, m_flags));
 
 	}
 }
