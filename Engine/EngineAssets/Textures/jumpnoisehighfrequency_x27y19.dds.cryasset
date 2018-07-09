@@ -1,0 +1,10 @@
+<AssetMetadata version="0" type="Texture" guid="d9dbbc0a-7fa4-b7e6-ab52-04f4b86ba364">
+ <Files>
+  <File path="jumpnoisehighfrequency_x27y19.dds"/>
+ </Files>
+ <Details>
+  <Detail name="width">64</Detail>
+  <Detail name="height">64</Detail>
+  <Detail name="mipCount">7</Detail>
+ </Details>
+</AssetMetadata>

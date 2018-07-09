@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -41,7 +41,6 @@ namespace Serialization
 {
 struct INavigationProvider;
 }
-class CDLight;
 
 namespace CharacterTool {
 
@@ -175,6 +174,8 @@ public:
 	CharacterDefinition* GetLoadedCharacterDefinition() const;
 	void                 GetEntriesActiveInDocument(ExplorerEntries* entries) const;
 
+	void                 SetAuxRenderer(IRenderAuxGeom* pAuxRenderer);
+
 	enum { SELECT_DO_NOT_REWIND = 1 << 0 };
 	void                            SetSelectedExplorerEntries(const ExplorerEntries& entries, int selectOptions);
 	bool                            HasModifiedExporerEntriesSelected() const;
@@ -233,7 +234,6 @@ public slots:
 	void       OnExplorerSelectionChanged();
 	void       OnExplorerActivated(const ExplorerEntry* entry);
 protected slots:
-	void       OnExplorerSelectedEntryClicked(ExplorerEntry* e);
 	void       OnExplorerEntryModified(ExplorerEntryModifyEvent& ev);
 	void       OnExplorerEntrySavedAs(const char* oldPath, const char* newPath);
 	void       OnCompressionMachineAnimationStarted();
@@ -314,6 +314,9 @@ private:
 	PlaybackState                              m_playbackState;
 	const char*                                m_playbackBlockReason;
 
+	IRenderAuxGeom*                            m_pAuxRenderer;
+
 };
 
 }
+

@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -6,6 +6,7 @@
 #include "Common/GraphicsPipelineStateSet.h"
 #include "Common/SceneRenderPass.h"
 #include "Common/FullscreenPass.h"
+#include "SceneGBuffer.h"
 
 struct SGraphicsPipelineStateDescription;
 
@@ -13,17 +14,16 @@ class CSceneCustomStage : public CGraphicsPipelineStage
 {
 	enum EPerPassTexture
 	{
-		ePerPassTexture_PerlinNoiseMap = 25,
-		ePerPassTexture_TerrainElevMap,
-		ePerPassTexture_WindGrid,
-		ePerPassTexture_TerrainNormMap,
-		ePerPassTexture_TerrainBaseMap,
-		ePerPassTexture_NormalsFitting,
-		ePerPassTexture_DissolveNoise,
-		ePerPassTexture_SceneLinearDepth,
-		ePerPassTexture_PaletteTexelsPerMeter,
+		ePerPassTexture_PerlinNoiseMap   = CSceneGBufferStage::ePerPassTexture_PerlinNoiseMap,
+		ePerPassTexture_TerrainElevMap   = CSceneGBufferStage::ePerPassTexture_TerrainElevMap,
+		ePerPassTexture_WindGrid         = CSceneGBufferStage::ePerPassTexture_WindGrid,
+		ePerPassTexture_TerrainNormMap   = CSceneGBufferStage::ePerPassTexture_TerrainNormMap,
+		ePerPassTexture_TerrainBaseMap   = CSceneGBufferStage::ePerPassTexture_TerrainBaseMap,
+		ePerPassTexture_NormalsFitting   = CSceneGBufferStage::ePerPassTexture_NormalsFitting,
+		ePerPassTexture_DissolveNoise    = CSceneGBufferStage::ePerPassTexture_DissolveNoise,
+		ePerPassTexture_SceneLinearDepth = CSceneGBufferStage::ePerPassTexture_SceneLinearDepth,
 
-		ePerPassTexture_Count
+		ePerPassTexture_PaletteTexelsPerMeter = 33,
 	};
 	
 public:
@@ -39,14 +39,27 @@ public:
 public:
 	CSceneCustomStage();
 
-	virtual void Init() override;
-	virtual void Prepare(CRenderView* pRenderView) override;
+	static bool DoDebugRendering();
+	static bool DoDebugOverlay();
+
+	void Init() final;
+	void Update() final;
+	void Prepare();
+
+	bool IsStageActive(EShaderRenderingFlags flags) const final
+	{
+		if (flags & EShaderRenderingFlags::SHDF_FORWARD_MINIMAL)
+			return false;
+
+		return true;
+	}
 
 	void Execute();
 	void ExecuteSilhouettePass();
-	void ExecuteHelperPass();
-	void Execute_DebugModes();
-	void Execute_SelectionID();
+	void ExecuteHelpers();
+	void ExecuteDebugger();
+	void ExecuteDebugOverlay();
+	void ExecuteSelectionHighlight();
 
 	bool CreatePipelineStates(DevicePipelineStatesArray* pStateArray, const SGraphicsPipelineStateDescription& stateDesc, CGraphicsPipelineStateLocalCache* pStateCache);
 	bool CreatePipelineState(const SGraphicsPipelineStateDescription& desc, EPass passID, CDeviceGraphicsPSOPtr& outPSO);
@@ -65,6 +78,4 @@ private:
 	CFullscreenPass          m_highlightPass;
 
 	CSceneRenderPass         m_silhouetteMaskPass;
-
-	SDepthTexture            m_depthTarget;
 };

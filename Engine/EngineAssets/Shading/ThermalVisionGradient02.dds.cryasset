@@ -1,0 +1,10 @@
+<AssetMetadata version="0" type="Texture" guid="52ed2105-d081-3c6b-a9c5-b1828278d4b6" source="ThermalVisionGradient02.TIF">
+ <Files>
+  <File path="ThermalVisionGradient02.dds"/>
+ </Files>
+ <Details>
+  <Detail name="width">256</Detail>
+  <Detail name="height">4</Detail>
+  <Detail name="mipCount">1</Detail>
+ </Details>
+</AssetMetadata>

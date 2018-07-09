@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "ConvertContext.h"
@@ -109,13 +109,13 @@ LuaCompiler::~LuaCompiler()
 ////////////////////////////////////////////////////////////
 string LuaCompiler::GetOutputFileNameOnly() const
 {
-	return PathHelpers::RemoveExtension(m_CC.sourceFileNameOnly) + ".lua";
+	return PathUtil::RemoveExtension(m_CC.sourceFileNameOnly) + ".lua";
 }
 
 ////////////////////////////////////////////////////////////
 string LuaCompiler::GetOutputPath() const
 {
-	return PathHelpers::Join(m_CC.GetOutputFolder(), GetOutputFileNameOnly());
+	return PathUtil::Make(m_CC.GetOutputFolder(), GetOutputFileNameOnly());
 }
 
 //////////////////////////////////////////////////////////////////////////

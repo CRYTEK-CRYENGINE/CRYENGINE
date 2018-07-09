@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "stdafx.h"
 #include "StaticObjectCompiler.h"
@@ -496,7 +496,7 @@ bool CStaticObjectCompiler::Physicalize(CContentCGF* pCompiledCGF, CContentCGF* 
 		}
 	}
 
-	const bool bCga = StringHelpers::EqualsIgnoreCase(PathHelpers::FindExtension(pCompiledCGF->GetFilename()), "cga");
+	const bool bCga = StringHelpers::EqualsIgnoreCase(PathUtil::GetExt(pCompiledCGF->GetFilename()), "cga");
 
 	for (int i = 0; i < pCompiledCGF->GetNodeCount(); ++i)
 	{
@@ -1800,7 +1800,7 @@ bool CStaticObjectCompiler::SplitLODs(CContentCGF* pCGF)
 				// Breakable objects expect rendering and physics geometry matching each other,
 				// so we cannot change geometry (LOD0's by consoles_lod0's)
 
-				const string filename = StringHelpers::MakeLowerCase(PathHelpers::GetFilename(pCGF->GetFilename()));
+				const string filename = StringHelpers::MakeLowerCase(PathUtil::GetFile(pCGF->GetFilename()));
 				if (strstr(filename.c_str(), "break"))
 				{
 					RCLogWarning(

@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -18,7 +18,6 @@ public:
 
 	// IUndoObject
 	virtual const char* GetDescription() final { return m_desc.c_str(); }
-	virtual int         GetSize() override     { return sizeof(*this); }
 
 	virtual void        Undo(bool bUndo) override;
 	virtual void        Redo() override;
@@ -33,3 +32,4 @@ private:
 };
 
 }
+

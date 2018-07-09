@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "CCullThread.h"
@@ -42,9 +42,8 @@ CCullThread::CCullThread()
 	, m_OCMMeshCount(0)
 	, m_OCMInstCount(0)
 	, m_OCMOffsetInstances(0)
+	, m_passInfoForCheckOcclusion(0)
 {
-	ZeroArray(m_passInfoForCheckOcclusion);
-
 	size_t Buffer = reinterpret_cast<size_t>(g_RasterizerBuffer);
 	Buffer += 127;
 	Buffer &= ~127;
@@ -280,20 +279,9 @@ void CCullThread::PrepareCullbufferAsync(const CCamera& rCamera)
 
 	const CCamera& rCam = rCamera;
 
-	CCamera tmp_cam = m_pRenderer->GetCamera();
-	m_pRenderer->SetCamera(rCam);
-	m_pRenderer->GetModelViewMatrix(reinterpret_cast<f32*>(&MatView));
-	m_pRenderer->GetProjectionMatrix(reinterpret_cast<f32*>(&MatProj));
-	m_pRenderer->SetCamera(tmp_cam);
-
-	uint32 nReverseDepthEnabled = 0;
-	m_pRenderer->EF_Query(EFQ_ReverseDepthEnabled, nReverseDepthEnabled);
-
-	if (nReverseDepthEnabled) // Convert to regular depth again. TODO: make occlusion culler work with reverse depth
-	{
-		MatProj.m22 = -MatProj.m22 + MatProj.m23;
-		MatProj.m32 = -MatProj.m32 + MatProj.m33;
-	}
+	rCamera.CalculateRenderMatrices();
+	MatProj = rCamera.GetRenderProjectionMatrix();
+	MatView = rCamera.GetRenderViewMatrix();
 
 	m_ViewDir = rCam.GetViewdir();
 	MatViewProj = MatView * MatProj;
@@ -338,6 +326,9 @@ void CCullThread::CullStart(const SRenderingPassInfo& passInfo)
 	// signal rasterizer that it should stop
 	m_bCheckOcclusionRequested = 1;
 
+	// keep the passInfo as a copy
+	m_passInfoForCheckOcclusion = passInfo;
+
 	// tell the job that the PPU is ready for occlusion culling, this call will
 	// start the check occlusion job if the prepare step has finished, if not
 	// the prepare job itself will start the culling job
@@ -352,13 +343,12 @@ void CCullThread::CullStart(const SRenderingPassInfo& passInfo)
 		else
 		{
 			m_nPrepareState = CHECK_REQUESTED;
-			*((SRenderingPassInfo*)m_passInfoForCheckOcclusion) = passInfo;
 		}
 	}
 
 	if (bNeedJobStart)
 	{
-		TOcclusionCheckJob job(passInfo);
+		TOcclusionCheckJob job;
 		job.SetClassInstance(this);
 		job.SetPriorityLevel(JobManager::eHighPriority);
 		job.Run();
@@ -377,6 +367,9 @@ void CCullThread::CullEnd()
 			bNeedRemoveProducer = true;
 		}
 	}
+
+	// release the copied passInfo
+	m_passInfoForCheckOcclusion = SRenderingPassInfo(0);
 
 	if (bNeedRemoveProducer)
 	{
@@ -693,22 +686,20 @@ void CCullThread::PrepareOcclusion_RasterizeZBuffer()
 	m_PrepareBufferSync.SetStopped();
 	if (bNeedJobStart)
 	{
-		TOcclusionCheckJob job(*((SRenderingPassInfo*)m_passInfoForCheckOcclusion));
+		TOcclusionCheckJob job;
 		job.SetClassInstance(this);
 		job.SetPriorityLevel(JobManager::eHighPriority);
 		job.Run();
 	}
 }
 
-void CCullThread::CheckOcclusion(SRenderingPassInfo passInfo)
+void CCullThread::CheckOcclusion()
 {
 	uint8 AlignBuffer[2 * sizeof(Matrix44A) + 16];
 	size_t pBuffer = (reinterpret_cast<size_t>(AlignBuffer) + 15) & ~15;
 	Matrix44A& RESTRICT_REFERENCE rMatFinalT = reinterpret_cast<Matrix44A*>(pBuffer)[1];
 
-	Vec3 localPostion;
-	memcpy(&localPostion, &m_Position, sizeof(Vec3));
-
+	const Vec3 cameraPosition = m_passInfoForCheckOcclusion.GetCamera().GetPosition();
 	const AABB PosAABB = AABB(m_Position, 0.5f);
 	const float Bias = GetCVars()->e_CoverageBufferAABBExpand;
 	const float TerrainBias = GetCVars()->e_CoverageBufferTerrainExpand;
@@ -730,17 +721,24 @@ void CCullThread::CheckOcclusion(SRenderingPassInfo passInfo)
 			COctreeNode* pOctTreeNode = jobData.octTreeData.pOctTreeNode;
 
 			memcpy(&rAABB, &pOctTreeNode->GetObjectsBBox(), sizeof(AABB));
-			float fDistance = sqrtf(Distance::Point_AABBSq(passInfo.GetCamera().GetPosition(), rAABB));
+			float fDistance = sqrtf(Distance::Point_AABBSq(cameraPosition, rAABB));
 
-			// Test OctTree BoundingBox
-			if (TestAABB(rAABB, fDistance))
+			// Test OctTree bounding box against main view
+			if (jobData.passCullMask & kPassCullMainMask && !TestAABB(rAABB, fDistance))
+			{
+				jobData.passCullMask &= ~kPassCullMainMask; // mark as not visible in general view
+			}
+
+			// TODO: check also occlusion of shadow volumes
+
+			if (jobData.passCullMask)
 			{
 				Vec3 vAmbColor(jobData.octTreeData.vAmbColor[0], jobData.octTreeData.vAmbColor[1], jobData.octTreeData.vAmbColor[2]);
 
-				// Pass info is a copy
-				passInfo.OverrideRenderItemSorter(jobData.rendItemSorter);
-				//passInfo.m_pCamera = jobData.pCam;
-				pOctTreeNode->COctreeNode::RenderContent(jobData.octTreeData.nRenderMask, vAmbColor, passInfo);
+				SRenderingPassInfo passInfo = SRenderingPassInfo::CreateTempRenderingInfo(/*jobData.pCam,*/ jobData.rendItemSorter, m_passInfoForCheckOcclusion);
+				passInfo.SetShadowPasses(jobData.pShadowPasses);
+
+				pOctTreeNode->COctreeNode::RenderContent(jobData.octTreeData.nRenderMask, vAmbColor, jobData.passCullMask, passInfo);
 			}
 		}
 		else if (jobData.type == SCheckOcclusionJobData::TERRAIN_NODE)
@@ -750,12 +748,18 @@ void CCullThread::CheckOcclusion(SRenderingPassInfo passInfo)
 
 			float fDistance = jobData.terrainData.fDistance;
 
-			// special case for terrain, they are direclty tested and send back to PPU
-			if (TestAABB(rAABB, fDistance, TerrainBias))
+			// Test bounding box against main view
+			if (jobData.passCullMask & kPassCullMainMask && !TestAABB(rAABB, fDistance, TerrainBias))
 			{
-				GetObjManager()->PushIntoCullOutputQueue(SCheckOcclusionOutput::CreateTerrainOutput(jobData.terrainData.pTerrainNode, passInfo));
+				jobData.passCullMask &= ~kPassCullMainMask; // mark as not visible in general view
 			}
 
+			// special case for terrain, they are directly tested and send back to PPU
+			if (jobData.passCullMask)
+			{
+				SCheckOcclusionOutput outPut = SCheckOcclusionOutput::CreateTerrainOutput(jobData.terrainData.pTerrainNode, jobData.passCullMask, m_passInfoForCheckOcclusion);
+				GetObjManager()->PushIntoCullOutputQueue(outPut);
+			}
 		}
 		else
 		{
@@ -772,6 +776,8 @@ bool CCullThread::TestAABB(const AABB& rAABB, float fEntDistance, float fVertica
 {
 	IF (GetCVars()->e_CheckOcclusion == 0, 0)
 		return true;
+
+	FUNCTION_PROFILER_3DENGINE;
 
 	const AABB PosAABB = AABB(m_Position, 0.5f);
 	const float Bias = GetCVars()->e_CoverageBufferAABBExpand;

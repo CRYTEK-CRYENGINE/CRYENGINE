@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "DriverD3D.h"
@@ -57,7 +57,7 @@ bool CTexture::StreamPrepare_Platform()
 
 void CTexture::StreamExpandMip(const void* vpRawData, int nMip, int nBaseMipOffset, int nSideDelta)
 {
-	FUNCTION_PROFILER_RENDERER;
+	FUNCTION_PROFILER_RENDERER();
 
 	const uint32 nCurMipWidth  = (m_nWidth >> (nMip + nBaseMipOffset));
 	const uint32 nCurMipHeight = (m_nHeight >> (nMip + nBaseMipOffset));
@@ -94,7 +94,7 @@ void STexStreamOutState::CopyMips()
 	if (m_nStartMip < MAX_MIP_LEVELS)
 	{
 		const int nOldMipOffset = m_nStartMip - tp->m_nMinMipVidUploaded;
-		const int nNumMips = tp->GetNumMipsNonVirtual() - m_nStartMip;
+		const int nNumMips = tp->GetNumMips() - m_nStartMip;
 	#if CRY_PLATFORM_DURANGO && (CRY_RENDERER_DIRECT3D >= 110) && (CRY_RENDERER_DIRECT3D < 120)
 		m_pNewPoolItem->m_pDevTexture->InitD3DTexture();
 		m_copyFence = CTexture::StreamCopyMipsTexToTex_MoveEngine(tp->m_pFileTexMips->m_pPoolItem, 0 + nOldMipOffset, m_pNewPoolItem, 0, nNumMips);
@@ -114,7 +114,7 @@ void STexStreamOutState::CopyMips()
 
 int CTexture::StreamTrim(int nToMip)
 {
-	FUNCTION_PROFILER_RENDERER;
+	FUNCTION_PROFILER_RENDERER();
 	CHK_RENDTH;
 
 	if (IsUnloaded() || !IsStreamed() || IsStreaming())
@@ -130,7 +130,7 @@ int CTexture::StreamTrim(int nToMip)
 
 #ifndef _RELEASE
 	if (CRenderer::CV_r_TexturesStreamingDebug == 2)
-		iLog->Log("Shrinking texture: %s - From mip: %i, To mip: %i", m_SrcName.c_str(), m_nMinMipVidUploaded, GetRequiredMipNonVirtual());
+		iLog->Log("Shrinking texture: %s - From mip: %i, To mip: %i", m_SrcName.c_str(), m_nMinMipVidUploaded, GetRequiredMip());
 #endif
 
 	STexPoolItem* pNewPoolItem = StreamGetPoolItem(nToMip, m_nMips - nToMip, false, false, true, true);
@@ -138,7 +138,7 @@ int CTexture::StreamTrim(int nToMip)
 	if (pNewPoolItem)
 	{
 		const int nOldMipOffset = nToMip - m_nMinMipVidUploaded;
-		const int nNumMips = GetNumMipsNonVirtual() - nToMip;
+		const int nNumMips = GetNumMips() - nToMip;
 
 #ifdef TEXSTRM_ASYNC_TEXCOPY
 
@@ -249,7 +249,7 @@ int CTexture::StreamUnload()
 
 void CTexture::StreamActivateLod(int nMinMip)
 {
-	FUNCTION_PROFILER_RENDERER;
+	FUNCTION_PROFILER_RENDERER();
 
 	STexPoolItem* pItem = m_pFileTexMips->m_pPoolItem;
 	STexPool* pPool = pItem->m_pOwner;
@@ -353,8 +353,8 @@ void CTexture::StreamCopyMipsTexToMem(int nStartMip, int nEndMip, bool bToDevice
 			{
 				if (mp->DataArray)
 				{
-					CryInterlockedAdd(&CTexture::s_nTexturesDataBytesUploaded, mh[nLod].m_SideSize);
-					STALL_PROFILER("update texture");
+					CRY_PROFILE_REGION_WAITING(PROFILE_RENDERER, "update texture");
+					CryInterlockedAdd(&CTexture::s_nTexturesDataBytesUploaded, mh[nLod].m_SideSize);					
 
 					// TODO: batch upload (instead of loop)
 					const SResourceMemoryMapping mapping =
@@ -378,7 +378,7 @@ void CTexture::StreamCopyMipsTexToMem(int nStartMip, int nEndMip, bool bToDevice
 				const int nRows = nMipSize / nRowPitch;
 				assert(nMipSize % nRowPitch == 0);
 
-				STALL_PROFILER("update texture");
+				CRY_PROFILE_REGION_WAITING(PROFILE_RENDERER, "update texture");
 
 				pDevTexture->DownloadToStagingResource(D3D11CalcSubresource(nDevTexMip, iSide, nTexMips), [&](void* pData, uint32 rowPitch, uint32 slicePitch)
 				{
@@ -449,7 +449,7 @@ ID3D11CommandList* CTexture::StreamCreateDeferred(int nStartMip, int nEndMip, ST
 					const int nVSize = m_nHeight >> nLod;
 					const int nRowPitch = CTexture::TextureDataSize(nUSize, 1, 1, 1, 1, m_eDstFormat, m_eSrcTileMode);
 					const int nSlicePitch = CTexture::TextureDataSize(nUSize, nVSize, 1, 1, 1, m_eDstFormat, m_eSrcTileMode);
-					STALL_PROFILER("update texture");
+					CRY_PROFILE_REGION_WAITING(PROFILE_RENDERER, "update texture");
 					{
 						s_pStreamDeferredCtx->UpdateSubresource(pID3DTexture, D3D11CalcSubresource(nDevTexMip, iSide, nTexMips), NULL, &mp->DataArray[0], nRowPitch, nSlicePitch);
 					}
@@ -488,7 +488,7 @@ ID3D11CommandList* CTexture::StreamCreateDeferred(int nStartMip, int nEndMip, ST
 
 void CTexture::StreamApplyDeferred(ID3D11CommandList* pCmdList)
 {
-	FUNCTION_PROFILER_RENDERER;
+	FUNCTION_PROFILER_RENDERER();
 	gcpRendD3D->GetDeviceContext().ExecuteCommandList(pCmdList, TRUE);
 }
 
@@ -526,7 +526,7 @@ void CTexture::StreamRemoveFromPool()
 
 void CTexture::StreamAssignPoolItem(STexPoolItem* pItem, int nMinMip)
 {
-	FUNCTION_PROFILER_RENDERER;
+	FUNCTION_PROFILER_RENDERER();
 
 	assert(!pItem->IsFree());
 	STexPool* pItemOwner = pItem->m_pOwner;
@@ -606,7 +606,7 @@ STexPool* CTexture::StreamGetPool(int nStartMip, int nMips)
 
 STexPoolItem* CTexture::StreamGetPoolItem(int nStartMip, int nMips, bool bShouldBeCreated, bool bCreateFromMipData, bool bCanCreate, bool bForStreamOut)
 {
-	FUNCTION_PROFILER_RENDERER;
+	FUNCTION_PROFILER_RENDERER();
 
 	if (!m_pFileTexMips)
 		return NULL;
@@ -666,6 +666,7 @@ STexPoolItem* CTexture::StreamGetPoolItem(int nStartMip, int nMips, bool bShould
 				STexMipHeader& mmh = m_pFileTexMips->m_pMipHeader[nMip];
 				SMipData& md = mmh.m_Mips[nSlice];
 
+				assert(nSubresource < nMips*nSlices);
 				InitData[nSubresource].m_pSysMem = md.DataArray;
 				InitData[nSubresource].m_sSysMemAlignment.typeStride   = CTexture::TextureDataSize(1, 1, 1, 1, 1, pLayout.m_eSrcFormat, m_eSrcTileMode);
 				InitData[nSubresource].m_sSysMemAlignment.rowStride    = CTexture::TextureDataSize(w, 1, 1, 1, 1, pLayout.m_eSrcFormat, m_eSrcTileMode);
@@ -688,7 +689,7 @@ STexPoolItem* CTexture::StreamGetPoolItem(int nStartMip, int nMips, bool bShould
 	pLayout.m_nDepth     = wSize;
 	pLayout.m_nArraySize = nArraySize;
 	pLayout.m_nMips      = nMips;
-	pLayout.m_eDstFormat     = CTexture::GetClosestFormatSupported(pLayout.m_eDstFormat, pLayout.m_pPixelFormat);
+	pLayout.m_eDstFormat = CTexture::GetClosestFormatSupported(pLayout.m_eDstFormat, pLayout.m_pPixelFormat);
 
 	// For end of C3, preserve existing (idle wait) console behaviour
 	bool bGPIMustWaitForIdle = !bForStreamOut;
@@ -757,10 +758,10 @@ struct StreamDebugSortWantedFunc
 {
 	bool operator()(const CTexture* p1, const CTexture* p2) const
 	{
-		int nP1ReqMip = p1->GetRequiredMipNonVirtual();
+		int nP1ReqMip = p1->GetRequiredMip();
 		int nP1Size = p1->StreamComputeSysDataSize(nP1ReqMip);
 
-		int nP2ReqMip = p2->GetRequiredMipNonVirtual();
+		int nP2ReqMip = p2->GetRequiredMip();
 		int nP2Size = p2->StreamComputeSysDataSize(nP2ReqMip);
 
 		if (nP1Size != nP2Size)
@@ -813,8 +814,6 @@ void CTexture::OutputDebugInfo()
 		}
 	}
 
-	SThreadInfo& ti = gRenDev->m_RP.m_TI[gRenDev->m_pRT->GetThreadList()];
-
 	for (int i = (int)texSorted.size() - 1, nTexNum = 0; i >= 0; --i)
 	{
 		CTexture* tp = texSorted[i];
@@ -832,7 +831,7 @@ void CTexture::OutputDebugInfo()
 		bool bHighPriority = false;
 		float fFinalMipFactor = pow(99.99f, 2.f);
 		for (int z = 0; z < MAX_PREDICTION_ZONES; z++)
-			if (tp->m_pFileTexMips && (int)tp->m_streamRounds[z].nRoundUpdateId > gRenDev->m_RP.m_TI[gRenDev->m_RP.m_nProcessThreadID].m_arrZonesRoundId[z] - 2)
+			if (tp->m_pFileTexMips && (int)tp->m_streamRounds[z].nRoundUpdateId > gRenDev->GetStreamZoneRoundId(z) - 2)
 			{
 				fFinalMipFactor = min(fFinalMipFactor, tp->m_pFileTexMips->m_arrSPInfo[z].fLastMinMipFactor);
 				bHighPriority |= tp->m_streamRounds[z].bLastHighPriority;
@@ -847,7 +846,7 @@ void CTexture::OutputDebugInfo()
 			continue;
 
 		int nPersMip = tp->m_nMips - tp->m_CacheFileHeader.m_nMipsPersistent;
-		int nMipReq = min(tp->GetRequiredMipNonVirtual(), nPersMip);
+		int nMipReq = min(tp->GetRequiredMip(), nPersMip);
 		const int nWantedSize = tp->StreamComputeSysDataSize(nMipReq);
 
 		assert(tp->m_pFileTexMips);
@@ -857,9 +856,9 @@ void CTexture::OutputDebugInfo()
 		            (float)nWantedSize / (1024 * 1024.0f),
 		            sqrtf(fFinalMipFactor),
 		            (int)bHighPriority,
-		            tp->GetNumMipsNonVirtual() - nMipIdSigned, tp->GetNumMipsNonVirtual() - tp->m_nMinMipVidUploaded, tp->GetNumMipsNonVirtual(),
+		            tp->GetNumMips() - nMipIdSigned, tp->GetNumMips() - tp->m_nMinMipVidUploaded, tp->GetNumMips(),
 		            tp->m_streamRounds[0].nRoundUpdateId, tp->m_streamRounds[MAX_STREAM_PREDICTION_ZONES - 1].nRoundUpdateId,
-		            tp->m_nAccessFrameID >= (int)ti.m_nFrameUpdateID - 8,
+		            tp->m_nAccessFrameID >= gRenDev->GetMainFrameID() - 8,
 		            tp->m_SrcName.c_str());
 
 		IRenderAuxText::WriteXY(nX, nY + (nTexNum + 1) * 10, 1.f, 1.f, color.r, color.g, color.b, 1, "%s", szText);

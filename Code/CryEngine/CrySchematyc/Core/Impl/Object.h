@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -139,7 +139,7 @@ public:
 	virtual void*                GetCustomData() const override;
 	virtual ESimulationMode      GetSimulationMode() const override;
 
-	virtual bool                 SetSimulationMode(ESimulationMode simulationMode, EObjectSimulationUpdatePolicy updatePolicy, bool bStartSimulation) override;
+	virtual bool                 SetSimulationMode(ESimulationMode simulationMode, EObjectSimulationUpdatePolicy updatePolicy) override;
 	virtual void                 ProcessSignal(const SObjectSignal& signal) override;
 	virtual void                 StopAction(CAction& action) override;
 

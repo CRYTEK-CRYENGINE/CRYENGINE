@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "Encoding.h"
@@ -22,7 +22,7 @@ void CEncoding::BeginPacket(TNetChannelID channel, bool isEncoding, uint32 uniqu
 {
 	if (m_enabled)
 	{
-		FUNCTION_PROFILER(GetISystem(), PROFILE_NETWORK);
+		CRY_PROFILE_FUNCTION(PROFILE_NETWORK);
 		NET_ASSERT(!m_isInUse);
 
 		m_uniqueId = uniqueId;
@@ -38,7 +38,7 @@ void CEncoding::Annotation(const string& annotation)
 {
 	if (m_enabled)
 	{
-		FUNCTION_PROFILER(GetISystem(), PROFILE_NETWORK);
+		CRY_PROFILE_FUNCTION(PROFILE_NETWORK);
 		NET_ASSERT(m_isInUse);
 
 		m_annotation.push_back(SAnnotation());
@@ -51,7 +51,7 @@ void CEncoding::Coding(uint64 nTot, uint32 nLow, uint32 nSym)
 {
 	if (m_enabled)
 	{
-		FUNCTION_PROFILER(GetISystem(), PROFILE_NETWORK);
+		CRY_PROFILE_FUNCTION(PROFILE_NETWORK);
 		if (!m_isInUse)
 			return;
 
@@ -64,7 +64,7 @@ void CEncoding::EndPacket(bool bSent)
 {
 	if (m_enabled)
 	{
-		FUNCTION_PROFILER(GetISystem(), PROFILE_NETWORK);
+		CRY_PROFILE_FUNCTION(PROFILE_NETWORK);
 		NET_ASSERT(m_isInUse);
 
 		if (bSent && m_channel)

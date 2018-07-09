@@ -1,4 +1,4 @@
-// Copyright 2001-2015 Crytek GmbH. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 #include "CryQtAPI.h"
@@ -17,9 +17,11 @@ public:
 	void addWidget(QWidget*);
 	void removeWidget(QWidget*);
 	void insertWidget(int i, QWidget*);
+	void clearWidgets();
 	int indexOf(QWidget*);
 
 protected:
 	QScrollArea* m_scrollArea;
 	QVBoxLayout* m_layout;
 };
+

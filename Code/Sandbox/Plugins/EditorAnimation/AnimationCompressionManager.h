@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -49,3 +49,4 @@ private:
 	std::vector<SAnimationInWorks>        m_canceledAnimations;
 	bool m_enabled;
 };
+

@@ -1,9 +1,12 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 using CryEngine.Common;
 
 namespace CryEngine
 {
+	/// <summary>
+	/// Managed wrapper of the internal SRenderLight struct.
+	/// </summary>
 	public class DynamicLight : RenderLight
 	{
 		/// <summary>
@@ -17,10 +20,11 @@ namespace CryEngine
 				return NativeHandle.GetFinalColor(Color.White);
 			}
 		}
-		
-		internal CDLight NativeHandle { get; private set; }
 
-		internal DynamicLight(CDLight nativeHandle) : base(nativeHandle)
+		[SerializeValue]
+		internal SRenderLight NativeHandle { get; private set; }
+
+		internal DynamicLight(SRenderLight nativeHandle) : base(nativeHandle)
 		{
 			NativeHandle = nativeHandle;
 		}
@@ -31,7 +35,7 @@ namespace CryEngine
 		/// <returns>The light.</returns>
 		public static DynamicLight CreateLight()
 		{
-			return new DynamicLight(new CDLight());
+			return new DynamicLight(new SRenderLight());
 		}
 
 		/// <summary>

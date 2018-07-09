@@ -1,4 +1,4 @@
-# Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved.
+# Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 def build(bld):	
 
@@ -14,3 +14,4 @@ def build(bld):
 		use			= [ 'Sandbox' ],
 		libpath     = Path('Code/Sandbox/SDKs/OpenCollada/COLLADAStreamWriter/lib/win/Win32/Release'),
 	)
+

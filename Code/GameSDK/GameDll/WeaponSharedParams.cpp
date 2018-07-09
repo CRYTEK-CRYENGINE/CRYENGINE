@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 /*************************************************************************
 -------------------------------------------------------------------------
@@ -101,7 +101,7 @@ void CWeaponSharedParams::GetMemoryUsage(ICrySizer *pSizer) const
 
 void CWeaponSharedParams::ReadWeaponParams(const XmlNodeRef& rootNode, CItemSharedParams* pItemParams, const char* weaponClassName)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_GAME);
+	CRY_PROFILE_FUNCTION(PROFILE_GAME);
 
 	CGameXmlParamReader rootReader(rootNode);
 
@@ -149,7 +149,7 @@ void CWeaponSharedParams::ReadWeaponParams(const XmlNodeRef& rootNode, CItemShar
 //------------------------------------------------------------------------
 void CWeaponSharedParams::ReadZoomModeParams(const XmlNodeRef& paramsNode, CItemSharedParams* pItemParams)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_GAME);
+	CRY_PROFILE_FUNCTION(PROFILE_GAME);
 
 	zoommodeParams.clear();
 
@@ -377,7 +377,7 @@ void CWeaponSharedParams::ReadZoomMode(const XmlNodeRef& paramsNode, CItemShared
 //------------------------------------------------------------------------
 void CWeaponSharedParams::ReadFireModeParams(const XmlNodeRef& paramsNode, CItemSharedParams* pItemParams)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_GAME);
+	CRY_PROFILE_FUNCTION(PROFILE_GAME);
 
 	const int numFiremodeParams = firemodeParams.size();
 
@@ -851,7 +851,7 @@ void CWeaponSharedParams::ReadFireModePluginParams(const XmlNodeRef& paramsNode,
 //------------------------------------------------------------------------
 void CWeaponSharedParams::ReadAmmoParams(const XmlNodeRef& paramsNode)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_GAME);
+	CRY_PROFILE_FUNCTION(PROFILE_GAME);
 
 	ammoParams.ammo.resize(0);
 	ammoParams.accessoryAmmo.resize(0);
@@ -940,7 +940,7 @@ void CWeaponSharedParams::ReadAmmoParams(const XmlNodeRef& paramsNode)
 //----------------------------------------------------------------------
 void CWeaponSharedParams::ReadReloadMagazineParams(const XmlNodeRef& paramsNode)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_GAME);
+	CRY_PROFILE_FUNCTION(PROFILE_GAME);
 
 	if (!paramsNode)
 		return;
@@ -976,7 +976,7 @@ void CWeaponSharedParams::ReadBulletBeltParams(const XmlNodeRef& paramsNode)
 //------------------------------------------------------------------------
 void CWeaponSharedParams::ReadMovementModifierParams(const XmlNodeRef& paramsNode)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_GAME);
+	CRY_PROFILE_FUNCTION(PROFILE_GAME);
 
 	const int numZoommodes = zoommodeParams.size();
 
@@ -1320,7 +1320,7 @@ void SPickAndThrowParams::SKillGrabbedNPCParams::Read( const XmlNodeRef& paramsN
 //------------------------------------------------------------------------
 void CWeaponSharedParams::ReadAIParams(const XmlNodeRef& paramsNode)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_GAME);
+	CRY_PROFILE_FUNCTION(PROFILE_GAME);
 
 	// Still set gravity descriptor even if we don't have it specified in the XML
 	// the first firemode (which isn't melee) will be the default firemode entered
@@ -1427,7 +1427,7 @@ void CWeaponSharedParams::ReadAIOffsets(const XmlNodeRef& paramsNode)
 //------------------------------------------------------------------------
 void CWeaponSharedParams::ReadHazardParams(const XmlNodeRef& paramsNode)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_GAME);
+	CRY_PROFILE_FUNCTION(PROFILE_GAME);
 
 	if (paramsNode)
 	{

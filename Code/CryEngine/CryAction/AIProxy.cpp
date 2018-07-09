@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 /********************************************************************
    CryGame Source File.
@@ -167,7 +167,7 @@ bool CAIProxy::GetLinkedVehicleVisionHelper(Vec3& outHelperPos) const
 
 //
 //----------------------------------------------------------------------------------------------------------
-void CAIProxy::QueryBodyInfo(SAIBodyInfo& bodyInfo)
+bool CAIProxy::QueryBodyInfo(SAIBodyInfo& bodyInfo)
 {
 	if (IMovementController* pMC = m_pGameObject->GetMovementController())
 	{
@@ -213,7 +213,10 @@ void CAIProxy::QueryBodyInfo(SAIBodyInfo& bodyInfo)
 		IVehicle* pVehicle = pActor ? pActor->GetLinkedVehicle() : 0;
 		IEntity* pVehicleEntity = pVehicle ? pVehicle->GetEntity() : 0;
 		bodyInfo.linkedVehicleEntityId = pVehicleEntity ? pVehicleEntity->GetId() : 0;
+
+		return true;
 	}
+	return false;
 }
 
 bool CAIProxy::QueryBodyInfo(const SAIBodyInfoQuery& query, SAIBodyInfo& bodyInfo)
@@ -515,7 +518,7 @@ void CAIProxy::ResendTargetSignalsNextFrame()
 //----------------------------------------------------------------------------------------------------------
 bool CAIProxy::CheckUpdateStatus()
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 	bool update = false;
 	// DO NOT call Activate on Entity
@@ -531,7 +534,7 @@ bool CAIProxy::CheckUpdateStatus()
 //----------------------------------------------------------------------------------------------------------
 int CAIProxy::Update(SOBJECTSTATE& state, bool bFullUpdate)
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 	if (!CheckUpdateStatus())
 		return 0;
@@ -789,7 +792,7 @@ int CAIProxy::Update(SOBJECTSTATE& state, bool bFullUpdate)
 //----------------------------------------------------------------------------------------------------------
 void CAIProxy::UpdateShooting(const SOBJECTSTATE& state, bool isAlive)
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 	m_WeaponShotIsDone = false;
 
@@ -1029,7 +1032,7 @@ void CAIProxy::QueryWeaponInfo(SAIWeaponInfo& weaponInfo)
 //----------------------------------------------------------------------------------------------------------
 void CAIProxy::UpdateCurrentWeapon()
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 	IWeapon* pCurrentWeapon = NULL;
 	EntityId currentWeaponId = 0;
@@ -1499,7 +1502,7 @@ bool CAIProxy::IsPlayingSmartObjectAction() const
 //----------------------------------------------------------------------------------------------------------
 void CAIProxy::UpdateMind(SOBJECTSTATE& state)
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 	UpdateCurrentWeapon();
 
@@ -1659,6 +1662,13 @@ IActor* CAIProxy::GetActor() const
 	if (!m_pIActor)
 		m_pIActor = gEnv->pGameFramework->GetIActorSystem()->GetActor(m_pGameObject->GetEntityId());
 	return m_pIActor;
+}
+
+//
+//----------------------------------------------------------------------------------------------------------
+void CAIProxy::OnActorRemoved()
+{
+	m_pIActor = nullptr;
 }
 
 //
@@ -1825,7 +1835,7 @@ bool CAIProxy::PredictProjectileHit(float vel, Vec3& posOut, Vec3& dirOut, float
 bool CAIProxy::PredictProjectileHit(const Vec3& throwDir, float vel, Vec3& posOut, float& speedOut, ERequestedGrenadeType prefGrenadeType,
                                     Vec3* pTrajectoryPositions, unsigned int* trajectorySizeInOut, Vec3* pTrajectoryVelocities)
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_GAME);
+	CRY_PROFILE_FUNCTION(PROFILE_GAME);
 
 	IWeapon* pGrenadeWeapon = GetSecWeapon(prefGrenadeType);
 	if (!pGrenadeWeapon)

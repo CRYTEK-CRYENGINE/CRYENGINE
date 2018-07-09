@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 // -------------------------------------------------------------------------
 //  File name:   IMovementSystem.h
@@ -12,12 +12,9 @@
 
 #pragma once
 
-#ifndef IMovementSystem_h
-	#define IMovementSystem_h
-
-	#include <CryAISystem/IAgent.h>
-	#include <CryAISystem/MovementStyle.h>
-	#include <CryAISystem/MovementBlock.h>
+#include <CryAISystem/IAgent.h>
+#include <CryAISystem/MovementStyle.h>
+#include <CryAISystem/MovementBlock.h>
 
 struct MovementRequest;
 struct MovementRequestID;
@@ -39,6 +36,7 @@ enum PathfinderState
 	StillFinding,
 	FoundPath,
 	CouldNotFindPath,
+	Canceled,
 };
 }
 
@@ -62,6 +60,25 @@ struct MovementActorCallbacks
 	GetPathFunction                getPathFunction;
 	GetPathFollowerFunction        getPathFollowerFunction;
 };
+
+struct SMovementActionAbilityCallbacks
+{
+	typedef DynArray<Movement::BlockPtr> Blocks;
+	typedef Functor2<Blocks&, const MovementRequest&> CreateBlocksCallback;
+	typedef Functor2<const MovementUpdateContext&, bool> MovementUpdateCallback;
+
+	bool operator==(const SMovementActionAbilityCallbacks& other) const
+	{
+		return addStartMovementBlocksCallback == other.addStartMovementBlocksCallback && addEndMovementBlocksCallback == other.addEndMovementBlocksCallback;
+	}
+
+	MovementUpdateCallback prePathFollowingUpdateCallback;
+	MovementUpdateCallback postPathFollowingUpdateCallback;
+	CreateBlocksCallback addStartMovementBlocksCallback;
+	CreateBlocksCallback addEndMovementBlocksCallback;
+};
+
+//////////////////////////////////////////////////////////////////////////
 
 struct IMovementActorAdapter
 {
@@ -89,12 +106,6 @@ struct IMovementActorAdapter
 	virtual bool                  PrepareNavigateSmartObject(CSmartObject* pSmartObject, OffMeshLink_SmartObject* pSmartObjectLink) = 0;
 	virtual void                  InvalidateSmartObjectLink(CSmartObject* pSmartObject, OffMeshLink_SmartObject* pSmartObjectLink) = 0;
 
-	virtual void                  SetInCover(const bool inCover) = 0;
-	virtual void                  UpdateCoverLocations() = 0;
-	virtual void                  InstallInLowCover(const bool inCover) = 0;
-	virtual void                  SetupCoverInformation() = 0;
-	virtual bool                  IsInCover() const = 0;
-
 	virtual bool                  GetDesignedPath(SShape& pathShape) const = 0;
 	virtual void                  CancelRequestedPath() = 0;
 	virtual void                  ConfigurePathfollower(const MovementStyle& style) = 0;
@@ -118,6 +129,10 @@ struct IMovementSystem
 	//! Unregister your entity from the movement system to stop using its services.
 	virtual void UnregisterEntity(const EntityId entityId) = 0;
 
+	//! Check whether the entity is registered in the movement system.
+	//! \return True if the entity is registered in the movement system or false otherwise.
+	virtual bool IsEntityRegistered(const EntityId entityId) = 0;
+
 	//! Ask the movement system to satisfy your request.
 	//! The movement system will contact you via the callback to inform you whether the request has been satisfied or not.
 	//! If you submit a callback you are responsible for calling CancelRequest before the callback becomes invalid.
@@ -128,7 +143,7 @@ struct IMovementSystem
 	virtual void CancelRequest(const MovementRequestID& id) = 0;
 
 	//! Get information about the current status of a request.
-	//! Uou'll see if it's in queue, path finding, or what block of a plan it's currently executing.
+	//! You'll see if it's in queue, path finding, or what block of a plan it's currently executing.
 	virtual void GetRequestStatus(const MovementRequestID& id, MovementRequestStatus& status) const = 0;
 
 	//! This resets the movement system to it's initial state.
@@ -143,6 +158,10 @@ struct IMovementSystem
 	//! This should instantiate a movement block able to handle the movement through that type of navigation type that is usually created in the game code.
 	virtual void RegisterFunctionToConstructMovementBlockForCustomNavigationType(Movement::CustomNavigationBlockCreatorFunction blockFactoryFunction) = 0;
 
-};
+	//! Register callbacks for special movement ability (extending planner)
+	virtual bool AddActionAbilityCallbacks(const EntityId entityId, const SMovementActionAbilityCallbacks& ability) = 0;
 
-#endif // IMovementSystem_h
+	//! Unregister callbacks for special movement ability (extending planner)
+	virtual bool RemoveActionAbilityCallbacks(const EntityId entityId, const SMovementActionAbilityCallbacks& ability) = 0;
+
+};

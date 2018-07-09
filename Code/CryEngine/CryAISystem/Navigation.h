@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 /********************************************************************
    -------------------------------------------------------------------------
@@ -20,11 +20,7 @@
 
 class CCryBufferedFileReader;
 
-#if defined(SEG_WORLD)
-bool ReadPolygonArea(CCryBufferedFileReader& file, int version, string& name, ListPositions& pts, const Vec3& vSegmentOffset);
-#else
 bool ReadPolygonArea(CCryBufferedFileReader& file, int version, string& name, ListPositions& pts);
-#endif
 
 class CNavigation : public INavigation
 {
@@ -35,7 +31,6 @@ public:
 	// INavigation
 	virtual float  GetNearestPointOnPath(const char* szPathName, const Vec3& vPos, Vec3& vResult, bool& bLoopPath, float& totalLength) const;
 	virtual void   GetPointOnPathBySegNo(const char* szPathName, Vec3& vResult, float segNo) const;
-	virtual bool   IsSegmentValid(IAISystem::tNavCapMask navCap, float rad, const Vec3& posFrom, Vec3& posTo, IAISystem::ENavigationType& navTypeFrom) const;
 	//~INavigation
 
 	const ShapeMap& GetDesignerPaths() const { return m_mapDesignerPaths; }
@@ -50,12 +45,7 @@ public:
 	void  LoadNavigationData(const char* szLevel, const char* szMission);
 
 	// reads (designer paths) areas from file. clears the existing areas
-#if defined(SEG_WORLD)
-	// SEG_WORLD: adds offset to the areas read, and doesn't clear existing areas.
-	void ReadAreasFromFile(CCryBufferedFileReader&, int fileVersion, const Vec3& vSegmentOffset);
-#else
 	void ReadAreasFromFile(CCryBufferedFileReader&, int fileVersion);
-#endif
 
 	void Update(CTimeValue currentTime, float frameTime);
 

@@ -32,14 +32,14 @@ namespace Cry
 			}
 		}
 
-		CLineConstraintComponent::~CLineConstraintComponent()
-		{
-			Remove();
-		}
-
 		void CLineConstraintComponent::Initialize()
 		{
 			Reset();
+		}
+
+		void CLineConstraintComponent::OnShutDown()
+		{
+			Remove();
 		}
 
 		void CLineConstraintComponent::Reset()
@@ -54,7 +54,7 @@ namespace Cry
 			}
 		}
 
-		void CLineConstraintComponent::ProcessEvent(SEntityEvent& event)
+		void CLineConstraintComponent::ProcessEvent(const SEntityEvent& event)
 		{
 			if (event.event == ENTITY_EVENT_START_GAME)
 			{
@@ -62,6 +62,8 @@ namespace Cry
 			}
 			else if (event.event == ENTITY_EVENT_COMPONENT_PROPERTY_CHANGED)
 			{
+				m_axis = m_axis.Normalize();
+
 				m_pEntity->UpdateComponentEventMask(this);
 
 				Reset();
@@ -70,10 +72,32 @@ namespace Cry
 
 		uint64 CLineConstraintComponent::GetEventMask() const
 		{
-			uint64 bitFlags = m_bActive ? BIT64(ENTITY_EVENT_START_GAME) : 0;
-			bitFlags |= BIT64(ENTITY_EVENT_COMPONENT_PROPERTY_CHANGED);
+			uint64 bitFlags = m_bActive ? ENTITY_EVENT_BIT(ENTITY_EVENT_START_GAME) : 0;
+			bitFlags |= ENTITY_EVENT_BIT(ENTITY_EVENT_COMPONENT_PROPERTY_CHANGED);
 
 			return bitFlags;
 		}
+
+#ifndef RELEASE
+		void CLineConstraintComponent::Render(const IEntity& entity, const IEntityComponent& component, SEntityPreviewContext &context) const
+		{
+			if (context.bSelected)
+			{
+				Vec3 axis = m_axis * m_pEntity->GetRotation().GetInverted();
+
+				Vec3 pos1 = m_pEntity->GetSlotWorldTM(GetEntitySlotId()).GetTranslation();
+				pos1.x += m_limitMin * axis.x;
+				pos1.y += m_limitMin * axis.y;
+				pos1.z += m_limitMin * axis.z;
+
+				Vec3 pos2 = m_pEntity->GetSlotWorldTM(GetEntitySlotId()).GetTranslation();
+				pos2.x += m_limitMax * axis.x;
+				pos2.y += m_limitMax * axis.y;
+				pos2.z += m_limitMax * axis.z;
+
+				gEnv->pAuxGeomRenderer->DrawLine(pos1, context.debugDrawInfo.color, pos2, context.debugDrawInfo.color, 10.0f);
+			}
+		}
+#endif
 	}
 }

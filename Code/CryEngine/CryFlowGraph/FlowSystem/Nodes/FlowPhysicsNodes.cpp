@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 
@@ -684,7 +684,7 @@ public:
 		{
 			EntityId skipEntityId = GetPortEntityId(pActInfo, IGNORED_ENTITY);
 			ray_hit hit;
-			CCamera& cam = GetISystem()->GetViewCamera();
+			const CCamera& cam = GetISystem()->GetViewCamera();
 			Vec3 pos = cam.GetPosition();
 			Vec3 direction = cam.GetViewdir();
 			IPhysicalWorld * pWorld = gEnv->pPhysicalWorld;
@@ -892,7 +892,7 @@ public:
 		else if (bCreate)
 		{
 CreateCam:
-			CCamera& cam = GetISystem()->GetViewCamera();
+			const CCamera& cam = GetISystem()->GetViewCamera();
 			Quat qcam = Quat(Matrix33(cam.GetMatrix()));
 			SEntitySpawnParams esp;
 			esp.sName = "CameraProxy";
@@ -1639,7 +1639,7 @@ public:
 						pent->SetParams(&pfd); // revert the changes done in AssignPhysicalEntity
 						pent->SetParams(&pf);
 						if (g_mapSkels.empty())
-							gEnv->pEntitySystem->AddSink(this, IEntitySystem::OnRemove, 0);
+							gEnv->pEntitySystem->AddSink(this, IEntitySystem::OnRemove);
 						g_mapSkels.emplace(id, pSkel);
 					}
 					ActivateOutput(pActInfo, OUT_SKEL_ENT, pSkel->GetId());
@@ -1649,7 +1649,7 @@ public:
 	virtual bool OnBeforeSpawn(SEntitySpawnParams& params) { return true; }
 	virtual void OnSpawn(IEntity* pEntity, SEntitySpawnParams& params) {}
 	virtual void OnReused(IEntity* pEntity, SEntitySpawnParams& params) {}
-	virtual void OnEvent(IEntity* pEntity, SEntityEvent& event) {}
+	virtual void OnEvent(IEntity* pEntity, const SEntityEvent& event) {}
 	virtual bool OnRemove(IEntity* pEntity) 
 	{
 		if (pEntity->GetFlags() & ENTITY_FLAG_PROCEDURAL)
@@ -1751,7 +1751,13 @@ public:
 							case eFDT_Bool   : params->SetValue(m_params[i-1], GetPortBool(pActInfo, i)); break;
 							case eFDT_String : params->SetValue(m_params[i-1], GetPortString(pActInfo, i).c_str()); break;
 						}
-				pActInfo->pEntity->GetComponent<IEntityScriptComponent>()->SetPhysParams(m_type+1, params);
+				IEntityScriptComponent *pScript0 = pActInfo->pEntity->GetComponent<IEntityScriptComponent>(), *pScript = pScript0;
+				if (!pScript)
+					pScript = pActInfo->pEntity->CreateComponent<IEntityScriptComponent>();
+				pScript->SetPhysParams(m_type+1, params);
+				if (!pScript0)
+					pActInfo->pEntity->RemoveComponent(pScript);
+
 				ActivateOutput(pActInfo, 0, 0);
 			}
 		}

@@ -1,5 +1,4 @@
-// CRYENGINE Source Code File
-// Copyright 2001-2017 Crytek GmbH. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 // This file is also included on the C++ side to ensure no mismatching structures.
 // These structures are intended to be passed under SV_UserData semantic (GNM extension).

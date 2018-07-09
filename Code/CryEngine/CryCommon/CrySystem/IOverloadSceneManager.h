@@ -1,15 +1,6 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
-// -------------------------------------------------------------------------
-//  File name:   IOverloadSceneManager.h
-//  Version:     v1.00
-//  Created:     19/04/2012 by JamesChilvers.
-//  Compilers:   Visual Studio.NET 2010
-//  Description: IOverloadSceneManager interface declaration.
-// -------------------------------------------------------------------------
-//  History:
-//
-////////////////////////////////////////////////////////////////////////////
+//! \cond INTERNAL
 
 #pragma once
 
@@ -34,3 +25,5 @@ public:
 	virtual void ResetScale(float dt) = 0;
 	// </interfuscator:shuffle>
 };
+
+//! \endcond

@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 
@@ -28,6 +28,9 @@ CCloudBlockerRenderNode::~CCloudBlockerRenderNode()
 
 void CCloudBlockerRenderNode::SetMatrix(const Matrix34& mat)
 {
+	if (m_position == mat.GetTranslation())
+		return;
+
 	m_position = mat.GetTranslation();
 	m_WSBBox.SetTransformedAABB(mat, AABB(1.0f));
 
@@ -36,7 +39,7 @@ void CCloudBlockerRenderNode::SetMatrix(const Matrix34& mat)
 
 void CCloudBlockerRenderNode::OffsetPosition(const Vec3& delta)
 {
-	if (m_pTempData) m_pTempData->OffsetPosition(delta);
+	if (const auto pTempData = m_pTempData.load()) pTempData->OffsetPosition(delta);
 	m_position += delta;
 	m_WSBBox.Move(delta);
 }

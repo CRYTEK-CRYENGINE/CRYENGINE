@@ -1,12 +1,16 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 using System;
 using CryEngine.Common;
 
 namespace CryEngine
 {
+	/// <summary>
+	/// Managed wrapper of the internal IView interface.
+	/// </summary>
 	public sealed class View
 	{
+		[SerializeValue]
 		internal IView NativeHandle { get; private set; }
 		internal View(IView nativeHandle)
 		{

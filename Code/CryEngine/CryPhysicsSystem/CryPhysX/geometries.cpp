@@ -1,3 +1,5 @@
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
+
 #include "StdAfx.h"
 
 #include "../../CryPhysics/geoman.h"
@@ -237,7 +239,6 @@ void CGeomManager::DestroyGeometry(IGeometry *pGeom) {}
 
 void CGeomManager::SaveGeometry(CMemStream &stm, IGeometry *pGeom) {}
 IGeometry *CGeomManager::LoadGeometry(CMemStream &stm, strided_pointer<const Vec3> pVertices, strided_pointer<unsigned short> pIndices, char *pIds) { CRY_PHYSX_LOG_FUNCTION; _RETURN_PTR_DUMMY_; }
-void CGeomManager::SavePhysGeometry(CMemStream &stm, phys_geometry *pgeom) {};
 IGeometry *CGeomManager::CloneGeometry(IGeometry *pGeom) { CRY_PHYSX_LOG_FUNCTION; _RETURN_PTR_DUMMY_; }
 
 ITetrLattice *CGeomManager::CreateTetrLattice(const Vec3 *pt, int npt, const int *pTets, int nTets) { CRY_PHYSX_LOG_FUNCTION; _RETURN_PTR_DUMMY_; }
@@ -280,7 +281,7 @@ IGeometry *CGeomManager::CreatePrimitive(int type, const primitives::primitive *
 			hfd.samples.data = data;
 			hfd.samples.stride = sizeof(PxHeightFieldSample);
 			pGeom->m_geom.hf.pHF = g_cryPhysX.Cooking()->createHeightField(hfd, g_cryPhysX.Physics()->getPhysicsInsertionCallback());
-			pGeom->m_geom.hf.hscale = scale;
+			pGeom->m_geom.hf.hscale = scale>0 ? scale : 1.0f;
 			pGeom->m_geom.hf.step = hf.step;
 			pGeom->m_geom.hf.origin = hf.origin;
 			break;
@@ -436,6 +437,40 @@ phys_geometry *CGeomManager::LoadPhysGeometry(CMemStream &stm, strided_pointer<c
 	pgeom->pGeom = pGeom;
 	
 	return pgeom;
+}
+
+void CGeomManager::SavePhysGeometry(CMemStream &stm, phys_geometry *pgeom) 
+{
+	stm.Write(PHYS_GEOM_VER);
+	phys_geometry_serialize pgs;
+	pgs.Ibody = pgeom->Ibody;
+	pgs.q = pgeom->q;
+	pgs.origin = pgeom->origin;
+	pgs.V = pgeom->V;
+	pgs.surface_idx = pgeom->surface_idx;
+	stm.Write(pgs);
+
+	int itype = pgeom->pGeom->GetType();
+	stm.Write(itype);
+	if (itype != GEOM_TRIMESH) {
+		int size = 0;
+		switch (itype) {
+			case GEOM_CYLINDER: case GEOM_CAPSULE: size = sizeof(capsule); break;
+			case GEOM_SPHERE: size = sizeof(sphere); break;
+			case GEOM_BOX: size = sizeof(box);
+		}
+		stm.Write(pgeom->pGeom->GetData(), size);
+	} else {
+		mesh_data &md = *(mesh_data*)pgeom->pGeom->GetData();
+		stm.Write(md.nVertices);
+		stm.Write(md.nTris);
+		stm.Write(8);	// dummy max vertex valency
+		stm.Write(md.flags & ~(mesh_shared_vtx | mesh_shared_idx));
+		stm.Write(false); // no vtx map
+		stm.Write(false); // no foreign idx
+		for(int i=0; i<md.nVertices; stm.Write(md.pVertices[i++]));
+		for(int i=0; i<md.nTris*3; stm.Write((uint16)md.pIndices[i++]));
+	}
 }
 
 void CGeomManager::SetGeomMatMapping(phys_geometry *pgeom, int *pMatMapping, int nMats)

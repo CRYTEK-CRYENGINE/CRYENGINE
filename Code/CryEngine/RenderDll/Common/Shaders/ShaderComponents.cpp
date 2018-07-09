@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 /*=============================================================================
    ShaderComponents.cpp : FX Shaders semantic components implementation.
@@ -19,26 +19,7 @@
 #elif CRY_PLATFORM_LINUX || CRY_PLATFORM_ANDROID
 #endif
 
-static void sParseTexMatrix(const char* szScr, const char* szAnnotations, std::vector<STexSamplerFX>* pSamplers, SCGParam* vpp, int nComp, CShader* ef)
-{
-	uint32 i;
-	const char* szSampler = gRenDev->m_cEF.mfParseFX_Parameter(szAnnotations, eType_STRING, "Sampler");
-	assert(szSampler);
-	if (szSampler)
-	{
-		for (i = 0; i < pSamplers->size(); i++)
-		{
-			STexSamplerFX* sm = &(*pSamplers)[i];
-			if (!stricmp(sm->m_szName.c_str(), szSampler))
-			{
-				vpp->m_nID = (UINT_PTR)sm->m_pTarget;
-				break;
-			}
-		}
-	}
-}
-
-static void sParseTimeExpr(const char* szScr, const char* szAnnotations, std::vector<STexSamplerFX>* pSamplers, SCGParam* vpp, int nComp, CShader* ef)
+static void sParseTimeExpr(const char* szScr, const char* szAnnotations, SCGParam* vpp, int nComp, CShader* ef)
 {
 	if (szScr)
 	{
@@ -54,57 +35,7 @@ static void sParseTimeExpr(const char* szScr, const char* szAnnotations, std::ve
 	}
 }
 
-static void sParseGlobalShaderFlag(const char* szScr, const char* szAnnotations, std::vector<STexSamplerFX>* pSamplers, SCGParam* vpp, int nComp, CShader* ef)
-{
-	if (!ef)
-		ef = gRenDev->m_RP.m_pShader;
-	if (!ef)
-		return;
-	if (szScr)
-	{
-		if (!vpp->m_pData)
-			vpp->m_pData = new SParamData;
-		char str[256], strval[256];
-		uint32 n = sscanf(szScr, "%255s %255s", str, strval);
-		if (n == 2)
-		{
-			bool bOK = false;
-			if (strval[0] == '%')
-			{
-				if (ef->m_pGenShader && ef->m_pGenShader->m_ShaderGenParams)
-				{
-					SShaderGen* pGen = ef->m_pGenShader->m_ShaderGenParams;
-					for (n = 0; n < pGen->m_BitMask.Num(); n++)
-					{
-						SShaderGenBit* pBit = pGen->m_BitMask[n];
-						if (!strcmp(pBit->m_ParamName.c_str(), strval))
-						{
-							vpp->m_pData->d.nData64[nComp] = pBit->m_Mask;
-							break;
-						}
-					}
-					if (n == pGen->m_BitMask.Num() && (gRenDev->m_cEF.m_nCombinationsProcess < 0))
-					{
-						iLog->Log("WARNING: Couldn't find global shader flag '%s' for shader '%s'", strval, ef->GetName());
-						vpp->m_pData->d.nData64[nComp] = 0;
-					}
-				}
-				else
-					vpp->m_pData->d.nData64[nComp] = 0;
-			}
-			else
-				vpp->m_pData->d.nData64[nComp] = shGetHex64(strval);
-		}
-		else
-			vpp->m_pData->d.nData64[nComp] = 0;
-	}
-	else
-	{
-		assert(0);
-	}
-}
-
-static void sParseRuntimeShaderFlag(const char* szScr, const char* szAnnotations, std::vector<STexSamplerFX>* pSamplers, SCGParam* vpp, int nComp, CShader* ef)
+static void sParseRuntimeShaderFlag(const char* szScr, const char* szAnnotations, SCGParam* vpp, int nComp, CShader* ef)
 {
 	if (szScr)
 	{
@@ -161,49 +92,6 @@ static void sParseRuntimeShaderFlag(const char* szScr, const char* szAnnotations
 #define PARAM(a, b) # a, b
 static SParamDB sParams[] =
 {
-	SParamDB(PARAM(SI_ObjMatrix,                             ECGP_Matr_SI_Obj),                              0),
-	SParamDB(PARAM(SI_AmbientOpacity,                        ECGP_SI_AmbientOpacity),                        0),
-	SParamDB(PARAM(SI_ObjectAmbColComp,                      ECGP_SI_ObjectAmbColComp),                      0),
-	SParamDB(PARAM(SI_BendInfo,                              ECGP_SI_BendInfo),                              0),
-
-	SParamDB(PARAM(PI_ViewProjection,                        ECGP_Matr_PI_ViewProj),                         0),
-	SParamDB(PARAM(PB_ViewProjMatrixPrev,                    ECGP_Matr_PB_ViewProjMatrixPrev),               0),
-	SParamDB(PARAM(PB_ViewProjMatrix_IT,                     ECGP_Matr_PB_ViewProjMatrix_IT),                0),
-	SParamDB(PARAM(PB_ViewProjMatrix_I,                      ECGP_Matr_PB_ViewProjMatrix_I),                 0),
-
-	SParamDB(PARAM(PB_View_IT,                               ECGP_Matr_PB_View_IT),                          0),
-	SParamDB(PARAM(PB_View_I,                                ECGP_Matr_PB_View_I),                           0),
-	SParamDB(PARAM(PB_View_T,                                ECGP_Matr_PB_View_T),                           0),
-	SParamDB(PARAM(PB_View,                                  ECGP_Matr_PB_View),                             0),
-
-	SParamDB(PARAM(PB_CameraMatrix_IT,                       ECGP_Matr_PB_Camera_IT),                        0),
-	SParamDB(PARAM(PB_CameraMatrix_I,                        ECGP_Matr_PB_Camera_I),                         0),
-	SParamDB(PARAM(PB_CameraMatrix_T,                        ECGP_Matr_PB_Camera_T),                         0),
-	SParamDB(PARAM(PB_CameraMatrix,                          ECGP_Matr_PB_Camera),                           0),
-
-	SParamDB(PARAM(PI_Composite,                             ECGP_Matr_PI_Composite),                        0),
-	SParamDB(PARAM(PB_UnProjMatrix,                          ECGP_Matr_PB_UnProjMatrix),                     0),
-	SParamDB(PARAM(PB_ProjMatrix,                            ECGP_Matr_PB_ProjMatrix),                       0),
-	SParamDB(PARAM(PB_TerrainBaseMatrix,                     ECGP_Matr_PB_TerrainBase),                      0),
-	SParamDB(PARAM(PB_TerrainLayerGen,                       ECGP_Matr_PB_TerrainLayerGen),                  0),
-	SParamDB(PARAM(PI_TransObjMatrix,                        ECGP_Matr_PI_Obj_T),                            0),             // Due to some bug in Parser, ObjMatrix_T or something
-
-	SParamDB(PARAM(PB_AmbientOpacity,                        ECGP_PB_AmbientOpacity),                        0),
-
-	SParamDB(PARAM(PI_MotionBlurData,                        ECGP_PI_MotionBlurData),                        0),
-
-	SParamDB(PARAM(PI_CloakParams,                           ECGP_PI_CloakParams),                           0),
-
-	SParamDB(PARAM(PB_TempMatr0,                             ECGP_Matr_PB_Temp4_0),                          PD_INDEXED),
-	SParamDB(PARAM(PB_TempMatr1,                             ECGP_Matr_PB_Temp4_1),                          PD_INDEXED),
-	SParamDB(PARAM(PB_TempMatr2,                             ECGP_Matr_PB_Temp4_2),                          PD_INDEXED),
-	SParamDB(PARAM(PB_TempMatr3,                             ECGP_Matr_PB_Temp4_3),                          PD_INDEXED),
-	SParamDB(PARAM(PI_TexMatrix,                             ECGP_Matr_PI_TexMatrix),                        0,              sParseTexMatrix),
-	SParamDB(PARAM(PB_TCMMatrix,                             ECGP_Matr_PB_TCMMatrix),                        PD_INDEXED),
-	SParamDB(PARAM(PI_TCGMatrix,                             ECGP_Matr_PI_TCGMatrix),                        0),
-
-	SParamDB(PARAM(PB_RotGridScreenOff,                      ECGP_PB_RotGridScreenOff),                      0),
-
 	SParamDB(PARAM(PM_MatChannelSB,                          ECGP_PM_MatChannelSB),                          0),
 	SParamDB(PARAM(PM_MatDiffuseColor,                       ECGP_PM_MatDiffuseColor),                       0),
 	SParamDB(PARAM(PM_MatSpecularColor,                      ECGP_PM_MatSpecularColor),                      0),
@@ -213,31 +101,15 @@ static SParamDB sParams[] =
 	SParamDB(PARAM(PM_MatDetailTilingAndAlphaRef,            ECGP_PM_MatDetailTilingAndAlphaRef),            0),
 	SParamDB(PARAM(PM_MatSilPomDetailParams,                 ECGP_PM_MatSilPomDetailParams),                 0),
 
-	SParamDB(PARAM(PI_OSCameraPos,                           ECGP_PI_OSCameraPos),                           0),
-	SParamDB(PARAM(PB_BlendTerrainColInfo,                   ECGP_PB_BlendTerrainColInfo),                   0),
-	SParamDB(PARAM(PI_Ambient,                               ECGP_PI_Ambient),                               0),
-	SParamDB(PARAM(PB_GlowParams,                            ECGP_PB_GlowParams),                            0),
 	SParamDB(PARAM(PB_HDRParams,                             ECGP_PB_HDRParams),                             0),
 	SParamDB(PARAM(PB_StereoParams,                          ECGP_PB_StereoParams),                          0),
-	SParamDB(PARAM(PB_FurParams,                             ECGP_PB_FurParams),                             0),
-	SParamDB(PARAM(PB_ResourcesOpacity,                      ECGP_PB_ResourcesOpacity),                      0),
-	SParamDB(PARAM(PI_VisionParams,                          ECGP_PI_VisionParams),                          0),
+
 	SParamDB(PARAM(PB_VisionMtlParams,                       ECGP_PB_VisionMtlParams),                       0),
 	SParamDB(PARAM(PI_EffectLayerParams,                     ECGP_PI_EffectLayerParams),                     0),
-	SParamDB(PARAM(PB_RandomParams,                          ECGP_PB_RandomParams),                          0),
 
 	SParamDB(PARAM(PB_IrregKernel,                           ECGP_PB_IrregKernel),                           0),
 	SParamDB(PARAM(PB_RegularKernel,                         ECGP_PB_RegularKernel),                         0),
 
-	SParamDB(PARAM(PB_TFactor,                               ECGP_PB_TFactor),                               0),
-	SParamDB(PARAM(PI_AlphaTest,                             ECGP_PI_AlphaTest),                             0),
-	SParamDB(PARAM(PB_AlphaTest,                             ECGP_PB_AlphaTest),                             0),
-	SParamDB(PARAM(PI_MaterialLayersParams,                  ECGP_PI_MaterialLayersParams),                  0),
-	SParamDB(PARAM(PB_TempData,                              ECGP_PB_TempData),                              PD_INDEXED | 0),
-	SParamDB(PARAM(PB_CameraFront,                           ECGP_PB_CameraFront),                           0),
-	SParamDB(PARAM(PB_CameraRight,                           ECGP_PB_CameraRight),                           0),
-	SParamDB(PARAM(PB_CameraUp,                              ECGP_PB_CameraUp),                              0),
-	SParamDB(PARAM(PB_RTRect,                                ECGP_PB_RTRect),                                0),
 	SParamDB(PARAM(PB_VolumetricFogParams,                   ECGP_PB_VolumetricFogParams),                   0),
 	SParamDB(PARAM(PB_VolumetricFogRampParams,               ECGP_PB_VolumetricFogRampParams),               0),
 	SParamDB(PARAM(PB_VolumetricFogSunDir,                   ECGP_PB_VolumetricFogSunDir),                   0),
@@ -256,34 +128,21 @@ static SParamDB sParams[] =
 	SParamDB(PARAM(PB_VolumetricFogDistanceParams,           ECGP_PB_VolumetricFogDistanceParams),           0),
 	SParamDB(PARAM(PB_VolumetricFogGlobalEnvProbe0,          ECGP_PB_VolumetricFogGlobalEnvProbe0),          0),
 	SParamDB(PARAM(PB_VolumetricFogGlobalEnvProbe1,          ECGP_PB_VolumetricFogGlobalEnvProbe1),          0),
-	SParamDB(PARAM(PI_AvgFogVolumeContrib,                   ECGP_PI_AvgFogVolumeContrib),                   0),
 	SParamDB(PARAM(PI_NumInstructions,                       ECGP_PI_NumInstructions),                       PD_INDEXED),
-	SParamDB(PARAM(PI_ObjColor,                              ECGP_PI_ObjColor),                              0),
-	SParamDB(PARAM(PB_LightningPos,                          ECGP_PB_LightningPos),                          0),
-	SParamDB(PARAM(PB_LightningColSize,                      ECGP_PB_LightningColSize),                      0),
+
 	SParamDB(PARAM(PB_FromRE,                                ECGP_PB_FromRE),                                PD_INDEXED | 0),
-	SParamDB(PARAM(PB_GlobalShaderFlag,                      ECGP_PB_GlobalShaderFlag),                      0,              sParseGlobalShaderFlag),
-	SParamDB(PARAM(PB_RuntimeShaderFlag,                     ECGP_PB_RuntimeShaderFlag),                     0,              sParseRuntimeShaderFlag),
-	SParamDB(PARAM(PB_ObjVal,                                ECGP_PB_ObjVal),                                PD_INDEXED),
+
 	SParamDB(PARAM(PB_WaterLevel,                            ECGP_PB_WaterLevel),                            0),
-	SParamDB(PARAM(PI_Wind,                                  ECGP_PI_Wind),                                  0),
-	SParamDB(PARAM(PI_TextureTileSize,                       ECGP_PI_TextureTileSize),                       0),
-	SParamDB(PARAM(PI_ParticleParams,                        ECGP_PI_ParticleParams),                        0),
-	SParamDB(PARAM(PI_ParticleLightParams,                   ECGP_PI_ParticleLightParams),                   0),
-	SParamDB(PARAM(PI_ParticleSoftParams,                    ECGP_PI_ParticleSoftParams),                    0),
-	SParamDB(PARAM(PI_ParticleAlphaTest,                     ECGP_PI_ParticleAlphaTest),                     0),
-	SParamDB(PARAM(PB_HDRDynamicMultiplier,                  ECGP_PB_HDRDynamicMultiplier),                  0),
+
 	SParamDB(PARAM(PB_CausticsParams,                        ECGP_PB_CausticsParams),                        0),
 	SParamDB(PARAM(PB_CausticsSmoothSunDirection,            ECGP_PB_CausticsSmoothSunDirection),            0),
-	SParamDB(PARAM(PB_SunColor,                              ECGP_PB_SunColor),                              0),
+
 	SParamDB(PARAM(PB_Time,                                  ECGP_PB_Time),                                  0,              sParseTimeExpr),
 	SParamDB(PARAM(PB_FrameTime,                             ECGP_PB_FrameTime),                             0,              sParseTimeExpr),
-	SParamDB(PARAM(PB_HPosScale,                             ECGP_PB_HPosScale),                             0),
+
 	SParamDB(PARAM(PB_ScreenSize,                            ECGP_PB_ScreenSize),                            0),
 	SParamDB(PARAM(PB_CameraPos,                             ECGP_PB_CameraPos),                             0),
 	SParamDB(PARAM(PB_NearFarDist,                           ECGP_PB_NearFarDist),                           0),
-
-	SParamDB(PARAM(PB_PullVerticesInfo,                      ECGP_PB_PullVerticesInfo),                      0),
 
 	SParamDB(PARAM(PI_WrinklesMask0,                         ECGP_PI_WrinklesMask0),                         0),
 	SParamDB(PARAM(PI_WrinklesMask1,                         ECGP_PI_WrinklesMask1),                         0),
@@ -297,20 +156,7 @@ static SParamDB sParams[] =
 
 	SParamDB(PARAM(PB_ClipVolumeParams,                      ECGP_PB_ClipVolumeParams),                      0),
 
-	SParamDB(PARAM(PB_ResInfoDiffuse,                        ECGP_PB_ResInfoDiffuse),                        0),
-	SParamDB(PARAM(PB_ResInfoGloss,                          ECGP_PB_ResInfoGloss),                          0),
-	SParamDB(PARAM(PB_ResInfoDetail,                         ECGP_PB_ResInfoDetail),                         0),
-	SParamDB(PARAM(PB_ResInfoCustom,                         ECGP_PB_ResInfoCustom),                         0),
-	SParamDB(PARAM(PB_ResInfoCustom2nd,                      ECGP_PB_ResInfoCustom2nd),                      0),
-	SParamDB(PARAM(PB_ResInfoOpacity,                        ECGP_PB_ResInfoOpacity),                        0),
-	SParamDB(PARAM(PB_ResInfoBump,                           ECGP_PB_ResInfoBump),                           0),
-	SParamDB(PARAM(PB_FromObjSB,                             ECGP_PB_FromObjSB),                             0),
-	SParamDB(PARAM(PB_TexelDensityParam,                     ECGP_PB_TexelDensityParam),                     0),
-	SParamDB(PARAM(PB_TexelDensityColor,                     ECGP_PB_TexelDensityColor),                     0),
-	SParamDB(PARAM(PB_TexelsPerMeterInfo,                    ECGP_PB_TexelsPerMeterInfo),                    0),
-
 	SParamDB(PARAM(PB_WaterRipplesLookupParams,              ECGP_PB_WaterRipplesLookupParams),              0),
-	SParamDB(PARAM(PB_SkinningExtraWeights,                  ECGP_PB_SkinningExtraWeights),                  0),
 
 #if defined(FEATURE_SVO_GI)
 	SParamDB(PARAM(PB_SvoViewProj0,                          ECGP_PB_SvoViewProj0),                          0),
@@ -451,7 +297,7 @@ bool CShaderMan::mfParseParamComp(int comp, SCGParam* pCurParam, const char* szS
 				}
 			}
 			if (sParams[n].ParserFunc)
-				sParams[n].ParserFunc(params ? params : szSemantic, szAnnotations, &FXParams.m_FXSamplersOld, pCurParam, comp, ef);
+				sParams[n].ParserFunc(params ? params : szSemantic, szAnnotations, pCurParam, comp, ef);
 			break;
 		}
 		n++;
@@ -726,11 +572,7 @@ static STextureDB sTextures[] =
 	STextureDB(PARAM(TS_SceneNormals,                 ECGT_SceneNormals),                 0),
 	STextureDB(PARAM(TS_SceneDiffuse,                 ECGT_SceneDiffuse),                 0),
 	STextureDB(PARAM(TS_SceneSpecular,                ECGT_SceneSpecular),                0),
-	STextureDB(PARAM(TS_SceneDiffuseAcc,              ECGT_SceneDiffuseAcc),              0),
-	STextureDB(PARAM(TS_SceneSpecularAcc,             ECGT_SceneSpecularAcc),             0),
 	STextureDB(PARAM(TS_SceneNormalsMapMS,            ECGT_SceneNormalsMS),               0),
-	STextureDB(PARAM(TS_SceneDiffuseAccMS,            ECGT_SceneDiffuseAccMS),            0),
-	STextureDB(PARAM(TS_SceneSpecularAccMS,           ECGT_SceneSpecularAccMS),           0),
 
 	STextureDB(PARAM(TS_VolumetricClipVolumeStencil,  ECGT_VolumetricClipVolumeStencil),  0),
 	STextureDB(PARAM(TS_VolumetricFog,                ECGT_VolumetricFog),                0),
@@ -929,23 +771,6 @@ bool SShaderParam::GetValue(uint8 eSemantic, DynArrayRef<SShaderParam>* Params, 
 	return bRes;
 }
 
-bool sGetPublic(const CCryNameR& n, float* v, int nID)
-{
-	CRenderer* rd = gRenDev;
-	bool bFound = false;
-	CShaderResources* pRS;
-	const char* cName = n.c_str();
-	if (pRS = rd->m_RP.m_pShaderResources)
-		bFound = SShaderParam::GetValue(cName, &pRS->m_ShaderParams, v, nID);
-	if (!bFound && rd->m_RP.m_pShader)
-	{
-		DynArray<SShaderParam>& PublicParams = rd->m_cEF.m_Bin.mfGetFXParams(rd->m_RP.m_pShader).m_PublicParams;
-		bFound = SShaderParam::GetValue(cName, &PublicParams, v, nID);
-	}
-
-	return bFound;
-}
-
 SParamData::~SParamData()
 {
 }
@@ -991,18 +816,4 @@ SCGTexture::SCGTexture(const SCGTexture& sp) : SCGBind(sp)
 	m_eCGTextureType = sp.m_eCGTextureType;
 	m_bSRGBLookup = sp.m_bSRGBLookup;
 	m_bGlobal = sp.m_bGlobal;
-}
-
-CTexture* SCGTexture::GetTexture() const
-{
-	if (m_pAnimInfo && m_pAnimInfo->m_Time && gRenDev->m_bPauseTimer == 0)
-	{
-		assert(gRenDev->m_RP.m_TI[gRenDev->m_RP.m_nProcessThreadID].m_RealTime >= 0);
-		uint32 m = (uint32)(gRenDev->m_RP.m_TI[gRenDev->m_RP.m_nProcessThreadID].m_RealTime / m_pAnimInfo->m_Time) % (m_pAnimInfo->m_NumAnimTexs);
-		assert(m < (uint32)m_pAnimInfo->m_TexPics.Num());
-
-		return m_pAnimInfo->m_TexPics[m];
-	}
-
-	return m_pTexture;
 }

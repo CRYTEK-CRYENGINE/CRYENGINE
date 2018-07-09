@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 // A helper class that is used to render a beam between the Player's 
 // hand and a (boss) entity during a Mind-game button mash sequence.

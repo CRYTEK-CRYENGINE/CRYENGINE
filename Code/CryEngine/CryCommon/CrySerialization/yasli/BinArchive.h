@@ -20,17 +20,12 @@ namespace yasli{
 
 inline unsigned short calcHash(const char* str)
 {
-	unsigned short hash = 0;
-	const unsigned short* p = (const unsigned short*)(str);
-	for(;;){
-		unsigned short w = *p++;
-		if(!(w & 0xff))
-			break;
-		hash ^= w;
-		if(!(w & 0xff00))
-			break;
-	}
-	return hash;
+	unsigned int hash = 1315423911;
+
+	while(*str)
+		hash ^= (hash << 5) + *str++ + (hash >> 2);
+
+	return static_cast<unsigned short>(hash);
 }
 
 class BinOArchive : public Archive{

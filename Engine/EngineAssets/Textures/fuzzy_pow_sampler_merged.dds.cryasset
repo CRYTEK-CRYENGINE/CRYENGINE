@@ -1,0 +1,10 @@
+<AssetMetadata version="0" type="Texture" guid="c9c96553-9700-3192-8234-23f7349f7c26">
+ <Files>
+  <File path="fuzzy_pow_sampler_merged.dds"/>
+ </Files>
+ <Details>
+  <Detail name="width">128</Detail>
+  <Detail name="height">128</Detail>
+  <Detail name="mipCount">8</Detail>
+ </Details>
+</AssetMetadata>

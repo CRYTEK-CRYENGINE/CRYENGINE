@@ -22,7 +22,7 @@ def read_chunks(url, block_sz=8192 * 8):
                 return
 
 
-BASE_URL = 'https://github.com/CRYTEK/CRYENGINE/releases/download/5.4.0/CRYENGINE_v5.4.0_SDKs'
+BASE_URL = 'https://github.com/CRYTEK/CRYENGINE/releases/download/5.5.0_preview4/CRYENGINE_v5.5.0_SDKs'
 
 
 def main():

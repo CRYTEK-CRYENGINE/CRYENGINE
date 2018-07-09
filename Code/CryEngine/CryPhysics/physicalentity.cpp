@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 
@@ -306,15 +306,6 @@ int CPhysicalEntity::SetParams(pe_params *_params, int bThreadSafe)
 			m_pWorld->GetGeomManager()->AddRefGeometry(params->pPhysGeomProxy);
 	}
 	int bRecalcBounds = 0;
-#ifdef SEG_WORLD
-	int bForcePosChange = 0;
-	if (_params->type==pe_params_pos::type_id)
-	{
-		pe_params_pos *params = (pe_params_pos*)_params;
-		bRecalcBounds = params->bRecalcBounds&2;
-		bForcePosChange = (params->bRecalcBounds == 3) ? 1 : 0;
-	}
-#endif
 	ChangeRequest<pe_params> req(this,m_pWorld,_params,bThreadSafe);
 	if (req.IsQueued() && !bRecalcBounds)
 		return 1+(m_bProcessed>>PENT_QUEUED_BIT);
@@ -322,9 +313,6 @@ int CPhysicalEntity::SetParams(pe_params *_params, int bThreadSafe)
 	if (_params->type==pe_params_pos::type_id) {
 		pe_params_pos *params = (pe_params_pos*)_params;
 		int i,j,bPosChanged=0,bBBoxReady=0;
-#ifdef SEG_WORLD
-		bPosChanged = bForcePosChange;
-#endif
 		SEntityGrid *pgridCur = m_pWorld->GetGrid(this), *pgridNew = is_unused(params->pGridRefEnt) ? pgridCur : 
 			(!params->pGridRefEnt || params->pGridRefEnt==WORLD_ENTITY ? &m_pWorld->m_entgrid : m_pWorld->GetGrid(params->pGridRefEnt));
 		if (pgridNew != pgridCur) {
@@ -1137,7 +1125,7 @@ int CPhysicalEntity::GetStatus(pe_status *_status) const
 	if (_status->type==pe_status_random::type_id)
 	{
 		pe_status_random *status = (pe_status_random*)_status;
-		GetRandomPos(status->ran, status->seed, status->eForm);
+		GetRandomPoints(status->points, status->seed, status->eForm);
 		return 1;
 	}
 
@@ -1384,16 +1372,18 @@ float CPhysicalEntity::GetExtent(EGeomForm eForm) const
 	return ext.TotalExtent();
 }
 
-void CPhysicalEntity::GetRandomPos(PosNorm& ran, CRndGen& seed, EGeomForm eForm) const
+void CPhysicalEntity::GetRandomPoints(Array<PosNorm> points, CRndGen& seed, EGeomForm eForm) const
 {
 	// choose sub-part, get random pos, transform to world
 	const CGeomExtent& ext = m_Extents[eForm];
-	int iPart = ext.RandomPart(seed);
-	if (iPart >= 0 && iPart < m_nParts) {
-		geom const& part = m_parts[iPart];
-		part.pPhysGeom->pGeom->GetRandomPos(ran, seed, eForm);
-		QuatTS qts(m_qrot * part.q, m_qrot * part.pos + m_pos, part.scale);
-		ran <<= qts;
+	for (auto subPoints : ext.RandomPartsAliasSum(points, seed)) {
+		if (subPoints.iPart >= 0 && subPoints.iPart < m_nParts) {
+			geom const& part = m_parts[subPoints.iPart];
+			part.pPhysGeom->pGeom->GetRandomPoints(subPoints.aPoints, seed, eForm);
+			QuatTS qts(m_qrot * part.q, m_qrot * part.pos + m_pos, part.scale);
+			for (auto& ran : subPoints.aPoints)
+				ran <<= qts;
+		}
 	}
 }
 
@@ -1805,7 +1795,7 @@ void CPhysicalEntity::DrawHelperInformation(IPhysRenderer *pRenderer, int flags)
 	}
 
 	if (flags & (pe_helper_geometry|pe_helper_lattice)) {
-		int iLevel = flags>>16, mask=0, bTransp=m_pStructure && (flags & 16 || m_pWorld->m_vars.bLogLatticeTension);
+		int iLevel = flags>>16 & 0xFFF, mask=0, bTransp=(m_pStructure && (flags & 16 || m_pWorld->m_vars.bLogLatticeTension)) | flags>>29 & 1;
 		if (iLevel & 1<<11)
 			mask=iLevel&0xF7FF,iLevel=0;
 		for(i=0;i<m_nParts;i++) if ((m_parts[i].flags & mask)==mask && (m_parts[i].flags || m_parts[i].flagsCollider || m_parts[i].mass>0)) {
@@ -1920,10 +1910,14 @@ void CPhysicalEntity::GetMemoryStatistics(ICrySizer *pSizer) const
 	if (m_pWorld->m_vars.iDrawHelpers & 1<<31 && m_ig[0].x>-1)
 		pSizer->AddObject(&m_iGThunk0, (m_ig[1].x-m_ig[0].x+1)*(m_ig[1].y-m_ig[0].y+1)*sizeof(pe_gridthunk));
 	pSizer->AddObject(m_parts, m_nPartsAlloc*sizeof(m_parts[0]));
-	for(int i=0;i<m_nParts;i++) if (CPhysicalPlaceholder *ppc=m_parts[i].pPlaceholder) {
-		//pSizer->AddObject(ppc, sizeof(CPhysicalPlaceholder));
-		if (m_pWorld->m_vars.iDrawHelpers & 1<<31 && ppc->m_ig[0].x>-1)
-			pSizer->AddObject(&ppc->m_iGThunk0, (ppc->m_ig[1].x-ppc->m_ig[0].x+1)*(ppc->m_ig[1].y-ppc->m_ig[0].y+1)*sizeof(pe_gridthunk));
+	for(int i=0;i<m_nParts;i++) {
+		if (CPhysicalPlaceholder *ppc=m_parts[i].pPlaceholder) {
+			//pSizer->AddObject(ppc, sizeof(CPhysicalPlaceholder));
+			if (m_pWorld->m_vars.iDrawHelpers & 1<<31 && ppc->m_ig[0].x>-1)
+				pSizer->AddObject(&ppc->m_iGThunk0, (ppc->m_ig[1].x-ppc->m_ig[0].x+1)*(ppc->m_ig[1].y-ppc->m_ig[0].y+1)*sizeof(pe_gridthunk));
+		}
+		int nMats = m_parts[i].pMatMapping && m_parts[i].pMatMapping!=m_parts[i].pPhysGeom->pMatMapping ? m_parts[i].nMats : 0;
+		pSizer->AddObject(m_parts[i].pMatMapping, nMats*sizeof(int), nMats);
 	}
 	if(m_pColliders)
 		pSizer->AddObject(m_pColliders, m_nCollidersAlloc*sizeof(m_pColliders[0]));

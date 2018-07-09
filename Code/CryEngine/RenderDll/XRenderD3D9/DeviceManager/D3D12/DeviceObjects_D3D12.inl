@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 class CDeviceTimestampGroup : public CDeviceTimestampGroup_Base<CDeviceTimestampGroup>
 {
@@ -11,8 +11,15 @@ public:
 	void BeginMeasurement();
 	void EndMeasurement();
 
-	uint32 IssueTimestamp(void* pCommandList);
+	uint32 IssueTimestamp(CDeviceCommandList* pCommandList);
 	bool ResolveTimestamps();
+
+	uint64 GetTime(uint32 timestamp)
+	{
+		timestamp -= m_groupIndex * kMaxTimestamps;
+
+		return m_timeValues[timestamp];
+	}
 
 	float GetTimeMS(uint32 timestamp0, uint32 timestamp1)
 	{
@@ -30,6 +37,8 @@ protected:
 	DeviceFenceHandle                   m_fence;
 	UINT64                              m_frequency;
 	std::array<uint64, kMaxTimestamps>  m_timeValues;
+
+	bool                                m_measurable;
 
 protected:
 	static bool                         s_reservedGroups[4];
@@ -145,7 +154,57 @@ inline D3DResource* CDeviceObjectFactory::GetNullResource(D3D11_RESOURCE_DIMENSI
 inline CDeviceCommandListRef CDeviceObjectFactory::GetCoreCommandList() const
 {
 	// Sanity check
-	CRY_ASSERT(m_pCoreCommandList->m_sharedState.pCommandList == m_pDX12Scheduler->GetCommandList(CMDQUEUE_GRAPHICS));
+	CRY_ASSERT(
+		m_pCoreCommandList->m_sharedState.pCommandList == m_pDX12Scheduler->GetCommandList(CMDQUEUE_GRAPHICS) ||
+		m_pCoreCommandList->m_sharedState.pCommandList == nullptr
+	);
 
 	return *m_pCoreCommandList.get();
 }
+
+inline NCryDX12::CDevice* GetDevice()
+{
+	return GetDeviceObjectFactory().GetDX12Device();
+}
+
+inline NCryDX12::CCommandScheduler* GetScheduler()
+{
+	return GetDeviceObjectFactory().GetDX12Scheduler();
+}
+
+inline static D3D12_SHADER_VISIBILITY GetShaderVisibility(::EShaderStage shaderStages)
+{
+	extern D3D12_SHADER_VISIBILITY shaderVisibility[eHWSC_Num + 1];
+
+	EHWShaderClass shaderClass = eHWSC_Num;
+	if (IsPowerOfTwo(shaderStages)) // only bound to a single shader stage?
+	{
+		shaderClass = EHWShaderClass(countTrailingZeros32(shaderStages));
+	}
+
+	return shaderVisibility[shaderClass];
+};
+
+inline static CD3DX12_DESCRIPTOR_RANGE GetDescriptorRange(SResourceBindPoint bindPoint, int descriptorIndex)
+{
+	extern D3D12_DESCRIPTOR_RANGE_TYPE mapDescriptorRange[size_t(SResourceBindPoint::ESlotType::Count)];
+
+	CD3DX12_DESCRIPTOR_RANGE result;
+	result.BaseShaderRegister = bindPoint.slotNumber;
+	result.NumDescriptors = 1;
+	result.OffsetInDescriptorsFromTableStart = descriptorIndex;
+	result.RegisterSpace = 0;
+	result.RangeType = mapDescriptorRange[size_t(bindPoint.slotType)];
+
+	return result;
+}
+
+#define GET_DX12_SHADER_VIEW(uniformBufferOrTexture, rView)    reinterpret_cast<CCryDX12ShaderResourceView*>((uniformBufferOrTexture)->LookupSRV(rView))
+#define GET_DX12_UNORDERED_VIEW(uniformBufferOrTexture, rView) reinterpret_cast<CCryDX12UnorderedAccessView*>((uniformBufferOrTexture)->LookupUAV(rView))
+#define GET_DX12_DEPTHSTENCIL_VIEW(dsTarget, dView)            reinterpret_cast<CCryDX12DepthStencilView*>((dsTarget)->LookupDSV(dView));
+#define GET_DX12_RENDERTARGET_VIEW(rTarget, rView)             reinterpret_cast<CCryDX12RenderTargetView*>((rTarget)->LookupRTV(rView))
+#define GET_DX12_SAMPLERSTATE(uniformSamplerState)             reinterpret_cast<CCryDX12SamplerState*>(CDeviceObjectFactory::LookupSamplerState(uniformSamplerState).second)
+
+#define GET_DX12_TEXTURE_RESOURCE(uniformTexture)              reinterpret_cast<CCryDX12Resource<ID3D11Resource>*>((uniformTexture)->GetDevTexture()->GetBaseTexture())
+#define GET_DX12_BUFFER_RESOURCE(uniformBuffer)                reinterpret_cast<CCryDX12Resource<ID3D11Resource>*>((uniformBuffer).GetDevBuffer()->GetBaseBuffer())
+#define GET_DX12_CONSTANTBUFFER_RESOURCE(constantBuffer)       reinterpret_cast<CCryDX12Buffer*>((constantBuffer)->GetD3D())

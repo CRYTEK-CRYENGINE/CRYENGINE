@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 /********************************************************************
    -------------------------------------------------------------------------
@@ -27,6 +27,7 @@
 #include <limits>
 #include <CrySystem/IConsole.h>
 #include <CryNetwork/ISerialize.h>
+#include "Formation/AIFormationDescriptor.h"
 
 //
 //----------------------------------------------------------------------------------------------------
@@ -115,7 +116,7 @@ Vec3 CLeader::GetPreferedPos() const
 //----------------------------------------------------------------------------------------------------
 void CLeader::Update(EUpdateType type)
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 	if (!GetAssociation().ValidateOrReset() && !m_bKeepEnabled)
 		return;
@@ -515,55 +516,6 @@ void CLeader::OnObjectRemoved(CAIObject* pObject)
 }
 
 //---------------------------------------------------------------------------------------
-
-Vec3 CLeader::GetHidePoint(const CAIObject* pAIObject, const CObstacleRef& obstacle) const
-{
-	if (obstacle.GetAnchor() || obstacle.GetNodeIndex())
-		return obstacle.GetPos();
-
-	if (obstacle.GetVertex() < 0)
-		return Vec3(0.0f, 0.0f, 0.0f);
-
-	// lets create the place where we will hide
-
-	Vec3 vHidePos = obstacle.GetPos();
-	const CAIActor* pActor = pAIObject->CastToCAIActor();
-	float fDistanceToEdge = pActor->GetParameters().m_fPassRadius + obstacle.GetApproxRadius() + 1.f;
-	Vec3 enemyPosition = m_pGroup->GetEnemyPosition(pAIObject);
-
-	Vec3 vHideDir = vHidePos - enemyPosition;
-	vHideDir.z = 0.f;
-	vHideDir.NormalizeSafe();
-
-	ray_hit hit;
-	while (1)
-	{
-		int rayresult(0);
-		rayresult = gAIEnv.pWorld->RayWorldIntersection(
-		  vHidePos - vHideDir * 0.5f, vHideDir * 5.f, COVER_OBJECT_TYPES,
-		  AI_VISION_RAY_CAST_FLAG_BLOCKED_BY_SOLID_COVER | AI_VISION_RAY_CAST_FLAG_BLOCKED_BY_SOFT_COVER,
-		  &hit, 1);
-
-		if (rayresult)
-		{
-			if (hit.n.Dot(vHideDir) < 0)
-				vHidePos += vHideDir * fDistanceToEdge;
-			else
-			{
-				vHidePos = hit.pt + vHideDir * 2.0f;
-				break;
-			}
-		}
-		else
-		{
-			vHidePos += vHideDir * 3.0f;
-			break;
-		}
-	}
-
-	return vHidePos;
-}
-
 bool CLeader::LeaderCreateFormation(const char* szFormationDescr, const Vec3& vTargetPos, bool bIncludeLeader, uint32 unitProp, CAIObject* pOwner)
 {
 	// (MATT) Note that this code seems to imply that pOwner must be an Actor - can the argument change? {2009/02/13}

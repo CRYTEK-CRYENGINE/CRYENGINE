@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -23,6 +23,7 @@ inline char toUpperAscii(char c)
 }
 }
 
+//! \cond INTERNAL
 //! cry_sXXX()/cry_vsXXX() and CryStringUtils_Internal::strXXX()/vsprintfXXX():
 //! The functions copy characters from src to dst one by one until any of
 //! the following conditions is met:
@@ -281,50 +282,51 @@ static inline bool MatchesWildcards_Tpl(const CharType* pStr, const CharType* pW
 }
 
 } // namespace CryStringUtils_Internal
+//! \endcond
 
 //////////////////////////////////////////////////////////////////////////
 // cry_strcpy(), cry_strcpy_wchar()
 
-inline bool cry_strcpy(char* const dst, size_t const dst_size_in_bytes, const char* const src)
+inline bool cry_strcpy(_Out_writes_z_(dst_size_in_bytes) char* const dst, size_t const dst_size_in_bytes, const char* const src)
 {
 	return CryStringUtils_Internal::strcpy_with_clamp<char>(dst, dst_size_in_bytes, src, (size_t)-1);
 }
 
-inline bool cry_strcpy(char* const dst, size_t const dst_size_in_bytes, const char* const src, size_t const src_size_in_bytes)
+inline bool cry_strcpy(_Out_writes_z_(dst_size_in_bytes) char* const dst, size_t const dst_size_in_bytes, const char* const src, size_t const src_size_in_bytes)
 {
 	return CryStringUtils_Internal::strcpy_with_clamp<char>(dst, dst_size_in_bytes, src, src_size_in_bytes);
 }
 
 template<size_t SIZE_IN_CHARS>
-inline bool cry_strcpy(char (&dst)[SIZE_IN_CHARS], const char* const src)
+inline bool cry_strcpy(_Out_writes_z_(SIZE_IN_CHARS) char (&dst)[SIZE_IN_CHARS], const char* const src)
 {
 	return CryStringUtils_Internal::strcpy_with_clamp<char>(dst, SIZE_IN_CHARS, src, (size_t)-1);
 }
 
 template<size_t SIZE_IN_CHARS>
-inline bool cry_strcpy(char (&dst)[SIZE_IN_CHARS], const char* const src, size_t const src_size_in_bytes)
+inline bool cry_strcpy(_Out_writes_z_(SIZE_IN_CHARS) char (&dst)[SIZE_IN_CHARS], const char* const src, size_t const src_size_in_bytes)
 {
 	return CryStringUtils_Internal::strcpy_with_clamp<char>(dst, SIZE_IN_CHARS, src, src_size_in_bytes);
 }
 
-inline bool cry_strcpy_wchar(wchar_t* const dst, size_t const dst_size_in_bytes, const wchar_t* const src)
+inline bool cry_strcpy_wchar(_Out_writes_z_(dst_size_in_bytes) wchar_t* const dst, size_t const dst_size_in_bytes, const wchar_t* const src)
 {
 	return CryStringUtils_Internal::strcpy_with_clamp<wchar_t>(dst, dst_size_in_bytes, src, (size_t)-1);
 }
 
-inline bool cry_strcpy_wchar(wchar_t* const dst, size_t const dst_size_in_bytes, const wchar_t* const src, size_t const src_size_in_bytes)
+inline bool cry_strcpy_wchar(_Out_writes_z_(dst_size_in_bytes) wchar_t* const dst, size_t const dst_size_in_bytes, const wchar_t* const src, size_t const src_size_in_bytes)
 {
 	return CryStringUtils_Internal::strcpy_with_clamp<wchar_t>(dst, dst_size_in_bytes, src, src_size_in_bytes);
 }
 
 template<size_t SIZE_IN_WCHARS>
-inline bool cry_strcpy_wchar(wchar_t (&dst)[SIZE_IN_WCHARS], const wchar_t* const src)
+inline bool cry_strcpy_wchar(_Out_writes_z_(SIZE_IN_CHARS*2) wchar_t (&dst)[SIZE_IN_WCHARS], const wchar_t* const src)
 {
 	return CryStringUtils_Internal::strcpy_with_clamp<wchar_t>(dst, SIZE_IN_WCHARS * sizeof(wchar_t), src, (size_t)-1);
 }
 
 template<size_t SIZE_IN_WCHARS>
-inline bool cry_strcpy_wchar(wchar_t (&dst)[SIZE_IN_WCHARS], const wchar_t* const src, size_t const src_size_in_bytes)
+inline bool cry_strcpy_wchar(_Out_writes_z_(SIZE_IN_CHARS*2) wchar_t (&dst)[SIZE_IN_WCHARS], const wchar_t* const src, size_t const src_size_in_bytes)
 {
 	return CryStringUtils_Internal::strcpy_with_clamp<wchar_t>(dst, SIZE_IN_WCHARS * sizeof(wchar_t), src, src_size_in_bytes);
 }
@@ -332,46 +334,46 @@ inline bool cry_strcpy_wchar(wchar_t (&dst)[SIZE_IN_WCHARS], const wchar_t* cons
 //////////////////////////////////////////////////////////////////////////
 // cry_strcat(), cry_strcat_wchar()
 
-inline bool cry_strcat(char* const dst, size_t const dst_size_in_bytes, const char* const src)
+inline bool cry_strcat( _Inout_updates_z_(dst_size_in_bytes) char* const dst, size_t const dst_size_in_bytes, const char* const src)
 {
 	return CryStringUtils_Internal::strcat_with_clamp<char>(dst, dst_size_in_bytes, src, (size_t)-1);
 }
 
 template<size_t SIZE_IN_CHARS>
-inline bool cry_strcat(char (&dst)[SIZE_IN_CHARS], const char* const src)
+inline bool cry_strcat( _Inout_updates_z_(SIZE_IN_CHARS) char (&dst)[SIZE_IN_CHARS], const char* const src)
 {
 	return CryStringUtils_Internal::strcat_with_clamp<char>(dst, SIZE_IN_CHARS, src, (size_t)-1);
 }
 
-inline bool cry_strcat(char* const dst, size_t const dst_size_in_bytes, const char* const src, size_t const src_size_in_bytes)
+inline bool cry_strcat( _Inout_updates_z_(dst_size_in_bytes) char* const dst, size_t const dst_size_in_bytes, const char* const src, size_t const src_size_in_bytes)
 {
 	return CryStringUtils_Internal::strcat_with_clamp<char>(dst, dst_size_in_bytes, src, src_size_in_bytes);
 }
 
 template<size_t SIZE_IN_CHARS>
-inline bool cry_strcat(char (&dst)[SIZE_IN_CHARS], const char* const src, size_t const src_size_in_bytes)
+inline bool cry_strcat( _Inout_updates_z_(SIZE_IN_CHARS) char (&dst)[SIZE_IN_CHARS], const char* const src, size_t const src_size_in_bytes)
 {
 	return CryStringUtils_Internal::strcat_with_clamp<char>(dst, SIZE_IN_CHARS, src, src_size_in_bytes);
 }
 
-inline bool cry_strcat_wchar(wchar_t* const dst, size_t const dst_size_in_bytes, const wchar_t* const src)
+inline bool cry_strcat_wchar( _Inout_updates_z_(dst_size_in_bytes) wchar_t* const dst, size_t const dst_size_in_bytes, const wchar_t* const src)
 {
 	return CryStringUtils_Internal::strcat_with_clamp<wchar_t>(dst, dst_size_in_bytes, src, (size_t)-1);
 }
 
 template<size_t SIZE_IN_WCHARS>
-inline bool cry_strcat_wchar(wchar_t (&dst)[SIZE_IN_WCHARS], const wchar_t* const src)
+inline bool cry_strcat_wchar( _Inout_updates_z_(SIZE_IN_CHARS*2) wchar_t (&dst)[SIZE_IN_WCHARS], const wchar_t* const src)
 {
 	return CryStringUtils_Internal::strcat_with_clamp<wchar_t>(dst, SIZE_IN_WCHARS * sizeof(wchar_t), src, (size_t)-1);
 }
 
-inline bool cry_strcat_wchar(wchar_t* const dst, size_t const dst_size_in_bytes, const wchar_t* const src, size_t const src_size_in_bytes)
+inline bool cry_strcat_wchar( _Inout_updates_z_(dst_size_in_bytes) wchar_t* const dst, size_t const dst_size_in_bytes, const wchar_t* const src, size_t const src_size_in_bytes)
 {
 	return CryStringUtils_Internal::strcat_with_clamp<wchar_t>(dst, dst_size_in_bytes, src, src_size_in_bytes);
 }
 
 template<size_t SIZE_IN_WCHARS>
-inline bool cry_strcat_wchar(wchar_t (&dst)[SIZE_IN_WCHARS], const wchar_t* const src, size_t const src_size_in_bytes)
+inline bool cry_strcat_wchar( _Inout_updates_z_(SIZE_IN_CHARS*2) wchar_t (&dst)[SIZE_IN_WCHARS], const wchar_t* const src, size_t const src_size_in_bytes)
 {
 	return CryStringUtils_Internal::strcat_with_clamp<wchar_t>(dst, SIZE_IN_WCHARS * sizeof(wchar_t), src, src_size_in_bytes);
 }
@@ -379,18 +381,18 @@ inline bool cry_strcat_wchar(wchar_t (&dst)[SIZE_IN_WCHARS], const wchar_t* cons
 //////////////////////////////////////////////////////////////////////////
 // cry_vsprintf(), cry_sprintf()
 
-inline bool cry_vsprintf(char* const dst, size_t const dst_size_in_bytes, const char* const format, va_list args)
+inline bool cry_vsprintf(_Out_writes_z_(dst_size_in_bytes) char* const dst, size_t const dst_size_in_bytes, const char* const format, va_list args)
 {
 	return CryStringUtils_Internal::vsprintf_with_clamp(dst, dst_size_in_bytes, format, args);
 }
 
 template<size_t SIZE_IN_CHARS>
-inline bool cry_vsprintf(char (&dst)[SIZE_IN_CHARS], const char* const format, va_list args)
+inline bool cry_vsprintf(_Out_writes_z_(SIZE_IN_CHARS) char (&dst)[SIZE_IN_CHARS], const char* const format, va_list args)
 {
 	return CryStringUtils_Internal::vsprintf_with_clamp(dst, SIZE_IN_CHARS, format, args);
 }
 
-inline bool cry_sprintf(char* const dst, size_t const dst_size_in_bytes, const char* const format, ...)
+inline bool cry_sprintf(_Out_writes_z_(dst_size_in_bytes) char* const dst, size_t const dst_size_in_bytes, const char* const format, ...)
 {
 	va_list args;
 	va_start(args, format);
@@ -400,7 +402,7 @@ inline bool cry_sprintf(char* const dst, size_t const dst_size_in_bytes, const c
 }
 
 template<size_t SIZE_IN_CHARS>
-inline bool cry_sprintf(char (&dst)[SIZE_IN_CHARS], const char* const format, ...)
+inline bool cry_sprintf(_Out_writes_z_(SIZE_IN_CHARS) char (&dst)[SIZE_IN_CHARS], const char* const format, ...)
 {
 	va_list args;
 	va_start(args, format);

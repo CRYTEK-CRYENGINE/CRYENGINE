@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #ifndef D3D_COLOR_GRADING_CONTROLLER_H
 #define D3D_COLOR_GRADING_CONTROLLER_H
@@ -18,7 +18,7 @@ struct SColorGradingMergeParams
 	uint64 nFlagsShaderRT;
 };
 
-class CColorGradingControllerD3D : public IColorGradingControllerInt
+class CColorGradingController : public IColorGradingControllerInt
 {
 	friend class CColorGradingStage;
 
@@ -30,12 +30,8 @@ public:
 	virtual void SetLayers(const SColorChartLayer* pLayers, uint32 numLayers);
 
 public:
-	// IColorGradingController internal interface
-	virtual void RT_SetLayers(const SColorChartLayer* pLayers, uint32 numLayers);
-
-public:
-	CColorGradingControllerD3D(CD3D9Renderer* pRenderer);
-	virtual ~CColorGradingControllerD3D();
+	CColorGradingController();
+	virtual ~CColorGradingController();
 
 	bool            Update(const SColorGradingMergeParams* pMergeParams = 0);
 	CTexture*       GetColorChart() const;
@@ -48,6 +44,8 @@ public:
 
 	int             GetColorChartSize() const;
 
+	CryCriticalSectionNonRecursive& GetLayersLock() { return m_layersLock; };
+
 private:
 	typedef std::vector<SColorChartLayer> Layers;
 
@@ -58,8 +56,8 @@ private:
 	void      DrawLayer(float x, float y, float w, float h, CTexture* pChart, float blendAmount, const char* pLayerName) const;
 
 private:
-	Layers                       m_layers;
-	CD3D9Renderer*               m_pRenderer;
+	Layers                         m_layers;
+	CryCriticalSectionNonRecursive m_layersLock;
 
 	// TODO: remove once we don't need r_graphicspipeline=0 anymore
 	CTexture*                    m_pChartIdentity;

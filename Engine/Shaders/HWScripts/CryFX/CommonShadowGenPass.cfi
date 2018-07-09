@@ -1,7 +1,4 @@
-// CRYENGINE Source Code File
-// Copyright 2001-2015 Crytek GmbH. All rights reserved.
-
-float4 MaterialLayersParamsSG : PI_MaterialLayersParams;//x=frozen, y=wet, z = cloak, w = unuse
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 ///////////////// vertex shader //////////////////
 v2f_sh Common_SG_VS(app2vertSGGeneral IN_common)
@@ -13,20 +10,11 @@ v2f_sh Common_SG_VS(app2vertSGGeneral IN_common)
 	IN.vertCommon.Position.z = IN_common.vertCommon.baseTC.x;
 #endif
 
+bool instanceMatrixToWorldSpace = false;
 #if %_RT_NEAREST
 	// Nearest objects are in camera space, we don't want to render the nearest shadows in camera space
 	// so convert to world space
-
-	#if %_RT_PER_INSTANCE_CB_TEMP
-		PerInstanceWorldMatrix[0][3] += g_VS_WorldViewPos.x; 
-		PerInstanceWorldMatrix[1][3] += g_VS_WorldViewPos.y; 
-		PerInstanceWorldMatrix[2][3] += g_VS_WorldViewPos.z;
-	#else
-		ObjWorldMatrix[0][3] += g_VS_WorldViewPos.x; 
-		ObjWorldMatrix[1][3] += g_VS_WorldViewPos.y; 
-		ObjWorldMatrix[2][3] += g_VS_WorldViewPos.z;
-	#endif
-
+	instanceMatrixToWorldSpace = true;
 #endif
 
   streamPos vertPassPos = (streamPos)0;
@@ -35,7 +23,7 @@ v2f_sh Common_SG_VS(app2vertSGGeneral IN_common)
 #if %TEMP_TERRAIN && %_RT_OBJ_IDENTITY
   float4 HPosition = Pos_VS_Terrain(0, g_VS_ViewProjMatr, vertPassPos, true);
 #else  
-  float4 HPosition = Pos_VS_General(g_VS_ViewProjMatr, vertPassPos, false);
+  float4 HPosition = Pos_VS_General(g_VS_ViewProjMatr, vertPassPos, false, instanceMatrixToWorldSpace);
 #endif
 
 #if ENABLE_TESSELLATION && !%_RT_NO_TESSELLATION
@@ -117,15 +105,11 @@ float4 OutBaseTC;
 #include "CommonShadowGenPassTess.cfi"
 //////////////////////////////////////
 
-#if !%TEMP_TERRAIN
-half4 AmbientOpPB        : PB_AmbientOpacity;
-#endif
-
 struct pixout_shadow
 {
 #if (!ENABLE_TESSELLATION || %_RT_NO_TESSELLATION) && %_RT_SAMPLE4
-  float4 Color   : COLOR0;
-  half4  Normal	 : COLOR1;
+  float4 Color   : SV_Target0;
+  half4 Normal   : SV_Target1;
 #endif
 
 #if %_RT_SAMPLE0
@@ -146,7 +130,7 @@ pixout_shadow Common_SG_PS(v2f_sh IN)
 		OUT.Depth = IN.Depth + min( fSlopeScale * max( abs(ddx(IN.Depth)), abs(ddy(IN.Depth)) ), fSlopeClamp);
 #elif %_RT_CUBEMAP0 // Local light shadows: linear depth
 		OUT.Depth = IN.Depth;
-	#endif
+#endif
 
 #if %_RT_ALPHATEST || %_RT_ALPHABLEND || %_RT_SAMPLE4
 	#if !%TEMP_TERRAIN
@@ -160,19 +144,19 @@ pixout_shadow Common_SG_PS(v2f_sh IN)
 	clip(baseColor.a - Get_MaterialAlphaTest());
 #endif
 
-	#if (!ENABLE_TESSELLATION || %_RT_NO_TESSELLATION) && %_RT_SAMPLE4
-		// output RSM color component
-		#if !%TEMP_TERRAIN
+#if (!ENABLE_TESSELLATION || %_RT_NO_TESSELLATION) && %_RT_SAMPLE4
+	// output RSM color component
+	#if !%TEMP_TERRAIN
 		OUT.Color.rgb = baseColor.rgb * MatDifColor.rgb;
-		#else
-			OUT.Color.rgb = baseColor.rgb;
-		#endif
+	#else
+		OUT.Color.rgb = baseColor.rgb;
+	#endif
 
-		#if	%TEMP_VEGETATION
-			OUT.Color.a = CP_ShadowGen_VegetationAlphaClamp.x;
-		#else
-			OUT.Color.a = 1.f;
-		#endif
+	#if	%TEMP_VEGETATION
+		OUT.Color.a = CP_ShadowGen_VegetationAlphaClamp.x;
+	#else
+		OUT.Color.a = 1.f;
+	#endif
 
 	OUT.Normal.xyz = normalize(half3(IN.Normal.xyz))*.5h+.5h;
 	OUT.Normal.w = 1;

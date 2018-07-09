@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 /*************************************************************************
 	-------------------------------------------------------------------------
@@ -86,7 +86,7 @@ void CGameRulesMPDamageHandling::InitVehicleDamage(XmlNodeRef vehicleDamage)
 //------------------------------------------------------------------------
 void CGameRulesMPDamageHandling::Update(float frameTime)
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_GAME);
+	CRY_PROFILE_FUNCTION(PROFILE_GAME);
 
 	float currentTime = gEnv->pTimer->GetCurrTime();
 	m_entityLastDamageUpdateTimer += frameTime;
@@ -694,7 +694,7 @@ bool CGameRulesMPDamageHandling::IsDead(CActor* actor, IScriptTable* actorScript
 	}
 	else
 	{
-		FRAME_PROFILER("SvOnCollision IsDead scope", gEnv->pSystem, PROFILE_GAME);
+		CRY_PROFILE_REGION(PROFILE_GAME, "SvOnCollision IsDead scope");
 		HSCRIPTFUNCTION isDeadFunc = NULL;
 		if (actorScript->GetValue("IsDead", isDeadFunc))
 		{
@@ -838,7 +838,7 @@ float CGameRulesMPDamageHandling::ProcessActorVehicleCollision(IActor* victimAct
 //------------------------------------------------------------------------
 void CGameRulesMPDamageHandling::SvOnCollision(const IEntity *pVictimEntity, const CGameRules::SCollisionHitInfo& collisionHitInfo)
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_GAME);
+	CRY_PROFILE_FUNCTION(PROFILE_GAME);
 	CRY_ASSERT(gEnv->bMultiplayer);
 
 #if !defined(_RELEASE)
@@ -879,7 +879,7 @@ void CGameRulesMPDamageHandling::SvOnCollision(const IEntity *pVictimEntity, con
 	// Filter frequent collisions
 	if (pOffenderEntity)
 	{
-		FRAME_PROFILER("Filter out recent collisions", gEnv->pSystem, PROFILE_GAME);
+		CRY_PROFILE_REGION(PROFILE_GAME, "Filter out recent collisions");
 
 		EntityCollisionRecords::const_iterator collisionRecordIter = m_entityCollisionRecords.find(victimID);
 		if (collisionRecordIter != m_entityCollisionRecords.end())
@@ -1085,7 +1085,7 @@ void CGameRulesMPDamageHandling::SvOnCollision(const IEntity *pVictimEntity, con
 				}	
 				else if (pVictimScript)
 				{
-					FRAME_PROFILER("Call to OnHit", gEnv->pSystem, PROFILE_GAME);
+					CRY_PROFILE_REGION(PROFILE_GAME, "Call to OnHit");
 
 					if (!IsDead(victimActor, pVictimScript))
 					{

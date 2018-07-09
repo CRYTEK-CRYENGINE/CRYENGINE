@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "stdafx.h"
 #include "LoaderCGA.h"
@@ -98,7 +98,7 @@ CDefaultSkeleton* CryCGALoader::LoadNewCGA(const char* OriginalGeomName, Charact
 		return 0;
 	}
 
-	pCGAModel->PrepareJointIDHash();
+	pCGAModel->RebuildJointLookupCaches();
 
 	//
 	m_CtrlVec3.clear();

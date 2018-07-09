@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 /*************************************************************************
 -------------------------------------------------------------------------
@@ -307,21 +307,21 @@ int CScriptBind_MatchMaking::StartSearch( IFunctionHandler *pH, int freeSlotsReq
 						//and set them into the search data
 						data[ dataIndex ].m_data.m_id = idLookup[ iKey ].id;
 					
-						switch( valueVal.type )
+						switch (valueVal.GetType())
 						{
-						case ANY_TNUMBER:
+						case EScriptAnyType::Number:
 							data[ dataIndex ].m_data.m_type = eCLUDT_Int32;
-							data[ dataIndex ].m_data.m_int32 = (int32)valueVal.number;
+							data[ dataIndex ].m_data.m_int32 = static_cast<int32>(valueVal.GetNumber());
 							break;
 
-						case ANY_TBOOLEAN:
+						case EScriptAnyType::Boolean:
 							data[ dataIndex ].m_data.m_type = eCLUDT_Int32;
-							data[ dataIndex ].m_data.m_int32 = (int32)valueVal.b;
+							data[ dataIndex ].m_data.m_int32 = valueVal.GetBool() ? 1 : 0;
 							break;
 
-						case ANY_THANDLE:
+						case EScriptAnyType::Handle:
 							data[ dataIndex ].m_data.m_type = eCLUDT_Int32;
-							data[ dataIndex ].m_data.m_int32 = (int32)(TRUNCATE_PTR)valueVal.ptr;
+							data[ dataIndex ].m_data.m_int32 = static_cast<int32>(valueVal.GetScriptHandle().n);
 							break;
 
 						default:
@@ -369,7 +369,7 @@ int CScriptBind_MatchMaking::CreateServer( IFunctionHandler *pH, SmartScriptTabl
 			ScriptAnyValue valueVal;
 			if( sessionParams->GetValueAny( idLookup[ iKey ].key, valueVal ) )
 			{
-				if( valueVal.type != ANY_TNIL )
+				if (valueVal.GetType() != EScriptAnyType::Nil)
 				{
 					//if there is add it to our parameters
 					pMatchMaking->NewSessionParameter( idLookup[ iKey ].id, valueVal );

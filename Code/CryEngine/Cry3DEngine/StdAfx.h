@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 // -------------------------------------------------------------------------
 //  File name:   stdafx.h
@@ -177,7 +177,7 @@ struct TriangleIndex
 	uint16        nCull;
 };
 
-#define FUNCTION_PROFILER_3DENGINE FUNCTION_PROFILER(gEnv->pSystem, PROFILE_3DENGINE)
+#define FUNCTION_PROFILER_3DENGINE CRY_PROFILE_FUNCTION(PROFILE_3DENGINE)
 
 #if CRY_PLATFORM_DESKTOP
 	#define INCLUDE_SAVECGF

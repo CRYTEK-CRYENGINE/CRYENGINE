@@ -1,11 +1,10 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "LogWidget.h"
 
 #include <QVBoxLayout>
 #include <QLineEdit>
-#include <QParentWndWidget.h>
 #include <QPlainTextEdit>
 #include <QPushButton>
 #include <QSplitter>
@@ -306,3 +305,4 @@ void CLogWidget::WriteLogMessageToOutput(const SLogMessageData& logMessageData)
 }
 
 } // Schematyc
+

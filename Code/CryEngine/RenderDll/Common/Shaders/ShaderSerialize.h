@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 /*=============================================================================
    ShaderSerialize.h : Shaders serialization declarations.
@@ -14,30 +14,6 @@
 #if defined(SHADERS_SERIALIZING)
 
 	#include "../ResFile.h"
-
-//
-//	console enums taken from d3d9types.h
-//
-
-enum X360AddressModes
-{
-	X360TADDRESS_WRAP                   = 0,
-	X360TADDRESS_MIRROR                 = 1,
-	X360TADDRESS_CLAMP                  = 2,
-	X360TADDRESS_MIRRORONCE             = 3,
-	X360TADDRESS_BORDER_HALF            = 4,
-	X360TADDRESS_MIRRORONCE_BORDER_HALF = 5,
-	X360TADDRESS_BORDER                 = 6,
-	X360TADDRESS_MIRRORONCE_BORDER      = 7,
-};
-
-enum X360FilterType
-{
-	X360TEXF_NONE        = 2,
-	X360TEXF_POINT       = 0,
-	X360TEXF_LINEAR      = 1,
-	X360TEXF_ANISOTROPIC = 4,
-};
 
 inline void sAlignData(TArray<byte>& Dst, uint32 align)
 {
@@ -75,19 +51,20 @@ template<typename T> void sAddData(TArray<byte>& Dst, T Src, uint32 align = 0)
 	}
 }
 
-template<typename T> void sAddDataArray_POD(TArray<byte>& Dst, TArray<T>& Src, uint32& nOffs, uint32 align = 0)
+template<typename Container> void sAddDataArray_POD(TArray<byte>& Dst, const Container& Src, uint32& nOffs, uint32 align = 0)
 {
+	using T = typename Container::value_type;
+
 	nOffs = Dst.Num();
-	int nSize = sizeof(T) * Src.Num();
+	int nSize = sizeof(T) * Src.size();
 	if (!nSize)
 		return;
 	T* pDst = (T*)Dst.Grow(nSize);
 
 	if (CParserBin::m_bEndians)
 	{
-		for (uint32 i = 0; i < Src.size(); i++)
+		for (auto d : Src)
 		{
-			T d = Src[i];
 			SwapEndian(d, eBigEndian);
 			memcpy(pDst, &d, sizeof(T));
 			pDst++;
@@ -104,7 +81,7 @@ template<typename T> void sAddDataArray_POD(TArray<byte>& Dst, TArray<T>& Src, u
 	}
 }
 
-template<typename T> void sExport(TArray<byte>& dst, T& data)
+template<typename T> void sExport(TArray<byte>& dst, const T& data)
 {
 	int startNum = dst.Num();
 
@@ -118,7 +95,7 @@ template<typename T> void sExport(TArray<byte>& dst, T& data)
 	}
 }
 
-template<typename T> void sAddDataArray(TArray<byte>& Dst, TArray<T>& Src, uint32& nOffs, uint32 align = 0)
+template<typename T> void sAddDataArray(TArray<byte>& Dst, const TArray<T>& Src, uint32& nOffs, uint32 align = 0)
 {
 	nOffs = Dst.Num();
 	int nSize = sizeof(T) * Src.Num();
@@ -245,7 +222,7 @@ struct SSShader
 		memset(this, 0, sizeof(*this));
 	}
 
-	void Export(TArray<byte>& dst)
+	void Export(TArray<byte>& dst) const
 	{
 		uint32 startOffset = dst.Num();
 
@@ -329,7 +306,7 @@ struct SSShaderParam
 		memset(this, 0, sizeof(*this));
 	}
 
-	void Export(TArray<byte>& dst)
+	void Export(TArray<byte>& dst) const
 	{
 		sAddData(dst, m_nameIdx);
 		sAddData(dst, (uint32)m_Type);
@@ -439,7 +416,7 @@ struct SSShaderTechnique
 		memset(this, 0, sizeof(*this));
 	}
 
-	void Export(TArray<byte>& dst)
+	void Export(TArray<byte>& dst) const
 	{
 		sAddData(dst, m_nNameOffs);
 		sAddData(dst, m_nPassesOffs);
@@ -503,7 +480,7 @@ struct SSShaderPass
 
 	uint32 m_nRenderElemOffset;
 
-	void   Export(TArray<byte>& dst)
+	void   Export(TArray<byte>& dst) const
 	{
 		sAddData(dst, m_RenderState);
 		sAddData(dst, m_eCull);
@@ -579,7 +556,7 @@ struct SCHWShader
 		memset(this, 0, sizeof(*this));
 	}
 
-	void Export(TArray<byte>& dst)
+	void Export(TArray<byte>& dst) const
 	{
 		uint32 startOffset = dst.Num();
 
@@ -674,7 +651,7 @@ struct SSTexSamplerFX
 		return *this;
 	}
 
-	void Export(TArray<byte>& dst)
+	void Export(TArray<byte>& dst) const
 	{
 		sAddData(dst, m_nsName);
 		sAddData(dst, m_nsNameTexture);
@@ -754,7 +731,7 @@ struct SSHRenderTarget
 		return *this;
 	}
 
-	void Export(TArray<byte>& dst)
+	void Export(TArray<byte>& dst) const
 	{
 		sAddData(dst, (uint32)m_eOrder);
 		sAddData(dst, m_nProcessFlags);
@@ -826,7 +803,7 @@ struct SSFXParam
 		memset(this, 0, sizeof(*this));
 	}
 
-	void Export(TArray<byte>& dst)
+	void Export(TArray<byte>& dst) const
 	{
 		sAddData(dst, m_nsName);
 		sAddData(dst, m_nFlags);
@@ -886,7 +863,7 @@ struct SSFXSampler
 		memset(this, 0, sizeof(*this));
 	}
 
-	void Export(TArray<byte>& dst)
+	void Export(TArray<byte>& dst) const
 	{
 		sAddData(dst, m_nsName);
 		sAddData(dst, m_nFlags);
@@ -944,7 +921,7 @@ struct SSFXTexture
 		memset(this, 0, sizeof(*this));
 	}
 
-	void Export(TArray<byte>& dst)
+	void Export(TArray<byte>& dst) const
 	{
 		sAddData(dst, m_nsName);
 		sAddData(dst, m_nsNameTexture);
@@ -1039,12 +1016,12 @@ public:
 	void ClearSResourceCache();
 
 private:
-	bool         _OpenSResource(float fVersion, SSShaderRes* pSR, CShader* pSH, int nCache, CResFile* pRF, bool bReadOnly);
+	bool         _OpenSResource(float fVersion, SSShaderRes* pSR, CShader* pSH, cacheSource nCache, CResFile* pRF, bool bReadOnly);
 	bool         OpenSResource(const char* szName, SSShaderRes* pSR, CShader* pSH, bool bDontUseUserFolder, bool bReadOnly);
 	bool         CreateSResource(CShader* pSH, SSShaderRes* pSR, CCryNameTSCRC& SName, bool bDontUseUserFolder, bool bReadOnly);
 	SSShaderRes* InitSResource(CShader* pSH, bool bDontUseUserFolder, bool bReadOnly);
 
-	bool         ExportHWShader(CHWShader* pShader, struct SShaderSerializeContext& SC);
+	bool         ExportHWShader(CShader* pSH, CHWShader* pShader, struct SShaderSerializeContext& SC);
 
 	CHWShader*   ImportHWShader(SShaderSerializeContext& SC, int nOffs, uint32 CRC32, CShader* pSH);
 
@@ -1053,7 +1030,6 @@ private:
 	bool         CheckFXBExists(CShader* pSH);
 
 	FXSShaderRes m_SShaderResources;
-	string       m_customSerialisePath;
 };
 
 inline const char* sString(int nOffs, TArray<char>& Strings)

@@ -25,3 +25,4 @@ end_sources()
 #END-FILE-LIST
 
 CryEditorPlugin(SamplePlugin PCH "StdAfx.cpp" SOLUTION_FOLDER "Sandbox/Plugins")
+

@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 /*=============================================================================
    RemoteCompiler.h : socket wrapper for shader compile server connections
@@ -228,7 +228,7 @@ EServerError CShaderSrv::Compile(std::vector<uint8>& rVec,
 	do
 	{
 		if (errCompile != ESOK)
-			Sleep(5000);
+			CrySleep(5000);
 
 		if (!CreateRequest(CompileData, Nodes))
 		{
@@ -279,7 +279,7 @@ bool CShaderSrv::RequestLine(const string& rList, const string& rString) const
 	if (!gRenDev->CV_r_shaderssubmitrequestline)
 		return true;
 
-	string list = m_RequestLineRootFolder + rList;
+	string list = m_RequestLineRootFolder.c_str() + rList;
 
 	std::vector<uint8> CompileData;
 	std::vector<std::pair<string, string>> Nodes;
@@ -363,7 +363,7 @@ EServerError CShaderSrv::Recv(CRYSOCKET Socket, std::vector<uint8>& rCompileData
 					waitingtime += 5;
 
 					// sleep a bit and try again
-					Sleep(5);
+					CrySleep(5);
 				}
 				else
 				{
@@ -468,10 +468,8 @@ EServerError CShaderSrv::Send(std::vector<uint8>& rCompileData) const
 	if (gRenDev->CV_r_ShaderCompilerServer)
 		Tokenize(ServerVec, gRenDev->CV_r_ShaderCompilerServer->GetString(), ";");
 
-	if (ServerVec.empty())
-	{
-		ServerVec.push_back("localhost");
-	}
+	// Always add localhost as last resort
+	ServerVec.push_back("localhost");
 
 #if CRY_PLATFORM_WINDOWS
 	int nPort = 0;
@@ -527,7 +525,7 @@ EServerError CShaderSrv::Send(std::vector<uint8>& rCompileData) const
 			// (for more info on windows side check : http://www.proxyplus.cz/faq/articles/EN/art10002.htm)
 			if (sockErr == CrySock::eCSE_ENOBUFS)
 			{
-				Sleep(5000);
+				CrySleep(5000);
 			}
 
 			CrySock::closesocket(Socket);

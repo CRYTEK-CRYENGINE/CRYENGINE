@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include <CryCore/BitFiddling.h>
@@ -617,7 +617,7 @@ void ReplayRecordThread::Flush()
 	while (m_nextCommand != CMD_Idle)
 	{
 		m_mtx.Unlock();
-		Sleep(1);
+		CrySleep(1);
 		m_mtx.Lock();
 	}
 
@@ -633,7 +633,7 @@ void ReplayRecordThread::Write(const uint8* data, size_t len)
 	while (m_nextCommand != CMD_Idle)
 	{
 		m_mtx.Unlock();
-		Sleep(1);
+		CrySleep(1);
 		m_mtx.Lock();
 	}
 
@@ -692,7 +692,7 @@ void ReplayRecordThread::SignalStopWork()
 	while (m_nextCommand != CMD_Idle)
 	{
 		m_mtx.Unlock();
-		Sleep(1);
+		CrySleep(1);
 		m_mtx.Lock();
 	}
 
@@ -702,7 +702,7 @@ void ReplayRecordThread::SignalStopWork()
 	while (m_nextCommand != CMD_Idle)
 	{
 		m_mtx.Unlock();
-		Sleep(1);
+		CrySleep(1);
 		m_mtx.Lock();
 	}
 

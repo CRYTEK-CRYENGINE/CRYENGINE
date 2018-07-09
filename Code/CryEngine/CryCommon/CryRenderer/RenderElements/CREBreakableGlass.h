@@ -1,7 +1,6 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
-#ifndef _CRE_BREAKABLE_GLASS_
-#define _CRE_BREAKABLE_GLASS_
+//! \cond INTERNAL
 
 #pragma once
 
@@ -59,10 +58,6 @@ class CREBreakableGlass : public CRenderElement
 public:
 	CREBreakableGlass();
 	virtual ~CREBreakableGlass();
-
-	// CRenderElement interface
-	virtual void mfPrepare(bool bCheckOverflow);
-	virtual bool mfDraw(CShader* ef, SShaderPass* sfm);
 
 	// CREBreakableGlass interface
 	virtual bool InitialiseRenderElement(const SBreakableGlassInitParams& params);
@@ -295,4 +290,4 @@ private:
 	volatile uint32 m_geomUpdateFrame;
 };
 
-#endif // _CRE_BREAKABLE_GLASS_
+//! \endcond

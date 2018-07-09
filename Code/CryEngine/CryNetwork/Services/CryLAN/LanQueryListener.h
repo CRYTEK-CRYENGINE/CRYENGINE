@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 /*************************************************************************
    -------------------------------------------------------------------------
@@ -54,27 +54,27 @@ public:
 	bool Init();
 
 	// INetworkMember
-	virtual void GetMemoryStatistics(ICrySizer*);
-	virtual bool IsDead();
-	virtual bool IsSuicidal();
-	virtual void DeleteThis();
-	virtual void SyncWithGame(ENetworkGameSync);
-	virtual void NetDump(ENetDumpType)   {};
-	virtual void PerformRegularCleanup() {};
+	virtual void GetMemoryStatistics(ICrySizer*) override;
+	virtual bool IsDead() override;
+	virtual bool IsSuicidal() override;
+	virtual void DeleteThis() const override;
+	virtual void SyncWithGame(ENetworkGameSync) override;
+	virtual void NetDump(ENetDumpType) override {};
+	virtual void PerformRegularCleanup() override {};
 	// ~INetworkMember
 
 	// INetQueryListener
-	virtual void DeleteNetQueryListener();
+	virtual void DeleteNetQueryListener() override;
 	// ~INetQueryListener
 
 	//IDatagramListener
-	virtual void OnPacket(const TNetAddress& addr, const uint8* pData, uint32 nLength);
-	virtual void OnError(const TNetAddress& addr, ESocketError error);
+	virtual void OnPacket(const TNetAddress& addr, const uint8* pData, uint32 nLength) override;
+	virtual void OnError(const TNetAddress& addr, ESocketError error) override;
 	//~IDatagramListener
 
 	//ILanQueryListener
-	virtual void                SendPingTo(const char* addr);
-	virtual IGameQueryListener* GetGameQueryListener() { return m_pGameQueryListener; }
+	virtual void                SendPingTo(const char* addr) override;
+	virtual IGameQueryListener* GetGameQueryListener() override { return m_pGameQueryListener; }
 	//~ILanQueryListener
 
 	// prepare to send the ping (wait for the name to be resolved)

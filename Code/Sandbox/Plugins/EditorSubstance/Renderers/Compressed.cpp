@@ -1,3 +1,5 @@
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
+
 #include "StdAfx.h"
 #include "Compressed.h"
 #include "EditorSubstanceManager.h"
@@ -160,13 +162,14 @@ namespace EditorSubstance
 				FT_textureFlags |= FT_ALPHA;
 			if (data->flags & EditorSubstance::TF_HAS_ATTACHED_ALPHA)
 				FT_textureFlags |= FT_HAS_ATTACHED_ALPHA;
-		//	FT_textureFlags |= FT_DONT_RELEASE;
-		//	FT_textureFlags |= FT_DONT_STREAM;
-			ITexture* targetTexture = GetIEditor()->GetSystem()->GetIRenderer()->EF_GetTextureByName(textureName, FT_textureFlags);
-			if (!targetTexture)
-				targetTexture = GetIEditor()->GetSystem()->GetIRenderer()->EF_LoadTexture(textureName, FT_textureFlags);
 
-			const SubstanceTexture& texture = result->getTexture();;
+			ITexture* const pTargetTexture = GetIEditor()->GetSystem()->GetIRenderer()->EF_GetTextureByName(textureName, FT_textureFlags);
+			if (!pTargetTexture)
+			{
+				return;
+			}
+
+			const SubstanceTexture& texture = result->getTexture();
 
 			ETEX_Format resultFormat;
 			int formatFlag = texture.pixelFormat & 0x1F;
@@ -203,7 +206,7 @@ namespace EditorSubstance
 			sd.m_eFormat = resultFormat;
 			sd.m_nFlags = FIM_textureFlags;
 			sd.m_pData[0] = (byte*)texture.buffer;
-			uint32 targetFlags = targetTexture->GetFlags();
+			uint32 targetFlags = pTargetTexture->GetFlags();
 			targetFlags &= ~(FT_ALPHA);
 			targetFlags &= ~(FT_HAS_ATTACHED_ALPHA);
 			if (FT_textureFlags & FT_ALPHA)
@@ -233,7 +236,7 @@ namespace EditorSubstance
 
 
 			}
-			targetTexture->UpdateData(sd, targetFlags);
+			pTargetTexture->UpdateData(sd, targetFlags);
 		}
 
 		uint32 CCompressedRenderer::TextureDataSize(uint32 nWidth, uint32 nHeight, uint32 nDepth, uint32 nMips, const ETEX_Format eTF) const

@@ -1,3 +1,5 @@
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
+
 #pragma once
 
 //////////////////////////////////////////////////////////////////////////
@@ -42,7 +44,7 @@ namespace cpx // CryPhysX
 		physx::PxPhysics* Physics() { return m_Physics; }
 		physx::PxScene* Scene() { return m_Scene; }
 		physx::PxCooking* Cooking() { return m_Cooking; }
-		float dt() { return m_dt; }
+		float& dt() { return m_dt; }
 
 		void Init();
 		void SceneClear(); //<! removes all entities from scene
@@ -56,11 +58,11 @@ namespace cpx // CryPhysX
 
 		physx::PxPhysics*                 m_Physics;
 		physx::PxFoundation*              m_Foundation;
-		physx::PxProfileZoneManager*      m_ProfileZoneManager;
 		physx::PxScene*                   m_Scene;
 		physx::PxCooking*                 m_Cooking;
 
-		physx::PxVisualDebuggerConnection* m_VSDConnection; //!< Debugger Connection to PhysX
+		physx::PxPvd*                     m_Pvd;
+		physx::PxPvdTransport*            m_PvdTransport; //!< Debugger Connection to PhysX
 		bool m_DebugVisualizationForAllSceneElements;
 
 		PxDefaultErrorCallback m_DefaultErrorCallback;
@@ -94,4 +96,9 @@ namespace cpx {
 		};
 	}
 }
+
+#define isRigidBody is<PxRigidBody>
+#define isRigidDynamic is<PxRigidDynamic>
+#define isRigidActor is<PxRigidActor>
+
 

@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 // -------------------------------------------------------------------------
 //  File name:   CryMemoryManager_impl.h
@@ -170,30 +170,41 @@ template<int> void _CryMemoryManagerPoolHelper::BindMemoryFunctionPointers()
 	HMODULE hMod = CryGetCurrentModule();
 	for (int i = 0; i < 2; i++)
 	{
-		_CryMalloc = (FNC_CryMalloc)CryGetProcAddress(hMod, DLL_ENTRY_CRYMALLOC);
-		_CryRealloc = (FNC_CryRealloc)CryGetProcAddress(hMod, DLL_ENTRY_CRYREALLOC);
-		_CryFree = (FNC_CryFree)CryGetProcAddress(hMod, DLL_ENTRY_CRYFREE);
-		_CryGetMemSize = (FNC_CryGetMemSize)CryGetProcAddress(hMod, DLL_ENTRY_CRYGETMEMSIZE);
-		_CryCrtMalloc = (FNC_CryCrtMalloc)CryGetProcAddress(hMod, DLL_ENTRY_CRYCRTMALLOC);
-		_CryCrtSize = (FNC_CryCrtSize)CryGetProcAddress(hMod, DLL_ENTRY_CRYCRTSIZE);
-		_CryCrtFree = (FNC_CryCrtFree)CryGetProcAddress(hMod, DLL_ENTRY_CRYCRTFREE);
-		_CryGetIMemoryManagerInterface = (FNC_CryGetIMemoryManagerInterface)CryGetProcAddress(hMod, DLL_ENTRY_GETMEMMANAGER);
+		if (hMod)
+		{
+			_CryMalloc = (FNC_CryMalloc)CryGetProcAddress(hMod, DLL_ENTRY_CRYMALLOC);
+			_CryRealloc = (FNC_CryRealloc)CryGetProcAddress(hMod, DLL_ENTRY_CRYREALLOC);
+			_CryFree = (FNC_CryFree)CryGetProcAddress(hMod, DLL_ENTRY_CRYFREE);
+			_CryGetMemSize = (FNC_CryGetMemSize)CryGetProcAddress(hMod, DLL_ENTRY_CRYGETMEMSIZE);
+			_CryCrtMalloc = (FNC_CryCrtMalloc)CryGetProcAddress(hMod, DLL_ENTRY_CRYCRTMALLOC);
+			_CryCrtSize = (FNC_CryCrtSize)CryGetProcAddress(hMod, DLL_ENTRY_CRYCRTSIZE);
+			_CryCrtFree = (FNC_CryCrtFree)CryGetProcAddress(hMod, DLL_ENTRY_CRYCRTFREE);
+			_CryGetIMemoryManagerInterface = (FNC_CryGetIMemoryManagerInterface)CryGetProcAddress(hMod, DLL_ENTRY_GETMEMMANAGER);
 
-		if ((_CryMalloc && _CryRealloc && _CryFree && _CryGetMemSize && _CryCrtMalloc && _CryCrtFree && _CryCrtSize && _CryGetIMemoryManagerInterface))
-			break;
+			if ((_CryMalloc && _CryRealloc && _CryFree && _CryGetMemSize && _CryCrtMalloc && _CryCrtFree && _CryCrtSize && _CryGetIMemoryManagerInterface))
+				break;
+		}
 
 		hMod = CryLoadLibraryDefName("CrySystem");
 	}
 
 	if (!hMod || !_CryMalloc || !_CryRealloc || !_CryFree || !_CryGetMemSize || !_CryCrtMalloc || !_CryCrtFree || !_CryCrtSize || !_CryGetIMemoryManagerInterface)
 	{
-		const char* errMsg = hMod ? "Memory Manager: Unable to bind memory management functions."
-			: "Memory Manager: Unable to bind memory management functions. Could not access " CryLibraryDefName("CrySystem")" (check working directory)";
-#if CRY_PLATFORM_WINAPI && !CRY_PLATFORM_DURANGO
-		MessageBox(NULL, errMsg, "Memory Manager", MB_OK);
+		char errMsg[10240];
+		if (hMod)
+		{
+			sprintf(errMsg, "%s", "Memory Manager: Unable to bind memory management functions.");
+		}
+		else
+		{
+#ifdef CRY_PLATFORM_LINUX
+			sprintf(errMsg, "%s\nError details: %s", "Memory Manager: Unable to bind memory management functions. Could not access " CryLibraryDefName("CrySystem")" (check working directory)", dlerror());
 #else
-		OutputDebugString(errMsg);
+			sprintf(errMsg, "%s", "Memory Manager: Unable to bind memory management functions. Could not access " CryLibraryDefName("CrySystem")" (check working directory)");
 #endif
+		}
+
+		CryMessageBox(errMsg, "Memory Manager", eMB_Error);
 		__debugbreak();
 		abort();
 	}
@@ -353,6 +364,7 @@ size_t CryCrtSize(void* p)
 // Redefine new & delete for entire module.
 #if !defined(NOT_USE_CRY_MEMORY_MANAGER)
 
+PREFAST_SUPPRESS_WARNING(28251)
 void* __cdecl operator new(std::size_t size)
 {
 	MEMREPLAY_SCOPE(EMemReplayAllocClass::C_UserPointer, EMemReplayUserPointerClass::C_CrtNew);
@@ -360,6 +372,8 @@ void* __cdecl operator new(std::size_t size)
 	MEMREPLAY_SCOPE_ALLOC(ret, size, 0);
 	return ret;
 }
+
+PREFAST_SUPPRESS_WARNING(28251)
 void* __cdecl operator new(std::size_t size, const std::nothrow_t& nothrow_value) noexcept
 {
 	MEMREPLAY_SCOPE(EMemReplayAllocClass::C_UserPointer, EMemReplayUserPointerClass::C_CrtNew);
@@ -368,6 +382,7 @@ void* __cdecl operator new(std::size_t size, const std::nothrow_t& nothrow_value
 	return ret;
 }
 
+PREFAST_SUPPRESS_WARNING(28251)
 void* __cdecl operator new[](std::size_t size)
 {
 	MEMREPLAY_SCOPE(EMemReplayAllocClass::C_UserPointer, EMemReplayUserPointerClass::C_CrtNewArray);
@@ -376,6 +391,7 @@ void* __cdecl operator new[](std::size_t size)
 	return ret;
 }
 
+PREFAST_SUPPRESS_WARNING(28251)
 void* __cdecl operator new[](std::size_t size, const std::nothrow_t& nothrow_value) noexcept
 {
 	MEMREPLAY_SCOPE(EMemReplayAllocClass::C_UserPointer, EMemReplayUserPointerClass::C_CrtNewArray);

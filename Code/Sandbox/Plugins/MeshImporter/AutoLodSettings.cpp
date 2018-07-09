@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 #include <StdAfx.h>
 #include "AutoLodSettings.h"
 
@@ -73,3 +73,4 @@ void CAutoLodSettings::Serialize(yasli::Archive& ar)
 	ar(m_globalParams, "globalparams", "GlobalParams");
 	ar(m_nodeParams, "nodeparams", "NodeParams");
 }
+

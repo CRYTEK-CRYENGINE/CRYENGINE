@@ -1,5 +1,4 @@
-// CRYENGINE Source Code File
-// Copyright 2001-2015 Crytek GmbH. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "Common.cfi"
 #include "ModificatorVT.cfi"
@@ -13,9 +12,6 @@ float Script : STANDARDSGLOBAL
            "ShaderDrawType = Sky;"
            "ShaderType = Sky;"
 >;
-
-/// Un-Tweakables //////////////////////
-float4 TFactor     : PB_TFactor;
 
 sampler2D whiteSampler = sampler_state
 {
@@ -36,14 +32,14 @@ struct a2v
 
 struct v2f
 {
-  float4 Position  : POSITION;  //in projection space
+  float4 Position  : SV_POSITION;  //in projection space
   float2 baseTC    : TEXCOORD0;
   float3 viewDir	 : TEXCOORD1;
 };
  
 struct v2fZ
 {
-  float4 Position  : POSITION;  //in projection space
+  float4 Position  : SV_POSITION;  //in projection space
 }; 
 
 ///////////////// vertex shader //////////////////
@@ -82,8 +78,8 @@ pixout SkyPS(v2f IN)
 {
   pixout OUT;
 
-  half4 baseColor = GetTexture2D(whiteSampler, IN.baseTC.xy);
-  half4 Color = baseColor * TFactor;
+  half4 baseColor = float4(1,1,1,1);//GetTexture2D(whiteSampler, IN.baseTC.xy);
+  half4 Color = baseColor; // * CV_GlobalColor
 
    // Debug output
  #if %_RT_DEBUG0 || %_RT_DEBUG1 || %_RT_DEBUG2 || %_RT_DEBUG3
@@ -111,7 +107,12 @@ pixout_gbuffer SkyZPS(v2fZ IN)
 	
 	MaterialAttribsCommon attribs = MaterialAttribsDefault();
 	attribs.Albedo = 0;  // Output black albedo for emissive surface
+
+#if %_RT_SAMPLE0
+	EncodeMicroGBuffer( attribs, OUT.GBufferA, IN.Position.xy );
+#else
 	EncodeGBuffer( attribs, OUT.GBufferA, OUT.GBufferB, OUT.GBufferC );
+#endif
 
   return OUT;
 }

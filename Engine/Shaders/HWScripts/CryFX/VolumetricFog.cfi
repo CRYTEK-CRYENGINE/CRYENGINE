@@ -1,5 +1,4 @@
-// CRYENGINE Source Code File
-// Copyright 2001-2015 Crytek GmbH. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 float4 vfViewPos				: PB_CameraPos;
 float4 vfParams					: PB_VolumetricFogParams;

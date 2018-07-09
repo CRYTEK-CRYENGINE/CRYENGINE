@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "GameObjects/GameObject.h"
@@ -82,8 +82,6 @@ bool CGameObjectSystem::Init()
 		}
 	}
 
-	m_spawnSerializers.reserve(8);
-
 	LoadSerializationOrderFile();
 
 	return true;
@@ -109,7 +107,6 @@ void CGameObjectSystem::Reset()
 	}
 #endif //#if !defined(_RELEASE)
 
-	stl::free_container(m_tempObjects);
 	stl::free_container(m_postUpdateObjects);
 	stl::free_container(m_activatedExtensions_top);
 }
@@ -274,7 +271,7 @@ const char* CGameObjectSystem::GetName(ExtensionID id)
 
 void CGameObjectSystem::BroadcastEvent(const SGameObjectEvent& evt)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_ACTION);
+	CRY_PROFILE_FUNCTION(PROFILE_ACTION);
 
 	//CryLog("BroadcastEvent called");
 
@@ -362,10 +359,6 @@ IGameObjectExtension* CGameObjectSystem::Instantiate(ExtensionID id, IGameObject
 	if (!pExt)
 		return nullptr;
 
-	TSerialize* pSpawnSerializer = GetSpawnSerializerForEntity(pEntity->GetId());
-	if (pSpawnSerializer)
-		pExt->SerializeSpawnInfo(*pSpawnSerializer);
-
 	if (!pExt->Init(pObject))
 	{
 		pEntity->RemoveComponent(pExt);
@@ -404,19 +397,46 @@ IEntityComponent* CGameObjectSystem::CreateGameObjectWithPreactivatedExtension(I
 
 void CGameObjectSystem::PostUpdate(float frameTime)
 {
-	m_tempObjects = m_postUpdateObjects;
-	for (std::vector<IGameObject*>::const_iterator iter = m_tempObjects.begin(); iter != m_tempObjects.end(); ++iter)
+	m_isPostUpdating = true;
+
+	for(size_t i = 0, n = m_postUpdateObjects.size(); i < n;)
 	{
-		(*iter)->PostUpdate(frameTime);
+		if (m_postUpdateObjects[i] != nullptr)
+		{
+			m_postUpdateObjects[i]->PostUpdate(frameTime);
+			++i;
+		}
+		else
+		{
+			m_postUpdateObjects.erase(m_postUpdateObjects.begin() + i);
+		}
 	}
+
+	m_isPostUpdating = false;
 }
 
 void CGameObjectSystem::SetPostUpdate(IGameObject* pGameObject, bool enable)
 {
 	if (enable)
+	{
 		stl::push_back_unique(m_postUpdateObjects, pGameObject);
+	}
 	else
-		stl::find_and_erase(m_postUpdateObjects, pGameObject);
+	{
+		auto it = std::find(m_postUpdateObjects.begin(), m_postUpdateObjects.end(), pGameObject);
+		if(it != m_postUpdateObjects.end())
+		{
+			if (m_isPostUpdating)
+			{
+				*it = nullptr;
+			}
+			else
+			{
+				m_postUpdateObjects.erase(it);
+			}
+
+		}
+	}
 }
 
 const SEntitySchedulingProfiles* CGameObjectSystem::GetEntitySchedulerProfiles(IEntity* pEnt)
@@ -435,33 +455,6 @@ const SEntitySchedulingProfiles* CGameObjectSystem::GetEntitySchedulerProfiles(I
 		return &m_defaultProfiles;
 	}
 	return &iter->second;
-}
-
-//////////////////////////////////////////////////////////////////////////
-
-void CGameObjectSystem::SetSpawnSerializerForEntity(const EntityId entityId, TSerialize* pSerializer)
-{
-	CRY_ASSERT(GetSpawnSerializerForEntity(entityId) == NULL);
-	if (GetSpawnSerializerForEntity(entityId) != NULL)
-	{
-		__debugbreak();
-	}
-
-	m_spawnSerializers.push_back(SSpawnSerializer(entityId, pSerializer));
-}
-
-void CGameObjectSystem::ClearSpawnSerializerForEntity(const EntityId entityId)
-{
-	stl::find_and_erase(m_spawnSerializers, entityId);
-}
-
-//////////////////////////////////////////////////////////////////////////
-
-TSerialize* CGameObjectSystem::GetSpawnSerializerForEntity(const EntityId entityId) const
-{
-	TSpawnSerializers::const_iterator it = std::find(m_spawnSerializers.begin(), m_spawnSerializers.end(), entityId);
-
-	return (it != m_spawnSerializers.end()) ? (*it).pSerializer : NULL;
 }
 
 //////////////////////////////////////////////////////////////////////////

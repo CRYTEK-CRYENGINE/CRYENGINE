@@ -1,36 +1,41 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
-#ifndef __VOXELSEGMENT_H__
-#define __VOXELSEGMENT_H__
+#pragma once
 
 #if defined(FEATURE_SVO_GI)
+
+	#include <3rdParty/concqueue/concqueue.hpp>
+	#include <CryThreading/IThreadManager.h>
 
 	#pragma pack(push,4)
 
 //#pragma optimize("",off)
 
-const int nVoxTexMaxDim = (16);
-const int nVoxBloMaxDim = (16);
-const int nVoxNodMaxDim = 2;
+	#define SVO_NODE_BRICK_SIZE        2
+	#define SVO_VOX_BRICK_MAX_SIZE     16 // maximum size of voxel brick 3d array data
+	#define SVO_BRICK_ALLOC_CHUNK_SIZE 16 // size of allocation granularity
+	#define SVO_ATLAS_DIM_MAX_XY       (CVoxelSegment::m_voxTexPoolDimXY / SVO_BRICK_ALLOC_CHUNK_SIZE)
+	#define SVO_ATLAS_DIM_MAX_Z        (CVoxelSegment::m_voxTexPoolDimZ / SVO_BRICK_ALLOC_CHUNK_SIZE)
+	#define SVO_ATLAS_DIM_BRICKS_XY    (CVoxelSegment::m_voxTexPoolDimXY / SVO_VOX_BRICK_MAX_SIZE)
+	#define SVO_ATLAS_DIM_BRICKS_Z     (CVoxelSegment::m_voxTexPoolDimZ / SVO_VOX_BRICK_MAX_SIZE)
+	#define SVO_ROOTLESS_PARENT_SIZE   512.f
+	#define SVO_STREAM_QUEUE_MAX_SIZE  12
 
-	#define nAtlasDimMaxXY            (CVoxelSegment::nVoxTexPoolDimXY / nVoxBloMaxDim)
-	#define nAtlasDimMaxZ             (CVoxelSegment::nVoxTexPoolDimZ / nVoxBloMaxDim)
+typedef uint16 ObjectLayerIdType;
+const ObjectLayerIdType kInvalidObjectLayerId = 0;
+const ObjectLayerIdType kAllObjectLayersId = kInvalidObjectLayerId;
 
-	#define nAtlasDimBriXY            (CVoxelSegment::nVoxTexPoolDimXY / nVoxTexMaxDim)
-	#define nAtlasDimBriZ             (CVoxelSegment::nVoxTexPoolDimZ / nVoxTexMaxDim)
-
-	#define nVoxNodPoolDimXY          (nVoxNodMaxDim * nAtlasDimMaxXY)
-	#define nVoxNodPoolDimZ           (nVoxNodMaxDim * nAtlasDimMaxZ)
-
-	#define VOXEL_PAINT_SAFETY_BORDER 4.f
-
-	#define SVO_TEMP_FILE_NAME        "CDD.TMP"
-
-typedef std::set<class CVoxelSegment*> VsSet;
-
-struct SCpuBrickItem
+struct SVoxBrick
 {
-	ColorB arrData[nVoxTexMaxDim * nVoxTexMaxDim * nVoxTexMaxDim];
+	enum ESubSetType
+	{
+		OPA3D,
+		COLOR,
+		NORML,
+		MAX_NUM,
+	};
+
+	ColorB* pData[MAX_NUM] = { 0 };
 };
 
 template<class T>
@@ -40,11 +45,18 @@ public:
 	PodArrayRT()
 	{
 		m_bModified = false;
-		m_nTexId = 0;
+		m_textureId = 0;
 	}
 	CryReadModifyLock m_Lock;
 	bool              m_bModified;
-	int               m_nTexId;
+	int               m_textureId;
+};
+
+template<class Key, class T>
+class CLockedMap : public std::map<Key, T>
+{
+public:
+	CryReadModifyLock m_Lock;
 };
 
 struct SObjInfo
@@ -55,35 +67,30 @@ struct SObjInfo
 	{
 		SObjInfo* p[2] = { (SObjInfo*)v1, (SObjInfo*)v2 };
 
-		if (p[0]->fMaxViewDist < p[1]->fMaxViewDist)
+		if (p[0]->maxViewDist < p[1]->maxViewDist)
 			return 1;
-		if (p[0]->fMaxViewDist > p[1]->fMaxViewDist)
+		if (p[0]->maxViewDist > p[1]->maxViewDist)
 			return -1;
 
 		return 0;
 	}
 
-	Matrix34   matObjInv;
-	Matrix34   matObj;
-	float      fObjScale;
-	IMaterial* pMat;
-	CStatObj*  pStatObj;
-	bool       bIndoor;
-	bool       bVegetation;
-	float      fMaxViewDist;
+	Matrix34          matObjInv;
+	Matrix34          matObj;
+	float             objectScale;
+	IMaterial*        pMat;
+	CStatObj*         pStatObj;
+	bool              bIndoor;
+	bool              bVegetation;
+	ObjectLayerIdType objectLayerId;
+	float             maxViewDist;
 };
 
 struct SVoxSegmentFileHeader
 {
-	int32 nSecId;
-	int32 key;
-	AABB  box;
-	float fPointSize;
-	int32 nVrtNum;
-	int32 nIndNum;
-	int32 nSprNum;
-	Vec3i vCropTexSize;
-	Vec3  vCropBoxMin;
+	Vec4_tpl<byte> cropTexSize; // and objLayersNum in w
+	Vec4_tpl<byte> cropBoxMin;  // and subSetsNum in w
+	Vec4_tpl<byte> dummy;
 };
 
 // SSuperMesh index type
@@ -96,26 +103,23 @@ typedef uint16 SMINDEX;
 struct SRayHitTriangleIndexed
 {
 	SRayHitTriangleIndexed() { ZeroStruct(*this); arrVertId[0] = arrVertId[1] = arrVertId[2] = (SMINDEX) ~0; }
-	#ifdef FEATURE_SVO_GI_ALLOW_HQ
-	Vec3 vFaceNorm;
-		#ifdef FEATURE_SVO_GI_USE_MESH_RT
-	uint nGLobalId;
-		#endif
+	Vec3              vFaceNorm;
+	#ifdef FEATURE_SVO_GI_USE_MESH_RT
+	uint              globalId;
 	#endif
-	uint8   nTriArea;
-	uint8   nOpacity;
-	uint8   nHitObjType;
-	SMINDEX arrVertId[3];
-	uint16  nMatID;
+	uint8             triArea;
+	uint8             opacity;
+	uint8             hitObjectType;
+	SMINDEX           arrVertId[3];
+	uint16            materialID;
+	ObjectLayerIdType objectLayerId;
 };
 
 struct SRayHitVertex
 {
 	Vec3   v;
 	Vec2   t;
-	#ifdef FEATURE_SVO_GI_ALLOW_HQ
 	ColorB c;
-	#endif
 };
 
 struct SSuperMesh
@@ -128,14 +132,14 @@ struct SSuperMesh
 		SSvoMatInfo(){ ZeroStruct(*this); }
 		IMaterial* pMat;
 		ColorB*    pTexRgb;
-		uint16     nTexWidth;
-		uint16     nTexHeight;
+		uint16     textureWidth;
+		uint16     textureHeight;
 		inline bool operator==(const SSvoMatInfo& other) const { return pMat == other.pMat; }
 	};
 
-	static const int nHashDim = 8;
-	void AddSuperTriangle(SRayHitTriangle& htIn, PodArray<SMINDEX> arrVertHash[nHashDim][nHashDim][nHashDim]);
-	void AddSuperMesh(SSuperMesh& smIn, float fVertexOffset);
+	static const int hashDim = 8;
+	void AddSuperTriangle(SRayHitTriangle& htIn, PodArray<SMINDEX> arrVertHash[hashDim][hashDim][hashDim], ObjectLayerIdType nObjLayerId);
+	void AddSuperMesh(SSuperMesh& smIn, float vertexOffset);
 	void Clear(PodArray<SMINDEX>* parrVertHash);
 
 	PodArrayRT<SRayHitTriangleIndexed>* m_pTrisInArea;
@@ -145,284 +149,185 @@ struct SSuperMesh
 	AABB                                m_boxTris;
 
 protected:
-	int FindVertex(const Vec3& rPos, const Vec2 rTC, PodArray<SMINDEX> arrVertHash[nHashDim][nHashDim][nHashDim], PodArrayRT<SRayHitVertex>& vertsInArea);
-	int AddVertex(const SRayHitVertex& rVert, PodArray<SMINDEX> arrVertHash[nHashDim][nHashDim][nHashDim], PodArrayRT<SRayHitVertex>& vertsInArea);
+	int FindVertex(const Vec3& rPos, const Vec2 rTC, PodArray<SMINDEX> arrVertHash[hashDim][hashDim][hashDim], PodArrayRT<SRayHitVertex>& vertsInArea);
+	int AddVertex(const SRayHitVertex& rVert, PodArray<SMINDEX> arrVertHash[hashDim][hashDim][hashDim], PodArrayRT<SRayHitVertex>& vertsInArea);
 	bool m_bExternalData;
 };
 
-class CVoxelSegment : public Cry3DEngineBase, public SSuperMesh
+struct SBuildVoxelsParams
+{
+	int                  X0;
+	int                  X1;
+	PodArray<int>*       pNodeTrisXYZ;
+	PodArray<CVisArea*>* arrPortals;
+	PodArray<int>*       pTrisInt;
+};
+
+class CVoxelSegment;
+
+class CVoxStreamEngine
+{
+public:
+
+	struct SVoxStreamItem
+	{
+		CVoxelSegment* pObj;
+		uint           requestFrameId;
+	};
+
+	class CVoxStreamEngineThread final : public IThread
+	{
+	public:
+		CVoxStreamEngineThread(CVoxStreamEngine* pStreamingEngine);
+		virtual void ThreadEntry();
+		void         SignalStopWork();
+
+	private:
+		CVoxStreamEngine* m_pStreamingEngine;
+		bool              m_bRun;
+	};
+
+	CVoxStreamEngine();
+	~CVoxStreamEngine();
+
+	void DecompressVoxStreamItem(const SVoxStreamItem item);
+	void ProcessSyncCallBacks();
+	bool StartRead(CVoxelSegment* pObj, int64 fileOffset, int bytesToRead);
+
+public:
+	BoundMPMC<SVoxStreamItem> m_arrForFileRead;
+	BoundMPMC<SVoxStreamItem> m_arrForSyncCallBack;
+	CrySemaphore              m_fileReadSemaphore;
+
+private:
+	std::vector<CVoxStreamEngineThread*> m_workerThreads;
+};
+
+class CVoxelSegment : public Cry3DEngineBase, public SSuperMesh, public IStreamCallback
 {
 public:
 
 	CVoxelSegment(class CSvoNode* pNode, bool bDumpToDiskInUse = false, EFileStreamingStatus eStreamingStatus = ecss_Ready, bool bDroppedOnDisk = false);
 	~CVoxelSegment();
+	static int   GetSubSetsNum() { return GetCVars()->e_svoTI_IntegrationMode ? SVoxBrick::MAX_NUM : 1;  }
 	bool         CheckUpdateBrickRenderData(bool bJustCheck);
-	bool         LoadFromMem(CMemoryBlock* pMB);
-	bool         StartStreaming();
+	bool         LoadVoxels(byte* pData, int size);
+	void         SaveVoxels(PodArray<byte>& arrData);
+	bool         StartStreaming(CVoxStreamEngine* pVoxStreamEngine);
 	bool         UpdateBrickRenderData();
-	ColorF       GetBilinearAt(float iniX, float iniY, const ColorB* pImg, int nDimW, int nDimH, float fBr);
-	ColorF       GetColorF_255(int x, int y, const ColorB* pImg, int nImgSizeW, int nImgSizeH);
+	ColorF       GetBilinearAt(float iniX, float iniY, const ColorB* pImg, int dimW, int dimH, float multiplier);
+	ColorF       GetColorF_255(int x, int y, const ColorB* pImg, int imgSizeW, int imgSizeH);
 	ColorF       ProcessMaterial(const SRayHitTriangleIndexed& tr, const Vec3& voxBox);
 	const AABB&  GetBoxOS()   { return m_boxOS; }
 	float        GetBoxSize() { return (m_boxOS.max.z - m_boxOS.min.z); }
-	int          StoreIndicesIntoPool(const PodArray<int>& nodeTInd, int& nCountStored);
-	int32        GetID()      { return m_nSegID; }
-	static AABB  GetChildBBox(const AABB& parentBox, int nChildId);
+	int          StoreIndicesIntoPool(const PodArray<int>& nodeTInd, int& countStored);
+	int32        GetID()      { return m_segmentID; }
+	static AABB  GetChildBBox(const AABB& parentBox, int childId);
 	static int   GetBrickPoolUsageLoadedMB();
 	static int   GetBrickPoolUsageMB();
 	static int32 ComparemLastVisFrameID(const void* v1, const void* v2);
-	static void  CheckAllocateBrick(ColorB*& pPtr, int nElems, bool bClean = false);
+	static void  CheckAllocateBrick(ColorB*& pPtr, int elems, bool bClean = false);
 	static void  CheckAllocateTexturePool();
 	static void  FreeBrick(ColorB*& pPtr);
 	static void  MakeFolderName(char szFolder[256], bool bCreateDirectory = false);
 	static void  SetVoxCamera(const CCamera& newCam);
-	static void  UpdateStreamingEngine();
+	static void  UpdateObjectLayersInfo();
 	static void  ErrorTerminate(const char* format, ...);
 	Vec3i        GetDxtDim();
 	void         AddTriangle(const SRayHitTriangleIndexed& ht, int trId, PodArray<int>*& rpNodeTrisXYZ, PodArrayRT<SRayHitVertex>* pVertInArea);
 	void         CheckStoreTextureInPool(SShaderItem* pShItem, uint16& nTexW, uint16& nTexH, int** ppSysTexId);
-	void         ComputeDistancesFast_MinDistToSurf(ColorB* pTex3dOptRGBA, ColorB* pTex3dOptNorm, ColorB* pTex3dOptOpac, int nTID);
-	void         CropVoxTexture(int nTID, bool bCompSurfDist);
+	void         ComputeDistancesFast_MinDistToSurf(ColorB* pTex3dOptRGBA, ColorB* pTex3dOptNorm, ColorB* pTex3dOptOpac, int threadId);
+	void         CropVoxTexture(int threadId, bool bCompSurfDist);
 	void         DebugDrawVoxels();
-	void         FindTrianglesForVoxelization(int nTID, PodArray<int>*& rpNodeTrisXYZ, bool bThisIsAreaParent);
+	void         FindTrianglesForVoxelization(PodArray<int>*& rpNodeTrisXYZ);
 	static bool  CheckCollectObjectsForVoxelization(const AABB& nodeBox, PodArray<SObjInfo>* parrObjects, bool& bThisIsAreaParent, bool& bThisIsLowLodNode, bool bAllowStartStreaming);
 	void         FreeAllBrickData();
+	void         FreeBrickLayers();
 	void         FreeRenderData();
 	void         PropagateDirtyFlag();
 	void         ReleaseAtlasBlock();
-	void         RenderMesh(CRenderObject* pObj, PodArray<SVF_P3F_C4B_T2F>& arrVertsOut);
+	void         RenderMesh(PodArray<SVF_P3F_C4B_T2F>& arrVertsOut);
 	void         SetBoxOS(const AABB& box) { m_boxOS = box; }
-	void         SetID(int32 nID)          { m_nSegID = nID; }
+	void         SetID(int32 nID)          { m_segmentID = nID; }
 	void         StoreAreaTrisIntoTriPool(PodArray<SRayHitTriangle>& allTrisInLevel);
-	void         StreamAsyncOnComplete(byte* pDataRead, int nBytesRead, int nTID);
-	void         StreamOnComplete();
+	void         StreamAsyncOnComplete(IReadStream* pStream, unsigned nError) override;
+	void         StreamOnComplete(IReadStream* pStream, unsigned nError) override;
 	void         UnloadStreamableData();
 	void         UpdateMeshRenderData();
 	void         UpdateNodeRenderData();
 	void         UpdateVoxRenderData();
-	void         VoxelizeMeshes(int nTID);
+	void         VoxelizeMeshes(int threadId, bool bMT = false);
+	void         CombineLayers();
+	void         BuildVoxels(SBuildVoxelsParams params);
+	int          CompressToDxt(ColorB* pImgSource, byte*& pDxtOut, int threadId);
+	static void  SaveCompTexture(const void* data, size_t size, void* userData);
 
-	AABB            m_boxClipped;
-	AABB            m_boxOS;
-	bool            m_bStatLightsChanged;
-	byte            m_nChildOffsetsDirty;
-	class CSvoNode* m_pNode;
-	ColorB*         m_pVoxOpacit;
-	#ifdef FEATURE_SVO_GI_ALLOW_HQ
-	ColorB*         m_pVoxVolume;
-	ColorB*         m_pVoxNormal;
-		#ifdef FEATURE_SVO_GI_USE_MESH_RT
-	ColorB*         m_pVoxTris;
-		#endif
-	#endif
-	CVoxelSegment*                    m_pParentCloud;
-	EFileStreamingStatus              m_eStreamingStatus;
-	float                             m_fMaxAlphaInBrick;
-	int                               m_nAllocatedAtlasOffset;
-	int                               m_nFileStreamSize;
-	int32                             m_arrChildOffset[8];
-	int32                             m_nSegID;
-	int64                             m_nFileStreamOffset64;
-	PodArray<int>                     m_nodeTrisAllMerged;
+	AABB                                                 m_boxClipped;
+	AABB                                                 m_boxOS;
+	bool                                                 m_bStatLightsChanged;
+	byte                                                 m_bChildOffsetsDirty;
+	class CSvoNode*                                      m_pNode;
+	SVoxBrick                                            m_voxData;
+	CVoxelSegment*                                       m_pParentCloud;
+	EFileStreamingStatus                                 m_eStreamingStatus;
+	float                                                m_maxAlphaInBrick;
+	int                                                  m_allocatedAtlasOffset;
+	int                                                  m_fileStreamSize;
+	int32                                                m_arrChildOffset[8];
+	int32                                                m_segmentID;
+	int64                                                m_fileStreamOffset64;
+	PodArray<int>                                        m_nodeTrisAllMerged;
 
-	static CCamera                    m_voxCam;
-	static class CBlockPacker3D*      m_pBlockPacker;
-	static CryCriticalSection         m_csLockBrick;
-	static int                        m_nAddPolygonToSceneCounter;
-	static int                        m_nCheckReadyCounter;
-	static int                        m_nCloudsCounter;
-	static int                        m_nPostponedCounter;
-	static int                        m_nCurrPassMainFrameID;
-	static int                        m_nMaxBrickUpdates;
-	static int                        m_nNextCloudId;
-	static int                        m_nPoolUsageBytes;
-	static int                        m_nPoolUsageItems;
-	static int                        m_nSvoDataPoolsCounter;
-	static int                        m_nVoxTrisCounter;
-	static int                        nVoxTexPoolDimXY;
-	static int                        nVoxTexPoolDimZ;
-	static int32                      m_nStreamingTasksInProgress;
-	static int32                      m_nTasksInProgressALL;
-	static int32                      m_nUpdatesInProgressBri;
-	static int32                      m_nUpdatesInProgressTex;
-	static PodArray<CVoxelSegment*>   m_arrLoadedSegments;
-	static SRenderingPassInfo*        m_pCurrPassInfo;
-	static string                     m_strRenderDataFileName;
-	static PodArrayRT<ITexture*>      m_arrLockedTextures;
-	static PodArrayRT<IMaterial*>     m_arrLockedMaterials;
-	static std::map<CStatObj*, float> m_cgfTimeStats;
-	static CryReadModifyLock          m_cgfTimeStatsLock;
-	struct SBlockMinMax*              m_pBlockInfo;
-	SVF_P3F_C4B_T2F                   m_vertForGS;
-	uint                              m_nLastRendFrameId;
-	uint                              m_nLastTexUpdateFrameId;
-	uint16                            m_nVoxNum;
-	uint8                             m_dwChildTrisTest;
-	Vec3                              m_vCropBoxMin;
-	Vec3                              m_vSegOrigin;
-	Vec3i                             m_vCropTexSize;
-	Vec3i                             m_vStaticGeomCheckSumm;
-	Vec3i                             m_vStatLightsCheckSumm;
-	CryReadModifyLock                 m_superMeshLock;
+	static CCamera                                       m_voxCam;
+	static class CBlockPacker3D*                         m_pBlockPacker;
+	static CryCriticalSection                            m_csLockBrick;
+	static int                                           m_addPolygonToSceneCounter;
+	static int                                           m_checkReadyCounter;
+	static int                                           m_segmentsCounter;
+	static int                                           m_postponedCounter;
+	static int                                           m_currPassMainFrameID;
+	static int                                           m_maxBrickUpdates;
+	static int                                           m_nextSegmentId;
+	static int                                           m_poolUsageBytes;
+	static int                                           m_poolUsageItems;
+	static int                                           m_svoDataPoolsCounter;
+	static int                                           m_voxTrisCounter;
+	static int                                           m_voxTexPoolDimXY;
+	static int                                           m_voxTexPoolDimZ;
+	static int32                                         m_streamingTasksInProgress;
+	static bool                                          m_bUpdateBrickRenderDataPostponed;
+	static int32                                         m_updatesInProgressBri;
+	static int32                                         m_updatesInProgressTex;
+	static PodArray<CVoxelSegment*>                      m_arrLoadedSegments;
+	static SRenderingPassInfo*                           m_pCurrPassInfo;
+	static CLockedMap<ITexture*, _smart_ptr<ITexture>>   m_arrLockedTextures;
+	static CLockedMap<IMaterial*, _smart_ptr<IMaterial>> m_arrLockedMaterials;
+	static std::map<CStatObj*, float>                    m_cgfTimeStats;
+	static CryReadModifyLock                             m_cgfTimeStatsLock;
+	static bool                                          m_bExportMode;
+	static bool                                          m_bExportAbortRequested;
+	static int                                           m_exportVisitedAreasCounter;
+	static int                                           m_exportVisitedNodesCounter;
+	static PodArray<C3DEngine::SLayerActivityInfo>       m_arrObjectLayersInfo;
+	static uint                                          m_arrObjectLayersInfoVersion;
+	struct SBlockMinMax*                                 m_pBlockInfo;
+	SVF_P3F_C4B_T2F                                      m_vertForGS;
+	uint                                                 m_lastRendFrameId;
+	uint                                                 m_lastTexUpdateFrameId;
+	uint16                                               m_solidVoxelsNum;
+	uint8                                                m_dwChildTrisTest;
+	Vec3i                                                m_vCropBoxMin;
+	Vec3                                                 m_vSegOrigin;
+	Vec3i                                                m_vCropTexSize;
+	Vec3i                                                m_vStaticGeomCheckSumm;
+	Vec3i                                                m_vStatLightsCheckSumm;
+	CryReadModifyLock                                    m_superMeshLock;
+	std::map<ObjectLayerIdType, SVoxBrick>               m_objLayerMap;
 };
 
-template<class T, int nMaxQeueSize>
-struct SThreadSafeArray
-{
-	SThreadSafeArray()
-	{
-		m_bThreadDone = false;
-		m_nMaxQeueSize = nMaxQeueSize;
-		m_ucOverflow = 0;
-		m_nRequestFrameId = 0;
-	}
-
-	bool               m_bThreadDone;
-	int                m_nMaxQeueSize;
-	PodArray<T>        m_arrQeue;
-	CryCriticalSection m_csQeue;
-	unsigned char      m_ucOverflow;
-	int                m_nRequestFrameId;
-
-	T                  GetNextTaskFromQeue()
-	{
-		T pNewTask = NULL;
-
-		if (m_arrQeue.Count())
-		{
-			AUTO_LOCK(m_csQeue);
-			if (m_arrQeue.Count())
-			{
-				pNewTask = m_arrQeue[0];
-				m_arrQeue.Delete((const int)0);
-			}
-		}
-
-		return pNewTask;
-	}
-
-	T GetNextTaskFromQeueOrdered2()
-	{
-		T pNewTask = NULL;
-
-		if (m_arrQeue.Count())
-		{
-			AUTO_LOCK(m_csQeue);
-			if (m_arrQeue.Count())
-			{
-				for (int i = 0; i < m_arrQeue.Count(); i++)
-				{
-					if (m_arrQeue[i].nRequestFrameId == m_nRequestFrameId)
-					{
-						pNewTask = m_arrQeue[i];
-						m_arrQeue.Delete((const int)i);
-						m_nRequestFrameId++;
-						break;
-					}
-				}
-			}
-		}
-
-		return pNewTask;
-	}
-
-	T GetNextTaskFromQeueOrdered()
-	{
-		T pNewTask = NULL;
-
-		if (m_arrQeue.Count())
-		{
-			AUTO_LOCK(m_csQeue);
-			if (m_arrQeue.Count())
-			{
-				for (int i = 0; i < m_arrQeue.Count(); i++)
-				{
-					if (m_arrQeue[i]->pIBackBufferReader->nRequestFrameId == m_nRequestFrameId)
-					{
-						pNewTask = m_arrQeue[i];
-						m_arrQeue.Delete((const int)i);
-						m_nRequestFrameId++;
-						break;
-					}
-				}
-			}
-		}
-
-		return pNewTask;
-	}
-
-	T GetNextTaskFromQeueOrderedForThread(int nCTID)
-	{
-		T pNewTask = NULL;
-
-		if (m_arrQeue.Count())
-		{
-			AUTO_LOCK(m_csQeue);
-			if (m_arrQeue.Count())
-			{
-				for (int i = 0; i < m_arrQeue.Count(); i++)
-				{
-					if (m_arrQeue[i]->pIBackBufferReader->nRequestFrameId == m_nRequestFrameId && ((m_arrQeue[i]->pIBackBufferReader->nUserId & 1) == (nCTID & 1)))
-					{
-						pNewTask = m_arrQeue[i];
-						m_arrQeue.Delete((const int)i);
-						m_nRequestFrameId++;
-						break;
-					}
-				}
-			}
-		}
-
-		return pNewTask;
-	}
-
-	void AddNewTaskToQeue(T pNewTask, bool bSkipOverflow = false)
-	{
-		if (m_ucOverflow)
-			m_ucOverflow--;
-
-		if (bSkipOverflow)
-		{
-			// drop new item in case of overflow
-			if (m_arrQeue.Count() >= m_nMaxQeueSize)
-			{
-				m_ucOverflow = ~0;
-				return;
-			}
-		}
-		else
-		{
-			// stall in case of overflow
-			while (m_arrQeue.Count() >= m_nMaxQeueSize)
-			{
-				m_ucOverflow = ~0;
-				CrySleep(1);
-			}
-		}
-
-		{
-			AUTO_LOCK(m_csQeue);
-			m_arrQeue.Add(pNewTask);
-		}
-	}
-
-	int Count()
-	{
-		return m_arrQeue.Count();
-	}
-
-	void OnDisplayInfo(float& fTextPosX, float& fTextPosY, float& fTextStepY, float fTextScale, C3DEngine* pEnd, const char* szName)
-	{
-		ColorF colRed = ColorF(1, 0, 0, 1);
-		ColorF colGreen = ColorF(0, 1, 0, 1);
-		pEnd->DrawTextRightAligned(fTextPosX, fTextPosY += fTextStepY, fTextScale, m_ucOverflow ? Col_Red : Col_Green, "%s: %2d", szName, Count());
-	}
-};
-
-inline uint GetCurrPassMainFrameID() { return CVoxelSegment::m_nCurrPassMainFrameID; }
+inline uint GetCurrPassMainFrameID() { return CVoxelSegment::m_currPassMainFrameID; }
 
 	#pragma pack(pop)
 
 #endif
 
-#endif

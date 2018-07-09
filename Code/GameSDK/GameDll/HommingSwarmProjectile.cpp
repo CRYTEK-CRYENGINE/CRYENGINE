@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "Actor.h"
@@ -53,7 +53,7 @@ CHommingSwarmProjectile::~CHommingSwarmProjectile()
 
 void CHommingSwarmProjectile::Update(SEntityUpdateContext &ctx, int updateSlot)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_GAME);
+	CRY_PROFILE_FUNCTION(PROFILE_GAME);
 
 	BaseClass::Update(ctx, updateSlot);
 

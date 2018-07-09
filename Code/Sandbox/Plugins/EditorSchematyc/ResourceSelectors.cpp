@@ -1,10 +1,9 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 
 #include <IResourceSelectorHost.h>
 #include <QtUtil.h>
-#include <QPointer>
 #include <Controls/DictionaryWidget.h>
 #include <Controls/QPopupWidget.h>
 #include <CrySchematyc/Utils/Assert.h>
@@ -204,12 +203,12 @@ dll_string StringListStaticQuickSearchSelector(const SResourceSelectorContext& c
 		static CStringListDictionary dictionary;
 		dictionary.Load(*pOptions);
 
-		QPointer<CModalPopupDictionary> pPopup = new CModalPopupDictionary(pOptions->GetHeader(), dictionary);
+		CModalPopupDictionary popup(pOptions->GetHeader(), dictionary);
 
 		const QPoint pos = QCursor::pos();
-		pPopup->ExecAt(pos, QPopupWidget::TopRight);
+		popup.ExecAt(pos, QPopupWidget::TopRight);
 
-		CStringListDictionaryEntry* pEntry = static_cast<CStringListDictionaryEntry*>(pPopup->GetResult());
+		CStringListDictionaryEntry* pEntry = static_cast<CStringListDictionaryEntry*>(popup.GetResult());
 		if (pEntry)
 		{
 			return QtUtil::ToString(pEntry->GetName()).c_str();
@@ -227,12 +226,12 @@ dll_string StringListQuickSearchSelector(const SResourceSelectorContext& context
 		static CStringListDictionary dictionary;
 		dictionary.Load(*pOptions);
 
-		QPointer<CModalPopupDictionary> pPopup = new CModalPopupDictionary(pOptions->GetHeader(), dictionary);
+		CModalPopupDictionary popup(pOptions->GetHeader(), dictionary);
 
 		const QPoint pos = QCursor::pos();
-		pPopup->ExecAt(pos, QPopupWidget::TopRight);
+		popup.ExecAt(pos, QPopupWidget::TopRight);
 
-		CStringListDictionaryEntry* pEntry = static_cast<CStringListDictionaryEntry*>(pPopup->GetResult());
+		CStringListDictionaryEntry* pEntry = static_cast<CStringListDictionaryEntry*>(popup.GetResult());
 		if (pEntry)
 		{
 			return QtUtil::ToString(pEntry->GetName()).c_str();
@@ -241,7 +240,8 @@ dll_string StringListQuickSearchSelector(const SResourceSelectorContext& context
 	return "";
 }
 
-REGISTER_RESOURCE_SELECTOR("StringListStaticQuickSearch", StringListStaticQuickSearchSelector, "icons:General/Search.ico")
-REGISTER_RESOURCE_SELECTOR("StringListQuickSearch", StringListQuickSearchSelector, "icons:General/Search.ico")
+REGISTER_RESOURCE_SELECTOR("StringListStaticSearch", StringListStaticQuickSearchSelector, "icons:General/Search.ico")
+REGISTER_RESOURCE_SELECTOR("StringListSearch", StringListQuickSearchSelector, "icons:General/Search.ico")
 } // SerializationUtils
 } // Schematyc
+

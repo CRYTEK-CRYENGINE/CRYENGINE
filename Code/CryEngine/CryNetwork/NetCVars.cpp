@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "NetCVars.h"
@@ -267,7 +267,7 @@ CNetCVars::CNetCVars()
 
 	REGISTER_CVAR_CB(net_numNetIDLowBitBits, 5, VF_CHEAT, "Number of bits used for low bit NetIDs. By default players start allocating from low bit NetIDs.", OnNetIDBitsChanged);
 	REGISTER_CVAR_CB(net_numNetIDMediumBitBits, 9, VF_CHEAT, "Number of bits used for medium bit NetIDs. By default dynamic entities start allocating from medium bit NetIDs.", OnNetIDBitsChanged);
-	REGISTER_CVAR_CB(net_numNetIDHighBitBits, 11, VF_CHEAT, "Number of bits used for high bit NetIDs. By default static entities start allocating from high bit NetIDs.", OnNetIDBitsChanged);
+	REGISTER_CVAR_CB(net_numNetIDHighBitBits, 13, VF_CHEAT, "Number of bits used for high bit NetIDs. By default static entities start allocating from high bit NetIDs.", OnNetIDBitsChanged);
 
 	OnNetIDBitsChanged(NULL);
 
@@ -323,7 +323,7 @@ void CNetCVars::Stall(IConsoleCmdArgs* pArgs)
 	{
 		NetLogAlways("Sleeping for %f seconds", -stallTime);
 		SCOPED_GLOBAL_LOCK;
-		Sleep((DWORD)(-1000.0f * stallTime));
+		CrySleep((DWORD)(-1000.0f * stallTime));
 	}
 }
 #endif

@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "Glow.h"
@@ -30,7 +30,7 @@ Glow::Glow(const char* name)
 {
 	CConstantBufferPtr pcb = gcpRendD3D->m_DevBufMan.CreateConstantBuffer(sizeof(SShaderParams), true, true);
 
-	m_primitive.SetInlineConstantBuffer(eConstantBufferShaderSlot_PerBatch, pcb, EShaderStage_Vertex | EShaderStage_Pixel);
+	m_primitive.SetInlineConstantBuffer(eConstantBufferShaderSlot_PerPrimitive, pcb, EShaderStage_Vertex | EShaderStage_Pixel);
 }
 
 void Glow::Load(IXmlNode* pNode)
@@ -75,7 +75,7 @@ bool Glow::PreparePrimitives(const SPreparePrimitivesContext& context)
 
 	// update constants
 	{
-		auto constants = m_primitive.GetConstantManager().BeginTypedConstantUpdate<SShaderParams>(eConstantBufferShaderSlot_PerBatch, EShaderStage_Vertex | EShaderStage_Pixel);
+		auto constants = m_primitive.GetConstantManager().BeginTypedConstantUpdate<SShaderParams>(eConstantBufferShaderSlot_PerPrimitive, EShaderStage_Vertex | EShaderStage_Pixel);
 
 		for (int i = 0; i < context.viewInfoCount; ++i)
 		{

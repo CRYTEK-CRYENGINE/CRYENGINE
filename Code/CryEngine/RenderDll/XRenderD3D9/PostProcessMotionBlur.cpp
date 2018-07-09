@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 /*=============================================================================
    PostProcessMotionBlur : camera/object motion blur post processing
@@ -13,6 +13,7 @@
 #include "D3DPostProcess.h"
 #include "D3DStereo.h"
 
+#pragma warning(push)
 #pragma warning(disable: 4244)
 
 CMotionBlur::OMBParamsMap CMotionBlur::m_pOMBData[3];
@@ -27,11 +28,11 @@ bool CMotionBlur::GetPrevObjToWorldMat(CRenderObject* pObj, Matrix44A& res)
 
 	if (pObj->m_ObjFlags & FOB_HAS_PREVMATRIX)
 	{
-		uint32 nThreadID = gRenDev->m_RP.m_nProcessThreadID;
+		uint32 nThreadID = gRenDev->GetRenderThreadID();
 		SRenderObjData* const __restrict pOD = pObj->GetObjData();
 
 		const uintptr_t ObjID = pOD ? pOD->m_uniqueObjectId : 0;
-		const uint32 nFrameID = gRenDev->GetFrameID(false);
+		const uint32 nFrameID = gRenDev->GetRenderFrameID();
 		const uint32 nObjFrameReadID = (nFrameID - 1) % 3;
 
 		OMBParamsMapItor it = m_pOMBData[nObjFrameReadID].find(ObjID);
@@ -42,7 +43,7 @@ bool CMotionBlur::GetPrevObjToWorldMat(CRenderObject* pObj, Matrix44A& res)
 		}
 	}
 
-	res = pObj->m_II.m_Matrix;
+	res = pObj->GetMatrix(gcpRendD3D->GetObjectAccessorThreadConfig());
 	return false;
 }
 
@@ -67,7 +68,7 @@ void CMotionBlur::OnBeginFrame(const SRenderingPassInfo& passInfo)
 	assert(!gRenDev->m_pRT || gRenDev->m_pRT->IsMainThread());
 
 	const uint32 nDiscardThreshold = 60;
-	const uint32 nFrameID = gRenDev->GetFrameID(false);
+	const uint32 nFrameID = gRenDev->GetMainFrameID();
 	const uint32 nObjFrameReadID = nFrameID % 3;
 
 	m_pOMBData[nObjFrameReadID].erase_if(SMotionBlurDiscardCheck(nDiscardThreshold, nFrameID));
@@ -75,11 +76,11 @@ void CMotionBlur::OnBeginFrame(const SRenderingPassInfo& passInfo)
 
 void CMotionBlur::InsertNewElements()
 {
-	uint32 nThreadID = gRenDev->m_RP.m_nProcessThreadID;
+	uint32 nThreadID = gRenDev->GetRenderThreadID();
 	if (m_FillData[nThreadID].empty())
 		return;
 
-	const uint32 nFrameID = gRenDev->GetFrameID(false);
+	const uint32 nFrameID = gRenDev->GetRenderFrameID();
 	const uint32 nObjFrameWriteID = (nFrameID - 1) % 3;
 
 	m_FillData[nThreadID].CoalesceMemory();
@@ -101,42 +102,7 @@ void CMotionBlur::FreeData()
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-bool CD3D9Renderer::FX_MotionVectorGeneration(bool bEnable)
-{
-	bool bQualityCheck = CPostEffectsMgr::CheckPostProcessQuality(eRQ_Medium, eSQ_Medium);
-
-	if (!bQualityCheck)
-		return false;
-
-	if (!CV_r_MotionVectors)
-		return false;
-
-	if (bEnable)
-	{
-		GetUtils().Log(" +++ Begin object motion vector generation +++ \n");
-
-		// Re-use scene target rendertarget for velocity buffer
-		RT_SetViewport(0, 0, CTexture::s_ptexSceneTarget->GetWidth(), CTexture::s_ptexSceneTarget->GetHeight());
-
-		m_RP.m_PersFlags2 |= RBPF2_MOTIONBLURPASS;
-	}
-	else
-	{
-		FX_ResetPipe();
-		gcpRendD3D->RT_SetViewport(0, 0, gcpRendD3D->GetWidth(), gcpRendD3D->GetHeight());
-
-		m_RP.m_PersFlags2 &= ~RBPF2_MOTIONBLURPASS;
-
-		GetUtils().Log(" +++ End object motion vector generation +++ \n");
-	}
-
-	return true;
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-bool CMotionBlur::Preprocess()
+bool CMotionBlur::Preprocess(const SRenderViewInfo& viewInfo)
 {
 	// skip LDR processing, this is done during HDR
 	return false;
@@ -147,46 +113,7 @@ bool CMotionBlur::Preprocess()
 
 void CMotionBlur::RenderObjectsVelocity()
 {
-	PROFILE_LABEL_SCOPE("OBJECTS VELOCITY");
-
-	uint64 nSaveFlagsShader_RT = gRenDev->m_RP.m_FlagsShader_RT;
-	int iTempX, iTempY, iWidth, iHeight;
-	gcpRendD3D->GetViewport(&iTempX, &iTempY, &iWidth, &iHeight);
-	const bool bAllowObjMotionBlur = CRenderer::CV_r_MotionBlur >= 2;
-	if (bAllowObjMotionBlur)
-	{
-		uint32 nBatchMask = 0;
-		// Check for moving geometry
-		if (!CRenderer::CV_r_MotionBlurGBufferVelocity)
-		{
-			nBatchMask |= SRendItem::BatchFlags(EFSLIST_GENERAL);
-			nBatchMask |= SRendItem::BatchFlags(EFSLIST_SKIN);
-		}
-
-		nBatchMask |= SRendItem::BatchFlags(EFSLIST_TRANSP);
-		if (nBatchMask & FB_MOTIONBLUR)
-		{
-			CRenderElement* pPrevRE = gRenDev->m_RP.m_pRE;
-			gRenDev->m_RP.m_pRE = NULL;
-
-			if (!gcpRendD3D->FX_MotionVectorGeneration(true))
-				return;
-
-			if (!CRenderer::CV_r_MotionBlurGBufferVelocity)
-			{
-				gcpRendD3D->FX_ProcessRenderList(EFSLIST_GENERAL, FB_MOTIONBLUR);
-				gcpRendD3D->FX_ProcessRenderList(EFSLIST_SKIN, FB_MOTIONBLUR);
-			}
-
-			gcpRendD3D->FX_ProcessRenderList(EFSLIST_TRANSP, FB_MOTIONBLUR);
-
-			gcpRendD3D->FX_MotionVectorGeneration(false);
-
-			gRenDev->m_RP.m_pRE = pPrevRE;
-		}
-	}
-
-	gRenDev->m_RP.m_FlagsShader_RT = nSaveFlagsShader_RT;
+	ASSERT_LEGACY_PIPELINE
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -207,15 +134,18 @@ float ComputeMotionScale()
 
 void CMotionBlur::Render()
 {
+	// OLD PIPELINE
+	ASSERT_LEGACY_PIPELINE
+	/*
 	CPostEffectsMgr* pPostMgr = PostEffectMgr();
 	CShader* pSH = CShaderMan::s_shPostMotionBlur;
 
-	const int nThreadID = gRenDev->m_RP.m_nProcessThreadID;
+	const int nThreadID = gRenDev->GetRenderThreadID();
 	gRenDev->m_cEF.mfRefreshSystemShader("MotionBlur", CShaderMan::s_shPostMotionBlur);
 
 	gcpRendD3D->FX_SetActiveRenderTargets();
 
-	CTexture* pSceneHalfRes = CTexture::s_ptexHDRTargetScaled[0];
+	CTexture* pSceneHalfRes = CRendererResources::s_ptexHDRTargetScaled[0];
 
 	const bool bAllowObjMotionBlur = CRenderer::CV_r_MotionBlur >= 2;
 
@@ -230,7 +160,7 @@ void CMotionBlur::Render()
 	mViewProjPrev = mViewProjPrev * GetUtils().m_pProj * GetUtils().m_pScaleBias;
 	mViewProjPrev.Transpose();
 
-	CDepthOfField* pDofRenderTech = (CDepthOfField*)pPostMgr->GetEffect(ePFX_eDepthOfField);
+	CDepthOfField* pDofRenderTech = (CDepthOfField*)pPostMgr->GetEffect(EPostEffectID::DepthOfField);
 	SDepthOfFieldParams pDofParams = pDofRenderTech->GetParams();
 	pDofParams.vFocus.w *= 2.0f;
 
@@ -266,9 +196,9 @@ void CMotionBlur::Render()
 	{
 		PROFILE_LABEL_SCOPE("MB");
 
-		CTexture* pVelocityRT = CTexture::s_ptexVelocity;
-		float tileCountX = (float)CTexture::s_ptexVelocityTiles[1]->GetWidth();
-		float tileCountY = (float)CTexture::s_ptexVelocityTiles[1]->GetHeight();
+		CTexture* pVelocityRT = CRendererResources::s_ptexVelocity;
+		float tileCountX = (float)CRendererResources::s_ptexVelocityTiles[1]->GetWidth();
+		float tileCountY = (float)CRendererResources::s_ptexVelocityTiles[1]->GetHeight();
 
 		const float fMaxRange = 32.0f;
 		const float fAmount = clamp_tpl<float>(m_pRadBlurAmount->GetParam() / fMaxRange, 0.0f, 1.0f);
@@ -296,11 +226,11 @@ void CMotionBlur::Render()
 				const Vec4 vMotionBlurParams = Vec4(ComputeMotionScale(), 1.0f / tileCountX, 1.0f / tileCountX * CRenderer::CV_r_MotionBlurCameraMotionScale, 0);
 				pSH->FXSetPSFloat(m_pMotionBlurParamName, &vMotionBlurParams, 1);
 
-				GetUtils().SetTexture(CTexture::s_ptexZTarget, 0, FILTER_POINT);
-				GetUtils().SetTexture(CTexture::s_ptexHDRTarget, 1, FILTER_POINT);
+				GetUtils().SetTexture(CRendererResources::s_ptexZTarget, 0, FILTER_POINT);
+				GetUtils().SetTexture(CRendererResources::s_ptexHDRTarget, 1, FILTER_POINT);
 				GetUtils().SetTexture(GetUtils().GetVelocityObjectRT(), 2, FILTER_POINT);
 
-				SD3DPostEffectsUtils::DrawFullScreenTriWPOS(CTexture::s_ptexSceneTarget->GetWidth(), CTexture::s_ptexSceneTarget->GetHeight());
+				SD3DPostEffectsUtils::DrawFullScreenTriWPOS(CRendererResources::s_ptexSceneTarget->GetWidth(), CRendererResources::s_ptexSceneTarget->GetHeight());
 				GetUtils().ShEndPass();
 
 				RenderObjectsVelocity();
@@ -318,14 +248,14 @@ void CMotionBlur::Render()
 
 				// Tile generation first pass
 				{
-					gcpRendD3D->FX_PushRenderTarget(0, CTexture::s_ptexVelocityTiles[0], 0);
+					gcpRendD3D->FX_PushRenderTarget(0, CRendererResources::s_ptexVelocityTiles[0], 0);
 					GetUtils().ShBeginPass(CShaderMan::s_shPostMotionBlur, techVelocityTileGen, FEF_DONTSETTEXTURES | FEF_DONTSETSTATES);
 
 					Vec4 vParams = Vec4(pVelocityRT->GetWidth(), pVelocityRT->GetHeight(), ceilf((float)gcpRendD3D->GetWidth() / tileCountX), 0);
 					CShaderMan::s_shPostMotionBlur->FXSetPSFloat(m_pMotionBlurParamName, &vParams, 1);
 					GetUtils().SetTexture(pVelocityRT, 0, FILTER_POINT);
 
-					SD3DPostEffectsUtils::DrawFullScreenTri(CTexture::s_ptexVelocityTiles[0]->GetWidth(), CTexture::s_ptexVelocityTiles[0]->GetHeight(), 0);
+					SD3DPostEffectsUtils::DrawFullScreenTri(CRendererResources::s_ptexVelocityTiles[0]->GetWidth(), CRendererResources::s_ptexVelocityTiles[0]->GetHeight(), 0);
 
 					GetUtils().ShEndPass();
 					gcpRendD3D->FX_PopRenderTarget(0);
@@ -333,14 +263,14 @@ void CMotionBlur::Render()
 
 				// Tile generation second pass
 				{
-					gcpRendD3D->FX_PushRenderTarget(0, CTexture::s_ptexVelocityTiles[1], 0);
+					gcpRendD3D->FX_PushRenderTarget(0, CRendererResources::s_ptexVelocityTiles[1], 0);
 					GetUtils().ShBeginPass(CShaderMan::s_shPostMotionBlur, techVelocityTileGen, FEF_DONTSETTEXTURES | FEF_DONTSETSTATES);
 
-					Vec4 vParams = Vec4(CTexture::s_ptexVelocityTiles[0]->GetWidth(), CTexture::s_ptexVelocityTiles[0]->GetHeight(), ceilf((float)gcpRendD3D->GetHeight() / tileCountY), 1);
+					Vec4 vParams = Vec4(CRendererResources::s_ptexVelocityTiles[0]->GetWidth(), CRendererResources::s_ptexVelocityTiles[0]->GetHeight(), ceilf((float)gcpRendD3D->GetHeight() / tileCountY), 1);
 					CShaderMan::s_shPostMotionBlur->FXSetPSFloat(m_pMotionBlurParamName, &vParams, 1);
-					GetUtils().SetTexture(CTexture::s_ptexVelocityTiles[0], 0, FILTER_POINT);
+					GetUtils().SetTexture(CRendererResources::s_ptexVelocityTiles[0], 0, FILTER_POINT);
 
-					SD3DPostEffectsUtils::DrawFullScreenTri(CTexture::s_ptexVelocityTiles[1]->GetWidth(), CTexture::s_ptexVelocityTiles[1]->GetHeight(), 0);
+					SD3DPostEffectsUtils::DrawFullScreenTri(CRendererResources::s_ptexVelocityTiles[1]->GetWidth(), CRendererResources::s_ptexVelocityTiles[1]->GetHeight(), 0);
 
 					GetUtils().ShEndPass();
 					gcpRendD3D->FX_PopRenderTarget(0);
@@ -348,14 +278,14 @@ void CMotionBlur::Render()
 
 				// Neighborhood max
 				{
-					gcpRendD3D->FX_PushRenderTarget(0, CTexture::s_ptexVelocityTiles[2], 0);
+					gcpRendD3D->FX_PushRenderTarget(0, CRendererResources::s_ptexVelocityTiles[2], 0);
 					GetUtils().ShBeginPass(CShaderMan::s_shPostMotionBlur, techTileNeighborhood, FEF_DONTSETTEXTURES | FEF_DONTSETSTATES);
 
 					Vec4 vParams = Vec4(1.0f / tileCountX, 1.0f / tileCountY, 0, 0);
 					CShaderMan::s_shPostMotionBlur->FXSetPSFloat(m_pMotionBlurParamName, &vParams, 1);
-					GetUtils().SetTexture(CTexture::s_ptexVelocityTiles[1], 0, FILTER_POINT);
+					GetUtils().SetTexture(CRendererResources::s_ptexVelocityTiles[1], 0, FILTER_POINT);
 
-					SD3DPostEffectsUtils::DrawFullScreenTri(CTexture::s_ptexVelocityTiles[2]->GetWidth(), CTexture::s_ptexVelocityTiles[2]->GetHeight(), 0);
+					SD3DPostEffectsUtils::DrawFullScreenTri(CRendererResources::s_ptexVelocityTiles[2]->GetWidth(), CRendererResources::s_ptexVelocityTiles[2]->GetHeight(), 0);
 
 					GetUtils().ShEndPass();
 					gcpRendD3D->FX_PopRenderTarget(0);
@@ -374,20 +304,20 @@ void CMotionBlur::Render()
 			gRenDev->m_RP.m_FlagsShader_RT |= (CRenderer::CV_r_MotionBlurQuality == 1) ? g_HWSR_MaskBit[HWSR_SAMPLE1] : 0;
 
 			if (bGatherDofEnabled)
-				GetUtils().StretchRect(CTexture::s_ptexHDRTarget, CTexture::s_ptexSceneTargetR11G11B10F[0]);
+				GetUtils().StretchRect(CRendererResources::s_ptexHDRTarget, CRendererResources::s_ptexSceneTargetR11G11B10F[0]);
 
-			gcpRendD3D->FX_PushRenderTarget(0, CTexture::s_ptexHDRTarget, 0);
+			gcpRendD3D->FX_PushRenderTarget(0, CRendererResources::s_ptexHDRTarget, 0);
 			GetUtils().ShBeginPass(CShaderMan::s_shPostMotionBlur, m_pMotionBlurTechName, FEF_DONTSETTEXTURES | FEF_DONTSETSTATES);
 
 			Vec4 vParams = Vec4(1.0f / tileCountX, 1.0f / tileCountY, 0, 0);
 			CShaderMan::s_shPostMotionBlur->FXSetPSFloat(m_pMotionBlurParamName, &vParams, 1);
 
-			GetUtils().SetTexture(bGatherDofEnabled ? CTexture::s_ptexSceneTargetR11G11B10F[0] : CTexture::s_ptexHDRTargetPrev, 0, FILTER_LINEAR);
+			GetUtils().SetTexture(bGatherDofEnabled ? CRendererResources::s_ptexSceneTargetR11G11B10F[0] : CRendererResources::s_ptexHDRTargetPrev, 0, FILTER_LINEAR);
 			GetUtils().SetTexture(pVelocityRT, 1, FILTER_POINT);
-			GetUtils().SetTexture(CTexture::s_ptexVelocityTiles[2], 2, FILTER_POINT);
+			GetUtils().SetTexture(CRendererResources::s_ptexVelocityTiles[2], 2, FILTER_POINT);
 
 			gcpRendD3D->FX_SetState(GS_NODEPTHTEST | GS_BLSRC_ONE | GS_BLDST_ONEMINUSSRCALPHA);
-			SD3DPostEffectsUtils::DrawFullScreenTri(CTexture::s_ptexSceneTarget->GetWidth(), CTexture::s_ptexSceneTarget->GetHeight(), 0);
+			SD3DPostEffectsUtils::DrawFullScreenTri(CRendererResources::s_ptexSceneTarget->GetWidth(), CRendererResources::s_ptexSceneTarget->GetHeight(), 0);
 
 			GetUtils().ShEndPass();
 			gcpRendD3D->FX_PopRenderTarget(0);
@@ -407,20 +337,20 @@ void CMotionBlur::Render()
 			PROFILE_LABEL_SCOPE("SPRITE DOF");
 
 			// TODO: Avoid this copy
-			GetUtils().StretchRect(CTexture::s_ptexHDRTarget, CTexture::s_ptexSceneTarget);
+			GetUtils().StretchRect(CRendererResources::s_ptexHDRTarget, CRendererResources::s_ptexSceneTarget);
 
-			GetUtils().StretchRect(CTexture::s_ptexHDRTarget, pSceneHalfRes, false, false, false, true); // 0.25
+			GetUtils().StretchRect(CRendererResources::s_ptexHDRTarget, pSceneHalfRes, false, false, false, true); // 0.25
 			{
 				PROFILE_LABEL_SCOPE("QUAD BOKEH DOF");
-				const uint32 nWidth = CTexture::s_ptexHDRDofLayers[0]->GetWidth();
-				const uint32 nHeight = CTexture::s_ptexHDRDofLayers[0]->GetHeight();
+				const uint32 nWidth = CRendererResources::s_ptexHDRDofLayers[0]->GetWidth();
+				const uint32 nHeight = CRendererResources::s_ptexHDRDofLayers[0]->GetHeight();
 				const uint32 nBokehQuadsCount = nWidth * nHeight * 3 * 2;
 				const float fBokehNormFactor = (float)(640 * 360 * 3 * 2) / (float)nBokehQuadsCount;  // Assume tweaked for 1600x900 with render target scale of 0.8
 
-				gcpRendD3D->FX_ClearTarget(CTexture::s_ptexHDRDofLayers[0], Clr_Transparent);
-				gcpRendD3D->FX_ClearTarget(CTexture::s_ptexHDRDofLayers[1], Clr_Transparent);
-				gcpRendD3D->FX_PushRenderTarget(0, CTexture::s_ptexHDRDofLayers[0], NULL);
-				gcpRendD3D->FX_PushRenderTarget(1, CTexture::s_ptexHDRDofLayers[1], NULL);
+				gcpRendD3D->FX_ClearTarget(CRendererResources::s_ptexHDRDofLayers[0], Clr_Transparent);
+				gcpRendD3D->FX_ClearTarget(CRendererResources::s_ptexHDRDofLayers[1], Clr_Transparent);
+				gcpRendD3D->FX_PushRenderTarget(0, CRendererResources::s_ptexHDRDofLayers[0], NULL);
+				gcpRendD3D->FX_PushRenderTarget(1, CRendererResources::s_ptexHDRDofLayers[1], NULL);
 
 				gRenDev->m_RP.m_FlagsShader_RT &= ~(g_HWSR_MaskBit[HWSR_SAMPLE0] | g_HWSR_MaskBit[HWSR_SAMPLE1]);
 				if (CRenderer::CV_r_dofDilation > 0.001f)
@@ -439,19 +369,19 @@ void CMotionBlur::Render()
 				// bind vertex textures for dof splats
 				pSceneHalfRes->SetVertexTexture(true);
 				GetUtils().SetTexture(pSceneHalfRes, 0, FILTER_POINT);
-				CTexture::s_ptexZTarget->SetVertexTexture(true);
-				GetUtils().SetTexture(CTexture::s_ptexZTarget, 1, FILTER_POINT);
+				CRendererResources::s_ptexZTarget->SetVertexTexture(true);
+				GetUtils().SetTexture(CRendererResources::s_ptexZTarget, 1, FILTER_POINT);
 
 				pSceneHalfRes->SetVertexTexture(false);
 				GetUtils().SetTexture(pSceneHalfRes, 0, FILTER_POINT);
-				CTexture::s_ptexZTarget->SetVertexTexture(false);
-				GetUtils().SetTexture(CTexture::s_ptexZTarget, 1, FILTER_POINT);
-				GetUtils().SetTexture(CTexture::s_ptexGrainFilterMap, 2, FILTER_POINT);
+				CRendererResources::s_ptexZTarget->SetVertexTexture(false);
+				GetUtils().SetTexture(CRendererResources::s_ptexZTarget, 1, FILTER_POINT);
+				GetUtils().SetTexture(CRendererResources::s_ptexGrainFilterMap, 2, FILTER_POINT);
 				if (m_pBokehShape)
 					GetUtils().SetTexture(m_pBokehShape, 3, FILTER_TRILINEAR);
 
 				static CCryNameR pAspectRatioName("vAspectRatio");
-				Vec4 vAspectRatioMul = Vec4(CTexture::s_ptexHDRTarget->GetWidth(), CTexture::s_ptexHDRTarget->GetHeight(), 1.0f, 1.0f);
+				Vec4 vAspectRatioMul = Vec4(CRendererResources::s_ptexHDRTarget->GetWidth(), CRendererResources::s_ptexHDRTarget->GetHeight(), 1.0f, 1.0f);
 				const float fAspectRatio = (1920.0f / 1080.0f) * (vAspectRatioMul.y / vAspectRatioMul.x);
 				vAspectRatioMul = Vec4(fAspectRatio * (vAspectRatioMul.x / 1920.0f), vAspectRatioMul.y / 1080.0f, fBokehNormFactor / 80.0f, CRenderer::CV_r_dofDilation);
 				CShaderMan::s_shPostMotionBlur->FXSetVSFloat(pAspectRatioName, &vAspectRatioMul, 1);
@@ -474,7 +404,7 @@ void CMotionBlur::Render()
 				CShaderMan::s_shPostMotionBlur->FXEnd();
 
 				pSceneHalfRes->SetVertexTexture(false);
-				CTexture::s_ptexZTarget->SetVertexTexture(false);
+				CRendererResources::s_ptexZTarget->SetVertexTexture(false);
 
 				gcpRendD3D->FX_PopRenderTarget(1);
 				gcpRendD3D->FX_PopRenderTarget(0);
@@ -482,7 +412,7 @@ void CMotionBlur::Render()
 
 			{
 				PROFILE_LABEL_SCOPE("BOKEH DOF COMPOSE");
-				gcpRendD3D->FX_PushRenderTarget(0, CTexture::s_ptexHDRTarget, NULL);  // Apply normalization+composition pass
+				gcpRendD3D->FX_PushRenderTarget(0, CRendererResources::s_ptexHDRTarget, NULL);  // Apply normalization+composition pass
 
 				GetUtils().ShBeginPass(CShaderMan::s_shPostMotionBlur, m_pRefDofMBNormalize, FEF_DONTSETTEXTURES | FEF_DONTSETSTATES);
 				gcpRendD3D->SetCullMode(R_CULL_BACK);
@@ -490,26 +420,26 @@ void CMotionBlur::Render()
 				CShaderMan::s_shPostMotionBlur->FXSetPSFloat(m_pDofFocusParam0Name, &vDofParams0, 1);
 				CShaderMan::s_shPostMotionBlur->FXSetPSFloat(m_pDofFocusParam1Name, &vDofParams1, 1);
 
-				GetUtils().SetTexture(CTexture::s_ptexHDRDofLayers[0], 0, FILTER_LINEAR);
-				GetUtils().SetTexture(CTexture::s_ptexHDRDofLayers[1], 1, FILTER_LINEAR);
-				GetUtils().SetTexture(CTexture::s_ptexSceneTarget, 2, FILTER_POINT);
-				GetUtils().SetTexture(CTexture::s_ptexZTarget, 3, FILTER_POINT);
+				GetUtils().SetTexture(CRendererResources::s_ptexHDRDofLayers[0], 0, FILTER_LINEAR);
+				GetUtils().SetTexture(CRendererResources::s_ptexHDRDofLayers[1], 1, FILTER_LINEAR);
+				GetUtils().SetTexture(CRendererResources::s_ptexSceneTarget, 2, FILTER_POINT);
+				GetUtils().SetTexture(CRendererResources::s_ptexZTarget, 3, FILTER_POINT);
 
-				SD3DPostEffectsUtils::DrawFullScreenTri(CTexture::s_ptexHDRTarget->GetWidth(), CTexture::s_ptexHDRTarget->GetHeight(), 0, &gcpRendD3D->m_FullResRect);
+				SD3DPostEffectsUtils::DrawFullScreenTri(CRendererResources::s_ptexHDRTarget->GetWidth(), CRendererResources::s_ptexHDRTarget->GetHeight(), 0, &gcpRendD3D->m_FullResRect);
 
 				GetUtils().ShEndPass();
 				gcpRendD3D->FX_PopRenderTarget(0);
 
-#ifdef SUPPORTS_MSAA
-				CTexture::s_ptexHDRTarget->SetUseMultisampledRTV(true);
-#endif
 
 			}
 		}
 
-		CTexture::s_ptexHDRTarget->SetResolved(true);
+		CRendererResources::s_ptexHDRTarget->SetResolved(true);
 	}
 
 	gcpRendD3D->FX_SetActiveRenderTargets();
 	gcpRendD3D->RT_SetViewport(iTempX, iTempY, iWidth, iHeight);
+	*/
 }
+
+#pragma warning(pop)

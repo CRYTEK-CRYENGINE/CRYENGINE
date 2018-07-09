@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "ShootOp.h"
@@ -111,7 +111,7 @@ void ShootOp::Leave(CPipeUser& pipeUser)
 
 void ShootOp::Update(CPipeUser& pipeUser)
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 	const CTimeValue& now = gEnv->pTimer->GetFrameStartTime();
 

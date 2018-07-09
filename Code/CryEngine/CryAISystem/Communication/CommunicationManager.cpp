@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "CommunicationManager.h"
@@ -624,7 +624,7 @@ void CCommunicationManager::ResetHistory()
 
 void CCommunicationManager::Update(float updateTime)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 	m_channels.Update(updateTime);
 	m_player.Update(updateTime);
@@ -995,7 +995,7 @@ bool CCommunicationManager::CanForceAnimation(const SCommunication& comm, const 
 
 CommPlayID CCommunicationManager::PlayCommunication(SCommunicationRequest& request)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 	Configs::iterator cit = m_configs.find(request.configID);
 	if (cit == m_configs.end())
@@ -1221,7 +1221,7 @@ void CCommunicationManager::SendAnimationGraphReset(EntityId actorId)
 
 void CCommunicationManager::StopCommunication(const CommPlayID& playID)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 	if (m_player.IsPlaying(playID))
 	{

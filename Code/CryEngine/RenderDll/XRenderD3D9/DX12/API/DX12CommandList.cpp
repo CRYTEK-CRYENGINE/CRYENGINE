@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "DX12CommandList.hpp"
@@ -45,6 +45,11 @@ CCommandList::CCommandList(CCommandListPool& rPool)
 	m_DescriptorHeaps.emplace_back(rPool.GetDevice()->GetGlobalDescriptorBlock(D3D12_DESCRIPTOR_HEAP_TYPE_DSV, 1024));
 #endif
 }
+
+//---------------------------------------------------------------------------------------------------------------------
+#if NTDDI_WIN10_RS2 && (WDK_NTDDI_VERSION >= NTDDI_WIN10_RS2)
+BOOL CCommandList::s_DepthBoundsTestSupported = false;
+#endif
 
 //---------------------------------------------------------------------------------------------------------------------
 CCommandList::~CCommandList()
@@ -102,6 +107,38 @@ bool CCommandList::Init(UINT64 currentFenceValue)
 
 		m_pCmdList = pCmdList;
 		pCmdList->Release();
+		
+		if (m_eListType == D3D12_COMMAND_LIST_TYPE_COPY)
+		{
+#if NTDDI_WIN10_RS2 && (WDK_NTDDI_VERSION >= NTDDI_WIN10_RS2)
+			m_pCmdList1 = nullptr;
+#endif
+#if NTDDI_WIN10_RS3 && (WDK_NTDDI_VERSION >= NTDDI_WIN10_RS3)
+			m_pCmdList2 = nullptr;
+#endif
+		}
+		else
+		{
+			// Creator's Update
+#if NTDDI_WIN10_RS2 && (WDK_NTDDI_VERSION >= NTDDI_WIN10_RS2)
+			ID3D12GraphicsCommandList1* pCmdList1 = nullptr;
+			pCmdList->QueryInterface(__uuidof(ID3D12GraphicsCommandList1), (void**)&pCmdList1);
+			if (m_pCmdList1 = pCmdList1)
+				pCmdList1->Release();
+
+			D3D12_FEATURE_DATA_D3D12_OPTIONS2 Options2;
+			if (GetDevice()->CheckFeatureSupport(D3D12_FEATURE_D3D12_OPTIONS2, &Options2, sizeof(Options2)) == S_OK)
+				s_DepthBoundsTestSupported = Options2.DepthBoundsTestSupported;
+#endif
+
+			// Fall Creator's Update
+#if NTDDI_WIN10_RS3 && (WDK_NTDDI_VERSION >= NTDDI_WIN10_RS3)
+			ID3D12GraphicsCommandList2* pCmdList2 = nullptr;
+			pCmdList->QueryInterface(__uuidof(ID3D12GraphicsCommandList1), (void**)&pCmdList2);
+			if (m_pCmdList2 = pCmdList2)
+				pCmdList2->Release();
+#endif
+		}
 	}
 
 #ifdef DX12_STATS
@@ -767,7 +804,7 @@ void CCommandList::ClearDepthStencilView(const CView& view, D3D12_CLEAR_FLAGS cl
 	// TODO: if we know early that the resource(s) will be PRESENT we can begin the barrier early and end it here
 	TrackResourceDSVUsage(resource, view);
 
-#if !defined(RELEASE) && defined(_DEBUG) && 0 // will break a lot currently, won't really be coherent in the future
+#if !defined(RELEASE) && defined(_DEBUG) // will break a lot currently, won't really be coherent in the future
 	UINT len = 512;
 	char str[512] = "-";
 	UINT cen = 20;
@@ -797,7 +834,7 @@ void CCommandList::ClearRenderTargetView(const CView& view, const FLOAT rgba[4],
 	// TODO: if we know early that the resource(s) will be PRESENT we can begin the barrier early and end it here
 	TrackResourceRTVUsage(resource, view);
 
-#if !defined(RELEASE) && defined(_DEBUG) && 0 // will break a lot currently, won't really be coherent in the future
+#if !defined(RELEASE) && defined(_DEBUG) // will break a lot currently, won't really be coherent in the future
 	UINT len = 512;
 	char str[512] = "-";
 	UINT cen = 20;

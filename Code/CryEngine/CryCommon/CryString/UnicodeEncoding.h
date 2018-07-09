@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 #include <CryCore/BaseTypes.h>                // For uint8, uint16, uint32
@@ -606,6 +606,7 @@ struct STranscoderSelect<eEncoding_UTF8, OutputEncoding, Sink, eErrorRecovery_Fa
 template<EErrorRecovery R>
 struct SIsSafeEncoding
 {
+	PREFAST_SUPPRESS_WARNING(6285)
 	static const bool value =
 	  R == eErrorRecovery_Discard ||
 	  R == eErrorRecovery_Replace ||

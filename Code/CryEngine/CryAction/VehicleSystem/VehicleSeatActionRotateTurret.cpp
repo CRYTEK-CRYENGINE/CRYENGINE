@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 /*************************************************************************
    -------------------------------------------------------------------------
@@ -226,7 +226,7 @@ void CVehicleSeatActionRotateTurret::UpdateFromPassenger(const float frameTime, 
 
 void CVehicleSeatActionRotateTurret::DoUpdate(const float frameTime)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_ACTION);
+	CRY_PROFILE_FUNCTION(PROFILE_ACTION);
 
 	if (gEnv->IsClient() && m_pVehicle->IsProbablyDistant() && !m_pVehicle->GetGameObject()->IsProbablyVisible())
 		return;

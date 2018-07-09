@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 /*************************************************************************
    -------------------------------------------------------------------------
@@ -143,7 +143,7 @@ struct IActor : public IGameObjectExtension
 	virtual const char*               GetEntityClassName() const = 0;
 
 	virtual void                      SerializeLevelToLevel(TSerialize& ser) = 0;
-	virtual void                      ProcessEvent(SEntityEvent& event) = 0;
+	virtual void                      ProcessEvent(const SEntityEvent& event) = 0;
 
 	virtual IAnimatedCharacter*       GetAnimatedCharacter() = 0;
 	virtual const IAnimatedCharacter* GetAnimatedCharacter() const = 0;

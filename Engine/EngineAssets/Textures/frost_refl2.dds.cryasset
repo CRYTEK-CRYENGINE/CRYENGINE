@@ -1,0 +1,14 @@
+<AssetMetadata version="0" type="Texture" guid="c0f8fad5-6a3c-ba13-6eb8-18e450cb7048" source="frost_refl2.tif">
+ <Files>
+  <File path="frost_refl2.dds"/>
+  <File path="frost_refl2.dds.1"/>
+  <File path="frost_refl2.dds.2"/>
+  <File path="frost_refl2.dds.3"/>
+  <File path="frost_refl2.dds.4"/>
+ </Files>
+ <Details>
+  <Detail name="width">256</Detail>
+  <Detail name="height">256</Detail>
+  <Detail name="mipCount">7</Detail>
+ </Details>
+</AssetMetadata>

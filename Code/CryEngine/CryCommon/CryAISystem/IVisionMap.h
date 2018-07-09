@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #ifndef __IVisionMap_h__
 #define __IVisionMap_h__
@@ -38,6 +38,7 @@ enum EChangeHint
 	eChangedEntityId              = 1 << 12,
 	eChangedUserCondition         = 1 << 13,
 	eChangedUserConditionCallback = 1 << 14,
+	eChangedObservableMode        = 1 << 15,
 	eChangedAll                   = 0xffffffff,
 };
 
@@ -47,6 +48,13 @@ enum EVisionPriority
 	eMediumPriority   = 1,
 	eHighPriority     = 2,
 	eVeryHighPriority = 3,
+};
+
+enum class EObservableMode
+{
+	Default = 0,
+	Statistical,
+	Count            
 };
 
 #define VISION_MAP_ALL_TYPES    uint32(-1)
@@ -186,6 +194,9 @@ struct ObservableParams
 		, observablePositionsCount(0)
 		, skipListSize(0)
 		, entityId(0)
+		, mode(EObservableMode::Default)
+		, collectFullStatisticsOnObservableMaxRange(1.0f)
+
 	{
 		memset(observablePositions, 0, sizeof(observablePositions));
 	}
@@ -210,6 +221,10 @@ struct ObservableParams
 	//! Its purpose is to help the the users identify the entities involved on a change of visibility.
 	//! Not to be used internally in the vision map.
 	EntityId entityId;
+
+	//! Define the way in which an observer is evaluated (seen/not seen or percentage of points that are seen)
+	EObservableMode mode;
+	float collectFullStatisticsOnObservableMaxRange;
 };
 
 typedef VisionID ObserverID;
@@ -237,6 +252,7 @@ public:
 	virtual void                    ClearPriorityMap() = 0;
 
 	virtual bool                    IsVisible(const ObserverID& observerID, const ObservableID& observableID) const = 0;
+	virtual float                   GetNormalizedVisibiliy(const ObserverID& observerID, const ObservableID& observableID) const = 0;
 
 	virtual const ObserverParams*   GetObserverParams(const ObserverID& observerID) const = 0;
 	virtual const ObservableParams* GetObservableParams(const ObservableID& observableID) const = 0;

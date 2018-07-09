@@ -1,0 +1,14 @@
+<AssetMetadata version="0" type="Texture" guid="6d129fce-e7ec-f089-bff8-5c8bcdc25f0e" source="rain_spatter.tif">
+ <Files>
+  <File path="rain_spatter.dds"/>
+  <File path="rain_spatter.dds.1"/>
+  <File path="rain_spatter.dds.2"/>
+  <File path="rain_spatter.dds.3"/>
+  <File path="rain_spatter.dds.4"/>
+ </Files>
+ <Details>
+  <Detail name="width">256</Detail>
+  <Detail name="height">256</Detail>
+  <Detail name="mipCount">7</Detail>
+ </Details>
+</AssetMetadata>

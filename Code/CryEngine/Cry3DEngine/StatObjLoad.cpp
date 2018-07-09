@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 // -------------------------------------------------------------------------
 //  File name:   statobjconstr.cpp
@@ -59,7 +59,7 @@ void CStatObj::Refresh(int nFlags)
 			// load default in case of error
 			ShutDown();
 			Init();
-			LoadCGF("objects/default.cgf", 0, 0, 0, 0);
+			LoadCGF(DEFAULT_CGF_NAME, 0, 0, 0, 0);
 			m_bDefaultObject = true;
 		}
 
@@ -336,6 +336,7 @@ bool CStatObj::LoadStreamRenderMeshes(const char* filename, const void* pData, c
 	CLoaderCGF cgfLoader(util::pool_allocate, util::pool_free, GetCVars()->e_StatObjTessellationMode != 2 || bLod);
 	CStackContainer<CContentCGF> contentContainer(InplaceFactory(m_szFileName));
 	CContentCGF* pCGF = contentContainer.get();
+	CExportInfoCGF* pExportInfo = pCGF->GetExportInfo();
 
 	bool bMeshAssigned = false;
 
@@ -433,10 +434,15 @@ bool CStatObj::LoadStreamRenderMeshes(const char* filename, const void* pData, c
 				//////////////////////////////////////////////////////////////////////////
 				if (pStatObj->m_nSpines && pStatObj->m_pSpines) // foliage
 					pStatObj->m_pStreamedRenderMesh->GenerateQTangents();
+
+				if (!bLod && (pExportInfo->bMergeAllNodes || m_nSubObjectMeshCount == 0))
+				{
+					AnalyzeFoliage(pStatObj->m_pStreamedRenderMesh, pCGF);
+				}
 			}
 		}
 	}
-	if (!bMeshAssigned)
+	if (!bMeshAssigned && gEnv->pRenderer)
 	{
 		Warning("RenderMesh not assigned %s", m_szFileName.c_str());
 	}
@@ -627,7 +633,11 @@ bool CStatObj::LoadCGF_Int(const char* filename, bool bLod, unsigned long nLoadi
 	}
 	if (!bLoaded)
 	{
-		FileWarning(0, filename, "CGF Loading Failed: %s", cgfLoader.GetLastError());
+		if (!(nLoadingFlags & IStatObj::ELoadingFlagsNoErrorIfFail))
+		{
+			FileWarning(0, filename, "CGF Loading Failed: %s", cgfLoader.GetLastError());
+		}
+
 		return false;
 	}
 	//////////////////////////////////////////////////////////////////////////
@@ -1103,7 +1113,7 @@ bool CStatObj::LoadCGF_Int(const char* filename, bool bLod, unsigned long nLoadi
 	//////////////////////////////////////////////////////////////////////////
 	// Analyze foliage info.
 	//////////////////////////////////////////////////////////////////////////
-	if (!bLod && (pExportInfo->bMergeAllNodes || m_nSubObjectMeshCount == 0))
+	if (!bLod && (pExportInfo->bMergeAllNodes || m_nSubObjectMeshCount == 0) && !m_bCanUnload)
 	{
 		AnalyzeFoliage(pMainMesh, pCGF);
 	}

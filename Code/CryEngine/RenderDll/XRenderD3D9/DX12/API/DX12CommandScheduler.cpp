@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "DX12CommandScheduler.hpp"
@@ -145,32 +145,40 @@ void CCommandScheduler::SubmitAllCommands(bool bWait, const FVAL64(&fenceValues)
 	SubmitCommands(CMDQUEUE_COPY, bWait, fenceValues[CMDQUEUE_COPY]);
 }
 
+void CCommandScheduler::GarbageCollect()
+{
+	CRY_PROFILE_REGION(PROFILE_RENDERER, "FLUSH GPU HEAPS");
+
+	// Ring buffer for the _completed_ fences of past number of frames
+	m_CmdFenceSet.AdvanceCompletion();
+	m_CmdFenceSet.GetLastCompletedFenceValues(
+		m_FrameFenceValuesCompleted[(m_FrameFenceCursor)]);
+	GetDevice()->FlushReleaseHeap(
+		m_FrameFenceValuesCompleted[(m_FrameFenceCursor)],
+		m_FrameFenceValuesCompleted[(m_FrameFenceCursor + (FRAME_FENCES - std::max(1, FRAME_FENCE_LATENCY - 1))) % FRAME_FENCES]);
+}
+
+void CCommandScheduler::SyncFrame()
+{
+	// Stall render thread until GPU has finished processing previous frame (in case max frame latency is 1)
+	CRY_PROFILE_REGION(PROFILE_RENDERER, "SYNC TO FRAME FENCE");
+
+	// Block when more than N frames have not been rendered yet
+	m_CmdFenceSet.GetSubmittedValues(
+		m_FrameFenceValuesSubmitted[(m_FrameFenceCursor)]);
+	m_CmdFenceSet.WaitForFence(
+		m_FrameFenceValuesSubmitted[(m_FrameFenceCursor + (FRAME_FENCES - std::max(1, FRAME_FENCE_INFLIGHT - 1))) % FRAME_FENCES]);
+}
+
 void CCommandScheduler::EndOfFrame(bool bWait)
 {
 	// TODO: add final bWait if back-buffer is copied directly before the present
 	Flush(bWait);
 
-	{
-		PROFILE_FRAME("FLUSH_GPU_HEAPS");
+	if (CRendererCVars::CV_r_SyncToFrameFence)
+		SyncFrame();
 
-		// Ring buffer for the _completed_ fences of past number of frames
-		m_CmdFenceSet.AdvanceCompletion();
-		m_CmdFenceSet.GetLastCompletedFenceValues(
-		  m_FrameFenceValuesCompleted[(m_FrameFenceCursor)]);
-		GetDevice()->FlushReleaseHeap(
-		  m_FrameFenceValuesCompleted[(m_FrameFenceCursor)],
-		  m_FrameFenceValuesCompleted[(m_FrameFenceCursor + (FRAME_FENCES - max(1, FRAME_FENCE_LATENCY - 1))) % FRAME_FENCES]);
-	}
-
-	/*{
-	   PROFILE_FRAME("WAIT FOR GPU");
-
-	   // Block when more than N frames have not been rendered yet
-	   m_CmdFenceSet.GetSubmittedValues(
-	    m_FrameFenceValuesSubmitted[(m_FrameFenceCursor)]);
-	   m_CmdListPools[CMDQUEUE_GRAPHICS].WaitForFenceOnCPU(
-	    m_FrameFenceValuesSubmitted[(m_FrameFenceCursor + (FRAME_FENCES - max(1, FRAME_FENCE_INFLIGHT - 1))) % FRAME_FENCES]);
-	   }*/
+	GarbageCollect();
 
 	m_FrameFenceCursor = ((++m_FrameFenceCursor) % FRAME_FENCES);
 

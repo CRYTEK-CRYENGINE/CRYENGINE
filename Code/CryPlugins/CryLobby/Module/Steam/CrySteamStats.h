@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 //
 // -------------------------------------------------------------------------
@@ -21,7 +21,7 @@
 
 #if USE_STEAM && USE_CRY_STATS
 
-	#include "steam\steam_api.h"
+	#include "steam/steam_api.h"
 	#include "CrySteamMatchMaking.h"
 
 ////////////////////////////////////////////////////////////////////////////////

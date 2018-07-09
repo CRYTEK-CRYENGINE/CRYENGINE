@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 #include "StdAfx.h"
 #include "MaterialModel.h"
 #include "MaterialElement.h"
@@ -450,3 +450,4 @@ bool CSortedMaterialModel::lessThan(const QModelIndex& lhp, const QModelIndex& r
 	}
 	return QSortFilterProxyModel::lessThan(lhp, rhp);
 }
+

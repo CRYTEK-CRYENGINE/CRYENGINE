@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include <StdAfx.h>
 #include "FileIOWrapper.h"
@@ -12,7 +12,7 @@ CryCriticalSection CIOWrapper::m_ReadCS;
 
 size_t CIOWrapper::Fread(void* pData, size_t nSize, size_t nCount, FILE* hFile)
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_SYSTEM);
+	CRY_PROFILE_FUNCTION(PROFILE_SYSTEM);
 
 	PROFILE_DISK_READ(nSize * nCount);
 
@@ -32,7 +32,12 @@ FILE* CIOWrapper::FopenLocked(const char* file, const char* mode)
 #if CRY_PLATFORM_WINDOWS
 	HANDLE handle;
 
-	handle = CreateFile(file, GENERIC_READ | GENERIC_WRITE, 0, 0, OPEN_ALWAYS, 0, 0);
+	// The file must exist if opens for 'r' or 'r+'.
+	const auto creationDisposition = strchr(mode, 'r') ? OPEN_EXISTING : OPEN_ALWAYS;
+
+	const auto accessMode = (creationDisposition == OPEN_EXISTING) && !strchr(mode, '+') ? GENERIC_READ : (GENERIC_READ | GENERIC_WRITE);
+
+	handle = CreateFile(file, accessMode, 0, 0, creationDisposition, 0, 0);
 
 	if (handle == INVALID_HANDLE_VALUE)
 	{
@@ -78,7 +83,7 @@ FILE * CIOWrapper::FopenEx(const char* file, const char* mode)
 	FILE* f = NULL;
 
 	IPlatformOS* pOS = gEnv->pSystem->GetPlatformOS();
-	if (pOS->IsFileAvailable(file))
+	if (pOS != nullptr && pOS->IsFileAvailable(file))
 	{
 #if CRY_PLATFORM_WINDOWS
 		f = ::_wfopen(CryStringUtils::UTF8ToWStr(file), CryStringUtils::UTF8ToWStr(mode));

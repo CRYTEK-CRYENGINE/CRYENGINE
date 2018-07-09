@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "StartupConsistencyChecker.h"
@@ -139,6 +139,29 @@ namespace UQS
 						string error;
 						error.Format("Generator '%s' wants to generate items of type '%s', but there is no corresponding item-factory for this type registered", generatorFactory.GetName(), itemTypeToGenerate.name());
 						m_errors.push_back(error);
+					}
+				}
+			}
+
+			//
+			// ensure that the type of shuttled items that certain generators expect have a corresponding item-factory registered
+			//
+
+			{
+				const GeneratorFactoryDatabase& generatorFactoryDB = g_pHub->GetGeneratorFactoryDatabase();
+
+				for (size_t i = 0, n = generatorFactoryDB.GetFactoryCount(); i < n; ++i)
+				{
+					const Client::IGeneratorFactory& generatorFactory = generatorFactoryDB.GetFactory(i);
+
+					if (const Shared::CTypeInfo* pShuttledItemTypeToExpect = generatorFactory.GetTypeOfShuttledItemsToExpect())
+					{
+						if (!g_pHub->GetUtils().FindItemFactoryByType(*pShuttledItemTypeToExpect))
+						{
+							string error;
+							error.Format("Generator '%s' expects shuttled items of type '%s', but there is no corresponding item-factory for this type registered", generatorFactory.GetName(), pShuttledItemTypeToExpect->name());
+							m_errors.push_back(error);
+						}
 					}
 				}
 			}

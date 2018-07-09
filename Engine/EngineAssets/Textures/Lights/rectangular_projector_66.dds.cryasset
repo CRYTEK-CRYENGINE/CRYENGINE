@@ -1,0 +1,15 @@
+<AssetMetadata version="0" type="Texture" guid="af85b2d3-c7df-e30d-3ba3-d2d155751cc9" source="rectangular_projector_66.tif">
+ <Files>
+  <File path="rectangular_projector_66.dds"/>
+  <File path="rectangular_projector_66.dds.1"/>
+  <File path="rectangular_projector_66.dds.2"/>
+  <File path="rectangular_projector_66.dds.3"/>
+  <File path="rectangular_projector_66.dds.4"/>
+  <File path="rectangular_projector_66.dds.5"/>
+ </Files>
+ <Details>
+  <Detail name="width">512</Detail>
+  <Detail name="height">512</Detail>
+  <Detail name="mipCount">8</Detail>
+ </Details>
+</AssetMetadata>

@@ -1,9 +1,11 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #ifndef __AgePriorityQueue_h__
 #define __AgePriorityQueue_h__
 
 #pragma once
+
+#include <CryCore/AlignmentTools.h>
 
 template<typename ValueType, typename AgeType = float, typename PriorityType = float>
 struct AgePriorityQueue
@@ -21,38 +23,100 @@ private:
 
 	struct container_type
 	{
-		container_type()
-			: age((age_type)0)
-			, priority((priority_type)0)
-			, free(false)
-			, user((id_type)0)
-			, value()
+		typedef SUninitialized<value_type> value_storage;
+
+		container_type() = delete;
+		container_type(const container_type& _value) = delete;
+		container_type& operator=(const container_type& _value) = delete;
+
+		~container_type()
 		{
+			if (!isFree)
+			{
+				free();
+			}
 		}
 
 		explicit container_type(const value_type& _value)
 			: age((age_type)0)
 			, priority((priority_type)0)
-			, free(false)
 			, user((id_type)0)
-			, value(_value)
+			, isFree(false)
 		{
+			valueStorage.CopyConstruct(_value);
+		}
+		
+		container_type(container_type&& other)
+			: age(other.age)
+			, priority(other.priority)
+			, user(other.user)
+			, isFree(other.isFree)
+		{
+			if (!other.isFree)
+			{
+				valueStorage.MoveConstruct(std::move(other.get_value()));
+				other.isFree = true;
+			}
+		}
+
+		container_type& operator=(container_type&& other)
+		{
+			if (this != &other)
+			{
+				if (!isFree)
+				{
+					valueStorage.Destruct();
+				}
+
+				age = other.age;
+				priority = other.priority;
+				user = other.user;
+				isFree = other.isFree;
+
+				if (!other.isFree)
+				{
+					valueStorage.MoveConstruct(std::move(other.get_value()));
+					other.isFree = true;
+				}
+			}
+
+			return *this;
 		}
 
 		void reuse(const value_type& _value)
 		{
-			free = false;
+			assert(isFree);
+			isFree = false;
 			++user;
 			age = (age_type)0;
 			priority = (priority_type)0;
-			value = _value;
+			valueStorage.CopyConstruct(_value);
 		}
 
-		value_type    value;
+		void free()
+		{
+			assert(!isFree);
+			isFree = true;
+			valueStorage.Destruct();
+		}
+
+		value_type& get_value()
+		{
+			assert(!isFree);
+			return valueStorage;
+		}
+
+		const value_type& get_value() const
+		{
+			assert(!isFree);
+			return valueStorage;
+		}
+
+		value_storage valueStorage;
 		age_type      age;
 		priority_type priority;
 		uint16        user: user_bits;
-		uint16        free : 1;
+		uint16        isFree : 1;
 	};
 
 private:
@@ -93,13 +157,13 @@ public:
 	inline value_type& front()
 	{
 		container_type& slot = m_slots[_slot(front_id())];
-		return slot.value;
+		return slot.get_value();
 	}
 
 	inline const value_type& front() const
 	{
 		container_type& slot = m_slots[_slot(front_id())];
-		return slot.value;
+		return slot.get_value();
 	}
 
 	inline const id_type& back_id() const
@@ -110,18 +174,18 @@ public:
 	inline value_type& back()
 	{
 		container_type& slot = m_slots[_slot(back_id())];
-		return slot.value;
+		return slot.get_value();
 	}
 
 	inline const value_type& back() const
 	{
 		container_type& slot = m_slots[_slot(back_id())];
-		return slot.value;
+		return slot.get_value();
 	}
 
 	inline void pop_front()
 	{
-		assert(!m_slots[_slot(front_id())].free);
+		assert(!m_slots[_slot(front_id())].isFree);
 		assert(m_slots[_slot(front_id())].user == _user(front_id()));
 
 		id_type id = front_id();
@@ -145,7 +209,7 @@ public:
 		m_free.pop_front();
 
 		container_type& slot = m_slots[_slot(id)];
-		assert(slot.free);
+		assert(slot.isFree);
 		slot.reuse(value);
 		assert(slot.user != _user(id));
 
@@ -170,7 +234,7 @@ public:
 	inline bool has(const id_type& id) const
 	{
 		size_t slot = _slot(id);
-		return ((slot < m_slots.size()) && (m_slots[slot].user == _user(id)) && (!m_slots[slot].free));
+		return ((slot < m_slots.size()) && (m_slots[slot].user == _user(id)) && (!m_slots[slot].isFree));
 	}
 
 	struct DefaultUpdate
@@ -221,11 +285,11 @@ public:
 			for (; qit != qend; )
 			{
 				container_type& slot = m_slots[_slot(*qit)];
-				assert(!slot.free);
+				assert(!slot.isFree);
 				assert(slot.user == _user(*qit));
 
 				slot.age += aging;
-				slot.priority = update(slot.age, slot.value);
+				slot.priority = update(slot.age, slot.get_value());
 				++qit;
 			}
 
@@ -244,11 +308,11 @@ public:
 			for (; qit != qend; )
 			{
 				container_type& slot = m_slots[_slot(*qit)];
-				assert(!slot.free);
+				assert(!slot.isFree);
 				assert(slot.user == _user(*qit));
 
 				slot.age += aging;
-				slot.priority = update(slot.age, slot.value);
+				slot.priority = update(slot.age, slot.get_value());
 				++qit;
 			}
 
@@ -260,13 +324,13 @@ public:
 	inline value_type& operator[](const id_type& id)
 	{
 		assert(m_slots[_slot(id)].user == _user(id));
-		return m_slots[_slot(id)].value;
+		return m_slots[_slot(id)].get_value();
 	}
 
 	inline const value_type& operator[](const id_type& id) const
 	{
 		assert(m_slots[_slot(id)].user == _user(id));
-		return m_slots[_slot(id)].value;
+		return m_slots[_slot(id)].get_value();
 	}
 
 	inline const age_type& age(const id_type& id) const
@@ -286,11 +350,11 @@ protected:
 	{
 		container_type& slot = m_slots[_slot(id)];
 		assert(slot.user == _user(id));
-		assert(!slot.free);
+		assert(!slot.isFree);
 
-		if (!slot.free && (slot.user == _user(id)))
+		if (!slot.isFree && (slot.user == _user(id)))
 		{
-			slot.free = true;
+			slot.free();
 			m_free.push_back(id);
 		}
 	}

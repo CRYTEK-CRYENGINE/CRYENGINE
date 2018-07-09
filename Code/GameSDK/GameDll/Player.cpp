@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 /*************************************************************************
 -------------------------------------------------------------------------
@@ -1328,7 +1328,7 @@ void CPlayer::ResetAnimationState()
 	}
 }
 
-void CPlayer::ProcessEvent(SEntityEvent& event)
+void CPlayer::ProcessEvent(const SEntityEvent& event)
 {
 	if (event.event == ENTITY_EVENT_XFORM)
 	{
@@ -1534,6 +1534,23 @@ void CPlayer::ProcessEvent(SEntityEvent& event)
 	}
 }
 
+uint64 CPlayer::GetEventMask() const
+{
+	return CActor::GetEventMask()
+		| ENTITY_EVENT_BIT(ENTITY_EVENT_XFORM)
+		| ENTITY_EVENT_BIT(ENTITY_EVENT_TIMER)
+		| ENTITY_EVENT_BIT(ENTITY_EVENT_PREPHYSICSUPDATE)
+		| ENTITY_EVENT_BIT(ENTITY_EVENT_PRE_SERIALIZE)
+		| ENTITY_EVENT_BIT(ENTITY_EVENT_START_GAME)
+		| ENTITY_EVENT_BIT(ENTITY_EVENT_RESET)
+		| ENTITY_EVENT_BIT(ENTITY_EVENT_DONE)
+		| ENTITY_EVENT_BIT(ENTITY_EVENT_ATTACH_THIS)
+		| ENTITY_EVENT_BIT(ENTITY_EVENT_DETACH_THIS)
+		| ENTITY_EVENT_BIT(ENTITY_EVENT_ENABLE_PHYSICS)
+		| ENTITY_EVENT_BIT(ENTITY_EVENT_SET_AUTHORITY);
+
+}
+
 void CPlayer::SetChannelId(uint16 id)
 {
 	CActor::SetChannelId(id);
@@ -1586,7 +1603,7 @@ void CPlayer::AddViewAngleOffsetForFrame(const Ang3 &offset)
 
 void CPlayer::Update(SEntityUpdateContext& ctx, int updateSlot)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_GAME);
+	CRY_PROFILE_FUNCTION(PROFILE_GAME);
 
 #if ENABLE_RMI_BENCHMARK
 	if ( gEnv->bMultiplayer && IsClient() && ( g_pGameCVars->g_RMIBenchmarkInterval > 0 ) )
@@ -1755,7 +1772,7 @@ void CPlayer::Update(SEntityUpdateContext& ctx, int updateSlot)
 	}
 
 	{
-		FRAME_PROFILER("Player Update :: UpdateListeners", GetISystem(), PROFILE_GAME);
+		CRY_PROFILE_REGION(PROFILE_GAME, "Player Update :: UpdateListeners");
 
 		TPlayerUpdateListeners::iterator it = m_playerUpdateListeners.begin();
 		TPlayerUpdateListeners::iterator end = m_playerUpdateListeners.end();
@@ -2001,7 +2018,7 @@ void CPlayer::UpdateAnimationState(const SActorFrameMovementParams &frameMovemen
 	IActionController *pActionController = GetAnimatedCharacter()->GetActionController();
 	IMannequin &mannequinSys = gEnv->pGameFramework->GetMannequinInterface();
 
-	if (IsAIControlled())
+	if (IsAIControlled() && pActionController)
 	{
 		UpdateAIAnimationState(frameMovementParams, pWeapon, pICharInst, pActionController, mannequinSys);
 	}
@@ -2079,7 +2096,7 @@ void CPlayer::UpdateAnimationState(const SActorFrameMovementParams &frameMovemen
 
 void CPlayer::PrePhysicsUpdate()
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_GAME);
+	CRY_PROFILE_FUNCTION(PROFILE_GAME);
 
 	// TODO: This whole function needs to be optimized.
 
@@ -2436,7 +2453,7 @@ void CPlayer::SetIK( const SActorFrameMovementParams& frameMovementParams )
 
 void CPlayer::UpdateView(SViewParams &viewParams)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_GAME);
+	CRY_PROFILE_FUNCTION(PROFILE_GAME);
 
 #ifndef _RELEASE
 	if (g_pGameCVars->pl_debug_view != 0)
@@ -2498,7 +2515,7 @@ void CPlayer::UpdateView(SViewParams &viewParams)
 
 void CPlayer::PostUpdateView(SViewParams &viewParams)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_GAME);
+	CRY_PROFILE_FUNCTION(PROFILE_GAME);
 
 	if (CItem *pItem=GetItem(GetInventory()->GetCurrentItem()))
 		pItem->PostFilterView(viewParams);
@@ -2843,7 +2860,7 @@ void CPlayer::SetStance(EStance desiredStance)
 
 void CPlayer::OnStanceChanged(EStance newStance, EStance oldStance)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_GAME);
+	CRY_PROFILE_FUNCTION(PROFILE_GAME);
 
 	CActor::OnStanceChanged(newStance, oldStance);
 
@@ -2978,7 +2995,7 @@ void CPlayer::SetStats(SmartScriptTable &rTable)
 //------------------------------------------------------------------------
 void CPlayer::UpdateStats(float frameTime)
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_GAME);
+	CRY_PROFILE_FUNCTION(PROFILE_GAME);
 	
 	//The results from GetEntity() are used without checking in
 	//	CPlayer::Update, so should be safe here!
@@ -5113,25 +5130,13 @@ void CPlayer::NetSerialize_Spectator( TSerialize ser, bool bReading )
 void CPlayer::NetSerialize_InputClient( TSerialize ser, bool bReading )
 {
 	NET_PROFILE_SCOPE("PlayerInput", bReading);
-#ifdef SEG_WORLD
-	ISegmentsManager *pSM = gEnv->p3DEngine->GetSegmentsManager();
-#endif
 	SSerializedPlayerInput serializedInput;
 	if (m_pPlayerInput.get())
 	{
 		m_pPlayerInput->GetState(serializedInput);
 		if (!IsRemote() && !bReading)
 		{
-#ifdef SEG_WORLD
-			Vec3 pos(GetEntity()->GetPos());
-			if(gEnv->IsClient() && !gEnv->bServer && pSM)
-			{
-				pos = pSM->LocalToAbsolutePosition(pos);
-			}
-			serializedInput.position	= pos;
-#else
 			serializedInput.position	= GetEntity()->GetPos();
-#endif
 			serializedInput.physCounter = GetNetPhysCounter();
 		}
 	}
@@ -5147,13 +5152,6 @@ void CPlayer::NetSerialize_InputClient( TSerialize ser, bool bReading )
 
 	if (bReading)
 	{
-#ifdef SEG_WORLD
-		m_lastSyncedWorldPosition = serializedInput.position;
-		if (gEnv->IsClient() && !gEnv->bServer && pSM)
-		{
-			serializedInput.position = pSM->WorldVecToLocalSegVec(serializedInput.position);
-		}
-#endif
 		if(m_pPlayerInput.get())
 		{
 			m_pPlayerInput->SetState(serializedInput);
@@ -5227,9 +5225,6 @@ void CPlayer::NetSerialize_InputClient_Aug( TSerialize ser, bool bReading )
 {
 	// This aspect is used for serialising what the player is standing on
 	NET_PROFILE_SCOPE("PlayerInput_Aug", bReading);
-#ifdef SEG_WORLD
-	ISegmentsManager *pSM = gEnv->p3DEngine->GetSegmentsManager();
-#endif
 	SSerializedPlayerInput serializedInput;
 
 	if (m_pPlayerInput.get())
@@ -5237,16 +5232,7 @@ void CPlayer::NetSerialize_InputClient_Aug( TSerialize ser, bool bReading )
 
 	if (!bReading && !IsRemote())
 	{
-#ifdef SEG_WORLD
-		Vec3 pos(GetEntity()->GetPos());
-		if(gEnv->IsClient() && !gEnv->bServer && pSM)
-		{
-			pos = pSM->LocalToAbsolutePosition(pos);
-		}
-		serializedInput.position = pos;
-#else
 		serializedInput.position = GetEntity()->GetPos();
-#endif
 	}
 	
 	NET_PROFILE_BEGIN("SerializedInput::Serialize", ser.IsReading());
@@ -5255,13 +5241,6 @@ void CPlayer::NetSerialize_InputClient_Aug( TSerialize ser, bool bReading )
 
 	if (bReading && m_pPlayerInput.get())
 	{
-#ifdef SEG_WORLD
-		if (gEnv->IsClient() && !gEnv->bServer && pSM)
-		{
-			m_lastSyncedWorldPosition = serializedInput.position;
-			serializedInput.position = pSM->WorldVecToLocalSegVec(serializedInput.position);
-		}
-#endif
 		m_pPlayerInput->SetState(serializedInput);
 	}
 }
@@ -8635,7 +8614,11 @@ const QuatT& CPlayer::GetLastSTAPCameraDelta() const
 void CPlayer::UpdateFPIKTorso(float fFrameTime, IItem * pCurrentItem, const Vec3& cameraPosition)
 {
 	CRY_ASSERT(IsClient());
-	m_pPlayerTypeComponent->UpdateFPIKTorso(fFrameTime, pCurrentItem, cameraPosition);	
+
+	if (m_pPlayerTypeComponent)
+	{
+		m_pPlayerTypeComponent->UpdateFPIKTorso(fFrameTime, pCurrentItem, cameraPosition);
+	}
 }
 
 void CPlayer::HasJumped(const Vec3 &jumpVel)
@@ -9894,9 +9877,12 @@ void CPlayer::RefillAmmoDone()
 
 void CPlayer::UpdateClient( const float frameTime )
 {
-	CRY_ASSERT(m_isClient);
+	CRY_ASSERT(IsClient());
 
-	m_pPlayerTypeComponent->Update( frameTime );
+	if (m_pPlayerTypeComponent)
+	{
+		m_pPlayerTypeComponent->Update(frameTime);
+	}
 }
 
 float CPlayer::GetBaseHeat() const
@@ -10610,18 +10596,3 @@ void CPlayer::RMIBenchmarkCallback( ERMIBenchmarkLogPoint point0, ERMIBenchmarkL
 }
 
 #endif
-
-void CPlayer::OnShiftWorld()
-{
-	if (m_pPlayerInput.get() && m_pPlayerInput->GetType() == IPlayerInput::NETPLAYER_INPUT)
-	{
-		ISegmentsManager *pSM = gEnv->p3DEngine->GetSegmentsManager();
-		if (gEnv->IsClient() && !gEnv->bServer && pSM)
-		{
-			SSerializedPlayerInput serializedInput;
-			m_pPlayerInput->GetState(serializedInput);
-			serializedInput.position = pSM->WorldVecToLocalSegVec(m_lastSyncedWorldPosition);
-			m_pPlayerInput->SetState(serializedInput);
-		}
-	}
-}

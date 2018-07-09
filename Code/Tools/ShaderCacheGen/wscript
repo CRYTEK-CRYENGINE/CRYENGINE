@@ -1,0 +1,11 @@
+# Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
+
+SUBFOLDERS =	[
+	'ShaderCacheGen',	
+	]
+	
+def build(bld):
+	# Recursive into all sub projects
+	bld.recurse(SUBFOLDERS)
+
+	

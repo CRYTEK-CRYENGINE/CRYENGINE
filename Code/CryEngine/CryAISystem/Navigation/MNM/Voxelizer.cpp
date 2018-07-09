@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "Voxelizer.h"
@@ -780,9 +780,11 @@ size_t WorldVoxelizer::VoxelizeTerrain(IGeometry* geometry, const Matrix34& worl
 	const float yStep = (float)phf->step.y;
 
 	size_t faceCount = 0;
+	size_t totalFaceCount = 0;
 
-	const size_t MaxVertexCount = 1024 * 4;
-	Vec3 vertices[MaxVertexCount];
+	const size_t maxFacesCount = 1024;
+	const size_t maxVertexCount = maxFacesCount * 4;
+	Vec3 vertices[maxVertexCount];
 
 	if (phf->fpGetSurfTypeCallback && phf->fpGetHeightCallback)
 	{
@@ -797,12 +799,23 @@ size_t WorldVoxelizer::VoxelizeTerrain(IGeometry* geometry, const Matrix34& worl
 					const Vec3 v2 = origin + Vec3((x + 1) * xStep, y * yStep, phf->getheight(x + 1, y) * phf->heightscale);
 					const Vec3 v3 = origin + Vec3((x + 1) * xStep, (y + 1) * yStep, phf->getheight(x + 1, y + 1) * phf->heightscale);
 
-					assert(faceCount < MaxVertexCount);
+					CRY_ASSERT(faceCount < maxFacesCount);
 
 					vertices[(faceCount << 2) + 0] = v0;
 					vertices[(faceCount << 2) + 1] = v1;
 					vertices[(faceCount << 2) + 2] = v2;
-					vertices[(faceCount++ << 2) + 3] = v3;
+					vertices[(faceCount << 2) + 3] = v3;
+
+					if (++faceCount >= maxFacesCount)
+					{
+						for (size_t i = 0; i < faceCount; ++i)
+						{
+							RasterizeTriangle(vertices[(i << 2) + 0], vertices[(i << 2) + 2], vertices[(i << 2) + 1]);
+							RasterizeTriangle(vertices[(i << 2) + 1], vertices[(i << 2) + 2], vertices[(i << 2) + 3]);
+						}
+						totalFaceCount += faceCount;
+						faceCount = 0;
+					}
 				}
 			}
 		}
@@ -811,7 +824,7 @@ size_t WorldVoxelizer::VoxelizeTerrain(IGeometry* geometry, const Matrix34& worl
 	{
 		float* height = (float*)phf->fpGetHeightCallback;
 
-		assert(height);
+		CRY_ASSERT(height);
 		PREFAST_ASSUME(height);
 
 		for (int y = minY; y <= maxY; ++y)
@@ -823,12 +836,23 @@ size_t WorldVoxelizer::VoxelizeTerrain(IGeometry* geometry, const Matrix34& worl
 				const Vec3 v2 = origin + Vec3((x + 1) * xStep, y * yStep, height[Vec2i(x + 1, y) * phf->stride] * phf->heightscale);
 				const Vec3 v3 = origin + Vec3((x + 1) * xStep, (y + 1) * yStep, height[Vec2i(x + 1, y + 1) * phf->stride] * phf->heightscale);
 
-				assert(faceCount < MaxVertexCount);
+				CRY_ASSERT(faceCount < maxFacesCount);
 
 				vertices[(faceCount << 2) + 0] = v0;
 				vertices[(faceCount << 2) + 1] = v1;
 				vertices[(faceCount << 2) + 2] = v2;
-				vertices[(faceCount++ << 2) + 3] = v3;
+				vertices[(faceCount << 2) + 3] = v3;
+
+				if (++faceCount >= maxFacesCount)
+				{
+					for (size_t i = 0; i < faceCount; ++i)
+					{
+						RasterizeTriangle(vertices[(i << 2) + 0], vertices[(i << 2) + 2], vertices[(i << 2) + 1]);
+						RasterizeTriangle(vertices[(i << 2) + 1], vertices[(i << 2) + 2], vertices[(i << 2) + 3]);
+					}
+					totalFaceCount += faceCount;
+					faceCount = 0;
+				}
 			}
 		}
 	}
@@ -843,12 +867,23 @@ size_t WorldVoxelizer::VoxelizeTerrain(IGeometry* geometry, const Matrix34& worl
 				const Vec3 v2 = origin + Vec3((x + 1) * xStep, y * yStep, phf->getheight(x + 1, y) * phf->heightscale);
 				const Vec3 v3 = origin + Vec3((x + 1) * xStep, (y + 1) * yStep, phf->getheight(x + 1, y + 1) * phf->heightscale);
 
-				assert(faceCount < MaxVertexCount);
+				assert(faceCount < maxFacesCount);
 
 				vertices[(faceCount << 2) + 0] = v0;
 				vertices[(faceCount << 2) + 1] = v1;
 				vertices[(faceCount << 2) + 2] = v2;
-				vertices[(faceCount++ << 2) + 3] = v3;
+				vertices[(faceCount << 2) + 3] = v3;
+
+				if (++faceCount >= maxFacesCount)
+				{
+					for (size_t i = 0; i < faceCount; ++i)
+					{
+						RasterizeTriangle(vertices[(i << 2) + 0], vertices[(i << 2) + 2], vertices[(i << 2) + 1]);
+						RasterizeTriangle(vertices[(i << 2) + 1], vertices[(i << 2) + 2], vertices[(i << 2) + 3]);
+					}
+					totalFaceCount += faceCount;
+					faceCount = 0;
+				}
 			}
 		}
 	}
@@ -858,8 +893,9 @@ size_t WorldVoxelizer::VoxelizeTerrain(IGeometry* geometry, const Matrix34& worl
 		RasterizeTriangle(vertices[(i << 2) + 0], vertices[(i << 2) + 2], vertices[(i << 2) + 1]);
 		RasterizeTriangle(vertices[(i << 2) + 1], vertices[(i << 2) + 2], vertices[(i << 2) + 3]);
 	}
+	totalFaceCount += faceCount;
 
-	return faceCount << 1;
+	return totalFaceCount << 1;
 }
 #pragma warning (pop)
 

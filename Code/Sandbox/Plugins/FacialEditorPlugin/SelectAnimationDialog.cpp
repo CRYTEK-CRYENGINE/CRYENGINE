@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "stdafx.h"
 #include "SelectAnimationDialog.h"
@@ -66,3 +66,4 @@ CString CSelectAnimationDialog::GetSelectedItem()
 	int slashPos = m_selectedItem.Find("/");
 	return (slashPos >= 0 ? m_selectedItem.Right(m_selectedItem.GetLength() - slashPos - 1) : m_selectedItem);
 }
+

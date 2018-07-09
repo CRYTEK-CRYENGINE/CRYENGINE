@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "PerceptionActor.h"
@@ -64,7 +64,7 @@ bool CPerceptionActor::IsEnabled() const
 //-----------------------------------------------------------------------------------------------------------
 void CPerceptionActor::CheckCloseContact(IAIObject* pTarget)
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 	if (CloseContactEnabled())
 	{
 		if (m_pAIActor->CastToIAIObject()->CastToIPuppet())

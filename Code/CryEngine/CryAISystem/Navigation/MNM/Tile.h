@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #ifndef __MNM_TILE_H
 #define __MNM_TILE_H
@@ -15,6 +15,7 @@ struct STile
 {
 	// #MNM_TODO pavloi 2016.07.22: CNavMesh is friend for time being, so I don't have to fix data access in lot's of places right now.
 	friend class CNavMesh;
+	friend class CIslands;
 
 	STile();
 
@@ -52,6 +53,7 @@ struct STile
 	void                   Destroy();
 
 	vector3_t::value_type  GetTriangleArea(const TriangleID triangleID) const;
+	vector3_t::value_type  GetTriangleArea(const Tile::STriangle& triangle) const;
 
 #if MNM_USE_EXPORT_INFORMATION
 	void        ResetConnectivity(uint8 accessible);
@@ -89,7 +91,7 @@ struct STile
 		DrawAll               = ~0ul,
 	};
 
-	void Draw(size_t drawFlags, vector3_t origin, TileID tileID, const std::vector<float>& islandAreas) const;
+	void Draw(size_t drawFlags, vector3_t origin, TileID tileID, const std::vector<float>& islandAreas, const ITriangleColorSelector& colorSelector) const;
 
 #if DEBUG_MNM_DATA_CONSISTENCY_ENABLED
 	void ValidateTriangles() const;

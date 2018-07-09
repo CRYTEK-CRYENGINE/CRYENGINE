@@ -1,0 +1,8 @@
+ <!DOCTYPE RCC><RCC version="1.0">
+ <qresource>
+     <file>int.png</file>
+     <file>float.png</file>
+     <file>string.png</file>
+     <file>function.png</file>
+ </qresource>
+ </RCC>

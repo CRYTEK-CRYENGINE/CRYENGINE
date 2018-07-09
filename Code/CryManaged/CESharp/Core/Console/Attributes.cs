@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.	
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 using System;
 using System.Collections.Generic;
@@ -10,9 +10,18 @@ using CryEngine.Common;
 
 namespace CryEngine.Attributes
 {
+	/// <summary>
+	/// Attribute to define a method as a console command.
+	/// </summary>
 	[AttributeUsage(AttributeTargets.Method, AllowMultiple = false, Inherited = false)]
 	public sealed class ConsoleCommandAttribute : Attribute
 	{
+		/// <summary>
+		/// Constructor for a ConsoleCommandAttribute.
+		/// </summary>
+		/// <param name="commandName"></param>
+		/// <param name="commandFlag"></param>
+		/// <param name="commandHelp"></param>
 		public ConsoleCommandAttribute(string commandName, uint commandFlag, string commandHelp)
 		{
 			Name = commandName;
@@ -20,18 +29,27 @@ namespace CryEngine.Attributes
 			Comments = commandHelp;
 		}
 
+		/// <summary>
+		/// Name of the console command.
+		/// </summary>
 		public string Name
 		{
 			get;
 			private set;
 		}
 
+		/// <summary>
+		/// Comment that will appear in the description of the console command.
+		/// </summary>
 		public string Comments
 		{
 			get;
 			private set;
 		}
 
+		/// <summary>
+		/// Flags for the console command.
+		/// </summary>
 		public uint Flags
 		{
 			get;
@@ -44,13 +62,17 @@ namespace CryEngine.Attributes
 	/// </summary>
 	public sealed class ConsoleCommandConfigurationException : Exception
 	{
+		/// <summary>
+		/// Used when Console Command Attributes are applied wrongly
+		/// </summary>
+		/// <param name="msg"></param>
 		public ConsoleCommandConfigurationException(string msg) : base(msg)
 		{
 
 		}
 	}
 
-	public static class ConsoleCommandAttributeManager
+	internal static class ConsoleCommandAttributeManager
 	{
 		[Conditional("DEBUG")]
 		private static void ValidateConsoleCommandRegisterAttributes(ref List<MethodInfo> processedlist, Assembly targetAssembly)
@@ -110,7 +132,7 @@ namespace CryEngine.Attributes
 	/// 3. Integer (64-bit) - Can be read and modified after declaration
 	/// 4. Float - Can be read and modified after declaration
 	/// </summary>
-	public static class ConsoleVariableAttributeManager
+	internal static class ConsoleVariableAttributeManager
 	{
 		public static void RegisterAttribute(Assembly targetAssembly)
 		{
@@ -229,15 +251,26 @@ namespace CryEngine.Attributes
 	}
 
 	/// <summary>
-	/// 
+	/// Used to create console variables with a value of type <c>float</c>.
 	/// </summary>
 	public class ConsoleVariableFloatAttribute : ConsoleVariableAttribute
 	{
-		public ConsoleVariableFloatAttribute(string commandName, float value, uint commandFlag, string commandHelp) : base(commandName, commandFlag, commandHelp)
+		/// <summary>
+		/// Used to create console variables with a value of type <c>float</c>.
+		/// </summary>
+		/// <param name="commandName"></param>
+		/// <param name="value"></param>
+		/// <param name="commandFlag"></param>
+		/// <param name="commandHelp"></param>
+		public ConsoleVariableFloatAttribute(string commandName, float value, uint commandFlag, string commandHelp) 
+			: base(commandName, commandFlag, commandHelp)
 		{
 			Content = value;
 		}
 
+		/// <summary>
+		/// The content of the console variable.
+		/// </summary>
 		public float? Content
 		{
 			get;
@@ -250,11 +283,22 @@ namespace CryEngine.Attributes
 	/// </summary>
 	public class ConsoleVariableInteger64Attribute : ConsoleVariableAttribute
 	{
-		public ConsoleVariableInteger64Attribute(string commandName, long value, uint commandFlag, string commandHelp) : base(commandName, commandFlag, commandHelp)
+		/// <summary>
+		/// Used to create console variables with a value of type <c>long</c>.
+		/// </summary>
+		/// <param name="commandName"></param>
+		/// <param name="value"></param>
+		/// <param name="commandFlag"></param>
+		/// <param name="commandHelp"></param>
+		public ConsoleVariableInteger64Attribute(string commandName, long value, uint commandFlag, string commandHelp) 
+			: base(commandName, commandFlag, commandHelp)
 		{
 			Content = value;
 		}
 
+		/// <summary>
+		/// The content of the console variable.
+		/// </summary>
 		public long? Content
 		{
 			get;
@@ -263,15 +307,26 @@ namespace CryEngine.Attributes
 	}
 
 	/// <summary>
-	/// 
+	/// Used to create console variables with a value of type <c>int</c>.
 	/// </summary>
 	public class ConsoleVariableIntegerAttribute : ConsoleVariableAttribute
 	{
-		public ConsoleVariableIntegerAttribute(string commandName, int value, uint commandFlag, string commandHelp) : base(commandName, commandFlag, commandHelp)
+		/// <summary>
+		/// Used to create console variables with a value of type <c>int</c>.
+		/// </summary>
+		/// <param name="commandName"></param>
+		/// <param name="value"></param>
+		/// <param name="commandFlag"></param>
+		/// <param name="commandHelp"></param>
+		public ConsoleVariableIntegerAttribute(string commandName, int value, uint commandFlag, string commandHelp) 
+			: base(commandName, commandFlag, commandHelp)
 		{
 			Content = value;
 		}
 
+		/// <summary>
+		/// The content of the console variable.
+		/// </summary>
 		public int? Content
 		{
 			get;
@@ -280,15 +335,26 @@ namespace CryEngine.Attributes
 	}
 
 	/// <summary>
-	/// 
+	/// Used to create console variables with a value of type <c>string</c>.
 	/// </summary>
 	public class ConsoleVariableStringAttribute : ConsoleVariableAttribute
 	{
-		public ConsoleVariableStringAttribute(string commandName, string value, uint commandFlag, string commandHelp) : base(commandName, commandFlag, commandHelp)
+		/// <summary>
+		/// Used to create console variables with a value of type <c>string</c>.
+		/// </summary>
+		/// <param name="commandName"></param>
+		/// <param name="value"></param>
+		/// <param name="commandFlag"></param>
+		/// <param name="commandHelp"></param>
+		public ConsoleVariableStringAttribute(string commandName, string value, uint commandFlag, string commandHelp) 
+			: base(commandName, commandFlag, commandHelp)
 		{
 			Content = value;
 		}
 
+		/// <summary>
+		/// The content of the console variable.
+		/// </summary>
 		public string Content
 		{
 			get;
@@ -302,6 +368,12 @@ namespace CryEngine.Attributes
 	[AttributeUsage(AttributeTargets.Field, AllowMultiple = false, Inherited = true)]
 	public abstract class ConsoleVariableAttribute : Attribute
 	{
+		/// <summary>
+		/// Base constructor of the console variable.
+		/// </summary>
+		/// <param name="commandName"></param>
+		/// <param name="commandFlag"></param>
+		/// <param name="commandHelp"></param>
 		protected ConsoleVariableAttribute(string commandName, uint commandFlag, string commandHelp)
 		{
 			Name = commandName;
@@ -309,18 +381,27 @@ namespace CryEngine.Attributes
 			Comments = commandHelp;
 		}
 
+		/// <summary>
+		/// Name of the console variable.
+		/// </summary>
 		public string Name
 		{
 			get;
 			private set;
 		}
 
+		/// <summary>
+		/// Comment that will appear in the description of the console variable.
+		/// </summary>
 		public string Comments
 		{
 			get;
 			private set;
 		}
 
+		/// <summary>
+		/// Flags of the console variable.
+		/// </summary>
 		public uint Flags
 		{
 			get;
@@ -329,10 +410,13 @@ namespace CryEngine.Attributes
 	}
 
 	/// <summary>
-	/// 
+	/// Property for a console variable of type <c>float</c>.
 	/// </summary>
 	public class ConsoleVariableAttributeFloatProperty : IDisposable
 	{
+		/// <summary>
+		/// Property for a console variable of type <c>float</c>.
+		/// </summary>
 		public ConsoleVariableAttributeFloatProperty()
 		{
 		}
@@ -348,17 +432,26 @@ namespace CryEngine.Attributes
 			SetInternalContent(value, icVar);
 		}
 
+		/// <summary>
+		/// Destructor that ensures Dispose is called.
+		/// </summary>
 		~ConsoleVariableAttributeFloatProperty()
 		{
 			Dispose(false);
 		}
 
+		/// <summary>
+		/// Disposes this instance.
+		/// </summary>
 		public void Dispose()
 		{
 			Dispose(true);
 			GC.SuppressFinalize(this);
 		}
 
+		/// <summary>
+		/// The content of this console variable.
+		/// </summary>
 		public float Content
 		{
 			get
@@ -371,6 +464,10 @@ namespace CryEngine.Attributes
 			}
 		}
 
+		/// <summary>
+		/// Disposes this instance.
+		/// </summary>
+		/// <param name="isDisposing"></param>
 		protected virtual void Dispose(bool isDisposing)
 		{
 			if(m_disposed) return;
@@ -393,12 +490,16 @@ namespace CryEngine.Attributes
 			m_icVar.Set(newValue);
 		}
 
+		/// <summary>
+		/// Returns the value of this console variable in the format "ConsoleVariableAttributeFloatProperty[{Content}]".
+		/// </summary>
+		/// <returns></returns>
 		public override string ToString()
 		{
-			return "ConsoleVariableAttributeFloatProperty[" + Content + "]";
+			return string.Format("ConsoleVariableAttributeFloatProperty[{0}]", Content);
 		}
 
-		// does not activate managed console variable listener. Called when console variable has been successfully registered natively
+		// Does not activate managed console variable listener. Called when console variable has been successfully registered natively
 		internal void SetInternalContent(float newValue, ICVar icVar)
 		{
 			m_value = newValue;
@@ -412,10 +513,13 @@ namespace CryEngine.Attributes
 
 
 	/// <summary>
-	/// 
+	/// Property for a console variable of type <c>long</c>.
 	/// </summary>
 	public class ConsoleVariableAttributeInteger64Property : IDisposable
 	{
+		/// <summary>
+		/// Property for a console variable of type <c>long</c>.
+		/// </summary>
 		public ConsoleVariableAttributeInteger64Property()
 		{
 			m_valueInText = new StringBuilder(20); //reserve capacity to hold 64-bit integer
@@ -432,17 +536,26 @@ namespace CryEngine.Attributes
 			SetInternalContent(value, icVar);
 		}
 
+		/// <summary>
+		/// Destructor that ensures Dispose is called.
+		/// </summary>
 		~ConsoleVariableAttributeInteger64Property()
 		{
 			Dispose(false);
 		}
 
+		/// <summary>
+		/// Disposes this instance.
+		/// </summary>
 		public void Dispose()
 		{
 			Dispose(true);
 			GC.SuppressFinalize(this);
 		}
 
+		/// <summary>
+		/// The content of this console variable.
+		/// </summary>
 		public long Content
 		{
 			get
@@ -455,6 +568,10 @@ namespace CryEngine.Attributes
 			}
 		}
 
+		/// <summary>
+		/// Disposes this instance.
+		/// </summary>
+		/// <param name="isDisposing"></param>
 		protected virtual void Dispose(bool isDisposing)
 		{
 			if(m_disposed) return;
@@ -483,9 +600,13 @@ namespace CryEngine.Attributes
 			m_icVar.Set(m_valueInText.ToString());
 		}
 
+		/// <summary>
+		/// Returns the content of this console variable in the format "ConsoleVariableAttributeInteger64Property[{Content}]".
+		/// </summary>
+		/// <returns></returns>
 		public override string ToString()
 		{
-			return "ConsoleVariableAttributeInteger64Property[" + Content + "]";
+			return string.Format("ConsoleVariableAttributeInteger64Property[{0}]", Content);
 		}
 
 		// does not activate managed console variable listener. Called when console variable has been successfully registered natively
@@ -502,10 +623,13 @@ namespace CryEngine.Attributes
 	}
 
 	/// <summary>
-	/// 
+	/// Property for a console variable of type <c>int</c>.
 	/// </summary>
 	public class ConsoleVariableAttributeIntegerProperty : IDisposable
 	{
+		/// <summary>
+		/// Property for a console variable of type <c>int</c>.
+		/// </summary>
 		public ConsoleVariableAttributeIntegerProperty()
 		{
 		}
@@ -521,18 +645,26 @@ namespace CryEngine.Attributes
 			SetInternalContent(value, icVar);
 		}
 
-
+		/// <summary>
+		/// Destructor that ensures Dispose is called.
+		/// </summary>
 		~ConsoleVariableAttributeIntegerProperty()
 		{
 			Dispose(false);
 		}
 
+		/// <summary>
+		/// Disposes this instance.
+		/// </summary>
 		public void Dispose()
 		{
 			Dispose(true);
 			GC.SuppressFinalize(this);
 		}
 
+		/// <summary>
+		/// The content of this console variable.
+		/// </summary>
 		public int Content
 		{
 			get
@@ -545,6 +677,10 @@ namespace CryEngine.Attributes
 			}
 		}
 
+		/// <summary>
+		/// Disposes this instance.
+		/// </summary>
+		/// <param name="isDisposing"></param>
 		protected virtual void Dispose(bool isDisposing)
 		{
 			if(m_disposed) return;
@@ -566,9 +702,13 @@ namespace CryEngine.Attributes
 			m_icVar.Set(newValue);
 		}
 
+		/// <summary>
+		/// Returns the content of this console variable in the format "ConsoleVariableAttributeIntegerProperty[{Content}]".
+		/// </summary>
+		/// <returns></returns>
 		public override string ToString()
 		{
-			return "ConsoleVariableAttributeIntegerProperty[" + Content + "]";
+			return string.Format("ConsoleVariableAttributeIntegerProperty[{0}]", Content);
 		}
 
 		// does not activate managed console variable listener. Called when console variable has been successfully registered natively
@@ -584,10 +724,13 @@ namespace CryEngine.Attributes
 	}
 
 	/// <summary>
-	/// 
+	/// Property for a console variable of type <c>string</c>.
 	/// </summary>
 	public class ConsoleVariableAttributeStringProperty : IDisposable
 	{
+		/// <summary>
+		/// Property for a console variable of type <c>string</c>.
+		/// </summary>
 		public ConsoleVariableAttributeStringProperty()
 		{
 		}
@@ -603,17 +746,26 @@ namespace CryEngine.Attributes
 			SetInternalContent(value, icVar);
 		}
 
+		/// <summary>
+		/// Destructor that ensures that Dispose is called.
+		/// </summary>
 		~ConsoleVariableAttributeStringProperty()
 		{
 			Dispose(false);
 		}
 
+		/// <summary>
+		/// Disposes this instance.
+		/// </summary>
 		public void Dispose()
 		{
 			Dispose(true);
 			GC.SuppressFinalize(this);
 		}
 
+		/// <summary>
+		/// The content of this console variable.
+		/// </summary>
 		public string Content
 		{
 			get
@@ -626,6 +778,10 @@ namespace CryEngine.Attributes
 			}
 		}
 
+		/// <summary>
+		/// Disposes this instance.
+		/// </summary>
+		/// <param name="isDisposing"></param>
 		protected virtual void Dispose(bool isDisposing)
 		{
 			if(m_disposed) return;
@@ -651,9 +807,13 @@ namespace CryEngine.Attributes
 			m_icVar.Set(newValue);
 		}
 
+		/// <summary>
+		/// Returns the content of this console variable in the format "ConsoleVariableAttributeStringProperty[{Content}]"
+		/// </summary>
+		/// <returns></returns>
 		public override string ToString()
 		{
-			return "ConsoleVariableAttributeStringProperty[" + Content + "]";
+			return string.Format("ConsoleVariableAttributeStringProperty[{0}]", Content);
 		}
 
 		// does not activate managed console variable listener. Called when console variable has been successfully registered natively
@@ -673,6 +833,10 @@ namespace CryEngine.Attributes
 	/// </summary>
 	public sealed class ConsoleVariableConfigurationException : Exception
 	{
+		/// <summary>
+		/// Used when Console Variable Attributes are configured wrongly
+		/// </summary>
+		/// <param name="msg"></param>
 		public ConsoleVariableConfigurationException(string msg) : base(msg)
 		{
 		}

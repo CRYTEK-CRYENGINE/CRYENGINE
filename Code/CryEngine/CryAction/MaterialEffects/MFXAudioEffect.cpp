@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "MFXAudioEffect.h"
@@ -69,7 +69,7 @@ CMFXAudioEffect::CMFXAudioEffect()
 
 void CMFXAudioEffect::Execute(const SMFXRunTimeEffectParams& params)
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_ACTION);
+	CRY_PROFILE_FUNCTION(PROFILE_ACTION);
 
 	IF_UNLIKELY (!m_audioParams.trigger.IsValid())
 		return;

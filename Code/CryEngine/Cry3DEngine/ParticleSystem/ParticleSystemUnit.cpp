@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 // -------------------------------------------------------------------------
 //  Created:     06/04/2014 by Filipe amim
@@ -19,8 +19,6 @@
 #include <CrySerialization/IArchiveHost.h>
 #include <CrySerialization/Color.h>
 
-CRY_PFX2_DBG
-
 CRY_UNIT_TEST_SUITE(CryParticleSystemTest)
 {
 
@@ -39,10 +37,10 @@ CRY_UNIT_TEST_SUITE(CryParticleSystemTest)
 			TParticleHeap heap;
 			pfx2::CParticleContainer container;
 			container.AddParticleData(EPDT_SpawnId);
-			pfx2::CParticleContainer::SSpawnEntry spawn;
+			pfx2::SSpawnEntry spawn;
 			spawn.m_count = containerSz;
 			spawn.m_parentId = 0;
-			container.AddRemoveParticles({&spawn, 1}, {}, {});
+			container.AddParticles({&spawn, 1});
 			container.ResetSpawnedParticles();
 			IOPidStream spawnIds = container.GetIOPidStream(EPDT_SpawnId);
 			for (uint i = 0; i < containerSz; ++i)
@@ -54,7 +52,7 @@ CRY_UNIT_TEST_SUITE(CryParticleSystemTest)
 			for (size_t i = 0; i < toRemoveSz; ++i)
 				toRemoveMem.push_back(toRemove[i]);
 			TParticleIdArray swapIds(heap, container.GetNumParticles());
-			container.AddRemoveParticles({}, toRemoveMem, swapIds);
+			container.RemoveParticles(toRemoveMem, swapIds);
 
 			// check if none of the particles are in the toRemove list
 			for (uint i = 0; i < containerSz - toRemoveSz; ++i)
@@ -138,7 +136,6 @@ CRY_UNIT_TEST_SUITE(CryParticleSystemTest)
 			static_assert(CRY_PFX2_PARTICLESGROUP_STRIDE == 4, "This unit test is assuming vectorization of 4 particles");
 			pContainer = std::unique_ptr<pfx2::CParticleContainer>(new pfx2::CParticleContainer());
 			pContainer->AddParticleData(EPDT_ParentId);
-			pContainer->AddParticleData(EPDT_State);
 		};
 
 		virtual void Done()
@@ -149,10 +146,10 @@ CRY_UNIT_TEST_SUITE(CryParticleSystemTest)
 		void AddParticles(uint32 count)
 		{
 			ResetSpawnedParticles();
-			pfx2::CParticleContainer::SSpawnEntry spawn;
+			pfx2::SSpawnEntry spawn;
 			spawn.m_count = count;
 			spawn.m_parentId = 0;
-			pContainer->AddRemoveParticles({&spawn, 1}, {}, {});
+			pContainer->AddParticles({&spawn, 1});
 		}
 
 		void ResetSpawnedParticles()
@@ -170,30 +167,6 @@ CRY_UNIT_TEST_SUITE(CryParticleSystemTest)
 			pContainer->Clear();
 		}
 
-		bool TestNewBornFlags(uint numParticles)
-		{
-			const uint bufferSize = 128;
-			const uint8 validMask = ES_Alive;
-			const uint8 overrunMask = 0xff;
-			pContainer->Resize(bufferSize);
-			uint8* pData = pContainer->GetData<uint8>(EPDT_State);
-
-			AddParticles(numParticles);
-			pContainer->ResetSpawnedParticles();
-			memset(pData, validMask | ESB_NewBorn, numParticles);
-			memset(pData + numParticles, overrunMask, bufferSize - numParticles);
-
-			pContainer->RemoveNewBornFlags();
-
-			for (uint i = 0; i < numParticles; ++i)
-				if (pData[i] != validMask)
-					return false;
-			for (uint i = numParticles; i < bufferSize; ++i)
-				if (pData[i] != overrunMask)
-					return false;
-			return true;
-		}
-
 	private:
 		std::unique_ptr<pfx2::CParticleContainer> pContainer;
 	};
@@ -207,17 +180,15 @@ CRY_UNIT_TEST_SUITE(CryParticleSystemTest)
 		AddParticles(6);
 
 		AddParticles(3);
-		CRY_PFX2_UNIT_TEST_ASSERT(container.GetNumParticles() == 9);
-		CRY_PFX2_UNIT_TEST_ASSERT(container.GetLastParticleId() == 11);
-		CRY_PFX2_UNIT_TEST_ASSERT(container.GetFirstSpawnParticleId() == 8);
+		CRY_PFX2_UNIT_TEST_ASSERT(container.GetRealNumParticles() == 9);
+		CRY_PFX2_UNIT_TEST_ASSERT(container.GetSpawnedRange().m_begin == 8);
 		CRY_PFX2_UNIT_TEST_ASSERT(container.GetNumSpawnedParticles() == 3);
 		CRY_PFX2_UNIT_TEST_ASSERT(container.GetMaxParticles() > 11);
 
 		ResetSpawnedParticles();
 		CRY_PFX2_UNIT_TEST_ASSERT(container.GetNumParticles() == 9);
-		CRY_PFX2_UNIT_TEST_ASSERT(container.GetLastParticleId() == 9);
-		CRY_PFX2_UNIT_TEST_ASSERT(container.GetFirstSpawnParticleId() == 9);
-		CRY_PFX2_UNIT_TEST_ASSERT(container.GetNumSpawnedParticles() == 0);
+		CRY_PFX2_UNIT_TEST_ASSERT(container.GetSpawnedRange().m_begin == 6);
+		CRY_PFX2_UNIT_TEST_ASSERT(container.GetNumSpawnedParticles() == 3);
 		CRY_PFX2_UNIT_TEST_ASSERT(container.GetMaxParticles() > 9);
 	}
 
@@ -226,7 +197,7 @@ CRY_UNIT_TEST_SUITE(CryParticleSystemTest)
 		const pfx2::CParticleContainer& container = GetContainer();
 
 		AddParticles(1);
-		CRY_PFX2_UNIT_TEST_ASSERT(container.GetRealId(4) == 0);
+		CRY_PFX2_UNIT_TEST_ASSERT(container.GetRealId(0) == 0);
 		ResetSpawnedParticles();
 
 		ResetAll();
@@ -239,27 +210,6 @@ CRY_UNIT_TEST_SUITE(CryParticleSystemTest)
 		CRY_PFX2_UNIT_TEST_ASSERT(container.GetRealId(3) == 3);
 		CRY_PFX2_UNIT_TEST_ASSERT(container.GetRealId(8) == 8);
 		CRY_PFX2_UNIT_TEST_ASSERT(container.GetRealId(6) == 6);
-	}
-
-	CRY_UNIT_TEST_WITH_FIXTURE(CParticleContainer_NewBornFlags_Case1, CParticleContainerSpawn)
-	{
-		const bool result = TestNewBornFlags(16);
-		CRY_PFX2_UNIT_TEST_ASSERT(result);
-	}
-	CRY_UNIT_TEST_WITH_FIXTURE(CParticleContainer_NewBornFlags_Case2, CParticleContainerSpawn)
-	{
-		const bool result = TestNewBornFlags(18);
-		CRY_PFX2_UNIT_TEST_ASSERT(result);
-	}
-	CRY_UNIT_TEST_WITH_FIXTURE(CParticleContainer_NewBornFlags_Case3, CParticleContainerSpawn)
-	{
-		const bool result = TestNewBornFlags(39);
-		CRY_PFX2_UNIT_TEST_ASSERT(result);
-	}
-	CRY_UNIT_TEST_WITH_FIXTURE(CParticleContainer_NewBornFlags_Case4, CParticleContainerSpawn)
-	{
-		const bool result = TestNewBornFlags(52);
-		CRY_PFX2_UNIT_TEST_ASSERT(result);
 	}
 
 	CRY_UNIT_TEST_FIXTURE(CParticleEffectTests)
@@ -290,7 +240,7 @@ CRY_UNIT_TEST_SUITE(CryParticleSystemTest)
 			Serialization::LoadJsonBuffer(GetEffect(), jsonCode, strlen(jsonCode));
 		}
 
-		void LoadDefaultComponent(TComponentId componentId)
+		void LoadDefaultComponent(uint componentId)
 		{
 			const char* jsonCode =
 			  "{ \"Name\": \"Default\", \"Features\": [\n"
@@ -309,6 +259,55 @@ CRY_UNIT_TEST_SUITE(CryParticleSystemTest)
 		std::unique_ptr<pfx2::CParticleEffect> m_pEffect;
 	};
 
+	CRY_UNIT_TEST(ParticleAttributesTest)
+	{
+		auto pTable = std::make_shared<CAttributeTable>();
+		CAttributeTable& table = *pTable.get();
+
+		SAttributeDesc attr;
+		attr.m_name = "Float";
+		attr.m_defaultValue = -3.0f;
+		attr.m_maxFloat = 1.0f;
+		table.AddAttribute(attr);
+
+		attr.m_name = "Bool";
+		attr.m_defaultValue = false;
+		table.AddAttribute(attr);
+
+		attr.m_name = "Color";
+		attr.m_defaultValue = ColorB(50, 100, 150, 255);
+		table.AddAttribute(attr);
+
+		CRY_PFX2_UNIT_TEST_ASSERT(table.GetAttribute(1).GetType() == IParticleAttributes::ET_Boolean);
+
+		CAttributeInstance inst;
+		inst.Reset(pTable);
+
+		CRY_PFX2_UNIT_TEST_ASSERT(inst.GetNumAttributes() == 3);
+		uint id = inst.FindAttributeIdByName("Color");
+		CRY_PFX2_UNIT_TEST_ASSERT(inst.GetAttributeType(id) == IParticleAttributes::ET_Color);
+		CRY_PFX2_UNIT_TEST_ASSERT(inst.GetAsBoolean(id, false) == true);
+		CRY_PFX2_UNIT_TEST_ASSERT(inst.GetAsInteger(id, 0) == 91);
+		inst.SetAsFloat(id, 0.5f);
+		CRY_PFX2_UNIT_TEST_ASSERT(IsEquivalent(inst.GetAsFloat(id), 0.5f, 0.002f));
+
+		id = inst.FindAttributeIdByName("Float");
+		CRY_PFX2_UNIT_TEST_ASSERT(inst.GetAsInteger(id, 0) == -3);
+
+		inst.SetAsInteger(id, 2);
+		CRY_PFX2_UNIT_TEST_ASSERT(inst.GetAsFloat(id, 0.0f) == 1.0f);
+		inst.ResetValue(id);
+		CRY_PFX2_UNIT_TEST_ASSERT(inst.GetAsFloat(id, 0.0f) == -3.0f);
+
+		IParticleAttributes::TValue value;
+		value.SetType(IParticleAttributes::ET_Color);
+		CRY_PFX2_UNIT_TEST_ASSERT(value.Type() == IParticleAttributes::ET_Color);
+
+		auto type = table.GetAttribute(0).GetType();
+		DO_FOR_ATTRIBUTE_TYPE(type, T, value = T());
+	};
+
+
 	CRY_UNIT_TEST_WITH_FIXTURE(CParticleSystem_USimpleEffect, CParticleEffectTests)
 	{
 		pfx2::CParticleEffect& effect = GetEffect();
@@ -320,8 +319,8 @@ CRY_UNIT_TEST_SUITE(CryParticleSystemTest)
 	CRY_UNIT_TEST_WITH_FIXTURE(CParticleSystem_UniqueAutoName, CParticleEffectTests)
 	{
 		pfx2::CParticleEffect& effect = GetEffect();
-		effect.AddComponent(0);
-		effect.AddComponent(1);
+		effect.AddComponent();
+		effect.AddComponent();
 		CRY_PFX2_UNIT_TEST_ASSERT(strcmp(effect.GetComponent(0)->GetName(), "Component01") == 0);
 		CRY_PFX2_UNIT_TEST_ASSERT(strcmp(effect.GetComponent(1)->GetName(), "Component02") == 0);
 	}
@@ -329,11 +328,11 @@ CRY_UNIT_TEST_SUITE(CryParticleSystemTest)
 	CRY_UNIT_TEST_WITH_FIXTURE(CParticleSystem_UniqueCustomName, CParticleEffectTests)
 	{
 		pfx2::CParticleEffect& effect = GetEffect();
-		effect.AddComponent(0);
+		effect.AddComponent();
 		effect.GetComponent(0)->SetName("Test");
-		effect.AddComponent(1);
+		effect.AddComponent();
 		effect.GetComponent(1)->SetName("Test");
-		effect.AddComponent(2);
+		effect.AddComponent();
 		effect.GetComponent(2)->SetName("Test");
 		CRY_PFX2_UNIT_TEST_ASSERT(strcmp(effect.GetComponent(0)->GetName(), "Test") == 0);
 		CRY_PFX2_UNIT_TEST_ASSERT(strcmp(effect.GetComponent(1)->GetName(), "Test1") == 0);
@@ -343,11 +342,11 @@ CRY_UNIT_TEST_SUITE(CryParticleSystemTest)
 	CRY_UNIT_TEST_WITH_FIXTURE(CParticleSystem_UniqueLoadedName, CParticleEffectTests)
 	{
 		pfx2::CParticleEffect& effect = GetEffect();
-		effect.AddComponent(0);
+		effect.AddComponent();
 		LoadDefaultComponent(0);
-		effect.AddComponent(1);
+		effect.AddComponent();
 		LoadDefaultComponent(1);
-		effect.AddComponent(2);
+		effect.AddComponent();
 		LoadDefaultComponent(2);
 		CRY_PFX2_UNIT_TEST_ASSERT(strcmp(effect.GetComponent(0)->GetName(), "Default") == 0);
 		CRY_PFX2_UNIT_TEST_ASSERT(strcmp(effect.GetComponent(1)->GetName(), "Default1") == 0);

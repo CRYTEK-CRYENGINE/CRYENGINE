@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #ifndef PROJECTDEFINES_H
 #define PROJECTDEFINES_H
@@ -197,9 +197,6 @@ extern void SliceAndSleep(const char* pFunc, int line);
 #define ENABLE_FLASH_INFO
 #endif
 
-// Remove the line below to disable the console in release builds
-#define ENABLE_DEVELOPER_CONSOLE_IN_RELEASE
-
 #if !defined(ENABLE_LW_PROFILERS) && !defined(ENABLE_DEVELOPER_CONSOLE_IN_RELEASE)
 	#ifndef USE_NULLFONT
 		#define USE_NULLFONT      1
@@ -316,10 +313,6 @@ extern void SliceAndSleep(const char* pFunc, int line);
 //# define CRY_PROFILE_MARKERS_USE_NVTOOLSEXT
 #endif
 
-#if CRY_PLATFORM_WINDOWS
-//#define SEG_WORLD
-#endif
-
 #ifdef SEG_WORLD
 	#define SW_STRIP_LOADING_MSG
 	#define SW_ENTITY_ID_USE_GUID
@@ -327,6 +320,11 @@ extern void SliceAndSleep(const char* pFunc, int line);
 #endif
 
 #include "ProjectDefinesInclude.h"
+
+#ifdef RELEASE
+// Forces the .cryproject file to be read from a .pak file instead of directly from disk.
+#define CRY_FORCE_CRYPROJECT_IN_PAK
+#endif
 
 //Encryption & security defines
 

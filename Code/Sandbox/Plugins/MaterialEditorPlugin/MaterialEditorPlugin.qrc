@@ -1,0 +1,8 @@
+<RCC>
+    <qresource prefix="/icons">
+      <file alias="material_editor/cube.ico">Icons/Cube.ico</file>
+	  <file alias="material_editor/plane.ico">Icons/Plane.ico</file>
+	  <file alias="material_editor/sphere.ico">Icons/Sphere.ico</file>
+	  <file alias="material_editor/teapot.ico">Icons/Teapot.ico</file>
+    </qresource>
+</RCC>

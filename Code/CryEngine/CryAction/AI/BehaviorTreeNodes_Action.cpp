@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "BehaviorTreeNodes_Action.h"
@@ -140,7 +140,7 @@ private:
 			IF_LIKELY (fragID == FRAGMENT_ID_INVALID)
 			{
 #ifdef USING_BEHAVIOR_TREE_NODE_CUSTOM_DEBUG_TEXT
-				ErrorReporter(*this, context).LogError("Invalid fragment name '%s'", m_fragName);
+				ErrorReporter(*this, context).LogError("Invalid fragment name '%s'", m_fragName.c_str());
 #else
 				ErrorReporter(*this, context).LogError("Invalid fragment name!");
 #endif

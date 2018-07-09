@@ -1,4 +1,6 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
+
+//! \cond INTERNAL
 
 #pragma once
 
@@ -167,7 +169,7 @@ struct INumberVector: INumberArray<T, N>
 	}
 	ILINE Final& operator *=(T s)
 	{
-		for (auto& e: *this)
+		for (auto& e : *this)
 			e *= s;
 		CRY_MATH_ASSERT(IsValid());
 		return final();
@@ -180,10 +182,23 @@ struct INumberVector: INumberArray<T, N>
 		CRY_MATH_ASSERT(r.IsValid());
 		return r;
 	}
+	ILINE Final& operator/=(T s)
+	{
+		for (auto& e : *this)
+			e /= s;
+		CRY_MATH_ASSERT(IsValid());
+		return final();
+	}
+	ILINE Final operator/(T s) const
+	{
+		Final r;
+		for (int i = 0; i < N; ++i)
+			r[i] = (*this)[i] / s;
+		CRY_MATH_ASSERT(r.IsValid());
+		return r;
+	}
 
 	ILINE friend Final operator *(T s, const INumberVector& o) { return o * s; }
-	ILINE Final& operator /=(T s)                              { return *this *= T(1) / s; }
-	ILINE Final operator /(T s) const                          { return *this * (T(1) / s); }
 
 	//
 	// Normalizing methods
@@ -210,7 +225,7 @@ struct INumberVector: INumberArray<T, N>
 		if (lensqr > minsqr)
 			*this *= crymath::rsqrt(lensqr);
 		else
-			*this = safe;
+			final() = safe;
 		return crymath::sqrt(lensqr);
 	}
 
@@ -248,3 +263,5 @@ struct INumberVector: INumberArray<T, N>
 	NUMBER_VECTOR_BINARY_OP(*)
 	NUMBER_VECTOR_BINARY_OP(/)
 };
+
+//! \endcond

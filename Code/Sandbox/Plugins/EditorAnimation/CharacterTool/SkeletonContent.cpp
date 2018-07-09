@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "CharacterToolSystem.h"
@@ -251,3 +251,4 @@ void SkeletonContent::ComposeCompleteAnimationSetFilter(AnimationSetFilter* outF
 }
 
 }
+

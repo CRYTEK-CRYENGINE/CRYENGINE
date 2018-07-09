@@ -1,9 +1,9 @@
-// CRYENGINE Source Code File
-// Copyright 2001-2015 Crytek GmbH. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "Common.cfi"
 #include "ShadeLib.cfi"
 #include "ModificatorVT.cfi"
+#include "ForwardShading.cfi"
 
 float Script : STANDARDSGLOBAL
 <
@@ -18,9 +18,6 @@ Texture2D bumpTex : register(t1) = TM_Normals;
 
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-
-half4 AmbientOpPB        : PB_AmbientOpacity;
-float4 AnimGenParams = { PB_time 1.0, PB_time 0.5, PB_time 0.25, PB_time 0.125};
 
 half AnimSpeed
 <
@@ -115,7 +112,7 @@ struct a2v
 
 struct v2f
 {
-	float4 Position		: POSITION;
+	float4 Position		: SV_POSITION;
 	float4 baseTC		: TEXCOORDN;
 	float3 bumpTC		: TEXCOORDN;
 
@@ -142,7 +139,7 @@ v2f ParticleImposterVS(a2v IN)
 	OUT.Position = mul(g_VS_ViewProjMatr, float4(vPos.xyz, 1)); 
 
 	// Blend 2 frames at diferent phases (similar to flowmaps)
-	float2 vAnimGen = AnimGenParams.xx * AnimSpeed * float2(1, -BumpAnimSpeed);
+    float2 vAnimGen = CV_AnimGenParams.zz * AnimSpeed * float2(1, -BumpAnimSpeed);
 	AnimAmplitude *= saturate(1.0 + AnimOffset - IN.baseTC.y); // scale amplitude via V coordinate
 	float2 vAnimFreq = frac(vAnimGen.x - float2(0.0, 0.5));
 	float4 vAnim = (vAnimFreq * AnimAmplitude - AnimOffset).xxyy * float4(0,1,0,1);
@@ -157,7 +154,8 @@ v2f ParticleImposterVS(a2v IN)
 
 #if %_RT_FOG
 #if !%_RT_VOLUMETRIC_FOG
-	OUT.localFogColor = GetVolumetricFogColor( vPos );
+	SFogParams fogParams = GetFogParams();
+	OUT.localFogColor = GetVolumetricFogColor(fogParams, vPos);
 #else
 	OUT.localFogColor = GetVolumetricFogAnalyticalColorByWorldPos( vPos );
 #endif
@@ -186,7 +184,7 @@ pixout ParticleImposterPS(v2f IN)
 	half4 cDiffuseMap2 = GetTexture2D(diffuseTex, ssMaterialTrilinearClamp, IN.baseTC.zw + vNormal.xy);
 	cDiffuseMap = saturate(lerp(cDiffuseMap, cDiffuseMap2, IN.bumpTC.z));
 
-	OUT.Color = half4(MatDifColor.xyz * cDiffuseMap.xyz, cDiffuseMap.w * AmbientOpPB.w);
+	OUT.Color = half4(MatDifColor.xyz * cDiffuseMap.xyz, cDiffuseMap.w);
 	OUT.Color.rgb *= (DiffuseRange * DiffuseRange);
 
 #if %_RT_FOG
@@ -210,7 +208,7 @@ pixout ParticleImposterPS(v2f IN)
 		for (int s=0; s<nMsaaSamples; s++) // Ideally would use pre-resolved depth target (note that existing resolved versions use sample0 for proper pixel/sample passes - having a max depth target will require extra mem)
 			sceneDepth =  max(sceneDepth, GetDecodedSceneDepthMS(screenProjected.xy, nMsaaSamples, s));
 	#else
-		float sceneDepth = GetLinearDepthScaledProj( sceneLinearDepthTex, float4(screenProjected.xy, 0, 1) );
+		float sceneDepth = sceneLinearDepthTex.Load(int3(screenProjected.xy * CV_ScreenSize,0)).x; //GetLinearDepthScaledProj( sceneLinearDepthTex, float4(screenProjected.xy, 0, 1) );
 	#endif 	
  	half softIntersect = saturate( SoftIntersectionFactor * (sceneDepth - IN.screenProj.w) );
 	OUT.Color.a *= softIntersect;
@@ -259,7 +257,7 @@ pixout CustomRenderPassPS(v2f IN)
 	half4 cDiffuseMap2 = GetTexture2D(diffuseTex, ssMaterialTrilinearClamp, IN.baseTC.zw);
 	cDiffuseMap = saturate(lerp(cDiffuseMap, cDiffuseMap2, IN.bumpTC.z));
 
-	OUT.Color = half4(MatDifColor.xyz * cDiffuseMap.xyz, cDiffuseMap.w * AmbientOpPB.w  * saturate( VisionMtlParams.x ));
+	OUT.Color = half4(MatDifColor.xyz * cDiffuseMap.xyz, cDiffuseMap.w * saturate( VisionMtlParams.x ));
 	OUT.Color.rgb *= (DiffuseRange * DiffuseRange) * OUT.Color.a;  
 	OUT.Color.rgb = dot( OUT.Color.rgb, 1) ;
 

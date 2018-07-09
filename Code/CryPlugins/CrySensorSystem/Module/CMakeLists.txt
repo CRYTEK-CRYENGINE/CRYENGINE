@@ -35,20 +35,18 @@ add_sources("NoUberFile"
 end_sources()
 #END-FILE-LIST
 
-if(PLUGIN_SCHEMATYC)
-	CryEngineModule(CrySensorSystem PCH "StdAfx.cpp" SOLUTION_FOLDER "CryPlugins")
+CryEngineModule(CrySensorSystem PCH "StdAfx.cpp" SOLUTION_FOLDER "CryPlugins")
 
-	target_include_directories(${THIS_PROJECT}
-	PRIVATE 
-		"${CRYENGINE_DIR}/Code/CryEngine/CryCommon"
-		"${CRYENGINE_DIR}/Code/CryEngine/CrySchematyc/Core/Interface"
-		"${CRYENGINE_DIR}/Code/CryEngine/CrySchematyc/STDEnv/Interface"
-		"${CRYENGINE_DIR}/Code/CryExtensions/CryLink/Interface"
-	PUBLIC
-		../Interface
-	)
+target_include_directories(${THIS_PROJECT}
+PRIVATE 
+	"${CRYENGINE_DIR}/Code/CryEngine/CryCommon"
+	"${CRYENGINE_DIR}/Code/CryEngine/CrySchematyc/Core/Interface"
+	"${CRYENGINE_DIR}/Code/CryEngine/CrySchematyc/STDEnv/Interface"
+	"${CRYENGINE_DIR}/Code/CryExtensions/CryLink/Interface"
+PUBLIC
+	../Interface
+)
 
-	if(LINUX)
-	        target_compile_options(${THIS_PROJECT} PRIVATE -fPIC)
-	endif()
+if(LINUX)
+		target_compile_options(${THIS_PROJECT} PRIVATE -fPIC)
 endif()

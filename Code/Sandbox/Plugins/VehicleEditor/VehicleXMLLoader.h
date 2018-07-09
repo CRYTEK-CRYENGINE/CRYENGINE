@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #ifndef __VEHICLEXMLLOADER_H__
 #define __VEHICLEXMLLOADER_H__
@@ -12,3 +12,4 @@ IVehicleData* VehicleDataLoad(const XmlNodeRef& definition, const char* dataFile
 IVehicleData* VehicleDataLoad(const XmlNodeRef& definition, const XmlNodeRef& data, bool bFillDefaults = true);
 
 #endif
+

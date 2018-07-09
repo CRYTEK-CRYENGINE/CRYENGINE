@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -20,7 +20,7 @@ public:
 	struct SRuntimeRef
 	{
 		SRuntimeRef() : m_pComponentRuntime(0), m_firstChild(0), m_numChildren(0) {}
-		SRuntimeRef(gpu_pfx2::IParticleComponentRuntime* pComponentRuntime)
+		SRuntimeRef(IParticleComponentRuntime* pComponentRuntime)
 			: m_pComponentRuntime((CParticleComponentRuntime*)pComponentRuntime)
 			, m_firstChild(0)
 			, m_numChildren(0)
@@ -34,24 +34,19 @@ public:
 
 	CManager();
 
-	virtual void BeginFrame() override;
+	virtual void BeginFrame() override {}
 
-	virtual _smart_ptr<IParticleComponentRuntime>
-	CreateParticleComponentRuntime(
-		IParticleEmitter* pEmitter,
-		pfx2::IParticleComponent* pComponent,
-		const pfx2::SRuntimeInitializationParameters& params) override;
+	virtual IParticleComponentRuntime* CreateParticleContainer(const SComponentParams& params, TConstArray<IParticleFeature*> features) override;
 
-	void RenderThreadUpdate();
-	void RenderThreadPreUpdate();
-	void RenderThreadPostUpdate();
+	virtual IParticleFeature* CreateParticleFeature(EGpuFeatureType) override;
+
+	void RenderThreadUpdate(CRenderView* pRenderView);
+	void RenderThreadPreUpdate(CRenderView* pRenderView);
+	void RenderThreadPostUpdate(CRenderView* pRenderView);
 
 	// gets initialized the first time it is called and will allocate buffers
 	// (so make sure its only called from the render thread)
 	gpu::CBitonicSort* GetBitonicSort();
-
-	virtual _smart_ptr<IParticleFeatureGpuInterface>
-	CreateParticleFeatureGpuInterface(EGpuFeatureType) override;
 
 	// this needs to be called from the render thread when the renderer
 	// is teared down to make sure the runtimes are not still persistent when the
@@ -78,9 +73,9 @@ private:
 	std::vector<_smart_ptr<CFeature>>                                     m_particleFeatureGpuInterfaces;
 	std::vector<_smart_ptr<CFeature>>                                     m_particleFeatureGpuInterfacesInitialization;
 
-	gpu::CTypedResource<uint, gpu::BufferFlagsReadWriteReadback>          m_counter;
-	gpu::CTypedResource<uint, gpu::BufferFlagsReadWriteReadback>          m_scratch;
-	gpu::CTypedResource<SReadbackData, gpu::BufferFlagsReadWriteReadback> m_readback;
+	gpu::CStructuredResource<uint, gpu::BufferFlagsReadWriteReadback>          m_counter;
+	gpu::CStructuredResource<uint, gpu::BufferFlagsReadWriteReadback>          m_scratch;
+	gpu::CStructuredResource<SReadbackData, gpu::BufferFlagsReadWriteReadback> m_readback;
 
 	int m_numRuntimesReadback;
 
@@ -88,7 +83,5 @@ private:
 
 	std::unique_ptr<gpu::CBitonicSort> m_pBitonicSort;
 	CGpuInterfaceFactory               m_gpuInterfaceFactory;
-
-	volatile EState                    m_state;
 };
 }

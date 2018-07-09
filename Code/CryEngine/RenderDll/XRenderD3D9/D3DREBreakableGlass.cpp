@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 // Includes
 #include "StdAfx.h"
@@ -20,22 +20,8 @@
 	#define LOG_GLASS_ERROR(str)
 #endif
 
-//--------------------------------------------------------------------------------------------------
-// Name: mfPrepare
-// Desc: Prepares render element for rendering
-//--------------------------------------------------------------------------------------------------
-void CREBreakableGlass::mfPrepare(bool bCheckOverflow)
-{
-	if (bCheckOverflow)
-	{
-		gRenDev->FX_CheckOverflow(0, 0, this);
-	}
-
-	gRenDev->m_RP.m_pRE = this;
-	gRenDev->m_RP.m_RendNumIndices = 0;
-	gRenDev->m_RP.m_RendNumVerts = 0;
-}//-------------------------------------------------------------------------------------------------
-
+// OLD PIPELINE
+/*
 //--------------------------------------------------------------------------------------------------
 // Name: mfDraw
 // Desc: Draws breakable glass sim
@@ -176,6 +162,7 @@ bool CREBreakableGlass::mfDraw(CShader* ef, SShaderPass* sfm)
 
 	return true;
 }//-------------------------------------------------------------------------------------------------
+*/
 
 //--------------------------------------------------------------------------------------------------
 // Name: RT_UpdateBuffers
@@ -348,7 +335,7 @@ void CREBreakableGlass::UpdateImpactShaderConstants()
 void CREBreakableGlass::SetImpactShaderConstants(CShader* pShader)
 {
 	const uint numDecalElems = 2;
-	pShader->FXSetPSFloat(s_ImpactDecalParamName, (Vec4*)m_decalPSConsts, GLASSCFG_MAX_NUM_IMPACT_DECALS * numDecalElems);
+//	pShader->FXSetPSFloat(s_ImpactDecalParamName, (Vec4*)m_decalPSConsts, GLASSCFG_MAX_NUM_IMPACT_DECALS * numDecalElems);
 }//-------------------------------------------------------------------------------------------------
 
 #ifdef GLASS_DEBUG_MODE

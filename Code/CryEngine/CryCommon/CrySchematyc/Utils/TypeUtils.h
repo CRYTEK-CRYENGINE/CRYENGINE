@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -12,42 +12,17 @@
 
 namespace Schematyc
 {
-
-// Get offset of base structure/class.
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-template<typename TYPE, typename BASE_TYPE> inline ptrdiff_t GetBaseOffset()
-{
-	return reinterpret_cast<uint8*>(static_cast<BASE_TYPE*>(reinterpret_cast<TYPE*>(1))) - reinterpret_cast<uint8*>(1);
-}
-
-// Get offset of structure/class member variable.
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-template<typename TYPE, typename MEMBER_TYPE> inline ptrdiff_t GetMemberOffset(MEMBER_TYPE TYPE::* pMember)
-{
-	return reinterpret_cast<uint8*>(&(reinterpret_cast<TYPE*>(1)->*pMember)) - reinterpret_cast<uint8*>(1);
-}
-
-// Tests to determine whether type has specific operators.
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
 namespace HasOperator
 {
-namespace Private
-{
 
-struct SNo {};
+template<typename TYPE, typename = void>
+struct SEquals : std::false_type {};
 
-} // Private
-
-template<typename TYPE> Private::SNo operator==(TYPE const&, TYPE const&);
-
-template<typename TYPE> struct SEquals : std::integral_constant<bool, !std::is_same<decltype(std::declval<TYPE const&>() == std::declval<TYPE const&>()), Private::SNo>::value> {};
-
-template<typename TYPE> struct SEquals<std::shared_ptr<TYPE>> : std::integral_constant<bool, true> {}; // Workaround for error 'error C2593: 'operator ==' is ambiguous'.
-
-template<> struct SEquals<void> : std::integral_constant<bool, false> {};
+template<typename TYPE>
+struct SEquals<
+  TYPE,
+  decltype(void(std::declval<const TYPE&>() == std::declval<const TYPE&>()))
+  > : std::true_type {};
 
 } // HasOperator
 

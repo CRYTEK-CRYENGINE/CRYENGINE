@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "DialogCommon.h"
@@ -201,6 +201,8 @@ bool CBaseDialog::SaveAs(const QString& targetFilePath)
 		return false;
 	}
 
+	GetIEditor()->GetSystem()->GetIPak()->MakeDir(PathUtil::GetDirectory(ctx.targetFilePath.c_str()));
+
 	const string absMetaSrcPath = 
 		m_sceneData->pAsset
 		? PathUtil::Make(PathUtil::GetGameProjectAssetsPath(), m_sceneData->pAsset->GetMetadataFile())
@@ -369,6 +371,8 @@ bool CBaseDialog::OnImportFile()
 	{
 		return false;
 	}
+
+	OnCloseAsset();
 
 	ImportFile(filePath);
 
@@ -630,3 +634,4 @@ QString ReplaceExtension(const QString& str, const char* ext)
 }
 
 } // namespace MeshImporter
+

@@ -50,7 +50,6 @@ class CWnd;
 
 class PLUGIN_API QWinWidget : public QWidget
 {
-	Q_OBJECT
 public:
 	QWinWidget(HWND hParentWnd, QObject* parent = 0, Qt::WindowFlags f = 0);
 #ifdef QTWINMIGRATE_WITHMFC
@@ -88,3 +87,4 @@ private:
 };
 
 #endif // QWINWIDGET_H
+

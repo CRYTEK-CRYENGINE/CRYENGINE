@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 // Created by: Scott Peter
 //---------------------------------------------------------------------------
@@ -366,6 +366,7 @@ public:
 			align = max(align, (size_t)nALIGN);
 			if (new_size)
 			{
+				new_size = Align(new_size, align);
 				if (a.size)
 				{
 					if (new_size != a.size)
@@ -387,7 +388,7 @@ public:
 			else
 			{
 				// Dealloc
-				if (!_pHeap->Deallocate(Lock(*_pHeap), a.data, a.size, align))
+				if (!_pHeap->Deallocate(Lock(*_pHeap), a.data, Align(a.size, align), align))
 					assert(!"HeapAllocator array deallocation failed");
 				a = NAlloc::AllocArray();
 			}

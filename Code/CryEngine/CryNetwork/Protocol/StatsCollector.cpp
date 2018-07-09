@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 /*************************************************************************
    -------------------------------------------------------------------------
@@ -72,7 +72,7 @@ void CStatsCollector::CreateLogFile()
 	stack_string fullFilename;
 
 	stack_string dir = gEnv->pSystem->GetRootFolder();
-	dir += STATS_RESULTS_DIR;
+	dir = PathUtil::Make(dir, stack_string(STATS_RESULTS_DIR));
 	gEnv->pCryPak->MakeDir(dir);
 
 	fullFilename.Format("%s/%.3d_%s-%s", dir.c_str(), m_fileId, gEnv->pNetwork->GetHostName(), m_fileName.c_str());

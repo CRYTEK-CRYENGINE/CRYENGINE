@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -50,6 +50,7 @@ public:
 	struct SInitParams
 	{
 		D3D12_GRAPHICS_PIPELINE_STATE_DESC m_Desc;
+		BOOL                               m_DepthBoundsTestEnable;
 
 		CShader*                           m_VS;
 		CShader*                           m_HS;
@@ -62,7 +63,7 @@ public:
 	~CGraphicsPSO() {}
 
 	bool                                Init(const SInitParams& params);
-
+	
 	D3D12_GRAPHICS_PIPELINE_STATE_DESC& GetDesc()
 	{
 		return m_Desc;
@@ -91,7 +92,7 @@ public:
 	~CComputePSO() {}
 
 	bool                               Init(const SInitParams& params);
-
+	
 	D3D12_COMPUTE_PIPELINE_STATE_DESC& GetDesc()
 	{
 		return m_Desc;

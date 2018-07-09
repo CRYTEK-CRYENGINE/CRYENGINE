@@ -1,12 +1,16 @@
-//Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 using System;
 using CryEngine.Common;
 
 namespace CryEngine.Animations
 {
+	/// <summary>
+	/// Manages animation databases and controller definitions.
+	/// </summary>
 	public sealed class AnimationDatabaseManager
 	{
+		[SerializeValue]
 		internal IAnimationDatabaseManager NativeHandle { get; private set; }
 
 		internal AnimationDatabaseManager(IAnimationDatabaseManager nativeHandle)

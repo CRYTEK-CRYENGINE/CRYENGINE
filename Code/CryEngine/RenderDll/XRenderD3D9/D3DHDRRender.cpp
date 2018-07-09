@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 /*=============================================================================
    D3DHDRRender.cpp : high dynamic range post-processing
@@ -140,11 +140,17 @@ void CTexture::GenerateHDRMaps()
 	
 	pHDRPostProcess->ClearRenderTargetList();
 
-	ETEX_Format nHDRFormat = CRenderer::CV_r_HDRTexFormat == 0 ? eTF_R11G11B10F : eTF_R16G16B16A16F;
+	ETEX_Format nHDRFormatDefaultQuality = eTF_R16G16B16A16F;
+	ETEX_Format nHDRFormatLowQuality     = eTF_R11G11B10F;
+	
+	// If Depth of Field feature enabled cannot use low quality HDR format.
+	ETEX_Format nHDRFormat = ((CRenderer::CV_r_HDRTexFormat == 0 || CRenderer::CV_r_HDRTexFormat == 2) && CRenderer::CV_r_dof==0)  ? nHDRFormatLowQuality : nHDRFormatDefaultQuality;
+	// low spec only - note: for main Render Target R11G11B10 precision/range (even with rescaling) not enough for darks vs good blooming quality
+	ETEX_Format nHDRFormatMainTarget = (CRenderer::CV_r_HDRTexFormat == 2) ? nHDRFormatLowQuality : nHDRFormatDefaultQuality;
 
 	uint32 nHDRTargetFlags = FT_DONT_RELEASE | (CRenderer::CV_r_msaa ? FT_USAGE_MSAA : 0);
 	uint32 nHDRTargetFlagsUAV = nHDRTargetFlags | (CRenderer::CV_r_msaa ? 0 : FT_USAGE_UNORDERED_ACCESS);  // UAV required for tiled deferred shading
-	pHDRPostProcess->AddRenderTarget(r->GetWidth(), r->GetHeight(), Clr_Unknown, nHDRFormat, 1.0f, "$HDRTarget", &s_ptexHDRTarget, nHDRTargetFlagsUAV);
+	pHDRPostProcess->AddRenderTarget(r->GetWidth(), r->GetHeight(), Clr_Unknown, nHDRFormatMainTarget, 1.0f, "$HDRTarget", &s_ptexHDRTarget, nHDRTargetFlagsUAV);
 	pHDRPostProcess->AddRenderTarget(r->GetWidth(), r->GetHeight(), Clr_Unknown, eTF_R11G11B10F, 1.0f, "$HDRTargetPrev", &s_ptexHDRTargetPrev);
 
 	// Scaled versions of the HDR scene texture

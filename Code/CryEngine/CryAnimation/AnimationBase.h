@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -142,5 +142,5 @@ extern AnimStatisticsInfo g_AnimStatisticsInfo;
 
 #define AUTO_PROFILE_SECTION(g_fTimer) CITimerAutoProfiler<double> __section_auto_profiler(g_pITimer, g_fTimer)
 
-#define DEFINE_PROFILER_FUNCTION()     FUNCTION_PROFILER(g_pISystem, PROFILE_ANIMATION)
-#define DEFINE_PROFILER_SECTION(NAME)  FRAME_PROFILER(NAME, g_pISystem, PROFILE_ANIMATION)
+#define DEFINE_PROFILER_FUNCTION()     CRY_PROFILE_FUNCTION(PROFILE_ANIMATION)
+#define DEFINE_PROFILER_SECTION(NAME)  CRY_PROFILE_REGION(PROFILE_ANIMATION, NAME)

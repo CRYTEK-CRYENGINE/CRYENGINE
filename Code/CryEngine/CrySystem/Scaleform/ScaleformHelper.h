@@ -1,3 +1,5 @@
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
+
 #pragma once
 #ifdef INCLUDE_SCALEFORM_SDK
 
@@ -58,9 +60,9 @@ public:
 		CSharedFlashPlayerResources::GetAccess().ResetMeshCache();
 	}
 
-	virtual IFlashPlayer* CreateFlashPlayerInstance() override
+	virtual std::shared_ptr<IFlashPlayer> CreateFlashPlayerInstance() override
 	{
-		return new CFlashPlayer;
+		return std::make_shared<CFlashPlayer>();
 	}
 
 	virtual IFlashPlayerBootStrapper* CreateFlashPlayerBootStrapper() override

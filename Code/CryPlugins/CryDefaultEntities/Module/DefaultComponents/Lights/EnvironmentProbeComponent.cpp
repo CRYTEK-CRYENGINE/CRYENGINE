@@ -52,7 +52,7 @@ void CEnvironmentProbeComponent::Initialize()
 	}
 #endif
 
-	if (m_generation.m_bAutoLoad && m_generation.m_generatedCubemapPath.value.size() > 0)
+	if (m_generation.m_bAutoLoad && m_generation.m_generatedCubemapPath.value.size() > 0 && gEnv->pRenderer != nullptr)
 	{
 		LoadFromDisk(m_generation.m_generatedCubemapPath);
 	}
@@ -62,7 +62,7 @@ void CEnvironmentProbeComponent::Initialize()
 	}
 }
 
-void CEnvironmentProbeComponent::ProcessEvent(SEntityEvent& event)
+void CEnvironmentProbeComponent::ProcessEvent(const SEntityEvent& event)
 {
 	if (event.event == ENTITY_EVENT_COMPONENT_PROPERTY_CHANGED)
 	{
@@ -72,7 +72,7 @@ void CEnvironmentProbeComponent::ProcessEvent(SEntityEvent& event)
 
 uint64 CEnvironmentProbeComponent::GetEventMask() const
 {
-	return BIT64(ENTITY_EVENT_COMPONENT_PROPERTY_CHANGED);
+	return ENTITY_EVENT_BIT(ENTITY_EVENT_COMPONENT_PROPERTY_CHANGED);
 }
 
 #ifndef RELEASE

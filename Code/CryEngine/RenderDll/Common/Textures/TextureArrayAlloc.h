@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #ifndef TEXTUREARRAYALLOC_H
 #define TEXTUREARRAYALLOC_H
@@ -30,6 +30,8 @@ public:
 	// cppcheck-suppress uninitMemberVar
 	CTextureArrayAlloc()
 	{
+		CryAutoWriteLock<CryRWLock> lock(m_accessLock);
+
 		for (TId i = 0; i < Capacity; ++i)
 			m_freeIDs[i] = i;
 		m_numFree = Capacity;
@@ -38,6 +40,8 @@ public:
 
 	T* Allocate()
 	{
+		CryAutoWriteLock<CryRWLock> lock(m_accessLock);
+
 		if (m_numFree > 0)
 		{
 			TId idx = m_freeIDs[0];
@@ -50,18 +54,17 @@ public:
 
 	void Release(T* p)
 	{
+		CryAutoWriteLock<CryRWLock> lock(m_accessLock);
+
 		TId idx = static_cast<TId>(std::distance(m_arr, p));
 		m_freeIDs[m_numFree++] = idx;
 		std::push_heap(m_freeIDs, m_freeIDs + m_numFree, HeapComp());
 	}
 
-	T*       GetArray()             { return m_arr; }
-	const T* GetArray() const       { return m_arr; }
+	T*       GetPtrFromIdx(TId idx) { CryAutoReadLock<CryRWLock> lock(m_accessLock); return &m_arr[idx]; }
+	TId      GetIdxFromPtr(T* p)    { CryAutoReadLock<CryRWLock> lock(m_accessLock); return static_cast<TId>(p - &m_arr[0]); }
 
-	T*       GetPtrFromIdx(TId idx) { return &m_arr[idx]; }
-	TId      GetIdxFromPtr(T* p)    { return static_cast<TId>(p - &m_arr[0]); }
-
-	TId      GetNumLive() const     { return Capacity - m_numFree; }
+	TId      GetNumLive() const     { CryAutoReadLock<CryRWLock> lock(m_accessLock); return Capacity - m_numFree; }
 	TId      GetNumFree() const     { return m_numFree; }
 
 private:
@@ -74,9 +77,10 @@ private:
 	};
 
 private:
-	T   m_arr[Capacity];
-	TId m_freeIDs[Capacity];
-	TId m_numFree;
+	T         m_arr[Capacity];
+	TId       m_freeIDs[Capacity];
+	TId       m_numFree;
+	CryRWLock m_accessLock;
 };
 
 #endif

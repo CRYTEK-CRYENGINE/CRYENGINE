@@ -1,11 +1,11 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
 #include <memory>
 #include <QWidget>
 #include "DisplayParameters.h"
-#include "../EditorCommon/QPropertyTree/ContextList.h"
+#include "QPropertyTree/ContextList.h"
 
 class QPropertyTree;
 
@@ -34,3 +34,4 @@ private:
 };
 
 }
+

@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 
@@ -21,8 +21,8 @@ namespace UQS
 
 			if (pResultSet->GetResultCount() == 0 && HasMoreChildrenLeftToInstantiate())
 			{
-				// try the next child
-				InstantiateNextChildQueryBlueprint();
+				// try the next child (always provide all our children with the shuttled items that *we* hold on to)
+				InstantiateNextChildQueryBlueprint(m_pOptionalShuttledItems);
 
 				// notice: we don't care to keep the child's item-monitors alive, since they were specific to that query that we just rejected (so: no need to keep monitoring what is not needed anymore)
 			}

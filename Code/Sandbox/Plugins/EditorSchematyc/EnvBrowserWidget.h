@@ -1,9 +1,9 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
 #include <QAbstractItemModel>
-#include <QTreeView>
+#include <QAdvancedTreeView.h>
 #include <QWidget>
 
 // Forward declare classes.
@@ -11,7 +11,6 @@ class QBoxLayout;
 class QItemSelection;
 class QLineEdit;
 class QMenu;
-class QParentWndWidget;
 class QPushButton;
 class QSplitter;
 
@@ -127,8 +126,9 @@ namespace Schematyc
 		QBoxLayout*        m_pMainLayout;
 		QBoxLayout*        m_pFilterLayout;
 		QLineEdit*         m_pSearchFilter;
-		QTreeView*         m_pTreeView;
+		QAdvancedTreeView* m_pTreeView;
 		CEnvBrowserModel*  m_pModel;
 		CEnvBrowserFilter* m_pFilter;
 	};
 }
+

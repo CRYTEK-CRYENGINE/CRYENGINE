@@ -1,5 +1,4 @@
-// CRYENGINE Source Code File
-// Copyright 2001-2015 Crytek GmbH. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "Common.cfi"
 #include "ShadeLib.cfi"
@@ -45,7 +44,7 @@ float4 renderOccPlanePS( VS_OUT IN ) : SV_Target
 	return ret.xxxx;
 }
 
-float4 occlusionNormalizedSize;
+float4 occlusionParams; // xy: normalized size, zw: screen UV clamp
 
 Texture2D    occTex   : register(t0);
 SamplerState ssGather : register(s0);
@@ -57,41 +56,41 @@ float4 gatherResultPS( VS_OUT IN ) : SV_Target
 	#define dirResult result.a
 
 	half2 dirResultVec = 0;
-	half3 delta = half3( -0.25*occlusionNormalizedSize.x, 0.25*occlusionNormalizedSize.y, 0 );
+	half3 delta = half3( -0.25*occlusionParams.x, 0.25*occlusionParams.y, 0 );
 	half3 direction = half3( -0.5, 0.5, 0 );
 
-	half texel = GetTexture2D( occTex, ssGather, ClampScreenTC(IN.uvz.xy + delta.zz) ).r;
+	half texel = GetTexture2D( occTex, ssGather, ClampScreenTC(IN.uvz.xy + delta.zz, occlusionParams.zw) ).r;
 	occResult = texel;
 
-	texel = GetTexture2D( occTex, ssGather, ClampScreenTC(IN.uvz.xy + delta.xz) ).r; // Left
+	texel = GetTexture2D( occTex, ssGather, ClampScreenTC(IN.uvz.xy + delta.xz, occlusionParams.zw) ).r; // Left
 	occResult += texel;
 	dirResultVec += texel * normalize(delta.xz*2-1);
 
-	texel = GetTexture2D( occTex, ssGather, ClampScreenTC(IN.uvz.xy + delta.zx) ).r; // Up
+	texel = GetTexture2D( occTex, ssGather, ClampScreenTC(IN.uvz.xy + delta.zx, occlusionParams.zw) ).r; // Up
 	occResult += texel;
 	dirResultVec += texel * normalize(direction.zx);
 
-	texel = GetTexture2D( occTex, ssGather, ClampScreenTC(IN.uvz.xy + delta.zy) ).r; // Bottom
+	texel = GetTexture2D( occTex, ssGather, ClampScreenTC(IN.uvz.xy + delta.zy, occlusionParams.zw) ).r; // Bottom
 	occResult += texel;
 	dirResultVec += texel * normalize(direction.zy);
 
-	texel = GetTexture2D( occTex, ssGather, ClampScreenTC(IN.uvz.xy + delta.yz) ).r; // Right
+	texel = GetTexture2D( occTex, ssGather, ClampScreenTC(IN.uvz.xy + delta.yz, occlusionParams.zw) ).r; // Right
 	occResult += texel;
 	dirResultVec += texel * normalize(direction.yz);
 
-	texel = GetTexture2D( occTex, ssGather, ClampScreenTC(IN.uvz.xy + delta.xx) ).r; // Left,Up
+	texel = GetTexture2D( occTex, ssGather, ClampScreenTC(IN.uvz.xy + delta.xx, occlusionParams.zw) ).r; // Left,Up
 	occResult += texel;
 	dirResultVec += texel * normalize(direction.xx);
 
-	texel = GetTexture2D( occTex, ssGather, ClampScreenTC(IN.uvz.xy + delta.yx) ).r; // Right,Up
+	texel = GetTexture2D( occTex, ssGather, ClampScreenTC(IN.uvz.xy + delta.yx, occlusionParams.zw) ).r; // Right,Up
 	occResult += texel;
 	dirResultVec += texel * normalize(direction.yx);
 
-	texel = GetTexture2D( occTex, ssGather, ClampScreenTC(IN.uvz.xy + delta.yy) ).r; // Right,Bottom
+	texel = GetTexture2D( occTex, ssGather, ClampScreenTC(IN.uvz.xy + delta.yy, occlusionParams.zw) ).r; // Right,Bottom
 	occResult += texel;
 	dirResultVec += texel * normalize(direction.yy);
 
-	texel = GetTexture2D( occTex, ssGather, ClampScreenTC(IN.uvz.xy + delta.xy) ).r; // Left,Bottom
+	texel = GetTexture2D( occTex, ssGather, ClampScreenTC(IN.uvz.xy + delta.xy, occlusionParams.zw) ).r; // Left,Bottom
 	occResult += texel;
 	dirResultVec += texel * normalize(direction.xy);
 

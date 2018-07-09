@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 
@@ -495,6 +495,8 @@ CGameLobby::~CGameLobby()
 
 	// Unregister as System Event Listener.
 	GetISystem()->GetISystemEventDispatcher()->RemoveListener(this);
+
+	gEnv->pCodeCheckpointMgr->UnRegisterCheckpoint("GameLobby_JoinServer");
 
 	m_gameLobbyMgr = NULL;
 }
@@ -4401,11 +4403,7 @@ void CGameLobby::MatchmakingSessionQueryCallback(CryLobbyTaskID taskID, ECryLobb
 			for (int i = 0; i < eLDI_Num; ++ i)
 			{
 				SCryLobbyUserData &userData = pLobby->m_userData[i];
-#if USE_STEAM
 				CryLog("  i=%i, id=%s, data=%i Lobby: %p", i, userData.m_id.c_str(), userData.m_int32, pLobby);
-#else
-				CryLog("  i=%i, id=%i, data=%i Lobby: %p", i, userData.m_id, userData.m_int32, pLobby);
-#endif
 			}
 
 			pLobby->m_sessionData.m_data = pLobby->m_userData;

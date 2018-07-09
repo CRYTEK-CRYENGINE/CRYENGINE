@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -10,6 +10,7 @@ struct IHmdEventListener
 	virtual void OnRecentered() = 0;
 };
 
+//! Main interface to the engine's head-mounted device manager, responsible for maintaining VR devices connected to the system
 struct IHmdManager
 {
 public:
@@ -26,11 +27,6 @@ public:
 	enum EHmdAction
 	{
 		eHmdAction_DrawInfo = 0,
-	};
-
-	struct SAsymmetricCameraSetupInfo
-	{
-		float fov, aspectRatio, asymH, asymV, eyeDist;
 	};
 
 	//! Used to register a HMD headset with the system for later use by the user.
@@ -55,7 +51,7 @@ public:
 	virtual bool IsStereoSetupOk() const = 0;
 
 	//! Populates o_info with the asymmetric camera information returned by the current HMD device.
-	virtual bool GetAsymmetricCameraSetupInfo(int nEye, SAsymmetricCameraSetupInfo& outInfo) const = 0;
+	virtual HMDCameraSetup GetHMDCameraSetup(int nEye, float projRatio, float fnear) const = 0;
 
 	// Notifies all HMD devices of the post being recentered, current position / rotation should be IDENTITY
 	virtual void RecenterPose() = 0;

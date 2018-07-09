@@ -1,0 +1,14 @@
+<AssetMetadata version="0" type="Texture" guid="f87ec2ee-8e9f-c654-c4c3-083d6bf3f2cd" source="perlinNoise_sum.tif">
+ <Files>
+  <File path="perlinNoise_sum.dds"/>
+  <File path="perlinNoise_sum.dds.1"/>
+  <File path="perlinNoise_sum.dds.2"/>
+  <File path="perlinNoise_sum.dds.3"/>
+  <File path="perlinNoise_sum.dds.4"/>
+ </Files>
+ <Details>
+  <Detail name="width">256</Detail>
+  <Detail name="height">256</Detail>
+  <Detail name="mipCount">7</Detail>
+ </Details>
+</AssetMetadata>

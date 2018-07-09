@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 /*************************************************************************
 Crytek Source File.
 Copyright (C), Crytek Studios, 2001-2008.
@@ -120,19 +120,19 @@ public:
 	string GetOutputFileNameOnly() const
 	{
 		const string sourceFileFinal = m_CC.config->GetAsString("overwritefilename", m_CC.sourceFileNameOnly.c_str(), m_CC.sourceFileNameOnly.c_str());
-		return PathHelpers::ReplaceExtension(sourceFileFinal, "tif");
+		return PathUtil::ReplaceExtension(sourceFileFinal, "tif");
 	}
 
 	string GetOutputPath() const
 	{
-		return PathHelpers::Join(m_CC.GetOutputFolder(), GetOutputFileNameOnly());
+		return PathUtil::Make(m_CC.GetOutputFolder(), GetOutputFileNameOnly());
 	}
 
 	virtual bool Process() override
 	{
 		const string sInputFile = m_CC.GetSourcePath();
-		const string sDestFileName = PathHelpers::GetFilename(MakeFileName(PathHelpers::GetFilename(GetOutputPath()), 0, 0));
-		const string sFullDestFileName = PathHelpers::Join(m_CC.config->GetAsString("targetroot", m_CC.GetOutputFolder(), m_CC.GetOutputFolder()), sDestFileName);
+		const string sDestFileName = PathUtil::GetFile(MakeFileName(PathUtil::GetFile(GetOutputPath()), 0, 0));
+		const string sFullDestFileName = PathUtil::Make(m_CC.config->GetAsString("targetroot", m_CC.GetOutputFolder(), m_CC.GetOutputFolder()), sDestFileName);
 		string dummy;
 		std::unique_ptr<ImageObject> image(ImageDDS::LoadByUsingDDSLoader(sInputFile, nullptr, dummy));
 		CImageProperties props = CImageProperties();
@@ -202,7 +202,7 @@ bool CTextureSplitter::SaveFile( const string& sFileName, const void* pBuffer, c
 {
 	m_CC.pRC->AddInputOutputFilePair(GetSourceFilename(), sFileName);
 
-	if (!FileUtil::EnsureDirectoryExists(PathHelpers::GetDirectory(sFileName).c_str()))
+	if (!FileUtil::EnsureDirectoryExists(PathUtil::GetPathWithoutFilename(sFileName).c_str()))
 	{
 		RCLogError("Failed creating directory for %s", sFileName.c_str());
 		return false;
@@ -683,11 +683,11 @@ void CTextureSplitter::ProcessResource(
 {
 	string sDestFileName;
 	if (resource.m_nFileFlags & eStreamableResourceFlags_NoSplit)
-		sDestFileName = PathHelpers::GetFilename(GetOutputPath());
+		sDestFileName = PathUtil::GetFile(GetOutputPath());
 	else
-		sDestFileName = PathHelpers::GetFilename( MakeFileName( PathHelpers::GetFilename(GetOutputPath()), nChunk, resource.m_nFileFlags) );
+		sDestFileName = PathUtil::GetFile( MakeFileName( PathUtil::GetFile(GetOutputPath()), nChunk, resource.m_nFileFlags) );
 
-	const string sFullDestFileName = PathHelpers::Join( m_CC.GetOutputFolder(), sDestFileName );
+	const string sFullDestFileName = PathUtil::Make( m_CC.GetOutputFolder(), sDestFileName );
 	if (pOutFilenames)
 	{
 		pOutFilenames->push_back(sFullDestFileName);
@@ -718,8 +718,8 @@ void CTextureSplitter::ProcessResource(
 
 bool CTextureSplitter::AddResourceToAdditionalList( const char* fileName, const std::vector<uint8>& fileContent )
 {
-	const string sDestFileName = PathHelpers::GetFilename( GetOutputPath().c_str() );
-	const string sFullDestFileName = PathHelpers::Join( m_CC.GetOutputFolder(), sDestFileName );
+	const string sDestFileName = PathUtil::GetFile( GetOutputPath().c_str() );
+	const string sFullDestFileName = PathUtil::Make( m_CC.GetOutputFolder(), sDestFileName );
 
 	// Compare time stamp of output file.
 	if (!m_CC.bForceRecompiling && UpToDateFileHelpers::FileExistsAndUpToDate(sFullDestFileName, fileName))
@@ -796,8 +796,8 @@ bool CTextureSplitter::Process()
 	}
 
 	const string sInputFile = m_CC.GetSourcePath();
-	const string sDestFileName = PathHelpers::GetFilename(MakeFileName(PathHelpers::GetFilename(GetOutputPath()), 0, 0)); 
-	const string sFullDestFileName = PathHelpers::Join(m_CC.GetOutputFolder(), sDestFileName); 
+	const string sDestFileName = PathUtil::GetFile(MakeFileName(PathUtil::GetFile(GetOutputPath()), 0, 0)); 
+	const string sFullDestFileName = PathUtil::Make(m_CC.GetOutputFolder(), sDestFileName); 
 
 	// Compare time stamp of first chunk, all chunk have the same date always
 	if (!m_CC.bForceRecompiling && UpToDateFileHelpers::FileExistsAndUpToDate(sFullDestFileName, sInputFile))
@@ -883,12 +883,12 @@ bool CTextureSplitter::Process()
 string CTextureSplitter::GetOutputFileNameOnly() const
 {
 	const string sourceFileFinal = m_CC.config->GetAsString("overwritefilename", m_CC.sourceFileNameOnly.c_str(), m_CC.sourceFileNameOnly.c_str());
-	return PathHelpers::ReplaceExtension(sourceFileFinal, "dds");
+	return PathUtil::ReplaceExtension(sourceFileFinal, "dds");
 }
 
 string CTextureSplitter::GetOutputPath() const
 {
-	return PathHelpers::Join(m_CC.GetOutputFolder(), GetOutputFileNameOnly());
+	return PathUtil::Make(m_CC.GetOutputFolder(), GetOutputFileNameOnly());
 }
 
 const char* CTextureSplitter::GetExt( int index ) const

@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 
@@ -9,7 +9,7 @@ class CCryPerceptionSystemPlugin : public ICryPerceptionSystemPlugin
 {
 	CRYINTERFACE_BEGIN()
 		CRYINTERFACE_ADD(ICryPerceptionSystemPlugin)
-		CRYINTERFACE_ADD(ICryPlugin)
+		CRYINTERFACE_ADD(Cry::IEnginePlugin)
 	CRYINTERFACE_END()
 
 	CRYGENERATE_SINGLETONCLASS_GUID(CCryPerceptionSystemPlugin, "Plugin_CryPerceptionSystem", "a4ee2509-3468-4bad-8472-dc66d91186c6"_cry_guid)
@@ -20,23 +20,15 @@ class CCryPerceptionSystemPlugin : public ICryPerceptionSystemPlugin
 	CCryPerceptionSystemPlugin() : m_pPerceptionManager(nullptr) {}
 	virtual ~CCryPerceptionSystemPlugin() {}
 
-	// ICryPlugin
-	virtual const char* GetName() const override { return "CryPerceptionSystem"; }
-	virtual const char* GetCategory() const override { return "Plugin"; }
+	// Cry::IEnginePlugin
 	virtual bool        Initialize(SSystemGlobalEnvironment& env, const SSystemInitParams& initParams) override;
-	// ~ICryPlugin
+	// ~Cry::IEnginePlugin
 
 public:
 
 	// ICryPerceptionSystemPlugin
 	virtual IPerceptionManager& GetPerceptionManager() const override;
 	// ~ICryPerceptionSystemPlugin
-
-protected:
-
-	// IPluginUpdateListener
-	virtual void OnPluginUpdate(EPluginUpdateType updateType) override {}
-	// ~IPluginUpdateListener
 
 private:
 	std::unique_ptr<CPerceptionManager> m_pPerceptionManager;

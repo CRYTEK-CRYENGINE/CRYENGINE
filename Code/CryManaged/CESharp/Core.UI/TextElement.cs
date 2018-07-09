@@ -21,7 +21,7 @@ namespace CryEngine.UI
 		/// <summary>
 		/// Called when a TextElement is created.
 		/// </summary>
-		public override void OnAwake()
+		protected override void OnAwake()
 		{
 			Text = AddComponent<Text>();
 			var parentRect = Parent.GetComponent<RectTransform>();

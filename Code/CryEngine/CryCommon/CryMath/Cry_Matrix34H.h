@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 // Implementation of Matrix44 using SIMD types
 
 #pragma once
@@ -13,7 +13,7 @@
 template<typename F> struct Matrix44H;
 
 ///////////////////////////////////////////////////////////////////////////////
-// General-purpose 3x4 matrix using SIMD types
+//! General-purpose 3x4 matrix using SIMD types
 template<typename F> struct Matrix34H
 	: INumberArray<vector4_t<F>, 3>
 {
@@ -102,6 +102,11 @@ template<typename F> struct Matrix34H
 	ILINE F GetUniformScale() const
 	{
 		return mat().GetUniformScale();
+	}
+
+	ILINE Vec3 GetScale() const
+	{
+		return mat().GetScale();
 	}
 
 	Matrix34H& Magnitude(const Matrix34H& m)

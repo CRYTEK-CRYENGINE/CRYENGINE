@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -38,19 +38,20 @@ public:
 	virtual void                    GetDeviceInfo(HmdDeviceInfo& info) const override;
 
 	virtual void                    GetCameraSetupInfo(float& fov, float& aspectRatioFactor) const override;
-	virtual void                    GetAsymmetricCameraSetupInfo(int nEye, float& fov, float& aspectRatio, float& asymH, float& asymV, float& eyeDist) const override;
+	virtual HMDCameraSetup GetHMDCameraSetup(int nEye, float ratio, float fnear) const override;
 
 	virtual void                    DisableHMDTracking(bool disable) override;
 	virtual void                    UpdateInternal(EInternalUpdate) override {};
 	virtual void                    RecenterPose() override;
-	virtual void                    UpdateTrackingState(EVRComponent) override;
+	virtual void                    UpdateTrackingState(EVRComponent, std::uint64_t frameId) override;
 	virtual const HmdTrackingState& GetNativeTrackingState() const override;
 	virtual const HmdTrackingState& GetLocalTrackingState() const override;
 	virtual Quad GetPlayArea() const override { return Quad(ZERO); }
 	virtual Vec2 GetPlayAreaSize() const override { return Vec2(ZERO); }
 
+	virtual stl::optional<Matrix34> RequestAsyncCameraUpdate(uint64_t frameId, const Quat& q, const Vec3 &p) override { return stl::nullopt; }
+
 	virtual const IHmdController*   GetController() const override;
-	virtual const EHmdSocialScreen  GetSocialScreenType(bool* pKeepAspect = nullptr) const override;
 	virtual void                    GetPreferredRenderResolution(unsigned int& width, unsigned int& height);
 	virtual int                     GetControllerCount() const override { return 2; } // DARIO_SKYHARBOR: HACK. NOT RELEVANT FOR SKYHARBOR ANYWAY
 

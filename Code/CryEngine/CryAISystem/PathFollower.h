@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #ifndef PATHFOLLOWER_H
 #define PATHFOLLOWER_H
@@ -142,7 +142,9 @@ public:
 	virtual void SetAllowCuttingCorners(const bool allowCuttingCorners) override;
 
 	// Checks for whether the attached path is affected by a NavMesh change or whether it would be still be fully traversable from its current position.
-	virtual bool IsRemainingPathAffectedByNavMeshChange(const NavigationMeshID affectedMeshID, const MNM::TileID affectedTileID) const override;
+	virtual bool IsRemainingPathAffectedByNavMeshChange(const NavigationMeshID affectedMeshID, const MNM::TileID affectedTileID, bool bAnnotationChange, bool bDataChange) const override;
+
+	virtual bool IsRemainingPathAffectedByFilterChange(const INavMeshQueryFilter* pFilter) const override { return false; }
 };
 
 #endif

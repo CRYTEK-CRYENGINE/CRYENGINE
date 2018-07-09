@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 
@@ -9,7 +9,7 @@
 #include "StringHelpers.h"
 
 #include <stdio.h>      // FILE
-
+#include <CryString/CryPath.h>
 
 CDependencyList::CDependencyList()
 	: m_bDuplicatesWereRemoved(true)
@@ -24,7 +24,7 @@ CDependencyList::CDependencyList(const CDependencyList& obj)
 
 string CDependencyList::NormalizeFilename(const char* filename)
 {
-	return PathHelpers::ToDosPath(PathHelpers::GetAbsoluteAsciiPath(string(filename)));
+	return PathUtil::ToDosPath(PathHelpers::GetAbsolutePath(string(filename)));
 }
 
 void CDependencyList::Add(const char* sInputFilename, const char* sOutputFilename)

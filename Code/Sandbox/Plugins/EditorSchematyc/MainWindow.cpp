@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "MainWindow.h"
@@ -88,7 +88,7 @@ inline void FormatDetailHeader(Schematyc::CStackString& detailHeader, const Sche
 	}
 }
 
-REGISTER_VIEWPANE_FACTORY(CMainWindow, "Schematyc Editor", "Tools", false)
+REGISTER_VIEWPANE_FACTORY(CMainWindow, "Schematyc Editor (Experimental)", "Tools", false)
 
 CMainWindow::CMainWindow()
 	: CAssetEditor(QStringList { "SchematycEntity", "SchematycLibrary" })
@@ -345,76 +345,15 @@ void CMainWindow::OnCloseAsset()
 	m_pAsset = nullptr;
 }
 
-void CMainWindow::closeEvent(QCloseEvent* pEvent)
-{
-	CAssetEditor::closeEvent(pEvent);
-}
-
 void CMainWindow::RegisterWidgets()
 {
 	EnableDockingSystem();
 
-	// Scripts
-	auto createScriptBrowserWidget = [this]()
-	{
-		Schematyc::CScriptBrowserWidget* const pWidget = CreateScriptBrowserWidget();
-		if (pWidget)
-		{
-			pWidget->setWindowTitle("Scripts");
-		}
-		return pWidget;
-	};
-	RegisterWidget("Script Browser", createScriptBrowserWidget, true, false);
-
-	// Graph View
-	auto createGraphViewWidget = [this]()
-	{
-		CGraphViewWidget* const pWidget = CreateGraphViewWidget();
-		if (pWidget)
-		{
-			pWidget->setWindowTitle("Graph View");
-		}
-		return pWidget;
-	};
-	RegisterWidget("Graph View", createGraphViewWidget, true, false);
-
-	// Preview
-	{
-		auto createPreviewWidget = [this]()
-		{
-			Schematyc::CPreviewWidget* const pWidget = CreatePreviewWidget();
-			if (pWidget)
-			{
-				pWidget->setWindowTitle("Preview");
-			}
-			return pWidget;
-		};
-		RegisterWidget("Preview", createPreviewWidget, true, false);
-	}
-
-	// Log
-	{
-		auto createLogWidget = [this]()
-		{
-			Schematyc::CLogWidget* const pWidget = CreateLogWidget();
-			if (pWidget)
-			{
-				pWidget->setWindowTitle("Log");
-			}
-			return pWidget;
-		};
-		RegisterWidget("Log", createLogWidget, true, false);
-	}
-
-	// Inspector
-	auto createInspectorWidget = [this]()
-	{
-		CInspector* const pWidget = CreateInspectorWidget();
-		if (pWidget)
-			pWidget->setWindowTitle("Properties");
-		return pWidget;
-	};
-	RegisterWidget("Properties", createInspectorWidget, true, false);
+	RegisterDockableWidget("Script Browser", [&]() { return CreateScriptBrowserWidget(); }, true, false);
+	RegisterDockableWidget("Graph View", [&]() { return CreateGraphViewWidget(); }, true, false);
+	RegisterDockableWidget("Preview", [&]() { return CreatePreviewWidget(); }, true, false);
+	RegisterDockableWidget("Log", [&]() { return CreateLogWidget(); }, true, false);
+	RegisterDockableWidget("Properties", [&]() { return CreateInspectorWidget(); }, true, false);
 }
 
 void CMainWindow::InitMenu()
@@ -857,3 +796,4 @@ Schematyc::CScriptBrowserWidget* CMainWindow::CreateScriptBrowserWidget()
 }
 
 } // Schematyc
+

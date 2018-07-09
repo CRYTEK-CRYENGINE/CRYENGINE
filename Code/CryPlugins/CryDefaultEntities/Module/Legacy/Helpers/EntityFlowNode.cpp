@@ -187,7 +187,7 @@ void CEntityFlowNode::GetConfiguration(SFlowNodeConfig& config)
 
 void CEntityFlowNode::ProcessEvent(EFlowEvent event, SActivationInfo* pActInfo)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_ACTION);
+	CRY_PROFILE_FUNCTION(PROFILE_ACTION);
 
 	switch (event)
 	{
@@ -244,7 +244,7 @@ void CEntityFlowNode::ProcessEvent(EFlowEvent event, SActivationInfo* pActInfo)
 	}
 }
 
-void CEntityFlowNode::OnEntityEvent(IEntity*pEntity, SEntityEvent& event)
+void CEntityFlowNode::OnEntityEvent(IEntity*pEntity, const SEntityEvent& event)
 {
 	if (!m_pGraph->IsEnabled() || m_pGraph->IsSuspended() || !m_pGraph->IsActive())
 		return;

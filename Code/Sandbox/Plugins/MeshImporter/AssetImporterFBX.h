@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include <AssetSystem/AssetImporter.h>
 
@@ -64,3 +64,4 @@ private:
 	std::unique_ptr<QTemporaryDir> m_pTempDir;
 	bool m_bCreateMaterial;
 };
+

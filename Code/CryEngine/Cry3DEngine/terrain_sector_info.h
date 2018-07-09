@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "terrain_sector.h"
 
@@ -11,3 +11,8 @@ STRUCT_VAR_INFO(fRange, TYPE_INFO(float))
 STRUCT_VAR_INFO(nSize, TYPE_INFO(int))
 STRUCT_VAR_INFO(nSurfaceTypesNum, TYPE_INFO(int))
 STRUCT_INFO_END(STerrainNodeChunk)
+
+STRUCT_INFO_BEGIN(SHeightMapItem)
+STRUCT_BITFIELD_INFO(surface, TYPE_INFO(uint32), 20)
+STRUCT_BITFIELD_INFO(height, TYPE_INFO(uint32), 12)
+STRUCT_INFO_END(SHeightMapItem)

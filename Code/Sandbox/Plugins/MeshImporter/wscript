@@ -1,4 +1,4 @@
-# Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved.
+# Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 def build(bld): 
 
@@ -21,10 +21,11 @@ def build(bld):
 		vs_filter                   = 'Sandbox/Plugins',
 		file_list                   = 'meshimporter.waf_files',
 		defines                     = [ 'BUILDING_FBX_TOOL' ],
-		includes                    = [ Path('Code/SDKs/FbxSdk/include'), Path('Code/SDKs/FbxSdk/include'), Path('Code/Sandbox/EditorQt'), Path('Code/Sandbox/EditorQt/Include') ],
-		use                         = [ 'Sandbox' ],
+		includes                    = [ Path('Code/SDKs/FbxSdk/include'), Path('Code/Sandbox/Plugins/MFCToolsPlugin') ],
+		use                         = [ 'Sandbox', 'MFCToolsPlugin'],
 		pch                         = 'StdAfx.cpp',
 		win_x64_debug_libpath       = Path('Code/SDKs/FbxSdk/lib/' + fbx_sdk_subfolder + '/x64/debug'),
 		win_x64_profile_libpath     = Path('Code/SDKs/FbxSdk/lib/' + fbx_sdk_subfolder + '/x64/release'),
 		lib                         = 'libfbxsdk-md',
 	)
+

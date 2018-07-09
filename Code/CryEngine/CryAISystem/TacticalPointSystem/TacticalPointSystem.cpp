@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 /* Notes
    MTJ 22/07/07
@@ -451,7 +451,7 @@ int CTacticalPointSystem::SyncQuery(TPSQueryID queryID, const QueryContext& cont
 int CTacticalPointSystem::SyncQueryShortlist
   (TPSQueryID queryID, const QueryContext& context, TTacticalPoints& vPoints, int n)
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 	CAISystem* pAISystem = GetAISystem();
 	vPoints.clear();
@@ -767,7 +767,7 @@ bool CTacticalPointSystem::ContinueQueryEvaluation(SQueryEvaluation& eval, CTime
 bool CTacticalPointSystem::SetupHeapEvaluation(const std::vector<CCriterion>& vConditions, const std::vector<CCriterion>& vWeights, const QueryContext& context, const std::vector<CTacticalPoint>& vPoints, int n, SQueryEvaluation& eval) const
 {
 	// Do we have proper error handling, when the cheap tests fail? Probably need goto.
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 	// Note: Points are always currently in consideration, or chosen as results, or rejected, which are all mutually exclusive.
 
@@ -1324,7 +1324,7 @@ WeightFail:
 
 bool CTacticalPointSystem::Generate(const CCriterion& criterion, const QueryContext& context, const COptionCriteria* pOption, TTacticalPoints& accumulator) const
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 	// (MATT) Should pOption be a reference, or optional? {2008/04/23}
 	assert(pOption);
@@ -1409,7 +1409,7 @@ bool CTacticalPointSystem::Generate(const CCriterion& criterion, const QueryCont
 bool CTacticalPointSystem::GenerateInternal(TTacticalPointQuery query, const QueryContext& context, float fSearchDist, const COptionCriteria* pOption,
                                             CAIObject* pObject, const Vec3& vObjectPos, CAIObject* pObjectAux, const Vec3& vObjectAuxPos, TTacticalPoints& accumulator) const
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 	CAISystem* pAISystem = GetAISystem();
 
 	// ACTOR HACK
@@ -1426,7 +1426,7 @@ bool CTacticalPointSystem::GenerateInternal(TTacticalPointQuery query, const Que
 	case eTPQ_GO_Hidespots:
 		if (gAIEnv.CVars.CoverSystem)
 		{
-			FRAME_PROFILER("TPS Generate Cover Locations", gEnv->pSystem, PROFILE_AI);
+			CRY_PROFILE_REGION(PROFILE_AI, "TPS Generate Cover Locations");
 
 			m_cover.resize(0);
 			gAIEnv.pCoverSystem->GetCover(objPos, fSearchDist, m_cover);
@@ -1436,17 +1436,20 @@ bool CTacticalPointSystem::GenerateInternal(TTacticalPointQuery query, const Que
 			if (!pipeUser)
 				return false;
 
-			m_avoidCircles.resize(0);
-			GatherAvoidCircles(objPos, fSearchDist, pipeUser, m_avoidCircles);
+			ICoverUser* pCoverUser = pipeUser->GetCoverUser();
+			if (!pCoverUser)
+				return false;
 
-			Vec3 eyes[8];
-			const uint32 MaxEyeCount = std::min<uint32>(gAIEnv.CVars.CoverMaxEyeCount, CRY_ARRAY_COUNT(eyes));
+			// Manually update cover eyes with our object
+			pipeUser->UpdateCoverEyesWithTarget(pObjectAux, vObjectAuxPos);
+			const DynArray<Vec3>& eyes = pCoverUser->GetCoverEyes();
 
-			uint32 eyeCount = pipeUser->GetCoverEyes(pObjectAux, vObjectAuxPos, eyes, MaxEyeCount);
-
-			if (eyeCount)
+			if (eyes.size())
 			{
-				FRAME_PROFILER("TPS Generate Cover Locations [GetOcclusion]", gEnv->pSystem, PROFILE_AI);
+				CRY_PROFILE_REGION(PROFILE_AI, "TPS Generate Cover Locations [GetOcclusion]");
+
+				m_avoidCircles.resize(0);
+				GatherAvoidCircles(objPos, fSearchDist, pipeUser, m_avoidCircles);
 
 				IPersistantDebug* pPD = 0;
 				if (CVars.DebugTacticalPointsBlocked)
@@ -1465,7 +1468,7 @@ bool CTacticalPointSystem::GenerateInternal(TTacticalPointQuery query, const Que
 					{
 						const CoverID& coverID = m_cover[i];
 
-						if (pipeUser && pipeUser->IsCoverBlacklisted(coverID))
+						if (pCoverUser->IsCoverBlackListed(coverID))
 							continue;
 
 						Vec3 normal;
@@ -1496,36 +1499,17 @@ bool CTacticalPointSystem::GenerateInternal(TTacticalPointQuery query, const Que
 						if (occupied)
 							continue;
 
-						bool inCover = true;
-
-						float lowestSq = FLT_MAX;
-						float heightSq;
-
-						const CoverSurface& surface = gAIEnv.pCoverSystem->GetCoverSurface(coverID);
-
-						for (uint e = 0; e < eyeCount; ++e)
+						const float effectiveCoverHeight = pCoverUser->CalculateEffectiveHeightAt(location, coverID);
+						if (effectiveCoverHeight != -1.0f)
 						{
-							if (!surface.GetCoverOcclusionAt(eyes[e], location, inCoverRadius, &heightSq))
-							{
-								inCover = false;
-								break;
-							}
-
-							if (heightSq < lowestSq)
-								lowestSq = heightSq;
-						}
-
-						if (inCover)
-						{
-							if ((heightSq >= sqr(context.effectiveCoverHeight)) || (context.effectiveCoverHeight <= 0.0001f))
+							if ((effectiveCoverHeight >= context.effectiveCoverHeight) || (context.effectiveCoverHeight <= 0.0001f))
 								accumulator.push_back(CTacticalPoint(coverID, location));
 							else
 							{
-								float height = sqrt_tpl(heightSq);
-								location.z += height;
+								location.z += effectiveCoverHeight;
 
 								if (pPD)
-									pPD->AddCone(location, Vec3(0.0f, 0.0f, -1.0f), 0.25f, height, Col_Red, 3.5f);
+									pPD->AddCone(location, Vec3(0.0f, 0.0f, -1.0f), 0.25f, effectiveCoverHeight, Col_Red, 3.5f);
 							}
 						}
 						else if (pPD)
@@ -1559,79 +1543,6 @@ bool CTacticalPointSystem::GenerateInternal(TTacticalPointQuery query, const Que
 					accumulator.push_back(CTacticalPoint(coverID, location));
 				}
 			}
-		}
-		else
-		{
-			// We could go deeper than this and reap greater benefits
-			CAIActor* pAIActor = static_cast<CAIActor*>(context.pAIActor);
-			CPipeUser* pPipeUser = pAIActor->CastToCPipeUser();
-
-			if (pPipeUser)
-			{
-				// MATT Actor is checked for NULL internally
-				pAISystem->GetOccupiedHideObjectPositions(pPipeUser, m_occupiedSpots);
-			}
-
-			IPersistantDebug* pPD = NULL;
-			if (CVars.DebugTacticalPointsBlocked)
-			{
-				pPD = gEnv->pGameFramework->GetIPersistantDebug();
-				pPD->Begin("OccupiedOrUnreachablePoints", false);
-			}
-
-			MultimapRangeHideSpots hidespots;
-			MapConstNodesDistance traversedNodes;
-
-			IEntity* pEntity = gEnv->pEntitySystem->GetEntity(context.actorEntityId);
-
-			bool skipNavigationTest = 0 != (context.actorNavCaps & IAISystem::NAV_VOLUME);
-			pAISystem->GetHideSpotsInRange(hidespots, traversedNodes, objPos, fSearchDist,
-			                               context.actorNavCaps, fAgentRadius, skipNavigationTest, pEntity);
-
-			Vec3 dir;
-			MultimapRangeHideSpots::iterator itHEnd = hidespots.end();
-			for (MultimapRangeHideSpots::iterator itH = hidespots.begin(); itH != itHEnd; ++itH)
-			{
-				SHideSpot& hideSpot = itH->second;
-
-				// Check if this spot is occupied
-				if (HasPointInRange(m_occupiedSpots, hideSpot.info.pos, 2.0f) // In original code, this was 0.5f, but that doesn't work...
-				                                                              // Marcio: Avoid hidepoints the actor couldn't reach recently
-				    || ((pPipeUser != NULL) && pPipeUser->WasHideObjectRecentlyUnreachable(hideSpot.info.pos)))
-				{
-					if (pPD) pPD->AddSphere(hideSpot.info.pos + Vec3(0, 0, 0.05f), 2.00f, ColorF(0, 1, 0, 1), 1.0f);
-					continue;
-				}
-
-				// We use an auxiliary object (to hide from)
-				// Kevin - Can be None, meaning we just want a hidespot
-				if (!vObjectAuxPos.IsZero())
-				{
-					// Check if this is directional (an anchor)
-					// if ( !hideSpot.dir.IsZero() )
-					if (fabsf(hideSpot.info.dir.x) + fabsf(hideSpot.info.dir.y) + fabsf(hideSpot.info.dir.z) > 0.0003f)
-					{
-						// check that the enemy is vaguely in the dir of the hide anchor
-						Vec3 dirSpotToAuxObj = vObjectAuxPos - hideSpot.info.pos;
-						dirSpotToAuxObj.NormalizeSafe();
-						float fDot = dirSpotToAuxObj.Dot(hideSpot.info.dir);
-						if (fDot < HIDESPOT_COVERAGE_ANGLE_COS)
-						{
-							if (pPD) pPD->AddSphere(hideSpot.info.pos + Vec3(0, 0, 0.05f), 0.75f, ColorF(1, 0, 0, 1), 1.0f);
-							continue;
-						}
-					}
-
-					if (hideSpot.pObstacle) // If obstacle, move point from centre to behind it, w.r.t. object
-						pAISystem->AdjustOmniDirectionalCoverPosition(hideSpot.info.pos, dir,
-						                                              max(hideSpot.pObstacle->fApproxRadius, 0.0f), fAgentRadius, vObjectAuxPos, true);
-				}
-
-				CTacticalPoint point(hideSpot);
-				accumulator.push_back(point);
-			}
-
-			m_occupiedSpots.resize(0);
 		}
 		break;
 
@@ -1809,7 +1720,7 @@ bool CTacticalPointSystem::GenerateInternal(TTacticalPointQuery query, const Que
 				{
 					const size_t maxCenterLocationCount = 512;
 					Vec3 centerLocations[maxCenterLocationCount];
-					if (size_t locationCount = gAIEnv.pNavigationSystem->GetTriangleCenterLocationsInMesh(meshID, objPos, searchAABB, centerLocations, maxCenterLocationCount))
+					if (size_t locationCount = gAIEnv.pNavigationSystem->GetTriangleCenterLocationsInMesh(meshID, objPos, searchAABB, centerLocations, maxCenterLocationCount, nullptr))
 					{
 						for (size_t i = 0; i < locationCount; ++i)
 						{
@@ -1946,7 +1857,7 @@ bool CTacticalPointSystem::BoolPropertyInternal(TTacticalPointQuery query, const
 				if (pAIActor)
 				{
 					const Vec3 testPosition(point.GetPos());
-					result = pNavigationSystem->IsLocationValidInNavigationMesh(pAIActor->GetNavigationTypeID(), testPosition);
+					result = pNavigationSystem->IsLocationValidInNavigationMesh(pAIActor->GetNavigationTypeID(), testPosition, nullptr);
 				}
 			}
 		}
@@ -2523,7 +2434,7 @@ bool CTacticalPointSystem::RealPropertyInternal(TTacticalPointQuery query, const
 			fY *= fHeight * 0.01f;
 
 			// [2/5/2009 evgeny] Reject points that are behind the frustrum near plane
-			CCamera& camera = GetISystem()->GetViewCamera();
+			const CCamera& camera = GetISystem()->GetViewCamera();
 			Vec3 vCameraNormalizedDirection = camera.GetViewdir().normalize();
 			Vec3 vPointRelativeToCameraNearPlane =
 			  point.GetPos() - camera.GetPosition() - camera.GetNearPlane() * vCameraNormalizedDirection;
@@ -3549,7 +3460,7 @@ void CTacticalPointSystem::DestroyAllQueries()
 	m_mQueryEvaluationsInProgress.clear();
 }
 
-void CTacticalPointSystem::Update(float fBudgetSeconds)
+void CTacticalPointSystem::Update(const float fBudgetSeconds)
 {
 	// Convert to absolute integer values time limit for precision and efficiency
 	// Convert to floats only for debugging

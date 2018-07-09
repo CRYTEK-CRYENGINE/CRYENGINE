@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "stdafx.h"
 #include "CharacterManager.h"
@@ -1514,34 +1514,6 @@ void CharacterManager::CleanupModelCache(bool bForceCleanup)
 	CryLogAlways("CharacterManager:CleanModelCache - Placeholder objects '%d'", CPlaceholderCharacter::GetAllocatedObjects());
 #endif
 
-	uint32 numSKEL1 = m_arrModelCacheSKEL.size();
-	for (uint32 i = 0; i < numSKEL1; i++)
-		m_arrModelCacheSKEL[i].m_pDefaultSkeleton->SetKeepInMemory(true);   // Make sure nothing gets deleted.
-
-	int32 numSKEL2 = m_arrModelCacheSKEL.size();                            // Clean all instances.
-	for (int32 s = (numSKEL2 - 1); s > -1; s--)
-	{
-		int numInstances = m_arrModelCacheSKEL[s].m_RefByInstances.size();
-		if (numInstances)
-			g_pISystem->Warning(VALIDATOR_MODULE_ANIMATION, VALIDATOR_WARNING, 0, "CharacterManager.CleanupInstances", "Forcing deletion of %d instances for body %s. CRASH POSSIBLE because other subsystems may have stored dangling pointer(s).", m_arrModelCacheSKEL[s].m_pDefaultSkeleton->GetRefCounter(), m_arrModelCacheSKEL[s].m_pDefaultSkeleton->m_strFilePath.c_str());
-		for (int32 i = (numInstances - 1); i > -1; i--)
-			delete m_arrModelCacheSKEL[s].m_RefByInstances[i];
-	}
-
-	uint32 numSKEL3 = m_arrModelCacheSKEL.size();                           //count backwards, because the array is decreased after each delete.
-	for (int32 i = (numSKEL3 - 1); i > -1; i--)
-		m_arrModelCacheSKEL[i].m_pDefaultSkeleton->DeleteIfNotReferenced(); //even if locked in memory
-
-	uint32 numSKEL4 = m_arrModelCacheSKEL.size();                           //if we still have instances, then something went wrong
-	if (numSKEL4)
-	{
-		for (uint32 i = 0; i < numSKEL4; i++)
-			CryLogAlways("m_arrModelCacheSKEL[%i] = %s", i, m_arrModelCacheSKEL[i].m_pDefaultSkeleton->GetModelFilePath());
-		CryFatalError("m_arrModelCacheSKEL is supposed to be empty, but there are still %d CSkels in memory", numSKEL4);
-	}
-
-	//----------------------------------------------------------------------------------------------------------------------
-
 	uint32 numSKIN1 = m_arrModelCacheSKIN.size();
 	for (uint32 i = 0; i < numSKIN1; i++)
 		m_arrModelCacheSKIN[i].m_pDefaultSkinning->SetKeepInMemory(true);   // Make sure nothing gets deleted.
@@ -1572,6 +1544,34 @@ void CharacterManager::CleanupModelCache(bool bForceCleanup)
 		for (uint32 i = 0; i < numSKIN4; i++)
 			CryLogAlways("m_arrModelCacheSKIN[%i] = %s", i, m_arrModelCacheSKIN[i].m_pDefaultSkinning->GetModelFilePath());
 		CryFatalError("m_arrModelCacheSKIN is supposed to be empty, but there are still %d CSkins in memory", numSKIN4);
+	}
+
+	//----------------------------------------------------------------------------------------------------------------------
+
+	uint32 numSKEL1 = m_arrModelCacheSKEL.size();
+	for (uint32 i = 0; i < numSKEL1; i++)
+		m_arrModelCacheSKEL[i].m_pDefaultSkeleton->SetKeepInMemory(true);   // Make sure nothing gets deleted.
+
+	int32 numSKEL2 = m_arrModelCacheSKEL.size();                            // Clean all instances.
+	for (int32 s = (numSKEL2 - 1); s > -1; s--)
+	{
+		int numInstances = m_arrModelCacheSKEL[s].m_RefByInstances.size();
+		if (numInstances)
+			g_pISystem->Warning(VALIDATOR_MODULE_ANIMATION, VALIDATOR_WARNING, 0, "CharacterManager.CleanupInstances", "Forcing deletion of %d instances for body %s. CRASH POSSIBLE because other subsystems may have stored dangling pointer(s).", m_arrModelCacheSKEL[s].m_pDefaultSkeleton->GetRefCounter(), m_arrModelCacheSKEL[s].m_pDefaultSkeleton->m_strFilePath.c_str());
+		for (int32 i = (numInstances - 1); i > -1; i--)
+			delete m_arrModelCacheSKEL[s].m_RefByInstances[i];
+	}
+
+	uint32 numSKEL3 = m_arrModelCacheSKEL.size();                           //count backwards, because the array is decreased after each delete.
+	for (int32 i = (numSKEL3 - 1); i > -1; i--)
+		m_arrModelCacheSKEL[i].m_pDefaultSkeleton->DeleteIfNotReferenced(); //even if locked in memory
+
+	uint32 numSKEL4 = m_arrModelCacheSKEL.size();                           //if we still have instances, then something went wrong
+	if (numSKEL4)
+	{
+		for (uint32 i = 0; i < numSKEL4; i++)
+			CryLogAlways("m_arrModelCacheSKEL[%i] = %s", i, m_arrModelCacheSKEL[i].m_pDefaultSkeleton->GetModelFilePath());
+		CryFatalError("m_arrModelCacheSKEL is supposed to be empty, but there are still %d CSkels in memory", numSKEL4);
 	}
 
 	CryCHRLoader::ClearCachedLodSkeletonResults();
@@ -1657,7 +1657,8 @@ uint32 CharacterManager::GetRendererMainThreadId()
 
 void CharacterManager::UpdateRendererFrame()
 {
-	s_renderFrameIdLocal++;
+	if (!s_bPaused)
+		s_renderFrameIdLocal++;
 }
 
 // should be called every frame
@@ -1764,10 +1765,12 @@ void CharacterManager::Update(bool bPaused)
 		g_pAuxGeom->Draw2dLabel(1, g_YLine, 1.3f, fColor, false, "SkeletonUpdates: %d", g_SkeletonUpdates);
 		g_YLine += 16.0f;
 
-		uint32 numFSU = m_arrSkeletonUpdates.size();
+		size_t numFSU = std::count_if(begin(m_arrForceSkeletonUpdates), end(m_arrForceSkeletonUpdates), [](int i) {return i > 0; });
 		g_pAuxGeom->Draw2dLabel(1, g_YLine, 1.3f, fColor, false, "Instances with 'Force Skeleton Update': %d", numFSU);
+
 		g_YLine += 16.0f;
-		for (uint32 i = 0; i < numFSU; i++)
+		const uint32 numInstances = m_arrForceSkeletonUpdates.size();
+		for (uint32 i = 0; i < numInstances; i++)
 		{
 			g_pAuxGeom->Draw2dLabel(1, g_YLine, 1.2f, fColor, false, "Anim:(%d)  Force:(%d)  Visible:(%d)  ModelPath: %s", m_arrAnimPlaying[i], m_arrForceSkeletonUpdates[i], m_arrVisible[i], m_arrSkeletonUpdates[i].c_str());
 			g_YLine += 14.0f;
@@ -2736,6 +2739,14 @@ void CharacterManager::DumpAssetStatistics()
 // can be called instead of Update() for UI purposes (such as in preview viewports, etc).
 void CharacterManager::DummyUpdate()
 {
+	// Note: DummyUpdate() is mutually exclusive with Update(). Either one or the other will be called, exactly once per frame, depending on whether we have a level loaded in Sandbox or not.
+
+	CAnimationContext::Instance().Update();
+	// We need to update the animation context here in order to flush the animation memory pool, regardless of if the character manager is fully running or not.
+	// The reason for that is, even if character manager updates are suspended (i.e. no level is loaded), external tools (Character Tool, Mannequin, etc) can still
+	// orchestrate animation updates of the character instances they own. If the memory pool is not flushed, this results in perpetual growth of memory usage.
+	// TODO: Memory pooling in the animation system needs to be streamlined.
+
 	m_nUpdateCounter++;
 }
 
@@ -2917,14 +2928,15 @@ ICharacterInstance* CharacterManager::LoadCharacterDefinition(const string pathn
 		if (IsBaseSKEL == 0 && IsBaseCGA == 0 && nLogWarnings && !gEnv->IsEditor())
 			CryFatalError("CryAnimation: base-character must be a CRY_SKEL_FILE_EXT or a CGA: %s", pathname.c_str());
 
-		pCharInstance = (CCharInstance*)CreateInstance(pFilepathSKEL, nLoadingFlags);
-		if (pCharInstance == 0 && nLogWarnings)
+		pCharInstance = static_cast<CCharInstance*>(CreateInstance(pFilepathSKEL, nLoadingFlags));
+		if (!pCharInstance)
 		{
-			g_pILog->LogError("Couldn't create base-character: %s", pFilepathSKEL);
-			return NULL;
+			if (nLogWarnings)
+			{
+				g_pILog->LogError("Couldn't create base-character: %s", pFilepathSKEL);
+			}
+			return nullptr;
 		}
-
-		PREFAST_ASSUME(pCharInstance);        // caught above
 
 		if (m_arrCacheForCDF[cdfId].m_pBaseModelMaterial)
 			pCharInstance->SetIMaterial_Instance(m_arrCacheForCDF[cdfId].m_pBaseModelMaterial);
@@ -3258,7 +3270,7 @@ CDefaultSkeleton* CharacterManager::CreateExtendedSkel(CCharInstance* pCharInsta
 		pExtDefaultSkeleton->m_poseDefaultData.GetJointsAbsolute()[i] = lh.m_arrExtModelJoints[i].m_DefaultAbsolute;
 		pExtDefaultSkeleton->m_poseDefaultData.GetJointsRelative()[i] = pExtDefaultSkeleton->m_poseDefaultData.GetJointsAbsolute()[p].GetInverted() * lh.m_arrExtModelJoints[i].m_DefaultAbsolute;
 	}
-	pExtDefaultSkeleton->PrepareJointIDHash();
+	pExtDefaultSkeleton->RebuildJointLookupCaches();
 	pExtDefaultSkeleton->CopyAndAdjustSkeletonParams(pDefaultSkeleton);
 	pExtDefaultSkeleton->SetupPhysicalProxies(pDefaultSkeleton->m_arrBackupPhyBoneMeshes, pDefaultSkeleton->m_arrBackupBoneEntities, pDefaultSkeleton->GetIMaterial(), pFilepathSKEL);
 	pExtDefaultSkeleton->VerifyHierarchy();
@@ -4028,7 +4040,7 @@ void CharacterManager::RenderDebugInstances(const SRenderingPassInfo& passInfo)
 		if (pMtl)
 			rp.pMaterial = pMtl;
 
-		pExampleInst->Render(rp, QuatTS(IDENTITY), passInfo);
+		pExampleInst->Render(rp, passInfo);
 	}
 }
 

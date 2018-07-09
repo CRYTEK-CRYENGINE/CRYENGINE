@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -20,7 +20,7 @@ namespace CryVR
 namespace OpenVR
 {
 class Controller;
-class Device : public IOpenVRDevice, public IHmdEventListener, public ISystemEventListener
+class Device final : public IOpenVRDevice, public IHmdEventListener, public ISystemEventListener
 {
 public:
 	// IHmdDevice
@@ -31,29 +31,37 @@ public:
 	virtual void                    GetDeviceInfo(HmdDeviceInfo& info) const override { info = m_devInfo; }
 
 	virtual void                    GetCameraSetupInfo(float& fov, float& aspectRatioFactor) const override;
-	virtual void                    GetAsymmetricCameraSetupInfo(int nEye, float& fov, float& aspectRatio, float& asymH, float& asymV, float& eyeDist) const;
+	virtual HMDCameraSetup GetHMDCameraSetup(int nEye, float projRatio, float fnear) const override;
 	virtual void                    UpdateInternal(EInternalUpdate type) override;
 	virtual void                    RecenterPose() override;
-	virtual void                    UpdateTrackingState(EVRComponent type) override;
+	virtual void                    UpdateTrackingState(EVRComponent type, uint64_t frameId) override;
 	virtual const HmdTrackingState& GetNativeTrackingState() const override;
 	virtual const HmdTrackingState& GetLocalTrackingState() const override;
 	virtual Quad                    GetPlayArea() const override;
 	virtual Vec2                    GetPlayAreaSize() const override;
 	virtual const IHmdController*   GetController() const override      { return &m_controller; }
-	virtual const EHmdSocialScreen  GetSocialScreenType(bool* pKeepAspect = nullptr) const override;
 	virtual int                     GetControllerCount() const override { __debugbreak(); return 2; /* OPENVR_TODO */ }
 	virtual void                    GetPreferredRenderResolution(unsigned int& width, unsigned int& height) override;
 	virtual void                    DisableHMDTracking(bool disable) override;
+
+	virtual stl::optional<Matrix34> RequestAsyncCameraUpdate(uint64_t frameId, const Quat& q, const Vec3 &p) override;
 	// ~IHmdDevice
 
 	// IOpenVRDevice
-	virtual void SubmitOverlay(int id);
-	virtual void SubmitFrame();
-	virtual void OnSetupEyeTargets(ERenderAPI api, ERenderColorSpace colorSpace, void* leftEyeHandle, void* rightEyeHandle);
-	virtual void OnSetupOverlay(int id, ERenderAPI api, ERenderColorSpace colorSpace, void* overlayTextureHandle);
-	virtual void OnDeleteOverlay(int id);
-	virtual void GetRenderTargetSize(uint& w, uint& h);
+	virtual void SubmitOverlay(int id, const RenderLayer::CProperties* pOverlayProperties) override;
+	virtual void SubmitFrame() override;
+	virtual void OnSetupEyeTargets(ERenderAPI api, ERenderColorSpace colorSpace, void* leftEyeHandle, void* rightEyeHandle) override;
+	// Setup an overlay. Only one overlay can be "highest quality", should be set to the top most overlay which should be used for video/hud.
+	virtual void OnSetupOverlay(int id, ERenderAPI api, ERenderColorSpace colorSpace, void* overlayTextureHandle, const QuatTS &pose, bool absolute, bool highestQuality = false) override;
+	virtual void OnDeleteOverlay(int id) override;
+	virtual void OnPrepare() override;
+	virtual void OnPostPresent() override;
+	virtual bool IsActiveOverlay(int id) const override;
+	virtual void GetRenderTargetSize(uint& w, uint& h) override;
 	virtual void GetMirrorImageView(EEyeType eye, void* resource, void** mirrorTextureView) override;
+
+	void* GetD3D12EyeTextureData(EEyeType eye, ID3D12Resource *res, ID3D12CommandQueue *queue) override;
+	void* GetD3D12QuadTextureData(int quad, ID3D12Resource *res, ID3D12CommandQueue *queue) override;
 	// ~IOpenVRDevice
 
 	// ISystemEventListener
@@ -70,8 +78,6 @@ public:
 public:
 	static Device* CreateInstance(vr::IVRSystem* pSystem);
 	void           SetupRenderModels();
-	void           CaptureInputFocus(bool capture);
-	bool           HasInputFocus() { return m_hasInputFocus; }
 
 private:
 	Device(vr::IVRSystem* pSystem);
@@ -87,7 +93,7 @@ private:
 	static inline Matrix44 BuildMatrix(const vr::HmdMatrix44_t& in);
 	static inline Quat     HmdQuatToWorldQuat(const Quat& quat);
 	static inline Vec3     HmdVec3ToWorldVec3(const Vec3& vec);
-	inline void            CopyPoseState(HmdPoseState& world, HmdPoseState& hmd, vr::TrackedDevicePose_t& source);
+	inline void            CopyPoseState(HmdPoseState& world, HmdPoseState& hmd, const vr::TrackedDevicePose_t& source);
 	void                   LoadDeviceRenderModel(int deviceIndex);
 	void                   DumpDeviceRenderModel(int deviceIndex);
 
@@ -100,11 +106,6 @@ private:
 	};
 	struct RenderModel
 	{
-		/*PodArray<Vec3> vertices;
-		   PodArray<Vec3> normals;
-		   PodArray<Vec2> uvs;
-		   PodArray<vtx_idx> indices;*/
-
 		RenderModel(vr::IVRRenderModels* renderModels, string name);
 		~RenderModel();
 		void Update();
@@ -123,8 +124,9 @@ private:
 	{
 		bool                  visible;
 		bool                  submitted;
+		bool                  absolute;
 		vr::VROverlayHandle_t handle;
-		vr::Texture_t*        vrTexture;
+		vr::Texture_t         vrTexture;
 		vr::HmdMatrix34_t     pos;
 	};
 	// OpenVR Pointers
@@ -132,32 +134,40 @@ private:
 	vr::IVRCompositor*      m_compositor;
 	vr::IVRRenderModels*    m_renderModels;
 	vr::IVROverlay*         m_overlay;
-	vr::Texture_t*          m_eyeTargets[EEyeType::eEyeType_NumEyes];
-	SOverlay                m_overlays[RenderLayer::eQuadLayers_Total];
+
+	vr::Texture_t           m_eyeTargets[EEyeType::eEyeType_NumEyes] = {};
+	vr::D3D12TextureData_t  m_d3d12EyeTextureData[EEyeType::eEyeType_NumEyes] = {};
+	SOverlay                m_overlays[RenderLayer::eQuadLayers_Total] = {};
+	vr::D3D12TextureData_t  m_d3d12QuadTextureData[RenderLayer::eQuadLayers_Total] = {};
+
 	// General device fields:
 	bool                    m_bLoadingScreenActive;
 	volatile int            m_refCount;
-	int                     m_lastFrameID_UpdateTrackingState; // we could remove this. at some point we may want to sample more than once the tracking state per frame.
+	uint64_t                m_lastFrameID_UpdateTrackingState; // we could remove this. at some point we may want to sample more than once the tracking state per frame.
 	HmdDeviceInfo           m_devInfo;
 	EHmdSocialScreen        m_defaultSocialScreenBehavior;
 	// Tracking related:
-	vr::TrackedDevicePose_t m_rTrackedDevicePose[vr::k_unMaxTrackedDeviceCount];
 	HmdTrackingState        m_nativeStates[vr::k_unMaxTrackedDeviceCount];
 	HmdTrackingState        m_localStates[vr::k_unMaxTrackedDeviceCount];
 	HmdTrackingState        m_disabledTrackingState;
 	// Controller related:
 	Controller              m_controller;
 	RenderModel*            m_deviceModels[vr::k_unMaxTrackedDeviceCount];
-	bool                    m_hasInputFocus;
 	bool                    m_hmdTrackingDisabled;
-	float                   m_hmdQuadDistance;
-	float                   m_hmdQuadWidth;
-	int                     m_hmdQuadAbsolute;
 
 	ICVar*                  m_pHmdInfoCVar;
 	ICVar*                  m_pHmdSocialScreenKeepAspectCVar;
 	ICVar*                  m_pHmdSocialScreenCVar;
 	ICVar*                  m_pTrackingOriginCVar;
+
+	vr::TrackedDevicePose_t m_predictedRenderPose[vr::k_unMaxTrackedDeviceCount];
+
+	double m_submitTimeStamp;
+	double m_poseTimestamp;
+	double m_predictedRenderPoseTimestamp;
+
+	// Parameters for symmetric camera, used for frustum culling
+	float m_symLeftTan{ 0.0f };
 };
 } // namespace OpenVR
 } // namespace CryVR

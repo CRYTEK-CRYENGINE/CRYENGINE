@@ -5,8 +5,8 @@
 #include <CrySchematyc/IObject.h>
 #include <CrySchematyc/Utils/SharedString.h>
 #include <CrySchematyc/Env/IEnvRegistrar.h>
-
 #include <CryGame/IGameFramework.h>
+
 #include <IActionMapManager.h>
 
 class CPlugin_CryDefaultEntities;
@@ -119,7 +119,7 @@ namespace Cry
 				{
 					if (m_actions.size() > 0)
 					{
-						gEnv->pGameFramework->GetIActionMapManager()->AddExtraActionListener(this);
+						gEnv->pGameFramework->GetIActionMapManager()->AddExtraActionListener(this, m_szName);
 					}
 				}
 
@@ -127,7 +127,7 @@ namespace Cry
 				{
 					if (m_actions.size() > 0)
 					{
-						gEnv->pGameFramework->GetIActionMapManager()->RemoveExtraActionListener(this);
+						gEnv->pGameFramework->GetIActionMapManager()->RemoveExtraActionListener(this, m_szName);
 					}
 				}
 
@@ -145,7 +145,7 @@ namespace Cry
 
 					if (m_actions.size() == 0)
 					{
-						gEnv->pGameFramework->GetIActionMapManager()->AddExtraActionListener(this);
+						gEnv->pGameFramework->GetIActionMapManager()->AddExtraActionListener(this, m_szName);
 					}
 
 					m_actions.emplace_back(SGroup::SAction{ szName, callback });

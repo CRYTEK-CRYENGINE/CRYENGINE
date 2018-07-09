@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 // -------------------------------------------------------------------------
 //  File name:   BoidsProxy.cpp
@@ -57,7 +57,7 @@ void CBoidsProxy::Release()
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CBoidsProxy::ProcessEvent(SEntityEvent &event)
+void CBoidsProxy::ProcessEvent(const SEntityEvent& event)
 {
 	switch (event.event) {
 	case ENTITY_EVENT_XFORM:
@@ -80,22 +80,26 @@ void CBoidsProxy::ProcessEvent(SEntityEvent &event)
 		break;
 	case ENTITY_EVENT_UPDATE:
 		if (m_pFlock)
-			m_pFlock->Update(&gEnv->pSystem->GetViewCamera());
+		{
+			CCamera cam = gEnv->pSystem->GetViewCamera();
+			m_pFlock->Update(&cam);
+			gEnv->pSystem->SetViewCamera(cam);
+		}
 		break;
 	}
 }
 
 uint64 CBoidsProxy::GetEventMask() const
 {
-	uint64 eventMask = BIT64(ENTITY_EVENT_XFORM) |
-		BIT64(ENTITY_EVENT_PRE_SERIALIZE) |
-		BIT64(ENTITY_EVENT_ENTERAREA) |
-		BIT64(ENTITY_EVENT_LEAVEAREA) |
-		BIT64(ENTITY_EVENT_RESET);
+	uint64 eventMask = ENTITY_EVENT_BIT(ENTITY_EVENT_XFORM) |
+		ENTITY_EVENT_BIT(ENTITY_EVENT_PRE_SERIALIZE) |
+		ENTITY_EVENT_BIT(ENTITY_EVENT_ENTERAREA) |
+		ENTITY_EVENT_BIT(ENTITY_EVENT_LEAVEAREA) |
+		ENTITY_EVENT_BIT(ENTITY_EVENT_RESET);
 
 	if (m_playersInCount > 0)
 	{
-		eventMask |= BIT64(ENTITY_EVENT_UPDATE);
+		eventMask |= ENTITY_EVENT_BIT(ENTITY_EVENT_UPDATE);
 	}
 
 	return eventMask;
@@ -134,15 +138,11 @@ void CBoidsProxy::SetFlock(CFlock *pFlock)
 
 	pArea->SetFlags(pArea->GetFlags() & IEntityAreaComponent::FLAG_NOT_SERIALIZE);
 	pArea->SetSphere(Vec3(0, 0, 0), fMaxDist);
-	if (gEnv->pEntitySystem->EntitiesUseGUIDs())
-		pArea->AddEntity(m_pEntity->GetGuid());
-	else
-		pArea->AddEntity(m_pEntity->GetId()); // add itself.
-
+	pArea->AddEntity(m_pEntity->GetId()); // add itself.
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CBoidsProxy::OnTrigger(bool bEnter, SEntityEvent &event)
+void CBoidsProxy::OnTrigger(bool bEnter, const SEntityEvent &event)
 {
 	EntityId whoId = (EntityId)event.nParam[0];
 	IEntity *pEntity = gEnv->pEntitySystem->GetEntity(whoId);
@@ -189,7 +189,7 @@ void CBoidObjectProxy::Initialize()
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CBoidObjectProxy::ProcessEvent(SEntityEvent &event)
+void CBoidObjectProxy::ProcessEvent(const SEntityEvent& event)
 {
 	if (m_pBoid)
 		m_pBoid->OnEntityEvent(event);
@@ -198,8 +198,8 @@ void CBoidObjectProxy::ProcessEvent(SEntityEvent &event)
 uint64 CBoidObjectProxy::GetEventMask() const
 {
 	return
-		BIT64(ENTITY_EVENT_DONE) |
-		BIT64(ENTITY_EVENT_COLLISION);
+		ENTITY_EVENT_BIT(ENTITY_EVENT_DONE) |
+		ENTITY_EVENT_BIT(ENTITY_EVENT_COLLISION);
 }
 
 //////////////////////////////////////////////////////////////////////////

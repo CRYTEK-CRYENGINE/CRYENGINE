@@ -108,7 +108,9 @@
 			"core/EvaluationResultTransform.cpp",
 			"core/TextualEvaluatorBlueprint.h",
 			"core/EvaluatorBlueprintBase.h",
-			"core/EvaluatorBlueprintBase.cpp"
+			"core/EvaluatorBlueprintBase.cpp",
+			"core/SettingsManager.h",
+			"core/SettingsManager.cpp"
 		]
 	}
 }

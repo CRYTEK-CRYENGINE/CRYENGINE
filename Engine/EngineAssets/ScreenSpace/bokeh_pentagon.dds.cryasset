@@ -1,0 +1,10 @@
+<AssetMetadata version="0" type="Texture" guid="2109f078-7ba0-5e86-13a7-e87908360ef4" source="bokeh_pentagon.TIF">
+ <Files>
+  <File path="bokeh_pentagon.dds"/>
+ </Files>
+ <Details>
+  <Detail name="width">64</Detail>
+  <Detail name="height">64</Detail>
+  <Detail name="mipCount">1</Detail>
+ </Details>
+</AssetMetadata>

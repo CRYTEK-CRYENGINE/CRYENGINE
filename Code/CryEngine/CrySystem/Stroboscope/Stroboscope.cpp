@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 // -------------------------------------------------------------------------
 //  File name:   Stroboscope.cpp
@@ -91,7 +91,7 @@ void CStroboscope::StopProfiling()
 void CStroboscope::ThreadEntry()
 {
 	while (gEnv->pTimer->GetAsyncCurTime() < m_startTime)
-		Sleep(10);
+		CrySleep(10);
 
 	gEnv->pLog->LogAlways("[Stroboscope] Profiling started!");
 
@@ -130,7 +130,7 @@ void CStroboscope::ProfileThreads()
 	m_sampling.StartFrame = -1;
 	while (m_run)
 	{
-		Sleep(100 / m_throttle);
+		CrySleep(100 / m_throttle);
 		frameId = gEnv->pRenderer->GetFrameID();
 		if (m_sampling.StartFrame == -1)
 			m_sampling.StartFrame = frameId;

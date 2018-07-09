@@ -1,5 +1,4 @@
-// CRYENGINE Source Code File
-// Copyright 2001-2015 Crytek GmbH. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 SCENE_DEPTH_MAP
 DISSOLVE_NOISE_MAP
@@ -57,7 +56,7 @@ vert2fragDebug Common_DebugPassVS(app2vertDebug IN_common)
 	return OUT;            
 }
 
-Texture2D   texelPerMeterTex         : register(t33)                                   = "%ENGINE%/EngineAssets/Textures/TexelsPerMeterGrad.dds";
+Texture2D texelPerMeterTex : register(t33) = "%ENGINE%/EngineAssets/Textures/TexelsPerMeterGrad.dds";
 
 pixout Common_DebugPassPS(vert2fragDebug IN)
 {
@@ -118,7 +117,7 @@ pixout Common_DebugPassPS(vert2fragDebug IN)
 	// We are passing the actual texture coordinate here for use in alpha testing
 	OUT.Color = float4(IN.baseTC.x, IN.baseTC.y, 0, 0);
 #elif %_RT_SAMPLE2 // DebugDraw Pass
-	OUT.Color = float4(PerInstanceCustomData1.rgb, 1.0f); // SilhouetteColor contains custom debug color
+	OUT.Color = float4(CD_CustomData1.rgb, 1.0f); // SilhouetteColor contains custom debug color
 #endif
 
 	// Selection Pass
@@ -129,7 +128,7 @@ pixout Common_DebugPassPS(vert2fragDebug IN)
 	#define HIDDEN_FLAG      (1 << 2)
 
   // write the selection ID to our color with some possible modifications
-  uint selectionID = asuint(PerInstanceCustomData2.x);
+  uint selectionID = asuint(CD_CustomData2.x);
 
   // now we need to compare the scene's depth to the fragment's depth. We do that here instead of after rendering, so precision is maintained better
   float fGeomDepth = IN.WPos.w * CV_NearFarClipDist.w;

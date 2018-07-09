@@ -1,15 +1,7 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
-// -------------------------------------------------------------------------
-//  File name:   IDeferredCollisionEvent.h
-//  Version:     v1.00
-//  Created:     12/08/2010 by Christopher Bolte
-//  Compilers:   Visual Studio.NET
-// -------------------------------------------------------------------------
-//  History:
-////////////////////////////////////////////////////////////////////////////
-#ifndef IDEFERREDCOLLISIONINTERFACE_H
-#define IDEFERREDCOLLISIONINTERFACE_H
+//! \cond INTERNAL
+
 #pragma once
 
 struct EventPhys;
@@ -89,4 +81,4 @@ struct IDeferredPhysicsEventManager
 	// </interfuscator:shuffle>
 };
 
-#endif // IDEFERREDCOLLISIONINTERFACE_H
+//! \endcond

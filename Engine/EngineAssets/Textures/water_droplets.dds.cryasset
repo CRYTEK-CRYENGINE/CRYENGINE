@@ -1,0 +1,10 @@
+<AssetMetadata version="0" type="Texture" guid="01f32419-4161-79b3-274c-31086d39b65c">
+ <Files>
+  <File path="water_droplets.dds"/>
+ </Files>
+ <Details>
+  <Detail name="width">256</Detail>
+  <Detail name="height">256</Detail>
+  <Detail name="mipCount">9</Detail>
+ </Details>
+</AssetMetadata>

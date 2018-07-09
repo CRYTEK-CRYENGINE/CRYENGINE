@@ -1,4 +1,4 @@
-﻿// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 /*************************************************************************
 -------------------------------------------------------------------------
@@ -500,9 +500,5 @@ void ScreenLayoutManager::CacheViewProjectionMatrix()
 	m_modelViewMatrix = Matrix44A( matRotX*cam.GetViewMatrix() ).GetTransposed();
 
 	mathMatrixPerspectiveFov(&m_projectionMatrix, cam.GetFov(), cam.GetProjRatio(), cam.GetNearPlane(), cam.GetFarPlane());
-
-	// This can sometimes be a frame lagged (threading issue)
-	//gEnv->pRenderer->GetModelViewMatrix((float*)&m_modelViewMatrix);
-	//gEnv->pRenderer->GetProjectionMatrix((float*)&m_projectionMatrix);
 }
 

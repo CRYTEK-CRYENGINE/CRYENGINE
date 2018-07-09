@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 //
 //	File:Cry_Math.h
@@ -50,7 +50,6 @@
 	#define _MM_PREFETCH_LOOP(nCount, MemPtr, Hint)
 #endif
 
-void cryMemcpy(void* Dst, const void* Src, int Count);
 #if CRY_PLATFORM_LINUX || CRY_PLATFORM_ANDROID || CRY_PLATFORM_APPLE
 //! Define this for Mac and Linux since it is used with the pthread sources.
 	#define mymemcpy16 memcpy
@@ -111,7 +110,7 @@ ILINE void cryPrefetchT0SSE(const void* src)
 #if CRY_PLATFORM_X86 && !(CRY_PLATFORM_LINUX || CRY_PLATFORM_ANDROID) && !CRY_PLATFORM_APPLE
 // *INDENT-OFF* - do not attempt to format inline assembly!
 //! Inline assembly syntax for use with Visual C++.
-inline void cryMemcpy( void* Dst, const void* Src, int Count )
+inline void cryMemcpy(void* Dst, const void* Src, int Count )
 {
 #if CRY_PLATFORM_SSE2
   {
@@ -325,9 +324,9 @@ inline void cryMemcpy( void* Dst, const void* Src, int Count )
 
 // *INDENT-ON*
 
-inline void cryMemcpy(void* inDst, const void* inSrc, int nCount, int nFlags)
+inline void cryMemcpy(void* Dst, const void* Src, int Count, int nFlags)
 {
-	cryMemcpy(inDst, inSrc, nCount);
+	cryMemcpy(Dst, Src, Count);
 }
 
 //==========================================================================================

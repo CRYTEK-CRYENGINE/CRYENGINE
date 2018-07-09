@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 
@@ -666,7 +666,7 @@ namespace Angle
 		return a - b;
 	}
 
-	CryTransform::CAngle Multiply(CryTransform::CAngle a, CryTransform::CAngle b)
+	CryTransform::CAngle Multiply(CryTransform::CAngle a, float b)
 	{
 		return a * b;
 	}
@@ -676,9 +676,9 @@ namespace Angle
 		return CryTransform::CAngle::FromRadians(crymath::clamp(value.ToRadians(), min.ToRadians(), max.ToRadians()));
 	}
 
-	CryTransform::CAngle Divide(CryTransform::CAngle a, CryTransform::CAngle b)
+	CryTransform::CAngle Divide(CryTransform::CAngle a, float b)
 	{
-		return b.ToRadians() != 0.0f ? a / b : CryTransform::CAngle();
+		return b != 0.0f ? a / b : CryTransform::CAngle();
 	}
 
 	CryTransform::CAngle Modulus(CryTransform::CAngle a, CryTransform::CAngle b)
@@ -836,7 +836,7 @@ namespace Angle
 			scope.Register(pFunction);
 		}
 		{
-			auto pFunction = SCHEMATYC_MAKE_ENV_FUNCTION(&Multiply, "{8BC1343D-475E-4C3C-B14D-2BB47FA41F7F}"_cry_guid, "Multiply");
+			auto pFunction = SCHEMATYC_MAKE_ENV_FUNCTION(&Multiply, "{5AED5C17-5EEA-4EB9-AA37-1493FD8D85E0}"_cry_guid, "Multiply");
 			pFunction->SetDescription("Multiply A by B");
 			pFunction->BindInput(1, 'a', "A");
 			pFunction->BindInput(2, 'b', "B");
@@ -844,7 +844,7 @@ namespace Angle
 			scope.Register(pFunction);
 		}
 		{
-			auto pFunction = SCHEMATYC_MAKE_ENV_FUNCTION(&Divide, "{8500BCA9-D5E3-4232-905B-21B248A2D0DC}"_cry_guid, "Divide");
+			auto pFunction = SCHEMATYC_MAKE_ENV_FUNCTION(&Divide, "{8EEFDAE8-5097-4169-9DAC-F3343D31DE4D}"_cry_guid, "Divide");
 			pFunction->SetDescription("Divide A by B");
 			pFunction->BindInput(1, 'a', "A");
 			pFunction->BindInput(2, 'b', "B");
@@ -1037,7 +1037,7 @@ static void RegisterFunctions(IEnvRegistrar& registrar)
 		pFunction->BindInput(2, 'b', "B");
 		pFunction->BindOutput(0, 'res', "Result");
 		scope.Register(pFunction);
-	}
+	} 
 	{
 		auto pFunction = SCHEMATYC_MAKE_ENV_FUNCTION(&Create, "b901a1de-725e-4eb4-b7e8-bfdcb82a4bd5"_cry_guid, "Create");
 		pFunction->SetDescription("Create transform");

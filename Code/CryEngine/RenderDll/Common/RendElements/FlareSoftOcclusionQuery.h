@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -108,7 +108,7 @@ public:
 		float u0, v0, u1, v1;
 		float lineardepth;
 	};
-	void GetOcclusionSectorInfo(SOcclusionSectorInfo& out_occlusionSector);
+	void GetOcclusionSectorInfo(SOcclusionSectorInfo& out_occlusionSector,const SRenderViewInfo& viewInfo);
 
 	void UpdateCachedResults();
 	int  GetID()
@@ -175,12 +175,12 @@ public:
 	int  GetSize() const { return m_nPos; }
 	void Reset();
 
-	bool                      Update(CStandardGraphicsPipeline::SViewInfo* pViewInfo, int viewInfoCount);
+	bool                      Update(SRenderViewInfo* pViewInfo, int viewInfoCount);
 
 private:
 
-	bool                      PrepareOcclusionPrimitive(CRenderPrimitive& primitive, const CPrimitiveRenderPass& targetPass);
-	bool                      PrepareGatherPrimitive(CRenderPrimitive& primitive, const CPrimitiveRenderPass& targetPass, CStandardGraphicsPipeline::SViewInfo* pViewInfo, int viewInfoCount);
+	bool                      PrepareOcclusionPrimitive(CRenderPrimitive& primitive, const CPrimitiveRenderPass& targetPass,const SRenderViewInfo& viewInfo);
+	bool                      PrepareGatherPrimitive(CRenderPrimitive& primitive, const CPrimitiveRenderPass& targetPass, SRenderViewInfo* pViewInfo, int viewInfoCount);
 
 	int    m_nPos;
 	_smart_ptr<CFlareSoftOcclusionQuery> m_SoftOcclusionQueries[CFlareSoftOcclusionQuery::s_nIDMax];

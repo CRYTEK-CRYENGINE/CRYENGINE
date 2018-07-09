@@ -16,8 +16,8 @@ public:
 	// ISimpleExtension
 	virtual void Initialize() override;
 
-	virtual void ProcessEvent(SEntityEvent& event) override;
-	virtual uint64 GetEventMask() const override { return BIT64(ENTITY_EVENT_UPDATE); }
+	virtual void ProcessEvent(const SEntityEvent& event) override;
+	virtual uint64 GetEventMask() const override { return ENTITY_EVENT_BIT(ENTITY_EVENT_UPDATE); }
 
 	virtual IEntityPropertyGroup* GetPropertyGroup() final { return this; }
 	// ~ISimpleExtension

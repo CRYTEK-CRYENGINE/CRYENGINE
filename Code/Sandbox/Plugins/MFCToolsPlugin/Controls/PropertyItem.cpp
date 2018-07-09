@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 /*
    Relationship between Variable data, PropertyItem value string, and draw string
@@ -214,7 +214,7 @@ static const char* PropertyTypeToResourceType(PropertyType type)
 	case ePropertyModel:
 		return "Model";
 	case ePropertyGeomCache:
-		return "GeomCache";
+		return "GeometryCache";
 	case ePropertyAudioTrigger:
 		return "AudioTrigger";
 	case ePropertyAudioSwitch:
@@ -2805,20 +2805,12 @@ void CPropertyItem::OnFileBrowseButton()
 
 	if (m_type == ePropertyTexture)
 	{
-		// Filters for texture.
-		SResourceSelectorContext context;
-		context.typeName = "Texture";
-
-		dll_string newValue = GetIEditor()->GetResourceSelectorHost()->SelectResource(context, tempValue);
+		dll_string newValue = GetIEditor()->GetResourceSelectorHost()->SelectResource("Texture", tempValue);
 		SetValue(newValue.c_str(), true, false);
 	}
 	else if (m_type == ePropertyGeomCache)
 	{
-		// Filters for geom caches.
-		SResourceSelectorContext context;
-		context.typeName = "GeomCache";
-
-		dll_string newValue = GetIEditor()->GetResourceSelectorHost()->SelectResource(context, tempValue);
+		dll_string newValue = GetIEditor()->GetResourceSelectorHost()->SelectResource("GeometryCache", tempValue);
 		SetValue(newValue.c_str(), true, true);
 	}
 	else
@@ -2836,21 +2828,7 @@ void CPropertyItem::OnResourceSelectorButton()
 {
 	m_propertyCtrl->HideBitmapTooltip();
 
-	SResourceSelectorContext x;
-
-	x.parentWindow = m_propertyCtrl->GetSafeHwnd();
-	x.typeName = PropertyTypeToResourceType(m_type);
-
-	const Serialization::TypeID contextObjectType = GetIEditor()->GetResourceSelectorHost()->ResourceContextType(x.typeName);
-	if (contextObjectType != Serialization::TypeID())
-	{
-		// We expect client code to always provide a matching context instance for the requested resource type.
-		// This could possibly be implemented in a more robust way by enabling IVariable to store type information for user data.
-		x.contextObject = m_pVariable->GetUserData();
-		x.contextObjectType = contextObjectType;
-	}
-
-	dll_string newValue = GetIEditor()->GetResourceSelectorHost()->SelectResource(x, GetValue());
+	dll_string newValue = GetIEditor()->GetResourceSelectorHost()->SelectResource(PropertyTypeToResourceType(m_type), GetValue(), nullptr, m_pVariable->GetUserData());
 	if (strcmp(GetValue(), newValue.c_str()) != 0)
 	{
 		SetValue(newValue.c_str());
@@ -2949,7 +2927,7 @@ CString CPropertyItem::GetTip() const
 		CString description = m_pVariable->GetDescription();
 		if (!description.IsEmpty())
 		{
-			tip += CString("\n") + description;
+			tip += CString(" ") + description;
 		}
 	}
 	return tip;
@@ -3360,3 +3338,4 @@ void CPropertyItem::EnableNotifyWithoutValueChange(bool bFlag)
 	if (m_cEdit)
 		m_cEdit->EnableUpdateOnKillFocus(!m_bForceModified);
 }
+

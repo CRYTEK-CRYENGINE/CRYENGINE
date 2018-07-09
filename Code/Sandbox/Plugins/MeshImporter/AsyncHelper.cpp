@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 // Helper for async worker thread
 #include "StdAfx.h"
 #include "AsyncHelper.h"
@@ -394,3 +394,4 @@ void CSyncTaskHost::ShowError(const CAsyncTaskBase* pTask, const QString& what) 
 {
 	GetIEditor()->GetNotificationCenter()->ShowCritical(m_title, what);
 }
+

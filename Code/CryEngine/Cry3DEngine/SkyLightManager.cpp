@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 /*************************************************************************
    -------------------------------------------------------------------------
@@ -27,7 +27,6 @@ CSkyLightManager::CSkyLightManager()
 	, m_updatingSkyDomeCondition()
 	, m_numSkyDomeColorsComputed(SSkyLightRenderParams::skyDomeTextureSize)
 	, m_curBackBuffer(0)
-	, m_lastFrameID(0)
 	, m_curSkyHemiColor()
 	, m_curHazeColor(0.0f, 0.0f, 0.0f)
 	, m_curHazeColorMieNoPremul(0.0f, 0.0f, 0.0f)
@@ -49,10 +48,10 @@ CSkyLightManager::CSkyLightManager()
 	m_updateRequested[0] = m_updateRequested[1] = 0;
 
 	// init textures with default data
-	m_skyDomeTextureDataMie[0].resize(SSkyLightRenderParams::skyDomeTextureSize);
-	m_skyDomeTextureDataMie[1].resize(SSkyLightRenderParams::skyDomeTextureSize);
-	m_skyDomeTextureDataRayleigh[0].resize(SSkyLightRenderParams::skyDomeTextureSize);
-	m_skyDomeTextureDataRayleigh[1].resize(SSkyLightRenderParams::skyDomeTextureSize);
+	m_skyDomeTextureDataMie[0].resize(SSkyLightRenderParams::skyDomeTextureSize, CryHalf4{ .0f,.0f,.0f,.0f });
+	m_skyDomeTextureDataMie[1].resize(SSkyLightRenderParams::skyDomeTextureSize, CryHalf4{ .0f,.0f,.0f,.0f });
+	m_skyDomeTextureDataRayleigh[0].resize(SSkyLightRenderParams::skyDomeTextureSize, CryHalf4{ .0f,.0f,.0f,.0f });
+	m_skyDomeTextureDataRayleigh[1].resize(SSkyLightRenderParams::skyDomeTextureSize, CryHalf4{ .0f,.0f,.0f,.0f });
 
 	// init time stamps
 	m_skyDomeTextureTimeStamp[0] = gEnv->nMainFrameID;
@@ -108,9 +107,15 @@ void CSkyLightManager::IncrementalUpdate(f32 updateRatioPerFrame, const SRenderi
 
 	FUNCTION_PROFILER_3DENGINE;
 
+	if (!m_lastFrameID)
+	{
+		FullUpdate();
+		return;
+	}
+
 	// get current ID of "main" frame (no recursive rendering),
 	// incremental update should only be processed once per frame
-	if (m_lastFrameID != passInfo.GetMainFrameID())
+	if (m_lastFrameID.value() != passInfo.GetMainFrameID())
 	{
 		int32 numUpdate((int32) ((f32) SSkyLightRenderParams::skyDomeTextureSize * updateRatioPerFrame / 100.0f + 0.5f));
 		numUpdate = clamp_tpl(numUpdate, 1, SSkyLightRenderParams::skyDomeTextureSize);
@@ -380,7 +385,7 @@ void CSkyLightManager::InitSkyDomeMesh()
 	m_pSkyDomeMesh = gEnv->pRenderer->CreateRenderMeshInitialized(&skyDomeVertices[0], c_numSkyDomeVertices, EDefaultInputLayouts::P3F_C4B_T2F,
 	                                                              &skyDomeIndices[0], c_numSkyDomeIndices, prtTriangleList, "SkyHDR", "SkyHDR");
 
-	m_lastFrameID = 0;
+	m_lastFrameID = stl::nullopt;
 	m_needRenderParamUpdate = true;
 }
 

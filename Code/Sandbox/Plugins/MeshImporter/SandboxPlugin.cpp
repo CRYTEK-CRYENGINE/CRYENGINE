@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 // Sandbox plugin wrapper.
 #include "StdAfx.h"
 #include "SandboxPlugin.h"
@@ -109,4 +109,5 @@ const QVariant& CFbxToolPlugin::GetPersonalizationProperty(const QString& propNa
 {
 	return GetIEditor()->GetPersonalizationManager()->GetProperty(MESH_IMPORTER_NAME, propName);
 }
+
 

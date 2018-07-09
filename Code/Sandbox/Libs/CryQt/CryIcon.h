@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -83,3 +83,4 @@ public:
 	explicit CryIcon(const QPixmap& pixmap, CryIconColorMap colorMap = CryIconColorMap());
 	static void SetDefaultTint(QIcon::Mode mode, QBrush brush);
 };
+

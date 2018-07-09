@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 // -------------------------------------------------------------------------
 //  File name:   StatsManager.cpp
@@ -12,8 +12,6 @@
 #include "StdAfx.h"
 #include "StatsManager.h"
 #include "DebugDrawContext.h"
-
-#pragma warning (disable: 6313)
 
 // Useful formatting strings
 // 30 characters total are allowed for this in the standard view!

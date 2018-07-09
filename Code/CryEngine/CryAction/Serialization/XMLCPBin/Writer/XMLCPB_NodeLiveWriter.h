@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 /*************************************************************************
 *************************************************************************/
@@ -105,7 +105,7 @@ public:
 	CNodeLiveWriterRef AddChildNode(const char* pChildName);
 	void               Done();
 	template<class T>
-	void               AddAttr(const char* pAttrName, T& data);
+	void               AddAttr(const char* pAttrName, const T& data);
 	void               AddAttr(const char* pAttrName, const uint8* data, uint32 len, bool needInmediateCopy = false);
 	const char*        GetTag() const;
 
@@ -185,7 +185,7 @@ private:
 
 //////////////////////////////////////////////////////////////////////////
 template<class T>
-inline void CNodeLiveWriter::AddAttr(const char* pAttrName, T& data)
+inline void CNodeLiveWriter::AddAttr(const char* pAttrName, const T& data)
 {
 	assert(!m_done && m_valid);
 

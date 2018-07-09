@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -14,7 +14,6 @@ struct SRenderContext;
 struct SMouseEvent;
 // Forward declare classes.
 class QBoxLayout;
-class QParentWndWidget;
 class QAdvancedPropertyTree;
 class QPushButton;
 class QSplitter;
@@ -131,3 +130,4 @@ private:
 };
 
 } // Schematyc
+

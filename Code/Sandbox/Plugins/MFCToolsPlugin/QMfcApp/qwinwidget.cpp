@@ -426,3 +426,4 @@ bool QWinWidget::focusNextPrevChild(bool next)
 
 	return true;
 }
+

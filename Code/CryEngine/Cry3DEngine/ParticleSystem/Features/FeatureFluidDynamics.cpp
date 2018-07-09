@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 // -------------------------------------------------------------------------
 //  Created:     21/10/2015 by Benjamin Block
@@ -16,8 +16,6 @@
 
 #include <CryRenderer/IGpuParticles.h>
 
-CRY_PFX2_DBG
-
 namespace pfx2
 {
 
@@ -26,11 +24,10 @@ class CFeatureMotionFluidDynamics : public CParticleFeature
 public:
 	CRY_PFX2_DECLARE_FEATURE
 
-	typedef TValue<int, USoftLimit<100>> TParticleCount;
+	typedef TValue<uint> TParticleCount;
 
 	CFeatureMotionFluidDynamics()
-		: CParticleFeature(gpu_pfx2::eGpuFeatureType_MotionFluidDynamics)
-		, m_initialVelocity(0.0, 0.0, 5.0)
+		: m_initialVelocity(0.0, 0.0, 5.0)
 		, m_stiffness(1000.f)
 		, m_gravityConstant(-5.f)
 		, m_h(0.5f)
@@ -52,9 +49,9 @@ public:
 
 	virtual void AddToComponent(CParticleComponent* pComponent, SComponentParams* pParams) override
 	{
-		pComponent->AddToUpdateList(EUL_Update, this);
+		pComponent->UpdateParticles.add(this);
 
-		if (auto pInt = GetGpuInterface())
+		if (auto pInt = MakeGpuInterface(pComponent, gpu_pfx2::eGpuFeatureType_MotionFluidDynamics))
 		{
 			gpu_pfx2::SFeatureParametersMotionFluidDynamics params;
 			params.initialVelocity = m_initialVelocity;
@@ -123,7 +120,7 @@ private:
 	TParticleCount m_numSpawnParticles;
 };
 
+CRY_PFX2_LEGACY_FEATURE(CFeatureMotionFluidDynamics, "Motion", "GPU Fluid Dynamics");
 CRY_PFX2_IMPLEMENT_FEATURE(CParticleFeature, CFeatureMotionFluidDynamics, "GPU Particles", "Fluid Dynamics", colorGPU);
-CRY_PFX2_LEGACY_FEATURE(CParticleFeature, CFeatureMotionFluidDynamics, "MotionGPU Fluid Dynamics");
 
 }

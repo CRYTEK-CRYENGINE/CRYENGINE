@@ -1,8 +1,0 @@
-{
-   "NoUberFile":{
-      "3rdParty/fasthash":[
-         "3rdParty/fasthash/fasthash.inl",
-         "3rdParty/fasthash/fasthash.h"
-      ]
-   }
-}

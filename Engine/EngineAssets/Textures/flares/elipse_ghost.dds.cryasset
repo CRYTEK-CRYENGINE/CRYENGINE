@@ -1,0 +1,10 @@
+<AssetMetadata version="0" type="Texture" guid="f894c0b4-3fb1-4eb3-3865-1369e31b3ec7" source="elipse_ghost.tif">
+ <Files>
+  <File path="elipse_ghost.dds"/>
+ </Files>
+ <Details>
+  <Detail name="width">4</Detail>
+  <Detail name="height">4</Detail>
+  <Detail name="mipCount">1</Detail>
+ </Details>
+</AssetMetadata>

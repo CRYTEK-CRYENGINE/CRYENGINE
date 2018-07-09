@@ -1,10 +1,11 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "DriverD3D.h"
 #include <Cry3DEngine/I3DEngine.h>
 #include "D3DPostProcess.h"
 
+#pragma warning(push)
 #pragma warning(disable: 4244)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -12,6 +13,8 @@
 
 void CUnderwaterGodRays::Render()
 {
+	ASSERT_LEGACY_PIPELINE
+/*
 	PROFILE_LABEL_SCOPE("GODRAYS");
 
 	// Get current viewport
@@ -28,15 +31,14 @@ void CUnderwaterGodRays::Render()
 	uint64 nSaveFlagsShader_RT = gRenDev->m_RP.m_FlagsShader_RT;
 	gRenDev->m_RP.m_FlagsShader_RT &= g_HWSR_MaskBit[HWSR_REVERSE_DEPTH];
 
-	if (gcpRendD3D->m_RP.m_TI[gcpRendD3D->m_RP.m_nProcessThreadID].m_PersFlags & RBPF_REVERSE_DEPTH)
-		gRenDev->m_RP.m_FlagsShader_RT |= g_HWSR_MaskBit[HWSR_REVERSE_DEPTH];
+	gRenDev->m_RP.m_FlagsShader_RT |= g_HWSR_MaskBit[HWSR_REVERSE_DEPTH];
 
 	//////////////////////////////////////////////////////////////////////////////////////////////////
 	// Render god-rays into low-res render target for less fillrate hit
 
-	gcpRendD3D->FX_ClearTarget(CTexture::s_ptexBackBufferScaled[1], Clr_Transparent);
-	gcpRendD3D->FX_PushRenderTarget(0, CTexture::s_ptexBackBufferScaled[1], 0);
-	gcpRendD3D->RT_SetViewport(0, 0, CTexture::s_ptexBackBufferScaled[1]->GetWidth(), CTexture::s_ptexBackBufferScaled[1]->GetHeight());
+	gcpRendD3D->FX_ClearTarget(CRendererResources::s_ptexBackBufferScaled[1], Clr_Transparent);
+	gcpRendD3D->FX_PushRenderTarget(0, CRendererResources::s_ptexBackBufferScaled[1], 0);
+	gcpRendD3D->RT_SetViewport(0, 0, CRendererResources::s_ptexBackBufferScaled[1]->GetWidth(), CRendererResources::s_ptexBackBufferScaled[1]->GetHeight());
 
 	//  PostProcessUtils().ShBeginPass(CShaderMan::m_shPostEffects, pTechName, FEF_DONTSETSTATES);
 	uint32 nPasses;
@@ -61,7 +63,7 @@ void CUnderwaterGodRays::Render()
 		gcpRendD3D->SetCullMode(R_CULL_NONE);
 		gcpRendD3D->FX_SetState(GS_BLSRC_ONE | GS_BLDST_ONE | GS_NODEPTHTEST);
 
-		PostProcessUtils().DrawFullScreenTri(CTexture::s_ptexBackBuffer->GetWidth(), CTexture::s_ptexBackBuffer->GetHeight(), 0);
+		PostProcessUtils().DrawFullScreenTri(CRendererResources::s_ptexBackBuffer->GetWidth(), CRendererResources::s_ptexBackBuffer->GetHeight(), 0);
 
 		CShaderMan::s_shPostEffects->FXEndPass();
 	}
@@ -82,8 +84,9 @@ void CUnderwaterGodRays::Render()
 	gcpRendD3D->FX_SetState(GS_NODEPTHTEST);
 	Vec4 pParams = Vec4(CRenderer::CV_r_water_godrays_distortion, 0, 0, 0);
 	CShaderMan::s_shPostEffects->FXSetPSFloat(pParam1Name, &pParams, 1);
-	PostProcessUtils().DrawFullScreenTri(CTexture::s_ptexBackBuffer->GetWidth(), CTexture::s_ptexBackBuffer->GetHeight());
+	PostProcessUtils().DrawFullScreenTri(CRendererResources::s_ptexBackBuffer->GetWidth(), CRendererResources::s_ptexBackBuffer->GetHeight());
 	PostProcessUtils().ShEndPass();
+*/
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -91,6 +94,8 @@ void CUnderwaterGodRays::Render()
 
 void CWaterDroplets::Render()
 {
+	ASSERT_LEGACY_PIPELINE
+/*
 	gRenDev->m_cEF.mfRefreshSystemShader("PostEffectsGame", CShaderMan::s_shPostEffectsGame);
 
 	static CCryNameTSCRC pTechName("WaterDroplets");
@@ -105,9 +110,10 @@ void CWaterDroplets::Render()
 	static CCryNameR pParamName("waterDropletsParams");
 	CShaderMan::s_shPostEffectsGame->FXSetPSFloat(pParamName, &vParams, 1);
 
-	PostProcessUtils().DrawFullScreenTri(CTexture::s_ptexBackBuffer->GetWidth(), CTexture::s_ptexBackBuffer->GetHeight());
+	PostProcessUtils().DrawFullScreenTri(CRendererResources::s_ptexBackBuffer->GetWidth(), CRendererResources::s_ptexBackBuffer->GetHeight());
 
 	PostProcessUtils().ShEndPass();
+	*/
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -115,6 +121,8 @@ void CWaterDroplets::Render()
 
 void CWaterFlow::Render()
 {
+	ASSERT_LEGACY_PIPELINE
+/*
 	gRenDev->m_cEF.mfRefreshSystemShader("PostEffectsGame", CShaderMan::s_shPostEffectsGame);
 
 	float fAmount = m_pAmount->GetParam();
@@ -128,7 +136,10 @@ void CWaterFlow::Render()
 	static CCryNameR pParamName("waterFlowParams");
 	CShaderMan::s_shPostEffectsGame->FXSetPSFloat(pParamName, &vParams, 1);
 
-	PostProcessUtils().DrawFullScreenTri(CTexture::s_ptexBackBuffer->GetWidth(), CTexture::s_ptexBackBuffer->GetHeight());
+	PostProcessUtils().DrawFullScreenTri(CRendererResources::s_ptexBackBuffer->GetWidth(), CRendererResources::s_ptexBackBuffer->GetHeight());
 
 	PostProcessUtils().ShEndPass();
+*/
 }
+
+#pragma warning(pop)

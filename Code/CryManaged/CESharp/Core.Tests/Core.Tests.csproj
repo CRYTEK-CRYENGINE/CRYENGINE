@@ -15,7 +15,7 @@
     <DebugSymbols>true</DebugSymbols>
     <OutputPath>..\..\..\..\bin\win_x64</OutputPath>
     <DefineConstants>DEBUG;TRACE;WIN64</DefineConstants>
-    <DebugType>full</DebugType>
+    <DebugType>portable</DebugType>
     <PlatformTarget>AnyCPU</PlatformTarget>
     <ErrorReport>prompt</ErrorReport>
     <CodeAnalysisRuleSet>MinimumRecommendedRules.ruleset</CodeAnalysisRuleSet>
@@ -35,7 +35,7 @@
     <DebugSymbols>true</DebugSymbols>
     <OutputPath>..\..\..\..\bin\win_x86</OutputPath>
     <DefineConstants>DEBUG;TRACE;WIN86</DefineConstants>
-    <DebugType>full</DebugType>
+    <DebugType>portable</DebugType>
     <PlatformTarget>AnyCPU</PlatformTarget>
     <ErrorReport>prompt</ErrorReport>
     <CodeAnalysisRuleSet>MinimumRecommendedRules.ruleset</CodeAnalysisRuleSet>

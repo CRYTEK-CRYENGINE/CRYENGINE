@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "ScriptTable.h"
@@ -151,7 +151,7 @@ void CScriptTable::SetValueAny(const char* sKey, const ScriptAnyValue& any, bool
 	assert(sKey);
 	size_t len = strlen(sKey);
 
-	if (any.type == ANY_TVECTOR)
+	if (any.GetType() == EScriptAnyType::Vector)
 	{
 		// Check if we can reuse Vec3 value already in the table.
 		lua_pushlstring(L, sKey, len);
@@ -167,13 +167,13 @@ void CScriptTable::SetValueAny(const char* sKey, const ScriptAnyValue& any, bool
 			{
 				// Assume its a vector, just fill it with new vector values.
 				lua_pushlstring(L, "x", 1);
-				lua_pushnumber(L, any.vec3.x);
+				lua_pushnumber(L, any.GetVector().x);
 				lua_settable(L, -3);
 				lua_pushlstring(L, "y", 1);
-				lua_pushnumber(L, any.vec3.y);
+				lua_pushnumber(L, any.GetVector().y);
 				lua_settable(L, -3);
 				lua_pushlstring(L, "z", 1);
-				lua_pushnumber(L, any.vec3.z);
+				lua_pushnumber(L, any.GetVector().z);
 				lua_settable(L, -3);
 
 				lua_settop(L, top);

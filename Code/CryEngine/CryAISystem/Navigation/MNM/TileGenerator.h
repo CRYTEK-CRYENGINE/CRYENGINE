@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #ifndef __MNM_TILE_GENERATOR_H
 #define __MNM_TILE_GENERATOR_H
@@ -10,6 +10,7 @@
 #include "CompactSpanGrid.h"
 #include "Tile.h"
 #include "BoundingVolume.h"
+#include "MarkupVolume.h"
 #include "HashComputer.h"
 
 #include <CryAISystem/NavigationSystem/MNMTileGenerator.h>
@@ -72,6 +73,47 @@ public:
 		MaxTileSizeZ = 18,
 	};
 
+	struct SAgentSettings
+	{
+		SAgentSettings()
+			: radius(4)
+			, height(18)
+			, climbableHeight(4)
+			, maxWaterDepth(8)
+			, climbableInclineGradient(0.0f)
+			, climbableStepRatio(0.0f)
+		{}
+
+		//! Returns horizontal distance from any feature in voxels that could be affected during the generation process
+		size_t GetPossibleAffectedSizeH() const
+		{
+			// TODO pavloi 2016.03.16: inclineTestCount = (height + 1) comes from FilterWalkable
+			const size_t inclineTestCount = climbableHeight + 1;
+			return radius + inclineTestCount + 1;
+		}
+
+		//! Returns vertical distance from any feature in voxels that could be affected during the generation process
+		size_t GetPossibleAffectedSizeV() const
+		{
+			// TODO pavloi 2016.03.16: inclineTestCount = (height + 1) comes from FilterWalkable
+			const size_t inclineTestCount = climbableHeight + 1;
+			const size_t maxZDiffInWorstCase = inclineTestCount * climbableHeight;
+
+			// TODO pavloi 2016.03.16: agent.height is not applied here, because it's usually applied additionally in other places.
+			// Or such places just don't care.
+			// +1 just in case, I'm not fully tested this formula.
+			return maxZDiffInWorstCase + 1;
+		}
+
+		uint32 radius          : 8; //!< Agent radius in voxels count
+		uint32 height          : 8; //!< Agent height in voxels count
+		uint32 climbableHeight : 8; //!< Maximum step height that the agent can still walk through in voxels count
+		uint32 maxWaterDepth   : 8; //!< Maximum walkable water depth in voxels count
+
+		float  climbableInclineGradient; //!< The steepness of a surface to still be climbable
+		float  climbableStepRatio;
+	};
+
 	struct Params
 	{
 		Params()
@@ -80,13 +122,14 @@ public:
 			, sizeY(8)
 			, sizeZ(8)
 			, voxelSize(0.1f)
-			, climbableInclineGradient(0.0f)
-			, climbableStepRatio(0.0f)
 			, flags(0)
 			, blurAmount(0)
 			, minWalkableArea(16)
+			, callback()
 			, boundary(nullptr)
 			, exclusions(nullptr)
+			, markups(nullptr)
+			, markupIds(nullptr)
 			, exclusionCount(0)
 			, hashValue(0)
 			, pTileGeneratorExtensions(nullptr)
@@ -94,51 +137,51 @@ public:
 
 		enum Flags
 		{
-			NoBorder    = 1 << 0,
-			NoErosion   = 1 << 1,
-			NoHashTest  = 1 << 2,
-			BuildBVTree = 1 << 3,
-			DebugInfo   = 1 << 7,
+			NoBorder     = BIT(0),
+			NoErosion    = BIT(1),
+			NoHashTest   = BIT(2),
+			BuildBVTree  = BIT(3),
+			UpdateMarkup = BIT(4),
+			DebugInfo    = BIT(7),
 		};
 
-		Vec3   origin;
-		Vec3   voxelSize;
-		float  climbableInclineGradient;
-		float  climbableStepRatio;
+		Vec3                                     origin;
+		Vec3                                     voxelSize;
 
-		uint16 flags;
-		uint16 minWalkableArea;
-		uint16 exclusionCount;
+		uint16                                   flags;
+		uint16                                   minWalkableArea;
+		uint16                                   exclusionCount;
+		uint16                                   markupsCount;
 
-		uint8  blurAmount;
-		uint8  sizeX;
-		uint8  sizeY;
-		uint8  sizeZ;
+		uint8                                    blurAmount;
+		uint8                                    sizeX;
+		uint8                                    sizeY;
+		uint8                                    sizeZ;
 
-		struct AgentSettings
-		{
-			AgentSettings()
-				: radius(4)
-				, height(18)
-				, climbableHeight(4)
-				, maxWaterDepth(8)
-				, callback()
-			{}
-
-			uint32                       radius          : 8;
-			uint32                       height          : 8;
-			uint32                       climbableHeight : 8;
-			uint32                       maxWaterDepth   : 8;
-
-			NavigationMeshEntityCallback callback;
-		}                                        agent;
+		SAgentSettings                           agent;
+		NavigationMeshEntityCallback             callback;
 
 		const BoundingVolume*                    boundary;
 		const BoundingVolume*                    exclusions;
+		const SMarkupVolume*                     markups;
+		const NavigationVolumeID*                markupIds;
 		uint32                                   hashValue;
+		AreaAnnotation                           defaultAreaAnotation;
 
 		const STileGeneratorExtensionsContainer* pTileGeneratorExtensions;
 		NavigationAgentTypeID                    navAgentTypeId;
+	};
+
+	struct SMetaData
+	{
+		struct SMarkupTriangles
+		{
+			SMarkupTriangles(uint16 markupIdx) : markupIdx(markupIdx) {}
+			
+			uint16 markupIdx;                 //Index of markup volume in markups array
+			std::vector<uint16> trianglesIdx; //Indices of triangles in generated tile
+		};
+		std::vector<SMarkupTriangles> markupTriangles;
 	};
 
 	enum ProfilerTimers
@@ -196,7 +239,7 @@ public:
 		LastDrawMode,
 	};
 
-	bool Generate(const Params& params, STile& tile, uint32* hashValue);
+	bool Generate(const Params& params, STile& tile, SMetaData& tileMetaData, uint32* hashValue);
 	void Draw(const EDrawMode mode, const bool bDrawAdditionalInfo) const;
 
 	typedef MNMProfiler<ProfilerMemoryUsers, ProfilerTimers, ProfilerStats> ProfilerType;
@@ -225,9 +268,9 @@ public:
 		OkPaintStart,
 	};
 
-protected:
-
 	typedef std::vector<uint16> SpanExtraInfo;
+
+protected:
 
 	struct ContourVertex
 	{
@@ -334,6 +377,7 @@ protected:
 	{
 		PolygonContour contour;
 		PolygonHoles   holes;
+		uint16         paint;
 	};
 
 	struct Region
@@ -341,6 +385,7 @@ protected:
 		Region()
 			: spanCount(0)
 			, flags(0)
+			, paint(Paint::NoPaint)
 		{}
 
 		enum Flags
@@ -354,6 +399,7 @@ protected:
 
 		size_t   spanCount;
 		size_t   flags;
+		uint16   paint;
 
 		void     swap(Region& other)
 		{
@@ -362,6 +408,19 @@ protected:
 			contour.swap(other.contour);
 			holes.swap(other.holes);
 		}
+	};
+
+	struct PaintData
+	{
+		AreaAnnotation areaAnotation;
+		int markupIdx;
+	};
+
+	struct MarkupData
+	{
+		const SMarkupVolume* pVolume;
+		int markupIdx; // Index of the markup volume in the generator params markups
+		int paintIdx; // Index of the paint in the palette
 	};
 
 	class CGeneratedMesh : public TileGenerator::IMesh
@@ -378,6 +437,7 @@ protected:
 
 		bool IsEmpty() const                        { return m_triangles.empty(); }
 		void CopyIntoTile(STile& tile) const;
+		void CopyMetaData(SMetaData& tileMetaData) const;
 
 		// Functions for Triangulate()
 		void             Reserve(size_t trianglesCount, size_t verticesCount);
@@ -385,10 +445,11 @@ protected:
 		Tile::STriangle& InsertTriangle();
 
 		// TileGenerator::IMesh
-		virtual bool AddTrianglesWorld(const Triangle* pTriangles, const size_t count, const Tile::STriangle::EFlags flags) override;
+		virtual bool AddTrianglesWorld(const Triangle* pTriangles, const size_t count, const AreaAnnotation areaAnotation) override;
 		// ~TileGenerator::IMesh
 
 		void                 AddStatsToProfiler(ProfilerType& profiler) const;
+		void                 SetAnotationForTriangles(const size_t indexStart, const size_t indexEnd, const PaintData& paintData);
 
 		const Triangles&     GetTriangles() const { return m_triangles; }
 		const Vertices&      GetVertices() const  { return m_vertices; }
@@ -406,6 +467,7 @@ protected:
 		TileVertexIndexLookUp m_vertexIndexLookUp;
 		AABB                  m_tileAabb;
 		HashComputer          m_hashComputer;
+		SMetaData             m_metaData;
 	};
 
 	// Call this when reusing an existing TileGenerator for a second job.
@@ -533,7 +595,7 @@ protected:
 		}
 	};
 
-	uint16 GetPaintVal(size_t x, size_t y, size_t z, size_t index, size_t borderH, size_t borderV, size_t erosion);
+	uint16 GetPaintVal(const AABB& aabb, size_t x, size_t y, size_t z, size_t index, size_t borderH, size_t borderV, size_t erosion);
 	void   AssessNeighbour(NeighbourInfo& info, size_t erosion, size_t climbableVoxelCount);
 
 	enum TracerDir
@@ -573,11 +635,15 @@ protected:
 	};
 
 	void   TraceContour(CTileGenerator::TracerPath& path, const Tracer& start, size_t erosion, size_t climbableVoxelCount, const NeighbourInfoRequirements& contourReq);
-	int    LabelTracerPath(const CTileGenerator::TracerPath& path, size_t climbableVoxelCount, Region& region, Contour& contour, const uint16 internalLabel, const uint16 internalLabelFlags, const uint16 externalLabel);
+	int    LabelTracerPath(const CTileGenerator::TracerPath& path, size_t climbableVoxelCount, Region& region, Contour& contour, const uint16 internalLabel, const uint16 internalLabelFlags, const uint16 externalLabel, const bool bIsHole);
 
 	void   TidyUpContourEnd(Contour& contour);
-	size_t ExtractContours();
-	void   CalcPaintValues();
+	size_t ExtractContours(const AABB& aabb);
+	void   CalcPaintValues(const AABB& aabb);
+	void   CreatePaintPalette();
+	void   PaintMarkups(const AABB& tileAabb);
+	void   PaintMarkupDirect(const MarkupData& markupData, const AABB& tileAabb, const Vec2i& canvasSize, const Vec2i& borderSize, const Vec3& voxelSize, const Vec3& voxelSizeInv);
+	void   PaintMarkupExpanded(const MarkupData& markupData, const AABB& tileAabb, const Vec2i& canvasSize, const Vec2i& borderSize, const Vec3& voxelSize, const Vec3& voxelSizeInv);
 
 	void   FilterBadRegions(size_t minSpanCount);
 
@@ -666,6 +732,12 @@ protected:
 	SpanExtraInfo   m_labels;
 	SpanExtraInfo   m_paint;
 
+	typedef std::vector<PaintData> PaintPalette;
+	PaintPalette m_paintPalette;
+
+	typedef std::vector<MarkupData> MarkupsData;
+	MarkupsData m_markups;
+
 	typedef std::vector<Region> Regions;
 	Regions m_regions;
 
@@ -677,6 +749,7 @@ protected:
 
 	CompactSpanGrid m_spanGridRaw;
 	CompactSpanGrid m_spanGridFlagged;
+
 
 #if DEBUG_MNM_ENABLED
 	std::vector<Triangle> m_debugRawGeometry;

@@ -1,15 +1,26 @@
 {
-    "version": 1,
-    "type": "",
-    "info": {
-        "name": "Plugin Template"
-    },
-    "content": {
-        "code": [
-            "Code"
-        ]
-    },
-    "require": {
-        "engine": "engine-5.4"
-    }
+	"version": 3,
+	"type": "",
+	"info": {
+		"name": "Plugin Template",
+		"guid": "61b31df9-9372-22bb-561e-0f2c15abc10f"
+	},
+	"content": {
+		"assets": [ "" ],
+		"code": [ "Code" ],
+		"libs": [
+			{
+				"name": "Plugin Template",
+				"shared": { "any": "", "win_x64": "", "win_x86": "" }
+			}
+		]
+	},
+	"require": {
+		"engine": "engine-5.5",
+		"plugins": [ ]
+	},
+	"console_variables": [
+		{ "name": "sys_target_platforms", "value": "pc,ps4,xboxone,linux" }
+	],
+	"console_commands": [ ]
 }

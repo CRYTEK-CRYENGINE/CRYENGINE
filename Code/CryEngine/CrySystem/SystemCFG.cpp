@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 //
 //	File: SystemCFG.cpp
@@ -41,6 +41,9 @@
 
 #if CRY_PLATFORM_DURANGO
 	#include <xdk.h>
+#if _XDK_EDITION < 180400
+	#error "Outdated XDK, please update to at least XDK edition April 2018"
+#endif // #if _XDK_EDITION
 #endif // #if CRY_PLATFORM_DURANGO
 
 //////////////////////////////////////////////////////////////////////////
@@ -373,6 +376,7 @@ bool CSystemConfiguration::ParseSystemConfig()
 
 	{
 		string filenameLog;
+
 		int flags = ICryPak::FOPEN_HINT_QUIET | ICryPak::FOPEN_ONDISK;
 
 		if (!OpenFile(filename, file, flags))

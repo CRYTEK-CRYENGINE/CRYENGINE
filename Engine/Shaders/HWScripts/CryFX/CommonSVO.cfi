@@ -1,6 +1,4 @@
-// CRYENGINE Source Code File
-// Copyright 2001-2015 Crytek GmbH. All rights reserved.
-
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 // Definition of SVO textures, constants and implementation of tracing
 
@@ -8,41 +6,41 @@
 // Constants
 ///////////////////////////////////////////////////////////////////////////////////
 
-float4 SvoTreeSettings0  : PB_SvoTreeSettings0; // world size, min node suze, brick tex res, pool tex res
-float4 SvoTreeSettings1  : PB_SvoTreeSettings1; // node max valid size, 0, 0, 0
-float4 SvoTreeSettings2  : PB_SvoTreeSettings2;
-float4 SvoTreeSettings3  : PB_SvoTreeSettings3;
-float4 SvoTreeSettings4  : PB_SvoTreeSettings4;
-float4 SvoTreeSettings5  : PB_SvoTreeSettings5;
+float4 SvoTreeSettings0: PB_SvoTreeSettings0;   // world size, min node suze, brick tex res, pool tex res
+float4 SvoTreeSettings1: PB_SvoTreeSettings1;   // node max valid size, 0, 0, 0
+float4 SvoTreeSettings2: PB_SvoTreeSettings2;
+float4 SvoTreeSettings3: PB_SvoTreeSettings3;
+float4 SvoTreeSettings4: PB_SvoTreeSettings4;
+float4 SvoTreeSettings5: PB_SvoTreeSettings5;
 
-float4 SvoParamsCommon   : PB_SvoParams0; // shadows sev, diffuse spreading, diffuse base, max tree depth
-float4 SvoParamsDiffuse  : PB_SvoParams1; // wid, max cone len, diff targ res scale, mult
-float4 SvoParamsInject   : PB_SvoParams2; // light, propagation booster, refl satur, trans mult
-float4 SvoParamsMisc     : PB_SvoParams5; // emissive mult, propagation pass id, passes num, CM mult
-float4 SvoParamsMisc2    : PB_SvoParams6; // point light mult, 0, 0, 0
-float4 SvoParamsSkyColor : PB_SvoParams4; // r, g, b, mult
-float4 SvoParamsSpecular : PB_SvoParams3; // wid, caust mult, air brightness, mult
-float4 SvoParamsMisc3    : PB_SvoParams7; // AO len, AO soft
-float4 SvoParamsMisc4    : PB_SvoParams8; // VoxelOpacityMultiplier, SkyLightBottomMultiplier
-float4 SvoParamsMisc5    : PB_SvoParams9; // 
+float4 SvoParamsCommon: PB_SvoParams0;    // shadows sev, diffuse spreading, diffuse base, max tree depth
+float4 SvoParamsDiffuse: PB_SvoParams1;   // wid, max cone len, diff targ res scale, mult
+float4 SvoParamsInject: PB_SvoParams2;    // light, propagation booster, refl satur, trans mult
+float4 SvoParamsMisc: PB_SvoParams5;      // emissive mult, propagation pass id, passes num, CM mult
+float4 SvoParamsMisc2: PB_SvoParams6;     // point light mult, 0, 0, 0
+float4 SvoParamsSkyColor: PB_SvoParams4;  // r, g, b, mult
+float4 SvoParamsSpecular: PB_SvoParams3;  // wid, caust mult, air brightness, mult
+float4 SvoParamsMisc3: PB_SvoParams7;     // AO len, AO soft
+float4 SvoParamsMisc4: PB_SvoParams8;     // VoxelOpacityMultiplier, SkyLightBottomMultiplier
+float4 SvoParamsMisc5: PB_SvoParams9;     //
 
 float4x4 SVO_ViewProj;
 float4x4 SVO_ViewProjPrev;
 float4x4 SVO_RsmSunShadowProj;
-float4   SVO_RsmSunCol;
-float4   SVO_RsmSunDir;
-float4   SVO_DepthTargetRes;
+float4 SVO_RsmSunCol;
+float4 SVO_RsmSunDir;
+float4 SVO_DepthTargetRes;
 
-float4x4	SVO_LightCol0;
-float4x4	SVO_LightCol1;
-float4x4	SVO_LightDir0;
-float4x4	SVO_LightDir1;
-float4x4	SVO_LightPos0;
-float4x4	SVO_LightPos1;
+float4x4 SVO_LightCol0;
+float4x4 SVO_LightCol1;
+float4x4 SVO_LightDir0;
+float4x4 SVO_LightDir1;
+float4x4 SVO_LightPos0;
+float4x4 SVO_LightPos1;
 
-SamplerState ssSvoPointClamp : register(s0);
-SamplerState ssSvoLinearClamp : register(s1);
-SamplerState ssSvoLinearWrap : register(s2);
+SamplerState ssSvoPointClamp: register (s0);
+SamplerState ssSvoLinearClamp: register (s1);
+SamplerState ssSvoLinearWrap: register (s2);
 
 float4 tex3DlodPC(Texture3D t, float3 tc)
 {
@@ -92,49 +90,49 @@ float SampleLinearDepth(Texture2D depthTexture, float2 ScreenTC)
 	return GetLinearDepth(fDepth);
 }
 
-#define VOX_TEX_POOL_DIM				float3(min(SvoTreeSettings0.w, 512), min(SvoTreeSettings0.w, 512), clamp(SvoTreeSettings0.w, 256, 1024))
-#define VOX_SUBBLOCK_SIZE_RATIO 1
-#define VOX_DIST_TO_SURF_RANGE	4
+#define VOX_TEX_POOL_DIM                   float3(min(SvoTreeSettings0.w, 512), min(SvoTreeSettings0.w, 512), clamp(SvoTreeSettings0.w, 256, 1024))
+#define VOX_SUBBLOCK_SIZE_RATIO            1
+#define VOX_DIST_TO_SURF_RANGE             4
 
-#define VOX_WORLD_SIZE		(SvoTreeSettings0.x)
-#define VOX_SVO_ORIGIN		float4(SvoParamsMisc2.y, SvoParamsMisc2.w, SvoParamsMisc3.z, SvoParamsMisc3.w)
+#define VOX_WORLD_SIZE                     (SvoTreeSettings0.x)
+#define VOX_SVO_ORIGIN                     float4(SvoParamsMisc2.y, SvoParamsMisc2.w, SvoParamsMisc3.z, SvoParamsMisc3.w)
 
-#define VOX_MIN_NODE_SIZE (SvoTreeSettings0.y)
-#define VOX_BRICK_TEXRES	(SvoTreeSettings0.z)
-#define VOX_MIN_VOX_SIZE	(SvoTreeSettings0.y / SvoTreeSettings0.z)
-#define VOX_MAX_NODE_SIZE (SvoTreeSettings1.x)
-#define VOX_MAX_RT_DIST		(SvoTreeSettings1.y)
-#define VOX_CONE_MAX_LEN	(SvoParamsDiffuse.y)
-#define VOX_POST_AO_MAX_DIST  (SvoParamsMisc3.x)
+#define VOX_MIN_NODE_SIZE                  (SvoTreeSettings0.y)
+#define VOX_BRICK_TEXRES                   (SvoTreeSettings0.z)
+#define VOX_MIN_VOX_SIZE                   (SvoTreeSettings0.y / SvoTreeSettings0.z)
+#define VOX_MAX_NODE_SIZE                  (SvoTreeSettings1.x)
+#define VOX_MAX_RT_DIST                    (SvoTreeSettings1.y)
+#define VOX_CONE_MAX_LEN                   (SvoParamsDiffuse.y)
+#define VOX_POST_AO_MAX_DIST               (SvoParamsMisc3.x)
 
-#define VOX_TI_ATMO_HEIGHT_GROUND				(SvoTreeSettings2.x)
-#define VOX_TI_ATMO_HEIGHT_LAYER0				(SvoTreeSettings2.y)
-#define VOX_TI_ATMO_HEIGHT_LAYER1				(SvoTreeSettings2.z)
-#define VOX_TI_ATMO_HEIGHT_LAYER0_RAND	(SvoTreeSettings4.x)
-#define VOX_TI_ATMO_HEIGHT_LAYER1_RAND	(SvoTreeSettings4.y)
-#define VOX_TI_ATMO_HEIGHT_LAYER0_DENS	(SvoTreeSettings4.z)
-#define VOX_TI_ATMO_HEIGHT_LAYER1_DENS	(SvoTreeSettings4.w)
-#define VOX_TI_ATMO_CLOUDS_GEN_HEIGHT		(SvoTreeSettings2.w)
+#define VOX_TI_ATMO_HEIGHT_GROUND          (SvoTreeSettings2.x)
+#define VOX_TI_ATMO_HEIGHT_LAYER0          (SvoTreeSettings2.y)
+#define VOX_TI_ATMO_HEIGHT_LAYER1          (SvoTreeSettings2.z)
+#define VOX_TI_ATMO_HEIGHT_LAYER0_RAND     (SvoTreeSettings4.x)
+#define VOX_TI_ATMO_HEIGHT_LAYER1_RAND     (SvoTreeSettings4.y)
+#define VOX_TI_ATMO_HEIGHT_LAYER0_DENS     (SvoTreeSettings4.z)
+#define VOX_TI_ATMO_HEIGHT_LAYER1_DENS     (SvoTreeSettings4.w)
+#define VOX_TI_ATMO_CLOUDS_GEN_HEIGHT      (SvoTreeSettings2.w)
 
-#define VOX_TI_ATMO_CLOUDS_GEN_FREQ				SvoTreeSettings3.x
-#define VOX_TI_ATMO_CLOUDS_GEN_SCALE			SvoTreeSettings3.y
-#define VOX_TI_ATMO_CLOUDS_TURB_FREQ			SvoTreeSettings3.z
-#define VOX_TI_ATMO_CLOUDS_TURB_SCALE			SvoTreeSettings3.w
-#define VOX_TI_ATMO_CLOUDS_GEN_FREQ_STEP	SvoTreeSettings1.z
+#define VOX_TI_ATMO_CLOUDS_GEN_FREQ        SvoTreeSettings3.x
+#define VOX_TI_ATMO_CLOUDS_GEN_SCALE       SvoTreeSettings3.y
+#define VOX_TI_ATMO_CLOUDS_TURB_FREQ       SvoTreeSettings3.z
+#define VOX_TI_ATMO_CLOUDS_TURB_SCALE      SvoTreeSettings3.w
+#define VOX_TI_ATMO_CLOUDS_GEN_FREQ_STEP   SvoTreeSettings1.z
 
-#define VOX_TI_ATMO_DENSITY (SvoTreeSettings1.w)
+#define VOX_TI_ATMO_DENSITY                (SvoTreeSettings1.w)
 
 #define SVO_PREDICTION_MIN_DIST_TO_SURFACE 0
 
-#define SVO_TRACE_MODE_GEOMETRY 0
-#define SVO_TRACE_MODE_AIR      1
-#define SVO_TRACE_MODE_TERRAIN  2
+#define SVO_TRACE_MODE_GEOMETRY            0
+#define SVO_TRACE_MODE_AIR                 1
+#define SVO_TRACE_MODE_TERRAIN             2
 
-#define BEST_POINTS_NUM 2
+#define BEST_POINTS_NUM                    2
 
-#define VOX_ATLAS_SIZE float4(VOX_TEX_POOL_DIM / VOX_BRICK_TEXRES*VOX_SUBBLOCK_SIZE_RATIO, VOX_SUBBLOCK_SIZE_RATIO)
+#define VOX_ATLAS_SIZE                     float4(VOX_TEX_POOL_DIM / VOX_BRICK_TEXRES * VOX_SUBBLOCK_SIZE_RATIO, VOX_SUBBLOCK_SIZE_RATIO)
 
-#define VOX_MAX_ALPHA 0.99f
+#define VOX_MAX_ALPHA                      0.99f
 
 float fSvoTime = PB_Time;
 
@@ -154,46 +152,46 @@ float3 DecodeHDR(float4 Color)
 // SVO textures and buffers
 ///////////////////////////////////////////////////////////////////////////////////
 
-Texture2D sceneDepth : register(t4);
+Texture2D sceneDepth: register (t4);
 
-Texture3D brickPool_TTex : register (t8);
-Texture3D brickPool_Tris : register (t9);
-Texture3D brickPool_TInd : register (t13);
+Texture3D brickPool_TTex: register (t8);
+Texture3D brickPool_Tris: register (t9);
+Texture3D brickPool_TInd: register (t13);
 
-Texture3D brickPool_Tree : register (t0);
-Texture3D brickPool_Rgbs : register (t1);
-Texture3D brickPool_Norm : register (t2);
-Texture3D brickPool_Opac : register (t3);
+Texture3D brickPool_Tree: register (t0);
+Texture3D brickPool_Rgbs: register (t1);
+Texture3D brickPool_Norm: register (t2);
+Texture3D brickPool_Opac: register (t3);
 
 #ifdef MESH_TRACING
-Texture3D brickPool_NTri : register (t6);
+Texture3D brickPool_NTri: register (t6);
 #else
-TextureCube globalSpecCM : register (t6);
+TextureCube globalSpecCM: register (t6);
 #endif
 
-Texture2D sceneTargetPrev : register(t12);
+Texture2D sceneTargetPrev: register (t12);
 
-Texture2D rsmSunShadowMap : register(t29);
-Texture2D rsmSunColorsMap : register(t30);
-Texture2D rsmSunNormalMap : register(t31);
+Texture2D rsmSunShadowMap: register (t29);
+Texture2D rsmSunColorsMap: register (t30);
+Texture2D rsmSunNormalMap: register (t31);
 
-Texture2D ForwRsmPoolCol : register(t26);
-Texture2D ForwRsmPoolNor : register(t27);
+Texture2D ForwRsmPoolCol: register (t26);
+Texture2D ForwRsmPoolNor: register (t27);
 
-RWTexture3D<uint> UAV_0	: register(u0);
-RWTexture3D<uint> UAV_1 : register(u1);
-RWTexture3D<uint> UAV_2 : register(u2);
-RWTexture3D<uint> UAV_3 : register(u3);
-RWTexture3D<uint> UAV_4 : register(u4);
-RWTexture3D<uint> UAV_5 : register(u5);
-RWTexture3D<uint> UAV_6 : register(u6);
-RWTexture3D<uint> UAV_7 : register(u7);
+RWTexture3D<uint> UAV_0: register (u0);
+RWTexture3D<uint> UAV_1: register (u1);
+RWTexture3D<uint> UAV_2: register (u2);
+RWTexture3D<uint> UAV_3: register (u3);
+RWTexture3D<uint> UAV_4: register (u4);
+RWTexture3D<uint> UAV_5: register (u5);
+RWTexture3D<uint> UAV_6: register (u6);
+RWTexture3D<uint> UAV_7: register (u7);
 
 #include "TiledShading.cfi"
 
-StructuredBuffer<STiledLightShadeInfo> SVO_TiledLightsShadeInfo : register(t16);
-Texture2DArray                         SVO_SpotTexArray         : register(t19);
-Texture2D                              SVO_ShadowPool           : register(t20);
+StructuredBuffer<STiledLightShadeInfo> SVO_TiledLightsShadeInfo: register (t16);
+Texture2DArray SVO_SpotTexArray: register (t19);
+Texture2D SVO_ShadowPool: register (t20);
 
 ///////////////////////////////////////////////////////////////////////////////////
 // Structures
@@ -207,11 +205,11 @@ struct Ray
 
 struct SNodeInfo
 {
-	int nId;
+	int    nId;
 	float4 vMin;
 	float4 vMax;
 	float3 vTC;
-	int nTreeLevel;
+	int    nTreeLevel;
 };
 
 ///////////////////////////////////////////////////////////////////////////////////
@@ -229,7 +227,7 @@ bool IsDiffuseMode()
 
 bool IsPointInAABB(float3 p, float3 m1, float3 m2)
 {
-	return (p.x>m1.x && p.x<m2.x) && (p.y>m1.y && p.y<m2.y) && (p.z>m1.z && p.z<m2.z);
+	return (p.x > m1.x && p.x < m2.x) && (p.y > m1.y && p.y < m2.y) && (p.z > m1.z && p.z < m2.z);
 }
 
 bool IntersectRayAABB(Ray r, float3 m1, float3 m2, out float tmin, out float tmax)
@@ -292,10 +290,10 @@ float4 UINT_TO_FlOAT4(uint packed)
 uint FlOAT4_TO_UINT(float4 pixel)
 {
 	uint packed =
-		((((uint)(floor(saturate(pixel.r) * 255.0f + 0.5f))) << 0) |
-		(((uint)(floor(saturate(pixel.g) * 255.0f + 0.5f))) << 8) |
-		(((uint)(floor(saturate(pixel.b) * 255.0f + 0.5f))) << 16) |
-		(((uint)(floor(saturate(pixel.a) * 255.0f + 0.5f))) << 24));
+	  ((((uint)(floor(saturate(pixel.r) * 255.0f + 0.5f))) << 0) |
+	   (((uint)(floor(saturate(pixel.g) * 255.0f + 0.5f))) << 8) |
+	   (((uint)(floor(saturate(pixel.b) * 255.0f + 0.5f))) << 16) |
+	   (((uint)(floor(saturate(pixel.a) * 255.0f + 0.5f))) << 24));
 	return packed;
 }
 
@@ -309,7 +307,7 @@ float Distance_AABB_Point(float3 vBoxMin, float3 vBoxMax, float3 v)
 
 float fsel(float x, float y, float z)
 {
-	return (x>0) ? y : z;
+	return (x > 0) ? y : z;
 }
 
 bool Ray_Triangle(const Ray ray, const float3 v0, const float3 v1, const float3 v2, out float3 output)
@@ -389,12 +387,12 @@ float3 ComputeDataTC(int nAtlasOffset)
 {
 	static const int3 vAtlasDimInt = (int3)(VOX_ATLAS_SIZE.xyz + 0.5f);
 
-	nAtlasOffset = clamp(nAtlasOffset, 0, vAtlasDimInt.x*vAtlasDimInt.y*vAtlasDimInt.z);
+	nAtlasOffset = clamp(nAtlasOffset, 0, vAtlasDimInt.x * vAtlasDimInt.y * vAtlasDimInt.z);
 
 	int3 vOffset3D;
 	vOffset3D.z = nAtlasOffset / vAtlasDimInt.x / vAtlasDimInt.y;
-	vOffset3D.y = (nAtlasOffset / vAtlasDimInt.x - vOffset3D.z*vAtlasDimInt.y);
-	vOffset3D.x = nAtlasOffset - vOffset3D.z*vAtlasDimInt.y*vAtlasDimInt.y - vOffset3D.y*vAtlasDimInt.x;
+	vOffset3D.y = (nAtlasOffset / vAtlasDimInt.x - vOffset3D.z * vAtlasDimInt.y);
+	vOffset3D.x = nAtlasOffset - vOffset3D.z * vAtlasDimInt.y * vAtlasDimInt.y - vOffset3D.y * vAtlasDimInt.x;
 
 	return vOffset3D / VOX_ATLAS_SIZE.xyz;
 }
@@ -404,23 +402,23 @@ int ReadChildPtr(float3 tcMin, int nChildId)
 	static const float fTexelSizeXY = (1.f / (VOX_ATLAS_SIZE.x * 2));
 	static const float fTexelSizeZ = (1.f / (VOX_ATLAS_SIZE.z * 2));
 
-	float4 childPtrT = tex3DlodPC(brickPool_Tree, float4(tcMin + float3(nChildId<4 ? 0 : fTexelSizeXY, fTexelSizeXY, 0), 0));
+	float4 childPtrT = tex3DlodPC(brickPool_Tree, float4(tcMin + float3(nChildId < 4 ? 0 : fTexelSizeXY, fTexelSizeXY, 0), 0));
 	return childPtrT[nChildId & 3];
 }
 
 float GetLodTransition(float fDistanceMin, float fDistanceToCam, float fBrickSize, float fLodRatio)
 {
 #if %_RT_SAMPLE5
-	return max(fDistanceMin, fDistanceToCam - 0.5f / VOX_BRICK_TEXRES*1.5f) / (fBrickSize * 32 / VOX_BRICK_TEXRES*fLodRatio);
+	return max(fDistanceMin, fDistanceToCam - 0.5f / VOX_BRICK_TEXRES * 1.5f) / (fBrickSize * 32 / VOX_BRICK_TEXRES * fLodRatio);
 #else
-	return fDistanceToCam / (fBrickSize * 32 / VOX_BRICK_TEXRES*fLodRatio);
+	return fDistanceToCam / (fBrickSize * 32 / VOX_BRICK_TEXRES * fLodRatio);
 #endif
 }
 
 void PrepareBrickInjection(
-	const float3 tcMin,
-	out	float3 vTC0,
-	out	float3 vTC1)
+  const float3 tcMin,
+  out float3 vTC0,
+  out float3 vTC1)
 {
 	vTC0 = 0;
 	vTC1 = 0;
@@ -432,8 +430,8 @@ void PrepareBrickInjection(
 	{
 		const float3 vBoxSize = voxAreaMax.xyz - voxAreaMin.xyz;
 
-		float3 vBegPos = -VOX_WORLD_SIZE*4;
-		float3 vEndPos =  VOX_WORLD_SIZE*5;
+		float3 vBegPos = -VOX_WORLD_SIZE * 4;
+		float3 vEndPos = VOX_WORLD_SIZE * 5;
 
 		float ocNodeSize = voxAreaMin.w;
 		const float3 vHalfTexSizeWS = 0.5f / VOX_BRICK_TEXRES * ocNodeSize;
@@ -444,11 +442,11 @@ void PrepareBrickInjection(
 		const float3 vBegTC = ((vBegPos - voxAreaMin.xyz) / (vBoxSize));
 		const float3 vEndTC = ((vEndPos - voxAreaMin.xyz) / (vBoxSize));
 
-		const float3 vMulTC = 1.f / ocNodeSize*vBoxSize / VOX_ATLAS_SIZE*VOX_SUBBLOCK_SIZE_RATIO;
+		const float3 vMulTC = 1.f / ocNodeSize * vBoxSize / VOX_ATLAS_SIZE * VOX_SUBBLOCK_SIZE_RATIO;
 
-		vTC0 = tcMin + saturate(vBegTC)*vMulTC;
+		vTC0 = tcMin + saturate(vBegTC) * vMulTC;
 
-		vTC1 = tcMin + saturate(vEndTC)*vMulTC;
+		vTC1 = tcMin + saturate(vEndTC) * vMulTC;
 	}
 }
 
@@ -461,7 +459,7 @@ float3 SnapPoolTC(float3 vCurTC)
 float3 Tris_SnapPoolTC(float3 vCurTC)
 {
 	//	return vCurTC;
-	return floor(vCurTC*VOX_TEX_POOL_DIM) / VOX_TEX_POOL_DIM + .5f / VOX_TEX_POOL_DIM;
+	return floor(vCurTC * VOX_TEX_POOL_DIM) / VOX_TEX_POOL_DIM + .5f / VOX_TEX_POOL_DIM;
 }
 
 float2 ExtractTC(float fVal)
@@ -470,18 +468,20 @@ float2 ExtractTC(float fVal)
 
 	float2 tc;
 
-	tc.y = n&(256 * 256 - 1); n /= (256 * 256);
-	tc.x = n&(256 * 256 - 1); n /= (256 * 256);
+	tc.y = n & (256 * 256 - 1);
+	n /= (256 * 256);
+	tc.x = n & (256 * 256 - 1);
+	n /= (256 * 256);
 	tc = tc / (256 * 256 - 1);
 
-	tc = (tc/* - .5f*/)* 16.f;
+	tc = (tc /* - .5f*/) * 16.f;
 
 	return tc;
 }
 
 float3 SnapPoolTC_Real(float3 vCurTC)
 {
-	return floor(vCurTC*VOX_TEX_POOL_DIM) / VOX_TEX_POOL_DIM + .5f / VOX_TEX_POOL_DIM;
+	return floor(vCurTC * VOX_TEX_POOL_DIM) / VOX_TEX_POOL_DIM + .5f / VOX_TEX_POOL_DIM;
 }
 
 float ReadDecodeIso(float3 texTC)
@@ -500,30 +500,30 @@ float ReadIsoValTrilinear(float3 texTC)
 	//	return tex3DlodPC( brickPool_Rgbs,  float4(texTC.xyz, 0) ).r;
 
 	/*
-	float2 MapParams = float2 (VOX_TEX_POOL_DIM.x, 1.f / VOX_TEX_POOL_DIM.y );
+	   float2 MapParams = float2 (VOX_TEX_POOL_DIM.x, 1.f / VOX_TEX_POOL_DIM.y );
 
-	float3 f = frac( texTC * MapParams.x );
-	texTC = float3(int3(texTC*VOX_TEX_POOL_DIM))/VOX_TEX_POOL_DIM;
+	   float3 f = frac( texTC * MapParams.x );
+	   texTC = float3(int3(texTC*VOX_TEX_POOL_DIM))/VOX_TEX_POOL_DIM;
 
-	float tz[2];
-	for(int z=0; z<2; z++)
-	{
-	float t00 = ReadDecodeIso( float3(texTC.xy																	 , texTC.z + MapParams.y*z) );
-	float t10 = ReadDecodeIso( float3(texTC.xy + MapParams.y * float2( 1.0, 0.0 ), texTC.z + MapParams.y*z) );
-	float t01 = ReadDecodeIso( float3(texTC.xy + MapParams.y * float2( 0.0, 1.0 ), texTC.z + MapParams.y*z) );
-	float t11 = ReadDecodeIso( float3(texTC.xy + MapParams.y * float2( 1.0, 1.0 ), texTC.z + MapParams.y*z) );
-	float4 t = float4(t00, t10, t01, t11);
-	float2 t2 = lerp( t.xz, t.yw, f.x );
-	tz[z] = lerp( t2.x, t2.y, f.y );
-	}
+	   float tz[2];
+	   for(int z=0; z<2; z++)
+	   {
+	   float t00 = ReadDecodeIso( float3(texTC.xy																	 , texTC.z + MapParams.y*z) );
+	   float t10 = ReadDecodeIso( float3(texTC.xy + MapParams.y * float2( 1.0, 0.0 ), texTC.z + MapParams.y*z) );
+	   float t01 = ReadDecodeIso( float3(texTC.xy + MapParams.y * float2( 0.0, 1.0 ), texTC.z + MapParams.y*z) );
+	   float t11 = ReadDecodeIso( float3(texTC.xy + MapParams.y * float2( 1.0, 1.0 ), texTC.z + MapParams.y*z) );
+	   float4 t = float4(t00, t10, t01, t11);
+	   float2 t2 = lerp( t.xz, t.yw, f.x );
+	   tz[z] = lerp( t2.x, t2.y, f.y );
+	   }
 
-	return lerp(tz[0], tz[1], (f.z));	*/
+	   return lerp(tz[0], tz[1], (f.z));	*/
 }
 
 bool ConeTraceBrick_Terrain(const float3 vRayStartPos, inout Ray r, const float fDistanceIn, inout float fDistance, const float fDistanceMax,
-	inout float4 vPosOut, inout float4 vNormal, const float3 tcMin, inout float4 vRgbOut, const float fAlphaRef, const float fLodRatio,
-	const float fAlphaRefMin, const float fAlphaRefMax, const int nPredictionMode, const float fMultTriRT, const bool bAirOnlyMode, const bool bApplyGlobalDensity, const bool bSpecular,
-	inout float fIsoValPrev)
+                            inout float4 vPosOut, inout float4 vNormal, const float3 tcMin, inout float4 vRgbOut, const float fAlphaRef, const float fLodRatio,
+                            const float fAlphaRefMin, const float fAlphaRefMax, const int nPredictionMode, const float fMultTriRT, const bool bAirOnlyMode, const bool bApplyGlobalDensity, const bool bSpecular,
+                            inout float fIsoValPrev)
 {
 	bool bRes = true;
 
@@ -542,11 +542,11 @@ bool ConeTraceBrick_Terrain(const float3 vRayStartPos, inout Ray r, const float 
 	Texture3D sPoolNNNS = brickPool_Norm;
 	Texture3D sPoolSSSS = brickPool_Rgbs;
 
-	if (bHit && (tmax>0))
+	if (bHit && (tmax > 0))
 	{
 		Ray rOrig = r;
 
-		const float3 vMulTC = 1.f / ocNodeSize*vBoxSize / VOX_ATLAS_SIZE*VOX_SUBBLOCK_SIZE_RATIO;
+		const float3 vMulTC = 1.f / ocNodeSize * vBoxSize / VOX_ATLAS_SIZE * VOX_SUBBLOCK_SIZE_RATIO;
 
 		vPosOut.w = 1000000;
 
@@ -556,14 +556,14 @@ bool ConeTraceBrick_Terrain(const float3 vRayStartPos, inout Ray r, const float 
 			//			float fStepSize = lerp(.05, .25f, saturate(fDistance/32));
 			float fStepSize = lerp(.05f, .5f, saturate(-fIsoValPrev * 20));
 
-			r.startpoint += r.direction*(ocNodeSize / VOX_BRICK_TEXRES)*fStepSize;
+			r.startpoint += r.direction * (ocNodeSize / VOX_BRICK_TEXRES) * fStepSize;
 
 			float3 vPosWS = r.startpoint;
 
 			// seams compensation, safety border
 			vPosWS -= (vPosWS - (voxAreaMin + voxAreaMax) / 2) / VOX_BRICK_TEXRES;
 
-			float3 vCurTC = tcMin + ((clamp(vPosWS, voxAreaMin + vHalfTexSizeWS, voxAreaMax - vHalfTexSizeWS) - voxAreaMin.xyz) / (vBoxSize))*vMulTC;
+			float3 vCurTC = tcMin + ((clamp(vPosWS, voxAreaMin + vHalfTexSizeWS, voxAreaMax - vHalfTexSizeWS) - voxAreaMin.xyz) / (vBoxSize)) * vMulTC;
 			float4 vRGBI = tex3DlodLC(sPoolRGBI, float4(vCurTC.xyz, 0));
 			float4 vNNNS = 0;//tex3DlodLC( sPoolNNNS,  float4(vCurTC.xyz, 0) );
 			float4 vSSSS = 0;//tex3DlodLC( sPoolSSSS,  float4(vCurTC.xyz, 0) );
@@ -573,8 +573,8 @@ bool ConeTraceBrick_Terrain(const float3 vRayStartPos, inout Ray r, const float 
 			if (fIsoVal >= 0)
 			{
 				float fLastStepSize = fIsoVal + abs(fIsoValPrev);
-				vDetStartPoint -= r.direction*(ocNodeSize / VOX_BRICK_TEXRES)*fStepSize*(fIsoVal / fLastStepSize);
-				vCurTC = tcMin + ((clamp(vDetStartPoint, voxAreaMin + vHalfTexSizeWS, voxAreaMax - vHalfTexSizeWS) - voxAreaMin.xyz) / (vBoxSize))*vMulTC;
+				vDetStartPoint -= r.direction * (ocNodeSize / VOX_BRICK_TEXRES) * fStepSize * (fIsoVal / fLastStepSize);
+				vCurTC = tcMin + ((clamp(vDetStartPoint, voxAreaMin + vHalfTexSizeWS, voxAreaMax - vHalfTexSizeWS) - voxAreaMin.xyz) / (vBoxSize)) * vMulTC;
 				vNNNS = tex3DlodLC(sPoolNNNS, float4(vCurTC.xyz, 0));
 
 				// read surface types
@@ -582,33 +582,33 @@ bool ConeTraceBrick_Terrain(const float3 vRayStartPos, inout Ray r, const float 
 					//					int arrTypes[4] = { -1, -1, -1, -1 };
 					int arrTypes[4] = { 0, 1, 2, 3 };
 
-					float3 t = frac(vCurTC.xyz*VOX_TEX_POOL_DIM);
+					float3 t = frac(vCurTC.xyz * VOX_TEX_POOL_DIM);
 
 					float4 arrValsXYZ[2][2][2];
-					for (int x = 0; x<2; x++)
-						for (int y = 0; y<2; y++)
-							for (int z = 0; z<2; z++)
+					for (int x = 0; x < 2; x++)
+						for (int y = 0; y < 2; y++)
+							for (int z = 0; z < 2; z++)
 							{
 								arrValsXYZ[x][y][z] = tex3DlodLC(sPoolSSSS, float4(Tris_SnapPoolTC(vCurTC.xyz) + float3(x, y, z) / VOX_TEX_POOL_DIM, 0));
 
 								/*int nType = int(arrValsXYZ[x][y][z].r * 255.f + .5f);
 
-								for(int i=0; i<4; i++)
-								{
-								if(arrTypes[i] == nType)
-								break;
+								   for(int i=0; i<4; i++)
+								   {
+								   if(arrTypes[i] == nType)
+								   break;
 
-								if(arrTypes[i] == -1)
-								{
-								arrTypes[i] = nType;
-								break;
-								}
-								}*/
+								   if(arrTypes[i] == -1)
+								   {
+								   arrTypes[i] = nType;
+								   break;
+								   }
+								   }*/
 							}
 
-					for (int x = 0; x<2; x++)
-						for (int y = 0; y<2; y++)
-							for (int z = 0; z<2; z++)
+					for (int x = 0; x < 2; x++)
+						for (int y = 0; y < 2; y++)
+							for (int z = 0; z < 2; z++)
 							{
 								arrValsXYZ[x][y][z] = tex3DlodLC(sPoolSSSS, float4(Tris_SnapPoolTC(vCurTC.xyz) + float3(x, y, z) / VOX_TEX_POOL_DIM, 0));
 
@@ -621,12 +621,12 @@ bool ConeTraceBrick_Terrain(const float3 vRayStartPos, inout Ray r, const float 
 							}
 
 					float4 arrValsXY[2][2];
-					for (int x = 0; x<2; x++)
-						for (int y = 0; y<2; y++)
+					for (int x = 0; x < 2; x++)
+						for (int y = 0; y < 2; y++)
 							arrValsXY[x][y] = lerp(arrValsXYZ[x][y][0], arrValsXYZ[x][y][1], t.z);
 
 					float4 arrValsX[2];
-					for (int x = 0; x<2; x++)
+					for (int x = 0; x < 2; x++)
 						arrValsX[x] = lerp(arrValsXY[x][0], arrValsXY[x][1], t.y);
 
 					float4 arrVals = lerp(arrValsX[0], arrValsX[1], t.x);
@@ -665,8 +665,8 @@ bool ConeTraceBrick_Terrain(const float3 vRayStartPos, inout Ray r, const float 
 			fIsoValPrev = fIsoVal;
 
 			if (!IsPointInAABB(r.startpoint, voxAreaMin, voxAreaMax) ||
-				(GetLodTransition(fDistanceIn, fDistance, ocNodeSize, fLodRatio)>2.f && ocNodeSize<VOX_MAX_NODE_SIZE) ||
-				fDistance >= fDistanceMax || vRgbOut.a >= fAlphaRef)
+			    (GetLodTransition(fDistanceIn, fDistance, ocNodeSize, fLodRatio) > 2.f && ocNodeSize < VOX_MAX_NODE_SIZE) ||
+			    fDistance >= fDistanceMax || vRgbOut.a >= fAlphaRef)
 			{
 				break;
 			}
@@ -681,7 +681,7 @@ bool ConeTraceBrick_Terrain(const float3 vRayStartPos, inout Ray r, const float 
 #ifdef MESH_TRACING
 void RayTraceMesh(const float fMultTriRT, const float ocNodeSize, inout float fDistance, inout float4 arrGoodTC, inout Ray rOrig, inout float4 vRgbOut)
 {
-	if (fMultTriRT>0 && ocNodeSize == VOX_MIN_NODE_SIZE && fDistance<VOX_MAX_RT_DIST && arrGoodTC.w)
+	if (fMultTriRT > 0 && ocNodeSize == VOX_MIN_NODE_SIZE && fDistance < VOX_MAX_RT_DIST && arrGoodTC.w)
 	{
 		// find nearest hit triangle
 		int3 vNearestTC = -1;
@@ -694,12 +694,12 @@ void RayTraceMesh(const float fMultTriRT, const float ocNodeSize, inout float fD
 			// get first triangle id and tris count
 			float4 vValII = tex3DlodPC(brickPool_NTri, float4(Tris_SnapPoolTC(arrGoodTC.xyz), 0));
 			int nFirstTriII =
-				+int(vValII.r * 255)
-				+ int(vValII.g * 255) * 256
-				+ int(vValII.b * 255) * 256 * 256;
+			  +int(vValII.r * 255)
+			  + int(vValII.g * 255) * 256
+			  + int(vValII.b * 255) * 256 * 256;
 			int nTriCount = int(vValII.a * 255);
 
-			for (int tii = 0; tii<nTriCount; tii++)
+			for (int tii = 0; tii < nTriCount; tii++)
 			{
 				int nTCII = nFirstTriII + tii;
 
@@ -709,10 +709,10 @@ void RayTraceMesh(const float fMultTriRT, const float ocNodeSize, inout float fD
 
 				// get triangle id
 				int nTriId =
-					+int(vVal.r * 255)
-					+ int(vVal.g * 255) * 256
-					+ int(vVal.b * 255) * 256 * 256
-					+ int(vVal.a * 255) * 256 * 256 * 256;
+				  +int(vVal.r * 255)
+				  + int(vVal.g * 255) * 256
+				  + int(vVal.b * 255) * 256 * 256
+				  + int(vVal.a * 255) * 256 * 256 * 256;
 
 				nTriId *= 4;
 				int3 nTC = int3(nTriId & 255, (nTriId / 256) & 255, (nTriId / 256 / 256) & 255);
@@ -753,21 +753,21 @@ void RayTraceMesh(const float fMultTriRT, const float ocNodeSize, inout float fD
 
 			float3 vBarTC;
 			GetBarycentricTC(arrNearestTriVerts[0], arrNearestTriVerts[1], arrNearestTriVerts[2], vBarTC[0], vBarTC[1], vBarTC[2], vNearestHitPoint);
-			float2 vPosTC = t0*vBarTC[0] + t1*vBarTC[1] + t2*vBarTC[2];
+			float2 vPosTC = t0 * vBarTC[0] + t1 * vBarTC[1] + t2 * vBarTC[2];
 
 			int nTexId = (int)(vInf.x) - 1;
 
 			// add signed
-			float3 vCenterRGB = tex3DlodLC(brickPool_TTex, float4(frac(vPosTC.xy)*vInf.y, float(nTexId) / 256.f + .5f / 256.f, 0));
+			float3 vCenterRGB = tex3DlodLC(brickPool_TTex, float4(frac(vPosTC.xy) * vInf.y, float(nTexId) / 256.f + .5f / 256.f, 0));
 			vRgbOut.xyz *= 1.f + (vCenterRGB - .5f) * 8.f * pow(saturate((1.f - fDistance / VOX_MAX_RT_DIST) * fMultTriRT), .5f) * saturate(VOX_MAX_ALPHA - (arrGoodTC.w - 1));
 
-			// 				float fR = 7.9;
-			// 				vRgbOut.x += t0.x>fR || t0.x<-fR;
-			// 				vRgbOut.x += t1.x>fR || t1.x<-fR;
-			// 				vRgbOut.x += t2.x>fR || t2.x<-fR;
-			// 				vRgbOut.y += t0.y>fR || t0.y<-fR;
-			// 				vRgbOut.y += t1.y>fR || t1.y<-fR;
-			// 				vRgbOut.y += t2.y>fR || t2.y<-fR;
+			//        float fR = 7.9;
+			//        vRgbOut.x += t0.x>fR || t0.x<-fR;
+			//        vRgbOut.x += t1.x>fR || t1.x<-fR;
+			//        vRgbOut.x += t2.x>fR || t2.x<-fR;
+			//        vRgbOut.y += t0.y>fR || t0.y<-fR;
+			//        vRgbOut.y += t1.y>fR || t1.y<-fR;
+			//        vRgbOut.y += t2.y>fR || t2.y<-fR;
 		}
 	}
 }
@@ -800,7 +800,7 @@ void ProcessTiledLights(inout float4 vRGB, in float3 vPos0, in float3 vRayDir, i
 {
 	float4 vPosR = 0, vDirF = 0, vCol = 0;
 
-	for (int nLightId = -1; GetLightTI(++nLightId, vPosR, vDirF, vCol);)
+	for (int nLightId = -1; GetLightTI(++nLightId, vPosR, vDirF, vCol); )
 	{
 		Ray r;
 		r.direction = (vPosR.xyz - vPos0);
@@ -809,7 +809,7 @@ void ProcessTiledLights(inout float4 vRGB, in float3 vPos0, in float3 vRayDir, i
 		{
 			r.direction = normalize(r.direction);
 
-			if (dot(r.direction, vRayDir)>0.75) // TODO: make full RSM support for point lights and sun (with normals)
+			if (dot(r.direction, vRayDir) > 0.75) // TODO: make full RSM support for point lights and sun (with normals)
 				continue;
 
 			// get projector texture and shadow map from tiled shading info
@@ -834,8 +834,11 @@ void ProcessTiledLights(inout float4 vRGB, in float3 vPos0, in float3 vRayDir, i
 					float4 projTC = mul(light.projectorMatrix, float4(position, 1.0f));
 					projTC.xy /= projTC.w;
 
-					if (projTC.x > 0 && projTC.x < 1 && projTC.y>0 && projTC.y < 1)
-						vCol.xyz *= (projTC.w > 0) * pow(SVO_SpotTexArray.SampleLevel(ssSvoPointClamp, float3(projTC.xy, light.resIndex), 0).xxx, .5);
+					if (projTC.x > 0 && projTC.x < 1 && projTC.y > 0 && projTC.y < 1)
+					{
+						uint4 resIndexClamps = GetResourceIndexAndMipClamps(light.resIndex);
+						vCol.xyz *= (projTC.w > 0) * pow(SVO_SpotTexArray.SampleLevel(ssSvoPointClamp, float3(projTC.xy, resIndexClamps.x), resIndexClamps.y).xxx, .5);
+					}
 					else
 						vCol.xyz = 0;
 
@@ -853,14 +856,14 @@ void ProcessTiledLights(inout float4 vRGB, in float3 vPos0, in float3 vRayDir, i
 					vCol.xyz *= SVO_ShadowPool.SampleLevel(ssSvoPointClamp, float3(P0.xy, 0), 0).x > P0.z;
 
 #if !%_RT_SAMPLE5 && %_PS
-					vCol.xyz *= ForwRsmPoolCol.SampleLevel(ssSvoPointClamp, float3(P0.xy, 0), 0);
+					vCol.xyz *= SvoParamsMisc4.z + (1.f - SvoParamsMisc4.z) * ForwRsmPoolCol.SampleLevel(ssSvoPointClamp, float3(P0.xy, 0), 0);
 #endif
 				}
 			}
 			else if (vDirF.w == 0)
 			{
 #if !%_RT_SAMPLE5 && %_PS
-				vCol *= 0.4; // properly support only projectors for now
+				vCol *= SvoParamsMisc4.z; // properly support only projectors for now
 #endif
 			}
 			else
@@ -877,15 +880,15 @@ void ProcessTiledLights(inout float4 vRGB, in float3 vPos0, in float3 vRayDir, i
 }
 
 bool ConeTraceBrick_SS_Far(const float3 vRayStartPos, Ray r, const float _fDistanceIn, float fDistance, float fDistanceMax,
-	float4 vPosOut, float4 vNormal, const float3 tcMin, inout float4 vRgbOut, const float fAlphaRef, const float fLodRatio,
-	const float fAlphaRefMin, const float fAlphaRefMax, const int nPredictionMode, const float fMultTriRT, const bool bAirOnlyMode, const bool bApplyGlobalDensity, const bool bSpecular, const bool bUseLighting,
-	float4 vBestHitPosOpa[BEST_POINTS_NUM])
+                           float4 vPosOut, float4 vNormal, const float3 tcMin, inout float4 vRgbOut, const float fAlphaRef, const float fLodRatio,
+                           const float fAlphaRefMin, const float fAlphaRefMax, const int nPredictionMode, const float fMultTriRT, const bool bAirOnlyMode, const bool bApplyGlobalDensity, const bool bSpecular, const bool bUseLighting,
+                           float4 vBestHitPosOpa[BEST_POINTS_NUM])
 {
 	bool bRes = true;
 
 	float fDistanceIn = bAirOnlyMode ? 0 : _fDistanceIn;
 
-	fDistanceMax = max(0, fDistanceMax*.8 - 2);
+	fDistanceMax = max(0, fDistanceMax * .8 - 2);
 
 	{
 		Ray rOrig = r;
@@ -896,12 +899,12 @@ bool ConeTraceBrick_SS_Far(const float3 vRayStartPos, Ray r, const float _fDista
 
 			float fVoxSize = 4;
 
-			r.startpoint += r.direction*fVoxSize*fStepSize;
+			r.startpoint += r.direction * fVoxSize * fStepSize;
 
 			float4 vRGBD = 0;
 			float4 vNORA = 0;
 
-			float4 vOPAC = 0;//tex3DlodLC( brickPool_Opac,  float4(vCurTC.xyz, 0) );		
+			float4 vOPAC = 0;//tex3DlodLC( brickPool_Opac,  float4(vCurTC.xyz, 0) );
 
 			fDistance = fDistanceIn + length(r.startpoint - vRayStartPos);
 
@@ -913,7 +916,7 @@ bool ConeTraceBrick_SS_Far(const float3 vRayStartPos, Ray r, const float _fDista
 					float4 vPos0 = float4(r.startpoint, 1);
 					float4 vTC0 = mul(SVO_ViewProj, vPos0);
 					vTC0 /= vTC0.w;
-					vTC0.xy = vTC0.xy*0.5f + 0.5f;
+					vTC0.xy = vTC0.xy * 0.5f + 0.5f;
 					vTC0.y = 1 - vTC0.y;
 
 					float fScrDepth = SampleLinearDepth(sceneDepth, vTC0.xy) * PS_NearFarClipDist.y;
@@ -931,7 +934,7 @@ bool ConeTraceBrick_SS_Far(const float3 vRayStartPos, Ray r, const float _fDista
 				vRgbOut.a += vRGBD.a * saturate(1 - vRgbOut.a);// * fOverDist;
 
 				// store hit info
-				if (vPosOut.w == 0 && vRgbOut.a >= VOX_MAX_ALPHA*0.85f)
+				if (vPosOut.w == 0 && vRgbOut.a >= VOX_MAX_ALPHA * 0.85f)
 				{
 					vPosOut.xyz = r.startpoint;
 					vPosOut.w = vRGBD.a;
@@ -950,9 +953,9 @@ bool ConeTraceBrick_SS_Far(const float3 vRayStartPos, Ray r, const float _fDista
 }
 
 bool ConeTraceBrick_SSR(const float3 vRayStartPos, Ray r, const float _fDistanceIn, inout float fDistance, float fDistanceMax,
-	float4 vPosOut, float4 vNormal, const float3 tcMin, inout float4 vRgbOut, const float fAlphaRef, const float fLodRatio,
-	const float fAlphaRefMin, const float fAlphaRefMax, const int nPredictionMode, const float fMultTriRT, const bool bAirOnlyMode, const bool bApplyGlobalDensity, const bool bSpecular, const bool bUseLighting,
-	float4 vBestHitPosOpa[BEST_POINTS_NUM])
+                        float4 vPosOut, float4 vNormal, const float3 tcMin, inout float4 vRgbOut, const float fAlphaRef, const float fLodRatio,
+                        const float fAlphaRefMin, const float fAlphaRefMax, const int nPredictionMode, const float fMultTriRT, const bool bAirOnlyMode, const bool bApplyGlobalDensity, const bool bSpecular, const bool bUseLighting,
+                        float4 vBestHitPosOpa[BEST_POINTS_NUM])
 {
 	bool bRes = true;
 
@@ -967,14 +970,14 @@ bool ConeTraceBrick_SSR(const float3 vRayStartPos, Ray r, const float _fDistance
 
 		float fStepSize = 0.125f;
 
-		r.startpoint += r.direction*.1;
+		r.startpoint += r.direction * .1;
 		fDistance = fDistanceIn + length(r.startpoint - vRayStartPos);
 
-		for (int s = 0; s<100; s++)
+		for (int s = 0; s < 100; s++)
 		{
 			float fVoxSize = (1 + (fDistM + fDistance) * .5) / 7;
 
-			r.startpoint += r.direction*fVoxSize*fStepSize;
+			r.startpoint += r.direction * fVoxSize * fStepSize;
 
 			fDistance = fDistanceIn + length(r.startpoint - vRayStartPos);
 
@@ -986,31 +989,31 @@ bool ConeTraceBrick_SSR(const float3 vRayStartPos, Ray r, const float _fDistance
 				float4 vPos0 = float4(r.startpoint, 1);
 				float4 vTC0 = mul(SVO_ViewProj, vPos0);
 				vTC0 /= vTC0.w;
-				vTC0.xy = vTC0.xy*0.5f + 0.5f;
+				vTC0.xy = vTC0.xy * 0.5f + 0.5f;
 				vTC0.y = 1 - vTC0.y;
 
-				if (vTC0.x < 0 || vTC0.x>1 || vTC0.y < 0 || vTC0.y>1 || vTC0.z < 0 || vTC0.z>1)
+				if (vTC0.x < 0 || vTC0.x > 1 || vTC0.y < 0 || vTC0.y > 1 || vTC0.z < 0 || vTC0.z > 1)
 					break;
 
 				// read depth
 				float fScrDepth = SampleLinearDepth(sceneDepth, vTC0.xy) * PS_NearFarClipDist.y;
 				float fRayDepth = GetLinearDepth(g_PS_ProjRatio.y / (vTC0.z - g_PS_ProjRatio.x)) * PS_NearFarClipDist.y - 0.05;
 				float fSurDens = saturate(1 - max((fScrDepth - fRayDepth), (fRayDepth - fScrDepth) / 2) > SvoParamsDiffuse.z);
-				float fFade = saturate(18 * (1.f - 2.f*max(abs(vTC0.x - .5), abs(vTC0.y - .5))));
-				vRGBD.a = max(vRGBD.a, fSurDens*fFade);
+				float fFade = saturate(18 * (1.f - 2.f * max(abs(vTC0.x - .5), abs(vTC0.y - .5))));
+				vRGBD.a = max(vRGBD.a, fSurDens * fFade);
 
-#if %_RT_SAMPLE5
+	#if %_RT_SAMPLE5
 				if (!IsDiffuseMode())
 				{
 					float4 vReprojTC = mul(SVO_ViewProjPrev, vPos0);
 					vReprojTC /= vReprojTC.w;
-					vReprojTC.xy = vReprojTC.xy*0.5f + 0.5f;
+					vReprojTC.xy = vReprojTC.xy * 0.5f + 0.5f;
 					vReprojTC.y = 1 - vReprojTC.y;
 
 					float3 vSSR = tex2DlodPC(sceneTargetPrev, float4(vReprojTC.xy, 0, 0));
 					vRgbOut.xyz += vSSR.xyz * vRGBD.a * saturate(1 - vRgbOut.a);
 				}
-#endif
+	#endif
 
 				vRgbOut.a += vRGBD.a * saturate(1 - vRgbOut.a);
 			}
@@ -1027,9 +1030,9 @@ bool ConeTraceBrick_SSR(const float3 vRayStartPos, Ray r, const float _fDistance
 }
 
 bool ConeTraceBrick(const float3 vRayStartPos, inout Ray r, const float _fDistanceIn, inout float fDistance, const float fDistanceMax,
-	inout float4 vPosOut, inout float4 vNormal, const float3 tcMin, inout float4 vRgbOut, const float fAlphaRef, const float fLodRatio,
-	const float fAlphaRefMin, const float fAlphaRefMax, const int nPredictionMode, const float fMultTriRT, const bool bAirOnlyMode, const bool bApplyGlobalDensity, const bool bSpecular, const bool bUseLighting,
-	inout float4 vBestHitPosOpa[BEST_POINTS_NUM], const int nDebugMode, const float3 vSurfNormOffset)
+                    inout float4 vPosOut, inout float4 vNormal, const float3 tcMin, inout float4 vRgbOut, const float fAlphaRef, const float fLodRatio,
+                    const float fAlphaRefMin, const float fAlphaRefMax, const int nPredictionMode, const float fMultTriRT, const bool bAirOnlyMode, const bool bApplyGlobalDensity, const bool bSpecular, const bool bUseLighting,
+                    inout float4 vBestHitPosOpa[BEST_POINTS_NUM], const int nDebugMode, const float3 vSurfNormOffset, float fStepSize = 0.5f)
 {
 	bool bRes = true;
 
@@ -1046,16 +1049,16 @@ bool ConeTraceBrick(const float3 vRayStartPos, inout Ray r, const float _fDistan
 	const float fSafetyBorder = 0.001f;
 	const bool bHit = IntersectRayAABB(r, voxAreaMin.xyz - fSafetyBorder, voxAreaMax.xyz + fSafetyBorder, tmin, tmax);
 
-	if (bHit && (tmax>0))
+	if (bHit && (tmax > 0))
 	{
 		Ray rOrig = r;
 
-		const float3 vMulTC = 1.f / ocNodeSize*vBoxSize / VOX_ATLAS_SIZE*VOX_SUBBLOCK_SIZE_RATIO;
+		const float3 vMulTC = 1.f / ocNodeSize * vBoxSize / VOX_ATLAS_SIZE * VOX_SUBBLOCK_SIZE_RATIO;
 
 		float4 arrGoodTC = 0;
 
 		float t = max(0, tmin);
-		r.startpoint += r.direction*max(0, tmin);
+		r.startpoint += r.direction * max(0, tmin);
 		fDistance = fDistanceIn + length(r.startpoint - vRayStartPos);
 
 		const float fVoxSize = ocNodeSize / VOX_BRICK_TEXRES;
@@ -1063,26 +1066,24 @@ bool ConeTraceBrick(const float3 vRayStartPos, inout Ray r, const float _fDistan
 		float3 vRayDirABS = normalize(abs(r.direction));
 
 		const int nMaxSamples = VOX_BRICK_TEXRES * 2;
-		for (int nSample = 0; nSample < nMaxSamples; nSample++) 
+		for (int nSample = 0; nSample < nMaxSamples; nSample++)
 		{
-			float fStepSize = bAirOnlyMode ? 1.f : 0.5f; // todo: pass from outside
-
 			if (!bAirOnlyMode)
 			{
 				if (nPredictionMode == SVO_PREDICTION_MIN_DIST_TO_SURFACE)
 				{
 					//			const fStepSize = 1.f;//clamp(32.f-vReadNormal.a*255.f, 1.f, VOX_DIST_TO_SURF_RANGE);
-					//			const fStepSize = vReadNormal.g ? 0.75f : 1.5f;//clamp(32.f-vReadNormal.a*255.f, 1.f, VOX_DIST_TO_SURF_RANGE);		
+					//			const fStepSize = vReadNormal.g ? 0.75f : 1.5f;//clamp(32.f-vReadNormal.a*255.f, 1.f, VOX_DIST_TO_SURF_RANGE);
 					//			fStepSize = 0.5; //bMrtMode ? 0.35f : 1.f;//clamp(32.f-vReadNormal.a*255.f, 1.f, VOX_DIST_TO_SURF_RANGE);
 					//					fStepSize = clamp((255.f - pow(vNORA.a,.6)*255.f) * fStepSize, fStepSize, 4);
 					//	fStepSize = fStepSize  * clamp(255-vNORA.a*255, 1, 4);
 				}
 			}
 
-			r.startpoint += r.direction*fVoxSize*fStepSize;
-			t += fVoxSize*fStepSize;
+			r.startpoint += r.direction * fVoxSize * fStepSize;
+			t += fVoxSize * fStepSize;
 
-			float3 vCurTC = tcMin + ((clamp(r.startpoint, voxAreaMin + vHalfTexSizeWS, voxAreaMax - vHalfTexSizeWS) - voxAreaMin.xyz) / (vBoxSize))*vMulTC;
+			float3 vCurTC = tcMin + ((clamp(r.startpoint, voxAreaMin + vHalfTexSizeWS, voxAreaMax - vHalfTexSizeWS) - voxAreaMin.xyz) / (vBoxSize)) * vMulTC;
 
 			float4 vRGBD = 0;
 			float4 vNORA = 0;
@@ -1109,18 +1110,18 @@ bool ConeTraceBrick(const float3 vRayStartPos, inout Ray r, const float _fDistan
 
 			if (!bAirOnlyMode)
 			{
-				vRGBD.a = saturate(max(pow(vOPAC.a * 0, 2)*fAirDensityScale, dot(vOPAC.zyx, vRayDirABS)));
+				vRGBD.a = saturate(max(pow(vOPAC.a * 0, 2) * fAirDensityScale, dot(vOPAC.zyx, vRayDirABS)));
 			}
 			else
 			{
-				vRGBD.a = pow(vOPAC.a * 0, 2)*fAirDensityScale;
+				vRGBD.a = pow(vOPAC.a * 0, 2) * fAirDensityScale;
 			}
 
 			// add global fog
 			if (bAirOnlyMode && bApplyGlobalDensity)
 			{
 				float fHeighFactor = pow(saturate(1.f - (r.startpoint.z - (VOX_TI_ATMO_CLOUDS_GEN_HEIGHT * 2 / 3)) / (VOX_TI_ATMO_CLOUDS_GEN_HEIGHT - (VOX_TI_ATMO_CLOUDS_GEN_HEIGHT * 2 / 3))), 2);
-				vRGBD.a = max(vRGBD.a, 0.001f*VOX_TI_ATMO_DENSITY*fAirDensityScale) * fHeighFactor;
+				vRGBD.a = max(vRGBD.a, 0.001f * VOX_TI_ATMO_DENSITY * fAirDensityScale) * fHeighFactor;
 			}
 
 			fDistance = fDistanceIn + length(r.startpoint - vRayStartPos);
@@ -1137,7 +1138,7 @@ bool ConeTraceBrick(const float3 vRayStartPos, inout Ray r, const float _fDistan
 					vRgbOut.xyz += vRGBD.xyz * vRGBD.a * saturate(1 - vRgbOut.a) * fOverDist * fDot * saturate(fDistance / fVoxSize);
 
 					if (!bAirOnlyMode)
-						vNormal.xyz = /*vNORA.a*/(vNORA.xyz - 0.5f)*2.f*saturate(1 - vRgbOut.a) + vNormal.xyz*vRgbOut.a;
+						vNormal.xyz = /*vNORA.a*/ (vNORA.xyz - 0.5f) * 2.f * saturate(1 - vRgbOut.a) + vNormal.xyz * vRgbOut.a;
 				}
 
 #if !%_RT_SAMPLE5 && %_PS
@@ -1149,7 +1150,7 @@ bool ConeTraceBrick(const float3 vRayStartPos, inout Ray r, const float _fDistan
 				if (fDistance > fVoxSize * 0.5f)
 				{
 					// replace worst slot
-					const float fNewW = vRGBD.w*saturate(1 - vRgbOut.a);
+					const float fNewW = vRGBD.w * saturate(1 - vRgbOut.a);
 					if (fNewW > vBestHitPosOpa[0].w)
 					{
 						vBestHitPosOpa[1] = vBestHitPosOpa[0];
@@ -1172,13 +1173,13 @@ bool ConeTraceBrick(const float3 vRayStartPos, inout Ray r, const float _fDistan
 						float fShadowDepth = tex2DlodPC(rsmSunShadowMap, float4(vShadTC.xy, 0, 0)).r;
 						vSunLight = (fShadowDepth > vShadTC.z + .0007);
 
-#if %_RT_VOLUMETRIC_FOG
+	#if %_RT_VOLUMETRIC_FOG
 						half4 vMatColor = tex2DlodPC(rsmSunColorsMap, float4(vShadTC.xy, 0, 0)).rgba;
 						half3 vMatNormal = tex2DlodPC(rsmSunNormalMap, float4(vShadTC.xy, 0, 0)).rgb;
-#else
+	#else
 						half4 vMatColor = half4(SvoParamsMisc2.zzz, 0.15f);
 						half3 vMatNormal = 0;
-#endif
+	#endif
 						//vMatColor.xyz = pow(vMatColor.xyz, 1.0/2.2);
 						float fMatIntens = dot(vMatColor.xyz, .333f);
 						vMatColor.xyz += saturate(SvoParamsMisc2.z - fMatIntens);
@@ -1187,15 +1188,15 @@ bool ConeTraceBrick(const float3 vRayStartPos, inout Ray r, const float _fDistan
 						float fRSM = saturate(1 - (8 / ocNodeSize) * 450 * abs(fShadowDepth - vShadTC.z));
 						vRGBD.a = max(vRGBD.a, fRSM * vMatColor.a);
 
-#if %_RT_VOLUMETRIC_FOG
+	#if %_RT_VOLUMETRIC_FOG
 						if (dot(vMatNormal, 1) < 0.01)
 							vMatNormal = float3(0, 0, 1); // terrain
 						else
 							vMatNormal = vMatNormal * 2 - 1;
 
 						if (dot(vMatNormal, r.direction) < 0.7)
-#endif
-							vRgbOut.xyz += vRGBD.xyz * lerp(fRSM, vRGBD.a, vOPAC.a == 0) * saturate(1 - vRgbOut.a);// * fOverDist * (dot( float3(0,0,1), r.direction )<0.8);
+	#endif
+						vRgbOut.xyz += vRGBD.xyz * lerp(fRSM, vRGBD.a, vOPAC.a == 0) * saturate(1 - vRgbOut.a);  // * fOverDist * (dot( float3(0,0,1), r.direction )<0.8);
 					}
 				}
 #endif
@@ -1204,44 +1205,44 @@ bool ConeTraceBrick(const float3 vRayStartPos, inout Ray r, const float _fDistan
 				if (fDistance < 2.f)
 				{
 					// SS occlusion
-					float4 vPos0 = float4(r.startpoint - vSurfNormOffset + r.direction*fVoxSize*fStepSize / 2, 1);
+					float4 vPos0 = float4(r.startpoint - vSurfNormOffset + r.direction * fVoxSize * fStepSize / 2, 1);
 					float4 vTC0 = mul(SVO_ViewProj, vPos0);
 					vTC0 /= vTC0.w;
-					vTC0.xy = vTC0.xy*0.5f + 0.5f;
+					vTC0.xy = vTC0.xy * 0.5f + 0.5f;
 					vTC0.y = 1 - vTC0.y;
 
 					// read depth
 					float fScrDepth = SampleLinearDepth(sceneDepth, vTC0.xy) * PS_NearFarClipDist.y;
 					float fRayDepth = GetLinearDepth(g_PS_ProjRatio.y / (vTC0.z - g_PS_ProjRatio.x)) * PS_NearFarClipDist.y - 0.05;
 					float fSurDens = saturate(1 - max((fScrDepth - fRayDepth), (fRayDepth - fScrDepth) / 2) > SvoParamsDiffuse.z);
-					float fFade = saturate(8 * (1.f - 2.f*max(abs(vTC0.x - .5), abs(vTC0.y - .5))));
-					vRGBD.a = max(vRGBD.a, fSurDens*fFade);
+					float fFade = saturate(8 * (1.f - 2.f * max(abs(vTC0.x - .5), abs(vTC0.y - .5))));
+					vRGBD.a = max(vRGBD.a, fSurDens * fFade);
 
-#if %_RT_SAMPLE5
+	#if %_RT_SAMPLE5
 					if (IsDiffuseMode())
 					{
 						// read RGB
 						float4 vReprojTC = mul(SVO_ViewProjPrev, vPos0);
 						vReprojTC /= vReprojTC.w;
-						vReprojTC.xy = vReprojTC.xy*0.5f + 0.5f;
+						vReprojTC.xy = vReprojTC.xy * 0.5f + 0.5f;
 						vReprojTC.y = 1 - vReprojTC.y;
 
 						float3 vSSR = tex2DlodPC(sceneTargetPrev, float4(vReprojTC.xy, 0, 0));
-						vRgbOut.xyz += vSSR.xyz * saturate(fSurDens*fFade) * saturate(1 - vRgbOut.a);
+						vRgbOut.xyz += vSSR.xyz * saturate(fSurDens * fFade) * saturate(1 - vRgbOut.a);
 					}
-#endif
+	#endif
 				}
 #endif
 
 #ifdef MESH_TRACING
-				if (fMultTriRT && vRGBD.w >= VOX_MAX_ALPHA*0.5f && arrGoodTC.w == 0)
+				if (fMultTriRT && vRGBD.w >= VOX_MAX_ALPHA * 0.5f && arrGoodTC.w == 0)
 					arrGoodTC = float4(vCurTC.xyz, vRgbOut.a + 1);
 #endif
 
 				vRgbOut.a += vRGBD.a * saturate(1 - vRgbOut.a) * fOverDist;
 
 				// store hit info
-				if (vPosOut.w == 0 && vRgbOut.a >= VOX_MAX_ALPHA*0.85f)
+				if (vPosOut.w == 0 && vRgbOut.a >= VOX_MAX_ALPHA * 0.85f)
 				{
 					vPosOut.xyz = r.startpoint;
 					vPosOut.w = vRGBD.a;
@@ -1255,8 +1256,8 @@ bool ConeTraceBrick(const float3 vRayStartPos, inout Ray r, const float _fDistan
 			}
 
 			if (t >= tmax ||
-				(GetLodTransition(fDistanceIn, fDistance, ocNodeSize, fLodRatio)>2.f && ocNodeSize<VOX_MAX_NODE_SIZE) ||
-				fDistance >= fDistanceMax || vRgbOut.a >= fAlphaRef)
+			    (GetLodTransition(fDistanceIn, fDistance, ocNodeSize, fLodRatio) > 2.f && ocNodeSize < VOX_MAX_NODE_SIZE) ||
+			    fDistance >= fDistanceMax || vRgbOut.a >= fAlphaRef)
 			{
 				break;
 			}
@@ -1273,8 +1274,8 @@ bool ConeTraceBrick(const float3 vRayStartPos, inout Ray r, const float _fDistan
 }
 
 bool ConeTraceBrick_MB(const float3 vRayStartPos, inout Ray r, const float fDistanceIn, inout float fDistance, const float fDistanceMax,
-	inout float4 vPosOut, inout float4 vNormal, const float3 tcMin, inout float4 vRgbOut, const float fAlphaRef, const float fLodRatio,
-	const float fAlphaRefMin, const float fAlphaRefMax, const int nPredictionMode, const float fMultTriRT, const bool bAirOnlyMode, const bool bApplyGlobalDensity, const bool bSpecular)
+                       inout float4 vPosOut, inout float4 vNormal, const float3 tcMin, inout float4 vRgbOut, const float fAlphaRef, const float fLodRatio,
+                       const float fAlphaRefMin, const float fAlphaRefMax, const int nPredictionMode, const float fMultTriRT, const bool bAirOnlyMode, const bool bApplyGlobalDensity, const bool bSpecular)
 {
 	bool bRes = true;
 
@@ -1289,22 +1290,22 @@ bool ConeTraceBrick_MB(const float3 vRayStartPos, inout Ray r, const float fDist
 	const float fSafetyBorder = 0.001f;
 	const bool bHit = IntersectRayAABB(r, voxAreaMin.xyz - fSafetyBorder, voxAreaMax.xyz + fSafetyBorder, tmin, tmax);
 
-	if (bHit && (tmax>0))
+	if (bHit && (tmax > 0))
 	{
 		Ray rOrig = r;
 
-		const float3 vMulTC = 1.f / ocNodeSize*vBoxSize / VOX_ATLAS_SIZE*VOX_SUBBLOCK_SIZE_RATIO;
+		const float3 vMulTC = 1.f / ocNodeSize * vBoxSize / VOX_ATLAS_SIZE * VOX_SUBBLOCK_SIZE_RATIO;
 
-		r.startpoint += r.direction*max(0, tmin);
+		r.startpoint += r.direction * max(0, tmin);
 		fDistance = fDistanceIn + length(r.startpoint - vRayStartPos);
 
 		while (1)
 		{
 			float fStepSize = 0.5f; // todo: pass from outside
 
-			r.startpoint += r.direction*(ocNodeSize / VOX_BRICK_TEXRES)*fStepSize;
+			r.startpoint += r.direction * (ocNodeSize / VOX_BRICK_TEXRES) * fStepSize;
 
-			float3 vCurTC = tcMin + ((clamp(r.startpoint, voxAreaMin + vHalfTexSizeWS, voxAreaMax - vHalfTexSizeWS) - voxAreaMin.xyz) / (vBoxSize))*vMulTC;
+			float3 vCurTC = tcMin + ((clamp(r.startpoint, voxAreaMin + vHalfTexSizeWS, voxAreaMax - vHalfTexSizeWS) - voxAreaMin.xyz) / (vBoxSize)) * vMulTC;
 
 			float4 vRGBD = tex3DlodLC(brickPool_Rgbs, float4(vCurTC.xyz, 0));
 
@@ -1315,9 +1316,9 @@ bool ConeTraceBrick_MB(const float3 vRayStartPos, inout Ray r, const float fDist
 			// bigger steps collect more opacity
 			float fAirDensityScale = ocNodeSize * fStepSize;
 
-			vRGBD.a = saturate(max(pow(vOPAC.a, 2)*fAirDensityScale, dot(vOPAC.zyx, normalize(abs(r.direction)))));
+			vRGBD.a = saturate(max(pow(vOPAC.a, 2) * fAirDensityScale, dot(vOPAC.zyx, normalize(abs(r.direction)))));
 
-			fDistance += (ocNodeSize / VOX_BRICK_TEXRES)*fStepSize;
+			fDistance += (ocNodeSize / VOX_BRICK_TEXRES) * fStepSize;
 
 			float fOverDist = saturate((fDistanceMax - fDistance) / (ocNodeSize / VOX_BRICK_TEXRES));
 
@@ -1329,12 +1330,12 @@ bool ConeTraceBrick_MB(const float3 vRayStartPos, inout Ray r, const float fDist
 
 				vRgbOut.xyz += vRGBD.xyz * vRGBD.a * saturate(1 - vRgbOut.a) * fOverDist * fDot;
 
-				vNormal.xyz = /*vNORA.a*/(vNORA.xyz - 0.5f)*2.f*saturate(1 - vRgbOut.a) + vNormal.xyz*vRgbOut.a;
+				vNormal.xyz = /*vNORA.a*/ (vNORA.xyz - 0.5f) * 2.f * saturate(1 - vRgbOut.a) + vNormal.xyz * vRgbOut.a;
 
 				if (fLodRatio == .101f)// && 0)
 				{
-					float3 vNor1 = (vNORA.xyz - 0.5f)*2.f;
-					if ((fLodRatio == .101f) && length(vNor1)>0.5 && vRGBD.a > 0.5 && dot(normalize(vNor1), r.direction)<-0.3)
+					float3 vNor1 = (vNORA.xyz - 0.5f) * 2.f;
+					if ((fLodRatio == .101f) && length(vNor1) > 0.5 && vRGBD.a > 0.5 && dot(normalize(vNor1), r.direction) < -0.3)
 					{
 						// reflect
 						r.direction = reflect(r.direction, normalize(vNor1));
@@ -1351,8 +1352,8 @@ bool ConeTraceBrick_MB(const float3 vRayStartPos, inout Ray r, const float fDist
 			}
 
 			if (!IsPointInAABB(r.startpoint, voxAreaMin, voxAreaMax) ||
-				(GetLodTransition(fDistanceIn, fDistance, ocNodeSize, fLodRatio)>2.f && ocNodeSize<VOX_MAX_NODE_SIZE) ||
-				fDistance >= fDistanceMax || vRgbOut.a >= fAlphaRef)
+			    (GetLodTransition(fDistanceIn, fDistance, ocNodeSize, fLodRatio) > 2.f && ocNodeSize < VOX_MAX_NODE_SIZE) ||
+			    fDistance >= fDistanceMax || vRgbOut.a >= fAlphaRef)
 			{
 				break;
 			}
@@ -1365,8 +1366,8 @@ bool ConeTraceBrick_MB(const float3 vRayStartPos, inout Ray r, const float fDist
 }
 
 float4 ConeTraceTree(Ray rayForTree, const float fLodRatio, out float4 vPos0, out float4 vNormal, float _fDistanceIn, float fDistanceMax,
-	const float fAlphaRefMin = 0.f, float fAlphaRefMax = 1.f, const int nPredictionMode = 0, const float fMultTriRT = 0, const int nTraceMode = 0, const bool bApplyGlobalDensity = false, const bool bSpecular = false,
-	bool bUseLighting = false, float3 vSurfNorm = 0, const int nDebugMode = 0)
+                     const float fAlphaRefMin = 0.f, float fAlphaRefMax = 1.f, const int nPredictionMode = 0, const float fMultTriRT = 0, const int nTraceMode = 0, const bool bApplyGlobalDensity = false, const bool bSpecular = false,
+                     bool bUseLighting = false, float3 vSurfNorm = 0, const int nDebugMode = 0, float fStepSize = 0.5f)
 {
 #if %_RT_SAMPLE5
 	bUseLighting = true;
@@ -1384,7 +1385,7 @@ float4 ConeTraceTree(Ray rayForTree, const float fLodRatio, out float4 vPos0, ou
 
 	// define root node
 	SNodeInfo rootNode;
-	rootNode.nId = 0;	
+	rootNode.nId = 0;
 	rootNode.vMin.xyz = VOX_SVO_ORIGIN.xyz;
 	rootNode.vMax.xyz = VOX_SVO_ORIGIN.xyz + VOX_SVO_ORIGIN.w;
 	rootNode.vTC = 0;
@@ -1427,39 +1428,39 @@ float4 ConeTraceTree(Ray rayForTree, const float fLodRatio, out float4 vPos0, ou
 		if (fDistM > VOX_MAX_NODE_SIZE * 3)
 		{
 			ConeTraceBrick_SS_Far(vRayStartPos, rayForTree, _fDistanceIn, fDistance, fDistanceMax,
-				vPos0, vNormal, 0, vRgbOutSS, VOX_MAX_ALPHA, fLodRatio, fAlphaRefMin, fAlphaRefMax, nPredictionMode, fMultTriRT, (nTraceMode == SVO_TRACE_MODE_AIR), bApplyGlobalDensity, bSpecular, bUseLighting,
-				vBestHitPosOpa);
+			                      vPos0, vNormal, 0, vRgbOutSS, VOX_MAX_ALPHA, fLodRatio, fAlphaRefMin, fAlphaRefMax, nPredictionMode, fMultTriRT, (nTraceMode == SVO_TRACE_MODE_AIR), bApplyGlobalDensity, bSpecular, bUseLighting,
+			                      vBestHitPosOpa);
 			return vRgbOutSS;
 		}
 		else if (fDistM > VOX_MAX_NODE_SIZE * 2)
 		{
 			ConeTraceBrick_SS_Far(vRayStartPos, rayForTree, _fDistanceIn, fDistance, fDistanceMax,
-				vPos0, vNormal, 0, vRgbOutSS, VOX_MAX_ALPHA, fLodRatio, fAlphaRefMin, fAlphaRefMax, nPredictionMode, fMultTriRT, (nTraceMode == SVO_TRACE_MODE_AIR), bApplyGlobalDensity, bSpecular, bUseLighting,
-				vBestHitPosOpa);
+			                      vPos0, vNormal, 0, vRgbOutSS, VOX_MAX_ALPHA, fLodRatio, fAlphaRefMin, fAlphaRefMax, nPredictionMode, fMultTriRT, (nTraceMode == SVO_TRACE_MODE_AIR), bApplyGlobalDensity, bSpecular, bUseLighting,
+			                      vBestHitPosOpa);
 		}
 	}
 
-#if %_PS && %_RT_BLEND_WITH_TERRAIN_COLOR
+	#if %_PS && %_RT_BLEND_WITH_TERRAIN_COLOR
 	if (!IsDiffuseMode() && nTraceMode == SVO_TRACE_MODE_GEOMETRY)
 	{
 		ConeTraceBrick_SSR(vRayStartPos, rayForSS, _fDistanceIn, fDistanceSS, fDistanceMax,
-			vPos0, vNormal, 0, vRgbOutSS, VOX_MAX_ALPHA, fLodRatio, fAlphaRefMin, fAlphaRefMax, nPredictionMode, fMultTriRT, (nTraceMode == SVO_TRACE_MODE_AIR), bApplyGlobalDensity, bSpecular, bUseLighting,
-			vBestHitPosOpa);
+		                   vPos0, vNormal, 0, vRgbOutSS, VOX_MAX_ALPHA, fLodRatio, fAlphaRefMin, fAlphaRefMax, nPredictionMode, fMultTriRT, (nTraceMode == SVO_TRACE_MODE_AIR), bApplyGlobalDensity, bSpecular, bUseLighting,
+		                   vBestHitPosOpa);
 
 		if (!IsDiffuseMode() && nTraceMode == SVO_TRACE_MODE_GEOMETRY)
 		{
-			if (((fDistanceSS*.7) < 10) * (vRgbOutSS.a > .95) * saturate((fLodRatio - SvoParamsDiffuse.x) * 2))
+			if (((fDistanceSS * .7) < 10) * (vRgbOutSS.a > .95) * saturate((fLodRatio - SvoParamsDiffuse.x) * 2))
 				return vRgbOutSS;
 		}
 	}
-#endif
+	#endif
 #endif
 
 	float3 vSurfNormOffset = 0;
 
 	// perform several insertions of rayForTree.startpoint into the octree
 #if %_RT_SAMPLE0 && !%_RT_SAMPLE5
-	for (int nDescentId = 0; nDescentId< 8; nDescentId++)
+	for (int nDescentId = 0; nDescentId < 24; nDescentId++)
 #else
 	for (int nDescentId = 0; nDescentId < 64; nDescentId++)
 #endif
@@ -1498,12 +1499,12 @@ float4 ConeTraceTree(Ray rayForTree, const float fLodRatio, out float4 vPos0, ou
 		for (; curNode.nTreeLevel < nVoxMaxTreeDepth; curNode.nTreeLevel++)
 		{
 			// find child containg ray origin (even if empty)
-			uint3 vS = step((curNode.vMin.xyz + curNode.vMax.xyz)*0.5f, rayForTree.startpoint);
+			uint3 vS = step((curNode.vMin.xyz + curNode.vMax.xyz) * 0.5f, rayForTree.startpoint);
 			int nFoundChildId = dot(vS, float3(4, 2, 1));
 
 			// update current bbox
-			float3 vBoxSize = (curNode.vMax - curNode.vMin)*.5f;
-			curNode.vMin.xyz = curNode.vMin.xyz + vBoxSize*vS;
+			float3 vBoxSize = (curNode.vMax - curNode.vMin) * .5f;
+			curNode.vMin.xyz = curNode.vMin.xyz + vBoxSize * vS;
 			curNode.vMax.xyz = curNode.vMin.xyz + vBoxSize;
 
 			// get child offset
@@ -1542,8 +1543,7 @@ float4 ConeTraceTree(Ray rayForTree, const float fLodRatio, out float4 vPos0, ou
 
 		bool bGoToNextNode = true;
 
-#if %_RT_SAMPLE5
-		if (nDescentId == 0)
+		if (nDescentId == 0 && (vSurfNorm.x || vSurfNorm.y || vSurfNorm.z))
 		{
 			float fOffset = (curNode.vMax.x - curNode.vMin.x) / VOX_BRICK_TEXRES * (IsDiffuseMode() ? 2.f : 1.f);
 			rayForTree.startpoint += vSurfNorm * fOffset;// + rayForTree.direction * fOffset / 3;
@@ -1551,7 +1551,6 @@ float4 ConeTraceTree(Ray rayForTree, const float fLodRatio, out float4 vPos0, ou
 			vSurfNormOffset = vSurfNorm * fOffset;
 			continue;
 		}
-#endif
 
 		// if tree traversal returned valid node - trace the brick data
 		if (curNode.nId >= 0)
@@ -1562,12 +1561,12 @@ float4 ConeTraceTree(Ray rayForTree, const float fLodRatio, out float4 vPos0, ou
 			float fMaxAlpha = (nTraceMode == SVO_TRACE_MODE_AIR) ? .999f : VOX_MAX_ALPHA;
 
 			/*if(nTraceMode == SVO_TRACE_MODE_TERRAIN)
-			bGoToNextNode = ConeTraceBrick_Terrain(vRayStartPos, rayForTree, _fDistanceIn, fDistance, fDistanceMax,
-			vPos0, vNormal, curNode.vTC, vRgbOut, fMaxAlpha, fLodRatio, fAlphaRefMin, fAlphaRefMax, nPredictionMode, fMultTriRT, (nTraceMode == SVO_TRACE_MODE_AIR), bApplyGlobalDensity, bSpecular, fIsoValPrev);
-			else*/
+			   bGoToNextNode = ConeTraceBrick_Terrain(vRayStartPos, rayForTree, _fDistanceIn, fDistance, fDistanceMax,
+			   vPos0, vNormal, curNode.vTC, vRgbOut, fMaxAlpha, fLodRatio, fAlphaRefMin, fAlphaRefMax, nPredictionMode, fMultTriRT, (nTraceMode == SVO_TRACE_MODE_AIR), bApplyGlobalDensity, bSpecular, fIsoValPrev);
+			   else*/
 			bGoToNextNode = ConeTraceBrick(vRayStartPos, rayForTree, _fDistanceIn, fDistance, fDistanceMax,
-				vPos0, vNormal, curNode.vTC, vRgbOut, fMaxAlpha, fLodRatio, fAlphaRefMin, fAlphaRefMax, nPredictionMode, fMultTriRT, (nTraceMode == SVO_TRACE_MODE_AIR), bApplyGlobalDensity, bSpecular, bUseLighting,
-				vBestHitPosOpa, nDebugMode, vSurfNormOffset);
+			                               vPos0, vNormal, curNode.vTC, vRgbOut, fMaxAlpha, fLodRatio, fAlphaRefMin, fAlphaRefMax, nPredictionMode, fMultTriRT, (nTraceMode == SVO_TRACE_MODE_AIR), bApplyGlobalDensity, bSpecular, bUseLighting,
+			                               vBestHitPosOpa, nDebugMode, vSurfNormOffset, fStepSize);
 
 			if (vRgbOut.a >= fMaxAlpha)
 			{
@@ -1594,7 +1593,7 @@ float4 ConeTraceTree(Ray rayForTree, const float fLodRatio, out float4 vPos0, ou
 	}
 
 #if %_PS && %_RT_POINT_LIGHT
-	for (int p = 0; p<BEST_POINTS_NUM; p++)
+	for (int p = 0; p < BEST_POINTS_NUM; p++)
 	{
 		if (vBestHitPosOpa[p].w)
 		{
@@ -1607,7 +1606,7 @@ float4 ConeTraceTree(Ray rayForTree, const float fLodRatio, out float4 vPos0, ou
 	}
 #endif
 
-#if %_PS 
+#if %_PS
 	if (nTraceMode == SVO_TRACE_MODE_GEOMETRY)
 	{
 		float fAmplifier = IsDiffuseMode() ? SvoParamsDiffuse.w : SvoParamsSpecular.w;
@@ -1618,7 +1617,7 @@ float4 ConeTraceTree(Ray rayForTree, const float fLodRatio, out float4 vPos0, ou
 #if %_PS && %_RT_BLEND_WITH_TERRAIN_COLOR
 	if (!IsDiffuseMode() && nTraceMode == SVO_TRACE_MODE_GEOMETRY)
 	{
-		vRgbOut = lerp(vRgbOut, vRgbOutSS, ((fDistanceSS*.7) < fDistance) * (vRgbOutSS.a > .75) * saturate((fLodRatio - SvoParamsDiffuse.x) * 2));
+		vRgbOut = lerp(vRgbOut, vRgbOutSS, ((fDistanceSS * .7) < fDistance) * (vRgbOutSS.a > .75) * saturate((fLodRatio - SvoParamsDiffuse.x) * 2));
 	}
 #endif
 
@@ -1638,1852 +1637,1852 @@ float4 ConeTraceTree(Ray rayForTree, const float fLodRatio, out float4 vPos0, ou
 
 static float3 kernel_HS_512[512] =
 {
-	float3(-0.615241, 0.246533, 0.748800),
-	float3(-0.043896, 0.577149, 0.815458),
+	float3(-0.615241, 0.246533,  0.748800),
+	float3(-0.043896, 0.577149,  0.815458),
 	float3(-0.349163, -0.720395, 0.599263),
-	float3(0.145829, 0.393602, 0.907641),
+	float3(0.145829,  0.393602,  0.907641),
 	float3(-0.729101, -0.342603, 0.592482),
 	float3(-0.091139, -0.558027, 0.824803),
-	float3(0.594840, 0.132835, 0.792793),
-	float3(0.465833, 0.135580, 0.874424),
+	float3(0.594840,  0.132835,  0.792793),
+	float3(0.465833,  0.135580,  0.874424),
 	float3(-0.043040, -0.229302, 0.972403),
 	float3(-0.154271, -0.594597, 0.789085),
-	float3(-0.043604, 0.137066, 0.989602),
-	float3(0.809765, -0.307126, 0.499955),
-	float3(0.595858, 0.555168, 0.580295),
-	float3(0.529635, 0.025866, 0.847831),
-	float3(-0.391181, 0.679929, 0.620221),
-	float3(0.098735, -0.301553, 0.948323),
-	float3(0.163190, -0.703604, 0.691600),
-	float3(0.273656, 0.539057, 0.796574),
-	float3(-0.170633, 0.430359, 0.886383),
+	float3(-0.043604, 0.137066,  0.989602),
+	float3(0.809765,  -0.307126, 0.499955),
+	float3(0.595858,  0.555168,  0.580295),
+	float3(0.529635,  0.025866,  0.847831),
+	float3(-0.391181, 0.679929,  0.620221),
+	float3(0.098735,  -0.301553, 0.948323),
+	float3(0.163190,  -0.703604, 0.691600),
+	float3(0.273656,  0.539057,  0.796574),
+	float3(-0.170633, 0.430359,  0.886383),
 	float3(-0.555287, -0.293953, 0.777977),
 	float3(-0.291169, -0.320365, 0.901436),
-	float3(-0.774569, 0.166976, 0.610051),
-	float3(-0.200631, 0.789951, 0.579417),
-	float3(0.290505, -0.484645, 0.825062),
-	float3(0.336790, 0.355660, 0.871825),
-	float3(0.740486, 0.299696, 0.601550),
-	float3(0.488265, -0.641413, 0.591766),
-	float3(-0.653256, 0.568878, 0.499635),
-	float3(0.523325, 0.543229, 0.656531),
-	float3(-0.333314, 0.799498, 0.499704),
-	float3(0.020438, -0.046015, 0.998732),
-	float3(0.083498, 0.503911, 0.859710),
-	float3(0.242932, -0.831502, 0.499588),
-	float3(0.418005, -0.412139, 0.809576),
-	float3(-0.678228, 0.283086, 0.678137),
-	float3(0.463950, 0.355416, 0.811437),
-	float3(0.529356, 0.245410, 0.812130),
+	float3(-0.774569, 0.166976,  0.610051),
+	float3(-0.200631, 0.789951,  0.579417),
+	float3(0.290505,  -0.484645, 0.825062),
+	float3(0.336790,  0.355660,  0.871825),
+	float3(0.740486,  0.299696,  0.601550),
+	float3(0.488265,  -0.641413, 0.591766),
+	float3(-0.653256, 0.568878,  0.499635),
+	float3(0.523325,  0.543229,  0.656531),
+	float3(-0.333314, 0.799498,  0.499704),
+	float3(0.020438,  -0.046015, 0.998732),
+	float3(0.083498,  0.503911,  0.859710),
+	float3(0.242932,  -0.831502, 0.499588),
+	float3(0.418005,  -0.412139, 0.809576),
+	float3(-0.678228, 0.283086,  0.678137),
+	float3(0.463950,  0.355416,  0.811437),
+	float3(0.529356,  0.245410,  0.812130),
 	float3(-0.578394, -0.004949, 0.815743),
-	float3(-0.360751, 0.172711, 0.916531),
-	float3(0.147686, -0.119029, 0.981846),
-	float3(0.020253, 0.099719, 0.994810),
-	float3(0.083928, -0.009724, 0.996424),
-	float3(0.099176, -0.860501, 0.499702),
-	float3(-0.044342, 0.282999, 0.958095),
-	float3(0.210909, 0.136251, 0.967963),
-	float3(0.083284, 0.283374, 0.955386),
-	float3(0.289164, -0.264778, 0.919933),
-	float3(-0.614625, 0.392654, 0.684148),
-	float3(0.481708, -0.522335, 0.703650),
+	float3(-0.360751, 0.172711,  0.916531),
+	float3(0.147686,  -0.119029, 0.981846),
+	float3(0.020253,  0.099719,  0.994810),
+	float3(0.083928,  -0.009724, 0.996424),
+	float3(0.099176,  -0.860501, 0.499702),
+	float3(-0.044342, 0.282999,  0.958095),
+	float3(0.210909,  0.136251,  0.967963),
+	float3(0.083284,  0.283374,  0.955386),
+	float3(0.289164,  -0.264778, 0.919933),
+	float3(-0.614625, 0.392654,  0.684148),
+	float3(0.481708,  -0.522335, 0.703650),
 	float3(-0.332535, -0.396488, 0.855697),
-	float3(0.289614, -0.191968, 0.937695),
-	float3(-0.488082, 0.393019, 0.779302),
-	float3(0.864143, -0.006241, 0.503208),
-	float3(-0.706230, 0.068891, 0.704622),
+	float3(0.289614,  -0.191968, 0.937695),
+	float3(-0.488082, 0.393019,  0.779302),
+	float3(0.864143,  -0.006241, 0.503208),
+	float3(-0.706230, 0.068891,  0.704622),
 	float3(-0.170200, -0.010155, 0.985357),
-	float3(0.594304, 0.279438, 0.754134),
-	float3(0.737042, -0.158488, 0.657001),
-	float3(-0.523367, 0.690205, 0.499705),
-	float3(-0.170509, 0.650040, 0.740523),
+	float3(0.594304,  0.279438,  0.754134),
+	float3(0.737042,  -0.158488, 0.657001),
+	float3(-0.523367, 0.690205,  0.499705),
+	float3(-0.170509, 0.650040,  0.740523),
 	float3(-0.300917, -0.147978, 0.942099),
-	float3(0.735177, 0.063342, 0.674909),
-	float3(0.417697, -0.266186, 0.868720),
-	float3(0.274946, 0.099500, 0.956297),
-	float3(0.746524, -0.439317, 0.499703),
+	float3(0.735177,  0.063342,  0.674909),
+	float3(0.417697,  -0.266186, 0.868720),
+	float3(0.274946,  0.099500,  0.956297),
+	float3(0.746524,  -0.439317, 0.499703),
 	float3(-0.687383, -0.282911, 0.668929),
-	float3(0.354693, -0.594461, 0.721672),
-	float3(0.784330, 0.174198, 0.595384),
-	float3(0.672363, 0.429941, 0.602560),
-	float3(-0.699386, 0.510761, 0.499983),
-	float3(0.466054, -0.010888, 0.884689),
+	float3(0.354693,  -0.594461, 0.721672),
+	float3(0.784330,  0.174198,  0.595384),
+	float3(0.672363,  0.429941,  0.602560),
+	float3(-0.699386, 0.510761,  0.499983),
+	float3(0.466054,  -0.010888, 0.884689),
 	float3(-0.027485, -0.594099, 0.803922),
-	float3(-0.361085, 0.466774, 0.807304),
-	float3(0.544835, -0.485464, 0.683725),
+	float3(-0.361085, 0.466774,  0.807304),
+	float3(0.544835,  -0.485464, 0.683725),
 	float3(-0.591051, -0.529730, 0.608313),
-	float3(-0.106652, 0.026805, 0.993935),
-	float3(0.352458, -0.746696, 0.564108),
-	float3(-0.234137, 0.319752, 0.918117),
+	float3(-0.106652, 0.026805,  0.993935),
+	float3(0.352458,  -0.746696, 0.564108),
+	float3(-0.234137, 0.319752,  0.918117),
 	float3(-0.156231, -0.447004, 0.880783),
 	float3(-0.027461, -0.666985, 0.744565),
-	float3(0.607686, -0.012252, 0.794083),
-	float3(0.147306, 0.540253, 0.828510),
-	float3(0.226030, -0.302151, 0.926075),
+	float3(0.607686,  -0.012252, 0.794083),
+	float3(0.147306,  0.540253,  0.828510),
+	float3(0.226030,  -0.302151, 0.926075),
 	float3(-0.539591, -0.581258, 0.609082),
-	float3(0.396895, 0.694322, 0.600326),
+	float3(0.396895,  0.694322,  0.600326),
 	float3(-0.643258, -0.187907, 0.742234),
 	float3(-0.015160, -0.805243, 0.592751),
 	float3(-0.473490, -0.638698, 0.606525),
 	float3(-0.428555, -0.220728, 0.876139),
-	float3(0.481643, -0.375756, 0.791725),
-	float3(-0.044064, 0.503787, 0.862703),
-	float3(0.158320, 0.785248, 0.598599),
-	float3(-0.579632, 0.570580, 0.581778),
+	float3(0.481643,  -0.375756, 0.791725),
+	float3(-0.044064, 0.503787,  0.862703),
+	float3(0.158320,  0.785248,  0.598599),
+	float3(-0.579632, 0.570580,  0.581778),
 	float3(-0.092993, -0.410356, 0.907172),
-	float3(0.163161, -0.557540, 0.813958),
-	float3(-0.107073, 0.467210, 0.877639),
-	float3(-0.233929, 0.686681, 0.688293),
-	float3(-0.551672, 0.209930, 0.807209),
-	float3(0.396295, 0.618283, 0.678731),
-	float3(0.275206, 0.026526, 0.961019),
+	float3(0.163161,  -0.557540, 0.813958),
+	float3(-0.107073, 0.467210,  0.877639),
+	float3(-0.233929, 0.686681,  0.688293),
+	float3(-0.551672, 0.209930,  0.807209),
+	float3(0.396295,  0.618283,  0.678731),
+	float3(0.275206,  0.026526,  0.961019),
 	float3(-0.850551, -0.163033, 0.499983),
-	float3(0.084321, -0.229680, 0.969607),
-	float3(0.417999, -0.485227, 0.768005),
-	float3(-0.360343, 0.393710, 0.845663),
-	float3(0.545623, -0.412505, 0.729476),
+	float3(0.084321,  -0.229680, 0.969607),
+	float3(0.417999,  -0.485227, 0.768005),
+	float3(-0.360343, 0.393710,  0.845663),
+	float3(0.545623,  -0.412505, 0.729476),
 	float3(-0.491200, -0.331152, 0.805644),
-	float3(0.099765, -0.667154, 0.738209),
-	float3(0.132011, 0.855915, 0.499983),
-	float3(0.274708, -0.047122, 0.960372),
-	float3(0.020429, -0.119995, 0.992564),
-	float3(-0.170906, 0.209838, 0.962683),
-	float3(0.146496, 0.319869, 0.936068),
-	float3(-0.126969, 0.783278, 0.608567),
-	float3(0.336441, 0.428780, 0.838424),
+	float3(0.099765,  -0.667154, 0.738209),
+	float3(0.132011,  0.855915,  0.499983),
+	float3(0.274708,  -0.047122, 0.960372),
+	float3(0.020429,  -0.119995, 0.992564),
+	float3(-0.170906, 0.209838,  0.962683),
+	float3(0.146496,  0.319869,  0.936068),
+	float3(-0.126969, 0.783278,  0.608567),
+	float3(0.336441,  0.428780,  0.838424),
 	float3(-0.530547, -0.684497, 0.499983),
 	float3(-0.491574, -0.184190, 0.851134),
-	float3(0.608924, -0.159105, 0.777108),
+	float3(0.608924,  -0.159105, 0.777108),
 	float3(-0.118063, -0.730247, 0.672905),
-	float3(0.210117, 0.650435, 0.729922),
-	float3(0.608529, -0.085580, 0.788904),
-	float3(-0.811568, 0.302822, 0.499657),
-	float3(-0.734043, 0.001555, 0.679101),
-	float3(0.713349, 0.491070, 0.499984),
-	float3(0.659035, 0.318285, 0.681446),
+	float3(0.210117,  0.650435,  0.729922),
+	float3(0.608529,  -0.085580, 0.788904),
+	float3(-0.811568, 0.302822,  0.499657),
+	float3(-0.734043, 0.001555,  0.679101),
+	float3(0.713349,  0.491070,  0.499984),
+	float3(0.659035,  0.318285,  0.681446),
 	float3(-0.346381, -0.646642, 0.679613),
-	float3(-0.233595, 0.393126, 0.889317),
+	float3(-0.233595, 0.393126,  0.889317),
 	float3(-0.043009, -0.302960, 0.952032),
-	float3(-0.840351, 0.209953, 0.499729),
-	float3(0.524066, 0.616260, 0.587860),
-	float3(0.021000, -0.266076, 0.963723),
-	float3(0.274557, 0.172641, 0.945946),
+	float3(-0.840351, 0.209953,  0.499729),
+	float3(0.524066,  0.616260,  0.587860),
+	float3(0.021000,  -0.266076, 0.963723),
+	float3(0.274557,  0.172641,  0.945946),
 	float3(-0.396076, -0.433306, 0.809549),
 	float3(-0.088338, -0.797472, 0.596854),
-	float3(0.848747, -0.173079, 0.499673),
+	float3(0.848747,  -0.173079, 0.499673),
 	float3(-0.866083, -0.015992, 0.499644),
 	float3(-0.555301, -0.442101, 0.704406),
-	float3(0.206349, 0.729090, 0.652570),
+	float3(0.206349,  0.729090,  0.652570),
 	float3(-0.106828, -0.267339, 0.957662),
-	float3(0.148084, -0.045938, 0.987907),
+	float3(0.148084,  -0.045938, 0.987907),
 	float3(-0.106639, -0.193943, 0.975200),
-	float3(-0.302746, 0.659512, 0.688033),
-	float3(-0.578257, 0.068139, 0.813004),
+	float3(-0.302746, 0.659512,  0.688033),
+	float3(-0.578257, 0.068139,  0.813004),
 	float3(-0.491449, -0.404002, 0.771531),
-	float3(0.227248, -0.594935, 0.770981),
-	float3(0.529849, 0.099034, 0.842290),
-	float3(-0.234353, 0.099955, 0.966999),
-	float3(-0.516399, 0.607577, 0.603475),
-	float3(-0.642265, 0.031489, 0.765836),
-	float3(0.797416, 0.101764, 0.594788),
+	float3(0.227248,  -0.594935, 0.770981),
+	float3(0.529849,  0.099034,  0.842290),
+	float3(-0.234353, 0.099955,  0.966999),
+	float3(-0.516399, 0.607577,  0.603475),
+	float3(-0.642265, 0.031489,  0.765836),
+	float3(0.797416,  0.101764,  0.594788),
 	float3(-0.233592, -0.120127, 0.964886),
-	float3(-0.551046, 0.356397, 0.754539),
-	float3(0.226587, -0.448466, 0.864602),
-	float3(0.414976, -0.635806, 0.650804),
-	float3(0.400158, 0.319173, 0.859071),
-	float3(0.354636, -0.521370, 0.776149),
-	float3(0.481020, -0.229075, 0.846253),
-	float3(0.162952, -0.484141, 0.859683),
-	float3(0.209951, 0.283417, 0.935733),
-	float3(0.401935, -0.047767, 0.914421),
-	float3(0.082533, 0.429860, 0.899116),
-	float3(0.523816, 0.689894, 0.499663),
+	float3(-0.551046, 0.356397,  0.754539),
+	float3(0.226587,  -0.448466, 0.864602),
+	float3(0.414976,  -0.635806, 0.650804),
+	float3(0.400158,  0.319173,  0.859071),
+	float3(0.354636,  -0.521370, 0.776149),
+	float3(0.481020,  -0.229075, 0.846253),
+	float3(0.162952,  -0.484141, 0.859683),
+	float3(0.209951,  0.283417,  0.935733),
+	float3(0.401935,  -0.047767, 0.914421),
+	float3(0.082533,  0.429860,  0.899116),
+	float3(0.523816,  0.689894,  0.499663),
 	float3(-0.215136, -0.711153, 0.669312),
-	float3(0.273225, 0.392370, 0.878290),
-	float3(0.401757, 0.245951, 0.882100),
+	float3(0.273225,  0.392370,  0.878290),
+	float3(0.401757,  0.245951,  0.882100),
 	float3(-0.800972, -0.329843, 0.499647),
-	float3(-0.487806, 0.466603, 0.737785),
-	float3(0.659157, 0.098072, 0.745583),
-	float3(-0.487839, 0.246266, 0.837476),
-	float3(0.399943, 0.539203, 0.741151),
-	float3(0.671449, -0.047773, 0.739509),
-	float3(-0.854886, 0.138518, 0.499983),
+	float3(-0.487806, 0.466603,  0.737785),
+	float3(0.659157,  0.098072,  0.745583),
+	float3(-0.487839, 0.246266,  0.837476),
+	float3(0.399943,  0.539203,  0.741151),
+	float3(0.671449,  -0.047773, 0.739509),
+	float3(-0.854886, 0.138518,  0.499983),
 	float3(-0.691508, -0.405760, 0.597642),
-	float3(-0.234304, 0.540162, 0.808286),
-	float3(-0.107484, 0.100145, 0.989150),
-	float3(-0.740782, 0.448942, 0.499693),
-	float3(0.400078, 0.465432, 0.789501),
-	float3(0.014560, 0.771263, 0.636351),
-	float3(0.210709, 0.576620, 0.789374),
-	float3(-0.450738, 0.068325, 0.890038),
+	float3(-0.234304, 0.540162,  0.808286),
+	float3(-0.107484, 0.100145,  0.989150),
+	float3(-0.740782, 0.448942,  0.499693),
+	float3(0.400078,  0.465432,  0.789501),
+	float3(0.014560,  0.771263,  0.636351),
+	float3(0.210709,  0.576620,  0.789374),
+	float3(-0.450738, 0.068325,  0.890038),
 	float3(-0.131867, -0.856095, 0.499712),
-	float3(-0.360603, 0.099630, 0.927383),
+	float3(-0.360603, 0.099630,  0.927383),
 	float3(-0.203367, -0.841830, 0.499963),
 	float3(-0.408091, -0.763858, 0.499982),
-	float3(0.402413, 0.172845, 0.898993),
-	float3(-0.297131, 0.063061, 0.952752),
-	float3(0.611949, -0.612809, 0.499983),
-	float3(0.465916, 0.062254, 0.882636),
-	float3(0.672257, -0.195143, 0.714136),
-	float3(0.083112, 0.576924, 0.812558),
-	float3(0.098398, -0.375052, 0.921767),
+	float3(0.402413,  0.172845,  0.898993),
+	float3(-0.297131, 0.063061,  0.952752),
+	float3(0.611949,  -0.612809, 0.499983),
+	float3(0.465916,  0.062254,  0.882636),
+	float3(0.672257,  -0.195143, 0.714136),
+	float3(0.083112,  0.576924,  0.812558),
+	float3(0.098398,  -0.375052, 0.921767),
 	float3(-0.515117, -0.114818, 0.849395),
 	float3(-0.642942, -0.115101, 0.757217),
-	float3(0.354150, -0.448160, 0.820811),
-	float3(0.275251, -0.120077, 0.953844),
-	float3(0.269885, 0.693528, 0.667968),
-	float3(-0.170619, 0.137029, 0.975762),
+	float3(0.354150,  -0.448160, 0.820811),
+	float3(0.275251,  -0.120077, 0.953844),
+	float3(0.269885,  0.693528,  0.667968),
+	float3(-0.170619, 0.137029,  0.975762),
 	float3(-0.781953, -0.193722, 0.592470),
-	float3(0.234241, -0.758669, 0.607908),
-	float3(0.036428, -0.631108, 0.774840),
-	float3(0.324575, 0.803069, 0.499730),
-	float3(-0.361099, 0.540219, 0.760113),
-	float3(-0.487710, 0.319814, 0.812316),
+	float3(0.234241,  -0.758669, 0.607908),
+	float3(0.036428,  -0.631108, 0.774840),
+	float3(0.324575,  0.803069,  0.499730),
+	float3(-0.361099, 0.540219,  0.760113),
+	float3(-0.487710, 0.319814,  0.812316),
 	float3(-0.711481, -0.140875, 0.688440),
 	float3(-0.278823, -0.675708, 0.682405),
-	float3(0.863452, 0.066977, 0.499965),
-	float3(-0.234019, 0.026619, 0.971867),
-	float3(-0.297865, 0.503263, 0.811174),
-	float3(-0.360455, 0.320321, 0.876052),
-	float3(0.712474, 0.368045, 0.597431),
+	float3(0.863452,  0.066977,  0.499965),
+	float3(-0.234019, 0.026619,  0.971867),
+	float3(-0.297865, 0.503263,  0.811174),
+	float3(-0.360455, 0.320321,  0.876052),
+	float3(0.712474,  0.368045,  0.597431),
 	float3(-0.233153, -0.194051, 0.952882),
-	float3(0.162268, -0.338125, 0.927006),
-	float3(-0.014412, 0.865915, 0.499983),
-	float3(0.799820, -0.118999, 0.588326),
-	float3(0.393868, 0.771513, 0.499635),
-	float3(0.527142, 0.392241, 0.753836),
-	float3(0.416577, -0.193155, 0.888344),
+	float3(0.162268,  -0.338125, 0.927006),
+	float3(-0.014412, 0.865915,  0.499983),
+	float3(0.799820,  -0.118999, 0.588326),
+	float3(0.393868,  0.771513,  0.499635),
+	float3(0.527142,  0.392241,  0.753836),
+	float3(0.416577,  -0.193155, 0.888344),
 	float3(-0.467912, -0.565049, 0.679543),
-	float3(0.706536, -0.500824, 0.499982),
-	float3(0.813747, 0.296485, 0.499913),
-	float3(0.146618, 0.173589, 0.973843),
+	float3(0.706536,  -0.500824, 0.499982),
+	float3(0.813747,  0.296485,  0.499913),
+	float3(0.146618,  0.173589,  0.973843),
 	float3(-0.428247, -0.147246, 0.891585),
-	float3(0.019582, 0.687222, 0.726183),
-	float3(0.083133, 0.210294, 0.974097),
+	float3(0.019582,  0.687222,  0.726183),
+	float3(0.083133,  0.210294,  0.974097),
 	float3(-0.345324, -0.559115, 0.753752),
 	float3(-0.364578, -0.184083, 0.912796),
-	float3(-0.044153, 0.429808, 0.901840),
-	float3(-0.361168, 0.246728, 0.899268),
+	float3(-0.044153, 0.429808,  0.901840),
+	float3(-0.361168, 0.246728,  0.899268),
 	float3(-0.281770, -0.523208, 0.804276),
-	float3(-0.424152, 0.136450, 0.895252),
+	float3(-0.424152, 0.136450,  0.895252),
 	float3(-0.800535, -0.049358, 0.597250),
-	float3(-0.578431, 0.141403, 0.803382),
+	float3(-0.578431, 0.141403,  0.803382),
 	float3(-0.106455, -0.046729, 0.993219),
-	float3(0.163561, -0.630766, 0.758539),
-	float3(0.083824, 0.723660, 0.685048),
+	float3(0.163561,  -0.630766, 0.758539),
+	float3(0.083824,  0.723660,  0.685048),
 	float3(-0.178480, -0.303487, 0.935970),
-	float3(-0.107080, 0.540436, 0.834544),
-	float3(0.532562, 0.469818, 0.704023),
-	float3(-0.233940, 0.246485, 0.940488),
-	float3(0.083226, 0.136906, 0.987082),
-	float3(-0.234579, 0.613801, 0.753805),
+	float3(-0.107080, 0.540436,  0.834544),
+	float3(0.532562,  0.469818,  0.704023),
+	float3(-0.233940, 0.246485,  0.940488),
+	float3(0.083226,  0.136906,  0.987082),
+	float3(-0.234579, 0.613801,  0.753805),
 	float3(-0.233475, -0.047278, 0.971213),
 	float3(-0.217980, -0.485841, 0.846430),
-	float3(0.099313, -0.448177, 0.888411),
-	float3(0.544142, -0.192661, 0.816572),
+	float3(0.099313,  -0.448177, 0.888411),
+	float3(0.544142,  -0.192661, 0.816572),
 	float3(-0.251565, -0.381588, 0.889441),
-	float3(0.674357, -0.427337, 0.602185),
-	float3(0.672802, -0.269553, 0.688969),
-	float3(0.339089, -0.084621, 0.936941),
+	float3(0.674357,  -0.427337, 0.602185),
+	float3(0.672802,  -0.269553, 0.688969),
+	float3(0.339089,  -0.084621, 0.936941),
 	float3(-0.028442, -0.447755, 0.893704),
-	float3(-0.429781, 0.585634, 0.687256),
+	float3(-0.429781, 0.585634,  0.687256),
 	float3(-0.451482, -0.078179, 0.888849),
 	float3(-0.685396, -0.529750, 0.499596),
-	float3(0.613634, -0.312465, 0.725134),
-	float3(-0.043803, 0.356800, 0.933154),
-	float3(0.312475, -0.807812, 0.499800),
-	float3(-0.087178, 0.861799, 0.499702),
-	float3(0.353328, -0.229547, 0.906900),
-	float3(-0.667606, 0.442889, 0.598457),
-	float3(0.661859, -0.558536, 0.499981),
-	float3(-0.361276, 0.613526, 0.702186),
-	float3(0.019211, 0.540265, 0.841276),
-	float3(0.227140, -0.375134, 0.898711),
-	float3(0.457452, 0.735605, 0.499623),
-	float3(-0.297538, 0.136105, 0.944958),
+	float3(0.613634,  -0.312465, 0.725134),
+	float3(-0.043803, 0.356800,  0.933154),
+	float3(0.312475,  -0.807812, 0.499800),
+	float3(-0.087178, 0.861799,  0.499702),
+	float3(0.353328,  -0.229547, 0.906900),
+	float3(-0.667606, 0.442889,  0.598457),
+	float3(0.661859,  -0.558536, 0.499981),
+	float3(-0.361276, 0.613526,  0.702186),
+	float3(0.019211,  0.540265,  0.841276),
+	float3(0.227140,  -0.375134, 0.898711),
+	float3(0.457452,  0.735605,  0.499623),
+	float3(-0.297538, 0.136105,  0.944958),
 	float3(-0.364534, -0.110739, 0.924582),
 	float3(-0.092163, -0.483619, 0.870413),
-	float3(-0.487582, 0.540094, 0.685975),
+	float3(-0.487582, 0.540094,  0.685975),
 	float3(-0.218267, -0.558800, 0.800064),
-	float3(0.084352, -0.155710, 0.984195),
-	float3(-0.234212, 0.172982, 0.956672),
-	float3(-0.551415, 0.430242, 0.714725),
+	float3(0.084352,  -0.155710, 0.984195),
+	float3(-0.234212, 0.172982,  0.956672),
+	float3(-0.551415, 0.430242,  0.714725),
 	float3(-0.408667, -0.522305, 0.748457),
-	float3(0.594492, 0.206427, 0.777153),
-	float3(-0.863695, 0.066209, 0.499648),
+	float3(0.594492,  0.206427,  0.777153),
+	float3(-0.863695, 0.066209,  0.499648),
 	float3(-0.427834, -0.294117, 0.854666),
 	float3(-0.342493, -0.795435, 0.499982),
-	float3(0.020374, -0.192863, 0.981014),
+	float3(0.020374,  -0.192863, 0.981014),
 	float3(-0.170254, -0.157085, 0.972799),
-	float3(0.338694, 0.136030, 0.931011),
-	float3(-0.804465, 0.023556, 0.593533),
-	float3(0.671041, 0.025787, 0.740972),
-	float3(-0.514126, 0.104820, 0.851286),
+	float3(0.338694,  0.136030,  0.931011),
+	float3(-0.804465, 0.023556,  0.593533),
+	float3(0.671041,  0.025787,  0.740972),
+	float3(-0.514126, 0.104820,  0.851286),
 	float3(-0.324309, -0.005069, 0.945937),
 	float3(-0.241809, -0.266685, 0.932956),
 	float3(-0.114882, -0.340399, 0.933237),
-	float3(-0.171134, 0.503225, 0.847041),
-	float3(0.594359, 0.352937, 0.722615),
-	float3(0.019934, 0.613940, 0.789101),
+	float3(-0.171134, 0.503225,  0.847041),
+	float3(0.594359,  0.352937,  0.722615),
+	float3(0.019934,  0.613940,  0.789101),
 	float3(-0.285554, -0.602935, 0.744935),
 	float3(-0.764861, -0.406633, 0.499637),
 	float3(-0.177395, -0.773644, 0.608281),
-	float3(-0.297210, 0.430074, 0.852468),
-	float3(0.085894, 0.796479, 0.598535),
-	float3(0.084170, -0.082901, 0.992997),
+	float3(-0.297210, 0.430074,  0.852468),
+	float3(0.085894,  0.796479,  0.598535),
+	float3(0.084170,  -0.082901, 0.992997),
 	float3(-0.586450, -0.637565, 0.499588),
-	float3(0.466101, 0.208850, 0.859727),
+	float3(0.466101,  0.208850,  0.859727),
 	float3(-0.520357, -0.510395, 0.684635),
-	float3(0.290791, -0.411777, 0.863643),
-	float3(0.590246, -0.542546, 0.597707),
+	float3(0.290791,  -0.411777, 0.863643),
+	float3(0.590246,  -0.542546, 0.597707),
 	float3(-0.169631, -0.083193, 0.981990),
-	float3(0.354125, -0.375223, 0.856623),
-	float3(-0.424729, 0.283165, 0.859897),
+	float3(0.354125,  -0.375223, 0.856623),
+	float3(-0.424729, 0.283165,  0.859897),
 	float3(-0.459598, -0.469765, 0.753718),
-	float3(0.402596, 0.025909, 0.915011),
-	float3(0.722092, 0.135323, 0.678432),
-	float3(0.291104, -0.631580, 0.718586),
-	float3(-0.424551, 0.430434, 0.796544),
-	float3(0.035145, -0.484656, 0.873999),
-	float3(0.543871, -0.119519, 0.830614),
+	float3(0.402596,  0.025909,  0.915011),
+	float3(0.722092,  0.135323,  0.678432),
+	float3(0.291104,  -0.631580, 0.718586),
+	float3(-0.424551, 0.430434,  0.796544),
+	float3(0.035145,  -0.484656, 0.873999),
+	float3(0.543871,  -0.119519, 0.830614),
 	float3(-0.156116, -0.667911, 0.727684),
 	float3(-0.300961, -0.221658, 0.927519),
-	float3(0.099667, -0.740376, 0.664763),
-	float3(-0.514799, 0.031893, 0.856718),
-	float3(0.336538, 0.502101, 0.796641),
-	float3(0.558182, -0.662357, 0.499716),
-	float3(0.459350, 0.655819, 0.599082),
-	float3(-0.044028, 0.209889, 0.976733),
+	float3(0.099667,  -0.740376, 0.664763),
+	float3(-0.514799, 0.031893,  0.856718),
+	float3(0.336538,  0.502101,  0.796641),
+	float3(0.558182,  -0.662357, 0.499716),
+	float3(0.459350,  0.655819,  0.599082),
+	float3(-0.044028, 0.209889,  0.976733),
 	float3(-0.219577, -0.632129, 0.743101),
-	float3(0.146740, 0.466408, 0.872314),
-	float3(-0.387256, 0.031514, 0.921434),
+	float3(0.146740,  0.466408,  0.872314),
+	float3(-0.387256, 0.031514,  0.921434),
 	float3(-0.619123, -0.330335, 0.712436),
-	float3(0.099809, -0.593879, 0.798340),
+	float3(0.099809,  -0.593879, 0.798340),
 	float3(-0.711850, -0.213808, 0.668996),
-	float3(0.226901, -0.521433, 0.822571),
-	float3(0.659300, 0.245278, 0.710748),
-	float3(-0.170402, 0.723521, 0.668940),
+	float3(0.226901,  -0.521433, 0.822571),
+	float3(0.659300,  0.245278,  0.710748),
+	float3(-0.170402, 0.723521,  0.668940),
 	float3(-0.638394, -0.585466, 0.499683),
-	float3(-0.043504, 0.650046, 0.758648),
+	float3(-0.043504, 0.650046,  0.758648),
 	float3(-0.471176, -0.726643, 0.499982),
-	float3(0.209947, 0.356270, 0.910491),
-	float3(0.288277, -0.709035, 0.643558),
-	float3(0.204551, 0.841731, 0.499648),
-	float3(0.400264, 0.392497, 0.828091),
+	float3(0.209947,  0.356270,  0.910491),
+	float3(0.288277,  -0.709035, 0.643558),
+	float3(0.204551,  0.841731,  0.499648),
+	float3(0.400264,  0.392497,  0.828091),
 	float3(-0.028360, -0.520645, 0.853302),
-	float3(0.333279, 0.730273, 0.596344),
-	float3(0.481455, -0.449106, 0.752666),
-	float3(0.617447, -0.474747, 0.627196),
+	float3(0.333279,  0.730273,  0.596344),
+	float3(0.481455,  -0.449106, 0.752666),
+	float3(0.617447,  -0.474747, 0.627196),
 	float3(-0.387816, -0.041373, 0.920808),
-	float3(-0.705238, 0.215313, 0.675485),
-	float3(0.082724, 0.356412, 0.930660),
-	float3(0.415929, -0.709990, 0.568258),
-	float3(-0.054239, 0.796638, 0.602019),
-	float3(-0.775973, 0.384961, 0.499671),
-	float3(-0.794784, 0.096336, 0.599197),
+	float3(-0.705238, 0.215313,  0.675485),
+	float3(0.082724,  0.356412,  0.930660),
+	float3(0.415929,  -0.709990, 0.568258),
+	float3(-0.054239, 0.796638,  0.602019),
+	float3(-0.775973, 0.384961,  0.499671),
+	float3(-0.794784, 0.096336,  0.599197),
 	float3(-0.042940, -0.156506, 0.986743),
-	float3(-0.579638, 0.643702, 0.499668),
+	float3(-0.579638, 0.643702,  0.499668),
 	float3(-0.759317, -0.270086, 0.592023),
 	float3(-0.638218, -0.474165, 0.606503),
-	float3(0.058722, 0.864249, 0.499625),
-	float3(-0.459672, 0.654239, 0.600561),
-	float3(0.609480, -0.232194, 0.758037),
+	float3(0.058722,  0.864249,  0.499625),
+	float3(-0.459672, 0.654239,  0.600561),
+	float3(0.609480,  -0.232194, 0.758037),
 	float3(-0.618553, -0.403200, 0.674405),
-	float3(0.211684, -0.009792, 0.977289),
-	float3(-0.740548, 0.320742, 0.590520),
-	float3(0.752414, 0.428923, 0.499899),
-	float3(-0.706084, 0.141794, 0.693786),
+	float3(0.211684,  -0.009792, 0.977289),
+	float3(-0.740548, 0.320742,  0.590520),
+	float3(0.752414,  0.428923,  0.499899),
+	float3(-0.706084, 0.141794,  0.693786),
 	float3(-0.618795, -0.256696, 0.742428),
-	float3(-0.159749, 0.851308, 0.499756),
-	float3(0.146990, 0.613885, 0.775590),
+	float3(-0.159749, 0.851308,  0.499756),
+	float3(0.146990,  0.613885,  0.775590),
 	float3(-0.170190, -0.230789, 0.958004),
-	float3(0.459410, 0.581292, 0.671597),
-	float3(0.025979, -0.865840, 0.499646),
-	float3(0.543162, -0.046561, 0.838336),
-	float3(0.735843, -0.083829, 0.671944),
-	float3(0.354015, -0.302421, 0.884994),
-	float3(0.785877, 0.363889, 0.499982),
-	float3(0.019757, 0.173858, 0.984572),
-	float3(0.146832, 0.246497, 0.957956),
-	float3(0.731239, 0.226906, 0.643276),
-	float3(0.836109, 0.226317, 0.499703),
-	float3(0.463238, 0.502108, 0.730273),
-	float3(-0.234335, 0.466923, 0.852684),
+	float3(0.459410,  0.581292,  0.671597),
+	float3(0.025979,  -0.865840, 0.499646),
+	float3(0.543162,  -0.046561, 0.838336),
+	float3(0.735843,  -0.083829, 0.671944),
+	float3(0.354015,  -0.302421, 0.884994),
+	float3(0.785877,  0.363889,  0.499982),
+	float3(0.019757,  0.173858,  0.984572),
+	float3(0.146832,  0.246497,  0.957956),
+	float3(0.731239,  0.226906,  0.643276),
+	float3(0.836109,  0.226317,  0.499703),
+	float3(0.463238,  0.502108,  0.730273),
+	float3(-0.234335, 0.466923,  0.852684),
 	float3(-0.282087, -0.749092, 0.599406),
-	float3(0.668656, 0.550725, 0.499601),
-	float3(0.479429, -0.082717, 0.873674),
-	float3(0.274006, 0.613515, 0.740621),
-	float3(-0.107361, 0.613723, 0.782188),
-	float3(0.339186, -0.010548, 0.940660),
-	float3(0.780834, -0.374588, 0.499982),
-	float3(0.680007, -0.353743, 0.642228),
-	float3(-0.170546, 0.356577, 0.918568),
-	float3(0.479878, -0.156284, 0.863303),
-	float3(-0.334619, 0.726264, 0.600476),
-	float3(-0.297517, 0.282723, 0.911894),
-	float3(-0.487541, 0.173025, 0.855784),
+	float3(0.668656,  0.550725,  0.499601),
+	float3(0.479429,  -0.082717, 0.873674),
+	float3(0.274006,  0.613515,  0.740621),
+	float3(-0.107361, 0.613723,  0.782188),
+	float3(0.339186,  -0.010548, 0.940660),
+	float3(0.780834,  -0.374588, 0.499982),
+	float3(0.680007,  -0.353743, 0.642228),
+	float3(-0.170546, 0.356577,  0.918568),
+	float3(0.479878,  -0.156284, 0.863303),
+	float3(-0.334619, 0.726264,  0.600476),
+	float3(-0.297517, 0.282723,  0.911894),
+	float3(-0.487541, 0.173025,  0.855784),
 	float3(-0.428290, -0.367732, 0.825434),
 	float3(-0.514773, -0.041400, 0.856326),
-	float3(0.480997, -0.302432, 0.822908),
-	float3(0.209964, 0.502827, 0.838498),
+	float3(0.480997,  -0.302432, 0.822908),
+	float3(0.209964,  0.502827,  0.838498),
 	float3(-0.579005, -0.151597, 0.801106),
-	float3(0.211706, 0.063247, 0.975285),
-	float3(0.402031, 0.099578, 0.910195),
+	float3(0.211706,  0.063247,  0.975285),
+	float3(0.402031,  0.099578,  0.910195),
 	float3(-0.555010, -0.220352, 0.802128),
 	float3(-0.829463, -0.249689, 0.499647),
-	float3(-0.614773, 0.319521, 0.721083),
-	float3(-0.424014, 0.357269, 0.832208),
-	float3(0.800404, 0.029012, 0.598759),
+	float3(-0.614773, 0.319521,  0.721083),
+	float3(-0.424014, 0.357269,  0.832208),
+	float3(0.800404,  0.029012,  0.598759),
 	float3(-0.642660, -0.041442, 0.765030),
-	float3(-0.107575, 0.319821, 0.941351),
-	float3(0.272895, 0.246732, 0.929866),
+	float3(-0.107575, 0.319821,  0.941351),
+	float3(0.272895,  0.246732,  0.929866),
 	float3(-0.710914, -0.067914, 0.699992),
-	float3(0.463781, 0.429243, 0.775021),
-	float3(-0.774119, 0.240240, 0.585683),
-	float3(0.019601, 0.247180, 0.968771),
-	float3(0.209914, 0.209595, 0.954990),
+	float3(0.463781,  0.429243,  0.775021),
+	float3(-0.774119, 0.240240,  0.585683),
+	float3(0.019601,  0.247180,  0.968771),
+	float3(0.209914,  0.209595,  0.954990),
 	float3(-0.554669, -0.366937, 0.746793),
-	float3(0.290799, -0.557440, 0.777622),
-	float3(0.163140, -0.776485, 0.608652),
-	float3(0.862461, -0.080833, 0.499628),
-	float3(0.336606, 0.575807, 0.745079),
-	float3(0.658732, 0.171292, 0.732619),
-	float3(0.544633, -0.265620, 0.795500),
+	float3(0.290799,  -0.557440, 0.777622),
+	float3(0.163140,  -0.776485, 0.608652),
+	float3(0.862461,  -0.080833, 0.499628),
+	float3(0.336606,  0.575807,  0.745079),
+	float3(0.658732,  0.171292,  0.732619),
+	float3(0.544633,  -0.265620, 0.795500),
 	float3(-0.861483, -0.090633, 0.499633),
 	float3(-0.412873, -0.679565, 0.606406),
-	float3(0.736017, -0.232563, 0.635763),
-	float3(0.809210, -0.234294, 0.538781),
+	float3(0.736017,  -0.232563, 0.635763),
+	float3(0.809210,  -0.234294, 0.538781),
 	float3(-0.781546, -0.120300, 0.612139),
 	float3(-0.178311, -0.376852, 0.908949),
-	float3(0.084109, 0.063717, 0.994417),
-	float3(-0.551376, 0.283220, 0.784711),
+	float3(0.084109,  0.063717,  0.994417),
+	float3(-0.551376, 0.283220,  0.784711),
 	float3(-0.300917, -0.074693, 0.950721),
 	float3(-0.404498, -0.602265, 0.688229),
-	float3(0.464895, 0.282278, 0.839161),
-	float3(-0.266452, 0.751952, 0.602969),
+	float3(0.464895,  0.282278,  0.839161),
+	float3(-0.266452, 0.751952,  0.602969),
 	float3(-0.492097, -0.257498, 0.831586),
 	float3(-0.045071, -0.737903, 0.673401),
-	float3(0.594710, 0.059589, 0.801729),
+	float3(0.594710,  0.059589,  0.801729),
 	float3(-0.451629, -0.004734, 0.892193),
-	float3(0.099600, -0.521004, 0.847723),
-	float3(-0.264660, 0.824780, 0.499693),
-	float3(0.290475, -0.338703, 0.894933),
+	float3(0.099600,  -0.521004, 0.847723),
+	float3(-0.264660, 0.824780,  0.499693),
+	float3(0.290475,  -0.338703, 0.894933),
 	float3(-0.028702, -0.374756, 0.926679),
-	float3(0.026925, -0.718760, 0.694736),
+	float3(0.026925,  -0.718760, 0.694736),
 	float3(-0.154300, -0.521574, 0.839138),
-	float3(0.162202, -0.264695, 0.950593),
-	float3(0.614206, -0.385733, 0.688448),
-	float3(0.171737, -0.849071, 0.499585),
-	float3(0.488695, -0.715198, 0.499669),
-	float3(0.146877, 0.687046, 0.711615),
+	float3(0.162202,  -0.264695, 0.950593),
+	float3(0.614206,  -0.385733, 0.688448),
+	float3(0.171737,  -0.849071, 0.499585),
+	float3(0.488695,  -0.715198, 0.499669),
+	float3(0.146877,  0.687046,  0.711615),
 	float3(-0.043093, -0.083660, 0.995562),
-	float3(-0.297036, 0.356577, 0.885789),
-	float3(-0.043141, 0.063806, 0.997029),
+	float3(-0.297036, 0.356577,  0.885789),
+	float3(-0.043141, 0.063806,  0.997029),
 	float3(-0.273350, -0.821765, 0.499982),
-	float3(0.596159, 0.628416, 0.499689),
-	float3(0.333849, 0.656671, 0.676260),
-	float3(-0.297554, 0.576582, 0.760931),
-	float3(0.529617, 0.318603, 0.786129),
-	float3(-0.624518, 0.501742, 0.598525),
-	float3(0.417859, -0.339303, 0.842774),
-	float3(-0.424480, 0.209553, 0.880854),
+	float3(0.596159,  0.628416,  0.499689),
+	float3(0.333849,  0.656671,  0.676260),
+	float3(-0.297554, 0.576582,  0.760931),
+	float3(0.529617,  0.318603,  0.786129),
+	float3(-0.624518, 0.501742,  0.598525),
+	float3(0.417859,  -0.339303, 0.842774),
+	float3(-0.424480, 0.209553,  0.880854),
 	float3(-0.579167, -0.078312, 0.811439),
-	float3(-0.107146, 0.173315, 0.979021),
+	float3(-0.107146, 0.173315,  0.979021),
 	float3(-0.043333, -0.010208, 0.999009),
-	float3(0.339003, 0.062734, 0.938691),
-	float3(0.019340, 0.393031, 0.919322),
-	float3(0.034976, -0.337934, 0.940520),
+	float3(0.339003,  0.062734,  0.938691),
+	float3(0.019340,  0.393031,  0.919322),
+	float3(0.034976,  -0.337934, 0.940520),
 	float3(-0.364683, -0.331090, 0.870279),
-	float3(0.736766, -0.307237, 0.602313),
-	float3(0.225442, -0.228607, 0.947056),
-	float3(0.148160, 0.027123, 0.988592),
-	float3(0.529466, 0.172152, 0.830680),
+	float3(0.736766,  -0.307237, 0.602313),
+	float3(0.225442,  -0.228607, 0.947056),
+	float3(0.148160,  0.027123,  0.988592),
+	float3(0.529466,  0.172152,  0.830680),
 	float3(-0.091671, -0.631976, 0.769547),
-	float3(0.019444, 0.320050, 0.947201),
-	float3(-0.106864, 0.687370, 0.718403),
-	float3(0.273087, 0.465307, 0.841970),
-	float3(0.338391, 0.209511, 0.917386),
-	float3(0.353309, -0.156232, 0.922369),
+	float3(0.019444,  0.320050,  0.947201),
+	float3(-0.106864, 0.687370,  0.718403),
+	float3(0.273087,  0.465307,  0.841970),
+	float3(0.338391,  0.209511,  0.917386),
+	float3(0.353309,  -0.156232, 0.922369),
 	float3(-0.345095, -0.486026, 0.802925),
-	float3(0.734395, -0.010498, 0.678641),
-	float3(-0.551213, 0.503545, 0.665286),
+	float3(0.734395,  -0.010498, 0.678641),
+	float3(-0.551213, 0.503545,  0.665286),
 	float3(-0.106350, -0.120232, 0.987033),
-	float3(0.148458, -0.192583, 0.969985),
-	float3(0.416292, -0.119596, 0.901331),
+	float3(0.148458,  -0.192583, 0.969985),
+	float3(0.416292,  -0.119596, 0.901331),
 	float3(-0.364826, -0.257402, 0.894788),
 	float3(-0.727475, -0.469894, 0.499979),
-	float3(0.036141, -0.558086, 0.828996),
+	float3(0.036141,  -0.558086, 0.828996),
 	float3(-0.059018, -0.864181, 0.499708),
-	float3(-0.107514, 0.393649, 0.912952),
-	float3(-0.684277, 0.367725, 0.629717),
-	float3(0.628625, 0.489562, 0.604285),
-	float3(-0.641760, 0.105161, 0.759661),
-	float3(-0.641948, 0.178506, 0.745680),
-	float3(-0.170420, 0.576642, 0.799025),
-	float3(0.162989, -0.410930, 0.896979),
-	float3(0.798713, -0.045313, 0.600004),
-	float3(0.853261, 0.149355, 0.499639),
-	float3(0.083138, 0.650405, 0.755024),
-	float3(-0.297735, 0.209625, 0.931349),
-	float3(-0.463368, 0.731647, 0.499982),
-	float3(-0.107729, 0.246171, 0.963221),
-	float3(-0.424027, 0.503438, 0.752829),
-	float3(-0.170473, 0.283111, 0.943815),
-	float3(0.253188, 0.786299, 0.563587),
-	float3(0.147283, 0.100183, 0.984008),
-	float3(0.209592, 0.429319, 0.878497),
+	float3(-0.107514, 0.393649,  0.912952),
+	float3(-0.684277, 0.367725,  0.629717),
+	float3(0.628625,  0.489562,  0.604285),
+	float3(-0.641760, 0.105161,  0.759661),
+	float3(-0.641948, 0.178506,  0.745680),
+	float3(-0.170420, 0.576642,  0.799025),
+	float3(0.162989,  -0.410930, 0.896979),
+	float3(0.798713,  -0.045313, 0.600004),
+	float3(0.853261,  0.149355,  0.499639),
+	float3(0.083138,  0.650405,  0.755024),
+	float3(-0.297735, 0.209625,  0.931349),
+	float3(-0.463368, 0.731647,  0.499982),
+	float3(-0.107729, 0.246171,  0.963221),
+	float3(-0.424027, 0.503438,  0.752829),
+	float3(-0.170473, 0.283111,  0.943815),
+	float3(0.253188,  0.786299,  0.563587),
+	float3(0.147283,  0.100183,  0.984008),
+	float3(0.209592,  0.429319,  0.878497),
 	float3(-0.281751, -0.448952, 0.847973),
-	float3(0.545044, -0.338825, 0.766893),
-	float3(0.034868, -0.411227, 0.910866),
-	float3(-0.399638, 0.768314, 0.499983),
-	float3(0.336890, 0.282576, 0.898140),
-	float3(0.420527, -0.562196, 0.712104),
-	float3(-0.170824, 0.063320, 0.983265),
-	float3(-0.043461, 0.724532, 0.687869),
-	float3(0.211866, -0.156731, 0.964649),
-	float3(0.020334, 0.026858, 0.999433),
-	float3(0.019761, 0.467261, 0.883899),
-	float3(0.591979, 0.426103, 0.684103),
-	float3(0.057452, -0.800167, 0.597019),
-	float3(0.351989, -0.673203, 0.650309),
-	float3(0.211330, -0.083186, 0.973868),
-	float3(0.672525, -0.121364, 0.730055),
-	float3(0.227295, -0.668052, 0.708550),
-	float3(0.527499, -0.579715, 0.621027)
+	float3(0.545044,  -0.338825, 0.766893),
+	float3(0.034868,  -0.411227, 0.910866),
+	float3(-0.399638, 0.768314,  0.499983),
+	float3(0.336890,  0.282576,  0.898140),
+	float3(0.420527,  -0.562196, 0.712104),
+	float3(-0.170824, 0.063320,  0.983265),
+	float3(-0.043461, 0.724532,  0.687869),
+	float3(0.211866,  -0.156731, 0.964649),
+	float3(0.020334,  0.026858,  0.999433),
+	float3(0.019761,  0.467261,  0.883899),
+	float3(0.591979,  0.426103,  0.684103),
+	float3(0.057452,  -0.800167, 0.597019),
+	float3(0.351989,  -0.673203, 0.650309),
+	float3(0.211330,  -0.083186, 0.973868),
+	float3(0.672525,  -0.121364, 0.730055),
+	float3(0.227295,  -0.668052, 0.708550),
+	float3(0.527499,  -0.579715, 0.621027)
 };
 
 static float3 kernel_S_512[512] =
 {
 	float3(-0.110998, -0.863143, -0.492610),
-	float3(-0.227532, 0.678302, 0.698667),
+	float3(-0.227532, 0.678302,  0.698667),
 	float3(-0.559644, -0.811673, -0.167287),
-	float3(0.329460, 0.563287, -0.757736),
+	float3(0.329460,  0.563287,  -0.757736),
 	float3(-0.920060, -0.332207, 0.207671),
-	float3(0.704227, 0.685971, -0.183055),
-	float3(0.749577, 0.263127, 0.607370),
-	float3(0.646487, 0.227734, 0.728142),
+	float3(0.704227,  0.685971,  -0.183055),
+	float3(0.749577,  0.263127,  0.607370),
+	float3(0.646487,  0.227734,  0.728142),
 	float3(-0.020654, -0.444494, 0.895544),
-	float3(-0.605870, 0.603176, -0.518749),
-	float3(-0.000567, 0.158785, 0.987313),
-	float3(0.213300, 0.861510, -0.460765),
-	float3(0.775659, 0.629230, -0.049218),
-	float3(0.679167, 0.069238, 0.730711),
-	float3(-0.530737, 0.812734, 0.240379),
-	float3(0.108486, -0.386717, -0.915795),
-	float3(0.207972, -0.939883, 0.270864),
+	float3(-0.605870, 0.603176,  -0.518749),
+	float3(-0.000567, 0.158785,  0.987313),
+	float3(0.213300,  0.861510,  -0.460765),
+	float3(0.775659,  0.629230,  -0.049218),
+	float3(0.679167,  0.069238,  0.730711),
+	float3(-0.530737, 0.812734,  0.240379),
+	float3(0.108486,  -0.386717, -0.915795),
+	float3(0.207972,  -0.939883, 0.270864),
 	float3(-0.368550, -0.929468, -0.016145),
-	float3(-0.324154, 0.632342, -0.703611),
+	float3(-0.324154, 0.632342,  -0.703611),
 	float3(-0.771227, -0.422214, -0.476386),
 	float3(-0.292574, -0.481948, 0.825909),
-	float3(0.896480, -0.294463, -0.331081),
-	float3(-0.289713, 0.940404, 0.178063),
-	float3(0.484924, -0.772949, -0.409145),
-	float3(0.568854, 0.338132, -0.749714),
-	float3(0.935123, 0.347009, -0.071621),
-	float3(0.438066, -0.898943, -0.000527),
-	float3(-0.773238, 0.613676, 0.159703),
+	float3(0.896480,  -0.294463, -0.331081),
+	float3(-0.289713, 0.940404,  0.178063),
+	float3(0.484924,  -0.772949, -0.409145),
+	float3(0.568854,  0.338132,  -0.749714),
+	float3(0.935123,  0.347009,  -0.071621),
+	float3(0.438066,  -0.898943, -0.000527),
+	float3(-0.773238, 0.613676,  0.159703),
 	float3(-0.404180, -0.552325, 0.729092),
-	float3(0.643049, -0.755852, -0.123191),
+	float3(0.643049,  -0.755852, -0.123191),
 	float3(-0.003648, -0.039134, -0.999227),
-	float3(0.091829, 0.668515, 0.738008),
-	float3(0.437767, -0.193356, -0.878051),
-	float3(0.617154, -0.680890, -0.394348),
-	float3(-0.906082, 0.242159, 0.346949),
-	float3(0.712277, 0.526131, -0.464595),
-	float3(0.697960, 0.414209, 0.584195),
+	float3(0.091829,  0.668515,  0.738008),
+	float3(0.437767,  -0.193356, -0.878051),
+	float3(0.617154,  -0.680890, -0.394348),
+	float3(-0.906082, 0.242159,  0.346949),
+	float3(0.712277,  0.526131,  -0.464595),
+	float3(0.697960,  0.414209,  0.584195),
 	float3(-0.789037, -0.027581, -0.613727),
-	float3(-0.688705, 0.213343, -0.692944),
-	float3(0.158470, -0.347814, 0.924074),
-	float3(-0.034131, 0.120373, -0.992142),
-	float3(0.152551, -0.082709, -0.984829),
+	float3(-0.688705, 0.213343,  -0.692944),
+	float3(0.158470,  -0.347814, 0.924074),
+	float3(-0.034131, 0.120373,  -0.992142),
+	float3(0.152551,  -0.082709, -0.984829),
 	float3(-0.030596, -0.965253, 0.259521),
-	float3(0.067954, 0.243360, -0.967553),
-	float3(0.415215, 0.184974, 0.890720),
-	float3(0.075492, 0.433893, -0.897796),
-	float3(0.549327, -0.307015, 0.777163),
-	float3(-0.820257, 0.482521, -0.307168),
-	float3(0.661534, -0.680715, 0.314643),
+	float3(0.067954,  0.243360,  -0.967553),
+	float3(0.415215,  0.184974,  0.890720),
+	float3(0.075492,  0.433893,  -0.897796),
+	float3(0.549327,  -0.307015, 0.777163),
+	float3(-0.820257, 0.482521,  -0.307168),
+	float3(0.661534,  -0.680715, 0.314643),
 	float3(-0.528522, -0.556706, -0.640892),
-	float3(0.444495, -0.351652, -0.823872),
-	float3(-0.656840, 0.534875, 0.531479),
-	float3(0.993124, 0.016580, -0.115888),
+	float3(0.444495,  -0.351652, -0.823872),
+	float3(-0.656840, 0.534875,  0.531479),
+	float3(0.993124,  0.016580,  -0.115888),
 	float3(-0.851376, -0.479071, 0.213660),
 	float3(-0.434278, -0.069072, -0.898127),
-	float3(0.787556, 0.420887, 0.450122),
-	float3(0.963385, -0.037854, -0.265436),
-	float3(-0.575770, 0.813227, 0.084559),
-	float3(-0.209655, 0.811977, -0.544736),
+	float3(0.787556,  0.420887,  0.450122),
+	float3(0.963385,  -0.037854, -0.265436),
+	float3(-0.575770, 0.813227,  0.084559),
+	float3(-0.209655, 0.811977,  -0.544736),
 	float3(-0.452631, -0.178291, 0.873692),
-	float3(0.910106, 0.078573, 0.406857),
-	float3(0.646077, -0.569019, -0.508725),
-	float3(0.391331, 0.124431, -0.911799),
-	float3(0.806332, -0.590079, 0.040444),
+	float3(0.910106,  0.078573,  0.406857),
+	float3(0.646077,  -0.569019, -0.508725),
+	float3(0.391331,  0.124431,  -0.911799),
+	float3(0.806332,  -0.590079, 0.040444),
 	float3(-0.854164, -0.387505, 0.346763),
-	float3(0.428728, -0.797584, 0.424325),
-	float3(0.939624, 0.185442, 0.287606),
-	float3(0.866908, 0.493919, -0.067187),
-	float3(-0.863744, 0.493513, 0.101936),
-	float3(0.655601, 0.021866, -0.754790),
+	float3(0.428728,  -0.797584, 0.424325),
+	float3(0.939624,  0.185442,  0.287606),
+	float3(0.866908,  0.493919,  -0.067187),
+	float3(-0.863744, 0.493513,  0.101936),
+	float3(0.655601,  0.021866,  -0.754790),
 	float3(-0.055417, -0.779626, 0.623789),
-	float3(-0.497346, 0.718055, -0.486872),
-	float3(0.770107, -0.559458, 0.306500),
+	float3(-0.497346, 0.718055,  -0.486872),
+	float3(0.770107,  -0.559458, 0.306500),
 	float3(-0.757617, -0.609932, 0.232378),
-	float3(-0.161447, 0.019930, -0.986680),
-	float3(0.280106, -0.916632, -0.285177),
-	float3(-0.288179, 0.512444, -0.808921),
+	float3(-0.161447, 0.019930,  -0.986680),
+	float3(0.280106,  -0.916632, -0.285177),
+	float3(-0.288179, 0.512444,  -0.808921),
 	float3(-0.255958, -0.618246, 0.743140),
 	float3(-0.000696, -0.866852, 0.498566),
-	float3(0.756663, -0.051498, 0.651774),
-	float3(0.185392, 0.756814, 0.626788),
-	float3(-0.490044, 0.777685, 0.393780),
+	float3(0.756663,  -0.051498, 0.651774),
+	float3(0.185392,  0.756814,  0.626788),
+	float3(-0.490044, 0.777685,  0.393780),
 	float3(-0.710816, -0.695991, 0.101677),
-	float3(0.531643, 0.777280, 0.336440),
-	float3(-0.180783, 0.981303, 0.066044),
+	float3(0.531643,  0.777280,  0.336440),
+	float3(-0.180783, 0.981303,  0.066044),
 	float3(-0.057086, -0.995321, -0.077963),
-	float3(-0.366088, 0.920373, -0.137456),
+	float3(-0.366088, 0.920373,  -0.137456),
 	float3(-0.636019, -0.264977, -0.724753),
-	float3(0.732622, -0.569568, -0.372635),
-	float3(0.018430, 0.566278, -0.824008),
-	float3(0.207319, 0.965597, -0.156975),
-	float3(0.596922, 0.379690, 0.706767),
+	float3(0.732622,  -0.569568, -0.372635),
+	float3(0.018430,  0.566278,  -0.824008),
+	float3(0.207319,  0.965597,  -0.156975),
+	float3(0.596922,  0.379690,  0.706767),
 	float3(-0.101417, -0.666620, 0.738466),
-	float3(0.186061, -0.620613, 0.761722),
-	float3(-0.162430, 0.572773, 0.803460),
-	float3(-0.238377, 0.912279, 0.333050),
-	float3(-0.853726, 0.218961, -0.472450),
-	float3(0.462846, 0.851051, -0.247964),
-	float3(0.418719, -0.035680, -0.907415),
+	float3(0.186061,  -0.620613, 0.761722),
+	float3(-0.162430, 0.572773,  0.803460),
+	float3(-0.238377, 0.912279,  0.333050),
+	float3(-0.853726, 0.218961,  -0.472450),
+	float3(0.462846,  0.851051,  -0.247964),
+	float3(0.418719,  -0.035680, -0.907415),
 	float3(-0.964399, -0.177688, 0.195861),
-	float3(0.147096, -0.495191, 0.856241),
-	float3(0.674427, -0.588036, 0.446499),
-	float3(-0.568874, 0.507637, -0.647061),
-	float3(0.855401, -0.421078, 0.301634),
+	float3(0.147096,  -0.495191, 0.856241),
+	float3(0.674427,  -0.588036, 0.446499),
+	float3(-0.568874, 0.507637,  -0.647061),
+	float3(0.855401,  -0.421078, 0.301634),
 	float3(-0.658058, -0.491209, -0.570678),
-	float3(0.173602, -0.897701, -0.404962),
-	float3(0.186242, 0.951379, 0.245341),
-	float3(0.551706, -0.087715, -0.829414),
-	float3(0.021736, -0.993896, 0.108162),
-	float3(0.080688, -0.925508, 0.370033),
+	float3(0.173602,  -0.897701, -0.404962),
+	float3(0.186242,  0.951379,  0.245341),
+	float3(0.551706,  -0.087715, -0.829414),
+	float3(0.021736,  -0.993896, 0.108162),
+	float3(0.080688,  -0.925508, 0.370033),
 	float3(-0.585873, -0.415821, -0.695590),
-	float3(-0.134389, 0.965928, 0.221183),
-	float3(0.481310, 0.559184, -0.675021),
+	float3(-0.134389, 0.965928,  0.221183),
+	float3(0.481310,  0.559184,  -0.675021),
 	float3(-0.644738, -0.763847, -0.029160),
 	float3(-0.735815, -0.334458, 0.588825),
-	float3(0.771002, -0.337115, 0.540287),
+	float3(0.771002,  -0.337115, 0.540287),
 	float3(-0.223450, -0.953403, -0.202716),
 	float3(-0.203159, -0.776284, -0.596749),
-	float3(0.841752, -0.246953, -0.480070),
-	float3(-0.933773, 0.350128, 0.074019),
-	float3(-0.980382, 0.019322, 0.196158),
-	float3(0.126297, -0.187598, 0.974092),
-	float3(0.914651, 0.280892, -0.290710),
+	float3(0.841752,  -0.246953, -0.480070),
+	float3(-0.933773, 0.350128,  0.074019),
+	float3(-0.980382, 0.019322,  0.196158),
+	float3(0.126297,  -0.187598, 0.974092),
+	float3(0.914651,  0.280892,  -0.290710),
 	float3(-0.421539, -0.815182, 0.397219),
-	float3(-0.466226, 0.631281, -0.619772),
-	float3(0.357825, 0.792101, -0.494507),
-	float3(-0.961666, 0.178981, 0.207760),
-	float3(0.659670, 0.677928, 0.324422),
+	float3(-0.466226, 0.631281,  -0.619772),
+	float3(0.357825,  0.792101,  -0.494507),
+	float3(-0.961666, 0.178981,  0.207760),
+	float3(0.659670,  0.677928,  0.324422),
 	float3(-0.040692, -0.444163, -0.895021),
 	float3(-0.269934, -0.843369, -0.464612),
 	float3(-0.635609, -0.613770, -0.468283),
 	float3(-0.192220, -0.948614, 0.251363),
-	float3(0.968962, -0.240389, 0.057666),
-	float3(-0.998710, 0.035754, 0.036046),
+	float3(0.968962,  -0.240389, 0.057666),
+	float3(-0.998710, 0.035754,  0.036046),
 	float3(-0.698690, -0.638803, -0.322124),
-	float3(0.239298, 0.891130, 0.385517),
+	float3(0.239298,  0.891130,  0.385517),
 	float3(-0.139244, -0.536774, 0.832156),
-	float3(0.352050, -0.094346, 0.931214),
+	float3(0.352050,  -0.094346, 0.931214),
 	float3(-0.146375, -0.247532, 0.957759),
-	float3(-0.342844, 0.831982, 0.436193),
-	float3(0.637027, 0.768360, -0.061803),
+	float3(-0.342844, 0.831982,  0.436193),
+	float3(0.637027,  0.768360,  -0.061803),
 	float3(-0.791876, -0.506933, -0.340515),
-	float3(0.338336, -0.843098, -0.417989),
+	float3(0.338336,  -0.843098, -0.417989),
 	float3(-0.027791, -0.140836, 0.989643),
-	float3(-0.308670, 0.234645, 0.921773),
-	float3(-0.659567, 0.725584, 0.196215),
+	float3(-0.308670, 0.234645,  0.921773),
+	float3(-0.659567, 0.725584,  0.196215),
 	float3(-0.929864, -0.044424, -0.365212),
-	float3(0.961510, -0.000191, 0.274771),
+	float3(0.961510,  -0.000191, 0.274771),
 	float3(-0.403848, -0.227453, -0.886099),
-	float3(-0.754760, 0.406814, 0.514626),
-	float3(0.379436, -0.748663, -0.543629),
-	float3(0.538998, -0.786130, 0.302457),
-	float3(0.592171, 0.581494, -0.557852),
-	float3(0.559805, -0.702357, 0.439673),
-	float3(0.560197, -0.477179, 0.677112),
-	float3(0.326993, -0.543266, 0.773265),
-	float3(0.310702, 0.486047, 0.816837),
-	float3(-0.869039, 0.107508, 0.482921),
-	float3(0.177138, 0.537081, -0.824722),
+	float3(-0.754760, 0.406814,  0.514626),
+	float3(0.379436,  -0.748663, -0.543629),
+	float3(0.538998,  -0.786130, 0.302457),
+	float3(0.592171,  0.581494,  -0.557852),
+	float3(0.559805,  -0.702357, 0.439673),
+	float3(0.560197,  -0.477179, 0.677112),
+	float3(0.326993,  -0.543266, 0.773265),
+	float3(0.310702,  0.486047,  0.816837),
+	float3(-0.869039, 0.107508,  0.482921),
+	float3(0.177138,  0.537081,  -0.824722),
 	float3(-0.298662, -0.520586, -0.799870),
-	float3(-0.458243, 0.089719, -0.884287),
-	float3(0.444816, 0.440629, -0.779734),
-	float3(0.275739, -0.237522, 0.931424),
+	float3(-0.458243, 0.089719,  -0.884287),
+	float3(0.444816,  0.440629,  -0.779734),
+	float3(0.275739,  -0.237522, 0.931424),
 	float3(-0.957491, -0.282826, 0.056749),
-	float3(-0.627277, 0.680793, -0.378211),
-	float3(0.837698, 0.079241, -0.540354),
-	float3(-0.760234, 0.306376, -0.572869),
+	float3(-0.627277, 0.680793,  -0.378211),
+	float3(0.837698,  0.079241,  -0.540354),
+	float3(-0.760234, 0.306376,  -0.572869),
 	float3(-0.667912, -0.105566, -0.736715),
-	float3(0.763860, -0.026632, -0.644832),
-	float3(0.923941, -0.337545, 0.179988),
-	float3(0.493257, -0.857467, 0.146454),
-	float3(-0.349115, 0.735074, -0.581192),
-	float3(-0.158896, 0.194208, 0.968006),
-	float3(-0.801972, 0.597334, -0.005802),
-	float3(0.602453, 0.675377, -0.425344),
-	float3(0.082179, 0.926415, 0.367427),
+	float3(0.763860,  -0.026632, -0.644832),
+	float3(0.923941,  -0.337545, 0.179988),
+	float3(0.493257,  -0.857467, 0.146454),
+	float3(-0.349115, 0.735074,  -0.581192),
+	float3(-0.158896, 0.194208,  0.968006),
+	float3(-0.801972, 0.597334,  -0.005802),
+	float3(0.602453,  0.675377,  -0.425344),
+	float3(0.082179,  0.926415,  0.367427),
 	float3(-0.991098, -0.125529, 0.044348),
-	float3(-0.693134, 0.053489, -0.718822),
+	float3(-0.693134, 0.053489,  -0.718822),
 	float3(-0.141064, -0.984693, 0.102379),
-	float3(-0.585253, 0.146170, -0.797567),
-	float3(0.217469, 0.382536, 0.897983),
+	float3(-0.585253, 0.146170,  -0.797567),
+	float3(0.217469,  0.382536,  0.897983),
 	float3(-0.446917, -0.885673, 0.125891),
 	float3(-0.898999, -0.433036, 0.065433),
-	float3(-0.453952, 0.255979, 0.853465),
-	float3(0.578273, -0.815739, 0.013053),
-	float3(0.555735, 0.129426, 0.821223),
-	float3(0.838856, -0.178309, 0.514322),
-	float3(0.025234, 0.773406, 0.633409),
-	float3(0.293700, -0.584806, -0.756137),
-	float3(0.065592, 0.848033, -0.525869),
+	float3(-0.453952, 0.255979,  0.853465),
+	float3(0.578273,  -0.815739, 0.013053),
+	float3(0.555735,  0.129426,  0.821223),
+	float3(0.838856,  -0.178309, 0.514322),
+	float3(0.025234,  0.773406,  0.633409),
+	float3(0.293700,  -0.584806, -0.756137),
+	float3(0.065592,  0.848033,  -0.525869),
 	float3(-0.756620, -0.185482, -0.626995),
-	float3(0.520692, -0.669499, -0.529765),
-	float3(0.913374, -0.096858, 0.395432),
-	float3(0.390248, 0.855698, 0.339834),
-	float3(-0.244852, 0.379899, 0.892034),
+	float3(0.520692,  -0.669499, -0.529765),
+	float3(0.913374,  -0.096858, 0.395432),
+	float3(0.390248,  0.855698,  0.339834),
+	float3(-0.244852, 0.379899,  0.892034),
 	float3(-0.905594, -0.204625, -0.371520),
-	float3(0.335194, -0.930912, 0.145081),
-	float3(0.161128, -0.854832, 0.493255),
-	float3(0.333005, 0.925269, 0.181619),
-	float3(0.956078, -0.193253, -0.220383),
-	float3(-0.721936, 0.553389, -0.415415),
+	float3(0.335194,  -0.930912, 0.145081),
+	float3(0.161128,  -0.854832, 0.493255),
+	float3(0.333005,  0.925269,  0.181619),
+	float3(0.956078,  -0.193253, -0.220383),
+	float3(-0.721936, 0.553389,  -0.415415),
 	float3(-0.860778, -0.111968, -0.496513),
 	float3(-0.364651, -0.892457, 0.265611),
-	float3(0.990791, 0.135234, -0.006784),
-	float3(-0.262425, 0.069400, 0.962454),
-	float3(-0.375078, 0.814837, -0.441993),
-	float3(-0.467281, 0.504168, 0.726267),
-	float3(0.884697, 0.416778, -0.208823),
-	float3(0.505998, 0.857798, -0.090266),
-	float3(0.293990, -0.411896, 0.862503),
-	float3(-0.063582, 0.989669, -0.128503),
-	float3(-0.692113, 0.467999, -0.549505),
-	float3(0.439386, 0.766117, 0.469046),
-	float3(0.810098, 0.475547, -0.342924),
-	float3(0.635058, -0.172021, 0.753067),
-	float3(0.481970, 0.696212, -0.531971),
-	float3(0.862411, -0.499292, -0.083401),
-	float3(0.961870, 0.255487, 0.097635),
-	float3(0.267051, 0.232174, 0.935296),
-	float3(0.247981, 0.625636, 0.739652),
-	float3(-0.027441, 0.861284, 0.507382),
-	float3(0.349732, 0.285903, -0.892159),
+	float3(0.990791,  0.135234,  -0.006784),
+	float3(-0.262425, 0.069400,  0.962454),
+	float3(-0.375078, 0.814837,  -0.441993),
+	float3(-0.467281, 0.504168,  0.726267),
+	float3(0.884697,  0.416778,  -0.208823),
+	float3(0.505998,  0.857798,  -0.090266),
+	float3(0.293990,  -0.411896, 0.862503),
+	float3(-0.063582, 0.989669,  -0.128503),
+	float3(-0.692113, 0.467999,  -0.549505),
+	float3(0.439386,  0.766117,  0.469046),
+	float3(0.810098,  0.475547,  -0.342924),
+	float3(0.635058,  -0.172021, 0.753067),
+	float3(0.481970,  0.696212,  -0.531971),
+	float3(0.862411,  -0.499292, -0.083401),
+	float3(0.961870,  0.255487,  0.097635),
+	float3(0.267051,  0.232174,  0.935296),
+	float3(0.247981,  0.625636,  0.739652),
+	float3(-0.027441, 0.861284,  0.507382),
+	float3(0.349732,  0.285903,  -0.892159),
 	float3(-0.574167, -0.728637, -0.373391),
 	float3(-0.500481, -0.327253, -0.801514),
-	float3(-0.039272, 0.683935, -0.728485),
-	float3(-0.537768, 0.361384, 0.761714),
+	float3(-0.039272, 0.683935,  -0.728485),
+	float3(-0.537768, 0.361384,  0.761714),
 	float3(-0.364537, -0.679048, 0.637186),
-	float3(-0.635035, 0.233202, 0.736442),
-	float3(0.337839, 0.701865, 0.627097),
-	float3(-0.776238, 0.126190, 0.617681),
+	float3(-0.635035, 0.233202,  0.736442),
+	float3(0.337839,  0.701865,  0.627097),
+	float3(-0.776238, 0.126190,  0.617681),
 	float3(-0.201669, -0.093221, 0.975007),
-	float3(0.230124, -0.813561, -0.534005),
-	float3(0.062477, 0.971548, -0.228454),
-	float3(0.845817, 0.196733, 0.495872),
-	float3(-0.098138, 0.450727, 0.887251),
-	float3(0.804089, 0.558681, -0.203265),
-	float3(-0.373732, 0.379300, -0.846437),
-	float3(0.156287, 0.122326, 0.980108),
-	float3(-0.235584, 0.885423, -0.400658),
+	float3(0.230124,  -0.813561, -0.534005),
+	float3(0.062477,  0.971548,  -0.228454),
+	float3(0.845817,  0.196733,  0.495872),
+	float3(-0.098138, 0.450727,  0.887251),
+	float3(0.804089,  0.558681,  -0.203265),
+	float3(-0.373732, 0.379300,  -0.846437),
+	float3(0.156287,  0.122326,  0.980108),
+	float3(-0.235584, 0.885423,  -0.400658),
 	float3(-0.303575, -0.212406, 0.928831),
 	float3(-0.357221, -0.727785, -0.585425),
-	float3(0.169256, -0.516119, -0.839627),
-	float3(0.775510, -0.393834, -0.493435),
+	float3(0.169256,  -0.516119, -0.839627),
+	float3(0.775510,  -0.393834, -0.493435),
 	float3(-0.469175, -0.715333, 0.517855),
-	float3(0.860563, -0.485867, 0.152854),
-	float3(-0.904228, 0.358441, 0.232146),
-	float3(-0.987112, 0.126657, -0.097812),
+	float3(0.860563,  -0.485867, 0.152854),
+	float3(-0.904228, 0.358441,  0.232146),
+	float3(-0.987112, 0.126657,  -0.097812),
 	float3(-0.072781, -0.676030, -0.733271),
-	float3(-0.501627, 0.844998, -0.185335),
+	float3(-0.501627, 0.844998,  -0.185335),
 	float3(-0.543888, -0.172811, -0.821171),
 	float3(-0.815480, -0.572330, 0.086204),
-	float3(-0.840537, 0.387014, 0.379102),
+	float3(-0.840537, 0.387014,  0.379102),
 	float3(-0.513486, -0.857899, -0.018462),
 	float3(-0.834970, -0.283413, 0.471702),
-	float3(-0.020074, 0.997503, 0.067717),
-	float3(0.561832, -0.403852, -0.721975),
-	float3(-0.822602, 0.546260, -0.157879),
-	float3(0.701224, -0.712259, 0.031175),
-	float3(-0.384076, 0.875654, -0.292773),
-	float3(0.087757, 0.750614, -0.654887),
-	float3(0.445532, -0.590366, 0.673029),
-	float3(0.476942, 0.854952, 0.203921),
-	float3(-0.390862, 0.403042, 0.827516),
+	float3(-0.020074, 0.997503,  0.067717),
+	float3(0.561832,  -0.403852, -0.721975),
+	float3(-0.822602, 0.546260,  -0.157879),
+	float3(0.701224,  -0.712259, 0.031175),
+	float3(-0.384076, 0.875654,  -0.292773),
+	float3(0.087757,  0.750614,  -0.654887),
+	float3(0.445532,  -0.590366, 0.673029),
+	float3(0.476942,  0.854952,  0.203921),
+	float3(-0.390862, 0.403042,  0.827516),
 	float3(-0.499720, -0.021771, 0.865914),
 	float3(-0.232112, -0.664990, -0.709868),
-	float3(-0.677793, 0.652221, 0.339417),
-	float3(0.369954, 0.337850, 0.865443),
-	float3(0.007752, -0.296216, 0.955090),
-	float3(-0.469595, 0.246633, -0.847734),
-	float3(-0.752075, 0.522955, 0.401126),
+	float3(-0.677793, 0.652221,  0.339417),
+	float3(0.369954,  0.337850,  0.865443),
+	float3(0.007752,  -0.296216, 0.955090),
+	float3(-0.469595, 0.246633,  -0.847734),
+	float3(-0.752075, 0.522955,  0.401126),
 	float3(-0.322098, -0.788158, 0.524462),
-	float3(0.801402, 0.236548, -0.549363),
-	float3(-0.979497, 0.195658, 0.048003),
+	float3(0.801402,  0.236548,  -0.549363),
+	float3(-0.979497, 0.195658,  0.048003),
 	float3(-0.671976, -0.481101, 0.563019),
 	float3(-0.141340, -0.553868, -0.820520),
 	float3(-0.102533, -0.303939, -0.947158),
 	float3(-0.356579, -0.379022, -0.853929),
-	float3(0.491280, 0.228820, -0.840408),
+	float3(0.491280,  0.228820,  -0.840408),
 	float3(-0.993560, -0.051284, -0.101040),
-	float3(0.784300, 0.102508, 0.611854),
-	float3(-0.791608, 0.132321, -0.596530),
-	float3(-0.409770, 0.108185, 0.905751),
+	float3(0.784300,  0.102508,  0.611854),
+	float3(-0.791608, 0.132321,  -0.596530),
+	float3(-0.409770, 0.108185,  0.905751),
 	float3(-0.482441, -0.415800, 0.770948),
-	float3(0.612922, 0.765306, 0.196553),
-	float3(-0.189149, 0.714997, -0.673054),
-	float3(0.672523, 0.550516, 0.494616),
-	float3(-0.136754, 0.780314, 0.610252),
+	float3(0.612922,  0.765306,  0.196553),
+	float3(-0.189149, 0.714997,  -0.673054),
+	float3(0.672523,  0.550516,  0.494616),
+	float3(-0.136754, 0.780314,  0.610252),
 	float3(-0.469682, -0.830369, -0.299811),
-	float3(0.512644, 0.287357, 0.809087),
+	float3(0.512644,  0.287357,  0.809087),
 	float3(-0.112122, -0.913976, 0.389971),
-	float3(-0.444223, 0.717548, 0.536461),
-	float3(0.083375, 0.994828, -0.058020),
-	float3(0.840213, 0.490485, 0.231227),
+	float3(-0.444223, 0.717548,  0.536461),
+	float3(0.083375,  0.994828,  -0.058020),
+	float3(0.840213,  0.490485,  0.231227),
 	float3(-0.585194, -0.802421, 0.116915),
-	float3(0.744321, 0.388331, -0.543310),
+	float3(0.744321,  0.388331,  -0.543310),
 	float3(-0.787010, -0.584299, -0.198013),
-	float3(0.412657, -0.635065, -0.652998),
-	float3(0.757818, -0.644140, -0.103902),
+	float3(0.412657,  -0.635065, -0.652998),
+	float3(0.757818,  -0.644140, -0.103902),
 	float3(-0.283788, -0.084375, -0.955168),
-	float3(0.567110, -0.597523, 0.566879),
-	float3(-0.645869, 0.367645, -0.669097),
+	float3(0.567110,  -0.597523, 0.566879),
+	float3(-0.645869, 0.367645,  -0.669097),
 	float3(-0.597383, -0.616022, 0.513468),
-	float3(0.529334, 0.071750, -0.845374),
+	float3(0.529334,  0.071750,  -0.845374),
 	float3(-0.384458, -0.610345, -0.692583),
-	float3(0.307800, -0.788827, 0.531987),
-	float3(0.192208, 0.929623, -0.314414),
-	float3(0.054002, -0.700353, 0.711751),
-	float3(0.740530, -0.212095, 0.637676),
+	float3(0.307800,  -0.788827, 0.531987),
+	float3(0.192208,  0.929623,  -0.314414),
+	float3(0.054002,  -0.700353, 0.711751),
+	float3(0.740530,  -0.212095, 0.637676),
 	float3(-0.321377, -0.892148, -0.317472),
 	float3(-0.369198, -0.344876, 0.862991),
-	float3(0.104325, -0.956781, -0.271454),
-	float3(-0.675340, 0.076589, 0.733519),
+	float3(0.104325,  -0.956781, -0.271454),
+	float3(-0.675340, 0.076589,  0.733519),
 	float3(-0.683467, -0.708405, -0.176171),
 	float3(-0.911579, -0.234684, 0.337561),
-	float3(0.553117, 0.830833, 0.061461),
-	float3(-0.182085, 0.180340, -0.966603),
+	float3(0.553117,  0.830833,  0.061461),
+	float3(-0.182085, 0.180340,  -0.966603),
 	float3(-0.168595, -0.837184, 0.520287),
 	float3(-0.553305, -0.271943, 0.787338),
-	float3(-0.550273, 0.126173, 0.825397),
+	float3(-0.550273, 0.126173,  0.825397),
 	float3(-0.758815, -0.491575, 0.427263),
-	float3(0.176203, -0.760814, 0.624591),
+	float3(0.176203,  -0.760814, 0.624591),
 	float3(-0.861521, -0.362134, -0.355866),
-	float3(0.307691, -0.676046, 0.669543),
-	float3(0.874195, 0.305845, 0.377149),
-	float3(-0.240536, 0.938323, -0.248378),
+	float3(0.307691,  -0.676046, 0.669543),
+	float3(0.874195,  0.305845,  0.377149),
+	float3(-0.240536, 0.938323,  -0.248378),
 	float3(-0.759715, -0.648650, -0.045677),
-	float3(-0.086434, 0.880311, -0.466457),
-	float3(0.061061, 0.422705, 0.904208),
+	float3(-0.086434, 0.880311,  -0.466457),
+	float3(0.061061,  0.422705,  0.904208),
 	float3(-0.943800, -0.076488, 0.321545),
-	float3(0.209793, -0.966427, -0.148342),
-	float3(0.139317, 0.985771, 0.094051),
+	float3(0.209793,  -0.966427, -0.148342),
+	float3(0.139317,  0.985771,  0.094051),
 	float3(-0.870503, -0.444810, -0.210638),
 	float3(-0.043416, -0.785019, -0.617948),
-	float3(0.412790, 0.909965, 0.039593),
-	float3(0.696782, -0.671968, -0.250906),
-	float3(0.739547, -0.649612, 0.176279),
+	float3(0.412790,  0.909965,  0.039593),
+	float3(0.696782,  -0.671968, -0.250906),
+	float3(0.739547,  -0.649612, 0.176279),
 	float3(-0.567635, -0.013296, -0.823173),
-	float3(0.665323, -0.439586, -0.603415),
-	float3(-0.002199, 0.567317, 0.823496),
+	float3(0.665323,  -0.439586, -0.603415),
+	float3(-0.002199, 0.567317,  0.823496),
 	float3(-0.926883, -0.366850, -0.079433),
-	float3(-0.080551, 0.926077, 0.368636),
-	float3(-0.892587, 0.447993, -0.050893),
-	float3(0.300332, -0.139468, -0.943583),
+	float3(-0.080551, 0.926077,  0.368636),
+	float3(-0.892587, 0.447993,  -0.050893),
+	float3(0.300332,  -0.139468, -0.943583),
 	float3(-0.200322, -0.417887, -0.886139),
-	float3(-0.697565, 0.715467, 0.038864),
+	float3(-0.697565, 0.715467,  0.038864),
 	float3(-0.928939, -0.294471, -0.224409),
-	float3(-0.937353, 0.084034, 0.338095),
-	float3(0.027880, 0.974653, 0.221977),
-	float3(-0.607544, 0.790890, -0.073377),
-	float3(-0.949365, 0.221403, -0.222904),
+	float3(-0.937353, 0.084034,  0.338095),
+	float3(0.027880,  0.974653,  0.221977),
+	float3(-0.607544, 0.790890,  -0.073377),
+	float3(-0.949365, 0.221403,  -0.222904),
 	float3(-0.178191, -0.395957, 0.900814),
-	float3(0.308403, 0.075797, 0.948231),
-	float3(-0.899620, 0.387281, -0.201735),
-	float3(0.831075, 0.550233, 0.080980),
-	float3(0.314329, -0.295515, -0.902146),
-	float3(0.365894, -0.919209, -0.145521),
-	float3(-0.219369, 0.971365, -0.091257),
+	float3(0.308403,  0.075797,  0.948231),
+	float3(-0.899620, 0.387281,  -0.201735),
+	float3(0.831075,  0.550233,  0.080980),
+	float3(0.314329,  -0.295515, -0.902146),
+	float3(0.365894,  -0.919209, -0.145521),
+	float3(-0.219369, 0.971365,  -0.091257),
 	float3(-0.680197, -0.227106, 0.696961),
 	float3(-0.448717, -0.474785, -0.757121),
-	float3(-0.873540, 0.048456, -0.484335),
-	float3(0.182533, -0.976343, 0.115915),
-	float3(0.770338, -0.184404, -0.610389),
-	float3(0.852274, -0.080886, -0.516805),
-	float3(0.546614, -0.544748, -0.635974),
-	float3(0.909346, 0.408981, 0.076323),
-	float3(0.196890, 0.330924, -0.922889),
+	float3(-0.873540, 0.048456,  -0.484335),
+	float3(0.182533,  -0.976343, 0.115915),
+	float3(0.770338,  -0.184404, -0.610389),
+	float3(0.852274,  -0.080886, -0.516805),
+	float3(0.546614,  -0.544748, -0.635974),
+	float3(0.909346,  0.408981,  0.076323),
+	float3(0.196890,  0.330924,  -0.922889),
 	float3(-0.213380, -0.976045, -0.042494),
-	float3(0.950424, 0.123105, -0.285553),
-	float3(0.966556, 0.208495, -0.149328),
-	float3(0.574384, 0.675349, 0.462587),
-	float3(-0.382560, 0.640652, 0.665742),
+	float3(0.950424,  0.123105,  -0.285553),
+	float3(0.966556,  0.208495,  -0.149328),
+	float3(0.574384,  0.675349,  0.462587),
+	float3(-0.382560, 0.640652,  0.665742),
 	float3(-0.296407, -0.946509, 0.127527),
-	float3(0.754639, 0.624179, 0.202288),
-	float3(0.670299, -0.137278, -0.729284),
-	float3(0.340516, 0.871887, -0.351939),
-	float3(-0.062043, 0.791651, -0.607815),
-	float3(0.485759, -0.151807, 0.860809),
-	float3(0.917235, -0.397274, 0.029216),
-	float3(-0.951872, 0.296140, -0.078994),
-	float3(-0.222396, 0.369822, -0.902093),
-	float3(0.672767, -0.293666, -0.679077),
-	float3(-0.438960, 0.889101, 0.129666),
-	float3(-0.434526, 0.517497, -0.737146),
-	float3(-0.733324, 0.284153, 0.617651),
+	float3(0.754639,  0.624179,  0.202288),
+	float3(0.670299,  -0.137278, -0.729284),
+	float3(0.340516,  0.871887,  -0.351939),
+	float3(-0.062043, 0.791651,  -0.607815),
+	float3(0.485759,  -0.151807, 0.860809),
+	float3(0.917235,  -0.397274, 0.029216),
+	float3(-0.951872, 0.296140,  -0.078994),
+	float3(-0.222396, 0.369822,  -0.902093),
+	float3(0.672767,  -0.293666, -0.679077),
+	float3(-0.438960, 0.889101,  0.129666),
+	float3(-0.434526, 0.517497,  -0.737146),
+	float3(-0.733324, 0.284153,  0.617651),
 	float3(-0.543108, -0.537821, 0.644812),
 	float3(-0.722985, -0.070382, 0.687270),
-	float3(0.659133, -0.349546, 0.665854),
-	float3(0.240581, 0.761646, -0.601678),
+	float3(0.659133,  -0.349546, 0.665854),
+	float3(0.240581,  0.761646,  -0.601678),
 	float3(-0.789305, -0.179024, 0.587322),
-	float3(0.276733, 0.019317, -0.960753),
-	float3(0.693778, 0.287264, -0.660417),
+	float3(0.276733,  0.019317,  -0.960753),
+	float3(0.693778,  0.287264,  -0.660417),
 	float3(-0.820804, -0.270665, -0.503012),
 	float3(-0.972930, -0.212271, -0.091363),
-	float3(0.893888, -0.397958, -0.206383),
-	float3(0.978287, -0.121361, 0.168007),
-	float3(0.912608, 0.022653, -0.408208),
+	float3(0.893888,  -0.397958, -0.206383),
+	float3(0.978287,  -0.121361, 0.168007),
+	float3(0.912608,  0.022653,  -0.408208),
 	float3(-0.822015, -0.021261, 0.569069),
-	float3(-0.079788, 0.306058, -0.948664),
-	float3(0.399589, 0.575156, 0.713809),
+	float3(-0.079788, 0.306058,  -0.948664),
+	float3(0.399589,  0.575156,  0.713809),
 	float3(-0.878466, -0.127481, 0.460485),
-	float3(0.716895, 0.614887, -0.328597),
-	float3(0.861117, -0.299788, 0.410616),
-	float3(0.111355, 0.275266, 0.954897),
-	float3(0.299397, 0.433868, -0.849777),
-	float3(0.202886, 0.659931, -0.723415),
-	float3(0.444342, -0.703466, 0.554704),
-	float3(0.287448, -0.872697, 0.394683),
-	float3(0.998809, -0.019684, 0.044653),
-	float3(0.484882, 0.781431, -0.392754),
-	float3(0.887469, 0.183496, -0.422763),
-	float3(0.827561, -0.441172, -0.347146),
-	float3(0.135066, 0.853336, 0.503562),
+	float3(0.716895,  0.614887,  -0.328597),
+	float3(0.861117,  -0.299788, 0.410616),
+	float3(0.111355,  0.275266,  0.954897),
+	float3(0.299397,  0.433868,  -0.849777),
+	float3(0.202886,  0.659931,  -0.723415),
+	float3(0.444342,  -0.703466, 0.554704),
+	float3(0.287448,  -0.872697, 0.394683),
+	float3(0.998809,  -0.019684, 0.044653),
+	float3(0.484882,  0.781431,  -0.392754),
+	float3(0.887469,  0.183496,  -0.422763),
+	float3(0.827561,  -0.441172, -0.347146),
+	float3(0.135066,  0.853336,  0.503562),
 	float3(-0.509662, -0.819963, 0.260587),
-	float3(-0.512360, 0.788403, -0.340452),
-	float3(0.987760, -0.140019, -0.068733),
+	float3(-0.512360, 0.788403,  -0.340452),
+	float3(0.987760,  -0.140019, -0.068733),
 	float3(-0.962465, -0.136895, -0.234350),
-	float3(-0.885826, 0.311057, -0.344320),
-	float3(0.050808, 0.001416, 0.998707),
-	float3(-0.799028, 0.401871, -0.447274),
+	float3(-0.885826, 0.311057,  -0.344320),
+	float3(0.050808,  0.001416,  0.998707),
+	float3(-0.799028, 0.401871,  -0.447274),
 	float3(-0.357822, -0.060670, 0.931817),
 	float3(-0.561326, -0.732054, 0.386017),
-	float3(0.626344, 0.444124, -0.640662),
-	float3(-0.388810, 0.875193, 0.287860),
+	float3(0.626344,  0.444124,  -0.640662),
+	float3(-0.388810, 0.875193,  0.287860),
 	float3(-0.717464, -0.342604, -0.606521),
-	float3(-0.318629, 0.541489, 0.777988),
-	float3(0.740757, 0.133124, -0.658451),
-	float3(0.592425, 0.757275, -0.274894),
-	float3(0.116514, -0.761987, -0.637024),
+	float3(-0.318629, 0.541489,  0.777988),
+	float3(0.740757,  0.133124,  -0.658451),
+	float3(0.592425,  0.757275,  -0.274894),
+	float3(0.116514,  -0.761987, -0.637024),
 	float3(-0.642621, -0.725416, 0.246597),
-	float3(-0.924987, 0.132949, -0.355981),
-	float3(0.144871, -0.647795, -0.747913),
+	float3(-0.924987, 0.132949,  -0.355981),
+	float3(0.144871,  -0.647795, -0.747913),
 	float3(-0.006129, -0.922878, -0.385044),
 	float3(-0.212348, -0.737278, 0.641350),
-	float3(0.314245, -0.445610, -0.838261),
-	float3(0.805003, -0.548014, -0.227269),
-	float3(0.097934, -0.994613, -0.033957),
-	float3(0.511216, -0.848559, -0.136401),
-	float3(0.950784, -0.295404, -0.093526),
+	float3(0.314245,  -0.445610, -0.838261),
+	float3(0.805003,  -0.548014, -0.227269),
+	float3(0.097934,  -0.994613, -0.033957),
+	float3(0.511216,  -0.848559, -0.136401),
+	float3(0.950784,  -0.295404, -0.093526),
 	float3(-0.133414, -0.139818, -0.981148),
-	float3(-0.527418, 0.595250, 0.606224),
-	float3(-0.107354, 0.037965, 0.993496),
+	float3(-0.527418, 0.595250,  0.606224),
+	float3(-0.107354, 0.037965,  0.993496),
 	float3(-0.396073, -0.901630, -0.173751),
-	float3(0.703369, 0.707055, 0.073108),
-	float3(0.364237, 0.921036, -0.137926),
-	float3(0.446136, -0.431971, 0.783814),
-	float3(0.840732, 0.338445, -0.422639),
-	float3(-0.733874, 0.623699, -0.269127),
-	float3(0.676232, -0.474837, 0.563241),
-	float3(-0.637986, 0.417775, 0.646867),
+	float3(0.703369,  0.707055,  0.073108),
+	float3(0.364237,  0.921036,  -0.137926),
+	float3(0.446136,  -0.431971, 0.783814),
+	float3(0.840732,  0.338445,  -0.422639),
+	float3(-0.733874, 0.623699,  -0.269127),
+	float3(0.676232,  -0.474837, 0.563241),
+	float3(-0.637986, 0.417775,  0.646867),
 	float3(-0.605327, -0.116138, 0.787459),
-	float3(-0.309613, 0.078580, -0.947610),
-	float3(0.624362, 0.179959, -0.760123),
-	float3(0.451662, 0.027209, 0.891774),
-	float3(-0.069128, 0.681676, 0.728382),
-	float3(0.018730, -0.573774, -0.818800),
+	float3(-0.309613, 0.078580,  -0.947610),
+	float3(0.624362,  0.179959,  -0.760123),
+	float3(0.451662,  0.027209,  0.891774),
+	float3(-0.069128, 0.681676,  0.728382),
+	float3(0.018730,  -0.573774, -0.818800),
 	float3(-0.616447, -0.388601, 0.684822),
-	float3(0.931744, -0.218207, 0.290239),
-	float3(0.435197, -0.502919, -0.746777),
-	float3(0.204704, -0.045238, 0.977778),
-	float3(-0.721411, 0.682282, -0.118561),
+	float3(0.931744,  -0.218207, 0.290239),
+	float3(0.435197,  -0.502919, -0.746777),
+	float3(0.204704,  -0.045238, 0.977778),
+	float3(-0.721411, 0.682282,  -0.118561),
 	float3(-0.164988, -0.921795, -0.350817),
-	float3(-0.084943, 0.455354, -0.886249),
-	float3(-0.085722, 0.952297, -0.292885),
-	float3(0.367987, 0.671314, -0.643368),
-	float3(0.460070, 0.435642, 0.773661),
-	float3(0.563779, -0.244330, -0.788959),
+	float3(-0.084943, 0.455354,  -0.886249),
+	float3(-0.085722, 0.952297,  -0.292885),
+	float3(0.367987,  0.671314,  -0.643368),
+	float3(0.460070,  0.435642,  0.773661),
+	float3(0.563779,  -0.244330, -0.788959),
 	float3(-0.503091, -0.678229, -0.535635),
-	float3(0.851176, -0.016944, 0.524607),
-	float3(-0.624554, 0.746151, -0.230633),
+	float3(0.851176,  -0.016944, 0.524607),
+	float3(-0.624554, 0.746151,  -0.230633),
 	float3(-0.251615, -0.243087, -0.936802),
-	float3(0.171043, -0.241585, -0.955186),
-	float3(0.287139, -0.957867, -0.006545),
-	float3(0.156755, 0.530919, 0.832798),
+	float3(0.171043,  -0.241585, -0.955186),
+	float3(0.287139,  -0.957867, -0.006545),
+	float3(0.156755,  0.530919,  0.832798),
 	float3(-0.852921, -0.517851, -0.066005),
-	float3(0.061830, -0.854758, -0.515332),
-	float3(0.017202, -0.198392, -0.979972),
-	float3(-0.141655, 0.581746, -0.800940),
-	float3(-0.827405, 0.497611, 0.260354),
-	float3(0.912117, 0.343446, 0.223801),
-	float3(0.581680, -0.030372, 0.812850),
-	float3(-0.830638, 0.265057, 0.489679),
-	float3(-0.294521, 0.763262, 0.575055),
-	float3(0.267591, -0.707905, -0.653656),
-	float3(-0.971577, 0.038643, -0.233548),
-	float3(0.982736, 0.104123, 0.152929),
-	float3(0.046593, 0.922284, -0.383695),
-	float3(-0.516542, 0.381302, -0.766676),
-	float3(-0.478324, 0.877775, -0.026790),
-	float3(-0.046966, 0.310431, 0.949435),
-	float3(-0.582144, 0.663750, 0.469622),
-	float3(-0.322617, 0.241042, -0.915324),
-	float3(0.266456, 0.963830, -0.005711),
-	float3(0.244056, 0.177073, -0.953458),
-	float3(0.289205, 0.807344, 0.514350),
+	float3(0.061830,  -0.854758, -0.515332),
+	float3(0.017202,  -0.198392, -0.979972),
+	float3(-0.141655, 0.581746,  -0.800940),
+	float3(-0.827405, 0.497611,  0.260354),
+	float3(0.912117,  0.343446,  0.223801),
+	float3(0.581680,  -0.030372, 0.812850),
+	float3(-0.830638, 0.265057,  0.489679),
+	float3(-0.294521, 0.763262,  0.575055),
+	float3(0.267591,  -0.707905, -0.653656),
+	float3(-0.971577, 0.038643,  -0.233548),
+	float3(0.982736,  0.104123,  0.152929),
+	float3(0.046593,  0.922284,  -0.383695),
+	float3(-0.516542, 0.381302,  -0.766676),
+	float3(-0.478324, 0.877775,  -0.026790),
+	float3(-0.046966, 0.310431,  0.949435),
+	float3(-0.582144, 0.663750,  0.469622),
+	float3(-0.322617, 0.241042,  -0.915324),
+	float3(0.266456,  0.963830,  -0.005711),
+	float3(0.244056,  0.177073,  -0.953458),
+	float3(0.289205,  0.807344,  0.514350),
 	float3(-0.421262, -0.787574, -0.449739),
-	float3(0.773589, -0.460968, 0.434821),
-	float3(0.015852, -0.580500, 0.814106),
-	float3(-0.332528, 0.942854, 0.021259),
-	float3(0.484347, 0.643514, 0.592704),
-	float3(0.572091, -0.774599, -0.269645),
+	float3(0.773589,  -0.460968, 0.434821),
+	float3(0.015852,  -0.580500, 0.814106),
+	float3(-0.332528, 0.942854,  0.021259),
+	float3(0.484347,  0.643514,  0.592704),
+	float3(0.572091,  -0.774599, -0.269645),
 	float3(-0.269649, -0.876656, 0.398452),
-	float3(-0.187262, 0.858927, 0.476630),
-	float3(0.410138, -0.296054, 0.862635),
-	float3(0.122111, 0.076991, -0.989526),
+	float3(-0.187262, 0.858927,  0.476630),
+	float3(0.410138,  -0.296054, 0.862635),
+	float3(0.122111,  0.076991,  -0.989526),
 	float3(-0.683579, -0.625192, 0.376636),
-	float3(0.755622, 0.550392, 0.355112),
+	float3(0.755622,  0.550392,  0.355112),
 	float3(-0.055753, -0.969524, -0.238569),
-	float3(0.431326, -0.857829, -0.279442),
-	float3(0.581957, 0.518610, 0.626394),
-	float3(0.914163, -0.140978, -0.380041),
-	float3(0.401158, -0.872122, 0.280135),
-	float3(0.624162, -0.763886, 0.164012)
+	float3(0.431326,  -0.857829, -0.279442),
+	float3(0.581957,  0.518610,  0.626394),
+	float3(0.914163,  -0.140978, -0.380041),
+	float3(0.401158,  -0.872122, 0.280135),
+	float3(0.624162,  -0.763886, 0.164012)
 };
 
 static float3 kernel_HS_256[256] =
 {
-	float3(-0.527747, 0.119389, 0.840969),
-	float3(-0.072454, 0.516697, 0.853097),
+	float3(-0.527747, 0.119389,  0.840969),
+	float3(-0.072454, 0.516697,  0.853097),
 	float3(-0.417986, -0.661927, 0.622206),
-	float3(0.178203, 0.371229, 0.911281),
+	float3(0.178203,  0.371229,  0.911281),
 	float3(-0.729507, -0.466748, 0.499966),
-	float3(0.541668, 0.556472, 0.630027),
-	float3(0.702180, 0.119689, 0.701867),
-	float3(0.401434, 0.040315, 0.915000),
-	float3(0.011584, -0.222620, 0.974836),
-	float3(-0.424665, 0.397744, 0.813302),
-	float3(-0.033948, 0.144843, 0.988872),
-	float3(0.108523, 0.679364, 0.725732),
-	float3(0.425260, 0.531899, 0.732282),
-	float3(0.571253, -0.017917, 0.820578),
+	float3(0.541668,  0.556472,  0.630027),
+	float3(0.702180,  0.119689,  0.701867),
+	float3(0.401434,  0.040315,  0.915000),
+	float3(0.011584,  -0.222620, 0.974836),
+	float3(-0.424665, 0.397744,  0.813302),
+	float3(-0.033948, 0.144843,  0.988872),
+	float3(0.108523,  0.679364,  0.725732),
+	float3(0.425260,  0.531899,  0.732282),
+	float3(0.571253,  -0.017917, 0.820578),
 	float3(-0.247541, -0.366841, 0.896745),
-	float3(0.105178, -0.402210, 0.909486),
-	float3(0.078421, -0.781848, 0.618517),
+	float3(0.105178,  -0.402210, 0.909486),
+	float3(0.078421,  -0.781848, 0.618517),
 	float3(-0.195527, -0.843972, 0.499480),
-	float3(-0.105387, 0.340024, 0.934493),
+	float3(-0.105387, 0.340024,  0.934493),
 	float3(-0.566511, -0.253378, 0.784133),
 	float3(-0.345060, -0.326115, 0.880104),
-	float3(-0.736175, 0.230075, 0.636484),
-	float3(-0.318978, 0.805167, 0.499960),
-	float3(0.276182, -0.513819, 0.812227),
-	float3(0.390979, 0.328165, 0.859908),
-	float3(0.787358, 0.361109, 0.499668),
-	float3(0.452714, -0.738315, 0.499942),
-	float3(-0.586010, 0.637673, 0.499965),
+	float3(-0.736175, 0.230075,  0.636484),
+	float3(-0.318978, 0.805167,  0.499960),
+	float3(0.276182,  -0.513819, 0.812227),
+	float3(0.390979,  0.328165,  0.859908),
+	float3(0.787358,  0.361109,  0.499668),
+	float3(0.452714,  -0.738315, 0.499942),
+	float3(-0.586010, 0.637673,  0.499965),
 	float3(-0.192161, -0.456366, 0.868795),
-	float3(0.548067, -0.576688, 0.605849),
-	float3(0.079133, -0.144104, 0.986393),
-	float3(0.131429, 0.479753, 0.867504),
-	float3(0.254821, -0.827939, 0.499583),
-	float3(0.386539, -0.359163, 0.849464),
-	float3(-0.633589, 0.242013, 0.734843),
-	float3(0.489495, 0.358724, 0.794803),
-	float3(0.563280, 0.274978, 0.779168),
+	float3(0.548067,  -0.576688, 0.605849),
+	float3(0.079133,  -0.144104, 0.986393),
+	float3(0.131429,  0.479753,  0.867504),
+	float3(0.254821,  -0.827939, 0.499583),
+	float3(0.386539,  -0.359163, 0.849464),
+	float3(-0.633589, 0.242013,  0.734843),
+	float3(0.489495,  0.358724,  0.794803),
+	float3(0.563280,  0.274978,  0.779168),
 	float3(-0.591442, -0.047821, 0.804928),
-	float3(-0.202473, 0.079012, 0.976095),
-	float3(0.182266, -0.146114, 0.972332),
-	float3(0.109645, 0.032327, 0.993445),
-	float3(0.187194, -0.041646, 0.981440),
-	float3(0.154345, -0.852390, 0.499609),
-	float3(-0.069034, 0.241872, 0.967849),
-	float3(0.434294, 0.138509, 0.890058),
-	float3(0.032832, 0.224092, 0.974015),
-	float3(0.301269, -0.300265, 0.905029),
-	float3(-0.628233, 0.434181, 0.645608),
-	float3(0.558185, -0.473238, 0.681524),
+	float3(-0.202473, 0.079012,  0.976095),
+	float3(0.182266,  -0.146114, 0.972332),
+	float3(0.109645,  0.032327,  0.993445),
+	float3(0.187194,  -0.041646, 0.981440),
+	float3(0.154345,  -0.852390, 0.499609),
+	float3(-0.069034, 0.241872,  0.967849),
+	float3(0.434294,  0.138509,  0.890058),
+	float3(0.032832,  0.224092,  0.974015),
+	float3(0.301269,  -0.300265, 0.905029),
+	float3(-0.628233, 0.434181,  0.645608),
+	float3(0.558185,  -0.473238, 0.681524),
 	float3(-0.427994, -0.387901, 0.816305),
-	float3(0.310918, -0.196619, 0.929877),
-	float3(-0.526183, 0.417112, 0.741045),
-	float3(0.865619, -0.033738, 0.499566),
-	float3(-0.783534, 0.029105, 0.620667),
+	float3(0.310918,  -0.196619, 0.929877),
+	float3(-0.526183, 0.417112,  0.741045),
+	float3(0.865619,  -0.033738, 0.499566),
+	float3(-0.783534, 0.029105,  0.620667),
 	float3(-0.125623, -0.112763, 0.985649),
-	float3(0.630765, 0.196650, 0.750642),
-	float3(-0.405785, 0.076426, 0.910768),
-	float3(-0.506218, 0.703021, 0.499505),
-	float3(-0.106244, 0.614253, 0.781924),
+	float3(0.630765,  0.196650,  0.750642),
+	float3(-0.405785, 0.076426,  0.910768),
+	float3(-0.506218, 0.703021,  0.499505),
+	float3(-0.106244, 0.614253,  0.781924),
 	float3(-0.496602, -0.088759, 0.863428),
-	float3(0.771827, -0.076393, 0.631227),
-	float3(0.483069, -0.311482, 0.818305),
-	float3(0.317061, 0.100504, 0.943065),
-	float3(0.755138, -0.424681, 0.499413),
+	float3(0.771827,  -0.076393, 0.631227),
+	float3(0.483069,  -0.311482, 0.818305),
+	float3(0.317061,  0.100504,  0.943065),
+	float3(0.755138,  -0.424681, 0.499413),
 	float3(-0.678828, -0.356752, 0.641811),
-	float3(0.365704, -0.565074, 0.739562),
-	float3(0.816303, 0.161778, 0.554507),
-	float3(0.691966, 0.399858, 0.601079),
-	float3(-0.657807, 0.563316, 0.499965),
-	float3(-0.607788, 0.054050, 0.792258),
+	float3(0.365704,  -0.565074, 0.739562),
+	float3(0.816303,  0.161778,  0.554507),
+	float3(0.691966,  0.399858,  0.601079),
+	float3(-0.657807, 0.563316,  0.499965),
+	float3(-0.607788, 0.054050,  0.792258),
 	float3(-0.054156, -0.577326, 0.814715),
-	float3(-0.344048, 0.463164, 0.816768),
-	float3(0.661247, -0.468011, 0.586275),
+	float3(-0.344048, 0.463164,  0.816768),
+	float3(0.661247,  -0.468011, 0.586275),
 	float3(-0.567915, -0.529610, 0.630068),
-	float3(0.043654, -0.046448, 0.997966),
-	float3(0.277311, -0.727074, 0.628062),
-	float3(0.007495, 0.698188, 0.715875),
+	float3(0.043654,  -0.046448, 0.997966),
+	float3(0.277311,  -0.727074, 0.628062),
+	float3(0.007495,  0.698188,  0.715875),
 	float3(-0.091830, -0.480167, 0.872357),
 	float3(-0.069677, -0.679052, 0.730776),
-	float3(0.469695, -0.037691, 0.882024),
-	float3(0.232856, 0.460695, 0.856468),
-	float3(-0.309306, 0.652873, 0.691438),
-	float3(-0.339021, 0.194135, 0.920530),
-	float3(0.466122, 0.730166, 0.499587),
+	float3(0.469695,  -0.037691, 0.882024),
+	float3(0.232856,  0.460695,  0.856468),
+	float3(-0.309306, 0.652873,  0.691438),
+	float3(-0.339021, 0.194135,  0.920530),
+	float3(0.466122,  0.730166,  0.499587),
 	float3(-0.663399, -0.217150, 0.716064),
-	float3(0.176904, 0.757501, 0.628408),
+	float3(0.176904,  0.757501,  0.628408),
 	float3(-0.474476, -0.575580, 0.666018),
 	float3(-0.471403, -0.294136, 0.831422),
 	float3(-0.312028, -0.005741, 0.950055),
-	float3(0.028948, 0.498102, 0.866635),
-	float3(0.142592, 0.854502, 0.499494),
-	float3(0.597711, 0.098671, 0.795616),
+	float3(0.028948,  0.498102,  0.866635),
+	float3(0.142592,  0.854502,  0.499494),
+	float3(0.597711,  0.098671,  0.795616),
 	float3(-0.030409, -0.396500, 0.917531),
-	float3(0.191103, -0.573086, 0.796901),
-	float3(-0.139654, 0.437848, 0.888136),
-	float3(-0.139486, 0.713505, 0.686625),
-	float3(-0.530825, 0.222400, 0.817779),
-	float3(0.374341, 0.677011, 0.633660),
-	float3(0.284182, 0.002167, 0.958768),
+	float3(0.191103,  -0.573086, 0.796901),
+	float3(-0.139654, 0.437848,  0.888136),
+	float3(-0.139486, 0.713505,  0.686625),
+	float3(-0.530825, 0.222400,  0.817779),
+	float3(0.374341,  0.677011,  0.633660),
+	float3(0.284182,  0.002167,  0.958768),
 	float3(-0.855084, -0.137439, 0.499942),
-	float3(0.112291, -0.246886, 0.962517),
-	float3(0.473981, -0.414129, 0.777071),
-	float3(-0.327705, 0.361075, 0.873060),
-	float3(0.670922, -0.365411, 0.645243),
+	float3(0.112291,  -0.246886, 0.962517),
+	float3(0.473981,  -0.414129, 0.777071),
+	float3(-0.327705, 0.361075,  0.873060),
+	float3(0.670922,  -0.365411, 0.645243),
 	float3(-0.575715, -0.355706, 0.736224),
-	float3(0.048573, -0.586378, 0.808580),
-	float3(0.021636, 0.866040, 0.499507),
-	float3(0.405691, -0.153867, 0.900966),
+	float3(0.048573,  -0.586378, 0.808580),
+	float3(0.021636,  0.866040,  0.499507),
+	float3(0.405691,  -0.153867, 0.900966),
 	float3(-0.088602, -0.861781, 0.499483),
-	float3(-0.170405, 0.260194, 0.950400),
-	float3(0.098727, 0.304663, 0.947330),
-	float3(-0.219767, 0.832352, 0.508814),
-	float3(0.310275, 0.393250, 0.865496),
+	float3(-0.170405, 0.260194,  0.950400),
+	float3(0.098727,  0.304663,  0.947330),
+	float3(-0.219767, 0.832352,  0.508814),
+	float3(0.310275,  0.393250,  0.865496),
 	float3(-0.515436, -0.696223, 0.499599),
 	float3(-0.483296, -0.191111, 0.854343),
-	float3(0.623762, -0.176346, 0.761461),
+	float3(0.623762,  -0.176346, 0.761461),
 	float3(-0.171426, -0.661355, 0.730221),
-	float3(0.299434, 0.605267, 0.737558),
-	float3(0.727701, -0.170042, 0.664482),
-	float3(-0.772328, 0.392364, 0.499559),
+	float3(0.299434,  0.605267,  0.737558),
+	float3(0.727701,  -0.170042, 0.664482),
+	float3(-0.772328, 0.392364,  0.499559),
 	float3(-0.770727, -0.072788, 0.632994),
-	float3(0.706191, 0.501812, 0.499479),
+	float3(0.706191,  0.501812,  0.499479),
 	float3(-0.306663, -0.169651, 0.936577),
 	float3(-0.323727, -0.702647, 0.633631),
-	float3(-0.241022, 0.455541, 0.856966),
+	float3(-0.241022, 0.455541,  0.856966),
 	float3(-0.059430, -0.297369, 0.952911),
-	float3(-0.813563, 0.297597, 0.499551),
+	float3(-0.813563, 0.297597,  0.499551),
 	float3(-0.313443, -0.807568, 0.499588),
-	float3(0.041196, -0.321827, 0.945902),
-	float3(0.366745, 0.215909, 0.904920),
+	float3(0.041196,  -0.321827, 0.945902),
+	float3(0.366745,  0.215909,  0.904920),
 	float3(-0.415676, -0.490257, 0.766069),
 	float3(-0.025008, -0.773175, 0.633699),
-	float3(0.832087, -0.240461, 0.499810),
+	float3(0.832087,  -0.240461, 0.499810),
 	float3(-0.865716, -0.032506, 0.499478),
 	float3(-0.628587, -0.446674, 0.636679),
-	float3(0.211155, 0.659635, 0.721315),
+	float3(0.211155,  0.659635,  0.721315),
 	float3(-0.131100, -0.372225, 0.918837),
-	float3(0.274765, -0.100376, 0.956258),
+	float3(0.274765,  -0.100376, 0.956258),
 	float3(-0.160156, -0.272976, 0.948596),
-	float3(-0.241675, 0.731611, 0.637447),
-	float3(-0.509134, 0.016216, 0.860534),
+	float3(-0.241675, 0.731611,  0.637447),
+	float3(-0.509134, 0.016216,  0.860534),
 	float3(-0.515778, -0.441148, 0.734412),
-	float3(0.281174, -0.623946, 0.729131),
-	float3(0.502153, 0.060636, 0.862650),
-	float3(-0.099939, 0.066182, 0.992790),
-	float3(-0.493437, 0.592006, 0.637220),
+	float3(0.281174,  -0.623946, 0.729131),
+	float3(0.502153,  0.060636,  0.862650),
+	float3(-0.099939, 0.066182,  0.992790),
+	float3(-0.493437, 0.592006,  0.637220),
 	float3(-0.688348, -0.011137, 0.725295),
-	float3(0.770219, 0.026409, 0.637232),
+	float3(0.770219,  0.026409,  0.637232),
 	float3(-0.203582, -0.179788, 0.962409),
-	float3(-0.564859, 0.516331, 0.643690),
-	float3(0.291690, -0.403372, 0.867299),
-	float3(0.454016, -0.619619, 0.640268),
-	float3(0.406604, 0.430153, 0.806004),
-	float3(0.464015, -0.516560, 0.719623),
-	float3(-0.660780, 0.142073, 0.737011),
-	float3(0.197958, -0.446890, 0.872411),
-	float3(0.194452, 0.264539, 0.944567),
-	float3(0.539857, -0.116000, 0.833725),
-	float3(0.063847, 0.401240, 0.913745),
-	float3(-0.412406, 0.761862, 0.499487),
+	float3(-0.564859, 0.516331,  0.643690),
+	float3(0.291690,  -0.403372, 0.867299),
+	float3(0.454016,  -0.619619, 0.640268),
+	float3(0.406604,  0.430153,  0.806004),
+	float3(0.464015,  -0.516560, 0.719623),
+	float3(-0.660780, 0.142073,  0.737011),
+	float3(0.197958,  -0.446890, 0.872411),
+	float3(0.194452,  0.264539,  0.944567),
+	float3(0.539857,  -0.116000, 0.833725),
+	float3(0.063847,  0.401240,  0.913745),
+	float3(-0.412406, 0.761862,  0.499487),
 	float3(-0.061572, -0.030123, 0.997648),
-	float3(0.294896, 0.290466, 0.910311),
-	float3(0.462387, 0.253787, 0.849582),
+	float3(0.294896,  0.290466,  0.910311),
+	float3(0.462387,  0.253787,  0.849582),
 	float3(-0.780116, -0.376645, 0.499558),
-	float3(-0.458813, 0.495253, 0.737709),
-	float3(0.667631, 0.021020, 0.744196),
-	float3(-0.440029, 0.174548, 0.880856),
-	float3(0.464606, 0.627047, 0.625262),
-	float3(0.668578, -0.082779, 0.739020),
-	float3(-0.842938, 0.198719, 0.499966),
-	float3(0.369095, -0.678511, 0.635131),
-	float3(-0.174942, 0.534549, 0.826833),
-	float3(0.003839, 0.049192, 0.998782),
-	float3(-0.719892, 0.481446, 0.499965),
-	float3(-0.208699, 0.357488, 0.910300),
-	float3(0.074852, 0.776825, 0.625252),
-	float3(0.198578, 0.557681, 0.805952),
+	float3(-0.458813, 0.495253,  0.737709),
+	float3(0.667631,  0.021020,  0.744196),
+	float3(-0.440029, 0.174548,  0.880856),
+	float3(0.464606,  0.627047,  0.625262),
+	float3(0.668578,  -0.082779, 0.739020),
+	float3(-0.842938, 0.198719,  0.499966),
+	float3(0.369095,  -0.678511, 0.635131),
+	float3(-0.174942, 0.534549,  0.826833),
+	float3(0.003839,  0.049192,  0.998782),
+	float3(-0.719892, 0.481446,  0.499965),
+	float3(-0.208699, 0.357488,  0.910300),
+	float3(0.074852,  0.776825,  0.625252),
+	float3(0.198578,  0.557681,  0.805952),
 	float3(-0.414217, -0.026409, 0.909795),
 	float3(-0.129320, -0.765277, 0.630577),
-	float3(0.567577, -0.370759, 0.735115),
-	float3(0.070865, 0.128222, 0.989210),
-	float3(0.641523, 0.582108, 0.499599),
-	float3(0.530180, 0.176149, 0.829386),
+	float3(0.567577,  -0.370759, 0.735115),
+	float3(0.070865,  0.128222,  0.989210),
+	float3(0.641523,  0.582108,  0.499599),
+	float3(0.530180,  0.176149,  0.829386),
 	float3(-0.164599, -0.017127, 0.986212),
-	float3(0.537663, -0.679244, 0.499546),
-	float3(0.368366, -0.057010, 0.927931),
-	float3(0.680436, -0.262204, 0.684293),
-	float3(-0.005080, 0.595533, 0.803315),
-	float3(0.191599, -0.343584, 0.919369),
-	float3(0.096037, 0.577395, 0.810797),
+	float3(0.537663,  -0.679244, 0.499546),
+	float3(0.368366,  -0.057010, 0.927931),
+	float3(0.680436,  -0.262204, 0.684293),
+	float3(-0.005080, 0.595533,  0.803315),
+	float3(0.191599,  -0.343584, 0.919369),
+	float3(0.096037,  0.577395,  0.810797),
 	float3(-0.579368, -0.149921, 0.801159),
-	float3(0.375736, -0.462450, 0.803096),
-	float3(-0.763216, 0.130022, 0.632926),
-	float3(0.285031, 0.731818, 0.619032),
-	float3(-0.135214, 0.163147, 0.977292),
+	float3(0.375736,  -0.462450, 0.803096),
+	float3(-0.763216, 0.130022,  0.632926),
+	float3(0.285031,  0.731818,  0.619032),
+	float3(-0.135214, 0.163147,  0.977292),
 	float3(-0.746817, -0.278983, 0.603682),
-	float3(0.177706, -0.752182, 0.634542),
-	float3(0.033580, -0.688537, 0.724424),
-	float3(0.251114, 0.829125, 0.499493),
-	float3(-0.379233, 0.561102, 0.735762),
-	float3(-0.490277, 0.317420, 0.811710),
+	float3(0.177706,  -0.752182, 0.634542),
+	float3(0.033580,  -0.688537, 0.724424),
+	float3(0.251114,  0.829125,  0.499493),
+	float3(-0.379233, 0.561102,  0.735762),
+	float3(-0.490277, 0.317420,  0.811710),
 	float3(-0.759101, -0.175768, 0.626794),
 	float3(-0.230412, -0.745752, 0.625111),
-	float3(0.863231, 0.070245, 0.499897),
+	float3(0.863231,  0.070245,  0.499897),
 	float3(-0.243530, -0.084445, 0.966210),
-	float3(-0.276343, 0.553633, 0.785573),
-	float3(-0.273559, 0.273833, 0.922052),
-	float3(0.664711, 0.299917, 0.684258),
-	float3(0.376039, 0.780435, 0.499515),
-	float3(0.215411, -0.243377, 0.945709),
-	float3(-0.044698, 0.786812, 0.615572),
-	float3(-0.393061, 0.281602, 0.875331),
-	float3(0.504836, 0.460370, 0.730205),
-	float3(0.591193, 0.373936, 0.714606),
-	float3(0.493326, -0.208112, 0.844582),
-	float3(0.325654, 0.505540, 0.798986),
-	float3(0.651274, -0.571144, 0.499637),
-	float3(0.824565, 0.265146, 0.499790),
-	float3(0.266367, 0.190856, 0.944787),
+	float3(-0.276343, 0.553633,  0.785573),
+	float3(-0.273559, 0.273833,  0.922052),
+	float3(0.664711,  0.299917,  0.684258),
+	float3(0.376039,  0.780435,  0.499515),
+	float3(0.215411,  -0.243377, 0.945709),
+	float3(-0.044698, 0.786812,  0.615572),
+	float3(-0.393061, 0.281602,  0.875331),
+	float3(0.504836,  0.460370,  0.730205),
+	float3(0.591193,  0.373936,  0.714606),
+	float3(0.493326,  -0.208112, 0.844582),
+	float3(0.325654,  0.505540,  0.798986),
+	float3(0.651274,  -0.571144, 0.499637),
+	float3(0.824565,  0.265146,  0.499790),
+	float3(0.266367,  0.190856,  0.944787),
 	float3(-0.388315, -0.232092, 0.891821),
-	float3(0.563631, 0.657905, 0.499480),
-	float3(0.166533, 0.165738, 0.972007),
+	float3(0.563631,  0.657905,  0.499480),
+	float3(0.166533,  0.165738,  0.972007),
 	float3(-0.359200, -0.576656, 0.733787),
 	float3(-0.263403, -0.263871, 0.927896),
-	float3(-0.003372, 0.321806, 0.946800),
+	float3(-0.003372, 0.321806,  0.946800),
 	float3(-0.594517, -0.630116, 0.499502),
 	float3(-0.264703, -0.618271, 0.740049),
-	float3(-0.304354, 0.097035, 0.947604),
+	float3(-0.304354, 0.097035,  0.947604),
 	float3(-0.676288, -0.113327, 0.727868),
-	float3(0.854824, -0.139337, 0.499862),
+	float3(0.854824,  -0.139337, 0.499862),
 	float3(-0.022546, -0.125662, 0.991817),
-	float3(0.132038, -0.658077, 0.741283),
-	float3(0.018725, -0.866104, 0.499512),
+	float3(0.132038,  -0.658077, 0.741283),
+	float3(0.018725,  -0.866104, 0.499512),
 	float3(-0.332875, -0.428676, 0.839899),
-	float3(-0.037730, 0.419679, 0.906888),
-	float3(0.606419, 0.476065, 0.636882),
-	float3(-0.237039, 0.176395, 0.955352),
-	float3(0.206465, 0.070057, 0.975943),
-	float3(-0.207885, 0.633027, 0.745695),
-	float3(0.731450, 0.220026, 0.645422),
+	float3(-0.037730, 0.419679,  0.906888),
+	float3(0.606419,  0.476065,  0.636882),
+	float3(-0.237039, 0.176395,  0.955352),
+	float3(0.206465,  0.070057,  0.975943),
+	float3(-0.207885, 0.633027,  0.745695),
+	float3(0.731450,  0.220026,  0.645422),
 	float3(-0.165443, -0.556657, 0.814101),
-	float3(0.112626, -0.504880, 0.855810),
-	float3(0.576734, -0.268463, 0.771560),
+	float3(0.112626,  -0.504880, 0.855810),
+	float3(0.576734,  -0.268463, 0.771560),
 	float3(-0.276587, -0.515621, 0.810947),
-	float3(0.767427, -0.321473, 0.554717),
-	float3(-0.694540, 0.324577, 0.642078),
-	float3(-0.860868, 0.096966, 0.499503),
-	float3(0.010239, -0.491108, 0.871038),
-	float3(-0.413541, 0.658774, 0.628491),
+	float3(0.767427,  -0.321473, 0.554717),
+	float3(-0.694540, 0.324577,  0.642078),
+	float3(-0.860868, 0.096966,  0.499503),
+	float3(0.010239,  -0.491108, 0.871038),
+	float3(-0.413541, 0.658774,  0.628491),
 	float3(-0.400881, -0.128593, 0.907060),
 	float3(-0.669022, -0.550309, 0.499570),
-	float3(-0.591241, 0.337022, 0.732701),
+	float3(-0.591241, 0.337022,  0.732701),
 	float3(-0.407163, -0.764607, 0.499595),
-	float3(0.361514, -0.787228, 0.499580),
-	float3(-0.120250, 0.857859, 0.499618),
-	float3(0.395487, -0.256278, 0.881993)
+	float3(0.361514,  -0.787228, 0.499580),
+	float3(-0.120250, 0.857859,  0.499618),
+	float3(0.395487,  -0.256278, 0.881993)
 };
 
 static float3 kernel_HS_128[128] =
 {
-	float3(0.378169, 0.622113, 0.685539),
-	float3(0.739083, -0.452051, 0.499406),
-	float3(0.241051, 0.678171, 0.694246),
-	float3(0.041914, -0.512849, 0.857455),
-	float3(-0.493144, 0.304868, 0.814779),
-	float3(0.165346, -0.073146, 0.983519),
-	float3(-0.284043, 0.818500, 0.499377),
-	float3(0.123436, -0.216680, 0.968408),
+	float3(0.378169,  0.622113,  0.685539),
+	float3(0.739083,  -0.452051, 0.499406),
+	float3(0.241051,  0.678171,  0.694246),
+	float3(0.041914,  -0.512849, 0.857455),
+	float3(-0.493144, 0.304868,  0.814779),
+	float3(0.165346,  -0.073146, 0.983519),
+	float3(-0.284043, 0.818500,  0.499377),
+	float3(0.123436,  -0.216680, 0.968408),
 	float3(-0.404315, -0.766253, 0.499384),
 	float3(-0.529731, -0.685170, 0.499927),
-	float3(0.121362, 0.768471, 0.628270),
-	float3(-0.598307, 0.498553, 0.627275),
+	float3(0.121362,  0.768471,  0.628270),
+	float3(-0.598307, 0.498553,  0.627275),
 	float3(-0.505046, -0.519132, 0.689514),
-	float3(0.356828, -0.590905, 0.723537),
-	float3(-0.703322, 0.210540, 0.678978),
-	float3(-0.307973, 0.671522, 0.673952),
-	float3(0.286355, -0.460607, 0.840144),
+	float3(0.356828,  -0.590905, 0.723537),
+	float3(-0.703322, 0.210540,  0.678978),
+	float3(-0.307973, 0.671522,  0.673952),
+	float3(0.286355,  -0.460607, 0.840144),
 	float3(-0.639543, -0.584000, 0.499929),
-	float3(0.590668, -0.436107, 0.678912),
+	float3(0.590668,  -0.436107, 0.678912),
 	float3(-0.616949, -0.006454, 0.786977),
 	float3(-0.744906, -0.081317, 0.662196),
-	float3(0.362541, 0.122071, 0.923939),
+	float3(0.362541,  0.122071,  0.923939),
 	float3(-0.730436, -0.466113, 0.499202),
-	float3(0.597077, 0.293691, 0.746488),
-	float3(-0.573131, 0.136210, 0.808064),
-	float3(-0.806034, 0.317661, 0.499401),
-	float3(0.735930, 0.042434, 0.675726),
-	float3(-0.320144, 0.504075, 0.802132),
+	float3(0.597077,  0.293691,  0.746488),
+	float3(-0.573131, 0.136210,  0.808064),
+	float3(-0.806034, 0.317661,  0.499401),
+	float3(0.735930,  0.042434,  0.675726),
+	float3(-0.320144, 0.504075,  0.802132),
 	float3(-0.266065, -0.188733, 0.945298),
-	float3(0.617299, 0.441403, 0.651233),
-	float3(0.360673, 0.475092, 0.802622),
-	float3(0.341567, 0.326759, 0.881226),
+	float3(0.617299,  0.441403,  0.651233),
+	float3(0.360673,  0.475092,  0.802622),
+	float3(0.341567,  0.326759,  0.881226),
 	float3(-0.369141, -0.080813, 0.925853),
 	float3(-0.017777, -0.261667, 0.964994),
-	float3(0.213834, -0.839652, 0.499260),
+	float3(0.213834,  -0.839652, 0.499260),
 	float3(-0.410854, -0.224307, 0.883677),
-	float3(0.519915, -0.305458, 0.797737),
-	float3(0.414094, -0.145892, 0.898466),
-	float3(0.180237, -0.566421, 0.804165),
+	float3(0.519915,  -0.305458, 0.797737),
+	float3(0.414094,  -0.145892, 0.898466),
+	float3(0.180237,  -0.566421, 0.804165),
 	float3(-0.224723, -0.046399, 0.973318),
-	float3(0.371388, -0.288837, 0.882408),
-	float3(0.205926, 0.069688, 0.976083),
-	float3(-0.139081, 0.855175, 0.499332),
-	float3(-0.185226, 0.107990, 0.976744),
-	float3(0.258823, 0.826913, 0.499225),
-	float3(0.821942, 0.273953, 0.499361),
+	float3(0.371388,  -0.288837, 0.882408),
+	float3(0.205926,  0.069688,  0.976083),
+	float3(-0.139081, 0.855175,  0.499332),
+	float3(-0.185226, 0.107990,  0.976744),
+	float3(0.258823,  0.826913,  0.499225),
+	float3(0.821942,  0.273953,  0.499361),
 	float3(-0.350014, -0.475374, 0.807162),
-	float3(0.501957, -0.556264, 0.662277),
-	float3(0.865907, -0.028887, 0.499370),
-	float3(0.497788, 0.533414, 0.683869),
-	float3(-0.047816, 0.164268, 0.985256),
-	float3(0.221460, 0.530162, 0.818464),
-	float3(0.244267, 0.214693, 0.945643),
-	float3(0.375852, -0.780668, 0.499291),
+	float3(0.501957,  -0.556264, 0.662277),
+	float3(0.865907,  -0.028887, 0.499370),
+	float3(0.497788,  0.533414,  0.683869),
+	float3(-0.047816, 0.164268,  0.985256),
+	float3(0.221460,  0.530162,  0.818464),
+	float3(0.244267,  0.214693,  0.945643),
+	float3(0.375852,  -0.780668, 0.499291),
 	float3(-0.556146, -0.259465, 0.789544),
-	float3(0.503742, -0.704608, 0.499772),
-	float3(0.104144, 0.620827, 0.777000),
-	float3(-0.164128, 0.707707, 0.687178),
-	float3(0.479717, 0.383902, 0.788981),
+	float3(0.503742,  -0.704608, 0.499772),
+	float3(0.104144,  0.620827,  0.777000),
+	float3(-0.164128, 0.707707,  0.687178),
+	float3(0.479717,  0.383902,  0.788981),
 	float3(-0.799551, -0.332864, 0.499919),
-	float3(-0.182298, 0.560290, 0.807987),
-	float3(-0.471507, 0.027532, 0.881432),
-	float3(0.599240, -0.018533, 0.800355),
-	float3(0.856709, 0.129520, 0.499273),
+	float3(-0.182298, 0.560290,  0.807987),
+	float3(-0.471507, 0.027532,  0.881432),
+	float3(0.599240,  -0.018533, 0.800355),
+	float3(0.856709,  0.129520,  0.499273),
 	float3(-0.596900, -0.402049, 0.694310),
-	float3(-0.436802, 0.597853, 0.672142),
-	float3(0.227047, -0.323501, 0.918584),
-	float3(0.010018, 0.866074, 0.499816),
-	float3(0.635371, 0.589146, 0.499209),
-	float3(-0.738897, 0.451928, 0.499792),
-	float3(0.268907, -0.180853, 0.946035),
+	float3(-0.436802, 0.597853,  0.672142),
+	float3(0.227047,  -0.323501, 0.918584),
+	float3(0.010018,  0.866074,  0.499816),
+	float3(0.635371,  0.589146,  0.499209),
+	float3(-0.738897, 0.451928,  0.499792),
+	float3(0.268907,  -0.180853, 0.946035),
 	float3(-0.267727, -0.823998, 0.499350),
-	float3(0.459713, 0.234848, 0.856452),
-	float3(0.708011, -0.125974, 0.694874),
-	float3(0.523684, 0.689803, 0.499928),
+	float3(0.459713,  0.234848,  0.856452),
+	float3(0.708011,  -0.125974, 0.694874),
+	float3(0.523684,  0.689803,  0.499928),
 	float3(-0.452187, -0.366908, 0.812961),
-	float3(0.650011, -0.572764, 0.499426),
+	float3(0.650011,  -0.572764, 0.499426),
 	float3(-0.170033, -0.711030, 0.682294),
 	float3(-0.083739, -0.000010, 0.996488),
-	float3(0.847961, -0.176168, 0.499927),
-	float3(-0.458088, 0.449068, 0.767133),
-	float3(-0.326540, 0.062017, 0.943147),
+	float3(0.847961,  -0.176168, 0.499927),
+	float3(-0.458088, 0.449068,  0.767133),
+	float3(-0.326540, 0.062017,  0.943147),
 	float3(-0.115668, -0.850469, 0.513151),
 	float3(-0.699672, -0.222916, 0.678799),
 	float3(-0.102693, -0.546633, 0.831052),
-	float3(0.762755, 0.410776, 0.499468),
-	float3(-0.437860, 0.747673, 0.499263),
-	float3(0.202387, 0.377598, 0.903581),
-	float3(0.309793, -0.037129, 0.950079),
-	float3(0.805209, -0.318926, 0.499924),
+	float3(0.762755,  0.410776,  0.499468),
+	float3(-0.437860, 0.747673,  0.499263),
+	float3(0.202387,  0.377598,  0.903581),
+	float3(0.309793,  -0.037129, 0.950079),
+	float3(0.805209,  -0.318926, 0.499924),
 	float3(-0.392785, -0.617816, 0.681192),
-	float3(0.452280, 0.003367, 0.891870),
-	float3(-0.637109, 0.343515, 0.689993),
-	float3(0.037023, -0.865656, 0.499268),
+	float3(0.452280,  0.003367,  0.891870),
+	float3(-0.637109, 0.343515,  0.689993),
+	float3(0.037023,  -0.865656, 0.499268),
 	float3(-0.307788, -0.332128, 0.891604),
 	float3(-0.059483, -0.404717, 0.912505),
-	float3(0.664728, -0.271469, 0.696018),
-	float3(-0.341459, 0.355096, 0.870237),
-	float3(0.060717, 0.033881, 0.997580),
-	float3(-0.149220, 0.273905, 0.950110),
-	float3(-0.032130, 0.561559, 0.826813),
+	float3(0.664728,  -0.271469, 0.696018),
+	float3(-0.341459, 0.355096,  0.870237),
+	float3(0.060717,  0.033881,  0.997580),
+	float3(-0.149220, 0.273905,  0.950110),
+	float3(-0.032130, 0.561559,  0.826813),
 	float3(-0.163253, -0.296217, 0.941065),
-	float3(-0.576910, 0.646431, 0.499301),
+	float3(-0.576910, 0.646431,  0.499301),
 	float3(-0.026648, -0.673931, 0.738314),
 	float3(-0.247247, -0.583768, 0.773358),
-	float3(-0.848375, 0.175595, 0.499427),
-	float3(0.020880, -0.108658, 0.993860),
-	float3(0.084355, -0.369500, 0.925394),
-	float3(0.563489, 0.126990, 0.816305),
-	float3(0.085169, 0.470525, 0.878267),
-	float3(-0.287031, 0.217165, 0.932981),
-	float3(0.063775, 0.323894, 0.943941),
-	float3(0.430398, -0.425189, 0.796224),
-	float3(0.100362, 0.177762, 0.978942),
+	float3(-0.848375, 0.175595,  0.499427),
+	float3(0.020880,  -0.108658, 0.993860),
+	float3(0.084355,  -0.369500, 0.925394),
+	float3(0.563489,  0.126990,  0.816305),
+	float3(0.085169,  0.470525,  0.878267),
+	float3(-0.287031, 0.217165,  0.932981),
+	float3(0.063775,  0.323894,  0.943941),
+	float3(0.430398,  -0.425189, 0.796224),
+	float3(0.100362,  0.177762,  0.978942),
 	float3(-0.121304, -0.153850, 0.980620),
-	float3(-0.202859, 0.412100, 0.888269),
+	float3(-0.202859, 0.412100,  0.888269),
 	float3(-0.515207, -0.116262, 0.849144),
-	float3(0.253169, -0.696675, 0.671230),
+	float3(0.253169,  -0.696675, 0.671230),
 	float3(-0.845045, -0.191340, 0.499288),
-	float3(-0.428949, 0.170568, 0.887079),
-	float3(0.396405, 0.770472, 0.499236),
-	float3(0.109251, -0.734546, 0.669706),
-	float3(0.701117, 0.188956, 0.687554),
-	float3(-0.745641, 0.067208, 0.662950),
-	float3(-0.054456, 0.413412, 0.908914),
-	float3(0.561422, -0.164099, 0.811096),
-	float3(-0.015350, 0.711156, 0.702867),
+	float3(-0.428949, 0.170568,  0.887079),
+	float3(0.396405,  0.770472,  0.499236),
+	float3(0.109251,  -0.734546, 0.669706),
+	float3(0.701117,  0.188956,  0.687554),
+	float3(-0.745641, 0.067208,  0.662950),
+	float3(-0.054456, 0.413412,  0.908914),
+	float3(0.561422,  -0.164099, 0.811096),
+	float3(-0.015350, 0.711156,  0.702867),
 	float3(-0.205112, -0.439208, 0.874657)
 };
 
 static float3 kernel_S_128[128] =
 {
-	float3(-0.400773, 0.331119, 0.854249),
-	float3(0.216972, -0.431971, 0.875400),
+	float3(-0.400773, 0.331119,  0.854249),
+	float3(0.216972,  -0.431971, 0.875400),
 	float3(-0.101083, -0.408208, 0.907275),
-	float3(0.813867, -0.518956, 0.261353),
-	float3(0.427965, -0.708416, -0.561242),
+	float3(0.813867,  -0.518956, 0.261353),
+	float3(0.427965,  -0.708416, -0.561242),
 	float3(-0.725669, -0.568608, 0.387413),
-	float3(-0.421619, 0.899235, -0.116677),
-	float3(-0.837647, 0.525229, -0.149937),
-	float3(0.245419, 0.844288, 0.476390),
-	float3(0.561548, 0.416893, 0.714747),
-	float3(0.714224, -0.225048, -0.662750),
+	float3(-0.421619, 0.899235,  -0.116677),
+	float3(-0.837647, 0.525229,  -0.149937),
+	float3(0.245419,  0.844288,  0.476390),
+	float3(0.561548,  0.416893,  0.714747),
+	float3(0.714224,  -0.225048, -0.662750),
 	float3(-0.415070, -0.580856, -0.700230),
-	float3(0.447022, 0.523179, -0.725572),
-	float3(0.646617, 0.661542, -0.379801),
-	float3(0.427658, 0.874503, -0.228808),
-	float3(-0.674488, 0.242801, -0.697218),
-	float3(-0.020277, 0.769631, 0.638166),
-	float3(0.893552, -0.339976, -0.293224),
-	float3(0.215234, -0.595527, -0.773965),
-	float3(0.005150, 0.501170, 0.865333),
-	float3(-0.381753, 0.360165, -0.851202),
+	float3(0.447022,  0.523179,  -0.725572),
+	float3(0.646617,  0.661542,  -0.379801),
+	float3(0.427658,  0.874503,  -0.228808),
+	float3(-0.674488, 0.242801,  -0.697218),
+	float3(-0.020277, 0.769631,  0.638166),
+	float3(0.893552,  -0.339976, -0.293224),
+	float3(0.215234,  -0.595527, -0.773965),
+	float3(0.005150,  0.501170,  0.865333),
+	float3(-0.381753, 0.360165,  -0.851202),
 	float3(-0.621121, -0.775124, -0.115720),
 	float3(-0.044895, -0.948367, -0.313982),
 	float3(-0.207629, -0.073019, -0.975478),
-	float3(0.876258, -0.080687, 0.475039),
-	float3(0.913336, 0.212725, 0.347224),
-	float3(0.854207, 0.493827, -0.162678),
-	float3(-0.626998, 0.722977, -0.290134),
+	float3(0.876258,  -0.080687, 0.475039),
+	float3(0.913336,  0.212725,  0.347224),
+	float3(0.854207,  0.493827,  -0.162678),
+	float3(-0.626998, 0.722977,  -0.290134),
 	float3(-0.665347, -0.166489, -0.727732),
 	float3(-0.154164, -0.826519, 0.541386),
-	float3(0.211017, 0.387784, -0.897271),
+	float3(0.211017,  0.387784,  -0.897271),
 	float3(-0.575547, -0.483268, 0.659694),
-	float3(-0.135897, 0.958642, -0.250074),
-	float3(0.342136, -0.909563, 0.235877),
-	float3(0.621425, -0.762789, 0.178842),
-	float3(0.500253, -0.090994, -0.861084),
-	float3(-0.947186, 0.177880, 0.266830),
-	float3(-0.147241, 0.737933, -0.658616),
-	float3(0.169766, 0.080190, 0.982216),
-	float3(0.115497, 0.970308, 0.212513),
-	float3(0.148823, -0.986898, -0.062321),
+	float3(-0.135897, 0.958642,  -0.250074),
+	float3(0.342136,  -0.909563, 0.235877),
+	float3(0.621425,  -0.762789, 0.178842),
+	float3(0.500253,  -0.090994, -0.861084),
+	float3(-0.947186, 0.177880,  0.266830),
+	float3(-0.147241, 0.737933,  -0.658616),
+	float3(0.169766,  0.080190,  0.982216),
+	float3(0.115497,  0.970308,  0.212513),
+	float3(0.148823,  -0.986898, -0.062321),
 	float3(-0.934777, -0.344173, -0.087956),
-	float3(-0.844940, 0.017196, -0.534585),
+	float3(-0.844940, 0.017196,  -0.534585),
 	float3(-0.049032, -0.349986, -0.935471),
 	float3(-0.551099, -0.709557, -0.439112),
 	float3(-0.294634, -0.917069, 0.268654),
-	float3(-0.866724, 0.470762, 0.164842),
-	float3(0.610513, -0.734360, -0.296629),
-	float3(0.086380, -0.812840, -0.576047),
-	float3(-0.412342, 0.760146, 0.502147),
-	float3(-0.563504, 0.516368, 0.644846),
-	float3(0.973556, 0.226747, -0.027833),
+	float3(-0.866724, 0.470762,  0.164842),
+	float3(0.610513,  -0.734360, -0.296629),
+	float3(0.086380,  -0.812840, -0.576047),
+	float3(-0.412342, 0.760146,  0.502147),
+	float3(-0.563504, 0.516368,  0.644846),
+	float3(0.973556,  0.226747,  -0.027833),
 	float3(-0.101371, -0.098519, 0.989959),
 	float3(-0.802930, -0.591503, 0.073665),
-	float3(0.161263, -0.850572, 0.500521),
-	float3(0.895036, 0.250384, -0.369078),
-	float3(-0.889560, 0.284528, -0.357389),
-	float3(0.514125, 0.128432, 0.848045),
-	float3(0.983662, -0.048557, 0.173356),
-	float3(-0.846872, 0.026309, 0.531146),
+	float3(0.161263,  -0.850572, 0.500521),
+	float3(0.895036,  0.250384,  -0.369078),
+	float3(-0.889560, 0.284528,  -0.357389),
+	float3(0.514125,  0.128432,  0.848045),
+	float3(0.983662,  -0.048557, 0.173356),
+	float3(-0.846872, 0.026309,  0.531146),
 	float3(-0.643586, -0.111580, 0.757196),
-	float3(0.155891, 0.661674, -0.733407),
-	float3(0.518340, -0.397437, 0.757210),
-	float3(0.668963, 0.700305, 0.249122),
+	float3(0.155891,  0.661674,  -0.733407),
+	float3(0.518340,  -0.397437, 0.757210),
+	float3(0.668963,  0.700305,  0.249122),
 	float3(-0.911392, -0.336446, 0.237000),
-	float3(0.787719, -0.613332, -0.057638),
+	float3(0.787719,  -0.613332, -0.057638),
 	float3(-0.582233, -0.787630, 0.201602),
-	float3(-0.154490, 0.911412, 0.381394),
-	float3(-0.670230, 0.658996, 0.341344),
-	float3(-0.665569, 0.216829, 0.714145),
-	float3(-0.677386, 0.734976, 0.030949),
-	float3(0.889537, -0.057785, -0.453194),
-	float3(-0.121246, 0.224286, 0.966951),
+	float3(-0.154490, 0.911412,  0.381394),
+	float3(-0.670230, 0.658996,  0.341344),
+	float3(-0.665569, 0.216829,  0.714145),
+	float3(-0.677386, 0.734976,  0.030949),
+	float3(0.889537,  -0.057785, -0.453194),
+	float3(-0.121246, 0.224286,  0.966951),
 	float3(-0.681192, -0.448620, -0.578548),
-	float3(0.029976, -0.661214, 0.749598),
-	float3(-0.703056, 0.499666, -0.506010),
-	float3(0.707325, 0.411840, -0.574524),
+	float3(0.029976,  -0.661214, 0.749598),
+	float3(-0.703056, 0.499666,  -0.506010),
+	float3(0.707325,  0.411840,  -0.574524),
 	float3(-0.103889, -0.625551, -0.773235),
-	float3(0.342988, -0.654132, 0.674144),
-	float3(-0.361252, 0.823558, -0.437320),
-	float3(0.149238, 0.983012, -0.106843),
-	float3(0.755644, -0.372804, 0.538535),
-	float3(0.260226, 0.637174, 0.725460),
-	float3(0.267536, -0.308906, -0.912689),
-	float3(0.940074, -0.339968, 0.026127),
+	float3(0.342988,  -0.654132, 0.674144),
+	float3(-0.361252, 0.823558,  -0.437320),
+	float3(0.149238,  0.983012,  -0.106843),
+	float3(0.755644,  -0.372804, 0.538535),
+	float3(0.260226,  0.637174,  0.725460),
+	float3(0.267536,  -0.308906, -0.912689),
+	float3(0.940074,  -0.339968, 0.026127),
 	float3(-0.461556, -0.736675, 0.494242),
-	float3(0.377128, 0.763396, -0.524405),
-	float3(-0.274399, 0.606040, 0.746606),
+	float3(0.377128,  0.763396,  -0.524405),
+	float3(-0.274399, 0.606040,  0.746606),
 	float3(-0.401923, -0.303160, 0.864032),
-	float3(0.499436, -0.451022, -0.739691),
-	float3(0.754607, 0.467260, 0.460692),
+	float3(0.499436,  -0.451022, -0.739691),
+	float3(0.754607,  0.467260,  0.460692),
 	float3(-0.970394, -0.007787, -0.241402),
-	float3(-0.396244, 0.015833, 0.918009),
+	float3(-0.396244, 0.015833,  0.918009),
 	float3(-0.994834, -0.071127, 0.072433),
-	float3(0.213500, 0.000490, -0.976943),
-	float3(-0.443190, 0.873516, 0.201375),
-	float3(0.676844, -0.118820, 0.726474),
+	float3(0.213500,  0.000490,  -0.976943),
+	float3(-0.443190, 0.873516,  0.201375),
+	float3(0.676844,  -0.118820, 0.726474),
 	float3(-0.404616, -0.299948, -0.863896),
-	float3(0.296827, 0.360234, 0.884378),
-	float3(0.758192, 0.177235, 0.627480),
-	float3(0.375403, -0.154481, 0.913897),
-	float3(0.729455, 0.106624, -0.675667),
+	float3(0.296827,  0.360234,  0.884378),
+	float3(0.758192,  0.177235,  0.627480),
+	float3(0.375403,  -0.154481, 0.913897),
+	float3(0.729455,  0.106624,  -0.675667),
 	float3(-0.784947, -0.553348, -0.278681),
-	float3(-0.442662, 0.608016, -0.659065),
-	float3(0.669704, 0.739329, -0.069917),
-	float3(0.513956, 0.675302, 0.528976),
+	float3(-0.442662, 0.608016,  -0.659065),
+	float3(0.669704,  0.739329,  -0.069917),
+	float3(0.513956,  0.675302,  0.528976),
 	float3(-0.170045, -0.985222, -0.020535),
-	float3(-0.037710, 0.199548, -0.979162),
+	float3(-0.037710, 0.199548,  -0.979162),
 	float3(-0.360476, -0.895285, -0.261765),
-	float3(0.986644, -0.069954, -0.147104),
-	float3(-0.091542, 0.497849, -0.862419),
-	float3(0.287665, -0.895405, -0.339852),
+	float3(0.986644,  -0.069954, -0.147104),
+	float3(-0.091542, 0.497849,  -0.862419),
+	float3(0.287665,  -0.895405, -0.339852),
 	float3(-0.233926, -0.806820, -0.542512),
-	float3(0.595946, -0.646542, 0.476268),
+	float3(0.595946,  -0.646542, 0.476268),
 	float3(-0.876596, -0.270488, -0.398014),
-	float3(-0.798558, 0.380749, 0.466193),
-	float3(-0.171515, 0.982876, 0.067353),
+	float3(-0.798558, 0.380749,  0.466193),
+	float3(-0.171515, 0.982876,  0.067353),
 	float3(-0.795498, -0.288840, 0.532686),
-	float3(0.077572, 0.875618, -0.476734),
+	float3(0.077572,  0.875618,  -0.476734),
 	float3(-0.286484, -0.608016, 0.740434),
-	float3(0.869836, 0.467280, 0.158225),
-	float3(-0.966980, 0.251004, -0.044126),
-	float3(0.421711, 0.892337, 0.160916),
-	float3(0.453757, -0.888811, -0.064178),
-	float3(0.025769, -0.971450, 0.235839),
-	float3(-0.482893, 0.054955, -0.873953),
-	float3(0.485430, 0.227534, -0.844148),
-	float3(0.706470, -0.501444, -0.499453)
+	float3(0.869836,  0.467280,  0.158225),
+	float3(-0.966980, 0.251004,  -0.044126),
+	float3(0.421711,  0.892337,  0.160916),
+	float3(0.453757,  -0.888811, -0.064178),
+	float3(0.025769,  -0.971450, 0.235839),
+	float3(-0.482893, 0.054955,  -0.873953),
+	float3(0.485430,  0.227534,  -0.844148),
+	float3(0.706470,  -0.501444, -0.499453)
 };
 
 static float3 kernel_HS_64[64] =
 {
-	float3(-0.534693, 0.068143, 0.842295),
-	float3(-0.099921, 0.481922, 0.870498),
-	float3(0.785071, -0.210279, 0.582620),
-	float3(0.199713, -0.265906, 0.943085),
+	float3(-0.534693, 0.068143,  0.842295),
+	float3(-0.099921, 0.481922,  0.870498),
+	float3(0.785071,  -0.210279, 0.582620),
+	float3(0.199713,  -0.265906, 0.943085),
 	float3(-0.641009, -0.583143, 0.499051),
-	float3(0.310700, 0.585059, 0.749114),
-	float3(0.627472, 0.110887, 0.770703),
-	float3(0.454947, 0.243181, 0.856672),
+	float3(0.310700,  0.585059,  0.749114),
+	float3(0.627472,  0.110887,  0.770703),
+	float3(0.454947,  0.243181,  0.856672),
 	float3(-0.237308, -0.419425, 0.876224),
-	float3(-0.439990, 0.485294, 0.755578),
+	float3(-0.439990, 0.485294,  0.755578),
 	float3(-0.140006, -0.003852, 0.990143),
-	float3(0.229904, -0.053337, 0.971751),
-	float3(0.526971, 0.687351, 0.499850),
-	float3(0.428410, 0.029770, 0.903094),
-	float3(-0.269491, 0.613476, 0.742308),
+	float3(0.229904,  -0.053337, 0.971751),
+	float3(0.526971,  0.687351,  0.499850),
+	float3(0.428410,  0.029770,  0.903094),
+	float3(-0.269491, 0.613476,  0.742308),
 	float3(-0.860752, -0.096846, 0.499727),
-	float3(0.105120, -0.680885, 0.724807),
+	float3(0.105120,  -0.680885, 0.724807),
 	float3(-0.216056, -0.838863, 0.499628),
-	float3(-0.272721, 0.352142, 0.895332),
+	float3(-0.272721, 0.352142,  0.895332),
 	float3(-0.605205, -0.368267, 0.705767),
 	float3(-0.406299, -0.287473, 0.867341),
-	float3(-0.817526, 0.287040, 0.499259),
-	float3(0.572111, -0.314693, 0.757402),
-	float3(0.133903, -0.469592, 0.872670),
-	float3(0.284418, 0.372321, 0.883450),
-	float3(0.839542, 0.214504, 0.499157),
-	float3(0.303836, -0.598595, 0.741194),
-	float3(-0.606644, 0.618732, 0.499152),
-	float3(-0.236736, 0.833236, 0.499675),
-	float3(0.476986, -0.723552, 0.498956),
+	float3(-0.817526, 0.287040,  0.499259),
+	float3(0.572111,  -0.314693, 0.757402),
+	float3(0.133903,  -0.469592, 0.872670),
+	float3(0.284418,  0.372321,  0.883450),
+	float3(0.839542,  0.214504,  0.499157),
+	float3(0.303836,  -0.598595, 0.741194),
+	float3(-0.606644, 0.618732,  0.499152),
+	float3(-0.236736, 0.833236,  0.499675),
+	float3(0.476986,  -0.723552, 0.498956),
 	float3(-0.206655, -0.207037, 0.956258),
-	float3(0.141960, 0.717312, 0.682137),
-	float3(0.269867, -0.823557, 0.498924),
-	float3(0.374247, -0.397077, 0.838015),
-	float3(-0.747769, 0.084294, 0.658586),
-	float3(0.483333, 0.454693, 0.748093),
-	float3(0.653644, 0.323098, 0.684367),
+	float3(0.141960,  0.717312,  0.682137),
+	float3(0.269867,  -0.823557, 0.498924),
+	float3(0.374247,  -0.397077, 0.838015),
+	float3(-0.747769, 0.084294,  0.658586),
+	float3(0.483333,  0.454693,  0.748093),
+	float3(0.653644,  0.323098,  0.684367),
 	float3(-0.810309, -0.306950, 0.499180),
-	float3(-0.310005, 0.128813, 0.941968),
+	float3(-0.310005, 0.128813,  0.941968),
 	float3(-0.037841, -0.337316, 0.940631),
-	float3(0.057450, 0.077844, 0.995309),
-	float3(0.030403, -0.134806, 0.990405),
+	float3(0.057450,  0.077844,  0.995309),
+	float3(0.030403,  -0.134806, 0.990405),
 	float3(-0.000742, -0.866237, 0.499633),
-	float3(-0.111449, 0.208400, 0.971673),
-	float3(0.256646, 0.159383, 0.953273),
-	float3(0.086693, 0.290960, 0.952799),
-	float3(0.113757, 0.503671, 0.856373),
-	float3(-0.639365, 0.406185, 0.652860),
-	float3(0.569399, -0.528579, 0.629595),
+	float3(-0.111449, 0.208400,  0.971673),
+	float3(0.256646,  0.159383,  0.953273),
+	float3(0.086693,  0.290960,  0.952799),
+	float3(0.113757,  0.503671,  0.856373),
+	float3(-0.639365, 0.406185,  0.652860),
+	float3(0.569399,  -0.528579, 0.629595),
 	float3(-0.436976, -0.499888, 0.747772),
-	float3(0.401219, -0.184565, 0.897195),
-	float3(-0.471648, 0.272197, 0.838724),
-	float3(0.814194, 0.002696, 0.580586),
+	float3(0.401219,  -0.184565, 0.897195),
+	float3(-0.471648, 0.272197,  0.838724),
+	float3(0.814194,  0.002696,  0.580586),
 	float3(-0.067481, -0.551223, 0.831625),
 	float3(-0.377480, -0.076071, 0.922888),
-	float3(0.680442, 0.536754, 0.498893),
+	float3(0.680442,  0.536754,  0.498893),
 	float3(-0.476212, -0.723486, 0.499791),
-	float3(-0.436220, 0.748272, 0.499802),
-	float3(-0.070634, 0.698619, 0.711999),
+	float3(-0.436220, 0.748272,  0.499802),
+	float3(-0.070634, 0.698619,  0.711999),
 	float3(-0.579543, -0.151479, 0.800740),
-	float3(0.599841, -0.102179, 0.793568),
+	float3(0.599841,  -0.102179, 0.793568),
 	float3(-0.267736, -0.630860, 0.728239),
-	float3(0.342928, 0.795822, 0.499067),
-	float3(0.756106, -0.423491, 0.498958)
+	float3(0.342928,  0.795822,  0.499067),
+	float3(0.756106,  -0.423491, 0.498958)
 };
 
 static float3 kernel_S_64[64] =
 {
-	float3(-0.182543, 0.821262, 0.540562),
+	float3(-0.182543, 0.821262,  0.540562),
 	float3(-0.380227, -0.842966, 0.380572),
-	float3(-0.031155, 0.463728, -0.885430),
+	float3(-0.031155, 0.463728,  -0.885430),
 	float3(-0.869035, -0.215196, 0.445499),
 	float3(-0.743696, -0.634049, 0.211890),
-	float3(0.695442, 0.489300, -0.526256),
-	float3(0.684164, -0.433575, -0.586458),
-	float3(0.342689, -0.934088, -0.100222),
-	float3(0.068486, 0.954553, -0.290066),
-	float3(0.157790, -0.851324, 0.500350),
-	float3(-0.986357, 0.158177, 0.045600),
-	float3(-0.676176, 0.626722, -0.387306),
+	float3(0.695442,  0.489300,  -0.526256),
+	float3(0.684164,  -0.433575, -0.586458),
+	float3(0.342689,  -0.934088, -0.100222),
+	float3(0.068486,  0.954553,  -0.290066),
+	float3(0.157790,  -0.851324, 0.500350),
+	float3(-0.986357, 0.158177,  0.045600),
+	float3(-0.676176, 0.626722,  -0.387306),
 	float3(-0.378638, -0.224594, 0.897881),
-	float3(0.243922, 0.728629, -0.640001),
-	float3(0.680655, 0.722553, 0.120940),
-	float3(0.545117, -0.791810, 0.275472),
-	float3(-0.478468, 0.451705, -0.753015),
-	float3(0.802419, -0.245904, 0.543742),
+	float3(0.243922,  0.728629,  -0.640001),
+	float3(0.680655,  0.722553,  0.120940),
+	float3(0.545117,  -0.791810, 0.275472),
+	float3(-0.478468, 0.451705,  -0.753015),
+	float3(0.802419,  -0.245904, 0.543742),
 	float3(-0.545053, -0.394167, -0.739966),
 	float3(-0.755147, -0.610694, -0.238339),
-	float3(-0.368358, 0.906758, -0.205188),
-	float3(-0.067692, 0.086606, 0.993940),
+	float3(-0.368358, 0.906758,  -0.205188),
+	float3(-0.067692, 0.086606,  0.993940),
 	float3(-0.020244, -0.705693, -0.708229),
 	float3(-0.138380, -0.332982, -0.932724),
-	float3(0.717812, 0.178563, 0.672950),
-	float3(0.863515, 0.072456, -0.499090),
-	float3(0.299862, -0.420443, -0.856336),
-	float3(0.190397, 0.647862, 0.737579),
-	float3(0.927397, -0.289683, -0.236683),
-	float3(0.886746, 0.356469, 0.294299),
-	float3(-0.850497, 0.236486, 0.469818),
-	float3(0.341707, 0.256188, 0.904214),
-	float3(-0.202013, 0.772364, -0.602200),
+	float3(0.717812,  0.178563,  0.672950),
+	float3(0.863515,  0.072456,  -0.499090),
+	float3(0.299862,  -0.420443, -0.856336),
+	float3(0.190397,  0.647862,  0.737579),
+	float3(0.927397,  -0.289683, -0.236683),
+	float3(0.886746,  0.356469,  0.294299),
+	float3(-0.850497, 0.236486,  0.469818),
+	float3(0.341707,  0.256188,  0.904214),
+	float3(-0.202013, 0.772364,  -0.602200),
 	float3(-0.874878, -0.221961, -0.430491),
-	float3(0.920966, 0.357758, -0.154370),
-	float3(0.383582, -0.763696, -0.519262),
-	float3(0.702428, -0.680355, -0.209076),
+	float3(0.920966,  0.357758,  -0.154370),
+	float3(0.383582,  -0.763696, -0.519262),
+	float3(0.702428,  -0.680355, -0.209076),
 	float3(-0.587379, -0.520892, 0.619401),
-	float3(-0.557667, 0.183663, 0.809491),
+	float3(-0.557667, 0.183663,  0.809491),
 	float3(-0.956698, -0.290937, 0.009159),
-	float3(-0.076330, 0.987901, 0.135001),
+	float3(-0.076330, 0.987901,  0.135001),
 	float3(-0.172555, -0.656471, 0.734351),
-	float3(-0.281891, 0.094680, -0.954763),
-	float3(-0.574733, 0.573561, 0.583703),
-	float3(-0.217130, 0.483449, 0.848016),
+	float3(-0.281891, 0.094680,  -0.954763),
+	float3(-0.574733, 0.573561,  0.583703),
+	float3(-0.217130, 0.483449,  0.848016),
 	float3(-0.443511, -0.893520, -0.070141),
-	float3(-0.500284, 0.837489, 0.219838),
+	float3(-0.500284, 0.837489,  0.219838),
 	float3(-0.043654, -0.991609, 0.121676),
 	float3(-0.050029, -0.944294, -0.325279),
-	float3(0.988355, -0.053719, 0.142368),
-	float3(-0.818264, 0.573775, 0.035015),
-	float3(0.593756, 0.592395, 0.544538),
+	float3(0.988355,  -0.053719, 0.142368),
+	float3(-0.818264, 0.573775,  0.035015),
+	float3(0.593756,  0.592395,  0.544538),
 	float3(-0.417989, -0.756320, -0.503255),
-	float3(0.573173, -0.063723, -0.816953),
-	float3(0.490847, -0.164035, 0.855664),
-	float3(0.158413, 0.000452, -0.987373),
-	float3(0.311217, 0.886794, 0.341672),
-	float3(0.472609, -0.576414, 0.666624),
-	float3(-0.672809, 0.039642, -0.738754),
-	float3(0.079826, -0.339203, 0.937320),
-	float3(-0.890770, 0.232752, -0.390328),
-	float3(0.503405, 0.816547, -0.282551),
-	float3(0.858983, -0.485483, 0.162647),
-	float3(0.405588, 0.355539, -0.842075)
+	float3(0.573173,  -0.063723, -0.816953),
+	float3(0.490847,  -0.164035, 0.855664),
+	float3(0.158413,  0.000452,  -0.987373),
+	float3(0.311217,  0.886794,  0.341672),
+	float3(0.472609,  -0.576414, 0.666624),
+	float3(-0.672809, 0.039642,  -0.738754),
+	float3(0.079826,  -0.339203, 0.937320),
+	float3(-0.890770, 0.232752,  -0.390328),
+	float3(0.503405,  0.816547,  -0.282551),
+	float3(0.858983,  -0.485483, 0.162647),
+	float3(0.405588,  0.355539,  -0.842075)
 };
 
 static float3 kernel_HS_32[32] =
 {
-	float3(-0.514748, 0.006141, 0.857319),
-	float3(-0.275770, 0.575362, 0.770006),
+	float3(-0.514748, 0.006141,  0.857319),
+	float3(-0.275770, 0.575362,  0.770006),
 	float3(-0.487942, -0.715888, 0.499417),
-	float3(0.182432, 0.305623, 0.934512),
+	float3(0.182432,  0.305623,  0.934512),
 	float3(-0.709537, -0.497218, 0.499330),
-	float3(-0.860221, 0.102215, 0.499571),
-	float3(0.651737, 0.035315, 0.757623),
-	float3(0.338329, 0.001010, 0.941027),
+	float3(-0.860221, 0.102215,  0.499571),
+	float3(0.651737,  0.035315,  0.757623),
+	float3(0.338329,  0.001010,  0.941027),
 	float3(-0.177061, -0.197774, 0.964124),
-	float3(-0.471412, 0.315434, 0.823573),
-	float3(0.401678, -0.768106, 0.498667),
-	float3(0.189434, 0.845846, 0.498658),
-	float3(0.654661, 0.568052, 0.498734),
-	float3(0.603986, -0.270087, 0.749836),
-	float3(0.105411, -0.860405, 0.498590),
-	float3(0.060161, -0.552618, 0.831260),
-	float3(0.344082, 0.576901, 0.740805),
+	float3(-0.471412, 0.315434,  0.823573),
+	float3(0.401678,  -0.768106, 0.498667),
+	float3(0.189434,  0.845846,  0.498658),
+	float3(0.654661,  0.568052,  0.498734),
+	float3(0.603986,  -0.270087, 0.749836),
+	float3(0.105411,  -0.860405, 0.498590),
+	float3(0.060161,  -0.552618, 0.831260),
+	float3(0.344082,  0.576901,  0.740805),
 	float3(-0.203322, -0.842008, 0.499683),
-	float3(-0.159696, 0.289043, 0.943902),
+	float3(-0.159696, 0.289043,  0.943902),
 	float3(-0.757429, -0.189749, 0.624738),
 	float3(-0.468673, -0.301059, 0.830487),
-	float3(-0.579856, 0.644326, 0.498609),
-	float3(-0.122485, 0.858021, 0.498796),
-	float3(0.359087, -0.461209, 0.811383),
-	float3(0.493760, 0.301154, 0.815786),
-	float3(0.812214, 0.301479, 0.499418),
-	float3(0.024203, 0.040031, 0.998905),
-	float3(-0.768693, 0.399281, 0.499685),
+	float3(-0.579856, 0.644326,  0.498609),
+	float3(-0.122485, 0.858021,  0.498796),
+	float3(0.359087,  -0.461209, 0.811383),
+	float3(0.493760,  0.301154,  0.815786),
+	float3(0.812214,  0.301479,  0.499418),
+	float3(0.024203,  0.040031,  0.998905),
+	float3(-0.768693, 0.399281,  0.499685),
 	float3(-0.247153, -0.518479, 0.818593),
-	float3(0.645359, -0.578623, 0.498706),
-	float3(0.133137, -0.254264, 0.957927),
-	float3(0.032093, 0.577059, 0.816072)
+	float3(0.645359,  -0.578623, 0.498706),
+	float3(0.133137,  -0.254264, 0.957927),
+	float3(0.032093,  0.577059,  0.816072)
 };
 
 static float3 kernel_S_32[32] =
 {
-	float3(-0.866867, 0.387031, -0.314242),
-	float3(0.869669, -0.454003, 0.193796),
+	float3(-0.866867, 0.387031,  -0.314242),
+	float3(0.869669,  -0.454003, 0.193796),
 	float3(-0.412899, -0.708647, -0.572131),
-	float3(0.145091, 0.462581, -0.874624),
+	float3(0.145091,  0.462581,  -0.874624),
 	float3(-0.701766, -0.712406, 0.001305),
-	float3(0.713772, 0.386500, -0.584077),
-	float3(0.812245, 0.246476, 0.528684),
-	float3(0.236309, 0.185974, 0.953715),
+	float3(0.713772,  0.386500,  -0.584077),
+	float3(0.812245,  0.246476,  0.528684),
+	float3(0.236309,  0.185974,  0.953715),
 	float3(-0.036114, -0.393989, 0.918405),
-	float3(-0.319899, 0.824241, -0.467216),
-	float3(-0.399139, 0.127946, 0.907919),
-	float3(0.315398, 0.858979, -0.403334),
-	float3(0.494222, -0.856284, -0.150071),
+	float3(-0.319899, 0.824241,  -0.467216),
+	float3(-0.399139, 0.127946,  0.907919),
+	float3(0.315398,  0.858979,  -0.403334),
+	float3(0.494222,  -0.856284, -0.150071),
 	float3(-0.792895, -0.193415, -0.577848),
-	float3(0.585467, -0.312589, 0.748008),
-	float3(0.217044, -0.681101, -0.699280),
-	float3(0.320148, -0.824289, 0.466961),
+	float3(0.585467,  -0.312589, 0.748008),
+	float3(0.217044,  -0.681101, -0.699280),
+	float3(0.320148,  -0.824289, 0.466961),
 	float3(-0.127161, -0.989629, -0.066823),
-	float3(-0.482645, 0.310720, -0.818845),
-	float3(-0.831524, 0.305929, 0.463654),
+	float3(-0.482645, 0.310720,  -0.818845),
+	float3(-0.831524, 0.305929,  0.463654),
 	float3(-0.738522, -0.319217, 0.593874),
 	float3(-0.989311, -0.142699, 0.030025),
-	float3(0.008085, 0.989738, 0.142664),
-	float3(0.728160, 0.682272, 0.065484),
-	float3(0.444763, -0.107219, -0.889207),
-	float3(0.990404, 0.116941, -0.073650),
-	float3(-0.271111, 0.708992, 0.651021),
-	float3(-0.602442, 0.790906, 0.107385),
+	float3(0.008085,  0.989738,  0.142664),
+	float3(0.728160,  0.682272,  0.065484),
+	float3(0.444763,  -0.107219, -0.889207),
+	float3(0.990404,  0.116941,  -0.073650),
+	float3(-0.271111, 0.708992,  0.651021),
+	float3(-0.602442, 0.790906,  0.107385),
 	float3(-0.322009, -0.797401, 0.510354),
-	float3(0.813971, -0.376220, -0.442618),
+	float3(0.813971,  -0.376220, -0.442618),
 	float3(-0.185646, -0.239586, -0.952961),
-	float3(0.369399, 0.711567, 0.597676)
+	float3(0.369399,  0.711567,  0.597676)
 };
 
 static float3 kernel_HS_16[16] =
 {
-	float3(0.188020, 0.358958, 0.914220),
-	float3(0.415860, -0.048357, 0.908142),
+	float3(0.188020,  0.358958,  0.914220),
+	float3(0.415860,  -0.048357, 0.908142),
 	float3(-0.477721, -0.284289, 0.831241),
-	float3(0.774378, -0.388661, 0.499281),
-	float3(0.464601, -0.732599, 0.497438),
-	float3(-0.752223, 0.430422, 0.498896),
-	float3(0.015038, -0.867172, 0.497782),
+	float3(0.774378,  -0.388661, 0.499281),
+	float3(0.464601,  -0.732599, 0.497438),
+	float3(-0.752223, 0.430422,  0.498896),
+	float3(0.015038,  -0.867172, 0.497782),
 	float3(-0.866174, -0.027422, 0.498990),
 	float3(-0.435519, -0.749939, 0.497911),
 	float3(-0.104372, -0.005123, 0.994525),
-	float3(0.864324, 0.071281, 0.497858),
-	float3(-0.127630, 0.857916, 0.497685),
-	float3(0.122670, -0.412326, 0.902740),
-	float3(0.334456, 0.800416, 0.497468),
-	float3(-0.288950, 0.421420, 0.859601),
-	float3(0.701216, 0.508936, 0.499280)
+	float3(0.864324,  0.071281,  0.497858),
+	float3(-0.127630, 0.857916,  0.497685),
+	float3(0.122670,  -0.412326, 0.902740),
+	float3(0.334456,  0.800416,  0.497468),
+	float3(-0.288950, 0.421420,  0.859601),
+	float3(0.701216,  0.508936,  0.499280)
 };
 
 static float3 kernel_HS_8[8] =
 {
-	float3(0.024513, 0.574757, 0.817957),
-	float3(0.680559, 0.538709, 0.496622),
-	float3(0.632840, -0.594049, 0.496608),
-	float3(0.328428, -0.014452, 0.944418),
-	float3(-0.629731, 0.597428, 0.496507),
-	float3(-0.329830, 0.014175, 0.943934),
+	float3(0.024513,  0.574757,  0.817957),
+	float3(0.680559,  0.538709,  0.496622),
+	float3(0.632840,  -0.594049, 0.496608),
+	float3(0.328428,  -0.014452, 0.944418),
+	float3(-0.629731, 0.597428,  0.496507),
+	float3(-0.329830, 0.014175,  0.943934),
 	float3(-0.021927, -0.572613, 0.819533),
 	float3(-0.682322, -0.536106, 0.497018)
 };
 
 static float3 kernel_HS_4[4] =
 {
-	normalize(float3(1, -1, 0.7)),
-	normalize(float3(1, 1, 0.7)),
+	normalize(float3(1,  -1, 0.7)),
+	normalize(float3(1,  1,  0.7)),
 	normalize(float3(-1, -1, 0.7)),
-	normalize(float3(-1, 1, 0.7))
+	normalize(float3(-1, 1,  0.7))
 };
 
 // full sphere
 
 static float3 kernel_S_8_box[8] =
 {
-	float3(1, 1, 1),
-	float3(-1, 1, 1),
-	float3(1, -1, 1),
+	float3(1,  1,  1),
+	float3(-1, 1,  1),
+	float3(1,  -1, 1),
 	float3(-1, -1, 1),
-	float3(1, 1, -1),
-	float3(-1, 1, -1),
-	float3(1, -1, -1),
+	float3(1,  1,  -1),
+	float3(-1, 1,  -1),
+	float3(1,  -1, -1),
 	float3(-1, -1, -1)
 };
 
 static float3 kernel_S_8[8] =
 {
-	float3(-0.825149, 0.149162, -0.544867),
-	float3(-0.449977, 0.778477, 0.437600),
+	float3(-0.825149, 0.149162,  -0.544867),
+	float3(-0.449977, 0.778477,  0.437600),
 	float3(-0.200003, -0.877787, -0.435303),
-	float3(0.312662, 0.103661, -0.944191),
+	float3(0.312662,  0.103661,  -0.944191),
 	float3(-0.741538, -0.396629, 0.541117),
-	float3(0.694981, 0.718114, 0.036235),
-	float3(0.875026, -0.483035, -0.031718),
-	float3(0.331499, 0.001090, 0.943455)
+	float3(0.694981,  0.718114,  0.036235),
+	float3(0.875026,  -0.483035, -0.031718),
+	float3(0.331499,  0.001090,  0.943455)
 };
 
 static float3 kernel_S_16[16] =
 {
 	float3(-0.888271, -0.085257, -0.451338),
-	float3(-0.374271, 0.559964, -0.739162),
+	float3(-0.374271, 0.559964,  -0.739162),
 	float3(-0.318711, -0.888686, -0.329636),
 	float3(-0.193355, -0.271804, -0.942728),
-	float3(0.977305, -0.030247, -0.209665),
-	float3(0.461438, 0.296305, -0.836228),
-	float3(0.263723, 0.926463, -0.268544),
-	float3(0.679000, -0.671897, 0.295826),
+	float3(0.977305,  -0.030247, -0.209665),
+	float3(0.461438,  0.296305,  -0.836228),
+	float3(0.263723,  0.926463,  -0.268544),
+	float3(0.679000,  -0.671897, 0.295826),
 	float3(-0.069470, -0.658106, 0.749713),
-	float3(-0.771157, 0.636131, 0.025577),
-	float3(-0.612166, 0.188772, 0.767866),
-	float3(-0.085970, 0.843929, 0.529522),
-	float3(0.730612, 0.567148, 0.380197),
-	float3(0.245251, 0.132155, 0.960410),
+	float3(-0.771157, 0.636131,  0.025577),
+	float3(-0.612166, 0.188772,  0.767866),
+	float3(-0.085970, 0.843929,  0.529522),
+	float3(0.730612,  0.567148,  0.380197),
+	float3(0.245251,  0.132155,  0.960410),
 	float3(-0.802549, -0.516613, 0.298374),
-	float3(0.489315, -0.668274, -0.560340)
+	float3(0.489315,  -0.668274, -0.560340)
 };
 
 static float3 box_expansion[18] =
@@ -3502,13 +3501,13 @@ static float3 box_expansion[18] =
 	float3(1, 1, 1),
 	float3(0, 1, 1),
 
-	//reset strip 
+	//reset strip
 	float3(1, 1, 1),
 	float3(1, 0, 1),
 	float3(1, 1, 0),
 	float3(1, 0, 0),
 
-	//reset strip 
+	//reset strip
 	float3(0, 0, 1),
 	float3(0, 1, 1),
 	float3(0, 0, 0),

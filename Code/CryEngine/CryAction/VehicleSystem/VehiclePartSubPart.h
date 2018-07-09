@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 /*************************************************************************
    -------------------------------------------------------------------------
@@ -31,16 +31,16 @@ public:
 	virtual ~CVehiclePartSubPart();
 
 	// IVehiclePart
-	virtual bool            Init(IVehicle* pVehicle, const CVehicleParams& table, IVehiclePart* pParent, CVehicle::SPartInitInfo& initInfo, int partType) override;
-	virtual void            Reset() override;
-	virtual void            Release() override;
-	virtual void            OnEvent(const SVehiclePartEvent& event) override;
-	virtual bool            ChangeState(EVehiclePartState state, int flags = 0) override;
-	virtual void            Physicalize() override;
-	virtual void            Update(const float frameTime) override;
-	virtual void            GetMemoryUsage(ICrySizer* pSizer) const override;
-	virtual void            GetMemoryUsageInternal(ICrySizer* pSizer) const;
-	virtual const Matrix34& GetLocalInitialTM() override;
+	virtual bool     Init(IVehicle* pVehicle, const CVehicleParams& table, IVehiclePart* pParent, CVehicle::SPartInitInfo& initInfo, int partType) override;
+	virtual void     Reset() override;
+	virtual void     Release() override;
+	virtual void     OnEvent(const SVehiclePartEvent& event) override;
+	virtual bool     ChangeState(EVehiclePartState state, int flags = 0) override;
+	virtual void     Physicalize() override;
+	virtual void     Update(const float frameTime) override;
+	virtual void     GetMemoryUsage(ICrySizer* pSizer) const override;
+	virtual void     GetMemoryUsageInternal(ICrySizer* pSizer) const;
+	virtual Matrix34 GetLocalInitialTM() override;
 	// ~IVehiclePart
 
 protected:

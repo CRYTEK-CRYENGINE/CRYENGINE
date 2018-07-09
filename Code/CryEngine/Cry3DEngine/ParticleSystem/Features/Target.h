@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -25,7 +25,7 @@ public:
 	CTargetSource(ETargetSource source = ETargetSource::Target);
 
 	void Serialize(Serialization::IArchive& ar);
-	Vec3 GetTarget(const SUpdateContext& context, TParticleId particleId, bool isParentId = false);
+	Vec3 GetTarget(const CParticleComponentRuntime& runtime, TParticleId particleId, bool isParentId = false);
 
 private:
 	Vec3          m_offset;

@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "Interactor.h"
@@ -110,7 +110,7 @@ ScriptAnyValue CInteractor::EntityIdToScript(EntityId id)
 
 void CInteractor::Update(SEntityUpdateContext&, int)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_ACTION);
+	CRY_PROFILE_FUNCTION(PROFILE_ACTION);
 
 	EntityId newOverId = INVALID_ENTITYID;
 	int usableIdx = 0;

@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "LightningNode.h"
@@ -47,7 +47,7 @@ void CLightningRenderNode::CTriStrip::Draw(const SRendParams& renderParams, cons
 
 	bool nAfterWater = true;
 
-	pRenderObject->m_II.m_Matrix = Matrix34(IDENTITY);
+	pRenderObject->SetMatrix(Matrix34::CreateIdentity(), passInfo);
 	pRenderObject->m_ObjFlags |= FOB_NO_FOG;
 	pRenderObject->m_ObjFlags &= ~FOB_ALLOW_TESSELLATION;
 	pRenderObject->m_nSort = fastround_positive(distanceToCamera * 2.0f);
@@ -248,8 +248,8 @@ void CLightningRenderNode::Render(const struct SRendParams& rParam, const SRende
 		return;
 
 	IRenderer* pRenderer = gEnv->pRenderer;
-	const CCamera& camera = pRenderer->GetCamera();
-	CRenderObject* pRenderObject = pRenderer->EF_GetObject_Temp(passInfo.ThreadID());
+	const CCamera& camera = GetISystem()->GetViewCamera();
+	CRenderObject* pRenderObject = passInfo.GetIRenderView()->AllocateTemporaryRenderObject();
 	Vec3 cameraPosition = camera.GetPosition();
 	float distanceToCamera = sqrt_tpl(Distance::Point_AABBSq(cameraPosition, GetBBox())) * passInfo.GetZoomFactor();
 
@@ -426,9 +426,7 @@ void CLightningRenderNode::PopSegment()
 
 void CLightningRenderNode::OffsetPosition(const Vec3& delta)
 {
-#ifdef SEG_WORLD
 	m_aabb.Move(delta);
 	m_emmitterPosition += delta;
 	m_receiverPosition += delta;
-#endif
 }

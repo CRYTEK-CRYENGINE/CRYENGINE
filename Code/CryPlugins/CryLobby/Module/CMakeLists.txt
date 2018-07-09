@@ -71,7 +71,6 @@ add_sources("CryLobby_uber_0.cpp"
 		"CryFriendsManagement.cpp"
 		"CryHostMigration.cpp"
 		"CryLobby.cpp"
-		"CryLobbyDLL.cpp"
 		"CryLobbyUI.cpp"
 		"CryMatchMaking.cpp"
 		"CryReward.cpp"
@@ -127,11 +126,15 @@ elseif(WIN32)
 endif()
 mark_as_advanced(FORCE SPEEX)
 
+if (EXISTS "${SDK_DIR}/Steamworks" AND WIN32)
+	target_link_libraries(${THIS_PROJECT} PRIVATE Steamworks)
+endif()
+
 if (WIN32 OR WIN64)
 	target_link_libraries(${THIS_PROJECT} PRIVATE Ws2_32 Mswsock "${SPEEX}")
 elseif(DURANGO)
 	target_link_libraries(${THIS_PROJECT} PRIVATE Ws2_32 uuid)
-	set_property( TARGET ${THIS_PROJECT} APPEND_STRING PROPERTY VS_CONFIG_PROPERTY_GROUP_ReferencePath "${CMAKE_CURRENT_SOURCE_DIR}/DurangoLive/DurangoChat/Microsoft.Xbox.GameChat;${DURANGO_SDK}/ExtensionSDKs/xbox services api/8.0/references/commonconfiguration/neutral")		
+	set_property(TARGET ${THIS_PROJECT} APPEND_STRING PROPERTY VS_CONFIG_PROPERTY_GROUP_ReferencePath "${DURANGO_SDK}/ExtensionSDKs/Xbox.Game.Chat.2.Cpp.API/8.0;${DURANGO_SDK}/ExtensionSDKs/Xbox.Services.API.Cpp/8.0/DesignTime/CommonConfiguration/Neutral")		
 	target_compile_options(${THIS_PROJECT} PRIVATE /ZW /wd4530)
 elseif(ORBIS)
 	target_compile_options(${THIS_PROJECT} PRIVATE -Wno-deprecated-declarations)

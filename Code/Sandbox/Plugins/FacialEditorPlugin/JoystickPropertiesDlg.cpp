@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "stdafx.h"
 #include "JoystickPropertiesDlg.h"
@@ -121,3 +121,4 @@ void CJoystickPropertiesDlg::SetChannelEnabled(int axis, bool enabled)
 {
 	m_enableds[axis] = enabled;
 }
+

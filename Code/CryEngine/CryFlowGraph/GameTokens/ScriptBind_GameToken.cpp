@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "ScriptBind_GameToken.h"
@@ -7,29 +7,29 @@
 namespace
 {
 // Returns literal representation of the type value
-const char* ScriptAnyTypeToString(ScriptAnyType type)
+const char* ScriptAnyTypeToString(EScriptAnyType type)
 {
 	switch (type)
 	{
-	case ANY_ANY:
+	case EScriptAnyType::Any:
 		return "Any";
-	case ANY_TNIL:
+	case EScriptAnyType::Nil:
 		return "Null";
-	case ANY_TBOOLEAN:
+	case EScriptAnyType::Boolean:
 		return "Boolean";
-	case ANY_TSTRING:
+	case EScriptAnyType::String:
 		return "String";
-	case ANY_TNUMBER:
+	case EScriptAnyType::Number:
 		return "Number";
-	case ANY_TFUNCTION:
+	case EScriptAnyType::Function:
 		return "Function";
-	case ANY_TTABLE:
+	case EScriptAnyType::Table:
 		return "Table";
-	case ANY_TUSERDATA:
+	case EScriptAnyType::UserData:
 		return "UserData";
-	case ANY_THANDLE:
+	case EScriptAnyType::Handle:
 		return "Pointer";
-	case ANY_TVECTOR:
+	case EScriptAnyType::Vector:
 		return "Vec3";
 	default:
 		return "Unknown";
@@ -60,9 +60,9 @@ int CScriptBind_GameToken::SetToken(IFunctionHandler* pH)
 	}
 
 	TFlowInputData data;
-	switch (val.type)
+	switch (val.GetType())
 	{
-	case ANY_TBOOLEAN:
+	case EScriptAnyType::Boolean:
 		{
 			bool v;
 			val.CopyTo(v);
@@ -72,7 +72,7 @@ int CScriptBind_GameToken::SetToken(IFunctionHandler* pH)
 		}
 		break;
 
-	case ANY_TNUMBER:
+	case EScriptAnyType::Number:
 		{
 			float v;
 			val.CopyTo(v);
@@ -82,7 +82,7 @@ int CScriptBind_GameToken::SetToken(IFunctionHandler* pH)
 		}
 		break;
 
-	case ANY_TSTRING:
+	case EScriptAnyType::String:
 		{
 			string v;
 			val.CopyTo(v);
@@ -92,7 +92,7 @@ int CScriptBind_GameToken::SetToken(IFunctionHandler* pH)
 		}
 		break;
 
-	case ANY_TVECTOR:
+	case EScriptAnyType::Vector:
 		{
 			Vec3 v;
 			val.CopyTo(v);
@@ -101,7 +101,7 @@ int CScriptBind_GameToken::SetToken(IFunctionHandler* pH)
 			data.SetValueWithConversion(v);
 		}
 
-	case ANY_TTABLE:
+	case EScriptAnyType::Table:
 		{
 			Vec3 v;
 			val.CopyFromTableTo(v);
@@ -111,7 +111,7 @@ int CScriptBind_GameToken::SetToken(IFunctionHandler* pH)
 		}
 		break;
 
-	case ANY_THANDLE:
+	case EScriptAnyType::Handle:
 		{
 			ScriptHandle handle;
 			val.CopyTo(handle);
@@ -123,7 +123,7 @@ int CScriptBind_GameToken::SetToken(IFunctionHandler* pH)
 		break;
 
 	default:
-		GameWarning("[GameToken.SetToken(%s)] Unsupported type '%s']", szTokenName, ScriptAnyTypeToString(val.type));
+		GameWarning("[GameToken.SetToken(%s)] Unsupported type '%s']", szTokenName, ScriptAnyTypeToString(val.GetType()));
 		return pH->EndFunction();
 	}
 

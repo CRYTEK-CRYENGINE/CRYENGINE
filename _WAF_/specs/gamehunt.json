@@ -1,0 +1,119 @@
+{
+	"description"                           : "Configuration to build Engine and GameHunt",
+	"valid_platforms"                       : [ "win" ],
+	"valid_configuration"                   : [ "debug", "profile", "performance", "release" ],
+	"visual_studio_name"                    : "Hunt",
+
+	"game_projects"                         : "GameHunt",
+
+	"win_module_extensions"                 : ["brofiler"],
+
+	"modules" :
+	[
+		"CryCommon",
+		"Cry3DEngine",
+		"CryAISystem",
+		"CryAnimation",
+		"CryDescriptor",
+		"CryDynamicResponseSystem",
+		"CryEntitySystem",
+		"CryFont",
+		"CryInput",
+		"CryMovie",
+		"CryNetwork",
+		"CryParticleSystem",
+		"CryPhysics",
+		"CryScriptSystem",
+		"CryAudioSystem",
+		"CryAudioCommon",
+		"CrySystem",
+		"CryScaleformHelper",
+		"CryAction",
+		"CryFlowGraph",
+		"HWScripts",
+		
+		"CryDefaultEntities",
+
+		"zlib",
+		"expat",
+		"lz4",
+		"md5",
+		"lzma",
+		"lzss",
+		"lua",
+		"freetype",
+		"bigdigits",
+		"tomcrypt",
+		"jsmn",
+		"png16",
+		"jpeg",
+		"tiff",
+		"curl",
+		"spirv-cross",
+		
+		"CryCloudClient",
+		"CryDescriptor",
+		"CrySchematyc",		
+		"CrySchematycLegacyCore",
+		"CrySchematycLegacyBaseEnv",
+		"OnlineProtocol",
+		"Telemetry",
+		"UIFramework",
+		
+		"CryUQS_Client",
+		"CryUQS_Shared",
+		"CryUQS_DataSource_XML",
+		"CryUQS_StdLib",
+		"CryUQS_Core",
+		
+		"CryAudioImplWwise",
+		
+		"CryGameHunt"
+	],
+		
+	"win_force_shared_monolithic_build_modules" : 
+	[		
+		"CryRenderD3D11",
+		"CryRenderD3D12",
+		"CryRenderVulkan",
+
+		"CryScaleformHelper"
+	],
+	
+	"durango_force_shared_monolithic_build_modules" : 
+	[
+		"CryScaleformHelper"
+	],
+
+	"win_modules": [
+		"WindowsLauncher",
+		"CryRenderD3D11",
+		"CryRenderD3D12",
+		"CryRenderVulkan",
+
+		"CryLobby",
+
+		"oculus",
+		"flac",
+		"libmikmod",
+		"libogg",
+		"libvorbis",
+		"libvorbisfile",
+		"native_midi",
+		"sdl_mixer",
+		"smpeg",
+		"timidity",
+
+		"CryUserAnalytics"
+	],
+	
+	"defines"                               : ["UQS_SCHEMATYC_SUPPORT=1", "SUPPORT_UNSIGNED_PAKS"],
+		
+	"win_debug_modules"                     : ["DedicatedLauncher", "GameStream"],
+	"win_profile_modules"                   : ["DedicatedLauncher", "GameStream"],
+
+	"win_performance_defines"               : "PURE_CLIENT",
+	"win_performance_monolithic_build"      : "True",
+	"win_release_defines"                   : "PURE_CLIENT",
+	"win_release_monolithic_build"          : "True"
+}

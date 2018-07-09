@@ -1,0 +1,10 @@
+<AssetMetadata version="0" type="Texture" guid="00e05b76-cb1e-3e3f-7b5f-ef37aafb8e95" source="PointsOnSphere4x4.tif">
+ <Files>
+  <File path="PointsOnSphere4x4.dds"/>
+ </Files>
+ <Details>
+  <Detail name="width">4</Detail>
+  <Detail name="height">4</Detail>
+  <Detail name="mipCount">1</Detail>
+ </Details>
+</AssetMetadata>

@@ -1,0 +1,10 @@
+<AssetMetadata version="0" type="Texture" guid="ad8eff52-ee36-d7e2-b84e-18d8d1c7ca9f" source="alienhud_distortionimage.tif">
+ <Files>
+  <File path="alienhud_distortionimage.dds"/>
+ </Files>
+ <Details>
+  <Detail name="width">512</Detail>
+  <Detail name="height">512</Detail>
+  <Detail name="mipCount">1</Detail>
+ </Details>
+</AssetMetadata>

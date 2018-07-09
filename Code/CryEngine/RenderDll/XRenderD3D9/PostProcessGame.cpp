@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 /*=============================================================================
    PostProcessGame : game related post processing
@@ -14,112 +14,30 @@
 #include <Cry3DEngine/I3DEngine.h>
 #include "D3DPostProcess.h"
 
+#pragma warning(push)
 #pragma warning(disable: 4244)
 
-/////////////////////////////////////////////////////////////////////////////////////////////////////
-// Game/Hud specific post-processing
-/////////////////////////////////////////////////////////////////////////////////////////////////////
-
-bool CD3D9Renderer::FX_CustomRenderScene(bool bEnable)
-{
-	if (bEnable)
-	{
-		PostProcessUtils().Log(" +++ Begin custom render scene +++ \n");
-		if ((CRenderer::CV_r_customvisions == 1) || (CRenderer::CV_r_customvisions == 3))
-		{
-#ifdef SUPPORTS_MSAA
-			CTexture::s_ptexSceneNormalsMap->SetUseMultisampledRTV(false);
-#endif
-
-			// TODO: pick another texture, normal's clear value is 0.5/0.5/0.0/0.0
-			FX_ClearTarget(CTexture::s_ptexSceneNormalsMap, Clr_Transparent);
-			FX_PushRenderTarget(0, CTexture::s_ptexSceneNormalsMap, &gcpRendD3D->m_DepthBufferOrig);
-			RT_SetViewport(0, 0, GetWidth(), GetHeight());
-		}
-
-		m_RP.m_PersFlags2 |= RBPF2_CUSTOM_RENDER_PASS;
-	}
-	else
-	{
-		if ((CRenderer::CV_r_customvisions == 1) || (CRenderer::CV_r_customvisions == 3))
-		{
-			FX_PopRenderTarget(0);
-
-#ifdef SUPPORTS_MSAA
-			CTexture::s_ptexSceneNormalsMap->SetUseMultisampledRTV(true);
-			CTexture::s_ptexSceneNormalsMap->SetResolved(true);
-#endif
-		}
-
-		FX_ResetPipe();
-
-		PostProcessUtils().Log(" +++ End custom render scene +++ \n");
-
-		RT_SetViewport(0, 0, GetWidth(), GetHeight());
-
-		m_RP.m_PersFlags2 &= ~RBPF2_CUSTOM_RENDER_PASS;
-	}
-
-	return true;
-}
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////////
 
 void CHudSilhouettes::Render()
 {
-	PROFILE_LABEL_SCOPE("HUD_SILHOUETTES");
-
-	gRenDev->m_cEF.mfRefreshSystemShader("PostEffectsGame", CShaderMan::s_shPostEffectsGame);
-
-	float fBlendParam = clamp_tpl<float>(m_pAmount->GetParam(), 0.0f, 1.0f);
-	float fType = m_pType->GetParam();
-
-	///////////////////////////////////////////////////////////////////////////////////////////////////
-	// Render highlighted geometry
-	{
-		PROFILE_LABEL_SCOPE("HUD_SILHOUETTES_ENTITIES_PASS");
-
-		uint32 nPrevPers2 = gRenDev->m_RP.m_PersFlags2;
-		gRenDev->m_RP.m_PersFlags2 &= ~RBPF2_NOPOSTAA;
-
-		// render to texture all masks
-		gcpRendD3D->FX_ProcessPostRenderLists(FB_CUSTOM_RENDER);
-
-		gRenDev->m_RP.m_PersFlags2 = nPrevPers2;
-	}
-
-	///////////////////////////////////////////////////////////////////////////////////////////////////
-	// Render silhouettes
-	switch (CRenderer::CV_r_customvisions)
-	{
-	case 1:
-		{
-			RenderDeferredSilhouettes(fBlendParam, fType);
-			break;
-		}
-	case 2:
-		{
-			// These are forward rendered so do nothing
-			break;
-		}
-	case 3:
-		{
-			RenderDeferredSilhouettesOptimised(fBlendParam, fType);
-		}
-	}
+	ASSERT_LEGACY_PIPELINE
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////////
 void CHudSilhouettes::RenderDeferredSilhouettes(float fBlendParam, float fType)
 {
+	ASSERT_LEGACY_PIPELINE
+/*
 	gcpRendD3D->RT_SetViewport(PostProcessUtils().m_pScreenRect.left, PostProcessUtils().m_pScreenRect.top, PostProcessUtils().m_pScreenRect.right, PostProcessUtils().m_pScreenRect.bottom);
 	PostProcessUtils().m_pCurDepthSurface = &gcpRendD3D->m_DepthBufferOrig;
 
-	CTexture* pScreen = CTexture::s_ptexSceneNormalsMap;
-	CTexture* pMask = CTexture::s_ptexBlack;
-	CTexture* pMaskBlurred = CTexture::s_ptexBlack;
+	CTexture* pScreen = CRendererResources::s_ptexSceneNormalsMap;
+	CTexture* pMask = CRendererResources::s_ptexBlack;
+	CTexture* pMaskBlurred = CRendererResources::s_ptexBlack;
 
 	// skip processing, nothing was added to mask
 	if ((SRendItem::BatchFlags(EFSLIST_GENERAL) | SRendItem::BatchFlags(EFSLIST_TRANSP)) & FB_CUSTOM_RENDER)
@@ -127,8 +45,8 @@ void CHudSilhouettes::RenderDeferredSilhouettes(float fBlendParam, float fType)
 		// could render directly to frame buffer ? save 1 resolve - no glow though
 		{
 			// store silhouettes/signature temporary render target, so that we can post process this afterwards
-			gcpRendD3D->FX_PushRenderTarget(0, CTexture::s_ptexBackBufferScaled[0], NULL);
-			gcpRendD3D->RT_SetViewport(0, 0, CTexture::s_ptexBackBufferScaled[0]->GetWidth(), CTexture::s_ptexBackBufferScaled[0]->GetHeight());
+			gcpRendD3D->FX_PushRenderTarget(0, CRendererResources::s_ptexBackBufferScaled[0], NULL);
+			gcpRendD3D->RT_SetViewport(0, 0, CRendererResources::s_ptexBackBufferScaled[0]->GetWidth(), CRendererResources::s_ptexBackBufferScaled[0]->GetHeight());
 
 			static CCryNameTSCRC pTech1Name("BinocularView");
 			PostProcessUtils().ShBeginPass(CShaderMan::s_shPostEffectsGame, pTech1Name, FEF_DONTSETTEXTURES | FEF_DONTSETSTATES);
@@ -144,26 +62,26 @@ void CHudSilhouettes::RenderDeferredSilhouettes(float fBlendParam, float fType)
 			Vec4 pParams = Vec4(0, 0, 0, (!fType) ? 1.0f : 0.0f);
 			CShaderMan::s_shPostEffectsGame->FXSetPSFloat(m_psParamName, &pParams, 1);
 
-			PostProcessUtils().SetTexture(CTexture::s_ptexSceneNormalsMap, 0, FILTER_POINT);
-			PostProcessUtils().SetTexture(CTexture::s_ptexZTarget, 1, FILTER_POINT);
-			PostProcessUtils().DrawFullScreenTri(CTexture::s_ptexSceneTarget->GetWidth(), CTexture::s_ptexSceneTarget->GetHeight());
+			PostProcessUtils().SetTexture(CRendererResources::s_ptexSceneNormalsMap, 0, FILTER_POINT);
+			PostProcessUtils().SetTexture(CRendererResources::s_ptexZTarget, 1, FILTER_POINT);
+			PostProcessUtils().DrawFullScreenTri(CRendererResources::s_ptexSceneTarget->GetWidth(), CRendererResources::s_ptexSceneTarget->GetHeight());
 
 			PostProcessUtils().ShEndPass();
 			gcpRendD3D->FX_PopRenderTarget(0);
 
-			pMask = CTexture::s_ptexBackBufferScaled[0];
-			pMaskBlurred = CTexture::s_ptexBackBufferScaled[1];
+			pMask = CRendererResources::s_ptexBackBufferScaled[0];
+			pMaskBlurred = CRendererResources::s_ptexBackBufferScaled[1];
 		}
 
 		////////////////////////////////////////////////////////////////////////////////////////////////
 		// compute glow
 
 		{
-			GetUtils().StretchRect(CTexture::s_ptexBackBufferScaled[0], CTexture::s_ptexBackBufferScaled[1]);
+			GetUtils().StretchRect(CRendererResources::s_ptexBackBufferScaled[0], CRendererResources::s_ptexBackBufferScaled[1]);
 
 			// blur - for glow
-			//			GetUtils().TexBlurGaussian(CTexture::s_ptexBackBufferScaled[0], 1, 1.5f, 2.0f, false);
-			GetUtils().TexBlurIterative(CTexture::s_ptexBackBufferScaled[1], 1, false);
+			//			GetUtils().TexBlurGaussian(CRendererResources::s_ptexBackBufferScaled[0], 1, 1.5f, 2.0f, false);
+			GetUtils().TexBlurIterative(CRendererResources::s_ptexBackBufferScaled[1], 1, false);
 
 			gcpRendD3D->RT_SetViewport(0, 0, gcpRendD3D->GetWidth(), gcpRendD3D->GetHeight());
 		}
@@ -186,19 +104,22 @@ void CHudSilhouettes::RenderDeferredSilhouettes(float fBlendParam, float fType)
 			static CCryNameR pParamName("psParams");
 			CShaderMan::s_shPostEffectsGame->FXSetPSFloat(pParamName, &pParams, 1);
 
-			GetUtils().DrawFullScreenTri(CTexture::s_ptexBackBuffer->GetWidth(), CTexture::s_ptexBackBuffer->GetHeight(), 0, &gcpRendD3D->m_FullResRect);
+			GetUtils().DrawFullScreenTri(CRendererResources::s_ptexBackBuffer->GetWidth(), CRendererResources::s_ptexBackBuffer->GetHeight(), 0, &gcpRendD3D->m_FullResRect);
 
 			GetUtils().ShEndPass();
 		}
 	}
 
 	gcpRendD3D->RT_SetViewport(GetUtils().m_pScreenRect.left, GetUtils().m_pScreenRect.top, GetUtils().m_pScreenRect.right, GetUtils().m_pScreenRect.bottom);
+*/
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////////
 void CHudSilhouettes::RenderDeferredSilhouettesOptimised(float fBlendParam, float fType)
 {
+	ASSERT_LEGACY_PIPELINE
+/*
 	const bool bHasSilhouettesToRender = ((SRendItem::BatchFlags(EFSLIST_GENERAL) |
 	                                       SRendItem::BatchFlags(EFSLIST_TRANSP))
 	                                      & FB_CUSTOM_RENDER) ? true : false;
@@ -206,7 +127,7 @@ void CHudSilhouettes::RenderDeferredSilhouettesOptimised(float fBlendParam, floa
 	if (bHasSilhouettesToRender)
 	{
 		// Down Sample
-		GetUtils().StretchRect(CTexture::s_ptexSceneNormalsMap, CTexture::s_ptexBackBufferScaled[0]);
+		GetUtils().StretchRect(CRendererResources::s_ptexSceneNormalsMap, CRendererResources::s_ptexBackBufferScaled[0]);
 
 		PROFILE_LABEL_SCOPE("HUD_SILHOUETTES_DEFERRED_PASS");
 
@@ -215,7 +136,7 @@ void CHudSilhouettes::RenderDeferredSilhouettesOptimised(float fBlendParam, floa
 
 		gRenDev->FX_SetState(GS_NODEPTHTEST | GS_BLSRC_ONE | GS_BLDST_ONE | GS_NOCOLMASK_A);
 
-		GetUtils().SetTexture(CTexture::s_ptexBackBufferScaled[0], 0, FILTER_LINEAR);
+		GetUtils().SetTexture(CRendererResources::s_ptexBackBufferScaled[0], 0, FILTER_LINEAR);
 
 		// Set vs params
 		const float uvOffset = 1.5f;
@@ -239,10 +160,11 @@ void CHudSilhouettes::RenderDeferredSilhouettesOptimised(float fBlendParam, floa
 
 		CShaderMan::s_shPostEffectsGame->FXSetPSFloat(m_psParamName, &psParams, 1);
 
-		GetUtils().DrawFullScreenTri(CTexture::s_ptexBackBuffer->GetWidth(), CTexture::s_ptexBackBuffer->GetHeight(), 0, &gcpRendD3D->m_FullResRect);
+		GetUtils().DrawFullScreenTri(CRendererResources::s_ptexBackBuffer->GetWidth(), CRendererResources::s_ptexBackBuffer->GetHeight(), 0, &gcpRendD3D->m_FullResRect);
 
 		GetUtils().ShEndPass();
 	}
+*/
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -250,6 +172,8 @@ void CHudSilhouettes::RenderDeferredSilhouettesOptimised(float fBlendParam, floa
 
 void CAlienInterference::Render()
 {
+	ASSERT_LEGACY_PIPELINE
+/*
 	PROFILE_LABEL_SCOPE("ALIEN_INTERFERENCE");
 
 	gRenDev->m_cEF.mfRefreshSystemShader("PostEffectsGame", CShaderMan::s_shPostEffectsGame);
@@ -272,9 +196,10 @@ void CAlienInterference::Render()
 	vParams.z *= 2.0f;
 	CShaderMan::s_shPostEffectsGame->FXSetPSFloat(pParamAlienInterferenceName, &vParams, 1);
 
-	PostProcessUtils().DrawFullScreenTri(CTexture::s_ptexBackBuffer->GetWidth(), CTexture::s_ptexBackBuffer->GetHeight());
+	PostProcessUtils().DrawFullScreenTri(CRendererResources::s_ptexBackBuffer->GetWidth(), CRendererResources::s_ptexBackBuffer->GetHeight());
 
 	PostProcessUtils().ShEndPass();
+*/
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -282,6 +207,8 @@ void CAlienInterference::Render()
 
 void CScreenFrost::Render()
 {
+	ASSERT_LEGACY_PIPELINE
+/*
 	float fAmount = m_pAmount->GetParam();
 
 	if (fAmount <= 0.02f)
@@ -294,7 +221,7 @@ void CScreenFrost::Render()
 
 	float fCenterAmount = m_pCenterAmount->GetParam();
 
-	PostProcessUtils().StretchRect(CTexture::s_ptexBackBuffer, CTexture::s_ptexBackBufferScaled[1]);
+	PostProcessUtils().StretchRect(CRendererResources::s_ptexBackBuffer, CRendererResources::s_ptexBackBufferScaled[1]);
 
 	//////////////////////////////////////////////////////////////////////////////////////////////////
 	// display frost
@@ -309,9 +236,10 @@ void CScreenFrost::Render()
 	PostProcessUtils().ShSetParamVS(pParam0Name, Vec4(1, 1, 1, m_fRandOffset));
 	PostProcessUtils().ShSetParamPS(pParam1Name, Vec4(1, 1, fCenterAmount, fAmount));
 
-	PostProcessUtils().DrawFullScreenTri(CTexture::s_ptexBackBuffer->GetWidth(), CTexture::s_ptexBackBuffer->GetHeight());
+	PostProcessUtils().DrawFullScreenTri(CRendererResources::s_ptexBackBuffer->GetWidth(), CRendererResources::s_ptexBackBuffer->GetHeight());
 
 	PostProcessUtils().ShEndPass();
+*/
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -322,7 +250,7 @@ const char* CRainDrops::GetName() const
 	return "RainDrops";
 }
 
-bool CRainDrops::Preprocess()
+bool CRainDrops::Preprocess(const SRenderViewInfo& viewInfo)
 {
 	bool bQualityCheck = CPostEffectsMgr::CheckPostProcessQuality(eRQ_Medium, eSQ_Medium);
 	if (!bQualityCheck)
@@ -403,10 +331,12 @@ void CRainDrops::SpawnParticle(SRainDrop*& pParticle, int iRTWidth, int iRTHeigh
 
 void CRainDrops::UpdateParticles(int iRTWidth, int iRTHeight)
 {
+	ASSERT_LEGACY_PIPELINE
+/*
 	SRainDropsItor pItor, pItorEnd = m_pDropsLst.end();
 
 	// Store camera parameters
-	Vec3 vz = gcpRendD3D->GetRCamera().vZ;    // front vec
+	Vec3 vz = gRenDev->GetCamera().GetRenderVectorZ();    // front vec
 	float fDot = vz.Dot(Vec3(0, 0, -1.0f));
 	float fGravity = 1.0f - fabs(fDot);
 
@@ -456,10 +386,15 @@ void CRainDrops::UpdateParticles(int iRTWidth, int iRTHeight)
 		m_bFirstFrame = true;
 
 	s_nPrevAliveDrops = m_nAliveDrops;
+	*/
 }
 
 Matrix44 CRainDrops::ComputeCurrentView(int iViewportWidth, int iViewportHeight)
 {
+	ASSERT_LEGACY_PIPELINE
+	return Matrix44();
+
+/*
 	Matrix44 pCurrView(PostProcessUtils().m_pView);
 	Matrix44 pCurrProj(PostProcessUtils().m_pProj);
 
@@ -485,8 +420,8 @@ Matrix44 CRainDrops::ComputeCurrentView(int iViewportWidth, int iViewportHeight)
 	m_pViewProjPrev.Transpose();
 
 	// Compute camera velocity vector
-	Vec3 vz = gcpRendD3D->GetRCamera().vZ;    // front vec
-	Vec3 vMoveDir = gcpRendD3D->GetRCamera().vOrigin - vz;
+	Vec3 vz = gRenDev->GetCamera().GetRenderVectorZ();    // front vec
+	Vec3 vMoveDir = gRenDev->GetCamera().GetPosition() - vz;
 	Vec4 vCurrPos = Vec4(vMoveDir.x, vMoveDir.y, vMoveDir.z, 1.0f);
 
 	Matrix44 pViewProjCurr(PostProcessUtils().m_pViewProj);
@@ -504,11 +439,16 @@ Matrix44 CRainDrops::ComputeCurrentView(int iViewportWidth, int iViewportHeight)
 	m_pVelocityProj = Vec3(pProjCurrPos.x - pProjPrevPos.x, pProjCurrPos.y - pProjPrevPos.y, 0);
 
 	return pCurrView;
+*/
 }
 
 void CRainDrops::Render()
 {
 	PROFILE_LABEL_SCOPE("RAIN_DROPS");
+
+	ASSERT_LEGACY_PIPELINE
+
+		/*
 
 	gRenDev->m_cEF.mfRefreshSystemShader("PostEffectsGame", CShaderMan::s_shPostEffectsGame);
 
@@ -518,9 +458,9 @@ void CRainDrops::Render()
 	Matrix44 pCurrView = ComputeCurrentView(iViewportWidth, iViewportHeight);
 
 	uint16 uPrevDytex = (m_uCurrentDytex + 1) % 2;
-	CTexture*& rpPrevDytex = CTexture::s_ptexRainDropsRT[uPrevDytex];
+	CTexture*& rpPrevDytex = CRendererResources::s_ptexRainDropsRT[uPrevDytex];
 	assert(rpPrevDytex);
-	CTexture*& rpCurrDytex = CTexture::s_ptexRainDropsRT[m_uCurrentDytex];
+	CTexture*& rpCurrDytex = CRendererResources::s_ptexRainDropsRT[m_uCurrentDytex];
 	assert(rpCurrDytex);
 	int iRTWidth = rpCurrDytex->GetWidth();
 	int iRTHeight = rpCurrDytex->GetHeight();
@@ -545,10 +485,13 @@ void CRainDrops::Render()
 	// store previous frame data
 	m_pPrevView = pCurrView;
 	m_bFirstFrame = false;
+	*/
 }
 
 void CRainDrops::DrawRaindrops(int iViewportWidth, int iViewportHeight, int iRTWidth, int iRTHeight)
 {
+	ASSERT_LEGACY_PIPELINE
+		/*
 	PROFILE_LABEL_SCOPE("RAIN_DROPS_RAINDROPS");
 
 	float fScreenW = iRTWidth;
@@ -615,20 +558,23 @@ void CRainDrops::DrawRaindrops(int iViewportWidth, int iViewportHeight, int iRTW
 	gcpRendD3D->Set2DMode(false, 1, 1);
 
 	gRenDev->m_RP.m_FlagsShader_RT = nSaveFlagsShader_RT;
+	*/
 }
 
 void CRainDrops::ApplyExtinction(CTexture*& rptexPrevRT, int iViewportWidth, int iViewportHeight, int iRTWidth, int iRTHeight)
 {
+	ASSERT_LEGACY_PIPELINE
+		/*
 	//restore black texture to backbuffer for cleaning
-	PostProcessUtils().CopyTextureToScreen(CTexture::s_ptexBlack);
+	PostProcessUtils().CopyTextureToScreen(CRendererResources::s_ptexBlack);
 
 	PROFILE_LABEL_SCOPE("RAIN_DROPS_EXTINCTION");
 	if (!m_bFirstFrame)
 	{
 		// Store camera parameters
-		Vec3 vx = gcpRendD3D->GetRCamera().vX;    // up vec
-		Vec3 vy = gcpRendD3D->GetRCamera().vY;    // right vec
-		Vec3 vz = gcpRendD3D->GetRCamera().vZ;    // front vec
+		Vec3 vx = gRenDev->GetCamera().GetRenderVectorX();    // up vec
+		Vec3 vy = gRenDev->GetCamera().GetRenderVectorY();    // right vec
+		Vec3 vz = gRenDev->GetCamera().GetRenderVectorZ();    // front vec
 		float fDot = vz.Dot(Vec3(0, 0, -1.0f));
 		float fGravity = (1.0f - fabs(fDot));
 		float fFrameScale = 4.0f * gEnv->pTimer->GetFrameTime();
@@ -641,7 +587,7 @@ void CRainDrops::ApplyExtinction(CTexture*& rptexPrevRT, int iViewportWidth, int
 		static CCryNameTSCRC pTech1Name("RainDropsExtinction");
 		PostProcessUtils().ShBeginPass(CShaderMan::s_shPostEffectsGame, pTech1Name, FEF_DONTSETSTATES);   //FEF_DONTSETTEXTURES |
 
-		gcpRendD3D->FX_SetState(GS_NODEPTHTEST);
+		//gcpRendD3D->FX_SetState(GS_NODEPTHTEST);
 
 		static CCryNameR pParam1Name("vRainNormalMapParams");
 		PostProcessUtils().ShSetParamVS(pParam1Name, vRainNormalMapParams);
@@ -656,11 +602,15 @@ void CRainDrops::ApplyExtinction(CTexture*& rptexPrevRT, int iViewportWidth, int
 
 		PostProcessUtils().ShEndPass();
 	}
+	*/
 }
 
 void CRainDrops::DrawFinal(CTexture*& rptexCurrRT)
 {
 	PROFILE_LABEL_SCOPE("RAIN_DROPS_FINAL");
+
+	ASSERT_LEGACY_PIPELINE
+	/*
 
 	//clear and set render flags
 	uint64 nSaveFlagsShader_RT = gRenDev->m_RP.m_FlagsShader_RT;
@@ -670,33 +620,33 @@ void CRainDrops::DrawFinal(CTexture*& rptexCurrRT)
 	static CCryNameTSCRC pTechName("RainDropsFinal");
 	PostProcessUtils().ShBeginPass(CShaderMan::s_shPostEffectsGame, pTechName, FEF_DONTSETTEXTURES | FEF_DONTSETSTATES);
 
-	gcpRendD3D->FX_SetState(GS_NODEPTHTEST);
+	//gcpRendD3D->FX_SetState(GS_NODEPTHTEST);
 
 	static CCryNameR pParam0Name("vRainNormalMapParams");
 	PostProcessUtils().ShSetParamVS(pParam0Name, Vec4(1.0f, 1.0f, 1.0f, -1.0f));
 	static CCryNameR pParam1Name("vRainParams");
 	PostProcessUtils().ShSetParamPS(pParam1Name, Vec4(1.0f, 1.0f, 1.0f, 1.0f));
 
-	PostProcessUtils().SetTexture(CTexture::s_ptexBackBuffer, 0, FILTER_LINEAR);
-	PostProcessUtils().SetTexture(rptexCurrRT, 1, FILTER_LINEAR, eSamplerAddressMode_Mirror);
+	PostProcessUtils().SetTexture(rptexCurrRT, 0, FILTER_LINEAR, eSamplerAddressMode_Mirror);
+	PostProcessUtils().SetTexture(CRendererResources::s_ptexBackBuffer, 1, FILTER_LINEAR);
 
-	PostProcessUtils().DrawFullScreenTri(CTexture::s_ptexBackBuffer->GetWidth(), CTexture::s_ptexBackBuffer->GetHeight());
+	PostProcessUtils().DrawFullScreenTri(CRendererResources::s_ptexBackBuffer->GetWidth(), CRendererResources::s_ptexBackBuffer->GetHeight());
 
 	PostProcessUtils().ShEndPass();
 
 	//reset render flags
 	gRenDev->m_RP.m_FlagsShader_RT = nSaveFlagsShader_RT;
+	*/
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////////
 
-bool CFlashBang::Preprocess()
+bool CFlashBang::Preprocess(const SRenderViewInfo& viewInfo)
 {
 
 	float fActive = m_pActive->GetParam();
-	if (fActive || m_fSpawnTime)
-	{
+	if (fActive || m_fSpawnTime)	{
 		if (fActive)
 			m_fSpawnTime = 0.0f;
 
@@ -710,6 +660,8 @@ bool CFlashBang::Preprocess()
 
 void CFlashBang::Render()
 {
+	ASSERT_LEGACY_PIPELINE
+/*
 	float fTimeDuration = m_pTime->GetParam();
 	float fDifractionAmount = m_pDifractionAmount->GetParam();
 	float fBlindTime = m_pBlindAmount->GetParam();
@@ -721,12 +673,12 @@ void CFlashBang::Render()
 		// Create temporary ghost image and capture screen
 		SAFE_DELETE(m_pGhostImage);
 
-		m_pGhostImage = new SDynTexture(CTexture::s_ptexBackBuffer->GetWidth() >> 1, CTexture::s_ptexBackBuffer->GetHeight() >> 1, eTF_R8G8B8A8, eTT_2D, FT_STATE_CLAMP, "GhostImageTempRT");
-		m_pGhostImage->Update(CTexture::s_ptexBackBuffer->GetWidth() >> 1, CTexture::s_ptexBackBuffer->GetHeight() >> 1);
+		m_pGhostImage = new SDynTexture(CRendererResources::s_ptexBackBuffer->GetWidth() >> 1, CRendererResources::s_ptexBackBuffer->GetHeight() >> 1, eTF_R8G8B8A8, eTT_2D, FT_STATE_CLAMP, "GhostImageTempRT");
+		m_pGhostImage->Update(CRendererResources::s_ptexBackBuffer->GetWidth() >> 1, CRendererResources::s_ptexBackBuffer->GetHeight() >> 1);
 
 		if (m_pGhostImage && m_pGhostImage->m_pTexture)
 		{
-			PostProcessUtils().StretchRect(CTexture::s_ptexBackBuffer, m_pGhostImage->m_pTexture);
+			PostProcessUtils().StretchRect(CRendererResources::s_ptexBackBuffer, m_pGhostImage->m_pTexture);
 		}
 	}
 
@@ -747,7 +699,7 @@ void CFlashBang::Render()
 	// make sure to update dynamic texture if required
 	if (m_pGhostImage && !m_pGhostImage->m_pTexture)
 	{
-		m_pGhostImage->Update(CTexture::s_ptexBackBuffer->GetWidth() >> 1, CTexture::s_ptexBackBuffer->GetHeight() >> 1);
+		m_pGhostImage->Update(CRendererResources::s_ptexBackBuffer->GetWidth() >> 1, CRendererResources::s_ptexBackBuffer->GetHeight() >> 1);
 	}
 
 	if (!m_pGhostImage || !m_pGhostImage->m_pTexture)
@@ -770,12 +722,13 @@ void CFlashBang::Render()
 	static CCryNameR pParamName("vFlashBangParams");
 	CShaderMan::s_shPostEffectsGame->FXSetPSFloat(pParamName, &vParams, 1);
 
-	PostProcessUtils().SetTexture(CTexture::s_ptexBackBuffer, 0, FILTER_POINT);
+	PostProcessUtils().SetTexture(CRendererResources::s_ptexBackBuffer, 0, FILTER_POINT);
 	PostProcessUtils().SetTexture(m_pGhostImage->m_pTexture, 1, FILTER_LINEAR);
 
-	PostProcessUtils().DrawFullScreenTri(CTexture::s_ptexBackBuffer->GetWidth(), CTexture::s_ptexBackBuffer->GetHeight());
+	PostProcessUtils().DrawFullScreenTri(CRendererResources::s_ptexBackBuffer->GetWidth(), CRendererResources::s_ptexBackBuffer->GetHeight());
 
 	PostProcessUtils().ShEndPass();
+*/
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -783,6 +736,8 @@ void CFlashBang::Render()
 
 void CFilterKillCamera::Render()
 {
+	ASSERT_LEGACY_PIPELINE
+/*
 	PROFILE_LABEL_SCOPE("KILL_CAMERA");
 
 	gRenDev->m_cEF.mfRefreshSystemShader("PostEffectsGame", CShaderMan::s_shPostEffectsGame);
@@ -863,9 +818,10 @@ void CFilterKillCamera::Render()
 
 	CShaderMan::s_shPostEffects->FXSetPSFloat(m_paramName, pParams, PARAM_COUNT);
 
-	PostProcessUtils().DrawFullScreenTri(CTexture::s_ptexBackBuffer->GetWidth(), CTexture::s_ptexBackBuffer->GetHeight());
+	PostProcessUtils().DrawFullScreenTri(CRendererResources::s_ptexBackBuffer->GetWidth(), CRendererResources::s_ptexBackBuffer->GetHeight());
 
 	PostProcessUtils().ShEndPass();
+*/
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -879,9 +835,11 @@ enum ENanoGlassDebugView
 
 void CNanoGlass::Render()
 {
+	ASSERT_LEGACY_PIPELINE
+/*
 	// Update HUD Flash here so we can create a mask from it
-	C3DHud* pHud3D = (C3DHud*) PostEffectMgr()->GetEffect(ePFX_3DHUD);
-	const bool bIsHudRendering = pHud3D->Preprocess();
+	C3DHud* pHud3D = (C3DHud*) PostEffectMgr()->GetEffect(EPostEffectID::HUD3D);
+	const bool bIsHudRendering = pHud3D->Preprocess(const SRenderViewInfo& viewInfo);
 	if(bIsHudRendering && gcpRendD3D->m_nGraphicsPipeline == 0)
 	{
 		pHud3D->FlashUpdateRT();
@@ -890,7 +848,7 @@ void CNanoGlass::Render()
 	PROFILE_LABEL_SCOPE("NANO_GLASS_FILTER");
 
 	// Clear sample flags
-	gcpRendD3D->m_RP.m_FlagsShader_RT &= ~(g_HWSR_MaskBit[HWSR_SAMPLE0] |
+	gRenDev->m_RP.m_FlagsShader_RT &= ~(g_HWSR_MaskBit[HWSR_SAMPLE0] |
 	                                       g_HWSR_MaskBit[HWSR_SAMPLE1] |
 	                                       g_HWSR_MaskBit[HWSR_SAMPLE2] |
 	                                       g_HWSR_MaskBit[HWSR_SAMPLE4] |
@@ -899,8 +857,8 @@ void CNanoGlass::Render()
 
 	// Update RT pointers
 	const int HUD_MASK_INDEX = 1;
-	m_pHudMask = CTexture::s_ptexBackBufferScaled[HUD_MASK_INDEX];
-	m_pHudMaskTemp = CTexture::s_ptexBackBufferScaledTemp[HUD_MASK_INDEX];
+	m_pHudMask = CRendererResources::s_ptexBackBufferScaled[HUD_MASK_INDEX];
+	m_pHudMaskTemp = CRendererResources::s_ptexBackBufferScaledTemp[HUD_MASK_INDEX];
 
 	DownSampleBackBuffer();
 
@@ -919,10 +877,13 @@ void CNanoGlass::Render()
 		RenderPass(bDebugPass, bIsHudRendering);
 	}
 #endif
+*/
 }
 
 void CNanoGlass::DownSampleBackBuffer()
 {
+	ASSERT_LEGACY_PIPELINE
+/*
 	// Only need downsample when using back buffer as a brightness scalar
 	const float backBufferBrightessScalar = m_pFilter->GetParamVec4().x;
 	if (backBufferBrightessScalar > 0.0f)
@@ -934,16 +895,19 @@ void CNanoGlass::DownSampleBackBuffer()
 		const bool bDecodeSrcRGBK = false;
 		const bool bEncodeDstRGBK = false;
 		const bool bBigDownSample = true;
-		GetUtils().StretchRect(CTexture::s_ptexBackBuffer, CTexture::s_ptexBackBufferScaled[2], bClearAlpha, bDecodeSrcRGBK, bEncodeDstRGBK, bBigDownSample);
+		GetUtils().StretchRect(CRendererResources::s_ptexBackBuffer, CRendererResources::s_ptexBackBufferScaled[2], bClearAlpha, bDecodeSrcRGBK, bEncodeDstRGBK, bBigDownSample);
 	}
+*/
 }
 
-void CNanoGlass::CreateHudMask(C3DHud* pHud3D)
+void CNanoGlass::CreateHudMask(CHud3D* pHud3D)
 {
+	ASSERT_LEGACY_PIPELINE
+/*
 	PROFILE_LABEL_SCOPE("CREATE_HUD_MASK");
 
 	// Render HUD
-	gcpRendD3D->m_RP.m_FlagsShader_RT |= g_HWSR_MaskBit[HWSR_SAMPLE1];
+	gRenDev->m_RP.m_FlagsShader_RT |= g_HWSR_MaskBit[HWSR_SAMPLE1];
 
 	CD3DStereoRenderer& pS3DRend = gcpRendD3D->GetS3DRend();
 	bool bPostProcStereo = pS3DRend.IsPostStereoEnabled();
@@ -969,17 +933,21 @@ void CNanoGlass::CreateHudMask(C3DHud* pHud3D)
 		pHud3D->UpdateBloomRT(m_pHudMask, NULL);
 	}
 
-	gcpRendD3D->m_RP.m_FlagsShader_RT &= ~g_HWSR_MaskBit[HWSR_SAMPLE1];
+	gRenDev->m_RP.m_FlagsShader_RT &= ~g_HWSR_MaskBit[HWSR_SAMPLE1];
 
 	// Blur
 	const int blurIterationCount = 2;
 
 	const bool bDilate = false;
 	GetUtils().TexBlurIterative(m_pHudMask, blurIterationCount, bDilate, m_pHudMaskTemp);
+*/
 }
 
 void CNanoGlass::RenderPass(bool bDebugPass, bool bIsHudRendering)
 {
+	ASSERT_LEGACY_PIPELINE
+/*
+
 	// Set PS default params
 	const int PARAM_COUNT = 7;
 	Vec4 psParams[PARAM_COUNT];
@@ -1077,7 +1045,7 @@ void CNanoGlass::RenderPass(bool bDebugPass, bool bIsHudRendering)
 	gRenDev->m_cEF.mfRefreshSystemShader("PostEffectsGame", CShaderMan::s_shPostEffectsGame);
 	CShaderMan::s_shPostEffects->FXSetPSFloat(m_paramName, psParams, PARAM_COUNT);
 
-	const uint32 nThreadID = gcpRendD3D->m_RP.m_nProcessThreadID;
+	const uint32 nThreadID = gRenDev->GetRenderThreadID();
 	SShaderTechnique* pShaderTech = CShaderMan::s_shPostEffectsGame->mfFindTechnique(m_shaderTechName);
 	SRenderData& pRenderData = m_pRenderData[nThreadID];
 
@@ -1098,33 +1066,33 @@ void CNanoGlass::RenderPass(bool bDebugPass, bool bIsHudRendering)
 		const bool bAnimPlaying = bIntroPlaying || bOutroPlaying;
 		if (bAnimPlaying)
 		{
-			gcpRendD3D->m_RP.m_FlagsShader_RT |= g_HWSR_MaskBit[HWSR_SAMPLE0];
+			gRenDev->m_RP.m_FlagsShader_RT |= g_HWSR_MaskBit[HWSR_SAMPLE0];
 		}
 
 		// Set overcharge strength
 		if (overChargeStrength > 0.0f)
 		{
-			gcpRendD3D->m_RP.m_FlagsShader_RT |= g_HWSR_MaskBit[HWSR_SAMPLE1];
+			gRenDev->m_RP.m_FlagsShader_RT |= g_HWSR_MaskBit[HWSR_SAMPLE1];
 		}
 
 		// Set movement wave flag
 		if (psParams[2].y > 0.0f)
 		{
-			gcpRendD3D->m_RP.m_FlagsShader_RT |= g_HWSR_MaskBit[HWSR_SAMPLE2];
+			gRenDev->m_RP.m_FlagsShader_RT |= g_HWSR_MaskBit[HWSR_SAMPLE2];
 		}
 
 		// Set back buffer brightness scalar flag
 		const bool bUsingBackBuffer = (backBufferBrightessScalar > 0.0f) ? true : false;
 		if (bUsingBackBuffer)
 		{
-			gcpRendD3D->m_RP.m_FlagsShader_RT |= g_HWSR_MaskBit[HWSR_SAMPLE4];
+			gRenDev->m_RP.m_FlagsShader_RT |= g_HWSR_MaskBit[HWSR_SAMPLE4];
 		}
 
 #ifndef _RELEASE
 		// Turn on debug view in shader
 		if (bDebugPass && CRenderer::CV_r_PostProcessNanoGlassDebugView)
 		{
-			gcpRendD3D->m_RP.m_FlagsShader_RT |= g_HWSR_MaskBit[HWSR_DEBUG1];
+			gRenDev->m_RP.m_FlagsShader_RT |= g_HWSR_MaskBit[HWSR_DEBUG1];
 			if (CRenderer::CV_r_PostProcessNanoGlassDebugView == eNANO_GLASS_DEBUG_VIEW_WireFrame)
 			{
 				nRenderState |= GS_WIREFRAME;
@@ -1136,7 +1104,7 @@ void CNanoGlass::RenderPass(bool bDebugPass, bool bIsHudRendering)
 
 		// Set view proj matrix
 		Matrix44A mObjCurr, mViewProj;
-		C3DHud* p3DHUD = reinterpret_cast<C3DHud*>(PostEffectMgr()->GetEffect(ePFX_3DHUD));
+		C3DHud* p3DHUD = reinterpret_cast<C3DHud*>(PostEffectMgr()->GetEffect(EPostEffectID::HUD3D));
 		float fHUDFov = 55.0f;  // Safe default
 		if (p3DHUD)
 		{
@@ -1148,7 +1116,7 @@ void CNanoGlass::RenderPass(bool bDebugPass, bool bIsHudRendering)
 		}
 
 		// Precalculate the pixel aspect ratio for the nano glass on PC so as to better fit it to the screen
-		float fBackBufferRatio = (float)CTexture::s_ptexBackBuffer->GetWidth() / (float)CTexture::s_ptexBackBuffer->GetHeight();
+		float fBackBufferRatio = (float)CRendererResources::s_ptexBackBuffer->GetWidth() / (float)CRendererResources::s_ptexBackBuffer->GetHeight();
 		float f16_9 = 16.0f / 9.0f;
 		float fInvPAR = f16_9 / fBackBufferRatio;
 
@@ -1182,7 +1150,7 @@ void CNanoGlass::RenderPass(bool bDebugPass, bool bIsHudRendering)
 		CShaderMan::s_shPostEffects->FXSetPSFloat(m_paramName, psParams, PARAM_COUNT);
 
 		// Set textures
-		CTexture* pHudMaskTex = bIsHudRendering ? m_pHudMask : CTexture::s_ptexBlackAlpha;
+		CTexture* pHudMaskTex = bIsHudRendering ? m_pHudMask : CRendererResources::s_ptexBlackAlpha;
 
 		GetUtils().SetTexture(m_pHexOutline, 0, FILTER_LINEAR, eSamplerAddressMode_Mirror);
 		GetUtils().SetTexture(pHudMaskTex, 1, FILTER_LINEAR, eSamplerAddressMode_Clamp, true);
@@ -1190,7 +1158,7 @@ void CNanoGlass::RenderPass(bool bDebugPass, bool bIsHudRendering)
 
 		if (bUsingBackBuffer)
 		{
-			GetUtils().SetTexture(CTexture::s_ptexBackBufferScaled[2], 3, FILTER_LINEAR, eSamplerAddressMode_Clamp);
+			GetUtils().SetTexture(CRendererResources::s_ptexBackBufferScaled[2], 3, FILTER_LINEAR, eSamplerAddressMode_Clamp);
 		}
 
 		if (bAnimPlaying)
@@ -1210,17 +1178,18 @@ void CNanoGlass::RenderPass(bool bDebugPass, bool bIsHudRendering)
 		gcpRendD3D->m_RP.m_pRE = const_cast<CRenderElement*>(pRenderData.pRenderElement);
 		if (gcpRendD3D->FX_CommitStreams(&pShaderTech->m_Passes[0], true))
 		{
-			gcpRendD3D->m_RP.m_FirstVertex = pRenderMesh->m_nFirstVertId;
-			gcpRendD3D->m_RP.m_FirstIndex = pRenderMesh->m_nFirstIndexId;
-			gcpRendD3D->m_RP.m_RendNumIndices = pRenderMesh->m_nNumIndices;
-			gcpRendD3D->m_RP.m_RendNumVerts = pRenderMesh->m_nNumVerts;
-			gcpRendD3D->m_RP.m_pRE->mfDraw(CShaderMan::s_shPostEffectsGame, &pShaderTech->m_Passes[0]);
+			gRenDev->m_RP.m_FirstVertex = pRenderMesh->m_nFirstVertId;
+			gRenDev->m_RP.m_FirstIndex = pRenderMesh->m_nFirstIndexId;
+			gRenDev->m_RP.m_RendNumIndices = pRenderMesh->m_nNumIndices;
+			gRenDev->m_RP.m_RendNumVerts = pRenderMesh->m_nNumVerts;
+			gRenDev->m_RP.m_pRE->mfDraw(CShaderMan::s_shPostEffectsGame, &pShaderTech->m_Passes[0]);
 		}
 
 		gcpRendD3D->EF_Scissor(false, 0, 0, 0, 0);
 
 		GetUtils().ShEndPass();
 	}
+*/
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1228,6 +1197,8 @@ void CNanoGlass::RenderPass(bool bDebugPass, bool bIsHudRendering)
 
 void CScreenBlood::Render()
 {
+	ASSERT_LEGACY_PIPELINE
+/*
 	PROFILE_LABEL_SCOPE("SCREEN BLOOD");
 
 	static CCryNameTSCRC pTechName("ScreenBlood");
@@ -1250,12 +1221,23 @@ void CScreenBlood::Render()
 	Vec4 pParams = Vec4(overscanBorders.x, overscanBorders.y, alpha, borderScale);
 	static CCryNameR pParamName("psParams");
 	CShaderMan::s_shPostEffects->FXSetPSFloat(pParamName, &pParams, 1);
-	GetUtils().DrawFullScreenTri(CTexture::s_ptexBackBuffer->GetWidth(), CTexture::s_ptexBackBuffer->GetHeight());
+	GetUtils().DrawFullScreenTri(CRendererResources::s_ptexBackBuffer->GetWidth(), CRendererResources::s_ptexBackBuffer->GetHeight());
 
 	GetUtils().ShEndPass();
 
 	//m_nRenderFlags = PSP_UPDATE_BACKBUFFER;
+*/
+}
+
+/////////////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void CScreenFader::Render()
+{
+	ASSERT_LEGACY_PIPELINE
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////////
+
+#pragma warning(pop)

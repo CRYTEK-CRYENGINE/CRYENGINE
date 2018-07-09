@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -56,7 +56,7 @@ public:
 		_In_opt_ IDXGIOutput* pTarget) FINALGFX
 	{
 		DX12_FUNC_LOG
-		return m_pDX12SwapChain->GetDXGISwapChain()->SetFullscreenState(Fullscreen, (pTarget ? reinterpret_cast<CCryDX12GIOutput*>(pTarget)->GetDXGIOutput() : nullptr));
+		return m_pDX12SwapChain->SetFullscreenState(Fullscreen, pTarget ? reinterpret_cast<CCryDX12GIOutput*>(pTarget)->GetDXGIOutput() : nullptr);
 	}
 
 	VIRTUALGFX HRESULT STDMETHODCALLTYPE GetFullscreenState(
@@ -83,6 +83,7 @@ public:
 		DX12_FUNC_LOG
 		return m_pDX12SwapChain->ResizeTarget(pNewTargetParameters);
 	}
+
 
 	VIRTUALGFX HRESULT STDMETHODCALLTYPE GetContainingOutput(
 		_Out_ IDXGIOutput** ppOutput) FINALGFX { abort(); return S_OK; }

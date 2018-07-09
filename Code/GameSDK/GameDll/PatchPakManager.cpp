@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 /*************************************************************************
    -------------------------------------------------------------------------
@@ -171,7 +171,10 @@ CPatchPakManager::~CPatchPakManager()
 		ic->UnregisterVariable(m_patchPakDebug->GetName());
 	}
 
-	GetISystem()->GetPlatformOS()->RemoveListener(this);
+	if (IPlatformOS* pPlatformOS = GetISystem()->GetPlatformOS())
+	{
+		pPlatformOS->RemoveListener(this);
+	}
 }
 
 void CPatchPakManager::Update(float frameTime)

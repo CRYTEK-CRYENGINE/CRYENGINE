@@ -1,9 +1,10 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "stdafx.h"
 #include "ATLEntities.h"
 #include <CryAudio/IAudioSystem.h>
 #include <CrySystem/ISystem.h> // needed for gEnv in Release builds
+#include <Logger.h>
 #include <fmod_common.h>
 #include <fmod.hpp>
 
@@ -128,7 +129,7 @@ bool CStandaloneFile::IsReady()
 
 		if (state == FMOD_OPENSTATE_ERROR)
 		{
-			g_implLogger.Log(ELogType::Error, "Failed to load audio file %s", m_fileName.c_str());
+			Cry::Audio::Log(ELogType::Error, "Failed to load audio file %s", m_fileName.c_str());
 		}
 	}
 
@@ -163,8 +164,7 @@ void CStandaloneFile::Stop()
 {
 	if (m_pChannel != nullptr)
 	{
-		FMOD_RESULT fmodResult = FMOD_ERR_UNINITIALIZED;
-		fmodResult = m_pChannel->stop();
+		FMOD_RESULT const fmodResult = m_pChannel->stop();
 		ASSERT_FMOD_OK;
 	}
 }
@@ -172,10 +172,8 @@ void CStandaloneFile::Stop()
 //////////////////////////////////////////////////////////////////////////
 void CProgrammerSoundFile::StartLoading()
 {
-	FMOD_RESULT fmodResult = FMOD_ERR_UNINITIALIZED;
-
 	FMOD::Studio::EventDescription* pEventDescription = nullptr;
-	fmodResult = CObjectBase::s_pSystem->getEventByID(&m_eventGuid, &pEventDescription);
+	FMOD_RESULT fmodResult = CObjectBase::s_pSystem->getEventByID(&m_eventGuid, &pEventDescription);
 	ASSERT_FMOD_OK;
 
 	fmodResult = pEventDescription->createInstance(&m_pEventInstance);
@@ -197,8 +195,7 @@ bool CProgrammerSoundFile::IsReady()
 //////////////////////////////////////////////////////////////////////////
 void CProgrammerSoundFile::Play(FMOD_3D_ATTRIBUTES const& attributes)
 {
-	FMOD_RESULT fmodResult = FMOD_ERR_UNINITIALIZED;
-	fmodResult = m_pEventInstance->start();
+	FMOD_RESULT fmodResult = m_pEventInstance->start();
 	ASSERT_FMOD_OK;
 
 	fmodResult = m_pEventInstance->set3DAttributes(&attributes);
@@ -209,16 +206,14 @@ void CProgrammerSoundFile::Play(FMOD_3D_ATTRIBUTES const& attributes)
 //////////////////////////////////////////////////////////////////////////
 void CProgrammerSoundFile::Set3DAttributes(FMOD_3D_ATTRIBUTES const& attributes)
 {
-	FMOD_RESULT fmodResult = FMOD_ERR_UNINITIALIZED;
-	fmodResult = m_pEventInstance->set3DAttributes(&attributes);
+	FMOD_RESULT fmodResult = m_pEventInstance->set3DAttributes(&attributes);
 	ASSERT_FMOD_OK;
 }
 
 //////////////////////////////////////////////////////////////////////////
 void CProgrammerSoundFile::Stop()
 {
-	FMOD_RESULT fmodResult = FMOD_ERR_UNINITIALIZED;
-	fmodResult = m_pEventInstance->stop(FMOD_STUDIO_STOP_IMMEDIATE);
+	FMOD_RESULT fmodResult = m_pEventInstance->stop(FMOD_STUDIO_STOP_IMMEDIATE);
 	ASSERT_FMOD_OK;
 }
 } // namespace Fmod

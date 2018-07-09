@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "CCryDX12Device.hpp"
@@ -54,7 +54,7 @@ CCryDX12Device::CCryDX12Device(NCryDX12::CDevice* device)
 		const UINT numNodes = m_numNodes = m_pDevice->GetNodeCount();
 		const UINT allMask = m_allMask = (1UL << numNodes) - 1UL;
 		const UINT crtMask = m_crtMask = allMask;
-		const UINT visMask = m_visMask = 0U;
+		const UINT visMask = m_visMask = allMask;
 		const UINT shrMask = m_shrMask = 1U;
 
 		m_pMainContext = CCryDX12DeviceContext::Create(this, allMask, false);
@@ -69,10 +69,10 @@ CCryDX12Device::CCryDX12Device(NCryDX12::CDevice* device)
 		const UINT numNodes = m_numNodes = 1U;
 		const UINT allMask = m_allMask = (1UL << numNodes) - 1UL;
 		const UINT crtMask = m_crtMask = 1U;
-		const UINT visMask = m_visMask = 0U;
+		const UINT visMask = m_visMask = 1U;
 		const UINT shrMask = m_shrMask = 1U;
 
-		m_pMainContext = CCryDX12DeviceContext::Create(this, 0, false);
+		m_pMainContext = CCryDX12DeviceContext::Create(this, allMask, false);
 	}
 	//report the node count used
 	gRenDev->m_adapterInfo.nNodeCount = m_numNodes;

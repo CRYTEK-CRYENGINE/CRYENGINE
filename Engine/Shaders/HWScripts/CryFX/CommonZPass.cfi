@@ -1,5 +1,4 @@
-// CRYENGINE Source Code File
-// Copyright 2001-2015 Crytek GmbH. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 
 // Todo for refactor phases:
@@ -26,7 +25,7 @@ vert2fragZ Common_ZPassVS(app2vertGBuffer IN_common)
 	vertPassPos.Position.xyz += SilPomDispl * -HeightBias;
 #endif
 
-  float4 HPosition = Pos_VS_General(g_VS_ViewProjZeroMatr, vertPassPos);
+	float4 HPosition = Pos_VS_General(g_VS_ViewProjZeroMatr, vertPassPos);
 
 #if %_RT_MOTION_BLUR && !%_RT_ALPHABLEND
 	vertPassPosPrev.PositionCurr = vertPassPos.Position;
@@ -44,7 +43,7 @@ vert2fragZ Common_ZPassVS(app2vertGBuffer IN_common)
 #endif
 
 #if !%_RT_OBJ_IDENTITY
-  vPos += g_VS_WorldViewPos.xyz;
+	vPos += g_VS_WorldViewPos.xyz;
 #endif
 	
 	float3 worldTangentS = mul((const float3x3)vertPassPos.InstMatrix, vertPassPos.ObjToTangentSpace[0]);
@@ -71,24 +70,19 @@ vert2fragZ Common_ZPassVS(app2vertGBuffer IN_common)
 	#endif
 
 	float fAlphaTest = 0.0f;
-	float fDissolve = 0.0f;
-	#if %_RT_ALPHATEST || %_RT_DISSOLVE
-		#if %_RT_DISSOLVE
-			fAlphaTest = Get_MaterialAlphaTest();
-	fDissolve = Get_SPI_Dissolve();
-		#else
-	fAlphaTest = Get_MaterialAlphaTest();
-		#endif
-		OUT.baseTC.wz = float2(fAlphaTest,fDissolve);
+	#if %_RT_ALPHATEST	
+		fAlphaTest = Get_MaterialAlphaTest();
 		#if %LEAVES
-			OUT.baseTC.w = ParallelOpacityFalloff(vertPassPos.WorldPos.xyz, worldTangentN.xyz, CapOpacityFalloff, fAlphaTest);
+			fAlphaTest = ParallelOpacityFalloff(vertPassPos.WorldPos.xyz, worldTangentN.xyz, CapOpacityFalloff, fAlphaTest);
 		#endif
 	#endif
+	
+	OUT.vNormalWS.w = fAlphaTest;
 
 	////////////////////////////////////////////////////////////////////////////////////////////////
 	// Output tangents
 
-	OUT.vNormalWS = float4(worldTangentN.xyz, 0); // w= dissolve out sign
+	OUT.vNormalWS.xyz = worldTangentN;
 
 	#if !%GRASS
 		OUT.vTangent = float4(worldTangentS, vertPassPos.Tangent.w); 
@@ -199,20 +193,18 @@ void ApplyDirtAndBlendLayer(vert2fragZ IN, half blendFac, inout half3 diffCol, i
 
 void ApplyVegetationTerrainColor(vert2fragZ IN, inout MaterialAttribsCommon attribs)
 {
-	#if %TEMP_VEGETATION
-		#if %_RT_BLEND_WITH_TERRAIN_COLOR
-			const float3 TERRAIN_BASE_SPEC_COLOR = 0.001f;
-			const float TERRAIN_BASE_SMOOTHNESS = 0.1f;
+	#if (%TEMP_VEGETATION && %_RT_BLEND_WITH_TERRAIN_COLOR)
+		const float3 TERRAIN_BASE_SPEC_COLOR = 0.001f;
+		const float TERRAIN_BASE_SMOOTHNESS = 0.1f;
 
-			half4 terrainCol = GetTerrainTex(terrainBaseTex, IN.terrainParams0.xy);
-			float3 terrainNor = float3(0,0,1);//GetTerrainNormal(terrainNormTex, IN.terrainParams0.xy); // disabled until levels re-exported
+		half4 terrainCol = GetTerrainTex(terrainBaseTex, IN.terrainParams0.xy);
+		float3 terrainNor = float3(0,0,1);//GetTerrainNormal(terrainNormTex, IN.terrainParams0.xy); // disabled until levels re-exported
 
-			attribs.NormalWorld		= lerp(attribs.NormalWorld,		terrainNor,								IN.terrainParams0.z);
-			attribs.Albedo				= lerp(attribs.Albedo,				terrainCol.xyz,						IN.terrainParams0.z);
-			attribs.Reflectance		= lerp(attribs.Reflectance,		TERRAIN_BASE_SPEC_COLOR,	IN.terrainParams0.z);
-			attribs.Smoothness		= lerp(attribs.Smoothness,		TERRAIN_BASE_SMOOTHNESS,	IN.terrainParams0.z);
-			attribs.Transmittance = lerp(attribs.Transmittance, 0,												IN.terrainParams0.z);
-		#endif
+		attribs.NormalWorld		= lerp(attribs.NormalWorld,		terrainNor,								IN.terrainParams0.z);
+		attribs.Albedo			= lerp(attribs.Albedo,			terrainCol.xyz,						IN.terrainParams0.z);
+		attribs.Reflectance		= lerp(attribs.Reflectance,		TERRAIN_BASE_SPEC_COLOR,	IN.terrainParams0.z);
+		attribs.Smoothness		= lerp(attribs.Smoothness,		TERRAIN_BASE_SMOOTHNESS,	IN.terrainParams0.z);
+		attribs.Transmittance = lerp(attribs.Transmittance, 0,												IN.terrainParams0.z);
 	#endif
 }
 
@@ -330,18 +322,21 @@ pixout_gbuffer Common_ZPassPS(vert2fragZ IN)
 	////////////////////////////////////////////////////////////////////////////////////////////////
 	// Alpha testing
 	
-	#if %_RT_ALPHATEST
-		half fDiffuseAlpha = GetAlphaTex(diffuseTex, IN.baseTC.xy);
-		#if (%_RT_MSAA_QUALITY || %_RT_MSAA_QUALITY1) && %_RT_ALPHATEST
-			GetAlphaCoverageMask( diffuseTex, IN.baseTC.xy, IN.baseTC.w, fDiffuseAlpha, OUT.uCoverageMask);
-		#endif
-    clip(fDiffuseAlpha - IN.baseTC.w);
+#if %_RT_ALPHATEST
+	half diffuseMapAlpha = GetAlphaTex(diffuseTex, IN.baseTC.xy);
+	#if (%_RT_MSAA_QUALITY || %_RT_MSAA_QUALITY1) && %_RT_ALPHATEST
+		GetAlphaCoverageMask( diffuseTex, IN.baseTC.xy, IN.vNormalWS.w, diffuseMapAlpha, OUT.uCoverageMask);
 	#endif
+
+	clip(diffuseMapAlpha - IN.vNormalWS.w);
+#endif
 	
-	#if %_RT_DISSOLVE
-		const int2 vPixQuadIdx= (int2)IN.WPos.xy % 2; // 4 transparency levels for a 2x2 quad. We're using dot/abs instead, since rsx doens't support array indexing. 
-		clip( (IN.baseTC.z > 0 ? 1 : -1) * (abs(dot(half4(0.0h, 0.76h, 0.5h,-1.0h), vPixQuadIdx.xxyy))-abs(IN.baseTC.z))); // todo: try using coverage mask when in MSAA mode.
-  #endif
+#if %_RT_DISSOLVE
+	float fDissolve = Get_SPI_Dissolve();
+	const int2 vPixQuadIdx = (int2)IN.WPos.xy % 2; // 4 transparency levels for a 2x2 quad. We're using dot/abs instead, since rsx doens't support array indexing.
+
+	clip((fDissolve > 0 ? 1 : -1) * (abs(dot(half4(0.0h, 0.76h, 0.5h,-1.0h), vPixQuadIdx.xxyy)) - abs(fDissolve))); // todo: try using coverage mask when in MSAA mode.
+#endif
 	
 	////////////////////////////////////////////////////////////////////////////////////////////////
   // Output normals
@@ -582,15 +577,19 @@ pixout_gbuffer Common_ZPassPS(vert2fragZ IN)
 		
 		fAlpha = saturate( fAlpha );
 		half fAlphaDiffuse = fAlpha;
-		
+		half fAlphaNormal = fAlpha;
+		half fAlphaSpecular = fAlpha;
+
 		#if %DECAL && !%DIRTLAYER
 			fAlphaDiffuse *= DecalDiffuseOpacity;
+			fAlphaNormal *= DecalNormalOpacity;
+			fAlphaSpecular *= DecalSpecularOpacity;
 		#endif
 		
 		#if %_RT_SAMPLE0
 			OUT.GBufferA.w = fAlpha;
 		#else
-			SetGBufferBlending( OUT.GBufferA, OUT.GBufferB, OUT.GBufferC, fAlpha, fAlphaDiffuse, fAlpha );
+			SetGBufferBlending( OUT.GBufferA, OUT.GBufferB, OUT.GBufferC, fAlphaNormal, fAlphaDiffuse, fAlphaSpecular);
 		#endif
   #endif
 

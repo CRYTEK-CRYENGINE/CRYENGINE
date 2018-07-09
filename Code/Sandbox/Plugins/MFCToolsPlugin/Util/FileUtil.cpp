@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "FileUtil.h"
@@ -505,8 +505,8 @@ bool CFileUtil::CompileLuaFile(const char* luaFilename)
 		// Errors while compiling file.
 
 		// Show output from Lua compiler
-		if (MessageBox(NULL, (CString("Error output from Lua compiler:\r\n") + CompilerOutput.GetString() +
-		                      CString("\r\nDo you want to edit the file ?")), "Lua Compiler", MB_ICONERROR | MB_YESNO) == IDYES)
+		if (CryMessageBox((CString("Error output from Lua compiler:\r\n") + CompilerOutput.GetString() +
+		                      CString("\r\nDo you want to edit the file ?")), "Lua Compiler", eMB_YesCancel) == eQR_Yes)
 		{
 			int line = 0;
 			string cmdLine = luaFile;
@@ -622,7 +622,7 @@ void CFileUtil::EditTextFile(const char* txtFile, int line, ETextFileType fileTy
 	{
 		// Failed.
 		file = file.SpanExcluding("/");
-		// Try standart open.
+		// Try standard open.
 		hInst = ShellExecute(NULL, "open", file, NULL, NULL, SW_SHOWNORMAL);
 		if ((DWORD_PTR)hInst <= 32)
 		{
@@ -855,7 +855,7 @@ bool CFileUtil::SelectFile(const CString& fileSpec, const CString& searchFolder,
 	}
 	dialogParams.extensionFilters = CExtensionFilter::Parse(fileSpec);
 	CSystemFileDialog fileDialog(dialogParams);
-	if (fileDialog.exec() == QDialog::Accepted)
+	if (fileDialog.Execute() == QDialog::Accepted)
 	{
 		auto files = fileDialog.GetSelectedFiles();
 		CRY_ASSERT(!files.empty());
@@ -872,7 +872,7 @@ bool CFileUtil::SelectFiles(const CString& fileSpec, const CString& searchFolder
 	dialogParams.extensionFilters = CExtensionFilter::Parse(fileSpec);
 	CSystemFileDialog fileDialog(dialogParams);
 	files.clear();
-	if (fileDialog.exec() == QDialog::Accepted)
+	if (fileDialog.Execute() == QDialog::Accepted)
 	{
 		auto filePathes = fileDialog.GetSelectedFiles();
 		CRY_ASSERT(!filePathes.empty());
@@ -886,32 +886,29 @@ bool CFileUtil::SelectFiles(const CString& fileSpec, const CString& searchFolder
 }
 
 //////////////////////////////////////////////////////////////////////////
-bool CFileUtil::SelectSaveFile(const char* fileFilter, const char* defaulExtension, const char* startFolder, string& fileName, bool bAllowCreateFolder /* = false */)
+bool CFileUtil::SelectSaveFile(const char* fileFilter, const char* defaulExtension, const char* startFolder, string& fileName)
 {
 	CString fF = fileFilter;
 	CString dE = defaulExtension;
 	CString sF = startFolder;
 	CString oF = fileName.GetString();
 
-	bool result = SelectSaveFile(fF, dE, sF, oF, bAllowCreateFolder);
+	bool result = SelectSaveFile(fF, dE, sF, oF);
 	fileName = oF.GetString();
 	return result;
 }
 
-bool CFileUtil::SelectSaveFile(const CString& fileFilter, const CString& defaulExtension, const CString& startFolder, CString& fileName, bool bAllowCreateFolder /* = false */)
+bool CFileUtil::SelectSaveFile(const CString& fileFilter, const CString& defaulExtension, const CString& startFolder, CString& fileName)
 {
 	CSystemFileDialog::OpenParams dialogParams(CSystemFileDialog::SaveFile);
 	dialogParams.initialDir = FormatInitialFolderForFileDialog(startFolder);
-	dialogParams.buttonLabel = QObject::tr("Save");
 	if (!fileName.IsEmpty())
 	{
 		dialogParams.initialFile = dialogParams.initialDir + fileName;
 	}
 	dialogParams.extensionFilters = CExtensionFilter::Parse(fileFilter);
-	dialogParams.defaultExtension = defaulExtension.GetString();
-	dialogParams.allowCreateFolder = bAllowCreateFolder;
 	CSystemFileDialog fileDialog(dialogParams);
-	if (fileDialog.exec() == QDialog::Accepted)
+	if (fileDialog.Execute() == QDialog::Accepted)
 	{
 		auto files = fileDialog.GetSelectedFiles();
 		CRY_ASSERT(!files.empty());
@@ -2147,7 +2144,7 @@ CFileUtil::ECopyTreeResult CFileUtil::MoveTree(const CString& strSourceDirectory
 			}
 		}
 
-		bnLastFileWasCopied = ::MoveFileEx(name, strTargetName, MOVEFILE_REPLACE_EXISTING);
+		bnLastFileWasCopied = ::MoveFileEx(name, strTargetName, MOVEFILE_REPLACE_EXISTING | MOVEFILE_COPY_ALLOWED);
 		if (!bnLastFileWasCopied)
 		{
 			eCopyResult = ETREECOPYFAIL;
@@ -2342,7 +2339,7 @@ CFileUtil::ECopyTreeResult CFileUtil::MoveFile(const CString& strSourceFile, con
 		}
 	}
 
-	bnLastFileWasCopied = ::MoveFileEx(name, strFullStargetName, MOVEFILE_REPLACE_EXISTING);
+	bnLastFileWasCopied = ::MoveFileEx(name, strFullStargetName, MOVEFILE_REPLACE_EXISTING | MOVEFILE_COPY_ALLOWED);
 	if (!bnLastFileWasCopied)
 	{
 		eCopyResult = ETREECOPYFAIL;
@@ -2424,7 +2421,7 @@ void CFileUtil::PopupMenu(const char* filename, const char* fullGamePath, CWnd* 
 {
 	std::function<void()> func([wnd]
 	{
-		MessageBox(wnd ? wnd->GetSafeHwnd() : nullptr, "Source Control Operation Failed.\r\nCheck if Source Control Provider correctly setup and working directory is correct.", "Error", MB_OK | MB_ICONERROR);
+		CryMessageBox("Source Control Operation Failed.\r\nCheck if Source Control Provider correctly setup and working directory is correct.", "Error", eMB_Error);
 	});
 	auto pMenu = Private_FileUtil::CreateDynamicPopupMenu(filename, fullGamePath, pIsSelected, pItems, func);
 	pMenu->SpawnAtCursor();
@@ -2820,3 +2817,4 @@ bool CTempFileHelper::UpdateFile(bool bBackup)
 		return true;
 	}
 }
+

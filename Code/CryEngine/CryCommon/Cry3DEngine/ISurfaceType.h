@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 // -------------------------------------------------------------------------
 //  File name:   ISurfaceType.h
@@ -23,6 +23,7 @@ enum ESurfaceTypeFlags
 	SURFACE_TYPE_BULLET_PIERCEABLE      = BIT(5), //!< This surface is pierceable by bullets (used by MFX system to spawn front/back FX).
 };
 
+//! \cond INTERNAL
 //! Parameter structure passed to ISurfaceType::Execute.
 struct SSurfaceTypeExecuteParams
 {
@@ -30,6 +31,7 @@ struct SSurfaceTypeExecuteParams
 	Vec3 hitNormal;
 	int  hitType;
 };
+//! \endcond
 
 #define SURFACE_BREAKAGE_TYPE(x) x
 

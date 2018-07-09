@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -81,10 +81,10 @@ namespace UQS
 
 			//
 			// - 3D debug rendering of the items and general debug primitives
-			// - figures out which item is currently focused by the camera and fires according event(s)
+			// - if given SDebugCameraView is a valid pointer, it will also figure out which item is currently focused by the camera and fires according event(s)
 			//
 
-			virtual void                    UpdateDebugRendering3D(const SDebugCameraView& view, const SEvaluatorDrawMasks& evaluatorDrawMasks) = 0;
+			virtual void                    UpdateDebugRendering3D(const SDebugCameraView* pOptionalView, const SEvaluatorDrawMasks& evaluatorDrawMasks) = 0;
 
 			//
 			// Saving of the "live" query history and loading a previously saved one back into memory. When loading one back, the "live" one will *not* be affected and just keep

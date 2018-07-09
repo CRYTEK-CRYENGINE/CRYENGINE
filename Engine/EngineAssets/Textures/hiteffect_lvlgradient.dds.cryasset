@@ -1,0 +1,10 @@
+<AssetMetadata version="0" type="Texture" guid="85f7a992-346f-49bf-4f63-78a5a74ed107" source="hiteffect_lvlgradient.tif">
+ <Files>
+  <File path="hiteffect_lvlgradient.dds"/>
+ </Files>
+ <Details>
+  <Detail name="width">512</Detail>
+  <Detail name="height">4</Detail>
+  <Detail name="mipCount">1</Detail>
+ </Details>
+</AssetMetadata>

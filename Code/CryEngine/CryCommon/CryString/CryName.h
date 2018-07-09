@@ -1,18 +1,7 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
-// -------------------------------------------------------------------------
-//  File name:   CryName.h
-//  Version:     v1.00
-//  Created:     6/10/2004 by Timur.
-//  Compilers:   Visual Studio.NET
-//  Description:
-// -------------------------------------------------------------------------
-//  History:
-//
-////////////////////////////////////////////////////////////////////////////
+//! \cond INTERNAL
 
-#ifndef __CryName_h__
-#define __CryName_h__
 #pragma once
 
 #include <CrySystem/ISystem.h>
@@ -527,4 +516,4 @@ inline bool operator!=(const char* s, const CCryNameCRC& n)
 	return n != s;
 }
 
-#endif //__CryName_h__
+//! \endcond

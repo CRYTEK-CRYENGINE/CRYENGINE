@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 using System.Collections.Generic;
 using CryEngine.Common;
@@ -14,43 +14,51 @@ namespace CryEngine
 		/// <summary>
 		/// The point in world-space where the raycast hit a surface
 		/// </summary>
-		/// <value>The point.</value>
 		public Vector3 Point { get; internal set; }
 
 		/// <summary>
 		/// The normal of the surface that was hit.
 		/// </summary>
-		/// <value>The normal.</value>
 		public Vector3 Normal { get; internal set; }
 
 		/// <summary>
 		/// The ID of the entity that was hit. -1 if no entity was hit.
 		/// </summary>
-		/// <value>The entity identifier.</value>
 		public EntityId EntityId { get; internal set; }
 
 		/// <summary>
 		/// The uv coordinates of the point on the surface that was hit.
 		/// </summary>
-		/// <value>The uv point.</value>
 		public Vector2 UvPoint { get; internal set; }
 
 		/// <summary>
 		/// The distance from the raycast's origin to the point of impact.
 		/// </summary>
-		/// <value>The distance.</value>
 		public float Distance { get; internal set; }
 
 		/// <summary>
-		/// The triangle of the collision mesh that was hit by the raycast.
+		/// The index of the triangle in the collision mesh that was hit by the raycast.
 		/// </summary>
-		/// <value>The index of the triangle.</value>
 		public int TriangleIndex { get; internal set; }
+
+		/// <summary>
+		/// The unique identifier of the surface-type set in the material that's assigned to the object that was hit.
+		/// </summary>
+		public int SurfaceId { get; internal set; }
+
+		/// <summary>
+		/// Unique identifier for a part of the physical representation of the entity.
+		/// </summary>
+		public int PartId { get; internal set; }
+
+		/// <summary>
+		/// The index of the part of the physical representation of the entity.
+		/// </summary>
+		public int PartIndex { get; internal set; }
 
 		/// <summary>
 		/// The collider that was hit by the raycast.
 		/// </summary>
-		/// <value>The collider.</value>
 		public PhysicsEntity Collider
 		{
 			get
@@ -67,7 +75,6 @@ namespace CryEngine
 		/// Returns the entity that was hit. Returns null if no entity was hit.
 		/// If you only need to compare this to another Entity it will be faster to compare the EntityId's instead.
 		/// </summary>
-		/// <value>The entity.</value>
 		public Entity Entity
 		{
 			get
@@ -78,6 +85,17 @@ namespace CryEngine
 				}
 				return _entity;
 			}
+		}
+
+		internal static void FromNativeHit(ref RaycastHit hit, ray_hit nativeHit)
+		{
+			hit.Distance = nativeHit.dist;
+			hit.Point = nativeHit.pt;
+			hit.Normal = nativeHit.n;
+			hit.TriangleIndex = nativeHit.iPrim;
+			hit.SurfaceId = nativeHit.surface_idx;
+			hit.PartId = nativeHit.partid;
+			hit.PartIndex = nativeHit.ipart;
 		}
 	}
 
@@ -301,13 +319,10 @@ namespace CryEngine
 
 				raycastHit = new RaycastHit
 				{
-					Distance = hit.dist,
-					Point = hit.pt,
-					Normal = hit.n,
-					TriangleIndex = hit.iPrim,
 					EntityId = entityId,
 					UvPoint = new Vec2(u, v)
 				};
+				RaycastHit.FromNativeHit(ref raycastHit, hit);
 			}
 			rayParams.DeleteSkipEnts();
 			return hits > 0;

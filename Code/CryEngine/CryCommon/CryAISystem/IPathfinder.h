@@ -1,35 +1,19 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
-/*************************************************************************
-   -------------------------------------------------------------------------
-   $Id$
-   $DateTime$
-   Description:	Pathfinder Interface.
+//! \cond INTERNAL
 
-   -------------------------------------------------------------------------
-   History:
-   - 15:1:2009   18:01 : Created by Márcio Martins
-   - 4 May 2009        : Evgeny Adamenkov: Removed IRenderer
-
-*************************************************************************/
-
-#ifndef __IPATHFINDER_H__
-#define __IPATHFINDER_H__
-
-#if _MSC_VER > 1000
-	#pragma once
-#endif
+#pragma once
 
 class CAIActor;
 
-struct IAIPathFinderListerner;
-struct IAIPathAgent;
 
 #include <CryMemory/IMemory.h> // <> required for Interfuscator
 #include <CryAISystem/INavigationSystem.h>
 #include <CryCore/functor.h>
 #include <CryAISystem/IMNM.h>
 #include <CryAISystem/IAgent.h>
+#include <CryAISystem/NavigationSystem/MNMTile.h>
+#include <CryAISystem/NavigationSystem/INavigationQuery.h>
 
 /* WARNING: These interfaces and structures are soon to be deprecated.
             Use at your own risk of having to change your code later!
@@ -47,66 +31,8 @@ enum ENavSOMethod
 	nSOmLast
 };
 
-//! Represents an object that might be blocking a link.
-//! Each blocker is assumed to be spherical, with the position centred around the floor so that links can intersect it.
-struct NavigationBlocker
-{
-	//! \param pos Centre of the sphere.
-	//! \param radius Radius of the sphere.
-	//! \param costAddMod Fixed cost (in m) associated with the blocker obscuring a link - a value of 0 has no effect - a value of 10 would make the link effectively 10m longer than it is.
-	//! \param costMultMod Cost modification factor - a value of 0 has no effect - a value of 10 would make the link. 10x more costly. -ve disables the link.
-	//! \param radialDecay Indicates if the cost modifiers should decay linearly to 0 over the radius of the sphere.
-	//! \param directional Indicates if the cost should be unaffected for motion in a radial direction.
-	NavigationBlocker(const Vec3& pos, float radius, float costAddMod, float costMultMod, bool radialDecay, bool directional)
-		: sphere(pos, radius), costAddMod(costAddMod), costMultMod(costMultMod), restrictedLocation(false),
-		radialDecay(radialDecay), directional(directional) {}
-
-	//! Just to allow std::vector::resize(0).
-	NavigationBlocker() : sphere(Vec3(0, 0, 0), 0.0f), costAddMod(0), costMultMod(0), radialDecay(false) { assert("Should never get called"); }
-
-	Sphere sphere;
-	bool   radialDecay;
-	bool   directional;
-
-	//! Absolute cost added to any link going through this blocker (useful for small blockers).
-	float costAddMod;
-
-	//! Multiplier for link costs going through this blocker (0 means no extra cost, 1 means to double etc).
-	float costMultMod;
-
-	//! Info to speed up the intersection checks.
-	//! If this is true then the blocker is small enough that it only affects the nav type it resides in. If false then it affects everything.
-	bool                       restrictedLocation;
-	IAISystem::ENavigationType navType;
-	union Location
-	{
-
-		//! Similar for other nav types when there's info to go in them.
-		//! \note No node because the node "areas" can overlap so it's not useful.
-		struct
-		{
-			int nBuildingID;
-		} waypoint;
-	};
-
-	//! Only gets used if restrictedLocation = true.
-	Location location;
-};
-
-typedef DynArray<NavigationBlocker> NavigationBlockers;
-
 struct PathPointDescriptor
 {
-	struct SmartObjectNavData : public _i_reference_target_t
-	{
-		unsigned fromIndex;
-		unsigned toIndex;
-
-		//! Callable only inside the AISystem module. It's implemented there.
-		void Serialize(TSerialize ser);
-	};
-	typedef _smart_ptr<SmartObjectNavData> SmartObjectNavDataPtr;
-
 	struct OffMeshLinkData
 	{
 		OffMeshLinkData()
@@ -121,7 +47,6 @@ struct PathPointDescriptor
 		, navType(_navType)
 		, navTypeCustomId(0)
 		, iTriId(0)
-		, pSONavData(0)
 		, navSOMethod(nSOmNone)
 	{}
 
@@ -130,7 +55,6 @@ struct PathPointDescriptor
 		, navType(IAISystem::NAV_UNSET)
 		, navTypeCustomId(0)
 		, iTriId(0)
-		, pSONavData(0)
 		, navSOMethod(nSOmNone)
 	{}
 
@@ -154,122 +78,8 @@ struct PathPointDescriptor
 	uint32                     iTriId;
 	OffMeshLinkData            offMeshLinkData;
 
-	SmartObjectNavDataPtr      pSONavData;
-
 	ENavSOMethod               navSOMethod;
 
-};
-
-struct PathfindingExtraConstraint
-{
-	enum EExtraConstraintType
-	{
-		ECT_MAXCOST,
-		ECT_MINDISTFROMPOINT,
-		ECT_AVOIDSPHERE,
-		ECT_AVOIDCAPSULE
-	};
-
-	EExtraConstraintType type;
-
-	union UConstraint
-	{
-		struct SConstraintMaxCost
-		{
-			float maxCost;
-		};
-		struct SConstraintMinDistFromPoint
-		{
-			float px, py, pz; //!< Can't use Vec3 as it has a constructor.
-			float minDistSq;
-		};
-		struct SConstraintAvoidSphere
-		{
-			float px, py, pz; //!< Can't use Vec3 as it has a constructor.
-			float minDistSq;
-		};
-		struct SConstraintAvoidCapsule
-		{
-			float px, py, pz;
-			float qx, qy, qz;
-			float minDistSq;
-		};
-		SConstraintMaxCost          maxCost;
-		SConstraintMinDistFromPoint minDistFromPoint;
-		SConstraintAvoidSphere      avoidSphere;
-		SConstraintAvoidCapsule     avoidCapsule;
-	};
-	UConstraint constraint;
-};
-
-typedef DynArray<PathfindingExtraConstraint> PathfindingExtraConstraints;
-
-struct PathfindRequest
-{
-	enum ERequestType
-	{
-		TYPE_ACTOR,
-		TYPE_RAW,
-	};
-	ERequestType                type;
-
-	unsigned                    startIndex;
-	unsigned                    endIndex;
-	Vec3                        startPos;
-	Vec3                        startDir;
-	Vec3                        endPos;
-
-	Vec3                        endDir; //!< Mangitude of endDir (between 0 and 1) indicates the tendency to line up at the end of the path.
-	bool                        bSuccess;
-	IAIPathAgent*               pRequester;
-	int                         nForceTargetBuildingId;
-	bool                        allowDangerousDestination;
-	float                       endTol;
-	float                       endDistance;
-
-	bool                        isDirectional; //!< As a result of RequestPathInDirection or RequestPathTo.
-
-	bool                        bPathEndIsAsRequested; //! This gets set to false if the path end position doesn't match the requested end position (e.g. in the event of a partial path, or if the destination is in forbidden).
-
-	int                         id;
-	IAISystem::tNavCapMask      navCapMask;
-	float                       passRadius;
-
-	PathfindingExtraConstraints extraConstraints;
-
-	PathfindRequest(ERequestType type)
-		: type(type),
-		startIndex(0),
-		endIndex(0),
-		pRequester(0),
-		bPathEndIsAsRequested(false),
-		allowDangerousDestination(false),
-		endTol(std::numeric_limits<float>::max()),
-		endDistance(0),
-		nForceTargetBuildingId(-1),
-		isDirectional(false),
-		id(-1),
-		navCapMask(IAISystem::NAV_UNSET),
-		passRadius(0.0f)
-	{
-	}
-
-	//! Callable only inside the AISystem module. It's implemented there.
-	void Serialize(TSerialize ser);
-
-	void GetMemoryUsage(ICrySizer* pSizer) const { /*LATER*/ }
-};
-
-struct PathfindingHeuristicProperties
-{
-	PathfindingHeuristicProperties(const AgentPathfindingProperties& properties, const IAIPathAgent* pAgent = 0)
-		: agentproperties(properties), pAgent(pAgent) {}
-
-	PathfindingHeuristicProperties()
-		: pAgent(0) {}
-
-	AgentPathfindingProperties agentproperties;
-	const IAIPathAgent*        pAgent;
 };
 
 struct PathFollowerParams
@@ -290,7 +100,8 @@ struct PathFollowerParams
 		isAllowedToShortcut(true),
 		snapEndPointToGround(true),
 		navCapMask(IAISystem::NAV_UNSET),
-		passRadius(0.5f)
+		passRadius(0.5f),
+		pQueryFilter(nullptr)
 	{}
 
 	// OLD: Remove this when possible, Animation to take over majority of logic.
@@ -311,6 +122,8 @@ struct PathFollowerParams
 	bool  isAllowedToShortcut;
 	bool  snapEndPointToGround; //!< try to make sure, that the path ends on the ground
 
+
+	const INavMeshQueryFilter* pQueryFilter;
 	// TODO: Add to serialize...
 	//! The navigation capabilities of the agent.
 	IAISystem::tNavCapMask navCapMask;
@@ -342,7 +155,13 @@ struct PathFollowResult
 	TPredictedStates* predictedStates;  //!< If this is non-zero then on output the prediction will be placed into it.
 
 	PathFollowResult()
-		: predictionDeltaTime(0.1f), predictedStates(0), desiredPredictionTime(0), followTargetPos(0), inflectionPoint(0) {}
+		: predictionDeltaTime(0.1f)
+		, predictedStates(0)
+		, desiredPredictionTime(0)
+		, followTargetPos(0)
+		, inflectionPoint(0)
+		, velocityDuration(-1.0f)
+	{}
 
 	bool reachedEnd;
 	Vec3 velocityOut;
@@ -355,6 +174,8 @@ struct PathFollowResult
 
 	/// The maximum distance the agent can safely move in a straight line beyond the turning point
 	//	float maxOverrunDistance;
+
+	float velocityDuration; //!< How long physics is allowed to apply the velocity (-1.0f if it is undefined).
 };
 
 //! Intermediary and minimal interface to use the pathfinder without requiring an AI object.
@@ -373,26 +194,8 @@ struct IAIPathAgent
 
 	virtual const AgentMovementAbility& GetPathAgentMovementAbility() const = 0;
 
-	//! This cannot easily be const, but has no side-effects.
-	virtual void GetPathAgentNavigationBlockers(NavigationBlockers& blockers, const PathfindRequest* pRequest) = 0;
-
-	// TODO: Remove this from the interface.
-	// Most of it could be stored in the path request, except that it gets set at the start
-	// of the path request and it's used everywhere in the AISystem.
-	virtual unsigned int GetPathAgentLastNavNode() const = 0;
-	virtual void         SetPathAgentLastNavNode(unsigned int lastNavNode) = 0;
-
 	virtual void         SetPathToFollow(const char* pathName) = 0;
 	virtual void         SetPathAttributeToFollow(bool bSpline) = 0;
-
-	//! Path finding avoids blocker type by radius.
-	virtual void SetPFBlockerRadius(int blockerType, float radius) = 0;
-
-	//! Can path be modified to use request.targetPoint?  Results are cacheded in request.
-	virtual ETriState CanTargetPointBeReached(CTargetPointRequest& request) = 0;
-
-	//! Is request still valid/usable?
-	virtual bool                 UseTargetPointRequest(const CTargetPointRequest& request) = 0;
 
 	virtual bool                 GetValidPositionNearby(const Vec3& proposedPosition, Vec3& adjustedPosition) const = 0;
 	virtual bool                 GetTeleportPosition(Vec3& teleportPos) const = 0;
@@ -529,7 +332,6 @@ public:
 	virtual bool                                       GetPosAlongPath(Vec3& posOut, float dist, bool twoD, bool extrapolateBeyondEnd, IAISystem::ENavigationType* nextPointType = NULL) const = 0;
 	virtual float                                      GetDistToPath(Vec3& pathPosOut, float& distAlongPathOut, const Vec3& pos, float dist, bool twoD) const = 0;
 	virtual float                                      GetDistToSmartObject(bool twoD) const = 0;
-	virtual PathPointDescriptor::SmartObjectNavDataPtr GetLastPathPointAnimNavSOData() const = 0;
 	virtual void                                       SetPreviousPoint(const PathPointDescriptor& previousPoint) = 0;
 
 	virtual AABB                                       GetAABB(float dist) const = 0;
@@ -541,7 +343,8 @@ public:
 
 	virtual bool        UpdateAndSteerAlongPath(Vec3& dirOut, float& distToEndOut, float& distToPathOut, bool& isResolvingSticking, Vec3& pathDirOut, Vec3& pathAheadDirOut, Vec3& pathAheadPosOut, Vec3 currentPos, const Vec3& currentVel, float lookAhead, float pathRadius, float dt, bool resolveSticking, bool twoD) = 0;
 
-	virtual bool        AdjustPathAroundObstacles(const Vec3& currentpos, const AgentMovementAbility& movementAbility) = 0;
+	virtual bool        AdjustPathAroundObstacles(const Vec3& currentpos, const AgentMovementAbility& movementAbility, const INavMeshQueryFilter* pFilter) = 0;
+	virtual bool        CanPassFilter(size_t fromPointIndex, const INavMeshQueryFilter* pFilter) = 0;
 
 	virtual void        TrimPath(float length, bool twoD) = 0;
 	;
@@ -552,8 +355,6 @@ public:
 	//virtual void ClearObjectsAdjustedFor() = 0;
 	virtual float     UpdatePathPosition(Vec3 agentPos, float pathLookahead, bool twoD, bool allowPathToFinish) = 0;
 	virtual Vec3      CalculateTargetPos(Vec3 agentPos, float lookAhead, float minLookAheadAlongPath, float pathRadius, bool twoD) const = 0;
-	virtual ETriState CanTargetPointBeReached(CTargetPointRequest& request, const CAIActor* pAIActor, bool twoD) const = 0;
-	virtual bool      UseTargetPointRequest(const CTargetPointRequest& request, CAIActor* pAIActor, bool twoD) = 0;
 
 	virtual void      Draw(const Vec3& drawOffset = ZERO) const = 0;
 	virtual void      Dump(const char* name) const = 0;
@@ -668,7 +469,11 @@ public:
 	virtual void SetAllowCuttingCorners(const bool allowCuttingCorners) = 0;
 
 	//! Checks for whether the attached path is affected by a NavMesh change or whether it would be still be fully traversable from its current position.
-	virtual bool IsRemainingPathAffectedByNavMeshChange(const NavigationMeshID affectedMeshID, const MNM::TileID affectedTileID) const = 0;
+	virtual bool IsRemainingPathAffectedByNavMeshChange(const NavigationMeshID affectedMeshID, const MNM::TileID affectedTileID, bool bAnnotationChange, bool bDataChange) const = 0;
+
+	//! Checks whether the attached path is affected by a NavMesh filter change, returns false when the remaining path cannot pass the filter.
+	virtual bool IsRemainingPathAffectedByFilterChange(const INavMeshQueryFilter* pFilter) const = 0;
+
 	// </interfuscator:shuffle>
 };
 
@@ -687,6 +492,113 @@ enum EQueuedPathID
 }
 }
 
+
+//===================================================================
+//
+// IMNMCustomPathCostComputer
+//
+// Interface that can optionally be used by the MNM Pathfinder to perform custom cost calculations for path-segments during the pathfinding process.
+// As the MNM Pathfinder can work a-synchronously, care must be taken in regards to which data ComputeCostThreadUnsafe() will access.
+// As a rule-of-thumb, it's best to gather all relevant data by the constructor in the form of a "snapshot" that can then safely be read from by ComputeCostThreadUnsafe().
+//
+//===================================================================
+
+class IMNMCustomPathCostComputer;
+
+typedef std::shared_ptr<IMNMCustomPathCostComputer> MNMCustomPathCostComputerSharedPtr;
+
+class IMNMCustomPathCostComputer
+{
+public:
+
+	enum class EComputationType
+	{
+		Cost,                   // compute the cost it takes to move along the path-segment (-> SComputationOutput::cost)
+		StringPullingAllowed    // compute whether string-pulling is still allowed on given path-segment (-> SComputationOutput::bStringPullingAllowed)
+	};
+	
+	typedef CEnumFlags<EComputationType> ComputationFlags;
+
+	struct SComputationInput
+	{
+		explicit SComputationInput(const ComputationFlags& _computationFlags, const Vec3& _locationComingFrom, const Vec3& _locationGoingTo)
+			: computationFlags(_computationFlags)
+			, locationComingFrom(_locationComingFrom)
+			, locationGoingTo(_locationGoingTo)
+		{}
+
+		const ComputationFlags computationFlags;
+		const Vec3 locationComingFrom;
+		const Vec3 locationGoingTo;
+	};
+
+	struct SComputationOutput
+	{
+		MNM::real_t cost = 0;
+		bool bStringPullingAllowed = true;
+	};
+
+public:
+
+	virtual ~IMNMCustomPathCostComputer() {}
+
+	// CAREFUL: this will get called from a potentially different thread as the MNM pathfinder can work a-synchronously!
+	virtual void ComputeCostThreadUnsafe(const SComputationInput& input, SComputationOutput& output) const = 0;
+
+	//
+	// All instances (of derived classes) shall be created via the MakeShared() method to ensure that the returned shared_ptr has our custom deleter callback injected.
+	// This is to ensure that no matter which DLL deletes the object will always call into the DLL that instantiated this class.
+	// Also, MakeShared() should be called from the main thread as this will then guarentee the derived class's ctor to gather required data at a safe time.
+	//
+
+	// CAREFUL: this is NOT thread-safe and should only be called from the main thread!
+	template <class TDerivedClass, class ... Args>
+	static MNMCustomPathCostComputerSharedPtr MakeShared(Args ... args)
+	{
+#if !defined(_RELEASE)
+		BeingConstructedViaMakeSharedFunction() = true;
+#endif
+		IMNMCustomPathCostComputer* pComputer = new TDerivedClass(args ...);
+		return MNMCustomPathCostComputerSharedPtr(pComputer, DestroyViaOperatorDelete);
+	}
+
+protected:
+
+	// CAREFUL: this is NOT thread-safe! (calls BeingConstructedViaMakeSharedFunction() which is not thread-safe)
+	IMNMCustomPathCostComputer()
+	{
+#if !defined(_RELEASE)
+		CRY_ASSERT_MESSAGE(BeingConstructedViaMakeSharedFunction(), "IMNMCustomPathCostComputer: you should have used MakeShared() to instantiate your class (since it injects the built-in custom deleter to guarantee safe cross-DLL deletion).");
+		BeingConstructedViaMakeSharedFunction() = false;
+#endif
+	}
+
+private:
+
+	// Implicit copy-construction and assignment is not supported to prevent accidentally bypassing MakeShared() when instantiating a derived class.
+	// If the derived class still wants copy-construction and assignment, it shall explicitly implement them on its own.
+	IMNMCustomPathCostComputer(const IMNMCustomPathCostComputer&) = delete;
+	IMNMCustomPathCostComputer(IMNMCustomPathCostComputer&&) = delete;
+	IMNMCustomPathCostComputer& operator=(const IMNMCustomPathCostComputer&) = delete;
+	IMNMCustomPathCostComputer& operator=(IMNMCustomPathCostComputer&&) = delete;
+
+	static void DestroyViaOperatorDelete(IMNMCustomPathCostComputer* pComputerToDelete)
+	{
+		assert(pComputerToDelete);
+		delete pComputerToDelete;
+	}
+
+#if !defined(_RELEASE)
+	// CAREFUL: reading from and writing to the returned reference is NOT thread-safe!
+	static bool& BeingConstructedViaMakeSharedFunction()
+	{
+		static bool flag;
+		return flag;
+	}
+#endif
+};
+
+
 enum EMNMDangers
 {
 	eMNMDangers_None            = 0,
@@ -696,6 +608,24 @@ enum EMNMDangers
 };
 
 typedef uint32 MNMDangersFlags;
+
+//! Parameters for snapping of the path's start/end positions onto the NavMesh.
+struct SSnapToNavMeshRulesInfo
+{
+	SSnapToNavMeshRulesInfo()
+		: bVerticalSearch(true)
+		, bBoxSearch(true)
+	{}
+
+	SSnapToNavMeshRulesInfo(const bool verticalSearch, const bool boxSearch)
+		: bVerticalSearch(verticalSearch)
+		, bBoxSearch(boxSearch)
+	{}
+
+	//<! Rules will be checked/applied in this order:
+	bool bVerticalSearch;   //!< Tries to snap vertically
+	bool bBoxSearch;	//!< Tries to snap using a box horizontally+vertically.
+};
 
 struct MNMPathRequest
 {
@@ -713,6 +643,9 @@ struct MNMPathRequest
 		, allowDangerousDestination(false)
 		, dangersToAvoidFlags(eMNMDangers_None)
 		, beautify(true)
+		, pRequesterEntity(nullptr)
+		, pCustomPathCostComputer(nullptr)
+		, pFilter(nullptr)
 	{
 
 	}
@@ -731,8 +664,10 @@ struct MNMPathRequest
 		, allowDangerousDestination(false)
 		, dangersToAvoidFlags(dangersFlags)
 		, beautify(true)
+		, pRequesterEntity(nullptr)
+		, pCustomPathCostComputer(nullptr)
+		, pFilter(nullptr)
 	{
-
 	}
 
 	Callback              resultCallback;
@@ -748,8 +683,13 @@ struct MNMPathRequest
 	int                   forceTargetBuildingId;
 	float                 endTolerance;
 	float                 endDistance;
+	SSnapToNavMeshRulesInfo	  snappingRules;
 	bool                  allowDangerousDestination;
 	MNMDangersFlags       dangersToAvoidFlags;
+	const INavMeshQueryFilter* pFilter;
+
+	MNMCustomPathCostComputerSharedPtr pCustomPathCostComputer;  // can be provided by the game code to allow for computing path-finding costs in more ways than just through the built-in "danger areas" (see MNMDangersFlags)
+	IEntity*              pRequesterEntity;
 };
 
 //////////////////////////////////////////////////////////////////////////
@@ -761,51 +701,18 @@ struct IMNMPathfinder
 	virtual ~IMNMPathfinder() {};
 
 	//! Request a path (look at MNMPathRequest for relevant request info).
-	//! This request is queued and processed in a seperate thread.
+	//! This request is queued and processed in a separate thread.
 	//! The path result is sent to the callback function specified in the request.
 	//! Returns an ID so that you can cancel the request.
-	virtual MNM::QueuedPathID RequestPathTo(const IAIPathAgent* pRequester, const MNMPathRequest& request) = 0;
+	virtual MNM::QueuedPathID RequestPathTo(const EntityId requesterEntityId, const MNMPathRequest& request) = 0;
 
 	//! Cancel a requested path by ID.
 	virtual void CancelPathRequest(MNM::QueuedPathID requestId) = 0;
 
 	virtual bool CheckIfPointsAreOnStraightWalkableLine(const NavigationMeshID& meshID, const Vec3& source, const Vec3& destination, float heightOffset = 0.2f) const = 0;
+	virtual bool CheckIfPointsAreOnStraightWalkableLine(const NavigationMeshID& meshID, const Vec3& source, const Vec3& destination, const INavMeshQueryFilter* pFilter, float heightOffset = 0.2f) const = 0;
 
 	// </interfuscator:shuffle>
 };
 
-struct IAIPathFinder
-{
-public:
-	// <interfuscator:shuffle>
-	virtual ~IAIPathFinder(){}
-	virtual void                   RequestPathTo(const Vec3& start, const Vec3& end, const Vec3& endDir, IAIPathAgent* pRequester, bool allowDangerousDestination, int forceTargetBuildingId, float endTol, float endDistance) = 0;
-	virtual void                   RequestPathTo(uint32 startIndex, uint32 endIndex, const Vec3& endDir, IAIPathAgent* pRequester, bool allowDangerousDestination, int forceTargetBuildingId, float endTol, float endDistance) = 0;
-	virtual int                    RequestRawPathTo(const Vec3& start, const Vec3& end, float passRadius, IAISystem::tNavCapMask navCapMask, unsigned& lastNavNode, bool allowDangerousDestination, float endTol, const PathfindingExtraConstraints& constraints, IAIPathAgent* pReference = 0) = 0;
-	virtual void                   RequestPathInDirection(const Vec3& start, const Vec3& pos, float maxDist, IAIPathAgent* pRequester, float endDistance) = 0;
-
-	virtual void                   CancelAnyPathsFor(IAIPathAgent* pRequester, bool actorRemoved = false) = 0;
-	virtual void                   CancelCurrentRequest() = 0;
-
-	virtual void                   RescheduleCurrentPathfindRequest() = 0;
-	virtual bool                   IsFindingPathFor(const IAIPathAgent* pRequester) const = 0;
-
-	virtual Vec3                   GetBestPosition(const PathfindingHeuristicProperties& heuristic, float maxCost, const Vec3& startPos, const Vec3& endPos, unsigned startHintIndex, IAISystem::tNavCapMask navCapMask) = 0;
-
-	virtual INavPath*              CreateEmptyPath() const = 0;
-	virtual IPathFollower*         CreatePathFollower(const PathFollowerParams& params) const = 0;
-
-	virtual const INavPath*        GetCurrentPath() const = 0;
-	virtual const PathfindRequest* GetPathfindCurrentRequest() const = 0;
-
-	virtual void                   FlushPathQueue() = 0;
-	virtual bool                   IsPathQueueEmpty() const = 0;
-
-	virtual void                   Reset(IAISystem::EResetReason reason) = 0;
-
-	virtual void                   RegisterPathFinderListener(IAIPathFinderListerner* pListener) = 0;
-	virtual void                   UnregisterPathFinderListener(IAIPathFinderListerner* pListener) = 0;
-	// </interfuscator:shuffle>
-};
-
-#endif //__IPATHFINDER_H__
+//! \endcond

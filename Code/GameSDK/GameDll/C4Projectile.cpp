@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 /*************************************************************************
 -------------------------------------------------------------------------
@@ -155,7 +155,7 @@ void CC4Projectile::HandleEvent(const SGameObjectEvent &event)
 }
 
 //--------------------------------------------
-void CC4Projectile::ProcessEvent(SEntityEvent &event)
+void CC4Projectile::ProcessEvent(const SEntityEvent& event)
 {
 	BaseClass::ProcessEvent(event);
 
@@ -496,12 +496,12 @@ void CC4Projectile::SetLightParams()
 {
 	SC4ExplosiveParams* pExplosiveParams = m_pAmmoParams->pC4ExplosiveParams;
 
-	CDLight lightParams;
+	SRenderLight lightParams;
 	//Members of the same team see armed status - enemies always see red
+	lightParams.m_Flags |= DLF_POINT;
 	lightParams.SetLightColor(m_armed && m_OnSameTeam ? pExplosiveParams->armedLightColour : pExplosiveParams->disarmedLightColour);
 	lightParams.SetSpecularMult(pExplosiveParams->specularMultiplier);
-	lightParams.m_fRadius = pExplosiveParams->lightRadius;
-	lightParams.m_Flags |= DLF_POINT;
+	lightParams.SetRadius(pExplosiveParams->lightRadius);
 	lightParams.m_sName = "C4 Projectile Light";
 
 	m_pLightSource->SetLightProperties(lightParams);
@@ -527,12 +527,12 @@ void CC4Projectile::UpdateLight(float fFrameTime, bool forceColorChange)
 		finalMult += pExplosiveParams->pulseMinColorMultiplier;
 		m_pulseTimer = fNewPulseTimer;
 		
-		CDLight& light = m_pLightSource->GetLightProperties();
+		SRenderLight& light = m_pLightSource->GetLightProperties();
 		light.SetLightColor(ColorF(m_armed && m_OnSameTeam ? pExplosiveParams->armedLightColour * finalMult : pExplosiveParams->disarmedLightColour * finalMult));
 	}
 	else if(forceColorChange)
 	{
-		CDLight& light = m_pLightSource->GetLightProperties();
+		SRenderLight& light = m_pLightSource->GetLightProperties();
 		light.SetLightColor(ColorF(m_armed && m_OnSameTeam ? pExplosiveParams->armedLightColour : pExplosiveParams->disarmedLightColour));
 	}
 }

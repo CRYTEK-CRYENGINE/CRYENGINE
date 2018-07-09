@@ -1,7 +1,9 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "stdafx.h"
 #include "ParametricSampler.h"
+
+#include <numeric>
 
 #include <CryRenderer/IRenderAuxGeom.h>
 #include "CharacterInstance.h"
@@ -71,20 +73,12 @@ f32 SParametricSamplerInternal::Parameterizer(const CAnimationSet* pAnimationSet
 		m_fBlendWeight[i] /= fTotalSum; //normalize weights
 
 #if !defined(_RELEASE)
-	uint32 nExtrapolation1 = 0;
-	for (uint32 i = 0; i < m_numExamples; i++)
-		nExtrapolation1 |= uint32(m_fBlendWeight[i] < -5.2f);
-	uint32 nExtrapolation2 = 0;
-	for (uint32 i = 0; i < m_numExamples; i++)
-		nExtrapolation2 |= uint32(m_fBlendWeight[i] > 5.2f);
-
-	fTotalSum = 0.0f;
-	for (uint32 i = 0; i < m_numExamples; i++)
-		fTotalSum += m_fBlendWeight[i];
-	if (fabsf(fTotalSum - 1.0f) > 0.005f || nExtrapolation1 || nExtrapolation2)
 	{
-		assert(!"Sum of weights is wrong");
-		CryWarning(VALIDATOR_MODULE_ANIMATION, VALIDATOR_ERROR, "Sum of weights is wrong");
+		const float weightSum = std::accumulate(m_fBlendWeight, m_fBlendWeight + m_numExamples, 0.0f);
+		if (std::abs(weightSum - 1.0f) > 0.005f)
+		{
+			CryWarning(VALIDATOR_MODULE_ANIMATION, VALIDATOR_ERROR, "Parametric sampler encountered an error while processing '%s': Blend weights do not sum up to 1.0f.", rLMG.GetFilePath());
+		}
 	}
 #endif
 
@@ -1206,8 +1200,6 @@ int SParametricSamplerInternal::GetWeights1D(f32 fDesiredParameter, const Global
 			f32 x1 = rLMG.m_arrParameter[i1].m_Para.x;
 
 #if !defined(_RELEASE)
-			if (fabsf(x0 - x1) < 0.01f)
-				g_pISystem->Warning(VALIDATOR_MODULE_ANIMATION, VALIDATOR_WARNING, VALIDATOR_FLAG_FILE, 0, "!CryAnimation: parameters in 1D-Blend-Space are too close: %s", rLMG.GetFilePath());
 			if (x0 >= x1)
 				g_pISystem->Warning(VALIDATOR_MODULE_ANIMATION, VALIDATOR_WARNING, VALIDATOR_FLAG_FILE, 0, "!CryAnimation: motion parameter must be sorted by size in the 1D-Blend-Space. Lowest parameter must come first: %s", rLMG.GetFilePath());
 #endif
@@ -1519,13 +1511,6 @@ BC4 SParametricSamplerInternal::GetConvex4(uint32 numPoints, const Vec2& vDesire
 		uint8 i2 = idx[2];
 		Vec3 v2 = vtx[2];
 
-#if !defined(_RELEASE)
-		if ((v0 - v1).GetLength() < 0.01f || (v1 - v2).GetLength() < 0.01f || (v2 - v0).GetLength() < 0.01f)
-		{
-			g_pISystem->Warning(VALIDATOR_MODULE_ANIMATION, VALIDATOR_WARNING, VALIDATOR_FLAG_FILE, 0, "CryAnimation: parameters in 2D-Blend-Space are too close: %s", rLMG.GetFilePath());
-		}
-#endif
-
 		//calculate the three weight-values using barycentric coordinates
 		f32 px = vDesiredParameter.x - v2.x;
 		f32 py = vDesiredParameter.y - v2.y;
@@ -1581,13 +1566,6 @@ BC4 SParametricSamplerInternal::GetConvex4(uint32 numPoints, const Vec2& vDesire
 		Vec3 v2 = vtx[2];
 		uint8 i3 = idx[3];
 		Vec3 v3 = vtx[3];
-
-#if !defined(_RELEASE)
-		if ((v0 - v1).GetLength() < 0.01f || (v1 - v2).GetLength() < 0.01f || (v2 - v3).GetLength() < 0.01f || (v3 - v0).GetLength() < 0.01f)
-		{
-			g_pISystem->Warning(VALIDATOR_MODULE_ANIMATION, VALIDATOR_WARNING, VALIDATOR_FLAG_FILE, 0, "CryAnimation: parameters in 2D-Blend-Space are too close: %s", rLMG.GetFilePath());
-		}
-#endif
 
 		Vec4 bw = Vec4(0, 0, 0, 0);
 		ComputeWeightExtrapolate4(bw, vDesiredParameter, Vec2(v0), Vec2(v1), Vec2(v2), Vec2(v3));
@@ -1792,13 +1770,6 @@ BC8 SParametricSamplerInternal::GetConvex8(uint32 numPoints, const Vec3& vDesire
 		uint8 i3 = i[3];
 		Vec3 v3 = v[3];
 
-#if !defined(_RELEASE)
-		if ((v0 - v1).GetLength() < 0.01f || (v1 - v2).GetLength() < 0.01f || (v2 - v3).GetLength() < 0.01f || (v3 - v0).GetLength() < 0.01f)
-		{
-			g_pISystem->Warning(VALIDATOR_MODULE_ANIMATION, VALIDATOR_WARNING, VALIDATOR_FLAG_FILE, 0, "CryAnimation: parameters in 3D-Blend-Space are too close: %s", rLMG.GetFilePath());
-		}
-#endif
-
 		uint32 pl0 = fabsf(v0.z) < 0.01f;
 		uint32 pl1 = fabsf(v1.z) < 0.01f;
 		uint32 pl2 = fabsf(v2.z) < 0.01f;
@@ -1869,11 +1840,6 @@ BC8 SParametricSamplerInternal::GetConvex8(uint32 numPoints, const Vec3& vDesire
 		Vec3 v3 = v[3];
 		uint8 i4 = i[4];
 		Vec3 v4 = v[4];
-
-		if ((v0 - v1).GetLength() < 0.01f || (v1 - v2).GetLength() < 0.01f || (v2 - v3).GetLength() < 0.01f || (v3 - v4).GetLength() < 0.01f || (v4 - v0).GetLength() < 0.01f)
-		{
-			g_pISystem->Warning(VALIDATOR_MODULE_ANIMATION, VALIDATOR_WARNING, VALIDATOR_FLAG_FILE, 0, "CryAnimation: parameters in 3D-Blend-Space are too close: %s", rLMG.GetFilePath());
-		}
 
 		uint32 pl0 = fabsf(v0.z) < 0.01f;
 		uint32 pl1 = fabsf(v1.z) < 0.01f;
@@ -1957,11 +1923,6 @@ BC8 SParametricSamplerInternal::GetConvex8(uint32 numPoints, const Vec3& vDesire
 		Vec3 v4 = v[4];
 		uint8 i5 = i[5];
 		Vec3 v5 = v[5];
-
-		if ((v0 - v1).GetLength() < 0.01f || (v1 - v2).GetLength() < 0.01f || (v2 - v3).GetLength() < 0.01f || (v3 - v4).GetLength() < 0.01f || (v4 - v5).GetLength() < 0.01f || (v5 - v0).GetLength() < 0.01f)
-		{
-			g_pISystem->Warning(VALIDATOR_MODULE_ANIMATION, VALIDATOR_WARNING, VALIDATOR_FLAG_FILE, 0, "CryAnimation: parameters in 3D-Blend-Space are too close: %s", rLMG.GetFilePath());
-		}
 
 		uint32 pl0 = fabsf(v0.z) < 0.01f;
 		uint32 pl1 = fabsf(v1.z) < 0.01f;

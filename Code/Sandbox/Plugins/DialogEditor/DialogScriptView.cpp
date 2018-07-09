@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "DialogScriptView.h"
@@ -1050,3 +1050,4 @@ void CDialogScriptView::OnAudioTriggerFinished(CryAudio::SRequestInfo const* con
 		ms_currentPlayLine = CryAudio::InvalidControlId;
 	}
 }
+

@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #ifndef __imagetif_h__
 #define __imagetif_h__
@@ -16,3 +16,4 @@ public:
 };
 
 #endif // __imagetif_h__
+

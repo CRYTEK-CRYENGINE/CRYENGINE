@@ -6,16 +6,51 @@ start_sources()
 sources_platform(ALL)
 add_sources("EditorFmod_uber_0.cpp"
 	SOURCE_GROUP "Root"
-		"AudioSystemEditor_fmod.cpp"
-		"AudioSystemEditor_fmod.h"
+		"Common.h"
+		"Impl.cpp"
+		"Impl.h"
+		"Item.cpp"
+		"Item.h"
+		"Utils.cpp"
+		"Utils.h"
 		"main.cpp"
-		"StdAfx.h"
+		"ProjectLoader.cpp"
+		"ProjectLoader.h"
 		"StdAfx.cpp"
+		"StdAfx.h"
+	SOURCE_GROUP "Connections"
+		"BankConnection.cpp"
+		"BankConnection.h"
+		"BaseConnection.cpp"
+		"BaseConnection.h"
+		"EventConnection.cpp"
+		"EventConnection.h"
+		"ParameterConnection.cpp"
+		"ParameterConnection.h"
+		"ParameterToStateConnection.cpp"
+		"ParameterToStateConnection.h"
+		"SnapshotConnection.cpp"
+		"SnapshotConnection.h"
+	SOURCE_GROUP "DataPanel"
+		"DataPanel.cpp"
+		"DataPanel.h"
+		"FilterProxyModel.cpp"
+		"FilterProxyModel.h"
+		"ItemModel.cpp"
+		"ItemModel.h"
+		"TreeView.cpp"
+		"TreeView.h"
+)
+
+add_sources("NoUberFile"
+	SOURCE_GROUP "Resources"
+		"EditorFmodUI.qrc"
 )
 
 end_sources()
 #END-FILE-LIST
 
-CreateDynamicModule(EditorCryAudioImplFmod SOLUTION_FOLDER "Sandbox/Plugins/EditorAudioControlsEditor/Impl" OUTDIR EditorPlugins/ace)
-target_include_directories(${THIS_PROJECT} PRIVATE ../common GeneratedFiles)
-target_compile_definitions(${THIS_PROJECT} PRIVATE -DNOT_USE_CRY_MEMORY_MANAGER -DPLUGIN_EXPORTS)
+CryEditorPlugin(EditorCryAudioImplFmod SOLUTION_FOLDER "Sandbox/Plugins/EditorAudioControlsEditor/Impl" OUTDIR EditorPlugins/ace)
+target_include_directories(${THIS_PROJECT} PRIVATE ../common "${CRYENGINE_DIR}/Code/CryEngine/CryAudioSystem/implementations")
+target_compile_definitions(${THIS_PROJECT} PRIVATE -DNOT_USE_CRY_MEMORY_MANAGER -DPLUGIN_EXPORTS -DUSE_BACKWARDS_COMPATIBILITY)
+

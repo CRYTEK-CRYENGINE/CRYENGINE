@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -27,10 +27,10 @@ struct SSharedState
 
 struct SCustomGraphicsState
 {
-	SCachedValue<ID3D11DepthStencilState*> depthStencilState;
-	SCachedValue<ID3D11RasterizerState*>   rasterizerState;
+	SCachedValue<_smart_ptr<ID3D11DepthStencilState>> depthStencilState;
+	SCachedValue<_smart_ptr<ID3D11RasterizerState>>   rasterizerState;
 	uint32                                 rasterizerStateIndex;
-	SCachedValue<ID3D11BlendState*>        blendState;
+	SCachedValue<_smart_ptr<ID3D11BlendState>>        blendState;
 	SCachedValue<ID3D11InputLayout*>       inputLayout;
 	SCachedValue<D3D11_PRIMITIVE_TOPOLOGY> topology;
 
@@ -107,6 +107,7 @@ protected:
 	void SetInlineConstantsImpl(uint32 bindSlot, uint32 constantCount, float* pConstants) {}
 	void SetStencilRefImpl(uint8 stencilRefValue);
 	void SetDepthBiasImpl(float constBias, float slopeBias, float biasClamp);
+	void SetDepthBoundsImpl(float fMin, float fMax);
 
 	void DrawImpl(uint32 VertexCountPerInstance, uint32 InstanceCount, uint32 StartVertexLocation, uint32 StartInstanceLocation);
 	void DrawIndexedImpl(uint32 IndexCountPerInstance, uint32 InstanceCount, uint32 StartIndexLocation, int BaseVertexLocation, uint32 StartInstanceLocation);

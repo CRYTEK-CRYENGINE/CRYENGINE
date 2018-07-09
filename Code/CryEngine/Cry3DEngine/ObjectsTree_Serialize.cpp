@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "PolygonClipContext.h"
@@ -13,6 +13,7 @@
 #include "VisAreas.h"
 #include "Brush.h"
 
+#pragma warning(push)
 #pragma warning(disable: 4244)
 
 #pragma pack(push,4)
@@ -206,10 +207,9 @@ AUTO_TYPE_INFO(EERType);
 #include <CryCore/TypeInfo_impl.h>
 #include "ObjectsTree_Serialize_info.h"
 
-inline void CopyCommonData(SRenderNodeChunk* pChunk, IRenderNode* pObj, const Vec3& segmentOffset)
+inline void CopyCommonData(SRenderNodeChunk* pChunk, IRenderNode* pObj)
 {
 	pChunk->m_WSBBox = pObj->GetBBox();
-	pChunk->m_WSBBox.Move(segmentOffset);
 	//COPY_MEMBER_SAVE(pChunk,pObj,m_fWSMaxViewDist);
 	COPY_MEMBER_SAVE(pChunk, pObj, m_dwRndFlags);
 	COPY_MEMBER_SAVE(pChunk, pObj, m_ucViewDistRatio);
@@ -270,7 +270,7 @@ int32 COctreeNode::SaveObjects_CompareRenderNodes(const void* v1, const void* v2
 }
 
 //////////////////////////////////////////////////////////////////////////
-int COctreeNode::SaveObjects(CMemoryBlock* pMemBlock, std::vector<IStatObj*>* pStatObjTable, std::vector<IMaterial*>* pMatTable, std::vector<IStatInstGroup*>* pStatInstGroupTable, EEndian eEndian, const SHotUpdateInfo* pExportInfo, const Vec3& segmentOffset)
+int COctreeNode::SaveObjects(CMemoryBlock* pMemBlock, std::vector<IStatObj*>* pStatObjTable, std::vector<IMaterial*>* pMatTable, std::vector<IStatInstGroup*>* pStatInstGroupTable, EEndian eEndian, const SHotUpdateInfo* pExportInfo)
 {
 #if !ENGINE_ENABLE_COMPILATION
 	CryFatalError("serialization code removed, please enable ENGINE_ENABLE_COMPILATION in Cry3DEngine/StdAfx.h");
@@ -331,7 +331,7 @@ int COctreeNode::SaveObjects(CMemoryBlock* pMemBlock, std::vector<IStatObj*>* pS
 
 	for (int i = 0; i < arrSortedObjects.Count(); i++)
 	{
-		SaveSingleObject(pPtr, nDatanSize, arrSortedObjects[i], pStatObjTable, pMatTable, pStatInstGroupTable, eEndian, pExportInfo, segmentOffset);
+		SaveSingleObject(pPtr, nDatanSize, arrSortedObjects[i], pStatObjTable, pMatTable, pStatInstGroupTable, eEndian, pExportInfo);
 	}
 
 	assert(pPtr == (byte*)pMemBlock->GetData() + nBlockSize);
@@ -342,12 +342,12 @@ int COctreeNode::SaveObjects(CMemoryBlock* pMemBlock, std::vector<IStatObj*>* pS
 }
 
 //////////////////////////////////////////////////////////////////////////
-int COctreeNode::LoadObjects(byte* pPtr, byte* pEndPtr, std::vector<IStatObj*>* pStatObjTable, std::vector<IMaterial*>* pMatTable, EEndian eEndian, int nChunkVersion, const SLayerVisibility* pLayerVisibility, const Vec3& segmentOffset, ELoadObjectsMode eLoadMode)
+int COctreeNode::LoadObjects(byte* pPtr, byte* pEndPtr, std::vector<IStatObj*>* pStatObjTable, std::vector<IMaterial*>* pMatTable, EEndian eEndian, int nChunkVersion, const SLayerVisibility* pLayerVisibility, ELoadObjectsMode eLoadMode)
 {
 	while (pPtr < pEndPtr)
 	{
 		IRenderNode* pRN = 0;
-		LoadSingleObject(pPtr, pStatObjTable, pMatTable, eEndian, nChunkVersion, pLayerVisibility, m_nSID, segmentOffset, eLoadMode, pRN);
+		LoadSingleObject(pPtr, pStatObjTable, pMatTable, eEndian, nChunkVersion, pLayerVisibility, eLoadMode, pRN);
 
 		if (eLoadMode == LOM_LOAD_ONLY_STREAMABLE && pRN && IsObjectStreamable(pRN->GetRenderNodeType(), pRN->m_dwRndFlags))
 		{
@@ -358,8 +358,7 @@ int COctreeNode::LoadObjects(byte* pPtr, byte* pEndPtr, std::vector<IStatObj*>* 
 				Get3DEngine()->UnRegisterEntityDirect(pRN);
 				LinkObject(pRN, pRN->GetRenderNodeType());
 				pRN->m_pOcNode = this;
-				pRN->m_nSID = m_nSID;
-				SetCompiled(false);
+				SetCompiled(IRenderNode::GetRenderNodeListId(pRN->GetRenderNodeType()), false);
 			}
 
 			m_nInstCounterLoaded++;
@@ -454,7 +453,7 @@ int COctreeNode::GetSingleObjectFileDataSize(IRenderNode* pObj, const SHotUpdate
 	return nBlockSize;
 }
 
-void COctreeNode::SaveSingleObject(byte*& pPtr, int& nDatanSize, IRenderNode* pEnt, std::vector<IStatObj*>* pStatObjTable, std::vector<IMaterial*>* pMatTable, std::vector<IStatInstGroup*>* pStatInstGroupTable, EEndian eEndian, const SHotUpdateInfo* pExportInfo, const Vec3& segmentOffset)
+void COctreeNode::SaveSingleObject(byte*& pPtr, int& nDatanSize, IRenderNode* pEnt, std::vector<IStatObj*>* pStatObjTable, std::vector<IMaterial*>* pMatTable, std::vector<IStatInstGroup*>* pStatInstGroupTable, EEndian eEndian, const SHotUpdateInfo* pExportInfo)
 {
 	EERType eType = pEnt->GetRenderNodeType();
 
@@ -466,13 +465,13 @@ void COctreeNode::SaveSingleObject(byte*& pPtr, int& nDatanSize, IRenderNode* pE
 
 		SBrushChunk chunk;
 
-		CopyCommonData(&chunk, pObj, segmentOffset);
+		CopyCommonData(&chunk, pObj);
 
 		COPY_MEMBER_SAVE(&chunk, pObj, m_nMaterialLayers);
 
 		// brush data
 		COPY_MEMBER_SAVE(&chunk, pObj, m_Matrix);
-		chunk.m_Matrix.SetTranslation(chunk.m_Matrix.GetTranslation() + segmentOffset);
+		chunk.m_Matrix.SetTranslation(chunk.m_Matrix.GetTranslation());
 
 		chunk.m_nMaterialId = CObjManager::GetItemId(pMatTable, pObj->GetMaterial());
 
@@ -498,11 +497,10 @@ void COctreeNode::SaveSingleObject(byte*& pPtr, int& nDatanSize, IRenderNode* pE
 
 		SVegetationChunk chunk;
 
-		CopyCommonData(&chunk, pObj, segmentOffset);
+		CopyCommonData(&chunk, pObj);
 
 		// vegetation data
 		COPY_MEMBER_SAVE(&chunk, pObj, m_vPos);
-		chunk.m_vPos += segmentOffset;
 		chunk.m_fScale = pObj->GetScale();
 		COPY_MEMBER_SAVE(&chunk, pObj, m_nObjectTypeIndex);
 		COPY_MEMBER_SAVE(&chunk, pObj, m_ucAngle);
@@ -529,10 +527,9 @@ void COctreeNode::SaveSingleObject(byte*& pPtr, int& nDatanSize, IRenderNode* pE
 			CMergedMeshRenderNode* pObj = (CMergedMeshRenderNode*)pEnt;
 
 			AddToPtr(pPtr, nDatanSize, eType, eEndian);
-			CopyCommonData(&chunk, pObj, segmentOffset);
+			CopyCommonData(&chunk, pObj);
 			chunk.m_nGroups = pObj->NumGroups();
 			chunk.m_Extents = pObj->GetExtents();
-			chunk.m_Extents.Move(segmentOffset);
 			AddToPtr(pPtr, nDatanSize, chunk, eEndian);
 
 			for (size_t i = 0; i < pObj->NumGroups(); ++i)
@@ -557,7 +554,7 @@ void COctreeNode::SaveSingleObject(byte*& pPtr, int& nDatanSize, IRenderNode* pE
 
 		SRoadChunk chunk;
 
-		CopyCommonData(&chunk, pObj, segmentOffset);
+		CopyCommonData(&chunk, pObj);
 
 		// road data
 		chunk.m_nMaterialId = CObjManager::GetItemId(pMatTable, pObj->GetMaterial());
@@ -598,14 +595,14 @@ void COctreeNode::SaveSingleObject(byte*& pPtr, int& nDatanSize, IRenderNode* pE
 
 		SDecalChunk chunk;
 
-		CopyCommonData(&chunk, pObj, segmentOffset);
+		CopyCommonData(&chunk, pObj);
 
 		// decal properties
 		const SDecalProperties* pDecalProperties(pObj->GetDecalProperties());
 		assert(pDecalProperties);
 		chunk.m_projectionType = pDecalProperties->m_projectionType;
 		chunk.m_deferred = pDecalProperties->m_deferred;
-		chunk.m_pos = pDecalProperties->m_pos + segmentOffset;
+		chunk.m_pos = pDecalProperties->m_pos;
 		chunk.m_normal = pDecalProperties->m_normal;
 		chunk.m_explicitRightUpFront = pDecalProperties->m_explicitRightUpFront;
 		chunk.m_radius = pDecalProperties->m_radius;
@@ -634,7 +631,7 @@ void COctreeNode::SaveSingleObject(byte*& pPtr, int& nDatanSize, IRenderNode* pE
 			int cntAux;
 			float* pAuxData = pObj->GetAuxSerializationDataPtr(cntAux);
 
-			CopyCommonData(&chunk, pObj, segmentOffset);
+			CopyCommonData(&chunk, pObj);
 
 			chunk.m_volumeTypeAndMiscBits = (pSerData->m_volumeType & 0xFFFF) | ((pSerData->m_capFogAtVolumeDepth ? 1 : 0) << 16) | ((pSerData->m_fogColorAffectedBySun ? 0 : 1) << 17) | (cntAux << 24);
 			chunk.m_volumeID = pSerData->m_volumeID;
@@ -669,7 +666,7 @@ void COctreeNode::SaveSingleObject(byte*& pPtr, int& nDatanSize, IRenderNode* pE
 			for (size_t i(0); i < pSerData->m_vertices.size(); ++i)
 			{
 				SWaterVolumeVertex v;
-				v.m_xyz = pSerData->m_vertices[i] + segmentOffset;
+				v.m_xyz = pSerData->m_vertices[i];
 
 				AddToPtr(pPtr, nDatanSize, v, eEndian);
 			}
@@ -678,7 +675,7 @@ void COctreeNode::SaveSingleObject(byte*& pPtr, int& nDatanSize, IRenderNode* pE
 			for (size_t i(0); i < pSerData->m_physicsAreaContour.size(); ++i)
 			{
 				SWaterVolumeVertex v;
-				v.m_xyz = pSerData->m_physicsAreaContour[i] + segmentOffset;
+				v.m_xyz = pSerData->m_physicsAreaContour[i];
 
 				AddToPtr(pPtr, nDatanSize, v, eEndian);
 			}
@@ -693,11 +690,11 @@ void COctreeNode::SaveSingleObject(byte*& pPtr, int& nDatanSize, IRenderNode* pE
 
 		SDistanceCloudChunk chunk;
 
-		CopyCommonData(&chunk, pObj, segmentOffset);
+		CopyCommonData(&chunk, pObj);
 
 		// distance cloud properties
 		SDistanceCloudProperties properties(pObj->GetProperties());
-		chunk.m_pos = properties.m_pos + segmentOffset;
+		chunk.m_pos = properties.m_pos;
 		chunk.m_sizeX = properties.m_sizeX;
 		chunk.m_sizeY = properties.m_sizeY;
 		chunk.m_rotationZ = properties.m_rotationZ;
@@ -718,7 +715,7 @@ void COctreeNode::SaveSingleObject(byte*& pPtr, int& nDatanSize, IRenderNode* pE
 
 		SWaterWaveChunk chunk;
 
-		CopyCommonData(&chunk, pObj, segmentOffset);
+		CopyCommonData(&chunk, pObj);
 
 		chunk.m_nID = (int32)pSerData->m_nID;
 		chunk.m_nMaterialID = CObjManager::GetItemId(pMatTable, pSerData->m_pMaterial);
@@ -729,7 +726,7 @@ void COctreeNode::SaveSingleObject(byte*& pPtr, int& nDatanSize, IRenderNode* pE
 		chunk.m_nVertexCount = pSerData->m_nVertexCount;
 
 		chunk.m_pWorldTM = pSerData->m_pWorldTM;
-		chunk.m_pWorldTM.SetTranslation(chunk.m_pWorldTM.GetTranslation() + segmentOffset);
+		chunk.m_pWorldTM.SetTranslation(chunk.m_pWorldTM.GetTranslation());
 
 		chunk.m_fSpeed = pSerData->m_pParams.m_fSpeed;
 		chunk.m_fSpeedVar = pSerData->m_pParams.m_fSpeedVar;
@@ -749,7 +746,7 @@ void COctreeNode::SaveSingleObject(byte*& pPtr, int& nDatanSize, IRenderNode* pE
 		// save vertices
 		for (size_t i(0); i < pSerData->m_nVertexCount; ++i)
 		{
-			Vec3 vPos(pSerData->m_pVertices[i] + segmentOffset);
+			Vec3 vPos(pSerData->m_pVertices[i]);
 			AddToPtr(pPtr, nDatanSize, vPos, eEndian);
 		}
 	}
@@ -776,7 +773,7 @@ bool COctreeNode::CheckSkipLoadObject(EERType eType, uint64 dwRndFlags, ELoadObj
 	  (eLoadMode == LOM_LOAD_ONLY_STREAMABLE && !(IsObjectStreamable(eType, dwRndFlags)));
 }
 
-void COctreeNode::LoadSingleObject(byte*& pPtr, std::vector<IStatObj*>* pStatObjTable, std::vector<IMaterial*>* pMatTable, EEndian eEndian, int nChunkVersion, const SLayerVisibility* pLayerVisibility, int nSID, const Vec3& segmentOffset, ELoadObjectsMode eLoadMode, IRenderNode*& pRN)
+void COctreeNode::LoadSingleObject(byte*& pPtr, std::vector<IStatObj*>* pStatObjTable, std::vector<IMaterial*>* pMatTable, EEndian eEndian, int nChunkVersion, const SLayerVisibility* pLayerVisibility, ELoadObjectsMode eLoadMode, IRenderNode*& pRN)
 {
 	EERType eType = *StepData<EERType>(pPtr, eEndian);
 
@@ -810,10 +807,8 @@ void COctreeNode::LoadSingleObject(byte*& pPtr, std::vector<IStatObj*>* pStatObj
 		// set material
 		pObj->SetMaterial(CObjManager::GetItemPtr(pMatTable, pChunk->m_nMaterialId));
 
-		pObj->OffsetPosition(segmentOffset);
-
 		// to get correct indirect lighting the registration must be done before checking if this object is inside a VisArea
-		Get3DEngine()->RegisterEntity(pObj, nSID, nSID);
+		Get3DEngine()->RegisterEntity(pObj);
 
 		if (NULL != pLayerVisibility)
 		{
@@ -841,10 +836,10 @@ void COctreeNode::LoadSingleObject(byte*& pPtr, std::vector<IStatObj*>* pStatObj
 
 		bool bStreamAllVegetation = true;
 
-		if (CheckSkipLoadObject(eType, pChunk->m_dwRndFlags, eLoadMode) || !CheckRenderFlagsMinSpec(GetObjManager()->m_lstStaticTypes[nSID][pChunk->m_nObjectTypeIndex].m_dwRndFlags))
+		if (CheckSkipLoadObject(eType, pChunk->m_dwRndFlags, eLoadMode) || !CheckRenderFlagsMinSpec(GetObjManager()->m_lstStaticTypes[pChunk->m_nObjectTypeIndex].m_dwRndFlags))
 			return;
 
-		StatInstGroup* pGroup = &GetObjManager()->m_lstStaticTypes[nSID][pChunk->m_nObjectTypeIndex];
+		StatInstGroup* pGroup = &GetObjManager()->m_lstStaticTypes[pChunk->m_nObjectTypeIndex];
 		if (!pGroup->GetStatObj() || (pGroup->GetStatObj()->GetRadius() * pChunk->m_fScale < GetCVars()->e_VegetationMinSize))
 			return;   // skip creation of very small objects
 
@@ -865,13 +860,8 @@ void COctreeNode::LoadSingleObject(byte*& pPtr, std::vector<IStatObj*>* pStatObj
 		COPY_MEMBER_LOAD(pObj, pChunk, m_ucAngleY);
 
 		pObj->SetBBox(pChunk->m_WSBBox);
-#ifdef SEG_WORLD
-		assert(nSID < 65536);
-		pObj->m_nStaticTypeSlot = nSID;
-#endif
 		pObj->Physicalize();
-		pObj->OffsetPosition(segmentOffset);
-		Get3DEngine()->RegisterEntity(pObj, nSID, nSID);
+		Get3DEngine()->RegisterEntity(pObj);
 		pObj->CheckCreateDeformable();
 
 		assert(!(pObj->GetRndFlags() & ERF_PROCEDURAL));
@@ -889,7 +879,7 @@ void COctreeNode::LoadSingleObject(byte*& pPtr, std::vector<IStatObj*>* pStatObj
 			return;
 		}
 
-		CMergedMeshRenderNode* pObj = m_pMergedMeshesManager->GetNode((pChunk->m_Extents.max + pChunk->m_Extents.min) * 0.5f + segmentOffset);
+		CMergedMeshRenderNode* pObj = m_pMergedMeshesManager->GetNode((pChunk->m_Extents.max + pChunk->m_Extents.min) * 0.5f);
 		if (pObj->StreamedIn()) // MM is already streamed in
 			return;
 
@@ -900,10 +890,6 @@ void COctreeNode::LoadSingleObject(byte*& pPtr, std::vector<IStatObj*>* pStatObj
 #endif
 		LoadCommonData(pChunk, pObj, pLayerVisibility);
 		pObj->Setup(pChunk->m_Extents, pChunk->m_WSBBox, NULL);
-#ifdef SEG_WORLD
-		assert(nSID < 65536);
-		pObj->m_nStaticTypeSlot = nSID;
-#endif
 		bool bHasValidData = false;
 		for (size_t i = 0; i < pChunk->m_nGroups; ++i)
 		{
@@ -914,10 +900,9 @@ void COctreeNode::LoadSingleObject(byte*& pPtr, std::vector<IStatObj*>* pStatObj
 			}
 		}
 
-		pObj->OffsetPosition(segmentOffset);
 		if (bHasValidData)
 		{
-			Get3DEngine()->RegisterEntity(pObj, nSID, nSID);
+			Get3DEngine()->RegisterEntity(pObj);
 		}
 		else
 		{
@@ -1003,9 +988,7 @@ void COctreeNode::LoadSingleObject(byte*& pPtr, std::vector<IStatObj*>* pStatObj
 			pObj->SetRndFlags(ERF_HIDDEN, true);
 		}
 
-		pObj->OffsetPosition(segmentOffset);
-
-		Get3DEngine()->RegisterEntity(pObj, nSID, nSID);
+		Get3DEngine()->RegisterEntity(pObj);
 	}
 	else if (eERType_Decal == eType)
 	{
@@ -1082,8 +1065,6 @@ void COctreeNode::LoadSingleObject(byte*& pPtr, std::vector<IStatObj*>* pStatObj
 			pObj->SetRndFlags(ERF_HIDDEN, true);
 		}
 
-		pObj->OffsetPosition(segmentOffset);
-
 		//if( pObj->GetMaterialID() != pChunk->m_materialID )
 		if (pObj->GetMaterial() != pMaterial)
 		{
@@ -1097,7 +1078,7 @@ void COctreeNode::LoadSingleObject(byte*& pPtr, std::vector<IStatObj*>* pStatObj
 		}
 		else
 		{
-			Get3DEngine()->RegisterEntity(pObj, nSID, nSID);
+			Get3DEngine()->RegisterEntity(pObj);
 			GetObjManager()->m_decalsToPrecreate.push_back(pObj);
 		}
 	}
@@ -1166,12 +1147,12 @@ void COctreeNode::LoadSingleObject(byte*& pPtr, std::vector<IStatObj*>* pStatObj
 		{
 		case IWaterVolumeRenderNode::eWVT_River:
 			{
-				pObj->CreateRiver(pChunk->m_volumeID, &vertices[0], pChunk->m_numVertices, pChunk->m_uTexCoordBegin, pChunk->m_uTexCoordEnd, Vec2(pChunk->m_surfUScale, pChunk->m_surfVScale), pChunk->m_fogPlane, false, nSID);
+				pObj->CreateRiver(pChunk->m_volumeID, &vertices[0], pChunk->m_numVertices, pChunk->m_uTexCoordBegin, pChunk->m_uTexCoordEnd, Vec2(pChunk->m_surfUScale, pChunk->m_surfVScale), pChunk->m_fogPlane, false);
 				break;
 			}
 		case IWaterVolumeRenderNode::eWVT_Area:
 			{
-				pObj->CreateArea(pChunk->m_volumeID, &vertices[0], pChunk->m_numVertices, Vec2(pChunk->m_surfUScale, pChunk->m_surfVScale), pChunk->m_fogPlane, false, nSID);
+				pObj->CreateArea(pChunk->m_volumeID, &vertices[0], pChunk->m_numVertices, Vec2(pChunk->m_surfUScale, pChunk->m_surfVScale), pChunk->m_fogPlane, false);
 				break;
 			}
 		case IWaterVolumeRenderNode::eWVT_Ocean:
@@ -1253,9 +1234,7 @@ void COctreeNode::LoadSingleObject(byte*& pPtr, std::vector<IStatObj*>* pStatObj
 		// set material
 		pObj->SetMaterial(pMaterial);
 
-		pObj->OffsetPosition(segmentOffset);
-
-		Get3DEngine()->RegisterEntity(pObj, nSID, nSID);
+		Get3DEngine()->RegisterEntity(pObj);
 	}
 	else if (eERType_DistanceCloud == eType)
 	{
@@ -1290,8 +1269,6 @@ void COctreeNode::LoadSingleObject(byte*& pPtr, std::vector<IStatObj*>* pStatObj
 
 		pObj->SetProperties(properties);
 
-		pObj->OffsetPosition(segmentOffset);
-
 		// set object visibility
 		if (NULL != pLayerVisibility)
 		{
@@ -1319,7 +1296,7 @@ void COctreeNode::LoadSingleObject(byte*& pPtr, std::vector<IStatObj*>* pStatObj
 		}
 		else
 		{
-			Get3DEngine()->RegisterEntity(pObj, nSID, nSID);
+			Get3DEngine()->RegisterEntity(pObj);
 		}
 	}
 	else if (eERType_WaterWave == eType)
@@ -1378,8 +1355,6 @@ void COctreeNode::LoadSingleObject(byte*& pPtr, std::vector<IStatObj*>* pStatObj
 		Vec2 vScaleUV(pChunk->m_fUScale, pChunk->m_fVScale);
 		pObj->Create(pChunk->m_nID, &pVertices[0], pChunk->m_nVertexCount, vScaleUV, pChunk->m_pWorldTM);
 
-		pObj->OffsetPosition(segmentOffset);
-
 		//Get3DEngine()->RegisterEntity( pObj );
 	}
 	else
@@ -1392,3 +1367,5 @@ void COctreeNode::LoadSingleObject(byte*& pPtr, std::vector<IStatObj*>* pStatObj
 		pPtr++;
 	}
 }
+
+#pragma warning(pop)

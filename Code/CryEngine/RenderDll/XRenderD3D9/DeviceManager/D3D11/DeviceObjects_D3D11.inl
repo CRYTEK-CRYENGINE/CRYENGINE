@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #if !CRY_RENDERER_VULKAN
 
@@ -17,8 +17,13 @@ public:
 	void BeginMeasurement();
 	void EndMeasurement();
 
-	uint32 IssueTimestamp(void* pCommandList);
+	uint32 IssueTimestamp(CDeviceCommandList* pCommandList);
 	bool ResolveTimestamps();
+
+	uint64 GetTime(uint32 timestamp)
+	{
+		return m_timeValues[timestamp];
+	}
 	
 	float GetTimeMS(uint32 timestamp0, uint32 timestamp1)
 	{
@@ -34,6 +39,8 @@ protected:
 
 	UINT64                                    m_frequency;
 	std::array<uint64, kMaxTimestamps>        m_timeValues;
+
+	bool                                      m_measurable;
 };
 
 #else
@@ -64,7 +71,7 @@ public:
 		// Empty on purpose
 	}
 
-	uint32 IssueTimestamp(void* pCommandList)
+	uint32 IssueTimestamp(CDeviceCommandList* pCommandList)
 	{
 		if (m_timestampIndex < kMaxTimestamps)
 		{
@@ -83,6 +90,11 @@ public:
 			return gpuLastExecuted > m_lastIssued;
 		}
 		return true; // Nothing was issued
+	}
+
+	uint64 GetTime(uint32 timestamp)
+	{
+		return m_timeValues[timestamp];
 	}
 
 	float GetTimeMS(uint32 timestamp0, uint32 timestamp1)

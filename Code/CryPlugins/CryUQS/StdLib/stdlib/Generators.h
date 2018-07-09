@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -81,6 +81,59 @@ namespace UQS
 
 		private:
 			const SParams               m_params;
+		};
+
+		//===================================================================================
+		//
+		// CGenerator_PointsOnGridProjectedOntoNavMesh
+		//
+		// - generates points on a grid which are then projected onto the navigation mesh
+		// - internally, a flood-filling originating at the grid's center is used to radially spread out and project all grid cell positions onto the navigation mesh
+		// - as opposed to CGenerator_PointsOnPureGrid, this one should work fine for hills and slopes on the terrain
+		//
+		//===================================================================================
+
+		class CGenerator_PointsOnGridProjectedOntoNavMesh : public Client::CGeneratorBase<CGenerator_PointsOnGridProjectedOntoNavMesh, Pos3>
+		{
+		public:
+			struct SParams
+			{
+				Pos3                    center;                     // center of the grid
+				float                   size;                       // length of one edge of the grid
+				float                   spacing;                    // space between individual points on both, the x- and y-axis
+				NavigationAgentTypeID   navigationAgentTypeID;      // the points will be generated in this layer of the NavMesh
+				float                   verticalTolerance;          // upwards + downwards tolerance (in meters) to find valid navmesh positions for each grid position
+
+				UQS_EXPOSE_PARAMS_BEGIN
+					UQS_EXPOSE_PARAM("center", center, "CENT", "Center of the grid.");
+					UQS_EXPOSE_PARAM("size", size, "SIZE", "Length of one edge of the grid.");
+					UQS_EXPOSE_PARAM("spacing", spacing, "SPAC", "Space between individual points on both the x- and y-axis.");
+					UQS_EXPOSE_PARAM("navigationAgentTypeID", navigationAgentTypeID, "AGEN", "The points will be generated in this layer of the NavMesh.");
+					UQS_EXPOSE_PARAM("verticalTolerance", verticalTolerance, "VTOL", "Upwards and downwards tolerance (in meters) to find a valid position on the navmesh for each grid position.");
+				UQS_EXPOSE_PARAMS_END
+			};
+
+		public:
+			explicit                    CGenerator_PointsOnGridProjectedOntoNavMesh(const SParams& params);
+			EUpdateStatus               DoUpdate(const SUpdateContext& updateContext, Client::CItemListProxy_Writable<Pos3>& itemListToPopulate);
+
+		private:
+			bool                        Setup(const SUpdateContext& updateContext);
+			EUpdateStatus               Flood(const SUpdateContext& updateContext, Client::CItemListProxy_Writable<Pos3>& itemListToPopulate);
+			void                        PerformOneFloodStep(const SUpdateContext& updateContext);
+
+		private:
+			const SParams               m_params;
+			bool                        m_bSetupPending;
+			int                         m_numCellsOnOneAxis;
+			float                       m_startPosX;
+			float                       m_startPosY;
+			std::vector<Pos3>           m_grid;
+			std::vector<bool>           m_visited;
+			std::vector<int>            m_parents;
+			std::deque<int>             m_openList;
+			std::vector<Pos3>           m_successfullyProjectedPoints;
+			int                         m_debugRunawayCounter;
 		};
 
 	}

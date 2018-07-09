@@ -1,5 +1,4 @@
-// CRYENGINE Source Code File
-// Copyright 2001-2015 Crytek GmbH. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "Common.cfi" 
 #include "PostEffectsLib.cfi"
@@ -32,8 +31,6 @@ SamplerState           ssShadowPointWrap      : register(s2) = SS_PointWrap;
 //===========================================================================
 // Basic shadow maps support
 
-float4x4 CompMatrix  			: PI_Composite < vsregister = c0; >;    // View*Projection
-
 cbuffer CBShadowMask : register(b0)
 {
 	struct 
@@ -52,6 +49,7 @@ cbuffer CBShadowMask : register(b0)
 		float4   fShadowFadingDist;
 		float4x4 BlendTexGen;
 		float4   BlendInfo;
+		float4   lightPos;
 	} c_ShadowMaskConstants;
 };
 
@@ -61,6 +59,7 @@ cbuffer CBCloudShadows : register(b0)
 	{
 		float4   params;
 		float4   animParams;
+		float4   screenspaceShadowsParams;
 	} c_CloudShadowConstants;
 };
 
@@ -87,7 +86,7 @@ struct app2vertStencilCull
 
 struct vert2fragStencilCull
 {
-	float4 HPosition : POSITION;
+	float4 HPosition : SV_POSITION;
 };
 
 struct pixout_StencilCull
@@ -145,8 +144,7 @@ vert2fragStencilCull StencilCullVS(app2vertStencilCull IN)
 {
 	vert2fragStencilCull OUT = (vert2fragStencilCull)0; 
 
-	float4 worldPos = mul(CompMatrix, IN.Position);
-	OUT.HPosition = mul(CV_ViewProjMatr, worldPos);
+	OUT.HPosition = mul(CV_ViewProjMatr, IN.Position);
 
 	return OUT;
 }
@@ -188,6 +186,9 @@ pixout_StencilCull_void StencilCullPS(vert2fragStencilCull IN)
 float4x4 g_mReprojDstToSrc;
 float4x4 g_mReprojSrcToDst;
 
+Texture2D<float4>ReprojSM_Dpth      : register(t0);
+SamplerState ReprojSM_SSDpth        : register(s0);  //LinearClamp
+
 pixout_cl_void_depth ReprojectShadowMap(vtxOut IN)
 {
 	pixout_cl_void_depth OUT = (pixout_cl_void_depth) 1;
@@ -197,7 +198,7 @@ pixout_cl_void_depth ReprojectShadowMap(vtxOut IN)
 	clipPosSrc.xy /= clipPosSrc.w;
 	
 	float2 tcSrc = clipPosSrc.xy * float2(0.5, -0.5) + 0.5;
-	float srcDepth = tex2D(_tex0, tcSrc);
+	float srcDepth = GetTexture2D(ReprojSM_Dpth,ReprojSM_SSDpth, tcSrc);
 	clipPosDst.zw = mul(float4(clipPosSrc.xy, srcDepth, 1.0f), g_mReprojSrcToDst).zw;
 	float dstDepth = clipPosDst.z / clipPosDst.w;
 	
@@ -216,11 +217,7 @@ float4 CalcShadowSpace(float4 HPos)
 		//TOFIX: concatenate this operations to the projection matrix
 		P0.z *= c_ShadowMaskConstants.fOneDivFarDist.x;
 	#endif
-
-	//we do slope scale bias during shadowgen only
-	//make constant bias for sun
-	P0.z -= c_ShadowMaskConstants.fDepthTestBias.x; 
-
+	
   return P0;
 }
 
@@ -300,6 +297,16 @@ pixout_cl DeferredShadowPS(float4 WPos : SV_POSITION)
   pOutBlend.xy = pOutBlend.xy * c_ShadowMaskConstants.BlendTcNormalize.xy + c_ShadowMaskConstants.BlendTcNormalize.zw;
   
   P0 = CalcShadowSpace(P0);
+	
+	// Apply bias
+#if %_RT_SAMPLE4
+	// Compute bias that is relative to shadow map texel world space size
+	float3 worldPos = ReconstructWorldPos(WPos.xy, SceneDepth);
+	float constBias = dot(worldPos - c_ShadowMaskConstants.lightPos.xyz, -CV_SunLightDir.xyz) * c_ShadowMaskConstants.fDepthTestBias.x;
+#else
+	float constBias = c_ShadowMaskConstants.fDepthTestBias.x;
+#endif
+	P0.z -= constBias;
 
 #if %_RT_SAMPLE1
 	const bool bContactHardening = true;
@@ -312,12 +319,6 @@ pixout_cl DeferredShadowPS(float4 WPos : SV_POSITION)
   //gsm fading
 	half2 fDist = 2.0*abs(P0.xy-half2(0.5,0.5));
 	half fFadeF = 1.0 - (c_ShadowMaskConstants.fShadowFadingDist.x * pow(max(fDist.x,fDist.y),8));
-
-#if %_RT_SAMPLE2
-	// Apply sun SS shadows
-	float3 WorldP = ReconstructWorldPos(WPos.xy, SceneDepth);
-	CalculateDetailSSShadow(sceneDepthTexture, SceneDepth, WorldP, WorldP + CV_SunLightDir.xyz, CV_ViewProjMatr, fInShadow, true );
-#endif
 
 	// Apply POM self-shadowing
 	uint2 pixelCoord = int2(WPos.xy);
@@ -343,10 +344,11 @@ pixout_cl DeferredShadowPS(float4 WPos : SV_POSITION)
 ///////////////// cloud shadows  //////////////////
 Texture2D cloudShadowTex          : register(t0) = TS_CloudShadow;
 Texture3D volCloudShadowTex       : register(t0) = TS_VolCloudShadow;
+Texture2D svoShadowTex            : register(t3);
 SamplerState ssCloudShadow        : register(s0) = SS_MaterialBilinearWrap;
 SamplerState ssVolCloudShadow     : register(s0) = SS_MaterialTrilinearBorder;
 
-pixout_cl CloudsShadowPS(float4 WPos : SV_POSITION)
+pixout_cl CustomShadowsPS(float4 WPos : SV_POSITION)
 {
 	pixout_cl OUT = (pixout_cl) 1;
 	float visibility = 1;
@@ -354,12 +356,23 @@ pixout_cl CloudsShadowPS(float4 WPos : SV_POSITION)
 	float3 WorldP = ReconstructWorldPos(WPos.xy, sceneDepthTexture);
 
 #if %_RT_SAMPLE3
-	visibility = 1 - GetVolumetricCloudShadow(volCloudShadowTex, ssVolCloudShadow, WorldP.xyz, CV_SunLightDir.xyz, c_CloudShadowConstants.params, c_CloudShadowConstants.animParams);
+	visibility = GetVolumetricCloudShadow(volCloudShadowTex, ssVolCloudShadow, WorldP.xyz, CV_SunLightDir.xyz, c_CloudShadowConstants.params, c_CloudShadowConstants.animParams);
 #elif %_RT_SAMPLE2
-	visibility = 1 - GetCloudShadowCommon(WorldP, cloudShadowTex, ssCloudShadow, c_CloudShadowConstants.animParams, c_CloudShadowConstants.params);
+	visibility = GetCloudShadowCommon(WorldP, cloudShadowTex, ssCloudShadow, c_CloudShadowConstants.animParams, c_CloudShadowConstants.params);
 #endif
 
-	OUT.Color = visibility;
+#if %_RT_SAMPLE4
+	// combine with SVO sun shadow
+	visibility *= svoShadowTex.Load(int3(WPos.xy, 0)).a;
+#endif
+
+#if %_RT_SAMPLE5
+	// combine with SS shadows
+	float sceneDepth = sceneDepthTexture.Load(int3(WPos.xy, 0)).x;
+	CalculateDetailSSShadow(sceneGBufferA, sceneDepthTexture, sceneDepth, WorldP, WorldP + CV_SunLightDir.xyz, CV_ViewProjMatr, visibility, c_CloudShadowConstants.screenspaceShadowsParams);
+#endif
+
+	OUT.Color = 1 - visibility;
 
 	return OUT;
 }
@@ -454,12 +467,12 @@ technique ShadowMaskVolume
   }
 }
 
-technique CloudShadow
+technique CustomShadows
 {
   pass p0
   {
     VertexShader = FullscreenTriVS() ShadowMaskGenVS;
     GeometryShader = $AutoGS_MultiRes();
-    PixelShader  = CloudsShadowPS()  ShadowMaskGenPS;
+    PixelShader  = CustomShadowsPS()  ShadowMaskGenPS;
   }
 }

@@ -1,9 +1,8 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
+
+//! \cond INTERNAL
 
 #pragma once
-
-#ifndef BehaviorTreeNode_h
-	#define BehaviorTreeNode_h
 
 	#include "IBehaviorTree.h"
 
@@ -21,7 +20,7 @@ public:
 	//!  terminated.
 	virtual Status Tick(const UpdateContext& unmodifiedContext) override
 	{
-		FUNCTION_PROFILER(gEnv->pSystem, PROFILE_AI);
+		CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 	#ifdef DEBUG_MODULAR_BEHAVIOR_TREE
 		DebugTree* debugTree = unmodifiedContext.debugTree;
@@ -324,4 +323,4 @@ private:
 };
 }
 
-#endif // BehaviorTreeNode_h
+//! \endcond

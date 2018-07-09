@@ -1,17 +1,6 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
-// -------------------------------------------------------------------------
-//  File name:   IResourceManager.h
-//  Version:     v1.00
-//  Created:     8/02/2010 by Timur.
-//  Description: Interface to the Resource Manager
-// -------------------------------------------------------------------------
-//  History:
-//
-////////////////////////////////////////////////////////////////////////////
-
-#ifndef _CRY_IRESOURCE_MANAGER_H_
-#define _CRY_IRESOURCE_MANAGER_H_
+//! \cond INTERNAL
 
 #pragma once
 
@@ -81,4 +70,4 @@ struct IResourceManager
 	// </interfuscator:shuffle>
 };
 
-#endif //_CRY_IRESOURCE_MANAGER_H_
+//! \endcond

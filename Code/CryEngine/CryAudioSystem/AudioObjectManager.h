@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -58,7 +58,7 @@ public:
 	  AudioSwitchLookup const& switches,
 	  AudioPreloadRequestLookup const& preloadRequests,
 	  AudioEnvironmentLookup const& environments) const;
-	void DrawDebugInfo(IRenderAuxGeom& auxGeom, float posX, float posY) const;
+	void DrawDebugInfo(IRenderAuxGeom& auxGeom, Vec3 const& listenerPosition, float const posX, float posY) const;
 
 #endif // INCLUDE_AUDIO_PRODUCTION_CODE
 
@@ -69,10 +69,7 @@ private:
 	bool HasActiveData(CATLAudioObject const* const pAudioObject) const;
 
 	ConstructedAudioObjectsList  m_constructedAudioObjects;
-
 	Impl::IImpl*                 m_pIImpl;
-	float                        m_timeSinceLastControlsUpdate;
-
 	CAudioEventManager&          m_audioEventMgr;
 	CAudioStandaloneFileManager& m_audioStandaloneFileMgr;
 	CAudioListenerManager const& m_listenerManager;

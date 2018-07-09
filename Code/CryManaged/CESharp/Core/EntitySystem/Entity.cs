@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 using System;
 using System.Collections.Generic;
@@ -22,6 +22,7 @@ namespace CryEngine
 		/// <summary>
 		/// Gets the unique identifier associated with this entity
 		/// </summary>
+		[SerializeValue]
 		public EntityId Id { get; internal set; }
 
 		/// <summary>
@@ -269,9 +270,11 @@ namespace CryEngine
 			}
 		}
 
+		[SerializeValue]
 		internal IEntity NativeHandle { get; set; }
 
-		private IntPtr NativeEntityPointer { get; set; }
+		[SerializeValue]
+		internal IntPtr NativeEntityPointer { get; set; }
 
 
 		#endregion
@@ -487,11 +490,11 @@ namespace CryEngine
 		{
 			var entity = NativeHandle;
 
-			var flags = !keepWorldTransform ? 0 : (int)IEntity.EAttachmentFlags.ATTACHMENT_KEEP_TRANSFORMATION;
+            uint flags = !keepWorldTransform ? 0 : (uint)IEntity.EAttachmentFlags.ATTACHMENT_KEEP_TRANSFORMATION;
 			entity.DetachThis(flags);
 			if(parent != null)
 			{
-				parent.AttachChild(this, new SChildAttachParams(flags));
+				parent.AttachChild(this, new SChildAttachParams((int)flags));
 			}
 		}
 
@@ -588,6 +591,26 @@ namespace CryEngine
 		}
 
 		/// <summary>
+		/// Load a primitive geometry shape from the engine-assets.
+		/// </summary>
+		/// <param name="slot"></param>
+		/// <param name="primitiveShape"></param>
+		public void LoadGeometry(int slot, Primitives primitiveShape)
+		{
+			string[] urls = new string[]
+			{
+				"%ENGINE%/EngineAssets/Objects/primitive_box.cgf",
+				"%ENGINE%/EngineAssets/Objects/primitive_cube.cgf",
+				"%ENGINE%/EngineAssets/Objects/primitive_cylinder.cgf",
+				"%ENGINE%/EngineAssets/Objects/primitive_plane.cgf",
+				"%ENGINE%/EngineAssets/Objects/primitive_pyramid.cgf",
+				"%ENGINE%/EngineAssets/Objects/primitive_sphere.cgf"
+			};
+
+			NativeHandle.LoadGeometry(slot, urls[(int)primitiveShape]);
+		}
+
+		/// <summary>
 		/// Loads a character to the specified slot, or to next available slot.
 		/// If same character is already loaded in this slot, operation is ignored.
 		/// If this slot number is occupied by a different kind of object it is overwritten.
@@ -615,6 +638,11 @@ namespace CryEngine
 			return new Character(nativeCharacter);
 		}
 
+		/// <summary>
+		/// Set the flags for a specific slot.
+		/// </summary>
+		/// <param name="slot"></param>
+		/// <param name="flags"></param>
 		public void SetSlotFlag(int slot, EntitySlotFlags flags)
 		{
 			NativeHandle.SetSlotFlags(slot, (uint)flags);

@@ -1,0 +1,10 @@
+<AssetMetadata version="0" type="Texture" guid="8aba0657-d6a7-ee8b-36c7-b76fd5c7c087" source="luma_falloff2.tif">
+ <Files>
+  <File path="luma_falloff2.dds"/>
+ </Files>
+ <Details>
+  <Detail name="width">4</Detail>
+  <Detail name="height">4</Detail>
+  <Detail name="mipCount">1</Detail>
+ </Details>
+</AssetMetadata>

@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 /*************************************************************************
 -------------------------------------------------------------------------
@@ -118,7 +118,7 @@ void CHomingMissile::Launch(const Vec3 &pos, const Vec3 &dir, const Vec3 &veloci
 void CHomingMissile::Update(SEntityUpdateContext &ctx, int updateSlot)
 {
 
-	FUNCTION_PROFILER(GetISystem(), PROFILE_GAME);
+	CRY_PROFILE_FUNCTION(PROFILE_GAME);
 
 	CRocket::Update(ctx, updateSlot);
 

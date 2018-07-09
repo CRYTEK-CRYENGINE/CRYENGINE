@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 /*************************************************************************
 	-------------------------------------------------------------------------
@@ -629,7 +629,7 @@ void CGameRulesObjective_CTF::OnAction(const ActionId &action, int activationMod
 }
 
 //-------------------------------------------------------------------------
-void CGameRulesObjective_CTF::OnEntityEvent( IEntity *pEntity, SEntityEvent &event )
+void CGameRulesObjective_CTF::OnEntityEvent( IEntity *pEntity, const SEntityEvent& event )
 {
 	EntityId entityId = pEntity->GetId();
 

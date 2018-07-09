@@ -1,0 +1,15 @@
+<AssetMetadata version="0" type="Texture" guid="e9dc334a-7fe7-c295-4867-652e3ea8a6cd" source="flashlight_projector.tif">
+ <Files>
+  <File path="flashlight_projector.dds"/>
+  <File path="flashlight_projector.dds.1"/>
+  <File path="flashlight_projector.dds.2"/>
+  <File path="flashlight_projector.dds.3"/>
+  <File path="flashlight_projector.dds.4"/>
+  <File path="flashlight_projector.dds.5"/>
+ </Files>
+ <Details>
+  <Detail name="width">512</Detail>
+  <Detail name="height">512</Detail>
+  <Detail name="mipCount">8</Detail>
+ </Details>
+</AssetMetadata>

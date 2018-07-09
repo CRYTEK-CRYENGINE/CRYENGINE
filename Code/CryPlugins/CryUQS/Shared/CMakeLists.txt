@@ -4,40 +4,17 @@
 start_sources()
 # -- uqs_shared.waf_files --
 sources_platform(ALL)
-add_sources("NoUberFile"
-	SOURCE_GROUP "shared"
-		"shared/StdAfx.cpp"
-		"shared/StdAfx.h"
-)
-
 add_sources("UQS_uber_shared.cpp"
 	SOURCE_GROUP "Root"
 		"SharedIncludes.h"
 	SOURCE_GROUP "shared"
 		"shared/UqsString.h"
-		"shared/UqsString.cpp"
 		"shared/VariantDict.h"
-		"shared/VariantDict.cpp"
 		"shared/FactoryBase.h"
+		"shared/TimeValueUtil.h"
 )
 
 end_sources()
 #END-FILE-LIST
 
-CryEngineStaticModule(CryUQS_Shared PCH "shared/StdAfx.cpp" SOLUTION_FOLDER "CryPlugins/CryUQS")
-if(WIN32 OR WIN64)
-	target_compile_definitions(${THIS_PROJECT} PRIVATE NOT_USE_CRY_MEMORY_MANAGER)
-endif()
-
-target_include_directories(${THIS_PROJECT} 
-	PRIVATE shared
-	PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}"
-	INTERFACE "${CMAKE_CURRENT_SOURCE_DIR}/../.."
-)
-
-if(OPTION_UQS_SCHEMATYC_SUPPORT)
-	target_include_directories(${THIS_PROJECT}
-		PRIVATE "${CRYENGINE_DIR}/Code/CryEngine/CrySchematyc/Core/Interface"
-		PRIVATE "${CRYENGINE_DIR}/Code/CryEngine/CrySchematyc/STDEnv/Interface"
-	)
-endif()
+CryFileContainer(CryUQS_Shared_inline SOLUTION_FOLDER "CryPlugins/CryUQS")

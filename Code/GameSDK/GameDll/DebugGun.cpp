@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 /*************************************************************************
 -------------------------------------------------------------------------
@@ -80,7 +80,7 @@ void CDebugGun::Update( SEntityUpdateContext& ctx, int update)
   IRenderAuxGeom* pAuxGeom = pRenderer->GetIRenderAuxGeom();
   pAuxGeom->SetRenderFlags(e_Def3DPublicRenderflags);
 
-  IRenderAuxText::Draw2dLabel(pRenderer->GetWidth()/5.f, pRenderer->GetHeight()-35, fontLarge, drawColor, false, "Firemode: %s (%.1f)", m_fireModes[m_fireMode].first.c_str(), m_fireModes[m_fireMode].second);
+  IRenderAuxText::Draw2dLabel(pRenderer->GetOverlayWidth()/5.f, pRenderer->GetOverlayHeight()-35, fontLarge, drawColor, false, "Firemode: %s (%.1f)", m_fireModes[m_fireMode].first.c_str(), m_fireModes[m_fireMode].second);
 
   ray_hit rayhit;
 
@@ -91,7 +91,7 @@ void CDebugGun::Update( SEntityUpdateContext& ctx, int update)
   }
 
   // use cam, no need for firing pos/dir
-  CCamera& cam = GetISystem()->GetViewCamera();
+  const CCamera& cam = GetISystem()->GetViewCamera();
 
   if (gEnv->pPhysicalWorld->RayWorldIntersection(cam.GetPosition()+cam.GetViewdir(), cam.GetViewdir()*HIT_RANGE, ent_all, flags, &rayhit, 1))
   {
@@ -99,8 +99,8 @@ void CDebugGun::Update( SEntityUpdateContext& ctx, int update)
     IActorSystem* pActorSystem = g_pGame->GetIGameFramework()->GetIActorSystem();
     IVehicleSystem* pVehicleSystem = g_pGame->GetIGameFramework()->GetIVehicleSystem();
 
-    int x = (int)(pRenderer->GetWidth() *0.5f) + dx;
-    int y = (int)(pRenderer->GetHeight()*0.5f) + dx - dy;
+    int x = (int)(pRenderer->GetOverlayWidth() *0.5f) + dx;
+    int y = (int)(pRenderer->GetOverlayHeight()*0.5f) + dx - dy;
 
     // draw normal
     ColorB colNormal(200,0,0,128);
@@ -233,7 +233,7 @@ void CDebugGun::Shoot(bool bPrimary)
   IPhysicalEntity *pSkip = GetOwnerActor()->GetEntity()->GetPhysics();
   ray_hit rayhit;
 
-  CCamera& cam = GetISystem()->GetViewCamera();
+  const CCamera& cam = GetISystem()->GetViewCamera();
   Vec3 pos = cam.GetPosition()+cam.GetViewdir();
   Vec3 dir = cam.GetViewdir() * HIT_RANGE;
 

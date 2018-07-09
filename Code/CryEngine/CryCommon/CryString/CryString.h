@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -23,6 +23,9 @@ class CConstCharWrapper;  //forward declaration for special const char * without
 //#define CRY_STRING_DEBUG(s) { if (*s) CryDebugStr( "[%6d] %s",_usedMemory(0),(s) );}
 	#define CRY_STRING_DEBUG(s)
 
+//! Reference-tracked string implementation, historically used to avoid string duplication across memory
+//! Enforced for use in the engine codebase as opposed to std::string
+//! \see string and wstring
 template<class T>
 class CryStringT
 {
@@ -281,7 +284,7 @@ public:
 
 	//////////////////////////////////////////////////////////////////////////
 	// Extended functions.
-	// This functions are not in the STL string.
+	// These functions are not in the STL string.
 	// They have an ATL CString interface.
 	//////////////////////////////////////////////////////////////////////////
 	//! Format string printf-like.
@@ -407,6 +410,7 @@ protected:
 	value_type* m_str; //!< Pointer to ref counted string data.
 
 	//! String header. Actual string data starts immediately after this header in memory.
+	//! \cond INTERNAL
 	struct StrHeader
 	{
 
@@ -418,6 +422,8 @@ protected:
 		void            AddRef()   { nRefCount++; /*InterlockedIncrement(&_header()->nRefCount);*/ }
 		int             Release()  { return --nRefCount; }
 	};
+	//! \endcond
+
 	static StrHeader* _emptyHeader()
 	{
 		// Define 2 static buffers in a row. The 2nd is a dummy object to hold a single empty char string.
@@ -443,144 +449,7 @@ protected:
 	static void _set(value_type* dest, value_type ch, size_type count);
 };
 
-//! Variant of CryStringT<T> which does not share memory with other strings.
-template<class T>
-class CryStringLocalT : public CryStringT<T>
-{
-public:
-	typedef CryStringT<T>                       BaseType;
-	typedef typename BaseType::const_str        const_str;
-	typedef typename BaseType::value_type       value_type;
-	typedef typename BaseType::size_type        size_type;
-	typedef typename BaseType::iterator         iterator;
-	typedef typename BaseType::reverse_iterator reverse_iterator;
-
-	CryStringLocalT()
-	{}
-	CryStringLocalT(const CryStringLocalT& str)
-		: BaseType(str.c_str())
-	{}
-	CryStringLocalT(const BaseType& str)
-		: BaseType(str.c_str())
-	{}
-	template<size_t Size>
-	CryStringLocalT(const CryStackStringT<T, Size>& str)
-		: BaseType(str.c_str())
-	{}
-	CryStringLocalT(const_str str)
-		: BaseType(str)
-	{}
-	CryStringLocalT(const_str str, size_t len)
-		: BaseType(str, len)
-	{}
-	CryStringLocalT(const_str begin, const_str end)
-		: BaseType(begin, end)
-	{}
-	CryStringLocalT(size_type nRepeat, value_type ch)
-		: BaseType(nRepeat, ch)
-	{}
-	CryStringLocalT& operator=(const BaseType& str)
-	{
-		BaseType::operator=(str.c_str());
-		return *this;
-	}
-	CryStringLocalT& operator=(const CryStringLocalT& str)
-	{
-		BaseType::operator=(str.c_str());
-		return *this;
-	}
-	CryStringLocalT& operator=(const_str str)
-	{
-		BaseType::operator=(str);
-		return *this;
-	}
-	iterator         begin()  { return BaseType::m_str; }
-	using BaseType::begin; // const version
-	iterator         end()    { return BaseType::m_str + BaseType::length(); }
-	using BaseType::end; // const version
-	reverse_iterator rbegin() { return reverse_iterator(end()); }
-	using BaseType::rbegin; // const version
-	reverse_iterator rend()   { return reverse_iterator(begin()); }
-	using BaseType::rend; // const version
-};
-
-//////////////////////////////////////////////////////////////////////////
-//! compare helpers
-template<class T> inline bool operator==(const CryStringLocalT<T>& s1, const CryStringLocalT<T>& s2)
-{
-	return s1.compare(s2) == 0;
-}
-template<class T> inline bool operator==(const CryStringLocalT<T>& s1, const typename CryStringLocalT<T>::value_type* s2)
-{
-	return s1.compare(s2) == 0;
-}
-template<class T> inline bool operator==(const typename CryStringLocalT<T>::value_type* s1, const CryStringLocalT<T>& s2)
-{
-	return s2.compare(s1) == 0;
-}
-template<class T> inline bool operator!=(const CryStringLocalT<T>& s1, const CryStringLocalT<T>& s2)
-{
-	return s1.compare(s2) != 0;
-}
-template<class T> inline bool operator!=(const CryStringLocalT<T>& s1, const typename CryStringLocalT<T>::value_type* s2)
-{
-	return s1.compare(s2) != 0;
-}
-template<class T> inline bool operator!=(const typename CryStringLocalT<T>::value_type* s1, const CryStringLocalT<T>& s2)
-{
-	return s2.compare(s1) != 0;
-}
-template<class T> inline bool operator<(const CryStringLocalT<T>& s1, const CryStringLocalT<T>& s2)
-{
-	return s1.compare(s2) < 0;
-}
-template<class T> inline bool operator<(const CryStringLocalT<T>& s1, const typename CryStringLocalT<T>::value_type* s2)
-{
-	return s1.compare(s2) < 0;
-}
-template<class T> inline bool operator<(const typename CryStringLocalT<T>::value_type* s1, const CryStringLocalT<T>& s2)
-{
-	return s2.compare(s1) > 0;
-}
-template<class T> inline bool operator>(const CryStringLocalT<T>& s1, const CryStringLocalT<T>& s2)
-{
-	return s1.compare(s2) > 0;
-}
-template<class T> inline bool operator>(const CryStringLocalT<T>& s1, const typename CryStringLocalT<T>::value_type* s2)
-{
-	return s1.compare(s2) > 0;
-}
-template<class T> inline bool operator>(const typename CryStringLocalT<T>::value_type* s1, const CryStringLocalT<T>& s2)
-{
-	return s2.compare(s1) < 0;
-}
-template<class T> inline bool operator<=(const CryStringLocalT<T>& s1, const CryStringLocalT<T>& s2)
-{
-	return s1.compare(s2) <= 0;
-}
-template<class T> inline bool operator<=(const CryStringLocalT<T>& s1, const typename CryStringLocalT<T>::value_type* s2)
-{
-	return s1.compare(s2) <= 0;
-}
-template<class T> inline bool operator<=(const typename CryStringLocalT<T>::value_type* s1, const CryStringLocalT<T>& s2)
-{
-	return s2.compare(s1) >= 0;
-}
-template<class T> inline bool operator>=(const CryStringLocalT<T>& s1, const CryStringLocalT<T>& s2)
-{
-	return s1.compare(s2) >= 0;
-}
-template<class T> inline bool operator>=(const CryStringLocalT<T>& s1, const typename CryStringLocalT<T>::value_type* s2)
-{
-	return s1.compare(s2) >= 0;
-}
-template<class T> inline bool operator>=(const typename CryStringLocalT<T>::value_type* s1, const CryStringLocalT<T>& s2)
-{
-	return s2.compare(s1) <= 0;
-}
-
-typedef CryStringLocalT<char> CryStringLocal;
-
+//! \cond INTERNAL
 //! Wrapper class for creation of strings without memory allocation.
 //! It creates a string with pointer pointing to const char* location.
 //! Destructor sets the string to empty.
@@ -589,9 +458,10 @@ class CConstCharWrapper
 {
 public:
 	// Passing *this is safe since the char pointer is already set and therefore is the this-ptr constructed complete enough.
-	#pragma warning (disable : 4355)
+#pragma warning (push)
+#pragma warning (disable : 4355) //'this' : used in base member initializer list
 	CConstCharWrapper(const char* const cpString) : cpChar(cpString), str(*this){ assert(cpString); }//!< Create stack string.
-	#pragma warning (default : 4355)
+#pragma warning (pop)
 	~CConstCharWrapper(){ str.m_str = CryStringT<char>::_emptyHeader()->GetChars(); }  //!< Reset string.
 	operator const CryStringT<char> &() const { return str; }                          //!< Cast operator to const string reference.
 private:
@@ -602,6 +472,7 @@ private:
 
 	friend class CryStringT<char>;  //!< Both are bidirectional friends to avoid any other accesses.
 };
+//! \endcond
 
 //! Macro needed because compiler somehow cannot find the cast operator when not invoked directly.
 	#define CONST_TEMP_STRING(a) ((const string&)CConstCharWrapper(a))
@@ -2452,13 +2323,228 @@ inline CryStringT<T> CryStringT<T >::Tokenize(const_str charSet, int& nStart) co
 	return CryStringT<T>();
 }
 
-	#if !defined(RESOURCE_COMPILER)
-typedef CryStringT<char>         string;
-typedef CryStringT<wchar_t>      wstring;
-	#else
-typedef CryStringLocalT<char>    string;
-typedef CryStringLocalT<wchar_t> wstring;
-	#endif
+//! Variant of CryStringT<T> which does not share memory with other strings.
+template<class T>
+class CryStringLocalT : public CryStringT<T>
+{
+public:
+	typedef CryStringT<T>                       BaseType;
+	typedef typename BaseType::const_str        const_str;
+	typedef typename BaseType::value_type       value_type;
+	typedef typename BaseType::size_type        size_type;
+	typedef typename BaseType::iterator         iterator;
+	typedef typename BaseType::reverse_iterator reverse_iterator;
+
+	CryStringLocalT()
+	{}
+	CryStringLocalT(const CryStringLocalT& str)
+		: BaseType(str.c_str())
+	{}
+	CryStringLocalT(const BaseType& str)
+		: BaseType(str.c_str())
+	{}
+	template<size_t Size>
+	CryStringLocalT(const CryStackStringT<T, Size>& str)
+		: BaseType(str.c_str())
+	{}
+	CryStringLocalT(const_str str)
+		: BaseType(str)
+	{}
+	CryStringLocalT(const_str str, size_t len)
+		: BaseType(str, len)
+	{}
+	CryStringLocalT(const_str begin, const_str end)
+		: BaseType(begin, end)
+	{}
+	CryStringLocalT(size_type nRepeat, value_type ch)
+		: BaseType(nRepeat, ch)
+	{}
+	CryStringLocalT& operator=(const BaseType& str)
+	{
+		BaseType::operator=(str.c_str());
+		return *this;
+	}
+	CryStringLocalT& operator=(const CryStringLocalT& str)
+	{
+		BaseType::operator=(str.c_str());
+		return *this;
+	}
+	CryStringLocalT& operator=(const_str str)
+	{
+		BaseType::operator=(str);
+		return *this;
+	}
+	CryStringLocalT& operator+=(const BaseType& str)
+	{
+		BaseType::operator+=(str.c_str());
+		return *this;
+	}
+	CryStringLocalT& operator+=(const CryStringLocalT& str)
+	{
+		BaseType::operator+=(str.c_str());
+		return *this;
+	}
+	CryStringLocalT& operator+=(const_str str)
+	{
+		BaseType::operator+=(str);
+		return *this;
+	}
+	CryStringLocalT& operator+=(value_type ch)
+	{
+		BaseType::operator+=(ch);
+		return *this;
+	}
+	iterator         begin() { return BaseType::m_str; }
+	using BaseType::begin; // const version
+	iterator         end() { return BaseType::m_str + BaseType::length(); }
+	using BaseType::end; // const version
+	reverse_iterator rbegin() { return reverse_iterator(end()); }
+	using BaseType::rbegin; // const version
+	reverse_iterator rend() { return reverse_iterator(begin()); }
+	using BaseType::rend; // const version
+};
+
+//////////////////////////////////////////////////////////////////////////
+//! compare helpers
+template<class T> inline bool operator==(const CryStringLocalT<T>& s1, const CryStringLocalT<T>& s2)
+{
+	return s1.compare(s2) == 0;
+}
+template<class T> inline bool operator==(const CryStringLocalT<T>& s1, const typename CryStringLocalT<T>::value_type* s2)
+{
+	return s1.compare(s2) == 0;
+}
+template<class T> inline bool operator==(const typename CryStringLocalT<T>::value_type* s1, const CryStringLocalT<T>& s2)
+{
+	return s2.compare(s1) == 0;
+}
+template<class T> inline bool operator!=(const CryStringLocalT<T>& s1, const CryStringLocalT<T>& s2)
+{
+	return s1.compare(s2) != 0;
+}
+template<class T> inline bool operator!=(const CryStringLocalT<T>& s1, const typename CryStringLocalT<T>::value_type* s2)
+{
+	return s1.compare(s2) != 0;
+}
+template<class T> inline bool operator!=(const typename CryStringLocalT<T>::value_type* s1, const CryStringLocalT<T>& s2)
+{
+	return s2.compare(s1) != 0;
+}
+template<class T> inline bool operator<(const CryStringLocalT<T>& s1, const CryStringLocalT<T>& s2)
+{
+	return s1.compare(s2) < 0;
+}
+template<class T> inline bool operator<(const CryStringLocalT<T>& s1, const typename CryStringLocalT<T>::value_type* s2)
+{
+	return s1.compare(s2) < 0;
+}
+template<class T> inline bool operator<(const typename CryStringLocalT<T>::value_type* s1, const CryStringLocalT<T>& s2)
+{
+	return s2.compare(s1) > 0;
+}
+template<class T> inline bool operator>(const CryStringLocalT<T>& s1, const CryStringLocalT<T>& s2)
+{
+	return s1.compare(s2) > 0;
+}
+template<class T> inline bool operator>(const CryStringLocalT<T>& s1, const typename CryStringLocalT<T>::value_type* s2)
+{
+	return s1.compare(s2) > 0;
+}
+template<class T> inline bool operator>(const typename CryStringLocalT<T>::value_type* s1, const CryStringLocalT<T>& s2)
+{
+	return s2.compare(s1) < 0;
+}
+template<class T> inline bool operator<=(const CryStringLocalT<T>& s1, const CryStringLocalT<T>& s2)
+{
+	return s1.compare(s2) <= 0;
+}
+template<class T> inline bool operator<=(const CryStringLocalT<T>& s1, const typename CryStringLocalT<T>::value_type* s2)
+{
+	return s1.compare(s2) <= 0;
+}
+template<class T> inline bool operator<=(const typename CryStringLocalT<T>::value_type* s1, const CryStringLocalT<T>& s2)
+{
+	return s2.compare(s1) >= 0;
+}
+template<class T> inline bool operator>=(const CryStringLocalT<T>& s1, const CryStringLocalT<T>& s2)
+{
+	return s1.compare(s2) >= 0;
+}
+template<class T> inline bool operator>=(const CryStringLocalT<T>& s1, const typename CryStringLocalT<T>::value_type* s2)
+{
+	return s1.compare(s2) >= 0;
+}
+template<class T> inline bool operator>=(const typename CryStringLocalT<T>::value_type* s1, const CryStringLocalT<T>& s2)
+{
+	return s2.compare(s1) <= 0;
+}
+
+template<class T>
+inline CryStringLocalT<T> operator+(const CryStringLocalT<T>& string1, typename CryStringLocalT<T>::value_type ch)
+{
+	CryStringLocalT<T> s(string1);
+	s += ch;
+	return s;
+}
+template<class T>
+inline CryStringLocalT<T> operator+(typename CryStringLocalT<T>::value_type ch, const CryStringLocalT<T>& str)
+{
+	CryStringLocalT<T> s;
+	s.reserve(str.size() + 1);
+	s.append(1, ch);
+	s.append(str);
+	return s;
+}
+template<class T>
+inline CryStringLocalT<T> operator+(const CryStringLocalT<T>& string1, const CryStringLocalT<T>& string2)
+{
+	CryStringLocalT<T> s(string1);
+	s += string2;
+	return s;
+}
+template<class T>
+inline CryStringLocalT<T> operator+(const CryStringLocalT<T>& str1, const typename CryStringLocalT<T>::value_type* str2)
+{
+	CryStringLocalT<T> s(str1);
+	s.append(str2);
+	return s;
+}
+template<class T>
+inline CryStringLocalT<T> operator+(const typename CryStringLocalT<T>::value_type* str1, const CryStringLocalT<T>& str2)
+{
+	assert(str1 == NULL || CryStringLocalT<T>::_IsValidString(str1));
+	CryStringLocalT<T> s;
+	s.reserve(CryStringLocalT<T>::_strlen(str1) + str2.size());
+	s.append(str1);
+	s.append(str2);
+	return s;
+}
+template<class T>
+inline CryStringLocalT<T> operator+(const typename CryStringLocalT<T>::BaseType& str1, const CryStringLocalT<T>& str2)
+{
+	CryStringLocalT<T> s(str1);
+	s.append(str2);
+	return s;
+}
+template<class T>
+inline CryStringLocalT<T> operator+(const CryStringLocalT<T>& str1, const typename CryStringLocalT<T>::BaseType& str2)
+{
+	CryStringLocalT<T> s(str1);
+	s.append(str2);
+	return s;
+}
+
+typedef CryStringLocalT<char> CryStringLocal;
+
+#if !defined(RESOURCE_COMPILER)
+	typedef CryStringT<char>         string;
+	typedef CryStringT<wchar_t>      wstring;
+#else
+	// Resource compiler spawns many threads managing strings
+	// We force use of a non-reference tracked string in order to avoid freeing the same string multiple times across threads
+	typedef CryStringLocalT<char>    string;
+	typedef CryStringLocalT<wchar_t> wstring;
+#endif
 
 #else // !defined(NOT_USE_CRY_STRING)
 

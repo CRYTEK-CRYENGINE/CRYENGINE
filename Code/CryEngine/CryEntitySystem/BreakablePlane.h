@@ -1,22 +1,6 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
-/*************************************************************************
-   -------------------------------------------------------------------------
-   $Id$
-   $DateTime$
-   Description:
-
-   -------------------------------------------------------------------------
-   History:
-   - 26:5:2005   : Created by Anton Knyazyev
-*************************************************************************/
-
-#ifndef __BreakablePlane_H__
-#define __BreakablePlane_H__
-
-#if _MSC_VER > 1000
-	#pragma once
-#endif
+#pragma once
 
 #include <Cry3DEngine/IIndexedMesh.h>
 #include <CryPhysics/IPhysics.h>
@@ -96,5 +80,3 @@ public:
 	static int        g_nPieces;
 	static float      g_maxPieceLifetime;
 };
-
-#endif //__BreakablePlane_H__

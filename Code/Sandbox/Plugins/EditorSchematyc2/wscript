@@ -1,0 +1,21 @@
+# Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+def build(bld):	
+	bld.CryPlugin(
+		target = 'EditorSchematycLegacy',
+		vs_filter = 'Sandbox/Plugins/Extensions',
+		file_list = 'editorplugin.waf_files',
+		module_extensions = ['toolkit_pro'],
+		pch = 'StdAfx.cpp',		
+		defines = [ 'SCHEMATYC_PLUGIN_EXPORTS' ],
+		use = [ 'Sandbox' ],
+		includes = [ 
+			'.', 
+			'..', 
+			Path('Code/CryEngine/CryAction'), 
+			Path('Code/Game_Hunt/Plugins/CrySchematycLegacy/TemplateUtils'), 
+			Path('Code/Game_Hunt/Plugins/CrySchematycLegacy/Interface'),
+			Path('Code/CryExtensions/CryLink/Interface'),
+			Path('Code/Sandbox/EditorQt'),
+			Path('Code/Sandbox/EditorQt/Include')
+		]
+	)

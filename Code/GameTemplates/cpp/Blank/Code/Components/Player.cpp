@@ -35,10 +35,10 @@ void CPlayerComponent::Initialize()
 
 uint64 CPlayerComponent::GetEventMask() const
 {
-	return BIT64(ENTITY_EVENT_START_GAME) | BIT64(ENTITY_EVENT_UPDATE);
+	return ENTITY_EVENT_BIT(ENTITY_EVENT_START_GAME) | ENTITY_EVENT_BIT(ENTITY_EVENT_UPDATE);
 }
 
-void CPlayerComponent::ProcessEvent(SEntityEvent& event)
+void CPlayerComponent::ProcessEvent(const SEntityEvent& event)
 {
 	switch (event.event)
 	{
@@ -110,7 +110,7 @@ void CPlayerComponent::Revive()
 		// Position the player in the center of the map
 		const float heightOffset = 20.f;
 		float terrainCenter = gEnv->p3DEngine->GetTerrainSize() / 2.f;
-		float height = gEnv->p3DEngine->GetTerrainZ(static_cast<int>(terrainCenter), static_cast<int>(terrainCenter));
+		float height = gEnv->p3DEngine->GetTerrainZ(terrainCenter, terrainCenter);
 		Vec3 playerPosition = Vec3(terrainCenter, terrainCenter, height + heightOffset);
 
 		m_pEntity->SetWorldTM(Matrix34::Create(playerScale, playerRotation, playerPosition));

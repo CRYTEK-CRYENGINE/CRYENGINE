@@ -1,5 +1,4 @@
-// CRYENGINE Source Code File
-// Copyright 2001-2015 Crytek GmbH. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "Common.cfi"
 #include "ShadeLib.cfi"
@@ -12,12 +11,15 @@ float Script : STANDARDSGLOBAL
 >;
 
 /// Un-Tweakables //////////////////////
-float4x4 CompMatrix  : PI_Composite  < vsregister = c0; >; // View*Projection
 
-sampler2D baseMap : register(s0);
-sampler2D paletteMap : register(s1);
-sampler2D baseMapRG : register(s0);
-sampler2D baseMapBA : register(s1);
+Texture2D    texBaseMap    : register(t0);
+Texture2D    texPaletteMap : register(t1);
+Texture2D    texBaseMapRG  : register(t0);
+Texture2D    texBaseMapBA  : register(t1);
+
+SamplerState smpBaseMap    : register(s0);
+SamplerState smpBaseMapBA  : register(s1);
+SamplerState smpPaletteMap : register(s1);
 
 struct app2vert
 {
@@ -28,7 +30,7 @@ struct app2vert
 
 struct vert2frag
 {
-  float4 HPosition  : POSITION;
+  float4 HPosition  : SV_POSITION;
   float2 baseTC     : TEXCOORD0;
 };
 
@@ -38,7 +40,7 @@ vert2frag TransformCompVS(app2vert IN)
 
   // Position in screen space.
   float4 vPos = IN.Position;
-  OUT.HPosition = mul(CompMatrix, vPos);
+  OUT.HPosition = mul(CV_ViewProjMatr, vPos);
   
   OUT.baseTC.xy = IN.baseTC.xy;
 
@@ -51,7 +53,7 @@ vert2frag TransformVS(app2vert IN)
 
   // Position in screen space.
   float4 vPos = IN.Position;
-  OUT.HPosition = mul(vpMatrix, vPos);
+  OUT.HPosition = mul(CV_ViewProjMatr, vPos);
   
   OUT.baseTC.xy = IN.baseTC.xy;
 
@@ -63,8 +65,8 @@ pixout Debug_ShowMRTPS(vert2frag IN)
   pixout OUT;
 
   half4 vColor;
-  vColor.xy = tex2D(baseMapRG, IN.baseTC.xy).xy;
-  vColor.zw = tex2D(baseMapBA, IN.baseTC.xy).xy;
+  vColor.xy = GetTexture2D(texBaseMapRG, smpBaseMap, IN.baseTC.xy).xy;
+  vColor.zw = GetTexture2D(texBaseMapBA, smpBaseMapBA, IN.baseTC.xy).xy;
     
   OUT.Color = vColor;
 
@@ -75,7 +77,7 @@ pixout Debug_ShowRPS(vert2frag IN)
 {
   pixout OUT;
 
-  OUT.Color = tex2D(baseMap, IN.baseTC.xy).x;
+  OUT.Color = GetTexture2D(texBaseMap, smpBaseMap, IN.baseTC.xy).x;
 
   return OUT;
 }
@@ -84,9 +86,9 @@ pixout ShowInstructionsPS(vert2frag IN)
 {
   pixout OUT;
 
-  float4 vVal = tex2D(baseMap, IN.baseTC.xy);
+  float4 vVal = GetTexture2D(texBaseMap, smpBaseMap, IN.baseTC.xy);
   float fVal = vVal.x;
-  OUT.Color = tex2D(paletteMap, float2(0.25, fVal));
+  OUT.Color = GetTexture2D(texPaletteMap, smpPaletteMap, float2(0.25, fVal));
   
 
   return OUT;
@@ -96,7 +98,7 @@ pixout GradInstructionsPS(vert2frag IN)
 {
   pixout OUT;
 
-  OUT.Color = tex2D(paletteMap, float2(0.25, IN.baseTC.y));
+  OUT.Color = GetTexture2D(texPaletteMap, smpPaletteMap, float2(0.25, IN.baseTC.y));
   
   return OUT;
 }
@@ -166,23 +168,41 @@ technique InstructionsGrad
 
 /// Constants ////////////////////////////
 
-float4 colorMultiplier;
-float4 showRTFlags; // onlyAlpha, RGBKEncoded, aliased, 0
+cbuffer CBDebugRenderTarget : register(b0)
+{
+	struct
+	{
+		float4 colorMultiplier;
+		float4 showRTFlags; // onlyAlpha, RGBKEncoded, aliased, 0
+		float4 transform; 
+	} cbDebugRenderTarget;
+};
+
 
 ////////////////// samplers /////////////////////
 
 ///////////////// vertex shader //////////////////
+vert2frag Debug_RenderTargetVS(app2vert IN)
+{
+  vert2frag OUT = (vert2frag)0; 
 
+  OUT.HPosition.xy = IN.Position.xy * cbDebugRenderTarget.transform.xy + cbDebugRenderTarget.transform.zw;
+  OUT.HPosition.zw = float2(0.0, 1.0);
+  
+  OUT.baseTC.xy = IN.baseTC.xy;
+
+  return OUT;
+}
 ///////////////// pixel shader //////////////////
 pixout Debug_RenderTargetPS(vert2frag IN)
 {
 	pixout OUT = (pixout)0;
 	
-	const float onlyAlpha = showRTFlags.x;
-	const float RGBKEncoded = showRTFlags.y;
-	const float aliased = showRTFlags.z;
+	const float onlyAlpha   = cbDebugRenderTarget.showRTFlags.x;
+	const float RGBKEncoded = cbDebugRenderTarget.showRTFlags.y;
+	const float aliased     = cbDebugRenderTarget.showRTFlags.z;
 
-	half4 color = tex2D(baseMap, IN.baseTC.xy);
+	half4 color = GetTexture2D(texBaseMap, smpBaseMap, IN.baseTC.xy);
 	
 	if (RGBKEncoded > 0.5f)
 	{
@@ -193,7 +213,7 @@ pixout Debug_RenderTargetPS(vert2frag IN)
 		color.rgb = Decode7E3F(color).rgb;
 	}
 	
-	color *= colorMultiplier;	
+	color *= cbDebugRenderTarget.colorMultiplier;	
 	OUT.Color = lerp(color, color.wwww, onlyAlpha);
 
   return OUT;
@@ -205,9 +225,8 @@ technique Debug_RenderTarget
 {
 	pass p0
 	{
-		VertexShader = TransformVS();
-		PixelShader = Debug_RenderTargetPS();
-		CullMode = None;
+		VertexShader = Debug_RenderTargetVS();
+		PixelShader  = Debug_RenderTargetPS();
 	}
 }
 

@@ -1,14 +1,9 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "MovementActor.h"
 #include "../PipeUser.h"
 #include "MovementPlanner.h"
-
-void MovementActor::SetLowCoverStance()
-{
-	GetAIActor()->GetState().bodystate = STANCE_LOW_COVER;
-}
 
 CAIActor* MovementActor::GetAIActor()
 {
@@ -27,7 +22,7 @@ const char* MovementActor::GetName() const
 	return pEntity ? pEntity->GetName() : "(none)";
 }
 
-void MovementActor::RequestPathTo(const Vec3& destination, float lengthToTrimFromThePathEnd, const MNMDangersFlags dangersFlags /* = eMNMDangers_None */, const bool considerActorsAsPathObstacles)
+void MovementActor::RequestPathTo(const Vec3& destination, float lengthToTrimFromThePathEnd, const SSnapToNavMeshRulesInfo& snappingRules, const MNMDangersFlags dangersFlags /* = eMNMDangers_None */, const bool considerActorsAsPathObstacles, const MNMCustomPathCostComputerSharedPtr& pCustomPathCostComputer)
 {
 	const bool cutPathAtSmartObject = false;
 
@@ -38,6 +33,8 @@ void MovementActor::RequestPathTo(const Vec3& destination, float lengthToTrimFro
 	if (callbacks.queuePathRequestFunction)
 	{
 		MNMPathRequest request(pEntity->GetPos(), destination, Vec3(0, 1, 0), -1, 0.0f, lengthToTrimFromThePathEnd, true, NULL, this->pAdapter->GetNavigationAgentTypeID(), dangersFlags);
+		request.pCustomPathCostComputer = pCustomPathCostComputer;
+		request.snappingRules = snappingRules;
 		callbacks.queuePathRequestFunction(request);
 	}
 }
@@ -66,4 +63,49 @@ IMovementActorAdapter& MovementActor::GetAdapter() const
 {
 	assert(pAdapter);
 	return *pAdapter;
+}
+
+bool MovementActor::AddActionAbilityCallbacks(const SMovementActionAbilityCallbacks& ability)
+{
+	bool bNoCallbackAlreadyPresent = true;
+	if (ability.addStartMovementBlocksCallback)
+	{
+		bNoCallbackAlreadyPresent &= actionAbilities.m_addStartMovementBlocksCallback.AddUnique(ability.addStartMovementBlocksCallback);
+	}
+	if (ability.addEndMovementBlocksCallback)
+	{
+		bNoCallbackAlreadyPresent &= actionAbilities.m_addEndMovementBlocksCallback.AddUnique(ability.addEndMovementBlocksCallback);
+	}
+	if (ability.prePathFollowingUpdateCallback)
+	{
+		bNoCallbackAlreadyPresent &= actionAbilities.m_prePathFollowingUpdateCallback.AddUnique(ability.prePathFollowingUpdateCallback);
+	}
+	if (ability.postPathFollowingUpdateCallback)
+	{
+		bNoCallbackAlreadyPresent &= actionAbilities.m_postPathFollowingUpdateCallback.AddUnique(ability.postPathFollowingUpdateCallback);
+	}
+	
+	CRY_ASSERT_MESSAGE(bNoCallbackAlreadyPresent, "MovementActor::AddActionAbilityCallbacks - Trying to add the same movement action ability twice");
+	return true;
+}
+
+bool MovementActor::RemoveActionAbilityCallbacks(const SMovementActionAbilityCallbacks& ability)
+{
+	if (ability.addStartMovementBlocksCallback)
+	{
+		actionAbilities.m_addStartMovementBlocksCallback.Remove(ability.addStartMovementBlocksCallback);
+	}
+	if (ability.addEndMovementBlocksCallback)
+	{
+		actionAbilities.m_addEndMovementBlocksCallback.Remove(ability.addEndMovementBlocksCallback);
+	}
+	if (ability.prePathFollowingUpdateCallback)
+	{
+		actionAbilities.m_prePathFollowingUpdateCallback.Remove(ability.prePathFollowingUpdateCallback);
+	}
+	if (ability.postPathFollowingUpdateCallback)
+	{
+		actionAbilities.m_postPathFollowingUpdateCallback.Remove(ability.postPathFollowingUpdateCallback);
+	}
+	return true;
 }

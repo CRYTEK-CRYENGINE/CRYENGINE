@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -104,6 +104,11 @@ public:
 	ILINE void SetValue(int64 val)
 	{
 		m_lValue = val;
+	}
+
+	ILINE void AddValueThreadSafe(int64 val)
+	{
+		CryInterlockedAdd(&m_lValue, val);
 	}
 
 	//! Useful for periodic events (e.g. water wave, blinking).

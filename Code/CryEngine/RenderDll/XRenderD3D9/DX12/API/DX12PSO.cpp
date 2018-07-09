@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "DX12PSO.hpp"
@@ -19,8 +19,21 @@ bool CGraphicsPSO::Init(const SInitParams& params)
 {
 	m_Desc = params.m_Desc;
 
+	HRESULT result;
 	ID3D12PipelineState* pipelineState12 = NULL;
-	HRESULT result = GetDevice()->GetD3D12Device()->CreateGraphicsPipelineState(&m_Desc, IID_GFX_ARGS(&pipelineState12));
+#if NTDDI_WIN10_RS2 && (WDK_NTDDI_VERSION >= NTDDI_WIN10_RS2)
+	if (auto* pD3D12Device = GetDevice()->GetD3D12Device2())
+	{
+		CD3DX12_PIPELINE_STATE_STREAM Desc = m_Desc;
+		CD3DX12_DEPTH_STENCIL_DESC1& DDesc = Desc.DepthStencilState;
+		DDesc.DepthBoundsTestEnable = params.m_DepthBoundsTestEnable;
+		D3D12_PIPELINE_STATE_STREAM_DESC PDesc = { sizeof(Desc), &Desc };
+	
+		result = pD3D12Device->CreatePipelineState(&PDesc, IID_GFX_ARGS(&pipelineState12));
+	}
+	else
+#endif
+		result = GetDevice()->GetD3D12Device()->CreateGraphicsPipelineState(&m_Desc, IID_GFX_ARGS(&pipelineState12));
 
 	if (result != S_OK)
 	{
@@ -38,9 +51,20 @@ bool CGraphicsPSO::Init(const SInitParams& params)
 bool CComputePSO::Init(const SInitParams& params)
 {
 	m_Desc = params.m_Desc;
-
+	
+	HRESULT result;
 	ID3D12PipelineState* pipelineState12 = NULL;
-	HRESULT result = GetDevice()->GetD3D12Device()->CreateComputePipelineState(&m_Desc, IID_GFX_ARGS(&pipelineState12));
+#if NTDDI_WIN10_RS2 && (WDK_NTDDI_VERSION >= NTDDI_WIN10_RS2)
+	if (auto* pD3D12Device = GetDevice()->GetD3D12Device2())
+	{
+		CD3DX12_PIPELINE_STATE_STREAM Desc = m_Desc;
+		D3D12_PIPELINE_STATE_STREAM_DESC PDesc = { sizeof(Desc), &Desc };
+
+		result = pD3D12Device->CreatePipelineState(&PDesc, IID_GFX_ARGS(&pipelineState12));
+	}
+	else
+#endif
+		result = GetDevice()->GetD3D12Device()->CreateComputePipelineState(&m_Desc, IID_GFX_ARGS(&pipelineState12));
 
 	if (result != S_OK)
 	{
@@ -94,6 +118,9 @@ void CPSOCache::GetOrCreatePSO(const CGraphicsPSO::SInitParams& params, DX12_PTR
 
 	// LSB cleared marks graphics pipeline states, in case graphics and compute hashes collide
 	THash hash = (~1) & ComputeSmallHash<sizeof(D3D12_GRAPHICS_PIPELINE_STATE_DESC)>(&Desc);
+#if NTDDI_WIN10_RS2 && (WDK_NTDDI_VERSION >= NTDDI_WIN10_RS2)
+	hash ^= 0x2 * params.m_DepthBoundsTestEnable;
+#endif
 	TPSOMap::iterator iter = m_PSOMap.find(hash);
 
 	if (iter != m_PSOMap.end())

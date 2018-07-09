@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "TargetMesh.h"
@@ -181,13 +181,14 @@ CTargetMeshModel* CTargetMeshView::model()
 
 void CTargetMeshView::reset()
 {
-	QTreeView::reset();
+	QAdvancedTreeView::reset();
 	expandAll();
 }
 
 CTargetMeshView::CTargetMeshView(QWidget* pParent)
-	: QTreeView(pParent)
+	: QAdvancedTreeView(QAdvancedTreeView::Behavior(QAdvancedTreeView::PreserveExpandedAfterReset | QAdvancedTreeView::PreserveSelectionAfterReset), pParent)
 	, m_pModel(new CTargetMeshModel())
 {
 	setModel(m_pModel.get());
 }
+

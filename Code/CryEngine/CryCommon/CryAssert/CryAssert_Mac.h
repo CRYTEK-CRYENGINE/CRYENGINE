@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 /*************************************************************************
    -------------------------------------------------------------------------
@@ -24,7 +24,7 @@ void CryAssertTrace(const char* szFormat, ...)
 		return;
 	}
 
-	if (!gEnv->bIgnoreAllAsserts || gEnv->bTesting)
+	if (!gEnv->ignoreAllAsserts || gEnv->bTesting)
 	{
 		if (szFormat == NULL || szFormat[0] == '\0')
 		{
@@ -46,7 +46,7 @@ void CryAssertTrace(const char* szFormat, ...)
 
     gEnv->pSystem->OnAssert(szCondition, gs_szMessage, szFile, line);
 
-    if (!gEnv->bNoAssertDialog && !gEnv->bIgnoreAllAsserts)
+    if (!gEnv->bUnattendedMode && !gEnv->bIgnoreAllAsserts)
     {
         EDialogAction action = MacOSXHandleAssert(szCondition, szFile, line, gs_szMessage, gEnv->pRenderer != NULL);
 
@@ -89,7 +89,7 @@ bool CryAssert(const char* szCondition, const char* szFile, unsigned int line, b
 
 	size_t file_len = strlen(szFile);
 
-	if (!gEnv->bNoAssertDialog && !gEnv->bIgnoreAllAsserts)
+	if (!gEnv->bUnattendedMode && !gEnv->ignoreAllAsserts)
 	{
 
 		CryAutoLock<CryLockT<CRYLOCK_RECURSIVE>> lk(lock);
@@ -129,7 +129,7 @@ bool CryAssert(const char* szCondition, const char* szFile, unsigned int line, b
 			*pIgnore = true;
 			break;
 		case 2:
-			gEnv->bIgnoreAllAsserts = true;
+			gEnv->ignoreAllAsserts = true;
 			break;
 		case 3:
 			return true;

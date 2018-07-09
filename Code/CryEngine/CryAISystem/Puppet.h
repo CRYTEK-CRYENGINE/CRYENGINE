@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #ifndef PUPPET_H
 #define PUPPET_H
@@ -18,19 +18,6 @@
 class CPersonalInterestManager;
 class CFireCommandGrenade;
 struct PendingDeathReaction;
-
-//	Path finder blockers types.
-enum ENavigationBlockers
-{
-	PFB_NONE,
-	PFB_ATT_TARGET,
-	PFB_REF_POINT,
-	PFB_BEACON,
-	PFB_DEAD_BODIES,
-	PFB_EXPLOSIVES,
-	PFB_PLAYER,
-	PFB_BETWEEN_NAV_TARGET,
-};
 
 // Quick prototype of a signal/state container
 class CSignalState
@@ -216,12 +203,10 @@ public:
 	virtual bool CreateFormation(const char* szName, Vec3 vTargetPos);
 	virtual void Serialize(TSerialize ser);
 	virtual void PostSerialize();
-	virtual void SetPFBlockerRadius(int blockerType, float radius);
 
 	// Inherited from CAIObject
 	virtual void OnObjectRemoved(CAIObject* pObject);
 	virtual void Reset(EObjectResetType type);
-	virtual void GetPathAgentNavigationBlockers(NavigationBlockers& navigationBlockers, const struct PathfindRequest* pRequest);
 
 	// <title GetDistanceAlongPath>
 	// Description: returns the distance of a point along the puppet's path
@@ -384,13 +369,8 @@ protected:
 
 	bool CheckTargetInRange(Vec3& vTargetPos);
 
-	/// Selects the best hide points from a list that should just contain accessible hidespots
-	Vec3 GetHidePoint(MultimapRangeHideSpots& hidespots, float fSearchDistance, const Vec3& hideFrom, int nMethod, bool bSameOk, float fMinDistance);
-
 	// Evaluates whether the chosen navigation point will expose us too much to the target
 	bool Compromising(const Vec3& pos, const Vec3& dir, const Vec3& hideFrom, const Vec3& objectPos, const Vec3& searchPos, bool bIndoor, bool bCheckVisibility) const;
-
-	void RegisterTargetAwareness(float amount);
 
 	void UpdateTargetMovementState();
 
@@ -400,8 +380,6 @@ protected:
 
 	// Returns true if it pActor is obstructing aim.
 	bool                      ActorObstructingAim(const CAIActor* pActor, const Vec3& firePos, const Vec3& dir, const Ray& fireRay) const;
-
-	void                      CreatePendingDeathReaction(int groupID, PendingDeathReaction* pPendingDeathReaction) const;
 
 	CPersonalInterestManager* GetPersonalInterestManager();
 
@@ -439,10 +417,6 @@ protected:
 	float                m_fForcedNavigationSpeed;
 
 	EntityId             m_vehicleStickTarget;
-
-	// map blocker_type-radius
-	typedef std::map<int, float> TMapBlockers;
-	TMapBlockers m_PFBlockers;
 
 	// Current actor weapon descriptor
 	EntityId           m_currentWeaponId;
@@ -798,10 +772,6 @@ public:
 
 	static std::vector<Vec3>                     s_projectedPoints;
 	static std::vector<std::pair<float, size_t>> s_weights;
-	static std::vector<CAIActor*>                s_enemies;
-	static std::vector<SSortedHideSpot>          s_sortedHideSpots;
-	static MultimapRangeHideSpots                s_hidespots;
-	static MapConstNodesDistance                 s_traversedNodes;
 };
 
 ILINE const CPuppet* CastToCPuppetSafe(const IAIObject* pAI) { return pAI ? pAI->CastToCPuppet() : 0; }

@@ -6,10 +6,12 @@ set(crashrpt_dir ../../SDKs/CrashRpt/1403)
 set(crashrpt_src_dir ${crashrpt_dir}/reporting/crashrpt)
 
 # Create the list of source files
+start_sources()
 aux_source_directory( ${crashrpt_src_dir} crashrpt_SOURCES )
 file( GLOB header_files ${crashrpt_src_dir}/*.h )
 
 list(APPEND crashrpt_SOURCES ${header_files} )
+end_sources()
 
 # Define _UNICODE (use wide-char encoding)
 add_definitions(-D_UNICODE)

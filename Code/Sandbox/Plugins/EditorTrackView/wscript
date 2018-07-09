@@ -1,0 +1,21 @@
+#############################################################################
+## Crytek Source File
+## Copyright (C) 2013, Crytek Studios
+#############################################################################
+
+def build(bld):	
+	
+	bld.CryPlugin(
+		target 		= 'EditorTrackView',
+		vs_filter 	= 'Sandbox/Plugins',
+		file_list   = 'editortrackview.waf_files',
+		pch			= 'StdAfx.cpp',
+		use			= [ 'Sandbox','MFCToolsPlugin' ],
+		module_extensions = ['python27'],
+		includes 	= [
+			Path('Code/Sandbox/EditorQt'),
+			Path('Code/Sandbox/EditorQt/Include'),
+			Path('Code/Sandbox/Plugins/MFCToolsPlugin')
+			]
+	)
+

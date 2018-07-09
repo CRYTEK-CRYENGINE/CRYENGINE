@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "AudioTriggerSpotEntity.h"
@@ -47,7 +47,7 @@ CAudioTriggerSpotEntity::~CAudioTriggerSpotEntity()
 	Stop();
 }
 
-void CAudioTriggerSpotEntity::ProcessEvent(SEntityEvent& event)
+void CAudioTriggerSpotEntity::ProcessEvent(const SEntityEvent& event)
 {
 	if (gEnv->IsDedicated())
 		return;
@@ -240,10 +240,6 @@ void CAudioTriggerSpotEntity::DebugDraw()
 				gEnv->pAudioSystem->GetTriggerData(triggerId, triggerData);
 
 				pRenderAuxGeom->DrawSphere(pos, triggerData.radius, ColorB(250, 100, 100, 100), false);
-				if (triggerData.occlusionFadeOutDistance > 0.0f)
-				{
-					pRenderAuxGeom->DrawSphere(pos, triggerData.radius - triggerData.occlusionFadeOutDistance, ColorB(200, 200, 255, 100), false);
-				}
 			}
 
 			// Randomization Area

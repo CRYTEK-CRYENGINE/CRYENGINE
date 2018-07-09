@@ -1,5 +1,6 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 #pragma once
+#include <CrySchematyc/Utils/ClassProperties.h>
 
 // Entity property cache saves the values of the component properties when switching to game mode,
 // so that they can be restored when switching our of the game mode

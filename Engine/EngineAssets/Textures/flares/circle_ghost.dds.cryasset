@@ -1,0 +1,10 @@
+<AssetMetadata version="0" type="Texture" guid="a05fbec5-3bd2-7610-e463-abacaeb743a1" source="circle_ghost.tif">
+ <Files>
+  <File path="circle_ghost.dds"/>
+ </Files>
+ <Details>
+  <Detail name="width">4</Detail>
+  <Detail name="height">4</Detail>
+  <Detail name="mipCount">1</Detail>
+ </Details>
+</AssetMetadata>

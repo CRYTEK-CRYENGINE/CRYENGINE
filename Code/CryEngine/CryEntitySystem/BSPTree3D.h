@@ -1,28 +1,19 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
-// -------------------------------------------------------------------------
-//  File name:   BSPTree.h
-//  Version:     v1.00
-//  Created:     23/Nov/2011 by Jaesik.
-//  Compilers:   Visual Studio 2010
-//  Description:
-////////////////////////////////////////////////////////////////////////////
-
-#ifndef __BSPTREE3D_H_
-#define __BSPTREE3D_H_
+#pragma once
 
 #include "AreaUtil.h"
 
-class CBSPTree3D : public IBSPTree3D
+class CBSPTree3D final : public IBSPTree3D
 {
 public:
-	CBSPTree3D(const IBSPTree3D::FaceList& faceList);
+	explicit CBSPTree3D(const IBSPTree3D::FaceList& faceList);
 
-	virtual bool   IsInside(const Vec3& vPos) const;
-	virtual void   GetMemoryUsage(ICrySizer* pSizer) const;
+	virtual bool   IsInside(const Vec3& vPos) const override;
+	virtual void   GetMemoryUsage(ICrySizer* pSizer) const override;
 
-	virtual size_t WriteToBuffer(void* pBuffer) const;
-	virtual void   ReadFromBuffer(const void* pBuffer);
+	virtual size_t WriteToBuffer(void* pBuffer) const override;
+	virtual void   ReadFromBuffer(const void* pBuffer) override;
 
 private:
 
@@ -57,5 +48,3 @@ private:
 
 	NodeStorage m_BSPTree;
 };
-
-#endif // __BSPTREE3D_H_

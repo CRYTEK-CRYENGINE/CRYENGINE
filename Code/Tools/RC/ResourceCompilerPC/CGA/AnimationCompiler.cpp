@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 
@@ -68,28 +68,24 @@ static bool IsAimAnimation(const CSkinningInfo& skeletonInfo, const string& anim
 	{
 		return true;
 	}
-	return StringHelpers::ContainsIgnoreCase(PathHelpers::GetFilename(animationPath), "AimPoses");
+	return StringHelpers::ContainsIgnoreCase(PathUtil::GetFile(animationPath), "AimPoses");
 }
 
 string UnifiedPath(const string& path)
 {
-	return PathHelpers::ToUnixPath(StringHelpers::MakeLowerCase(path));
+	return PathUtil::ToUnixPath(StringHelpers::MakeLowerCase(path));
 }
 
 
 string RelativePath(const string& path, const string& relativeToPath)
 {
-	const string relPath = PathHelpers::GetShortestRelativeAsciiPath(relativeToPath, path);
-	if (!relPath.empty())
+	const auto fullpath = PathUtil::ToUnixPath(path);
+	const auto rootDataFolder = PathUtil::ToUnixPath(PathUtil::AddSlash(relativeToPath));
+	if (fullpath.length() > rootDataFolder.length() && strnicmp(fullpath.c_str(), rootDataFolder.c_str(), rootDataFolder.length()) == 0)
 	{
-		// we don't allow path to point outside of base path (or to base path itself)
-		if ((relPath[0] == '.' && (relPath.length() == 1 || relPath[1] == '.')) ||
-			!PathHelpers::IsRelative(relPath))
-		{
-			return string();
-		}
+		return fullpath.substr(rootDataFolder.length(), fullpath.length() - rootDataFolder.length());
 	}
-	return relPath;
+	return fullpath;
 }
 
 
@@ -196,7 +192,7 @@ void CAnimationConverter::Init(const ConverterInitContext& context)
 	const bool bIgnorePresets = context.config->GetAsBool("ignorepresets", false, true);
 	if (!bIgnorePresets)
 	{
-		const string compressionSettingsPath = UnifiedPath(PathHelpers::Join(PathHelpers::Join(m_sourceGameFolderPath, m_configSubfolder), "CompressionPresets.json"));
+		const string compressionSettingsPath = UnifiedPath(PathUtil::Make(PathUtil::Make(m_sourceGameFolderPath, m_configSubfolder), "CompressionPresets.json"));
 		if (FileUtil::FileExists(compressionSettingsPath))
 		{
 			if (!m_compressionPresetTable->Load(compressionSettingsPath.c_str()))
@@ -212,7 +208,7 @@ void CAnimationConverter::Init(const ConverterInitContext& context)
 		for (size_t i = 0; i < context.inputFileCount; ++i)
 		{
 			const char* const filename = context.inputFiles[i].m_sourceInnerPathAndName.c_str();
-			string extension = PathHelpers::FindExtension(filename);
+			string extension = PathUtil::GetExt(filename);
 			if (StringHelpers::EqualsIgnoreCase(extension, "i_caf"))
 			{
 				const string animSettingsPath = context.config->GetAsString("animSettingsFile", "", "");
@@ -221,10 +217,10 @@ void CAnimationConverter::Init(const ConverterInitContext& context)
 					SAnimationDefinition::SetOverrideAnimationSettingsFilename(animSettingsPath);
 				}				
 
-				const string fullPath = PathHelpers::Join(context.inputFiles[i].m_sourceLeftPath, context.inputFiles[i].m_sourceInnerPathAndName);
+				const string fullPath = PathUtil::Make(context.inputFiles[i].m_sourceLeftPath, context.inputFiles[i].m_sourceInnerPathAndName);
 				if (m_sourceGameFolderPath.empty())
 				{
-					m_sourceGameFolderPath = PathHelpers::GetDirectory(PathHelpers::GetAbsoluteAsciiPath(fullPath));
+					m_sourceGameFolderPath = PathHelpers::GetDirectory(PathHelpers::GetAbsolutePath(fullPath));
 				}
 
 				SAnimationDesc desc;
@@ -263,20 +259,20 @@ void CAnimationConverter::InitSkeletonManager(const std::set<string>& usedSkelet
 {
 	m_skeletonManager.reset(new SkeletonManager(m_pPakSystem, m_pXMLParser, m_rc));
 
-	string skeletonListPath = UnifiedPath(PathHelpers::Join(PathHelpers::Join(m_sourceGameFolderPath, m_configSubfolder), "SkeletonList.xml"));
+	string skeletonListPath = UnifiedPath(PathUtil::Make(PathUtil::Make(m_sourceGameFolderPath, m_configSubfolder), "SkeletonList.xml"));
 	m_skeletonManager->LoadSkeletonList(skeletonListPath, m_sourceGameFolderPath, usedSkeletons);
 }
 
 static string GetDbaTableFilename(const string& sourceGameFolderPath, const string& configSubfolder)
 {
-	const string filename = PathHelpers::Join(PathHelpers::Join(sourceGameFolderPath, configSubfolder), "DBATable.json");
+	const string filename = PathUtil::Make(PathUtil::Make(sourceGameFolderPath, configSubfolder), "DBATable.json");
 
 	if (FileUtil::FileExists(filename.c_str()))
 	{
 		return filename;
 	}
 	
-	const string obsoleteFilename = PathHelpers::Join(PathHelpers::Join(sourceGameFolderPath, configSubfolder), "DBATable.xml");
+	const string obsoleteFilename = PathUtil::Make(PathUtil::Make(sourceGameFolderPath, configSubfolder), "DBATable.xml");
 
 	if (FileUtil::FileExists(obsoleteFilename.c_str())) 
 	{
@@ -301,7 +297,7 @@ void CAnimationConverter::InitDbaTableEnumerator()
 	}
 
 	DBATableEnumerator* const dbaTable = new DBATableEnumerator();
-	const string configFolderPath = PathHelpers::Join(m_sourceGameFolderPath, m_configSubfolder);
+	const string configFolderPath = PathUtil::Make(m_sourceGameFolderPath, m_configSubfolder);
 	if (!dbaTable->LoadDBATable(configFolderPath, m_sourceGameFolderPath, m_pPakSystem, m_pXMLParser)) 
 	{
 		RCLogError("Failed to load DBA table file '%s'", dbaTableFilename.c_str());
@@ -344,11 +340,11 @@ bool CAnimationConverter::RebuildDatabases()
 
 	string targetGameFolderPath;
 	{
-		const string targetRoot = PathHelpers::RemoveSeparator(m_config->GetAsString("targetroot", "", ""));
+		const string targetRoot = PathUtil::RemoveSlash(m_config->GetAsString("targetroot", "", ""));
 
 		if (!targetRoot.empty())
 		{
-			targetGameFolderPath = PathHelpers::ToDosPath(PathHelpers::AddSeparator(targetRoot));
+			targetGameFolderPath = PathUtil::ToDosPath(PathUtil::AddSlash(targetRoot));
 		}
 	}
 
@@ -407,8 +403,8 @@ bool CAnimationConverter::RebuildDatabases()
 			EnumeratedCAF caf;
 			m_dbaTableEnumerator->GetCAF(&caf, dbaIndex, anim);
 
-			string compressedCAFPath = PathHelpers::Join(targetGameFolderPath, caf.path);
-			compressedCAFPath = PathHelpers::ReplaceExtension(compressedCAFPath, "$caf"); // .caf -> .$caf
+			string compressedCAFPath = PathUtil::Make(targetGameFolderPath, caf.path);
+			compressedCAFPath = PathUtil::ReplaceExtension(compressedCAFPath, "$caf"); // .caf -> .$caf
 
 			if (!FileUtil::FileExists(compressedCAFPath.c_str()))
 			{
@@ -493,7 +489,7 @@ bool CAnimationConverter::RebuildDatabases()
 		}
 
 		{
-			string unifiedPath = PathHelpers::RemoveSeparator(dbaInnerPath);
+			string unifiedPath = PathUtil::RemoveSlash(dbaInnerPath);
 			UnifyPath(unifiedPath);
 			std::set<string>::iterator it = unusedDBAs.find(unifiedPath);
 			if (it != unusedDBAs.end())
@@ -506,7 +502,7 @@ bool CAnimationConverter::RebuildDatabases()
 		{
 			if (dbaAnimCount != 0)
 			{
-				const string dbaOutPath = PathHelpers::Join(targetGameFolderPath, dbaInnerPath);
+				const string dbaOutPath = PathUtil::Make(targetGameFolderPath, dbaInnerPath);
 				storage->SaveDataBase905(dbaOutPath.c_str(), bStreamPrepare, pointerSize);
 
 				size_t dbaOutputSize = 0;
@@ -549,11 +545,11 @@ bool CAnimationConverter::RebuildDatabases()
 			for(size_t i = 0; i < cafFileList.size(); ++i)
 			{
 				const string& filePath = cafFileList[i];
-				string animationPath = PathHelpers::ReplaceExtension(filePath, "caf");
+				string animationPath = PathUtil::ReplaceExtension(filePath, "caf");
 				UnifyPath(animationPath);
 
-				string compressedCAFPath = PathHelpers::Join(targetGameFolderPath, filePath);
-				compressedCAFPath = PathHelpers::ReplaceExtension(compressedCAFPath, "$caf"); // .caf -> .$caf
+				string compressedCAFPath = PathUtil::Make(targetGameFolderPath, filePath);
+				compressedCAFPath = PathUtil::ReplaceExtension(compressedCAFPath, "$caf"); // .caf -> .$caf
 
 				if (!FileUtil::FileExists(compressedCAFPath.c_str()))
 				{
@@ -570,7 +566,7 @@ bool CAnimationConverter::RebuildDatabases()
 					continue;
 				}
 
-				const string fullAnimationPath = PathHelpers::Join(sourceFolder, filePath);
+				const string fullAnimationPath = PathUtil::Make(sourceFolder, filePath);
 				SAnimationDesc animDesc;
 				bool bErrorReported = false;
 				bool bUsesNameContains = false;
@@ -659,7 +655,7 @@ bool CAnimationConverter::RebuildDatabases()
 	}
 
 
-	const string sAnimationsImgFilename = PathHelpers::Join(targetGameFolderPath, "Animations\\Animations.img");
+	const string sAnimationsImgFilename = PathUtil::Make(targetGameFolderPath, "Animations\\Animations.img");
 	RCLog("Saving %s...",sAnimationsImgFilename);
 	const FILETIME latest = FileUtil::GetLastWriteFileTime(targetGameFolderPath);
 	if (!animationManager.SaveCAFImage( sAnimationsImgFilename, latest, bigEndianOutput))
@@ -676,7 +672,7 @@ bool CAnimationConverter::RebuildDatabases()
 	// Check if it can be skipped so it won't accidentally log errors.
 	if (!animationManager.CanBeSkipped())
 	{
-		const string sDirectionalBlendsImgFilename = PathHelpers::Join(targetGameFolderPath, "Animations\\DirectionalBlends.img");
+		const string sDirectionalBlendsImgFilename = PathUtil::Make(targetGameFolderPath, "Animations\\DirectionalBlends.img");
 		RCLog("Saving %s...", sDirectionalBlendsImgFilename);
 		if (!animationManager.SaveAIMImage(sDirectionalBlendsImgFilename, latest, bigEndianOutput))
 		{
@@ -698,7 +694,7 @@ bool CAnimationConverter::RebuildDatabases()
 			RCLog("    %s", it->c_str());
 			if (m_rc)
 			{
-				const string removedFile = PathHelpers::Join(targetGameFolderPath, *it);
+				const string removedFile = PathUtil::Make(targetGameFolderPath, *it);
 				m_rc->MarkOutputFileForRemoval(removedFile.c_str());
 			}
 		}
@@ -762,27 +758,27 @@ string CAnimationCompiler::GetOutputFileNameOnly() const
 
 	const string overwrittenFilename = m_CC.config->GetAsString("overwritefilename", m_CC.sourceFileNameOnly.c_str(), m_CC.sourceFileNameOnly.c_str());
 
-	const string ext = PathHelpers::FindExtension(overwrittenFilename);
+	const string ext = PathUtil::GetExt(overwrittenFilename);
 	if (StringHelpers::EqualsIgnoreCase(ext, "i_caf"))
 	{
 		if (localUpdateMode)
 		{
-			return PathHelpers::ReplaceExtension(overwrittenFilename, string("caf"));
+			return PathUtil::ReplaceExtension(overwrittenFilename, string("caf"));
 		}
 		else
 		{
-			return PathHelpers::ReplaceExtension(overwrittenFilename, string("$caf"));
+			return PathUtil::ReplaceExtension(overwrittenFilename, string("$caf"));
 		}
 	}
 	else
 	{
-		return PathHelpers::ReplaceExtension(overwrittenFilename, string("$")+ext);
+		return PathUtil::ReplaceExtension(overwrittenFilename, string("$")+ext);
 	}
 }
 
 string CAnimationCompiler::GetOutputPath() const
 {
-	return PathHelpers::Join(m_CC.GetOutputFolder(), GetOutputFileNameOnly());
+	return PathUtil::Make(m_CC.GetOutputFolder(), GetOutputFileNameOnly());
 }
 
 // ---------------------------------------------------------------------------
@@ -806,9 +802,9 @@ static bool PrepareAnimationJob(
 	bool bAlignTracks = context.config->GetAsBool("cafAlignTracks", false, true);
 
 	string animationPath = UnifiedPath(RelativePath(sourcePath, sourceGameFolderPath));
-	if (StringHelpers::Equals(PathHelpers::FindExtension(animationPath), "i_caf"))
+	if (StringHelpers::Equals(PathUtil::GetExt(animationPath), "i_caf"))
 	{
-		animationPath = PathHelpers::ReplaceExtension(animationPath, "caf");
+		animationPath = PathUtil::ReplaceExtension(animationPath, "caf");
 	}
 
 	if (animationPath.empty())
@@ -820,8 +816,8 @@ static bool PrepareAnimationJob(
 	job->m_compiler = compiler;
 	job->m_sourcePath = sourcePath;
 	job->m_destinationPath = destinationPath;
-	string animExt = PathHelpers::FindExtension(job->m_destinationPath);
-	job->m_intermediatePath = PathHelpers::ReplaceExtension(job->m_destinationPath, string("$")+animExt); // e.g. .caf -> .$caf
+	string animExt = PathUtil::GetExt(job->m_destinationPath);
+	job->m_intermediatePath = PathUtil::ReplaceExtension(job->m_destinationPath, string("$")+animExt); // e.g. .caf -> .$caf
 	job->m_animationPath = animationPath;
 	UnifyPath(job->m_animationPath);
 	SAnimationDesc defaultAnimDesc;
@@ -908,7 +904,7 @@ void CAnimationCompiler::GetFilenamesForUpToDateCheck(std::vector<string>& upToD
 	upToDateSrcFilenames.push_back(sourcePath);
 	upToDateCheckFilenames.push_back(outputPath);
 
-	const string sourcePathExt = PathHelpers::FindExtension(sourcePath);
+	const string sourcePathExt = PathUtil::GetExt(sourcePath);
 	const bool isCafFile =
 		StringHelpers::EqualsIgnoreCase(sourcePathExt, "caf") ||
 		StringHelpers::EqualsIgnoreCase(sourcePathExt, "i_caf");
@@ -1038,7 +1034,7 @@ bool CAnimationCompiler::Process()
 
 	const string& sourceGameFolderPath = Converter()->GetSourceGameFolderPath();
 	const string fileName = UnifiedPath(RelativePath(m_CC.GetSourcePath(), sourceGameFolderPath));
-	const string animationName = PathHelpers::ReplaceExtension(fileName, "caf");
+	const string animationName = PathUtil::ReplaceExtension(fileName, "caf");
 	if (fileName.empty())
 	{
 		RCLogError(
@@ -1047,7 +1043,7 @@ bool CAnimationCompiler::Process()
 		return false;
 	}
 
-	const string outputPath = PathHelpers::ReplaceExtension(GetOutputPath(), "caf");
+	const string outputPath = PathUtil::ReplaceExtension(GetOutputPath(), "caf");
 
 	if (verbosityLevel > 0)
 	{

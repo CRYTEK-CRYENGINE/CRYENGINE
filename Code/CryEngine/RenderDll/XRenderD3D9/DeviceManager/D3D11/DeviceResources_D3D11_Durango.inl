@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -11,8 +11,10 @@ UINT64 CTexture::StreamInsertFence()
 
 bool CTexture::StreamPrepare_Platform()
 {
+	const SPixFormat* pPF;
 	ETEX_TileMode srcTileMode = m_eSrcTileMode;
 	bool isBlockCompressed = IsBlockCompressed(m_eSrcFormat);
+	ETEX_Format eSrcFormat = CTexture::GetClosestFormatSupported(m_eSrcFormat, pPF);
 
 	if (srcTileMode == eTM_Optimal)
 	{
@@ -36,7 +38,7 @@ bool CTexture::StreamPrepare_Platform()
 		desc.Height = m_nHeight;
 		desc.MipLevels = m_nMips;
 		desc.ArraySize = nSides;
-		desc.Format = (XG_FORMAT)m_pPixelFormat->DeviceFormat;
+		desc.Format = (XG_FORMAT)pPF->DeviceFormat;
 		desc.SampleDesc.Count = 1;
 		desc.Usage = XG_USAGE_STAGING;
 		desc.BindFlags = XG_BIND_SHADER_RESOURCE;
@@ -161,7 +163,7 @@ void CTexture::StreamUploadMip_Durango(const void* pSrcBaseAddress,
 	int nMip, int nBaseMip,
 	STexPoolItem* pNewPoolItem, STexStreamInMipState& mipState)
 {
-	FUNCTION_PROFILER_RENDERER;
+	FUNCTION_PROFILER_RENDERER();
 
 	CDeviceTexture* pDeviceTexture = pNewPoolItem->m_pDevTexture;
 	bool bStreamInPlace = mipState.m_bStreamInPlace;
@@ -173,8 +175,10 @@ void CTexture::StreamUploadMip_Durango(const void* pSrcBaseAddress,
 
 	if (pDeviceTexture->IsInPool())
 	{
+		const SPixFormat* pPF;
 		ETEX_TileMode srcTileMode = m_eSrcTileMode;
 		bool isBlockCompressed = IsBlockCompressed(m_eSrcFormat);
+		ETEX_Format eSrcFormat = CTexture::GetClosestFormatSupported(m_eSrcFormat, pPF);
 
 		// If any of the sub resources are in a linear general format, we'll need a computer to tile on the CPU.
 		bool bNeedsComputer = (srcTileMode == eTM_None) || (srcTileMode == eTM_LinearPadded && isBlockCompressed);
@@ -194,7 +198,7 @@ void CTexture::StreamUploadMip_Durango(const void* pSrcBaseAddress,
 			xgDesc.Height = pNewPoolItem->m_pOwner->m_Height;
 			xgDesc.MipLevels = numMips;
 			xgDesc.ArraySize = numSides;
-			xgDesc.Format = (XG_FORMAT)m_pPixelFormat->DeviceFormat;
+			xgDesc.Format = (XG_FORMAT)pPF->DeviceFormat;
 			xgDesc.SampleDesc.Count = 1;
 			xgDesc.Usage = XG_USAGE_DEFAULT;
 			xgDesc.BindFlags = xgFlags;
@@ -348,14 +352,16 @@ void CTexture::StreamUploadMip_Durango(const void* pSrcBaseAddress,
 // Only those cases neet to be supported which did not successfully finished their data in CTexture::StreamUploadMip_Durango
 void CTexture::StreamUploadMips_Durango(int nBaseMip, int nMipCount, STexPoolItem* pNewPoolItem, STexStreamInState& streamState)
 {
-	FUNCTION_PROFILER_RENDERER;
+	FUNCTION_PROFILER_RENDERER();
 
 	CDeviceTexture* pDeviceTexture = pNewPoolItem->m_pDevTexture;
 
 	if (pDeviceTexture->IsInPool())
 	{
+		const SPixFormat* pPF;
 		ETEX_TileMode srcTileMode = m_eSrcTileMode;
 		bool isBlockCompressed = IsBlockCompressed(m_eSrcFormat);
+		ETEX_Format eSrcFormat = CTexture::GetClosestFormatSupported(m_eSrcFormat, pPF);
 
 		// If any of the sub resources are in a linear general format, we'll need a computer to tile on the CPU.
 		bool bNeedsComputer = (srcTileMode == eTM_None) || (srcTileMode == eTM_LinearPadded && isBlockCompressed);
@@ -373,7 +379,7 @@ void CTexture::StreamUploadMips_Durango(int nBaseMip, int nMipCount, STexPoolIte
 			xgDesc.Height = pNewPoolItem->m_pOwner->m_Height;
 			xgDesc.MipLevels = nBaseMip + nMipCount;
 			xgDesc.ArraySize = numSides;
-			xgDesc.Format = (XG_FORMAT)m_pPixelFormat->DeviceFormat;
+			xgDesc.Format = (XG_FORMAT)pPF->DeviceFormat;
 			xgDesc.SampleDesc.Count = 1;
 			xgDesc.Usage = XG_USAGE_DEFAULT;
 			xgDesc.BindFlags = xgFlags;
@@ -613,7 +619,7 @@ void CDeviceTexture::GPUFlush()
 
 uint32 CDeviceTexture::TextureDataSize(uint32 nWidth, uint32 nHeight, uint32 nDepth, uint32 nMips, uint32 nSlices, const ETEX_Format eTF, ETEX_TileMode eTM, uint32 eFlags)
 {
-	FUNCTION_PROFILER_RENDERER;
+	FUNCTION_PROFILER_RENDERER();
 
 	// Don't allow 0 dimensions, it's clearly wrong to reflect on "unspecified-yet" textures
 	// It's also not allowed to calculate offsets with this function, as this is determined by the hardware/blackbox.

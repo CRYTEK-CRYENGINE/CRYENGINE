@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 using CryEngine.Resources;
 using System;
@@ -53,7 +53,7 @@ namespace CryEngine.UI.Components
 		/// <summary>
 		/// Called by framework. Do not call directly.
 		/// </summary>
-		public override void OnAwake()
+		protected override void OnAwake()
 		{
 			_cursor = SceneObject.Instantiate<Panel>(Owner);
 			_cursor.Background.Source = ImageSource.Blank;
@@ -75,7 +75,7 @@ namespace CryEngine.UI.Components
 		/// <summary>
 		/// Called by Canvas. Do not call directly.
 		/// </summary>
-		public override void OnKey(InputEvent e)
+		protected override void OnKey(InputEvent e)
 		{
 			if(!_submitDesired)
 			{
@@ -163,7 +163,7 @@ namespace CryEngine.UI.Components
 		/// <summary>
 		/// Called by Canvas. Do not call directly.
 		/// </summary>
-		public override void OnLeftMouseDown(int x, int y)
+		protected override void OnLeftMouseDown(int x, int y)
 		{
 			var nearestIdx = -1;
 			var nearestOffsetDelta = int.MaxValue;
@@ -187,7 +187,7 @@ namespace CryEngine.UI.Components
 		/// <summary>
 		/// Called by Canvas. Do not call directly.
 		/// </summary>
-		public override void OnEnterFocus()
+		protected override void OnEnterFocus()
 		{
 			_contentBackup = _text.Content;
 			_cursorIndex = _text.Content.Length;
@@ -200,7 +200,7 @@ namespace CryEngine.UI.Components
 		/// <summary>
 		/// Called by Canvas. Do not call directly.
 		/// </summary>
-		public override void OnLeaveFocus()
+		protected override void OnLeaveFocus()
 		{
 			if(_submitDesired)
 				_text.Content = _contentBackup;
@@ -221,7 +221,7 @@ namespace CryEngine.UI.Components
 		/// <summary>
 		/// Called by framework. Do not call directly.
 		/// </summary>
-		public override void OnUpdate()
+		protected override void OnRender()
 		{
 			if(DateTime.Now > _blinkTime)
 			{

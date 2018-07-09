@@ -1,0 +1,12 @@
+<AssetMetadata version="0" type="Material" guid="7e243a23-31bd-e260-54d9-8282fa6c6f35">
+ <Files>
+  <File path="billboard_default.mtl"/>
+ </Files>
+ <Details>
+  <Detail name="subMaterialCount">0</Detail>
+  <Detail name="textureCount">1</Detail>
+ </Details>
+ <Dependencies>
+  <Path usageCount="2">textures/defaults/grey.dds</Path>
+ </Dependencies>
+</AssetMetadata>

@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 
@@ -139,12 +139,6 @@ void CRoadRenderNode::Compile() PREFAST_SUPPRESS_WARNING(6262) //function uses >
 	// Make sure to dephysicalize first
 	Dephysicalize();
 
-	Vec3 segmentOffset(0, 0, 0);
-	if (Get3DEngine()->m_pSegmentsManager)
-	{
-		segmentOffset = GetTerrain()->GetSegmentOrigin(m_nSID);
-	}
-
 	// The process of generating the render mesh is very slow, only perform if the road changed!
 	if (m_bRebuildFull)
 	{
@@ -161,7 +155,7 @@ void CRoadRenderNode::Compile() PREFAST_SUPPRESS_WARNING(6262) //function uses >
 		m_serializedData.worldSpaceBBox.Reset();
 		for (int i = 0; i < nVertsNumAll; i++)
 		{
-			Vec3 vTmp(m_arrVerts[i].x, m_arrVerts[i].y, Get3DEngine()->GetTerrainElevation(m_arrVerts[i].x, m_arrVerts[i].y, m_nSID) + fRoadTerrainZOffset);
+			Vec3 vTmp(m_arrVerts[i].x, m_arrVerts[i].y, Get3DEngine()->GetTerrainElevation(m_arrVerts[i].x, m_arrVerts[i].y) + fRoadTerrainZOffset);
 			m_serializedData.worldSpaceBBox.Add(vTmp);
 		}
 
@@ -201,38 +195,28 @@ void CRoadRenderNode::Compile() PREFAST_SUPPRESS_WARNING(6262) //function uses >
 			}
 
 			// make vert array
-			int nUnitSize = GetTerrain()->GetHeightMapUnitSize();
-#ifndef SEG_WORLD
-			int x1 = int(WSBBox.min.x) / nUnitSize * nUnitSize;
-			int x2 = int(WSBBox.max.x) / nUnitSize * nUnitSize + nUnitSize;
-			int y1 = int(WSBBox.min.y) / nUnitSize * nUnitSize;
-			int y2 = int(WSBBox.max.y) / nUnitSize * nUnitSize + nUnitSize;
-#else
-			int x1 = int(WSBBox.min.x + segmentOffset.x) / nUnitSize * nUnitSize;
-			int x2 = int(WSBBox.max.x + segmentOffset.x) / nUnitSize * nUnitSize + nUnitSize;
-			int y1 = int(WSBBox.min.y + segmentOffset.y) / nUnitSize * nUnitSize;
-			int y2 = int(WSBBox.max.y + segmentOffset.y) / nUnitSize * nUnitSize + nUnitSize;
-			x1 -= (int)segmentOffset.x;
-			x2 -= (int)segmentOffset.x;
-			y1 -= (int)segmentOffset.y;
-			y2 -= (int)segmentOffset.y;
-#endif
+			float unitSize = GetTerrain()->GetHeightMapUnitSize();
+
+			float x1 = std::floor(WSBBox.min.x / unitSize) * unitSize;
+			float x2 = std::floor(WSBBox.max.x / unitSize) * unitSize + unitSize;
+			float y1 = std::floor(WSBBox.min.y / unitSize) * unitSize;
+			float y2 = std::floor(WSBBox.max.y / unitSize) * unitSize + unitSize;
 
 			// make arrays of verts and indices used in trapezoid area
 			s_tempVertexPositions.Clear();
 			s_tempIndices.Clear();
 
-			for (int x = x1; x <= x2; x += nUnitSize)
+			for (float x = x1; x <= x2; x += unitSize)
 			{
-				for (int y = y1; y <= y2; y += nUnitSize)
+				for (float y = y1; y <= y2; y += unitSize)
 				{
-					s_tempVertexPositions.Add(Vec3((float)x, (float)y, GetTerrain()->GetZ(x, y, m_nSID, true)));
+					s_tempVertexPositions.Add(Vec3((float)x, (float)y, GetTerrain()->GetZ(x, y, true)));
 				}
 			}
 
 			// make indices
-			int dx = (x2 - x1) / nUnitSize;
-			int dy = (y2 - y1) / nUnitSize;
+			int dx = int((x2 - x1) / unitSize);
+			int dy = int((y2 - y1) / unitSize);
 
 			for (int x = 0; x < dx; x++)
 			{
@@ -243,14 +227,14 @@ void CRoadRenderNode::Compile() PREFAST_SUPPRESS_WARNING(6262) //function uses >
 					int nIdx2 = (x * (dy + 1) + y + 1);
 					int nIdx3 = (x * (dy + 1) + y + 1 + (dy + 1));
 
-					int X_in_meters = x1 + x * nUnitSize;
-					int Y_in_meters = y1 + y * nUnitSize;
+					float X_in_meters = float(x1) + float(x) * unitSize;
+					float Y_in_meters = float(y1) + float(y) * unitSize;
 
 					CTerrain* pTerrain = GetTerrain();
 
-					if (m_bIgnoreTerrainHoles || (pTerrain && !pTerrain->GetHole(X_in_meters, Y_in_meters, m_nSID)))
+					if (m_bIgnoreTerrainHoles || (pTerrain && !pTerrain->GetHole(X_in_meters, Y_in_meters)))
 					{
-						if (pTerrain && pTerrain->IsMeshQuadFlipped(X_in_meters, Y_in_meters, nUnitSize, m_nSID))
+						if (pTerrain && pTerrain->IsMeshQuadFlipped(X_in_meters, Y_in_meters, unitSize))
 						{
 							s_tempIndices.Add(nIdx0);
 							s_tempIndices.Add(nIdx1);
@@ -318,8 +302,6 @@ void CRoadRenderNode::Compile() PREFAST_SUPPRESS_WARNING(6262) //function uses >
 			s_tempTangents.Clear();
 			s_tempTangents.PreAllocate(s_tempVertexPositions.Count(), s_tempVertexPositions.Count());
 
-			int nStep = CTerrain::GetHeightMapUnitSize();
-
 			Vec3 vWSBoxCenter = m_serializedData.worldSpaceBBox.GetCenter(); //vWSBoxCenter.z=0;
 
 			// make real vertex data
@@ -356,7 +338,7 @@ void CRoadRenderNode::Compile() PREFAST_SUPPRESS_WARNING(6262) //function uses >
 
 				s_tempVertices.Add(tmp);
 
-				Vec3 vNormal = GetTerrain()->GetTerrainSurfaceNormal(vWSPos, 0.25f, m_nSID);
+				Vec3 vNormal = GetTerrain()->GetTerrainSurfaceNormal(vWSPos, 0.25f);
 
 				Vec3 vBiTang = pVerts[1] - pVerts[0];
 				vBiTang.Normalize();
@@ -430,7 +412,6 @@ void CRoadRenderNode::Compile() PREFAST_SUPPRESS_WARNING(6262) //function uses >
 
 		m_pRenderMesh->SetChunk((m_pMaterial != NULL) ? (IMaterial*)m_pMaterial : gEnv->p3DEngine->GetMaterialManager()->GetDefaultMaterial(),
 		                        0, m_dynamicData.vertices.Count(), 0, m_dynamicData.indices.Count(), texelAreaDensity);
-		m_serializedData.worldSpaceBBox.Move(segmentOffset);
 		Vec3 vWSBoxCenter = m_serializedData.worldSpaceBBox.GetCenter(); //vWSBoxCenter.z=0;
 		AABB OSBBox(m_serializedData.worldSpaceBBox.min - vWSBoxCenter, m_serializedData.worldSpaceBBox.max - vWSBoxCenter);
 		m_pRenderMesh->SetBBox(OSBBox.min, OSBBox.max);
@@ -498,18 +479,19 @@ void CRoadRenderNode::Render(const SRendParams& RendParams, const SRenderingPass
 	if (!passInfo.RenderRoads())
 		return; // false;
 
-	CRenderObject* pObj = 0;
+	// Prepare object model matrix
+	Vec3 vWSBoxCenter = m_serializedData.worldSpaceBBox.GetCenter();
+	vWSBoxCenter.z += 0.01f;
+	const auto objMat = Matrix34::CreateTranslationMat(vWSBoxCenter);
 
-	if (GetObjManager()->AddOrCreatePersistentRenderObject(m_pTempData, pObj, NULL, passInfo))
+	CRenderObject* pObj = nullptr;
+	if (GetObjManager()->AddOrCreatePersistentRenderObject(m_pTempData.load(), pObj, nullptr, objMat, passInfo))
 		return;
 
 	pObj->m_pRenderNode = this;
 	pObj->m_ObjFlags |= RendParams.dwFObjFlags;
-	pObj->m_II.m_AmbColor = RendParams.AmbientColor;
-	Vec3 vWSBoxCenter = m_serializedData.worldSpaceBBox.GetCenter();
+	pObj->SetAmbientColor(RendParams.AmbientColor, passInfo);
 	pObj->m_editorSelectionID = m_nEditorSelectionID;
-	vWSBoxCenter.z += 0.01f;
-	pObj->m_II.m_Matrix.SetTranslation(vWSBoxCenter);
 
 	//RendParams.nRenderList = EFSLIST_DECAL;
 
@@ -628,7 +610,7 @@ void CRoadRenderNode::OnTerrainChanged()
 	for (int i = 0, nVertsNum = m_pRenderMesh->GetVerticesCount(); i < nVertsNum; i++)
 	{
 		Vec3& vPos = *(Vec3*)&pPos[i * nPosStride];
-		vPos.z = GetTerrain()->GetZApr(vWSBoxCenter.x + vPos.x, vWSBoxCenter.y + vPos.y, /*m_nSID*/ GetDefSID()) + 0.01f - vWSBoxCenter.z;
+		vPos.z = GetTerrain()->GetZApr(vWSBoxCenter.x + vPos.x, vWSBoxCenter.y + vPos.y) + 0.01f - vWSBoxCenter.z;
 	}
 	m_pRenderMesh->UnlockStream(VSF_GENERAL);
 
@@ -673,7 +655,7 @@ void CRoadRenderNode::GetClipPlanes(Plane* pPlanes, int nPlanesNum, int nVertId)
 
 void CRoadRenderNode::OffsetPosition(const Vec3& delta)
 {
-	if (m_pTempData) m_pTempData->OffsetPosition(delta);
+	if (const auto pTempData = m_pTempData.load()) pTempData->OffsetPosition(delta);
 	m_serializedData.worldSpaceBBox.Move(delta);
 }
 
@@ -704,4 +686,9 @@ Vec3 CRoadRenderNode::GetPos(bool) const
 IMaterial* CRoadRenderNode::GetMaterial(Vec3* pHitPos) const
 {
 	return m_pMaterial;
+}
+
+bool CRoadRenderNode::CanExecuteRenderAsJob()
+{
+	return !gEnv->IsEditor() && GetCVars()->e_ExecuteRenderAsJobMask & BIT(GetRenderNodeType());
 }

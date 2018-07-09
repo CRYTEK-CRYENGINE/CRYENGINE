@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -103,26 +103,10 @@ ILINE void SetJointAbsoluteOrientation(const CDefaultSkeleton& defaultSkeleton, 
 
 //
 
-ILINE void ComputeAbsoluteTransformation(const SAnimationPoseModifierParams& params, uint32 index = 0)
-{
-	Skeleton::CPoseData* pPoseData = Skeleton::CPoseData::GetPoseData(params.pPoseData);
-	if (!pPoseData)
-		return;
-
-	const CDefaultSkeleton& defaultSkeleton = PoseModifierHelper::GetDefaultSkeleton(params);
-	const uint jointCount = pPoseData->GetJointCount();
-	QuatT* const __restrict pPoseRelative = pPoseData->GetJointsRelative();
-	QuatT* const __restrict pPoseAbsolute = pPoseData->GetJointsAbsolute();
-
-	for (uint32 i = index; i < jointCount; ++i)
-	{
-		uint32 p = defaultSkeleton.m_arrModelJoints[i].m_idxParent;
-		pPoseAbsolute[i] = pPoseAbsolute[p] * pPoseRelative[i];
-	}
-}
-
 ILINE void SetJointAbsolute(const SAnimationPoseModifierParams& params, uint32 index, const Quat* pOrientation, const Vec3* pPosition)
 {
+	const CDefaultSkeleton& defaultSkeleton = PoseModifierHelper::GetDefaultSkeleton(params);
+
 	Skeleton::CPoseData* pPoseData = Skeleton::CPoseData::GetPoseData(params.pPoseData);
 	if (!pPoseData)
 		return;
@@ -143,7 +127,7 @@ ILINE void SetJointAbsolute(const SAnimationPoseModifierParams& params, uint32 i
 		pPoseRelative[index].q = pPoseAbsolute[parentIndex].q.GetInverted() * pose.q;
 	}
 
-	ComputeAbsoluteTransformation(params, index);
+	ComputeJointChildrenAbsolute(defaultSkeleton, *pPoseData, index);
 }
 
 // Given two vectors formed by

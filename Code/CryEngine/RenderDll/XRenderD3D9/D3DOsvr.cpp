@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 
@@ -13,10 +13,9 @@
 	#endif
 	#include "D3DPostProcess.h"
 
-namespace CryVR
-{
-namespace Osvr
-{
+using namespace CryVR::Osvr;
+
+
 CD3DOsvrRenderer::CD3DOsvrRenderer(IOsvrDevice* pDevice, CD3D9Renderer* pRenderer, CD3DStereoRenderer* pStereoRenderer)
 	: m_pOsvrDevice(pDevice)
 	, m_pRenderer(pRenderer)
@@ -33,13 +32,13 @@ CD3DOsvrRenderer::~CD3DOsvrRenderer()
 
 }
 
-bool CD3DOsvrRenderer::Initialize()
+bool CD3DOsvrRenderer::Initialize(int initialWidth, int initialHeight)
 {
 	D3DDevice* d3d11Device = m_pRenderer->GetDevice_Unsynchronized().GetRealDevice();
 	D3DDeviceContext* d3d11DeviceContext = m_pRenderer->GetDeviceContext_Unsynchronized().GetRealDeviceContext();
 
-	m_eyeWidth = m_pRenderer->GetWidth();
-	m_eyeHeight = m_pRenderer->GetHeight();
+	m_eyeWidth  = initialWidth;
+	m_eyeHeight = initialHeight;
 
 	if (!m_pOsvrDevice->InitializeRenderer(d3d11Device, d3d11DeviceContext))
 	{
@@ -122,47 +121,21 @@ void CD3DOsvrRenderer::ReleaseTextureSwapSets()
 
 void CD3DOsvrRenderer::Shutdown()
 {
-	m_pStereoRenderer->SetEyeTextures(nullptr, nullptr);
-
 	ReleaseTextureSwapSets();
 	m_pOsvrDevice->ShutdownRenderer();
 }
 
-void CD3DOsvrRenderer::OnResolutionChanged()
+void CD3DOsvrRenderer::OnResolutionChanged(int newWidth, int newHeight)
 {
-	if (m_eyeWidth != m_pRenderer->GetWidth() ||
-	    m_eyeHeight != m_pRenderer->GetHeight())
+	if (m_eyeWidth  != newWidth ||
+	    m_eyeHeight != newHeight)
 	{
 		Shutdown();
-		Initialize();
+		Initialize(newWidth, newHeight);
 	}
 }
 
-void CD3DOsvrRenderer::ReleaseBuffers()
-{
-
-}
-
-void CD3DOsvrRenderer::PrepareFrame()
-{
-	m_pStereoRenderer->SetEyeTextures(m_scene3DRenderData[0].textures[m_currentFrame], m_scene3DRenderData[1].textures[m_currentFrame]);
-}
-
-void CD3DOsvrRenderer::RestoreDeviceStateAfterFrameSubmit()
-{
-
-	//refresh viewport. Have to actually change the viewport so that it gets changed to the device itself
-	int ox, oy, ow, oh;
-	m_pRenderer->GetViewport(&ox, &oy, &ow, &oh);
-	m_pRenderer->RT_SetViewport(ox, oy, ow, oh + 1);
-	m_pRenderer->FX_SetViewport();
-	m_pRenderer->RT_SetViewport(ox, oy, ow, oh);
-	m_pRenderer->FX_SetViewport();
-
-	m_pRenderer->FX_RestoreRenderTarget(0);
-
-	m_pRenderer->FX_ResetVertexDeclaration();
-}
+void CD3DOsvrRenderer::PrepareFrame(uint64_t frameId){}
 
 void CD3DOsvrRenderer::SubmitFrame()
 {
@@ -176,9 +149,6 @@ void CD3DOsvrRenderer::SubmitFrame()
 		CryLogAlways("[CD3DEOsvrRenderer] failed to present textureset %d!", m_currentFrame);
 	}
 
-	//OSVR RenderManager changes the DX device state and does not restore the state previously set. Thus, need to force Cryengine to reset it's state.
-	RestoreDeviceStateAfterFrameSubmit();
-
 	#ifdef ENABLE_BENCHMARK_SENSOR
 	gcpRendD3D->m_benchmarkRendererSensor->AfterStereoFrameSubmit();
 	#endif
@@ -186,96 +156,4 @@ void CD3DOsvrRenderer::SubmitFrame()
 	m_currentFrame = (m_currentFrame + 1) % m_swapSetCount;
 }
 
-void CD3DOsvrRenderer::RenderSocialScreen()
-{
-	if (const IHmdManager* pHmdManager = gEnv->pSystem->GetHmdManager())
-	{
-		if (const IHmdDevice* pDev = pHmdManager->GetHmdDevice())
-		{
-
-			//with async timewarp, we are not allowed to touch the textures that have been submitted last, thus take the one before that
-			int frame = (m_currentFrame - 1) < 0 ? m_swapSetCount - 1 : m_currentFrame - 1;
-
-			CTexture* left = m_scene3DRenderData[0].textures[frame];
-			CTexture* right = m_scene3DRenderData[1].textures[frame];
-
-			const EHmdSocialScreen socialScreen = pDev->GetSocialScreenType();
-			switch (socialScreen)
-			{
-			case EHmdSocialScreen::DistortedDualImage:
-			case EHmdSocialScreen::UndistortedDualImage:
-			{
-				if (!CShaderMan::s_shPostEffects) return;
-
-				//Assume that the current viewport is the viewport that the social screen is supposed to be rendered.
-				int ox, oy, ow, oh;
-				m_pRenderer->GetViewport(&ox, &oy, &ow, &oh);
-
-				int halfW = ow >> 1;
-
-				m_pRenderer->RT_SetViewport(0, 0, halfW, oh);
-				PostProcessUtils().CopyTextureToScreen(left);
-
-				m_pRenderer->RT_SetViewport(halfW, 0, halfW, oh);
-				PostProcessUtils().CopyTextureToScreen(right);
-
-				m_pRenderer->RT_SetViewport(ox, oy, ow, oh);
-
-			}
-			break;
-			case EHmdSocialScreen::Off:
-				if (CShaderMan::s_shPostEffects)
-				{
-					PostProcessUtils().ClearScreen(0.1f, 0.1f, 0.1f, 1.f);
-				}
-
-				break;
-
-			case EHmdSocialScreen::UndistortedLeftEye:
-			{
-				PostProcessUtils().CopyTextureToScreen(left);
-				break;
-			}
-			case EHmdSocialScreen::UndistortedRightEye:
-			{
-				PostProcessUtils().CopyTextureToScreen(right);
-				break;
-			}
-			default:
-				break;
-			}
-		}
-	}
-
-}
-/*
-
-   void CD3DOsvrRenderer::copyEyeTexturesToMirrorTexture(CTexture* left, CTexture* right)
-   {
-   if (!CShaderMan::s_shPostEffects || (!left && !right)) return;
-
-   int ox, oy, ow, oh;
-   m_renderer->GetViewport(&ox, &oy, &ow, &oh);
-
-   m_renderer->FX_PushRenderTarget(0, m_mirrorTexture, NULL);
-   m_renderer->FX_SetActiveRenderTargets();
-   if (left)
-   {
-    m_renderer->RT_SetViewport(0, 0, m_eyeWidth, m_eyeHeight);
-    PostProcessUtils().CopyTextureToScreen(left);
-   }
-
-   if (right)
-   {
-    m_renderer->RT_SetViewport(m_eyeWidth, 0, m_eyeWidth, m_eyeHeight);
-    PostProcessUtils().CopyTextureToScreen(right);
-   }
-
-
-   m_renderer->RT_SetViewport(ox, oy, ow, oh);
-   m_renderer->FX_PopRenderTarget(0);
-   }*/
-
-}
-}
 #endif

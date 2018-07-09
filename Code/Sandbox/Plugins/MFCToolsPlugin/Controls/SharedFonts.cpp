@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 #include <StdAfx.h>
 #include "SharedFonts.h"
 
@@ -28,3 +28,4 @@ SMFCFonts::SMFCFonts()
 		CLIP_DEFAULT_PRECIS, DEFAULT_QUALITY,
 		DEFAULT_PITCH, "Ms Shell Dlg 2");
 }
+

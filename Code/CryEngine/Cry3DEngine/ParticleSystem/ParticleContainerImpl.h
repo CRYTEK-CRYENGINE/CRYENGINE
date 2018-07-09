@@ -1,14 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
-
-// -------------------------------------------------------------------------
-//  Created:     21/10/2014 by Filipe amim
-//  Description:
-// -------------------------------------------------------------------------
-//
-////////////////////////////////////////////////////////////////////////////
-
-#ifndef PARTICLECONTAINERIMPL_H
-#define PARTICLECONTAINERIMPL_H
+// Copyright 2015-2018 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #pragma once
 
@@ -17,20 +7,6 @@ namespace pfx2
 
 //////////////////////////////////////////////////////////////////////////
 // CParticleContainer
-
-template<typename T>
-ILINE T* CParticleContainer::GetData(EParticleDataType type)
-{
-	CRY_PFX2_DEBUG_ONLY_ASSERT(type.info().isType<T>());
-	return reinterpret_cast<T*>(m_pData[type]);
-}
-
-template<typename T>
-ILINE const T* CParticleContainer::GetData(EParticleDataType type) const
-{
-	CRY_PFX2_DEBUG_ONLY_ASSERT(type.info().isType<T>());
-	return reinterpret_cast<const T*>(m_pData[type]);
-}
 
 ILINE TParticleId CParticleContainer::GetRealId(TParticleId pId) const
 {
@@ -46,31 +22,25 @@ ILINE TParticleId CParticleContainer::GetRealId(TParticleId pId) const
 }
 
 template<typename T>
-ILINE void CParticleContainer::FillData(EParticleDataType type, const T& data, SUpdateRange range)
+void CParticleContainer::FillData(TDataType<T> type, const T& data, SUpdateRange range)
 {
-	// PFX2_TODO : the way it is, this function cannot be vectorized
-	CRY_PFX2_ASSERT(type.info().isType<T>());
 	if (HasData(type))
 	{
-		uint dim = type.info().dimension;
-		for (uint i = 0; i < dim; ++i)
+		for (uint e = 0; e < type.Dim; ++e)
 		{
-			T* pBuffer = GetData<T>(type + i);
-			for (auto particleId : range)
-			{
-				pBuffer[particleId] = data;
-			}
+			auto stream = IOStream(type[e]);
+			stream.Fill(range, TDimInfo<T>::Elem(data, e));
 		}
 	}
 }
 
-ILINE void CParticleContainer::CopyData(EParticleDataType dstType, EParticleDataType srcType, SUpdateRange range)
+inline void CParticleContainer::CopyData(EParticleDataType dstType, EParticleDataType srcType, SUpdateRange range)
 {
 	CRY_PFX2_ASSERT(dstType.info().type == srcType.info().type);
 	if (HasData(dstType) && HasData(srcType))
 	{
-		size_t stride = dstType.info().typeSize();
-		size_t count = range.size();
+		size_t stride = dstType.info().typeSize;
+		size_t count = SGroupRange(range).size();
 		uint dim = dstType.info().dimension;
 		for (uint i = 0; i < dim; ++i)
 			memcpy(
@@ -80,97 +50,39 @@ ILINE void CParticleContainer::CopyData(EParticleDataType dstType, EParticleData
 	}
 }
 
-ILINE IFStream CParticleContainer::GetIFStream(EParticleDataType type, float defaultVal) const
+ILINE TIStream<Vec3> CParticleContainer::IStream(TDataType<Vec3> type, Vec3 defaultVal) const
 {
-	return IFStream(GetData<float>(type), defaultVal);
+	return TIStream<Vec3>(
+		Data(type[0]),
+		Data(type[1]),
+		Data(type[2]),
+		defaultVal);
 }
 
-ILINE IOFStream CParticleContainer::GetIOFStream(EParticleDataType type)
+ILINE TIOStream<Vec3> CParticleContainer::IOStream(TDataType<Vec3> type)
 {
-	return IOFStream(GetData<float>(type));
+	return TIOStream<Vec3>(
+		Data(type[0]),
+		Data(type[1]),
+		Data(type[2]));
 }
 
-ILINE IVec3Stream CParticleContainer::GetIVec3Stream(EParticleDataType type, Vec3 defaultVal) const
+ILINE TIStream<Quat> CParticleContainer::IStream(TDataType<Quat> type, Quat defaultVal) const
 {
-	CRY_PFX2_DEBUG_ONLY_ASSERT(type.info().isType<float>(3));
-	return IVec3Stream(
-	  GetData<float>(type),
-	  GetData<float>(type + 1u),
-	  GetData<float>(type + 2u),
-	  defaultVal);
+	return TIStream<Quat>(
+		Data(type[0]),
+		Data(type[1]),
+		Data(type[2]),
+		Data(type[3]),
+		defaultVal);
 }
-
-ILINE IOVec3Stream CParticleContainer::GetIOVec3Stream(EParticleDataType type)
+ILINE TIOStream<Quat> CParticleContainer::IOStream(TDataType<Quat> type)
 {
-	CRY_PFX2_DEBUG_ONLY_ASSERT(type.info().isType<float>(3));
-	return IOVec3Stream(
-	  GetData<float>(type),
-	  GetData<float>(type + 1u),
-	  GetData<float>(type + 2u));
-}
-
-ILINE IQuatStream CParticleContainer::GetIQuatStream(EParticleDataType type, Quat defaultVal) const
-{
-	CRY_PFX2_DEBUG_ONLY_ASSERT(type.info().isType<float>(4));
-	return IQuatStream(
-	  GetData<float>(type),
-	  GetData<float>(type + 1u),
-	  GetData<float>(type + 2u),
-	  GetData<float>(type + 3u),
-	  defaultVal);
-}
-ILINE IOQuatStream CParticleContainer::GetIOQuatStream(EParticleDataType type)
-{
-	CRY_PFX2_DEBUG_ONLY_ASSERT(type.info().isType<float>(4));
-	return IOQuatStream(
-	  GetData<float>(type),
-	  GetData<float>(type + 1u),
-	  GetData<float>(type + 2u),
-	  GetData<float>(type + 3u));
-}
-
-ILINE IColorStream CParticleContainer::GetIColorStream(EParticleDataType type, UCol defaultVal) const
-{
-	return IColorStream(GetData<UCol>(type), defaultVal);
-}
-
-ILINE IOColorStream CParticleContainer::GetIOColorStream(EParticleDataType type)
-{
-	return IOColorStream(GetData<UCol>(type));
-}
-
-ILINE IUintStream CParticleContainer::GetIUintStream(EParticleDataType type, uint32 defaultVal) const
-{
-	return IUintStream(GetData<uint>(type), defaultVal);
-}
-
-ILINE IOUintStream CParticleContainer::GetIOUintStream(EParticleDataType type)
-{
-	return IOUintStream(GetData<uint>(type));
-}
-
-ILINE IPidStream CParticleContainer::GetIPidStream(EParticleDataType type, TParticleId defaultVal) const
-{
-	return IPidStream(GetData<TParticleId>(type), defaultVal);
-}
-
-ILINE IOPidStream CParticleContainer::GetIOPidStream(EParticleDataType type)
-{
-	return IOPidStream(GetData<TParticleId>(type));
-}
-
-template<typename T>
-ILINE TIStream<T> CParticleContainer::GetTIStream(EParticleDataType type, const T& defaultVal) const
-{
-	return TIStream<T>(GetData<T>(type), defaultVal);
-}
-
-template<typename T>
-ILINE TIOStream<T> CParticleContainer::GetTIOStream(EParticleDataType type)
-{
-	return TIOStream<T>(GetData<T>(type));
+	return TIOStream<Quat>(
+		Data(type[0]),
+		Data(type[1]),
+		Data(type[2]),
+		Data(type[3]));
 }
 
 }
-
-#endif

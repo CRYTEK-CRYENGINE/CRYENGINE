@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #ifndef CRYFONT_ICRYFONT_H
 #define CRYFONT_ICRYFONT_H
@@ -17,6 +17,7 @@ struct ICryFont;
 struct IFFont;
 
 struct IRenderer;
+struct IRenderAuxGeom;
 
 extern "C"
 #ifdef CRYFONT_EXPORTS
@@ -34,6 +35,7 @@ struct IFontEngineModule : public Cry::IDefaultModule
 };
 
 //////////////////////////////////////////////////////////////////////////////////////////////
+//! Main interface to the engine's font rendering implementation, allowing retrieval of fonts for run-time rendering
 struct ICryFont
 {
 	// <interfuscator:shuffle>
@@ -140,6 +142,7 @@ struct STextDrawContext
 };
 
 //////////////////////////////////////////////////////////////////////////////////////////////
+//! Main interface for a type of font in the engine, allowing drawing onto the 2D viewport and textures
 struct IFFont
 {
 	// <interfuscator:shuffle>
@@ -179,15 +182,9 @@ struct IFFont
 	virtual void         GetGradientTextureCoord(float& minU, float& minV, float& maxU, float& maxV) const = 0;
 
 	virtual unsigned int GetEffectId(const char* pEffectName) const = 0;
-	// </interfuscator:shuffle>
-};
 
-//////////////////////////////////////////////////////////////////////////
-struct IFFont_RenderProxy
-{
-	// <interfuscator:shuffle>
-	virtual ~IFFont_RenderProxy(){}
-	virtual void RenderCallback(float x, float y, float z, const char* pStr, const bool asciiMultiLine, const STextDrawContext& ctx) = 0;
+	//! Only to be used by renderer, from the render thread.
+	virtual void RenderCallback(float x, float y, float z, const char* pStr, const bool asciiMultiLine, const STextDrawContext& ctx,IRenderAuxGeom* pAux) = 0;
 	// </interfuscator:shuffle>
 };
 

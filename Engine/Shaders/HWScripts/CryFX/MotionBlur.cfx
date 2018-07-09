@@ -1,5 +1,4 @@
-// CRYENGINE Source Code File
-// Copyright 2001-2015 Crytek GmbH. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "Common.cfi"
 #include "ShadeLib.cfi"
@@ -21,659 +20,18 @@ float4 vMotionBlurParams;
 float4 vDirectionalBlur;
 float4 vRadBlurParam;
 
-float4 vDofParamsFocus0;
-float4 vDofParamsFocus1;
-float4 vAspectRatio;
-half4 vRainColor;
-
-
-/////////////////////////////////////////////////////////////////////////////////////////////////
-// Sprite-Based DOF
-/////////////////////////////////////////////////////////////////////////////////////////////////
-
-struct pixoutDofMRT
-{
-  half4 LayerNear  : COLOR0;
-  half4 LayerFar  : COLOR1;
-};
-
-struct a2vBokehQuad
-{
-  float4 Position  : POSITION;
-  float2 baseTC	   : TEXCOORD0;
-  float4 Color     : COLOR0;
-};
-
-struct v2fBokehQuad
-{
-  float4 Position  : POSITION;  
-  float4 QuadPos   : TEXCOORD0; //zw dof params
-	float4 Color     : COLOR0;
-};
-
-struct fragBokehQuad
-{
-  float4 Position  : POSITION;  
-  float4 QuadPos   : TEXCOORD0; // this is implicitly filled by GPU after point sprite expansion
-  float4 Color     : COLOR0;
-};
-
-
-v2fBokehQuad DofBokehRefVS(a2vBokehQuad IN, uint nVertexID : SV_VertexID)
-{
-	v2fBokehQuad OUT = (v2fBokehQuad) 0;
-
-	int nQuadID = nVertexID / 6;
-	float4 INPos = float4( nQuadID % g_VS_ScreenSize.x,  (nQuadID  - nQuadID % g_VS_ScreenSize.x)/g_VS_ScreenSize.x, 0, 0);
-	INPos.xy /= g_VS_HPosScale.xy;
-
-	float4 vOutPos = INPos;
-  float4 vPos = INPos;
-	
-	INPos.xy *= g_VS_ScreenSize.zw * 2.0;
-	INPos.xy += g_VS_ScreenSize.zw;
-
-	vOutPos = INPos;
-	vOutPos.xy =  vOutPos.xy *2 -1;
-
-	OUT.Position = float4(vOutPos.xy, 0, 1);//vWorldPos.z, fDepth); //mul(vpMatrix, vPos);  
-	float4 screenProj = HPosToScreenTC(OUT.Position);
-		
-	// fetch scene color - output vertex/quad color
-	float fDepth = tex2Dlod(_tex1, float4(screenProj.xy, 0, 0)).x;
-	
-#if %_RT_SAMPLE1
-	// Dilate to avoid ghosting on edges due to lower resolution DOF
-	// This can cause artifacts in small cavities and on alpha-tested geometry
-	fDepth = min(fDepth, tex2Dlod(_tex1, float4(screenProj.xy + g_VS_ScreenSize.zw * half2( vAspectRatio.w, vAspectRatio.w), 0, 0)).x);
-	fDepth = min(fDepth, tex2Dlod(_tex1, float4(screenProj.xy + g_VS_ScreenSize.zw * half2(-vAspectRatio.w, vAspectRatio.w), 0, 0)).x);
-	fDepth = min(fDepth, tex2Dlod(_tex1, float4(screenProj.xy + g_VS_ScreenSize.zw * half2( vAspectRatio.w,-vAspectRatio.w), 0, 0)).x);
-	fDepth = min(fDepth, tex2Dlod(_tex1, float4(screenProj.xy + g_VS_ScreenSize.zw * half2(-vAspectRatio.w,-vAspectRatio.w), 0, 0)).x);
-#endif
-
-	// fetch depth - scale quad here
-	int2 vPosScreen = (screenProj.xy * g_VS_ScreenSize.xy);
-
-	OUT.QuadPos = 1;
-
-	fDepth *= g_VS_NearFarClipDist.y;
-
-	half fFocusRangeFar = 0;
-	half fFocusRangeNear = 0;
-	half fDepthBlur = 0;
-
-	half4 vFocusRanges = saturate( half4(fDepth.xxxx ) * vDofParamsFocus0.xzxz + vDofParamsFocus0.ywyw );
-	fFocusRangeFar  = max(vFocusRanges.x, vFocusRanges.z);
-	fFocusRangeNear = max(vFocusRanges.y, vFocusRanges.w);
-
-	half fFocusRangeNearMin =  (vDofParamsFocus1.y) * saturate( 1 - (fDepth / vDofParamsFocus1.x) ) ;		
-	fDepthBlur = (saturate( fFocusRangeNear * vDofParamsFocus1.z) +fFocusRangeFar)*vDofParamsFocus1.w;
-	
-	fDepthBlur *= 5.5;
-	fDepthBlur = min(20, fDepthBlur);
-
-	if( fDepthBlur < 0.1 )
-	{
-		OUT.Position.xy=0;
-		return OUT;
-	}
-
-	{
-    OUT.QuadPos = max(1, fDepthBlur );
-
-		// discard pixel sized quads
-		if( OUT.QuadPos.x == 0  )
-		{
-			OUT.Position.xy=0;
-			return OUT;
-		}
-	}
-
-	// lod blend weight
-	OUT.Color.w = ( sqrt(OUT.QuadPos.z) );
-
-	// Need to scale by pixel size
-	OUT.QuadPos.xy *= g_VS_ScreenSize.zw * 2.0;
-  // Scale by aspect ratio
-  OUT.QuadPos.xy *= vAspectRatio.xy;
-
-	OUT.QuadPos.xy = max(g_VS_ScreenSize.zw * 2.0, OUT.QuadPos.xy);
-
-	vFocusRanges = saturate( half4(fDepth.xxxx ) * vDofParamsFocus0.xzxz + vDofParamsFocus0.ywyw );
-	fDepthBlur = (saturate( fFocusRangeNear * vDofParamsFocus1.z) )*vDofParamsFocus1.w;
-	fDepthBlur += fFocusRangeNearMin;
-	fDepthBlur = min(20, fDepthBlur);
-	
-	OUT.QuadPos.z = fDepthBlur; // near blur
-
-	float4 vQuad[4] = 
-	{
-		tex2Dlod(_tex0, float4(screenProj.xy, 0, 0)),
-		tex2Dlod(_tex0, float4(screenProj.xy + g_VS_ScreenSize.zw * float2(2,0), 0, 0)),
-		tex2Dlod(_tex0, float4(screenProj.xy + g_VS_ScreenSize.zw * float2(0,2), 0, 0)),
-		tex2Dlod(_tex0, float4(screenProj.xy + g_VS_ScreenSize.zw * float2(2,2), 0, 0)),
-	};
-
-	vQuad[0].w = GetLuminance(vQuad[0]);
-	vQuad[1].w = GetLuminance(vQuad[1]);
-	vQuad[2].w = GetLuminance(vQuad[2]);
-	vQuad[3].w = GetLuminance(vQuad[3]);
-	half fLumDelta = abs(vQuad[0].w *3 - (vQuad[1].w+vQuad[2].w+vQuad[3].w));
-
-	const int2 WPos = (int2) vPosScreen.xy;
-	const int nIndex = WPos % 2;
-	if ((nIndex > 0) && fLumDelta <0.02) // if quad pixel similar luminance wise, just emit single geometry quad
-	{
-		OUT.Position.xy=0;
-		return OUT;
-	}
-
-	OUT.Color.rgb  = vQuad[0] + vQuad[1] + vQuad[2] + vQuad[3];
-	OUT.Color.rgb /= 4.0;
-
-  const float2 Verts[6] =
-  {
-      float2( 1,  1),
-      float2(-1,  1),
-      float2( 1, -1),
-
-      float2( 1, -1),
-      float2(-1,  1),
-      float2(-1, -1)
-  };
-  
-  OUT.Position.xy += Verts[nVertexID%6].xy * OUT.QuadPos.xy;
-  OUT.QuadPos = float4(Verts[nVertexID%6].xy*0.5+0.5, OUT.QuadPos.zw);
-
-	return OUT;
-}
-
-pixoutDofMRT DofBokehRefPS(fragBokehQuad IN)
-{
-	pixoutDofMRT OUT = (pixoutDofMRT) 0.0;
-
-	//clip(-1);
-	half2 tcQuad = IN.QuadPos.xy*2-1;	
-	// -8 ms for big kernels
-	half fLen = (dot(tcQuad, tcQuad));
-
-	clip( (1 - fLen  )  );
-
-	//tcQuad*=1.1; // add slight border offset
-	fLen = (dot(tcQuad, tcQuad));
-	
-	half fShapeBokeh = pow(fLen, ((IN.Color.w))) ;// * fLen;  // ^2
-	half4 cBokehShape = saturate(1-fShapeBokeh);
-	
-	// aproximate diffusion ring
-  cBokehShape += saturate(1-abs(fShapeBokeh*2-1));
-
-	half4 cScene = half4(IN.Color.rgb, 1);
-	cScene *= half4(cBokehShape.rgb, dot(cBokehShape.rgb, 0.333));
-
-	// Background layer splats
-	half fRangeNormK = vAspectRatio.z; // range normalization factor
-	OUT.LayerFar = cScene * saturate(1-IN.QuadPos.z) * fRangeNormK;
-	//OUT.LayerFar.rgb *=;
-
-	cScene = half4((IN.Color.rgb), 1); //*0.25
-	cScene *= half4(cBokehShape.rgb, dot(cBokehShape.rgb, 0.333));
-
-	// Foreground layer splats
-	OUT.LayerNear = cScene  *fRangeNormK* saturate(IN.QuadPos.z);
-
-	// Apply dither pattern (minimize banding artefacts from accumulation/blending + aproximate lens particles)	
-	half fDither = tex2D(_tex2, IN.QuadPos.xy).w;
-	OUT.LayerFar += OUT.LayerFar * fDither;
-	OUT.LayerNear += OUT.LayerNear * fDither;
-
-	return OUT;
-}
-
-technique DofBokehRef
-{
-  pass p0
-  {
-    VertexShader = DofBokehRefVS() PostMotionBlurVS;
-    PixelShader = DofBokehRefPS() PostMotionBlurPS;
-    CullMode = None;        
-  }
-}
-
-pixout RefDofMBNormalizePS(vtxOut IN)
-{
-	pixout OUT = (pixout) 0;
-
-	PS_ScreenSize.zw*=2;
-	half4 cScene = tex2D(_tex2, IN.baseTC.xy); 	
-		
-	half fDepth = tex2D(_tex3, IN.baseTC.xy).x * PS_NearFarClipDist.y; 
-
-	half2 fullScaleTC = IN.baseTC.xy/PS_HPosScale.xy;
-	
-	half4 cLayerNear = tex2D(_tex0, fullScaleTC + PS_ScreenSize.zw * float2(-1, -1)); 
-	cLayerNear.rgb /= cLayerNear.w>0? cLayerNear.w: 1;
-
-	half4 cLayerFar = tex2D(_tex1, fullScaleTC + PS_ScreenSize.zw * float2(-1, -1)); 
-	half4 cLayerFar1 = tex2D(_tex1, fullScaleTC + PS_ScreenSize.zw * float2(1, -1)); 
-	half4 cLayerFar2 = tex2D(_tex1, fullScaleTC + PS_ScreenSize.zw * float2(-1, 1)); 
-	half4 cLayerFar3 = tex2D(_tex1, fullScaleTC + PS_ScreenSize.zw * float2(1, 1)); 
-	
-	// Blur final result - minimize noticeable bilinear upscaling artefacts
-	cLayerFar = (cLayerFar + cLayerFar1 + cLayerFar2 + cLayerFar3)*0.25;
-	cLayerFar.rgb /= cLayerFar.w>0? cLayerFar.w: 1;
-
-	half4 vFocusRanges = saturate( half4(fDepth.xxxx ) * vDofParamsFocus0.xzxz + vDofParamsFocus0.ywyw );
-	//half fDepthBlur = saturate( vFocusRanges.x)*vDofParamsFocus1.w;	
-	//half fDepthBlur = saturate( vFocusRanges.x*vFocusRanges.x*vFocusRanges.x*vFocusRanges.x)*vDofParamsFocus1.w;	
-	vFocusRanges.x *= vFocusRanges.x;
-	half fDepthBlur = saturate( vFocusRanges.xx)*vDofParamsFocus1.w;	
-
-	const float fFarBlend = saturate(fDepthBlur);
-  const float fNearBlend = saturate(sqrt(2.0 * cLayerNear.w));
-	OUT.Color = lerp(float4(cScene.rgb, 0), float4(cLayerFar.rgb, 1), fFarBlend);		
-	OUT.Color = lerp(OUT.Color, float4(cLayerNear.rgb, 1), fNearBlend);
-
-	return OUT;
-}
-
-technique RefDofMbNormalizePass
-{
-  pass p0
-  {
-    VertexShader = FullscreenTriVS() PostMotionBlurVS;
-    PixelShader = RefDofMBNormalizePS() PostMotionBlurPS;
-    CullMode = None;        
-  }
-}
-
-/////////////////////////////////////////////////////////////////////////////////////////////////
-// Gather-Based DOF
-/////////////////////////////////////////////////////////////////////////////////////////////////
-
-void ComputeCircleOfConfusion(in float4 depths, out float4 nearCoC, out float4 farCoC)
-{
-	float4 FocusRangeNearMin = vDofParamsFocus1.y * saturate(1 - (depths / vDofParamsFocus1.x)) ;
-	float4 vCocFar = saturate(depths * vDofParamsFocus0.x + vDofParamsFocus0.y);
-	float4 vCocNear = saturate(depths * vDofParamsFocus0.z + vDofParamsFocus0.w) + FocusRangeNearMin;
-	
-	farCoC = vCocFar * vCocFar * vDofParamsFocus1.w;
-	nearCoC = vCocNear * vCocNear * vDofParamsFocus1.w;
-
-	farCoC = max(farCoC, 0.00001);
-	
-	farCoC = clamp(farCoC, -4, 4);
-	nearCoC = clamp(nearCoC, -4, 4);
-}
-
-float w0(float a)
-{
-	return (1.0/6.0)*(a*(a*(-a + 3.0) - 3.0) + 1.0);
-}
-
-float w1(float a)
-{
-	return (1.0/6.0)*(a*a*(3.0*a - 6.0) + 4.0);
-}
-
-float w2(float a)
-{
-	return (1.0/6.0)*(a*(a*(-3.0*a + 3.0) + 3.0) + 1.0);
-}
-
-float w3(float a)
-{
-	return (1.0/6.0)*(a*a*a);
-}
-
-// g0 and g1 are the two amplitude functions
-float g0(float a)
-{
-	return w0(a) + w1(a);
-}
-
-float g1(float a)
-{
-	return w2(a) + w3(a);
-}
-
-// h0 and h1 are the two offset functions
-float h0(float a)
-{
-	return -1.0 + w1(a) / (w0(a) + w1(a));
-}
-
-float h1(float a)
-{
-	return 1.0 + w3(a) / (w2(a) + w3(a));
-}
-
-float4 tex2D_bicubic(sampler2D tex, float2 uv, float2 res)
-{
-	uv = uv * res + 0.5;
-	float2 iuv = floor( uv );
-	float2 fuv = frac( uv );
-
-	float g0x = g0(fuv.x);
-	float g1x = g1(fuv.x);
-	float h0x = h0(fuv.x);
-	float h1x = h1(fuv.x);
-	float h0y = h0(fuv.y);
-	float h1y = h1(fuv.y);
-
-	float2 p0 = (float2(iuv.x + h0x, iuv.y + h0y) - 0.5) / res;
-	float2 p1 = (float2(iuv.x + h1x, iuv.y + h0y) - 0.5) / res;
-	float2 p2 = (float2(iuv.x + h0x, iuv.y + h1y) - 0.5) / res;
-	float2 p3 = (float2(iuv.x + h1x, iuv.y + h1y) - 0.5) / res;
-
-	return g0(fuv.y) * (g0x * tex2D(tex, p0)  + g1x * tex2D(tex, p1)) + g1(fuv.y) * (g0x * tex2D(tex, p2) + g1x * tex2D(tex, p3));
-}
-
-struct vtxOutDownscaleDof
-{
-	float4 HPosition  : POSITION;
-	float4 tc0 : TEXCOORD0;
-	float4 tc1 : TEXCOORD1;
-	float4 tc2 : TEXCOORD2;
-	float4 tc3 : TEXCOORD3;
-	float4 tc4 : TEXCOORD4;
-	float4 tc5 : TEXCOORD5;
-	float4 tc6 : TEXCOORD6;
-};
-
-vtxOutDownscaleDof DownscaleDofVS(uint VertexID : SV_VertexID)
-{
-	vtxOutDownscaleDof OUT = (vtxOutDownscaleDof)0; 
-	OUT.HPosition = GetHPos_FromTriVertexID(VertexID);
-	float2 baseTC = GetBaseTC_FromTriVertexID(VertexID);
-	
-	OUT.tc0 = baseTC.xyxy + float4(-1, -1,  1,  1) * g_VS_ScreenSize.zwzw * 0.5;
-	OUT.tc1 = baseTC.xyxy + float4( 1, -1, -1,  1) * g_VS_ScreenSize.zwzw * 0.5;
-	OUT.tc3 = baseTC.xyxy + float4(-1,  0,  1,  0) * g_VS_ScreenSize.zwzw;
-	OUT.tc4 = baseTC.xyxy + float4( 0, -1,  0,  1) * g_VS_ScreenSize.zwzw;
-	OUT.tc5 = baseTC.xyxy + float4( 1,  1, -1, -1) * g_VS_ScreenSize.zwzw;
-	OUT.tc6 = baseTC.xyxy + float4(-1,  1,  1, -1) * g_VS_ScreenSize.zwzw;
-
-	OUT.tc2.xy = baseTC.xy;
-	return OUT;
-}
-
-struct OutDownscaleDof
-{
-	float4 LayerNear : COLOR0;
-	float4 LayerFar : COLOR1;	
-	float2 CocNearFar : COLOR2;
-};
-
-OutDownscaleDof DownscaleDofPS(vtxOutDownscaleDof IN)
-{	
-	OutDownscaleDof OUT = (OutDownscaleDof) 0;
-	
-	float4 depths = float4(tex2D(_tex0, IN.tc5.xy).x,
-		tex2D(_tex0, IN.tc5.zw).x,
-		tex2D(_tex0, IN.tc6.xy).x,
-		tex2D(_tex0, IN.tc6.zw).x);	// todo: use gather4
-	depths *= PS_NearFarClipDist.y;
-
-	float4 c = float4(tex2D(_tex1, IN.tc2.xy).rgb, 1);
-	float4 c0 = float4(tex2D(_tex1, IN.tc0.xy).rgb, 1);
-	float4 c1 = float4(tex2D(_tex1, IN.tc0.zw).rgb, 1);
-	float4 c2 = float4(tex2D(_tex1, IN.tc1.xy).rgb, 1);
-	float4 c3 = float4(tex2D(_tex1, IN.tc1.zw).rgb, 1);
-	OUT.LayerNear = (c+c0 + c1 + c2 + c3) * 0.2; 
-	OUT.LayerFar = OUT.LayerNear; 
-
-	float4 vCocNear, vCocFar;
-	ComputeCircleOfConfusion(depths, vCocNear, vCocFar);
-
-	OUT.LayerNear.a = max(vCocNear.x, vCocNear.y);
-	OUT.LayerNear.a = max(OUT.LayerNear.a, vCocNear.z);
-	OUT.LayerNear.a = max(OUT.LayerNear.a, vCocNear.w);
- 	
-	OUT.LayerFar.a = min(vCocFar.x, vCocFar.y);
-	OUT.LayerFar.a = min(OUT.LayerFar.a, vCocFar.z);
-	OUT.LayerFar.a = min(OUT.LayerFar.a, vCocFar.w);
-
-	OUT.CocNearFar = float2(OUT.LayerNear.a, OUT.LayerFar.a);
-	
-	// Clamp for proper masking later (avoids "super strong" edges on very blurry foreground objects).
-	OUT.LayerNear.a = saturate(OUT.LayerNear.a);
-
-	// Scale with CoC to avoid leaking of sharper details.
-	OUT.LayerFar.rgb *= (OUT.LayerFar.a);
-	OUT.LayerNear.rgb *= (OUT.LayerNear.a);
-	
-	return OUT;
-}
-
-technique DownscaleDof
-{
-  pass p0
-  {
-    VertexShader = DownscaleDofVS();
-    PixelShader = DownscaleDofPS();
-    CullMode = None;        
-  }
-}
-
-//////////////////////////////////////////////////////////////////////////////////////////////////
-
-struct OutTileMinCoC
-{
-	float2 CocNearFar : COLOR0;
-};
-
-vtxOutDownscaleDof TileMinCoCVS(uint VertexID : SV_VertexID)
-{
-	vtxOutDownscaleDof OUT = (vtxOutDownscaleDof)0; 
-	OUT.HPosition = GetHPos_FromTriVertexID(VertexID);
-	float2 baseTC = GetBaseTC_FromTriVertexID(VertexID);
-	
-	OUT.tc0 = baseTC.xyxy + float4(-1,  0, 1,  0) * vDofParamsFocus1.zwzw;
-	OUT.tc1 = baseTC.xyxy + float4( 0, -1, 0,  1) * vDofParamsFocus1.zwzw;
-	OUT.tc2 = baseTC.xyxy + float4(-1, -1, 1,  1) * vDofParamsFocus1.zwzw;
-	OUT.tc3 = baseTC.xyxy + float4(-1,  1, 1, -1) * vDofParamsFocus1.zwzw;
-
-	return OUT;
-}
-
-OutTileMinCoC TileMinCoCPS(vtxOutDownscaleDof IN)
-{	
-	OutTileMinCoC OUT = (OutTileMinCoC) 0;
-
-	float2 coc0 = (tex2D(_tex0, IN.tc0.xy).rg);
-	float2 coc1 = (tex2D(_tex0, IN.tc0.zw).rg);
-	float2 coc2 = (tex2D(_tex0, IN.tc1.xy).rg);
-	float2 coc3 = (tex2D(_tex0, IN.tc1.zw).rg);
-	float2 coc4 = (tex2D(_tex0, IN.tc2.xy).rg);
-	float2 coc5 = (tex2D(_tex0, IN.tc2.zw).rg);
-	float2 coc6 = (tex2D(_tex0, IN.tc3.xy).rg);
-	float2 coc7 = (tex2D(_tex0, IN.tc3.zw).rg);
-
-	OUT.CocNearFar.r = max(coc0.rg, max(coc1, max(coc2, coc3))).r; // direction is inverted, take max
-	OUT.CocNearFar.g = min(coc0.rg, min(coc1, min(coc2, coc3))).g;
-
-	OUT.CocNearFar.r = max(OUT.CocNearFar.rg, max(coc4, max(coc5, max(coc6, coc7)))).r; // direction is inverted, take max
-	OUT.CocNearFar.g = min(OUT.CocNearFar.rg, min(coc4, min(coc5, min(coc6, coc7)))).g;
-
-	return OUT;
-}
-
-technique TileMinCoC
-{
-  pass p0
-  {
-    VertexShader = TileMinCoCVS();
-    PixelShader = TileMinCoCPS();
-    CullMode = None;        
-  }
-}
-
-//////////////////////////////////////////////////////////////////////////////////////////////////
-
-float4 g_Taps[7*7];  // Max is 7x7 (for first iteration)
-
-struct pixout_dof
-{
-	float4 LayerNear : COLOR0;	
-	float4 LayerFar : COLOR1;		
-	float2 CocNearFar : COLOR2;		
-};
-
-pixout_dof DofPS(vtxOut IN)
-{
-	pixout_dof OUT = (pixout_dof) 0;
-
-	const int nNumTaps = vDofParamsFocus1.z;
-
-	float2 fCocScale = PS_ScreenSize.zw * 2.0;
-	
-	// Rescale (tweaked to be compatible with Sprite DOF)
-	float scale = max(PS_ScreenSize.x / 1920, PS_ScreenSize.y / 1080) * 4;
-	fCocScale *= scale;
-
-	static const float fOpticalVignettingAmount = 0.2f;
-	float2 optv_tc = (IN.baseTC.xy * 2 - 1) * fOpticalVignettingAmount;
-
-#if %_RT_SAMPLE0 || %_RT_SAMPLE1
-	fCocScale *= 0.15;
-#endif
-
-	float4 cCenterTapNear =tex2Dlod(_tex1, float4(IN.baseTC.xy, 0, 0));
-	float4 cCenterTapFar =tex2Dlod(_tex2, float4(IN.baseTC.xy, 0, 0));
-
-	float fCocNear = cCenterTapNear.w;
-	float fCocFar = cCenterTapFar.w;
-
-#if %_RT_SAMPLE0 || %_RT_SAMPLE1	
-	float4 cAccNear = float4(0,0,0,0);
-	float caccNear = 0;
-
-	float4 cAccFar = float4(0,0,0,fCocFar);
-	float caccFar = 0;
-
-	OUT.LayerFar = cCenterTapFar;
-	OUT.LayerNear = cCenterTapNear;
-#else
-	float4 cAccNear = float4(0,0,0,0);
-	float caccNear = 0;
-
-	float4 cAccFar = float4(0,0,0,0);
-	float caccFar = 0;
-#endif
-
-	const float2 vMinTileCoC = (tex2Dlod(_tex4, float4(IN.baseTC.xy, 0, 0)).rg);
-	
-	// note - on nvidia getting better perf with single branch outside loops. on amd the oposite
-
-	[branch] if (vMinTileCoC.r>0.0)
-	{
-		[loop] for(int t = 0; t < nNumTaps; t ++)
-		{	
-			const float2 offset = g_Taps[t].xy;
-			const float fOptVignetting = 1 - abs(dot(optv_tc.xy, offset.xy));
-
-			float2 cocOffset = vMinTileCoC.r * fOptVignetting * fCocScale * offset.xy;
-			float4 cn = tex2Dlod(_tex1, float4(IN.baseTC.xy + cocOffset, 0, 0));
-		
-			const float k = 1.075;
-			float wn = (cn.w >= vMinTileCoC.r * k) ? 1 : saturate(vMinTileCoC.r * k - cn.w);
-			
-#if %_RT_SAMPLE0 || %_RT_SAMPLE1
-			cAccNear = max(cAccNear, cn);
-#else
-			cAccNear += cn*wn;
-			caccNear += wn;
-#endif
-		}
-	}
-
-	//[branch] if (vMinTileCoC.g>=0.0)
-	{
-		[loop] for(int t = 0; t < nNumTaps; t ++)
-		{	
-			const float2 offset = g_Taps[t].xy;
-			const float fOptVignetting = 1-abs(dot(optv_tc.xy, offset.xy));
-
-			float2 cocOffset = fCocFar * fOptVignetting * fCocScale * offset.xy;
-			
-			float4 cf = tex2Dlod(_tex2, float4(IN.baseTC.xy + cocOffset, 0, 0));
-			float wf = (cf.w >= fCocFar) ? 1 : saturate( cf.w );
-			
-#if %_RT_SAMPLE0 || %_RT_SAMPLE1
-			cAccFar = max(cAccFar, cf*wf);
-#else
-			cAccFar += cf*wf;
-			caccFar += wf;
-#endif
-		}
-	}
-
-#if !%_RT_SAMPLE0 && !%_RT_SAMPLE1
-	cAccNear = caccNear ? cAccNear * rcp(caccNear) : cCenterTapNear;
-	cAccFar = caccFar? cAccFar * rcp(caccFar) : cCenterTapFar;
-#endif
-
-	OUT.LayerNear = cAccNear;
-	OUT.LayerNear.a = (OUT.LayerNear.a);
-	OUT.LayerFar = cAccFar;
-	OUT.LayerFar.a = (OUT.LayerFar.a);
-	OUT.CocNearFar.rg = (float2(OUT.LayerNear.a, OUT.LayerFar.a));
-
-	return OUT;
-}
-
-technique Dof
-{
-  pass p0
-  {
-    VertexShader = FullscreenTriVS() PostMotionBlurVS;
-    PixelShader = DofPS() HDRPostProcessPS;
-    CullMode = None;        
-  }
-}
-
-//////////////////////////////////////////////////////////////////////////////////////////////////
-
-pixout CompositeDofPS(vtxOut IN)
-{
-	pixout OUT = (pixout) 0;
-
-	half4 cScene = tex2D(_tex4, IN.baseTC.xy);
-	half4 cLayerNear = tex2D_bicubic(_tex1, IN.baseTC.xy, PS_ScreenSize.xy *0.5);
-	half4 cLayerFar = tex2D_bicubic(_tex2, IN.baseTC.xy, PS_ScreenSize.xy *0.5);
-	
-	float depth = tex2D(_tex0, IN.baseTC.xy).x * PS_NearFarClipDist.y; 
-	
-	float4 nearCoC, farCoC;
-	ComputeCircleOfConfusion(depth.xxxx, nearCoC, farCoC);
-
-	cLayerFar.rgb /= cLayerFar.a > 0 ? cLayerFar.a : 1.0f;
-	cLayerFar.a = saturate( farCoC.x );
-
-	cLayerNear.rgb = cLayerNear.rgb / (cLayerNear.a > 0 ? cLayerNear.a : 1.0f);
-	cLayerNear.a = saturate(cLayerNear.a);
-	
-	OUT.Color = lerp(cScene, cLayerFar, cLayerFar.a);
-	OUT.Color = lerp(OUT.Color, cLayerNear, cLayerNear.a);
-	
-	return OUT;
-}
-
-technique CompositeDof
-{
-  pass p0
-  {
-    VertexShader = FullscreenTriVS() PostMotionBlurVS;
-    PixelShader = CompositeDofPS() HDRPostProcessPS;
-    CullMode = None;        
-  }
-}
 
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
 // Motion Blur
 /////////////////////////////////////////////////////////////////////////////////////////////////
+
+Texture2D<float4> MoBlur_Targ              : register(t0); 
+Texture2D<float4> MoBlur_Vel               : register(t1);
+Texture2D<float4> MoBlur_VelTiles          : register(t2); 
+
+SamplerState MoBlur_TargSampler            : register(s0); //linearClamp
+SamplerState MoBlur_VelSampler             : register(s1); //pointClamp
 
 float2 UnpackLengthAndDepth( float2 packedLenDepth )
 {
@@ -717,12 +75,12 @@ float4 MotionBlurPS(vtxOut IN) : SV_Target0
 	
 	float2 screenTC = MapViewportToRaster(IN.baseTC.xy);
 
-	float3 maxVel = tex2Dlod(_tex2, float4(screenTC.xy + tileOffset * vMotionBlurParams.xy, 0, 0));
+	float3 maxVel = GetTexture2DLod(MoBlur_VelTiles, MoBlur_VelSampler, float4(screenTC.xy + tileOffset * vMotionBlurParams.xy, 0, 0));
 	maxVel.xy = DecodeMotionVector(maxVel.xy);
 	const float2 blurStep = maxVel.xy * weightStep;
  
- 	const float2 centerLenDepth = UnpackLengthAndDepth(tex2Dlod(_tex1, float4(screenTC.xy, 0, 0)).zw);
-	const float4 sampleCenter = tex2Dlod(_tex0, float4(screenTC.xy, 0, 0));
+ 	const float2 centerLenDepth = UnpackLengthAndDepth(GetTexture2DLod(MoBlur_Vel, MoBlur_VelSampler, float4(screenTC.xy, 0, 0)).zw);
+	const float4 sampleCenter = GetTexture2DLod(MoBlur_Targ, MoBlur_TargSampler, float4(screenTC.xy, 0, 0));
 	
 	// Early out when no motion (disabled to have more predictable costs)
 	//if (length(maxVel.xy) < 0.0001f) return float4(sampleCenter.rgb, 1.0f);
@@ -739,8 +97,8 @@ float4 MotionBlurPS(vtxOut IN) : SV_Target0
 		tc0 = MapViewportToRaster(tc0);
 		tc1 = MapViewportToRaster(tc1);
 	
-		float2 lenDepth0 = UnpackLengthAndDepth(tex2Dlod(_tex1, float4(tc0.xy, 0, 0)).zw);
-		float2 lenDepth1 = UnpackLengthAndDepth(tex2Dlod(_tex1, float4(tc1.xy, 0, 0)).zw);
+		float2 lenDepth0 = UnpackLengthAndDepth(GetTexture2DLod(MoBlur_Vel, MoBlur_VelSampler, float4(tc0.xy, 0, 0)).zw);
+		float2 lenDepth1 = UnpackLengthAndDepth(GetTexture2DLod(MoBlur_Vel, MoBlur_VelSampler, float4(tc1.xy, 0, 0)).zw);
 
 		float weight0 = MBSampleWeight(centerLenDepth.y, lenDepth0.y, centerLenDepth.x, lenDepth0.x, s, 1.0 / length(blurStep));
 		float weight1 = MBSampleWeight(centerLenDepth.y, lenDepth1.y, centerLenDepth.x, lenDepth1.x, s, 1.0 / length(blurStep));
@@ -749,8 +107,8 @@ float4 MotionBlurPS(vtxOut IN) : SV_Target0
  		weight0 = all(mirror) ? weight1 : weight0;
  		weight1 = any(mirror) ? weight1 : weight0;
 
-		acc += float4(tex2Dlod(_tex0, float4(tc0.xy, 0, 0)).rgb, 1.0f) * weight0;
-		acc += float4(tex2Dlod(_tex0, float4(tc1.xy, 0, 0)).rgb, 1.0f) * weight1;
+		acc += float4(GetTexture2DLod(MoBlur_Targ, MoBlur_TargSampler, float4(tc0.xy, 0, 0)).rgb, 1.0f) * weight0;
+		acc += float4(GetTexture2DLod(MoBlur_Targ, MoBlur_TargSampler, float4(tc1.xy, 0, 0)).rgb, 1.0f) * weight1;
 	}
 	acc.rgba *= weightStep;
 	
@@ -771,10 +129,16 @@ technique MotionBlur
 /////////////////////////////////////////////////////////////////////////////////////////////////
 // Velocity buffers pre-processing techniques
 
+Texture2D<float4> PkVel_LinDepth           : register(t0); 
+Texture2D<float4> PkVel_VelObj             : register(t1); 
+
+// This sampler is used by the preceding textures, this pattern is repeated
+SamplerState PkVel_Sampler                 : register(s0); //pointClamp
+
 pixout PackVelocitiesPS(vtxOutWPOS IN) 
 {	
 	pixout OUT = (pixout) 0;
-	const float fDepth = GetLinearDepth(_tex0, IN.baseTC.xy).x;
+	const float fDepth = GetLinearDepth(PkVel_LinDepth, IN.baseTC.xy).x;
 	const float3 vPosWS = WorldViewPos.xyz + IN.CamVec.xyz * fDepth; 
 
 	float3 vPrevPos = mViewProjPrev[0].xyw * vPosWS.x + (mViewProjPrev[1].xyw * vPosWS.y + (mViewProjPrev[2].xyw * vPosWS.z + mViewProjPrev[3].xyw)); // <=> mul(float4(vPosWS, 1.0), mViewProjPrev).xyw;
@@ -782,7 +146,7 @@ pixout PackVelocitiesPS(vtxOutWPOS IN)
 
 	float2 vCurrPos = IN.baseTC.xy;
 	
-	const float4 vVelocityObjs = tex2D(_tex2, IN.baseTC.xy);
+	const float4 vVelocityObjs = GetTexture2D(PkVel_VelObj, PkVel_Sampler, IN.baseTC.xy);
 	vCurrPos.xy = (vVelocityObjs.x == 0) ? vCurrPos.xy : 0;
 	vPrevPos.xy = (vVelocityObjs.x == 0) ? vPrevPos.xy : DecodeMotionVector(vVelocityObjs); 
 	
@@ -848,27 +212,30 @@ technique VelocityTileGen
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
+Texture2D<float4> VTileN_VelTile             : register(t0); 
+SamplerState VTileN_Sampler                  : register(s0); //pointClamp
+
 
 float4 VelocityTileNeighborhoodPS(vtxOut IN) : SV_Target0
 {
-	float3 maxVel = tex2D(_tex0, IN.baseTC.xy + float2(0, 0) * vMotionBlurParams.xy).xyz;
-	float3 vel = tex2D(_tex0, IN.baseTC.xy + float2( 0, -1) * vMotionBlurParams.xy).xyz;
+	float3 maxVel = GetTexture2D(VTileN_VelTile, VTileN_Sampler, IN.baseTC.xy + float2(0, 0) * vMotionBlurParams.xy).xyz;
+	float3 vel = GetTexture2D(VTileN_VelTile, VTileN_Sampler, IN.baseTC.xy + float2( 0, -1) * vMotionBlurParams.xy).xyz;
 	if (vel.b > maxVel.b) maxVel = vel;
-	vel = tex2D(_tex0, IN.baseTC.xy + float2(-1,  0) * vMotionBlurParams.xy).xyz;
+	vel = GetTexture2D(VTileN_VelTile, VTileN_Sampler, IN.baseTC.xy + float2(-1,  0) * vMotionBlurParams.xy).xyz;
 	if (vel.b > maxVel.b) maxVel = vel;
-	vel = tex2D(_tex0, IN.baseTC.xy + float2( 1,  0) * vMotionBlurParams.xy).xyz;
+	vel = GetTexture2D(VTileN_VelTile, VTileN_Sampler, IN.baseTC.xy + float2( 1,  0) * vMotionBlurParams.xy).xyz;
 	if (vel.b > maxVel.b) maxVel = vel;
-	vel = tex2D(_tex0, IN.baseTC.xy + float2( 0,  1) * vMotionBlurParams.xy).xyz;
+	vel = GetTexture2D(VTileN_VelTile, VTileN_Sampler, IN.baseTC.xy + float2( 0,  1) * vMotionBlurParams.xy).xyz;
 	if (vel.b > maxVel.b) maxVel = vel;
 	
 	// For diagonal tiles, check if the maximum velocity affects the center tile
-	vel = tex2D(_tex0, IN.baseTC.xy + float2(-1, -1) * vMotionBlurParams.xy).xyz;
+	vel = GetTexture2D(VTileN_VelTile, VTileN_Sampler, IN.baseTC.xy + float2(-1, -1) * vMotionBlurParams.xy).xyz;
 	if (vel.b > maxVel.b && dot(DecodeMotionVector(vel.xy).xy, -float2(-1, -1)) > 0) maxVel = vel;
-	vel = tex2D(_tex0, IN.baseTC.xy + float2( 1, -1) * vMotionBlurParams.xy).xyz;
+	vel = GetTexture2D(VTileN_VelTile, VTileN_Sampler, IN.baseTC.xy + float2( 1, -1) * vMotionBlurParams.xy).xyz;
 	if (vel.b > maxVel.b && dot(DecodeMotionVector(vel.xy).xy, -float2( 1, -1)) > 0) maxVel = vel;
-	vel = tex2D(_tex0, IN.baseTC.xy + float2(-1,  1) * vMotionBlurParams.xy).xyz;
+	vel = GetTexture2D(VTileN_VelTile, VTileN_Sampler, IN.baseTC.xy + float2(-1,  1) * vMotionBlurParams.xy).xyz;
 	if (vel.b > maxVel.b && dot(DecodeMotionVector(vel.xy).xy, -float2(-1,  1)) > 0) maxVel = vel;
-	vel = tex2D(_tex0, IN.baseTC.xy + float2( 1,  1) * vMotionBlurParams.xy).xyz;
+	vel = GetTexture2D(VTileN_VelTile, VTileN_Sampler, IN.baseTC.xy + float2( 1,  1) * vMotionBlurParams.xy).xyz;
 	if (vel.b > maxVel.b && dot(DecodeMotionVector(vel.xy).xy, -float2( 1,  1)) > 0) maxVel = vel;
 	
 	return float4(maxVel, 0);

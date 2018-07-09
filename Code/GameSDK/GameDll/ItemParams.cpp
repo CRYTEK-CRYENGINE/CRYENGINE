@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 /*************************************************************************
 -------------------------------------------------------------------------
@@ -71,7 +71,7 @@ void CItem::InitItemFromParams()
 //------------------------------------------------------------------------
 void CItem::InitGeometry()
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_GAME);
+	CRY_PROFILE_FUNCTION(PROFILE_GAME);
 
 	//skip loading the first person geometry for now, it may never be used
 	m_sharedparams->LoadGeometryForItem(this, eIGS_FirstPerson);

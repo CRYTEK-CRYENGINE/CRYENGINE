@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "AIObjectManager.h"
@@ -11,6 +11,7 @@
 #include "AIObjectIterators.h"//TODO get rid of this file totally!
 #include "ObjectContainer.h"
 #include "./TargetSelection/TargetTrackManager.h"
+#include "AIEntityComponent.h"
 
 //////////////////////////////////////////////////////////////////////////
 //	SAIObjectCreationHelper - helper for serializing AI objects
@@ -127,6 +128,7 @@ void CAIObjectManager::Reset(bool includingPooled /*=true*/)
 IAIObject* CAIObjectManager::CreateAIObject(const AIObjectParams& params)
 {
 	CCCPOINT(CreateAIObject);
+	CRY_ASSERT(params.type != 0);
 
 	if (!GetAISystem()->IsEnabled())
 		return 0;
@@ -144,6 +146,9 @@ IAIObject* CAIObjectManager::CreateAIObject(const AIObjectParams& params)
 
 	IEntity* pEntity = gEnv->pEntitySystem->GetEntity(params.entityID);
 	uint16 type = params.type;
+
+	// Attempt to remove already existing AI object for this entity
+	RemoveObjectByEntityId(params.entityID);
 
 	switch (type)
 	{
@@ -226,6 +231,9 @@ IAIObject* CAIObjectManager::CreateAIObject(const AIObjectParams& params)
 	// this is a multimap
 	m_Objects.insert(AIObjectOwners::iterator::value_type(type, countedRef));
 
+	// Create an associated AI entity component
+	pEntity->GetOrCreateComponentClass<CAIEntityComponent>(countedRef.GetWeakRef());
+
 	// Reset the object after registration, so other systems can reference back to it if needed
 	pObject->SetType(type);
 	pObject->SetEntityID(params.entityID);
@@ -306,7 +314,7 @@ void CAIObjectManager::CreateDummyObject(CStrongRef<CAIObject>& ref, const char*
 	AILogComment("CAIObjectManager::CreateDummyObject %s (%p)", pObject->GetName(), pObject);
 }
 
-void CAIObjectManager::RemoveObject(tAIObjectID objectID)
+void CAIObjectManager::RemoveObject(const tAIObjectID objectID)
 {
 	EntityId entityId = 0;
 
@@ -328,8 +336,6 @@ void CAIObjectManager::RemoveObject(tAIObjectID objectID)
 	// Check we found one
 	if (it == itEnd)
 	{
-		AIError("AI system asked to erase AI object with unknown AIObjectID");
-		assert(false);
 		return;
 	}
 
@@ -338,6 +344,20 @@ void CAIObjectManager::RemoveObject(tAIObjectID objectID)
 	// Because Action doesn't yet handle a delayed removal of the Proxies, we should perform cleanup immediately.
 	// Note that this only happens when triggered externally, when an entity is refreshed/removed
 	gAIEnv.pObjectContainer->ReleaseDeregisteredObjects(false);
+}
+
+void CAIObjectManager::RemoveObjectByEntityId(const EntityId entityId)
+{
+	AIObjectOwners::iterator it = m_Objects.begin();
+	AIObjectOwners::iterator itEnd = m_Objects.end();
+	for (; it != itEnd; ++it)
+	{
+		if (it->second->GetEntityID() == entityId)
+		{
+			RemoveObject(it->second.GetObjectID());
+			return;
+		}
+	}
 }
 
 // Get an AI object by it's AI object ID
@@ -446,7 +466,7 @@ IAIObjectIter* CAIObjectManager::GetFirstAIObjectInRange(EGetFirstFilter filter,
 
 void CAIObjectManager::OnObjectRemoved(CAIObject* pObject)
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 	CCCPOINT(OnObjectRemoved);
 
 	if (!pObject)

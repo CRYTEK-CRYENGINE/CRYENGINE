@@ -1,0 +1,10 @@
+<AssetMetadata version="0" type="Texture" guid="899b33d6-15b8-ba68-4561-14f7d274cf73">
+ <Files>
+  <File path="cloak_sparks.dds"/>
+ </Files>
+ <Details>
+  <Detail name="width">256</Detail>
+  <Detail name="height">1</Detail>
+  <Detail name="mipCount">1</Detail>
+ </Details>
+</AssetMetadata>

@@ -1,0 +1,8 @@
+<AssetMetadata version="0" type="Xml" guid="bf410b46-54a5-2807-b484-38225aa54ae5">
+ <Files>
+  <File path="HDD_cache.xml"/>
+ </Files>
+ <Details>
+  <Detail name="rootTag">HDD_Cache</Detail>
+ </Details>
+</AssetMetadata>

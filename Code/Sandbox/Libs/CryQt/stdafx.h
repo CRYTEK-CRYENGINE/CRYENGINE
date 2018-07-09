@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -9,6 +9,7 @@
 	#pragma warning(disable: 4275)
 #endif
 
-#ifdef CryQt_EXPORTS
+#if defined(CryQt_EXPORTS) && !defined(QToolWindowManager_EXPORTS)
 	#define QToolWindowManager_EXPORTS
 #endif
+

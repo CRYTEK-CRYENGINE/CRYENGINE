@@ -1,0 +1,14 @@
+<AssetMetadata version="0" type="Texture" guid="33abb81a-1762-30b6-7d79-635cc08fae60" source="perlinNoiseDerivatives.tif">
+ <Files>
+  <File path="perlinNoiseDerivatives.dds"/>
+  <File path="perlinNoiseDerivatives.dds.1"/>
+  <File path="perlinNoiseDerivatives.dds.2"/>
+  <File path="perlinNoiseDerivatives.dds.3"/>
+  <File path="perlinNoiseDerivatives.dds.4"/>
+ </Files>
+ <Details>
+  <Detail name="width">256</Detail>
+  <Detail name="height">256</Detail>
+  <Detail name="mipCount">7</Detail>
+ </Details>
+</AssetMetadata>

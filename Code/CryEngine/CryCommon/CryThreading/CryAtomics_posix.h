@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -25,6 +25,12 @@ ILINE LONG CryInterlockedDecrement(volatile int* pDst)
 
 // Returns the resulting added value
 ILINE LONG CryInterlockedAdd(volatile LONG* pDst, LONG add)
+{
+	return __sync_add_and_fetch(pDst, add);
+}
+
+// Returns the resulting added value
+ILINE int64 CryInterlockedAdd(volatile int64* pDst, int64 add)
 {
 	return __sync_add_and_fetch(pDst, add);
 }

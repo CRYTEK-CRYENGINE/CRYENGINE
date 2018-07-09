@@ -1,0 +1,10 @@
+<AssetMetadata version="0" type="Texture" guid="5c08060c-aa38-4fc4-b13c-494d9fdf9056" source="spectrum_spike.tif">
+ <Files>
+  <File path="spectrum_spike.dds"/>
+ </Files>
+ <Details>
+  <Detail name="width">4</Detail>
+  <Detail name="height">4</Detail>
+  <Detail name="mipCount">1</Detail>
+ </Details>
+</AssetMetadata>

@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "IslandConnections.h"
@@ -9,9 +9,9 @@
 	#include "DebugDrawContext.h"
 #endif
 
-void MNM::IslandConnections::SetOneWayConnectionBetweenIsland(const MNM::GlobalIslandID fromIsland, const Link& link)
+void MNM::IslandConnections::SetOneWayOffmeshConnectionBetweenIslands(const MNM::GlobalIslandID fromIsland, const Link& link)
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 #if DEBUG_MNM_LOG_OFFMESH_LINK_OPERATIONS
 	AILogCommentID("<MNM:OffMeshLink>", "IslandConnections::SetOneWayConnectionBetweenIsland from %u to %u, linkId %u", fromIsland, link.toIsland, link.offMeshLinkID);
@@ -21,9 +21,56 @@ void MNM::IslandConnections::SetOneWayConnectionBetweenIsland(const MNM::GlobalI
 	stl::push_back_unique(links, link);
 }
 
-void MNM::IslandConnections::RemoveOneWayConnectionBetweenIsland(const MNM::GlobalIslandID fromIsland, const Link& link)
+void MNM::IslandConnections::SetTwoWayConnectionBetweenIslands(const MNM::GlobalIslandID islandId1, const MNM::AreaAnnotation islandAnnotation1, const MNM::GlobalIslandID islandId2, const MNM::AreaAnnotation islandAnnotation2, const int connectionsChange)
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_AI);
+	TLinksVector& firstIslandLinks = m_islandConnections[islandId1];
+	TLinksVector::iterator findIt = std::find(firstIslandLinks.begin(), firstIslandLinks.end(), Link(0, 0, islandId2, islandAnnotation2, 0, 0));
+	if (findIt != firstIslandLinks.end())
+	{
+		Link& link = *findIt;
+		link.connectionsCount += connectionsChange;
+		CRY_ASSERT(link.connectionsCount >= 0);
+		if (link.connectionsCount == 0)
+		{
+			firstIslandLinks.erase(findIt);
+		}
+		else
+		{
+			link.toIslandAnnotation = islandAnnotation2;
+		}
+	}
+	else
+	{
+		CRY_ASSERT(connectionsChange > 0);
+		firstIslandLinks.emplace_back(Link(0, 0, islandId2, islandAnnotation2, 0, connectionsChange));
+	}
+	
+	TLinksVector& secondIslandLinks = m_islandConnections[islandId2];
+	findIt = std::find(secondIslandLinks.begin(), secondIslandLinks.end(), Link(0, 0, islandId1, islandAnnotation1, 0, 0));
+	if (findIt != secondIslandLinks.end())
+	{
+		Link& link = *findIt;
+		link.connectionsCount += connectionsChange;
+		CRY_ASSERT(link.connectionsCount >= 0);
+		if (link.connectionsCount == 0)
+		{
+			secondIslandLinks.erase(findIt);
+		}
+		else
+		{
+			link.toIslandAnnotation = islandAnnotation1;
+		}
+	}
+	else
+	{
+		CRY_ASSERT(connectionsChange > 0);
+		secondIslandLinks.emplace_back(Link(0, 0, islandId1, islandAnnotation1, 0, connectionsChange));
+	}
+}
+
+void MNM::IslandConnections::RemoveOneWayConnectionBetweenIslands(const MNM::GlobalIslandID fromIsland, const Link& link)
+{
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 #if DEBUG_MNM_LOG_OFFMESH_LINK_OPERATIONS
 	AILogCommentID("<MNM:OffMeshLink>", "remove link %u of object %x", link.offMeshLinkID, link.objectIDThatCreatesTheConnection);
@@ -71,7 +118,7 @@ struct IsLinkAssociatedWithObjectPredicate
 
 void MNM::IslandConnections::RemoveAllIslandConnectionsForObject(const NavigationMeshID& meshID, const uint32 objectId)
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 #if DEBUG_MNM_LOG_OFFMESH_LINK_OPERATIONS
 	AILogCommentID("<MNM:OffMeshLink>", "remove all links of object %x", objectId);
@@ -107,9 +154,28 @@ void MNM::IslandConnections::RemoveAllIslandConnectionsForObject(const Navigatio
 	}
 }
 
-bool MNM::IslandConnections::CanNavigateBetweenIslands(const IEntity* pEntityToTestOffGridLinks, const MNM::GlobalIslandID fromIsland, const MNM::GlobalIslandID toIsland, TIslandsWay& way) const
+struct SAcceptAllIslandsFilter
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_AI);
+	inline bool PassFilter(const MNM::AreaAnnotation&) const { return true; }
+};
+
+bool MNM::IslandConnections::CanNavigateBetweenIslands(const IEntity* pEntityToTestOffGridLinks, const MNM::GlobalIslandID fromIsland, const MNM::GlobalIslandID toIsland, const INavMeshQueryFilter* pFilter, TIslandsWay& way) const
+{
+	if (pFilter)
+	{
+		return CanNavigateBetweenIslandsInternal(pEntityToTestOffGridLinks, fromIsland, toIsland, *pFilter, way);
+	}
+	else
+	{
+		SAcceptAllIslandsFilter filter;
+		return CanNavigateBetweenIslandsInternal(pEntityToTestOffGridLinks, fromIsland, toIsland, filter, way);
+	}
+}
+
+template <typename TFilter>
+bool MNM::IslandConnections::CanNavigateBetweenIslandsInternal(const IEntity* pEntityToTestOffGridLinks, const MNM::GlobalIslandID fromIsland, const MNM::GlobalIslandID toIsland, const TFilter& filter, TIslandsWay& way) const
+{
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 	const static MNM::GlobalIslandID invalidID(MNM::Constants::eGlobalIsland_InvalidIslandID);
 	IF_UNLIKELY (fromIsland == invalidID || toIsland == invalidID)
@@ -141,42 +207,43 @@ bool MNM::IslandConnections::CanNavigateBetweenIslands(const IEntity* pEntityToT
 
 		closedSet.push_back(currentItem.id);
 
-		TIslandConnectionsMap::const_iterator islandConnectionsIt = m_islandConnections.find(currentItem.id);
-		TIslandConnectionsMap::const_iterator islandConnectionsEnd = m_islandConnections.end();
+		TIslandConnectionsMap::const_iterator currentIslandConnectionsIt = m_islandConnections.find(currentItem.id);
+		if(currentIslandConnectionsIt == m_islandConnections.end())
+			continue;
 
-		if (islandConnectionsIt != islandConnectionsEnd)
+		const TLinksVector& links = currentIslandConnectionsIt->second;
+		for (const Link& link : links)
 		{
-			const TLinksVector& links = islandConnectionsIt->second;
-			TLinksVector::const_iterator linksIt = links.begin();
-			TLinksVector::const_iterator linksEnd = links.end();
-			for (; linksIt != linksEnd; ++linksIt)
+			if (!filter.PassFilter(link.toIslandAnnotation))
+				continue;
+			
+			if (std::find(closedSet.begin(), closedSet.end(), link.toIsland) != closedSet.end())
+				continue;
+
+			if (link.offMeshLinkID != 0)
 			{
-				if (std::find(closedSet.begin(), closedSet.end(), linksIt->toIsland) != closedSet.end())
+				const OffMeshLink* offmeshLink = offMeshNavigationManager->GetOffMeshLink(link.offMeshLinkID);
+				const bool canUseLink = pEntityToTestOffGridLinks ? (offmeshLink && offmeshLink->CanUse(pEntityToTestOffGridLinks, nullptr)) : true;
+
+				if (!canUseLink)
 					continue;
-
-				const OffMeshLink* offmeshLink = offMeshNavigationManager->GetOffMeshLink(linksIt->offMeshLinkID);
-				const bool canUseLink = pEntityToTestOffGridLinks ? (offmeshLink && offmeshLink->CanUse(const_cast<IEntity*>(pEntityToTestOffGridLinks), NULL)) : true;
-
-				if (canUseLink)
-				{
-					IslandNode nextIslandNode(linksIt->toIsland, currentItem.cost + 1.0f);
-
-					// At this point, if we have multiple connections to the same neighbour island,
-					// we cannot detect which one is the one that allows us to have the actual shortest path
-					// so to keep the code simple we will keep the first one
-
-					if (cameFrom.find(nextIslandNode) != cameFrom.end())
-						continue;
-
-					cameFrom[nextIslandNode] = currentItem;
-					openList.InsertElement(nextIslandNode);
-				}
 			}
+			
+			IslandNode nextIslandNode(link.toIsland, currentItem.cost + 1.0f);
+
+			// At this point, if we have multiple connections to the same neighbour island,
+			// we cannot detect which one is the one that allows us to have the actual shortest path
+			// so to keep the code simple we will keep the first one
+
+			if (cameFrom.find(nextIslandNode) != cameFrom.end())
+				continue;
+
+			cameFrom[nextIslandNode] = currentItem;
+			openList.InsertElement(nextIslandNode);
 		}
 	}
 
 	way.clear();
-
 	return false;
 }
 
@@ -187,7 +254,7 @@ void MNM::IslandConnections::Reset()
 
 void MNM::IslandConnections::ReconstructWay(const TCameFromMap& cameFromMap, const MNM::GlobalIslandID fromIsland, const MNM::GlobalIslandID toIsland, TIslandsWay& way) const
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 	IslandNode currentIsland(toIsland, .0f);
 	way.push_front(currentIsland.id);

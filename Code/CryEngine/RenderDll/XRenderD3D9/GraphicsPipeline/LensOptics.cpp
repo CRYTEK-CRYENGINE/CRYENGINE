@@ -1,6 +1,9 @@
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
+
 #include "StdAfx.h"
 #include "DriverD3D.h"
 #include "LensOptics.h"
+#include "CompiledRenderObject.h"
 #include "Common/RendElements/RootOpticsElement.h"
 #include "Common/RendElements/FlareSoftOcclusionQuery.h"
 #include "Common/RenderView.h"
@@ -12,14 +15,16 @@ void CLensOpticsStage::Init()
 	CFlareSoftOcclusionQuery::InitGlobalResources();
 }
 
-void CLensOpticsStage::Execute(CRenderView* pRenderView)
+void CLensOpticsStage::Execute()
 {
+	CRenderView* pRenderView = RenderView();
+
 	auto& lensOpticsElements = pRenderView->GetRenderItems(EFSLIST_LENSOPTICS);
 	m_primitivesRendered = 0;
 
 	if (!lensOpticsElements.empty())
 	{
-		CTexture* pDestRT = CTexture::s_ptexSceneTargetR11G11B10F[0];
+		CTexture* pDestRT = CRendererResources::s_ptexSceneTargetR11G11B10F[0];
 
 		D3DViewPort viewport;
 		viewport.TopLeftX = viewport.TopLeftY = 0.0f;
@@ -28,10 +33,12 @@ void CLensOpticsStage::Execute(CRenderView* pRenderView)
 		viewport.MinDepth = 0.0f;
 		viewport.MaxDepth = 1.0f;
 
-		CStandardGraphicsPipeline::SViewInfo viewInfo[CCamera::eEye_eCount];
-		int viewInfoCount = gcpRendD3D->GetGraphicsPipeline().GetViewInfo(viewInfo, &viewport);
+		SRenderViewInfo viewInfo[CCamera::eEye_eCount];
+		//size_t viewInfoCount = GetGraphicsPipeline().GenerateViewInfo(viewInfo, &viewport);
+		size_t viewInfoCount = GetGraphicsPipeline().GenerateViewInfo(viewInfo);
+		assert(viewport.Width == viewInfo[0].viewport.width && viewport.Height == viewInfo[0].viewport.height);
 
-		const int  frameID          = gcpRendD3D.GetFrameID(false);
+		const int  frameID          = pRenderView->GetFrameId();
 		const bool bUpdateOcclusion = m_occlusionUpdateFrame != frameID;
 
 		if (bUpdateOcclusion)
@@ -39,7 +46,8 @@ void CLensOpticsStage::Execute(CRenderView* pRenderView)
 			UpdateOcclusionQueries(viewInfo, viewInfoCount);
 			m_occlusionUpdateFrame = frameID;
 		}
-		GetDeviceObjectFactory().GetCoreCommandList().GetGraphicsInterface()->ClearSurface(pDestRT->GetSurface(0, 0), Clr_Transparent);
+
+		CClearSurfacePass::Execute(pDestRT, Clr_Transparent);
 
 		m_passLensOptics.SetRenderTarget(0, pDestRT);
 		m_passLensOptics.SetViewport(viewport);
@@ -50,9 +58,8 @@ void CLensOpticsStage::Execute(CRenderView* pRenderView)
 			std::vector<CPrimitiveRenderPass*> prePasses;
 
 			CD3D9Renderer* pRD = gcpRendD3D;
-			CRenderObject* pObj = re.pObj;
+			CRenderObject* pObj = re.pRenderObject;
 			SRenderObjData* pOD = pObj->GetObjData();
-			const CRenderCamera* cam = viewInfo[0].pRenderCamera;
 
 			SRenderLight* pLight = pOD ? &pRenderView->GetLight(eDLT_DeferredLight, pOD->m_nLightID) : nullptr;
 			RootOpticsElement* pRootElem = pLight ? (RootOpticsElement*)pLight->GetLensOpticsElement() : nullptr;
@@ -65,7 +72,7 @@ void CLensOpticsStage::Execute(CRenderView* pRenderView)
 				continue;
 
 			{
-				PROFILE_LABEL_SCOPE(pLight->m_sName);
+				PROFILE_LABEL_SCOPE(pLight->m_sName && pLight->m_sName[0] != '\0' ? pLight->m_sName : "unknown");
 
 				pRootElem->SetOcclusionQuery(pOcc);
 				pOcc->SetOccPlaneSizeRatio(pRootElem->GetOccSize());
@@ -77,7 +84,7 @@ void CLensOpticsStage::Execute(CRenderView* pRenderView)
 					Vec3 sunDirNorm = gEnv->p3DEngine->GetSunDir();
 					sunDirNorm.Normalize();
 
-					flareLight.m_vPos = cam->vOrigin + sunDirNorm * sunHeight;
+					flareLight.m_vPos = viewInfo[0].cameraOrigin + sunDirNorm * sunHeight;
 					flareLight.m_cLdrClr = gEnv->p3DEngine->GetSunColor();
 					flareLight.m_fRadius = sunHeight;
 					flareLight.m_bAttachToSun = true;
@@ -85,7 +92,7 @@ void CLensOpticsStage::Execute(CRenderView* pRenderView)
 				}
 				else
 				{
-					flareLight.m_vPos = pObj->GetTranslation();
+					flareLight.m_vPos = pObj->GetMatrix(gcpRendD3D->GetObjectAccessorThreadConfig()).GetTranslation();
 					ColorF& c = pLight->m_Color;
 					flareLight.m_cLdrClr.set(c.r, c.g, c.b, 1.0f);
 					flareLight.m_fRadius = pLight->m_fRadius;
@@ -99,7 +106,7 @@ void CLensOpticsStage::Execute(CRenderView* pRenderView)
 				flareLight.m_fViewAngleFalloff = 1.0;
 				if (pLight->m_LensOpticsFrustumAngle != 0)
 				{
-					Vec3 vDirLight2Camera = (cam->vOrigin - flareLight.m_vPos).GetNormalizedFast();
+					Vec3 vDirLight2Camera = (viewInfo[0].cameraOrigin - flareLight.m_vPos).GetNormalizedFast();
 					float viewCos = pLight->m_ProjMatrix.GetColumn(0).Dot(vDirLight2Camera) * 0.5f + 0.5f;
 					if (pLight->m_LensOpticsFrustumAngle < 255)
 					{
@@ -139,7 +146,7 @@ void CLensOpticsStage::Execute(CRenderView* pRenderView)
 	}
 }
 
-void CLensOpticsStage::UpdateOcclusionQueries(CStandardGraphicsPipeline::SViewInfo* pViewInfo, int viewInfoCount)
+void CLensOpticsStage::UpdateOcclusionQueries(SRenderViewInfo* pViewInfo, int viewInfoCount)
 {
 	PROFILE_LABEL_SCOPE("Soft Occlusion Query");
 

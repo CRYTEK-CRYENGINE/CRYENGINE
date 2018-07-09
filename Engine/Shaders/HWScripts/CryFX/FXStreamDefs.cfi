@@ -1,5 +1,4 @@
-// CRYENGINE Source Code File
-// Copyright 2001-2015 Crytek GmbH. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 //=== Base stream definitions ==================================================
 
@@ -31,35 +30,35 @@
 
 #define ISOLATE
 
-#define OUT_P float4 HPosition : POSITION;		
+#define OUT_P float4 HPosition : SV_POSITION;		
 
 #define OUT_HPOS										\
 	#if !%_PS										\
-		float4 HPosition : SV_Position;							\
+		float4 HPosition : SV_POSITION;							\
 	#endif	
 
 #if %SILHOUETTE_PARALLAX_OCCLUSION_MAPPING
-	#define IN_WPOS sample float4 WPos : SV_Position;
+	#define IN_WPOS sample float4 WPos : SV_POSITION;
 #else
-	#define IN_WPOS float4 WPos : SV_Position;
+	#define IN_WPOS float4 WPos : SV_POSITION;
 #endif
 
 #if %SILHOUETTE_PARALLAX_OCCLUSION_MAPPING
 
 #define OUT_HPOS_IN_WPOS									\
 	#if %_PS										            \
-		sample float4 WPos : SV_Position;			\
+		sample float4 WPos : SV_POSITION;			\
 	#else											              \
-		float4 HPosition : SV_Position;			  \
+		float4 HPosition : SV_POSITION;			  \
 	#endif
 
 #else
 
 #define OUT_HPOS_IN_WPOS									\
 	#if %_PS										            \
-		float4 WPos : SV_Position;			      \
+		float4 WPos : SV_POSITION;			      \
 	#else											              \
-		float4 HPosition : SV_Position;			  \
+		float4 HPosition : SV_POSITION;			  \
 	#endif
 	
 #endif
@@ -84,31 +83,31 @@
 			uint uCoverageMask : SV_Coverage;					\
 		#endif
 
-#define OUT_C0   half4 Color     : COLOR0;
-#define OUT_C1   half4 Color1    : COLOR1;
+#define OUT_C0   half4 Color     : SV_Target0;
+#define OUT_C1   half4 Color1    : SV_Target1;
 
 //=== Pixel shader output structure ==========================================
 
 struct pixout
 {
-  half4 Color  : COLOR0;
+  half4 Color  : SV_Target0;
 };
 
 struct pixout_fp
 {
-  float4 Color  : COLOR0;
+  float4 Color  : SV_Target0;
 };
 
 struct pixout_gbuffer
 {
-  half4 GBufferA : COLOR0;
+  half4 GBufferA : SV_Target0;
 	
 #if !%_RT_SAMPLE0
-	half4 GBufferB : COLOR1;
-	half4 GBufferC : COLOR2;
+	half4 GBufferB : SV_Target1;
+	half4 GBufferC : SV_Target2;
 	
 #if %_RT_MOTION_BLUR
-	half4 VelocityRT  : COLOR3;
+	half4 VelocityRT  : SV_Target3;
 #endif
 
 #if (%_RT_MSAA_QUALITY || %_RT_MSAA_QUALITY1) && %_RT_ALPHATEST

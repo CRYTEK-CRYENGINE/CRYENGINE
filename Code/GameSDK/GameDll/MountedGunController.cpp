@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 /*************************************************************************
 -------------------------------------------------------------------------
@@ -48,6 +48,15 @@ SMountedGunCRCs MountedGunCRCs;
 void CMountedGunController::Update(EntityId mountedGunID, float frameTime)
 {
 	CRY_ASSERT_MESSAGE(m_pControlledPlayer, "Controlled player not initialized");
+
+	// Animation state needs to be updated when the player switched between first and third person view
+	if (m_PreviousThirdPersonState != m_pControlledPlayer->IsThirdPerson())
+	{
+		m_PreviousThirdPersonState = m_pControlledPlayer->IsThirdPerson();
+
+		OnLeave();
+		OnEnter(mountedGunID);
+	}
 
 	CItem* pMountedGun = static_cast<CItem*>(gEnv->pGameFramework->GetIItemSystem()->GetItem(mountedGunID));
 
@@ -147,6 +156,8 @@ void CMountedGunController::Update(EntityId mountedGunID, float frameTime)
 
 void CMountedGunController::OnEnter(EntityId mountedGunId)
 {
+	m_PreviousThirdPersonState = m_pControlledPlayer->IsThirdPerson();
+
 	CRY_ASSERT_MESSAGE(m_pControlledPlayer, "Controlled player not initialized");
 
 	ICharacterInstance* pCharacter = m_pControlledPlayer->IsThirdPerson() ? m_pControlledPlayer->GetEntity()->GetCharacter(0) : m_pControlledPlayer->GetShadowCharacter();

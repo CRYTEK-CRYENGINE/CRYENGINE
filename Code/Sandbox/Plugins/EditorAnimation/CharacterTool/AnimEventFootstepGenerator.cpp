@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "stdafx.h"
 
@@ -194,7 +194,7 @@ void FootstepGenerationParameters::Serialize(IArchive& ar)
 		ar(rightFootEvent, "rightFootEvent", "Right");
 
 		ar(generateFoleys, "generateFoleys", "Generate Foleys");
-		ar(Slider(foleyDelayFrames, 0, 40), "foleyDelayFrames", generateFoleys ? "Foley Delay (Frames)" : 0);
+		ar(Serialization::Decorators::Range(foleyDelayFrames, 0, 40), "foleyDelayFrames", generateFoleys ? "Foley Delay (Frames)" : 0);
 		ar(leftShuffleFoleyEvent, "leftShuffleFoleyEvent", generateFoleys ? "Left Foley" : 0);
 		ar(rightShuffleFoleyEvent, "rightShuffleFoleyEvent", generateFoleys ? "Right Foley" : 0);
 		ar.closeBlock();
@@ -287,3 +287,4 @@ bool GenerateFootsteps(AnimationContent* content, string* errorMessage, ICharact
 }
 
 }
+

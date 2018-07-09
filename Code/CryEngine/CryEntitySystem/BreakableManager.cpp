@@ -1,15 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
-
-// -------------------------------------------------------------------------
-//  File name:   BreakableManager.cpp
-//  Version:     v1.00
-//  Created:     7/6/2005 by Timur.
-//  Compilers:   Visual Studio.NET 2003
-//  Description:
-// -------------------------------------------------------------------------
-//  History:
-//
-////////////////////////////////////////////////////////////////////////////
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "stdafx.h"
 #include <CryAnimation/ICryAnimation.h>
@@ -25,13 +14,6 @@
 #include <CryParticleSystem/ParticleParams.h>
 #include <CryAction/IMaterialEffects.h>
 #include "RopeProxy.h"
-
-//////////////////////////////////////////////////////////////////////////
-CBreakableManager::CBreakableManager(CEntitySystem* pEntitySystem)
-{
-	m_pEntitySystem = pEntitySystem;
-	m_pBreakEventListener = NULL;
-}
 
 //////////////////////////////////////////////////////////////////////////
 float ExtractFloatKeyFromString(const char* key, const char* props)
@@ -297,7 +279,7 @@ bool CBreakableManager::CanShatterEntity(IEntity* pEntity, int nSlot)
 {
 	if (nSlot < 0)
 		nSlot = 0;
-	IStatObj* pStatObj = pEntity->GetStatObj(0 | ENTITY_SLOT_ACTUAL);
+	IStatObj* pStatObj = pEntity->GetStatObj(nSlot | ENTITY_SLOT_ACTUAL);
 	if (pStatObj)
 		return CanShatter(pStatObj);
 	else
@@ -361,7 +343,7 @@ void GetPhysicsStatus(IPhysicalEntity* pPhysEnt, float& fMass, float& fVolume, f
 
 //////////////////////////////////////////////////////////////////////////
 void CBreakableManager::BreakIntoPieces(GeomRef& geoOrig, const Matrix34& mxSrcTM,
-                                        IStatObj* pPiecesObj, const Matrix34& mxPiecesTM,
+                                        IStatObj* pPiecesObj, const Matrix34& mxPiecesTM,	IStatObj* pRemovedObj,
                                         BreakageParams const& Breakage, int nMatLayers)
 {
 	ENTITY_PROFILER;
@@ -438,7 +420,7 @@ void CBreakableManager::BreakIntoPieces(GeomRef& geoOrig, const Matrix34& mxSrcT
 		return;
 	}
 
-	IEntityClass* pClass = m_pEntitySystem->GetClassRegistry()->FindClass("Breakage");
+	IEntityClass* pClass = g_pIEntitySystem->GetClassRegistry()->FindClass("Breakage");
 	I3DEngine* p3DEngine = gEnv->p3DEngine;
 	IPhysicalWorld* pPhysicalWorld = gEnv->pPhysicalWorld;
 	PhysicsVars* pVars = pPhysicalWorld->GetPhysVars();
@@ -481,12 +463,11 @@ void CBreakableManager::BreakIntoPieces(GeomRef& geoOrig, const Matrix34& mxSrcT
 		}
 	}
 
-#ifdef FIX
-	if (fDefaultDensity <= 0.f && geoOrig.m_pMeshObj)
+	if (fDefaultDensity <= 0.f && pRemovedObj)
 	{
 		// Compute default density from main piece.
 		float fMass, fDensity;
-		geoOrig.m_pMeshObj->GetPhysicalProperties(fMass, fDensity);
+		pRemovedObj->GetPhysicalProperties(fMass, fDensity);
 		if (fDensity > 0)
 			fDefaultDensity = fDensity * 1000.f;
 		else
@@ -500,7 +481,6 @@ void CBreakableManager::BreakIntoPieces(GeomRef& geoOrig, const Matrix34& mxSrcT
 		}
 		fTotalMass = fMass;
 	}
-#endif
 
 	// set parameters to delayed Material Effect execution
 	exec.fTotalMass = fTotalMass;
@@ -513,10 +493,8 @@ void CBreakableManager::BreakIntoPieces(GeomRef& geoOrig, const Matrix34& mxSrcT
 	QuatTS entityQuatTS(mxPiecesTM);
 
 	const char* sSourceGeometryProperties = "";
-#ifdef FIX
-	if (geoOrig.m_pMeshObj)
-		sSourceGeometryProperties = geoOrig.m_pMeshObj->GetProperties();
-#endif
+	if (pRemovedObj)
+		sSourceGeometryProperties = pRemovedObj->GetProperties();
 
 	//////////////////////////////////////////////////////////////////////////
 	for (int i = 0; i < max(nSubObjs, 1); i++)
@@ -594,18 +572,19 @@ void CBreakableManager::BreakIntoPieces(GeomRef& geoOrig, const Matrix34& mxSrcT
 			}
 
 			CRndGen seed = cry_random_next();
+			DynArray<PosNorm> points(max(nCount, 1));
+			if (geoOrig.m_pMeshObj)
+				geoOrig.m_pMeshObj->GetRandomPoints(points, seed, GeomForm_Volume);
+
 			for (int n = 0; n < max(nCount, 1); n++)
 			{
 				// Compute initial position.
 				if (nCount)
 				{
 					// Position randomly in parent.
-					PosNorm ran;
-					if (geoOrig.m_pMeshObj)
-						geoOrig.m_pMeshObj->GetRandomPos(ran, seed, GeomForm_Volume);
-					ran.vPos = entityQuatTS * ran.vPos;
-					ran.vNorm = entityQuatTS.q * ran.vNorm;
-					mxPiece.SetTranslation(ran.vPos);
+					Vec3 vPos = points[n].vPos;
+					vPos = entityQuatTS * vPos;
+					mxPiece.SetTranslation(vPos);
 
 					// Random rotation and size.
 					if (!sRotAxes.empty())
@@ -672,13 +651,13 @@ void CBreakableManager::BreakIntoPieces(GeomRef& geoOrig, const Matrix34& mxSrcT
 					SEntitySpawnParams params;
 					params.nFlags = ENTITY_FLAG_CLIENT_ONLY | ENTITY_FLAG_CASTSHADOW | ENTITY_FLAG_SPAWNED | ENTITY_FLAG_MODIFIED_BY_PHYSICS;
 					params.pClass = pClass;
-					CEntity* pNewEntity = (CEntity*)m_pEntitySystem->SpawnEntity(params, false);
+					CEntity* pNewEntity = static_cast<CEntity*>(g_pIEntitySystem->SpawnEntity(params, false));
 					if (!pNewEntity)
 						continue;
 
 					pNewEntity->SetStatObj(pSubObj, 0, false);
 					pNewEntity->SetWorldTM(mxPiece);
-					m_pEntitySystem->InitEntity(pNewEntity, params);
+					g_pIEntitySystem->InitEntity(pNewEntity, params);
 
 					SEntityPhysicalizeParams physparams;
 					physparams.type = PE_RIGID;
@@ -802,7 +781,7 @@ void CBreakableManager::BreakIntoPieces(GeomRef& geoOrig, const Matrix34& mxSrcT
 void CBreakableManager::BreakIntoPieces(IEntity* pEntity, int nOrigSlot, int nPiecesSlot, BreakageParams const& Breakage)
 {
 	IEntityRender* pIEntityRender = pEntity->GetRenderInterface();
-	
+
 	{
 		IRenderNode* pRenderNode = pIEntityRender->GetRenderNode();
 		if (pRenderNode)
@@ -820,7 +799,7 @@ void CBreakableManager::BreakIntoPieces(IEntity* pEntity, int nOrigSlot, int nPi
 			GeomRef geoOrig;
 			geoOrig.Set(pEntity, nOrigSlot);
 
-			BreakIntoPieces(geoOrig, mx1, pPiecesObj, mx2, Breakage, pRenderNode->GetMaterialLayers());
+			BreakIntoPieces(geoOrig, mx1, pPiecesObj, mx2, nullptr, Breakage, pRenderNode->GetMaterialLayers());
 		}
 	}
 }
@@ -936,7 +915,7 @@ IEntity* CBreakableManager::CreateObjectAsEntity(IStatObj* pStatObj, IPhysicalEn
 	if (!createParams.pSrcStaticRenderNode)
 	{
 		BreakLogAlways("BREAK: Using 'Breakage' class");
-		pClass = m_pEntitySystem->GetClassRegistry()->FindClass("Breakage");
+		pClass = g_pIEntitySystem->GetClassRegistry()->FindClass("Breakage");
 	}
 	else
 	{
@@ -948,7 +927,7 @@ IEntity* CBreakableManager::CreateObjectAsEntity(IStatObj* pStatObj, IPhysicalEn
 		{
 			BreakLogAlways("BREAK: Using 'Breakage' class with SrcStaticRenderNode");
 			bDefault = true;
-			pClass = m_pEntitySystem->GetClassRegistry()->FindClass("Breakage");
+			pClass = g_pIEntitySystem->GetClassRegistry()->FindClass("Breakage");
 		}
 	}
 	if (!pClass)
@@ -965,7 +944,7 @@ IEntity* CBreakableManager::CreateObjectAsEntity(IStatObj* pStatObj, IPhysicalEn
 	SEntitySpawnParams params;
 	bool bNewEntitySpawned = false;
 
-	CEntity* pEntity = static_cast<CEntity*>(pPhysEnt ? (CEntity*)pPhysEnt->GetForeignData(PHYS_FOREIGN_ID_ENTITY) : NULL);
+	CEntity* pEntity = static_cast<CEntity*>(pPhysEnt ? static_cast<CEntity*>(pPhysEnt->GetForeignData(PHYS_FOREIGN_ID_ENTITY)) : nullptr);
 	if (!pEntity || !(pEntity->GetFlags() & ENTITY_FLAG_SPAWNED))
 	{
 		params.nFlags = ENTITY_FLAG_CLIENT_ONLY | ENTITY_FLAG_CASTSHADOW |
@@ -976,7 +955,7 @@ IEntity* CBreakableManager::CreateObjectAsEntity(IStatObj* pStatObj, IPhysicalEn
 
 		//We don't want this auto-initialised as we want to init it when the statobj is set,
 		//	allowing entity events to access it
-		pEntity = (CEntity*)gEnv->pEntitySystem->SpawnEntity(params, false);
+		pEntity = static_cast<CEntity*>(g_pIEntitySystem->SpawnEntity(params, false));
 		if (!pEntity)
 			return 0;
 
@@ -1002,7 +981,7 @@ IEntity* CBreakableManager::CreateObjectAsEntity(IStatObj* pStatObj, IPhysicalEn
 		//if (createParams.pCustomMtl)
 		//	pEntity->SetMaterial( createParams.pCustomMtl );
 		//if (createParams.nMatLayers)
-			//pIEntityRender->SetMaterialLayers(createParams.nMatLayers);
+		//pIEntityRender->SetMaterialLayers(createParams.nMatLayers);
 		//pIEntityRender->SetRndFlags(createParams.nRenderNodeFlags);
 	}
 	else
@@ -1066,7 +1045,7 @@ IEntity* CBreakableManager::CreateObjectAsEntity(IStatObj* pStatObj, IPhysicalEn
 
 	if (bNewEntitySpawned)
 	{
-		gEnv->pEntitySystem->InitEntity(pEntity, params);
+		g_pIEntitySystem->InitEntity(pEntity, params);
 	}
 
 	if (bDefault)
@@ -1135,7 +1114,7 @@ bool CBreakableManager::CheckForPieces(IStatObj* pSrcStatObj, IStatObj::SSubObje
 		Breakage.bMaterialEffects = true;
 		Breakage.type = BREAKAGE_TYPE_FREEZE_SHATTER;
 		// Only spawn freeze shatter material effect!
-		BreakIntoPieces(geoOrig, objWorldTM, NULL, Matrix34(), Breakage, nMatLayers);
+		BreakIntoPieces(geoOrig, objWorldTM, NULL, Matrix34(), pSubObj->pStatObj, Breakage, nMatLayers);
 	}
 
 	bool bHavePieces = (strstr(sProperties, "pieces=") != 0);
@@ -1155,7 +1134,7 @@ bool CBreakableManager::CheckForPieces(IStatObj* pSrcStatObj, IStatObj::SSubObje
 		BreakageParams Breakage;
 		Breakage.bOnlyHelperPieces = true;
 		Breakage.bMaterialEffects = true;
-		Breakage.bForceEntity = gEnv->bMultiplayer;
+		Breakage.bForceEntity = true;
 		Breakage.fExplodeImpulse = 0;
 		Breakage.fParticleLifeTime = 30.f;
 		Breakage.nGenericCount = 0;
@@ -1170,7 +1149,7 @@ bool CBreakableManager::CheckForPieces(IStatObj* pSrcStatObj, IStatObj::SSubObje
 
 		Matrix34 objWorldTM = worldTM * pSubObj->tm;
 
-		BreakIntoPieces(geoOrig, objWorldTM, pPiecesObj, worldTM, Breakage, nMatLayers);
+		BreakIntoPieces(geoOrig, objWorldTM, pPiecesObj, worldTM, pSubObj->pStatObj, Breakage, nMatLayers);
 
 		// New physical entity must be deleted.
 		if (pPhysEnt)
@@ -1200,12 +1179,14 @@ IStatObj::SSubObject* CBreakableManager::CheckSubObjBreak(IStatObj* pStatObj, IS
 		while (pAdam->GetCloneSourceObject())
 			pAdam = pAdam->GetCloneSourceObject();
 		pe_params_structural_joint psj;
-		IStatObj::SSubObject* pJoint;
 		int nDestroyedJoints = pSubObj->nBreakerJoints;
 		for (psj.idx = 0; epcep->pEntNew->GetParams(&psj); psj.idx++)
+		{
+			IStatObj::SSubObject* pJoint;
 			if ((psj.partid[0] == epcep->partidNew || psj.partid[1] == epcep->partidNew) &&
 			    (pJoint = pAdam->GetSubObject(psj.id)) && strstr(pJoint->properties, "breaker"))
 				--nDestroyedJoints;
+		}
 		const char* ptr;
 		if (nDestroyedJoints > 0 && (ptr = strstr(pSubObj->properties, "pieces=")))
 			return pAdam->FindSubObject(ptr + 7);
@@ -1221,7 +1202,7 @@ void CBreakableManager::GetBrokenObjectIndicesForCloning(int32* pPartRemovalIndi
 	int iLocalNumEntitiesToClone = 0;
 
 	//Get pointer to part removal event array from break replicator
-	IBreakableManager* pBreakableMgr = gEnv->pEntitySystem->GetBreakableManager();
+	IBreakableManager* pBreakableMgr = g_pIEntitySystem->GetBreakableManager();
 
 	int iNumBrokenObjects = 0;
 	const IBreakableManager::SBrokenObjRec* pPartBrokenObjects = pBreakableMgr->GetPartBrokenObjects(iNumBrokenObjects);
@@ -1263,11 +1244,10 @@ void CBreakableManager::GetBrokenObjectIndicesForCloning(int32* pPartRemovalIndi
 		IRenderNode* pRenderNode = NULL;
 
 		EntityId originalBrokenId = 0;
-		int iBrokenObjectIndex = -1;
 
 		if (BreakEvents[pPartRemovalIndices[k]].iForeignData == PHYS_FOREIGN_ID_ENTITY)
 		{
-			IEntity* pEnt = static_cast<IEntity*>(BreakEvents[pPartRemovalIndices[k]].pForeignData);
+			CEntity* pEnt = static_cast<CEntity*>(BreakEvents[pPartRemovalIndices[k]].pForeignData);
 			originalBrokenId = pEnt->GetId();
 
 			BreakLogAlways("PR:   Looking for object with EntityId: 0x%08X", originalBrokenId);
@@ -1283,8 +1263,6 @@ void CBreakableManager::GetBrokenObjectIndicesForCloning(int32* pPartRemovalIndi
 					break;
 				}
 			}
-
-			assert(iBrokenObjectIndex >= 0);
 		}
 		else
 		{
@@ -1317,7 +1295,7 @@ void CBreakableManager::ClonePartRemovedEntitiesByIndex(int32* pBrokenObjIndicie
                                                         SRenderNodeCloneLookup& nodeLookup)
 {
 	//Get pointer to part removal event array from break replicator
-	IBreakableManager* pBreakableMgr = gEnv->pEntitySystem->GetBreakableManager();
+	IBreakableManager* pBreakableMgr = g_pIEntitySystem->GetBreakableManager();
 
 	int iNumClonedEntitiesLocal = 0;
 
@@ -1348,7 +1326,7 @@ void CBreakableManager::ClonePartRemovedEntitiesByIndex(int32* pBrokenObjIndicie
 			}
 		}
 
-		IEntity* pOriginalEntity = gEnv->pEntitySystem->GetEntity(originalBrokenId);
+		CEntity* pOriginalEntity = g_pIEntitySystem->GetEntityFromID(originalBrokenId);
 
 		if (!bWillBeClonedElsewhere)
 		{
@@ -1372,7 +1350,7 @@ void CBreakableManager::ClonePartRemovedEntitiesByIndex(int32* pBrokenObjIndicie
 				createParams.pName = pRenderNode->GetName();
 				createParams.overrideEntityClass = pOriginalEntity->GetClass();
 
-				IEntity* pClonedEntity = pBreakableMgr->CreateObjectAsEntity(brokenObjRec.pStatObjOrg, NULL, NULL, createParams);
+				CEntity* pClonedEntity = static_cast<CEntity*>(pBreakableMgr->CreateObjectAsEntity(brokenObjRec.pStatObjOrg, NULL, NULL, createParams));
 
 				assert(pClonedEntity);
 
@@ -1419,7 +1397,7 @@ void CBreakableManager::HideBrokenObjectsByIndex(const int32* pBrokenObjectIndic
 	{
 		EntityId originalBrokenId = m_brokenObjs[pBrokenObjectIndices[k]].idEnt;
 
-		IEntity* pEntity = gEnv->pEntitySystem->GetEntity(originalBrokenId);
+		CEntity* pEntity = g_pIEntitySystem->GetEntityFromID(originalBrokenId);
 
 		if (pEntity)
 		{
@@ -1430,7 +1408,6 @@ void CBreakableManager::HideBrokenObjectsByIndex(const int32* pBrokenObjectIndic
 			//	decals being left floating in mid air, we need to remove them when the killcam starts
 			IEntityRender* pIEntityRender = pEntity->GetRenderInterface();
 
-			
 			{
 				gEnv->p3DEngine->DeleteEntityDecals(pIEntityRender->GetRenderNode());
 			}
@@ -1447,7 +1424,7 @@ void CBreakableManager::HideBrokenObjectsByIndex(const int32* pBrokenObjectIndic
 //	is used to obtain the original brush pointers, which are then used to unhide the objects
 void CBreakableManager::UnhidePartRemovedObjectsByIndex(const int32* pPartRemovalIndices, const int32 iNumPartRemovalIndices, const EventPhysRemoveEntityParts* pBreakEvents)
 {
-	IBreakableManager* pBreakableMgr = gEnv->pEntitySystem->GetBreakableManager();
+	IBreakableManager* pBreakableMgr = g_pIEntitySystem->GetBreakableManager();
 	BreakLogAlways("PR: Unhiding part removed objects");
 
 	int iBrokenObjectCount = 0;
@@ -1457,12 +1434,12 @@ void CBreakableManager::UnhidePartRemovedObjectsByIndex(const int32* pPartRemova
 	{
 		int iEventIndex = pPartRemovalIndices[k];
 
-		IEntity* pEntity = NULL;
+		CEntity* pEntity = nullptr;
 		EntityId originalBrokenId = 0;
 
 		if (pBreakEvents[pPartRemovalIndices[k]].iForeignData == PHYS_FOREIGN_ID_ENTITY)
 		{
-			pEntity = static_cast<IEntity*>(pBreakEvents[pPartRemovalIndices[k]].pForeignData);
+			pEntity = static_cast<CEntity*>(pBreakEvents[pPartRemovalIndices[k]].pForeignData);
 			BreakLogAlways("PR: ENTITY TYPE: 0x%p", pEntity);
 			if (pEntity)
 			{
@@ -1486,7 +1463,7 @@ void CBreakableManager::UnhidePartRemovedObjectsByIndex(const int32* pPartRemova
 				}
 			}
 
-			pEntity = gEnv->pEntitySystem->GetEntity(originalBrokenId);
+			pEntity = g_pIEntitySystem->GetEntityFromID(originalBrokenId);
 		}
 
 		if (pEntity)
@@ -1548,7 +1525,7 @@ void CBreakableManager::ApplyPartBreakToClonedObjectFromEvent(const SRenderNodeC
 		BreakLogAlways("PR:     Found cloned Entity ptr 0x%p of original %s 0x%p at index %d", renderNodeLookup.pClonedNodes[iNodeIndex], OriginalEvent.iForeignData == PHYS_FOREIGN_ID_ENTITY ? "ENTITY" : "IRENDERNODE", OriginalEvent.pForeignData, iNodeIndex);
 
 		//Any clones will always be entities, with the ID masquerading as a pointer in the renderNodeLookup
-		IEntity* pEntity = reinterpret_cast<IEntity*>(renderNodeLookup.pClonedNodes[iNodeIndex]);
+		CEntity* pEntity = reinterpret_cast<CEntity*>(renderNodeLookup.pClonedNodes[iNodeIndex]);
 
 		tempEvent.pForeignData = static_cast<void*>(pEntity);
 		tempEvent.iForeignData = PHYS_FOREIGN_ID_ENTITY;
@@ -1611,42 +1588,42 @@ class CTimeoutKillComponent : public IEntityComponent
 	CRY_ENTITY_COMPONENT_INTERFACE_AND_CLASS_GUID(CTimeoutKillComponent, "CTimeoutKillComponent", "b55e276d-1ca5-aa14-87fb-ca961e102dff"_cry_guid)
 
 public:
-	virtual void ProcessEvent(SEntityEvent& event) final
+	virtual void ProcessEvent(const SEntityEvent& event) final
 	{
 		if (event.event == ENTITY_EVENT_TIMER)
 		{
 			if (!GetEntity()->IsRendered())
 			{
 				// Remove ourself
-				gEnv->pEntitySystem->RemoveEntity(GetEntity()->GetId());
+				g_pIEntitySystem->RemoveEntity(GetEntity()->GetId());
 			}
 			else
 			{
 				// Wait some more to see if still rendered.
-				GetEntity()->SetTimer(0,m_timeoutMillis);
+				GetEntity()->SetTimer(0, m_timeoutMillis);
 			}
 		}
 	}
-	virtual uint64                 GetEventMask() const final { return BIT64(ENTITY_EVENT_TIMER)|BIT64(ENTITY_EVENT_RENDER_VISIBILITY_CHANGE); }
-	virtual void                   Initialize() final
+	virtual uint64 GetEventMask() const final { return ENTITY_EVENT_BIT(ENTITY_EVENT_TIMER) | ENTITY_EVENT_BIT(ENTITY_EVENT_RENDER_VISIBILITY_CHANGE); }
+	virtual void   Initialize() final
 	{
-		m_pEntity->AddFlags(ENTITY_FLAG_NO_SAVE|ENTITY_FLAG_SEND_RENDER_EVENT);
+		m_pEntity->AddFlags(ENTITY_FLAG_NO_SAVE | ENTITY_FLAG_SEND_RENDER_EVENT);
 	}
-	virtual void Release() final { delete this; }
-	
+	virtual void Release() final                     { delete this; }
+
 	virtual void GameSerialize(TSerialize ser) final {};
 
-	void SetTimeout( int timeoutMillis )
+	void         SetTimeout(int timeoutMillis)
 	{
 		m_timeoutMillis = timeoutMillis;
-		GetEntity()->SetTimer(0,m_timeoutMillis);
+		GetEntity()->SetTimer(0, m_timeoutMillis);
 	}
 
 private:
 	int m_timeoutMillis = 0;
 };
 
-void SetEntityLifetime(IEntity* pEntity, const char* props, bool visible)
+void SetEntityLifetime(CEntity* pEntity, const char* props, bool visible)
 {
 	float timeout = -1, timeoutInvis = -1;
 	if (const char* ptr = strstr(props, "timeout"))
@@ -1656,13 +1633,13 @@ void SetEntityLifetime(IEntity* pEntity, const char* props, bool visible)
 
 	if (timeout == 0.0f || timeoutInvis == 0.0f && !visible)
 	{
-		gEnv->pEntitySystem->RemoveEntity(pEntity->GetId());
+		g_pIEntitySystem->RemoveEntity(pEntity->GetId());
 		return;
 	}
 	if (timeout > 0 || timeoutInvis >= 0)
 	{
 		auto pTimeout = pEntity->GetOrCreateComponent<CTimeoutKillComponent>();
-		pTimeout->SetTimeout( static_cast<int>(1000*std::max(timeout,timeoutInvis)) );
+		pTimeout->SetTimeout(static_cast<int>(1000 * std::max(timeout, timeoutInvis)));
 	}
 }
 
@@ -1683,7 +1660,6 @@ void CBreakableManager::HandlePhysicsCreateEntityPartEvent(const EventPhysCreate
 	IRenderNode* pSrcRenderNode = 0;
 	IStatObj::SSubObject* pSubObj;
 	IStatObj* pCutShape = 0;
-	float cutShapeScale;
 	IBreakableManager::SCreateParams createParams;
 	int partidSrc = pCreateEvent->partidSrc;
 
@@ -1692,16 +1668,16 @@ void CBreakableManager::HandlePhysicsCreateEntityPartEvent(const EventPhysCreate
 		IRopeRenderNode* pRope = (IRopeRenderNode*)pForeignData;
 		pSrcEntity = static_cast<CEntity*>(pRope->GetOwnerEntity());
 		SEntitySpawnParams params;
-		params.pClass = m_pEntitySystem->GetClassRegistry()->FindClass("RopeEntity");
+		params.pClass = g_pIEntitySystem->GetClassRegistry()->FindClass("RopeEntity");
 		params.nFlags = ENTITY_FLAG_CLIENT_ONLY | ENTITY_FLAG_CASTSHADOW | ENTITY_FLAG_SPAWNED;
 		params.sName = "rope_piece";
-		pNewEntity = (CEntity*)gEnv->pEntitySystem->SpawnEntity(params, false);
+		pNewEntity = static_cast<CEntity*>(g_pIEntitySystem->SpawnEntity(params, false));
 		if (!pNewEntity)
 			return;
 
 		pNewEntity->SetWorldTM(pSrcEntity->GetWorldTM());
 		IRopeRenderNode* pRopeNew = ((IEntityRopeComponent*)pNewEntity->CreateProxy(ENTITY_PROXY_ROPE))->GetRopeRenderNode();
-		gEnv->pEntitySystem->InitEntity(pNewEntity, params);
+		g_pIEntitySystem->InitEntity(pNewEntity, params);
 		pNewEntity->SetMaterial(pSrcEntity->GetMaterial());
 
 		IRopeRenderNode::SRopeParams rparams = pRope->GetParams();
@@ -1714,17 +1690,6 @@ void CBreakableManager::HandlePhysicsCreateEntityPartEvent(const EventPhysCreate
 
 		pRopeNew->SetMatrix(pSrcEntity->GetWorldTM());
 		pRopeNew->SetPhysics(pCreateEvent->pEntNew);
-
-#ifdef SEG_WORLD
-		// fix rope streaming crash
-		ISegmentsManager* pSM = gEnv->p3DEngine->GetSegmentsManager();
-		if (pSM)
-		{
-			// push the new Entity to segnode's EntitesArray
-			bool bLocal = pSrcEntity->IsLocalSeg();
-			pSM->PushEntityToSegment(pNewEntity->GetId(), bLocal);
-		}
-#endif
 
 		return;
 	}
@@ -1742,8 +1707,8 @@ void CBreakableManager::HandlePhysicsCreateEntityPartEvent(const EventPhysCreate
 	{
 		//CryLogAlways( "* CreateEvent Entity" );
 
-		pSrcEntity = (CEntity*)pForeignData;
-		pNewEntity = (CEntity*)pCreateEvent->pEntNew->GetForeignData(PHYS_FOREIGN_ID_ENTITY);
+		pSrcEntity = static_cast<CEntity*>(pForeignData);
+		pNewEntity = static_cast<CEntity*>(pCreateEvent->pEntNew->GetForeignData(PHYS_FOREIGN_ID_ENTITY));
 
 		int nLevels, nBits;
 		EntityPhysicsUtils::ParsePartId(pCreateEvent->partidSrc, nLevels, nBits);
@@ -1756,7 +1721,7 @@ void CBreakableManager::HandlePhysicsCreateEntityPartEvent(const EventPhysCreate
 			}
 
 		if (pCreateEvent->partidSrc >= EntityPhysicsUtils::PARTID_LINKED)
-			pSrcEntity = (CEntity*)pSrcEntity->UnmapAttachedChild(partidSrc);
+			pSrcEntity = static_cast<CEntity*>(pSrcEntity->UnmapAttachedChild(partidSrc));
 
 		//////////////////////////////////////////////////////////////////////////
 		// Handle Breakage of Entity.
@@ -1797,7 +1762,7 @@ void CBreakableManager::HandlePhysicsCreateEntityPartEvent(const EventPhysCreate
 	{
 		//CryLogAlways( "* CreateEvent Static" );
 
-		pNewEntity = (CEntity*)pCreateEvent->pEntNew->GetForeignData(PHYS_FOREIGN_ID_ENTITY);
+		pNewEntity = static_cast<CEntity*>(pCreateEvent->pEntNew->GetForeignData(PHYS_FOREIGN_ID_ENTITY));
 		if (pNewEntity)
 		{
 			pNewStatObj = pNewEntity->GetStatObj(ENTITY_SLOT_ACTUAL);
@@ -1806,7 +1771,7 @@ void CBreakableManager::HandlePhysicsCreateEntityPartEvent(const EventPhysCreate
 		//////////////////////////////////////////////////////////////////////////
 		// Handle Breakage of Brush or Vegetation.
 		//////////////////////////////////////////////////////////////////////////
-		pSrcRenderNode = (IRenderNode*)pForeignData;
+		pSrcRenderNode = static_cast<IRenderNode*>(pForeignData);
 		if (pSrcRenderNode)
 		{
 			createParams.pSrcStaticRenderNode = pSrcRenderNode;
@@ -1898,6 +1863,7 @@ void CBreakableManager::HandlePhysicsCreateEntityPartEvent(const EventPhysCreate
 		{
 			// Not sub object.
 			pNewStatObj = pSrcStatObj;
+			createParams.nSlotIndex = pCreateEvent->partidNew;
 		}
 
 		pe_params_buoyancy pb;
@@ -1913,8 +1879,11 @@ void CBreakableManager::HandlePhysicsCreateEntityPartEvent(const EventPhysCreate
 	if (pCreateEvent->pMeshNew && !bAlreadyDeformed)
 	{
 		if (pCreateEvent->pLastUpdate && pCreateEvent->pLastUpdate->pMesh[1] &&
-		    (pCutShape = (IStatObj*)pCreateEvent->pLastUpdate->pMesh[1]->GetForeignData()))
+		    (pCutShape = static_cast<IStatObj*>(pCreateEvent->pLastUpdate->pMesh[1]->GetForeignData())))
+		{
+			float cutShapeScale;
 			pCutShape = pCutShape->GetLastBooleanOp(cutShapeScale);
+		}
 
 		pNewStatObj = gEnv->p3DEngine->UpdateDeformableStatObj(pCreateEvent->pMeshNew, pCreateEvent->pLastUpdate);
 		if (pNewStatObj)
@@ -1953,7 +1922,7 @@ void CBreakableManager::HandlePhysicsCreateEntityPartEvent(const EventPhysCreate
 		}
 		else
 		{
-			IEntity* pPrevNewEntity = pNewEntity;
+			CEntity* pPrevNewEntity = pNewEntity;
 			if (pCreateEvent->pEntity->GetType() == PE_ARTICULATED)
 			{
 				Matrix34 mtx = createParams.worldTM;
@@ -1963,8 +1932,9 @@ void CBreakableManager::HandlePhysicsCreateEntityPartEvent(const EventPhysCreate
 			pNewEntity = static_cast<CEntity*>(CreateObjectAsEntity(pNewStatObj, pCreateEvent->pEntNew, pCreateEvent->pEntity, createParams));
 			bNewEntity = pNewEntity != pPrevNewEntity;
 
+			int lastDrawnFrame = pSrcRenderNode ? pSrcRenderNode->GetDrawFrame() : 0;
 			if (pCreateEvent->nTotParts == 1)
-				SetEntityLifetime(pNewEntity, pNewStatObj->GetProperties(), pSrcRenderNode && (!pSrcRenderNode->m_pTempData || pSrcRenderNode->GetDrawFrame() + 10 > gEnv->pRenderer->GetFrameID()));
+				SetEntityLifetime(pNewEntity, pNewStatObj->GetProperties(), pSrcRenderNode && (!lastDrawnFrame || lastDrawnFrame + 10 > gEnv->pRenderer->GetFrameID()));
 		}
 	}
 
@@ -2013,12 +1983,14 @@ void CBreakableManager::HandlePhysicsCreateEntityPartEvent(const EventPhysCreate
 				 */
 				float fMass = 0.0f;
 				float fDensity = 0.0f;
-				float fVolume = 0.0f;
 				Vec3 vCM(ZERO);
 				Vec3 vLinVel(ZERO);
 				Vec3 vAngVel(ZERO);
 				if (pCreateEvent->pEntNew)
+				{
+					float fVolume;
 					GetPhysicsStatus(pCreateEvent->pEntNew, fMass, fVolume, fDensity, vCM, vLinVel, vAngVel);
+				}
 				if (fDensity <= 0.0f)
 					pNewStatObj->GetPhysicalProperties(fMass, fDensity);
 				SMFXBreakageParams mfxBreakageParams;
@@ -2081,9 +2053,9 @@ void CBreakableManager::HandlePhysicsRevealSubPartEvent(const EventPhysRevealEnt
 
 	if (iForeignData == PHYS_FOREIGN_ID_ENTITY)
 	{
-		pEntity = (CEntity*)pForeignData;
+		pEntity = static_cast<CEntity*>(pForeignData);
 		if (pEntity && id >= EntityPhysicsUtils::PARTID_LINKED)
-			pEntity = (CEntity*)pEntity->UnmapAttachedChild(id);
+			pEntity = static_cast<CEntity*>(pEntity->UnmapAttachedChild(id));
 		if (pEntity)
 		{
 			pStatObj = pEntity->GetStatObj(ENTITY_SLOT_ACTUAL);
@@ -2093,7 +2065,7 @@ void CBreakableManager::HandlePhysicsRevealSubPartEvent(const EventPhysRevealEnt
 		}
 	}
 	else if (iForeignData == PHYS_FOREIGN_ID_STATIC)
-		if (pStatObj = (pRenderNode = (IRenderNode*)pForeignData)->GetEntityStatObj(0, &nodeTM))
+		if (pStatObj = (pRenderNode = static_cast<IRenderNode*>(pForeignData))->GetEntityStatObj(0, &nodeTM))
 		{
 			nSubObjHideMask = pStatObj->GetInitialHideMask();
 			bNewObject = true;
@@ -2135,7 +2107,7 @@ void CBreakableManager::HandlePhysicsRevealSubPartEvent(const EventPhysRevealEnt
 				createParams.nEntityFlagsAdd = ENTITY_FLAG_MODIFIED_BY_PHYSICS;
 			createParams.pName = pRenderNode->GetName();
 
-			pEntity = (CEntity*)CreateObjectAsEntity(pStatObj, pRevealEvent->pEntity, pRevealEvent->pEntity, createParams, true);
+			pEntity = static_cast<CEntity*>(CreateObjectAsEntity(pStatObj, pRevealEvent->pEntity, pRevealEvent->pEntity, createParams, true));
 		}
 
 	if (pEntity && pEntity->GetEntityRender())
@@ -2176,11 +2148,21 @@ void CBreakableManager::HandlePhysicsRemoveSubPartsEvent(const EventPhysRemoveEn
 	if (iForeignData == PHYS_FOREIGN_ID_ENTITY)
 	{
 		//CryLogAlways( "* RemoveEvent Entity" );
-		pEntity = (CEntity*)pForeignData;
+		pEntity = static_cast<CEntity*>(pForeignData);
 		if (pEntity && pRemoveEvent->idOffs >= EntityPhysicsUtils::PARTID_LINKED)
-			pEntity = (CEntity*)pEntity->UnmapAttachedChild(idOffs);
+			pEntity = static_cast<CEntity*>(pEntity->UnmapAttachedChild(idOffs));
 		if (pEntity)
+		{
 			pStatObj = pEntity->GetStatObj(ENTITY_SLOT_ACTUAL);
+			if (pEntity->GetSlotCount() > 1 && (!pStatObj || !(pStatObj->GetFlags() & STATIC_OBJECT_COMPOUND)))
+			{
+				for (int i = 0; i < sizeof(pRemoveEvent->partIds) / sizeof(pRemoveEvent->partIds[0]); i++)
+					for (j = 0; j < 32; j++)
+						if (pRemoveEvent->partIds[i] & 1u << j)
+							pEntity->FreeSlot(pRemoveEvent->idOffs + i * 32 + j);
+				return;
+			}
+		}
 		if (pStatObj && !(pStatObj->GetFlags() & STATIC_OBJECT_COMPOUND))
 		{
 			// If entity only hosts a single geometry and nothing remains, delete entity itself.
@@ -2204,7 +2186,7 @@ void CBreakableManager::HandlePhysicsRemoveSubPartsEvent(const EventPhysRemoveEn
 	else if (iForeignData == PHYS_FOREIGN_ID_STATIC)
 	{
 		//CryLogAlways( "* RemoveEvent Entity Static" );
-		pRenderNode = (IRenderNode*)pForeignData;
+		pRenderNode = static_cast<IRenderNode*>(pForeignData);
 		pStatObj = pRenderNode->GetEntityStatObj(0, &nodeTM);
 		bNewObject = true;
 	}
@@ -2318,7 +2300,7 @@ void CBreakableManager::HandlePhysicsRemoveSubPartsEvent(const EventPhysRemoveEn
 				createParams.nEntityFlagsAdd = ENTITY_FLAG_MODIFIED_BY_PHYSICS;
 			createParams.pName = pRenderNode->GetName();
 
-			IEntity* pNewHoldingEntity = CreateObjectAsEntity(pStatObj, pRemoveEvent->pEntity, pRemoveEvent->pEntity, createParams, true);
+			CEntity* pNewHoldingEntity = static_cast<CEntity*>(CreateObjectAsEntity(pStatObj, pRemoveEvent->pEntity, pRemoveEvent->pEntity, createParams, true));
 
 			if (pNewHoldingEntity)
 			{
@@ -2350,8 +2332,8 @@ int CBreakableManager::HandlePhysics_UpdateMeshEvent(const EventPhysUpdateMesh* 
 		IRopeRenderNode::SRopeParams params = pRope->GetParams();
 		pe_params_rope pr;
 		pUpdateEvent->pEntity->GetParams(&pr);
-		IEntity* pSrcEntity = pRope->GetOwnerEntity();
-		CEntityComponentRope* pRopeProxy = (CEntityComponentRope*)pSrcEntity->GetProxy(ENTITY_PROXY_ROPE);
+		CEntity* pSrcEntity = static_cast<CEntity*>(pRope->GetOwnerEntity());
+		CEntityComponentRope* pRopeProxy = static_cast<CEntityComponentRope*>(pSrcEntity->GetProxy(ENTITY_PROXY_ROPE));
 		pRopeProxy->PreserveParams();
 		params.nNumSegments = FtoI(pr.nSegments * params.nNumSegments / (float)params.nPhysSegments);
 		params.fTextureTileV = params.fTextureTileV * pr.nSegments / params.nPhysSegments;
@@ -2364,7 +2346,7 @@ int CBreakableManager::HandlePhysics_UpdateMeshEvent(const EventPhysUpdateMesh* 
 
 	if (iForeignData == PHYS_FOREIGN_ID_ENTITY)
 	{
-		pCEntity = (CEntity*)pForeignData;
+		pCEntity = static_cast<CEntity*>(pForeignData);
 		if (!pCEntity || !pCEntity->GetPhysicalProxy())
 			return 1;
 	}
@@ -2372,9 +2354,9 @@ int CBreakableManager::HandlePhysics_UpdateMeshEvent(const EventPhysUpdateMesh* 
 	{
 		IBreakableManager::SCreateParams createParams;
 
-		CBreakableManager* pBreakMgr = (CBreakableManager*)GetIEntitySystem()->GetBreakableManager();
+		CBreakableManager* pBreakMgr = static_cast<CBreakableManager*>(GetIEntitySystem()->GetBreakableManager());
 
-		IRenderNode* pRenderNode = (IRenderNode*)pUpdateEvent->pForeignData;
+		IRenderNode* pRenderNode = static_cast<IRenderNode*>(pUpdateEvent->pForeignData);
 		IStatObj* pStatObj = pRenderNode->GetEntityStatObj(0, &mtx);
 
 		PhysicsVars* pVars = gEnv->pPhysicalWorld->GetPhysVars();
@@ -2408,7 +2390,7 @@ int CBreakableManager::HandlePhysics_UpdateMeshEvent(const EventPhysUpdateMesh* 
 		return 1;
 
 	bop_meshupdate* pmu = (bop_meshupdate*)pUpdateEvent->pMesh->GetForeignData(DATA_MESHUPDATE);
-	IStatObj* pSrcStatObj = (IStatObj*)pUpdateEvent->pMesh->GetForeignData();
+	IStatObj* pSrcStatObj = static_cast<IStatObj*>(pUpdateEvent->pMesh->GetForeignData());
 	if (pmu && pSrcStatObj && GetSurfaceType(pSrcStatObj))
 	{
 		SpawnParams paramsDestroy;
@@ -2464,10 +2446,11 @@ int CBreakableManager::HandlePhysics_UpdateMeshEvent(const EventPhysUpdateMesh* 
 			mesh_data* md = (mesh_data*)pUpdateEvent->pMeshSkel->GetData();
 			IStatObj* pStatObj = pIEntityRender->GetStatObj(pUpdateEvent->partid);
 			if (pUpdateEvent->idx == 0)
-				pDeformedStatObj = (IStatObj*)pUpdateEvent->pMesh->GetForeignData();
+				pDeformedStatObj = static_cast<IStatObj*>(pUpdateEvent->pMesh->GetForeignData());
 			else if (pStatObj)
 			{
-				pDeformedStatObj = pStatObj->SkinVertices(md->pVertices, pUpdateEvent->mtxSkelToMesh);
+				Matrix34 mtxSkelToMeshAligned = pUpdateEvent->mtxSkelToMesh;
+				pDeformedStatObj = pStatObj->SkinVertices(md->pVertices, mtxSkelToMeshAligned);
 				if (pUpdateEvent->pMesh->GetPrimitiveCount() > 1)
 					pUpdateEvent->pMesh->SetForeignData(pDeformedStatObj, 0);
 			}
@@ -2477,7 +2460,7 @@ int CBreakableManager::HandlePhysics_UpdateMeshEvent(const EventPhysUpdateMesh* 
 		if (ICharacterInstance* pChar = pIEntityRender->GetCharacter(0))
 			if (IAttachmentManager* pAttMan = pChar->GetIAttachmentManager())
 				for (int i = pAttMan->GetAttachmentCount() - 1; i >= 0 && !bChar; i--)
-					if (bChar = pAttMan->GetInterfaceByIndex(i)->GetIAttachmentObject()->GetIStatObj() == pSrcStatObj)
+					if (bChar = pAttMan->GetInterfaceByIndex(i)->GetIAttachmentObject() && pAttMan->GetInterfaceByIndex(i)->GetIAttachmentObject()->GetIStatObj() == pSrcStatObj)
 						((CCGFAttachment*)pAttMan->GetInterfaceByIndex(i)->GetIAttachmentObject())->pObj = pDeformedStatObj;
 
 		if (!bChar)
@@ -2539,7 +2522,7 @@ void CBreakableManager::ResetBrokenObjects()
 {
 	for (int i = m_brokenObjs.size() - 1; i >= 0; i--)
 	{
-		IEntity* pEnt = m_pEntitySystem->GetEntity(m_brokenObjs[i].idEnt);
+		CEntity* pEnt = g_pIEntitySystem->GetEntityFromID(m_brokenObjs[i].idEnt);
 		if (pEnt)
 		{
 			for (int j = pEnt->GetSlotCount() - 1; j >= 0; j--)
@@ -2568,7 +2551,7 @@ void CBreakableManager::GetPlaneMemoryStatistics(void* pPlaneRaw, ICrySizer* pSi
 	if (!pPlaneRaw)
 		return;
 
-	CBreakablePlane* pPlane = (CBreakablePlane*)pPlaneRaw;
+	CBreakablePlane* pPlane = static_cast<CBreakablePlane*>(pPlaneRaw);
 	pPlane->m_pGrid->GetMemoryStatistics(pSizer);
 }
 

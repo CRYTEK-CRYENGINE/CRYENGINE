@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 /********************************************************************
    CryGame Source File.
@@ -69,7 +69,7 @@ CPathFollower::~CPathFollower()
 //===================================================================
 float CPathFollower::DistancePointPoint(const Vec3 pt1, const Vec3 pt2) const
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 	return m_params.use2D ? Distance::Point_Point2D(pt1, pt2) : Distance::Point_Point(pt1, pt2);
 }
@@ -105,7 +105,7 @@ void CPathFollower::AttachToPath(INavPath* pNavPath)
 //===================================================================
 static Vec3 GetPathPointAhead(const TPathPoints& pathPts, TPathPoints::const_iterator it, float dist)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 	AIAssert(!pathPts.empty());
 	if (dist >= 0.0f)
@@ -146,7 +146,7 @@ static Vec3 GetPathPointAhead(const TPathPoints& pathPts, TPathPoints::const_ite
 //===================================================================
 void CPathFollower::ProcessPath()
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 	IAISystem::tNavCapMask swingOutTypes = IAISystem::NAV_TRIANGULAR | IAISystem::NAV_WAYPOINT_HUMAN | IAISystem::NAV_VOLUME;
 
@@ -356,7 +356,7 @@ void CPathFollower::StartFollowing(const Vec3& curPos, const Vec3& curVel)
 void CPathFollower::GetNewLookAheadPos(Vec3& newLAPos, int& newLASegIndex, const Vec3& curLAPos, int curLASegIndex,
                                        const Vec3& curPos, const Vec3& curVel, float dt) const
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 	newLASegIndex = curLASegIndex;
 	newLAPos = curLAPos;
@@ -437,7 +437,7 @@ void CPathFollower::GetNewLookAheadPos(Vec3& newLAPos, int& newLASegIndex, const
 void CPathFollower::UseLookAheadPos(Vec3& velocity, bool& reachedEnd, const Vec3 LAPos, const Vec3 curPos, const Vec3 curVel,
                                     float dt, int curLASegmentIndex, float& lastOutputSpeed) const
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 	velocity = LAPos - curPos;
 	if (m_params.use2D)
@@ -517,7 +517,7 @@ void CPathFollower::UseLookAheadPos(Vec3& velocity, bool& reachedEnd, const Vec3
 
 uint32 CPathFollower::GetIndex(const Vec3& pos) const
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 	float bestPathDistSq = std::numeric_limits<float>::max();
 	int nPts = m_pathControlPoints.size();
@@ -547,7 +547,7 @@ uint32 CPathFollower::GetIndex(const Vec3& pos) const
 //===================================================================
 bool CPathFollower::Update(PathFollowResult& result, const Vec3& curPos, const Vec3& curVel, float dt)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 	float curSpeed = m_params.use2D ? curVel.GetLength2D() : curVel.GetLength();
 
@@ -893,7 +893,7 @@ void CPathFollower::SetAllowCuttingCorners(const bool allowCuttingCorners)
 //===================================================================
 // IsRemainingPathAffectedByNavMeshChange
 //===================================================================
-bool CPathFollower::IsRemainingPathAffectedByNavMeshChange(const NavigationMeshID affectedMeshID, const MNM::TileID affectedTileID) const
+bool CPathFollower::IsRemainingPathAffectedByNavMeshChange(const NavigationMeshID affectedMeshID, const MNM::TileID affectedTileID, bool bAnnotationChange, bool bDataChange) const
 {
 	CRY_ASSERT(false);  // not implemented
 	return false;

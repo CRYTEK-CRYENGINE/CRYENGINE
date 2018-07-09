@@ -1,0 +1,23 @@
+<RCC>
+    <qresource prefix="/icons">
+        <file>icon_tcoll.png</file>
+        <file>icon_layers.png</file>
+        <file>source_control.png</file>
+        <file>icon_lock.png</file>
+        <file>ball_disabled.png</file>
+        <file>ball_offline.png</file>
+        <file>ball_online.png</file>
+        <file>ball_pending.png</file>
+        <file>close.png</file>
+        <file>search.png</file>
+        <file>plus.png</file>
+        <file>rename.ico</file>
+        <file>minus.png</file>
+        <file>editor_icon.ico</file>
+    </qresource>
+	<qresource>
+        <file>toolbar-drop-target.png</file>
+		<file>splash.bmp</file>
+		<file>about.png</file>
+	</qresource>
+</RCC>

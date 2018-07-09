@@ -10,9 +10,9 @@ a.binaries = a.binaries - TOC([('_hashlib', '', '')])
 for bin in a.binaries:
 	print('{}'.format(bin))
 
-# Remove clashing dependency duplicate 
+# Remove clashing dependency duplicate
 for d in a.datas:
-	if 'pyconfig' in d[0]: 
+	if 'pyconfig' in d[0]:
 		a.datas.remove(d)
 		break
 

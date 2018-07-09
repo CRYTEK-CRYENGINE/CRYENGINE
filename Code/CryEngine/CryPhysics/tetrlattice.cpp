@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 
@@ -362,7 +362,7 @@ void CTetrLattice::Subtract(IGeometry *pGeom, const geom_world_data *pgwd1,const
 int CTetrLattice::CheckStructure(float time_interval,const Vec3 &gravity, const plane *pGround,int nPlanes, pe_explosion *pexpl, 
 																 int maxIters,int bLogTension)
 {
-	FUNCTION_PROFILER( GetISystem(),PROFILE_PHYSICS );
+	CRY_PROFILE_FUNCTION(PROFILE_PHYSICS );
 
 	int i,j,nTets=0,nFaces=0,iter;
 	Vec3 pt,dw0,dw1,n;
@@ -770,10 +770,10 @@ void CTetrLattice::DrawWireframe(IPhysRenderer *pRenderer, geom_world_data *gwd,
 
 IGeometry *CTetrLattice::CreateSkinMesh(int nMaxTrisPerBVNode)
 {
-	int i,j,ivtx,itri;
+	int i,j,itri;
 	index_t *pIdx=new index_t[m_nTetr*12];
-	for(i=itri=0;i<m_nTetr;i++) for(j=0;j<4;j++) if (m_pTetr[i].ibuddy[j]<0) 
-		for(ivtx=3;ivtx>0;ivtx--) pIdx[itri++] = m_pTetr[i].ivtx[j+5*(j&1)+(ivtx^-(j&1)) & 3];
+	for(i=itri=0;i<m_nTetr;i++) for(j=0;j<4;j++) if (m_pTetr[i].ibuddy[j]<0)
+		itri += GetFaceIdx(i,j, pIdx+itri);
 
 	IGeometry *pGeom = m_pWorld->GetGeomManager()->CreateMesh(m_pVtx,pIdx,0,0,itri/3,
 		mesh_AABB|mesh_shared_vtx|mesh_shared_idx|mesh_multicontact2,0.0f,2,nMaxTrisPerBVNode);
@@ -808,12 +808,13 @@ int CTetrLattice::CheckPoint(const Vec3 &pt, int *idx, float *w)
 	for(i=m_pGridTet0[ic*m_strideGrid]; i<m_pGridTet0[ic*m_strideGrid+1]; i++) 
 		if (!((ptet=m_pTetr+m_pGrid[i])->flags & ltet_removed)) {
 			for(j=0;j<4;j++) {
-				w[j] = ((m_pVtx[ptet->ivtx[j+2&3]]-m_pVtx[ptet->ivtx[j+1&3]] ^ m_pVtx[ptet->ivtx[j+3&3]]-m_pVtx[ptet->ivtx[j+1&3]])*
-							 (ptloc-m_pVtx[ptet->ivtx[j]]))*(1.0f/6)*ptet->Vinv*(1-(j&1)*2);
+				int ivtx[3]; GetFaceIdx(m_pGrid[i],j, ivtx);
+				w[j] = ((m_pVtx[ivtx[2]]-m_pVtx[ivtx[0]] ^ m_pVtx[ivtx[1]]-m_pVtx[ivtx[0]])*
+							 (pt-m_pVtx[ivtx[0]]))*(1.0f/6)*ptet->Vinv;
 				idx[j] = ptet->ivtx[j];
 			}
 			if (min(min(min(w[0],w[1]),w[2]),w[3])>0.0f)
-				return i+1;
+				return m_pGrid[i]+1;
 		}	
 	return 0;
 }

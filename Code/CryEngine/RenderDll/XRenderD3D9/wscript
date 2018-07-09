@@ -1,4 +1,4 @@
-# Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+# Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 import os
 from waflib.TaskGen import after_method, feature
 from waflib import Logs
@@ -30,7 +30,7 @@ def build(bld):
 		win_defines     = [ 'CRY_RENDERER_DIRECT3D=110', 'DO_RENDERSTATS', '_RENDERER' ] + additional_defines,
 		win_lib         = [ 'dxguid', 'd3d11', 'd3d10', 'd3dcompiler', 'Ole32', 'Gdi32', 'wininet', 'Shell32' ],
 		win_linkflags   = [ '/NODEFAULTLIB:libcmt.lib' ], ## AMD AGS static lib references this
-		win_use_module  = [ 'png16' ],
+		win_use_module  = [ 'png16', 'tiff' ],
 
 		durango_file_list  = [ 'durango_renderer.waf_files', 'mesh_baker.waf_files' ],
 		durango_defines    = [ 'CRY_RENDERER_DIRECT3D=111', 'DO_RENDERSTATS', '_RENDERER' ] + additional_defines,
@@ -67,7 +67,7 @@ def build(bld):
 		win_lib          = ['opengl32', 'winmm', 'Ole32', 'Gdi32', 'wininet', 'Shell32', 'libHLSLcc'  ],
 		win_libpath      = [ Path('Code/Tools/HLSLCrossCompiler/lib/win64') ],
 		win_linkflags    = [ '/NODEFAULTLIB:libcmt.lib' ], ## AMD AGS static lib references this
-		win_use_module   = [ 'png16' ],
+		win_use_module   = [ 'png16', 'tiff' ],
 		win_defines      = ['CRY_RENDERER_OPENGL=440'],
 		
 		darwin_file_list = ['mesh_baker.waf_files' ],
@@ -113,7 +113,7 @@ def build(bld):
 			win_includes     = [ Path('Code/Tools/LibTIFF'), Path('Code/CryEngine/RenderDll/XRenderD3D9/DX12/Includes') ],
 			win_lib          = [ 'dxguid', 'd3d12', 'dxgi', 'd3dcompiler', 'Ole32', 'Gdi32', 'wininet', 'Shell32' ],
 			win_linkflags    = [ '/NODEFAULTLIB:libcmt.lib' ], ## AMD AGS static lib references this
-			win_use_module   = [ 'png16' ],
+			win_use_module   = [ 'png16', 'tiff' ],
 			
 			durango_file_list  = [ 'durango_renderer.waf_files' ],
 			durango_defines    = [ 'CRY_RENDERER_DIRECT3D=120', 'DO_RENDERSTATS', '_RENDERER' ] + additional_defines,
@@ -165,7 +165,7 @@ def build(bld):
 		win_lib           = ['Ole32', 'Gdi32', 'wininet', 'Shell32', 'dxguid', 'vulkan-1' ], 
 		win_linkflags     = ['/NODEFAULTLIB:libcmt.lib' ], ## AMD AGS static lib references this
 		win_libpath       = [ Path('Code/SDKs/VulkanSDK/Lib') ],
-		win_use_module    = [ 'png16' ],
+		win_use_module    = [ 'png16', 'tiff' ],
 
 		android_file_list = ['mesh_baker.waf_files']
 	)

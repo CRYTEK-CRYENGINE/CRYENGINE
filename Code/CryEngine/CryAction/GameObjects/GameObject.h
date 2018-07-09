@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -12,14 +12,14 @@ class CGameObject;
 
 struct SBasicSpawnParams : public ISerializable
 {
-	string name;
-	uint16 classId;
-	Vec3   pos;
-	Quat   rotation;
-	Vec3   scale;
-	bool   bClientActor;
-	uint16 nChannelId;
-	uint32 flags;
+	string  name;
+	uint16  classId;
+	Vec3    pos;
+	Quat    rotation;
+	Vec3    scale;
+	bool    bClientActor;
+	uint16  nChannelId;
+	uint32  flags;
 	CryGUID baseComponent;
 
 	virtual void SerializeWith(TSerialize ser)
@@ -114,22 +114,22 @@ public:
 	CGameObject();
 	virtual ~CGameObject();
 
-	static void CreateCVars();
+	static void  CreateCVars();
 
-	void OnInitEvent();
+	void         OnInitEvent();
 	virtual void Update(SEntityUpdateContext& ctx);
 
 	// IEntityComponent
-	virtual EEntityProxy GetProxyType() const final { return ENTITY_PROXY_USER; };
-	virtual void         Initialize() final;
-	virtual void         OnShutDown() final;
-	virtual void         Release() final;
-	virtual void         ProcessEvent(SEntityEvent& event) final;
-	virtual uint64       GetEventMask() const final;
+	virtual EEntityProxy           GetProxyType() const final { return ENTITY_PROXY_USER; };
+	virtual void                   Initialize() final;
+	virtual void                   OnShutDown() final;
+	virtual void                   Release() final;
+	virtual void                   ProcessEvent(const SEntityEvent& event) final;
+	virtual uint64                 GetEventMask() const final;
 	virtual ComponentEventPriority GetEventPriority() const override;
 
-	virtual NetworkAspectType GetNetSerializeAspectMask() const override;
-	virtual bool NetSerializeEntity(TSerialize ser, EEntityAspects aspect, uint8 profile, int flags) override;
+	virtual NetworkAspectType      GetNetSerializeAspectMask() const override;
+	virtual bool                   NetSerializeEntity(TSerialize ser, EEntityAspects aspect, uint8 profile, int flags) override;
 
 	// we have gained (or lost) control of this object
 	virtual void SetAuthority(bool auth) override
@@ -141,9 +141,8 @@ public:
 		return m_pNetEntity->HasAuthority();
 	}
 
-
-	virtual void         GameSerialize(TSerialize ser) final;
-	virtual bool         NeedGameSerialize() final;
+	virtual void GameSerialize(TSerialize ser) final;
+	virtual bool NeedGameSerialize() final;
 	// ~IEntityComponent
 
 	// IActionListener
@@ -239,8 +238,6 @@ public:
 	virtual void         InitClient(int channelId);
 	virtual void         PostInitClient(int channelId);
 
-	ISerializableInfoPtr GetSpawnInfo();
-
 	NetworkAspectType    GetEnabledAspects() const override;
 	uint8                GetDefaultProfile(EEntityAspects aspect) override;
 
@@ -250,8 +247,6 @@ public:
 
 	void         FlushActivatableExtensions() { FlushExtensions(false); }
 
-	void         PostRemoteSpawn();
-
 	void         GetMemoryUsage(ICrySizer* s) const override;
 
 	virtual void DontSyncPhysics() override;
@@ -260,7 +255,7 @@ public:
 	void         ReleaseMutex();
 
 	// INetEntity-specific, not needed for CGameObject. 
-	virtual void RmiRegister(SRmiHandler& handler) override {};
+	virtual void      RmiRegister(const SRmiHandler& handler) override {};
 	virtual SRmiIndex RmiByDecoder(SRmiHandler::DecoderF decoder, SRmiHandler **handler) override
 	{
 		return SRmiIndex(0);
@@ -270,13 +265,18 @@ public:
 		return nullptr;
 	};
 
+	virtual void OnNetworkedEntityTransformChanged(EntityTransformationFlagsMask transformReasons) override;
+
+	virtual void OnComponentAddedDuringInitialization(IEntityComponent* pComponent) const override { return m_pNetEntity->OnComponentAddedDuringInitialization(pComponent); }
+	virtual void OnEntityInitialized() override { m_pNetEntity->OnEntityInitialized(); }
+
 private:
-	INetEntity* m_pNetEntity;
+	INetEntity*      m_pNetEntity;
 
-	IActionListener*           m_pActionDelegate;
+	IActionListener* m_pActionDelegate;
 
-	IGameObjectView*           m_pViewDelegate;
-	IView*                     m_pView;
+	IGameObjectView* m_pViewDelegate;
+	IView*           m_pView;
 
 #if GAME_OBJECT_SUPPORTS_CUSTOM_USER_DATA
 	void* m_pUserData;
@@ -315,7 +315,7 @@ private:
 
 		// extension by flag event registration
 		uint64                         eventReg;
-		IGameObjectExtension*        pExtension;
+		IGameObjectExtension*          pExtension;
 		IGameObjectSystem::ExtensionID id;
 		// refCount is the number of AcquireExtensions pending ReleaseExtensions
 		uint8                          refCount;
@@ -347,15 +347,15 @@ private:
 	static int        m_nAddingExtension;
 
 	typedef std::vector<SExtension> TExtensions;
-	TExtensions       m_extensions;
-	bool              m_inRange             : 1;
-	bool              m_justExchanging      : 1;
-	bool              m_bVisible            : 1;
-	bool              m_bPrePhysicsEnabled  : 1;
-	bool              m_bPhysicsDisabled    : 1;
-	bool              m_bNeedsNetworkRebind : 1;
-	bool              m_bOnInitEventCalled  : 1;
-	bool              m_bShouldUpdate       : 1;
+	TExtensions m_extensions;
+	bool        m_inRange             : 1;
+	bool        m_justExchanging      : 1;
+	bool        m_bVisible            : 1;
+	bool        m_bPrePhysicsEnabled  : 1;
+	bool        m_bPhysicsDisabled    : 1;
+	bool        m_bNeedsNetworkRebind : 1;
+	bool        m_bOnInitEventCalled  : 1;
+	bool        m_bShouldUpdate       : 1;
 	enum EUpdateState
 	{
 		eUS_Visible_Close = 0,
@@ -367,12 +367,12 @@ private:
 		eUS_COUNT_STATES,
 		eUS_INVALID = eUS_COUNT_STATES
 	};
-	uint                    m_updateState: CompileTimeIntegerLog2_RoundUp<eUS_COUNT_STATES>::result;
-	uint                    m_aiMode: CompileTimeIntegerLog2_RoundUp<eGOAIAM_COUNT_STATES>::result;
-	uint                    m_physDisableMode: CompileTimeIntegerLog2_RoundUp<eADPM_COUNT_STATES>::result;
+	uint                  m_updateState: CompileTimeIntegerLog2_RoundUp<eUS_COUNT_STATES>::result;
+	uint                  m_aiMode: CompileTimeIntegerLog2_RoundUp<eGOAIAM_COUNT_STATES>::result;
+	uint                  m_physDisableMode: CompileTimeIntegerLog2_RoundUp<eADPM_COUNT_STATES>::result;
 
 	IGameObjectExtension* m_pGameObjectExtensionCachedKey;
-	SExtension*             m_pGameObjectExtensionCachedValue;
+	SExtension*           m_pGameObjectExtensionCachedValue;
 	void        ClearCache() { m_pGameObjectExtensionCachedKey = nullptr; m_pGameObjectExtensionCachedValue = nullptr; }
 	SExtension* GetExtensionInfo(IGameObjectExtension* pExt)
 	{
@@ -402,15 +402,15 @@ private:
 		eUSE_Timeout,
 		eUSE_COUNT_EVENTS,
 	};
-	float                            m_updateTimer;
+	float             m_updateTimer;
 
-	SDistanceChecker                 m_distanceChecker;
+	SDistanceChecker  m_distanceChecker;
 
-	int                              m_enabledPhysicsEvents;
-	int                              m_forceUpdate;
-	int                              m_predictionHandle;
+	int               m_enabledPhysicsEvents;
+	int               m_forceUpdate;
+	int               m_predictionHandle;
 
-	EPrePhysicsUpdate                m_prePhysicsUpdateRule;
+	EPrePhysicsUpdate m_prePhysicsUpdateRule;
 
 	void FlushExtensions(bool includeStickyBits);
 	bool ShouldUpdateSlot(const SExtension* pExt, uint32 slot, uint32 slotbit, bool checkAIDisable);
@@ -424,6 +424,7 @@ private:
 	bool DoSetAspectProfile(EEntityAspects aspect, uint8 profile, bool fromNetwork);
 	void SetActivation(bool activate);
 	void SetPhysicsDisable(bool disablePhysics);
+	void PostRemoteSpawn();
 
 	static const float        UpdateTimeouts[eUS_COUNT_STATES];
 	static const EUpdateState UpdateTransitions[eUS_COUNT_STATES][eUSE_COUNT_EVENTS];

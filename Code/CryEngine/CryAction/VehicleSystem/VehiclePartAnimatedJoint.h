@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 /*************************************************************************
    -------------------------------------------------------------------------
@@ -31,47 +31,47 @@ public:
 	virtual ~CVehiclePartAnimatedJoint();
 
 	// IVehiclePart
-	virtual bool            Init(IVehicle* pVehicle, const CVehicleParams& table, IVehiclePart* parent, CVehicle::SPartInitInfo& initInfo, int partType) override;
-	virtual void            InitGeometry(const CVehicleParams& table);
-	virtual void            PostInit() override;
-	virtual void            Reset() override;
-	virtual bool            ChangeState(EVehiclePartState state, int flags) override;
-	virtual void            SetMaterial(IMaterial* pMaterial) override;
-	virtual void            OnVehicleEvent(EVehicleEvent event, const SVehicleEventParams& params) override;
+	virtual bool        Init(IVehicle* pVehicle, const CVehicleParams& table, IVehiclePart* parent, CVehicle::SPartInitInfo& initInfo, int partType) override;
+	virtual void        InitGeometry(const CVehicleParams& table);
+	virtual void        PostInit() override;
+	virtual void        Reset() override;
+	virtual bool        ChangeState(EVehiclePartState state, int flags) override;
+	virtual void        SetMaterial(IMaterial* pMaterial) override;
+	virtual void        OnVehicleEvent(EVehicleEvent event, const SVehicleEventParams& params) override;
 
-	virtual void            OnEvent(const SVehiclePartEvent& event) override;
+	virtual void        OnEvent(const SVehiclePartEvent& event) override;
 
-	virtual const Matrix34& GetLocalTM(bool relativeToParentPart, bool forced = false) override;
-	virtual const Matrix34& GetWorldTM() override;
-	virtual const AABB&     GetLocalBounds() override;
-	virtual const Matrix34& GetLocalInitialTM() override { return m_initialTM; }
+	virtual Matrix34    GetLocalTM(bool relativeToParentPart, bool forced = false) override;
+	virtual Matrix34    GetWorldTM() override;
+	virtual const AABB& GetLocalBounds() override;
+	virtual Matrix34    GetLocalInitialTM() override { return m_initialTM; }
 
-	virtual void            Physicalize() override;
-	virtual void            Update(const float frameTime) override;
+	virtual void        Physicalize() override;
+	virtual void        Update(const float frameTime) override;
 
-	virtual void            InvalidateTM(bool invalidate) override;
-	virtual void            SetMoveable(bool allowTranslationMovement = false) override;
+	virtual void        InvalidateTM(bool invalidate) override;
+	virtual void        SetMoveable(bool allowTranslationMovement = false) override;
 
-	virtual void            GetMemoryUsage(ICrySizer* s) const override;
+	virtual void        GetMemoryUsage(ICrySizer* s) const override;
 	// ~IVehiclePart
 
-	virtual void            SetLocalTM(const Matrix34& localTM) override;
-	virtual void            ResetLocalTM(bool recursive) override;
+	virtual void       SetLocalTM(const Matrix34& localTM) override;
+	virtual void       ResetLocalTM(bool recursive) override;
 
-	virtual int             GetJointId() { return m_jointId; }
+	virtual int        GetJointId() { return m_jointId; }
 
-	virtual IStatObj*       GetStatObj() override;
-	virtual bool            SetStatObj(IStatObj* pStatObj) override;
+	virtual IStatObj*  GetStatObj() override;
+	virtual bool       SetStatObj(IStatObj* pStatObj) override;
 
-	virtual IMaterial*      GetMaterial() override;
+	virtual IMaterial* GetMaterial() override;
 
-	virtual const Matrix34& GetLocalBaseTM() override { return m_baseTM; }
-	virtual void            SetLocalBaseTM(const Matrix34& tm) override;
+	virtual Matrix34   GetLocalBaseTM() override { return m_baseTM; }
+	virtual void       SetLocalBaseTM(const Matrix34& tm) override;
 
-	virtual void            SerMatrix(TSerialize ser, Matrix34& mat);
-	virtual void            Serialize(TSerialize ser, EEntityAspects aspects) override;
+	virtual void       SerMatrix(TSerialize ser, Matrix34& mat);
+	virtual void       Serialize(TSerialize ser, EEntityAspects aspects) override;
 
-	virtual IStatObj*       GetExternalGeometry(bool destroyed) override { return destroyed ? m_pDestroyedGeometry.get() : m_pGeometry.get(); }
+	virtual IStatObj*  GetExternalGeometry(bool destroyed) override { return destroyed ? m_pDestroyedGeometry.get() : m_pGeometry.get(); }
 
 protected:
 	Matrix34 m_baseTM;

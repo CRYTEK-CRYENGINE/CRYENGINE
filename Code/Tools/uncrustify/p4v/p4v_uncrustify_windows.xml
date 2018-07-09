@@ -7,8 +7,8 @@
    <CustomToolDef>
     <Definition>
      <Name>Uncrustify: format files</Name>
-     <Command>py</Command>
-     <Arguments>-3 $r/Code/Tools/uncrustify/p4v/p4v_uncrustify.py --apply --user=$u --client=$c %F</Arguments>
+     <Command>cmd</Command>
+     <Arguments>/c $r/Code/Tools/uncrustify/p4v/p4v_uncrustify.exe --apply --user=$u --client=$c %F</Arguments>
     </Definition>
     <Console>
      <CloseOnExit>false</CloseOnExit>
@@ -19,8 +19,8 @@
    <CustomToolDef>
     <Definition>
      <Name>Uncrustify: validate files</Name>
-     <Command>py</Command>
-     <Arguments>-3 $r/Code/Tools/uncrustify/p4v/p4v_uncrustify.py --check --user=$u --client=$c %F</Arguments>
+     <Command>cmd</Command>
+     <Arguments>/c $r/Code/Tools/uncrustify/p4v/p4v_uncrustify.exe --user=$u --client=$c %F</Arguments>
     </Definition>
     <Console>
      <CloseOnExit>false</CloseOnExit>
@@ -31,8 +31,8 @@
    <CustomToolDef>
     <Definition>
      <Name>Uncrustify: format changelist</Name>
-     <Command>py</Command>
-     <Arguments>-3 $r/Code/Tools/uncrustify/p4v/p4v_uncrustify.py --apply --user=$u --client=$c --changelist %P</Arguments>
+     <Command>cmd</Command>
+     <Arguments>/c $r/Code/Tools/uncrustify/p4v/p4v_uncrustify.exe --apply --user=$u --client=$c --changelist %P</Arguments>
     </Definition>
     <Console>
      <CloseOnExit>false</CloseOnExit>
@@ -43,8 +43,8 @@
    <CustomToolDef>
     <Definition>
      <Name>Uncrustify: validate changelist</Name>
-     <Command>py</Command>
-     <Arguments>-3 $r/Code/Tools/uncrustify/p4v/p4v_uncrustify.py --check --user=$u --client=$c --changelist %P</Arguments>
+     <Command>cmd</Command>
+     <Arguments>/c $r/Code/Tools/uncrustify/p4v/p4v_uncrustify.exe --user=$u --client=$c --changelist %P</Arguments>
     </Definition>
     <Console>
      <CloseOnExit>false</CloseOnExit>

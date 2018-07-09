@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 #define MATRIX44_H
@@ -6,6 +6,7 @@
 template<typename F> struct Matrix44H;
 template<typename F> struct Matrix44HR;
 
+//! General-purpose 4x4 matrix
 template<typename F> struct Matrix44_tpl
 	: INumberArray<F, 16>
 {

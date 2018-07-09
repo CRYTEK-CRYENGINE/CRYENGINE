@@ -22,6 +22,20 @@ typedef UINT_PTR TRUNCATE_PTR,EXPAND_PTR;
 #define CRY_ARRAY_COUNT(A) (sizeof(A)/sizeof((A)[0]))
 template<class T>	inline void ZeroArray(T& t)	{	memset(&t, 0, sizeof(t[0]) * CRY_ARRAY_COUNT(t));	}
 template<class T> inline void ZeroStruct(T& t) { memset(&t, 0, sizeof(T)); }
+template<class T> struct Array {
+	struct iter { 
+		iter(T& val) : val(val) {}
+		T& val;
+		bool operator!=(const iter&) { return false; }
+		iter& operator++() { return *this; }
+		T& operator*() { return val; }
+	};
+	T val;
+	Array() {}
+	iter begin() { return iter(val); }
+	iter end() { return iter(val); }
+	void fill(const T& f) { val=f; }
+};
 #define ColorF Vec4
 
 #ifdef _DEBUG
@@ -175,10 +189,10 @@ struct CFrameProfilerSection : CFrameProfilerSectionBase {
 };
 
 #define PROFILE_PHYSICS "Physics"
-#define FUNCTION_PROFILER( pISystem,subsystem ) \
+#define CRY_PROFILE_FUNCTION( subsystem ) \
 	static CFrameProfiler staticFrameProfiler( __FUNCTION__ ); \
 	CFrameProfilerSection frameProfilerSection( &staticFrameProfiler,get_iCaller() );	
-#define FRAME_PROFILER( szProfilerName,pISystem,subsystem ) \
-	static CFrameProfiler staticFrameProfiler( szProfilerName ); \
+#define CRY_PROFILE_REGION( subsystem, szName ) \
+	static CFrameProfiler staticFrameProfiler( szName ); \
 	CFrameProfilerSection frameProfilerSection( &staticFrameProfiler,get_iCaller() );
 

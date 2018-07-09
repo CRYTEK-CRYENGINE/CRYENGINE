@@ -18,7 +18,7 @@ namespace Cry
 			// IEntityComponent
 			virtual void   Initialize() final;
 
-			virtual void   ProcessEvent(SEntityEvent& event) final;
+			virtual void   ProcessEvent(const SEntityEvent& event) final;
 			// ~IEntityComponent
 
 		public:
@@ -40,6 +40,8 @@ namespace Cry
 
 				desc.AddMember(&CAnimatedMeshComponent::m_defaultAnimation, 'anim', "Animation", "Default Animation", "Specifies the animation we want to play by default", "");
 				desc.AddMember(&CAnimatedMeshComponent::m_bLoopDefaultAnimation, 'loop', "Loop", "Loop Default", "Whether or not to loop the default animation", false);
+				desc.AddMember(&CAnimatedMeshComponent::m_defaultAnimationSpeed, 'sped', "AnimSpeed", "Default Animation Speed", "Speed at which to play the default animation", 1.0f);
+				
 				desc.AddMember(&CAnimatedMeshComponent::m_physics, 'phys', "Physics", "Physics", "Physical properties for the object, only used if a simple physics or character controller is applied to the entity.", SPhysicsParameters());
 			}
 
@@ -67,7 +69,7 @@ namespace Cry
 			virtual void SetLayer(int layer) { m_animationParams.m_nLayerID = layer; }
 
 			virtual void SetCharacterFile(const char* szPath);
-			const char* SetCharacterFile() const { return m_filePath.value.c_str(); }
+			const char* GetCharacterFile() const { return m_filePath.value.c_str(); }
 
 			virtual void SetDefaultAnimationName(const char* szPath);
 			const char* GetDefaultAnimationName() const { return m_defaultAnimation.value.c_str(); }
@@ -89,6 +91,7 @@ namespace Cry
 
 			Schematyc::LowLevelAnimationName m_defaultAnimation;
 			bool m_bLoopDefaultAnimation = false;
+			Schematyc::PositiveFloat m_defaultAnimationSpeed = 1.f;
 
 			_smart_ptr<ICharacterInstance> m_pCachedCharacter = nullptr;
 		};

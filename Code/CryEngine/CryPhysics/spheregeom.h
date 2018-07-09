@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #ifndef spheregeom_h
 #define spheregeom_h
@@ -31,7 +31,7 @@ public:
 	virtual float GetVolume() { return (4.0f/3)*g_PI*cube(m_sphere.r); }
 	virtual Vec3 GetCenter() { return m_sphere.center; }
 	virtual float GetExtent(EGeomForm eForm) const;
-	virtual void GetRandomPos(PosNorm& ran, CRndGen& seed, EGeomForm eForm) const;
+	virtual void GetRandomPoints(Array<PosNorm> points, CRndGen& seed, EGeomForm eForm) const;
 	virtual int PrepareForIntersectionTest(geometry_under_test *pGTest, CGeometry *pCollider,geometry_under_test *pGTestColl, bool bKeepPrevContacts=false);
 	virtual int PreparePrimitive(geom_world_data *pgwd,primitive *&pprim,int iCaller=0);
 	virtual int GetPrimitiveList(int iStart,int nPrims, int typeCollider,primitive *pCollider,int bColliderLocal, 

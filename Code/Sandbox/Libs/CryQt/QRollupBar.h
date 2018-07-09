@@ -1,3 +1,5 @@
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
+
 #pragma once
 #include <QObject>
 #include <QWidget>
@@ -57,3 +59,4 @@ private:
 	bool m_canReorder;
 	bool m_rollupsClosable;
 };
+

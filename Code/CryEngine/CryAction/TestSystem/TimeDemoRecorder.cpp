@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 // -------------------------------------------------------------------------
 //  File name:   timedemorecorder.cpp
@@ -27,6 +27,8 @@
 #include <CrySystem/VR/IHMDManager.h>
 #include <CrySystem/VR/IHMDDevice.h>
 #include <CryCore/Platform/CryWindows.h>
+
+#include <array>
 
 //////////////////////////////////////////////////////////////////////////
 // Brush Export structures.
@@ -524,6 +526,37 @@ CTimeDemoRecorder::CTimeDemoRecorder()
 CTimeDemoRecorder::~CTimeDemoRecorder()
 {
 	s_pTimeDemoRecorder = 0;
+
+	gEnv->pConsole->UnregisterVariable("demo_file");
+	gEnv->pConsole->UnregisterVariable("demo_game_state");
+	gEnv->pConsole->UnregisterVariable("demo_profile");
+	gEnv->pConsole->UnregisterVariable("demo_noinfo");
+	
+	gEnv->pConsole->RemoveCommand("record");
+	gEnv->pConsole->RemoveCommand("stoprecording");
+	gEnv->pConsole->RemoveCommand("demo");
+	gEnv->pConsole->RemoveCommand("stopdemo");
+	gEnv->pConsole->RemoveCommand("demo_StartDemoChain");
+	gEnv->pConsole->RemoveCommand("demo_StartDemoLevel");
+
+	gEnv->pConsole->UnregisterVariable("demo_num_runs");
+	gEnv->pConsole->UnregisterVariable("demo_scroll_pause");
+	gEnv->pConsole->UnregisterVariable("demo_quit");
+	gEnv->pConsole->UnregisterVariable("demo_finish_memreplay_sizer");
+	gEnv->pConsole->UnregisterVariable("demo_finish_memreplay_stop");
+	gEnv->pConsole->UnregisterVariable("demo_screenshot_frame");
+	gEnv->pConsole->UnregisterVariable("demo_max_frames");
+	gEnv->pConsole->UnregisterVariable("demo_savestats");
+	gEnv->pConsole->UnregisterVariable("demo_ai");
+	gEnv->pConsole->UnregisterVariable("demo_restart_level");
+	gEnv->pConsole->UnregisterVariable("demo_panoramic");
+	gEnv->pConsole->UnregisterVariable("demo_fixed_timestep");
+	gEnv->pConsole->UnregisterVariable("demo_vtune");
+	gEnv->pConsole->UnregisterVariable("demo_time_of_day");
+	gEnv->pConsole->UnregisterVariable("demo_save_every_frame");
+	gEnv->pConsole->UnregisterVariable("demo_use_hmd_rotation");
+	gEnv->pConsole->UnregisterVariable("demo_finish_cmd");
+	gEnv->pConsole->UnregisterVariable("demo_num_orientations");
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -554,6 +587,20 @@ const char* CTimeDemoRecorder::GetCurrentLevelPath()
 	 */
 }
 
+std::array<EEntityEvent, 8> g_recordedEntityEvents =
+{
+	{
+		ENTITY_EVENT_XFORM,
+		ENTITY_EVENT_HIDE,
+		ENTITY_EVENT_UNHIDE,
+		ENTITY_EVENT_ATTACH,
+		ENTITY_EVENT_DETACH,
+		ENTITY_EVENT_DETACH_THIS,
+		ENTITY_EVENT_ENABLE_PHYSICS,
+		ENTITY_EVENT_ENTER_SCRIPT_STATE
+	}
+};
+
 //////////////////////////////////////////////////////////////////////////
 void CTimeDemoRecorder::Record(bool bEnable)
 {
@@ -572,17 +619,16 @@ void CTimeDemoRecorder::Record(bool bEnable)
 	{
 		SaveAllEntitiesState();
 
-		uint64 onEventSubscriptions = 0;
-		onEventSubscriptions |= ENTITY_EVENT_BIT(ENTITY_EVENT_XFORM);
-		onEventSubscriptions |= ENTITY_EVENT_BIT(ENTITY_EVENT_HIDE);
-		onEventSubscriptions |= ENTITY_EVENT_BIT(ENTITY_EVENT_UNHIDE);
-		onEventSubscriptions |= ENTITY_EVENT_BIT(ENTITY_EVENT_ATTACH);
-		onEventSubscriptions |= ENTITY_EVENT_BIT(ENTITY_EVENT_DETACH);
-		onEventSubscriptions |= ENTITY_EVENT_BIT(ENTITY_EVENT_DETACH_THIS);
-		onEventSubscriptions |= ENTITY_EVENT_BIT(ENTITY_EVENT_ENABLE_PHYSICS);
-		onEventSubscriptions |= ENTITY_EVENT_BIT(ENTITY_EVENT_ENTER_SCRIPT_STATE);
+		gEnv->pEntitySystem->AddSink(this, IEntitySystem::OnSpawn);
 
-		gEnv->pEntitySystem->AddSink(this, IEntitySystem::OnEvent, onEventSubscriptions);
+		IEntityItPtr pEntityIter = gEnv->pEntitySystem->GetEntityIterator();
+		while (IEntity* pEntity = pEntityIter->Next())
+		{
+			for (const EEntityEvent event : g_recordedEntityEvents)
+			{
+				pEntity->AddEventListener(event, this);
+			}
+		}
 
 		// Start recording.
 		m_records.clear();
@@ -606,6 +652,15 @@ void CTimeDemoRecorder::Record(bool bEnable)
 		m_lastFrameTime = GetTime();
 
 		gEnv->pEntitySystem->RemoveSink(this);
+
+		IEntityItPtr pEntityIter = gEnv->pEntitySystem->GetEntityIterator();
+		while (IEntity* pEntity = pEntityIter->Next())
+		{
+			for (const EEntityEvent event : g_recordedEntityEvents)
+			{
+				pEntity->RemoveEventListener(event, this);
+			}
+		}
 
 		m_currentFrameInputEvents.clear();
 		m_currentFrameEntityEvents.clear();
@@ -640,7 +695,7 @@ void CTimeDemoRecorder::Play(bool bEnable)
 
 		// Put it back later!
 		Load(filename);
-		
+
 		if (m_records.empty())
 		{
 			m_bDemoFinished = true;
@@ -1466,8 +1521,10 @@ void CTimeDemoRecorder::PostUpdate()
 		}
 	}
 
-	if ((m_bPlaying || m_bRecording) && m_demo_noinfo <= 0)
+	if (gEnv->pRenderer && (m_bPlaying || m_bRecording) && m_demo_noinfo <= 0)
+	{
 		RenderInfo(1);
+	}
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -1686,7 +1743,7 @@ bool CTimeDemoRecorder::PlayFrame()
 	{
 		m_pTimeDemoInfo->frames[m_currentFrame].fFrameRate = (float)(1.0 / deltaFrameTime.GetSeconds());
 		m_pTimeDemoInfo->frames[m_currentFrame].nPolysRendered = nPolygons;
-		m_pTimeDemoInfo->frames[m_currentFrame].nDrawCalls = gEnv->pRenderer->GetCurrentNumberOfDrawCalls();
+		m_pTimeDemoInfo->frames[m_currentFrame].nDrawCalls = gEnv->pRenderer ? gEnv->pRenderer->GetCurrentNumberOfDrawCalls() : 0;
 	}
 	//////////////////////////////////////////////////////////////////////////
 	m_lastFrameTime = GetTime();
@@ -2046,10 +2103,6 @@ void CTimeDemoRecorder::LogInfo(const char* format, ...)
 	cry_vsprintf(szBuffer, format, ArgList);
 	va_end(ArgList);
 
-	va_start(ArgList, format);
-	gEnv->pLog->LogV(IMiniLog::eMessage, format, ArgList);
-	va_end(ArgList);
-
 	gEnv->pLog->Log("%s", szBuffer);
 
 	string filename = PathUtil::Make("%USER%/TestResults", PathUtil::ReplaceExtension(CTimeDemoRecorder::s_timedemo_file->GetString(), "log"));
@@ -2123,69 +2176,53 @@ void CTimeDemoRecorder::GetMemoryStatistics(ICrySizer* s) const
 	s->AddObject(m_currentFrameGameEvents);
 }
 
-bool CTimeDemoRecorder::OnBeforeSpawn(SEntitySpawnParams& params)
-{
-	return true;
-}
-
 //////////////////////////////////////////////////////////////////////////
 void CTimeDemoRecorder::OnSpawn(IEntity* pEntity, SEntitySpawnParams& params)
 {
+	pEntity->AddEventListener(ENTITY_EVENT_XFORM, this);
 }
 
 //////////////////////////////////////////////////////////////////////////
-bool CTimeDemoRecorder::OnRemove(IEntity* pEntity)
+void CTimeDemoRecorder::OnEntityEvent(IEntity* pEntity, const SEntityEvent& event)
 {
-	return true;
-}
+	CRY_ASSERT(m_bRecording);
 
-//////////////////////////////////////////////////////////////////////////
-void CTimeDemoRecorder::OnReused(IEntity* pEntity, SEntitySpawnParams& params)
-{
-}
+	// Record entity event for this frame.
+	EntityGUID guid = pEntity->GetGuid();
+	if (guid.IsNull())
+		return;
 
-//////////////////////////////////////////////////////////////////////////
-void CTimeDemoRecorder::OnEvent(IEntity* pEntity, SEntityEvent& event)
-{
-	if (m_bRecording)
+	// Record entity event for this frame.
+	switch (event.event)
 	{
-		// Record entity event for this frame.
-		EntityGUID guid = pEntity->GetGuid();
-		if (guid.IsNull())
-			return;
-
-		// Record entity event for this frame.
-		switch (event.event)
+	// Events to save.
+	case ENTITY_EVENT_XFORM:
+	case ENTITY_EVENT_HIDE:
+	case ENTITY_EVENT_UNHIDE:
+	case ENTITY_EVENT_ATTACH:
+	case ENTITY_EVENT_DETACH:
+	case ENTITY_EVENT_DETACH_THIS:
+	case ENTITY_EVENT_ENABLE_PHYSICS:
+	case ENTITY_EVENT_ENTER_SCRIPT_STATE:
 		{
-		// Events to save.
-		case ENTITY_EVENT_XFORM:
-		case ENTITY_EVENT_HIDE:
-		case ENTITY_EVENT_UNHIDE:
-		case ENTITY_EVENT_ATTACH:
-		case ENTITY_EVENT_DETACH:
-		case ENTITY_EVENT_DETACH_THIS:
-		case ENTITY_EVENT_ENABLE_PHYSICS:
-		case ENTITY_EVENT_ENTER_SCRIPT_STATE:
-			{
-				EntityEventRecord rec;
-				memset(&rec, 0, sizeof(rec));
-				rec.entityId = pEntity->GetId();
-				rec.guid = guid;
-				rec.eventType = event.event;
-				rec.nParam[0] = event.nParam[0];
-				rec.nParam[1] = event.nParam[1];
-				rec.nParam[2] = event.nParam[2];
-				rec.nParam[3] = event.nParam[3];
-				rec.pos = pEntity->GetPos();
-				rec.q = pEntity->GetRotation();
-				m_currentFrameEntityEvents.push_back(rec);
-			}
-			break;
-
-		// Skip all other events.
-		default:
-			break;
+			EntityEventRecord rec;
+			memset(&rec, 0, sizeof(rec));
+			rec.entityId = pEntity->GetId();
+			rec.guid = guid;
+			rec.eventType = event.event;
+			rec.nParam[0] = event.nParam[0];
+			rec.nParam[1] = event.nParam[1];
+			rec.nParam[2] = event.nParam[2];
+			rec.nParam[3] = event.nParam[3];
+			rec.pos = pEntity->GetPos();
+			rec.q = pEntity->GetRotation();
+			m_currentFrameEntityEvents.push_back(rec);
 		}
+		break;
+
+	// Skip all other events.
+	default:
+		break;
 	}
 }
 
@@ -2219,7 +2256,7 @@ void CTimeDemoRecorder::PlayBackEntityEvent(const EntityEventRecord& rec)
 	case ENTITY_EVENT_DETACH:
 		break;
 	case ENTITY_EVENT_DETACH_THIS:
-		pEntity->DetachThis(0, ENTITY_XFORM_TIMEDEMO);
+		pEntity->DetachThis(IEntity::EAttachmentFlags(0), ENTITY_XFORM_TIMEDEMO);
 		break;
 	case ENTITY_EVENT_ENABLE_PHYSICS:
 		if (rec.nParam[0] == 0)
@@ -2330,6 +2367,10 @@ void CTimeDemoRecorder::OnFrameProfilerPeak(CFrameProfiler* pProfiler, float fPe
 //////////////////////////////////////////////////////////////////////////
 int CTimeDemoRecorder::ComputePolyCount()
 {
+	if (!gEnv->pRenderer)
+	{
+		return 0;
+	}
 	int nPolygons, nShadowVolPolys;
 	gEnv->pRenderer->GetPolyCount(nPolygons, nShadowVolPolys);
 	m_nPolysCounter += nPolygons;

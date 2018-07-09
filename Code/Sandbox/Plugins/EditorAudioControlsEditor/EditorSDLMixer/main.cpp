@@ -1,23 +1,25 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
+#include "Impl.h"
 
 #include <CryCore/Platform/platform.h>
 #include <CryCore/Platform/platform_impl.inl>
-#include "AudioSystemEditor_sdlmixer.h"
 #include <CrySystem/ISystem.h>
 
-using namespace ACE;
+ACE::Impl::SDLMixer::CImpl* g_pSdlMixerInterface;
 
 //------------------------------------------------------------------
-extern "C" ACE_API IAudioSystemEditor * GetAudioInterface(ISystem * pSystem)
+extern "C" ACE_API ACE::Impl::IImpl * GetAudioInterface(ISystem * pSystem)
 {
 	ModuleInitISystem(pSystem, "EditorSDLMixer");
-	if (!s_pSdlMixerInterface)
+
+	if (g_pSdlMixerInterface == nullptr)
 	{
-		s_pSdlMixerInterface = new CAudioSystemEditor_sdlmixer();
+		g_pSdlMixerInterface = new ACE::Impl::SDLMixer::CImpl();
 	}
-	return s_pSdlMixerInterface;
+
+	return g_pSdlMixerInterface;
 }
 
 //------------------------------------------------------------------
@@ -30,12 +32,13 @@ BOOL __stdcall DllMain(HINSTANCE hinstDLL, ULONG fdwReason, LPVOID lpvReserved)
 		g_hInstance = hinstDLL;
 		break;
 	case DLL_PROCESS_DETACH:
-		if (s_pSdlMixerInterface)
+		if (g_pSdlMixerInterface != nullptr)
 		{
-			delete s_pSdlMixerInterface;
-			s_pSdlMixerInterface = nullptr;
+			delete g_pSdlMixerInterface;
+			g_pSdlMixerInterface = nullptr;
 		}
 		break;
 	}
 	return TRUE;
 }
+

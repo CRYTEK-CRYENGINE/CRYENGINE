@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 // -------------------------------------------------------------------------
 //  File name:   MaterialHUDFXNodes.cpp
@@ -216,7 +216,6 @@ public:
 				if (pRetFlashPlayer)
 				{
 					CryWarning(VALIDATOR_MODULE_GAME, VALIDATOR_WARNING, "GetFlashPlayerFromMaterialIncludingSubMaterials: Multiple flash players detected, returning last sub material one");
-					pRetFlashPlayer->Release();
 				}
 
 				pRetFlashPlayer = pFlashPlayer;
@@ -252,7 +251,6 @@ public:
 								const string& funcName = GetPortString(pActInfo, EIP_Function);
 								SFlashVarValue args[2] = { GetPortInt(pActInfo, EIP_Int), GetPortFloat(pActInfo, EIP_Float) };
 								pFlashPlayer->Invoke(funcName.c_str(), args, 2);
-								pFlashPlayer->Release();
 							}
 						}
 					}
@@ -371,8 +369,6 @@ public:
 								{
 									CryWarning(VALIDATOR_MODULE_GAME, VALIDATOR_WARNING, "CMaterialFlashGotoAndPlayNode::ProcessEvent: ObjectPath can't be empty");
 								}
-
-								pFlashPlayer->Release();
 							}
 						}
 					}
@@ -500,7 +496,6 @@ private:
 						pFlashPlayer->SetFSCommandHandler(NULL);
 					}
 
-					pFlashPlayer->Release();
 					return true;
 				}
 			}

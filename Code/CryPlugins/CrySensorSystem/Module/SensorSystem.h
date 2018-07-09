@@ -1,44 +1,50 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
 #include "../Interface/ISensorSystem.h"
 
-class CSensorTagLibrary;
-class CSensorTagLibrary;
-
-class CSensorSystem : public ISensorSystem, public ISystemEventListener
+namespace Cry
 {
-public:
+	namespace SensorSystem
+	{
+		class CSensorTagLibrary;
+		class CSensorTagLibrary;
 
-	CSensorSystem();
-	~CSensorSystem();
+		class CSensorSystem : public ISensorSystem, public ISystemEventListener
+		{
+		public:
 
-	// ISensorMapManager
-	virtual ISensorTagLibrary& GetTagLibrary() override;
-	virtual ISensorMap&        GetMap() override;
-	// ~ISensorMapManager
+			CSensorSystem();
+			~CSensorSystem();
 
-	// ISystemEventListener
-	virtual void OnSystemEvent(ESystemEvent event, UINT_PTR wparam, UINT_PTR lparam) override;
-	// ~ISystemEventListener
+			// ISensorMapManager
+			virtual ISensorTagLibrary& GetTagLibrary() override;
+			virtual ISensorMap&        GetMap() override;
+			// ~ISensorMapManager
 
-	void                  Update();
+			// ISystemEventListener
+			virtual void OnSystemEvent(ESystemEvent event, UINT_PTR wparam, UINT_PTR lparam) override;
+			// ~ISystemEventListener
 
-	static CSensorSystem& GetInstance();
-	static CryGUID GetSchematycPackageGUID() { return "e5f633a6-472d-470c-a78d-86bd2383092d"_cry_guid; }
+			void                  Update();
 
-private:
+			static CSensorSystem& GetInstance();
+			static CryGUID GetSchematycPackageGUID() { return "e5f633a6-472d-470c-a78d-86bd2383092d"_cry_guid; }
 
-	void        RegisterSchematycEnvPackage(Schematyc::IEnvRegistrar& registrar);
+		private:
 
-	static void SetOctreeDepthCommand(IConsoleCmdArgs* pArgs);
-	static void SetOctreeBoundsCommand(IConsoleCmdArgs* pArgs);
+			void        RegisterSchematycEnvPackage(Schematyc::IEnvRegistrar& registrar);
 
-private:
+			static void SetOctreeDepthCommand(IConsoleCmdArgs* pArgs);
+			static void SetOctreeBoundsCommand(IConsoleCmdArgs* pArgs);
 
-	std::unique_ptr<ISensorTagLibrary> m_pTagLibrary;
-	std::unique_ptr<ISensorMap>        m_pMap;
+		private:
 
-	static CSensorSystem*              ms_pInstance;
-};
+			std::unique_ptr<ISensorTagLibrary> m_pTagLibrary;
+			std::unique_ptr<ISensorMap>        m_pMap;
+
+			static CSensorSystem*              ms_pInstance;
+		};
+	}
+}

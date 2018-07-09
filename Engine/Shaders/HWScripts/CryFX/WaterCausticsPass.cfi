@@ -1,9 +1,8 @@
-// CRYENGINE Source Code File
-// Copyright 2001-2015 Crytek GmbH. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 struct v2fCaustic
 {
-	float4 Position		: POSITION;
+	float4 Position		: SV_POSITION;
 
  	float4 baseTC	  : TEXCOORDN;
  	half4  vView  	  : TEXCOORDN;
@@ -25,7 +24,7 @@ v2fCaustic WaterCausticVS(a2v IN)
 	float4 vPos = IN.Position;
 	vPos.w = 1;
 
-	float4x4 InstMatrix = cbWaterVolume.PerInstanceWorldMatrix;
+	float4x4 InstMatrix = cbWaterVolume.WorldMatrix;
 	vPos.xyz = mul( InstMatrix, float4(vPos.xyz, 1) );
 	
 	float4 vPosOrig = vPos; 

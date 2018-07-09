@@ -1,0 +1,10 @@
+<AssetMetadata version="0" type="Texture" guid="e7d1ba6d-e308-9124-b683-6989d9fb0a3a" source="cloak_palette.tif">
+ <Files>
+  <File path="cloak_palette.dds"/>
+ </Files>
+ <Details>
+  <Detail name="width">256</Detail>
+  <Detail name="height">4</Detail>
+  <Detail name="mipCount">1</Detail>
+ </Details>
+</AssetMetadata>

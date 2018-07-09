@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -56,20 +56,21 @@ public:
 	}
 
 public:
-	const CDefaultSkeleton* m_pDefaultSkeleton;
+	const CDefaultSkeleton*    m_pDefaultSkeleton;
 
-	QuatTS                  m_location;
+	QuatTS                     m_location;
 
-	Skeleton::CPoseData*    m_pPoseData;
+	const Skeleton::CPoseData* m_pFallbackPoseData;
+	Skeleton::CPoseData*       m_pPoseData;
 
-	uint32                  m_jointCount;
+	uint32                     m_jointCount;
 
-	uint32                  m_lod;
+	uint32                     m_lod;
 
-	f32                     m_originalTimeDelta;
+	f32                        m_originalTimeDelta;
 
-	const uint32*           m_pJointMask;
-	uint32                  m_jointMaskCount;
+	const uint32*              m_pJointMask;
+	uint32                     m_jointMaskCount;
 
 	// NOTE: Do not access this, here only for PoseModifier back-compat.
 	CCharInstance* m_pInstance;

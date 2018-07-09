@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #ifndef __INPUTCVARS_H__
 #define __INPUTCVARS_H__
@@ -17,6 +17,10 @@ public:
 	float i_mouse_accel_max;
 	float i_mouse_smooth;
 	float i_mouse_inertia;
+
+#if CRY_PLATFORM_WINDOWS
+	int i_mouse_scroll_coordinate_origin;
+#endif
 
 	int   i_bufferedkeys;
 

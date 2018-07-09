@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -32,15 +32,7 @@ struct STriangle
 	uint16         firstLink : 12;   //!< First link index into Tile::links array
 	StaticIslandID islandID;         //!< Island for this triangle
 
-	enum EFlags : uint32
-	{
-		eFlags_None         = 0,
-		eFlags_ExternalMesh = BIT(0),  //!< Triangles created by TileGeneratorExtension (MNM doesn't automatically set the flag).
-		eFlags_Custom       = BIT(1),  //!< First bit flag not used by MNM system itself - user code is free to use this and succeeding flags
-
-		eFlags_All          = ~uint32(0) //!< Helper value with all bits set.
-	};
-	EFlags triangleFlags; //!< Triangle flags
+	AreaAnnotation  areaAnnotation;
 
 	AUTO_STRUCT_INFO;
 };

@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -41,6 +41,10 @@ struct SParametricSamplerInternal : public SParametricSampler
 		m_MotionParameter[1] = 0.0f;
 		m_MotionParameter[2] = 0.0f;
 		m_MotionParameter[3] = 0.0f;
+		m_MotionParameterForNextIteration[0] = 0.0f;
+		m_MotionParameterForNextIteration[1] = 0.0f;
+		m_MotionParameterForNextIteration[2] = 0.0f;
+		m_MotionParameterForNextIteration[3] = 0.0f;
 		m_MotionParameterID[0] = 0xff;
 		m_MotionParameterID[1] = 0xff;
 		m_MotionParameterID[2] = 0xff;
@@ -73,6 +77,10 @@ struct SParametricSamplerInternal : public SParametricSampler
 			ser.Value("MotionParameter1", m_MotionParameter[1]);
 			ser.Value("MotionParameter2", m_MotionParameter[2]);
 			ser.Value("MotionParameter3", m_MotionParameter[3]);
+			ser.Value("MotionParameterForNextIteration0", m_MotionParameterForNextIteration[0]);
+			ser.Value("MotionParameterForNextIteration1", m_MotionParameterForNextIteration[1]);
+			ser.Value("MotionParameterForNextIteration2", m_MotionParameterForNextIteration[2]);
+			ser.Value("MotionParameterForNextIteration3", m_MotionParameterForNextIteration[3]);
 			ser.Value("MotionParameterID0", m_MotionParameterID[0]);
 			ser.Value("MotionParameterID1", m_MotionParameterID[1]);
 			ser.Value("MotionParameterID2", m_MotionParameterID[2]);

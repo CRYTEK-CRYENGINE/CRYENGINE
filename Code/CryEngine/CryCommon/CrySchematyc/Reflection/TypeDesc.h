@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 // Use Schematyc::GetTypeDesc<TYPE>() to get descriptor for a specific type.
 // Calling Schematyc::GetTypeDesc where TYPE is not reflected will result in the following compile error: 'Type must be reflected, see TypeDesc.h for details!'
@@ -21,6 +21,7 @@
 #pragma once
 
 #include <CrySerialization/Enum.h>
+#include <CryMemory/AddressHelpers.h>
 
 #include "CrySchematyc/Reflection/TypeOperators.h"
 #include "CrySchematyc/Utils/EnumFlags.h"
@@ -362,6 +363,8 @@ protected:
 
 	bool              AddBase(const CCommonTypeDesc& typeDesc, ptrdiff_t offset);
 	CClassMemberDesc& AddMember(const CCommonTypeDesc& typeDesc, ptrdiff_t offset, uint32 id, const char* szName, const char* szLabel, const char* szDescription, Utils::IDefaultValuePtr&& pDefaultValue);
+	void              ClearBases()   { m_bases.clear(); }
+	void              ClearMembers() { m_members.clear(); }
 
 private:
 
@@ -554,7 +557,7 @@ public:
 	{
 		SCHEMATYC_VERIFY_TYPE_IS_REFLECTED(BASE_TYPE);
 
-		return CClassDesc::AddBase(GetTypeDesc<BASE_TYPE>(), GetBaseOffset<TYPE, BASE_TYPE>());
+		return CClassDesc::AddBase(GetTypeDesc<BASE_TYPE>(), Cry::Memory::GetBaseOffset<TYPE, BASE_TYPE>());
 	}
 
 	template<typename MEMBER_TYPE, typename MEMBER_DEFAULT_VALUE_TYPE, typename MEMBER_TYPE_PARENT = TYPE>
@@ -564,7 +567,7 @@ public:
 		static_assert(HasOperator::SEquals<MEMBER_TYPE>::value, "Type must be provide equality compare operator");
 		static_assert(std::is_base_of<MEMBER_TYPE_PARENT, TYPE>::value, "Member must implement or equal the described type");
 
-		return CClassDesc::AddMember(GetTypeDesc<MEMBER_TYPE>(), GetMemberOffset(pMember), id, szName, szLabel, szDescription, stl::make_unique<Utils::CDefaultValue<MEMBER_TYPE>>(MEMBER_TYPE(defaultValue)));
+		return CClassDesc::AddMember(GetTypeDesc<MEMBER_TYPE>(), Cry::Memory::GetMemberOffset(pMember), id, szName, szLabel, szDescription, stl::make_unique<Utils::CDefaultValue<MEMBER_TYPE>>(MEMBER_TYPE(defaultValue)));
 	}
 
 protected:

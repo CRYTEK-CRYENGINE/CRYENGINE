@@ -1,0 +1,10 @@
+<AssetMetadata version="0" type="Texture" guid="dcb5e054-12c1-9f0a-38c2-b664a965ba4e">
+ <Files>
+  <File path="interference.dds"/>
+ </Files>
+ <Details>
+  <Detail name="width">64</Detail>
+  <Detail name="height">64</Detail>
+  <Detail name="mipCount">1</Detail>
+ </Details>
+</AssetMetadata>

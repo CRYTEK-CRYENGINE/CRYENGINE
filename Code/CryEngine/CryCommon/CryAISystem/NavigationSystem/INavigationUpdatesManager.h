@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -15,8 +15,8 @@ struct INavigationUpdatesManager
 	virtual void RequestGlobalUpdateForAgentType(NavigationAgentTypeID agentTypeID) = 0;
 
 	//! Allow regeneration requests to be executed. 
-	//! note: at this point any previously buffered requests that were not executed when disabled are discarded
-	virtual void EnableRegenerationRequestsExecution() = 0;
+	//! If updateChangedVolumes parameter is false, pending NavMesh changes, that weren't updated while navigation generation was disabled, won't be applied.
+	virtual void EnableRegenerationRequestsExecution(bool updateChangedVolumes) = 0;
 
 	//! Block regeneration requests from being executed.
 	//! note: they will be buffered, but not implicitly executed when they are allowed again

@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -10,7 +10,7 @@ class CScreenSpaceObscuranceStage : public CGraphicsPipelineStage
 {
 public:
 	void Init();
-	void Execute(ShadowMapFrustum* pHeightMapFrustum, CTexture* pHeightMapAOScreenDepthTex, CTexture* pHeightMapAOTex);
+	void Execute();
 
 private:
 	CStretchRectPass  m_passCopyFromESRAM;

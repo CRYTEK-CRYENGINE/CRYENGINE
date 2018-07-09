@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "stdafx.h"
 
@@ -587,8 +587,7 @@ class AnimEventPlayerAnimFXEvents : public IAnimEventPlayer
 
 				Serialization::StringListValue eventListChoice(soundFXLibsList, index);
 
-				ar.doc("These are the defined anim fx libs coming from the game.dll");
-				ar(eventListChoice, "animFxLib", "^Animation FX Lib");
+				ar(eventListChoice, "animFxLib", "^");
 
 				if (ISurfaceTypeEnumerator* pSurfaceTypeEnum = gEnv->p3DEngine->GetMaterialManager()->GetSurfaceTypeManager()->GetEnumerator())
 				{
@@ -639,7 +638,8 @@ public:
 
 	void Serialize(Serialization::IArchive& ar) override
 	{
-		ar(m_animFxSources, "animFxSources", "Anim FX libs");
+		ar(m_animFxSources, "animFxSources", gEnv->pMaterialEffects->GetAnimFXEvents() ? "Libraries" : "!Libraries");
+		ar.doc("AnimFX libraries provided by the game project.");
 	}
 
 	const char* SerializeCustomParameter(const char* parameterValue, Serialization::IArchive& ar, int customTypeIndex) override
@@ -902,3 +902,4 @@ AnimEventPlayer_CharacterTool::AnimEventPlayer_CharacterTool()
 CRYREGISTER_CLASS(AnimEventPlayer_CharacterTool)
 
 }
+

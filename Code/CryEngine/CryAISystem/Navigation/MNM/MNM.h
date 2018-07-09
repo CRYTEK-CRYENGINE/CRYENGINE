@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #ifndef __MNM_H
 #define __MNM_H
@@ -119,6 +119,12 @@ protected:
 	AStarContention(float frameTimeQuota = 0.001f)
 	{
 		m_frameTimeQuota.SetSeconds(frameTimeQuota);
+
+		m_consumedFrameTime.SetValue(0);
+		m_currentStepStartTime.SetValue(0);
+		m_currentSearchTime.SetValue(0);
+		m_currentSearchSteps = 0;
+
 		ResetContentionStats();
 	}
 
@@ -160,17 +166,12 @@ protected:
 
 	void ResetContentionStats()
 	{
-		m_consumedFrameTime.SetValue(0);
-		m_currentStepStartTime.SetValue(0);
-
 		m_totalSearchCount = 0;
 
-		m_currentSearchSteps = 0;
 		m_totalSearchSteps = 0;
 		m_peakSearchSteps = 0;
 
 		m_totalComputationTime = 0.0f;
-		m_currentSearchTime.SetValue(0);
 		m_peakSearchTime = 0.0f;
 	}
 
@@ -337,7 +338,11 @@ struct AStarOpenList
 
 	void Reset()
 	{
-		ResetContentionStats();
+		m_consumedFrameTime.SetValue(0);
+		m_currentStepStartTime.SetValue(0);
+		m_currentSearchTime.SetValue(0);
+
+		m_currentSearchSteps = 0;
 
 		stl::free_container(m_openList);
 		stl::free_container(m_nodeLookUp);

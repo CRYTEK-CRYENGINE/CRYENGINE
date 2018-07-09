@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -119,6 +119,7 @@ inline const char* FlowTypeToHumanName(EFlowDataTypes flowDataType)
 		return szTypeName;
 }
 
+//! \cond INTERNAL
 //! Default conversion uses C++ rules.
 template<class From, class To>
 struct SFlowSystemConversion
@@ -539,6 +540,7 @@ inline bool DefaultInitializedForTag::Initialize<stl::variant_size<TFlowInputDat
 	CRY_ASSERT_MESSAGE(var.index() == stl::variant_npos, "Invalid variant index.");
 	return false;
 }
+//! \endcond
 
 class TFlowInputData
 {
@@ -1346,11 +1348,11 @@ struct IFlowNode : public _i_reference_target_t
 	IFlowNode& operator= (IFlowNode const&) { return *this; }
 
 	//! notification to be overridden in C# flow node
-	virtual void OnDelete() {}
+	virtual void OnDelete() const {}
 	
 	//! override to kick off a notification for C# flow node.
 	//! to be removed when we get rid of C# flow node completely
-	virtual void Release() override
+	virtual void Release() const override
 	{
 		if (--m_nRefCounter == 0)
 		{
@@ -1385,6 +1387,7 @@ struct IFlowNode : public _i_reference_target_t
 	// </interfuscator:shuffle>
 };
 
+//! \cond INTERNAL
 //! Wraps IFlowNode for specific data.
 struct IFlowNodeData
 {
@@ -1411,6 +1414,7 @@ struct IFlowNodeData
 	virtual TFlowInputData* GetInputData() const = 0;
 	// </interfuscator:shuffle>
 };
+//! \endcond
 
 struct IFlowGraph;
 TYPEDEF_AUTOPTR(IFlowGraph);
@@ -1456,6 +1460,7 @@ struct IFlowNodeIterator
 	// </interfuscator:shuffle>
 };
 
+//! \cond INTERNAL
 //! Structure that permits to iterate through the edge of the flowsystem.
 struct IFlowEdgeIterator
 {
@@ -1475,6 +1480,7 @@ struct IFlowEdgeIterator
 	virtual bool Next(Edge& edge) = 0;
 	// </interfuscator:shuffle>
 };
+//! \endcond
 
 TYPEDEF_AUTOPTR(IFlowNodeIterator);
 typedef IFlowNodeIterator_AutoPtr IFlowNodeIteratorPtr;
@@ -1489,6 +1495,7 @@ struct SFlowNodeActivationListener
 	// </interfuscator:shuffle>
 };
 
+//! \cond INTERNAL
 namespace NFlowSystemUtils
 {
 
@@ -1538,6 +1545,7 @@ struct Wrapper<bool>
 	explicit Wrapper(const bool& v) : value(v) {}
 	const bool& value;
 };
+//! \endcond
 
 struct IFlowSystemTyped
 {
@@ -1687,6 +1695,8 @@ struct IFlowGraph : public NFlowSystemUtils::IFlowSystemTyped
 	//! Checks if the flow graph is suspended.
 	virtual bool IsSuspended() const = 0;
 
+	virtual bool IsInInitializationPhase() const = 0;
+
 	// AI action related.
 
 	//! Sets an AI Action
@@ -1740,6 +1750,7 @@ struct IFlowGraph : public NFlowSystemUtils::IFlowSystemTyped
 
 	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+	//! \cond INTERNAL
 	//! Graph tokens are gametokens which are unique to a particular flow graph.
 	struct SGraphToken
 	{
@@ -1748,6 +1759,8 @@ struct IFlowGraph : public NFlowSystemUtils::IFlowSystemTyped
 		string         name;
 		EFlowDataTypes type;
 	};
+	//! \endcond
+
 	virtual size_t                         GetGraphTokenCount() const = 0; //! Get the number of graph tokens for this graph
 	virtual const IFlowGraph::SGraphToken* GetGraphToken(size_t index) const = 0; //! Get a graph token by index
 	virtual const char*                    GetGlobalNameForGraphToken(const char* tokenName) const = 0; //! Get the corresponding name for the GTS registry

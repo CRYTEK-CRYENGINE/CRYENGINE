@@ -21,7 +21,7 @@ namespace Cry
 			static void Register(Schematyc::CEnvRegistrationScope& componentScope);
 
 			// IEntityComponent
-			virtual void ProcessEvent(SEntityEvent& event) final;
+			virtual void ProcessEvent(const SEntityEvent& event) final;
 			virtual uint64 GetEventMask() const final;
 			// ~IEntityComponent
 
@@ -36,9 +36,11 @@ namespace Cry
 				desc.SetDescription("Allows drawing debug information to the screen");
 				desc.SetComponentFlags({ IEntityComponent::EFlags::Transform, IEntityComponent::EFlags::Socket, IEntityComponent::EFlags::Attach, IEntityComponent::EFlags::ClientOnly });
 
-				desc.AddMember(&CDebugDrawComponent::m_bDrawPersistent, 'draw', "DrawPersistent", "Draw Persistent Text", "Whether or not to draw the persistent text to screen", false);
+				desc.AddMember(&CDebugDrawComponent::m_drawPersistent, 'draw', "DrawPersistent", "Draw Persistent Text", "Whether or not to draw the persistent text to screen", false);
 				desc.AddMember(&CDebugDrawComponent::m_persistentText, 'text', "PersistentText", "Persistent Text", "Persistent text to draw to screen", "");
 				desc.AddMember(&CDebugDrawComponent::m_persistentTextColor, 'tcol', "PersistentTextCol", "Persistent Text Color", "Color of the text to draw to screen", ColorF(1, 1, 1));
+				desc.AddMember(&CDebugDrawComponent::m_shouldScaleWithCameraDistance, 'scal', "ScaleWithCam", "Scale With Camera Distance", "Whether the text should scale with font size" 
+					"depending on the camera distance or always draw the font in the same size.", false);
 				desc.AddMember(&CDebugDrawComponent::m_persistentViewDistance, 'view', "PersistentDist", "Persistent View Distance", "View distance of the persistent text", 100.f);
 				desc.AddMember(&CDebugDrawComponent::m_persistentFontSize, 'font', "PersistentSize", "Persistent Font Size", "Size of the persistent font", 1.2f);
 			}
@@ -54,8 +56,8 @@ namespace Cry
 			virtual void DrawText3D(Schematyc::CSharedString text, const Vec3& pos, float size, const ColorF& color, float duration);
 			virtual void Draw2DLine(float x1, float y1, float x2, float y2, const ColorF& color, float duration);
 
-			bool IsPersistentTextEnabled() const { return m_bDrawPersistent; }
-			virtual void EnablePersistentText(bool bEnable) { m_bDrawPersistent = bEnable; }
+			bool IsPersistentTextEnabled() const { return m_drawPersistent; }
+			virtual void EnablePersistentText(bool bEnable) { m_drawPersistent = bEnable; }
 
 			virtual void SetPersistentTextColor(const ColorF& color) { m_persistentTextColor = color; }
 			const ColorF& GetPersistentTextColor() const { return m_persistentTextColor; }
@@ -70,7 +72,8 @@ namespace Cry
 			const char* GetPersistentText() const { return m_persistentText.c_str(); }
 
 		protected:
-			bool m_bDrawPersistent = false;
+			bool m_drawPersistent = false;
+			bool m_shouldScaleWithCameraDistance = false;
 			ColorF m_persistentTextColor = ColorF(1, 1, 1);
 			Schematyc::Range<0, 255> m_persistentViewDistance = 100.f;
 			Schematyc::Range<0, 100> m_persistentFontSize = 1.2f;

@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "stdafx.h"
 #include "EntityLayer.h"
@@ -25,7 +25,7 @@ CEntityLayer::~CEntityLayer()
 {
 	for (TEntityProps::iterator it = m_entities.begin(); it != m_entities.end(); ++it)
 	{
-		CEntity* pEntity = (CEntity*) (g_pIEntitySystem->GetEntityFromID(it->first));
+		CEntity* pEntity = g_pIEntitySystem->GetEntityFromID(it->first);
 		if (!pEntity)
 			continue;
 		if (it->second.m_bIsNoAwake && pEntity->GetPhysicalProxy() && pEntity->GetPhysicalProxy()->GetPhysicalEntity())
@@ -43,7 +43,7 @@ CEntityLayer::~CEntityLayer()
 
 void CEntityLayer::AddObject(EntityId id)
 {
-	IEntity* pEntity = g_pIEntitySystem->GetEntityFromID(id);
+	CEntity* pEntity = g_pIEntitySystem->GetEntityFromID(id);
 	if (pEntity)
 	{
 		bool bEnableScriptUpdate = false;
@@ -209,12 +209,12 @@ void CEntityLayer::EnableEntities(bool isEnable)
 		{
 			EntityProp& prop = it->second;
 
-			CEntity* pEntity = (CEntity*) (g_pIEntitySystem->GetEntityFromID(prop.m_id));
+			CEntity* pEntity = g_pIEntitySystem->GetEntityFromID(prop.m_id);
 
 			if (!pEntity)
 				continue;
 
-			pEntity->SetInHiddenLayer(!isEnable);
+			pEntity->SendEvent(SEntityEvent(isEnable ? ENTITY_EVENT_LAYER_UNHIDE : ENTITY_EVENT_LAYER_HIDE));
 
 			// when is serializing (reading, as we never call this on writing), we dont want to change those values. we just use the values that come directly from serialization.
 			if (!isEnable && !gEnv->pSystem->IsSerializingFile())
@@ -317,7 +317,6 @@ void CEntityLayer::NotifyActivationToListeners(bool bActivated)
 	}
 }
 
-
 void CEntityLayer::GetMemoryUsage(ICrySizer* pSizer, int* pOutNumEntities)
 {
 	if (pOutNumEntities)
@@ -325,7 +324,7 @@ void CEntityLayer::GetMemoryUsage(ICrySizer* pSizer, int* pOutNumEntities)
 	for (TEntityProps::iterator it = m_entities.begin(); it != m_entities.end(); ++it)
 	{
 		EntityProp& prop = it->second;
-		CEntity* pEntity = (CEntity*) (g_pIEntitySystem->GetEntityFromID(prop.m_id));
+		CEntity* pEntity = g_pIEntitySystem->GetEntityFromID(prop.m_id);
 		if (pEntity)
 		{
 			pEntity->GetMemoryUsage(pSizer);

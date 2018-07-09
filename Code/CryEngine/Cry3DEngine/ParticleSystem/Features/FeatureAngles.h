@@ -1,6 +1,8 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
+
+#include "../ParticleCommon.h"
 
 namespace pfx2
 {
@@ -14,7 +16,8 @@ SERIALIZATION_DECLARE_ENUM(EAlignType,
 	Screen,
 	Camera,
 	Velocity,
-	Parent
+	Parent,
+	World
 	)
 
 SERIALIZATION_DECLARE_ENUM(EAlignView,

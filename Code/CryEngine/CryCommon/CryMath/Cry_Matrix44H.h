@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 // Implementation of Matrix44 using SIMD types
 
 #pragma once
@@ -13,7 +13,7 @@
 	#include "Cry_Matrix34H.h"
 
 ///////////////////////////////////////////////////////////////////////////////
-// General-purpose 4x4 matrix using SIMD types
+//! General-purpose 4x4 matrix using SIMD types
 template<typename F> struct Matrix44H
 	: INumberArray<vector4_t<F>, 4>
 {

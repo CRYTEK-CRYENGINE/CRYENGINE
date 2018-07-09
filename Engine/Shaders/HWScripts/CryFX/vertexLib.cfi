@@ -1,5 +1,4 @@
-// CRYENGINE Source Code File
-// Copyright 2001-2015 Crytek GmbH. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 
 // Common vertex shader. Since almost all techniques share a similar vertex shader, a common vertex shader
@@ -19,7 +18,7 @@
 struct v2f_sh
 {
 	#if %_DS || %_PS || !ENABLE_TESSELLATION || %_RT_NO_TESSELLATION
-		float4 HPosition  : POSITION;
+		float4 HPosition  : SV_POSITION;
 	#endif
 
 	#if ENABLE_TESSELLATION && !%_RT_NO_TESSELLATION
@@ -45,13 +44,11 @@ struct vert2FragGeneral
 {  
 #if %_GS || %_DS || %_PS || !ENABLE_TESSELLATION || %_RT_NO_TESSELLATION
   OUT_HPOS_IN_WPOS
-#endif  
-  float4 baseTC     : TEXCOORDN;
+#endif
 
-#if %_RT_FOG || %ANISO_SPECULAR || %TEMP_EYES || %OFFSET_BUMP_MAPPING || %PARALLAX_OCCLUSION_MAPPING || %SILHOUETTE_PARALLAX_OCCLUSION_MAPPING || %_RT_PER_INSTANCE_CB_TEMP
+  float4 baseTC     : TEXCOORDN;
   float4 vTangent  : TEXCOORDN;
   float4 vBinormal : TEXCOORDN;
-#endif
 
   float4 vView     : TEXCOORDN;       
   
@@ -60,14 +57,6 @@ struct vert2FragGeneral
 #if %_RT_DECAL_TEXGEN_2D 
   float3 DistAtten : TEXCOORDN;
 #endif  
-
-#if %_RT_FOG && !%_RT_DECAL_TEXGEN_2D
-  float4 AvgFogVolumeContrib : TEXCOORDN;
-#endif
-
-#if %_RT_FOG || %_RT_DECAL_TEXGEN_2D || %DECAL
-  float4 Ambient   : TEXCOORDN;
-#endif
 
 #if ENABLE_TESSELLATION && !%_RT_NO_TESSELLATION
   half4 vNormal    : TEXCOORDN;
@@ -167,23 +156,22 @@ struct geom2fragZ
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // Common motion blur functions
 
-float3x4 MotionBlurData : PI_MotionBlurData;
-
 float4x4 Matrix_Inst_General_Prev(inout streamPos IN)
 {
 	float4x4 matInstPrev;
 
 	// Instancing support
-#if %_RT_PER_INSTANCE_CB_TEMP
-	matInstPrev[0] = PerInstancePrevWorldMatrix[0];
-	matInstPrev[1] = PerInstancePrevWorldMatrix[1];
-	matInstPrev[2] = PerInstancePrevWorldMatrix[2];
+	
+#if !%_RT_ENVIRONMENT_CUBEMAP
+	matInstPrev[0] = CD_PrevWorldMatrix[0];
+	matInstPrev[1] = CD_PrevWorldMatrix[1];
+	matInstPrev[2] = CD_PrevWorldMatrix[2];
 	matInstPrev[3] = float4(0, 0, 0, 1);
 #else
-	matInstPrev[0] = MotionBlurData[0];
-	matInstPrev[1] = MotionBlurData[1];
-	matInstPrev[2] = MotionBlurData[2];
-	matInstPrev[3] = float4(0, 0, 0, 1);
+	matInstPrev[0] = float4(1,0,0,0);
+	matInstPrev[1] = float4(0,1,0,0);
+	matInstPrev[2] = float4(0,0,1,0);
+	matInstPrev[3] = float4(0,0,0,1);
 #endif
 
 	// Compose matrixes
@@ -199,9 +187,9 @@ float4x4 Matrix_Inst_General_Prev(inout streamPos IN)
 // Output previous view space position (If skinning used, position is skinned)
 float4 Pos_Prev_VS_General(float4x4 VPMatrix, inout streamPos IN)
 {
-  float4 HPosition;
+	float4 HPosition;
 
-  static const float4x4 MatrixIdentity =
+	static const float4x4 MatrixIdentity =
 	{
 		float4(1,0,0,0),
 		float4(0,1,0,0),
@@ -209,10 +197,10 @@ float4 Pos_Prev_VS_General(float4x4 VPMatrix, inout streamPos IN)
 		float4(0,0,0,1)
 	};
   
-  Matrix_Inst_General_Prev(IN);	// Apply instanced matrix 
-  HPosition = _pos_Modificators(IN.InstMatrix, MatrixIdentity, IN, true, true, 1.f);
+	Matrix_Inst_General_Prev(IN);	// Apply instanced matrix 
+	HPosition = _pos_Modificators(IN.InstMatrix, MatrixIdentity, IN, true, true, 1.f);
    
-  return HPosition;
+	return HPosition;
 }
 
 ///////////////// Shared vertex shader computations //////////////////
@@ -243,23 +231,15 @@ void vs_shared_output( in app2vertGeneral IN, inout vert2FragGeneral OUT, inout 
 #endif
 
   // Apply texture modifiers
- _TCModify(baseTC, OUT.baseTC, vertPassPos.Position, vNorm, TS_DIFFUSE);
+  _TCModify(baseTC, OUT.baseTC, vertPassPos.Position, vNorm, TS_DIFFUSE);
  
-#if (%_RT_FOG || %_RT_DECAL_TEXGEN_2D || %DECAL) && !%_RT_PER_INSTANCE_CB_TEMP
-  // Output ambient color - for alpha blending, recursive rendering passes, decals also require ambient.w (opacity parameter)
-   OUT.Ambient = AmbientOp;
-#endif
-
-#if %_RT_FOG || %ANISO_SPECULAR || %TEMP_EYES || %OFFSET_BUMP_MAPPING || %PARALLAX_OCCLUSION_MAPPING || %SILHOUETTE_PARALLAX_OCCLUSION_MAPPING || %_RT_PER_INSTANCE_CB_TEMP
-    // Output tangents only for cases that require it - alpha blending, recursive passes and anisotropic specular
-    // Note: Normalization required for normal diffuse map in world space in case scale used - Do not remove
-    float3 worldTangentS = normalize( mul((const float3x3)vertPassPos.InstMatrix, vertPassPos.ObjToTangentSpace[0]) );
-    float3 worldTangentT = normalize( mul((const float3x3)vertPassPos.InstMatrix, vertPassPos.ObjToTangentSpace[1]) );
-    float3 worldTangentN = normalize( mul((const float3x3)vertPassPos.InstMatrix, vertPassPos.ObjToTangentSpace[2]) );
+  // Note: Normalization required for normal diffuse map in world space in case scale used - Do not remove
+  float3 worldTangentS = normalize( mul((const float3x3)vertPassPos.InstMatrix, vertPassPos.ObjToTangentSpace[0]) );
+  float3 worldTangentT = normalize( mul((const float3x3)vertPassPos.InstMatrix, vertPassPos.ObjToTangentSpace[1]) );
+  float3 worldTangentN = normalize( mul((const float3x3)vertPassPos.InstMatrix, vertPassPos.ObjToTangentSpace[2]) );
     
-    OUT.vTangent = float4(worldTangentS, vertPassPos.Tangent.w); 
-    OUT.vBinormal.xyz = worldTangentT;
-#endif
+  OUT.vTangent = float4(worldTangentS, vertPassPos.Tangent.w); 
+  OUT.vBinormal.xyz = worldTangentT;
 
   OUT.vView.xyz = vertPassPos.WorldPos.xyz;
 #if %_RT_OBJ_IDENTITY
@@ -276,25 +256,7 @@ void vs_shared_output( in app2vertGeneral IN, inout vert2FragGeneral OUT, inout 
 
   // Output the screen-space texture coordinates - for shadows and general projections
   OUT.screenProj = HPosToScreenTC(HPosition);
-
-  // Output fog into view-vector W component (to save interpolator)
-#if %_RT_FOG && !%_RT_DECAL_TEXGEN_2D && !%_RT_PER_INSTANCE_CB_TEMP
-#if !%_RT_VOLUMETRIC_FOG
-  OUT.vView.w = GetVolumetricFogDensity(OUT.vView.xyz + g_VS_WorldViewPos.xyz);
-
-  OUT.AvgFogVolumeContrib = AvgFogVolumeContrib;
-
- #if !%_RT_ALPHABLEND
-    // additive blending case
-    OUT.AvgFogVolumeContrib.w *= OUT.vView.w;
-    OUT.AvgFogVolumeContrib.xyz = 0.0;
- #endif
-#else
-	OUT.AvgFogVolumeContrib = GetVolumetricFogAnalyticalColor(OUT.vView.xyz).xyzw;
-#endif
-#else
   OUT.vView.w = vertPassPos.Position.w;
-#endif
 
 #if %VERTCOLORS || %DIRTLAYER || %BLENDLAYER
   OUT.Color = vertPassPos.Color;

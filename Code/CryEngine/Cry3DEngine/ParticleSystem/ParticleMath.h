@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -66,6 +66,11 @@ template<typename T, typename U> T ILINE Mul(const T& a, const U& b)            
 
 template<typename T, typename U> T ILINE MAdd(const T& a, const U& b, const T& c) { return a * b + c; }
 
+template<typename T> T& SetMax(T& var, T const& value)                            { return var = std::max(var, value); };
+template<typename T> T& SetMin(T& var, T const& value)                            { return var = std::min(var, value); };
+
+template<typename T> T FiniteOr(T val, T alt)                                     { return std::isfinite(val) ? val : alt; }
+
 ///////////////////////////////////////////////////////////////////////////
 // Vector functions
 
@@ -105,7 +110,7 @@ T DeltaTime(T frameTime, T normAge, T lifeTime);
 
 // Return the start-time of a particle in the previous frame
 template<typename T>
-T StartTime(T curTime, T frameTime, T normAge);
+T StartTime(T curTime, T frameTime, T absAge);
 
 
 // non vectorized
@@ -113,6 +118,27 @@ T StartTime(T curTime, T frameTime, T normAge);
 void RotateAxes(Vec3* v0, Vec3* v1, const float angle);
 Vec3 PolarCoordToVec3(float azimuth, float altitude);
 
+///////////////////////////////////////////////////////////////////////////
+template<typename F>
+struct Slope
+{
+	F scale;
+	F start;
+
+	Slope(F scale = 1, F start = 0) : scale(scale), start(start) {}
+	template<typename F2> Slope(const Slope<F2>& o) : scale(convert<F>(o.scale)), start(convert<F>(o.start)) {}
+
+	F operator()(F val) const { return MAdd(val, scale, start); }
+};
+
 }
+
+// Cry_Math_SSE extension
+template<> struct SIMD_traits<UCol>
+{
+	using scalar_t  = UCol;
+	using vector4_t = pfx2::UColv;
+};
+
 
 #include "ParticleMathImpl.h"

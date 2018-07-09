@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 #pragma once
 
 #include <QWidget>
@@ -30,13 +30,14 @@ class CRYQT_API QCollapsibleFrame : public QWidget
 
 	friend class CCollapsibleFrameHeader;
 public:
-	QCollapsibleFrame() {}
-	explicit QCollapsibleFrame(QWidget* pParent);
+	explicit QCollapsibleFrame(QWidget* pParent = nullptr);
 	explicit QCollapsibleFrame(const QString& title, QWidget* pParent = nullptr);
 	virtual ~QCollapsibleFrame();
 
 	QWidget* GetWidget() const;
 	QWidget* GetDragHandler() const;
+
+	//! Sets or replaces the widget in the frame. The previous widget will be queued for deletion.
 	void     SetWidget(QWidget* pWidget);
 	void	 SetClosable(bool closable);
 	bool	 Closable() const;
@@ -109,3 +110,4 @@ protected:
 protected Q_SLOTS:
 	void OnCollapseButtonClick();
 };
+

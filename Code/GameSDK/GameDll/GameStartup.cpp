@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "GameStartup.h"
@@ -49,12 +49,6 @@ namespace
 #define GCOV_FLUSH ((void)0)
 #define GCOV_FLUSH_UPDATE ((void)0)
 #endif
-
-#if defined(_LIB) || CRY_PLATFORM_LINUX || CRY_PLATFORM_ANDROID
-	extern "C" IGameFramework *CreateGameFramework();
-#endif
-
-#define DLL_INITFUNC_CREATEGAME "CreateGameFramework"
 
 #if CRY_PLATFORM_WINDOWS
 bool g_StickyKeysStatusSaved = false;
@@ -147,6 +141,7 @@ bool CCVarsWhiteList::IsWhiteListed(const string& command, bool silent)
   WHITELIST("r_ChromaticAberration");
 	WHITELIST("r_HDRChromaShift");
 	WHITELIST("r_HDRGrainAmount");
+	WHITELIST("r_GrainEnableExposureThreshold");
 	WHITELIST("r_HDRBloomRatio");
 	WHITELIST("r_HDRBrightLevel");
   WHITELIST("r_Sharpening");
@@ -455,7 +450,6 @@ IGameRef CGameStartup::Init(SSystemInitParams &startupParams)
 #if defined(CVARS_WHITELIST)
 	startupParams.pCVarsWhitelist = &g_CVarsWhiteList;
 #endif // defined(CVARS_WHITELIST)
-	startupParams.pGameStartup = this;
 
 	InlineInitializationProcessing("CGameStartup::Init");
 

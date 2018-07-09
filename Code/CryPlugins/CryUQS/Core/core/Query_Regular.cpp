@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 
@@ -129,6 +129,7 @@ namespace UQS
 		CQuery_Regular::CQuery_Regular(const SCtorContext& ctorContext)
 			: CQueryBase(ctorContext, true)  // true = yes, we need some time budget from CQueryManager for some potentially complex computations
 			, m_currentPhaseFn(&CQuery_Regular::Phase1_PrepareGenerationPhase)
+			, m_currentItemIndexForCreatingDebugRepresentations(0)
 			, m_maxCandidates(0)
 			, m_remainingItemWorkingDatasIndexForCheapInstantEvaluators(0)
 		{
@@ -152,8 +153,6 @@ namespace UQS
 		CQuery_Regular::EUpdateState CQuery_Regular::OnUpdate(Shared::CUqsString& error)
 		{
 			assert(m_currentPhaseFn);	// query has already finished before; cannot recycle a query
-
-			++m_elapsedFramesPerPhase.back();
 
 			const SPhaseUpdateContext phaseUpdateContext(error);
 
@@ -192,9 +191,10 @@ namespace UQS
 				}
 
 				// if we're still in the same phase, it means that the phase figured that it either ran out of time or that it just couldn't do any more work in the current frame
-				// -> we prematurely interrupt the running query and continue from here on the next frame
+				// -> we prematurely interrupt the running query and continue from here on the next frame (and reflect that in the current phase's frame counter)
 				if (oldPhaseFn == m_currentPhaseFn)
 				{
+					++m_elapsedFramesPerPhase.back();
 					break;
 				}
 				else
@@ -223,6 +223,9 @@ namespace UQS
 			out.elapsedTimePerPhase = m_elapsedTimePerPhase;
 			out.peakElapsedTimePerPhaseUpdate = m_peakElapsedTimePerPhaseUpdate;
 
+			const int maxItemsToKeepInResultSet = m_pQueryBlueprint->GetMaxItemsToKeepInResultSet();
+
+			out.numDesiredItems = (maxItemsToKeepInResultSet < 1) ? 0 : (size_t)maxItemsToKeepInResultSet;
 			out.numGeneratedItems = m_generatedItems.GetItemCount();
 			out.numRemainingItemsToInspect = m_remainingItemWorkingDatasToInspect.size();
 			out.numItemsInFinalResultSet = m_candidates.size();
@@ -306,6 +309,8 @@ namespace UQS
 
 		CQuery_Regular::EPhaseStatus CQuery_Regular::Phase2_GenerateItems(const SPhaseUpdateContext& phaseUpdateContext)
 		{
+			CRY_PROFILE_FUNCTION_ARG(UQS_PROFILED_SUBSYSTEM_TO_USE, m_pQueryBlueprint->GetName());
+
 			const Client::IGenerator::SUpdateContext updateContext(m_queryID, m_blackboard, phaseUpdateContext.error);
 			const Client::IGenerator::EUpdateStatus generatorStatus = m_pGenerator->Update(updateContext, m_generatedItems);
 
@@ -339,14 +344,21 @@ namespace UQS
 				const Client::IItemFactory& itemFactory = m_generatedItems.GetItemFactory();
 				CDebugRenderWorldPersistent& debugRenderWorld = m_pHistory->GetDebugRenderWorldPersistent();
 
-				for (size_t i = 0, n = m_generatedItems.GetItemCount(); i < n; ++i)
+				for (size_t n = m_generatedItems.GetItemCount(); m_currentItemIndexForCreatingDebugRepresentations < n; ++m_currentItemIndexForCreatingDebugRepresentations)
 				{
-					const void* pItem = m_generatedItems.GetItemAtIndex(i);
-					m_pHistory->CreateItemDebugProxyViaItemFactoryForItem(itemFactory, pItem, i);
-					debugRenderWorld.AssociateAllUpcomingAddedPrimitivesWithItem(i);
+					const void* pItem = m_generatedItems.GetItemAtIndex(m_currentItemIndexForCreatingDebugRepresentations);
+					m_pHistory->CreateItemDebugProxyViaItemFactoryForItem(itemFactory, pItem, m_currentItemIndexForCreatingDebugRepresentations);
+					debugRenderWorld.AssociateAllUpcomingAddedPrimitivesWithItem(m_currentItemIndexForCreatingDebugRepresentations);
 					debugRenderWorld.ItemConstructionBegin();
 					itemFactory.AddItemToDebugRenderWorld(pItem, debugRenderWorld);
 					debugRenderWorld.ItemConstructionEnd();
+
+					// check for having run out of time every 16th item
+					if ((m_currentItemIndexForCreatingDebugRepresentations & 0xF) == 0 && m_timeBudgetForCurrentUpdate.IsExhausted())
+					{
+						// continue in the next frame
+						return EPhaseStatus::Ok;
+					}
 				}
 			}
 			m_currentPhaseFn = &CQuery_Regular::Phase4_PrepareEvaluationPhase;
@@ -574,6 +586,8 @@ namespace UQS
 
 		CQuery_Regular::EPhaseStatus CQuery_Regular::Phase5_RunCheapEvaluators(const SPhaseUpdateContext& phaseUpdateContext)
 		{
+			CRY_PROFILE_FUNCTION_ARG(UQS_PROFILED_SUBSYSTEM_TO_USE, m_pQueryBlueprint->GetName());
+
 			//
 			// basically, the algorithm goes like this:
 			//
@@ -674,7 +688,6 @@ namespace UQS
 			assert(taskToUpdate.pWorkingData->bitsDiscardedByInstantEvaluators == 0);
 			assert(taskToUpdate.pWorkingData->bitsDiscardedByDeferredEvaluators == 0);
 			assert(taskToUpdate.pWorkingData->bitsWorkingDeferredEvaluators != 0);
-			assert(taskToUpdate.pWorkingData->bitsFinishedDeferredEvaluators == 0);
 			assert(!taskToUpdate.pWorkingData->bDisqualifiedDueToBadScore);
 			assert(taskToUpdate.pWorkingData->bitsExceptionByInstantEvaluatorFunctionCalls == 0);
 			assert(taskToUpdate.pWorkingData->bitsExceptionByInstantEvaluatorsThemselves == 0);
@@ -1003,12 +1016,12 @@ namespace UQS
 
 				//
 				// - check for whether there's still room in the potential result set
-				// - notice that we allow one more item to get evaluated even if the capacity has already been exhausted
+				// - notice that we may allow one more item to get evaluated even if the capacity has already been exhausted
 				//   => it's this particular item that will tell us whether any of the remaining items are still promising (or whether we can cut them all off)
 				//
 
 				const size_t remainingCapacityInResultSet = m_maxCandidates - m_candidates.size();
-				const bool bRemainingCapacityAllowsToStartMoreEvaluators = (m_deferredTasks.size() < remainingCapacityInResultSet + 1);
+				const bool bRemainingCapacityAllowsToStartMoreEvaluators = (m_deferredTasks.size() < remainingCapacityInResultSet || m_deferredTasks.empty());
 
 				if (!bRemainingCapacityAllowsToStartMoreEvaluators)
 					break;
@@ -1194,6 +1207,8 @@ namespace UQS
 
 		CQuery_Regular::EPhaseStatus CQuery_Regular::Phase7_RunExpensiveEvaluators(const SPhaseUpdateContext& phaseUpdateContext)
 		{
+			CRY_PROFILE_FUNCTION_ARG(UQS_PROFILED_SUBSYSTEM_TO_USE, m_pQueryBlueprint->GetName());
+
 			//
 			// update the deferred tasks (each task is working on one item)
 			//
@@ -1215,17 +1230,23 @@ namespace UQS
 			{
 				m_currentPhaseFn = nullptr;
 
+				//
 				// prepare the result set for getting inspected by the caller
-				CQueryResultSet* pResultSet = new CQueryResultSet;
-				pResultSet->SetItemFactoryAndCreateItems(m_generatedItems.GetItemFactory(), m_candidates.size());
-				for (size_t i = 0, n = m_candidates.size(); i < n; ++i)
+				//
+
+				std::vector<size_t> itemIndexes;
+				std::vector<float> itemScores;
+
+				itemIndexes.reserve(m_candidates.size());
+				itemScores.reserve(m_candidates.size());
+
+				for (const SItemWorkingData* pWD : m_candidates)
 				{
-					const SItemWorkingData* pWD = m_candidates[i];
-					const float score = pWD->accumulatedAndWeightedScoreSoFar;
-					const void* pItem = m_generatedItems.GetItemAtIndex(pWD->indexInGeneratedItems);
-					pResultSet->SetItemAndScore(i, pItem, score);
+					itemIndexes.push_back(pWD->indexInGeneratedItems);
+					itemScores.push_back(pWD->accumulatedAndWeightedScoreSoFar);
 				}
-				m_pResultSet.reset(pResultSet);
+
+				m_pResultSet.reset(new CQueryResultSet(m_generatedItems, std::move(itemIndexes), std::move(itemScores)));
 
 #ifdef UQS_CHECK_PROPER_CLEANUP_ONCE_ALL_ITEMS_ARE_INSPECTED
 				assert(m_deferredTasks.empty());

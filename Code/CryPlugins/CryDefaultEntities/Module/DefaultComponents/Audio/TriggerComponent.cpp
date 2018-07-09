@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "TriggerComponent.h"
@@ -57,7 +57,7 @@ void CTriggerComponent::ReflectType(Schematyc::CTypeDesc<CTriggerComponent>& des
 	desc.SetEditorCategory("Audio");
 	desc.SetLabel("Trigger");
 	desc.SetDescription("Allows for execution of an audio trigger at provided transformation.");
-	desc.SetIcon("icons:Audio/trigger.ico");
+	desc.SetIcon("icons:Audio/component_trigger.ico");
 	desc.SetComponentFlags({ IEntityComponent::EFlags::Transform, IEntityComponent::EFlags::Attach, IEntityComponent::EFlags::ClientOnly });
 
 	desc.AddMember(&CTriggerComponent::m_playTrigger, 'tri1', "playTrigger", "PlayTrigger", "This trigger gets executed when Play is called.", STriggerSerializeHelper());
@@ -91,7 +91,8 @@ void CTriggerComponent::Initialize()
 		m_auxObjectId = CryAudio::DefaultAuxObjectId;
 	}
 
-	if (m_bAutoPlay)
+	// Only play in editor. Launcher is handled via ENTITY_EVENT_START_GAME.
+	if (m_bAutoPlay && gEnv->IsEditor())
 	{
 		Play();
 	}
@@ -108,25 +109,9 @@ void CTriggerComponent::Initialize()
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CTriggerComponent::OnShutDown()
-{
-	if (m_bAutoPlay)
-	{
-		Stop();
-	}
-
-	if (m_pIEntityAudioComponent != nullptr && m_auxObjectId != CryAudio::InvalidAuxObjectId && m_auxObjectId != CryAudio::DefaultAuxObjectId)
-	{
-		m_pIEntityAudioComponent->RemoveAudioAuxObject(m_auxObjectId);
-	}
-
-	m_auxObjectId = CryAudio::InvalidAuxObjectId;
-}
-
-//////////////////////////////////////////////////////////////////////////
 uint64 CTriggerComponent::GetEventMask() const
 {
-	uint64 mask = ENTITY_EVENT_BIT(ENTITY_EVENT_AUDIO_TRIGGER_STARTED) | ENTITY_EVENT_BIT(ENTITY_EVENT_AUDIO_TRIGGER_ENDED) | ENTITY_EVENT_BIT(ENTITY_EVENT_START_GAME);
+	uint64 mask = ENTITY_EVENT_BIT(ENTITY_EVENT_AUDIO_TRIGGER_STARTED) | ENTITY_EVENT_BIT(ENTITY_EVENT_AUDIO_TRIGGER_ENDED) | ENTITY_EVENT_BIT(ENTITY_EVENT_START_GAME) | ENTITY_EVENT_BIT(ENTITY_EVENT_DONE);
 
 #if defined(INCLUDE_DEFAULT_PLUGINS_PRODUCTION_CODE)
 	mask |= ENTITY_EVENT_BIT(ENTITY_EVENT_COMPONENT_PROPERTY_CHANGED);
@@ -136,7 +121,7 @@ uint64 CTriggerComponent::GetEventMask() const
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CTriggerComponent::ProcessEvent(SEntityEvent& event)
+void CTriggerComponent::ProcessEvent(const SEntityEvent& event)
 {
 	if (m_pIEntityAudioComponent != nullptr)
 	{
@@ -165,13 +150,24 @@ void CTriggerComponent::ProcessEvent(SEntityEvent& event)
 			}
 			break;
 		case ENTITY_EVENT_START_GAME:
+			// Only play in launcher. Editor is handled in Initialize()
+			if (m_bAutoPlay && !gEnv->IsEditor())
+			{
+				Play();
+			}
+			break;
+		case ENTITY_EVENT_DONE:
 			if (m_bAutoPlay)
 			{
-				if (m_numActiveTriggerInstances == 0)
-				{
-					Play();
-				}
+				Stop();
 			}
+
+			if (m_pIEntityAudioComponent != nullptr && m_auxObjectId != CryAudio::InvalidAuxObjectId && m_auxObjectId != CryAudio::DefaultAuxObjectId)
+			{
+				m_pIEntityAudioComponent->RemoveAudioAuxObject(m_auxObjectId);
+			}
+
+			m_auxObjectId = CryAudio::InvalidAuxObjectId;
 			break;
 #if defined(INCLUDE_DEFAULT_PLUGINS_PRODUCTION_CODE)
 		case ENTITY_EVENT_COMPONENT_PROPERTY_CHANGED:

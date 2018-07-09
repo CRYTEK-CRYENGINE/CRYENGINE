@@ -1,5 +1,4 @@
-// CRYENGINE Source Code File
-// Copyright 2001-2015 Crytek GmbH. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "Common.cfi"
 #include "PostEffectsLib.cfi"
@@ -20,30 +19,47 @@ float Script : STANDARDSGLOBAL
 float4 nightVisionParamsVS;
 float4 nightVisionParamsPS;
 
+Texture2D texNightVision_Screen       : register(t0);
+Texture2D texNightVision_ScreenScaled : register(t1);
+Texture2D texNightVision_Noise        : register(t2);
+Texture2D texNightVision_Gradient     : register(t3);
+
+SamplerState ssNightVision_Screen       : register(s0);
+SamplerState ssNightVision_ScreenScaled : register(s1);
+SamplerState ssNightVision_Noise        : register(s2);
+SamplerState ssNightVision_Gradient     : register(s3);
+
+
 ///////////////// vertex shader //////////////////
 
 struct vtxOutNightVision
 {
-  float4 HPosition  : POSITION;
+  float4 HPosition  : SV_POSITION;
   float2 baseTC    : TEXCOORDN;
   float4 noiseTC    : TEXCOORDN;  
   
 };
 
-vtxOutNightVision NightVisionVS(vtxIn IN)
+float4 GetNightVisionNoise(float2 noiseTC)
+{
+	return GetTexture2D(texNightVision_Noise, ssNightVision_Noise, noiseTC.xy);
+}
+
+vtxOutNightVision NightVisionVS(uint VertexID : SV_VertexID)
 {
   vtxOutNightVision OUT = (vtxOutNightVision)0; 
-  OUT.HPosition = Get2dHPos(IN.Position);
-  OUT.baseTC.xy = IN.baseTC.xy;
+  OUT.HPosition = GetHPos_FromTriVertexID(VertexID);
+  float2 baseTC = GetBaseTC_FromTriVertexID(VertexID);
+  OUT.baseTC.xy = baseTC;
   
   
   float2 scale = g_VS_ScreenSize.xy / 128.0;      
   float2 pixScale = 128.0 / g_VS_ScreenSize.xy;      
           
   // make sure noise is correctly texel to pixel mapped 
-  IN.baseTC.xy *= scale;          
-  OUT.noiseTC.xy = IN.baseTC.xy + (nightVisionParamsVS.xy ) * pixScale;              
-  OUT.noiseTC.wz = IN.baseTC.xy + (nightVisionParamsVS.zw + 0.333) * pixScale ;              
+  baseTC.xy *= scale;          
+  OUT.noiseTC.xy = baseTC + (nightVisionParamsVS.xy ) * pixScale;              
+  OUT.noiseTC.wz = baseTC + (nightVisionParamsVS.zw + 0.333) * pixScale ;              
   
   return OUT;
 }
@@ -57,10 +73,10 @@ pixout NightVisionPS(vtxOutNightVision IN)
 
   const int flareCount = 4;
 
-  half4 cScreen = tex2D(_tex0, IN.baseTC.xy);
+  half4 cScreen = GetTexture2D(texNightVision_Screen, ssNightVision_Screen, IN.baseTC.xy);
   half4 cScreenOrig = cScreen;
 
-  half4 cScreenBlurred = tex2D(_tex1, IN.baseTC.xy);
+  half4 cScreenBlurred = GetTexture2D(texNightVision_ScreenScaled, ssNightVision_ScreenScaled, IN.baseTC.xy);
   
   // sharpen screen
   cScreen =  saturate(lerp(cScreenBlurred,cScreen,  2));
@@ -69,8 +85,8 @@ pixout NightVisionPS(vtxOutNightVision IN)
   float fSceneLum = 0.5;
 
   // add noisy glow
-  half fNoise = dot(tex2D(_tex2, IN.noiseTC.xy).xy, 0.5);
-  fNoise += dot(tex2D(_tex2, IN.noiseTC.wz).xy, 0.5);
+  half fNoise  = dot(GetNightVisionNoise(IN.noiseTC.xy).xy, 0.5);
+  fNoise      += dot(GetNightVisionNoise(IN.noiseTC.wz).xy, 0.5);
   fNoise *= 0.25;;
 
   half fInterlation = abs(frac((IN.baseTC.y)*PS_ScreenSize.y*0.25)*2-1)*0.75+0.25;
@@ -83,14 +99,14 @@ pixout NightVisionPS(vtxOutNightVision IN)
   half4 cScreenEdges = 0;//
   if( flareCount )
   {
-    cScreenEdges = tex2D(_tex1, IN.baseTC.xy - normalize((IN.baseTC.xy+0.005*(tex2D(_tex3, IN.noiseTC.xy).xy*2-1)) * 2 - 1)*0.15);
-    cScreenEdges += tex2D(_tex1, IN.baseTC.xy - normalize((IN.baseTC.xy+0.005*(tex2D(_tex3, IN.noiseTC.xy).xy*2-1)) * 2 - 1)*0.2);
-    cScreenEdges += tex2D(_tex1, IN.baseTC.xy - normalize((IN.baseTC.xy+0.005*(tex2D(_tex3, IN.noiseTC.xy).xy*2-1)) * 2 - 1)*0.25);
+    cScreenEdges  = GetTexture2D(texNightVision_ScreenScaled, ssNightVision_ScreenScaled, IN.baseTC.xy - normalize((IN.baseTC.xy+0.005*(GetNightVisionNoise(IN.noiseTC.xy).xy*2-1)) * 2 - 1)*0.15);
+    cScreenEdges += GetTexture2D(texNightVision_ScreenScaled, ssNightVision_ScreenScaled, IN.baseTC.xy - normalize((IN.baseTC.xy+0.005*(GetNightVisionNoise(IN.noiseTC.xy).xy*2-1)) * 2 - 1)*0.2);
+    cScreenEdges += GetTexture2D(texNightVision_ScreenScaled, ssNightVision_ScreenScaled, IN.baseTC.xy - normalize((IN.baseTC.xy+0.005*(GetNightVisionNoise(IN.noiseTC.xy).xy*2-1)) * 2 - 1)*0.25);
     cScreenEdges *= 0.333;
-    cScreenEdges =cScreenEdges*0.75  + 0.25 *tex2D(_tex1, IN.baseTC.xy - normalize((IN.baseTC.xy+0.005*(tex2D(_tex3, IN.noiseTC.xy).xy*2-1)) * 2 - 1)*0.4);
+    cScreenEdges = cScreenEdges*0.75  + 0.25 * GetTexture2D(texNightVision_ScreenScaled, ssNightVision_ScreenScaled, IN.baseTC.xy - normalize((IN.baseTC.xy+0.005*(GetNightVisionNoise(IN.noiseTC.xy).xy*2-1)) * 2 - 1)*0.4);
   }
   else
-    cScreenEdges = tex2D(_tex1, IN.baseTC.xy);
+    cScreenEdges = GetTexture2D(texNightVision_ScreenScaled, ssNightVision_ScreenScaled, IN.baseTC.xy);
 
   half fBlurEdges = fDistToCenter;
   fBlurEdges *= fBlurEdges;
@@ -99,7 +115,7 @@ pixout NightVisionPS(vtxOutNightVision IN)
   cScreen = lerp(cScreen, cScreenEdges, saturate(fBlurEdges*0.5));
   cScreen = (cScreen  + cScreenBlurred * saturate(fNoise));
             
-  fLum = dot(cScreen.xyz, 0.33);;
+  fLum = dot(cScreen.xyz, 0.33);
   
                
   // Output final color and add grainy noise on top
@@ -126,26 +142,29 @@ pixout NightVisionPS(vtxOutNightVision IN)
 
 ////////////////// technique /////////////////////
 
-technique NightVision
-{
-  pass p0
-  {
-    VertexShader = NightVisionVS() PostRenderModesVS;
-    PixelShader = NightVisionPS() PostRenderModesPS;
-    CullMode = None;    
-  }
-}
+//technique NightVision
+//{
+//  pass p0
+//  {
+//    VertexShader = NightVisionVS() PostRenderModesVS;
+//    PixelShader = NightVisionPS() PostRenderModesPS;
+//    CullMode = None;    
+//  }
+//}
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 /// "Night vision" ghosthing technique /////////////////////////////////////////////////////////////
 
 float4 NightVisionParamsPS;
 
+Texture2D texNightVisionGhosting   : register(t0);
+SamplerState ssNightVisionGhosting : register(s0);
+
 ///////////////// vertex shader //////////////////
 struct vtxOutNightVisionGhosting
 {
-  float4 HPosition  : POSITION;
-  float2 baseTC			: TEXCOORDN;
+  float4 HPosition  : SV_POSITION;
+  float2 baseTC		: TEXCOORDN;
 };
 
 vtxOutNightVisionGhosting NightVisionGhostingVS(vtxInWPOS IN)
@@ -164,20 +183,20 @@ pixout NightVisionGhostingPS(vtxOutNightVisionGhosting IN)
 {
   pixout OUT = (pixout) 0;
 
-	OUT.Color = half4( tex2D(_tex0, IN.baseTC.xy).xyz, 0.2h);
+	OUT.Color = half4( GetTexture2D(texNightVisionGhosting, ssNightVisionGhosting, IN.baseTC.xy).xyz, 0.2h);
 
   return OUT;
 }
 
-technique NightVisionGhosting
-{
-  pass p0
-  {
-    VertexShader = NightVisionGhostingVS();
-    PixelShader = NightVisionGhostingPS();
-    CullMode = None;    
-  }
-}
+//technique NightVisionGhosting
+//{
+//  pass p0
+//  {
+//    VertexShader = NightVisionGhostingVS();
+//    PixelShader = NightVisionGhostingPS();
+//    CullMode = None;    
+//  }
+//}
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 /// "Sonar vision" technique /////////////////////////////////////////////////////////////////////////
@@ -195,7 +214,7 @@ float4 SonarVisionParamsPS;
 
 struct vtxOutSonarVision
 {
-  float4 HPosition  : POSITION;
+  float4 HPosition  : SV_POSITION;
   float2 baseTC			: TEXCOORDN;
   float4 noiseTC		: TEXCOORDN;  
 	float3 CamVec			: TEXCOORDN;  
@@ -332,45 +351,45 @@ pixout SonarVisionGhostingPS(vtxOutSonarVision IN)
 
 ////////////////// technique /////////////////////
 
-technique SonarVisionAmbient
-{
-  pass p0
-  {
-    VertexShader = SonarVisionVS();
-    PixelShader = SonarVisionAmbientPS();
-    CullMode = None;    
-  }
-}
-
-technique SonarVisionSoundHint
-{
-  pass p0
-  {
-    VertexShader = SonarVisionVS();
-    PixelShader = SonarVisionSoundHintPS();
-    CullMode = None;    
-  }
-}
-
-technique SonarVisionFinalComposition
-{
-  pass p0
-  {
-    VertexShader = SonarVisionVS();
-    PixelShader = SonarVisionFinalCompositionPS();
-    CullMode = None;    
-  }
-}
-
-technique SonarVisionGhosting
-{
-  pass p0
-  {
-    VertexShader = SonarVisionVS();
-    PixelShader = SonarVisionGhostingPS();
-    CullMode = None;    
-  }
-}
+//technique SonarVisionAmbient
+//{
+//  pass p0
+//  {
+//    VertexShader = SonarVisionVS();
+//    PixelShader = SonarVisionAmbientPS();
+//    CullMode = None;    
+//  }
+//}
+//
+//technique SonarVisionSoundHint
+//{
+//  pass p0
+//  {
+//    VertexShader = SonarVisionVS();
+//    PixelShader = SonarVisionSoundHintPS();
+//    CullMode = None;    
+//  }
+//}
+//
+//technique SonarVisionFinalComposition
+//{
+//  pass p0
+//  {
+//    VertexShader = SonarVisionVS();
+//    PixelShader = SonarVisionFinalCompositionPS();
+//    CullMode = None;    
+//  }
+//}
+//
+//technique SonarVisionGhosting
+//{
+//  pass p0
+//  {
+//    VertexShader = SonarVisionVS();
+//    PixelShader = SonarVisionGhostingPS();
+//    CullMode = None;    
+//  }
+//}
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 /// "Thermal vision" technique /////////////////////////////////////////////////////////////////////
@@ -391,7 +410,7 @@ float4 ThermalVisionParamsPS;
 
 struct vtxOutThermalVision
 {
-  float4 HPosition  : POSITION;
+  float4 HPosition  : SV_POSITION;
   float4 baseTC			: TEXCOORDN;
   float4 noiseTC		: TEXCOORDN;  
 	float3 CamVec			: TEXCOORDN;  
@@ -557,35 +576,36 @@ pixout ThermalVisionGhostingPS(vtxOutThermalVision IN)
 
 ////////////////// technique /////////////////////
 
-technique ThermalVisionAmbient
-{
-  pass p0
-  {
-    VertexShader = ThermalVisionVS();
-    PixelShader = ThermalVisionAmbientPS();
-    CullMode = None;    
-  }
-}
 
-technique ThermalVisionComposition
-{
-  pass p0
-  {
-    VertexShader = ThermalVisionVS();
-    PixelShader = ThermalVisionCompositionPS() ThermalVisionPS;
-    CullMode = None;    
-  }
-}
-
-technique ThermalVisionGhosting
-{
-  pass p0
-  {
-    VertexShader = ThermalVisionVS();
-    PixelShader = ThermalVisionGhostingPS();
-    CullMode = None;    
-  }
-}
+//technique ThermalVisionAmbient
+//{
+//  pass p0
+//  {
+//    VertexShader = ThermalVisionVS();
+//    PixelShader = ThermalVisionAmbientPS();
+//    CullMode = None;    
+//  }
+//}
+//
+//technique ThermalVisionComposition
+//{
+//  pass p0
+//  {
+//    VertexShader = ThermalVisionVS();
+//    PixelShader = ThermalVisionCompositionPS() ThermalVisionPS;
+//    CullMode = None;    
+//  }
+//}
+//
+//technique ThermalVisionGhosting
+//{
+//  pass p0
+//  {
+//    VertexShader = ThermalVisionVS();
+//    PixelShader = ThermalVisionGhostingPS();
+//    CullMode = None;    
+//  }
+//}
 
 /////////////////////// eof ///
 

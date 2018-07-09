@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "CentralInterestManager.h"
@@ -103,7 +103,7 @@ void CCentralInterestManager::Reset()
 		{
 			// Start listening to all moving entities
 			CryLog("Registering CentralInterestManager with EntitySystem");
-			gEnv->pEntitySystem->AddSink(this, IEntitySystem::OnSpawn | IEntitySystem::OnRemove, 0);
+			gEnv->pEntitySystem->AddSink(this, IEntitySystem::OnSpawn | IEntitySystem::OnRemove);
 			m_bEntityEventListenerInstalled = true;
 		}
 		else
@@ -142,7 +142,7 @@ bool CCentralInterestManager::Enable(bool bEnable)
 
 void CCentralInterestManager::Update(float fDelta)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 	if (!m_bEnabled)
 		return;
@@ -551,7 +551,7 @@ void CCentralInterestManager::DeregisterObject(IEntity* pEntity)
 }
 
 //------------------------------------------------------------------------------------------------------------------------
-void CCentralInterestManager::OnEntityEvent(IEntity* pEntity, SEntityEvent& event)
+void CCentralInterestManager::OnEntityEvent(IEntity* pEntity, const SEntityEvent& event)
 {
 	assert(pEntity);
 

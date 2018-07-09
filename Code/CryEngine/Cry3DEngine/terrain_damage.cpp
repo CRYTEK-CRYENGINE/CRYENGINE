@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 // -------------------------------------------------------------------------
 //  File name:   terrain_damage.cpp
@@ -129,8 +129,8 @@ void CTerrain::GetObjectsAround(Vec3 vExploPos, float fExploRadius, PodArray<SRN
 	   }*/
 }
 
-int CTerrain::ReloadModifiedHMData(FILE* f, int nSID)
+int CTerrain::ReloadModifiedHMData(FILE* f)
 {
 	ResetHeightMapCache();
-	return GetParentNode(nSID) ? GetParentNode(nSID)->ReloadModifiedHMData(f) : 0;
+	return GetParentNode() ? GetParentNode()->ReloadModifiedHMData(f) : 0;
 }

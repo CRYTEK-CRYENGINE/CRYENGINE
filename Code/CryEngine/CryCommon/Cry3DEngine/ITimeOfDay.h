@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -217,6 +217,19 @@ struct ITimeOfDay
 		float sunRotationLatitude;
 		float sunRotationLongitude;
 	};
+	struct IListener
+	{
+		enum class EChangeType
+		{
+			CurrentPresetChanged,
+			PresetAdded,
+			PresetRemoved,
+			PresetLoaded
+		};
+
+		virtual ~IListener() { }
+		virtual void OnChange(const EChangeType changeType, const char* const szPresetName) = 0;
+	};
 
 	// <interfuscator:shuffle>
 	virtual ~ITimeOfDay(){}
@@ -224,6 +237,7 @@ struct ITimeOfDay
 	virtual int  GetPresetCount() const = 0;
 	virtual bool GetPresetsInfos(SPresetInfo* resultArray, unsigned int arraySize) const = 0;
 	virtual bool SetCurrentPreset(const char* szPresetName) = 0;
+	virtual const char* GetCurrentPresetName() const = 0;
 	virtual bool AddNewPreset(const char* szPresetName) = 0;
 	virtual bool RemovePreset(const char* szPresetName) = 0;
 	virtual bool SavePreset(const char* szPresetName) const = 0;
@@ -287,4 +301,13 @@ struct ITimeOfDay
 	virtual void SaveInternalState(struct IDataWriteStream& writer) = 0;
 	virtual void LoadInternalState(struct IDataReadStream& reader) = 0;
 	// </interfuscator:shuffle>
+
+	//! Listener registration
+	bool RegisterListener(IListener* const pListener) { return RegisterListenerImpl(pListener, "", true); }
+	bool RegisterListener(IListener* const pListener, const char* const szDbgName, const bool staticName) { return RegisterListenerImpl(pListener, szDbgName, staticName); }
+	void UnRegisterListener(IListener* const pListener) { return UnRegisterListenerImpl(pListener); }
+
+protected:
+	virtual bool RegisterListenerImpl(IListener* const pListener, const char* const szDbgName, const bool staticName) = 0;
+	virtual void UnRegisterListenerImpl(IListener* const pListener) = 0;
 };

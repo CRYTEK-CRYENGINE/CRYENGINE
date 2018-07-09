@@ -1,0 +1,13 @@
+<AssetMetadata version="0" type="Texture" guid="9b51801f-a1b7-a9e7-653e-1ad16c4cf066" source="ReplaceMe.tif">
+ <Files>
+  <File path="ReplaceMe.dds"/>
+  <File path="ReplaceMe.dds.1"/>
+  <File path="ReplaceMe.dds.2"/>
+  <File path="ReplaceMe.dds.3"/>
+ </Files>
+ <Details>
+  <Detail name="width">128</Detail>
+  <Detail name="height">128</Detail>
+  <Detail name="mipCount">6</Detail>
+ </Details>
+</AssetMetadata>

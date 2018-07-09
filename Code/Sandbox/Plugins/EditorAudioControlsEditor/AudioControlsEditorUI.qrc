@@ -1,16 +1,15 @@
 <RCC>
-    <qresource prefix="/">
-        <file>Icons/Bank.ico</file>
-        <file>Icons/Environment.ico</file>
-        <file>Icons/Folder.ico</file>
-        <file>Icons/Property.ico</file>
-        <file>Icons/RTPC.ico</file>
-        <file>Icons/Search.ico</file>
-        <file>Icons/Switch.ico</file>
-        <file>Icons/Trigger.ico</file>
-        <file>Icons/Preload.ico</file>
-        <file>Icons/Load.ico</file>
-        <file>Icons/Save.ico</file>
-		<file>Icons/Options.ico</file>
+    <qresource prefix="/icons">
+        <file alias="audio/assets/environment.ico">Icons/assets/environment.ico</file>
+        <file alias="audio/assets/parameter.ico">Icons/assets/parameter.ico</file>
+        <file alias="audio/assets/preload.ico">Icons/assets/preload.ico</file>
+        <file alias="audio/assets/state.ico">Icons/assets/state.ico</file>
+        <file alias="audio/assets/switch.ico">Icons/assets/switch.ico</file>
+        <file alias="audio/assets/trigger.ico">Icons/assets/trigger.ico</file>
+        <file alias="audio/notifications/localized.ico">Icons/notifications/localized.ico</file>
+        <file alias="audio/notifications/no_connection.ico">Icons/notifications/no_connection.ico</file>
+        <file alias="audio/notifications/no_control.ico">Icons/notifications/no_control.ico</file>
+        <file alias="audio/notifications/placeholder.ico">Icons/notifications/placeholder.ico</file>
     </qresource>
 </RCC>
+

@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 /*************************************************************************
 -------------------------------------------------------------------------
@@ -182,7 +182,7 @@ void CVehicleWeaponControlled::StopUse(EntityId userId)
 
 const Matrix34& LocalToVehicleTM(IVehiclePart* pParent, const Matrix34& localTM)
 {
-  FUNCTION_PROFILER( gEnv->pSystem, PROFILE_ACTION );
+  CRY_PROFILE_FUNCTION( PROFILE_ACTION );
 
   static Matrix34 tm;  
   tm = localTM;

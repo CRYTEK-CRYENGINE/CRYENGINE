@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -37,6 +37,7 @@ struct Sphere;
 struct IAIActionManager;
 struct ISmartObjectManager;
 struct HidespotQueryContext;
+struct IAuditionMap;
 class IVisionMap;
 struct IFactionMap;
 class IAISystemComponent;
@@ -68,6 +69,7 @@ struct ISequenceManager;
 
 typedef CryFixedArray<IPhysicalEntity*, 32> PhysSkipList;
 
+//! \cond INTERNAL
 //! If this is changed be sure to change the table aiCollisionEntitiesTable in AICollision.cpp.
 enum EAICollisionEntities
 {
@@ -91,17 +93,6 @@ enum EnumAreaType
 	AREATYPE_EXTRALINKCOST,
 	AREATYPE_GENERIC,
 	AREATYPE_PERCEPTION_MODIFIER,
-};
-
-//! The first word refers to how the nodes are initially connected.
-//! The second word refers to how the node connections are subsequently modified - partial means that links only get disabled.
-enum EWaypointConnections
-{
-	WPCON_DESIGNER_NONE,
-	WPCON_DESIGNER_PARTIAL,
-	WPCON_AUTO_NONE,
-	WPCON_AUTO_PARTIAL,
-	WPCON_MAXVALUE = WPCON_AUTO_PARTIAL
 };
 
 //! ENavModifierType: Values are important and some types have been removed.
@@ -180,13 +171,6 @@ enum EActionType
 	eAT_PriorityAnimationAction,
 };
 
-enum SAICollisionObjClassification
-{
-	AICOL_SMALL,
-	AICOL_MEDIUM,
-	AICOL_LARGE,
-};
-
 typedef uint16 EAILoadDataFlags;
 enum EAILoadDataFlag : EAILoadDataFlags
 {
@@ -205,46 +189,22 @@ enum EAILoadDataFlag : EAILoadDataFlags
 struct SNavigationShapeParams
 {
 	SNavigationShapeParams(
-	  const char* szPathName = 0,
-	  EnumAreaType areaType = AREATYPE_PATH,
-	  bool pathIsRoad = true,
-	  bool closed = false,
-	  const Vec3* points = 0,
-	  unsigned nPoints = 0,
-	  float fHeight = 0,
-	  int nNavType = 0,
-	  int nAuxType = 0,
-	  EAILightLevel lightLevel = AILL_NONE,
-	  float fNodeAutoConnectDistance = 0,
-	  EWaypointConnections waypointConnections = WPCON_DESIGNER_NONE,
-	  bool bVehiclesInHumanNav = false,
-	  bool bCalculate3DNav = true,
-	  bool bCritterOnly = false,
-	  float f3DNavVolumeRadius = 10.0f,
-	  float extraLinkCostFactor = 0.0f,
-	  float fReductionPerMetre = 0.0f,
-	  float fReductionMax = 1.0f,
-	  float flyAgentWidth = 0.0f,
-	  float flyAgentHeight = 0.0f,
-	  const char* szPFPropertiesList = 0)
-		: szPathName(szPathName), areaType(areaType), pathIsRoad(pathIsRoad), closed(closed), points(points), nPoints(nPoints), fHeight(fHeight),
-		nNavType(nNavType), nAuxType(nAuxType), fNodeAutoConnectDistance(fNodeAutoConnectDistance),
-		waypointConnections(waypointConnections), bVehiclesInHumanNav(bVehiclesInHumanNav), bCalculate3DNav(bCalculate3DNav),
-		bCritterOnly(bCritterOnly), f3DNavVolumeRadius(f3DNavVolumeRadius),
-		extraLinkCostFactor(extraLinkCostFactor), fReductionPerMetre(fReductionPerMetre), fReductionMax(fReductionMax), lightLevel(lightLevel),
-		flyAgentWidth(flyAgentWidth), flyAgentHeight(flyAgentHeight), szPFPropertiesList(szPFPropertiesList)
+		const char* szPathName = 0, EnumAreaType areaType = AREATYPE_PATH, bool pathIsRoad = true,
+		bool closed = false, const Vec3* points = 0, unsigned nPoints = 0, float fHeight = 0,
+		int nNavType = 0, int nAuxType = 0, EAILightLevel lightLevel = AILL_NONE,
+		float fReductionPerMetre = 0.0f, float fReductionMax = 1.0f)
+		: szPathName(szPathName)
+		, areaType(areaType)
+		, pathIsRoad(pathIsRoad)
+		, closed(closed), points(points)
+		, nPoints(nPoints)
+		, fHeight(fHeight)
+		, nNavType(nNavType)
+		, nAuxType(nAuxType)
+		, fReductionPerMetre(fReductionPerMetre)
+		, fReductionMax(fReductionMax)
+		, lightLevel(lightLevel)
 	{}
-
-	struct FlightNavData
-	{
-		float flyAgentWidth;
-		float flyAgentHeight;
-		float voxelOffsetX;
-		float voxelOffsetY;
-
-		FlightNavData() : flyAgentWidth(0.0f), flyAgentHeight(0.0f), voxelOffsetX(0.0f), voxelOffsetY(0.0f)
-		{}
-	};
 
 	const char*          szPathName;
 	EnumAreaType         areaType;
@@ -255,26 +215,11 @@ struct SNavigationShapeParams
 	float                fHeight;
 	int                  nNavType;
 	int                  nAuxType;
-	float                fNodeAutoConnectDistance;
-	EWaypointConnections waypointConnections;
-	bool                 bVehiclesInHumanNav;
-	bool                 bCalculate3DNav;
-	bool                 bCritterOnly;
 	EAILightLevel        lightLevel;
-	float                f3DNavVolumeRadius;
-
-	//! Cost of links going through this shape gets multiplied by (1 + extraCostScale) - should be >= 0 for A* heuristic to be valid.
-	float extraLinkCostFactor;
 
 	//! Size of the triangles to create when it's a nav modifier that adds extra triangles for parameters for PerceptionModifier.
 	float         fReductionPerMetre;
 	float         fReductionMax;
-	float         flyAgentWidth;
-	float         flyAgentHeight;
-
-	FlightNavData flightNavData;
-
-	const char*   szPFPropertiesList;
 };
 
 struct SmartObjectCondition
@@ -476,6 +421,7 @@ enum EAIFilterType
 	eAIFT_Faction,
 	eAIFT_None,
 };
+//! \endcond
 
 struct IAIEngineModule : public Cry::IDefaultModule
 {
@@ -588,12 +534,6 @@ struct IAISystem
 	};
 	typedef NavCapMask tNavCapMask;
 
-	struct SBuildingInfo
-	{
-		EWaypointConnections waypointConnections;
-		float                fNodeAutoConnectDistance;
-	};
-
 	///////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	//Basic
 	IAISystem() {}
@@ -601,7 +541,6 @@ struct IAISystem
 	virtual ~IAISystem() {}
 
 	virtual bool                        Init() = 0;
-	virtual bool                        CompleteInit() = 0;
 
 	virtual void                        Reload() {}
 	virtual void                        Reset(EResetReason reason) = 0;
@@ -736,7 +675,6 @@ struct IAISystem
 	virtual ICommunicationManager*              GetCommunicationManager() const = 0;
 	virtual ITacticalPointSystem*               GetTacticalPointSystem(void) = 0;
 	virtual ICentralInterestManager*            GetCentralInterestManager(void) = 0;
-	virtual IAIPathFinder*                      GetIAIPathFinder() = 0;
 	virtual INavigation*                        GetINavigation() = 0;
 	virtual IAIRecorder*                        GetIAIRecorder() = 0;
 	virtual struct IMovementSystem*             GetMovementSystem() const = 0;
@@ -785,12 +723,6 @@ struct IAISystem
 
 	virtual void DummyFunctionNumberOne(void) = 0;
 
-	///////////////////////////////////////////////////////////////////////////////////////////////////////////////
-	// Hide spots
-	//! Any of the pointers to return values can be null. Returns number of hidespots found.
-	//! \return specified number of nearest hidespots. It considers the hidespots in graph and anchors.
-	virtual unsigned int GetHideSpotsInRange(IAIObject* requester, const Vec3& reqPos, const Vec3& hideFrom, float minRange, float maxRange, bool collidableOnly, bool validatedOnly, unsigned int maxPts, Vec3* coverPos, Vec3* coverObjPos, Vec3* coverObjDir, float* coverRad, bool* coverCollidable) = 0;
-
 	//! \return A point which is a valid distance away from a wall in front of the point.
 	virtual void AdjustDirectionalCoverPosition(Vec3& pos, const Vec3& dir, float agentRadius, float testHeight) = 0;
 	///////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -818,6 +750,7 @@ struct IAISystem
 	virtual void         DynOmniLightEvent(const Vec3& pos, float radius, EAILightEventType type, EntityId shooterId, float time = 5.0f) = 0;
 	virtual void         DynSpotLightEvent(const Vec3& pos, const Vec3& dir, float radius, float fov, EAILightEventType type, EntityId shooterId, float time = 5.0f) = 0;
 
+	virtual IAuditionMap*  GetAuditionMap() = 0;
 	virtual IVisionMap*  GetVisionMap() = 0;
 	virtual IFactionMap& GetFactionMap() = 0;
 	///////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -850,6 +783,7 @@ struct IAISystem
 };
 
 #if defined(ENABLE_LW_PROFILERS)
+//! \cond INTERNAL
 class CAILightProfileSection
 {
 public:
@@ -871,6 +805,7 @@ public:
 private:
 	uint64 m_nTicks;
 };
+//! \endcond
 
 	#define AISYSTEM_LIGHT_PROFILER() CAILightProfileSection _aiLightProfileSection;
 #else

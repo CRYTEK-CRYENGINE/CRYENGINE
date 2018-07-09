@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #ifndef __FACIALJOYSTICKDIALOG_H__
 #define __FACIALJOYSTICKDIALOG_H__
@@ -76,3 +76,4 @@ protected:
 };
 
 #endif //__FACIALJOYSTICKDIALOG_H__
+

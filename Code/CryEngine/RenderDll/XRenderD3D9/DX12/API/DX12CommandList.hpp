@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -716,6 +716,17 @@ public:
 		m_pCmdList->RSSetScissorRects(NumRects, pRects);
 		m_nCommands += CLCOUNT_SETSTATE;
 	}
+	
+	ILINE void SetDepthBounds(float fMin, float fMax)
+	{
+#if NTDDI_WIN10_RS2 && (WDK_NTDDI_VERSION >= NTDDI_WIN10_RS2)
+		if (m_pCmdList1 && s_DepthBoundsTestSupported)
+		{
+			m_pCmdList1->OMSetDepthBounds(fMin, fMax);
+			m_nCommands += CLCOUNT_SETSTATE;
+		}
+#endif
+	}
 
 	ILINE void SetStencilRef(UINT Ref)
 	{
@@ -750,13 +761,26 @@ public:
 protected:
 	CCommandList(CCommandListPool& pPool);
 	CCommandListPool& m_rPool;
+	
+#if NTDDI_WIN10_RS2 && (WDK_NTDDI_VERSION >= NTDDI_WIN10_RS2)
+	static BOOL s_DepthBoundsTestSupported;
+#endif
+#if NTDDI_WIN10_RS3 && (WDK_NTDDI_VERSION >= NTDDI_WIN10_RS3)
+	static D3D12_COMMAND_LIST_SUPPORT_FLAGS s_WriteBufferImmediateSupportFlags;
+#endif
 
 	void BindDepthStencilView(const CView& dsv);
 	void BindRenderTargetView(const CView& rtv);
 	void BindUnorderedAccessView(const CView& uav);
 
 	ID3D12Device* m_pD3D12Device;
-	DX12_PTR(ID3D12GraphicsCommandList) m_pCmdList;
+	DX12_PTR(ID3D12GraphicsCommandList)  m_pCmdList;  // RTM
+#if NTDDI_WIN10_RS2 && (WDK_NTDDI_VERSION >= NTDDI_WIN10_RS2)
+	DX12_PTR(ID3D12GraphicsCommandList1) m_pCmdList1; // Creator's Update
+#endif
+#if NTDDI_WIN10_RS3 && (WDK_NTDDI_VERSION >= NTDDI_WIN10_RS3)
+	DX12_PTR(ID3D12GraphicsCommandList2) m_pCmdList2; // Fall Creator's Update
+#endif
 	DX12_PTR(ID3D12CommandAllocator) m_pCmdAllocator;
 	DX12_PTR(ID3D12CommandQueue) m_pCmdQueue;
 	UINT64 m_UsedFenceValues[CMDTYPE_NUM][CMDQUEUE_NUM];

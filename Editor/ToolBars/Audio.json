@@ -2,14 +2,14 @@
     "toolBar": {
         "Commands": [
             {
-                "command": "ui_action.actionStop_All_Sounds",
-                "custom": false,
-                "uiName": "Stop All Sounds"
-            },
-            {
                 "command": "ui_action.actionMute_Audio",
                 "custom": false,
                 "uiName": "Mute Audio"
+            },
+            {
+                "command": "ui_action.actionStop_All_Sounds",
+                "custom": false,
+                "uiName": "Stop All Sounds"
             },
             {
                 "command": "ui_action.actionRefresh_Audio",

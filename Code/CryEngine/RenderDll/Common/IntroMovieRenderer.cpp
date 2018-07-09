@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 
@@ -29,19 +29,8 @@ static const size_t g_subtitleMappingCount = (CRY_ARRAY_COUNT(g_subtitleMapping)
 
 //////////////////////////////////////////////////////////////////////////
 
-CIntroMovieRenderer::CIntroMovieRenderer() : m_pFlashPlayer(0)
-{
-}
-
-CIntroMovieRenderer::~CIntroMovieRenderer()
-{
-	SAFE_RELEASE(m_pFlashPlayer);
-}
-
 bool CIntroMovieRenderer::Initialize()
 {
-	SAFE_RELEASE(m_pFlashPlayer);
-
 	m_pFlashPlayer = gEnv->pScaleformHelper ? gEnv->pScaleformHelper->CreateFlashPlayerInstance() : nullptr;
 
 	if (m_pFlashPlayer)
@@ -100,7 +89,7 @@ void CIntroMovieRenderer::WaitForCompletion()
 			break;
 		}
 		gEnv->pLog->UpdateLoadingScreen(0);
-		Sleep(1);
+		CrySleep(1);
 	}
 }
 
@@ -128,33 +117,36 @@ int CIntroMovieRenderer::GetSubtitleChannelForSystemLanguage()
 
 void CIntroMovieRenderer::LoadtimeUpdate(float deltaTime)
 {
-	if (m_pFlashPlayer)
+	auto pPlayer = m_pFlashPlayer;
+	if (pPlayer)
 	{
 		UpdateViewport();
-		m_pFlashPlayer->Advance(deltaTime);
+		pPlayer->Advance(deltaTime);
 	}
 }
 
 void CIntroMovieRenderer::LoadtimeRender()
 {
-	if (m_pFlashPlayer)
-		m_pFlashPlayer->Render(true);
+	auto pPlayer = m_pFlashPlayer;
+	if (pPlayer)
+		pPlayer->Render();
 }
 
 void CIntroMovieRenderer::UpdateViewport()
 {
-	if (!m_pFlashPlayer)
+	auto pPlayer = m_pFlashPlayer;
+	if (!pPlayer)
 		return;
 
-	int videoWidth(m_pFlashPlayer->GetWidth());
-	int videoHeight(m_pFlashPlayer->GetHeight());
+	int videoWidth (pPlayer->GetWidth());
+	int videoHeight(pPlayer->GetHeight());
 
-	const int screenWidth(gEnv->pRenderer->GetOverlayWidth());
-	const int screenHeight(gEnv->pRenderer->GetOverlayHeight());
+	const int screenWidth (gEnv->pRenderer->GetWidth ());
+	const int screenHeight(gEnv->pRenderer->GetHeight());
 
 	const float pixelAR = gEnv->pRenderer->GetPixelAspectRatio();
 
-	const float scaleX((float)screenWidth / (float)videoWidth);
+	const float scaleX((float)screenWidth  / (float)videoWidth);
 	const float scaleY((float)screenHeight / (float)videoHeight);
 
 	float scale(scaleY);

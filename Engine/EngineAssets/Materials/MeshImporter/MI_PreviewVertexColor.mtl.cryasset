@@ -1,0 +1,12 @@
+<AssetMetadata version="0" type="Material" guid="aa387bdb-27cb-ad67-072c-83994917502e">
+ <Files>
+  <File path="MI_PreviewVertexColor.mtl"/>
+ </Files>
+ <Details>
+  <Detail name="subMaterialCount">0</Detail>
+  <Detail name="textureCount">1</Detail>
+ </Details>
+ <Dependencies>
+  <Path usageCount="1">%ENGINE%/engineassets/texturemsg/color_white.dds</Path>
+ </Dependencies>
+</AssetMetadata>

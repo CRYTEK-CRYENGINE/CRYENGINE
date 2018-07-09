@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 #pragma once
 
 #if !defined(_RELEASE)
@@ -6,6 +6,8 @@
 #endif
 
 #include <CryFlowGraph/IFlowSystem.h> // <> required for Interfuscator
+#include <CryParticleSystem/IParticles.h>
+#include <CryMath/Cry_Color.h>
 
 struct IEntityClass;
 struct ISurfaceType;
@@ -41,9 +43,32 @@ struct SMFXAudioEffectRtpc
 };
 
 //////////////////////////////////////////////////////////////////////////
+struct SMFXEmitterParameter
+{
+	SMFXEmitterParameter()
+	{}
+
+	template<typename T>
+	SMFXEmitterParameter(const char* szName, T value)
+		: name(szName)
+		, value(value)
+	{}
+
+	bool operator==(const SMFXEmitterParameter& rhs) const
+	{
+		return name == rhs.name && value.index() == rhs.value.index();
+	}
+
+	CryFixedStringT<32> name;
+	IParticleAttributes::TValue value;
+};
+typedef std::vector<SMFXEmitterParameter> TMFXEmitterParameters;
+
+//////////////////////////////////////////////////////////////////////////
 struct SMFXRunTimeEffectParams
 {
 	static const int MAX_AUDIO_RTPCS = 4;
+	static const int MAX_PARTICLE_PARAMS = 4;
 
 	SMFXRunTimeEffectParams()
 		: playSoundFP(false)
@@ -65,6 +90,7 @@ struct SMFXRunTimeEffectParams
 		, audioProxyId(CryAudio::DefaultAuxObjectId)
 		, audioProxyOffset(ZERO)
 		, numAudioRtpcs(0)
+		, numParticleParams(0)
 		, fDecalPlacementTestMaxSize(1000.f)
 	{
 		dir[0].Set(0.0f, 0.0f, -1.0f);
@@ -86,6 +112,22 @@ struct SMFXRunTimeEffectParams
 	void ResetAudioRtpcs()
 	{
 		numAudioRtpcs = 0;
+	}
+
+	bool AddParticleParams(const SMFXEmitterParameter& param)
+	{
+		if (numParticleParams < MAX_PARTICLE_PARAMS)
+		{
+			particleParams[numParticleParams] = param;
+			++numParticleParams;
+			return true;
+		}
+		return false;
+	}
+
+	void ResetParticleParams()
+	{
+		numParticleParams = 0;
 	}
 
 public:
@@ -116,6 +158,9 @@ public:
 
 	SMFXAudioEffectRtpc   audioRtpcs[MAX_AUDIO_RTPCS];
 	uint32                numAudioRtpcs;
+
+	SMFXEmitterParameter  particleParams[MAX_PARTICLE_PARAMS];
+	uint32                numParticleParams;
 };
 
 struct SMFXBreakageParams
@@ -550,6 +595,7 @@ protected:
 };
 
 //////////////////////////////////////////////////////////////////////////
+//! The material effects system is responsible for triggering effects (such as particles) when the surface types of two materials interact (typically due to a physical collision).
 struct IMaterialEffects
 {
 	// <interfuscator:shuffle>

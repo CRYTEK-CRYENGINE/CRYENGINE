@@ -1,6 +1,9 @@
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
+
 #pragma once
 
 #include <CrySystem/IEngineModule.h>
+#include <memory>
 
 class ICrySizer;
 struct IFlashPlayer;
@@ -40,7 +43,7 @@ public:
 	virtual void ResetMeshCache() = 0;
 
 	//! Create new instance of flash player
-	virtual IFlashPlayer* CreateFlashPlayerInstance() = 0;
+	virtual std::shared_ptr<IFlashPlayer> CreateFlashPlayerInstance() = 0;
 
 	//! Create new instance of flash player bootstrapper
 	virtual IFlashPlayerBootStrapper* CreateFlashPlayerBootStrapper() = 0;

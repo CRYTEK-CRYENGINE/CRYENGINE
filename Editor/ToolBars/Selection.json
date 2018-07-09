@@ -33,7 +33,7 @@
                 "uiName": "Unlink"
             },
             {
-                "command": "ui_action.actionCreate_Prefab_fom_Selected_Objects",
+                "command": "prefab.create_from_selection",
                 "custom": false,
                 "uiName": "Create Prefab from Selected Objects"
             },

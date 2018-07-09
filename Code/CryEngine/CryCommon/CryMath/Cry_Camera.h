@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 //
 //	File:Cry_Camera.h
@@ -86,6 +86,29 @@ public:
 	};
 
 public:
+	// constructor/destructor
+	CCamera()
+	{
+		m_Matrix.SetIdentity();
+		m_renderViewMatrix.SetIdentity();
+		m_renderProjectionMatrix.SetIdentity();
+		SetFrustum(640, 480);
+		SetEye(eEye_Left);
+		m_zrangeMin = 0.0f;
+		m_zrangeMax = 1.0f;
+		m_pMultiCamera = NULL;
+		m_pPortal = NULL;
+		m_JustActivated = 0;
+		m_asymR = 0;
+		m_asymL = 0;
+		m_asymB = 0;
+		m_asymT = 0;
+		m_renderVecX.Set(1, 0, 0);
+		m_renderVecY.Set(0, 1, 0);
+		m_renderVecZ.Set(0, 0, 1);
+	}
+
+public:
 	ILINE static Matrix33 CreateOrientationYPR(const Ang3& ypr);
 	ILINE static Ang3     CreateAnglesYPR(const Matrix33& m);
 	ILINE static Ang3     CreateAnglesYPR(const Vec3& vdir, f32 r = 0);
@@ -103,8 +126,16 @@ public:
 	ILINE void            SetPositionNoUpdate(const Vec3& p)     { m_Matrix.SetTranslation(p); }
 	ILINE bool            Project(const Vec3& p, Vec3& result, Vec2i topLeft = Vec2i(0, 0), Vec2i widthHeight = Vec2i(0, 0)) const;
 	ILINE bool            Unproject(const Vec3& viewportPos, Vec3& result, Vec2i topLeft = Vec2i(0, 0), Vec2i widthHeight = Vec2i(0, 0)) const;
+	ILINE void            CalcScreenBounds(int* vOut, const AABB* pAABB, int x, int y, int nWidth, int nHeight) const;
 	ILINE void            CalcScreenBounds(int* vOut, const AABB* pAABB, int nWidth, int nHeight) const;
 	ILINE Vec3            GetUp() const { return m_Matrix.GetColumn2(); }
+
+	ILINE const Matrix44& GetRenderViewMatrix() const            { return m_renderViewMatrix; };
+	ILINE const Matrix44& GetRenderProjectionMatrix() const      { return m_renderProjectionMatrix; };
+	
+	ILINE const Vec3      GetRenderVectorX() const               { return m_renderVecX; }
+	ILINE const Vec3      GetRenderVectorY() const               { return m_renderVecY; }
+	ILINE const Vec3      GetRenderVectorZ() const               { return m_renderVecZ; }
 
 	//------------------------------------------------------------
 
@@ -135,6 +166,9 @@ public:
 	ILINE const Vec3&  GetPPVertex(int nId) const; //!< get projection-plane vertices
 
 	ILINE const Plane* GetFrustumPlane(int numplane)  const { return &m_fp[numplane]; }
+
+	ILINE void         GetAsymmetricFrustumParams(float& l, float& r, float& b, float& t) const;
+	ILINE void         CalcAsymmetricFrustumVertices(Vec3 vout[8])  const;
 
 	//! Z-Buffer ranges.
 	//! This values are defining near/far clipping plane, it only used to specify z-buffer range.
@@ -180,30 +214,11 @@ public:
 	bool  IsOBBVisible_E(const Vec3& wpos, const OBB& obb, f32 uscale) const;
 	uint8 IsOBBVisible_EH(const Vec3& wpos, const OBB& obb, f32 uscale) const;
 
-	// constructor/destructor
-	CCamera() { m_Matrix.SetIdentity(); SetFrustum(640, 480); SetEye(eEye_Left); m_zrangeMin = 0.0f; m_zrangeMax = 1.0f;  m_pMultiCamera = NULL; m_pPortal = NULL; m_JustActivated = 0; m_nPosX = m_nPosY = m_nSizeX = m_nSizeY = 0; m_asymR = 0; m_asymL = 0; m_asymB = 0; m_asymT = 0; }
-
 	void GetFrustumVertices(Vec3* pVerts) const;
 	void GetFrustumVerticesCam(Vec3* pVerts) const;
 
 	void SetJustActivated(const bool justActivated) { m_JustActivated = (int)justActivated; }
 	bool IsJustActivated() const                    { return m_JustActivated != 0; }
-
-	void SetViewPort(int nPosX, int nPosY, int nSizeX, int nSizeY)
-	{
-		m_nPosX = nPosX;
-		m_nPosY = nPosY;
-		m_nSizeX = nSizeX;
-		m_nSizeY = nSizeY;
-	}
-
-	void GetViewPort(int& nPosX, int& nPosY, int& nSizeX, int& nSizeY) const
-	{
-		nPosX = m_nPosX;
-		nPosY = m_nPosY;
-		nSizeX = m_nSizeX;
-		nSizeY = m_nSizeY;
-	}
 
 	void UpdateFrustum();
 	void GetMemoryUsage(ICrySizer* pSizer) const { /*nothing*/ }
@@ -211,11 +226,22 @@ public:
 	EEye GetEye() const   { return m_eye; }
 	void SetEye(EEye eye) {	m_eye = eye; }
 
+	void CalculateRenderMatrices() const;
+
+	
+	//////////////////////////////////////////////////////////////////////////
+	// Oblique Clip Plane support
+	void         SetObliqueClipPlane( const Plane &plane ) { m_obliqueClipPlane = plane; }
+	const Plane& GetObliqueClipPlane() const               { return m_obliqueClipPlane; };
+
+	void         SetObliqueClipPlaneEnabled( bool bEnabled ) { m_bObliqueClipPlaneEnabled = bEnabled; };
+	bool         IsObliqueClipPlaneEnabled() const           { return m_bObliqueClipPlaneEnabled; };
+
 private:
 	bool AdditionalCheck(const AABB& aabb) const;
 	bool AdditionalCheck(const Vec3& wpos, const OBB& obb, f32 uscale) const;
 
-	Matrix34 m_Matrix;                 //!< World space-matrix.
+	Matrix34 m_Matrix;                   //!< World space-matrix.
 
 	f32      m_fov;                  //!< Vertical fov in radiants [0..1*PI].
 	int      m_Width;                //!< Surface width-resolution.
@@ -241,9 +267,17 @@ private:
 	float  m_zrangeMin;    //!< Near range of the z-buffer to use for this camera.
 	float  m_zrangeMax;    //!< Far range of the z-buffer to use for this camera.
 
-	int    m_nPosX, m_nPosY, m_nSizeX, m_nSizeY;
-
 	EEye   m_eye;
+
+	Plane               m_obliqueClipPlane;
+	bool                m_bObliqueClipPlaneEnabled = false;
+
+	mutable Matrix44 m_renderViewMatrix;       //!< Screen model to view transformation matrix
+	mutable Matrix44 m_renderProjectionMatrix; //!< Screen projection matrix.
+	mutable Vec3     m_renderVecX;
+	mutable Vec3     m_renderVecY;
+	mutable Vec3     m_renderVecZ;
+
 	// OLD STUFF
 public:
 
@@ -319,6 +353,9 @@ public:
 	inline const Vec3& GetOccPos() const { return(m_OccPosition); }
 
 	int                m_JustActivated; //!< Camera activated in this frame, used for disabling motion blur effect at camera changes in movies.
+
+	bool               m_bOmniCamera = false;
+	int                m_curCubeFace = 0;
 };
 
 inline float CCamera::GetHorizontalFov() const
@@ -417,12 +454,7 @@ ILINE Vec3 CCamera::CreateViewdir(const Ang3& ypr)
 //! \return true if visible on screen.
 inline bool CCamera::Project(const Vec3& p, Vec3& result, Vec2i topLeft, Vec2i widthHeight) const
 {
-	Matrix44A mProj, mView;
 	Vec4 transformed, projected;
-
-	mathMatrixPerspectiveFov(&mProj, GetFov(), GetProjRatio(), GetNearPlane(), GetFarPlane());
-
-	mathMatrixLookAt(&mView, GetPosition(), GetPosition() + GetViewdir(), GetUp());
 
 	int pViewport[4] = { 0, 0, GetViewSurfaceX(), GetViewSurfaceZ() };
 
@@ -434,11 +466,11 @@ inline bool CCamera::Project(const Vec3& p, Vec3& result, Vec2i topLeft, Vec2i w
 		pViewport[3] = widthHeight.y;
 	}
 
-	transformed = Vec4(p, 1) * mView;
+	transformed = Vec4(p, 1) * m_renderViewMatrix;
 
 	bool visible = transformed.z < 0.0f;
 
-	projected = transformed * mProj;
+	projected = transformed * m_renderProjectionMatrix;
 
 	if (projected.w == 0.0f)
 	{
@@ -462,11 +494,6 @@ inline bool CCamera::Project(const Vec3& p, Vec3& result, Vec2i topLeft, Vec2i w
 
 inline bool CCamera::Unproject(const Vec3& viewportPos, Vec3& result, Vec2i topLeft, Vec2i widthHeight) const
 {
-	Matrix44A mProj, mView;
-
-	mathMatrixPerspectiveFov(&mProj, GetFov(), GetProjRatio(), GetNearPlane(), GetFarPlane());
-	mathMatrixLookAt(&mView, GetPosition(), GetPosition() + GetViewdir(), Vec3(0, 0, 1));
-
 	int viewport[4] = { 0, 0, GetViewSurfaceX(), GetViewSurfaceZ() };
 
 	if (!topLeft.IsZero() || !widthHeight.IsZero())
@@ -483,7 +510,7 @@ inline bool CCamera::Unproject(const Vec3& viewportPos, Vec3& result, Vec2i topL
 	vIn.z = viewportPos.z;
 	vIn.w = 1.0;
 
-	Matrix44A m = mView * mProj;
+	Matrix44A m = m_renderViewMatrix * m_renderProjectionMatrix;
 
 	m.Invert();
 	if (!m.IsValid())
@@ -498,7 +525,7 @@ inline bool CCamera::Unproject(const Vec3& viewportPos, Vec3& result, Vec2i topL
 	return true;
 }
 
-inline void CCamera::CalcScreenBounds(int* vOut, const AABB* pAABB, int nWidth, int nHeight) const
+inline void CCamera::CalcScreenBounds(int* vOut, const AABB* pAABB, int x, int y, int nWidth, int nHeight) const
 {
 	Matrix44A mProj, mView, mVP;
 	mathMatrixPerspectiveFov(&mProj, GetFov(), GetProjRatio(), GetNearPlane(), GetFarPlane());
@@ -507,9 +534,9 @@ inline void CCamera::CalcScreenBounds(int* vOut, const AABB* pAABB, int nWidth, 
 
 	Vec3 verts[8];
 
-	Vec2i topLeft = Vec2i(0, 0);
+	Vec2i topLeft = Vec2i(x, y);
 	Vec2i widthHeight = Vec2i(nWidth, nHeight);
-	float pViewport[4] = { 0.0f, 0.0f, (float)widthHeight.x, (float)widthHeight.y };
+	float pViewport[4] = { (float)topLeft.x, (float)topLeft.y, (float)widthHeight.x, (float)widthHeight.y };
 
 	float x0 = 9999.9f, x1 = -9999.9f, y0 = 9999.9f, y1 = -9999.9f;
 	float fIntersect = 1.0f;
@@ -567,10 +594,15 @@ inline void CCamera::CalcScreenBounds(int* vOut, const AABB* pAABB, int nWidth, 
 		y1 = max(y1, result.y);
 	}
 
-	vOut[0] = (int)max(0.0f, min(pViewport[2], x0));
-	vOut[1] = (int)max(0.0f, min(pViewport[3], y0));
-	vOut[2] = (int)max(0.0f, min(pViewport[2], x1));
-	vOut[3] = (int)max(0.0f, min(pViewport[3], y1));
+	vOut[0] = (int)max(pViewport[0], min(pViewport[2], x0));
+	vOut[1] = (int)max(pViewport[1], min(pViewport[3], y0));
+	vOut[2] = (int)max(pViewport[0], min(pViewport[2], x1));
+	vOut[3] = (int)max(pViewport[1], min(pViewport[3], y1));
+}
+
+inline void CCamera::CalcScreenBounds(int* vOut, const AABB* pAABB, int nWidth, int nHeight) const
+{
+	return CalcScreenBounds(vOut, pAABB, 0, 0, nWidth, nHeight);
 }
 
 inline void CCamera::SetFrustum(int nWidth, int nHeight, f32 FOV, f32 nearplane, f32 farpane, f32 fPixelAspectRatio)
@@ -680,6 +712,30 @@ inline void CCamera::UpdateFrustum()
 
 	}
 	m_OccPosition = GetPosition();
+	CalculateRenderMatrices();
+}
+
+inline void CCamera::CalculateRenderMatrices() const
+{
+	mathMatrixPerspectiveFov(&m_renderProjectionMatrix, GetFov(), GetProjRatio(), GetNearPlane(), GetFarPlane());
+	mathMatrixLookAt(&m_renderViewMatrix, GetPosition(), GetPosition() + GetViewdir(), GetUp());
+
+	// Ortho-normalize camera matrix in double precision to minimize numerical errors and improve precision when inverting matrix
+	Matrix34_tpl<f64> mCam34 = GetMatrix();
+	mCam34.OrthonormalizeFast();
+	
+	Vec3 vEye = GetPosition();
+	Vec3 vAt = vEye + Vec3((float)mCam34(0, 1), (float)mCam34(1, 1), (float)mCam34(2, 1));
+	Vec3 vUp = Vec3((float)mCam34(0, 2), (float)mCam34(1, 2), (float)mCam34(2, 2));
+
+	m_renderVecZ = vEye - vAt;
+	m_renderVecZ.NormalizeSafe();
+	
+	m_renderVecX = vUp.Cross(m_renderVecZ);
+	m_renderVecX.NormalizeSafe();
+	
+	m_renderVecY = m_renderVecZ.Cross(m_renderVecX);
+	m_renderVecY.NormalizeSafe();
 }
 
 //! \param pVerts pointer to array of 8 elements
@@ -768,6 +824,51 @@ ILINE const Vec3& CCamera::GetPPVertex(int nId) const
 	CRY_MATH_ASSERT(0);
 	return m_clbp;
 }
+
+ILINE void CCamera::GetAsymmetricFrustumParams(float& outL, float& outR, float& outB, float& outT) const
+{
+	// Asymmetric frustum
+	float Near = GetNearPlane();
+
+	float wT = tanf(GetFov() * 0.5f) * Near;
+	float wB = -wT;
+	float wR = wT * GetProjRatio();
+	float wL = -wR;
+
+	outL = wL + GetAsymL();
+	outR = wR + GetAsymR();
+	outB = wB + GetAsymB();
+	outT = wT + GetAsymT();
+}
+
+ILINE void CCamera::CalcAsymmetricFrustumVertices(Vec3 V[8]) const
+{
+	float fWL,fWR,fWB,fWT;
+	GetAsymmetricFrustumParams(fWL,fWR,fWB,fWT);
+	
+	float fNear = GetNearPlane();
+	float fFar = GetFarPlane();
+
+	float NearZ = -fNear;
+	V[0].Set(fWR, fWT, NearZ);
+	V[1].Set(fWL, fWT, NearZ);
+	V[2].Set(fWL, fWB, NearZ);
+	V[3].Set(fWR, fWB, NearZ);
+
+	float FarZ = -fFar, FN = fFar / fNear;
+	float fwL = fWL * FN, fwR = fWR * FN, fwB = fWB * FN, fwT = fWT * FN;
+	V[4].Set(fwR, fwT, FarZ);
+	V[5].Set(fwL, fwT, FarZ);
+	V[6].Set(fwL, fwB, FarZ);
+	V[7].Set(fwR, fwB, FarZ);
+
+	for (int i = 0; i < 8; i++)
+	{
+		// Camera space to world space
+		V[i] = m_renderVecX*V[i].x + m_renderVecY*V[i].y + m_renderVecZ*V[i].z + GetPosition();
+	}
+}
+
 
 //! Check if a point lies within camera's frustum.
 //! Example: u8 InOut=camera.IsPointVisible(point);

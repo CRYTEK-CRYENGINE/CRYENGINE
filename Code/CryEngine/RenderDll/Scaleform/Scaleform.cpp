@@ -1,21 +1,27 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 
 #include "../Common/Renderer.h"
+#include <memory>
 
 //////////////////////////////////////////////////////////////////////////
-void CRenderer::RT_FlashRender(IFlashPlayer_RenderProxy* pPlayer, bool stereo)
+void CRenderer::FlashRender(std::shared_ptr<IFlashPlayer_RenderProxy> &&pPlayer)
 {
-	m_pRT->RC_FlashRender(pPlayer, stereo);
+	m_pRT->RC_FlashRender(std::move(pPlayer));
 }
 
-void CRenderer::RT_FlashRenderPlaybackLockless(IFlashPlayer_RenderProxy* pPlayer, int cbIdx, bool stereo, bool finalPlayback)
+void CRenderer::FlashRenderPlayer(std::shared_ptr<IFlashPlayer> &&pPlayer)
 {
-	m_pRT->RC_FlashRenderPlaybackLockless(pPlayer, cbIdx, stereo, finalPlayback);
+	m_pRT->RC_FlashRenderPlayer(std::move(pPlayer));
 }
 
-void CRenderer::RT_FlashRemoveTexture(ITexture* pTexture)
+void CRenderer::FlashRenderPlaybackLockless(std::shared_ptr<IFlashPlayer_RenderProxy> &&pPlayer, int cbIdx, bool finalPlayback)
+{
+	m_pRT->RC_FlashRenderPlaybackLockless(std::move(pPlayer), cbIdx, finalPlayback);
+}
+
+void CRenderer::FlashRemoveTexture(ITexture* pTexture)
 {
 	pTexture->Release();
 }

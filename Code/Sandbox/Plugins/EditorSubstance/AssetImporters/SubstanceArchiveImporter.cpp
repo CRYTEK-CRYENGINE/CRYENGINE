@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "SubstanceArchiveImporter.h"
@@ -75,12 +75,13 @@ namespace EditorSubstance
 			// after imported, lest try regenerate everything dependant
 			if (checkDepenencies)
 			{
-				for (CAsset* depAsset : CAssetManager::GetInstance()->GetReverseDependencies(*currentAsset))
+				for (auto& item : CAssetManager::GetInstance()->GetReverseDependencies(*currentAsset))
 				{
-					string dependantAssetTypeName(depAsset->GetType()->GetTypeName());
+					CAsset* pDepAsset = item.first;
+					string dependantAssetTypeName(pDepAsset->GetType()->GetTypeName());
 					if (dependantAssetTypeName == "SubstanceInstance")
 					{
-						EditorSubstance::CManager::Instance()->ForcePresetRegeneration(depAsset);
+						EditorSubstance::CManager::Instance()->ForcePresetRegeneration(pDepAsset);
 					}
 				}
 			}

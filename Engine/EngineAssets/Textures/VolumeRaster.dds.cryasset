@@ -1,0 +1,10 @@
+<AssetMetadata version="0" type="Texture" guid="44ef0b46-cd1d-4378-faed-2c1987598ba8" source="VolumeRaster.tif">
+ <Files>
+  <File path="VolumeRaster.dds"/>
+ </Files>
+ <Details>
+  <Detail name="width">64</Detail>
+  <Detail name="height">64</Detail>
+  <Detail name="mipCount">1</Detail>
+ </Details>
+</AssetMetadata>

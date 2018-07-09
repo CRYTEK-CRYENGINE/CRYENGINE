@@ -1,6 +1,8 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
+
+#include "GlobalData.h"
 
 #include <ATLEntityData.h>
 #include <IAudioImpl.h>
@@ -14,20 +16,15 @@ namespace Impl
 {
 namespace Wwise
 {
-static AkGameObjectID g_listenerId = AK_INVALID_GAME_OBJECT; // To be removed once multi-listener support is implemented.
-static AkGameObjectID s_globalObjectId = AK_INVALID_GAME_OBJECT;
-
 class CObject final : public IObject, public CPoolObject<CObject, stl::PSyncNone>
 {
 public:
 
-	using EnvironmentImplMap = std::map<AkAuxBusID, float>;
+	using AuxSendValues = std::vector<AkAuxSendValue>;
 
-	explicit CObject(AkGameObjectID const id)
-		: m_id(id)
-		, m_bNeedsToUpdateEnvironments(false)
-	{}
+	explicit CObject(AkGameObjectID const id);
 
+	CObject() = delete;
 	CObject(CObject const&) = delete;
 	CObject(CObject&&) = delete;
 	CObject& operator=(CObject const&) = delete;
@@ -42,14 +39,14 @@ public:
 	virtual ERequestStatus SetObstructionOcclusion(float const obstruction, float const occlusion) override;
 	virtual ERequestStatus ExecuteTrigger(ITrigger const* const pITrigger, IEvent* const pIEvent) override;
 	virtual ERequestStatus StopAllTriggers() override;
-	virtual ERequestStatus PlayFile(IStandaloneFile* const pIStandaloneFile) override { return ERequestStatus::Success; }
-	virtual ERequestStatus StopFile(IStandaloneFile* const pIStandaloneFile) override { return ERequestStatus::Success; }
+	virtual ERequestStatus PlayFile(IStandaloneFile* const pIStandaloneFile) override { return ERequestStatus::Failure; }
+	virtual ERequestStatus StopFile(IStandaloneFile* const pIStandaloneFile) override { return ERequestStatus::Failure; }
 	virtual ERequestStatus SetName(char const* const szName) override;
 	// ~CryAudio::Impl::IObject
 
 	AkGameObjectID const m_id;
 	bool                 m_bNeedsToUpdateEnvironments;
-	EnvironmentImplMap   m_environmentImplAmounts;
+	AuxSendValues        m_auxSendValues;
 
 private:
 
@@ -136,7 +133,7 @@ struct SSwitchState final : public ISwitchState
 	  ESwitchType const type_,
 	  AkUInt32 const stateOrSwitchGroupId_,
 	  AkUInt32 const stateOrSwitchId_,
-	  float const rtpcValue_ = 0.0f)
+	  float const rtpcValue_ = s_defaultStateValue)
 		: type(type_)
 		, stateOrSwitchGroupId(stateOrSwitchGroupId_)
 		, stateOrSwitchId(stateOrSwitchId_)

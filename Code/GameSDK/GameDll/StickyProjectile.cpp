@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "StickyProjectile.h"
@@ -565,7 +565,7 @@ void CStickyProjectile::SendHitInfo(const CProjectile* pProjectile, IEntity* pTa
 	}
 }
 
-void CStickyProjectile::OnEntityEvent( IEntity *pEntity,SEntityEvent &event )
+void CStickyProjectile::OnEntityEvent( IEntity *pEntity, const SEntityEvent& event )
 {
 	switch(event.event)
 	{

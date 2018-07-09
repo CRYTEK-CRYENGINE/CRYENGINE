@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 /*************************************************************************
    -------------------------------------------------------------------------
@@ -1227,7 +1227,7 @@ TVehicleSoundEventId CVehicle::AddSoundEvent(SVehicleSoundInfo& info)
 }
 
 //------------------------------------------------------------------------
-void CVehicle::ProcessEvent(SEntityEvent& entityEvent)
+void CVehicle::ProcessEvent(const SEntityEvent& entityEvent)
 {
 	switch (entityEvent.event)
 	{
@@ -1314,16 +1314,16 @@ void CVehicle::ProcessEvent(SEntityEvent& entityEvent)
 uint64 CVehicle::GetEventMask() const
 {
 	return
-	  BIT64(ENTITY_EVENT_RESET) |
-	  BIT64(ENTITY_EVENT_DONE) |
-	  BIT64(ENTITY_EVENT_TIMER) |
-	  BIT64(ENTITY_EVENT_MATERIAL_LAYER) |
-	  BIT64(ENTITY_EVENT_HIDE) |
-	  BIT64(ENTITY_EVENT_UNHIDE) |
-	  BIT64(ENTITY_EVENT_ANIM_EVENT) |
-	  BIT64(ENTITY_EVENT_START_GAME) |
-	  BIT64(ENTITY_EVENT_SET_AUTHORITY) |
-	  BIT64(ENTITY_EVENT_PREPHYSICSUPDATE);
+	  ENTITY_EVENT_BIT(ENTITY_EVENT_RESET) |
+	  ENTITY_EVENT_BIT(ENTITY_EVENT_DONE) |
+	  ENTITY_EVENT_BIT(ENTITY_EVENT_TIMER) |
+	  ENTITY_EVENT_BIT(ENTITY_EVENT_MATERIAL_LAYER) |
+	  ENTITY_EVENT_BIT(ENTITY_EVENT_HIDE) |
+	  ENTITY_EVENT_BIT(ENTITY_EVENT_UNHIDE) |
+	  ENTITY_EVENT_BIT(ENTITY_EVENT_ANIM_EVENT) |
+	  ENTITY_EVENT_BIT(ENTITY_EVENT_START_GAME) |
+	  ENTITY_EVENT_BIT(ENTITY_EVENT_SET_AUTHORITY) |
+	  ENTITY_EVENT_BIT(ENTITY_EVENT_PREPHYSICSUPDATE);
 }
 
 //------------------------------------------------------------------------
@@ -1407,7 +1407,7 @@ void CVehicle::KillTimers()
 {
 	KillAbandonedTimer();
 
-	GetEntity()->KillTimer(-1);
+	GetEntity()->KillTimer(IEntity::KILL_ALL_TIMER);
 	m_timers.clear();
 }
 
@@ -1561,17 +1561,17 @@ void CVehicle::DoRequestedPhysicalization()
 //------------------------------------------------------------------------
 void CVehicle::Update(SEntityUpdateContext& ctx, int slot)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_ACTION);
+	CRY_PROFILE_FUNCTION(PROFILE_ACTION);
 
 #if ENABLE_VEHICLE_DEBUG
 	gEnv->pAuxGeomRenderer->SetRenderFlags(e_Def3DPublicRenderflags);
 #endif
 
 	const float frameTime = ctx.fFrameTime;
-	if (ctx.nFrameID != m_lastFrameId)
+	if (ctx.frameID != m_lastFrameId)
 	{
 		m_bNeedsUpdate = false;
-		m_lastFrameId = ctx.nFrameID;
+		m_lastFrameId = ctx.frameID;
 	}
 
 	switch (slot)
@@ -1830,7 +1830,7 @@ void CVehicle::DebugDraw(const float frameTime)
 		{
 			IRenderAuxText::DrawLabelExF(ite->second->GetWorldTM().GetTranslation(), 1.0f, drawColor, true, true, "<%s>", ite->first.c_str());
 
-			/*IRenderAuxGeom* pGeom = gEnv->pRenderer->GetIRenderAuxGeom();
+			/*IRenderAuxGeom* pGeom = gEnv->pAuxGeomRenderer;
 			   AABB bounds = AABB::CreateTransformedAABB(ite->second->GetWorldTM(), ite->second->GetLocalBounds());
 			   ColorB col(0,255,0,255);
 			   pGeom->DrawAABB(bounds, false, col, eBBD_Extremes_Color_Encoded);*/
@@ -1850,7 +1850,7 @@ void CVehicle::DebugDraw(const float frameTime)
 					IRenderAuxText::DrawLabelExF(partWorldTM.GetTranslation(), 1.0f, color, true, true, "<%s>", iPart->first.c_str());
 				}
 
-				if (IRenderAuxGeom* pRenderAuxGeom = gEnv->pRenderer->GetIRenderAuxGeom())
+				if (IRenderAuxGeom* pRenderAuxGeom = gEnv->pAuxGeomRenderer)
 				{
 					pRenderAuxGeom->DrawAABB(pPart->GetLocalBounds(), GetEntity()->GetWorldTM(), false, ColorB(255, 255, 255, 255), eBBD_Extremes_Color_Encoded);
 
@@ -1935,7 +1935,7 @@ void CVehicle::DebugDraw(const float frameTime)
 //------------------------------------------------------------------------
 void CVehicle::DebugDrawClientPredict()
 {
-	if (IRenderAuxGeom* pRenderAuxGeom = gEnv->pRenderer->GetIRenderAuxGeom())
+	if (IRenderAuxGeom* pRenderAuxGeom = gEnv->pAuxGeomRenderer)
 	{
 		CryAutoCriticalSection lk(m_debugDrawLock);
 
@@ -2070,7 +2070,7 @@ void CVehicle::HandleEvent(const SGameObjectEvent& event)
 //------------------------------------------------------------------------
 void CVehicle::UpdateStatus(const float deltaTime)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_ACTION);
+	CRY_PROFILE_FUNCTION(PROFILE_ACTION);
 
 	int frameId = gEnv->nMainFrameID;
 	if (!(frameId > m_status.frameId))
@@ -2971,7 +2971,7 @@ bool CVehicle::IsActionUsable(const SVehicleActionInfo& actionInfo, const SMovem
 			if (VehicleCVars().v_debugdraw > 1)
 			{
 				IRenderer* pRenderer = gEnv->pRenderer;
-				IRenderAuxGeom* pRenderAux = pRenderer->GetIRenderAuxGeom();
+				IRenderAuxGeom* pRenderAux = gEnv->pAuxGeomRenderer;
 				const Matrix34& worldTM = m_pVehicle->GetEntity()->GetWorldTM();
 				pRenderAux->DrawAABB(localbounds, worldTM, false, hit ? Col_Green : Col_Red, eBBD_Faceted);
 				pRenderAux->DrawLine(lineSeg.start, Col_Green, lineSeg.end, Col_Green);
@@ -3477,7 +3477,7 @@ bool CVehicle::SetMovement(const string& movementName, const CVehicleParams& tab
 //------------------------------------------------------------------------
 void CVehicle::OnPhysPostStep(const EventPhys* pEvent, bool logged)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_ACTION);
+	CRY_PROFILE_FUNCTION(PROFILE_ACTION);
 	const EventPhysPostStep* eventPhys = (const EventPhysPostStep*)pEvent;
 	float deltaTime = eventPhys->dt;
 	if (logged)
@@ -5942,7 +5942,6 @@ void CVehicle::DebugReorient()
 
 void CVehicle::OffsetPosition(const Vec3& delta)
 {
-#ifdef SEG_WORLD
 	// go through all seats, not just driver...
 	for (TVehicleSeatVector::iterator it = m_seats.begin(); it != m_seats.end(); ++it)
 	{
@@ -5952,5 +5951,4 @@ void CVehicle::OffsetPosition(const Vec3& delta)
 			pSeat->OffsetPosition(delta);
 		}
 	}
-#endif
 }

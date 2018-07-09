@@ -1,0 +1,51 @@
+# Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
+
+def build(bld):
+	base_defines  = [ '_UNICODE', 'UNICODE', '_CRT_SECURE_NO_WARNINGS', '_HAS_EXCEPTIONS=0' ]
+	base_includes = [ Path('Code/CryEngine/CrySystem') ]
+	base_filelist = 'pakencrypt.waf_files'
+	base_folder   = Path('Tools/PakEncrypt')
+
+	bld.CryConsoleApplication(
+		output_sub_folder = base_folder,
+		target      = 'PakEncrypt',
+		vs_filter   = 'Tools/PakEncrypt',
+		file_list   = base_filelist,
+		includes    = base_includes,
+		use_module  = [ 'tomcrypt' ],
+		defines     = [ '_ENCRYPT' ] + base_defines,
+		force_static_crt = 'True',
+	)
+	
+	bld.CryConsoleApplication(
+		output_sub_folder = base_folder,
+		target      = 'PakDecrypt',
+		vs_filter   = 'Tools/PakEncrypt',
+		file_list   = base_filelist,
+		includes    = base_includes,
+		use_module  = [ 'tomcrypt' ],
+		defines     = [ '_DECRYPT' ] + base_defines,
+		force_static_crt = 'True',
+	)
+	
+	bld.CryConsoleApplication(
+		output_sub_folder = base_folder,
+		target      = 'PakSign',
+		vs_filter   = 'Tools/PakEncrypt',
+		file_list   = base_filelist,
+		includes    = base_includes,
+		use_module  = [ 'tomcrypt' ],
+		defines     = [ '_SIGN' ] + base_defines,
+		force_static_crt = 'True',
+	)
+	
+	bld.CryConsoleApplication(
+		output_sub_folder = base_folder,
+		target            = 'KeyGen',
+		vs_filter         = 'Tools/PakEncrypt',
+		file_list         = 'keygen.waf_files',
+		includes          = base_includes,
+		use_module        = [ 'tomcrypt' ],
+		defines           = [ '_KEYGEN' ] + base_defines,
+		force_static_crt  = 'True',
+	)

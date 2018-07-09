@@ -1,14 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
-
-// -------------------------------------------------------------------------
-//  Created:     24/09/2014 by Filipe amim
-//  Description:
-// -------------------------------------------------------------------------
-//
-////////////////////////////////////////////////////////////////////////////
-
-#ifndef PARTICLEDATATYPES_H
-#define PARTICLEDATATYPES_H
+// Copyright 2015-2018 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #pragma once
 
@@ -78,75 +68,122 @@ typedef SChaosKey SChaosKeyV;
 
 #endif
 
-enum EState
-{
-	ESB_Alive   = BIT(0),   // this particle is alive
-	ESB_Dead    = BIT(1),   // this particle is either dead or expired
-	ESB_NewBorn = BIT(2),   // this particle appeared this frame
-	ESB_Update  = BIT(7),   // this particle can be updated
-
-	ES_Empty    = 0,                                    // nobody home
-	ES_Dead     = ESB_Dead,                             // particle allocated but dead
-	ES_Alive    = ESB_Update | ESB_Alive,               // regular living particle
-	ES_Expired  = ESB_Update | ESB_Dead,                // passed the age time but will only be dead next frame
-	ES_NewBorn  = ESB_Update | ESB_NewBorn | ESB_Alive, // particle appeared this frame
-};
-
 ///////////////////////////////////////////////////////////////////////////////
 // Implement EParticleDataTypes (size, position, etc) with DynamicEnum.
 // Data type entries can be declared in multiple source files, with info about the data type (float, Vec3, etc)
 
-enum BHasInit {}; // boolean argument indicating data type has an extra init field
+enum EDataDomain
+{
+	EDD_None           = 0,
+
+	EDD_PerParticle    = 1, // Data is per particle
+	EDD_PerInstance    = 2, // Data is per sub-emitter
+
+	EDD_HasUpdate      = 4, // Data is updated per-frame, has additional init-value element
+	EDD_NeedsClear     = 8, // Data requires clearing after editing
+
+	EDD_ParticleUpdate = EDD_PerParticle | EDD_HasUpdate,
+	EDD_InstanceUpdate = EDD_PerInstance | EDD_HasUpdate
+};
+
+// Traits for extracting element-type info from scalar and vector types
+template<typename T>
+struct TDimInfo
+{
+	using             TElem = T;
+	static const uint Dim   = 1;
+
+	static TElem Elem(const T& t, uint e) { CRY_ASSERT(e == 0); return t; }
+};
+
+template<>
+struct TDimInfo<Vec3>
+{
+	using             TElem = float;
+	static const uint Dim = 3;
+
+	static TElem Elem(const Vec3& t, uint e) { return t[e]; }
+};
+
+template<>
+struct TDimInfo<Quat>
+{
+	using             TElem = float;
+	static const uint Dim = 4;
+
+	static TElem Elem(const Quat& t, uint e) { return t[e]; }
+};
 
 //! Info associated with each EParticleDataType
-struct SParticleDataInfo
+struct SDataInfo
 {
 	typedef yasli::TypeID TypeID;
 
-	TypeID   type;
-	size_t   sizeOf;
-	uint     dimension;
-	BHasInit hasInit;
+	TypeID      type;
+	size_t      typeSize   = 0;
+	uint        dimension  = 0;
+	EDataDomain domain     = EDD_None;
 
-	SParticleDataInfo()
-		: dimension(0), hasInit(BHasInit(false)) {}
-
-	template<typename T>
-	SParticleDataInfo(T*, uint dim = 1, BHasInit init = BHasInit(false))
-		: type(TypeID::get<T>()), sizeOf(sizeof(T)), dimension(dim), hasInit(init) {}
+	SDataInfo() {}
 
 	template<typename T>
-	bool isType() const { return type == TypeID::get<T>(); }
+	SDataInfo(T*, EDataDomain domain)
+		: type(TypeID::get<typename TDimInfo<T>::TElem>())
+		, typeSize(sizeof(typename TDimInfo<T>::TElem)), dimension(TDimInfo<T>::Dim)
+		, domain(domain)
+	{}
 
 	template<typename T>
-	bool   isType(uint dim) const { return type == TypeID::get<T>() && dimension == dim; }
+	bool isType() const         { return type == TypeID::get<T>(); }
 
-	uint   step() const           { return dimension * (1 + hasInit); }
-	size_t typeSize() const       { return sizeOf; }
+	template<typename T>
+	bool isType(uint dim) const { return type == TypeID::get<T>() && dimension == dim; }
+
+	uint step() const           { return dimension * (domain & EDD_HasUpdate ? 2 : 1); }
 };
 
-template<typename T = float, uint dim = 1, BHasInit init = BHasInit(false)>
-struct TParticleDataInfo : SParticleDataInfo
-{
-	TParticleDataInfo()
-		: SParticleDataInfo((T*)0, dim, init) {}
-};
-
-//! EParticleDataType implemented as a DynamicEnum, with SParticleDataInfo
-typedef DynamicEnum<SParticleDataInfo, uint, SParticleDataInfo>
-  EParticleDataType;
+//! EParticleDataType implemented as a DynamicEnum, with SDataInfo
+typedef DynamicEnum<SDataInfo, uint, SDataInfo>
+	EParticleDataType;
 
 ILINE EParticleDataType InitType(EParticleDataType type)
 {
 	return type + type.info().dimension;
 }
 
-// Convenient initialization of EParticleDataType
-//  EParticleDataType PDT(EPDT_SpawnID, TParticleID, 1)
-//  EParticleDataType PDT(EPVF_Velocity, float, 3)
+//! DataType implemented as a DynamicEnum, with SDataInfo
+template<typename T, EDataDomain Domain = EDD_PerParticle>
+struct TDataType: EParticleDataType
+{
+	using EParticleDataType::EParticleDataType;
 
-#define PDT(Name, ...) \
-  Name(SkipPrefix( # Name), 0, TParticleDataInfo<__VA_ARGS__>())
+	// Access element sub-types
+	using             TElem = typename TDimInfo<T>::TElem;
+	static const uint Dim   = TDimInfo<T>::Dim;
+
+	TDataType<TElem> operator[](uint e) const
+	{
+		CRY_ASSERT(e < Dim);
+		return TDataType<TElem>(this->value() + e);
+	}
+
+	// Get following type used for initialization
+	TDataType InitType() const
+	{
+		CRY_ASSERT(this->info().domain & EDD_HasUpdate);
+		return TDataType(this->value() + Dim);
+	}
+};
+
+
+// Convenient initialization of EParticleDataType
+//  MakeDataType(EPDT_SpawnID, TParticleID)
+//  MakeDataType(EPVF_Velocity, Vec3)
+
+inline EDataDomain PDT_FLAGS(EDataDomain domain = EDD_PerParticle) { return domain; } // Helper function for variadic macro
+
+#define MakeDataType(Name, T, ...) \
+  TDataType<T> Name(SkipPrefix(#Name), nullptr, SDataInfo((T*)0, PDT_FLAGS(__VA_ARGS__)))
 
 inline cstr SkipPrefix(cstr name)
 {
@@ -157,31 +194,33 @@ inline cstr SkipPrefix(cstr name)
 }
 
 // Standard data types
-extern EParticleDataType
-  EPDT_SpawnId,
-  EPDT_ParentId,
-  EPDT_State,
-  EPDT_NormalAge,
-  EPDT_LifeTime,
-  EPDT_InvLifeTime,
-  EPDT_SpawnFraction,
-  EPDT_Random,
-  EPDT_Size,
-  EPDT_Angle2D,
-  EPDT_Spin2D;
+extern TDataType<TParticleId>
+	EPDT_SpawnId,
+	EPDT_ParentId;
 
-// pose data types
-extern EParticleDataType
-  EPVF_Position,
-  EPVF_Velocity,
-  EPQF_Orientation,
-  EPVF_AngularVelocity,
-  EPVF_LocalPosition,
-  EPVF_LocalVelocity,
-  EPQF_LocalOrientation;
+extern TDataType<float>
+	EPDT_NormalAge,
+	EPDT_LifeTime,
+	EPDT_InvLifeTime,
+	EPDT_SpawnFraction,
+	EPDT_Random,
+	EPDT_Size,
+	EPDT_Angle2D,
+	EPDT_Spin2D;
+
+// Pose data types
+extern TDataType<Vec3>
+	EPVF_Position,
+	EPVF_Velocity,
+	EPVF_AngularVelocity;
+
+extern TDataType<Quat>
+	EPQF_Orientation;
+
+// NormalAge functions
+inline bool IsAlive(float age)   { return age < 1.0f; }
+inline bool IsExpired(float age) { return age >= 1.0f; }
 
 }
 
 #include "ParticleDataTypesImpl.h"
-
-#endif // PARTICLEDATATYPES_H

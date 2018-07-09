@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -89,14 +89,13 @@ public:
 
 	// Vertex Transformation
 public:
-	SSkinningData*          GetVertexTransformationData(const bool bVertexAnimation, uint8 nRenderLOD);
+	SSkinningData*          GetVertexTransformationData(bool useSwSkinningCpu, uint8 nRenderLOD, const SRenderingPassInfo& passInfo);
 	bool                    ShouldSwSkin() const     { return (m_AttFlags & FLAGS_ATTACH_SW_SKINNING) != 0; }
 	bool                    ShouldSkinLinear() const { return (m_AttFlags & FLAGS_ATTACH_LINEAR_SKINNING) != 0; }
 	_smart_ptr<IRenderMesh> CreateVertexAnimationRenderMesh(uint lod, uint id);
 	void                    CullVertexFrames(const SRenderingPassInfo& passInfo, float fDistance);
 
 #ifdef EDITOR_PCDEBUGCODE
-	void DrawVertexDebug(IRenderMesh* pRenderMesh, const QuatT& location, const SVertexAnimationJob* pVertexAnimation, const SVertexSkinData& vertexSkinData);
 	void DrawWireframeStatic(const Matrix34& m34, int nLOD, uint32 color);
 	void SoftwareSkinningDQ_VS_Emulator(CModelMesh* pModelMesh, Matrix34 rRenderMat34, uint8 tang, uint8 binorm, uint8 norm, uint8 wire, const DualQuat* const pSkinningTransformations);
 #endif
@@ -107,7 +106,7 @@ public:
 	virtual IVertexAnimation* GetIVertexAnimation() override { return &m_vertexAnimation; }
 	virtual ISkin*            GetISkin() override            { return m_pModelSkin; };
 	virtual float             GetExtent(EGeomForm eForm) override;
-	virtual void              GetRandomPos(PosNorm& ran, CRndGen& seed, EGeomForm eForm) const override;
+	virtual void              GetRandomPoints(Array<PosNorm> points, CRndGen& seed, EGeomForm eForm) const override;
 	virtual SMeshLodInfo      ComputeGeometricMean() const override;
 
 	int                       GetGuid() const;

@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 // -------------------------------------------------------------------------
 //  File name:   FlowMouseInfo.cpp
@@ -186,10 +186,12 @@ public:
 
 		if (m_bOutputWorldCoords)
 		{
+			const CCamera& camera = GetISystem()->GetViewCamera();
+
 			Vec3 vPos;
 			int mouseX, mouseY;
 			mouseX = iX;
-			mouseY = gEnv->pRenderer->GetHeight() - iY;
+			mouseY = camera.GetViewSurfaceZ() - iY;
 			gEnv->pRenderer->UnProjectFromScreen((float)mouseX, (float)mouseY, 1, &vPos.x, &vPos.y, &vPos.z);
 
 			ActivateOutput(&m_actInfo, EOP_World, vPos);
@@ -575,7 +577,9 @@ public:
 	// Since the modelviewmatrix is updated in the update, and flowgraph is updated in the preupdate, we need this postupdate
 	virtual void OnPostUpdate(float fDeltaTime)
 	{
-		int invMouseY = gEnv->pRenderer->GetHeight() - m_mouseY;
+		const CCamera& camera = GetISystem()->GetViewCamera();
+
+		int invMouseY = camera.GetViewSurfaceZ() - m_mouseY;
 
 		Vec3 vPos0(0, 0, 0);
 		gEnv->pRenderer->UnProjectFromScreen((float)m_mouseX, (float)invMouseY, 0, &vPos0.x, &vPos0.y, &vPos0.z);
@@ -911,12 +915,13 @@ public:
 					for (int i = 0; i < 2; ++i)
 					{
 						gEnv->pRenderer->ProjectToScreen(points[i].x, points[i].y, points[i].z, &pointsProjected[i].x, &pointsProjected[i].y, &pointsProjected[i].z);
-						const float fWidth = (float)gEnv->pRenderer->GetWidth();
-						const float fHeight = (float)gEnv->pRenderer->GetHeight();
+
+						const int w = IRenderAuxGeom::GetAux()->GetCamera().GetViewSurfaceX();
+						const int h = IRenderAuxGeom::GetAux()->GetCamera().GetViewSurfaceZ();
 
 						//scale projected values to the actual screen resolution
-						pointsProjected[i].x *= 0.01f * fWidth;
-						pointsProjected[i].y *= 0.01f * fHeight;
+						pointsProjected[i].x *= 0.01f * w;
+						pointsProjected[i].y *= 0.01f * h;
 					}
 
 					//check if the projected bounding box min max values are fully or partly inside the screen selection

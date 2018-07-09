@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 using System;
 
@@ -44,7 +44,7 @@ namespace CryEngine.UI.Components
 		/// <summary>
 		/// Called by Canvas. Do not call directly.
 		/// </summary>
-		public override void OnMouseMove(int x, int y)
+		protected override void OnMouseMove(int x, int y)
 		{
 			if (_drag && (Math.Abs((y - _startPos.y)) > MathHelpers.Epsilon || Math.Abs(x - _startPos.x) > MathHelpers.Epsilon))
 			{
@@ -58,7 +58,7 @@ namespace CryEngine.UI.Components
 		/// <summary>
 		/// Called by Canvas. Do not call directly.
 		/// </summary>
-		public override void OnMouseEnter(int x, int y)
+		protected override void OnMouseEnter(int x, int y)
 		{
 			TargetAlpha = 1;
 		}
@@ -66,7 +66,7 @@ namespace CryEngine.UI.Components
 		/// <summary>
 		/// Called by Canvas. Do not call directly.
 		/// </summary>
-		public override void OnMouseLeave(int x, int y)
+		protected override void OnMouseLeave(int x, int y)
 		{
 			if (!_drag)
 				TargetAlpha = 0.3f;
@@ -75,7 +75,7 @@ namespace CryEngine.UI.Components
 		/// <summary>
 		/// Called by Canvas. Do not call directly.
 		/// </summary>
-		public override void OnLeftMouseDown(int x, int y)
+		protected override void OnLeftMouseDown(int x, int y)
 		{
 			_drag = true;
 			_startPos = new Point(x, y);
@@ -85,7 +85,7 @@ namespace CryEngine.UI.Components
 		/// <summary>
 		/// Called by Canvas. Do not call directly.
 		/// </summary>
-		public override void OnLeftMouseUp(int x, int y, bool inside)
+		protected override void OnLeftMouseUp(int x, int y, bool inside)
 		{
 			_drag = false;
 			TargetAlpha = 0.3f;

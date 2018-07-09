@@ -1,0 +1,15 @@
+<AssetMetadata version="0" type="Texture" guid="7540c8ba-79b7-2005-463e-c89aa0457690" source="frost_noise4.tif">
+ <Files>
+  <File path="frost_noise4.dds"/>
+  <File path="frost_noise4.dds.1"/>
+  <File path="frost_noise4.dds.2"/>
+  <File path="frost_noise4.dds.3"/>
+  <File path="frost_noise4.dds.4"/>
+  <File path="frost_noise4.dds.5"/>
+ </Files>
+ <Details>
+  <Detail name="width">512</Detail>
+  <Detail name="height">512</Detail>
+  <Detail name="mipCount">8</Detail>
+ </Details>
+</AssetMetadata>

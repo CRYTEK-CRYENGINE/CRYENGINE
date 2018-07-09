@@ -1,0 +1,10 @@
+<AssetMetadata version="0" type="Texture" guid="1f394e0c-74b4-8fa9-de7f-d593365afa94" source="hiteffect_areas.tif">
+ <Files>
+  <File path="hiteffect_areas.dds"/>
+ </Files>
+ <Details>
+  <Detail name="width">64</Detail>
+  <Detail name="height">64</Detail>
+  <Detail name="mipCount">1</Detail>
+ </Details>
+</AssetMetadata>

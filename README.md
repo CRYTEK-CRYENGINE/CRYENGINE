@@ -5,8 +5,8 @@ Instructions on getting started with git can be found [here](http://docs.cryengi
 
 
 ## Building
-In order to compile, you will need to download some thirdparty SDKs. They can be downloaded by running the *download_sdks.py* script.
-Or on windows the *download_sdks.exe* can be used alternatively.
+In order to compile, you will need to download some third party SDKs. They can be downloaded by running the *download_sdks.py* script.
+Or on Windows, the *download_sdks.exe* can be used alternatively.
 
 CMake must be used to compile the engine, see [here](http://docs.cryengine.com/display/CEPROG/CMake) for more information.
 
@@ -18,7 +18,7 @@ Development takes place primarily in the "main" branch. The stabilisation branch
 
 To prepare for a major (feature) release, we integrate "main" into "stabilisation", and then continue fixing bugs in "stabilisation". To prepare for a minor (stability) release, individual changes from 'main are integrated directly into "stabilisation". In each case, when the release is deemed ready, "stabilisation" is integrated to "release".
 
-Pull requests can only be accepted into the "pullrequests" branch.
+Pull requests can only be accepted into the "pullrequests" branch. Thanks in advance!
 
 
 ## License

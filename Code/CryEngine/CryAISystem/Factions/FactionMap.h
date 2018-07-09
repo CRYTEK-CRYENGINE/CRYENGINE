@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -50,6 +50,9 @@ public:
 	virtual void        RemoveDataSource(IFactionDataSource* pDataSource) override;
 
 	virtual void        Reload() override;
+
+	virtual void        RegisterFactionReactionChangedCallback(const FactionReactionChangedCallback& callback) override;
+	virtual void        UnregisterFactionReactionChangedCallback(const FactionReactionChangedCallback& callback) override;
 	// ~IFactionMap
 
 	void Clear();
@@ -64,4 +67,5 @@ private:
 	FactionNamesById             m_namesById;
 	FactionIdsByName             m_idsByName;
 	uint8                        m_reactions[maxFactionCount][maxFactionCount];
+	CFunctorsList<FactionReactionChangedCallback> m_factionReactionChangedCallback;
 };

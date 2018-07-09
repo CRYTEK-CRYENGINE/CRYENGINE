@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 /********************************************************************
    -------------------------------------------------------------------------
@@ -30,43 +30,16 @@
 #include <CryAISystem/IMovementSystem.h>
 #include "PipeUserMovementActorAdapter.h"
 
-struct PathFollowerParams;
-
-struct CoverUsageInfo
+enum EPathfinderResult
 {
-	CoverUsageInfo()
-		: lowLeft(false)
-		, lowCenter(false)
-		, lowRight(false)
-		, highLeft(false)
-		, highCenter(false)
-		, highRight(false)
-		, lowCompromised(false)
-		, highCompromised(false)
-	{
-	};
-
-	CoverUsageInfo(bool state)
-		: lowLeft(state)
-		, lowCenter(state)
-		, lowRight(state)
-		, highLeft(state)
-		, highCenter(state)
-		, highRight(state)
-		, lowCompromised(state)
-		, highCompromised(state)
-	{
-	};
-
-	bool lowLeft         : 1;
-	bool lowCenter       : 1;
-	bool lowRight        : 1;
-	bool lowCompromised  : 1;
-	bool highLeft        : 1;
-	bool highCenter      : 1;
-	bool highRight       : 1;
-	bool highCompromised : 1;
+	PATHFINDER_STILLFINDING,
+	PATHFINDER_PATHFOUND,
+	PATHFINDER_NOPATH,
+	PATHFINDER_ABORT,
+	PATHFINDER_MAXVALUE
 };
+
+struct PathFollowerParams;
 
 enum EAimState
 {
@@ -257,10 +230,7 @@ public:
 	virtual Vec3        GetProbableTargetPosition() override;
 	SShape*             GetRefShape();
 
-	void                SetCoverRegister(const CoverID& coverID);
-	const CoverID& GetCoverRegister() const;
-
-	void           CreateRefPoint();
+	void                CreateRefPoint();
 
 	// Sets an actor target request.
 	virtual void                 SetActorTargetRequest(const SAIActorTargetRequest& req) override;
@@ -274,9 +244,6 @@ public:
 	virtual EntityId             GetLastUsedSmartObjectId() const override { return m_idLastUsedSmartObject; }
 	virtual bool                 IsUsingNavSO() const override             { return m_eNavSOMethod != nSOmNone; }
 	virtual void                 ClearPath(const char* dbgString) override;
-
-	virtual ETriState            CanTargetPointBeReached(CTargetPointRequest& request) override;
-	virtual bool                 UseTargetPointRequest(const CTargetPointRequest& request) override;
 
 	virtual void                 UpdateLookTarget(CAIObject* pTarget);
 	void                         EnableUpdateLookTarget(bool bEnable = true);
@@ -307,53 +274,49 @@ public:
 	//Last finished AIAction sets status as succeed or failed
 	virtual void SetLastActionStatus(bool bSucceed) override;
 
-	void         ClearInvalidatedSOLinks();
-	void         InvalidateSOLink(CSmartObject* pObject, SmartObjectHelper* pFromHelper, SmartObjectHelper* pToHelper) const;
-	bool         IsSOLinkInvalidated(CSmartObject* pObject, SmartObjectHelper* pFromHelper, SmartObjectHelper* pToHelper) const;
 	bool         ConvertPathToSpline(IAISystem::ENavigationType navType);
 
 	void         Update(EUpdateType type) override;
 
-	// Cover
-	void           SetCoverID(const CoverID& coverID);
-	const CoverID& GetCoverID() const;
-	Vec3           GetCoverLocation() const;
-	uint32         GetCoverEyes(CAIObject* targetEnemy, const Vec3& enemyTargetLocation, Vec3* eyes, uint32 maxCount) const;
-
 	bool           IsAdjustingAim() const;
 	void           SetAdjustingAim(bool adjustingAim);
 
-	virtual bool   IsInCover() const override;
-	virtual void   SetInCover(bool inCover) override;
+	// Cover
+	void           SetCoverID(const CoverID& coverID);
+	const CoverID& GetCoverID() const;
 
-	virtual void   SetCoverCompromised() override;
-	virtual bool   IsCoverCompromised() const override;
+	void           SetCoverRegister(const CoverID& coverID);
+	const CoverID& GetCoverRegister() const;
 
-	void           SetMovingToCover(bool movingToCover);
-	bool           IsMovingToCover() const override;
+	void           UpdateCoverEyesWithTarget(const CAIObject* pTarget, const Vec3& targetPosition);
+	void           FillCoverEyes(DynArray<Vec3>& eyesContainer);
 
-	void           SetMovingInCover(bool movingInCover);
+	void           SetCoverState(const ICoverUser::StateFlags& state);
+
+	// IPipeUser
+	virtual void        SetInCover(bool bInCover) override;
+	virtual void        SetMovingToCover(bool bMovingInCover) override;
+	virtual void        SetCoverCompromised() override;
+	virtual bool        IsCoverCompromised() const override;
+	virtual bool        IsInCover() const override;
+	virtual bool        IsMovingToCover() const override;
+	virtual bool        IsTakingCover(float distanceThreshold) const override;
+	// ~IPipeUser
+	
+	CoverHeight    CalculateEffectiveCoverHeight() const;
 	bool           IsMovingInCover() const;
 
-	virtual bool   IsTakingCover(float distanceThreshold) const override;
-
-	void           UpdateCoverBlacklist(float updateTime);
-	void           ResetCoverBlacklist();
 	void           SetCoverBlacklisted(const CoverID& coverID, bool blacklist, float time = 0.0f);
 	bool           IsCoverBlacklisted(const CoverID& coverID) const;
-	ILINE float    GetCoverLocationEffectiveHeight() const
-	{
-		return m_coverUser.GetLocationEffectiveHeight();
-	}
 
-	CoverHeight CalculateEffectiveCoverHeight() const override;
+	ICoverUser*    GetCoverUser() const { return m_pCoverUser; }
+	void           SetCoverInvalidated(CoverID coverID, ICoverUser* pCoverUser);
+	// ~Cover
 
 	ILINE float GetLastUpdateInterval() const
 	{
 		return m_fTimePassed;
 	}
-
-	AsyncState                GetCoverUsageInfo(CoverUsageInfo& usageInfo);
 
 	virtual void              OnAIHandlerSentSignal(const char* szText, uint32 crcCode) override;
 
@@ -365,9 +328,6 @@ public:
 
 	bool            m_bLastNearForbiddenEdge;
 	bool            m_bLastActionSucceed;
-
-	typedef std::set<std::pair<CSmartObject*, std::pair<SmartObjectHelper*, SmartObjectHelper*>>> TSetInvalidatedSOLinks;
-	mutable TSetInvalidatedSOLinks m_invalidatedSOLinks;
 
 	// DEBUG MEMBERS
 	EGoalOperations m_lastExecutedGoalop;
@@ -406,11 +366,6 @@ public:
 	bool                m_navSOEarlyPathRegen;
 	EntityId            m_idLastUsedSmartObject;
 
-#ifdef _DEBUG
-	ListPositions m_DEBUGCanTargetPointBeReached;
-	Vec3          m_DEBUGUseTargetPointRequest;
-#endif
-
 	SNavSOStates m_currentNavSOStates;
 	SNavSOStates m_pendingNavSOStates;
 
@@ -431,8 +386,6 @@ public:
 #endif
 
 	virtual void DebugDrawGoals();
-
-	void         DebugDrawCoverUser();
 
 	// goal pipe notifications - used by action graph nodes
 	typedef std::multimap<int, std::pair<IGoalPipeListener*, const char*>> TMapGoalPipeListeners;
@@ -482,6 +435,14 @@ protected:
 	bool                   GetBranchCondition(QGoal& Goal);
 
 	virtual IPathFollower* CreatePathFollower(const PathFollowerParams& params);
+
+	void                   UpdateCovers(EUpdateType type, float updateTime);
+
+	// Callbacks for Cover ability
+	void                   CreateMovementPlanCoverStartBlocks(DynArray<Movement::BlockPtr>& blocks, const MovementRequest& request);
+	void                   CreateMovementPlanCoverEndBlocks(DynArray<Movement::BlockPtr>& blocks, const MovementRequest& request);
+	void                   PrePathFollowUpdate(const MovementUpdateContext& context, bool bIsLastFollowBlock);
+	// !Callbacks for Cover ability
 
 	void                   HandleNavSOFailure();
 	void                   SyncActorTargetPhaseWithAIProxy();
@@ -541,11 +502,11 @@ protected:
 
 	SAIActorTargetRequest* m_pActorTargetRequest;
 
-	bool                   m_inCover;
-	bool                   m_movingToCover;
-	bool                   m_movingInCover;
-	CoverUser              m_coverUser;
-	CoverID                m_regCoverID;
+	// Cover
+	ICoverUser*            m_pCoverUser;
+	const CAIObject*       m_pCoverEyesTargetObject;
+	Vec3                   m_coverEyesTargetPosition;
+	// ~Cover
 
 	//Pauses aspects of the AI's response
 	uint8 m_paused;
@@ -565,47 +526,6 @@ private:
 	CStrongRef<CAIObject> m_refLookAtTarget;      // a look point - which the loose attention target may be set to!
 
 	bool                  m_adjustingAim;
-
-	typedef std::unordered_map<CoverID, float, stl::hash_uint32> CoverBlacklist;
-	CoverBlacklist m_coverBlacklist;
-
-	void CoverUsageInfoRayComplete(const QueuedRayID& rayID, const RayCastResult& result);
-
-	struct CoverUsageInfoState
-	{
-		CoverUsageInfoState()
-			: state(AsyncReady)
-			, rayCount()
-			, result(false)
-		{
-			for (uint32 i = 0; i < 6; ++i)
-				rayID[i] = 0;
-		}
-
-		void Reset()
-		{
-			for (uint32 i = 0; i < 6; ++i)
-			{
-				if (rayID[i])
-				{
-					gAIEnv.pRayCaster->Cancel(rayID[i]);
-					rayID[i] = 0;
-				}
-			}
-
-			state = AsyncReady;
-			rayCount = 0;
-			result = CoverUsageInfo(false);
-		}
-
-		QueuedRayID    rayID[6];
-		AsyncState     state;
-		uint8          rayCount;
-
-		CoverUsageInfo result;
-	};
-
-	CoverUsageInfoState m_coverUsageInfoState;
 
 	struct DelayedPipeSelection
 	{
@@ -645,6 +565,7 @@ private:
 
 	PipeUserMovementActorAdapter m_movementActorAdapter;
 	MovementActorCallbacks       m_callbacksForPipeuser;
+	SMovementActionAbilityCallbacks m_coverMovementAbility;
 };
 
 ILINE const CPipeUser* CastToCPipeUserSafe(const IAIObject* pAI) { return pAI ? pAI->CastToCPipeUser() : 0; }

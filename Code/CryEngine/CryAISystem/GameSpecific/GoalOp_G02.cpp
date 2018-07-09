@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 /********************************************************************
    -------------------------------------------------------------------------
@@ -128,7 +128,7 @@ COPCharge::~COPCharge()
 EGoalOpResult COPCharge::Execute(CPipeUser* pOperand)
 {
 	CCCPOINT(COPCharge_Execute);
-	FUNCTION_PROFILER(GetISystem(), PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 	m_pOperand = pOperand;
 
@@ -272,7 +272,7 @@ void COPCharge::UpdateChargePos()
 //----------------------------------------------------------------------------------------------------------
 void COPCharge::ExecuteDry(CPipeUser* pOperand)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 	m_pOperand = pOperand;
 
 	// Move towards the current target.
@@ -747,10 +747,6 @@ void COPSeekCover::Serialize(TSerialize ser)
 //====================================================================
 bool COPSeekCover::IsSegmentValid(IAISystem::tNavCapMask navCap, float rad, const Vec3& posFrom, Vec3& posTo, IAISystem::ENavigationType& navTypeFrom)
 {
-	int nBuildingID = -1;
-
-	navTypeFrom = gAIEnv.pNavigation->CheckNavigationType(posFrom, nBuildingID, navCap);
-
 	if (IsInDeepWater(posTo))
 		return false;
 
@@ -758,10 +754,7 @@ bool COPSeekCover::IsSegmentValid(IAISystem::tNavCapMask navCap, float rad, cons
 	if (!GetFloorPos(posTo, initPos, WalkabilityFloorUpDist, 1.0f, WalkabilityDownRadius, AICE_ALL))
 		return false;
 
-	SWalkPosition from(posFrom, true);
-	SWalkPosition to(posTo, true);
-
-	return CheckWalkabilitySimple(from, to, rad, AICE_ALL_EXCEPT_TERRAIN);
+	return true;
 }
 
 inline float Ease(float a)
@@ -1111,7 +1104,7 @@ EGoalOpResult COPSeekCover::Execute(CPipeUser* pOperand)
 
 	if (!m_pTraceDirective)
 	{
-		FRAME_PROFILER("SeekCover/CalculatePathTree", gEnv->pSystem, PROFILE_AI);
+		CRY_PROFILE_REGION(PROFILE_AI, "SeekCover/CalculatePathTree");
 
 		if (m_state >= 0)
 		{

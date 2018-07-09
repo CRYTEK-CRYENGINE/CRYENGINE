@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 // This is the header file for the general utility dialog for
 // overwrite confirmation. The purpose of this dialog, as one might imagine, is to
@@ -59,3 +59,4 @@ private:
 };
 
 #endif // GenericOverwriteDialog_h__
+

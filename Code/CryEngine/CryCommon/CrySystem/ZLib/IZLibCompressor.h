@@ -1,12 +1,8 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
-/******************************************************************************
-** IZLibCompressor.h
-** 23/6/10
-******************************************************************************/
+//! \cond INTERNAL
 
-#ifndef __IZLIBCOMPRESSOR_H__
-#define __IZLIBCOMPRESSOR_H__
+#pragma once
 
 /*
    wrapper interface for the zlib compression / deflate interface
@@ -203,4 +199,4 @@ public:
 	// </interfuscator:shuffle>
 };
 
-#endif // __IZLIBCOMPRESSOR_H__
+//! \endcond

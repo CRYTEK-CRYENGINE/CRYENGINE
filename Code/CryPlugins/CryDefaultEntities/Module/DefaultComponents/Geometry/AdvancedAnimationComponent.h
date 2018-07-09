@@ -4,10 +4,10 @@
 
 #include <bitset>
 
-#include <CryGame/IGameFramework.h>
 #include <ICryMannequin.h>
 #include <CrySchematyc/Utils/SharedString.h>
 #include <CryCore/Containers/CryArray.h>
+#include <CryGame/IGameFramework.h>
 
 #include <Animation/PoseAligner/PoseAligner.h>
 
@@ -50,7 +50,7 @@ protected:
 	// IEntityComponent
 	virtual void   Initialize() override;
 
-	virtual void   ProcessEvent(SEntityEvent& event) override;
+	virtual void   ProcessEvent(const SEntityEvent& event) override;
 	virtual uint64 GetEventMask() const override;
 	// ~IEntityComponent
 
@@ -121,8 +121,8 @@ public:
 			return;
 		}
 
-		const TagID fragmentId = m_pAnimationContext->controllerDef.m_fragmentIDs.Find(fragmentName.c_str());
-		if (fragmentId == TAG_ID_INVALID)
+		FragmentID fragmentId = m_pAnimationContext->controllerDef.m_fragmentIDs.Find(fragmentName.c_str());
+		if (fragmentId == FRAGMENT_ID_INVALID)
 		{
 			CryWarning(VALIDATOR_MODULE_GAME, VALIDATOR_ERROR, "Failed to find Mannequin fragment %s in controller definition %s", fragmentName.c_str(), m_pAnimationContext->controllerDef.m_filename.c_str());
 			return;
@@ -146,6 +146,11 @@ public:
 		const int priority = 0;
 		m_pActiveAction = new TAction<SAnimationContext>(priority, fragmentId);
 		m_pActionController->Queue(*m_pActiveAction);
+	}
+	
+	virtual void QueueCustomFragment(IAction& action)
+	{
+		m_pActionController->Queue(action);
 	}
 
 	// TODO: Expose resource selector for tags
@@ -251,7 +256,7 @@ public:
 			return;
 		}
 
-		m_pEntity->SetCharacter(m_pCachedCharacter, GetOrMakeEntitySlotId() | ENTITY_SLOT_ACTUAL, false);
+		m_pEntity->SetCharacter(m_pCachedCharacter, GetOrMakeEntitySlotId(), false);
 		SetAnimationDrivenMotion(m_bAnimationDrivenMotion);
 
 		if (m_pControllerDefinition != nullptr)
@@ -293,8 +298,8 @@ public:
 	}
 	bool         IsAnimationDrivenMotionEnabled() const { return m_bAnimationDrivenMotion; }
 
-	virtual void SetCharacterFile(const char* szPath);
-	const char*  SetCharacterFile() const                  { return m_characterFile.value.c_str(); }
+	virtual void SetCharacterFile(const char* szPath, bool applyImmediately = true);
+	const char*  GetCharacterFile() const                  { return m_characterFile.value.c_str(); }
 	virtual void SetMannequinAnimationDatabaseFile(const char* szPath);
 	const char*  GetMannequinAnimationDatabaseFile() const { return m_databasePath.value.c_str(); }
 

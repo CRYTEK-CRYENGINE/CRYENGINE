@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -9,52 +9,69 @@ class CRenderPipelineProfiler
 public:
 	enum EProfileSectionFlags
 	{
+		eProfileSectionFlags_RootElement = BIT(0),
 		eProfileSectionFlags_MultithreadedSection = BIT(1)
 	};
 	
 	CRenderPipelineProfiler();
 
 	void                   Init();
-	void                   BeginFrame();
+	void                   BeginFrame(const int frameID);
 	void                   EndFrame();
 	void                   BeginSection(const char* name);
 	void                   EndSection(const char* name);
 
 	uint32                 InsertMultithreadedSection(const char* name);
-	void                   UpdateMultithreadedSection(uint32 index, bool bSectionStart, int numDIPs, int numPolys, bool bIssueGPUTimestamp, CDeviceCommandList* pCommandList);
+	void                   UpdateMultithreadedSection(uint32 index, bool bSectionStart, int numDIPs, int numPolys, bool bIssueTimestamp, CTimeValue deltaTimestamp, CDeviceCommandList* pCommandList);
 	
 	bool                   IsEnabled();
 	void                   SetEnabled(bool enabled)                                        { m_enabled = enabled; }
 
-	const RPProfilerStats& GetBasicStats(ERenderPipelineProfilerStats stat, int nThreadID) { assert((uint32)stat < RPPSTATS_NUM); return m_basicStats[nThreadID][stat]; }
-	const RPProfilerStats* GetBasicStatsArray(int nThreadID)                               { return m_basicStats[nThreadID]; }
+	const RPProfilerStats&                   GetBasicStats(ERenderPipelineProfilerStats stat, int nThreadID) { assert((uint32)stat < RPPSTATS_NUM); return m_basicStats[nThreadID][stat]; }
+	const RPProfilerStats*                   GetBasicStatsArray(int nThreadID)                               { return m_basicStats[nThreadID]; }
+	const DynArray<RPProfilerDetailedStats>* GetDetailedStatsArray(int nThreadID)                            { return &m_detailedStats[nThreadID]; }
 
 protected:
 	struct SProfilerSection
 	{
-		char            name[31];
-		int8            recLevel;   // Negative value means error in stack
-		uint8           flags;
-		CCryNameTSCRC   path;
-		int             numDIPs, numPolys;
+		char            name[31]; 
+		float           gpuTime;
+		float           gpuTimeSmoothed;
+		float           cpuTime;
+		float           cpuTimeSmoothed;
 		CTimeValue      startTimeCPU, endTimeCPU;
 		uint32          startTimestamp, endTimestamp;
-		float           gpuTime;
+		CCryNameTSCRC   path;
+		int             numDIPs, numPolys;		
+		int8            recLevel;   // Negative value means error in stack
+		uint8           flags;
 	};
 
 	struct SFrameData
 	{
 		enum { kMaxNumSections = CDeviceTimestampGroup::kMaxTimestamps / 2 };
 
-		uint32                 m_numSections;
-		SProfilerSection       m_sections[kMaxNumSections];
-		CDeviceTimestampGroup  m_timestampGroup;
+		uint32                  m_numSections;
+		int                     m_frameID;
+		SProfilerSection        m_sections[kMaxNumSections];
+		CDeviceTimestampGroup   m_timestampGroup;
+		bool                    m_updated;
 
-		// Note: Use of m_sections is guarded by m_numSections, initialization of m_sections skipped for performance reasons
+		float fTimeRealFrameTime;
+		float fTimeWaitForMain;
+		float fTimeWaitForRender;
+		float fTimeProcessedRT;
+		float fTimeProcessedGPU;
+		float fTimeWaitForGPU;
+		float fTimeGPUIdlePercent;
+
 		// cppcheck-suppress uninitMemberVar
 		SFrameData()
 			: m_numSections(0)
+			, m_frameID(0)
+			, m_updated(false)
 		{
+			memset(m_sections, 0, sizeof(m_sections));
 		}
 	};
 
@@ -73,8 +90,8 @@ protected:
 			, waitForRender(0)
 			, waitForGPU(0)
 			, gpuIdlePerc(0)
-			, gpuFrameTime(33.0f)
-			, frameTime(33.0f)
+			, gpuFrameTime(33.0f / 1000.0f)
+			, frameTime(33.0f / 1000.0f)
 			, renderTime(0)
 		{
 		}
@@ -96,30 +113,37 @@ protected:
 	uint32 InsertSection(const char* name, uint32 profileSectionFlags = 0);
 	
 	bool FilterLabel(const char* name);
-	void UpdateGPUTimes(uint32 frameDataIndex);
-	void UpdateThreadTimings();
+	void UpdateSectionTimesAndStats(uint32 frameDataIndex);
+	void UpdateThreadTimings(uint32 frameDataIndex);
 	
 	void ResetBasicStats(RPProfilerStats* pBasicStats, bool bResetAveragedStats);
-	void ComputeAverageStats();
+	void ResetDetailedStats(DynArray<RPProfilerDetailedStats>& pDetailedStats, bool bResetAveragedStats);
+	void ComputeAverageStats(SFrameData& currData, SFrameData& prevData);
 	void AddToStats(RPProfilerStats& outStats, SProfilerSection& section);
 	void SubtractFromStats(RPProfilerStats& outStats, SProfilerSection& section);
-	void UpdateBasicStats(uint32 frameDataIndex);
+	void UpdateStats(uint32 frameDataIndex);
 
-	void DisplayOverviewStats();
+	void DisplayOverviewStats(uint32 frameDataIndex);
 	void DisplayDetailedPassStats(uint32 frameDataIndex);
 
+private:
+	SProfilerSection& FindSection(SFrameData& frameData, SProfilerSection& section);
+
 protected:
-	enum { kNumPendingFrames = MAX_FRAMES_IN_FLIGHT + 1 };
+	enum { kNumPendingFrames = MAX_FRAMES_IN_FLIGHT };
 
-	std::vector<uint32> m_stack;
-	SFrameData          m_frameData[kNumPendingFrames];
-	uint32              m_frameDataIndex;
-	float               m_avgFrameTime;
-	bool                m_enabled;
-	bool                m_recordData;
+	std::vector<uint32>               m_stack;
+	SFrameData                        m_frameData[kNumPendingFrames];
+	uint32                            m_frameDataIndex;
+	SFrameData*                       m_frameDataRT;
+	SFrameData*                       m_frameDataLRU;
+	float                             m_avgFrameTime;
+	bool                              m_enabled;
+	bool                              m_recordData;
 
-	RPProfilerStats     m_basicStats[RT_COMMAND_BUF_COUNT][RPPSTATS_NUM];
-	SThreadTimings      m_threadTimings;
+	RPProfilerStats                   m_basicStats[RT_COMMAND_BUF_COUNT][RPPSTATS_NUM];
+	DynArray<RPProfilerDetailedStats> m_detailedStats[RT_COMMAND_BUF_COUNT];
+	SThreadTimings                    m_frameTimings[RT_COMMAND_BUF_COUNT];
 
 	// we take a snapshot every now and then and store it in here to prevent the text from jumping too much
 	std::multimap<CCryNameTSCRC, SStaticElementInfo> m_staticNameList;

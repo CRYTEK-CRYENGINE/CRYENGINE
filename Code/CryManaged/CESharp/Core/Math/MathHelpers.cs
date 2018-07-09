@@ -7,15 +7,25 @@ namespace CryEngine
 {
 	namespace Debug.MathHelpers
 	{
+		/// <summary>
+		/// Helper class for calculations that involve epsilon.
+		/// </summary>
 		public static class EpsilonData
 		{
 			// The float.Epsilon can be flushed to 0 in certain cases. That's why a slightly higher value is used instead in those cases.
 			internal const float MagicNumber = 1.175494E-37f;
 			internal const float FloatMinVal = float.Epsilon;
-			public static bool IsDeNormalizedFloatEnabled = (double)FloatMinVal == 0.0d;
+
+			/// <summary>
+			/// Determines whether floats are normalized to zero. If the minimal value is flushed to zero we use a slightly bigger number for Epsilon instead.
+			/// </summary>
+			public static bool IsDeNormalizedFloatEnabled = FloatMinVal == 0.0d;
 		}
 	}
 
+	/// <summary>
+	/// Helper class for common math operations.
+	/// </summary>
 	public static class MathHelpers
 	{
 		/// <summary>

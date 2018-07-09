@@ -1,4 +1,6 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
+
+//! \cond INTERNAL
 
 // Some excerpts explaining basic ideas behind streaming design here:
 
@@ -12,8 +14,7 @@
  * file system in a pak file, because the directory should be preloaded in memory
  */
 
-#ifndef _CRY_COMMON_STREAM_ENGINE_HDR_
-#define _CRY_COMMON_STREAM_ENGINE_HDR_
+#pragma once
 
 #include <list>
 #include <CryCore/smartptr.h>
@@ -395,4 +396,4 @@ public:
 	// </interfuscator:shuffle>
 };
 
-#endif //_CRY_COMMON_STREAM_ENGINE_HDR_
+//! \endcond

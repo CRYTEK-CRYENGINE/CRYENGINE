@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 /*
    definitions for job manager
@@ -28,6 +28,7 @@ namespace detail {
 // function to manipulate the per thread fallback job freelist
 void                    PushToFallbackJobList(JobManager::SInfoBlock* pInfoBlock);
 JobManager::SInfoBlock* PopFromFallbackJobList();
+constexpr int    GetFallbackJobListSize() { return 4096; }
 
 // functions to access the per thread worker thread id
 void   SetWorkerThreadId(uint32 nWorkerThreadId);

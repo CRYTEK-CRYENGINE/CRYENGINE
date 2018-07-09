@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -31,9 +31,14 @@
 //! PREfast not supported
 #define PREFAST_SUPPRESS_WARNING(W)
 #define PREFAST_ASSUME(cond)
+#define _Out_writes_z_(x)
+#define _Inout_updates_z_(x)
 
-//! Mark function as deprecated
-#define CRY_DEPRECATED(func) __attribute__((deprecated)) func
+#if __cplusplus >= 201402L
+#define CRY_DEPRECATED(message) [[deprecated(message)]]
+#else
+#define CRY_DEPRECATED(message) __attribute__((deprecated(message)))
+#endif
 
 //! Portable alignment helper, can be placed after the struct/class/union keyword, or before the type of a declaration.
 //! Example: struct CRY_ALIGN(16) { ... }; CRY_ALIGN(16) char myAlignedChar;

@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "LightningArc.h"
@@ -54,7 +54,7 @@ bool CLightningArc::Init(IGameObject* pGameObject)
 
 
 
-void CLightningArc::ProcessEvent(SEntityEvent& event)
+void CLightningArc::ProcessEvent(const SEntityEvent& event)
 {
 	switch (event.event)
 	{
@@ -67,7 +67,10 @@ void CLightningArc::ProcessEvent(SEntityEvent& event)
 	}
 }
 
-
+uint64 CLightningArc::GetEventMask() const
+{
+	return ENTITY_EVENT_BIT(ENTITY_EVENT_LEVEL_LOADED) | ENTITY_EVENT_BIT(ENTITY_EVENT_RESET);
+}
 
 void CLightningArc::Update(SEntityUpdateContext& ctx, int updateSlot)
 {

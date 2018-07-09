@@ -28,25 +28,19 @@ add_sources("UQS_uber_stdlib.cpp"
 		"stdlib/ItemDebugRendering.h"
 		"stdlib/ItemDebugRendering.cpp"
 		"stdlib/Items.cpp"
-		"stdlib/ItemStringConversions.cpp"
-		"stdlib/ItemStringConversions.h"
 		"stdlib/ItemMonitors.h"
 		"stdlib/ItemMonitors.cpp"
-		"stdlib/SchematycSupport.cpp"
 )
 
 end_sources()
 #END-FILE-LIST
 
 CryEngineStaticModule(CryUQS_StdLib PCH "stdlib/StdAfx.cpp" SOLUTION_FOLDER "CryPlugins/CryUQS")
-target_link_libraries (${THIS_PROJECT} PRIVATE
-	CryUQS_Shared
-	CryUQS_Client
-)
 
 target_include_directories(${THIS_PROJECT}
 	PRIVATE "stdlib"
 	PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}"
+	PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/../.."
 )
 
 if(OPTION_UQS_SCHEMATYC_SUPPORT)

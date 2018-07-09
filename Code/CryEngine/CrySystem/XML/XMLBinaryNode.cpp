@@ -1,17 +1,9 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
-
-// -------------------------------------------------------------------------
-//  File name:   xml.cpp
-//  Created:     21/04/2006 by Timur.
-//  Description:
-// -------------------------------------------------------------------------
-//  History:
-//
-////////////////////////////////////////////////////////////////////////////
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include <StdAfx.h>
 #include "XMLBinaryNode.h"
 #include <CryMemory/CrySizer.h>
+#include <cctype>
 
 #pragma warning(disable : 6031) // Return value ignored: 'sscanf'
 
@@ -165,15 +157,53 @@ bool CBinaryXmlNode::getAttr(const char* key, uint64& value, bool useHexFormat) 
 	return false;
 }
 
+//////////////////////////////////////////////////////////////////////////
 bool CBinaryXmlNode::getAttr(const char* key, bool& value) const
 {
-	const char* svalue = GetValue(key);
-	if (svalue)
+	bool isSuccess = false;
+	char const* const szValue = GetValue(key);
+
+	if (szValue != nullptr && szValue[0] != '\0')
 	{
-		value = atoi(svalue) != 0;
-		return true;
+		if (std::isalpha(*szValue) != 0)
+		{
+			if (g_pXmlStrCmp(szValue, "false") == 0)
+			{
+				value = false;
+				isSuccess = true;
+			}
+			else if (g_pXmlStrCmp(szValue, "true") == 0)
+			{
+				value = true;
+				isSuccess = true;
+			}
+			else
+			{
+				CryWarning(VALIDATOR_MODULE_SYSTEM, VALIDATOR_WARNING, "Encountered invalid value during CBinaryXmlNode::getAttr! Value: %s Tag: %s", szValue, getTag());
+			}
+		}
+		else
+		{
+			int const number = std::atoi(szValue);
+
+			if (number == 0)
+			{
+				value = false;
+				isSuccess = true;
+			}
+			else if (number == 1)
+			{
+				value = true;
+				isSuccess = true;
+			}
+			else
+			{
+				CryWarning(VALIDATOR_MODULE_SYSTEM, VALIDATOR_WARNING, "Encountered invalid value during CBinaryXmlNode::getAttr! Value: %s Tag: %s", szValue, getTag());
+			}
+		}
 	}
-	return false;
+
+	return isSuccess;
 }
 
 bool CBinaryXmlNode::getAttr(const char* key, float& value) const

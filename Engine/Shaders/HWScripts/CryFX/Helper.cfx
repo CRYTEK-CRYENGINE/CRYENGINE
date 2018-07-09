@@ -1,5 +1,4 @@
-// CRYENGINE Source Code File
-// Copyright 2001-2015 Crytek GmbH. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "Common.cfi"
 #include "ModificatorVT.cfi"
@@ -10,9 +9,6 @@ float Script : STANDARDSGLOBAL
   string Script =
            "ShaderDrawType = DebugHelper;"
 >;
-
-/// Un-Tweakables //////////////////////
-float4 ObjColor  : PI_AmbientOpacity;
 
 /////////////////////////////
 
@@ -29,7 +25,7 @@ struct a2v
 
 struct v2f
 {
-	float4 Position  : POSITION;  //in projection space
+	float4 Position  : SV_POSITION;  //in projection space
 	float3 Normal    : COLOR;  //Normal
 };
 
@@ -54,16 +50,13 @@ pixout HelperPS(v2f IN)
 	pixout OUT;
 
 	const float HDRDynamicMultiplier = 2.0f;
-#if %_RT_PER_INSTANCE_CB_TEMP
-	uint ambColorPacked = asuint(PerInstanceCustomData2.y);
+
+	uint ambColorPacked = asuint(CD_CustomData2.y);
 	float4 outputColor;
 	outputColor.r = saturate(((ambColorPacked >> 24) & 0xFF) / 255.0f);
 	outputColor.g = saturate(((ambColorPacked >> 16) & 0xFF) / 255.0f);
 	outputColor.b = saturate(((ambColorPacked >> 8) & 0xFF) / 255.0f);
 	outputColor.a = saturate((ambColorPacked & 0xFF) / 255.0f);
-#else
-	float4 outputColor = ObjColor.xyzw;
-#endif
 
 	// load the base
 	float3 LightVec = normalize( float3(1,1,1) );

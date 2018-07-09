@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "CompoundSplineTrack.h"
@@ -73,18 +73,6 @@ bool CCompoundSplineTrack::Serialize(XmlNodeRef& xmlNode, bool bLoading, bool bL
 		XmlNodeRef subTrackNode;
 		PrepareNodeForSubTrackSerialization(subTrackNode, xmlNode, i, bLoading);
 		m_subTracks[i]->Serialize(subTrackNode, bLoading, bLoadEmptyTracks);
-	}
-
-	return true;
-}
-
-bool CCompoundSplineTrack::SerializeKeys(XmlNodeRef& xmlNode, bool bLoading, std::vector<SAnimTime>& keys, const SAnimTime time)
-{
-	for (int i = 0; i < m_nDimensions; i++)
-	{
-		XmlNodeRef subTrackNode;
-		PrepareNodeForSubTrackSerialization(subTrackNode, xmlNode, i, bLoading);
-		m_subTracks[i]->SerializeKeys(subTrackNode, bLoading, keys, time);
 	}
 
 	return true;

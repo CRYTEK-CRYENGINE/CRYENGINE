@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 /********************************************************************
    ---------------------------------------------------------------------
@@ -673,7 +673,6 @@ void CPersonalRangeSignaling::DebugDraw(uint32 uOrder) const
 {
 	CRY_ASSERT(m_bInit == true);
 
-	IUIDraw* pUI = CCryAction::GetCryAction()->GetIUIDraw();
 	float x = 120.0f;
 	float y = 100.0f + (float(uOrder) * 10.0f);
 	float r = 0.0f;
@@ -683,21 +682,7 @@ void CPersonalRangeSignaling::DebugDraw(uint32 uOrder) const
 	char txt[512] = "\0";
 
 	//cry_sprintf( txt, "%s > %s: %0.1f / %0.1f", GetActor()->GetEntity()->GetName(), m_sSignal.c_str(), m_fTimer, m_fRateMax );
-	pUI->DrawText(
-	  m_pDefaultFont,
-	  x,
-	  y,
-	  13.0f,
-	  13.0f,
-	  txt,
-	  1.0f,
-	  r,
-	  g,
-	  b,
-	  UIDRAWHORIZONTAL_LEFT,
-	  UIDRAWVERTICAL_TOP,
-	  UIDRAWHORIZONTAL_LEFT,
-	  UIDRAWVERTICAL_TOP);
+	//IRenderAuxText::Draw2dLabel( x,y, 13.0f, ColorF(r,g,b), false, "%s", txt);
 }
 
 // Description:

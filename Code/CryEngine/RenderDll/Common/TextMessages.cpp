@@ -1,9 +1,22 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "TextMessages.h"
 
 const uint32 g_dwTextMessageMaxSizeInKB = 128;
+
+const CTextMessages& CTextMessages::operator=(const CTextMessages& rhs)
+{
+	this->m_TextMessageData = rhs.m_TextMessageData;
+	this->m_dwCurrentReadPos = rhs.m_dwCurrentReadPos;
+
+	return *this;
+}
+
+void CTextMessages::Merge(const CTextMessages& rhs)
+{
+	m_TextMessageData.insert(m_TextMessageData.end(), rhs.m_TextMessageData.begin(), rhs.m_TextMessageData.end());
+}
 
 void CTextMessages::PushEntry_Text(const Vec3& vPos, const ColorB col, IFFont* pFont, const Vec2& fFontSize, const int nDrawFlags, const char* szText)
 {

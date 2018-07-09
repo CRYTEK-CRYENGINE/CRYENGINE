@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 /********************************************************************
    CryGame Source File.
@@ -127,8 +127,6 @@ CAIHandler::CAIHandler(IGameObject* pGameObject)
 	m_actorTargetStartedQueryID(0),
 	m_actorTargetEndQueryID(0),
 	m_eActorTargetPhase(eATP_None),
-	m_changeActionInputQueryId(0),
-	m_changeSignalInputQueryId(0),
 	m_playingSignalAnimation(false),
 	m_playingActionAnimation(false),
 	m_actorTargetId(0),
@@ -166,7 +164,8 @@ CAIHandler::~CAIHandler(void)
 		m_pAGState->RemoveListener(this);
 	}
 
-	IMovementController* pMC = (m_pGameObject ? m_pGameObject->GetMovementController() : NULL);
+	IGameObject* pGameObject = gEnv->pGameFramework->GetGameObject(m_pEntity->GetId());
+	IMovementController* pMC = (pGameObject ? pGameObject->GetMovementController() : NULL);
 	if (pMC)
 	{
 		pMC->SetExactPositioningListener(NULL);
@@ -248,7 +247,6 @@ const char* CAIHandler::GetInitialBehaviorName()
 //------------------------------------------------------------------------------
 void CAIHandler::Init()
 {
-	m_ActionQueryID = m_SignalQueryID = 0;
 	m_sQueriedActionAnimation.clear();
 	m_sQueriedSignalAnimation.clear();
 	m_bSignaledAnimationStarted = false;
@@ -356,7 +354,6 @@ void CAIHandler::SetInitialBehaviorAndCharacter()
 //------------------------------------------------------------------------------
 void CAIHandler::ResetAnimationData()
 {
-	m_ActionQueryID = m_SignalQueryID = 0;
 	m_sQueriedActionAnimation.clear();
 	m_sQueriedSignalAnimation.clear();
 	m_bSignaledAnimationStarted = false;
@@ -466,7 +463,7 @@ void CAIHandler::OnReused(IGameObject* pGameObject)
 //------------------------------------------------------------------------------
 void CAIHandler::AIMind(SOBJECTSTATE& state)
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 	bool sameTarget = (m_lastTargetID == state.eTargetID);
 	float distSq = m_lastTargetPos.GetSquaredDistance(state.vTargetPos);
@@ -568,7 +565,7 @@ void CAIHandler::AIMind(SOBJECTSTATE& state)
 
 		if (state.nTargetType > AIOBJECT_PLAYER)   //-- grenade (or any other registered object type) seen
 		{
-			FRAME_PROFILER("AI_OnObjectSeen", gEnv->pSystem, PROFILE_AI);
+			CRY_PROFILE_REGION(PROFILE_AI, "AI_OnObjectSeen");
 
 			value = &state.fDistanceFromTarget;
 			if (!pExtraData)
@@ -606,7 +603,7 @@ void CAIHandler::AIMind(SOBJECTSTATE& state)
 			pExtraData->iValue = (int)state.eTargetStuntReaction;
 			state.eTargetStuntReaction = AITSR_NONE;
 
-			FRAME_PROFILER("AI_OnPlayerSeen2", gEnv->pSystem, PROFILE_AI);
+			CRY_PROFILE_REGION(PROFILE_AI, "AI_OnPlayerSeen2");
 			value = &state.fDistanceFromTarget;
 
 			if (IAIActor* pAIActor = CastToIAIActorSafe(pEntityAI))
@@ -674,7 +671,7 @@ void CAIHandler::AIMind(SOBJECTSTATE& state)
 //------------------------------------------------------------------------------
 void CAIHandler::AISignal(int signalID, const char* signalText, uint32 crc, IEntity* pSender, const IAISignalExtraData* pData)
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 	assert(crc != 0);
 
@@ -735,7 +732,7 @@ void CAIHandler::AISignal(int signalID, const char* signalText, uint32 crc, IEnt
 //------------------------------------------------------------------------------
 const char* CAIHandler::CheckAndGetBehaviorTransition(const char* szSignalText) const
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 	if (!szSignalText || strlen(szSignalText) < 2)
 		return 0;
@@ -763,7 +760,7 @@ const char* CAIHandler::CheckAndGetBehaviorTransition(const char* szSignalText) 
 			{
 				if (*szNextBehaviorName)
 				{
-					FRAME_PROFILER("Logging of the character change", gEnv->pSystem, PROFILE_AI);
+					CRY_PROFILE_REGION(PROFILE_AI, "Logging of the character change");
 					if (m_pEntity && m_pEntity->GetName())
 					{
 						AILogCommentID("<CAIHandler> ", "Entity %s changing behavior from %s to %s on signal %s",
@@ -791,7 +788,7 @@ const char* CAIHandler::CheckAndGetBehaviorTransition(const char* szSignalText) 
 
 	if (tableIsValid && pCharacterTable->GetValue(szSignalText, szNextBehaviorName) && *szNextBehaviorName)
 	{
-		FRAME_PROFILER("Logging of DEFAULT character change", gEnv->pSystem, PROFILE_AI);
+		CRY_PROFILE_REGION(PROFILE_AI, "Logging of DEFAULT character change");
 		if (m_pEntity && m_pEntity->GetName())
 		{
 			AILogCommentID("<CAIHandler> ", "Entity %s changing behavior from %s to %s on signal %s [DEFAULT character]",
@@ -963,7 +960,7 @@ void CAIHandler::ResetBehavior()
 //------------------------------------------------------------------------------
 void CAIHandler::SetBehavior(const char* szNextBehaviorName, const IAISignalExtraData* pData, ESetFlags setFlags)
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 	SmartScriptTable pNextBehavior;
 
@@ -1125,7 +1122,7 @@ void CAIHandler::FindOrLoadBehavior(const char* szBehaviorName, SmartScriptTable
 	if (!m_pBehaviorTable->GetValue(szBehaviorName, pBehaviorTable))
 	{
 		//[petar] if behaviour not preloaded then force loading of it
-		FRAME_PROFILER("On-DemandBehaviourLoading", gEnv->pSystem, PROFILE_AI);
+		CRY_PROFILE_REGION(PROFILE_AI, "On-DemandBehaviourLoading");
 		const char* szAIBehaviorFileName = GetBehaviorFileName(szBehaviorName);
 		if (szAIBehaviorFileName)
 		{
@@ -1240,7 +1237,7 @@ IActor* CAIHandler::GetActor() const
 //------------------------------------------------------------------------------
 bool CAIHandler::CallScript(IScriptTable* scriptTable, const char* funcName, float* pValue, IEntity* pSender, const IAISignalExtraData* pData)
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 	if (scriptTable)
 	{
@@ -1283,14 +1280,14 @@ bool CAIHandler::CallScript(IScriptTable* scriptTable, const char* funcName, flo
 #endif
 			//			string str="Calling behavior >> ";
 			//			str+= funcName;
-			//		FRAME_PROFILER( "Calling behavior signal",m_pGame->GetSystem(),PROFILE_AI );
-			//		FRAME_PROFILER( str.c_str(),m_pGame->GetSystem(),PROFILE_AI );
+			//		CRY_PROFILE_REGION(PROFILE_AI, "Calling behavior signal");
+			//		CRY_PROFILE_REGION(PROFILE_AI, str.c_str());
 
 			// only use strings which are known at compile time...
 			// not doing so causes a stack corruption in the frame profiler -- CW
 			//		FRAME_PROFILER( funcName,m_pGame->GetSystem(),PROFILE_AI );
 			//cry_sprintf(m_szSignalName,"AISIGNAL: %s",funcName);
-			FRAME_PROFILER("AISIGNAL", gEnv->pSystem, PROFILE_AI);
+			CRY_PROFILE_REGION(PROFILE_AI, "AISIGNAL");
 
 #ifdef AI_LOG_SIGNALS
 			static ICVar* pCVarAILogging = NULL;
@@ -1346,7 +1343,7 @@ bool CAIHandler::CallScript(IScriptTable* scriptTable, const char* funcName, flo
 				}
 				else
 				{
-					pScriptSystem->PushFuncParamAny(ANY_TNIL);
+					pScriptSystem->PushFuncParamAny(EScriptAnyType::Nil);
 				}
 			}
 
@@ -1578,14 +1575,6 @@ IAnimationGraphState* CAIHandler::GetAGState()
 	if (!m_pAGState)
 		return NULL;
 
-	if (!GetActionController())
-	{
-		// When using Mannequin, we don't need to wait for these
-		// signals anymore.
-		m_pAGState->QueryChangeInput(GetAGInputName(AIAG_ACTION), &m_changeActionInputQueryId);
-		m_pAGState->QueryChangeInput(GetAGInputName(AIAG_SIGNAL), &m_changeSignalInputQueryId);
-	}
-
 	m_pAGState->AddListener("AIHandler", this);
 	return m_pAGState;
 }
@@ -1758,7 +1747,7 @@ CAnimActionExactPositioning* CAIHandler::CreateExactPositioningAction(bool isOne
 //------------------------------------------------------------------------------
 void CAIHandler::HandleExactPositioning(SOBJECTSTATE& state, CMovementRequest& mr)
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 	IMovementController* pMC = (m_pGameObject ? m_pGameObject->GetMovementController() : NULL);
 	if (!pMC)
@@ -1909,94 +1898,7 @@ void CAIHandler::HandleExactPositioning(SOBJECTSTATE& state, CMovementRequest& m
 
 void CAIHandler::QueryComplete(TAnimationGraphQueryID queryID, bool succeeded)
 {
-	if (queryID == m_ActionQueryID)
-	{
-		CRY_ASSERT(!GetActionController()); // this code-path should not be called anymore when using mannequin
-
-		if (!m_sQueriedActionAnimation.empty())
-		{
-			m_setStartedActionAnimations.insert(m_sQueriedActionAnimation);
-			m_sQueriedActionAnimation.clear();
-		}
-	}
-	else if (queryID == m_SignalQueryID)
-	{
-		CRY_ASSERT(!GetActionController()); // this code-path should not be called anymore when using mannequin
-
-		if (m_bSignaledAnimationStarted || !succeeded)
-		{
-			if (!m_sQueriedSignalAnimation.empty() || !succeeded)
-			{
-				m_setPlayedSignalAnimations.insert(m_sQueriedSignalAnimation);
-				m_sQueriedSignalAnimation.clear();
-			}
-			m_bSignaledAnimationStarted = false;
-		}
-		else if (!m_sQueriedSignalAnimation.empty())
-		{
-			GetAGState()->QueryLeaveState(&m_SignalQueryID);
-			m_bSignaledAnimationStarted = true;
-		}
-	}
-	else if (queryID == m_changeActionInputQueryId)
-	{
-		CRY_ASSERT(!GetActionController()); // this code-path should not be called anymore when using mannequin
-
-		AnimationGraphInputID idAction = m_pAGState->GetInputId(GetAGInputName(AIAG_ACTION));
-		char value[64] = "\0";
-		string newValue;
-		m_pAGState->GetInput(idAction, value);
-
-		bool defaultValue = m_pAGState->IsDefaultInputValue(idAction);   // _stricmp(value,"idle") == 0 || _stricmp(value,"weaponAlerted") == 0 || _stricmp(value,"<<not set>>") == 0;
-		if (!defaultValue)
-			newValue = value;
-
-		m_playingActionAnimation = !defaultValue;
-
-		if (m_playingActionAnimation)
-			m_currentActionAnimName = value;
-		else
-			m_currentActionAnimName.clear();
-
-		// update smart object state if changed
-		if (m_sAGActionSOAutoState != newValue)
-		{
-			if (!m_sAGActionSOAutoState.empty())
-				gEnv->pAISystem->GetSmartObjectManager()->RemoveSmartObjectState(m_pEntity, m_sAGActionSOAutoState);
-			m_sAGActionSOAutoState = newValue;
-			if (!m_sAGActionSOAutoState.empty())
-				gEnv->pAISystem->GetSmartObjectManager()->AddSmartObjectState(m_pEntity, m_sAGActionSOAutoState);
-		}
-
-		// query the next change
-		if (idAction != (AnimationGraphInputID) ~0)
-		{
-			m_pAGState->QueryChangeInput(idAction, &m_changeActionInputQueryId);
-		}
-	}
-	else if (queryID == m_changeSignalInputQueryId)
-	{
-		CRY_ASSERT(!GetActionController()); // this code-path should not be called anymore when using mannequin
-
-		AnimationGraphInputID idSignal = m_pAGState->GetInputId(GetAGInputName(AIAG_SIGNAL));
-		char value[64] = "\0";
-		m_pAGState->GetInput(idSignal, value);
-
-		bool defaultValue = m_pAGState->IsDefaultInputValue(idSignal);    // _stricmp(value,"none") == 0 || _stricmp(value,"<<not set>>") == 0;
-
-		m_playingSignalAnimation = !defaultValue;
-		if (m_playingSignalAnimation)
-			m_currentSignalAnimName = value;
-		else
-			m_currentSignalAnimName.clear();
-
-		// query the next change
-		if (idSignal != (AnimationGraphInputID) ~0)
-		{
-			m_pAGState->QueryChangeInput(idSignal, &m_changeSignalInputQueryId);
-		}
-	}
-	else if (queryID == *m_curActorTargetStartedQueryID)
+	if (queryID == *m_curActorTargetStartedQueryID)
 	{
 		if (succeeded)
 		{
@@ -2275,12 +2177,6 @@ void CAIHandler::Serialize(TSerialize ser)
 		m_FaceManager.Reset();
 
 		ResetAnimationData();
-		m_changeActionInputQueryId = m_changeSignalInputQueryId = 0;
-		if (pAGState && !GetActionController())
-		{
-			pAGState->QueryChangeInput(GetAGInputName(AIAG_ACTION), &m_changeActionInputQueryId);
-			pAGState->QueryChangeInput(GetAGInputName(AIAG_SIGNAL), &m_changeSignalInputQueryId);
-		}
 	}
 
 	ser.EnumValue("m_eActorTargetPhase", m_eActorTargetPhase, eATP_None, eATP_Error);
@@ -2343,7 +2239,7 @@ void CAIHandler::SerializeScriptAI(TSerialize& ser)
 //------------------------------------------------------------------------------
 void CAIHandler::Update()
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 #ifdef USE_DEPRECATED_AI_CHARACTER_SYSTEM
 	if (m_bDelayedCharacterConstructor)

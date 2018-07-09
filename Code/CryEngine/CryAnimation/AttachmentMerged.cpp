@@ -1,10 +1,12 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "stdafx.h"
 #include "AttachmentMerged.h"
 
 #include "AttachmentMerger.h"
 #include "AttachmentManager.h"
+#include "CharacterInstance.h"
+
 
 CAttachmentMerged::CAttachmentMerged(string strName, CAttachmentManager* pAttachmentManager)
 	: m_bRequiresIndexUpdate(false)
@@ -93,7 +95,9 @@ void CAttachmentMerged::Invalidate()
 	m_bRequiresIndexUpdate = false;
 
 	CAttachmentMerger::Instance().OnDeleteMergedAttachment(this);
-	m_pMergedSkinAttachment->Immediate_ClearBinding();
+
+	const uint32 loadingFlags = (m_pMergedSkinAttachment->m_pAttachmentManager->m_pSkelInstance->m_CharEditMode ? CA_CharEditModel : 0);
+	m_pMergedSkinAttachment->Immediate_ClearBinding(loadingFlags);
 }
 
 void CAttachmentMerged::DrawAttachment(SRendParams& rParams, const SRenderingPassInfo& passInfo, const Matrix34& rWorldMat34, f32 fZoomFactor)

@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 // -------------------------------------------------------------------------
 //  File name:   MSVCSpecific.h
@@ -49,8 +49,11 @@
 	#define PREFAST_ASSUME(cond)
 #endif
 
-//! Deprecation helper
-#define CRY_DEPRECATED(func) __declspec(deprecated) func
+#if _MSVC_LANG > 201402L
+#define CRY_DEPRECATED(message) [[deprecated(message)]]
+#else
+#define CRY_DEPRECATED(message) __declspec(deprecated(message))
+#endif
 
 //! Portable alignment helper, can be placed after the struct/class/union keyword, or before the type of a declaration.
 //! Example: struct CRY_ALIGN(16) { ... }; CRY_ALIGN(16) char myAlignedChar;

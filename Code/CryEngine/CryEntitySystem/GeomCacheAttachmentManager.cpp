@@ -1,12 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
-
-// ------------------------------------------------------------------------
-//  File name:   GeomCacheAttachmentManager.cpp
-//  Created:     2013-6-12 by Axel Gneiting
-//  Description: Manages geometry cache attachments
-// -------------------------------------------------------------------------
-//
-////////////////////////////////////////////////////////////////////////////
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "stdafx.h"
 #if defined(USE_GEOM_CACHES)

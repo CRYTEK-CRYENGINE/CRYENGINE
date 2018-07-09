@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -8,31 +8,16 @@
 namespace gpu_pfx2
 {
 
-class IParticleComponentRuntime;
-typedef uint32 TParticleId;
-typedef uint32 TComponentId;
+using namespace pfx2;
 
 #define LIST_OF_FEATURE_TYPES \
   X(Dummy)                    \
-  X(SpawnCount)               \
-  X(SpawnRate)                \
   X(Motion)                   \
-  X(RenderGpu)                \
   X(Color)                    \
-  X(VelocityCone)             \
-  X(VelocityDirectional)      \
-  X(VelocityOmniDirectional)  \
-  X(VelocityInherit)          \
   X(FieldSize)                \
   X(FieldPixelSize)           \
   X(FieldOpacity)             \
-  X(LifeTime)                 \
   X(Collision)                \
-  X(LocationOffset)           \
-  X(LocationBox)              \
-  X(LocationSphere)           \
-  X(LocationCircle)           \
-  X(LocationNoise)            \
   X(MotionFluidDynamics)
 
 enum EGpuFeatureType
@@ -44,38 +29,140 @@ enum EGpuFeatureType
 	eGpuFeatureType_COUNT
 };
 
+enum class ESortMode
+{
+    None,
+    BackToFront,
+    FrontToBack,
+    OldToNew,
+    NewToOld
+};
+
+enum class EFacingMode
+{
+	Screen,
+	Velocity
+};
+
+struct SComponentParams
+{
+	SComponentParams()
+		: maxParticles(0), maxNewBorns(0), sortMode(ESortMode::None), facingMode(EFacingMode::Screen), version(0) {}
+	int            maxParticles;
+	int            maxNewBorns;
+	ESortMode      sortMode;
+	EFacingMode    facingMode;
+	int            version;
+};
+
+struct SParticleInitializationParameters
+{
+	Vec3  offset;
+	float velocity;
+	Vec3  box;
+	float velocityScale;
+	Vec3  scale;
+	float radius;
+	Vec3  color;
+	float size;
+	Vec3  direction;
+	float opacity;
+	float angle;
+	float directionScale;
+	float omniVelocity;
+	float amplitude;
+	float noiseSize;
+	float rate;
+	int   octaves;
+};
+
+struct SParticleParameters
+{
+	Matrix44  viewProjection;
+	Quat      emitterOrientation;
+	Vec3      emitterPosition;
+	f32       deltaTime;
+	Vec3      physAccel;
+	f32       currentTime;
+	Vec3      physWind;
+	float     farToNearDistance;
+	Vec3      cameraPosition;
+	float     lifeTime;
+	int32     numParticles;
+	int32     numNewBorns;
+	int32     numKilled;
+	ESortMode sortMode;
+	int32     managerSlot;
+};
+
+enum EFeatureInitializationFlags
+{
+	eFeatureInitializationFlags_LocationOffset          = 0x04,
+	eFeatureInitializationFlags_LocationBox             = 0x08,
+	eFeatureInitializationFlags_LocationSphere          = 0x10,
+	eFeatureInitializationFlags_LocationCircle          = 0x20,
+	eFeatureInitializationFlags_LocationNoise           = 0x200,
+	eFeatureInitializationFlags_VelocityCone            = 0x40,
+	eFeatureInitializationFlags_VelocityDirectional     = 0x80,
+	eFeatureInitializationFlags_VelocityOmniDirectional = 0x100,
+};
+
+enum EFeatureUpdateFlags
+{
+	eFeatureUpdateFlags_Motion                = 0x04,
+	eFeatureUpdateFlags_Color                 = 0x08,
+	eFeatureUpdateFlags_Size                  = 0x10,
+	eFeatureUpdateFlags_Opacity               = 0x20,
+	eFeatureUpdateFlags_Motion_LinearIntegral = 0x40,
+	eFeatureUpdateFlags_Motion_DragFast       = 0x80,
+	eFeatureUpdateFlags_Motion_Brownian       = 0x100,
+	eFeatureUpdateFlags_Motion_Simplex        = 0x200,
+	eFeatureUpdateFlags_Motion_Curl           = 0x400,
+	eFeatureUpdateFlags_Motion_Gravity        = 0x800,
+	eFeatureUpdateFlags_Motion_Vortex         = 0x1000,
+	EFeatureUpdateFlags_Collision_ScreenSpace = 0x2000,
+	EFeatureUpdateFlags_PixelSize             = 0x4000
+};
+
+// Params set by particle features
+// Includes InitializationParams, a subset of ParticleParams, and UpdateFlags
+struct SUpdateParams : SParticleInitializationParameters
+{
+	float  lifeTime;
+	Quat   emitterOrientation;
+	Vec3   emitterPosition;
+	Vec3   physAccel;
+	Vec3   physWind;
+
+	uint32 initFlags;
+	uint32 updateFlags;
+
+	SUpdateParams()
+	{
+		ZeroStruct(*this);
+		color   = Vec3(1);
+		size    = 1;
+		opacity = 1;
+		emitterOrientation = Quat(IDENTITY);
+	}
+};
+
 static const int kNumModifierSamples = 16;
 
-struct SEnvironmentParameters
-{
-	SEnvironmentParameters() : physAccel(0.0f, 0.0f, 0.0f), physWind(0.0f, 0.0f, 0.0f) {}
-	Vec3 physAccel;
-	Vec3 physWind;
-};
-
-class IParticleComponentRuntime : public ::pfx2::ICommonParticleComponentRuntime
+class IParticleComponentRuntime : public _i_reference_target_t
 {
 public:
-	enum class EState
-	{
-		Uninitialized,
-		Ready
-	};
+	virtual             ~IParticleComponentRuntime() {}
 
-	virtual gpu_pfx2::IParticleComponentRuntime* GetGpuRuntime() override { return this; }
-	virtual void                                 UpdateEmitterData() = 0;
+	virtual bool        IsValidForParams(const SComponentParams& parameters) = 0;
 
-	virtual EState                               GetState() const = 0;
-	virtual bool                                 HasParticles() = 0;
-
-	virtual void                                 SetEnvironmentParameters(const SEnvironmentParameters& params) = 0;
+	virtual void        UpdateData(const SUpdateParams& params, TConstArray<SSpawnEntry> entries, TConstArray<SParentData> parentData) = 0;
+	
+	virtual bool        HasParticles() = 0;
+	virtual const AABB& GetBounds() const = 0;
+	virtual void        AccumStats(SParticleStats& stats) = 0;
 };
 
-enum class ESpawnRateMode
-{
-	ParticlesPerSecond,
-	SecondPerParticle
-};
 
 enum EGravityType
 {
@@ -90,16 +177,6 @@ enum EVortexDirection
 };
 
 #define LIST_OF_PARAMETER_TYPES \
-  X(Spawn,                      \
-    float amount;               \
-    float delay;                \
-    float duration;             \
-    float restart;              \
-    bool useDelay;              \
-    bool useDuration;           \
-    bool useRestart; )          \
-  X(SpawnMode,                  \
-    ESpawnRateMode mode; )      \
   X(Scale,                      \
     f32 scale; )                \
   X(ColorTable,                 \
@@ -118,8 +195,6 @@ enum EVortexDirection
     Vec2 clipRange;             \
     float* samples;             \
     uint32 numSamples; )        \
-  X(LifeTime,                   \
-    f32 lifeTime; )             \
   X(MotionPhysics,              \
     Vec3 uniformAcceleration;   \
     float pad1;                 \
@@ -155,25 +230,6 @@ enum EVortexDirection
     float decay;                \
     float pad[3];               \
     int vortexDirection; )      \
-  X(LocationOffset,             \
-    Vec3 offset;                \
-    float scale; )              \
-  X(LocationBox,                \
-    Vec3 box;                   \
-    float scale; )              \
-  X(LocationSphere,             \
-    Vec3 scale;                 \
-    float radius;               \
-    float velocity; )           \
-  X(LocationCircle,             \
-    Vec2 scale;                 \
-    float radius;               \
-    float velocity; )           \
-  X(LocationNoise,              \
-    float amplitude;            \
-    float size;                 \
-    float rate;                 \
-    int octaves; )              \
   X(MotionFluidDynamics,        \
     Vec3 initialVelocity;       \
     float stiffness;            \
@@ -197,14 +253,7 @@ enum EVortexDirection
     float offset;               \
     float radius;               \
     float restitution; )        \
-  X(VelocityCone,               \
-    float angle;                \
-    float velocity; )           \
-  X(VelocityDirectional,        \
-    Vec3 direction;             \
-    float scale; )              \
-  X(VelocityOmniDirectional,    \
-    float velocity; )
+
 
 enum class EParameterType
 {
@@ -235,15 +284,10 @@ struct SFeatureParametersBase
 LIST_OF_PARAMETER_TYPES
 #undef X
 
-struct SSpawnData;
-
-struct IParticleFeatureGpuInterface : public _i_multithread_reference_target_t
+struct IParticleFeature : public _i_multithread_reference_target_t
 {
 public:
-	virtual ~IParticleFeatureGpuInterface() {}
-
-	// a feature that implements this can switch the whole component into GPU mode
-	virtual bool IsGpuEnabling() { return false; }
+	virtual ~IParticleFeature() {}
 
 	// called from host feature
 	template<class Parameters>
@@ -259,21 +303,9 @@ protected:
 class IManager
 {
 public:
-	enum class EState
-	{
-		Uninitialized,
-		Ready
-	};
-
 	virtual void BeginFrame() = 0;
 
-	virtual _smart_ptr<IParticleComponentRuntime>
-	CreateParticleComponentRuntime(
-		IParticleEmitter* pEmitter,
-		pfx2::IParticleComponent* pComponent,
-		const pfx2::SRuntimeInitializationParameters& params) = 0;
-
-	virtual _smart_ptr<IParticleFeatureGpuInterface>
-	CreateParticleFeatureGpuInterface(EGpuFeatureType) = 0;
+	virtual IParticleComponentRuntime* CreateParticleContainer(const SComponentParams& params, TConstArray<IParticleFeature*> features) = 0;
+	virtual IParticleFeature* CreateParticleFeature(EGpuFeatureType) = 0;
 };
 }

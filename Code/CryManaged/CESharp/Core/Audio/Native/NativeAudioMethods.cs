@@ -1,12 +1,11 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 using System;
-using System.Reflection;
 using System.Runtime.CompilerServices;
 
 namespace CryEngine.NativeInternals
 {
-	public static class IAudioSystem
+	internal static class IAudioSystem
 	{
 		[MethodImpl(MethodImplOptions.InternalCall)]
 		extern public static uint GetAudioTriggerId(string triggerName);

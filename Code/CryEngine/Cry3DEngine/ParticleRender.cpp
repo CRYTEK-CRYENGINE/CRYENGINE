@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 // -------------------------------------------------------------------------
 //  File name:   ParticleRender.cpp
@@ -508,11 +508,11 @@ void CParticleContainer::RenderGeometry(const SRendParams& RenParams, const SRen
 	// Set up shared and unique geom rendering.
 	SParticleVertexContext Context(this, passInfo);
 
-	m_Counts.EmittersRendered += 1.f;
+	m_Counts.components.rendered += 1.f;
 
 	for (const auto& part : m_Particles)
 	{
-		m_Counts.ParticlesRendered += part.RenderGeometry(RenParamsGeom, Context, passInfo);
+		m_Counts.particles.rendered += part.RenderGeometry(RenParamsGeom, Context, passInfo);
 	}
 }
 
@@ -602,22 +602,25 @@ void CParticleContainer::RenderDecals(const SRenderingPassInfo& passInfo)
 
 void CParticle::AddLight(const SRendParams& RenParams, const SRenderingPassInfo& passInfo) const
 {
+	if (!(GetCVars()->e_DynamicLights && !passInfo.IsRecursivePass()))
+		return;
+
 	ParticleParams const& params = GetParams();
 	CCamera const& cam = passInfo.GetCamera();
 
 	float fRelativeAge = GetRelativeAge();
-	const float fFillLightIntensity = params.LightSource.fIntensity.GetValueFromMod(m_BaseMods.LightSourceIntensity, fRelativeAge);
-	const float fFillLightRadius = params.LightSource.fRadius.GetValueFromMod(m_BaseMods.LightSourceRadius, fRelativeAge);
-	if (GetCVars()->e_DynamicLights && !passInfo.IsRecursivePass()
-	    && fFillLightIntensity * fFillLightRadius > 0.001f
-	    && m_Loc.t.GetSquaredDistance(cam.GetPosition()) < sqr(fFillLightRadius * GetFloatCVar(e_ParticlesLightsViewDistRatio))
-	    && cam.IsSphereVisible_F(Sphere(m_Loc.t, fFillLightRadius)))
+	const float fLightIntensity = params.LightSource.fIntensity.GetValueFromMod(m_BaseMods.LightSourceIntensity, fRelativeAge);
+	const float fLightRadius = params.LightSource.fRadius.GetValueFromMod(m_BaseMods.LightSourceRadius, fRelativeAge);
+
+	SRenderLight dl;
+	dl.SetRadius(fLightRadius);
+	dl.SetLightColor(params.cColor.GetValueFromMod(m_BaseMods.Color, fRelativeAge) * Color3F(fLightIntensity));
+
+	if (m_Loc.t.GetSquaredDistance(cam.GetPosition()) < sqr(dl.m_fRadius * GetFloatCVar(e_ParticlesLightsViewDistRatio))
+	    && cam.IsSphereVisible_F(Sphere(m_Loc.t, dl.m_fRadius)))
 	{
 		// Deferred light.
-		CDLight dl;
 		dl.SetPosition(m_Loc.t);
-		dl.m_fRadius = fFillLightRadius;
-		dl.m_Color = params.cColor.GetValueFromMod(m_BaseMods.Color, fRelativeAge) * Color3F(fFillLightIntensity);
 		dl.m_nStencilRef[0] = params.LightSource.bAffectsThisAreaOnly ? RenParams.nClipVolumeStencilRef : CClipVolumeManager::AffectsEverythingStencilRef;
 		dl.m_nStencilRef[1] = CClipVolumeManager::InactiveVolumeStencilRef;
 		dl.m_Flags |= DLF_DEFERRED_LIGHT;
@@ -626,16 +629,9 @@ void CParticle::AddLight(const SRendParams& RenParams, const SRenderingPassInfo&
 		else if (params.LightSource.eLightAffectsFog == params.LightSource.eLightAffectsFog.Both)
 			dl.m_Flags |= DLF_VOLUMETRIC_FOG;
 
-		const float fMinColorThreshold = GetFloatCVar(e_ParticlesLightMinColorThreshold);
-		const float fMinRadiusThreshold = GetFloatCVar(e_ParticlesLightMinRadiusThreshold);
-
-		const ColorF& cColor = dl.m_Color;
-		if ((cColor.r + cColor.g + cColor.b) > fMinColorThreshold && dl.m_fRadius > fMinRadiusThreshold)
-		{
-			Get3DEngine()->SetupLightScissors(&dl, passInfo);
-			dl.m_n3DEngineUpdateFrameID = passInfo.GetMainFrameID();
-			Get3DEngine()->AddLightToRenderer(dl, 1.f, passInfo);
-		}
+		Get3DEngine()->SetupLightScissors(&dl, passInfo);
+		dl.m_n3DEngineUpdateFrameID = passInfo.GetMainFrameID();
+		Get3DEngine()->AddLightToRenderer(dl, 1.f, passInfo);
 	}
 }
 
@@ -1167,11 +1163,11 @@ int CParticleContainer::CullParticles(SParticleVertexContext& Context, int& nVer
 	nVertices = Context.m_nMaxParticleVertices * nParticlesRendered;
 	nIndices = Context.m_nMaxParticleIndices * nParticlesRendered;
 
-	m_Counts.ParticlesRendered += nParticlesRendered;
-	m_Counts.EmittersRendered += 1.f * !!nParticlesRendered;
-	m_Counts.PixelsProcessed += Context.m_fPixelsProcessed;
-	m_Counts.PixelsRendered += Context.m_fPixelsRendered;
-	m_Counts.ParticlesClip += (float)(Context.m_nParticlesClipped + Context.m_nParticlesCulled);
+	m_Counts.particles.rendered += nParticlesRendered;
+	m_Counts.components.rendered += 1.f * !!nParticlesRendered;
+	m_Counts.pixels.updated += Context.m_fPixelsProcessed;
+	m_Counts.pixels.rendered += Context.m_fPixelsRendered;
+	m_Counts.particles.clip += (float)(Context.m_nParticlesClipped + Context.m_nParticlesCulled);
 
 	return nParticlesRendered;
 }
@@ -1274,8 +1270,12 @@ void SParticleVertexContext::Init(float fMaxContainerPixels, CParticleContainer*
 		m_fFillFactor *= 0.8285f;
 	m_fFillFade = 2.f / fMaxContainerPixels;
 
-	m_fInvMinPix = sqr(CParticleManager::Instance()->GetMaxAngularDensity(*m_CamInfo.pCamera) * emitterMain.GetViewDistRatioFloat() * params.fViewDistanceAdjust)
+	// Avoid division by zero fp exception
+	if (abs(m_fFillFactor) > std::numeric_limits<float>::denorm_min())
+		m_fInvMinPix = sqr(CParticleManager::Instance()->GetMaxAngularDensity(*m_CamInfo.pCamera) * emitterMain.GetViewDistRatioFloat() * params.fViewDistanceAdjust)
 		/ m_fFillFactor;
+	else
+		m_fInvMinPix = std::numeric_limits<float>::infinity();
 
 	m_fDistFuncCoefs[0] = 1.f;
 	m_fDistFuncCoefs[1] = m_fDistFuncCoefs[2] = 0.f;
@@ -1339,7 +1339,7 @@ void SParticleVertexContext::Init(float fMaxContainerPixels, CParticleContainer*
 	}
 
 	m_fClipWaterSense = 0.f;
-	const bool bAllowClip = !(cvars.e_ParticlesDebug & AlphaBit('c'));
+	const bool bAllowClip = !emitterMain.GetSpawnParams().bIgnoreVisAreas;
 	const SPhysEnviron& PhysEnv = emitterMain.GetPhysEnviron();
 	if (bAllowClip && params.eFacing != params.eFacing.Water && PhysEnv.m_tUnderWater == ETrinary())
 	{
@@ -1365,7 +1365,7 @@ void SParticleVertexContext::Init(float fMaxContainerPixels, CParticleContainer*
 
 void CParticleContainer::ComputeVertices(const SCameraInfo& camInfo, CREParticle* pRE, uint64 uVertexFlags, float fMaxPixels)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_PARTICLE);
+	CRY_PROFILE_FUNCTION(PROFILE_PARTICLE);
 	PARTICLE_LIGHT_PROFILER();
 
 	// Update, if not yet done.

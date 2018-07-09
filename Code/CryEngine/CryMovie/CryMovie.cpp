@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "CryMovie.h"
@@ -13,12 +13,15 @@
 
 #undef GetClassName
 
-struct CSystemEventListner_Movie : public ISystemEventListener
+struct CSystemEventListener_Movie : public ISystemEventListener
 {
 public:
-	virtual ~CSystemEventListner_Movie()
+	virtual ~CSystemEventListener_Movie()
 	{
-		gEnv->pSystem->GetISystemEventDispatcher()->RemoveListener(this);
+		if (gEnv->pSystem)
+		{
+			gEnv->pSystem->GetISystemEventDispatcher()->RemoveListener(this);
+		}
 	}
 
 	virtual void OnSystemEvent(ESystemEvent event, UINT_PTR wparam, UINT_PTR lparam)
@@ -34,7 +37,7 @@ public:
 	}
 };
 
-static CSystemEventListner_Movie g_system_event_listener_movie;
+static CSystemEventListener_Movie g_system_event_listener_movie;
 
 class CEngineModule_CryMovie : public IMovieEngineModule
 {

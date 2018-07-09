@@ -1,44 +1,75 @@
-﻿using System;
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
+
+using System;
 using System.Collections.Generic;
 using CryEngine.Common;
 
 namespace CryEngine
 {
+	/// <summary>
+	/// Container for the arguments of console commands.
+	/// </summary>
 	public class ConsoleCommandArgumentsHolder
 	{
-		private readonly List<string> m_arguments;
+		private readonly List<string> _arguments;
+
+		/// <summary>
+		/// The amount of arguments this container can hold.
+		/// </summary>
+		public int Capacity{ get { return _arguments.Count; } }
 
 		private ConsoleCommandArgumentsHolder(int length)
 		{
-			m_arguments = new List<string>(length);
+			_arguments = new List<string>(length);
+			for(int i = 0; i < length; ++i)
+			{
+				_arguments.Add(string.Empty);
+			}
 		}
 
+		/// <summary>
+		/// Set the value of an argument.
+		/// </summary>
+		/// <param name="index"></param>
+		/// <param name="argument"></param>
 		public void SetArgument(int index, string argument)
 		{
-			if(index >= m_arguments.Capacity)
+			if(index >= _arguments.Count)
 			{
-				return;
+				throw new ArgumentOutOfRangeException(nameof(index));
 			}
-			m_arguments.Add(argument);
+			_arguments[index] = argument;
 		}
 
+		/// <summary>
+		/// Get the argument at the specified index.
+		/// </summary>
+		/// <param name="index"></param>
+		/// <returns></returns>
 		public string GetArgument(int index)
 		{
-			if(index >= m_arguments.Capacity)
+			if(index >= _arguments.Count)
 			{
-				return null;
+				throw new ArgumentOutOfRangeException(nameof(index));
 			}
-			return m_arguments[index];
+			return _arguments[index];
 		}
 
+		/// <summary>
+		/// Returns all arguments in an array.
+		/// </summary>
+		/// <returns></returns>
 		public string[] GetAllArguments()
 		{
-			var arguments = m_arguments.ToArray();
+			var arguments = _arguments.ToArray();
 			return arguments;
 		}
 	}
 
-	public class ConsoleCommand
+	/// <summary>
+	/// Managed wrapper for console commands that can be invoked through the console.
+	/// </summary>
+	internal class ConsoleCommand
 	{
 		/// <summary>
 		/// internal listener for console commands in C++
@@ -52,23 +83,26 @@ namespace CryEngine
 
 		private static ConsoleCommandFunctionDelegate myDelegate = OnConsoleCommandFunctionInvoked;
 
-		private static IDictionary<string, ManagedConsoleCommandFunctionDelegate> m_commandsAndDelegates;
+		private static IDictionary<string, ManagedConsoleCommandFunctionDelegate> _commandsAndDelegates;
 
 		static ConsoleCommand()
 		{
 			myDelegate = OnConsoleCommandFunctionInvoked;
-			m_commandsAndDelegates = new Dictionary<string, ManagedConsoleCommandFunctionDelegate>();
+			_commandsAndDelegates = new Dictionary<string, ManagedConsoleCommandFunctionDelegate>();
 		}
 
+		/// <summary>
+		/// Destructor that handles cleaning up all console commands.
+		/// </summary>
 		~ConsoleCommand()
 		{
 			//try to unregister
-			foreach(string command in m_commandsAndDelegates.Keys)
+			foreach(string command in _commandsAndDelegates.Keys)
 			{
 				UnregisterManagedConsoleCommandFunction(command);
 			}
-			m_commandsAndDelegates.Clear();
-			m_commandsAndDelegates = null;
+			_commandsAndDelegates.Clear();
+			_commandsAndDelegates = null;
 		}
 
 		/// <summary>
@@ -87,9 +121,9 @@ namespace CryEngine
 			bool ret = false;
 
 			//check if current console command exist
-			if(!m_commandsAndDelegates.ContainsKey(command))
+			if(!_commandsAndDelegates.ContainsKey(command))
 			{
-				m_commandsAndDelegates.Add(command, managedConsoleCmdDelegate);
+				_commandsAndDelegates.Add(command, managedConsoleCmdDelegate);
 
 				NativeInternals.IConsole.AddConsoleCommandFunction(System.Runtime.InteropServices.Marshal.GetFunctionPointerForDelegate(myDelegate), command, nFlags, commandHelp, true);
 				ret = true;
@@ -100,9 +134,9 @@ namespace CryEngine
 		public static bool UnregisterManagedConsoleCommandFunction(string command)
 		{
 			bool ret = false;
-			if(m_commandsAndDelegates.ContainsKey(command))
+			if(_commandsAndDelegates.ContainsKey(command))
 			{
-				ret = m_commandsAndDelegates.Remove(command);
+				ret = _commandsAndDelegates.Remove(command);
 				Global.gEnv.pConsole.RemoveCommand(command);
 			}
 			return ret;
@@ -112,7 +146,7 @@ namespace CryEngine
 		{
 			if(argumentsHolder != null)
 			{
-				ManagedConsoleCommandFunctionDelegate commandDelegate = m_commandsAndDelegates[command];
+				ManagedConsoleCommandFunctionDelegate commandDelegate = _commandsAndDelegates[command];
 				commandDelegate(argumentsHolder.GetAllArguments());
 			}
 		}

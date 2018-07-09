@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "System.h"
@@ -164,7 +164,7 @@ unsigned __stdcall CThreadManager::RunThread(void* thisPtr)
 		CryFatalError("[Error]: CThreadManager::RunThread requires gEnv->pSystem to be initialized.");
 	}
 
-	PLATFORM_PROFILER_MARKER("Thread_Run");
+	CRY_PROFILE_MARKER("Thread_Run");
 
 	IThreadConfigManager* pThreadConfigMngr = gEnv->pThreadManager->GetThreadConfigManager();
 
@@ -228,7 +228,7 @@ unsigned __stdcall CThreadManager::RunThread(void* thisPtr)
 	// Note: Unregister after m_threadExitCondition.Notify() to ensure pThreadData is still valid
 	pThreadData->m_pThreadMngr->UnregisterThread(pThreadData->m_pThreadTask);
 
-	PLATFORM_PROFILER_MARKER("Thread_Stop");
+	CRY_PROFILE_MARKER("Thread_Stop");
 	CryThreadUtil::CryThreadExitCall();
 
 	return NULL;

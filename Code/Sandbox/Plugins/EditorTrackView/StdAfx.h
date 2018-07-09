@@ -1,0 +1,45 @@
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
+
+#pragma once
+
+#pragma warning(disable: 4103) // '...\stlport\stl\_cprolog.h' : alignment changed after including header, may be due to missing #pragma pack(pop)
+
+/////////////////////////////////////////////////////////////////////////////
+// CRY Stuff ////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////
+#include <CryCore/Project/CryModuleDefs.h>
+#include <CryCore/Platform/platform.h>
+
+#define CRY_USE_ATL
+#define CRY_USE_MFC
+#include <CryCore/Platform/CryAtlMfc.h>
+#include <CryCore/Project/ProjectDefines.h>
+
+/////////////////////////////////////////////////////////////////////////////
+// STL
+/////////////////////////////////////////////////////////////////////////////
+#include <vector>
+#include <list>
+#include <map>
+#include <set>
+#include <algorithm>
+#include <memory>
+
+/////////////////////////////////////////////////////////////////////////////
+// CRY Stuff ////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////
+
+#define TSmartPtr _smart_ptr
+#define SMARTPTR_TYPEDEF(Class) typedef _smart_ptr<Class> Class ## Ptr
+
+#include <CrySystem/ISystem.h>
+#include "Util/EditorUtils.h"
+#include "IEditor.h"
+#include "EditorCommon.h"
+
+IEditor* GetIEditor();
+
+#if defined(GetObject)
+	#undef GetObject
+#endif
+

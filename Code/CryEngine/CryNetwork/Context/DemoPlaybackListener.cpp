@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "Config.h"
@@ -170,7 +170,7 @@ public:
 
 	~CDemoPlaybackSerializeImpl()
 	{
-		FUNCTION_PROFILER(GetISystem(), PROFILE_NETWORK);
+		CRY_PROFILE_FUNCTION(PROFILE_NETWORK);
 
 		// NOTE: this piece of code skips the un-serialized data until the end mark is reached
 		// it relies on the fact that serImpl is declared on the stack, so when it destructs while
@@ -188,7 +188,7 @@ public:
 	template<class T_Value>
 	void ValueImpl(const char* name, T_Value& value)
 	{
-		FUNCTION_PROFILER(GetISystem(), PROFILE_NETWORK);
+		CRY_PROFILE_FUNCTION(PROFILE_NETWORK);
 
 		value = T_Value();
 
@@ -319,7 +319,7 @@ void CDemoPlaybackListener::Die()
 
 void CDemoPlaybackListener::OnObjectEvent(CNetContextState* pState, SNetObjectEvent* pEvent)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_NETWORK);
+	CRY_PROFILE_FUNCTION(PROFILE_NETWORK);
 
 	SCOPED_GLOBAL_LOCK;
 
@@ -349,7 +349,7 @@ void CDemoPlaybackListener::OnObjectEvent(CNetContextState* pState, SNetObjectEv
 
 void CDemoPlaybackListener::DoUpdate()
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_NETWORK);
+	CRY_PROFILE_FUNCTION(PROFILE_NETWORK);
 
 	NET_ASSERT(m_pState);
 
@@ -372,7 +372,7 @@ void CDemoPlaybackListener::DoUpdate()
 		}
 		InputHandler handler;
 		{
-			FRAME_PROFILER("DoUpdate:Select", GetISystem(), PROFILE_NETWORK);
+			CRY_PROFILE_REGION(PROFILE_NETWORK, "DoUpdate:Select");
 			TInputHandlerMap::const_iterator iter = m_pState->find(CONST_TEMP_STRING(m_buffer.key));
 			if (iter == m_pState->end())
 				handler = &CDemoPlaybackListener::SkipLineWithWarning;
@@ -380,7 +380,7 @@ void CDemoPlaybackListener::DoUpdate()
 				handler = iter->second;
 		}
 		{
-			FRAME_PROFILER("DoUpdate:Dispatch", GetISystem(), PROFILE_NETWORK);
+			CRY_PROFILE_REGION(PROFILE_NETWORK, "DoUpdate:Dispatch");
 
 			switch ((this->*handler)())
 			{
@@ -417,7 +417,7 @@ void CDemoPlaybackListener::InitHandlers()
 
 CDemoPlaybackListener::EInputResult CDemoPlaybackListener::SkipLineWithWarning()
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_NETWORK);
+	CRY_PROFILE_FUNCTION(PROFILE_NETWORK);
 
 	NetWarning("[demo] Cannot interpret message: '%s' '%s'", m_buffer.key, m_buffer.value);
 	return eIR_Ok;
@@ -425,7 +425,7 @@ CDemoPlaybackListener::EInputResult CDemoPlaybackListener::SkipLineWithWarning()
 
 CDemoPlaybackListener::EInputResult CDemoPlaybackListener::MessageHandler(EntityId rmiObj)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_NETWORK);
+	CRY_PROFILE_FUNCTION(PROFILE_NETWORK);
 
 	INetMessageSink* pSink = NULL;
 	const SNetMessageDef* pDef = NULL;
@@ -495,7 +495,7 @@ CDemoPlaybackListener::EInputResult CDemoPlaybackListener::ScriptRMI()
 
 CDemoPlaybackListener::EInputResult CDemoPlaybackListener::BeginFrame()
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_NETWORK);
+	CRY_PROFILE_FUNCTION(PROFILE_NETWORK);
 
 	if (!m_bInGame)
 		return eIR_TryLater;
@@ -518,7 +518,7 @@ CDemoPlaybackListener::EInputResult CDemoPlaybackListener::BeginFrame()
 
 CDemoPlaybackListener::EInputResult CDemoPlaybackListener::BindObject()
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_NETWORK);
+	CRY_PROFILE_FUNCTION(PROFILE_NETWORK);
 
 	if (m_pClientChannel->GetContextViewState() < eCVS_SpawnEntities)
 		return eIR_TryLater;
@@ -543,7 +543,7 @@ CDemoPlaybackListener::EInputResult CDemoPlaybackListener::BindObject()
 
 CDemoPlaybackListener::EInputResult CDemoPlaybackListener::UnbindObject()
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_NETWORK);
+	CRY_PROFILE_FUNCTION(PROFILE_NETWORK);
 
 	EntityId eid = 0;
 	if (!DecodeString(m_buffer.value, eid))
@@ -561,7 +561,7 @@ CDemoPlaybackListener::EInputResult CDemoPlaybackListener::UnbindObject()
 
 CDemoPlaybackListener::EInputResult CDemoPlaybackListener::UpdateObject()
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_NETWORK);
+	CRY_PROFILE_FUNCTION(PROFILE_NETWORK);
 
 	EntityId id = 0;
 	if (!DecodeString(m_buffer.value, id))
@@ -575,7 +575,7 @@ CDemoPlaybackListener::EInputResult CDemoPlaybackListener::UpdateObject()
 
 void CDemoPlaybackListener::CheckCurrentlyBinding()
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_NETWORK);
+	CRY_PROFILE_FUNCTION(PROFILE_NETWORK);
 
 	if (m_currentlyBinding == 0)
 		return;
@@ -603,7 +603,7 @@ void CDemoPlaybackListener::CheckCurrentlyBinding()
 
 CDemoPlaybackListener::EInputResult CDemoPlaybackListener::BeginAspect()
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_NETWORK);
+	CRY_PROFILE_FUNCTION(PROFILE_NETWORK);
 
 	NetworkAspectID aspectIdx;
 	if (!DecodeString(m_buffer.value, aspectIdx))
@@ -627,7 +627,7 @@ string CDemoPlaybackListener::GetName()
 
 CDemoPlaybackListener::EInputResult CDemoPlaybackListener::FinishUpdateObject()
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_NETWORK);
+	CRY_PROFILE_FUNCTION(PROFILE_NETWORK);
 
 	m_currentlyUpdating = 0;
 	m_currentProfile = 255;

@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "MonoLibrary.h"
@@ -13,16 +13,15 @@
 #include "RootMonoDomain.h"
 
 CMonoLibrary::CMonoLibrary(const char* filePath, CMonoDomain* pDomain)
-	: CMonoLibrary(nullptr, filePath, pDomain)
+	: CMonoLibrary(nullptr, nullptr, filePath, pDomain)
 {
-	Load();
 }
 
-CMonoLibrary::CMonoLibrary(MonoInternals::MonoAssembly* pAssembly, const char* filePath, CMonoDomain* pDomain)
+CMonoLibrary::CMonoLibrary(MonoInternals::MonoAssembly* pAssembly, MonoInternals::MonoImage* pImage, const char* filePath, CMonoDomain* pDomain)
 	: m_pAssembly(pAssembly)
 	, m_pDomain(pDomain)
 	, m_assemblyPath(filePath)
-	, m_pImage(pAssembly != nullptr ? MonoInternals::mono_assembly_get_image(pAssembly) : nullptr)
+	, m_pImage(pImage)
 {
 }
 
@@ -34,7 +33,7 @@ CMonoLibrary::~CMonoLibrary()
 	Unload();
 }
 
-bool CMonoLibrary::Load()
+bool CMonoLibrary::Load(int loadIndex)
 {
 	// Loading with CryPak disabled for now, need to make sure that chain-reload works correctly and that images are closed.
 	//#define LOAD_MONO_LIBRARIES_WITH_CRYPAK
@@ -83,7 +82,7 @@ bool CMonoLibrary::Load()
 	#ifndef _RELEASE
 	// load debug information
 	string sDebugDatabasePath = m_assemblyPath;
-	sDebugDatabasePath.append(".mdb");
+	PathUtil::ReplaceExtension(sDebugDatabasePath, ".pdb");
 
 	CCryFile debugFile;
 	debugFile.Open(sDebugDatabasePath, "rb", ICryPak::FLAGS_PATH_REAL);
@@ -101,56 +100,64 @@ bool CMonoLibrary::Load()
 
 	return m_pAssembly != nullptr;
 #else
+	return LoadLibraryFile(m_assemblyPath, loadIndex);
+#endif
+}
 
-	string assemblyPath = m_assemblyPath;
+bool CMonoLibrary::LoadLibraryFile(string& assemblyPath, int loadIndex)
+{
+	string tempAssemblyPath = assemblyPath;
 
 	// Do a copy of the binary on windows to allow reload during development
 	// Otherwise Mono will lock the file.
-	#if defined(CRY_PLATFORM_WINDOWS) && !defined(RELEASE)
-	TCHAR tempPath[MAX_PATH];
-	GetTempPathA(MAX_PATH, tempPath);
-
-	string tempBinaryDirectory = PathUtil::Make(tempPath, "CE_ManagedBinaries\\");
-
-	DWORD attribs = GetFileAttributesA(tempBinaryDirectory.c_str());
-	if (attribs == INVALID_FILE_ATTRIBUTES)
+#if defined(CRY_PLATFORM_WINDOWS) && !defined(RELEASE)
+	if (gEnv->pCryPak->IsFileExist(tempAssemblyPath))
 	{
-		CryCreateDirectory(tempBinaryDirectory.c_str());
+		string tempBinaryDirectory = m_pDomain->TempDirectoryPath();
+
+		// Non-engine assemblies need to be put in a separate folder so they won't conflict with eachother.
+		if (loadIndex != -1)
+		{
+			string assemblyFolderName = "ManagedAssembly";
+			tempBinaryDirectory = PathUtil::Make(tempBinaryDirectory, assemblyFolderName.AppendFormat("_%d\\", loadIndex));
+		}
+
+		DWORD attribs = GetFileAttributesA(tempBinaryDirectory.c_str());
+		if (attribs == INVALID_FILE_ATTRIBUTES)
+		{
+			CryCreateDirectory(tempBinaryDirectory.c_str());
+		}
+
+		string fileName = PathUtil::GetFile(assemblyPath);
+		tempAssemblyPath = PathUtil::Make(tempBinaryDirectory, fileName);
+
+		// If mdb
+		string mdbPathSource = assemblyPath + ".mdb";
+		string mdbPathTarget = tempAssemblyPath + ".mdb";
+
+		// Also copy debug databases, if present
+		string pdbPathSource = PathUtil::ReplaceExtension(assemblyPath, ".pdb");
+		string pdbPathTarget = PathUtil::ReplaceExtension(tempAssemblyPath, ".pdb");
+
+		// We are only interested in the latest debug symbols, so only copy the latest one.
+		if (IsFileNewer(pdbPathSource, mdbPathSource))
+		{
+			mdbPathTarget = "";
+		}
+		else
+		{
+			pdbPathTarget = "";
+		}
+
+		// It could be that old .dll, mdb and .pdb files are still in the temporary directory.
+		// This can cause unexpected behavior or out of sync debug-symbols, so delete the old files first.
+		RemoveAndCopyFile(mdbPathSource, mdbPathTarget);
+		RemoveAndCopyFile(pdbPathSource, pdbPathTarget);
+		RemoveAndCopyFile(assemblyPath, tempAssemblyPath);
 	}
+#endif
 
-	string fileName = PathUtil::GetFile(m_assemblyPath);
-	assemblyPath = PathUtil::Make(tempBinaryDirectory, fileName);
-
-	// Also copy debug databases, if present
-	string mdbPathSource = m_assemblyPath + ".mdb";
-	string mdbPathTarget = assemblyPath + ".mdb";
-
-	// It could be that old .dll and .mdb files are still in the temporary directory.
-	// This can cause unexpected behavior or out of sync debug-symbols, so delete the old files first.
-	if (FILE* handle = gEnv->pCryPak->FOpen(mdbPathTarget, "rb", ICryPak::FOPEN_HINT_QUIET | ICryPak::FLAGS_PATH_REAL))
-	{
-		gEnv->pCryPak->FClose(handle);
-		gEnv->pCryPak->RemoveFile(mdbPathTarget);
-	}
-
-	if (FILE* handle = gEnv->pCryPak->FOpen(assemblyPath, "rb", ICryPak::FOPEN_HINT_QUIET | ICryPak::FLAGS_PATH_REAL))
-	{
-		gEnv->pCryPak->FClose(handle);
-		gEnv->pCryPak->RemoveFile(assemblyPath);
-	}
-
-	// The path can be relative, so the default IsFileExist is not a sure way to check if the file exists.
-	// Instead we try opening the file and if it works the file exists.
-	if (auto handle = gEnv->pCryPak->FOpen(mdbPathSource, "rb", ICryPak::FOPEN_HINT_QUIET | ICryPak::FLAGS_PATH_REAL))
-	{
-		gEnv->pCryPak->FClose(handle);
-		gEnv->pCryPak->CopyFileOnDisk(mdbPathSource, mdbPathTarget, false);
-	}
-
-	gEnv->pCryPak->CopyFileOnDisk(m_assemblyPath, assemblyPath, false);
-	#endif
-
-	m_pAssembly = MonoInternals::mono_domain_assembly_open(m_pDomain->GetMonoDomain(), assemblyPath);
+	m_pAssembly = MonoInternals::mono_domain_assembly_open(m_pDomain->GetMonoDomain(), tempAssemblyPath);
 
 	if (m_pAssembly != nullptr)
 	{
@@ -160,7 +167,6 @@ bool CMonoLibrary::Load()
 	}
 
 	return false;
-#endif
 }
 
 void CMonoLibrary::Unload()
@@ -173,11 +179,12 @@ void CMonoLibrary::Unload()
 
 void CMonoLibrary::Reload()
 {
-	Load();
-
-	for (auto it = m_classes.begin(); it != m_classes.end(); ++it)
+	if (Load())
 	{
-		it->get()->ReloadClass();
+		for (auto it = m_classes.begin(); it != m_classes.end(); ++it)
+		{
+			it->get()->ReloadClass();
+		}
 	}
 }
 
@@ -207,7 +214,7 @@ void CMonoLibrary::Deserialize(CMonoObject* pSerializer)
 		return;
 	}
 
-	static_cast<CAppDomain*>(m_pDomain)->DeserializeObject(pSerializer, true);
+	static_cast<CAppDomain*>(m_pDomain)->DeserializeObject(pSerializer, nullptr);
 
 	for (auto it = m_classes.begin(); it != m_classes.end(); ++it)
 	{
@@ -233,6 +240,12 @@ CMonoClass* CMonoLibrary::GetClass(const char* szNamespace, const char* szClassN
 	m_classes.emplace_back(std::make_shared<CMonoClass>(this, szNamespace, szClassName));
 
 	std::shared_ptr<CMonoClass> pClass = m_classes.back();
+	if (pClass->GetMonoClass() == nullptr)
+	{
+		m_classes.pop_back();
+		return nullptr;
+	}
+
 	pClass->SetWeakPointer(pClass);
 
 	return pClass.get();
@@ -241,6 +254,10 @@ CMonoClass* CMonoLibrary::GetClass(const char* szNamespace, const char* szClassN
 std::shared_ptr<CMonoClass> CMonoLibrary::GetTemporaryClass(const char* szNamespace, const char* szClassName)
 {
 	std::shared_ptr<CMonoClass> pClass = std::make_shared<CMonoClass>(this, szNamespace, szClassName);
+	if (pClass->GetMonoClass() == nullptr)
+	{
+		return nullptr;
+	}
 
 	// Since this class may expire at any time the class has to contain a weak pointer of itself
 	// This is converted to a shared_ptr when the class creates objects, to ensure that the class always outlives its instances
@@ -289,6 +306,48 @@ MonoInternals::MonoObject* CMonoLibrary::GetManagedObject()
 const char* CMonoLibrary::GetImageName() const
 {
 	return MonoInternals::mono_image_get_name(m_pImage);
+}
+
+bool CMonoLibrary::RemoveAndCopyFile(string& sourceFile, string& targetFile) const
+{
+	// The path can be relative, so the default IsFileExist is not a sure way to check if the file exists.
+	// Instead we try opening the file and if it works the file exists.
+	if (FILE* handle = gEnv->pCryPak->FOpen(targetFile, "rb", ICryPak::FOPEN_HINT_QUIET | ICryPak::FLAGS_PATH_REAL))
+	{
+		gEnv->pCryPak->FClose(handle);
+		gEnv->pCryPak->RemoveFile(targetFile);
+	}
+	
+	if (targetFile.empty())
+	{
+		return true;
+	}
+
+	if (FILE* handle = gEnv->pCryPak->FOpen(sourceFile, "rb", ICryPak::FOPEN_HINT_QUIET | ICryPak::FLAGS_PATH_REAL))
+	{
+		gEnv->pCryPak->FClose(handle);
+		return gEnv->pCryPak->CopyFileOnDisk(sourceFile, targetFile, false);
+	}
+	return false;
+}
+
+bool CMonoLibrary::IsFileNewer(string& fileA, string& fileB) const
+{
+	uint64 timeA = 0;
+	uint64 timeB = 0;
+	if (FILE* handle = gEnv->pCryPak->FOpen(fileA, "rb", ICryPak::FOPEN_HINT_QUIET | ICryPak::FLAGS_PATH_REAL))
+	{
+		timeA = gEnv->pCryPak->GetModificationTime(handle);
+		gEnv->pCryPak->FClose(handle);
+	}
+	
+	if (FILE* handle = gEnv->pCryPak->FOpen(fileB, "rb", ICryPak::FOPEN_HINT_QUIET | ICryPak::FLAGS_PATH_REAL))
+	{
+		timeB = gEnv->pCryPak->GetModificationTime(handle);
+		gEnv->pCryPak->FClose(handle);
+	}
+
+	return timeA > timeB;
 }
 
 const char* CMonoLibrary::GetFilePath()

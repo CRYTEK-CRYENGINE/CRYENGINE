@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 // -------------------------------------------------------------------------
 //  File name:   VTOLVehicleManager.h
@@ -100,7 +100,7 @@ public:
 	void Update(float frameTime);
 
 	// IEntityEventListener
-	virtual void OnEntityEvent( IEntity *pEntity,SEntityEvent &event );
+	virtual void OnEntityEvent( IEntity *pEntity, const SEntityEvent& event );
 	// ~IEntityEventListener
 
 	// IMPPathFollower

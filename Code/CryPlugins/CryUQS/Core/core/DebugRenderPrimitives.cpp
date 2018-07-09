@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "DebugRenderPrimitives.h"
@@ -218,7 +218,8 @@ namespace UQS
 			{
 				pAux->SetRenderFlags(GetFlags3D());
 				pAux->DrawLine(from, color, to, color, SCvars::debugDrawLineThickness);
-				pAux->DrawCone(to, (to - from).GetNormalizedSafe(), coneRadius, coneHeight, color);
+				Vec3 dir = (to - from).GetNormalizedSafe();
+				pAux->DrawCone(to - dir * coneHeight, dir, coneRadius, coneHeight, color);
 			}
 		}
 
@@ -366,7 +367,7 @@ namespace UQS
 		void CDebugRenderPrimitive_Cylinder::Draw(const Vec3& pos, const Vec3& dir, float radius, float height, const ColorF& color, bool bHighlight)
 		{
 			const bool bVisible = bHighlight ? (Pulsate() > 1.5f) : true;
-			
+
 			IRenderAuxGeom* pAux = GetRenderAuxGeom();
 			if (bVisible && pAux)
 			{
@@ -423,7 +424,7 @@ namespace UQS
 			{
 				SDrawTextInfo ti;
 				ti.scale.set(size, size);
-				ti.flags = eDrawText_FixedSize | eDrawText_800x600;
+				ti.flags = eDrawText_FixedSize;
 				if (SCvars::debugDrawZTestOn)
 				{
 					ti.flags |= eDrawText_DepthTest;

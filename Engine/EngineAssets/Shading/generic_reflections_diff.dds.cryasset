@@ -1,0 +1,10 @@
+<AssetMetadata version="0" type="Texture" guid="449f4529-43dd-ad1e-b1ed-d582787a4d59" source="generic_reflections.tif">
+ <Files>
+  <File path="generic_reflections_diff.dds"/>
+ </Files>
+ <Details>
+  <Detail name="width">192</Detail>
+  <Detail name="height">32</Detail>
+  <Detail name="mipCount">1</Detail>
+ </Details>
+</AssetMetadata>

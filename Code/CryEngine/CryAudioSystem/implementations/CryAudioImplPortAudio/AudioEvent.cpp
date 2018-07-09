@@ -1,8 +1,9 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "stdafx.h"
 #include "AudioEvent.h"
 #include "AudioObject.h"
+#include <Logger.h>
 #include <CryAudio/IAudioSystem.h>
 #include <CrySystem/ISystem.h> // needed for gEnv in Release builds
 #include <portaudio.h>
@@ -106,7 +107,7 @@ CEvent::~CEvent()
 
 		if (err != paNoError)
 		{
-			g_implLogger.Log(ELogType::Error, "CloseStream failed: %s", Pa_GetErrorText(err));
+			Cry::Audio::Log(ELogType::Error, "CloseStream failed: %s", Pa_GetErrorText(err));
 		}
 	}
 
@@ -187,12 +188,12 @@ bool CEvent::Execute(
 			}
 			else
 			{
-				g_implLogger.Log(ELogType::Error, "StartStream failed: %s", Pa_GetErrorText(err));
+				Cry::Audio::Log(ELogType::Error, "StartStream failed: %s", Pa_GetErrorText(err));
 			}
 		}
 		else
 		{
-			g_implLogger.Log(ELogType::Error, "OpenStream failed: %s", Pa_GetErrorText(err));
+			Cry::Audio::Log(ELogType::Error, "OpenStream failed: %s", Pa_GetErrorText(err));
 		}
 	}
 

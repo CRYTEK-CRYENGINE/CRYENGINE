@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 /*=============================================================================
    PostProcessHud3D : 3D hud post processing
@@ -16,6 +16,7 @@
 #include "D3DStereo.h"
 #include <CrySystem/Scaleform/IFlashPlayer.h>
 
+#pragma warning(push)
 #pragma warning(disable: 4244)
 
 enum EHud3dDebugView
@@ -64,7 +65,7 @@ void SHudData::Init()
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-int C3DHud::CreateResources()
+int CHud3D::CreateResources()
 {
 	SAFE_RELEASE(m_pNoise);
 
@@ -76,7 +77,7 @@ int C3DHud::CreateResources()
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void C3DHud::Release()
+void CHud3D::Release()
 {
 	SAFE_RELEASE(m_pNoise);
 
@@ -87,7 +88,7 @@ void C3DHud::Release()
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-bool C3DHud::Preprocess()
+bool CHud3D::Preprocess(const SRenderViewInfo& viewInfo)
 {
 	// Warning: This function could get called twice per frame (NanoGlass will call it if its active)
 	//					So don't do any updating here, do it in Update()
@@ -98,7 +99,7 @@ bool C3DHud::Preprocess()
 		return true;
 	}
 
-	const uint32 nThreadID = gRenDev->m_RP.m_nProcessThreadID;
+	const uint32 nThreadID = gRenDev->GetRenderThreadID();
 	if (m_pRenderData[nThreadID].empty())
 	{
 		return false;
@@ -110,9 +111,9 @@ bool C3DHud::Preprocess()
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void C3DHud::Update()
+void CHud3D::Update()
 {
-	const uint32 nThreadID = gRenDev->m_RP.m_nProcessThreadID;
+	const uint32 nThreadID = gRenDev->GetRenderThreadID();
 	SHudDataVec& rRenderData = m_pRenderData[nThreadID];
 	rRenderData.CoalesceMemory();
 	size_t nSize = rRenderData.size();
@@ -130,9 +131,9 @@ void C3DHud::Update()
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void C3DHud::OnBeginFrame(const SRenderingPassInfo& passInfo)
+void CHud3D::OnBeginFrame(const SRenderingPassInfo& passInfo)
 {
-	const uint32 nThreadID = gRenDev->m_RP.m_nFillThreadID;
+	const uint32 nThreadID = gRenDev->GetMainThreadID();
 	if (passInfo.IsGeneralPass())
 		m_pRenderData[nThreadID].resize(0);
 }
@@ -140,7 +141,7 @@ void C3DHud::OnBeginFrame(const SRenderingPassInfo& passInfo)
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void C3DHud::Reset(bool bOnSpecChange)
+void CHud3D::Reset(bool bOnSpecChange)
 {
 	// Need to reset the SHudData max width and height here, because mp has larger flash size
 	// and needs to be reset when going from mp to sp
@@ -179,15 +180,16 @@ void C3DHud::Reset(bool bOnSpecChange)
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void C3DHud::CalculateProjMatrix()
+void CHud3D::CalculateProjMatrix()
 {
 	const float fHUDFov = clamp_tpl<float>(m_pFOV->GetParam(), 1.0f, 180.0f);
 
+	const auto& viewInfo = gcpRendD3D.GetGraphicsPipeline().GetCurrentViewInfo(CCamera::eEye_Left);
 	// Patch projection matrix to have HUD FOV
-	m_mProj = gRenDev->m_ProjMatrix;
+	m_mProj = viewInfo.unjitteredProjMatrix;
 
 	// Calc aspect ratio
-	const float cameraPixelAspectRatio = gRenDev->GetCamera().GetPixelAspectRatio();
+	const float cameraPixelAspectRatio = viewInfo.pCamera->GetPixelAspectRatio();
 	const float overscanBorderAspectRatio = GetUtils().GetOverscanBorderAspectRatio();
 	const float aspectRatio = overscanBorderAspectRatio / max(cameraPixelAspectRatio, 0.0001f);
 
@@ -218,8 +220,10 @@ void C3DHud::CalculateProjMatrix()
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void C3DHud::SetShaderParams(SHudData& pData)
+void CHud3D::SetShaderParams(SHudData& pData)
 {
+	ASSERT_LEGACY_PIPELINE
+/*
 	CShaderResources* pShaderResources = (CShaderResources*)pData.pShaderResources;
 	float fOpacity = pShaderResources->GetStrengthValue(EFTT_OPACITY) * m_pOpacityMul->GetParam();
 
@@ -257,25 +261,31 @@ void C3DHud::SetShaderParams(SHudData& pData)
 
 	Vec4 vHudParams = Vec4(cDiffuse.r, cDiffuse.g, cDiffuse.b, fOpacity) * m_pHudColor->GetParamVec4();
 	CShaderMan::s_sh3DHUD->FXSetPSFloat(m_pHudParamName, &vHudParams, 1);
+*/
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void C3DHud::SetTextures(SHudData& pData)
+void CHud3D::SetTextures(SHudData& pData)
 {
+	// OLD PIPELINE
+	/*
 	SEfResTexture* pDiffuse = pData.pDiffuse;
 	if (pDiffuse && pDiffuse->m_Sampler.m_pTex)
 		GetUtils().SetTexture(pDiffuse->m_Sampler.m_pTex, 0, FILTER_LINEAR);
 	else
 		GetUtils().SetTexture(m_pHUD_RT, 0, FILTER_LINEAR);
+		*/
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void C3DHud::RenderMesh(const CRenderElement* pRE, SShaderPass* pPass)
+void CHud3D::RenderMesh(const CRenderElement* pRE, SShaderPass* pPass)
 {
+	// OLD PIPELINE
+	/*
 	CD3D9Renderer* const __restrict rd = gcpRendD3D;
 	CREMesh* pRenderMesh = (CREMeshImpl*) pRE;
 
@@ -285,27 +295,30 @@ void C3DHud::RenderMesh(const CRenderElement* pRE, SShaderPass* pPass)
 		pRenderMesh->m_pRenderMesh->CheckUpdate(pRenderMesh->m_pRenderMesh->_GetVertexFormat(), 0);
 
 		// set the mesh's vertex format, which hasn't been set elsewhere.
-		rd->m_RP.m_CurVFormat = pRenderMesh->m_pRenderMesh->_GetVertexFormat();
+		gRenDev->m_RP.m_CurVFormat = pRenderMesh->m_pRenderMesh->_GetVertexFormat();
 	}
 
 	rd->m_RP.m_pRE = const_cast<CRenderElement*>(pRE);
 	if (rd->FX_CommitStreams(pPass, true))
 	{
-		rd->m_RP.m_FirstVertex = pRenderMesh->m_nFirstVertId;
-		rd->m_RP.m_FirstIndex = pRenderMesh->m_nFirstIndexId;
-		rd->m_RP.m_RendNumIndices = pRenderMesh->m_nNumIndices;
-		rd->m_RP.m_RendNumVerts = pRenderMesh->m_nNumVerts;
-		rd->m_RP.m_pRE->mfDraw(CShaderMan::s_sh3DHUD, pPass);
+		gRenDev->m_RP.m_FirstVertex = pRenderMesh->m_nFirstVertId;
+		gRenDev->m_RP.m_FirstIndex = pRenderMesh->m_nFirstIndexId;
+		gRenDev->m_RP.m_RendNumIndices = pRenderMesh->m_nNumIndices;
+		gRenDev->m_RP.m_RendNumVerts = pRenderMesh->m_nNumVerts;
+		gRenDev->m_RP.m_pRE->mfDraw(CShaderMan::s_sh3DHUD, pPass);
 	}
+	*/
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void C3DHud::DownsampleHud4x4(CTexture* pDstRT)
+void CHud3D::DownsampleHud4x4(CTexture* pDstRT)
 {
+	ASSERT_LEGACY_PIPELINE
+/*
 	CD3D9Renderer* const __restrict rd = gcpRendD3D;
-	const uint32 nThreadID = rd->m_RP.m_nProcessThreadID;
+	const uint32 nThreadID = gRenDev->GetRenderThreadID();
 
 	SEfResTexture* pDiffuse = NULL;
 	SShaderTechnique* pShaderTech = CShaderMan::s_sh3DHUD->mfFindTechnique(m_pDownsampleTechName);
@@ -346,15 +359,18 @@ void C3DHud::DownsampleHud4x4(CTexture* pDstRT)
 	}
 
 	rd->FX_PopRenderTarget(0);
+*/
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void C3DHud::UpdateBloomRT(CTexture* pDstRT, CTexture* pBlurDst)
+void CHud3D::UpdateBloomRT(CTexture* pDstRT, CTexture* pBlurDst)
 {
+	ASSERT_LEGACY_PIPELINE
+/*
 	CD3D9Renderer* const __restrict rd = gcpRendD3D;
-	const uint32 nThreadID = rd->m_RP.m_nProcessThreadID;
+	const uint32 nThreadID = gRenDev->GetRenderThreadID();
 
 	SEfResTexture* pDiffuse = NULL;
 	SShaderTechnique* pShaderTech = CShaderMan::s_sh3DHUD->mfFindTechnique(m_pUpdateBloomTechName);
@@ -412,20 +428,23 @@ void C3DHud::UpdateBloomRT(CTexture* pDstRT, CTexture* pBlurDst)
 	}
 
 	rd->RT_SetViewport(0, 0, rd->GetWidth(), rd->GetHeight());
+*/
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 // Reminder: for efficient multiple flash files to work correctly - uv's must not override
-void C3DHud::FlashUpdateRT(void)
+void CHud3D::FlashUpdateRT(void)
 {
+	ASSERT_LEGACY_PIPELINE
+/*
 	CD3D9Renderer* const __restrict rd = gcpRendD3D;
 #if defined(USE_VBIB_PUSH_DOWN)
 	//workaround for deadlock when streaming thread wants renderthread to clean mesh pool
 	if (gRenDev->m_bStartLevelLoading) CRenderMesh::Tick();
 #endif
-	const uint32 nThreadID = rd->m_RP.m_nProcessThreadID;
+	const uint32 nThreadID = gRenDev->GetRenderThreadID();
 	uint32 nRECount = m_pRenderData[nThreadID].size();
 
 	const bool bForceRefresh = (m_pOverideCacheDelay->GetParam() > 0.5f);
@@ -433,8 +452,8 @@ void C3DHud::FlashUpdateRT(void)
 	if (nRECount || bForceRefresh) //&& m_nFlashUpdateFrameID != rd->GetFrameID(false) )
 	{
 		// Share hud render target with scene normals
-		m_pHUD_RT = CTexture::s_ptexCached3DHud;
-		m_pHUDScaled_RT = CTexture::s_ptexCached3DHudScaled;
+		m_pHUD_RT = CRendererResources::s_ptexCached3DHud;
+		m_pHUDScaled_RT = CRendererResources::s_ptexCached3DHudScaled;
 
 		if ((gRenDev->GetFrameID(false) % max(1, (int)CRenderer::CV_r_PostProcessHUD3DCache)) != 0)
 		{
@@ -494,7 +513,7 @@ void C3DHud::FlashUpdateRT(void)
 
 				pData.pFlashPlayer->Render(false);
 
-				rd->FX_SetState(gcpRendD3D->m_RP.m_CurState & ~GS_BLEND_MASK);
+				rd->FX_SetState(gRenDev->m_RP.m_CurState & ~GS_BLEND_MASK);
 
 				pData.pFlashPlayer->AvoidStencilClear(false);
 
@@ -512,34 +531,37 @@ void C3DHud::FlashUpdateRT(void)
 		// Downsample/blur hud into half res target _1 time only_ - we'll use this for Bloom/Dof
 		DownsampleHud4x4(m_pHUDScaled_RT);
 	}
+*/
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////////
-void C3DHud::ReleaseFlashPlayerRef(const uint32 nThreadID)
+void CHud3D::ReleaseFlashPlayerRef(const uint32 nThreadID)
 {
 	uint32 nRECount = m_pRenderData[nThreadID].size();
 	for (uint32 r = 0; r < nRECount; ++r)
 	{
 		SHudData& pData = m_pRenderData[nThreadID][r];
-		SAFE_RELEASE(pData.pFlashPlayer);
+		pData.pFlashPlayer = nullptr;
 	}
 }
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void C3DHud::RenderFinalPass()
+void CHud3D::RenderFinalPass()
 {
+	ASSERT_LEGACY_PIPELINE
+/*
 	CD3D9Renderer* const __restrict rd = gcpRendD3D;
 
 	PROFILE_LABEL_SCOPE("3D HUD FINAL PASS");
 
-	const uint32 nThreadID = rd->m_RP.m_nProcessThreadID;
+	const uint32 nThreadID = gRenDev->GetRenderThreadID();
 	SShaderTechnique* pShaderTech = CShaderMan::s_sh3DHUD->mfFindTechnique(m_pGeneralTechName);
 	IF (!pShaderTech, 0)
 		return;
 
-	UpdateBloomRT(CTexture::s_ptexBackBufferScaled[1], CTexture::s_ptexBackBufferScaledTemp[1]);
+	UpdateBloomRT(CRendererResources::s_ptexBackBufferScaled[1], CRendererResources::s_ptexBackBufferScaledTemp[1]);
 
 	SEfResTexture* pDiffuse = NULL;
 	SEfResTexture* pPrevDiffuse = NULL;
@@ -548,7 +570,7 @@ void C3DHud::RenderFinalPass()
 	CalculateProjMatrix();
 
 	// Hud simple 2D dof blend
-	CPostEffect* pDofPostEffect = PostEffectMgr()->GetEffect(ePFX_eDepthOfField);
+	CPostEffect* pDofPostEffect = PostEffectMgr()->GetEffect(EPostEffectID::DepthOfField);
 	bool bGameDof = pDofPostEffect->IsActive();
 
 	static float fDofBlend = 0.0f;
@@ -569,7 +591,7 @@ void C3DHud::RenderFinalPass()
 	if (interferenceStrength > 0.0f)
 	{
 		bInterferenceApplied = true;
-		gcpRendD3D->m_RP.m_FlagsShader_RT |= g_HWSR_MaskBit[HWSR_SAMPLE1]; // Set interference combination
+		gRenDev->m_RP.m_FlagsShader_RT |= g_HWSR_MaskBit[HWSR_SAMPLE1]; // Set interference combination
 		hudEffectParamCount += 4;                                          // Pass interference params as well
 
 		// x= hudItemOverrideStrength, y= interferenceRandFrequency, z= dofInterferenceStrength, w = free
@@ -626,12 +648,12 @@ void C3DHud::RenderFinalPass()
 	// Turn on debug view in shader
 	if (m_bDebugView)
 	{
-		gcpRendD3D->m_RP.m_FlagsShader_RT |= g_HWSR_MaskBit[HWSR_DEBUG1];
+		gRenDev->m_RP.m_FlagsShader_RT |= g_HWSR_MaskBit[HWSR_DEBUG1];
 	}
 	bool bDrawingSolidView = (CRenderer::CV_r_PostProcessHUD3DDebugView == eHUD3D_DEBUG_VIEW_SolidFill);
 	if (m_bWireframeEnabled || bDrawingSolidView)
 	{
-		gcpRendD3D->m_RP.m_FlagsShader_RT |= g_HWSR_MaskBit[HWSR_DEBUG2];
+		gRenDev->m_RP.m_FlagsShader_RT |= g_HWSR_MaskBit[HWSR_DEBUG2];
 	}
 	// Rand num generator used to color each hud item
 	CMTRand_int32 rndGen;
@@ -727,7 +749,7 @@ void C3DHud::RenderFinalPass()
 		rd->FX_SetState(nRenderState);
 
 		SetTextures(pData);
-		GetUtils().SetTexture(CTexture::s_ptexBackBufferScaled[1], 1, FILTER_LINEAR);
+		GetUtils().SetTexture(CRendererResources::s_ptexBackBufferScaled[1], 1, FILTER_LINEAR);
 
 		RenderMesh(pData.pRE, &pShaderTech->m_Passes[0]);
 
@@ -739,14 +761,17 @@ void C3DHud::RenderFinalPass()
 	// Commit here as well, in case the HUD doesn't get drawn for some reason (e.g. hardcoded view distance for the HUD)
 	gcpRendD3D->FX_Commit();
 
-	gcpRendD3D->m_RP.m_FlagsShader_RT &= ~g_HWSR_MaskBit[HWSR_SAMPLE1]; // Remove interference combination
+	gRenDev->m_RP.m_FlagsShader_RT &= ~g_HWSR_MaskBit[HWSR_SAMPLE1]; // Remove interference combination
+*/
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void C3DHud::FinalPass()
+void CHud3D::FinalPass()
 {
+	ASSERT_LEGACY_PIPELINE
+/*
 	RenderFinalPass();
 
 	// Debug views
@@ -757,7 +782,7 @@ void C3DHud::FinalPass()
 		GetUtils().ShBeginPass(CShaderMan::s_shPostEffects, m_pTexToTexTechName, FEF_DONTSETTEXTURES | FEF_DONTSETSTATES);
 		gcpRendD3D->FX_SetState(GS_NODEPTHTEST | GS_BLSRC_ONE | GS_BLDST_ZERO);
 		GetUtils().SetTexture(m_pHUD_RT, 0, FILTER_LINEAR);
-		GetUtils().DrawFullScreenTri(CTexture::s_ptexBackBuffer->GetWidth(), CTexture::s_ptexBackBuffer->GetHeight());
+		GetUtils().DrawFullScreenTri(CRendererResources::s_ptexBackBuffer->GetWidth(), CRendererResources::s_ptexBackBuffer->GetHeight());
 		GetUtils().ShEndPass();
 	}
 
@@ -774,16 +799,19 @@ void C3DHud::FinalPass()
 		m_bWireframeEnabled = false;
 	}
 #endif
+*/
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void C3DHud::Render()
+void CHud3D::Render()
 {
+	ASSERT_LEGACY_PIPELINE
+/*
 	PROFILE_LABEL_SCOPE("3D HUD");
 
-	gcpRendD3D->m_RP.m_FlagsShader_RT &= ~(g_HWSR_MaskBit[HWSR_SAMPLE0] |
+	gRenDev->m_RP.m_FlagsShader_RT &= ~(g_HWSR_MaskBit[HWSR_SAMPLE0] |
 	                                       g_HWSR_MaskBit[HWSR_SAMPLE1] |
 	                                       g_HWSR_MaskBit[HWSR_SAMPLE2] |
 	                                       g_HWSR_MaskBit[HWSR_DEBUG1] |
@@ -796,7 +824,7 @@ void C3DHud::Render()
 	// If post-stereo not enabled, update flash player
 	// NanoGlass also updates Flash
 	if (gcpRendD3D->m_nGraphicsPipeline == 0
-	    && ((!bPostProcStereo && !PostEffectMgr()->GetEffect(ePFX_NanoGlass)->IsActive()) || m_pHUD_RT == NULL))
+	    && ((!bPostProcStereo && !PostEffectMgr()->GetEffect(EPostEffectID::NanoGlass)->IsActive()) || m_pHUD_RT == NULL))
 	{
 		FlashUpdateRT();
 	}
@@ -812,23 +840,23 @@ void C3DHud::Render()
 			float maxParallax = 0.005f * pS3DRend.GetStereoStrength();
 
 			// Render left eye
-			pS3DRend.BeginRenderingTo(LEFT_EYE);
+			pS3DRend.BeginRenderingTo(CCamera::eEye_Left);
 			m_maxParallax = -maxParallax;
 			FinalPass();
-			pS3DRend.EndRenderingTo(LEFT_EYE);
+			pS3DRend.EndRenderingTo(CCamera::eEye_Left);
 
 			// Render right eye
-			pS3DRend.BeginRenderingTo(RIGHT_EYE);
+			pS3DRend.BeginRenderingTo(CCamera::eEye_Right);
 			m_maxParallax = maxParallax;
 			FinalPass();
-			pS3DRend.EndRenderingTo(RIGHT_EYE);
+			pS3DRend.EndRenderingTo(CCamera::eEye_Right);
 
 			m_maxParallax = 0;
 		}
 		else
 		{
 			pS3DRend.BeginRenderingMRT(false);
-			gcpRendD3D->m_RP.m_FlagsShader_RT |= g_HWSR_MaskBit[HWSR_SAMPLE0];
+			gRenDev->m_RP.m_FlagsShader_RT |= g_HWSR_MaskBit[HWSR_SAMPLE0];
 			FinalPass();
 			pS3DRend.EndRenderingMRT();
 		}
@@ -837,4 +865,7 @@ void C3DHud::Render()
 	{
 		FinalPass();
 	}
+*/
 }
+
+#pragma warning(pop)

@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #ifndef __VehicleHelper_h__
 #define __VehicleHelper_h__
@@ -29,7 +29,7 @@ public:
 	bool Init(CBaseObject* prev, const string& file);
 	void Done();
 
-	void Display(DisplayContext& dc);
+	void Display(CObjectRenderHelper& objRenderHelper) override;
 
 	void GetBoundSphere(Vec3& pos, float& radius);
 	void GetBoundBox(AABB& box);
@@ -88,3 +88,4 @@ public:
 };
 
 #endif // __VehicleHelper_h__
+

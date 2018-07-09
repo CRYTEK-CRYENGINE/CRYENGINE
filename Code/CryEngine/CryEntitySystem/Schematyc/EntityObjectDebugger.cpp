@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "stdafx.h"
 #include "EntityObjectDebugger.h"
@@ -6,7 +6,7 @@
 #include <CryRenderer/IRenderAuxGeom.h>
 #include <CryString/StringUtils.h>
 
-#include <CryEntitySystem/IEntitySystem.h>
+#include "Entity.h"
 
 #include  <CrySchematyc/Runtime/IRuntimeClass.h>
 #include  <CrySchematyc/IObject.h>
@@ -14,13 +14,13 @@
 
 namespace
 {
-	using CStackString = Schematyc::CStackString;
+using CStackString = Schematyc::CStackString;
 
 class CObjectDump : public Schematyc::IObjectDump
 {
 public:
 
-	inline CObjectDump(CStackString& debugText)
+	explicit inline CObjectDump(CStackString& debugText)
 		: m_debugText(debugText)
 	{}
 
@@ -71,7 +71,7 @@ private:
 
 int sc_EntityDebugConfig = 0;
 ICVar* sc_EntityDebugFilter = nullptr;
-ICVar*	sc_EntityDebugTextPos = nullptr;
+ICVar* sc_EntityDebugTextPos = nullptr;
 
 const char* szEntityDebugConfigDescription = "Schematyc - Configure entity debugging:\n"
                                              "\ts = draw states\n"
@@ -121,7 +121,7 @@ void CEntityObjectDebugger::Update()
 	}
 
 	const char* szFilter = sc_EntityDebugFilter->GetString();
-	
+
 	Vec2 textPos(ZERO);
 	sscanf(sc_EntityDebugTextPos->GetString(), "%f, %f", &textPos.x, &textPos.y);
 
@@ -132,7 +132,7 @@ void CEntityObjectDebugger::Update()
 		{
 			if (pObject->GetSimulationMode() == Schematyc::ESimulationMode::Game)
 			{
-				const IEntity& entity = *pObject->GetEntity();
+				const CEntity& entity = static_cast<const CEntity&>(*pObject->GetEntity());
 				const char* szName = entity.GetName();
 				if ((szFilter[0] == '\0') || CryStringUtils::stristr(szName, szFilter))
 				{
@@ -158,7 +158,7 @@ void CEntityObjectDebugger::Update()
 						IRenderAuxText::Draw2dLabelEx(textPos.x, textPos.y, 1.8f, Col_White, drawTextFlags, "%s", debugText.c_str());
 
 						uint32 lineCount = 1;
-						for (const char* pPos = debugText.c_str(), *pEnd = pPos + debugText.length(); pPos < pEnd; ++pPos)
+						for (const char* pPos = debugText.c_str(), * pEnd = pPos + debugText.length(); pPos < pEnd; ++pPos)
 						{
 							if (*pPos == '\n')
 							{
@@ -175,15 +175,15 @@ void CEntityObjectDebugger::Update()
 		return Schematyc::EVisitStatus::Continue;
 	};
 
-	IEntityItPtr pIt = gEnv->pEntitySystem->GetEntityIterator();
+	IEntityItPtr pIt = g_pIEntitySystem->GetEntityIterator();
 	//////////////////////////////////////////////////////////////////////////
 	pIt->MoveFirst();
 	while (!pIt->IsEnd())
 	{
-		IEntity* pEntity = pIt->Next();
+		CEntity* pEntity = static_cast<CEntity*>(pIt->Next());
 		if (pEntity->GetSchematycObject())
 		{
-			visitEntityObject(pEntity->GetId(),pEntity->GetSchematycObject()->GetId());
+			visitEntityObject(pEntity->GetId(), pEntity->GetSchematycObject()->GetId());
 		}
 	}
 }

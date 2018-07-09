@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -89,11 +89,12 @@ namespace UQS
 
 			struct SPartialGUIDs
 			{
-				constexpr static uint64 ItemType_ShuttledItemsContainer() { return (uint64)0x3d7a0c3358136d54; }
-				constexpr static uint64 Function_GlobalParam()            { return (uint64)0x783bbaf211f33c88; }
-				constexpr static uint64 Function_IteratedItem()           { return (uint64)0x76068d79bad2531c; }
-				constexpr static uint64 Function_Literal()                { return (uint64)0xbc60970f5e5236ca; }
-				constexpr static uint64 Function_ShuttledItems()          { return (uint64)0x8d6ee3255c7d7def; }
+				constexpr static uint64 ItemType_ShuttledItemsContainer()  { return (uint64)0x3d7a0c3358136d54; }
+				constexpr static uint64 Function_GlobalParam()             { return (uint64)0x783bbaf211f33c88; }
+				constexpr static uint64 Function_IteratedItem()            { return (uint64)0x76068d79bad2531c; }
+				constexpr static uint64 Function_Literal()                 { return (uint64)0xbc60970f5e5236ca; }
+				constexpr static uint64 Function_ShuttledItems()           { return (uint64)0x8d6ee3255c7d7def; }
+				constexpr static uint64 Generator_PropagateShuttledItems() { return (uint64)0xa913496956d54511; }
 			};
 
 			//===================================================================================
@@ -109,6 +110,7 @@ namespace UQS
 				virtual const char*                        GetName() const override final;
 				virtual const CryGUID&                     GetGUID() const override final;
 				virtual const char*                        GetDescription() const override final;
+				virtual bool                               IsContainerForShuttledItems() const override final;
 				// ~IItemFactory
 
 				// IItemFactory: forward these pure virtual methods to the derived class
@@ -118,6 +120,8 @@ namespace UQS
 #endif
 				virtual void*                              CreateItems(size_t numItems, EItemInitMode itemInitMode) override = 0;
 				virtual void*                              CloneItem(const void* pOriginalItem) override = 0;
+				virtual void*                              CloneItems(const void* pOriginalItems, size_t numItemsToClone) override = 0;
+				virtual void*                              CloneItemsViaIndexList(const void* pOriginalItems, const size_t* pIndexes, size_t numIndexes) override = 0;
 				virtual void                               DestroyItems(void* pItems) override = 0;
 				virtual const Shared::CTypeInfo&           GetItemType() const override = 0;
 				virtual size_t                             GetItemSize() const override = 0;
@@ -134,15 +138,17 @@ namespace UQS
 				// ~IItemFactory
 
 			protected:
-				explicit                                   CItemFactoryBase(const char* szName, const CryGUID& guid, const char* szDescription);
+				explicit                                   CItemFactoryBase(const char* szName, const CryGUID& guid, const char* szDescription, bool bIsContainerForShuttledItems);
 
 			private:
 				string                                     m_description;
+				bool                                       m_bIsContainerForShuttledItems;
 			};
 
-			inline CItemFactoryBase::CItemFactoryBase(const char* szName, const CryGUID& guid, const char* szDescription)
+			inline CItemFactoryBase::CItemFactoryBase(const char* szName, const CryGUID& guid, const char* szDescription, bool bIsContainerForShuttledItems)
 				: CFactoryBase(szName, guid)
 				, m_description(szDescription)
+				, m_bIsContainerForShuttledItems(bIsContainerForShuttledItems)
 			{}
 
 			inline const char* CItemFactoryBase::GetName() const
@@ -158,6 +164,11 @@ namespace UQS
 			inline const char* CItemFactoryBase::GetDescription() const
 			{
 				return m_description.c_str();
+			}
+
+			inline bool CItemFactoryBase::IsContainerForShuttledItems() const
+			{
+				return m_bIsContainerForShuttledItems;
 			}
 
 			//===================================================================================
@@ -199,7 +210,7 @@ namespace UQS
 
 			public:
 
-				explicit                                  CItemFactoryInternal(const char* szName, const CryGUID& guid, const char* szDescription, const SItemFactoryCallbacks<TItem>& callbacks, bool bAutoRegisterBuiltinFunctions);
+				explicit                                  CItemFactoryInternal(const char* szName, const CryGUID& guid, const char* szDescription, const SItemFactoryCallbacks<TItem>& callbacks, bool bAutoRegisterBuiltinElements);
 													      ~CItemFactoryInternal();
 
 				// IItemFactory
@@ -209,6 +220,8 @@ namespace UQS
 #endif
 				virtual void*                             CreateItems(size_t numItems, EItemInitMode itemInitMode) override;
 				virtual void*                             CloneItem(const void* pOriginalItem) override;
+				virtual void*                             CloneItems(const void* pOriginalItems, size_t numItemsToClone) override;
+				virtual void*                             CloneItemsViaIndexList(const void* pOriginalItems, const size_t* pIndexes, size_t numIndexes) override;
 				virtual void                              DestroyItems(void* pItems) override;
 				virtual const Shared::CTypeInfo&          GetItemType() const override;
 				virtual size_t                            GetItemSize() const override;
@@ -242,11 +255,11 @@ namespace UQS
 			typename CItemFactoryInternal<TItem>::SHeader* CItemFactoryInternal<TItem>::s_pFreeListHoldingSingleItems;
 
 			template <class TItem>
-			CItemFactoryInternal<TItem>::CItemFactoryInternal(const char* szName, const CryGUID& guid, const char* szDescription, const SItemFactoryCallbacks<TItem>& callbacks, bool bAutoRegisterBuiltinFunctions)
-				: CItemFactoryBase(szName, guid, szDescription)
+			CItemFactoryInternal<TItem>::CItemFactoryInternal(const char* szName, const CryGUID& guid, const char* szDescription, const SItemFactoryCallbacks<TItem>& callbacks, bool bAutoRegisterBuiltinElements)
+				: CItemFactoryBase(szName, guid, szDescription, !bAutoRegisterBuiltinElements)
 				, m_callbacks(callbacks)
 			{
-				if (bAutoRegisterBuiltinFunctions)
+				if (bAutoRegisterBuiltinElements)
 				{
 
 					//
@@ -329,6 +342,24 @@ namespace UQS
 						ctorParams.szDescription = "Items from a previous query in the chain";
 
 						static const CFunctionFactory<CFunc_ShuttledItems<TItem>> gs_functionFactory_shuttledItems(ctorParams);
+					}
+
+					//
+					// create a generator-factory whose generator simply propagates the resulting items from one query to another
+					//
+
+					{
+						stack_string generatorName;
+						generatorName.Format("builtin::PropagateShuttledItems[%s]", szName);
+
+						typename CGeneratorFactory<CGen_PropagateShuttledItems<TItem>, TItem>::SCtorParams ctorParams;
+
+						ctorParams.szName = generatorName.c_str();
+						ctorParams.guid.hipart = SPartialGUIDs::Generator_PropagateShuttledItems();
+						ctorParams.guid.lopart = guid.lopart;
+						ctorParams.szDescription = "Generator that propagates items from a preceding query";
+
+						static const CGeneratorFactory<CGen_PropagateShuttledItems<TItem>, TItem> gs_generatorFactory_propagateShuttledItems(ctorParams);
 					}
 				}
 			}
@@ -455,6 +486,37 @@ namespace UQS
 				TItem* pClone = AllocateUninitializedMemoryForItems(1);
 				new (pClone) TItem(*pOriginal);
 				return pClone;
+			}
+
+			template <class TItem>
+			void* CItemFactoryInternal<TItem>::CloneItems(const void* pOriginalItems, size_t numItemsToClone)
+			{
+				TItem* pClones = AllocateUninitializedMemoryForItems(numItemsToClone);
+				TItem* pCurClone = pClones;
+				const TItem* pCurOriginal = static_cast<const TItem*>(pOriginalItems);
+
+				for (; numItemsToClone > 0; ++pCurClone, ++pCurOriginal, --numItemsToClone)
+				{
+					new (pCurClone) TItem(*pCurOriginal);
+				}
+
+				return pClones;
+			}
+
+			template <class TItem>
+			void* CItemFactoryInternal<TItem>::CloneItemsViaIndexList(const void* pOriginalItems, const size_t* pIndexes, size_t numIndexes)
+			{
+				TItem* pClones = AllocateUninitializedMemoryForItems(numIndexes);
+				TItem* pCurClone = pClones;
+				const size_t* pCurIndex = pIndexes;
+
+				for (; numIndexes > 0; ++pCurClone, ++pCurIndex, --numIndexes)
+				{
+					const TItem* pOriginal = static_cast<const TItem*>(pOriginalItems) + *pCurIndex;
+					new (pCurClone) TItem(*pOriginal);
+				}
+
+				return pClones;
 			}
 
 			template <class TItem>

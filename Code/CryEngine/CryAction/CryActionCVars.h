@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 /*************************************************************************
    -------------------------------------------------------------------------
@@ -92,7 +92,6 @@ private:
 
 	static void DumpEntitySerializationData(IConsoleCmdArgs* pArgs);
 	static void DumpClassRegistry(IConsoleCmdArgs* pArgs);
-	static void SWCommandHandler(IConsoleCmdArgs* pArgs);
 };
 
 #endif // __CRYACTIONCVARS_H__

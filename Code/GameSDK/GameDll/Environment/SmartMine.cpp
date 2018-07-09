@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 /*************************************************************************
 -------------------------------------------------------------------------
@@ -176,7 +176,7 @@ void CSmartMine::HandleEvent( const SGameObjectEvent& gameObjectEvent )
 	}
 }
 
-void CSmartMine::ProcessEvent( SEntityEvent& entityEvent )
+void CSmartMine::ProcessEvent( const SEntityEvent& entityEvent )
 {
 	switch(entityEvent.event)
 	{
@@ -218,6 +218,11 @@ void CSmartMine::ProcessEvent( SEntityEvent& entityEvent )
 		break;
 
 	}
+}
+
+uint64 CSmartMine::GetEventMask() const
+{
+	return ENTITY_EVENT_BIT(ENTITY_EVENT_RESET) | ENTITY_EVENT_BIT(ENTITY_EVENT_ENTERAREA) | ENTITY_EVENT_BIT(ENTITY_EVENT_LEAVEAREA) | ENTITY_EVENT_BIT(ENTITY_EVENT_HIDE) | ENTITY_EVENT_BIT(ENTITY_EVENT_UNHIDE);
 }
 
 void CSmartMine::GetMemoryUsage( ICrySizer *pSizer ) const

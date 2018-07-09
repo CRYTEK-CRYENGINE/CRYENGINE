@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 // -------------------------------------------------------------------------
 //  Created:     02/10/2015 by Benjamin Block
@@ -97,9 +97,10 @@ void CFeatureFieldPixelSize::Update(const gpu_pfx2::SUpdateContext& context, CDe
 	const CCamera& camera = gEnv->p3DEngine->GetRenderingCamera();
 	m_internalParameters->projectionPlane = Vec4(camera.GetViewdir(), -camera.GetPosition().dot(camera.GetViewdir()));
 
-	const float height = float(gEnv->pRenderer->GetHeight());
+	const float height = float(CRendererResources::s_renderHeight);
 	const float fov = camera.GetFov();
 	const float minPixelSizeF = GetParameters().minSize > 0.0f ? GetParameters().minSize : 0.0f;
+
 	m_internalParameters->minPixelSize = minPixelSizeF;
 	m_internalParameters->invMinPixelSize = minPixelSizeF != 0.0f ? 1.0f / minPixelSizeF : 1.0f;
 	m_internalParameters->maxPixelSize = GetParameters().maxSize > 0.0f ? GetParameters().maxSize : std::numeric_limits<float>::max();

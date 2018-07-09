@@ -2,7 +2,6 @@
 #include "DebugDrawComponent.h"
 
 #include <CryRenderer/IRenderAuxGeom.h>
-
 #include <CryGame/IGameFramework.h>
 
 namespace Cry
@@ -166,7 +165,7 @@ void CDebugDrawComponent::Draw2DText(Schematyc::CSharedString text, float size, 
 	gEnv->pGameFramework->GetIPersistantDebug()->Add2DText(text.c_str(), size, color, duration);
 }
 
-void CDebugDrawComponent::ProcessEvent(SEntityEvent& event)
+void CDebugDrawComponent::ProcessEvent(const SEntityEvent& event)
 {
 	switch (event.event)
 	{
@@ -175,28 +174,17 @@ void CDebugDrawComponent::ProcessEvent(SEntityEvent& event)
 			Vec3 textPosition = GetWorldTransformMatrix().GetTranslation();
 			float cameraDistance = (textPosition - gEnv->pSystem->GetViewCamera().GetPosition()).GetLength();
 
-			float alpha;
-
-			if (m_persistentViewDistance >= 255.f)
-			{
-				alpha = 1.f;
-			}
-			else if (cameraDistance < m_persistentViewDistance)
-			{
-				alpha = cameraDistance / m_persistentViewDistance;
-				alpha = 1.f - alpha * alpha;
-			}
-			else
-			{
-				alpha = 0.f;
-			}
-
-			if (alpha == 0.f)
+			if (cameraDistance > m_persistentViewDistance)
 				return;
 
-			float color[4] = { m_persistentTextColor.r, m_persistentTextColor.g, m_persistentTextColor.b, alpha };
+			float fontSize = m_persistentFontSize;
 
-			IRenderAuxText::DrawLabelEx(textPosition, m_persistentFontSize, color, true, true, m_persistentText.c_str());
+			if (m_shouldScaleWithCameraDistance)
+			{
+				fontSize *= 1 - (std::min(cameraDistance, static_cast<float>(m_persistentViewDistance)) / m_persistentViewDistance);
+			}
+
+			IRenderAuxText::DrawLabelEx(textPosition, fontSize, m_persistentTextColor, true, true, m_persistentText.c_str());
 		}
 		break;
 	case ENTITY_EVENT_COMPONENT_PROPERTY_CHANGED:
@@ -209,8 +197,8 @@ void CDebugDrawComponent::ProcessEvent(SEntityEvent& event)
 
 uint64 CDebugDrawComponent::GetEventMask() const
 {
-	uint64 bitFlags = m_bDrawPersistent ? BIT64(ENTITY_EVENT_UPDATE) : 0;
-	bitFlags |= BIT64(ENTITY_EVENT_COMPONENT_PROPERTY_CHANGED);
+	uint64 bitFlags = m_drawPersistent ? ENTITY_EVENT_BIT(ENTITY_EVENT_UPDATE) : 0;
+	bitFlags |= ENTITY_EVENT_BIT(ENTITY_EVENT_COMPONENT_PROPERTY_CHANGED);
 
 	return bitFlags;
 }

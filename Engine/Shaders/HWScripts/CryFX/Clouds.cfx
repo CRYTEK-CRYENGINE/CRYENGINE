@@ -1,5 +1,4 @@
-// CRYENGINE Source Code File
-// Copyright 2001-2015 Crytek GmbH. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "Common.cfi"
 #include "shadeLib.cfi"
@@ -30,6 +29,8 @@
 //#define ENABLE_LOW_DISCREPANCY_SEQUENCE
 
 #define ENABLE_ORIGIN_MOVE_WITH_CAMERA
+
+#define ENABLE_SPHERICAL_CLOUD_LAYER
 
 
 float Script : STANDARDSGLOBAL
@@ -109,7 +110,7 @@ float2 vcGetIntersectionWithCloudLayer(
 	in float sphereRadius,
 	in float3 centerSphere)
 {
-#if !%_RT_SAMPLE2
+#if !ENABLE_SPHERICAL_CLOUD_LAYER
 	// intersect with cloud layer's bottom and top plane.
 	float4 cloudPlaneBottom = float4(0.0f, 0.0f, 1.0f, cloudAltitude);
 	float4 cloudPlaneTop = float4(0.0f, 0.0f, 1.0f, cloudAltitude + cloudThickness);
@@ -380,7 +381,7 @@ Texture3D CloudShadowNoiseTex : register(t0);
 Texture3D CloudShadowEdgeNoiseTex : register(t1);
 SamplerState CloudShadowTrilinearWrapSState : register(s0) = SS_TrilinearWrap;
 
-cbuffer CloudShadowConstantBuffer : register(b3)
+cbuffer CBCloudShadow : register(b3)
 {
 	struct
 	{
@@ -557,7 +558,7 @@ SamplerState VolCloudTrilinearWrapSState : register(s1) = SS_TrilinearWrap;
 SamplerState VolCloudTrilinearClampSState : register(s2) = SS_TrilinearClamp;
 SamplerState VolCloudPointClampSState : register(s3) = SS_PointClamp;
 
-cbuffer VolumetricCloudsConstantBuffer : register(b3)
+cbuffer CBVolumetricClouds : register(b3)
 {
 	struct SVolumetricCloudsParams
 	{
@@ -1234,7 +1235,7 @@ void RenderCloudMonolithicCS(uint3 GroupID : SV_GroupID,
 	const float nearPlane = PS_NearFarClipDist.x;
 	const float farPlane = PS_NearFarClipDist.y;
 	const float reciprocalFarClipDist = PS_NearFarClipDist.w;
-	const float3 cameraPos = PS_WorldViewPos.xyz;c
+	const float3 cameraPos = PS_WorldViewPos.xyz;
 	const float2 worldAlignmentOffset = CloudShadowAnimParams.xy;
 	const float4 screenSize = ScreenSize;
 	const float4 frustumTL = FrustumTL;
@@ -1494,7 +1495,7 @@ void RenderCloudMonolithicCS(uint3 GroupID : SV_GroupID,
 
 		const float4 reprojPos = mul(float4(vPixelUV.x, vPixelUV.y, depth, 1.0f), leftToRightReprojMatrix);
 		const float rcpW = rcp(reprojPos.w);
-		const float2 leftEyeTC = reprojPos.xy * rcpW;
+		float2 leftEyeTC = reprojPos.xy * rcpW;
 		leftEyeTC = MapViewportToRaster(leftEyeTC);
 
 		// convert non-linear depth to linear depth.
@@ -1584,7 +1585,7 @@ void RenderCloudMonolithicCS(uint3 GroupID : SV_GroupID,
 
 		float3 samplePosWS = camDir.xyz * d + cameraPos.xyz;
 
-#ifdef %_RT_SAMPLE2
+#ifdef ENABLE_SPHERICAL_CLOUD_LAYER
 		samplePosWS = vcTranslateWorldPosToCloudPos(samplePosWS, centerSphere, sphereRadius, cloudAltitude);
 #endif
 
@@ -1736,7 +1737,7 @@ void RenderCloudMonolithicCS(uint3 GroupID : SV_GroupID,
 	{
 		float3 samplePosWS = camDir.xyz * distCirrus + cameraPos.xyz;
 
-#ifdef %_RT_SAMPLE2
+#ifdef ENABLE_SPHERICAL_CLOUD_LAYER
 		samplePosWS = vcTranslateWorldPosToCloudPos(samplePosWS, centerSphere, sphereRadius, cloudAltitude);
 #endif
 
@@ -1893,7 +1894,7 @@ void InjectCloudDensityAndShadowCS(uint3 GroupID : SV_GroupID,
 	const float3 pixelCoord = DispatchThreadID.xyz;
 	float2 vPixelUV = (pixelCoord.xy + 0.5f) * screenSize.zw;
 	vPixelUV = MapRasterToViewport(vPixelUV);
-	float3 vCamVec = ((1 - vPixelUV.x - vPixelUV.y) * FrustumTL.xyz + (vPixelUV.x * FrustumTR.xyz + (vPixelUV.y * FrustumBL.xyz)));
+	float3 vCamVec = ((1 - vPixelUV.x - vPixelUV.y) * frustumTL.xyz + (vPixelUV.x * frustumTR.xyz + (vPixelUV.y * frustumBL.xyz)));
 	const float3 camDir = normalize(vCamVec);
 
 
@@ -1956,7 +1957,7 @@ void InjectCloudDensityAndShadowCS(uint3 GroupID : SV_GroupID,
 
 		const float4 reprojPos = mul(float4(vPixelUV.x, vPixelUV.y, depth, 1.0f), leftToRightReprojMatrix);
 		const float rcpW = rcp(reprojPos.w);
-		const float2 leftEyeTC = reprojPos.xy * rcpW;
+		float2 leftEyeTC = reprojPos.xy * rcpW;
 		leftEyeTC = MapViewportToRaster(leftEyeTC, true);
 
 		// convert non-linear depth to linear depth.
@@ -2058,7 +2059,7 @@ void InjectCloudDensityAndShadowCS(uint3 GroupID : SV_GroupID,
 
 		float3 samplePosWS = camDir.xyz * d + cameraPos.xyz;
 
-#ifdef %_RT_SAMPLE2
+#ifdef ENABLE_SPHERICAL_CLOUD_LAYER
 		samplePosWS = vcTranslateWorldPosToCloudPos(samplePosWS, centerSphere, sphereRadius, cloudAltitude);
 #endif
 
@@ -2386,7 +2387,7 @@ void RenderCloudCS(uint3 GroupID : SV_GroupID,
 
 			const float4 reprojPos = mul(float4(vPixelUV.x, vPixelUV.y, depth, 1.0f), leftToRightReprojMatrix);
 			const float rcpW = rcp(reprojPos.w);
-			const float2 leftEyeTC = reprojPos.xy * rcpW;
+			float2 leftEyeTC = reprojPos.xy * rcpW;
 			leftEyeTC = MapViewportToRaster(leftEyeTC, true);
 			colorReproj = LeftEyeColorBuffer.SampleLevel(VolCloudTrilinearClampSState, leftEyeTC.xy, 0.0f);
 			maxStepNum = -1.0f; // negative step number means success of reprojection;
@@ -2455,7 +2456,7 @@ void RenderCloudCS(uint3 GroupID : SV_GroupID,
 
 		float3 samplePosWS = camDir.xyz * d + cameraPos.xyz;
 
-#ifdef %_RT_SAMPLE2
+#ifdef ENABLE_SPHERICAL_CLOUD_LAYER
 		samplePosWS = vcTranslateWorldPosToCloudPos(samplePosWS, centerSphere, sphereRadius, cloudAltitude);
 #endif
 
@@ -2609,7 +2610,7 @@ void RenderCloudCS(uint3 GroupID : SV_GroupID,
 	{
 		float3 samplePosWS = camDir.xyz * distCirrus + cameraPos.xyz;
 
-#ifdef %_RT_SAMPLE2
+#ifdef ENABLE_SPHERICAL_CLOUD_LAYER
 		samplePosWS = vcTranslateWorldPosToCloudPos(samplePosWS, centerSphere, sphereRadius, cloudAltitude);
 #endif
 
@@ -2649,7 +2650,7 @@ Texture2D prevDepthBuffer : register(t4);
 
 SamplerState vcTemporalReprojectionSState : register(s0) = SS_TrilinearClamp;
 
-cbuffer ReprojectionConstantBuffer : register(b3)
+cbuffer CBReprojection : register(b3)
 {
 	struct SReprojectionParams
 	{

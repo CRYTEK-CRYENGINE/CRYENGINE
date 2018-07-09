@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "NavigationUpdatesManager.h"
@@ -20,17 +20,22 @@ CMNMUpdatesManager::CMNMUpdatesManager(NavigationSystem* pNavSystem)
 //------------------------------------------------------------------------
 void CMNMUpdatesManager::Clear()
 {
-	m_activeUpdateRequestsQueue.clear();
+	m_updateRequests.Clear();
 
+	m_activeUpdateRequestsQueue.clear();
 	m_postponedEntityUpdatesMap.clear();
-	m_postponedUpdateRequestsSet.clear();
-	m_ignoredUpdateRequestsSet.clear();
+	
+	m_updateRequestsMap.clear();
+	m_pospondedUpdateRequests.clear();
+	m_ignoredUpdateRequests.clear();
+
+	m_pendingOldestAabbsOfChangedMeshes.clear();
 }
 
 //------------------------------------------------------------------------
 void CMNMUpdatesManager::Update()
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 	
 	UpdatePostponedChanges();
 }
@@ -49,37 +54,29 @@ void CMNMUpdatesManager::UpdatePostponedChanges()
 	SRequestParams queueAndState = GetRequestParamsAfterStabilization(m_bExplicitRegenerationToggle);
 
 	//tiles update requests
-	if (m_postponedUpdateRequestsSet.size())
+	if (m_pospondedUpdateRequests.size())
 	{
 		if (queueAndState.status == EUpdateRequestStatus::RequestInQueue)
 		{
-			TileRequestQueue::iterator it = m_activeUpdateRequestsQueue.begin();
-			TileRequestQueue::iterator rear = m_activeUpdateRequestsQueue.end();
-			for (; it != rear; )
+			const size_t activeSize = m_activeUpdateRequestsQueue.size();
+			for (size_t i = 0; i < m_pospondedUpdateRequests.size(); ++i)
 			{
-				TileUpdateRequest& task = *it;
+				const size_t requestId = m_pospondedUpdateRequests[i];
+				TileUpdateRequest& request = m_updateRequests[requestId];
+				CRY_ASSERT(request.state == TileUpdateRequest::EState::Postponed);
 
-				if (m_postponedUpdateRequestsSet.find(task) != m_postponedUpdateRequestsSet.end())
-				{
-					rear = rear - 1;
-					std::swap(task, *rear);
-					continue;
-				}
-				++it;
+				request.idx = -1;
+				request.state = TileUpdateRequest::EState::Active;
 			}
-			if (rear != m_activeUpdateRequestsQueue.end())
-			{
-				m_activeUpdateRequestsQueue.erase(rear, m_activeUpdateRequestsQueue.end());
-			}
-			m_activeUpdateRequestsQueue.insert(m_activeUpdateRequestsQueue.end(), m_postponedUpdateRequestsSet.begin(), m_postponedUpdateRequestsSet.end());
-
+			
+			m_activeUpdateRequestsQueue.insert(m_activeUpdateRequestsQueue.end(), m_pospondedUpdateRequests.begin(), m_pospondedUpdateRequests.end());
 			std::sort(m_activeUpdateRequestsQueue.begin(), m_activeUpdateRequestsQueue.end());
 		}
 		else
 		{
 			//m_ignoredUpdateRequestsSet.insert(m_activeUpdateRequestsQueue.end(), m_posponedUpdateRequestsSet.begin(), m_posponedUpdateRequestsSet.end());
 		}
-		m_postponedUpdateRequestsSet.clear();
+		m_pospondedUpdateRequests.clear();
 	}
 
 	//entity updates
@@ -106,31 +103,60 @@ void CMNMUpdatesManager::UpdatePostponedChanges()
 //------------------------------------------------------------------------
 void CMNMUpdatesManager::OnMeshDestroyed(NavigationMeshID meshID)
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_AI);
-	
-	for (TileUpdateRequest& task : m_activeUpdateRequestsQueue)
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
+
+	for (size_t requestId : m_activeUpdateRequestsQueue)
 	{
-		if (task.meshID == meshID)
-			task.stateFlags |= TileUpdateRequest::Aborted;
+		TileUpdateRequest& request = m_updateRequests[requestId];
+		if (request.meshID == meshID)
+			request.SetFlag(TileUpdateRequest::EFlag::Aborted);
 	}
 	
-	RemoveMeshUpdatesFromQueue(m_ignoredUpdateRequestsSet, meshID);
-	RemoveMeshUpdatesFromQueue(m_postponedUpdateRequestsSet, meshID);
+	RemoveMeshUpdatesFromVector(m_pospondedUpdateRequests, meshID);
+	RemoveMeshUpdatesFromVector(m_ignoredUpdateRequests, meshID);
+
+	m_pendingOldestAabbsOfChangedMeshes.erase(meshID);
 }
 
 //------------------------------------------------------------------------
-void CMNMUpdatesManager::RemoveMeshUpdatesFromQueue(TileUpdatesSet& tileUpdatesSet, NavigationMeshID meshID)
+const CMNMUpdatesManager::TileUpdateRequest& CMNMUpdatesManager::GetFrontRequest() const
 {
-	TileUpdatesSet::iterator it = tileUpdatesSet.begin();
-	while (it != tileUpdatesSet.end())
+	return m_updateRequests[m_activeUpdateRequestsQueue.front()];
+}
+
+//------------------------------------------------------------------------
+void CMNMUpdatesManager::PopFrontRequest()
+{ 
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
+	
+	size_t requestId = m_activeUpdateRequestsQueue.front();
+	TileUpdateRequest& request = m_updateRequests[requestId];
+	
+	uint64 key = TileUpdateRequestKey(request.meshID, request.x, request.y, request.z);
+	m_updateRequestsMap.erase(key);
+
+	m_updateRequests.FreeTileUpdateRequest(requestId);
+	m_activeUpdateRequestsQueue.pop_front();
+}
+
+//------------------------------------------------------------------------
+void CMNMUpdatesManager::RemoveMeshUpdatesFromVector(TileUpdatesVector& tileUpdatesVector, NavigationMeshID meshID)
+{
+	for (size_t i = 0; i < tileUpdatesVector.size();)
 	{
-		if (it->meshID == meshID)
+		const size_t requestId = tileUpdatesVector[i];
+		const TileUpdateRequest& request = m_updateRequests[requestId];
+		if (request.meshID == meshID)
 		{
-			tileUpdatesSet.erase(it++);
+			std::iter_swap(tileUpdatesVector.begin() + i, tileUpdatesVector.end() - 1);
+			m_updateRequests[tileUpdatesVector[i]].idx = i;
+
+			m_updateRequests.FreeTileUpdateRequest(requestId);
+			tileUpdatesVector.pop_back();
 		}
 		else
 		{
-			++it;
+			++i;
 		}
 	}
 }
@@ -167,7 +193,7 @@ void CMNMUpdatesManager::EntityChanged(int physicalEntityId, const AABB& aabb)
 void CMNMUpdatesManager::WorldChanged(const AABB& aabb)
 {
 #if NAVIGATION_SYSTEM_PC_ONLY
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 	m_lastUpdateTime = gEnv->pTimer->GetFrameStartTime();
 
@@ -208,15 +234,23 @@ void CMNMUpdatesManager::RequestGlobalUpdateForAgentType(NavigationAgentTypeID a
 }
 
 //------------------------------------------------------------------------
-CMNMUpdatesManager::EUpdateRequestStatus CMNMUpdatesManager::RequestMeshUpdate(NavigationMeshID meshID, const AABB& aabb)
+CMNMUpdatesManager::EUpdateRequestStatus CMNMUpdatesManager::RequestMeshUpdate(NavigationMeshID meshID, const AABB& aabb, bool bImmediateUpdate /*= true*/, bool bMarkupUpdate /*= false*/)
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
+
+	if (!bImmediateUpdate)
+	{
+		m_lastUpdateTime = gEnv->pTimer->GetFrameStartTime();
+	}
 
 	SRequestParams requestParams = GetRequestParams(m_bExplicitRegenerationToggle);
+	requestParams.flags |= bMarkupUpdate ? uint16(TileUpdateRequest::EFlag::MarkupUpdate) : 0;
+
 	if (!RequestQueueMeshUpdate(requestParams, meshID, aabb))
 	{
 		return EUpdateRequestStatus::RequestInvalid;
 	}
+
 	return requestParams.status;
 }
 
@@ -226,7 +260,7 @@ CMNMUpdatesManager::EUpdateRequestStatus CMNMUpdatesManager::RequestMeshDifferen
 	const NavigationBoundingVolume& oldVolume,
 	const NavigationBoundingVolume& newVolume)
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 	
 	m_lastUpdateTime = gEnv->pTimer->GetFrameStartTime();
 	
@@ -235,6 +269,12 @@ CMNMUpdatesManager::EUpdateRequestStatus CMNMUpdatesManager::RequestMeshDifferen
 	{
 		return EUpdateRequestStatus::RequestInvalid;
 	}
+
+	if (queueAndState.status == EUpdateRequestStatus::RequestIgnoredAndBuffered)
+	{
+		m_pendingOldestAabbsOfChangedMeshes.insert(std::make_pair(meshID, oldVolume.aabb));
+	}
+
 	return queueAndState.status;
 }
 
@@ -242,24 +282,31 @@ CMNMUpdatesManager::EUpdateRequestStatus CMNMUpdatesManager::RequestMeshDifferen
 CMNMUpdatesManager::SRequestParams CMNMUpdatesManager::GetRequestParams(bool bIsExplicit)
 {
 	SRequestParams params;
-	params.bExplicit = bIsExplicit;
+	
+	static_assert(sizeof(params.flags) == sizeof(TileUpdateRequest::EFlag), "Invalid type size!");
+	params.flags = bIsExplicit ? uint16(TileUpdateRequest::EFlag::Explicit) : 0;
+
 	if (bIsExplicit)
 	{
 		params.status = EUpdateRequestStatus::RequestInQueue;
+		params.requestState = TileUpdateRequest::EState::Active;
 	}
 	else
 	{
 		if (!m_bIsRegenerationRequestExecutionEnabled)
 		{
 			params.status = EUpdateRequestStatus::RequestIgnoredAndBuffered;
+			params.requestState = TileUpdateRequest::EState::Ignored;
 		}
 		else if (m_bPostponeUpdatesForStabilization)
 		{
 			params.status = EUpdateRequestStatus::RequestDelayedAndBuffered;
+			params.requestState = TileUpdateRequest::EState::Postponed;
 		}
 		else
 		{
 			params.status = EUpdateRequestStatus::RequestInQueue;
+			params.requestState = TileUpdateRequest::EState::Active;
 		}
 	}
 	return params;
@@ -269,14 +316,18 @@ CMNMUpdatesManager::SRequestParams CMNMUpdatesManager::GetRequestParams(bool bIs
 CMNMUpdatesManager::SRequestParams CMNMUpdatesManager::GetRequestParamsAfterStabilization(bool bIsExplicit)
 {
 	SRequestParams params;
-	params.bExplicit = bIsExplicit;
+	static_assert(sizeof(params.flags) == sizeof(TileUpdateRequest::EFlag), "Invalid type size!");
+	params.flags = bIsExplicit ? uint16(TileUpdateRequest::EFlag::Explicit) : 0;
+
 	if (m_bIsRegenerationRequestExecutionEnabled || bIsExplicit)
 	{
 		params.status = EUpdateRequestStatus::RequestInQueue;
+		params.requestState = TileUpdateRequest::EState::Active;
 	}
 	else
 	{
 		params.status = EUpdateRequestStatus::RequestIgnoredAndBuffered;
+		params.requestState = TileUpdateRequest::EState::Ignored;
 	}
 	return params;
 }
@@ -308,8 +359,8 @@ CMNMUpdatesManager::MeshUpdateBoundaries CMNMUpdatesManager::ComputeMeshUpdateBo
 	const AABB& boundary = m_pNavigationSystem->m_volumes[mesh.boundary].aabb;
 	const AgentType& agentType = m_pNavigationSystem->m_agentTypes[mesh.agentTypeID - 1];
 
-	const float extraH = std::max(paramsGrid.voxelSize.x, paramsGrid.voxelSize.y) * (agentType.settings.radiusVoxelCount + 1);
-	const float extraV = paramsGrid.voxelSize.z * (agentType.settings.heightVoxelCount + 1);
+	const float extraH = std::max(paramsGrid.voxelSize.x, paramsGrid.voxelSize.y) * agentType.settings.agent.GetPossibleAffectedSizeH();
+	const float extraV = paramsGrid.voxelSize.z * agentType.settings.agent.GetPossibleAffectedSizeV();
 	const float extraVM = paramsGrid.voxelSize.z; // tiles above are not directly influenced
 
 	Vec3 bmin(std::max(0.0f, std::max(boundary.min.x, aabb.min.x - extraH) - paramsGrid.origin.x),
@@ -347,8 +398,8 @@ CMNMUpdatesManager::MeshUpdateBoundaries CMNMUpdatesManager::ComputeMeshUpdateDi
 
 	const AgentType& agentType = m_pNavigationSystem->m_agentTypes[mesh.agentTypeID - 1];
 
-	const float extraH = std::max(paramsGrid.voxelSize.x, paramsGrid.voxelSize.y) * (agentType.settings.radiusVoxelCount + 1);
-	const float extraV = paramsGrid.voxelSize.z * (agentType.settings.heightVoxelCount + 1);
+	const float extraH = std::max(paramsGrid.voxelSize.x, paramsGrid.voxelSize.y) * agentType.settings.agent.GetPossibleAffectedSizeH();
+	const float extraV = paramsGrid.voxelSize.z * agentType.settings.agent.GetPossibleAffectedSizeV();
 	const float extraVM = paramsGrid.voxelSize.z; // tiles above are not directly influenced
 
 	Vec3 bmin(std::max(0.0f, (aabb.min.x - extraH) - paramsGrid.origin.x),
@@ -374,7 +425,7 @@ CMNMUpdatesManager::MeshUpdateBoundaries CMNMUpdatesManager::ComputeMeshUpdateDi
 //------------------------------------------------------------------------
 bool CMNMUpdatesManager::RequestQueueMeshUpdate(const SRequestParams& requestParams, NavigationMeshID meshID, const AABB& aabb)
 {
-	assert(meshID != 0);
+	CRY_ASSERT(meshID != 0);
 
 #if NAVIGATION_SYSTEM_PC_ONLY
 	if (!meshID || !m_pNavigationSystem->m_meshes.validate(meshID))
@@ -382,7 +433,7 @@ bool CMNMUpdatesManager::RequestQueueMeshUpdate(const SRequestParams& requestPar
 		return false;
 	}
 
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 	NavigationMesh& mesh = m_pNavigationSystem->m_meshes[meshID];
 
@@ -417,7 +468,7 @@ bool CMNMUpdatesManager::RequestQueueMeshDifferenceUpdate(
 		return false;
 	}
 
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 	m_bWasRegenerationRequestedThisUpdateCycle = true;
 
@@ -431,71 +482,67 @@ bool CMNMUpdatesManager::RequestQueueMeshDifferenceUpdate(
 }
 
 //------------------------------------------------------------------------
+void CMNMUpdatesManager::SwitchUpdateRequestState(size_t requestId, TileUpdateRequest::EState newState)
+{
+	CRY_ASSERT(newState != TileUpdateRequest::EState::Free);
+	
+	TileUpdateRequest& request = m_updateRequests[requestId];
+	if (newState == request.state)
+		return;
+	
+	switch (request.state)
+	{
+	case TileUpdateRequest::EState::Postponed:
+		std::iter_swap(m_pospondedUpdateRequests.begin() + request.idx, m_pospondedUpdateRequests.end() - 1);
+		m_updateRequests[m_pospondedUpdateRequests[request.idx]].idx = request.idx;
+		m_pospondedUpdateRequests.pop_back();
+		break;
+	case TileUpdateRequest::EState::Ignored:
+		std::iter_swap(m_ignoredUpdateRequests.begin() + request.idx, m_ignoredUpdateRequests.end() - 1);
+		m_updateRequests[m_ignoredUpdateRequests[request.idx]].idx = request.idx;
+		m_ignoredUpdateRequests.pop_back();
+		break;
+	case TileUpdateRequest::EState::Active:
+		// request was already removed from the active deque
+		break;
+	}
+
+	request.state = newState;
+
+	switch (newState)
+	{
+	case TileUpdateRequest::EState::Active:
+		request.idx = -1;
+		m_activeUpdateRequestsQueue.push_back(requestId);
+		break;
+	case TileUpdateRequest::EState::Postponed:
+		request.idx = m_pospondedUpdateRequests.size();
+		m_pospondedUpdateRequests.push_back(requestId);
+		break;
+	case TileUpdateRequest::EState::Ignored:
+		request.idx = m_ignoredUpdateRequests.size();
+		m_ignoredUpdateRequests.push_back(requestId);
+		break;
+	}
+}
+
+//------------------------------------------------------------------------
 void CMNMUpdatesManager::SheduleTileUpdateRequests(const SRequestParams& requestParams, NavigationMeshID meshID, const MeshUpdateBoundaries& bounds)
 {
-	if (requestParams.status == EUpdateRequestStatus::RequestInQueue)
+	if (requestParams.requestState != TileUpdateRequest::EState::Active)
 	{
 		TileRequestQueue::iterator it = m_activeUpdateRequestsQueue.begin();
 		TileRequestQueue::iterator rear = m_activeUpdateRequestsQueue.end();
 		for (; it != rear; )
 		{
-			TileUpdateRequest& task = *it;
+			TileUpdateRequest& request = m_updateRequests[*it];
 
-			if ((task.meshID == meshID) && (task.x >= bounds.minX) && (task.x <= bounds.maxX) &&
-				(task.y >= bounds.minY) && (task.y <= bounds.maxY) &&
-				(task.z >= bounds.minZ) && (task.z <= bounds.maxZ))
+			if ((request.meshID == meshID) && (request.x >= bounds.minX) && (request.x <= bounds.maxX) &&
+				(request.y >= bounds.minY) && (request.y <= bounds.maxY) &&
+				(request.z >= bounds.minZ) && (request.z <= bounds.maxZ))
 			{
 				rear = rear - 1;
-				std::swap(task, *rear);
-
-				continue;
-			}
-			++it;
-		}
-		
-		if (rear != m_activeUpdateRequestsQueue.end())
-		{
-			m_activeUpdateRequestsQueue.erase(rear, m_activeUpdateRequestsQueue.end());
-		}
-
-		for (uint16 y = bounds.minY; y <= bounds.maxY; ++y)
-		{
-			for (uint16 x = bounds.minX; x <= bounds.maxX; ++x)
-			{
-				for (uint16 z = bounds.minZ; z <= bounds.maxZ; ++z)
-				{
-					TileUpdateRequest task;
-					task.meshID = meshID;
-					task.stateFlags = requestParams.bExplicit ? TileUpdateRequest::EStateFlags::Explicit : 0;
-					task.x = x;
-					task.y = y;
-					task.z = z;
-					m_activeUpdateRequestsQueue.push_back(task);
-
-					TileUpdatesSet::const_iterator ignoredFindIt = m_ignoredUpdateRequestsSet.find(task);
-					if (ignoredFindIt != m_ignoredUpdateRequestsSet.end())
-					{
-						m_ignoredUpdateRequestsSet.erase(ignoredFindIt);
-					}
-				}
-			}
-		}
-	}
-	else if (requestParams.status == EUpdateRequestStatus::RequestDelayedAndBuffered)
-	{
-		TileRequestQueue::iterator it = m_activeUpdateRequestsQueue.begin();
-		TileRequestQueue::iterator rear = m_activeUpdateRequestsQueue.end();
-		for (; it != rear; )
-		{
-			TileUpdateRequest& task = *it;
-
-			if ((task.meshID == meshID) && (task.x >= bounds.minX) && (task.x <= bounds.maxX) &&
-				(task.y >= bounds.minY) && (task.y <= bounds.maxY) &&
-				(task.z >= bounds.minZ) && (task.z <= bounds.maxZ))
-			{
-				rear = rear - 1;
-				std::swap(task, *rear);
-
+				std::iter_swap(it, rear);
 				continue;
 			}
 			++it;
@@ -504,51 +551,39 @@ void CMNMUpdatesManager::SheduleTileUpdateRequests(const SRequestParams& request
 		{
 			m_activeUpdateRequestsQueue.erase(rear, m_activeUpdateRequestsQueue.end());
 		}
-		
-		for (uint16 y = bounds.minY; y <= bounds.maxY; ++y)
-		{
-			for (uint16 x = bounds.minX; x <= bounds.maxX; ++x)
-			{
-				for (uint16 z = bounds.minZ; z <= bounds.maxZ; ++z)
-				{
-					TileUpdateRequest task;
-					task.meshID = meshID;
-					task.stateFlags = requestParams.bExplicit ? TileUpdateRequest::EStateFlags::Explicit : 0;
-					task.x = x;
-					task.y = y;
-					task.z = z;
-
-					TileUpdatesSet::const_iterator ignoredFindIt = m_ignoredUpdateRequestsSet.find(task);
-					if (ignoredFindIt != m_ignoredUpdateRequestsSet.end())
-					{
-						m_ignoredUpdateRequestsSet.erase(ignoredFindIt);
-					}
-					m_postponedUpdateRequestsSet.insert(task);
-				}
-			}
-		}
 	}
-	else
-	{
-		for (uint16 y = bounds.minY; y <= bounds.maxY; ++y)
-		{
-			for (uint16 x = bounds.minX; x <= bounds.maxX; ++x)
-			{
-				for (uint16 z = bounds.minZ; z <= bounds.maxZ; ++z)
-				{
-					TileUpdateRequest task;
-					task.meshID = meshID;
-					task.stateFlags = requestParams.bExplicit ? TileUpdateRequest::EStateFlags::Explicit : 0;
-					task.x = x;
-					task.y = y;
-					task.z = z;
 
-					TileUpdatesSet::const_iterator posponedFindIt = m_postponedUpdateRequestsSet.find(task);
-					if (posponedFindIt == m_postponedUpdateRequestsSet.end())
-					{
-						m_ignoredUpdateRequestsSet.insert(task);
-					}
+	// Add new tiles
+	for (uint16 y = bounds.minY; y <= bounds.maxY; ++y)
+	{
+		for (uint16 x = bounds.minX; x <= bounds.maxX; ++x)
+		{
+			for (uint16 z = bounds.minZ; z <= bounds.maxZ; ++z)
+			{
+				uint64 key = TileUpdateRequestKey(meshID, x, y, z);
+				size_t requestIdx;
+				TileUpdateRequest* pTask = nullptr;
+
+				auto iresult = m_updateRequestsMap.insert(TileUpdatesMap::value_type(key, 0));
+				if (iresult.second)
+				{
+					requestIdx = m_updateRequests.AllocateTileUpdateRequest();
+					iresult.first->second = requestIdx;
 				}
+				else
+				{
+					requestIdx = iresult.first->second;
+				}
+
+				TileUpdateRequest& task = m_updateRequests[requestIdx];
+				task.ClearFlag(TileUpdateRequest::EFlag::Aborted);
+				task.flags |= requestParams.flags;
+				task.meshID = meshID;
+				task.x = x;
+				task.y = y;
+				task.z = z;
+
+				SwitchUpdateRequestState(requestIdx, requestParams.requestState);
 			}
 		}
 	}
@@ -557,42 +592,31 @@ void CMNMUpdatesManager::SheduleTileUpdateRequests(const SRequestParams& request
 //------------------------------------------------------------------------
 bool CMNMUpdatesManager::HasBufferedRegenerationRequests() const
 {
-	return m_ignoredUpdateRequestsSet.size() > 0;
+	return m_ignoredUpdateRequests.size() > 0;
 }
 
 //------------------------------------------------------------------------
 void CMNMUpdatesManager::ApplyBufferedRegenerationRequests()
 {
-	TileRequestQueue::iterator rear = m_activeUpdateRequestsQueue.end();
-	for (auto it = m_activeUpdateRequestsQueue.begin(); it != rear; )
+	const size_t activeSize = m_activeUpdateRequestsQueue.size();
+	for (size_t i = 0; i < m_ignoredUpdateRequests.size(); ++i)
 	{
-		TileUpdateRequest& task = *it;
-
-		const auto findIt = m_ignoredUpdateRequestsSet.find(task);
-		if (findIt != m_ignoredUpdateRequestsSet.end())
-		{
-			rear = rear - 1;
-			std::swap(task, *rear);
-			continue;
-		}
-		++it;
+		const size_t requestId = m_ignoredUpdateRequests[i];
+		TileUpdateRequest& request = m_updateRequests[requestId];
+		request.idx = -1;
+		request.state = TileUpdateRequest::EState::Active;
 	}
 
-	if (rear != m_activeUpdateRequestsQueue.end())
-	{
-		m_activeUpdateRequestsQueue.erase(rear, m_activeUpdateRequestsQueue.end());
-	}
-
-	m_activeUpdateRequestsQueue.insert(m_activeUpdateRequestsQueue.end(), m_ignoredUpdateRequestsSet.begin(), m_ignoredUpdateRequestsSet.end());
+	m_activeUpdateRequestsQueue.insert(m_activeUpdateRequestsQueue.end(), m_ignoredUpdateRequests.begin(), m_ignoredUpdateRequests.end());
 	std::sort(m_activeUpdateRequestsQueue.begin(), m_activeUpdateRequestsQueue.end());
 
-	m_ignoredUpdateRequestsSet.clear();
+	m_ignoredUpdateRequests.clear();
 }
 
 //------------------------------------------------------------------------
 void CMNMUpdatesManager::ClearBufferedRegenerationRequests()
 {
-	m_ignoredUpdateRequestsSet.clear();
+	m_ignoredUpdateRequests.clear();
 }
 
 //------------------------------------------------------------------------
@@ -603,12 +627,16 @@ void CMNMUpdatesManager::DisableRegenerationRequestsAndBuffer()
 	TileRequestQueue::iterator rear = m_activeUpdateRequestsQueue.end();
 	for (auto it = m_activeUpdateRequestsQueue.begin(); it != rear; )
 	{
-		TileUpdateRequest& task = *it;
+		const size_t requestId = *it;
+		TileUpdateRequest& request = m_updateRequests[requestId];
 
-		if (!task.IsExplicit())
+		if (!request.IsExplicit())
 		{
+			request.idx = m_ignoredUpdateRequests.size();
+			m_ignoredUpdateRequests.push_back(requestId);
+			
 			rear = rear - 1;
-			std::swap(task, *rear);
+			std::iter_swap(it, rear);
 			continue;
 		}
 		++it;
@@ -616,18 +644,51 @@ void CMNMUpdatesManager::DisableRegenerationRequestsAndBuffer()
 
 	if (rear != m_activeUpdateRequestsQueue.end())
 	{
-		m_ignoredUpdateRequestsSet.insert(rear, m_activeUpdateRequestsQueue.end());
 		m_activeUpdateRequestsQueue.erase(rear, m_activeUpdateRequestsQueue.end());
 	}
+}
+
+void CMNMUpdatesManager::EnableRegenerationRequestsExecution(bool updateChangedVolumes)
+{
+	m_bIsRegenerationRequestExecutionEnabled = true;
+
+	if (updateChangedVolumes)
+	{
+		for (auto& meshWithAabb : m_pendingOldestAabbsOfChangedMeshes)
+		{
+			NavigationMeshID meshID = meshWithAabb.first;
+			if (!meshID || !m_pNavigationSystem->m_meshes.validate(meshID))
+				continue;
+
+			SRequestParams queueAndState = GetRequestParams(m_bExplicitRegenerationToggle);
+			NavigationMesh& mesh = m_pNavigationSystem->m_meshes[meshID];
+
+			CRY_ASSERT(m_pNavigationSystem->m_volumes.validate(mesh.boundary));
+			const AABB& oldAABB = meshWithAabb.second;
+			const AABB& currAABB = m_pNavigationSystem->m_volumes[mesh.boundary].aabb;
+
+			if (oldAABB.min != currAABB.min || oldAABB.max != currAABB.max)
+			{
+				MeshUpdateBoundaries bounds = ComputeMeshUpdateDifferenceBoundaries(mesh, oldAABB, currAABB);
+				SheduleTileUpdateRequests(queueAndState, meshID, bounds);
+
+				m_bWasRegenerationRequestedThisUpdateCycle = true;
+			}
+		}
+	}
+	
+	m_pendingOldestAabbsOfChangedMeshes.clear();
 }
 
 //------------------------------------------------------------------------
 void CMNMUpdatesManager::DebugDraw()
 {
+	CRY_ASSERT(m_updateRequests.GetRequestCount() == (m_activeUpdateRequestsQueue.size() + m_pospondedUpdateRequests.size() + m_ignoredUpdateRequests.size()));
+	
 	CDebugDrawContext dc;
 	
-	dc->Draw2dLabel(10.0f, 278.0f, 1.2f, Col_White, false, "Delayed tile update requests: %d", m_postponedUpdateRequestsSet.size());
-	dc->Draw2dLabel(10.0f, 256.0f, 1.2f, Col_White, false, "Buffered tile update requests: %d", m_ignoredUpdateRequestsSet.size());
+	dc->Draw2dLabel(10.0f, 278.0f, 1.2f, Col_White, false, "Delayed tile update requests: %d", m_pospondedUpdateRequests.size());
+	dc->Draw2dLabel(10.0f, 256.0f, 1.2f, Col_White, false, "Buffered tile update requests: %d", m_ignoredUpdateRequests.size());
 	
 	for (const auto& it : m_postponedEntityUpdatesMap)
 	{
@@ -641,8 +702,10 @@ void CMNMUpdatesManager::DebugDraw()
 		}
 	}
 
-	for (const TileUpdateRequest& tileRequest : m_postponedUpdateRequestsSet)
+	for (size_t requestId : m_pospondedUpdateRequests)
 	{
+		const TileUpdateRequest& tileRequest = m_updateRequests[requestId];
+		
 		const NavigationMesh& mesh = m_pNavigationSystem->m_meshes[tileRequest.meshID];
 		const MNM::CNavMesh::SGridParams& paramsGrid = mesh.navMesh.GetGridParams();
 		const AgentType& agentType = m_pNavigationSystem->m_agentTypes[mesh.agentTypeID - 1];
@@ -654,4 +717,125 @@ void CMNMUpdatesManager::DebugDraw()
 		
 		dc->DrawAABB(aabb, IDENTITY, false, Col_Red, eBBD_Faceted);
 	}
+}
+
+//////////////////////////////////////////////////////////////////////////
+CMNMUpdatesManager::TileUpdateRequestArray::TileUpdateRequestArray()
+	: m_updateRequests(nullptr)
+	, m_count(0)
+	, m_capacity(0)
+{
+}
+
+CMNMUpdatesManager::TileUpdateRequestArray::TileUpdateRequestArray(const TileUpdateRequestArray& rhs)
+	: m_updateRequests(nullptr)
+	, m_count(0)
+	, m_capacity(0)
+{
+	// if this assert() triggers, then we must completely re-think the use-cases in which copy-construction can occur
+	CRY_ASSERT(rhs.m_updateRequests == nullptr);
+}
+
+CMNMUpdatesManager::TileUpdateRequestArray::~TileUpdateRequestArray()
+{
+	//for (size_t i = 0; i < m_capacity; ++i)
+	//	m_updateRequests[i].tile.Destroy();
+
+	delete[] m_updateRequests;
+}
+
+void CMNMUpdatesManager::TileUpdateRequestArray::Grow(size_t amount)
+{
+	const size_t oldCapacity = m_capacity;
+	m_capacity += amount;
+
+	TileUpdateRequest* requests = new TileUpdateRequest[m_capacity];
+
+	if (oldCapacity)
+		memcpy(requests, m_updateRequests, oldCapacity * sizeof(TileUpdateRequest));
+
+	std::swap(m_updateRequests, requests);
+
+	delete[] requests;
+}
+
+void CMNMUpdatesManager::TileUpdateRequestArray::Init(size_t initialCount)
+{
+	CRY_ASSERT(m_capacity == 0);
+	CRY_ASSERT(m_updateRequests == nullptr);
+	Grow(initialCount);
+}
+
+void CMNMUpdatesManager::TileUpdateRequestArray::Clear()
+{
+	delete[] m_updateRequests;
+	m_updateRequests = nullptr;
+
+	m_count = 0;
+	m_capacity = 0;
+	m_freeIndexes.clear();
+}
+
+const size_t CMNMUpdatesManager::TileUpdateRequestArray::AllocateTileUpdateRequest()
+{
+	CRY_ASSERT(m_count <= m_capacity);
+
+	++m_count;
+
+	size_t idx;
+	if (m_freeIndexes.empty())
+	{
+		idx = m_count - 1;
+
+		if (m_count > m_capacity)
+			Grow(std::max<size_t>(4, m_capacity >> 1));
+	}
+	else
+	{
+		idx = m_freeIndexes.back();
+		m_freeIndexes.pop_back();
+	}
+
+	return idx;
+}
+
+void CMNMUpdatesManager::TileUpdateRequestArray::FreeTileUpdateRequest(const size_t requestIdx)
+{
+	CRY_ASSERT(requestIdx >= 0);
+	CRY_ASSERT(requestIdx < m_capacity);
+
+	m_updateRequests[requestIdx].state = TileUpdateRequest::EState::Free;
+	m_updateRequests[requestIdx].idx = -1;
+
+	--m_count;
+	m_freeIndexes.push_back(requestIdx);
+}
+
+const size_t CMNMUpdatesManager::TileUpdateRequestArray::GetRequestCount() const
+{
+	return m_count;
+}
+
+CMNMUpdatesManager::TileUpdateRequest& CMNMUpdatesManager::TileUpdateRequestArray::operator[](size_t requestIdx)
+{
+	CRY_ASSERT(requestIdx < m_capacity);
+	return m_updateRequests[requestIdx];
+}
+
+const CMNMUpdatesManager::TileUpdateRequest& CMNMUpdatesManager::TileUpdateRequestArray::operator[](size_t requestIdx) const
+{
+	CRY_ASSERT(requestIdx < m_capacity);
+#ifdef TILE_CONTAINER_ARRAY_STRICT_ACCESS_CHECKS
+	assert(!stl::find(m_freeIndexes, index));
+	assert(index < m_freeIndexes.size() + m_tileCount);
+#endif
+	return m_updateRequests[requestIdx];
+}
+
+void CMNMUpdatesManager::TileUpdateRequestArray::Swap(TileUpdateRequestArray& other)
+{
+	std::swap(m_updateRequests, other.m_updateRequests);
+	std::swap(m_count, other.m_count);
+	std::swap(m_capacity, other.m_capacity);
+	m_freeIndexes.swap(other.m_freeIndexes);
 }

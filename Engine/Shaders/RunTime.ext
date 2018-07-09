@@ -103,6 +103,7 @@ Property
   Precache = ShadowGenVS
   Precache = ShadowGenPS
   Precache = DebugPassPS
+  Precache = GlassPS
 }
 
 Property
@@ -171,7 +172,7 @@ Property
   Precache = EffectLayerVS
   Precache = MethaGenVS
   Precache = DebugPassVS
-  Precache = ParticleVS
+	Precache = ParticleVS
 }
 
 Property
@@ -188,7 +189,7 @@ Property
   Precache = VegetationHS
   Precache = VegetationDS
   Precache = VegetationPS
-  Precache = GeneralPS
+	Precache = GeneralPS
   Precache = GlassPS
   Precache = GlassVS
   Precache = GlowVS
@@ -400,7 +401,7 @@ Property
 	Precache = TerrainVS 
 	Precache = TerrainPS  
   Precache = VegetationVS
-  Precache = GeneralVS
+  Precache = GeneralVS 
 	Precache = GeneralPS
   Precache = ClothVS
   Precache = GlassVS
@@ -551,47 +552,6 @@ Property
 
 Property
 {
-  Name = %_RT_PER_INSTANCE_CB_TEMP
-  Mask = 0x100000
-  AutoPrecache
-  Precache = GeneralVS
-	Precache = GeneralPS
-  Precache = ClothVS
-  Precache = SkinVS
-	Precache = SkinPS
-  Precache = HairVS
-  Precache = HairPS
-  Precache = EyeVS
-  Precache = EyePS
-  Precache = GlassVS
-	Precache = GlassPS
-  Precache = VegetationVS
-  Precache = VegetationPS
-	Precache = VegetationDS
-  Precache = VegetationHS
-	Precache = TerrainVS
-  Precache = TerrainPS
-  Precache = ShadowVS
-  Precache = ShadowGenVS
-  Precache = ShadowGenPS
-  Precache = ZVS
-  Precache = ZPS
-  Precache = ZGS
-  Precache = DetailVS
-  Precache = GlowVS
-  Precache = MotionBlurVS
-  Precache = CustomRenderVS
-  Precache = DebugPassVS
-  Precache = DebugPassPS
-  Precache = GeneralHS
-  Precache = GeneralDS
-	Precache = DistanceCloudsVS
-	Precache = DistanceCloudsPS
-	Precache = TemplBeamVS
-}
-
-Property
-{
   Name = %_RT_ENVIRONMENT_CUBEMAP
   Mask = 0x400000
   Precache = ParticlePS
@@ -610,7 +570,6 @@ Property
   Precache = GlowVS
   Precache = MotionBlurVS
   Precache = FurVS
-  Precache = SoftAlphaTestPassVS
   Precache = CustomRenderVS
   Precache = MethaGenVS
   Precache = DebugPassVS
@@ -627,6 +586,7 @@ Property
 	Precache = VegetationPS
 	Precache = SkinPS
 	Precache = TerrainPS
+	Precache = WaterSurfacePS
 }
 
 Property
@@ -679,7 +639,6 @@ Property
 {
   Name = %_RT_MSAA_QUALITY1
   Mask = 0x1000000
-  AutoPrecache
   
   Precache = ZPS
   Precache = ZVS
@@ -721,7 +680,6 @@ Property
 {
   Name = %_RT_MSAA_SAMPLEFREQ_PASS
   Mask = 0x100000000
-  AutoPrecache
   
   Precache = ZPS
   Precache = ZVS
@@ -794,7 +752,6 @@ Property
   Precache = GlowVS
   Precache = MotionBlurVS
   Precache = FurVS
-  Precache = SoftAlphaTestPassVS
   Precache = CustomRenderVS
   Precache = EffectLayerVS
   Precache = CloakVS
@@ -821,7 +778,6 @@ Property
   Precache = GlowVS
   Precache = MotionBlurVS
   Precache = FurVS
-  Precache = SoftAlphaTestPassVS
   Precache = CustomRenderVS
   Precache = EffectLayerVS
   Precache = CloakVS
@@ -1012,7 +968,6 @@ Property
 {
   Name = %_RT_MSAA_QUALITY  
   Mask = 0x40000000000
-  AutoPrecache
   
   Precache = ZPS
   Precache = ZVS
@@ -1141,6 +1096,7 @@ Property
   Precache = HDRPostProcessPS
   Precache = PostSunShaftsPS
   Precache = PostProcessGamePS
+  Precache = PostAA_PS
   Precache = DeferredPassPS
 	Precache = DeferredPassVS
 	Precache = DeferredLightPassPS
@@ -1165,6 +1121,7 @@ Property
 	Precache = VolumeLightInjectionCS
 	Precache = ReprojectVolumetricFogCS
 	Precache = VolumetricCloudsPS
+	Precache = ShadowMaskGenPS
 }
 
 Property
@@ -1202,7 +1159,6 @@ Property
 		Precache = GlowVS
 		Precache = MotionBlurVS
 		Precache = FurVS
-		Precache = SoftAlphaTestPassVS
 		Precache = CustomRenderVS
 		Precache = EffectLayerVS
 		Precache = CloakVS
@@ -1325,6 +1281,8 @@ Property
 	Precache = FogPassVolShadowsInterleavePassPS
 	Precache = CloudShadowGenCS
 	Precache = VolumetricCloudsPS
+	
+	Precache = ShadowMaskGenPS
 }
 
 Property
@@ -1339,4 +1297,11 @@ Property
   Precache = ParticleDS
   Precache = ConeTraceDiffusePS
   Precache = DemosaicPS
+}
+
+Property
+{
+  Name = %_RT_SAMPLE6
+  Mask = 0x4000000000000000
+  Precache = HDRPostProcessPS
 }

@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "stdafx.h"
 
@@ -108,7 +108,7 @@ void AnimationContent::Serialize(Serialization::IArchive& ar)
 {
 	if (type == ANIMATION && importState == COMPILED_BUT_NO_ANIMSETTINGS)
 	{
-		ar.warning(this, "AnimSettings file used to compile the animation is missing. You may need to obtain it from version control.\n\nAlternatively you can create a new AnimSettings file.");
+		ar.warning(*this, "AnimSettings file used to compile the animation is missing. You may need to obtain it from version control.\n\nAlternatively you can create a new AnimSettings file.");
 		bool createNewAnimSettings = false;
 		ar(Serialization::ToggleButton(createNewAnimSettings), "createButton", "<Create New AnimSettings");
 		if (createNewAnimSettings)
@@ -212,3 +212,4 @@ void AnimationContent::Reset()
 }
 
 }
+

@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 /*************************************************************************
    -------------------------------------------------------------------------
@@ -355,12 +355,11 @@ NET_IMPLEMENT_IMMEDIATE_MESSAGE(CGameClientChannel, DefaultSpawn, eNRT_Unreliabl
 	esp.sName = param.name.c_str();
 	esp.vPosition = param.pos;
 	esp.vScale = param.scale;
+	esp.pSpawnSerializer = &ser;
 
 	if (IEntity* pEntity = pEntitySystem->SpawnEntity(esp, false))
 	{
 		const EntityId entityId = pEntity->GetId();
-
-		CCryAction::GetCryAction()->GetIGameObjectSystem()->SetSpawnSerializerForEntity(entityId, &ser);
 
 		if (!param.baseComponent.IsNull())
 		{
@@ -372,7 +371,6 @@ NET_IMPLEMENT_IMMEDIATE_MESSAGE(CGameClientChannel, DefaultSpawn, eNRT_Unreliabl
 
 		if (!pEntitySystem->InitEntity(pEntity, esp))
 		{
-			CCryAction::GetCryAction()->GetIGameObjectSystem()->ClearSpawnSerializerForEntity(entityId);
 			return false;
 		}
 
@@ -381,13 +379,8 @@ NET_IMPLEMENT_IMMEDIATE_MESSAGE(CGameClientChannel, DefaultSpawn, eNRT_Unreliabl
 			SetPlayerId(entityId);
 		}
 		GetGameContext()->GetNetContext()->SpawnedObject(entityId);
-		CCryAction::GetCryAction()->GetIGameObjectSystem()->ClearSpawnSerializerForEntity(entityId);
 
-		CGameObject* pGameObject = (CGameObject*)pEntity->GetProxy(ENTITY_PROXY_USER);
-		if (pGameObject)
-		{
-			pGameObject->PostRemoteSpawn();
-		}
+		pEntity->SendEvent(SEntityEvent(ENTITY_EVENT_SPAWNED_REMOTELY));
 
 		return true;
 	}

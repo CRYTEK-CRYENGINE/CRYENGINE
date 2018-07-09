@@ -1,5 +1,4 @@
-// CRYENGINE Source Code File
-// Copyright 2001-2015 Crytek GmbH. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 //  Description: Common include file for ALL shaders 
@@ -79,34 +78,19 @@ float3 TangNormal(float4 Tangent, float4 Binormal)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 half4 GetTexture2DGrad(Texture2D tex, SamplerState samplerState, float2 uv, float2 ddxUV, float2 ddyUV) { return tex.SampleGrad(samplerState, uv.xy, ddxUV, ddyUV ); }
-half4 GetTexture2DLod(sampler2D texSampler, float4 uv)                                                  { return tex2Dlod(texSampler, uv); }
 half4 GetTexture2DLod(Texture2D tex, SamplerState samplerState, float4 uv)                              { return tex.SampleLevel(samplerState, uv.xy, uv.w); }
-half4 GetTexture2DProj(sampler2D texSampler, float4 uv)                                                 { return tex2Dproj(texSampler, uv); }
+half4 GetTexture2DLod(Texture2D tex, SamplerState samplerState, float2 uv, float Lod)                   { return tex.SampleLevel(samplerState, uv.xy, Lod); }
 half4 GetTexture2DProj(Texture2D tex, SamplerState samplerState, float4 uv)                             { return tex.Sample(samplerState, uv.xy * rcp(uv.w)); }
-half4 GetTexture2DBias(sampler2D texSampler, float4 uv)                                                 { return tex2Dbias(texSampler, uv.xyzw); }
 half4 GetTexture2DBias(Texture2D tex, SamplerState samplerState, float4 uv)                             { return tex.SampleBias(samplerState, uv.xy, uv.w); }
-half4 GetTexture2D(sampler2D MapSampler, float2 uv)                                                     { return tex2D(MapSampler, uv); }
 half4 GetTexture2D(Texture2D tex, SamplerState samplerState, float2 uv)                                 { return tex.Sample(samplerState, uv); }
 half4 GetTextureCube(TextureCube tex, SamplerState samplerState, float3 uv)                             { return tex.Sample(samplerState, uv); }
 half4 GetTextureCubeLod(TextureCube tex, SamplerState samplerState, float4 uv)                          { return tex.SampleLevel(samplerState, uv.xyz, uv.w); }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
-half2 GetXYNormalMap(sampler2D bumpMap, float2 bumpTC)                                           { return GetTexture2D(bumpMap, bumpTC).yx; }
 half2 GetXYNormalMap(Texture2D bumpTex, float2 bumpTC)                                           { return GetTexture2D(bumpTex, ssMaterialAnisoHigh, bumpTC).yx; }
 half2 GetXYNormalMap(Texture2D bumpTex, SamplerState samplerState, float2 bumpTC)                { return GetTexture2D(bumpTex, samplerState, bumpTC).yx; }
-half2 GetXYNormalMapLod(sampler2D bumpMap, float4 bumpTC)                                        { return GetTexture2DLod(bumpMap, bumpTC).yx; }
 half2 GetXYNormalMapLod(Texture2D bumpTex, SamplerState samplerState, float4 bumpTC)             { return GetTexture2DLod(bumpTex, samplerState, bumpTC).yx; }
 half2 GetXYNormalMapGrad(Texture2D bumpTex, float2 bumpTC, float2 ddx_bumpTC, float2 ddy_bumpTC) { return GetTexture2DGrad(bumpTex, ssMaterialAnisoHigh, bumpTC, ddx_bumpTC, ddy_bumpTC).yx; }
-
-half3 GetNormalMap(sampler2D bumpMap, float2 bumpTC)
-{
-  half3 bumpNormal;
-
-  bumpNormal.xy = GetXYNormalMap(bumpMap, bumpTC.xy);
-  bumpNormal.z = sqrt(saturate(1.h + dot(bumpNormal.xy, -bumpNormal.xy)));
-
-  return bumpNormal;
-}
 
 half3 GetNormalMap(Texture2D bumpTex, float2 bumpTC)
 {
@@ -123,16 +107,6 @@ half3 GetNormalMap(Texture2D bumpTex, SamplerState samplerState, float2 bumpTC)
   half3 bumpNormal;
 
   bumpNormal.xy = GetXYNormalMap(bumpTex, samplerState, bumpTC.xy);
-  bumpNormal.z = sqrt(saturate(1.h + dot(bumpNormal.xy, -bumpNormal.xy)));
-
-  return bumpNormal;
-}
-
-half3 GetNormalMapLod(sampler2D bumpMap, float4 bumpTC)
-{
-  half3 bumpNormal;
-
-  bumpNormal.xy = GetXYNormalMapLod(bumpMap, bumpTC);
   bumpNormal.z = sqrt(saturate(1.h + dot(bumpNormal.xy, -bumpNormal.xy)));
 
   return bumpNormal;
@@ -162,7 +136,6 @@ half3 GetNormalMapGrad(Texture2D bumpTex, float2 bumpTC, float2 ddx_bumpTC, floa
 
 half  GetAlphaTex(Texture2D tex, float2 texTC)                                                      { return GetTexture2D(tex, ssMaterialAnisoHigh, texTC.xy).a; }// alpha test value in alpha channel
 half4 GetDiffuseTex(Texture2D tex, float2 texTC)                                                    { return GetTexture2D(tex, ssMaterialAnisoHigh, texTC.xy); }
-half4 GetDiffuseTex(sampler2D MapSampler, float2 texTC)                                             { return GetTexture2D(MapSampler, texTC.xy); }
 half4 GetDiffuseTexGrad(Texture2D tex, float2 texTC, float2 ddxUV, float2 ddyUV)                    { return GetTexture2DGrad(tex, ssMaterialAnisoHigh, texTC.xy, ddxUV, ddyUV ); }
 half4 GetDiffuseTexLod(Texture2D tex, float4 texTC)                                                 { return GetTexture2DLod(tex, ssMaterialAnisoHigh, texTC.xyzw); }
 half4 GetDiffuseTexProj(Texture2D tex, float4 texTC)                                                { return GetTexture2DProj(tex, ssMaterialAnisoHigh, texTC.xyzw); }
@@ -249,20 +222,6 @@ float GetDeviceDepth(float fLinearDepth)
 	return fLinearDepth;
 }
 
-float GetDeviceDepthH(sampler2D depthSampler, float2 ScreenTC)
-{
-	float Z = GetTexture2D(depthSampler, ScreenTC).x;
-	//on PC we just have linear depth and need to project it again
-	Z       =       g_PS_ProjRatio.y / Z + g_PS_ProjRatio.x;
-	return Z;
-}
-
-float GetLinearDepth(sampler2D depthSampler, float2 ScreenTC, bool bScaled = false)
-{
-	float fDepth = GetTexture2D(depthSampler, ScreenTC.xy).x;
-	return GetLinearDepth(fDepth, bScaled);
-}
-
 float GetLinearDepth(Texture2D depthTexture, int2 vPixCoord, bool bScaled = false)
 {
 	float fDepth = depthTexture.Load(int3(vPixCoord, 0)).x;
@@ -285,11 +244,6 @@ float GetLinearDepthUnclamped(Texture2D depthTexture, float2 ScreenTC, bool bSca
 float GetLinearDepthProj(Texture2D sceneLinearDepthTex, float4 ProjTC)
 {
  	return GetLinearDepth(sceneLinearDepthTex, ProjTC.xy / ProjTC.w);
-}
-
-float GetLinearDepthPrecise(sampler2D depthSampler, float2 ScreenTC)
-{
-	return GetLinearDepth(depthSampler, ScreenTC, false);
 }
 
 float GetLinearDepthScaled(Texture2D texDepth, float2 ScreenTC)
@@ -370,12 +324,6 @@ half GetUnnormalizedLinearDownscaledDepth(in float4 rawDepth)
 	return rawDepth.x;
 }
 
-half GetUnnormalizedLinearDownscaledDepth(in sampler2D depthSmp, in float2 screenCoord)
-{
-	float4 data = tex2D(depthSmp, screenCoord);
-	return GetUnnormalizedLinearDownscaledDepth(data);
-}
-
 // get 2d homogeneous position
 float4 Get2dHPos(float4 pos)
 {
@@ -417,7 +365,7 @@ float3 ReconstructWorldPos(int2 WPos, Texture2D sceneDepthTex, bool bRelativeToC
 
 float3 GetWorldViewPos()
 {
-	return CV_ScreenToWorldBasis._m03_m13_m23;
+	return float3(CV_ScreenToWorldBasis[0][3], CV_ScreenToWorldBasis[1][3], CV_ScreenToWorldBasis[2][3]);
 }
 
 float2 ClampScreenTC(float2 TC, float2 maxTC)
@@ -427,7 +375,7 @@ float2 ClampScreenTC(float2 TC, float2 maxTC)
 
 float2 ClampScreenTC(float2 TC)
 {
-	return clamp(TC, 0, PS_HPosScale.xy);
+	return clamp(TC, 0, CV_HPosScale.xy);
 }
 
 NORMALS_FITTING_MAP
@@ -628,6 +576,22 @@ half DecodeGBufferTransmittanceLum( half4 bufferA )
 	return (lightingModel == LIGHTINGMODEL_TRANSMITTANCE) ? frac( bufferA.w * TWO_BITS_EXTRACTION_FACTOR ) : 0;
 }
 
+uint selectCubeFace(in float3 lightVec)
+{
+	float3 dir = abs(lightVec);
+
+	bool3 pmag = bool3(dir.x > dir.y, dir.y > dir.z, dir.x > dir.z);
+	bool3 nmag = bool3(dir.x <= dir.y, dir.y <= dir.z, dir.x <= dir.z); 
+	bool3 flp  = bool3(lightVec.x == dir.x, lightVec.y == dir.y, lightVec.z == dir.z); 
+
+	uint cubeFace = 
+		(pmag.x) * (pmag.z) * (0 + flp.x) +
+		(nmag.x) * (pmag.y) * (2 + flp.y) +
+		(nmag.z) * (nmag.y) * (4 + flp.z); 
+		
+	return cubeFace;
+}
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 float  NumInstructions		: PI_NumInstructions;
@@ -704,30 +668,6 @@ void DebugOutput(out half4 Color, in float4 baseTC)
   // 0101
   // 0111
   // 1101
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-half4 GetTerrainTex(sampler2D s, float2 terrainTC)
-{
-  half4 cTerrain = tex2D(s, terrainTC) * g_PS_TerrainInfo.x;
-
-	return saturate(	cTerrain	);
-}
-
-half3 GetTerrainNormal(sampler2D s, float2 terrainTC)
-{
-
-	half3 terrainNor = float3(tex2D(s, terrainTC).xz,0);
-	terrainNor.xy = (terrainNor.xy - 0.5h) * 2.h;
-	terrainNor.z = sqrt( saturate( 1.02h - (terrainNor.x * terrainNor.x + terrainNor.y * terrainNor.y) ) );
-	return terrainNor;
-}
-
-half3 GetTerrainElevation(sampler2D s, float2 terrainTC)
-{
-	half4 terrainElev = tex2D(s, terrainTC);
-	return terrainElev.x;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -828,14 +768,6 @@ float4 rgb10a2_to_rgb10a2f( float4 InColor )
 	return OutColor;
 }
 
-// Fetches an rgb10a2f texture aliased as a rgb10a2 texture - check xbox documentation (7e3) for more details
-//  - helpfull for specific cases to decrease BW (at cost of ALU) and also to minimize resolve cost
-//  - beware that this doens't support correct bilinear filtering fetches
-float4 tex2D_rgb10a2f( sampler2D s, float2 vTexCoord )
-{
-	return  rgb10a2_to_rgb10a2f( tex2D(s, vTexCoord ) );
-}
-
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 // Checks normalized sun light direction from level and applies it to the UV for the Cloud Shadows.
@@ -921,4 +853,17 @@ float2 MapUnnormalizedRasterToViewport(float2 unnormalizedRasterPos)
 	#else
 		return NV_VR_MapWindowToUV(NvGetProjectionData(), unnormalizedRasterPos);
 	#endif
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+// Full screen triangle creation from vertexID.
+
+float4 GetHPos_FromTriVertexID(uint vertexID)
+{
+	return float4(float2(((vertexID << 1) & 2) * 2.0, (vertexID == 0) ? -4.0 : 0.0) + float2(-1.0, 1.0), 0.0, 1.0);
+}
+
+float2 GetBaseTC_FromTriVertexID(uint vertexID)
+{
+	return float2((vertexID << 1) & 2, (vertexID == 0) ? 2.0 : 0.0);
 }

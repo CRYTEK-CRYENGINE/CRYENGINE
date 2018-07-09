@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 // Includes
 #include "StdAfx.h"
@@ -24,7 +24,7 @@ float CREBreakableGlass::s_impactTimer = 0.0f;
 // Profiling
 #ifndef GLASS_FUNC_PROFILER
 // #ifndef RELEASE
-//  #define GLASS_FUNC_PROFILER			FUNCTION_PROFILER(GetISystem(), PROFILE_GLASS)
+//  #define GLASS_FUNC_PROFILER			CRY_PROFILE_FUNCTION(PROFILE_GLASS)
 //  #define GLASS_PROFILE_ENABLED
 //  #define GLASS_PROFILE_AUTO_BREAK
 // #else
@@ -453,7 +453,7 @@ void CREBreakableGlass::Update(SBreakableGlassUpdateParams& params)
 			const uint8 buffId = fragData & 0xFF;
 			const uint8 fragId = (fragData >> 8) & 0xFF;
 
-			if (m_fragGeomBufferIds[buffId].m_fragId == fragId)
+			if (buffId < GLASSCFG_MAX_NUM_PHYS_FRAGMENTS && m_fragGeomBufferIds[buffId].m_fragId == fragId)
 			{
 				m_fragGeomBufferIds[buffId].m_fragId = GLASSCFG_FRAGMENT_ARRAY_SIZE;
 				m_fragGeomBufferIds[buffId].m_geomBufferId = NO_BUFFER;

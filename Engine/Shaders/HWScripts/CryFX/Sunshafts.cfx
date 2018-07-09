@@ -1,5 +1,4 @@
-// CRYENGINE Source Code File
-// Copyright 2001-2015 Crytek GmbH. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "Common.cfi"
 #include "shadelib.cfi"
@@ -73,16 +72,17 @@ struct vtxOutAAOpt
 #endif
 };
 
-vtxOutAAOpt EdgeAAOptVS(vtxIn IN)
+vtxOutAAOpt EdgeAAOptVS(uint VertexID : SV_VertexID)
 {
   vtxOutAAOpt OUT = (vtxOutAAOpt)0; 
-  OUT.HPosition = Get2dHPos(IN.Position);
-  OUT.baseTC = IN.baseTC.xy;
+  OUT.HPosition = GetHPos_FromTriVertexID(VertexID);
+  float2 baseTC = GetBaseTC_FromTriVertexID(VertexID);
+  OUT.baseTC = baseTC;
 
 #if %_RT_SAMPLE4
 	static const half3 vOffs = half3(0.h, -1.h, 1.h);
-	OUT.baseTC1 = IN.baseTC.xyxy + vOffs.xyyx * g_VS_ScreenSize.zwzw * 2;
-	OUT.baseTC2 = IN.baseTC.xyxy + vOffs.zxxz * g_VS_ScreenSize.zwzw * 2;
+	OUT.baseTC1 = baseTC.xyxy + vOffs.xyyx * g_VS_ScreenSize.zwzw * 2;
+	OUT.baseTC2 = baseTC.xyxy + vOffs.zxxz * g_VS_ScreenSize.zwzw * 2;
 #endif
 
   return OUT;
@@ -93,7 +93,6 @@ vtxOutAAOpt EdgeAAOptVS(vtxIn IN)
 
 /// Constants ////////////////////////////
 
-float4 PI_sunShaftsParams < psregister = c0; >;
 float4x4 SunShafts_ViewProj;
 float4 SunShafts_SunPos;
 float4 SunShafts_SunCol;
@@ -111,46 +110,43 @@ cbuffer CBSunShafts : register(b0)
 
 struct vtxOutSunShaftsGen
 {
-  float4 HPosition  : POSITION; 
+  float4 HPosition  : SV_POSITION; 
   float2 baseTC       : TEXCOORD0;
 };
 
+
+Texture2D<float4> SSHFTM_LDepth    : register(t0);
+Texture2D<float4> SSHFTM_Target    : register(t1);
+SamplerState  SSHFTM_PCSampler     : register(s0); //point clamp
+
+Texture2D<float4> SSHFTG_Target    : register(t0);
+SamplerState  SSHFTG_LCSampler     : register(s0); //linear clamp
+
 /// Samplers ////////////////////////////
 
-vtxOutSunShaftsGen SunShaftsGenVS(vtxIn IN)
+vtxOutSunShaftsGen SunShaftsGenVS(uint VertexID : SV_VertexID)
 {
   vtxOutSunShaftsGen OUT = (vtxOutSunShaftsGen)0; 
-  OUT.HPosition = Get2dHPos(IN.Position);
-  
-  OUT.baseTC.xy = IN.baseTC.xy;
-
+  OUT.HPosition = GetHPos_FromTriVertexID(VertexID);
+  OUT.baseTC.xy = GetBaseTC_FromTriVertexID(VertexID);
   return OUT;
 }
 
 ///////////////// pixel shader //////////////////
-
-// workaround for shader constant trashing bug on 360 - needs to be fixed soon.
-float4 hposScale : PB_HPosScale < psregister = c0; >;
-
 pixout SunShaftsMaskGenPS(vtxOut IN)
 {
-  pixout OUT = (pixout) 0;
+    pixout OUT = (pixout) 0;
 
-  int nQuality = GetShaderQuality();
-
-  float2 sampleUV = MapViewportToRaster(IN.baseTC.xy);
-
-  half sceneDepth = GetLinearDepth(_tex0, sampleUV);
-  OUT.Color = half4(sceneDepth, sceneDepth, sceneDepth, 1 - sceneDepth.x);
-
-  half3 sceneCol = 0.25.xxx;
-
-  sceneCol = tex2D(_tex1, sampleUV); // comes straight from hdr scaled target
+    half sceneDepth = GetLinearDepth(SSHFTM_LDepth, int2(IN.WPos.xy));
+    OUT.Color = half4(sceneDepth, sceneDepth, sceneDepth, 1 - sceneDepth.x);
+    
+    float2 sampleUV = MapViewportToRaster(IN.baseTC.xy);
+    half3 sceneCol = GetTexture2D(SSHFTM_Target, SSHFTM_PCSampler, sampleUV); // comes straight from hdr scaled target
 	
-  // cheaper and looks nicer
-  OUT.Color.xyz *= dot(sceneCol, 0.33*4);
+    // cheaper and looks nicer
+    OUT.Color.xyz *= dot(sceneCol, 0.33 * 4);
 
-  return OUT;
+    return OUT;
 }
 
 pixout SunShaftsGenPS(vtxOutSunShaftsGen IN)
@@ -173,28 +169,28 @@ pixout SunShaftsGenPS(vtxOutSunShaftsGen IN)
   half4 accum = 0; 
   sunDir.xy *= cbSunShafts.params.x * (fSign);
   
-  half4 depth = tex2D(_tex0, MapViewportToRaster(IN.baseTC.xy) );      
+  half4 depth = GetTexture2D(SSHFTG_Target, SSHFTG_LCSampler, MapViewportToRaster(IN.baseTC.xy) );      
   accum += depth;
 
-  depth = tex2D(_tex0, MapViewportToRaster(IN.baseTC.xy + sunDir.xy * 1.0));      
+  depth = GetTexture2D(SSHFTG_Target, SSHFTG_LCSampler, MapViewportToRaster(IN.baseTC.xy + sunDir.xy * 1.0));      
   accum += depth * (1.0-1.0/8.0);
 
-	depth = tex2D(_tex0, MapViewportToRaster(IN.baseTC.xy + sunDir.xy * 2.0));      
+	depth = GetTexture2D(SSHFTG_Target, SSHFTG_LCSampler, MapViewportToRaster(IN.baseTC.xy + sunDir.xy * 2.0));      
   accum += depth * (1.0-2.0/8.0);
   
-	depth = tex2D(_tex0, MapViewportToRaster(IN.baseTC.xy + sunDir.xy * 3.0));      
+	depth = GetTexture2D(SSHFTG_Target, SSHFTG_LCSampler, MapViewportToRaster(IN.baseTC.xy + sunDir.xy * 3.0));      
   accum += depth * (1.0-3.0/8.0);
   
-	depth = tex2D(_tex0, MapViewportToRaster(IN.baseTC.xy + sunDir.xy * 4.0));      
+	depth = GetTexture2D(SSHFTG_Target, SSHFTG_LCSampler, MapViewportToRaster(IN.baseTC.xy + sunDir.xy * 4.0));      
   accum += depth * (1.0-4.0/8.0);
   
-	depth = tex2D(_tex0, MapViewportToRaster(IN.baseTC.xy + sunDir.xy * 5.0));      
+	depth = GetTexture2D(SSHFTG_Target, SSHFTG_LCSampler, MapViewportToRaster(IN.baseTC.xy + sunDir.xy * 5.0));      
   accum += depth * (1.0-5.0/8.0);
   
-	depth = tex2D(_tex0, MapViewportToRaster(IN.baseTC.xy + sunDir.xy * 6.0));      
+	depth = GetTexture2D(SSHFTG_Target, SSHFTG_LCSampler, MapViewportToRaster(IN.baseTC.xy + sunDir.xy * 6.0));      
   accum += depth * (1.0-6.0/8.0);
 
-	depth = tex2D(_tex0, MapViewportToRaster(IN.baseTC.xy + sunDir.xy * 7.0));      
+	depth = GetTexture2D(SSHFTG_Target, SSHFTG_LCSampler, MapViewportToRaster(IN.baseTC.xy + sunDir.xy * 7.0));      
   accum += depth * (1.0-7.0/8.0);
 
   accum /= 8.0;
@@ -206,63 +202,6 @@ pixout SunShaftsGenPS(vtxOutSunShaftsGen IN)
   return OUT;
 }
 
-//todo: add usefull blend modes into shade lib
-half3 blendSoftLight(half3 a, half3 b)
-{
-  //float3 c = 2 * a * b + a * a * (1 - 2 * b);
-  //float3 d = sqrt(a) * (2 * b - 1) + 2 * a * (1 - b);
-  //
-  //return ( b < 0.5 )? c : d;
-
-// 12 inst
-
-  half3 c = 2 * a * b * ( 1 + a * (  1 - b ) ); // 4 inst
- 
-  half3 a_sqrt = sqrt( a );  // 1
-  half3 d = ( a  +  b * (a_sqrt - a )) * 2 - a_sqrt; // 3 inst
-
-  return( b < 0.5 )? c : d; // 1
-}
-
-pixout SunShaftsDisplayPS(vtxOutAAOpt IN)
-{
-  pixout OUT = (pixout) 0;
-  
-  float2 sampleUV = MapViewportToRaster(IN.baseTC.xy);
-
-   half4 cScreen = tex2D(_tex1, sampleUV);    
-	 OUT.Color = cScreen;
-
-	half fShaftsMask = 0;
-#if %_RT_SAMPLE0
-
-	half4 cSunShafts = tex2D(_tex2, sampleUV);
-
-  fShaftsMask = saturate(1.00001- cSunShafts.w) * 2.0 * PI_sunShaftsParams.x;
-        
-  // Apply "very" subtle (but always visible) sun shafts mask 
-  half fBlend = cSunShafts.w;
-  
-  // normalized sun color
-	half3 sunColor = SunShafts_SunCol;
-  
-	// Blend with backbuffer
-  OUT.Color.xyz = cScreen + cSunShafts.xyz * PI_sunShaftsParams.y * sunColor * ( 1 - cScreen );
-  OUT.Color.xyz = blendSoftLight(OUT.Color, sunColor * fShaftsMask *0.5+0.5);
-	OUT.Color.w = 1;
-
-#endif
-
-// Apply color charts/correction
-#if %_RT_SAMPLE5
-	TexColorChart2D(_tex0, OUT.Color.xyz);
-#endif
-
-	// propagate original alpha
-	OUT.Color.a = cScreen.a; //saturate( (GetLinearDepth(_tex4, IN.baseTC.xy, true).x - 0.85f)*100 );
-
-  return OUT;
-}
 
 ////////////////// technique /////////////////////
 
@@ -287,16 +226,4 @@ technique SunShaftsGen
     CullMode = None;        
   }
 }
-
-technique SunShaftsDisplay
-{
-  pass p0
-  {
-    VertexShader = EdgeAAOptVS() PostSunShaftsVS;
-    GeometryShader = $AutoGS_MultiRes();
-    PixelShader = SunShaftsDisplayPS() PostSunShaftsPS;    
-    CullMode = None;        
-  }
-}
-
 /////////////////////// eof ///

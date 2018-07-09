@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -26,7 +26,7 @@ public:
 
 	virtual CAssetEditor* Edit(CAsset* pAsset) const override;
 	virtual bool          RenameAsset(CAsset* pAsset, const char* szNewName) const override;
-	virtual bool          DeleteAssetFiles(const CAsset& asset, bool bDeleteSourceFile, size_t& numberOfFilesDeleted) const;
+	virtual bool          DeleteAssetFiles(const CAsset& asset, bool bDeleteSourceFile, size_t& numberOfFilesDeleted) const override;
 
 protected:
 	virtual bool OnCreate(CEditableAsset& editAsset, const void* pTypeSpecificParameter) const override;
@@ -40,3 +40,4 @@ private:
 // ~TODO
 
 }
+

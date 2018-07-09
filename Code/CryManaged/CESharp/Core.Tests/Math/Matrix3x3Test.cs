@@ -23,17 +23,15 @@ namespace Math.Tests
 		{
 			Matrix33 nativeMatrix = new Matrix33(0, 1, 2, 10, 11, 12, 20, 21, 22);
 			Matrix3x3 managedmatrix = nativeMatrix;
-			Assert.That(true, Is.EqualTo(managedmatrix == nativeMatrix));
-			Assert.That(nativeMatrix.m00, Is.EqualTo(managedmatrix.m00));
-			Assert.That(nativeMatrix.m01, Is.EqualTo(managedmatrix.m01));
-			Assert.That(nativeMatrix.m02, Is.EqualTo(managedmatrix.m02));
-			Assert.That(nativeMatrix.m10, Is.EqualTo(managedmatrix.m10));
-			Assert.That(nativeMatrix.m11, Is.EqualTo(managedmatrix.m11));
-			Assert.That(nativeMatrix.m12, Is.EqualTo(managedmatrix.m12));
-			Assert.That(nativeMatrix.m20, Is.EqualTo(managedmatrix.m20));
-			Assert.That(nativeMatrix.m21, Is.EqualTo(managedmatrix.m21));
-			Assert.That(nativeMatrix.m22, Is.EqualTo(managedmatrix.m22));
-			Assert.IsTrue(nativeMatrix == managedmatrix);
+			Assert.That(nativeMatrix.m00, Is.EqualTo(managedmatrix[0, 0]));
+			Assert.That(nativeMatrix.m01, Is.EqualTo(managedmatrix[0, 1]));
+			Assert.That(nativeMatrix.m02, Is.EqualTo(managedmatrix[0, 2]));
+			Assert.That(nativeMatrix.m10, Is.EqualTo(managedmatrix[1, 0]));
+			Assert.That(nativeMatrix.m11, Is.EqualTo(managedmatrix[1, 1]));
+			Assert.That(nativeMatrix.m12, Is.EqualTo(managedmatrix[1, 2]));
+			Assert.That(nativeMatrix.m20, Is.EqualTo(managedmatrix[2, 0]));
+			Assert.That(nativeMatrix.m21, Is.EqualTo(managedmatrix[2, 1]));
+			Assert.That(nativeMatrix.m22, Is.EqualTo(managedmatrix[2, 2]));
 		}
 
 
@@ -43,36 +41,44 @@ namespace Math.Tests
 		{
 			Matrix3x3 managedmatrix = new Matrix3x3(0, 1, 2, 10, 11, 12, 20, 21, 22);
 			Matrix33 nativeMatrix = managedmatrix;
-			Assert.That(true, Is.EqualTo(managedmatrix == nativeMatrix));
-			Assert.That(nativeMatrix.m00, Is.EqualTo(managedmatrix.m00));
-			Assert.That(nativeMatrix.m01, Is.EqualTo(managedmatrix.m01));
-			Assert.That(nativeMatrix.m02, Is.EqualTo(managedmatrix.m02));
-			Assert.That(nativeMatrix.m10, Is.EqualTo(managedmatrix.m10));
-			Assert.That(nativeMatrix.m11, Is.EqualTo(managedmatrix.m11));
-			Assert.That(nativeMatrix.m12, Is.EqualTo(managedmatrix.m12));
-			Assert.That(nativeMatrix.m20, Is.EqualTo(managedmatrix.m20));
-			Assert.That(nativeMatrix.m21, Is.EqualTo(managedmatrix.m21));
-			Assert.That(nativeMatrix.m22, Is.EqualTo(managedmatrix.m22));
-			Assert.IsTrue(managedmatrix == nativeMatrix);
+			Assert.That(nativeMatrix.m00, Is.EqualTo(managedmatrix[0, 0]));
+			Assert.That(nativeMatrix.m01, Is.EqualTo(managedmatrix[0, 1]));
+			Assert.That(nativeMatrix.m02, Is.EqualTo(managedmatrix[0, 2]));
+			Assert.That(nativeMatrix.m10, Is.EqualTo(managedmatrix[1, 0]));
+			Assert.That(nativeMatrix.m11, Is.EqualTo(managedmatrix[1, 1]));
+			Assert.That(nativeMatrix.m12, Is.EqualTo(managedmatrix[1, 2]));
+			Assert.That(nativeMatrix.m20, Is.EqualTo(managedmatrix[2, 0]));
+			Assert.That(nativeMatrix.m21, Is.EqualTo(managedmatrix[2, 1]));
+			Assert.That(nativeMatrix.m22, Is.EqualTo(managedmatrix[2, 2]));
 		}
 
 
 		[Test]
 		public void TestIdentity()
 		{
-			Assert.That(true, Is.EqualTo(Matrix3x3.Identity == Matrix33.CreateIdentity()));
-
+			Matrix33 nativeMatrix = Matrix33.CreateIdentity();
 			Matrix3x3 managedmatrix = Matrix3x3.Identity;
-			Assert.That(true, Is.EqualTo(managedmatrix == Matrix3x3.Identity));
-			Assert.That(managedmatrix.m00, Is.EqualTo(1));
-			Assert.That(managedmatrix.m01, Is.EqualTo(0));
-			Assert.That(managedmatrix.m02, Is.EqualTo(0));
-			Assert.That(managedmatrix.m10, Is.EqualTo(0));
-			Assert.That(managedmatrix.m11, Is.EqualTo(1));
-			Assert.That(managedmatrix.m12, Is.EqualTo(0));
-			Assert.That(managedmatrix.m20, Is.EqualTo(0));
-			Assert.That(managedmatrix.m21, Is.EqualTo(0));
-			Assert.That(managedmatrix.m22, Is.EqualTo(1));
+			// Compare native vs managed identity
+			Assert.That(nativeMatrix.m00, Is.EqualTo(managedmatrix[0, 0]));
+			Assert.That(nativeMatrix.m01, Is.EqualTo(managedmatrix[0, 1]));
+			Assert.That(nativeMatrix.m02, Is.EqualTo(managedmatrix[0, 2]));
+			Assert.That(nativeMatrix.m10, Is.EqualTo(managedmatrix[1, 0]));
+			Assert.That(nativeMatrix.m11, Is.EqualTo(managedmatrix[1, 1]));
+			Assert.That(nativeMatrix.m12, Is.EqualTo(managedmatrix[1, 2]));
+			Assert.That(nativeMatrix.m20, Is.EqualTo(managedmatrix[2, 0]));
+			Assert.That(nativeMatrix.m21, Is.EqualTo(managedmatrix[2, 1]));
+			Assert.That(nativeMatrix.m22, Is.EqualTo(managedmatrix[2, 2]));
+
+			// Compare managed to the real values of the identity
+			Assert.That(managedmatrix[0, 0], Is.EqualTo(1));
+			Assert.That(managedmatrix[0, 1], Is.EqualTo(0));
+			Assert.That(managedmatrix[0, 2], Is.EqualTo(0));
+			Assert.That(managedmatrix[1, 0], Is.EqualTo(0));
+			Assert.That(managedmatrix[1, 1], Is.EqualTo(1));
+			Assert.That(managedmatrix[1, 2], Is.EqualTo(0));
+			Assert.That(managedmatrix[2, 0], Is.EqualTo(0));
+			Assert.That(managedmatrix[2, 1], Is.EqualTo(0));
+			Assert.That(managedmatrix[2, 2], Is.EqualTo(1));
 		}
 
 
@@ -81,15 +87,15 @@ namespace Math.Tests
 		{
 			Matrix4x4 matrix4x4 = new Matrix4x4(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16);
 			Matrix3x3 matrix3x3 = new Matrix3x3(matrix4x4);
-			Assert.IsTrue(matrix3x3.m00 == matrix4x4.m00);
-			Assert.IsTrue(matrix3x3.m01 == matrix4x4.m01);
-			Assert.IsTrue(matrix3x3.m02 == matrix4x4.m02);
-			Assert.IsTrue(matrix3x3.m10 == matrix4x4.m10);
-			Assert.IsTrue(matrix3x3.m11 == matrix4x4.m11);
-			Assert.IsTrue(matrix3x3.m12 == matrix4x4.m12);
-			Assert.IsTrue(matrix3x3.m20 == matrix4x4.m20);
-			Assert.IsTrue(matrix3x3.m21 == matrix4x4.m21);
-			Assert.IsTrue(matrix3x3.m22 == matrix4x4.m22);
+			Assert.IsTrue(matrix3x3[0, 0] == matrix4x4[0, 0]);
+			Assert.IsTrue(matrix3x3[0, 1] == matrix4x4[0, 1]);
+			Assert.IsTrue(matrix3x3[0, 2] == matrix4x4[0, 2]);
+			Assert.IsTrue(matrix3x3[1, 0] == matrix4x4[1, 0]);
+			Assert.IsTrue(matrix3x3[1, 1] == matrix4x4[1, 1]);
+			Assert.IsTrue(matrix3x3[1, 2] == matrix4x4[1, 2]);
+			Assert.IsTrue(matrix3x3[2, 0] == matrix4x4[2, 0]);
+			Assert.IsTrue(matrix3x3[2, 1] == matrix4x4[2, 1]);
+			Assert.IsTrue(matrix3x3[2, 2] == matrix4x4[2, 2]);
 		}
 
 		[Test]
@@ -97,15 +103,15 @@ namespace Math.Tests
 		{
 			Matrix3x4 matrix3x4 = new Matrix3x4(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12);
 			Matrix3x3 matrix3x3 = new Matrix3x3(matrix3x4);
-			Assert.IsTrue(matrix3x3.m00 == matrix3x4.m00);
-			Assert.IsTrue(matrix3x3.m01 == matrix3x4.m01);
-			Assert.IsTrue(matrix3x3.m02 == matrix3x4.m02);
-			Assert.IsTrue(matrix3x3.m10 == matrix3x4.m10);
-			Assert.IsTrue(matrix3x3.m11 == matrix3x4.m11);
-			Assert.IsTrue(matrix3x3.m12 == matrix3x4.m12);
-			Assert.IsTrue(matrix3x3.m20 == matrix3x4.m20);
-			Assert.IsTrue(matrix3x3.m21 == matrix3x4.m21);
-			Assert.IsTrue(matrix3x3.m22 == matrix3x4.m22);
+			Assert.IsTrue(matrix3x3[0, 0] == matrix3x4[0, 0]);
+			Assert.IsTrue(matrix3x3[0, 1] == matrix3x4[0, 1]);
+			Assert.IsTrue(matrix3x3[0, 2] == matrix3x4[0, 2]);
+			Assert.IsTrue(matrix3x3[1, 0] == matrix3x4[1, 0]);
+			Assert.IsTrue(matrix3x3[1, 1] == matrix3x4[1, 1]);
+			Assert.IsTrue(matrix3x3[1, 2] == matrix3x4[1, 2]);
+			Assert.IsTrue(matrix3x3[2, 0] == matrix3x4[2, 0]);
+			Assert.IsTrue(matrix3x3[2, 1] == matrix3x4[2, 1]);
+			Assert.IsTrue(matrix3x3[2, 2] == matrix3x4[2, 2]);
 		}
 
 
@@ -114,15 +120,15 @@ namespace Math.Tests
 		{
 			Matrix3x3 matrix3x3 = new Matrix3x3(0, 1, 2, 3, 4, 5, 6, 7, 8);
 			matrix3x3.SetZero();
-			Assert.IsTrue(matrix3x3.m00 == 0);
-			Assert.IsTrue(matrix3x3.m01 == 0);
-			Assert.IsTrue(matrix3x3.m02 == 0);
-			Assert.IsTrue(matrix3x3.m10 == 0);
-			Assert.IsTrue(matrix3x3.m11 == 0);
-			Assert.IsTrue(matrix3x3.m12 == 0);
-			Assert.IsTrue(matrix3x3.m20 == 0);
-			Assert.IsTrue(matrix3x3.m21 == 0);
-			Assert.IsTrue(matrix3x3.m22 == 0);
+			Assert.IsTrue(matrix3x3[0, 0] == 0);
+			Assert.IsTrue(matrix3x3[0, 1] == 0);
+			Assert.IsTrue(matrix3x3[0, 2] == 0);
+			Assert.IsTrue(matrix3x3[1, 0] == 0);
+			Assert.IsTrue(matrix3x3[1, 1] == 0);
+			Assert.IsTrue(matrix3x3[1, 2] == 0);
+			Assert.IsTrue(matrix3x3[2, 0] == 0);
+			Assert.IsTrue(matrix3x3[2, 1] == 0);
+			Assert.IsTrue(matrix3x3[2, 2] == 0);
 		}
 
 

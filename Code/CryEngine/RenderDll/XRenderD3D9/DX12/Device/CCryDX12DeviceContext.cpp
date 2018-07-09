@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "CCryDX12Device.hpp"
@@ -212,8 +212,7 @@ bool CCryDX12DeviceContext::PrepareGraphicsPSO()
 	if (stateFlags & EPSPB_PipelineState)
 	{
 		// assume the constant buffer is set on the vertex shader always (don't need to search for the first occurrence)
-		D3D12_GPU_VIRTUAL_ADDRESS vConstViews[CB_NUM] = { 0 };
-
+		D3D12_GPU_VIRTUAL_ADDRESS vConstViews[8 /* CB_NUM */] = { 0 };
 
 		// Assign new PSO and root signature and set resource binding dirty flags
 		m_bCmdListBegins[CMDQUEUE_GRAPHICS] = false;
@@ -302,7 +301,7 @@ bool CCryDX12DeviceContext::PrepareComputePSO()
 	if (stateFlags & EPSPB_PipelineState)
 	{
 		// assume the constant buffer is set on the compute shader always (don't need to search for the first occurrence)
-		D3D12_GPU_VIRTUAL_ADDRESS vConstViews[CB_NUM] = { 0 };
+		D3D12_GPU_VIRTUAL_ADDRESS vConstViews[8 /* CB_NUM */] = { 0 };
 
 		// Assign new PSO and root signature and set resource binding dirty flags
 		m_bCmdListBegins[CMDQUEUE_COMPUTE] = false;

@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 
@@ -871,7 +871,7 @@ int CSoftEntity::Action(pe_action *_action, int bThreadSafe)
 		pe_action_target_vtx *action = (pe_action_target_vtx*)_action;
 		if (is_unused(action->points) || !action->points)	{
 			float scale=1.0f;
-			if (is_unused(action->posHost) && m_vtx[m_vtx[0].idx].pContactEnt)
+			if (is_unused(action->posHost) && m_nVtx && m_vtx[m_vtx[0].idx].pContactEnt)
 				m_vtx[m_vtx[0].idx].pContactEnt->GetLocTransform(m_vtx[m_vtx[0].idx].iContactPart,action->posHost,action->qHost,scale,this);
 			for(int i=0; i<m_nVtx; i++) if (!m_vtx[i].bAttached) 
 				m_vtx[i].ptAttach = (m_vtx[i].pos-action->posHost)*action->qHost;
@@ -1419,9 +1419,10 @@ int CSoftEntity::Step(float time_interval)
 	if (m_nVtx<=0 || !m_bAwake || !m_nConnectedVtx)
 		return 1;
 
+	int iCaller = get_iCaller_int();
 	if (m_flags & (pef_invisible|pef_disabled)) {
 	report_step0:
-		EventPhysPostStep event; InitEvent(&event,this);
+		EventPhysPostStep event; InitEvent(&event,this,iCaller);
 		event.dt=time_interval; event.pos=m_pos; event.q=m_qrot; event.idStep=m_pWorld->m_idStep;
 		m_pWorld->OnEvent(m_flags,&event);
 		return 1;
@@ -1442,10 +1443,9 @@ int CSoftEntity::Step(float time_interval)
 	plane waterPlane; 
 	Vec3 waterFlow(ZERO);
 	float waterDensity=0,ktimeBack;
-	int iCaller = get_iCaller_int();
 	{ ReadLock lock(m_lockSoftBody);
 
-	FUNCTION_PROFILER( GetISystem(),PROFILE_PHYSICS );
+	CRY_PROFILE_FUNCTION(PROFILE_PHYSICS );
 	PHYS_ENTITY_PROFILER
 
 	if ((g_lastqHost|g_lastqHost)>0) {
@@ -1492,6 +1492,8 @@ int CSoftEntity::Step(float time_interval)
 		waterPlane.origin = pb[i].waterPlane.origin; waterPlane.n = pb[i].waterPlane.n;
 		waterFlow = pb[i].waterFlow; waterDensity=pb[i].waterDensity;
 	}
+	if (!m_wind0.len2())
+		m_wind0 = m_wind1 = w;
 
 	if ((m_windTimer+=time_interval*4)>1.0f) {
 		m_windTimer = 0; m_wind0 = m_wind1;
@@ -1648,7 +1650,7 @@ int CSoftEntity::Step(float time_interval)
 		BBox[0] = min(BBox[0], m_vtx[i].pos);
 		BBox[1] = max(BBox[1], m_vtx[i].pos);
 	}
-	if (m_wind.len2()*m_airResistance>0 || rmax>m_Emin) {
+	if ((m_wind0+m_wind1).len2()*m_airResistance>0 || rmax>m_Emin) {
 		m_nSlowFrames = 0; m_bAwake = 1;
 	} else if (++m_nSlowFrames>=3) {
 		m_bAwake = 0;
@@ -1694,7 +1696,7 @@ int CSoftEntity::Step(float time_interval)
 	//for(i=0;i<pMesh->m_nTris;i++)
 	//	MARK_UNUSED pMesh->m_pNormals[i];
 
-	EventPhysPostStep epps;	InitEvent(&epps,this);
+	EventPhysPostStep epps;	InitEvent(&epps,this,iCaller);
 	epps.dt=time_interval; epps.pos=m_pos; epps.q=m_qrot; epps.idStep=m_pWorld->m_idStep;
 	m_pWorld->OnEvent(m_flags&pef_monitor_poststep, &epps);
 	if (m_pWorld->m_iLastLogPump==m_iLastLog && m_pEvent) {
@@ -1754,20 +1756,21 @@ int CSoftEntity::RayTrace(SRayTraceRes& rtr)
 		prim_inters inters;
 		triangle atri;
 		int i,j;
+		float mindist=1e10f, dist;
 
 		for(i=0;i<pMesh->m_nTris;i++) {
 			for(j=0;j<3;j++) atri.pt[j] = m_vtx[pMesh->m_pIndices[i*3+j]].pos+m_pos+m_offs0;
 			atri.n = atri.pt[1]-atri.pt[0] ^ atri.pt[2]-atri.pt[0];
-			if (ray_tri_intersection(&rtr.pRay->m_ray,&atri,&inters)) {
+			if (ray_tri_intersection(&rtr.pRay->m_ray,&atri,&inters) && (dist = (inters.pt[0]-rtr.pRay->m_ray.origin)*rtr.pRay->m_dirn) < mindist) {
 				rtr.pcontacts = &g_SoftContact[get_iCaller()];
 				rtr.pcontacts->pt = inters.pt[0];
-				rtr.pcontacts->t = (inters.pt[0]-rtr.pRay->m_ray.origin)*rtr.pRay->m_dirn;
+				rtr.pcontacts->t = mindist = dist;
 				rtr.pcontacts->id[0] = pMesh->m_pIds ? pMesh->m_pIds[i] : m_parts[0].surface_idx;
 				rtr.pcontacts->iNode[0] = i;
 				rtr.pcontacts->n = atri.n.normalized()*-sgnnz(atri.n*rtr.pRay->m_dirn);
-				return 1;
 			}
 		}
+		return mindist < 1e10f;
 	}
 
 	return 0;

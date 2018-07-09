@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #ifndef _DeviceManagerInline_H_
 #define _DeviceManagerInline_H_
@@ -61,6 +61,9 @@ inline void CSubmissionQueue_DX11::BindConstantBuffer(SHADER_TYPE type, const CC
 	ID3D11Buffer* pBuf = pBuffer ? pBuffer->GetD3D(&_offset, &_size) : NULL;
 #if DEVICE_MANAGER_IMMEDIATE_STATE_WRITE
 	CCryDeviceContextWrapper& rDeviceContext = gcpRendD3D->GetDeviceContext_Unsynchronized();
+#if DEVICE_MANAGER_USE_TYPE_DELEGATES
+	rDeviceContext.TSSetConstantBuffers(type, slot, 1, &pBuf);
+#else
 	switch (type)
 	{
 	case TYPE_VS:
@@ -82,6 +85,7 @@ inline void CSubmissionQueue_DX11::BindConstantBuffer(SHADER_TYPE type, const CC
 		rDeviceContext.CSSetConstantBuffers(slot, 1, &pBuf);
 		break;
 	}
+#endif
 #else
 	m_CB[type].buffers[slot] = pBuf;
 	m_CB[type].dirty |= 1 << slot;
@@ -111,6 +115,9 @@ inline void CSubmissionQueue_DX11::BindConstantBuffer(SHADER_TYPE type, const CC
 	CCryDeviceContextWrapper& rDeviceContext = gcpRendD3D->GetDeviceContext_Unsynchronized();
 	uint32 offsetArray[1] = { static_cast<uint32>(_offset) };
 	uint32 sizeArray[1] = { static_cast<uint32>(_size) };
+#if DEVICE_MANAGER_USE_TYPE_DELEGATES
+	rDeviceContext.TSSetConstantBuffers1(type, slot, 1, &pBuf, offsetArray, sizeArray);
+#else
 	switch (type)
 	{
 	case TYPE_VS:
@@ -132,6 +139,7 @@ inline void CSubmissionQueue_DX11::BindConstantBuffer(SHADER_TYPE type, const CC
 		rDeviceContext.CSSetConstantBuffers1(slot, 1, &pBuf, offsetArray, sizeArray);
 		break;
 	}
+#endif
 #else
 	m_CB[type].buffers1[slot] = pBuf;
 	m_CB[type].offsets[slot] = _offset;
@@ -150,6 +158,9 @@ inline void CSubmissionQueue_DX11::BindConstantBuffer(SHADER_TYPE type, D3DBuffe
 {
 #if DEVICE_MANAGER_IMMEDIATE_STATE_WRITE
 	CCryDeviceContextWrapper& rDeviceContext = gcpRendD3D->GetDeviceContext_Unsynchronized();
+#if DEVICE_MANAGER_USE_TYPE_DELEGATES
+	rDeviceContext.TSSetConstantBuffers(type, slot, 1, &pBuffer);
+#else
 	switch (type)
 	{
 	case TYPE_VS:
@@ -171,6 +182,7 @@ inline void CSubmissionQueue_DX11::BindConstantBuffer(SHADER_TYPE type, D3DBuffe
 		rDeviceContext.CSSetConstantBuffers(slot, 1, &pBuffer);
 		break;
 	}
+#endif
 #else
 	m_CB[type].buffers[slot] = pBuffer;
 	m_CB[type].dirty |= 1 << slot;
@@ -199,6 +211,9 @@ inline void CSubmissionQueue_DX11::BindConstantBuffer(SHADER_TYPE type, D3DBuffe
 	offset = _offset;
 	size = _size;
 	CCryDeviceContextWrapper& rDeviceContext = gcpRendD3D->GetDeviceContext_Unsynchronized();
+#if DEVICE_MANAGER_USE_TYPE_DELEGATES
+	rDeviceContext.TSSetConstantBuffers1(type, slot, 1, &pBuffer, &offset, &size);
+#else
 	switch (type)
 	{
 	case TYPE_VS:
@@ -220,6 +235,7 @@ inline void CSubmissionQueue_DX11::BindConstantBuffer(SHADER_TYPE type, D3DBuffe
 		rDeviceContext.CSSetConstantBuffers1(slot, 1, &pBuffer, &offset, &size);
 		break;
 	}
+#endif
 #else
 	m_CB[type].buffers1[slot] = pBuffer;
 	m_CB[type].offsets[slot] = _offset;
@@ -239,6 +255,9 @@ inline void CSubmissionQueue_DX11::BindSRV(SHADER_TYPE type, D3DShaderResource* 
 {
 #if DEVICE_MANAGER_IMMEDIATE_STATE_WRITE
 	CCryDeviceContextWrapper& rDeviceContext = gcpRendD3D->GetDeviceContext_Unsynchronized();
+#if DEVICE_MANAGER_USE_TYPE_DELEGATES
+	rDeviceContext.TSSetShaderResources(type, slot, 1, &SRV);
+#else
 	switch (type)
 	{
 	case TYPE_VS:
@@ -260,6 +279,7 @@ inline void CSubmissionQueue_DX11::BindSRV(SHADER_TYPE type, D3DShaderResource* 
 		rDeviceContext.CSSetShaderResources(slot, 1, &SRV);
 		break;
 	}
+#endif
 #else
 	const unsigned dirty_base = slot >> SRV_DIRTY_SHIFT;
 	const unsigned dirty_bit = slot & SRV_DIRTY_MASK;
@@ -318,6 +338,9 @@ inline void CSubmissionQueue_DX11::BindSampler(SHADER_TYPE type, D3DSamplerState
 {
 #if DEVICE_MANAGER_IMMEDIATE_STATE_WRITE
 	CCryDeviceContextWrapper& rDeviceContext = gcpRendD3D->GetDeviceContext_Unsynchronized();
+#if DEVICE_MANAGER_USE_TYPE_DELEGATES
+	rDeviceContext.TSSetSamplers(type, slot, 1, &Sampler);
+#else
 	switch (type)
 	{
 	case TYPE_VS:
@@ -339,6 +362,7 @@ inline void CSubmissionQueue_DX11::BindSampler(SHADER_TYPE type, D3DSamplerState
 		rDeviceContext.CSSetSamplers(slot, 1, &Sampler);
 		break;
 	}
+#endif
 #else
 	m_Samplers[type].samplers[slot] = Sampler;
 	m_Samplers[type].dirty |= 1 << slot;
@@ -404,6 +428,9 @@ inline void CSubmissionQueue_DX11::BindShader(SHADER_TYPE type, ID3D11Resource* 
 {
 #if DEVICE_MANAGER_IMMEDIATE_STATE_WRITE
 	CCryDeviceContextWrapper& rDeviceContext = gcpRendD3D->GetDeviceContext_Unsynchronized();
+#if DEVICE_MANAGER_USE_TYPE_DELEGATES
+	rDeviceContext.TSSetShader(type, shader, NULL, 0);
+#else
 	switch (type)
 	{
 	case TYPE_VS:
@@ -425,6 +452,7 @@ inline void CSubmissionQueue_DX11::BindShader(SHADER_TYPE type, ID3D11Resource* 
 		rDeviceContext.CSSetShader((ID3D11ComputeShader*)shader, NULL, 0);
 		break;
 	}
+#endif
 #else
 	m_Shaders[type].shader = shader;
 	m_Shaders[type].dirty = true;

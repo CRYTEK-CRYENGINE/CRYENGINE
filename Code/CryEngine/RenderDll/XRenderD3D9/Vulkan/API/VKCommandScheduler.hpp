@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -40,6 +40,8 @@ public:
 	void SubmitAllCommands(bool bWait, const FVAL64 (&fenceValues)[CMDQUEUE_NUM]);
 
 	void Flush(bool bWait) { SubmitAllCommands(bWait, m_CmdFenceSet.GetCurrentValues()); }
+	void GarbageCollect();
+	void SyncFrame();
 	void EndOfFrame(bool bWait);
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -94,7 +96,7 @@ public:
 private:
 #define FRAME_FENCES         32
 #define FRAME_FENCE_LATENCY  32
-#define FRAME_FENCE_INFLIGHT MAX_FRAMES_IN_FLIGHT
+#define FRAME_FENCE_INFLIGHT std::min(MAX_FRAMES_IN_FLIGHT, CRendererCVars::CV_r_MaxFrameLatency + 1)
 	UINT64                        m_FrameFenceValuesSubmitted[FRAME_FENCES][CMDQUEUE_NUM];
 	UINT64                        m_FrameFenceValuesCompleted[FRAME_FENCES][CMDQUEUE_NUM];
 	ULONG                         m_FrameFenceCursor;

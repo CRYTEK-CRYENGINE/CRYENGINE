@@ -3,21 +3,21 @@
 import sys
 import os.path
 
-has_win_modules = True
+import crysettings
+
+HAS_WIN_MODULES = True
 try:
     import winreg
 except ImportError:
-    has_win_modules = False
+    HAS_WIN_MODULES = False
 
-import crysettings
-
-has_tk = True
+HAS_TK = True
 try:
     import tkinter as tk
     from tkinter import ttk
 except ImportError:
     print("Skipping importing tkinter, because it's not installed.")
-    has_tk = False
+    HAS_TK = False
 
 def select_config(configs):
     """
@@ -25,7 +25,7 @@ def select_config(configs):
     Returns the selected config, or None if no selection was made.
     """
 
-    if not has_tk:
+    if not HAS_TK:
         return None
 
     iconfile = "editor_icon16.ico"
@@ -37,7 +37,7 @@ def select_config(configs):
     root = tk.Tk()
     root.iconbitmap(iconfile)
     app = CryProjgen(configurations=configs, master=root)
-    
+
     center_window(root)
     app.mainloop()
     return app.selected_config
@@ -46,11 +46,11 @@ def center_window(win):
     win.update_idletasks()
     width = win.winfo_width()
     height = win.winfo_height()
-    x = (win.winfo_screenwidth() // 2) - (width // 2)
-    y = (win.winfo_screenheight() // 2) - (height // 2)
-    win.geometry('{}x{}+{}+{}'.format(width, height, x, y))
+    position_x = (win.winfo_screenwidth() // 2) - (width // 2)
+    position_y = (win.winfo_screenheight() // 2) - (height // 2)
+    win.geometry('{}x{}+{}+{}'.format(width, height, position_x, position_y))
 
-if has_tk:
+if HAS_TK:
     class CryProjgen(tk.Frame):
         selected_config = None
 
@@ -58,7 +58,7 @@ if has_tk:
             super().__init__(master)
             self.parent = master
             self.parent.title("CRYENGINE CMake Project Generator")
-            self.parent.minsize(300,100);
+            self.parent.minsize(300, 100)
             self.pack()
             self.configurations = configurations
             self.settings = crysettings.Settings()
@@ -69,9 +69,13 @@ if has_tk:
 
             self.newselection = ''
             self.box_value = tk.StringVar()
-            self.configs_box = ttk.Combobox(self, textvariable=self.box_value,width=40)
+            self.configs_box = ttk.Combobox(self, textvariable=self.box_value, width=40)
 
             self.filtered_configs = self.filter_configs()
+            if not self.filtered_configs:
+                print("Unable to find Visual Studio 2015 or Visual Studio 2017. "
+                      "Make sure either Visual Studio 2015 or Visual Studio 2017 is installed!")
+                self.filtered_configs = self.configurations
             config_list = []
             for config in self.filtered_configs:
                 config_list.append(config['title'])
@@ -108,7 +112,7 @@ if has_tk:
             configs = []
             for config in self.configurations:
                 # If it's not possible to check the registry, just add all options to the list and let the user decide.
-                if not has_win_modules:
+                if not HAS_WIN_MODULES:
                     configs.append(config)
                     continue
 

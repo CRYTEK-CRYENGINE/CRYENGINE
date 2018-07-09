@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 // This file should only be included Once in DLL module.
 
@@ -17,6 +17,27 @@
 
 #include <IRCLog.h>
 #include <CryMath/Random.h>
+
+#if CRY_PLATFORM_WINAPI && defined(CRY_IS_APPLICATION) 
+// This belongs to the ClassFactoryManager::the() singleton in ClassFactory.h and must only exist in executables, not in DLLs.
+#include <CrySerialization/yasli/ClassFactory.h>
+extern "C" DLL_EXPORT yasli::ClassFactoryManager* GetYasliClassFactoryManager()
+{
+#if defined(NOT_USE_CRY_MEMORY_MANAGER)
+	// Cannot be used by code that uses CryMemoryManager as it might not be initialized yet.
+	static yasli::ClassFactoryManager* g_classFactoryManager = nullptr;
+	if (g_classFactoryManager == nullptr)
+	{
+		g_classFactoryManager = new yasli::ClassFactoryManager();
+	}
+	return g_classFactoryManager;
+#else
+	// Cannot be used in Sandbox due as we would create a static while creating a static. MSVC doesn't like that.
+	static yasli::ClassFactoryManager classFactoryManager;
+	return &classFactoryManager;
+#endif
+}
+#endif
 
 struct SSystemGlobalEnvironment;
 SSystemGlobalEnvironment* gEnv = 0;

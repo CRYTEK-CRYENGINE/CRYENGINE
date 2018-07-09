@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -12,10 +12,10 @@ public:
 	CWaterRipplesStage();
 	~CWaterRipplesStage();
 
-	void Init() override;
-	void Prepare(CRenderView* pRenderView) override;
+	void Init() final;
+	void Update() final;
 
-	void Execute(CRenderView* pRenderView);
+	void Execute();
 
 	Vec4 GetWaterRippleLookupParam() const
 	{
@@ -24,12 +24,12 @@ public:
 
 	CTexture* GetWaterRippleTex() const;
 
-	bool IsVisible(CRenderView* pRenderView) const;
+	bool IsVisible() const;
 
 private:
-	bool Update(CRenderView* pRenderView);
-	void ExecuteWaterRipples(CRenderView* pRenderView, CTexture* pTargetTex, const D3DViewPort& viewport);
-	void UpdateAndDrawDebugInfo(CRenderView* pRenderView);
+	bool RefreshParameters();
+	void ExecuteWaterRipples(CTexture* pTargetTex, const D3DViewPort& viewport);
+	void UpdateAndDrawDebugInfo();
 
 private:
 	static const int32                         sVertexCount = 4;
@@ -50,9 +50,16 @@ private:
 		{}
 	};
 
+	struct SWaterRippleConstants
+	{
+		Vec4 params;
+	};
+
 private:
 	_smart_ptr<CTexture>          m_pTexWaterRipplesDDN; // xy: wave propagation normals, z: frame t-2, w: frame t-1
 	_smart_ptr<CTexture>          m_pTempTexture;
+
+	CTypedConstantBuffer<SWaterRippleConstants, 256> m_constants;
 
 	CFullscreenPass               m_passSnapToCenter;
 	CStretchRectPass              m_passCopy;
@@ -69,8 +76,6 @@ private:
 
 	CCryNameTSCRC                 m_ripplesGenTechName;
 	CCryNameTSCRC                 m_ripplesHitTechName;
-	CCryNameR                     m_ripplesParamName;
-	CCryNameR                     m_ripplesTransformParamName;
 
 	int32                         m_frameID;
 
@@ -93,4 +98,6 @@ private:
 #if !defined(_RELEASE)
 	std::vector<SWaterRippleRecord> m_debugRippleInfos;
 #endif
+
+	static constexpr int32 nGridSize = 256;
 };

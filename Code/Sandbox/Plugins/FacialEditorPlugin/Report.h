@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #ifndef __REPORT_H__
 #define __REPORT_H__
@@ -149,3 +149,4 @@ inline void CReport::Clear()
 }
 
 #endif //__REPORT_H__
+

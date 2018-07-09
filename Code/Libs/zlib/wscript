@@ -1,4 +1,4 @@
-# Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+# Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 def build(bld):	
 
@@ -8,20 +8,22 @@ def build(bld):
 		file_list = 'zlib.waf_files',
 		exclude_from_static_code_analyzer = True,
 
-		includes         = [ Path('Code/SDKs/zlib-1.2.8') ],
+		includes         = [ Path('Code/SDKs/zlib-1.2.11') ],
 		module_provides  = dict(
-			includes = [ Path('Code/SDKs/zlib-1.2.8') ],	
+			includes = [ Path('Code/SDKs/zlib-1.2.11') ],	
 		),
 
 		win_defines     = ['_CRT_SECURE_NO_WARNINGS', '_CRT_NONSTDC_NO_DEPRECATE'],
+		win_cflags     = [ '/wd4267' ],
 		
 		darwin_defines 	= ['HAVE_UNISTD_H'],
 		linux_defines 	= ['HAVE_UNISTD_H'],
 		orbis_defines 	= ['HAVE_UNISTD_H'],
-
+		
 		orbis_cflags    = ['-Wno-shift-negative-value'],
 		linux_cflags    = ['-Wno-shift-negative-value'],
 		android_cflags  = ['-Wno-shift-negative-value'],
 		
 		durango_defines = ['_CRT_SECURE_NO_WARNINGS', '_CRT_NONSTDC_NO_DEPRECATE'],
+		durango_cflags     = [ '/wd4267' ],
 	)	

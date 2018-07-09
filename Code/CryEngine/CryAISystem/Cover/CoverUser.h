@@ -1,68 +1,69 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
-
-#ifndef __CoverUser_h__
-#define __CoverUser_h__
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
 #include "Cover.h"
-#include "CoverPath.h"
 
-class CoverUser
+class CoverUser : public ICoverUser
 {
 public:
 	CoverUser();
+	CoverUser(const Params& params);
 
-	struct Params
-	{
-		Params()
-			: distanceToCover(0.4f)
-			, inCoverRadius(0.3f)
-			, userID(0)
-		{
-		}
+	virtual ~CoverUser();
 
-		float       distanceToCover;
-		float       inCoverRadius;
-		tAIObjectID userID;
-	};
+	virtual void           Reset() override;
 
-	void           Reset();
-	void           ResetState();
+	virtual void           SetCoverID(const CoverID& coverID) override;
+	virtual const CoverID& GetCoverID() const override;
 
-	void           SetCoverID(const CoverID& coverID);
-	const CoverID& GetCoverID() const;
+	virtual void           SetNextCoverID(const CoverID& coverID) override;
+	virtual const CoverID& GetNextCoverID() const override;
 
-	void           SetParams(const Params& params);
-	const Params& GetParams() const;
+	virtual void           SetParams(const Params& params) override;
+	virtual const Params&  GetParams() const override;
 
-	void          Update(float updateTime, const Vec3& pos, const Vec3* eyes, uint32 eyeCount, float minEffectiveCoverHeight = 0.001f);
-	void          UpdateWhileMoving(float updateTime, const Vec3& pos, const Vec3* eyes, uint32 eyeCount);
-	void          UpdateNormal(const Vec3& pos);
+	virtual StateFlags     GetState() const override { return m_state; }
+	virtual void           SetState(const StateFlags& state) override { m_state = state; }
 
-	bool          IsCompromised() const;
-	bool          IsFarFromCoverLocation() const;
-	float         CalculateEffectiveHeightAt(const Vec3& pos, const Vec3* eyes, uint32 eyeCount) const;
-	float         GetLocationEffectiveHeight() const;
-	const Vec3& GetCoverNormal() const; // normal pointing out of the cover surface
-	Vec3        GetCoverLocation() const;
+	virtual bool           IsCompromised() const override;
+	virtual float          CalculateEffectiveHeightAt(const Vec3& position, const CoverID& coverId) const override;
+	virtual float          GetLocationEffectiveHeight() const override;
+	virtual Vec3           GetCoverNormal(const Vec3& position) const override;     // normal pointing out of the cover surface
+	virtual Vec3           GetCoverLocation(const CoverID& coverID) const override;
 
-	void        DebugDraw() const;
+	virtual void SetCoverBlacklisted(const CoverID& coverID, bool blacklist, float time) override;
+	virtual bool IsCoverBlackListed(const CoverID& coverId) const override;
+
+	virtual void UpdateCoverEyes() override;
+	virtual const DynArray<Vec3>& GetCoverEyes() const override { return m_eyes; }
+
+	void Update(float timeDelta);
+
+	void          DebugDraw() const;
 
 private:
+	void          UpdateBlacklisted(float timeDelta);
+	bool          UpdateCompromised(const Vec3& coverPos, const Vec3& coverNormal, float minEffectiveCoverHeight = 0.001f);
+	void          UpdateNormal(const Vec3& pos);
+
+	void ResetState();
 	bool IsInCover(const Vec3& pos, float radius, const Vec3* eyes, uint32 eyeCount) const;
 
-	CoverID m_coverID;
-	CoverID m_nextCoverID;
+	typedef std::unordered_map<CoverID, float, stl::hash_uint32> CoverBlacklistMap;
+	typedef DynArray<Vec3> CoverEyes;
 
-	float   m_locationEffectiveHeight;
-	Vec3    m_location;
-	Vec3    m_normal;
+	CoverID           m_coverID;
+	CoverID           m_nextCoverID;
 
-	bool    m_compromised;
-	bool    m_farFromCoverLocation;
+	StateFlags        m_state;
 
-	Params  m_params;
+	float             m_locationEffectiveHeight;
+	float             m_distanceFromCoverLocationSqr;
+
+	bool              m_compromised;
+	Params            m_params;
+
+	CoverEyes         m_eyes;
+	CoverBlacklistMap m_coverBlacklistMap;
 };
-
-#endif

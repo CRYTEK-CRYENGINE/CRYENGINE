@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 namespace pfx2
 {
@@ -51,18 +51,22 @@ ILINE Vec3_tpl<T> MAdd(const Vec3_tpl<T>& a, T b, const Vec3_tpl<T>& c)
 template<typename T>
 ILINE T DeltaTime(T frameTime, T normAge, T lifeTime)
 {
-	T time = __fsel(normAge, 
-		min(frameTime, max(lifeTime - normAge * lifeTime, convert<T>())),  // if normAge >= 0, age = normAge * lifeTime
-		min(-normAge * frameTime, lifeTime)             // if normAge < 0, age = -normAge * frameTime
-	);
-	return time;
+	// Birth time = -age * life
+	// Death time = -age * life + life
+	// Delta time = min(- age * life + life, 0) - max(-age * life, -dT)
+	T age = normAge * lifeTime;
+	T startTime = -min(age, frameTime);
+	T endTime = min(lifeTime - age, convert<T>());
+	T deltaTime = max(endTime - startTime, convert<T>());
+	return deltaTime;
 }
 
 template<typename T>
-ILINE T StartTime(T curTime, T frameTime, T normAge)
+ILINE T StartTime(T curTime, T frameTime, T absAge)
 {
-	// Start time is curTime - frameTime, limited by birth time of newborns
-	return MAdd(min(normAge, convert<T>()), frameTime, curTime);
+	// Birth time = T - age*life
+	// Start time = T - min(age*life, dT)
+	return curTime - min(absAge, frameTime);
 }
 
 

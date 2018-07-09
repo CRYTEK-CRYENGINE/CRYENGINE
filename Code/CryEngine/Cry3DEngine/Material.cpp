@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 // -------------------------------------------------------------------------
 //  File name:   Material.cpp
@@ -152,7 +152,7 @@ void CMatInfo::Release()
 
 //////////////////////////////////////////////////////////////////////////
 
-bool CMatInfo::IsValid()
+bool CMatInfo::IsValid() const
 {
 	return !m_bDeletePending && !m_bDeleted;
 }
@@ -227,7 +227,7 @@ void CMatInfo::SetName(const char* sName)
 }
 
 //////////////////////////////////////////////////////////////////////////
-bool CMatInfo::IsDefault()
+bool CMatInfo::IsDefault() const
 {
 	return this == GetMatMan()->GetDefaultMaterial();
 }
@@ -266,10 +266,13 @@ void CMatInfo::UpdateMaterialFlags()
 		static int nLastUpdateFrameId = 0;
 		if (gEnv->IsEditing() && GetTerrain() && GetVisAreaManager() && nLastUpdateFrameId != GetRenderer()->GetFrameID())
 		{
-			GetTerrain()->MarkAllSectorsAsUncompiled(0);
+			GetTerrain()->MarkAllSectorsAsUncompiled();
 			GetVisAreaManager()->MarkAllSectorsAsUncompiled();
 			nLastUpdateFrameId = GetRenderer()->GetFrameID();
 		}
+
+		if (m_shaderItem.m_pShader && !!(m_shaderItem.m_pShader->GetFlags() & (EF_REFRACTIVE | EF_FORCEREFRACTIONUPDATE)))
+			SetFlags(GetFlags() | MTL_FLAG_REFRACTIVE);
 	}
 }
 
@@ -468,6 +471,14 @@ void CMatInfo::SetSubMtl(int nSlot, IMaterial* pMtl)
 {
 	assert(nSlot >= 0 && nSlot < (int)m_subMtls.size());
 	m_subMtls[nSlot] = (CMatInfo*)pMtl;
+
+	if (pMtl)
+	{
+		const auto& shaderItem = pMtl->GetShaderItem();
+		CRY_ASSERT(shaderItem.m_pShader);
+		if (shaderItem.m_pShader && !!(shaderItem.m_pShader->GetFlags() & (EF_REFRACTIVE | EF_FORCEREFRACTIONUPDATE)))
+			SetFlags(GetFlags() | MTL_FLAG_REFRACTIVE);
+	}
 }
 
 //////////////////////////////////////////////////////////////////////////

@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<PackageManifest Version="2.0.0" xmlns="http://schemas.microsoft.com/developer/vsx-schema/2011" xmlns:d="http://schemas.microsoft.com/developer/vsx-schema-design/2011">
+  <Metadata>
+    <Identity Id="CryEngine.Debugger.Mono" Version="5.5.0.1" Language="en-US" Publisher="Crytek" />
+    <DisplayName>CRYENGINE Mono Debugger</DisplayName>
+    <Description xml:space="preserve">Extension that enables debugging CRYENGINE C# projects.</Description>
+    <Icon>Resources\LogoBlueSmall.png</Icon>
+  </Metadata>
+  <Installation>
+    <InstallationTarget Id="Microsoft.VisualStudio.Community" Version="[15.0,16.0)" />
+  </Installation>
+  <Dependencies >
+  </Dependencies>
+  <Prerequisites>
+    <Prerequisite Id="Microsoft.VisualStudio.Component.CoreEditor" Version="[15.0,16.0)" DisplayName="Visual Studio core editor" />
+    <Prerequisite Id="Microsoft.VisualStudio.Component.MonoDebugger" Version="[4.6,)" DisplayName="Mono debugger" />
+    <Prerequisite Id="Component.Xamarin" Version="[1.0,)" DisplayName="Xamarin" />
+  </Prerequisites>
+  <Assets>
+    <Asset Type="Microsoft.VisualStudio.VsPackage" d:Source="Project" d:ProjectName="%CurrentProject%" Path="|%CurrentProject%;PkgdefProjectOutputGroup|" />
+  </Assets>
+</PackageManifest>

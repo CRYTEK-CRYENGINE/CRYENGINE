@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #ifndef __MEMENTOMEMORYMANAGER_H__
 #define __MEMENTOMEMORYMANAGER_H__
@@ -10,7 +10,7 @@
 
 #ifdef USE_GLOBAL_BUCKET_ALLOCATOR
 	#define MMM_USE_BUCKET_ALLOCATOR            1
-	#define MMM_BUCKET_ALLOCATOR_SIZE           (2 * 1024 * 1024)
+	#define MMM_BUCKET_ALLOCATOR_SIZE           (4 * 1024 * 1024)
 	#define LOG_BUCKET_ALLOCATOR_HIGH_WATERMARK 0
 #else
 	#define MMM_USE_BUCKET_ALLOCATOR            0

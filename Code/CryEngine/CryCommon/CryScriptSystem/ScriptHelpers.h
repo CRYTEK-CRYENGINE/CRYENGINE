@@ -1,18 +1,7 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
-// -------------------------------------------------------------------------
-//  File name:   ScriptHelpers.h
-//  Version:     v1.00
-//  Created:     30/7/2004 by Timur.
-//  Compilers:   Visual Studio.NET 2003
-//  Description:
-// -------------------------------------------------------------------------
-//  History:
-//
-////////////////////////////////////////////////////////////////////////////
+//! \cond INTERNAL
 
-#ifndef __ScriptHelpers_h__
-#define __ScriptHelpers_h__
 #pragma once
 
 #include <CryString/StringUtils.h>  // cry_strcpy()
@@ -840,4 +829,4 @@ private:
 	}
 };
 
-#endif // __ScriptHelpers_h__
+//! \endcond

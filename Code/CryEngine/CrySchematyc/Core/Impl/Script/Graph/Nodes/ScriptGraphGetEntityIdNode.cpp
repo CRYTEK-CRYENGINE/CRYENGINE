@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "Script/Graph/Nodes/ScriptGraphGetEntityIdNode.h"
@@ -28,7 +28,7 @@ void CScriptGraphGetEntityIdNode::CreateLayout(CScriptGraphNodeLayout& layout)
 	layout.SetName("GetEntityId");
 	layout.SetStyleId("Core::Data");
 	
-	layout.AddOutputWithData("EntityId", GetTypeDesc<ExplicitEntityId>().GetGUID(), { EScriptGraphPortFlags::Data, EScriptGraphPortFlags::MultiLink, EScriptGraphPortFlags::Pull }, ObjectId());
+	layout.AddOutputWithData("Entity", GetTypeDesc<ExplicitEntityId>().GetGUID(), { EScriptGraphPortFlags::Data, EScriptGraphPortFlags::MultiLink, EScriptGraphPortFlags::Pull }, ExplicitEntityId(INVALID_ENTITYID));
 }
 
 void CScriptGraphGetEntityIdNode::Compile(SCompilerContext& context, IGraphNodeCompiler& compiler) const
@@ -50,7 +50,7 @@ void CScriptGraphGetEntityIdNode::Register(CScriptGraphNodeFactory& factory)
 
 			virtual const char* GetBehavior() const override
 			{
-				return "GetEntityId";
+				return "GetEntity";
 			}
 
 			virtual const char* GetSubject() const override
@@ -60,7 +60,7 @@ void CScriptGraphGetEntityIdNode::Register(CScriptGraphNodeFactory& factory)
 
 			virtual const char* GetDescription() const override
 			{
-				return "Get id of this Entity";
+				return "Gets the Entity we are attached to";
 			}
 
 			virtual const char* GetStyleId() const override

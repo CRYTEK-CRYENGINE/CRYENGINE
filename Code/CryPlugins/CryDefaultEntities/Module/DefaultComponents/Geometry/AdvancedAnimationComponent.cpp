@@ -89,7 +89,7 @@ namespace Cry
 			ResetCharacter();
 		}
 
-		void CAdvancedAnimationComponent::ProcessEvent(SEntityEvent& event)
+		void CAdvancedAnimationComponent::ProcessEvent(const SEntityEvent& event)
 		{
 			if (event.event == ENTITY_EVENT_UPDATE)
 			{
@@ -167,24 +167,30 @@ namespace Cry
 
 		uint64 CAdvancedAnimationComponent::GetEventMask() const
 		{
-			uint64 bitFlags = CBaseMeshComponent::GetEventMask() | BIT64(ENTITY_EVENT_COMPONENT_PROPERTY_CHANGED);
+			uint64 bitFlags = CBaseMeshComponent::GetEventMask() | ENTITY_EVENT_BIT(ENTITY_EVENT_COMPONENT_PROPERTY_CHANGED);
 
 			if (m_pPoseAligner != nullptr)
 			{
-				bitFlags |= BIT64(ENTITY_EVENT_UPDATE);
+				bitFlags |= ENTITY_EVENT_BIT(ENTITY_EVENT_UPDATE);
 			}
 
 			if (m_pActionController != nullptr)
 			{
-				bitFlags |= BIT64(ENTITY_EVENT_UPDATE) | BIT64(ENTITY_EVENT_ANIM_EVENT);
+				bitFlags |= ENTITY_EVENT_BIT(ENTITY_EVENT_UPDATE) | ENTITY_EVENT_BIT(ENTITY_EVENT_ANIM_EVENT);
 			}
 
 			return bitFlags;
 		}
 
-		void CAdvancedAnimationComponent::SetCharacterFile(const char* szPath)
+		void CAdvancedAnimationComponent::SetCharacterFile(const char* szPath, bool applyImmediately)
 		{
 			m_characterFile = szPath;
+			LoadFromDisk();
+
+			if (applyImmediately)
+			{
+				ResetCharacter();
+			}
 		}
 
 		void CAdvancedAnimationComponent::SetMannequinAnimationDatabaseFile(const char* szPath)

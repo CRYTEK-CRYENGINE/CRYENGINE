@@ -1,14 +1,19 @@
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
+
 #include "StdAfx.h"
 #include "MonoDomain.h"
 
 #include "MonoRuntime.h"
 #include "MonoLibrary.h"
 #include "MonoString.h"
+#include "RootMonoDomain.h"
 
 #include <CrySystem/IProjectManager.h>
 
 CMonoDomain::~CMonoDomain()
 {
+	UnloadAssemblies();
+
 	// Destroy libraries in reverse order, to resolve dependency issues
 	for (auto it = m_loadedLibraries.rbegin(); it != m_loadedLibraries.rend(); ++it)
 	{
@@ -18,6 +23,8 @@ CMonoDomain::~CMonoDomain()
 
 	// Destroy the domain
 	Unload();
+
+	CleanTempDirectory();
 }
 
 bool CMonoDomain::Activate(bool bForce)
@@ -40,6 +47,28 @@ std::shared_ptr<CMonoString> CMonoDomain::CreateString(MonoInternals::MonoString
 	return std::make_shared<CMonoString>(pManagedString);
 }
 
+string CMonoDomain::TempDirectoryPath()
+{
+#ifdef CRY_PLATFORM_WINDOWS 
+	TCHAR tempPath[MAX_PATH];
+	GetTempPathA(MAX_PATH, tempPath);
+
+	string folderName = PathUtil::Make(tempPath, "CE_ManagedBinaries");
+	int instance = gEnv->pSystem->GetApplicationInstance();
+
+	if (instance != 0)
+	{
+		return folderName.AppendFormat("(%d)\\", instance);
+	}
+	else
+	{
+		return folderName.Append("\\");
+	}
+#else
+#pragma error("TODO: Implement for other platforms");
+#endif
+}
+
 void CMonoDomain::Unload()
 {
 	// Make sure we don't try to unload a domain that came from the managed side
@@ -58,7 +87,7 @@ void CMonoDomain::Unload()
 			MonoInternals::mono_domain_set(MonoInternals::mono_get_root_domain(), true);
 		}
 
-		//MonoInternals::mono_domain_finalize(m_pDomain, 2000);
+		MonoInternals::mono_domain_finalize(m_pDomain, 2000);
 
 		MonoInternals::MonoObject *pException;
 		try
@@ -77,7 +106,22 @@ void CMonoDomain::Unload()
 	}
 }
 
-CMonoLibrary* CMonoDomain::LoadLibrary(const char* path)
+void CMonoDomain::CacheObjectMethods()
+{
+	std::shared_ptr<CMonoClass> pObjectClass = GetMonoRuntime()->GetRootDomain()->GetNetCoreLibrary().GetTemporaryClass("System", "Object");
+	m_pReferenceEqualsMethod = pObjectClass->FindMethod("ReferenceEquals", 2);
+
+	if (std::shared_ptr<CMonoMethod> pReferenceEqualsMethod = m_pReferenceEqualsMethod.lock())
+	{
+		m_referenceEqualsThunk = static_cast<ReferenceEqualsFunction>(pReferenceEqualsMethod->GetUnmanagedThunk());
+	}
+	else
+	{
+		m_referenceEqualsThunk = nullptr;
+	}
+}
+
+CMonoLibrary* CMonoDomain::LoadLibrary(const char* path, int loadIndex)
 {
 	string sPath = path;
 	if (strcmp("dll", PathUtil::GetExt(sPath.c_str())))
@@ -98,7 +142,7 @@ CMonoLibrary* CMonoDomain::LoadLibrary(const char* path)
 	m_loadedLibraries.emplace_back(stl::make_unique<CMonoLibrary>(sPath, this));
 	
 	// Pass image data to the library, it has to be deleted when the assembly is done
-	if (m_loadedLibraries.back()->Load())
+	if (m_loadedLibraries.back()->Load(loadIndex))
 	{
 		return m_loadedLibraries.back().get();
 	}
@@ -110,19 +154,42 @@ CMonoLibrary* CMonoDomain::LoadLibrary(const char* path)
 	return nullptr;
 }
 
-CMonoLibrary* CMonoDomain::GetLibraryFromMonoAssembly(MonoInternals::MonoAssembly* pAssembly)
+CMonoLibrary& CMonoDomain::GetLibraryFromMonoAssembly(MonoInternals::MonoAssembly* pAssembly, MonoInternals::MonoImage* pImage)
 {
 	for (const std::unique_ptr<CMonoLibrary>& pLibrary : m_loadedLibraries)
 	{
 		if (pLibrary.get()->GetAssembly() == pAssembly)
 		{
-			return pLibrary.get();
+			return *pLibrary.get();
+		}
+		else if (pLibrary.get()->GetImage() == pImage)
+		{
+			if (pAssembly != nullptr && pLibrary.get()->GetAssembly() == nullptr)
+			{
+				pLibrary.get()->SetAssembly(pAssembly);
+			}
+
+			return *pLibrary.get();
 		}
 	}
 
 	MonoInternals::MonoAssemblyName* pAssemblyName = MonoInternals::mono_assembly_get_name(pAssembly);
 	string assemblyPath = MonoInternals::mono_assembly_name_get_name(pAssemblyName);
 	
-	m_loadedLibraries.emplace_back(stl::make_unique<CMonoLibrary>(pAssembly, assemblyPath, this));
-	return m_loadedLibraries.back().get();
+	m_loadedLibraries.emplace_back(stl::make_unique<CMonoLibrary>(pAssembly, pImage, assemblyPath, this));
+	return *m_loadedLibraries.back().get();
+}
+
+void CMonoDomain::UnloadAssemblies()
+{
+	for (auto it = m_loadedLibraries.rbegin(); it != m_loadedLibraries.rend(); ++it)
+	{
+		it->get()->Unload();
+	}
+}
+
+void CMonoDomain::CleanTempDirectory()
+{
+	string tempDirectory = TempDirectoryPath();
+	gEnv->pCryPak->RemoveDir(tempDirectory.c_str(), true);
 }

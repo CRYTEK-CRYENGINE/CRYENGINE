@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 // #SchematycTODO : Separate into two classes: CAnyArray and CAnyArrayPtr!!!
 // #SchematycTODO : Implement comparison operators?

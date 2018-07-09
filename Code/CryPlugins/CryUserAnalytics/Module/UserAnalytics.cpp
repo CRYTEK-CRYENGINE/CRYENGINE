@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 
@@ -435,6 +435,7 @@ void CUserAnalytics::PrepareAndSendEvents()
 	static ICVar* const cv_collect = gEnv->pConsole->GetCVar("sys_UserAnalyticsCollect");
 	if (cv_collect && cv_collect->GetIVal() == 0)
 	{
+		m_messages.clear();
 		return;
 	}
 

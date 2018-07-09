@@ -1,9 +1,11 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
+
 #pragma once
 
 #include <CryNetwork/INetwork.h>
 #include <CryEntitySystem/IEntityComponent.h>
 #include <CryMemory/PoolAllocator.h>
+#include <CryGame/IGameFramework.h>
 
 template<size_t N>
 stl::PoolAllocator<N>& GetRMIAllocator()
@@ -12,6 +14,7 @@ stl::PoolAllocator<N>& GetRMIAllocator()
 	return allocator;
 }
 
+// \cond INTERNAL
 namespace CryRmi {
 
 template<class User, class Param>
@@ -114,6 +117,7 @@ private:
 };
 
 } // namespace
+//! \endcond
 
 // -----------------------------------------------------------------------------
 template<class F, F>
@@ -122,6 +126,8 @@ struct SRmi;
 //! This is an intermediate class for RMI support in game components.
 //! It allows the game code to register remote invocations while preserving
 //! the type safety of the callback.
+//! \par Example
+//! \include CryEntitySystem/Examples/ComponentRemoteMethodInvocation.cpp
 template <class User, class Param, CryRmi::RmiCallback<User, Param> fn>
 struct SRmi<CryRmi::RmiCallback<User, Param>, fn>
 {

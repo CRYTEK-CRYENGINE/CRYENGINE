@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #ifndef _DevBuffer_H_
 #define _DevBuffer_H_
@@ -45,11 +45,10 @@ typedef uintptr_t buffer_handle_t;
 typedef uint32    item_handle_t;
 
 ////////////////////////////////////////////////////////////////////////////////////////
-struct SDescriptorBlock : SUsageTrackedItem<DEVRES_TRACK_LATENCY>
+struct SDescriptorBlock
 {
 	SDescriptorBlock(uint32 id)
-		: SUsageTrackedItem(0)
-		, blockID(id)
+		: blockID(id)
 		, pBuffer(NULL)
 		, size(0)
 		, offset(~0u)
@@ -63,7 +62,7 @@ struct SDescriptorBlock : SUsageTrackedItem<DEVRES_TRACK_LATENCY>
 };
 
 #if (CRY_RENDERER_VULKAN >= 10)
-struct SDescriptorSet : SUsageTrackedItem<DEVRES_TRACK_LATENCY>
+struct SDescriptorSet
 {
 	SDescriptorSet()
 		: vkDescriptorSet(VK_NULL_HANDLE)
@@ -114,7 +113,7 @@ public:
 		if (CryInterlockedDecrement(&m_nRefCount) == 0)
 			ReturnToPool();
 	}
-
+	
 	inline D3DBuffer* GetD3D() const
 	{
 		return m_buffer->GetBuffer();
@@ -139,7 +138,7 @@ public:
 
 	void* BeginWrite();
 	void  EndWrite(bool requires_flush = false);
-	void  UpdateBuffer(const void* src, buffer_size_t size, buffer_size_t offset = 0, int numDataBlocks = 1); // See CDeviceManager::UploadContents for details on numDataBlocks
+	bool  UpdateBuffer(const void* src, buffer_size_t size, buffer_size_t offset = 0, int numDataBlocks = 1); // See CDeviceManager::UploadContents for details on numDataBlocks
 
 	bool  IsNullBuffer() const { return m_size == 0; }
 
@@ -160,7 +159,7 @@ public:
 	buffer_size_t      GetSize() const { return m_size; }
 
 protected:
-	virtual void DeleteThis() override { delete this; }
+	virtual void DeleteThis() const override { delete this; }
 
 private:
 	buffer_size_t                                      m_size;
@@ -197,15 +196,6 @@ class CDeviceBufferManager
 	////////////////////////////////////////////////////////////////////////////////////////
 	// Debug consistency functions
 	// Should only be called from the below befriended function! Please do not abuse!
-#if defined(CD3D9RENDERER_DEBUG_CONSISTENCY_CHECK)
-	// Wanted to only expose the actual function using these, however impossible to forward declare a method
-	// without including the full renderer here
-	friend class CD3D9Renderer;
-	void* BeginReadDirectIB(D3DIndexBuffer*, buffer_size_t size, buffer_size_t offset);
-	void* BeginReadDirectVB(D3DVertexBuffer*, buffer_size_t size, buffer_size_t offset);
-	void  EndReadDirectIB(D3DIndexBuffer*);
-	void  EndReadDirectVB(D3DVertexBuffer*);
-#endif
 
 	friend class CGuardedDeviceBufferManager;
 	friend class CSubmissionQueue_DX11;
@@ -219,6 +209,8 @@ class CDeviceBufferManager
 	void            EndReadWrite_Locked(buffer_handle_t handle);
 	bool            UpdateBuffer_Locked(buffer_handle_t handle, const void*, buffer_size_t, buffer_size_t = 0);
 	buffer_size_t   Size_Locked(buffer_handle_t);
+	
+	CConstantBuffer* CreateConstantBufferRaw(buffer_size_t size, bool dynamic = true, bool needslock = false);
 
 public:
 	CDeviceBufferManager();
@@ -264,7 +256,6 @@ public:
 
 	////////////////////////////////////////////////////////////////////////////////////////
 	// ConstantBuffer creation
-	CConstantBuffer*          CreateConstantBufferRaw(buffer_size_t size, bool dynamic = true, bool needslock = false);
 	inline CConstantBufferPtr CreateConstantBuffer(buffer_size_t size, bool dynamic = true, bool needslock = false)
 	{
 		CConstantBufferPtr result;
@@ -505,25 +496,15 @@ public:
 
 class CGpuBuffer : NoCopy, public CResourceBindingInvalidator
 {
-private:
-	struct STrackedDeviceBuffer : public SUsageTrackedItem<DEVRES_TRACK_LATENCY>
-	{
-		STrackedDeviceBuffer(CDeviceBuffer* pBuffer) 
-			: pDeviceBuffer(pBuffer)
-		{}
-
-		CDeviceBuffer* pDeviceBuffer;
-	};
 
 public:
-	CGpuBuffer(int maxBufferCopies = -1, CDeviceBuffer* devBufToOwn = nullptr)
+	CGpuBuffer(CDeviceBuffer* devBufToOwn = nullptr)
 		: m_pDeviceBuffer(nullptr)
 		, m_elementCount(0)
 		, m_elementSize(0)
 		, m_eFlags(0)
 		, m_eMapMode(D3D11_MAP(0))
 		, m_bLocked(false)
-		, m_MaxBufferCopies(maxBufferCopies)
 	{
 		if (devBufToOwn)
 		{
@@ -555,7 +536,6 @@ private:
 
 	void               PrepareUnusedBuffer();
 
-	std::queue<STrackedDeviceBuffer> m_deviceBufferPool;
 	CDeviceBuffer*                   m_pDeviceBuffer;
 
 	buffer_size_t                    m_elementCount;
@@ -566,7 +546,6 @@ private:
 	DXGI_FORMAT                      m_eFormat;
 	
 	bool                             m_bLocked;
-	int                              m_MaxBufferCopies;
 
 };
 

@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 /*************************************************************************
 
@@ -139,11 +139,11 @@ namespace Stereo3D
       m_closestCastDist = 10000.f;
       m_numFramesWaiting = m_numResults = 0;
 
-      const CCamera& camera = gEnv->pRenderer->GetCamera();
+      const CCamera& camera = GetISystem()->GetViewCamera();
       Vec3 camPos = camera.GetPosition();
       Ang3 angles = camera.GetAngles();
       Vec3 rayDirs[Stereo3D::Weapon::MAX_RAY_IDS] = {
-        gEnv->pRenderer->GetCamera().GetViewdir(),
+        GetISystem()->GetViewCamera().GetViewdir(),
         Quat::CreateRotationXYZ(Ang3(angles.y - camera.GetFov() * 0.25f,angles.z - camera.GetHorizontalFov() * 0.25f,angles.x)).GetColumn1(),
         Quat::CreateRotationXYZ(Ang3(angles.y,angles.z + camera.GetHorizontalFov() * 0.25f,angles.x)).GetColumn1(),
         Quat::CreateRotationXYZ(Ang3(angles.y,angles.z - camera.GetHorizontalFov() * 0.25f,angles.x)).GetColumn1(),

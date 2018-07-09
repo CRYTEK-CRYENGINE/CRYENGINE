@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 /*************************************************************************
 -------------------------------------------------------------------------
@@ -225,9 +225,9 @@ void CJaw::OnReset()
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CJaw::ProcessEvent(SEntityEvent &event)
+void CJaw::ProcessEvent(const SEntityEvent& event)
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_GAME);
+	CRY_PROFILE_FUNCTION(PROFILE_GAME);
 
 	BaseClass::ProcessEvent(event);
 

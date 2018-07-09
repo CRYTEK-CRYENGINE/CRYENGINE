@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 /*************************************************************************
    -------------------------------------------------------------------------
@@ -17,10 +17,11 @@
 #include <CryParticleSystem/IParticles.h>
 #include <CrySystem/ITimer.h>
 #include "BreakableManager.h"
+#include "Entity.h"
 
 template<class T> struct triplet
 {
-	triplet(T* ptr) { pdata = ptr; }
+	explicit triplet(T* ptr) { pdata = ptr; }
 	void set(const T& v0, const T& v1, const T& v2) { pdata[0] = v0; pdata[1] = v1; pdata[2] = v2; }
 	T*   pdata;
 };
@@ -31,19 +32,25 @@ float CBreakablePlane::g_maxPieceLifetime = 0;
 int UpdateBrokenMat(IMaterial* pRenderMat, int idx, const char* substName)
 {
 	IMaterial* pSubMtl, * pSubMtl1;
-	int i, len;
-	const char* name, * name1;
 	if (pRenderMat)
+	{
+		int len;
+		const char* name;
+
 		/*if ((pSubMtl=pRenderMat->GetSubMtl(idx+1)) && strstr(pSubMtl->GetName(), "broken"))
 		   idx++;
 		   else*/if ((pSubMtl = pRenderMat->GetSubMtl(idx)) && (len = strlen(name = pSubMtl->GetName())) && (len < 7 || strcmp(name + len - 7, "_broken")))
 		{
+			int i;
 			for (i = pRenderMat->GetSubMtlCount() - 1; i >= 0; i--)
+			{
+				const char* name1;
 				if ((pSubMtl1 = pRenderMat->GetSubMtl(i)) && !strnicmp(name1 = pSubMtl1->GetName(), name, len) && !strcmp(name1 + len, "_broken"))
 				{
 					idx = i;
 					break;
 				}
+			}
 			if (i < 0 && *substName)
 			{
 				for (i = pRenderMat->GetSubMtlCount() - 1; i >= 0; i--)
@@ -62,36 +69,32 @@ int UpdateBrokenMat(IMaterial* pRenderMat, int idx, const char* substName)
 					idx = i;
 			}
 		}
+	}
 	return idx;
 }
 
 bool CBreakablePlane::SetGeometry(IStatObj* pStatObj, IMaterial* pRenderMat, int bStatic, int seed)
 {
-	int i, j, nVtx = 0, idir, i0, j0, i1, iup, iter0, iter1, ibest[2] = { -1, -1 };
-	Vec3 n, pt, c, sz, axis;
-	float mincos, maxcos, cosa, maxarea[2] = { 1E-15f, 1E-15f };
-	primitives::box bbox;
-	phys_geometry* pPhysGeom;
-	mesh_data* pPhysMesh;
-	CMesh* pMesh;
-	Vec2* pVtx = 0;
 	m_bStatic = bStatic;
 
-	if ((pPhysGeom = pStatObj->GetPhysGeom()))
+	if (phys_geometry* pPhysGeom = pStatObj->GetPhysGeom())
 	{
+		std::vector<Vec2> vertices;
+
+		primitives::box bbox;
 		pPhysGeom->pGeom->GetBBox(&bbox);
-		iup = idxmin3((float*)&bbox.size);
+		int iup = idxmin3((float*)&bbox.size);
 		if (min(bbox.size[inc_mod3[iup]], bbox.size[dec_mod3[iup]]) < bbox.size[iup] * 4)
 		{
 			CryLog("[Breakable2d] : geometry is not thin enough, breaking denied ( %s %s)", pStatObj->GetFilePath(), pStatObj->GetGeoName());
 			return false;
 		}
 		bbox.size[iup] = max(bbox.size[iup], m_cellSize * 0.01f);
-		axis = bbox.Basis.GetRow(iup);
+		Vec3 axis = bbox.Basis.GetRow(iup);
 		if (iup != 2)
 		{
-			n = bbox.Basis.GetRow(inc_mod3[iup]);
-			c = bbox.Basis.GetRow(dec_mod3[iup]);
+			Vec3 n = bbox.Basis.GetRow(inc_mod3[iup]);
+			Vec3 c = bbox.Basis.GetRow(dec_mod3[iup]);
 			bbox.Basis.SetRow(0, n);
 			bbox.Basis.SetRow(1, c);
 			bbox.Basis.SetRow(2, axis);
@@ -114,14 +117,16 @@ bool CBreakablePlane::SetGeometry(IStatObj* pStatObj, IMaterial* pRenderMat, int
 
 		if (pPhysGeom->pGeom->GetType() == GEOM_TRIMESH)
 		{
-			pPhysMesh = (mesh_data*)pPhysGeom->pGeom->GetData();
+			const mesh_data* pPhysMesh = static_cast<const mesh_data*>(pPhysGeom->pGeom->GetData());
 			if (pPhysMesh->pMats)
-				for (i = 1; i < pPhysMesh->nTris; i++)
+				for (int i = 1; i < pPhysMesh->nTris; i++)
 					if (pPhysMesh->pMats[i] != pPhysMesh->pMats[0])
 					{
-						CryLogAlways("[Breakable2d] : geometry has several submaterials, breaking denied ( %s %s)", pStatObj->GetFilePath(), pStatObj->GetGeoName());
+						CryLogAlways("[Breakable2d] : geometry has several sub materials, breaking denied ( %s %s)", pStatObj->GetFilePath(), pStatObj->GetGeoName());
 						return false;
 					}
+			int i;
+			int j;
 			for (i = 0; i < pPhysMesh->nTris; i++)
 				if (fabs_tpl(pPhysMesh->pNormals[i] * axis) > 0.95f)
 				{
@@ -130,37 +135,41 @@ bool CBreakablePlane::SetGeometry(IStatObj* pStatObj, IMaterial* pRenderMat, int
 						;
 					if (j < 3) break;
 				}
-			i0 = i;
+			int i0 = i;
+			float mincos, maxcos, cosa;
+
 			if (i < pPhysMesh->nTris)
 			{
 				mincos = (float)sgnnz(pPhysMesh->pNormals[i] * axis);
 				m_R.SetColumn(2, m_R.GetColumn(2) * mincos);
 				m_R.SetColumn(0, m_R.GetColumn(0) * mincos);
 				axis *= mincos;
-				mincos = maxcos = pPhysMesh->pNormals[i] * axis;
-				j0 = j;
-				iter1 = 0;
+				maxcos = mincos = pPhysMesh->pNormals[i] * axis;
+				int j0 = j;
+				int iter1 = 0;
+				int nVtx = 0;
 				do
 				{
 					// cppcheck-suppress memleakOnRealloc
-					if (!(nVtx & 31)) pVtx = (Vec2*)realloc(pVtx, (nVtx + 32) * sizeof(pVtx[0]));
-					pVtx[nVtx++] = Vec2((pPhysMesh->pVertices[pPhysMesh->pIndices[i * 3 + j]] - m_center) * m_R);
-					for (iter0 = 0; iter0 < pPhysMesh->nTris; iter0++)
+					if (!(nVtx & 31)) vertices.resize(nVtx + 32);
+					vertices[nVtx++] = Vec2((pPhysMesh->pVertices[pPhysMesh->pIndices[i * 3 + j]] - m_center) * m_R);
+					for (int iter0 = 0; iter0 < pPhysMesh->nTris; iter0++)
 					{
 						j = inc_mod3[j];
+						int i1;
 						if ((i1 = pPhysMesh->pTopology[i].ibuddy[j]) < 0 || pPhysMesh->pNormals[i1] * pPhysMesh->pNormals[i] < 0.97f)
 							break;
 						for (j = 0; j < 2 && pPhysMesh->pTopology[i1].ibuddy[j] != i; j++)
 							;
 						i = i1;
-						mincos = min(mincos, cosa = pPhysMesh->pNormals[i] * axis);
+						cosa = pPhysMesh->pNormals[i] * axis;
+						mincos = min(mincos, cosa);
 						maxcos = max(maxcos, cosa);
 					}
 				}
 				while (++iter1 <= pPhysMesh->nTris * 3 && (i != i0 || j != j0));
 				if (iter1 > pPhysMesh->nTris * 3)
 				{
-					free(pVtx);
 					return false;
 				}
 			}
@@ -169,7 +178,6 @@ bool CBreakablePlane::SetGeometry(IStatObj* pStatObj, IMaterial* pRenderMat, int
 
 			if (mincos < 0.5f || (cosa = sqrt_tpl(1.0f - min(0.999f, sqr(mincos))) * maxcos - sqrt_tpl(1.0f - min(0.999f, sqr(maxcos))) * mincos) > 0.7f)
 			{
-				free(pVtx);
 				return false;
 
 			}
@@ -185,44 +193,44 @@ bool CBreakablePlane::SetGeometry(IStatObj* pStatObj, IMaterial* pRenderMat, int
 		}
 		else
 		{
-			pVtx = (Vec2*)malloc(4 * sizeof(pVtx[0]));
-			nVtx = 4;
-			for (i = 0; i < 4; i++)
-				pVtx[i].set(bbox.size[inc_mod3[iup]] * (((i ^ i * 2) & 2) - 1), bbox.size[dec_mod3[iup]] * ((i & 2) - 1));
+			vertices.resize(4);
+			for (int i = 0; i < 4; i++)
+				vertices[i].set(bbox.size[inc_mod3[iup]] * (((i ^ i * 2) & 2) - 1), bbox.size[dec_mod3[iup]] * ((i & 2) - 1));
 		}
 		if (!pStatObj->GetIndexedMesh(true))
 		{
-			free(pVtx);
 			return false;
 		}
 
-		pMesh = pStatObj->GetIndexedMesh(true)->GetMesh();
+		CMesh* pMesh = pStatObj->GetIndexedMesh(true)->GetMesh();
 		assert(pMesh->m_pPositionsF16 == 0);
 
 		m_thicknessOrg = bbox.size[iup];
 		bbox.size[iup] = max(bbox.size[iup], 0.005f);
 		m_z[0] = -bbox.size[iup];
 		m_z[1] = bbox.size[iup];
+
+		int ibest[2] = { -1, -1 };
+		float maxarea[2] = { 1E-15f, 1E-15f };
+
+		const int indexCount = pMesh->GetIndexCount();
+		for (int i = 0; i < indexCount; i += 3)
 		{
-			const int indexCount = pMesh->GetIndexCount();
-			for (i = 0; i < indexCount; i += 3)
-			{
-				n = pMesh->m_pPositions[pMesh->m_pIndices[i + 1]] - pMesh->m_pPositions[pMesh->m_pIndices[i]] ^
-				    pMesh->m_pPositions[pMesh->m_pIndices[i + 2]] - pMesh->m_pPositions[pMesh->m_pIndices[i]];
-				for (idir = 0; idir < 2; idir++)
-					if (sqr_signed(n * axis) * (idir * 2 - 1) > n.len2() * sqr(0.95f) && n.len2() > maxarea[idir])
-						maxarea[idir] = n.len2(), ibest[idir] = i;
-			}
+			Vec3 n = pMesh->m_pPositions[pMesh->m_pIndices[i + 1]] - pMesh->m_pPositions[pMesh->m_pIndices[i]] ^
+			         pMesh->m_pPositions[pMesh->m_pIndices[i + 2]] - pMesh->m_pPositions[pMesh->m_pIndices[i]];
+			for (int idir = 0; idir < 2; idir++)
+				if (sqr_signed(n * axis) * (idir * 2 - 1) > n.len2() * sqr(0.95f) && n.len2() > maxarea[idir])
+					maxarea[idir] = n.len2(), ibest[idir] = i;
 		}
 		if (ibest[0] < 0 && ibest[1] < 0)
 			ibest[0] = ibest[1] = 0;
 		m_bOneSided = 0;
 
-		for (idir = 0; idir < 2; idir++)
+		for (int idir = 0; idir < 2; idir++)
 		{
 			if (ibest[idir] < 0)
 				ibest[idir] = ibest[idir ^ 1], m_bOneSided = 1;
-			for (i = 0; i < 3; i++)
+			for (int i = 0; i < 3; i++)
 			{
 				m_ptRef[idir][i] = Vec2((pMesh->m_pPositions[pMesh->m_pIndices[ibest[idir] + i]] - m_center) * m_R);
 				m_texRef[idir][i] = pMesh->m_pTexCoord[pMesh->m_pIndices[ibest[idir] + i]];
@@ -231,13 +239,13 @@ bool CBreakablePlane::SetGeometry(IStatObj* pStatObj, IMaterial* pRenderMat, int
 			m_refArea[idir] = (idir * 2 - 1) / sqrt_tpl(maxarea[idir]);
 		}
 		if (m_pGeom)
-			for (idir = 0; idir < 2; idir++)
+			for (int idir = 0; idir < 2; idir++)
 			{
-				n = pMesh->m_pPositions[pMesh->m_pIndices[ibest[idir] + 1]] - pMesh->m_pPositions[pMesh->m_pIndices[ibest[idir]]] ^
-				    pMesh->m_pPositions[pMesh->m_pIndices[ibest[idir] + 2]] - pMesh->m_pPositions[pMesh->m_pIndices[ibest[idir]]];
+				Vec3 n = pMesh->m_pPositions[pMesh->m_pIndices[ibest[idir] + 1]] - pMesh->m_pPositions[pMesh->m_pIndices[ibest[idir]]] ^
+				         pMesh->m_pPositions[pMesh->m_pIndices[ibest[idir] + 2]] - pMesh->m_pPositions[pMesh->m_pIndices[ibest[idir]]];
 
 				Matrix33 R = Matrix33::CreateRotationV0V1(n.GetNormalized(), axis * (float)(idir * 2 - 1));
-				for (i = 0; i < 3; i++)
+				for (int i = 0; i < 3; i++)
 				{
 					m_TangentRef[idir][i].RotateBy(R);
 				}
@@ -245,14 +253,14 @@ bool CBreakablePlane::SetGeometry(IStatObj* pStatObj, IMaterial* pRenderMat, int
 		m_pMat = pStatObj->GetMaterial();
 		if (pMesh->m_subsets.size() > 0)
 		{
+			int i;
 			for (i = 0; i < pMesh->m_subsets.size() - 1 && pMesh->m_subsets[i].nNumIndices == 0; i++)
 				;
 			m_matSubindex = UpdateBrokenMat(pRenderMat, pMesh->m_subsets[i].nMatID, m_mtlSubstName);
 			m_matFlags = pMesh->m_subsets[i].nMatFlags;
 		}
 		IGeomManager* pGeoman = gEnv->pPhysicalWorld->GetGeomManager();
-		m_pGrid = pGeoman->GenerateBreakableGrid(pVtx, nVtx, m_nCells, m_bStatic, seed);
-		free(pVtx);
+		m_pGrid = pGeoman->GenerateBreakableGrid(vertices.data(), vertices.size(), m_nCells, m_bStatic, seed);
 		pStatObj->FreeIndexedMesh();
 		//pPhysGeom->pGeom->SetForeignData(this,1);
 	}
@@ -262,13 +270,9 @@ bool CBreakablePlane::SetGeometry(IStatObj* pStatObj, IMaterial* pRenderMat, int
 
 void CBreakablePlane::FillVertexData(CMesh* pMesh, int ivtx, const Vec2& pos, int iside)
 {
-	int i, ncont;
-	float k;
-	Quat qnRot;
-	qnRot.SetIdentity();
-	Vec2 Coord(ZERO), uv;
-	Vec3 Tangent(ZERO), Bitangent(ZERO), t, b;
-	int16 r;
+	Quat qnRot = IDENTITY;
+	Vec2 Coord(ZERO);
+	Vec3 Tangent(ZERO), Bitangent(ZERO);
 
 	assert(pMesh->m_pPositionsF16 == 0);
 
@@ -277,31 +281,33 @@ void CBreakablePlane::FillVertexData(CMesh* pMesh, int ivtx, const Vec2& pos, in
 	if (m_pGeom)
 	{
 		geom_world_data gwd[2];
-		geom_contact* pcont;
 		gwd[1].offset = m_R * Vec3(pos.x * 0.99f, pos.y * 0.99f, m_z[iside] * 1.01f) + m_center;
-		i = 1 - iside * 2;
+		int i = 1 - iside * 2;
 		gwd[1].R(0, 0) *= i;
 		gwd[1].R(1, 1) *= i;
 		gwd[1].R(2, 2) *= i;
-		{
-			WriteLockCond lock;
-			if (ncont = m_pGeom->IntersectLocked(m_pSampleRay, gwd, gwd + 1, 0, pcont, lock))
-			{
-				pMesh->m_pPositions[ivtx] += m_R.GetColumn(2) * (m_R.GetColumn(2) * (pcont[ncont - 1].pt - pMesh->m_pPositions[ivtx]));
 
-				Vec3 n = pMesh->m_pNorms[ivtx].GetN();
-				qnRot = Quat::CreateRotationV0V1(n, pcont[ncont - 1].n);
-				pMesh->m_pNorms[ivtx] = SMeshNormal(pcont[ncont - 1].n);
-			}
-		} // lock
+		WriteLockCond lock;
+		geom_contact* pcont;
+		if (int ncont = m_pGeom->IntersectLocked(m_pSampleRay, gwd, gwd + 1, 0, pcont, lock))
+		{
+			pMesh->m_pPositions[ivtx] += m_R.GetColumn(2) * (m_R.GetColumn(2) * (pcont[ncont - 1].pt - pMesh->m_pPositions[ivtx]));
+
+			Vec3 n = pMesh->m_pNorms[ivtx].GetN();
+			qnRot = Quat::CreateRotationV0V1(n, pcont[ncont - 1].n);
+			pMesh->m_pNorms[ivtx] = SMeshNormal(pcont[ncont - 1].n);
+		}
 	}
 
+	int16 r;
 	m_TangentRef[iside][0].GetR(r);
-	for (i = 0; i < 3; i++)
+	for (int i = 0; i < 3; i++)
 	{
-		k = (m_ptRef[iside][inc_mod3[i]] - pos ^ m_ptRef[iside][dec_mod3[i]] - pos) * m_refArea[iside];
+		float k = (m_ptRef[iside][inc_mod3[i]] - pos ^ m_ptRef[iside][dec_mod3[i]] - pos) * m_refArea[iside];
 
+		Vec2 uv;
 		m_texRef[iside][i].GetUV(uv);
+		Vec3 t, b;
 		m_TangentRef[iside][i].GetTB(t, b);
 
 		Coord += uv * k;
@@ -323,7 +329,6 @@ IStatObj* CBreakablePlane::CreateFlatStatObj(int*& pIdx, Vec2* pt, Vec2* bounds,
 	int* pVtxMap, * pCntVtxMap, * pCntVtxList;
 	Vec3 n, Tangent, (*pVtxEdge)[2], direff, axis = m_R * Vec3(0, 0, 1);
 	Vec2 pos;
-	float nudge, k;
 	SMeshTexCoord tex;
 	IStatObj* pStatObj;
 	IIndexedMesh* pIdxMesh;
@@ -352,7 +357,7 @@ IStatObj* CBreakablePlane::CreateFlatStatObj(int*& pIdx, Vec2* pt, Vec2* bounds,
 			pVtxMap[pIdx[i + j]] &= pIdx[i + 3] >> j & 1 | ~1;
 			nCntVtxTri += (pIdx[i + 3] >> j ^ 1) & 1;
 		}
-	nudge = pIdx[i] == -1 ? m_nudge : 0;
+	float nudge = pIdx[i] == -1 ? m_nudge : 0;
 	int b2Sided = pIdx[i] == -1 || !m_bOneSided;
 
 	int nOutVtx = nVtx + (nVtx + nCntVtx * 4) * b2Sided;
@@ -445,7 +450,7 @@ IStatObj* CBreakablePlane::CreateFlatStatObj(int*& pIdx, Vec2* pt, Vec2* bounds,
 			Vec2 Coord(ZERO);
 			for (j = 0; j < 3; j++)
 			{
-				k = (m_ptRef[1][inc_mod3[j]] - pos ^ m_ptRef[1][dec_mod3[j]] - pos) * m_refArea[1];
+				float k = (m_ptRef[1][inc_mod3[j]] - pos ^ m_ptRef[1][dec_mod3[j]] - pos) * m_refArea[1];
 
 				Coord += m_texRef[1][j].GetUV() * k;
 			}
@@ -621,21 +626,16 @@ float _boxCircleIntersArea(const Vec2& sz, const Vec2& c, float r)
 	return area;
 }
 
-inline int   qmax(int op1, int op2)     { return op1 - (op1 - op2 & (op1 - op2) >> 31); }
-inline int   qmin(int op1, int op2)     { return op2 + (op1 - op2 & (op1 - op2) >> 31); }
-inline float qmin(float op1, float op2) { return (op1 + op2 - fabsf(op1 - op2)) * 0.5f; }
-inline float qmax(float op1, float op2) { return (op1 + op2 + fabsf(op1 - op2)) * 0.5f; }
-
-void         CBreakablePlane::ExtractMeshIsland(const SExtractMeshIslandIn& in, SExtractMeshIslandOut& out)
+void CBreakablePlane::ExtractMeshIsland(const SExtractMeshIslandIn& in, SExtractMeshIslandOut& out)
 {
 	IStatObj*& pStatObj = out.pStatObj;
 	pStatObj = in.pStatObj;
 	IRenderMesh* pRndMesh = pStatObj->GetRenderMesh();
 	phys_geometry* pPhysGeom = pStatObj->GetPhysGeom();
 	mesh_data* pmd = (mesh_data*)pPhysGeom->pGeom->GetData();
-	;
+
 	IGeomManager* pGeoman = gEnv->pPhysicalWorld->GetGeomManager();
-	int i, j, idxMin, ichunk, ivtxMin, ivtxMax, queue[64], ihead, itail, nNewTris, imat;
+	int queue[64];
 
 	static volatile int g_lockExtractMeshIsland = 0;
 	WriteLock lock(g_lockExtractMeshIsland);
@@ -673,15 +673,18 @@ void         CBreakablePlane::ExtractMeshIsland(const SExtractMeshIslandIn& in, 
 		if (!pIdx || !pVtx.data)
 			return;
 
-		// Determine which polys are the island
+		// Determine which polygons are the island
 		Vec3 center(ZERO);
-		float r = 0;
 		queue[0] = in.itriSeed;
-		imat = pmd->pMats[queue[0]];
+		int imat = pmd->pMats[queue[0]];
 		pmd->pMats[queue[0]] = -2;
-		for (nNewTris = itail = ivtxMax = 0, ihead = 1, ivtxMin = pmd->nVertices; ihead != itail && nNewTris < pmd->nTris; nNewTris++)
+		int nNewTris = 0;
+		int ivtxMin = pmd->nVertices;
+		int ivtxMax = 0;
+		int j = 0;
+		for (int itail = 0, ihead = 1; ihead != itail && nNewTris < pmd->nTris; nNewTris++)
 		{
-			i = queue[itail];
+			int i = queue[itail];
 			itail = itail + 1 & CRY_ARRAY_COUNT(queue) - 1;
 			for (j = 0; j < 3; j++)
 			{
@@ -693,11 +696,11 @@ void         CBreakablePlane::ExtractMeshIsland(const SExtractMeshIslandIn& in, 
 				if (in.bCreateIsle)
 				{
 					int ivtx = pIdx[pmd->pForeignIdx[i] * 3 + j];
-					ivtxMin = qmin(ivtxMin, ivtx);
-					ivtxMax = qmax(ivtxMax, ivtx);
+					ivtxMin = std::min(ivtxMin, ivtx);
+					ivtxMax = std::max(ivtxMax, ivtx);
 					ivtx = pmd->pIndices[i * 3 + j];
-					ivtxMin = qmin(ivtxMin, ivtx);
-					ivtxMax = qmax(ivtxMax, ivtx);
+					ivtxMin = std::min(ivtxMin, ivtx);
+					ivtxMax = std::max(ivtxMax, ivtx);
 					center += pmd->pVertices[ivtx];
 				}
 			}
@@ -714,7 +717,7 @@ void         CBreakablePlane::ExtractMeshIsland(const SExtractMeshIslandIn& in, 
 			pIdxMesh->SetIndexCount(nNewTris * 3);
 			unsigned short* pNewIdx = new unsigned short[nNewTris * 3];
 
-			for (i = j = 0; i < pmd->nTris; i++)
+			for (int i = 0, j = 0; i < pmd->nTris; i++)
 				if (pmd->pMats[i] == -2)
 				{
 					int ivtx, idx;
@@ -731,8 +734,10 @@ void         CBreakablePlane::ExtractMeshIsland(const SExtractMeshIslandIn& in, 
 			delete[] pNewIdx;
 
 			TRenderChunkArray& meshChunks = pRndMesh->GetChunks();
-			idxMin = pmd->pForeignIdx[in.itriSeed] * 3;
-			for (ichunk = meshChunks.size() - 1; ichunk > 0 && (unsigned int)idxMin - meshChunks[ichunk].nFirstIndexId >= meshChunks[ichunk].nNumIndices; ichunk--)
+			int idxMin = pmd->pForeignIdx[in.itriSeed] * 3;
+			int ichunk = meshChunks.size() - 1;
+
+			for (; ichunk > 0 && (unsigned int)idxMin - meshChunks[ichunk].nFirstIndexId >= meshChunks[ichunk].nNumIndices; ichunk--)
 				;
 			pIdxMesh->SetVertexCount(ivtxMax - ivtxMin + 1);
 			pIdxMesh->SetTexCoordCount(ivtxMax - ivtxMin + 1);
@@ -742,9 +747,12 @@ void         CBreakablePlane::ExtractMeshIsland(const SExtractMeshIslandIn& in, 
 			pTex.data = (Vec2*)pRndMesh->GetUVPtr(pTex.iStride, FSL_READ);
 			pTangs.data = (SPipTangents*)pRndMesh->GetTangentPtr(pTangs.iStride, FSL_READ);
 
-			for (i = 0, center *= (1.0f / (nNewTris * 3)); i <= ivtxMax - ivtxMin; i++)
+			center *= (1.0f / (nNewTris * 3));
+
+			float r = 0.f;
+			for (int i = 0; i <= ivtxMax - ivtxMin; i++)
 			{
-				r = qmax(r, (pVtx[i + ivtxMin] - center).len2());
+				r = std::max(r, (pVtx[i + ivtxMin] - center).len2());
 
 				pMesh->m_pPositions[i] = pVtx[i + ivtxMin];
 				pMesh->m_pTexCoord[i] = SMeshTexCoord(pTex[i + ivtxMin]);
@@ -770,7 +778,7 @@ void         CBreakablePlane::ExtractMeshIsland(const SExtractMeshIslandIn& in, 
 			// Simply remove the polys from existing physics and stat obj
 			// and compute a simple bounding box
 			Vec3 ptmin(+1e6f), ptmax(-1e6);
-			for (i = j = 0; i < pmd->nTris; i++)
+			for (int i = 0; i < pmd->nTris; i++)
 				if (pmd->pMats[i] == -2)
 				{
 					for (int ivtx = 0; ivtx < 3; ivtx++)
@@ -801,7 +809,7 @@ void         CBreakablePlane::ExtractMeshIsland(const SExtractMeshIslandIn& in, 
 
 int CBreakablePlane::ProcessImpact(const SProcessImpactIn& in, SProcessImpactOut& out)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_ENTITY);
+	CRY_PROFILE_FUNCTION(PROFILE_ENTITY);
 
 	out.pStatObjNew = 0;
 	out.pStatObjAux = in.pStatObjAux;
@@ -811,39 +819,29 @@ int CBreakablePlane::ProcessImpact(const SProcessImpactIn& in, SProcessImpactOut
 	IStatObj* pIsleStatObj = in.pStatObj;
 	IStatObj* pStatObjBase = 0;
 	phys_geometry* pPhysGeom;
-	float lifetime = 5, filterAng = 0.0f, ry = 0.0f, curFracture;
-	Vec2* ptout, bounds[2];
-	IEntitySystem* pEntitySystem = gEnv->pEntitySystem;
-	IEntityClass* pClass = 0;
 	SEntitySpawnParams params;
-	IEntity* pEntity;
-	IParticleEffect* pEffect = 0;
-	IParticleEmitter* pEmitter = 0;
 	ISurfaceType::SBreakable2DParams* pBreak2DParams = in.pMat->GetBreakable2DParams();
 	if (!pBreak2DParams || !pStatObj->GetRenderMesh())
 	{
 		out.pStatObjNew = pStatObj;
 		return eProcessImpact_Done;
 	}
-	const char* strEffectName;
-	SEntityPhysicalizeParams epp;
 	pe_params_particle ppp;
 	pe_action_set_velocity asv;
 	pe_action_impulse ai;
 	Matrix33 mtxrot = Matrix33(in.mtx);
 	Vec3 size, pos0, rhit;
-	bool bRigidBody = true, bUseImpulse, bUseEdgeAlpha = false;
 	params.vPosition = pos0 = in.mtx.GetTranslation();
 	params.vScale.x = params.vScale.y = params.vScale.z = mtxrot.GetRow(0).len();
 	mtxrot.OrthonormalizeFast();
 	params.qRotation = Quat(mtxrot);
+	SEntityPhysicalizeParams epp;
 	epp.type = PE_RIGID;
 	ai.point = in.pthit;
 	ppp.areaCheckPeriod = 0;
 	int bStatic = 1 ^ iszero(int32(in.processFlags & ePlaneBreak_Static));
 	int bAutoSmash = 1 ^ iszero(int32(in.processFlags & ePlaneBreak_AutoSmash));
 	int bFractureEffect = iszero(int32(in.processFlags & ePlaneBreak_NoFractureEffect));
-	IParticleEffect* pFractureFx = 0;
 	const float scale = in.mtx.GetColumn0().len();
 	if (!in.bLoading)
 	{
@@ -863,20 +861,20 @@ int CBreakablePlane::ProcessImpact(const SProcessImpactIn& in, SProcessImpactOut
 	SScopedRandomSeedChange seedChange(gEnv->bNoRandomSeed ? 0 : out.eventSeed);
 
 	static ICVar* particle_limit = gEnv->pConsole->GetCVar("g_breakage_particles_limit");
-	int nMaxParticles, nCurParticles = gEnv->pPhysicalWorld->GetEntityCount(PE_PARTICLE), icount = 0, mask;
 	float curTime = gEnv->pTimer->GetCurrTime();
-	nMaxParticles = particle_limit ? particle_limit->GetIVal() : 200;
+	int nMaxParticles = particle_limit ? particle_limit->GetIVal() : 200;
 	if (curTime > g_maxPieceLifetime)
 		g_nPieces = 0;
-	nCurParticles = min(g_nPieces, nCurParticles);
+	int nCurParticles = min(g_nPieces, gEnv->pPhysicalWorld->GetEntityCount(PE_PARTICLE));
 
 	EProcessImpactResult result = eProcessImpact_Done;
 
 	if (pPhysGeom = pStatObj->GetPhysGeom())
 	{
+		IParticleEffect* pFractureFx = nullptr;
+
 		mesh_data* pmd;
 		IRenderMesh* pRndMesh;
-		bool bMeshPrepOnly = false;
 		if (bStatic && pPhysGeom->pGeom->GetType() == GEOM_TRIMESH &&
 		    (pmd = (mesh_data*)pPhysGeom->pGeom->GetData()) && pmd->pMats && pmd->nIslands > 1 && pmd->pForeignIdx &&
 		    (pRndMesh = pStatObj->GetRenderMesh()) &&
@@ -937,7 +935,7 @@ int CBreakablePlane::ProcessImpact(const SProcessImpactIn& in, SProcessImpactOut
 		if (approxArea < in.glassAutoShatterMinArea)
 			bAutoSmash = 1;
 
-		CBreakablePlane* pPlane = (CBreakablePlane*)pPhysGeom->pGeom->GetForeignData(1);
+		CBreakablePlane* pPlane = static_cast<CBreakablePlane*>(pPhysGeom->pGeom->GetForeignData(1));
 		pPhysGeom->pGeom->SetForeignData(0, 1);
 		if (!pPlane && min(bbox.size[inc_mod3[iup]], bbox.size[dec_mod3[iup]]) < bbox.size[iup] * 4)
 		{
@@ -950,24 +948,25 @@ int CBreakablePlane::ProcessImpact(const SProcessImpactIn& in, SProcessImpactOut
 			out.pStatObjNew = in.pStatObj;
 			return eProcessImpact_BadGeometry;
 		}
-		curFracture = pPlane ? pPlane->m_pGrid->GetFracture() : 0.0f;
-		bRigidBody = pBreak2DParams->rigid_body != 0;
+		float curFracture = pPlane ? pPlane->m_pGrid->GetFracture() : 0.0f;
+		bool bRigidBody = pBreak2DParams->rigid_body != 0;
 		if (!bRigidBody && nCurParticles >= nMaxParticles && pBreak2DParams->no_procedural_full_fracture)
 			curFracture = 10.0f;
 
 		float r = pPlane || pStatObj->GetFlags() & STATIC_OBJECT_GENERATED ? pBreak2DParams->blast_radius : pBreak2DParams->blast_radius_first;
 		if (r <= 0)
 			bAutoSmash = 0;
-		lifetime = pBreak2DParams->life_time;
-		strEffectName = pBreak2DParams->particle_effect;
+		float lifetime = pBreak2DParams->life_time;
+		const char* strEffectName = pBreak2DParams->particle_effect;
+		IParticleEffect* pEffect = 0;
 		if (bFractureEffect && strEffectName[0])
 			pEffect = gEnv->pParticleManager->FindEffect(strEffectName);
-		bUseEdgeAlpha = pBreak2DParams->use_edge_alpha != 0;
-		ry = r * (1.0f + cry_random(0.0f, pBreak2DParams->vert_size_spread));
+		bool bUseEdgeAlpha = pBreak2DParams->use_edge_alpha != 0;
+		float ry = r * (1.0f + cry_random(0.0f, pBreak2DParams->vert_size_spread));
 		ry = max(ry, in.hitradius);
 		r = max(r, in.hitradius);
 		out.hitradius = r;
-		filterAng = pBreak2DParams->filter_angle * gf_PI * (1.0f / 180);
+		float filterAng = pBreak2DParams->filter_angle * gf_PI * (1.0f / 180);
 		Vec2 c = Vec2((bbox.Basis * (in.mtx.GetInverted() * in.pthit - bbox.center)).GetPermutated(iup)), sz = Vec2(bbox.size.GetPermutated(iup));
 		if (bAutoSmash || _boxCircleIntersArea(sz, c, r / scale) / (sz.x * sz.y * 4) + curFracture >= pBreak2DParams->max_fracture)
 		{
@@ -1057,6 +1056,7 @@ int CBreakablePlane::ProcessImpact(const SProcessImpactIn& in, SProcessImpactOut
 			return result;
 
 		int* pIdx, * pIdx0;
+		Vec2* ptout;
 		if (pPlane && (pIdx0 = pIdx = pPlane->Break(in.mtx.GetInverted() * in.pthit, r, ptout, out.eventSeed, filterAng, ry)))
 		{
 			epp.density = pPlane->m_density;
@@ -1064,22 +1064,21 @@ int CBreakablePlane::ProcessImpact(const SProcessImpactIn& in, SProcessImpactOut
 				ppp.iPierceability = -1;
 			do
 			{
+				Vec2 bounds[2];
 				if (pNewStatObj = pPlane->CreateFlatStatObj(pIdx, ptout, bounds, in.mtx, pEffect, !bRigidBody, bUseEdgeAlpha))
 				{
 					pNewStatObj->SetFilePath(pStatObj->GetFilePath());
 					if (*pIdx == -1 && lifetime > 0)
 					{
 						// create a new entity for this stat obj
-						if (!pClass)
-							pClass = pEntitySystem->GetClassRegistry()->GetDefaultClass();
 						params.sName = "breakable_plane_piece";
-						params.pClass = pClass;
 						params.nFlags = ENTITY_FLAG_CLIENT_ONLY | ENTITY_FLAG_NO_PROXIMITY;
 						params.id = 0;
 						Vec3 center = pPlane->m_R * Vec3(bounds[0].x + bounds[1].x, bounds[0].y + bounds[1].y, 0) * 0.5f + pPlane->m_center;
 						rhit = in.pthit - in.mtx * center;
 						asv.v = in.hitvel * 0.5f;
 						ai.impulse = in.hitvel * in.hitmass;
+						bool bUseImpulse;
 						if (!bRigidBody)
 						{
 							epp.type = PE_PARTICLE;
@@ -1088,7 +1087,7 @@ int CBreakablePlane::ProcessImpact(const SProcessImpactIn& in, SProcessImpactOut
 							ppp.thickness = pPlane->m_z[1] - pPlane->m_z[0];
 							ppp.surface_idx = pPlane->m_matId;
 							ppp.mass = ppp.size * ppp.thickness * pPlane->m_density;
-							if ((bUseImpulse = in.hitmass < ppp.mass) && ai.impulse.len2() > sqr(ppp.mass * 10.0f))
+							if ((bUseImpulse = (in.hitmass < ppp.mass)) && ai.impulse.len2() > sqr(ppp.mass * 10.0f))
 								ai.impulse = ai.impulse.normalized() * ppp.mass * 10.0f;
 							ppp.flags = particle_no_path_alignment | particle_no_roll | pef_traceable | particle_no_self_collisions;
 							ppp.normal = pPlane->m_R * Vec3(0, 0, 1);
@@ -1101,6 +1100,8 @@ int CBreakablePlane::ProcessImpact(const SProcessImpactIn& in, SProcessImpactOut
 
 						if (!bRigidBody)
 						{
+							int mask;
+							int icount = 0;
 							if (nCurParticles * 7 > nMaxParticles)
 								mask = 7;
 							else if (nCurParticles * 6 > nMaxParticles)
@@ -1128,8 +1129,7 @@ int CBreakablePlane::ProcessImpact(const SProcessImpactIn& in, SProcessImpactOut
 							pent->SetParams(&ppp);
 							pent->Action(bUseImpulse ? (pe_action*)&ai : &asv);
 							pNewStatObj->AddRef();
-							if (!pEmitter)
-								pEmitter = gEnv->pParticleManager->CreateEmitter(QuatTS(params.qRotation, params.vPosition), pp);
+							IParticleEmitter* pEmitter = gEnv->pParticleManager->CreateEmitter(QuatTS(params.qRotation, params.vPosition), pp);
 							if (pEmitter)
 								pEmitter->EmitParticle(pNewStatObj, pent);
 							if (pNewStatObj->Release() <= 0)
@@ -1140,7 +1140,7 @@ int CBreakablePlane::ProcessImpact(const SProcessImpactIn& in, SProcessImpactOut
 						}
 						else
 						{
-							pEntity = pEntitySystem->SpawnEntity(params);
+							CEntity* pEntity = static_cast<CEntity*>(g_pIEntitySystem->SpawnEntity(params));
 							if (!in.bLoading)
 								in.addChunkFunc(pEntity->GetId());
 

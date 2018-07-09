@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 /*************************************************************************
    -------------------------------------------------------------------------
@@ -64,7 +64,7 @@ CActorSystem::CActorSystem(ISystem* pSystem, IEntitySystem* pEntitySystem)
 
 	if (gEnv->pEntitySystem)
 	{
-		gEnv->pEntitySystem->AddSink(this, IEntitySystem::OnReused, 0);
+		gEnv->pEntitySystem->AddSink(this, IEntitySystem::OnReused);
 	}
 }
 
@@ -310,9 +310,6 @@ void CActorSystem::Scan(const char* folderName)
 			const char* fileExtension = PathUtil::GetExt(fd.name);
 			if (stricmp(fileExtension, "xml"))
 			{
-				if (stricmp(fileExtension, "binxml"))
-					GameWarning("ActorSystem: File '%s' does not have 'xml' extension, skipping.", fd.name);
-
 				continue;
 			}
 
@@ -437,12 +434,6 @@ void CActorSystem::OnReused(IEntity* pEntity, SEntitySpawnParams& params)
 }
 
 //------------------------------------------------------------------------
-void CActorSystem::OnEvent(IEntity* pEntity, SEntityEvent& event)
-{
-	// nothing (but needed to implement IEntitySystemSink)
-}
-
-//------------------------------------------------------------------------
 void CActorSystem::GetMemoryUsage(class ICrySizer* pSizer) const
 {
 	pSizer->Add(sizeof *this);
@@ -475,7 +466,7 @@ void CActorSystem::ActorSystemErrorMessage(const char* fileName, const char* err
 
 	if (displayErrorDialog)
 	{
-		gEnv->pSystem->ShowMessage(messageBuffer.c_str(), "Error", eMB_Error);
+		CryMessageBox(messageBuffer.c_str(), "Error", eMB_Error);
 	}
 }
 

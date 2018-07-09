@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -6,35 +6,41 @@
 
 #include "../Interface/ISensorTagLibrary.h"
 
-class CSensorTagLibrary : public ISensorTagLibrary
+namespace Cry
 {
-private:
+	namespace SensorSystem
+	{
+		class CSensorTagLibrary : public ISensorTagLibrary
+		{
+		private:
 
-	typedef Schematyc::CStringHashWrapper<Schematyc::CFastStringHash, Schematyc::CEmptyStringConversion, string> TagName;
-	typedef std::unordered_map<TagName, SensorTags>                                                              Tags;
-	typedef std::vector<SensorTags>                                                                              FreeTags;
+			typedef Schematyc::CStringHashWrapper<Schematyc::CFastStringHash, Schematyc::CEmptyStringConversion, string> TagName;
+			typedef std::unordered_map<TagName, SensorTags>                                                              Tags;
+			typedef std::vector<SensorTags>                                                                              FreeTags;
 
-public:
+		public:
 
-	CSensorTagLibrary();
+			CSensorTagLibrary();
 
-	// ISensorTagLibrary
-	virtual SensorTags CreateTag(const char* szTagName) override;
-	virtual SensorTags GetTag(const char* szTagName) const override;
-	virtual void GetTagNames(DynArray<const char*>& tagNames, SensorTags tags) const override;
-	// ~ISensorTagLibrary
+			// ISensorTagLibrary
+			virtual SensorTags CreateTag(const char* szTagName) override;
+			virtual SensorTags GetTag(const char* szTagName) const override;
+			virtual void GetTagNames(DynArray<const char*>& tagNames, SensorTags tags) const override;
+			// ~ISensorTagLibrary
 
-	bool SerializeTagName(Serialization::IArchive& archive, string& value, const char* szName, const char* szLabel);
+			bool SerializeTagName(Serialization::IArchive& archive, string& value, const char* szName, const char* szLabel);
 
-private:
+		private:
 
-	void ReleaseTag(const char* szTagName);
-	const char* GetTagName(SensorTags value) const;
-    void PopulateTagNames();
+			void ReleaseTag(const char* szTagName);
+			const char* GetTagName(SensorTags value) const;
+			void PopulateTagNames();
 
-private:
+		private:
 
-	Tags                      m_tags;
-	FreeTags                  m_freeTags;
-	Serialization::StringList m_tagNames;
-};
+			Tags                      m_tags;
+			FreeTags                  m_freeTags;
+			Serialization::StringList m_tagNames;
+		};
+	}
+}

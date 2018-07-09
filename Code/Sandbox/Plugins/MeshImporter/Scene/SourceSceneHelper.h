@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -21,3 +21,4 @@ CSceneElementSourceNode* CreateSceneFromSourceScene(CScene& scene, FbxTool::CSce
 CSceneElementSourceNode* FindSceneElementOfNode(CScene& scene, const FbxTool::SNode* pFbxNode);
 
 void SelectSceneElementWithNode(CSceneModelCommon* pSceneModel, CSceneViewCommon* pSceneView, const FbxTool::SNode* pNode);
+

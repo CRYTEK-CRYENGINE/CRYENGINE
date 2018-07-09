@@ -120,7 +120,11 @@ StackSizeKB:
 		
 		<!-- [SYSTEM] - Console -->
 		<Thread name ="RemoteConsoleServer"/>
-		<Thread name ="RemoteConsoleClient"/>	
+		<Thread name ="RemoteConsoleClient"/>
+		
+		<!-- [SYSTEM] - Profiling -->
+		<Thread name ="BootProfiler"/>
+		<Thread name ="TelemetryCopier"/>
 		
 		<!-- [NETWORK] -->
 		<Thread name ="Network" Affinity="5"/>
@@ -131,7 +135,7 @@ StackSizeKB:
 		<Thread name ="NetAddressSolver" Affinity="5" StackSizeKB="16" />
 		
 		<!-- [AUDIO] -->		
-		<Thread name ="MainAudioThread" Affinity="2,3,4,5" Priority="below_normal" StackSize="ignore"/>
+		<Thread name ="AudioMainThread" Affinity="2,3,4,5" Priority="below_normal" StackSize="ignore"/>
 		
 		<Thread name ="AuxWwiseAudioThread" Affinity="2,3,4,5" StackSize="ignore"/>
 		<Thread name ="Wwise_Device" Affinity="2,3,4,5" Priority="ignore" StackSize="ignore"/>
@@ -155,7 +159,10 @@ StackSizeKB:
 		<Thread name ="LiveCreate_Server"/>	
 		<Thread name ="LiveCreate_FileSync"/>
 		<Thread name ="LiveCreatePlatformService"/>
-		<Thread name ="LiveCreateUtilityService"/>		
+		<Thread name ="LiveCreateUtilityService"/>
+		
+		<!-- [VOXEL]-->
+		<Thread name ="VoxelStreamingWorker_*" Priority="Below_Normal"/>
 		
 		<!-- [SCALEFORM][3rd Party] -->
 		<Thread name ="GFxVideo_SoundUpdate" Affinity="5" Priority="time_critical" DisablePriorityBoost="ignore" StackSizeKB="16"/>	
@@ -222,6 +229,10 @@ StackSizeKB:
 		<!-- [SYSTEM] - Console -->
 		<Thread name ="RemoteConsoleServer"/>
 		<Thread name ="RemoteConsoleClient"/>
+		
+		<!-- [SYSTEM] - Profiling -->
+		<Thread name ="BootProfiler"/>
+		<Thread name ="TelemetryCopier"/>
 
 		<!-- [NETWORK] -->
 		<Thread name ="Network"/>
@@ -235,7 +246,7 @@ StackSizeKB:
 		<Thread name ="NavigationSystemBackgroundUpdate"/>
 
 		<!-- [AUDIO] -->
-		<Thread name ="MainAudioThread" Priority="below_normal" StackSize="ignore"/>
+		<Thread name ="AudioMainThread" Priority="below_normal" StackSize="ignore"/>
 
 		<Thread name ="AuxWwiseAudioThread" StackSize="ignore"/>
 		<Thread name ="Wwise_Device" Affinity="5" Priority="ignore" StackSize="ignore"/>
@@ -257,6 +268,9 @@ StackSizeKB:
 		<Thread name ="LiveCreate_FileSync"/>
 		<Thread name ="LiveCreatePlatformService"/>
 		<Thread name ="LiveCreateUtilityService"/>
+		
+		<!-- [VOXEL]-->
+		<Thread name ="VoxelStreamingWorker_*" Priority="Below_Normal"/>
 
 		<!-- [SCALEFORM][3rd Party] -->
 		<Thread name ="GFxVideo_SoundUpdate" Affinity="5" Priority="time_critical" DisablePriorityBoost="ignore" StackSizeKB="ignore"/>
@@ -282,7 +296,7 @@ StackSizeKB:
 		<Thread name ="PhysicsWorkerThread_*" StackSizeKB="128"/>	
 
 		<!-- [RenderDLL] -->
-		<Thread name ="RenderThread" StackSizeKB="128"/>
+		<Thread name ="RenderThread" StackSizeKB="512"/>
 		<Thread name ="RenderLoadingThread" Priority="Above_Normal" StackSizeKB="128"/>
 		<Thread name ="ShaderCompile"/>	
 
@@ -312,7 +326,11 @@ StackSizeKB:
 		<Thread name ="RemoteConsoleServer"/>
 		<Thread name ="RemoteConsoleClient"/>	
 		<Thread name ="WindowsConsoleInput"/>		
-		<Thread name ="UNIXConsoleInput"/>	
+		<Thread name ="UNIXConsoleInput"/>
+		
+		<!-- [SYSTEM] - Profiling -->
+		<Thread name ="BootProfiler"/>
+		<Thread name ="TelemetryCopier"/>
 		
 		<!-- [NETWORK] -->
 		<Thread name ="Network"/>
@@ -323,7 +341,7 @@ StackSizeKB:
 		<Thread name ="NetAddressSolver" StackSizeKB="16"/>
 		
 		<!-- [AUDIO] -->		
-		<Thread name ="MainAudioThread" Affinity="ignore" Priority="below_normal" StackSize="ignore"/>
+		<Thread name ="AudioMainThread" Affinity="ignore" Priority="below_normal" StackSize="ignore"/>
 		
 		<Thread name ="AuxWwiseAudioThread" Affinity="ignore" StackSize="ignore"/>
 		<Thread name ="Wwise_Device" Affinity="ignore" Priority="ignore" StackSize="ignore"/>
@@ -347,7 +365,10 @@ StackSizeKB:
 		<Thread name ="LiveCreate_Server"/>	
 		<Thread name ="LiveCreate_FileSync"/>
 		<Thread name ="LiveCreatePlatformService"/>
-		<Thread name ="LiveCreateUtilityService"/>		
+		<Thread name ="LiveCreateUtilityService"/>
+
+		<!-- [VOXEL]-->
+		<Thread name ="VoxelStreamingWorker_*" Priority="Below_Normal"/>		
 		
 		<!-- [SCALEFORM][3rd Party] -->
 		<Thread name ="GFxVideo_SoundUpdate" Affinity="ignore" Priority="highest" DisablePriorityBoost="ignore" StackSizeKB="16"/>	
@@ -420,6 +441,10 @@ StackSizeKB:
 		<Thread name ="RemoteConsoleClient"/>
 		<Thread name ="UNIXConsoleInput"/>
 		
+		<!-- [SYSTEM] - Profiling -->
+		<Thread name ="BootProfiler"/>
+		<Thread name ="TelemetryCopier"/>
+		
 		<!-- [NETWORK] -->
 		<Thread name ="Network"/>
 		<Thread name ="ServerProbe"/>
@@ -429,7 +454,7 @@ StackSizeKB:
 		<Thread name ="NetAddressSolver"/>
 
 		<!-- [AUDIO] -->
-		<Thread name ="MainAudioThread" Affinity="ignore" Priority="below_normal" StackSize="ignore"/>
+		<Thread name ="AudioMainThread" Affinity="ignore" Priority="below_normal" StackSize="ignore"/>
 
 		<Thread name ="AuxWwiseAudioThread" Affinity="ignore" StackSize="ignore"/>
 		<Thread name ="Wwise_Device" Affinity="ignore" Priority="99" StackSize="ignore"/>
@@ -447,6 +472,9 @@ StackSizeKB:
 		<!-- [INPUT] -->
 		<Thread name ="InputWorker"/>
 		<Thread name ="Synergy"/>
+		
+		<!-- [VOXEL]-->
+		<Thread name ="VoxelStreamingWorker_*" Priority="Below_Normal"/>		
 
 	</Platform>
 
@@ -486,7 +514,7 @@ StackSizeKB:
 		<Thread name ="SysCrashTestOnThread"/>
 
 		<!-- [AUDIO] -->
-		<Thread name ="MainAudioThread" Affinity="ignore" Priority="below_normal" StackSize="ignore"/>
+		<Thread name ="AudioMainThread" Affinity="ignore" Priority="below_normal" StackSize="ignore"/>
 
 		<Thread name ="AuxWwiseAudioThread" Affinity="ignore" StackSize="ignore"/>
 		<Thread name ="Wwise_Device" Affinity="ignore" Priority="99" StackSize="ignore"/>
@@ -504,6 +532,10 @@ StackSizeKB:
 
 		<!-- [SYSTEM] - Console -->
 		<Thread name ="RemoteConsoleServer"/>
+		
+		<!-- [SYSTEM] - Profiling -->
+		<Thread name ="BootProfiler"/>
+		<Thread name ="TelemetryCopier"/>
 
 		<!-- [NETWORK] -->
 		<Thread name ="Network"/>
@@ -516,7 +548,10 @@ StackSizeKB:
 		<!-- [ACTION] -->
 		<Thread name ="NetworkStallTicker"/>
 		<Thread name ="ZLibCompressor" Affinity="ignore" Priority="Above_Normal" StackSizeKB="32"/>
-		<Thread name ="LevelLoadingThread" Affinity="ignore" Priority="Above_Normal" StackSizeKB="128"/>
+		<Thread name ="LevelLoadingThread" Affinity="ignore" Priority="Above_Normal" StackSizeKB="128"/>		
+		
+		<!-- [VOXEL]-->
+		<Thread name ="VoxelStreamingWorker_*" Priority="Below_Normal"/>		
 	</Platform>
 
 </ThreadConfig>

@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -41,6 +41,24 @@ ILINE LONG CryInterlockedAdd(volatile LONG* pDst, LONG add)
 }
 
 // Returns the resulting added value
+ILINE int64 CryInterlockedAdd(volatile int64* pDst, int64 add)
+{
+#if CRY_PLATFORM_X64
+	static_assert(sizeof(int64) == sizeof(LONGLONG), "Unsecured cast. int64 is not same size as LONGLONG.");
+	return (int64)_InterlockedExchangeAdd64((volatile LONGLONG*)pDst, add) + add;
+#else
+	int64 val;
+	int64 sum;
+	do {
+		val = *pDst;
+		sum = val + add;
+	}
+	while (CryInterlockedCompareExchange64(pDst, sum, val) != val);
+	return sum;
+#endif
+}
+
+// Returns the resulting added value
 ILINE size_t CryInterlockedAdd(volatile size_t* pDst, size_t add)
 {
 #if CRY_PLATFORM_X64
@@ -49,7 +67,6 @@ ILINE size_t CryInterlockedAdd(volatile size_t* pDst, size_t add)
 #else
 	static_assert(sizeof(size_t) == sizeof(LONG), "Unsecured cast. size_t is not same size as LONG.");
 	return (size_t)CryInterlockedAdd((volatile LONG*)pDst, (LONG)add);
-
 #endif
 }
 

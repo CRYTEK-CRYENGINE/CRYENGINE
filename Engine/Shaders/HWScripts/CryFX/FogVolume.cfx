@@ -1,5 +1,4 @@
-// CRYENGINE Source Code File
-// Copyright 2001-2015 Crytek GmbH. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "Common.cfi"
 #include "ShadeLib.cfi"
@@ -12,13 +11,13 @@ float Script : STANDARDSGLOBAL
 >;
 
 //////////////////////////////////////////////////////////////////////////
-// Per instance constant buffer for fog volume.
+// Per draw constant buffer for fog volume.
 
-cbuffer CBFogVolume : register(b12)
+cbuffer CBFogVolume : register(b0)
 {
 	struct
 	{
-		float4x4 objMatrix; // this doesn't include non-uniform scaling, vertex positions are scaled on CPU. originally passed by PI_TransObjMatrix
+		float4x4 objMatrix; // this doesn't include non-uniform scaling, vertex positions are scaled on CPU
 		float3x4 invObjSpaceMatrix; // this includes non-uniform scaling.
 		float4   globalDensity;
 		float4   densityOffset;
@@ -52,7 +51,7 @@ struct a2v
 
 struct v2f_ellipsoid
 {
-	float4 hPos         : POSITION;
+	float4 hPos         : SV_POSITION;
 	float3 eyeDirInWS   : TEXCOORDN;
 	float3 eyeDirInOS   : TEXCOORDN;
 	float3 eyePosInOSx2 : TEXCOORDN;
@@ -176,10 +175,11 @@ pixout FogVolumeEllipsoidPS( v2f_ellipsoid IN )
 	}
 
 	// Re-scale range
-	cbFogVolume.fogColor.xyz *= PS_HDR_RANGE_ADAPT_MAX;
+	float3 fogColor = cbFogVolume.fogColor.xyz;
+	fogColor *= PS_HDR_RANGE_ADAPT_MAX;
 
 	float fog = 1 - exp2( -cbFogVolume.globalDensity.y * max( fogInt - cbFogVolume.densityOffset.x, 0 ) );
-	OUT.Color = float4( cbFogVolume.fogColor.xyz, fog );
+	OUT.Color = float4( fogColor, fog );
 
 	return OUT;
 }
@@ -292,7 +292,7 @@ pixout FogVolumeBoxPS( v2f_box IN )
 	////////////////////////////////////////////////////////////////////////
 
 	float sceneDepth = linearDepthTex.Load(int3(IN.hPos.xy, 0)).x * CV_NearFarClipDist.y;
-	float tI = sceneDepth / dot( cameraLookDirInWS, -CV_CameraFrontVector );
+	float tI = sceneDepth / dot( cameraLookDirInWS, -CV_CameraFrontVector.xyz );
 	tI = max( tS, min( tI, tE ) ); // clamp to range [tS, tE]
 
 	float3 front = tS * cameraLookDirInWS + cameraPosInWS;
@@ -310,10 +310,11 @@ pixout FogVolumeBoxPS( v2f_box IN )
 		fogInt *= ( 1.0 - exp( -heightDiff ) ) / heightDiff;
 
 	// Re-scale range
-	cbFogVolume.fogColor.xyz *= PS_HDR_RANGE_ADAPT_MAX;
+	float3 fogColor = cbFogVolume.fogColor.xyz;
+	fogColor *= PS_HDR_RANGE_ADAPT_MAX;
 
 	float fog = 1 - exp2( -cbFogVolume.globalDensity.y * max( fogInt - cbFogVolume.densityOffset.x, 0 ) );
-	OUT.Color = float4( cbFogVolume.fogColor.xyz, fog );
+	OUT.Color = float4( fogColor, fog );
 
 	return( OUT );
 }

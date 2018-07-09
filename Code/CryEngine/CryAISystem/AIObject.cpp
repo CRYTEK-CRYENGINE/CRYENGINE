@@ -1,12 +1,12 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "AIObject.h"
 #include "CAISystem.h"
 #include "AILog.h"
-#include "Graph.h"
 #include "Leader.h"
 #include "GoalOp.h"
+#include "AIEntityComponent.h"
 
 #include <float.h>
 #include <CrySystem/ISystem.h>
@@ -14,6 +14,7 @@
 #include <CryNetwork/ISerialize.h>
 #include <CryAISystem/VisionMapTypes.h>
 #include "Navigation/NavigationSystem/NavigationSystem.h"
+#include "Formation/FormationManager.h"
 
 //////////////////////////////////////////////////////////////////////
 // Construction/Destruction
@@ -25,7 +26,6 @@ CAIObject::CAIObject() :
 	m_vPosition(ZERO),
 	m_entityID(0),
 	m_bEnabled(true),
-	m_lastNavNodeIndex(0),
 	m_fRadius(.0f),
 	m_pFormation(0),
 	m_nObjectType(0),
@@ -54,6 +54,22 @@ CAIObject::~CAIObject()
 {
 	AILogComment("~CAIObject  %s (%p)", GetName(), this);
 
+	// Remove the AI entity component associated with the entity
+	if (IEntity* pEntity = gEnv->pEntitySystem->GetEntity(m_entityID))
+	{
+		DynArray<CAIEntityComponent*> components;
+		pEntity->GetAllComponents<CAIEntityComponent>(components);
+
+		for(CAIEntityComponent* pExistingAIComponent : components)
+		{
+			if (pExistingAIComponent->GetAIObjectID() == GetAIObjectID())
+			{
+				pEntity->RemoveComponent(pExistingAIComponent);
+				break;
+			}
+		}
+	}
+
 	SetObservable(false);
 
 	ReleaseFormation();
@@ -80,8 +96,6 @@ void CAIObject::SetPos(const Vec3& pos, const Vec3& dirForw)
 
 		if (IEntity* pEntity = GetEntity())
 			GetAISystem()->NotifyAIObjectMoved(pEntity, SEntityEvent(ENTITY_EVENT_XFORM));
-
-		m_lastNavNodeIndex = 0;
 	}
 
 	if (!GetProxy())
@@ -206,8 +220,6 @@ void CAIObject::Reset(EObjectResetType type)
 	m_bUpdatedOnce = false;
 	m_bTouched = false;
 
-	m_lastNavNodeIndex = 0;
-
 	switch (type)
 	{
 	case AIOBJRESET_INIT:
@@ -220,16 +232,6 @@ void CAIObject::Reset(EObjectResetType type)
 		SetObservable(false);
 		break;
 	}
-}
-
-size_t CAIObject::GetNavNodeIndex() const
-{
-	if (m_lastNavNodeIndex)
-		return (m_lastNavNodeIndex < ~0ul) ? m_lastNavNodeIndex : 0;
-
-	m_lastNavNodeIndex = ~0ul;
-
-	return 0;
 }
 
 //
@@ -264,10 +266,6 @@ void CAIObject::Serialize(TSerialize ser)
 
 	ser.Value("m_bEnabled", m_bEnabled);
 	ser.Value("m_bTouched", m_bTouched);
-
-	// Do not cache the result of GetNavNodeIndex across serialisation
-	if (ser.IsReading())
-		m_lastNavNodeIndex = 0;
 	ser.Value("m_vLastPosition", m_vLastPosition);
 
 	int formationIndex = CFormation::INVALID_FORMATION_ID;
@@ -278,7 +276,7 @@ void CAIObject::Serialize(TSerialize ser)
 	ser.Value("formationIndex", formationIndex);
 	if (formationIndex != CFormation::INVALID_FORMATION_ID && ser.IsReading())
 	{
-		m_pFormation = GetAISystem()->GetFormation(formationIndex);
+		m_pFormation = gAIEnv.pFormationManager->GetFormation(formationIndex);
 	}
 
 	// m_movementAbility.Serialize(ser); // not needed as ability is constant
@@ -321,7 +319,7 @@ void CAIObject::Serialize(TSerialize ser)
 //------------------------------------------------------------------------------------------------------------------------
 bool CAIObject::CreateFormation(const unsigned int nCrc32ForFormationName, Vec3 vTargetPos /* = ZERO */)
 {
-	string sFormationName(GetAISystem()->GetFormationNameFromCRC32(nCrc32ForFormationName));
+	string sFormationName(gAIEnv.pFormationManager->GetFormationNameFromCRC32(nCrc32ForFormationName));
 	return CreateFormation(sFormationName.c_str(), vTargetPos);
 }
 
@@ -329,7 +327,7 @@ bool CAIObject::CreateFormation(const char* szName, Vec3 vTargetPos)
 {
 	if (m_pFormation)
 	{
-		GetAISystem()->ReleaseFormation(GetWeakRef(this), true);
+		gAIEnv.pFormationManager->ReleaseFormation(GetWeakRef(this), true);
 	}
 
 	m_pFormation = 0;
@@ -339,7 +337,7 @@ bool CAIObject::CreateFormation(const char* szName, Vec3 vTargetPos)
 
 	CCCPOINT(CAIObject_CreateFormation);
 
-	m_pFormation = GetAISystem()->CreateFormation(GetWeakRef(this), szName, vTargetPos);
+	m_pFormation = gAIEnv.pFormationManager->CreateFormation(GetWeakRef(this), szName, vTargetPos);
 	return (m_pFormation != NULL);
 }
 
@@ -350,7 +348,7 @@ bool CAIObject::ReleaseFormation(void)
 	if (m_pFormation)
 	{
 		CCCPOINT(CAIObject_ReleaseFormation);
-		GetAISystem()->ReleaseFormation(GetWeakRef(this), true);
+		gAIEnv.pFormationManager->ReleaseFormation(GetWeakRef(this), true);
 		m_pFormation = 0;
 		return true;
 	}
@@ -737,12 +735,12 @@ const Vec3 CAIObject::GetPosInNavigationMesh(const uint32 agentTypeID) const
 		const MNM::real_t pushUp = MNM::real_t(fPushUp);
 		MNM::TriangleID triangleID(0);
 		const MNM::vector3_t location_t(MNM::real_t(outputLocation.x), MNM::real_t(outputLocation.y), MNM::real_t(outputLocation.z) + pushUp);
-		if (!(triangleID = mesh.navMesh.GetTriangleAt(location_t, strictVerticalRange, strictVerticalRange)))
+		if (!(triangleID = mesh.navMesh.GetTriangleAt(location_t, strictVerticalRange, strictVerticalRange, nullptr)))
 		{
 			const MNM::real_t largeVerticalRange = MNM::real_t(6.0f);
 			const MNM::real_t largeHorizontalRange = MNM::real_t(3.0f);
 			MNM::vector3_t closestLocation;
-			if (triangleID = mesh.navMesh.GetClosestTriangle(location_t, largeVerticalRange, largeHorizontalRange, nullptr, &closestLocation))
+			if (triangleID = mesh.navMesh.GetClosestTriangle(location_t, largeVerticalRange, largeHorizontalRange, nullptr, nullptr, &closestLocation))
 			{
 				outputLocation = closestLocation.GetVec3();
 				outputLocation.z += fPushUp;

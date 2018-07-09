@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -9,7 +9,7 @@ class ICryXML;
 inline void UnifyPath(string& str)
 {
 	str.MakeLower();
-	str = PathHelpers::ToUnixPath(str);
+	str = PathUtil::ToUnixPath(str);
 }
 
 
@@ -147,10 +147,10 @@ struct SAnimationDefinition
 
 	void SetAnimationPath(const string& path, const string& unifiedPath)
 	{
-		m_AnimationPath = PathHelpers::AddSeparator(path);
+		m_AnimationPath = PathUtil::AddSlash(path);
 		UnifyPath(m_AnimationPath);
 
-		m_AnimationPathWithoutSlash = PathHelpers::RemoveSeparator(m_AnimationPath);
+		m_AnimationPathWithoutSlash = PathUtil::RemoveSlash(m_AnimationPath);
 
 		m_UnifiedAnimationPath = unifiedPath;
 	}

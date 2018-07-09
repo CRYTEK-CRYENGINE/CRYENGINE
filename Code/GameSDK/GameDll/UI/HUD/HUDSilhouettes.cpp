@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 /*************************************************************************
 -------------------------------------------------------------------------
@@ -652,8 +652,8 @@ void CHUDSilhouettes::DrawDebugCombatInfo(const SSilhouette& silhoutte)
 			screenPos.y = screenPos.y / 100.0f * 600.0f;
 
 			pUIDraw->PreRender();
-			gEnv->pRenderer->Draw2dImage(screenPos.x, screenPos.y, barWidth, barHeight, 0, 0, 0, 1, 1, 0, 0.5f, 0.5f, 0.5f, color.a);
-			gEnv->pRenderer->Draw2dImage(screenPos.x, screenPos.y, barWidth * healthFraction, barHeight, 0, 0, 0, 1, 1, 0, color.r, color.g, color.b, color.a, 0.9f);
+			IRenderAuxImage::Draw2dImage(screenPos.x, screenPos.y, barWidth, barHeight, 0, 0, 0, 1, 1, 0, 0.5f, 0.5f, 0.5f, color.a);
+			IRenderAuxImage::Draw2dImage(screenPos.x, screenPos.y, barWidth * healthFraction, barHeight, 0, 0, 0, 1, 1, 0, color.r, color.g, color.b, color.a, 0.9f);
 			pUIDraw->PostRender();
 
 		}*/

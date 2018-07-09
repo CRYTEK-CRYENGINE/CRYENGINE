@@ -87,7 +87,6 @@ add_sources("CryEntitySystem_uber_0.cpp"
 		"EntityCVars.cpp"
 		"EntityLayer.cpp"
 		"EntitySystem.cpp"
-		"EntityTimeoutList.cpp"
 		"AffineParts.h"
 		"Entity.h"
 		"EntityArchetype.h"
@@ -95,7 +94,7 @@ add_sources("CryEntitySystem_uber_0.cpp"
 		"EntityIt.h"
 		"EntityLayer.h"
 		"EntitySystem.h"
-		"EntityTimeoutList.h"
+		"EntityComponentsVector.cpp"
 		"EntityComponentsVector.h"
 		"EntityComponentsCache.cpp"
 		"EntityComponentsCache.h"
@@ -144,3 +143,6 @@ end_sources()
 #END-FILE-LIST
 
 CryEngineModule(CryEntitySystem PCH "stdafx.cpp" SOLUTION_FOLDER "CryEngine")
+
+# Make sure that the entity system always compiles without items that are deprecated
+target_compile_definitions(${THIS_PROJECT} PRIVATE EXCLUDE_5_5_ENTITY_DEPRECATIONS=1)

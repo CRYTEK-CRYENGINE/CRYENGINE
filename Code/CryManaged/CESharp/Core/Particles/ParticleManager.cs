@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 using System;
 using CryEngine.Common;
@@ -28,6 +28,7 @@ namespace CryEngine
 			}
 		}
 
+		[SerializeValue]
 		internal IParticleManager NativeHandle { get; private set; }
 
 		private ParticleManager()

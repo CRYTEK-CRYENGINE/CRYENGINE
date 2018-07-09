@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 // -------------------------------------------------------------------------
 //  File name:   BoidObject.cpp
@@ -176,7 +176,7 @@ int CBoidObject::GetGeometrySurfaceType()
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CBoidObject::OnEntityEvent( SEntityEvent &event )
+void CBoidObject::OnEntityEvent( const SEntityEvent &event )
 {
 	switch (event.event)
 	{
@@ -193,7 +193,7 @@ void CBoidObject::OnEntityEvent( SEntityEvent &event )
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CBoidObject::OnCollision( SEntityEvent &event )
+void CBoidObject::OnCollision( const SEntityEvent &event )
 {
 	EventPhysCollision *pCollision = (EventPhysCollision *)(event.nParam[0]);
 
@@ -704,8 +704,8 @@ void CBoidObject::UpdateDisplay(SBoidContext& bc)
 	if(bc.animationMaxDistanceSq ==0)
 		return;
 
-	Vec3 cameraPos( gEnv->pRenderer->GetCamera().GetPosition());
-	Vec3 cameraDir(gEnv->pRenderer->GetCamera().GetMatrix().GetColumn1());
+	Vec3 cameraPos(GetISystem()->GetViewCamera().GetPosition());
+	Vec3 cameraDir(GetISystem()->GetViewCamera().GetMatrix().GetColumn1());
 
 	float  dot = (m_pos - cameraPos).Dot(cameraDir);
 

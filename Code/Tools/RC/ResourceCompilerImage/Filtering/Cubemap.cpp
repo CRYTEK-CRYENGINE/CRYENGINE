@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 
@@ -11,6 +11,7 @@
 #include "StringHelpers.h"                  // StringHelpers
 
 #include "Cubemap.h"
+#include <CryString/UnicodeFunctions.h>
 
 // we can't build debug-builds with the concurrency-runtime,
 // as _CRT_DBG_MALLOC interferes with concurrency-runtime's alloca/freea
@@ -28,8 +29,10 @@ static ThreadUtils::CriticalSection s_atiCubemapLock;
 
 static void AtiCubeMapGen_MessageOutputFunc(WCHAR* pTitle, WCHAR* pMessage)
 {
-	const string t = StringHelpers::ConvertAsciiUtf16ToAscii(pTitle);
-	const string m = StringHelpers::ConvertAsciiUtf16ToAscii(pMessage);
+	string t, m;
+	Unicode::Convert(t, pTitle);
+	Unicode::Convert(m, pTitle);
+
 	RCLogWarning("ATI CubeMapGen: %s: %s", t.c_str(), m.c_str());
 }
 

@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "ImporterUtil.h"
@@ -368,8 +368,8 @@ std::future<std::pair<bool, string>> CopySourceFileToDirectoryAsync(const string
 	const QString absOriginalFilePath = QtUtil::ToQString(from);
 	const string absDir = PathUtil::Make(PathUtil::GetGameProjectAssetsPath(), dir);
 
-	QFileInfo origInfo(absOriginalFilePath);
-	QFileInfo dirInfo(QtUtil::ToQString(absDir));
+	const QFileInfo origInfo(absOriginalFilePath);
+	const QFileInfo dirInfo(QtUtil::ToQString(absDir));
 
 	if (!origInfo.isFile())
 	{
@@ -385,7 +385,7 @@ std::future<std::pair<bool, string>> CopySourceFileToDirectoryAsync(const string
 		return promise.get_future();
 	}
 
-	QString targetFilePath = dirInfo.absoluteDir().absoluteFilePath(origInfo.fileName());
+	const QString targetFilePath = QDir(dirInfo.absoluteFilePath()).absoluteFilePath(origInfo.fileName());
 
 	auto copyFunction = [absOriginalFilePath, targetFilePath]()
 	{
@@ -416,4 +416,5 @@ std::future<std::pair<bool, string>> CopySourceFileToDirectoryAsync(const string
 		}
 	});
 }
+
 

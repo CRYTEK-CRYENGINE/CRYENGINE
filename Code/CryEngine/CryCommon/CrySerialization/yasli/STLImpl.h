@@ -61,11 +61,58 @@ public:
 	TypeID elementType() const{ return TypeID::get<Element>(); }
 	TypeID containerType() const{ return TypeID::get<Container>(); }
 
+	void begin()
+	{
+		it_ = container_->begin();
+	}
+
 	bool next()
 	{
 		YASLI_ESCAPE(container_ && it_ != container_->end(), return false);
 		++it_;
 		return it_ != container_->end();
+	}
+
+	void remove()
+	{
+		it_ = container_->erase(it_);
+	}
+
+	void insert()
+	{
+		it_ = container_->emplace(it_);
+	}
+
+	void move(int index)
+	{
+		moveImpl<Element>(index);
+	}
+
+	template<typename T, typename std::enable_if<std::is_copy_assignable<T>::value, int>::type = 0>
+	void moveImpl(int index)
+	{
+		auto it = container_->begin();
+		it = it + index;
+
+		auto distance = std::distance(it, it_);
+		if (distance > 0)
+		{
+			auto element = *it_;
+			std::copy_backward(it, it + distance, it_ + 1);
+			*it = element;
+		}
+		else if (distance < 0)
+		{
+			auto element = *it_;
+			std::copy(it_ + 1, it_ + 1 - distance, it_);
+			*it = element;
+		}
+	}
+
+	template<typename T, typename std::enable_if<!std::is_copy_assignable<T>::value, int>::type = 0>
+	void moveImpl(int index)
+	{
+		assert(0); //Should not be called
 	}
 
 	void* elementPointer() const{ return &*it_; }
@@ -118,7 +165,6 @@ public:
 			return "";
 	}
 	void create(const char* typeName) const{
-		YASLI_ASSERT(!ptr_);
 		if(typeName && typeName[0] != '\0')
 			ptr_.reset(ClassFactory<T>::the().create(typeName));
 		else
@@ -166,7 +212,6 @@ public:
 			return "";
 	}
 	void create(const char* typeName) const{
-		YASLI_ASSERT(!ptr_);
 		if(typeName && typeName[0] != '\0')
 			ptr_.reset(ClassFactory<T>::the().create(typeName));
 		else
@@ -349,11 +394,11 @@ struct StdPair : std::pair<K, V>
 	void YASLI_SERIALIZE_METHOD(yasli::Archive& ar) 
 	{
 #if YASLI_STD_PAIR_FIRST_SECOND
-		ar(this->first, "first", "^");
-		ar(this->second, "second", "^");
+		ar(this->first, "first", "^Key");
+		ar(this->second, "second", "^Value");
 #else
-		ar(this->first, "key");
-		ar(this->second, "value");
+		ar(this->first, "key", "Key");
+		ar(this->second, "value", "Value");
 #endif
 	}
 };

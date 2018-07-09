@@ -1,0 +1,13 @@
+<AssetMetadata version="0" type="Texture" guid="addfb482-a797-4c72-aa69-922254c1f2d7" source="NotFound_a.tif">
+ <Files>
+  <File path="NotFound_a.dds"/>
+  <File path="NotFound_a.dds.1"/>
+  <File path="NotFound_a.dds.2"/>
+  <File path="NotFound_a.dds.3"/>
+ </Files>
+ <Details>
+  <Detail name="width">128</Detail>
+  <Detail name="height">128</Detail>
+  <Detail name="mipCount">6</Detail>
+ </Details>
+</AssetMetadata>

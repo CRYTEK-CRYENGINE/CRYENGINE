@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 // -------------------------------------------------------------------------
 //  File name:   UILobbyMP.cpp
@@ -771,7 +771,7 @@ void CUILobbyMP::ReadUserDataCallback(CryLobbyTaskID taskID, ECryLobbyError erro
 	for (int i = 3; i < numData; i++)
 	{
 			SUIArguments arg;
-			arg.AddArgument( pData[i].m_id);
+			arg.AddArgument( pData[i].m_id.c_str() );
 
 			switch(pData[i].m_type)
 			{

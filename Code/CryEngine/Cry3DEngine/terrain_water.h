@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 // -------------------------------------------------------------------------
 //  File name:   terrain_water.h
@@ -22,7 +22,7 @@ public:
 	COcean(IMaterial* pMat);
 	~COcean();
 
-	void          Create();
+	void          Create(const SRenderingPassInfo& passInfo);
 	void          Update(const SRenderingPassInfo& passInfo);
 	void          Render(const SRenderingPassInfo& passInfo);
 

@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 // -------------------------------------------------------------------------
 //  File name:   ParticleFixedSizeElementPool.cpp
@@ -15,6 +15,10 @@
 #include "StdAfx.h"
 #include "ParticleFixedSizeElementPool.h"
 #include "ParticleUtils.h"
+
+#ifndef _RELEASE //Debugging code for specific issue CE-10725
+volatile int g_allocCounter = 0;
+#endif
 
 ///////////////////////////////////////////////////////////////////////////////
 ParticleObjectPool::ParticleObjectPool() :
@@ -130,6 +134,9 @@ void* ParticleObjectPool::Allocate_128Byte()
 		if (pListEntry)
 		{
 #if defined(TRACK_PARTICLE_POOL_USAGE)
+#ifndef _RELEASE //Debugging code for specific issue CE-10725			
+			CryInterlockedAdd(&g_allocCounter, 1);
+#endif
 			CryInterlockedAdd(alias_cast<volatile int*>(&m_nMemory128BytesUsed), nAllocationSize);
 			const int nUsedMemory = CryInterlockedAdd(alias_cast<volatile int*>(&m_nUsedMemory), nAllocationSize);
 			int nMaxUsed = ~0;
@@ -141,6 +148,9 @@ void* ParticleObjectPool::Allocate_128Byte()
 
 			}
 			while (CryInterlockedCompareExchange(alias_cast<volatile LONG*>(&m_nMaxUsedMemory), nUsedMemory, nMaxUsed) == nMaxUsed);
+#ifndef _RELEASE //Debugging code for specific issue CE-10725			
+			CryInterlockedAdd(&g_allocCounter, -1);
+#endif
 #endif
 			return pListEntry;
 		}
@@ -180,6 +190,9 @@ void* ParticleObjectPool::Allocate_256Byte()
 		if (pListEntry)
 		{
 #if defined(TRACK_PARTICLE_POOL_USAGE)			
+#ifndef _RELEASE //Debugging code for specific issue CE-10725			
+			CryInterlockedAdd(&g_allocCounter, 1);
+#endif
 			CryInterlockedAdd(alias_cast<volatile int*>(&m_nMemory256BytesUsed), nAllocationSize);
 			const int nUsedMemory = CryInterlockedAdd(alias_cast<volatile int*>(&m_nUsedMemory), nAllocationSize);
 			int nMaxUsed = ~0;
@@ -191,6 +204,9 @@ void* ParticleObjectPool::Allocate_256Byte()
 
 			}
 			while (CryInterlockedCompareExchange(alias_cast<volatile LONG*>(&m_nMaxUsedMemory), nUsedMemory, nMaxUsed) == nMaxUsed);
+#ifndef _RELEASE //Debugging code for specific issue CE-10725			
+			CryInterlockedAdd(&g_allocCounter, -1);
+#endif
 #endif
 			return pListEntry;
 		}
@@ -229,6 +245,9 @@ void* ParticleObjectPool::Allocate_512Byte()
 		if (pListEntry)
 		{
 #if defined(TRACK_PARTICLE_POOL_USAGE)
+#ifndef _RELEASE //Debugging code for specific issue CE-10725			
+			CryInterlockedAdd(&g_allocCounter, 1);
+#endif
 			CryInterlockedAdd(alias_cast<volatile int*>(&m_nMemory512Bytesused), nAllocationSize);
 			const int nUsedMemory = CryInterlockedAdd(alias_cast<volatile int*>(&m_nUsedMemory), nAllocationSize);
 			int nMaxUsed = ~0;
@@ -240,6 +259,9 @@ void* ParticleObjectPool::Allocate_512Byte()
 
 			}
 			while (CryInterlockedCompareExchange(alias_cast<volatile LONG*>(&m_nMaxUsedMemory), nUsedMemory, nMaxUsed) == nMaxUsed);
+#ifndef _RELEASE //Debugging code for specific issue CE-10725			
+			CryInterlockedAdd(&g_allocCounter, -1);
+#endif
 #endif
 			return pListEntry;
 		}

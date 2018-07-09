@@ -1,54 +1,38 @@
 {
-    "console_variables": [
-        {
-            "name": "sys_target_platforms",
-            "value": "pc,ps4,xboxone,linux"
-        },
-        {
-            "name": "r_displayinfo",
-            "value": "0"
-        },
-        {
-            "name": "e_waterocean",
-            "value": "0"
-        },
-        {
-            "name": "ca_useIMG_CAF",
-            "value": "0"
-        }
-    ],
-    "content": {
-        "assets": [
-            "Assets"
-        ],
-        "code": [
-            "Code"
-        ]
-    },
-    "info": {
-        "name": "Rolling Ball Game Template"
-    },
-    "require": {
-        "engine": "engine-5.4",
-        "plugins": [
-            {
-                "path": "CryDefaultEntities",
-                "type": "EPluginType::Native"
-            },
-            {
-                "path": "CrySensorSystem",
-                "type": "EPluginType::Native"
-            },
-            {
-                "path": "CryPerceptionSystem",
-                "type": "EPluginType::Native"
-            },
-            {
-                "path": "bin/Game.dll",
-                "type": "EPluginType::Managed"
-            }
-        ]
-    },
-    "type": "",
-    "version": 1
+	"version": 3,
+	"type": "",
+	"info": {
+		"name": "Rolling Ball Game Template",
+		"guid": "35978b08-5e7d-562f-7d15-ff4a18f37bc1"
+	},
+	"content": {
+		"assets": [ "Assets" ],
+		"code": [ "Code" ],
+		"libs": [
+			{
+				"name": "Rolling Ball Game Template",
+				"shared": { "any": "", "win_x64": "", "win_x86": "" }
+			}
+		]
+	},
+	"require": {
+		"engine": "engine-5.5",
+		"plugins": [
+			{ "type": "EPluginType::Native", "path": "CryDefaultEntities" },
+			{ "type": "EPluginType::Native", "path": "CrySensorSystem" },
+			{ "type": "EPluginType::Native", "path": "CryPerceptionSystem" },
+			{ "type": "EPluginType::Managed", "path": "bin/Game.dll" },
+			{
+				"type": "EPluginType::Native",
+				"path": "CryGamePlatform",
+				"platforms": [ "PS4" ]
+			}
+		]
+	},
+	"console_variables": [
+		{ "name": "sys_target_platforms", "value": "pc,ps4,xboxone,linux" }
+	],
+	"console_commands": [
+		{ "name": "map", "value": "example" }
+	]
 }

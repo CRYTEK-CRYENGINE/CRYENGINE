@@ -1,9 +1,9 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
 #include "ICryPerceptionSystemPlugin.h"
-#include <CryExtension/ICryPluginManager.h>
+#include <CrySystem/ICryPluginManager.h>
 
 enum EAIStimulusType
 {
@@ -38,6 +38,14 @@ enum EAIStimulusFilterMerge
 	AISTIMFILTER_DISCARD,                 //!< Discard new stimulus when inside existing stimulus.
 	AISTIMFILTER_MERGE_AND_DISCARD,       //!< Merge new stimulus when inside existing stimulus if (and only if) the
 	//!< lifetime of the existing stimulus is less than processDelay, else discard.
+};
+
+//! Subtypes of the collision stimulus type
+enum SAICollisionObjClassification
+{
+	AICOL_SMALL,
+	AICOL_MEDIUM,
+	AICOL_LARGE,
 };
 
 struct SAIStimulusParams

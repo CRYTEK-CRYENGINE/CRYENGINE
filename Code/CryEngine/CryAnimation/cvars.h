@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -41,6 +41,7 @@ struct CRY_ALIGN(128) Console
 	void Init();
 	const char* ca_CharEditModel;
 	const char* ca_FilterJoints;
+	const char* ca_DebugCommandBufferFilter;
 	string ca_DebugTextTarget;
 	uint32 ca_DebugTextLayer;
 
@@ -80,6 +81,7 @@ struct CRY_ALIGN(128) Console
 	DeclareConstIntCVar(ca_DebugFacial, 0);
 	DeclareConstIntCVar(ca_DebugFacialEyes, 0);
 	DeclareConstIntCVar(ca_DebugAnimationStreaming, 0);
+	DeclareConstIntCVar(ca_DebugAttachmentsProxies, 0);
 	DeclareConstIntCVar(ca_DebugCriticalErrors, 0);
 	DeclareConstIntCVar(ca_UseIMG_CAF, 1);
 	DeclareConstIntCVar(ca_UseIMG_AIM, 1);
@@ -120,6 +122,7 @@ struct CRY_ALIGN(128) Console
 	DeclareConstIntCVar(ca_LockFeetWithIK, 1);
 	DeclareConstIntCVar(ca_AllowMultipleEffectsOfSameName, 1);
 	DeclareConstIntCVar(ca_UseAssetDefinedLod, 0);
+	DeclareConstIntCVar(ca_ForceAnimationLod, -1);
 	DeclareConstIntCVar(ca_PrecacheAnimationSets, 0);
 	DeclareConstIntCVar(ca_DisableAnimationUnloading, 0);
 	DeclareConstIntCVar(ca_PreloadAllCAFs, 0);
@@ -157,6 +160,8 @@ struct CRY_ALIGN(128) Console
 	int32 ca_StreamCHR;
 	int32 ca_StreamDBAInPlace;
 
+	int32 ca_VClothMode;
+
 	f32 ca_lipsync_vertex_drag;
 	f32 ca_lipsync_phoneme_strength;
 	f32 ca_DeathBlendTime;
@@ -172,6 +177,8 @@ struct CRY_ALIGN(128) Console
 	f32 ca_cloth_stiffness_tang;
 	f32 ca_cloth_damping;
 	f32 ca_cloth_air_resistance;
+
+	int32 ca_ResetCulledJointsToBindPose;
 
 	f32 ca_MotionBlurMovementThreshold;
 
@@ -191,6 +198,7 @@ struct CRY_ALIGN(128) Console
 	DeclareConstIntCVar(ca_ClothBlending, 1);
 	DeclareConstIntCVar(ca_ClothBypassSimulation, 0);
 	DeclareConstIntCVar(ca_ClothMaxChars, 20);
+	DeclareConstIntCVar(ca_ClothForceSkinningAfterNFrames, 3);
 	bool DrawPose(const char mode);
 
 private:

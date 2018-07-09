@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 //////////////////////////////////////////////////////////////////////////
 
@@ -168,7 +168,7 @@ void CLiveCreateCmd_UpdateLightParams::Execute()
 	ILightSource* pLight = FindLightSource(m_guid);
 	if (NULL != pLight)
 	{
-		CDLight params = pLight->GetLightProperties();
+		SRenderLight params = pLight->GetLightProperties();
 		params.m_Flags = m_Flags;
 		params.m_fRadius = m_fRadius;
 		params.m_Color = m_Color;

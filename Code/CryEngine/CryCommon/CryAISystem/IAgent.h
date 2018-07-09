@@ -1,16 +1,7 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
-/********************************************************************
-   -------------------------------------------------------------------------
-   File name:   IAgent.h
-   $Id$
-   Description:
+//! \cond INTERNAL
 
-   -------------------------------------------------------------------------
-   History:
-   -
-
- *********************************************************************/
 #pragma once
 
 #include <CryMath/Cry_Math.h>
@@ -893,30 +884,6 @@ struct IFireCommandHandler
 	// </interfuscator:shuffle>
 };
 
-//! Memento used in CanTargetPointBeReached etc.
-class CTargetPointRequest
-{
-public:
-	CTargetPointRequest()  {}
-	CTargetPointRequest(const Vec3& targetPoint, bool continueMovingAtEnd = true)
-		: targetPoint(targetPoint), pathID(-1), continueMovingAtEnd(continueMovingAtEnd), splitPoint(ZERO) {}
-	ETriState   GetResult() const        { return result; }
-	const Vec3& GetPosition() const      { return targetPoint; }
-	void        SetResult(ETriState res) { result = res; }
-private:
-	// Data is internal to AI (CNavPath)!
-	friend class CNavPath;
-	Vec3 targetPoint;
-	Vec3 splitPoint;
-	int  itIndex;
-	int  itBeforeIndex;
-
-	//! Used to identify the path this was valid for.
-	int       pathID;
-	bool      continueMovingAtEnd;
-	ETriState result;
-};
-
 struct SAIEVENT
 {
 	bool     bFuzzySight;
@@ -1066,13 +1033,13 @@ struct IPipeUser
 	virtual bool       SetCharacter(const char* character, const char* behaviour = NULL) = 0;
 #endif
 
-	virtual void        SetInCover(bool inCover) = 0;
-	virtual bool        IsInCover() const = 0;
-	virtual bool        IsCoverCompromised() const = 0;
+	virtual void        SetInCover(bool bInCover) = 0;
+	virtual void        SetMovingToCover(bool bMovingInCover) = 0;
 	virtual void        SetCoverCompromised() = 0;
-	virtual bool        IsTakingCover(float distanceThreshold) const = 0;
+	virtual bool        IsCoverCompromised() const = 0;
+	virtual bool        IsInCover() const = 0;
 	virtual bool        IsMovingToCover() const = 0;
-	virtual CoverHeight CalculateEffectiveCoverHeight() const = 0;
+	virtual bool        IsTakingCover(float distanceThreshold) const = 0;
 
 	virtual void        ClearDevalued() = 0;
 
@@ -1918,3 +1885,5 @@ struct IAICommunicationHandler
 
 enum EWaypointNodeType {WNT_UNSET, WNT_WAYPOINT, WNT_HIDE, WNT_ENTRYEXIT, WNT_EXITONLY, WNT_HIDESECONDARY};
 enum EWaypointLinkType {WLT_AUTO_PASS = 320, WLT_AUTO_IMPASS = -320, WLT_EDITOR_PASS = 321, WLT_EDITOR_IMPASS = -321, WLT_UNKNOWN_TYPE = 0};
+
+//! \endcond

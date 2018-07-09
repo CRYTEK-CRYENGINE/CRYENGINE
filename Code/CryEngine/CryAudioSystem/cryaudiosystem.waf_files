@@ -1,57 +1,51 @@
 {
-
-	"NoUberFile" : {
-
-		"Root" :[
-
-		  "stdafx.cpp",
-		  "stdafx.h"
-		]
-	},
-
-	"CryAudioSystem_uber_0.cpp" : {
-
-		"Source Files" :[
-		  "ATL.cpp",
-		  "ATLAudioObject.cpp",
-		  "AudioEventManager.cpp",
-		  "ATLEntities.cpp",
-		  "AudioRequests.cpp",
-		  "AudioSystem.cpp",
-		  "AudioImpl.cpp",
-		  "CryAudioSystem.cpp",
-		  "FileCacheManager.cpp",
-		  "AudioCVars.cpp",
-		  "PropagationProcessor.cpp",
-		  "AudioStandaloneFileManager.cpp",
-		  "AudioObjectManager.cpp",
-		  "AudioListenerManager.cpp",
-		  "AudioEventListenerManager.cpp",
-		  "AudioXMLProcessor.cpp",
-		  "InternalEntities.cpp",
-		  "ProfileData.cpp"
-		],
-
-		"Header Files" :[
-		  "ATL.h",
-		  "ATLAudioObject.h",
-		  "AudioEventManager.h",
-		  "ATLEntities.h",
-		  "ATLUtils.h",
-		  "AudioInternalInterfaces.h",
-		  "AudioSystem.h",
-		  "AudioImpl.h",
-		  "FileCacheManager.h",
-		  "resource.h",
-		  "AudioCVars.h",
-		  "PropagationProcessor.h",
-		  "AudioStandaloneFileManager.h",
-		  "AudioObjectManager.h",
-		  "AudioListenerManager.h",
-		  "AudioEventListenerManager.h",
-		  "AudioXMLProcessor.h",
-		  "InternalEntities.h",
-		  "ProfileData.h"
-		]
-	}
+  "CryAudioSystem_uber_0.cpp": {
+    "Header Files": [
+      "ATL.h", 
+      "ATLAudioObject.h", 
+      "AudioEventManager.h", 
+      "ATLEntities.h", 
+      "ATLUtils.h", 
+      "AudioInternalInterfaces.h", 
+      "AudioSystem.h", 
+      "AudioImpl.h", 
+      "FileCacheManager.h", 
+      "resource.h", 
+      "AudioCVars.h", 
+      "PropagationProcessor.h", 
+      "AudioStandaloneFileManager.h", 
+      "AudioObjectManager.h", 
+      "AudioListenerManager.h", 
+      "AudioEventListenerManager.h", 
+      "AudioXMLProcessor.h", 
+      "InternalEntities.h", 
+      "ProfileData.h"
+    ], 
+    "Source Files": [
+      "ATL.cpp", 
+      "ATLAudioObject.cpp", 
+      "AudioEventManager.cpp", 
+      "ATLEntities.cpp", 
+      "AudioRequests.cpp", 
+      "AudioSystem.cpp", 
+      "AudioImpl.cpp", 
+      "CryAudioSystem.cpp", 
+      "FileCacheManager.cpp", 
+      "AudioCVars.cpp", 
+      "PropagationProcessor.cpp", 
+      "AudioStandaloneFileManager.cpp", 
+      "AudioObjectManager.cpp", 
+      "AudioListenerManager.cpp", 
+      "AudioEventListenerManager.cpp", 
+      "AudioXMLProcessor.cpp", 
+      "InternalEntities.cpp", 
+      "ProfileData.cpp"
+    ]
+  }, 
+  "NoUberFile": {
+    "Root": [
+      "stdafx.cpp", 
+      "stdafx.h"
+    ]
+  }
 }

@@ -1,12 +1,14 @@
 {
 	"description"                           : "Configuration to build the Engine and the GameSDK Project",
-	"valid_platforms"                       : [ "win", "durango", "orbis", "linux", "darwin", "android" ],
+	"valid_platforms"                       : [ "win", "durango", "orbis" ],
 	"valid_configuration"                   : [ "debug", "profile", "performance", "release" ],
 	"visual_studio_name"                    : "GameSDK",
 
-	"game_projects"                         : "GameSDK",
+  "game_projects": "GameSDK",
 
 	"win_module_extensions"                 : ["audio_fmod", "brofiler", "eyex", "mono"],
+
+  "defines"                               : [ "UQS_SCHEMATYC_SUPPORT=1", "SUPPORT_UNSIGNED_PAKS" ],
 
 	"modules" :
 	[
@@ -30,8 +32,7 @@
 		"CrySystem",
 		"CryScaleformHelper",
 		"CryAction",
-		"CrySchematycCore",
-		"CrySchematycSTDEnv",
+		"CrySchematyc",
 		"CryFlowGraph",
 		"HWScripts",
 		
@@ -50,6 +51,7 @@
 		"jsmn",
 		"png16",
 		"jpeg",
+		"tiff",
 		"curl",
 		"spirv-cross",
 

@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "RuntimeAreaObject.h"
@@ -42,7 +42,7 @@ bool CRuntimeAreaObject::NetSerialize(TSerialize ser, EEntityAspects aspect, uin
 }
 
 ///////////////////////////////////////////////////////////////////////////
-void CRuntimeAreaObject::ProcessEvent(SEntityEvent& entityEvent)
+void CRuntimeAreaObject::ProcessEvent(const SEntityEvent& entityEvent)
 {
 	switch (entityEvent.event)
 	{
@@ -93,6 +93,12 @@ void CRuntimeAreaObject::ProcessEvent(SEntityEvent& entityEvent)
 			break;
 		}
 	}
+}
+
+///////////////////////////////////////////////////////////////////////////
+uint64 CRuntimeAreaObject::GetEventMask() const
+{
+	return ENTITY_EVENT_BIT(ENTITY_EVENT_ENTERAREA) | ENTITY_EVENT_BIT(ENTITY_EVENT_LEAVEAREA) | ENTITY_EVENT_BIT(ENTITY_EVENT_MOVEINSIDEAREA);
 }
 
 ///////////////////////////////////////////////////////////////////////////

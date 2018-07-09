@@ -1,0 +1,38 @@
+# Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
+
+def build(bld):	
+	
+	fbx_sdk_subfolder = 'vs2012'
+	try:
+		msvc_version = bld.env['MSVC_VERSION']
+		if msvc_version == '11.0':
+			fbx_sdk_subfolder = 'vs2012'
+		if msvc_version == '12.0':
+			fbx_sdk_subfolder = 'vs2013'
+		if msvc_version == '14.0':
+			fbx_sdk_subfolder = 'vs2015'
+	except:
+		pass
+
+	bld.CryPlugin(
+		target = 'FBXPlugin',
+		vs_filter = 'Sandbox/Plugins',
+		file_list = 'fbxplugin.waf_files',
+
+		pch = 'StdAfx.cpp',
+		includes = [ bld.CreateRootRelativePath('Code/SDKs/FbxSdk/include'), bld.CreateRootRelativePath('Code/Sandbox/EditorQt'), bld.CreateRootRelativePath('Code/Sandbox/EditorQt/Include') ],
+		use = [ 'Sandbox' ],
+		lib = [ 'libfbxsdk-md', 'Wininet' ],
+		defines = ['FBXSDK_NEW_API', 'PLUGIN_EXPORTS' ,'NOT_USE_CRY_MEMORY_MANAGER'],
+
+		win_x86_debug_libpath       = Path('Code/SDKs/FbxSdk/lib/' + fbx_sdk_subfolder + '/x86/debug'),
+		win_x86_profile_libpath     = Path('Code/SDKs/FbxSdk/lib/' + fbx_sdk_subfolder + '/x86/release'),
+		win_x86_performance_libpath = Path('Code/SDKs/FbxSdk/lib/' + fbx_sdk_subfolder + '/x86/release'),
+		win_x86_release_libpath     = Path('Code/SDKs/FbxSdk/lib/' + fbx_sdk_subfolder + '/x86/release'),
+
+		win_x64_debug_libpath       = Path('Code/SDKs/FbxSdk/lib/' + fbx_sdk_subfolder + '/x64/debug'),
+		win_x64_profile_libpath     = Path('Code/SDKs/FbxSdk/lib/' + fbx_sdk_subfolder + '/x64/release'),
+		win_x64_performance_libpath = Path('Code/SDKs/FbxSdk/lib/' + fbx_sdk_subfolder + '/x64/release'),
+		win_x64_release_libpath     = Path('Code/SDKs/FbxSdk/lib/' + fbx_sdk_subfolder + '/x64/release'),
+	)
+

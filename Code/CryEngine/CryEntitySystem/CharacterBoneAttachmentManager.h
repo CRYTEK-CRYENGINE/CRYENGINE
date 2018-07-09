@@ -1,13 +1,12 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
-#ifndef _CHARACTERBONE_ATTACHMENT_MANAGER_
-	#define _CHARACTERBONE_ATTACHMENT_MANAGER_
+#pragma once
 
 class CEntity;
 
-	#include <CryCore/Containers/VectorMap.h>
+#include <CryCore/Containers/VectorMap.h>
 
 class CCharacterBoneAttachmentManager
 {
@@ -39,5 +38,3 @@ private:
 
 	VectorMap<SBinding, SAttachmentData> m_attachments;
 };
-
-#endif

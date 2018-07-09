@@ -1,4 +1,4 @@
-﻿// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 /*************************************************************************
  -------------------------------------------------------------------------
@@ -366,7 +366,7 @@ bool CItem::ResetParams()
 //------------------------------------------------------------------------
 void CItem::Reset()
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_GAME);
+	CRY_PROFILE_FUNCTION(PROFILE_GAME);
 
 	if (IScriptTable* pScriptTable = gEnv->pEntitySystem->GetEntity(GetEntityId())->GetScriptTable())
 	{
@@ -496,7 +496,7 @@ void CItem::Release()
 //------------------------------------------------------------------------
 void CItem::Update( SEntityUpdateContext& ctx, int slot )
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_GAME);
+	CRY_PROFILE_FUNCTION(PROFILE_GAME);
 
 	if (!IsDestroyed())
 	{
@@ -720,9 +720,9 @@ void CItem::HandleEvent( const SGameObjectEvent &evt )
 }
 
 //------------------------------------------------------------------------
-void CItem::ProcessEvent(SEntityEvent &event)
+void CItem::ProcessEvent(const SEntityEvent& event)
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_GAME);
+	CRY_PROFILE_FUNCTION(PROFILE_GAME);
 
 	switch (event.event)
 	{
@@ -820,6 +820,11 @@ void CItem::ProcessEvent(SEntityEvent &event)
 		}
 		break;
 	}
+}
+
+uint64 CItem::GetEventMask() const
+{
+	return ENTITY_EVENT_BIT(ENTITY_EVENT_ANIM_EVENT) | ENTITY_EVENT_BIT(ENTITY_EVENT_TIMER) | ENTITY_EVENT_BIT(ENTITY_EVENT_RESET) | ENTITY_EVENT_BIT(ENTITY_EVENT_PRE_SERIALIZE) | ENTITY_EVENT_BIT(ENTITY_EVENT_DEACTIVATED);
 }
 
 //------------------------------------------------------------------------

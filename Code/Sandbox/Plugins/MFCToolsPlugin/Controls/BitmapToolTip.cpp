@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "BitmapToolTip.h"
@@ -560,3 +560,4 @@ void CBitmapToolTip::SetTool(CWnd* pWnd, const CRect& rect)
 	m_hToolWnd = pWnd->GetSafeHwnd();
 	m_toolRect = rect;
 }
+

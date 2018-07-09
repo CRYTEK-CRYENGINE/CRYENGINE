@@ -1,5 +1,4 @@
-// CRYENGINE Source Code File
-// Copyright 2001-2015 Crytek GmbH. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "Common.cfi"
 
@@ -9,12 +8,6 @@ float Script : STANDARDSGLOBAL
   string Script =        
            "ShaderDrawType = Light;"
 >;
-
-
-// Non-Tweakables
-
-
-float4 objColor : PI_ObjColor;
 
 
 // Structs
@@ -28,7 +21,7 @@ struct SDebugLightApp2VS
 
 struct SDebugLightVS2PS
 {
-	float4 pos : POSITION0;
+	float4 pos : SV_Position;
 	float4 col : COLOR0;
 };
 
@@ -36,11 +29,11 @@ struct SDebugLightVS2PS
 
 
 SDebugLightVS2PS
-DebugLightVS( SDebugLightApp2VS IN )
+DebugLightVS( SDebugLightApp2VS IN)
 {
   SDebugLightVS2PS OUT = (SDebugLightVS2PS) 0;
-  OUT.pos = mul( vpMatrix, IN.pos );
-  OUT.col = objColor;
+  OUT.pos = mul( CV_ViewProjMatr, IN.pos );
+  OUT.col *= Get_SPI_Dissolve();
   return OUT;
 }
 
@@ -77,7 +70,7 @@ SDebugLightVS2PS
 DebugLightZVS( SDebugLightApp2VS IN )
 {
   SDebugLightVS2PS OUT = (SDebugLightVS2PS) 0;
-  OUT.pos = mul( vpMatrix, IN.pos );
+  OUT.pos = mul( CV_ViewProjMatr, IN.pos );
   return OUT;
 }
 

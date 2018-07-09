@@ -1,0 +1,7 @@
+<!DOCTYPE RCC><RCC version="1.0">
+<qresource>
+	<file alias="QPropertyTree/validator_warning.png">validator_warning.png</file>
+	<file alias="QPropertyTree/validator_error.png">validator_error.png</file>
+</qresource>
+</RCC>
+

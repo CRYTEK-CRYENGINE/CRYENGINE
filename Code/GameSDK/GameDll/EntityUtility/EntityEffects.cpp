@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 /*************************************************************************
 -------------------------------------------------------------------------
@@ -269,22 +269,22 @@ namespace EntityEffects
 	{
 		CRY_ASSERT(m_pOwnerEntity);
 
-		CDLight light;
+		SRenderLight light;
+		light.m_Flags |= attachParams.deferred ? DLF_DEFERRED_LIGHT : 0;
+		light.m_Flags |= attachParams.castShadows ?  DLF_CASTSHADOW_MAPS : 0;
 		light.SetLightColor(ColorF(attachParams.color.x * attachParams.diffuseMultiplier, attachParams.color.y * attachParams.diffuseMultiplier, attachParams.color.z * attachParams.diffuseMultiplier, 1.0f));
 		light.SetSpecularMult( (float)__fsel( -attachParams.diffuseMultiplier, attachParams.specularMultiplier, (attachParams.specularMultiplier / (attachParams.diffuseMultiplier + FLT_EPSILON)) ) );
 		light.m_nLightStyle = attachParams.style;
 		light.SetAnimSpeed(attachParams.animSpeed);
 		light.m_fLightFrustumAngle = 45.0f;
-		light.m_fRadius = attachParams.radius;
+		light.SetRadius(attachParams.radius);
 		light.m_fLightFrustumAngle = attachParams.projectFov * 0.5f;
 		light.m_fHDRDynamic = attachParams.hdrDynamic;
-		light.m_Flags |= attachParams.deferred ? DLF_DEFERRED_LIGHT : 0;
-		light.m_Flags |= attachParams.castShadows ?  DLF_CASTSHADOW_MAPS : 0;
 		light.m_nEntityId = m_pOwnerEntity->GetId();
 
 		if (attachParams.projectTexture && attachParams.projectTexture[0])
 		{
-			light.m_pLightImage = gEnv->pRenderer->EF_LoadTexture(attachParams.projectTexture, FT_DONT_STREAM);
+			light.m_pLightImage = gEnv->pRenderer->EF_LoadTexture(attachParams.projectTexture, 0);
 
 			if (!light.m_pLightImage || !light.m_pLightImage->IsTextureLoaded())
 			{

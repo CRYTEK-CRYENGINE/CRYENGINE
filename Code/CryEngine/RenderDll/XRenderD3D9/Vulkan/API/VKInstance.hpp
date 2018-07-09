@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -51,7 +51,11 @@ public:
 
 	size_t GetPhysicalDeviceCount() const { return m_physicalDevices.size(); }
 
-	_smart_ptr<CDevice> CreateDevice(size_t physicalDeviceIndex, const SSurfaceCreationInfo& surfaceCreationInfo);
+	_smart_ptr<CDevice> CreateDevice(size_t physicalDeviceIndex);
+
+	//platform dependant function to create platform independant VkSurfaceKHR handle
+	VkResult CreateSurface(const SSurfaceCreationInfo& info, VkSurfaceKHR* surface);
+	void DestroySurface(VkSurfaceKHR surface);
 
 private:
 	VkResult InitializeInstanceLayerInfos();
@@ -62,9 +66,6 @@ private:
 	VkResult InitializePhysicalDeviceInfos();
 	VkResult InitializePhysicalDeviceLayerInfos(SPhysicalDeviceInfo& info);
 	VkResult InitializePhysicalDeviceExtensions(VkPhysicalDevice& device, const char* layerName, std::vector<VkExtensionProperties>& extensions);
-
-	//platform dependant function to create platform independant VkSurfaceKHR handle
-	VkResult CreateSurface(const SSurfaceCreationInfo& info, VkSurfaceKHR* surface);
 
 	//Gather* functions fill in the names of the layers & extensions we want to enable. For now, the only debug layer queried is VK_LAYER_LUNARG_standard_validation, could potentially try to
 	//query specific ones if the standard validation layer not present.

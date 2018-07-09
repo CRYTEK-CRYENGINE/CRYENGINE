@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #ifndef __TimelineCtrl_h__
 #define __TimelineCtrl_h__
@@ -150,3 +150,4 @@ private:
 };
 
 #endif // __TimelineCtrl_h__
+

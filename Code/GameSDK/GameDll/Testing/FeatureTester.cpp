@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "Testing/FeatureTester.h"
@@ -1781,7 +1781,7 @@ void CFeatureTester::DisplayCaption(const SFeatureTest * test)
 			paramString.append(">");
 		}
 
-		int height = renderer->GetHeight();
+		int height = renderer->GetOverlayHeight();
 		IRenderAuxText::Draw2dLabel(30.f, height - 80.f, 3.f, m_currentTest ? s_colour_testName_Active : s_colour_testName_CannotStart, false, "%s%s", test->m_testName, paramString.c_str());
 		IRenderAuxText::Draw2dLabel(30.f, height - 45.f, 2.f, s_colour_testDescription, false, "%s", test->m_testDescription);
 

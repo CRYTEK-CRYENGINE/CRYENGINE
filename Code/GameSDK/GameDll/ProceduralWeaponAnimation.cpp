@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "ProceduralWeaponAnimation.h"
@@ -146,8 +146,8 @@ namespace
 		newFlags.SetMode2D3DFlag(e_Mode2D);
 		gEnv->pRenderer->GetIRenderAuxGeom()->SetRenderFlags(newFlags);
 
-		int vpX, vpY, vpW, vpH;
-		gEnv->pRenderer->GetViewport(&vpX, &vpY, &vpW, &vpH);
+		int vpW = gEnv->pRenderer->GetOverlayWidth();
+		int vpH = gEnv->pRenderer->GetOverlayHeight();
 
 		const float desireAspectRatio = 16.0f / 9.0f;
 		const float currentAspectRatio = vpW / float(vpH);

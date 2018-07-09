@@ -1,18 +1,5 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
-// -------------------------------------------------------------------------
-//  File name:   RopeProxy.h
-//  Version:     v1.00
-//  Created:     23/10/2006 by Timur.
-//  Compilers:   Visual Studio.NET 2003
-//  Description:
-// -------------------------------------------------------------------------
-//  History:
-//
-////////////////////////////////////////////////////////////////////////////
-
-#ifndef __RopeProxy_h__
-#define __RopeProxy_h__
 #pragma once
 
 // forward declarations.
@@ -35,8 +22,8 @@ public:
 	//////////////////////////////////////////////////////////////////////////
 	// IEntityComponent interface implementation.
 	//////////////////////////////////////////////////////////////////////////
-	virtual void Initialize() final;
-	virtual void ProcessEvent(SEntityEvent& event) final;
+	virtual void   Initialize() final;
+	virtual void   ProcessEvent(const SEntityEvent& event) final;
 	virtual uint64 GetEventMask() const final;
 	//////////////////////////////////////////////////////////////////////////
 
@@ -44,7 +31,7 @@ public:
 	// IEntityComponent interface implementation.
 	//////////////////////////////////////////////////////////////////////////
 	virtual EEntityProxy GetProxyType() const final { return ENTITY_PROXY_ROPE; }
-	virtual void         Release() final { delete this; };
+	virtual void         Release() final            { delete this; };
 	virtual void         Update(SEntityUpdateContext& ctx) final;
 	virtual void         LegacySerializeXML(XmlNodeRef& entityNode, XmlNodeRef& componentNode, bool bLoading) override final;
 	virtual bool         NeedGameSerialize() final;
@@ -71,5 +58,3 @@ protected:
 	int              m_segmentsCount = 0;
 	float            m_texureTileV = 0;
 };
-
-#endif // __RopeProxy_h__

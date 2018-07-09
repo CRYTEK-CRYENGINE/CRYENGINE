@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #ifndef __GRIDUTILS_H__
 #define __GRIDUTILS_H__
@@ -44,3 +44,4 @@ template<typename F> inline void IterateGrid(F& f, const float minPixelsPerTick,
 }
 
 #endif //__GRIDUTILS_H__
+

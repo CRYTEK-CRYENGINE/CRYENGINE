@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "LuaRemoteDebug.h"
@@ -412,39 +412,39 @@ void CLuaRemoteDebug::SendVersion()
 
 void CLuaRemoteDebug::SerializeLuaValue(const ScriptAnyValue& scriptValue, CSerializationHelper& buffer, int maxDepth)
 {
-	buffer.Write((char)scriptValue.type);
-	switch (scriptValue.type)
+	buffer.Write((char)scriptValue.GetType());
+	switch (scriptValue.GetType())
 	{
-	case ANY_ANY:
-	case ANY_TNIL:
+	case EScriptAnyType::Any:
+	case EScriptAnyType::Nil:
 		// Nothing to serialize
 		break;
-	case ANY_TBOOLEAN:
-		buffer.Write(scriptValue.b);
+	case EScriptAnyType::Boolean:
+		buffer.Write(scriptValue.GetBool());
 		break;
-	case ANY_THANDLE:
-		buffer.Write(scriptValue.ptr);
+	case EScriptAnyType::Handle:
+		buffer.Write(scriptValue.GetScriptHandle().ptr);
 		break;
-	case ANY_TNUMBER:
-		buffer.Write(scriptValue.number);
+	case EScriptAnyType::Number:
+		buffer.Write(scriptValue.GetNumber());
 		break;
-	case ANY_TSTRING:
-		buffer.WriteString(scriptValue.str);
+	case EScriptAnyType::String:
+		buffer.WriteString(scriptValue.GetString());
 		break;
-	case ANY_TTABLE:
-		SerializeLuaTable(scriptValue.table, buffer, maxDepth - 1);
+	case EScriptAnyType::Table:
+		SerializeLuaTable(scriptValue.GetScriptTable(), buffer, maxDepth - 1);
 		break;
-	case ANY_TFUNCTION:
-		buffer.Write(scriptValue.function);
+	case EScriptAnyType::Function:
+		buffer.Write(scriptValue.GetScriptFunction());
 		break;
-	case ANY_TUSERDATA:
-		buffer.Write(scriptValue.ud.ptr);
-		buffer.Write(scriptValue.ud.nRef);
+	case EScriptAnyType::UserData:
+		buffer.Write(scriptValue.GetUserData().ptr);
+		buffer.Write(scriptValue.GetUserData().nRef);
 		break;
-	case ANY_TVECTOR:
-		buffer.Write(scriptValue.vec3.x);
-		buffer.Write(scriptValue.vec3.y);
-		buffer.Write(scriptValue.vec3.z);
+	case EScriptAnyType::Vector:
+		buffer.Write(scriptValue.GetVector().x);
+		buffer.Write(scriptValue.GetVector().y);
+		buffer.Write(scriptValue.GetVector().z);
 		break;
 	}
 }

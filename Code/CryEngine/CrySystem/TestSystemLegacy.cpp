@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include <CrySystem/ISystem.h>                      // ISystem
@@ -230,7 +230,7 @@ void CTestSystemLegacy::BeforeRender()
 
 		IEntitySystem* pEntitySystem = gEnv->pEntitySystem;
 		IEntityClass* pPrecacheCameraClass = pEntitySystem->GetClassRegistry()->FindClass("PrecacheCamera");
-		static IEntityIt* pEntityIter = 0;
+		static IEntityItPtr pEntityIter = 0;
 
 		if (m_iRenderPause != 0)
 			--m_iRenderPause;
@@ -261,7 +261,6 @@ void CTestSystemLegacy::BeforeRender()
 		if (!pEntity)
 		{
 			m_sParameter = "";                                          // stop processing
-			SAFE_RELEASE(pEntityIter);
 			m_iRenderPause = 0;
 			return;
 		}
@@ -275,10 +274,12 @@ void CTestSystemLegacy::BeforeRender()
 			ScreenShot(szDirectory, (string(pEntity->GetName()) + "_later.bmp").c_str());
 
 		// setup camera
-		CCamera& rCam = GetISystem()->GetViewCamera();
+		CCamera cam = GetISystem()->GetViewCamera();
 		Matrix34 mat = pEntity->GetWorldTM();
-		rCam.SetMatrix(mat);
-		rCam.SetFrustum(pRenderer->GetWidth(), pRenderer->GetHeight(), gf_PI / 2, rCam.GetNearPlane(), rCam.GetFarPlane());
+		cam.SetMatrix(mat);
+		cam.SetFrustum(pRenderer->GetWidth(), pRenderer->GetHeight(), gf_PI / 2, cam.GetNearPlane(), cam.GetFarPlane());
+
+		GetISystem()->SetViewCamera(cam);
 	}
 }
 

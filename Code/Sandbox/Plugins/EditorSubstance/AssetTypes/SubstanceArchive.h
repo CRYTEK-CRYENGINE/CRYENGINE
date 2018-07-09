@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -46,15 +46,15 @@ namespace EditorSubstance
 
 			};
 
-			virtual const char* GetTypeName() const { return "SubstanceDefinition"; }
-			virtual const char* GetUiTypeName() const { return QT_TR_NOOP("Substance Archive"); }
-			virtual bool IsImported() const { return true; }
-			virtual bool CanBeEdited() const { return true; }
+			virtual const char* GetTypeName() const override { return "SubstanceDefinition"; }
+			virtual const char* GetUiTypeName() const override { return QT_TR_NOOP("Substance Archive"); }
+			virtual bool IsImported() const override { return true; }
+			virtual bool CanBeEdited() const override { return true; }
 			virtual CAssetEditor* Edit(CAsset* asset) const override;
 			virtual CryIcon GetIcon() const override;
-			virtual bool HasThumbnail() const { return false; }
-			virtual void AppendContextMenuActions(const std::vector<CAsset*>& assets, CAbstractMenu* menu) const;
-			virtual const char* GetFileExtension() const { return "sbsar"; }
+			virtual bool HasThumbnail() const override { return false; }
+			virtual void AppendContextMenuActions(const std::vector<CAsset*>& assets, CAbstractMenu* menu) const override;
+			virtual const char* GetFileExtension() const override { return "sbsar"; }
 
 			//////////////////////////////////////////////////////////////////////////
 			void SetArchiveCache(CEditableAsset* editableAsset, const std::map<string, std::vector<string>>& archiveData) const;

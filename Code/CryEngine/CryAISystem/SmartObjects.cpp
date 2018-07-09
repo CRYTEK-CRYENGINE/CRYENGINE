@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 /********************************************************************
    -------------------------------------------------------------------------
@@ -41,12 +41,6 @@ CSmartObjectManager::SmartObjects CSmartObjectManager::g_AllSmartObjects;
 std::map<EntityId, CSmartObject*> CSmartObjectManager::g_smartObjectEntityMap;
 
 IMaterial* CClassTemplateData::m_pHelperMtl = NULL;
-
-const static char* const g_sEmptyNavSO = "emptynavso";
-const static float EMPTY_SO_USE_DISTANCE = 5.0f;
-
-// this mask should be used for finding enclosing node of navigation smart objects
-#define SMART_OBJECT_ENCLOSING_NAV_TYPES (IAISystem::NAV_TRIANGULAR | IAISystem::NAV_WAYPOINT_HUMAN | IAISystem::NAV_WAYPOINT_3DSURFACE | IAISystem::NAV_VOLUME)
 
 const CSmartObject::SetStates& CSmartObject::CState::GetDefaultStates()
 {
@@ -268,9 +262,6 @@ void CSmartObject::OnReused(IEntity* pEntity)
 	Reset();
 
 	UnregisterFromAllClasses();
-	m_enclosingNavNodes.clear();
-	m_correspondingNavNodes.clear();
-	m_navLinks.clear();
 
 	m_States.clear();
 	m_States.insert(CState("Idle"));
@@ -306,9 +297,6 @@ void CSmartObject::Serialize(TSerialize ser)
 		m_mapLastUpdateTimes.clear();
 		m_fLookAtLimit = 0;
 		m_vLookAtPos.zero();
-		m_enclosingNavNodes.clear();
-		m_correspondingNavNodes.clear();
-		m_navLinks.clear();
 	}
 
 	ser.Value("m_fRandom", m_fRandom);
@@ -862,15 +850,7 @@ CSmartObjectManager::CSmartObjectManager()
 	CSmartObject::CState("Combat");
 	CSmartObject::CState("Dead");
 
-	uint64 onEventSubscriptions = 0;
-	onEventSubscriptions |= ENTITY_EVENT_BIT(ENTITY_EVENT_INIT);
-	onEventSubscriptions |= ENTITY_EVENT_BIT(ENTITY_EVENT_RESET);
-	onEventSubscriptions |= ENTITY_EVENT_BIT(ENTITY_EVENT_DONE);
-	onEventSubscriptions |= ENTITY_EVENT_BIT(ENTITY_EVENT_HIDE);
-	onEventSubscriptions |= ENTITY_EVENT_BIT(ENTITY_EVENT_UNHIDE);
-	onEventSubscriptions |= ENTITY_EVENT_BIT(ENTITY_EVENT_XFORM);
-
-	gEnv->pEntitySystem->AddSink(this, IEntitySystem::AllSinkEvents & (~IEntitySystem::OnBeforeSpawn), onEventSubscriptions);
+	gEnv->pEntitySystem->AddSink(this, IEntitySystem::AllSinkEvents & (~IEntitySystem::OnBeforeSpawn));
 }
 
 CSmartObjectManager::~CSmartObjectManager()
@@ -1194,7 +1174,7 @@ void CSmartObjectManager::SoftReset()
 	//m_SmartObjects.clear();
 
 	// re-register entities with the smart objects system
-	IEntityIt* it = gEnv->pEntitySystem->GetEntityIterator();
+	IEntityItPtr it = gEnv->pEntitySystem->GetEntityIterator();
 	while (!it->IsEnd())
 	{
 		IEntity* pEntity = it->Next();
@@ -1203,7 +1183,6 @@ void CSmartObjectManager::SoftReset()
 		SEntitySpawnParams params;
 		OnSpawn(pEntity, params);
 	}
-	it->Release();
 
 	RebuildNavigation();
 	m_bRecalculateUserSize = true;
@@ -1243,7 +1222,7 @@ void CSmartObjectManager::RecalculateUserSize()
 float CSmartObjectManager::CalculateDelayTime(CSmartObject* pUser, const Vec3& posUser,
                                               CSmartObject* pObject, const Vec3& posObject, CCondition* pCondition) const
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 	if (!pCondition->bEnabled)
 		return -1.0f;
@@ -2325,7 +2304,7 @@ SOUpdateStats currentUpdateStats;
 
 void CSmartObjectManager::Update()
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_AI)
+	CRY_PROFILE_FUNCTION(PROFILE_AI)
 
 	currentUpdateStats.reset();
 
@@ -2398,7 +2377,7 @@ void CSmartObjectManager::Update()
 
 int CSmartObjectManager::Process(CSmartObject* pSmartObjectUser, CSmartObjectClass* pClass)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 	AIAssert(pSmartObjectUser);
 
@@ -3290,7 +3269,7 @@ void CSmartObjectManager::RescanSOClasses(IEntity* pEntity)
 ///////////////////////////////////////////////
 void CSmartObjectManager::OnSpawn(IEntity* pEntity, SEntitySpawnParams& params)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 	/* Márcio: Enabling SmartObjects in multiplayer.
 	   if (gEnv->bMultiplayer)
 	    return;
@@ -3319,8 +3298,9 @@ void CSmartObjectManager::OnSpawn(IEntity* pEntity, SEntitySpawnParams& params)
 		smartObject = new CSmartObject(pEntity ? pEntity->GetId() : 0);
 	}
 
-	DeleteFromNavigation(smartObject);
-	AIAssert(smartObject->m_correspondingNavNodes.empty());
+	pEntity->AddEventListener(ENTITY_EVENT_HIDE, this);
+	pEntity->AddEventListener(ENTITY_EVENT_UNHIDE, this);
+	pEntity->AddEventListener(ENTITY_EVENT_XFORM, this);
 
 	for (uint32 i = 0; i < vClasses.size(); ++i)
 	{
@@ -3350,6 +3330,7 @@ void CSmartObjectManager::RemoveEntity(IEntity* pEntity)
 ///////////////////////////////////////////////
 bool CSmartObjectManager::OnRemove(IEntity* pEntity)
 {
+	DoRemove(pEntity);
 	return true;
 }
 
@@ -3361,6 +3342,10 @@ void CSmartObjectManager::DoRemove(IEntity* pEntity, bool bDeleteSmartObject)
 	CSmartObject* pSmartObject = GetSmartObject(pEntity->GetId());
 	if (pSmartObject)
 	{
+		pEntity->RemoveEventListener(ENTITY_EVENT_HIDE, this);
+		pEntity->RemoveEventListener(ENTITY_EVENT_UNHIDE, this);
+		pEntity->RemoveEventListener(ENTITY_EVENT_XFORM, this);
+
 		// let's make sure AI navigation is not using it
 		// in case this is a navigation smart object entity!
 		UnregisterFromNavigation(pSmartObject);
@@ -3438,15 +3423,12 @@ void CSmartObjectManager::OnReused(IEntity* pEntity, SEntitySpawnParams& params)
 
 // Implementation of IEntitySystemSink methods
 ///////////////////////////////////////////////
-void CSmartObjectManager::OnEvent(IEntity* pEntity, SEntityEvent& event)
+void CSmartObjectManager::OnEntityEvent(IEntity* pEntity, const SEntityEvent& event)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 	switch (event.event)
 	{
-	case ENTITY_EVENT_DONE:
-		DoRemove(pEntity);
-		break;
 	case ENTITY_EVENT_HIDE:
 		{
 			CSmartObject* pSmartObject = GetSmartObject(pEntity->GetId());
@@ -3461,13 +3443,6 @@ void CSmartObjectManager::OnEvent(IEntity* pEntity, SEntityEvent& event)
 				pSmartObject->Hide(false);
 			break;
 		}
-	case ENTITY_EVENT_INIT:
-	case ENTITY_EVENT_RESET:
-		{
-			SEntitySpawnParams params;
-			OnSpawn(pEntity, params);
-			break;
-		}
 	case ENTITY_EVENT_XFORM:
 		{
 			//Optimization:
@@ -3480,8 +3455,6 @@ void CSmartObjectManager::OnEvent(IEntity* pEntity, SEntityEvent& event)
 			CSmartObject* pSmartObject = GetSmartObject(pEntity->GetId());
 			if (pSmartObject)
 			{
-				//TODO: do we also have to clear m_navLinks and m_correspondingNavNodes?
-				pSmartObject->m_enclosingNavNodes.clear();
 				pSmartObject->m_eValidationResult = eSOV_Unknown;
 
 				float oldX = pSmartObject->m_fKey;
@@ -3576,18 +3549,6 @@ void CSmartObjectManager::RebuildNavigation()
 			condition.pObjectHelper = NULL;
 	}
 
-	CAISystem* pAISystem = GetAISystem();
-	CGraph* pGraph = gAIEnv.pGraph;
-
-	// Now that we've clear the smart objects from the nav graph, forget about our stored nav indices
-	for (SmartObjects::iterator it = g_AllSmartObjects.begin(), itEnd = g_AllSmartObjects.end(); it != itEnd; ++it)
-	{
-		CSmartObject* pSmartObject = *it;
-		pSmartObject->m_enclosingNavNodes.clear();
-		pSmartObject->m_correspondingNavNodes.clear();
-		pSmartObject->m_navLinks.clear();
-	}
-
 	// reset list of links in all classes
 	CSmartObjectClass::MapClassesByName::iterator itClasses, itClassesEnd = CSmartObjectClass::g_AllByName.end();
 	for (itClasses = CSmartObjectClass::g_AllByName.begin(); itClasses != itClassesEnd; ++itClasses)
@@ -3633,106 +3594,13 @@ bool CSmartObjectManager::RegisterInNavigation(CSmartObject* pSmartObject, CSmar
 	if (!pSmartObject)
 		return false;
 
-#ifdef _DEBUG
-	IEntity* pEntity = pSmartObject->GetEntity();
-#endif
-
 	gAIEnv.pNavigationSystem->GetOffMeshNavigationManager()->RegisterSmartObject(pSmartObject, pClass);
-
-	CGraph* pGraph = gAIEnv.pGraph;
-	if (!pGraph)
-		return false;
-
-	// first check is the graph loaded
-	{
-		CAllNodesContainer::Iterator allNodesIt(pGraph->GetAllNodes(), SMART_OBJECT_ENCLOSING_NAV_TYPES);
-		if (!allNodesIt.GetNode())
-			return false;
-	}
-
-	const CSmartObjectClass::THelperLinks::const_iterator itLinksBegin = pClass->m_vHelperLinks.begin();
-	const CSmartObjectClass::THelperLinks::const_iterator itLinksEnd = pClass->m_vHelperLinks.end();
-
-	// create the nodes
-	for (CSmartObjectClass::SetHelpers::iterator itHelpersEnd = pClass->m_setNavHelpers.end(),
-	     itHelpers = pClass->m_setNavHelpers.begin(); itHelpers != itHelpersEnd; ++itHelpers)
-	{
-		SmartObjectHelper* pHelper = *itHelpers;
-
-		// calculate position
-		Vec3 vHelperPos = pSmartObject->GetHelperPos(pHelper);
-
-		// create a new node
-		unsigned newNodeIndex = pGraph->CreateNewNode(IAISystem::NAV_SMARTOBJECT, vHelperPos);
-		GraphNode* pNewNode = pGraph->GetNodeManager().GetNode(newNodeIndex);
-		SSmartObjectNavData* pSmartObjectNavData = pNewNode->GetSmartObjectNavData();
-		pSmartObjectNavData->pSmartObject = pSmartObject;
-		pSmartObjectNavData->pClass = pClass;
-		pSmartObjectNavData->pHelper = pHelper;
-
-		// store the new node in our map
-		pSmartObject->m_correspondingNavNodes[pHelper] = newNodeIndex;
-	}
-
-	// link the nodes
-	for (CSmartObjectClass::THelperLinks::const_iterator itLinks = itLinksBegin; itLinks != itLinksEnd; ++itLinks)
-	{
-		unsigned fromNodeIndex = pSmartObject->m_correspondingNavNodes[itLinks->from];
-		unsigned toNodeIndex = pSmartObject->m_correspondingNavNodes[itLinks->to];
-		if (fromNodeIndex != toNodeIndex)
-		{
-			unsigned link;
-			pGraph->Connect(fromNodeIndex, toNodeIndex, 100.0f, 0.0f, &link);
-			pGraph->GetLinkManager().SetRadius(link, itLinks->passRadius);
-			pSmartObject->m_navLinks.push_back(link);
-		}
-		else if (toNodeIndex != 0)
-		{
-			const Vec3& pos = pSmartObject->GetPos();
-			AIWarning("SO %s at pos = (%f, %f, %f): trying to connect to same nav node. Adjust navigation. ", pSmartObject->GetName(), pos.x, pos.y, pos.z);
-		}
-	}
-
 	return true;
 }
 
 void CSmartObjectManager::UnregisterFromNavigation(CSmartObject* pSmartObject) const
 {
 	gAIEnv.pNavigationSystem->GetOffMeshNavigationManager()->UnregisterSmartObjectForAllClasses(pSmartObject);
-
-	// first check is the graph loaded
-	CGraph* pGraph = gAIEnv.pGraph;
-	if (!pGraph)
-		return;
-
-	CAllNodesContainer::Iterator it(pGraph->GetAllNodes(), IAISystem::NAV_TRIANGULAR);
-	if (!it.GetNode())
-		return;
-
-	// then disable all links
-	CGraphLinkManager& manager = pGraph->GetLinkManager();
-	CSmartObject::VectorNavLinks::iterator itLinks, itLinksEnd = pSmartObject->m_navLinks.end();
-	for (itLinks = pSmartObject->m_navLinks.begin(); itLinks != itLinksEnd; ++itLinks)
-		manager.ModifyRadius(*itLinks, -1.0f);
-}
-
-void CSmartObjectManager::DeleteFromNavigation(CSmartObject* pSmartObject) const
-{
-	AIAssert(pSmartObject);
-	if (pSmartObject)
-	{
-		CGraph* pGraph = gAIEnv.pGraph;
-		CSmartObject::MapNavNodes& mapNavNodes = pSmartObject->m_correspondingNavNodes;
-		CSmartObject::MapNavNodes::iterator itEnd = mapNavNodes.end();
-		for (CSmartObject::MapNavNodes::iterator it = mapNavNodes.begin(); it != itEnd; ++it)
-		{
-			pGraph->Disconnect(it->second, true);
-		}
-
-		mapNavNodes.clear();
-		pSmartObject->m_navLinks.clear();
-		pSmartObject->m_enclosingNavNodes.clear();
-	}
 }
 
 void CSmartObjectManager::GetTemplateIStatObj(IEntity* pEntity, std::vector<IStatObj*>& statObjects)
@@ -4391,7 +4259,7 @@ bool CSmartObjectManager::LoadSmartObjectsLibrary()
 
 void CSmartObjectManager::DebugDrawValidateSmartObjectArea() const
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 	IEntity* ent = gEnv->pEntitySystem->FindEntityByName("ValidateSmartObjectArea");
 	if (ent)
@@ -4416,85 +4284,9 @@ void CSmartObjectManager::DebugDrawValidateSmartObjectArea() const
 	}
 }
 
-float CSmartObjectManager::GetSmartObjectLinkCostFactor(const GraphNode* nodes[2], const CAIObject* pRequester, float* fCostMultiplier) const
+bool CSmartObjectManager::GetSmartObjectLinkCostFactorForMNM(const OffMeshLink_SmartObject* pSmartObjectLink, const IEntity* pRequesterEntity, float* fCostMultiplier) const
 {
-	if (pRequester && IsInitialized())
-	{
-		// the link must be only between two nodes created by the same smart object
-		AIAssert(nodes[0]->GetSmartObjectNavData()->pSmartObject == nodes[1]->GetSmartObjectNavData()->pSmartObject);
-
-		// also it must be between two helpers belonging to a same smart object class
-		AIAssert(nodes[0]->GetSmartObjectNavData()->pClass == nodes[1]->GetSmartObjectNavData()->pClass);
-
-		const SSmartObjectNavData* pFromSONavData = nodes[0]->GetSmartObjectNavData();
-		CSmartObject* pObject = pFromSONavData->pSmartObject;
-		if (pObject->GetValidationResult() != eSOV_InvalidStatic)
-		{
-			if (m_bannedNavSmartObjects.find(pObject) == m_bannedNavSmartObjects.end())
-			{
-				SmartObjectHelper* pFromHelper = pFromSONavData->pHelper;
-				SmartObjectHelper* pToHelper = nodes[1]->GetSmartObjectNavData()->pHelper;
-
-				const CPipeUser* pPipeUser = pRequester->CastToCPipeUser();
-				IEntity* pEntity = pPipeUser ? NULL : pRequester->GetEntity();
-				if (pPipeUser || pEntity)
-				{
-					CSmartObject::SetStates filteredObjectSetStates(pObject->GetStates());
-
-					// UGLY HACK: Ignore the busy state during path-finding, prevents agents arbitrarily giving up
-					// just because a SO happened to be in use at the time of the path request.
-					filteredObjectSetStates.erase(m_StateBusy);
-
-					CSmartObjectClass::HelperLink* vHelperLinks[1];
-					if (FindSmartObjectLinks(pPipeUser,
-					                         pObject,
-					                         pFromSONavData->pClass,
-					                         pFromHelper,
-					                         pToHelper,
-					                         vHelperLinks,
-					                         1,
-					                         pEntity,
-					                         &filteredObjectSetStates) > 0)
-					{
-						if (fCostMultiplier)
-							*fCostMultiplier = vHelperLinks[0]->condition->fProximityFactor;
-
-						return 0.0f;
-					}
-
-					if (gAIEnv.configuration.eCompatibilityMode != ECCM_CRYSIS2)
-					{
-						assert(pPipeUser);
-						if (pPipeUser)
-						{
-							pPipeUser->InvalidateSOLink(pObject, pFromHelper, pToHelper);
-						}
-					}
-
-					if (gAIEnv.CVars.DebugPathFinding)
-					{
-						AILogAlways("CAISystem::GetSmartObjectLinkCostFactor %s Cannot find any links for NAVSO %s.",
-						            pRequester->GetName(), pObject->GetEntity() ? pObject->GetEntity()->GetName() : "<unknown>");
-					}
-				}
-			}
-		}
-		else  // if (pObject->GetValidationResult() != eSOV_InvalidStatic)
-		{
-			if (gAIEnv.CVars.DebugPathFinding)
-			{
-				AILogAlways("CAISystem::GetSmartObjectLinkCostFactor %s NAVSO %s is statically invalid.",
-				            pRequester->GetName(), pObject->GetEntity() ? pObject->GetEntity()->GetName() : "<unknown>");
-			}
-		}
-	}
-
-	return -1.0f;
-}
-
-bool CSmartObjectManager::GetSmartObjectLinkCostFactorForMNM(const OffMeshLink_SmartObject* pSmartObjectLink, IEntity* pRequesterEntity, float* fCostMultiplier) const
-{
-	IAIObject* pRequesterIAIObject = pRequesterEntity ? pRequesterEntity->GetAI() : NULL;
+	const IAIObject* pRequesterIAIObject = pRequesterEntity ? pRequesterEntity->GetAI() : NULL;
 	if (pRequesterIAIObject == NULL)
 		return false;
 
@@ -4521,7 +4313,7 @@ bool CSmartObjectManager::GetSmartObjectLinkCostFactorForMNM(const OffMeshLink_S
 				                         pRequesterEntity,
 				                         &m_statesToExcludeForPathfinding) > 0)
 				{
-					FRAME_PROFILER("CSmartObjectManager::GetSmartObjectLinkCostFactorForMNM::CostMultiplierCalculation", gEnv->pSystem, PROFILE_AI);
+					CRY_PROFILE_REGION(PROFILE_AI, "CSmartObjectManager::GetSmartObjectLinkCostFactorForMNM::CostMultiplierCalculation");
 					if (fCostMultiplier)
 					{
 						*fCostMultiplier = vHelperLinks[0]->condition->fProximityFactor;
@@ -4547,55 +4339,6 @@ bool CSmartObjectManager::GetSmartObjectLinkCostFactorForMNM(const OffMeshLink_S
 	}
 
 	return false;
-}
-
-int CSmartObjectManager::GetNavigationalSmartObjectActionType(CPipeUser* pPipeUser, const GraphNode* pFromNode, const GraphNode* pToNode)
-{
-	CSmartObject* pUser = gAIEnv.pSmartObjectManager->GetSmartObject(pPipeUser->GetEntityID());
-	if (!pUser)
-		return nSOmNone;
-
-	const SSmartObjectNavData* pFromNodeSONavData = pFromNode->GetSmartObjectNavData();
-
-	CSmartObject* pObject = pFromNodeSONavData->pSmartObject;
-	CSmartObject::SetStates filteredObjectSetStates(pObject->GetStates());
-
-	// UGLY HACK: Ignore the busy state during path setup, prevents agents arbitrarily giving up
-	// just because a SO happened to be in use at the time of the path request.
-	filteredObjectSetStates.erase(m_StateBusy);
-
-	CSmartObjectClass::HelperLink* vHelperLinks[1];
-	if (!FindSmartObjectLinks(pPipeUser,
-	                          pObject,
-	                          pFromNodeSONavData->pClass,
-	                          pFromNodeSONavData->pHelper,
-	                          pToNode->GetSmartObjectNavData()->pHelper,
-	                          vHelperLinks,
-	                          1,
-	                          NULL,
-	                          &filteredObjectSetStates))
-	{
-		return nSOmNone;
-	}
-
-	switch (vHelperLinks[0]->condition->eActionType)
-	{
-	case eAT_AnimationSignal:
-	case eAT_PriorityAnimationSignal:
-		// there is an ending animation to be played
-		return nSOmSignalAnimation;
-	case eAT_AnimationAction:
-	case eAT_PriorityAnimationAction:
-		// there is an ending animation to be played
-		return nSOmActionAnimation;
-	case eAT_None:
-		// directly passable link
-		return nSOmStraight;
-	default:
-		// Only the above methods are supported. The definition of the navSO is likely bad.
-		return nSOmNone;
-	}
-	return nSOmNone;
 }
 
 int CSmartObjectManager::GetNavigationalSmartObjectActionTypeForMNM(CPipeUser* pPipeUser, CSmartObject* pSmartObject, CSmartObjectClass* pSmartObjectClass, SmartObjectHelper* pFromHelper, SmartObjectHelper* pToHelper)
@@ -4646,7 +4389,7 @@ int CSmartObjectManager::GetNavigationalSmartObjectActionTypeForMNM(CPipeUser* p
 
 void CSmartObjectManager::DebugDrawBannedNavsos()
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 	CDebugDrawContext dc;
 
@@ -4656,27 +4399,6 @@ void CSmartObjectManager::DebugDrawBannedNavsos()
 		DrawTemplate(it->first, false);
 		dc->Draw3dLabel(it->first->GetPos(), 1.2f, "%s\nBanned %.1fs", it->first->GetName(), it->second);
 	}
-}
-
-bool CSmartObjectManager::PrepareNavigateSmartObject(CPipeUser* pPipeUser, const GraphNode* pFromNode, const GraphNode* pToNode)
-{
-	// Sanity check that the nodes are indeed smart object nodes (the node data is accessed later).
-	if (pFromNode->navType != IAISystem::NAV_SMARTOBJECT || pToNode->navType != IAISystem::NAV_SMARTOBJECT)
-	{
-		if (gAIEnv.CVars.DebugPathFinding)
-		{
-			AILogAlways("CAISystem::PrepareNavigateSmartObject %s one of the input nodes is not SmartObject nav node.",
-			            pPipeUser->GetName());
-		}
-		return false;
-	}
-
-	CSmartObject* pObject = pFromNode->GetSmartObjectNavData()->pSmartObject;
-	CSmartObjectClass* pObjectClass = pFromNode->GetSmartObjectNavData()->pClass;
-	SmartObjectHelper* pFromHelper = pFromNode->GetSmartObjectNavData()->pHelper;
-	SmartObjectHelper* pToHelper = pToNode->GetSmartObjectNavData()->pHelper;
-
-	return PrepareNavigateSmartObject(pPipeUser, pObject, pObjectClass, pFromHelper, pToHelper);
 }
 
 // Called to prepare PipeUser state ready to use a navigation SO. Returns true if successful.
@@ -4941,23 +4663,6 @@ float CSmartObjectManager::CalculateDot(CCondition* condition, const Vec3& dir, 
 	{
 		return dir.normalized().Dot(user->GetOrientation(condition->pUserHelper));
 	}
-}
-
-unsigned CSmartObject::GetEnclosingNavNode(const SmartObjectHelper* pHelper)
-{
-	std::pair<MapNavNodes::iterator, bool> result = m_enclosingNavNodes.insert(std::make_pair(pHelper, 0));
-	if (result.second)
-	{
-		// new entry - find enclosing node in store the result
-		result.first->second = 0;
-	}
-	unsigned nodeIndex = result.first->second;
-	return nodeIndex;
-}
-
-unsigned CSmartObject::GetCorrespondingNavNode(const SmartObjectHelper* pHelper)
-{
-	return stl::find_in_map(m_correspondingNavNodes, pHelper, 0);
 }
 
 Vec3 CSmartObject::MeasureUserSize() const

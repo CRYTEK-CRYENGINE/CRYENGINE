@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "MPPath.h"
@@ -45,7 +45,7 @@ bool CMPPath::GetEntityPoolSignature( TSerialize signature )
 	return true;
 }
 
-void CMPPath::ProcessEvent( SEntityEvent& details )
+void CMPPath::ProcessEvent( const SEntityEvent& details )
 {
 	if(details.event == ENTITY_EVENT_LEVEL_LOADED)
 	{
@@ -55,4 +55,9 @@ void CMPPath::ProcessEvent( SEntityEvent& details )
 			pPathFollowingManager->RegisterPath(GetEntityId());
 		}
 	}
+}
+
+uint64 CMPPath::GetEventMask() const
+{
+	return ENTITY_EVENT_BIT(ENTITY_EVENT_LEVEL_LOADED);
 }

@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -34,24 +34,24 @@ public:
 	void                ParsePreloadsData(char const* const szFolderPath, EDataScope const dataScope);
 	void                ClearPreloadsData(EDataScope const dataScope);
 
+	void                ParseControlsFile(XmlNodeRef const pRootNode, EDataScope const dataScope);
+	void                ParseDefaultControlsFile(XmlNodeRef const pRootNode);
+
 private:
 
-	void                         ParseAudioTriggers(XmlNodeRef const pXMLTriggerRoot, EDataScope const dataScope);
-	void                         ParseAudioSwitches(XmlNodeRef const pXMLSwitchRoot, EDataScope const dataScope);
-	void                         ParseAudioParameters(XmlNodeRef const pXMLParameterRoot, EDataScope const dataScope);
-	void                         ParseAudioPreloads(XmlNodeRef const pPreloadDataRoot, EDataScope const dataScope, char const* const szFolderName, uint const version);
-	void                         ParseAudioEnvironments(XmlNodeRef const pAudioEnvironmentRoot, EDataScope const dataScope);
+	void ParseTriggers(XmlNodeRef const pXMLTriggerRoot, EDataScope const dataScope);
+	void ParseDefaultTriggers(XmlNodeRef const pXMLTriggerRoot);
+	void ParseSwitches(XmlNodeRef const pXMLSwitchRoot, EDataScope const dataScope);
+	void ParseParameters(XmlNodeRef const pXMLParameterRoot, EDataScope const dataScope);
+	void ParseDefaultParameters(XmlNodeRef const pXMLParameterRoot);
+	void ParsePreloads(XmlNodeRef const pPreloadDataRoot, EDataScope const dataScope, char const* const szFolderName, uint const version);
+	void ParseEnvironments(XmlNodeRef const pAudioEnvironmentRoot, EDataScope const dataScope);
 
-	Impl::ITrigger const*        NewInternalAudioTrigger(XmlNodeRef const pXMLTriggerRoot);
-	IParameterImpl const*        NewInternalAudioParameter(XmlNodeRef const pXMLParameterRoot);
-	IAudioSwitchStateImpl const* NewInternalAudioSwitchState(XmlNodeRef const pXMLSwitchRoot);
-	Impl::IEnvironment const*    NewInternalAudioEnvironment(XmlNodeRef const pXMLEnvironmentRoot);
-
-	void                         DeleteAudioTrigger(CATLTrigger const* const pTrigger);
-	void                         DeleteAudioParameter(CParameter const* const pParameter);
-	void                         DeleteAudioSwitch(CATLSwitch const* const pSwitch);
-	void                         DeleteAudioPreloadRequest(CATLPreloadRequest const* const pPreloadRequest);
-	void                         DeleteAudioEnvironment(CATLAudioEnvironment const* const pEnvironment);
+	void DeleteAudioTrigger(CATLTrigger const* const pTrigger);
+	void DeleteAudioParameter(CParameter const* const pParameter);
+	void DeleteAudioSwitch(CATLSwitch const* const pSwitch);
+	void DeleteAudioPreloadRequest(CATLPreloadRequest const* const pPreloadRequest);
+	void DeleteAudioEnvironment(CATLAudioEnvironment const* const pEnvironment);
 
 	AudioTriggerLookup&        m_triggers;
 	AudioParameterLookup&      m_parameters;

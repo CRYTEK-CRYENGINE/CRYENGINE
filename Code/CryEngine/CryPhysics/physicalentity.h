@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #ifndef physicalentity_h
 #define physicalentity_h
@@ -204,7 +204,7 @@ public:
 	virtual int AddGeometry(phys_geometry *pgeom, pe_geomparams* params,int id=-1,int bThreadSafe=1);
 	virtual void RemoveGeometry(int id,int bThreadSafe=1);
 	virtual float GetExtent(EGeomForm eForm) const;
-	virtual void GetRandomPos(PosNorm& ran, CRndGen& seed, EGeomForm eForm) const;
+	virtual void GetRandomPoints(Array<PosNorm> points, CRndGen& seed, EGeomForm eForm) const;
 	virtual IPhysicalWorld *GetWorld() const { return (IPhysicalWorld*)m_pWorld; }
   virtual CPhysicalEntity *GetEntity();
 	virtual CPhysicalEntity *GetEntityFast() { return this; }

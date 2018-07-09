@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #ifndef __GAME_SERIALIZE_HELPERS_H__
 #define __GAME_SERIALIZE_HELPERS_H__
@@ -80,7 +80,6 @@ struct SBasicEntityData
 		rot(1.0f, 0.0f, 0.0f, 0.0f),
 		scale(1.0f, 1.0f, 1.0f),
 		flags(0),
-		updatePolicy(0),
 		iPhysType(0),
 		parentEntity(0),
 		aiObjectId(0),
@@ -102,7 +101,6 @@ struct SBasicEntityData
 			if (ignorePosRotScl)   flags2 |= FLAG_IGNORE_POS_ROT_SCL;
 			if (isPhysicsEnabled)  flags2 |= FLAG_PHYSICS_ENABLED;
 
-			flags2 |= (updatePolicy & 0xF) << (32 - 4);
 			flags2 |= (iPhysType & 0xF) << (32 - 8);
 		}
 
@@ -120,7 +118,6 @@ struct SBasicEntityData
 			ignorePosRotScl = (flags2 & FLAG_IGNORE_POS_ROT_SCL) != 0;
 			isPhysicsEnabled = (flags2 & FLAG_PHYSICS_ENABLED) != 0;
 			iPhysType = (flags2 >> (32 - 8)) & 0xF;
-			updatePolicy = (flags2 >> (32 - 4)) & 0xF;
 		}
 
 		if (!ignorePosRotScl)
@@ -179,7 +176,6 @@ struct SBasicEntityData
 	Quat        rot;
 	Vec3        scale;
 	uint32      flags;
-	uint32      updatePolicy;
 	EntityId    parentEntity;
 	tAIObjectID aiObjectId;
 	int         iPhysType;

@@ -1,0 +1,17 @@
+#############################################################################
+## Crytek Source File
+## Copyright (C) 2015, Crytek Studios
+##
+## Creator: Matthijs van der Meide
+## Date: Jan 20, 2015
+## Description: WAF build for EditorConsole plugin
+#############################################################################
+
+def build(bld): 
+	bld.CryPlugin(
+		target                      = 'EditorConsole',
+		vs_filter                   = 'Sandbox/Plugins',
+		file_list                   = 'editorconsole.waf_files',
+		pch							= 'StdAfx.cpp',
+	)
+	

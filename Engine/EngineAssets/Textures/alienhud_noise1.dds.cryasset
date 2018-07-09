@@ -1,0 +1,10 @@
+<AssetMetadata version="0" type="Texture" guid="cb155446-2926-73c1-c477-0e52acc09bee" source="alienhud_noise1.tif">
+ <Files>
+  <File path="alienhud_noise1.dds"/>
+ </Files>
+ <Details>
+  <Detail name="width">256</Detail>
+  <Detail name="height">256</Detail>
+  <Detail name="mipCount">1</Detail>
+ </Details>
+</AssetMetadata>

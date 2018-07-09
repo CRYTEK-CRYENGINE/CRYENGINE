@@ -48,7 +48,7 @@ namespace Cry
 			// IEntityComponent
 			virtual void Initialize() final;
 
-			virtual void   ProcessEvent(SEntityEvent& event) final;
+			virtual void   ProcessEvent(const SEntityEvent& event) final;
 			virtual uint64 GetEventMask() const final;
 
 #ifndef RELEASE
@@ -75,10 +75,11 @@ namespace Cry
 				desc.SetLabel("Point Light");
 				desc.SetDescription("Emits light from its origin into all directions");
 				desc.SetIcon("icons:ObjectTypes/light.ico");
-				desc.SetComponentFlags({ IEntityComponent::EFlags::Transform, IEntityComponent::EFlags::Socket, IEntityComponent::EFlags::Attach, IEntityComponent::EFlags::ClientOnly });
+				desc.SetComponentFlags({ IEntityComponent::EFlags::NoCreationOffset, IEntityComponent::EFlags::Transform, IEntityComponent::EFlags::Socket, IEntityComponent::EFlags::Attach, IEntityComponent::EFlags::ClientOnly });
 
 				desc.AddMember(&CPointLightComponent::m_bActive, 'actv', "Active", "Active", "Determines whether the light is enabled", true);
 				desc.AddMember(&CPointLightComponent::m_radius, 'radi', "Radius", "Radius", "Determines the range of the point light", 10.f);
+				desc.AddMember(&CPointLightComponent::m_viewDistance, 'view', "ViewDistance", "View Distance", "Determines the distance in which this light will be active", 50);
 
 				desc.AddMember(&CPointLightComponent::m_color, 'colo', "Color", "Color", "Color emission information", CPointLightComponent::SColor());
 				desc.AddMember(&CPointLightComponent::m_shadows, 'shad', "Shadows", "Shadows", "Shadow casting settings", CPointLightComponent::SShadows());
@@ -90,13 +91,14 @@ namespace Cry
 			{
 				inline bool operator==(const SOptions &rhs) const { return 0 == memcmp(this, &rhs, sizeof(rhs)); }
 
-				Schematyc::Range<0, 64000> m_attenuationBulbSize = CDLight().m_fAttenuationBulbSize;
+				Schematyc::Range<0, 64000> m_attenuationBulbSize = SRenderLight().m_fAttenuationBulbSize;
 				bool m_bIgnoreVisAreas = false;
 				bool m_bVolumetricFogOnly = false;
 				bool m_bAffectsVolumetricFog = true;
 				bool m_bAffectsOnlyThisArea = true;
+				bool m_bLinkToSkyColor = false;
 				bool m_bAmbient = false;
-				Schematyc::Range<0, 10000> m_fogRadialLobe = CDLight().m_fFogRadialLobe;
+				Schematyc::Range<0, 10000> m_fogRadialLobe = SRenderLight().m_fFogRadialLobe;
 
 				ELightGIMode m_giMode = ELightGIMode::Disabled;
 			};
@@ -115,6 +117,12 @@ namespace Cry
 				inline bool operator==(const SShadows &rhs) const { return 0 == memcmp(this, &rhs, sizeof(rhs)); }
 
 				EMiniumSystemSpec m_castShadowSpec = EMiniumSystemSpec::Disabled;
+				float m_shadowBias = 1.f;
+				float m_shadowSlopeBias = 1.f;
+				float m_shadowResolutionScale = 1.f;
+				float m_shadowUpdateMinRadius = 4.f;
+				int m_shadowMinResolution = 0;
+				int m_shadowUpdateRatio = 1;
 			};
 
 			struct SAnimations
@@ -144,6 +152,7 @@ namespace Cry
 			bool m_bActive = true;
 			Schematyc::Range<0, 32768> m_radius = 10.f;
 
+			Schematyc::Range<0, 100, 0, 100, int> m_viewDistance = 50;
 			SOptions m_options;
 			SColor m_color;
 			SShadows m_shadows;
@@ -153,13 +162,14 @@ namespace Cry
 		static void ReflectType(Schematyc::CTypeDesc<CPointLightComponent::SOptions>& desc)
 		{
 			desc.SetGUID("{DB10AB64-7A5B-4B91-BC90-6D692D1D1222}"_cry_guid);
-			desc.AddMember(&CPointLightComponent::SOptions::m_attenuationBulbSize, 'atte', "AttenuationBulbSize", "Attenuation Bulb Size", "Controls the fall-off exponentially from the origin, a value of 1 means that the light is at full intensity within a 1 meter ball before it begins to fall-off.", CDLight().m_fAttenuationBulbSize);
+			desc.AddMember(&CPointLightComponent::SOptions::m_attenuationBulbSize, 'atte', "AttenuationBulbSize", "Attenuation Bulb Size", "Controls the fall-off exponentially from the origin, a value of 1 means that the light is at full intensity within a 1 meter ball before it begins to fall-off.", SRenderLight().m_fAttenuationBulbSize);
 			desc.AddMember(&CPointLightComponent::SOptions::m_bIgnoreVisAreas, 'igvi', "IgnoreVisAreas", "Ignore VisAreas", nullptr, false);
 			desc.AddMember(&CPointLightComponent::SOptions::m_bAffectsVolumetricFog, 'volf', "AffectVolumetricFog", "Affect Volumetric Fog", nullptr, true);
 			desc.AddMember(&CPointLightComponent::SOptions::m_bVolumetricFogOnly, 'volo', "VolumetricFogOnly", "Only Affect Volumetric Fog", nullptr, false);
 			desc.AddMember(&CPointLightComponent::SOptions::m_bAffectsOnlyThisArea, 'area', "OnlyAffectThisArea", "Only Affect This Area", nullptr, true);
+			desc.AddMember(&CPointLightComponent::SOptions::m_bLinkToSkyColor, 'ltsc', "LinkToSkyColor", "Link To Sky Color", "Multiply light color with current sky color (use GI sky color if available).", false);
 			desc.AddMember(&CPointLightComponent::SOptions::m_bAmbient, 'ambi', "Ambient", "Ambient", nullptr, false);
-			desc.AddMember(&CPointLightComponent::SOptions::m_fogRadialLobe, 'fogr', "FogRadialLobe", "Fog Radial Lobe", nullptr, CDLight().m_fFogRadialLobe);
+			desc.AddMember(&CPointLightComponent::SOptions::m_fogRadialLobe, 'fogr', "FogRadialLobe", "Fog Radial Lobe", nullptr, SRenderLight().m_fFogRadialLobe);
 			desc.AddMember(&CPointLightComponent::SOptions::m_giMode, 'gimo', "GIMode", "Global Illumination", nullptr, ELightGIMode::Disabled);
 		}
 
@@ -174,7 +184,13 @@ namespace Cry
 		static void ReflectType(Schematyc::CTypeDesc<CPointLightComponent::SShadows>& desc)
 		{
 			desc.SetGUID("{95F6EF06-2101-427C-9E55-481042117504}"_cry_guid);
-			desc.AddMember(&CPointLightComponent::SShadows::m_castShadowSpec, 'shad', "ShadowSpec", "Minimum Shadow Graphics", "Minimum graphical setting to cast shadows from this light", EMiniumSystemSpec::Disabled);
+			desc.AddMember(&CPointLightComponent::SShadows::m_castShadowSpec, 'shad', "ShadowSpec", "Minimum Shadow Graphics", "Minimum graphical setting to cast shadows from this light.", EMiniumSystemSpec::Disabled);
+			desc.AddMember(&CPointLightComponent::SShadows::m_shadowBias, 'bias', "ShadowBias", "Shadow Bias", "Moves the shadow cascade toward or away from the shadow-casting object.", 1.0f);
+			desc.AddMember(&CPointLightComponent::SShadows::m_shadowSlopeBias, 'sbia', "ShadowSlopeBias", "Shadow Slope Bias", "Allows you to adjust the gradient (slope-based) bias used to compute the shadow bias.", 1.0f);
+			desc.AddMember(&CPointLightComponent::SShadows::m_shadowResolutionScale, 'srsc', "ShadownResolution", "Shadow Resolution Scale", "", 1.0f);
+			desc.AddMember(&CPointLightComponent::SShadows::m_shadowUpdateMinRadius, 'sumr', "ShadowUpdateMin", "Shadow Min Update Radius", "Define the minimum radius from the light source to the player camera that the ShadowUpdateRatio setting will be ignored.", 4.0f);
+			desc.AddMember(&CPointLightComponent::SShadows::m_shadowMinResolution, 'smin', "ShadowMinRes", "Shadow Min Resolution", "Percentage of the shadow pool the light should use for its shadows.", 0);
+			desc.AddMember(&CPointLightComponent::SShadows::m_shadowUpdateRatio, 'sura', "ShadowUpdateRatio", "Shadow Update Ratio", "Define the update ratio for shadow maps cast from this light. The lower the value (example 0.01), the less frequent the updates will be and the more stuttering the shadow will appear.", 1);
 		}
 
 		static void ReflectType(Schematyc::CTypeDesc<CPointLightComponent::SAnimations>& desc)

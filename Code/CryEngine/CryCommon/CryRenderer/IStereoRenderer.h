@@ -1,10 +1,12 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
 #include "ITexture.h"
 
-enum EStereoDevice
+#include <CrySystem/VR/IHMDDevice.h>
+
+enum class EStereoDevice : int
 {
 	STEREO_DEVICE_NONE      = 0,
 	STEREO_DEVICE_FRAMECOMP = 1,
@@ -13,23 +15,23 @@ enum EStereoDevice
 	STEREO_DEVICE_DEFAULT   = 100 //!< Auto-detect device.
 };
 
-enum EStereoSubmission
+enum class EStereoSubmission : int
 {
 	STEREO_SUBMISSION_SEQUENTIAL        = 0, // first left eye submission, then right eye submission [1x GPU]
 	STEREO_SUBMISSION_PARALLEL          = 1, // left and right eye are submitted using the same submissions [2x GPU]
 	STEREO_SUBMISSION_PARALLEL_MULTIRES = 2  // left/right and wide/near are submitted using the same submission [4x GPU]
 };
 
-enum EStereoMode
+enum class EStereoMode : int
 {
 	STEREO_MODE_NO_STEREO      = 0, //!< Stereo disabled.
 	STEREO_MODE_DUAL_RENDERING = 1,
 	STEREO_MODE_POST_STEREO    = 2, //!< Extract from depth.
-	STEREO_MODE_MONO_RENDERING = 3,
+	STEREO_MODE_MENU           = 3,
 	STEREO_MODE_COUNT,
 };
 
-enum EStereoOutput
+enum class EStereoOutput : int
 {
 	STEREO_OUTPUT_STANDARD              = 0,
 	STEREO_OUTPUT_SIDE_BY_SIDE_SQUEEZED = 1,
@@ -42,7 +44,7 @@ enum EStereoOutput
 	STEREO_OUTPUT_COUNT,
 };
 
-enum EStereoDeviceState
+enum class EStereoDeviceState : int
 {
 	STEREO_DEVSTATE_OK = 0,
 	STEREO_DEVSTATE_UNSUPPORTED_DEVICE,
@@ -63,7 +65,7 @@ enum ELayerType
 {
 	eLayer_Scene3D = 0,        // regular 3D scene (requires two eyes)
 	eLayer_Quad,               // quad in 3D space (monoscopic)
-	eLayer_Quad_HeadLoked,     // quad locked to the head position (monoscopic)
+	eLayer_Quad_HeadLocked,     // quad locked to the head position (monoscopic)
 
 	eLayer_NumLayerTypes
 };
@@ -79,8 +81,9 @@ enum ESceneLayers
 // supported quad layers
 enum EQuadLayers
 {
-	eQuadLayers_0 = 0,   // Default layer used to render FLASH 2D and hmd_projection != 0
-	eQuadLayers_1,
+	eQuadLayers_0 = 0,
+	eQuadLayers_Headlocked_0,
+	eQuadLayers_Headlocked_1,
 
 	eQuadLayers_Total
 };
@@ -98,8 +101,8 @@ enum ELayerList
 // helper functions
 //inline const char * GetLayerList_UICONFIG() { COMPILE_TIME_ASSERT(eLayerList_SceneLayer_0 == 0 && eLayerList_Total == eLayerList_QuadLayer_1 + 1); return "enum_int:SCENE3D_0,QUAD_0, QUAD_1"; }
 inline const char*  GetLayerType_UICONFIG()             { static_assert(eLayer_Scene3D == 0 && eLayer_NumLayerTypes == 3, "Unexpected enum value!"); return "enum_int:SCENE3D=0,QUAD=1,QUAD_LOCKED=2"; }
-inline const char*  GetQuadLayer_UICONFIG()             { static_assert(eQuadLayers_0 == 0 && eQuadLayers_Total == eQuadLayers_1 + 1, "Unexpected enum value!"); return "enum_int:QUAD_0=0, QUAD_1=1"; }
-inline const char*  GetQuadLayerType_UICONFIG()         { static_assert(eLayer_Quad == 1 && eLayer_Quad_HeadLoked == 2, "Unexpected enum value!"); return "enum_int:QuadFree=1, QuadLocked=2"; }
+inline const char*  GetQuadLayer_UICONFIG()             { static_assert(eQuadLayers_0 == 0, "Unexpected enum value!"); return "enum_int:QUAD_0=0, QUAD_1=1"; }
+inline const char*  GetQuadLayerType_UICONFIG()         { static_assert(eLayer_Quad == 1, "Unexpected enum value!"); return "enum_int:QuadFree=1"; }
 inline bool         IsQuadLayer(TLayerId id)            { return id >= eQuadLayers_0 && id < eQuadLayers_Total; }
 inline bool         IsScene3DLayer(TLayerId id)         { return id >= eSceneLayers_0 && id < eSceneLayers_Total; }
 inline EQuadLayers  SafeCastToQuadLayer(TLayerId id)    { return IsQuadLayer(id) ? static_cast<EQuadLayers>(id) : eQuadLayers_0; }
@@ -109,7 +112,6 @@ inline ESceneLayers SafeCastToScene3DLayer(TLayerId id) { return IsScene3DLayer(
 class CProperties
 {
 public:
-	CProperties() : m_type(eLayer_Scene3D), m_id(eSceneLayers_0), m_bActive(false), m_pTexture(nullptr) {}
 	~CProperties() { SAFE_RELEASE(m_pTexture); }
 
 	const QuatTS& GetPose()  const               { return m_pose; }
@@ -123,12 +125,13 @@ public:
 	void          SetId(TLayerId id_)            { m_id = id_; }
 	void          SetActive(bool bActive_)       { m_bActive = bActive_;  }
 	void          SetTexture(ITexture* pTexture) { SAFE_RELEASE(m_pTexture); m_pTexture = pTexture; }
+
 private:
 	QuatTS     m_pose;
 	ELayerType m_type;
 	TLayerId   m_id;
-	bool       m_bActive;
-	ITexture*  m_pTexture;
+	bool       m_bActive{ false };
+	ITexture*  m_pTexture{ nullptr };
 };
 };
 
@@ -145,18 +148,31 @@ struct IStereoRenderer
 	// <interfuscator:shuffle>
 	virtual ~IStereoRenderer(){}
 
-	virtual EStereoDevice      GetDevice() = 0;
-	virtual EStereoDeviceState GetDeviceState() = 0;
-	virtual void               GetInfo(EStereoDevice* device, EStereoMode* mode, EStereoOutput* output, EStereoDeviceState* state) = 0;
+	virtual EStereoDevice      GetDevice() const = 0;
+	virtual EStereoDeviceState GetDeviceState() const = 0;
+	virtual void               GetInfo(EStereoDevice* device, EStereoMode* mode, EStereoOutput* output, EStereoDeviceState* state) const = 0;
 
-	virtual bool               GetStereoEnabled() = 0;
-	virtual float              GetStereoStrength() = 0;
-	virtual float              GetMaxSeparationScene(bool half = true) = 0;
-	virtual float              GetZeroParallaxPlaneDist() = 0;
-	virtual void               GetNVControlValues(bool& stereoEnabled, float& stereoStrength) = 0;
+	virtual void               ReleaseDevice() = 0;
+
+	virtual bool               IsMenuModeEnabled() const = 0;
+
+	virtual bool               GetStereoEnabled() const = 0;
+	virtual float              GetStereoStrength() const = 0;
+	virtual float              GetMaxSeparationScene(bool half = true) const = 0;
+	virtual float              GetZeroParallaxPlaneDist() const = 0;
+	virtual void               GetNVControlValues(bool& stereoEnabled, float& stereoStrength) const = 0;
+
+	virtual Vec2_tpl<int>      GetOverlayResolution() const = 0;
 
 	virtual void               OnHmdDeviceChanged(IHmdDevice* hmdDevice) = 0;
-	virtual IHmdRenderer*      GetIHmdRenderer() { return nullptr; }
+	virtual IHmdRenderer*      GetIHmdRenderer() const { return nullptr; }
+
+	virtual void               PrepareFrame() = 0;
+	virtual void               SubmitFrameToHMD() = 0;
+	virtual void               DisplaySocialScreen() = 0;
+	virtual void               Clear(ColorF clearColor) = 0;
+
+	virtual void               ReleaseRenderResources() = 0;
 
 	// </interfuscator:shuffle>
 };
@@ -167,22 +183,23 @@ struct IHmdRenderer
 	// <interfuscator:shuffle>
 	virtual ~IHmdRenderer() {};
 
-	virtual bool Initialize() = 0;
+	virtual bool Initialize(int initialWidth, int initialeight) = 0;
 	virtual void Shutdown() = 0;
 
 	virtual void ReleaseBuffers() = 0;
-	virtual void OnResolutionChanged() = 0;
+	virtual void OnResolutionChanged(int newWidth, int newHeight) = 0;
 
-	// Called at the beginning of the render frame
-	virtual void PrepareFrame() = 0;
+	// To be called from render thread when preparing a render frame, might block.
+	virtual void PrepareFrame(uint64_t frameId) = 0;
+	// Submits the frame to the Hmd device, to be called from render thread.
+	virtual void SubmitFrame() = 0;
 
-	// Submits the frame to the Hmd device
-	virtual void                      SubmitFrame() = 0;
+	virtual void OnPostPresent() {}
 
-	virtual void                      RenderSocialScreen() = 0;
+	virtual RenderLayer::CProperties*  GetQuadLayerProperties(RenderLayer::EQuadLayers id) = 0;
+	virtual RenderLayer::CProperties*  GetSceneLayerProperties(RenderLayer::ESceneLayers id) = 0;
 
-	virtual RenderLayer::CProperties* GetQuadLayerProperties(RenderLayer::EQuadLayers id) = 0;
-	virtual RenderLayer::CProperties* GetSceneLayerProperties(RenderLayer::ESceneLayers id) = 0;
-
+	// Returns a texture and texture coordinates modulator where zw is offset and xy is scale.
+	virtual std::pair<CTexture*, Vec4> GetMirrorTexture(EEyeType eye) const = 0;
 	// </interfuscator:shuffle>
 };

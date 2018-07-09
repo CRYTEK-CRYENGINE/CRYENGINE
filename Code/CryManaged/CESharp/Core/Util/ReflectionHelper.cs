@@ -3,7 +3,7 @@ using System.Reflection;
 
 namespace CryEngine
 {
-	public static class ReflectionHelper
+	internal static class ReflectionHelper
 	{
 		public static string FindPluginInstance(Assembly assembly)
 		{

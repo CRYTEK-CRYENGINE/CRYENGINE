@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 /*************************************************************************
 -------------------------------------------------------------------------
@@ -228,7 +228,7 @@ void CMineField::HandleEvent( const SGameObjectEvent& gameObjectEvent )
 	}
 }
 
-void CMineField::ProcessEvent( SEntityEvent& entityEvent )
+void CMineField::ProcessEvent( const SEntityEvent& entityEvent )
 {
 	switch(entityEvent.event)
 	{
@@ -295,6 +295,11 @@ void CMineField::ProcessEvent( SEntityEvent& entityEvent )
 		}
 		break;
 	}
+}
+
+uint64 CMineField::GetEventMask() const
+{
+	return ENTITY_EVENT_BIT(ENTITY_EVENT_RESET) | ENTITY_EVENT_BIT(ENTITY_EVENT_LEVEL_LOADED) | ENTITY_EVENT_BIT(ENTITY_EVENT_LINK) | ENTITY_EVENT_BIT(ENTITY_EVENT_DELINK);
 }
 
 void CMineField::GetMemoryUsage( ICrySizer *pSizer ) const

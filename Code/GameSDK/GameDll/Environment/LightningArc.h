@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #ifndef _LIGHTNING_ARC_H_
 #define _LIGHTNING_ARC_H_
@@ -31,7 +31,8 @@ public:
 	virtual ISerializableInfoPtr GetSpawnInfo();
 	virtual void Update( SEntityUpdateContext& ctx, int updateSlot );
 	virtual void HandleEvent( const SGameObjectEvent& event );
-	virtual void ProcessEvent( SEntityEvent& event );	
+	virtual void ProcessEvent( const SEntityEvent& event );	
+	virtual uint64 GetEventMask() const;
 	virtual void SetChannelId(uint16 id);
 	virtual const void * GetRMIBase() const;
 	virtual void PostUpdate( float frameTime );

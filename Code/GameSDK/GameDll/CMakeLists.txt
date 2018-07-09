@@ -1359,7 +1359,6 @@ end_sources()
 #END-FILE-LIST
 
 add_subdirectory(${CRYENGINE_DIR}/Code/CryPlugins/CryLobby "${CMAKE_CURRENT_BINARY_DIR}/CryLobby")
-add_subdirectory(${CRYENGINE_DIR}/Code/CryPlugins/CryPerceptionSystem/Module "${CMAKE_CURRENT_BINARY_DIR}/CryPerceptionSystem")
 
 CryGameModule(CryGameSDK PCH "StdAfx.cpp" SOLUTION_FOLDER "Projects/GameSDK")
 

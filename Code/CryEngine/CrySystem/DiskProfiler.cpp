@@ -1,18 +1,21 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 
 #ifdef USE_DISK_PROFILER
 
-	#include "DiskProfiler.h"
-	#include <CrySystem/IConsole.h>
-	#include <CryRenderer/IRenderer.h>
-	#include <CryRenderer/IRenderAuxGeom.h>
-	#include <CryThreading/IThreadManager.h>
+#include "DiskProfiler.h"
+#include "DiskProfilerWindowsSpecific.h"
 
-	#pragma warning(disable: 4244)
+#include <CrySystem/IConsole.h>
+#include <CryRenderer/IRenderer.h>
+#include <CryRenderer/IRenderAuxGeom.h>
+#include <CryThreading/IThreadManager.h>
 
-int CDiskProfiler::profile_disk = 1;
+#pragma warning(push)
+#pragma warning(disable: 4244)
+
+int CDiskProfiler::profile_disk = 0;
 int CDiskProfiler::profile_disk_max_items = 10000;
 int CDiskProfiler::profile_disk_max_draw_items = 2000;
 float CDiskProfiler::profile_disk_timeframe = 5;    // max time for profiling timeframe
@@ -28,6 +31,9 @@ CDiskProfiler::~CDiskProfiler()
 	{
 		delete *it;
 	}
+#if CRY_PLATFORM_WINDOWS
+	delete m_windowsSpecificProfiling;
+#endif
 }
 
 CDiskProfiler::CDiskProfiler(ISystem* pSystem) : m_bEnabled(false), m_pSystem(pSystem)
@@ -40,9 +46,9 @@ CDiskProfiler::CDiskProfiler(ISystem* pSystem) : m_bEnabled(false), m_pSystem(pS
 	// Register console var.
 	REGISTER_CVAR(profile_disk, CDiskProfiler::profile_disk, 0,
 	              "Enables Disk Profiler (should be deactivated for final product)\n"
-	              "0=off, 1=on screen, 2=on disk\n"
+	              "0=off, 1=on screen, 2=on disk, 3=display on screen with task types\n"
 	              "Disk profiling may not work on all combinations of OS and CPUs\n"
-	              "Usage: profile_disk [0/1/2]");
+	              "Usage: profile_disk [0/1/2/3]");
 	REGISTER_CVAR(profile_disk_max_items, 10000, 0,
 	              "Set maximum number of IO statistics items to collect\n"
 	              "The default value is 10000\n"
@@ -64,6 +70,9 @@ CDiskProfiler::CDiskProfiler(ISystem* pSystem) : m_bEnabled(false), m_pSystem(pS
 	              "Set the budget in KB for the current time frame\n"
 	              "The default value is -1 (disabled)\n"
 	              "Usage: profile_disk_budget [val]");
+#if CRY_PLATFORM_WINDOWS
+	m_windowsSpecificProfiling = new CDiskProfilerWindowsSpecific();
+#endif
 }
 
 bool CDiskProfiler::RegisterStatistics(SDiskProfileStatistics* pStatistics)
@@ -98,32 +107,12 @@ bool CDiskProfiler::RegisterStatistics(SDiskProfileStatistics* pStatistics)
 	return true;
 }
 
-void Draw2dLabel(float x, float y, float font_size, const float* pfColor, bool bCenter, const char* label_text, ...)
-{
-	va_list args;
-	va_start(args, label_text);
 
-	char buf[1024];
-	cry_vsprintf(buf, label_text, args);
-
-	IRenderAuxText::Draw2dLabel(x, y, font_size, pfColor, bCenter, "%s", buf);
-
-	if (CDiskProfiler::profile_disk == 3)
-	{
-		FILE* f = fopen("streaming.log", "a+");
-		if (f)
-		{
-			fprintf_s(f, "%s\n", buf);
-			fclose(f);
-		}
-	}
-	va_end(args);
-}
 
 void CDiskProfiler::Render()
 {
-	const int width = gEnv->pRenderer->GetWidth();
-	const int height = gEnv->pRenderer->GetHeight();
+	const int width  = gEnv->pRenderer->GetOverlayWidth();
+	const int height = gEnv->pRenderer->GetOverlayHeight();
 
 	// by default it's located at the bottom of the screen
 	m_nHeightOffset = (height - 20);
@@ -133,7 +122,7 @@ void CDiskProfiler::Render()
 
 	float timeNow = gEnv->pTimer->GetAsyncCurTime();
 
-	gEnv->pRenderer->Set2DMode(true, width, height);
+	gEnv->pRenderer->GetIRenderAuxGeom()->SetOrthographicProjection(true, 0.0f, width, height, 0.0f);
 
 	IRenderAuxGeom* pAux = gEnv->pRenderer->GetIRenderAuxGeom();
 
@@ -151,7 +140,7 @@ void CDiskProfiler::Render()
 	{
 		uint32 nTextLeft = 10;
 		// IO count
-		Draw2dLabel(5, labelHeight, fTextSize, colInfo1, false, "IO calls: %d", m_statistics.size());
+		IRenderAuxText::Draw2dLabel(5, labelHeight, fTextSize, colInfo1, false, "IO calls: %d", m_statistics.size());
 		nTextLeft += 100;
 
 		// display read statistics
@@ -167,7 +156,7 @@ void CDiskProfiler::Render()
 				seeks++;
 				if (!(*it)->m_strFile.empty() && startFileLabel < 1024)
 				{
-					Draw2dLabel(0, startFileLabel, fTextSize, colInfo1, false, "%s", (*it)->m_strFile.c_str());
+					IRenderAuxText::Draw2dLabel(0, startFileLabel, fTextSize, colInfo1, false, "%s", (*it)->m_strFile.c_str());
 					startFileLabel += 16;
 				}
 				continue;
@@ -211,19 +200,20 @@ void CDiskProfiler::Render()
 
 			if (profile_disk_budget > 0 && profile_disk_budget < (int)fThp)
 			{
-				Draw2dLabel(nTextLeft, labelHeight - szy * 3, fTextSize * 3.f, colRed, false, "Budget overflow! Current bandwidth: %.2f KB, specified budget is: %d KB/s", fThp, profile_disk_budget);
+				IRenderAuxText::Draw2dLabel(nTextLeft, labelHeight - szy * 3, fTextSize * 3.f, colRed, false, "Budget overflow! Current bandwidth: %.2f KB, specified budget is: %d KB/s", fThp, profile_disk_budget);
 			}
 
-			Draw2dLabel(nTextLeft, labelHeight, fTextSize, colInfo1, false, "Avg read bandwidth: %.2f KB/s", fThp);
+			IRenderAuxText::Draw2dLabel(nTextLeft, labelHeight, fTextSize, colInfo1, false, "Avg read bandwidth: %.2f KB/s", fThp);
 			nTextLeft += 200;
-			//Draw2dLabel( nTextLeft,labelHeight,fTextSize,colInfo1,false,"Max read bandwidth: %.2f KB/s", maxBandwidth / 1024 );
-			//nTextLeft += 200;
-			//Draw2dLabel( nTextLeft,labelHeight,fTextSize,colInfo1,false,"Min read bandwidth: %.2f KB/s", minBandwidth / 1024 );
-			//nTextLeft += 200;
-			Draw2dLabel(nTextLeft, labelHeight, fTextSize, colInfo1, false, "Seeks: %i. Avg seeks %.2f seeks/s", seeks, (float)seeks / profile_disk_timeframe);
+			IRenderAuxText::Draw2dLabel(nTextLeft, labelHeight, fTextSize, colInfo1, false, "Seeks: %i. Avg seeks %.2f seeks/s", seeks, (float)seeks / profile_disk_timeframe);
 			nTextLeft += 200;
 		}
 	}
+
+	SAuxGeomRenderFlags oldFlags = pAux->GetRenderFlags();
+	SAuxGeomRenderFlags newFlags = oldFlags;
+	newFlags.SetDepthTestFlag(EAuxGeomPublicRenderflags_DepthTest::e_DepthTestOff);
+	pAux->SetRenderFlags(newFlags);
 
 	// draw center line
 	pAux->DrawLine(Vec3(0, m_nHeightOffset, 0), white, Vec3(width, m_nHeightOffset, 0), white);
@@ -243,7 +233,7 @@ void CDiskProfiler::Render()
 		if (profile_disk_type_filter != -1 && (*it)->m_nTaskType != profile_disk_type_filter)
 			continue;
 
-		const uint32 nColorId = profile_disk != 4 ? (*it)->m_threadId : (*it)->m_nTaskType;
+		const uint32 nColorId = profile_disk != 3 ? (*it)->m_threadId : (*it)->m_nTaskType;
 
 		// generate new color legend
 		if (newColorLegend.find(nColorId) == newColorLegend.end())
@@ -267,24 +257,37 @@ void CDiskProfiler::Render()
 		last_time = (*it)->m_endIOTime;
 	}
 
+	pAux->SetRenderFlags(oldFlags);
+
 	// removing unused threads legend colors
 	m_threadsColorLegend = newColorLegend;
+
+#if CRY_PLATFORM_WINDOWS
+	labelHeight -= szy;
+	IRenderAuxText::Draw2dLabel(5, labelHeight, fTextSize, colInfo1, false, "Engine installed on: %s", 
+		m_windowsSpecificProfiling->GetEngineDriveName().c_str());	
+	labelHeight -= szy;
+	IRenderAuxText::Draw2dLabel(5, labelHeight, fTextSize, colInfo1, false, "Total OS disk usage MB/s: %.2lf, read: %.2lf MB, read time: %.3lf sec", 
+		m_windowsSpecificProfiling->getMBPerSecRead(),
+		m_windowsSpecificProfiling->getMBReadLastSecond(),
+		m_windowsSpecificProfiling->getTotalReadTimeForLastSecond());
+#endif
 
 	// show threads legend
 	for (ThreadColorMap::const_iterator i = m_threadsColorLegend.begin(); i != m_threadsColorLegend.end(); ++i)
 	{
 		labelHeight -= szy;
 		float fThreadColor[4] = { (float)i->second.r / 255.0f, (float)i->second.g / 255.0f, (float)i->second.b / 255.0f, 1.0f };
-		if (profile_disk != 4)
-			Draw2dLabel(1, labelHeight, fTextSize, fThreadColor, false, "Thread: %s", gEnv->pThreadManager->GetThreadName(i->first));
+		if (profile_disk != 3)
+			IRenderAuxText::Draw2dLabel(5, labelHeight, fTextSize, fThreadColor, false, "Thread: %s", gEnv->pThreadManager->GetThreadName(i->first));
 		else
 		{
 			if (i->first < eStreamTaskTypeCount)
-				Draw2dLabel(1, labelHeight, fTextSize, fThreadColor, false, "Task: %s", gEnv->pSystem->GetStreamEngine()->GetStreamTaskTypeName((EStreamTaskType)i->first));
+				IRenderAuxText::Draw2dLabel(5, labelHeight, fTextSize, fThreadColor, false, "Task: %s", gEnv->pSystem->GetStreamEngine()->GetStreamTaskTypeName((EStreamTaskType)i->first));
 		}
 	}
 
-	gEnv->pRenderer->Set2DMode(false, 0, 0);
+	gEnv->pRenderer->GetIRenderAuxGeom()->SetOrthographicProjection(false);
 }
 
 void CDiskProfiler::Update()
@@ -295,8 +298,7 @@ void CDiskProfiler::Update()
 	{
 		m_bEnabled = true;
 
-		if (profile_disk > 1)
-			Render();
+		Render();
 
 		const float timeNow = gEnv->pTimer->GetAsyncCurTime();
 
@@ -312,10 +314,20 @@ void CDiskProfiler::Update()
 			else
 				++i;
 		}
+#if CRY_PLATFORM_WINDOWS
+		m_windowsSpecificProfiling->Update(timeNow, profile_disk == 2);
+#endif
 	}
 	else
-		m_bEnabled = false;
-
+	{
+#if CRY_PLATFORM_WINDOWS
+		if (m_bEnabled)
+		{
+			m_windowsSpecificProfiling->DisableDiskProfiling();
+			m_bEnabled = false;
+		}
+#endif
+	}
 }
 
 void CDiskProfiler::RenderBlock(const float timeStart, const float timeEnd, const ColorB threadColor, const ColorB IOTypeColor)
@@ -324,8 +336,8 @@ void CDiskProfiler::RenderBlock(const float timeStart, const float timeEnd, cons
 
 	const float timeNow = gEnv->pTimer->GetAsyncCurTime();
 
-	const int width = gEnv->pRenderer->GetWidth();
-	const int height = gEnv->pRenderer->GetHeight();
+	const int width  = gEnv->pRenderer->GetOverlayWidth();
+	const int height = gEnv->pRenderer->GetOverlayHeight();
 
 	static const float halfSize = 8;  // bar thickness
 
@@ -364,5 +376,7 @@ void CDiskProfiler::SetTaskType(const threadID nThreadId, const uint32 nType /*=
 	CryAutoCriticalSection lock(m_csLock);
 	m_currentThreadTaskType[nThreadId] = (EStreamTaskType)nType;
 }
+
+#pragma warning(pop)
 
 #endif

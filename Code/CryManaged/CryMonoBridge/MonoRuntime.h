@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -26,6 +26,7 @@ class CMonoLibrary;
 class CManagedPlugin;
 
 typedef CListenerSet<IMonoListener*>            MonoListeners;
+typedef CListenerSet<IMonoCompileListener*>     MonoCompileListeners;
 
 enum EMonoLogLevel
 {
@@ -96,7 +97,7 @@ public:
 	virtual bool Initialize(SSystemGlobalEnvironment& env, const SSystemInitParams& initParams) override;
 	virtual void Shutdown() override;
 
-	virtual std::shared_ptr<ICryPlugin> LoadBinary(const char* szBinaryPath) override;
+	virtual std::shared_ptr<Cry::IEnginePlugin> LoadBinary(const char* szBinaryPath) override;
 
 	virtual void                        Update(int updateFlags, int nPauseMode) override;
 
@@ -106,13 +107,20 @@ public:
 	virtual CRootMonoDomain*            GetRootDomain() override;
 	virtual CMonoDomain*                GetActiveDomain() override;
 	virtual CAppDomain*                 CreateDomain(char* name, bool bActivate = false) override;
+	virtual void                        ReloadPluginDomain() override;
 
 	virtual CMonoLibrary*               GetCryCommonLibrary() const override;
 	virtual CMonoLibrary*               GetCryCoreLibrary() const override;
 
-	virtual void						RegisterNativeToManagedInterface(IMonoNativeToManagedInterface& interface) override;
+	virtual void                        RegisterNativeToManagedInterface(IMonoNativeToManagedInterface& interface) override;
 
 	virtual void                        RegisterManagedNodeCreator(const char* szClassName, IManagedNodeCreator* pCreator) override;
+
+	virtual void                        RegisterCompileListener(IMonoCompileListener* pListener) override { m_compileListeners.Add(pListener); }
+	virtual void                        UnregisterCompileListener(IMonoCompileListener* pListener) override { m_compileListeners.Remove(pListener); }
+
+	virtual const char*                 GetLatestCompileMessage() const override { return m_latestCompileMessage.c_str(); }
+	virtual const char*                 GetGeneratedAssemblyName() const override { return "CRYENGINE.CSharp"; }
 	// ~IMonoEngineModule
 
 	// IManagedConsoleCommandListener
@@ -125,40 +133,42 @@ public:
 
 	CMonoDomain* FindDomainByHandle(MonoInternals::MonoDomain* pDomain);
 
-	CAppDomain*  LaunchPluginDomain();
-	CAppDomain*  GetPluginDomain() const { return m_pPluginDomain; }
+	CAppDomain* LaunchPluginDomain();
+	CAppDomain* GetPluginDomain() const { return m_pPluginDomain; }
 
-	void         HandleException(MonoInternals::MonoException* pException);
+	void        HandleException(MonoInternals::MonoException* pException);
 
-	void ReloadPluginDomain();
+	void        OnCoreLibrariesDeserialized();
+	void        OnPluginLibrariesDeserialized();
+	void        NotifyCompileFinished(const char* szCompileMessage);
 
 private:
 	static void MonoLogCallback(const char* szLogDomain, const char* szLogLevel, const char* szMessage, MonoInternals::mono_bool is_fatal, void* pUserData);
 	static void MonoPrintCallback(const char* szMessage, MonoInternals::mono_bool is_stdout);
 	static void MonoPrintErrorCallback(const char* szMessage, MonoInternals::mono_bool is_stdout);
 
+	bool InitializeRuntime();
+	void InitializePluginDomain();
+
 	void RegisterInternalInterfaces();
 
 	void InvokeManagedConsoleCommandNotification(const char* szCommandName, IConsoleCmdArgs* pConsoleCommandArguments);
 
-	void CompileAssetSourceFiles();
-	void FindSourceFilesInDirectoryRecursive(const char* szDirectory, std::vector<string>& sourceFiles);
-
 private:
-	std::unordered_map<MonoInternals::MonoDomain*, std::shared_ptr<CMonoDomain>> m_domainLookupMap;
+	std::vector<std::shared_ptr<CMonoDomain>> m_domains;
 	std::vector<std::shared_ptr<CManagedNodeCreatorProxy>> m_nodeCreators;
 
-	std::shared_ptr<CRootMonoDomain>         m_pRootDomain;
-	CAppDomain*              m_pPluginDomain;
-	std::vector<std::weak_ptr<CManagedPlugin>> m_plugins;
+	bool                                        m_initialized = false;
+	std::shared_ptr<CRootMonoDomain>            m_pRootDomain;
+	CAppDomain*                                 m_pPluginDomain;
+	std::vector<std::weak_ptr<IManagedPlugin>>  m_plugins;
 
 	// Plug-in compiled from source code in assets directory
 	std::shared_ptr<CManagedPlugin> m_pAssetsPlugin;
 	
-	CMonoLibrary*            m_pLibCommon;
-	CMonoLibrary*            m_pLibCore;
-
-	MonoListeners            m_listeners;
+	MonoListeners           m_listeners;
+	MonoCompileListeners    m_compileListeners;
+	string                  m_latestCompileMessage;
 };
 
 inline static CMonoRuntime* GetMonoRuntime()

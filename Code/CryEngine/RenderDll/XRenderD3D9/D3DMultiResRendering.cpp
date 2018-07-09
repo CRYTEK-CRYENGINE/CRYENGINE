@@ -1,4 +1,4 @@
-// Copyright 2001 - 2016 Crytek GmbH / Crytek Group.All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "D3DMultiResRendering.h"
@@ -32,7 +32,7 @@ CVrProjectionManager::CVrProjectionManager(CD3D9Renderer* const pRenderer)
 	, m_projection(eVrProjection_Planar)
 
 {
-	m_ptexZTargetFlattened = std::move(CTexture::GetOrCreateTextureObject("$ZTargetFlattened", 0, 0, 1, eTT_2D, FT_DONT_RELEASE | FT_DONT_STREAM | FT_USAGE_RENDERTARGET, CTexture::s_eTFZ));
+	m_ptexZTargetFlattened = std::move(CTexture::GetOrCreateTextureObject("$ZTargetFlattened", 0, 0, 1, eTT_2D, FT_DONT_RELEASE | FT_DONT_STREAM | FT_USAGE_RENDERTARGET, CRendererResources::s_eTFZ));
 }
 
 void CVrProjectionManager::Init(CD3D9Renderer* const pRenderer)
@@ -76,7 +76,7 @@ bool CVrProjectionManager::IsProjectionConfigured() const
 	return m_isConfigured; 
 }
 
-void CVrProjectionManager::Configure(const D3D11_VIEWPORT& originalViewport, bool bMirrored)
+void CVrProjectionManager::Configure(const SRenderViewport& originalViewport, bool bMirrored)
 {
 	m_isConfigured = false;
 	m_currentConfigMirrored = bMirrored;
@@ -90,11 +90,16 @@ void CVrProjectionManager::Configure(const D3D11_VIEWPORT& originalViewport, boo
 			m_currentPreset = CRenderer::CV_r_VrProjectionPreset;
 		}
 
-		memcpy(&m_originalViewport, &originalViewport, sizeof(m_originalViewport));
+		m_originalViewport.TopLeftX = static_cast<float>(originalViewport.x);
+		m_originalViewport.TopLeftY = static_cast<float>(originalViewport.y);
+		m_originalViewport.Width = static_cast<float>(originalViewport.width);
+		m_originalViewport.Height = static_cast<float>(originalViewport.height);
+		m_originalViewport.MinDepth = originalViewport.zmin;
+		m_originalViewport.MaxDepth = originalViewport.zmax;
 
 		// In this particular integration, original viewport covers the entire texture.
 		// In general, that's not necessarily the case.
-		Nv::VR::Float2 textureSize = Nv::VR::Float2{ originalViewport.Width, originalViewport.Height };
+		Nv::VR::Float2 textureSize = Nv::VR::Float2{ m_originalViewport.Width, m_originalViewport.Height };
 
 		CalculateViewportsAndBufferData(textureSize, m_originalViewport, textureSize, m_planarConfig, m_planarData);
 
@@ -265,7 +270,7 @@ uint64 CVrProjectionManager::GetRTFlags() const
 
 void CVrProjectionManager::GetProjectionSize(int flattenedWidth, int flattenedHeight, int & projectionWidth, int & projectionHeight)
 {
-	CRY_ASSERT(IsMultiResEnabled());
+	CRY_ASSERT(IsMultiResEnabled() && m_isConfigured);
 
 	projectionWidth  = flattenedWidth;
 	projectionHeight = flattenedHeight;
@@ -337,18 +342,23 @@ void CVrProjectionManager::ExecuteFlattenDepth(CTexture* pSrcRT, CTexture* pDest
 	{
 		pDestRT->SetWidth(dstWidth);
 		pDestRT->SetHeight(dstHeight);
-		pDestRT->CreateRenderTarget(CTexture::s_eTFZ, ColorF(1.0f, 1.0f, 1.0f, 1.0f));
+		pDestRT->CreateRenderTarget(CRendererResources::s_eTFZ, ColorF(1.0f, 1.0f, 1.0f, 1.0f));
 	}
 
-	if (m_passDepthFlattening.InputChanged())
+	if (m_passDepthFlattening.IsDirty())
 	{
 		static CCryNameTSCRC techFlattenDepth("FlattenDepth");
 
-		m_passDepthFlattening.SetTechnique(pShader, techFlattenDepth, 0);
+		m_passDepthFlattening.SetTechnique(pShader, techFlattenDepth, CVrProjectionManager::Instance()->GetRTFlags());
 		m_passDepthFlattening.SetRenderTarget(0, pDestRT);
 		m_passDepthFlattening.SetState(GS_NODEPTHTEST);
 		m_passDepthFlattening.SetFlags(CPrimitiveRenderPass::ePassFlags_RequireVrProjectionConstants);
+		m_passDepthFlattening.SetPrimitiveFlags(CRenderPrimitive::eFlags_None);
+		m_passDepthFlattening.SetRequirePerViewConstantBuffer(true);
+		m_passDepthFlattening.SetPrimitiveType(CRenderPrimitive::ePrim_ProceduralTriangle);
 
+		m_passDepthFlattening.BeginConstantUpdate();
+		
 		m_passDepthFlattening.SetTexture(16, pSrcRT);
 	}
 
@@ -366,11 +376,12 @@ void CVrProjectionManager::ExecuteLensMatchedOctagon(CTexture* pDestRT)
 
 	m_primitiveLensMatchedOctagon.SetTechnique(pShader, techName, CVrProjectionManager::Instance()->GetRTFlags());
 	m_primitiveLensMatchedOctagon.SetRenderState(GS_DEPTHFUNC_LESS | GS_DEPTHWRITE);
+	m_primitiveLensMatchedOctagon.SetPrimitiveType(CRenderPrimitive::ePrim_ProceduralTriangle);
 
 	if (m_primitiveLensMatchedOctagon.IsDirty())
 	{
 		m_passLensMatchedOctagon.SetFlags(CPrimitiveRenderPass::ePassFlags_UseVrProjectionState);
-		m_passLensMatchedOctagon.SetViewport(D3D11_VIEWPORT{ 0.f, 0.f, float(pRenderer->GetWidth()), float(pRenderer->GetHeight()), 0.f, 0.f });
+		m_passLensMatchedOctagon.SetViewport(D3D11_VIEWPORT{ 0.f, 0.f, float(pDestRT->GetWidth()), float(pDestRT->GetHeight()), 0.f, 0.f });
 		m_passLensMatchedOctagon.SetDepthTarget(pDestRT);
 
 		m_passLensMatchedOctagon.BeginAddingPrimitives();

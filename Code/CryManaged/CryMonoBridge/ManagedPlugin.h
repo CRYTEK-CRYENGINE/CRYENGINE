@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -16,7 +16,8 @@ class CMonoLibrary;
 
 // Main entry-point handler for managed code, indirectly created by the plugin manager
 class CManagedPlugin final
-	: public ICryPlugin
+	: public IManagedPlugin
+	, public Cry::IEnginePlugin
 	, public ISystemEventListener
 	, public INetworkedClientListener
 {
@@ -44,6 +45,13 @@ public:
 	CManagedPlugin(CMonoLibrary* pLibrary);
 	virtual ~CManagedPlugin();
 
+	// IManagedPlugin
+	virtual void Load(CAppDomain* pDomain) override;
+	virtual void OnCoreLibrariesDeserialized() override;
+	virtual void OnPluginLibrariesDeserialized() override;
+	virtual void SetLoadIndex(int i) override { m_loadIndex = i; }
+	// ~IManagedPlugin
+
 	// ICryUnknown
 	virtual ICryFactory* GetFactory() const override { return nullptr; }
 
@@ -56,15 +64,11 @@ public:
 	virtual const char* GetCategory() const override { return "Managed"; }
 
 	virtual bool Initialize(SSystemGlobalEnvironment& env, const SSystemInitParams& initParams) override { return true; }
-
-	virtual void OnPluginUpdate(EPluginUpdateType updateType) override {}
 	// ~ICryPlugin
 
 	// ISystemEventListener
 	virtual void OnSystemEvent(ESystemEvent event, UINT_PTR wparam, UINT_PTR lparam) override;
 	// ~ISystemEventListener
-
-	void Load(CAppDomain* pDomain);
 
 	// INetworkedClientListener
 	virtual void OnLocalClientDisconnected(EDisconnectionCause cause, const char* description) {}
@@ -78,13 +82,15 @@ public:
 	void RegisterSchematycPackageContents(Schematyc::IEnvRegistrar& registrar) const;
 	const CryGUID& GetGUID() const { return m_guid; }
 
-	typedef std::map <MonoInternals::MonoReflectionType*, std::shared_ptr <CManagedEntityComponentFactory>> TComponentFactoryMap;
-
-	// The plug-in that is currently registering types in CManagedPlugin::InitializePlugin
-	static TComponentFactoryMap* s_pCurrentlyRegisteringFactory;
+	// Collection of all factories that belong to the plugin that is currently registering types in CManagedPlugin::InitializePlugin and CManagedPlugin::ScanAssembly
+	static std::vector<std::shared_ptr<CManagedEntityComponentFactory>>* s_pCurrentlyRegisteringFactories;
+	// Collection of all factories that have been registered by all managed plugins.
+	static std::vector<std::shared_ptr<CManagedEntityComponentFactory>>* s_pCrossPluginRegisteredFactories;
 
 protected:
 	void InitializePlugin();
+	void ScanAssembly();
+	void CreatePluginInstance();
 
 protected:
 	CMonoLibrary* m_pLibrary;
@@ -95,6 +101,8 @@ protected:
 	string m_libraryPath;
 	CryGUID m_guid;
 
+	int m_loadIndex = -1;
+
 	// Map containing entity component factories for this module
-	TComponentFactoryMap m_entityComponentFactoryMap;
+	std::vector<std::shared_ptr<CManagedEntityComponentFactory>> m_entityComponentFactories;
 };

@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 // -------------------------------------------------------------------------
 //  Created:     02/10/2015 by Benjamin Block
@@ -28,7 +28,7 @@ struct CFeatureFieldOpacity : public CFeature
 	virtual void InternalSetParameters(const EParameterType type, const SFeatureParametersBase& p) override;
 
 private:
-	gpu::CTypedResource<float, gpu::BufferFlagsDynamic> m_opacityTable;
+	gpu::CStructuredResource<float, gpu::BufferFlagsDynamic> m_opacityTable;
 };
 
 struct CFeatureFieldSize : public CFeature
@@ -42,7 +42,7 @@ struct CFeatureFieldSize : public CFeature
 	virtual void InternalSetParameters(const EParameterType type, const SFeatureParametersBase& p) override;
 
 private:
-	gpu::CTypedResource<float, gpu::BufferFlagsDynamic> m_sizeTable;
+	gpu::CStructuredResource<float, gpu::BufferFlagsDynamic> m_sizeTable;
 };
 
 struct SFeatureInternalParametersPixelSize

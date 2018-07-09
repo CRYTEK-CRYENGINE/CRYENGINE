@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -96,7 +96,6 @@ struct CryCharMorphParams;
 struct IMaterial;
 struct IStatObj;
 struct IRenderMesh;
-class CDLight;
 
 class CDefaultSkeleton;
 
@@ -328,6 +327,7 @@ struct ICharacterManager
 #endif
 };
 
+//! \cond INTERNAL
 //! This struct defines the interface for a class that listens to AnimLoaded, AnimUnloaded and AnimReloaded events
 struct IAnimationStreamingListener
 {
@@ -344,6 +344,7 @@ struct IAnimationStreamingListener
 	virtual void NotifyAnimReloaded(const int32 globalID) = 0;
 	// </interfuscator:shuffle>
 };
+//! \endcond
 
 struct SJointProperty
 {
@@ -369,6 +370,7 @@ struct SBoneShadowCapsule
 //////////////////////////////////////////////////////////////////////////
 typedef unsigned int LimbIKDefinitionHandle;
 
+//! Represents the skeleton tied to a character, and all the default properties it contains.
 struct IDefaultSkeleton
 {
 	// <interfuscator:shuffle>
@@ -389,6 +391,10 @@ struct IDefaultSkeleton
 	virtual uint32       GetJointCRC32ByID(int32 id) const = 0;
 
 	virtual const char*  GetJointNameByID(int32 id) const = 0;
+	//! Gets the identifier of a joint from the name specified in DCC
+	//! \return A non-positive number on failure.
+	//! \par Example
+	//! \include CryAnimation/Examples/GetJointOrientation.cpp
 	virtual int32        GetJointIDByName(const char* name) const = 0;
 
 	virtual const QuatT& GetDefaultAbsJointByID(uint32 nJointIdx) const = 0;
@@ -400,6 +406,7 @@ struct IDefaultSkeleton
 	// All render-meshes will be removed from the CDefaultSkeleton-class.
 	// The following functions will become deprecated.
 	virtual const phys_geometry* GetJointPhysGeom(uint32 jointIndex) const = 0;                 //!< just for statistics of physics proxies.
+	virtual CryBonePhysics*      GetJointPhysInfo(uint32 jointIndex) = 0;
 	virtual int32                GetLimbDefinitionIdx(LimbIKDefinitionHandle handle) const = 0;
 	virtual void                 PrecacheMesh(bool bFullUpdate, int nRoundId, int nLod) = 0;
 	virtual IRenderMesh*         GetIRenderMesh() const = 0;
@@ -415,6 +422,7 @@ struct IDefaultSkeleton
 };
 
 //////////////////////////////////////////////////////////////////////////
+//! Represents a .skin mesh type
 struct ISkin
 {
 	// <interfuscator:shuffle>
@@ -515,11 +523,7 @@ struct ICharacterInstance : IMeshObj
 
 	//! Draw the character using specified rendering parameters.
 	//! \param RendParams Rendering parameters.
-	virtual void Render(const SRendParams& RendParams, const QuatTS& Offset, const SRenderingPassInfo& passInfo) = 0;
-	virtual void Render(const SRendParams& RendParams, const SRenderingPassInfo& passInfo) override
-	{
-		Render(RendParams, QuatTS(IDENTITY), passInfo);
-	}
+	virtual void Render(const SRendParams& RendParams, const SRenderingPassInfo& passInfo) = 0;
 
 	//! Set rendering flags defined in ECharRenderFlags for this character instance
 	//! \param nFlags Rendering flags
@@ -568,7 +572,7 @@ struct ICharacterInstance : IMeshObj
 	virtual uint32 IsCharacterVisible() const = 0;
 
 	// Skeleton effects interface.
-	virtual void  SpawnSkeletonEffect(const char* effectName, const char* boneName, const Vec3& offset, const Vec3& dir, const QuatTS& entityLoc) = 0;
+	virtual void  SpawnSkeletonEffect(const AnimEventInstance& animEvent, const QuatTS &entityLoc) = 0;
 	virtual void  KillAllSkeletonEffects() = 0;
 
 	virtual void  SetViewdir(const Vec3& rViewdir) = 0;
@@ -609,8 +613,6 @@ struct ICharacterInstance : IMeshObj
 	virtual void ReloadCHRPARAMS() = 0;
 #endif
 
-	//! Deprecated.
-	void SpawnSkeletonEffect(int animID, const char* animName, const char* effectName, const char* boneName, const Vec3& offset, const Vec3& dir, const QuatTS& entityLoc);
 };
 
 #include <CryAnimation/IAnimationPoseModifier.h>                                                    // <> required for Interfuscator
@@ -619,6 +621,7 @@ struct ICharacterInstance : IMeshObj
 #define SKELETON_ANIMATION_LAYER_COUNT 32
 #endif
 
+//! Main interface to handle low-level animation processing on a character instance
 struct ISkeletonAnim
 {
 	// <interfuscator:shuffle>
@@ -640,10 +643,19 @@ struct ISkeletonAnim
 	virtual void   SetTrackViewMixingWeight(uint32 layer, f32 weight) = 0;
 	virtual uint32 GetTrackViewStatus() const = 0;
 
-	// Motion playback and blending
-	virtual bool StartAnimation(const char* szAnimName0, const CryCharAnimationParams& Params) = 0;
+	//! Starts playing back the specified animation in the layer specified in the provided parameters.
+	//! \param szAnimName0 Name of the animation we want to play back, without the .caf or .i_caf suffixes.
+	//! \param params Parameters that describe how the animation should be started, such as playback speed.
+	//! \par Example
+	//! \include CryAnimation/Examples/StartAnimation.cpp
+	virtual bool StartAnimation(const char* szAnimName0, const CryCharAnimationParams& params) = 0;
+	//! Starts playing back the specified animation in the layer specified in the provided parameters.
+	//! \param id Unique animation identifier, useful to avoid looking up animation by name on every playback
+	//! \param params Parameters that describe how the animation should be started, such as playback speed.
 	virtual bool StartAnimationById(int32 id, const CryCharAnimationParams& Params) = 0;
+	//! Stops playback of the current animation in the specified layer, and specifies the time during which we will blend out
 	virtual bool StopAnimationInLayer(int32 nLayer, f32 BlendOutTime) = 0;
+	//! Seizes playback of animations in all layers
 	virtual bool StopAnimationsAllLayers() = 0;
 
 	//! Find an animation with a given user token.
@@ -675,7 +687,9 @@ struct ISkeletonAnim
 	//! \note This does NOT override the overall animation speed, but it multiplies it.
 	virtual f32 GetLayerPlaybackScale(uint32 nLayer) const = 0;
 
-	//! Updates the given parameter (will perform clamping and clearing as needed).
+	//! Updates the given motion parameter in order to select / blend between animations in blend spaces. Will perform clamping and clearing as needed.
+	//! \par Example
+	//! \include CryAnimation/Examples/SetDesiredMotionParam.cpp
 	virtual void SetDesiredMotionParam(EMotionParamID id, f32 value, f32 frametime) = 0;
 	virtual bool GetDesiredMotionParam(EMotionParamID id, float& value) const = 0;
 
@@ -705,6 +719,7 @@ struct ISkeletonAnim
 
 	virtual f32                            GetUserData(int i) const = 0;
 
+	//! Pushes a pose modifier into the specified layer, ensuring that it will be executed next frame
 	virtual bool                           PushPoseModifier(uint32 layer, IAnimationPoseModifierPtr poseModifier, const char* name = NULL) = 0;
 
 	virtual IAnimationPoseModifierSetupPtr      GetPoseModifierSetup() = 0;
@@ -722,6 +737,7 @@ struct ISkeletonAnim
 
 struct IAnimationPoseBlenderDir;
 
+//! Interface for maintaining the physical state of a character's skeleton, for example to generate physical parts for each joint
 struct ISkeletonPhysics
 {
 	// <interfuscator:shuffle>
@@ -759,6 +775,7 @@ struct ISkeletonPhysics
 	// </interfuscator:shuffle>
 };
 
+//! Represents the current pose of a character instance, allowing retrieval of the latest animation pose.
 struct ISkeletonPose : public ISkeletonPhysics
 {
 	static const int32 kForceSkeletonUpdatesInfinitely = 0x8000;
@@ -778,6 +795,8 @@ struct ISkeletonPose : public ISkeletonPhysics
 	 * @see ISkeletonPose::SetPostProcessCallback
 	 * @see ISkeletonPose::GetRelJointByID
 	 * @see ICharacterInstance::FinishAnimationComputations
+	 * @par Example
+	 * @include CryAnimation/Examples/GetJointOrientation.cpp
 	 */
 	virtual const QuatT& GetAbsJointByID(int32 nJointID) const = 0;
 
@@ -823,9 +842,21 @@ struct ISkeletonPose : public ISkeletonPhysics
 	// -------------------------------------------------------------------------
 	// Pose Modifiers (soon obsolete)
 	// -------------------------------------------------------------------------
+	//! Gets the pose modifier used to target gun aiming at a specific world coordinate
+	//! \par Example (Aim-IK)
+	//! \include CryAnimation/Examples/AimIK.cpp
 	virtual IAnimationPoseBlenderDir*       GetIPoseBlenderAim() = 0;
+	//! Gets the pose modifier used to target gun aiming at a specific world coordinate
+	//! \par Example (Aim-IK)
+	//! \include CryAnimation/Examples/AimIK.cpp
 	virtual const IAnimationPoseBlenderDir* GetIPoseBlenderAim() const = 0;
+	//! Gets the pose modifier used to target look aim at a specific world coordinate
+	//! \par Example (Look-IK)
+	//! \include CryAnimation/Examples/LookIK.cpp
 	virtual IAnimationPoseBlenderDir*       GetIPoseBlenderLook() = 0;
+	//! Gets the pose modifier used to target look aim at a specific world coordinate
+	//! \par Example (Look-IK)
+	//! \include CryAnimation/Examples/LookIK.cpp
 	virtual const IAnimationPoseBlenderDir* GetIPoseBlenderLook() const = 0;
 	virtual void                            ApplyRecoilAnimation(f32 fDuration, f32 fKinematicImpact, f32 fKickIn, uint32 arms = 3) = 0;
 	virtual uint32                          SetHumanLimbIK(const Vec3& wgoal, const char* limb) = 0;
@@ -833,6 +864,7 @@ struct ISkeletonPose : public ISkeletonPhysics
 	// </interfuscator:shuffle>
 };
 
+//! \cond INTERNAL
 //! Holds description of a set of animations.
 //! This interface holds a set of animations in which each animation is described as properties.
 struct IAnimationSet
@@ -933,6 +965,7 @@ struct IAnimationSet
 
 	// </interfuscator:shuffle>
 };
+//! \endcond
 
 struct IAnimationSetListener
 {
@@ -1059,6 +1092,7 @@ private:
 	#define ANIMATION_LIGHT_SYNC_PROFILER()
 #endif
 
+//! \cond INTERNAL
 //! Utility class to automatically start loading & lock a CAF file.
 //! Either it is 'empty' or it holds a reference to a CAF file.
 //! It asserts gEnv->pCharacterManager exists when it isn't empty.
@@ -1147,10 +1181,5 @@ private:
 
 	uint32 m_filePathCRC;
 };
+//! \endcond
 
-inline void ICharacterInstance::SpawnSkeletonEffect(int animID, const char* animName, const char* effectName, const char* boneName, const Vec3& offset, const Vec3& dir, const QuatTS& entityLoc)
-{
-	(void)animID;
-	(void)animName;
-	SpawnSkeletonEffect(effectName, boneName, offset, dir, entityLoc);
-}

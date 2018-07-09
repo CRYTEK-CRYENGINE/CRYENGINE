@@ -1,0 +1,21 @@
+<AssetMetadata version="0" type="Texture" guid="352f438c-7377-b69e-d0a8-6fa819cd6e12" source="lens_flare1.tif">
+ <Files>
+  <File path="lens_flare1.dds"/>
+  <File path="lens_flare1.dds.a"/>
+  <File path="lens_flare1.dds.1"/>
+  <File path="lens_flare1.dds.1a"/>
+  <File path="lens_flare1.dds.2"/>
+  <File path="lens_flare1.dds.2a"/>
+  <File path="lens_flare1.dds.3"/>
+  <File path="lens_flare1.dds.3a"/>
+  <File path="lens_flare1.dds.4"/>
+  <File path="lens_flare1.dds.4a"/>
+  <File path="lens_flare1.dds.5"/>
+  <File path="lens_flare1.dds.5a"/>
+ </Files>
+ <Details>
+  <Detail name="width">512</Detail>
+  <Detail name="height">512</Detail>
+  <Detail name="mipCount">8</Detail>
+ </Details>
+</AssetMetadata>

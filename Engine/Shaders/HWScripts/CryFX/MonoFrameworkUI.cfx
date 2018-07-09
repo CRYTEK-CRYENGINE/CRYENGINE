@@ -1,10 +1,12 @@
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
+
 #include "Common.cfi"
 #include "VertexLib.cfi"
 #include "ShadeLib.cfi"
 
 struct v2f
 {
-	float4 HPosition  : POSITION;   
+	float4 HPosition  : SV_POSITION;   
 	float4 baseTC     : TEXCOORDN;
 	float4 vTangent   : TEXCOORDN;
 	float4 vBinormal  : TEXCOORDN;

@@ -1,0 +1,14 @@
+<AssetMetadata version="0" type="Texture" guid="071fa90a-b32d-6acd-8c98-29fe5ac46334" source="detailDecalVariation.tif">
+ <Files>
+  <File path="detailDecalVariation.dds"/>
+  <File path="detailDecalVariation.dds.1"/>
+  <File path="detailDecalVariation.dds.2"/>
+  <File path="detailDecalVariation.dds.3"/>
+  <File path="detailDecalVariation.dds.4"/>
+ </Files>
+ <Details>
+  <Detail name="width">256</Detail>
+  <Detail name="height">256</Detail>
+  <Detail name="mipCount">7</Detail>
+ </Details>
+</AssetMetadata>

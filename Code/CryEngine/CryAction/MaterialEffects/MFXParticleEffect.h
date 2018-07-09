@@ -1,22 +1,24 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #ifndef __MFXPARTICLEEFFECT_H__
 #define __MFXPARTICLEEFFECT_H__
 
 #pragma once
 
+#include <CryParticleSystem/IParticles.h>
 #include "MFXEffectBase.h"
 
 struct SMFXParticleEntry
 {
-	string name;
-	string userdata;
-	float  scale;    // base scale
-	float  maxdist;  // max distance for spawning this effect
-	float  minscale; // min scale (distance == 0)
-	float  maxscale; // max scale (distance == maxscaledist)
-	float  maxscaledist;
-	bool   attachToTarget;
+	string                name;
+	string                userdata;
+	float                 scale;    // base scale
+	float                 maxdist;  // max distance for spawning this effect
+	float                 minscale; // min scale (distance == 0)
+	float                 maxscale; // max scale (distance == maxscaledist)
+	float                 maxscaledist;
+	bool                  attachToTarget;
+	TMFXEmitterParameters parameters;
 
 	SMFXParticleEntry()
 		: scale(1.0f)

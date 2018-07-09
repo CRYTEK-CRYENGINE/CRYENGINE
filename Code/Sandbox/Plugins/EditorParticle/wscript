@@ -1,0 +1,11 @@
+# Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
+def build(bld):
+	bld.CryPlugin(
+		target          = 'EditorParticle',
+		vs_filter       = 'Sandbox/Plugins',
+		file_list       = 'editorparticle.waf_files',
+		pch             = 'StdAfx.cpp',
+		win_module_extensions = ['toolkit_pro'],
+		includes 		= [ Path('Code/Sandbox/EditorQt/Include'), Path('Code/Sandbox/EditorQt') ],
+		use				= [ 'Sandbox' ]
+	)

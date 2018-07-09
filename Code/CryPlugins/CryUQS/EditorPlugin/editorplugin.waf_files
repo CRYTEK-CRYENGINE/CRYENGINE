@@ -26,7 +26,11 @@
 			"Editor/QueryListProvider.cpp",
 			"Editor/QueryListProvider.h",
 			"Editor/EditorContext.cpp",
-			"Editor/EditorContext.h"
+			"Editor/EditorContext.h",
+			"Editor/QuerySimulator.cpp",
+			"Editor/QuerySimulator.h",
+			"Editor/CentralEventManager.h",
+			"Editor/CentralEventManager.cpp"
 		]
 	}
 }

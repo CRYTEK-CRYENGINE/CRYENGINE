@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "SubstanceInstance.h"
@@ -40,10 +40,13 @@ namespace EditorSubstance
 		{
 			const string relativeFileName = PathUtil::AbsolutePathToGamePath(editAsset.GetAsset().GetName());
 			editAsset.SetFiles("",{ relativeFileName + ".crysub" });
-			string* archiveName = (string*)(pTypeSpecificParameter);
-			editAsset.SetDependencies({*archiveName});
 
-
+			CRY_ASSERT(pTypeSpecificParameter);
+			if (pTypeSpecificParameter)
+			{
+				string& archiveName = *(string*)(pTypeSpecificParameter);
+				editAsset.SetDependencies({ {archiveName, 1} });
+			}
 			return true;
 		}
 

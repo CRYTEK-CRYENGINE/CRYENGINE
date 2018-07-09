@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 //
 //	File:Log.cpp
@@ -21,6 +21,7 @@
 #include <CryString/CryPath.h>          // PathUtil::ReplaceExtension()
 #include <CryGame/IGameFramework.h>
 #include <CryString/UnicodeFunctions.h>
+#include <CryString/StringUtils.h>
 
 #if CRY_PLATFORM_WINDOWS
 	#include <time.h>
@@ -432,7 +433,7 @@ void CLog::LogV(const ELogType type, int flags, const char* szFormat, va_list ar
 		}
 	}
 
-	FUNCTION_PROFILER(GetISystem(), PROFILE_SYSTEM);
+	CRY_PROFILE_FUNCTION(PROFILE_SYSTEM);
 	//LOADING_TIME_PROFILE_SECTION(GetISystem());
 
 	bool bfile = false, bconsole = false;
@@ -1039,6 +1040,11 @@ void CLog::LogStringToFile(const char* szString, bool bAdd, bool bError)
 			}
 
 			fputs(tempString.c_str(), m_pLogFile);
+
+			if (m_pLogFile)
+			{
+				fflush(m_pLogFile); // Flush or the changes will only show up on shutdown.
+			}
 		}
 	#else
 		if (bAdd)
@@ -1071,13 +1077,15 @@ void CLog::LogStringToFile(const char* szString, bool bAdd, bool bError)
 	}
 
 	#if !defined(_RELEASE)
-	// Note: OutputDebugString(A) only accepts current ANSI code-page, and the W variant will call the A variant internally.
-	// Here we replace non-ASCII characters with '?', which is the same as OutputDebugStringW will do for non-ANSI.
-	// Thus, we discard slightly more characters (ie, those inside the current ANSI code-page, but outside ASCII).
-	// In exchange, we save double-converting that would have happened otherwise (UTF-8 -> UTF-16 -> ANSI).
-	string asciiString;
-	Unicode::Convert<Unicode::eEncoding_ASCII, Unicode::eEncoding_UTF8>(asciiString, tempString);
-	OutputDebugString(asciiString.c_str());
+		#if CRY_PLATFORM_WINDOWS || CRY_PLATFORM_DURANGO
+	// Note: OutputDebugStringW will not actually output Unicode unless the attached debugger has explicitly opted in to this behavior.
+	// This is only possible on Windows 10; on older operating systems the W variant internally converts the input to the local codepage (ANSI) and calls the A variant.
+	// Both VS2015 and VS2017 do opt-in to this behavior on Windows 10, so we use the W variant despite the slight overhead on older Windows versions.
+	wstring tempWString = CryStringUtils::UTF8ToWStr(tempString);
+	OutputDebugStringW(tempWString.c_str());
+		#else
+	OutputDebugString(tempString.c_str());
+		#endif
 	#endif
 }
 
@@ -1143,62 +1151,34 @@ void CLog::CreateBackupFile() const
 {
 	LOADING_TIME_PROFILE_SECTION;
 #if CRY_PLATFORM_WINDOWS || CRY_PLATFORM_LINUX || CRY_PLATFORM_ANDROID || CRY_PLATFORM_APPLE || CRY_PLATFORM_DURANGO
-	// simple:
-	//		string bakpath = PathUtil::ReplaceExtension(m_szFilename,"bak");
-	//		CopyFile(m_szFilename,bakpath.c_str(),false);
-
-	// advanced: to backup directory
-	char temppath[_MAX_PATH];
-	char szPath[MAX_FILENAME_SIZE];
-
-	string sExt = PathUtil::GetExt(m_szFilename);
-	string sFileWithoutExt = PathUtil::GetFileName(m_szFilename);
-
-	{
-		assert(::strstr(sFileWithoutExt, ":") == 0);
-		assert(::strstr(sFileWithoutExt, "\\") == 0);
-	}
-
-	PathUtil::RemoveExtension(sFileWithoutExt);
-
-	#define LOG_BACKUP_PATH "LogBackups"
-
-	const char* path = LOG_BACKUP_PATH;
-
-	string szBackupPath;
-	string sLogFilename;
-
-	string temp = m_pSystem->GetRootFolder();
-	temp += path;
-	if (temp.size() < sizeof(szPath))
-		cry_strcpy(szPath, temp.c_str());
-	else
-		cry_strcpy(szPath, path);
 
 	if (!gEnv->pCryPak)
 	{
 		return;
 	}
-	szBackupPath = gEnv->pCryPak->AdjustFileName(szPath, temppath, ICryPak::FLAGS_FOR_WRITING | ICryPak::FLAGS_PATH_REAL);
-	gEnv->pCryPak->MakeDir(szBackupPath);
-	sLogFilename = gEnv->pCryPak->AdjustFileName(m_szFilename, temppath, ICryPak::FLAGS_FOR_WRITING | ICryPak::FLAGS_PATH_REAL);
+
+	const string srcFilePath = m_szFilename;
+	const string srcFileName = PathUtil::GetFileName(srcFilePath);
+	const string srcFileExt = PathUtil::GetExt(srcFilePath);
+	const string logBackupFolder = "LogBackups";
+	gEnv->pCryPak->MakeDir(logBackupFolder);
 
 	LockNoneExclusiveAccess(&m_exclusiveLogFileThreadAccessLock);
-	FILE* in = fxopen(sLogFilename, "rb");
+	FILE* src = fxopen(srcFilePath, "rb");
 	UnlockNoneExclusiveAccess(&m_exclusiveLogFileThreadAccessLock);
 
 	string sBackupNameAttachment;
 
 	// parse backup name attachment
 	// e.g. BackupNameAttachment="attachment name"
-	if (in)
+	if (src)
 	{
 		bool bKeyFound = false;
 		string sName;
 
-		while (!feof(in))
+		while (!feof(src))
 		{
-			uint8 c = fgetc(in);
+			uint8 c = fgetc(src);
 
 			if (c == '\"')
 			{
@@ -1231,86 +1211,30 @@ void CLog::CreateBackupFile() const
 				break;
 		}
 		LockNoneExclusiveAccess(&m_exclusiveLogFileThreadAccessLock);
-		fclose(in);
+		fclose(src);
 		UnlockNoneExclusiveAccess(&m_exclusiveLogFileThreadAccessLock);
 	}
 
-	#if CRY_PLATFORM_DURANGO
-
+	const string dstFilePath = PathUtil::Make(logBackupFolder, srcFileName + sBackupNameAttachment + "." + srcFileExt);
+	
+#if CRY_PLATFORM_DURANGO
 	// Xbox has some limitation in file names. No spaces in file name are allowed. The full path is limited by MAX_PATH, etc.
 	// I change spaces with underscores here for valid name and cut it if it exceed a limit.
-	string bakdest = PathUtil::Make(szBackupPath, sFileWithoutExt + sBackupNameAttachment + "." + sExt);
-	if (bakdest.size() > MAX_PATH)
-		bakdest.resize(MAX_PATH);
-	sLogFilename = PathUtil::ToDosPath(sLogFilename);
-	bakdest = PathUtil::ToDosPath(bakdest);
-	bakdest.replace(' ', '_');
-
-	cry_strcpy(m_sBackupFilename, bakdest.c_str());
-
-	// Durango XDK does not provide CopyFile or CopyFileEx
-	const int BUFFER_SIZE = 1024;
-	const char* pBuffer[BUFFER_SIZE];
-	FILE* pSrcFile = 0;
-	FILE* pDstFile = 0;
-	int numr, numw;
-
-	// Open files
-	if (!(pSrcFile = fopen(sLogFilename, "rb")) || !(pDstFile = fopen(bakdest, "wb")))
+	auto processDurangoPath = [](string path)
 	{
-		DWORD errCode = GetLastError();
-		char tmp[128];
-		cry_sprintf(tmp, "Error backup log file:%u", errCode);
-		OutputDebugString(tmp);
-	}
-
-	// Copy file
-	if (pSrcFile && pDstFile)
-	{
-		while (!feof(pSrcFile))
-		{
-			numr = fread(pBuffer, sizeof(char), BUFFER_SIZE, pSrcFile); // Read
-			if (numr != BUFFER_SIZE && ferror(pSrcFile))
-			{
-				DWORD errCode = GetLastError();
-				char tmp[128];
-				cry_sprintf(tmp, "Error backup log file:%u", errCode);
-				OutputDebugString(tmp);
-				break;
-			}
-
-			numw = fwrite(pBuffer, sizeof(char), numr, pDstFile); // Write
-			if (numw != numr && ferror(pDstFile))
-			{
-				DWORD errCode = GetLastError();
-				char tmp[128];
-				cry_sprintf(tmp, "Error backup log file:%u", errCode);
-				OutputDebugString(tmp);
-				break;
-			}
-		}
-	}
-
-	// Close files
-	if (pSrcFile)
-	{
-		LockNoneExclusiveAccess(&m_exclusiveLogFileThreadAccessLock);
-		fclose(pSrcFile);
-		UnlockNoneExclusiveAccess(&m_exclusiveLogFileThreadAccessLock);
-	}
-
-	if (pDstFile)
-	{
-		LockNoneExclusiveAccess(&m_exclusiveLogFileThreadAccessLock);
-		fclose(pDstFile);
-		UnlockNoneExclusiveAccess(&m_exclusiveLogFileThreadAccessLock);
-	}
-
-	#else
-	string bakdest = PathUtil::Make(szBackupPath, sFileWithoutExt + sBackupNameAttachment + "." + sExt);
-	cry_strcpy(m_sBackupFilename, bakdest.c_str());
-	CopyFile(sLogFilename, bakdest, false);
-	#endif
+		path = PathUtil::ToDosPath(path);
+		path.replace(' ', '_');
+		if (path.size() > MAX_PATH)
+			path.resize(MAX_PATH);
+		return CryStringUtils::UTF8ToWStrSafe(path);
+	};
+	const wstring durangoSrcFilePath = processDurangoPath(srcFilePath);
+	const wstring durangosDstFilePath = processDurangoPath(dstFilePath);
+	HRESULT result = CopyFile2(durangoSrcFilePath, durangosDstFilePath, nullptr);
+	CRY_ASSERT_MESSAGE(result == S_OK, "Error copying log backup file");
+#else
+	CopyFile(srcFilePath, dstFilePath, false);
+#endif
 
 #endif
 }
@@ -1444,7 +1368,7 @@ void CLog::RemoveCallback(ILogCallback* pCallback)
 //////////////////////////////////////////////////////////////////////////
 void CLog::Update()
 {
-	FUNCTION_PROFILER(m_pSystem, PROFILE_SYSTEM);
+	CRY_PROFILE_FUNCTION(PROFILE_SYSTEM);
 
 	if (CryGetCurrentThreadId() == m_nMainThreadId)
 	{

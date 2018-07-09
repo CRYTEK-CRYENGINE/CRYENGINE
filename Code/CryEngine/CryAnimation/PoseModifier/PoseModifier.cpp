@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "stdafx.h"
 #include "PoseModifier.h"
@@ -890,7 +890,7 @@ void CIkCCD::Draw(const QuatT& location, const QuatT& startAbsolute, const QuatT
 	ColorF pCol(0, 0.7f, 0);
 	Ang3 angles = Ang3(targetAbsolute.q);
 	pAuxGeom->Draw2dLabel(10, g_YLine+=12, 1.2f, pCol, false, "IkCCD %s -> %s:\t%d   Pos: %f  %f  %f   Rot: %f  %f  %f", m_desc.rootNode.name.c_str(), m_desc.endNode.name.c_str(), (uint8)(weight*100.0f), targetAbsolute.t.x, targetAbsolute.t.y, targetAbsolute.t.z, RAD2DEG(angles.x), RAD2DEG(angles.y), RAD2DEG(angles.z));
-	pAuxGeom->Flush();
+	pAuxGeom->Submit();
 }
 
 // IAnimationPoseModifier

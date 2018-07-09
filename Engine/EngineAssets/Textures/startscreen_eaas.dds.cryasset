@@ -1,0 +1,10 @@
+<AssetMetadata version="0" type="Texture" guid="a2344644-e7df-c415-fbcd-2b04afc08f47" source="startscreen_eaas.tif">
+ <Files>
+  <File path="startscreen_eaas.dds"/>
+ </Files>
+ <Details>
+  <Detail name="width">2048</Detail>
+  <Detail name="height">1024</Detail>
+  <Detail name="mipCount">12</Detail>
+ </Details>
+</AssetMetadata>

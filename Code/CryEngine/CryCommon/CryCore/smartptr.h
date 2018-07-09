@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #ifndef _SMART_PTR_H_
 #define _SMART_PTR_H_
@@ -55,11 +55,12 @@ public:
 	_I*         get() const { return p; }
 	_smart_ptr& operator=(_I* newp)
 	{
-		if (newp)
-			newp->AddRef();
-		if (p)
-			p->Release();
+		_I* oldp = p;
 		p = newp;
+		if (p)
+			p->AddRef();
+		if (oldp)
+			oldp->Release();
 		return *this;
 	}
 
@@ -151,18 +152,25 @@ public:
 	{
 	}
 
+	_reference_target_no_vtable(const _reference_target_no_vtable&) :
+		m_nRefCounter(0)
+	{
+	}
+
 	~_reference_target_no_vtable()
 	{
 		//assert (!m_nRefCounter);
 	}
 
-	void AddRef()
+	_reference_target_no_vtable& operator=(const _reference_target_no_vtable&) { return *this; }
+
+	void AddRef() const
 	{
 		CHECK_REFCOUNT_CRASH(m_nRefCounter >= 0);
 		++m_nRefCounter;
 	}
 
-	void Release()
+	void Release() const
 	{
 		CHECK_REFCOUNT_CRASH(m_nRefCounter > 0);
 		if (--m_nRefCounter == 0)
@@ -183,10 +191,10 @@ public:
 
 	bool Unique() const
 	{
-		return m_nRefCounter == 1 ? true : false;
+		return (m_nRefCounter == 1);
 	}
 protected:
-	Counter m_nRefCounter;
+	mutable Counter m_nRefCounter;
 };
 
 //! Reference target with vtable for smart pointer.
@@ -199,18 +207,25 @@ public:
 	{
 	}
 
+	_reference_target(const _reference_target&) :
+		m_nRefCounter(0)
+	{
+	}
+
 	virtual ~_reference_target()
 	{
 		//assert (!m_nRefCounter);
 	}
 
-	void AddRef()
+	_reference_target& operator=(const _reference_target&) { return *this; }
+
+	void AddRef() const
 	{
 		CHECK_REFCOUNT_CRASH(m_nRefCounter >= 0);
 		++m_nRefCounter;
 	}
 
-	void Release()
+	void Release() const
 	{
 		CHECK_REFCOUNT_CRASH(m_nRefCounter > 0);
 		if (--m_nRefCounter == 0)
@@ -231,10 +246,10 @@ public:
 
 	bool Unique() const
 	{
-		return m_nRefCounter == 1 ? true : false;
+		return m_nRefCounter == 1;
 	}
 protected:
-	Counter m_nRefCounter;
+	mutable Counter m_nRefCounter;
 };
 
 //! Default implementation is int counter - for better alignment.
@@ -245,8 +260,7 @@ typedef _reference_target<int> _reference_target_t;
 template<typename T, typename Counter = int> class _cfg_reference_target
 {
 public:
-
-	typedef void(*DeleteFncPtr)(void*);
+	using DeleteFncPtr = void(*)(void*);
 
 	_cfg_reference_target() :
 		m_nRefCounter(0),
@@ -260,24 +274,32 @@ public:
 	{
 	}
 
+	_cfg_reference_target(const _cfg_reference_target<T, Counter>& rhs) :
+		m_nRefCounter(0),
+		m_pDeleteFnc(rhs.m_pDeleteFnc)
+	{
+	}
+
 	virtual ~_cfg_reference_target()
 	{
 	}
 
-	void AddRef()
+	_cfg_reference_target& operator=(const _cfg_reference_target&) { return this; }
+
+	void AddRef() const
 	{
 		CHECK_REFCOUNT_CRASH(m_nRefCounter >= 0);
 		++m_nRefCounter;
 	}
 
-	void Release()
+	void Release() const
 	{
 		CHECK_REFCOUNT_CRASH(m_nRefCounter > 0);
 		if (--m_nRefCounter == 0)
 		{
 			assert(m_pDeleteFnc);
-			static_cast<T*>(this)->~T();
-			m_pDeleteFnc(this);
+			static_cast<const T*>(this)->~T();
+			m_pDeleteFnc(const_cast<_cfg_reference_target*>(this));
 		}
 		else if (m_nRefCounter < 0)
 		{
@@ -296,12 +318,12 @@ public:
 
 	bool Unique() const
 	{
-		return m_nRefCounter == 1 ? true : false;
+		return m_nRefCounter == 1;
 	}
 
 protected:
-	Counter      m_nRefCounter;
-	DeleteFncPtr m_pDeleteFnc;
+	mutable Counter  m_nRefCounter;
+	DeleteFncPtr     m_pDeleteFnc;
 };
 
 //! Base class for interfaces implementing reference counting.
@@ -315,16 +337,23 @@ public:
 	{
 	}
 
+	_i_reference_target(const _i_reference_target&) :
+		m_nRefCounter(0)
+	{
+	}
+
 	virtual ~_i_reference_target()
 	{
 	}
 
-	virtual void AddRef()
+	_i_reference_target& operator=(const _i_reference_target&) { return *this; }
+
+	virtual void AddRef() const
 	{
 		++m_nRefCounter;
 	}
 
-	virtual void Release()
+	virtual void Release() const
 	{
 		if (--m_nRefCounter == 0)
 		{
@@ -344,24 +373,27 @@ public:
 
 	virtual bool Unique() const
 	{
-		return m_nRefCounter == 1 ? true : false;
+		return m_nRefCounter == 1;
 	}
 
 protected:
-	Counter m_nRefCounter;
+	mutable Counter m_nRefCounter;
 };
 
 class CMultiThreadRefCount
 {
 public:
 	CMultiThreadRefCount() : m_cnt(0) {}
+	CMultiThreadRefCount(const CMultiThreadRefCount&) : m_cnt(0) {}
 	virtual ~CMultiThreadRefCount() {}
 
-	void AddRef()
+	CMultiThreadRefCount& operator=(const CMultiThreadRefCount&) { return *this; }
+
+	void AddRef() const
 	{
 		CryInterlockedIncrement(&m_cnt);
 	}
-	void Release()
+	void Release() const
 	{
 		const int nCount = CryInterlockedDecrement(&m_cnt);
 		assert(nCount >= 0);
@@ -384,14 +416,14 @@ public:
 
 	bool Unique() const
 	{
-		return m_cnt == 1 ? true : false;
+		return m_cnt == 1;
 	}
 protected:
 	// Allows the memory for the object to be deallocated in the dynamic module where it was originally constructed, as it may use different memory manager (Debug/Release configurations)
-	virtual void DeleteThis() { delete this; }
+	virtual void DeleteThis() const { delete this; }
 
 private:
-	volatile int m_cnt; // Private: Discourage inheriting classes to observe m_nRefCounter and act on its value which is not thread safe.
+	mutable volatile int m_cnt; // Private: Discourage inheriting classes to observe m_nRefCounter and act on its value which is not thread safe.
 };
 
 //! Base class for interfaces implementing reference counting that needs to be thread-safe.
@@ -406,16 +438,23 @@ public:
 	{
 	}
 
+	_i_multithread_reference_target(const _i_multithread_reference_target&)
+		: m_nRefCounter(0)
+	{
+	}
+
 	virtual ~_i_multithread_reference_target()
 	{
 	}
 
-	virtual void AddRef()
+	_i_multithread_reference_target& operator=(const _i_multithread_reference_target&) { return *this; }
+
+	virtual void AddRef() const
 	{
 		CryInterlockedIncrement(&m_nRefCounter);
 	}
 
-	virtual void Release()
+	virtual void Release() const
 	{
 		const int nCount = CryInterlockedDecrement(&m_nRefCounter);
 		assert(nCount >= 0);
@@ -438,11 +477,11 @@ public:
 
 	virtual bool Unique() const
 	{
-		return m_nRefCounter == 1 ? true : false;
+		return m_nRefCounter == 1;
 	}
 
 protected:
-	volatile Counter m_nRefCounter;
+	mutable volatile Counter m_nRefCounter;
 };
 
 typedef _i_reference_target<int>             _i_reference_target_t;

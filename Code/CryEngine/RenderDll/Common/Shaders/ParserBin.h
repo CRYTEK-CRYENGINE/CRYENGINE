@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 /*=============================================================================
    ParserBin.h : Script parser declarations.
@@ -497,7 +497,6 @@ enum EToken
 	eT_Glass,
 	eT_Vegetation,
 	eT_Particle,
-	eT_GenerateSprites,
 	eT_GenerateClouds,
 	eT_ScanWater,
 
@@ -510,7 +509,6 @@ enum EToken
 	eT_TechniqueCustomRender,
 	eT_TechniqueEffectLayer,
 	eT_TechniqueDebug,
-	eT_TechniqueSoftAlphaTest,
 	eT_TechniqueWaterRefl,
 	eT_TechniqueWaterCaustic,
 	eT_TechniqueZPrepass,
@@ -609,8 +607,6 @@ enum EToken
 	eT__HS,
 	eT__DS,
 	eT__CS,
-
-	eT__g_SkinQuat,
 
 	eT_x,
 	eT_y,
@@ -849,8 +845,6 @@ class CParserBin
 	EToken m_eToken;
 	uint32 m_nFirstToken;
 	TArray<SCodeFragment> m_CodeFragments;
-	//std::vector<SFXParam> m_Parameters;
-	//std::vector<STexSamplerFX> m_Samplers;
 
 	SParserFrame m_CurFrame;
 
@@ -867,13 +861,13 @@ public:
 	CParserBin(SShaderBin* pBin, CShader* pSH);
 
 	static FXMacroBin&        GetStaticMacroses() { return m_StaticMacros; }
-	static const char*        GetString(uint32 nToken, FXShaderToken& Table, bool bOnlyKey = false);
+	static const char*        GetString(uint32 nToken, const FXShaderToken& Table, bool bOnlyKey = false);
 	const char*               GetString(uint32 nToken, bool bOnlyKey = false);
 	string                    GetString(SParserFrame& Frame);
 	CCryNameR                 GetNameString(SParserFrame& Frame);
 	void                      BuildSearchInfo();
 	bool                      PreprocessTokens(ShaderTokensVec& Tokens, int nPass, PodArray<uint32>& tokensBuffer);
-	bool                      Preprocess(int nPass, ShaderTokensVec& Tokens, FXShaderToken* pSrcTable);
+	bool                      Preprocess(int nPass, ShaderTokensVec& Tokens, const FXShaderToken& pSrcTable);
 	static const SMacroBinFX* FindMacro(uint32 dwName, FXMacroBin& Macro);
 	static bool               AddMacro(uint32 dwToken, const uint32* pMacro, int nMacroTokens, uint64 nMask, FXMacroBin& Macro);
 	static bool               RemoveMacro(uint32 dwToken, FXMacroBin& Macro);
@@ -884,7 +878,7 @@ public:
 	bool                      CheckIfExpression(const uint32* pTokens, uint32& nT, int nPass, uint64* nMask = 0);
 	bool                      IgnorePreprocessBlock(const uint32* pTokens, uint32& nT, int nMaxTokens, PodArray<uint32>& tokensBuffer, int nPass);
 	static bool               CorrectScript(uint32* pTokens, uint32& i, uint32 nT, TArray<char>& Text);
-	static bool               ConvertToAscii(uint32* pTokens, uint32 nT, FXShaderToken& Table, TArray<char>& Text, bool bInclSkipTokens = false);
+	static bool               ConvertToAscii(uint32* pTokens, uint32 nT, const FXShaderToken& Table, TArray<char>& Text, bool bInclSkipTokens = false);
 	bool                      GetBool(SParserFrame& Frame);
 	inline uint32*            GetTokens(int nStart) { return &m_Tokens[nStart]; }
 	inline int                GetNumTokens()        { return m_Tokens.size(); }
@@ -982,16 +976,11 @@ public:
 	static uint32        fxToken(const char* szToken, bool* bKey = NULL);
 	static uint32        fxTokenKey(char* szToken, EToken eT = eT_unknown);
 	static uint32        GetCRC32(const char* szStr);
+	static uint32        NextToken(const char*& buf, char* com, bool& bKey);
 	static uint32        NextToken(char*& buf, char* com, bool& bKey);
 	static void          Init();
 	static void          RemovePlatformDefines();
-	static void          SetupForOrbis();
-	static void          SetupForD3D9();
-	static void          SetupForD3D11();
-	static void          SetupForGL4();
-	static void          SetupForGLES3();
-	static void          SetupForDurango();
-	static void          SetupForVulkan();
+	static void          SetupForPlatform(uint32 nPlatform);
 	static void          SetupFeatureDefines();
 	static CCryNameTSCRC GetPlatformSpecName(CCryNameTSCRC orgName);
 	static const char*   GetPlatformShaderlistName();

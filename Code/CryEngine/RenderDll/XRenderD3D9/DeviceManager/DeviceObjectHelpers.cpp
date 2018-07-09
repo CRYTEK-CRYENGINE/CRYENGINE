@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "DeviceObjectHelpers.h"
@@ -10,25 +10,27 @@ extern CD3D9Renderer gcpRendD3D;
 #include "XRenderD3D9/D3DHWShader.h" // CHWShader_D3D
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-std::array<SDeviceObjectHelpers::SShaderInstanceInfo, eHWSC_Num> SDeviceObjectHelpers::GetShaderInstanceInfo(::CShader* pShader, const CCryNameTSCRC& technique, uint64 rtFlags, uint32 mdFlags, uint32 mdvFlags, const UPipelineState pipelineState[eHWSC_Num], bool bAllowTesselation)
+EShaderStage SDeviceObjectHelpers::GetShaderInstanceInfo(THwShaderInfo& result, ::CShader* pShader, const CCryNameTSCRC& technique, uint64 rtFlags, uint32 mdFlags, uint32 mdvFlags, const UPipelineState pipelineState[eHWSC_Num], bool bAllowTesselation)
 {
-	std::array<SDeviceObjectHelpers::SShaderInstanceInfo, eHWSC_Num> result;
 	if (SShaderTechnique* pShaderTechnique = pShader->mfFindTechnique(technique))
 	{
 		if (pShaderTechnique->m_Passes.empty())
-			return result;
+			return EShaderStage_None;
 
 		SShaderPass& shaderPass = pShaderTechnique->m_Passes[0];
+		
+		// Shader pointers are consecutive
+		CHWShader** pHWShaders = &shaderPass.m_VShader;
 
-		CHWShader* pHWShaders[] =
-		{
-			shaderPass.m_VShader,
-			shaderPass.m_PShader,
-			shaderPass.m_GShader,
-			shaderPass.m_CShader,
-			shaderPass.m_DShader,
-			shaderPass.m_HShader,
-		};
+		// Compile time evaluable, should produce no code
+		CRY_ASSERT(eHWSC_Vertex   == (&shaderPass.m_VShader - &shaderPass.m_VShader));
+		CRY_ASSERT(eHWSC_Pixel    == (&shaderPass.m_PShader - &shaderPass.m_VShader));
+		CRY_ASSERT(eHWSC_Geometry == (&shaderPass.m_GShader - &shaderPass.m_VShader));
+		CRY_ASSERT(eHWSC_Domain   == (&shaderPass.m_DShader - &shaderPass.m_VShader));
+		CRY_ASSERT(eHWSC_Hull     == (&shaderPass.m_HShader - &shaderPass.m_VShader));
+		CRY_ASSERT(eHWSC_Compute  == (&shaderPass.m_CShader - &shaderPass.m_VShader));
+
+		EShaderStage validShaderStages = EShaderStage_None;
 
 		for (EHWShaderClass shaderStage = eHWSC_Vertex; shaderStage < eHWSC_Num; shaderStage = EHWShaderClass(shaderStage + 1))
 		{
@@ -46,12 +48,12 @@ std::array<SDeviceObjectHelpers::SShaderInstanceInfo, eHWSC_Num> SDeviceObjectHe
 			{
 				if (shaderStage == eHWSC_Geometry && pHWShaderD3D)
 				{
-					// TODO: do this without global variables!!
-					CHWShader_D3D::s_pCurInstVS = reinterpret_cast<CHWShader_D3D::SHWSInstance*>(result[eHWSC_Vertex].pHwShaderInstance);
+					// TODO: do this without global variables!! (Needed in mfGenerateScript)
+					//CHWShader_D3D::s_pCurInstVS = reinterpret_cast<CHWShader_D3D::SHWSInstance*>(result[eHWSC_Vertex].pHwShaderInstance);
 					CHWShader_D3D::s_pCurHWVS = result[eHWSC_Vertex].pHwShader;
 
-					if (!CHWShader_D3D::s_pCurInstVS || !CHWShader_D3D::s_pCurHWVS)
-						continue;
+					//if (!CHWShader_D3D::s_pCurInstVS || !CHWShader_D3D::s_pCurHWVS)
+						//continue;
 				}
 			}
 
@@ -65,9 +67,10 @@ std::array<SDeviceObjectHelpers::SShaderInstanceInfo, eHWSC_Num> SDeviceObjectHe
 				Ident.m_GLMask = pHWShaderD3D->m_nMaskGenShader;
 				Ident.m_pipelineState = pipelineState ? pipelineState[shaderStage] : UPipelineState();
 
-				if (auto pInstance = pHWShaderD3D->mfGetInstance(pShader, Ident, 0))
+				bool isShaderValid = false;
+				if (auto pInstance = pHWShaderD3D->mfGetInstance(Ident, 0))
 				{
-					if (pHWShaderD3D->mfCheckActivation(pShader, pInstance, 0))
+					if (pHWShaderD3D->CheckActivation(pShader, pInstance, 0))
 					{
 						if (pInstance->m_Handle.m_pShader->m_bDisabled)
 						{
@@ -76,15 +79,26 @@ std::array<SDeviceObjectHelpers::SShaderInstanceInfo, eHWSC_Num> SDeviceObjectHe
 						else
 						{
 							result[shaderStage].pHwShaderInstance = pInstance;
-							result[shaderStage].pDeviceShader = pInstance->m_Handle.m_pShader->m_pHandle;
+							result[shaderStage].pDeviceShader = pInstance->m_Handle.m_pShader->GetHandle();
+
+							validShaderStages |= SHADERSTAGE_FROM_SHADERCLASS(shaderStage);
 						}
+
+						isShaderValid = true;
 					}
+				}
+				
+				if (!isShaderValid)
+				{
+					return EShaderStage_None;
 				}
 			}
 		}
+
+		return validShaderStages;
 	}
 
-	return result;
+	return EShaderStage_None;
 }
 
 bool SDeviceObjectHelpers::CheckTessellationSupport(SShaderItem& shaderItem)
@@ -154,19 +168,22 @@ bool SDeviceObjectHelpers::CShaderConstantManager::AllocateShaderReflection(::CS
 		{
 			SShaderPass& shaderPass = pShaderTechnique->m_Passes[0];
 
-			CHWShader* pHWShaders[] =
-			{
-				shaderPass.m_VShader,
-				shaderPass.m_PShader,
-				shaderPass.m_GShader,
-				shaderPass.m_CShader,
-				shaderPass.m_DShader,
-				shaderPass.m_HShader,
-			};
+			// Shader pointers are consecutive
+			CHWShader** pHWShaders = &shaderPass.m_VShader;
+			
+			// Compile time evaluable, should produce no code
+			CRY_ASSERT(eHWSC_Vertex   == (&shaderPass.m_VShader - &shaderPass.m_VShader));
+			CRY_ASSERT(eHWSC_Pixel    == (&shaderPass.m_PShader - &shaderPass.m_VShader));
+			CRY_ASSERT(eHWSC_Geometry == (&shaderPass.m_GShader - &shaderPass.m_VShader));
+			CRY_ASSERT(eHWSC_Domain   == (&shaderPass.m_DShader - &shaderPass.m_VShader));
+			CRY_ASSERT(eHWSC_Hull     == (&shaderPass.m_HShader - &shaderPass.m_VShader));
+			CRY_ASSERT(eHWSC_Compute  == (&shaderPass.m_CShader - &shaderPass.m_VShader));
 
-			for (EHWShaderClass shaderClass = eHWSC_Vertex; shaderClass < eHWSC_Num; shaderClass = EHWShaderClass(shaderClass + 1))
+			// Shader stages are ordered by usage-frequency and loop exists according to usage-frequency (VS+PS fast, etc.)
+			int validShaderStages = shaderStages;
+			for (EHWShaderClass shaderClass = eHWSC_Vertex; validShaderStages; shaderClass = EHWShaderClass(shaderClass + 1), validShaderStages >>= 1)
 			{
-				if (shaderStages & SHADERSTAGE_FROM_SHADERCLASS(shaderClass))
+				if (validShaderStages & 1)
 				{
 					CRY_ASSERT(pHWShaders[shaderClass]);
 					CRY_ASSERT_MESSAGE(m_pShaderReflection->bufferCount < MaxReflectedBuffers, "Maximum reflected buffer count exceeded. Feel free to increase if necessary");
@@ -211,12 +228,13 @@ void SDeviceObjectHelpers::CShaderConstantManager::InitShaderReflection(CDeviceG
 	{
 		auto& updateContext = m_pShaderReflection->bufferUpdateContexts[i];
 		CHWShader_D3D::SHWSInstance* pInstance = reinterpret_cast<CHWShader_D3D::SHWSInstance*>(pipelineState.m_pHwShaderInstances[updateContext.shaderClass]);
-		maxVectorCount = max(maxVectorCount, pInstance->m_nMaxVecs[eConstantBufferShaderSlot_PerBatch]);
+		maxVectorCount = max(maxVectorCount, pInstance->m_nMaxVecs[eConstantBufferShaderSlot_PerDraw]);
 	}
 
 	CryStackAllocWithSizeVectorCleared(Vec4, maxVectorCount, zeroMem, CDeviceBufferManager::AlignBufferSizeForStreaming);
 
 	// allocate constant buffers and fill with zeros
+	bool allBuffersValid = true;
 	for (int i = 0, end = m_pShaderReflection->bufferCount; i < end; ++i)
 	{
 		auto& updateContext = m_pShaderReflection->bufferUpdateContexts[i];
@@ -224,22 +242,21 @@ void SDeviceObjectHelpers::CShaderConstantManager::InitShaderReflection(CDeviceG
 		CRY_ASSERT(pipelineState.m_pHwShaderInstances[updateContext.shaderClass]);
 		
 		CHWShader_D3D::SHWSInstance* pInstance = reinterpret_cast<CHWShader_D3D::SHWSInstance*>(pipelineState.m_pHwShaderInstances[updateContext.shaderClass]);
-		CRY_ASSERT(pInstance->m_nMaxVecs[eConstantBufferShaderSlot_PerInstanceLegacy] == 0); // Legacy per instance constants are not supported anymore
-		CRY_ASSERT(pInstance->m_nMaxVecs[eConstantBufferShaderSlot_PerBatch] > 0);           // No per batch shader constants. Shader reflection not required.
+		CRY_ASSERT(pInstance->m_nMaxVecs[eConstantBufferShaderSlot_PerDraw] > 0);           // No per batch shader constants. Shader reflection not required.
 
 		updateContext.pShaderInstance = pInstance;
 
-		const size_t bufferSize = sizeof(Vec4) * pInstance->m_nMaxVecs[eConstantBufferShaderSlot_PerBatch];
+		const size_t bufferSize = sizeof(Vec4) * pInstance->m_nMaxVecs[eConstantBufferShaderSlot_PerDraw];
 		const size_t updateSize = CDeviceBufferManager::AlignBufferSizeForStreaming(bufferSize);
 
 		if (bufferSize)
 		{
 			m_constantBuffers[updateContext.bufferIndex].pBuffer = gcpRendD3D->m_DevBufMan.CreateConstantBuffer(bufferSize);
-			m_constantBuffers[updateContext.bufferIndex].pBuffer->UpdateBuffer(zeroMem, updateSize);
-
-			m_pShaderReflection->bValid = true;
+			allBuffersValid &= m_constantBuffers[updateContext.bufferIndex].pBuffer->UpdateBuffer(zeroMem, updateSize);
 		}
 	}
+
+	m_pShaderReflection->bValid = m_pShaderReflection->bufferCount > 0 && allBuffersValid;
 }
 
 void SDeviceObjectHelpers::CShaderConstantManager::InitShaderReflection(CDeviceComputePSO& pipelineState)
@@ -252,14 +269,13 @@ void SDeviceObjectHelpers::CShaderConstantManager::InitShaderReflection(CDeviceC
 	CHWShader_D3D::SHWSInstance* pInstance = reinterpret_cast<CHWShader_D3D::SHWSInstance*>(pipelineState.m_pHwShaderInstance);
 	updateContext.pShaderInstance = pInstance;
 
-	CRY_ASSERT(pInstance->m_nMaxVecs[eConstantBufferShaderSlot_PerInstanceLegacy] == 0); // Legacy per instance constants are not supported anymore
-	CRY_ASSERT(pInstance->m_nMaxVecs[eConstantBufferShaderSlot_PerBatch] > 0);           // No per batch shader constants. Shader reflection not required.
+	CRY_ASSERT(pInstance->m_nMaxVecs[eConstantBufferShaderSlot_PerDraw] > 0);           // No per batch shader constants. Shader reflection not required.
 
-	if (pInstance->m_nMaxVecs[eConstantBufferShaderSlot_PerBatch] > 0)
+	if (pInstance->m_nMaxVecs[eConstantBufferShaderSlot_PerDraw] > 0)
 	{
-		CryStackAllocWithSizeVectorCleared(Vec4, pInstance->m_nMaxVecs[eConstantBufferShaderSlot_PerBatch], zeroMem, CDeviceBufferManager::AlignBufferSizeForStreaming);
+		CryStackAllocWithSizeVectorCleared(Vec4, pInstance->m_nMaxVecs[eConstantBufferShaderSlot_PerDraw], zeroMem, CDeviceBufferManager::AlignBufferSizeForStreaming);
 
-		const size_t bufferSize = sizeof(Vec4) * pInstance->m_nMaxVecs[eConstantBufferShaderSlot_PerBatch];
+		const size_t bufferSize = sizeof(Vec4) * pInstance->m_nMaxVecs[eConstantBufferShaderSlot_PerDraw];
 		const size_t updateSize = CDeviceBufferManager::AlignBufferSizeForStreaming(bufferSize);
 
 		m_constantBuffers[updateContext.bufferIndex].pBuffer = gcpRendD3D->m_DevBufMan.CreateConstantBuffer(bufferSize);
@@ -340,7 +356,7 @@ void SDeviceObjectHelpers::CShaderConstantManager::BeginNamedConstantUpdate()
 	}
 }
 
-void SDeviceObjectHelpers::CShaderConstantManager::EndNamedConstantUpdate()
+void SDeviceObjectHelpers::CShaderConstantManager::EndNamedConstantUpdate(const D3DViewPort* pVP)
 {
 	CRY_ASSERT(m_pShaderReflection);
 
@@ -358,7 +374,7 @@ void SDeviceObjectHelpers::CShaderConstantManager::EndNamedConstantUpdate()
 			if (pShaderInstance->m_nParams[0] >= 0)
 			{
 				SCGParamsGroup& Group = CGParamManager::s_Groups[pShaderInstance->m_nParams[0]];
-				CHWShader_D3D::mfSetParameters(Group.pParams, Group.nParams, eHWSC_Num, -1, (Vec4*)updateContext.pMappedData, cb.pBuffer->m_size);
+				CHWShader_D3D::mfSetParameters(Group.pParams, Group.nParams, eHWSC_Num, -1, (Vec4*)updateContext.pMappedData, cb.pBuffer->m_size, pVP);
 			}
 
 			cb.pBuffer->EndWrite();

@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -30,6 +30,7 @@ typedef IMovieSystem* (* PFNCREATEMOVIESYSTEM)(struct ISystem*);
 typedef std::vector<IAnimSequence*> AnimSequences;
 typedef std::vector<string>         TrackEvents;
 
+//! \cond INTERNAL
 //! Node-Types.
 //! You need to register new types in Movie.cpp/RegisterNodeTypes for serialization.
 //! \note Enums are serialized by string now, there is no need for specific IDs anymore for new parameters. Values are for backward compatibility.
@@ -971,8 +972,9 @@ struct IMovieEngineModule : public Cry::IDefaultModule
 {
 	CRYINTERFACE_DECLARE_GUID(IMovieEngineModule, "271a9f97-7e6d-4cfa-b3ae-2a5c3227d302"_cry_guid);
 };
+//! \endcond
 
-//! Movie System interface.
+//! Movie System (TrackView) interface.
 //! Main entrance point to engine movie capability.
 //! Enumerate available movies, update all movies, create animation nodes and tracks.
 struct IMovieSystem
@@ -1183,6 +1185,7 @@ struct IMovieSystem
 	// </interfuscator:shuffle>
 };
 
+//! \cond INTERNAL
 inline void SAnimContext::Serialize(XmlNodeRef& xmlNode, bool bLoading)
 {
 	if (bLoading)
@@ -1305,3 +1308,5 @@ void CAnimParamType::Serialize(XmlNodeRef& xmlNode, bool bLoading, const uint ve
 {
 	gEnv->pMovieSystem->SerializeParamType(*this, xmlNode, bLoading, version);
 }
+
+//! \endcond

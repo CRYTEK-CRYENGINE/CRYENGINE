@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 /*************************************************************************
    -------------------------------------------------------------------------
@@ -48,7 +48,7 @@ void CNetDebug::DebugAspectsChange(IEntity* pEntity, uint8 aspects)
 	if (!m_varDebug || !pEntity)
 		return;
 
-	FUNCTION_PROFILER(GetISystem(), PROFILE_ACTION);
+	CRY_PROFILE_FUNCTION(PROFILE_ACTION);
 
 	const char* sClassName = pEntity->GetClass()->GetName();
 	const char* sEntityName = pEntity->GetName();
@@ -89,7 +89,7 @@ void CNetDebug::DebugRMI(const char* szDescription, size_t nSize)
 	if (!m_varDebugRMI)
 		return;
 
-	FUNCTION_PROFILER(GetISystem(), PROFILE_ACTION);
+	CRY_PROFILE_FUNCTION(PROFILE_ACTION);
 
 	TDebugRMI::iterator iter = m_rmi.find(CONST_TEMP_STRING(szDescription));
 	if (m_rmi.end() == iter)
@@ -342,7 +342,7 @@ void CNetDebug::DrawRMI()
 
 void CNetDebug::Update()
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_ACTION);
+	CRY_PROFILE_FUNCTION(PROFILE_ACTION);
 
 	if (!m_varDebug && !m_varDebugRMI)
 		return;

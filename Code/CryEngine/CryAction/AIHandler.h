@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 /********************************************************************
    CryGame Source File.
@@ -260,8 +260,6 @@ protected:
 	string                 m_sFirstBehaviorName;
 
 	IAnimationGraphState*  m_pAGState;
-	TAnimationGraphQueryID m_ActionQueryID;
-	TAnimationGraphQueryID m_SignalQueryID;
 	string                 m_sQueriedActionAnimation;
 	string                 m_sQueriedSignalAnimation;
 	bool                   m_bSignaledAnimationStarted;
@@ -277,9 +275,6 @@ protected:
 	bool                      m_bAnimationStarted;
 	EActorTargetPhase         m_eActorTargetPhase;
 	int                       m_actorTargetId;
-
-	TAnimationGraphQueryID    m_changeActionInputQueryId;
-	TAnimationGraphQueryID    m_changeSignalInputQueryId;
 
 	string                    m_sAGActionSOAutoState;
 

@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 /*************************************************************************
 -------------------------------------------------------------------------
@@ -116,7 +116,7 @@ void CActorTelemetry::SetStatsTracker(IStatsTracker *inTracker)
 
 void CActorTelemetry::Update()
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_GAME);
+	CRY_PROFILE_FUNCTION(PROFILE_GAME);
 
 #ifndef _RELEASE
 	if (m_statsTracker)

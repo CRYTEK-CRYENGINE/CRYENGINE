@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 #include "ResourceSelector.h"
@@ -8,23 +8,34 @@
 
 namespace Serialization
 {
+//Do not add any more methods here, this is not a scalable way to call upon resource selectors. Use MakeResourceSelector() instead.
+template<class T>
+ResourceSelector<T> MakeResourceSelector(T& s, const char* selectorType)
+{
+	return ResourceSelector<T>(s, selectorType);
+}
+
 // animation resources
 template<class T> ResourceSelector<T> AnimationAlias(T& s)                   { return ResourceSelector<T>(s, "AnimationAlias"); } // "name" from animation set
 template<class T> ResourceSelector<T> AnimationPath(T& s)                    { return ResourceSelector<T>(s, "Animation"); }
-inline ResourceSelectorWithId         AnimationPathWithId(string& s, int id) { return ResourceSelectorWithId(s, "Animation", id); }
+template<class T> ResourceSelector<T> AnimationOrBlendSpacePath(T& s)        { return ResourceSelector<T>(s, "AnimationOrBSpace"); }
+inline ResourceSelectorWithId         AnimationPathWithId(string& s, int id) { return ResourceSelectorWithId(s, "AnimationOrBSpace", id); }
 template<class T> ResourceSelector<T> CharacterPath(T& s)                    { return ResourceSelector<T>(s, "Character"); }
 template<class T> ResourceSelector<T> CharacterPhysicsPath(T& s)             { return ResourceSelector<T>(s, "CharacterPhysics"); }
 template<class T> ResourceSelector<T> CharacterRigPath(T& s)                 { return ResourceSelector<T>(s, "CharacterRig"); }
 template<class T> ResourceSelector<T> SkeletonPath(T& s)                     { return ResourceSelector<T>(s, "Skeleton"); }
+template<class T> ResourceSelector<T> SkeletonOrCgaPath(T& s)                { return ResourceSelector<T>(s, "SkeletonOrCga"); } //Used by the character tool
 template<class T> ResourceSelector<T> SkeletonParamsPath(T& s)               { return ResourceSelector<T>(s, "SkeletonParams"); } // CHRParams
 template<class T> ResourceSelector<T> JointName(T& s)                        { return ResourceSelector<T>(s, "Joint"); }
 template<class T> ResourceSelector<T> AttachmentName(T& s)                   { return ResourceSelector<T>(s, "Attachment"); }
+template<class T> ResourceSelector<T> SkinnedMeshFilename(T& s)              { return ResourceSelector<T>(s, "SkinnedMesh"); }
 
 // miscellaneous resources
 template<class T> ResourceSelector<T> DialogName(T& s)                    { return ResourceSelector<T>(s, "Dialog"); }
 template<class T> ResourceSelector<T> ForceFeedbackIdName(T& s)           { return ResourceSelector<T>(s, "ForceFeedbackId"); }
 template<class T> ResourceSelector<T> ModelFilename(T& s)                 { return ResourceSelector<T>(s, "Model"); }
-template<class T> ResourceSelector<T> GeomCachePicker(T& s)               { return ResourceSelector<T>(s, "GeomCache"); }
+template<class T> ResourceSelector<T> StaticModelFilename(T& s)           { return ResourceSelector<T>(s, "Mesh"); }
+template<class T> ResourceSelector<T> GeomCachePicker(T& s)               { return ResourceSelector<T>(s, "GeometryCache"); }
 template<class T> ResourceSelector<T> ParticlePicker(T& s)                { return ResourceSelector<T>(s, "Particle"); }
 template<class T> ResourceSelector<T> ParticlePickerLegacy(T& s)          { return ResourceSelector<T>(s, "ParticleLegacy"); }
 template<class T> ResourceSelector<T> TextureFilename(T& s)               { return ResourceSelector<T>(s, "Texture"); }
@@ -43,9 +54,11 @@ template<class T> ResourceSelector<T> ActionMapName(T& s)                 { retu
 template<class T> ResourceSelector<T> ActionMapActionName(T& s)           { return ResourceSelector<T>(s, "ActionMapActionName"); }
 template<class T> ResourceSelector<T> SurfaceTypeName(T& s)               { return ResourceSelector<T>(s, "SurfaceTypeName"); }
 template<class T> ResourceSelector<T> EntityClassName(T& s)               { return ResourceSelector<T>(s, "EntityClassName"); }
+// WORKAROUND: Can't register the same ResourceSelector (EntityClassName) for both Schematyc versions.
+// Remove this in favor of EntityClassName when we finally have just one Schematyc.
+template<class T> ResourceSelector<T> EntityClass(T& s)                  { return ResourceSelector<T>(s, "EntityClass"); }
+// ~WORKAROUND
 
-inline Serialization::ResourceFilePath GeomPath(string& value)                          { return Serialization::ResourceFilePath(value, "Geometry (cgf)|*.cgf"); }
-inline Serialization::ResourceFilePath SkinName(string& value)                          { return Serialization::ResourceFilePath(value, "Attachment Geometry (skin)|*.skin"); }
 inline Serialization::ResourceFilePath ObjectIconPath(string& value)                    { return Serialization::ResourceFilePath(value, "Bitmap (bmp)|*.bmp"); }
 inline Serialization::ResourceFilePath MannequinAnimationDatabasePath(string& value)    { return Serialization::ResourceFilePath(value, "Animation Database (adb)|*.adb"); }
 inline Serialization::ResourceFilePath MannequinControllerDefinitionPath(string& value) { return Serialization::ResourceFilePath(value, "Controller Definition (xml)|*.xml"); }

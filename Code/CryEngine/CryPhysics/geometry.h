@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #ifndef geometry_h
 #define geometry_h
@@ -368,7 +368,7 @@ public:
 	virtual void RemapForeignIdx(int *pCurForeignIdx, int *pNewForeignIdx, int nTris) {}
 	virtual void AppendVertices(Vec3 *pVtx,int *pVtxMap, int nVtx) {}
 	virtual float GetExtent(EGeomForm eForm) const;
-	virtual void GetRandomPos(PosNorm& ran, CRndGen& seed, EGeomForm eForm) const;
+	virtual void GetRandomPoints(Array<PosNorm> points, CRndGen& seed, EGeomForm eForm) const;
 	virtual void CompactMemory() { }
 	virtual int Boxify(primitives::box *pboxes,int nMaxBoxes, const SBoxificationParams &params) { return 0; }
 	virtual int Proxify(IGeometry **&pOutGeoms, SProxifyParams *pparams=0) { return 0; }

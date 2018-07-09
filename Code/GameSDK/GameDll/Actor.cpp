@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 /*************************************************************************
  -------------------------------------------------------------------------
@@ -410,6 +410,14 @@ CActor::~CActor()
 	UnRegisterDBAGroups();
 	ReleaseLegsColliders();
 	CActorManager::GetActorManager()->ActorRemoved(this);
+
+	if (IAIObject *pAI = GetEntity()->GetAI())
+	{
+		if (pAI->GetProxy())
+		{
+			pAI->GetProxy()->OnActorRemoved();
+		}
+	}
 }
 
 //------------------------------------------------------------------------
@@ -1629,7 +1637,7 @@ IEntity *CActor::LinkToVehicle(EntityId vehicleId)
   if (pLinked)  
     pLinked->AttachChild(GetEntity(), ENTITY_XFORM_USER|IEntity::ATTACHMENT_KEEP_TRANSFORMATION);
   else
-    GetEntity()->DetachThis(IEntity::ATTACHMENT_KEEP_TRANSFORMATION,/*ENTITY_XFORM_USER*/0);
+    GetEntity()->DetachThis(IEntity::ATTACHMENT_KEEP_TRANSFORMATION);
   
 	return pLinked;
 }
@@ -1651,12 +1659,12 @@ IEntity *CActor::LinkToEntity(EntityId entityId, bool bKeepTransformOnDetach)
   if (pLinked)
     pLinked->AttachChild(GetEntity(), 0);
   else
-		GetEntity()->DetachThis(bKeepTransformOnDetach ? IEntity::ATTACHMENT_KEEP_TRANSFORMATION : 0, bKeepTransformOnDetach ? ENTITY_XFORM_USER : 0);
+		GetEntity()->DetachThis(bKeepTransformOnDetach ? IEntity::ATTACHMENT_KEEP_TRANSFORMATION : IEntity::EAttachmentFlags(), bKeepTransformOnDetach ? ENTITY_XFORM_USER : EEntityXFormFlags());
 
 	return pLinked;
 }
 
-void CActor::ProcessEvent(SEntityEvent& event)
+void CActor::ProcessEvent(const SEntityEvent& event)
 {
 	switch (event.event)
 	{
@@ -1814,6 +1822,23 @@ void CActor::ProcessEvent(SEntityEvent& event)
 			break;
 		}
   }  
+}
+
+uint64 CActor::GetEventMask() const
+{
+	return ENTITY_EVENT_BIT(ENTITY_EVENT_HIDE)
+		| ENTITY_EVENT_BIT(ENTITY_EVENT_INVISIBLE)
+		| ENTITY_EVENT_BIT(ENTITY_EVENT_UNHIDE)
+		| ENTITY_EVENT_BIT(ENTITY_EVENT_VISIBLE)
+		| ENTITY_EVENT_BIT(ENTITY_EVENT_RESET)
+		| ENTITY_EVENT_BIT(ENTITY_EVENT_ANIM_EVENT)
+		| ENTITY_EVENT_BIT(ENTITY_EVENT_DONE)
+		| ENTITY_EVENT_BIT(ENTITY_EVENT_TIMER)
+		| ENTITY_EVENT_BIT(ENTITY_EVENT_PREPHYSICSUPDATE)
+		| ENTITY_EVENT_BIT(ENTITY_EVENT_INIT)
+		| ENTITY_EVENT_BIT(ENTITY_EVENT_RELOAD_SCRIPT)
+		| ENTITY_EVENT_BIT(ENTITY_EVENT_ADD_TO_RADAR)
+		| ENTITY_EVENT_BIT(ENTITY_EVENT_REMOVE_FROM_RADAR);
 }
 
 void CActor::BecomeRemotePlayer()

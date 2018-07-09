@@ -1,0 +1,8 @@
+<AssetMetadata version="0" type="Xml" guid="39009308-fac1-2c20-c429-85f673de9e26">
+ <Files>
+  <File path="default.xml"/>
+ </Files>
+ <Details>
+  <Detail name="rootTag">fontshader</Detail>
+ </Details>
+</AssetMetadata>

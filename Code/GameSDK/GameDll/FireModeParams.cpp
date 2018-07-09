@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 /*************************************************************************
 -------------------------------------------------------------------------
@@ -48,7 +48,7 @@ IMPLEMENT_OPERATORS(PLANT_PARAMS_MEMBERS, SPlantParams)
 
 void SAIDescriptor::Reset(const XmlNodeRef& paramsNode, bool defaultInit)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_GAME);
+	CRY_PROFILE_FUNCTION(PROFILE_GAME);
 
 	if (paramsNode)
 	{
@@ -92,7 +92,7 @@ void SAIDescriptor::Reset(const XmlNodeRef& paramsNode, bool defaultInit)
 
 void SHazardDescriptor::Reset(const XmlNodeRef& paramsNode, bool defaultInit)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_GAME);
+	CRY_PROFILE_FUNCTION(PROFILE_GAME);
 
 	m_DefinedFlag = false;
 

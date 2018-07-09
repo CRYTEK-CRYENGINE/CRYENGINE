@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 // -------------------------------------------------------------------------
 //  File name:   FlowFlashNode.h
@@ -203,8 +203,6 @@ public:
 						{
 							GameWarning("[flow] CFlowFlashInvokeNode: Error while calling '%s' on Entity '%s' [%d]", methodName.c_str(), pEntity->GetName(), pEntity->GetId());
 						}
-
-						pFlashPlayer->Release();
 					}
 					else
 					{

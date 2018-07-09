@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -28,8 +28,8 @@ public:
 	virtual ~CAudioTriggerSpotEntity();
 
 	// CDesignerEntityComponent
-	virtual void                  ProcessEvent(SEntityEvent& event) override;
-	virtual uint64                GetEventMask() const override { return CDesignerEntityComponent::GetEventMask() | BIT64(ENTITY_EVENT_UPDATE) | BIT64(ENTITY_EVENT_TIMER); }
+	virtual void                  ProcessEvent(const SEntityEvent& event) override;
+	virtual uint64                GetEventMask() const override { return CDesignerEntityComponent::GetEventMask() | ENTITY_EVENT_BIT(ENTITY_EVENT_UPDATE) | ENTITY_EVENT_BIT(ENTITY_EVENT_TIMER); }
 
 	virtual IEntityPropertyGroup* GetPropertyGroup() final      { return this; }
 

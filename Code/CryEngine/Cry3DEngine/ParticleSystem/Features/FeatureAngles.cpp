@@ -1,18 +1,14 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
-#include <CrySerialization/Math.h>
-#include "ParticleSystem/ParticleFeature.h"
-#include "ParamTraits.h"
 #include "FeatureAngles.h"
-
-CRY_PFX2_DBG
+#include "FeatureCommon.h"
 
 namespace pfx2
 {
 
-EParticleDataType PDT(EPDT_Angle2D, float);
-EParticleDataType PDT(EPDT_Spin2D, float);
+MakeDataType(EPDT_Angle2D, float);
+MakeDataType(EPDT_Spin2D, float);
 
 //////////////////////////////////////////////////////////////////////////
 // CFeatureAnglesRotate2D
@@ -30,10 +26,10 @@ public:
 
 	virtual void AddToComponent(CParticleComponent* pComponent, SComponentParams* pParams) override
 	{
-		pComponent->AddToUpdateList(EUL_InitUpdate, this);
+		pComponent->InitParticles.add(this);
 		pComponent->AddParticleData(EPDT_Angle2D);
 
-		if (!IsDefault(m_initialSpin, 0.0f) || !IsDefault(m_randomSpin, 0.0f))
+		if (m_initialSpin != 0.0f || m_randomSpin != 0.0f)
 			pComponent->AddParticleData(EPDT_Spin2D);
 	}
 
@@ -52,35 +48,33 @@ public:
 		}
 	}
 
-	virtual void InitParticles(const SUpdateContext& context) override
+	virtual void InitParticles(CParticleComponentRuntime& runtime) override
 	{
 		CRY_PFX2_PROFILE_DETAIL;
 
-		CParticleContainer& container = context.m_container;
+		CParticleContainer& container = runtime.GetContainer();
 
 		IOFStream angles = container.GetIOFStream(EPDT_Angle2D);
 		const floatv initAngle = ToFloatv(m_initialAngle.Get());
 		const floatv randAngle = ToFloatv(m_randomAngle.Get());
-		CRY_PFX2_FOR_SPAWNED_PARTICLEGROUP(context)
+		for (auto particleGroupId : runtime.SpawnedRangeV())
 		{
-			const floatv snorm = context.m_spawnRngv.RandSNorm();
+			const floatv snorm = runtime.ChaosV().RandSNorm();
 			const floatv angle = MAdd(randAngle, snorm, initAngle);
 			angles.Store(particleGroupId, angle);
 		}
-		CRY_PFX2_FOR_END;
 
 		if (container.HasData(EPDT_Spin2D))
 		{
 			IOFStream spins = container.GetIOFStream(EPDT_Spin2D);
 			const floatv initSpin = ToFloatv(m_initialSpin.Get());
 			const floatv randSpin = ToFloatv(m_randomSpin.Get());
-			CRY_PFX2_FOR_SPAWNED_PARTICLEGROUP(context)
+			for (auto particleGroupId : runtime.SpawnedRangeV())
 			{
-				const floatv snorm = context.m_spawnRngv.RandSNorm();
+				const floatv snorm = runtime.ChaosV().RandSNorm();
 				const floatv spin = MAdd(randSpin, snorm, initSpin);
 				spins.Store(particleGroupId, spin);
 			}
-			CRY_PFX2_FOR_END;
 		}
 	}
 
@@ -109,7 +103,7 @@ public:
 
 	virtual void AddToComponent(CParticleComponent* pComponent, SComponentParams* pParams) override
 	{
-		pComponent->AddToUpdateList(EUL_InitUpdate, this);
+		pComponent->InitParticles.add(this);
 		pComponent->AddParticleData(EPQF_Orientation);
 
 		if (m_initialSpin != Vec3(ZERO) || m_randomSpin != Vec3(ZERO))
@@ -125,37 +119,37 @@ public:
 		ar(m_randomSpin, "RandomSpin", "Random Spin");
 	}
 
-	virtual void InitParticles(const SUpdateContext& context) override
+	virtual void InitParticles(CParticleComponentRuntime& runtime) override
 	{
 		CRY_PFX2_PROFILE_DETAIL;
 
-		CParticleContainer& container = context.m_container;
+		CParticleContainer& container = runtime.GetContainer();
 		IOQuatStream orientations = container.GetIOQuatStream(EPQF_Orientation);
 		const Ang3 initAngles = FromVec3(m_initAngles);
 		const Ang3 randomInitAngles = FromVec3(m_randomAngles);
 
-		CRY_PFX2_FOR_SPAWNED_PARTICLES(context)
+		for (auto particleId : runtime.SpawnedRange())
 		{
 			const Quat wOrientation0 = orientations.Load(particleId);
-			const Ang3 randAngle = RandomAng3(context.m_spawnRng, randomInitAngles);
+			const Ang3 randAngle = RandomAng3(runtime.Chaos(), randomInitAngles);
 			const Ang3 angle = initAngles + randAngle;
 			const Quat oOrientation = Quat::CreateRotationXYZ(angle);
 			const Quat wOrientation1 = wOrientation0 * oOrientation;
 			orientations.Store(particleId, wOrientation1);
 		}
-		CRY_PFX2_FOR_END;
 
 		if (container.HasData(EPVF_AngularVelocity))
 		{
 			IOVec3Stream angularVelocities = container.GetIOVec3Stream(EPVF_AngularVelocity);
 			const Ang3 initSpin = FromVec3(m_initialSpin);
 			const Ang3 randSpin = FromVec3(m_randomSpin);
-			CRY_PFX2_FOR_SPAWNED_PARTICLES(context)
+			for (auto particleId : runtime.SpawnedRange())
 			{
-				const Ang3 angularVelocity = RandomAng3(context.m_spawnRng, randSpin) + initSpin;
-				angularVelocities.Store(particleId, Vec3(angularVelocity));
+				const Quat wOrientation0 = orientations.Load(particleId);
+				const Ang3 angularVelocity = RandomAng3(runtime.Chaos(), randSpin) + initSpin;
+				const Vec3 wAngularVelocity = wOrientation0 * Vec3(angularVelocity);
+				angularVelocities.Store(particleId, Vec3(wAngularVelocity));
 			}
-			CRY_PFX2_FOR_END;
 		}
 	}
 
@@ -189,8 +183,8 @@ class CFeatureAnglesAlign : public CParticleFeature
 private:
 	struct CTypeScreen
 	{
-		CTypeScreen(const Matrix34& viewTM)
-			: m_forward(-viewTM.GetColumn1()) {}
+		CTypeScreen(CParticleComponentRuntime& runtime, const CFeatureAnglesAlign& feature)
+			: m_forward(-gEnv->p3DEngine->GetRenderingCamera().GetViewdir()) {}
 		ILINE Vec3 Sample(TParticleId particleId) const
 		{
 			return m_forward;
@@ -201,9 +195,9 @@ private:
 
 	struct CTypeCamera
 	{
-		CTypeCamera(const CParticleContainer& container, Vec3 cameraPos)
-			: m_positions(container.GetIVec3Stream(EPVF_Position))
-			, m_cameraPos(cameraPos) {}
+		CTypeCamera(CParticleComponentRuntime& runtime, const CFeatureAnglesAlign& feature)
+			: m_positions(runtime.GetContainer().GetIVec3Stream(EPVF_Position))
+			, m_cameraPos(gEnv->p3DEngine->GetRenderingCamera().GetPosition()) {}
 		ILINE Vec3 Sample(TParticleId particleId) const
 		{
 			const Vec3 position = m_positions.Load(particleId);
@@ -217,8 +211,8 @@ private:
 
 	struct CTypeVelocity
 	{
-		CTypeVelocity(const CParticleContainer& container)
-			: m_velocity(container.GetIVec3Stream(EPVF_Velocity)) {}
+		CTypeVelocity(CParticleComponentRuntime& runtime, const CFeatureAnglesAlign& feature)
+			: m_velocity(runtime.GetContainer().GetIVec3Stream(EPVF_Velocity)) {}
 		ILINE Vec3 Sample(TParticleId particleId) const
 		{
 			return m_velocity.Load(particleId).GetNormalized();
@@ -232,10 +226,10 @@ private:
 
 	struct CTypeParent
 	{
-		CTypeParent(const CParticleContainer& container, const CParticleContainer& parentContainer, Vec3 axis)
-			: m_parentIds(container.GetIPidStream(EPDT_ParentId))
-			, m_parentOrientations(parentContainer.GetIQuatStream(EPQF_Orientation))
-			, m_axis(axis.GetNormalizedSafe()) {}
+		CTypeParent(CParticleComponentRuntime& runtime, const CFeatureAnglesAlign& feature)
+			: m_parentIds(runtime.GetContainer().GetIPidStream(EPDT_ParentId))
+			, m_parentOrientations(runtime.GetParentContainer().GetIQuatStream(EPQF_Orientation))
+			, m_axis(feature.m_axis.GetNormalizedSafe()) {}
 		ILINE Vec3 Sample(TParticleId particleId) const
 		{
 			const TParticleId parentId = m_parentIds.Load(particleId);
@@ -252,6 +246,18 @@ private:
 		const Vec3 m_axis;
 	};
 
+	struct CTypeWorld
+	{
+		CTypeWorld(CParticleComponentRuntime& runtime, const CFeatureAnglesAlign& feature)
+			: m_axis(feature.m_axis.GetNormalizedSafe()) {}
+		ILINE Vec3 Sample(TParticleId particleId) const
+		{
+			return m_axis;
+		}
+		ILINE bool CanAlign(TParticleId particleId) const { return true; }
+		const Vec3 m_axis;
+	};
+
 public:
 	CRY_PFX2_DECLARE_FEATURE
 
@@ -263,7 +269,7 @@ public:
 	
 	virtual void AddToComponent(CParticleComponent* pComponent, SComponentParams* pParams) override
 	{
-		pComponent->AddToUpdateList(EUL_Update, this);
+		pComponent->UpdateParticles.add(this);
 		pComponent->AddParticleData(EPQF_Orientation);
 	}
 
@@ -272,7 +278,7 @@ public:
 		CParticleFeature::Serialize(ar);
 		ar(m_alignParticleAxis, "ParticleAxis", "Particle Axis");
 		ar(m_alignType, "Type", "Align Type");
-		if (m_alignType == EAlignType::Parent)
+		if (m_alignType == EAlignType::Parent || m_alignType == EAlignType::World)
 			ar(m_axis, "Axis", "Axis");
 		if (m_alignType == EAlignType::Parent || m_alignType == EAlignType::Velocity)
 			ar(m_alignView, "AlignView", "Align View");
@@ -280,51 +286,50 @@ public:
 			m_alignView = EAlignView::None;
 	}
 
-	virtual void Update(const SUpdateContext& context) override
+	virtual void UpdateParticles(CParticleComponentRuntime& runtime) override
 	{
 		CRY_PFX2_PROFILE_DETAIL;
-
-		const CParticleContainer& container = context.m_container;
-		const CParticleContainer& parentContainer = context.m_parentContainer;
-		const Matrix34 viewTM = gEnv->p3DEngine->GetRenderingCamera().GetMatrix();
-		const Vec3 cameraPos = gEnv->p3DEngine->GetRenderingCamera().GetPosition();
 
 		switch (m_alignType)
 		{
 		case EAlignType::Screen:
-			AlignUpdate<CTypeScreen>(context, CTypeScreen(viewTM));
+			Align<CTypeScreen>(runtime);
 			break;
 		case EAlignType::Camera:
-			AlignUpdate<CTypeCamera>(context, CTypeCamera(container, cameraPos));
+			Align<CTypeCamera>(runtime);
 			break;
 		case EAlignType::Velocity:
-			AlignUpdate<CTypeVelocity>(context, CTypeVelocity(container));
+			Align<CTypeVelocity>(runtime);
 			break;
 		case EAlignType::Parent:
-			AlignUpdate<CTypeParent>(context, CTypeParent(container, parentContainer, m_axis));
+			Align<CTypeParent>(runtime);
+			break;
+		case EAlignType::World:
+			Align<CTypeWorld>(runtime);
 			break;
 		}
 	}
 
 private:
+
 	template<typename TTypeSampler>
-	void AlignUpdate(const SUpdateContext& context, const TTypeSampler& typeSampler)
+	void Align(CParticleComponentRuntime& runtime)
 	{
+		TTypeSampler typeSampler(runtime, *this);
 		const Matrix34 viewTM = gEnv->p3DEngine->GetRenderingCamera().GetMatrix();
 		const Vec3 cameraPos = gEnv->p3DEngine->GetRenderingCamera().GetPosition();
 		const Vec3 forward = -viewTM.GetColumn1();
 
-		CParticleContainer& container = context.m_container;
+		CParticleContainer& container = runtime.GetContainer();
 		const IVec3Stream positions = container.GetIVec3Stream(EPVF_Position);
 		IOQuatStream orientations = container.GetIOQuatStream(EPQF_Orientation);
 
-		CRY_PFX2_FOR_ACTIVE_PARTICLES(context)
+		for (auto particleId : runtime.FullRange())
 		{
 			if (!typeSampler.CanAlign(particleId))
 				continue;
 
 			const Quat orientation0 = orientations.Load(particleId);
-
 			const Vec3 particleAxis = GetParticleAxis(m_alignParticleAxis, orientation0);
 			const Vec3 alignVec = typeSampler.Sample(particleId);
 			const Quat fieldAlign = Quat::CreateRotationV0V1(particleAxis, alignVec);
@@ -345,7 +350,6 @@ private:
 				orientations.Store(particleId, orientation1);
 			}
 		}
-		CRY_PFX2_FOR_END;
 	}
 
 private:

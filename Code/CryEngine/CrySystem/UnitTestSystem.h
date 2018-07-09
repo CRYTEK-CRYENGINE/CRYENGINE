@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 //! Implementation of the CryEngine Unit Testing framework
 
@@ -69,7 +69,7 @@ private:
 	virtual void OnSingleTestFinish(const IUnitTest& test, float fRunTimeInMs, bool bSuccess, char const* szFailureDescription) override;
 };
 
-class CUnitTestManager : public IUnitTestManager
+class CUnitTestManager : public IUnitTestManager, IErrorObserver
 {
 public:
 	CUnitTestManager(ILog& logToUse);
@@ -87,6 +87,10 @@ private:
 	void               EndTesting(SUnitTestRunContext& context);
 	void               RunTest(CUnitTest& test, SUnitTestRunContext& context);
 	bool               IsTestMatch(const CUnitTest& Test, const string& sSuiteName, const string& sTestName) const;
+
+	//! Implement IErrorObserver
+	virtual void       OnAssert(const char* szCondition, const char* szMessage, const char* szFileName, unsigned int fileLineNumber) override;
+	virtual void       OnFatalError(const char* szMessage) override;
 
 private:
 	ILog&                                   m_log;

@@ -1,24 +1,23 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
-//
-//	File:VertexFormats.h -
-//
-//	History:
-//	-Feb 23,2001:Created by Marco Corbetta
-//
-//////////////////////////////////////////////////////////////////////
+//! \cond INTERNAL
 
-#ifndef VERTEXFORMATS_H
-#define VERTEXFORMATS_H
-
-#if _MSC_VER > 1000
-	#pragma once
-#endif
+#pragma once
 
 #include <CryCore/Containers/CryArray.h>
 
 //! Stream Configuration options
 #define ENABLE_NORMALSTREAM_SUPPORT 1
+
+//////////////////////////////////////////////////////////////////////
+// All possible primitive types
+enum PublicRenderPrimitiveType
+{
+	prtTriangleList,
+	prtTriangleStrip,
+	prtLineList,
+	prtLineStrip
+};
 
 //////////////////////////////////////////////////////////////////////
 struct InputLayoutHandle
@@ -724,5 +723,4 @@ enum EStreamMasks
 //==================================================================================================================
 
 #pragma warning(pop)
-
-#endif
+//! \endcond

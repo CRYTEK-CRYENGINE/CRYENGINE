@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "VKSwapChain.hpp"
@@ -9,7 +9,7 @@
 namespace NCryVulkan
 {
 	
-bool CSwapChain::GetSupportedSurfaceFormats(VkPhysicalDevice& physicalDevice, VkSurfaceKHR& surface, std::vector<VkSurfaceFormatKHR>& outFormatsSupported)
+bool CSwapChain::GetSupportedSurfaceFormats(const VkPhysicalDevice& physicalDevice, const VkSurfaceKHR& surface, std::vector<VkSurfaceFormatKHR>& outFormatsSupported)
 {
 	uint32_t formatsCount;
 
@@ -26,37 +26,36 @@ bool CSwapChain::GetSupportedSurfaceFormats(VkPhysicalDevice& physicalDevice, Vk
 	return true;
 }
 
-bool CSwapChain::GetSupportedPresentModes(VkPhysicalDevice& physicalDevice, VkSurfaceKHR& surface, std::vector<VkPresentModeKHR>& outPresentModes)
+std::vector<VkPresentModeKHR> CSwapChain::GetSupportedPresentModes(const VkPhysicalDevice& physicalDevice, const VkSurfaceKHR& surface)
 {
+	std::vector<VkPresentModeKHR> presentModes;
+
 	uint32_t presentModeCount;
-
-	VkResult result = vkGetPhysicalDeviceSurfacePresentModesKHR(physicalDevice, surface, &presentModeCount, NULL);
+	VkResult result = vkGetPhysicalDeviceSurfacePresentModesKHR(physicalDevice, surface, &presentModeCount, nullptr);
 	if (result != VK_SUCCESS)
-		return false;
+		return presentModes;
 
-	outPresentModes.resize(presentModeCount);
-
-	result = vkGetPhysicalDeviceSurfacePresentModesKHR(physicalDevice, surface, &presentModeCount, outPresentModes.data());
+	presentModes.resize(presentModeCount);
+	result = vkGetPhysicalDeviceSurfacePresentModesKHR(physicalDevice, surface, &presentModeCount, presentModes.data());
 	if (result != VK_SUCCESS)
-		return false;
+		presentModes.clear();
 
-	return true;
+	return presentModes;
 }
 
-_smart_ptr<CSwapChain> CSwapChain::Create(CCommandListPool& commandQueue, VkSwapchainKHR KHRSwapChain, uint32_t numberOfBuffers, uint32_t width, uint32_t height, VkFormat format, VkPresentModeKHR presentMode, VkImageUsageFlags imageUsage)
+_smart_ptr<CSwapChain> CSwapChain::Create(CCommandListPool& commandQueue, VkSwapchainKHR KHRSwapChain, uint32_t numberOfBuffers, uint32_t width, uint32_t height, VkSurfaceKHR surface, VkFormat format, VkPresentModeKHR presentMode, VkImageUsageFlags imageUsage)
 {
 	std::vector<VkSurfaceFormatKHR> supportedFormats;
-	std::vector<VkPresentModeKHR> supportedPresentModes;
 	VkSurfaceCapabilitiesKHR surfaceCapabilites;
 
 	VkPhysicalDevice physicalDevice = commandQueue.GetDevice()->GetPhysicalDeviceInfo()->device;
-	VkSurfaceKHR surface = commandQueue.GetDevice()->GetSurface();
 	VkBool32 bSupported = false;
 
-	auto a = GetSupportedSurfaceFormats(physicalDevice, surface, supportedFormats); VK_ASSERT(a);
-	auto b = GetSupportedPresentModes(physicalDevice, surface, supportedPresentModes); VK_ASSERT(b);
-	auto c = vkGetPhysicalDeviceSurfaceCapabilitiesKHR(physicalDevice, surface, &surfaceCapabilites); VK_ASSERT(c == VK_SUCCESS);
-	auto d = vkGetPhysicalDeviceSurfaceSupportKHR(physicalDevice, commandQueue.GetVkQueueFamily(), surface, &bSupported); VK_ASSERT(d == VK_SUCCESS);
+	{
+		const auto a = GetSupportedSurfaceFormats(physicalDevice, surface, supportedFormats); VK_ASSERT(a);
+		const auto b = vkGetPhysicalDeviceSurfaceCapabilitiesKHR(physicalDevice, surface, &surfaceCapabilites); VK_ASSERT(b == VK_SUCCESS);
+		const auto c = vkGetPhysicalDeviceSurfaceSupportKHR(physicalDevice, commandQueue.GetVkQueueFamily(), surface, &bSupported); VK_ASSERT(c == VK_SUCCESS);
+	}
 
 	// validate surface dimensions
 	if (surfaceCapabilites.currentExtent.width != (uint32_t) ~0)
@@ -78,22 +77,6 @@ _smart_ptr<CSwapChain> CSwapChain::Create(CCommandListPool& commandQueue, VkSwap
 		           surfaceCapabilites.minImageExtent.width, surfaceCapabilites.minImageExtent.height,
 		           surfaceCapabilites.maxImageExtent.width, surfaceCapabilites.maxImageExtent.height,
 		           width, height);
-	}
-
-	// validate present mode
-	VkPresentModeKHR swapchainPresentMode = VK_PRESENT_MODE_FIFO_KHR;
-	for (size_t i = 0; i < supportedPresentModes.size(); i++)
-	{
-		if (supportedPresentModes[i] == presentMode)
-		{
-			swapchainPresentMode = presentMode;
-			break;
-		}
-	}
-
-	if (swapchainPresentMode != presentMode)
-	{
-		VK_WARNING("Couldn't initialize with present mode %d, falling back to %d", presentMode, swapchainPresentMode);
 	}
 
 	uint32_t numberOfImagesToRequest = numberOfBuffers;
@@ -144,17 +127,17 @@ _smart_ptr<CSwapChain> CSwapChain::Create(CCommandListPool& commandQueue, VkSwap
 		preTransform = surfaceCapabilites.currentTransform;
 	}
 
-	return Create(commandQueue, KHRSwapChain, numberOfImagesToRequest, w, h, formatToRequest, swapchainPresentMode, imageUsage, preTransform);
+	return Create(commandQueue, KHRSwapChain, numberOfImagesToRequest, w, h, surface, formatToRequest, presentMode, imageUsage, preTransform);
 }
 
-_smart_ptr<CSwapChain> CSwapChain::Create(CCommandListPool& commandQueue, VkSwapchainKHR KHRSwapChain, uint32_t numberOfBuffers, uint32_t width, uint32_t height, VkFormat format, VkPresentModeKHR presentMode, VkImageUsageFlags imageUsage, VkSurfaceTransformFlagBitsKHR transform)
+_smart_ptr<CSwapChain> CSwapChain::Create(CCommandListPool& commandQueue, VkSwapchainKHR KHRSwapChain, uint32_t numberOfBuffers, uint32_t width, uint32_t height, VkSurfaceKHR surface, VkFormat format, VkPresentModeKHR presentMode, VkImageUsageFlags imageUsage, VkSurfaceTransformFlagBitsKHR transform)
 {
 	VkSwapchainCreateInfoKHR Info;
 	ZeroStruct(Info);
 
 	Info.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
 	Info.pNext = NULL;
-	Info.surface = commandQueue.GetDevice()->GetSurface();
+	Info.surface = surface;
 	Info.minImageCount = numberOfBuffers;
 	Info.imageFormat = format;
 	Info.imageExtent.width = width;
@@ -184,7 +167,7 @@ _smart_ptr<CSwapChain> CSwapChain::Create(CCommandListPool& commandQueue, VkSwap
 
 	if (result == VK_SUCCESS && KHRSwapChain)
 	{
-		CSwapChain* pRaw = new CSwapChain(commandQueue, KHRSwapChain, pInfo); // Has ref-count 1
+		CSwapChain* pRaw = new CSwapChain(commandQueue, pInfo->surface, KHRSwapChain, pInfo); // Has ref-count 1
 		_smart_ptr<CSwapChain> smart;
 		smart.Assign_NoAddRef(pRaw);
 		return smart;
@@ -196,7 +179,7 @@ _smart_ptr<CSwapChain> CSwapChain::Create(CCommandListPool& commandQueue, VkSwap
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 //---------------------------------------------------------------------------------------------------------------------
-CSwapChain::CSwapChain(CCommandListPool& commandQueue, VkSwapchainKHR KHRSwapChain, VkSwapchainCreateInfoKHR* pInfo)
+CSwapChain::CSwapChain(CCommandListPool& commandQueue, VkSurfaceKHR KHRSurface, VkSwapchainKHR KHRSwapChain, VkSwapchainCreateInfoKHR* pInfo)
 	: CRefCounted()
 	, m_pDevice(commandQueue.GetDevice())
 	, m_NumBackbuffers(0)
@@ -213,6 +196,7 @@ CSwapChain::CSwapChain(CCommandListPool& commandQueue, VkSwapchainKHR KHRSwapCha
 
 	m_presentFence.Init();
 	m_presentResult = VK_SUCCESS;
+	m_KHRSurface = KHRSurface;
 	m_KHRSwapChain = KHRSwapChain;
 
 	AcquireBuffers();

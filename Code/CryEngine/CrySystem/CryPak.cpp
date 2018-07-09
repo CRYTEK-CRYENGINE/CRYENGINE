@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 //
 //	File:CryPak.cpp
@@ -114,6 +114,7 @@ inline bool IsModPath(const char* originalPath)
 	return false;
 }
 #endif
+
 
 //////////////////////////////////////////////////////////////////////////
 // IResourceList implementation class.
@@ -370,19 +371,9 @@ static void fileAccessMessage(int threadIndex, const char* inName)
 		}
 		OutputDebugString(msg);
 
-		IPlatformOS::EMsgBoxResult result;
+		CryMessageBox(msg.c_str(), "TRC/TCR Fail: Synchronous File Access", eMB_Error);
+		CrySleep(33);
 
-		IPlatformOS* pOS = gEnv->pSystem->GetPlatformOS();
-		result = pOS->DebugMessageBox(msg.c_str(), "TRC/TCR Fail: Syncronous File Access");
-
-		if (result == IPlatformOS::eMsgBox_Cancel)
-		{
-			CryDebugBreak();
-		}
-		else
-		{
-			Sleep(33);
-		}
 		s_threadAndRecursionGuard = false;
 	}
 }
@@ -391,7 +382,7 @@ static void fileAccessMessage(int threadIndex, const char* inName)
 // Initializes the crypak system;
 //   pVarPakPriority points to the variable, which is, when set to 1,
 //   signals that the files from pak should have higher priority than filesystem files
-CCryPak::CCryPak(IMiniLog* pLog, PakVars* pPakVars, const bool bLvlRes, const IGameStartup* pGameStartup) :
+CCryPak::CCryPak(IMiniLog* pLog, PakVars* pPakVars, const bool bLvlRes) :
 	m_pLog(pLog),
 	m_eRecordFileOpenList(RFOM_Disabled),
 	m_pPakVars(pPakVars ? pPakVars : &g_cvars.pakVars),
@@ -425,17 +416,12 @@ CCryPak::CCryPak(IMiniLog* pLog, PakVars* pPakVars, const bool bLvlRes, const IG
 	m_mainThreadId = GetCurrentThreadId();
 
 	gEnv->pSystem->GetISystemEventDispatcher()->RegisterListener(this,"CCryPak");
+}
 
+void CCryPak::SetDecryptionKey(const uint8* pKeyData, uint32 keyLength)
+{
 #ifdef INCLUDE_LIBTOMCRYPT
-	if (pGameStartup)
-	{
-		uint32 keyLen;
-		const uint8* pKeyData = pGameStartup->GetRSAKey(&keyLen);
-		if (pKeyData && keyLen > 0)
-		{
-			ZipEncrypt::Init(pKeyData, keyLen);
-		}
-	}
+	ZipEncrypt::Init(pKeyData, keyLength);
 #endif
 }
 
@@ -1120,68 +1106,31 @@ const char* CCryPak::AdjustFileName(const char* src, char dst[g_nMaxPath], unsig
 //////////////////////////////////////////////////////////////////////////
 bool CCryPak::AdjustAliases(char* dst)
 {
-	// since CCryPak::SetAlias happens once at the game start, we can temporary remove it
-
-	char szDest[512];
-
-	bool bFoundAlias = false;
-	const TAliasList::const_iterator cAliasEnd = m_arrAliases.end();
-	for (TAliasList::const_iterator it = m_arrAliases.begin(); it != cAliasEnd; ++it)
+	bool foundAlias = false;
+	for (tNameAlias* tTemp : m_arrAliases)
 	{
-		tNameAlias* tTemp = (*it);
-		// find out if the folder is used
-		char* szSrc = dst;
-		do
+		// Replace the alias if it's the first item in the path
+		if (strncmp(dst, tTemp->szName, tTemp->nLen1) == 0 && dst[tTemp->nLen1] == g_cNativeSlash)
 		{
-			//if (*szSrc==g_cNativeSlash)
-			//	break; // didnt find any
-
-			const char* szComp = tTemp->szName;
-			if (*szSrc == *szComp)
-			{
-				char* szSrc2 = szSrc;
-				int k;
-				for (k = 0; k < tTemp->nLen1; k++)
-				{
-					if ((!(*szSrc2)) || (!(*szComp)) || (*szSrc2 != *szComp))
-						break;
-					szSrc2++;
-					szComp++;
-				}
-
-				if (k < tTemp->nLen1)
-					break; // comparison failed, stop
-
-				// we must verify that the next character is a slash, to be sure
-				// this is the whole folder and we aren't erroneously replacing partial folders (ex. Game04 with Game1)
-				if (*szSrc2 != g_cNativeSlash)
-					break; // comparison failed, stop
-
-				// replace name
-				int nLenDiff = (int)(szSrc - dst);
-				memcpy(szDest, dst, nLenDiff);                           // copy till the name to be replaced
-				memcpy(szDest + nLenDiff, tTemp->szAlias, tTemp->nLen2); // add the new name
-				// add the rest
-				//strcat(szDest+nLenDiff+tTemp->nLen2,dst+nLenDiff+tTemp->nLen1);
-				szSrc2 = dst + nLenDiff + tTemp->nLen1;
-				szSrc = szDest + nLenDiff + tTemp->nLen2;
-				while (*szSrc2)
-				{
-					*szSrc++ = *szSrc2++;
-				}
-				*szSrc = 0;
-				memcpy(dst, szDest, 256);
-				bFoundAlias = true;
-				break; // done
-			}
-
-			break; // check only the first folder name, skip the rest.
-
+			foundAlias = true;
+			char temp[512];
+			strcpy(temp, &dst[tTemp->nLen1]); // Make a copy of string remainder to avoid trampling from sprintf
+			sprintf(dst, "%s%s", tTemp->szAlias, temp);
 		}
-		while (*szSrc++);
-	} //it
 
-	return bFoundAlias;
+		// Strip extra aliases from path
+		char* searchIdx = dst;
+		char* pos;
+		while ((pos = strstr(searchIdx, tTemp->szName)))
+		{
+			if (pos[tTemp->nLen1] == g_cNativeSlash && pos[-1] == g_cNativeSlash)
+			{
+				strcpy(pos, &pos[tTemp->nLen1+1]);
+			}
+			searchIdx = pos + 1;
+		}
+	}
+	return foundAlias;
 }
 
 #if CRY_PLATFORM_LINUX || CRY_PLATFORM_ANDROID
@@ -1221,7 +1170,7 @@ void CCryPak::GetCachedPakCDROffsetSize(const char* szName, uint32& offset, uint
 // given the source relative path, constructs the full path to the file according to the flags
 const char* CCryPak::AdjustFileNameInternal(const char* src, char* dst, unsigned nFlags)
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_SYSTEM);
+	CRY_PROFILE_FUNCTION(PROFILE_SYSTEM);
 	// in many cases, the path will not be long, so there's no need to allocate so much..
 	// I'd use _alloca, but I don't like non-portable solutions. besides, it tends to confuse new developers. So I'm just using a big enough array
 	char szNewSrc[g_nMaxPath];
@@ -1392,7 +1341,7 @@ bool CCryPak::CopyFileOnDisk(const char* source, const char* dest, bool bFailIfE
 bool CCryPak::IsFileExist(const char* sFilename, EFileSearchLocation fileLocation)
 {
 	// lock-less check
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_SYSTEM);
+	CRY_PROFILE_FUNCTION(PROFILE_SYSTEM);
 
 	char szFullPathBuf[g_nMaxPath];
 
@@ -1437,7 +1386,7 @@ bool CCryPak::IsFileExist(const char* sFilename, EFileSearchLocation fileLocatio
 //////////////////////////////////////////////////////////////////////////
 bool CCryPak::IsFolder(const char* sPath)
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_SYSTEM);
+	CRY_PROFILE_FUNCTION(PROFILE_SYSTEM);
 
 	char szFullPathBuf[g_nMaxPath];
 	const char* szFullPath = AdjustFileName(sPath, szFullPathBuf, FOPEN_HINT_QUIET);
@@ -1486,7 +1435,7 @@ ICryPak::SignedFileSize CCryPak::GetFileSizeOnDisk(const char* filename)
 //////////////////////////////////////////////////////////////////////////
 bool CCryPak::IsFileCompressed(const char* filename)
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_SYSTEM);
+	CRY_PROFILE_FUNCTION(PROFILE_SYSTEM);
 
 	char fullPathBuf[g_nMaxPath];
 	const char* pFullPath = AdjustFileName(filename, fullPathBuf, FOPEN_HINT_QUIET);
@@ -1652,6 +1601,11 @@ FILE* CCryPak::FOpen(const char* pName, const char* szMode, unsigned nInputFlags
 		nAdjustFlags |= FLAGS_PATH_REAL;
 	}
 
+	if (nInputFlags & FLAGS_NO_LOWCASE)
+	{
+		nAdjustFlags |= FLAGS_NO_LOWCASE;
+	}
+
 	const char* szFullPath = AdjustFileName(pName, szFullPathBuf, nAdjustFlags);
 
 	if (nOSFlags & (_O_WRONLY | _O_RDWR))
@@ -1806,7 +1760,7 @@ FILE* CCryPak::FOpen(const char* pName, const char* szMode, unsigned nInputFlags
 // the path must be absolute normalized lower-case with forward-slashes
 CCachedFileDataPtr CCryPak::GetFileData(const char* szName, unsigned int& nArchiveFlags)
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_SYSTEM);
+	CRY_PROFILE_FUNCTION(PROFILE_SYSTEM);
 
 	CCachedFileData* pResult = 0;
 
@@ -1851,7 +1805,7 @@ bool CCryPak::WillOpenFromPak(const char* szPath)
 // the path must be absolute normalized lower-case with forward-slashes
 ZipDir::FileEntry* CCryPak::FindPakFileEntry(const char* szPath, unsigned int& nArchiveFlags, ZipDir::CachePtr* pZip, bool bSkipInMemoryPaks)
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_SYSTEM);
+	CRY_PROFILE_FUNCTION(PROFILE_SYSTEM);
 
 #if CRY_PLATFORM_LINUX || CRY_PLATFORM_ANDROID || CRY_PLATFORM_APPLE
 	// Timur, is it safe?
@@ -1984,7 +1938,7 @@ size_t CCryPak::FGetSize(FILE* hFile)
 size_t CCryPak::FGetSize(const char* sFilename, bool bAllowUseFileSystem)
 {
 	// lock-less GetSize
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_SYSTEM);
+	CRY_PROFILE_FUNCTION(PROFILE_SYSTEM);
 
 	char szFullPathBuf[g_nMaxPath];
 	const char* szFullPath = AdjustFileName(sFilename, szFullPathBuf, FOPEN_HINT_QUIET);
@@ -2291,7 +2245,9 @@ intptr_t CCryPak::FindFirst(const char* pDir, _finddata_t* fd,
 	//m_pLog->Log("Scanning %s",pDir);
 	//const char *szFullPath = AdjustFileName(pDir, szFullPathBuf, 0);
 	const char* szFullPath = AdjustFileName(pDir, szFullPathBuf, nPathFlags);
-	CCryPakFindData_AutoPtr pFindData = CreateFindData();
+
+	// Prevent recursive data root folder scanning.
+	CCryPakFindData_AutoPtr pFindData = new CCryPakFindData(m_strDataRoot);
 	pFindData->Scan(this, szFullPath, bAllOwUseFileSystem);
 	if (pFindData->empty())
 	{
@@ -3228,13 +3184,13 @@ int64 CCachedFileData::ReadData(void* pBuffer, int64 nFileOffset, int64 nReadSiz
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CCachedFileData::AddRef()
+void CCachedFileData::AddRef() const
 {
 	CryInterlockedIncrement(&m_nRefCounter);
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CCachedFileData::Release()
+void CCachedFileData::Release() const
 {
 	const int nCount = CryInterlockedDecrement(&m_nRefCounter);
 	assert(nCount >= 0);
@@ -3279,6 +3235,12 @@ void CCryPakFindData::Scan(class CCryPak* pPak, const char* szDir, bool bAllowUs
 
 //////////////////////////////////////////////////////////////////////////
 CCryPakFindData::CCryPakFindData()
+	: m_szNameFilter(nullptr)
+{
+}
+
+CCryPakFindData::CCryPakFindData(const char* szNameFilter)
+	: m_szNameFilter(szNameFilter)
 {
 }
 
@@ -3343,7 +3305,10 @@ void CCryPakFindData::ScanFS(CCryPak* pPak, const char* szDirIn)
 					CryWarning(VALIDATOR_MODULE_SYSTEM, VALIDATOR_ERROR, "Unable to get file handle%s: %s", bHasWildcard ? " (loaded using a wildcard)" : "", CryStringUtils::WStrToUTF8(szPath));
 			}
 		}
-		m_mapFiles.insert(FileMap::value_type(fd.name, FileDesc(&fd)));
+		if (!m_szNameFilter || cry_stricmp(m_szNameFilter, fd.name))
+		{
+			m_mapFiles.insert(FileMap::value_type(fd.name, FileDesc(&fd)));
+		}
 	}
 	while (0 == _wfindnext64(nFS, &fdw));
 
@@ -4363,11 +4328,6 @@ bool CCryPak::IsAbsPath(const char* pPath)
 	                  || IsDirSep(pPath[0])
 	                  )
 	        );
-}
-
-CCryPakFindData* CCryPak::CreateFindData()
-{
-	return new CCryPakFindData();
 }
 
 //////////////////////////////////////////////////////////////////////////

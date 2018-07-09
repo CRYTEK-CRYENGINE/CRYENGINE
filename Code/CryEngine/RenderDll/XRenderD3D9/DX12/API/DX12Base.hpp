@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -35,6 +35,7 @@ extern int g_nPrintDX12;
 #define DX12_MAP_DISCARD_MARKER        BIT(3)
 #define DX12_COPY_REVERTSTATE_MARKER   BIT(2)
 #define DX12_COPY_PIXELSTATE_MARKER    BIT(3)
+#define DX12_COPY_CONCURRENT_MARKER    BIT(4)
 #define DX12_RESOURCE_FLAG_OVERLAP     BIT(1)
 #define DX12_RESOURCE_FLAG_HIFREQ_HEAP BIT(31)
 #define DX12_GPU_VIRTUAL_ADDRESS_NULL  0ULL

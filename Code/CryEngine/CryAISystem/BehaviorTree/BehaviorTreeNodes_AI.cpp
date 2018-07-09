@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "BehaviorTreeNodes_AI.h"
@@ -159,7 +159,7 @@ public:
 protected:
 	virtual void OnInitialize(const UpdateContext& context) override
 	{
-		FUNCTION_PROFILER(gEnv->pSystem, PROFILE_AI);
+		CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 		RuntimeData& runtimeData = GetRuntimeData<RuntimeData>(context);
 
@@ -176,7 +176,7 @@ protected:
 
 	virtual void OnTerminate(const UpdateContext& context) override
 	{
-		FUNCTION_PROFILER(gEnv->pSystem, PROFILE_AI);
+		CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 		RuntimeData& runtimeData = GetRuntimeData<RuntimeData>(context);
 		runtimeData.UnregisterGoalPipeListener();
@@ -929,8 +929,11 @@ private:
 		{
 			assert(point.flags & eTPDF_CoverID);
 
-			assert(!gAIEnv.pCoverSystem->IsCoverOccupied(point.coverID) ||
-			       (gAIEnv.pCoverSystem->GetCoverOccupant(point.coverID) == pipeUser.GetAIObjectID()));
+			if (gAIEnv.pCoverSystem->IsCoverOccupied(point.coverID) && gAIEnv.pCoverSystem->GetCoverOccupant(point.coverID) != pipeUser.GetEntityID())
+			{
+				// Found cover was occupied by someone else in the meantime
+				return Failure;
+			}
 
 			pipeUser.SetCoverRegister(point.coverID);
 			return Success;
@@ -990,7 +993,7 @@ public:
 protected:
 	virtual void OnInitialize(const UpdateContext& context) override
 	{
-		FUNCTION_PROFILER(gEnv->pSystem, PROFILE_AI);
+		CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 		assert(m_scriptFunction != NULL);
 
@@ -1302,7 +1305,7 @@ public:
 protected:
 	virtual void OnInitialize(const UpdateContext& context) override
 	{
-		FUNCTION_PROFILER(gEnv->pSystem, PROFILE_AI);
+		CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 		RuntimeData& runtimeData = GetRuntimeData<RuntimeData>(context);
 
@@ -1849,7 +1852,7 @@ public:
 protected:
 	virtual Status Update(const UpdateContext& context) override
 	{
-		FUNCTION_PROFILER(gEnv->pSystem, PROFILE_AI);
+		CRY_PROFILE_FUNCTION(PROFILE_AI);
 		ExecuteScript(m_scriptFunction, context.entityId);
 		return Success;
 	}
@@ -1909,7 +1912,7 @@ public:
 protected:
 	virtual Status Update(const UpdateContext& context) override
 	{
-		FUNCTION_PROFILER(gEnv->pSystem, PROFILE_AI);
+		CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 		IEntity* entity = gEnv->pEntitySystem->GetEntity(context.entityId);
 		IF_UNLIKELY (!entity)
@@ -3259,14 +3262,14 @@ protected:
 		Vec3 targetPosition(ZERO);
 		if (GetTargetPosition(pipeUser, OUT targetPosition))
 		{
-			if (gEnv->pAISystem->GetNavigationSystem()->IsLocationContainedWithinTriangleInNavigationMesh(pipeUser.GetNavigationTypeID(), targetPosition, 5.0f, 0.5f))
+			if (gEnv->pAISystem->GetNavigationSystem()->IsLocationValidInNavigationMesh(pipeUser.GetNavigationTypeID(), targetPosition, nullptr, 5.0f, 0.5f))
 			{
 				const MNMPathRequest request(pipeUser.GetEntity()->GetWorldPos(),
 				                             targetPosition, ZERO, -1, 0.0f, 0.0f, true,
 				                             functor(runtimeData, &RuntimeData::PathfinderCallback),
 				                             pipeUser.GetNavigationTypeID(), eMNMDangers_None);
 
-				runtimeData.queuedPathID = gAIEnv.pMNMPathfinder->RequestPathTo(&pipeUser, request);
+				runtimeData.queuedPathID = gAIEnv.pMNMPathfinder->RequestPathTo(pipeUser.GetEntityID(), request);
 
 				if (runtimeData.queuedPathID)
 					runtimeData.pendingStatus = Running;
@@ -3489,7 +3492,7 @@ protected:
 
 	virtual Status Update(const UpdateContext& context) override
 	{
-		FUNCTION_PROFILER(GetISystem(), PROFILE_AI);
+		CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 		RuntimeData& runtimeData = GetRuntimeData<RuntimeData>(context);
 

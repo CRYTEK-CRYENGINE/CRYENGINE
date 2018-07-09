@@ -1,16 +1,8 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
-//
-//	File: GeomQuery.h
-//	Description: Facility for efficiently generating random positions on geometry
-//
-//	History:
-//		2006-05-24:		Created by J Scott Peter
-//
-//////////////////////////////////////////////////////////////////////
+//! \cond INTERNAL
 
-#ifndef GEOM_QUERY_H
-#define GEOM_QUERY_H
+#pragma once
 
 #include "Cry_Geo.h"
 #include <CryCore/Containers/CryArray.h>
@@ -24,17 +16,23 @@ public:
 	CGeomExtent()
 		: m_nEmptyEndParts(0) {}
 
-	ILINE operator bool() const
+	operator bool() const
 	{
 		return m_afCumExtents.capacity() + m_nEmptyEndParts != 0;
 	}
-	ILINE int NumParts() const
+	int NumParts() const
 	{
 		return m_afCumExtents.size();
 	}
-	ILINE float TotalExtent() const
+	float TotalExtent() const
 	{
 		return !m_afCumExtents.empty() ? m_afCumExtents.back() : 0.f;
+	}
+	float PartExtent(int nPart) const
+	{
+		return nPart == 0 ?
+			m_afCumExtents[nPart] :
+			m_afCumExtents[nPart] - m_afCumExtents[nPart - 1];
 	}
 
 	void Clear()
@@ -89,6 +87,23 @@ public:
 		return GetPart(seed.GenerateFloat());
 	}
 
+	void RandomParts(Array<int> aParts, CRndGen& seed) const
+	{
+		for (int& part : aParts)
+			part = RandomPart(seed);
+	}
+
+	// Get multiple random parts, aliased to a PosNorm array
+	Array<int> RandomPartsAlias(Array<PosNorm> aPoints, CRndGen& seed) const;
+
+	// Get multiple random parts, and sum them into a PartSum array, aliased to a PosNorm array
+	struct PartSum
+	{
+		Array<PosNorm> aPoints;
+		int iPart;
+	};
+	Array<PartSum> RandomPartsAliasSum(Array<PosNorm> aPoints, CRndGen& seed) const;
+
 protected:
 
 	DynArray<float> m_afCumExtents;
@@ -99,12 +114,12 @@ class CGeomExtents
 {
 public:
 
-	ILINE CGeomExtents()
+	CGeomExtents()
 		: m_aExtents(0) {}
 	~CGeomExtents()
 	{ delete[] m_aExtents; }
 
-	ILINE operator bool() const
+	operator bool() const
 	{
 		return m_aExtents != 0;
 	}
@@ -115,7 +130,7 @@ public:
 		m_aExtents = 0;
 	}
 
-	ILINE CGeomExtent const& operator[](EGeomForm eForm) const
+	CGeomExtent const& operator[](EGeomForm eForm) const
 	{
 		assert(eForm >= 0 && eForm < GeomForm_COUNT);
 		if (m_aExtents)
@@ -125,7 +140,7 @@ public:
 		return s_empty;
 	}
 
-	ILINE CGeomExtent& Make(EGeomForm eForm)
+	CGeomExtent& Make(EGeomForm eForm)
 	{
 		assert(eForm >= 0 && eForm < GeomForm_COUNT);
 		if (!m_aExtents)
@@ -195,71 +210,36 @@ const typename T::value_type& RandomElem(CRndGen& seed, const T& array)
 	return array[n];
 }
 
-// Geometric primitive randomizing functions.
-ILINE void BoxRandomPos(PosNorm& ran, CRndGen& seed, EGeomForm eForm, Vec3 const& vSize)
+inline void RandomSplit2(CRndGen& seed, float vals[2])
 {
-	ran.vPos = seed.GetRandomComponentwise(-vSize, vSize);
-	ran.vNorm = ran.vPos;
-
-	if (eForm != GeomForm_Volume)
-	{
-		// Generate a random corner, for collapsing random point.
-		int nCorner = seed.GetRandom(0, 7);
-		ran.vNorm.x = (((nCorner & 1) << 1) - 1) * vSize.x;
-		ran.vNorm.y = (((nCorner & 2)) - 1) * vSize.y;
-		ran.vNorm.z = (((nCorner & 4) >> 1) - 1) * vSize.z;
-
-		if (eForm == GeomForm_Vertices)
-		{
-			ran.vPos = ran.vNorm;
-		}
-		else if (eForm == GeomForm_Surface)
-		{
-			// Collapse one axis.
-			float fAxis = seed.GetRandom(0.0f, vSize.x * vSize.y + vSize.y * vSize.z + vSize.z * vSize.x);
-			if ((fAxis -= vSize.y * vSize.z) < 0.f)
-			{
-				ran.vPos.x = ran.vNorm.x;
-				ran.vNorm.y = ran.vNorm.z = 0.f;
-			}
-			else if ((fAxis -= vSize.z * vSize.x) < 0.f)
-			{
-				ran.vPos.y = ran.vNorm.y;
-				ran.vNorm.x = ran.vNorm.z = 0.f;
-			}
-			else
-			{
-				ran.vPos.z = ran.vNorm.z;
-				ran.vNorm.x = ran.vNorm.y = 0.f;
-			}
-		}
-		else if (eForm == GeomForm_Edges)
-		{
-			// Collapse 2 axes.
-			float fAxis = seed.GetRandom(0.0f, vSize.x + vSize.y + vSize.z);
-			if ((fAxis -= vSize.x) < 0.f)
-			{
-				ran.vPos.y = ran.vNorm.y;
-				ran.vPos.z = ran.vNorm.z;
-				ran.vNorm.x = 0.f;
-			}
-			else if ((fAxis -= vSize.y) < 0.f)
-			{
-				ran.vPos.x = ran.vNorm.x;
-				ran.vPos.z = ran.vNorm.z;
-				ran.vNorm.y = 0.f;
-			}
-			else
-			{
-				ran.vPos.x = ran.vNorm.x;
-				ran.vPos.y = ran.vNorm.y;
-				ran.vNorm.z = 0.f;
-			}
-		}
-	}
-
-	ran.vNorm.Normalize();
+	vals[0] = seed.GenerateFloat();
+	vals[1] = 1.0f - vals[0];
 }
+
+inline void RandomSplit3(CRndGen& seed, float vals[3])
+{
+	float a = seed.GenerateFloat();
+	float b = seed.GenerateFloat();
+	vals[0] = min(a, b);
+	vals[1] = max(a, b) - vals[0];
+	vals[2] = 1.0f - vals[1] - vals[0];
+}
+
+inline void RandomSplit4(CRndGen& seed, float vals[4])
+{
+	float a = seed.GenerateFloat();
+	float b = seed.GenerateFloat();
+	float c = seed.GenerateFloat();
+	vals[0] = min(min(a, b), c);
+	vals[1] = a == vals[0] ? min(b, c) : b == vals[0] ? min(a, c) : min(a, b);
+	vals[2] = max(max(a, b), c);
+	vals[3] = 1.0f - vals[2];
+	vals[2] -= vals[1];
+	vals[1] -= vals[0];
+}
+
+// Geometric primitive randomizing functions.
+void BoxRandomPoints(Array<PosNorm> points, CRndGen& seed, EGeomForm eForm, Vec3 const& vSize);
 
 inline float CircleExtent(EGeomForm eForm, float fRadius)
 {
@@ -311,41 +291,7 @@ inline float SphereExtent(EGeomForm eForm, float fRadius)
 	}
 }
 
-inline void SphereRandomPos(PosNorm& ran, CRndGen& seed, EGeomForm eForm, float fRadius)
-{
-	switch (eForm)
-	{
-	default:
-		assert(0);
-	case GeomForm_Vertices:
-	case GeomForm_Edges:
-		ran.vPos.zero();
-		ran.vNorm.zero();
-		return;
-	case GeomForm_Surface:
-	case GeomForm_Volume:
-		{
-			// Generate point on surface, as normal.
-			float fPhi = seed.GetRandom(0.0f, gf_PI2);
-			float fZ = seed.GetRandom(-1.f, 1.f);
-			float fH = sqrt_tpl(1.f - fZ * fZ);
-			sincos_tpl(fPhi, &ran.vNorm.y, &ran.vNorm.x);
-			ran.vNorm.x *= fH;
-			ran.vNorm.y *= fH;
-			ran.vNorm.z = fZ;
-
-			ran.vPos = ran.vNorm;
-			if (eForm == GeomForm_Volume)
-			{
-				float fV = seed.GetRandom(0.0f, 1.0f);
-				float fR = pow_tpl(fV, 0.333333f);
-				ran.vPos *= fR;
-			}
-			ran.vPos *= fRadius;
-			break;
-		}
-	}
-}
+void SphereRandomPoints(Array<PosNorm> points, CRndGen& seed, EGeomForm eForm, float fRadius);
 
 // Triangle randomisation functions
 inline float TriExtent(EGeomForm eForm, Vec3 const aPos[3], Vec3 const& vCenter)
@@ -354,6 +300,8 @@ inline float TriExtent(EGeomForm eForm, Vec3 const aPos[3], Vec3 const& vCenter)
 	{
 	default:
 		assert(0);
+	case GeomForm_Vertices:
+		return 1.0f;
 	case GeomForm_Edges:
 		return (aPos[1] - aPos[0]).GetLengthFast();
 	case GeomForm_Surface:
@@ -364,58 +312,7 @@ inline float TriExtent(EGeomForm eForm, Vec3 const aPos[3], Vec3 const& vCenter)
 	}
 }
 
-inline void TriRandomPos(PosNorm& ran, CRndGen& seed, EGeomForm eForm, PosNorm const aRan[3], Vec3 const& vCenter, bool bDoNormals)
-{
-	// Generate interpolators for verts.
-	switch (eForm)
-	{
-	default:
-		assert(0);
-	case GeomForm_Vertices:
-		ran = aRan[0];
-		return;
-	case GeomForm_Edges:
-		{
-			float t = seed.GenerateFloat();
-			ran.vPos = aRan[0].vPos * (1.f - t) + aRan[1].vPos * t;
-			if (bDoNormals)
-				ran.vNorm = aRan[0].vNorm * (1.f - t) + aRan[1].vNorm * t;
-			break;
-		}
-	case GeomForm_Surface:
-		{
-			float a = seed.GenerateFloat();
-			float b = seed.GenerateFloat();
-			float t0 = std::min(a, b);
-			float t1 = std::max(a, b) - t0;
-			float t2 = 1.0f - t1 - t0;
-			ran.vPos = aRan[0].vPos * t0 + aRan[1].vPos * t1 + aRan[2].vPos * t2;
-			if (bDoNormals)
-				ran.vNorm = aRan[0].vNorm * t0 + aRan[1].vNorm * t1 + aRan[2].vNorm * t2;
-			break;
-		}
-	case GeomForm_Volume:
-		{
-			// Generate a point in the pyramid defined by the triangle and the origin
-			float a = seed.GenerateFloat();
-			float b = seed.GenerateFloat();
-			float c = seed.GenerateFloat();
-			float t0 = std::min(std::min(a, b), c);
-			float t1 = a == t0 ? std::min(b, c) : b == t0 ? std::min(a, c) : std::min(a, b);
-			float t2 = std::max(std::max(a, b), c);
-			float t3 = 1.0f - t2;
-			t2 -= t1;
-			t1 -= t0;
-
-			ran.vPos = aRan[0].vPos * t0 + aRan[1].vPos * t1 + aRan[2].vPos * t2 + vCenter * t3;
-			if (bDoNormals)
-				ran.vNorm = (aRan[0].vNorm * t0 + aRan[1].vNorm * t1 + aRan[2].vNorm * t2) * (1.f - t3) + ran.vPos.GetNormalizedFast() * t3;
-			break;
-		}
-	}
-	if (bDoNormals)
-		ran.vNorm.Normalize();
-}
+void TriRandomPos(PosNorm& ran, CRndGen& seed, EGeomForm eForm, PosNorm const aRan[3], Vec3 const& vCenter, bool bDoNormals);
 
 // Mesh random pos functions
 
@@ -459,4 +356,164 @@ inline int TriIndices(int aIndices[3], int nPart, EGeomForm eForm)
 	}
 }
 
-#endif // GEOM_QUERY_H
+// Polygon 2D triangulation
+
+template<class T, class Vec = T, size_t offset = 0>
+struct TPolygon2D: Array<const T, size_t>
+{
+	using Array<const T, size_t>::Array;
+
+	TPolygon2D(const std::vector<T>& in)
+		: Array<const T, size_t>(&in[0], in.size()) {}
+
+	const Vec& operator[](size_t idx) const
+	{
+		assert(idx < this->size());
+		const T* pVertex = &this->at(idx);
+		return *(Vec*)((size_t)pVertex + offset);
+	}
+
+	float Area() const
+	{
+		int n = this->size();
+		float area = 0.0f;
+
+		for (int p = n - 1, q = 0; q < n; p = q++)
+			area += (*this)[p].x * (*this)[q].y - (*this)[q].x * (*this)[p].y;
+
+		return area * 0.5f;
+	}
+
+	template<typename Indices>
+	bool Triangulate(Indices& tri_indices)
+	{
+		using S = typename Indices::value_type;
+
+		// reset tri_indices
+		tri_indices.resize(0);
+
+		//C6255: _alloca indicates failure by raising a stack overflow exception. Consider using _malloca instead
+		PREFAST_SUPPRESS_WARNING(6255);
+		// allocate and initialize list of vertices in polygon
+		int n = this->size();
+		if (n < 3)
+			return false;
+
+		S* V = (S*)alloca(n * sizeof(S));
+
+		// we want a counter-clockwise polygon in V
+		if (0.0f < Area())
+			for (int v = 0; v < n; v++)
+				V[v] = v;
+		else
+			for (int v = 0; v < n; v++)
+				V[v] = (n - 1) - v;
+
+		int nv = n;
+
+		//  remove nv-2 vertices, creating 1 triangle every time
+		int count = 2 * nv;     // error detection
+
+		for (int m = 0, v = nv - 1; nv > 2; )
+		{
+			// if we loop, it is probably a non-simple polygon
+			if (0 >= (count--))
+				return false;   // ERROR - probably bad polygon!
+
+								// three consecutive vertices in current polygon, <u,v,w>
+			int u = v;
+			if (nv <= u) u = 0;                 // previous
+			v = u + 1;
+			if (nv <= v) v = 0;                 // new v
+			int w = v + 1;
+			if (nv <= w) w = 0;                 // next
+
+			if (Snip(u, v, w, nv, V))
+			{
+				// true names of the vertices
+				PREFAST_SUPPRESS_WARNING(6385);
+				S a = V[u];
+				S b = V[v];
+				S c = V[w];
+
+				// output triangle
+				tri_indices.push_back(a);
+				tri_indices.push_back(b);
+				tri_indices.push_back(c);
+
+				m++;
+
+				// remove v from remaining polygon
+				for (int s = v, t = v + 1; t < nv; s++, t++)
+				{
+					PREFAST_SUPPRESS_WARNING(6386);
+					V[s] = V[t];
+				}
+
+				nv--;
+
+				// reset error detection counter
+				count = 2 * nv;
+			}
+		}
+
+		return true;
+	}
+
+	static bool InsideTriangle(float Ax, float Ay, float Bx, float By, float Cx, float Cy, float Px, float Py)
+	{
+		float ax = Cx - Bx;
+		float ay = Cy - By;
+		float bx = Ax - Cx;
+		float by = Ay - Cy;
+		float cx = Bx - Ax;
+		float cy = By - Ay;
+		float apx = Px - Ax;
+		float apy = Py - Ay;
+		float bpx = Px - Bx;
+		float bpy = Py - By;
+		float cpx = Px - Cx;
+		float cpy = Py - Cy;
+
+		float aCROSSbp = ax * bpy - ay * bpx;
+		float cCROSSap = cx * apy - cy * apx;
+		float bCROSScp = bx * cpy - by * cpx;
+
+		const float fEpsilon = -0.01f;
+		return (aCROSSbp >= fEpsilon) && (bCROSScp >= fEpsilon) && (cCROSSap >= fEpsilon);
+	};
+
+protected:
+
+	template<typename S>
+	bool Snip(int u, int v, int w, int n, const S* V) const
+	{
+		float Ax = (*this)[V[u]].x;
+		float Ay = (*this)[V[u]].y;
+
+		float Bx = (*this)[V[v]].x;
+		float By = (*this)[V[v]].y;
+
+		float Cx = (*this)[V[w]].x;
+		float Cy = (*this)[V[w]].y;
+
+		if ((((Bx - Ax) * (Cy - Ay)) - ((By - Ay) * (Cx - Ax))) < 1e-6f)
+			return false;
+
+		for (int p = 0; p < n; p++)
+		{
+			if ((p == u) || (p == v) || (p == w))
+				continue;
+
+			float Px = (*this)[V[p]].x;
+			float Py = (*this)[V[p]].y;
+
+			if (InsideTriangle(Ax, Ay, Bx, By, Cx, Cy, Px, Py))
+				return false;
+		}
+
+		return true;
+	}
+};
+
+//! \endcond

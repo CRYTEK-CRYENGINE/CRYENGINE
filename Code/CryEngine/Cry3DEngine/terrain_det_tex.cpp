@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 // -------------------------------------------------------------------------
 //  File name:   terrain_det_tex.cpp
@@ -18,24 +18,23 @@
 
 void CTerrain::SetDetailLayerProperties(int nId, float fScaleX, float fScaleY,
                                         uint8 ucProjAxis, const char* szSurfName,
-                                        const PodArray<int>& lstnVegetationGroups, IMaterial* pMat,
-                                        int nSID)
+                                        const PodArray<int>& lstnVegetationGroups, IMaterial* pMat)
 {
 	if (nId >= 0 && nId < SRangeInfo::e_max_surface_types)
 	{
 		const int nNameLength = strlen(szSurfName);
-		const int nDestNameLength = sizeof(m_SSurfaceType[nSID][nId].szName) - 1;
+		const int nDestNameLength = sizeof(m_SSurfaceType[nId].szName) - 1;
 		if (nNameLength > nDestNameLength)
 			Error("CTerrain::SetDetailLayerProperties: attempt to assign too long surface type name (%s)", szSurfName);
-		cry_strcpy(m_SSurfaceType[nSID][nId].szName, szSurfName);
-		m_SSurfaceType[nSID][nId].fScale = fScaleX;
-		m_SSurfaceType[nSID][nId].ucDefProjAxis = ucProjAxis;
-		m_SSurfaceType[nSID][nId].ucThisSurfaceTypeId = nId;
-		m_SSurfaceType[nSID][nId].lstnVegetationGroups.Reset();
-		m_SSurfaceType[nSID][nId].lstnVegetationGroups.AddList(lstnVegetationGroups);
-		m_SSurfaceType[nSID][nId].pLayerMat = (CMatInfo*)pMat;
+		cry_strcpy(m_SSurfaceType[nId].szName, szSurfName);
+		m_SSurfaceType[nId].fScale = fScaleX;
+		m_SSurfaceType[nId].ucDefProjAxis = ucProjAxis;
+		m_SSurfaceType[nId].ucThisSurfaceTypeId = nId;
+		m_SSurfaceType[nId].lstnVegetationGroups.Reset();
+		m_SSurfaceType[nId].lstnVegetationGroups.AddList(lstnVegetationGroups);
+		m_SSurfaceType[nId].pLayerMat = (CMatInfo*)pMat;
 #ifndef SW_STRIP_LOADING_MSG
-		if (m_SSurfaceType[nSID][nId].pLayerMat && !m_bEditor)
+		if (m_SSurfaceType[nId].pLayerMat && !m_bEditor)
 			CTerrain::Get3DEngine()->PrintMessage("  Layer %d - %s has material %s", nId, szSurfName, pMat->GetName());
 #endif
 	}
@@ -46,14 +45,14 @@ void CTerrain::SetDetailLayerProperties(int nId, float fScaleX, float fScaleY,
 	}
 }
 
-void CTerrain::LoadSurfaceTypesFromXML(XmlNodeRef pDetTexTagList, int nSID)
+void CTerrain::LoadSurfaceTypesFromXML(XmlNodeRef pDetTexTagList)
 {
 	LOADING_TIME_PROFILE_SECTION;
 
 	MEMSTAT_CONTEXT(EMemStatContextTypes::MSC_Terrain, 0, "Surface types");
 
 #ifndef SW_STRIP_LOADING_MSG
-	CTerrain::Get3DEngine()->PrintMessage("Loading terrain layers for segment %d ...", nSID);
+	CTerrain::Get3DEngine()->PrintMessage("Loading terrain layers ...");
 #endif
 
 	if (!pDetTexTagList)
@@ -67,6 +66,10 @@ void CTerrain::LoadSurfaceTypesFromXML(XmlNodeRef pDetTexTagList, int nSID)
 		IMaterialManager* pMatMan = Get3DEngine()->GetMaterialManager();
 		const char* pMatName = pDetLayer->getAttr("DetailMaterial");
 		_smart_ptr<IMaterial> pMat = pMatName[0] ? pMatMan->LoadMaterial(pMatName) : NULL;
+
+		// material diffuse texture may be needed to generate terrain base texture (on CPU)
+		if (gEnv->IsEditor() && pMat)
+			pMat->SetKeepLowResSysCopyForDiffTex();
 
 		float fScaleX = 1.f;
 		pDetLayer->getAttr("DetailScaleX", fScaleX);
@@ -98,12 +101,12 @@ void CTerrain::LoadSurfaceTypesFromXML(XmlNodeRef pDetTexTagList, int nSID)
 			}
 		}
 
-		SetDetailLayerProperties(nId, fScaleX, fScaleY, projAxis, pDetLayer->getAttr("Name"), lstnVegetationGroups, pMat, nSID);
+		SetDetailLayerProperties(nId, fScaleX, fScaleY, projAxis, pDetLayer->getAttr("Name"), lstnVegetationGroups, pMat);
 	}
 }
 
-void CTerrain::UpdateSurfaceTypes(int nSID)
+void CTerrain::UpdateSurfaceTypes()
 {
-	if (GetParentNode(nSID))
-		GetParentNode(nSID)->UpdateDetailLayersInfo(true);
+	if (GetParentNode())
+		GetParentNode()->UpdateDetailLayersInfo(true);
 }

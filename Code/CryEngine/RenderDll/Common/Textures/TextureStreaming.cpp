@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 /*=============================================================================
    TextureStreaming.cpp : Common Texture Streaming manager implementation.
@@ -82,10 +82,15 @@ SStreamFormatCode CTexture::s_formatCodes[256];
 uint32 CTexture::s_nFormatCodes = 1;
 CTexture::TStreamFormatCodeKeyMap CTexture::s_formatCodeMap;
 
+bool CTexture::IsStreamingInProgress()
+{
+	return s_StreamInTasks.GetNumLive() > 0;
+}
+
 #ifdef TEXSTRM_ASYNC_TEXCOPY
 void STexStreamInState::CopyMips()
 {
-	FUNCTION_PROFILER_RENDERER;
+	FUNCTION_PROFILER_RENDERER();
 
 	CTexture* tp = m_pTexture;
 
@@ -94,7 +99,7 @@ void STexStreamInState::CopyMips()
 		if (tp->m_pFileTexMips->m_pPoolItem)
 		{
 			const int nNewMipOffset = tp->m_nMinMipVidUploaded - m_nHigherUploadedMip;
-			const int nNumMips = tp->GetNumMipsNonVirtual() - tp->m_nMinMipVidUploaded;
+			const int nNumMips = tp->GetNumMips() - tp->m_nMinMipVidUploaded;
 
 			if (0)
 			{
@@ -279,8 +284,11 @@ void STexStreamInState::StreamAsyncOnComplete(IReadStream* pStream, unsigned nEr
 
 	pStream->FreeTemporaryMemory(); // We don't need internal stream loaded buffer anymore.
 
-	int nChunkSize = tp->m_pFileTexMips->m_pMipHeader[nMip + m_nHigherUploadedMip].m_SideSize * tp->GetNumSides();
-	CryInterlockedAdd(&CTexture::s_nBytesSubmittedToStreaming, -nChunkSize);
+	if (tp->m_pFileTexMips)
+	{
+		int nChunkSize = tp->m_pFileTexMips->m_pMipHeader[nMip + m_nHigherUploadedMip].m_SideSize * tp->GetNumSides();
+		CryInterlockedAdd(&CTexture::s_nBytesSubmittedToStreaming, -nChunkSize);
+	}
 	CryInterlockedDecrement(&CTexture::s_nMipsSubmittedToStreaming);
 	assert(CTexture::s_nBytesSubmittedToStreaming >= 0);
 
@@ -413,9 +421,9 @@ bool STexStreamInState::TryCommit()
 			}
 			else
 			{
-				m_pTexture->StreamCopyMipsTexToMem(m_pTexture->GetNumMipsNonVirtual() - m_pTexture->GetNumPersistentMips(), m_pTexture->GetNumMipsNonVirtual() - 1, true, pNewPoolItem);
+				m_pTexture->StreamCopyMipsTexToMem(m_pTexture->GetNumMips() - m_pTexture->GetNumPersistentMips(), m_pTexture->GetNumMips() - 1, true, pNewPoolItem);
 				if (CTexture::s_bStreamDontKeepSystem)
-					m_pTexture->StreamReleaseMipsData(m_pTexture->GetNumMipsNonVirtual() - m_pTexture->GetNumPersistentMips(), m_pTexture->GetNumMipsNonVirtual() - 1);
+					m_pTexture->StreamReleaseMipsData(m_pTexture->GetNumMips() - m_pTexture->GetNumPersistentMips(), m_pTexture->GetNumMips() - 1);
 			}
 #if CRY_PLATFORM_DURANGO && (CRY_RENDERER_DIRECT3D >= 110) && (CRY_RENDERER_DIRECT3D < 120)
 			m_copyMipsFence = CTexture::StreamInsertFence();
@@ -551,7 +559,7 @@ bool CTexture::IsStreamedIn(const int nMinPrecacheRoundIds[MAX_STREAM_PREDICTION
 		}
 
 		int nMinMip = s_pTextureStreamer->GetMinStreamableMipWithSkip();
-		return max(GetRequiredMipNonVirtual(), nMinMip) >= CTexture::GetMinLoadedMip();
+		return max(GetRequiredMip(), nMinMip) >= CTexture::GetMinLoadedMip();
 	}
 	return true;
 }
@@ -626,7 +634,7 @@ bool CTexture::StreamPrepare(bool bFromLoad)
 {
 	CHK_MAINORRENDTH;
 
-	if (!CRenderer::CV_r_texturesstreaming || m_eFlags & FT_DONT_STREAM)
+	if (!IsStreamable())
 		return false;
 
 	PROFILE_FRAME(Texture_StreamPrepare);
@@ -639,8 +647,8 @@ bool CTexture::StreamPrepare(bool bFromLoad)
 
 	if (!m_pFileTexMips)
 	{
-		const char* szExt = fpGetExtension(m_SrcName.c_str());
-		if (szExt != 0 && (!stricmp(szExt, ".tif") || !stricmp(szExt, ".hdr")) && !gEnv->pCryPak->IsFileExist(m_SrcName.c_str()))
+		const char* szExt = PathUtil::GetExt(m_SrcName.c_str());
+		if (szExt != 0 && (!stricmp(szExt, "tif") || !stricmp(szExt, "hdr")) && !gEnv->pCryPak->IsFileExist(m_SrcName.c_str()))
 		{
 			m_SrcName = PathUtil::ReplaceExtension(m_SrcName, "dds");
 			if (!gEnv->pCryPak->IsFileExist(m_SrcName))
@@ -672,170 +680,6 @@ bool CTexture::StreamPrepare(bool bFromLoad)
 	return StreamPrepare_Finalise(bFromLoad);
 }
 
-bool CTexture::StreamPrepareComposition()
-{
-	CHK_MAINORRENDTH;
-
-	if (!CRenderer::CV_r_texturesstreaming || m_eFlags & FT_DONT_STREAM)
-		return false;
-
-	PROFILE_FRAME(Texture_StreamPrepare);
-
-	CRY_DEFINE_ASSET_SCOPE("Texture", m_sAssetScopeName);
-
-	int nWidth = m_nWidth;
-	int nHeight = m_nHeight;
-	int nMips = m_nMips;
-	ETEX_Format eTF = m_eDstFormat;
-	const STexComposition* pCompositions = &m_composition[0];
-	size_t nCompositions = m_composition.size();
-
-	// release the old texture
-	if (m_pDevTexture)
-		ReleaseDeviceTexture(false);
-
-	int nSides = 1;
-	for (size_t i = 0; i < nCompositions; ++i)
-		nSides = max(nSides, pCompositions[i].nDstSlice + 1);
-
-	ETEX_Type eTT = nSides > 1 ? eTT_2DArray : eTT_2D;
-	ETEX_Format eTFSrc = eTF;
-	ETEX_Format eTFDst = eTF;
-	float fAvgBrightness = 1.0f;
-	ETEX_TileMode eTileMode = eTM_None;
-
-	int nMipsPersistent = DDSSplitted::GetNumLastMips(nWidth, nHeight, nMips, nSides, eTFSrc, 0);
-
-	bool bStreamable = true;
-
-	m_eFlags &= ~(FT_SPLITTED | FT_TEX_WAS_NOT_PRE_TILED | FT_HAS_ATTACHED_ALPHA | FT_DONT_STREAM | FT_FROMIMAGE);
-
-	const SPixFormat* pPF = NULL;
-
-	GetClosestFormatSupported(eTFDst, pPF);
-
-	if (!pPF)
-	{
-		__debugbreak();
-		return false;
-	}
-
-	// Can't fail from this point on - commit everything.
-
-	STexCacheFileHeader& fh = m_CacheFileHeader;
-
-	// copy image properties
-	m_nWidth = nWidth;
-	m_nHeight = nHeight;
-	m_nDepth = 1;
-	m_nArraySize = nSides;
-	m_nMips = nMips;
-	m_eTT = eTT;
-	fh.m_nSides = nSides;
-	m_eSrcFormat = eTFSrc;
-	m_eDstFormat = eTFDst;
-	m_bIsSRGB = !!(pPF->Options & FMTSUPPORT_SRGB); // OF FIXME: Probably ought to be supplied, and checked against the PF, rather than taken from the PF
-	assert(!m_pFileTexMips);
-	m_pFileTexMips = StreamState_AllocateInfo(m_nMips);
-	m_nStreamingPriority = 0;
-	SetMinLoadedMip(MAX_MIP_LEVELS);
-	m_nMinMipVidActive = MAX_MIP_LEVELS;
-	m_fCurrentMipBias = 0.0f;
-	m_fAvgBrightness = fAvgBrightness;
-	m_eSrcTileMode = eTileMode;
-	m_bStreamed = true;
-
-	// allocate and fill up streaming auxiliary structures
-	for (int iMip = 0; iMip < m_nMips; ++iMip)
-	{
-		m_pFileTexMips->m_pMipHeader[iMip].m_Mips = new SMipData[m_CacheFileHeader.m_nSides];
-	}
-
-	for (int iSide = 0; iSide < fh.m_nSides; ++iSide)
-	{
-		for (int iMip = 0; iMip < m_nMips; ++iMip)
-		{
-			m_pFileTexMips->m_pMipHeader[iMip].m_SideSize = CTexture::TextureDataSize(
-				max(1, m_nWidth  >> iMip),
-				max(1, m_nHeight >> iMip),
-				max(1, m_nDepth  >> iMip),
-				1, 1,
-				m_eDstFormat,
-				eTileMode);
-		}
-	}
-
-#if defined(TEXSTRM_STORE_DEVSIZES)
-	for (int iMip = 0; iMip < m_nMips; ++iMip)
-	{
-		m_pFileTexMips->m_pMipHeader[iMip].m_DevSideSizeWithMips = CTexture::TextureDataSize(
-			max(1, m_nWidth  >> iMip),
-			max(1, m_nHeight >> iMip),
-			max(1, m_nDepth  >> iMip),
-			m_nMips - iMip,
-			StreamGetNumSlices(),
-			m_eDstFormat,
-			eTileMode);
-	}
-#endif
-
-	for (int iMip = 0; iMip < m_nMips; iMip++)
-	{
-		m_pFileTexMips->m_pMipHeader[iMip].m_SideSizeWithMips = 0;
-		for (int j = iMip; j < m_nMips; j++)
-			m_pFileTexMips->m_pMipHeader[iMip].m_SideSizeWithMips += m_pFileTexMips->m_pMipHeader[j].m_SideSize;
-	}
-
-	m_pPixelFormat = pPF;
-	fh.m_nMipsPersistent = nMipsPersistent;
-
-	m_pFileTexMips->m_fMinMipFactor = StreamCalculateMipFactor((m_nMips - m_CacheFileHeader.m_nMipsPersistent) << 8);
-	m_nStreamFormatCode = StreamComputeFormatCode(m_nWidth, m_nHeight, m_nMips, m_eDstFormat);
-
-	assert(m_eDstFormat != eTF_Unknown);
-
-	StreamPrepare_Platform();
-
-	SetTexStates();
-	PostCreate();
-
-	Relink();
-	m_bStreamPrepared = true;
-
-	if (gRenDev->m_pRT->IsRenderThread() && !gRenDev->m_pRT->IsRenderLoadingThread())
-	{
-		// create texture
-		assert(!m_pFileTexMips->m_pPoolItem);
-		assert(!IsStreaming());
-		STexPoolItem* pNewPoolItem = StreamGetPoolItem(m_nMips - m_CacheFileHeader.m_nMipsPersistent, m_CacheFileHeader.m_nMipsPersistent, true);
-		if (pNewPoolItem)
-		{
-			int nTexWantedMip = m_nMips - m_CacheFileHeader.m_nMipsPersistent;
-
-			// bake persistent mips
-			for (int i = 0, c = m_composition.size(); i != c; ++i)
-			{
-				const STexComposition& tc = m_composition[i];
-				CTexture* p = (CTexture*)&*tc.pTexture;
-				CDeviceTexture* pSrcDevTex = p->m_pDevTexture;
-				uint32 nSrcDevMips = p->GetNumMipsNonVirtual() - p->StreamGetLoadedMip();
-
-				CTexture::CopySliceChain(
-					pNewPoolItem->m_pDevTexture, pNewPoolItem->m_pOwner->m_nMips, tc.nDstSlice, 0,
-					pSrcDevTex, nSrcDevMips, tc.nSrcSlice, nTexWantedMip - (m_nMips - nSrcDevMips),
-					1, m_nMips - nTexWantedMip);
-			}
-
-			// upload mips to texture
-			StreamAssignPoolItem(pNewPoolItem, m_nMips - m_CacheFileHeader.m_nMipsPersistent);
-			StreamReleaseMipsData(0, m_nMips - 1);
-			SetWasUnload(false);
-		}
-	}
-
-	return true;
-}
-
 bool CTexture::StreamPrepare(CImageFile* pIM)
 {
 	if (!pIM)
@@ -864,9 +708,9 @@ bool CTexture::StreamPrepare(CImageFile* pIM)
 
 	int nMipsPersistent = max(pIM->mfGet_numPersistantMips(), DDSSplitted::GetNumLastMips(nWidth, nHeight, nMips, nSides, eSrcFormat, (m_eFlags & FT_ALPHA) ? FIM_ALPHA : 0));
 
-	bool bStreamable = true;
+	m_eFlags &= ~(FT_SPLITTED | FT_HAS_ATTACHED_ALPHA | FT_DONT_STREAM | FT_FROMIMAGE);
 
-	m_eFlags &= ~(FT_SPLITTED | FT_TEX_WAS_NOT_PRE_TILED | FT_HAS_ATTACHED_ALPHA | FT_DONT_STREAM | FT_FROMIMAGE);
+	bool bStreamable = IsStreamable(m_eFlags, eTT);
 
 	// Can't stream volume textures and textures without mips
 	if (eDstFormat == eTF_Unknown || nDepth > 1 || nMips < 2)
@@ -875,10 +719,7 @@ bool CTexture::StreamPrepare(CImageFile* pIM)
 	if ((nWidth <= DDSSplitted::etexLowerMipMaxSize || nHeight <= DDSSplitted::etexLowerMipMaxSize) || nMips <= nMipsPersistent || nMipsPersistent == 0)
 		bStreamable = false;
 
-	const SPixFormat* pPF = NULL;
-
-	GetClosestFormatSupported(eDstFormat, pPF);
-
+	const SPixFormat* pPF = CTexture::GetPixFormat(eDstFormat);
 	if (!pPF && !DDSFormats::IsNormalMap(eDstFormat)) // special case for 3DC and CTX1
 	{
 		assert(0);
@@ -909,8 +750,6 @@ bool CTexture::StreamPrepare(CImageFile* pIM)
 	STexCacheFileHeader& fh = m_CacheFileHeader;
 	if (pIM->mfGet_Flags() & FIM_SPLITTED)
 		m_eFlags |= FT_SPLITTED;
-	if (pIM->mfGet_Flags() & FIM_X360_NOT_PRETILED)
-		m_eFlags |= FT_TEX_WAS_NOT_PRE_TILED;
 	if (pIM->mfGet_Flags() & FIM_HAS_ATTACHED_ALPHA)
 		m_eFlags |= FT_HAS_ATTACHED_ALPHA;      // if the image has alpha attached we store this in the CTexture
 
@@ -993,9 +832,8 @@ bool CTexture::StreamPrepare(CImageFile* pIM)
 	}
 
 	// set up pixel format and check if it's supported for
-	m_pPixelFormat = pPF;
-	if (m_pPixelFormat)
-		m_bIsSRGB &= !!(m_pPixelFormat->Options & FMTSUPPORT_SRGB);
+	if (pPF)
+		m_bIsSRGB &= !!(pPF->Options & FMTSUPPORT_SRGB);
 	else
 		m_bIsSRGB = false;
 
@@ -1005,7 +843,6 @@ bool CTexture::StreamPrepare(CImageFile* pIM)
 
 	StreamPrepare_Platform();
 
-	SetTexStates();
 	PostCreate();
 
 	// Always load lowest nMipsPersistent mips synchronously
@@ -1055,13 +892,21 @@ bool CTexture::StreamPrepare(CImageFile* pIM)
 				{
 					assert(pIM->mfIs_image(iSide));
 					buf = pIM->mfGet_image(iSide);
-					cryMemcpy(&mp->DataArray[0], &buf[nOffs], nSrcSideSize);
+					if (mp->DataArray)
+					{
+						cryMemcpy(&mp->DataArray[0], &buf[nOffs], nSrcSideSize);
+					}
 					nOffs += nSrcSideSize;
 				}
 				else if (iSide > 0)
 				{
 					if (m_eFlags & FT_REPLICATE_TO_ALL_SIDES)
-						memcpy(&mp->DataArray[0], &mh.m_Mips[0].DataArray[0], nSrcSideSize);
+					{
+						if (mp->DataArray && mh.m_Mips[0].DataArray)
+						{
+							cryMemcpy(&mp->DataArray[0], &mh.m_Mips[0].DataArray[0], nSrcSideSize);
+						}
+					}
 					else
 						assert(0);
 				}
@@ -1146,7 +991,7 @@ bool CTexture::StreamPrepare_Finalise(bool bFromLoad)
 	}
 
 	for (int z = 0; z < MAX_PREDICTION_ZONES; z++)
-		m_streamRounds[z].nRoundUpdateId = gRenDev->m_RP.m_TI[gRenDev->m_RP.m_nProcessThreadID].m_arrZonesRoundId[z];
+		m_streamRounds[z].nRoundUpdateId = gRenDev->GetStreamZoneRoundId(z);
 	m_bPostponed = false;
 	m_fCurrentMipBias = 0.f;
 
@@ -1196,7 +1041,7 @@ void CTexture::StreamValidateTexSize()
 		return;
 
 	// do this check once per 120 frames
-	if (gRenDev->m_RP.m_TI[gRenDev->m_RP.m_nProcessThreadID].m_nFrameUpdateID % 120 != 0)
+	if (gRenDev->GetRenderFrameID() % 120 != 0)
 		return;
 
 	for (itor = pRL->m_RMap.begin(); itor != pRL->m_RMap.end(); itor++)
@@ -1317,7 +1162,7 @@ void CTexture::StreamUpdateStats()
 		void* pStoppedUsing[512];
 
 		int nBegun = 0, nStopped = 0;
-		int curFrame = gRenDev->m_RP.m_TI[gRenDev->m_RP.m_nProcessThreadID].m_nFrameUpdateID;
+		int curFrame = gRenDev->GetRenderFrameID();
 
 		std::vector<CTexture*> texs;
 		s_pTextureStreamer->StatsFetchTextures(texs);
@@ -1413,9 +1258,6 @@ bool CTexture::CanStreamInPlace(int nMip, STexPoolItem* pNewPoolItem)
 
 		if (!bFormatCompatible)
 			return false;
-
-		if (m_eFlags & FT_TEX_WAS_NOT_PRE_TILED)
-			return false;
 	#endif
 
 	#if CRY_PLATFORM_ORBIS
@@ -1448,7 +1290,7 @@ bool CTexture::CanAsyncCopy()
 
 bool CTexture::StartStreaming(CTexture* pTex, STexPoolItem* pNewPoolItem, const int nStartMip, const int nEndMip, const int nActivateMip, EStreamTaskPriority estp)
 {
-	FUNCTION_PROFILER_RENDERER;
+	FUNCTION_PROFILER_RENDERER();
 
 	CHK_RENDTH;
 
@@ -1614,7 +1456,6 @@ bool CTexture::StartStreaming(CTexture* pTex, STexPoolItem* pNewPoolItem, const 
 void CTexture::StreamUploadMips(int nStartMip, int nEndMip, STexPoolItem* pNewPoolItem)
 {
 	assert(pNewPoolItem);
-	CTimeValue time0 = iTimer->GetAsyncTime();
 
 	StreamCopyMipsTexToMem(nStartMip, nEndMip, true, pNewPoolItem);
 
@@ -1629,8 +1470,6 @@ void CTexture::StreamUploadMips(int nStartMip, int nEndMip, STexPoolItem* pNewPo
 
 	if (s_bStreamDontKeepSystem)
 		StreamReleaseMipsData(nStartMip, nEndMip);
-
-	gRenDev->m_RP.m_PS[gRenDev->m_RP.m_nProcessThreadID].m_fTexUploadTime += (iTimer->GetAsyncTime() - time0).GetSeconds();
 }
 
 void CTexture::InitStreaming()
@@ -1747,19 +1586,8 @@ void CTexture::InitStreaming()
 
 	// re-init all textures
 	iLog->Log("  Reloading all textures...");
-	{
-		AUTO_LOCK(CBaseResource::s_cResLock);
-		SResourceContainer* pRL = CBaseResource::GetResourcesForClass(CTexture::mfGetClassName());
-		if (pRL)
-		{
-			for (ResourcesMapItor itor = pRL->m_RMap.begin(); itor != pRL->m_RMap.end(); ++itor)
-			{
-				CTexture* tp = (CTexture*)itor->second;
-				if (!tp) continue;
-				tp->ToggleStreaming(CRenderer::CV_r_texturesstreaming != 0);
-			}
-		}
-	}
+	CTexture::ToggleTexturesStreaming();
+
 	iLog->Log("  Finished reloading textures...");
 	iLog->Log("  Finished initializing textures streaming...");
 
@@ -1784,6 +1612,8 @@ void CTexture::InitStreaming()
 
 void CTexture::RT_FlushStreaming(bool bAbort)
 {
+	CRY_PROFILE_REGION(PROFILE_RENDERER, "CTexture::RT_FlushStreaming");
+
 	RT_FlushAllStreamingTasks(bAbort);
 
 	// flush all pool items
@@ -1792,6 +1622,8 @@ void CTexture::RT_FlushStreaming(bool bAbort)
 
 void CTexture::RT_FlushAllStreamingTasks(const bool bAbort /* = false*/)
 {
+	CTimeValue time0 = iTimer->GetAsyncTime();
+
 	// flush all tasks globally
 	CHK_RENDTH;
 	iLog->Log("Flushing pended textures...");
@@ -1861,6 +1693,8 @@ void CTexture::RT_FlushAllStreamingTasks(const bool bAbort /* = false*/)
 
 	assert(s_nBytesSubmittedToStreaming == 0);
 	iLog->Log("Finished flushing pended textures...");
+
+	SRenderStatistics::Write().m_fTexUploadTime += (iTimer->GetAsyncTime() - time0).GetSeconds();
 }
 
 void CTexture::AbortStreamingTasks(CTexture* pTex)
@@ -1929,7 +1763,7 @@ void CTexture::StreamState_Update()
 {
 	CHK_RENDTH;
 
-	FUNCTION_PROFILER_RENDERER;
+	FUNCTION_PROFILER_RENDERER();
 
 	// Finalise and garbage collect the stream out tasks
 
@@ -1988,7 +1822,7 @@ void CTexture::StreamState_Update()
 
 void CTexture::StreamState_UpdatePrep()
 {
-	FUNCTION_PROFILER_RENDERER;
+	FUNCTION_PROFILER_RENDERER();
 
 	// Garbage collect the stream prep slots
 
@@ -2049,10 +1883,16 @@ void CTexture::StreamState_ReleaseInfo(CTexture* pOwnerTex, STexStreamingInfo* p
 
 void CTexture::Relink()
 {
-	gRenDev->m_pRT->RC_RelinkTexture(this);
+	if (!IsStreamed() || IsInDistanceSortedList())
+		return;
+
+	s_pTextureStreamer->Relink(this);
 }
 
 void CTexture::Unlink()
 {
-	gRenDev->m_pRT->RC_UnlinkTexture(this);
+	if (IsInDistanceSortedList())
+	{
+		s_pTextureStreamer->Unlink(this);
+	}
 }

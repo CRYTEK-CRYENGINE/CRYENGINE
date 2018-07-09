@@ -3,7 +3,6 @@
 %import "CryCommon.i"
 
 %import "CryEntitySystem.i"
-%import "CryGame.i"
 %import "CryAnimation.i"
 
 %ignore GetGameObjectExtensionRMIData;
@@ -14,17 +13,12 @@
 #include <CryEntitySystem/IEntityComponent.h>
 #include <GameObjects/GameObject.h>
 #include <ILevelSystem.h>
-#include <IActionMapManager.h>
+#include <CryAction/IActionMapManager.h>
 #include <IActorSystem.h>
 #include <IAnimatedCharacter.h>
 #include <CryAudio/Dialog/IDialogSystem.h>
 #include <CryAction/IMaterialEffects.h>
 #include <IEffectSystem.h>
-
-#include <ICryMannequinDefs.h>
-#define MannGenCRC CCrc32::ComputeLowercase
-#include <ICryMannequinTagDefs.h>
-#include <ICryMannequin.h>
 
 #include <ICheckpointSystem.h>
 #include <IAnimationGraph.h>
@@ -53,31 +47,18 @@
 #include <CryAction/ILipSyncProvider.h>
 %}
 
+%ignore IGameFrameworkEngineModule;
+
+%feature("director") IGameFrameworkListener;
+%feature("director") IGameWarningsListener;
+%feature("director") IBreakEventListener;
+%include "../../../../CryEngine/CryCommon/CryGame/IGameFramework.h"
+
 %import "../../../../CryEngine/CryCommon/CryNetwork/INetwork.h"
 
 %csconstvalue("0xFFFFFFFF") eEA_All;
 %typemap(csbase) EEntityAspects "uint"
 %ignore GameWarning;
-
-%ignore SAnimationContext::randGenerator;
-%include "../../../CryEngine/CryAction/ICryMannequinTagDefs.h"
-%extend CTagDefinition {
-		STagState<12U> GenerateMaskManaged(STagStateBase tagState){
-			return $self->GenerateMask(tagState);
-	
-	}
-}
-
-%include "../../../CryEngine/CryAction/ICryMannequin.h"
-%extend TAction {
-	static TAction* CreateSAnimationContext(int priority, int fragmentID, STagState<12U> fragTags, uint flags, ulong scopeMask, uint userToken){
-		return new TAction<SAnimationContext>(priority, fragmentID, fragTags, flags, scopeMask, userToken);
-	}
-}
-%include "../../../CryEngine/CryAction/ICryMannequinProceduralClipFactory.h"
-%include "../../../CryEngine/CryAction/ICryMannequinDefs.h"
-%template(AnimationContextActionList) TAction<SAnimationContext>;
-%template(TagState) STagState<12U>;
 
 %feature("director") ILevelSystemListener;
 %include "../../../CryEngine/CryAction/ILevelSystem.h"
@@ -87,7 +68,7 @@
 %template(IActionMapActionIteratorPtr) _smart_ptr<IActionMapActionIterator>;
 %template(IActionMapIteratorPtr) _smart_ptr<IActionMapIterator>;
 %template(IActorIteratorPtr) _smart_ptr<IActorIterator>;
-%include "../../../CryEngine/CryAction/IActionMapManager.h"
+%include "../../../CryEngine/CryCommon/CryAction/IActionMapManager.h"
 %include "../../../CryEngine/CryAction/IActorSystem.h"
 %csconstvalue("EMCMSlot.eMCMSlot_Game") eMCMSlotStack_Begin;
 %csconstvalue("EMCMSlot.eMCMSlot_Animation+1") eMCMSlotStack_End;

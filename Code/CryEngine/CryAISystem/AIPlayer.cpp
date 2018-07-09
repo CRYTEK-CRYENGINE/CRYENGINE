@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 /********************************************************************
    -------------------------------------------------------------------------
@@ -18,6 +18,7 @@
 #include "DebugDrawContext.h"
 #include "MissLocationSensor.h"
 #include "Puppet.h"
+#include "Formation/FormationManager.h"
 
 #include <CryAISystem/VisionMapTypes.h>
 
@@ -43,10 +44,12 @@ CAIPlayer::CAIPlayer()
 	, m_mercyTimer(-1.0f)
 	, m_coverExposedTime(-1.0f)
 	, m_coolMissCooldown(0.0f)
-#pragma warning(disable: 4355)
+#pragma warning(push)
+#pragma warning(disable: 4355) // 'this': used in base member initializer list
 #if ENABLE_MISSLOCATION_SENSOR
 	, m_pMissLocationSensor(new CMissLocationSensor(this))
 #endif
+#pragma warning(pop)
 {
 	_fastcast_CAIPlayer = true;
 }
@@ -108,7 +111,7 @@ void CAIPlayer::ReleaseExposedCoverObjects()
 //---------------------------------------------------------------------------------
 void CAIPlayer::AddExposedCoverObject(IPhysicalEntity* pPhysEnt)
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 	unsigned oldest = 0;
 	float oldestTime = FLT_MAX; // Count down timers, find smallest value.
@@ -149,7 +152,7 @@ void CAIPlayer::AddExposedCoverObject(IPhysicalEntity* pPhysEnt)
 //---------------------------------------------------------------------------------
 void CAIPlayer::CollectExposedCover()
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 	if (m_coverExposedTime > 0.0f)
 	{
@@ -908,7 +911,7 @@ void CAIPlayer::Event(unsigned short eType, SAIEVENT* pEvent)
 		m_bEnabled = false;
 		GetAISystem()->RemoveFromGroup(GetGroupId(), this);
 
-		GetAISystem()->ReleaseFormationPoint(this);
+		gAIEnv.pFormationManager->ReleaseFormationPoint(this);
 		ReleaseFormation();
 
 		m_State.ClearSignals();

@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "InputBlueprint.h"
@@ -172,8 +172,6 @@ namespace UQS
 
 		bool CInputBlueprint::Resolve(const ITextualInputBlueprint& sourceParent, const Client::IInputParameterRegistry& inputParamsReg, const CQueryBlueprint& queryBlueprintForGlobalParamChecking, bool bResolvingForAGenerator)
 		{
-			bool bResolveSucceeded = true;
-
 			const size_t numParamsExpected = inputParamsReg.GetParameterCount();
 			const size_t numParamsProvided = sourceParent.GetChildCount();
 
@@ -187,7 +185,7 @@ namespace UQS
 				{
 					pSE->AddErrorMessage("Incorrect number of parameters provided: expected %i, got %i", (int)numParamsExpected, (int)numParamsProvided);
 				}
-				bResolveSucceeded = false;
+				return false;
 			}
 
 			//
@@ -213,8 +211,7 @@ namespace UQS
 							pi.id.ToString(idAsFourCharacterString);
 							pSE->AddErrorMessage("Missing parameter: ID = '%s', name = '%s'", idAsFourCharacterString, pi.szName);
 						}
-						bResolveSucceeded = false;
-						continue;
+						return false;
 					}
 				}
 
@@ -237,8 +234,7 @@ namespace UQS
 							Shared::Internal::CGUIDHelper::ToString(funcGUID, guidAsString);
 							pSE->AddErrorMessage("Unknown function: GUID = %s, name = '%s'", guidAsString.c_str(), szFuncName);
 						}
-						bResolveSucceeded = false;
-						continue;   // without a function, we cannot continue parsing this child and also cannot go down deeper the call hierarchy
+						return false;
 					}
 				}
 
@@ -253,7 +249,7 @@ namespace UQS
 					{
 						pSE->AddErrorMessage("Parameter '%s' is of type '%s', but Function '%s' returns a '%s'", pi.szName, pi.type.name(), szFuncName, childReturnType.name());
 					}
-					bResolveSucceeded = false;
+					return false;
 				}
 
 				//
@@ -273,7 +269,7 @@ namespace UQS
 					{
 						pSE->AddErrorMessage("Generators cannot use functions that return the iterated item (this is only possible for evaluators)");
 					}
-					bResolveSucceeded = false;
+					return false;
 				}
 
 				//
@@ -294,7 +290,7 @@ namespace UQS
 							{
 								pSE->AddErrorMessage("This function returns items of type '%s', which mismatches the type of items to generate: '%s'", returnType.name(), typeOfItemsToGenerate.name());
 							}
-							bResolveSucceeded = false;
+							return false;
 						}
 						else
 						{
@@ -348,7 +344,7 @@ namespace UQS
 							{
 								pSE->AddErrorMessage("Return type of function '%s' (%s) mismatches the type of the global param '%s' (%s)", pNewChild->m_pFunctionFactory->GetName(), returnTypeOfFunction.name(), szNameOfGlobalParam, typeOfGlobalParam.name());
 							}
-							bResolveSucceeded = false;
+							return false;
 						}
 						else
 						{
@@ -362,7 +358,7 @@ namespace UQS
 						{
 							pSE->AddErrorMessage("Function '%s' returns an unknown global param: '%s'", pNewChild->m_pFunctionFactory->GetName(), szNameOfGlobalParam);
 						}
-						bResolveSucceeded = false;
+						return false;
 					}
 				}
 
@@ -400,7 +396,7 @@ namespace UQS
 								{
 									pSE->AddErrorMessage("Function '%s' returns a literal of type %s, but the literal could not be parsed from its archive representation: '%s'. Reason:\n%s", pNewChild->m_pFunctionFactory->GetName(), returnType.name(), szTextualRepresentationOfThatLiteral, deserializationErrorMessage.c_str());
 								}
-								bResolveSucceeded = false;
+								return false;
 							}
 
 							pItemFactoryOfReturnType->DestroyItems(pTmpItem);
@@ -414,7 +410,7 @@ namespace UQS
 							{
 								pSE->AddErrorMessage("Function '%s' is of kind ELeafFunctionKind::Literal but its return type (%s) cannot be represented in textual form", pNewChild->m_pFunctionFactory->GetName(), returnType.name());
 							}
-							bResolveSucceeded = false;
+							return false;
 						}
 					}
 				}
@@ -437,9 +433,9 @@ namespace UQS
 						{
 							if (DataSource::ISyntaxErrorCollector* pSE = pSourceChild->GetSyntaxErrorCollector())
 							{
-								pSE->AddErrorMessage("Function '%s' is of kind ELeafFunctionKind::ShuttledItems and expects the shuttled items to be of type '%s', but they are actually of type '%s'", pNewChild->m_pFunctionFactory->GetName(), pTypeOfPossiblyShuttledItems->name(), pContainedType->name());
+								pSE->AddErrorMessage("Function '%s' is of kind ELeafFunctionKind::ShuttledItems and expects the shuttled items to be of type '%s', but they are actually of type '%s'", pNewChild->m_pFunctionFactory->GetName(), pContainedType->name(), pTypeOfPossiblyShuttledItems->name());
 							}
-							bResolveSucceeded = false;
+							return false;
 						}
 						else
 						{
@@ -452,7 +448,7 @@ namespace UQS
 						{
 							pSE->AddErrorMessage("Function '%s' is of kind ELeafFunctionKind::ShuttledItems, but the query does not support shuttled items in this context", pNewChild->m_pFunctionFactory->GetName());
 						}
-						bResolveSucceeded = false;
+						return false;
 					}
 				}
 
@@ -462,11 +458,11 @@ namespace UQS
 
 				if (!pNewChild->Resolve(*pSourceChild, pNewChild->m_pFunctionFactory->GetInputParameterRegistry(), queryBlueprintForGlobalParamChecking, bResolvingForAGenerator))
 				{
-					bResolveSucceeded = false;
+					return false;
 				}
 			}
 
-			return bResolveSucceeded;
+			return true;
 		}
 
 		size_t CInputBlueprint::GetChildCount() const

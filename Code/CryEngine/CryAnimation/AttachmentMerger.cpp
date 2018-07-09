@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "stdafx.h"
 #include "AttachmentMerger.h"
@@ -349,7 +349,8 @@ void CAttachmentMerger::MergeAttachments(DynArray<_smart_ptr<SAttachmentBase>>& 
 				for (auto& mesh : pSkin->m_arrModelMeshes) // mark as resident so it cannot be streamed out
 					++mesh.m_stream.nKeepResidentRefs;
 
-				g_pCharacterManager->RegisterModelSKIN(pSkin, 0);
+				const uint32 loadingFlags = (pAttachmentManager->m_pSkelInstance->m_CharEditMode ? CA_CharEditModel : 0);
+				g_pCharacterManager->RegisterModelSKIN(pSkin, loadingFlags);
 				g_pCharacterManager->RegisterInstanceSkin(pSkin, pMergeTarget->m_pMergedSkinAttachment);
 				pMergeTarget->m_pMergedSkinAttachment->m_pModelSkin = pSkin;
 

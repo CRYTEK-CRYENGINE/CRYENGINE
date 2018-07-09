@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "QueryBlueprint.h"
@@ -231,8 +231,6 @@ namespace UQS
 
 		bool CQueryBlueprint::Resolve(const ITextualQueryBlueprint& source)
 		{
-			bool bResolveSucceeded = true;
-
 			// name
 			m_name = source.GetName();
 
@@ -251,7 +249,7 @@ namespace UQS
 							Shared::Internal::CGUIDHelper::ToString(queryFactoryGUID, guidAsString);
 							pSE->AddErrorMessage("Unknown QueryFactory: GUID = %s, name = '%s'", guidAsString.c_str(), szQueryFactoryName);
 						}
-						bResolveSucceeded = false;
+						return false;
 					}
 				}
 			}
@@ -281,7 +279,7 @@ namespace UQS
 							pSE->AddErrorMessage("Global runtime-parameter clashes with constant-parameter of the same name: '%s'", p2.szName);
 						}
 
-						bResolveSucceeded = false;
+						return false;
 					}
 				}
 			}
@@ -289,13 +287,13 @@ namespace UQS
 			// global constant-params
 			if (!m_globalConstantParams.Resolve(source.GetGlobalConstantParams()))
 			{
-				bResolveSucceeded = false;
+				return false;
 			}
 
 			// global runtime-params
 			if (!m_globalRuntimeParams.Resolve(source.GetGlobalRuntimeParams(), m_pParent))
 			{
-				bResolveSucceeded = false;
+				return false;
 			}
 
 			// generator (a generator is optional and typically never exists in composite queries)
@@ -305,7 +303,7 @@ namespace UQS
 				if (!m_pGenerator->Resolve(*pGeneratorBlueprint, *this))
 				{
 					m_pGenerator.reset();    // nullify the generator so that CInputBlueprint::Resolve() won't be tempted to use this half-baked object for further checks (and crash becuase it might be lacking a generator-factory)
-					bResolveSucceeded = false;
+					return false;
 				}
 			}
 
@@ -316,7 +314,7 @@ namespace UQS
 				m_instantEvaluators.push_back(pNewInstantEvaluatorBP);
 				if (!pNewInstantEvaluatorBP->Resolve(source.GetInstantEvaluator(i), *this))
 				{
-					bResolveSucceeded = false;
+					return false;
 				}
 			}
 
@@ -327,7 +325,7 @@ namespace UQS
 				m_deferredEvaluators.push_back(pNewDeferredEvaluatorBP);
 				if (!pNewDeferredEvaluatorBP->Resolve(source.GetDeferredEvaluator(i), *this))
 				{
-					bResolveSucceeded = false;
+					return false;
 				}
 			}
 
@@ -344,7 +342,7 @@ namespace UQS
 					{
 						pSE->AddErrorMessage("Exceeded the maximum number of instant-evaluators in the query blueprint (max %i supported, %i present in the blueprint)", UQS_MAX_EVALUATORS, (int)numInstantEvaluators);
 					}
-					bResolveSucceeded = false;
+					return false;
 				}
 			}
 
@@ -356,7 +354,7 @@ namespace UQS
 					{
 						pSE->AddErrorMessage("Exceeded the maximum number of deferred-evaluators in the query blueprint (max %i supported, %i present in the blueprint)", UQS_MAX_EVALUATORS, (int)numDeferredEvaluators);
 					}
-					bResolveSucceeded = false;
+					return false;
 				}
 			}
 
@@ -368,7 +366,7 @@ namespace UQS
 				pChildTarget->m_pParent = this;
 				m_children.push_back(pChildTarget);
 				if (!pChildTarget->Resolve(childSource))
-					bResolveSucceeded = false;
+					return false;
 			}
 
 			// if the query-factory expects to have a generator in the blueprint, then ensure that one was provided (and the other way around)
@@ -380,7 +378,7 @@ namespace UQS
 					{
 						pSE->AddErrorMessage("Query factories of type '%s' require a generator, but none is provided", m_pQueryFactory->GetName());
 					}
-					bResolveSucceeded = false;
+					return false;
 				}
 				else if (!m_pQueryFactory->RequiresGenerator() && m_pGenerator)
 				{
@@ -388,7 +386,7 @@ namespace UQS
 					{
 						pSE->AddErrorMessage("Query factories of type '%s' don't require a generator, but one was provided", m_pQueryFactory->GetName());
 					}
-					bResolveSucceeded = false;
+					return false;
 				}
 			}
 
@@ -406,7 +404,7 @@ namespace UQS
 						{
 							pSE->AddErrorMessage("Too few child queries: %i (expected at least %i)", (int)actualNumChildQueries, (int)minRequiredChildQueries);
 						}
-						bResolveSucceeded = false;
+						return false;
 					}
 				}
 
@@ -419,14 +417,12 @@ namespace UQS
 						{
 							pSE->AddErrorMessage("Too many child queries: %i (expected no more than %i)", (int)actualNumChildQueries, (int)maxAllowedChildQueries);
 						}
-						bResolveSucceeded = false;
+						return false;
 					}
 				}
 			}
 
 			// have the query-factory check that if it deals with child-queries that their output types are compatible among each other
-			// note: we do this only if the blueprint could be resolved successfully so far (it's too cumbersome to deal with potential null-pointers in all related code)
-			if (bResolveSucceeded)
 			{
 				string error;
 				size_t indexOfChildCausingTheError = 0;
@@ -439,18 +435,15 @@ namespace UQS
 					{
 						pSE->AddErrorMessage("%s", error.c_str());
 					}
-					bResolveSucceeded = false;
+					return false;
 				}
 			}
 
 			// sort the instant-evaluator blueprints by cost and evaluation modality such that their order at execution time won't change
 			// (this also helps the user to read the query history as it will show all evaluators in order of how they were executed)
-			if (bResolveSucceeded)
-			{
-				SortInstantEvaluatorBlueprintsByCostAndEvaluationModality();
-			}
+			SortInstantEvaluatorBlueprintsByCostAndEvaluationModality();
 
-			return bResolveSucceeded;
+			return true;
 		}
 
 		const CQueryBlueprint* CQueryBlueprint::GetParent() const

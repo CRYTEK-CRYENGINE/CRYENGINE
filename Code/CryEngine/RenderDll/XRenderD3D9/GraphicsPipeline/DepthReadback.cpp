@@ -1,4 +1,4 @@
-// Copyright 2001-2015 Crytek GmbH. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 // This is a direct port from legacy FX_ZTargetReadback.
 // There are still issues here, and refactoring may definitely be needed at some point.
@@ -27,7 +27,7 @@ void CDepthReadbackStage::Init()
 	EConfigurationFlags flags;
 	CTexture* const pSource = GetInputTexture(flags);
 
-	if (!CreateResources(pSource->GetWidthNonVirtual(), pSource->GetHeightNonVirtual()))
+	if (!CreateResources(pSource->GetWidth(), pSource->GetHeight()))
 	{
 		CryFatalError("Cannot create depth readback resources");
 	}
@@ -68,7 +68,7 @@ void CDepthReadbackStage::Execute()
 	ReadbackLatestData();
 
 	// Support for sampling a region (in the top-left) of the source texture.
-	const Vec2 downscaleFactor = gcpRendD3D->m_RP.m_CurDownscaleFactor;
+	const Vec2& downscaleFactor = gRenDev->GetRenderQuality().downscaleFactor;
 	const float sampledWidth = std::floorf((float)sourceWidth * downscaleFactor.x);
 	const float sampledHeight = std::floorf((float)sourceHeight * downscaleFactor.y);
 
@@ -101,14 +101,12 @@ bool CDepthReadbackStage::IsReadbackRequired()
 CTexture* CDepthReadbackStage::GetInputTexture(EConfigurationFlags& flags)
 {
 	CD3D9Renderer* const __restrict rd = gcpRendD3D;
-	SRenderPipeline& rp(rd->m_RP);
-	const threadID tid(rp.m_nProcessThreadID);
-	const SThreadInfo& ti(rp.m_TI[tid]);
 
+	const auto pRenderView = RenderView();
 	const bool bMultiResEnabled = CVrProjectionManager::IsMultiResEnabledStatic();
-	const bool bUseNativeDepth = CRenderer::CV_r_CBufferUseNativeDepth && !bMultiResEnabled && !gEnv->IsEditor();
-	const bool bReverseDepth = (ti.m_PersFlags & RBPF_REVERSE_DEPTH) != 0;
-	const bool bMSAA = bUseNativeDepth && rp.m_MSAAData.Type != 0;
+	const bool bUseNativeDepth = pRenderView && CRenderer::CV_r_CBufferUseNativeDepth && !bMultiResEnabled && !gEnv->IsEditor();
+	const bool bReverseDepth = true;
+	const bool bMSAA = bUseNativeDepth && gRenDev->IsMSAAEnabled();
 
 	int allFlags = bMultiResEnabled ? kMultiRes : kNone;
 	allFlags |= bReverseDepth ? kReverseDepth : kNone;
@@ -117,9 +115,9 @@ CTexture* CDepthReadbackStage::GetInputTexture(EConfigurationFlags& flags)
 	flags = static_cast<EConfigurationFlags>(allFlags);
 
 	return
-	  bUseNativeDepth ? rd->m_DepthBufferOrig.pTexture
+	  bUseNativeDepth ? pRenderView->GetDepthTarget()
 	  : bMultiResEnabled ? CVrProjectionManager::Instance()->GetZTargetFlattened()
-	  : CTexture::s_ptexZTarget;
+	  : CRendererResources::s_ptexLinearDepth;
 }
 
 bool CDepthReadbackStage::CreateResources(uint32 sourceWidth, uint32 sourceHeight)
@@ -138,21 +136,21 @@ bool CDepthReadbackStage::CreateResources(uint32 sourceWidth, uint32 sourceHeigh
 	for (uint32 i = 0; i < m_downsamplePassCount && !bFailed; ++i)
 	{
 		const uint32 downsampleIndex = i + (kMaxDownsamplePasses - m_downsamplePassCount);
-		CTexture* const pTarget = CTexture::s_ptexZTargetDownSample[downsampleIndex];
+		CTexture* const pTarget = CRendererResources::s_ptexLinearDepthDownSample[downsampleIndex];
 		CRY_ASSERT(pTarget && "Z Downsample target should already exist");
 
 		// Ensure the intermediate textures are never larger than the source image
 		const uint32 width = CULL_SIZEX << std::min(m_downsamplePassCount - i, downSampleX);
 		const uint32 height = CULL_SIZEY << std::min(m_downsamplePassCount - i, downSampleY);
 
-		if (!pTarget->GetDevTexture() || pTarget->GetWidthNonVirtual() != width || pTarget->GetHeightNonVirtual() != height)
+		if (!pTarget->GetDevTexture() || pTarget->GetWidth() != width || pTarget->GetHeight() != height)
 		{
 			const uint32 downsampleFlags = FT_DONT_STREAM | FT_DONT_RELEASE;
 
 			pTarget->SetFlags(downsampleFlags);
 			pTarget->SetWidth(width);
 			pTarget->SetHeight(height);
-			bFailed |= !pTarget->CreateRenderTarget(CTexture::s_eTFZ, Clr_Unused);
+			bFailed |= !pTarget->CreateRenderTarget(CRendererResources::s_eTFZ, Clr_Unused);
 		}
 	}
 
@@ -160,7 +158,7 @@ bool CDepthReadbackStage::CreateResources(uint32 sourceWidth, uint32 sourceHeigh
 	for (uint32 i = m_downsamplePassCount; i < kMaxDownsamplePasses; ++i)
 	{
 		const uint32 downsampleIndex = i - m_downsamplePassCount;
-		CTexture* const pTarget = CTexture::s_ptexZTargetDownSample[downsampleIndex];
+		CTexture* const pTarget = CRendererResources::s_ptexLinearDepthDownSample[downsampleIndex];
 		CRY_ASSERT(pTarget && "Z Downsample target should already exist");
 
 		if (pTarget->GetDevTexture())
@@ -174,7 +172,7 @@ bool CDepthReadbackStage::CreateResources(uint32 sourceWidth, uint32 sourceHeigh
 	for (uint32 i = 0; i < kMaxReadbackPasses && !bFailed; ++i)
 	{
 		const uint32 readbackIndex = i;
-		CTexture* const pTarget = CTexture::s_ptexZTargetReadBack[readbackIndex];
+		CTexture* const pTarget = CRendererResources::s_ptexLinearDepthReadBack[readbackIndex];
 		CRY_ASSERT(pTarget && "Z Readback target should already exist");
 
 		if (pTarget->GetDevTexture())
@@ -184,7 +182,7 @@ bool CDepthReadbackStage::CreateResources(uint32 sourceWidth, uint32 sourceHeigh
 				m_readback[readbackIndex].bCompleted = pTarget->GetDevTexture()->AccessCurrStagingResource(0, false);
 		}
 
-		if (!pTarget->GetDevTexture() || pTarget->GetWidthNonVirtual() != CULL_SIZEX || pTarget->GetHeightNonVirtual() != CULL_SIZEY)
+		if (!pTarget->GetDevTexture() || pTarget->GetWidth() != CULL_SIZEX || pTarget->GetHeight() != CULL_SIZEY)
 		{
 			const uint32 readbackFlags = FT_DONT_STREAM | FT_DONT_RELEASE | FT_STAGE_READBACK;
 
@@ -219,12 +217,12 @@ void CDepthReadbackStage::ReleaseResources()
 {
 	if (m_resourceWidth != 0 || m_resourceHeight != 0)
 	{
-		for (auto* pTexReadback : CTexture::s_ptexZTargetReadBack)
+		for (auto* pTexReadback : CRendererResources::s_ptexLinearDepthReadBack)
 		{
 			pTexReadback->ReleaseDeviceTexture(false);
 		}
 
-		for (auto* pTexDownsample : CTexture::s_ptexZTargetDownSample)
+		for (auto* pTexDownsample : CRendererResources::s_ptexLinearDepthDownSample)
 		{
 			pTexDownsample->ReleaseDeviceTexture(false);
 		}
@@ -263,7 +261,7 @@ void CDepthReadbackStage::ConfigurePasses(CTexture* pSource, EConfigurationFlags
 		{
 			// Simple shader only has PS constants, and expects full-screen triangle
 			pass.SetPrimitiveFlags(CRenderPrimitive::eFlags_ReflectShaderConstants_PS);
-			pass.SetPrimitiveType(CRenderPrimitive::ePrim_Triangle);
+			pass.SetPrimitiveType(CRenderPrimitive::ePrim_ProceduralTriangle);
 			pass.SetTechnique(CShaderMan::s_shPostEffects, techniqueNameSimple, rtFlags);
 		}
 	};
@@ -282,7 +280,7 @@ void CDepthReadbackStage::ConfigurePasses(CTexture* pSource, EConfigurationFlags
 	for (uint32 i = kMaxDownsamplePasses - m_downsamplePassCount; i < kMaxDownsamplePasses; ++i)
 	{
 		CFullscreenPass& pass = m_downsamplePass[i];
-		CTexture* const pTarget = CTexture::s_ptexZTargetDownSample[i];
+		CTexture* const pTarget = CRendererResources::s_ptexLinearDepthDownSample[i];
 
 		configurePass(pass, pSource, pTarget, bInitial, rtFlags);
 
@@ -297,7 +295,7 @@ void CDepthReadbackStage::ConfigurePasses(CTexture* pSource, EConfigurationFlags
 	for (uint32 i = 0; i < kMaxReadbackPasses; ++i)
 	{
 		CFullscreenPass& pass = m_readback[i].pass;
-		CTexture* const pTarget = CTexture::s_ptexZTargetReadBack[i];
+		CTexture* const pTarget = CRendererResources::s_ptexLinearDepthReadBack[i];
 
 		configurePass(pass, pSource, pTarget, bInitial, rtFlags);
 	}
@@ -322,7 +320,7 @@ void CDepthReadbackStage::ExecutePasses(float sourceWidth, float sourceHeight, f
 		{
 			const float right = sampledWidth / sourceWidth;
 			const float bottom = sampledHeight / sourceHeight;
-			const Vec4 vsParams(0.0f, 1.0f, right, -bottom);
+			const Vec4 vsParams(0.0f, 0.0f, right, bottom);
 			pass.SetConstant(vsParamName, vsParams, eHWSC_Vertex);
 		}
 
@@ -333,7 +331,12 @@ void CDepthReadbackStage::ExecutePasses(float sourceWidth, float sourceHeight, f
 		pass.SetConstant(psParam0Name, psParams0, eHWSC_Pixel);
 		pass.SetConstant(psParam1Name, psParams1, eHWSC_Pixel);
 
+		if (pass.IsDirty())
+			return false;
+
 		pass.Execute();
+
+		return true;
 	};
 
 	// Issue downsample
@@ -341,19 +344,22 @@ void CDepthReadbackStage::ExecutePasses(float sourceWidth, float sourceHeight, f
 	for (uint32 i = kMaxDownsamplePasses - m_downsamplePassCount; i < kMaxDownsamplePasses; ++i)
 	{
 		CFullscreenPass& pass = m_downsamplePass[i];
-		CTexture* const pTarget = CTexture::s_ptexZTargetDownSample[i];
+		CTexture* const pTarget = CRendererResources::s_ptexLinearDepthDownSample[i];
 
-		executePass(pass, bInitial, sourceWidth, sourceHeight);
+		// If a pass is invalid, stop the downsample.
+		// This avoids reading-back invalid depth data.
+		if (!executePass(pass, bInitial, sourceWidth, sourceHeight))
+			return;
 
 		bInitial = false;
-		sourceWidth = (float)pTarget->GetWidthNonVirtual();
-		sourceHeight = (float)pTarget->GetHeightNonVirtual();
+		sourceWidth = (float)pTarget->GetWidth();
+		sourceHeight = (float)pTarget->GetHeight();
 	}
 
 	// Issue readback
 	const uint32 readbackIndex = m_readbackIndex % kMaxReadbackPasses;
 	++m_readbackIndex;
-	CTexture* const pTarget = CTexture::s_ptexZTargetReadBack[readbackIndex];
+	CTexture* const pTarget = CRendererResources::s_ptexLinearDepthReadBack[readbackIndex];
 	SReadback& readback = m_readback[readbackIndex];
 	CFullscreenPass& pass = readback.pass;
 	executePass(pass, bInitial, sourceWidth, sourceHeight);
@@ -362,23 +368,25 @@ void CDepthReadbackStage::ExecutePasses(float sourceWidth, float sourceHeight, f
 	readback.bCompleted =    pTarget->GetDevTexture()->AccessCurrStagingResource(0, false);
 	readback.bReceived = false;
 	
+	const auto& viewInfo = GetCurrentViewInfo();
 	// Associate the information of this frame with the readback.
-	Matrix44 modelView, proj;
-	gcpRendD3D->GetModelViewMatrix(&modelView.m00);
-	gcpRendD3D->GetProjectionMatrix(&proj.m00);
-	auto& camera = gcpRendD3D->GetRCamera();
+	Matrix44 modelView = viewInfo.viewMatrix;
+	Matrix44 proj = viewInfo.projMatrix;
+
 	readback.flags = m_resourceFlags;
 	if (readback.flags & kReverseDepth)
 	{
 		proj = ReverseDepthHelper::Convert(proj);
 	}
 	readback.camera = modelView * proj;
-	readback.zNear = camera.fNear;
-	readback.zFar = camera.fFar;
+	readback.zNear = viewInfo.nearClipPlane;
+	readback.zFar = viewInfo.farClipPlane;
 }
 
 void CDepthReadbackStage::ReadbackLatestData()
 {
+	CRY_PROFILE_REGION(PROFILE_RENDERER, "CDepthReadbackStage::ReadbackLatestData");
+
 	// Determine the last completed readback.
 	const uint32 oldestReadback = m_readbackIndex % kMaxReadbackPasses;
 	uint32 receivableIndex = kMaxReadbackPasses;
@@ -386,7 +394,7 @@ void CDepthReadbackStage::ReadbackLatestData()
 	{
 		const uint32 readbackIndex = (oldestReadback - i - 1) % kMaxReadbackPasses;
 		const bool bOldest = oldestReadback == readbackIndex;
-		CTexture* const pTarget = CTexture::s_ptexZTargetReadBack[readbackIndex];
+		CTexture* const pTarget = CRendererResources::s_ptexLinearDepthReadBack[readbackIndex];
 		SReadback& readback = m_readback[readbackIndex];
 
 		if (readback.bIssued && !readback.bCompleted)
@@ -429,7 +437,7 @@ void CDepthReadbackStage::ReadbackLatestData()
 
 	SResult& result = m_result[reservedIndex];
 	SReadback& readback = m_readback[receivableIndex];
-	CDeviceTexture* const pReadback = CTexture::s_ptexZTargetReadBack[receivableIndex]->GetDevTexture();
+	CDeviceTexture* const pReadback = CRendererResources::s_ptexLinearDepthReadBack[receivableIndex]->GetDevTexture();
 	CRY_ASSERT(readback.bIssued == true);
 
 	const auto readbackData = [&readback, &result](void* pData, uint32 rowPitch, uint32 slicePitch) -> bool

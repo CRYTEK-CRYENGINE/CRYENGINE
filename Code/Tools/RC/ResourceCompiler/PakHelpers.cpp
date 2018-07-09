@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "stdafx.h"
 #include "PakHelpers.h"
@@ -6,6 +6,7 @@
 #include "PathHelpers.h"
 #include "StringHelpers.h"
 #include <CryString/StringUtils.h>
+#include <CryString/CryPath.h>
 #include "FileUtil.h"
 #include "IRCLog.h"
 
@@ -82,7 +83,7 @@ bool PakHelpers::PakEntry::MakeSortableStreamingSuffix(const string& suffix, str
 
 string PakHelpers::PakEntry::GetRealFilename() const
 {
-	const string sRealFilename = PathHelpers::Join(m_rcFile.m_sourceLeftPath, 
+	const string sRealFilename = PathUtil::Make(m_rcFile.m_sourceLeftPath, 
 		m_rcFile.m_sourceInnerPathAndName);
 	return sRealFilename;
 }
@@ -139,7 +140,7 @@ string PakHelpers::PakEntry::GetNameWithoutExtension(bool bFilenameOnly) const
 
 	if (bFilenameOnly)
 	{
-		name = PathHelpers::GetFilename(name);
+		name = PathUtil::GetFile(name);
 	}
 
 	size_t splitter = name.find_last_of('.');
@@ -191,7 +192,7 @@ string PakHelpers::PakEntry::GetDirnameWithoutFile(bool bRootdirOnly) const
 
 PakHelpers::ETextureType PakHelpers::PakEntry::GetTextureType() const
 {
-	const string sLowerCaseName = StringHelpers::MakeLowerCase(PathHelpers::RemoveExtension(m_rcFile.m_sourceInnerPathAndName));
+	const string sLowerCaseName = StringHelpers::MakeLowerCase(PathUtil::RemoveExtension(m_rcFile.m_sourceInnerPathAndName));
 	if (StringHelpers::EndsWith(sLowerCaseName, "_diff"))
 	{
 		return eTextureType_Diffuse;
@@ -263,8 +264,8 @@ namespace
 				}
 
 				// then sort by name
-				const string& shortNameA = PathHelpers::Join(left.m_innerDir, left.m_baseName);
-				const string& shortNameB = PathHelpers::Join(right.m_innerDir, right.m_baseName);
+				const string& shortNameA = PathUtil::Make(left.m_innerDir, left.m_baseName);
+				const string& shortNameB = PathUtil::Make(right.m_innerDir, right.m_baseName);
 				res = StringHelpers::CompareIgnoreCase(shortNameA, shortNameB);
 				if (res != 0)
 				{
@@ -375,7 +376,7 @@ size_t PakHelpers::CreatePakEntryList(
 	PakHelpers::ESplitType eSplitType,
 	const string& sPakName)
 {
-	const string sPakBase = PathHelpers::RemoveExtension(PathHelpers::GetFilename(sPakName));
+	const string sPakBase = PathUtil::RemoveExtension(PathUtil::GetFile(sPakName));
 	string sPakDir;
 	size_t entryCount = 0;
 
@@ -387,9 +388,9 @@ size_t PakHelpers::CreatePakEntryList(
 
 		PakEntry entry;
 		entry.m_rcFile = file;
-		entry.m_rcFile.m_sourceLeftPath = PathHelpers::ToDosPath(file.m_sourceLeftPath);
-		entry.m_rcFile.m_sourceInnerPathAndName = PathHelpers::ToDosPath(file.m_sourceInnerPathAndName);
-		entry.m_rcFile.m_targetLeftPath = PathHelpers::ToDosPath(file.m_targetLeftPath);
+		entry.m_rcFile.m_sourceLeftPath = PathUtil::ToDosPath(file.m_sourceLeftPath);
+		entry.m_rcFile.m_sourceInnerPathAndName = PathUtil::ToDosPath(file.m_sourceInnerPathAndName);
+		entry.m_rcFile.m_targetLeftPath = PathUtil::ToDosPath(file.m_targetLeftPath);
 
 		// cache values used for fast sorting
 		entry.m_streamingSuffix = entry.GetStreamingSuffix();
@@ -412,7 +413,7 @@ size_t PakHelpers::CreatePakEntryList(
 
 						if (entry.MakeSortableStreamingSuffix(szPlainSuffix, &szIncrementedSuffix, 0, 1))
 						{
-							const string tmpFilename = PathHelpers::Join(file.m_sourceLeftPath, 
+							const string tmpFilename = PathUtil::Make(file.m_sourceLeftPath, 
 								entry.m_innerDir + "\\" + entry.m_baseName + "." + entry.m_extension + "." + szIncrementedSuffix);
 
 							entry.m_bIsLastMip = !FileUtil::FileExists(tmpFilename);
@@ -443,7 +444,7 @@ size_t PakHelpers::CreatePakEntryList(
 			// filter files without suffices > 0 into different pak
 			if (!entry.m_streamingSuffix.empty())
 			{
-				const string tmpFilename = PathHelpers::Join(file.m_sourceLeftPath, 
+				const string tmpFilename = PathUtil::Make(file.m_sourceLeftPath, 
 					entry.m_innerDir + "\\" + entry.m_baseName + "." + entry.m_extension + ".1");
 
 				if (!FileUtil::FileExists(tmpFilename))

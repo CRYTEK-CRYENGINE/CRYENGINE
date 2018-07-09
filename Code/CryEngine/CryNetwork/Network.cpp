@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "Network.h"
@@ -469,7 +469,7 @@ bool CNetwork::CNetworkConnectivityDetection::HasNetworkConnectivity()
 
 void CNetwork::CNetworkConnectivityDetection::DetectNetworkConnectivity()
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_NETWORK);
+	CRY_PROFILE_FUNCTION(PROFILE_NETWORK);
 
 	std::vector<string> warnings;
 	bool hadNetworkConnectivity = m_hasNetworkConnectivity;
@@ -998,7 +998,7 @@ void CNetwork::SyncWithGame(ENetworkGameSync type)
 	static CThreadProfilerEvent evt_start("net_startframe");
 	CThreadProfilerEvent::Instance show_evt_start(evt_start, type == eNGS_FrameStart);
 
-	FUNCTION_PROFILER(GetISystem(), PROFILE_NETWORK);
+	CRY_PROFILE_FUNCTION(PROFILE_NETWORK);
 
 #if _DEBUG && defined(USER_craig)
 	//SCOPED_ENABLE_FLOAT_EXCEPTIONS;
@@ -1145,7 +1145,7 @@ void CNetwork::DoSyncWithGame(ENetworkGameSync type)
 	case eNGS_FrameStart:
 		{
 			PerformanceGuard guard(&m_networkPerformance, 0);
-			FRAME_PROFILER("Network:FrameStart", gEnv->pSystem, PROFILE_NETWORK);
+			CRY_PROFILE_REGION(PROFILE_NETWORK, "Network:FrameStart");
 			if (gEnv->IsDedicated())
 				g_pFileDownloader->Update();
 			if (!gEnv->IsEditor())
@@ -1190,7 +1190,7 @@ void CNetwork::DoSyncWithGame(ENetworkGameSync type)
 		break;
 	case eNGS_FrameEnd:
 		{
-			FRAME_PROFILER("Network:FrameEnd", gEnv->pSystem, PROFILE_NETWORK);
+		CRY_PROFILE_REGION(PROFILE_NETWORK, "Network:FrameEnd");
 			PerformanceGuard guard(&m_networkPerformance, m_networkPerformance.m_nNetworkSync);
 
 			//NetQuickLog( gEnv->IsDedicated(), 0, "locks/frame: %d", g_lockCount );
@@ -1303,7 +1303,7 @@ void CNetwork::DoSyncWithGame(ENetworkGameSync type)
 
 void CNetwork::UpdateLoop(ENetworkGameSync type)
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_NETWORK);
+	CRY_PROFILE_FUNCTION(PROFILE_NETWORK);
 
 	if (type == eNGS_Shutdown)
 	{
@@ -1446,7 +1446,7 @@ CNetwork::eTickReturnState CNetwork::DoMainTick(bool mt)
 
 	if (isLocked)
 	{
-		FUNCTION_PROFILER(gEnv->pSystem, PROFILE_NETWORK);
+		CRY_PROFILE_FUNCTION(PROFILE_NETWORK);
 
 		if (m_bDelayedExternalWork)
 		{

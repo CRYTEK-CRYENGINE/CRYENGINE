@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "stdafx.h"
 #include "SkeletonAnim.h"
@@ -31,11 +31,16 @@ void CSkeletonAnim::SetDesiredMotionParam(EMotionParamID nParameterID, float fPa
 				if (lmg.m_MotionParameterID[d] == nParameterID)
 				{
 					const uint32 locked = (lmg.m_MotionParameterFlags[d] & CA_Dim_LockedParameter);
-					const uint32 init = lmg.m_MotionParameterFlags[d] & CA_Dim_Initialized;
+					const uint32 init   = lmg.m_MotionParameterFlags[d] & CA_Dim_Initialized;
 					if (init == 0 || (locked == 0 && blendingOut == 0)) //if already initialized and locked or blending out, then we can't change the parameter any more
 					{
-						lmg.m_MotionParameter[d] = fParameter;
-						lmg.m_MotionParameterFlags[d] |= CA_Dim_Initialized;
+						lmg.m_MotionParameter[d]                 = fParameter;
+						lmg.m_MotionParameterForNextIteration[d] = fParameter;
+						lmg.m_MotionParameterFlags[d]           |= CA_Dim_Initialized;
+					}
+					if (locked)
+					{
+						lmg.m_MotionParameterForNextIteration[d] = fParameter;
 					}
 				}
 			}

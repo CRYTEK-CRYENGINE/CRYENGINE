@@ -58,6 +58,7 @@ target_compile_definitions(${THIS_PROJECT} PRIVATE -DWIN32)
 target_include_directories(${THIS_PROJECT} PRIVATE "${SHIBOKEN_INCLUDE_PATH}" "${PYSIDE_INCLUDE_PATH}" "${PYSIDE_INCLUDE_PATH}/QtGui" "${PYSIDE_INCLUDE_PATH}/QtCore" "${PYSIDE_INCLUDE_PATH}/QtWidgets" "${QT_INCLUDE_PATH}/QtANGLE")
 target_link_libraries(${THIS_PROJECT} PRIVATE dwmapi gdi32 Ole32 qtmain$<$<CONFIG:Debug>:d>)
 target_link_libraries(${THIS_PROJECT} PRIVATE CryQt)
+set_property(TARGET ${THIS_PROJECT} PROPERTY EXCLUDE_FROM_DEFAULT_BUILD_RELEASE TRUE)
 
 target_link_libraries(${THIS_PROJECT} PRIVATE python27)
 
@@ -106,3 +107,4 @@ endif()
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /EHsc")
 
 add_custom_command(TARGET ${THIS_PROJECT} POST_BUILD COMMAND "${CMAKE_COMMAND}" -E copy "\"${CMAKE_CURRENT_SOURCE_DIR}/CryQt.py\"" "\"$<TARGET_FILE_DIR:${THIS_PROJECT}>\"")
+

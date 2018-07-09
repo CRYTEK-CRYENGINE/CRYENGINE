@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "GdiUtil.h"
@@ -761,3 +761,4 @@ bool GradientFillRect(HDC hDC, CRect& rRect, COLORREF aStartColor, COLORREF aEnd
 
 	return TRUE == GradientFill(hDC, vert, 2, &gRect, 1, aFillType);
 }
+

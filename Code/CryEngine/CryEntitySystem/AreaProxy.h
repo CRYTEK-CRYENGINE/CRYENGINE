@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -25,16 +25,16 @@ public:
 	//////////////////////////////////////////////////////////////////////////
 	// IEntityComponent interface implementation.
 	//////////////////////////////////////////////////////////////////////////
-	virtual void Initialize() override;
-	virtual void ProcessEvent(SEntityEvent& event) override;
+	virtual void   Initialize() override;
+	virtual void   ProcessEvent(const SEntityEvent& event) override;
 	virtual uint64 GetEventMask() const final;
 	//////////////////////////////////////////////////////////////////////////
 
 	//////////////////////////////////////////////////////////////////////////
 	// IEntityComponent interface implementation.
 	//////////////////////////////////////////////////////////////////////////
-	virtual EEntityProxy GetProxyType() const override                                    { return ENTITY_PROXY_AREA; }
-	virtual void         Release() final { delete this; };
+	virtual EEntityProxy GetProxyType() const override { return ENTITY_PROXY_AREA; }
+	virtual void         Release() final               { delete this; };
 	virtual void         LegacySerializeXML(XmlNodeRef& entityNode, XmlNodeRef& componentNode, bool bLoading) override;
 	virtual void         GameSerialize(TSerialize ser) override;
 	virtual bool         NeedGameSerialize() override { return false; }
@@ -47,8 +47,9 @@ public:
 	virtual int             GetFlags() override                    { return m_nFlags; }
 
 	virtual EEntityAreaType GetAreaType() const override           { return m_pArea->GetAreaType(); }
+	virtual IArea*          GetArea() const override               { return m_pArea; }
 
-	virtual void            SetPoints(Vec3 const* const pPoints, bool const* const pSoundObstructionSegments, size_t const numLocalPoints, float const height) override;
+	virtual void            SetPoints(Vec3 const* const pPoints, bool const* const pSoundObstructionSegments, size_t const numLocalPoints, bool const bClosed, float const height) override;
 	virtual void            SetBox(const Vec3& min, const Vec3& max, const bool* const pabSoundObstructionSides, size_t const nSideCount) override;
 	virtual void            SetSphere(const Vec3& center, float fRadius) override;
 
@@ -115,7 +116,7 @@ private:
 	static std::vector<Vec3> s_tmpWorldPoints;
 
 private:
-	int      m_nFlags;
+	int m_nFlags;
 
 	typedef std::vector<bool> tSoundObstruction;
 
@@ -128,7 +129,7 @@ private:
 	float                                    m_fGravity;
 	float                                    m_fFalloff;
 	float                                    m_fDamping;
-	float                                    m_bDontDisableInvisible;
+	bool                                     m_bDontDisableInvisible;
 
 	pe_params_area                           m_gravityParams;
 

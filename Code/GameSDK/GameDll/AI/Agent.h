@@ -1,17 +1,17 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
 #ifndef Agent_h
-#define Agent_h
+	#define Agent_h
 
-#include <CryAISystem/IAgent.h>
-#include <CryAISystem/IAIActorProxy.h>
-#include <CryEntitySystem/IEntity.h>
-#include <CryAISystem/IAIActor.h>
-#include <CryAISystem/IAIObject.h>
-#include <CryMath/Cry_Vector3.h>
-#include <CryAnimation/ICryAnimation.h>
+	#include <CryAISystem/IAgent.h>
+	#include <CryAISystem/IAIActorProxy.h>
+	#include <CryEntitySystem/IEntity.h>
+	#include <CryAISystem/IAIActor.h>
+	#include <CryAISystem/IAIObject.h>
+	#include <CryMath/Cry_Vector3.h>
+	#include <CryAnimation/ICryAnimation.h>
 
 struct VisionID;
 struct IAnimationGraphState;
@@ -56,7 +56,6 @@ public:
 		}
 	}
 
-
 	void SetFrom(IAIObject* pAIObject)
 	{
 		if (IAIActor* pAIActor = pAIObject->CastToIAIActor())
@@ -95,7 +94,7 @@ public:
 		return m_pAIObject->GetEntity()->GetWorldPos();
 	}
 
-	const Vec3& GetEntityForwardDir() const
+	Vec3 GetEntityForwardDir() const
 	{
 		return m_pAIObject->GetEntity()->GetForwardDir();
 	}
@@ -142,10 +141,10 @@ public:
 		return m_pAIActor->CanSee(otherAgent.GetVisionID());
 	}
 
- 	EntityId GetEntityID() const
- 	{
- 		return m_pAIObject->GetEntityID();
- 	}
+	EntityId GetEntityID() const
+	{
+		return m_pAIObject->GetEntityID();
+	}
 
 	bool IsValid() const
 	{
@@ -234,12 +233,12 @@ public:
 		return m_pAIActor->GetPhysicalSkipEntities(skipList);
 	}
 
-	operator bool () const
+	operator bool() const
 	{
 		return IsValid();
 	}
 
-	const Agent& operator = (const Agent& rhs)
+	const Agent& operator=(const Agent& rhs)
 	{
 		m_pAIObject = rhs.m_pAIObject;
 		m_pAIActor = rhs.m_pAIActor;
@@ -289,16 +288,15 @@ public:
 		return m_pAIObject->GetEntity()->GetScriptTable();
 	}
 
-	const Matrix34& GetTransform() const
+	Matrix34 GetTransform() const
 	{
 		return GetEntity()->GetSlotWorldTM(0);
 	}
 
-
-	bool IsDead() const;
-	bool IsHidden() const;
+	bool          IsDead() const;
+	bool          IsHidden() const;
 	const IActor* GetActor() const;
-	IActor* GetActor()
+	IActor*       GetActor()
 	{
 		return g_pGame->GetIGameFramework()->GetIActorSystem()->GetActor(GetEntityID());
 	}
@@ -317,7 +315,7 @@ private:
 	Agent() {}
 
 	IAIObject* m_pAIObject;
-	IAIActor* m_pAIActor;
+	IAIActor*  m_pAIActor;
 };
 
 inline float SquaredDistance(const Agent& agentA, const Agent& agentB)
@@ -325,6 +323,6 @@ inline float SquaredDistance(const Agent& agentA, const Agent& agentB)
 	return agentA.GetPos().GetSquaredDistance(agentB.GetPos());
 }
 
-#include "Agent.inl"
+	#include "Agent.inl"
 
 #endif // Agent_h

@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #ifndef _IRENDERAUXGEOM_H_
 #define _IRENDERAUXGEOM_H_
@@ -8,6 +8,7 @@
 #endif // _MSC_VER > 1000
 
 struct SAuxGeomRenderFlags;
+struct SRender2DImageDescription;
 
 #include "IRenderer.h"
 
@@ -26,10 +27,17 @@ struct IRenderAuxGeom
 	virtual ~IRenderAuxGeom(){}
 
 	//! Sets render flags.
-	virtual void SetRenderFlags(const SAuxGeomRenderFlags& renderFlags) = 0;
+	//! \return Previously set render flags
+	virtual SAuxGeomRenderFlags SetRenderFlags(const SAuxGeomRenderFlags& renderFlags) = 0;
 
 	//! Gets render flags.
 	virtual SAuxGeomRenderFlags GetRenderFlags() = 0;
+
+	//! Assign current rendering camera to the Aux renderer, used for correctly projecting 3D elements
+	virtual const CCamera&      GetCamera() const = 0;
+
+	//! Set current display context for the following auxiliary rendering.
+	virtual void SetCurrentDisplayContext(const SDisplayContextKey& displayContextKey) = 0;
 
 	// 2D/3D rendering functions.
 
@@ -58,9 +66,9 @@ struct IRenderAuxGeom
 	virtual void DrawLine(const Vec3& v0, const ColorB& colV0, const Vec3& v1, const ColorB& colV1, float thickness = 1.0f) = 0;
 
 	//! Draw n lines.
-	//! \param v          List of vertexes belonging to the lines we want to draw.
+	//! \param v          List of vertices belonging to the lines we want to draw.
 	//! \param numPoints  Number of the points we will find starting from the area memory defined by v.
-	//! \param col        Color of the vertexes.
+	//! \param col        Color of the vertices.
 	//! \param thickness  Thickness of the line.
 	//! ##@{
 	virtual void DrawLines(const Vec3* v, uint32 numPoints, const ColorB& col, float thickness = 1.0f) = 0;
@@ -68,22 +76,41 @@ struct IRenderAuxGeom
 	//! ##@}
 
 	//! Draw n lines.
-	//! \param v          List of vertexes belonging to the lines we want to draw.
+	//! \param v            List of vertices belonging to the lines we want to draw.
+	//! \param packedColor  List of colors belonging to each vertex we want to draw. Packed into one uint32 via ARGB8888. Is of same length as v (i.e., numPoints).
+	//! \param numPoints    Number of the points we will find starting from the area memory defined by v.
+	//! \param thickness    Thickness of the line.
+	//! \param alphaFlag    Enable/disable transparency.
+	//! ##@{
+	virtual void DrawLines(const Vec3* v, const uint32* packedColorARGB8888, uint32 numPoints, float thickness = 1.0f, bool alphaFlag = true) = 0;
+	//! ##@}
+
+	//! Draw n lines.
+	//! \param v          List of vertices belonging to the lines we want to draw.
 	//! \param numPoints  Number of the points we will find starting from the area memory defined by v.
 	//! \param ind
 	//! \param numIndices
-	//! \param col        Color of the vertexes.
+	//! \param col        Color of the vertices.
 	//! \param thickness  Thickness of the line.
 	//! ##@{
 	virtual void DrawLines(const Vec3* v, uint32 numPoints, const vtx_idx* ind, uint32 numIndices, const ColorB& col, float thickness = 1.0f) = 0;
 	virtual void DrawLines(const Vec3* v, uint32 numPoints, const vtx_idx* ind, uint32 numIndices, const ColorB* col, float thickness = 1.0f) = 0;
 	//! ##@}
 
+	//! Draw n line strips.
+	//! \param v          List of vertices belonging to the line strip we want to draw.
+	//! \param numPoints  Number of the points we will find starting from the area memory defined by v.
+	//! \param col        Color of the vertices.
+	//! \param thickness  Thickness of the line.
+	//! ##@{
+	virtual void DrawLineStrip(const Vec3* v, uint32 numPoints, const ColorB* col, float thickness = 1.0f) = 0;
+	//! ##@}
+
 	//! Draw a polyline.
-	//! \param v          List of vertexes belonging to the polyline we want to draw.
+	//! \param v          List of vertices belonging to the polyline we want to draw.
 	//! \param numPoints  Number of the points we will find starting from the area memory defined by v.
 	//! \param closed     If true a line between the last vertex and the first one is drawn.
-	//! \param col        Color of the vertexes.
+	//! \param col        Color of the vertices.
 	//! \param thickness  Thickness of the line.
 	//! ##@{
 	virtual void DrawPolyline(const Vec3* v, uint32 numPoints, bool closed, const ColorB& col, float thickness = 1.0f) = 0;
@@ -100,26 +127,45 @@ struct IRenderAuxGeom
 	virtual void DrawTriangle(const Vec3& v0, const ColorB& colV0, const Vec3& v1, const ColorB& colV1, const Vec3& v2, const ColorB& colV2) = 0;
 
 	//! Draw n triangles.
-	//! \param v			List of vertexes belonging to the sequence of triangles we have to draw.
+	//! \param v			List of vertices belonging to the sequence of triangles we have to draw.
 	//! \param numPoints	Number of the points we will find starting from the area memory defined by v.
-	//! \param col			Color of the vertexes.
+	//! \param col			Color of the vertices.
 	//! ##@{
 	virtual void DrawTriangles(const Vec3* v, uint32 numPoints, const ColorB& col) = 0;
 	virtual void DrawTriangles(const Vec3* v, uint32 numPoints, const ColorB* col) = 0;
 	//! ##@}
 
 	//! Draw n triangles.
-	//! \param v			List of vertexes belonging to the sequence of triangles we have to draw.
+	//! \param v			List of vertices belonging to the sequence of triangles we have to draw.
 	//! \param numPoints	Number of the points we will find starting from the area memory defined by v.
 	//! \param ind
 	//! \param numIndices
-	//! \param col			Color of the vertexes.
+	//! \param col			Color of the vertices.
 	//! ##@{
 	virtual void DrawTriangles(const Vec3* v, uint32 numPoints, const vtx_idx* ind, uint32 numIndices, const ColorB& col) = 0;
 	virtual void DrawTriangles(const Vec3* v, uint32 numPoints, const vtx_idx* ind, uint32 numIndices, const ColorB* col) = 0;
 	//! ##@}
 
+	//! Draw n triangles.
+	//! \param inVertices	List of vertices belonging to the sequence of triangles we have to draw.
+	//! \param numVertices	Number of the points we will find starting from the area memory defined by v.
+	//! \param textured		Whether the triangles are textured or not.
+	//! ##@{
 	virtual void DrawBuffer(const SAuxVertex* inVertices, uint32 numVertices, bool textured) = 0;
+	//! ##@}
+
+	//! passes a pointer to buffer of vertices for drawing n triangles.
+	//! \param numVertices	Maximum number of points we want to fill.
+	//! \param textured		Whether the triangles are textured or not.
+	//! ##@{
+	virtual SAuxVertex*         BeginDrawBuffer(uint32 maxVertices, bool textured) = 0;
+	//! ##@}
+
+	//! Signals filling the vertex buffer is done. There MUST be ONE corresponding BeginDrawBuffer call before this function call.
+	//! \param numVertices Number of vertices that are actually drawn.
+	//! ##@{
+	virtual void EndDrawBuffer(uint32 numVertices) = 0;
+	//! ##@}
 
 	//! Draw a Axis-aligned Bounding Boxes (AABB).
 	//! ##@{
@@ -166,9 +212,12 @@ struct IRenderAuxGeom
 	//! ##@{
 	virtual void RenderTextQueued(Vec3 pos, const SDrawTextInfo& ti, const char* text) = 0;
 
-	virtual void DrawStringImmediate(IFFont_RenderProxy* pFont, float x, float y, float z, const char* pStr, const bool asciiMultiLine, const STextDrawContext& ctx) {}
+	void DrawQuad(const Vec3& v0, const ColorB& colV0, const Vec3& v1, const ColorB& colV1, const Vec3& v2, const ColorB& colV2,const Vec3& v3, const ColorB& colV3)
+	{
+		DrawTriangle(v0,colV0,v1,colV1,v2,colV2);
+		DrawTriangle(v0,colV0,v2,colV2,v3,colV3);
 
-	virtual void DrawBufferRT(const SAuxVertex* data, int numVertices, int blendMode, const Matrix44* matViewProj, int texID) = 0;
+	}
 
 	void RenderText(Vec3 pos, const SDrawTextInfo& ti, const char* format, va_list args)
 	{
@@ -217,6 +266,13 @@ struct IRenderAuxGeom
 	//! \return     Index of previous used matrix index in the matrix buffer, as set internally or by SetMatrixIndex!
 	virtual int PushMatrix(const Matrix34& mat) = 0;
 
+
+	//! Adds a 2D image that should be drawn on the screen to an internal render list.
+	//! The function supports placing images in stereo 3D space.
+	//! The stereo params are the same that are used for the scene. A value of 0 is handled as a special case and always places the image on the screen plane.
+	//! image.stereoDepth - Places image in stereo 3d space. The depth is specified in camera space.
+	virtual void PushImage(const SRender2DImageDescription &image) = 0;
+
 	virtual int SetTexture(int idTexture) { return -1; }
 
 	//! Get the world matrix for the next primitives
@@ -227,24 +283,20 @@ struct IRenderAuxGeom
 	//! \param matID matrix ID. Should be a matrix id returned by PushMatrix
 	virtual void SetMatrixIndex(int matID) = 0;
 
-	//! If possible flushes all elements stored on the buffer to rendering system.
-	//! Note 1: rendering system may start processing flushed commands immediately or postpone it till Commit() call.
-	//! Note 2: worker threads's commands are always postponed till Commit() call.
-	virtual void Flush() = 0;
-	// </interfuscator:shuffle>
-
 	//! Flushes yet unprocessed elements and notifies rendering system that issuing rendering commands for current frame is done and frame is ready to be drawn.
-	//! Thus Commit() guarantees that all previously issued commands will appear on the screen.
-	//! Each thread rendering AUX geometry MUST call Commit() at the end of drawing cycle/frame
+	//! Thus Submit() guarantees that all previously issued commands will appear on the screen.
+	//! Each thread rendering AUX geometry MUST call Submit() at the end of drawing cycle/frame
 	//! "frames" indicate how many frames current commands butch must be presented on screen unless there till next butch is ready.
 	//! for render and main thread this parameter has no effect
-	virtual void Commit(uint frames = 0) = 0;
+	virtual void Submit(uint frames = 0) = 0;
 	// </interfuscator:shuffle>
 
+	//! Create and set the projection matrix to orthographic projection. The orthographics projection will be used until it is set to off.
+	virtual void SetOrthographicProjection(bool enable, float l = 0, float r = 1, float b = 0, float t = 1, float n = -1e10, float f = 1e10) = 0;
 
 	static IRenderAuxGeom* GetAux()
 	{
-		return gEnv->pRenderer->GetIRenderAuxGeom();
+		return gEnv->pRenderer ? gEnv->pRenderer->GetIRenderAuxGeom() : gEnv->pAuxGeomRenderer;
 	}
 };
 
@@ -357,27 +409,27 @@ public:
 
 	static void DrawLabel(Vec3 pos, float font_size, const char* text)
 	{
-		DrawText(pos, font_size, AColor::white(), eDrawText_FixedSize | eDrawText_800x600, text);
+		DrawText(pos, font_size, AColor::white(), eDrawText_FixedSize, text);
 	}
 
 	static void DrawLabelF(Vec3 pos, float font_size, const char* label_text, ...) PRINTF_PARAMS(3, 4)
 	{
 		va_list args;
 		va_start(args, label_text);
-		DrawText(pos, font_size, AColor::white(), eDrawText_FixedSize | eDrawText_800x600, label_text, args);
+		DrawText(pos, font_size, AColor::white(), eDrawText_FixedSize, label_text, args);
 		va_end(args);
 	}
 
 	static void DrawLabelEx(Vec3 pos, float font_size, const AColor& color, bool bFixedSize, bool bCenter, const char* text)
 	{
-		DrawText(pos, font_size, color, ((bFixedSize) ? eDrawText_FixedSize : 0) | ((bCenter) ? eDrawText_Center : 0) | eDrawText_800x600, text);
+		DrawText(pos, font_size, color, ((bFixedSize) ? eDrawText_FixedSize : 0) | ((bCenter) ? eDrawText_Center : 0), text);
 	}
 
 	static void DrawLabelExF(Vec3 pos, float font_size, const AColor& color, bool bFixedSize, bool bCenter, const char* label_text, ...) PRINTF_PARAMS(6, 7)
 	{
 		va_list args;
 		va_start(args, label_text);
-		DrawText(pos, font_size, color, ((bFixedSize) ? eDrawText_FixedSize : 0) | ((bCenter) ? eDrawText_Center : 0) | eDrawText_800x600, label_text, args);
+		DrawText(pos, font_size, color, ((bFixedSize) ? eDrawText_FixedSize : 0) | ((bCenter) ? eDrawText_Center : 0), label_text, args);
 		va_end(args);
 	}
 
@@ -436,11 +488,6 @@ public:
 
 		TextToScreenColor((int)(8 * x), (int)(6 * y), 1, 1, 1, 1, buffer);
 	}
-
-	static void DrawStringRT(IFFont_RenderProxy* pFont, float x, float y, float z, const char* pStr, const bool asciiMultiLine, const STextDrawContext& ctx)
-	{
-		IRenderAuxGeom::GetAux()->DrawStringImmediate(pFont, x, y, z, pStr, asciiMultiLine, ctx);
-	}
 };
 
 //! Don't change the xxxShift values blindly as they affect the rendering output.
@@ -451,25 +498,25 @@ public:
 enum EAuxGeomPublicRenderflagBitMasks
 {
 
-	e_Mode2D3DShift      = 31,
-	e_Mode2D3DMask       = 0x1 << e_Mode2D3DShift,
+	e_Mode2D3DShift      = 30,
+	e_Mode2D3DMask       = 0x3 << e_Mode2D3DShift,
 
-	e_AlphaBlendingShift = 29,
+	e_AlphaBlendingShift = 28,
 	e_AlphaBlendingMask  = 0x3 << e_AlphaBlendingShift,
 
-	e_DrawInFrontShift   = 28,
+	e_DrawInFrontShift   = 27,
 	e_DrawInFrontMask    = 0x1 << e_DrawInFrontShift,
 
-	e_FillModeShift      = 26,
+	e_FillModeShift      = 25,
 	e_FillModeMask       = 0x3 << e_FillModeShift,
 
-	e_CullModeShift      = 24,
+	e_CullModeShift      = 23,
 	e_CullModeMask       = 0x3 << e_CullModeShift,
 
-	e_DepthWriteShift    = 23,
+	e_DepthWriteShift    = 22,
 	e_DepthWriteMask     = 0x1 << e_DepthWriteShift,
 
-	e_DepthTestShift     = 22,
+	e_DepthTestShift     = 21,
 	e_DepthTestMask      = 0x1 << e_DepthTestShift,
 
 	e_PublicParamsMask   = e_Mode2D3DMask | e_AlphaBlendingMask | e_DrawInFrontMask | e_FillModeMask |
@@ -484,8 +531,10 @@ enum EAuxGeomPublicRenderflagBitMasks
 //! \see EAuxGeomPublicRenderflagBitMasks
 enum EAuxGeomPublicRenderflags_Mode2D3D
 {
-	e_Mode3D = 0x0 << e_Mode2D3DShift,
-	e_Mode2D = 0x1 << e_Mode2D3DShift,
+	e_Mode3D   = 0x0 << e_Mode2D3DShift, // the coordinates are expected to be in world coordinates
+	e_Mode2D   = 0x1 << e_Mode2D3DShift, // the coordinates are expected to be in screen space coordinate (in ([0,width-1], [0,height-1]) ranges)
+	e_ModeText = 0x2 << e_Mode2D3DShift, // 
+	e_ModeUnit = 0x3 << e_Mode2D3DShift, // the coordinates are expected to be in normalized device coordinates (in ([0,1], [0,1]) ranges)
 };
 
 //! Don't change the xxxShift values blindly as they affect the rendering output.
@@ -565,12 +614,15 @@ enum EAuxGeomPublicRenderflags_Defaults
 
 	//! Default render flags for 2D primitives.
 	e_Def2DPublicRenderflags = e_Mode2D | e_AlphaNone | e_DrawInFrontOff | e_FillModeSolid |
-	                           e_CullModeBack | e_DepthWriteOn | e_DepthTestOn
+	                           e_CullModeBack | e_DepthWriteOn | e_DepthTestOn,
+
+	//! Default render flags for images.
+	e_Def2DImageRenderflags = e_Mode2D | e_DepthTestOff | e_AlphaBlended | e_CullModeNone
 };
 
 struct SAuxGeomRenderFlags
 {
-	uint32 m_renderFlags;
+	uint32 m_renderFlags = e_Def3DPublicRenderflags;
 
 	SAuxGeomRenderFlags();
 	SAuxGeomRenderFlags(const SAuxGeomRenderFlags& rhs);
@@ -622,9 +674,7 @@ struct SAuxGeomRenderFlags
 
 inline
 SAuxGeomRenderFlags::SAuxGeomRenderFlags()
-	: m_renderFlags(e_Def3DPublicRenderflags)
-{
-}
+{}
 
 inline
 SAuxGeomRenderFlags::SAuxGeomRenderFlags(const SAuxGeomRenderFlags& rhs)
@@ -683,13 +733,16 @@ SAuxGeomRenderFlags::GetMode2D3DFlag() const
 	switch (mode2D3D)
 	{
 	case e_Mode2D:
-		{
-			return(e_Mode2D);
-		}
+		return(e_Mode2D);
 	case e_Mode3D:
+		return(e_Mode3D);
+	case e_ModeText:
+		return(e_ModeText);
+	case e_ModeUnit:
+		return(e_ModeUnit);
 	default:
 		{
-			assert(e_Mode3D == mode2D3D);
+			assert(0);
 			return(e_Mode3D);
 		}
 	}
@@ -895,5 +948,119 @@ inline CRenderAuxGeomRenderFlagsRestore::~CRenderAuxGeomRenderFlagsRestore()
 {
 	m_pRender->SetRenderFlags(m_backuppedRenderFlags);
 }
+
+// 2D Images added to the rendering frame
+struct SRender2DImageDescription
+{
+	float x = 0;
+	float y = 0;
+	float z = 0;
+	float w = 0;
+	float h = 0;
+	Vec2  uv[2];           //!< Texture UV coordinates
+	float angle = 0;
+	float stereoDepth = 0; //!< Places image in stereo 3d space. The depth is specified in camera space.
+	ColorB color;
+
+	uint32 textureId = 0;
+	uint32 targetId = 0;
+
+	SDisplayContextKey displayContextKey;
+	SAuxGeomRenderFlags renderFlags = e_Def2DImageRenderflags;
+};
+
+// Helper class to abstract pushing 2d images for rendering
+class IRenderAuxImage
+{
+	struct S2DImage
+	{
+		float x = 0;
+		float y = 0;
+		float z = 0;
+		float w = 0;
+		float h = 0;
+		Vec2  uv[2]; // Texture UV coordinates
+		float angle = 0;
+		float stereoDepth = 0;
+		ColorB color;
+
+		uint32 textureId = 0;
+		uint32 targetId = 0;
+	};
+
+public:
+
+	static void Draw2dImage(float xpos, float ypos, float w, float h, int texture_id, float s0 = 0, float t0 = 0, float s1 = 1, float t1 = 1, float angle = 0,
+		float r = 1, float g = 1, float b = 1, float a = 1, float z = 1, float stereoDepth = 0)
+	{
+		if (gEnv->pRenderer)
+		{
+			SRender2DImageDescription img;
+			img.x = xpos;
+			img.y = ypos;
+			img.z = z;
+			img.w = w;
+			img.h = h;
+			img.textureId = texture_id;
+			//img.targetId = 0;
+			img.uv[0].x = s0;
+			img.uv[0].y = t0;
+			img.uv[1].x = s1;
+			img.uv[1].y = t1;
+			img.angle = angle;
+			img.color = ColorB(ColorF(r, g, b, a));
+			img.stereoDepth = stereoDepth;
+
+			IRenderAuxGeom::GetAux()->PushImage(img);
+		}
+	}
+	static void Draw2dImage(float xpos, float ypos, float w, float h, int texture_id, float s0, float t0, float s1,float t1, float angle,const ColorF &col)
+	{
+		if (gEnv->pRenderer)
+		{
+			SRender2DImageDescription img;
+			img.x = xpos;
+			img.y = ypos;
+			img.z = 1.f;
+			img.w = w;
+			img.h = h;
+			img.textureId = texture_id;
+			//img.targetId = 0;
+			img.uv[0].x = s0;
+			img.uv[0].y = t0;
+			img.uv[1].x = s1;
+			img.uv[1].y = t1;
+			img.angle = angle;
+			img.color = ColorB(col);
+			img.stereoDepth = 0.f;
+
+			IRenderAuxGeom::GetAux()->PushImage(img);
+		}
+	}
+	//! Draws a image using the current matrix.
+	static void DrawImage(float xpos, float ypos, float w, float h, int texture_id, float s0, float t0, float s1, float t1, float r, float g, float b, float a, bool filtered = true)
+	{
+		if (gEnv->pRenderer)
+		{
+			SRender2DImageDescription img;
+			img.x = xpos;
+			img.y = ypos;
+			img.z = 1.f;
+			img.w = w;
+			img.h = h;
+			img.textureId = texture_id;
+			//img.targetId = 0;
+			img.uv[0].x = s0;
+			img.uv[0].y = t0;
+			img.uv[1].x = s1;
+			img.uv[1].y = t1;
+			img.angle = 0.f;
+			img.color = ColorB(ColorF(r, g, b, a));
+			img.stereoDepth = 0.f;
+
+			IRenderAuxGeom::GetAux()->PushImage(img);
+		}
+	}
+};
 
 #endif // #ifndef _IRENDERAUXGEOM_H_

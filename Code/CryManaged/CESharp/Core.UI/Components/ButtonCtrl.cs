@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 using System;
 
@@ -45,7 +45,7 @@ namespace CryEngine.UI.Components
 		/// <summary>
 		/// Called by framework. Do not call directly.
 		/// </summary>
-		public override void OnAwake()
+		protected override void OnAwake()
 		{
 			var button = Owner as Button;
 			if(button != null)
@@ -60,7 +60,7 @@ namespace CryEngine.UI.Components
 		/// </summary>
 		/// <param name="x">The x coordinate.</param>
 		/// <param name="y">The y coordinate.</param>
-		public override void OnMouseEnter(int x, int y)
+		protected override void OnMouseEnter(int x, int y)
 		{
 			if (OnEnterMouse != null)
 				OnEnterMouse();
@@ -71,7 +71,7 @@ namespace CryEngine.UI.Components
 		/// </summary>
 		/// <param name="x">The x coordinate.</param>
 		/// <param name="y">The y coordinate.</param>
-		public override void OnMouseLeave(int x, int y)
+		protected override void OnMouseLeave(int x, int y)
 		{
 			if (OnLeaveMouse != null)
 				OnLeaveMouse();
@@ -80,7 +80,7 @@ namespace CryEngine.UI.Components
 		/// <summary>
 		/// Invoked by parent Canvas.
 		/// </summary>
-		public override void OnEnterFocus()
+		protected override void OnEnterFocus()
 		{
 			if (OnFocusEnter != null)
 				OnFocusEnter();
@@ -89,7 +89,7 @@ namespace CryEngine.UI.Components
 		/// <summary>
 		/// Invoked by parent Canvas.
 		/// </summary>
-		public override void OnLeaveFocus()
+		protected override void OnLeaveFocus()
 		{
 			if (OnFocusLost != null)
 				OnFocusLost();
@@ -107,7 +107,7 @@ namespace CryEngine.UI.Components
 		/// <summary>
 		/// Invoked by parent Canvas.
 		/// </summary>
-		public override void OnLeftMouseDown(int x, int y)
+		protected override void OnLeftMouseDown(int x, int y)
 		{
 			(Owner as Button)?.SetDown();
 		}
@@ -115,7 +115,7 @@ namespace CryEngine.UI.Components
 		/// <summary>
 		/// Invoked by parent Canvas.
 		/// </summary>
-		public override void OnLeftMouseUp(int x, int y, bool inside)
+		protected override void OnLeftMouseUp(int x, int y, bool inside)
 		{
 			(Owner as Button)?.SetUp();
 			if (inside && OnPressed != null)
@@ -129,7 +129,7 @@ namespace CryEngine.UI.Components
 		/// it will call OnPressed().
 		/// </summary>
 		/// <param name="e">E.</param>
-		public override void OnKey(InputEvent e)
+		protected override void OnKey(InputEvent e)
 		{
 			if (e.KeyPressed(KeyId.Space) || e.KeyPressed(KeyId.Enter) || e.KeyPressed(KeyId.XI_A))
 			{

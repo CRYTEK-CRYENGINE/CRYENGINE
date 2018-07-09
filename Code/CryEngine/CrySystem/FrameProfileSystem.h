@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 // -------------------------------------------------------------------------
 //  File name:   frameprofilesystem.h
@@ -11,8 +11,6 @@
 //
 ////////////////////////////////////////////////////////////////////////////
 
-#ifndef __frameprofilesystem_h__
-#define __frameprofilesystem_h__
 #pragma once
 
 #include <CrySystem/Profilers/FrameProfiler/FrameProfiler.h>
@@ -39,16 +37,10 @@ public:
 
 	//! If set profiling data will be collected.
 	bool                        m_bCollect;
-	//! If >0, profiling will operate on all threads. If >=2, will use thread-safe QueryPerformanceCounter instead of CryTicks.
-	int                         m_nThreadSupport;
 	//! If set profiling data will be displayed.
 	bool                        m_bDisplay;
 	//! True if network profiling is enabled.
-	bool                        m_bNetworkProfiling;
-	//! True if network profiling is enabled.
 	bool                        m_bMemoryProfiling;
-	//! If set memory info by modules will be displayed.
-	bool                        m_bDisplayMemoryInfo;
 	//! Put memory info also in the log.
 	bool                        m_bLogMemoryInfo;
 
@@ -58,8 +50,19 @@ public:
 	static threadID             s_nFilterThreadId;
 
 	// Cvars.
-	static int profile_callstack;
-	static int profile_log;
+	int   profile_graph;
+	float profile_graphScale;
+	int   profile_pagefaults;
+	int   profile_network;
+	int   profile_additionalsub;
+	float profile_peak;
+	float profile_peak_display;
+	float profile_min_display_ms;
+	float profile_row, profile_col;
+	int   profile_meminfo;
+	int   profile_sampler_max_samples;
+	int   profile_callstack;
+	int   profile_log;
 
 	//struct SPeakRecord
 	//{
@@ -80,13 +83,13 @@ public:
 	};
 	struct SSubSystemInfo
 	{
-		const char* name;
-		float       selfTime;
-		float       waitTime;
-		float       budgetTime;
-		float       maxTime;
-		int         totalAnalized;
-		int         totalOverBudget;
+		const char* name = "";
+		float       selfTime = 0;
+		float       waitTime = 0;
+		float       budgetTime = 0;
+		float       maxTime = 0;
+		int         totalAnalized = 0;
+		int         totalOverBudget = 0;
 	};
 
 	EDisplayQuantity m_displayQuantity;
@@ -206,49 +209,26 @@ public:
 
 		ILINE void PushSection(CFrameProfilerSection* pSection, TThreadId threadId)
 		{
-			if (m_aThreadStacks[0].threadId == threadId)
-				Push(m_aThreadStacks[0].pProfilerSection, pSection);
-			else
-				PushThreadedSection(pSection, threadId);
-		}
-		void PushThreadedSection(CFrameProfilerSection* pSection, TThreadId threadId)
-		{
-			assert(pSection);
+			assert(threadId != TThreadId(0) && pSection);
+
+			for (int i = 0, end = m_nThreadStacks; i < end; ++i)
 			{
-				CryReadLock(&m_lock);
-
-				// Look for thread slot.
-				for (int i = 1; i < m_nThreadStacks; ++i)
-					if (m_aThreadStacks[i].threadId == threadId)
-					{
-						Push(m_aThreadStacks[i].pProfilerSection, pSection);
-						CryReleaseReadLock(&m_lock);
-						return;
-					}
-
-				CryReleaseReadLock(&m_lock);
+				if (m_aThreadStacks[i].threadId == threadId)
+				{
+					Push(m_aThreadStacks[i].pProfilerSection, pSection);
+					return;
+				}
 			}
 
-			// Look for unused slot.
-			CryWriteLock(&m_lock);
+			// add new thread stack entry
+			int newIndex = CryInterlockedIncrement((volatile int*)&m_nThreadStacks) - 1;
 
-			int i;
-			for (i = 1; i < m_nThreadStacks; ++i)
-				if (m_aThreadStacks[i].threadId == threadID(0))
-					break;
+			if (newIndex == nMAX_THREADS)
+				CryFatalError("Profiled thread count of %d exceeded!", nMAX_THREADS);
 
-			// Allocate new slot.
-			if (i == m_nThreadStacks)
-			{
-				if (m_nThreadStacks == nMAX_THREADS)
-					CryFatalError("Profiled thread count of %d exceeded!", nMAX_THREADS);
-				m_nThreadStacks++;
-			}
-
-			m_aThreadStacks[i].threadId = threadId;
-			Push(m_aThreadStacks[i].pProfilerSection, pSection);
-
-			CryReleaseWriteLock(&m_lock);
+			m_aThreadStacks[newIndex].threadId = threadId;
+			Push(m_aThreadStacks[newIndex].pProfilerSection, pSection);
+			return;
 		}
 
 		ILINE void PopSection(CFrameProfilerSection* pSection, TThreadId threadId)
@@ -331,8 +311,6 @@ public:
 	//! Currently active profilers array.
 	Profilers* m_pProfilers;
 
-	float      m_peakTolerance;
-
 	//! List of several latest peaks.
 	std::vector<SPeakRecord>          m_peaks;
 	std::vector<SPeakRecord>          m_absolutepeaks;
@@ -341,7 +319,6 @@ public:
 	EProfiledSubsystem                m_subsystemFilter;
 	bool                              m_bSubsystemFilterEnabled;
 	int                               m_maxProfileCount;
-	float                             m_peakDisplayDuration;
 
 	//////////////////////////////////////////////////////////////////////////
 	//! Smooth frame time in milliseconds.
@@ -351,7 +328,6 @@ public:
 	//////////////////////////////////////////////////////////////////////////
 	// Graphs.
 	//////////////////////////////////////////////////////////////////////////
-	bool                       m_bDrawGraph;
 	std::vector<unsigned char> m_timeGraphPageFault;
 	std::vector<unsigned char> m_timeGraphFrameTime;
 	#if defined(JOBMANAGER_SUPPORT_FRAMEPROFILER)
@@ -370,7 +346,6 @@ public:
 	int   m_histogramsCurrPos;
 	int   m_histogramsMaxPos;
 	int   m_histogramsHeight;
-	float m_histogramScale;
 
 	//////////////////////////////////////////////////////////////////////////
 	// Selection/Render.
@@ -384,8 +359,6 @@ public:
 	int    m_nPagesFaultsLastFrame;
 	int    m_nPagesFaultsPerSec;
 	int64  m_nLastPageFaultCount;
-	bool   m_bPageFaultsGraph;
-	bool   m_bRenderAdditionalSubsystems;
 
 	string m_filterThreadName;
 
@@ -409,7 +382,7 @@ public:
 	//////////////////////////////////////////////////////////////////////////
 	CFrameProfileSystem();
 	~CFrameProfileSystem();
-	void Init(int nThreadSupport);
+	void Init();
 	void Done();
 
 	void SetProfiling(bool on, bool display, char* prefix, ISystem* pSystem);
@@ -432,6 +405,8 @@ public:
 	void         OnSliceAndSleep();
 	//! Get number of registered frame profilers.
 	int          GetProfilerCount() const { return (int)m_profilers.size(); };
+	//! Return the fraction used to blend current with average values.
+	float        GetSmoothFactor() const;
 
 	virtual int  GetPeaksCount() const
 	{
@@ -458,7 +433,7 @@ public:
 	//////////////////////////////////////////////////////////////////////////
 	// Sampling related.
 	//////////////////////////////////////////////////////////////////////////
-	void StartSampling(int nMaxSamples);
+	void StartSampling();
 
 	//////////////////////////////////////////////////////////////////////////
 	// Adds a value to profiler.
@@ -486,31 +461,20 @@ public:
 
 	//! Enable/Disable profile samples gathering.
 	void         Enable(bool bCollect, bool bDisplay);
-	void         EnableMemoryProfile(bool bEnable);
 	void         SetSubsystemFilter(bool bFilterSubsystem, EProfiledSubsystem subsystem);
+	bool         IsSubSystemFiltered(EProfiledSubsystem subsystem) const { return m_bSubsystemFilterEnabled && m_subsystemFilter != subsystem; }
+	bool         IsSubSystemFiltered(CFrameProfiler* pProfiler) const    { return IsSubSystemFiltered((EProfiledSubsystem)pProfiler->m_subsystem); }
 	void         EnableHistograms(bool bEnableHistograms);
 	bool         IsEnabled() const   { return m_bEnabled; }
 	virtual bool IsVisible() const   { return m_bDisplay; }
 	bool         IsProfiling() const { return m_bCollect; }
 	void         SetDisplayQuantity(EDisplayQuantity quantity);
 	void         AddPeak(SPeakRecord& peak);
-	void         SetHistogramScale(float fScale)         { m_histogramScale = fScale; }
-	void         SetDrawGraph(bool bDrawGraph)           { m_bDrawGraph = bDrawGraph; };
-	void         SetThreadSupport(int nThreading)        { m_nThreadSupport = nThreading; }
-	void         SetNetworkProfiler(bool bNet)           { m_bNetworkProfiling = bNet; };
-	void         SetPeakTolerance(float fPeakTimeMillis) { m_peakTolerance = fPeakTimeMillis; }
-	void         SetPageFaultsGraph(bool bEnabled)       { m_bPageFaultsGraph = bEnabled; }
-	void         SetAdditionalSubsystems(bool bEnabled)  { m_bRenderAdditionalSubsystems = bEnabled; }
-	bool         GetAdditionalSubsystems() const         { return m_bRenderAdditionalSubsystems; }
 
 	void         SetSubsystemFilter(const char* sFilterName);
 	void         SetSubsystemFilterThread(const char* sFilterThreadName);
 
 	void         UpdateOfflineHistory(CFrameProfiler* pProfiler);
-
-	// sets the time interval for which peaks will be displayed
-	void  SetPeakDisplayDuration(float duration) { m_peakDisplayDuration = duration; }
-	float GetPeakDisplayDuration() const         { return m_peakDisplayDuration; }
 
 	//////////////////////////////////////////////////////////////////////////
 	// Rendering.
@@ -605,7 +569,7 @@ struct CFrameProfileSystem : public IFrameProfileSystem
 	virtual void                         SetAdditionalSubsystems(bool bEnabled)     {}
 	virtual const float                  GetOverBudgetRatio(int modulenumber) const { return 0.0f; }
 
-	void                                 Init(int nThreadSupport)                   {}
+	void                                 Init()                   {}
 	void                                 Done()                                     {}
 	void                                 Render()                                   {}
 
@@ -617,7 +581,6 @@ struct CFrameProfileSystem : public IFrameProfileSystem
 	void                                 SetPageFaultsGraph(bool bEnabled)          {}
 	void                                 SetThreadSupport(int)                      {}
 
-	void                                 EnableMemoryProfile(bool bEnable)          {}
 	virtual bool                         IsVisible() const                          { return true; }
 	virtual const CFrameProfilerSection* GetCurrentProfilerSection()                { return NULL; }
 
@@ -631,5 +594,3 @@ protected:
 };
 
 #endif // USE_FRAME_PROFILER
-
-#endif // __frameprofilesystem_h__

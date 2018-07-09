@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 
@@ -55,18 +55,23 @@ namespace UQS
 			, m_scrollIndexInHistoricQueries(s_noScrollIndex)
 		{
 			m_queryHistoryManager.RegisterQueryHistoryListener(this);
-			if (IInput* pInput = GetISystem()->GetIInput())
-			{
-				pInput->AddEventListener(this);
-			}
+
+			// react on ESYSTEM_EVENT_CRYSYSTEM_INIT_DONE so that we can safely subscribe to a by-then valid IInput pointer
+			GetISystem()->GetISystemEventDispatcher()->RegisterListener(this, "CQueryHistoryInGameGUI");
 		}
 
 		CQueryHistoryInGameGUI::~CQueryHistoryInGameGUI()
 		{
 			m_queryHistoryManager.UnregisterQueryHistoryListener(this);
-			if (IInput* pInput = GetISystem()->GetIInput())
+
+			if (ISystem* pSystem = GetISystem())
 			{
-				pInput->RemoveEventListener(this);
+				pSystem->GetISystemEventDispatcher()->RemoveListener(this);
+
+				if (IInput* pInput = pSystem->GetIInput())
+				{
+					pInput->RemoveEventListener(this);
+				}
 			}
 		}
 
@@ -171,6 +176,19 @@ namespace UQS
 			// nothing (we don't request the names of all deferred-evaluators by calling IQueryHistoryManager::EnumerateDeferredEvaluatorNames())
 		}
 
+		void CQueryHistoryInGameGUI::OnSystemEvent(ESystemEvent event, UINT_PTR wparam, UINT_PTR lparam)
+		{
+			switch (event)
+			{
+			case ESYSTEM_EVENT_CRYSYSTEM_INIT_DONE:
+				if (IInput* pInput = GetISystem()->GetIInput()) // FYI: if this fails, then we're most likely running on a dedicated server that has no input device attached
+				{
+					pInput->AddEventListener(this);
+				}
+				break;
+			}
+		}
+
 		bool CQueryHistoryInGameGUI::OnInputEvent(const SInputEvent& event)
 		{
 			// don't scroll through the history if it's not being drawn at all
@@ -264,7 +282,7 @@ namespace UQS
 			if (!gEnv->pRenderer)
 				return;
 
-			const float xPos = (float)(gEnv->pRenderer->GetWidth() / 2 + 50);        // position found out by trial and error
+			const float xPos = (float)(gEnv->pRenderer->GetOverlayWidth() / 2 + 50);        // position found out by trial and error
 			int row = 1;
 
 			row = DrawQueryHistoryOverview(IQueryHistoryManager::EHistoryOrigin::Live, "live", xPos, row);

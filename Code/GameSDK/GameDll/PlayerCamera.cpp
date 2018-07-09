@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 /*************************************************************************
 -------------------------------------------------------------------------
@@ -446,30 +446,34 @@ void CPlayerCamera::PostUpdate(const QuatT &_camDelta)
 		camDelta.q.SetSlerp(IDENTITY, _camDelta.q, blendFactorRot);
 		camDelta.t = _camDelta.t * blendFactorTran;
 
-		CCamera &camera = gEnv->pSystem->GetViewCamera();
-		Matrix34 newMat;
-		Matrix34 camMat = camera.GetMatrix();
 		Matrix34 camRotDelta;
+		{
+			CCamera camera = gEnv->pSystem->GetViewCamera();
+			Matrix34 newMat;
+			Matrix34 camMat = camera.GetMatrix();
 
-		if (g_pGameCVars->cl_postUpdateCamera == 1)
-		{
-			camRotDelta.SetIdentity();
-			camRotDelta.SetTranslation(camDelta.t);
-		}
-		else
-		{
-			camRotDelta.Set(Vec3Constants<f32>::fVec3_One, camDelta.q, camDelta.t);
-		}
+			if (g_pGameCVars->cl_postUpdateCamera == 1)
+			{
+				camRotDelta.SetIdentity();
+				camRotDelta.SetTranslation(camDelta.t);
+			}
+			else
+			{
+				camRotDelta.Set(Vec3Constants<f32>::fVec3_One, camDelta.q, camDelta.t);
+			}
 
-		if (g_pGameCVars->cl_postUpdateCamera == 3)
-		{
-			newMat = camRotDelta * camMat;
+			if (g_pGameCVars->cl_postUpdateCamera == 3)
+			{
+				newMat = camRotDelta * camMat;
+			}
+			else
+			{
+				newMat = camMat * camRotDelta;
+			}
+			camera.SetMatrix(newMat);
+
+			gEnv->pSystem->SetViewCamera(camera);
 		}
-		else
-		{
-			newMat = camMat * camRotDelta;
-		}
-		camera.SetMatrix(newMat);
 
 		// Update player camera space position with blending 
 		IEntity* pPlayerEntity = m_ownerPlayer.GetEntity();

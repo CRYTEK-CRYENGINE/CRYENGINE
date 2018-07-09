@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "VehiclePart.h"
@@ -176,12 +176,13 @@ void CVehiclePart::DrawRotationLimits(DisplayContext& dc, IVariable* pSpeed, IVa
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CVehiclePart::Display(DisplayContext& dc)
+void CVehiclePart::Display(CObjectRenderHelper& objRenderHelper)
 {
 	// only draw if selected
 	if (!IsSelected())
 		return;
 
+	DisplayContext& dc = objRenderHelper.GetDisplayContextRef();
 	COLORREF wireColor, solidColor;
 	float alpha = 0.4f;
 	wireColor = dc.GetSelectedColor();
@@ -369,7 +370,7 @@ void CVehiclePart::UpdateObjectFromVar()
 		OnSetClass(m_pPartClass);
 	}
 
-	SetModified(false);
+	SetModified(false, false);
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -592,3 +593,4 @@ void CVehiclePart::UpdateScale(float scale)
 void CVehiclePart::OnTreeSelection()
 {
 }
+

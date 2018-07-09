@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 
@@ -97,7 +97,7 @@ int CTriMesh::Subtract(IGeometry *pGeom, geom_world_data *pdata1,geom_world_data
 {
 	if (!pGeom || pGeom->GetType()!=GEOM_TRIMESH && pGeom->GetType()!=GEOM_HEIGHTFIELD || m_flags & mesh_no_booleans)
 		return 0;
-	FUNCTION_PROFILER( GetISystem(),PROFILE_PHYSICS );
+	CRY_PROFILE_FUNCTION(PROFILE_PHYSICS );
 
 	int i,j,iop,icont,ncont,ipt,idx,ivtx,ivtx0,ivtx1,itri,itri1,imask,ipoly,flags,ivtxStart,ivtxEnd;
 	int nVtx,nPolies,nTriSlots,nTriSlotsAlloc,nVtxSlots,nVtxSlotsAlloc,nBTris,nBTrisAlloc,nTris,nTrisAlloc,
