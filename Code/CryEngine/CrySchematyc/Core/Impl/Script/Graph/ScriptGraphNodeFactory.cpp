@@ -69,6 +69,6 @@ void CScriptGraphNodeFactory::PopulateNodeCreationMenu(IScriptGraphNodeCreationM
 	}
 
 	const float time = gEnv->pTimer->TicksToSeconds(CryGetTicks() - startTime);
-	SCHEMATYC_CORE_COMMENT("Populating node creatiion menu : time = %f(s)", time);
+	SCHEMATYC_CORE_COMMENT("Populating node creation menu : time = %f(s)", time);
 }
 }
