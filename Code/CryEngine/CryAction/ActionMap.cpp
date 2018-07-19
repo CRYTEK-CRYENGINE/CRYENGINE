@@ -1143,8 +1143,6 @@ void CActionMap::ReleaseFilteredActions()
 			pEntityListener = pGameObject;
 
 	IActionListener* pListener = pEntityListener;
-	if (!pListener)
-		return;
 
 	for (TActionMap::iterator it = m_actions.begin(), eit = m_actions.end(); it != eit; ++it)
 	{
@@ -1167,7 +1165,7 @@ void CActionMap::ReleaseFilteredActions()
 			int currentMode = pActionInput->activationMode & eIS_Released;
 			if (currentMode || isChanged)
 			{
-				pListener->OnAction(it->first, currentMode, 0);
+				if (pListener) pListener->OnAction(it->first, currentMode, 0);
 
 				const TActionListeners& extraActionListeners = m_pActionMapManager->GetExtraActionListeners();
 				for (TActionListeners::const_iterator extraListener = extraActionListeners.begin(); extraListener != extraActionListeners.end(); ++extraListener)
