@@ -44,7 +44,7 @@ void CProjectorLightComponent::Initialize()
 	light.m_fProjectorNearPlane = m_projectorOptions.m_nearPlane;
 
 	float brightness = GetIntensity(m_color.m_diffuseMultiplier);
-	ColorF newLightColor = (m_color.m_color * brightness) * GetColorFromTemperature(m_color.m_temputure);
+	ColorF newLightColor = (m_color.m_color * brightness) * GetColorFromTemperature(m_color.m_temperature);
 
 	light.SetLightColor(newLightColor);
 	light.SetSpecularMult(m_color.m_specularMultiplier);

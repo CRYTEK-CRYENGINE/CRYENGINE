@@ -71,7 +71,7 @@ namespace DefaultComponents
 			inline bool operator==(const SColor &rhs) const { return 0 == memcmp(this, &rhs, sizeof(rhs)); }
 
 			ColorF m_color = ColorF(1.f);
-			Schematyc::Range<1000, 25000, 1000, 15000> m_temputure = 5500.0f;
+			Schematyc::Range<1000, 25000, 1000, 15000> m_temperature = 5500.0f;
 			ELightUnit m_lightUnit = ELightUnit::Legacy;
 			Schematyc::Range<0, 10000, 0, 10000> m_diffuseMultiplier = 1.f;
 			Schematyc::Range<0, 10000> m_specularMultiplier = 1.f;
@@ -167,7 +167,7 @@ namespace DefaultComponents
 	{
 		desc.SetGUID("{B71C3414-F85A-4EAA-9CE0-5110A2E040AD}"_cry_guid);
 		desc.AddMember(&ILightComponent::SColor::m_color, 'col', "Color", "Color", nullptr, ColorF(1.f));
-		desc.AddMember(&ILightComponent::SColor::m_temputure, 'tmp', "Temperature", "Temperature", nullptr, 5500.0f);
+		desc.AddMember(&ILightComponent::SColor::m_temperature, 'tmp', "Temperature", "Temperature", nullptr, 5500.0f);
 		desc.AddMember(&ILightComponent::SColor::m_lightUnit, 'unt', "LightUnit", "Light Unit", nullptr, ELightUnit::Legacy);
 		desc.AddMember(&ILightComponent::SColor::m_diffuseMultiplier, 'diff', "DiffMult", "Diffuse Multiplier", nullptr, 1.f);
 		desc.AddMember(&ILightComponent::SColor::m_specularMultiplier, 'spec', "SpecMult", "Specular Multiplier", nullptr, 1.f);
