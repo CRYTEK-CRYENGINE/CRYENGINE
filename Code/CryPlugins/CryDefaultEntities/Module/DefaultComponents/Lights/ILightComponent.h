@@ -17,6 +17,14 @@ namespace DefaultComponents
 		ExcludeForGI = IRenderNode::EGIMode::eGM_HideIfGiIsActive,
 	};
 
+	// Used to change the light unit used to the brightness
+	enum class ELightUnit
+	{
+		Legacy = 0,
+		Lumen,
+		Candela
+	};
+
 	static void ReflectType(Schematyc::CTypeDesc<ELightGIMode>& desc)
 	{
 		desc.SetGUID("{2DC20597-A17E-4306-A023-B73A6FBDBB3D}"_cry_guid);
@@ -26,6 +34,17 @@ namespace DefaultComponents
 		desc.AddConstant(ELightGIMode::StaticLight, "StaticLight", "Static");
 		desc.AddConstant(ELightGIMode::DynamicLight, "DynamicLight", "Dynamic");
 		desc.AddConstant(ELightGIMode::ExcludeForGI, "ExcludeForGI", "Hide if GI is Active");
+	}
+
+	static void ReflectType(Schematyc::CTypeDesc<ELightUnit>& desc)
+	{
+		desc.SetGUID("{15856F2A-AF54-4B4E-9F38-C0C51B248A74}"_cry_guid);
+		desc.SetLabel("Light Intensity Unit");
+		desc.SetDescription("Changes the unit of light used");
+		desc.SetDefaultValue(ELightUnit::Legacy);
+		desc.AddConstant(ELightUnit::Legacy, "Legacy", "Legacy Intensity");
+		desc.AddConstant(ELightUnit::Lumen, "Lumen", "Lumen");
+		desc.AddConstant(ELightUnit::Candela, "Candela", "Candela");
 	}
 
 	struct ILightComponent : public IEntityComponent
@@ -52,7 +71,9 @@ namespace DefaultComponents
 			inline bool operator==(const SColor &rhs) const { return 0 == memcmp(this, &rhs, sizeof(rhs)); }
 
 			ColorF m_color = ColorF(1.f);
-			Schematyc::Range<0, 10000, 0, 100> m_diffuseMultiplier = 1.f;
+			Schematyc::Range<1000, 25000, 1000, 15000> m_temputure = 5500.0f;
+			ELightUnit m_lightUnit = ELightUnit::Legacy;
+			Schematyc::Range<0, 10000, 0, 10000> m_diffuseMultiplier = 1.f;
 			Schematyc::Range<0, 10000> m_specularMultiplier = 1.f;
 		};
 
@@ -89,6 +110,8 @@ namespace DefaultComponents
 
 	public:
 		virtual void SetOptics(const char* szFullOpticsName) = 0;
+		virtual ColorF GetColorFromTemperature(float temperature) = 0;
+		virtual float GetIntensity(float oldIntensity) = 0;
 
 		virtual void Enable(bool bEnable) = 0;
 		virtual bool IsEnabled() const { return m_bActive; }
@@ -144,6 +167,8 @@ namespace DefaultComponents
 	{
 		desc.SetGUID("{B71C3414-F85A-4EAA-9CE0-5110A2E040AD}"_cry_guid);
 		desc.AddMember(&ILightComponent::SColor::m_color, 'col', "Color", "Color", nullptr, ColorF(1.f));
+		desc.AddMember(&ILightComponent::SColor::m_temputure, 'tmp', "Temperature", "Temperature", nullptr, 5500.0f);
+		desc.AddMember(&ILightComponent::SColor::m_lightUnit, 'unt', "LightUnit", "Light Unit", nullptr, ELightUnit::Legacy);
 		desc.AddMember(&ILightComponent::SColor::m_diffuseMultiplier, 'diff', "DiffMult", "Diffuse Multiplier", nullptr, 1.f);
 		desc.AddMember(&ILightComponent::SColor::m_specularMultiplier, 'spec', "SpecMult", "Specular Multiplier", nullptr, 1.f);
 	}

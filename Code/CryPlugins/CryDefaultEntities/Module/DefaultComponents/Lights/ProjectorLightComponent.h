@@ -48,6 +48,9 @@ namespace Cry
 				Initialize(); 
 			}
 
+			virtual ColorF GetColorFromTemperature(float temperature) override;
+			virtual float GetIntensity(float oldIntensity) override;
+
 			static void ReflectType(Schematyc::CTypeDesc<CProjectorLightComponent>& desc)
 			{
 				desc.SetGUID("{07D0CAD1-8E79-4177-9ADD-A2464A009FA5}"_cry_guid);

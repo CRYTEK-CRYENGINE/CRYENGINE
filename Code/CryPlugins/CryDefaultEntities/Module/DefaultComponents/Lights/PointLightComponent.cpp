@@ -38,7 +38,10 @@ namespace Cry
 			light.SetPosition(ZERO);
 			light.m_Flags = DLF_DEFERRED_LIGHT | DLF_POINT;
 
-			light.SetLightColor(m_color.m_color * m_color.m_diffuseMultiplier);
+			float brightness = GetIntensity(m_color.m_diffuseMultiplier);
+			ColorF newLightColor = (m_color.m_color * brightness) * GetColorFromTemperature(m_color.m_temputure);
+
+			light.SetLightColor(newLightColor);
 			light.SetSpecularMult(m_color.m_specularMultiplier);
 
 			light.m_fHDRDynamic = 0.f;
@@ -127,6 +130,42 @@ namespace Cry
 			{
 				Initialize();
 			}
+		}
+
+		ColorF CPointLightComponent::GetColorFromTemperature(float temperature)
+		{
+			float r, g, b;
+
+			float kelvin = crymath::clamp(temperature, 1000.0f, 10000.0f) / 1000.0f;
+			float kelvin2 = kelvin * kelvin;
+
+			r = kelvin < 6.570f ? 1.0f : crymath::clamp((1.35651f + 0.216422f * kelvin + 0.000633715f * kelvin2) / (-3.24223f + 0.918711f * kelvin), 0.0f, 1.0f);
+			g = kelvin < 6.570f 
+				? crymath::clamp((-399.809f + 414.271f * kelvin + 111.543f * kelvin2) / (2779.24f + 164.143f * kelvin + 84.7356f * kelvin2), 0.0f, 1.0f) 
+				: crymath::clamp((1370.38f + 734.616f * kelvin + 0.689955f * kelvin2) / (-4625.69f + 1699.87f * kelvin), 0.0f, 1.0f);
+			b = kelvin > 6.570f ? 1.0f : crymath::clamp((348.963f - 523.53f * kelvin + 183.62f * kelvin2) / (2848.82f - 214.52f * kelvin + 78.8614f * kelvin2), 0.0f, 1.0f);
+
+			return ColorF(r, g, b, 1.0f);
+
+		}
+
+		float CPointLightComponent::GetIntensity(float oldIntensity)
+		{
+			if (m_color.m_lightUnit == ELightUnit::Legacy)
+			{
+				return oldIntensity;
+			}
+			else
+			{
+				float intensity = (oldIntensity * 4.0f * 3.141596) * 16.0f / (100.0f * 100.0f) / 3.141596;
+
+				if (m_color.m_lightUnit == ELightUnit::Candela)
+				{
+					intensity *= (4.0f * 3.141596);
+				}
+				return intensity;
+			}
+
 		}
 
 		Cry::Entity::EventFlags CPointLightComponent::GetEventMask() const

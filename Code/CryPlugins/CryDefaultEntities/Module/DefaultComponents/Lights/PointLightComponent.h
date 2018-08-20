@@ -47,6 +47,9 @@ namespace Cry
 				Initialize();
 			}
 
+			virtual ColorF GetColorFromTemperature(float temperature) override;
+			virtual float GetIntensity(float oldIntensity) override;
+
 			virtual void Enable(bool enable) override;
 
 			static void ReflectType(Schematyc::CTypeDesc<CPointLightComponent>& desc)
