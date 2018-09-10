@@ -2489,8 +2489,8 @@ COctreeNode::COctreeNode(const AABB& box, CVisArea* pVisArea, COctreeNode* pPare
 
 	m_vNodeCenter = box.GetCenter();
 	m_vNodeAxisRadius = box.GetSize() * 0.5f;
-	m_objectsBox.min = box.max;
-	m_objectsBox.max = box.min;
+	m_objectsBox.min = box.min;
+	m_objectsBox.max = box.max;
 
 #if !defined(_RELEASE)
 	// Check if bounding box is crazy
