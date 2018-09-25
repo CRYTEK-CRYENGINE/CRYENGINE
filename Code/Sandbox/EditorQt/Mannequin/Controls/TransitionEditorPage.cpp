@@ -721,7 +721,7 @@ float CTransitionEditorPage::PopulateClipTracks(CSequencerNode* node, const int 
 					uint32 rootScope = 0;
 					for (uint32 i = 0; i <= scopeID; i++)
 					{
-						if ((BIT64(1) & scopeMask) != 0)
+						if ((BIT64(i) & scopeMask) != 0)
 						{
 							rootScope = i;
 							break;
