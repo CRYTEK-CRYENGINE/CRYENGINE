@@ -138,7 +138,7 @@ void CSystem::ExternalUpdate()
 	DrawAudioDebugData();
 #endif // INCLUDE_AUDIO_PRODUCTION_CODE
 
-	m_accumulatedFrameTime += gEnv->pTimer->GetFrameTime();
+	m_accumulatedFrameTime += GetGTimer()->GetFrameTime().BADGetSeconds();
 	++m_externalThreadFrameId;
 
 	// If sleeping, wake up the audio thread to start processing requests again.

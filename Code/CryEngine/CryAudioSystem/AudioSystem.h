@@ -112,7 +112,7 @@ private:
 
 	bool                       m_isInitialized;
 	bool                       m_didThreadWait;
-	volatile float             m_accumulatedFrameTime;
+	volatile float             m_accumulatedFrameTime;			// PERSONAL IMPROVE: More volatile time issues
 	std::atomic<uint32>        m_externalThreadFrameId;
 	uint32                     m_lastExternalThreadFrameId;
 	CMainThread                m_mainThread;

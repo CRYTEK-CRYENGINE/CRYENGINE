@@ -395,7 +395,7 @@ public:
 		, m_pImplData(pImplData)
 	{
 #if defined(INCLUDE_AUDIO_PRODUCTION_CODE)
-		m_timeCached.SetValue(0);
+		m_timeCached.SetSeconds(0);
 #endif // INCLUDE_AUDIO_PRODUCTION_CODE
 	}
 
