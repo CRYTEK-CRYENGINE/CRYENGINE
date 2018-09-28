@@ -21,11 +21,11 @@ struct CryEngineDecalInfo
 	Vec3             vPos;                          //!< Decal position (world coordinates).
 	Vec3             vNormal;                       //!< Decal/face normal.
 	float            fSize;                         //!< Decal size.
-	float            fLifeTime;                     //!< Decal life time (in seconds).
+	CTimeValue       fLifeTime;                     //!< Decal life time
 	float            fAngle;                        //!< Angle of rotation.
 	struct IStatObj* pIStatObj;                     //!< Decal geometry.
 	Vec3             vHitDirection;                 //!< Direction from weapon/player position to decal position (bullet direction).
-	float            fGrowTime, fGrowTimeAlpha;     //!< Used for blood pools.
+	CTimeValue       fGrowTime, fGrowTimeAlpha;     //!< Used for blood pools.
 	unsigned int     nGroupId;                      //!< Used for multi-component decals.
 	bool             bSkipOverlappingTest;          //!< Always spawn decals even if there are a lot of other decals in same place.
 	bool             bAssemble;                     //!< Assemble to bigger decals if more than 1 decal is on the same place.

@@ -67,7 +67,7 @@ public:
 			variable.value = value;
 			m_changed = true;
 
-			CTimeValue now = gEnv->pTimer->GetFrameStartTime();
+			CTimeValue now = GetGTimer()->GetFrameStartTime();
 
 #ifdef DEBUG_VARIABLE_COLLECTION
 			m_history.push_front(VariableChangeEvent(now, variableID, value));
@@ -963,7 +963,7 @@ struct DebugHelper
 		if (history)
 		{
 			y = minY + lineHeight;
-			CTimeValue now = gEnv->pTimer->GetFrameStartTime();
+			CTimeValue now = GetGTimer()->GetFrameStartTime();
 
 			Collection::History::const_iterator it = collection.m_history.begin();
 			Collection::History::const_iterator end = collection.m_history.end();
@@ -971,7 +971,7 @@ struct DebugHelper
 			for (; it != end; ++it)
 			{
 				const Collection::VariableChangeEvent& changeEvent = *it;
-				float alpha = 1.0f - (now - changeEvent.when).GetSeconds() / 10.0f;
+				float alpha = 1.0f - (now - changeEvent.when).BADGetSeconds() / 10.0f;
 				if (alpha > 0.01f)
 				{
 					alpha = clamp_tpl(alpha, 0.33f, 1.0f);

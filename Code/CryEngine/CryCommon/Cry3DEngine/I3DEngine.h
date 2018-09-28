@@ -1295,8 +1295,8 @@ struct I3DEngine : public IProcess
 		{
 			memset(this, 0, sizeof(SStremaingBandwidthData));
 		}
-		float fBandwidthActual;
-		float fBandwidthRequested;
+		rTime fBandwidthActual;
+		rTime fBandwidthRequested;
 	};
 
 	enum eStreamingSubsystem
@@ -1600,7 +1600,7 @@ struct I3DEngine : public IProcess
 	virtual void OverrideCameraPrecachePoint(const Vec3& vPos) = 0;
 
 	//! Begin streaming of meshes and textures for specified position, pre-cache stops after fTimeOut seconds.
-	virtual int  AddPrecachePoint(const Vec3& vPos, const Vec3& vDir, float fTimeOut = 3.f, float fImportanceFactor = 1.0f) = 0;
+	virtual int  AddPrecachePoint(const Vec3& vPos, const Vec3& vDir, const CTimeValue& fTimeOut = 3, float fImportanceFactor = 1.0f) = 0;
 	virtual void ClearPrecachePoint(int id) = 0;
 	virtual void ClearAllPrecachePoints() = 0;
 
@@ -2922,7 +2922,7 @@ inline void SRenderingPassInfo::SetRenderView(IRenderView* pRenderView)
 {
 	pRenderView->SetSkipRenderingFlags(m_nRenderingFlags);
 	pRenderView->SetFrameId(GetFrameID());
-	pRenderView->SetFrameTime(gEnv->pTimer->GetFrameStartTime(ITimer::ETIMER_UI));
+	pRenderView->SetFrameTime(GetGTimer()->GetFrameStartTime(ITimer::ETIMER_UI));
 	pRenderView->SetViewport(SRenderViewport(0, 0, m_pCamera->GetViewSurfaceX(), m_pCamera->GetViewSurfaceZ()));
 }
 

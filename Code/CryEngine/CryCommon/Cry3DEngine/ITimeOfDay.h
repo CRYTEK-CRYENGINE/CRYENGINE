@@ -206,9 +206,9 @@ struct ITimeOfDay
 	};
 	struct SAdvancedInfo
 	{
-		float fStartTime;
-		float fEndTime;
-		float fAnimSpeed;
+		CTimeValue fStartTime;
+		CTimeValue fEndTime;
+		mpfloat fAnimSpeed;
 	};
 	struct SEnvironmentInfo
 	{
@@ -253,18 +253,18 @@ struct ITimeOfDay
 	virtual void SetVariableValue(int nIndex, float fValue[3]) = 0;
 
 	//! Editor interface.
-	virtual bool  InterpolateVarInRange(int nIndex, float fMin, float fMax, unsigned int nCount, Vec3* resultArray) const = 0;
+	virtual bool  InterpolateVarInRange(int nIndex, const CTimeValue& fMin, const CTimeValue& fMax, unsigned int nCount, Vec3* resultArray) const = 0;
 	virtual uint  GetSplineKeysCount(int nIndex, int nSpline) const = 0;
 	virtual bool  GetSplineKeysForVar(int nIndex, int nSpline, SBezierKey* keysArray, unsigned int keysArraySize) const = 0;
 	virtual bool  SetSplineKeysForVar(int nIndex, int nSpline, const SBezierKey* keysArray, unsigned int keysArraySize) = 0;
-	virtual bool  UpdateSplineKeyForVar(int nIndex, int nSpline, float fTime, float newValue) = 0;
-	virtual float GetAnimTimeSecondsIn24h() = 0;
+	virtual bool  UpdateSplineKeyForVar(int nIndex, int nSpline, const CTimeValue& fTime, float newValue) = 0;
+	virtual int   GetAnimTimeSecondsIn24h() = 0;
 
 	virtual void  ResetVariables() = 0;
 
 	//! Sets the time of the day specified in hours.
-	virtual void  SetTime(float fHour, bool bForceUpdate = false) = 0;
-	virtual float GetTime() = 0;
+	virtual void  SetTime(const CTimeValue& fHour, bool bForceUpdate = false) = 0;
+	virtual const CTimeValue& GetTime() = 0;
 
 	//! Sun position.
 	virtual void  SetSunPos(float longitude, float latitude) = 0;
@@ -288,14 +288,13 @@ struct ITimeOfDay
 	virtual void Serialize(XmlNodeRef& node, bool bLoading) = 0;
 	virtual void Serialize(TSerialize ser) = 0;
 
-	virtual void SetTimer(ITimer* pTimer) = 0;
 	virtual void SetEnvironmentSettings(const SEnvironmentInfo& envInfo) = 0;
 
 	//! Multiplayer serialization.
 	static const int NETSER_FORCESET = BIT(0);
 	static const int NETSER_COMPENSATELAG = BIT(1);
 	static const int NETSER_STATICPROPS = BIT(2);
-	virtual void     NetSerialize(TSerialize ser, float lag, uint32 flags) = 0;
+	virtual void     NetSerialize(TSerialize ser, const CTimeValue& lag, uint32 flags) = 0;
 
 	//! LiveCreate.
 	virtual void SaveInternalState(struct IDataWriteStream& writer) = 0;

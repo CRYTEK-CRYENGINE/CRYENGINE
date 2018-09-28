@@ -116,7 +116,7 @@ struct  SplineKey
 {
 	typedef T value_type;
 
-	float      time;      //!< Key time.
+	mpfloat	  time;      //!< Key time.
 	Flags      flags;     //!< Key flags.
 	value_type value;     //!< Key value.
 	value_type ds;        //!< Incoming tangent.
@@ -130,13 +130,13 @@ struct  SplineKey
 	bool operator>(const SplineKey<T>& k2) const  { return time > k2.time; };
 
 	// Interpolate value between two keys.
-	void interpolate(const SplineKey& key2, float tr, T& val) const
+	void interpolate(const SplineKey& key2, const mpfloat& tr, T& val) const
 	{
-		const float t = tr, u = 1.f - t, tt = t * t, uu = u * u, tu = u * t;
+		const float t = BADF tr, u = 1.f - t, tt = t * t, uu = u * u, tu = u * t;
 		const float cv0 = u * (1 + tu - tt),
-		            cv1 = t * (1 + tu - uu),
-		            cs0 = u * tu,
-		            cs1 = -t * tu;
+		              cv1 = t * (1 + tu - uu),
+		              cs0 = u * tu,
+		              cs1 = -t * tu;
 		val = value * cv0 + key2.value * cv1 + dd * cs0 + key2.ds * cs1;
 	}
 
@@ -236,7 +236,7 @@ struct ISplineEvaluator
 	virtual int  GetNumDimensions() const { return 1; }
 	virtual int  GetKeyCount() const = 0;
 	virtual void GetKey(int i, KeyType& key) const = 0;
-	virtual void Interpolate(float time, ValueType& value) = 0;
+	virtual void Interpolate(const mpfloat& time, ValueType& value) = 0;
 
 	// Conversion to other splines
 	virtual ISplineBackup* Backup();
@@ -275,15 +275,15 @@ struct ISplineInterpolator : ISplineEvaluator
 
 	//! Insert a new key, returns index of the key.
 	virtual int   InsertKey(const KeyType& key) = 0;
-	virtual int   InsertKey(float time, ValueType value) = 0;
+	virtual int   InsertKey(const mpfloat& time, ValueType value) = 0;
 	virtual void  RemoveKey(int key) = 0;
 	virtual void  Clear() = 0;
 
-	virtual void  FindKeysInRange(float startTime, float endTime, int& firstFoundKey, int& numFoundKeys) = 0;
-	virtual void  RemoveKeysInRange(float startTime, float endTime) = 0;
+	virtual void  FindKeysInRange(const mpfloat& startTime, const mpfloat& endTime, int& firstFoundKey, int& numFoundKeys) = 0;
+	virtual void  RemoveKeysInRange(const mpfloat& startTime, const mpfloat& endTime) = 0;
 
-	virtual void  SetKeyTime(int key, float time) = 0;
-	virtual float GetKeyTime(int key) = 0;
+	virtual void  SetKeyTime(int key, const mpfloat& time) = 0;
+	virtual mpfloat GetKeyTime(int key) = 0;
 	virtual void  SetKeyValue(int key, ValueType value) = 0;
 	virtual bool  GetKeyValue(int key, ValueType& value) = 0;
 
@@ -340,22 +340,22 @@ struct ISplineInterpolator : ISplineEvaluator
 		SetKeyFlags(key, (select ? (flags | mask) : (flags & (~mask))));
 	}
 
-	inline int  InsertKeyFloat(float time, float val)      { ValueType v = { val, 0, 0, 0 }; return InsertKey(time, v); }
-	inline int  InsertKeyFloat3(float time, float* vals)   { ValueType v = { vals[0], vals[1], vals[2], 0 }; return InsertKey(time, v); }
+	inline int  InsertKeyFloat(const mpfloat& time, float val)      { ValueType v = { val, 0, 0, 0 }; return InsertKey(time, v); }
+	inline int  InsertKeyFloat3(const mpfloat& time, float* vals)   { ValueType v = { vals[0], vals[1], vals[2], 0 }; return InsertKey(time, v); }
 	inline bool GetKeyValueFloat(int key, float& value)    { ValueType v = { value }; bool b = GetKeyValue(key, v); value = v[0]; return b; }
 	inline void SetKeyValueFloat(int key, float value)     { ValueType v = { value, 0, 0, 0 }; SetKeyValue(key, v); }
 	inline void SetKeyValueFloat3(int key, float* vals)    { ValueType v = { vals[0], vals[1], vals[2], 0 }; SetKeyValue(key, v); }
-	inline void InterpolateFloat(float time, float& val)   { ValueType v = { val }; Interpolate(time, v); val = v[0]; }
-	inline void InterpolateFloat3(float time, float* vals) { ValueType v = { vals[0], vals[1], vals[2] }; Interpolate(time, v); vals[0] = v[0]; vals[1] = v[1]; vals[2] = v[2]; }
+	inline void InterpolateFloat(const mpfloat& time, float& val)   { ValueType v = { val }; Interpolate(time, v); val = v[0]; }
+	inline void InterpolateFloat3(const mpfloat& time, float* vals) { ValueType v = { vals[0], vals[1], vals[2] }; Interpolate(time, v); vals[0] = v[0]; vals[1] = v[1]; vals[2] = v[2]; }
 
 	//! Return Key closest to the specified time.
-	inline int FindKey(float fTime, float fEpsilon = 0.01f)
+	inline int FindKey(const mpfloat& fTime, const mpfloat& fEpsilon = "0.01")
 	{
 		int nKey = -1;
 		// Find key.
 		for (int k = 0; k < GetKeyCount(); k++)
 		{
-			if (fabs(GetKeyTime(k) - fTime) < fEpsilon)
+			if (abs(GetKeyTime(k) - fTime) < fEpsilon)
 			{
 				nKey = k;
 				break;
@@ -365,7 +365,7 @@ struct ISplineInterpolator : ISplineEvaluator
 	}
 
 	//! Force an update.
-	void Update() { ValueType val; Interpolate(0.f, val); }
+	void Update() { ValueType val; Interpolate(0, val); }
 };
 
 namespace spline
@@ -413,9 +413,9 @@ public:
 	ILINE int   ORT() const                      { return m_ORT; };
 	ILINE int   isORT(int o) const               { return (m_ORT == o); };
 
-	ILINE void  SetRange(float start, float end) { m_rangeStart = start; m_rangeEnd = end; };
-	ILINE float GetRangeStart() const            { return m_rangeStart; };
-	ILINE float GetRangeEnd() const              { return m_rangeEnd; };
+	ILINE void  SetRange(const mpfloat& start, const mpfloat& end) { m_rangeStart = start; m_rangeEnd = end; };
+	ILINE const mpfloat GetRangeStart() const            { return m_rangeStart; };
+	ILINE const mpfloat GetRangeEnd() const              { return m_rangeEnd; };
 
 	// Keys access methods.
 	ILINE void              reserve_keys(int n)            { m_keys.reserve(n); }; //!< Reserve memory for more keys.
@@ -425,14 +425,14 @@ public:
 	ILINE int               num_keys() const               { return (int)m_keys.size(); }; //!< Return number of keys in curve.
 
 	ILINE key_type&         key(int n)                     { return m_keys[n]; };       //!< Return n key.
-	ILINE float&            time(int n)                    { return m_keys[n].time; };  //!< Shortcut to key n time.
+	ILINE mpfloat			   time(int n)							 { return m_keys[n].time; };  //!< Shortcut to key n time.
 	ILINE value_type&       value(int n)                   { return m_keys[n].value; }; //!< Shortcut to key n value.
 	ILINE value_type&       ds(int n)                      { return m_keys[n].ds; };    //!< Shortcut to key n incoming tangent.
 	ILINE value_type&       dd(int n)                      { return m_keys[n].dd; };    //!< Shortcut to key n outgoing tangent.
 	ILINE Flags&            flags(int n)                   { return m_keys[n].flags; }; //!< Shortcut to key n flags.
 
 	ILINE key_type const&   key(int n) const               { return m_keys[n]; };       //!< Return n key.
-	ILINE float             time(int n) const              { return m_keys[n].time; };  //!< Shortcut to key n time.
+	ILINE mpfloat	  const& time(int n) const              { return m_keys[n].time; };  //!< Shortcut to key n time.
 	ILINE value_type const& value(int n) const             { return m_keys[n].value; }; //!< Shortcut to key n value.
 	ILINE value_type const& ds(int n) const                { return m_keys[n].ds; };    //!< Shortcut to key n incoming tangent.
 	ILINE value_type const& dd(int n) const                { return m_keys[n].dd; };    //!< Shortcut to key n outgoing tangent.
@@ -519,8 +519,10 @@ public:
 	}
 
 	//! Interpolate the value along the spline.
-	inline bool interpolate(float t, value_type& val)
+	inline bool interpolate(const mpfloat& tIn, value_type& val)
 	{
+		mpfloat t = tIn;
+
 		update();
 
 		if (empty())
@@ -546,7 +548,7 @@ public:
 				val = value(curr);
 			else
 			{
-				float tr = (t - time(curr)) / (time(curr + 1) - time(curr));
+				mpfloat tr = (t - time(curr)) / (time(curr + 1) - time(curr));
 				m_keys[curr].interpolate(m_keys[curr + 1], tr, val);
 			}
 		}
@@ -557,7 +559,7 @@ public:
 		return true;
 	}
 
-	inline value_type interpolate(float t)
+	inline value_type interpolate(const mpfloat& t)
 	{
 		value_type value;
 		Zero(value);
@@ -602,11 +604,11 @@ protected:
 	uint8                  m_ORT;   //!< Out-Of-Range type.
 	int16                  m_curr;  //!< Current key in track.
 
-	float                  m_rangeStart;
-	float                  m_rangeEnd;
+	mpfloat					  m_rangeStart;
+	mpfloat					  m_rangeEnd;
 
 	//! Return key before or equal to this time.
-	inline int seek_key(float t)
+	inline int seek_key(const mpfloat& t)
 	{
 		assert(num_keys() < (1 << 15));
 		if ((m_curr >= num_keys()) || (time(m_curr) > t))
@@ -617,17 +619,17 @@ protected:
 		return m_curr;
 	}
 
-	inline void adjust_time(float& t)
+	inline void adjust_time(mpfloat& t)
 	{
 		if (isORT(ORT_CYCLE) || isORT(ORT_LOOP))
 		{
 			if (num_keys() > 0)
 			{
-				float endtime = time(num_keys() - 1);
+				mpfloat endtime = time(num_keys() - 1);
 				if (t > endtime)
 				{
 					// Warp time.
-					t = fmod_tpl(t, endtime);
+					t = mod(t, endtime);
 				}
 			}
 		}
@@ -664,7 +666,7 @@ struct ClampedKey : public SplineKey<T>
 				this->dd = next->value - this->value;
 				if (next->flags.inTangentType != ETangentType::Linear)
 					// Match continuous slope on right.
-					this->dd = 2.0f * this->dd - next->ds;
+					this->dd = 2 * this->dd - next->ds;
 			}
 
 			// In slopes.
@@ -674,14 +676,14 @@ struct ClampedKey : public SplineKey<T>
 				this->ds = this->value - prev->value;
 				if (prev->flags.outTangentType != ETangentType::Linear)
 					// Match continuous slope on left.
-					this->ds = 2.0f * this->ds - prev->dd;
+					this->ds = 2 * this->ds - prev->dd;
 			}
 		}
 	}
 
 #ifdef _DEBUG
 	// Verify clamped values
-	void interpolate(const ClampedKey& key2, float tr, T& val) const
+	void interpolate(const ClampedKey& key2, mpfloat tr, T& val) const
 	{
 		SplineKey<T>::interpolate(key2, tr, val);
 
@@ -736,7 +738,9 @@ struct BezierKey : public SplineKey<T>
 	{
 		if (prev || next)
 		{
-			const float oneThird = 1 / 3.0f;
+			//const mpfloat oneThird(1 / 3.0);
+			// WARNING: Float inaccuracy
+			const f32 oneThird	(1 / 3.0);
 
 			if (!prev)
 			{
@@ -762,7 +766,7 @@ struct BezierKey : public SplineKey<T>
 				T ds0 = this->ds;
 				T dd0 = this->dd;
 
-				const float deltaTime = next->time - prev->time;
+				const mpfloat deltaTime = next->time - prev->time;
 				if (deltaTime <= 0)
 				{
 					Zero(this->ds);
@@ -770,10 +774,11 @@ struct BezierKey : public SplineKey<T>
 				}
 				else
 				{
-					const float k = (this->time - prev->time) / deltaTime;
+					// WARNING: Float inaccuracy Vector*mpfloat undef so....
+					const mpfloat relTime = (this->time - prev->time) / deltaTime;
 					const T deltaValue = next->value - prev->value;
-					this->ds = oneThird * deltaValue * k;
-					this->dd = oneThird * deltaValue * (1 - k);
+					this->ds = oneThird * deltaValue * BADF relTime;
+					this->dd = oneThird * deltaValue * BADF(1 - relTime);
 				}
 
 				switch (this->flags.inTangentType)
@@ -799,14 +804,14 @@ struct BezierKey : public SplineKey<T>
 		}
 	}
 
-	void interpolate(const BezierKey& key2, float tr, T& val) const
+	void interpolate(const BezierKey& key2, const mpfloat& tr, T& val) const
 	{
 		const T p0 = this->value;
 		const T p3 = key2.value;
 		const T p1 = p0 + this->dd;
 		const T p2 = p3 - key2.ds;
 
-		const float t = tr;
+		const float t = BADF tr;
 		const float t2 = t * t;
 		const float t3 = t2 * t;
 
@@ -930,7 +935,7 @@ public:
 		*this = *static_cast<SSplineBackup<CBaseSplineInterpolator<Spline>>*>(p);
 	}
 
-	virtual void Interpolate(float time, ValueType& value)
+	virtual void Interpolate(const mpfloat& time, ValueType& value)
 	{
 		value_type v;
 		this->interpolate(time, v);
@@ -952,7 +957,7 @@ public:
 		this->SetModified(true);
 		return i;
 	}
-	virtual int InsertKey(float t, ValueType val)
+	virtual int InsertKey(const mpfloat& t, ValueType val)
 	{
 		key_type key;
 		key.time = t;
@@ -969,14 +974,14 @@ public:
 			this->SetModified(true);
 		}
 	}
-	virtual void FindKeysInRange(float startTime, float endTime, int& firstFoundKey, int& numFoundKeys)
+	virtual void FindKeysInRange(const mpfloat& startTime, const mpfloat& endTime, int& firstFoundKey, int& numFoundKeys)
 	{
 		int count = this->num_keys();
 		int start = 0;
 		int end = count;
 		for (int i = 0; i < count; ++i)
 		{
-			float keyTime = this->key(i).time;
+			mpfloat keyTime = this->key(i).time;
 			if (keyTime < startTime)
 				start = i + 1;
 			if (keyTime > endTime && end > i)
@@ -993,7 +998,7 @@ public:
 			numFoundKeys = 0;
 		}
 	}
-	virtual void RemoveKeysInRange(float startTime, float endTime)
+	virtual void RemoveKeysInRange(const mpfloat& startTime, const mpfloat& endTime)
 	{
 		int firstFoundKey, numFoundKeys;
 		FindKeysInRange(startTime, endTime, firstFoundKey, numFoundKeys);
@@ -1001,11 +1006,11 @@ public:
 			this->erase(firstFoundKey++);
 		this->SetModified(true);
 	}
-	virtual float GetKeyTime(int key)
+	virtual mpfloat GetKeyTime(int key)
 	{
 		if (key >= 0 && key < this->num_keys())
 			return this->key(key).time;
-		return 0;
+		return mpfloat(0);
 	}
 	virtual bool GetKeyValue(int key, ValueType& val)
 	{
@@ -1024,7 +1029,7 @@ public:
 			this->SetModified(true);
 		}
 	}
-	virtual void SetKeyTime(int k, float fTime)
+	virtual void SetKeyTime(int k, const mpfloat& fTime)
 	{
 		if (k >= 0 && k < this->num_keys())
 		{

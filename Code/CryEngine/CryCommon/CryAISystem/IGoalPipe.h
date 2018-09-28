@@ -174,6 +174,9 @@ struct GoalParams
 	void              SetValue(const char* str)          { m_Data.str = str; m_Data.d = eD_STRING; }
 	bool              GetValue(const char*& str) const   { str = m_Data.str; return m_Data.d == eD_STRING; }
 
+	void              SetValue(const CTimeValue& time)	  { m_Data.str = time.GetSeconds().str(); m_Data.d = eD_STRING; }
+	bool              GetValue(CTimeValue& time)	const   { time = CTimeValue(m_Data.str); return m_Data.d == eD_STRING; }
+
 	void              SetValue(const Vec3& vec)          { m_Data.vec[0] = vec.x; m_Data.vec[1] = vec.y; m_Data.vec[2] = vec.z; m_Data.d = eD_VEC3; }
 	bool              GetValue(Vec3& vec) const          { vec.Set(m_Data.vec[0], m_Data.vec[1], m_Data.vec[2]); return m_Data.d == eD_VEC3; }
 

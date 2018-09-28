@@ -48,10 +48,11 @@ struct TCBSplineKey : public SplineKey<T>
 		}
 	}
 
-	void interpolate(const TCBSplineKey& key2, float u, T& val)
+	void interpolate(const TCBSplineKey& key2, const mpfloat& uIn, T& val)
 	{
+		float u = BADF uIn;
 		u = calc_ease(u, easefrom, key2.easeto);
-		SplineKey<T>::interpolate(key2, u, val);
+		SplineKey<T>::interpolate(key2, BADMP(u), val);
 	}
 
 private:
@@ -81,12 +82,12 @@ void TCBSplineKey<T >::compMiddleDeriv(const TCBSplineKey* prev, const TCBSpline
 
 	// dsAdjust,ddAdjust apply speed correction when continuity is 0.
 	// Middle key.
-	float fDiv = next->time - prev->time;
+	float fDiv = BADF(next->time - prev->time);
 	if (fDiv != 0.f)
 	{
 		float dt = 2.0f / fDiv;
-		dsA = dt * (this->time - prev->time);
-		ddA = dt * (next->time - this->time);
+		dsA = dt * BADF(this->time - prev->time);
+		ddA = dt * BADF(next->time - this->time);
 	}
 
 	T ds0 = this->ds;
@@ -332,9 +333,9 @@ struct TCBAngAxisKey : public TCBSplineKey<Quat>
 		fp = fn = 1.0f;
 		if (prev && next)
 		{
-			float dt = 2.0f / (next->time - prev->time);
-			fp = dt * (time - prev->time);
-			fn = dt * (next->time - time);
+			mpfloat dt = 2 / (next->time - prev->time);
+			fp = BADF(dt * (time - prev->time));
+			fn = BADF(dt * (next->time - time));
 			fp += c - c * fp;
 			fn += c - c * fn;
 		}
@@ -363,8 +364,9 @@ struct TCBAngAxisKey : public TCBSplineKey<Quat>
 		dd = value * qa;
 	}
 
-	void interpolate(const TCBAngAxisKey& key2, float u, Quat& val)
+	void interpolate(const TCBAngAxisKey& key2, const mpfloat& uIn, Quat& val)
 	{
+		float u = BADF uIn;
 		u = calc_ease(u, easefrom, key2.easeto);
 		val = CreateSquadRev(key2.angle, key2.axis, this->value, this->dd, key2.ds, key2.value, u);
 		val.Normalize();

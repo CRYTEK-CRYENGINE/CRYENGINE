@@ -52,11 +52,11 @@ struct ICryPerfHUD : public ICryUnknown
 		ILINE PerfBucket(float _target)
 		{
 			target = _target;
-			timeAtTarget = 0.f;
+			timeAtTarget.SetSeconds(0);
 		}
 
 		float target;
-		float timeAtTarget;
+		CTimeValue timeAtTarget;
 	};
 
 	enum EHudState
@@ -97,18 +97,18 @@ struct ICryPerfHUD : public ICryUnknown
 	virtual void                   DisableWidget(ICryPerfHUDWidget::EWidgetID id) = 0;
 
 	//! Warnings-widget Specific interface.
-	virtual void AddWarning(float duration, const char* fmt, va_list argList) = 0;
+	virtual void AddWarning(const CTimeValue& duration, const char* fmt, va_list argList) = 0;
 	virtual bool WarningsWindowEnabled() const = 0;
 
 	//! FPS-widget Specific interface.
-	virtual const std::vector<PerfBucket>* GetFpsBuckets(float& totalTime) const = 0;
+	virtual const std::vector<PerfBucket>* GetFpsBuckets(CTimeValue& totalTime) const = 0;
 	// </interfuscator:shuffle>
 };
 
 DECLARE_SHARED_POINTERS(ICryPerfHUD);
 
-void        CryPerfHUDWarning(float duration, const char*, ...) PRINTF_PARAMS(2, 3);
-inline void CryPerfHUDWarning(float duration, const char* format, ...)
+void        CryPerfHUDWarning(const CTimeValue& duration, const char*, ...) PRINTF_PARAMS(2, 3);
+inline void CryPerfHUDWarning(const CTimeValue& duration, const char* format, ...)
 {
 	if (gEnv && gEnv->pSystem)
 	{

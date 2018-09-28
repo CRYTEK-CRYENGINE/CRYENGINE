@@ -31,26 +31,26 @@ struct STimerDuration
 	inline STimerDuration()
 		: units(ETimerUnits::Empty)
 	{
-		memset(this, 0, sizeof(STimerDuration));
 	}
 
-	explicit inline STimerDuration(uint32 _frames)
+	inline STimerDuration& Frames(uint32 _frames)
 	{
-		memset(this, 0, sizeof(STimerDuration));
+		*this = STimerDuration();
 		units = ETimerUnits::Frames;
 		frames = _frames;
+		return *this;
 	}
 
-	explicit inline STimerDuration(float _seconds)
+	inline STimerDuration(const CTimeValue& _seconds)
 	{
-		memset(this, 0, sizeof(STimerDuration));
+		*this = STimerDuration();
 		units = ETimerUnits::Seconds;
 		seconds = _seconds;
 	}
 
-	explicit inline STimerDuration(float _min, float _max)
+	explicit inline STimerDuration(const CTimeValue& _min, const CTimeValue& _max)
 	{
-		memset(this, 0, sizeof(STimerDuration));
+		*this = STimerDuration();
 		units = ETimerUnits::Random;
 		range.min = _min;
 		range.max = _max;
@@ -58,7 +58,11 @@ struct STimerDuration
 
 	inline STimerDuration(const STimerDuration& rhs)
 	{
-		memcpy(this, &rhs, sizeof(STimerDuration));
+		units = rhs.units;
+		frames = rhs.frames;
+		seconds = rhs.seconds;
+		range.min = rhs.range.min;
+		range.max = rhs.range.max;
 	}
 
 	inline void ToString(IString& output) const
@@ -72,7 +76,7 @@ struct STimerDuration
 			}
 		case ETimerUnits::Seconds:
 			{
-				output.Format("%.4f(s)", seconds);
+				output.Format("%s(s)", seconds.GetSeconds().str());
 				break;
 			}
 		}
@@ -90,17 +94,14 @@ struct STimerDuration
 
 	ETimerUnits units;
 
-	union
+	// PERSONAL NOTE: No union. Cuz time-value memcpy, union management, etc. issues.
+	uint32 frames;
+	CTimeValue seconds;
+	struct
 	{
-		uint32 frames;
-		float  seconds;
-
-		struct
-		{
-			float min;
-			float max;
-		} range;
-	};
+		CTimeValue min;
+		CTimeValue max;
+	} range;
 };
 
 enum class ETimerFlags

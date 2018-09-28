@@ -25,7 +25,7 @@ struct MovementUpdateContext
 	  IMovementSystem& _movementSystem,
 	  IPathFollower& _pathFollower,
 	  Movement::IPlanner& _planner,
-	  const float _updateTime
+	  const CTimeValue& _updateTime
 	  )
 		: actor(_actor)
 		, movementSystem(_movementSystem)
@@ -39,7 +39,7 @@ struct MovementUpdateContext
 	IMovementSystem&    movementSystem;
 	IPathFollower&      pathFollower;
 	Movement::IPlanner& planner;
-	const float         updateTime;
+	const CTimeValue    updateTime;
 };
 
 //! \endcond

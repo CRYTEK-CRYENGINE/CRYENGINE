@@ -19,7 +19,7 @@ struct AgentPerceptionParameters
 	//! How far can the agent see if the target is vehicle
 	float sightRangeVehicle;
 	//! How much time the agent must continuously see the target before he recognizes it
-	float sightDelay;
+	CTimeValue sightDelay;
 
 	//! Normal and peripheral fov (degrees)
 	float FOVPrimary;
@@ -32,14 +32,14 @@ struct AgentPerceptionParameters
 	// Perceptible parameters
 	float targetPersistence;
 
-	float reactionTime;
+	CTimeValue reactionTime;
 	float collisionReactionScale;
-	float stuntReactionTimeOut;
+	CTimeValue stuntReactionTimeOut;
 
 	float forgetfulness;             //!< overall scaling, controlled by FG.
-	float forgetfulnessTarget;
-	float forgetfulnessSeek;
-	float forgetfulnessMemory;
+	CTimeValue forgetfulnessTarget;
+	CTimeValue forgetfulnessSeek;
+	CTimeValue forgetfulnessMemory;
 
 	bool  isAffectedByLight;       //!< flag indicating if the agent perception is affected by light conditions.
 	float minAlarmLevel;
@@ -58,19 +58,19 @@ struct AgentPerceptionParameters
 		: sightRange(0)
 		, sightNearRange(0.f)
 		, sightRangeVehicle(-1)
-		, sightDelay(0.f)
+		, sightDelay(0)
 		, FOVPrimary(-1)
 		, FOVSecondary(-1)
 		, stanceScale(1.0f)
 		, audioScale(1)
 		, targetPersistence(0.f)
-		, reactionTime(1.f)
+		, reactionTime(1)
 		, collisionReactionScale(1.0f)
-		, stuntReactionTimeOut(3.0f)
+		, stuntReactionTimeOut(3)
 		, forgetfulness(1.f)
-		, forgetfulnessTarget(1.f)
-		, forgetfulnessSeek(1.f)
-		, forgetfulnessMemory(1.f)
+		, forgetfulnessTarget(1)
+		, forgetfulnessSeek(1)
+		, forgetfulnessMemory(1)
 		, isAffectedByLight(false)
 		, minAlarmLevel(0.0f)
 		, bulletHitRadius(0.f)
@@ -122,14 +122,14 @@ typedef struct AgentParameters
 
 	bool  m_bAiIgnoreFgNode;
 	bool  m_bPerceivePlayer;
-	float m_fAwarenessOfPlayer;
+	CTimeValue m_fAwarenessOfPlayer;
 
 	//! cloaking/invisibility
 	bool  m_bInvisible;
 	bool  m_bCloaked;
 	float m_fCloakScale;        //!< 0- no cloaked, 1- complitly cloaked (invisible)
 	float m_fCloakScaleTarget;  //!< cloak scale should fade to this value
-	float m_fLastCloakEventTime;
+	CTimeValue m_fLastCloakEventTime;
 
 	// Turn speed
 
@@ -176,12 +176,12 @@ typedef struct AgentParameters
 		m_nGroup = 0;
 		m_bAiIgnoreFgNode = false;
 		m_bPerceivePlayer = true;
-		m_fAwarenessOfPlayer = 0;
+		m_fAwarenessOfPlayer.SetSeconds(0);
 		m_bInvisible = false;
 		m_bCloaked = false;
 		m_fCloakScale = 0.0f;
 		m_fCloakScaleTarget = 0.0f;
-		m_fLastCloakEventTime = 0.0f;
+		m_fLastCloakEventTime.SetSeconds(0);
 		m_weaponAccessories = 0;
 		m_lookIdleTurnSpeed = -1;
 		m_lookCombatTurnSpeed = -1;

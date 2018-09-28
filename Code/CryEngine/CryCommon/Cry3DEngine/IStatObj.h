@@ -320,7 +320,7 @@ struct IStatObj : IMeshObj, IStreamable
 	//! \param pRes Destination pointer (if the object is deleted after timeouting, it will write 0 there).
 	//! \param lifeTime Idle time after which the object gets deleted.
 	//! \return Number of physicalized leaves
-	virtual int PhysicalizeFoliage(IPhysicalEntity* pTrunk, const Matrix34& mtxWorld, struct IFoliage*& pRes, float lifeTime = 0.0f, int iSource = 0) = 0;
+	virtual int PhysicalizeFoliage(IPhysicalEntity* pTrunk, const Matrix34& mtxWorld, struct IFoliage*& pRes, const CTimeValue& lifeTime = CTimeValue(0), int iSource = 0) = 0;
 
 	//! Updates vertices in the range [iVtx0..iVtx0+nVtx-1], vertices are in their original order (as they are physicalized).
 	//! Clones the object if necessary to make the modifications

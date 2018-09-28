@@ -605,7 +605,7 @@ struct AgentMovementAbility
 
 	//! Enables/disables the path getting regenerated during tracing (needed for crowd control and dynamic
 	//! updates to graph) - regeneration interval (in seconds) - 0 disables.
-	float pathRegenIntervalDuringTrace;
+	CTimeValue pathRegenIntervalDuringTrace;
 
 	//! Enables/disables teleporting when path following.
 	bool teleportEnabled;
@@ -652,7 +652,7 @@ struct AgentMovementAbility
 		minTurnRadius(0), maxTurnRadius(0),
 		avoidanceRadius(0), pathLookAhead(3.0f), pathRadius(1.0f), pathSpeedLookAheadPerSpeed(-1), cornerSlowDown(0.0f), slopeSlowDown(1.f),
 		optimalFlightHeight(0), minFlightHeight(0), maxFlightHeight(0), maneuverTrh(0.f),
-		velDecay(0.0f), pathFindPrediction(0), resolveStickingInTrace(true), pathRegenIntervalDuringTrace(0.0f),
+		velDecay(0.0f), pathFindPrediction(0), resolveStickingInTrace(true), pathRegenIntervalDuringTrace(0),
 		teleportEnabled(false), lightAffectsSpeed(false),
 		directionalScaleRefSpeedMin(-1.0f), directionalScaleRefSpeedMax(-1.0f),
 		avoidanceAbilities(eAvoidance_DEFAULT), pushableObstacleWeakAvoidance(false), pushableObstacleAvoidanceRadius(0.35f),
@@ -703,20 +703,20 @@ struct AIWeaponDescriptor
 	string firecmdHandler;
 	float  fSpeed;          //!< Relevant for projectiles only.
 	float  fDamageRadius;   //!< Explosion radius for rockets/grenades.
-	float  fChargeTime;
+	CTimeValue  fChargeTime;
 	float  fRangeMax;
 	float  fRangeMin;
 	bool   bSignalOnShoot;
 	int    burstBulletCountMin;   //!< The burst bullet count is scaled between min and max based on several factors (distance, visibility).
 	int    burstBulletCountMax;   //!< Each burst is followed by a pause.
-	float  burstPauseTimeMin;     //!< The burst pause is scale between min and max.
-	float  burstPauseTimeMax;
-	float  singleFireTriggerTime; //!< Interval between single shot shots. Scale randomly between 70-125%. Set to -1 for continuous fire.
+	CTimeValue  burstPauseTimeMin;     //!< The burst pause is scale between min and max.
+	CTimeValue  burstPauseTimeMax;
+	CTimeValue  singleFireTriggerTime; //!< Interval between single shot shots. Scale randomly between 70-125%. Set to -1 for continuous fire.
 	float  spreadRadius;          //!< Miss spread radius in meters.
-	float  coverFireTime;         //!< How long the shooting should continue after the target is not visible anymore.
-	float  drawTime;              //!< How long the AI will shoot around the target before aiming it precisely.
+	CTimeValue coverFireTime;     //!< How long the shooting should continue after the target is not visible anymore.
+	CTimeValue drawTime;          //!< How long the AI will shoot around the target before aiming it precisely.
 	float  sweepWidth;            //!< How wide is the sweep left/right around the target direction during.
-	float  sweepFrequency;        //!< How fast the sweep left/right around the target direction during.
+	mpfloat sweepFrequency;        //!< How fast the sweep left/right around the target direction during.
 	float  pressureMultiplier;
 	float  lobCriticalDistance;
 	float  preferredHeight;                 //!< Preferred height used to throw the bullet if using a slow_projectile prediction.
@@ -727,7 +727,7 @@ struct AIWeaponDescriptor
 	Vec3   projectileGravity;               //!< What's the gravity of the fired projectile - Used only for predicting grenade landing.
 	string smartObjectClass;
 
-	AIWeaponDescriptor(const string& fcHandler = "instant", float chargeTime = -1.0f, float speed = -1.0f, float damageRadius = -1.0f)
+	AIWeaponDescriptor(const string& fcHandler = "instant", const CTimeValue& chargeTime = -1, float speed = -1.0f, float damageRadius = -1.0f)
 		: firecmdHandler(fcHandler)
 		, fSpeed(speed)
 		, fDamageRadius(damageRadius)
@@ -737,14 +737,14 @@ struct AIWeaponDescriptor
 		, bSignalOnShoot(false)
 		, burstBulletCountMin(1)
 		, burstBulletCountMax(10)
-		, burstPauseTimeMin(0.8f)
-		, burstPauseTimeMax(3.5f)
-		, singleFireTriggerTime(-1.0f)
+		, burstPauseTimeMin("0.8")
+		, burstPauseTimeMax("3.5")
+		, singleFireTriggerTime(-1)
 		, spreadRadius(1.0f)
-		, coverFireTime(2.0f)
-		, drawTime(3.0f)
+		, coverFireTime(2)
+		, drawTime(3)
 		, sweepWidth(2.5f)
-		, sweepFrequency(3.0f)
+		, sweepFrequency(3)
 		, pressureMultiplier(1.0f)
 		, lobCriticalDistance(5.0f)
 		, preferredHeight(5.0f)
@@ -878,7 +878,7 @@ struct IFireCommandHandler
 
 	//! If this firemode has a pause timer i.e. burst pause, this should return the current value of that timer.
 	//! or if the fire mode has a slow fire rate i.e. rocket launcher it should return the fire timer - 0 otherwise.
-	virtual float GetTimeToNextShot() const = 0;
+	virtual CTimeValue GetTimeToNextShot() const = 0;
 
 	virtual void  GetMemoryUsage(ICrySizer* pSizer) const {}
 	// </interfuscator:shuffle>
@@ -960,7 +960,7 @@ struct SAIActorTargetRequest
 		directionTolerance = 0;
 		startArcAngle = 0;
 		startWidth = 0;
-		loopDuration = -1;
+		loopDuration.SetSeconds(-1);
 		signalAnimation = true;
 		projectEndPoint = true;
 		lowerPrecision = false;
@@ -985,7 +985,7 @@ struct SAIActorTargetRequest
 	float                   directionTolerance;
 	float                   startArcAngle;
 	float                   startWidth;
-	float                   loopDuration; //!< -1 = forever.
+	CTimeValue              loopDuration; //!< -1 = forever.
 	bool                    signalAnimation;
 	bool                    projectEndPoint;
 	bool                    lowerPrecision; //!< Lower precision should be true when passing through a navSO.
@@ -1071,7 +1071,7 @@ struct IPipeUser
 	virtual EFireMode   GetFireMode() const = 0;
 
 	//! Adds the current hideobject position to ignore list (will be ignored for specified time).
-	virtual void IgnoreCurrentHideObject(float timeOut = 10.0f) = 0;
+	virtual void IgnoreCurrentHideObject(const CTimeValue& timeOut = 10) = 0;
 
 	//! \returns most probable target position or the target if it is visible.
 	virtual Vec3 GetProbableTargetPosition() = 0;
@@ -1230,6 +1230,7 @@ struct IAISignalExtraData
 
 	IAISignalExtraData() : string1(NULL), string2(NULL) {}
 
+	CTimeValue	 tVal;
 	Vec3         point;
 	Vec3         point2;
 	ScriptHandle nID;
@@ -1317,8 +1318,8 @@ enum ERequestedGrenadeType
 
 struct SAIPredictedCharacterState
 {
-	SAIPredictedCharacterState() : predictionTime(0.f), position(ZERO), velocity(ZERO) {}
-	void Set(const Vec3& pos, const Vec3& vel, float predT)
+	SAIPredictedCharacterState() : predictionTime(0), position(ZERO), velocity(ZERO) {}
+	void Set(const Vec3& pos, const Vec3& vel, const CTimeValue& predT)
 	{
 		position = pos;
 		velocity = vel;
@@ -1328,7 +1329,7 @@ struct SAIPredictedCharacterState
 
 	Vec3  position;
 	Vec3  velocity;
-	float predictionTime; //!< Time of prediction relative to when it was made.
+	CTimeValue predictionTime; //!< Time of prediction relative to when it was made.
 };
 
 struct SAIPredictedCharacterStates
@@ -1734,7 +1735,7 @@ struct SAIBodyInfo
 struct SAIWeaponInfo
 {
 	SAIWeaponInfo()
-		: lastShotTime((int64)0)
+		: lastShotTime(0)
 		, ammoCount(0)
 		, clipSize(0)
 		, outOfAmmo(false)

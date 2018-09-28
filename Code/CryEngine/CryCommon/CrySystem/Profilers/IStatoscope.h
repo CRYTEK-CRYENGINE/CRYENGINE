@@ -16,6 +16,13 @@ struct STexturePoolAllocation;
 
 struct IStatoscopeFrameRecord
 {
+	#define MP_FUNCTION(T)\
+	virtual void AddValue(const T& mpvalue) = 0;
+	#include <CrySystem\mpfloat.types>
+	#undef MP_FUNCTION
+
+	virtual void AddValue(const CTimeValue& tValue) = 0;
+
 	virtual void AddValue(float f) = 0;
 	virtual void AddValue(const char* s) = 0;
 	virtual void AddValue(int i) = 0;

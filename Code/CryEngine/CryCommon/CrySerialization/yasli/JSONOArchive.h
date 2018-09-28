@@ -49,6 +49,11 @@ public:
 	YASLI_INLINE bool operator()(KeyValueInterface& keyValue, const char* name = "", const char* label = 0) override;
 	YASLI_INLINE bool operator()(PointerInterface& ser, const char* name = "", const char* label = 0) override;
 
+	YASLI_INLINE bool operator()(CTimeValue& ser, const char* name = "", const char* label = 0) override;
+	#define MP_FUNCTION(T)	YASLI_INLINE bool operator()(T& ser, const char* name = "", const char* label = 0) override;
+	#include <CrySystem\mpfloat.types>
+	#undef MP_FUNCTION
+
 	using Archive::operator();
 private:
 	YASLI_INLINE void openBracket();

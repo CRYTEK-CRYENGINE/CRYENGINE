@@ -278,7 +278,7 @@ struct SNetMessageDef
 	  TSerialize,
 	  uint32 curSeq,
 	  uint32 oldSeq,
-	  uint32 timeFraction32,
+	  uint32 timeFraction32, // PERSONAL IMPROVE: Complicated networking setup with memento predictors and time in 'fraction' form......
 	  EntityId* pRmiObject,
 	  INetChannel* pChannel
 	  );
@@ -541,8 +541,8 @@ struct SAccountingGroupStats
 		, m_bandwidthUsed(0.0f)
 		, m_totalBandwidthUsed(0.0f)
 		, m_priority(0)
-		, m_maxLatency(0.0f)
-		, m_discardLatency(0.0f)
+		, m_maxLatency(0)
+		, m_discardLatency(0)
 		, m_inUse(false)
 	{
 		memset(m_name, 0, sizeof(m_name));
@@ -553,8 +553,8 @@ struct SAccountingGroupStats
 	float  m_bandwidthUsed;
 	float  m_totalBandwidthUsed;
 	uint32 m_priority;
-	float  m_maxLatency;
-	float  m_discardLatency;
+	CTimeValue  m_maxLatency;
+	CTimeValue  m_discardLatency;
 	bool   m_inUse;
 };
 
@@ -605,8 +605,8 @@ struct SNetChannelStats
 	SMessageQueueStats m_messageQueue;
 
 	char               m_name[STATS_MAX_NAME_SIZE];
-	uint32             m_ping;
-	uint32             m_pingSmoothed;
+	CTimeValue         m_ping;
+	CTimeValue         m_pingSmoothed;
 	float              m_bandwidthInbound;
 	float              m_bandwidthOutbound;
 	uint32             m_bandwidthShares;
@@ -690,7 +690,7 @@ struct SInternetSimulatorStats
 	}
 	uint32 m_packetSends;
 	uint32 m_packetDrops;
-	uint32 m_lastPacketLag;
+	CTimeValue m_lastPacketLag;
 };
 
 struct SProfileInfoStat
@@ -732,7 +732,7 @@ typedef void* TCipher;
 struct SNetworkPerformance
 {
 	uint64 m_nNetworkSync;
-	float  m_threadTime;
+	CTimeValue m_threadTime;
 };
 
 enum EListenerPriorityType
@@ -1196,7 +1196,7 @@ public:
 
 	struct SPulse
 	{
-		SPulse(uint32 k = 0, CTimeValue t = 0.0f) : key(k), tm(t) {}
+		SPulse(uint32 k = 0, CTimeValue t = 0) : key(k), tm(t) {}
 		uint32     key;
 		CTimeValue tm;
 		bool operator<(const SPulse& rhs) const
@@ -1211,7 +1211,7 @@ public:
 
 	void Pulse(uint32 key)
 	{
-		CTimeValue tm = gEnv->pTimer->GetAsyncTime();
+		CTimeValue tm = GetGTimer()->GetAsyncTime();
 		SPulse pulseKey(key);
 		SPulse* pPulse = std::lower_bound(m_pulses, m_pulses + m_count, pulseKey);
 		if (pPulse == m_pulses + m_count || key != pPulse->key)
@@ -1688,7 +1688,7 @@ struct INetChannel : public INetMessageSink
 	virtual CTimeValue GetRemoteTime() const = 0;
 
 	//! Gets the current ping.
-	virtual float GetPing(bool smoothed) const = 0;
+	virtual CTimeValue GetPing(bool smoothed) const = 0;
 
 	//! Checks if the system is suffering high latency.
 	virtual bool IsSufferingHighLatency(CTimeValue nTime) const = 0;
@@ -1772,7 +1772,7 @@ struct INetChannel : public INetMessageSink
 #endif
 
 #if ENABLE_RMI_BENCHMARK
-	virtual void LogRMIBenchmark(ERMIBenchmarkAction action, const SRMIBenchmarkParams& params, void (* pCallback)(ERMIBenchmarkLogPoint point0, ERMIBenchmarkLogPoint point1, int64 delay, void* pUserData), void* pUserData) = 0;
+	virtual void LogRMIBenchmark(ERMIBenchmarkAction action, const SRMIBenchmarkParams& params, void (* pCallback)(ERMIBenchmarkLogPoint point0, ERMIBenchmarkLogPoint point1, CTimeValue delay, void* pUserData), void* pUserData) = 0;
 #endif
 };
 
@@ -2006,23 +2006,23 @@ struct IGameQueryListener
 	virtual ~IGameQueryListener(){}
 
 	//! Adds a server to intern list if not already existing, else just update data.
-	virtual void AddServer(const char* description, const char* target, const char* additionalText, uint32 ping) = 0;
+	virtual void AddServer(const char* description, const char* target, const char* additionalText, const CTimeValue& ping) = 0;
 
 	//! Removes a server independently from last answer etc.
 	virtual void RemoveServer(string address) = 0;
 
 	//! Adds a received server pong.
-	virtual void AddPong(string address, uint32 ping) = 0; \
+	virtual void AddPong(string address, const CTimeValue& ping) = 0; \
 
 	//! Returns a vector of running servers (as const char*).
 	//! \note Please delete the list (not the servers!) afterwards!
 	virtual void GetCurrentServers(char*** pastrServers, int& o_amount) = 0;
 
 	//! Returns a specific server by number (NULL if not available).
-	virtual void GetServer(int number, char** server, char** data, int& ping) = 0;
+	virtual void GetServer(int number, char** server, char** data, CTimeValue& ping) = 0;
 
 	//! Returns the game server's data as a string and it's ping as an integer by reference.
-	virtual const char* GetServerData(const char* server, int& o_ping) = 0;
+	virtual const char* GetServerData(const char* server, CTimeValue& o_ping) = 0;
 
 	//! Refresh pings of all servers in the list.
 	virtual void RefreshPings() = 0;
@@ -2158,6 +2158,11 @@ public:
 	float GetAverage() const
 	{
 		return static_cast<float>(m_total) / static_cast<float>(m_count);
+	}
+
+	T GetAverageT() const
+	{
+		return m_total / m_count;
 	}
 
 	T GetFirst() const

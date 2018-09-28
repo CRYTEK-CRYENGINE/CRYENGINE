@@ -90,7 +90,7 @@ struct SStreamEngineStatistics
 			memset(this, 0, sizeof(SMediaTypeInfo));
 		}
 
-		float  fActiveDuringLastSecond; //!< Amount of time media device was active during last second.
+		nTime  fActiveDuringLastSecond; //!< Amount of time media device was active during last second.
 		float  fAverageActiveTime;      //!< Average time since last reset that the media device was active.
 
 		uint32 nBytesRead;              //!< Bytes read during last second.
@@ -116,7 +116,7 @@ struct SStreamEngineStatistics
 	uint32         nTotalCurrentReadBandwidth; //!< Total bytes/sec over all types and systems.
 
 	int            nPendingReadBytes;      //!< How many bytes still need to be read.
-	float          fAverageCompletionTime; //!< Time in seconds on average takes to complete file request.
+	CTimeValue     fAverageCompletionTime; //!< Time in seconds on average takes to complete file request.
 	float          fAverageRequestCount;   //!< Average requests per second being done to streaming engine.
 
 	uint64         nMainStreamingThreadWait;
@@ -156,8 +156,8 @@ struct SStreamEngineStatistics
 			nTotalRequestCount = 0;
 			nCurrentReadBandwidth = 0;
 			nSessionReadBandwidth = 0;
-			fTotalCompletionTime = .0f;
-			fAverageCompletionTime = .0f;
+			fTotalCompletionTime.SetSeconds(0);
+			fAverageCompletionTime.SetSeconds(0);
 		}
 
 		void Merge(const SRequestTypeInfo& _other)
@@ -180,11 +180,11 @@ struct SStreamEngineStatistics
 		uint64 nTotalRequestDataSize;       //!< Total requested bytes from client (uncompressed data).
 		uint32 nTotalRequestCount;          //!< Total number of finished requests.
 
-		uint32 nCurrentReadBandwidth;   //!< Bytes/second for this type during last second.
-		uint32 nSessionReadBandwidth;   //!< Average read bandwidth in total from reset - taking full time into account from reset.
+		rTime nCurrentReadBandwidth;    //!< Bytes/second for this type during last second.
+		rTime nSessionReadBandwidth;    //!< Average read bandwidth in total from reset - taking full time into account from reset.
 
-		float  fTotalCompletionTime;    //!< Time it took to finish all current requests.
-		float  fAverageCompletionTime;  //!< Average time it takes to fully complete a request of this type.
+		CTimeValue  fTotalCompletionTime;   //!< Time it took to finish all current requests.
+		CTimeValue  fAverageCompletionTime; //!< Average time it takes to fully complete a request of this type.
 		float  fAverageRequestCount;    //!< Average amount of requests made per second.
 	};
 

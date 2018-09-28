@@ -535,7 +535,7 @@ struct IPlatformOS
 	virtual ~IPlatformOS() {}
 
 	//! Tick with each frame to determine if there are any system messages requiring handling.
-	virtual void Tick(float realFrameTime) = 0;
+	virtual void Tick(CTimeValue& realFrameTime) = 0;
 
 	//! Local user profile functions to check/initiate user sign in:.
 
@@ -947,17 +947,21 @@ protected:
 
 		void Reset()
 		{
-			m_resetTime = gEnv->pTimer->GetAsyncCurTime();
+			// Float inaccuracy is fine, only used as a bool to approximate stable FPS.
+			m_resetTime = (float)GetGTimer()->GetAsyncCurTime().GetSeconds();
 		}
 
 		//! Returns true when stable FPS has been attained for the required amount of time.
 		bool HasAchievedStableFPS()
 		{
-			float fps = gEnv->pTimer->GetFrameTime(ITimer::ETIMER_UI);
+			// Float inaccuracy is fine, only used as a bool to approximate stable FPS.
+			// Ignore sim time pauses
+			float fps = (float)GetGTimer()->GetFrameTime(true).GetSeconds();
 			if (fps > 0.000001f)
 				fps = __fres(fps);
 
-			float curTime = gEnv->pTimer->GetAsyncCurTime();
+			// Float inaccuracy is fine, only used as a bool to approximate stable FPS.
+			float curTime = (float)GetGTimer()->GetAsyncCurTime().GetSeconds();
 			if (fps < m_minFPS)
 			{
 				Reset();

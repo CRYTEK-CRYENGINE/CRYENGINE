@@ -43,7 +43,11 @@ public:
 	bool operator()(u32& value, const char* name = "", const char* label = 0) override;
 	bool operator()(i64& value, const char* name = "", const char* label = 0) override;
 	bool operator()(u64& value, const char* name = "", const char* label = 0) override;
-
+	
+	bool operator()(CTimeValue& value, const char* name = "", const char* label = 0) override;
+	#define MP_FUNCTION(T) bool operator()(T& value, const char* name = "", const char* label = 0) override;
+	#include <CrySystem\mpfloat.types>
+	#undef MP_FUNCTION
 
 	bool operator()(const Serializer& ser, const char* name = "", const char* label = 0) override;
 	bool operator()(ContainerInterface& ser, const char* name = "", const char* label = 0) override;

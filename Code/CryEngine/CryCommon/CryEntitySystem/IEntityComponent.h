@@ -593,7 +593,7 @@ struct IEntityScriptComponent : public IEntityComponent
 {
 	CRY_ENTITY_COMPONENT_INTERFACE_GUID(IEntityScriptComponent, "bd6403cf-3b49-f39e-9540-3fd1c6d4f755"_cry_guid)
 
-	virtual void          SetScriptUpdateRate(float fUpdateEveryNSeconds) = 0;
+	virtual void          SetScriptUpdateRate(const CTimeValue& fUpdateEveryNSeconds) = 0;
 	virtual IScriptTable* GetScriptTable() = 0;
 	virtual void          CallEvent(const char* sEvent) = 0;
 	virtual void          CallEvent(const char* sEvent, float fValue) = 0;

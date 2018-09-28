@@ -19,7 +19,7 @@ struct SAnimationPoseModifierParams
 	ICharacterInstance*           pCharacterInstance;
 	IAnimationPoseData*           pPoseData;
 
-	f32                           timeDelta;
+	CTimeValue                    timeDelta;
 
 	QuatTS                        location;
 
@@ -250,11 +250,11 @@ struct IAnimationPoseBlenderDir :
 	virtual void SetTarget(const Vec3& target) = 0;
 	virtual void SetLayer(uint32 nLayer) = 0;
 	virtual void SetFadeoutAngle(f32 angleRadians) = 0;
-	virtual void SetFadeOutSpeed(f32 time) = 0;
-	virtual void SetFadeInSpeed(f32 time) = 0;
+	virtual void SetFadeOutSpeed(const CTimeValue& time) = 0;
+	virtual void SetFadeInSpeed(const CTimeValue& time) = 0;
 	virtual void SetFadeOutMinDistance(f32 minDistance) = 0;
 	virtual void SetPolarCoordinatesOffset(const Vec2& offset) = 0;
-	virtual void SetPolarCoordinatesSmoothTimeSeconds(f32 smoothTimeSeconds) = 0;
+	virtual void SetPolarCoordinatesSmoothTime(const nTime& smoothTime) = 0;
 	virtual void SetPolarCoordinatesMaxRadiansPerSecond(const Vec2& maxRadiansPerSecond) = 0;
 	virtual f32  GetBlend() const = 0;
 	// </interfuscator:shuffle>
@@ -344,7 +344,7 @@ struct IAnimationPoseAligner :
 	virtual void SetRootOffsetEnable(bool bEnable) = 0;
 	virtual void SetBlendWeight(float weight) = 0;
 
-	virtual void Update(ICharacterInstance* pCharacter, const QuatT& location, const float time) = 0;
+	virtual void Update(ICharacterInstance* pCharacter, const QuatT& location, const CTimeValue& time) = 0;
 	// </interfuscator:shuffle>
 };
 

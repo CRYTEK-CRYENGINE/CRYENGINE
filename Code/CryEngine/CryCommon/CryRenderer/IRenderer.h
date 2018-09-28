@@ -713,7 +713,7 @@ struct IRendererEventListener
 //////////////////////////////////////////////////////////////////////
 struct ILoadtimeCallback
 {
-	virtual void LoadtimeUpdate(float fDeltaTime) = 0;
+	virtual void LoadtimeUpdate(const CTimeValue& fDeltaTime) = 0;
 	virtual void LoadtimeRender() = 0;
 	virtual ~ILoadtimeCallback(){}
 };
@@ -830,25 +830,25 @@ enum ERenderPipelineProfilerStats
 
 struct RPProfilerStats
 {
-	float  gpuTime;
-	float  gpuTimeSmoothed;
-	float  gpuTimeMax;
-	float  cpuTime;
+	CTimeValue  gpuTime;
+	CTimeValue  gpuTimeSmoothed;
+	CTimeValue  gpuTimeMax;
+	CTimeValue  cpuTime;
 	uint32 numDIPs;
 	uint32 numPolys;
 
 	// Internal
-	float _gpuTimeMaxNew;
+	CTimeValue _gpuTimeMaxNew;
 };
 
 // See CRenderPipelineProfiler::SProfilerSection
 struct RPProfilerDetailedStats
 {
 	char            name[31];
-	float           gpuTime;
-	float           gpuTimeSmoothed;
-	float           cpuTime;
-	float           cpuTimeSmoothed;
+	CTimeValue      gpuTime;
+	CTimeValue      gpuTimeSmoothed;
+	CTimeValue      cpuTime;
+	CTimeValue      cpuTimeSmoothed;
 	CTimeValue      startTimeCPU, endTimeCPU;
 	uint64          startTimeGPU, endTimeGPU;
 	int             numDIPs, numPolys;
@@ -1076,7 +1076,7 @@ struct IRenderer//: public IRendererCallbackServer
 	virtual void GetMemoryUsage(ICrySizer* Sizer) = 0;
 
 	//! Gets textures streaming bandwidth information
-	virtual void GetBandwidthStats(float* fBandwidthRequested) = 0;
+	virtual void GetBandwidthStats(rTime* fBandwidthRequested) = 0;
 
 	//! Sets an event listener for texture streaming updates
 	virtual void SetTextureStreamListener(ITextureStreamListener* pListener) = 0;
@@ -1156,12 +1156,12 @@ struct IRenderer//: public IRendererCallbackServer
 	/////////////////////////////////////////////////////////////////////////////////
 	// External interface for shaders
 	/////////////////////////////////////////////////////////////////////////////////
-	virtual bool           EF_PrecacheResource(SShaderItem *pSI, int iScreenTexels, float fTimeToReady, int Flags, int nUpdateId, int nCounter = 1) = 0;
-	virtual bool           EF_PrecacheResource(SShaderItem* pSI, float fMipFactor, float fTimeToReady, int Flags, int nUpdateId, int nCounter = 1) = 0;
-	virtual bool           EF_PrecacheResource(IShader* pSH, float fMipFactor, float fTimeToReady, int Flags) = 0;
-	virtual bool           EF_PrecacheResource(ITexture* pTP, float fMipFactor, float fTimeToReady, int Flags, int nUpdateId, int nCounter = 1) = 0;
-	virtual bool           EF_PrecacheResource(IRenderMesh* pPB, IMaterial* pMaterial, float fMipFactor, float fTimeToReady, int Flags, int nUpdateId) = 0;
-	virtual bool           EF_PrecacheResource(SRenderLight* pLS, float fMipFactor, float fTimeToReady, int Flags, int nUpdateId) = 0;
+	virtual bool           EF_PrecacheResource(SShaderItem *pSI, int iScreenTexels, const CTimeValue& fTimeToReady, int Flags, int nUpdateId, int nCounter = 1) = 0;
+	virtual bool           EF_PrecacheResource(SShaderItem* pSI, float fMipFactor, const CTimeValue& fTimeToReady, int Flags, int nUpdateId, int nCounter = 1) = 0;
+	virtual bool           EF_PrecacheResource(IShader* pSH, float fMipFactor, const CTimeValue& fTimeToReady, int Flags) = 0;
+	virtual bool           EF_PrecacheResource(ITexture* pTP, float fMipFactor, const CTimeValue& fTimeToReady, int Flags, int nUpdateId, int nCounter = 1) = 0;
+	virtual bool           EF_PrecacheResource(IRenderMesh* pPB, IMaterial* pMaterial, float fMipFactor, const CTimeValue& fTimeToReady, int Flags, int nUpdateId) = 0;
+	virtual bool           EF_PrecacheResource(SRenderLight* pLS, float fMipFactor, const CTimeValue& fTimeToReady, int Flags, int nUpdateId) = 0;
 
 	virtual void           PostLevelLoading() = 0;
 	virtual void           PostLevelUnload() = 0;
@@ -1468,7 +1468,7 @@ struct IRenderer//: public IRendererCallbackServer
 
 	//! Stop renderer at the end of the frame.
 	//! E.g. ensures the renderer is not holding a lock when crash handler is trying to take a screenshot.
-	virtual bool StopRendererAtFrameEnd(uint timeoutMilliseconds) = 0;
+	virtual bool StopRendererAtFrameEnd(const CTimeValue& timeout) = 0;
 
 	//! Resume renderer that was stopped at the end of the frame with StopRendererAtFrameEnd().
 	virtual void     ResumeRendererFromFrameEnd() = 0;
@@ -1573,16 +1573,16 @@ struct IRenderer//: public IRendererCallbackServer
 
 	struct SRenderTimes
 	{
-		float fWaitForMain;
-		float fWaitForRender;
-		float fWaitForGPU;
-		float fTimeProcessedRT;
-		float fTimeProcessedRTScene;  //!< The part of the render thread between the "SCENE" profiler labels.
-		float fTimeProcessedGPU;
+		CTimeValue fWaitForMain;
+		CTimeValue fWaitForRender;
+		CTimeValue fWaitForGPU;
+		CTimeValue fTimeProcessedRT;
+		CTimeValue fTimeProcessedRTScene;  //!< The part of the render thread between the "SCENE" profiler labels.
+		CTimeValue fTimeProcessedGPU;
 		float fTimeGPUIdlePercent;
 	};
 	virtual void  GetRenderTimes(SRenderTimes& outTimes) = 0;
-	virtual float GetGPUFrameTime() = 0;
+	virtual CTimeValue GetGPUFrameTime() = 0;
 
 	//! Enable the batch mode if the meshpools are used to enable quick and dirty flushes.
 	virtual void EnableBatchMode(bool enable) = 0;

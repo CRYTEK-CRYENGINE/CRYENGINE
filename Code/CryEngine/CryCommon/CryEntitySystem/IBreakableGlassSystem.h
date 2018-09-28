@@ -18,7 +18,7 @@ struct IBreakableGlassSystem
 {
 	virtual ~IBreakableGlassSystem() {}
 
-	virtual void Update(const float frameTime) = 0;
+	virtual void Update(const CTimeValue& frameTime) = 0;
 	virtual bool BreakGlassObject(const EventPhysCollision& physEvent, const bool forceGlassBreak = false) = 0;
 	virtual void ResetAll() = 0;
 	virtual void GetMemoryUsage(ICrySizer* pSizer) const = 0;

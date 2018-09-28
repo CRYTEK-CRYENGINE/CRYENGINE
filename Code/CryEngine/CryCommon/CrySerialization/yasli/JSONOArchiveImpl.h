@@ -627,6 +627,23 @@ bool JSONOArchive::operator()(char& value, const char* name, const char* label)
     return true;
 }
 
+bool JSONOArchive::operator()(CTimeValue& value, const char* name, const char* label)
+{
+	return (*this)(value.m_lValue, name, label);
+}
+
+#define MP_FUNCTION(T)\
+bool JSONOArchive::operator()(T& value, const char* name, const char* label)\
+{\
+	placeIndentCompact();\
+	placeName(name);\
+	(*buffer_) << value;\
+	return true;\
+}
+#include <CrySystem\mpfloat.types>
+#undef MP_FUNCTION
+
+
 bool JSONOArchive::operator()(const Serializer& ser, const char* name, const char* label)
 {
     placeIndent();

@@ -7,6 +7,12 @@
 #include <CrySerialization/IArchive.h>
 #include <CryMath/Cry_Math.h>
 
+/*
+PERSONAL NOTE:
+	SAnimTime conflicts with CTimeValue() in usage, and has questionable accuracy/precision.
+	Hence deprecated and some associated functionality moved to CTimeValue() 
+*/
+#ifdef USE_ANIM_TIME
 struct STimeCode
 {
 	int32 hours;
@@ -382,4 +388,5 @@ inline SAnimTime abs(SAnimTime time)
 	return (time >= SAnimTime(0)) ? time : -time;
 }
 
+#endif
 #endif

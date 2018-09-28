@@ -87,7 +87,7 @@ private:
 struct SAutoTestInfo
 {
 	bool        runNextTest = true;  //!< To organize auto tests cycle.
-	int         waitMSec = 0;        //!< Identify waiting period after each auto test.
+	CTimeValue  wait = 0;            //!< Identify waiting period after each auto test.
 	const char* szTaskName = 0;      //!< Current test task.
 };
 
@@ -139,7 +139,7 @@ struct IUnitTestReporter
 	virtual void OnSingleTestStart(const IUnitTest& test) = 0;
 
 	//! Notify reporter one test finished, along with necessary results
-	virtual void OnSingleTestFinish(const IUnitTest& test, float fRunTimeInMs, bool bSuccess, char const* szFailureDescription) = 0;
+	virtual void OnSingleTestFinish(const IUnitTest& test, const CTimeValue& fRunTime, bool bSuccess, char const* szFailureDescription) = 0;
 };
 
 struct IUnitTestManager

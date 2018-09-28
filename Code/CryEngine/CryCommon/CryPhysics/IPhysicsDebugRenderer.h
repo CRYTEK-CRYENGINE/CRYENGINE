@@ -15,7 +15,7 @@ struct IPhysicsDebugRenderer
 	virtual void UpdateCamera(const CCamera& camera) = 0;
 	virtual void DrawAllHelpers(IPhysicalWorld* world) = 0;
 	virtual void DrawEntityHelpers(IPhysicalEntity* entity, int helperFlags) = 0;
-	virtual void Flush(float dt) = 0;
+	virtual void Flush(const CTimeValue& dt) = 0;
 	// </interfuscator:shuffle>
 };
 

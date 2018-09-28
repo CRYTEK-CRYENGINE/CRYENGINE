@@ -231,6 +231,25 @@ bool BinOArchive::operator()(u64& value, const char* name, const char* label)
 	return true;
 }
 
+bool BinOArchive::operator()(CTimeValue& value, const char* name, const char* label)
+{
+	return (*this)(value.m_lValue, name, label);
+}
+
+#define MP_FUNCTION(T)\
+bool BinOArchive::operator()(T& value, const char* name, const char* label)\
+{\
+	string v = value.str();\
+	bool size8 = strlen(v) + 1 < SIZE16;\
+	openNode(name, size8);\
+	stream_ << v;\
+	stream_.write(char(0));\
+	closeNode(name, size8);\
+	return true;\
+}
+#include <CrySystem\mpfloat.types>
+#undef MP_FUNCTION
+
 bool BinOArchive::operator()(const Serializer& ser, const char* name, const char* label)
 {
 	openNode(name, false);
@@ -600,6 +619,34 @@ bool BinIArchive::operator()(char& value, const char* name, const char* label)
 	closeNode(name);
 	return true;
 }
+
+bool BinIArchive::operator()(CTimeValue& value, const char* name, const char* label)
+{
+	return (*this)(value.m_lValue, name, label);
+}
+
+// Non-POD type, read and write as string. PERSONAL IMPROVE: Convert to StringSTL handling? Unfortunately not a str so reference won't work.
+#define MP_FUNCTION(T)\
+bool BinIArchive::operator()(T& value, const char* name, const char* label)\
+{\
+	if(!*name){\
+		stringBuffer_.clear();\
+		read(stringBuffer_);\
+		value = stringBuffer_.c_str();\
+		return true;\
+	}\
+\
+	if(!openNode(name))\
+		return false;\
+\
+	stringBuffer_.clear();\
+	read(stringBuffer_);\
+	value = stringBuffer_.c_str();\
+	closeNode(name);\
+	return true;\
+}
+#include <CrySystem\mpfloat.types>
+#undef MP_FUNCTION
 
 bool BinIArchive::operator()(const Serializer& ser, const char* name, const char* label)
 {

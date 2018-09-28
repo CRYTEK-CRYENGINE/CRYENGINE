@@ -2209,14 +2209,14 @@ struct SRenderLight
 		SAFE_RELEASE(m_pLightDynTexSource);
 	}
 
-	void SetAnimSpeed(float fAnimSpeed)
+	void SetAnimSpeed(const mpfloat& fAnimSpeed)
 	{
-		m_nAnimSpeed = int_round(min(fAnimSpeed * 255.0f / 4.0f, 255.0f));   // Assuming speed multiplier in range [0, 4]
+		m_nAnimSpeed = (uint8)int_round(min(fAnimSpeed * 255 / mpfloat(4), mpfloat(255)));   // Assuming speed multiplier in range [0, 4]
 	}
 
-	float GetAnimSpeed() const
+	mpfloat GetAnimSpeed() const
 	{
-		return ((float) m_nAnimSpeed) * (4.0f / 255.0f);
+		return m_nAnimSpeed * ((mpfloat)4 / 255);
 	}
 
 	void SetFalloffMax(float fMax)
@@ -2434,7 +2434,7 @@ public:
 	ISoftOcclusionQuery* m_pSoftOccQuery = nullptr;
 	ILightAnimWrapper*   m_pLightAnim = nullptr;
 
-	float                m_fTimeScrubbed = 0;
+	CTimeValue           m_fTimeScrubbed;
 
 	Matrix34             m_BaseObjMatrix{type_zero::ZERO};
 	Vec3                 m_BaseOrigin{0,0,0};  //!< World space position.
@@ -2520,7 +2520,7 @@ struct SFogVolumeInfo
 	float    m_noiseScale;
 	Vec3     m_noiseFreq;
 	float    m_noiseOffset;
-	float    m_noiseElapsedTime;
+	CTimeValue m_noiseElapsedTime;
 	Vec3     m_emission;
 };
 

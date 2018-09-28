@@ -17,8 +17,8 @@ public:
 	virtual void Reset(IAISystem::EResetReason reason) {}
 	virtual void Serialize(TSerialize ser) {}
 
-	virtual void Update(float frameDelta) {}
-	virtual void ActorUpdate(IAIObject* pAIObject, IAIObject::EUpdateType type, float frameDelta) {}
+	virtual void Update(const CTimeValue& frameDelta) {}
+	virtual void ActorUpdate(IAIObject* pAIObject, IAIObject::EUpdateType type, const CTimeValue& frameDelta) {}
 	virtual bool WantActorUpdates(IAIObject::EUpdateType type) { return false; }
 
 	virtual void DebugDraw(IAIDebugRenderer* pDebugRenderer) {}

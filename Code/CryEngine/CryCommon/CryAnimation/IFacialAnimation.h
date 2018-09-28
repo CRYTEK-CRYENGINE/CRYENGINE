@@ -184,7 +184,7 @@ struct IFacialEffCtrl
 
 	//! Get access to control spline.
 	virtual ISplineInterpolator* GetSpline() = 0;
-	virtual float                Evaluate(float fInput) = 0;
+	virtual float                Evaluate(const mpfloat& fInput) = 0;
 
 	//! \see ControlFlags.
 	virtual int GetFlags() = 0;
@@ -280,8 +280,8 @@ struct IFacialInstance
 	virtual IFacialModel*        GetFacialModel() = 0;
 	virtual IFaceState*          GetFaceState() = 0;
 
-	virtual uint32               StartEffectorChannel(IFacialEffector* pEffector, float fWeight, float fFadeTime, float fLifeTime = 0, int nRepeatCount = 0) = 0;
-	virtual void                 StopEffectorChannel(uint32 nChannelID, float fFadeOutTime) = 0;
+	virtual uint32               StartEffectorChannel(IFacialEffector* pEffector, float fWeight, const CTimeValue& fFadeTime, const CTimeValue& fLifeTime = 0, int nRepeatCount = 0) = 0;
+	virtual void                 StopEffectorChannel(uint32 nChannelID, const CTimeValue& fFadeOutTime) = 0;
 	virtual void                 PreviewEffector(IFacialEffector* pEffector, float fWeight, float fBalance = 0.0f) = 0;
 	virtual void                 PreviewEffectors(IFacialEffector** pEffectors, float* fWeights, float* fBalances, int nEffectorsCount) = 0;
 	virtual IFacialAnimSequence* LoadSequence(const char* sSequenceName, bool addToCache = true) = 0;
@@ -292,7 +292,7 @@ struct IFacialInstance
 	virtual void                 PauseSequence(EFacialSequenceLayer layer, bool bPaused) = 0;
 
 	//! Seek sequence current time to the specified time offset from the begining of sequence playback time.
-	virtual void SeekSequence(EFacialSequenceLayer layer, float fTime) = 0;
+	virtual void SeekSequence(EFacialSequenceLayer layer, const CTimeValue& fTime) = 0;
 
 	//! Start/Stop Lip syncing with the sound.
 	virtual void LipSyncWithSound(uint32 nSoundId, bool bStop = false) = 0;
@@ -379,15 +379,15 @@ struct IFacialSentence
 	struct Phoneme
 	{
 		char  phoneme[4];   //!< Phoneme name.
-		int   time;         //!< Start time of the phoneme in milliseconds.
-		int   endtime;      //!< End time the phoneme in milliseconds.
 		float intensity;    //!< Phoneme intensity.
+		CTimeValue time;    //!< Start time of the phoneme
+		CTimeValue endtime; //!< End time the phoneme
 	};
 	struct Word
 	{
 		const char* sWord;     //!< Word text.
-		int         startTime; //!< Start time of the word in milliseconds.
-		int         endTime;   //!< End time of the word in milliseconds.
+		CTimeValue  startTime; //!< Start time of the word
+		CTimeValue  endTime;   //!< End time of the word
 	};
 
 	struct ChannelSample
@@ -420,7 +420,7 @@ struct IFacialSentence
 
 	//! Add a new word into the sentence.
 	virtual void AddWord(const Word& wrd) = 0;
-	virtual int  Evaluate(float fTime, float fInputPhonemeStrength, int maxSamples, ChannelSample* samples) = 0;
+	virtual int  Evaluate(const CTimeValue& fTime, float fInputPhonemeStrength, int maxSamples, ChannelSample* samples) = 0;
 	// </interfuscator:shuffle>
 };
 
@@ -499,8 +499,8 @@ struct IFacialAnimSoundEntry
 	//! Retrieve facial animation sentence interface.
 	virtual IFacialSentence* GetSentence() = 0;
 
-	virtual float            GetStartTime() = 0;
-	virtual void             SetStartTime(float time) = 0;
+	virtual const CTimeValue& GetStartTime() = 0;
+	virtual void              SetStartTime(const CTimeValue& time) = 0;
 	// </interfuscator:shuffle>
 };
 
@@ -515,10 +515,10 @@ struct IFacialAnimSkeletonAnimationEntry
 	virtual const char* GetName() const = 0;
 
 	//! Set the starting time of the animation.
-	virtual void  SetStartTime(float time) = 0;
-	virtual float GetStartTime() const = 0;
-	virtual void  SetEndTime(float time) = 0;
-	virtual float GetEndTime() const = 0;
+	virtual void  SetStartTime(const CTimeValue& time) = 0;
+	virtual const CTimeValue& GetStartTime() const = 0;
+	virtual void  SetEndTime(const CTimeValue& time) = 0;
+	virtual const CTimeValue& GetEndTime() const = 0;
 	// </interfuscator:shuffle>
 };
 
@@ -554,8 +554,8 @@ struct IFacialAnimSequence
 	virtual void        SetFlags(int nFlags) = 0;
 	virtual int         GetFlags() = 0;
 
-	virtual Range       GetTimeRange() = 0;
-	virtual void        SetTimeRange(Range range) = 0;
+	virtual TRange<CTimeValue> GetTimeRange() = 0;
+	virtual void SetTimeRange(TRange<CTimeValue> range) = 0;
 
 	//////////////////////////////////////////////////////////////////////////
 	// Access to channels.
@@ -598,7 +598,11 @@ struct IFacialAnimSequence
 	// </interfuscator:shuffle>
 };
 
-static const float FACIAL_EDITOR_FPS = 30.0f;
-inline float FacialEditorSnapTimeToFrame(float time) { return int((time * FACIAL_EDITOR_FPS) + 0.5f) * (1.0f / FACIAL_EDITOR_FPS); }
+static const uint FACIAL_EDITOR_FPS = 30;
+// Returns time snapped to nearest frame unit. e.g. if fps = 60 then nearest unit of 1/60'th of a second.
+// mpfloat for convenience (used mostly in splines etc.)
+inline mpfloat FacialEditorSnapTimeToFrame(const CTimeValue& time) { 
+	return time.SnapToNearest(FACIAL_EDITOR_FPS).GetSeconds();
+}
 
 //! \endcond

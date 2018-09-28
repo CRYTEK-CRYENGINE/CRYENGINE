@@ -68,7 +68,7 @@ struct SActionInputBlockData
 {
 	SActionInputBlockData()
 		: blockType(eAIBT_None)
-		, fBlockDuration(0.0f)
+		, fBlockDuration(0)
 		, activationMode(eAAM_Invalid)
 		, deviceIndex(0)
 		, bAllDeviceIndices(true)
@@ -77,7 +77,7 @@ struct SActionInputBlockData
 
 	EActionInputBlockType blockType;
 	TActionInputBlockers  inputs;
-	float                 fBlockDuration;
+	CTimeValue            fBlockDuration;
 	int                   activationMode;
 	uint8                 deviceIndex;        // Device index - controller 1/2 etc
 	bool                  bAllDeviceIndices;  // True to block all device indices of deviceID type, otherwise uses deviceIndex
@@ -154,16 +154,16 @@ struct SActionInput
 		, input("")
 		, defaultInput("")
 		, inputCRC(0)
-		, fPressedTime(0.0f)
-		, fPressTriggerDelay(0.0f)
+		, fPressedTime(0)
+		, fPressTriggerDelay(0)
 		, fPressTriggerDelayRepeatOverride(-1.0f)
-		, fLastRepeatTime(0.0f)
+		, fLastRepeatTime(0)
 		, fAnalogCompareVal(0.0f)
-		, fHoldTriggerDelay(0.0f)
-		, fCurrentHoldValue(0.0f)
-		, fReleaseTriggerThreshold(-1.0f)
-		, fHoldRepeatDelay(0.0f)
-		, fHoldTriggerDelayRepeatOverride(-1.0f)
+		, fHoldTriggerDelay(0)
+		, fCurrentHoldValue(0)
+		, fReleaseTriggerThreshold(-1)
+		, fHoldRepeatDelay(0)
+		, fHoldTriggerDelayRepeatOverride(-1)
 		, activationMode(eAAM_Invalid)
 		, iPressDelayPriority(0)
 		, currentState(eIS_Unknown)
@@ -178,16 +178,16 @@ struct SActionInput
 	TActionInputString            defaultInput;
 	SActionInputBlockData         inputBlockData;
 	uint32                        inputCRC;
-	float                         fPressedTime;
-	float                         fPressTriggerDelay;
+	CTimeValue                    fPressedTime;
+	CTimeValue                    fPressTriggerDelay;
 	float                         fPressTriggerDelayRepeatOverride;
-	float                         fLastRepeatTime;
+	CTimeValue                    fLastRepeatTime;
 	float                         fAnalogCompareVal;
-	float                         fHoldTriggerDelay;
-	float                         fCurrentHoldValue;   // A normalized amount for the current hold before triggering at the hold delay. Is 1 when hold is hit, & it does not reset when repeating
-	float                         fReleaseTriggerThreshold;
-	float                         fHoldRepeatDelay;
-	float                         fHoldTriggerDelayRepeatOverride;
+	CTimeValue                    fHoldTriggerDelay;
+	nTime                         fCurrentHoldValue;   // A normalized amount for the current hold before triggering at the hold delay. Is 1 when hold is hit, & it does not reset when repeating
+	CTimeValue                    fReleaseTriggerThreshold;
+	CTimeValue                    fHoldRepeatDelay;
+	CTimeValue                    fHoldTriggerDelayRepeatOverride;
 	int                           activationMode;
 	int                           iPressDelayPriority;   // If priority is higher than the current
 	EInputState                   currentState;

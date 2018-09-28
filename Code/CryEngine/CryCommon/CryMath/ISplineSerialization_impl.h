@@ -43,6 +43,11 @@ inline string& operator<<(string& str, float f)
 	str += buffer;
 	return str;
 }
+inline string& operator<<(string& str, mpfloat t)
+{
+	str += t.str();
+	return str;
+}
 
 inline char* tokenize(char*& str, char token)
 {
@@ -98,7 +103,7 @@ bool Float4SplineKey::FromString(char* str, Formatting format)
 	if (char* s = tokenize(str, format.field))
 	{
 		ZeroStruct(*this);
-		this->time = (float)atof(s);
+		this->time = mpfloat(static_cast<const char*>(s));
 
 		if (FromString(this->value, str, format))
 		{

@@ -33,7 +33,7 @@ struct SAIBubbleRequest
 		eRT_PrototypeDialog,
 	};
 
-	SAIBubbleRequest(const EntityId _entityID, const char* _message, TBubbleRequestOptionFlags _flags, float _duration = 0.0f, const ERequestType _requestType = eRT_ErrorMessage)
+	SAIBubbleRequest(const EntityId _entityID, const char* _message, TBubbleRequestOptionFlags _flags, const CTimeValue& _duration = CTimeValue(0), const ERequestType _requestType = eRT_ErrorMessage)
 		: entityID(_entityID)
 		, message(_message)
 		, flags(_flags)
@@ -62,8 +62,8 @@ struct SAIBubbleRequest
 
 	const EntityId            GetEntityID() const        { return entityID; }
 	TBubbleRequestOptionFlags GetFlags() const           { return flags; }
-	float                     GetDuration() const        { return duration; }
-	bool                      IsDurationInfinite() const { return duration == FLT_MAX; }
+	const CTimeValue&         GetDuration() const        { return duration; }
+	bool                      IsDurationInfinite() const { return duration == CTimeValue::Max(); }
 	ERequestType              GetRequestType() const     { return requestType; }
 
 private:
@@ -82,7 +82,7 @@ private:
 	EntityId                                   entityID;
 	CryFixedStringT<MAX_BUBBLE_MESSAGE_LENGHT> message;
 	TBubbleRequestOptionFlags                  flags;
-	float duration;
+	CTimeValue duration;
 	const ERequestType                         requestType;
 	size_t totalLinesFormattedMessage;
 

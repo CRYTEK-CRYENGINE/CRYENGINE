@@ -81,9 +81,9 @@ struct SParticleParameters
 	Matrix44  viewProjection;
 	Quat      emitterOrientation;
 	Vec3      emitterPosition;
-	f32       deltaTime;
+	CTimeValue deltaTime;
 	Vec3      physAccel;
-	f32       currentTime;
+	CTimeValue currentTime;
 	Vec3      physWind;
 	float     farToNearDistance;
 	Vec3      cameraPosition;

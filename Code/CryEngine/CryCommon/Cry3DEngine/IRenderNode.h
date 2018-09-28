@@ -101,7 +101,7 @@ struct SRenderNodeTempData
 		int                 lastSeenFrame[MAX_RECURSION_LEVELS];             // must be first, see IRenderNode::SetDrawFrame()
 		int                 lastSeenShadowFrame;                             // When was last rendered to shadow
 		CRenderObject*      arrPermanentRenderObjects[MAX_STATOBJ_LODS_NUM];
-		float               arrLodLastTimeUsed[MAX_STATOBJ_LODS_NUM];
+		CTimeValue          arrLodLastTimeUsed[MAX_STATOBJ_LODS_NUM];
 		Matrix34            objMat;
 		OcclusionTestClient m_OcclState;
 		struct IFoliage*    m_pFoliage;
@@ -127,7 +127,12 @@ public:
 	std::atomic<uint32> invalidRenderObjects;
 
 public:
-	SRenderNodeTempData()  { ZeroStruct(userData); hasValidRenderObjects = invalidRenderObjects = false; }
+	SRenderNodeTempData()  {
+		ZeroStruct(userData); hasValidRenderObjects = invalidRenderObjects = false; 
+
+		// Due to memset(0), plus it's used in ComputeDissolve() etc. before set! Have to set to 0 here.
+		for (auto &v : userData.arrLodLastTimeUsed) { v = CTimeValue(0); }
+	}
 	~SRenderNodeTempData() { Free(); };
 
 	CRenderObject* GetRenderObject(int nLod); /* thread-safe */
@@ -817,7 +822,7 @@ struct IFogVolumeRenderNode : public IRenderNode
 	virtual void            SetFogVolumeProperties(const SFogVolumeProperties& properties) = 0;
 	virtual const Matrix34& GetMatrix() const = 0;
 
-	virtual void            FadeGlobalDensity(float fadeTime, float newGlobalDensity) = 0;
+	virtual void            FadeGlobalDensity(const CTimeValue& fadeTime, float newGlobalDensity) = 0;
 	// </interfuscator:shuffle>
 };
 
@@ -850,7 +855,7 @@ struct SFogVolumeProperties
 	float  m_windInfluence = 1.f;
 	float  m_densityNoiseScale = 0.f;
 	float  m_densityNoiseOffset = 0.f;
-	float  m_densityNoiseTimeFrequency = 0.f;
+	mpfloat  m_densityNoiseTimeFrequency = 0;
 	Vec3   m_densityNoiseFrequency = Vec3(1.f);
 	Vec3   m_emission = Vec3(1.f);
 };
@@ -947,8 +952,8 @@ struct IWaterVolumeRenderNode : public IRenderNode
 //! \cond INTERNAL
 struct SWaterWaveParams
 {
-	SWaterWaveParams() : m_fSpeed(5.0f), m_fSpeedVar(2.0f), m_fLifetime(8.0f), m_fLifetimeVar(2.0f),
-		m_fHeight(0.75f), m_fHeightVar(0.4f), m_fPosVar(5.0f), m_fCurrLifetime(-1.0f), m_fCurrFrameLifetime(-1.0f),
+	SWaterWaveParams() : m_fSpeed(5.0f), m_fSpeedVar(2.0f), m_fLifetime(8), m_fLifetimeVar(2),
+		m_fHeight(0.75f), m_fHeightVar(0.4f), m_fPosVar(5.0f), m_fCurrLifetime(-1), m_fCurrFrameLifetime(-1),
 		m_fCurrSpeed(0.0f), m_fCurrHeight(1.0f)
 	{
 
@@ -956,12 +961,12 @@ struct SWaterWaveParams
 
 	Vec3  m_pPos;
 	float m_fSpeed, m_fSpeedVar;
-	float m_fLifetime, m_fLifetimeVar;
+	CTimeValue m_fLifetime, m_fLifetimeVar;
 	float m_fHeight, m_fHeightVar;
 	float m_fPosVar;
 
-	float m_fCurrLifetime;
-	float m_fCurrFrameLifetime;
+	CTimeValue m_fCurrLifetime;
+	CTimeValue m_fCurrFrameLifetime;
 	float m_fCurrSpeed;
 	float m_fCurrHeight;
 };
@@ -1047,7 +1052,7 @@ struct IRopeRenderNode : public IRenderNode
 		float maxForce = 0.f;
 
 		int   nMaxIters = 650;
-		float maxTimeStep = 0.25f;
+		CTimeValue maxTimeStep = "0.25";
 		float stiffness = 10.f;
 		float hardness = 20.f;
 		float damping = 0.2f;
@@ -1109,16 +1114,16 @@ struct IGeomCacheRenderNode : public IRenderNode
 
 	//! Sets the time in the animation for the current frame.
 	//! \note You should start streaming before calling this.
-	virtual void SetPlaybackTime(const float time) = 0;
+	virtual void SetPlaybackTime(const CTimeValue& time) = 0;
 
 	//! Get the current playback time.
-	virtual float GetPlaybackTime() const = 0;
+	virtual const CTimeValue GetPlaybackTime() const = 0;
 
 	//! Check if cache is streaming.
 	virtual bool IsStreaming() const = 0;
 
 	//! Need to start streaming before playback, otherwise there will be stalls.
-	virtual void StartStreaming(const float time = 0.0f) = 0;
+	virtual void StartStreaming(const CTimeValue& time = 0) = 0;
 
 	//! Stops streaming and trashes the buffers.
 	virtual void StopStreaming() = 0;
@@ -1130,7 +1135,7 @@ struct IGeomCacheRenderNode : public IRenderNode
 	virtual void SetLooping(const bool bEnable) = 0;
 
 	//! Gets time delta from current playback position to last ready to play frame.
-	virtual float GetPrecachedTime() const = 0;
+	virtual const CTimeValue GetPrecachedTime() const = 0;
 
 	//! Check if bounds changed since last call to this function.
 	virtual bool DidBoundsChange() = 0;

@@ -246,17 +246,17 @@ public:
 
 	~CAnimEventData() {}
 
-	f32  GetNormalizedTime() const { return m_normalizedTime; }
-	void SetNormalizedTime(f32 normalizedTime)
+	const nTime&  GetNormalizedTime() const { return m_normalizedTime; }
+	void SetNormalizedTime(const nTime& normalizedTime)
 	{
-		m_normalizedTime = clamp_tpl(normalizedTime, 0.f, 1.f);
+		m_normalizedTime = CLAMP(normalizedTime, 0, 1);
 		m_normalizedEndTime = max(normalizedTime, m_normalizedEndTime);
 	}
 
-	f32  GetNormalizedEndTime() const { return m_normalizedEndTime; }
-	void SetNormalizedEndTime(f32 normalizedEndTime)
+	const nTime&  GetNormalizedEndTime() const { return m_normalizedEndTime; }
+	void SetNormalizedEndTime(const nTime& normalizedEndTime)
 	{
-		m_normalizedEndTime = clamp_tpl(normalizedEndTime, m_normalizedTime, 1.f);
+		m_normalizedEndTime = CLAMP(normalizedEndTime, m_normalizedTime, 1);
 	}
 
 	const char* GetName() const { return m_strEventName.c_str(); }
@@ -302,8 +302,8 @@ public:
 	}
 
 private:
-	f32    m_normalizedTime;
-	f32    m_normalizedEndTime;
+	nTime  m_normalizedTime;
+	nTime  m_normalizedEndTime;
 	uint32 m_nameLowercaseCRC32;
 	string m_strEventName;
 	string m_strCustomParameter;
@@ -315,8 +315,8 @@ private:
 
 struct AnimEventInstance
 {
-	f32         m_time;
-	f32         m_endTime;
+	nTime       m_time;		// Normalized time
+	nTime       m_endTime;	// Normalized time
 	uint32      m_EventNameLowercaseCRC32;
 	const char* m_EventName;
 	const char* m_CustomParameter; //!< Meaning depends on event - sound: sound path, effect: effect name.
@@ -377,9 +377,9 @@ struct SJointMask
 struct CRY_ALIGN(8) CryCharAnimationParams
 {
 	CryCharAnimationParams(int _nLayerID = 0, uint32 _nFlags = 0)
-		: m_fTransTime(-1.0f)
-		  , m_fKeyTime(-1.0f)
-		  , m_fPlaybackSpeed(1.0f)
+		: m_fTransTime(-1)
+		  , m_fKeyTime(-1)
+		  , m_fPlaybackSpeed(1)
 		  , m_fAllowMultilayerAnim(1.0f)
 		  , m_nLayerID(_nLayerID)
 		  , m_nFlags(_nFlags)
@@ -391,16 +391,16 @@ struct CRY_ALIGN(8) CryCharAnimationParams
 #endif //!defined(USE_PROTOTYPE_ABS_BLENDING)
 	{
 		for (int i = 0; i < NUM_ANIMATION_USER_DATA_SLOTS; i++)
-			m_fUserData[i] = 0.0f;
+			m_fUserData[i] = 0;
 	}
-	//! Transition time between two animations.
-	f32 m_fTransTime;
+	//! Transition time between two animations. (Not normalized)
+	CTimeValue m_fTransTime;
 
 	//! keytime[0-1]. can be used to start a transition animation.
-	f32 m_fKeyTime;
+	nTime m_fKeyTime;
 
 	//! Multiplier for animation-update.
-	f32 m_fPlaybackSpeed;
+	mpfloat m_fPlaybackSpeed;
 
 	//! If this is '1' then we can play animation on higher layers and they overwrite the channels on lower layers.
 	f32 m_fAllowMultilayerAnim;
@@ -421,7 +421,7 @@ struct CRY_ALIGN(8) CryCharAnimationParams
 	uint32 m_nUserToken;
 
 	//! a set of weights that are blended together just like the animation is, for calling code's benefit.
-	f32 m_fUserData[NUM_ANIMATION_USER_DATA_SLOTS];
+	mpfloat m_fUserData[NUM_ANIMATION_USER_DATA_SLOTS];
 
 #if defined(USE_PROTOTYPE_ABS_BLENDING)
 	const SJointMask* m_pJointMask;
@@ -474,22 +474,22 @@ public:
 		: m_pParametricSampler(NULL)
 		  , m_nStaticFlags(0)
 		  , m_animationId(0)
-		  , m_currentSegmentExpectedDurationSeconds(-1.f)
-		  , m_expectedTotalDurationSeconds(-1.f)
-		  , m_fCurrentDeltaTime(-1.f)
-		  , m_fStartTime(0.0f)
+		  , m_currentSegmentExpectedDuration(-1)
+		  , m_expectedTotalDuration(-1)
+		  , m_fCurrentDeltaTime(-1)
+		  , m_fStartTime(0)
 		  , m_nInterpolationType(CA_Interpolation_Type::Linear)
-		  , m_fTransitionTime(1.0f)
-		  , m_fTransitionPriority(0.f)
-		  , m_fTransitionWeight(-1.f)
-		  , m_fPlaybackScale(1.0f)
+		  , m_fTransitionTime(1)
+		  , m_fTransitionPriority(0)
+		  , m_fTransitionWeight(-1)
+		  , m_fPlaybackScale(1)
 		  , m_fPlaybackWeight(1.0f)
 		  , m_nUserToken(0)
 	{
-		m_fAnimTimePrev[0] = 0.0f;
-		m_fAnimTimePrev[1] = 0.0f;
-		m_fAnimTime[0] = 0.0f;
-		m_fAnimTime[1] = 0.0f;
+		m_fAnimTimePrev[0] = 0;
+		m_fAnimTimePrev[1] = 0;
+		m_fAnimTime[0] = 0;
+		m_fAnimTime[1] = 0;
 		m_currentSegmentIndexPrev[0] = 0;
 		m_currentSegmentIndexPrev[1] = 0;
 		m_currentSegmentIndex[0] = 0;
@@ -497,7 +497,7 @@ public:
 		m_DynFlags[0] = 0;
 		m_DynFlags[1] = 0;
 		for (int i = 0; i < NUM_ANIMATION_USER_DATA_SLOTS; i++)
-			m_fUserData[i] = 0.0f;
+			m_fUserData[i] = 0;
 	}
 
 	virtual ~CAnimation()
@@ -517,8 +517,8 @@ public:
 				ser.Value("transitionPriority", m_fTransitionPriority);
 				ser.Value("transitionWeight", m_fTransitionWeight);
 
-				ser.Value("currentSegmentExpectedDurationSeconds", m_currentSegmentExpectedDurationSeconds);
-				ser.Value("expectedTotalDurationSeconds", m_currentSegmentExpectedDurationSeconds);
+				ser.Value("currentSegmentExpectedDuration", m_currentSegmentExpectedDuration);
+				ser.Value("expectedTotalDuration", m_currentSegmentExpectedDuration);
 
 				ser.Value("currentSegmentIndexPrev0", m_currentSegmentIndexPrev[0]);
 				ser.Value("currentSegmentIndexPrev1", m_currentSegmentIndexPrev[1]);
@@ -604,24 +604,24 @@ public:
 	void ClearStaticFlag(uint32 nStaticFlags)      { m_nStaticFlags &= ~nStaticFlags; } // TODO: check with game-team if really needed.
 
 	//! See Get/SetAnimationNormalizedTime and Get/SetLayerNormalizedTime functions in ISkeletonAnim to get or set the real normalized time of an animation taking its segmentation into account.
-	f32  GetCurrentSegmentNormalizedTimePrevious() const                    { return m_fAnimTimePrev[0]; }
-	void SetCurrentSegmentNormalizedTimePrevious(f32 normalizedSegmentTime) { m_fAnimTimePrev[0] = clamp_tpl(normalizedSegmentTime, 0.f, 1.f); }
-	f32  GetCurrentSegmentNormalizedTime() const                            { return m_fAnimTime[0]; }
-	void SetCurrentSegmentNormalizedTime(f32 normalizedSegmentTime)         { m_fAnimTime[0] = clamp_tpl(normalizedSegmentTime, 0.f, 1.f); }
-	f32  GetCurrentSegmentNormalizedTimeDelta() const                       { return m_fCurrentDeltaTime; }
+	const nTime& GetCurrentSegmentNormalizedTimePrevious() const                     { return m_fAnimTimePrev[0]; }
+	void SetCurrentSegmentNormalizedTimePrevious(const nTime& normalizedSegmentTime) { m_fAnimTimePrev[0] = CLAMP(normalizedSegmentTime, 0, 1); }
+	const nTime&  GetCurrentSegmentNormalizedTime() const                            { return m_fAnimTime[0]; }
+	void SetCurrentSegmentNormalizedTime(const nTime& normalizedSegmentTime)         { m_fAnimTime[0] = CLAMP(normalizedSegmentTime, 0, 1); }
+	const nTime&  GetCurrentSegmentNormalizedTimeDelta() const                       { return m_fCurrentDeltaTime; }
 
 	CA_Interpolation_Type GetTransitionInterpolationType() const            { return m_nInterpolationType; }
 	void SetTransitionInterpolationType(CA_Interpolation_Type nInterpolationType) { m_nInterpolationType = nInterpolationType; }
 
-	f32  GetTransitionPriority() const                                      { return m_fTransitionPriority; }
-	void SetTransitionPriority(f32 transitionPriority)                      { m_fTransitionPriority = clamp_tpl(transitionPriority, 0.f, 1.f); }
+	const mpfloat& GetTransitionPriority() const                            { return m_fTransitionPriority; }
+	void SetTransitionPriority(const mpfloat& transitionPriority)           { m_fTransitionPriority = CLAMP(transitionPriority, 0, 1); }
 
-	f32  GetTransitionWeight() const                                        { return m_fTransitionWeight; }
-	void SetTransitionWeight(f32 transitionWeight)                          { m_fTransitionWeight = transitionWeight; }
-	void SetTransitionWeightRequested(f32 transitionWeight)                 { m_fTransitionWeight = Interpolate(transitionWeight, m_nInterpolationType); }
+	const mpfloat&  GetTransitionWeight() const                             { return m_fTransitionWeight; }
+	void SetTransitionWeight(const mpfloat& transitionWeight)               { m_fTransitionWeight = transitionWeight; }
+	void SetTransitionWeightRequested(const mpfloat& transitionWeight)      { m_fTransitionWeight.lossy(Interpolate(BADF(transitionWeight), m_nInterpolationType)); }
 
-	f32  GetTransitionTime() const                                          { return m_fTransitionTime; }
-	void SetTransitionTime(f32 transitionTime)                              { m_fTransitionTime = transitionTime; }
+	const CTimeValue&  GetTransitionTime() const                            { return m_fTransitionTime; }
+	void SetTransitionTime(const CTimeValue& transitionTime)                { m_fTransitionTime = transitionTime; }
 
 	f32  GetPlaybackWeight() const                                          { return m_fPlaybackWeight; }
 	void SetPlaybackWeight(f32 playbackWeight)
@@ -631,22 +631,22 @@ public:
 		m_fPlaybackWeight = playbackWeight;
 	}
 
-	f32  GetPlaybackScale() const { return m_fPlaybackScale; }
-	void SetPlaybackScale(f32 playbackScale)
+	const mpfloat& GetPlaybackScale() const { return m_fPlaybackScale; }
+	void SetPlaybackScale(const mpfloat& playbackScale)
 	{
-		assert(playbackScale >= 0.0f);
-		m_fPlaybackScale = max(0.0f, playbackScale);
+		assert(playbackScale >= 0);
+		m_fPlaybackScale = max(mpfloat(0), playbackScale);
 	}
 
 	bool   HasUserToken(uint32 userToken) const                                  { return (m_nUserToken == userToken); }
 	uint32 GetUserToken() const                                                  { return m_nUserToken; }
 	void   SetUserToken(uint32 nUserToken)                                       { m_nUserToken = nUserToken; }
 
-	f32    GetExpectedTotalDurationSeconds() const                               { return m_expectedTotalDurationSeconds; }
-	void   SetExpectedTotalDurationSeconds(f32 expectedDurationSeconds)          { m_expectedTotalDurationSeconds = expectedDurationSeconds; }
+	const CTimeValue&    GetExpectedTotalDuration() const                        { return m_expectedTotalDuration; }
+	void   SetExpectedTotalDuration(const CTimeValue& expectedDuration)          { m_expectedTotalDuration = expectedDuration; }
 
-	f32    GetCurrentSegmentExpectedDurationSeconds() const                      { return m_currentSegmentExpectedDurationSeconds; }
-	void   SetCurrentSegmentExpectedDurationSeconds(f32 expectedDurationSeconds) { m_currentSegmentExpectedDurationSeconds = expectedDurationSeconds; }
+	const CTimeValue&    GetCurrentSegmentExpectedDuration() const               { return m_currentSegmentExpectedDuration; }
+	void   SetCurrentSegmentExpectedDuration(const CTimeValue& expectedDuration) { m_currentSegmentExpectedDuration = expectedDuration; }
 
 	// return RT-flags.
 	void   ClearActivated()           { m_DynFlags[0] &= ~CA_ACTIVATED; } // TODO: check with game-team if really needed.
@@ -665,26 +665,26 @@ protected:
 	uint8 m_currentSegmentIndexPrev[2];
 	uint8 m_currentSegmentIndex[2];
 
-	f32 m_fCurrentDeltaTime;        //!< This is the delta in normalized segment time.
+	nTime m_fCurrentDeltaTime;		  //!< This is the delta in normalized segment time.
 
-	f32 m_fStartTime;               //!< keytime[0-1]. can be used to start a transition animation.
-	f32 m_fTransitionTime;          //!< Transition time between two animations.
-	f32 m_fTransitionPriority;      //!< Motion priority: a value of '1' is overwriting all other motion in the queue.
-	f32 m_fTransitionWeight;        //!< This is the real percentage value for all active motions in the transition queue.
-	f32 m_fPlaybackScale;           //!< Multiplier for animation-update.
+	nTime m_fStartTime;             //!< keytime[0-1]. can be used to start a transition animation.
+	CTimeValue m_fTransitionTime;   //!< Transition time between two animations. (Not normalized)
+	mpfloat m_fTransitionPriority;  //!< Motion priority: a value of '1' is overwriting all other motion in the queue.
+	mpfloat m_fTransitionWeight;    //!< This is the real percentage value for all active motions in the transition queue.
+	mpfloat m_fPlaybackScale;       //!< Multiplier for animation-update.
 	f32 m_fPlaybackWeight;          //!< Multiplier for the additive weight
 
-	f32 m_currentSegmentExpectedDurationSeconds;
-	f32 m_expectedTotalDurationSeconds;
+	CTimeValue m_currentSegmentExpectedDuration;
+	CTimeValue m_expectedTotalDuration;
 
-	f32 m_fAnimTimePrev[2];         //!< This is a percentage value between 0-1 for the current segment.
-	f32 m_fAnimTime[2];             //!< This is a percentage value between 0-1 for the current segment.
+	nTime m_fAnimTimePrev[2];		  //!< This is a percentage value between 0-1 for the current segment.
+	nTime m_fAnimTime[2];			  //!< This is a percentage value between 0-1 for the current segment.
 	uint32 m_nStaticFlags;          //!< Static animation-flags (needs to be a 32-bit register).
 	uint16 m_DynFlags[2];
 	CA_Interpolation_Type m_nInterpolationType;                           // defines the interpolation curve
 
-	uint32 m_nUserToken;                              //!< Token specified by the animation calling code for it's own benefit.
-	f32 m_fUserData[NUM_ANIMATION_USER_DATA_SLOTS];   //!< A set of weights that are blended together just like the animation is, for calling code's benefit.
+	uint32 m_nUserToken;												//!< Token specified by the animation calling code for it's own benefit.
+	mpfloat m_fUserData[NUM_ANIMATION_USER_DATA_SLOTS];   //!< A set of weights that are blended together just like the animation is, for calling code's benefit.
 
 #if defined(USE_PROTOTYPE_ABS_BLENDING)
 	const SJointMask* m_pJointMask;

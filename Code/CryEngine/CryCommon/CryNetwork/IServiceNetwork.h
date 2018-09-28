@@ -200,8 +200,6 @@ protected:
 	virtual ~IServiceNetworkConnection() {};
 
 public:
-	static const uint32 kDefaultFlushTime = 10000; //!< ms.
-
 	//! Get the unique connection ID (is shared between host and client).
 	virtual const CryGUID& GetGUID() const = 0;
 
@@ -239,8 +237,8 @@ public:
 
 	//! Request connection to be closed but not before sending out all of the pending messages. Incoming messages are ignored.
 	//! Processing and sending the messages is done on the networking thread so this function will not block.
-	//! As an option, connection can be forcefully closed after given amount of time (in ms).
-	virtual void FlushAndClose(const uint32 timeoutMs = kDefaultFlushTime) = 0;
+	//! As an option, connection can be forcefully closed after given amount of time
+	virtual void FlushAndClose(const CTimeValue& timeout = 1) = 0;
 
 	//! Synchronous wait for the connection to send all outgoing messages.
 	virtual void FlushAndWait() = 0;

@@ -190,7 +190,7 @@ public:
 	virtual const Vec3& GetFormationLookingPoint()                          { return Vec3Constants<float>::fVec3_Zero; }
 
 	//! Sets a randomly rotating range for the AIObject's formation sight directions.
-	virtual void SetFormationUpdateSight(float range, float minTime, float maxTime) = 0;
+	virtual void SetFormationUpdateSight(float range, const CTimeValue& minTime, const CTimeValue& maxTime) = 0;
 	////////////////////////////////////////////////////////////////////////////////////////
 
 	////////////////////////////////////////////////////////////////////////////////////////

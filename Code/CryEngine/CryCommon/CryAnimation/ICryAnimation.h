@@ -461,13 +461,13 @@ struct SAnimationProcessParams
 	QuatTS locationAnimation;
 	bool   bOnRender;
 	float  zoomAdjustedDistanceFromCamera;
-	float  overrideDeltaTime;
+	CTimeValue  overrideDeltaTime;
 
 	SAnimationProcessParams() :
 		locationAnimation(IDENTITY),
 		bOnRender(false),
 		zoomAdjustedDistanceFromCamera(0.0f),
-		overrideDeltaTime(-1.0f)
+		overrideDeltaTime(-1)
 	{
 	}
 };
@@ -567,8 +567,8 @@ struct ICharacterInstance : IMeshObj
 	//! This is the scale factor that affects the animation speed of the character.
 	//! All the animations are played with the constant real-time speed multiplied by this factor.
 	//! So, 0 means still animations (stuck at some frame), 1 - normal, 2 - twice as fast, 0.5 - twice slower than normal.
-	virtual void   SetPlaybackScale(f32 fSpeed) = 0;
-	virtual f32    GetPlaybackScale() const = 0;
+	virtual void   SetPlaybackScale(const mpfloat& fSpeed) = 0;
+	virtual const mpfloat&    GetPlaybackScale() const = 0;
 	virtual uint32 IsCharacterVisible() const = 0;
 
 	// Skeleton effects interface.
@@ -604,7 +604,7 @@ struct ICharacterInstance : IMeshObj
 #ifdef EDITOR_PCDEBUGCODE
 	virtual uint32 GetResetMode() const = 0;                                             // Will be obsolete when CharEdit is removed.
 	virtual void   SetResetMode(uint32 rm) = 0;                                          // Will be obsolete when CharEdit is removed.
-	virtual f32    GetAverageFrameTime() const = 0;
+	virtual const CTimeValue& GetAverageFrameTime() const = 0;
 	virtual void   SetCharEditMode(uint32 m) = 0;
 	virtual uint32 GetCharEditMode() const = 0;
 	virtual void   DrawWireframeStatic(const Matrix34& m34, int nLOD, uint32 color) = 0;
@@ -640,7 +640,7 @@ struct ISkeletonAnim
 	virtual void   SetAnimationDrivenMotion(uint32 ts) = 0;
 	virtual uint32 GetAnimationDrivenMotion() const = 0;
 	virtual void   SetTrackViewExclusive(uint32 i) = 0;
-	virtual void   SetTrackViewMixingWeight(uint32 layer, f32 weight) = 0;
+	virtual void   SetTrackViewMixingWeight(uint32 layer, mpfloat weight) = 0;
 	virtual uint32 GetTrackViewStatus() const = 0;
 
 	//! Starts playing back the specified animation in the layer specified in the provided parameters.
@@ -654,7 +654,7 @@ struct ISkeletonAnim
 	//! \param params Parameters that describe how the animation should be started, such as playback speed.
 	virtual bool StartAnimationById(int32 id, const CryCharAnimationParams& Params) = 0;
 	//! Stops playback of the current animation in the specified layer, and specifies the time during which we will blend out
-	virtual bool StopAnimationInLayer(int32 nLayer, f32 BlendOutTime) = 0;
+	virtual bool StopAnimationInLayer(int32 nLayer, const CTimeValue& BlendOutTime) = 0;
 	//! Seizes playback of animations in all layers
 	virtual bool StopAnimationsAllLayers() = 0;
 
@@ -675,40 +675,40 @@ struct ISkeletonAnim
 	virtual const CAnimation& GetAnimFromFIFO(uint32 nLayer, uint32 num) const = 0;
 
 	//! If manual update is set for anim, then set anim time and handle anim events.
-	virtual void ManualSeekAnimationInFIFO(uint32 nLayer, uint32 num, float time, bool triggerAnimEvents) = 0;
+	virtual void ManualSeekAnimationInFIFO(uint32 nLayer, uint32 num, const nTime& normalizedTime, bool triggerAnimEvents) = 0;
 
 	//! Makes sure there's no anim in this layer's queue that could cause a delay (useful when you want to play an
 	//! animation that you want to be 100% sure is going to be transitioned to immediately).
 	virtual void RemoveTransitionDelayConditions(uint32 nLayer) = 0;
 
 	virtual void SetLayerBlendWeight(int32 nLayer, f32 fMult) = 0;
-	virtual void SetLayerPlaybackScale(int32 nLayer, f32 fSpeed) = 0;
+	virtual void SetLayerPlaybackScale(int32 nLayer, const mpfloat& fSpeed) = 0;
 
 	//! \note This does NOT override the overall animation speed, but it multiplies it.
-	virtual f32 GetLayerPlaybackScale(uint32 nLayer) const = 0;
+	virtual mpfloat GetLayerPlaybackScale(uint32 nLayer) const = 0;
 
 	//! Updates the given motion parameter in order to select / blend between animations in blend spaces. Will perform clamping and clearing as needed.
 	//! \par Example
 	//! \include CryAnimation/Examples/SetDesiredMotionParam.cpp
-	virtual void SetDesiredMotionParam(EMotionParamID id, f32 value, f32 frametime) = 0;
+	virtual void SetDesiredMotionParam(EMotionParamID id, f32 value, const CTimeValue& frametime) = 0;
 	virtual bool GetDesiredMotionParam(EMotionParamID id, float& value) const = 0;
 
 	//! Set the time for the specified running animation to a value in the range [0..1].
 	//! When entireClip is true, set the animation normalized time.
 	//! When entireClip is false, set the current segment normalized time.
-	virtual void SetAnimationNormalizedTime(CAnimation* pAnimation, f32 normalizedTime, bool entireClip = true) = 0;
+	virtual void SetAnimationNormalizedTime(CAnimation* pAnimation, const nTime& normalizedTime, bool entireClip = true) = 0;
 
 	//! Get the animation normalized time for the specified running animation. The return value is in the range [0..1].
-	virtual f32  GetAnimationNormalizedTime(const CAnimation* pAnimation) const = 0;
+	virtual nTime  GetAnimationNormalizedTime(const CAnimation* pAnimation) const = 0;
 
-	virtual void SetLayerNormalizedTime(uint32 layer, f32 normalizedTime) = 0;
-	virtual f32  GetLayerNormalizedTime(uint32 layer) const = 0;
+	virtual void   SetLayerNormalizedTime(uint32 layer, const nTime& normalizedTime) = 0;
+	virtual nTime  GetLayerNormalizedTime(uint32 layer) const = 0;
 
 	//! Calculates duration of blend space up to the point where it starts to
 	//! repeat, that is a Least Common Multiple of a number of segments of
 	//! different examples. For instance, if segments of caf1: A B C, caf2: 1 2.
 	//! The whole duration will be calculated for sequence A1 B2 C1 A2 B1 C2.
-	virtual f32                            CalculateCompleteBlendSpaceDuration(const CAnimation& rAnimation) const = 0;
+	virtual CTimeValue                     CalculateCompleteBlendSpaceDuration(const CAnimation& rAnimation) const = 0;
 
 	virtual Vec3                           GetCurrentVelocity() const = 0;
 
@@ -726,7 +726,7 @@ struct ISkeletonAnim
 	virtual IAnimationPoseModifierSetupConstPtr GetPoseModifierSetup() const = 0;
 
 	//! This function will move outside of this interface. Use at your own risk.
-	virtual QuatT CalculateRelativeMovement(const float deltaTime, const bool CurrNext = 0) const = 0;
+	virtual QuatT CalculateRelativeMovement(const CTimeValue& deltaTime, const bool CurrNext = 0) const = 0;
 
 #ifdef EDITOR_PCDEBUGCODE
 	virtual bool ExportHTRAndICAF(const char* szAnimationName, const char* saveDirectory) const = 0;
@@ -858,7 +858,7 @@ struct ISkeletonPose : public ISkeletonPhysics
 	//! \par Example (Look-IK)
 	//! \include CryAnimation/Examples/LookIK.cpp
 	virtual const IAnimationPoseBlenderDir* GetIPoseBlenderLook() const = 0;
-	virtual void                            ApplyRecoilAnimation(f32 fDuration, f32 fKinematicImpact, f32 fKickIn, uint32 arms = 3) = 0;
+	virtual void                            ApplyRecoilAnimation(const CTimeValue& fDuration, f32 fKinematicImpact, f32 fKickIn, uint32 arms = 3) = 0;
 	virtual uint32                          SetHumanLimbIK(const Vec3& wgoal, const char* limb) = 0;
 
 	// </interfuscator:shuffle>
@@ -902,7 +902,7 @@ struct IAnimationSet
 	//! Returns the duration of the animation.
 	//! \return Duration of the animation, or 0.0f when the id/referenced animation is invalid.
 	//! \note Never returns a negative value.
-	virtual f32    GetDuration_sec(int nAnimationId) const = 0;
+	virtual CTimeValue  GetDuration(int nAnimationId) const = 0;
 
 	virtual uint32 GetAnimationFlags(int nAnimationId) const = 0;
 	virtual uint32 GetAnimationSize(const uint32 nAnimationId) const = 0;
@@ -938,7 +938,7 @@ struct IAnimationSet
 	//! Sample the location of a controller at a specific time in a non-parametric animation.
 	//! On success, returns eSR_Success and fills in the relativeLocationOutput parameter. The location uses relative (aka parent-local) coordinates.
 	//! On failure, returns an error code and sets relativeLocationOutput to IDENTITY.
-	virtual ESampleResult SampleAnimation(int32 animationId, float animationNormalizedTime, uint32 controllerId, QuatT& relativeLocationOutput) const = 0;
+	virtual ESampleResult SampleAnimation(int32 animationId, const nTime& animationNormalizedTime, uint32 controllerId, QuatT& relativeLocationOutput) const = 0;
 
 #ifdef EDITOR_PCDEBUGCODE
 	virtual void        GetSubAnimations(DynArray<int>& animIdsOut, int animId) const = 0;

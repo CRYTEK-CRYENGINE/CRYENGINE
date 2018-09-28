@@ -9,6 +9,7 @@
 
 #pragma once
 
+#include <CrySystem\TimeValue.h>
 #include <cstddef>
 #include <CrySerialization/yasli/Config.h>
 #include "Pointers.h"
@@ -40,6 +41,11 @@ public:
 	YASLI_INLINE MemoryWriter& operator<<(const char* value);
 	YASLI_INLINE MemoryWriter& operator<<(const wchar_t* value);
 	YASLI_INLINE void appendAsString(double, bool allowTrailingPoint);
+
+	YASLI_INLINE MemoryWriter& operator<<(const CTimeValue& value);
+	#define MP_FUNCTION(T)	YASLI_INLINE MemoryWriter& operator<<(const T& value);
+	#include <CrySystem\mpfloat.types>
+	#undef MP_FUNCTION
 
 	// Binary interface (does not writes trailing '\0')
 	template<class T>

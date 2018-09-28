@@ -110,11 +110,11 @@ struct ICommunicationManager
 	virtual CommID        GetCommunicationID(const char* name) const = 0;
 	virtual const char*   GetCommunicationName(const CommID& communicationID) const = 0;
 
-	virtual bool          CanCommunicationPlay(const SCommunicationRequest& request, float* estimatedWaitTime = 0) = 0;
+	virtual bool          CanCommunicationPlay(const SCommunicationRequest& request, CTimeValue* estimatedWaitTime = 0) = 0;
 	virtual CommPlayID    PlayCommunication(SCommunicationRequest& request) = 0;
 	virtual void          StopCommunication(const CommPlayID& playID) = 0;
-	virtual bool          IsPlaying(const CommPlayID& playID, float* timeRemaining = 0) const = 0;
-	virtual bool          IsQueued(const CommPlayID& playID, float* estimatedWaitTime = 0) const = 0;
+	virtual bool          IsPlaying(const CommPlayID& playID, CTimeValue* timeRemaining = 0) const = 0;
+	virtual bool          IsQueued(const CommPlayID& playID, CTimeValue* estimatedWaitTime = 0) const = 0;
 
 	virtual void          RegisterListener(ICommGlobalListener* eventListener, const char* name = NULL) = 0;
 	virtual void          UnregisterListener(ICommGlobalListener* eventListener) = 0;
@@ -124,7 +124,7 @@ struct ICommunicationManager
 	virtual const char*   GetConfigCommunicationNameByIndex(const CommConfigID& configID, uint32 index) const = 0;
 
 	//! Sets silence duration for actors, exluding them from communication sounds/animations for the length of the duration.
-	virtual void SetRestrictedDuration(EntityId actorId, float voiceDuration, float animDuration) = 0;
+	virtual void SetRestrictedDuration(EntityId actorId, const CTimeValue& voiceDuration, const CTimeValue& animDuration) = 0;
 
 	//! Adds restriction on actor, excluding them from communiction sounds/animations until explicitly removed.
 	virtual void AddActorRestriction(EntityId actorId, bool restrictVoice, bool restrictAnimation) = 0;
@@ -141,22 +141,22 @@ struct ICommunicationManager
 
 struct SRestrictedActorParams
 {
-	SRestrictedActorParams() : m_animRestrictedTime(0.0f), m_voiceRestrictedTime(0.0f), m_animRestricted(false), m_voiceRestricted(false){}
+	SRestrictedActorParams() : m_animRestrictedTime(0), m_voiceRestrictedTime(0), m_animRestricted(false), m_voiceRestricted(false){}
 
 	bool IsRestricted() const          { return (IsVoiceRestricted() || IsAnimationRestricted()); }
 	bool IsVoiceRestricted() const     { return (m_voiceRestrictedTime > 0) || m_voiceRestricted; }
 	bool IsAnimationRestricted() const { return (m_animRestrictedTime > 0) || m_animRestricted; }
 
-	void Update(float deltaTime)
+	void Update(const CTimeValue& deltaTime)
 	{
-		if (m_animRestrictedTime > 0.0f)
+		if (m_animRestrictedTime > 0)
 			m_animRestrictedTime -= deltaTime;
-		if (m_voiceRestrictedTime > 0.0f)
+		if (m_voiceRestrictedTime > 0)
 			m_voiceRestrictedTime -= deltaTime;
 	}
 
-	float m_animRestrictedTime;
-	float m_voiceRestrictedTime;
+	CTimeValue m_animRestrictedTime;
+	CTimeValue m_voiceRestrictedTime;
 
 	int   m_animRestricted;
 	int   m_voiceRestricted;
@@ -172,8 +172,8 @@ struct SCommunicationRequest
 		, targetID(0)
 		, target(ZERO)
 		, ordering(Unordered)
-		, contextExpiry(0.0f)
-		, minSilence(-1.0f)
+		, contextExpiry(0)
+		, minSilence(-1)
 		, eventListener(0)
 		, skipCommSound(false)
 		, skipCommAnimation(false)
@@ -196,9 +196,9 @@ struct SCommunicationRequest
 	Vec3          target;
 
 	EOrdering     ordering;
-	float         contextExpiry;
+	CTimeValue    contextExpiry;
 
-	float         minSilence;
+	CTimeValue    minSilence;
 
 	bool          skipCommSound;
 	bool          skipCommAnimation;

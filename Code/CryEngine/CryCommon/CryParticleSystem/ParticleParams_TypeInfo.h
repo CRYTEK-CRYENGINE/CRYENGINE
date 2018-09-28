@@ -53,7 +53,7 @@ string TCurve<S >::ToString(FToString flags) const
 		if (i > 0)
 			str += ";";
 		key_type k = key(i);
-		SplineElem<UnitFloat8, TMod> elem = { k.time, k.value, k.flags };
+		SplineElem<super_type::TStore, TMod> elem = { k.time, k.value, k.flags };
 		str += ::TypeInfo(&elem).ToString(&elem, flags);
 	}
 	return str;
@@ -83,7 +83,7 @@ bool TCurve<S >::FromString(cstr str_in, FFromString flags)
 			str = "";
 
 		// Parse element.
-		SplineElem<float, typename source_spline::value_type> elem = { 0, 0, 0 };
+		SplineElem<super_type::TStore, typename source_spline::value_type> elem = { 0, 0, 0 };
 		if (!::TypeInfo(&elem).FromString(&elem, strElem, FFromString().SkipEmpty(1)))
 			return false;
 

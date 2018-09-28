@@ -1,5 +1,6 @@
 #include <CryEntitySystem/IEntitySystem.h>
 
+// POINT OF INTEREST : CryAPIExamples! :O
 class CMyEventComponent final : public IEntityComponent
 {
 public:
@@ -14,8 +15,8 @@ public:
 		// Check if this is the update event
 		if (event.event == ENTITY_EVENT_UPDATE)
 		{
-			// The Update event provides delta time as the first floating-point parameter
-			const float frameTime = event.fParam[0];
+			// The Update event provides delta time as tVal
+			const CTimeValue frameTime = event.tVal;
 
 			/* Handle update logic here */
 		}

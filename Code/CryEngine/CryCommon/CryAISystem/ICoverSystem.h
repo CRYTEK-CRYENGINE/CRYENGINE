@@ -177,7 +177,7 @@ struct ICoverSampler
 	virtual ~ICoverSampler(){}
 	virtual void                 Release() = 0;
 	virtual ESamplerState        StartSampling(const Params& params) = 0;
-	virtual ESamplerState        Update(float timeLimitPerFrame = 0.00015f, float timeLimitTotal = 2.0f) = 0;
+	virtual ESamplerState        Update(const CTimeValue& timeLimitPerFrame = "0.00015", const CTimeValue& timeLimitTotal = 2) = 0;
 	virtual ESamplerState        GetState() const = 0;
 
 	virtual uint32               GetSampleCount() const = 0;
@@ -240,7 +240,7 @@ struct ICoverUser
 	virtual float          CalculateEffectiveHeightAt(const Vec3& pos, const CoverID& coverId) const = 0;
 	virtual float          GetLocationEffectiveHeight() const = 0;
 
-	virtual void SetCoverBlacklisted(const CoverID& coverID, bool blacklist, float time) = 0;
+	virtual void SetCoverBlacklisted(const CoverID& coverID, bool blacklist, const CTimeValue& time) = 0;
 	virtual bool IsCoverBlackListed(const CoverID& coverId) const = 0;
 
 	// normal pointing out of the cover surface

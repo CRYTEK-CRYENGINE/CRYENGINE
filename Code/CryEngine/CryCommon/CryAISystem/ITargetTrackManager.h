@@ -62,12 +62,12 @@ struct ITargetTrack
 	virtual const Vec3&     GetTargetPos() const = 0;
 	virtual const Vec3&     GetTargetDir() const = 0;
 	virtual float           GetTrackValue() const = 0;
-	virtual float           GetFirstVisualTime() const = 0;
+	virtual const CTimeValue& GetFirstVisualTime() const = 0;
 	virtual EAITargetType   GetTargetType() const = 0;
 	virtual EAITargetThreat GetTargetThreat() const = 0;
 
 	virtual float           GetHighestEnvelopeValue() const = 0;
-	virtual float           GetUpdateInterval() const = 0;
+	virtual CTimeValue      GetUpdateInterval() const = 0;
 	// </interfuscator:shuffle>
 };
 

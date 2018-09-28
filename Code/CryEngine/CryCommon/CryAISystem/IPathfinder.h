@@ -148,19 +148,19 @@ struct PathFollowResult
 
 	// OLD: Obsolete & to be replaced by new impl.
 
-	float             desiredPredictionTime; //!< Maximum time to predict out to - actual prediction may not go this far.
+	CTimeValue  desiredPredictionTime; //!< Maximum time to predict out to - actual prediction may not go this far.
 
-	float             predictionDeltaTime; //!< First element in predictedStates will be now + predictionDeltaTime, etc.
+	CTimeValue  predictionDeltaTime;   //!< First element in predictedStates will be now + predictionDeltaTime, etc.
 
 	TPredictedStates* predictedStates;  //!< If this is non-zero then on output the prediction will be placed into it.
 
 	PathFollowResult()
-		: predictionDeltaTime(0.1f)
+		: predictionDeltaTime("0.1")
 		, predictedStates(0)
 		, desiredPredictionTime(0)
 		, followTargetPos(0)
 		, inflectionPoint(0)
-		, velocityDuration(-1.0f)
+		, velocityDuration(-1)
 	{}
 
 	bool reachedEnd;
@@ -175,7 +175,7 @@ struct PathFollowResult
 	/// The maximum distance the agent can safely move in a straight line beyond the turning point
 	//	float maxOverrunDistance;
 
-	float velocityDuration; //!< How long physics is allowed to apply the velocity (-1.0f if it is undefined).
+	CTimeValue velocityDuration; //!< How long physics is allowed to apply the velocity (-1.0f if it is undefined).
 };
 
 //! Intermediary and minimal interface to use the pathfinder without requiring an AI object.
@@ -341,7 +341,7 @@ public:
 	virtual void                                       SetEndDir(const Vec3& endDir) = 0;
 	virtual const Vec3& GetEndDir() const = 0;
 
-	virtual bool        UpdateAndSteerAlongPath(Vec3& dirOut, float& distToEndOut, float& distToPathOut, bool& isResolvingSticking, Vec3& pathDirOut, Vec3& pathAheadDirOut, Vec3& pathAheadPosOut, Vec3 currentPos, const Vec3& currentVel, float lookAhead, float pathRadius, float dt, bool resolveSticking, bool twoD) = 0;
+	virtual bool        UpdateAndSteerAlongPath(Vec3& dirOut, float& distToEndOut, float& distToPathOut, bool& isResolvingSticking, Vec3& pathDirOut, Vec3& pathAheadDirOut, Vec3& pathAheadPosOut, Vec3 currentPos, const Vec3& currentVel, float lookAhead, float pathRadius, const CTimeValue& dt, bool resolveSticking, bool twoD) = 0;
 
 	virtual bool        AdjustPathAroundObstacles(const Vec3& currentpos, const AgentMovementAbility& movementAbility, const INavMeshQueryFilter* pFilter) = 0;
 	virtual bool        CanPassFilter(size_t fromPointIndex, const INavMeshQueryFilter* pFilter) = 0;
@@ -437,7 +437,7 @@ public:
 
 	//! Advances the follow target along the path as far as possible while ensuring the follow target remains reachable.
 	//! \return true if the follow target is reachable, false otherwise.
-	virtual bool Update(PathFollowResult& result, const Vec3& curPos, const Vec3& curVel, float dt) = 0;
+	virtual bool Update(PathFollowResult& result, const Vec3& curPos, const Vec3& curVel, const CTimeValue& dt) = 0;
 
 	//! Advances the current state in terms of position - effectively pretending that the follower has gone further than it has.
 	virtual void Advance(float distance) = 0;

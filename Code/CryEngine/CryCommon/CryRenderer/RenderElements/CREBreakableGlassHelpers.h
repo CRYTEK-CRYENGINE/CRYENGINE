@@ -131,7 +131,7 @@ struct SGlassPhysFragment
 		: m_size(0.0f)
 		, m_pPhysEnt(NULL)
 		, m_pRenderNode(NULL)
-		, m_lifetime(0.0f)
+		, m_lifetime(0)
 		, m_fragIndex(GLASSCFG_FRAGMENT_ARRAY_SIZE)       //!< Array bounds, so invalid value
 		, m_bufferIndex(GLASSCFG_MAX_NUM_PHYS_FRAGMENTS)  //!< Array bounds, so invalid value
 		, m_initialised(false)
@@ -143,7 +143,7 @@ struct SGlassPhysFragment
 	float            m_size;
 	IPhysicalEntity* m_pPhysEnt;
 	IRenderNode*     m_pRenderNode;
-	float            m_lifetime;
+	CTimeValue       m_lifetime;
 	uint8            m_fragIndex;
 	uint8            m_bufferIndex;
 	bool             m_initialised;
@@ -171,14 +171,14 @@ struct SBreakableGlassState
 struct SBreakableGlassUpdateParams
 {
 	SBreakableGlassUpdateParams()
-		: m_frametime(0.0f)
+		: m_frametime(0)
 		, m_pPhysFrags(NULL)
 		, m_pPhysFragsInitData(NULL)
 		, m_geomChanged(false)
 	{
 	}
 
-	float                        m_frametime;
+	CTimeValue                   m_frametime;
 	TGlassPhysFragmentArray*     m_pPhysFrags;
 	TGlassPhysFragmentInitArray* m_pPhysFragsInitData;
 	TGlassPhysFragmentIdArray*   m_pDeadPhysFrags;

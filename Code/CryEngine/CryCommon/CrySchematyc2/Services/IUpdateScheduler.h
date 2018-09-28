@@ -216,17 +216,17 @@ namespace Schematyc2
 	struct SUpdateContext
 	{
 		inline SUpdateContext()
-			: cumulativeFrameTime(0.0f)
-			, frameTime(0.0f)
+			: cumulativeFrameTime(0)
+			, frameTime(0)
 		{}
 
-		inline SUpdateContext(float _cumulativeFrameTime, float _frameTime)
+		inline SUpdateContext(const CTimeValue& _cumulativeFrameTime, const CTimeValue& _frameTime)
 			: cumulativeFrameTime(_cumulativeFrameTime)
 			, frameTime(_frameTime)
 		{}
 
-		float cumulativeFrameTime;
-		float frameTime;
+		CTimeValue cumulativeFrameTime;
+		CTimeValue frameTime;
 	};
 
 	// Update callback.
@@ -286,7 +286,7 @@ namespace Schematyc2
 		virtual void Disconnect(CUpdateScope& scope) = 0;
 		virtual bool ScopeDestroyed(CUpdateScope& scope) = 0;
 		virtual bool InFrame() const = 0;
-		virtual bool BeginFrame(float frameTime) = 0;
+		virtual bool BeginFrame(const CTimeValue& frameTime) = 0;
 		virtual bool Update(UpdatePriority beginPriority = EUpdateStage::PrePhysics | EUpdateDistribution::Earliest, UpdatePriority endPriority = EUpdateStage::Post | EUpdateDistribution::End, CUpdateRelevanceContext* pRelevanceContext = nullptr) = 0;
 		virtual bool EndFrame() = 0;
 		virtual void VerifyCleanup() = 0;

@@ -118,7 +118,7 @@ struct IBreakableManager
 	struct BreakageParams
 	{
 		EBReakageType type;              //!< Type of the breakage.
-		float         fParticleLifeTime; //!< Average lifetime of particle pieces.
+		CTimeValue    fParticleLifeTime; //!< Average lifetime of particle pieces.
 		int           nGenericCount;     //!< If not 0, force particle pieces to spawn generically, this many times.
 		bool          bForceEntity;      //!< Force pieces to spawn as entities.
 		bool          bMaterialEffects;  //!< Automatically create "destroy" and "breakage" material effects on pieces.

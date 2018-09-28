@@ -106,7 +106,7 @@ struct IAIActorProxy :
 	virtual bool PredictProjectileHit(const Vec3& throwDir, float vel, Vec3& posOut, float& speedOut, ERequestedGrenadeType prefGrenadeType = eRGT_ANY, Vec3* pTrajectoryPositions = 0, unsigned int* trajectorySizeInOut = 0, Vec3* pTrajectoryVelocities = 0) = 0;
 
 	//! \return the amount of time to block the readabilities of same name in a group.
-	virtual void GetReadabilityBlockingParams(const char* text, float& time, int& id) = 0;
+	virtual void GetReadabilityBlockingParams(const char* text, CTimeValue& time, int& id) = 0;
 
 	//! Gets name of the running behavior.
 	virtual const char* GetCurrentBehaviorName() const { return NULL; }

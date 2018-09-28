@@ -37,7 +37,7 @@ struct IDialogSystem
 	// <interfuscator:shuffle>
 	virtual ~IDialogSystem(){}
 	virtual bool                     Init() = 0;
-	virtual void                     Update(const float dt) = 0;
+	virtual void                     Update(const CTimeValue& dt) = 0;
 	virtual void                     Reset(bool bUnload) = 0;
 	virtual bool                     ReloadScripts(const char* levelName) = 0;
 	virtual IDialogScriptIteratorPtr CreateScriptIterator() = 0;

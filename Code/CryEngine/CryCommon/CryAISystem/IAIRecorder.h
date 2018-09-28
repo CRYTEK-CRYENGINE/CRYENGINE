@@ -27,14 +27,14 @@ typedef DynArray<SAIRecorderObjectDebugContext> TDebugObjectsArray;
 //! Debug context information from the Editor tool.
 struct SAIRecorderDebugContext
 {
-	float fStartPos;
-	float fEndPos;
-	float fCursorPos;
+	CTimeValue fStartPos;
+	CTimeValue fEndPos;
+	CTimeValue fCursorPos;
 
 	//! List of objects to debug.
 	TDebugObjectsArray DebugObjects;
 
-	SAIRecorderDebugContext() : fStartPos(0.0f), fEndPos(0.0f), fCursorPos(0.0f) {}
+	SAIRecorderDebugContext() : fStartPos(0), fEndPos(0), fCursorPos(0) {}
 };
 
 //! Recorder mode options.
@@ -139,14 +139,14 @@ struct IAIDebugStream
 {
 	// <interfuscator:shuffle>
 	virtual ~IAIDebugStream(){}
-	virtual void        Seek(float whereTo) = 0;
+	virtual void        Seek(const CTimeValue& whereTo) = 0;
 	virtual int         GetCurrentIdx() = 0;
 	virtual int         GetSize() = 0;
-	virtual void*       GetCurrent(float& startingFrom) = 0;
-	virtual bool        GetCurrentString(string& sOut, float& startingFrom) = 0;
-	virtual void*       GetNext(float& startingFrom) = 0;
-	virtual float       GetStartTime() = 0;
-	virtual float       GetEndTime() = 0;
+	virtual void*       GetCurrent(CTimeValue& startingFrom) = 0;
+	virtual bool        GetCurrentString(string& sOut, CTimeValue& startingFrom) = 0;
+	virtual void*       GetNext(CTimeValue& startingFrom) = 0;
+	virtual CTimeValue  GetStartTime() = 0;
+	virtual CTimeValue  GetEndTime() = 0;
 	virtual bool        IsEmpty() = 0;
 
 	virtual char const* GetName() const = 0;

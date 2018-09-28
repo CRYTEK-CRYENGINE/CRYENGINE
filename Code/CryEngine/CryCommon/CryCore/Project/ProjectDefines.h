@@ -377,4 +377,7 @@ extern void SliceAndSleep(const char* pFunc, int line);
 // #define this if you still need the old C1-style AI-character system, but which will get removed soon
 //#define USE_DEPRECATED_AI_CHARACTER_SYSTEM
 
+// PERSONAL NOTE: Added for newest VStudio version. Gotta be tested later!
+#define _DISABLE_EXTENDED_ALIGNED_STORAGE
+
 #endif // PROJECTDEFINES_H

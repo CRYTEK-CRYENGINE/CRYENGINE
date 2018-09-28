@@ -68,7 +68,7 @@ struct ISurfaceType
 		float hit_points;
 		float hit_points_secondary;
 		float hit_maxdmg;
-		float hit_lifetime;
+		CTimeValue hit_lifetime;
 		int   pierceability;
 		float damage_reduction;
 		float ric_angle;
@@ -87,7 +87,7 @@ struct ISurfaceType
 		float  blast_radius_first;
 		float  vert_size_spread;
 		int    rigid_body;
-		float  life_time;
+		CTimeValue life_time;
 		float  cell_size;
 		int    max_patch_tris;
 		float  filter_angle;
@@ -100,8 +100,8 @@ struct ISurfaceType
 		string fracture_fx;
 		int    no_procedural_full_fracture;
 		string broken_mtl;
-		float  destroy_timeout;
-		float  destroy_timeout_spread;
+		CTimeValue  destroy_timeout;
+		CTimeValue  destroy_timeout_spread;
 
 		SBreakable2DParams() : blast_radius(0), rigid_body(0), life_time(0), cell_size(0), max_patch_tris(0), shard_density(0), crack_decal_scale(0),
 			max_fracture(1.0f), vert_size_spread(0), filter_angle(0), use_edge_alpha(0), blast_radius_first(0), no_procedural_full_fracture(0),

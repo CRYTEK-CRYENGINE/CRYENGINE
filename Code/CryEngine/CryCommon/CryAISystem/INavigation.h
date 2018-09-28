@@ -32,7 +32,7 @@ struct INavigation
 	//! Returns nearest designer created path/shape.
 	//! \param devalue Specifies how long the path will be unusable by others after the query.
 	//! \param useStartNode If true the start point of the path is used to select nearest path instead of the nearest point on path.
-	virtual const char* GetNearestPathOfTypeInRange(IAIObject* requester, const Vec3& pos, float range, int type, float devalue, bool useStartNode) = 0;
+	virtual const char* GetNearestPathOfTypeInRange(IAIObject* requester, const Vec3& pos, float range, int type, const CTimeValue& devalue, bool useStartNode) = 0;
 
 	// </interfuscator:shuffle>
 };

@@ -52,7 +52,7 @@ public:
 	float    m_noiseScale;
 	Vec3     m_noiseFreq;
 	float    m_noiseOffset;
-	float    m_noiseElapsedTime;
+	CTimeValue m_noiseElapsedTime;
 	Vec3     m_emission;
 
 private:

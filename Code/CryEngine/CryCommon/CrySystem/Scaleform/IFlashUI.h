@@ -1404,7 +1404,7 @@ struct IUIElement
 	virtual void UnloadBootStrapper() = 0;
 	virtual void ReloadBootStrapper() = 0;
 
-	virtual void Update(float fDeltaTime) = 0;
+	virtual void Update(const CTimeValue& fDeltaTime) = 0;
 	virtual void Render() = 0;
 	virtual void RenderLockless() = 0;
 
@@ -1688,7 +1688,7 @@ struct IUIModule
 	virtual void Reset() {};
 
 	//! Called on FlashUI update.
-	virtual void UpdateModule(float fDelta) {};
+	virtual void UpdateModule(const CTimeValue& fDelta) {};
 
 	/////////////////////////////////////////////////////////
 	// Sandbox only.
@@ -1710,7 +1710,7 @@ public:
 	virtual bool PostInit() = 0;
 
 	//! Update the ui system.
-	virtual void Update(float fDeltatime) = 0;
+	virtual void Update(const CTimeValue& fDeltatime) = 0;
 
 	//! Reload UI xml files.
 	virtual void Reload() = 0;

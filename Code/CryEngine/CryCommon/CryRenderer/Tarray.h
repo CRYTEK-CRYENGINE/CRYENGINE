@@ -13,7 +13,8 @@
 #endif
 
 #ifndef SATURATE
-	#define SATURATE(X) clamp_tpl(X, 0.f, 1.f)
+	//#define SATURATE(X) CLAMP(X, 0.f, 1.f)
+	#define SATURATE(X) CLAMP(X, 0, 1)
 #endif
 
 #ifndef SATURATEB
@@ -112,19 +113,19 @@ public:
 		m_nCount = m_nAllocatedCount = src.Num();
 		Realloc(0);
 		PREFAST_ASSUME(m_pElements); // realloc asserts if it fails - so this is safe
-		memcpy(m_pElements, src.m_pElements, src.Num() * sizeof(T));
+		std::copy(src.m_pElements, src.m_pElements + src.Num(), m_pElements);
 	}
 	void Copy(const T* src, unsigned int numElems)
 	{
 		int nOffs = m_nCount;
 		Grow(numElems);
-		memcpy(&m_pElements[nOffs], src, numElems * sizeof(T));
+		std::copy(src, src + numElems, &m_pElements[nOffs]);
 	}
 	void Align4Copy(const T* src, unsigned int& numElems)
 	{
 		int nOffs = m_nCount;
 		Grow((numElems + 3) & ~3);
-		memcpy(&m_pElements[nOffs], src, numElems * sizeof(T));
+		std::copy(src, src + numElems, &m_pElements[nOffs]);
 		if (numElems & 3)
 		{
 			int nSet = 4 - (numElems & 3);
@@ -281,7 +282,7 @@ public:
 		MEMSTAT_USAGE(begin(), MemSize());
 		Realloc(0);
 		if (m_pElements)
-			memcpy(m_pElements, &cTA[0], m_nCount * sizeof(T));
+			std::copy(&cTA[0], &cTA[0] + m_nCount, m_pElements);
 		/*for (unsigned int i=0; i<cTA.Num(); i++ )
 		   {
 		   AddElem(cTA[i]);

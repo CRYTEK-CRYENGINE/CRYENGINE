@@ -19,10 +19,10 @@ public:
 	//! Override auto-calculated scale to reach targetfps.
 	//! \param frameScale Clamped to internal min/max values.
 	//! \param dt Length of time in seconds to transition.
-	virtual void OverrideScale(float frameScale, float dt) = 0;
+	virtual void OverrideScale(const mpfloat& frameScale, const CTimeValue& dt) = 0;
 
 	//! Go back to auto-calculated scale from an overridden scale.
-	virtual void ResetScale(float dt) = 0;
+	virtual void ResetScale(const CTimeValue& dt) = 0;
 	// </interfuscator:shuffle>
 };
 

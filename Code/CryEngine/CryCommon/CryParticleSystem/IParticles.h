@@ -53,8 +53,8 @@ struct SpawnParams
 	float                    fCountScale     = 1;                                //!< Multiple for particle count (on top of bCountPerUnit if set).
 	float                    fSizeScale      = 1;                                //!< Multiple for all effect sizes.
 	float                    fSpeedScale     = 1;                                //!< Multiple for particle emission speed.
-	float                    fTimeScale      = 1;                                //!< Multiple for emitter time evolution.
-	float                    fPulsePeriod    = 0;                                //!< How often to restart emitter.
+	mpfloat                  fTimeScale      = 1;                                //!< Multiple for emitter time evolution.
+	CTimeValue               fPulsePeriod;													  //!< How often to restart emitter.
 	float                    fStrength       = -1;                               //!< Controls parameter strength curves.
 	int                      nSeed           = -1;                               //!< Initial seed. Default is -1 which means random seed.
 
@@ -716,10 +716,6 @@ struct IParticleManager
 	virtual void OnFrameStart() = 0;
 	virtual void Serialize(TSerialize ser) = 0;
 	virtual void PostSerialize(bool bReading) = 0;
-
-	//! Set the timer used to update the particle system.
-	//! \param pTimer Specify the timer.
-	virtual void SetTimer(ITimer* pTimer) = 0;
 
 	//! Stats.
 	virtual void GetMemoryUsage(ICrySizer* pSizer) const = 0;

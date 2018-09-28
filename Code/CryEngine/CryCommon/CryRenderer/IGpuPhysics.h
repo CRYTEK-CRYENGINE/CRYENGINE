@@ -61,7 +61,7 @@ struct SGlobalParameters : SParameterBase
 struct SParticleFluidParameters : SParameterBase
 {
 	static const EParameterType parameterType = EParameterType::ParticleFluid;
-	float                       deltaTime;
+	CTimeValue                  deltaTime;
 	float                       stiffness;
 	float                       gravityConstant;
 	float                       h;

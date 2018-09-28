@@ -28,10 +28,10 @@ struct SAIPotentialTarget
 
 	float                  priority;       //!< Priority of the event.
 	float                  upPriority;     //!< Extra priority set from outside the system.
-	float                  upPriorityTime; //!< Timeout for the extra priority.
+	CTimeValue             upPriorityTime; //!< Timeout for the extra priority.
 
-	float                  soundTime;        //!< Current time of the sound event counting down from maxTime.
-	float                  soundMaxTime;     //!< Maximum duration of the sound event.
+	CTimeValue             soundTime;        //!< Current time of the sound event counting down from maxTime.
+	CTimeValue             soundMaxTime;     //!< Maximum duration of the sound event.
 	float                  soundThreatLevel; //!< Threat level of the sound.
 	Vec3                   soundPos;         //!< Position of the sound event.
 
@@ -44,8 +44,8 @@ struct SAIPotentialTarget
 	};
 
 	float           visualThreatLevel; //!< Threat level of the sight.
-	float           visualTime;        //!< Current time of the sight event counting down from maxTime.
-	float           visualMaxTime;     //!< Max duration of the sight event.
+	CTimeValue      visualTime;        //!< Current time of the sight event counting down from maxTime.
+	CTimeValue      visualMaxTime;     //!< Max duration of the sight event.
 	int             visualFrameId;
 	Vec3            visualPos;      //!< Last seen position.
 	bool            indirectSight;  //!< Seeing something related to the target (i.e. flashlight), but there is no direct LOS.
@@ -53,16 +53,16 @@ struct SAIPotentialTarget
 
 	float           exposure;       //!< Target exposure level, triggers the threat level up.
 	EAITargetThreat threat;         //!< Threat level of the target.
-	float           threatTimeout;  //!< Remaining time of the threat level.
-	float           threatTime;     //!< Combined threat+threatTimeout in range [0..1].
+	CTimeValue      threatTimeout;  //!< Remaining time of the threat level.
+	CTimeValue      threatTime;     //!< Combined threat+threatTimeout in range [0..1].
 	EAITargetThreat exposureThreat; //!< Threat level of the target exposure.
 
 	bool            bNeedsUpdating;
 
 	//! Returns the total time until the perception will time out.
-	inline float GetTimeout(const AgentPerceptionParameters& pp) const
+	inline CTimeValue GetTimeout(const AgentPerceptionParameters& pp) const
 	{
-		float timeout = 0.0f;
+		CTimeValue timeout;
 		if (threat == AITHREAT_AGGRESSIVE)
 		{
 			timeout += pp.forgetfulnessMemory;
@@ -79,22 +79,22 @@ struct SAIPotentialTarget
 	SAIPotentialTarget() :
 		type(AITARGET_NONE),
 		priority(0.0f),
-		soundTime(0.0f),
-		soundMaxTime(0.0f),
+		soundTime(0),
+		soundMaxTime(0),
 		soundThreatLevel(0.0f),
 		soundPos(ZERO),
-		visualTime(0.0f),
-		visualMaxTime(0.0f),
+		visualTime(0),
+		visualMaxTime(0),
 		visualThreatLevel(0.0f),
 		visualPos(ZERO),
 		visualType(VIS_NONE),
 		exposure(0.0),
 		threat(AITHREAT_NONE),
 		exposureThreat(AITHREAT_NONE),
-		threatTimeout(0.0f),
-		threatTime(0.0f),
+		threatTimeout(0),
+		threatTime(0),
 		upPriority(0.0f),
-		upPriorityTime(0.0f),
+		upPriorityTime(0),
 		indirectSight(false),
 		visualFrameId(0),
 		bNeedsUpdating(false)

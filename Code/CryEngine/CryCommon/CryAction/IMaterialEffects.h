@@ -73,7 +73,7 @@ struct SMFXRunTimeEffectParams
 	SMFXRunTimeEffectParams()
 		: playSoundFP(false)
 		, playflags(eMFXPF_All)
-		, fLastTime(0.0f)
+		, fLastTime(0)
 		, src(0)
 		, trg(0)
 		, srcSurfaceId(0)
@@ -133,7 +133,7 @@ struct SMFXRunTimeEffectParams
 public:
 	uint16       playSoundFP; //!< Sets 1p/3p audio switch.
 	uint16       playflags;   //!< See EMFXPlayFlags.
-	float        fLastTime;   //!< Last time this effect was played.
+	CTimeValue   fLastTime;   //!< Last time this effect was played.
 	float        fDecalPlacementTestMaxSize;
 
 	EntityId     src;
@@ -411,7 +411,7 @@ public:
 		minscale = 1.f;
 		maxscale = 1.f;
 		rotation = -1.f;
-		lifetime = 10.0f;
+		lifetime.SetSeconds(10);
 		assemble = false;
 		forceedge = false;
 	}
@@ -420,7 +420,7 @@ public:
 	float       minscale;
 	float       maxscale;
 	float       rotation;
-	float       lifetime;
+	CTimeValue  lifetime;
 	bool        assemble;
 	bool        forceedge;
 };

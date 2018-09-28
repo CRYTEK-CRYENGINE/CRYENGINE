@@ -587,6 +587,22 @@ bool TextOArchive::operator()(char& value, const char* name, const char* label)
     return true;
 }
 
+bool TextOArchive::operator()(CTimeValue& value, const char* name, const char* label)
+{
+	return (*this)(value.m_lValue, name, label);
+}
+
+#define MP_FUNCTION(T)\
+bool TextOArchive::operator()(T& value, const char* name, const char* label)\
+{\
+	placeIndentCompact();\
+	placeName(name);\
+	(*buffer_) << value;\
+	return true;\
+}
+#include <CrySystem\mpfloat.types>
+#undef MP_FUNCTION
+
 bool TextOArchive::operator()(const Serializer& ser, const char* name, const char* label)
 {
     placeIndent();

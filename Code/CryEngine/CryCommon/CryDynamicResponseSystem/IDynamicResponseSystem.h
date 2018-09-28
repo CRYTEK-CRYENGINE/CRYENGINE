@@ -99,6 +99,11 @@ struct IVariable
 	virtual void                 SetValue(float newValue) = 0;
 	virtual void                 SetValue(const CHashedString& newValue) = 0;
 	virtual void                 SetValue(bool newValue) = 0;
+	virtual void                 SetValue(const CTimeValue& newValue) = 0;
+	#define MP_FUNCTION(T)\
+	virtual void                 SetValue(const T& newValue) = 0;
+	#include <CrySystem\mpfloat.types>
+	#undef MP_FUNCTION
 
 	//REMARK: Fetching values as wrong type, will log warnings in non-release builds. But you will still get the misinterpreted data.
 	//So if you set the value to 1(int) and then call GetValueAsFloat you wont get 1.0f! So avoid changing the type of variables
@@ -106,6 +111,9 @@ struct IVariable
 	virtual float         GetValueAsFloat() const = 0;
 	virtual CHashedString GetValueAsHashedString() const = 0;
 	virtual bool          GetValueAsBool() const = 0;
+
+	virtual mpfloat      GetValueAsMP()   const = 0;
+	virtual CTimeValue   GetValueAsTime() const = 0;
 };
 
 //////////////////////////////////////////////////////////////////////////
@@ -129,6 +137,15 @@ struct IVariableCollection
 	virtual IVariable* CreateVariable(const CHashedString& name, bool initialValue) = 0;
 	virtual IVariable* CreateVariable(const CHashedString& name, const CHashedString& initialValue) = 0;
 
+	virtual IVariable* CreateVariable(const CHashedString& name, const CTimeValue& initialValue) = 0;
+	virtual bool SetVariableValue(const CHashedString& name, const CTimeValue& newValue, bool createIfNotExisting = true, const CTimeValue& resetTime = -1) = 0;
+
+	#define MP_FUNCTION(T)\
+	virtual IVariable* CreateVariable(const CHashedString& name, const T& initialValue) = 0;\
+	virtual bool SetVariableValue(const CHashedString& name, const T& newValue, bool createIfNotExisting = true, const CTimeValue& resetTime = -1) = 0;
+	#include <CrySystem\mpfloat.types>
+	#undef MP_FUNCTION
+
 	/**
 	 * Fetches the variable with the given name. Optionally (if the third parameter is set to true) will create the Variable if not existing. Will then change the value of the variable to the given value.
 	 * The value-type of the variable and the value-type of the parameter needs to fit. Otherwise the behavior is undefined.
@@ -142,10 +159,10 @@ struct IVariableCollection
 	 * @return Returns if the Set operation was successful.
 	 * @see CreateVariable, SetVariableValue (by Variable-Pointer), GetVariable
 	 */
-	virtual bool SetVariableValue(const CHashedString& name, int newValue, bool createIfNotExisting = true, float resetTime = -1.0f) = 0;
-	virtual bool SetVariableValue(const CHashedString& name, float newValue, bool createIfNotExisting = true, float resetTime = -1.0f) = 0;
-	virtual bool SetVariableValue(const CHashedString& name, bool newValue, bool createIfNotExisting = true, float resetTime = -1.0f) = 0;
-	virtual bool SetVariableValue(const CHashedString& name, const CHashedString& newValue, bool createIfNotExisting = true, float resetTime = -1.0f) = 0;
+	virtual bool SetVariableValue(const CHashedString& name, int newValue, bool createIfNotExisting = true, const CTimeValue& resetTime = -1) = 0;
+	virtual bool SetVariableValue(const CHashedString& name, float newValue, bool createIfNotExisting = true, const CTimeValue& resetTime = -1) = 0;
+	virtual bool SetVariableValue(const CHashedString& name, bool newValue, bool createIfNotExisting = true, const CTimeValue& resetTime = -1) = 0;
+	virtual bool SetVariableValue(const CHashedString& name, const CHashedString& newValue, bool createIfNotExisting = true, const CTimeValue& resetTime = -1) = 0;
 
 	/**
 	 * Will Fetch the variable from the collection with the specified name.
@@ -178,8 +195,8 @@ struct IVariableCollection
 
 private:
 	//to prevent implicit casts of char-ptr to bool, instead of hashedStrings
-	bool       SetVariableValue(const CHashedString& name, const char* newValue, bool createIfNotExisting = true, float resetTime = -1.0f) { return false; }
-	IVariable* CreateVariable(const CHashedString& name, const char* initialValue)                                                         { return nullptr; }
+	bool       SetVariableValue(const CHashedString& name, const char* newValue, bool createIfNotExisting = true, const CTimeValue& resetTime = -1) { return false; }
+	IVariable* CreateVariable(const CHashedString& name, const char* initialValue)																						{ return nullptr; }
 };
 
 //////////////////////////////////////////////////////////////////////////
@@ -652,7 +669,7 @@ struct IDialogLine
 	virtual const string& GetEndAudioTrigger() const = 0;
 	virtual const string& GetLipsyncAnimation() const = 0;
 	virtual const string& GetStandaloneFile() const = 0;
-	virtual float         GetPauseLength() const = 0;
+	virtual const CTimeValue& GetPauseLength() const = 0;
 	virtual const string& GetCustomData() const = 0;
 
 	virtual void          SetText(const string& text) = 0;
@@ -660,7 +677,7 @@ struct IDialogLine
 	virtual void          SetEndAudioTrigger(const string& trigger) = 0;
 	virtual void          SetLipsyncAnimation(const string& lipsyncAnimation) = 0;
 	virtual void          SetStandaloneFile(const string& standAlonefile) = 0;
-	virtual void          SetPauseLength(float length) = 0;
+	virtual void          SetPauseLength(const CTimeValue& length) = 0;
 	virtual void          SetCustomData(const string& data) = 0;
 
 	virtual void          Serialize(Serialization::IArchive& ar) = 0;
@@ -685,11 +702,11 @@ struct IDialogLineSet
 	virtual void          SetLineId(const CHashedString& lineId) = 0;
 	virtual void          SetPriority(int priority) = 0;
 	virtual void          SetFlags(uint32 flags) = 0;
-	virtual void          SetMaxQueuingDuration(float length) = 0;
+	virtual void          SetMaxQueuingDuration(const CTimeValue& length) = 0;
 	virtual CHashedString GetLineId() const = 0;
 	virtual int           GetPriority() const = 0;
 	virtual uint32        GetFlags() const = 0;
-	virtual float         GetMaxQueuingDuration() const = 0;
+	virtual const CTimeValue& GetMaxQueuingDuration() const = 0;
 	virtual void          Serialize(Serialization::IArchive& ar) = 0;
 
 	//mainly for the editor

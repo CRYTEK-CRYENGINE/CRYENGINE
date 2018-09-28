@@ -513,7 +513,7 @@ struct SFFOutputEvent
 	EInputDeviceType     deviceType;           //!< Which device will receive the event.
 	EFFEffectId          eventId;
 	float                amplifierS, amplifierA;
-	float                timeInSeconds;
+	CTimeValue           timeInSeconds;
 
 	SFFTriggerOutputData triggerData;
 
@@ -523,15 +523,15 @@ struct SFFOutputEvent
 		eventId = eFF_Rumble_Basic;
 		amplifierS = 1.0f;
 		amplifierA = 1.0f;
-		timeInSeconds = 0.3f;
+		timeInSeconds.SetSeconds("0.3");
 	}
 
-	SFFOutputEvent(EInputDeviceType id, EFFEffectId event, SFFTriggerOutputData::Initial::Value triggerInitValue, float time = 1.0f, float ampA = 1.0f, float ampB = 1.0f) :
+	SFFOutputEvent(EInputDeviceType id, EFFEffectId event, SFFTriggerOutputData::Initial::Value triggerInitValue, const CTimeValue& time = CTimeValue(1), float ampA = 1.0f, float ampB = 1.0f) :
 		deviceType(id), eventId(event), timeInSeconds(time), amplifierS(ampA), amplifierA(ampB),
 		triggerData(triggerInitValue)
 	{}
 
-	SFFOutputEvent(EInputDeviceType id, EFFEffectId event, const SFFTriggerOutputData& triggerData, float time = 1.0f, float ampA = 1.0f, float ampB = 1.0f) :
+	SFFOutputEvent(EInputDeviceType id, EFFEffectId event, const SFFTriggerOutputData& triggerData, const CTimeValue& time = CTimeValue(1), float ampA = 1.0f, float ampB = 1.0f) :
 		deviceType(id), eventId(event), timeInSeconds(time), amplifierS(ampA), amplifierA(ampB),
 		triggerData(triggerData)
 	{}
@@ -606,7 +606,7 @@ struct SInputBlockData
 {
 	//! Data used to block input symbol from firing event if matched.
 	SInputBlockData(const EKeyId keyId_,
-	                const float fBlockDuration_,
+	                const CTimeValue& fBlockDuration_,
 	                const bool bAllDeviceIndices_ = true,
 	                const uint8 deviceIndex_ = 0)
 		: keyId(keyId_)
@@ -616,7 +616,7 @@ struct SInputBlockData
 	{
 	}
 
-	float        fBlockDuration;     //!< How long will still be blocked for.
+	CTimeValue   fBlockDuration;     //!< How long will still be blocked for.
 	const EKeyId keyId;              //!< External id for fast comparison.
 	uint8        deviceIndex;        //!< Device index - controller 1/2 etc.
 	bool         bAllDeviceIndices;  //!< True to block all device indices of deviceID type, otherwise uses deviceIndex.
@@ -646,7 +646,7 @@ struct IFFParams
 	EInputDeviceType     deviceType;
 	EFFEffectId          effectId;
 	float                strengthA, strengthB;
-	float                timeInSeconds;
+	CTimeValue           timeInSeconds;
 	SFFTriggerOutputData triggerData;
 
 	IFFParams() : strengthA(0), strengthB(0), timeInSeconds(0), triggerData(SFFTriggerOutputData::Initial::ZeroIt)

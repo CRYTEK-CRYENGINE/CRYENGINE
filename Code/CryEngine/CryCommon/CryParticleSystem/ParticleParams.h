@@ -23,15 +23,23 @@ BASIC_TYPE_INFO(CCryName);
 
 ///////////////////////////////////////////////////////////////////////
 
+// PERSONAL IMPROVE: Should tHuge usage be replaced with CTimeValue::Max()? Accomplishes the same in principle?
 //! Use for practically infinite values, to simplify comparisons.
 //! 1e9 s > 30 years, 1e9 m > earth-moon distance.
 //! Convertible to int32.
 #define fHUGE 1e9f
+#define tHUGE (CTimeValue(1'000'000'000))
 
 //! Convert certain parameters where zero denotes an essentially infinite value.
 ILINE float ZeroIsHuge(float f)
 {
 	return if_else(f, f, fHUGE);
+}
+
+//! Convert certain parameters where zero denotes an essentially infinite value.
+ILINE CTimeValue ZeroIsHuge(const CTimeValue& f)
+{
+	return if_else(f != 0, f, tHUGE);
 }
 
 //! For accessing specific information from variable parameters,
@@ -292,7 +300,7 @@ public:
 	bool   FromString(cstr str, FFromString flags = {});
 
 	// Access operators
-	T operator()(float fTime) const
+	T operator()(const mpfloat& fTime) const
 	{
 		T val;
 		interpolate(fTime, val);
@@ -341,8 +349,9 @@ struct TVarParam : S
 		T operator()(type_min) const
 		{ return T(1) - T(Range()); }
 
-		T operator()(float fInterp) const
-		{ return T(1) + T(Range() * (fInterp - 1.f)); }
+		// PERSONAL NOTE: For color's floatv, vector * mpfloat doesn't work.... Considering this is random it probably doesn't matter.
+		T operator()(const mpfloat& fInterp) const
+		{ return T(1) + T(Range() * BADF(fInterp - 1)); }
 
 		T operator()(CChaosKey key) const
 		{
@@ -393,7 +402,6 @@ struct TVarParam : S
 	}
 
 	// Value extraction.
-
 	S& Base()
 	{
 		return static_cast<S&>(*this);
@@ -412,7 +420,8 @@ struct TVarParam : S
 	template<class R>
 	T operator()(R r) const
 	{
-		return Base() * m_Random(r);
+		// PERSONAL NOTE: Time * Time = mpfloat => Tries to return mpfloat, hence T()
+		return T(Base() * m_Random(r));
 	}
 
 	// Legacy helper
@@ -454,7 +463,6 @@ struct TVarEParam : TVarParam<S>
 	}
 
 	// Value extraction.
-
 	T operator()(type_max) const
 	{
 		return TSuper::operator()(VMAX);
@@ -519,19 +527,19 @@ struct TVarEPParam : TVarEParam<S>
 	}
 
 	// Additional helpers
-	T GetVarMod(float fEStrength) const
+	T GetVarMod(const mpfloat& fEStrength) const
 	{
 		return m_Random(VRANDOM) * m_EmitterStrength(fEStrength);
 	}
 
-	ILINE T GetValueFromBase(T val, float fParticleAge) const
+	ILINE T GetValueFromBase(T val, const mpfloat& relVal) const
 	{
-		return val * m_ParticleAge(fParticleAge);
+		return val * m_ParticleAge(relVal);
 	}
 
-	ILINE T GetValueFromMod(T val, float fParticleAge) const
+	ILINE T GetValueFromMod(T val, const mpfloat& relVal) const
 	{
-		return T(Base()) * val * m_ParticleAge(fParticleAge);
+		return T(Base()) * val * m_ParticleAge(relVal);
 	}
 
 	const TCurve<S>& GetAgeCurve() const
@@ -565,8 +573,9 @@ struct TRangeParam
 	TRangeParam(S _min, S _max)
 		: Min(_min), Max(_max) {}
 
-	S Interp(float t) const
-	{ return Min * (1.f - t) + Max * t; }
+	// PERSONAL NOTE: Inaccurate here due to ColorV * mpfloat undefined. Considering this is random it probably doesn't matter.
+	S Interp(const mpfloat& t) const
+	{ return Min * BADF(1 - t) + Max * BADF(t); }
 
 	AUTO_STRUCT_INFO;
 };
@@ -616,11 +625,13 @@ struct ParticleParams
 
 	// <Group=Timing>
 	TSmallBool         bContinuous;                 //!< Emit particles gradually until Count reached (rate = Count / ParticleLifeTime).
-	TVarParam<SFloat>  fSpawnDelay;                 //!< Delay the emitter start time by this value.
-	TVarParam<UFloat>  fEmitterLifeTime;            //!< Lifetime of the emitter, 0 if infinite. Always emits at least Count particles.
-	TVarParam<UFloat>  fPulsePeriod;                //!< Time between auto-restarts of emitter; 0 if never.
-	TVarEParam<UFloat> fParticleLifeTime;           //!< Lifetime of particles, 0 if indefinite (die with emitter).
 	TSmallBool         bRemainWhileVisible;         //!< Particles will only die when not rendered (by any viewport).
+
+	// WARNING: Float inaccuracy on these 4 since they should be in CTimeValue
+	TVarParam<SFloat>  fSpawnDelay;						//!< Delay the emitter start time by this value.
+	TVarParam<UFloat>  fEmitterLifeTime;				//!< Lifetime of the emitter, 0 if infinite. Always emits at least Count particles.
+	TVarParam<UFloat>  fPulsePeriod;						//!< Time between auto-restarts of emitter; 0 if never.
+	TVarEParam<UFloat> fParticleLifeTime;				//!< Lifetime of particles, 0 if indefinite (die with emitter).
 
 	// <Group=Location>
 	Vec3S     vPositionOffset;                      //!< Spawn offset from the emitter position
@@ -680,18 +691,19 @@ struct ParticleParams
 		EAnimationCycle eAnimCycle;                 //!< How animation cycles.
 		TSmallBool     bAnimBlend;                  //!< Blend textures between frames.
 		UnitFloat8     fFlipChance;                 //!< Chance each particle will flip in X direction.
-		UFloat         fAnimFramerate;              //!< <SoftMax=60> Tex framerate; 0 = 1 cycle / particle life.
+		UFloat			fAnimFramerate;              //!< <SoftMax=60> Tex framerate; 0 = 1 cycle / particle life.
+
 		TCurve<UFloat> fAnimCurve;                  //!< Animation curve.
 
 		STextureTiling()
 		{
 			TCurve<UFloat>::source_spline source;
 			TCurve<UFloat>::key_type key;
-			key.time = 0.0f;
+			key.time = 0;
 			key.value = 0.0f;
 			key.flags = SPLINE_KEY_TANGENT_LINEAR << SPLINE_KEY_TANGENT_OUT_SHIFT;
 			source.insert_key(key);
-			key.time = 1.0f;
+			key.time = 1;
 			key.value = 1.0f;
 			key.flags = SPLINE_KEY_TANGENT_LINEAR << SPLINE_KEY_TANGENT_IN_SHIFT;
 			source.insert_key(key);
@@ -708,23 +720,25 @@ struct ParticleParams
 			return nVariantCount * nAnimFramesCount;
 		}
 
-		float GetAnimPos(float fAge, float fRelativeAge) const
+		mpfloat GetAnimPos(const CTimeValue& fAge, const mpfloat& fRelativeAge) const
 		{
 			// Select anim frame based on particle age.
-			float fAnimPos = 0.0f;
-			if (fAnimFramerate > 0.f)
+			mpfloat fAnimPos = 0;
+			mpfloat frameRate = BADMP(fAnimFramerate);
+			if (frameRate > 0)
 			{
-				fAnimPos = fAge * fAnimFramerate / nAnimFramesCount;
+				fAnimPos = fAge.GetSeconds() * frameRate / (uint)nAnimFramesCount;
 				if (eAnimCycle == eAnimCycle.Loop)
-					fAnimPos = fmod(fAnimPos, 1.f);
+					fAnimPos = mod(fAnimPos, mpfloat(1));
 				else if (eAnimCycle == eAnimCycle.Mirror)
-					fAnimPos = 1.f - abs(fmod(fAnimPos, 2.f) - 1.f);
+					fAnimPos = 1 - abs(mod(fAnimPos, mpfloat(2)) - 1);
 				else
-					fAnimPos = min(fAnimPos, 1.f);
+					fAnimPos = min(fAnimPos, mpfloat(1));
 			}
 			else
 				fAnimPos = fRelativeAge;
-			fAnimPos = fAnimCurve(fAnimPos);
+
+			fAnimPos = BADMP(fAnimCurve(fAnimPos));
 			return fAnimPos;
 		}
 
@@ -985,19 +999,21 @@ struct ParticleParams
 	// Derived properties
 	bool HasEquilibrium() const
 	{
-		return (bContinuous && !fEmitterLifeTime) || fPulsePeriod;
+		return (bContinuous && fEmitterLifeTime == 0) || (fPulsePeriod != 0);
 	}
-	float GetMaxSpawnDelay() const
+	CTimeValue GetMaxSpawnDelay() const
 	{
-		return eSpawnIndirection >= ESpawn::ParentCollide ? fHUGE : fSpawnDelay.GetMaxValue();
+		return eSpawnIndirection >= ESpawn::ParentCollide ? tHUGE : BADTIME(fSpawnDelay.GetMaxValue());
 	}
-	float GetMaxEmitterLife() const
+	CTimeValue GetMaxEmitterLife() const
 	{
-		return GetMaxSpawnDelay() + (bContinuous ? ZeroIsHuge(fEmitterLifeTime.GetMaxValue()) : 0.f);
+		return GetMaxSpawnDelay() + BADTIME(bContinuous ? ZeroIsHuge(fEmitterLifeTime.GetMaxValue()) : 0);
 	}
-	float GetMaxParticleLife() const
+	CTimeValue GetMaxParticleLife() const
 	{
-		return if_else(fParticleLifeTime, fParticleLifeTime.GetMaxValue(), ZeroIsHuge(fEmitterLifeTime.GetMaxValue()));
+		return BADTIME(
+					if_else(fParticleLifeTime != 0, fParticleLifeTime.GetMaxValue(), ZeroIsHuge(fEmitterLifeTime.GetMaxValue()))
+				 );
 	}
 	uint8 GetTailSteps() const
 	{
@@ -1022,7 +1038,7 @@ struct ParticleParams
 		// World area corresponding to full texture, thus multiplied by tile count.
 		return sqr(2.f * fSize.GetMaxValue()) * float(TextureTiling.nTilesX * TextureTiling.nTilesY);
 	}
-	float GetAlphaFromMod(float fMod) const
+	float GetAlphaFromMod(const mpfloat& fMod) const
 	{
 		return fAlpha.GetMaxValue() * AlphaClip.fScale.Interp(fMod);
 	}

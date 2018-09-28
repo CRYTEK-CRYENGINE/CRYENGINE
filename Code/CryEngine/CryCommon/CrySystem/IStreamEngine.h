@@ -41,8 +41,8 @@ public:
 	StreamReadParams(
 	  DWORD_PTR _dwUserData,
 	  EStreamTaskPriority _ePriority = estpNormal,
-	  unsigned _nLoadTime = 0,
-	  unsigned _nMaxLoadTime = 0,
+	  const CTimeValue& _nLoadTime = 0,
+	  const CTimeValue& _nMaxLoadTime = 0,
 	  unsigned _nOffset = 0,
 	  unsigned _nSize = 0,
 	  void* _pBuffer = NULL,
@@ -76,14 +76,14 @@ public:
 	//! Value from 0-255 of the perceptual importance of the task (used for debugging task sheduling).
 	uint8 nPerceptualImportance;
 
-	//! Desirable loading time, in milliseconds, from the time of call.
+	//! Desirable loading time from the time of call.
 	//! 0 means as fast as possible (desirably in this frame).
-	unsigned nLoadTime;
+	CTimeValue nLoadTime;
 
-	//! The maximum load time, in milliseconds.
+	//! The maximum load time
 	//! 0 means forever. If the read lasts longer, it can be discarded.
 	//! \warning Avoid too small max times, like 1-10 ms, because many loads will be discarded in this case.
-	unsigned nMaxLoadTime;
+	CTimeValue nMaxLoadTime;
 
 	//! The buffer into which to read the file or the file piece.
 	//! If this is NULL, the streaming engine will supply the buffer.
@@ -230,7 +230,7 @@ public:
 	virtual void                     ClearStatistics() = 0;
 
 	//! Returns the bandwidth used for the given type of streaming task.
-	virtual void GetBandwidthStats(EStreamTaskType type, float* bandwidth) = 0;
+	virtual void GetBandwidthStats(EStreamTaskType type, rTime* bandwidth) = 0;
 #endif
 
 	//! Returns the counts of open streaming requests.
@@ -301,11 +301,11 @@ public:
 	virtual bool TryAbort() = 0;
 
 	//! Unconditionally waits until the callback is called.
-	//! If nMaxWaitMillis is not negative wait for the specified ammount of milliseconds then exit.
+	//! If nMaxWait is not negative wait for the specified ammount of time then exit.
 	//! Example:
 	//! If the stream hasn't yet finish, it's guaranteed that the user-supplied callback
 	//! is called before return from this function (unless no callback was specified).
-	virtual void Wait(int nMaxWaitMillis = -1) = 0;
+	virtual void Wait(const CTimeValue& nMaxWait = -1) = 0;
 
 	//! Return stream params.
 	virtual const StreamReadParams& GetParams() const = 0;
@@ -360,8 +360,8 @@ TYPEDEF_AUTOPTR(IReadStream);
 //! params.dwUserData = 0;
 //! params.nSize = 0;
 //! params.pBuffer = NULL;
-//! params.nLoadTime = 10000;
-//! params.nMaxLoadTime = 10000;
+//! params.nLoadTime = 10;
+//! params.nMaxLoadTime = 10;
 //! pStreamEngine->StartRead(  .. pAsyncCallback .. params .. );      // registers callback
 //! \endcode
 class IStreamCallback

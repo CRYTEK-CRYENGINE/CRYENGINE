@@ -55,7 +55,7 @@ namespace Cry
 		//! Called after ISystem has been updated, this is the main update where most game logic is expected to occur
 		//! This is the default update that should be preferred if you don't need any special behavior
 		//! Called on a plug-in if it has called EnableUpdate(EUpdateStep::MainUpdate, true)
-		virtual void MainUpdate(float frameTime) {}
+		virtual void MainUpdate(const CTimeValue& frameTime) {}
 		//! Called immediately before the camera is considered finalized and passed on to occlusion culling
 		//! Called on a plug-in if it has called EnableUpdate(EUpdateStep::BeforeFinalizeCamera, true)
 		virtual void UpdateBeforeFinalizeCamera() {}

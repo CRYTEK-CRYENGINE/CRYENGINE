@@ -24,14 +24,14 @@ template<typename T>
 class CValueHistory
 {
 public:
-	CValueHistory(unsigned s, float sampleIterval) : sampleIterval(sampleIterval), head(0), size(0), t(0), v(0) { data.resize(s); }
+	CValueHistory(unsigned s, const CTimeValue& sampleIterval) : sampleIterval(sampleIterval), head(0), size(0), t(0), v(0) { data.resize(s); }
 
 	inline void Reset()
 	{
 		size = 0;
 		head = 0;
 		v = 0;
-		t = 0;
+		t.SetSeconds(0);
 	}
 
 	inline void Sample(T nv)
@@ -41,7 +41,7 @@ public:
 		if (size < data.size()) size++;
 	}
 
-	inline void Sample(T nv, float dt)
+	inline void Sample(T nv, const CTimeValue& dt)
 	{
 		t += dt;
 		v = max(v, nv);
@@ -56,7 +56,7 @@ public:
 			t -= sampleIterval;
 		}
 		if (iter == 5)
-			t = 0;
+			t.SetSeconds(0);
 		v = 0;
 	}
 
@@ -70,7 +70,7 @@ public:
 		return data.size();
 	}
 
-	inline T GetSampleInterval() const
+	inline const CTimeValue& GetSampleInterval() const
 	{
 		return sampleIterval;
 	}
@@ -94,8 +94,8 @@ private:
 	std::vector<T> data;
 	unsigned       head, size;
 	T              v;
-	float          t;
-	const float    sampleIterval;
+	CTimeValue     t;
+	const CTimeValue sampleIterval;
 };
 
 #endif

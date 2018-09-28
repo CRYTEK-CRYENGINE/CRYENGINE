@@ -22,8 +22,8 @@ struct STimeDemoInfo
 {
 	std::vector<STimeDemoFrameInfo> frames;
 
-	float               lastPlayedTotalTime = 0.0f;
-	float               lastAveFrameRate = 0.0f;
+	CTimeValue          lastPlayedTotalTime;
+	rTime               lastAveFrameRate = 0;
 	float               minFPS = 0.0f;
 	float               maxFPS = 0.0f;
 	uint32              minFPS_Frame = 0;
@@ -58,7 +58,7 @@ struct ITestSystem
 	virtual void Release() = 0;
 
 	//! \param fInNSeconds <=0 to deactivate.
-	virtual void QuitInNSeconds(const float fInNSeconds) = 0;
+	virtual void QuitIn(const CTimeValue& quitIn) = 0;
 
 	//! Set info about time demo (called by time demo system).
 	virtual void SetTimeDemoInfo(STimeDemoInfo* pTimeDemoInfo) = 0;

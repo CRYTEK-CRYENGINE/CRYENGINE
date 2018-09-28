@@ -128,7 +128,7 @@ struct SFrameInfo
 	uint32 m_frameType;
 	uint32 m_frameSize;
 	uint64 m_frameOffset;
-	float  m_frameTime;
+	CTimeValue  m_frameTime;
 } PACK_GCC;
 
 struct SCompressedBlockHeader

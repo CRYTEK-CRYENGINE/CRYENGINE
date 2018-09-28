@@ -325,8 +325,8 @@ struct SAnimContext
 		m_activeCameraEntity = INVALID_ENTITYID;
 	}
 
-	SAnimTime      time;         //!< Current time in seconds.
-	SAnimTime      dt;           //!< Delta of time from previous animation frame in seconds.
+	CTimeValue     time;         //!< Current time in seconds.
+	CTimeValue     dt;           //!< Delta of time from previous animation frame in seconds.
 	bool           bSingleFrame; //!< This is not a playing animation, more a single-frame update
 	bool           bForcePlay;   //!< Set when force playing animation
 	bool           bResetting;   //!< Set when animation sequence is reset.
@@ -337,7 +337,7 @@ struct SAnimContext
 	// TODO: Replace trackMask with something more type safe
 	// TODO: Mask should be stored with dynamic length
 	uint32    trackMask;  //!< To update certain types of tracks only
-	SAnimTime startTime;  //!< The start time of this playing sequence
+	CTimeValue startTime;  //!< The start time of this playing sequence
 
 	void      Serialize(XmlNodeRef& xmlNode, bool bLoading);
 };
@@ -488,11 +488,11 @@ struct IAnimTrack : public _i_reference_target_t
 
 	//! Get time of specified key.
 	//! @return key time.
-	virtual SAnimTime GetKeyTime(int index) const = 0;
+	virtual CTimeValue GetKeyTime(int index) const = 0;
 
 	//! Find key at given time.
 	//! @return Index of found key, or -1 if key with this time not found.
-	virtual int FindKey(SAnimTime time) = 0;
+	virtual int FindKey(const CTimeValue& time) = 0;
 
 	//! Set key at specified location. Will not change time of key.
 	//! @param key Must be valid pointer to compatable key structure.
@@ -510,7 +510,7 @@ struct IAnimTrack : public _i_reference_target_t
 
 	//! Create key at given time, and return its index.
 	//! @return Index of new key.
-	virtual int CreateKey(SAnimTime time) = 0;
+	virtual int CreateKey(const CTimeValue& time) = 0;
 
 	//! Gets the key type as a string
 	virtual const char* GetKeyType() const = 0;
@@ -522,10 +522,10 @@ struct IAnimTrack : public _i_reference_target_t
 	virtual _smart_ptr<IAnimKeyWrapper> GetWrappedKey(int key) = 0;
 
 	//! Get track value at specified time. Interpolates keys if needed.
-	virtual TMovieSystemValue GetValue(SAnimTime time) const = 0;
+	virtual TMovieSystemValue GetValue(const CTimeValue& time) const = 0;
 
 	//! Set track value at specified time. Adds new keys if required.
-	virtual void SetValue(SAnimTime time, const TMovieSystemValue& value) {}
+	virtual void SetValue(const CTimeValue& time, const TMovieSystemValue& value) {}
 
 	//! Get track default value
 	virtual TMovieSystemValue GetDefaultValue() const = 0;
@@ -534,7 +534,7 @@ struct IAnimTrack : public _i_reference_target_t
 	virtual void SetDefaultValue(const TMovieSystemValue& defaultValue) = 0;
 
 	//! Assign active time range for this track.
-	virtual void SetTimeRange(TRange<SAnimTime> timeRange) = 0;
+	virtual void SetTimeRange(TRange<CTimeValue> timeRange) = 0;
 
 	//! Serialize unique parameters for this track.
 	virtual void Serialize(Serialization::IArchive& ar) = 0;
@@ -543,7 +543,7 @@ struct IAnimTrack : public _i_reference_target_t
 	virtual bool Serialize(XmlNodeRef& xmlNode, bool bLoading, bool bLoadEmptyTracks = true) = 0;
 
 	//! Serialize the keys on this track to XML
-	virtual bool SerializeKeys(XmlNodeRef& xmlNode, bool bLoading, std::vector<SAnimTime>& keys, const SAnimTime time = SAnimTime(0)) = 0;
+	virtual bool SerializeKeys(XmlNodeRef& xmlNode, bool bLoading, std::vector<CTimeValue>& keys, const CTimeValue& time = CTimeValue(0)) = 0;
 
 	//! For custom track animate parameters.
 	virtual void Animate(SAnimContext& animContext) {};
@@ -604,12 +604,12 @@ struct IAnimEntityNode
 
 struct IAnimCameraNode
 {
-	virtual bool GetShakeRotation(SAnimTime time, Quat& rot) = 0;
+	virtual bool GetShakeRotation(const CTimeValue& time, Quat& rot) = 0;
 	virtual void SetCameraShakeSeed(const uint shakeSeed) = 0;
 
 	// Camera nodes can store parameters even without tracks, so we need this interface to set/get them
-	virtual void              SetParameter(SAnimTime time, const EAnimParamType& paramType, const TMovieSystemValue& value) = 0;
-	virtual TMovieSystemValue GetParameter(SAnimTime time, const EAnimParamType& paramType) const = 0;
+	virtual void              SetParameter(const CTimeValue& time, const EAnimParamType& paramType, const TMovieSystemValue& value) = 0;
+	virtual TMovieSystemValue GetParameter(const CTimeValue& time, const EAnimParamType& paramType) const = 0;
 };
 
 struct IAnimSequenceOwner
@@ -714,7 +714,7 @@ public:
 	virtual void SetTrack(const CAnimParamType& paramType, IAnimTrack* track) = 0;
 
 	//! Set time range for all tracks in this sequence.
-	virtual void SetTimeRange(TRange<SAnimTime> timeRange) = 0;
+	virtual void SetTimeRange(TRange<CTimeValue> timeRange) = 0;
 
 	//! Add track to anim node.
 	virtual void AddTrack(IAnimTrack* pTrack) = 0;
@@ -825,9 +825,9 @@ struct IAnimSequence : public _i_reference_target_t
 	virtual IAnimNode* GetActiveDirector() const = 0;
 
 	//! Get the fixed time step for timewarping.
-	virtual float GetFixedTimeStep() const = 0;
+	virtual const CTimeValue& GetFixedTimeStep() const = 0;
 	//! Set the fixed time step for timewarping.
-	virtual void  SetFixedTimeStep(float dt) = 0;
+	virtual void  SetFixedTimeStep(const CTimeValue& dt) = 0;
 
 	//! Set animation sequence flags.
 	virtual void SetFlags(int flags) = 0;
@@ -886,7 +886,7 @@ struct IAnimSequence : public _i_reference_target_t
 	virtual void Deactivate() = 0;
 
 	//! Pre-caches data associated with this anim sequence.
-	virtual void PrecacheData(SAnimTime startTime = SAnimTime(0.0f)) = 0;
+	virtual void PrecacheData(const CTimeValue& startTime = 0) = 0;
 
 	//! Update sequence while not playing animation.
 	virtual void StillUpdate() = 0;
@@ -899,10 +899,10 @@ struct IAnimSequence : public _i_reference_target_t
 	virtual void Animate(const SAnimContext& animContext) = 0;
 
 	//! Set time range of this sequence.
-	virtual void SetTimeRange(TRange<SAnimTime> timeRange) = 0;
+	virtual void SetTimeRange(TRange<CTimeValue> timeRange) = 0;
 
 	//! Get time range of this sequence.
-	virtual TRange<SAnimTime> GetTimeRange() = 0;
+	virtual TRange<CTimeValue> GetTimeRange() = 0;
 
 	//! Resets the sequence.
 	virtual void Reset(bool bSeekToStart) = 0;
@@ -1037,12 +1037,12 @@ struct IMovieSystem
 	//! Start playing sequence. Ignored if sequence is already playing.
 	//! \param sequence Name of sequence to play.
 	virtual void PlaySequence(const char* pSequenceName, IAnimSequence* pParentSeq, bool bResetFX, bool bTrackedSequence,
-	                          SAnimTime startTime = SAnimTime::Min(), SAnimTime endTime = SAnimTime::Min()) = 0;
+	                          const CTimeValue& startTime = CTimeValue::Min(), const CTimeValue& endTime = CTimeValue::Min()) = 0;
 
 	//! Start playing sequence. Ignored if sequence is already playing.
 	//! \param sequence Pointer to Valid sequence to play.
 	virtual void PlaySequence(IAnimSequence* pSequence, IAnimSequence* pParentSeq, bool bResetFX, bool bTrackedSequence,
-	                          SAnimTime startTime = SAnimTime::Min(), SAnimTime endTime = SAnimTime::Min()) = 0;
+	                          const CTimeValue& startTime = CTimeValue::Min(), const CTimeValue& endTime = CTimeValue::Min()) = 0;
 
 	//! Stops currently playing sequence. Ignored if sequence is not playing.
 	//! \param sequence Name of playing sequence to stop.
@@ -1082,10 +1082,10 @@ struct IMovieSystem
 	virtual void StillUpdate() = 0;
 
 	//! Updates movie system every frame before the entity system to animate all playing sequences.
-	virtual void PreUpdate(const float dt) = 0;
+	virtual void PreUpdate(const CTimeValue& dt) = 0;
 
 	//! Updates movie system every frame after the entity system to animate all playing sequences.
-	virtual void PostUpdate(const float dt) = 0;
+	virtual void PostUpdate(const CTimeValue& dt) = 0;
 
 	//! Render function call of some special node.
 	virtual void Render() = 0;
@@ -1133,23 +1133,23 @@ struct IMovieSystem
 	virtual void                 SendGlobalEvent(const char* pszEvent) = 0;
 
 	//! Gets the float time value for a sequence that is already playing.
-	virtual SAnimTime GetPlayingTime(IAnimSequence* pSeq) = 0;
-	virtual float     GetPlayingSpeed(IAnimSequence* pSeq) = 0;
+	virtual CTimeValue GetPlayingTime(IAnimSequence* pSeq) = 0;
+	virtual mpfloat GetPlayingSpeed(IAnimSequence* pSeq) = 0;
 	//! Sets the time progression of an already playing cutscene.
 	//! If IAnimSequence:NO_SEEK flag is set on pSeq, this call is ignored.
-	virtual bool SetPlayingTime(IAnimSequence* pSeq, SAnimTime fTime) = 0;
-	virtual bool SetPlayingSpeed(IAnimSequence* pSeq, float fSpeed) = 0;
+	virtual bool SetPlayingTime(IAnimSequence* pSeq, const CTimeValue& fTime) = 0;
+	virtual bool SetPlayingSpeed(IAnimSequence* pSeq, const mpfloat& fSpeed) = 0;
 	//! Set behavior pattern for stopping sequences.
 	virtual void SetSequenceStopBehavior(ESequenceStopBehavior behavior) = 0;
 
 	//! Set the start and end time of an already playing cutscene.
-	virtual bool GetStartEndTime(IAnimSequence* pSeq, SAnimTime& fStartTime, SAnimTime& fEndTime) = 0;
-	virtual bool SetStartEndTime(IAnimSequence* pSeq, const SAnimTime fStartTime, const SAnimTime fEndTime) = 0;
+	virtual bool GetStartEndTime(IAnimSequence* pSeq, CTimeValue& fStartTime, CTimeValue& fEndTime) = 0;
+	virtual bool SetStartEndTime(IAnimSequence* pSeq, const CTimeValue& fStartTime, const CTimeValue& fEndTime) = 0;
 
 	//! Make the specified sequence go to a given frame time.
 	//! \param seqName A sequence name.
 	//! \param targetFrame A target frame to go to in time.
-	virtual void GoToFrame(const char* seqName, float targetFrame) = 0;
+	virtual void GoToFrame(const char* seqName, const CTimeValue& targetFrame) = 0;
 
 	//! Get the name of camera used for sequences instead of cameras specified in the director node.
 	virtual const char* GetOverrideCamName() const = 0;
@@ -1197,9 +1197,9 @@ inline void SAnimContext::Serialize(XmlNodeRef& xmlNode, bool bLoading)
 			pSequence = gEnv->pMovieSystem->FindSequence(name.c_str());
 		}
 
-		float floatDt = 0.0f;
-		float floatTime = 0.0f;
-		float floatStartTime = 0.0f;
+		CTimeValue floatDt;
+		CTimeValue floatTime;
+		CTimeValue floatStartTime;
 
 		xmlNode->getAttr("dt", floatDt);
 		xmlNode->getAttr("time", floatTime);
@@ -1208,9 +1208,9 @@ inline void SAnimContext::Serialize(XmlNodeRef& xmlNode, bool bLoading)
 		xmlNode->getAttr("trackMask", trackMask);
 		xmlNode->getAttr("startTime", floatStartTime);
 
-		dt = SAnimTime(floatDt);
-		time = SAnimTime(floatTime);
-		startTime = SAnimTime(floatStartTime);
+		dt = floatDt;
+		time = floatTime;
+		startTime = floatStartTime;
 	}
 	else
 	{
@@ -1220,9 +1220,9 @@ inline void SAnimContext::Serialize(XmlNodeRef& xmlNode, bool bLoading)
 			xmlNode->setAttr("sequence", fullname.c_str());
 		}
 
-		const float floatDt = dt.ToFloat();
-		const float floatTime = time.ToFloat();
-		const float floatStartTime = startTime.ToFloat();
+		const CTimeValue floatDt = dt;
+		const CTimeValue floatTime = time;
+		const CTimeValue floatStartTime = startTime;
 
 		xmlNode->setAttr("dt", floatDt);
 		xmlNode->setAttr("time", floatTime);

@@ -92,6 +92,23 @@ namespace Schematyc2
 			return true;
 		}
 
+		virtual bool operator()(CTimeValue& value, const char* szName = "", const char* szLabel = 0) override
+		{
+			return (*this)(value.m_lValue, szName, szLabel);
+		}
+
+		#define MP_FUNCTION(T)\
+		virtual bool operator()(T& value, const char* szName = "", const char* szLabel = 0) override\
+		{\
+			PrintHeader(szName, szLabel);\
+			char stringBuffer[StringUtils::s_MPStringBufferSize] = "";\
+			Append(StringUtils::MPToString(value, stringBuffer));\
+			Append(", ");\
+			return true;\
+		}
+		#include <CrySystem\mpfloat.types>
+		#undef MP_FUNCTION
+
 		virtual bool operator () (Serialization::IString& value, const char* szName = "", const char* szLabel = nullptr) override
 		{
 			PrintHeader(szName, szLabel);

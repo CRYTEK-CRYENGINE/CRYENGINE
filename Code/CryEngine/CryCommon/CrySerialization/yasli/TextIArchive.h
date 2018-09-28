@@ -41,6 +41,10 @@ public:
 	bool operator()(i64& value, const char* name = "", const char* label = 0) override;
 	bool operator()(u64& value, const char* name = "", const char* label = 0) override;
 
+	bool operator()(CTimeValue& value, const char* name = "", const char* label = 0) override;
+	#define MP_FUNCTION(T) bool operator()(T& value, const char* name = "", const char* label = 0) override;
+	#include <CrySystem\mpfloat.types>
+	#undef MP_FUNCTION
 
 	bool operator()(StringInterface& value, const char* name = "", const char* label = 0) override;
 	bool operator()(WStringInterface& value, const char* name = "", const char* label = 0) override;

@@ -65,15 +65,15 @@ struct SVClothParams
 {
 	// Animation Control
 	bool  forceSkinning;                   //!< If enabled, simulation is skipped and skinning is enforced.
-	float forceSkinningFpsThreshold;       //!< If the framerate drops under the provided FPS, simulation is skipped and skinning is enforced.
+	rTime forceSkinningFpsThreshold;       //!< If the framerate drops under the provided FPS, simulation is skipped and skinning is enforced.
 	float forceSkinningTranslateThreshold; //!< If the translation is larger than this value, simulation is skipped and skinning is enforced.
 	bool  checkAnimationRewind;            //!< Check for rewind in animation, if enabled, the cloth is re-initialized to collision-proxies in that case.
 	float disableSimulationAtDistance;     //!< Disable simulation / enable skinning in dependence of camera distance.
-	float disableSimulationTimeRange;      //!< Within this time range, the fading process (skinning vs. simulation) is done.
+	CTimeValue disableSimulationTimeRange; //!< Within this time range, the fading process (skinning vs. simulation) is done.
 	float enableSimulationSSaxisSizePerc;  //!< If size of characters bounding box exceeds provided percentage of viewport size, simulation is enabled.
 
 	// Simulation and Collision
-	float timeStep;                     //!< The (pseudo)fixed time step for the simulator.
+	CTimeValue timeStep;                //!< The (pseudo)fixed time step for the simulator.
 	int   timeStepsMax;                 //!< Number of maximum iterations for the time discretization in a single step.
 	int   numIterations;                //!< Number of iterations for the positional stiffness & collision solver (contacts & edges).
 	int   collideEveryNthStep;          //!< For stiffness & collision solver: collide only every Nth step.
@@ -134,15 +134,15 @@ public:
 
 		// Animation Control
 		forceSkinning(false)
-		, forceSkinningFpsThreshold(25.0f)
+		, forceSkinningFpsThreshold(25)
 		, forceSkinningTranslateThreshold(1.0f)
 		, checkAnimationRewind(true)
 		, disableSimulationAtDistance(10.0)
-		, disableSimulationTimeRange(0.5f)
+		, disableSimulationTimeRange("0.5")
 		, enableSimulationSSaxisSizePerc(0.25f)
 
 		// Simulation and Collision
-		, timeStep(0.007f)
+		, timeStep("0.007")
 		, timeStepsMax(50)
 		, numIterations(5)
 		, collideEveryNthStep(2)

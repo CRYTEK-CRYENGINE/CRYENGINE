@@ -404,7 +404,7 @@ public:
 		: m_pWaitWhere(pWhere)
 		, m_waitWhat(what)
 		, m_name(name)
-		, m_lastNotification(0.0f)
+		, m_lastNotification(0)
 		, m_notificationInterval(notificationInterval)
 	{
 	}
@@ -416,8 +416,8 @@ public:
 		if (*m_pWaitWhere == m_waitWhat)
 			return eCETR_Ok;
 
-		CTimeValue now = gEnv->pTimer->GetAsyncTime();
-		if (m_lastNotification == 0.0f)
+		CTimeValue now = GetGTimer()->GetAsyncTime();
+		if (m_lastNotification == 0)
 			m_lastNotification = now;
 		else if (now - m_lastNotification > m_notificationInterval)
 		{
@@ -438,7 +438,7 @@ private:
 };
 
 template<class T>
-void AddWaitValue(IContextEstablisher* pEst, EContextViewState state, T* pWhere, T what, const char* name, CTimeValue notificationInterval)
+void AddWaitValue(IContextEstablisher* pEst, EContextViewState state, T* pWhere, T what, const char* name, const CTimeValue& notificationInterval)
 {
 	pEst->AddTask(state, new CCET_WaitValue<T>(pWhere, what, name, notificationInterval));
 }

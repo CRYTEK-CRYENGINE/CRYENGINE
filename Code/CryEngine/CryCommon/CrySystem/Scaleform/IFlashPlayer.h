@@ -93,7 +93,7 @@ struct IFlashPlayer
 	virtual EAlignType     GetViewAlignment() const = 0;
 	virtual void           SetScissorRect(int x0, int y0, int width, int height) = 0;
 	virtual void           GetScissorRect(int& x0, int& y0, int& width, int& height) const = 0;
-	virtual void           Advance(float deltaTime) = 0;
+	virtual void           Advance(const CTimeValue& deltaTime) = 0;
 	virtual void           Render() = 0;
 	virtual void           SetClearFlags(uint32 clearFlags, ColorF clearColor = Clr_Transparent) = 0;
 	virtual void           SetCompositingDepth(float depth) = 0;

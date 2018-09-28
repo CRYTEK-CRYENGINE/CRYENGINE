@@ -442,7 +442,7 @@ void CEngineSettingsManager::CallSettingsDialog(void* pParent)
 		return;
 	}
 
-	Sleep(1000); // Sleep because CrySleep is not available in this scope!
+	CrySleep(1000);
 }
 
 //////////////////////////////////////////////////////////////////////////

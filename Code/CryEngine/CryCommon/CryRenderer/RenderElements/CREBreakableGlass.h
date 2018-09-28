@@ -218,8 +218,8 @@ private:
 	};
 
 	// Shared data
-	static float s_loosenTimer;
-	static float s_impactTimer;
+	static CTimeValue s_loosenTimer;
+	static CTimeValue s_impactTimer;
 
 	// Persistent data
 	TFragArray                   m_frags;

@@ -25,7 +25,7 @@
 
 struct STrackKey
 {
-	SAnimTime          m_time;
+	CTimeValue          m_time;
 
 	static const char* GetType()                 { return "Key"; }
 	static bool        DerivesTrackDurationKey() { return false; }
@@ -38,9 +38,9 @@ struct STrackKey
 	const char* GetDescription() const { return ""; }
 
 	// compare keys.
-	bool operator<(const STrackKey& key) const  { return m_time < key.m_time; }
+	bool operator<(const STrackKey& key)  const { return m_time < key.m_time; }
 	bool operator==(const STrackKey& key) const { return m_time == key.m_time; }
-	bool operator>(const STrackKey& key) const  { return m_time > key.m_time; }
+	bool operator>(const STrackKey& key)  const { return m_time > key.m_time; }
 	bool operator<=(const STrackKey& key) const { return m_time <= key.m_time; }
 	bool operator>=(const STrackKey& key) const { return m_time >= key.m_time; }
 	bool operator!=(const STrackKey& key) const { return m_time != key.m_time; }
@@ -50,7 +50,7 @@ struct STrackKey
  */
 struct STrackDurationKey : public STrackKey
 {
-	STrackDurationKey() : m_duration(0.0f) {}
+	STrackDurationKey() : m_duration(0) {}
 
 	static const char* GetType()                 { return "Duration"; }
 	static bool        DerivesTrackDurationKey() { return true; }
@@ -61,17 +61,18 @@ struct STrackDurationKey : public STrackKey
 		ar(m_duration, "duration", "Duration");
 	}
 
-	SAnimTime m_duration;
+	CTimeValue m_duration;
 };
+
 
 /** Keys with a controllable range. Used for animations.
  */
 struct STimeRangeKey : public STrackKey
 {
 	STimeRangeKey()
-		: m_startTime(0.0f)
-		, m_endTime(0.0f)
-		, m_speed(1.0f)
+		: m_startTime(0)
+		, m_endTime(0)
+		, m_speed(1)
 		, m_bLoop(false)
 	{}
 
@@ -86,10 +87,10 @@ struct STimeRangeKey : public STrackKey
 		ar(m_bLoop, "loop", "Loop");
 	}
 
-	float m_startTime;  // Start time of this animation (Offset from beginning of animation).
-	float m_endTime;    // End time of this animation (can be smaller than the duration).
-	float m_speed;      // Speed multiplier for this key.
-	bool  m_bLoop;      // True if time is looping
+	CTimeValue m_startTime;  //!< Start time of this animation (Offset from beginning of animation).
+	CTimeValue m_endTime;    //!< End time of this animation (can be smaller than the duration).
+	mpfloat m_speed;			 //!< Speed multiplier for this key.
+	bool  m_bLoop;			    //!< True if time is looping
 };
 
 /** S2DBezierKey used in float spline tracks.
@@ -159,7 +160,7 @@ struct STrackEventKey : public STrackKey
  */
 struct SCameraKey : public STrackKey
 {
-	SCameraKey() : m_blendTime(0.0f)
+	SCameraKey() : m_blendTime(0)
 	{
 		m_selection[0] = 0;
 	}
@@ -180,13 +181,13 @@ struct SCameraKey : public STrackKey
 		ar(m_blendTime, "blendTime", "Blend Time");
 	}
 
-	float m_blendTime;
+	CTimeValue m_blendTime;
 	char  m_selection[128]; // Node name.
 };
 
 struct SFaceSequenceKey : public STrackDurationKey
 {
-	SFaceSequenceKey() : m_blendTime(0.0f)
+	SFaceSequenceKey() : m_blendTime(0)
 	{
 		m_selection[0] = 0;
 	}
@@ -214,7 +215,7 @@ struct SFaceSequenceKey : public STrackDurationKey
 	}
 
 	char  m_selection[128]; // Node name.
-	float m_blendTime;
+	CTimeValue m_blendTime;
 };
 
 /** SSequenceKey used in sequence track.
@@ -223,7 +224,7 @@ struct SSequenceKey : public STrackKey
 {
 	SSequenceKey()
 		: m_sequenceGUID(CryGUID::Null())
-		, m_speed(1.0f)
+		, m_speed(1)
 		, m_boverrideTimes(false)
 		, m_bDoNotStop(false) {}
 
@@ -241,9 +242,9 @@ struct SSequenceKey : public STrackKey
 	}
 
 	CryGUID   m_sequenceGUID;
-	SAnimTime m_startTime;
-	SAnimTime m_endTime;
-	float     m_speed;
+	CTimeValue m_startTime;
+	CTimeValue m_endTime;
+	mpfloat   m_speed;
 	bool      m_boverrideTimes;
 	bool      m_bDoNotStop;
 };
@@ -265,7 +266,7 @@ struct SAudioTriggerKey : public STrackDurationKey
 
 		ar(Serialization::AudioTrigger(m_startTriggerName), "startTrigger", "Start Trigger");
 
-		if (m_duration > SAnimTime(0))
+		if (m_duration > 0)
 		{
 			ar(Serialization::AudioTrigger(m_stopTriggerName), "stopTrigger", "Stop Trigger");
 			m_keyDescription.Format("%s : %s", m_startTriggerName.c_str(), m_stopTriggerName.c_str());
@@ -406,7 +407,7 @@ struct SDynamicResponseSignalKey : public STrackKey
 struct SCharacterKey : public STimeRangeKey
 {
 	SCharacterKey()
-		: m_defaultAnimDuration(0.0f)
+		: m_defaultAnimDuration(0)
 		, m_bBlendGap(false)
 		, m_bUnload(false)
 		, m_bInPlace(false)
@@ -431,9 +432,9 @@ struct SCharacterKey : public STimeRangeKey
 		ar(m_bInPlace, "inPlace", "In Place");
 	}
 
-	float GetMaxEndTime() const
+	CTimeValue GetMaxEndTime() const
 	{
-		if (m_endTime == 0.0f || (!m_bLoop && m_endTime > GetAnimDuration()))
+		if (m_endTime == 0 || (!m_bLoop && m_endTime > GetAnimDuration()))
 		{
 			return GetAnimDuration();
 		}
@@ -441,17 +442,17 @@ struct SCharacterKey : public STimeRangeKey
 		return m_endTime;
 	}
 
-	float GetCroppedAnimDuration() const
+	CTimeValue GetCroppedAnimDuration() const
 	{
-		if ((m_startTime > 0.0f) && (m_endTime > 0.0f))
+		if ((m_startTime > 0) && (m_endTime > 0))
 		{
-			return (m_startTime < m_endTime) ? m_endTime - m_startTime : 0.0f;
+			return (m_startTime < m_endTime) ? m_endTime - m_startTime : 0;
 		}
-		else if (m_startTime > 0.0f)
+		else if (m_startTime > 0)
 		{
-			return max(0.0f, m_defaultAnimDuration - m_startTime);
+			return max(CTimeValue(0), m_defaultAnimDuration - m_startTime);
 		}
-		else if (m_endTime > 0.0f)
+		else if (m_endTime > 0)
 		{
 			return min(m_defaultAnimDuration, m_endTime);
 		}
@@ -459,13 +460,13 @@ struct SCharacterKey : public STimeRangeKey
 		return m_defaultAnimDuration;
 	}
 
-	float GetAnimDuration() const
+	CTimeValue GetAnimDuration() const
 	{
 		return m_defaultAnimDuration;
 	}
 
-	char  m_animation[64]; // Name of character animation needed for animation system.
-	float m_defaultAnimDuration;  // Caches the duration of the referenced animation
+	char  m_animation[64];				  // Name of character animation needed for animation system.
+	CTimeValue m_defaultAnimDuration;  // Caches the duration of the referenced animation
 	bool  m_bBlendGap;     // True if gap to next animation should be blended
 	bool  m_bUnload;       // Unload after sequence is finished
 	bool  m_bInPlace;      // Play animation in place (Do not move root).
@@ -519,8 +520,8 @@ struct SMannequinKey : public STrackDurationKey
  */
 struct SExprKey : public STrackKey
 {
-	SExprKey() : m_amp(1.0f), m_blendIn(0.5f),
-		m_hold(1.0f), m_blendOut(0.5f)
+	SExprKey() : m_amp(1.0f), m_blendIn("0.5"),
+		m_hold(1), m_blendOut("0.5")
 	{
 		m_name[0] = 0;
 	}
@@ -552,9 +553,9 @@ struct SExprKey : public STrackKey
 
 	char  m_name[128]; // Name of morph-target
 	float m_amp;
-	float m_blendIn;
-	float m_hold;
-	float m_blendOut;
+	CTimeValue m_blendIn;
+	CTimeValue m_hold;
+	CTimeValue m_blendOut;
 };
 
 /** SConsoleKey used in Console track, triggers console commands and variables.
@@ -597,7 +598,7 @@ struct SMusicKey : public STrackKey
 		eMusicKeyType_VolumeRamp = 1,
 	};
 
-	SMusicKey() : m_type(eMusicKeyType_SetMood), m_volumeRampTime(0.0f)
+	SMusicKey() : m_type(eMusicKeyType_SetMood), m_volumeRampTime(0)
 	{
 		m_mood[0] = 0;
 		m_description[0] = 0;
@@ -632,7 +633,7 @@ struct SMusicKey : public STrackKey
 	}
 
 	EMusicKeyType m_type;
-	float         m_volumeRampTime;
+	CTimeValue    m_volumeRampTime;
 	char          m_mood[64];
 	char          m_description[32];
 };
@@ -676,7 +677,7 @@ struct SLookAtKey : public STrackDurationKey
 
 	char  m_selection[128]; // Node name.
 	char  m_lookPose[128];
-	float m_smoothTime;
+	nTime m_smoothTime;
 };
 
 /* Discrete (non-interpolated) float key.
@@ -765,7 +766,7 @@ struct SCaptureKey : public STrackDurationKey
 {
 	SCaptureKey()
 		: m_bOnce(false)
-		, m_timeStep(0.033f)
+		, m_timeStep("0.033")
 		, m_frameRate(30)
 		, m_bufferToCapture(SCaptureFormatInfo::eCaptureBuffer_Color)
 		, m_captureFormat(SCaptureFormatInfo::eCaptureFormat_TGA)
@@ -775,7 +776,7 @@ struct SCaptureKey : public STrackDurationKey
 
 		if (m_frameRate > 0)
 		{
-			m_timeStep = 1.0f / m_frameRate;
+			m_timeStep = mpfloat(1) / m_frameRate;
 		}
 
 		ICVar* pCaptureFolderCVar = gEnv->pConsole->GetCVar("capture_folder");
@@ -809,9 +810,9 @@ struct SCaptureKey : public STrackDurationKey
 		cry_strcpy(m_prefix, other.m_prefix);
 	}
 
-	int                GetDurationInFrames() const  { return m_duration.GetTicks() / (SAnimTime::numTicksPerSecond / (m_frameRate > 0 ? m_frameRate : 1)); }
-	int                GetStartTimeInFrames() const { return m_time.GetTicks() / (SAnimTime::numTicksPerSecond / (m_frameRate > 0 ? m_frameRate : 1)); }
-	int                GetEndTimeInFrames() const   { return SAnimTime(m_time + m_duration).GetTicks() / (SAnimTime::numTicksPerSecond / (m_frameRate > 0 ? m_frameRate : 1)); }
+	int                GetDurationInFrames()  const { return (int)(m_duration * (m_frameRate > 0 ? m_frameRate : 1)); }
+	int                GetStartTimeInFrames() const { return (int)(m_time * (m_frameRate > 0 ? m_frameRate : 1)); }
+	int                GetEndTimeInFrames()   const { return (int)((m_time + m_duration) * (m_frameRate > 0 ? m_frameRate : 1)); }
 
 	static const char* GetType()                    { return "Capture"; }
 
@@ -821,7 +822,7 @@ struct SCaptureKey : public STrackDurationKey
 		ar(m_frameRate, "frameRate", "Frame Rate");
 		if (m_frameRate > 0)
 		{
-			m_timeStep = (1.0f / m_frameRate);
+			m_timeStep = mpfloat(1) / m_frameRate;
 		}
 
 		string tempFolder = m_folder;
@@ -842,8 +843,8 @@ struct SCaptureKey : public STrackDurationKey
 	}
 
 	bool                                   m_bOnce;
-	float                                  m_timeStep;
-	uint                                   m_frameRate;
+	CTimeValue                             m_timeStep;
+	rTime                                  m_frameRate;
 	char                                   m_folder[ICryPak::g_nMaxPath];
 	char                                   m_prefix[ICryPak::g_nMaxPath / 4];
 	SCaptureFormatInfo::ECaptureBuffer     m_bufferToCapture;
@@ -925,7 +926,7 @@ struct SScreenFaderKey : public STrackKey
 		eFCT_Sin         = 4
 	};
 
-	SScreenFaderKey() : STrackKey(), m_fadeTime(2.f), m_bUseCurColor(true), m_fadeType(eFT_FadeOut),
+	SScreenFaderKey() : STrackKey(), m_fadeTime(2), m_bUseCurColor(true), m_fadeType(eFT_FadeOut),
 		m_fadeChangeType(eFCT_Linear), m_fadeColor(Vec4(0.0f, 0.0f, 0.0f, 1.0f))
 	{
 		m_texture[0] = 0;
@@ -956,7 +957,7 @@ struct SScreenFaderKey : public STrackKey
 		ar(m_fadeChangeType, "fadeChangeType", "Fade Type");
 	}
 
-	float           m_fadeTime;
+	CTimeValue      m_fadeTime;
 	Vec4            m_fadeColor;
 	char            m_texture[256];
 	bool            m_bUseCurColor;
@@ -974,8 +975,8 @@ struct IAnimKeyWrapper : public _i_reference_target_t
 
 	const char*              GetInstanceType() const { return m_pType; }
 
-	virtual void             SetTime(const SAnimTime time) = 0;
-	virtual SAnimTime        GetTime() const = 0;
+	virtual void             SetTime(const CTimeValue& time) = 0;
+	virtual const CTimeValue& GetTime() const = 0;
 
 	virtual const char*      GetDescription() const = 0;
 
@@ -996,12 +997,12 @@ struct SAnimKeyWrapper : public IAnimKeyWrapper
 		m_key.Serialize(ar);
 	}
 
-	virtual void SetTime(const SAnimTime time) override
+	virtual void SetTime(const CTimeValue& time) override
 	{
 		m_key.m_time = time;
 	}
 
-	virtual SAnimTime GetTime() const override
+	virtual const CTimeValue& GetTime() const override
 	{
 		return m_key.m_time;
 	}

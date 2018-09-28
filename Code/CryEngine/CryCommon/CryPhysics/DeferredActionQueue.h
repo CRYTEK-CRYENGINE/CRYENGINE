@@ -208,22 +208,22 @@ public:
 	struct PriorityClass
 	{
 		PriorityClass()
-			: basePriority(1.0f)
-			, growthFactor(1.0f)
-			, growthTime(1.0f)
+			: basePriority(1)
+			, growthFactor(1)
+			, growthTime(1)
 		{
 		}
 
-		PriorityClass(float _basePriority, float _growthFactor, float _growthTime)
+		PriorityClass(const mpfloat& _basePriority, const mpfloat& _growthFactor, const CTimeValue& _growthTime)
 			: basePriority(_basePriority)
 			, growthFactor(_growthFactor)
 			, growthTime(_growthTime)
 		{
 		}
 
-		float basePriority;
-		float growthFactor;
-		float growthTime;
+		mpfloat basePriority;
+		mpfloat growthFactor;
+		CTimeValue growthTime;
 	};
 
 	DeferredActionQueue()
@@ -232,10 +232,10 @@ public:
 		Caster::SetCallback(functor(*this, &Type::CastComplete));
 
 		m_priorityClasses.resize(RequestType::HighestPriority + 1);
-		m_priorityClasses[RequestType::LowPriority] = PriorityClass(1.0f, 100.0f, 0.5f);
-		m_priorityClasses[RequestType::MediumPriority] = PriorityClass(10.0f, 10.0f, 0.4f);
-		m_priorityClasses[RequestType::HighPriority] = PriorityClass(25.0f, 5.0f, 0.3f);
-		m_priorityClasses[RequestType::HighestPriority] = PriorityClass(50.0f, 2.5f, 0.2f);
+		m_priorityClasses[RequestType::LowPriority]	   = PriorityClass(1, 100, "0.5");
+		m_priorityClasses[RequestType::MediumPriority]  = PriorityClass(10, 10, "0.4");
+		m_priorityClasses[RequestType::HighPriority]    = PriorityClass(25, 5, "0.3");
+		m_priorityClasses[RequestType::HighestPriority] = PriorityClass(50, "2.5", "0.2");
 	}
 
 	inline void Reset()
@@ -295,7 +295,7 @@ public:
 		}
 	}
 
-	inline void Update(float updateTime)
+	inline void Update(const CTimeValue& updateTime)
 	{
 		ContentionPolicy::UpdateStart(m_priorityQueue.size());
 
@@ -404,10 +404,10 @@ protected:
 		{
 		}
 
-		float operator()(const float& age, QueuedRequest& value)
+		mpfloat operator()(const CTimeValue& age, QueuedRequest& value)
 		{
 			const PriorityClass& priorityClass = priorityClasses[value.priority];
-			return priorityClass.basePriority * pow_tpl(priorityClass.growthFactor, age / priorityClass.growthTime);
+			return priorityClass.basePriority * pow(priorityClass.growthFactor, (age / priorityClass.growthTime).conv<mpfloat>());
 		}
 
 		const PriorityClasses& priorityClasses;

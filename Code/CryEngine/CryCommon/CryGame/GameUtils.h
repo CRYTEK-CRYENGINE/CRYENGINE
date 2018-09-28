@@ -58,7 +58,7 @@ ILINE float GetClampedFraction(float fValue, float fStart, float fEnd)
 }
 
 //! Interpolate angle.
-inline void Interpolate(Ang3& actual, const Ang3& goal, float speed, float frameTime, float limit = 0)
+inline void Interpolate(Ang3& actual, const Ang3& goal, float speed, const CTimeValue& frameTime, float limit = 0)
 {
 	Ang3 delta(goal - actual);
 	delta.x = Snap_s180(delta.x);
@@ -72,11 +72,11 @@ inline void Interpolate(Ang3& actual, const Ang3& goal, float speed, float frame
 		delta.z = max(min(delta.z, limit), -limit);
 	}
 
-	actual += delta * min(frameTime * speed, 1.0f);
+	actual += delta * min(frameTime.BADGetSeconds() * speed, 1.0f);
 }
 
 //! Interpolate 3-vector.
-inline void Interpolate(Vec3& actual, const Vec3& goal, float speed, float frameTime, float limit = 0)
+inline void Interpolate(Vec3& actual, const Vec3& goal, float speed, const CTimeValue& frameTime, float limit = 0)
 {
 	Vec3 delta(goal - actual);
 
@@ -91,11 +91,11 @@ inline void Interpolate(Vec3& actual, const Vec3& goal, float speed, float frame
 		}
 	}
 
-	actual += delta * min(frameTime * speed, 1.0f);
+	actual += delta * min(frameTime.BADGetSeconds() * speed, 1.0f);
 }
 
 //! Interpolate 4-vector.
-inline void Interpolate(Vec4& actual, const Vec4& goal, float speed, float frameTime, float limit = 0)
+inline void Interpolate(Vec4& actual, const Vec4& goal, float speed, const CTimeValue& frameTime, float limit = 0)
 {
 	Vec4 delta(goal - actual);
 
@@ -110,11 +110,11 @@ inline void Interpolate(Vec4& actual, const Vec4& goal, float speed, float frame
 		}
 	}
 
-	actual += delta * min(frameTime * speed, 1.0f);
+	actual += delta * min(frameTime.BADGetSeconds() * speed, 1.0f);
 }
 
 //! Interpolate float.
-ILINE void Interpolate(float& actual, float goal, float speed, float frameTime, float limit = 0)
+ILINE void Interpolate(float& actual, float goal, float speed, const CTimeValue& frameTime, float limit = 0)
 {
 	float delta(goal - actual);
 
@@ -123,11 +123,11 @@ ILINE void Interpolate(float& actual, float goal, float speed, float frameTime, 
 		delta = max(min(delta, limit), -limit);
 	}
 
-	actual += delta * min(frameTime * speed, 1.0f);
+	actual += delta * min(frameTime.BADGetSeconds() * speed, 1.0f);
 }
 
 //! Interpolate float - wraps at minValue/maxValue.
-inline void InterpolateWrapped(float& actual, float goal, float minValue, float maxValue, float speed, float frameTime, float limit = 0)
+inline void InterpolateWrapped(float& actual, float goal, float minValue, float maxValue, float speed, const CTimeValue& frameTime, float limit = 0)
 {
 	assert(minValue < maxValue);
 	assert(minValue <= goal);
@@ -157,7 +157,7 @@ inline void InterpolateWrapped(float& actual, float goal, float minValue, float 
 		movement = max(min(movement, limit), -limit);
 	}
 
-	actual += movement * min(frameTime * speed, 1.0f);
+	actual += movement * min(frameTime.BADGetSeconds() * speed, 1.0f);
 }
 
 //! Gives the (shortest) angle difference between two signed angles.
@@ -178,7 +178,7 @@ inline void timeToString(time_t value, string& outString)
 	struct tm dateTime;
 
 	// convert the time to a string
-	gEnv->pTimer->SecondsToDateUTC(value, dateTime);
+	GetGTimer()->SecondsToDateUTC(value, dateTime);
 
 	// use ISO 8601 UTC
 	outString.Format("%d-%02d-%02dT%02d:%02d:%02dZ",
@@ -201,15 +201,15 @@ inline time_t stringToTime(const char* str)
 		timePtr.tm_year -= 1900;
 		timePtr.tm_mon -= 1;
 		timePtr.tm_isdst = -1;
-		return gEnv->pTimer->DateToSecondsUTC(timePtr);
+		return GetGTimer()->DateToSecondsUTC(timePtr);
 	}
 	return (time_t) 0;
 }
 
 inline const char* GetPrettyAsyncTime()
 {
-	const CTimeValue& t = gEnv->pTimer->GetAsyncTime();
-	int64 milliseconds = t.GetMilliSecondsAsInt64();
+	const CTimeValue& t = GetGTimer()->GetAsyncTime();
+	int64 milliseconds = (int64)t.GetMilliSeconds();
 	int64 seconds = milliseconds / 1000;
 	int64 minutes = seconds / 60;
 	int64 hours = minutes / 60;
@@ -301,7 +301,7 @@ bool HasKey(const char* key, TKeyValuePair<T, U> list[], size_t list_size)
 
 inline bool TimePassedCheck(CTimeValue& t, const CTimeValue& cur_time, const CTimeValue& step)
 {
-	if (fabs((cur_time - t).GetSeconds()) > step.GetSeconds())
+	if (abs(cur_time - t) > step)
 	{
 		t = cur_time;
 		return true;

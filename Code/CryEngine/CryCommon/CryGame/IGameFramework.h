@@ -250,8 +250,8 @@ struct SEntityTagParams
 	EntityId entity;
 	string   text;
 	float    size;          //!< Font size.
-	float    visibleTime;   //!< Seconds before starting fade, >= 0.
-	float    fadeTime;      //!< Seconds to fade over, >= 0.
+	CTimeValue visibleTime;   //!< Seconds before starting fade, >= 0.
+	CTimeValue fadeTime;      //!< Seconds to fade over, >= 0.
 	float    viewDistance;  //!< Maximum distance of entity from camera to show tag.
 	string   staticId;      //!< When nonempty string, display first for entity, and only most recent one (for continuous info like health display).
 	int      column;        //!< For multicolumn tag display (0 or 1 defaults to standard 1 column display).
@@ -265,7 +265,7 @@ struct SEntityTagParams
 		this->entity = entity;
 		this->text = text ? text : "";
 	}
-	SEntityTagParams(EntityId entity, const char* text, float size, const ColorF& color, float duration)
+	SEntityTagParams(EntityId entity, const char* text, float size, const ColorF& color, const CTimeValue& duration)
 	{
 		Init();
 		this->entity = entity;
@@ -281,8 +281,8 @@ private:
 		entity = 0;
 		text = "";
 		size = 1.5f;
-		visibleTime = 2.f;
-		fadeTime = 1.f;
+		visibleTime.SetSeconds(2);
+		fadeTime.SetSeconds(1);
 		viewDistance = 1000.f;
 		staticId = "";
 		column = 1;
@@ -373,34 +373,34 @@ struct IPersistantDebug
 	//! \param radius Radius of the sphere
 	//! \param clr Color of the debug geometry
 	//! \param timeout Timeout in seconds after which the item will stop rendering
-	virtual void AddSphere(const Vec3& pos, float radius, ColorF clr, float timeout) = 0;
+	virtual void AddSphere(const Vec3& pos, float radius, ColorF clr, const CTimeValue& timeout) = 0;
 	//! Adds a persistent direction indicator at the specified location
 	//! \param pos The world coordinates to draw this object at
 	//! \param radius Radius of the directional indicator
 	//! \param dir Directional vector we want to visualize
 	//! \param clr Color of the debug geometry
 	//! \param timeout Timeout in seconds after which the item will stop rendering
-	virtual void AddDirection(const Vec3& pos, float radius, const Vec3& dir, ColorF clr, float timeout) = 0;
+	virtual void AddDirection(const Vec3& pos, float radius, const Vec3& dir, ColorF clr, const CTimeValue& timeout) = 0;
 	//! Adds a persistent line at the specified coordinates
 	//! \param pos1 Origin of the line, in world coordinates
 	//! \param pos2 End point of the line, in world coordinates
 	//! \param clr Color of the debug geometry
 	//! \param timeout Timeout in seconds after which the item will stop rendering
-	virtual void AddLine(const Vec3& pos1, const Vec3& pos2, ColorF clr, float timeout) = 0;
+	virtual void AddLine(const Vec3& pos1, const Vec3& pos2, ColorF clr, const CTimeValue& timeout) = 0;
 	//! Adds a planar disc to the specified coordinates
 	//! \param pos The world coordinates to draw this object at
 	//! \param innerRadius The inner radius of the disc
 	//! \param outerRadius The outer radius of the disc
 	//! \param clr Color of the debug geometry
 	//! \param timeout Timeout in seconds after which the item will stop rendering
-	virtual void AddPlanarDisc(const Vec3& pos, float innerRadius, float outerRadius, ColorF clr, float timeout) = 0;
+	virtual void AddPlanarDisc(const Vec3& pos, float innerRadius, float outerRadius, ColorF clr, const CTimeValue& timeout) = 0;
 	//! \param pos The world coordinates to draw this object at
 	//! \param dir The direction in which the cone will point
 	//! \param baseRadius Radius of the cone at its base
 	//! \param height Height of the cone
 	//! \param clr Color of the debug geometry
 	//! \param timeout Timeout in seconds after which the item will stop rendering
-	virtual void AddCone(const Vec3& pos, const Vec3& dir, float baseRadius, float height, ColorF clr, float timeout) = 0;
+	virtual void AddCone(const Vec3& pos, const Vec3& dir, float baseRadius, float height, ColorF clr, const CTimeValue& timeout) = 0;
 	//! Adds a cylinder at the specified coordinates
 	//! \param pos The world coordinates to draw this object at
 	//! \param dir Direction in which the cylinder will point
@@ -408,13 +408,13 @@ struct IPersistantDebug
 	//! \param height Height of the cylinder
 	//! \param clr Color of the debug geometry
 	//! \param timeout Timeout in seconds after which the item will stop rendering
-	virtual void AddCylinder(const Vec3& pos, const Vec3& dir, float radius, float height, ColorF clr, float timeout) = 0;
+	virtual void AddCylinder(const Vec3& pos, const Vec3& dir, float radius, float height, ColorF clr, const CTimeValue& timeout) = 0;
 	//! Adds 2D text on screen
 	//! \param szText Text message to draw
 	//! \param size Size of the text
 	//! \param clr Color of the debug geometry
 	//! \param timeout Timeout in seconds after which the item will stop rendering
-	virtual void Add2DText(const char* szText, float size, ColorF clr, float timeout) = 0;
+	virtual void Add2DText(const char* szText, float size, ColorF clr, const CTimeValue& timeout) = 0;
 	//! Adds 2D text to the specified screen coordinates
 	//! \param x X axis coordinate in screen space
 	//! \param y Y axis coordinate in screen space
@@ -422,14 +422,14 @@ struct IPersistantDebug
 	//! \param clr Color of the debug geometry
 	//! \param timeout Timeout in seconds after which the item will stop rendering
 	//! \param fmt... printf style text message to be drawn on screen
-	virtual void AddText(float x, float y, float size, ColorF clr, float timeout, const char* fmt, ...) = 0;
+	virtual void AddText(float x, float y, float size, ColorF clr, const CTimeValue& timeout, const char* fmt, ...) = 0;
 	//! Adds 3D text to the specified world coordinates
 	//! \param pos The world coordinates to draw this object at
 	//! \param size Size of the text
 	//! \param clr Color of the debug geometry
 	//! \param timeout Timeout in seconds after which the item will stop rendering
 	//! \param fmt... printf style text message to be drawn on screen
-	virtual void AddText3D(const Vec3& pos, float size, ColorF clr, float timeout, const char* fmt, ...) = 0;
+	virtual void AddText3D(const Vec3& pos, float size, ColorF clr, const CTimeValue& timeout, const char* fmt, ...) = 0;
 	//! Adds a 2D line on screen
 	//! \param x1 X axis coordinate in screen space where the line starts
 	//! \param y1 Y axis coordinate in screen space where the line starts
@@ -437,20 +437,20 @@ struct IPersistantDebug
 	//! \param y2 Y axis coordinate in screen space where the line ends
 	//! \param clr Color of the debug geometry
 	//! \param timeout Timeout in seconds after which the item will stop rendering
-	virtual void Add2DLine(float x1, float y1, float x2, float y2, ColorF clr, float timeout) = 0;
+	virtual void Add2DLine(float x1, float y1, float x2, float y2, ColorF clr, const CTimeValue& timeout) = 0;
 	//! Adds a visualized quaternion to the specified coordinates
 	//! \param pos The world coordinates to draw this object at
 	//! \param q The quaternion to visualize
 	//! \param r Radius of the helper
 	//! \param clr Color of the debug geometry
 	//! \param timeout Timeout in seconds after which the item will stop rendering
-	virtual void AddQuat(const Vec3& pos, const Quat& q, float r, ColorF clr, float timeout) = 0;
+	virtual void AddQuat(const Vec3& pos, const Quat& q, float r, ColorF clr, const CTimeValue& timeout) = 0;
 	//! Adds an axis-aligned bounding box
 	//! \param min Starting coordinates of the bounding box
 	//! \param min End coordinates of the bounding box
 	//! \param clr Color of the debug geometry
 	//! \param timeout Timeout in seconds after which the item will stop rendering
-	virtual void AddAABB(const Vec3& min, const Vec3& max, ColorF clr, float timeout) = 0;
+	virtual void AddAABB(const Vec3& min, const Vec3& max, ColorF clr, const CTimeValue& timeout) = 0;
 	//! Adds a tag above the specified entity, using the specified parameters
 	//! \param params Parameters describing the tag
 	//! \param The context in which we'll add the tag
@@ -463,8 +463,8 @@ struct IPersistantDebug
 	virtual void ClearTagContext(const char* tagContext) = 0;
 	//! Clears all entity tags by context, for a specific entity instance
 	virtual void ClearTagContext(const char* tagContext, EntityId entityId) = 0;
-	virtual void Update(float frameTime) = 0;
-	virtual void PostUpdate(float frameTime) = 0;
+	virtual void Update(const CTimeValue& frameTime) = 0;
+	virtual void PostUpdate(const CTimeValue& frameTime) = 0;
 	virtual void Reset() = 0;
 	// </interfuscator:shuffle>
 };
@@ -563,7 +563,7 @@ enum EFRAMEWORKLISTENERPRIORITY
 struct IGameFrameworkListener
 {
 	virtual ~IGameFrameworkListener(){}
-	virtual void OnPostUpdate(float fDeltaTime) = 0;
+	virtual void OnPostUpdate(const CTimeValue& fDeltaTime) = 0;
 	virtual void OnSaveGame(ISaveGame* pSaveGame) = 0;
 	virtual void OnLoadGame(ILoadGame* pLoadGame) = 0;
 	virtual void OnLevelEnd(const char* nextLevel) = 0;
@@ -645,8 +645,8 @@ struct IGameFramework
 
 	//! Pauses the game
 	//! \param pause true if the game is pausing, false otherwise.
-	//! \param nFadeOutInMS Time SFX and Voice will be faded out over in MilliSec.
-	virtual void PauseGame(bool pause, bool force, unsigned int nFadeOutInMS = 0) = 0;
+	//! \param nFadeOutIn: SFX and Voice will be faded out over this time period. PERSONAL NOTE: FADE-OUT NOT USED/IMPLEMENTED
+	virtual void PauseGame(bool pause, bool force) = 0;
 
 	//! Returns the pause status
 	//! \return true if the game is paused, false otherwise.
@@ -839,9 +839,6 @@ struct IGameFramework
 	//! Returns the INetChannel associated with the client (or NULL)
 	virtual INetChannel* GetClientChannel() const = 0;
 
-	//! Returns the (synched) time of the server (so use this for timed events, such as MP round times)
-	virtual CTimeValue GetServerTime() = 0;
-
 	//! Retrieve the Game Server Channel Id associated with the specified INetChannel.
 	//! \return The Game Server ChannelId associated with the specified INetChannel.
 	virtual uint16 GetGameChannelId(INetChannel* pNetChannel) = 0;
@@ -993,7 +990,7 @@ struct IGameFramework
 	//! The signature for the callback function is: void (void*, int).
 	//! It allows member functions by using CE functors.
 	//! \return Handle of the timer created
-	virtual IGameFramework::TimerID AddTimer(CTimeValue interval, bool repeat, TimerCallback callback, void* userdata = 0) = 0;
+	virtual IGameFramework::TimerID AddTimer(const CTimeValue& interval, bool repeat, TimerCallback callback, void* userdata = 0) = 0;
 
 	//! Remove an existing timer by using its handle, returns user data.
 	virtual void* RemoveTimer(TimerID timerID) = 0;
@@ -1003,7 +1000,7 @@ struct IGameFramework
 
 	//! Get the time left when we are allowed to load a new game.
 	//! When this returns 0, we are allowed to load a new game.
-	virtual float GetLoadSaveDelay() const = 0;
+	virtual const CTimeValue& GetLoadSaveDelay() const = 0;
 
 	//! Allows the network code to keep ticking in the event of a stall on the main thread.
 	virtual void StartNetworkStallTicker(bool includeMinimalUpdate) = 0;
@@ -1016,7 +1013,7 @@ struct IGameFramework
 
 	//! Gets called from the physics thread just before doing a time step.
 	//! \param deltaTime - the time interval that will be simulated.
-	virtual void PrePhysicsTimeStep(float deltaTime) = 0;
+	virtual void PrePhysicsTimeStep(const CTimeValue& deltaTime) = 0;
 
 	//! Register an extension to the game framework and makes it accessible through it
 	//! \param pExtension Extension to be added to the game framework.

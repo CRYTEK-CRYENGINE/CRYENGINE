@@ -36,10 +36,10 @@ public:
 	virtual void Reset() = 0;
 	virtual bool Enable(bool bEnable) = 0;
 	virtual bool IsEnabled() = 0;
-	virtual void Update(float fDelta) = 0;
+	virtual void Update(const CTimeValue& fDelta) = 0;
 
 	//! pEntity == 0, fRadius == -1.f etc. means "Don't change these properties".
-	virtual void ChangeInterestingEntityProperties(IEntity* pEntity, float fRadius = -1.f, float fBaseInterest = -1.f, const char* szActionName = NULL, const Vec3& vOffset = Vec3Constants<float>::fVec3_Zero, float fPause = -1.f, int nbShared = -1) = 0;
+	virtual void ChangeInterestingEntityProperties(IEntity* pEntity, float fRadius = -1.f, float fBaseInterest = -1.f, const char* szActionName = NULL, const Vec3& vOffset = Vec3Constants<float>::fVec3_Zero, const CTimeValue& fPause = -1, int nbShared = -1) = 0;
 	virtual void DeregisterInterestingEntity(IEntity* pEntity) = 0;
 
 	//! pEntity == 0, fInterestFilter == -1.f etc. means "Don't change these properties".

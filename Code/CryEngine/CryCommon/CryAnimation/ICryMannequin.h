@@ -37,7 +37,7 @@ struct SAnimationEntry
 	SAnimationEntry()
 		:
 		flags(0),
-		playbackSpeed(1.0f),
+		playbackSpeed(1),
 		playbackWeight(1.0f),
 		weightList(0)
 	{
@@ -60,9 +60,9 @@ struct SAnimationEntry
 
 	SAnimRef animRef;
 	uint32   flags;
-	float    playbackSpeed;
+	mpfloat  playbackSpeed;
 	float    playbackWeight;
-	float    blendChannels[MANN_NUMBER_BLEND_CHANNELS];
+	mpfloat  blendChannels[MANN_NUMBER_BLEND_CHANNELS];
 	uint8    weightList;
 };
 
@@ -149,9 +149,9 @@ struct IProceduralParamsEditor
 	}
 
 	// GetEditorDefaultBlendDuration is called by the editor to know what value to use as the blend duration when creating a procedural clip.
-	virtual float GetEditorDefaultBlendDuration() const
+	virtual CTimeValue GetEditorDefaultBlendDuration() const
 	{
-		return 0.3f;
+		return "0.3";
 	}
 };
 
@@ -276,7 +276,7 @@ typedef DynArray<SMannParameter> TMannParamList;
 //---------------------------------------------------------------------------------------------------------
 struct SAnimBlend
 {
-	SAnimBlend(float _exitTime = 0.0f, float _startTime = 0.0f, float _duration = 0.2f, uint32 _flags = 0)
+	SAnimBlend(const CTimeValue& _exitTime = 0, const CTimeValue& _startTime = 0, const CTimeValue& _duration = "0.2", uint32 _flags = 0)
 		:
 		exitTime(_exitTime),
 		startTime(_startTime),
@@ -295,9 +295,9 @@ struct SAnimBlend
 			&& (entryA.terminal == entryB.terminal);
 	}
 
-	float  exitTime;
-	float  startTime;
-	float  duration;
+	CTimeValue  exitTime;
+	CTimeValue  startTime;
+	CTimeValue  duration;
 	uint32 flags;
 	bool   terminal;
 };
@@ -320,7 +320,7 @@ enum EClipType
 struct SAnimClip
 {
 	SAnimClip()
-		: referenceLength(0.0f)
+		: referenceLength(0)
 		, blendPart(0)
 		, part(0)
 		, isVariableLength(false)
@@ -337,7 +337,7 @@ struct SAnimClip
 
 	SAnimBlend      blend;
 	SAnimationEntry animation;
-	float           referenceLength;
+	CTimeValue      referenceLength;
 	uint8           blendPart;
 	uint8           part;
 	bool            isVariableLength;
@@ -395,19 +395,19 @@ struct SFragmentData
 
 	SFragmentData()
 		: isOneShot(false)
-		, blendOutDuration(0.0f)
+		, blendOutDuration(0)
 	{
 		for (uint32 p = 0; p < PART_TOTAL; p++)
 		{
-			duration[p] = 0.0f;
+			duration[p].SetSeconds(0);
 			transitionType[p] = eCT_Normal;
 		}
 	}
 
-	float                       blendOutDuration;
+	CTimeValue                  blendOutDuration;
 	DynArray<TAnimClipSequence> animLayers;
 	DynArray<TProcClipSequence> procLayers;
-	float                       duration[PART_TOTAL];
+	CTimeValue                  duration[PART_TOTAL];
 	EClipType                   transitionType[PART_TOTAL];
 	bool                        isOneShot;
 };
@@ -415,9 +415,9 @@ struct SFragmentData
 class CFragment
 {
 public:
-	CFragment() : m_blendOutDuration(0.2f) {}
+	CFragment() : m_blendOutDuration("0.2") {}
 
-	float                       m_blendOutDuration;
+	CTimeValue                  m_blendOutDuration;
 	DynArray<TAnimClipSequence> m_animLayers;
 	DynArray<TProcClipSequence> m_procLayers;
 };
@@ -521,9 +521,9 @@ struct SFragmentBlend
 
 	SFragmentBlend()
 		:
-		selectTime(0.0f),
-		startTime(0.0f),
-		enterTime(0.0f),
+		selectTime(0),
+		startTime(0),
+		enterTime(0),
 		pFragment(NULL),
 		flags(0),
 		uid(SFragmentBlendUid::NEW)
@@ -541,9 +541,9 @@ struct SFragmentBlend
 		return (flags & ExitTransition) != 0;
 	}
 
-	float             selectTime;
-	float             startTime;
-	float             enterTime;
+	CTimeValue        selectTime;
+	CTimeValue        startTime;
+	CTimeValue        enterTime;
 	CFragment*        pFragment;
 	uint8             flags;
 	SFragmentBlendUid uid;
@@ -685,9 +685,10 @@ struct SAnimationContext
 	{
 		subStates.resize(_controllerDef.m_subContextIDs.GetNum(), state);
 
-		if (gEnv->pTimer)
+		if (GetGTimer())
 		{
-			const uint32 seed = static_cast<uint32>(gEnv->pTimer->GetAsyncTime().GetValue());
+			// Float inaccuracy is fine, generating random seed.
+			const uint32 seed = static_cast<uint32>(GetGTimer()->GetAsyncTime().GetMicroSeconds());
 			randGenerator.Seed(seed);
 		}
 	}
@@ -702,7 +703,7 @@ struct SMannHistoryItem
 {
 	SMannHistoryItem()
 		:
-		time(-1.0f),
+		time(-1),
 		tagState(TAG_STATE_EMPTY),
 		scopeMask(0),
 		fragment(FRAGMENT_ID_INVALID),
@@ -714,7 +715,7 @@ struct SMannHistoryItem
 
 	SMannHistoryItem(ActionScopes _scopeMask, FragmentID _fragment, const TagState& _tagState, uint32 _optionIdx, bool _trumpsPrevious = false)
 		:
-		time(-1.0f),
+		time(-1),
 		tagState(_tagState),
 		scopeMask(_scopeMask),
 		fragment(_fragment),
@@ -725,7 +726,7 @@ struct SMannHistoryItem
 	}
 	SMannHistoryItem(const TagState& _tagState)
 		:
-		time(-1.0f),
+		time(-1),
 		tagState(_tagState),
 		scopeMask(0),
 		fragment(FRAGMENT_ID_INVALID),
@@ -741,7 +742,7 @@ struct SMannHistoryItem
 		Tag,
 		None
 	};
-	float        time;
+	CTimeValue   time;
 	TagState     tagState;
 	ActionScopes scopeMask;
 	FragmentID   fragment;
@@ -815,8 +816,8 @@ struct SBlendQueryResult
 		fragmentTo(FRAGMENT_ID_INVALID),
 		pFragmentBlend(NULL),
 		blendIdx(0),
-		selectTime(0.0f),
-		duration(0.0f)
+		selectTime(0),
+		duration(0)
 	{
 	}
 
@@ -827,8 +828,8 @@ struct SBlendQueryResult
 	const SFragmentBlend* pFragmentBlend;
 	uint32                blendIdx;
 	SFragmentBlendUid     blendUid;
-	float                 selectTime;
-	float                 duration;
+	CTimeValue            selectTime;
+	CTimeValue            duration;
 };
 
 struct SBlendQuery
@@ -846,9 +847,9 @@ struct SBlendQuery
 		fragmentFrom(FRAGMENT_ID_INVALID),
 		fragmentTo(FRAGMENT_ID_INVALID),
 		additionalTags(TAG_STATE_EMPTY),
-		fragmentTime(0.0f),
-		prevNormalisedTime(0.0f),
-		normalisedTime(0.0f),
+		fragmentTime(0),
+		prevNormalisedTime(0),
+		normalisedTime(0),
 		flags(0)
 	{
 	}
@@ -870,9 +871,9 @@ struct SBlendQuery
 	SFragTagState     tagStateFrom;
 	SFragTagState     tagStateTo;
 	TagState          additionalTags;
-	float             fragmentTime;
-	float             prevNormalisedTime;
-	float             normalisedTime;
+	CTimeValue        fragmentTime;
+	nTime             prevNormalisedTime;
+	nTime             normalisedTime;
 	uint32            flags;
 	SFragmentBlendUid forceBlendUid;
 };
@@ -1052,7 +1053,7 @@ public:
 	virtual uint32                    GetTotalLayers() const = 0;
 	virtual uint32                    GetBaseLayer() const = 0;
 
-	virtual void                      IncrementTime(float timeDelta) = 0;
+	virtual void                      IncrementTime(const CTimeValue& timeDelta) = 0;
 
 	virtual const CAnimation*         GetTopAnim(int layer) const = 0;
 	virtual CAnimation*               GetTopAnim(int layer) = 0;
@@ -1062,11 +1063,11 @@ public:
 	virtual bool                      IsDifferent(const FragmentID aaID, const TagState& fragmentTags, const TagID subContext = TAG_ID_INVALID) const = 0;
 	virtual FragmentID                GetLastFragmentID() const = 0;
 	virtual const SFragTagState& GetLastTagState() const = 0;
-	virtual float                CalculateFragmentTimeRemaining() const = 0;
-	virtual float                CalculateFragmentDuration(const CFragment& fragment) const = 0;
+	virtual const CTimeValue          CalculateFragmentTimeRemaining() const = 0;
+	virtual const CTimeValue          CalculateFragmentDuration(const CFragment& fragment) const = 0;
 
-	virtual float                GetFragmentDuration() const = 0;
-	virtual float                GetFragmentTime() const = 0;
+	virtual const CTimeValue&         GetFragmentDuration() const = 0;
+	virtual const CTimeValue&         GetFragmentTime() const = 0;
 
 	virtual TagState             GetAdditionalTags() const = 0;
 
@@ -1238,11 +1239,11 @@ public:
 	//! Queues the specified action / fragment for playback
 	//! \par Example
 	//! \include CryAnimation/Examples/QueueFragment.cpp
-	virtual void                     Queue(IAction& action, float time = -1.0f) = 0;
+	virtual void                     Queue(IAction& action, const CTimeValue& time = CTimeValue(-1)) = 0;
 	virtual void                     Requeue(IAction& action) = 0;
 
 	//! Updates the action controller, should be called by the user each frame for fragments to be played
-	virtual void                     Update(float timePassed) = 0;
+	virtual void                     Update(const CTimeValue& timePassed) = 0;
 
 	virtual SAnimationContext&       GetContext() = 0;
 	virtual const SAnimationContext& GetContext() const = 0;
@@ -1260,17 +1261,17 @@ public:
 
 	virtual void  SetFlag(EActionControllerFlags flag, bool enable) = 0;
 
-	virtual void  SetTimeScale(float timeScale) = 0;
-	virtual float GetTimeScale() const = 0;
+	virtual void  SetTimeScale(const mpfloat& timeScale) = 0;
+	virtual const mpfloat& GetTimeScale() const = 0;
 
 	// Only needed for animationgraph?
 	virtual bool                            IsActionPending(uint32 userToken) const = 0;
 
 	virtual bool                            IsDifferent(const FragmentID fragID, const TagState& fragmentTags, const ActionScopes& scopeMask) const = 0;
 
-	virtual bool                            CanInstall(const IAction& action, const ActionScopes& scopeMask, float timeStep, float& timeTillInstall) const = 0;
+	virtual bool                            CanInstall(const IAction& action, const ActionScopes& scopeMask, const CTimeValue& timeStep, CTimeValue& timeTillInstall) const = 0;
 
-	virtual bool                            QueryDuration(IAction& action, float& fragmentDuration, float& transitionDuration) const = 0;
+	virtual bool                            QueryDuration(IAction& action, CTimeValue& fragmentDuration, CTimeValue& transitionDuration) const = 0;
 
 	virtual void                            SetSlaveController(IActionController& target, uint32 targetContext, bool enslave, const IAnimationDatabase* piOptionTargetDatabase) = 0;
 
@@ -1416,8 +1417,8 @@ public:
 
 	IAction(int priority, FragmentID fragmentID = FRAGMENT_ID_INVALID, const TagState& fragTags = TAG_STATE_EMPTY, uint32 flags = 0, ActionScopes scopeMask = 0, uint32 userToken = 0)
 		: m_context(NULL)
-		, m_activeTime(0.0f)
-		, m_queueTime(-1.0f)
+		, m_activeTime(0)
+		, m_queueTime(-1)
 		, m_forcedScopeMask(scopeMask)
 		, m_installedScopeMask(0)
 		, m_subContext(TAG_ID_INVALID)
@@ -1430,7 +1431,7 @@ public:
 		, m_optionIdx(OPTION_IDX_RANDOM)
 		, m_userToken(userToken)
 		, m_refCount(0)
-		, m_speedBias(1.0f)
+		, m_speedBias(1)
 		, m_animWeight(1.0f)
 	{
 	}
@@ -1522,7 +1523,7 @@ public:
 	{
 		return 0 != (m_flags & FragmentIsOneShot);
 	}
-	float GetActiveTime() const
+	const CTimeValue& GetActiveTime() const
 	{
 		return m_activeTime;
 	}
@@ -1548,20 +1549,20 @@ public:
 		m_eStatus = None;
 		m_flags &= ~Started;
 	}
-	virtual EStatus UpdatePending(float timePassed)
+	virtual EStatus UpdatePending(const CTimeValue& timePassed)
 	{
-		const float oldActiveTime = m_activeTime;
+		const CTimeValue oldActiveTime = m_activeTime;
 		m_activeTime += timePassed;
 
 		//--- If we have a passed a limited queue time and have ticked at least once, then exit
-		if ((m_queueTime >= 0.0f) && (oldActiveTime > 0.0f) && (m_activeTime > m_queueTime))
+		if ((m_queueTime >= 0) && (oldActiveTime > 0) && (m_activeTime > m_queueTime))
 		{
 			m_eStatus = Finished;
 		}
 
 		return m_eStatus;
 	}
-	virtual EStatus Update(float timePassed)
+	virtual EStatus Update(const CTimeValue& timePassed)
 	{
 		m_activeTime += timePassed;
 
@@ -1604,11 +1605,11 @@ public:
 
 	bool IsDifferent(const FragmentID fragID, const TagState& fragmentTags) const;
 
-	void SetSpeedBias(float speedBias)
+	void SetSpeedBias(const mpfloat& speedBias)
 	{
 		m_speedBias = speedBias;
 	}
-	float GetSpeedBias() const
+	const mpfloat& GetSpeedBias() const
 	{
 		return m_speedBias;
 	}
@@ -1818,8 +1819,8 @@ protected:
 	}
 
 	SAnimationContext* m_context;
-	float              m_activeTime;
-	float              m_queueTime;
+	CTimeValue         m_activeTime;
+	CTimeValue         m_queueTime;
 	ActionScopes       m_forcedScopeMask;
 	ActionScopes       m_installedScopeMask;
 	TagID              m_subContext;
@@ -1832,7 +1833,7 @@ protected:
 	uint32             m_optionIdx;
 	uint32             m_userToken;
 	int                m_refCount;
-	float              m_speedBias;
+	mpfloat            m_speedBias;
 	float              m_animWeight;
 
 	CMannequinParams   m_mannequinParams;
@@ -1869,7 +1870,7 @@ private:
 		m_rootScope = NULL;
 		m_flags &= ~Started;
 
-		m_activeTime = 0.0f;
+		m_activeTime.SetSeconds(0);
 
 		OnInitialise();
 	}
@@ -1981,10 +1982,10 @@ public:
 		m_action = &action;
 	}
 
-	virtual void        INTERNAL_OnEnter(float blendTime, float duration, const IProceduralParamsPtr& pProceduralParams) = 0;
+	virtual void        INTERNAL_OnEnter(const CTimeValue& blendTime, const CTimeValue& duration, const IProceduralParamsPtr& pProceduralParams) = 0;
 	virtual void        OnFail() {}
-	virtual void        OnExit(float blendTime) = 0;
-	virtual void        Update(float timePassed) = 0;
+	virtual void        OnExit(const CTimeValue& blendTime) = 0;
+	virtual void        Update(const CTimeValue& timePassed) = 0;
 	virtual const CryClassID GetContextID() const
 	{
 		static CryClassID null = CryClassID::Null();
@@ -2061,7 +2062,7 @@ public:
 		m_actionController = &actionController;
 	}
 
-	virtual void Update(float timePassed) = 0;
+	virtual void Update(const CTimeValue& timePassed) = 0;
 
 protected:
 	IEntity*           m_entity;
@@ -2074,7 +2075,7 @@ class TProceduralClip : public IProceduralClip
 public:
 	typedef PARAMS TParamsType;
 
-	virtual void INTERNAL_OnEnter(float blendTime, float duration, const IProceduralParamsPtr& pProceduralParams)
+	virtual void INTERNAL_OnEnter(const CTimeValue& blendTime, const CTimeValue& duration, const IProceduralParamsPtr& pProceduralParams)
 	{
 		CRY_ASSERT(pProceduralParams.get());
 		m_params = *(static_cast<const PARAMS*>(pProceduralParams.get()));
@@ -2086,7 +2087,7 @@ public:
 		return m_params;
 	}
 
-	virtual void OnEnter(float blendTime, float duration, const PARAMS& proceduralParams) = 0;
+	virtual void OnEnter(const CTimeValue& blendTime, const CTimeValue& duration, const PARAMS& proceduralParams) = 0;
 
 private:
 	PARAMS m_params;

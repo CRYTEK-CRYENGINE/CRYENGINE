@@ -24,10 +24,10 @@ struct IAIRateOfDeathHandler
 	virtual ~IAIRateOfDeathHandler() {}
 
 	//! Calculate and return how long the target should stay alive from now.
-	virtual float GetTargetAliveTime(const IAIObject* pAI, const IAIObject* pTarget, EAITargetZone eTargetZone, float& fFireDazzleTime) = 0;
+	virtual CTimeValue GetTargetAliveTime(const IAIObject* pAI, const IAIObject* pTarget, EAITargetZone eTargetZone, CTimeValue& fFireDazzleTime) = 0;
 
 	//! Calculate and return how long the AI should take to react to firing at the target from now.
-	virtual float GetFiringReactionTime(const IAIObject* pAI, const IAIObject* pTarget, const Vec3& vTargetPos) = 0;
+	virtual CTimeValue GetFiringReactionTime(const IAIObject* pAI, const IAIObject* pTarget, const Vec3& vTargetPos) = 0;
 
 	//! Calculate and return the zone the target is currently in.
 	virtual EAITargetZone GetTargetZone(const IAIObject* pAI, const IAIObject* pTarget) = 0;
