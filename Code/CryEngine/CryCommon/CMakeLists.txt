@@ -763,6 +763,8 @@ add_sources("NoUberFile"
 		"CryString/UnicodeIterator.h"
 		"CryString/NameCRCHelper.h"
 	SOURCE_GROUP "CrySystem"
+		"CrySystem/MPFloat.h"
+		"CrySystem/mpfloat.types"
 		"CrySystem/IEngineModule.h"
 		"CrySystem/ICryPlugin.h"
 		"CrySystem/ICryPluginManager.h"
@@ -1138,6 +1140,13 @@ end_sources()
 #END-FILE-LIST
 
 CryFileContainer(CryCommon SOLUTION_FOLDER Common)
+
+# Only for VS (As from https://github.com/CRYTEK/CRYENGINE/pull/169/files)
+if (${CMAKE_GENERATOR} MATCHES "^Visual Studio")
+	# Fix to add CryCommon includes in VS ide
+	configure_file ("CryCommon.vcxproj.user.in" "${CMAKE_CURRENT_BINARY_DIR}/CryCommon.vcxproj.user")
+	configure_file ("CryCommon.props" "${CMAKE_CURRENT_BINARY_DIR}/CryCommon.props")
+endif()
 
 macro(install_headers)
 	foreach(dir ${ARGN})

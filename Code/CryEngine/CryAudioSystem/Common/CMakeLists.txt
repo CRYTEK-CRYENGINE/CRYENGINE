@@ -18,3 +18,10 @@ end_sources()
 #END-FILE-LIST
 
 CryFileContainer(CryAudioCommon SOLUTION_FOLDER "CryEngine/Audio")
+
+# PERSONAL EDITS Only for VS (As from https://github.com/CRYTEK/CRYENGINE/pull/169/files)
+if (${CMAKE_GENERATOR} MATCHES "^Visual Studio")
+	# Fix to add CryCommon includes in VS ide
+	configure_file ("CryAudioCommon.vcxproj.user.in" "${CMAKE_CURRENT_BINARY_DIR}/CryAudioCommon.vcxproj.user")
+	configure_file ("CryAudioCommon.props" "${CMAKE_CURRENT_BINARY_DIR}/CryAudioCommon.props")
+endif()

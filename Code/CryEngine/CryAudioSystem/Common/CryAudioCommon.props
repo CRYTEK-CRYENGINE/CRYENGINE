@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ImportGroup Label="PropertySheets" />
+  <PropertyGroup Label="UserMacros" />
+  <PropertyGroup> 
+    <!-- PERSONAL EDITS: As in https://github.com/CRYTEK/CRYENGINE/pull/169/files Plus added SDK directory for boost/GMP/etc. 
+		TODO: Clean this up, 'gmp.h not found' bogus error when building sometimes.
+		Also, with ${SDK_DIR}, boost/boost will be 'found' but will NOT build (e.g. not found during build)
+	-->
+    <IncludePath>${SDK_DIR}/boost;${CRYENGINE_DIR}\Code\CryEngine\CryCommon;$(IncludePath)</IncludePath>
+  </PropertyGroup>
+  <ItemDefinitionGroup />
+  <ItemGroup />
+</Project> 

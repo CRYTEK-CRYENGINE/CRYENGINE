@@ -1,0 +1,110 @@
+-------------------------
+## List of SDK changes ##
+-------------------------
+
+FMOD: https://www.fmod.com/download
+	Moved from "C:\Program Files (x86)\FMOD SoundSystem\FMOD Studio API Windows\XXXX" to "SDKs/Audio/fmod/windows"
+	Has the api, bin, doc, and plugins folders.
+	See windows/doc/revision for version: 06/07/17 1.09.06 - Studio API minor release (build 88495)
+
+FbxSDK: images.autodesk.com/adsk/files/fbx20161_fbxsdk_vs2015_win0.exe
+	"Program Files/Autodesk/FBX/FBX SDK/2016.1" renamed to "Code/SDKs/FbxSdk" (So that /include would be next)
+
+GMP & MPFR:
+	Had to edit gmp.h a bit to ignore VStudio bogus warning->errors
+	See below for compilation instructions.
+	
+	Current versions: 
+		GMP 6.1.2
+		MPFR 4.0.1
+	
+Boost:
+	Edited boost/boost/multiprecision/gmp.hpp.
+		For unsafe() option call.(tiny edit) Bypasses ASSERT() check and protected status.
+		Used for 'is_unused()' checks. Non-conflicting with any existing code and what not.
+	
+	Also edited mpfr.hpp:
+		Added checks for zeroed out buffer in 'allocate_stack' version (replicates allocate_dynamic) 
+			Due to memset(0)'s selective usefulness.
+			Only for assignment. No asserts added.
+	
+	
+PERSONAL IMPROVE:  Perhaps use this https://github.com/BrianGladman/mpfr , although it works now just fine.
+
+-------------------------
+## Compiling GMP and MPFR ##
+-------------------------
+
+Preparing MSys2:
+	Install MSys2 http://www.msys2.org/ and open the msys2 application.
+
+	Run the following lines:
+	pacman -Syuu (Close terminal window via X)
+	pacman -Syuu 
+	pacman -S --needed base-devel mingw-w64-i686-toolchain mingw-w64-x86_64-toolchain git subversion mercurial mingw-w64-i686-cmake mingw-w64-x86_64-cmake
+	
+	Download YASM (64-bit) http://yasm.tortall.net/Download.html
+	Rename to yasm.exe and place into C:\msys64\usr\bin
+
+Compiling GMP:
+	Switch to the mingw64 application, NOT MSYS2 to compile/install GMP.
+
+	Download and unzip GMP tar from https://gmplib.org/
+	cd into downloaded GMP folder and run the following lines.
+
+	The --enable-fat build option creates a library where optimized low level subroutines are chosen at runtime according to the CPU detected. Otherwise it would only work on a certain CPU set.
+	./configure --prefix=/Libraries/GMP --disable-shared --enable-static --enable-fat --enable-cxx --with-gnu-ld
+
+	make clean // Just in case!
+	make
+	make check | awk '/# PASS:/{total+=$3} ; END{print total}'   // Result should be 190, ignore other warnings/text. (or just run normally and check for errs) 
+	make install
+
+	Static library's are now in C:/msys64/Libraries/GMP.
+
+Modify gmp.h:
+	To avoid bogus warnings and errors when building in VStudio. (Better than disabling SDL checks/etc.)
+	#ifndef __GMP_H__
+
+	// PERSONAL EDITS : To ignore bogus warnings in GMP. Preserves warning state with push and restores with pop.
+		#pragma warning(push)
+		#pragma warning(disable:4244)
+		#pragma warning(disable:4146)
+
+		XXXXXXXXXX MORE CODE HERE XXXXXXXXXX
+
+	// PERSONAL EDITS
+		#pragma warning(pop)
+
+	#define __GMP_H__
+	#endif /* __GMP_H__ */
+
+Compiling MPFR:
+	Download and unzip MPFR tar from https://www.mpfr.org/mpfr-current/
+	cd into downloaded MPFR folder and run the following lines.
+	
+	// PERSONAL TODO: --with-gmp-build might be a tad faster. Not sure how to go about using this.
+	// And --enable-thread-safe  might be good for multi-threading. Unsure.
+	// Get this building statically with pthread? If possible?
+	./configure --with-gmp=C:/msys64/Libraries/GMP --prefix=/Libraries/MPFR --disable-shared --enable-static
+	
+	make clean // Just in case!
+	make > build.log
+	make check | awk '/# PASS:/{total+=$3} ; END{print total}'   // Result should be 180, as with GMP .-.
+	make install
+	
+	Static library's are now in C:/msys64/Libraries/MPFR.
+
+CryEngine edits:
+	Copy C:/msys64/Libraries/GMP to /CRYENGINE/Code/SDKs/GMP
+	Copy C:/msys64/mingw64/lib/gcc/x86_64-w64-mingw32/8.2.0/libgcc.a to /CRYENGINE/Code/SDKs/GMP/lib
+	Rename the 3 .a files into .lib files, they will be read/compiled properly! (At least in this case)
+	
+	Copy C:/msys64/Libraries/MPFR to /CRYENGINE/Code/SDKs/MPFR
+	Copy C:/msys64/mingw64/lib/gcc/x86_64-w64-mingw32/8.2.0/XXX to /CRYENGINE/Code/SDKs/MPFR/lib
+		libgcc_s.a libgcc_eh.a libwinpthread.a
+	Rename the 4 .a files into .lib files
+
+	Copy libgcc_s_seh-1.dll and libwinpthread-1.dll from mingw64/bin to /CRYENGINE/Code/SDKs/MPFR/lib. That's it!
+	
+	If ya want you can view the reqired library appends/etc. in Tools/CMake/Configure.cmake and Tools/RC/CmakeLists.txt (duplicate)

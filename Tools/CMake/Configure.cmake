@@ -212,6 +212,22 @@ if (OPTION_RELEASE_PROFILING)
 	list(APPEND global_defines  "$<$<CONFIG:Release>:PERFORMANCE_BUILD>")
 endif()
 
+## PERSONAL EDITS : To add GMP and MPFR
+	## Additional Include Directories
+	list(APPEND global_includes "${SDK_DIR}/GMP/include" "${SDK_DIR}/MPFR/include")
+			
+	## Additional Library Directories
+	list(APPEND global_links "${SDK_DIR}/GMP/lib" "${SDK_DIR}/MPFR/lib")
+
+	## Additional Dependencies for GMP
+	set(COMMON_LIBS ${COMMON_LIBS} libgcc legacy_stdio_definitions libgmpxx libgmp)
+		
+	## Additional Dependencies for MPFR
+	set(COMMON_LIBS ${COMMON_LIBS} libgcc_s libgcc_eh libwinpthread libmpfr)
+	deploy_runtime_files("${SDK_DIR}/MPFR/lib/libgcc_s_seh-1.dll")
+	deploy_runtime_files("${SDK_DIR}/MPFR/lib/libwinpthread-1.dll")
+## ~PERSONAL EDITS
+
 if ((WIN32 OR WIN64) AND OPTION_ENABLE_BROFILER AND OPTION_ENGINE)
 	list(APPEND global_defines USE_BROFILER)
 	list(APPEND global_includes "${SDK_DIR}/Brofiler" )

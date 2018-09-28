@@ -97,6 +97,53 @@ set(COMMON_LIBS Ntdll User32 Advapi32 Ntdll Ws2_32)
 
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 
+## PERSONAL EDITS : To add GMP and MPFR
+	## Additional Include Directories
+	include_directories("${SDK_DIR}/boost")
+	include_directories("${SDK_DIR}/GMP/include")
+	include_directories("${SDK_DIR}/MPFR/include")
+
+	## Additional Library Directories
+	link_directories("${SDK_DIR}/GMP/lib")
+	link_directories("${SDK_DIR}/MPFR/lib")
+
+	## Additional GMP Dependencies
+	set(COMMON_LIBS ${COMMON_LIBS} libgcc legacy_stdio_definitions libgmpxx libgmp)
+		
+	## Additional Dependencies for MPFR
+	set(COMMON_LIBS ${COMMON_LIBS} libgcc_s libgcc_eh libwinpthread libmpfr)
+	
+	## Regretfully-messy CMake edits to push said DLL into proper directory. Urgh.
+	set(BASE_OUTPUT_DIRECTORY	"${OUTPUT_DIRECTORY}")
+	macro(set_base_outdir)
+		set(base_outdir ${BASE_OUTPUT_DIRECTORY})
+		if(NOT ${CMAKE_GENERATOR} MATCHES "Visual Studio")
+			string( TOUPPER ${CMAKE_BUILD_TYPE} BUILD_CONFIG )
+			set(base_outdir ${BASE_OUTPUT_DIRECTORY_${BUILD_CONFIG}})
+		endif()
+		if(OUTPUT_DIRECTORY_SUFFIX)
+			set(base_outdir "${base_outdir}_${OUTPUT_DIRECTORY_SUFFIX}")
+		endif()
+		if(OPTION_DEDICATED_SERVER)
+			set(base_outdir "${base_outdir}_dedicated")
+		endif()
+	endmacro()
+
+	set(FILE_PATH "${SDK_DIR}/MPFR/lib/libgcc_s_seh-1.dll")
+	get_filename_component(FILE_NAME "${FILE_PATH}" NAME)
+	set_base_outdir()
+	install(FILES "${FILE_PATH}" DESTINATION bin)
+	get_filename_component(DEST_DIR "${base_outdir}/${FILE_NAME}" DIRECTORY)
+	file(COPY "${FILE_PATH}" DESTINATION "${DEST_DIR}" NO_SOURCE_PERMISSIONS)
+	
+	set(FILE_PATH "${SDK_DIR}/MPFR/lib/libwinpthread-1.dll")
+	get_filename_component(FILE_NAME "${FILE_PATH}" NAME)
+	set_base_outdir()
+	install(FILES "${FILE_PATH}" DESTINATION bin)
+	get_filename_component(DEST_DIR "${base_outdir}/${FILE_NAME}" DIRECTORY)
+	file(COPY "${FILE_PATH}" DESTINATION "${DEST_DIR}" NO_SOURCE_PERMISSIONS)
+## ~PERSONAL EDITS
+
 #Libs
 add_subdirectory("${CRY_LIBS_DIR}/expat" "${CMAKE_CURRENT_BINARY_DIR}/expat")
 add_subdirectory("${CRY_LIBS_DIR}/lua" "${CMAKE_CURRENT_BINARY_DIR}/lua")

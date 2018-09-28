@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="14.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+
+	<!--PERSONAL EDITS as in https://github.com/CRYTEK/CRYENGINE/pull/169/files-->
+	<!-- Add the required CryCommon include directories to this project -->
+  <Import Project="CryCommon.props" />
+  
+</Project> 
