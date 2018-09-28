@@ -102,7 +102,7 @@ private:
 class CTimeSinceCondition final : public IVariableUsingBase, public DRS::IResponseCondition
 {
 public:
-	CTimeSinceCondition() { m_minTime = 5.0f; m_maxTime = -1.0f; }
+	CTimeSinceCondition() { m_minTime.SetSeconds(5); m_maxTime.SetSeconds(-1); }
 	//////////////////////////////////////////////////////////
 	// IResponseCondition implementation
 	virtual bool        IsMet(DRS::IResponseInstance* pResponseInstance) override;
@@ -112,8 +112,8 @@ public:
 	//////////////////////////////////////////////////////////
 
 protected:
-	float m_minTime;
-	float m_maxTime;
+	CTimeValue m_minTime;
+	CTimeValue m_maxTime;
 };
 
 //////////////////////////////////////////////////////////////////////////
@@ -121,7 +121,7 @@ protected:
 class CTimeSinceResponseCondition final : public DRS::IResponseCondition
 {
 public:
-	CTimeSinceResponseCondition() { m_minTime = 5.0f; m_maxTime = -1.0f; }
+	CTimeSinceResponseCondition() { m_minTime.SetSeconds(5); m_maxTime.SetSeconds(-1); }
 
 	//////////////////////////////////////////////////////////
 	// IResponseCondition implementation
@@ -133,8 +133,8 @@ public:
 
 protected:
 	CHashedString m_responseId;
-	float         m_minTime;
-	float         m_maxTime;
+	CTimeValue    m_minTime;
+	CTimeValue    m_maxTime;
 };
 
 //////////////////////////////////////////////////////////////////////////

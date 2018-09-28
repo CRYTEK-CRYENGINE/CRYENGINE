@@ -117,7 +117,7 @@ void CResponseInstance::ExecuteSegment(CResponseSegment* pSegment)
 			{
 				CRY_ASSERT(actionInfo.m_pAction);
 				DRS::IResponseActionInstanceUniquePtr pAction = nullptr;
-				if (actionInfo.m_delay > FLT_EPSILON)
+				if (actionInfo.m_delay > TV_EPSILON)
 				{
 					pAction = DRS::IResponseActionInstanceUniquePtr(new DelayActionActionInstance(actionInfo.m_delay, actionInfo.m_pAction, this));
 					DRS_DEBUG_DATA_ACTION(AddActionStarted(actionInfo.m_pAction->GetVerboseInfoWithType() + ", delay: " + CryStringUtils::toString(actionInfo.m_delay) + "s ", pAction.get(), GetCurrentActor(), pSegment));

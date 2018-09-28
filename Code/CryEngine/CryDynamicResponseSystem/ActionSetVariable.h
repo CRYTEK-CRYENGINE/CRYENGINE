@@ -27,8 +27,8 @@ public:
 		eChangeOperation_Decrement = 2
 	};
 
-	CActionSetVariable() : m_changeOperation(eChangeOperation_Set), m_cooldown(0.0f) {}
-	CActionSetVariable(const CHashedString& pCollection, const CHashedString& variableName, CVariableValue targetValue, EChangeOperation operation, float cooldown);
+	CActionSetVariable() : m_changeOperation(eChangeOperation_Set), m_cooldown(0) {}
+	CActionSetVariable(const CHashedString& pCollection, const CHashedString& variableName, CVariableValue targetValue, EChangeOperation operation, const CTimeValue& cooldown);
 
 	//////////////////////////////////////////////////////////
 	// IResponseAction implementation
@@ -41,6 +41,6 @@ public:
 private:
 	CVariableValue   m_valueToSet;
 	EChangeOperation m_changeOperation;
-	float            m_cooldown;
+	CTimeValue       m_cooldown;
 };
 } // namespace CryDRS

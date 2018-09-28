@@ -55,7 +55,7 @@ public:
 	struct VariableCooldownInfo   //used for the SetVariableValueForSomeTime functionality
 	{
 		CHashedString     variableName;
-		float             timeOfReset;
+		CTimeValue        timeOfReset;
 		VariableValueData oldValue;
 
 		void                 Serialize(Serialization::IArchive& ar);
@@ -65,33 +65,42 @@ public:
 	typedef std::vector<VariableCooldownInfo> CoolingDownVariableList;
 
 	CVariableCollection(const CHashedString& name);
-	virtual ~CVariableCollection() override;
+	 ~CVariableCollection() override;
 
 	//////////////////////////////////////////////////////////
 	// IVariableCollection implementation
-	virtual CVariable*           CreateVariable(const CHashedString& name, int initialValue) override;
-	virtual CVariable*           CreateVariable(const CHashedString& name, float initialValue) override;
-	virtual CVariable*           CreateVariable(const CHashedString& name, bool initialValue) override;
-	virtual CVariable*           CreateVariable(const CHashedString& name, const CHashedString& initialValue) override;
+		 CVariable*           CreateVariable(const CHashedString& name, int initialValue) override;
+		 CVariable*           CreateVariable(const CHashedString& name, float initialValue) override;
+		 CVariable*           CreateVariable(const CHashedString& name, bool initialValue) override;
+		 CVariable*           CreateVariable(const CHashedString& name, const CHashedString& initialValue) override;
 
-	virtual bool                 SetVariableValue(const CHashedString& name, int newValue, bool createIfNotExisting = true, float resetTime = -1.0f) override;
-	virtual bool                 SetVariableValue(const CHashedString& name, float newValue, bool createIfNotExisting = true, float resetTime = -1.0f) override;
-	virtual bool                 SetVariableValue(const CHashedString& name, bool newValue, bool createIfNotExisting = true, float resetTime = -1.0f) override;
-	virtual bool                 SetVariableValue(const CHashedString& name, const CHashedString& newValue, bool createIfNotExisting = true, float resetTime = -1.0f) override;
+		 CVariable*           CreateVariable(const CHashedString& name, const CTimeValue& initialValue) override;
+		 bool                 SetVariableValue(const CHashedString& name, const CTimeValue& newValue, bool createIfNotExisting = true, const CTimeValue& resetTime = -1) override;
+		 
+		 #define MP_FUNCTION(T)\
+		 CVariable*           CreateVariable(const CHashedString& name, const T& initialValue) override;\
+		 bool                 SetVariableValue(const CHashedString& name, const T& newValue, bool createIfNotExisting = true, const CTimeValue& resetTime = -1) override;
+		 #include <CrySystem\mpfloat.types>
+		 #undef MP_FUNCTION
 
-	virtual CVariable*           GetVariable(const CHashedString& name) const override;
-	virtual const CHashedString& GetName() const override { return m_name; };
-	virtual void                 Serialize(Serialization::IArchive& ar) override;
+		 bool                 SetVariableValue(const CHashedString& name, int newValue, bool createIfNotExisting = true, const CTimeValue& resetTime = -1) override;
+		 bool                 SetVariableValue(const CHashedString& name, float newValue, bool createIfNotExisting = true, const CTimeValue& resetTime = -1) override;
+		 bool                 SetVariableValue(const CHashedString& name, bool newValue, bool createIfNotExisting = true, const CTimeValue& resetTime = -1) override;
+		 bool                 SetVariableValue(const CHashedString& name, const CHashedString& newValue, bool createIfNotExisting = true, const CTimeValue& resetTime = -1) override;
 
-	virtual void                 SetUserString(const char* szUserString) override { m_userString = szUserString; }
-	virtual const char*          GetUserString() const override { return m_userString.c_str(); }
+		 CVariable*           GetVariable(const CHashedString& name) const override;
+		 const CHashedString& GetName() const override { return m_name; };
+		 void                 Serialize(Serialization::IArchive& ar) override;
+
+		 void                 SetUserString(const char* szUserString) override { m_userString = szUserString; }
+		 const char*          GetUserString() const override { return m_userString.c_str(); }
 	//////////////////////////////////////////////////////////
 
 	VariableList& GetAllVariables() { return m_allResponseVariables; }
 	const CoolingDownVariableList& GetAllCooldownVariables() const { return m_coolingDownVariables; }
 
-	bool       SetVariableValue(CVariable* pVariable, const CVariableValue& newValue, float resetTime = -1.0f);
-	bool       SetVariableValue(const CHashedString& name, const CVariableValue& newValue, bool createIfNotExisting = true, float resetTime = -1.0f);
+	bool       SetVariableValue(CVariable* pVariable, const CVariableValue& newValue, const CTimeValue& resetTime = -1);
+	bool       SetVariableValue(const CHashedString& name, const CVariableValue& newValue, bool createIfNotExisting = true, const CTimeValue& resetTime = -1);
 	CVariable* CreateVariable(const CHashedString& name, const CVariableValue& initialValue);
 
 	void       Update();
@@ -105,7 +114,7 @@ public:
 	string                GetVariablesAsString() const;
 
 private:
-	bool SetVariableValueForSomeTime(CVariable* pVariable, const CVariableValue& value, float timeBeforeReset);
+	bool SetVariableValueForSomeTime(CVariable* pVariable, const CVariableValue& value, const CTimeValue& timeBeforeReset);
 
 	const CHashedString     m_name;
 	VariableList            m_allResponseVariables;

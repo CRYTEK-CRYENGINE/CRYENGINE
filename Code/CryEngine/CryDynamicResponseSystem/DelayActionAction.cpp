@@ -7,12 +7,12 @@
 using namespace CryDRS;
 
 //--------------------------------------------------------------------------------------------------
-DelayActionActionInstance::DelayActionActionInstance(float timeToDelay, DRS::IResponseActionSharedPtr pActionToDelay, CResponseInstance* pResponseInstance)
+DelayActionActionInstance::DelayActionActionInstance(const CTimeValue& timeToDelay, DRS::IResponseActionSharedPtr pActionToDelay, CResponseInstance* pResponseInstance)
 	: m_pDelayedAction(pActionToDelay)
 	, m_pResponseInstance(pResponseInstance)
 	, m_RunningInstance(nullptr)
 {
-	m_delayFinishTime = gEnv->pTimer->GetFrameStartTime() + CTimeValue(timeToDelay);
+	m_delayFinishTime = GetGTimer()->GetFrameStartTime() + timeToDelay;
 }
 //--------------------------------------------------------------------------------------------------
 DRS::IResponseActionInstance::eCurrentState DelayActionActionInstance::Update()
@@ -27,7 +27,7 @@ DRS::IResponseActionInstance::eCurrentState DelayActionActionInstance::Update()
 		return DRS::IResponseActionInstance::CS_CANCELED;
 	}
 
-	if (gEnv->pTimer->GetFrameStartTime() > m_delayFinishTime)  //finished delaying, start the actual action
+	if (GetGTimer()->GetFrameStartTime() > m_delayFinishTime)  //finished delaying, start the actual action
 	{
 		m_RunningInstance = m_pDelayedAction->Execute(m_pResponseInstance);
 		if (!m_RunningInstance)

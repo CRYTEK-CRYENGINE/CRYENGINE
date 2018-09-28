@@ -22,7 +22,7 @@ CActionSetVariable::CActionSetVariable
   , const CHashedString& variableName
   , CVariableValue targetValue
   , EChangeOperation operation
-  , float cooldown)
+  , const CTimeValue& cooldown)
 	: m_valueToSet(targetValue)
 	, m_changeOperation(operation)
 	, m_cooldown(cooldown)
@@ -35,7 +35,7 @@ CActionSetVariable::CActionSetVariable
 string CActionSetVariable::GetVerboseInfo() const
 {
 #if defined(DRS_COLLECT_DEBUG_DATA)
-	string cooldown = (m_cooldown > 0.0f) ? " , cooldown: " + CryStringUtils::toString(m_cooldown) : "";
+	string cooldown = (m_cooldown > 0) ? " , cooldown: " + CryStringUtils::toString(m_cooldown) : "";
 	if (m_changeOperation == eChangeOperation_Increment)
 	{
 		return string("Increment '") + GetVariableVerboseName() + "' by '" + m_valueToSet.GetValueAsString() + "' (type:" + m_valueToSet.GetTypeAsString() + ")" + cooldown;
@@ -119,7 +119,7 @@ void CActionSetVariable::Serialize(Serialization::IArchive& ar)
 	{
 		ar(m_changeOperation, "Operation", "^^>Operation");
 		ar(m_valueToSet, "Value", "^^ Value ");
-		ar(Serialization::Decorators::Range<float>(m_cooldown, 0.0f, 120.0f), "Cooldown", "^^> Cooldown");
+		ar(Serialization::Decorators::Range<CTimeValue>(m_cooldown, 0, 120), "Cooldown", "^^> Cooldown");
 		ar.closeBlock();
 	}
 
@@ -128,7 +128,7 @@ void CActionSetVariable::Serialize(Serialization::IArchive& ar)
 	{
 		ar(GetVerboseInfo(), "ConditionDesc", "!^<");
 
-		if (m_cooldown < 0.0f)
+		if (m_cooldown < 0)
 		{
 			ar.warning(m_cooldown, "Cooldown cannot be negative");
 		}

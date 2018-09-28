@@ -13,6 +13,7 @@
 #include "DialogLineDatabase.h"
 #include <CryAudio/IAudioInterfacesCommonData.h>
 
+// POINT OF INTEREST: Check out how HashedString is implemented/why etc., maybe rewrite str() conversions on mpfloat etc.?
 namespace
 {
 static const uint32 s_attachmentPosName = CCrc32::ComputeLowercase("voice");
@@ -21,13 +22,13 @@ static const CHashedString s_isTalkingVariableName = "IsTalking";
 static const CHashedString s_lastLineId = "LastSpokenLine";
 static const CHashedString s_lastLineFinishTime = "LastLineFinishTime";
 static const CHashedString s_currentLinePriority = "CurrentLinePriority";
-static const int s_characterSlot = 0;                        //todo: make this a property of the drs actor
-static const float s_delayBeforeExecutingQueuedLines = 0.1f; // we do wait a short amount of time before actually starting any queued lines, to reduce the changes to interrupt a running dialog
+static const int s_characterSlot = 0;									    //todo: make this a property of the drs actor
+static const CTimeValue s_delayBeforeExecutingQueuedLines = "0.1"; // we do wait a short amount of time before actually starting any queued lines, to reduce the changes to interrupt a running dialog
 }
 
 using namespace CryDRS;
 
-float CSpeakerManager::s_defaultPauseAfterLines = 0.2f;
+CTimeValue CSpeakerManager::s_defaultPauseAfterLines = "0.2";
 
 //--------------------------------------------------------------------------------------------------
 CSpeakerManager::CSpeakerManager() : m_listeners(2)
@@ -43,8 +44,8 @@ CSpeakerManager::CSpeakerManager() : m_listeners(2)
 	REGISTER_CVAR2("drs_dialogSubtitles", &m_displaySubtitlesCVar, 0, VF_NULL, "Toggles use of subtitles for dialog lines on and off.\n");
 	REGISTER_CVAR2("drs_dialogAudio", &m_playAudioCVar, 1, VF_NULL, "Toggles playback of audio files for dialog lines on and off.\n");
 	REGISTER_CVAR2("drs_dialogsSamePriorityCancels", &m_samePrioCancelsLinesCVar, 1, VF_NULL, "If a new line is started with the same priority as a already running line, that line will be canceled.");
-	REGISTER_CVAR2("drs_dialogsDefaultMaxQueueTime", &m_defaultMaxQueueTime, 3.0f, VF_NULL, "If a new line is queued (because of a already running line with higher priority) it will wait for this amount of seconds before simply being skipped.");
-	REGISTER_CVAR2("drs_dialogsDefaultPauseAfterLines", &s_defaultPauseAfterLines, 0.2f, VF_NULL, "Artificial pause after a line is done, can be used to make dialog sound a bit more natural.");
+	REGISTER_CVAR2("drs_dialogsDefaultMaxQueueTime", &m_defaultMaxQueueTime, CTimeValue(3), VF_NULL, "If a new line is queued (because of a already running line with higher priority) it will wait for this amount of seconds before simply being skipped.");
+	REGISTER_CVAR2("drs_dialogsDefaultPauseAfterLines", &s_defaultPauseAfterLines, CTimeValue("0.2"), VF_NULL, "Artificial pause after a line is done, can be used to make dialog sound a bit more natural.");
 
 	m_pDrsDialogDialogRunningEntityParameterName = REGISTER_STRING("drs_dialogEntityRtpcName", "", 0, "name of the rtpc on the entity to set to 1 when it is speaking");
 	m_pDrsDialogDialogRunningGlobalParameterName = REGISTER_STRING("drs_dialogGlobalRtpcName", "", 0, "name of the global rtpc to set to 1 when someone is speaking");
@@ -91,7 +92,7 @@ void CSpeakerManager::Update()
 		}
 	}
 
-	const float currentTime = CResponseSystem::GetInstance()->GetCurrentDrsTime();
+	const CTimeValue currentTime = CResponseSystem::GetInstance()->GetCurrentDrsTime();
 	const float fColorBlue[4] = { 0.4f, 0.4f, 1.0f, 1.0f };
 	float currentPos2Y = 10.0f;
 
@@ -182,7 +183,7 @@ void CSpeakerManager::Update()
 			if (!m_queuedSpeakers.empty())
 			{
 				//(unique) add the just-finished speaker to our list of recently finished speakers, so that we can start queued lines a bit later on (first we give follow-up responses the change to start the next line of a sequential dialog
-				for (std::pair<CResponseActor*, float> actorAndFinishTime : m_recentlyFinishedSpeakers)
+				for (std::pair<CResponseActor*, CTimeValue> actorAndFinishTime : m_recentlyFinishedSpeakers)
 				{
 					if (actorAndFinishTime.first == it->pActor)
 					{
@@ -193,7 +194,7 @@ void CSpeakerManager::Update()
 				}
 				if (!bWasAlreeadyExisting)
 				{
-					m_recentlyFinishedSpeakers.emplace_back(std::pair<CResponseActor*, float>(it->pActor, currentTime));
+					m_recentlyFinishedSpeakers.emplace_back(std::pair<CResponseActor*, CTimeValue>(it->pActor, currentTime));
 				}
 			}
 			it = m_activeSpeakers.erase(it);
@@ -313,7 +314,7 @@ DRS::ISpeakerManager::IListener::eLineEvent CSpeakerManager::StartSpeaking(DRS::
 	SSpeakInfo* pSpeakerInfoToUse = nullptr;
 
 	//Special handling of just-finished-talking actors: if the actor just finished talking and there are queued lines waiting to start, we queue the new line as well, so that 'best' line can continue
-	for (std::pair<CResponseActor*, float> actorAndFinishTime : m_recentlyFinishedSpeakers)
+	for (std::pair<CResponseActor*, CTimeValue> actorAndFinishTime : m_recentlyFinishedSpeakers)
 	{
 		if (actorAndFinishTime.first == pActor)
 		{
@@ -321,8 +322,8 @@ DRS::ISpeakerManager::IListener::eLineEvent CSpeakerManager::StartSpeaking(DRS::
 			{
 				if (queuedSpeaker.pActor == pActor)
 				{
-					float maxQueueDuration = (pLineSet) ? pLineSet->GetMaxQueuingDuration() : m_defaultMaxQueueTime;
-					if (maxQueueDuration < 0.0f)
+					CTimeValue maxQueueDuration = (pLineSet) ? pLineSet->GetMaxQueuingDuration() : m_defaultMaxQueueTime;
+					if (maxQueueDuration < 0)
 						maxQueueDuration = m_defaultMaxQueueTime + s_delayBeforeExecutingQueuedLines;
 					QueueLine(pActor, lineID, maxQueueDuration, priority + 1);  //+1 prio, to give this line a small boost, because it was started just after the previous line was done, so changes are good, that it belongs to it
 					return IListener::eLineEvent_Queued;
@@ -354,8 +355,8 @@ DRS::ISpeakerManager::IListener::eLineEvent CSpeakerManager::StartSpeaking(DRS::
 					}
 					else
 					{
-						float maxQueueDuration = (pLineSet) ? pLineSet->GetMaxQueuingDuration() : m_defaultMaxQueueTime;
-						if (maxQueueDuration < 0.0f)
+						CTimeValue maxQueueDuration = (pLineSet) ? pLineSet->GetMaxQueuingDuration() : m_defaultMaxQueueTime;
+						if (maxQueueDuration < 0)
 							maxQueueDuration = m_defaultMaxQueueTime;
 						//so we have started the stop-trigger, now we have to wait for it to finish before we can start the new line.
 						activateSpeaker.endingConditions |= eEC_WaitingForStopTrigger;
@@ -381,11 +382,11 @@ DRS::ISpeakerManager::IListener::eLineEvent CSpeakerManager::StartSpeaking(DRS::
 			}
 			else
 			{
-				float maxQueueDuration = (pLineSet) ? pLineSet->GetMaxQueuingDuration() : m_defaultMaxQueueTime;
-				if (maxQueueDuration < 0.0f)
+				CTimeValue maxQueueDuration = (pLineSet) ? pLineSet->GetMaxQueuingDuration() : m_defaultMaxQueueTime;
+				if (maxQueueDuration < 0)
 					maxQueueDuration = m_defaultMaxQueueTime;
 
-				if (maxQueueDuration > 0.0f && lineID != activateSpeaker.lineID)
+				if (maxQueueDuration > 0 && lineID != activateSpeaker.lineID)
 				{
 					//so we wait for some time for the currently playing (and more important line) to finish
 					QueueLine(pActor, lineID, maxQueueDuration, priority);
@@ -462,7 +463,7 @@ bool CSpeakerManager::CancelSpeaking(const DRS::IResponseActor* pActor, int maxP
 			//to-check: currently, cancel speaking will not execute the stop trigger
 			InformListener(speakerInfo.pActor, speakerInfo.lineID, IListener::eLineEvent_Canceled, speakerInfo.pPickedLine);
 			speakerInfo.endingConditions = eEC_Done;
-			speakerInfo.finishTime = 0.0f;  //trigger finished, will be removed in the next update then
+			speakerInfo.finishTime.SetSeconds(0);  //trigger finished, will be removed in the next update then
 			speakerInfo.bWasCanceled = true;
 			bSomethingWasCanceled = true;
 			if (speakerInfo.lineID)
@@ -569,14 +570,14 @@ void CSpeakerManager::OnAudioCallback(const CryAudio::SRequestInfo* const pAudio
 				if (pAudioRequestInfo->audioControlId == speakerInfo.startTriggerID)  //if the start trigger fails, we still want to display the subtitle for some time, //will also be met for StandaloneFiles, because startTriggerID == 0
 				{
 					int textLength = (pDialogLine) ? strlen(pDialogLine->GetText()) : 16;
-					float pauseLength = (speakerInfo.pPickedLine->GetPauseLength() < 0.0f) ? s_defaultPauseAfterLines : speakerInfo.pPickedLine->GetPauseLength();
-					speakerInfo.finishTime = CResponseSystem::GetInstance()->GetCurrentDrsTime() + (2.0f + (textLength / 16.0f)) + pauseLength;
+					CTimeValue pauseLength = (speakerInfo.pPickedLine->GetPauseLength() < 0) ? s_defaultPauseAfterLines : speakerInfo.pPickedLine->GetPauseLength();
+					speakerInfo.finishTime = CResponseSystem::GetInstance()->GetCurrentDrsTime() + (2 + ((mpfloat)textLength / 16)) + pauseLength;
 					speakerInfo.endingConditions |= eEC_WaitingForTimer;
 					speakerInfo.endingConditions &= ~eEC_WaitingForStartTrigger;
 				}
 				else if (pAudioRequestInfo->audioControlId == speakerInfo.stopTriggerID) //if the stop trigger fails, we simply stop the start-trigger directly (in the next update)
 				{
-					speakerInfo.finishTime = 0.0f;
+					speakerInfo.finishTime.SetSeconds(0);
 					speakerInfo.endingConditions = eEC_Done;
 				}
 				return;
@@ -592,9 +593,9 @@ void CSpeakerManager::OnAudioCallback(const CryAudio::SRequestInfo* const pAudio
 			{
 				if (pAudioRequestInfo->audioControlId == speakerInfo.startTriggerID)  //will also be met for StandaloneFiles, because startTriggerID == 0
 				{
-					float pauseLength = (speakerInfo.pPickedLine->GetPauseLength() < 0.0f) ? s_defaultPauseAfterLines : speakerInfo.pPickedLine->GetPauseLength();
+					CTimeValue pauseLength = (speakerInfo.pPickedLine->GetPauseLength() < 0) ? s_defaultPauseAfterLines : speakerInfo.pPickedLine->GetPauseLength();
 					speakerInfo.endingConditions &= ~eEC_WaitingForStartTrigger;
-					if (pauseLength > 0.0f && (speakerInfo.endingConditions & eEC_WaitingForTimer) == 0)
+					if (pauseLength > 0 && (speakerInfo.endingConditions & eEC_WaitingForTimer) == 0)
 					{
 						//audio playback is done, time for the artificial pause, specified by the 'pause' property of the line
 						speakerInfo.finishTime = CResponseSystem::GetInstance()->GetCurrentDrsTime() + pauseLength;
@@ -639,7 +640,7 @@ void CSpeakerManager::OnActorRemoved(const CResponseActor* pActor)
 		}
 	}
 
-	for (std::vector<std::pair<CResponseActor*, float>>::iterator itRecent = m_recentlyFinishedSpeakers.begin(); itRecent != m_recentlyFinishedSpeakers.end(); )
+	for (std::vector<std::pair<CResponseActor*, CTimeValue>>::iterator itRecent = m_recentlyFinishedSpeakers.begin(); itRecent != m_recentlyFinishedSpeakers.end(); )
 	{
 		if (itRecent->first == pActor)
 		{
@@ -778,7 +779,7 @@ void CSpeakerManager::ExecuteStartSpeaking(SSpeakInfo* pSpeakerInfoToUse)
 		}
 		if (bAudioPlaybackStarted)
 		{
-			pSpeakerInfoToUse->finishTime = CResponseSystem::GetInstance()->GetCurrentDrsTime() + 100.0f;
+			pSpeakerInfoToUse->finishTime = CResponseSystem::GetInstance()->GetCurrentDrsTime() + 100;
 			pSpeakerInfoToUse->endingConditions = eEC_WaitingForStartTrigger;
 		}
 		else
@@ -797,17 +798,17 @@ void CSpeakerManager::ExecuteStartSpeaking(SSpeakInfo* pSpeakerInfoToUse)
 		if (pSpeakerInfoToUse->lipsyncId != DRS::s_InvalidLipSyncId)
 		{
 			pSpeakerInfoToUse->endingConditions |= eEC_WaitingForLipsync;
-			pSpeakerInfoToUse->finishTime = CResponseSystem::GetInstance()->GetCurrentDrsTime() + 100.0f;
+			pSpeakerInfoToUse->finishTime = CResponseSystem::GetInstance()->GetCurrentDrsTime() + 100;
 		}
 	}
 
 	if (pSpeakerInfoToUse->endingConditions == eEC_Done)  //fallback, if no other ending conditions were applied, display subtitles for some time
 	{
 		pSpeakerInfoToUse->finishTime = CResponseSystem::GetInstance()->GetCurrentDrsTime();
-		pSpeakerInfoToUse->finishTime += (2.0f + pSpeakerInfoToUse->text.length() / 16.0f);
+		pSpeakerInfoToUse->finishTime += (2 + pSpeakerInfoToUse->text.length() / mpfloat(16));
 		if (pSpeakerInfoToUse->pPickedLine)
 		{
-			float pauseLength = (pSpeakerInfoToUse->pPickedLine->GetPauseLength() < 0.0f) ? s_defaultPauseAfterLines : pSpeakerInfoToUse->pPickedLine->GetPauseLength();
+			CTimeValue pauseLength = (pSpeakerInfoToUse->pPickedLine->GetPauseLength() < 0) ? s_defaultPauseAfterLines : pSpeakerInfoToUse->pPickedLine->GetPauseLength();
 			pSpeakerInfoToUse->finishTime += pauseLength;
 		}
 		pSpeakerInfoToUse->endingConditions = eEC_WaitingForTimer;
@@ -819,7 +820,7 @@ void CSpeakerManager::ExecuteStartSpeaking(SSpeakInfo* pSpeakerInfoToUse)
 	CVariableCollection* pLocalCollection = pSpeakerInfoToUse->pActor->GetLocalVariables();
 	pLocalCollection->SetVariableValue(s_isTalkingVariableName, true);
 	pLocalCollection->SetVariableValue(s_lastLineId, pSpeakerInfoToUse->lineID);
-	float pointInFarFuture = (((int)CResponseSystem::GetInstance()->GetCurrentDrsTime() / 5000) + 1) * 5000.0f; //we set the 'LastFinishTime' to a point in the far future, so that conditions like 'if TimeSince LastFinishTime > 3' (to detect longer pauses) will savely work.
+	CTimeValue pointInFarFuture = (((int)CResponseSystem::GetInstance()->GetCurrentDrsTime().GetSeconds() / 5000) + 1) * 5000; //we set the 'LastFinishTime' to a point in the far future, so that conditions like 'if TimeSince LastFinishTime > 3' (to detect longer pauses) will safely work.
 	pLocalCollection->SetVariableValue(s_lastLineFinishTime, pointInFarFuture);
 	pLocalCollection->SetVariableValue(s_currentLinePriority, pSpeakerInfoToUse->priority);
 	SetNumActiveSpeaker((int)m_activeSpeakers.size());
@@ -839,7 +840,7 @@ bool CSpeakerManager::OnLineAboutToStart(const DRS::IResponseActor* pSpeaker, co
 }
 
 //--------------------------------------------------------------------------------------------------
-void CSpeakerManager::QueueLine(CResponseActor* pActor, const CHashedString& lineID, float maxQueueDuration, const int priority)
+void CSpeakerManager::QueueLine(CResponseActor* pActor, const CHashedString& lineID, const CTimeValue& maxQueueDuration, const int priority)
 {
 	SWaitingInfo newWaitInfo;
 	newWaitInfo.pActor = pActor;
@@ -934,7 +935,7 @@ DRS::LipSyncID CDefaultLipsyncProvider::OnLineStarted(DRS::IResponseActor* pActo
 							if (animationID >= 0)
 							{
 								params.m_nFlags |= CA_LOOP_ANIMATION;
-								params.m_fPlaybackSpeed = 1.25f;
+								params.m_fPlaybackSpeed = "1.25";
 							}
 						}
 
@@ -985,7 +986,7 @@ CDefaultLipsyncProvider::CDefaultLipsyncProvider()
 		m_defaultLipsyncAnimationName = pVariable->GetString();
 
 	REGISTER_CVAR2("drs_dialogsLipsyncAnimationLayer", &m_lipsyncAnimationLayer, 11, VF_NULL, "The animation layer used for dialog lipsync animations");
-	REGISTER_CVAR2("drs_dialogsLipsyncTransitionTime", &m_lipsyncTransitionTime, 0.25, VF_NULL, "The blend in/out times for lipsync animations");
+	REGISTER_CVAR2("drs_dialogsLipsyncTransitionTime", &m_lipsyncTransitionTime, CTimeValue("0.25"), VF_NULL, "The blend in/out times for lipsync animations");
 }
 
 //--------------------------------------------------------------------------------------------------

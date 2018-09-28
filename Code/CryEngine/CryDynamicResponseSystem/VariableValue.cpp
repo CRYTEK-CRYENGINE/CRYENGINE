@@ -8,10 +8,6 @@
 
 using namespace CryDRS;
 
-const VariableValueData CVariableValue::NEG_INFINITE = INT_MIN;
-const VariableValueData CVariableValue::POS_INFINITE = INT_MAX;
-const VariableValueData CVariableValue::DEFAULT_VALUE = 0;  //remark: the default value is 0, so a variable which was never set to anything will have the value 0
-
 SERIALIZATION_ENUM_BEGIN(EDynamicResponseVariableType, "Attachment Type")
 SERIALIZATION_ENUM(eDRVT_None, "none", "None")
 SERIALIZATION_ENUM(eDRVT_Int, "int", "Int")
@@ -81,7 +77,7 @@ int CVariableValue::GetValueAsInt() const
 		DrsLogWarning((string("Tried to get value as a INT from a non-integer variable, type of the variable is actually: ") + GetTypeAsString()).c_str());
 	}
 #endif
-	return m_value;
+	return (int)m_value;
 }
 
 //--------------------------------------------------------------------------------------------------
@@ -90,10 +86,10 @@ float CVariableValue::GetValueAsFloat() const
 #if defined(ENABLE_VARIABLE_VALUE_TYPE_CHECKINGS)
 	if (m_type != eDRVT_Float)
 	{
-		DrsLogWarning((string("Tried to get value as a FLOAT from a non-integer variable, type of the variable is actually: ") + GetTypeAsString()).c_str());
+		DrsLogWarning((string("Tried to get value as a FLOAT from a non-float variable, type of the variable is actually: ") + GetTypeAsString()).c_str());
 	}
 #endif
-	return m_value / 100.0f;
+	return (float)m_value;
 }
 
 //--------------------------------------------------------------------------------------------------
@@ -106,6 +102,31 @@ bool CVariableValue::GetValueAsBool() const
 	}
 #endif
 	return m_value != 0;
+}
+
+//--------------------------------------------------------------------------------------------------
+mpfloat CVariableValue::GetValueAsMP() const
+{
+#if defined(ENABLE_VARIABLE_VALUE_TYPE_CHECKINGS)
+	if (m_type != eDRVT_MPFloat)
+	{
+		DrsLogWarning((string("Tried to get value as a MPFLOAT from a non-mpfloat variable, type of the variable is actually: ") + GetTypeAsString()).c_str());
+	}
+#endif
+	return m_value;
+
+}
+
+//--------------------------------------------------------------------------------------------------
+CTimeValue CVariableValue::GetValueAsTime() const
+{
+#if defined(ENABLE_VARIABLE_VALUE_TYPE_CHECKINGS)
+	if (m_type != eDRVT_Time)
+	{
+		DrsLogWarning((string("Tried to get value as a CTIMEVALUE from a non-timevalue variable, type of the variable is actually: ") + GetTypeAsString()).c_str());
+	}
+#endif
+	return CTimeValue(m_value);
 }
 
 //--------------------------------------------------------------------------------------------------
@@ -160,7 +181,7 @@ string CVariableValue::GetValueAsString() const //should be used for debug outpu
 	case eDRVT_Int:
 		return CryStringUtils::toString(m_value);
 	case eDRVT_Float:
-		return CryStringUtils::toString(m_value / 100.0f);
+		return CryStringUtils::toString(m_value);
 	case eDRVT_String:
 		return m_hashedText;
 	case eDRVT_Boolean:
@@ -233,7 +254,7 @@ void CVariableValue::Serialize(Serialization::IArchive& ar)
 			}
 			else if (type == eDRVT_Float)
 			{
-				float temp = m_value / 100.0f;
+				float temp = (float)m_value;
 				ar(temp, "value", "^>110>");
 			}
 			else if (type == eDRVT_Boolean)
@@ -252,6 +273,7 @@ void CVariableValue::Serialize(Serialization::IArchive& ar)
 			}
 			else
 			{
+				// PERSONAL DEBUG: As usual, make sure saving/reading of CTimeValue/MPFloat's is proper.
 				string valueAsString;
 				valueAsString = GetValueAsString();
 				ar(valueAsString, "value", "^>130>");

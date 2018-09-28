@@ -77,7 +77,7 @@ CResponseSystemDebugDataProvider::~CResponseSystemDebugDataProvider()
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CResponseSystemDebugDataProvider::AddVariableSet(const string& variableName, const string& collectionName, const CVariableValue& oldValue, const CVariableValue& newValue, float time)
+void CResponseSystemDebugDataProvider::AddVariableSet(const string& variableName, const string& collectionName, const CVariableValue& oldValue, const CVariableValue& newValue, const CTimeValue& time)
 {
 	if (cry_strncmp(collectionName.c_str(), "Context") == 0 || cry_strncmp(variableName.c_str(), "CurrentTime") == 0)
 	{

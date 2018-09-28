@@ -74,7 +74,7 @@ void CActionCopyVariable::Serialize(Serialization::IArchive& ar)
 	if (ar.openBlock("Additional", " "))
 	{
 		ar(m_changeOperation, "operation", "^^>100>Operation");
-		ar(Serialization::Decorators::Range<float>(m_cooldown, 0.0f, 120.0f), "Cooldown", "^^> Cooldown");
+		ar(Serialization::Decorators::Range<CTimeValue>(m_cooldown, 0, 120), "Cooldown", "^^> Cooldown");
 		ar.closeBlock();
 	}
 
@@ -95,7 +95,7 @@ void CActionCopyVariable::Serialize(Serialization::IArchive& ar)
 		else if (ar.isOutput())
 		{
 			//sanity check for cooldown
-			if (m_cooldown < 0.0f)
+			if (m_cooldown < 0)
 			{
 				ar.warning(m_cooldown, "Cooldown can`t be lower than 0.");
 			}

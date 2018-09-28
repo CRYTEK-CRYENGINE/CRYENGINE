@@ -36,7 +36,7 @@ namespace CryDRS
 		IVariableUsingBase m_targetVariable;
 		IVariableUsingBase m_sourceVariable;
 		
-		float m_cooldown = 0.0f;
+		CTimeValue m_cooldown = 0;
 		EChangeOperation m_changeOperation = eChangeOperation_Set;
 	};
 }

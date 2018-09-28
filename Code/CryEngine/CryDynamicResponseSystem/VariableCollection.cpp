@@ -69,6 +69,20 @@ CVariable* CVariableCollection::CreateVariable(const CHashedString& name, bool i
 }
 
 //--------------------------------------------------------------------------------------------------
+CVariable* CVariableCollection::CreateVariable(const CHashedString& name, const CTimeValue& initialValue)
+{
+	return CreateVariable(name, CVariableValue(initialValue));
+}
+
+//--------------------------------------------------------------------------------------------------
+#define MP_FUNCTION(T)\
+CVariable* CVariableCollection::CreateVariable(const CHashedString& name, const T& initialValue){\
+	return CreateVariable(name, CVariableValue(initialValue));\
+};
+#include <CrySystem\mpfloat.types>
+#undef MP_FUNCTION
+
+//--------------------------------------------------------------------------------------------------
 CVariable* CVariableCollection::GetVariable(const CHashedString& name) const
 {
 	for (CVariable* variable : m_allResponseVariables)
@@ -82,7 +96,7 @@ CVariable* CVariableCollection::GetVariable(const CHashedString& name) const
 }
 
 //--------------------------------------------------------------------------------------------------
-bool CVariableCollection::SetVariableValue(const CHashedString& name, const CVariableValue& newValue, bool createIfNotExisting, float resetTime)
+bool CVariableCollection::SetVariableValue(const CHashedString& name, const CVariableValue& newValue, bool createIfNotExisting, const CTimeValue& resetTime)
 {
 	for (CVariable* variable : m_allResponseVariables)
 	{
@@ -95,7 +109,7 @@ bool CVariableCollection::SetVariableValue(const CHashedString& name, const CVar
 				  + newValue.GetTypeAsString() + " - variableType: " + variable->m_value.GetTypeAsString()).c_str());
 			}
 #endif
-			if (resetTime <= 0.0f)
+			if (resetTime <= 0)
 			{
 				//check if there is already a cooldown for this variable, and if yes, remove it
 				for (CoolingDownVariableList::iterator itCooling = m_coolingDownVariables.begin(); itCooling != m_coolingDownVariables.end(); ++itCooling)
@@ -114,7 +128,7 @@ bool CVariableCollection::SetVariableValue(const CHashedString& name, const CVar
 	if (createIfNotExisting)
 	{
 		DRS_DEBUG_DATA_ACTION(AddVariableSet(name.GetText(), m_name.GetText(), CVariableValue(), newValue, CResponseSystem::GetInstance()->GetCurrentDrsTime()));
-		if (resetTime > 0.0f)
+		if (resetTime > 0)
 		{
 			CVariable* newVariable = CreateVariable(name, s_newVariableValue);
 			return SetVariableValueForSomeTime(newVariable, newValue, resetTime);
@@ -133,7 +147,7 @@ bool CVariableCollection::SetVariableValue(const CHashedString& name, const CVar
 }
 
 //--------------------------------------------------------------------------------------------------
-bool CVariableCollection::SetVariableValue(CVariable* pVariable, const CVariableValue& newValue, float resetTime /*= -1.0f*/)
+bool CVariableCollection::SetVariableValue(CVariable* pVariable, const CVariableValue& newValue, const CTimeValue& resetTime /*= -1.0f*/)
 {
 	if (!pVariable)
 	{
@@ -143,7 +157,7 @@ bool CVariableCollection::SetVariableValue(CVariable* pVariable, const CVariable
 
 	DRS_DEBUG_DATA_ACTION(AddVariableSet(pVariable->m_name.GetText(), m_name.GetText(), pVariable->m_value, newValue, CResponseSystem::GetInstance()->GetCurrentDrsTime()));
 
-	if (resetTime > FLT_EPSILON)
+	if (resetTime > TV_EPSILON)
 	{
 		return SetVariableValueForSomeTime(pVariable, newValue, resetTime);
 	}
@@ -155,31 +169,46 @@ bool CVariableCollection::SetVariableValue(CVariable* pVariable, const CVariable
 }
 
 //--------------------------------------------------------------------------------------------------
-bool CVariableCollection::SetVariableValue(const CHashedString& name, int newValue, bool createIfNotExisting /*= true*/, float resetTime /*= -1.0f*/)
+bool CVariableCollection::SetVariableValue(const CHashedString& name, int newValue, bool createIfNotExisting /*= true*/, const CTimeValue& resetTime /*= -1.0f*/)
 {
 	return SetVariableValue(name, CVariableValue(newValue), createIfNotExisting, resetTime);
 }
 
 //--------------------------------------------------------------------------------------------------
-bool CVariableCollection::SetVariableValue(const CHashedString& name, float newValue, bool createIfNotExisting /*= true*/, float resetTime /*= -1.0f*/)
+bool CVariableCollection::SetVariableValue(const CHashedString& name, float newValue, bool createIfNotExisting /*= true*/, const CTimeValue& resetTime /*= -1.0f*/)
 {
 	return SetVariableValue(name, CVariableValue(newValue), createIfNotExisting, resetTime);
 }
 
 //--------------------------------------------------------------------------------------------------
-bool CVariableCollection::SetVariableValue(const CHashedString& name, const CHashedString& newValue, bool createIfNotExisting /*= true*/, float resetTime /*= -1.0f*/)
+bool CVariableCollection::SetVariableValue(const CHashedString& name, const CHashedString& newValue, bool createIfNotExisting /*= true*/, const CTimeValue& resetTime /*= -1.0f*/)
 {
 	return SetVariableValue(name, CVariableValue(newValue), createIfNotExisting, resetTime);
 }
 
 //--------------------------------------------------------------------------------------------------
-bool CVariableCollection::SetVariableValue(const CHashedString& name, bool newValue, bool createIfNotExisting /*= true*/, float resetTime /*= -1.0f*/)
+bool CVariableCollection::SetVariableValue(const CHashedString& name, bool newValue, bool createIfNotExisting /*= true*/, const CTimeValue& resetTime /*= -1.0f*/)
 {
 	return SetVariableValue(name, CVariableValue(newValue), createIfNotExisting, resetTime);
 }
 
 //--------------------------------------------------------------------------------------------------
-bool CVariableCollection::SetVariableValueForSomeTime(CVariable* pVariable, const CVariableValue& newValue, float timeBeforeReset)
+bool CVariableCollection::SetVariableValue(const CHashedString& name, const CTimeValue& newValue, bool createIfNotExisting /*= true*/, const CTimeValue& resetTime /*= -1.0f*/)
+{
+	return SetVariableValue(name, CVariableValue(newValue), createIfNotExisting, resetTime);
+}
+
+//--------------------------------------------------------------------------------------------------
+#define MP_FUNCTION(T)\
+bool CVariableCollection::SetVariableValue(const CHashedString& name, const T& newValue, bool createIfNotExisting /*= true*/, const CTimeValue& resetTime /*= -1.0f*/)\
+{\
+	return SetVariableValue(name, CVariableValue(newValue), createIfNotExisting, resetTime);\
+}
+#include <CrySystem\mpfloat.types>
+#undef MP_FUNCTION
+
+//--------------------------------------------------------------------------------------------------
+bool CVariableCollection::SetVariableValueForSomeTime(CVariable* pVariable, const CVariableValue& newValue, const CTimeValue& timeBeforeReset)
 {
 #if defined(ENABLE_VARIABLE_VALUE_TYPE_CHECKINGS)
 	if (!newValue.DoTypesMatch(pVariable->m_value))
@@ -187,7 +216,7 @@ bool CVariableCollection::SetVariableValueForSomeTime(CVariable* pVariable, cons
 		DrsLogWarning((string("SetVariableValue: Type of variable \'" + string(pVariable->m_name.GetText()) + "\' and type of newValue do not match! NewValueType: ") + newValue.GetTypeAsString() + " - variableType: " + pVariable->m_value.GetTypeAsString()).c_str());
 	}
 #endif
-	const float currentTime = CResponseSystem::GetInstance()->GetCurrentDrsTime();
+	const CTimeValue currentTime = CResponseSystem::GetInstance()->GetCurrentDrsTime();
 
 	//check if there is already an cooldown for this variable, in that case we don't change the "oldValue"
 	for (VariableCooldownInfo& cooldownInfo : m_coolingDownVariables)
@@ -219,7 +248,7 @@ void CVariableCollection::Update()
 		return;
 	}
 
-	const float currentTime = CResponseSystem::GetInstance()->GetCurrentDrsTime();
+	const CTimeValue currentTime = CResponseSystem::GetInstance()->GetCurrentDrsTime();
 	SET_DRS_USER_SCOPED("Variable Cooldowns");
 
 	for (CoolingDownVariableList::iterator it = m_coolingDownVariables.begin(); it != m_coolingDownVariables.end(); )

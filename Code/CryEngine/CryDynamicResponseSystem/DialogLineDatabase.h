@@ -29,7 +29,7 @@ public:
 	virtual const string& GetLipsyncAnimation() const override                         { return m_lipsyncAnimation; }
 	virtual const string& GetStandaloneFile() const override                           { return m_standaloneFile; }
 	virtual const string& GetCustomData() const override                               { return m_customData; }
-	virtual float         GetPauseLength() const override                              { return m_pauseLength; }
+	virtual const CTimeValue& GetPauseLength() const override                          { return m_pauseLength; }
 	
 	virtual void          SetText(const string& text) override                         { m_text = text; }
 	virtual void          SetStartAudioTrigger(const string& trigger) override         { m_audioStartTrigger = trigger; }
@@ -37,7 +37,7 @@ public:
 	virtual void          SetLipsyncAnimation(const string& lipsyncAnimation) override { m_lipsyncAnimation = lipsyncAnimation; }
 	virtual void          SetStandaloneFile(const string& value) override              { m_standaloneFile = value; }
 	virtual void          SetCustomData(const string& customData) override             { m_customData = customData; }
-	virtual void          SetPauseLength(float length) override                        { m_pauseLength = length; }
+	virtual void          SetPauseLength(const CTimeValue& length) override            { m_pauseLength = length; }
 	
 	virtual void          Serialize(Serialization::IArchive& ar) override;
 	//////////////////////////////////////////////////////////
@@ -49,7 +49,7 @@ private:
 	string m_lipsyncAnimation;
 	string m_standaloneFile;
 	string m_customData;
-	float  m_pauseLength;
+	CTimeValue m_pauseLength;
 };
 
 class CDialogLineSet final : public DRS::IDialogLineSet
@@ -70,11 +70,11 @@ public:
 	virtual void              SetLineId(const CHashedString& lineId) override { m_lineId = lineId; }
 	virtual void              SetPriority(int priority) override              { m_priority = priority; }
 	virtual void              SetFlags(uint32 flags) override                 { m_flags = flags; }
-	virtual void              SetMaxQueuingDuration(float length) override    { m_maxQueuingDuration = length; }
+	virtual void              SetMaxQueuingDuration(const CTimeValue& length) override    { m_maxQueuingDuration = length; }
 	virtual CHashedString     GetLineId() const override                      { return m_lineId; }
 	virtual int               GetPriority() const override                    { return m_priority; }
 	virtual uint32            GetFlags() const override                       { return m_flags; }
-	virtual float             GetMaxQueuingDuration() const override          { return m_maxQueuingDuration; }
+	virtual const CTimeValue& GetMaxQueuingDuration() const override          { return m_maxQueuingDuration; }
 	virtual uint32            GetLineCount() const override                   { return m_lines.size(); }
 	virtual DRS::IDialogLine* GetLineByIndex(uint32 index) override;
 	virtual DRS::IDialogLine* InsertLine(uint32 index=1) override;
@@ -88,7 +88,7 @@ private:
 	uint32                   m_flags; //eDialogLineSetFlags
 	int                      m_lastPickedLine;
 	std::vector<CDialogLine> m_lines;
-	float                    m_maxQueuingDuration;
+	CTimeValue               m_maxQueuingDuration;
 };
 
 class CDialogLineDatabase final : public DRS::IDialogLineDatabase

@@ -33,7 +33,7 @@ void CActionWait::Serialize(Serialization::IArchive& ar)
 }
 
 //--------------------------------------------------------------------------------------------------
-CActionWaitInstance::CActionWaitInstance(float timeToWait)
+CActionWaitInstance::CActionWaitInstance(const CTimeValue& timeToWait)
 {
 	m_finishTime = CResponseSystem::GetInstance()->GetCurrentDrsTime() + timeToWait;
 }

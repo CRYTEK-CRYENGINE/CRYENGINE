@@ -50,7 +50,7 @@ public:
 	void Reset();
 
 	//Variable Data
-	void AddVariableSet(const string& variableName, const string& collectionName, const CVariableValue& oldValue, const CVariableValue& newValue, float timeOfChange);
+	void AddVariableSet(const string& variableName, const string& collectionName, const CVariableValue& oldValue, const CVariableValue& newValue, const CTimeValue& timeOfChange);
 
 	//Response Data
 	void SetCurrentResponseInstance(CResponseInstance* pInstanceForCurrentID);    // tells the debugDataProvider which Response is the active one for all the add-x- methods
@@ -115,7 +115,7 @@ private:
 		string                                drsUserName;
 		EStatus                               currentState;
 		int                                   currentlevelInHierarchy;
-		float                                 timeOfEvent;
+		CTimeValue                            timeOfEvent;
 		std::vector<SStartedResponsesSegment> responseSegments;
 		SStartedResponsesSegment*             currentSegment;
 
@@ -126,7 +126,7 @@ private:
 	{
 		string variableName;
 		string change;
-		float  timeOfChange;
+		CTimeValue timeOfChange;
 		string drsUserName;
 		void   Serialize(Serialization::IArchive& ar);
 	};
@@ -139,7 +139,7 @@ private:
 		EStatus       status;
 		string        description;
 		string        source;
-		float         timeOfEvent;
+		CTimeValue    timeOfEvent;
 
 		virtual void  Serialize(Serialization::IArchive& ar);
 	};

@@ -25,9 +25,9 @@ public:
 
 	struct ActionsInfo
 	{
-		ActionsInfo() : m_delay(0.0f) {}
+		ActionsInfo() : m_delay(0) {}
 		DRS::IResponseActionSharedPtr m_pAction;
-		float                         m_delay;
+		CTimeValue                    m_delay;
 
 		void Serialize(Serialization::IArchive& ar);
 		bool operator<(const ActionsInfo& other) const { return m_delay < other.m_delay; }

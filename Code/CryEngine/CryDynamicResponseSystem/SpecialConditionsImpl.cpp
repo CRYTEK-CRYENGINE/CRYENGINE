@@ -337,8 +337,8 @@ bool CTimeSinceCondition::IsMet(DRS::IResponseInstance* pResponseInstance)
 	CVariable* pVariable = GetCurrentVariable(static_cast<CResponseInstance*>(pResponseInstance));
 	if (pVariable && pVariable->m_value.GetType() != eDRVT_Undefined)
 	{
-		const float timeSince = CResponseSystem::GetInstance()->GetCurrentDrsTime() - pVariable->GetValueAsFloat();
-		return timeSince >= m_minTime && ((timeSince <= m_maxTime) || m_maxTime < 0.0f);
+		const CTimeValue timeSince = CResponseSystem::GetInstance()->GetCurrentDrsTime() - pVariable->GetValueAsTime();
+		return timeSince >= m_minTime && ((timeSince <= m_maxTime) || m_maxTime < 0);
 	}
 	else
 	{
@@ -452,9 +452,9 @@ bool CTimeSinceResponseCondition::IsMet(DRS::IResponseInstance* pResponseInstanc
 	}
 	if (pResponse)
 	{
-		const float lastStartOrEndTime = std::max(pResponse->GetLastEndTime(), pResponse->GetLastStartTime());  //if the response was started recently, but has not ended yet, then the LastStartTime is actually higher than the LastFinishedTime.
-		const float timeSince = (lastStartOrEndTime > 0) ? CResponseSystem::GetInstance()->GetCurrentDrsTime() - lastStartOrEndTime : std::numeric_limits<float>::max();
-		return timeSince >= m_minTime && ((timeSince <= m_maxTime) || m_maxTime < 0.0f);
+		const CTimeValue lastStartOrEndTime = std::max(pResponse->GetLastEndTime(), pResponse->GetLastStartTime());  //if the response was started recently, but has not ended yet, then the LastStartTime is actually higher than the LastFinishedTime.
+		const CTimeValue timeSince = (lastStartOrEndTime > 0) ? CResponseSystem::GetInstance()->GetCurrentDrsTime() - lastStartOrEndTime : CTimeValue::Max();
+		return timeSince >= m_minTime && ((timeSince <= m_maxTime) || m_maxTime < 0);
 	}
 	else
 	{

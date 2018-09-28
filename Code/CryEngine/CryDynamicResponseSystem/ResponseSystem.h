@@ -121,7 +121,7 @@ public:
 
 	CVariableCollectionManager* GetVariableCollectionManager() const { return m_pVariableCollectionManager; }
 	//we store the current time for the DRS ourselves in a variable, so that we can use this variable in conditions and it allows us to save/load/modify the current DRS time easily
-	float                       GetCurrentDrsTime() const            { return m_currentTime.GetSeconds(); }
+	const CTimeValue&           GetCurrentDrsTime() const            { return m_currentTime; }
 
 #if defined(DRS_COLLECT_DEBUG_DATA)
 	CResponseSystemDebugDataProvider m_responseSystemDebugDataProvider;

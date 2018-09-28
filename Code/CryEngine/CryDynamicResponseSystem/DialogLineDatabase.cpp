@@ -295,7 +295,7 @@ CDialogLineSet::CDialogLineSet()
 	: m_priority(50)
 	, m_flags(IDialogLineSet::EPickModeFlags_RandomVariation)
 	, m_lastPickedLine(0)
-	, m_maxQueuingDuration(-1.0f) //negative values do mean 'default' which maps to the value set in CSpeakerManager via cvar 'drs_dialogsDefaultMaxQueueTime'
+	, m_maxQueuingDuration(-1) //negative values do mean 'default' which maps to the value set in CSpeakerManager via cvar 'drs_dialogsDefaultMaxQueueTime'
 {
 	//m_lines.push_back(CDialogLine());
 }
@@ -473,7 +473,7 @@ void CryDRS::CDialogLineSet::OnLineCanceled(const CDialogLine* pCanceledLine)
 //--------------------------------------------------------------------------------------------------
 //--------------------------------------------------------------------------------------------------
 CDialogLine::CDialogLine()
-	: m_pauseLength(-1.0f)   //negative values mean "default value", specified by drs_dialogsDefaultPauseAfterLines
+	: m_pauseLength(-1)   //negative values mean "default value", specified by drs_dialogsDefaultPauseAfterLines
 {}
 
 //--------------------------------------------------------------------------------------------------

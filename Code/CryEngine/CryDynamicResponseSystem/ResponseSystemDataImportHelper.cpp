@@ -46,7 +46,7 @@ DRS::IResponseActionSharedPtr CreatorSetActorAction(const string& creationData, 
 DRS::IResponseActionSharedPtr CreatorWaitAction(const string& creationData, const char* szFormatName)
 {
 	CHECK_CORRECT_FORMAT
-	return DRS::IResponseActionSharedPtr(new CActionWait((float)atof(creationData.c_str())));
+	return DRS::IResponseActionSharedPtr(new CActionWait(CTimeValue(creationData.c_str())));
 }
 //--------------------------------------------------------------------------------------------------
 DRS::IResponseActionSharedPtr CreateSpeakLineAction(const string& creationData, const char* szFormatName)
@@ -89,10 +89,10 @@ DRS::IResponseActionSharedPtr CreatorSetVariableAction(const string& creationDat
 		if (CDataImportHelper::splitStringList(parameters[0], ':', '\0', &collectionAndVariable))
 		{
 			std::vector<string> variableValueAndCooldown;
-			float cooldown = -1.0f;
+			CTimeValue cooldown = -1;
 			if (CDataImportHelper::splitStringList(parameters[1], ' ', '\0', &variableValueAndCooldown))
 			{
-				cooldown = (float)atof(variableValueAndCooldown[1]);
+				cooldown = CTimeValue(variableValueAndCooldown[1].c_str());
 				CConditionParserHelper::GetResponseVariableValueFromString(variableValueAndCooldown[0].c_str(), &targetValue);
 			}
 			else

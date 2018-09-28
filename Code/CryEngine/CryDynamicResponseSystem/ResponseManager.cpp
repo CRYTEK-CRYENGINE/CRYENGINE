@@ -213,7 +213,7 @@ bool CResponseManager::CancelSignalProcessing(const SSignal& signalToCancel)
 //--------------------------------------------------------------------------------------------------
 void CResponseManager::Update()
 {
-	float currentTime = CResponseSystem::GetInstance()->GetCurrentDrsTime();
+	CTimeValue currentTime = CResponseSystem::GetInstance()->GetCurrentDrsTime();
 
 	for (ResponseInstanceList::iterator it = m_runningResponses.begin(); it != m_runningResponses.end(); )
 	{
@@ -591,8 +591,8 @@ void CResponseManager::SerializeResponseStates(Serialization::IArchive& ar)
 	{
 		CHashedString responsename;
 		uint32        executionCount;
-		float         lastStartTime;
-		float         lastEndTime;
+		CTimeValue    lastStartTime;
+		CTimeValue    lastEndTime;
 		void          Serialize(Serialization::IArchive& ar)
 		{
 			if (lastEndTime < lastStartTime)  //check if currently running
@@ -664,8 +664,8 @@ void CResponseManager::SetAllResponseData(DRS::ValuesListIterator start, DRS::Va
 	}
 
 	uint32 executionCounter;
-	float startTime;
-	float endTime;
+	char startTime[MP_SIZE];
+	char endTime[MP_SIZE];
 
 	DRS::ValuesString collectionAndVariable;
 	DRS::ValuesString collectionName;
@@ -683,7 +683,7 @@ void CResponseManager::SetAllResponseData(DRS::ValuesListIterator start, DRS::Va
 			ResponsePtr pResponse = GetResponse(responseName);
 			if (pResponse)
 			{
-				if (sscanf(it->second.c_str(), "%u,%f,%f", &executionCounter, &startTime, &endTime) == 3)
+				if (sscanf(it->second.c_str(), "%u,%[^,],%s", &executionCounter, &startTime, &endTime) == 3)
 				{
 					pResponse->SetExecutionCounter(executionCounter);
 					pResponse->SetLastStartTime(startTime);

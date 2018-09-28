@@ -17,8 +17,8 @@ class CActionWait final : public DRS::IResponseAction
 {
 public:
 	CActionWait() = default;
-	CActionWait(float time) : m_minTimeToWait(time), m_maxTimeToWait(time) {}
-	CActionWait(float minTime, float maxTime) : m_minTimeToWait(minTime), m_maxTimeToWait(maxTime) {}
+	CActionWait(const CTimeValue& time) : m_minTimeToWait(time), m_maxTimeToWait(time) {}
+	CActionWait(const CTimeValue& minTime, const CTimeValue& maxTime) : m_minTimeToWait(minTime), m_maxTimeToWait(maxTime) {}
 
 	//////////////////////////////////////////////////////////
 	// IResponseAction implementation
@@ -29,8 +29,8 @@ public:
 	//////////////////////////////////////////////////////////
 
 private:
-	float m_minTimeToWait = 0.5f;    //seconds
-	float m_maxTimeToWait = 0.0f;    //seconds
+	CTimeValue m_minTimeToWait = "0.5"; //seconds
+	CTimeValue m_maxTimeToWait = 0;     //seconds
 };
 
 //////////////////////////////////////////////////////////////////////////
@@ -38,16 +38,16 @@ private:
 class CActionWaitInstance final : public DRS::IResponseActionInstance
 {
 public:
-	CActionWaitInstance(float timeToWait);
+	CActionWaitInstance(const CTimeValue& timeToWait);
 
 	//////////////////////////////////////////////////////////
 	// IResponseActionInstance implementation
 	virtual eCurrentState Update() override;
-	virtual void          Cancel() override { m_finishTime = 0.0f; }
+	virtual void          Cancel() override { m_finishTime.SetSeconds(0); }
 	//////////////////////////////////////////////////////////
 
 private:
-	float m_finishTime;
+	CTimeValue m_finishTime;
 };
 
 } // namespace CryDRS

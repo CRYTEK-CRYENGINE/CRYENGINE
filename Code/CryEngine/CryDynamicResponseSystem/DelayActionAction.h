@@ -18,7 +18,7 @@ class DelayActionActionInstance final : public DRS::IResponseActionInstance
 {
 public:
 	virtual ~DelayActionActionInstance() override;
-	DelayActionActionInstance(float timeToDelay, DRS::IResponseActionSharedPtr pActionToDelay, CResponseInstance* pResponseInstance);
+	DelayActionActionInstance(const CTimeValue& timeToDelay, DRS::IResponseActionSharedPtr pActionToDelay, CResponseInstance* pResponseInstance);
 
 	//////////////////////////////////////////////////////////
 	// IResponseActionInstance implementation

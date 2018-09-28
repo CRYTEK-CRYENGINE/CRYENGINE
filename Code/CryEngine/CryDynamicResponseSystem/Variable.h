@@ -28,17 +28,26 @@ public:
 
 	//////////////////////////////////////////////////////////
 	// DRS::IVariable implementation
-	virtual const CHashedString& GetName() const override                         { return m_name; }
+		const CHashedString& GetName() const override                         { return m_name; }
 
-	virtual void                 SetValue(int newValue) override                  { m_value = CVariableValue(newValue); }
-	virtual void                 SetValue(float newValue) override                { m_value = CVariableValue(newValue); }
-	virtual void                 SetValue(const CHashedString& newValue) override { m_value = CVariableValue(newValue); }
-	virtual void                 SetValue(bool newValue) override                 { m_value = CVariableValue(newValue); }
+		void                 SetValue(int newValue) override                  { m_value = CVariableValue(newValue); }
+		void                 SetValue(float newValue) override                { m_value = CVariableValue(newValue); }
+		void                 SetValue(const CHashedString& newValue) override { m_value = CVariableValue(newValue); }
+		void                 SetValue(bool newValue) override                 { m_value = CVariableValue(newValue); }
+		
+		void                 SetValue(const CTimeValue& newValue)	override  { m_value = CVariableValue(newValue); }
+		#define MP_FUNCTION(T)\
+		void                 SetValue(const T& newValue)				override  { m_value = CVariableValue(newValue); }
+		#include <CrySystem\mpfloat.types>
+		#undef MP_FUNCTION
 
-	virtual int                  GetValueAsInt() const override                   { return m_value.GetValueAsInt(); };
-	virtual float                GetValueAsFloat() const override                 { return m_value.GetValueAsFloat(); };
-	virtual CHashedString        GetValueAsHashedString() const override          { return m_value.GetValueAsHashedString(); };
-	virtual bool                 GetValueAsBool() const override                  { return m_value.GetValueAsBool(); };
+		int                  GetValueAsInt() const override                   { return m_value.GetValueAsInt(); };
+		float                GetValueAsFloat() const override                 { return m_value.GetValueAsFloat(); };
+		CHashedString        GetValueAsHashedString() const override          { return m_value.GetValueAsHashedString(); };
+		bool                 GetValueAsBool() const override                  { return m_value.GetValueAsBool(); };
+	
+		mpfloat              GetValueAsMP()   const override						 { return m_value.GetValueAsMP(); };
+		CTimeValue           GetValueAsTime() const override						 { return m_value.GetValueAsTime(); };
 	//////////////////////////////////////////////////////////
 
 	void SetValueFromString(const string& valueAsString);
