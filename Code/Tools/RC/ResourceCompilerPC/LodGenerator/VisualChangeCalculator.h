@@ -140,7 +140,7 @@ namespace LODGenerator
 			for (int phase=0; phase<2; phase++)
 			{
 #ifdef VISUAL_CHANGE_DEBUG
-				CTimeValue dt=gEnv->pTimer->GetAsyncTime();
+				CTimeValue dt=GetGTimer()->GetAsyncTime();
 #endif
 				// Update moves
 				if (phase==0) // Gather every poly this move might effect
@@ -192,7 +192,7 @@ namespace LODGenerator
 				m_threadPool->WaitAllJobsTemporary();
 
 #ifdef VISUAL_CHANGE_DEBUG
-				dt=gEnv->pTimer->GetAsyncTime()-dt;
+				dt=GetGTimer()->GetAsyncTime()-dt;
 				CryLog("%d: Rasterisation Time:%fms\n", phase, dt.GetMilliSeconds());
 #endif
 				if (phase==0)
@@ -602,9 +602,9 @@ namespace LODGenerator
 				if (bestMove==-1)
 					break;
 #ifdef VISUAL_CHANGE_DEBUG
-				dt=gEnv->pTimer->GetAsyncTime()-dt;
+				dt=GetGTimer()->GetAsyncTime()-dt;
 				CryLog("LODGen: Best move: %d %d->%d Error:%f Time:%fms\n", bestMove, m_moves[bestMove].from, m_moves[bestMove].to, minError, dt.GetMilliSeconds());
-				dt=gEnv->pTimer->GetAsyncTime();
+				dt=GetGTimer()->GetAsyncTime();
 #endif
 				pProgress->fProgress = (1.0f-(checkedMoves/(float)m_moves.size()) + pProgress->fCompleted) / pProgress->fParts;
 
@@ -624,7 +624,7 @@ namespace LODGenerator
 					m_views[view].ZeroErrorValues();
 				}
 #ifdef VISUAL_CHANGE_DEBUG
-				dt=gEnv->pTimer->GetAsyncTime()-dt;
+				dt=GetGTimer()->GetAsyncTime()-dt;
 				CryLog("LODGen: Update Time:%fms\n", dt.GetMilliSeconds());
 #endif
 			}

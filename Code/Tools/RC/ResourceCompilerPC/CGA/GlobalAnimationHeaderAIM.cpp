@@ -61,7 +61,7 @@ bool GlobalAnimationHeaderAIM::ReadTiming(const IChunkFile::ChunkDesc* pChunkDes
 			const int32 nStartKey = 0;
 			const int32 nEndKey = pChunk->global_range.end - pChunk->global_range.start;
 
-			const f32 fSecsPerFrame = SECONDS_PER_TICK * TICKS_PER_FRAME;
+			const CTimeValue fSecsPerFrame = SECONDS_PER_TICK * TICKS_PER_FRAME;
 
 			m_fStartSec = nStartKey * fSecsPerFrame;
 			m_fEndSec = (std::max)(nEndKey, 1) * fSecsPerFrame;
@@ -87,8 +87,8 @@ bool GlobalAnimationHeaderAIM::ReadTiming(const IChunkFile::ChunkDesc* pChunkDes
 				RCLogWarning("Timing chunk (0x%04x) declares a currently unsupported sampling rate (%.2f). Sampling rate will be overridden to %.2f. File: '%s'", pChunk->VERSION, pChunk->samplesPerSecond, hardcodedSamplingRate, logFilename);
 			}
 
-			m_fStartSec = 0.0f;
-			m_fTotalDuration = (std::max)(pChunk->numberOfSamples - 1, 1) / hardcodedSamplingRate;
+			m_fStartSec.SetSeconds(0);
+			m_fTotalDuration = BADTIME((std::max)(pChunk->numberOfSamples - 1, 1) / hardcodedSamplingRate);
 			m_fEndSec = m_fStartSec + m_fTotalDuration;
 		}
 		return true;
@@ -132,9 +132,9 @@ bool GlobalAnimationHeaderAIM::ReadMotionParameters(const IChunkFile::ChunkDesc 
 		CHUNK_MOTION_PARAMETERS* desc = (CHUNK_MOTION_PARAMETERS*)chunk->data;
 		// TODO: SwapEndian(*desc); 
 
-		const f32 fSecsPerFrame = SECONDS_PER_TICK * TICKS_PER_FRAME;
+		const CTimeValue fSecsPerFrame = SECONDS_PER_TICK * TICKS_PER_FRAME;
 		m_nFlags = desc->mp.m_nAssetFlags;
-		m_fStartSec	= 0;
+		m_fStartSec.SetSeconds(0);
 		m_fEndSec	= (desc->mp.m_nEnd - desc->mp.m_nStart) * fSecsPerFrame;
 		
 		m_fTotalDuration = m_fEndSec - m_fStartSec;
@@ -165,7 +165,7 @@ bool GlobalAnimationHeaderAIM::ReadGAH(const IChunkFile::ChunkDesc *chunk)
 		m_nFlags &= nValidFlags;
 	}
 
-	m_FilePath					=	pChunk->m_FilePath;
+	m_FilePath				=	pChunk->m_FilePath;
 	m_FilePathCRC32		=	pChunk->m_FilePathCRC32;
 
 	const uint32 nCRC32 = CCrc32::ComputeLowercase( m_FilePath ); 
@@ -174,12 +174,12 @@ bool GlobalAnimationHeaderAIM::ReadGAH(const IChunkFile::ChunkDesc *chunk)
 		RCLogError("CRC32 Invalid! Most likely the endian conversion from RC is wrong.");
 	}
 
-	m_fStartSec				= 0;
-	m_fEndSec				= pChunk->m_fEndSec - pChunk->m_fStartSec;
-	m_fTotalDuration		= pChunk->m_fTotalDuration;
+	m_fStartSec.SetSeconds(0);
+	m_fEndSec				= BADTIME(pChunk->m_fEndSec - pChunk->m_fStartSec);
+	m_fTotalDuration		= BADTIME(pChunk->m_fTotalDuration);
 
 	m_AnimTokenCRC32		= pChunk->m_AnimTokenCRC32;
-	m_nExist						= pChunk->m_nExist;
+	m_nExist					= pChunk->m_nExist;
 	m_MiddleAimPoseRot = pChunk->m_MiddleAimPoseRot;
 	if (!m_MiddleAimPoseRot.IsValid()) 
 	{
@@ -338,11 +338,11 @@ bool GlobalAnimationHeaderAIM::SaveToChunkFile(IChunkFile* chunkFile, bool bigEn
 	pGAH_Info->m_FilePathCRC32		= m_FilePathCRC32;
 	swap(pGAH_Info->m_FilePathCRC32);
 
-	pGAH_Info->m_fStartSec				=	m_fStartSec;									//asset-feature: Start time in seconds.
+	pGAH_Info->m_fStartSec				=	m_fStartSec.BADGetSeconds();					//asset-feature: Start time in seconds.
 	swap(pGAH_Info->m_fStartSec);
-	pGAH_Info->m_fEndSec					=	m_fEndSec;										//asset-feature: End time in seconds.
+	pGAH_Info->m_fEndSec					=	m_fEndSec.BADGetSeconds();						//asset-feature: End time in seconds.
 	swap(pGAH_Info->m_fEndSec);
-	pGAH_Info->m_fTotalDuration		=	m_fEndSec-m_fStartSec;	//asset-feature: asset-feature: total duration in seconds.
+	pGAH_Info->m_fTotalDuration		=	(m_fEndSec-m_fStartSec).BADGetSeconds();	//asset-feature: asset-feature: total duration in seconds.
 	swap(pGAH_Info->m_fTotalDuration);
 
 	pGAH_Info->m_AnimTokenCRC32		=	m_AnimTokenCRC32;

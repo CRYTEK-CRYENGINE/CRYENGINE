@@ -137,7 +137,7 @@ bool CAnimationCompressor::ProcessAimPoses(bool isLook, GlobalAnimationHeaderAIM
 
 	//----------------------------------------------------------------------------------------------------------------------------------------
 
-	uint32 numPoses = uint32(rAIM.m_fTotalDuration/SECONDS_PER_TICK+1.1f);
+	uint32 numPoses = uint32(rAIM.m_fTotalDuration/SECONDS_PER_TICK+"1.1");
 	assert(numPoses==9 || numPoses==15 || numPoses==21);
 	if (numPoses!=9 && numPoses!=15 && numPoses!=21)
 	{

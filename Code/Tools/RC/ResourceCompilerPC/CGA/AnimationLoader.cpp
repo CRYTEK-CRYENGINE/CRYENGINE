@@ -268,7 +268,7 @@ void CAnimationCompressor::ReplaceRootByLocator(bool bCheckLocator, float minRoo
 	std::vector<int> arrTimes(ERot0.realkeys);
 	std::vector<std::vector<QuatTNS> > arrChildAbsKeys(numChildController, std::vector<QuatTNS>(ERot0.realkeys, QuatTNS(IDENTITY)));
 
-	const int32 startkey = int32(m_GlobalAnimationHeader.m_fStartSec * TICKS_PER_SECOND);
+	const int32 startkey = int32(m_GlobalAnimationHeader.m_fStartSec.GetSeconds() * TICKS_PER_SECOND);
 	int32 stime	= startkey;
 	for (int32 t = 0; t < ERot0.realkeys; t++) // TODO: This loop is repeated exactly three times. We might want to unify them.
 	{
@@ -349,9 +349,9 @@ void CAnimationCompressor::ReplaceRootByLocator(bool bCheckLocator, float minRoo
 		const f32 leftAngle = Ang3::CreateRadZ(startDir, middleDir);
 		const f32 rightAngle = Ang3::CreateRadZ(middleDir, endDir);
 		f32 angle = leftAngle + rightAngle;
-		const f32 duration = m_GlobalAnimationHeader.m_fEndSec - m_GlobalAnimationHeader.m_fStartSec;
+		const CTimeValue duration = m_GlobalAnimationHeader.m_fEndSec - m_GlobalAnimationHeader.m_fStartSec;
 		m_GlobalAnimationHeader.m_fAssetTurn = angle;
-		m_GlobalAnimationHeader.m_fTurnSpeed = angle / duration;
+		m_GlobalAnimationHeader.m_fTurnSpeed = angle / duration.BADGetSeconds();
 	}
 	//--------------------------------------------------------------------------------
 
@@ -486,7 +486,7 @@ void CAnimationCompressor::SetIdentityLocator(GlobalAnimationHeaderAIM& gaim)
 	}
 
 
-	int32 startkey	=	int32(gaim.m_fStartSec*TICKS_PER_SECOND);
+	int32 startkey	=	int32(gaim.m_fStartSec.GetSeconds()*TICKS_PER_SECOND);
 	int32 stime	=	startkey;
 	for (int32 t=0; t<ERot0.realkeys; t++)
 	{
@@ -575,8 +575,8 @@ void CAnimationCompressor::EvaluateSpeed()
 		return;
 
 	uint32 TicksPerSecond = TICKS_PER_SECOND;
-	f32 fStart		=	m_GlobalAnimationHeader.m_fStartSec;
-	f32 fDuration	=	m_GlobalAnimationHeader.m_fEndSec - m_GlobalAnimationHeader.m_fStartSec;
+	CTimeValue fStart		=	m_GlobalAnimationHeader.m_fStartSec;
+	CTimeValue fDuration	=	m_GlobalAnimationHeader.m_fEndSec - m_GlobalAnimationHeader.m_fStartSec;
 	f32 fDistance	=	0.0f;
 
 	m_GlobalAnimationHeader.m_fDistance = 0.0f;
@@ -607,11 +607,11 @@ void CAnimationCompressor::EvaluateSpeed()
 		}
 	}
 
-	m_GlobalAnimationHeader.m_fDistance			=	fDistance;
-	if (fDuration)
-		m_GlobalAnimationHeader.m_fSpeed      = fDistance/fDuration;
+	m_GlobalAnimationHeader.m_fDistance		  =	fDistance;
+	if (fDuration != 0)
+		m_GlobalAnimationHeader.m_fSpeed      = fDistance/fDuration.BADGetSeconds();
 
-	if (fDuration<0.001f)	
+	if (fDuration<"0.001")	
 	{
 		RCLogWarning ("CryAnimation: Animation-asset '%s' has just one keyframe. Impossible to detect Duration", m_GlobalAnimationHeader.GetFilePath());
 	}
@@ -870,7 +870,7 @@ void CAnimationCompressor::SaveMotionParameters( CChunkFile* pChunkFile, bool bi
 	swap(mp.m_nCompression = m_AnimDesc.oldFmt.m_CompressionQuality);
 
 	swap(mp.m_nTicksPerFrame = TICKS_PER_FRAME);
-	swap(mp.m_fSecsPerTick = SECONDS_PER_TICK);
+	swap(mp.m_fSecsPerTick = SECONDS_PER_TICK.BADGetSeconds()); // Not used anyways.
 	swap(mp.m_nStart = m_GlobalAnimationHeader.m_nStartKey);
 	swap(mp.m_nEnd = m_GlobalAnimationHeader.m_nEndKey);
 
@@ -925,7 +925,7 @@ void CAnimationCompressor::ExtractKeys(std::vector<int>& times, std::vector<PQLo
 	times.resize(numKeys);
 	logKeys.resize(numKeys);
 
-	const int32 startkey = int32(m_GlobalAnimationHeader.m_fStartSec * TICKS_PER_SECOND);
+	const int32 startkey = int32(m_GlobalAnimationHeader.m_fStartSec.GetSeconds() * TICKS_PER_SECOND);
 	int32 stime = startkey;
 	for (int32 t = 0; t < numKeys; t++)
 	{

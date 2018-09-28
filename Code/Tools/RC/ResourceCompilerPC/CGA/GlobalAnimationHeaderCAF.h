@@ -115,9 +115,9 @@ struct GlobalAnimationHeaderCAF : public GlobalAnimationHeader
 	{
 		ntime = Util::getMin(ntime, 1.0f);
 		assert(ntime>=0 && ntime<=1);
-		f32 duration	=	m_fEndSec-m_fStartSec;		
-		f32 start			=	m_fStartSec;		
-		f32 key				= (ntime*TICKS_PER_SECOND*duration  + start*TICKS_PER_SECOND);///40.0f;
+		CTimeValue duration	=	m_fEndSec-m_fStartSec;
+		CTimeValue start		=	m_fStartSec;
+		f32 key				= (ntime*TICKS_PER_SECOND*duration.BADGetSeconds()  + start.BADGetSeconds()*TICKS_PER_SECOND);///40.0f;
 		return key;
 	}
 
@@ -136,8 +136,8 @@ struct GlobalAnimationHeaderCAF : public GlobalAnimationHeader
 	// timing data, retrieved from the timing_chunk_desc
 	int32 m_nStartKey; // Start time, expressed in frames (a constant frame rate of 30fps is assumed).
 	int32 m_nEndKey;   // End time, expressed in frames (a constant frame rate of 30fps is assumed).
-	f32 m_fStartSec;   // Start time, expressed in seconds.
-	f32 m_fEndSec;     // End time, expressed in seconds.
+	CTimeValue m_fStartSec;   // Start time, expressed in seconds.
+	CTimeValue m_fEndSec;     // End time, expressed in seconds.
 
 	SFootPlant m_FootPlantVectors;
 	std::vector<uint8> m_FootPlantBits;

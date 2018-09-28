@@ -489,7 +489,7 @@ bool GeomCacheWriter::WriteFrameInfos()
 		frameInfos[i].m_frameType = m_frameTypes[i];		
 		frameInfos[i].m_frameOffset = m_frameWriteFutures[i]->GetPosition();
 		frameInfos[i].m_frameSize = m_frameWriteFutures[i]->GetSize();		
-		frameInfos[i].m_frameTime = (float)m_frameTimes[i];
+		frameInfos[i].m_frameTime = BADTIME((float)m_frameTimes[i]);
 		
 		if(frameInfos[i].m_frameOffset == 0 || frameInfos[i].m_frameSize == 0)
 		{

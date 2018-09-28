@@ -23,7 +23,7 @@
 #define STATUS_PAD 0x8
 
 #define TICKS_PER_SECOND 30                         //the maximum possible frequency is 4800Hz
-#define SECONDS_PER_TICK (1.0f / TICKS_PER_SECOND)
+#define SECONDS_PER_TICK (CTimeValue(mpfloat(1) / TICKS_PER_SECOND))
 #define TICKS_PER_FRAME 1                           //TODO: change this comment to something more readable: if we have 30 keyframes per second, then one tick is 1
 #define TICKS_CONVERT 160
 

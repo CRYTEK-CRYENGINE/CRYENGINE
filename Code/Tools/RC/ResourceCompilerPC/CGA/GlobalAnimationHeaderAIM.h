@@ -57,9 +57,9 @@ struct GlobalAnimationHeaderAIM : public GlobalAnimationHeader
 		m_nRef_at_Runtime = 0;
 		m_nTouchedCounter = 0;
 
-		m_fStartSec				= -1;		// Start time in seconds.
-		m_fEndSec					= -1;		// End time in seconds.
-		m_fTotalDuration	= -1;		//asset-features
+		m_fStartSec.SetSeconds(-1);		// Start time in seconds.
+		m_fEndSec.SetSeconds(-1);			// End time in seconds.
+		m_fTotalDuration.SetSeconds(-1);	//asset-features
 
 		m_nControllers		= 0;
 		m_AnimTokenCRC32	= 0;
@@ -78,12 +78,12 @@ struct GlobalAnimationHeaderAIM : public GlobalAnimationHeader
 
 	bool IsValid()
 	{
-		if (_isnan(m_fStartSec))
-			return false;
-		if (_isnan(m_fEndSec))
-			return false;
-		if (_isnan(m_fTotalDuration))
-			return false;
+		//if (_isnan(m_fStartSec))
+		//	return false;
+		//if (_isnan(m_fEndSec))
+		//	return false;
+		//if (_isnan(m_fTotalDuration))
+		//	return false;
 		if (_isnan(m_MiddleAimPoseRot.v.x))
 			return false;
 		if (_isnan(m_MiddleAimPoseRot.v.y))
@@ -150,9 +150,9 @@ struct GlobalAnimationHeaderAIM : public GlobalAnimationHeader
 	{
 		ntime = Util::getMin(ntime, 1.0f);
 		assert(ntime>=0 && ntime<=1);
-		f32 duration	=	m_fEndSec-m_fStartSec;		
-		f32 start			=	m_fStartSec;		
-		f32 key				= (ntime*TICKS_PER_SECOND*duration  + start*TICKS_PER_SECOND);///40.0f;
+		CTimeValue duration	=	m_fEndSec-m_fStartSec;		
+		CTimeValue start		=	m_fStartSec;
+		f32 key				= (ntime*TICKS_PER_SECOND*duration.BADGetSeconds()  + start.BADGetSeconds()*TICKS_PER_SECOND);///40.0f;
 		return key;
 	}
 
@@ -194,9 +194,9 @@ struct GlobalAnimationHeaderAIM : public GlobalAnimationHeader
 	uint16 m_nRef_at_Runtime;  //counter how many times we use this animation at run-time at the same time (need for streaming)
 	uint16 m_nTouchedCounter;  //do we use this asset at all?
 	uint16 m_nControllers;	
-	f32 m_fStartSec;					//Start time in seconds.
-	f32 m_fEndSec;						//End time in seconds.
-	f32 m_fTotalDuration;			//asset-feature: total duration in seconds.
+	CTimeValue m_fStartSec;			//Start time in seconds.
+	CTimeValue m_fEndSec;			//End time in seconds.
+	CTimeValue m_fTotalDuration;	//asset-feature: total duration in seconds.
 //	IController_AutoPtr* m_arrController;
 	TControllersVector m_arrController;
 

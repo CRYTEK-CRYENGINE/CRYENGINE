@@ -184,6 +184,13 @@ public:
 	void setAttr( const char* key,const Vec3d& value );
 	void setAttr( const char* key,const Quat &value );
 
+	// PERSONAL TODO: Can't get this stupid thing to compile. Keeps saying unresolved external symbol gEnv!!! Note: When changing stuff here to an RC rebuild otherwise it will ignore.
+	void setAttr(const char* key, const CTimeValue& value) { CRY_ASSERT(FALSE); }
+	#define MP_FUNCTION(T)\
+	void setAttr(const char* key, const T& value) { CRY_ASSERT(FALSE); }
+	#include "CrySystem\mpfloat.types"
+	#undef MP_FUNCTION
+
 	//! Delete attrbute.
 	void delAttr( const char* key );
 	//! Remove all node attributes.
@@ -207,6 +214,11 @@ public:
 	bool getAttr( const char *key,Quat &value ) const;
 	bool getAttr( const char *key,ColorB &value ) const;
 	//	bool getAttr( const char *key,string &value ) const { XmlString v; if (getAttr(key,v)) { value = (const char*)v; return true; } else return false; }
+
+	bool getAttr(const char* key, CTimeValue& value)  const { CRY_ASSERT(FALSE); return false; }
+	#define MP_FUNCTION(T) bool getAttr(const char* key, T& value) const { CRY_ASSERT(FALSE); return false;}
+	#include "CrySystem\mpfloat.types"
+	#undef MP_FUNCTION
 
 private:
 	void AddToXmlString( XmlString &xml,int level ) const;

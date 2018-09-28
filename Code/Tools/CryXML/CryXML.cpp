@@ -1,7 +1,11 @@
 // Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "stdafx.h"
+
+// Must be included only once in DLL module.
+#include <platform_implRC.inl>
 #include <CryCore/Assert/CryAssert_impl.h>
+
 #include "ICryXML.h"
 #include "XMLSerializer.h"
 
