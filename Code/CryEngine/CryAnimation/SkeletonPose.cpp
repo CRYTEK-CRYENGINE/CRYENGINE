@@ -275,7 +275,7 @@ uint32 CSkeletonPose::SetHumanLimbIK(const Vec3& vWorldPos, const char* strLimb)
 	return 1;
 }
 
-void CSkeletonPose::ApplyRecoilAnimation(f32 fDuration, f32 fKinematicImpact, f32 fKickIn, uint32 nArms)
+void CSkeletonPose::ApplyRecoilAnimation(const CTimeValue& fDuration, f32 fKinematicImpact, f32 fKickIn, uint32 nArms)
 {
 	if (!Console::GetInst().ca_UseRecoil)
 		return;
@@ -289,7 +289,7 @@ void CSkeletonPose::ApplyRecoilAnimation(f32 fDuration, f32 fKinematicImpact, f3
 	}
 
 	PoseModifier::CRecoil::State state;
-	state.time = 0.0f;
+	state.time.SetSeconds(0);
 	state.duration = fDuration;
 	state.strengh = fKinematicImpact; //recoil in cm
 	state.kickin = fKickIn;           //recoil in cm

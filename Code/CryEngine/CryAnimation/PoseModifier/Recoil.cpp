@@ -43,7 +43,7 @@ bool CRecoil::Execute(const SAnimationPoseModifierParams& params)
 {
 	DEFINE_PROFILER_FUNCTION();
 
-	if (m_stateExecute.time >= m_stateExecute.duration * 2.0f)
+	if (m_stateExecute.time >= m_stateExecute.duration * 2)
 		return false;
 
 	Skeleton::CPoseData* pPoseData = Skeleton::CPoseData::GetPoseData(params.pPoseData);
@@ -58,7 +58,7 @@ bool CRecoil::Execute(const SAnimationPoseModifierParams& params)
 	QuatT* const __restrict pAbsPose = pPoseData->GetJointsAbsolute();
 	uint jointCount = pPoseData->GetJointCount();
 
-	f32 tn = m_stateExecute.time / m_stateExecute.duration;
+	nTime tn = m_stateExecute.time / m_stateExecute.duration;
 	m_stateExecute.time += params.timeDelta;
 
 	//-------------------------------------------------------------------------------------------------
@@ -153,7 +153,7 @@ bool CRecoil::Execute(const SAnimationPoseModifierParams& params)
 			int32 _p0 = defaultSkeleton.m_arrModelJoints[id].m_idxParent;
 			if (weight == 1.0f)
 				pAbsPose[id].q = Quat::CreateRotationAA(fImpact * m_stateExecute.strengh * 0.5f, m33 * vWWeaponZ) * pAbsPose[id].q;
-			pAbsPose[id].t += -vWWeaponY* RecoilEffect(tn - delay) * m_stateExecute.strengh * weight;  //pelvis
+			pAbsPose[id].t += -vWWeaponY* RecoilEffect(tn - BADnT(delay)) * m_stateExecute.strengh * weight;  //pelvis
 			pRelPose[id] = pAbsPose[_p0].GetInverted() * pAbsPose[id];
 		}
 	}
@@ -198,15 +198,14 @@ void CRecoil::Synchronize()
 {
 }
 
-f32 CRecoil::RecoilEffect(f32 t)
+f32 CRecoil::RecoilEffect(const nTime& tNorm)
 {
-	if (t < 0.0f) t = 0.0f;
-	if (t > 1.0f) t = 1.0f;
+	nTime t = CLAMP(tNorm, 0, 1);
 
 	f32 sq2 = sqrtf(m_stateExecute.kickin);
 	f32 scale = sq2 + gf_PI;
 
-	f32 x = t * scale - sq2;
+	f32 x = BADF t * scale - sq2;
 	if (x < 0.0f)
 		return (-(x * x) + 2.0f) * 0.5f;
 	return (cosf(x) + 1.0f) * 0.5f;

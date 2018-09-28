@@ -66,14 +66,14 @@ void TriggerEvent(const char* animationName, uint animationId, const CAnimEventD
 	}
 }
 
-void TriggerEvents(const char* animationName, uint animationId, const IAnimEventList& events, float timeFrom, float timeTo, CCharInstance& instance)
+void TriggerEvents(const char* animationName, uint animationId, const IAnimEventList& events, const nTime& timeFrom, const nTime& timeTo, CCharInstance& instance)
 {
 	const uint32 eventCount = events.GetCount();
 	for (uint32 i = 0; i < eventCount; ++i)
 	{
 		const CAnimEventData& animEvent = events.GetByIndex(i);
-		float time = animEvent.GetNormalizedTime();
-		if ((timeFrom <= time && timeTo >= time) || (timeFrom <= time + 1.0f && timeTo >= time + 1.0f))
+		nTime time = animEvent.GetNormalizedTime();
+		if ((timeFrom <= time && timeTo >= time) || (timeFrom <= time + 1 && timeTo >= time + 1))
 			TriggerEvent(animationName, animationId, animEvent, instance);
 	}
 }
@@ -95,11 +95,11 @@ CTransitionQueue::CTransitionQueue() :
 
 void CTransitionQueue::Reset()
 {
-	m_fLayerPlaybackScale = 1.0f;
-	m_fLayerTransitionWeight = 0.0f;
-	m_fLayerTransitionTime = 0.0f;
-	m_fLayerBlendWeight = 1.0f;
-	m_manualMixingWeight = 0.0f;  //Only used by TrackView. Not sure if really needed
+	m_fLayerPlaybackScale = 1;
+	m_fLayerTransitionWeight = 0;
+	m_fLayerTransitionTime.SetSeconds(0);
+	m_fLayerBlendWeight = 1.;
+	m_manualMixingWeight = 0;  //Only used by TrackView. Not sure if really needed
 }
 
 void CTransitionQueue::RemoveDelayConditions()
@@ -273,7 +273,7 @@ void CTransitionQueue::Clear()
 
 // TEMP: Hack for TrackView.
 
-void CTransitionQueue::ManualSeekAnimation(uint index, float time2, bool bTriggerEvents, CCharInstance& instance)
+void CTransitionQueue::ManualSeekAnimation(uint index, const nTime& time2, bool bTriggerEvents, CCharInstance& instance)
 {
 	CAnimation& animation = GetAnimation(index);
 	if (animation.HasStaticFlag(CA_MANUAL_UPDATE) || animation.HasStaticFlag(CA_TRACK_VIEW_EXCLUSIVE))
@@ -295,8 +295,8 @@ void CTransitionQueue::ManualSeekAnimation(uint index, float time2, bool bTrigge
 				{
 					const GlobalAnimationHeaderCAF& rGlobalAnimHeader = g_AnimationManager.m_arrGlobalCAF[globalID];
 
-					f32 timeold = animation.GetCurrentSegmentNormalizedTime();
-					f32 timenew = time2;
+					nTime timeold = animation.GetCurrentSegmentNormalizedTime();
+					nTime timenew = time2;
 
 					// prevent sending events when animation is not playing
 					// otherwise it may happen to get the event each frame
@@ -319,8 +319,8 @@ void CTransitionQueue::ManualSeekAnimation(uint index, float time2, bool bTrigge
 			{
 				const GlobalAnimationHeaderLMG& rGlobalAnimHeaderLMG = g_AnimationManager.m_arrGlobalLMG[globalID];
 
-				f32 timeold = animation.GetCurrentSegmentNormalizedTime();
-				f32 timenew = time2;
+				nTime timeold = animation.GetCurrentSegmentNormalizedTime();
+				nTime timenew = time2;
 
 				// prevent sending events when animation is not playing
 				// otherwise it may happen to get the event each frame
@@ -341,7 +341,7 @@ void CTransitionQueue::ManualSeekAnimation(uint index, float time2, bool bTrigge
 
 void CTransitionQueue::SetFirstLayer()
 {
-	m_fLayerTransitionWeight = 1.0f;
+	m_fLayerTransitionWeight = 1;
 	SetInvalid(m_fLayerBlendWeight);
 }
 
@@ -350,11 +350,11 @@ void CTransitionQueue::ApplyManualMixingWeight(uint numAnims)
 	switch (numAnims)
 	{
 	case 2:
-		m_animations[0].SetTransitionWeight(1.0f - m_manualMixingWeight);
+		m_animations[0].SetTransitionWeight(1 - m_manualMixingWeight);
 		m_animations[1].SetTransitionWeight(m_manualMixingWeight);
 		break;
 	case 1:
-		m_animations[0].SetTransitionWeight(1.0f);
+		m_animations[0].SetTransitionWeight(1);
 		break;
 	case 0:
 		break;
@@ -380,7 +380,7 @@ void CTransitionQueue::TransitionsBetweenSeveralAnimations(uint numAnims)
 		if (timewarp)
 		{
 			//animations are time-warped, so we have to adjust the delta-time
-			f32 tp = rCurAnimation.GetTransitionPriority();
+			mpfloat tp = rCurAnimation.GetTransitionPriority();
 			if (tp == 0)
 			{
 
@@ -396,7 +396,7 @@ void CTransitionQueue::TransitionsBetweenSeveralAnimations(uint numAnims)
 				rCurAnimation.m_fAnimTimePrev[0] = rPrevAnimation.m_fAnimTimePrev[0];
 				// copy the time from previous
 				rCurAnimation.m_fAnimTime[0] = rPrevAnimation.m_fAnimTime[0];
-				assert(rCurAnimation.GetCurrentSegmentNormalizedTime() >= 0.0f && rCurAnimation.GetCurrentSegmentNormalizedTime() <= 1.0f);
+				assert(rCurAnimation.GetCurrentSegmentNormalizedTime() >= 0 && rCurAnimation.GetCurrentSegmentNormalizedTime() <= 1);
 				// don't copy the segment from previous
 				//rCurAnimation.m_currentSegmentIndex[0]=0;
 			}
@@ -409,46 +409,46 @@ void CTransitionQueue::AdjustTransitionWeights(uint numAnims)
 	// here we adjust the the TRANSITION-WEIGHTS between all animations in the queue
 
 	// the first in the queue will always have the highest priority
-	m_animations[0].SetTransitionWeight(1.0f);
+	m_animations[0].SetTransitionWeight(1);
 	for (uint32 i = 1; i < numAnims; i++)
 	{
 		CAnimation& rCurAnimation = m_animations[i];
 
 		rCurAnimation.SetTransitionWeightRequested(rCurAnimation.GetTransitionPriority());
-		f32 scale_previous = 1.0f - rCurAnimation.GetTransitionWeight();
+		mpfloat scale_previous = 1 - rCurAnimation.GetTransitionWeight();
 		
 		for (uint32 j = 0; j < i; j++)
 			m_animations[j].SetTransitionWeight(m_animations[j].GetTransitionWeight() * scale_previous);
 	}
 }
 
-void CTransitionQueue::UpdateTransitionTime(uint numAnims, float fDeltaTime, float trackViewExclusive, float originalDeltaTime)
+void CTransitionQueue::UpdateTransitionTime(uint numAnims, const CTimeValue& fDeltaTime, float trackViewExclusive, const CTimeValue& originalDeltaTime)
 {
 	// update the TRANSITION-TIME of all animations in the queue
-	m_animations[0].m_fTransitionPriority = 1.0f;
+	m_animations[0].m_fTransitionPriority = 1;
 	for (uint32 i = 1; i < numAnims; i++)
 	{
 		CAnimation& rCurAnimation = m_animations[i];
-
-		f32 fTransTime = rCurAnimation.m_fTransitionTime;
+		CTimeValue fTransTime = rCurAnimation.m_fTransitionTime;
 
 		// if the animation system is paused, and at the same time user pushes an animation into the queue, then we should set the priority to 1 instead of 0
-		if (fDeltaTime == 0.0f && fTransTime == 0.0f)
+		if (fDeltaTime == 0 && fTransTime == 0)
 		{
-			rCurAnimation.m_fTransitionPriority = 1.0f;
+			rCurAnimation.m_fTransitionPriority = 1;
 			continue;
 		}
 
 		//we don't want DivByZero
-		if (fTransTime == 0.0f)
-			fTransTime = 0.0001f;
+		if (fTransTime == 0)
+			fTransTime = CTimeValue("0.0001");
 
-		f32 ttime = fabsf(fDeltaTime) / fTransTime;
+		nTime ttime = abs(fDeltaTime) / fTransTime;
 		if (trackViewExclusive)
 			ttime = originalDeltaTime / fTransTime;
 
+		// PERSONAL NOTE: This is why priority = mpfloat, based on time.
 		// update transition time
-		f32 newPriority = min(rCurAnimation.GetTransitionPriority() + ttime, 1.f);
+		mpfloat newPriority = min(rCurAnimation.GetTransitionPriority() + ttime.conv<mpfloat>(), mpfloat(1));
 		rCurAnimation.m_fTransitionPriority = newPriority;
 	}
 }
@@ -478,8 +478,8 @@ void CTransitionQueue::AdjustAnimationTimeForTimeWarpedAnimations(uint numAnims)
 		}
 	}
 
-	f32 fTransitionDelta = 0;
-	f32 fTransitionWeight = 0;
+	mpfloat fTransitionDelta = 0;
+	mpfloat fTransitionWeight = 0;
 	uint32 start = 0;
 	uint32 accumented = 0;
 	for (uint32 i = 0; i < numAnims; i++)
@@ -490,18 +490,18 @@ void CTransitionQueue::AdjustAnimationTimeForTimeWarpedAnimations(uint numAnims)
 			if (accumented == 0)
 				start = i;
 			fTransitionWeight += rCurAnimation.GetTransitionWeight();
-			fTransitionDelta += rCurAnimation.m_fCurrentDeltaTime * rCurAnimation.GetTransitionWeight();
+			fTransitionDelta  += rCurAnimation.m_fCurrentDeltaTime.conv<mpfloat>() * rCurAnimation.GetTransitionWeight();
 			accumented++;
 		}
 	}
 
-	f32 tt = 0.0f;
+	mpfloat tt = 0;
 	if (fTransitionWeight)
 		tt = fTransitionDelta / fTransitionWeight;
 
 	//all time-warped animation will get the same delta-time
 	for (uint32 a = start; a < (start + accumented); a++)
-		m_animations[a].m_fCurrentDeltaTime = tt;
+		m_animations[a].m_fCurrentDeltaTime = tt.conv<nTime>();
 }
 
 /*

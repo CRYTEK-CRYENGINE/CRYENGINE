@@ -472,7 +472,7 @@ void CVertexAnimation::DrawVertexDebug(IRenderMesh* pRenderMesh, const QuatT& lo
 
 	// wait till the SW-Skinning jobs have finished
 	while (*pVertexAnimation->pRenderMeshSyncVariable)
-		CrySleep(1);
+		CryLowLatencySleep("0.001");
 
 	IRenderMesh* pIRenderMesh = pRenderMesh;
 	strided_pointer<Vec3> parrDstPositions = pVertexAnimation->vertexData.pPositions;

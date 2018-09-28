@@ -96,7 +96,7 @@ bool CSkeletonAnim::StartAnimationById(int32 id, const struct CryCharAnimationPa
 
 	CAnimationSet* pAnimationSet = m_pInstance->m_pDefaultSkeleton->m_pAnimationSet;
 
-	assert(Params.m_fTransTime < 60.0f); //transition times longer than 1 minute are useless
+	assert(Params.m_fTransTime.GetSeconds() < 60); //transition times longer than 1 minute are useless
 
 	if (nAnimID < 0)
 		return 0;
@@ -236,11 +236,11 @@ bool CSkeletonAnim::StartAnimationById(int32 id, const struct CryCharAnimationPa
 			int32 numAnims = m_layers[Layer].m_transitionQueue.m_animations.size() - 1;
 			for (int32 i = 0; i < numAnims; i++)
 			{
-				m_layers[Layer].m_transitionQueue.m_animations[i].m_fTransitionTime = fabsf(m_layers[Layer].m_transitionQueue.m_animations[i].m_fTransitionTime * 0.01f);
+				m_layers[Layer].m_transitionQueue.m_animations[i].m_fTransitionTime = abs(m_layers[Layer].m_transitionQueue.m_animations[i].m_fTransitionTime * "0.01");
 			}
 		}
 
-		m_layers[Params.m_nLayerID].m_transitionQueue.m_fLayerTransitionTime = fabsf(Params.m_fTransTime);
+		m_layers[Params.m_nLayerID].m_transitionQueue.m_fLayerTransitionTime = abs(Params.m_fTransTime);
 	}
 
 	return result;
@@ -248,7 +248,7 @@ bool CSkeletonAnim::StartAnimationById(int32 id, const struct CryCharAnimationPa
 
 // stops the animation at the given layer, and returns true if the animation was
 // actually stopped (if the layer existed and the animation was played there)
-bool CSkeletonAnim::StopAnimationInLayer(int32 nLayer, f32 fBlendOutTime)
+bool CSkeletonAnim::StopAnimationInLayer(int32 nLayer, const CTimeValue& fBlendOutTime)
 {
 	if (nLayer < 0 || nLayer >= numVIRTUALLAYERS)
 	{
@@ -283,7 +283,7 @@ bool CSkeletonAnim::StopAnimationsAllLayers()
 	return 1;
 }
 
-uint32 CSkeletonAnim::AnimationToQueue(const ModelAnimationHeader* pAnim, int nAnimID, f32 btime, const CryCharAnimationParams& AnimParams)
+uint32 CSkeletonAnim::AnimationToQueue(const ModelAnimationHeader* pAnim, int nAnimID, const CTimeValue& btime, const CryCharAnimationParams& AnimParams)
 {
 	const int MAX_ANIMATIONS_IN_QUEUE = 0x10;
 
@@ -395,7 +395,7 @@ uint32 CSkeletonAnim::AnimationToQueue(const ModelAnimationHeader* pAnim, int nA
 						for (uint32 i = 0; i < rsubLMG.m_numExamples; i++)
 						{
 							uint32 nLMGAnimID = pAnimationSet->GetAnimIDByCRC(rsubLMG.m_arrParameter[i].m_animName.m_CRC32);
-							f32 fPlaybackScale = rsubLMG.m_arrParameter[i].m_fPlaybackScale;
+							mpfloat fPlaybackScale = rsubLMG.m_arrParameter[i].m_fPlaybackScale;
 							uint32 found = 0;
 							for (uint32 g = 0; g < pParametricSampler->m_numExamples; g++)
 							{
@@ -435,7 +435,7 @@ uint32 CSkeletonAnim::AnimationToQueue(const ModelAnimationHeader* pAnim, int nA
 			GlobalAnimationHeaderCAF& rCAF = g_AnimationManager.m_arrGlobalCAF[GlobalID];
 			rCAF.m_nTouchedCounter++;
 			rCAF.m_nRef_at_Runtime++;
-			AnimOnStack.SetExpectedTotalDurationSeconds(rCAF.m_fTotalDuration);
+			AnimOnStack.SetExpectedTotalDuration(rCAF.m_fTotalDuration);
 
 			if (!rCAF.IsAssetOnDemand() && rCAF.IsAssetLoaded())
 			{
@@ -447,7 +447,7 @@ uint32 CSkeletonAnim::AnimationToQueue(const ModelAnimationHeader* pAnim, int nA
 					if (rCAF.m_FilePathDBACRC32 != pGlobalHeaderDBA.m_FilePathDBACRC32)
 						continue;
 					if (pGlobalHeaderDBA.m_pDatabaseInfo)
-						pGlobalHeaderDBA.m_nLastUsedTimeDelta = 0;
+						pGlobalHeaderDBA.m_nLastUsedTimeDelta.SetSeconds(0);
 				}
 			}
 		}
@@ -480,7 +480,7 @@ uint32 CSkeletonAnim::AnimationToQueue(const ModelAnimationHeader* pAnim, int nA
 						if (rCAF.m_FilePathDBACRC32 != pGlobalHeaderDBA.m_FilePathDBACRC32)
 							continue;
 						if (pGlobalHeaderDBA.m_pDatabaseInfo)
-							pGlobalHeaderDBA.m_nLastUsedTimeDelta = 0;
+							pGlobalHeaderDBA.m_nLastUsedTimeDelta.SetSeconds(0);
 					}
 				}
 			}
@@ -490,14 +490,14 @@ uint32 CSkeletonAnim::AnimationToQueue(const ModelAnimationHeader* pAnim, int nA
 	AnimOnStack.m_nStaticFlags = AnimParams.m_nFlags;                 // Combination of flags defined above.
 	AnimOnStack.m_DynFlags[0] = 0;
 
-	AnimOnStack.m_fStartTime = clamp_tpl(AnimParams.m_fKeyTime, 0.0f, 1.0f);          //normalized time to start a transition animation.
+	AnimOnStack.m_fStartTime = CLAMP(AnimParams.m_fKeyTime, 0, 1);          //normalized time to start a transition animation.
 	AnimOnStack.m_fAnimTime[0] = AnimOnStack.m_fStartTime;
 	AnimOnStack.m_fAnimTimePrev[0] = AnimOnStack.m_fStartTime;
-	AnimOnStack.m_fTransitionTime = max(0.0f, AnimParams.m_fTransTime);         //transition time between two animations. Negative values are not allowed
-	AnimOnStack.m_fTransitionPriority = 0.0f;
-	AnimOnStack.SetTransitionWeight(0.0f);
+	AnimOnStack.m_fTransitionTime = max(CTimeValue(0), AnimParams.m_fTransTime);         //transition time between two animations. Negative values are not allowed
+	AnimOnStack.m_fTransitionPriority = 0;
+	AnimOnStack.SetTransitionWeight(0);
 	AnimOnStack.m_nInterpolationType = AnimParams.m_nInterpolationType;
-	AnimOnStack.m_fPlaybackScale = max(0.0f, AnimParams.m_fPlaybackSpeed);      // multiplier for animation-update. Negative values are not allowed
+	AnimOnStack.m_fPlaybackScale = max(mpfloat(0), AnimParams.m_fPlaybackSpeed);      // multiplier for animation-update. Negative values are not allowed
 	AnimOnStack.m_fPlaybackWeight = AnimParams.m_fPlaybackWeight;
 #if defined(USE_PROTOTYPE_ABS_BLENDING)
 	AnimOnStack.m_pJointMask = AnimParams.m_pJointMask;

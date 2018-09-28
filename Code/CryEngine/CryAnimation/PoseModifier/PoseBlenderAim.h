@@ -23,11 +23,11 @@ public:
 	void SetTarget(const Vec3& target) override                                           { if (target.IsValid()) m_blender.m_Set.vDirIKTarget = target; }
 	void SetLayer(uint32 layer) override                                                  { m_blender.m_Set.nDirLayer = uint8(std::max(layer, (uint32)1)); }
 	void SetFadeoutAngle(f32 angleRadians) override                                       { m_blender.m_Set.fDirIKFadeoutRadians = angleRadians; }
-	void SetFadeOutSpeed(f32 time) override                                               { m_blender.m_Set.fDirIKFadeOutTime = (time > 0.0f) ? 1.0f / time : FLT_MAX; }
-	void SetFadeInSpeed(f32 time) override                                                { m_blender.m_Set.fDirIKFadeInTime = (time > 0.0f) ? 1.0f / time : FLT_MAX; }
+	void SetFadeOutSpeed(const CTimeValue& time) override                                 { m_blender.m_Set.fDirIKFadeOutTime = (time > 0) ? 1 / time : rTime::Max(); }
+	void SetFadeInSpeed(const CTimeValue& time) override                                  { m_blender.m_Set.fDirIKFadeInTime  = (time > 0) ? 1 / time : rTime::Max(); }
 	void SetFadeOutMinDistance(f32 minDistance) override                                  { m_blender.m_Set.fDirIKMinDistanceSquared = minDistance * minDistance; }
 	void SetPolarCoordinatesOffset(const Vec2& offset) override                           { m_blender.m_Set.vPolarCoordinatesOffset = offset; }
-	void SetPolarCoordinatesSmoothTimeSeconds(f32 smoothTimeSeconds) override             { m_blender.m_Set.fPolarCoordinatesSmoothTimeSeconds = smoothTimeSeconds; }
+	void SetPolarCoordinatesSmoothTime(const nTime& smoothTime) override						  { m_blender.m_Set.fPolarCoordinatesSmoothTime = smoothTime; }
 	void SetPolarCoordinatesMaxRadiansPerSecond(const Vec2& maxRadiansPerSecond) override { m_blender.m_Set.vPolarCoordinatesMaxRadiansPerSecond = maxRadiansPerSecond; }
 	f32  GetBlend() const override                                                        { return m_blender.m_Get.fDirIKInfluence; }
 

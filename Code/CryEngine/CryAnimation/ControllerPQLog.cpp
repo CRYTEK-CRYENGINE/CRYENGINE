@@ -10,7 +10,7 @@ CControllerPQLog::CControllerPQLog()
 	: m_arrKeys()
 	, m_arrTimes()
 	, m_lastValue()
-	, m_lastTime(-FLT_MAX)
+	, m_lastTime(-MP_EPSILON.conv<kTime>())
 {}
 
 inline static f64 DLength(Vec3& v)
@@ -47,7 +47,7 @@ void AdjustLogRotations(Vec3& vRotLog1, Vec3& vRotLog2) // TODO: Should be moved
 	}
 }
 
-JointState CControllerPQLog::GetOPS(f32 key, Quat& quat, Vec3& pos, Diag33& scl) const
+JointState CControllerPQLog::GetOPS(const kTime& key, Quat& quat, Vec3& pos, Diag33& scl) const
 {
 	const QuatTNS& pq = DecodeKey(key);
 	quat = pq.q;
@@ -56,7 +56,7 @@ JointState CControllerPQLog::GetOPS(f32 key, Quat& quat, Vec3& pos, Diag33& scl)
 	return eJS_Position | eJS_Orientation | eJS_Scale;
 }
 
-JointState CControllerPQLog::GetOP(f32 key, Quat& quat, Vec3& pos) const
+JointState CControllerPQLog::GetOP(const kTime& key, Quat& quat, Vec3& pos) const
 {
 	const QuatTNS& pq = DecodeKey(key);
 	quat = pq.q;
@@ -64,20 +64,20 @@ JointState CControllerPQLog::GetOP(f32 key, Quat& quat, Vec3& pos) const
 	return eJS_Position | eJS_Orientation;
 }
 
-JointState CControllerPQLog::GetO(f32 key, Quat& quat) const
+JointState CControllerPQLog::GetO(const kTime& key, Quat& quat) const
 {
 	const QuatTNS& pq = DecodeKey(key);
 	quat = pq.q;
 	return eJS_Orientation;
 }
-JointState CControllerPQLog::GetP(f32 key, Vec3& pos) const
+JointState CControllerPQLog::GetP(const kTime& key, Vec3& pos) const
 {
 	const QuatTNS& pq = DecodeKey(key);
 	pos = pq.t;
 	return eJS_Position;
 }
 
-JointState CControllerPQLog::GetS(f32 key, Diag33& scl) const
+JointState CControllerPQLog::GetS(const kTime& key, Diag33& scl) const
 {
 	const QuatTNS& pq = DecodeKey(key);
 	scl = pq.s;

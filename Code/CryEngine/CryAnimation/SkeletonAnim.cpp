@@ -133,8 +133,8 @@ void CSkeletonAnim::PoseModifiersPrepare(const QuatTS& location)
 	SAnimationPoseModifierParams poseModifierParams;
 	poseModifierParams.pCharacterInstance = m_pInstance;
 	poseModifierParams.pPoseData = pPoseData; // TEMP: Should be NULL;
-	float fInstanceDeltaTime = m_pInstance->m_fDeltaTime;
-	if (fInstanceDeltaTime != 0.0f)
+	CTimeValue fInstanceDeltaTime = m_pInstance->m_fDeltaTime;
+	if (fInstanceDeltaTime != 0)
 		poseModifierParams.timeDelta = fInstanceDeltaTime;
 	else
 		poseModifierParams.timeDelta = m_pInstance->m_fOriginalDeltaTime;
@@ -482,7 +482,7 @@ void CSkeletonAnim::GetMemoryUsage(ICrySizer* pSizer) const
 Vec3 CSkeletonAnim::GetCurrentVelocity() const
 {
 	float fColDebug[4] = { 1, 1, 0, 1 };
-	f32 fDT = m_pInstance->m_fDeltaTime;
+	CTimeValue fDT = m_pInstance->m_fDeltaTime;
 	if (fDT == 0)
 	{
 		//	g_pAuxGeom->Draw2dLabel( 1,g_YLine, 1.6f, fColDebug, false,"GetCurrentVelocity: %f", 0 );
@@ -491,7 +491,7 @@ Vec3 CSkeletonAnim::GetCurrentVelocity() const
 	}
 	//	g_pAuxGeom->Draw2dLabel( 1,g_YLine, 1.6f, fColDebug, false,"GetCurrentVelocity: %f", (m_RelativeMovement.t/fDT).GetLength() );
 	//	g_YLine+=16.0f;
-	return GetRelMovement().t / fDT;
+	return GetRelMovement().t / fDT.BADGetSeconds();
 };
 
 void CSkeletonAnim::SetTrackViewExclusive(uint32 i)
@@ -499,7 +499,7 @@ void CSkeletonAnim::SetTrackViewExclusive(uint32 i)
 	m_TrackViewExclusive = i > 0;
 }
 
-void CSkeletonAnim::SetTrackViewMixingWeight(uint32 layer, f32 weight)
+void CSkeletonAnim::SetTrackViewMixingWeight(uint32 layer, mpfloat weight)
 {
 	if (!m_TrackViewExclusive)
 	{

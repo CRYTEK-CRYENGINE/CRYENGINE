@@ -225,7 +225,7 @@ void CSkeletonPhysics::Job_Physics_SynchronizeFromEntityPrepare(Memory::CPool& m
 	}
 
 	if (!m_bPhysicsAwake)
-		m_fPhysBlendTime = m_fPhysBlendMaxTime + 0.1f;
+		m_fPhysBlendTime = m_fPhysBlendMaxTime + "0.1";
 }
 
 void CSkeletonPhysics::Job_Physics_SynchronizeFromEntity(Skeleton::CPoseData& poseData, IPhysicalEntity* pPhysicalEntity, QuatT offset)
@@ -240,7 +240,7 @@ void CSkeletonPhysics::Job_Physics_SynchronizeFromEntity(Skeleton::CPoseData& po
 	m_bPhysicsAwake = false;
 
 	int nLod = (m_pCharPhysics != pPhysicalEntity || m_bPhysicsRelinquished) ? GetPhysicsLod() : 0;
-	ResetNonphysicalBoneRotations(poseData, nLod, m_fPhysBlendTime * m_frPhysBlendMaxTime);
+	ResetNonphysicalBoneRotations(poseData, nLod, BADF(m_fPhysBlendTime * m_frPhysBlendMaxTime));
 
 	QuatT roffs(!offset.q, -offset.t * offset.q);
 
@@ -323,7 +323,7 @@ void CSkeletonPhysics::Job_Physics_SynchronizeFromEntity(Skeleton::CPoseData& po
 	m_idLastSyncFrame = g_pCharacterManager->m_nUpdateCounter;
 }
 
-void CSkeletonPhysics::Job_Physics_SynchronizeFromEntityArticulated(Skeleton::CPoseData& poseData, float fDeltaTimePhys)
+void CSkeletonPhysics::Job_Physics_SynchronizeFromEntityArticulated(Skeleton::CPoseData& poseData, const CTimeValue& fDeltaTimePhys)
 {
 	if (m_bPhysicsRelinquished)
 	{
@@ -335,7 +335,7 @@ void CSkeletonPhysics::Job_Physics_SynchronizeFromEntityArticulated(Skeleton::CP
 	}
 }
 
-void CSkeletonPhysics::Job_Physics_SynchronizeFrom(Skeleton::CPoseData& poseData, float timeDelta)
+void CSkeletonPhysics::Job_Physics_SynchronizeFrom(Skeleton::CPoseData& poseData, const CTimeValue& timeDelta)
 {
 	DEFINE_PROFILER_FUNCTION();
 
@@ -555,7 +555,7 @@ void CSkeletonPhysics::Job_Physics_SynchronizeFromImpactPrepare(Memory::CPool& m
 	}
 }
 
-void CSkeletonPhysics::Job_Physics_SynchronizeFromImpact(Skeleton::CPoseData& poseData, float timeDelta)
+void CSkeletonPhysics::Job_Physics_SynchronizeFromImpact(Skeleton::CPoseData& poseData, const CTimeValue& timeDelta)
 {
 	if (!m_pPhysImpactBuffer)
 		return;
@@ -633,13 +633,13 @@ ILINE Quat SafeInterpolation(const Quat& q0, Quat q1, const float w, bool bFlip)
 	return q0 * Quat::exp(Quat::log(!q0 * q1) * w);
 }
 
-void CSkeletonPhysics::Job_Physics_BlendFromRagdoll(Skeleton::CPoseData& poseData, float timeDelta)
+void CSkeletonPhysics::Job_Physics_BlendFromRagdoll(Skeleton::CPoseData& poseData, const CTimeValue& timeDelta)
 {
-	if (m_timeStandingUp < 0.0f)
+	if (m_timeStandingUp < 0)
 		return;
 	const CDefaultSkeleton& rDefaultSkeleton = *m_pInstance->m_pDefaultSkeleton;
 
-	float t = min(1.0f, m_timeStandingUp);
+	float w = min(CTimeValue(1), m_timeStandingUp).BADGetSeconds();
 
 	uint jointCount = poseData.GetJointCount();
 
@@ -649,19 +649,19 @@ void CSkeletonPhysics::Job_Physics_BlendFromRagdoll(Skeleton::CPoseData& poseDat
 	{
 		Vec3 localPhysicsJointRootPosition = m_location.GetInverted() * m_physicsJointRootPosition;
 		poseData.GetJointsAbsolute()[rootJointIndex].t.SetLerp(
-		  localPhysicsJointRootPosition, poseData.GetJointsAbsolute()[rootJointIndex].t, t);
+		  localPhysicsJointRootPosition, poseData.GetJointsAbsolute()[rootJointIndex].t, w);
 		poseData.GetJointsRelative()[rootJointIndex].t =
 		  poseData.GetJointsAbsolute()[rootJointParentIndex].GetInverted() *
 		  poseData.GetJointsAbsolute()[rootJointIndex].t;
 	}
 
-	if (m_timeStandingUp == 0.0f)
+	if (m_timeStandingUp == 0)
 	{
 		m_bBlendFromRagdollFlip = (m_arrPhysicsJoints[rootJointIndex].m_qRelFallPlay | poseData.GetJointsRelative()[rootJointIndex].q) < 0.0f;
 	}
 
 	poseData.GetJointsRelative()[0].q = SafeInterpolation(
-	  m_arrPhysicsJoints[0].m_qRelFallPlay, poseData.GetJointsRelative()[0].q, t, false);
+	  m_arrPhysicsJoints[0].m_qRelFallPlay, poseData.GetJointsRelative()[0].q, w, false);
 	poseData.GetJointsAbsolute()[0].q = poseData.GetJointsRelative()[0].q;
 
 	for (uint i = 1; i < jointCount; ++i)
@@ -669,19 +669,19 @@ void CSkeletonPhysics::Job_Physics_BlendFromRagdoll(Skeleton::CPoseData& poseDat
 		if (i > uint(rootJointIndex))
 		{
 			poseData.GetJointsRelative()[i].q.SetNlerp(
-			  m_arrPhysicsJoints[i].m_qRelFallPlay, poseData.GetJointsRelative()[i].q, t);
+			  m_arrPhysicsJoints[i].m_qRelFallPlay, poseData.GetJointsRelative()[i].q, w);
 		}
 		else
 		{
 			poseData.GetJointsRelative()[i].q = SafeInterpolation(
-			  m_arrPhysicsJoints[i].m_qRelFallPlay, poseData.GetJointsRelative()[i].q, t, i == rootJointIndex ? m_bBlendFromRagdollFlip : false);
+			  m_arrPhysicsJoints[i].m_qRelFallPlay, poseData.GetJointsRelative()[i].q, w, i == rootJointIndex ? m_bBlendFromRagdollFlip : false);
 		}
 		poseData.GetJointsAbsolute()[i] = poseData.GetJointsAbsolute()[rDefaultSkeleton.m_arrModelJoints[i].m_idxParent] * poseData.GetJointsRelative()[i];
 	}
 
 	m_timeStandingUp += timeDelta;
-	if (m_timeStandingUp > 2.0f)
-		m_timeStandingUp = -1.0f;
+	if (m_timeStandingUp.GetSeconds() > 2)
+		m_timeStandingUp.SetSeconds(-1);
 }
 
 //

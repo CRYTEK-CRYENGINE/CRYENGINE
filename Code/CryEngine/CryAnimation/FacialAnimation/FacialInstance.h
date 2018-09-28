@@ -24,7 +24,7 @@ public:
 		m_lastSecondSliceUpdates(0),
 		m_enabled(true)
 	{
-		m_lastTime = gEnv->pTimer->GetAsyncCurTime();
+		m_lastTime = GetGTimer()->GetAsyncCurTime();
 	}
 	void SetTargetFramerate(uint32 frameRate)
 	{
@@ -32,7 +32,7 @@ public:
 	}
 	bool UpdateDue()
 	{
-		CTimeValue currTime = gEnv->pTimer->GetAsyncCurTime();
+		CTimeValue currTime = GetGTimer()->GetAsyncCurTime();
 		f32 timeDelta = (currTime - m_lastTime).GetSeconds();
 
 		if (timeDelta > 1.0f / SECOND_SLICES)
@@ -95,8 +95,8 @@ public:
 	virtual IFacialModel*        GetFacialModel();
 	virtual IFaceState*          GetFaceState();
 
-	virtual uint32               StartEffectorChannel(IFacialEffector* pEffector, float fWeight, float fFadeTime, float fLifeTime = 0, int nRepeatCount = 0);
-	virtual void                 StopEffectorChannel(uint32 nChannelID, float fFadeOutTime);
+	virtual uint32               StartEffectorChannel(IFacialEffector* pEffector, float fWeight, const CTimeValue& fFadeTime, const CTimeValue& fLifeTime = 0, int nRepeatCount = 0);
+	virtual void                 StopEffectorChannel(uint32 nChannelID, const CTimeValue& fFadeOutTime);
 	virtual void                 PreviewEffector(IFacialEffector* pEffector, float fWeight, float fBalance = 0.0f);
 	virtual void                 PreviewEffectors(IFacialEffector** pEffectors, float* fWeights, float* fBalances, int nEffectorsCount);
 
@@ -106,7 +106,7 @@ public:
 	virtual void                 StopSequence(EFacialSequenceLayer layer);
 	virtual bool                 IsPlaySequence(IFacialAnimSequence* pSequence, EFacialSequenceLayer layer);
 	virtual void                 PauseSequence(EFacialSequenceLayer layer, bool bPaused);
-	virtual void                 SeekSequence(EFacialSequenceLayer layer, float fTime);
+	virtual void                 SeekSequence(EFacialSequenceLayer layer, const CTimeValue& fTime);
 	virtual void                 LipSyncWithSound(uint32 nSoundId, bool bStop = false);
 	virtual void                 OnExpressionLibraryLoad();
 
@@ -132,9 +132,9 @@ public:
 	IFacialEffector*         FindEffector(const char* ident);
 
 	// Called every time facial animation needs to be recalculated.
-	void UpdatePlayingSequences(float fDeltaTimeSec, const QuatTS& rAnimLocationNext);
+	void UpdatePlayingSequences(const CTimeValue& fDeltaTime, const QuatTS& rAnimLocationNext);
 	void ProcessWaitingLipSync();
-	void Update(CFacialDisplaceInfo& pInfo, float fDeltaTimeSec, const QuatTS& rAnimLocationNext);
+	void Update(CFacialDisplaceInfo& pInfo, const CTimeValue& fDeltaTime, const QuatTS& rAnimLocationNext);
 
 #if USE_FACIAL_ANIMATION_FRAMERATE_LIMITING
 	void SetTargetFramerate(uint32 fps) { m_frameSkipper.SetTargetFramerate(fps); }
@@ -214,9 +214,9 @@ private:
 		Vec3                        m_JitterEyesPositions[4];
 		int                         m_nCurrEyesJitter;
 		float                       m_fEyesJitterScale;
-		float                       m_fLastJitterTime;
-		float                       m_fJitterTimeChange;
-		float                       m_fBlinkingTime;
+		CTimeValue                  m_fLastJitterTime;
+		CTimeValue                  m_fJitterTimeChange;
+		CTimeValue                  m_fBlinkingTime;
 		_smart_ptr<CFacialEffector> m_pBlink;
 		bool                        m_bEyesBlinking;
 		bool                        m_bEnabled;

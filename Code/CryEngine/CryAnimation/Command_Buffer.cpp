@@ -28,6 +28,8 @@ bool CState::Initialize(CCharInstance* pInstance, const QuatTS& location)
 
 	m_lod = m_pInstance->GetAnimationLOD();
 
+	// HACK: Workaround since Command buffer is 'allocated' in CharacterInstanceProcessing.cpp
+	m_originalTimeDelta.memHACK();
 	m_originalTimeDelta = m_pInstance->m_fOriginalDeltaTime;
 
 	m_pJointMask = NULL;

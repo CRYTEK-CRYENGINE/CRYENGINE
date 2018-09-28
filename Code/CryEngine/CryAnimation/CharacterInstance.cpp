@@ -28,8 +28,8 @@ CCharInstance::CCharInstance(const string& strFileName, CDefaultSkeleton* pDefau
 	m_LastRenderedFrameID = 0;
 	m_Viewdir = Vec3(0, 1, 0);
 
-	m_fDeltaTime = 0;
-	m_fOriginalDeltaTime = 0;
+	m_fDeltaTime.SetSeconds(0);
+	m_fOriginalDeltaTime.SetSeconds(0);
 
 	m_location.SetIdentity();
 
@@ -184,7 +184,7 @@ void CCharInstance::UpdatePhysicsCGA(Skeleton::CPoseData& poseData, float fScale
 	if (!m_SkeletonPose.GetCharacterPhysics())
 		return;
 
-	if (m_fOriginalDeltaTime <= 0.0f)
+	if (m_fOriginalDeltaTime <= 0)
 		return;
 
 	QuatT* const __restrict pAbsolutePose = poseData.GetJointsAbsolute();
@@ -274,7 +274,7 @@ void CCharInstance::ApplyJointVelocitiesToPhysics(IPhysicalEntity* pent, const Q
 	int i, iParent, numNodes = m_SkeletonPose.GetPoseData().GetJointCount();
 	QuatT qParent;
 	IController* pController;
-	float t, dt;
+	nTime t, dt; //Normalized times
 	pe_action_set_velocity asv;
 	CAnimationSet* pAnimationSet = m_pDefaultSkeleton->m_pAnimationSet;
 
@@ -301,10 +301,10 @@ void CCharInstance::ApplyJointVelocitiesToPhysics(IPhysicalEntity* pent, const Q
 	int idGlobal = pAnimationSet->GetGlobalIDByAnimID_Fast(anim.GetAnimationId());
 	GlobalAnimationHeaderCAF& animHdr = g_AnimationManager.m_arrGlobalCAF[idGlobal];
 
-	const float FRAME_TIME = 0.01f;
-	const float fAnimDuration = max(anim.GetExpectedTotalDurationSeconds(), 1e-5f);
-	dt = static_cast<float>(__fsel(fAnimDuration - FRAME_TIME, FRAME_TIME / fAnimDuration, 1.0f));
-	t = min(1.0f - dt, m_SkeletonAnim.GetAnimationNormalizedTime(&anim));
+	const CTimeValue FRAME_TIME = "0.01";
+	const CTimeValue fAnimDuration = max(anim.GetExpectedTotalDuration(), CTimeValue("0.00001"));
+	dt = __fsel((fAnimDuration - FRAME_TIME).GetSeconds().conv<nTime>(), FRAME_TIME / fAnimDuration, nTime(1));
+	t = min(1 - dt, m_SkeletonAnim.GetAnimationNormalizedTime(&anim));
 
 	for (i = 0; i < numNodes; i++)
 		if (pController = animHdr.GetControllerByJointCRC32(m_pDefaultSkeleton->m_arrModelJoints[i].m_nJointCRC32))                        //m_pDefaultSkeleton->m_arrModelJoints[i].m_arrControllersMJoint[idAnim])
@@ -318,15 +318,15 @@ void CCharInstance::ApplyJointVelocitiesToPhysics(IPhysicalEntity* pent, const Q
 			qAnimCur[i] = qAnimCur[iParent] * qAnimCur[i], qAnimNext[i] = qAnimNext[iParent] * qAnimNext[i];
 		}
 
-	const float INV_FRAME_TIME = 1.0f / FRAME_TIME;
+	const rTime INV_FRAME_TIME = 1 / FRAME_TIME;
 	for (i = 0; i < numNodes; i++)
 		if (m_pDefaultSkeleton->m_arrModelJoints[i].m_NodeID != ~0)
 		{
 			asv.partid = m_pDefaultSkeleton->m_arrModelJoints[i].m_NodeID;
-			asv.v = qrot * ((qAnimNext[i].t - qAnimCur[i].t) * INV_FRAME_TIME) + velHost;
+			asv.v = qrot * ((qAnimNext[i].t - qAnimCur[i].t) * BADF INV_FRAME_TIME) + velHost;
 			Quat dq = qAnimNext[i].q * !qAnimCur[i].q;
 			float sin2 = dq.v.len();
-			asv.w = qrot * (sin2 > 0 ? dq.v * (atan2_tpl(sin2 * dq.w * 2, dq.w * dq.w - sin2 * sin2) * INV_FRAME_TIME / sin2) : Vec3(0));
+			asv.w = qrot * (sin2 > 0 ? dq.v * (atan2_tpl(sin2 * dq.w * 2, dq.w * dq.w - sin2 * sin2) * BADF INV_FRAME_TIME / sin2) : Vec3(0));
 			pent->Action(&asv);
 		}
 }
@@ -846,9 +846,8 @@ void CCharInstance::SetupThroughParams(const SAnimationProcessParams* pParams)
 		m_SkeletonPose.m_AABB.min = Vec3(-2, -2, -2);
 	}
 
-	float fNewDeltaTime = clamp_tpl(g_pITimer->GetFrameTime(), 0.0f, 0.5f);
-	fNewDeltaTime =
-	  (float)__fsel(pParams->overrideDeltaTime, pParams->overrideDeltaTime, fNewDeltaTime);
+	CTimeValue fNewDeltaTime = CLAMP(GTimer(animation)->GetFrameTime(), 0, "0.5");
+	fNewDeltaTime = __fsel(pParams->overrideDeltaTime, pParams->overrideDeltaTime, fNewDeltaTime);
 	m_fOriginalDeltaTime = fNewDeltaTime;
 	m_fDeltaTime = fNewDeltaTime * m_fPlaybackScale;
 

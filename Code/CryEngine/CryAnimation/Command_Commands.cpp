@@ -216,7 +216,7 @@ void SampleAddAnimFull::Execute(const CState& state, CEvaluationContext& context
 	const auto outputRelScale = static_cast<float*>(context.m_buffers[bufferIndex + 3]);
 	const auto outputPoseState = static_cast<JointState*>(context.m_buffers[bufferIndex + 1]);
 
-	const f32 keyTimeNew = rCAF.NTime2KTime(m_fETimeNew);
+	const kTime keyTimeNew = rCAF.NTime2KTime(BADnT(m_fETimeNew));
 	const uint32 startingJointIndex = (m_flags & Flag_ADMotion) ? (1) : (0);
 
 	if (startingJointIndex == 1)
@@ -257,9 +257,9 @@ void SampleAddAnimFull::Execute(const CState& state, CEvaluationContext& context
 			}
 			assert(tempPose.IsValid());
 
-			outputRelPose[j].q += (tempPose.q * m_fWeight);
-			outputRelPose[j].t += (tempPose.t * m_fWeight);
-			outputRelScale[j] += (tempScale.x * m_fWeight);
+			outputRelPose[j].q += (tempPose.q * BADF m_fWeight);
+			outputRelPose[j].t += (tempPose.t * BADF m_fWeight);
+			outputRelScale[j] += (tempScale.x * BADF m_fWeight);
 		}
 	}
 	else
@@ -286,9 +286,9 @@ void SampleAddAnimFull::Execute(const CState& state, CEvaluationContext& context
 
 			assert(tempPose.IsValid());
 
-			outputRelPose[j].q += (tempPose.q * m_fWeight);
-			outputRelPose[j].t += (tempPose.t * m_fWeight);
-			outputRelScale[j] += (tempScale.x * m_fWeight);
+			outputRelPose[j].q += (tempPose.q * BADF m_fWeight);
+			outputRelPose[j].t += (tempPose.t * BADF m_fWeight);
+			outputRelScale[j] += (tempScale.x * BADF m_fWeight);
 		}
 	}
 
@@ -346,7 +346,7 @@ void SampleAddPoseFull::Execute(const CState& state, CEvaluationContext& context
 	const auto parrStatusDst = static_cast<JointState*>(context.m_buffers[nBufferID + 1]);
 	const QuatT* parrHemispherePose = Console::GetInst().ca_SampleQuatHemisphereFromCurrentPose ? parrRelJointsDst : pDefaultPose; // joints to compare with in quaternion dot product
 
-	const f32 fKeyTimeNew = rGlobalAnimHeaderAIM.NTime2KTime(m_fETimeNew);
+	const kTime fKeyTimeNew = rGlobalAnimHeaderAIM.NTime2KTime(BADnT(m_fETimeNew));
 	for (uint32 j = 0; j < state.m_jointCount; ++j)
 	{
 		Quat rot;
@@ -374,9 +374,9 @@ void SampleAddPoseFull::Execute(const CState& state, CEvaluationContext& context
 		assert(pos.IsValid());
 		assert(scl.IsValid());
 
-		parrRelJointsDst[j].q += m_fWeight * rot;
-		parrRelJointsDst[j].t += m_fWeight * pos;
-		parrRelScalingDst[j] += m_fWeight * scl.x;
+		parrRelJointsDst[j].q += BADF m_fWeight * rot;
+		parrRelJointsDst[j].t += BADF m_fWeight * pos;
+		parrRelScalingDst[j]  += BADF m_fWeight * scl.x;
 	}
 
 	static_assert(sizeof(*parrStatusDst) == 1, "Invalid assumption on the size of the joint state descriptor!");
@@ -520,8 +520,8 @@ void SampleAddAnimPart::Execute(const CState& state, CEvaluationContext& context
 	const auto parrController = static_cast<IController**>(alloca(state.m_jointCount * sizeof(IController*)));
 	GatherControllers(rCAF, state, parrController);
 
-	assert(m_fAnimTime >= 0.0f && m_fAnimTime <= 1.0f);
-	const f32 fKeyTimeNew = rCAF.NTime2KTime(m_fAnimTime);
+	assert(m_fAnimTime >= 0 && m_fAnimTime <= 1);
+	const kTime fKeyTimeNew = rCAF.NTime2KTime(BADnT(m_fAnimTime));
 
 	if (rCAF.IsAssetAdditive())
 	{
@@ -536,18 +536,18 @@ void SampleAddAnimPart::Execute(const CState& state, CEvaluationContext& context
 
 				if (jointState & eJS_Orientation)
 				{
-					parrJWeightsDst[j].x += m_fWeight;
-					parrRelPoseDst[j].q = Quat::CreateNlerp(IDENTITY, rot, m_fWeight) * parrRelPoseDst[j].q;
+					parrJWeightsDst[j].x += BADF m_fWeight;
+					parrRelPoseDst[j].q = Quat::CreateNlerp(IDENTITY, rot, BADF m_fWeight) * parrRelPoseDst[j].q;
 				}
 				if (jointState & eJS_Position)
 				{
-					parrJWeightsDst[j].y += m_fWeight;
-					parrRelPoseDst[j].t += pos * m_fWeight;
+					parrJWeightsDst[j].y += BADF m_fWeight;
+					parrRelPoseDst[j].t += pos * BADF m_fWeight;
 				}
 				if (jointState & eJS_Scale)
 				{
-					parrJWeightsDst[j].z += m_fWeight;
-					parrScalingDst[j] *= LERP(1.0f, scl.x, m_fWeight);
+					parrJWeightsDst[j].z += BADF m_fWeight;
+					parrScalingDst[j] *= LERP(1.0f, scl.x, BADF m_fWeight);
 					context.m_isScalingPresent = true;
 				}
 
@@ -571,18 +571,18 @@ void SampleAddAnimPart::Execute(const CState& state, CEvaluationContext& context
 
 				if (jointState & eJS_Orientation)
 				{
-					parrJWeightsDst[j].x += m_fWeight;
-					parrRelPoseDst[j].q += rot * fsgnnz(parrHemispherePose[j].q | rot) * m_fWeight;
+					parrJWeightsDst[j].x += BADF  m_fWeight;
+					parrRelPoseDst[j].q += rot * fsgnnz(parrHemispherePose[j].q | rot) * BADF m_fWeight;
 				}
 				if (jointState & eJS_Position)
 				{
-					parrJWeightsDst[j].y += m_fWeight;
-					parrRelPoseDst[j].t += pos * m_fWeight;
+					parrJWeightsDst[j].y += BADF m_fWeight;
+					parrRelPoseDst[j].t += pos * BADF m_fWeight;
 				}
 				if (jointState & eJS_Scale)
 				{
-					parrJWeightsDst[j].z += m_fWeight;
-					parrScalingDst[j] += scl.x * m_fWeight; // Take the x component only, we don't support non-uniform scaling yet.
+					parrJWeightsDst[j].z += BADF m_fWeight;
+					parrScalingDst[j] += scl.x * BADF m_fWeight; // Take the x component only, we don't support non-uniform scaling yet.
 					context.m_isScalingPresent = true;
 				}
 

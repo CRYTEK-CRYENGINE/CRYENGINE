@@ -10,7 +10,7 @@ class CryModEffMorph
 {
 public:
 	// advances the current time of the played animation and returns the blending factor by which this animation affects the bone pose
-	void Tick(f32 fDeltaTime);
+	void Tick(const CTimeValue& fDeltaTime);
 
 	// starts the morphing sequence
 	void StartMorph(int nMorphTargetId, const CryCharMorphParams& rParams);
@@ -24,11 +24,11 @@ public:
 	// returns the morph target
 	int  getMorphTargetId() const;
 
-	void setTime(f32 fTime)   { m_fTime = fTime; }
-	void setSpeed(f32 fSpeed) { m_Params.m_fSpeed = fSpeed; }
+	void setTime(const CTimeValue& fTime) { m_fTime = fTime; }
+	void setSpeed(const mpfloat& fSpeed)  { m_Params.m_fSpeed = fSpeed; }
 	void stop();
 
-	f32  getTime() const { return m_fTime; }
+	const CTimeValue&  getTime() const { return m_fTime; }
 	void freeze()        { m_nFlags |= m_Params.FLAGS_FREEZE; }
 
 	void GetMemoryUsage(ICrySizer* pSizer) const
@@ -47,7 +47,7 @@ public:
 	// the blend time
 	CryCharMorphParams m_Params;
 	// time of morphing
-	f32                m_fTime;
+	CTimeValue         m_fTime;
 	// morph target id
 	int                m_nMorphTargetId;
 	unsigned           m_nFlags; // the copy of the flags from m_Params

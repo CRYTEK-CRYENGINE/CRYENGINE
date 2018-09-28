@@ -30,8 +30,8 @@ struct SParametricSamplerInternal : public SParametricSampler
 	uint8  m_nLMGAnimIdx[MAX_LMG_EXAMPLES];
 	uint8  m_nSegmentCounterPrev[2][MAX_LMG_ANIMS];
 	uint8  m_nSegmentCounter[2][MAX_LMG_ANIMS];
-	f32    m_fBlendWeight[MAX_LMG_ANIMS];         //percentage blend-value for this motion
-	f32    m_fPlaybackScale[MAX_LMG_ANIMS];       //percentage blend-value for this motion
+	mpfloat m_fBlendWeight[MAX_LMG_ANIMS];         // percentage blend-value for this motion  mpfloat since * time
+	mpfloat m_fPlaybackScale[MAX_LMG_ANIMS];       // percentage blend-value for this motion  mpfloat since * time
 
 	SParametricSamplerInternal()
 	{
@@ -61,8 +61,8 @@ struct SParametricSamplerInternal : public SParametricSampler
 			m_nSegmentCounterPrev[1][i] = 0;
 			m_nSegmentCounter[0][i] = 0;
 			m_nSegmentCounter[1][i] = 0;
-			m_fBlendWeight[i] = 0.0f;
-			m_fPlaybackScale[i] = 1.0f;
+			m_fBlendWeight[i] = 0;
+			m_fPlaybackScale[i] = 1;
 		}
 	}
 
@@ -101,13 +101,14 @@ struct SParametricSamplerInternal : public SParametricSampler
 		}
 	};
 
-	f32           Parameterizer(const CAnimationSet* pAnimationSet, const CDefaultSkeleton* pDefaultSkeleton, const CAnimation& rCurAnim, f32 fFrameDeltaTime, f32 fPlaybackScale, bool AllowDebug);
+	// Returns normalized/warped time
+	nTime         Parameterizer(const CAnimationSet* pAnimationSet, const CDefaultSkeleton* pDefaultSkeleton, const CAnimation& rCurAnim, const CTimeValue& fFrameDeltaTime, const mpfloat& fPlaybackScale, bool AllowDebug);
 
-	void          BlendSpace1D(GlobalAnimationHeaderLMG& rLMG, const CAnimationSet* pAnimationSet, const CDefaultSkeleton* pDefaultSkeleton, const CAnimation& rCurAnim, f32 fFrameDeltaTime, f32 fPlaybackScale, Vec3 off, bool AllowDebug, uint32 nInstanceOffset);
-	void          BlendSpace2D(GlobalAnimationHeaderLMG& rLMG, const CAnimationSet* pAnimationSet, const CDefaultSkeleton* pDefaultSkeleton, const CAnimation& rCurAnim, f32 fFrameDeltaTime, f32 fPlaybackScale, Vec3 off, bool AllowDebug, uint32 nInstanceOffset);
-	void          BlendSpace3D(GlobalAnimationHeaderLMG& rLMG, const CAnimationSet* pAnimationSet, const CDefaultSkeleton* pDefaultSkeleton, const CAnimation& rCurAnim, f32 fFrameDeltaTime, f32 fPlaybackScale, Vec3 off, bool AllowDebug, uint32 nInstanceOffset);
+	void          BlendSpace1D(GlobalAnimationHeaderLMG& rLMG, const CAnimationSet* pAnimationSet, const CDefaultSkeleton* pDefaultSkeleton, const CAnimation& rCurAnim, const CTimeValue& fFrameDeltaTime, const mpfloat& fPlaybackScale, Vec3 off, bool AllowDebug, uint32 nInstanceOffset);
+	void          BlendSpace2D(GlobalAnimationHeaderLMG& rLMG, const CAnimationSet* pAnimationSet, const CDefaultSkeleton* pDefaultSkeleton, const CAnimation& rCurAnim, const CTimeValue& fFrameDeltaTime, const mpfloat& fPlaybackScale, Vec3 off, bool AllowDebug, uint32 nInstanceOffset);
+	void          BlendSpace3D(GlobalAnimationHeaderLMG& rLMG, const CAnimationSet* pAnimationSet, const CDefaultSkeleton* pDefaultSkeleton, const CAnimation& rCurAnim, const CTimeValue& fFrameDeltaTime, const mpfloat& fPlaybackScale, Vec3 off, bool AllowDebug, uint32 nInstanceOffset);
 
-	void          CombinedBlendSpaces(GlobalAnimationHeaderLMG& rLMG, const CAnimationSet* pAnimationSet, const CDefaultSkeleton* pDefaultSkeleton, const CAnimation& rCurAnim, f32 fFrameDeltaTime, f32 fPlaybackScale, bool AllowDebug);
+	void          CombinedBlendSpaces(GlobalAnimationHeaderLMG& rLMG, const CAnimationSet* pAnimationSet, const CDefaultSkeleton* pDefaultSkeleton, const CAnimation& rCurAnim, const CTimeValue& fFrameDeltaTime, const mpfloat& fPlaybackScale, bool AllowDebug);
 
 	int           GetWeights1D(f32 fDesiredParameter, const GlobalAnimationHeaderLMG& rLMG, f32 arrWeights[], Diag33 scl, Vec3 off) const;
 	int           GetWeights2D(const Vec2& vDesiredParameter, const GlobalAnimationHeaderLMG& rLMG, f32 arrWeights[], Diag33 scl, Vec3 off) const;
@@ -128,10 +129,10 @@ struct SParametricSamplerInternal : public SParametricSampler
 	}
 
 #if BLENDSPACE_VISUALIZATION
-	void BlendSpace1DVisualize(GlobalAnimationHeaderLMG& rLMG, const CAnimation& rCurAnim, const CAnimationSet* pAnimationSet, float fPlaybackScale, int nInstanceOffset, unsigned int fDebugConfig, float fUniScale) const;
-	void BlendSpace2DVisualize(GlobalAnimationHeaderLMG& rLMG, const CAnimation& rCurAnim, const CAnimationSet* pAnimationSet, float fPlaybackScale, int nInstanceOffset, unsigned int fDebugConfig, float fUniScale) const;
-	void BlendSpace3DVisualize(GlobalAnimationHeaderLMG& rLMG, const CAnimation& rCurAnim, const CAnimationSet* pAnimationSet, float fPlaybackScale, int nInstanceOffset, unsigned int fDebugConfig, float fUniScale) const;
-	void VisualizeBlendSpace(const IAnimationSet* pAnimationSet, const CAnimation& rCurAnim, f32 fPlaybackScale, uint32 nInstanceOffset, const GlobalAnimationHeaderLMG& rLMG, Vec3 off, int selFace, float fUniScale) const;
+	void BlendSpace1DVisualize(GlobalAnimationHeaderLMG& rLMG, const CAnimation& rCurAnim, const CAnimationSet* pAnimationSet, const mpfloat& fPlaybackScale, int nInstanceOffset, unsigned int fDebugConfig, float fUniScale) const;
+	void BlendSpace2DVisualize(GlobalAnimationHeaderLMG& rLMG, const CAnimation& rCurAnim, const CAnimationSet* pAnimationSet, const mpfloat& fPlaybackScale, int nInstanceOffset, unsigned int fDebugConfig, float fUniScale) const;
+	void BlendSpace3DVisualize(GlobalAnimationHeaderLMG& rLMG, const CAnimation& rCurAnim, const CAnimationSet* pAnimationSet, const mpfloat& fPlaybackScale, int nInstanceOffset, unsigned int fDebugConfig, float fUniScale) const;
+	void VisualizeBlendSpace(const IAnimationSet* pAnimationSet, const CAnimation& rCurAnim, const mpfloat& fPlaybackScale, uint32 nInstanceOffset, const GlobalAnimationHeaderLMG& rLMG, Vec3 off, int selFace, float fUniScale) const;
 	Vec3 m_vDesiredParameter;
 #endif
 };

@@ -190,8 +190,8 @@ void Console::Init()
 	                   "If set to 1, will prevent models from unloading from memory\nupon destruction of the last referencing character");
 	// if this is not empty string, the animations of characters with the given model will be logged
 	DefineConstIntCVar(ca_DebugSkeletonEffects, 0, VF_CHEAT, "If true, dump log messages when skeleton effects are handled.");
-	DefineConstIntCVar(ca_lipsync_phoneme_offset, 20, VF_CHEAT, "Offset phoneme start time by this value in milliseconds");
-	DefineConstIntCVar(ca_lipsync_phoneme_crossfade, 70, VF_CHEAT, "Cross fade time between phonemes in milliseconds");
+	REGISTER_CVAR(ca_lipsync_phoneme_offset, CTimeValue().SetMilliSeconds(20), VF_CHEAT, "Offset phoneme start time by this value");
+	REGISTER_CVAR(ca_lipsync_phoneme_crossfade, CTimeValue().SetMilliSeconds(70), VF_CHEAT, "Cross fade time between phonemes");
 	DefineConstIntCVar(ca_eyes_procedural, 1, 0, "Enables/Disables procedural eyes animation");
 	DefineConstIntCVar(ca_lipsync_debug, 0, VF_CHEAT, "Enables facial animation debug draw");
 	DefineConstIntCVar(ca_DebugFacial, 0, VF_CHEAT, "Debug facial playback info");
@@ -231,8 +231,8 @@ void Console::Init()
 	DefineConstIntCVar(ca_thread1Affinity, 3, VF_DUMPTODISK, "Affinity of second Animation Thread.");
 
 	// DBA unloading timings
-	DefineConstIntCVar(ca_DBAUnloadUnregisterTime, 2, VF_CHEAT, "DBA Unload Timing: CAF Unregister Time.");
-	DefineConstIntCVar(ca_DBAUnloadRemoveTime, 4, VF_CHEAT, "DBA Unload Timing: DBA Remove Time.");
+	REGISTER_CVAR(ca_DBAUnloadUnregisterTime, CTimeValue(2), VF_CHEAT, "DBA Unload Timing: CAF Unregister Time.");
+	REGISTER_CVAR(ca_DBAUnloadRemoveTime, CTimeValue(4), VF_CHEAT, "DBA Unload Timing: DBA Remove Time.");
 
 	// Animation data caching behavior (PC specific)
 	DefineConstIntCVar(ca_PrecacheAnimationSets, 0, VF_NULL, "Enable Precaching of Animation Sets per Character.");
@@ -270,7 +270,7 @@ void Console::Init()
 	//motion blur
 	REGISTER_CVAR(ca_MotionBlurMovementThreshold, 0.0f, 0, "\"advanced\" Set motion blur movement threshold for discarding skinned object");
 
-	REGISTER_CVAR(ca_DeathBlendTime, 0.3f, VF_CHEAT, "Specifies the blending time between low-detail dead body skeleton and current skeleton");
+	REGISTER_CVAR(ca_DeathBlendTime, CTimeValue("0.3"), VF_CHEAT, "Specifies the blending time between low-detail dead body skeleton and current skeleton");
 	REGISTER_CVAR(ca_lipsync_vertex_drag, 1.2f, VF_CHEAT, "Vertex drag coefficient when blending morph targets");
 	REGISTER_CVAR(ca_lipsync_phoneme_strength, 1.0f, 0, "LipSync phoneme strength");
 	REGISTER_CVAR(ca_AttachmentCullingRation, 200.0f, 0, "ration between size of attachment and distance to camera");
@@ -280,7 +280,7 @@ void Console::Init()
 	REGISTER_CVAR(ca_VClothMode, 1, 0, "0 - disabled (disable rendering & simulation)\n1 - enabled (default)\n2 - force skinning (disable simulation)");
 
 	//cloth
-	REGISTER_CVAR(ca_cloth_max_timestep, 0.0f, 0, "");
+	//REGISTER_CVAR(ca_cloth_max_timestep, 0.0f, 0, "");
 	REGISTER_CVAR(ca_cloth_max_safe_step, 0.0f, 0, "if a segment stretches more than this (in *relative* units), its length is reinforced");
 	REGISTER_CVAR(ca_cloth_stiffness, 0.0f, 0, "stiffness for stretching");
 	REGISTER_CVAR(ca_cloth_thickness, 0.0f, 0, "thickness for collision checks");

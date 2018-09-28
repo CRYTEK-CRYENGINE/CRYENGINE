@@ -131,8 +131,8 @@ public:
 	// return key value in f32 format
 	virtual f32 GetKeyValueFloat(uint32 key) const = 0;
 
-	// return key number for normalized_time
-	virtual uint32                       GetKey(f32 normalized_time, f32& difference_time) = 0;
+	// return key number for keyTime
+	virtual uint32                       GetKey(const kTime& keyTime, kTime& difference_time) = 0;
 
 	virtual uint32                       GetNumKeys() const = 0;
 
@@ -180,13 +180,13 @@ public:
 	// return key value in f32 format
 	f32 GetKeyValueFloat(uint32 key) const { return (m_pKeys[key]); }
 
-	// return key number for normalized_time
-	uint32 GetKey(f32 normalized_time, f32& difference_time)
+	// return key number for keyTime
+	uint32 GetKey(const kTime& keyTime, kTime& difference_time)
 	{
 		TKeyTime* pKeys = m_pKeys;
 		uint32 numKey = GetNumKeys_Int();
 
-		f32 realtime = normalized_time;
+		kTime realtime = keyTime;
 
 		/*
 		   if (realtime == m_lastTime)
@@ -200,17 +200,13 @@ public:
 		TKeyTime keytime_start = pKeys[0];
 		TKeyTime keytime_end = pKeys[numKey - 1];
 
-		f32 test_end = keytime_end;
-		if (realtime < keytime_start)
-			test_end += realtime;
-
-		if (realtime < keytime_start)
+		if (BADF realtime < keytime_start)
 		{
 			m_lastKey = 0;
 			return 0;
 		}
 
-		if (realtime >= keytime_end)
+		if (BADF realtime >= keytime_end)
 		{
 			m_lastKey = numKey;
 			return numKey;
@@ -222,9 +218,9 @@ public:
 		// use binary search
 		while (nStep)
 		{
-			if (realtime < pKeys[nPos])
+			if (BADF realtime < pKeys[nPos])
 				nPos = nPos - nStep;
-			else if (realtime > pKeys[nPos])
+			else if (BADF realtime > pKeys[nPos])
 				nPos = nPos + nStep;
 			else
 				break;
@@ -233,16 +229,16 @@ public:
 		}
 
 		// fine-tuning needed since time is not linear
-		while (realtime > pKeys[nPos])
+		while (BADF realtime > pKeys[nPos])
 			nPos++;
 
-		while (realtime < pKeys[nPos - 1])
+		while (BADF realtime < pKeys[nPos - 1])
 			nPos--;
 
 		m_lastKey = nPos;
 
 		// possible error if encoder uses nonlinear methods!!!
-		m_LastDifferenceTime = difference_time = /*TEncoder::DecodeKeyValue*/ (f32)(realtime - (f32)pKeys[nPos - 1]) / ((f32)pKeys[nPos] - (f32)pKeys[nPos - 1]);
+		m_LastDifferenceTime = difference_time = /*TEncoder::DecodeKeyValue*/ (realtime - BADkT(pKeys[nPos - 1])) / (BADkT(pKeys[nPos]) - BADkT(pKeys[nPos - 1]));
 
 		return nPos;
 
@@ -320,8 +316,8 @@ private:
 	TKeyTime*            m_pKeys;
 	CControllerDefragHdl m_hHdl;
 	uint32               m_numKeys;
-	f32                  m_lastTime;
-	f32                  m_LastDifferenceTime;
+	kTime                m_lastTime;
+	kTime                m_LastDifferenceTime;
 	uint32               m_lastKey;
 };
 
@@ -340,21 +336,22 @@ public:
 	// return key value in f32 format
 	f32 GetKeyValueFloat(uint32 key) const { return /*TEncoder::DecodeKeyValue*/ (float)(m_arrKeys[0] + key); }
 
-	// return key number for normalized_time
-	uint32 GetKey(f32 normalized_time, f32& difference_time)
+	// return key number for keyTime
+	uint32 GetKey(const kTime& keyTime, kTime& difference_time)
 	{
-		f32 realtime = normalized_time;
+		kTime realtime = keyTime;
 
-		if (realtime < m_arrKeys[0])
+		// PERSONAL IMPROVE: More complicated encodings for TKeyTime storage&reading in int16/float/etc.
+		// Not sure why so many variations, probably no 'easy' way to implement time for this.
+		if (BADF realtime < m_arrKeys[0])
 			return 0;
 
-		if (realtime > m_arrKeys[1])
+		if (BADF realtime > m_arrKeys[1])
 			return (uint32)(m_arrKeys[1] - m_arrKeys[0]);
 
-		uint32 nKey = (uint32)realtime;
-		difference_time = realtime - (float)(nKey);
+		difference_time = realtime - (uint32)(realtime);
 
-		return nKey;
+		return (uint32)(realtime);
 	}
 
 	uint32 GetNumKeys() const { return (uint32)(m_arrKeys[1] - m_arrKeys[0]); }
@@ -556,10 +553,10 @@ public:
 		return 0;
 	}
 
-	// return key number for normalized_time
-	uint32 GetKey(f32 normalized_time, f32& difference_time)
+	// return key number for keyTime
+	uint32 GetKey(const kTime& keyTime, kTime& difference_time)
 	{
-		f32 realtime = normalized_time;
+		kTime realtime = keyTime;
 
 		if (realtime == m_lastTime)
 		{
@@ -569,12 +566,9 @@ public:
 		m_lastTime = realtime;
 		uint32 numKey = (uint32)GetHeader()->m_Size;  //m_arrKeys.size();
 
-		f32 keytime_start = (float)GetHeader()->m_Start;
-		f32 keytime_end = (float)GetHeader()->m_End;
-		f32 test_end = keytime_end;
+		uint16 keytime_start = GetHeader()->m_Start;
+		uint16 keytime_end   = GetHeader()->m_End;
 
-		if (realtime < keytime_start)
-			test_end += realtime;
 
 		if (realtime < keytime_start)
 		{
@@ -590,7 +584,7 @@ public:
 			return numKey;
 		}
 
-		f32 internalTime = realtime - keytime_start;
+		kTime internalTime = realtime - keytime_start;
 		uint16 uTime = (uint16)internalTime;
 		uint16 piece = (uTime / sizeof(uint16)) >> 3;
 		uint16 bit = /*15 - */ (uTime % 16);
@@ -619,7 +613,7 @@ public:
 		}
 
 		nearestRight = ((rigthPiece * sizeof(uint16)) << 3) + wBit;
-		m_LastDifferenceTime = difference_time = (f32)(internalTime - (f32)nearestLeft) / ((f32)nearestRight - (f32)nearestLeft);
+		m_LastDifferenceTime = difference_time = (internalTime - nearestLeft) / (nearestRight - nearestLeft);
 
 		// count nPos
 		uint32 nPos(0);
@@ -724,8 +718,8 @@ private:
 	uint16* m_pKeys;
 	uint32  m_numKeys;
 
-	f32     m_lastTime;
-	f32     m_LastDifferenceTime;
+	kTime m_lastTime;
+	kTime m_LastDifferenceTime;
 	uint32  m_lastKey;
 };
 
@@ -949,7 +943,7 @@ public:
 	{
 	}
 
-	virtual void   GetValue(f32 normalized_time, Vec3& quat) = 0;
+	virtual void   GetValue(const kTime& keyTime, Vec3& quat) = 0;
 
 	virtual size_t SizeOfPosController()
 	{
@@ -995,7 +989,7 @@ public:
 		delete m_pData;
 	}
 
-	virtual void   GetValue(f32 normalized_time, Quat& quat) = 0;
+	virtual void   GetValue(const kTime& keyTime, Quat& quat) = 0;
 
 	virtual size_t SizeOfRotController()
 	{
@@ -1048,11 +1042,11 @@ public:
 
 	virtual ~CAdvancedTrackInformation() {}
 
-	virtual void GetValue(f32 normalized_time, TData& pos)
+	virtual void GetValue(const kTime& keyTime, TData& pos)
 	{
 		//DEFINE_PROFILER_SECTION("ControllerPQ::GetValue");
-		f32 t;
-		uint32 key = this->m_pKeyTimes->GetKey(normalized_time, t);
+		kTime t;
+		uint32 key = this->m_pKeyTimes->GetKey(keyTime, t);
 
 		if (key == 0)
 		{
@@ -1077,7 +1071,7 @@ public:
 				TBase::GetValueFromKey(key - 1, p1);
 				TBase::GetValueFromKey(key, p2);
 
-				TInterpolator::Blend(pos, p1, p2, t);
+				TInterpolator::Blend(pos, p1, p2, BADF t);
 			}
 		}
 	}
@@ -1107,11 +1101,11 @@ public:
 
 	//////////////////////////////////////////////////////////////////////////
 	// IController
-	virtual JointState GetOPS(f32 normalized_time, Quat& quat, Vec3& pos, Diag33& scale) const override;
-	virtual JointState GetOP(f32 normalized_time, Quat& quat, Vec3& pos) const override;
-	virtual JointState GetO(f32 normalized_time, Quat& quat) const override;
-	virtual JointState GetP(f32 normalized_time, Vec3& pos) const override;
-	virtual JointState GetS(f32 normalized_time, Diag33& scl) const override;
+	virtual JointState GetOPS(const kTime& keyTime, Quat& quat, Vec3& pos, Diag33& scale) const override;
+	virtual JointState GetOP(const kTime& keyTime, Quat& quat, Vec3& pos) const override;
+	virtual JointState GetO(const kTime& keyTime, Quat& quat) const override;
+	virtual JointState GetP(const kTime& keyTime, Vec3& pos) const override;
+	virtual JointState GetS(const kTime& keyTime, Diag33& scl) const override;
 	virtual int32      GetO_numKey() const override;
 	virtual int32      GetP_numKey() const override;
 	virtual size_t     GetRotationKeysNum() const override;

@@ -149,8 +149,8 @@ bool CAnimationManager::LoadAnimationTCB(int nAnimId, DynArray<CControllerTCB>& 
 	int32 nStartKey = pCGA->m_start;
 	int32 nEndKey = pCGA->m_end;
 
-	rGlobalAnim.m_fStartSec = nStartKey / ANIMATION_30Hz;
-	rGlobalAnim.m_fEndSec = nEndKey / ANIMATION_30Hz;
+	rGlobalAnim.m_fStartSec.SetSeconds(mpfloat(nStartKey) / ANIMATION_30Hz);
+	rGlobalAnim.m_fEndSec.SetSeconds(mpfloat(nEndKey) / ANIMATION_30Hz);
 	if (rGlobalAnim.m_fEndSec <= rGlobalAnim.m_fStartSec)
 		rGlobalAnim.m_fEndSec = rGlobalAnim.m_fStartSec;
 
@@ -280,10 +280,10 @@ bool CAnimationManager::LoadAnimEventFromXml(const XmlNodeRef& dataIn, CAnimEven
 	if (!(sEventName = dataIn->getAttr("name")))
 		sEventName = "__unnamed__";
 
-	float fTime = 0.f;
+	nTime fTime = 0;
 	dataIn->getAttr("time", fTime);
 
-	float endTime = fTime;
+	nTime endTime = fTime;
 	dataIn->getAttr("endTime", endTime);
 
 	XmlString sParameter;
@@ -332,7 +332,7 @@ void CAnimationManager::InitializeSegmentationDataFromAnimEvents(const char* ani
 	{
 		const CAnimEventData& animEvent = animEvents.GetByIndex(i);
 		const uint32 eventNameCRC32 = animEvent.GetNameLowercaseCRC32();
-		float normalizedTime = animEvent.GetNormalizedTime();
+		nTime normalizedTime = animEvent.GetNormalizedTime();
 
 		uint32 ind = -1;
 		if (eventNameCRC32 == s_crc32_segment1)
@@ -482,7 +482,7 @@ bool CAnimationManager::DBA_Unload(const char* pFilePathDBA)
 					if (nCRC32 == parrGlobalDBA[d].m_FilePathDBACRC32)
 					{
 						parrGlobalDBA[d].m_nUsedAnimations++;
-						parrGlobalDBA[d].m_nLastUsedTimeDelta = 0;
+						parrGlobalDBA[d].m_nLastUsedTimeDelta.SetSeconds(0);
 					}
 				}
 			}
@@ -600,7 +600,7 @@ bool CAnimationManager::DBA_Unload_All()
 					if (nCRC32 == parrGlobalDBA[d].m_FilePathDBACRC32)
 					{
 						parrGlobalDBA[d].m_nUsedAnimations++;
-						parrGlobalDBA[d].m_nLastUsedTimeDelta = 0;
+						parrGlobalDBA[d].m_nLastUsedTimeDelta.SetSeconds(0);
 					}
 				}
 			}
@@ -1000,7 +1000,7 @@ void CAnimationManager::DebugAnimUsage(uint32 printtxt)
 			uint32 nDBACRC32 = m_arrGlobalHeaderDBA[b].m_FilePathDBACRC32;
 			uint32 nUsedAssets = m_arrGlobalHeaderDBA[b].m_nUsedAnimations;
 			size_t nSizeOfDBA = m_arrGlobalHeaderDBA[b].SizeOf_DBA();
-			uint32 nLastUsedTimeSec = m_arrGlobalHeaderDBA[b].m_nLastUsedTimeDelta / 1000;
+			mpfloat nLastUsedTimeSec = m_arrGlobalHeaderDBA[b].m_nLastUsedTimeDelta.GetSeconds();
 			uint32 nLock = m_arrGlobalHeaderDBA[b].m_bDBALock;
 
 			if (m_arrGlobalHeaderDBA[b].m_pDatabaseInfo == 0)
@@ -1019,7 +1019,7 @@ void CAnimationManager::DebugAnimUsage(uint32 printtxt)
 				}
 				if (printtxt)
 				{
-					g_pAuxGeom->Draw2dLabel(1, g_YLine, 1.1f, fColor, false, "UsedAssets: %04d  nTCount: %u  Size: %" PRISIZE_T "  FilePathDBA: %s", nUsedAssets, nLastUsedTimeSec, nSizeOfDBA, pName);
+					g_pAuxGeom->Draw2dLabel(1, g_YLine, 1.1f, fColor, false, "UsedAssets: %04d  nTCount: %u  Size: %" PRISIZE_T "  FilePathDBA: %s", nUsedAssets, (float)nLastUsedTimeSec, nSizeOfDBA, pName);
 					g_YLine += 11.0f;
 				}
 			}

@@ -229,7 +229,7 @@ class CFacialEffCtrlSplineInterpolator : public FacialBaseSplineInterpolator
 public:
 	CFacialEffCtrlSplineInterpolator(CFacialEffCtrl* pOwner) : m_pOwner(pOwner) {};
 
-	virtual void Interpolate(float time, ValueType& val);
+	virtual void Interpolate(const mpfloat& time, ValueType& val);
 
 private:
 	CFacialEffCtrl* m_pOwner;
@@ -259,7 +259,7 @@ public:
 	virtual int                         GetFlags()           { return m_nFlags; }
 	virtual void                        SetFlags(int nFlags) { m_nFlags = nFlags; };
 	virtual ISplineInterpolator*        GetSpline()          { return m_pSplineInterpolator; };
-	virtual float                       Evaluate(float fInput);
+	virtual float                       Evaluate(const mpfloat& fInput);
 	//////////////////////////////////////////////////////////////////////////
 
 	//////////////////////////////////////////////////////////////////////////

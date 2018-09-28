@@ -43,7 +43,7 @@ const char* AnimFlags(uint32 flags)
 /////////////////////////////////////////////////////////////////////////////////
 // this function is handling animation-update, interpolation and transitions   //
 /////////////////////////////////////////////////////////////////////////////////
-uint32 CSkeletonAnim::BlendManager(f32 fDeltaTime, DynArray<CAnimation>& arrAFIFO, uint32 nLayer)
+uint32 CSkeletonAnim::BlendManager(const CTimeValue& fDeltaTime, DynArray<CAnimation>& arrAFIFO, uint32 nLayer)
 {
 	DEFINE_PROFILER_FUNCTION();
 
@@ -105,8 +105,8 @@ uint32 CSkeletonAnim::BlendManager(f32 fDeltaTime, DynArray<CAnimation>& arrAFIF
 	for (uint32 a = 0; a < nMaxActiveInQueue; a++)
 	{
 		assert(arrAnimFiFo[a].IsActivated());
-		f32 t = arrAnimFiFo[a].m_fAnimTime[0];
-		assert(t >= 0.0f && t <= 1.0f);  //most likely this is coming from outside if CryAnimation
+		nTime t = arrAnimFiFo[a].m_fAnimTime[0];
+		assert(t >= 0 && t <= 1);  //most likely this is coming from outside if CryAnimation
 	}
 #endif
 
@@ -122,24 +122,24 @@ uint32 CSkeletonAnim::BlendManager(f32 fDeltaTime, DynArray<CAnimation>& arrAFIF
 #ifdef _DEBUG
 	for (uint32 j = 0; j < nMaxActiveInQueue; j++)
 	{
-		if (arrAnimFiFo[j].GetTransitionWeight() < 0.0f)
+		if (arrAnimFiFo[j].GetTransitionWeight() < 0)
 			assert(0);
-		if (arrAnimFiFo[j].GetTransitionWeight() > 1.0f)
+		if (arrAnimFiFo[j].GetTransitionWeight() > 1)
 			assert(0);
-		if (arrAnimFiFo[j].GetTransitionPriority() < 0.0f)
+		if (arrAnimFiFo[j].GetTransitionPriority() < 0)
 			assert(0);
-		if (arrAnimFiFo[j].GetTransitionPriority() > 1.0f)
+		if (arrAnimFiFo[j].GetTransitionPriority() > 1)
 			assert(0);
 	}
 #endif
 
-	f32 TotalWeights = 0.0f;
+	mpfloat TotalWeights = 0;
 	for (uint32 i = 0; i < nMaxActiveInQueue; i++)
 		TotalWeights += arrAnimFiFo[i].GetTransitionWeight();
 	//		assert( fabsf(TotalWeights-1.0f) < 0.001f );
 
-	f32 fTotal = fabsf(TotalWeights - 1.0f);
-	if (fTotal > 0.01f)
+	mpfloat fTotal = abs(TotalWeights - 1);
+	if (fTotal > "0.01")
 	{
 		assert(!"sum of transition-weights is wrong");
 		CryFatalError("CryAnimation: sum of transition-weights is wrong: %f %s", fTotal, m_pInstance->m_pDefaultSkeleton->GetModelFilePath());
@@ -205,7 +205,7 @@ uint32 CSkeletonAnim::CheckIsCAFLoaded(CAnimationSet* pAnimationSet, int32 nAnim
 	return 0;
 }
 
-void CSkeletonAnim::UpdateParameters(CAnimation* arrAnimFiFo, uint32 nMaxActiveInQueue, uint32 nLayer, f32 fFrameDeltaTime)
+void CSkeletonAnim::UpdateParameters(CAnimation* arrAnimFiFo, uint32 nMaxActiveInQueue, uint32 nLayer, const CTimeValue& fFrameDeltaTime)
 {
 	DEFINE_PROFILER_FUNCTION();
 
@@ -237,10 +237,10 @@ void CSkeletonAnim::UpdateParameters(CAnimation* arrAnimFiFo, uint32 nMaxActiveI
 			//Update the Blend Weights for this Parametric Group and do return the time-warped delta time.
 			bool nAllowDebugging = nMaxActiveInQueue == 1 && Console::GetInst().ca_DrawVEGInfo && m_pInstance->m_CharEditMode;
 			rCurAnim.m_fCurrentDeltaTime = pParametric->Parameterizer(pAnimationSet, m_pInstance->m_pDefaultSkeleton, rCurAnim, fFrameDeltaTime, m_pInstance->m_fPlaybackScale, nAllowDebugging);
-			rCurAnim.m_fCurrentDeltaTime *= rCurAnim.m_fPlaybackScale;
+			rCurAnim.m_fCurrentDeltaTime *= rCurAnim.m_fPlaybackScale.conv<nTime>();
 
-			f32 fTWDuration = 0.0f;
-			f32 totalTime = 0.0f;
+			CTimeValue fTWDuration;
+			CTimeValue totalTime;
 			for (uint32 i = 0; i < pParametric->m_numExamples; i++)
 			{
 				if (pParametric->m_fBlendWeight[i] == 0)
@@ -251,26 +251,26 @@ void CSkeletonAnim::UpdateParameters(CAnimation* arrAnimFiFo, uint32 nMaxActiveI
 				const ModelAnimationHeader* pAnimPS = pAnimationSet->GetModelAnimationHeader(nAnimIDPS);
 				GlobalAnimationHeaderCAF& rCAF = g_AnimationManager.m_arrGlobalCAF[pAnimPS->m_nGlobalAnimId];
 				int32 segcount = pParametric->m_nSegmentCounter[0][i];
-				f32 fSegDuration = rCAF.GetSegmentDuration(segcount);
-				fSegDuration = max(fSegDuration, 1.0f / ANIMATION_30Hz);
-				fTWDuration += pParametric->m_fBlendWeight[i] * fSegDuration;
+				CTimeValue fSegDuration = rCAF.GetSegmentDuration(segcount);
+				fSegDuration = max(fSegDuration, ANIMATION_FSTEP);
+				fTWDuration += pParametric->m_fBlendWeight[i] * fSegDuration; // PERSONAL NOTE: This is why blend-weights are mpfloats. weight*time.
 
 				const uint32 totSegs = rCAF.GetTotalSegments();
 				for (uint32 s = 0; s < totSegs; s++)
 				{
-					f32 fCurSegDuration = rCAF.GetSegmentDuration(s);
-					fCurSegDuration = max(fCurSegDuration, 1.0f / ANIMATION_30Hz);
+					CTimeValue fCurSegDuration = rCAF.GetSegmentDuration(s);
+					fCurSegDuration = max(fCurSegDuration, ANIMATION_FSTEP);
 					totalTime += pParametric->m_fBlendWeight[i] * fCurSegDuration;
 				}
 			}
-			if (rCurAnim.m_fCurrentDeltaTime > 0.0f)
+			if (rCurAnim.m_fCurrentDeltaTime > 0)
 			{
-				totalTime *= (fFrameDeltaTime / (rCurAnim.m_fCurrentDeltaTime * fTWDuration));
+				totalTime *= (fFrameDeltaTime / (rCurAnim.m_fCurrentDeltaTime.conv<mpfloat>() * fTWDuration)).conv<mpfloat>();
 			}
-			const float expectedSegmentDuration = max(0.0001f, fTWDuration);
-			rCurAnim.SetCurrentSegmentExpectedDurationSeconds(expectedSegmentDuration);
-			const float expectedTotalDuration = max(0.0001f, totalTime);
-			rCurAnim.SetExpectedTotalDurationSeconds(expectedTotalDuration);
+			const CTimeValue expectedSegmentDuration = max(CTimeValue("0.0001"), fTWDuration); // PERSONAL TODO: Moar clamping
+			rCurAnim.SetCurrentSegmentExpectedDuration(expectedSegmentDuration);
+			const CTimeValue expectedTotalDuration = max(CTimeValue("0.0001"), totalTime);
+			rCurAnim.SetExpectedTotalDuration(expectedTotalDuration);
 
 		}
 		else
@@ -282,18 +282,18 @@ void CSkeletonAnim::UpdateParameters(CAnimation* arrAnimFiFo, uint32 nMaxActiveI
 			{
 				GlobalAnimationHeaderCAF& rGAH = g_AnimationManager.m_arrGlobalCAF[pAnim->m_nGlobalAnimId];
 				const int32 segcount = rCurAnim.m_currentSegmentIndex[0];
-				f32 fSegTime = rGAH.GetSegmentDuration(segcount);
-				fSegTime = max(fSegTime, 1.0f / ANIMATION_30Hz);
-				rCurAnim.SetCurrentSegmentExpectedDurationSeconds(fSegTime);
+				CTimeValue fSegTime = rGAH.GetSegmentDuration(segcount);
+				fSegTime = max(fSegTime, ANIMATION_FSTEP);
+				rCurAnim.SetCurrentSegmentExpectedDuration(fSegTime);
 				rCurAnim.m_fCurrentDeltaTime = (rCurAnim.m_fPlaybackScale * fFrameDeltaTime) / fSegTime;
 			}
 			if (pAnim->m_nAssetType == AIM_File)
 			{
 				GlobalAnimationHeaderAIM& rAIM = g_AnimationManager.m_arrGlobalAIM[pAnim->m_nGlobalAnimId];
 				const int32 segcount = rCurAnim.m_currentSegmentIndex[0];
-				f32 fSegTime = max(rAIM.m_fTotalDuration, 1.0f / ANIMATION_30Hz);
-				fSegTime = max(fSegTime, 1.0f / ANIMATION_30Hz);
-				rCurAnim.SetCurrentSegmentExpectedDurationSeconds(fSegTime);
+				CTimeValue fSegTime = max(rAIM.m_fTotalDuration, ANIMATION_FSTEP);
+				fSegTime = max(fSegTime, ANIMATION_FSTEP);
+				rCurAnim.SetCurrentSegmentExpectedDuration(fSegTime);
 				rCurAnim.m_fCurrentDeltaTime = (rCurAnim.m_fPlaybackScale * fFrameDeltaTime) / fSegTime;
 			}
 		}
@@ -304,13 +304,13 @@ void CSkeletonAnim::UpdateAnimationTime(CAnimation& rAnimation, uint32 nLayer, u
 {
 	DEFINE_PROFILER_FUNCTION();
 
-	assert(rAnimation.m_fAnimTime[idx] <= 2.0f);
+	assert(rAnimation.m_fAnimTime[idx] <= 2);
 
 	const bool ManualUpdate = rAnimation.HasStaticFlag(CA_MANUAL_UPDATE);
 	if (ManualUpdate)
 	{
-		rAnimation.m_fCurrentDeltaTime = 0.0f;
-		if ((rAnimation.GetTransitionWeight() == 0.0f) && (AnimNo == 0))
+		rAnimation.m_fCurrentDeltaTime = 0;
+		if ((rAnimation.GetTransitionWeight() == 0) && (AnimNo == 0))
 		{
 			if (m_TrackViewExclusive == 0)
 				rAnimation.m_DynFlags[idx] |= CA_REMOVE_FROM_QUEUE;
@@ -324,7 +324,7 @@ void CSkeletonAnim::UpdateAnimationTime(CAnimation& rAnimation, uint32 nLayer, u
 	if (LoopAnimation)
 		RepeatLastKey = false;
 
-	rAnimation.m_fCurrentDeltaTime = max(rAnimation.m_fCurrentDeltaTime, 0.0f);     //nagative delta-time not allowed any more
+	rAnimation.m_fCurrentDeltaTime = max(rAnimation.m_fCurrentDeltaTime, nTime(0));     //nagative delta-time not allowed any more
 
 	SParametricSamplerInternal* pParametric = (SParametricSamplerInternal*)rAnimation.GetParametricSampler();
 	if (pParametric)
@@ -344,8 +344,8 @@ void CSkeletonAnim::UpdateAnimationTime(CAnimation& rAnimation, uint32 nLayer, u
 	int numLoops = (int)rAnimation.m_fAnimTime[idx];
 	if (numLoops > 0)
 	{
-		rAnimation.m_fAnimTime[idx] = rAnimation.m_fAnimTime[idx] - ((float)numLoops);  //warp fAnimTime when time is running forward
-		assert(rAnimation.m_fAnimTime[idx] >= 0.0f && rAnimation.m_fAnimTime[idx] <= 1.0f);
+		rAnimation.m_fAnimTime[idx] = rAnimation.m_fAnimTime[idx] - numLoops;  //warp fAnimTime when time is running forward
+		assert(rAnimation.m_fAnimTime[idx] >= 0 && rAnimation.m_fAnimTime[idx] <= 1);
 		rAnimation.m_DynFlags[idx] |= CA_EOC;
 		rAnimation.m_DynFlags[idx] |= CA_LOOPED; //..and set loop flag
 
@@ -374,7 +374,7 @@ void CSkeletonAnim::UpdateAnimationTime(CAnimation& rAnimation, uint32 nLayer, u
 				if (nClamped == numAnims)
 				{
 					rAnimation.m_DynFlags[idx] &= ~CA_EOC; //always delete
-					rAnimation.m_fAnimTime[idx] = 1.0f;    //clamp time
+					rAnimation.m_fAnimTime[idx] = 1;    //clamp time
 					if (RepeatLastKey)
 						rAnimation.m_DynFlags[idx] |= CA_REPEAT; //...and set the repeat-mode;
 					else
@@ -390,7 +390,7 @@ void CSkeletonAnim::UpdateAnimationTime(CAnimation& rAnimation, uint32 nLayer, u
 					if (++rAnimation.m_currentSegmentIndex[idx] >= rCAF.m_Segments)
 					{
 						rAnimation.m_currentSegmentIndex[idx] = rCAF.m_Segments - 1; //clamp segments to the highest
-						rAnimation.m_fAnimTime[idx] = 1.0f;                          //clamp time
+						rAnimation.m_fAnimTime[idx] = 1;                          //clamp time
 						rAnimation.m_DynFlags[idx] &= ~CA_EOC;                       //always delete
 						if (RepeatLastKey)
 							rAnimation.m_DynFlags[idx] |= CA_REPEAT; //...and set the repeat-mode;
@@ -410,7 +410,7 @@ void CSkeletonAnim::UpdateAnimationTime(CAnimation& rAnimation, uint32 nLayer, u
 				uint32 rlk = flags & CA_REPEAT_LAST_KEY;
 				uint32 fo = flags & CA_FADEOUT;  //this is something that CryMannequin should do
 				if (rlk && fo)
-					StopAnimationInLayer(nLayer, 0.5f);
+					StopAnimationInLayer(nLayer, "0.5");
 			}
 		}
 
@@ -466,13 +466,13 @@ void CSkeletonAnim::UpdateAnimationTime(CAnimation& rAnimation, uint32 nLayer, u
 	}
 
 	//--- TSB: Added AnimNo check to stop us flagging animations to be removed before they've started in paused situations
-	if ((rAnimation.GetTransitionWeight() == 0.0f) && (AnimNo == 0))
+	if ((rAnimation.GetTransitionWeight() == 0) && (AnimNo == 0))
 	{
 		if (m_TrackViewExclusive == 0)
 			rAnimation.m_DynFlags[idx] |= CA_REMOVE_FROM_QUEUE;
 	}
 
-	assert(rAnimation.m_fAnimTime[idx] >= 0.0f && rAnimation.m_fAnimTime[idx] <= 1.0f);
+	assert(rAnimation.m_fAnimTime[idx] >= 0 && rAnimation.m_fAnimTime[idx] <= 1);
 	return;
 }
 
@@ -487,8 +487,8 @@ uint32 CSkeletonAnim::GetMaxSegments(const CAnimation& rAnimation) const
 		for (uint32 i = 0; i < numAnims; i++)
 		{
 			const int32 nAnimID = pParametric->m_nAnimID[i];
-			const f32 fBlendWeight = fabsf(pParametric->m_fBlendWeight[i]);
-			if (fBlendWeight < 0.001)
+			const mpfloat fBlendWeight = abs(pParametric->m_fBlendWeight[i]);
+			if (fBlendWeight < "0.001")
 				continue;
 			const ModelAnimationHeader* pAnim = pAnimationSet->GetModelAnimationHeader(nAnimID);
 			if (pAnim->m_nAssetType != CAF_File)
@@ -527,13 +527,13 @@ struct SAnimCallbackParams
 
 // (sendAnimEventsForTimeOld == true)  => Triggers the events in the range [normalizedTimeOld, normalizedTimeNew]
 // (sendAnimEventsForTimeOld == false) => Triggers the events in the range (normalizedTimeOld, normalizedTimeNew]
-void CSkeletonAnim::AnimCallbackInternal(bool sendAnimEventsForTimeOld, f32 normalizedTimeOld, f32 normalizedTimeNew, SAnimCallbackParams& params)
+void CSkeletonAnim::AnimCallbackInternal(bool sendAnimEventsForTimeOld, const nTime& normalizedTimeOld, const nTime& normalizedTimeNew, SAnimCallbackParams& params)
 {
-	assert(0.f <= normalizedTimeOld);
-	assert(normalizedTimeOld <= 1.f);
+	assert(0 <= normalizedTimeOld);
+	assert(normalizedTimeOld <= 1);
 
-	assert(0.f <= normalizedTimeNew);
-	assert(normalizedTimeNew <= 1.f);
+	assert(0 <= normalizedTimeNew);
+	assert(normalizedTimeNew <= 1);
 
 	/*
 	   assert(
@@ -551,7 +551,7 @@ void CSkeletonAnim::AnimCallbackInternal(bool sendAnimEventsForTimeOld, f32 norm
 	{
 		const CAnimEventData& animEventData = params.pAnimEventList->GetByIndex(i);
 
-		const f32 animEventNormalizedTime = animEventData.GetNormalizedTime();
+		const nTime animEventNormalizedTime = animEventData.GetNormalizedTime();
 
 		bool isAnimEventInRange = ((normalizedTimeOld < animEventNormalizedTime) && (animEventNormalizedTime <= normalizedTimeNew));
 		if (sendAnimEventsForTimeOld)
@@ -585,8 +585,8 @@ void CSkeletonAnim::AnimCallback(CAnimation& rAnimation)
 	}
 
 	const bool looped = ((rAnimation.m_DynFlags[0] & CA_LOOPED_THIS_UPDATE) != 0);
-	const f32 segmentNormalizedTimeOld = rAnimation.m_fAnimTimePrev[0];
-	const f32 segmentNormalizedTimeNew = rAnimation.m_fAnimTime[0];
+	const nTime segmentNormalizedTimeOld = rAnimation.m_fAnimTimePrev[0];
+	const nTime segmentNormalizedTimeNew = rAnimation.m_fAnimTime[0];
 	const uint8 segmentIndexOld = rAnimation.m_currentSegmentIndexPrev[0];
 	const uint8 segmentIndexNew = rAnimation.m_currentSegmentIndex[0];
 
@@ -603,8 +603,8 @@ void CSkeletonAnim::AnimCallback(CAnimation& rAnimation)
 	rAnimation.m_DynFlags[0] |= CA_ANIMEVENTS_EVALUATED_ONCE;
 
 	int32 nAnimID = -1;
-	f32 normalizedTimeOld = 0.0f;
-	f32 normalizedTimeNew = 0.0f;
+	nTime normalizedTimeOld = 0;
+	nTime normalizedTimeNew = 0;
 	const char* pFilePath = nullptr;
 	const IAnimEventList* pAnimEventList = nullptr;
 
@@ -668,8 +668,8 @@ void CSkeletonAnim::AnimCallback(CAnimation& rAnimation)
 					}
 				}
 
-				normalizedTimeOld = pLongestCaf ? pLongestCaf->GetNTimeforEntireClip(longestCafIndexOld, segmentNormalizedTimeOld) : 0.0f;
-				normalizedTimeNew = pLongestCaf ? pLongestCaf->GetNTimeforEntireClip(longestCafIndexNew, segmentNormalizedTimeNew) : 0.0f;
+				normalizedTimeOld = pLongestCaf ? pLongestCaf->GetNTimeforEntireClip(longestCafIndexOld, segmentNormalizedTimeOld) : 0;
+				normalizedTimeNew = pLongestCaf ? pLongestCaf->GetNTimeforEntireClip(longestCafIndexNew, segmentNormalizedTimeNew) : 0;
 				assert(normalizedTimeNew >= normalizedTimeOld || looped);
 			}
 		}
@@ -684,13 +684,13 @@ void CSkeletonAnim::AnimCallback(CAnimation& rAnimation)
 		const bool sendAnimEventsForTimeOld = !animEventsEvaluatedOnce;
 		if (looped)
 		{
-			const bool timeOldIsExactlyAnimationEnd = (normalizedTimeOld == 1.0f);
+			const bool timeOldIsExactlyAnimationEnd = (normalizedTimeOld == 1);
 			const bool rangeFromTimeOldToAnimationEndIsValid = (sendAnimEventsForTimeOld || !timeOldIsExactlyAnimationEnd);
 			if (rangeFromTimeOldToAnimationEndIsValid)
 			{
-				AnimCallbackInternal(sendAnimEventsForTimeOld, normalizedTimeOld, 1.f, params);
+				AnimCallbackInternal(sendAnimEventsForTimeOld, normalizedTimeOld, 1, params);
 			}
-			AnimCallbackInternal(true, 0.f, normalizedTimeNew, params);
+			AnimCallbackInternal(true, 0, normalizedTimeNew, params);
 		}
 		else
 		{
@@ -700,7 +700,7 @@ void CSkeletonAnim::AnimCallback(CAnimation& rAnimation)
 }
 
 //this function is used only internally for BSpace visualization
-void CSkeletonAnim::SetLayerNormalizedTimeAndSegment(f32 normalizedTime, int nEOC, int32 nAnimID0, int32 nAnimID1, uint8 nSegment0, uint8 nSegment1)
+void CSkeletonAnim::SetLayerNormalizedTimeAndSegment(const nTime& normalizedTime, int nEOC, int32 nAnimID0, int32 nAnimID1, uint8 nSegment0, uint8 nSegment1)
 {
 	const uint animationCountInLayer = m_layers[0].m_transitionQueue.GetAnimationCount();
 	if (animationCountInLayer == 1)
@@ -708,7 +708,7 @@ void CSkeletonAnim::SetLayerNormalizedTimeAndSegment(f32 normalizedTime, int nEO
 		CAnimation* pAnimation = &m_layers[0].m_transitionQueue.GetAnimation(0);
 		pAnimation->m_DynFlags[0] = nEOC;
 		pAnimation->m_fAnimTimePrev[0] = pAnimation->m_fAnimTime[0];
-		pAnimation->m_fAnimTime[0] = clamp_tpl(normalizedTime, 0.0f, 1.0f);
+		pAnimation->m_fAnimTime[0] = CLAMP(normalizedTime, 0, 1);
 
 		SParametricSamplerInternal* pPara = static_cast<SParametricSamplerInternal*>(pAnimation->GetParametricSampler());
 		if (pPara == 0)
@@ -731,7 +731,7 @@ void CSkeletonAnim::SetLayerNormalizedTimeAndSegment(f32 normalizedTime, int nEO
 	}
 }
 
-void CSkeletonAnim::SetLayerNormalizedTime(uint32 layer, f32 normalizedTime)
+void CSkeletonAnim::SetLayerNormalizedTime(uint32 layer, const nTime& normalizedTime)
 {
 	const uint animationCountInLayer = m_layers[layer].m_transitionQueue.GetAnimationCount();
 	if (animationCountInLayer == 1)
@@ -741,22 +741,22 @@ void CSkeletonAnim::SetLayerNormalizedTime(uint32 layer, f32 normalizedTime)
 	}
 }
 
-f32 CSkeletonAnim::GetLayerNormalizedTime(uint32 layer) const
+nTime CSkeletonAnim::GetLayerNormalizedTime(uint32 layer) const
 {
 	const bool animationLayerEmpty = (m_layers[layer].m_transitionQueue.GetAnimationCount() < 1);
 	if (animationLayerEmpty)
 	{
-		return 0.f;
+		return 0;
 	}
 	return GetAnimationNormalizedTime(layer, 0);
 }
 
-void CSkeletonAnim::SetAnimationNormalizedTime(CAnimation* pAnimation, f32 uncheckedNormalizedTime, bool entireClip)
+void CSkeletonAnim::SetAnimationNormalizedTime(CAnimation* pAnimation, const nTime& uncheckedNormalizedTime, bool entireClip)
 {
 	if (!pAnimation)
 		return;
 
-	const f32 fNormalizedTime = clamp_tpl(uncheckedNormalizedTime, 0.0f, 0.99999f);
+	const nTime fNormalizedTime = CLAMP(uncheckedNormalizedTime, 0, "0.99999");
 	const int16 nAnimId = pAnimation->GetAnimationId();
 	const CAnimationSet* pAnimationSet = m_pInstance->m_pDefaultSkeleton->m_pAnimationSet;
 	const ModelAnimationHeader* pModelAnimationHeader = pAnimationSet->GetModelAnimationHeader(nAnimId);
@@ -782,12 +782,12 @@ void CSkeletonAnim::SetAnimationNormalizedTime(CAnimation* pAnimation, f32 unche
 		uint32 nMaxSegCount = 0;
 		int32 nMaxAnimID = -1;
 		uint8 nSegmentIndexPrev = 0;
-		f32 fAccBWeights = 0;
-		f32 fEntireTime = 0;
+		mpfloat fAccBWeights = 0;
+		nTime fEntireTime = 0;
 		for (uint32 i = 0; i < pParametricSampler->m_numExamples; i++)
 		{
 			fAccBWeights += pParametricSampler->m_fBlendWeight[i];
-			if (pParametricSampler->m_fBlendWeight[i] == 0.0f)
+			if (pParametricSampler->m_fBlendWeight[i] == 0)
 				continue;
 			int32 nAnimIDPS = pParametricSampler->m_nAnimID[i];
 			int8 nsip = pParametricSampler->m_nSegmentCounter[0][i];
@@ -810,7 +810,7 @@ void CSkeletonAnim::SetAnimationNormalizedTime(CAnimation* pAnimation, f32 unche
 		uint8 nSegmentIndexNew = 0;
 		for (uint32 i = 0; i < nMaxSegments; ++i)
 		{
-			const f32 nextSegmentTime = rCAF.m_SegmentsTime[i + 1];
+			const nTime nextSegmentTime = rCAF.m_SegmentsTime[i + 1];
 			if (fNormalizedTime <= nextSegmentTime)
 			{
 				nSegmentIndexNew = i;
@@ -823,16 +823,16 @@ void CSkeletonAnim::SetAnimationNormalizedTime(CAnimation* pAnimation, f32 unche
 		if (fNormalizedTime < fEntireTime)
 			pAnimation->m_DynFlags[0] |= CA_NEGATIVE_EOC;
 
-		const f32 segmentStartTime = rCAF.m_SegmentsTime[nSegmentIndexNew];
-		const f32 segmentEndTime = rCAF.m_SegmentsTime[nSegmentIndexNew + 1];
-		const f32 segmentDuration = segmentEndTime - segmentStartTime;
+		const nTime segmentStartTime = rCAF.m_SegmentsTime[nSegmentIndexNew];
+		const nTime segmentEndTime = rCAF.m_SegmentsTime[nSegmentIndexNew + 1];
+		const nTime segmentDuration = segmentEndTime - segmentStartTime;
 		if (segmentDuration <= 0)
 		{
 			pAnimation->m_fAnimTime[0] = fNormalizedTime;  //some error in the .AnimEvent file! we should never end up here
 			return;
 		}
-		const f32 segmentTime = fNormalizedTime - segmentStartTime;
-		const f32 segmentNormalizedPosition = segmentTime / segmentDuration;
+		const nTime segmentTime = fNormalizedTime - segmentStartTime;
+		const nTime segmentNormalizedPosition = segmentTime / segmentDuration;
 		pAnimation->m_fAnimTime[0] = segmentNormalizedPosition;
 
 		for (uint32 i = 0; i < pParametricSampler->m_numExamples; i++)
@@ -854,7 +854,7 @@ void CSkeletonAnim::SetAnimationNormalizedTime(CAnimation* pAnimation, f32 unche
 		uint8 currentSegmentIndex = 0;
 		for (uint32 i = 0; i < nMaxSegments; ++i)
 		{
-			const f32 nextSegmentTime = rCAF.m_SegmentsTime[i + 1];
+			const nTime nextSegmentTime = rCAF.m_SegmentsTime[i + 1];
 			if (fNormalizedTime <= nextSegmentTime)
 			{
 				currentSegmentIndex = i;
@@ -864,36 +864,36 @@ void CSkeletonAnim::SetAnimationNormalizedTime(CAnimation* pAnimation, f32 unche
 
 		pAnimation->m_currentSegmentIndex[0] = currentSegmentIndex;
 
-		const f32 segmentStartTime = rCAF.m_SegmentsTime[currentSegmentIndex];
-		const f32 segmentEndTime = rCAF.m_SegmentsTime[currentSegmentIndex + 1];
-		const f32 segmentDuration = segmentEndTime - segmentStartTime;
+		const nTime segmentStartTime = rCAF.m_SegmentsTime[currentSegmentIndex];
+		const nTime segmentEndTime = rCAF.m_SegmentsTime[currentSegmentIndex + 1];
+		const nTime segmentDuration = segmentEndTime - segmentStartTime;
 		if (segmentDuration <= 0)
 		{
 			pAnimation->m_fAnimTime[0] = fNormalizedTime;  //some error in the .AnimEvent file! we should never end up here
 			return;
 		}
-		const f32 segmentTime = fNormalizedTime - segmentStartTime;
-		const f32 segmentNormalizedPosition = segmentTime / segmentDuration;
+		const nTime segmentTime = fNormalizedTime - segmentStartTime;
+		const nTime segmentNormalizedPosition = segmentTime / segmentDuration;
 		pAnimation->m_fAnimTime[0] = segmentNormalizedPosition;
 	}
 }
 
-f32 CSkeletonAnim::GetAnimationNormalizedTime(uint32 layer, uint32 index) const
+nTime CSkeletonAnim::GetAnimationNormalizedTime(uint32 layer, uint32 index) const
 {
 	const CAnimation* pAnimation = &m_layers[layer].m_transitionQueue.GetAnimation(index);
 	return GetAnimationNormalizedTime(pAnimation);
 }
 
-f32 CSkeletonAnim::GetAnimationNormalizedTime(const CAnimation* pAnimation) const
+nTime CSkeletonAnim::GetAnimationNormalizedTime(const CAnimation* pAnimation) const
 {
 	if (!pAnimation)
-		return -1.f;
+		return -1;
 
 	const int16 nAnimID = pAnimation->GetAnimationId();
 	const CAnimationSet* pAnimationSet = m_pInstance->m_pDefaultSkeleton->m_pAnimationSet;
 	const ModelAnimationHeader* pModelAnimationHeader = pAnimationSet->GetModelAnimationHeader(nAnimID);
 	if (pModelAnimationHeader == 0)
-		return 0.0f;
+		return 0;
 	if (pModelAnimationHeader->m_nAssetType == AIM_File)
 		return pAnimation->m_fAnimTime[0];
 
@@ -908,11 +908,11 @@ f32 CSkeletonAnim::GetAnimationNormalizedTime(const CAnimation* pAnimation) cons
 		uint32 nMaxSegCount = 0;
 		uint32 nCurSegIndex = 0;
 		int32 nMaxAnimID = -1;
-		f32 fAccBWeights = 0;
+		mpfloat fAccBWeights = 0;
 		for (uint32 i = 0; i < pParametricSampler->m_numExamples; i++)
 		{
 			fAccBWeights += pParametricSampler->m_fBlendWeight[i];
-			if (pParametricSampler->m_fBlendWeight[i] == 0.0f)
+			if (pParametricSampler->m_fBlendWeight[i] == 0)
 				continue;
 			int32 nAnimIDPS = pParametricSampler->m_nAnimID[i];
 			const ModelAnimationHeader* pABS = pAnimationSet->GetModelAnimationHeader(nAnimIDPS);
@@ -930,14 +930,14 @@ f32 CSkeletonAnim::GetAnimationNormalizedTime(const CAnimation* pAnimation) cons
 		const ModelAnimationHeader* pAnimBS = pAnimationSet->GetModelAnimationHeader(nMaxAnimID);
 		const int32 nGlobalId = pAnimBS->m_nGlobalAnimId;
 
-		const f32 currentSegmentNormalizedPosition = pAnimation->m_fAnimTime[0];
+		const nTime currentSegmentNormalizedPosition = pAnimation->m_fAnimTime[0];
 		GlobalAnimationHeaderCAF& rCAF = g_AnimationManager.m_arrGlobalCAF[nGlobalId];
 		return rCAF.GetNTimeforEntireClip(nCurSegIndex, currentSegmentNormalizedPosition); //this is a percentage value between 0-1 for the ENTIRE animation
 	}
 	else
 	{
 		const uint8 currentSegmentIndex = pAnimation->m_currentSegmentIndex[0];
-		const f32 currentSegmentNormalizedPosition = pAnimation->m_fAnimTime[0];
+		const nTime currentSegmentNormalizedPosition = pAnimation->m_fAnimTime[0];
 		GlobalAnimationHeaderCAF& rCAF = g_AnimationManager.m_arrGlobalCAF[pModelAnimationHeader->m_nGlobalAnimId];
 		return rCAF.GetNTimeforEntireClip(currentSegmentIndex, currentSegmentNormalizedPosition); //this is a percentage value between 0-1 for the ENTIRE animation
 	}
@@ -971,7 +971,7 @@ static uint32 LeastCommonMultiple(uint8 (&segments)[MAX_LMG_ANIMS], uint32 count
 	return result;
 }
 
-f32 CSkeletonAnim::CalculateCompleteBlendSpaceDuration(const CAnimation& rAnimation) const
+CTimeValue CSkeletonAnim::CalculateCompleteBlendSpaceDuration(const CAnimation& rAnimation) const
 {
 	CAnimationSet* pAnimationSet = m_pInstance->m_pDefaultSkeleton->m_pAnimationSet;
 
@@ -981,7 +981,7 @@ f32 CSkeletonAnim::CalculateCompleteBlendSpaceDuration(const CAnimation& rAnimat
 		uint8 segmentCount[MAX_LMG_ANIMS] = { 0 };
 		for (uint32 i = 0; i < pParametric->m_numExamples; ++i)
 		{
-			if (pParametric->m_fBlendWeight[i] == 0.0f)
+			if (pParametric->m_fBlendWeight[i] == 0)
 				continue;
 			const ModelAnimationHeader* pHeader = pAnimationSet->GetModelAnimationHeader(pParametric->m_nAnimID[i]);
 			GlobalAnimationHeaderCAF& rCAF = g_AnimationManager.m_arrGlobalCAF[pHeader->m_nGlobalAnimId];
@@ -990,10 +990,10 @@ f32 CSkeletonAnim::CalculateCompleteBlendSpaceDuration(const CAnimation& rAnimat
 
 		int totalSegmentCount = LeastCommonMultiple(segmentCount, pParametric->m_numExamples);
 
-		f32 fTotalDuration = 0.0f;
+		CTimeValue fTotalDuration;
 		for (uint32 i = 0; i < pParametric->m_numExamples; ++i)
 		{
-			if (pParametric->m_fBlendWeight[i] == 0.0f)
+			if (pParametric->m_fBlendWeight[i] == 0)
 				continue;
 			int32 nAnimID = pParametric->m_nAnimID[i];
 			const ModelAnimationHeader* pHeader = pAnimationSet->GetModelAnimationHeader(nAnimID);
@@ -1002,9 +1002,9 @@ f32 CSkeletonAnim::CalculateCompleteBlendSpaceDuration(const CAnimation& rAnimat
 			for (uint32 s = 0; s < segmentCount[i]; ++s)
 			{
 				int32 repetitionCount = totalSegmentCount / segmentCount[i];
-				f32 fBlendWeight = pParametric->m_fBlendWeight[i];
-				f32 fPlaybackScale = pParametric->m_fPlaybackScale[i];
-				float fSegmentDuration = rCAF.GetSegmentDuration(s);
+				mpfloat fBlendWeight = pParametric->m_fBlendWeight[i];
+				mpfloat fPlaybackScale = pParametric->m_fPlaybackScale[i];
+				CTimeValue fSegmentDuration = rCAF.GetSegmentDuration(s);
 				fTotalDuration += fSegmentDuration * fBlendWeight * fPlaybackScale * repetitionCount;
 			}
 		}
@@ -1013,7 +1013,7 @@ f32 CSkeletonAnim::CalculateCompleteBlendSpaceDuration(const CAnimation& rAnimat
 	}
 	else
 	{
-		return rAnimation.GetExpectedTotalDurationSeconds();
+		return rAnimation.GetExpectedTotalDuration();
 	}
 }
 
@@ -1027,14 +1027,14 @@ void CSkeletonAnim::SetMirrorAnimation(uint32 ts)
 };
 
 // sets the animation speed scale for layers
-void CSkeletonAnim::SetLayerPlaybackScale(int32 nLayer, f32 fSpeed)
+void CSkeletonAnim::SetLayerPlaybackScale(int32 nLayer, const mpfloat& fSpeed)
 {
 	if (nLayer >= numVIRTUALLAYERS || nLayer < 0)
 	{
 		g_pILog->LogError("SetLayerPlaybackScale() was using invalid layer id: %d", nLayer);
 		return;
 	}
-	m_layers[nLayer].m_transitionQueue.m_fLayerPlaybackScale = max(0.0f, fSpeed);
+	m_layers[nLayer].m_transitionQueue.m_fLayerPlaybackScale = max(mpfloat(0), fSpeed);
 }
 
 f32 CSkeletonAnim::GetLayerBlendWeight(int32 nLayer)
@@ -1130,9 +1130,9 @@ uint32 CSkeletonAnim::EvaluateTransitionFlags(CAnimation* arrAnimFiFo, uint32 nu
 			if (StartAtKeytime)
 			{
 				assert(!rCurAnimation.IsActivated());
-				f32 atnew = GetAnimationNormalizedTime(&rPrevAnimation);
-				f32 atold = atnew - 0.000001f; // FIXME
-				f32 keyTime = rCurAnimation.m_fStartTime;
+				nTime atnew = GetAnimationNormalizedTime(&rPrevAnimation);
+				nTime atold = atnew - nTime("0.000001"); // FIXME
+				nTime keyTime = rCurAnimation.m_fStartTime;
 				if (atold < keyTime && keyTime < atnew)
 					rCurAnimation.m_DynFlags[0] |= CA_ACTIVATED;
 			}
@@ -1183,7 +1183,7 @@ uint32 CSkeletonAnim::EvaluateTransitionFlags(CAnimation* arrAnimFiFo, uint32 nu
 					}
 					else
 					{
-						if (nSegCount && rPrevAnimation.m_fAnimTime[0] > 0.50f)
+						if (nSegCount && rPrevAnimation.m_fAnimTime[0] > "0.5")
 							rCurAnimation.m_DynFlags[0] |= CA_ACTIVATED;  //move to the right
 					}
 				}
@@ -1309,15 +1309,16 @@ uint32 CSkeletonAnim::BlendManagerDebug(DynArray<CAnimation>& arrAFIFO, uint32 n
 	{
 		const CAnimation& animation = arrAFIFO[i];
 		const SParametricSamplerInternal* pParametric = (SParametricSamplerInternal*)animation.GetParametricSampler();
-		const f32 transitionWeight = animation.GetTransitionWeight();
+		const mpfloat transitionWeight = animation.GetTransitionWeight();
 		if (animation.IsActivated())
 		{	
-			fColor[0] = transitionWeight;
+			// Float inaccuracy is fine, colors
+			fColor[0] = (float)transitionWeight;
 			fColor[1] = (nVLayer > 0);// % 2 ? arrAFIFO[i].m_fTransitionWeight * 0.3f : 0.0f;
 			fColor[2] = 0.0f;
-			fColor[3] = transitionWeight;
+			fColor[3] = (float)transitionWeight;
 			if (nVLayer)
-				fColor[3 ]= m_layers[nVLayer].m_transitionQueue.m_fLayerBlendWeight*transitionWeight;
+				fColor[3 ]= (float)(m_layers[nVLayer].m_transitionQueue.m_fLayerBlendWeight*(float)transitionWeight);
 		}
 		else
 		{
@@ -1330,7 +1331,7 @@ uint32 CSkeletonAnim::BlendManagerDebug(DynArray<CAnimation>& arrAFIFO, uint32 n
 		fColor[3] = (fColor[3] + 1) * 0.5f;
 		const char* pAnimName = pAnimationSet->GetModelAnimationHeaderRef(animation.GetAnimationId()).GetAnimName();
 
-		g_pAuxGeom->Draw2dLabel( 1,g_YLine, 1.2f, fColor, false,"AnimInAFIFO %02d:  t: %d  %s  ATime: %.3f (%.3fs/%.3fs)  ASpd: %.3f Flag: %08x (%s)  TTime: %.3f  TWght: %.3f  PWght: %.3f  seg: %02d  inmem: %i", nVLayer, animation.m_nUserToken, pAnimName, animation.m_fAnimTime[0], animation.m_fAnimTime[0] * animation.GetCurrentSegmentExpectedDurationSeconds(), animation.GetCurrentSegmentExpectedDurationSeconds(), animation.m_fPlaybackScale, animation.m_nStaticFlags, AnimFlags(animation.m_nStaticFlags), animation.m_fTransitionTime, transitionWeight, animation.GetPlaybackWeight(), animation.m_currentSegmentIndex[0], IsAnimationInMemory(pAnimationSet, &arrAFIFO[i]) ); 
+		g_pAuxGeom->Draw2dLabel( 1,g_YLine, 1.2f, fColor, false,"AnimInAFIFO %02d:  t: %d  %s  ATime: %.3f (%.3fs/%.3fs)  ASpd: %.3f Flag: %08x (%s)  TTime: %.3f  TWght: %.3f  PWght: %.3f  seg: %02d  inmem: %i", nVLayer, animation.m_nUserToken, pAnimName, animation.m_fAnimTime[0], (float)animation.m_fAnimTime[0] * (float)animation.GetCurrentSegmentExpectedDuration().GetSeconds(), (float)animation.GetCurrentSegmentExpectedDuration().GetSeconds(), animation.m_fPlaybackScale, animation.m_nStaticFlags, AnimFlags(animation.m_nStaticFlags), animation.m_fTransitionTime, transitionWeight, animation.GetPlaybackWeight(), animation.m_currentSegmentIndex[0], IsAnimationInMemory(pAnimationSet, &arrAFIFO[i]) ); 
 		g_YLine += 0x0e;
 		if (nVLayer == 0)
 		{
@@ -1443,8 +1444,8 @@ void CSkeletonAnim::DebugLogTransitionQueueState()
 				             animation.m_nUserToken,
 				             pAnimName,
 				             animation.m_fAnimTime[0],
-				             animation.m_fAnimTime[0] * animation.GetCurrentSegmentExpectedDurationSeconds(),
-				             animation.GetCurrentSegmentExpectedDurationSeconds(),
+				             (float)(animation.m_fAnimTime[0].conv<mpfloat>() * animation.GetCurrentSegmentExpectedDuration().GetSeconds()),
+				             (float)animation.GetCurrentSegmentExpectedDuration().GetSeconds(),
 				             animation.m_fPlaybackScale,
 				             animation.m_nStaticFlags,
 				             AnimFlags(animation.m_nStaticFlags),
@@ -1571,8 +1572,10 @@ void CSkeletonAnim::DebugLogTransitionQueueState()
 /////////////////////////////////////////////////////////////////////////////////
 //             this function is handling blending between layers               //
 /////////////////////////////////////////////////////////////////////////////////
-void CSkeletonAnim::LayerBlendManager(f32 fDeltaTime, uint32 nLayer)
+void CSkeletonAnim::LayerBlendManager(const CTimeValue& fDeltaTimeIn, uint32 nLayer)
 {
+	CTimeValue fDeltaTime = fDeltaTimeIn;
+
 	if (nLayer == 0)
 		return;
 
@@ -1580,40 +1583,37 @@ void CSkeletonAnim::LayerBlendManager(f32 fDeltaTime, uint32 nLayer)
 
 	CTransitionQueue& transitionQueue = m_layers[nLayer].m_transitionQueue;
 
-	f32 time = transitionQueue.m_fLayerTransitionTime;
+	CTimeValue time = transitionQueue.m_fLayerTransitionTime;
 
-	f32 fCurLayerBlending = transitionQueue.m_fLayerTransitionWeight;
+	mpfloat fCurLayerBlending = transitionQueue.m_fLayerTransitionWeight;
 	if (time < 0)
 	{
-		fCurLayerBlending = 1.0f;
+		fCurLayerBlending = 1;
 	}
 	else
 	{
-		if (fDeltaTime == 0.0f)
+		if (fDeltaTime == 0)
 			fDeltaTime = m_pInstance->m_fOriginalDeltaTime;
 	}
 
-	if (time < 0.00001f)
-		time = 0.00001f;
+	if (time < "0.00001")
+		time.SetSeconds("0.00001");
 
 	//f32 fColor[4] = {0.5f,0.0f,0.5f,1};
 	//g_pAuxGeom->Draw2dLabel( 1,g_YLine, 1.3f, fColor, false,"nLayer: %02d  status: %1d, blend: %f  ", nLayer, status, fCurLayerBlending[nLayer]  );
 	//g_YLine+=0x10;
 	if (status)
-		fCurLayerBlending += fDeltaTime / time;
+		fCurLayerBlending += (fDeltaTime / time).conv<mpfloat>();
 	else
-		fCurLayerBlending -= fDeltaTime / time;
+		fCurLayerBlending -= (fDeltaTime / time).conv<mpfloat>();
 
-	if (fCurLayerBlending > 1.0f)
-		fCurLayerBlending = 1.0f;
-	if (fCurLayerBlending < 0.0f)
-		fCurLayerBlending = 0.0f;
+	fCurLayerBlending = CLAMP(fCurLayerBlending, 0, 1);
 
 	uint32 numAnims = transitionQueue.m_animations.size();
 
 	CRY_ASSERT(!status || numAnims > 0);
 
-	if (numAnims && !status && (fCurLayerBlending == 0.0f))
+	if (numAnims && !status && (fCurLayerBlending == 0))
 	{
 		transitionQueue.m_animations[0].m_DynFlags[0] |= CA_REMOVE_FROM_QUEUE;
 	}

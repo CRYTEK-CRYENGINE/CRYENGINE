@@ -12,10 +12,10 @@ private:
 
 public://private:
 	DynArray<CAnimation> m_animations;
-	f32                  m_fLayerPlaybackScale;    //scaling of the playback speed for all animations in a layer
-	f32                  m_fLayerTransitionTime;   //time for the whole layer to fade In and Out
-	f32                  m_fLayerTransitionWeight; //the current Blend-Weight during the transition of the layer. 1.0f == fully blended in / 0.0f == deactivated
-	f32                  m_fLayerBlendWeight;      //this is an "intensity" blend-weight that we set manually. You can use even negative Blend-Weights on this.
+	mpfloat              m_fLayerPlaybackScale;     //scaling of the playback speed for all animations in a layer
+	CTimeValue           m_fLayerTransitionTime;    //time for the whole layer to fade In and Out
+	mpfloat              m_fLayerTransitionWeight;  //the current Blend-Weight during the transition of the layer. 1.0f == fully blended in / 0.0f == deactivated
+	f32                  m_fLayerBlendWeight;       //this is an "intensity" blend-weight that we set manually. You can use even negative Blend-Weights on this.
 	bool                 m_bActive;
 
 public:
@@ -39,18 +39,18 @@ public://private:
 
 	// TEMP: Hack for TrackView
 public:
-	void ManualSeekAnimation(uint index, float time2, bool bTriggerEvents, CCharInstance& instance);
+	void ManualSeekAnimation(uint index, const nTime& time2, bool bTriggerEvents, CCharInstance& instance);
 
 	// manually defines how much the first and the second animation in the transition queue is mixed
 	// 0.0f means only animation [0], 1.0f means only animation [1]
-	float m_manualMixingWeight;
+	mpfloat m_manualMixingWeight;
 
 	void SetFirstLayer();
 	void ApplyManualMixingWeight(uint numAnims);
-	void SetManualMixingWeight(float weight) { m_manualMixingWeight = clamp_tpl(weight, 0.0f, 1.0f); };
+	void SetManualMixingWeight(const mpfloat& weight) { m_manualMixingWeight = CLAMP(weight, 0, 1); };
 	void TransitionsBetweenSeveralAnimations(uint numAnims);
 	void AdjustTransitionWeights(uint numAnims);
-	void UpdateTransitionTime(uint numAnims, float fDeltaTime, float trackViewExclusive, float originalDeltaTime);
+	void UpdateTransitionTime(uint numAnims, const CTimeValue& fDeltaTime, float trackViewExclusive, const CTimeValue& originalDeltaTime);
 	void AdjustAnimationTimeForTimeWarpedAnimations(uint numAnims);
 };
 

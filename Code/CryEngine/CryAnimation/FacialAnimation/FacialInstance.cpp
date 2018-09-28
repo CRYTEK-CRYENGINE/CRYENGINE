@@ -49,11 +49,11 @@ CFacialInstance::CFacialInstance(CFacialModel* pDefaultSkeleton, CCharInstance* 
 	m_tProcFace.m_JitterEyesPositions[3].Set(-1, -1, -2);
 	m_tProcFace.m_nCurrEyesJitter = 0;
 	m_tProcFace.m_fEyesJitterScale = 0.008f;
-	m_tProcFace.m_fLastJitterTime = 0;
-	m_tProcFace.m_fJitterTimeChange = 2.0;
+	m_tProcFace.m_fLastJitterTime.SetSeconds(0);
+	m_tProcFace.m_fJitterTimeChange.SetSeconds(2);
 	m_tProcFace.m_pBlink = (CFacialEffector*)FindEffector("Blink");
 	m_tProcFace.m_bEyesBlinking = false;
-	m_tProcFace.m_fBlinkingTime = -1;
+	m_tProcFace.m_fBlinkingTime.SetSeconds(-1);
 	m_tProcFace.m_bEnabled = true;
 
 	m_currentLayer = -1;
@@ -73,7 +73,7 @@ IFaceState* CFacialInstance::GetFaceState()
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CFacialInstance::Update(CFacialDisplaceInfo& info, float fDeltaTimeSec, const QuatTS& rAnimLocationNext)
+void CFacialInstance::Update(CFacialDisplaceInfo& info, const CTimeValue& deltaTime, const QuatTS& rAnimLocationNext)
 {
 	DEFINE_PROFILER_FUNCTION();
 
@@ -86,10 +86,10 @@ void CFacialInstance::Update(CFacialDisplaceInfo& info, float fDeltaTimeSec, con
 	{
 		Vec3 camPosIgnored(0, 0, 0);
 		ApplyProceduralFaceBehaviour(camPosIgnored); // TODO: Fix eye procedural movement. Just getting blinking back for the moment.
-		UpdatePlayingSequences(fDeltaTimeSec, rAnimLocationNext);
+		UpdatePlayingSequences(deltaTime, rAnimLocationNext);
 		UpdateProceduralFaceBehaviour();
 		CFacialEffectorsLibrary* pLibrary = (m_pDefaultSkeleton ? static_cast<CFacialEffectorsLibrary*>(m_pDefaultSkeleton->GetLibrary()) : 0);
-		m_pEyeMovement->Update(fDeltaTimeSec, rAnimLocationNext, m_pMasterInstance, pLibrary, m_pFaceState);
+		m_pEyeMovement->Update(deltaTime, rAnimLocationNext, m_pMasterInstance, pLibrary, m_pFaceState);
 		if (m_pAnimContext->Update(*m_pFaceState, rAnimLocationNext))
 		{
 			m_pDefaultSkeleton->FillInfoMapFromFaceState(info, m_pFaceState, m_pMasterInstance, m_forcedRotations.size(), m_forcedRotations.begin(), m_pAnimContext->GetBoneRotationSmoothRatio());
@@ -98,7 +98,7 @@ void CFacialInstance::Update(CFacialDisplaceInfo& info, float fDeltaTimeSec, con
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CFacialInstance::UpdatePlayingSequences(float fDeltaTimeSec, const QuatTS& rAnimLocationNext)
+void CFacialInstance::UpdatePlayingSequences(const CTimeValue& deltaTime, const QuatTS& rAnimLocationNext)
 {
 	m_pAnimContext->UpdatePlayingSequences(rAnimLocationNext);
 
@@ -118,7 +118,7 @@ void CFacialInstance::UpdatePlayingSequences(float fDeltaTimeSec, const QuatTS& 
 }
 
 //////////////////////////////////////////////////////////////////////////
-uint32 CFacialInstance::StartEffectorChannel(IFacialEffector* pEffector, float fWeight, float fFadeTime, float fLifeTime, int nRepeatCount)
+uint32 CFacialInstance::StartEffectorChannel(IFacialEffector* pEffector, float fWeight, const CTimeValue& fFadeTime, const CTimeValue& fLifeTime, int nRepeatCount)
 {
 	uint32 uChannelID = ~0;
 	if (m_pAnimContext)
@@ -127,7 +127,7 @@ uint32 CFacialInstance::StartEffectorChannel(IFacialEffector* pEffector, float f
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CFacialInstance::StopEffectorChannel(uint32 nChannelID, float fFadeOutTime)
+void CFacialInstance::StopEffectorChannel(uint32 nChannelID, const CTimeValue& fFadeOutTime)
 {
 	if (m_pAnimContext)
 		m_pAnimContext->StopChannel(nChannelID, fFadeOutTime);
@@ -215,7 +215,7 @@ void CFacialInstance::PlaySequence(IFacialAnimSequence* pSequence, EFacialSequen
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CFacialInstance::SeekSequence(EFacialSequenceLayer layer, float fTime)
+void CFacialInstance::SeekSequence(EFacialSequenceLayer layer, const CTimeValue& fTime)
 {
 	CFacialAnimSequence* pSequence = (CFacialAnimSequence*)m_layers[layer].sequence.get();
 	if (pSequence)
@@ -495,7 +495,7 @@ void CFacialInstance::UpdateProceduralFaceBehaviour()
 		if (!m_tProcFace.m_pBlink)
 			m_tProcFace.m_pBlink = (CFacialEffector*)FindEffector("Blink");
 
-		float fCurrTime = gEnv->pTimer->GetCurrTime();
+		CTimeValue fCurrTime = GetGTimer()->GetFrameStartTime();
 
 		if (m_tProcFace.m_fBlinkingTime < 0)
 			m_tProcFace.m_fBlinkingTime = fCurrTime;
@@ -510,10 +510,10 @@ void CFacialInstance::UpdateProceduralFaceBehaviour()
 			m_pAnimContext->StartChannel(effch);
 		}
 
-		if (fCurrTime - m_tProcFace.m_fBlinkingTime > 0.1f)
+		if (fCurrTime - m_tProcFace.m_fBlinkingTime > "0.1")
 		{
 			m_tProcFace.m_bEyesBlinking = false;
-			m_tProcFace.m_fBlinkingTime = -1;
+			m_tProcFace.m_fBlinkingTime.SetSeconds(-1);
 		}
 	}
 }
@@ -528,7 +528,7 @@ void CFacialInstance::ApplyProceduralFaceBehaviour(Vec3& vCamPos)
 		return;
 	}
 
-	float fCurrtime = gEnv->pTimer->GetCurrTime();
+	CTimeValue fCurrtime = GetGTimer()->GetFrameStartTime();
 
 	// simple rapid eyes movements, staring at eyes and mouth when talking
 	if (fCurrtime - m_tProcFace.m_fLastJitterTime > m_tProcFace.m_fJitterTimeChange)
@@ -536,9 +536,9 @@ void CFacialInstance::ApplyProceduralFaceBehaviour(Vec3& vCamPos)
 		m_tProcFace.m_fLastJitterTime = fCurrtime;
 
 		// golden proportion 3/5
-		m_tProcFace.m_nCurrEyesJitter = cry_random(0, 12) & 3;
-		m_tProcFace.m_fJitterTimeChange = cry_random(0.1f, 1.5f);
-		m_tProcFace.m_fEyesJitterScale = cry_random(0.002f, 0.02f);
+		m_tProcFace.m_nCurrEyesJitter   = cry_random(0, 12) & 3;
+		m_tProcFace.m_fJitterTimeChange = cry_random<CTimeValue>("0.1", "1.5");
+		m_tProcFace.m_fEyesJitterScale  = cry_random(0.002f, 0.02f);
 
 		// eyes movements are in sync with eyes blinking.
 		if ((cry_random(0, 4) & 3) == 1)

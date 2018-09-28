@@ -168,19 +168,19 @@ void CFacialModel::PushMorphEffectors(int i, const MorphTargetsInfo& morphTarget
 
 		// Add morph target to character.
 		CryModEffMorph morph;
-		morph.m_fTime = 0;
+		morph.m_fTime.SetSeconds(0);
 		morph.m_nFlags = CryCharMorphParams::FLAGS_FREEZE | CryCharMorphParams::FLAGS_NO_BLENDOUT | CryCharMorphParams::FLAGS_INSTANTANEOUS;
 		morph.m_nMorphTargetId = nMorphTargetId;
 		morph.m_Params.m_fAmplitude = fWeight;
-		morph.m_Params.m_fBlendIn = 0;
-		morph.m_Params.m_fBlendOut = 0;
+		morph.m_Params.m_fBlendIn.SetSeconds(0);
+		morph.m_Params.m_fBlendOut.SetSeconds(0);
 		morph.m_Params.m_fBalance = fBalance;
 		arrMorphEffectors.push_back(morph);
 	}
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CFacialModel::FillInfoMapFromFaceState(CFacialDisplaceInfo& info, CFaceState* const pFaceState, CCharInstance* const pInstance, int numForcedRotations, const CFacialAnimForcedRotationEntry* const forcedRotations, float blendBoneRotations)
+void CFacialModel::FillInfoMapFromFaceState(CFacialDisplaceInfo& info, CFaceState* const pFaceState, CCharInstance* const pInstance, int numForcedRotations, const CFacialAnimForcedRotationEntry* const forcedRotations, const mpfloat& blendBoneRotations)
 {
 	DEFINE_PROFILER_FUNCTION();
 
@@ -195,7 +195,7 @@ void CFacialModel::FillInfoMapFromFaceState(CFacialDisplaceInfo& info, CFaceStat
 
 	//SetEffectorCoordinateSystems(pSkeletonPose);
 
-	const bool blendBones = (blendBoneRotations > 0.0f);
+	const bool blendBones = (blendBoneRotations > 0);
 
 	const size_t infoDisplaceInfoMapSize = info.GetCount();
 	s_boneInfoBlending.Initialize(infoDisplaceInfoMapSize);
@@ -260,7 +260,7 @@ void CFacialModel::FillInfoMapFromFaceState(CFacialDisplaceInfo& info, CFaceStat
 	}
 
 	{
-		const float blendWeight = (1.f - blendBoneRotations);
+		const mpfloat blendWeight = (1 - blendBoneRotations);
 		for (size_t i = 0; i < infoDisplaceInfoMapSize; ++i)
 		{
 			const bool isUsed = s_boneInfoBlending.IsUsed(i);
@@ -269,7 +269,7 @@ void CFacialModel::FillInfoMapFromFaceState(CFacialDisplaceInfo& info, CFaceStat
 				const QuatT& blendBoneInfo = s_boneInfoBlending.GetDisplaceInfo(i);
 				QuatT boneInfo = info.GetDisplaceInfo(i);
 
-				boneInfo.SetNLerp(boneInfo, blendBoneInfo, blendWeight);
+				boneInfo.SetNLerp(boneInfo, blendBoneInfo, BADF blendWeight);
 				boneInfo.q.Normalize();
 
 				info.SetDisplaceInfo(i, boneInfo);

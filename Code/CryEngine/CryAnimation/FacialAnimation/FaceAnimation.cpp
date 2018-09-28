@@ -22,7 +22,7 @@ CFacialAnimationContext::CFacialAnimationContext(CFacialInstance* pFace)
 	, m_pFace(pFace)
 	, m_nLastChannelId(0)
 	, m_bForceLastUpdate(false)
-	, m_fBoneRotationSmoothingRemainingTime(0.0f)
+	, m_fBoneRotationSmoothingRemainingTime(0)
 {
 	m_pFacialModel = pFace->GetModel();
 }
@@ -38,7 +38,7 @@ uint32 CFacialAnimationContext::StartChannel(SFacialEffectorChannel& channel)
 }
 
 //////////////////////////////////////////////////////////////////////////
-uint32 CFacialAnimationContext::FadeInChannel(IFacialEffector* pEffector, float fWeight, float fFadeTime, float fLifeTime, int nRepeatCount)
+uint32 CFacialAnimationContext::FadeInChannel(IFacialEffector* pEffector, float fWeight, const CTimeValue& fFadeTime, const CTimeValue& fLifeTime, int nRepeatCount)
 {
 	SFacialEffectorChannel ch;
 	ch.status = SFacialEffectorChannel::STATUS_FADE_IN;
@@ -53,7 +53,7 @@ uint32 CFacialAnimationContext::FadeInChannel(IFacialEffector* pEffector, float 
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CFacialAnimationContext::StopChannel(uint32 nChannelId, float fFadeTime)
+void CFacialAnimationContext::StopChannel(uint32 nChannelId, const CTimeValue& fFadeTime)
 {
 	uint32 nChannels = m_channels.size();
 	for (uint32 i = 0; i < nChannels; ++i)
@@ -144,7 +144,7 @@ bool CFacialAnimationContext::Update(CFaceState& faceState, const QuatTS& rAnimL
 {
 	DEFINE_PROFILER_FUNCTION();
 
-	m_time = gEnv->pTimer->GetFrameStartTime();
+	m_time = GetGTimer()->GetFrameStartTime();
 
 	int nChannels = m_channels.size();
 	if (nChannels <= 0 && !m_bForceLastUpdate && m_sequences.empty())
@@ -185,7 +185,7 @@ bool CFacialAnimationContext::Update(CFaceState& faceState, const QuatTS& rAnimL
 			channel.fCurrWeight = channel.fWeight;
 			if (!channel.bIgnoreLifeTime && channel.fLifeTime != 0)
 			{
-				float fTime = (m_time - channel.startFadeTime).GetSeconds();
+				CTimeValue fTime = m_time - channel.startFadeTime;
 				if (fTime >= channel.fLifeTime)
 				{
 					channel.status = SFacialEffectorChannel::STATUS_FADE_OUT;
@@ -195,31 +195,33 @@ bool CFacialAnimationContext::Update(CFaceState& faceState, const QuatTS& rAnimL
 			break;
 		case SFacialEffectorChannel::STATUS_FADE_IN:
 			{
-				float fFadingTime = (m_time - channel.startFadeTime).GetSeconds();
+				CTimeValue fFadingTime = m_time - channel.startFadeTime;
 
 				IF_UNLIKELY (channel.fFadeTime == 0)
-					channel.fFadeTime = 0.001f;
+					channel.fFadeTime.SetMilliSeconds(1);
 
-				float dt = fFadingTime / channel.fFadeTime;
+				nTime dt = fFadingTime / channel.fFadeTime;
 
-				if (dt >= 1.0f)
+				if (dt >= 1)
 				{
-					dt = 1.0f;
+					dt = 1;
 					channel.status = SFacialEffectorChannel::STATUS_ONE;
 					channel.startFadeTime = m_time;
 					channel.fCurrWeight = channel.fWeight;
 				}
 				else
-					channel.fCurrWeight = channel.fWeight * (dt * dt);
+					channel.fCurrWeight = channel.fWeight * BADF(dt * dt);
 			}
 			break;
 		case SFacialEffectorChannel::STATUS_FADE_OUT:
 			{
-				float fFadingTime = (m_time - channel.startFadeTime).GetSeconds();
+				CTimeValue fFadingTime = m_time - channel.startFadeTime;
 				IF_UNLIKELY (channel.fFadeTime == 0)
-					channel.fFadeTime = 0.001f;
-				float dt = fFadingTime / channel.fFadeTime;
-				if (dt >= 1.0f)
+					channel.fFadeTime.SetMilliSeconds(1);
+
+				nTime dt = fFadingTime / channel.fFadeTime;
+
+				if (dt >= 1)
 				{
 					// Remove this channel.
 					channel.fCurrWeight = 0;
@@ -236,7 +238,7 @@ bool CFacialAnimationContext::Update(CFaceState& faceState, const QuatTS& rAnimL
 					}
 				}
 				else
-					channel.fCurrWeight = channel.fWeight - channel.fWeight * (dt * dt);
+					channel.fCurrWeight = channel.fWeight - channel.fWeight * BADF(dt * dt);
 			}
 			break;
 		}
@@ -277,16 +279,16 @@ bool CFacialAnimationContext::Update(CFaceState& faceState, const QuatTS& rAnimL
 
 	// Update the amount of time left for bone rotation smoothing.
 	{
-		const float deltaTime = gEnv->pTimer->GetFrameTime();
-		const float oldBoneRotationSmoothingRemainingTime = m_fBoneRotationSmoothingRemainingTime;
-		const float newBoneRotationSmoothingRemainingTime = m_fBoneRotationSmoothingRemainingTime - deltaTime;
-		m_fBoneRotationSmoothingRemainingTime = max(0.f, newBoneRotationSmoothingRemainingTime);
+		const CTimeValue deltaTime = GetGTimer()->GetFrameTime();
+		const CTimeValue oldBoneRotationSmoothingRemainingTime = m_fBoneRotationSmoothingRemainingTime;
+		const CTimeValue newBoneRotationSmoothingRemainingTime = m_fBoneRotationSmoothingRemainingTime - deltaTime;
+		m_fBoneRotationSmoothingRemainingTime = max(CTimeValue(0), newBoneRotationSmoothingRemainingTime);
 
 		IF_UNLIKELY (Console::GetInst().ca_DebugFacial)
 		{
-			if (oldBoneRotationSmoothingRemainingTime)
+			if (oldBoneRotationSmoothingRemainingTime != 0)
 			{
-				IF_UNLIKELY (newBoneRotationSmoothingRemainingTime < 0.0f)
+				IF_UNLIKELY (newBoneRotationSmoothingRemainingTime < 0)
 				{
 					CryLogAlways("CFacialAnimationContext::Update(this=%p) disabling bone rotation smoothing.", this);
 				}
@@ -383,7 +385,7 @@ void CFacialAnimationContext::ApplyEffector(CFaceState& faceState, CFacialEffect
 		CFacialEffCtrl* pCtrl = (CFacialEffCtrl*)pEffector->GetSubEffCtrl(i);
 		if (pCtrl)
 		{
-			const float fEffectorWeight = pCtrl->Evaluate(fWeight);
+			const float fEffectorWeight = pCtrl->Evaluate(BADMP(fWeight));
 			if (fabsf(fEffectorWeight) > EFFECTOR_MIN_WEIGHT_EPSILON)
 			{
 #if USE_FACIAL_ANIMATION_EFFECTOR_BALANCE
@@ -407,7 +409,7 @@ void CFacialAnimationContext::ApplyEffector(CFaceState& faceState, CFacialEffect
 //////////////////////////////////////////////////////////////////////////
 void CFacialAnimationContext::UpdatePlayingSequences(const QuatTS& rAnimLocationNext)
 {
-	CTimeValue curTime = gEnv->pTimer->GetAsyncCurTime(); // We use real-time for sound sync.
+	CTimeValue curTime = GetGTimer()->GetAsyncCurTime(); // We use real-time for sound sync.
 
 	std::vector<CFacialAnimSequence*> tostop;
 
@@ -427,12 +429,12 @@ void CFacialAnimationContext::UpdatePlayingSequences(const QuatTS& rAnimLocation
 		if (seq.bPaused)
 			continue;
 
-		seq.playTime = (curTime - seq.startTime).GetSeconds();
+		seq.playTime = curTime - seq.startTime;
 		IF_UNLIKELY (seq.playTime >= seq.timeRange.end)
 		{
 			if (seq.bLooping)
 			{
-				float length = seq.timeRange.end - seq.timeRange.start;
+				CTimeValue length = seq.timeRange.end - seq.timeRange.start;
 				seq.playTime -= length;
 				seq.startTime += length;
 			}
@@ -494,7 +496,7 @@ void CFacialAnimationContext::PlaySequence(CFacialAnimSequence* pSequence, bool 
 	seq.bLooping = bLooping;
 	seq.bPaused = false;
 	seq.timeRange = pSequence->GetTimeRange();
-	seq.startTime = gEnv->pTimer->GetAsyncCurTime(); // We use real-time for sound sync.
+	seq.startTime = GetGTimer()->GetAsyncCurTime(); // We use real-time for sound sync.
 	seq.playTime = seq.timeRange.start;
 	if (seq.playTime > seq.timeRange.end)
 	{
@@ -513,14 +515,14 @@ void CFacialAnimationContext::PlaySequence(CFacialAnimSequence* pSequence, bool 
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CFacialAnimationContext::SeekSequence(IFacialAnimSequence* pSequence, float fTime)
+void CFacialAnimationContext::SeekSequence(IFacialAnimSequence* pSequence, const CTimeValue& fTime)
 {
 	int numSequences = (int)m_sequences.size();
 	for (int i = 0; i < numSequences; i++)
 	{
 		if (m_sequences[i].pSequence == pSequence)
 		{
-			m_sequences[i].startTime = gEnv->pTimer->GetAsyncCurTime() - fTime;
+			m_sequences[i].startTime = GetGTimer()->GetAsyncCurTime() - fTime;
 			m_sequences[i].playTime = fTime;
 			return;
 		}
@@ -933,7 +935,7 @@ CFaceIdentifierHandle CFacialAnimation::CreateIdentifierHandle(const char* ident
 	  );
 }
 
-const float SMOOTH_TIME_DURATION = 0.3f;
+const CTimeValue SMOOTH_TIME_DURATION = "0.3";
 //////////////////////////////////////////////////////////////////////////
 void CFacialAnimationContext::TemporarilyEnableAdditionalBoneRotationSmoothing()
 {
@@ -941,9 +943,9 @@ void CFacialAnimationContext::TemporarilyEnableAdditionalBoneRotationSmoothing()
 }
 
 //////////////////////////////////////////////////////////////////////////
-float CFacialAnimationContext::GetBoneRotationSmoothRatio()
+mpfloat CFacialAnimationContext::GetBoneRotationSmoothRatio()
 {
-	return m_fBoneRotationSmoothingRemainingTime / SMOOTH_TIME_DURATION;
+	return (m_fBoneRotationSmoothingRemainingTime / SMOOTH_TIME_DURATION).conv<mpfloat>();
 }
 
 void CFacialAnimationContext::GetMemoryUsage(ICrySizer* pSizer) const

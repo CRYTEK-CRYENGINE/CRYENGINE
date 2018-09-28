@@ -26,9 +26,9 @@ struct GlobalAnimationHeaderCAFStreamContent:public IStreamCallback
 	uint32 m_nFlags;
 	uint32 m_FilePathDBACRC32;
 
-	f32 m_fStartSec;
-	f32 m_fEndSec;
-	f32 m_fTotalDuration;
+	CTimeValue m_fStartSec;
+	CTimeValue m_fEndSec;
+	CTimeValue m_fTotalDuration;
 
 	QuatT m_StartLocation;
 
@@ -73,38 +73,38 @@ struct CRY_ALIGN (16)GlobalAnimationHeaderCAF:public GlobalAnimationHeader
 	//! Check total duration of a clip segment.
 	//! \param segmentIndex Index of the segment to check. Shall be lower than the value returned by GetTotalSegments().
 	//! \return Segment duration, expressed in seconds.
-	ILINE f32 GetSegmentDuration(uint32 segmentIndex) const
+	ILINE CTimeValue GetSegmentDuration(uint32 segmentIndex) const
 	{
 		assert(segmentIndex < m_Segments);
 		assert(segmentIndex + 1 < CRY_ARRAY_COUNT(m_SegmentsTime));
 
-		const f32 t0 = m_SegmentsTime[segmentIndex + 0];
-		const f32 t1 = m_SegmentsTime[segmentIndex + 1];
-		const f32 t  = t1 - t0;
-		return GetTotalDuration() * t;
+		const nTime t0 = m_SegmentsTime[segmentIndex + 0];
+		const nTime t1 = m_SegmentsTime[segmentIndex + 1];
+		const nTime t  = t1 - t0;
+		return GetTotalDuration() * t.conv<mpfloat>();
 	}
 
 	//! Convert a timepoint from normalized segment time to normalized clip time.
 	//! \param segmentIndex Index of the segment. Shall be lower than the value returned by GetTotalSegments().
 	//! \param normalizedSegmentTime Timepoint within the specified segment, normalized against the segment duration. Shall belong to the [0, 1] range.
 	//! \return Input timepoint, converted to a single value normalized against the entire clip duration.
-	ILINE f32 GetNTimeforEntireClip(uint32 segmentIndex, f32 normalizedSegmentTime) const
+	ILINE nTime GetNTimeforEntireClip(uint32 segmentIndex, const nTime& normalizedSegmentTime) const
 	{
 		assert(segmentIndex < m_Segments);
-		assert((0.f <= normalizedSegmentTime) && (normalizedSegmentTime <= 1.f));
+		assert((0 <= normalizedSegmentTime) && (normalizedSegmentTime <= 1));
 
-		const f32 totalDuration             = GetTotalDuration();
-		const f32 segmentDuration           = GetSegmentDuration(segmentIndex);
-		const f32 normalizedSegmentOffset   = m_SegmentsTime[segmentIndex];
-		const f32 normalizedSegmentDuration = segmentDuration / totalDuration;
+		const CTimeValue totalDuration			 = GetTotalDuration();
+		const CTimeValue segmentDuration        = GetSegmentDuration(segmentIndex);
+		const nTime normalizedSegmentOffset     = m_SegmentsTime[segmentIndex];
+		const nTime normalizedSegmentDuration   = segmentDuration / totalDuration;
 		return (normalizedSegmentTime * normalizedSegmentDuration) + normalizedSegmentOffset;
 	}
 
 	//! Check total duration of this animation clip.
 	//! \return Total duration, expressed in seconds.
-	ILINE f32 GetTotalDuration() const
+	ILINE CTimeValue GetTotalDuration() const
 	{
-		return m_fTotalDuration ? m_fTotalDuration : (1.0f / ANIMATION_30Hz);
+		return m_fTotalDuration != 0 ? m_fTotalDuration : ANIMATION_FSTEP;
 	}
 
 	//! Check total number of segments within this animation clip.
@@ -114,14 +114,15 @@ struct CRY_ALIGN (16)GlobalAnimationHeaderCAF:public GlobalAnimationHeader
 		return m_Segments;
 	}
 
-	f32 NTime2KTime(f32 ntime) const
+	//! Converts normalized time to key-time.  
+	//! \return Key time
+	kTime NTime2KTime(const nTime& nTimeIn) const
 	{
-		ntime = min(ntime, 1.0f);
+		mpfloat ntime = min(nTimeIn, nTime(1)).conv<mpfloat>();
 		assert(ntime >= 0 && ntime <= 1);
-		f32 duration = m_fEndSec - m_fStartSec;
-		f32 start    = m_fStartSec;
-		f32 key      = (ntime * ANIMATION_30Hz * duration + start * ANIMATION_30Hz); ///40.0f;
-		return key;
+		CTimeValue duration = (m_fEndSec - m_fStartSec);
+		mpfloat key  = (ntime * duration + m_fStartSec).GetSeconds() * ANIMATION_30Hz; ///40.0f;
+		return key.conv<kTime>(); 
 	}
 
 	void AddRef()
@@ -257,17 +258,17 @@ struct CRY_ALIGN (16)GlobalAnimationHeaderCAF:public GlobalAnimationHeader
 		m_nTouchedCounter  = 0;
 		m_bEmpty           = 0;
 
-		m_fStartSec      = -1;                                   // Start time in seconds.
-		m_fEndSec        = -1;                                   // End time in seconds.
-		m_fTotalDuration = -1.0f;                                  //asset-features
+		m_fStartSec.SetSeconds(-1);                              // Start time in seconds.
+		m_fEndSec.SetSeconds(-1);                                // End time in seconds.
+		m_fTotalDuration.SetSeconds(-1);                         //asset-features
 		m_StartLocation.SetIdentity();                           //asset-features
 
-		m_Segments        = 1;                                   //asset-features
-		m_SegmentsTime[0] = 0.0f;                                  //asset-features
-		m_SegmentsTime[1] = 1.0f;                                  //asset-features
-		m_SegmentsTime[2] = 1.0f;                                  //asset-features
-		m_SegmentsTime[3] = 1.0f;                                  //asset-features
-		m_SegmentsTime[4] = 1.0f;                                  //asset-features
+		m_Segments        = 1;                                  //asset-features
+		m_SegmentsTime[0] = 0;                                  //asset-features
+		m_SegmentsTime[1] = 1;                                  //asset-features
+		m_SegmentsTime[2] = 1;                                  //asset-features
+		m_SegmentsTime[3] = 1;                                  //asset-features
+		m_SegmentsTime[4] = 1;                                  //asset-features
 
 		m_nControllers  = 0;
 		m_nControllers2 = 0;
@@ -277,9 +278,9 @@ public:
 	uint32 m_FilePathDBACRC32;                                 //hash value (if the file is comming from a DBA)
 	IReadStreamPtr m_pStream;
 
-	f32 m_fStartSec;                                           //asset-feature: Start time in seconds.
-	f32 m_fEndSec;                                             //asset-feature: End time in seconds.
-	f32 m_fTotalDuration;                                      //asset-feature: asset-feature: total duration in seconds.
+	CTimeValue m_fStartSec;                                    //asset-feature: Start time in seconds.
+	CTimeValue m_fEndSec;                                      //asset-feature: End time in seconds.
+	CTimeValue m_fTotalDuration;                               //asset-feature: asset-feature: total duration in seconds.
 
 	uint16 m_nControllers;
 	uint16 m_nControllers2;
@@ -295,7 +296,7 @@ public:
 	uint16 m_nTouchedCounter;                                  //for statistics: did we use this asset at all?
 	uint8  m_bEmpty;                                           //Loaded from database
 	uint8  m_Segments;                                         //asset-feature: amount of segments
-	f32 m_SegmentsTime[CAF_MAX_SEGMENTS];                      //asset-feature: normalized-time for each segment
+	nTime  m_SegmentsTime[CAF_MAX_SEGMENTS];                   //asset-feature: normalized-time for each segment
 
 	QuatT m_StartLocation;                                     //asset-feature: the original location of the animation in world-space
 

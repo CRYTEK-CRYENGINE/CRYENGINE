@@ -82,7 +82,7 @@ struct CGlobalHeaderDBA
 	uint32                 m_FilePathDBACRC32;
 	uint16                 m_nUsedAnimations;
 	uint16                 m_nEmpty;
-	uint32                 m_nLastUsedTimeDelta;
+	CTimeValue             m_nLastUsedTimeDelta;
 	uint8                  m_bDBALock;
 	bool                   m_bLoadFailed;
 };

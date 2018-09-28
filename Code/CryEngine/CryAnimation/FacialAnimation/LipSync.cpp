@@ -242,7 +242,7 @@ void CFacialSentence::AddWord(const Word& wrd)
 }
 
 //////////////////////////////////////////////////////////////////////////
-int CFacialSentence::GetPhonemeFromTime(int timeMs, int nFirst)
+int CFacialSentence::GetPhonemeFromTime(const CTimeValue& time, int nFirst)
 {
 	if (nFirst > (int)m_phonemes.size() - 1)
 		nFirst = 0;
@@ -250,14 +250,14 @@ int CFacialSentence::GetPhonemeFromTime(int timeMs, int nFirst)
 		nFirst = 0;
 	if (nFirst > 0)
 	{
-		if (m_phonemes[nFirst].time > timeMs)
+		if (m_phonemes[nFirst].time > time)
 			nFirst = 0;
 	}
 	for (int i = nFirst; i < (int)m_phonemes.size(); i++)
 	{
-		if (timeMs < m_phonemes[i].time)
+		if (time < m_phonemes[i].time)
 			break;
-		if (timeMs >= m_phonemes[i].time && timeMs <= m_phonemes[i].endtime)
+		if (time >= m_phonemes[i].time && time <= m_phonemes[i].endtime)
 		{
 			return i;
 		}
@@ -314,15 +314,16 @@ void CFacialSentence::Serialize(XmlNodeRef& node, bool bLoading)
 			while (!key.empty())
 			{
 				char sPhoneme[128];
-				int start = 0, end = 0;
-				PREFAST_SUPPRESS_WARNING(6031) sscanf(key, "%d:%d:%127s", &start, &end, sPhoneme);
+				char start[MP_SIZE] = "0";
+				char end[MP_SIZE] = "0";
+				PREFAST_SUPPRESS_WARNING(6031) sscanf(key, "%[^:]:%[^:]:%127s", &start, &end, sPhoneme);
 				key = strall.Tokenize(",", curPos);
 
 				Phoneme ph;
 				cry_strcpy(ph.phoneme, sPhoneme);
 				ph.intensity = 1;
-				ph.time = start;
-				ph.endtime = end;
+				ph.time.SetSeconds(start);
+				ph.endtime.SetSeconds(end);
 				m_phonemes.push_back(ph);
 			}
 		}
@@ -356,7 +357,7 @@ void CFacialSentence::Serialize(XmlNodeRef& node, bool bLoading)
 			string skey;
 			for (i = 0; i < numPhonemes; i++)
 			{
-				skey.Format("%d:%d:%s", m_phonemes[i].time, m_phonemes[i].endtime, m_phonemes[i].phoneme);
+				skey.Format("%s:%s:%s", m_phonemes[i].time.GetSeconds().str(), m_phonemes[i].endtime.GetSeconds().str(), m_phonemes[i].phoneme);
 				strall += skey;
 				if (i < numPhonemes - 1)
 					strall += ",";
@@ -375,7 +376,7 @@ inline float EvalGaussian(float x)
 	return scale * expf(-x * x / 2);
 }
 #endif //defined(USE_LIPSYNC_V2)
-int CFacialSentence::Evaluate(float fTime, float fInputPhonemeStrength, int maxSamples, ChannelSample* samples)
+int CFacialSentence::Evaluate(const CTimeValue& fTime, float fInputPhonemeStrength, int maxSamples, ChannelSample* samples)
 {
 	int numSamples = 0;
 
@@ -476,23 +477,23 @@ int CFacialSentence::Evaluate(float fTime, float fInputPhonemeStrength, int maxS
 
 	string debugText;
 
-	float time = fTime * 1000.0f + Console::GetInst().ca_lipsync_phoneme_offset;
-	float fFadeTime = (float) Console::GetInst().ca_lipsync_phoneme_crossfade;
+	CTimeValue time = fTime + Console::GetInst().ca_lipsync_phoneme_offset;
+	CTimeValue fFadeTime = Console::GetInst().ca_lipsync_phoneme_crossfade;
 
 	int nPhonemes = GetPhonemeCount();
 	for (int i = 0; i < nPhonemes; i++)
 	{
 		CFacialSentence::Phoneme& ph = GetPhoneme(i);
 
-		float fPossibleFadeTime = fFadeTime;
+		CTimeValue fPossibleFadeTime = fFadeTime;
 
 		if (i > 0)
 		{
 			// make sure this is not time dependent as before, as this
 			// leads to discontinuities in the sequence
 			CFacialSentence::Phoneme& ph0 = GetPhoneme(i - 1);
-			float fToPrevPhonemeLength = (float) (ph.time - ph0.time);
-			float fThisPhonemeLength = (float) (ph.endtime - ph.time);
+			CTimeValue fToPrevPhonemeLength = ph.time - ph0.time;
+			CTimeValue fThisPhonemeLength   = ph.endtime - ph.time;
 			fPossibleFadeTime = min(fToPrevPhonemeLength, fThisPhonemeLength);
 		}
 
@@ -500,16 +501,16 @@ int CFacialSentence::Evaluate(float fTime, float fInputPhonemeStrength, int maxS
 		// than fFadeTime, dont go up to maximum value
 		// but scale maximum strength by fPossibleFadeTime / fFadeTime
 
-		float ft = max(fFadeTime, fPossibleFadeTime);
+		CTimeValue ft = max(fFadeTime, fPossibleFadeTime);
 
-		float t1 = (ph.time - time) / ft;
-		float t2 = (ph.endtime - time) / ft;
+		nTime t1 = (ph.time - time) / ft;
+		nTime t2 = (ph.endtime - time) / ft;
 
-		if (t1 < 1.0f && t2 > 0.0f)
+		if (t1 < 1 && t2 > 0)
 		{
-			if (t2 > 1.0f) t2 = 1.0f;
-			if (t1 < 0.0f) t1 = 0.0f;
-			float fFadeStrength = (t2 - t1);
+			if (t2 > 1) t2 = 1;
+			if (t1 < 0) t1 = 0;
+			nTime fFadeStrength = (t2 - t1);
 
 			if (fPhonemeStrength > 1.0f)
 				fPhonemeStrength = 1.0f;
@@ -517,12 +518,12 @@ int CFacialSentence::Evaluate(float fTime, float fInputPhonemeStrength, int maxS
 			if (numSamples < maxSamples)
 			{
 				samples[numSamples].phoneme = ph.phoneme;
-				float fScale = 1.0f;
+				nTime fScale = 1;
 				if (fPossibleFadeTime < fFadeTime)
 				{
 					fScale = fPossibleFadeTime / fFadeTime;
 				}
-				samples[numSamples].strength = fPhonemeStrength * fFadeStrength * fScale;
+				samples[numSamples].strength = fPhonemeStrength * BADF(fFadeStrength * fScale);
 				if (samples[numSamples].strength > 1.0f)
 					samples[numSamples].strength = 1.0f;
 			}
@@ -539,7 +540,7 @@ int CFacialSentence::Evaluate(float fTime, float fInputPhonemeStrength, int maxS
 	return numSamples;
 }
 
-void CFacialSentence::Animate(const QuatTS& rAnimLocationNext, CFacialAnimationContext* pAnimContext, float fTime, float fInputPhonemeStrength, const VectorSet<CFaceIdentifierHandle, SFaceIdentifierHandleLess>& overriddenPhonemes)
+void CFacialSentence::Animate(const QuatTS& rAnimLocationNext, CFacialAnimationContext* pAnimContext, const CTimeValue& fTime, float fInputPhonemeStrength, const VectorSet<CFaceIdentifierHandle, SFaceIdentifierHandleLess>& overriddenPhonemes)
 {
 	ChannelSample samples[1000];
 	enum {MAX_SAMPLES = CRY_ARRAY_COUNT(samples)};

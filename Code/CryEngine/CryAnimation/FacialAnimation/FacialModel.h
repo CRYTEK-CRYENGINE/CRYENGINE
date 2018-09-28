@@ -135,7 +135,7 @@ public:
 
 	//////////////////////////////////////////////////////////////////////////
 	// Apply state to the specified character instance.
-	void        FillInfoMapFromFaceState(CFacialDisplaceInfo& info, CFaceState* const pFaceState, CCharInstance* const pInstance, int numForcedRotations, const CFacialAnimForcedRotationEntry* const forcedRotations, float blendBoneRotations);
+	void        FillInfoMapFromFaceState(CFacialDisplaceInfo& info, CFaceState* const pFaceState, CCharInstance* const pInstance, int numForcedRotations, const CFacialAnimForcedRotationEntry* const forcedRotations, const mpfloat& blendBoneRotations);
 
 	static void ApplyDisplaceInfoToJoints(const CFacialDisplaceInfo& info, const CDefaultSkeleton* const pSkeleton, Skeleton::CPoseData* const pPoseData, const QuatT* const pJointsRelativeDefault);
 

@@ -6,12 +6,12 @@
 #include "FaceEffectorLibrary.h"
 
 //////////////////////////////////////////////////////////////////////////
-float CFacialEffCtrl::Evaluate(float fInput)
+float CFacialEffCtrl::Evaluate(const mpfloat& fInput)
 {
 	switch (m_type)
 	{
 	case CTRL_LINEAR:
-		return fInput * m_fWeight;
+		return BADF fInput * m_fWeight;
 	case CTRL_SPLINE:
 		{
 			float fOut = 0;
@@ -75,7 +75,7 @@ void CFacialEffCtrl::SetConstantBalance(float fBalance)
 	m_fBalance = fBalance;
 }
 
-void CFacialEffCtrlSplineInterpolator::Interpolate(float time, ValueType& val)
+void CFacialEffCtrlSplineInterpolator::Interpolate(const mpfloat& time, ValueType& val)
 {
 	val[0] = m_pOwner->Evaluate(time);
 }

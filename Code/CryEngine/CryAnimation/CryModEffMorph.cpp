@@ -18,7 +18,7 @@ void CryModEffMorph::stop()
 }
 
 // advances the current time of the played animation and returns the blending factor by which this animation affects the bone pose
-void CryModEffMorph::Tick(f32 fDeltaTime)
+void CryModEffMorph::Tick(const CTimeValue& fDeltaTime)
 {
 	if (m_nMorphTargetId < 0)
 		return;
@@ -35,20 +35,20 @@ void CryModEffMorph::Tick(f32 fDeltaTime)
 // returns the blending for the morph target
 f32 CryModEffMorph::getBlending() const
 {
-	f32 fTimeStable = m_fTime - m_Params.m_fBlendIn;
+	CTimeValue fTimeStable = m_fTime - m_Params.m_fBlendIn;
 
 	if (fTimeStable < 0) // blending in...
-		return SmoothBlendValue(m_fTime / m_Params.m_fBlendIn) * m_Params.m_fAmplitude;
+		return SmoothBlendValue(BADF(m_fTime / m_Params.m_fBlendIn)) * m_Params.m_fAmplitude;
 
 	if (m_nFlags & m_Params.FLAGS_NO_BLENDOUT)
 		return m_Params.m_fAmplitude; // never blending out - stable morph
 
-	f32 fTimeBlendOut = fTimeStable - m_Params.m_fLength;
+	CTimeValue fTimeBlendOut = fTimeStable - m_Params.m_fLength;
 
 	if (fTimeBlendOut < 0)
 		return m_Params.m_fAmplitude;
 
-	return SmoothBlendValue(1 - fTimeBlendOut / m_Params.m_fBlendOut) * m_Params.m_fAmplitude;
+	return SmoothBlendValue(BADF(1 - fTimeBlendOut / m_Params.m_fBlendOut)) * m_Params.m_fAmplitude;
 }
 
 // returns false when this morph target is inactive

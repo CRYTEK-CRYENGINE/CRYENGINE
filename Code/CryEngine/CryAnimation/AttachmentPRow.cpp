@@ -256,11 +256,11 @@ void CPendulaRow::UpdatePendulumRow(const CAttachmentManager* pAttachmentManager
 		}
 	}
 
-	const f32 fIPlaybackScale = pSkelInstance->GetPlaybackScale();
-	const f32 fLPlaybackScale = pSkelInstance->m_SkeletonAnim.GetLayerPlaybackScale(0);
-	const f32 fAverageFrameTime = g_AverageFrameTime * fIPlaybackScale * fLPlaybackScale ? g_AverageFrameTime * fIPlaybackScale * fLPlaybackScale : g_AverageFrameTime;
-	const f32 fPhysFramerate = 1.0f / f32(m_nSimFPS);
-	const f32 dt = fAverageFrameTime > fPhysFramerate ? fAverageFrameTime : fPhysFramerate;
+	const mpfloat fIPlaybackScale = pSkelInstance->GetPlaybackScale();
+	const mpfloat fLPlaybackScale = pSkelInstance->m_SkeletonAnim.GetLayerPlaybackScale(0);
+	const CTimeValue fAverageFrameTime = (g_AverageFrameTime * fIPlaybackScale * fLPlaybackScale) != 0 ? g_AverageFrameTime * fIPlaybackScale * fLPlaybackScale : g_AverageFrameTime;
+	const CTimeValue fPhysFramerate = CTimeValue(mpfloat(1) / m_nSimFPS);
+	const CTimeValue dt = fAverageFrameTime > fPhysFramerate ? fAverageFrameTime : fPhysFramerate;
 	m_fTimeAccumulator += fAverageFrameTime;
 
 	const f32 fMaxAngleHSin = sqrt_tpl(fabs(1.0f - m_fMaxAngleHCos * m_fMaxAngleHCos));
@@ -276,7 +276,7 @@ void CPendulaRow::UpdatePendulumRow(const CAttachmentManager* pAttachmentManager
 
 #ifdef EDITOR_PCDEBUGCODE
 	if (m_useDebugText)
-		if (dt) g_YLine += 8.0f, g_pAuxGeom->Draw2dLabel(1, g_YLine, 1.3f, ColorF(0, 1, 0, 1), false, "dt: %f  fRealFPS: %f    fSimFPS: %f  fStiffness: %f  m_fMaxAngle: %f m_fGravity: %f", dt, 1.0f / dt, f32(m_nSimFPS), m_fJointSpring, m_fConeAngle, m_fGravity), g_YLine += 16.0f;
+		if (dt != 0) g_YLine += 8.0f, g_pAuxGeom->Draw2dLabel(1, g_YLine, 1.3f, ColorF(0, 1, 0, 1), false, "dt: %f  fRealFPS: %f    fSimFPS: %f  fStiffness: %f  m_fMaxAngle: %f m_fGravity: %f", dt, 1 / dt, f32(m_nSimFPS), m_fJointSpring, m_fConeAngle, m_fGravity), g_YLine += 16.0f;
 #endif
 
 	uint16 arrSetupError[MAX_JOINTS_PER_ROW];
@@ -312,8 +312,8 @@ void CPendulaRow::UpdatePendulumRow(const CAttachmentManager* pAttachmentManager
 			if (m_fTimeAccumulator >= fPhysFramerate)
 			{
 				const Vec3 vAcceleration = vStiffnessTarget * m_fJointSpring * fInvMass - dm.m_vBobVelocity * arrDamping[i] - Vec3(0, 0, m_fGravity);
-				dm.m_vBobVelocity += vAcceleration * dt * 0.5f; //Integrating the acceleration over time gives the velocity
-				dm.m_vBobPosition += dm.m_vBobVelocity * dt;    //Integrating the acceleration twice over time gives the position.
+				dm.m_vBobVelocity += vAcceleration * dt.BADGetSeconds() * 0.5f; //Integrating the acceleration over time gives the velocity
+				dm.m_vBobPosition += dm.m_vBobVelocity * dt.BADGetSeconds();    //Integrating the acceleration twice over time gives the position.
 			}
 
 			Vec3 vRodAnim = dm.m_vBobPosition - AttLocationLerp.t, a; //translate pendulum-position into local space
@@ -481,7 +481,7 @@ void CPendulaRow::UpdatePendulumRow(const CAttachmentManager* pAttachmentManager
 				const Vec3 vRodDefN = AttLocationLerp.q.GetColumn0(); //this is the Cone-Axis
 				const Vec3 vStiffnessTarget = Quat(m_rollc, m_rolls * vRodDefN) * Quat(m_pitchc, m_pitchs * hn) * vRodDefN;
 				const Vec3 vAcceleration = vStiffnessTarget * m_fJointSpring * fInvMass - dm.m_vBobVelocity * arrDamping[i] - Vec3(0, 0, m_fGravity);
-				dm.m_vBobVelocity = (dm.m_vBobPosition - arrPrevBobPositions[i]) / dt + 0.5f * vAcceleration * dt; //Implicit Integral: set correct initial velocity for next frame
+				dm.m_vBobVelocity = (dm.m_vBobPosition - arrPrevBobPositions[i]) / dt.BADGetSeconds() + 0.5f * vAcceleration * dt.BADGetSeconds(); //Implicit Integral: set correct initial velocity for next frame
 				f32 len = dm.m_vBobVelocity.GetLength();
 				if (len > m_fMaxVelocity)
 					dm.m_vBobVelocity = dm.m_vBobVelocity / len * m_fMaxVelocity;

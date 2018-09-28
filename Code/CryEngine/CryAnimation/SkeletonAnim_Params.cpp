@@ -7,7 +7,7 @@
 #include "CharacterInstance.h"
 #include <float.h>
 
-void CSkeletonAnim::SetDesiredMotionParam(EMotionParamID nParameterID, float fParameter, float deltaTime222)
+void CSkeletonAnim::SetDesiredMotionParam(EMotionParamID nParameterID, float fParameter, const CTimeValue& deltaTime222)
 {
 	if (nParameterID >= eMotionParamID_COUNT)
 		return; //not a valid parameter

@@ -75,7 +75,7 @@ public:
 	uint32                      GetInstanceChannelId() const           { return m_nInstanceChannelId; }
 	void                        SetInstanceChannelId(uint32 nChanelId) { m_nInstanceChannelId = nChanelId; }
 
-	float                       Evaluate(float t);
+	float                       Evaluate(const CTimeValue& t);
 	bool                        HaveEffector() const { return m_pEffector != 0; }
 
 	void                        CreateInterpolator();
@@ -240,8 +240,8 @@ public:
 
 	virtual IFacialSentence* GetSentence() { return m_pSentence; };
 
-	virtual float            GetStartTime();
-	virtual void             SetStartTime(float time);
+	virtual const CTimeValue& GetStartTime();
+	virtual void              SetStartTime(const CTimeValue& time);
 
 	void                     ValidateSentence();
 	bool                     IsSentenceInvalid();
@@ -249,7 +249,7 @@ public:
 	_smart_ptr<CFacialSentence> m_pSentence;
 	string                      m_sound;
 	int                         m_nSentenceValidateID;
-	float                       m_startTime;
+	CTimeValue                  m_startTime;
 
 	void GetMemoryUsage(ICrySizer* pSizer) const
 	{
@@ -269,14 +269,14 @@ public:
 	virtual void        SetName(const char* skeletonAnimationFile);
 	virtual const char* GetName() const;
 
-	virtual void        SetStartTime(float time);
-	virtual float       GetStartTime() const;
-	virtual void        SetEndTime(float time);
-	virtual float       GetEndTime() const;
+	virtual void					SetStartTime(const CTimeValue& time);
+	virtual const CTimeValue&  GetStartTime() const;
+	virtual void					SetEndTime(const CTimeValue& time);
+	virtual const CTimeValue&  GetEndTime() const;
 
 	string m_animationName;
-	float  m_startTime;
-	float  m_endTime;
+	CTimeValue  m_startTime;
+	CTimeValue  m_endTime;
 
 	void GetMemoryUsage(ICrySizer* pSizer) const
 	{
@@ -308,8 +308,8 @@ public:
 	virtual void                               SetFlags(int nFlags)      { m_data.m_nFlags = nFlags; };
 	virtual int                                GetFlags()                { return m_data.m_nFlags; };
 
-	virtual Range                              GetTimeRange()            { return m_data.m_timeRange; };
-	virtual void                               SetTimeRange(Range range) { m_data.m_timeRange = range; };
+	virtual TRange<CTimeValue>                 GetTimeRange()            { return m_data.m_timeRange; };
+	virtual void                               SetTimeRange(TRange<CTimeValue> range) { m_data.m_timeRange = range; };
 
 	virtual int                                GetChannelCount()         { return m_data.m_channels.size(); };
 	virtual IFacialAnimChannel*                GetChannel(int nIndex);
@@ -322,7 +322,7 @@ public:
 	virtual void                               DeleteSoundEntry(int index);
 	virtual IFacialAnimSoundEntry*             GetSoundEntry(int index);
 
-	virtual void                               Animate(const QuatTS& rAnimLocationNext, CFacialAnimSequenceInstance* pInstance, float fTime);
+	virtual void                               Animate(const QuatTS& rAnimLocationNext, CFacialAnimSequenceInstance* pInstance, const CTimeValue& fTime);
 
 	virtual int                                GetSkeletonAnimationEntryCount();
 	virtual void                               InsertSkeletonAnimationEntry(int index);
@@ -370,7 +370,7 @@ private:
 	{
 		Data()
 		{
-			m_timeRange.Set(0, 1);
+			m_timeRange.Set(0, CTimeValue(1));
 			m_nFlags = 0;
 			m_nValidateID = 0;
 			m_nProceduralChannelsValidateID = 0;
@@ -386,7 +386,7 @@ private:
 		std::vector<CFacialAnimSkeletalAnimationEntry> m_skeletonAnimationEntries;
 
 		Channels                                 m_channels;
-		Range                                    m_timeRange;
+		TRange<CTimeValue>                       m_timeRange;
 		std::vector<CFacialAnimSoundEntry>       m_soundEntries;
 
 		int                                      m_nProceduralChannelsValidateID;

@@ -35,9 +35,9 @@ struct SFacialEffectorChannel
 
 	EChannelStatus              status;
 	// Blend params in/out times in ms.
-	float                       fFadeTime;
+	CTimeValue                  fFadeTime;
 	// Life time of this channel at one level.
-	float                       fLifeTime;
+	CTimeValue                  fLifeTime;
 	// the desired weight of the channel at full level.
 	float                       fWeight;
 	// current weight of channel.
@@ -61,16 +61,16 @@ struct SFacialEffectorChannel
 		bTemporary = false;
 		bLipSync = false;
 		nChannelId = ~0;
-		startFadeTime = 0.0f;
+		startFadeTime.SetSeconds(0);
 		status = STATUS_ONE;
-		fFadeTime = 0;
+		fFadeTime.SetSeconds(0);
 		fCurrWeight = 0;
 		fWeight = 0;
-		fLifeTime = 0;
+		fLifeTime.SetSeconds(0);
 		nRepeatCount = 0;
 		fBalance = 0.0f;
 	}
-	void StartFadeOut(CTimeValue time)
+	void StartFadeOut(const CTimeValue& time)
 	{
 		startFadeTime = time;
 		status = STATUS_FADE_OUT;
@@ -95,7 +95,7 @@ public:
 	// Returns Channel id.
 	uint32 StartChannel(SFacialEffectorChannel& channel);
 	// Stop channel with blending.
-	void   StopChannel(uint32 nChannelId, float fFadeTime = 0);
+	void   StopChannel(uint32 nChannelId, const CTimeValue& fFadeTime = 0);
 	// Removes channel from the list.
 	void   RemoveChannel(uint32 nChannelId);
 	void   RemoveAllChannels();
@@ -121,15 +121,15 @@ public:
 	void PauseSequence(CFacialAnimSequence* pSequence, bool bPaused);
 	bool IsPlayingSequence(CFacialAnimSequence* pSequence);
 	void StopAllSequences();
-	void SeekSequence(IFacialAnimSequence* pSequence, float fTime);
+	void SeekSequence(IFacialAnimSequence* pSequence, const CTimeValue& fTime);
 
 	// Remove all channels with preview flag.
 	void   RemoveAllPreviewChannels();
 
-	uint32 FadeInChannel(IFacialEffector* pEffector, float fWeight, float fFadeTime, float fLifeTime = 0, int nRepeatCount = 0);
+	uint32 FadeInChannel(IFacialEffector* pEffector, float fWeight, const CTimeValue& fFadeTime, const CTimeValue& fLifeTime = 0, int nRepeatCount = 0);
 
 	void   TemporarilyEnableAdditionalBoneRotationSmoothing();
-	float  GetBoneRotationSmoothRatio();
+	mpfloat GetBoneRotationSmoothRatio();
 
 	void   GetMemoryUsage(ICrySizer* pSizer) const;
 
@@ -159,8 +159,8 @@ private:
 	{
 		_smart_ptr<CFacialAnimSequence>         pSequence;
 		_smart_ptr<CFacialAnimSequenceInstance> pSequenceInstance;
-		Range      timeRange;
-		float      playTime;
+		TRange<CTimeValue> timeRange;
+		CTimeValue playTime;
 		CTimeValue startTime;
 
 		// weight of sequence.
@@ -183,7 +183,7 @@ private:
 
 	bool                          m_bForceLastUpdate;
 
-	float                         m_fBoneRotationSmoothingRemainingTime;
+	CTimeValue                    m_fBoneRotationSmoothingRemainingTime;
 };
 
 //////////////////////////////////////////////////////////////////////////

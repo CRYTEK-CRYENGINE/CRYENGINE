@@ -281,11 +281,11 @@ public:
 		, m_particlesHot(nullptr)
 		, m_links(nullptr)
 		, m_gravity(0, 0, -9.8f)
-		, m_time(0.0f)
-		, m_timeInterval(0.0f)
-		, m_dt(0.0f)
+		, m_time(0)
+		, m_timeInterval(0)
+		, m_dt(0)
 		, m_dtPrev(-1)
-		, m_dtNormalize(100.0f) // i.e. normalize substep to 1/dt with dt = 0.01
+		, m_dtNormalize(100) // i.e. normalize substep to 1/dt with dt = 0.01
 		, m_steps(0)
 		, m_normalizedTimePrev(0)
 		, m_doSkinningForNSteps(0)
@@ -321,7 +321,7 @@ public:
 	void                 SetParams(const SVClothParams& params) { m_config = params; };
 	int                  SetParams(const SVClothParams& params, float* weights);
 
-	void                 StartStep(float time_interval, const QuatT& location);
+	void                 StartStep(const CTimeValue& time_interval, const QuatT& location);
 	int                  Step();
 
 	bool                 AddGeometry(phys_geometry* pgeom);
@@ -343,8 +343,8 @@ public:
 	bool IsInitialized() const                   { return m_bIsInitialized; }
 
 	// fading/blending between skinning and simulation
-	bool IsFading() const { return (m_fadeTimeActual > 0.0f) || (m_fadeInOutPhysicsDirection != 0); }
-	void DecreaseFadeInOutTimer(float dt);
+	bool IsFading() const { return (m_fadeTimeActual > 0) || (m_fadeInOutPhysicsDirection != 0); }
+	void DecreaseFadeInOutTimer(const CTimeValue& dt);
 
 	void DrawHelperInformation();
 
@@ -374,19 +374,19 @@ private:
 	 * Set skinning positions; e.g. to reduce strong simulation forces when simulation is enabled/faded in.
 	 */
 	void PositionsSetToSkinned(bool projectToProxySurface = true, bool setPosOld = true);
-	void PositionsSetAttachedToSkinnedInterpolated(float t01);
+	void PositionsSetAttachedToSkinnedInterpolated(const nTime& t01); // Input = normalized time
 
 	/**
 	 * Moves particle-positions 'm_particlesHot[i].pos' lying inside proxy to proxies surface; using time-interpolation if t01 is set.
 	 */
-	void PositionsProjectToProxySurface(f32 t01 = 1.0f);
+	void PositionsProjectToProxySurface(const nTime& t01 = nTime(1)); // Input = normalized time
 	void BendByTriangleAngleDetermineNormals();
 	void BendByTriangleAngleSolve(float kBend);
 
 	/**
 	 * Determine actual, lerped quaternions for colliders
 	 */
-	void UpdateCollidablesLerp(f32 t01 = 1.0f);
+	void UpdateCollidablesLerp(const nTime& t01 = nTime(1)); // Input = normalized time
 	void NearestNeighborDistanceConstraintsSolve();
 
 	/**
@@ -416,13 +416,13 @@ private:
 	void DoAnimationRewind();
 
 	// fading
-	bool IsFadingOut() const { return (m_fadeTimeActual > 0.0f) && (m_fadeInOutPhysicsDirection == -1); }
-	bool IsFadingIn()  const { return (m_fadeTimeActual > 0.0f) && (m_fadeInOutPhysicsDirection == 1); }
+	bool IsFadingOut() const { return (m_fadeTimeActual > 0) && (m_fadeInOutPhysicsDirection == -1); }
+	bool IsFadingIn()  const { return (m_fadeTimeActual > 0) && (m_fadeInOutPhysicsDirection == 1); }
 	void InitFadeInOutPhysics();
 	void EnableFadeOutPhysics();
 	void EnableFadeInPhysics();
 
-	void DebugOutput(float stepTime01);
+	void DebugOutput(const nTime& stepTime01); // Input = normalized time
 
 private:
 
@@ -441,17 +441,17 @@ private:
 	std::vector<SLink>        m_shearLinks;   //!< shear links
 	std::vector<SLink>        m_bendLinks;    //!< bend links
 	Vector4                   m_gravity;      //!< the gravity vector
-	float                     m_time;         //!< time accumulator over frames (used to determine the number of sub-steps)
-	float                     m_timeInterval; //!< time interval to be simulated for last frame
-	float                     m_dt;           //!< dt of actual substep
-	float                     m_dtPrev;       //!< dt of previous substep - needed to determine the velocity by posPrev within position based approach
-	float                     m_dtNormalize;  //!< normalization factor for dt to convert constants in suitable range
-	float                     m_normalizedTimePrev;
+	CTimeValue                m_time;         //!< time accumulator over frames (used to determine the number of sub-steps)
+	CTimeValue                m_timeInterval; //!< time interval to be simulated for last frame
+	CTimeValue                m_dt;           //!< dt of actual substep
+	CTimeValue                m_dtPrev;       //!< dt of previous substep - needed to determine the velocity by posPrev within position based approach
+	mpfloat                   m_dtNormalize;  //!< normalization factor for dt to convert constants in suitable range
+	nTime                     m_normalizedTimePrev;
 	int                       m_steps;
 
 	std::vector<SCollidable>  m_permCollidables; //!< list of collision proxies (no collision with the world)
 
-	float                     m_fadeTimeActual;                   //!< actual fade time
+	CTimeValue                m_fadeTimeActual;                   //!< actual fade time
 	int                       m_fadeInOutPhysicsDirection;        //!< -1 fade out, 1 fade in
 	int                       m_doSkinningForNSteps;              //!< use skinning if any position change has occured, to keep simulation stable
 	int                       m_forceSkinningAfterNFramesCounter; //!< safety mechanism, i.e. local counter: if framerate falls below threshold for n-frames, skinning is forced to avoid performance issues
@@ -504,8 +504,8 @@ ILINE void CClothSimulator::SolveEdge(const SLink& link, float stretch)
 	const float lenSqr = delta.len2();
 	delta *= stretch * (lenSqr - link.lenSqr) / (lenSqr + link.lenSqr);
 
-	if (!m_particlesCold[link.i1].bAttached) v1 -= link.weight1 * delta * m_dt;
-	if (!m_particlesCold[link.i2].bAttached) v2 += link.weight2 * delta * m_dt;
+	if (!m_particlesCold[link.i1].bAttached) v1 -= link.weight1 * delta * m_dt.BADGetSeconds();
+	if (!m_particlesCold[link.i2].bAttached) v2 += link.weight2 * delta * m_dt.BADGetSeconds();
 
 }
 
@@ -519,14 +519,14 @@ ILINE void CClothSimulator::DampEdge(const SLink& link, f32 damping)
 
 	Vector4 vel1 = m_particlesHot[link.i1].pos - m_particlesCold[link.i1].prevPos;
 	Vector4 vel2 = m_particlesHot[link.i2].pos - m_particlesCold[link.i2].prevPos;
-	Vector4 dv = (vel2 - vel1) / m_dtPrev; // relative velocity
+	Vector4 dv = (vel2 - vel1) / m_dtPrev.BADGetSeconds(); // relative velocity
 
 	// fast determination of dvn for damping (without sqrt), see 'Physically Based Deformable Models in Computer Graphics', Nealen et al
 	Vector4 dvn = (dv.dot(delta) / delta.dot(delta)) * delta;
 
 	// damp velocity by changing prevPos
-	if (!m_particlesCold[link.i1].bAttached) m_particlesCold[link.i1].prevPos -= damping * dvn * m_dt;
-	if (!m_particlesCold[link.i2].bAttached) m_particlesCold[link.i2].prevPos += damping * dvn * m_dt;
+	if (!m_particlesCold[link.i1].bAttached) m_particlesCold[link.i1].prevPos -= damping * dvn * m_dt.BADGetSeconds();
+	if (!m_particlesCold[link.i2].bAttached) m_particlesCold[link.i2].prevPos += damping * dvn * m_dt.BADGetSeconds();
 	// possible variation: change posHot, since prevPos is not used within collision/stiffness loop
 	//if (!m_particlesCold[link.i1].bAttached) m_particlesHot[link.i1].pos += damping * dvn;
 	//if (!m_particlesCold[link.i2].bAttached) m_particlesHot[link.i2].pos -= damping * dvn;

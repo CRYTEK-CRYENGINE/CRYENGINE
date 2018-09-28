@@ -54,11 +54,11 @@ void FaceChannel::RemoveNoise(CFacialAnimChannelInterpolator* pSpline, float sig
 
 void FaceChannel::ApplyKernel(CFacialAnimChannelInterpolator* pSpline, CFacialAnimChannelInterpolator* pReference, int kernelSize, const float* kernel)
 {
-	float length = pReference->GetKeyTime(pReference->GetKeyCount() - 1);
+	mpfloat length = pReference->GetKeyTime(pReference->GetKeyCount() - 1);
 
 	for (int keyIndex = 0, keyCount = pSpline->GetKeyCount(); keyIndex < keyCount; ++keyIndex)
 	{
-		float keyTime = pSpline->GetKeyTime(keyIndex);
+		mpfloat keyTime = pSpline->GetKeyTime(keyIndex);
 
 		float kernelTotal = 0.0f;
 		float kernelCoefficientTotal = 0.0f;
@@ -67,8 +67,8 @@ void FaceChannel::ApplyKernel(CFacialAnimChannelInterpolator* pSpline, CFacialAn
 			const float& sampleX = kernel[i << 1];
 			const float& sampleY = kernel[(i << 1) + 1];
 
-			float sampleTime = keyTime + sampleX;
-			if (sampleTime >= 0.0f && sampleTime <= length)
+			mpfloat sampleTime = keyTime + BADMP(sampleX);
+			if (sampleTime >= 0 && sampleTime <= length)
 			{
 				kernelCoefficientTotal += sampleY;
 				float sampleValue;
@@ -86,11 +86,11 @@ void FaceChannel::ApplyKernel(CFacialAnimChannelInterpolator* pSpline, CFacialAn
 
 void FaceChannel::ApplyKernelNoiseFilter(CFacialAnimChannelInterpolator* pSpline, CFacialAnimChannelInterpolator* pReference, int kernelSize, const float* kernel, float threshold)
 {
-	float length = pReference->GetKeyTime(pReference->GetKeyCount() - 1);
+	mpfloat length = pReference->GetKeyTime(pReference->GetKeyCount() - 1);
 
 	for (int keyIndex = 0, keyCount = pSpline->GetKeyCount(); keyIndex < keyCount; ++keyIndex)
 	{
-		float keyTime = pSpline->GetKeyTime(keyIndex);
+		mpfloat keyTime = pSpline->GetKeyTime(keyIndex);
 
 		float kernelTotal = 0.0f;
 		float kernelCoefficientTotal = 0.0f;
@@ -99,8 +99,8 @@ void FaceChannel::ApplyKernelNoiseFilter(CFacialAnimChannelInterpolator* pSpline
 			const float& sampleX = kernel[i << 1];
 			const float& sampleY = kernel[(i << 1) + 1];
 
-			float sampleTime = keyTime + sampleX;
-			if (sampleTime >= 0.0f && sampleTime <= length)
+			mpfloat sampleTime = keyTime + BADMP(sampleX);
+			if (sampleTime >= 0 && sampleTime <= length)
 			{
 				kernelCoefficientTotal += sampleY;
 				float sampleValue;

@@ -47,7 +47,7 @@ struct CPendulaRow : public RowSimulationParams
 		m_vConeRotHSin.y = clamp_tpl(DEG2HSIN(m_vConeRotation.y), -1.0f, 1.0f);
 		m_vConeRotHSin.z = clamp_tpl(DEG2HSIN(m_vConeRotation.z), -1.0f, 1.0f);
 		m_pitchc = 1, m_pitchs = 0, m_rollc = 1, m_rolls = 0;
-		m_fTimeAccumulator = 0;
+		m_fTimeAccumulator.SetSeconds(0);
 		m_idxDirTransJoint = -1;
 	};
 
@@ -62,7 +62,7 @@ struct CPendulaRow : public RowSimulationParams
 	Vec3               m_vConeRotHCos;
 	Vec3               m_vConeRotHSin;
 	f32                m_pitchc, m_pitchs, m_rollc, m_rolls; //half-cosines of yaw & pitch
-	f32                m_fTimeAccumulator;
+	CTimeValue         m_fTimeAccumulator;
 	int32              m_idxDirTransJoint;
 
 	DynArray<int16>    m_arrProxyIndex;     //the indices to the proxies (atm only lozenges)

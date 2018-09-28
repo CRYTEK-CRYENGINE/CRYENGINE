@@ -110,8 +110,8 @@ struct CRY_ALIGN(128) Console
 	DeclareConstIntCVar(ca_DumpUsedAnims, 0);
 	DeclareConstIntCVar(ca_LoadUncompressedChunks, 0);
 	DeclareConstIntCVar(ca_eyes_procedural, 1);
-	DeclareConstIntCVar(ca_lipsync_phoneme_offset, 20);
-	DeclareConstIntCVar(ca_lipsync_phoneme_crossfade, 70);
+	CTimeValue ca_lipsync_phoneme_offset;
+	CTimeValue ca_lipsync_phoneme_crossfade;
 	DeclareConstIntCVar(ca_lipsync_debug, 0);
 	DeclareConstIntCVar(ca_useADIKTargets, 1);
 	DeclareConstIntCVar(ca_DebugADIKTargets, 0);
@@ -144,8 +144,8 @@ struct CRY_ALIGN(128) Console
 	DeclareConstIntCVar(ca_thread1Affinity, 3);
 
 	// DBA unloading timings
-	DeclareConstIntCVar(ca_DBAUnloadUnregisterTime, 2);
-	DeclareConstIntCVar(ca_DBAUnloadRemoveTime, 4);
+	CTimeValue ca_DBAUnloadUnregisterTime;
+	CTimeValue ca_DBAUnloadRemoveTime;
 
 	// vars in console .cfgs
 	f32 ca_DrawVEGInfo;
@@ -164,11 +164,11 @@ struct CRY_ALIGN(128) Console
 
 	f32 ca_lipsync_vertex_drag;
 	f32 ca_lipsync_phoneme_strength;
-	f32 ca_DeathBlendTime;
+	CTimeValue ca_DeathBlendTime;
 	f32 ca_FacialAnimationRadius;
 	f32 ca_AttachmentCullingRation;
 	f32 ca_AttachmentCullingRationMP;
-	f32 ca_cloth_max_timestep;
+	//f32 ca_cloth_max_timestep; // Not used?
 	f32 ca_cloth_max_safe_step;
 	f32 ca_cloth_stiffness;
 	f32 ca_cloth_thickness;

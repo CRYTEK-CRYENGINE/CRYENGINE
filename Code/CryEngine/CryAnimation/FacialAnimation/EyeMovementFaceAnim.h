@@ -15,7 +15,7 @@ class CEyeMovementFaceAnim : public _i_reference_target_t
 public:
 	CEyeMovementFaceAnim(CFacialInstance* pInstance);
 
-	void Update(float fDeltaTimeSec, const QuatTS& rAnimLocationNext, CCharInstance* pCharacter, CFacialEffectorsLibrary* pEffectorsLibrary, CFaceState* pFaceState);
+	void Update(const CTimeValue& deltaTime, const QuatTS& rAnimLocationNext, CCharInstance* pCharacter, CFacialEffectorsLibrary* pEffectorsLibrary, CFaceState* pFaceState);
 	void OnExpressionLibraryLoad();
 
 	void GetMemoryUsage(ICrySizer* pSizer) const;

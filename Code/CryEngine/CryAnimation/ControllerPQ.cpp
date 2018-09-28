@@ -282,85 +282,85 @@ void IRotationController::GetValueFromKey(uint32 key, Quat& val)
 	m_pData->GetValue(key, val);
 }
 
-JointState CControllerOptNonVirtual::GetOPS(f32 normalizedTime, Quat& quat, Vec3& pos, Diag33& scale) const
+JointState CControllerOptNonVirtual::GetOPS(const kTime& keyTime, Quat& quat, Vec3& pos, Diag33& scale) const
 {
 	return
-	  CControllerOptNonVirtual::GetO(normalizedTime, quat) |
-	  CControllerOptNonVirtual::GetP(normalizedTime, pos) |
-	  CControllerOptNonVirtual::GetS(normalizedTime, scale);
+	  CControllerOptNonVirtual::GetO(keyTime, quat) |
+	  CControllerOptNonVirtual::GetP(keyTime, pos) |
+	  CControllerOptNonVirtual::GetS(keyTime, scale);
 }
 
-JointState CControllerOptNonVirtual::GetOP(f32 normalized_time, Quat& quat, Vec3& pos) const
+JointState CControllerOptNonVirtual::GetOP(const kTime& keyTime, Quat& quat, Vec3& pos) const
 {
 	return
-	  CControllerOptNonVirtual::GetO(normalized_time, quat) |
-	  CControllerOptNonVirtual::GetP(normalized_time, pos);
+	  CControllerOptNonVirtual::GetO(keyTime, quat) |
+	  CControllerOptNonVirtual::GetP(keyTime, pos);
 }
 
-JointState CControllerOptNonVirtual::GetO(f32 normalized_time, Quat& quat) const
+JointState CControllerOptNonVirtual::GetO(const kTime& keyTime, Quat& quat) const
 {
 	if (eNoFormat == m_rotation.getTimeFormat())
 		return 0;
-	quat = this->CControllerOptNonVirtual::GetRotValue(normalized_time);
+	quat = this->CControllerOptNonVirtual::GetRotValue(keyTime);
 	return eJS_Orientation;
 }
 
-JointState CControllerOptNonVirtual::GetP(f32 normalizedTime, Vec3& pos) const
+JointState CControllerOptNonVirtual::GetP(const kTime& keyTime, Vec3& pos) const
 {
 	if (eNoFormat == m_position.getTimeFormat())
 		return 0;
-	pos = this->CControllerOptNonVirtual::GetPosValue(normalizedTime);
+	pos = this->CControllerOptNonVirtual::GetPosValue(keyTime);
 	return eJS_Position;
 }
 
-JointState CControllerOptNonVirtual::GetS(f32 normalizedTime, Diag33& pos) const
+JointState CControllerOptNonVirtual::GetS(const kTime& keyTime, Diag33& pos) const
 {
 	return 0;
 }
 
-JointState CController::GetOPS(f32 normalized_time, Quat& quat, Vec3& pos, Diag33& scale) const
+JointState CController::GetOPS(const kTime& keyTime, Quat& quat, Vec3& pos, Diag33& scale) const
 {
 	return
-	  CController::GetO(normalized_time, quat) |
-	  CController::GetP(normalized_time, pos) |
-	  CController::GetS(normalized_time, scale);
+	  CController::GetO(keyTime, quat) |
+	  CController::GetP(keyTime, pos) |
+	  CController::GetS(keyTime, scale);
 }
 
-JointState CController::GetOP(f32 normalized_time, Quat& quat, Vec3& pos) const
+JointState CController::GetOP(const kTime& keyTime, Quat& quat, Vec3& pos) const
 {
 	return
-	  CController::GetO(normalized_time, quat) |
-	  CController::GetP(normalized_time, pos);
+	  CController::GetO(keyTime, quat) |
+	  CController::GetP(keyTime, pos);
 }
 
-JointState CController::GetO(f32 normalized_time, Quat& quat) const
+JointState CController::GetO(const kTime& keyTime, Quat& quat) const
 {
 	if (m_pRotationController)
 	{
-		m_pRotationController->GetValue(normalized_time, quat);
+		m_pRotationController->GetValue(keyTime, quat);
 		return eJS_Orientation;
 	}
 
 	return 0;
 }
 
-JointState CController::GetP(f32 normalized_time, Vec3& pos) const
+JointState CController::GetP(const kTime& keyTime, Vec3& pos) const
 {
 	if (m_pPositionController)
 	{
-		m_pPositionController->GetValue(normalized_time, pos);
+		m_pPositionController->GetValue(keyTime, pos);
 		return eJS_Position;
 	}
 
 	return 0;
 }
 
-JointState CController::GetS(f32 normalized_time, Diag33& scl) const
+JointState CController::GetS(const kTime& keyTime, Diag33& scl) const
 {
 	if (m_pScaleController)
 	{
 		Vec3 tmp;
-		m_pScaleController->GetValue(normalized_time, tmp);
+		m_pScaleController->GetValue(keyTime, tmp);
 		scl = Diag33(tmp);
 		return eJS_Scale;
 	}

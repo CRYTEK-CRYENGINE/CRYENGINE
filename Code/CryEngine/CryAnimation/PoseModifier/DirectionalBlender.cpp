@@ -144,7 +144,7 @@ bool SDirectionalBlender::ExecuteDirectionalIK(const SAnimationPoseModifierParam
 		fWeightOfAllAimPoses += m_DirInfo[i].m_fWeight;
 
 	const f32 fStatus = f32(CosineY > cosf(m_dataIn.fDirIKFadeoutRadians));
-	const f32 fieldOfViewSmoothSeconds = 0.2f;
+	const CTimeValue fieldOfViewSmoothSeconds("0.2");
 	SmoothCD(m_fFieldOfViewSmooth, m_fFieldOfViewRate, params.timeDelta, fStatus, fieldOfViewSmoothSeconds);
 
 	//	g_YLine+=16.0f;
@@ -405,7 +405,7 @@ void SDirectionalBlender::AccumulateAimPoses(const SAnimationPoseModifierParams&
 		polarCoordinatesSmooth = polarCoordinates;
 		if (polarCoordinatesIndex < MAX_POLAR_COORDINATES_SMOOTH)
 		{
-			m_polarCoordinatesSmooth[polarCoordinatesIndex].Smooth(polarCoordinates, params.timeDelta, m_dataIn.fPolarCoordinatesSmoothTimeSeconds, m_dataIn.vPolarCoordinatesMaxRadiansPerSecond);
+			m_polarCoordinatesSmooth[polarCoordinatesIndex].Smooth(polarCoordinates, params.timeDelta.BADGetSeconds(), BADF m_dataIn.fPolarCoordinatesSmoothTime, m_dataIn.vPolarCoordinatesMaxRadiansPerSecond);
 			polarCoordinatesSmooth = m_polarCoordinatesSmooth[polarCoordinatesIndex].value;
 		}
 
@@ -636,7 +636,7 @@ void SDirectionalBlender::DebugVEGrid(const SAnimationPoseModifierParams& params
 	const GlobalAnimationHeaderAIM& rAIM0 = g_AnimationManager.m_arrGlobalAIM[rAimInfo.m_nGlobalDirID0];
 
 	QuadIndices arrQuat[MAX_JOINT_AMOUNT];
-	uint32 numAimPoses = uint32(rAIM0.m_fTotalDuration * ANIMATION_30Hz + 1.1f);
+	uint32 numAimPoses = uint32(rAIM0.m_fTotalDuration.GetSeconds() * ANIMATION_30Hz + "1.1");
 	uint32 numQuats = rAIM0.Debug_AnnotateExamples2(numAimPoses, arrQuat);
 
 	//--------------------------------------------------------------------------------

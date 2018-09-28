@@ -189,8 +189,8 @@ bool GlobalAnimationHeaderAIM::ReadMotionParameters(IChunkFile::ChunkDesc* pChun
 		int32 nEndKey = pChunk->mp.m_nEnd;
 		if (pChunk->mp.m_nAssetFlags & CA_ASSET_ADDITIVE)
 			nStartKey++;
-		m_fStartSec = nStartKey / ANIMATION_30Hz;
-		m_fEndSec = nEndKey / ANIMATION_30Hz;
+		m_fStartSec.SetSeconds(mpfloat(nStartKey) / ANIMATION_30Hz);
+		m_fEndSec.SetSeconds(mpfloat(nEndKey) / ANIMATION_30Hz);
 		if (m_fEndSec <= m_fStartSec)
 			m_fEndSec = m_fStartSec;
 		m_fTotalDuration = m_fEndSec - m_fStartSec;
@@ -216,8 +216,8 @@ bool GlobalAnimationHeaderAIM::ReadTiming(IChunkFile::ChunkDesc* pChunkDesc)
 			const int32 nStartKey = 0;
 			const int32 nEndKey = pChunk->global_range.end - pChunk->global_range.start;
 
-			m_fStartSec = nStartKey / ANIMATION_30Hz;
-			m_fEndSec = std::max(nStartKey, nEndKey) / ANIMATION_30Hz;
+			m_fStartSec.SetSeconds(mpfloat(nStartKey) / ANIMATION_30Hz);
+			m_fEndSec.SetSeconds(mpfloat(std::max(nStartKey, nEndKey)) / ANIMATION_30Hz);
 			m_fTotalDuration = m_fEndSec - m_fStartSec;
 		}
 		return true;
@@ -239,8 +239,8 @@ bool GlobalAnimationHeaderAIM::ReadTiming(IChunkFile::ChunkDesc* pChunkDesc)
 				CryWarning(VALIDATOR_MODULE_ANIMATION, VALIDATOR_WARNING, "Timing chunk (0x%04x) declares a currently unsupported framerate value (%.2f fps). Framerate will be overridden to %.2f fps. File: '%s'", pChunk->VERSION, pChunk->samplesPerSecond, ANIMATION_30Hz, GetFilePath());
 			}
 
-			m_fStartSec = 0.0f;
-			m_fTotalDuration = (pChunk->numberOfSamples - 1) / ANIMATION_30Hz;
+			m_fStartSec.SetSeconds(0);
+			m_fTotalDuration.SetSeconds( mpfloat(pChunk->numberOfSamples - 1) / ANIMATION_30Hz);
 			m_fEndSec = m_fStartSec + m_fTotalDuration;
 		}
 		return true;
@@ -674,7 +674,7 @@ void GlobalAnimationHeaderAIM::ProcessDirectionalPoses(const CDefaultSkeleton* p
 	if (m_AnimTokenCRC32 != nAnimTokenCRC32)
 		g_pILog->Log("CryAnimation: Processing Aim/lookpose '%s'", m_FilePath.c_str());
 
-	uint32 numPoses = uint32(m_fTotalDuration * ANIMATION_30Hz + 1.1f);
+	uint32 numPoses = uint32((m_fTotalDuration * ANIMATION_30Hz).GetSeconds() + "1.1");
 	const bool validNumberOfPoses = (numPoses == 9 || numPoses == 15 || numPoses == 21);
 	if (!validNumberOfPoses)
 	{
@@ -1588,7 +1588,7 @@ void VExampleInit::Init(const CDefaultSkeleton* pDefaultSkeleton, const DynArray
 void VExampleInit::CopyPoses2(const DynArray<SJointsAimIK_Rot>& rRot, const DynArray<SJointsAimIK_Pos>& rPos, GlobalAnimationHeaderAIM& rAIM, uint32 numPoses, uint32 skey)
 {
 
-	f32 fRealTime = rAIM.NTime2KTime(f32(skey) / (numPoses - 1));
+	kTime fRealTime = rAIM.NTime2KTime(nTime(skey) / (numPoses - 1));
 
 	uint32 numRot = rRot.size();
 	for (uint32 r = 0; r < numRot; r++)

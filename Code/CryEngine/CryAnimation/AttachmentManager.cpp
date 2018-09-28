@@ -1457,10 +1457,10 @@ void CAttachmentManager::VerifyProxyLinks()
 
 void CAttachmentManager::PrepareAllRedirectedTransformations(Skeleton::CPoseData& rPoseData)
 {
-	const f32 fIPlaybackScale = m_pSkelInstance->GetPlaybackScale();
-	const f32 fLPlaybackScale = m_pSkelInstance->m_SkeletonAnim.GetLayerPlaybackScale(0);
-	const f32 fAverageFrameTime = g_AverageFrameTime * fIPlaybackScale * fLPlaybackScale ? g_AverageFrameTime * fIPlaybackScale * fLPlaybackScale : g_AverageFrameTime;
-	m_fTurbulenceGlobal += gf_PI * fAverageFrameTime, m_fTurbulenceLocal = 0;
+	const mpfloat fIPlaybackScale = m_pSkelInstance->GetPlaybackScale();
+	const mpfloat fLPlaybackScale = m_pSkelInstance->m_SkeletonAnim.GetLayerPlaybackScale(0);
+	const CTimeValue fAverageFrameTime = (g_AverageFrameTime * fIPlaybackScale * fLPlaybackScale) != 0 ? g_AverageFrameTime * fIPlaybackScale * fLPlaybackScale : g_AverageFrameTime;
+	m_fTurbulenceGlobal += gf_PI * fAverageFrameTime.BADGetSeconds(), m_fTurbulenceLocal = 0;
 
 	DEFINE_PROFILER_FUNCTION();
 	const QuatTS& rPhysLocation = m_pSkelInstance->m_location;

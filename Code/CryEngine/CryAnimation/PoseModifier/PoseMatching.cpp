@@ -28,7 +28,7 @@ ILINE void SamplePoseRelative(const CDefaultSkeleton& skeleton, const GlobalAnim
 		const CDefaultSkeleton::SJoint& joint = skeleton.m_arrModelJoints[i];
 		IController* pController = animation.GetControllerByJointCRC32(joint.m_nJointCRC32);
 		if (pController)
-			pController->GetOP(0.0f, pResult[i].q, pResult[i].t);
+			pController->GetOP(0, pResult[i].q, pResult[i].t);
 	}
 }
 

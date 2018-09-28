@@ -5,7 +5,7 @@
 
 #include "CharacterManager.h"
 
-JointState CControllerTCB::GetOPS(f32 time, Quat& quat, Vec3& pos, Diag33& scl) const
+JointState CControllerTCB::GetOPS(const kTime& time, Quat& quat, Vec3& pos, Diag33& scl) const
 {
 	return
 	  CControllerTCB::GetO(time, quat) |
@@ -13,39 +13,39 @@ JointState CControllerTCB::GetOPS(f32 time, Quat& quat, Vec3& pos, Diag33& scl) 
 	  CControllerTCB::GetS(time, scl);
 }
 
-JointState CControllerTCB::GetOP(f32 time, Quat& quat, Vec3& pos) const
+JointState CControllerTCB::GetOP(const kTime& time, Quat& quat, Vec3& pos) const
 {
 	return
 	  CControllerTCB::GetO(time, quat) |
 	  CControllerTCB::GetP(time, pos);
 }
 
-JointState CControllerTCB::GetO(f32 key, Quat& rot) const
+JointState CControllerTCB::GetO(const kTime& key, Quat& rot) const
 {
 	if (m_active & eJS_Orientation)
 	{
-		rot = static_cast<spline::TCBAngleAxisSpline>(m_rotTrack).interpolate(key);
+		rot = static_cast<spline::TCBAngleAxisSpline>(m_rotTrack).interpolate(key.conv<mpfloat>());
 		rot.Invert();
 	}
 	return m_active & eJS_Orientation;
 }
 
-JointState CControllerTCB::GetP(f32 key, Vec3& pos) const
+JointState CControllerTCB::GetP(const kTime& key, Vec3& pos) const
 {
 	if (m_active & eJS_Position)
 	{
-		static_cast<spline::TCBSpline<Vec3>>(m_posTrack).interpolate(key, pos);
+		static_cast<spline::TCBSpline<Vec3>>(m_posTrack).interpolate(key.conv<mpfloat>(), pos);
 		pos /= 100.0f; // Position controller from Max must be scaled 100 times down.
 	}
 	return m_active & eJS_Position;
 }
 
-JointState CControllerTCB::GetS(f32 key, Diag33& scl) const
+JointState CControllerTCB::GetS(const kTime& key, Diag33& scl) const
 {
 	if (m_active & eJS_Scale)
 	{
 		Vec3 out;
-		static_cast<spline::TCBSpline<Vec3>>(m_sclTrack).interpolate(key, out);
+		static_cast<spline::TCBSpline<Vec3>>(m_sclTrack).interpolate(key.conv<mpfloat>(), out);
 		scl = Diag33(out);
 	}
 	return m_active & eJS_Scale;

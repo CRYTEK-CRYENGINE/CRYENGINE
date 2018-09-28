@@ -1098,9 +1098,9 @@ void CClothSimulator::GetVertices(Vector4* pWorldCoords) const
 
 void CClothSimulator::GetVerticesFaded(Vector4* pWorldCoords)
 {
-	float t = m_fadeTimeActual / m_config.disableSimulationTimeRange;
+	nTime t = m_fadeTimeActual / m_config.disableSimulationTimeRange;
 
-	if (m_fadeInOutPhysicsDirection > 0) t = 1.0f - t; // ensure fading direction (in/out)
+	if (m_fadeInOutPhysicsDirection > 0) t = 1 - t; // ensure fading direction (in/out)
 
 	for (int i = 0; i < m_nVtx; i++)
 		pWorldCoords[i] = m_particlesHot[i].pos;                                // copy positions
@@ -1121,7 +1121,7 @@ void CClothSimulator::GetVerticesFaded(Vector4* pWorldCoords)
 	{
 		Vector4& A = pWorldCoords[i];
 		const Vector4& B = m_particlesHot[i].pos;
-		A = A + t * (B - A);
+		A = A + BADF(t) * (B - A);
 	}
 }
 
@@ -1132,12 +1132,12 @@ bool CClothSimulator::IsVisible()
 	return true;
 }
 
-void CClothSimulator::StartStep(float time_interval, const QuatT& location)
+void CClothSimulator::StartStep(const CTimeValue& time_interval, const QuatT& location)
 {
 	m_location = location;
 
 	m_time = time_interval - m_config.timeStep; // m_time = time_interval would mean simulating subStepTime01 = 0 - All Interpolations would be the same like the step before with subStepTime01 = 1.0
-	if (m_time < 0) m_time = 0;
+	if (m_time < 0) m_time.SetSeconds(0);
 	m_timeInterval = time_interval;
 	m_steps = 0;
 	if (m_dtPrev < 0) m_dtPrev = m_config.timeStep;
@@ -1398,14 +1398,14 @@ void CClothSimulator::NearestNeighborDistanceConstraintsSolve()
 			if (distanceClosest * moveMaxFactor > delta)
 			{
 				// move delta in that direction
-				m_particlesHot[i].pos += directionClosest * delta * m_particlesHot[i].factorAttached * m_dt;
-				if (movePosPrevFactor) m_particlesCold[i].prevPos += directionClosest * delta * movePosPrevFactor * m_particlesHot[i].factorAttached * m_dt;
+				m_particlesHot[i].pos += directionClosest * delta * m_particlesHot[i].factorAttached * m_dt.BADGetSeconds();
+				if (movePosPrevFactor) m_particlesCold[i].prevPos += directionClosest * delta * movePosPrevFactor * m_particlesHot[i].factorAttached * m_dt.BADGetSeconds();
 			}
 			else
 			{
 				// move maximal moveMaxFactor in that direction
-				m_particlesHot[i].pos += directionClosest * distanceClosest * moveMaxFactor * m_particlesHot[i].factorAttached * m_dt;
-				if (movePosPrevFactor) m_particlesCold[i].prevPos += directionClosest * distanceClosest * moveMaxFactor * movePosPrevFactor * m_particlesHot[i].factorAttached * m_dt;
+				m_particlesHot[i].pos += directionClosest * distanceClosest * moveMaxFactor * m_particlesHot[i].factorAttached * m_dt.BADGetSeconds();
+				if (movePosPrevFactor) m_particlesCold[i].prevPos += directionClosest * distanceClosest * moveMaxFactor * movePosPrevFactor * m_particlesHot[i].factorAttached * m_dt.BADGetSeconds();
 			}
 		}
 	}
@@ -1441,13 +1441,13 @@ void CClothSimulator::BendByTriangleAngleSolve(float kBend)
 		float factor = k * alpha * 0.01f; // *0.001f; // scale into accurate floating point range
 
 		// add constraint to corner particles
-		p[it->p2].pos += n0 * factor * p[it->p2].factorAttached * m_dt;
-		p[it->p3].pos += n1 * factor * p[it->p3].factorAttached * m_dt;
+		p[it->p2].pos += n0 * factor * p[it->p2].factorAttached * m_dt.BADGetSeconds();
+		p[it->p3].pos += n1 * factor * p[it->p3].factorAttached * m_dt.BADGetSeconds();
 
 		// add inverse constraint to edge particles
 		Vec3 nHalf = (n0 + n1).GetNormalizedFast();
-		p[it->p0].pos -= nHalf * factor * p[it->p0].factorAttached * m_dt;
-		p[it->p1].pos -= nHalf * factor * p[it->p1].factorAttached * m_dt;
+		p[it->p0].pos -= nHalf * factor * p[it->p0].factorAttached * m_dt.BADGetSeconds();
+		p[it->p1].pos -= nHalf * factor * p[it->p1].factorAttached * m_dt.BADGetSeconds();
 	}
 }
 
@@ -1525,7 +1525,7 @@ namespace VClothUtils
 	}
 }
 
-void CClothSimulator::UpdateCollidablesLerp(f32 t01)
+void CClothSimulator::UpdateCollidablesLerp(const nTime& t01)
 {
 	CRY_PROFILE_FUNCTION(PROFILE_ANIMATION);
 
@@ -1537,9 +1537,9 @@ void CClothSimulator::UpdateCollidablesLerp(f32 t01)
 		Quaternion qr(collidables[k].R);
 		Quaternion qrOld(collidables[k].oldR);
 
-		const float eps = 0.001f;
-		collidables[k].qLerp.q = t01 < 1.0f - eps ? Quaternion::CreateSlerp(qrOld, qr, t01) : qr;
-		collidables[k].qLerp.t = t01 < 1.0f - eps ? collidables[k].oldOffset + t01 * (collidables[k].offset - collidables[k].oldOffset) : collidables[k].offset;
+		const nTime eps = "0.001";
+		collidables[k].qLerp.q = t01 < 1 - eps ? Quaternion::CreateSlerp(qrOld, qr, BADF(t01)) : qr;
+		collidables[k].qLerp.t = t01 < 1 - eps ? collidables[k].oldOffset + BADF(t01) * (collidables[k].offset - collidables[k].oldOffset) : collidables[k].offset;
 
 #ifdef EDITOR_PCDEBUGCODE
 		// for debug rendering, only for editor on PC
@@ -1548,7 +1548,7 @@ void CClothSimulator::UpdateCollidablesLerp(f32 t01)
 	}
 }
 
-void CClothSimulator::PositionsProjectToProxySurface(f32 t01)
+void CClothSimulator::PositionsProjectToProxySurface(const nTime& t01)
 {
 	CRY_PROFILE_REGION(PROFILE_ANIMATION, "CClothSimulator::PositionsProjectToProxySurface");
 
@@ -1713,7 +1713,7 @@ void CClothSimulator::HandleCameraDistance()
 
 void CClothSimulator::InitFadeInOutPhysics()
 {
-	if (m_fadeTimeActual > 0.0f)
+	if (m_fadeTimeActual > 0)
 	{
 		// if fading is already running, everything is already set up
 		// only animation step has to be refined, since direction has been changed
@@ -1738,7 +1738,7 @@ void CClothSimulator::EnableFadeInPhysics()
 	m_fadeInOutPhysicsDirection = 1;
 }
 
-void CClothSimulator::DecreaseFadeInOutTimer(float dt)
+void CClothSimulator::DecreaseFadeInOutTimer(const CTimeValue& dt)
 {
 	m_fadeTimeActual -= dt;
 
@@ -1747,7 +1747,7 @@ void CClothSimulator::DecreaseFadeInOutTimer(float dt)
 	{
 		if (m_fadeInOutPhysicsDirection == -1) { EnableSimulation(false); } // disable simulation, if physics has been faded out
 		m_fadeInOutPhysicsDirection = 0;
-		m_fadeTimeActual = 0.0f;
+		m_fadeTimeActual.SetSeconds(0);
 	}
 }
 
@@ -1786,7 +1786,7 @@ bool CClothSimulator::CheckSSRatioLargerThan(float ssAxisSizePercThresh) const
 
 bool CClothSimulator::CheckForceSkinningByFpsThreshold()
 {
-	const float fps = gEnv->pTimer->GetFrameRate();
+	const rTime fps = GetGTimer()->GetFrameRate();
 	m_isFramerateBelowFpsThresh = fps < m_config.forceSkinningFpsThreshold;
 	bool forceSkinning = m_isFramerateBelowFpsThresh;
 
@@ -1810,7 +1810,7 @@ bool CClothSimulator::CheckForceSkinning()
 	forceSkinning |= Console::GetInst().ca_VClothMode == 2;
 	forceSkinning |= m_doSkinningForNSteps > 0;
 	forceSkinning |= !IsSimulationEnabled();
-	forceSkinning |= (m_timeInterval / m_config.timeStep) > (float)m_config.timeStepsMax; // not possible to simulate the actual framerate with the provided max no of substeps
+	forceSkinning |= (m_timeInterval / m_config.timeStep) > m_config.timeStepsMax; // not possible to simulate the actual framerate with the provided max no of substeps
 	forceSkinning |= m_config.forceSkinning;
 	if (!IsInitialized()) return forceSkinning;
 	for (int i = min(m_nVtx, 5); i >= 0; --i)
@@ -1821,7 +1821,7 @@ bool CClothSimulator::CheckForceSkinning()
 bool CClothSimulator::CheckAnimationRewind()
 {
 	bool animationRewindOccurred = false;
-	float normalizedTime = m_pAttachmentManager->m_pSkelInstance->GetISkeletonAnim()->GetAnimationNormalizedTime(&m_pAttachmentManager->m_pSkelInstance->GetISkeletonAnim()->GetAnimFromFIFO(0, 0));
+	nTime normalizedTime = m_pAttachmentManager->m_pSkelInstance->GetISkeletonAnim()->GetAnimationNormalizedTime(&m_pAttachmentManager->m_pSkelInstance->GetISkeletonAnim()->GetAnimFromFIFO(0, 0));
 	int isAnimPlaying = m_pAttachmentManager->m_pSkelInstance->m_SkeletonAnim.m_IsAnimPlaying;
 	if (isAnimPlaying && (normalizedTime < m_normalizedTimePrev)) // animation rewind has been occurred
 	{
@@ -1868,14 +1868,14 @@ void CClothSimulator::DampTangential()
 		if (m_particlesHot[i].collisionExist)
 		{
 			const Vector4& n = m_particlesHot[i].collisionNormal;
-			Vector4 vel = (m_particlesHot[i].pos - m_particlesCold[i].prevPos) / m_dtPrev;
+			Vector4 vel = (m_particlesHot[i].pos - m_particlesCold[i].prevPos) / m_dtPrev.BADGetSeconds();
 
 			Vector4 velN = n.dot(vel) * n;
 			vel -= velN;
 			vel *= 1.0f - k;
 			vel += velN;
 
-			m_particlesCold[i].prevPos = m_particlesHot[i].pos - vel * m_dt;
+			m_particlesCold[i].prevPos = m_particlesHot[i].pos - vel * m_dt.BADGetSeconds();
 		}
 	}
 }
@@ -1884,13 +1884,13 @@ void CClothSimulator::PositionsIntegrate()
 {
 	CRY_PROFILE_FUNCTION(PROFILE_ANIMATION);
 
-	const Vector4 dg = (m_gravity * m_config.gravityFactor / 1000.0f) * m_dt; // scale to precise/good floating point domain
+	const Vector4 dg = (m_gravity * m_config.gravityFactor / 1000.0f) * m_dt.BADGetSeconds(); // scale to precise/good floating point domain
 	const float resetDampingFactor = 1.0f - m_config.resetDampingFactor;
 	const float kd = 1.0f - m_config.friction;
 	for (int i = 0; i < m_nVtx; i++)
 	{
 		Vector4 pos0 = m_particlesHot[i].pos;
-		Vector4 dv = (m_particlesHot[i].pos - m_particlesCold[i].prevPos) / m_dtPrev; // determine velocity, using the previous dt, since difference to prePos is used
+		Vector4 dv = (m_particlesHot[i].pos - m_particlesCold[i].prevPos) / m_dtPrev.BADGetSeconds(); // determine velocity, using the previous dt, since difference to prePos is used
 
 		if (m_particlesHot[i].timer > 0 && m_particlesHot[i].timer < m_config.resetDampingRange) // damping within resetDampingRange, to smooth hard cloth reset
 		{
@@ -1899,7 +1899,7 @@ void CClothSimulator::PositionsIntegrate()
 
 		dv *= kd;                                                         // simple damping
 		Vec3 dxExt = m_externalDeltaTranslation * m_config.externalBlend; // external influence
-		m_particlesHot[i].pos += dv * m_dt + dg * m_dt + dxExt;
+		m_particlesHot[i].pos += dv * m_dt.BADGetSeconds() + dg * m_dt.BADGetSeconds() + dxExt;
 		m_particlesCold[i].prevPos = pos0;
 		m_particlesHot[i].timer++;
 	}
@@ -1925,7 +1925,7 @@ void CClothSimulator::PositionsPullToSkinnedPositions()
 			alpha = min(1.f, max(0.0f, (len - minDist) / domain)); // interpolate in range minDist to 3*minDist from 0..1
 		}
 		float stiffness = max(alpha, m_config.pullStiffness * m_particlesHot[i].alpha);
-		m_particlesHot[i].pos += stiffness * delta * m_dt;
+		m_particlesHot[i].pos += stiffness * delta * m_dt.BADGetSeconds();
 	}
 }
 
@@ -1955,13 +1955,13 @@ void CClothSimulator::PositionsSetToSkinned(bool projectToProxySurface, bool set
 	}
 }
 
-void CClothSimulator::PositionsSetAttachedToSkinnedInterpolated(float t01)
+void CClothSimulator::PositionsSetAttachedToSkinnedInterpolated(const nTime& t01)
 {
 	for (int i = 0; i < m_nVtx; i++)
 	{
 		if (m_particlesCold[i].bAttached)
 		{
-			m_particlesHot[i].pos = m_particlesCold[i].oldPos + t01 * (m_particlesCold[i].skinnedPos - m_particlesCold[i].oldPos); // interpolate substeps for smoother movements
+			m_particlesHot[i].pos = m_particlesCold[i].oldPos + BADF(t01) * (m_particlesCold[i].skinnedPos - m_particlesCold[i].oldPos); // interpolate substeps for smoother movements
 		}
 	}
 }
@@ -1975,15 +1975,15 @@ int CClothSimulator::Step()
 	// determine dt
 	m_dt = m_config.timeStep;
 	// m_time starts for substeps with m_timeInterval-m_config.timeStep (might be negative), and ends with 0, split last two timesteps to avoid very small timesteps
-	if (m_timeInterval < m_config.timeStep) { m_dt = fmod(m_timeInterval, m_config.timeStep); } // SPF faster than substeps
+	if (m_timeInterval < m_config.timeStep) { m_dt = m_timeInterval % m_config.timeStep; } // SPF faster than substeps
 	else if (m_time < m_config.timeStep)
 	{
-		m_dt = (fmod(m_timeInterval, m_config.timeStep) + m_config.timeStep) / 2.0f;
+		m_dt = (m_timeInterval % m_config.timeStep + m_config.timeStep) / 2;
 		if (m_time > 0) m_time = m_dt;
 	}   // split last two substeps into half
 
-	float stepTime01 = 1.0f - m_time / m_timeInterval; // normalized time of substeps for this step, running from 0.0  to 1.0 [per frame]
-	stepTime01 = clamp_tpl(stepTime01, 0.0f, 1.0f);
+	nTime stepTime01 = 1 - m_time / m_timeInterval; // normalized time of substeps for this step, running from 0.0  to 1.0 [per frame]
+	stepTime01 = CLAMP(stepTime01, 0, 1);
 	m_dt *= m_dtNormalize; // normalize dt
 
 #ifdef EDITOR_PCDEBUGCODE
@@ -2124,7 +2124,7 @@ int CClothSimulator::Step()
 	m_time -= m_config.timeStep;
 	if (m_time < 0) // ensure, that the actual frame-dt will be reached exactly in the next step
 	{
-		m_time = 0;
+		m_time.SetSeconds(0);
 		return 0; // one more loop for m_time=0, eq. stepTime01=1 to reach exact frametime
 	}
 	m_steps++;
@@ -2175,18 +2175,18 @@ void CClothSimulator::LaplaceFilterPositions(Vector4* positions, float intensity
 	// UpdateCollidablesLerp(); ProjectToProxySurface(); // one step of collision projection
 }
 
-void CClothSimulator::DebugOutput(float stepTime01)
+void CClothSimulator::DebugOutput(const nTime& stepTime01)
 {
 	switch (m_config.debugPrint)
 	{
 	case 1:
 	{
-		float offs = stepTime01 * 150;
+		float offs = (float)stepTime01 * 150;
 		g_pAuxGeom->Draw2dLabel(100, 80 + offs, 2.3f, ColorF(1, 0, 0, 1), false, "dt:%4.3f", m_dt / m_dtNormalize);
 		g_pAuxGeom->Draw2dLabel(300, 80 + offs, 2.3f, ColorF(1, 0, 0, 1), false, "dtP:%4.3f", m_dtPrev);
 		g_pAuxGeom->Draw2dLabel(500, 80 + offs, 2.3f, ColorF(0, 1, 0, 1), false, "stepTime01:  %4.3f", stepTime01);
-		if (stepTime01 > 0.9999f) g_pAuxGeom->Draw2dLabel(500, 80, 2.3f, ColorF(0, 1, 0, 1), false, "stepTime01:  0");
-		g_pAuxGeom->Draw2dLabel(10, 80 + offs, 2.3f, ColorF(0, 1, 0, 1), false, "No:%i", (int)(m_timeInterval / m_config.timeStep + 0.999f));
+		if (stepTime01 > "0.9999") g_pAuxGeom->Draw2dLabel(500, 80, 2.3f, ColorF(0, 1, 0, 1), false, "stepTime01:  0");
+		g_pAuxGeom->Draw2dLabel(10, 80 + offs, 2.3f, ColorF(0, 1, 0, 1), false, "No:%i", (int)(m_timeInterval / m_config.timeStep + "0.999"));
 	};
 	break;
 	case 2:
@@ -2449,7 +2449,7 @@ void CClothSimulator::DampPositionBasedDynamics()
 		Vector4 r = m_particlesHot[i].pos - xcm;
 		Matrix3 rMat = VClothUtils::PositionBasedDynamicsDampingDetermineR(r); // equals matrix (~r), see paper Mueller et al
 		I -= rMat * rMat;                                                      // equals: I = Sum( rMat * rMat.transpose() ), see paper Mueller et al
-		Vector4 vel = (m_particlesHot[i].pos - m_particlesCold[i].prevPos) / m_dtPrev;
+		Vector4 vel = (m_particlesHot[i].pos - m_particlesCold[i].prevPos) / m_dtPrev.BADGetSeconds();
 		vcm += vel;
 		L += r ^ vel; // equals: L = Sum( rXv )
 	}
@@ -2470,11 +2470,11 @@ void CClothSimulator::DampPositionBasedDynamics()
 		if (m_particlesCold[i].bAttached) continue;
 		Vector4 r = m_particlesHot[i].pos - xcm;
 		Vector4 v = vcm + (omega ^ r);
-		Vector4 vel = (m_particlesHot[i].pos - m_particlesCold[i].prevPos) / m_dtPrev;
+		Vector4 vel = (m_particlesHot[i].pos - m_particlesCold[i].prevPos) / m_dtPrev.BADGetSeconds();
 		Vector4 dv = v - vel;
 		v = vel + kd * dv;
 		if (vel.z < 0.f) v.z = vel.z;                                  // keep downward velocity unchanged
-		m_particlesCold[i].prevPos = m_particlesHot[i].pos - v * m_dt; // update velocity
+		m_particlesCold[i].prevPos = m_particlesHot[i].pos - v * m_dt.BADGetSeconds(); // update velocity
 	}
 }
 
@@ -2804,7 +2804,7 @@ void CClothPiece::DrawDebug(const SVertexAnimationJob* pVertexAnimation)
 {
 	// wait till the SW-Skinning jobs have finished
 	while (*pVertexAnimation->pRenderMeshSyncVariable)
-		CrySleep(1);
+		CryLowLatencySleep("0.001");
 	m_simulator.DrawHelperInformation();
 }
 
@@ -2907,8 +2907,8 @@ void CClothPiece::UpdateSimulation(const DualQuat* pTransformations, const uint 
 		m_simulator.SetSkinnedPositions(&tmpClothVtx[0]);
 
 		// step the cloth
-		float dt = m_pCharInstance ? g_AverageFrameTime * m_pCharInstance->GetPlaybackScale() : g_AverageFrameTime;
-		dt = dt ? dt : g_AverageFrameTime;
+		CTimeValue dt = m_pCharInstance ? g_AverageFrameTime * m_pCharInstance->GetPlaybackScale() : g_AverageFrameTime;
+		dt = dt != 0 ? dt : g_AverageFrameTime;
 
 		// don't handle camera distance in character tool
 		if (!(m_pCharInstance->m_CharEditMode & CA_CharacterTool))

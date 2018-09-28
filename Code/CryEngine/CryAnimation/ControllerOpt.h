@@ -46,29 +46,29 @@ public:
 		return max(this->GetRotationNumCount(), this->GetPositionNumCount());
 	}
 
-	JointState GetOPS(f32 key, Quat& quat, Vec3& pos, Diag33& scale) const
+	JointState GetOPS(const CTimeValue& key, Quat& quat, Vec3& pos, Diag33& scale) const
 	{
 		typedef CControllerOpt<_PosController, _RotController> TSelf;
 		return TSelf::GetO(key, quat) | TSelf::GetP(key, pos) | TSelf::GetS(key, scale);
 	}
 
-	JointState GetOP(f32 key, Quat& quat, Vec3& pos) const
+	JointState GetOP(const CTimeValue& key, Quat& quat, Vec3& pos) const
 	{
 		typedef CControllerOpt<_PosController, _RotController> TSelf;
 		return TSelf::GetO(key, quat) | TSelf::GetP(key, pos);
 	}
 
-	JointState GetO(f32 key, Quat& quat) const
+	JointState GetO(const CTimeValue& key, Quat& quat) const
 	{
 		return this->GetRotationValue(key, quat);
 	}
 
-	JointState GetP(f32 key, Vec3& pos) const
+	JointState GetP(const CTimeValue& key, Vec3& pos) const
 	{
 		return this->GetPositionValue(key, pos);
 	}
 
-	JointState GetS(f32 key, Diag33& scale) const
+	JointState GetS(const CTimeValue& key, Diag33& scale) const
 	{
 		return 0;
 	}
@@ -175,7 +175,7 @@ public:
 
 // forward declarations
 struct ControllerData;
-static uint32 GetKeySelector(f32 normalized_time, f32& difference_time, const ControllerData& rConData);
+static uint32 GetKeySelector(const kTime& keyTime, kTime& difference_time, const ControllerData& rConData);
 
 struct ControllerData
 {
@@ -200,18 +200,18 @@ struct ControllerData
 	}
 
 	// call function to select template implementation of GetKeyData
-	uint32 GetKey(f32 normalizedTime, f32& differenceTime) const
+	uint32 GetKey(const kTime& keyTime, kTime& differenceTime) const
 	{
-		return GetKeySelector(normalizedTime, differenceTime, *this);
+		return GetKeySelector(keyTime, differenceTime, *this);
 	}
 
 	template<typename Type>
-	uint32 GetKeyByteData(f32 normalized_time, f32& difference_time, const void* p_data) const
+	uint32 GetKeyByteData(const kTime& keyTime, kTime& difference_time, const void* p_data) const
 	{
 		const Type* data = reinterpret_cast<const Type*>(p_data);
 
-		f32 realtimef = normalized_time;
-		Type realtime = (Type)realtimef;
+		kTime realtimef = keyTime;
+		Type realtime = (Type)realtimef; // WARNING: Float Inaccuracies -> maybe. FIgure out what/why keytime works like dis.
 
 		uint32 numKey = GetNumCount();
 
@@ -256,28 +256,28 @@ struct ControllerData
 		// possible error if encoder uses nonlinear methods!!!
 		if (data[nPos] == data[nPos - 1])
 		{
-			difference_time = 0.0f;
+			difference_time = 0;
 		}
 		else
 		{
-			f32 prevtime = (f32)data[nPos - 1];
-			f32 time = (f32)data[nPos];
+			kTime prevtime = BADkT(data[nPos - 1]);
+			kTime time = BADkT(data[nPos]);
 			difference_time = (realtimef - prevtime) / (time - prevtime);
 		}
 
-		assert(difference_time >= 0.0f && difference_time <= 1.0f);
+		assert(difference_time >= 0 && difference_time <= 1);
 		return nPos;
 	}
 
-	uint32 GetKeyBitData(f32 normalized_time, f32& difference_time) const
+	uint32 GetKeyBitData(const kTime& keyTime, kTime& difference_time) const
 	{
-		f32 realtime = normalized_time;
+		kTime realtime = keyTime;
 
 		uint32 numKey = (uint32)GetHeader()->m_Size;//m_arrKeys.size();
 
-		f32 keytime_start = (float)GetHeader()->m_Start;
-		f32 keytime_end = (float)GetHeader()->m_End;
-		f32 test_end = keytime_end;
+		uint16 keytime_start = GetHeader()->m_Start;
+		uint16 keytime_end   = GetHeader()->m_End;
+		kTime test_end = keytime_end;
 
 		if (realtime < keytime_start)
 			test_end += realtime;
@@ -294,7 +294,7 @@ struct ControllerData
 			return numKey;
 		}
 
-		f32 internalTime = realtime - keytime_start;
+		kTime internalTime = realtime - keytime_start;
 		uint16 uTime = (uint16)internalTime;
 		uint16 piece = (uTime / sizeof(uint16)) >> 3;
 		uint16 bit = /*15 - */ (uTime % 16);
@@ -325,7 +325,7 @@ struct ControllerData
 		}
 
 		nearestRight = ((rigthPiece * sizeof(uint16)) << 3) + wBit;
-		difference_time = (f32)(internalTime - (f32)nearestLeft) / ((f32)nearestRight - (f32)nearestLeft);
+		difference_time = (internalTime - nearestLeft) / (nearestRight - nearestLeft);
 
 		// count nPos
 		uint32 nPos(0);
@@ -420,19 +420,19 @@ public:
 
 	~CControllerOptNonVirtual(){}
 
-	JointState GetOPS(f32 normalizedTime, Quat& quat, Vec3& pos, Diag33& scale) const override;
-	JointState GetOP(f32 normalizedTime, Quat& quat, Vec3& pos) const override;
-	JointState GetO(f32 normalizedTime, Quat& quat) const override;
-	JointState GetP(f32 normalizedTime, Vec3& pos) const override;
-	JointState GetS(f32 normalizedTime, Diag33& pos) const override;
+	JointState GetOPS(const kTime& keyTime, Quat& quat, Vec3& pos, Diag33& scale) const override;
+	JointState GetOP(const kTime& keyTime, Quat& quat, Vec3& pos) const override;
+	JointState GetO(const kTime& keyTime, Quat& quat) const override;
+	JointState GetP(const kTime& keyTime, Vec3& pos) const override;
+	JointState GetS(const kTime& keyTime, Diag33& pos) const override;
 
-	Vec3       GetPosValue(f32 normalizedTime) const
+	Vec3       GetPosValue(const kTime& keyTime) const
 	{
 		//DEFINE_PROFILER_SECTION("ControllerPQ::GetValue");
 		Vec3 pos;
 
-		f32 t;
-		uint32 key = m_position.GetKey(normalizedTime, t);
+		kTime t;
+		uint32 key = m_position.GetKey(keyTime, t);
 
 		IF (key == 0, true)
 		{
@@ -454,7 +454,7 @@ public:
 				GetPosValueFromKey(key - 1, p1);
 				GetPosValueFromKey(key, p2);
 
-				pos.SetLerp(p1, p2, t);
+				pos.SetLerp(p1, p2, BADF t);
 			}
 			else
 			{
@@ -465,13 +465,13 @@ public:
 		return pos;
 	}
 
-	Quat GetRotValue(f32 normalizedTime) const
+	Quat GetRotValue(const kTime& keyTime) const
 	{
 		//DEFINE_PROFILER_SECTION("ControllerPQ::GetValue");
 		Quat pos;
 
-		f32 t;
-		uint32 key = m_rotation.GetKey(normalizedTime, t);
+		kTime t;
+		uint32 key = m_rotation.GetKey(keyTime, t);
 
 		IF (key == 0, true)
 		{
@@ -497,7 +497,7 @@ public:
 				GetRotValueFromKey(key - 1, p1);
 				GetRotValueFromKey(key, p2);
 
-				pos.SetNlerp(p1, p2, t);
+				pos.SetNlerp(p1, p2, BADF t);
 			}
 			else
 			{
@@ -638,7 +638,7 @@ private:
 
 TYPEDEF_AUTOPTR(CControllerOptNonVirtual);
 
-static uint32 GetKeySelector(f32 normalized_time, f32& difference_time, const ControllerData& rConData)
+static uint32 GetKeySelector(const kTime& keyTime, kTime& difference_time, const ControllerData& rConData)
 {
 	const void* data = rConData.GetData();
 
@@ -647,23 +647,23 @@ static uint32 GetKeySelector(f32 normalized_time, f32& difference_time, const Co
 	// branches ordered by probability
 	IF (format == eByte, true)
 	{
-		return rConData.GetKeyByteData<uint8>(normalized_time, difference_time, data);
+		return rConData.GetKeyByteData<uint8>(keyTime, difference_time, data);
 	}
 	else
 	{
 		IF (format == eUINT16, 1)
 		{
-			return rConData.GetKeyByteData<uint16>(normalized_time, difference_time, data);
+			return rConData.GetKeyByteData<uint16>(keyTime, difference_time, data);
 		}
 		else
 		{
 			IF (format == eF32, 1)
 			{
-				return rConData.GetKeyByteData<f32>(normalized_time, difference_time, data);
+				return rConData.GetKeyByteData<f32>(keyTime, difference_time, data);
 			}
 			else
 			{
-				return rConData.GetKeyBitData(normalized_time, difference_time);
+				return rConData.GetKeyBitData(keyTime, difference_time);
 			}
 		}
 	}

@@ -73,8 +73,8 @@ public:
 	virtual const IFacialInstance* GetFacialInstance() const override;
 	virtual void EnableFacialAnimation(bool bEnable) override;
 	virtual void EnableProceduralFacialAnimation(bool bEnable) override;
-	virtual void   SetPlaybackScale(f32 speed) override { m_fPlaybackScale = max(0.0f, speed); }
-	virtual f32    GetPlaybackScale() const override    { return m_fPlaybackScale; }
+	virtual void  SetPlaybackScale(const mpfloat& speed) override { m_fPlaybackScale = max(mpfloat(0), speed); }
+	virtual const mpfloat& GetPlaybackScale() const override       { return m_fPlaybackScale; }
 	virtual uint32 IsCharacterVisible() const override  { return m_SkeletonPose.m_bInstanceVisible; };
 	virtual void SpawnSkeletonEffect(const AnimEventInstance& animEvent, const QuatTS &entityLoc) override;
 	virtual void KillAllSkeletonEffects() override;
@@ -90,7 +90,7 @@ public:
 #ifdef EDITOR_PCDEBUGCODE
 	virtual uint32 GetResetMode() const override        { return m_ResetMode; }
 	virtual void   SetResetMode(uint32 rm) override     { m_ResetMode = rm > 0; }
-	virtual f32    GetAverageFrameTime() const override { return g_AverageFrameTime; }
+	virtual const CTimeValue&    GetAverageFrameTime() const override { return g_AverageFrameTime; }
 	virtual void   SetCharEditMode(uint32 m) override   { m_CharEditMode = m; }
 	virtual uint32 GetCharEditMode() const override     { return m_CharEditMode; }
 	virtual void DrawWireframeStatic(const Matrix34 &m34, int nLOD, uint32 color) override;
@@ -183,13 +183,13 @@ public:
 
 	float m_fPostProcessZoomAdjustedDistanceFromCamera;
 
-	f32 m_fDeltaTime;
-	f32 m_fOriginalDeltaTime;
+	CTimeValue m_fDeltaTime;
+	CTimeValue m_fOriginalDeltaTime;
 
 	// This is the scale factor that affects the animation speed of the character.
 	// All the animations are played with the constant real-time speed multiplied by this factor.
 	// So, 0 means still animations (stuck at some frame), 1 - normal, 2 - twice as fast, 0.5 - twice slower than normal.
-	f32 m_fPlaybackScale;
+	mpfloat m_fPlaybackScale;
 
 	bool m_bEnableStartAnimation;
 
@@ -241,6 +241,12 @@ inline int CCharInstance::Release()
 {
 	if (--m_nRefCounter == 0)
 	{
+		// PERSONAL CRYTEK: Load mannequin preview -> Exist/Close Sandbox editor -> Invalid pSkinningData, bogus data.
+		// By the time the char-instance is released, at least 1 pointer is now 'bogus data'.
+		// Removing all attachements eventually gets char-instance to be runtimeinit with default skeleton.
+		// Which waits for async jobs on skinning data -> Which crashes cuz said skinning data is invalid. The memset to 0 is a workaround..... Not sure if it breaks anything!
+		memset(arrSkinningRendererData, 0, sizeof(arrSkinningRendererData));
+
 		m_AttachmentManager.RemoveAllAttachments();
 		delete this;
 		return 0;

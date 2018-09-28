@@ -85,7 +85,7 @@ void CFacialAnimChannel::CreateInterpolator()
 	m_splines.clear();
 	m_splines.push_back(new CFacialAnimChannelInterpolator);
 	m_splines.back()->InsertKeyFloat(FacialEditorSnapTimeToFrame(0), 0);
-	m_splines.back()->InsertKeyFloat(FacialEditorSnapTimeToFrame(0.5f), 0);
+	m_splines.back()->InsertKeyFloat(FacialEditorSnapTimeToFrame("0.5"), 0);
 	m_splines.back()->InsertKeyFloat(FacialEditorSnapTimeToFrame(1), 0);
 }
 
@@ -124,13 +124,13 @@ void CFacialAnimChannel::RemoveNoise(float sigma, float threshold)
 }
 
 //////////////////////////////////////////////////////////////////////////
-float CFacialAnimChannel::Evaluate(float t)
+float CFacialAnimChannel::Evaluate(const CTimeValue& t)
 {
 	float total = 0;
 	for (size_t i = 0, count = m_splines.size(); i < count; ++i)
 	{
 		float v = 0;
-		m_splines[i]->interpolate(t, v);
+		m_splines[i]->interpolate(t.GetSeconds(), v);
 		total += v;
 	}
 	return total;
@@ -191,8 +191,8 @@ bool CFacialAnimSequence::StartStreaming(const char* sFilename)
 	params.dwUserData = 0;
 	params.nSize = 0;
 	params.pBuffer = NULL;
-	params.nLoadTime = 10000;
-	params.nMaxLoadTime = 1000;
+	params.nLoadTime.SetSeconds(10);
+	params.nMaxLoadTime.SetSeconds(1);
 	m_pStream = g_pISystem->GetStreamEngine()->StartRead(eStreamTaskTypeAnimation, sFilename, this, &params);
 
 	return m_pStream != NULL;
@@ -287,7 +287,7 @@ IFacialAnimSoundEntry* CFacialAnimSequence::GetSoundEntry(int index)
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CFacialAnimSequence::Animate(const QuatTS& rAnimLocationNext, CFacialAnimSequenceInstance* pInstance, float fTime)
+void CFacialAnimSequence::Animate(const QuatTS& rAnimLocationNext, CFacialAnimSequenceInstance* pInstance, const CTimeValue& fTime)
 {
 	if (IsInMemory())
 	{
@@ -410,7 +410,7 @@ void CFacialAnimSequence::Animate(const QuatTS& rAnimLocationNext, CFacialAnimSe
 				continue;
 
 			float fWeight;
-			pChannel->GetInterpolator()->interpolate(fTime, fWeight);
+			pChannel->GetInterpolator()->interpolate(fTime.GetSeconds(), fWeight);
 			fWeight *= fProceduralStrength;
 			if (fabs(fWeight) > MIN_CHANNEL_WEIGHT)
 			{
@@ -551,7 +551,7 @@ void CFacialAnimSequence::SerializeLoad(Data& data, XmlNodeRef& xmlNode, ESerial
 			int soundEntry = int(data.m_soundEntries.size());
 			data.m_soundEntries.resize(data.m_soundEntries.size() + 1);
 			data.m_soundEntries[soundEntry].m_sound = xmlNode->getAttr("Sound");
-			data.m_soundEntries[soundEntry].m_startTime = 0.0f;
+			data.m_soundEntries[soundEntry].m_startTime.SetSeconds(0);
 			if (rootSentenceNode != 0 && data.m_soundEntries[soundEntry].m_pSentence != NULL)
 				data.m_soundEntries[soundEntry].m_pSentence->Serialize(rootSentenceNode, true);
 		}
@@ -849,7 +849,7 @@ void CFacialAnimSequence::MergeSequence(IFacialAnimSequence* pMergeSequence, con
 					{
 						ISplineInterpolator::ValueType value;
 						pMergeSpline->GetKeyValue(key, value);
-						int originalKeyIndex = pTargetSpline->InsertKey(FacialEditorSnapTimeToFrame(pMergeSpline->GetKeyTime(key)), value);
+						int originalKeyIndex = pTargetSpline->InsertKey(FacialEditorSnapTimeToFrame(CTimeValue(pMergeSpline->GetKeyTime(key))), value);
 						pTargetSpline->SetKeyFlags(originalKeyIndex, pMergeSpline->GetKeyFlags(key));
 						ISplineInterpolator::ValueType tin, tout;
 						pMergeSpline->GetKeyTangents(key, tin, tout);
@@ -1003,8 +1003,8 @@ void CFacialAnimSequence::GenerateProceduralChannels(Data& data)
 		float fUpDownDecayRate = 0.8f;
 		float fLeftRightJumpMax = 0.10f;
 		float fUpDownJumpMax = 0.15f;
-		float fOldTime = data.m_soundEntries[soundEntry].m_startTime;
-		float fTimeDeltaThreshold = 0.4f;
+		CTimeValue fOldTime = data.m_soundEntries[soundEntry].m_startTime;
+		CTimeValue fTimeDeltaThreshold = "0.4";
 		for (int wordIndex = 0; wordIndex < data.m_soundEntries[soundEntry].m_pSentence->GetWordCount(); ++wordIndex)
 		{
 			IFacialSentence::Word lastWord;
@@ -1014,36 +1014,36 @@ void CFacialAnimSequence::GenerateProceduralChannels(Data& data)
 			IFacialSentence::Word word;
 			data.m_soundEntries[soundEntry].m_pSentence->GetWord(wordIndex, word);
 
-			float fTime = float(word.startTime) / 1000 + data.m_soundEntries[soundEntry].m_startTime;
-			float fTimeDelta = fTime - fOldTime;
+			CTimeValue fTime = word.startTime + data.m_soundEntries[soundEntry].m_startTime;
+			CTimeValue fTimeDelta = fTime - fOldTime;
 
 			float fRandLeftRight = cry_random(-1.0f, 1.0f);
 			fRandLeftRight = sinf(fRandLeftRight * 3.14159f);
-			float fJumpLeftRight = fRandLeftRight * fLeftRightJumpMax * fTimeDelta;
+			float fJumpLeftRight = fRandLeftRight * fLeftRightJumpMax * (float)fTimeDelta.GetSeconds(); // Float inaccuracy is fine, randomized
 			fLeftRight += fJumpLeftRight;
 			if (fLeftRight < -fLeftRightMax)
 				fLeftRight = -fLeftRightMax;
 			if (fLeftRight > fLeftRightMax)
 				fLeftRight = fLeftRightMax;
 			fLeftRight *= fLeftRightDecayRate;
-			pLeftRightChannel->GetInterpolator()->InsertKeyFloat(float(word.startTime) / 1000, fLeftRight);
+			pLeftRightChannel->GetInterpolator()->InsertKeyFloat(word.startTime.GetSeconds(), fLeftRight);
 
 			if (fTimeDelta > fTimeDeltaThreshold && wordIndex > 0)
-				pLeftRightChannel->GetInterpolator()->InsertKeyFloat(float(lastWord.endTime) / 1000 + data.m_soundEntries[soundEntry].m_startTime, fLeftRight);
+				pLeftRightChannel->GetInterpolator()->InsertKeyFloat((lastWord.endTime + data.m_soundEntries[soundEntry].m_startTime).GetSeconds(), fLeftRight);
 
 			float fRandUpDown = cry_random(-1.0f, 1.0f);
 			fRandUpDown = sinf(fRandUpDown * 3.14159f);
-			float fJumpUpDown = fRandUpDown * fUpDownJumpMax * fTimeDelta;
+			float fJumpUpDown = fRandUpDown * fUpDownJumpMax * (float)fTimeDelta.GetSeconds(); // Float inaccuracy is fine, randomized
 			fUpDown += fJumpUpDown;
 			if (fUpDown < -fUpDownMax)
 				fUpDown = -fUpDownMax;
 			if (fUpDown > fUpDownMax)
 				fUpDown = fUpDownMax;
 			fUpDown *= fUpDownDecayRate;
-			pUpDownChannel->GetInterpolator()->InsertKeyFloat(float(word.startTime) / 1000 + data.m_soundEntries[soundEntry].m_startTime, fUpDown);
+			pUpDownChannel->GetInterpolator()->InsertKeyFloat(fTime.GetSeconds(), fUpDown);
 
 			if (fTimeDelta > fTimeDeltaThreshold && wordIndex > 0)
-				pUpDownChannel->GetInterpolator()->InsertKeyFloat(float(lastWord.endTime) / 1000 + data.m_soundEntries[soundEntry].m_startTime, fUpDown);
+				pUpDownChannel->GetInterpolator()->InsertKeyFloat((lastWord.endTime + data.m_soundEntries[soundEntry].m_startTime).GetSeconds(), fUpDown);
 
 			fOldTime = fTime;
 		}
@@ -1084,7 +1084,7 @@ void CFacialAnimSequence::GetMemoryUsage(ICrySizer* pSizer) const
 CFacialAnimSoundEntry::CFacialAnimSoundEntry()
 	: m_pSentence(new CFacialSentence)
 {
-	m_startTime = 0.0f;
+	m_startTime.SetSeconds(0);
 	m_nSentenceValidateID = m_pSentence->GetValidateID();
 }
 
@@ -1098,12 +1098,12 @@ const char* CFacialAnimSoundEntry::GetSoundFile()
 	return m_sound.c_str();
 }
 
-float CFacialAnimSoundEntry::GetStartTime()
+const CTimeValue& CFacialAnimSoundEntry::GetStartTime()
 {
 	return m_startTime;
 }
 
-void CFacialAnimSoundEntry::SetStartTime(float time)
+void CFacialAnimSoundEntry::SetStartTime(const CTimeValue& time)
 {
 	m_startTime = time;
 }
@@ -1123,8 +1123,8 @@ bool CFacialAnimSoundEntry::IsSentenceInvalid()
 //////////////////////////////////////////////////////////////////////////
 
 CFacialAnimSkeletalAnimationEntry::CFacialAnimSkeletalAnimationEntry()
-	: m_startTime(0.0f)
-	, m_endTime(1.0f)
+	: m_startTime(0)
+	, m_endTime(1)
 {
 }
 
@@ -1138,20 +1138,20 @@ const char* CFacialAnimSkeletalAnimationEntry::GetName() const
 	return m_animationName.c_str();
 }
 
-void CFacialAnimSkeletalAnimationEntry::SetStartTime(float time)
+void CFacialAnimSkeletalAnimationEntry::SetStartTime(const CTimeValue& time)
 {
 	m_startTime = time;
 }
-float CFacialAnimSkeletalAnimationEntry::GetStartTime() const
+const CTimeValue& CFacialAnimSkeletalAnimationEntry::GetStartTime() const
 {
 	return m_startTime;
 }
 
-void CFacialAnimSkeletalAnimationEntry::SetEndTime(float time)
+void CFacialAnimSkeletalAnimationEntry::SetEndTime(const CTimeValue& time)
 {
 	m_endTime = time;
 }
-float CFacialAnimSkeletalAnimationEntry::GetEndTime() const
+const CTimeValue& CFacialAnimSkeletalAnimationEntry::GetEndTime() const
 {
 	return m_endTime;
 }

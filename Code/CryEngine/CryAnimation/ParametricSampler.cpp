@@ -15,7 +15,7 @@
 const f32 fRenderPosBS1 = 7.0f;
 const f32 fRenderPosBS2 = -21.0f;
 
-f32 SParametricSamplerInternal::Parameterizer(const CAnimationSet* pAnimationSet, const CDefaultSkeleton* pDefaultSkeleton, const CAnimation& rCurAnim, f32 fFrameDeltaTime, f32 fPlaybackScale, bool AllowDebug)
+nTime SParametricSamplerInternal::Parameterizer(const CAnimationSet* pAnimationSet, const CDefaultSkeleton* pDefaultSkeleton, const CAnimation& rCurAnim, const CTimeValue& fFrameDeltaTime, const mpfloat& fPlaybackScale, bool AllowDebug)
 {
 	int32 nAnimID = rCurAnim.GetAnimationId();
 	memset(m_fBlendWeight, 0, sizeof(m_fBlendWeight));
@@ -60,22 +60,22 @@ f32 SParametricSamplerInternal::Parameterizer(const CAnimationSet* pAnimationSet
 	//---------------------------------------------------------------------
 	for (uint32 i = 0; i < m_numExamples; i++)
 	{
-		if (fabsf(m_fBlendWeight[i]) < 0.0001f)
-			m_fBlendWeight[i] = 0.0f;  //remove all blend-weight without visual impact
+		if (abs(m_fBlendWeight[i]) < "0.0001")
+			m_fBlendWeight[i] = 0;  //remove all blend-weight without visual impact
 	}
-	f32 fTotalSum = 0.0f;
+	mpfloat fTotalSum = 0;
 	for (uint32 i = 0; i < m_numExamples; i++)
 		fTotalSum += m_fBlendWeight[i];
 
-	if (fTotalSum == 0.0f) //probably an error occurred and the parameterizer was not executed at all
-		m_fBlendWeight[0] = 1.0f, fTotalSum = 1.0f;
+	if (fTotalSum == 0) //probably an error occurred and the parameterizer was not executed at all
+		m_fBlendWeight[0] = 1, fTotalSum = 1;
 	for (uint32 i = 0; i < m_numExamples; i++)
 		m_fBlendWeight[i] /= fTotalSum; //normalize weights
 
 #if !defined(_RELEASE)
 	{
-		const float weightSum = std::accumulate(m_fBlendWeight, m_fBlendWeight + m_numExamples, 0.0f);
-		if (std::abs(weightSum - 1.0f) > 0.005f)
+		const mpfloat weightSum = std::accumulate(m_fBlendWeight, m_fBlendWeight + m_numExamples, mpfloat(0));
+		if (abs(weightSum - 1) > "0.005")
 		{
 			CryWarning(VALIDATOR_MODULE_ANIMATION, VALIDATOR_ERROR, "Parametric sampler encountered an error while processing '%s': Blend weights do not sum up to 1.0f.", rLMG.GetFilePath());
 		}
@@ -88,7 +88,7 @@ f32 SParametricSamplerInternal::Parameterizer(const CAnimationSet* pAnimationSet
 	//-----------------------------------------------------------------------------------------
 	if (0)
 	{
-		f32 m_fTWNDeltaTime = 0.0f; //time-warped and normalized delta-time
+		nTime m_fTWNDeltaTime; //time-warped and normalized delta-time
 		for (uint32 i = 0; i < m_numExamples; i++)
 		{
 			int32 nAnimIDPS = m_nAnimID[i];
@@ -97,11 +97,11 @@ f32 SParametricSamplerInternal::Parameterizer(const CAnimationSet* pAnimationSet
 			const ModelAnimationHeader* pAnimPS = pAnimationSet->GetModelAnimationHeader(nAnimIDPS);
 			GlobalAnimationHeaderCAF& rCAF = g_AnimationManager.m_arrGlobalCAF[pAnimPS->m_nGlobalAnimId];
 			int32 segcount = m_nSegmentCounter[0][i];
-			f32 fSegDuration = rCAF.GetSegmentDuration(segcount);
-			fSegDuration = max(fSegDuration, 1.0f / ANIMATION_30Hz);
+			CTimeValue fSegDuration = rCAF.GetSegmentDuration(segcount);
+			fSegDuration = max(fSegDuration, ANIMATION_FSTEP);
 
-			f32 fNormalizedDeltaTime = fFrameDeltaTime / fSegDuration;     //per-asset normalized delta time.
-			m_fTWNDeltaTime += m_fBlendWeight[i] * fNormalizedDeltaTime;   //time-warped and normalized delta-time
+			nTime fNormalizedDeltaTime = fFrameDeltaTime / fSegDuration;  //per-asset normalized delta time.
+			m_fTWNDeltaTime += m_fBlendWeight[i].conv<nTime>() * fNormalizedDeltaTime;    //time-warped and normalized delta-time
 		}
 		return m_fTWNDeltaTime;
 	}
@@ -113,10 +113,10 @@ f32 SParametricSamplerInternal::Parameterizer(const CAnimationSet* pAnimationSet
 	//-----------------------------------------------------------------------------------------
 	if (0)
 	{
-		f32 fTWDuration = 0.0f;
+		CTimeValue fTWDuration;
 		for (uint32 i = 0; i < m_numExamples; i++)
 		{
-			if (m_fBlendWeight[i] == 0.0f)
+			if (m_fBlendWeight[i] == 0)
 				continue;
 			int32 nAnimIDPS = m_nAnimID[i];
 			if (nAnimIDPS < 0)
@@ -125,8 +125,8 @@ f32 SParametricSamplerInternal::Parameterizer(const CAnimationSet* pAnimationSet
 			GlobalAnimationHeaderCAF& rCAF = g_AnimationManager.m_arrGlobalCAF[pAnimPS->m_nGlobalAnimId];
 
 			int32 segcount = m_nSegmentCounter[0][i];
-			f32 fSegDuration = rCAF.GetSegmentDuration(segcount);
-			fSegDuration = max(fSegDuration, 1.0f / ANIMATION_30Hz);
+			CTimeValue fSegDuration = rCAF.GetSegmentDuration(segcount);
+			fSegDuration = max(fSegDuration, ANIMATION_FSTEP);
 
 			fTWDuration += m_fBlendWeight[i] * fSegDuration; //time-warped and normalized delta-time
 		}
@@ -140,12 +140,12 @@ f32 SParametricSamplerInternal::Parameterizer(const CAnimationSet* pAnimationSet
 	//------------------------------------------------------------------------------------------
 	if (1)
 	{
-		f32 fTWDuration = 0.0f;
-		f32 fTWMoveSpeed = 0.0f;
-		f32 fTWDistance = 0.0f;
+		CTimeValue fTWDuration;
+		mpfloat fTWMoveSpeed = 0;
+		mpfloat fTWDistance  = 0;
 		for (uint32 i = 0; i < m_numExamples; i++)
 		{
-			if (m_fBlendWeight[i] == 0.0f)
+			if (m_fBlendWeight[i] == 0)
 				continue;
 			int32 nAnimIDPS = m_nAnimID[i];
 			if (nAnimIDPS < 0)
@@ -162,43 +162,42 @@ f32 SParametricSamplerInternal::Parameterizer(const CAnimationSet* pAnimationSet
 
 			GlobalAnimationHeaderCAF& rCAF = g_AnimationManager.m_arrGlobalCAF[pAnimPS->m_nGlobalAnimId];
 			const int32 segmentIndex = m_nSegmentCounter[0][i];
-			const f32 t0 = rCAF.m_SegmentsTime[segmentIndex + 0];
-			const f32 t1 = rCAF.m_SegmentsTime[segmentIndex + 1];
-			const f32 segmentDuration = std::max(rCAF.GetSegmentDuration(segmentIndex), (1.0f / ANIMATION_30Hz));
+			const nTime t0 = rCAF.m_SegmentsTime[segmentIndex + 0];
+			const nTime t1 = rCAF.m_SegmentsTime[segmentIndex + 1];
+			const CTimeValue segmentDuration = max(rCAF.GetSegmentDuration(segmentIndex), ANIMATION_FSTEP);
 
 			Vec3 root_keys[1024];
-			f32 fMoveSpeed1 = 0.0f;
+			mpfloat fMoveSpeed1 = 0;
 			//f32 fMoveSpeed2 = 0.0f;
-			f32 fDistance = 0.0f;
-			float fPoses = 0.0f;
+			mpfloat fDistance = 0;
+			int fPoses = 0;
 			const CDefaultSkeleton::SJoint* pRootJoint = &pDefaultSkeleton->m_arrModelJoints[0];
 			IController* pController = rCAF.GetControllerByJointCRC32(pRootJoint->m_nJointCRC32);
 			if (pController)
 			{
-				uint32 numKeys = uint32(rCAF.m_fTotalDuration * ANIMATION_30Hz + 1);
+				uint32 numKeys = (uint32)(rCAF.m_fTotalDuration.GetSeconds() * ANIMATION_30Hz + 1);
 				uint32 maxsize = (sizeof(root_keys) / sizeof(Vec3)) - 1;
 				numKeys = (numKeys > maxsize) ? maxsize : numKeys;
 				if (numKeys > 1)
 				{
 					//more then 1 keyframe.
-					f32 fk = rCAF.m_fStartSec * ANIMATION_30Hz;
-					for (uint32 k = 0; k < numKeys; k++, fk += 1.0f)
+					kTime fk = (rCAF.m_fStartSec.GetSeconds() * ANIMATION_30Hz).conv<kTime>();
+					for (uint32 k = 0; k < numKeys; k++, fk += 1)
 						pController->GetP(fk, root_keys[k]);
 
-					float fNumKeys = (float)(numKeys);
-					float fskey = t0 * (fNumKeys - 1.0f);
-					float fekey = t1 * (fNumKeys - 1.0f);
-					uint32 skey = uint32(fskey);
-					uint32 ekey = uint32(fekey);
+					nTime fskey = t0 * (numKeys - 1);
+					nTime fekey = t1 * (numKeys - 1);
+					uint32 skey = (uint32)fskey;
+					uint32 ekey = (uint32)fekey;
 					for (uint32 k = skey; k < ekey; k++)
 					{
-						float fKeyLength = (root_keys[k + 0] - root_keys[k + 1]).GetLength();
-						fDistance += fKeyLength;
+						mpfloat fKeyLength = BADMP((root_keys[k + 0] - root_keys[k + 1]).GetLength());
+						fDistance   += fKeyLength;
 						fMoveSpeed1 += fKeyLength * ANIMATION_30Hz;
-						fPoses += 1.0f;
+						fPoses += 1;
 					}
 
-					if (fPoses > 0.0f)
+					if (fPoses > 0)
 					{
 						fMoveSpeed1 /= fPoses;
 						//fMoveSpeed2 = fDistance/(fPoses/ANIMATION_30Hz);
@@ -218,19 +217,19 @@ f32 SParametricSamplerInternal::Parameterizer(const CAnimationSet* pAnimationSet
 
 		//consider the Playbackspeed attached to the assets in the ParaGroup
 		uint32 numParameters = rLMG.m_arrParameter.size();
-		f32 fSumPlaybackScale = 0.0f;
+		mpfloat fSumPlaybackScale = 0;
 		for (uint32 i = 0; i < m_numExamples; i++)
 			fSumPlaybackScale += m_fPlaybackScale[i] * m_fBlendWeight[i];
 
-		if (fTWDistance < 0.001f)
-			return fSumPlaybackScale * (fFrameDeltaTime / fTWDuration); //most likely an idle animation, or a single pose.
+		if (fTWDistance < "0.001")
+			return fSumPlaybackScale.conv<nTime>() * (fFrameDeltaTime / fTWDuration); //most likely an idle animation, or a single pose.
 		else
-			return fSumPlaybackScale * (fFrameDeltaTime * (fTWMoveSpeed / fTWDistance));
+			return (fSumPlaybackScale * (fFrameDeltaTime.GetSeconds() * (fTWMoveSpeed / fTWDistance))).conv<nTime>();
 	}
 }
 
 #ifdef BLENDSPACE_VISUALIZATION
-void SParametricSamplerInternal::BlendSpace1DVisualize(GlobalAnimationHeaderLMG& rLMG, const CAnimation& rCurAnim, const CAnimationSet* pAnimationSet, float fPlaybackScale, int nInstanceOffset, unsigned int fDebugConfig, float fUniScale) const
+void SParametricSamplerInternal::BlendSpace1DVisualize(GlobalAnimationHeaderLMG& rLMG, const CAnimation& rCurAnim, const CAnimationSet* pAnimationSet, const mpfloat& fPlaybackScale, int nInstanceOffset, unsigned int fDebugConfig, float fUniScale) const
 {
 	float fCol1111[4] = { 1, 1, 1, 1 };
 	float fCol1011[4] = { 1, 0, 1, 1 };
@@ -306,10 +305,10 @@ void SParametricSamplerInternal::BlendSpace1DVisualize(GlobalAnimationHeaderLMG&
 		}
 	}
 
-	f32 wsum = 0.0f;
+	mpfloat wsum = 0;
 	for (uint32 i = 0; i < numExamples; i++)
 		wsum += m_fBlendWeight[i];
-	if (fabsf(wsum - 1.0f) > 0.05f)
+	if (abs(wsum - 1) > "0.05")
 		g_pAuxGeom->Draw2dLabel(1, g_YLine, 1.6f, fCol1001, false, "Invalid Sum of Weights (%f) in BSpace: '%s'. Please verify annotations", wsum, rLMG.GetFilePath()), g_YLine += 16.0f;
 
 	{
@@ -322,9 +321,10 @@ void SParametricSamplerInternal::BlendSpace1DVisualize(GlobalAnimationHeaderLMG&
 		if (fDebugConfig & 1)
 			g_pAuxGeom->DrawLine(Vec3(rLMG.m_DimPara[0].m_min, 0, 0.0f) * scl + off, RGBA8(0xff, 0x00, 0xff, 0x00), Vec3(rLMG.m_DimPara[0].m_max, 0, 0.0f) * scl + off, RGBA8(0xff, 0x00, 0xff, 0x00), 1.0f);
 
+		// Float inaccuracy is fine, debug/profiling
 		static f32 fScaleSphere = 0.0f;
 		g_pAuxGeom->DrawSphere(Vec3(vDesiredParameter.x, 0.0f, 0.0f) * scl + off, 0.05f + fScaleSphere * 0.07f, ColorB(0xff, 0, 0));
-		fScaleSphere += 3.5f * g_AverageFrameTime;
+		fScaleSphere += float(mpfloat("3.5") * g_AverageFrameTime.GetSeconds());
 		if (fScaleSphere > 1.0f) fScaleSphere -= 1.0f;
 		VisualizeBlendSpace(pAnimationSet, rCurAnim, fPlaybackScale, nInstanceOffset, rLMG, off, selFace, fUniScale);
 	}
@@ -333,13 +333,13 @@ void SParametricSamplerInternal::BlendSpace1DVisualize(GlobalAnimationHeaderLMG&
 
 //---------------------------------------------------------------------------------------------------------------------------
 
-void SParametricSamplerInternal::BlendSpace1D(GlobalAnimationHeaderLMG& rLMG, const CAnimationSet* pAnimationSet, const CDefaultSkeleton* pDefaultSkeleton, const CAnimation& rCurAnim, f32 fFrameDeltaTime, f32 fPlaybackScale, Vec3 off, bool AllowDebug, uint32 nInstanceOffset)
+void SParametricSamplerInternal::BlendSpace1D(GlobalAnimationHeaderLMG& rLMG, const CAnimationSet* pAnimationSet, const CDefaultSkeleton* pDefaultSkeleton, const CAnimation& rCurAnim, const CTimeValue& fFrameDeltaTime, const mpfloat& fPlaybackScale, Vec3 off, bool AllowDebug, uint32 nInstanceOffset)
 {
 	uint32 nDimensions = rLMG.m_Dimensions;
 	uint32 numExamples = rLMG.m_numExamples;
 	uint32 numParameter = rLMG.m_arrParameter.size();
 
-	m_fBlendWeight[0] = 1.0f;
+	m_fBlendWeight[0] = 1;
 
 	//---------------------------------------------------
 
@@ -456,7 +456,7 @@ void SParametricSamplerInternal::BlendSpace1D(GlobalAnimationHeaderLMG& rLMG, co
 	for (uint32 i = 0; i < numExamples; i++)
 	{
 		PREFAST_SUPPRESS_WARNING(6001)
-		m_fBlendWeight[i] = arrWeights[i];
+		m_fBlendWeight[i] = BADMP(arrWeights[i]);
 	}
 
 #ifdef BLENDSPACE_VISUALIZATION
@@ -474,7 +474,7 @@ void SParametricSamplerInternal::BlendSpace1D(GlobalAnimationHeaderLMG& rLMG, co
 //----------------------------------------------------------------------------------------------
 
 #ifdef BLENDSPACE_VISUALIZATION
-void SParametricSamplerInternal::BlendSpace2DVisualize(GlobalAnimationHeaderLMG& rLMG, const CAnimation& rCurAnim, const CAnimationSet* pAnimationSet, float fPlaybackScale, int nInstanceOffset, unsigned int fDebugConfig, float fUniScale) const
+void SParametricSamplerInternal::BlendSpace2DVisualize(GlobalAnimationHeaderLMG& rLMG, const CAnimation& rCurAnim, const CAnimationSet* pAnimationSet, const mpfloat& fPlaybackScale, int nInstanceOffset, unsigned int fDebugConfig, float fUniScale) const
 {
 	float fCol1111[4] = { 1, 1, 1, 1 };
 	float fCol1011[4] = { 1, 0, 1, 1 };
@@ -589,9 +589,11 @@ void SParametricSamplerInternal::BlendSpace2DVisualize(GlobalAnimationHeaderLMG&
 			for (f32 y = rLMG.m_DimPara[1].m_min; y <= (rLMG.m_DimPara[1].m_max + 0.001f); y = y + ystep)
 				g_pAuxGeom->DrawLine(Vec3(rLMG.m_DimPara[0].m_min, y, 0.00f) * scl + off, RGBA8(0xff, 0x00, 0xff, 0x00), Vec3(rLMG.m_DimPara[0].m_max, y, 0.0f) * scl + off, RGBA8(0xff, 0x00, 0xff, 0x00), 1.0f);
 		}
+
+		// Float inaccuracy is fine, debug/profiling
 		static f32 fScaleSphere = 0.0f;
 		g_pAuxGeom->DrawSphere(Vec3(vDesiredParameter.x, vDesiredParameter.y, 0.00f) * scl + off, 0.05f + fScaleSphere * 0.07f, ColorB(0xff, 0, 0));
-		fScaleSphere += 3.5f * g_AverageFrameTime;
+		fScaleSphere += float(mpfloat("3.5") * g_AverageFrameTime.GetSeconds());
 		if (fScaleSphere > 1.0f) fScaleSphere -= 1.0f;
 
 		VisualizeBlendSpace(pAnimationSet, rCurAnim, fPlaybackScale, nInstanceOffset, rLMG, off, selectedFace, fUniScale);
@@ -599,7 +601,7 @@ void SParametricSamplerInternal::BlendSpace2DVisualize(GlobalAnimationHeaderLMG&
 }
 #endif
 
-void SParametricSamplerInternal::BlendSpace2D(GlobalAnimationHeaderLMG& rLMG, const CAnimationSet* pAnimationSet, const CDefaultSkeleton* pDefaultSkeleton, const CAnimation& rCurAnim, f32 fFrameDeltaTime, f32 fPlaybackScale, Vec3 off, bool AllowDebug, uint32 nInstanceOffset)
+void SParametricSamplerInternal::BlendSpace2D(GlobalAnimationHeaderLMG& rLMG, const CAnimationSet* pAnimationSet, const CDefaultSkeleton* pDefaultSkeleton, const CAnimation& rCurAnim, const CTimeValue& fFrameDeltaTime, const mpfloat& fPlaybackScale, Vec3 off, bool AllowDebug, uint32 nInstanceOffset)
 {
 	float fCol1111[4] = { 1, 1, 1, 1 };
 	uint32 numExamples = rLMG.m_numExamples;//m_arrBSAnimations.size();
@@ -756,7 +758,7 @@ void SParametricSamplerInternal::BlendSpace2D(GlobalAnimationHeaderLMG& rLMG, co
 	for (uint32 i = 0; i < numExamples; i++)
 	{
 		PREFAST_SUPPRESS_WARNING(6001)
-		m_fBlendWeight[i] = arrWeights[i];
+		m_fBlendWeight[i] = BADMP(arrWeights[i]);
 	}
 
 #ifdef BLENDSPACE_VISUALIZATION
@@ -785,7 +787,7 @@ NO_INLINE void UpdateWeights(f32 ew, uint32 idx, f32* __restrict arrWeights, con
 }
 
 #ifdef BLENDSPACE_VISUALIZATION
-void SParametricSamplerInternal::BlendSpace3DVisualize(GlobalAnimationHeaderLMG& rLMG, const CAnimation& rCurAnim, const CAnimationSet* pAnimationSet, float fPlaybackScale, int nInstanceOffset, unsigned int fDebugConfig, float fUniScale) const
+void SParametricSamplerInternal::BlendSpace3DVisualize(GlobalAnimationHeaderLMG& rLMG, const CAnimation& rCurAnim, const CAnimationSet* pAnimationSet, const mpfloat& fPlaybackScale, int nInstanceOffset, unsigned int fDebugConfig, float fUniScale) const
 {
 	float fCol1111[4] = { 1, 1, 1, 1 };
 	float fCol1011[4] = { 1, 0, 1, 1 };
@@ -942,16 +944,17 @@ void SParametricSamplerInternal::BlendSpace3DVisualize(GlobalAnimationHeaderLMG&
 		}
 	}
 
+	// Float inaccuracy is fine, debug/profiling
 	static f32 fScaleSphere = 0.0f;
 	g_pAuxGeom->DrawSphere(Vec3(vDesiredParameter.x, vDesiredParameter.y, vDesiredParameter.z) * scl + off, 0.05f + fScaleSphere * 0.07f, ColorB(0xff, 0, 0));
-	fScaleSphere += 3.5f * g_AverageFrameTime;
+	fScaleSphere += float(mpfloat("3.5") * g_AverageFrameTime.GetSeconds());
 	if (fScaleSphere > 1.0f) fScaleSphere -= 1.0f;
 
 	VisualizeBlendSpace(pAnimationSet, rCurAnim, fPlaybackScale, nInstanceOffset, rLMG, off, selFace, fUniScale);
 }
 #endif
 
-void SParametricSamplerInternal::BlendSpace3D(GlobalAnimationHeaderLMG& rLMG, const CAnimationSet* pAnimationSet, const CDefaultSkeleton* pDefaultSkeleton, const CAnimation& rCurAnim, f32 fFrameDeltaTime, f32 fPlaybackScale, Vec3 off, bool AllowDebug, uint32 nInstanceOffset)
+void SParametricSamplerInternal::BlendSpace3D(GlobalAnimationHeaderLMG& rLMG, const CAnimationSet* pAnimationSet, const CDefaultSkeleton* pDefaultSkeleton, const CAnimation& rCurAnim, const CTimeValue& fFrameDeltaTime, const mpfloat& fPlaybackScale, Vec3 off, bool AllowDebug, uint32 nInstanceOffset)
 {
 	float fCol1111[4] = { 1, 1, 1, 1 };
 	float fCol1011[4] = { 1, 0, 1, 1 };
@@ -1163,7 +1166,7 @@ void SParametricSamplerInternal::BlendSpace3D(GlobalAnimationHeaderLMG& rLMG, co
 	for (uint32 i = 0; i < numExamples; i++)
 	{
 		PREFAST_SUPPRESS_WARNING(6001); // gets filled
-		m_fBlendWeight[i] = arrWeights[i];
+		m_fBlendWeight[i] = BADMP(arrWeights[i]);
 	}
 
 #ifdef BLENDSPACE_VISUALIZATION
@@ -2003,7 +2006,7 @@ BC8 SParametricSamplerInternal::GetConvex8(uint32 numPoints, const Vec3& vDesire
 	return bw;
 }
 
-void SParametricSamplerInternal::CombinedBlendSpaces(GlobalAnimationHeaderLMG& rMasterParaGroup, const CAnimationSet* pAnimationSet, const CDefaultSkeleton* pDefaultSkeleton, const CAnimation& rCurAnim, f32 fFrameDeltaTime, f32 fPlaybackScale, bool AllowDebug)
+void SParametricSamplerInternal::CombinedBlendSpaces(GlobalAnimationHeaderLMG& rMasterParaGroup, const CAnimationSet* pAnimationSet, const CDefaultSkeleton* pDefaultSkeleton, const CAnimation& rCurAnim, const CTimeValue& fFrameDeltaTime, const mpfloat& fPlaybackScale, bool AllowDebug)
 {
 	float fCol1111[4] = { 1, 1, 1, 1 };
 	PrefetchLine(m_nLMGAnimIdx, 0);
@@ -2144,12 +2147,12 @@ void DrawPoly(Vec3* pts, uint32 numPts, bool wireframe, ColorB color, ColorB bac
 }
 
 #if BLENDSPACE_VISUALIZATION
-void SParametricSamplerInternal::VisualizeBlendSpace(const IAnimationSet* _pAnimationSet, const CAnimation& rCurAnim, f32 fPlaybackScale, uint32 nInstanceOffset, const GlobalAnimationHeaderLMG& rLMG, Vec3 off, int selectedFace, float fUniScale) const
+void SParametricSamplerInternal::VisualizeBlendSpace(const IAnimationSet* _pAnimationSet, const CAnimation& rCurAnim, const mpfloat& fPlaybackScale, uint32 nInstanceOffset, const GlobalAnimationHeaderLMG& rLMG, Vec3 off, int selectedFace, float fUniScale) const
 {
 	const CAnimationSet* pAnimationSet = (const CAnimationSet*)_pAnimationSet;
 	uint32 numDebugInstances = g_pCharacterManager->m_arrCharacterBase.size();
 
-	const f32 fAnimTime = rCurAnim.GetCurrentSegmentNormalizedTime();
+	const nTime fAnimTime = rCurAnim.GetCurrentSegmentNormalizedTime();
 	const int nEOC = rCurAnim.GetEndOfCycle();        //value from the last frame
 
 	uint32 nDimensions = rLMG.m_Dimensions;
@@ -2289,7 +2292,7 @@ void SParametricSamplerInternal::VisualizeBlendSpace(const IAnimationSet* _pAnim
 		pSkeletonAnim->SetAnimationDrivenMotion(1);
 		CryCharAnimationParams AParams;
 		AParams.m_nFlags = CA_LOOP_ANIMATION | CA_MANUAL_UPDATE;
-		AParams.m_fTransTime = 0.15f;
+		AParams.m_fTransTime.SetSeconds("0.15");
 		AParams.m_fKeyTime = -1;    //use keytime of previous motion to start this motion
 
 		f32 x = rLMG.m_arrParameter[p].m_Para.x;
@@ -2313,7 +2316,7 @@ void SParametricSamplerInternal::VisualizeBlendSpace(const IAnimationSet* _pAnim
 		if (p < numExamples)
 		{
 			//draw the interpolated examples
-			if (rLMG.m_arrParameter[p].m_fPlaybackScale == 1.0f)
+			if (rLMG.m_arrParameter[p].m_fPlaybackScale == 1)
 				vCharCol.x = 1.0f, vCharCol.y = 1.0f, vCharCol.z = 1.0f, col[p] = RGBA8(0xbf, 0xbf, 0xbf, 0x00); //normal asset
 			else
 				vCharCol.x = 0.0f, vCharCol.y = 1.0f, vCharCol.z = 0.0f, col[p] = RGBA8(0x00, 0xff, 0x00, 0x00); //time-scaled asset
@@ -2363,7 +2366,7 @@ void SParametricSamplerInternal::VisualizeBlendSpace(const IAnimationSet* _pAnim
 			rInternalPara1D.m_arrParameter[1].m_animName.SetName(pAnimName1);
 
 			pSkeletonAnim->StartAnimation("InternalPara1D", AParams);
-			pSkeletonAnim->SetDesiredMotionParam(eMotionParamID_BlendWeight, w1, 0.0f);
+			pSkeletonAnim->SetDesiredMotionParam(eMotionParamID_BlendWeight, w1, 0);
 
 			int32 nAnimIDPS0 = m_nAnimID[i0];
 			int32 nAnimIDPS1 = m_nAnimID[i1];

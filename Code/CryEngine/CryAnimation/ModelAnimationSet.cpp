@@ -665,9 +665,9 @@ GlobalAnimationHeaderLMG* CAnimationSet::GetGAH_LMG(int nAnimationId) const
 //------------------------------------------------------------------------------
 //------------------------------------------------------------------------------
 //------------------------------------------------------------------------------
-f32 CAnimationSet::GetDuration_sec(int nAnimationId) const
+CTimeValue CAnimationSet::GetDuration(int nAnimationId) const
 {
-	const f32 INVALID_DURATION = 0.0f;
+	const CTimeValue INVALID_DURATION(0);
 
 	int32 numAnimation = (int32)m_arrAnimations.size();
 	if (nAnimationId < 0 || nAnimationId >= numAnimation)
@@ -685,7 +685,7 @@ f32 CAnimationSet::GetDuration_sec(int nAnimationId) const
 	{
 		uint32 GlobalAnimationID = anim->m_nGlobalAnimId;
 		GlobalAnimationHeaderCAF& rGlobalAnimHeader = g_AnimationManager.m_arrGlobalCAF[GlobalAnimationID];
-		f32 fDuration = rGlobalAnimHeader.m_fEndSec - rGlobalAnimHeader.m_fStartSec;
+		CTimeValue fDuration = rGlobalAnimHeader.m_fEndSec - rGlobalAnimHeader.m_fStartSec;
 		return fDuration;
 	}
 
@@ -693,7 +693,7 @@ f32 CAnimationSet::GetDuration_sec(int nAnimationId) const
 	{
 		uint32 GlobalAnimationID = anim->m_nGlobalAnimId;
 		GlobalAnimationHeaderAIM& rGlobalAnimHeader = g_AnimationManager.m_arrGlobalAIM[GlobalAnimationID];
-		f32 fDuration = rGlobalAnimHeader.m_fEndSec - rGlobalAnimHeader.m_fStartSec;
+		CTimeValue fDuration = rGlobalAnimHeader.m_fEndSec - rGlobalAnimHeader.m_fStartSec;
 		return fDuration;
 	}
 
@@ -706,12 +706,12 @@ f32 CAnimationSet::GetDuration_sec(int nAnimationId) const
 		if (rGlobalAnimHeader.IsAssetLMGValid() == 0)
 			return 0;
 		if (rGlobalAnimHeader.IsAssetInternalType())
-			return 1.0f; //there is no reliable way to compute the duration.
+			return CTimeValue(1); //there is no reliable way to compute the duration.
 		const uint32 numBlendSpaces = rGlobalAnimHeader.m_arrCombinedBlendSpaces.size();
 		if (numBlendSpaces > 0)
 		{
-			f32 fDuration = 0.0f;
-			f32 totalExamples = 0.0f;
+			CTimeValue fDuration;
+			int totalExamples = 0;
 			for (uint32 i = 0; i < numBlendSpaces; i++)
 			{
 				int32 bspaceID = rGlobalAnimHeader.m_arrCombinedBlendSpaces[i].m_ParaGroupID;
@@ -725,8 +725,8 @@ f32 CAnimationSet::GetDuration_sec(int nAnimationId) const
 				{
 					int32 aid = GetAnimIDByCRC(rGlobalAnimHeaderBS.m_arrParameter[e].m_animName.m_CRC32);
 					assert(aid >= 0);
-					fDuration += GetDuration_sec(aid);
-					totalExamples += 1.0f;
+					fDuration += GetDuration(aid);
+					totalExamples += 1;
 				}
 			}
 			return (totalExamples > 0) ? fDuration / totalExamples : INVALID_DURATION;
@@ -736,12 +736,12 @@ f32 CAnimationSet::GetDuration_sec(int nAnimationId) const
 			uint32 numBS = rGlobalAnimHeader.m_numExamples;
 			if (numBS == 0)
 				return INVALID_DURATION;
-			f32 fDuration = 0;
+			CTimeValue fDuration;
 			for (uint32 i = 0; i < numBS; i++)
 			{
 				int32 aid = GetAnimIDByCRC(rGlobalAnimHeader.m_arrParameter[i].m_animName.m_CRC32);
 				assert(aid >= 0);
-				fDuration += GetDuration_sec(aid);
+				fDuration += GetDuration(aid);
 			}
 			return fDuration / numBS;
 		}
@@ -993,30 +993,30 @@ bool CAnimationSet::GetAnimationDCCWorldSpaceLocation(const CAnimation* pAnim, Q
 
 	QuatT key0(IDENTITY);
 	QuatT key1(IDENTITY);
-	const f32 fKeyTime0 = rCAF.NTime2KTime(0);
+	const kTime fKeyTime0 = rCAF.NTime2KTime(0);
 	pController->GetOP(fKeyTime0, key0.q, key0.t);  //the first key should be always identity, except in the case of raw-assets
-	const float ntime = rCAF.GetNTimeforEntireClip(pAnim->GetCurrentSegmentIndex(), pAnim->GetCurrentSegmentNormalizedTime());
+	const nTime ntime = rCAF.GetNTimeforEntireClip(pAnim->GetCurrentSegmentIndex(), pAnim->GetCurrentSegmentNormalizedTime());
 
 #ifndef _RELEASE
 	// Debug code to try and figure out rare crash bug DT-2674, which crashes on a floating point error during the second GetOP call
 	{
-		if (!NumberValid(ntime))
+	if (!NumberValid(ntime))
 		{
-			static float lastntime = 0.0f;
+			static mpfloat lastntime = 0;
 			lastntime = ntime;
 			CryFatalError("CAnimationSet::GetAnimationDCCWorldSpaceLocation: Invalid nTime");
 		}
 	}
 #endif
 
-	const f32 fKeyTime1 = rCAF.NTime2KTime(ntime);
+	const kTime fKeyTime1 = rCAF.NTime2KTime(ntime);
 
 #ifndef _RELEASE
 	// Debug code to try and figure out rare crash bug DT-2674, which crashes on a floating point error during the second GetOP call
 	{
 		if (!NumberValid(fKeyTime1))
 		{
-			static float lastfKeyTime1 = 0.0f;
+			static kTime lastfKeyTime1 = 0;
 			lastfKeyTime1 = fKeyTime1;
 			CryFatalError("CAnimationSet::GetAnimationDCCWorldSpaceLocation: Invalid fKeyTime1");
 		}
@@ -1029,7 +1029,7 @@ bool CAnimationSet::GetAnimationDCCWorldSpaceLocation(const CAnimation* pAnim, Q
 	return true;
 }
 
-CAnimationSet::ESampleResult CAnimationSet::SampleAnimation(const int32 animationId, const float animationNormalizedTime, const uint32 controllerId, QuatT& relativeLocationOutput) const
+CAnimationSet::ESampleResult CAnimationSet::SampleAnimation(const int32 animationId, const nTime& animationNormalizedTime, const uint32 controllerId, QuatT& relativeLocationOutput) const
 {
 	relativeLocationOutput.SetIdentity();
 

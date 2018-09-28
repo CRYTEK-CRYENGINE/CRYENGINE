@@ -127,7 +127,6 @@ CRYREGISTER_SINGLETON_CLASS(CEngineModule_CryAnimation)
 
 // cached interfaces - valid during the whole session, when the character manager is alive; then get erased
 ISystem* g_pISystem = NULL;
-ITimer* g_pITimer = NULL;                     //module implemented in CrySystem
 ILog* g_pILog = NULL;                         //module implemented in CrySystem
 IConsole* g_pIConsole = NULL;                 //module implemented in CrySystem
 ICryPak* g_pIPak = NULL;                      //module implemented in CrySystem
@@ -137,7 +136,7 @@ IRenderer* g_pIRenderer = NULL;
 IPhysicalWorld* g_pIPhysicalWorld = NULL;
 I3DEngine* g_pI3DEngine = NULL;               //Need just for loading of chunks. Should be part of CrySystem
 
-f32 g_AverageFrameTime = 0;
+CTimeValue g_AverageFrameTime = 0;
 CAnimation g_DefaultAnim;
 CharacterManager* g_pCharacterManager;
 QuatT g_IdentityQuatT = QuatT(IDENTITY);
@@ -161,7 +160,7 @@ ILINE void g_LogToFile(const char* szFormat, ...)
 	g_pILog->LogToFile("%s", szBuffer);
 }
 
-f32 g_fCurrTime = 0;
+CTimeValue g_fCurrTime = 0;
 bool g_bProfilerOn = false;
 
 AnimStatisticsInfo g_AnimStatisticsInfo;

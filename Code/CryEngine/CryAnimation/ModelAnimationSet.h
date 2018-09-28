@@ -167,7 +167,7 @@ public:
 	virtual uint32        GetFilePathCRCByAnimID(int nAnimationId) const override;
 	virtual const char*   GetFilePathByName(const char* szAnimationName) const override;
 	virtual const char*   GetFilePathByID(int nAnimationId) const override;
-	virtual f32           GetDuration_sec(int nAnimationId) const override;
+	virtual CTimeValue    GetDuration(int nAnimationId) const override;
 	virtual uint32        GetAnimationFlags(int nAnimationId) const override;
 	virtual uint32        GetAnimationSize(const uint32 nAnimationId) const override;
 	virtual bool          IsAnimLoaded(int nAnimationId) const override;
@@ -178,7 +178,7 @@ public:
 	virtual bool          GetAnimationDCCWorldSpaceLocation(const char* szAnimationName, QuatT& startLocation) const override;
 	virtual bool          GetAnimationDCCWorldSpaceLocation(int32 AnimID, QuatT& startLocation) const override;
 	virtual bool          GetAnimationDCCWorldSpaceLocation(const CAnimation* pAnim, QuatT& startLocation, uint32 nControllerID) const override;
-	virtual ESampleResult SampleAnimation(int32 animationId, float animationNormalizedTime, uint32 controllerId, QuatT& relativeLocationOutput) const override;
+	virtual ESampleResult SampleAnimation(int32 animationId, const nTime& animationNormalizedTime, uint32 controllerId, QuatT& relativeLocationOutput) const override;
 
 #ifdef EDITOR_PCDEBUGCODE
 	virtual void        GetSubAnimations(DynArray<int>& animIdsOut, int animId) const override;

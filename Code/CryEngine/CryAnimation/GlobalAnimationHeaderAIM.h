@@ -47,9 +47,9 @@ struct GlobalAnimationHeaderAIM : public GlobalAnimationHeader
 		: m_nRef_by_Model(0)
 		, m_nTouchedCounter(0)
 		, m_nControllers(0)
-		, m_fStartSec(-1.0f)
-		, m_fEndSec(-1.0f)
-		, m_fTotalDuration(-1.0f)
+		, m_fStartSec(-1)
+		, m_fEndSec(-1)
+		, m_fTotalDuration(-1)
 		, m_arrController()
 		, m_AnimTokenCRC32(0)
 		, m_arrAimIKPosesAIM()
@@ -103,14 +103,13 @@ struct GlobalAnimationHeaderAIM : public GlobalAnimationHeader
 		return nullptr;
 	}
 
-	f32 NTime2KTime(f32 ntime) const
+	kTime NTime2KTime(const nTime& nTimeIn) const
 	{
-		ntime = min(ntime, 1.0f);
+		mpfloat ntime = min(nTimeIn, nTime(1)).conv<mpfloat>();
 		assert(ntime >= 0 && ntime <= 1);
-		f32 duration = m_fEndSec - m_fStartSec;
-		f32 start = m_fStartSec;
-		f32 key = (ntime * ANIMATION_30Hz * duration + start * ANIMATION_30Hz); ///40.0f;
-		return key;
+		CTimeValue duration = (m_fEndSec - m_fStartSec);
+		mpfloat key  = (ntime * duration + m_fStartSec).GetSeconds() * ANIMATION_30Hz; ///40.0f;
+		return key.conv<kTime>(); 
 	}
 
 	size_t SizeOfAIM() const
@@ -177,9 +176,9 @@ public:
 	uint16                                           m_nTouchedCounter; //< Keeps track of asset usage.
 	uint16                                           m_nControllers;
 
-	f32                                              m_fStartSec;      //< Start time in seconds.
-	f32                                              m_fEndSec;        // <End time in seconds.
-	f32                                              m_fTotalDuration; //< Duration in seconds.
+	CTimeValue                                       m_fStartSec;      //< Start time in seconds.
+	CTimeValue                                       m_fEndSec;        // <End time in seconds.
+	CTimeValue                                       m_fTotalDuration; //< Duration in seconds.
 
 	DynArray<IController_AutoPtr>                    m_arrController;
 	uint32                                           m_AnimTokenCRC32;

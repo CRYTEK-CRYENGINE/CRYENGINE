@@ -63,7 +63,7 @@ CEyeMovementFaceAnim::CEyeMovementFaceAnim(CFacialInstance* pInstance)
 	}
 }
 
-void CEyeMovementFaceAnim::Update(float fDeltaTimeSec, const QuatTS& rAnimLocationNext, CCharInstance* pCharacter, CFacialEffectorsLibrary* pEffectorsLibrary, CFaceState* pFaceState)
+void CEyeMovementFaceAnim::Update(const CTimeValue& deltaTime, const QuatTS& rAnimLocationNext, CCharInstance* pCharacter, CFacialEffectorsLibrary* pEffectorsLibrary, CFaceState* pFaceState)
 {
 	if (!m_bInitialized)
 	{
@@ -122,8 +122,8 @@ uint32 CEyeMovementFaceAnim::CreateChannelForEffector(EffectorID effector)
 		ch.fCurrWeight = 0;
 		ch.fWeight = 0;
 		ch.bIgnoreLifeTime = true;
-		ch.fFadeTime = 0;
-		ch.fLifeTime = 0;
+		ch.fFadeTime.SetSeconds(0);
+		ch.fLifeTime.SetSeconds(0);
 		ch.nRepeatCount = 0;
 
 		id = m_pInstance->GetAnimContext()->StartChannel(ch);

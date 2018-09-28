@@ -2,8 +2,9 @@
 
 #pragma once
 
-#define ANIMATION_30Hz (30.0f) //> Animation framerate is currently hard-coded to 30fps.
+#define ANIMATION_30Hz (30)	  //> Animation framerate is currently hard-coded to 30fps.
 #define TICKS_CONVERT  (160)   //> A helper macro for converting 3ds Max 'ticks' (1/4800[s]) present in certain legacy assets to the hard-coded 30fps framerate (160 * 1/4800s == 1/30[s]).
+#define ANIMATION_FSTEP CTimeValue(mpfloat(1)/ANIMATION_30Hz) //> Current animation timestep
 
 enum EJointState
 {
@@ -13,6 +14,9 @@ enum EJointState
 };
 
 typedef uint8 JointState;
+
+decl_mp_type(kTime)	 //!< Animation 'Key-Time'. Seconds * FPS = #KeyFrames
+#define BADkT(x)   kTime().lossy(x)
 
 //////////////////////////////////////////////////////////////////////////////////////////
 // interface IController
@@ -29,16 +33,16 @@ public:
 	uint32 GetID() const { return m_nControllerId; }
 
 	// returns the orientation,position and scaling of the controller at the given time
-	virtual JointState GetOPS(f32 key, Quat& quat, Vec3& pos, Diag33& scale) const = 0;
+	virtual JointState GetOPS(const kTime& key, Quat& quat, Vec3& pos, Diag33& scale) const = 0;
 	// returns the orientation and position of the controller at the given time
-	virtual JointState GetOP(f32 key, Quat& quat, Vec3& pos) const = 0;
+	virtual JointState GetOP(const kTime& key, Quat& quat, Vec3& pos) const = 0;
 
 	// returns the orientation of the controller at the given time
-	virtual JointState GetO(f32 key, Quat& quat) const = 0;
+	virtual JointState GetO(const kTime& key, Quat& quat) const = 0;
 	// returns position of the controller at the given time
-	virtual JointState GetP(f32 key, Vec3& pos) const = 0;
+	virtual JointState GetP(const kTime& key, Vec3& pos) const = 0;
 	// returns scale of the controller at the given time
-	virtual JointState GetS(f32 key, Diag33& scl) const = 0;
+	virtual JointState GetS(const kTime& key, Diag33& scl) const = 0;
 
 	virtual int32      GetO_numKey() const { return -1; } //only implemented for the PQ controller
 	virtual int32      GetP_numKey() const { return -1; } //only implemented for the PQ controller

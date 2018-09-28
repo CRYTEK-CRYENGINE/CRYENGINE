@@ -86,7 +86,7 @@ void GlobalAnimationHeaderCAF::LoadDBA()
 			CGlobalHeaderDBA& pGlobalHeaderDBA = g_AnimationManager.m_arrGlobalHeaderDBA[d];
 			if (m_FilePathDBACRC32 != pGlobalHeaderDBA.m_FilePathDBACRC32)
 				continue;
-			pGlobalHeaderDBA.m_nLastUsedTimeDelta = 0;
+			pGlobalHeaderDBA.m_nLastUsedTimeDelta.SetSeconds(0);
 			if (pGlobalHeaderDBA.m_pDatabaseInfo == 0)
 				pGlobalHeaderDBA.LoadDatabaseDBA("");
 
@@ -155,8 +155,8 @@ void GlobalAnimationHeaderCAF::StartStreamingCAF()
 		params.dwUserData = 0;
 		params.nSize = 0;
 		params.pBuffer = NULL;
-		params.nLoadTime = 10000;
-		params.nMaxLoadTime = 1000;
+		params.nLoadTime.SetSeconds(10);
+		params.nMaxLoadTime.SetSeconds(1);
 		params.ePriority = estpAboveNormal;
 		m_pStream = g_pISystem->GetStreamEngine()->StartRead(eStreamTaskTypeAnimation, GetFilePath(), pContent, &params);
 	}
@@ -168,7 +168,7 @@ void GlobalAnimationHeaderCAF::StartStreamingCAF()
 			CGlobalHeaderDBA& pGlobalHeaderDBA = g_AnimationManager.m_arrGlobalHeaderDBA[d];
 			if (m_FilePathDBACRC32 != pGlobalHeaderDBA.m_FilePathDBACRC32)
 				continue;
-			pGlobalHeaderDBA.m_nLastUsedTimeDelta = 0;
+			pGlobalHeaderDBA.m_nLastUsedTimeDelta.SetSeconds(0);
 			if (pGlobalHeaderDBA.m_pDatabaseInfo == 0)
 				pGlobalHeaderDBA.StartStreamingDBA(false);
 			else
@@ -184,9 +184,9 @@ GlobalAnimationHeaderCAFStreamContent::GlobalAnimationHeaderCAFStreamContent()
 	, m_pPath(nullptr)
 	, m_nFlags(0)
 	, m_FilePathDBACRC32(0)
-	, m_fStartSec(0.0f)
-	, m_fEndSec(0.0f)
-	, m_fTotalDuration(0.0f)
+	, m_fStartSec(0)
+	, m_fEndSec(0)
+	, m_fTotalDuration(0)
 	, m_StartLocation(IDENTITY)
 {
 }
@@ -556,8 +556,8 @@ bool GlobalAnimationHeaderCAFStreamContent::ReadTiming(IChunkFile::ChunkDesc* pC
 			const int32 nStartKey = 0;
 			const int32 nEndKey = pChunk->global_range.end - pChunk->global_range.start;
 
-			m_fStartSec = nStartKey / ANIMATION_30Hz;
-			m_fEndSec = std::max(nStartKey, nEndKey) / ANIMATION_30Hz;
+			m_fStartSec.SetSeconds(mpfloat(nStartKey) / ANIMATION_30Hz);
+			m_fEndSec.SetSeconds( mpfloat(std::max(nStartKey, nEndKey)) / ANIMATION_30Hz);
 			m_fTotalDuration = m_fEndSec - m_fStartSec;
 		}
 		return true;
@@ -579,8 +579,8 @@ bool GlobalAnimationHeaderCAFStreamContent::ReadTiming(IChunkFile::ChunkDesc* pC
 				CryWarning(VALIDATOR_MODULE_ANIMATION, VALIDATOR_WARNING, "Timing chunk (0x%04x) declares a currently unsupported framerate value (%.2f fps). Framerate will be overridden to %.2f fps. File: '%s'", pChunk->VERSION, pChunk->samplesPerSecond, ANIMATION_30Hz, m_pPath);
 			}
 
-			m_fStartSec = 0.0f;
-			m_fTotalDuration = (pChunk->numberOfSamples - 1) / ANIMATION_30Hz;
+			m_fStartSec.SetSeconds(0);
+			m_fTotalDuration.SetSeconds( mpfloat(pChunk->numberOfSamples - 1) / ANIMATION_30Hz );
 			m_fEndSec = m_fStartSec + m_fTotalDuration;
 		}
 		return true;
@@ -641,8 +641,8 @@ bool GlobalAnimationHeaderCAFStreamContent::ReadMotionParameters(IChunkFile::Chu
 		if (pChunk->mp.m_nAssetFlags & CA_ASSET_ADDITIVE)
 			nStartKey++;
 
-		m_fStartSec = nStartKey / ANIMATION_30Hz;
-		m_fEndSec = nEndKey / ANIMATION_30Hz;
+		m_fStartSec.SetSeconds(mpfloat(nStartKey) / ANIMATION_30Hz);
+		m_fEndSec.SetSeconds(mpfloat(nEndKey) / ANIMATION_30Hz);
 		if (m_fEndSec <= m_fStartSec)
 			m_fEndSec = m_fStartSec;
 		m_fTotalDuration = m_fEndSec - m_fStartSec;
@@ -1112,9 +1112,9 @@ bool GlobalAnimationHeaderCAF::Export2HTR(const char* szAnimationName, const cha
 
 	//fetch animation
 	std::vector<DynArray<QuatT>> arrAnimation;
-	f32 fFrames = m_fTotalDuration * ANIMATION_30Hz;
-	uint32 nFrames = uint32(fFrames + 1.5f);                              //roundup
-	f32 timestep = 1.0f / f32(nFrames - 1);
+	mpfloat fFrames = m_fTotalDuration.GetSeconds() * ANIMATION_30Hz; // Basically 'keyFrame time'
+	uint32 nFrames = uint32(fFrames + "1.5");								   //roundup
+	nTime timestep = 1 / nTime(nFrames - 1);								   // Normalized
 
 	arrAnimation.resize(numJoints);
 	for (uint32 j = 0; j < numJoints; j++)
@@ -1125,7 +1125,7 @@ bool GlobalAnimationHeaderCAF::Export2HTR(const char* szAnimationName, const cha
 		const CDefaultSkeleton::SJoint* pJoint = &pDefaultSkeleton->m_arrModelJoints[j];
 		assert(pJoint);
 		IController* pController = GetControllerByJointCRC32(pJoint->m_nJointCRC32);
-		f32 t = 0.0f;
+		nTime t = 0;
 		for (uint32 k = 0; k < nFrames; k++)
 		{
 			QuatT qt = parrDefJoints[j];
@@ -1382,7 +1382,7 @@ void GlobalAnimationHeaderCAF::ConnectCAFandDBA()
 			continue;
 		if (m_FilePathDBACRC32 != pGlobalHeaderDBA.m_FilePathDBACRC32)
 			continue;
-		pGlobalHeaderDBA.m_nLastUsedTimeDelta = 0;   //DBA in use. Reset unload count-down
+		pGlobalHeaderDBA.m_nLastUsedTimeDelta.SetSeconds(0);   //DBA in use. Reset unload count-down
 		break;
 	}
 }

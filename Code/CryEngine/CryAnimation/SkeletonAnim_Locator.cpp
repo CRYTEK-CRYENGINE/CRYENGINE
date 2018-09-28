@@ -74,11 +74,11 @@ struct AnimInfo
 {
 	int16 m_nAnimID;
 	int16 m_nEOC;
-	f32   m_fAnimTime;
-	f32   m_fAnimTimePrev;
-	f32   m_fWeight;
-	f32   m_fAnimDelta;
-	f32   m_fPlaybackScale;
+	nTime   m_fAnimTime;
+	nTime   m_fAnimTimePrev;
+	mpfloat   m_fWeight;
+	CTimeValue   m_fAnimDelta;
+	mpfloat   m_fPlaybackScale;
 
 	int   m_Dimensions;
 	int8  m_Parameter[8];         //the parameters that are stored in a ParaGroup
@@ -89,7 +89,7 @@ struct AnimInfo
 //-----------------------------------------------------------------
 //----   Evaluate Locator                                      ----
 //-----------------------------------------------------------------
-QuatT CSkeletonAnim::CalculateRelativeMovement(const f32 fDeltaTimeOrig, const bool CurrNext) const PREFAST_SUPPRESS_WARNING(6262)
+QuatT CSkeletonAnim::CalculateRelativeMovement(const CTimeValue& fDeltaTimeOrig, const bool CurrNext) const PREFAST_SUPPRESS_WARNING(6262)
 {
 	if (m_AnimationDrivenMotion == 0)
 		return QuatT(IDENTITY);
@@ -113,7 +113,7 @@ QuatT CSkeletonAnim::CalculateRelativeMovement(const f32 fDeltaTimeOrig, const b
 	if (numActiveAnims == 0)
 		return QuatT(IDENTITY);
 
-	const f32 fDeltaTime = fDeltaTimeOrig * m_layers[0].m_transitionQueue.m_fLayerPlaybackScale;
+	const CTimeValue fDeltaTime = fDeltaTimeOrig * m_layers[0].m_transitionQueue.m_fLayerPlaybackScale;
 
 	uint32 acounter = 0;
 	AnimInfo arrAnimInfo[512];
@@ -123,14 +123,14 @@ QuatT CSkeletonAnim::CalculateRelativeMovement(const f32 fDeltaTimeOrig, const b
 		ParseLayer0(rAnimation, arrAnimInfo, acounter, fDeltaTime, CurrNext);
 	}
 
-	f32 weightSum = 0.0f;
+	mpfloat weightSum = 0;
 	for (uint32 a = 0; a < acounter; a++)
 	{
 		AnimInfo& rAnimInfo = arrAnimInfo[a];
-		const float weight = rAnimInfo.m_fWeight;
-		if (fabsf(weight) < 0.001f)
+		const mpfloat weight = rAnimInfo.m_fWeight;
+		if (abs(weight) < "0.001")
 		{
-			rAnimInfo.m_fWeight = 0.0f;
+			rAnimInfo.m_fWeight = 0;
 		}
 		else
 		{
@@ -138,7 +138,7 @@ QuatT CSkeletonAnim::CalculateRelativeMovement(const f32 fDeltaTimeOrig, const b
 		}
 	}
 
-	if (weightSum < 0.01f)
+	if (weightSum < "0.01")
 		return QuatT(IDENTITY);
 
 	for (uint32 a = 0; a < acounter; a++)
@@ -187,11 +187,11 @@ QuatT CSkeletonAnim::CalculateRelativeMovement(const f32 fDeltaTimeOrig, const b
 		//In character tool/editor we use the per-instance playback scale to mimic global time changes.
 		//In the game this would change the speed of the locator. However, in these tools we want the apparent locator speed to stay the same,
 		//so we divide out the scale by using the modified deltatime, not the original."
-		f32 fDT = m_pInstance->m_CharEditMode ? m_pInstance->m_fDeltaTime : m_pInstance->m_fOriginalDeltaTime;
-		if (fDT)
+		CTimeValue fDT = m_pInstance->m_CharEditMode ? m_pInstance->m_fDeltaTime : m_pInstance->m_fOriginalDeltaTime;
+		if (fDT != 0)
 		{
-			f32 fMoveSpeed = DeltaMotion.m_moveSpeed / fDT;
-			f32 fTurnSpeed = DeltaMotion.m_turnSpeed / fDT;
+			f32 fMoveSpeed = DeltaMotion.m_moveSpeed / fDT.BADGetSeconds();
+			f32 fTurnSpeed = DeltaMotion.m_turnSpeed / fDT.BADGetSeconds();
 			f32 fTravelDir = fRelTravelDir;
 			f32 fSlope = DeltaMotion.m_slope;
 			DrawHelper::CurvedArrow(BodyLocation, fMoveSpeed, fTravelDir, fTurnSpeed, fSlope, RGBA8(0xff, 0xff, 0x00, 0x00));
@@ -207,7 +207,7 @@ QuatT CSkeletonAnim::CalculateRelativeMovement(const f32 fDeltaTimeOrig, const b
 	return relativeMovement;
 }
 
-void CSkeletonAnim::ParseLayer0(const CAnimation& rAnim, AnimInfo* pAInfo, uint32& acounter, f32 fDeltaTime, const uint32 idx) const
+void CSkeletonAnim::ParseLayer0(const CAnimation& rAnim, AnimInfo* pAInfo, uint32& acounter, const CTimeValue& fDeltaTime, const uint32 idx) const
 {
 	//-----------------------------------------------------------------------------
 	//----  implementation of root-priority                             -----------
@@ -224,7 +224,7 @@ void CSkeletonAnim::ParseLayer0(const CAnimation& rAnim, AnimInfo* pAInfo, uint3
 	const SParametricSamplerInternal* pParametric = (SParametricSamplerInternal*)rAnim.GetParametricSampler();
 	if (pParametric == NULL)
 	{
-		if (fabsf(rAnim.GetTransitionWeight()) < 0.001f)
+		if (abs(rAnim.GetTransitionWeight()) < "0.001")
 			return;
 
 		//regular asset
@@ -247,10 +247,10 @@ void CSkeletonAnim::ParseLayer0(const CAnimation& rAnim, AnimInfo* pAInfo, uint3
 		if (rAnim.m_DynFlags[idx] & CA_EOC)
 			pAInfo[acounter].m_nEOC = segcountNew == 0;
 
-		const f32 totdur = rCAF.GetTotalDuration();
-		const f32 fRealTimeNew = pAInfo[acounter].m_fAnimTime * totdur;
-		const f32 fRealTimeOld = pAInfo[acounter].m_fAnimTimePrev * totdur;
-		f32 fAnimDelta = fRealTimeNew - fRealTimeOld;
+		const CTimeValue totdur = rCAF.GetTotalDuration();
+		const CTimeValue fRealTimeNew = pAInfo[acounter].m_fAnimTime.conv<mpfloat>() * totdur;
+		const CTimeValue fRealTimeOld = pAInfo[acounter].m_fAnimTimePrev.conv<mpfloat>() * totdur;
+		CTimeValue fAnimDelta = fRealTimeNew - fRealTimeOld;
 		if (pAInfo[acounter].m_nEOC)
 			fAnimDelta = totdur - fRealTimeOld + fRealTimeNew;
 		pAInfo[acounter].m_fAnimDelta = fAnimDelta;
@@ -273,13 +273,13 @@ void CSkeletonAnim::ParseLayer0(const CAnimation& rAnim, AnimInfo* pAInfo, uint3
 			CryFatalError("CryAnimation: VEG-ID out of range"); //can happen only in weird cases (mem-corruption, etc)
 
 		GlobalAnimationHeaderLMG& rLMG = g_AnimationManager.m_arrGlobalLMG[pAnim->m_nGlobalAnimId];
-		f32 fBlendWeights = 0;
+		mpfloat fBlendWeights = 0;
 		uint32 numLMGParams = rLMG.m_arrParameter.size();
 		for (uint32 s = 0; s < pParametric->m_numExamples; s++)
 		{
-			f32 fWeight = pParametric->m_fBlendWeight[s] * rAnim.GetTransitionWeight();
+			mpfloat fWeight = pParametric->m_fBlendWeight[s] * rAnim.GetTransitionWeight();
 			fBlendWeights += pParametric->m_fBlendWeight[s]; // only used in the assert below
-			if (fabsf(fWeight) < 0.001f)
+			if (abs(fWeight) < "0.001")
 				continue;
 
 			int nAnimID = pParametric->m_nAnimID[s];
@@ -327,10 +327,10 @@ void CSkeletonAnim::ParseLayer0(const CAnimation& rAnim, AnimInfo* pAInfo, uint3
 					pAInfo[acounter].m_nEOC = -1; //time backward: loop from first to last segment
 			}
 
-			const f32 totdur = rCAF.GetTotalDuration();
-			const f32 fRealTimeNew = pAInfo[acounter].m_fAnimTime * totdur;
-			const f32 fRealTimeOld = pAInfo[acounter].m_fAnimTimePrev * totdur;
-			f32 fAnimDelta = fRealTimeNew - fRealTimeOld;
+			const CTimeValue totdur = rCAF.GetTotalDuration();
+			const CTimeValue fRealTimeNew = pAInfo[acounter].m_fAnimTime.conv<mpfloat>() * totdur;
+			const CTimeValue fRealTimeOld = pAInfo[acounter].m_fAnimTimePrev.conv<mpfloat>() * totdur;
+			CTimeValue fAnimDelta = fRealTimeNew - fRealTimeOld;
 			if (pAInfo[acounter].m_nEOC)
 				fAnimDelta = totdur - fRealTimeOld + fRealTimeNew;
 			pAInfo[acounter].m_fAnimDelta = fAnimDelta;
@@ -341,26 +341,26 @@ void CSkeletonAnim::ParseLayer0(const CAnimation& rAnim, AnimInfo* pAInfo, uint3
 
 			acounter++;
 		}
-		assert((fBlendWeights == 0) || fabsf(fBlendWeights - 1.0f) < 0.05f);
+		assert((fBlendWeights == 0) || abs(fBlendWeights - 1) < "0.05");
 	}
 
 }
 
 void CSkeletonAnim::Extract_DeltaMovement(AnimInfo* pAInfo, uint32& acounter2, SDeltaMotion* pDeltaMotion) const
 {
-	const f32 fDeltaTime = m_pInstance->m_fDeltaTime;
+	const CTimeValue fDeltaTime = m_pInstance->m_fDeltaTime;
 	if (fDeltaTime < 0)
 		CryFatalError("CryAnimation: reverse playback of animations is not supported any more");
 
 	uint32 nTimebasedExtraction = true;
-	if (fDeltaTime == 0.0f) //probably paused
+	if (fDeltaTime == 0) //probably paused
 		nTimebasedExtraction = false;
 
-	const f32 fPlaybackScale = fDeltaTime * m_layers[0].m_transitionQueue.m_fLayerPlaybackScale;
+	const f32 fPlaybackScale = BADF(fDeltaTime.GetSeconds() * m_layers[0].m_transitionQueue.m_fLayerPlaybackScale);
 
 	for (uint32 a = 0; a < acounter2; a++)
 	{
-		if (pAInfo[a].m_fWeight == 0.0f)
+		if (pAInfo[a].m_fWeight == 0)
 			continue;
 
 		assert(pAInfo[a].m_nAnimID >= 0);
@@ -374,11 +374,11 @@ void CSkeletonAnim::Extract_DeltaMovement(AnimInfo* pAInfo, uint32& acounter2, S
 		if (pRootController == 0)
 			continue;
 
-		f32 fStartKey = rCAF.m_fStartSec * ANIMATION_30Hz;
-		f32 fTotalKeys = rCAF.m_fTotalDuration * ANIMATION_30Hz;
+		kTime fStartKey = (rCAF.m_fStartSec.GetSeconds() * ANIMATION_30Hz).conv<kTime>();
+		mpfloat fTotalKeys = rCAF.m_fTotalDuration.GetSeconds() * ANIMATION_30Hz;
 		int isCycle = rCAF.IsAssetCycle();
 
-		f32 fKeyTimeNew = rCAF.NTime2KTime(pAInfo[a].m_fAnimTime);
+		kTime fKeyTimeNew = rCAF.NTime2KTime(pAInfo[a].m_fAnimTime);
 		QuatT _new;
 		_new.SetIdentity();
 		GetOP_CubicInterpolation(pRootController, isCycle, fStartKey, fTotalKeys, fKeyTimeNew, _new.q, _new.t);
@@ -386,20 +386,20 @@ void CSkeletonAnim::Extract_DeltaMovement(AnimInfo* pAInfo, uint32& acounter2, S
 		_new.q.v.y = 0;
 		_new.q.Normalize();                              //we want only z-rotations
 
-		f32 fKeyTimeOld = rCAF.NTime2KTime(pAInfo[a].m_fAnimTimePrev);
+		kTime fKeyTimeOld = rCAF.NTime2KTime(pAInfo[a].m_fAnimTimePrev);
 		QuatT _old;
 		_old.SetIdentity();
 		GetOP_CubicInterpolation(pRootController, isCycle, fStartKey, fTotalKeys, fKeyTimeOld, _old.q, _old.t);
 		if (pAInfo[a].m_nEOC > 0)
 		{
-			f32 fKeyTime1 = rCAF.NTime2KTime(1);
+			kTime fKeyTime1 = rCAF.NTime2KTime(1);
 			QuatT EndKey;
 			GetOP_CubicInterpolation(pRootController, isCycle, fStartKey, fTotalKeys, fKeyTime1, EndKey.q, EndKey.t);
 			_old = EndKey.GetInverted() * _old; //EOC forwards
 		}
 		if (pAInfo[a].m_nEOC < 0)
 		{
-			f32 fKeyTime1 = rCAF.NTime2KTime(1);
+			kTime fKeyTime1 = rCAF.NTime2KTime(1);
 			QuatT EndKey;
 			GetOP_CubicInterpolation(pRootController, isCycle, fStartKey, fTotalKeys, fKeyTime1, EndKey.q, EndKey.t);
 			_old = EndKey * _old; //EOC backwards
@@ -418,59 +418,59 @@ void CSkeletonAnim::Extract_DeltaMovement(AnimInfo* pAInfo, uint32& acounter2, S
 				{
 				case eMotionParamID_TravelSpeed:
 					if (pAInfo[a].m_IsPreInitialized[d])
-						pDeltaMotion->m_moveSpeed += pAInfo[a].m_fWeight * pAInfo[a].m_PreInitializedVal[d] * fPlaybackScale; //move-speed for this frame
+						pDeltaMotion->m_moveSpeed += BADF pAInfo[a].m_fWeight * pAInfo[a].m_PreInitializedVal[d] * fPlaybackScale; //move-speed for this frame
 					else
-						pDeltaMotion->m_moveSpeed += (pAInfo[a].m_fAnimDelta) ? pAInfo[a].m_fWeight * LocatorHelper::ExtractMoveSpeed(delta1) / pAInfo[a].m_fAnimDelta * fPlaybackScale * pAInfo[a].m_fPlaybackScale : 0.0f; //movespeed extraction
+						pDeltaMotion->m_moveSpeed += (pAInfo[a].m_fAnimDelta != 0) ? BADF pAInfo[a].m_fWeight * LocatorHelper::ExtractMoveSpeed(delta1) / pAInfo[a].m_fAnimDelta.BADGetSeconds() * fPlaybackScale * BADF pAInfo[a].m_fPlaybackScale : 0.0f; //movespeed extraction
 					break;
 
 				case eMotionParamID_TravelDist:
 					if (pAInfo[a].m_IsPreInitialized[d])
-						pDeltaMotion->m_moveDistance += pAInfo[a].m_fWeight * pAInfo[a].m_PreInitializedVal[d] * fPlaybackScale; //move-distance for this frame
+						pDeltaMotion->m_moveDistance += BADF pAInfo[a].m_fWeight * pAInfo[a].m_PreInitializedVal[d] * fPlaybackScale; //move-distance for this frame
 					else
-						pDeltaMotion->m_moveDistance += pAInfo[a].m_fWeight * LocatorHelper::ExtractMoveSpeed(delta1); //move-distance extraction
+						pDeltaMotion->m_moveDistance += BADF pAInfo[a].m_fWeight * LocatorHelper::ExtractMoveSpeed(delta1); //move-distance extraction
 					break;
 
 				case eMotionParamID_TurnSpeed:
 					if (pAInfo[a].m_IsPreInitialized[d])
-						pDeltaMotion->m_turnSpeed += pAInfo[a].m_fWeight * pAInfo[a].m_PreInitializedVal[d] * fPlaybackScale; //turn-speed for this frame
+						pDeltaMotion->m_turnSpeed += BADF pAInfo[a].m_fWeight * pAInfo[a].m_PreInitializedVal[d] * fPlaybackScale; //turn-speed for this frame
 					else
-						pDeltaMotion->m_turnSpeed += (pAInfo[a].m_fAnimDelta) ? pAInfo[a].m_fWeight * LocatorHelper::ExtractTurnSpeed(delta1) / pAInfo[a].m_fAnimDelta * fPlaybackScale * pAInfo[a].m_fPlaybackScale : 0.0f; //turn-speed extraction
+						pDeltaMotion->m_turnSpeed += (pAInfo[a].m_fAnimDelta != 0) ? BADF pAInfo[a].m_fWeight * LocatorHelper::ExtractTurnSpeed(delta1) / pAInfo[a].m_fAnimDelta.BADGetSeconds() * fPlaybackScale * BADF pAInfo[a].m_fPlaybackScale : 0.0f; //turn-speed extraction
 					break;
 
 				case eMotionParamID_TurnAngle:
 					if (pAInfo[a].m_IsPreInitialized[d])
-						pDeltaMotion->m_turnDistance += pAInfo[a].m_fWeight * pAInfo[a].m_PreInitializedVal[d] * fPlaybackScale; //turn-angle for this frame
+						pDeltaMotion->m_turnDistance += BADF pAInfo[a].m_fWeight * pAInfo[a].m_PreInitializedVal[d] * fPlaybackScale; //turn-angle for this frame
 					else
-						pDeltaMotion->m_turnDistance += pAInfo[a].m_fWeight * LocatorHelper::ExtractTurnSpeed(delta1); //turn-angle extraction
+						pDeltaMotion->m_turnDistance += BADF pAInfo[a].m_fWeight * LocatorHelper::ExtractTurnSpeed(delta1); //turn-angle extraction
 					break;
 
 				case eMotionParamID_TravelAngle:
 					if (pAInfo[a].m_IsPreInitialized[d])
-						pDeltaMotion->m_travelDir += pAInfo[a].m_fWeight * LocatorHelper::ExtractTravelDir(QuatT(IDENTITY, Quat::CreateRotationZ(pAInfo[a].m_PreInitializedVal[d]).GetColumn1()));
+						pDeltaMotion->m_travelDir += BADF pAInfo[a].m_fWeight * LocatorHelper::ExtractTravelDir(QuatT(IDENTITY, Quat::CreateRotationZ(pAInfo[a].m_PreInitializedVal[d]).GetColumn1()));
 					else
-						pDeltaMotion->m_travelDir += pAInfo[a].m_fWeight * LocatorHelper::ExtractTravelDir(delta1);
+						pDeltaMotion->m_travelDir += BADF pAInfo[a].m_fWeight * LocatorHelper::ExtractTravelDir(delta1);
 					break;
 
 				case eMotionParamID_TravelSlope:
 					if (pAInfo[a].m_IsPreInitialized[d])
-						pDeltaMotion->m_slope += pAInfo[a].m_fWeight * pAInfo[a].m_PreInitializedVal[d];
+						pDeltaMotion->m_slope += BADF pAInfo[a].m_fWeight * pAInfo[a].m_PreInitializedVal[d];
 					else
-						pDeltaMotion->m_slope += pAInfo[a].m_fWeight * LocatorHelper::ExtractSlope(delta1);
+						pDeltaMotion->m_slope += BADF pAInfo[a].m_fWeight * LocatorHelper::ExtractSlope(delta1);
 					break;
 
 				}
 			}
 
-			pDeltaMotion->m_translation += pAInfo[a].m_fWeight * delta1.t; //just for debugging
+			pDeltaMotion->m_translation += BADF pAInfo[a].m_fWeight * delta1.t; //just for debugging
 		}
 		else
 		{
 			//this is a normal un-parameterized asset
-			pDeltaMotion->m_moveSpeed += pAInfo[a].m_fWeight * LocatorHelper::ExtractMoveSpeed(delta1);
-			pDeltaMotion->m_turnSpeed += pAInfo[a].m_fWeight * LocatorHelper::ExtractTurnSpeed(delta1);
-			pDeltaMotion->m_travelDir += pAInfo[a].m_fWeight * LocatorHelper::ExtractTravelDir(delta1);
-			pDeltaMotion->m_slope += pAInfo[a].m_fWeight * LocatorHelper::ExtractSlope(delta1);
-			pDeltaMotion->m_translation += pAInfo[a].m_fWeight * delta1.t; //just for debugging
+			pDeltaMotion->m_moveSpeed += BADF pAInfo[a].m_fWeight * LocatorHelper::ExtractMoveSpeed(delta1);
+			pDeltaMotion->m_turnSpeed += BADF pAInfo[a].m_fWeight * LocatorHelper::ExtractTurnSpeed(delta1);
+			pDeltaMotion->m_travelDir += BADF pAInfo[a].m_fWeight * LocatorHelper::ExtractTravelDir(delta1);
+			pDeltaMotion->m_slope += BADF pAInfo[a].m_fWeight * LocatorHelper::ExtractSlope(delta1);
+			pDeltaMotion->m_translation += BADF pAInfo[a].m_fWeight * delta1.t; //just for debugging
 		}
 
 		//float fColor2[4] = {1,1,0,1};
@@ -483,7 +483,7 @@ void CSkeletonAnim::Extract_DeltaMovement(AnimInfo* pAInfo, uint32& acounter2, S
 
 //-----------------------------------------------------------------------
 
-ILINE void CSkeletonAnim::GetOP_CubicInterpolation(IController* pRootController, uint32 IsCycle, f32 fStartKey, f32 fTotalKeys, f32 fKeyTime, Quat& rot, Vec3& pos) const
+ILINE void CSkeletonAnim::GetOP_CubicInterpolation(IController* pRootController, uint32 IsCycle, const kTime& fStartKey, const mpfloat& fTotalKeys, const kTime& fKeyTime, Quat& rot, Vec3& pos) const
 {
 	pRootController->GetOP(fKeyTime, rot, pos);   //linearly interpolated rotation and position
 
@@ -491,21 +491,21 @@ ILINE void CSkeletonAnim::GetOP_CubicInterpolation(IController* pRootController,
 		return;
 	//only for the locator we do cubic spline evaluation. This is just for debugging.
 	//The visual difference between linear- and cubic-interpolation is neglectable.
-	f32 fKeysNo = floor(fKeyTime);
+	kTime fKeysNo = floor(fKeyTime);
 	int32 numKeys = int32(fTotalKeys);
 	if (numKeys < 4)
 		return; //cubic interpolation needs at least 4 keys
 
 	//do a cubic spline interpolation between 4 points
 	int32 numLastKey = numKeys - 1 + int32(fStartKey);
-	f32 t = fKeyTime - fKeysNo;
+	f32 t = BADF(fKeyTime - fKeysNo);
 	if (fKeysNo == fStartKey && IsCycle)
 	{
 		Vec3 v0, v1, v2, v3;
 		QuatT q0;
-		pRootController->GetOP(f32(numLastKey) + 0, q0.q, q0.t);
+		pRootController->GetOP(numLastKey, q0.q, q0.t);
 		QuatT q1;
-		pRootController->GetOP(f32(numLastKey) + 1, q1.q, q1.t);
+		pRootController->GetOP(numLastKey + 1, q1.q, q1.t);
 		v0 = (q0 * q1.GetInverted()).t;
 		pRootController->GetP(fKeysNo + 0, v1);
 		pRootController->GetP(fKeysNo + 1, v2);

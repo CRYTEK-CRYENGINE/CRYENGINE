@@ -83,12 +83,12 @@ void CSimulation::UpdatePendulumSimulation(const CAttachmentManager* pAttachment
 		return;
 
 	const CCharInstance* pSkelInstance = pAttachmentManager->m_pSkelInstance;
-	const f32 fIPlaybackScale = pSkelInstance->GetPlaybackScale();
-	const f32 fLPlaybackScale = pSkelInstance->m_SkeletonAnim.GetLayerPlaybackScale(0);
-	const f32 fAverageFrameTime = g_AverageFrameTime * fIPlaybackScale * fLPlaybackScale ? g_AverageFrameTime * fIPlaybackScale * fLPlaybackScale : g_AverageFrameTime;
-	const f32 ps = fabs(fAverageFrameTime) > 0.00001f ? clamp_tpl(fAverageFrameTime, 0.001f, 0.1f) : 0.0f;
-	const f32 fTS = clamp_tpl(ceilf(ps * f32(m_nSimFPS)), 1.0f, 15.0f);
-	const f32 dt = ps / fTS;  //delta-time per time-step;
+	const mpfloat fIPlaybackScale = pSkelInstance->GetPlaybackScale();
+	const mpfloat fLPlaybackScale = pSkelInstance->m_SkeletonAnim.GetLayerPlaybackScale(0);
+	const CTimeValue fAverageFrameTime = (g_AverageFrameTime * fIPlaybackScale * fLPlaybackScale != 0) ? g_AverageFrameTime * fIPlaybackScale * fLPlaybackScale : g_AverageFrameTime;
+	const CTimeValue ps = abs(fAverageFrameTime) > CTimeValue("0.00001") ? CLAMP(fAverageFrameTime, "0.001", "0.1") : 0; // PERSONAL TODO: More clamping
+	const CTimeValue fTS = CLAMP(ceil(ps * m_nSimFPS), 1, 15);
+	const nTime dt = ps / fTS;  //delta-time per time-step;
 
 	const QuatTS& rPhysLocation = pSkelInstance->m_location;
 	const QuatTS AttLocation = rPhysLocation * rAttModelRelative;
@@ -107,18 +107,18 @@ void CSimulation::UpdatePendulumSimulation(const CAttachmentManager* pAttachment
 	if (nBindPose == 0 && m_fMaxAngle && m_useSimulation && fSimulationAxisSq && sqr(m_vBobPosition))
 	{
 		const uint32 numProxies = m_nProjectionType && (m_vCapsule.x + m_vCapsule.y) ? m_arrProxyIndex.size() : 0;
-		for (f32 its = 0; its < fTS; its = its + 1.0f)
+		for (int its = 0; its < fTS.GetSeconds(); its = its + 1)
 		{
 			const Vec3 vPositionPrev = m_vBobPosition;
-			const f32 t = (its + 1.0f) / fTS;
-			const QuatT AttLocationLerp = QuatT::CreateNLerp(m_vAttLocationPrev, QuatT(AttLocation.q, AttLocation.t), t);
+			const rTime t = (its + 1) / fTS;
+			const QuatT AttLocationLerp = QuatT::CreateNLerp(m_vAttLocationPrev, QuatT(AttLocation.q, AttLocation.t), BADF t);
 			const Vec3 hn = AttLocationLerp.q * Quat(m_fHRotationHCosX, fHRotationHSinX * vSimulationAxisN) * vSimulationAxisO;
 			const Vec3 vRodDefN = AttLocationLerp.q * vSimulationAxisN; //this is the Cone-Axis
 			const Vec3 vStiffnessTarget = Quat(m_aa2c, m_aa2s * vRodDefN) * Quat(m_aa1c, m_aa1s * hn) * vRodDefN;
 
 			const Vec3 vAcceleration = vStiffnessTarget * m_fStiffness * fInvMass - m_vBobVelocity * m_fDamping - Vec3(0, 0, m_fGravity);
-			m_vBobVelocity += vAcceleration * dt * 0.5f; //Integrating the acceleration over time gives the velocity
-			m_vBobPosition += m_vBobVelocity * dt;       //Integrating the acceleration twice over time gives the position.
+			m_vBobVelocity += vAcceleration * BADF dt * 0.5f; //Integrating the acceleration over time gives the velocity
+			m_vBobPosition += m_vBobVelocity * BADF dt;       //Integrating the acceleration twice over time gives the position.
 
 			Vec3 vRodAnim = m_vBobPosition - AttLocationLerp.t, a; //translate pendulum-position into local space
 			if (m_nClampType == SimulationParams::PENDULUM_HINGE_PLANE)
@@ -134,8 +134,8 @@ void CSimulation::UpdatePendulumSimulation(const CAttachmentManager* pAttachment
 				const CProxy& proxy = pAttachmentManager->m_arrProxies[m_arrProxyIndex[x]];
 				const QuatT absProxyPrev = rPhysLocation.q * proxy.m_ProxyModelRelativePrev;
 				const QuatT absProxyCurr = rPhysLocation.q * proxy.m_ProxyModelRelative;
-				const QuatT absProxyLerp = QuatT::CreateNLerp(absProxyPrev, absProxyCurr, t);
-				const Vec3 ipos = (Vec3::CreateLerp(m_vAttModelRelativePrev, rPhysLocation.q * rAttModelRelative.t, t) - absProxyLerp.t) * absProxyLerp.q;
+				const QuatT absProxyLerp = QuatT::CreateNLerp(absProxyPrev, absProxyCurr, BADF t);
+				const Vec3 ipos = (Vec3::CreateLerp(m_vAttModelRelativePrev, rPhysLocation.q * rAttModelRelative.t, BADF t) - absProxyLerp.t) * absProxyLerp.q;
 				if (proxy.GetDistance(ipos, m_vCapsule.y) < 0.001f)
 				{
 #ifdef EDITOR_PCDEBUGCODE
@@ -166,13 +166,13 @@ void CSimulation::UpdatePendulumSimulation(const CAttachmentManager* pAttachment
 			if (dt)
 			{
 				const Vec3 vAcceleration = vStiffnessTarget * m_fStiffness * fInvMass - m_vBobVelocity * m_fDamping - Vec3(0, 0, m_fGravity);
-				m_vBobVelocity = (m_vBobPosition - vPositionPrev) / dt + 0.5f * vAcceleration * dt; //Implicit Integral: set correct initial velocity for next frame
+				m_vBobVelocity = (m_vBobPosition - vPositionPrev) / BADF dt + 0.5f * vAcceleration * BADF dt; //Implicit Integral: set correct initial velocity for next frame
 			}
 
 #ifdef EDITOR_PCDEBUGCODE
 			if (m_useDebugText)
 			{
-				if (dt) g_YLine += 8.0f, g_pAuxGeom->Draw2dLabel(1, g_YLine, 1.3f, ColorF(0, 1, 0, 1), false, "its: %f  dt: %f  fRealFPS: %f    fSimFPS: %f  fStiffness: %f  m_fMaxAngle: %f", (its + 1.0f) / fTS, dt, 1.0f / dt, f32(m_nSimFPS), m_fStiffness, m_fMaxAngle), g_YLine += 16.0f;
+				if (dt) g_YLine += 8.0f, g_pAuxGeom->Draw2dLabel(1, g_YLine, 1.3f, ColorF(0, 1, 0, 1), false, "its: %f  dt: %f  fRealFPS: %f    fSimFPS: %f  fStiffness: %f  m_fMaxAngle: %f", (its + 1) / fTS, dt, 1 / dt, f32(m_nSimFPS), m_fStiffness, m_fMaxAngle), g_YLine += 16.0f;
 				g_pAuxGeom->DrawLine(m_vBobPosition, RGBA8(0x0f, 0x0f, 0x7f, 0x00), m_vBobPosition + m_vBobVelocity, RGBA8(0x00, 0x00, 0xff, 0x00));
 			}
 #endif
@@ -430,12 +430,12 @@ void CSimulation::UpdateSpringSimulation(const CAttachmentManager* pAttachmentMa
 	const CCharInstance* pSkelInstance = pAttachmentManager->m_pSkelInstance;
 
 	// Determine timestep dt & timesteps per frame (fTS)
-	const f32 fIPlaybackScale = pSkelInstance->GetPlaybackScale();
-	const f32 fLPlaybackScale = pSkelInstance->m_SkeletonAnim.GetLayerPlaybackScale(0);
-	const f32 fAverageFrameTime = g_AverageFrameTime * fIPlaybackScale * fLPlaybackScale ? g_AverageFrameTime * fIPlaybackScale * fLPlaybackScale : g_AverageFrameTime;
-	const f32 ps = fabs(fAverageFrameTime) > 0.00001f ? clamp_tpl(fAverageFrameTime, 0.001f, 0.1f) : 0.0f;
-	const f32 fTS = clamp_tpl(ceilf(ps * f32(m_nSimFPS)), 1.0f, 15.0f);
-	const f32 dt = ps / fTS; // Delta-time per time-step;
+	const mpfloat fIPlaybackScale = pSkelInstance->GetPlaybackScale();
+	const mpfloat fLPlaybackScale = pSkelInstance->m_SkeletonAnim.GetLayerPlaybackScale(0);
+	const CTimeValue fAverageFrameTime = (g_AverageFrameTime * fIPlaybackScale * fLPlaybackScale != 0)? g_AverageFrameTime * fIPlaybackScale * fLPlaybackScale : g_AverageFrameTime;
+	const CTimeValue ps = abs(fAverageFrameTime) > CTimeValue("0.00001") ? CLAMP(fAverageFrameTime, "0.001", "0.1") : 0; // PERSONAL TODO: Moar clamping
+	const CTimeValue fTS = CLAMP(ceil(ps * m_nSimFPS), 1, 15);
+	const nTime dt = ps / fTS;  //delta-time per time-step;
 
 	const QuatTS& rPhysLocationWS = pSkelInstance->m_location;        // Actual node in world-space
 	const QuatTS AttLocationWS = rPhysLocationWS * rAttModelRelative; // Attachments location in world-space
@@ -456,21 +456,21 @@ void CSimulation::UpdateSpringSimulation(const CAttachmentManager* pAttachmentMa
 	if (nBindPose == 0 && m_useSimulation && sqr(m_vSpringBobPositionMS))
 	{
 		f32 sx = m_fRadius, sy = m_fRadius, sz = m_fRadius;
-		for (f32 its = 0; its < fTS; its = its + 1.0f)
+		for (int its = 0; its < fTS.GetSeconds(); its = its + 1)
 		{
-			const f32 t01 = (its + 1.0f) / fTS;
+			const rTime t01 = (its + 1) / fTS;
 			const Vec3 vSpringBobPositionMSPrev = m_vSpringBobPositionMS;
 
 			// Determine acceleration in model-space (MS) and integrate
-			QuatT AttLocationMSLerp = QuatT::CreateNLerp(m_vAttLocationMSWithoutTranslateWSPrev, QuatT(AttLocationMSWithoutTranslateWS.q, AttLocationMSWithoutTranslateWS.t), t01);
+			QuatT AttLocationMSLerp = QuatT::CreateNLerp(m_vAttLocationMSWithoutTranslateWSPrev, QuatT(AttLocationMSWithoutTranslateWS.q, AttLocationMSWithoutTranslateWS.t), BADF t01);
 			AttLocationMSLerp.t += AttLocationMSTranslateWS;
 
 			const Vec3 vSpringAcceleration = (m_vStiffnessTarget + AttLocationMSLerp.t - m_vSpringBobPositionMS) * m_fStiffness * fInvMass - m_vSpringBobVelocityMS * m_fDamping - Vec3(0, 0, m_fGravity);
-			m_vSpringBobVelocityMS += vSpringAcceleration * dt * 0.5f; // Integrating the acceleration over time gives the velocity
-			m_vSpringBobPositionMS += m_vSpringBobVelocityMS * dt;     // Integrating the velocity to get position
+			m_vSpringBobVelocityMS += vSpringAcceleration * BADF dt * 0.5f; // Integrating the acceleration over time gives the velocity
+			m_vSpringBobPositionMS += m_vSpringBobVelocityMS * BADF dt;     // Integrating the velocity to get position
 
 			// Set WS velocity and position as well, for homogeneity reasons (with pendulum simulation) and elder debug rendering
-			const QuatT AttLocationWSLerp = QuatT::CreateNLerp(m_vAttLocationPrev, QuatT(AttLocationWS.q, AttLocationWS.t), t01);
+			const QuatT AttLocationWSLerp = QuatT::CreateNLerp(m_vAttLocationPrev, QuatT(AttLocationWS.q, AttLocationWS.t), BADF t01);
 			m_vBobPosition = rPhysLocationWS.t + m_vSpringBobPositionMS;
 			m_vBobVelocity = m_vSpringBobVelocityMS;
 
@@ -480,7 +480,7 @@ void CSimulation::UpdateSpringSimulation(const CAttachmentManager* pAttachmentMa
 				const CProxy& proxy = pAttachmentManager->m_arrProxies[m_arrProxyIndex[x]];
 				const QuatT absProxyPrev = QuatT(rPhysLocationWS.q, rPhysLocationWS.t) * proxy.m_ProxyModelRelativePrev;
 				const QuatT absProxyCurr = QuatT(rPhysLocationWS.q, rPhysLocationWS.t) * proxy.m_ProxyModelRelative;
-				const QuatT absProxyLerp = QuatT::CreateNLerp(absProxyPrev, absProxyCurr, t01);
+				const QuatT absProxyLerp = QuatT::CreateNLerp(absProxyPrev, absProxyCurr, BADF t01);
 				Vec3 ipos = (m_vBobPosition - absProxyLerp.t) * absProxyLerp.q; // multiply on rhs, thus inverse rotation
 				if (m_nProjectionType)                                          // shortvec projection
 				{
@@ -520,7 +520,7 @@ void CSimulation::UpdateSpringSimulation(const CAttachmentManager* pAttachmentMa
 			{
 				// Determine new velocity (by integration) according to updated position
 				const Vec3 vSpringAcceleration = (m_vStiffnessTarget + AttLocationMSLerp.t - m_vSpringBobPositionMS) * m_fStiffness * fInvMass - m_vSpringBobVelocityMS * m_fDamping - Vec3(0, 0, m_fGravity);
-				m_vSpringBobVelocityMS = (m_vSpringBobPositionMS - vSpringBobPositionMSPrev) / dt + vSpringAcceleration * dt * 0.5f; // Implicit Integral: set correct initial velocity for next frame
+				m_vSpringBobVelocityMS = (m_vSpringBobPositionMS - vSpringBobPositionMSPrev) / BADF dt + vSpringAcceleration * BADF dt * 0.5f; // Implicit Integral: set correct initial velocity for next frame
 
 				// Set WS velocity as well
 				m_vBobVelocity = m_vSpringBobVelocityMS;
@@ -528,7 +528,7 @@ void CSimulation::UpdateSpringSimulation(const CAttachmentManager* pAttachmentMa
 #ifdef EDITOR_PCDEBUGCODE
 			if (m_useDebugText)
 			{
-				if (dt) g_YLine += 8.0f, g_pAuxGeom->Draw2dLabel(1, g_YLine, 1.3f, ColorF(0, 1, 0, 1), false, "its: %f  dt: %f  fRealFPS: %f    fSimFPS: %f  fStiffness: %f  m_fRadius: %f", (its + 1.0f) / fTS, dt, 1.0f / dt, f32(m_nSimFPS), m_fStiffness, m_fRadius), g_YLine += 16.0f;
+				if (dt) g_YLine += 8.0f, g_pAuxGeom->Draw2dLabel(1, g_YLine, 1.3f, ColorF(0, 1, 0, 1), false, "its: %f  dt: %f  fRealFPS: %f    fSimFPS: %f  fStiffness: %f  m_fRadius: %f", (its + 1) / fTS, dt, 1 / dt, f32(m_nSimFPS), m_fStiffness, m_fRadius), g_YLine += 16.0f;
 				g_pAuxGeom->DrawLine(m_vBobPosition, RGBA8(0x0f, 0x0f, 0x7f, 0x00), m_vBobPosition + m_vBobVelocity, RGBA8(0x00, 0x00, 0xff, 0x00));
 			}
 #endif

@@ -99,11 +99,11 @@ bool CPoseBlenderLook::PrepareInternal(const SAnimationPoseModifierParams& param
 				g_pAuxGeom->DrawOBB(obb1, m_blender.m_dataIn.vDirIKTarget, 1, RGBA8(0x00, 0x00, 0xff, 0xff), eBBD_Extremes_Color_Encoded);
 			}
 
-			const f32 fFrameTime = max(0.0f, params.timeDelta);
+			const CTimeValue fFrameTime = max(CTimeValue(0), params.timeDelta);
 			const bool bFadeOut = (m_blender.m_nDirIKDistanceFadeOut || m_blender.m_dataIn.bUseDirIK == 0);
-			const f32 fIKBlendRate = bFadeOut ? -m_blender.m_dataIn.fDirIKFadeOutTime : m_blender.m_dataIn.fDirIKFadeInTime;
-			const f32 fIkBlendDelta = fIKBlendRate * fFrameTime;
-			m_blender.m_dataOut.fDirIKBlend = clamp_tpl(m_blender.m_dataOut.fDirIKBlend + fIkBlendDelta, 0.0f, 1.0f);
+			const rTime fIKBlendRate  = bFadeOut ? -m_blender.m_dataIn.fDirIKFadeOutTime : m_blender.m_dataIn.fDirIKFadeInTime;
+			const mpfloat fIkBlendDelta = fIKBlendRate * fFrameTime;
+			m_blender.m_dataOut.fDirIKBlend = CLAMP(m_blender.m_dataOut.fDirIKBlend + BADF fIkBlendDelta, 0, 1);
 		}
 	}
 
@@ -127,7 +127,7 @@ bool CPoseBlenderLook::PrepareInternal(const SAnimationPoseModifierParams& param
 		m_blender.m_DirInfo[i].m_fWeight = 0;
 		m_blender.m_DirInfo[i].m_nGlobalDirID0 = -1;
 	}
-	f32 fLayerWeight = pSkeletonAnim->m_layers[nDirIKLayer].m_transitionQueue.m_fLayerTransitionWeight;
+	mpfloat fLayerWeight = pSkeletonAnim->m_layers[nDirIKLayer].m_transitionQueue.m_fLayerTransitionWeight;
 	const DynArray<CAnimation>& rCurLayer = pSkeletonAnim->m_layers[nDirIKLayer].m_transitionQueue.m_animations;
 	uint32 numAnimsInLayer = rCurLayer.size();
 	uint32 numActiveAnims = 0;
@@ -154,7 +154,7 @@ bool CPoseBlenderLook::PrepareInternal(const SAnimationPoseModifierParams& param
 				continue;
 
 			SDirInfo& rCurDirInfo = m_blender.m_DirInfo[m_blender.m_numActiveDirPoses];
-			rCurDirInfo.m_fWeight = rCurLayer[i].GetTransitionWeight() * fLayerWeight;
+			rCurDirInfo.m_fWeight = BADF(rCurLayer[i].GetTransitionWeight() * fLayerWeight);
 			rCurDirInfo.m_nGlobalDirID0 = pAnim->m_nGlobalAnimId;
 			m_blender.m_numActiveDirPoses++;
 		}

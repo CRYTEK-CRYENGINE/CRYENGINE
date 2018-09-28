@@ -78,17 +78,17 @@ public:
 	virtual bool        GetWord(int index, Word& wrd);
 	virtual void        AddWord(const Word& wrd);
 
-	virtual int         Evaluate(float fTime, float fInputPhonemeStrength, int maxSamples, ChannelSample* samples);
+	virtual int         Evaluate(const CTimeValue& fTime, float fInputPhonemeStrength, int maxSamples, ChannelSample* samples);
 	//////////////////////////////////////////////////////////////////////////
 
-	int      GetPhonemeFromTime(int timeMs, int nFirst = 0);
+	int      GetPhonemeFromTime(const CTimeValue& time, int nFirst = 0);
 
 	bool     GetPhonemeInfo(int phonemeId, SPhonemeInfo& phonemeInfo) const;
 	void     Serialize(XmlNodeRef& node, bool bLoading);
 
 	Phoneme& GetPhoneme(int index) { return m_phonemes[index]; };
 
-	void     Animate(const QuatTS& rAnimLocationNext, CFacialAnimationContext* pAnimContext, float fTime, float fPhonemeStrength, const OverridesMap& overriddenPhonemes);
+	void     Animate(const QuatTS& rAnimLocationNext, CFacialAnimationContext* pAnimContext, const CTimeValue& fTime, float fPhonemeStrength, const OverridesMap& overriddenPhonemes);
 
 	int      GetValidateID() { return m_nValidateID; }
 
@@ -104,8 +104,8 @@ private:
 	struct WordRec
 	{
 		string               text;
-		int                  startTime;
-		int                  endTime;
+		CTimeValue           startTime;
+		CTimeValue           endTime;
 		std::vector<Phoneme> phonemes;
 		void                 GetMemoryUsage(ICrySizer* pSizer) const
 		{

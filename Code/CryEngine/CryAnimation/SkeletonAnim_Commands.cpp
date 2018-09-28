@@ -34,12 +34,12 @@ ILINE bool CreateCommands(const CPoseModifierQueue& queue, Command::CBuffer& buf
 	return true;
 }
 
-uint32 MergeParametricExamples(const uint32 numExamples, const f32* const exampleBlendWeights, const int16* const exampleLocalAnimationIds, f32* mergedExampleWeightsOut, int* mergedExampleIndicesOut)
+uint32 MergeParametricExamples(const uint32 numExamples, const mpfloat* const exampleBlendWeights, const int16* const exampleLocalAnimationIds, mpfloat* mergedExampleWeightsOut, int* mergedExampleIndicesOut)
 {
 	uint32 mergedExamplesCount = 0;
 	for (uint32 exampleIndex = 0; exampleIndex < numExamples; exampleIndex++)
 	{
-		const f32 weight = exampleBlendWeights[exampleIndex];
+		const mpfloat weight = exampleBlendWeights[exampleIndex];
 		const int16 localAnimationId = exampleLocalAnimationIds[exampleIndex];
 
 		bool found = false;
@@ -66,10 +66,10 @@ uint32 MergeParametricExamples(const uint32 numExamples, const f32* const exampl
 	return mergedExamplesCount;
 }
 
-uint32 MergeParametricExamples(const SParametricSamplerInternal& parametricSampler, f32 mergedExampleWeightsOut[MAX_LMG_ANIMS], int mergedExampleIndicesOut[MAX_LMG_ANIMS])
+uint32 MergeParametricExamples(const SParametricSamplerInternal& parametricSampler, mpfloat mergedExampleWeightsOut[MAX_LMG_ANIMS], int mergedExampleIndicesOut[MAX_LMG_ANIMS])
 {
 	const uint32 numExamples = parametricSampler.m_numExamples;
-	const f32* const exampleBlendWeights = parametricSampler.m_fBlendWeight;
+	const mpfloat* const exampleBlendWeights = parametricSampler.m_fBlendWeight;
 	const int16* const exampleLocalAnimationIds = parametricSampler.m_nAnimID;
 
 	return MergeParametricExamples(numExamples, exampleBlendWeights, exampleLocalAnimationIds, mergedExampleWeightsOut, mergedExampleIndicesOut);
@@ -78,52 +78,52 @@ uint32 MergeParametricExamples(const SParametricSamplerInternal& parametricSampl
 
 CRY_UNIT_TEST(Test_MergeParametricExamples_ContainsZeroWeights)
 {
-	const f32 exampleBlendWeights[] = { 0.f, 1.f, -1.f, 0.f, 1.f };
+	const mpfloat exampleBlendWeights[] = { 0, 1, -1, 0, 1 };
 	const int16 exampleLocalAnimationIds[] = { 22, 44, 44, 22, 44 };
 	const uint32 examplesCount = 5;
 
 	int mergedExampleIndices[5];
-	f32 mergedExampleWeights[5];
+	mpfloat mergedExampleWeights[5];
 	const uint32 mergedExampleCount = MergeParametricExamples(examplesCount, exampleBlendWeights, exampleLocalAnimationIds, mergedExampleWeights, mergedExampleIndices);
 	CRY_UNIT_TEST_CHECK_EQUAL(mergedExampleCount, 2);
 	CRY_UNIT_TEST_CHECK_EQUAL(mergedExampleIndices[0], 0);
 	CRY_UNIT_TEST_CHECK_EQUAL(mergedExampleIndices[1], 1);
-	CRY_UNIT_TEST_CHECK_CLOSE(mergedExampleWeights[0], 0.f, 0.01f);
-	CRY_UNIT_TEST_CHECK_CLOSE(mergedExampleWeights[1], 1.f, 0.01f);
+	CRY_UNIT_TEST_CHECK_CLOSE(mergedExampleWeights[0], 0, "0.01");
+	CRY_UNIT_TEST_CHECK_CLOSE(mergedExampleWeights[1], 1, "0.01");
 }
 
 CRY_UNIT_TEST(Test_MergeParametricExamples_NoZeroWeights)
 {
-	const f32 exampleBlendWeights[] = { -0.1f, 0.9f, -0.1f, 0.f, 0.3f };
+	const mpfloat exampleBlendWeights[] = { -mpfloat("0.1"), mpfloat("0.9"), -mpfloat("0.1"), 0, mpfloat("0.3") };
 	const int16 exampleLocalAnimationIds[] = { 22, 44, 66, 22, 44 };
 	const uint32 examplesCount = 5;
 
 	int mergedExampleIndices[5];
-	f32 mergedExampleWeights[5];
+	mpfloat mergedExampleWeights[5];
 	const uint32 mergedExampleCount = MergeParametricExamples(examplesCount, exampleBlendWeights, exampleLocalAnimationIds, mergedExampleWeights, mergedExampleIndices);
 	CRY_UNIT_TEST_CHECK_EQUAL(mergedExampleCount, 3);
 	CRY_UNIT_TEST_CHECK_EQUAL(mergedExampleIndices[0], 0);
 	CRY_UNIT_TEST_CHECK_EQUAL(mergedExampleIndices[1], 1);
 	CRY_UNIT_TEST_CHECK_EQUAL(mergedExampleIndices[2], 2);
-	CRY_UNIT_TEST_CHECK_CLOSE(mergedExampleWeights[0], -0.1f, 0.01f);
-	CRY_UNIT_TEST_CHECK_CLOSE(mergedExampleWeights[1], 1.2f, 0.01f);
-	CRY_UNIT_TEST_CHECK_CLOSE(mergedExampleWeights[2], -0.1f, 0.01f);
+	CRY_UNIT_TEST_CHECK_CLOSE(mergedExampleWeights[0], "-0.1", "0.01");
+	CRY_UNIT_TEST_CHECK_CLOSE(mergedExampleWeights[1], "1.2", "0.01");
+	CRY_UNIT_TEST_CHECK_CLOSE(mergedExampleWeights[2], "-0.1", "0.01");
 }
 
 CRY_UNIT_TEST(Test_MergeParametricExamples_WeightsAddToZero)
 {
-	const f32 exampleBlendWeights[] = { -1.f, 1.f, -1.f, 1.f, 1.f };
+	const mpfloat exampleBlendWeights[] = { -1, 1, -1, 1, 1 };
 	const int16 exampleLocalAnimationIds[] = { 22, 44, 44, 22, 44 };
 	const uint32 examplesCount = 5;
 
 	int mergedExampleIndices[5];
-	f32 mergedExampleWeights[5];
+	mpfloat mergedExampleWeights[5];
 	const uint32 mergedExampleCount = MergeParametricExamples(examplesCount, exampleBlendWeights, exampleLocalAnimationIds, mergedExampleWeights, mergedExampleIndices);
 	CRY_UNIT_TEST_CHECK_EQUAL(mergedExampleCount, 2);
 	CRY_UNIT_TEST_CHECK_EQUAL(mergedExampleIndices[0], 0);
 	CRY_UNIT_TEST_CHECK_EQUAL(mergedExampleIndices[1], 1);
-	CRY_UNIT_TEST_CHECK_CLOSE(mergedExampleWeights[0], 0.f, 0.01f);
-	CRY_UNIT_TEST_CHECK_CLOSE(mergedExampleWeights[1], 1.f, 0.01f);
+	CRY_UNIT_TEST_CHECK_CLOSE(mergedExampleWeights[0], 0, "0.01");
+	CRY_UNIT_TEST_CHECK_CLOSE(mergedExampleWeights[1], 1, "0.01");
 }
 
 namespace
@@ -139,8 +139,8 @@ void BaseEvaluationLMG_CheckWeight(const IDefaultSkeleton& defaultSkeleton, cons
 	const SParametricSamplerInternal* const pParametric = static_cast<const SParametricSamplerInternal*>(animation.GetParametricSampler());
 	assert(pParametric);
 
-	const f32 blendWeightSum = std::accumulate(pParametric->m_fBlendWeight, pParametric->m_fBlendWeight + pParametric->m_numExamples, 0.f);
-	if (0.09f < fabsf(blendWeightSum - 1.0f))
+	const mpfloat blendWeightSum = std::accumulate(pParametric->m_fBlendWeight, pParametric->m_fBlendWeight + pParametric->m_numExamples, mpfloat(0));
+	if (mpfloat("0.09") < abs(blendWeightSum - 1))
 	{
 		const char* const animationFilename = pModelAnimationHeader->GetFilePath();
 		const char* const modelFilePath = defaultSkeleton.GetModelFilePath();
@@ -175,9 +175,9 @@ void BaseEvaluationLMG_DebugDrawSegmentation(const CCharInstance& characterInsta
 	{
 		const float fColor0[4] = { 1, 0.5f, 0, 1 };
 		const char* const animationName = pModelAnimationHeader->GetAnimName();
-		const f32 normalizedTime = skeletonAnim.GetAnimationNormalizedTime(&animation);
+		const nTime normalizedTime = skeletonAnim.GetAnimationNormalizedTime(&animation);
 		const int8 currentSegmentIndex = animation.GetCurrentSegmentIndex();
-		const f32 segmentNormalizedTime = animation.GetCurrentSegmentNormalizedTime();
+		const nTime segmentNormalizedTime = animation.GetCurrentSegmentNormalizedTime();
 		g_pAuxGeom->Draw2dLabel(1, g_YLine, 1.5f, fColor0, false, "[BSpaceTime: %f SegCount: %d] rAnimTime: %f BSpaceID: %d AName: %s", segmentNormalizedTime, currentSegmentIndex, normalizedTime, localAnimationId, animationName);
 		g_YLine += 13;
 	}
@@ -186,18 +186,18 @@ void BaseEvaluationLMG_DebugDrawSegmentation(const CCharInstance& characterInsta
 	{
 		for (uint32 i = 0; i < pParametric->m_numExamples; i++)
 		{
-			const f32 weight = pParametric->m_fBlendWeight[i];
+			const mpfloat weight = pParametric->m_fBlendWeight[i];
 			const uint32 nID = pParametric->m_nAnimID[i];
 			const int32 nGlobalID = animationSet.GetGlobalIDByAnimID_Fast(pParametric->m_nAnimID[i]);
 			const int segcount = pParametric->m_nSegmentCounter[0][i];
-			const f32 segmentNormalizedTime = animation.GetCurrentSegmentNormalizedTime();
+			const nTime segmentNormalizedTime = animation.GetCurrentSegmentNormalizedTime();
 			const ModelAnimationHeader* const pAnimExample = animationSet.GetModelAnimationHeader(nID);
 			if (pAnimExample)
 			{
 				const char* const animationName = pAnimExample->GetAnimName();
 				float fColor1[4] = { 0.0f, 0.0f, 0.0f, 1.0f };
 
-				if (pParametric->m_fPlaybackScale[i] == 1.0f)
+				if (pParametric->m_fPlaybackScale[i] == 1)
 				{
 					fColor1[0] = 1;
 					fColor1[1] = 1;
@@ -272,33 +272,33 @@ CSkeletonAnim::EFillCommandBufferResult CSkeletonAnim::FillCommandBuffer(const Q
 	poseModifierParams.pCharacterInstance = pInstance;
 	Skeleton::CPoseData* pPoseData = pSkeletonPose->GetPoseDataWriteable();
 	poseModifierParams.pPoseData = pPoseData;
-	float fInstanceDeltaTime = pInstance->m_fDeltaTime;
-	if (fInstanceDeltaTime != 0.0f)
+	CTimeValue fInstanceDeltaTime = pInstance->m_fDeltaTime;
+	if (fInstanceDeltaTime != 0)
 		poseModifierParams.timeDelta = fInstanceDeltaTime;
 	else
 		poseModifierParams.timeDelta = pInstance->m_fOriginalDeltaTime;
 	poseModifierParams.location = location;
 
-	f32 allowMultiLayerAnimationWeight = numActiveAnims ? 0.0f : 1.0f;
+	mpfloat allowMultiLayerAnimationWeight = numActiveAnims ? 0 : 1;
 
 	bool useFeetLocking = false;
 	if (numActiveAnims)
 	{
-		f32 pfUserData[NUM_ANIMATION_USER_DATA_SLOTS] = { 0.0f };
+		f32 pfUserData[NUM_ANIMATION_USER_DATA_SLOTS] = { 0 };
 		for (uint32 a = 0; a < numActiveAnims; a++)
 		{
 			const CAnimation& rCurAnimation = rCurLayer[a];
 
-			const f32 fTransitionWeight = rCurAnimation.GetTransitionWeight();
+			const mpfloat fTransitionWeight = rCurAnimation.GetTransitionWeight();
 
 			const bool currentAnimationAllowMultiLayer = ((rCurAnimation.m_nStaticFlags & CA_DISABLE_MULTILAYER) == 0);
-			const f32 currentAnimationAllowMultilayerWeight = f32(currentAnimationAllowMultiLayer);
+			const int currentAnimationAllowMultilayerWeight = currentAnimationAllowMultiLayer;
 			allowMultiLayerAnimationWeight += currentAnimationAllowMultilayerWeight * fTransitionWeight;
 
-			const f32* __restrict pSrc = &rCurAnimation.m_fUserData[0];
+			const mpfloat* __restrict pSrc = &rCurAnimation.m_fUserData[0];
 
 			for (int i = 0; i < NUM_ANIMATION_USER_DATA_SLOTS; i++)
-				pfUserData[i] += pSrc[i] * fTransitionWeight;
+				pfUserData[i] += BADF(pSrc[i] * fTransitionWeight);
 		}
 
 		memcpy(&m_fUserData[0], pfUserData, NUM_ANIMATION_USER_DATA_SLOTS * sizeof(f32));
@@ -343,8 +343,8 @@ CSkeletonAnim::EFillCommandBufferResult CSkeletonAnim::FillCommandBuffer(const Q
 		}
 	}
 
-	const f32 upperLayersWeightFactor = allowMultiLayerAnimationWeight;
-	const bool needToCalculateUpperLayerAnimations = (0.f < upperLayersWeightFactor);
+	const mpfloat upperLayersWeightFactor = allowMultiLayerAnimationWeight;
+	const bool needToCalculateUpperLayerAnimations = (0 < upperLayersWeightFactor);
 	if (needToCalculateUpperLayerAnimations)
 	{
 		for (uint32 i = 1; i < numVIRTUALLAYERS; i++)
@@ -418,22 +418,22 @@ void CSkeletonAnim::Commands_BasePlayback(const CAnimation& rAnim, Command::CBuf
 		ac->m_nEAnimID = nAnimID;
 		ac->m_flags = 0;
 		ac->m_flags |= m_AnimationDrivenMotion ? Command::SampleAddAnimFull::Flag_ADMotion : 0;
-		ac->m_fWeight = rAnim.GetTransitionWeight();
+		ac->m_fWeight = BADF rAnim.GetTransitionWeight();
 
-		f32 time_new0 = rAnim.GetCurrentSegmentNormalizedTime();
+		nTime time_new0 = rAnim.GetCurrentSegmentNormalizedTime();
 		int32 segtotal = rCAF.m_Segments - 1;
 		int32 segcount = rAnim.m_currentSegmentIndex[0];
-		f32 segdur = rCAF.GetSegmentDuration(segcount);
-		f32 totdur = rCAF.GetTotalDuration();
-		f32 segbase = rCAF.m_SegmentsTime[segcount];
-		f32 percent = segdur / totdur;
-		f32 time_new = time_new0 * percent + segbase;
-		ac->m_fETimeNew = time_new; // this is a percentage value between 0-1
+		CTimeValue segdur = rCAF.GetSegmentDuration(segcount);
+		CTimeValue totdur = rCAF.GetTotalDuration();
+		nTime segbase = rCAF.m_SegmentsTime[segcount];
+		nTime percent = segdur / totdur;
+		nTime time_new = time_new0 * percent + segbase;
+		ac->m_fETimeNew = BADF time_new; // this is a percentage value between 0-1
 		if (nSampleRateHZ30)
 		{
-			f32 fKeys = totdur * ANIMATION_30Hz;
-			f32 fKeyTime = time_new * fKeys;
-			ac->m_fETimeNew = f32(uint32(fKeyTime + 0.45f)) / fKeys;
+			mpfloat fKeys = totdur.GetSeconds() * ANIMATION_30Hz;
+			mpfloat fKeyTime = time_new.conv<mpfloat>() * fKeys;
+			ac->m_fETimeNew = BADF (uint32(fKeyTime + "0.45") / fKeys);
 		}
 
 #ifdef BLENDSPACE_VISUALIZATION
@@ -454,13 +454,13 @@ void CSkeletonAnim::Commands_BasePlayback(const CAnimation& rAnim, Command::CBuf
 		Command::SampleAddPoseFull* ac = buffer.CreateCommand<Command::SampleAddPoseFull>();
 		ac->m_nEAnimID = nAnimID;
 		ac->m_flags = 0;
-		ac->m_fWeight = rAnim.GetTransitionWeight();
-		ac->m_fETimeNew = rAnim.GetCurrentSegmentNormalizedTime(); //this is a percentage value between 0-1
-		f32 fDuration = max(1.0f / ANIMATION_30Hz, rAIM.m_fTotalDuration);
-		f32 fKeys = fDuration * ANIMATION_30Hz;
-		f32 fKeyTime = ac->m_fETimeNew * fKeys;
-		ac->m_fETimeNew = f32(uint32(fKeyTime + 0.45f)) / fKeys;
-		assert(ac->m_fETimeNew >= 0.0f && ac->m_fETimeNew <= 1.0f);
+		ac->m_fWeight = BADF rAnim.GetTransitionWeight();
+		ac->m_fETimeNew = BADF rAnim.GetCurrentSegmentNormalizedTime(); //this is a percentage value between 0-1
+		CTimeValue fDuration = max(ANIMATION_FSTEP, rAIM.m_fTotalDuration);
+		mpfloat fKeys = fDuration.GetSeconds() * ANIMATION_30Hz;
+		mpfloat fKeyTime = BADMP(ac->m_fETimeNew) * fKeys;
+		ac->m_fETimeNew = BADF (uint32(fKeyTime + "0.45") / fKeys);
+		assert(ac->m_fETimeNew >= 0 && ac->m_fETimeNew <= 1);
 	}
 }
 
@@ -469,8 +469,8 @@ void CSkeletonAnim::Commands_BasePlayback(const CAnimation& rAnim, Command::CBuf
 ///////////////////////////////////////////////////////////////////////////////////////////
 void CreateCommandsForLmgAnimation(const bool animationDrivenMotion, const CAnimationSet& animationSet, const uint32 nTargetBuffer, const CAnimation& animation, Command::CBuffer& buffer)
 {
-	const f32 animationTransitionAndPlaybackWeight = animation.GetTransitionWeight() * animation.GetPlaybackWeight();
-	if (animationTransitionAndPlaybackWeight <= 0.f)
+	const mpfloat animationTransitionAndPlaybackWeight = animation.GetTransitionWeight() * BADMP(animation.GetPlaybackWeight());
+	if (animationTransitionAndPlaybackWeight <= 0)
 	{
 		return;
 	}
@@ -497,15 +497,15 @@ void CreateCommandsForLmgAnimation(const bool animationDrivenMotion, const CAnim
 		const SParametricSamplerInternal* const pParametricSampler = static_cast<const SParametricSamplerInternal*>(animation.GetParametricSampler());
 		assert(pParametricSampler);
 
-		f32 mergedExampleWeights[MAX_LMG_ANIMS];
+		mpfloat mergedExampleWeights[MAX_LMG_ANIMS];
 		int mergedExampleIndices[MAX_LMG_ANIMS];
 		const uint32 mergedExamplesCount = MergeParametricExamples(*pParametricSampler, mergedExampleWeights, mergedExampleIndices);
 
 		for (uint32 i = 0; i < mergedExamplesCount; i++)
 		{
-			const f32 exampleWeight = mergedExampleWeights[i];
-			const float finalExampleWeight = exampleWeight * animationTransitionAndPlaybackWeight;
-			if (finalExampleWeight == 0.f)
+			const mpfloat exampleWeight = mergedExampleWeights[i];
+			const mpfloat finalExampleWeight = exampleWeight * animationTransitionAndPlaybackWeight;
+			if (finalExampleWeight == 0)
 			{
 				continue;
 			}
@@ -521,7 +521,7 @@ void CreateCommandsForLmgAnimation(const bool animationDrivenMotion, const CAnim
 			assert(pExampleModelAnimationHeader->m_nAssetType == CAF_File);
 			const GlobalAnimationHeaderCAF& exampleGlobalAnimationHeaderCAF = g_AnimationManager.m_arrGlobalCAF[exampleGlobalAnimationId];
 
-			const f32 animationNormalizedTime = animation.GetCurrentSegmentNormalizedTime();
+			const nTime animationNormalizedTime = animation.GetCurrentSegmentNormalizedTime();
 			const int32 exampleAnimationCurrentSegmentIndex = pParametricSampler->m_nSegmentCounter[0][exampleIndex];
 
 			const bool isFullBody = nTargetBuffer == Command::TargetBuffer;
@@ -529,16 +529,16 @@ void CreateCommandsForLmgAnimation(const bool animationDrivenMotion, const CAnim
 			{
 				Command::SampleAddAnimFull* fetch = buffer.CreateCommand<Command::SampleAddAnimFull>();
 				fetch->m_nEAnimID = exampleLocalAnimationId;
-				fetch->m_fWeight = finalExampleWeight;
+				fetch->m_fWeight = BADF finalExampleWeight;
 				fetch->m_flags = animationDrivenMotion ? Command::SampleAddAnimFull::Flag_ADMotion : 0;
-				fetch->m_fETimeNew = exampleGlobalAnimationHeaderCAF.GetNTimeforEntireClip(exampleAnimationCurrentSegmentIndex, animationNormalizedTime);
+				fetch->m_fETimeNew = BADF exampleGlobalAnimationHeaderCAF.GetNTimeforEntireClip(exampleAnimationCurrentSegmentIndex, animationNormalizedTime);
 			}
 			else
 			{
 				Command::SampleAddAnimPart* fetch = buffer.CreateCommand<Command::SampleAddAnimPart>();
 				fetch->m_nEAnimID = exampleLocalAnimationId;
-				fetch->m_fWeight = finalExampleWeight;
-				fetch->m_fAnimTime = exampleGlobalAnimationHeaderCAF.GetNTimeforEntireClip(exampleAnimationCurrentSegmentIndex, animationNormalizedTime);
+				fetch->m_fWeight = BADF finalExampleWeight;
+				fetch->m_fAnimTime = BADF exampleGlobalAnimationHeaderCAF.GetNTimeforEntireClip(exampleAnimationCurrentSegmentIndex, animationNormalizedTime);
 				fetch->m_TargetBuffer = nTargetBuffer;
 			}
 		}
@@ -565,7 +565,7 @@ void CSkeletonAnim::Commands_BaseEvaluationLMG(const CAnimation& rAnim, const ui
 #endif
 }
 
-void CSkeletonAnim::CreateCommands_AnimationsInUpperLayer(uint32 layerIndex, CAnimationSet* pAnimationSet, const f32 upperLayersWeightFactor, Command::CBuffer& buffer)
+void CSkeletonAnim::CreateCommands_AnimationsInUpperLayer(uint32 layerIndex, CAnimationSet* pAnimationSet, const mpfloat& upperLayersWeightFactor, Command::CBuffer& buffer)
 {
 	uint32 nLayerAnims = 0;
 	uint8 nIsAdditiveAnimation = 0;
@@ -653,7 +653,7 @@ void CSkeletonAnim::CreateCommands_AnimationsInUpperLayer(uint32 layerIndex, CAn
 ////////////////////////////////////////////////////////////////////////////
 //                    playback of one single animation                    //
 ////////////////////////////////////////////////////////////////////////////
-void CSkeletonAnim::Commands_LPlayback(const CAnimation& rAnim, uint32 nTargetBuffer, uint32 nSourceBuffer, uint32 nVLayer, f32 weightFactor, Command::CBuffer& buffer)
+void CSkeletonAnim::Commands_LPlayback(const CAnimation& rAnim, uint32 nTargetBuffer, uint32 nSourceBuffer, uint32 nVLayer, const mpfloat& weightFactor, Command::CBuffer& buffer)
 {
 	const int32 nAnimID = rAnim.GetAnimationId();
 
@@ -662,18 +662,18 @@ void CSkeletonAnim::Commands_LPlayback(const CAnimation& rAnim, uint32 nTargetBu
 	const ModelAnimationHeader* const pAnim = animationSet.GetModelAnimationHeader(nAnimID);
 	assert(pAnim->m_nAssetType == CAF_File);
 
-	const f32 w0 = rAnim.GetTransitionWeight(); //this is a percentage value between 0-1
-	const f32 w1 = rAnim.GetPlaybackWeight();   //this is a percentage value between 0-1
-	const f32 w2 = weightFactor;
-	const f32 w3 = m_layers[nVLayer].m_transitionQueue.m_fLayerBlendWeight;
-	const f32 combinedWeight = w0*w1*w2*w3; //this is a percentage value between 0-1
+	const mpfloat w0 = rAnim.GetTransitionWeight(); //this is a percentage value between 0-1
+	const mpfloat w1 = BADMP(rAnim.GetPlaybackWeight());   //this is a percentage value between 0-1
+	const mpfloat w2 = weightFactor;
+	const mpfloat w3 = BADMP(m_layers[nVLayer].m_transitionQueue.m_fLayerBlendWeight);
+	const mpfloat combinedWeight = w0*w1*w2*w3; //this is a percentage value between 0-1
 	
 	Command::SampleAddAnimPart* ac = buffer.CreateCommand<Command::SampleAddAnimPart>();
 	ac->m_TargetBuffer = nTargetBuffer;
 	ac->m_SourceBuffer = nSourceBuffer;
 	ac->m_nEAnimID = rAnim.GetAnimationId();
-	ac->m_fAnimTime = rAnim.GetCurrentSegmentNormalizedTime();
-	ac->m_fWeight = combinedWeight;
+	ac->m_fAnimTime = BADF rAnim.GetCurrentSegmentNormalizedTime();
+	ac->m_fWeight = BADF combinedWeight;
 
 #if defined(USE_PROTOTYPE_ABS_BLENDING)
 	if (rAnim.m_pJointMask && (rAnim.m_pJointMask->weightList.size() > 0))
@@ -692,10 +692,10 @@ void CSkeletonAnim::Commands_LPlayback(const CAnimation& rAnim, uint32 nTargetBu
 	if (nSampleRateHZ30)
 	{
 		const GlobalAnimationHeaderCAF& rCAF = g_AnimationManager.m_arrGlobalCAF[pAnim->m_nGlobalAnimId];
-		f32 fDuration = std::max(rCAF.GetTotalDuration(), (1.0f / ANIMATION_30Hz));
-		f32 fKeys = fDuration * ANIMATION_30Hz;
-		f32 fKeyTime = ac->m_fAnimTime * fKeys;
-		ac->m_fAnimTime = f32(uint32(fKeyTime + 0.45f)) / fKeys;
+		CTimeValue fDuration = max(rCAF.GetTotalDuration(), ANIMATION_FSTEP);
+		mpfloat fKeys = fDuration.GetSeconds() * ANIMATION_30Hz;
+		mpfloat fKeyTime = BADMP(ac->m_fAnimTime) * fKeys;
+		ac->m_fAnimTime = BADF (uint32(fKeyTime + "0.45") / fKeys);
 		//	float fColor2[4] = {1,0,0,1};
 		//	g_pAuxGeom->Draw2dLabel( 1,g_YLine, 2.3f, fColor2, false,"fKeys: %f  fKeyTime: %f   m_fETimeNew: %f",fKeys,fKeyTime,ac->m_fAnimTime);
 		//	g_YLine+=23;

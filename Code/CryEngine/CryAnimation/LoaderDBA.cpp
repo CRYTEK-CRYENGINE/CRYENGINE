@@ -23,7 +23,7 @@ void CGlobalHeaderDBA::CreateDatabaseDBA(const char* filename)
 void CGlobalHeaderDBA::LoadDatabaseDBA(const char* sForCharacter)
 {
 	MEMSTAT_CONTEXT(EMemStatContextTypes::MSC_DBA, 0, m_strFilePathDBA.c_str());
-	m_nLastUsedTimeDelta = 0;
+	m_nLastUsedTimeDelta.SetSeconds(0);
 	if (m_pStream || m_pDatabaseInfo)
 		return;
 
@@ -64,8 +64,8 @@ bool CGlobalHeaderDBA::StartStreamingDBA(bool highPriority)
 	params.ePriority = highPriority ? estpUrgent : estpNormal;
 	params.nSize = 0;
 	params.pBuffer = NULL;
-	params.nLoadTime = 10000;
-	params.nMaxLoadTime = 1000;
+	params.nLoadTime.SetSeconds(10);
+	params.nMaxLoadTime.SetSeconds(1);
 
 	m_pStream = g_pISystem->GetStreamEngine()->StartRead(eStreamTaskTypeAnimation, m_strFilePathDBA, pStreamInfo, &params);
 
@@ -542,8 +542,8 @@ bool CInternalDatabaseInfo::ReadController905(IChunkFile::ChunkDesc* pChunkDesc,
 			int32 nEndKey = info.m_nEnd;
 			if (rCAF.GetFlags() & CA_ASSET_ADDITIVE)
 				nStartKey++;
-			rCAF.m_fStartSec = nStartKey / ANIMATION_30Hz;
-			rCAF.m_fEndSec = nEndKey / ANIMATION_30Hz;
+			rCAF.m_fStartSec.SetSeconds(mpfloat(nStartKey) / ANIMATION_30Hz);
+			rCAF.m_fEndSec.SetSeconds(mpfloat(nEndKey) / ANIMATION_30Hz);
 			if (rCAF.m_fEndSec <= rCAF.m_fStartSec)
 				rCAF.m_fEndSec = rCAF.m_fStartSec;
 			rCAF.m_fTotalDuration = rCAF.m_fEndSec - rCAF.m_fStartSec;
@@ -810,7 +810,7 @@ CGlobalHeaderDBA::CGlobalHeaderDBA()
 	m_pDatabaseInfo = 0;
 	m_FilePathDBACRC32 = 0;
 	m_nUsedAnimations = 0;
-	m_nLastUsedTimeDelta = 0;
+	m_nLastUsedTimeDelta.SetSeconds(0);
 	m_bDBALock = 0;
 	m_bLoadFailed = false;
 	m_nEmpty = 0;

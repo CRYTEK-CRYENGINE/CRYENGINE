@@ -141,7 +141,7 @@ public:
 	IAnimationPoseModifierPtr m_limbIk;
 
 	// Recoil
-	void ApplyRecoilAnimation(f32 fDuration, f32 fImpact, f32 fKickIn, uint32 arms = 3) override;
+	void ApplyRecoilAnimation(const CTimeValue& fDuration, f32 fImpact, f32 fKickIn, uint32 arms = 3) override;
 	IAnimationPoseModifierPtr m_recoil;
 
 	// FeetLock

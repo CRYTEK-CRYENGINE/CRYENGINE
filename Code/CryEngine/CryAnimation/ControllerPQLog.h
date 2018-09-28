@@ -24,11 +24,11 @@ public:
 
 	//////////////////////////////////////////////////////////
 	// IController implementation
-	virtual JointState GetOPS(f32 key, Quat& quat, Vec3& pos, Diag33& scl) const override;
-	virtual JointState GetOP(f32 key, Quat& quat, Vec3& pos) const override;
-	virtual JointState GetO(f32 key, Quat& quat) const override;
-	virtual JointState GetP(f32 key, Vec3& pos) const override;
-	virtual JointState GetS(f32 key, Diag33& scl) const override;
+	virtual JointState GetOPS(const kTime& key, Quat& quat, Vec3& pos, Diag33& scl) const override;
+	virtual JointState GetOP(const kTime& key, Quat& quat, Vec3& pos) const override;
+	virtual JointState GetO(const kTime& key, Quat& quat) const override;
+	virtual JointState GetP(const kTime& key, Vec3& pos) const override;
+	virtual JointState GetS(const kTime& key, Diag33& scl) const override;
 	virtual int32      GetO_numKey() const override;
 	virtual int32      GetP_numKey() const override;
 	virtual size_t     GetRotationKeysNum() const override;
@@ -40,7 +40,7 @@ public:
 
 private:
 
-	const QuatTNS& DecodeKey(f32 keyTime) const;
+	const QuatTNS& DecodeKey(const kTime& keyTime) const;
 
 public:
 
@@ -50,13 +50,13 @@ public:
 
 private:
 
-	mutable float   m_lastTime;
+	mutable kTime   m_lastTime;
 	mutable QuatTNS m_lastValue;
 };
 
 TYPEDEF_AUTOPTR(CControllerPQLog);
 
-inline const QuatTNS& CControllerPQLog::DecodeKey(f32 keyTime) const
+inline const QuatTNS& CControllerPQLog::DecodeKey(const kTime& keyTime) const
 {
 #ifdef DEFINE_PROFILER_FUNCTION
 	DEFINE_PROFILER_FUNCTION();
@@ -75,7 +75,7 @@ inline const QuatTNS& CControllerPQLog::DecodeKey(f32 keyTime) const
 
 	assert(m_arrKeys.size() > 0);
 
-	const f32 keytimeStart = (f32)arrTimes[0];
+	const int keytimeStart = arrTimes[0];
 	if (keyTime < keytimeStart)
 	{
 		const PQLogS& value = arrKeys[0];
@@ -83,7 +83,7 @@ inline const QuatTNS& CControllerPQLog::DecodeKey(f32 keyTime) const
 		return m_lastValue;
 	}
 
-	const f32 keytimeEnd = (f32)arrTimes[nNumKeysPQ - 1];
+	const int keytimeEnd = arrTimes[nNumKeysPQ - 1];
 	if (keyTime >= keytimeEnd)
 	{
 		const PQLogS& value = arrKeys[nNumKeysPQ - 1];

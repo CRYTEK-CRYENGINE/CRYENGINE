@@ -17,11 +17,11 @@ struct CControllerTCB : public IController
 		return SizeOfController();
 	}
 
-	JointState     GetOPS(f32 key, Quat& rot, Vec3& pos, Diag33& scl) const;
-	JointState     GetOP(f32 key, Quat& rot, Vec3& pos) const;
-	JointState     GetO(f32 key, Quat& rot) const;
-	JointState     GetP(f32 key, Vec3& pos) const;
-	JointState     GetS(f32 key, Diag33& scl) const;
+	JointState     GetOPS(const kTime& key, Quat& rot, Vec3& pos, Diag33& scl) const;
+	JointState     GetOP(const kTime& key, Quat& rot, Vec3& pos) const;
+	JointState     GetO(const kTime& key, Quat& rot) const;
+	JointState     GetP(const kTime& key, Vec3& pos) const;
+	JointState     GetS(const kTime& key, Diag33& scl) const;
 
 	virtual size_t GetRotationKeysNum() const
 	{

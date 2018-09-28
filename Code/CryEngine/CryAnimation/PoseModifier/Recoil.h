@@ -13,8 +13,8 @@ class CRY_ALIGN(32) CRecoil: public IAnimationPoseModifier
 public:
 	struct State
 	{
-		f32    time;
-		f32    duration;
+		CTimeValue time;
+		CTimeValue duration;
 		f32    strengh;
 		f32    kickin;
 		f32    displacerad;
@@ -27,8 +27,8 @@ public:
 
 		void Reset()
 		{
-			time = 100.0f;
-			duration = 0.0f;
+			time.SetSeconds(100);
+			duration.SetSeconds(0);
 			strengh = 0.0f;
 			kickin = 0.8f;
 			displacerad = 0.0f;
@@ -50,7 +50,7 @@ public:
 	void SetState(const State& state) { m_state = state; m_bStateUpdate = true; }
 
 private:
-	f32 RecoilEffect(f32 t);
+	f32 RecoilEffect(const nTime& t);
 
 	// IAnimationPoseModifier
 public:

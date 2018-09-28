@@ -51,7 +51,6 @@ struct SParametricSamplerInternal;
 //global interfaces
 extern ISystem* g_pISystem;
 extern IConsole* g_pIConsole;
-extern ITimer* g_pITimer;
 extern ILog* g_pILog;
 extern ICryPak* g_pIPak;
 extern IStreamEngine* g_pIStreamEngine;
@@ -64,8 +63,8 @@ extern IPhysicalWorld* g_pIPhysicalWorld;
 extern I3DEngine* g_pI3DEngine;
 
 extern bool g_bProfilerOn;
-extern f32 g_fCurrTime;
-extern f32 g_AverageFrameTime;
+extern CTimeValue g_fCurrTime;
+extern CTimeValue g_AverageFrameTime;
 extern CAnimation g_DefaultAnim;
 extern CharacterManager* g_pCharacterManager;
 extern QuatT g_IdentityQuatT;
@@ -86,7 +85,7 @@ ILINE void g_InitInterfaces()
 {
 	assert(g_pISystem);
 	g_pIConsole = gEnv->pConsole;
-	g_pITimer = gEnv->pTimer;
+	SetGTimer(GetGTimer(), GTimers::animation);
 	g_pILog = g_pISystem->GetILog();
 	g_pIPak = gEnv->pCryPak;
 	g_pIStreamEngine = g_pISystem->GetStreamEngine();
@@ -103,7 +102,6 @@ ILINE void g_InitInterfaces()
 ILINE void g_DeleteInterfaces()
 {
 	g_pISystem = NULL;
-	g_pITimer = NULL;
 	g_pILog = NULL;
 	g_pIConsole = NULL;
 	g_pIPak = NULL;

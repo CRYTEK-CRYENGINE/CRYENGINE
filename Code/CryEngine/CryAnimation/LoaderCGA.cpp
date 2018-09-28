@@ -273,7 +273,7 @@ void CryCGALoader::InitNodes(CHeaderTCB* pSkinningInfo, CDefaultSkeleton* pCGAMo
 			auto& outkey = Track.key(i);
 
 			outkey.flags = 0;
-			outkey.time = (f32)inkey.time / TICKS_CONVERT;
+			outkey.time = (mpfloat)inkey.time / TICKS_CONVERT;
 			outkey.value = inkey.val;
 			outkey.tens = inkey.t;
 			outkey.cont = inkey.c;
@@ -306,7 +306,7 @@ void CryCGALoader::InitNodes(CHeaderTCB* pSkinningInfo, CDefaultSkeleton* pCGAMo
 			auto& outkey = Track.key(i);
 
 			outkey.flags = 0;
-			outkey.time = (float)inkey.time / TICKS_CONVERT;    // * secsPerTick;
+			outkey.time = (mpfloat)inkey.time / TICKS_CONVERT;    // * secsPerTick;
 			outkey.angle = inkey.val.w;
 			outkey.axis = inkey.val.v;
 			Quat rotRel = Quat::CreateRotationAA(inkey.val.w, inkey.val.v);

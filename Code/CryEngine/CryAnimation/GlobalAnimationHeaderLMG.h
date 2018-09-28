@@ -39,7 +39,7 @@ struct VirtualExample3D
 struct BSParameter
 {
 	Vec4     m_Para;
-	f32      m_fPlaybackScale;
+	mpfloat  m_fPlaybackScale;
 	uint8    m_PreInitialized[4];
 	uint8    m_UseDirectlyForDeltaMotion[4];
 	uint32   i0;
@@ -51,7 +51,7 @@ struct BSParameter
 	BSParameter()
 	{
 		m_Para = Vec4(0, 0, 0, 0); //4D will be the maximum
-		m_fPlaybackScale = 1.0f;
+		m_fPlaybackScale = 1;
 		m_PreInitialized[0] = 0;
 		m_PreInitialized[1] = 0;
 		m_PreInitialized[2] = 0;

@@ -84,11 +84,11 @@ public:
 		int8 bUseDirIK;
 		int8 nDirLayer;
 		Vec3 vDirIKTarget;
-		f32  fDirIKFadeoutRadians;                 // look 180-degrees to the left and right
-		f32  fDirIKFadeInTime;                     // 1.0f/TransitionTime
-		f32  fDirIKFadeOutTime;                    // 1.0f/TransitionTime
+		f32  fDirIKFadeoutRadians;               // look 180-degrees to the left and right
+		rTime fDirIKFadeInTime;                  // 1.0f/TransitionTime
+		rTime fDirIKFadeOutTime;                 // 1.0f/TransitionTime
 		f32  fDirIKMinDistanceSquared;
-		f32  fPolarCoordinatesSmoothTimeSeconds;
+		nTime  fPolarCoordinatesSmoothTime;
 		Vec2 vPolarCoordinatesOffset;
 		Vec2 vPolarCoordinatesMaxRadiansPerSecond;
 
@@ -97,10 +97,10 @@ public:
 			, nDirLayer(ISkeletonAnim::LayerCount)
 			, vDirIKTarget(ZERO)
 			, fDirIKFadeoutRadians(gf_PI)
-			, fDirIKFadeInTime(1.0 / 0.6f)
-			, fDirIKFadeOutTime(1.0f / 0.3f)
+			, fDirIKFadeInTime(1 / CTimeValue("0.6"))
+			, fDirIKFadeOutTime(1 / CTimeValue("0.3"))
 			, fDirIKMinDistanceSquared(0.f)
-			, fPolarCoordinatesSmoothTimeSeconds(0.2f)
+			, fPolarCoordinatesSmoothTime("0.2")
 			, vPolarCoordinatesOffset(ZERO)
 			, vPolarCoordinatesMaxRadiansPerSecond(DEG2RAD(3600.f), DEG2RAD(3600.f))
 		{

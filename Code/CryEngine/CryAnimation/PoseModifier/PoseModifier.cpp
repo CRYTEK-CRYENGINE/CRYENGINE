@@ -1197,22 +1197,22 @@ bool CDynamicsSpring::Execute(const SAnimationPoseModifierParams& params)
 	if (m_nodeIndex >= pPoseData->GetJointCount())
 		return false;
 
-	const float _30hz = 0.0333f;
-	const float _1000hz = 0.001f;
-	const float timeDelta = clamp_tpl(params.timeDelta, _1000hz, _30hz);
+	const CTimeValue _30hz("0.0333");
+	const CTimeValue _1000hz("0.001");
+	const CTimeValue timeDelta = CLAMP(params.timeDelta, _1000hz, _30hz);
 
 	const QuatT& targetAbsolute = pPoseData->GetJointAbsolute(m_nodeIndex);
 	const QuatT& parentAbsolute = PoseModifierHelper::GetJointParentAbsoluteSafe(defaultSkeleton, *pPoseData, m_nodeIndex);
 	const Vec3 targetPosition = params.location * (targetAbsolute.t + parentAbsolute.q * m_desc.positionOffset);
 
 	// gravity
-	Vec3 acceleration = m_desc.gravity * timeDelta;
+	Vec3 acceleration = m_desc.gravity * timeDelta.BADGetSeconds();
 
 	// spring
 	acceleration += (targetPosition - m_position) * m_desc.stiffness;
 	acceleration -= m_velocity * m_desc.damping;
-	m_velocity += acceleration * timeDelta;
-	m_position += m_velocity * timeDelta;
+	m_velocity += acceleration * timeDelta.BADGetSeconds();
+	m_position += m_velocity * timeDelta.BADGetSeconds();
 
 	// limit by length
 	m_position = m_position - targetPosition;
@@ -1605,10 +1605,10 @@ bool CDynamicsPendulum::Execute(const SAnimationPoseModifierParams& params)
 
 	const Skeleton::CPoseData& poseDataDefault = defaultSkeleton.m_poseDefaultData;
 
-	const float _30hz = 0.0333f;
-	const float _1000hz = 0.001f;
-	const float timeDelta = clamp_tpl(params.timeDelta, _1000hz, _30hz);
-	float timeElapsed = timeDelta;
+	const CTimeValue _30hz("0.0333");
+	const CTimeValue _1000hz("0.001");
+	const CTimeValue timeDelta = CLAMP(params.timeDelta, _1000hz, _30hz);
+	CTimeValue timeElapsed = timeDelta;
 
 	const QuatT& nodeRelative = pPoseData->GetJointRelative(m_runtimeDesc.nodeIndex);
 	const QuatT nodeAbsolute = pPoseData->GetJointAbsolute(m_runtimeDesc.nodeIndex);
@@ -1637,12 +1637,12 @@ bool CDynamicsPendulum::Execute(const SAnimationPoseModifierParams& params)
 	const float tension = 1.0f - (targetDirection * forceDirectionNormalized + 1.0f) * 0.5f;
 	m_state.velocityAbsolute -= moveDirection *
 	                            1.0f / sqrtf(moveDirection * moveDirection + FLT_MIN) *
-	                            m_desc.stiffness * m_desc.stiffness * tension * timeElapsed;
+	                            m_desc.stiffness * m_desc.stiffness * tension * timeElapsed.BADGetSeconds();
 
 	// gravity
 	//		velocity += desc.gravity * timeDelta;
 
-	Vec3 directionNew = forceDirection + m_state.velocityAbsolute * timeElapsed;
+	Vec3 directionNew = forceDirection + m_state.velocityAbsolute * timeElapsed.BADGetSeconds();
 	ApplyLimit2(limitRotation, nodeAbsolute.q, targetDirection, directionNew, m_state.velocityAbsolute);
 	directionNew.normalize();
 
@@ -1652,22 +1652,22 @@ bool CDynamicsPendulum::Execute(const SAnimationPoseModifierParams& params)
 		ApplyLimit1(limitRotation, targetDirection, directionNew, m_state.velocityAbsolute);
 		Quat rotation = RotationVectorToVector(targetDirection, directionNew);
 
-		m_state.velocityAbsolute = (rotation * targetDirection * length - forceDirection) / timeElapsed;
+		m_state.velocityAbsolute = (rotation * targetDirection * length - forceDirection) / timeElapsed.BADGetSeconds();
 		m_state.positionAbsolute = nodeAbsolute.t + rotation * targetDirection * length;
 		m_state.positionGlobal = params.location * m_state.positionAbsolute;
 		m_state.orientationAbsolute = rotation * nodeAbsolute.q;
 	}
 	else
 	{
-		m_state.velocityAbsolute = (directionNew * length - forceDirection) / timeElapsed;
+		m_state.velocityAbsolute = (directionNew * length - forceDirection) / timeElapsed.BADGetSeconds();
 		m_state.positionAbsolute = nodeAbsolute.t + directionNew * length;
 		m_state.positionGlobal = params.location * m_state.positionAbsolute;
 	}
 
-	m_state.velocityAbsolute += !params.location.q * m_desc.gravity * timeElapsed;
+	m_state.velocityAbsolute += !params.location.q * m_desc.gravity * timeElapsed.BADGetSeconds();
 
 	// damping
-	m_state.velocityAbsolute *= max(0.0f, 1.0f - m_desc.damping * timeElapsed);
+	m_state.velocityAbsolute *= max(0.0f, 1.0f - m_desc.damping * timeElapsed.BADGetSeconds());
 
 	PoseModifierHelper::SetJointAbsoluteOrientation(defaultSkeleton, *pPoseData, m_runtimeDesc.nodeIndex, m_state.orientationAbsolute);
 

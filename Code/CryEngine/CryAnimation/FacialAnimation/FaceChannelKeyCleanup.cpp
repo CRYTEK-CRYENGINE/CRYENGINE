@@ -14,7 +14,7 @@ public:
 	int   currentList;
 	int   neighbours[2];
 	int   count;
-	float time;
+	mpfloat time; // PERSONAL NOTE: Time is in mpfloat since Spline's 'time' may be e.g. 'wind strength' etc., not really 'time' e.g. seconds
 	float value;
 	float error;
 	int   sortChildren[2];
@@ -227,8 +227,8 @@ void FaceChannel::CleanupKeys(CFacialAnimChannelInterpolator* pSpline, float err
 	reevaluateKeysList.links[PREVIOUS] = REEVALUATE_KEYS_LIST;
 	neighbourList.neighbours[NEXT] = NEIGHBOUR_LIST;
 	neighbourList.neighbours[PREVIOUS] = NEIGHBOUR_LIST;
-	neighbourList.time = 0.0f;
-	neighbourList.value = 0.0f;
+	neighbourList.time = 0;
+	neighbourList.value = 0;
 	for (int index = 0; index < numKeys; ++index)
 	{
 		const bool selected = pSpline->IsKeySelectedAtAnyDimension(index);
@@ -296,7 +296,7 @@ void FaceChannel::CleanupKeys(CFacialAnimChannelInterpolator* pSpline, float err
 
 				// Test at critical points.
 				enum {NUM_TEST_POINTS = 3};
-				float testPoints[NUM_TEST_POINTS] = { keyEntries[index].time };
+				mpfloat testPoints[NUM_TEST_POINTS] = { keyEntries[index].time };
 				{
 					// Find the midpoint of the interval to the left of the key.
 					int lprev = keyEntries[index].neighbours[PREVIOUS];
