@@ -60,7 +60,7 @@ public:
 	//! <description>Dumps all the loaded scripts.</description>
 	int DumpLoadedScripts(IFunctionHandler* pH);
 
-	//! <code>Script.SetTimer( nMilliseconds, luaFunction [, userData [, bUpdateDuringPause]] )</code>
+	//! <code>Script.SetTimer( nTime, luaFunction [, userData [, bUpdateDuringPause]] )</code>
 	//! <description>
 	//!    Set a general script timer, when timer expires will call back a specified lua function.
 	//!    Lua function will accept 1 or 2 parameters,
@@ -73,14 +73,14 @@ public:
 	//!			-- function body
 	//!      end;</pre>
 	//! </description>
-	//!		<param name="nMilliseconds">Delay of trigger in milliseconds.</param>
+	//!		<param name="nTIme">Delay of trigger in seconds.</param>
 	//!		<param name="luaFunction">.</param>
 	//!		<param name="userData">(optional) Any user defined table. If specified will be passed as a first argument of the callback function.</param>
 	//!		<param name="bUpdateDuringPause">(optional) will be updated and trigger even if in pause mode.</param>
 	//! <returns>ID assigned to this timer or nil if not specified.</returns>
-	int SetTimer(IFunctionHandler* pH, int nMilliseconds, HSCRIPTFUNCTION hFunc);
+	int SetTimer(IFunctionHandler* pH, const CTimeValue nTime, HSCRIPTFUNCTION hFunc);
 
-	//! <code>Script.SetTimerForFunction( nMilliseconds, luaFunction [, userData [, bUpdateDuringPause]] )</code>
+	//! <code>Script.SetTimerForFunction( nTime, luaFunction [, userData [, bUpdateDuringPause]] )</code>
 	//! <description>
 	//!    Set a general script timer, when timer expires will call back a specified lua function.
 	//!    Lua function will accept 1 or 2 parameters,
@@ -93,12 +93,12 @@ public:
 	//!			-- function body
 	//!      end;</pre>
 	//!.</description>
-	//!		<param name="nMilliseconds">Delay of trigger in milliseconds.</param>
+	//!		<param name="nTIme">Delay of trigger in seconds.</param>
 	//!		<param name="luaFunction">.</param>
 	//!		<param name="userData"> (optional) Any user defined table. If specified it will be passed as a first argument of the callback function.</param>
 	//!		<param name="bUpdateDuringPause"> (optional) will be updated and trigger even if in pause mode.</param>
 	//! <returns>ID assigned to this timer or nil if not specified.</returns>
-	int SetTimerForFunction(IFunctionHandler* pH, int nMilliseconds, const char* sFunctionName);
+	int SetTimerForFunction(IFunctionHandler* pH, const CTimeValue nTime, const char* sFunctionName);
 
 	//! <code>Script.KillTimer( nTimerId )</code>
 	//! <description>Stops a timer set by the Script.SetTimer function.</description>

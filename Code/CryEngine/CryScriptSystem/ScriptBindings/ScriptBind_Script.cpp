@@ -35,8 +35,8 @@ CScriptBind_Script::CScriptBind_Script(IScriptSystem* pScriptSystem, ISystem* pS
 	SCRIPT_REG_FUNC(LoadScript);
 	SCRIPT_REG_FUNC(UnloadScript);
 	SCRIPT_REG_FUNC(DumpLoadedScripts);
-	SCRIPT_REG_TEMPLFUNC(SetTimer, "nMilliseconds,Function");
-	SCRIPT_REG_TEMPLFUNC(SetTimerForFunction, "nMilliseconds,Function");
+	SCRIPT_REG_TEMPLFUNC(SetTimer, "nTime,Function");
+	SCRIPT_REG_TEMPLFUNC(SetTimerForFunction, "nTime,Function");
 	SCRIPT_REG_TEMPLFUNC(KillTimer, "nTimerId");
 }
 
@@ -133,7 +133,7 @@ int CScriptBind_Script::DumpLoadedScripts(IFunctionHandler* pH)
 }
 
 //////////////////////////////////////////////////////////////////////////
-int CScriptBind_Script::SetTimer(IFunctionHandler* pH, int nMilliseconds, HSCRIPTFUNCTION hFunc)
+int CScriptBind_Script::SetTimer(IFunctionHandler* pH, const CTimeValue nTime, HSCRIPTFUNCTION hFunc)
 {
 	SmartScriptTable pUserData;
 	bool bUpdateDuringPause = false;
@@ -150,7 +150,7 @@ int CScriptBind_Script::SetTimer(IFunctionHandler* pH, int nMilliseconds, HSCRIP
 	timer.sFuncName[0] = 0;
 	timer.pScriptFunction = hFunc;
 	timer.pUserData = pUserData;
-	timer.nMillis = nMilliseconds;
+	timer.nTime = nTime;
 
 	int nTimerId = ((CScriptSystem*)m_pSS)->GetScriptTimerMgr()->AddTimer(timer);
 	ScriptHandle timerHandle;
@@ -160,7 +160,7 @@ int CScriptBind_Script::SetTimer(IFunctionHandler* pH, int nMilliseconds, HSCRIP
 }
 
 //////////////////////////////////////////////////////////////////////////
-int CScriptBind_Script::SetTimerForFunction(IFunctionHandler* pH, int nMilliseconds, const char* sFunctionName)
+int CScriptBind_Script::SetTimerForFunction(IFunctionHandler* pH, const CTimeValue nTime, const char* sFunctionName)
 {
 	SmartScriptTable pUserData;
 	bool bUpdateDuringPause = false;
@@ -184,7 +184,7 @@ int CScriptBind_Script::SetTimerForFunction(IFunctionHandler* pH, int nMilliseco
 	}
 	timer.pScriptFunction = 0;
 	timer.pUserData = pUserData;
-	timer.nMillis = nMilliseconds;
+	timer.nTime = nTime;
 
 	int nTimerId = ((CScriptSystem*)m_pSS)->GetScriptTimerMgr()->AddTimer(timer);
 	ScriptHandle timerHandle;

@@ -103,7 +103,7 @@ int CScriptBind_Particle::EmitParticle(IFunctionHandler* pH, Vec3 pos, Vec3 dir,
 
 //------------------------------------------------------------------------
 
-void CScriptBind_Particle::CreateDecalInternal(IFunctionHandler* pH, const Vec3& pos, const Vec3& normal, float size, float lifeTime, const char* name, bool nameIsMaterial)
+void CScriptBind_Particle::CreateDecalInternal(IFunctionHandler* pH, const Vec3& pos, const Vec3& normal, float size, const CTimeValue& lifeTime, const char* name, bool nameIsMaterial)
 {
 	CryEngineDecalInfo decal;
 
@@ -163,7 +163,7 @@ void CScriptBind_Particle::CreateDecalInternal(IFunctionHandler* pH, const Vec3&
 
 	if ((pH->GetParamCount() > 9) && (pH->GetParamType(10) != svtNull))
 	{
-		float growTime;
+		CTimeValue growTime;
 
 		pH->GetParam(10, growTime);
 		decal.fGrowTime = growTime;
@@ -171,8 +171,7 @@ void CScriptBind_Particle::CreateDecalInternal(IFunctionHandler* pH, const Vec3&
 
 	if ((pH->GetParamCount() > 10) && (pH->GetParamType(11) != svtNull))
 	{
-		float growTimeAlpha = 0.0f;
-
+		CTimeValue growTimeAlpha;
 		pH->GetParam(11, growTimeAlpha);
 		decal.fGrowTimeAlpha = growTimeAlpha;
 	}
@@ -189,13 +188,13 @@ void CScriptBind_Particle::CreateDecalInternal(IFunctionHandler* pH, const Vec3&
 	m_p3DEngine->CreateDecal(decal);
 }
 
-int CScriptBind_Particle::CreateDecal(IFunctionHandler* pH, Vec3 pos, Vec3 normal, float size, float lifeTime, const char* textureName)
+int CScriptBind_Particle::CreateDecal(IFunctionHandler* pH, Vec3 pos, Vec3 normal, float size, const CTimeValue lifeTime, const char* textureName)
 {
 	CreateDecalInternal(pH, pos, normal, size, lifeTime, textureName, false);
 	return pH->EndFunction();
 }
 
-int CScriptBind_Particle::CreateMatDecal(IFunctionHandler* pH, Vec3 pos, Vec3 normal, float size, float lifeTime, const char* materialName)
+int CScriptBind_Particle::CreateMatDecal(IFunctionHandler* pH, Vec3 pos, Vec3 normal, float size, const CTimeValue lifeTime, const char* materialName)
 {
 	CreateDecalInternal(pH, pos, normal, size, lifeTime, materialName, true);
 	return pH->EndFunction();

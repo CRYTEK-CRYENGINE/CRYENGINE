@@ -96,9 +96,9 @@ public:
 	//! <description>Checks if the system is in pure editor mode, i.e. not editor game mode.</description>
 	int IsEditing(IFunctionHandler* pH);
 
-	//! <code>System.GetCurrTime()</code>
+	//! <code>System.GetFrameStartTime()</code>
 	//! <description>Gets the current time.</description>
-	int GetCurrTime(IFunctionHandler* pH);
+	int GetFrameStartTime(IFunctionHandler* pH);
 
 	//! <code>System.GetCurrAsyncTime()</code>
 	//! <description>Gets the current asynchronous time.</description>
@@ -702,7 +702,6 @@ private:
 	ILog*      m_pLog;
 	IRenderer* m_pRenderer;
 	IConsole*  m_pConsole;
-	ITimer*    m_pTimer;
 	I3DEngine* m_p3DEngine;
 
 	//Vlad is too lazy to add this to 3DEngine">so I have to put it here. It should

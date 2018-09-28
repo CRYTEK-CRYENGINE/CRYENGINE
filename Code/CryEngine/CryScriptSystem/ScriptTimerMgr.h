@@ -21,15 +21,15 @@
 struct ScriptTimer
 {
 	int              nTimerID;
-	int64            nMillis;
-	int64            nEndTime;
-	int64            nStartTime;
+	CTimeValue       nTime;
+	CTimeValue       nEndTime;
+	CTimeValue       nStartTime;
 	char             sFuncName[128];
 	HSCRIPTFUNCTION  pScriptFunction;
 	SmartScriptTable pUserData;
 	bool             bUpdateDuringPause;
 
-	ScriptTimer() : nTimerID(0), nMillis(0), nStartTime(0), nEndTime(0), bUpdateDuringPause(0), pScriptFunction(0) { sFuncName[0] = 0; }
+	ScriptTimer() : nTimerID(0), nTime(0), nStartTime(0), nEndTime(0), bUpdateDuringPause(0), pScriptFunction(0) { sFuncName[0] = 0; }
 	void GetMemoryUsage(ICrySizer* pSizer) const { /*nothing*/ }
 };
 
@@ -48,7 +48,7 @@ public:
 	// Create a new timer and put it in the list of managed timers.
 	int  AddTimer(ScriptTimer& timer);
 	void RemoveTimer(int nTimerID);
-	void Update(int64 nCurrentTime);
+	void Update(const CTimeValue& nCurrentTime);
 	void Reset();
 	void Pause(bool bPause);
 private:

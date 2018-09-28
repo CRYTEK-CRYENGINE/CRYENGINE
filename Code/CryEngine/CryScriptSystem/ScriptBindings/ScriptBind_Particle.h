@@ -64,7 +64,7 @@ public:
 	//!		<param name="lifeTime">Decal life time.</param>
 	//!		<param name="textureName - Name of the texture.</param>
 	//! <description>Creates a decal with the specified parameters.</description>
-	int CreateDecal(IFunctionHandler* pH, Vec3 pos, Vec3 normal, float size, float lifeTime, const char* textureName);
+	int CreateDecal(IFunctionHandler* pH, Vec3 pos, Vec3 normal, float size, const CTimeValue lifeTime, const char* textureName);
 
 	//! <code>Particle.CreateMatDecal( pos, normal, size, lifeTime, materialName )</code>
 	//!		<param name="pos">Decal position.</param>
@@ -73,11 +73,11 @@ public:
 	//!		<param name="lifeTime">Decal life time.</param>
 	//!		<param name="materialName">Name of the Material.</param>
 	//! <description>Creates a material decal.</description>
-	int CreateMatDecal(IFunctionHandler* pH, Vec3 pos, Vec3 normal, float size, float lifeTime, const char* materialName);
+	int CreateMatDecal(IFunctionHandler* pH, Vec3 pos, Vec3 normal, float size, const CTimeValue lifeTime, const char* materialName);
 
 private:
 	void ReadParams(SmartScriptTable& table, ParticleParams* params, IParticleEffect* pEffect);
-	void CreateDecalInternal(IFunctionHandler* pH, const Vec3& pos, const Vec3& normal, float size, float lifeTime, const char* name, bool nameIsMaterial);
+	void CreateDecalInternal(IFunctionHandler* pH, const Vec3& pos, const Vec3& normal, float size, const CTimeValue& lifeTime, const char* name, bool nameIsMaterial);
 
 	ISystem*   m_pSystem;
 	I3DEngine* m_p3DEngine;

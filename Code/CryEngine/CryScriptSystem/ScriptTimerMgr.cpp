@@ -41,9 +41,9 @@ void CScriptTimerMgr::DeleteTimer(ScriptTimer* pTimer)
 // Create a new timer and put it in the list of managed timers.
 int CScriptTimerMgr::AddTimer(ScriptTimer& timer)
 {
-	CTimeValue nCurrTimeMillis = gEnv->pTimer->GetFrameStartTime();
-	timer.nStartTime = nCurrTimeMillis.GetMilliSecondsAsInt64();
-	timer.nEndTime = timer.nStartTime + timer.nMillis;
+	CTimeValue nCurrTime = GetGTimer()->GetFrameStartTime();
+	timer.nStartTime = nCurrTime;
+	timer.nEndTime = timer.nStartTime + timer.nTime;
 	if (!timer.nTimerID)
 	{
 		m_nLastTimerID++;
@@ -129,7 +129,7 @@ void CScriptTimerMgr::Reset()
 
 //////////////////////////////////////////////////////////////////////////
 // Update all managed timers.
-void CScriptTimerMgr::Update(int64 nCurrentTime)
+void CScriptTimerMgr::Update(const CTimeValue& nCurrentTime)
 {
 	CRY_PROFILE_FUNCTION(PROFILE_SCRIPT);
 
@@ -235,7 +235,7 @@ void CScriptTimerMgr::Serialize(TSerialize& ser)
 
 			ser.BeginGroup("timer");
 			ser.Value("id", timer.nTimerID);
-			ser.Value("millis", timer.nMillis);
+			ser.Value("nTime", timer.nTime);
 
 			string func;
 			ser.Value("func", func);
@@ -288,7 +288,7 @@ void CScriptTimerMgr::Serialize(TSerialize& ser)
 
 			ser.BeginGroup("timer");
 			ser.Value("id", pTimer->nTimerID);
-			ser.Value("millis", pTimer->nMillis);
+			ser.Value("nTime", pTimer->nTime);
 
 			nTimers++;
 			string sFuncName = pTimer->sFuncName;

@@ -196,7 +196,7 @@ void CLuaRemoteDebug::HaltExecutionLoop(lua_State* L, lua_Debug* ar, const char*
 		{
 			pNotificationNetwork->Update();
 
-			CrySleep(50);
+			CryLowLatencySleep("0.05");
 		}
 	}
 

@@ -104,7 +104,7 @@ public:
 	bool          Init(ISystem* pSystem, bool bStdLibs, int nStackSize);
 
 	void          Update();
-	void          SetGCFrequency(const float fRate);
+	void          SetGCFrequency(const CTimeValue& fRate);
 
 	void          SetEnvironment(HSCRIPTFUNCTION scriptFunction, IScriptTable* pEnv);
 	IScriptTable* GetEnvironment(HSCRIPTFUNCTION scriptFunction);
@@ -278,8 +278,8 @@ private:
 	CScriptBindings       m_stdScriptBinds;
 	ISystem*              m_pSystem;
 
-	float                 m_fGCFreq;      //!< relative time in seconds
-	float                 m_lastGCTime;   //!< absolute time in seconds
+	CTimeValue            m_fGCFreq;      //!< relative time in seconds
+	CTimeValue            m_lastGCTime;   //!< absolute time in seconds
 	int                   m_nLastGCCount; //!<
 	int                   m_forceReloadCount;
 
